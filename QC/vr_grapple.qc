@@ -65,15 +65,16 @@ float(float xHand) getOwnerOnHook =
 float() crandom;
 void(vector org, vector vel, float damage) SpawnBlood;
 
-void(entity h, vector startPos, vector endPos) GrappleTrail =
+// The rope from the gun to the hook: the player's beam, id 2 + hand (the client keeps its start
+// at the gun as drawn, every frame).
+void(float xHand, vector hookPos, vector muzzlePos) GrappleTrail =
 {
-    // draw a line to the hook
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_BEAM);
-    WriteEntity(MSG_BROADCAST, h);
-    WriteByte(MSG_BROADCAST, 0); /* disambiguator */
-    WriteVec3(MSG_BROADCAST, startPos);
-    WriteVec3(MSG_BROADCAST, endPos);
+    WriteEntity(MSG_BROADCAST, self);
+    WriteByte(MSG_BROADCAST, 2 + xHand); /* disambiguator */
+    WriteVec3(MSG_BROADCAST, muzzlePos);
+    WriteVec3(MSG_BROADCAST, hookPos);
 };
 
 void() GrappleResetFromHook =
@@ -275,7 +276,7 @@ void(float xHand) GrappleService =
 
     if(!getOnHook(xHand))
     {
-        GrappleTrail(xHook, xHook.origin - hookfwd * 6.5, VRGetMuzzlePos(xHand) + v_forward * 1.5);
+        GrappleTrail(xHand, xHook.origin - hookfwd * 6.5, VRGetMuzzlePos(xHand) + v_forward * 1.5);
         return;
     }
 
@@ -309,7 +310,7 @@ void(float xHand) GrappleService =
         self.velocity = self.velocity + (vel * 8 * frametime);
     }
 
-    GrappleTrail(xHook, xHook.origin - hookfwd * 6.5, VRGetMuzzlePos(xHand) + v_forward * 1.5);
+    GrappleTrail(xHand, xHook.origin - hookfwd * 6.5, VRGetMuzzlePos(xHand) + v_forward * 1.5);
 };
 
 

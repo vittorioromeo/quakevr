@@ -512,8 +512,9 @@ extern "C" int VR_ParseBeamEntity(int ent)
     if(!(cl.protocolflags & PRFL_QUAKEVR_PROGS))
     {
         // Another mod's progs (compatibility mode) send no beam id; still keep Ironwail from
-        // snapping the player's beam to the view: it starts at the gun (vr_compat_muzzle).
-        return ent | (1 << 16);
+        // snapping the player's beam to the view: it starts at the gun (vr_compat_muzzle), the
+        // main hand's (beam id 1).
+        return ent | (2 << 16);
     }
 
     // The QC sends a beam id so that one entity (dual-wielded lightning guns, grapple and
@@ -521,4 +522,67 @@ extern "C" int VR_ParseBeamEntity(int ent)
     // the beam start to the player origin: VR beams start at the weapon muzzle.
     const int beamId = MSG_ReadByte();
     return ent | ((beamId + 1) << 16);
+}
+
+// The player's own beams follow the gun as drawn, every frame, rather than where the server last
+// saw it (a few frames late, and stepping at the server's rate). Beam ids 0 and 1 (the off and
+// main hands' lightning) start at that hand's muzzle and aim along the hand, keeping their length;
+// 2 and 3 (the grappling hook's rope) start there and end at the hook, where it is drawn.
+extern "C" int VR_UpdateBeam(int ent, float* start, float* end)
+{
+    const int id = (ent >> 16) - 1;
+    if(!vrProtocol() || id < 0 || id > 3 || (ent & 0xFFFF) != cl.viewentity)
+    {
+        return 0;
+    }
+
+    const int hand = id & 1;
+    const hands::State& s = hands::current();
+    if(s.muzzleValid[hand])
+    {
+        const glm::vec3 muzzle = s.muzzle[hand];
+        if(id < 2)
+        {
+            const float len = glm::distance(glm::vec3{start[0], start[1], start[2]}, glm::vec3{end[0], end[1], end[2]});
+            const glm::vec3 e = muzzle + hands::forward(s.rot[hand]) * len;
+            end[0] = e.x;
+            end[1] = e.y;
+            end[2] = e.z;
+        }
+        start[0] = muzzle.x;
+        start[1] = muzzle.y;
+        start[2] = muzzle.z;
+    }
+    if(id < 2)
+    {
+        return 0;
+    }
+
+    // The rope's end: the hook as drawn (interpolated) rather than as last sent, the nearest hook
+    // to where the server put the end.
+    const entity_t* hook = nullptr;
+    float best = 48.f;
+    for(int i = 1; i < cl.num_entities; i++)
+    {
+        const entity_t& e = cl_entities[i];
+        if(!e.model || e.msgtime != cl.mtime[0] || strcmp(e.model->name, "progs/hook.mdl"))
+        {
+            continue;
+        }
+        const float d = glm::distance(glm::vec3{e.msg_origins[0][0], e.msg_origins[0][1], e.msg_origins[0][2]},
+            glm::vec3{end[0], end[1], end[2]});
+        if(d < best)
+        {
+            best = d;
+            hook = &e;
+        }
+    }
+    if(hook)
+    {
+        for(int k = 0; k < 3; k++)
+        {
+            end[k] += hook->origin[k] - hook->msg_origins[0][k];
+        }
+    }
+    return 1;
 }

@@ -362,6 +362,18 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame)
     }
 }
 
+// How hurt the player is, 0..3 (vr_body_state): the body's and the hands' damage skins
+// (make_vrbody.py, make_bloody_hands.py).
+[[nodiscard]] int damageLevel()
+{
+    if(!vr_body_state.value)
+    {
+        return 0;
+    }
+    const int health = cl.stats[STAT_HEALTH];
+    return health > 75 ? 0 : health > 50 ? 1 : health > 25 ? 2 : 3;
+}
+
 void setupHand(const hands::State& s, int hand)
 {
     const view::ViewEntity& weapon = entities.weapon[hand];
@@ -429,6 +441,7 @@ void setupHand(const hands::State& s, int hand)
 
         place(ve, Mod_ForName(fingerModels[finger], false), pos + hands::redirect(foff, handRot),
             {-handRot.x, handRot.y, handRot.z}, fingerFrame(hand, finger), mirrored);
+        ve.ent.skinnum = damageLevel();
 
         if(hide)
         {
@@ -597,8 +610,8 @@ void setupGadget(const hands::State& s)
     ve.lightMod = glm::mix(glm::vec3{1.f}, hsv(vr_gadget_tint_hue.value, 1.f, 1.f) * 1.4f, tint);
 }
 
-// Quad damage: electric arcs crawling over the hands and forearms, reshaped 20 times a second
-// (the same in both eyes).
+// Quad damage: electric arcs crawling over the hands and forearms, reshaped every frame (the same
+// in both eyes); now and then a longer one jumps between the fingers and the elbow.
 void quadArcs(const hands::State& s)
 {
     static int lastFrame = -1;
@@ -608,7 +621,7 @@ void quadArcs(const hands::State& s)
     }
     lastFrame = host_framecount;
 
-    unsigned seed = static_cast<unsigned>(realtime * 20.0) * 2654435761u;
+    unsigned seed = static_cast<unsigned>(host_framecount) * 2654435761u;
     const auto rnd = [&seed] { // 0..1
         seed = seed * 1664525u + 1013904223u;
         return static_cast<float>(seed >> 8) / static_cast<float>(1u << 24);
@@ -616,8 +629,22 @@ void quadArcs(const hands::State& s)
     const auto rndDir = [&] { return glm::normalize(glm::vec3{rnd() - 0.5f, rnd() - 0.5f, rnd() - 0.5f} + 1e-3f); };
 
     const float m2w = units::metresToUnits() * units::bodyScale();
-    const glm::vec4 core{0.75f, 0.85f, 1.f, 0.95f};
-    const glm::vec4 glow{0.3f, 0.45f, 1.f, 0.35f};
+    const auto arc = [&](glm::vec3 a, const glm::vec3& target, int segments, float jitter) {
+        const float bright = 0.6f + 0.4f * rnd();
+        const glm::vec4 core{0.75f, 0.85f, 1.f, 0.95f * bright};
+        const glm::vec4 glow{0.3f, 0.45f, 1.f, 0.35f * bright};
+        for(int seg = 1; seg <= segments; seg++)
+        {
+            glm::vec3 b = glm::mix(a, target, static_cast<float>(seg) / static_cast<float>(segments));
+            if(seg < segments)
+            {
+                b += rndDir() * (jitter * m2w);
+            }
+            lines::line(a, b, 0.6f, glow, glow);
+            lines::line(a, b, 0.15f, core, core);
+            a = b;
+        }
+    };
 
     for(int hand = 0; hand < 2; hand++)
     {
@@ -631,27 +658,21 @@ void quadArcs(const hands::State& s)
         const glm::vec3 elbow = wrist - dir * (0.26f * m2w);
         const glm::vec3 fingers = s.pos[hand] + hands::forward(s.rot[hand]) * (0.05f * m2w);
 
-        for(int bolt = 0; bolt < 3; bolt++)
+        for(int bolt = 0; bolt < 5; bolt++)
         {
-            if(rnd() < 0.25f)
+            if(rnd() < 0.3f)
             {
                 continue; // flicker
             }
             const float along = rnd();
             glm::vec3 a = along < 0.25f ? fingers : glm::mix(wrist, elbow, (along - 0.25f) / 0.75f);
             a += rndDir() * (0.03f * m2w);
-            const glm::vec3 target = a + rndDir() * ((0.04f + 0.06f * rnd()) * m2w);
-            for(int seg = 1; seg <= 4; seg++)
-            {
-                glm::vec3 b = glm::mix(a, target, seg / 4.f);
-                if(seg < 4)
-                {
-                    b += rndDir() * (0.012f * m2w);
-                }
-                lines::line(a, b, 0.6f, glow, glow);
-                lines::line(a, b, 0.15f, core, core);
-                a = b;
-            }
+            arc(a, a + rndDir() * ((0.04f + 0.06f * rnd()) * m2w), 5, 0.012f);
+        }
+        if(rnd() < 0.2f)
+        {
+            arc(fingers + rndDir() * (0.02f * m2w), glm::mix(wrist, elbow, 0.5f + 0.5f * rnd()) + rndDir() * (0.03f * m2w), 8,
+                0.02f);
         }
     }
 }
@@ -662,14 +683,12 @@ void showPlayerState(view::ViewEntity& ve, const hands::State& s)
 {
     if(vr_body_state.value)
     {
-        const int health = cl.stats[STAT_HEALTH];
-        const int damage = health > 75 ? 0 : health > 50 ? 1 : health > 25 ? 2 : 3;
         const int armor = cl.stats[STAT_ARMOR] <= 0 ? 0
                           : (cl.items & IT_ARMOR3) ? 3
                           : (cl.items & IT_ARMOR2) ? 2
                           : (cl.items & IT_ARMOR1) ? 1
                                                    : 0;
-        ve.ent.skinnum = armor * 4 + damage;
+        ve.ent.skinnum = armor * 4 + damageLevel();
     }
     else
     {

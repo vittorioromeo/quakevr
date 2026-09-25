@@ -179,7 +179,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         cycle("Build", vr_body_build, {{0.f, "Lean"}, {1.f, "Athletic"}, {2.f, "Brawny"}}),
         toggle("Walking Legs", vr_body_walk).help("The legs (full body) walk as you move with the stick."),
         toggle("Show Armour and Wounds", vr_body_state)
-            .help("The armour you wear plates your torso; your arms get bloodier as you are hurt."),
+            .help("The armour you wear plates your torso; your arms and hands get bloodier as you are hurt."),
         toggle("Show Powerups", vr_body_powerups)
             .help("Quad damage sparks around your hands, the pentagram makes you glow, the ring fades you."),
         toggle("Anchors Follow Body", vr_body_anchors)
@@ -191,10 +191,8 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Eyes Forward", vr_body_eye_forward, 0.f, 0.2f, 0.01f, "%.2f m")
             .help("From the top of the neck to the eyes, forward."),
         slider("Eyes Up", vr_body_eye_up, 0.f, 0.2f, 0.01f, "%.2f m").help("From the top of the neck to the eyes, up."),
-        slider("Crouch: Knees", vr_body_crouch_knees, 0.f, 0.6f, 0.05f, "%.2f m")
-            .help("How much of a crouch the legs take entirely before the back bends."),
-        slider("Crouch: Legs Share", vr_body_crouch_legs, 0.f, 1.f, 0.05f, "%.2f")
-            .help("Beyond that, the legs' share of the crouch (the rest bends the back)."),
+        slider("Crouch Tilt", vr_body_crouch_tilt, 0.f, 60.f, 5.f, "%.0f deg")
+            .help("How far the back tilts forward in a full crouch (the hips stay under you)."),
         slider("Arm Length", vr_body_arm_length, 0.8f, 1.3f, 0.01f, "%.2f"),
         slider("Arm Stretch", vr_body_arm_stretch, 1.f, 1.5f, 0.05f, "%.2f")
             .help("How far arms may stretch to reach the hands (1: not at all)."),

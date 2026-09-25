@@ -178,9 +178,9 @@ struct Body
     return p.pos + p.rot * o;
 }
 
-// The spine from the head. The top of the neck is found behind and below the eyes; its drop
-// below the standing height is taken partly by the legs (the pelvis drops) and partly by the
-// back, which leans forward to keep its length.
+// The spine from the head. The top of the neck is found behind and below the eyes. A crouch lowers
+// the pelvis straight down under the neck (the legs bend) and tilts the back forward about it, as a
+// person crouching does; when the pelvis can go no lower, the back bends further.
 void solveTorso(const hands::State& s, Body& b)
 {
     const Bind& bd = bind();
@@ -196,32 +196,22 @@ void solveTorso(const hands::State& s, Body& b)
     const glm::vec3 top = s.head - (hf * vr_body_eye_forward.value + hu * vr_body_eye_up.value) * b.m2w;
 
     const float torsoLen = glm::distance(bd.pos[Pelvis], bd.pos[Head]) * b.m2w;
-    // The knees take the first vr_body_crouch_knees metres of a drop entirely (standing a little
-    // lower than calibrated must not bend the back: with the back's length kept, a few
-    // centimetres there would push the hips far back); beyond that, vr_body_crouch_legs of it.
+    // How deep the crouch is: 0 standing, 1 with the pelvis at squatting height.
+    const float standZ = b.floorZ + bd.pos[Pelvis].z * b.m2w;
+    const float squatZ = b.floorZ + 0.3f * b.m2w;
     const float drop = std::max(0.f, b.floorZ + bd.pos[Head].z * b.m2w - top.z);
-    const float knees = std::max(0.f, vr_body_crouch_knees.value) * b.m2w;
-    const float legDrop = std::min(drop, knees) + std::max(0.f, drop - knees) * CLAMP(0.f, vr_body_crouch_legs.value, 1.f);
-    float pelvisZ = b.floorZ + bd.pos[Pelvis].z * b.m2w - legDrop;
-    pelvisZ = std::max(pelvisZ, b.floorZ + 0.3f * b.m2w);  // squatting
+    const float crouch = standZ > squatZ ? std::min(1.f, drop / (standZ - squatZ)) : 0.f;
+    const float tilt = glm::radians(CLAMP(0.f, vr_body_crouch_tilt.value, 80.f)) * crouch;
+    float pelvisZ = std::max(top.z - torsoLen * std::cos(tilt), squatZ);
     pelvisZ = std::min(pelvisZ, top.z - 0.3f * torsoLen); // lying down: keep the back from folding over
-
-    glm::vec3 pelvis;
     const float dz = top.z - pelvisZ;
-    if(dz >= torsoLen)
-    {
-        pelvis = top - UP * torsoLen;
-    }
-    else
-    {
-        pelvis = glm::vec3{top.x, top.y, pelvisZ} - b.fwd * std::sqrt(torsoLen * torsoLen - dz * dz);
-    }
+    const float lean = dz < torsoLen ? std::sqrt(torsoLen * torsoLen - dz * dz) : 0.f;
 
-    // The torso sits a little behind the neck, so that looking down shows the chest rather than
-    // the top of the shoulders just under the eyes.
+    // The torso sits vr_body_torso_back behind the neck (looking down shows the chest rather than
+    // the top of the shoulders), the pelvis under it; the back leans forward from there.
     const glm::vec3 back = b.fwd * (vr_body_torso_back.value * b.m2w);
-    pelvis -= back;
-    const glm::vec3 axis = safeNormalize(top - back - pelvis);
+    const glm::vec3 pelvis = glm::vec3{top.x, top.y, pelvisZ} - back;
+    const glm::vec3 axis = safeNormalize(b.fwd * lean + UP * std::min(dz, torsoLen));
 
     Bone& p = b.bones[Pelvis];
     p = Bone{};

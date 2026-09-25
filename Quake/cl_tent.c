@@ -303,6 +303,7 @@ void CL_UpdateTEnts (void)
 	entity_t	*ent;
 	float		yaw, pitch;
 	float		forward;
+	int			rope; // QVR
 
 	num_temp_entities = 0;
 
@@ -319,6 +320,7 @@ void CL_UpdateTEnts (void)
 		{
 			VectorCopy (cl_entities[cl.viewentity].origin, b->start);
 		}
+		rope = VR_UpdateBeam (b->entity, b->start, b->end); // QVR
 
 	// calculate pitch and yaw
 		VectorSubtract (b->end, b->start, dist);
@@ -356,7 +358,7 @@ void CL_UpdateTEnts (void)
 			ent->model = b->model;
 			ent->angles[0] = pitch;
 			ent->angles[1] = yaw;
-			ent->angles[2] = rand()%360;
+			ent->angles[2] = rope ? 0 : rand()%360; // QVR
 			ent->scale = ENTSCALE_ENCODE (beamscale); // QVR
 
 			//johnfitz -- use j instead of using i twice, so we don't corrupt memory

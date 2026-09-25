@@ -2534,7 +2534,7 @@ void(entity targ, entity attacker) ClientObituary =
 
 void(string xSound, void(float xHand) xWpnFn) DoMainHandMeleeImpl =
 {
-    if(time >= self.mainhand_melee_attack_finished)
+    if(xSound != "" && time >= self.mainhand_melee_attack_finished)
     {
         sound(self, CHAN_WEAPON, xSound, 1, ATTN_NORM);
     }
@@ -2555,7 +2555,7 @@ float(float xWpnId, string xSound, void(float xHand) xWpnFn) DoMainHandMelee =
 
 void(string xSound, void(float xHand) xWpnFn) DoOffHandMeleeImpl =
 {
-    if(time >= self.offhand_melee_attack_finished)
+    if(xSound != "" && time >= self.offhand_melee_attack_finished)
     {
         sound(self, CHAN_WEAPON2, xSound, 1, ATTN_NORM);
     }
@@ -2608,10 +2608,12 @@ void(float xHand, float xInMelee, float xHandVelMag,
     if(VRHandsTracked(self) && time >= xInMelee && xHandVelMag > vr_melee_threshold &&
        !VRGetMeleeHitSoundPlayed(xHand))
     {
+        // A gun's swing makes no whoosh, only its hit: reaching down to a holster to reload
+        // is a fast swing too.
         if(!DoXHandMelee(xHand, WID_FIST, "knight/sword1.wav", W_FistMelee))
             if(!DoXHandMelee(xHand, WID_AXE, "weapons/ax1.wav", W_FireAxe))
                 if(!DoXHandMelee(xHand, WID_MJOLNIR, "weapons/ax1.wav", HIP_FireMjolnir))
-                    DoXHandMeleeImpl(xHand, "knight/sword1.wav", W_GunMelee);
+                    DoXHandMeleeImpl(xHand, "", W_GunMelee);
 
         *xOutMeleeAttackFinished = time + 0.1;
         *xOutInMelee = time + 0.02;

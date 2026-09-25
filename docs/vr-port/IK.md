@@ -181,8 +181,8 @@ the rest of the port was. Only the feel needs the headset.
 - **Solver** (`Quake/vr/vr_avatar.cpp`):
   - The top of the neck is found behind and below the eyes. The torso sits `vr_body_torso_back` (0.1 m) behind
     it, so looking down shows the chest rather than the top of the shoulders.
-  - A crouch drops the pelvis by `vr_body_crouch_legs` (0.7) of the head's drop. The back leans to absorb the
-    rest.
+  - A crouch lowers the pelvis straight down under the neck and tilts the back forward about it, up to
+    `vr_body_crouch_tilt` (25) degrees in a full crouch. Below squatting height the back bends further.
   - The clavicles rise and swing forward when reaching up or far forward.
   - Each arm is a two-bone chain to the drawn hand's wrist (the centre of `hand_base.mdl`'s wrist). The elbow
     points down, `vr_body_elbow_out` outward, `vr_body_elbow_back` backward, and `vr_body_elbow_hand` away from the

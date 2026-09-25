@@ -125,6 +125,14 @@ came. `developer 1` prints the spawned velocity, gravity, spin and age.
 ## What to try
 
 - **New in this round** (details in the commit log):
+  - **Crouching** keeps the hips under you and tilts the back forward (Advanced > Body: Crouch Tilt), instead of
+    pulling the torso back.
+  - **Bloody hands:** the hands and fingers get bloodier with the arms.
+  - **Quad damage arcs** reshape every frame, with more of them and now and then a longer one.
+  - **Grappling hook rope and lightning beam** start at the gun as drawn, every frame (they trailed behind it at
+    the server's rate); the rope no longer twists randomly.
+  - **Reloading:** a gun's swing makes no whoosh unless it hits something (the whoosh was what you heard when
+    reaching down to reload), and a downward swing now ignores walls and floors from a shallower angle.
   - **Other mods in VR:** `-game quakevr -game <mod>` runs another mod's progs in VR (compatibility mode): you
     aim with your hand, its weapons fire from your gun, you move by your head, walk the room and teleport. No
     off-hand weapons, holsters or hand pickups there yet. See `docs/vr-port/MODS.md`; please try a mod you like.
@@ -185,7 +193,7 @@ came. `developer 1` prints the spawned velocity, gravity, spin and age.
   pose, `vr_body_debug 2` (facing you) or `3` (from the side) shows a copy in front of you. Things to tell me:
   - where the elbows go when you aim, reload or reach behind you;
   - whether looking down at your chest feels right (`vr_body_torso_back`, metres the torso sits behind your neck);
-  - whether crouching looks right (`vr_body_crouch_legs`).
+  - whether crouching looks right (`vr_body_crouch_tilt`, degrees the back tilts forward in a full crouch).
 
   The tuning cvars are listed in `docs/vr-port/IK.md`. Holsters and the virtual stock now follow the body when you
   crouch or lean; `vr_body_anchors 0` restores the old placement for comparison.

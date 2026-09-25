@@ -6,6 +6,7 @@
 #
 # Run it on the original model, not on its own output: the original is
 #   git show 03ed2b93~1:quakevr/progs/hand_base.mdl > hand_base_orig.mdl
+# and then make_bloody_hands.py again (the original has only its own skin).
 #
 # Model space: +x towards the fingers; the wrist's centre is at (-6.86, -1.08, 1.42), the model's
 # end at x -6.97. Vertices behind TAPER_START are pulled towards the wrist's axis, down to
