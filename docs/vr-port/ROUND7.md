@@ -14,7 +14,7 @@
 | 10 | Headshot sound not heard; the "Gameplay" menu missing | done |
 | 11 | Gameplay menu: damage multipliers (player to enemies, enemies to player, headshots, ...) | done |
 | 12 | Headbutt from the old port | done (reworked) |
-| 13 | Immersion, VR interactions, "juice" | |
+| 13 | Immersion, VR interactions, "juice" | first batch done; more ideas below |
 
 ## Notes
 
@@ -104,3 +104,34 @@
     Now (`vr_headbutt`, `vr_headbutt_speed` 1.5 m/s, `vr_headbutt_damage` 32): only a lunge towards where you look
     counts, it hits what is within 18 units of your eyes as the head stops, for the damage times the lunge's speed
     over the threshold (up to three times), pushes it, and waits 0.4 s before the next. No sound unless it hits.
+13. **Juice, first batch** (`QC/vr_juice.qc`, `combat.qc`; Gameplay > Feel):
+    - **Hit reactions** (`vr_hit_push`):
+      - a heavy hit (15 damage or more in one go; a shotgun blast counts as one) shoves a monster back;
+      - a killing blow throws the body, away from the explosion for blasts;
+      - with melee push-back (item 7), fights move.
+    - **Directional damage haptics:** a hit is felt more in the hand on the side it came from, longer and
+      stronger the harder it is (it was the same half-second buzz in both hands).
+    - **Explosion rumble** (`vr_explosion_rumble`): explosions near you rumble in both hands, fading with
+      distance.
+    - **Low-health heartbeat** (`vr_heartbeat`): below 30 health, a double beat in both hands, faster the lower
+      it is.
+    - **Batting projectiles back** (`vr_deflect`): a fast swing of a weapon, or a fist, through a monster's
+      projectile (a knight's spike, an enforcer's laser, a scrag's spit, a vore's ball, an ogre's grenade) sends
+      it back where your hand points, faster, and it now hurts monsters. A vore's ball homes on the vore. You
+      hear a clang and see sparks. **Not tested in the mock** (no projectile came near the scripted swing);
+      the code follows each monster's projectile code.
+    - Already there: pressing buttons by hand, bloody hands, parry sparks and wobble, force grab, carrying and
+      throwing boxes, thrown weapons, headbutts.
+
+    **More ideas, for you to pick** (not done):
+    - **Grab and throw gibs and heads:** pick up a grunt's head and throw it (the rigid-body physics exists).
+    - **Shell casings:** the shotguns and nailguns eject casings that bounce and clink.
+    - **Physical reload:** pump the shotgun with the off hand; open the super shotgun by flicking and load
+      shells by hand.
+    - **Grab monsters:** hold a zombie or a dog at arm's length; throw zombies.
+    - **Blood and scorch decals** on walls and floors.
+    - **Weapon heat:** the nailgun's and lightning gun's barrels glow after long fire, with a hiss.
+    - **Wounded monsters limp or crawl;** a leg shot slows them (positional damage exists).
+    - **Hand-operated doors and levers:** push doors open with a hand, pull levers.
+    - **Two-handed sword grip** for heavier swings; a sword blocks projectiles more easily.
+    - **Breath and heartbeat sounds** at low health and under water.

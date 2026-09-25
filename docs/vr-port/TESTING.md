@@ -124,7 +124,26 @@ came. `developer 1` prints the spawned velocity, gravity, spin and age.
 
 ## What to try
 
-- **New in this round** (details and what I could not test in `docs/vr-port/ROUND6.md`):
+- **New in this round** (details and what I could not test in `docs/vr-port/ROUND7.md`):
+  - **The look:** darker rooms lit by their lamps; your shots light the room up (coloured by the weapon);
+    lamps, buttons and panels glow (bloom), and glowing textures light the walls round them (your relit maps
+    were re-made). Graphics: Light Contrast, Bloom, Muzzle Flash Light, Explosion Light, Coloured Lights;
+    "Off (Quake)" restores Quake's look.
+  - **Gameplay page** (Advanced VR Options > Gameplay): damage multipliers (to enemies, to you, self),
+    headshot/arm/leg multipliers, the headshot sound (now a clear crack), push-back, feel options, headbutt,
+    knights' swords.
+  - **Push-back:** your melee blows and headbutts push monsters (bodies too), their blows push you, parries
+    push both apart; heavy shots shove monsters and killing blows throw the bodies.
+  - **Headbutt:** lunge your head at a monster (towards where you look).
+  - **Bat back projectiles:** swing a weapon or fist through a spike, laser, spit or grenade. Please try.
+  - **Haptics:** hits felt on the side they come from, explosions rumble, a heartbeat at low health.
+  - **Knights' swords:** a grip and pommel, the knight's own look, held like the axe.
+  - **Boxes:** grabbed only when your hand touches them; put in your pack by letting go at a holster (hip or
+    shoulder); the trigger is an option (Throwing and Physics > Take a Box). Their shadows are their size.
+  - **Swimming:** the stick is 20% under water; strokes push more where the stick points.
+  - **Blob shadows** are named so, and Auto (off where real shadows fall) by default.
+
+- **Previous round** (`docs/vr-port/ROUND6.md`):
   - **Carrying boxes:** grip an ammo or health box to hold it, pull the trigger to take it, let go to throw it
     (thrown hard it hurts). A hand or gun touching a box without gripping nudges it. While a hand holds a box it
     cannot take a weapon; punching with a box in hand hits harder. Advanced > Throwing and Physics.
