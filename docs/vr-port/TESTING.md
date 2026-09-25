@@ -124,7 +124,17 @@ came. `developer 1` prints the spawned velocity, gravity, spin and age.
 
 ## What to try
 
-- **New in this round** (details and what I could not test in `docs/vr-port/ROUND7.md`):
+- **New in this round** (details in `docs/vr-port/ROUND8.md`):
+  - **Unarmed parry:** cross your arms in an X in front of you as a blow lands.
+  - **Bash:** in a guard (a weapon held across in front, or both hands together, crossed or not), drive forward
+    hard: little damage, the monster is thrown back and staggers. Also a two-handed shove with empty hands.
+  - **Force grab:** what you point at glows softly; a faint beam when aiming, a crackling energy tendril when
+    locked on and while it flies to you, with a sparkle trail. (Force Grab: Outline, Effects.)
+  - **Decals:** blood pools and spatter, gib blood trails, scorch marks, bullet chips (Graphics: Decals).
+  - **Gibs and heads:** pick them up, throw them (they hurt), force-grab them.
+  - **Pickup sparkles** are faint and slow.
+
+- **Previous round** (`docs/vr-port/ROUND7.md`):
   - **The look:** darker rooms lit by their lamps; your shots light the room up (coloured by the weapon);
     lamps, buttons and panels glow (bloom), and glowing textures light the walls round them (your relit maps
     were re-made). Graphics: Light Contrast, Bloom, Muzzle Flash Light, Explosion Light, Coloured Lights;

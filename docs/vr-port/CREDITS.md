@@ -81,6 +81,7 @@ articles, talks and other engines' source are credited with where they came from
 - **Bloom's blur:** the 9-tap Gaussian in five linear taps (its weights and offsets) is from Daniel Rákos,
   ["Efficient Gaussian blur with linear sampling"](https://www.rastergrid.com/blog/2010/09/efficient-gaussian-blur-with-linear-sampling/)
   (2010).
+- **Decals** blend by modulating the surface (the scene times the mark), as DarkPlaces' decals do (LordHavoc).
 - **Glowing textures' light:** ericw-tools' surface lights (`_surface` light entities), by Eric Wasylishen and
   contributors.
 - **q2pro-ng** (skullernet): per-pixel dynamic lights shared by world and models, a D32F shadow atlas with a static
