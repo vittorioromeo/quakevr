@@ -479,6 +479,39 @@ float(entity p, float hand, vector toAttacker) VR_Parry_Blocks =
     return ahead > 2 && ahead < 44 && rel_z > -8 && rel_z < 50;
 };
 
+// Whether `p` holds both empty hands crossed in front (an X, wrists together), facing a blow from
+// `toAttacker`: each hand on the other's side of the body, close to the other, ahead of the body,
+// between the hips and above the head (vr_parry_unarmed).
+float(entity p, vector toAttacker) VR_Parry_ArmsCrossed =
+{
+    if(!cvar_hget(cvarh_vr_parry_unarmed) || !VRIsHandEmpty(p, cVR_MainHand) || !VRIsHandEmpty(p, cVR_OffHand))
+    {
+        return FALSE;
+    }
+    vector m = VRGetEntHandPos(p, cVR_MainHand) - p.origin;
+    vector o = VRGetEntHandPos(p, cVR_OffHand) - p.origin;
+    if(vlen(m - o) > 16)
+    {
+        return FALSE;
+    }
+    for(float i = 0; i < 2; i++)
+    {
+        vector rel = i == 0 ? m : o;
+        float ahead = rel * toAttacker;
+        if(ahead < 2 || ahead > 40 || rel_z < -4 || rel_z > 50)
+        {
+            return FALSE;
+        }
+    }
+    // Crossed: the main hand on the off hand's side (the left for the right-handed).
+    vector right;
+    right_x = toAttacker_y;
+    right_y = -toAttacker_x;
+    right_z = 0;
+    float mainRight = cvar("vr_lefthanded") ? -1 : 1;
+    return (m * right - o * right) * mainRight < -1;
+};
+
 float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
 {
     if(!cvar_hget(cvarh_vr_parry) || damage <= 0 || targ.classname != "player" || !VRHandsTracked(targ) ||
@@ -509,6 +542,27 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
     else if(VR_Parry_Blocks(targ, cVR_OffHand, to))
     {
         hand = cVR_OffHand;
+    }
+
+    // Unarmed: arms crossed in front take the blow on the forearms (both hands knocked, less taken
+    // off than with a weapon).
+    if(hand < 0 && VR_Parry_ArmsCrossed(targ, to))
+    {
+        entity oldSelfX = self;
+        self = targ;
+        sound(self, CHAN_AUTO, "fisthit.wav", 1, ATTN_NORM);
+        sound(self, CHAN_AUTO, "demon/dland2.wav", 0.5, ATTN_NORM);
+        haptic(cVR_MainHand, 0.0, 0.3, 60, 1.0);
+        haptic(cVR_OffHand, 0.0, 0.3, 60, 1.0);
+        handimpact(cVR_MainHand, 4, to * -1);
+        handimpact(cVR_OffHand, 4, to * -1);
+        particle2(VRGetHandPos(cVR_MainHand) + to * 4, (to * -1 + '0 0 0.5') * 60, QVR_PARTICLE_PRESET_BULLETPUFF, 12);
+        self = oldSelfX;
+
+        VR_Push(attacker, to, 260 * cvar_hget(cvarh_vr_parry_push_enemy), 90 * cvar_hget(cvarh_vr_parry_push_enemy));
+        VR_Push(targ, to * -1, 200 * cvar_hget(cvarh_vr_parry_push_player), 40 * cvar_hget(cvarh_vr_parry_push_player));
+        dprint("parry: "); dprint(attacker.classname); dprint(" with crossed arms\n");
+        damage = damage * (1 - min(1, max(0, cvar_hget(cvarh_vr_parry_unarmed_reduction))));
     }
 
     if(hand >= 0)

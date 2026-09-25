@@ -415,8 +415,8 @@ void run()
                 p.org.z += 18.f * dt;
                 break;
             case GunPickup:
-                fade(p, -120.f);
-                p.scale -= 0.2f * dt;
+                fade(p, -80.f);
+                p.scale -= 0.1f * dt;
                 break;
             default: break;
         }
@@ -568,8 +568,9 @@ bool spawn(const glm::vec3& org, const glm::vec3& dir, int preset, int count)
         case Sparks: sparks(org, count, 102, 112, 0.45f, 0.0); break;
         case GunSmokePreset: gunSmoke(org, count); break;
         case Teleport: sparks(org, count, 208, 220, 0.65f, 0.6); break;
-        case GunPickupPreset: sparkles(org, count, 12, 16, 150, 200, 0.5, 0.35f, -0.2f, 2.f, 16.f, -10.f, 30.f); break;
-        case GunForceGrab: sparkles(org, count, 106, 111, 180, 225, 0.6, 0.35f, -0.3f, 2.f, 24.f, 0.f, 40.f); break;
+        // Subtle and slow: faint, small, drifting up.
+        case GunPickupPreset: sparkles(org, count, 12, 16, 70, 120, 1.6, 0.22f, -0.03f, 6.f, 2.f, 1.f, 6.f); break;
+        case GunForceGrab: sparkles(org, count, 106, 111, 90, 140, 1.2, 0.25f, -0.04f, 5.f, 3.f, 1.f, 8.f); break;
         case LavaSpike: sparkles(org, count, 247, 254, 180, 225, 0.5, 0.17f, 0.17f, 0.3f, 2.f, 0.f, 0.f); break;
         case BigSmoke: smoke(org, count, true); break;
         default: blood(org, dir, count); break;

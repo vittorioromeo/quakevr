@@ -191,6 +191,13 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Monsters' Blows Push You", vr_melee_push_player, 0.f, 3.f, 0.1f, "%.1fx"),
         slider("Parry Pushes Enemy", vr_parry_push_enemy, 0.f, 3.f, 0.1f, "%.1fx"),
         slider("Parry Pushes You", vr_parry_push_player, 0.f, 3.f, 0.1f, "%.1fx"),
+        header("Parry and Bash"),
+        toggle("Unarmed Parry", vr_parry_unarmed).help("Cross your arms in an X in front of you to block a blow with your forearms."),
+        slider("Unarmed Parry Reduction", vr_parry_unarmed_reduction, 0.f, 1.f, 0.05f, "%.2f"),
+        toggle("Bash", vr_bash).help("While guarding (a weapon held across in front, or both hands together), drive forward hard: knocks monsters back and staggers them."),
+        slider("Bash Speed", vr_bash_speed, 0.8f, 3.f, 0.1f, "%.1f m/s").help("How fast the guard must drive forward."),
+        slider("Bash Damage", vr_bash_damage, 0.f, 40.f, 1.f, "%.0f"),
+        slider("Bash Push", vr_bash_push, 0.f, 3.f, 0.1f, "%.1fx"),
         header("Feel"),
         slider("Hit Reactions", vr_hit_push, 0.f, 3.f, 0.1f, "%.1fx").help("Heavy hits shove monsters back; killing blows and explosions throw the bodies."),
         toggle("Bat Back Projectiles", vr_deflect).help("Swing a weapon (or a fist) through a monster's spike, laser, spit or grenade to send it back where your hand points."),
@@ -314,6 +321,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         header("Carrying Boxes"),
         toggle("Carry Ammo and Health", vr_carry)
             .help("Grip a box to carry it, push it with a hand or gun. Off: touching takes it."),
+        toggle("Grab Gibs and Heads", vr_grab_gibs).help("Pick up, throw and force-grab gibs and heads."),
         cycle("Take a Box", vr_carry_take, {{0.f, "At a holster"}, {1.f, "Trigger"}, {2.f, "Either"}})
             .help("At a holster: let go of it at a hip or shoulder holster to put it in your pack."),
         slider("Push Strength", vr_carry_nudge, 0.f, 2.f, 0.1f, "%.1fx"),

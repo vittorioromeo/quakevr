@@ -2713,6 +2713,7 @@ void() PlayerVRMelee =
 {
     PlayerVRMeleeHeadbutt();
     VR_Heartbeat();
+    VR_Bash();
 
     PlayerVRMeleeImpl(
         cVR_MainHand,

@@ -501,7 +501,7 @@ void(float xHand) VR_Forcegrab_HandFrame =
     }
 
     VR_Forcegrab_Set(xHand, best, FALSE);
-    if(cvar_hget(cvarh_vr_forcegrab_eligible_particles) && random() < 0.35)
+    if(cvar_hget(cvarh_vr_forcegrab_eligible_particles) && random() < 0.12)
     {
         particle2(VR_Forcegrab_Centre(best), '0 0 0', QVR_PARTICLE_PRESET_GUNFORCEGRAB, 1);
     }

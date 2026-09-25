@@ -1,11 +1,14 @@
 // vr_juice.qc -- feedback that makes fights physical (docs/vr-port/ROUND7.md, item 13):
 // - batting enemy projectiles back with a melee swing (vr_deflect);
-// - a heartbeat in the hands when your health is low (vr_heartbeat).
+// - a heartbeat in the hands when your health is low (vr_heartbeat);
+// - bashing (vr_bash): driving a guard forward (a weapon held across in front, as for a parry) or
+//   shoving with both empty hands knocks monsters back and staggers them.
 // Hit reactions (vr_hit_push), explosion rumble (vr_explosion_rumble) and directional damage haptics
 // are in combat.qc.
 
 .float vr_deflect_time;   // on a projectile: when it was last batted back
 .float vr_heartbeat_time; // on a player: the next heartbeat
+.float vr_bash_time;      // on a player: when the next bash may be
 
 // Whether `e` is a monster's projectile in flight (a knight's spike, an enforcer's laser, a
 // scrag's spit, a vore's ball, an ogre's grenade, ...).
@@ -92,4 +95,107 @@ void() VR_Heartbeat =
     haptic(cVR_MainHand, 0.0, 0.07, 25, 0.8);
     haptic(cVR_OffHand, 0.18, 0.06, 25, 0.45);
     haptic(cVR_MainHand, 0.18, 0.06, 25, 0.45);
+};
+
+// Whether `xHand` of `self` drives forward (along the body's facing `xForward`) faster than
+// vr_bash_speed (m/s).
+float(float xHand, vector xForward) VR_Bash_Driving =
+{
+    vector v = xHand == cVR_OffHand ? self.offhandvel : self.handvel;
+    return v * xForward > cvar_hget(cvarh_vr_bash_speed);
+};
+
+// A bash (vr_bash): a guard driven forward hard -- a weapon held across in front (the parry pose),
+// or both empty hands together (crossed or side by side: a shove). What is just ahead takes a little
+// damage (vr_bash_damage), is thrown back (vr_bash_push) and staggers (its pain animation, forced).
+void() VR_Bash =
+{
+    if(!cvar_hget(cvarh_vr_bash) || !self.ishuman || self.health <= 0 || time < self.vr_bash_time ||
+       !VRHandsTracked(self))
+    {
+        return;
+    }
+
+    vector oldForward = v_forward;
+    vector oldRight = v_right;
+    vector oldUp = v_up;
+    makevectors('0 1 0' * self.v_angle_y);
+    vector fwd = v_forward;
+    v_forward = oldForward;
+    v_right = oldRight;
+    v_up = oldUp;
+
+    float armed = FALSE;
+    float hand = -1;
+    if(VR_Parry_Blocks(self, cVR_MainHand, fwd) && VR_Bash_Driving(cVR_MainHand, fwd))
+    {
+        hand = cVR_MainHand;
+        armed = TRUE;
+    }
+    else if(VR_Parry_Blocks(self, cVR_OffHand, fwd) && VR_Bash_Driving(cVR_OffHand, fwd))
+    {
+        hand = cVR_OffHand;
+        armed = TRUE;
+    }
+    else if(VRIsHandEmpty(self, cVR_MainHand) && VRIsHandEmpty(self, cVR_OffHand) &&
+            VR_Bash_Driving(cVR_MainHand, fwd) && VR_Bash_Driving(cVR_OffHand, fwd))
+    {
+        // Both hands together, in front at chest height.
+        vector m = VRGetHandPos(cVR_MainHand) - self.origin;
+        vector o = VRGetHandPos(cVR_OffHand) - self.origin;
+        if(vlen(m - o) < 30 && m * fwd > 2 && o * fwd > 2 && m_z > -4 && o_z > -4 && m_z < 50 && o_z < 50)
+        {
+            hand = cVR_MainHand;
+        }
+    }
+    if(hand < 0)
+    {
+        return;
+    }
+
+    // What is just ahead of the hands.
+    vector at = (VRGetHandPos(cVR_MainHand) + VRGetHandPos(cVR_OffHand)) * 0.5;
+    if(armed)
+    {
+        at = VRGetHandPos(hand);
+    }
+    float hits = 0;
+    entity e = findradius(at + fwd * 24, 48);
+    while(e)
+    {
+        if(e != self && e.takedamage && e.health > 0 && (e.flags & FL_MONSTER) &&
+           normalize(e.origin - self.origin) * fwd > 0.3)
+        {
+            hits = hits + 1;
+            T_Damage(e, self, self, cvar_hget(cvarh_vr_bash_damage));
+            float push = cvar_hget(cvarh_vr_bash_push);
+            VR_Push(e, fwd, 520 * push, 140 * push);
+            if(e.health > 0 && e.th_pain)
+            {
+                // Staggered: its pain, whatever its own chance of flinching.
+                entity oldSelf = self;
+                self = e;
+                e.pain_finished = 0;
+                e.th_pain(oldSelf, cvar_hget(cvarh_vr_bash_damage));
+                e.attack_finished = time + 1;
+                self = oldSelf;
+            }
+            SpawnBloodSplash(e.origin + '0 0 16', 4);
+        }
+        e = e.chain;
+    }
+
+    if(!hits)
+    {
+        return; // a push at the air: nothing, no cooldown
+    }
+    self.vr_bash_time = time + 0.8;
+    sound(self, CHAN_AUTO, armed ? "player/axhit2.wav" : "fisthit.wav", 1, ATTN_NORM);
+    sound(self, CHAN_AUTO, "demon/dland2.wav", 0.7, ATTN_NORM);
+    haptic(cVR_MainHand, 0.0, 0.25, 70, 1.0);
+    haptic(cVR_OffHand, 0.0, 0.25, 70, 1.0);
+    handimpact(cVR_MainHand, 3, fwd * -1);
+    handimpact(cVR_OffHand, 3, fwd * -1);
+    particle2(at + fwd * 12, fwd * 80, QVR_PARTICLE_PRESET_BULLETPUFF, 16);
+    dprint("bash: "); dprint(ftos(hits)); dprint(armed ? " (weapon)\n" : " (hands)\n");
 };

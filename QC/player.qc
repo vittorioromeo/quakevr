@@ -778,6 +778,7 @@ void(string gibname, float dm) ThrowGib =
     new.nextthink = time + 10 + random()*10;
     new.frame = 0;
     new.flags = 0;
+    VR_MakeGibGrabbable(new);
 
     particle2(self.origin, new.velocity, QVR_PARTICLE_PRESET_BLOOD, 40);
 };
@@ -814,6 +815,7 @@ void(string gibname, float dm) ThrowHead =
 //MED
     self.gorging = TRUE;
     self.think = HeadThink;
+    VR_MakeGibGrabbable(self);
 
     particle2(self.origin, self.velocity, QVR_PARTICLE_PRESET_BLOOD, 40);
 };

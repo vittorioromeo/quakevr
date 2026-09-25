@@ -696,8 +696,9 @@ void() weapon_item_think =
 {
     if(self.model != string_null)
     {
-        particle2(self.origin, '0 0 0', QVR_PARTICLE_PRESET_GUNPICKUP, 2);
-        self.nextthink2 = time + 0.05;
+        // A faint sparkle now and then, drifting up (Quake VR's was a busy fountain).
+        particle2(self.origin, '0 0 0', QVR_PARTICLE_PRESET_GUNPICKUP, 1);
+        self.nextthink2 = time + 0.25;
     }
 }
 

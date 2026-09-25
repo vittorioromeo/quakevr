@@ -239,6 +239,12 @@ void(float xHand) VR_Carry_HandFrame =
         return;
     }
 
+    // A held gib does not vanish.
+    if(box.think == SUB_Remove && box.nextthink < time + 5)
+    {
+        box.nextthink = time + 5;
+    }
+
     float takeMode = cvar_hget(cvarh_vr_carry_take);
     if(!VR_HandGrabUtil_IsHandGrabbing(self, xHand))
     {
@@ -337,6 +343,48 @@ void() VR_Carry_Weapontouch =
         return;
     }
     VR_Carry_Nudge(other, VRGetTouchingHand(other), self);
+};
+
+// ----------------------------------------------------------------------------
+// Gibs and heads (vr_grab_gibs): carried, thrown and force-grabbed like the boxes, with nothing to
+// take. Their box is the model's; thrown hard they hurt (forcegrabbable_touch) and splatter.
+
+void() VR_Gib_Touch =
+{
+    float fast = vlen(self.velocity) > 220;
+    if(fast && other.solid == SOLID_BSP)
+    {
+        sound(self, CHAN_AUTO, "zombie/z_miss.wav", 0.7, ATTN_NORM);
+        particle2(self.origin, self.velocity * -0.1, QVR_PARTICLE_PRESET_BLOOD, 12);
+    }
+    forcegrabbable_touch();
+};
+
+void(entity xGib) VR_MakeGibGrabbable =
+{
+    if(!cvar_hget(cvarh_vr_grab_gibs) || xGib.model == string_null)
+    {
+        return;
+    }
+
+    // The model's own box (Quake gave gibs none, a head a fixed one).
+    setsize(xGib, modelbounds(xGib, 0), modelbounds(xGib, 1));
+    xGib.solid = SOLID_NOT_BUT_TOUCHABLE;
+    xGib.touch = VR_Gib_Touch;
+    xGib.handtouch = SUB_Null; // nothing to take: VR_Carry_Setup keeps it as carry_use
+    xGib.flags = xGib.flags | FL_FORCEGRABBABLE;
+    xGib.throwhit = QVR_THROWHIT_HIT;
+    xGib.owner = world;
+    SetThrownWeaponDealDamage(xGib, FALSE);
+    SetThrownWeaponDisappearOnHit(xGib, FALSE);
+    VR_Carry_Setup(xGib);
+    xGib.vr_rigid = 0; // Quake's bounce until picked up; a rigid body once let go
+
+    // They lie about longer, to be played with.
+    if(xGib.think == SUB_Remove)
+    {
+        xGib.nextthink = time + 30 + random() * 15;
+    }
 };
 
 // From MakeItemGrabbable: the box's pickup moves to carry_use; its hand and gun touches carry.
