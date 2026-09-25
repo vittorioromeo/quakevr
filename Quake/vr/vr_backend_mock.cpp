@@ -9,6 +9,7 @@
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
 
+#include <algorithm>
 #include <cmath>
 
 namespace qvr
@@ -208,6 +209,34 @@ public:
             swing(tracking.hands[HAND_MAIN], realtime, vr_mock_swing.value);
         }
 
+        // Hands moved by vr_mock_hand report the velocity of the motion, as a runtime would: a
+        // scripted move is a jump in one frame, so the velocity is measured between moves and held
+        // for 40 ms (the engine may run several frames per server frame): strokes, throws and
+        // swings can be scripted with a move every frame or few.
+        for(int h = 0; h < HAND_COUNT; h++)
+        {
+            Pose& hand = tracking.hands[h];
+            if(h == HAND_MAIN && vr_mock_swing.value > 0.f)
+            {
+                continue; // exact velocities
+            }
+            if(hand.position != lastHandPos[h])
+            {
+                const double since = realtime - lastMoveTime[h];
+                lastHandVel[h] = lastMoveTime[h] > 0.0 ? (hand.position - lastHandPos[h]) / static_cast<float>(std::clamp(since, 0.004, 0.05))
+                                                       : glm::vec3{0.f};
+                lastHandPos[h] = hand.position;
+                lastMoveTime[h] = realtime;
+            }
+            else if(realtime - lastMoveTime[h] > 0.04)
+            {
+                lastHandVel[h] = glm::vec3{0.f};
+            }
+            hand.linearVelocity = lastHandVel[h];
+            hand.angularVelocity = glm::vec3{0.f};
+            hand.velocityValid = true;
+        }
+
         frame.shouldRender = true;
         for(int eye = 0; eye < 2; eye++)
         {
@@ -240,6 +269,9 @@ public:
 
 private:
     gfx::Texture textures[2]{};
+    glm::vec3 lastHandPos[HAND_COUNT]{};
+    glm::vec3 lastHandVel[HAND_COUNT]{};
+    double lastMoveTime[HAND_COUNT]{};
 };
 
 } // namespace

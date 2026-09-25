@@ -101,6 +101,8 @@ void VR_ClientRoomscaleMove (struct edict_s *ent);		// SV_Physics_Client, after 
 void VR_BeforePlayerPostThink (struct edict_s *ent);	// SV_Physics_Client, before PlayerPostThink
 void VR_AfterPlayerPostThink (struct edict_s *ent);	// and after it
 float *VR_MoveAngles (struct edict_s *ent, float *fallback); // angles steering walk/swim moves
+float VR_WaterStickScale (struct edict_s *ent, int swimming); // SV_ClientThink, before SV_WaterMove / SV_AirMove: the stick's speed in water
+void VR_AfterWaterMove (struct edict_s *ent);				// after SV_WaterMove: swimming strokes
 float VR_StepSize (float fallback);					// SV_WalkMove step height
 void VR_OnWaterLevelChange (struct edict_s *ent, float oldwaterlevel); // end of SV_CheckWater
 int VR_AllowWaterSplash (struct edict_s *ent);			// SV_CheckWaterTransition splash sounds

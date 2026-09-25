@@ -17,7 +17,7 @@ gets a status, what was done, how it was tested, and anything to check on the he
 | 10 | A small 3D screen behind the ammo counter on weapons (programmatic) | M | done |
 | 11 | Parrying enemy melee: weapon held sideways in front; damage reduction, sound, sparks, arm wobble; one hand may drop the weapon, two hands never | L | done |
 | 12 | Pauldrons on the body (toggle, customisable), after the Quake ranger; improve the body with the same reference | L | |
-| 13 | Swimming: walk in shallow water (small penalty); deep or feet off the floor: slow stick (10%), strokes move you | L | |
+| 13 | Swimming: walk in shallow water (small penalty); deep or feet off the floor: slow stick (10%), strokes move you | L | done |
 | 14 | Carrying and nudging physics items (ammo, health boxes): push with hands or weapons, hold and carry, no weapons while holding, no phasing through walls, improvised melee and throwing | XL | |
 | 15 | Knights' swords: a usable melee weapon dropped on death; their death frames without the sword | XL | |
 | 16 | Credits and attributions for everything used (docs/vr-port/CREDITS.md) | S | done, kept up to date |
@@ -96,3 +96,23 @@ gets a status, what was done, how it was tested, and anything to check on the he
     **Tested** in the mock: a dog biting a player holding the shotgun sideways, three bites parried; with the drop
     chance at 1, the gun fell. Not tested: the two-handed case (the mock cannot hold a weapon two-handed), and how
     the wobble looks; please check both.
+13. **Swimming** (`vr_swim`, `vr_physics.cpp`, hooks in `SV_ClientThink`). The stick's speed in water is scaled:
+    - feet in water: `vr_swim_shallow_speed` (0.85);
+    - waist deep standing on the bottom: `vr_swim_wade_speed` (0.6);
+    - under water or off the bottom: `vr_swim_stick_speed` (0.1).
+
+    Strokes (`VR_AfterWaterMove`, after Quake's `SV_WaterMove`): each hand under water faster than
+    `vr_swim_stroke_min` (0.4 m/s, relative to the body) pushes the body the opposite way. The push is
+    (speed - threshold) x `vr_swim_stroke` (10/s), scaled by how squarely the palm meets the water
+    (`vr_swim_palm`, 0.6: a hand slicing edge-first on the recovery pushes 40%). It is capped at
+    `vr_swim_max_speed` (400). Quake's water friction slows you between strokes. The direction is the stroke's: pull
+    down to rise, back to go forward, sideways to turn aside. Menu: Advanced > Locomotion.
+
+    **Tested** in e1m1's pool (720, 900; submerged, on the bottom): two scripted breaststroke pulls (palm back) with
+    slow edge-on recoveries moved the player 34 units forward (about 0.65 m a stroke); with the strength at 0, not
+    at all. Along the way:
+    - the move's hand velocities turned out to be in m/s, not world units (comment fixed);
+    - the mock backend now reports velocities for hands moved by `vr_mock_hand`, measured between moves and held
+      40 ms, so strokes, throws and swings can be scripted.
+
+    To tune on the headset: stroke strength and threshold, and whether the palm weighting feels right.

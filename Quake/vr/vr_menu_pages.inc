@@ -55,6 +55,14 @@
         slider("Movement Speed", "cl_forwardspeed", 100.f, 400.f, 25.f, "%.0f").help("Walking speed (running is this times the running multiplier)."),
         cycle("Default Speed", "cl_alwaysrun", {{1.f, "Run"}, {0.f, "Walk"}}).help("The speed button switches to the other."),
         slider("Running Mult.", "cl_movespeedkey", 1.f, 3.f, 0.05f, "%.2f").help("How much faster running is than walking."),
+        toggle("Swimming", "vr_swim").help("In water the stick slows and strokes of your hands move you."),
+        slider("Stick in Shallow Water", "vr_swim_shallow_speed", 0.f, 1.f, 0.05f, "%.2f").help("The stick's speed with your feet in water."),
+        slider("Stick Wading", "vr_swim_wade_speed", 0.f, 1.f, 0.05f, "%.2f").help("Waist deep, standing on the bottom."),
+        slider("Stick Swimming", "vr_swim_stick_speed", 0.f, 1.f, 0.05f, "%.2f").help("Under water or off the bottom: swim with your hands."),
+        slider("Stroke Strength", "vr_swim_stroke", 0.f, 30.f, 1.f, "%.0f").help("How far a stroke of your hand moves you."),
+        slider("Stroke Threshold", "vr_swim_stroke_min", 0.f, 2.f, 0.1f, "%.1f m/s").help("How fast a hand must move to push the water."),
+        slider("Palm Matters", "vr_swim_palm", 0.f, 1.f, 0.1f, "%.1f").help("How much more a flat palm pushes than a hand slicing edge first (recovering)."),
+        slider("Swim Top Speed", "vr_swim_max_speed", 100.f, 800.f, 25.f, "%.0f"),
     };
 }
 

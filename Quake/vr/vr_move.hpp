@@ -13,7 +13,7 @@ struct VrHandMove
 {
     glm::vec3 pos{0.f};      // world position
     glm::vec3 rot{0.f};      // angles (pitch, yaw, roll)
-    glm::vec3 vel{0.f};      // world units / second
+    glm::vec3 vel{0.f};      // metres / second (play space, turned with it; not the player's own motion)
     glm::vec3 throwVel{0.f}; // smoothed velocity used for throwing
     float velMag{0.f};
     glm::vec3 angVel{0.f};   // radians / second, of the throw

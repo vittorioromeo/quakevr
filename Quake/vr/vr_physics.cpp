@@ -9,6 +9,8 @@
 #include "vr_progs.hpp"
 #include "vr_move.hpp"
 #include "vr_server.hpp"
+#include "vr_protocol.hpp"
+#include "vr_units.hpp"
 
 #include <algorithm>
 #include <vector>
@@ -423,6 +425,94 @@ extern "C" void VR_ClientRoomscaleMove(edict_t* ent)
 }
 
 // Locomotion follows the head, not the aiming hand.
+// ----------------------------------------------------------------------------
+// Swimming (vr_swim)
+
+namespace
+{
+
+// A VR player's latest move, when its hands are tracked.
+[[nodiscard]] const VrMove* swimmer(edict_t* ent)
+{
+    if(!vr_swim.value || static_cast<int>(ent->v.movetype) == MOVETYPE_NOCLIP)
+    {
+        return nullptr;
+    }
+    const VrMove* move = server::clientMove(ent);
+    return move && (move->buttons & protocol::QVR_BUTTON_HANDSTRACKED) ? move : nullptr;
+}
+
+} // namespace
+
+// SV_ClientThink, before the move: in water the stick moves you slower. Feet in the water, a
+// little (vr_swim_shallow_speed); waist deep standing on the bottom, more (vr_swim_wade_speed);
+// swimming (under, or off the bottom), it barely does (vr_swim_stick_speed): the hands do.
+extern "C" float VR_WaterStickScale(edict_t* ent, int swimming)
+{
+    if(!swimmer(ent) || ent->v.waterlevel < 1.f)
+    {
+        return 1.f;
+    }
+    const bool onGround = (static_cast<int>(ent->v.flags) & FL_ONGROUND) != 0;
+    float scale = vr_swim_shallow_speed.value;
+    if(swimming)
+    {
+        scale = ent->v.waterlevel >= 3.f || !onGround ? vr_swim_stick_speed.value : vr_swim_wade_speed.value;
+    }
+    return CLAMP(0.f, scale, 1.f);
+}
+
+// After SV_WaterMove: each hand under water pushes the water, and the body goes the other way:
+// the push is the hand's speed through the water (relative to the body, beyond
+// vr_swim_stroke_min) times vr_swim_stroke, more when the palm meets it flat than when the hand
+// slices edge-first (vr_swim_palm), so that a stroke drives you and the recovery much less.
+// Water friction (SV_WaterMove's) slows you between strokes.
+extern "C" void VR_AfterWaterMove(edict_t* ent)
+{
+    const VrMove* move = swimmer(ent);
+    if(!move)
+    {
+        return;
+    }
+
+    const float dt = static_cast<float>(host_frametime);
+    const float threshold = std::max(0.f, vr_swim_stroke_min.value) * units::metresToUnits();
+    const float palmWeight = CLAMP(0.f, vr_swim_palm.value, 1.f);
+    glm::vec3 vel{ent->v.velocity[0], ent->v.velocity[1], ent->v.velocity[2]};
+
+    for(const VrHandMove& hand : move->hands)
+    {
+        vec3_t p{hand.pos.x, hand.pos.y, hand.pos.z};
+        if(SV_PointContents(p) > CONTENTS_WATER) // not water, slime or lava
+        {
+            continue;
+        }
+        const float speed = glm::length(hand.vel) * units::metresToUnits(); // the move's hand velocities are in m/s
+        if(speed <= threshold)
+        {
+            continue;
+        }
+        const glm::vec3 dir = glm::normalize(hand.vel);
+
+        vec3_t a{hand.rot.x, hand.rot.y, hand.rot.z}, f, r, u;
+        AngleVectors(a, f, r, u);
+        const float flat = std::abs(glm::dot(glm::vec3{r[0], r[1], r[2]}, dir)); // the palm faces the hand's side
+        const float palm = (1.f - palmWeight) + palmWeight * flat;
+
+        vel -= dir * ((speed - threshold) * vr_swim_stroke.value * palm * dt);
+    }
+
+    const float maxSpeed = std::max(0.f, vr_swim_max_speed.value);
+    const float len = glm::length(vel);
+    if(len > maxSpeed && len > 0.f)
+    {
+        vel *= maxSpeed / len;
+    }
+    ent->v.velocity[0] = vel.x;
+    ent->v.velocity[1] = vel.y;
+    ent->v.velocity[2] = vel.z;
+}
+
 extern "C" float* VR_MoveAngles(edict_t* ent, float* fallback)
 {
     float* head = server::clientHeadAngles(ent);

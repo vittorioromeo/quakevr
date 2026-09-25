@@ -424,9 +424,18 @@ void SV_ClientThink (void)
 	if (sv_player->v.movetype == MOVETYPE_NOCLIP && sv_altnoclip.value)
 		SV_NoclipMove ();
 	else if (sv_player->v.waterlevel >= 2 && sv_player->v.movetype != MOVETYPE_NOCLIP)
+	{
+		float scale = VR_WaterStickScale (sv_player, true); // QVR: swimming: the stick slowed, strokes
+		cmd.forwardmove *= scale; cmd.sidemove *= scale; cmd.upmove *= scale; // QVR
 		SV_WaterMove ();
+		VR_AfterWaterMove (sv_player); // QVR
+	}
 	else
+	{
+		float scale = VR_WaterStickScale (sv_player, false); // QVR: wading in shallow water
+		cmd.forwardmove *= scale; cmd.sidemove *= scale; cmd.upmove *= scale; // QVR
 		SV_AirMove ();
+	}
 	//johnfitz
 }
 
