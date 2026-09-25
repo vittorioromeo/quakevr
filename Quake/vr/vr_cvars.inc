@@ -178,6 +178,9 @@ QVR_CVAR(vr_body_eye_up, "0.08", CVAR_ARCHIVE)
 QVR_CVAR(vr_body_crouch_tilt, "25", CVAR_ARCHIVE)    // degrees the back tilts forward in a full crouch
 QVR_CVAR(vr_body_torso_back, "0", CVAR_ARCHIVE)       // metres the torso sits further behind the neck (negative: in front)
 QVR_CVAR(vr_body_legs_back, "0", CVAR_ARCHIVE)        // metres the feet stand behind the head (negative: in front)
+QVR_CVAR(vr_body_shoulders_back, "0", CVAR_ARCHIVE)   // metres the shoulders sit behind the chest (negative: in front),
+QVR_CVAR(vr_body_shoulders_up, "0", CVAR_ARCHIVE)     // above it,
+QVR_CVAR(vr_body_shoulders_out, "0", CVAR_ARCHIVE)    // and further out (negative: in)
 QVR_CVAR(vr_body_arm_length, "1", CVAR_ARCHIVE)      // arm length, relative to the proportions of vr_height_calibration
 QVR_CVAR(vr_body_arm_stretch, "1.2", CVAR_ARCHIVE)    // how far arms may stretch to reach the hands (1: not at all)
 QVR_CVAR(vr_body_shoulder_reach, "0.08", CVAR_ARCHIVE) // metres the shoulders may reach out beyond that
@@ -194,6 +197,7 @@ QVR_CVAR(vr_particles, "1", CVAR_ARCHIVE)             // Quake VR's textured par
 QVR_CVAR(vr_particle_mult, "1", CVAR_ARCHIVE)         // how many of them
 QVR_CVAR(vr_player_shadows, "2", CVAR_ARCHIVE)
 QVR_CVAR(vr_entity_shadows, "1", CVAR_ARCHIVE)        // blob shadows under monsters and items
+QVR_CVAR(vr_water_splash_speed, "150", CVAR_ARCHIVE)  // units/s a thing (not a player) must move at to splash entering or leaving water
 // Real-time shadows and per-pixel dynamic lights (vr_lighting.cpp, docs/vr-port/LIGHTING.md).
 QVR_CVAR(vr_graphics_preset, "-1", CVAR_NONE)          // set 0 off .. 4 ultra to apply a preset to the settings below
 QVR_CVAR(vr_shadow_dlights, "4", CVAR_ARCHIVE)         // dynamic lights (explosions, rockets) casting shadows, the most important first (0 off)

@@ -384,10 +384,11 @@ PALETTE_RAMPS = {
 
 # The player's armour on the torso: plates in the armour's colour (Quake's green, yellow and red
 # armours), dark seams between them and rivets along the seams.
+# The colours are the armour model's own (progs/armor.mdl skins 0-2, Quake palette entries).
 ARMOR_RAMPS = {
-    1: [(19, 43, 19), (27, 59, 27), (35, 71, 31), (47, 87, 39)],
-    2: [(79, 59, 15), (99, 75, 19), (115, 87, 23), (131, 99, 27)],
-    3: [(75, 11, 7), (95, 19, 11), (115, 27, 15), (135, 35, 19)],
+    1: [(35, 51, 39), (43, 59, 47), (55, 75, 63), (63, 83, 71)],
+    2: [(59, 43, 0), (75, 55, 0), (91, 71, 0), (107, 83, 0)],
+    3: [(63, 0, 0), (87, 0, 0), (103, 0, 0), (127, 0, 0)],
 }
 
 

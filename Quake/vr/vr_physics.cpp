@@ -523,6 +523,17 @@ extern "C" void VR_OnWaterLevelChange(edict_t* ent, float oldWaterLevel)
 // Debounces splashes from hands and room-scale bodies bobbing at the water surface.
 extern "C" int VR_AllowWaterSplash(edict_t* ent)
 {
+    // Things floating and bobbing at the surface cross it all the time: only a thing moving fast
+    // enough splashes (players always do).
+    if(!(static_cast<int>(ent->v.flags) & FL_CLIENT))
+    {
+        const float speed = static_cast<float>(VectorLength(ent->v.velocity));
+        if(speed < vr_water_splash_speed.value)
+        {
+            return 0;
+        }
+    }
+
     if(!active() || f().lastwatertime < 0)
     {
         return 1;

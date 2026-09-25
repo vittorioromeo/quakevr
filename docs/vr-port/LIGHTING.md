@@ -15,6 +15,9 @@ Settings > Lights and Shadows, or the cvars below), with presets from "Off (Quak
 | **QuakeSpasm / QSS** | Lightmap dlights. | `r_shadows`: the model flattened onto the floor, drawn in black. | No real-time lights. |
 | **Quake 2021 re-release (KEX)** | More dlights (quad, pentagram, projectiles). | Shadow atlas (`r_showshadowatlas`). Mapper-placed shadow lights cast the shadows of monsters and players (`dynamiclight` entities in MG1; Q2's `shadowlight*` keys: radius, resolution, intensity, fade distances). | Static and dynamic shadows are separate settings. |
 | **Quetoo** (Quake 2) | Per pixel, up to 512. | Atlas tiles per light. Each tile is redrawn only when a hash of the light and its casters changes. Poisson PCF with a normal offset. | The closest match to this design. |
+| **q2pro-ng** (Quake 2) | 64 per-pixel lights for world and models. | A D32F atlas with a quadtree allocator; a static atlas caches world-only depth, copied under the moving casters each frame; 4-tap PCF; `glPolygonOffset`. | The closest existing design; ours keeps the two maps separate so the shader can tell world from moving occlusion. |
+| **vkQuake** | Dynamic lights on the GPU into the lightmap. | `r_rtshadows`: ray queries in the lightmap compute shader (Vulkan RT only), shadows at lightmap resolution. | Its author prefers soft, lightmap-resolution shadows for Quake's look. |
+| **RBDOOM-3-BFG** | | An 8192 atlas; LOD from projected radius (`r_shadowMapLodScale`); Vogel-disk PCF with 1–16 samples; point faces at 92°. | |
 | **Hexenwail** (an Ironwail fork) | Froxel lights on world and models. | Planned: the top N lights, 64â€“1024 px. | |
 | **Ironwail** | A GPU-clustered grid (32Ã—16Ã—32, up to 64 lights, one bitmask per cluster), lightmap-style falloff on the world, flat on models. | None. | The base of this work. |
 

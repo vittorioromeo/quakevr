@@ -302,14 +302,16 @@ bool touches(const entity_t* e, const glm::vec3& light, float radius)
 }
 
 // Doors, lifts and platforms near the light.
-void collectBrushes(const glm::vec3& light, float radius)
+// With `itemsOnly`, only the brush models of items (ammo and health boxes, maps/b_*.bsp): they
+// move; the map's own doors and lifts are in its baked light already.
+void collectBrushes(const glm::vec3& light, float radius, bool itemsOnly)
 {
     brushCasters.clear();
     for(int i = 1; i < cl.num_entities; i++)
     {
         entity_t& e = cl_entities[i];
-        if(!e.model || e.model->type != mod_brush || e.model->name[0] != '*' || e.msgtime != cl.mtime[0] ||
-            !touches(&e, light, radius))
+        if(!e.model || e.model->type != mod_brush || e.model == cl.worldmodel || e.msgtime != cl.mtime[0] ||
+            (itemsOnly && e.model->name[0] == '*') || !touches(&e, light, radius))
         {
             continue;
         }
@@ -769,8 +771,10 @@ extern "C" void VR_RenderShadowMaps(void)
         if(s.light >= 0 && s.light < static_cast<int>(lights.size()))
         {
             const auto& l = lights[s.light];
+            indices.clear();
             collectAliases(l.pos, l.value / l.scale, 0, true);
-            s.hasCasters = !aliasCasters.empty();
+            collectBrushes(l.pos, l.value / l.scale, true);
+            s.hasCasters = !aliasCasters.empty() || !brushCasters.empty();
         }
     }
 
@@ -926,7 +930,7 @@ extern "C" void VR_RenderShadowMaps(void)
         indices.clear();
         collectWorld(cl.worldmodel->nodes, p, l.radius);
         const size_t worldCount = indices.size();
-        collectBrushes(p, l.radius);
+        collectBrushes(p, l.radius, false);
         collectAliases(p, l.radius, l.key > 0 && l.key < cl.num_entities ? l.key : 0, false);
         renderLight(atlas, p, l.radius, dlightSlots[i].origin, dlightSlots[i].size, worldCount, true, true);
     }
@@ -942,7 +946,8 @@ extern "C" void VR_RenderShadowMaps(void)
         indices.clear();
         brushCasters.clear();
         collectAliases(l.pos, l.value / l.scale, 0, true);
-        renderLight(atlas, l.pos, l.value / l.scale, s.origin, mapSlotSize, 0, false, true);
+        collectBrushes(l.pos, l.value / l.scale, true);
+        renderLight(atlas, l.pos, l.value / l.scale, s.origin, mapSlotSize, 0, true, true);
     }
 
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, 0);

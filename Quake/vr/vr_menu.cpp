@@ -188,6 +188,11 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("How far the torso sits behind your neck (negative: in front)."),
         slider("Legs Offset", vr_body_legs_back, -0.15f, 0.3f, 0.01f, "%.2f m")
             .help("How far the feet stand behind your head (negative: in front)."),
+        slider("Shoulders Back", vr_body_shoulders_back, -0.1f, 0.15f, 0.01f, "%.2f m")
+            .help("How far the shoulders sit behind the chest (negative: in front)."),
+        slider("Shoulders Up", vr_body_shoulders_up, -0.1f, 0.1f, 0.01f, "%.2f m"),
+        slider("Shoulders Width", vr_body_shoulders_out, -0.08f, 0.08f, 0.01f, "%.2f m")
+            .help("How much further out each shoulder is (negative: in)."),
         slider("Eyes Forward", vr_body_eye_forward, 0.f, 0.2f, 0.01f, "%.2f m")
             .help("From the top of the neck to the eyes, forward."),
         slider("Eyes Up", vr_body_eye_up, 0.f, 0.2f, 0.01f, "%.2f m").help("From the top of the neck to the eyes, up."),
@@ -380,6 +385,7 @@ std::vector<Item> pageMain()
         cycle("Build", vr_body_build, {{0.f, "Lean"}, {1.f, "Athletic"}, {2.f, "Brawny"}}),
         slider("Torso Offset", vr_body_torso_back, -0.15f, 0.3f, 0.01f, "%.2f m back"),
         slider("Legs Offset", vr_body_legs_back, -0.15f, 0.3f, 0.01f, "%.2f m back"),
+        slider("Shoulders Offset", vr_body_shoulders_back, -0.1f, 0.15f, 0.01f, "%.2f m back"),
         toggle("Holster Models", vr_leg_holster_model_enabled),
 
         header("Headset"),

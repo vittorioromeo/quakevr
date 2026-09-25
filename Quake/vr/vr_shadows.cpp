@@ -67,7 +67,9 @@ void entityBlobs()
     for(int i = 0; i < cl_numvisedicts; i++)
     {
         const entity_t* e = cl_visedicts[i];
-        if(!e->model || e->model->type != mod_alias || (e->model->flags & MOD_NOSHADOW) ||
+        // Alias models, and the brush models of ammo and health boxes (maps/b_*.bsp).
+        const bool itemBox = e->model && e->model->type == mod_brush && e->model->name[0] != '*' && e->model != cl.worldmodel;
+        if(!e->model || (e->model->type != mod_alias && !itemBox) || (e->model->flags & MOD_NOSHADOW) ||
             e == &cl_entities[cl.viewentity] || VR_IsViewEntity(e) || e->alpha != ENTALPHA_DEFAULT)
         {
             continue;

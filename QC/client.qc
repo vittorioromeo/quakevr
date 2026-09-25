@@ -2608,12 +2608,19 @@ void(float xHand, float xInMelee, float xHandVelMag,
     if(VRHandsTracked(self) && time >= xInMelee && xHandVelMag > vr_melee_threshold &&
        !VRGetMeleeHitSoundPlayed(xHand))
     {
-        // A gun's swing makes no whoosh, only its hit: reaching down to a holster to reload
-        // is a fast swing too.
+        // A gun swung downwards makes no whoosh (only a hit sounds): reaching down to a holster
+        // to reload is a fast swing too.
+        string gunSound = "knight/sword1.wav";
+        vector swingDir = normalize(VRGetHandVel(xHand));
+        if(swingDir_z < -0.6)
+        {
+            gunSound = "";
+        }
+
         if(!DoXHandMelee(xHand, WID_FIST, "knight/sword1.wav", W_FistMelee))
             if(!DoXHandMelee(xHand, WID_AXE, "weapons/ax1.wav", W_FireAxe))
                 if(!DoXHandMelee(xHand, WID_MJOLNIR, "weapons/ax1.wav", HIP_FireMjolnir))
-                    DoXHandMeleeImpl(xHand, "", W_GunMelee);
+                    DoXHandMeleeImpl(xHand, gunSound, W_GunMelee);
 
         *xOutMeleeAttackFinished = time + 0.1;
         *xOutInMelee = time + 0.02;

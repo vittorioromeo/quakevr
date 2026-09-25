@@ -284,9 +284,13 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     // forward (the clavicle turns about the base of the neck).
     Bone& c = b.bones[clav];
     c = Bone{};
-    c.pos = childPos(b, clav);
     const glm::mat3 rest = chest.rot * glm::transpose(bd.rot[Chest]) * bd.rot[clav];
     const glm::vec3 lateral = rest[0];
+    // The shoulders' own offset from the chest (vr_body_shoulders_*): back, up, and outwards along
+    // the clavicle, in metres.
+    c.pos = childPos(b, clav) +
+            (-cFwd * vr_body_shoulders_back.value + cUp * vr_body_shoulders_up.value + lateral * vr_body_shoulders_out.value) *
+                b.m2w;
 
     const float armLen = (boneLength(upper, fore) + boneLength(fore, hand)) * b.m2w;
     const glm::vec3 restShoulder = c.pos + rest * (localOffset(upper) * b.m2w);

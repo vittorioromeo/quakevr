@@ -731,7 +731,9 @@ void setupBody(const hands::State& s)
     entities.body.visible = false;
     avatar::hide();
 
-    if(mode >= 1)
+    // Not while dead (the view lies on the floor) or at the end of a level.
+    const bool alive = cl.stats[STAT_HEALTH] > 0 && !cl.intermission;
+    if(mode >= 1 && alive)
     {
         // The build (vr_body_build): progs/vrbody_lean, vrbody (athletic) or vrbody_brawny.
         const int build = static_cast<int>(vr_body_build.value);
