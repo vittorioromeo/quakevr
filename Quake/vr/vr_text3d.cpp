@@ -5,6 +5,7 @@
 #include "vr_gfx.hpp"
 #include "vr_engine.hpp"
 #include "vr_shadows.hpp"
+#include "vr_decals.hpp"
 #include "vr_cvars.hpp"
 #include "vr_worldtext.hpp"
 
@@ -168,6 +169,7 @@ extern "C" void VR_DrawSceneOpaque()
         return;
     }
 
+    decals::draw();
     shadows::draw();
 
     vertices.clear();

@@ -674,9 +674,15 @@ void CL_RelinkEntities (void)
 		}
 
 		if (ent->model->flags & EF_GIB)
+		{
 			CL_RocketTrail (ent, 2);
+			VR_DecalGibTrail (i, ent->origin); // QVR: blood drops under it
+		}
 		else if (ent->model->flags & EF_ZOMGIB)
+		{
 			CL_RocketTrail (ent, 4);
+			VR_DecalGibTrail (i, ent->origin); // QVR
+		}
 		else if (ent->model->flags & EF_TRACER)
 			CL_RocketTrail (ent, 3);
 		else if (ent->model->flags & EF_TRACER2)

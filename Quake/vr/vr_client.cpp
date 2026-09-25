@@ -2,6 +2,7 @@
 // VR input commands, building the VR move from tracking, and parsing VR server data.
 
 #include "vr_client.hpp"
+#include "vr_decals.hpp"
 #include "vr_engine.hpp"
 #include "vr_particles.hpp"
 #include "vr_cvars.hpp"
@@ -266,6 +267,7 @@ void parseParticle2()
     const int preset = MSG_ReadByte();
     const int count = MSG_ReadShort();
 
+    decals::fromEffect({org[0], org[1], org[2]}, {dir[0], dir[1], dir[2]}, preset, count);
     if(particles::spawn({org[0], org[1], org[2]}, {dir[0], dir[1], dir[2]}, preset, count))
     {
         return;
@@ -440,6 +442,7 @@ extern "C" void VR_OnClientClearState()
 {
     entityData.clear();
     particles::clear();
+    decals::clear();
     worldtext::clientReset();
     throwing::reset();
     thrownValid[0] = thrownValid[1] = false;

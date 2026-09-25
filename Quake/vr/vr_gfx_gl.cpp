@@ -170,6 +170,10 @@ void draw(std::span<const Vertex> triangles, const glm::mat4& mvp, const State& 
     {
         glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     }
+    else if(state.blend == Blend::Modulate)
+    {
+        glBlendFunc(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA);
+    }
     GL_UniformMatrix4fvFunc(0, 1, GL_FALSE, &mvp[0][0]);
     GL_Uniform1iFunc(1, static_cast<GLint>(state.shade));
     if(texture)
@@ -185,7 +189,7 @@ void draw(std::span<const Vertex> triangles, const glm::mat4& mvp, const State& 
     glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(triangles.size()));
     GL_BindBuffer(GL_ARRAY_BUFFER, 0);
 
-    if(state.blend == Blend::Premultiplied)
+    if(state.blend == Blend::Premultiplied || state.blend == Blend::Modulate)
     {
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // what GLS_BLEND_ALPHA expects
     }

@@ -178,6 +178,9 @@
         slider("Bloom Size", "vr_bloom_radius", 0.25f, 3.f, 0.25f, "%.2f"),
         slider("Muzzle Flash Light", "vr_flash_scale", 0.f, 3.f, 0.1f, "%.1fx").help("How far your shots light up the room (0 off)."),
         slider("Explosion Light", "vr_explosion_light_scale", 0.f, 3.f, 0.1f, "%.1fx"),
+        toggle("Decals", "vr_decals").help("Blood splats, gib trails, scorch marks and bullet chips on walls and floors."),
+        slider("Decal Lifetime", "vr_decal_life", 10.f, 600.f, 10.f, "%.0f s"),
+        slider("Max Decals", "vr_decal_max", 64.f, 2048.f, 64.f, "%.0f"),
         toggle("Coloured Lights", "vr_colored_lights").help("Warm muzzle flashes, rockets and explosions; the lightning gun's blue."),
 
         header("Lights and Shadows"),

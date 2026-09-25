@@ -41,6 +41,7 @@ enum class Blend
     Opaque,
     Alpha,         // colours with a separate alpha
     Premultiplied, // colours already multiplied by their alpha (the 2D canvas)
+    Modulate,      // the scene times the colour (premultiplied: dst * (colour + 1 - alpha)), decals
 };
 
 struct State
