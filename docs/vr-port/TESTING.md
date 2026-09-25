@@ -124,7 +124,14 @@ came. `developer 1` prints the spawned velocity, gravity, spin and age.
 
 ## What to try
 
-- **New in this round** (details in `docs/vr-port/ROUND8.md`):
+- **New in this round** (details in `docs/vr-port/ROUND9.md`):
+  - **Boxes:** a held box turns with your hand about where you hold it; it is grabbed only when your hand is
+    on it; bounces turn the right way; it comes to rest flat on the floor.
+  - **Swords:** the grip is centred on the blade, thicker and square in section.
+  - **Bloom** is subtler by default, with fine slider steps; **headbutts** are easier to land.
+  - **Shotgun held by the middle:** not reproduced; please describe when it happens.
+
+- **Previous round** (`docs/vr-port/ROUND8.md`):
   - **Unarmed parry:** cross your arms in an X in front of you as a blow lands.
   - **Bash:** in a guard (a weapon held across in front, or both hands together, crossed or not), drive forward
     hard: little damage, the monster is thrown back and staggers. Also a two-handed shove with empty hands.

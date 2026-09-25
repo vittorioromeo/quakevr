@@ -296,6 +296,14 @@ void PF_haptic()
         G_FLOAT(OFS_PARM1), G_FLOAT(OFS_PARM2), G_FLOAT(OFS_PARM3), G_FLOAT(OFS_PARM4));
 }
 
+extern "C" void VR_CarryAngles(edict_t* ent, const float* handAngles, int grab, float* out);
+
+// carryangles(e, handangles, grab): a held object's angles, turning with the hand (vr_rigid.cpp).
+void PF_carryangles()
+{
+    VR_CarryAngles(G_EDICT(OFS_PARM0), G_VECTOR(OFS_PARM1), static_cast<int>(G_FLOAT(OFS_PARM2)), G_VECTOR(OFS_RETURN));
+}
+
 // handimpact(hand, strength, dir): knock the `self` player's drawn hand (a parried blow).
 void PF_handimpact()
 {
@@ -330,6 +338,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"particle2", PF_particle2},
     {"haptic", PF_haptic},
     {"handimpact", PF_handimpact},
+    {"carryangles", PF_carryangles},
 };
 
 static_assert(firstVrBuiltin + std::size(vrBuiltins) < MAX_BUILTINS - 200,

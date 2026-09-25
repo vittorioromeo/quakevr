@@ -35,8 +35,9 @@ SCALE = 2.6  # knight units to weapon model units (the weapon draws at 0.34): ab
 HANDLE_BOTTOM = (0.2, 0.0, -3.55)
 HANDLE_DIR = (4.2, 0.0, 11.55)
 GRIP = 12.3          # grip length: the handle up to the head
-GRIP_RADIUS = 1.1    # as the axe's handle
-POMMEL = 2.6         # pommel length below the grip
+GRIP_RADIUS = 1.5    # a little thicker than the axe's handle, a hand's grip
+POMMEL = 2.2         # pommel length below the grip
+SIDES = 4            # the grip and pommel: square in section, as low-poly as the knights
 
 
 def pak_files(quake):
@@ -180,12 +181,13 @@ class Out:
             b, c = c, b
         self.tris.append((1, a, b, c))
 
-    def ring_loft(self, rings, st, sides=8):
-        """Rings (z, radius x, radius y) along z, closed at both ends, all at the texel `st`."""
+    def ring_loft(self, rings, st, sides=SIDES):
+        """Rings (z, radius x, radius y) along z, closed at both ends, all at the texel `st`; the
+        corners at 45 degrees, so the flat faces look along the edges and the flat of the blade."""
         first = len(self.p)
         for z, rx, ry in rings:
             for k in range(sides):
-                a = 2 * math.pi * k / sides
+                a = 2 * math.pi * (k + 0.5) / sides
                 d = (math.cos(a), math.sin(a), 0.0)
                 self.vert((rx * d[0], ry * d[1], z), st, d)
         for r in range(len(rings) - 1):
@@ -194,7 +196,7 @@ class Out:
                 b = first + r * sides + (k + 1) % sides
                 c = first + (r + 1) * sides + k
                 d = first + (r + 1) * sides + (k + 1) % sides
-                ang = 2 * math.pi * (k + 0.5) / sides
+                ang = 2 * math.pi * (k + 1) / sides
                 out = (math.cos(ang), math.sin(ang), 0.0)
                 self.tri(a, c, b, out)
                 self.tri(b, c, d, out)
@@ -247,6 +249,15 @@ def build(m, tris, normals, pal, add_guard):
             best, x = dot(d, d), norm(d)
     y = cross(z, x)
     base = add(centre, mul(z, dot(sub(pts[lo_end], centre), z)))  # the hilt's end, on the axis
+    # The grip goes on under the middle of the blade (the principal axis runs off it where the
+    # hilt is lopsided, the knight's guard to one side): the middle of the bounds, across and
+    # through, of the blade's vertices above its lowest fifth (all, if none are).
+    span = dot(sub(pts[hi_end], base), z)
+    low = [sub(pts[v], base) for v in verts if dot(sub(pts[v], base), z) > span * 0.2]
+    low = low or [sub(pts[v], base) for v in verts]
+    mid_x = (min(dot(d, x) for d in low) + max(dot(d, x) for d in low)) * 0.5
+    mid_y = (min(dot(d, y) for d in low) + max(dot(d, y) for d in low)) * 0.5
+    base = add(base, add(mul(x, mid_x), mul(y, mid_y)))
 
     out = Out()
     index = {}
@@ -275,10 +286,8 @@ def build(m, tris, normals, pal, add_guard):
 
     # Grip and pommel below the guard's foot (z = 0), and for a bare blade, a crossguard.
     blade_width = max(abs(out.p[i][0]) for i in index.values())
-    out.ring_loft([(-GRIP, GRIP_RADIUS * 1.05, GRIP_RADIUS * 0.95), (-GRIP * 0.5, GRIP_RADIUS * 1.12, GRIP_RADIUS),
-                   (0.0, GRIP_RADIUS, GRIP_RADIUS * 0.9)], flat(leather))
-    out.ring_loft([(-GRIP - POMMEL, 0.8, 0.8), (-GRIP - POMMEL * 0.7, 1.9, 1.7), (-GRIP - POMMEL * 0.25, 1.9, 1.7),
-                   (-GRIP, 1.2, 1.1)], flat(metal))
+    out.ring_loft([(-GRIP, GRIP_RADIUS, GRIP_RADIUS), (0.0, GRIP_RADIUS * 0.9, GRIP_RADIUS * 0.9)], flat(leather))
+    out.ring_loft([(-GRIP - POMMEL, 1.4, 1.4), (-GRIP - POMMEL * 0.5, 2.5, 2.5), (-GRIP, 1.7, 1.7)], flat(metal))
     if add_guard:
         out.box((0.0, 0.0, -0.9), (max(5.0, blade_width * 2.6), 1.1, 0.9), flat(metal))
     for i in range(len(out.st)):

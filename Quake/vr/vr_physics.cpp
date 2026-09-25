@@ -23,6 +23,27 @@ namespace
 
 // QC constants (QC/defs.qc, QC/vr_defs.qc).
 constexpr int FL_EASYHANDTOUCH = 8192;
+constexpr int FL_FORCEGRABBABLE = 1 << 15; // QC's: boxes, gibs, thrown weapons
+
+extern "C" int VR_PointInModelBox(edict_t* ent, const float* p, float margin);
+
+// Whether a hand at `hand` (its box half `handExtent`) touches `target`: an object that can be
+// carried or pulled by the model's own turned box, a small margin round it; anything else by its
+// box (and the easy-touch bonus).
+[[nodiscard]] bool handOn(edict_t* target, const glm::vec3& hand, float handExtent, float bonus)
+{
+    if((static_cast<int>(target->v.flags) & FL_FORCEGRABBABLE) != 0)
+    {
+        const float p[3] = {hand.x, hand.y, hand.z};
+        return VR_PointInModelBox(target, p, 2.f) != 0;
+    }
+    const glm::vec3 lo = glm::vec3{target->v.origin[0], target->v.origin[1], target->v.origin[2]} +
+                         glm::vec3{target->v.mins[0], target->v.mins[1], target->v.mins[2]} - glm::vec3{bonus};
+    const glm::vec3 hi = glm::vec3{target->v.origin[0], target->v.origin[1], target->v.origin[2]} +
+                         glm::vec3{target->v.maxs[0], target->v.maxs[1], target->v.maxs[2]} + glm::vec3{bonus};
+    return glm::all(glm::lessThanEqual(hand - glm::vec3{handExtent}, hi)) &&
+           glm::all(glm::greaterThanEqual(hand + glm::vec3{handExtent}, lo));
+}
 constexpr int VRBITS0_TELEPORTING = 1 << 0;
 constexpr float HAND_OFF = 0.f;
 constexpr float HAND_MAIN = 1.f;
@@ -154,13 +175,9 @@ void handTouches(edict_t* ent)
             return;
         }
 
-        const glm::vec3 bonus{handTouchBonus(target)};
-        const glm::vec3 tMin = vec(target->v.origin) + vec(target->v.mins) - bonus;
-        const glm::vec3 tMax = vec(target->v.origin) + vec(target->v.maxs) + bonus;
-
         for(int h = 0; h < 2; h++)
         {
-            if(boxesOverlap(hands[h] - handExtent, hands[h] + handExtent, tMin, tMax))
+            if(handOn(target, hands[h], handHalfSize, handTouchBonus(target)))
             {
                 setHandtouchParams(h == 0 ? HAND_OFF : HAND_MAIN, ent, target);
                 impactField(ent, target, f().handtouch);
@@ -256,15 +273,11 @@ void handTouch(edict_t* ent, edict_t* target)
 
     // The entity's own box, not its abs box: Quake widens items' abs boxes by 15 units for walking
     // over them, which made a 6-unit ammo box grabbable from a hand's width away.
-    const glm::vec3 handExtent{handHalfSize};
-    const glm::vec3 bonus{handTouchBonus(target)};
-    const glm::vec3 tMin = vec(target->v.origin) + vec(target->v.mins) - bonus;
-    const glm::vec3 tMax = vec(target->v.origin) + vec(target->v.maxs) + bonus;
-
+    const float bonus = handTouchBonus(target);
     const glm::vec3 off = fieldVec(ent, f().offhandpos);
     const glm::vec3 main = fieldVec(ent, f().handpos);
-    const bool offHit = boxesOverlap(off - handExtent, off + handExtent, tMin, tMax);
-    const bool mainHit = boxesOverlap(main - handExtent, main + handExtent, tMin, tMax);
+    const bool offHit = handOn(target, off, handHalfSize, bonus);
+    const bool mainHit = handOn(target, main, handHalfSize, bonus);
 
     if(offHit || mainHit)
     {

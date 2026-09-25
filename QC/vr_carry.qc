@@ -134,7 +134,7 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
     xBox.carry_offset_x = d * v_forward;
     xBox.carry_offset_y = d * v_right;
     xBox.carry_offset_z = d * v_up;
-    xBox.carry_angles = xBox.angles - handRot;
+    xBox.carry_angles = carryangles(xBox, handRot, TRUE); // keeps its turn in the hand
     xBox.carry_trigger = VRGetEntFireButtonPressed(xPlayer, xHand);
 
     xBox.movetype = MOVETYPE_NONE;
@@ -304,7 +304,7 @@ void(float xHand) VR_Carry_HandFrame =
         box.velocity = (dest - box.origin) * (1 / frametime);
     }
     setorigin(box, dest);
-    box.angles = handRot + box.carry_angles;
+    box.angles = carryangles(box, handRot, FALSE);
 };
 
 // ----------------------------------------------------------------------------

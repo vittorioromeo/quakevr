@@ -36,6 +36,7 @@
 
 #include <algorithm>
 #include <array>
+#include <unordered_map>
 #include <vector>
 #include <cmath>
 
@@ -57,18 +58,28 @@ void fromGlm(const glm::vec3& g, vec3_t v)
     v[2] = g.z;
 }
 
-// Model axes (x forward, y left, z up) of an alias entity's angles, whose pitch is inverted.
-[[nodiscard]] glm::mat3 axesFromAngles(const vec3_t angles)
+// Whether `ent` is drawn as a brush model (the ammo and health boxes, maps/b_*.bsp).
+[[nodiscard]] bool brushModel(edict_t* ent)
 {
-    vec3_t a{-angles[0], angles[1], angles[2]}, f, r, u;
+    const int index = static_cast<int>(ent->v.modelindex);
+    const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    return model && model->type == mod_brush;
+}
+
+// Model axes (x forward, y left, z up) of an entity's angles as the renderer turns it: an alias
+// model's pitch is inverted (R_EntityMatrix tilts the model's forward up for a positive pitch, view
+// angles tilt it down), a brush model's not (R_DrawBrushModels inverts it once more).
+[[nodiscard]] glm::mat3 axesFromAngles(const vec3_t angles, bool brush)
+{
+    vec3_t a{brush ? angles[0] : -angles[0], angles[1], angles[2]}, f, r, u;
     AngleVectors(a, f, r, u);
     return glm::mat3{toGlm(f), -toGlm(r), toGlm(u)};
 }
 
-void anglesFromAxes(const glm::mat3& m, vec3_t out)
+void anglesFromAxes(const glm::mat3& m, vec3_t out, bool brush)
 {
     const glm::vec3 a = hands::anglesFromVectors(glm::normalize(m[0]), glm::normalize(m[2]));
-    out[0] = -a.x;
+    out[0] = brush ? a.x : -a.x;
     out[1] = a.y;
     out[2] = a.z;
 }
@@ -219,6 +230,67 @@ struct Body
     }
 };
 
+// A body going to sleep lies flat and on the floor, not in it: the contacts push corners out over
+// a few steps, and a body slowed to rest can stop with an edge still a unit or so inside, a little
+// tilted. A side within 8 degrees of the floor is turned flat on it (about its lowest point), then
+// the body is lifted until its lowest corner is just on the floor.
+void settle(Body& b)
+{
+    std::array<glm::vec3, 8> corners = b.corners();
+    int lowest = 0;
+    for(int i = 1; i < 8; i++)
+    {
+        if(corners[i].z < corners[lowest].z)
+        {
+            lowest = i;
+        }
+    }
+
+    // The floor under the lowest corner, from above it.
+    const glm::vec3 low = b.com + corners[lowest];
+    const trace_t floor = pointTrace(glm::vec3{low.x, low.y, b.com.z}, low - glm::vec3{0.f, 0.f, 4.f}, b.ent);
+    if(floor.startsolid || floor.fraction >= 1.f || floor.plane.normal[2] < 0.7f)
+    {
+        return;
+    }
+    const glm::vec3 n = toGlm(floor.plane.normal);
+
+    // The body axis nearest the floor's normal (either way), turned onto it.
+    int axis = 0;
+    float best = 0.f;
+    for(int i = 0; i < 3; i++)
+    {
+        const float d = std::abs(glm::dot(b.rot[i], n));
+        if(d > best)
+        {
+            best = d;
+            axis = i;
+        }
+    }
+    const glm::vec3 up = glm::dot(b.rot[axis], n) < 0.f ? -b.rot[axis] : b.rot[axis];
+    if(best < 0.9999f && best > std::cos(glm::radians(8.f)))
+    {
+        const glm::vec3 pivot = low;
+        const glm::vec3 axisOfTurn = glm::cross(up, n);
+        const glm::quat q = glm::angleAxis(std::acos(std::min(1.f, glm::dot(up, n))), glm::normalize(axisOfTurn));
+        b.rot = orthonormalize(glm::mat3_cast(q) * b.rot);
+        b.com = pivot + q * (b.com - pivot);
+        corners = b.corners();
+    }
+
+    // Lift the lowest corner onto the floor (along the normal).
+    float depth = 0.f;
+    const float floorD = glm::dot(toGlm(floor.endpos), n);
+    for(const glm::vec3& r : corners)
+    {
+        depth = std::max(depth, floorD - glm::dot(b.com + r, n));
+    }
+    if(depth > 0.f && depth < 4.f)
+    {
+        b.com += n * (depth + 0.05f);
+    }
+}
+
 // Whether the lowest corners rest on something (the body may sleep on it, or must wake).
 [[nodiscard]] bool supported(Body& b, edict_t** ground)
 {
@@ -287,7 +359,8 @@ namespace
     localBox(ent, lo, hi);
     b.half = (hi - lo) * 0.5f;
     b.comLocal = (lo + hi) * 0.5f;
-    b.rot = axesFromAngles(ent->v.angles);
+    const bool brush = brushModel(ent);
+    b.rot = axesFromAngles(ent->v.angles, brush);
     b.com = toGlm(ent->v.origin) + b.rot * b.comLocal;
     b.vel = toGlm(ent->v.velocity);
     b.spin = fieldVec(ent, f.vr_spin);
@@ -297,7 +370,7 @@ namespace
 
     const auto store = [&] {
         fromGlm(b.com - b.rot * b.comLocal, ent->v.origin);
-        anglesFromAxes(b.rot, ent->v.angles);
+        anglesFromAxes(b.rot, ent->v.angles, brush);
         fromGlm(b.vel, ent->v.velocity);
         setFieldVec(ent, f.vr_spin, b.spin);
         SV_LinkEdict(ent, true);
@@ -483,6 +556,7 @@ namespace
     {
         b.vel = glm::vec3{0.f};
         b.spin = glm::vec3{0.f};
+        settle(b);
         ent->v.flags = static_cast<float>(static_cast<int>(ent->v.flags) | FL_ONGROUND);
         edict_t* ground = floorEnt ? floorEnt : qcvm->edicts;
         ent->v.groundentity = EDICT_TO_PROG(ground);
@@ -524,7 +598,7 @@ const qmodel_t* freePlacesWorld = nullptr;
     {
         glm::vec3 lo, hi;
         localBox(ent, lo, hi);
-        const glm::vec3 centre = toGlm(ent->v.origin) + axesFromAngles(ent->v.angles) * ((lo + hi) * 0.5f);
+        const glm::vec3 centre = toGlm(ent->v.origin) + axesFromAngles(ent->v.angles, brushModel(ent)) * ((lo + hi) * 0.5f);
         vec3_t c{centre.x, centre.y, centre.z};
         return SV_PointContents(c) == CONTENTS_SOLID;
     }
@@ -595,4 +669,46 @@ extern "C" int VR_RigidToss(edict_t* ent)
         SV_CheckWaterTransition(ent);
     }
     return 1;
+}
+
+// Held objects (QC's carryangles): the object keeps the turn it had in the hand when gripped. At
+// the grip (`grab`), the object's rotation relative to the hand's is kept; after, the object's
+// angles are the hand's rotation times that, in the object's own convention (brush or alias).
+namespace
+{
+std::unordered_map<int, glm::mat3> carried; // entity -> its axes in the hand's frame
+
+[[nodiscard]] glm::mat3 handAxes(const float* handAngles)
+{
+    vec3_t a{handAngles[0], handAngles[1], handAngles[2]}, f, r, u;
+    AngleVectors(a, f, r, u); // view angles
+    return glm::mat3{toGlm(f), -toGlm(r), toGlm(u)};
+}
+} // namespace
+
+extern "C" void VR_CarryAngles(edict_t* ent, const float* handAngles, int grab, float* out)
+{
+    const bool brush = brushModel(ent);
+    const glm::mat3 hand = handAxes(handAngles);
+    const int num = NUM_FOR_EDICT(ent);
+    if(grab || !carried.count(num))
+    {
+        carried[num] = glm::transpose(hand) * axesFromAngles(ent->v.angles, brush);
+        VectorCopy(ent->v.angles, out);
+        return;
+    }
+    anglesFromAxes(orthonormalize(hand * carried[num]), out, brush);
+}
+
+// Whether `p` is inside `ent`'s drawn box (turned with it), grown by `margin`: what a hand must be
+// in to take hold of an object (Quake's boxes do not turn, and items' are widened).
+extern "C" int VR_PointInModelBox(edict_t* ent, const float* p, float margin)
+{
+    glm::vec3 lo, hi;
+    localBox(ent, lo, hi);
+    const glm::mat3 axes = axesFromAngles(ent->v.angles, brushModel(ent));
+    const glm::vec3 local = glm::transpose(axes) * (glm::vec3{p[0], p[1], p[2]} - toGlm(ent->v.origin));
+    // Thin things (a dropped gun) at least 6 units thick, so a hand can still find them.
+    const glm::vec3 half = glm::max((hi - lo) * 0.5f, glm::vec3{3.f}) + glm::vec3{margin};
+    return glm::all(glm::lessThanEqual(glm::abs(local - (lo + hi) * 0.5f), half));
 }
