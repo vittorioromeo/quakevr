@@ -24,6 +24,7 @@ namespace
 glframebufs_t eyeFramebufs{};
 int eyeFramebufsWidth = 0;
 int eyeFramebufsHeight = 0;
+float eyeFramebufsFsaa = 0.f; // vid_fsaa they were made with
 GLuint targetFbo = 0;
 
 bool renderingEye = false;
@@ -31,10 +32,11 @@ int currentEye = 0;
 
 void ensureEyeFramebuffers(int width, int height)
 {
-    if(eyeFramebufsWidth == width && eyeFramebufsHeight == height)
+    if(eyeFramebufsWidth == width && eyeFramebufsHeight == height && eyeFramebufsFsaa == vid_fsaa.value)
     {
         return;
     }
+    eyeFramebufsFsaa = vid_fsaa.value;
 
     const glframebufs_t windowFramebufs = framebufs;
     const int windowWidth = vid.width;

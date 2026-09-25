@@ -1,4 +1,5 @@
-// vr_shadows.hpp -- soft blob shadows under the player and the hands (vr_player_shadows).
+// vr_shadows.hpp -- soft blob shadows under the player and the hands (vr_player_shadows), and
+// under monsters and items (vr_entity_shadows).
 
 #pragma once
 

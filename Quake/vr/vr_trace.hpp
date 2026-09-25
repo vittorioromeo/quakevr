@@ -17,6 +17,12 @@ namespace qvr::worldtrace
 [[nodiscard]] std::optional<trace_t> move(
     const glm::vec3& start, const glm::vec3& mins, const glm::vec3& maxs, const glm::vec3& end, int type);
 
+// A line through the world's geometry and, with `brushEntities`, the moving brush models the
+// client has (lifts, doors, platforms; not rotated), from the client's own data: works without
+// the local server. `line` is how far along the world alone it gets, 0..1.
+[[nodiscard]] trace_t world(const glm::vec3& start, const glm::vec3& end, bool brushEntities = true);
+[[nodiscard]] float line(const glm::vec3& start, const glm::vec3& end);
+
 [[nodiscard]] inline glm::vec3 endPos(const trace_t& tr)
 {
     return {tr.endpos[0], tr.endpos[1], tr.endpos[2]};

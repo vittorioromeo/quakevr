@@ -524,6 +524,27 @@ extern "C" int VR_ParseBeamEntity(int ent)
     return ent | ((beamId + 1) << 16);
 }
 
+// The local player's muzzle flash lights up the gun (the main hand's, or the off hand's when the
+// main hand has none), not a point in front of the player's origin.
+extern "C" void VR_MuzzleFlashOrigin(int ent, float* origin)
+{
+    if(!vrProtocol() || ent != cl.viewentity)
+    {
+        return;
+    }
+    const hands::State& s = hands::current();
+    const int hand = s.muzzleValid[1] ? 1 : s.muzzleValid[0] ? 0 : -1;
+    if(hand < 0)
+    {
+        return;
+    }
+    // A little back from the muzzle, so that it is not inside the wall the gun touches.
+    const glm::vec3 p = s.muzzle[hand] - hands::forward(s.rot[hand]) * 4.f;
+    origin[0] = p.x;
+    origin[1] = p.y;
+    origin[2] = p.z;
+}
+
 // The player's own beams follow the gun as drawn, every frame, rather than where the server last
 // saw it (a few frames late, and stepping at the server's rate). Beam ids 0 and 1 (the off and
 // main hands' lightning) start at that hand's muzzle and aim along the hand, keeping their length;

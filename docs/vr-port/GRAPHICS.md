@@ -5,6 +5,12 @@ parts: an audit of Ironwail's renderer (what it does today, where new work plugs
 Quake engines, the 2021 re-release and VR ports did it. Costs are estimates for PC VR on a Quest 3 (about 2064×2208
 per eye, an RTX 3070-class GPU, 90 Hz: 11.1 ms per frame).
 
+## Status
+
+Done (first step, see "Done" below): #1 re-lit maps, #2 model lighting, #4 the muzzle flash at the gun, #5 blob
+shadows for monsters and items, #6 anti-aliasing default. Next: #3 and #7-#8 (dynamic lights on models, real
+shadows).
+
 ## Why it looks flat today
 
 - **Monsters, weapons, hands and the body are lit as a single colour each.** `R_SetupAliasLighting` samples the
@@ -88,6 +94,30 @@ Ordered by value for effort. "New assets" means files beyond what the player alr
 
 Everything in tiers 1–2 fits Ironwail's existing structure (forward rendering, GPU light clusters, instanced
 models) and keeps the classic pixel look; none of it needs new art.
+
+## Done
+
+- **Re-lit maps** (#1). `Misc/quakevr/relight_maps.py --quake <Quake folder> --light <ericw-tools light>` extracts
+  the maps of id1, hipnotic and rogue from the player's own paks and re-lights them with
+  `-extra4 -dirt -dirtscale 1.0 -dirtdepth 96 -bounce -bouncescale 0.5 -lit` (about 4 s a map, 73 maps, 143 MB),
+  into `quakevr/relit/<game>/maps/`. The engine loads `relit/<game>/maps/X.bsp` and its `.lit` in place of
+  `maps/X.bsp` when that comes from `<game>` (`VR_ModelFile` in `Mod_LoadModel` and `Mod_LoadLighting`), per game
+  because id1, hipnotic and rogue all have a `start.bsp`; a mod's own maps are left alone. `vr_relit_maps 0` plays
+  the original lighting (next map). The relit files are generated locally and not committed (`.gitignore`).
+- **Model lighting** (#2, `vr_model_lighting`, `vr_modellight.cpp`). The map's light entities (parsed at load;
+  "start off" lights with a target name skipped) give each alias model the direction of the strongest four
+  lights that reach it (Quake's linear falloff, `light - distance * wait`) and see it (a line through the world's
+  BSP, hull 0, client-side). Weighted by brightness there; `w` is how much they agree. Recomputed when the model
+  moves 12 units or every 0.3 s, eased over time. The alias shader gets it per instance (`aliasinstance_t.lightdir`,
+  `InstanceData.LightDir`) and mixes it with the fixed direction by `w`.
+- **Blob shadows for monsters and items** (#5, `vr_entity_shadows`): alias models in the scene except the player's,
+  view entities, see-through ones and `r_noshadow_list` (flames, beams); sized from the model's bounds, pushed away
+  from the model's light direction, fading with height. The traces are now client-side through the world and the
+  moving brush models (lifts, doors), so shadows also work as a client; built once per frame for both eyes.
+- **Muzzle flash light at the gun** (#4 in part): the local player's `EF_MUZZLEFLASH` light is at the main hand's
+  muzzle (`VR_MuzzleFlashOrigin`). The extra monster and powerup lights wait for the dynamic-lights step.
+- **Anti-aliasing** (#6 in part): `vid_fsaa 4` in `quakevr/default.cfg` (new configs), a setting in Advanced >
+  Graphical Settings, and the eye framebuffers are rebuilt when it changes. Texture filtering stays Ironwail's.
 
 ## Sources
 

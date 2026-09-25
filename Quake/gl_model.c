@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // on the same machine.
 
 #include "quakedef.h"
+#include "vr/vr_api.h" // QVR
 static qmodel_t*	loadmodel;
 static char	loadname[32];	// for hunk tags
 
@@ -379,7 +380,7 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 //
 // load the file
 //
-	buf = COM_LoadMallocFile (mod->name, &mod->path_id);
+	buf = COM_LoadMallocFile (VR_ModelFile (mod->name), &mod->path_id); // QVR: relit maps
 	if (!buf)
 	{
 		if (crash)
@@ -858,7 +859,7 @@ static void Mod_LoadLighting (lump_t *l)
 	loadmodel->lightdata = NULL;
 	loadmodel->litfile = false;
 	// LordHavoc: check for a .lit file
-	q_strlcpy(litfilename, loadmodel->name, sizeof(litfilename));
+	q_strlcpy(litfilename, VR_ModelFile (loadmodel->name), sizeof(litfilename)); // QVR: relit maps
 	COM_StripExtension(litfilename, litfilename, sizeof(litfilename));
 	q_strlcat(litfilename, ".lit", sizeof(litfilename));
 	mark = Hunk_LowMark();

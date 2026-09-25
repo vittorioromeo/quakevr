@@ -148,6 +148,10 @@
 {
     return {
         cycle("Player Shadows", "vr_player_shadows", {{0.f, "Off"}, {1.f, "Hands"}, {2.f, "Body"}, {3.f, "Both"}}),
+        toggle("Monster and Item Shadows", "vr_entity_shadows").help("Soft shadows under monsters and items, away from their light."),
+        toggle("Model Lighting", "vr_model_lighting").help("Monsters, items and weapons are shaded from the map's lights, not one fixed direction."),
+        toggle("Relit Maps", "vr_relit_maps").help("Maps re-lit with shadows, ambient occlusion and colour, if made (Misc/quakevr/relight_maps.py). Next map."),
+        cycle("Anti-aliasing", "vid_fsaa", {{0.f, "Off"}, {2.f, "2x"}, {4.f, "4x"}, {8.f, "8x"}}).help("Multisampling: smoother edges, some GPU time."),
     };
 }
 

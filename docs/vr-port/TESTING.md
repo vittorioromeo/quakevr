@@ -125,6 +125,13 @@ came. `developer 1` prints the spawned velocity, gravity, spin and age.
 ## What to try
 
 - **New in this round** (details in the commit log):
+  - **Graphics** (`docs/vr-port/GRAPHICS.md`, "Done"; Advanced > Graphical Settings):
+    - **Re-lit maps:** softer shadows, ambient occlusion in corners, some bounced light, coloured light. Made on
+      your machine by `Misc/quakevr/relight_maps.py` (already run for you); Relit Maps off compares.
+    - **Model lighting:** monsters, items, weapons, hands and body are shaded from the map's lights.
+    - **Shadows under monsters and items**, away from their light.
+    - **The muzzle flash lights up your gun**, not a point in front of your chest.
+    - **Anti-aliasing** setting (4x for new configs; yours is off, `vid_fsaa 4` to try).
   - **Crouching** keeps the hips under you and tilts the back forward (Advanced > Body: Crouch Tilt), instead of
     pulling the torso back.
   - **Bloody hands:** the hands and fingers get bloodier with the arms.

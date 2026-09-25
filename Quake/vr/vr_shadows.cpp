@@ -1,8 +1,9 @@
-// vr_shadows.cpp -- soft blob shadows under the player and the hands (vr_player_shadows: 0 off,
-// 1 hands, 2 body, 3 both). The old engine projected the models' shadows (r_shadows), which
-// Ironwail does not have; a dark disc on the floor below serves the same purpose in VR:
-// judging heights when jumping or reaching down. Drawn in the scene pass, depth-tested.
-// Needs the local server's world for the traces (see vr_trace).
+// vr_shadows.cpp -- soft blob shadows under the player, the hands (vr_player_shadows: 0 off,
+// 1 hands, 2 body, 3 both) and the monsters and items (vr_entity_shadows). The old engine projected
+// the models' shadows (r_shadows), which Ironwail does not have; a dark disc on the floor below
+// serves the same purpose in VR: judging heights when jumping or reaching down, and seeing that
+// things stand on the ground. A model's disc is pushed away from the light it is shaded from
+// (vr_modellight). Built once per frame, drawn in each eye's scene pass, depth-tested.
 
 #include "vr_backend.hpp"
 #include "vr_gfx.hpp"
@@ -10,34 +11,43 @@
 #include "vr_cvars.hpp"
 #include "vr_hands.hpp"
 #include "vr_main.hpp"
+#include "vr_modellight.hpp"
 #include "vr_shadows.hpp"
 #include "vr_trace.hpp"
 
+#include <algorithm>
 #include <vector>
 
 using namespace qvr;
+
+extern "C" int VR_IsViewEntity(const entity_t* e);
 
 namespace
 {
 
 std::vector<gfx::Vertex> vertices; // uv -1..1 across the disc
-// A disc on the floor below `from`, fading with height (up to `range` units).
-void blob(const glm::vec3& from, float radius, float range, float strength)
+int builtFrame = -1;
+
+// A disc on the floor below `from`, fading with the height above it beyond `lift` (gone at
+// `range` units), moved by `shift`.
+void blob(const glm::vec3& from, float radius, float range, float strength, const glm::vec3& shift = glm::vec3{0.f},
+    float lift = 0.f)
 {
-    const auto tr = worldtrace::move(from, glm::vec3{0.f}, glm::vec3{0.f}, from - glm::vec3{0.f, 0.f, range}, MOVE_NOMONSTERS);
-    if(!tr || tr->fraction >= 1.f || tr->startsolid)
+    const trace_t tr = worldtrace::world(from, from - glm::vec3{0.f, 0.f, range + lift});
+    if(tr.fraction >= 1.f || tr.startsolid)
     {
         return;
     }
 
-    const glm::vec3 n = worldtrace::normal(*tr);
+    const glm::vec3 n = worldtrace::normal(tr);
     if(n.z < 0.7f)
     {
         return; // not a floor
     }
 
-    const float alpha = strength * (1.f - tr->fraction);
-    const glm::vec3 centre = worldtrace::endPos(*tr) + n * 0.25f;
+    const float height = std::max(0.f, tr.fraction * (range + lift) - lift);
+    const float alpha = strength * std::max(0.f, 1.f - height / range);
+    const glm::vec3 centre = worldtrace::endPos(tr) + n * 0.25f + shift;
     const glm::vec3 u = glm::normalize(glm::cross(n, glm::vec3{0.f, 1.f, 0.f} + n * 0.001f)) * radius;
     const glm::vec3 v = glm::cross(n, u);
 
@@ -50,31 +60,77 @@ void blob(const glm::vec3& from, float radius, float range, float strength)
     }
 }
 
-} // namespace
-
-// From VR_DrawSceneOpaque (vr_text3d.cpp).
-void shadows::draw()
+// Monsters and items: alias models in the scene, not the player's own, not the flames and beams
+// Quake marks as casting no shadow, not see-through ones.
+void entityBlobs()
 {
-    const int mode = static_cast<int>(vr_player_shadows.value);
-    const hands::State& s = hands::current();
-    if(mode <= 0 || !vrActive() || !s.valid)
+    for(int i = 0; i < cl_numvisedicts; i++)
     {
-        return;
-    }
+        const entity_t* e = cl_visedicts[i];
+        if(!e->model || e->model->type != mod_alias || (e->model->flags & MOD_NOSHADOW) ||
+            e == &cl_entities[cl.viewentity] || VR_IsViewEntity(e) || e->alpha != ENTALPHA_DEFAULT)
+        {
+            continue;
+        }
 
+        const float scale = ENTSCALE_DECODE(e->scale);
+        const glm::vec3 mins{e->model->mins[0], e->model->mins[1], e->model->mins[2]};
+        const glm::vec3 maxs{e->model->maxs[0], e->model->maxs[1], e->model->maxs[2]};
+        const float width = std::max(maxs.x - mins.x, maxs.y - mins.y) * scale;
+        if(width < 4.f)
+        {
+            continue; // nails, gibs' bits
+        }
+        const float radius = std::clamp(width * 0.45f, 4.f, 40.f);
+
+        // Away from the light, the more so the more directional it is.
+        const glm::vec4 light = modellight::direction(e);
+        const glm::vec3 shift = glm::vec3{-light.x, -light.y, 0.f} * (radius * 0.4f * light.w);
+
+        // From the origin: a monster's is its middle, an item's its base (the model's own bounds
+        // may reach below the floor).
+        const glm::vec3 from{e->origin[0], e->origin[1], e->origin[2] + 8.f};
+        blob(from, radius, 128.f, 0.6f, shift, 8.f + std::max(0.f, -mins.z * scale));
+    }
+}
+
+void build()
+{
     vertices.clear();
-    if(mode == 2 || mode == 3)
+    const hands::State& s = hands::current();
+    const int mode = static_cast<int>(vr_player_shadows.value);
+    if(s.valid && (mode == 2 || mode == 3))
     {
         blob(s.playerOrigin, 14.f, 256.f, 0.65f);
     }
-    if(mode == 1 || mode == 3)
+    if(s.valid && (mode == 1 || mode == 3))
     {
         for(const glm::vec3& hand : s.pos)
         {
             blob(hand, 3.5f, 96.f, 0.7f);
         }
     }
+    if(vr_entity_shadows.value)
+    {
+        entityBlobs();
+    }
+}
 
+} // namespace
+
+// From VR_DrawSceneOpaque (vr_text3d.cpp).
+void shadows::draw()
+{
+    if(!vrActive() || !cl.worldmodel)
+    {
+        return;
+    }
+
+    if(builtFrame != host_framecount)
+    {
+        builtFrame = host_framecount;
+        build();
+    }
     if(vertices.empty())
     {
         return;

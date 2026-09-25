@@ -1045,6 +1045,7 @@ NOISE_FUNCTIONS
 "	int		Pose2;\n"\
 "	float	Blend;\n"\
 "	int		Padding;\n"\
+"	vec4	LightDir; // QVR: xyz towards the model's light, w how much it replaces the fixed direction\n"\
 "};\n"\
 "\n"\
 "layout(std430, binding=1) restrict readonly buffer InstanceBuffer\n"\
@@ -1155,7 +1156,7 @@ ALIAS_INSTANCE_BUFFER
 "	// transform world X and Z axes to local space\n"
 "	mat3 orientation = mat3(normalize(worldmatrix[0].xyz), normalize(worldmatrix[1].xyz), normalize(worldmatrix[2].xyz));\n"
 "	orientation = transpose(orientation);\n"
-"	vec3 shadevector = (orientation[0] + orientation[2]) / sqrt(2.0);\n"
+"	vec3 shadevector = orientation * normalize(mix(vec3(0.70710678, 0.0, 0.70710678), inst.LightDir.xyz, inst.LightDir.w)); // QVR: vr/vr_modellight.cpp\n"
 "	float dot1 = r_avertexnormal_dot(pose1.nor, shadevector);\n"
 "	float dot2 = r_avertexnormal_dot(pose2.nor, shadevector);\n"
 "	out_color = clamp(inst.LightColor * vec4(vec3(mix(dot1, dot2, inst.Blend)), 1.0), 0.0, 1.0);\n"

@@ -188,9 +188,12 @@ QVR_CVAR(vr_body_elbow_hand, "0.4", CVAR_ARCHIVE)     // and this much away from
 QVR_CVAR(vr_body_shoulder_up, "25", CVAR_ARCHIVE)     // degrees the shoulders rise reaching up,
 QVR_CVAR(vr_body_shoulder_forward, "20", CVAR_ARCHIVE) // and swing forward reaching far forward
 QVR_CVAR(vr_holster_haptics, "2", CVAR_ARCHIVE)
+QVR_CVAR(vr_model_lighting, "1", CVAR_ARCHIVE)        // models shaded from the map's lights (0: Quake's fixed direction; 0..1 blends)
+QVR_CVAR(vr_relit_maps, "1", CVAR_ARCHIVE)           // maps re-lit by Misc/quakevr/relight_maps.py, when present (next map)
 QVR_CVAR(vr_particles, "1", CVAR_ARCHIVE)             // Quake VR's textured particles for the QC's effects (0: Quake's own)
 QVR_CVAR(vr_particle_mult, "1", CVAR_ARCHIVE)         // how many of them
 QVR_CVAR(vr_player_shadows, "2", CVAR_ARCHIVE)
+QVR_CVAR(vr_entity_shadows, "1", CVAR_ARCHIVE)        // blob shadows under monsters and items
 QVR_CVAR(vr_positional_damage, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_leg_holster_model_enabled, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_leg_holster_model_scale, "0.5", CVAR_ARCHIVE)

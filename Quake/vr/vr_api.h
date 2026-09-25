@@ -55,6 +55,7 @@ int VR_ModalMessageFrame (void); // SCR_ModalMessage's loop: with a headset, a f
 void VR_BeforeAddGameDirectory (const char *dir);	// start of COM_AddGameDirectory
 void VR_AfterAddGameDirectory (const char *dir);	// end of COM_AddGameDirectory
 int VR_SkipSearchPath (const char *filename, const char *path);	// COM_FindFile: nonzero to skip a search path
+const char *VR_ModelFile (const char *name);				// Mod_LoadModel, Mod_LoadLighting: the file to load a model from (relit maps)
 
 // Server QuakeC (pr_edict.c, pr_cmds.c, sv_main.c, host_cmd.c).
 void VR_OnProgsLoaded (void);			// end of PR_LoadProgs, with the loaded qcvm current
@@ -83,6 +84,7 @@ void VR_WriteEntityUpdate (struct sizebuf_s *msg, struct edict_s *ent, int bits)
 void VR_ParseEntityUpdate (int num, int bits);			// CL_ParseUpdate, after the fitz fields
 int VR_ParseServerMessage (int cmd);					// unknown svc: nonzero if handled
 int VR_ParseBeamEntity (int ent);						// CL_ParseBeam: beam key for an entity
+void VR_MuzzleFlashOrigin (int ent, float *origin);		// CL_RelinkEntities: where an entity's muzzle flash lights (the local player's: the gun)
 int VR_SuppressModelRotate (int ent);					// CL_RelinkEntities: nonzero to keep an EF_ROTATE model's angles (rigid bodies)
 float VR_BeamScale (struct qmodel_s *model);				// CL_UpdateTEnts: scale of a beam's segments
 int VR_UpdateBeam (int ent, float *start, float *end);	// CL_UpdateTEnts: moves the player's own beams with the gun; nonzero: a rope (no random roll)

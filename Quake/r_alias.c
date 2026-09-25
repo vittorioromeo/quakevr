@@ -62,6 +62,7 @@ typedef struct aliasinstance_s {
 	int32_t		pose2;
 	float		blend;
 	int32_t		padding;
+	float		lightdir[4]; // QVR: vr/vr_modellight.cpp
 } aliasinstance_t;
 
 struct ibuf_s {
@@ -700,6 +701,7 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 	}
 
 	instance->padding = VR_AliasZeroBlend (e, paliashdr, totalverts); // QVR
+	VR_AliasLightDir (e, instance->lightdir); // QVR
 }
 
 /*
