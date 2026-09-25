@@ -82,6 +82,7 @@ float IID_SHIELD             = 39; // ROGUE.
 float IID_ANTIGRAV           = 40; // ROGUE.
 float IID_EARTHQUAKE         = 41; // ROGUE.
 float IID_V_SPHERE           = 42; // ROGUE.
+float IID_SWORD              = 43; // VR.
 
 //
 //
@@ -103,6 +104,7 @@ float WID_PROXIMITY_GUN    = 9;  // HIPNOTIC.
 float WID_ROCKET_LAUNCHER  = 10;
 float WID_LIGHTNING        = 11;
 float WID_LASER_CANNON     = 12; // HIPNOTIC.
+float WID_SWORD            = 13; // VR: a knight's sword (weaponflags QVR_WPNFLAG_USE_SECONDARY_AMMO: the hell knight's)
 
 //
 //

@@ -55,7 +55,8 @@ int VR_ModalMessageFrame (void); // SCR_ModalMessage's loop: with a headset, a f
 void VR_BeforeAddGameDirectory (const char *dir);	// start of COM_AddGameDirectory
 void VR_AfterAddGameDirectory (const char *dir);	// end of COM_AddGameDirectory
 int VR_SkipSearchPath (const char *filename, const char *path);	// COM_FindFile: nonzero to skip a search path
-const char *VR_ModelFile (const char *name);				// Mod_LoadModel, Mod_LoadLighting: the file to load a model from (relit maps)
+const char *VR_ModelFile (const char *name);
+void VR_AliasPosesLoaded (const char *name, void *aliashdr, const stvert_t *stverts, const dtriangle_t *tris, trivertx_t **poses); // Mod_LoadAliasModel, after the frames				// Mod_LoadModel, Mod_LoadLighting: the file to load a model from (relit maps)
 
 // Server QuakeC (pr_edict.c, pr_cmds.c, sv_main.c, host_cmd.c).
 void VR_OnProgsLoaded (void);			// end of PR_LoadProgs, with the loaded qcvm current

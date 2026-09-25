@@ -226,6 +226,12 @@ void()    knight_dieb11 = [    $deathb11,    knight_dieb11] {monster_check_remov
 
 void() knight_die =
 {
+    // VR: its sword falls from its hand (its death frames are drawn without it), gibbed or not.
+    if(!(self.spawnflags & 2))
+    {
+        VR_DropKnightSword(FALSE);
+    }
+
 // check for gib
     if(self.health < -40)
     {

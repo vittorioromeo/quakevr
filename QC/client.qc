@@ -2620,6 +2620,7 @@ void(float xHand, float xInMelee, float xHandVelMag,
         if(!DoXHandMelee(xHand, WID_FIST, "knight/sword1.wav", W_FistMelee))
             if(!DoXHandMelee(xHand, WID_AXE, "weapons/ax1.wav", W_FireAxe))
                 if(!DoXHandMelee(xHand, WID_MJOLNIR, "weapons/ax1.wav", HIP_FireMjolnir))
+                if(!DoXHandMelee(xHand, WID_SWORD, "knight/sword1.wav", W_SwordMelee))
                     DoXHandMeleeImpl(xHand, gunSound, W_GunMelee);
 
         *xOutMeleeAttackFinished = time + 0.1;

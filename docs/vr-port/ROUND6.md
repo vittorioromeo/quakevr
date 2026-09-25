@@ -19,7 +19,7 @@ gets a status, what was done, how it was tested, and anything to check on the he
 | 12 | Pauldrons on the body (toggle, customisable), after the Quake ranger; improve the body with the same reference | L | |
 | 13 | Swimming: walk in shallow water (small penalty); deep or feet off the floor: slow stick (10%), strokes move you | L | done |
 | 14 | Carrying and nudging physics items (ammo, health boxes): push with hands or weapons, hold and carry, no weapons while holding, no phasing through walls, improvised melee and throwing | XL | done |
-| 15 | Knights' swords: a usable melee weapon dropped on death; their death frames without the sword | XL | |
+| 15 | Knights' swords: a usable melee weapon dropped on death; their death frames without the sword | XL | done |
 | 16 | Credits and attributions for everything used (docs/vr-port/CREDITS.md) | S | done, kept up to date |
 
 ## Notes
@@ -146,3 +146,37 @@ gets a status, what was done, how it was tested, and anything to check on the he
     **Known limit:** a held box moves on the server's frames and is interpolated on the client, so it can trail the
     hand a little (as the grapple rope did); if it shows, the next step is to draw held boxes at the hand on the
     client.
+15. **Knights' swords.** Quake's sword wielders are the knight and the hell knight (the death knight in Quake's
+    code). Each now drops its sword when it dies, gibbed or not (not statues), with a chance of `vr_sword_drop`
+    (1; Advanced > Melee). The sword is a new melee weapon, `WID_SWORD` (13; item `IID_SWORD`, 43): the hell
+    knight's is the same weapon with the secondary-ammo weapon flag.
+    - **Models** (`Misc/quakevr/make_swords.py`): `progs/v_ksword.mdl` (61 vertices) and `v_hksword.mdl` (9) are
+      cut out of Quake VR's own knight models.
+      - The swords' vertices were picked by hand, since Quake VR's knights are not id's; the script also handles
+        id's models with `--id`.
+      - Each blade is laid along +z with the pommel at the origin (vertex 0, the hand's anchor) and the tip at
+        vertex 1 (the "muzzle", a swing's reach).
+      - The blade is repainted as clean steel in the sword's own copy of the skin: the knights' bloody strip read
+        as noise up close in the hand.
+    - **Dead knights without the sword** (`vr_monstermods.cpp`): when the models load, the sword's own vertices in
+      every death frame are collapsed onto the hilt, so its triangles vanish. The knight's death frames are known
+      by index (Quake VR's model numbers its frames), the hell knight's by name. `developer 1` prints "the sword
+      (N vertices) hidden in M death frames". Nothing changes on disk.
+    - **In the hand:** weapon slots 19 and 20 (`vr_weapons.inc`) copy the axe's settings with the pommel as the
+      anchor. The swing is the axe's with a longer reach (`W_SwordMelee`): 20 x `vr_sword_damage_mult` (1.5), the
+      hell knight's 25% more. It hits with the knight's own sounds (`knight/sword1`, `sword2`) and sparks off
+      walls. It can be holstered, thrown and force-grabbed like any weapon.
+    - **Configs:** Ironwail archives every weapon slot's settings, so configs had slots 19 and 20's old placeholder
+      values ("-1"), which hid the swords' settings. Fixed with `vr_wofs_version`: on the first run, slots whose
+      defaults changed are reset to them once, and the version is saved.
+    - **Precaches:** the swords' models and sounds are precached by `worldspawn`, so a sword carried into a map
+      without knights still works. This also fixed the headshot tick (item 8): `misc/menu1.wav` was precached only
+      in `main`, which the server never runs, so it did not play ("not precached").
+
+    **Tested** in the mock:
+    - e1m2: a knight shot dead lay without its sword, and the sword lay by its head;
+    - a hand gripping it on the floor picked it up;
+    - in the hand it is about 80 cm, held below the guard, next to the axe for scale;
+    - e2m3: a hell knight, likewise.
+
+    **Not tested:** how swings feel and their damage, on the headset.

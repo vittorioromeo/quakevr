@@ -3478,6 +3478,7 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 
 	pheader->numposes = posenum;
 	pheader->poseverttype = PV_QUAKE1;
+	VR_AliasPosesLoaded (mod->name, pheader, stverts, triangles, poseverts); // QVR: knights' death frames without the sword
 
 	mod->type = mod_alias;
 

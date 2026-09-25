@@ -45,6 +45,35 @@ void onIdChanged(cvar_t* /* var */)
     return !strcmp(name, "progs/hand_base.mdl") || !strncmp(name, "progs/finger_", 13);
 }
 
+// Configs archive every slot's settings, so a slot whose defaults change keeps a config's old
+// values: vr_wofs_version says which of these changes a config has seen, and the slots are reset to
+// their new defaults once. 1: slots 19 and 20 (the knights' swords; they were unused placeholders).
+constexpr int settingsVersion = 1;
+
+void resetSlot(int slot)
+{
+    for(int key = 0; key < numKeys; key++)
+    {
+        cvar_t& var = cvarAt(slot, static_cast<Key>(key));
+        Cvar_SetQuick(&var, var.default_string);
+    }
+}
+
+// The configs are read before anything asks for a slot.
+void migrate()
+{
+    if(vr_wofs_version.value >= settingsVersion)
+    {
+        return;
+    }
+    if(vr_wofs_version.value < 1)
+    {
+        resetSlot(18);
+        resetSlot(19);
+    }
+    Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
+}
+
 } // namespace
 
 void registerCvars()
@@ -83,6 +112,7 @@ int slotForModel(const qmodel_t* model)
         return -1;
     }
 
+    migrate();
     if(const auto it = slotCache.find(model); it != slotCache.end())
     {
         return it->second;

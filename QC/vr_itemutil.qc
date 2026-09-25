@@ -57,6 +57,7 @@ float(float xItemId) VR_ItemUtil_Impl_ItemIdToFlag =
     if(xItemId == IID_EMPATHY_SHIELDS)    { return HIP_IT_EMPATHY_SHIELDS; }
     if(xItemId == IID_HORN_OF_CONJURING)  { return HIP_IT_HORN_OF_CONJURING; }
     if(xItemId == IID_PROXIMITY_GUN)      { return HIP_IT_PROXIMITY_GUN; }
+    if(xItemId == IID_SWORD)              { return HIP_IT_SWORD; }
 
     // `IID_CATEGORY_ROGUE_ITEMS`
     if(xItemId == IID_LAVA_NAILGUN)       { return ROGUE_IT_LAVA_NAILGUN; }
@@ -120,6 +121,7 @@ float(float xItemId) VR_ItemUtil_ItemIdToItemCategory =
     if(xItemId == IID_EMPATHY_SHIELDS)   { return IID_CATEGORY_HIPNOTIC_ITEMS; }
     if(xItemId == IID_HORN_OF_CONJURING) { return IID_CATEGORY_HIPNOTIC_ITEMS; }
     if(xItemId == IID_PROXIMITY_GUN)     { return IID_CATEGORY_HIPNOTIC_ITEMS; }
+    if(xItemId == IID_SWORD)             { return IID_CATEGORY_HIPNOTIC_ITEMS; }
 
     // `IID_CATEGORY_ROGUE_ITEMS`
     if(xItemId == IID_LAVA_NAILGUN)       { return IID_CATEGORY_ROGUE_ITEMS; }

@@ -221,6 +221,14 @@ void() worldspawn =
     precache_sound("demon/dland2.wav");        // landing thud
     precache_sound("misc/h2ohit1.wav");        // landing splash
 
+    // VR: a headshot's tick; the knights' swords, which a player can carry into any map, and their
+    // sounds (also a carried box's grab).
+    precache_sound("misc/menu1.wav");
+    precache_sound("knight/sword1.wav");
+    precache_sound("knight/sword2.wav");
+    precache_model("progs/v_ksword.mdl");
+    precache_model("progs/v_hksword.mdl");
+
     // setup precaches allways needed
     precache_sound("items/itembk2.wav");        // item respawn sound
     precache_sound("player/plyrjmp8.wav");        // player jump

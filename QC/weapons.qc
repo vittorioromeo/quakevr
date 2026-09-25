@@ -1055,6 +1055,66 @@ void(float xHand) W_GunMelee =
 W_FistMelee
 ================
 */
+// A knight's sword (WID_SWORD): the axe's swing, longer and harder (vr_sword_damage_mult); the
+// hell knight's (weaponflags) harder still.
+void(float xHand) W_SwordMelee =
+{
+    float xdmg = VRMeleeDmg(xHand, 20) * cvar_hget(cvarh_vr_sword_damage_mult);
+    if(VRHasBit(VRGetWeaponFlags(xHand), QVR_WPNFLAG_USE_SECONDARY_AMMO))
+    {
+        xdmg = xdmg * 1.25;
+    }
+
+    if(!VRDoMeleeAttackTracelineFor(xHand, 22, 30))
+    {
+        return;
+    }
+
+    vector org = trace_endpos - v_forward * 4;
+    if(trace_ent.takedamage)
+    {
+        trace_ent.axhitme = 1;
+        self.damage_weapon = IT_AXE;
+        if(T_Damage_VRMelee(trace_ent, self, self, xdmg))
+        {
+            SpawnBloodSplash(org, xdmg);
+        }
+        if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
+        {
+            VRMeleeHapticByHand(xHand);
+            sound(self, VRGetGunChannel(xHand), "knight/sword2.wav", 1.0, ATTN_NORM);
+            VRSetMeleeHitSoundPlayed(xHand, TRUE);
+        }
+        return;
+    }
+
+    // A wall: a clang and sparks.
+    if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
+    {
+        VRMeleeHapticByHand(xHand);
+        sound(self, VRGetGunChannel(xHand), "player/axhit2.wav", 1, ATTN_NORM);
+        VRSetMeleeHitSoundPlayed(xHand, TRUE);
+    }
+    particle2(org, trace_plane_normal * 60, QVR_PARTICLE_PRESET_SPARKS, 8);
+};
+
+// A knight drops its sword when it dies (vr_sword_drop): a weapon lying where its hand was.
+void(float xHellKnight) VR_DropKnightSword =
+{
+    if(random() >= cvar_hget(cvarh_vr_sword_drop))
+    {
+        return;
+    }
+    makevectors(self.angles);
+    vector at = self.origin + v_forward * 10 + v_right * 8 + '0 0 8';
+    vector vel = v_forward * 60 + v_right * (crandom() * 40) + '0 0 120';
+    CreateThrownWeapon(self, WID_SWORD, xHellKnight ? QVR_WPNFLAG_USE_SECONDARY_AMMO : 0, 0,
+        at, self.angles, vel, randomVec(60),
+        FALSE /* disappear on hit */,
+        FALSE /* deal damage */,
+        WeaponIdToThrowDamage(WID_SWORD));
+};
+
 void(float xHand) W_FistMelee =
 {
     vector org;
@@ -2273,7 +2333,7 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
     RuneApplyBlackNoise(self); // make rune noise
     //--ZOID
 
-    if(xWeapon == WID_AXE)
+    if(xWeapon == WID_AXE || xWeapon == WID_SWORD)
     {
         if(!VRHandsTracked(self) ||
            !self.ishuman)
