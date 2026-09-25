@@ -358,6 +358,7 @@ void GL_PostProcess (void)
 	if (variant != 2) // some AMD drivers optimize out the uniform in variant #2
 		GL_Uniform4fFunc (0, gamma, contrast, 1.f/r_refdef.scale, dither);
 	GL_Uniform1fFunc (1, VR_PostProcessBloom ()); // QVR: an eye's glow (vr_bloom.cpp)
+	VR_PostProcessWater (); // QVR: an eye's underwater wobble (vr/vr_water.cpp)
 
 	glDrawArrays (GL_TRIANGLES, 0, 3);
 
@@ -900,6 +901,23 @@ qboolean GL_NeedsPostprocess (void)
 
 /*
 =============
+R_OpaqueSceneTexture -- QVR
+
+The opaque scene's colours, which translucent liquids read to bend what is behind them (vr/vr_water.cpp): only
+while they draw into the OIT buffers (the scene's colours are not a target then) and without multisampling.
+=============
+*/
+GLuint R_OpaqueSceneTexture (void)
+{
+	if (R_GetEffectiveAlphaMode () != ALPHAMODE_OIT || framebufs.scene.samples > 1)
+		return 0;
+	if (GL_NeedsSceneEffects ())
+		return framebufs.scene.color_tex;
+	return GL_NeedsPostprocess () ? framebufs.composite.color_tex : 0;
+}
+
+/*
+=============
 R_SetupGL
 =============
 */
@@ -1041,6 +1059,7 @@ void R_SetupView (void)
 		}
 	}
 	//johnfitz
+	VR_WaterView (r_viewleaf->contents, &water_warp); // QVR: liquids' settings, the underwater view (vr/vr_water.cpp)
 
 	R_SetFrustum ();
 
@@ -1940,6 +1959,7 @@ void R_RenderScene (void)
 	R_SetupScene (); //johnfitz -- this does everything that should be done once per call to RenderScene
 
 	R_Clear ();
+	VR_DrawHiddenArea (); // QVR: the lenses' hidden area, skipped by what follows
 
 	Fog_EnableGFog (); //johnfitz
 

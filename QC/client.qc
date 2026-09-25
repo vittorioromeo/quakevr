@@ -2600,6 +2600,12 @@ float(float xHand, float xWpnId, string xSound, void(float xHand) xWpnFn) DoXHan
 void(float xHand, float xInMelee, float* xOutMeleeAttackFinished, float* xOutInMelee,
      float* xMeleeHitSoundPlayed) PlayerVRMeleeImpl =
 {
+    // A hand holding a ledge (vr_climb) pulls the body, it does not strike.
+    if(VRHasBit(self.vrbits0, xHand == cVR_MainHand ? QVR_VRBITS0_MAINHAND_CLIMBING : QVR_VRBITS0_OFFHAND_CLIMBING))
+    {
+        return;
+    }
+
     // Once per blow (a real one: VR_Blow_IsBlow): after a hit (the hit sound played), not again
     // until the hand stops or pulls back, and not within VR_BLOW_REARM.
     entity b = VR_Blow(xHand);
@@ -2775,6 +2781,7 @@ void() PlayerVRMelee =
     VR_Heartbeat();
     VR_Blow_Update(cVR_MainHand);
     VR_Blow_Update(cVR_OffHand);
+    VR_Gib_HeldFrame(); // a gib held in one hand struck by the other (vr_carry.qc)
     VR_Bash();
 
     PlayerVRMeleeImpl(

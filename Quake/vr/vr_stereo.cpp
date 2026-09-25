@@ -20,6 +20,10 @@
 #include "vr_profile.hpp"
 #include "vr_stereo.hpp"
 
+#include <cmath>
+#include <cstdint>
+#include <vector>
+
 namespace qvr::stereo
 {
 namespace
@@ -171,6 +175,48 @@ void mirrorToWindow(int eye, GLuint windowTarget, int windowWidth, int windowHei
     glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
+// The lenses' hidden area (vr_visibility_mask): the runtime's hidden triangles, from the eye's
+// tangent space to clip space by the eye's field of view, drawn black at the near plane (depth
+// 1 with Ironwail's reversed Z, 0 without) right after the scene's clear: every later depth-tested
+// fragment there fails early, so the world's, models' and particles' shaders skip those pixels,
+// and bloom and the mirror see black.
+std::vector<gfx::Vertex> hiddenTriangles;
+
+void drawHiddenArea()
+{
+    Backend* be = backend();
+    const HiddenArea* h = be && vr_visibility_mask.value != 0.f ? be->hiddenArea(currentEye) : nullptr;
+    if(!h || h->indices.empty())
+    {
+        return;
+    }
+    QVR_GPU_PROFILE("hidden area");
+
+    const Fov& fov = frameState().eyes[currentEye].fov;
+    const float l = std::tan(fov.left), r = std::tan(fov.right), u = std::tan(fov.up), d = std::tan(fov.down);
+    if(r - l <= 0.f || u - d <= 0.f)
+    {
+        return;
+    }
+    const float z = gl_clipcontrol_able ? 1.f : -1.f;
+    hiddenTriangles.clear();
+    for(const std::uint32_t i : h->indices)
+    {
+        const glm::vec2 t = h->vertices[i];
+        gfx::Vertex v;
+        v.pos = {(2.f * t.x - (r + l)) / (r - l), (2.f * t.y - (u + d)) / (u - d), z};
+        v.color = glm::vec4{0.f};
+        hiddenTriangles.push_back(v);
+    }
+
+    gfx::State state;
+    state.shade = gfx::Shade::Color;
+    state.blend = gfx::Blend::Opaque;
+    state.depthTest = true; // passes against the clear (GL skips depth writes without the test)
+    state.depthWrite = true;
+    gfx::draw(hiddenTriangles, glm::mat4{1.f}, state);
+}
+
 } // namespace
 
 bool isRenderingEye()
@@ -227,7 +273,9 @@ extern "C" int VR_RenderView()
     int eyesRendered = 0;
     for(int eye = 0; eye < 2; eye++)
     {
-        profile::begin("xr acquire", false); // xrWaitSwapchainImage
+        // The runtime's calls are GPU scopes too: the GPU time between the eyes' own scopes
+        // (the runtime's work on this context, and the GPU idle while the CPU waits in them).
+        profile::begin("xr acquire", true); // xrWaitSwapchainImage
         const unsigned image = be->acquireEyeImage(eye);
         profile::end();
         if(!image)
@@ -266,7 +314,9 @@ extern "C" int VR_RenderView()
         profile::end();
 
         stereo::renderingEye = false;
+        profile::begin("xr release", true); // xrReleaseSwapchainImage
         be->releaseEyeImage(eye);
+        profile::end();
         ++eyesRendered;
 
         // Released images belong to the runtime again: do not keep them attached.
@@ -290,7 +340,7 @@ extern "C" int VR_RenderView()
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, windowTarget);
 
     // Both eyes, or no projection layer at all (an eye's image could not be acquired).
-    profile::begin("xr submit", false); // xrEndFrame
+    profile::begin("xr submit", true); // xrEndFrame
     be->endFrame(eyesRendered == 2);
     profile::end();
     panel::setStereoThisFrame(eyesRendered == 2);
@@ -300,6 +350,14 @@ extern "C" int VR_RenderView()
 extern "C" int VR_RenderingEye()
 {
     return stereo::renderingEye;
+}
+
+extern "C" void VR_DrawHiddenArea()
+{
+    if(stereo::renderingEye)
+    {
+        stereo::drawHiddenArea();
+    }
 }
 
 extern "C" unsigned VR_PostProcessTarget()

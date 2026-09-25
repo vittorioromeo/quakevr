@@ -4,6 +4,7 @@
 // - Shadowed dynamic lights (explosions, rockets, muzzle flashes; vr_shadow_dlights): the most
 //   important few get six cube faces in one depth atlas, sized by distance, with the world, doors
 //   and lifts, and monsters as casters. The world's clustered light loop looks their shadow up.
+//   A spot light (dlightSpot: the flashlight) lights only its cone and takes one tile round it.
 // - Map lights' shadows of moving things (vr_shadow_maplights): the few map lights nearest the
 //   player cast the shadows of monsters and the player onto the baked light. Each has the world's
 //   depth cached once and the moving things' depth redrawn every frame; the world shader removes
@@ -30,6 +31,12 @@ void dlightLook(const dlight_t* dl, float ambient, float fade);
 // A small glow that casts no shadow (projectiles, the weapons' ammo screens: vr_emissive.cpp): it
 // never takes one of vr_shadow_dlights' shadows. Set after its key and death time.
 void dlightNoShadow(const dlight_t* dl);
+
+// A spot light (the flashlight): its light only within a cone along `dir`, full inside
+// `innerDegrees` of it and smoothly down to none at `outerDegrees` (half angles). Shadowed, it takes
+// one square tile round the cone (a perspective shadow map) rather than six cube faces. Set after
+// its key and death time, every frame it is kept.
+void dlightSpot(const dlight_t* dl, const glm::vec3& dir, float innerDegrees, float outerDegrees);
 
 void init();
 

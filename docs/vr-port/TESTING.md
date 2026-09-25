@@ -141,7 +141,19 @@ context and screenshot, ready to paste or to point me at.
 
 ## What to try
 
-- **New in this round** (details in `docs/vr-port/ROUND12.md`, your second batch of notes):
+- **New in this round** (details in `docs/vr-port/ROUND13.md`, your third batch of notes):
+  - **VR Settings > Headset:** OpenXR Runtime (try Virtual Desktop's VDXR), Render Scale, Hide Lens Corners.
+  - **Menus:** bigger, spaced, modern widgets; point with the laser, trigger to click and drag.
+  - **Flashlight:** a real spotlight: lights models, casts shadows, no flicker.
+  - **Liquids:** waves, glints, refraction, caustics; fog, tint and a gentle wobble under water.
+  - **Parallax:** items and models with their own depths; no black boxes.
+  - **Ammo screens:** light only in front; CRT look.
+  - **Melee:** no whips or backward pulls; hit a gib held in the other hand; shove monsters off ledges.
+  - **Swimming:** the reverse stroke swims backwards; floating objects settle.
+  - **Ledge grab (experimental):** Locomotion > Ledge Grab.
+  - **Tutorial map** relit.
+
+- **Previous round** (`docs/vr-port/ROUND12.md`, your second batch of notes):
   - **Melee:** real blows only (no flicks or wiggles), punches/slaps/overheads balanced, one-hand palm shove.
   - **Parallax:** walls with depth (Graphics: Parallax, Depth, Distance).
   - **Flashlight:** held right, shadows on, a soft beam of light.
@@ -364,7 +376,9 @@ fight, ...), then `vr_profile_dump`, and send the `.csv` (and `qconsole.log` wit
 presets (`vr_graphics_preset 1` .. `4`, a profile each) shows what each effect costs.
 
 Reading it: `frame` is the engine's frame on the CPU (`xr wait`, the headset's pacing, and `swap` are waiting, not
-work: "CPU busy" leaves them out), and its GPU time is the sum of the 3D and 2D work; `frame period` is the time
+work: "CPU busy" leaves them out). Its GPU time spans the frame on the GPU's clock, including time the GPU sits idle
+while the CPU waits in the runtime (`xr submit`: xrEndFrame paces the frame), so the eyes' own GPU time (the
+summary's "eyes") is the real load; `frame period` is the time
 between frames. Under `screen/3D`, `eye L` and `eye R` hold each eye's `scene` (`world+brush`, `alias` models,
 `particles`, `sky`, `water`, `translucent`, Quake VR's `decals`, `blob shadows` and `vr particles`), `bloom`,
 `postprocess`, the `hud panel` and the `mirror` to the window; the shadow maps (`dlight shadows`, `map light

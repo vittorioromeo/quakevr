@@ -247,7 +247,7 @@ void R_SetupAliasLighting (entity_t	*e)
 		VectorSubtract (e->origin, l->pos, dist);
 		add = DotProduct (dist, dist);
 		if (l->radius * l->radius > add)
-			VectorMA (lightcolor, l->radius - sqrtf (add), l->color, lightcolor);
+			VectorMA (lightcolor, (l->radius - sqrtf (add)) * VR_SpotCone (l, e->origin), l->color, lightcolor); // QVR: a spot light's cone
 	}
 
 	VR_AliasLightCurve (lightcolor); // QVR: the world's lightmap contrast
@@ -716,7 +716,7 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 	instance->glow[0] = VR_EntityGlow (e); // QVR
 	instance->glow[1] = VR_ModelLightParity () ? 1.f : 0.f; // QVR: the shader's shading on a par with the world
 	instance->glow[2] = VR_EntityFullbrightBoost (e); // QVR: the held weapons' sights glow (vr_weapon_glow)
-	instance->glow[3] = 0.f;
+	instance->glow[3] = mode == ALIAS_STANDARD ? VR_ParallaxDepth (e, model_matrix, paliashdr->scale) : 0.f; // QVR: its parallax depth in units
 }
 
 /*

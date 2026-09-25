@@ -246,9 +246,18 @@ void queueWeaponText(const hands::State& s, int hand, const view::ViewEntity& ve
     {
         angles.z = -angles.z;
     }
-    // Read from behind the weapon, along its aim (the old engine flipped the pitch for its own
-    // text orientation).
-    angles += s.visualRot[hand];
+    // Read from behind the weapon, along its aim: the weapon's offset turned by the hand (composed,
+    // not added: added angles only agree while the hand is level, and a gun pointing up tilted the
+    // screen the wrong way).
+    {
+        const auto axes = [](const glm::vec3& a) {
+            vec3_t in{a.x, a.y, a.z}, f, r, u;
+            AngleVectors(in, f, r, u);
+            return glm::mat3{glm::vec3{f[0], f[1], f[2]}, -glm::vec3{r[0], r[1], r[2]}, glm::vec3{u[0], u[1], u[2]}};
+        };
+        const glm::mat3 m = axes(s.visualRot[hand]) * axes(angles);
+        angles = hands::anglesFromVectors(glm::normalize(m[0]), glm::normalize(m[2]));
+    }
 
     const bool main = hand == HAND_MAIN;
     const int clip = cl.stats[main ? STAT_QVR_WEAPONCLIP : STAT_QVR_WEAPONCLIP2];

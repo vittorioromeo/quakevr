@@ -413,7 +413,8 @@ typedef struct gpulight_s {
 	float	color[3];
 	float	minlight;
 	float	shadow[4];	// QVR: xy its faces' origin in the shadow atlas (texels), z face size (0: no shadow), w kind (vr/vr_lighting.cpp)
-	float	shadow2[4];	// QVR: map lights: xy faces' origin in the static atlas, z "light", w "wait"
+	float	shadow2[4];	// QVR: map lights: xy faces' origin in the static atlas, z "light", w "wait"; spot lights with a shadow: x the tan of its tile's half angle
+	float	spot[4];	// QVR: spot lights: xyz the direction / (cos inner - cos outer), w cos inner / (cos inner - cos outer); zero: a point light
 } gpulight_t;
 
 typedef struct gpulightbuffer_s {
@@ -439,6 +440,10 @@ typedef struct gpuframedata_s {
 	int		shadowflags;	// QVR
 	float	lighttweak[4];	// QVR: lightmap contrast, its pivot (vr_light_contrast), specular intensity, normal map strength
 	float	parallax[4];	// QVR: parallax mapping (vr_parallax): depth in units (0 off), distance it ends at, steps, unused
+	float	water[4];		// QVR: liquids (vr/vr_water.cpp): waves, fresnel, refraction, glints
+	float	water2[4];		// QVR: lava glow, caustics, the eye in a liquid, unused
+	float	causticsorigin[4];	// QVR: the liquid volume's origin (xyz)
+	float	causticsscale[4];	// QVR: one over its size (xyz)
 } gpuframedata_t;
 
 // QVR: normal maps for world textures and model skins (gl_texmgr.c; vr_normalmaps): made from the texture's shading
@@ -449,9 +454,11 @@ struct gltexture_s *TexMgr_LoadNormalMap (struct gltexture_s *base, const char *
 	byte *data, const char *source_file, src_offset_t source_offset, int kind, int worldwidth);
 struct gltexture_s *TexMgr_NormalMap (struct gltexture_s *glt); // its normal map, or a flat one
 qboolean TexMgr_IndexedSmooth (void); // Quake's own textures filtered smoothly (only then do they get heights)
+void TexMgr_SetHeightMask (const byte *mask, int width, int height); // a skin's islands for the heights made next (NULL: none)
 
 extern gpulightbuffer_t r_lightbuffer;
 extern gpuframedata_t r_framedata;
+GLuint R_OpaqueSceneTexture (void); // QVR: the opaque scene's colours translucent liquids can read (0: none)
 
 void R_AnimateLight (void);
 void R_MarkSurfaces (void);

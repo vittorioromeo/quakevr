@@ -165,6 +165,7 @@ typedef struct bmodel_bindless_gpu_call_s {
 	GLuint64	texture;
 	GLuint64	fullbright;
 	GLuint64	normalmap;	// QVR: vr_normalmaps
+	GLfloat		uvclamp[4];	// QVR: texture_t's (parallax mapping)
 } bmodel_bindless_gpu_call_t;
 
 typedef struct bmodel_bound_gpu_call_s {
@@ -172,6 +173,7 @@ typedef struct bmodel_bound_gpu_call_s {
 	GLfloat		alpha;
 	GLint		baseinstance;
 	GLint		padding;
+	GLfloat		uvclamp[4];	// QVR: texture_t's (parallax mapping)
 } bmodel_bound_gpu_call_t;
 
 typedef struct bmodel_gpu_call_remap_s {
@@ -215,6 +217,7 @@ static void R_InitBModelInstance (bmodel_gpu_instance_t *inst, entity_t *ent)
 	inst->alpha = ent->alpha == ENTALPHA_DEFAULT ? -1.f : ENTALPHA_DECODE (ent->alpha);
 	memset (&inst->padding, 0, sizeof(inst->padding));
 	inst->padding[0] = ent == &cl_entities[0] ? 0.f : VR_EntityGlow (ent); // QVR: the shader's glow
+	inst->padding[1] = VR_ParallaxDepth (ent, mat, NULL); // QVR: its parallax depth in units (vr_parallax)
 }
 
 /*
@@ -293,6 +296,7 @@ R_AddBModelCall
 */
 static void R_AddBModelCall (int index, int first_instance, int num_instances, texture_t *t, qboolean zfix)
 {
+	static const float noclamp[4] = {0.f, 0.f, 0.f, 0.f}; // QVR
 	GLuint		flags;
 	float		alpha;
 	gltexture_t	*tx, *fb;
@@ -318,6 +322,8 @@ static void R_AddBModelCall (int index, int first_instance, int num_instances, t
 		zfix = 0;
 
 	flags = zfix | ((fb != NULL) << 1) | ((r_fullbright_cheatsafe != false) << 2);
+	if (t && TEXTYPE_ISLIQUID (t->type)) // QVR: the liquid's kind for its look (gl_shaders.h LiquidKind)
+		flags |= (t->type - TEXTYPE_FIRSTLIQUID + 1) << 3;
 	alpha = t ? GL_WaterAlphaForTextureType (t->type) : 1.f;
 
 	if (gl_bindless_able)
@@ -328,6 +334,7 @@ static void R_AddBModelCall (int index, int first_instance, int num_instances, t
 		call->texture = tx ? tx->bindless_handle : greytexture->bindless_handle;
 		call->fullbright = fb ? fb->bindless_handle : blacktexture->bindless_handle;
 		call->normalmap = TexMgr_NormalMap (tx)->bindless_handle; // QVR
+		memcpy (call->uvclamp, t ? t->uvclamp : noclamp, sizeof (call->uvclamp)); // QVR
 	}
 	else
 	{
@@ -340,6 +347,7 @@ static void R_AddBModelCall (int index, int first_instance, int num_instances, t
 		textures[0] = tx ? tx : greytexture;
 		textures[1] = fb ? fb : blacktexture;
 		textures[2] = TexMgr_NormalMap (tx); // QVR
+		memcpy (call->uvclamp, t ? t->uvclamp : noclamp, sizeof (call->uvclamp)); // QVR
 	}
 
 	SDL_assert (num_instances > 0);
@@ -569,6 +577,7 @@ void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent)
 	R_ResetBModelCalls (program);
 	GL_SetState (state);
 	GL_Bind (GL_TEXTURE2, r_fullbright_cheatsafe ? greytexture : lightmap_texture);
+	GL_BindNative (GL_TEXTURE6, GL_TEXTURE_2D, translucent ? R_OpaqueSceneTexture () : 0); // QVR: refraction (vr/vr_water.cpp)
 
 	GL_Upload (GL_SHADER_STORAGE_BUFFER, bmodel_instances, sizeof(bmodel_instances[0]) * totalinst, &buf, &ofs);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 2, buf, (GLintptr)ofs, sizeof(bmodel_instances[0]) * count);

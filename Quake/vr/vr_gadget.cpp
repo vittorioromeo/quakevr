@@ -18,6 +18,7 @@
 #include "vr_lighting.hpp"
 #include "vr_main.hpp"
 #include "vr_profile.hpp"
+#include "vr_text3d.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -61,27 +62,6 @@ constexpr int glowLightKey = -0x5C11;
     n *= 0x846ca68bU;
     n ^= n >> 16;
     return static_cast<float>(n & 0xffffff) / static_cast<float>(0x1000000);
-}
-
-// How much the screen glitches at `time` (0..1): once in each 7 seconds, at a random moment of
-// them, a burst of 0.12 to 0.35 seconds rising and falling; one in four slots has none.
-[[nodiscard]] float glitch(double time)
-{
-    constexpr double slot = 7.0;
-    const double index = std::floor(time / slot);
-    const uint32_t n = static_cast<uint32_t>(static_cast<int64_t>(index)) * 3u;
-    if(hash(n + 2u) < 0.25f)
-    {
-        return 0.f;
-    }
-    const double start = index * slot + hash(n) * (slot - 0.5);
-    const double length = 0.12 + 0.23 * hash(n + 1u);
-    const double x = (time - start) / length;
-    if(x <= 0.0 || x >= 1.0)
-    {
-        return 0.f;
-    }
-    return static_cast<float>(std::sin(x * 3.14159265)) * (0.6f + 0.4f * hash(n + 2u));
 }
 
 // Status bar pictures (gfx.wad) by name.
@@ -326,6 +306,27 @@ void wrap(std::string_view text, std::vector<std::string>& out)
 
 } // namespace
 
+// Once in each 7 seconds, at a random moment of them, a burst of 0.12 to 0.35 seconds rising and
+// falling; one in four slots has none.
+float glitch(double time)
+{
+    constexpr double slot = 7.0;
+    const double index = std::floor(time / slot);
+    const uint32_t n = static_cast<uint32_t>(static_cast<int64_t>(index)) * 3u;
+    if(hash(n + 2u) < 0.25f)
+    {
+        return 0.f;
+    }
+    const double start = index * slot + hash(n) * (slot - 0.5);
+    const double length = 0.12 + 0.23 * hash(n + 1u);
+    const double x = (time - start) / length;
+    if(x <= 0.0 || x >= 1.0)
+    {
+        return 0.f;
+    }
+    return static_cast<float>(std::sin(x * 3.14159265)) * (0.6f + 0.4f * hash(n + 2u));
+}
+
 bool active()
 {
     return vr_hud_mode.value == 1.f && vrActive() && cls.state == ca_connected && cls.signon == SIGNONS &&
@@ -353,6 +354,7 @@ void screenRect(glm::vec3& corner, glm::vec2& size)
 void renderScreen()
 {
     QVR_GPU_PROFILE("gadget screen");
+    text3d::renderScreens(); // the weapons' ammo screens' images too
     if(!active())
     {
         return;
@@ -388,7 +390,8 @@ void drawScreen()
     const float k = crtStrength();
     gfx::draw(quad, gfx::sceneViewProjection(),
         {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true,
-            .params = {time, k, k > 0.f ? glitch(realtime) * std::min(k, 1.f) : 0.f, 0.f}},
+            .params = {time, k, k > 0.f ? glitch(realtime) * std::min(k, 1.f) : 0.f, 0.f},
+            .screen = {width, height, 0.5f}},
         target.texture);
 }
 

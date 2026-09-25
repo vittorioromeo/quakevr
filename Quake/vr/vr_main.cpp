@@ -22,6 +22,7 @@
 #include "vr_flashlight.hpp"
 #include "vr_weapons.hpp"
 
+#include <cmath>
 #include <cstring>
 #include <memory>
 
@@ -147,8 +148,51 @@ void VR_Status_f()
         return;
     }
 
-    Con_Printf("VR: active, backend \"%s\", world scale %g\n",
-        state->backend->name(), vr_world_scale.value);
+    Con_Printf("VR: active, backend \"%s\" (%s), world scale %g\n",
+        state->backend->name(), state->backend->runtimeName(), vr_world_scale.value);
+
+    // The eye images: the runtime's recommended size (SteamVR's supersampling included), its
+    // largest, and the size in use (vr_render_scale).
+    const qvr::EyeSizes sizes = state->backend->eyeSizes();
+    const double pixels = static_cast<double>(sizes.width) * sizes.height;
+    const double recommendedPixels = static_cast<double>(sizes.recommendedWidth) * sizes.recommendedHeight;
+    Con_Printf("  eyes  %dx%d (vr_render_scale %g: %.0f%% of the recommended %dx%d's pixels; largest %dx%d)\n",
+        sizes.width, sizes.height, vr_render_scale.value, recommendedPixels > 0.0 ? 100.0 * pixels / recommendedPixels : 0.0,
+        sizes.recommendedWidth, sizes.recommendedHeight, sizes.maxWidth, sizes.maxHeight);
+
+    // The lenses' hidden area (vr_visibility_mask): its share of the image, and its bounds in the
+    // eye's tangent space against the eye's field of view (they should lie within it).
+    for(int eye = 0; eye < 2; eye++)
+    {
+        const qvr::HiddenArea* h = state->backend->hiddenArea(eye);
+        if(!h)
+        {
+            Con_Printf("  hidden area: not given by the runtime (no XR_KHR_visibility_mask)\n");
+            break;
+        }
+        const qvr::Fov& fov = state->frame.eyes[eye].fov;
+        const float l = std::tan(fov.left), r = std::tan(fov.right), u = std::tan(fov.up), d = std::tan(fov.down);
+        double area = 0.0;
+        glm::vec2 lo{1e9f}, hi{-1e9f};
+        for(std::size_t i = 0; i + 2 < h->indices.size(); i += 3)
+        {
+            const glm::vec2 a = h->vertices[h->indices[i]];
+            const glm::vec2 b = h->vertices[h->indices[i + 1]];
+            const glm::vec2 c = h->vertices[h->indices[i + 2]];
+            area += 0.5 * std::fabs(static_cast<double>((b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y)));
+        }
+        for(const glm::vec2& v : h->vertices)
+        {
+            lo = glm::min(lo, v);
+            hi = glm::max(hi, v);
+        }
+        const double image = static_cast<double>(r - l) * static_cast<double>(u - d);
+        Con_Printf("  hidden area %c: %zu triangles, %.1f%% of the image (%s); x %.2f..%.2f y %.2f..%.2f, view %.2f..%.2f "
+                   "%.2f..%.2f\n",
+            eye == 0 ? 'L' : 'R', h->indices.size() / 3, image > 0.0 ? 100.0 * area / image : 0.0,
+            vr_visibility_mask.value != 0.f ? "masked" : "vr_visibility_mask 0", h->vertices.empty() ? 0.f : lo.x,
+            h->vertices.empty() ? 0.f : hi.x, h->vertices.empty() ? 0.f : lo.y, h->vertices.empty() ? 0.f : hi.y, l, r, d, u);
+    }
     printPose("head", state->tracking.head);
     printPose("off", state->tracking.hands[qvr::HAND_OFF]);
     printPose("main", state->tracking.hands[qvr::HAND_MAIN]);
@@ -193,6 +237,17 @@ const FrameState& frameState()
     return state && state->backend ? state->frame : none;
 }
 
+int scaledEyeSize(int recommended, int max)
+{
+    const float scale = CLAMP(0.25f, vr_render_scale.value, 2.f);
+    int size = static_cast<int>(std::lround(static_cast<double>(recommended) * scale));
+    if(max > 0)
+    {
+        size = q_min(size, max);
+    }
+    return q_max(size, 16);
+}
+
 } // namespace qvr
 
 extern "C" void VR_Init()
@@ -203,6 +258,8 @@ extern "C" void VR_Init()
     weapons::registerCvars();
     Cvar_SetCallback(&vr_enabled, onBackendSettingChanged);
     Cvar_SetCallback(&vr_backend, onBackendSettingChanged);
+    Cvar_SetCallback(&vr_xr_runtime, onBackendSettingChanged);
+    Cvar_SetCallback(&vr_xr_runtime_json, onBackendSettingChanged);
 
     Cmd_AddCommand("vr_status", VR_Status_f);
     Cmd_AddCommand("vr_restart", VR_Restart_f);

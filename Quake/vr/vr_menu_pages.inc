@@ -8,8 +8,10 @@
 [[nodiscard]] std::vector<Item> pageMenuSettings()
 {
     return {
-        slider("Menu Scale", "vr_menu_scale", 0.05f, 0.6f, 0.01f, "%.2f").help("Scale multiplier for the menu."),
+        slider("Menu Scale", "vr_menu_scale", 0.05f, 0.6f, 0.01f, "%.2f").help("Scale multiplier for the menu: the size of one of its pixels, in world units."),
         slider("Menu Distance", "vr_menu_distance", 24.f, 256.f, 1.f, "%.0f").help("Distance of the menu from the anchor point."),
+        toggle("VR Menu Style", "vr_menu_vr_style").help("The menus fill the panel with their rows spaced out, with modern sliders and switches, and a laser from your hand points at them: trigger to click and drag."),
+        slider("Row Spacing", "vr_menu_spacing", 1.f, 2.f, 0.05f, "%.2fx").help("With the VR menu style: how far apart the menus' rows are, over Quake's."),
     };
 }
 
@@ -67,8 +69,11 @@
         slider("Stroke Steering", "vr_swim_stroke_assist", 0.f, 1.f, 0.1f, "%.1f").help("Strokes push this much more towards where the stick points, and as much less against it."),
         slider("Swim Top Speed", "vr_swim_max_speed", 100.f, 800.f, 25.f, "%.0f"),
         slider("Swim Where You Look", "vr_swim_look", 0.f, 1.f, 0.1f, "%.1f").help("You swim where you look (look up to rise): this much of a push sideways of it is lost."),
-        slider("Recovery Push", "vr_swim_recovery", 0.f, 1.f, 0.05f, "%.2f").help("How much bringing your hands forward again for the next stroke pushes you back."),
+        slider("Recovery Push", "vr_swim_recovery", 0.f, 1.f, 0.05f, "%.2f").help("How much a hand going edge first (bringing it back for the next stroke) pushes."),
         slider("Glide", "vr_swim_glide", 0.f, 1.f, 0.1f, "%.1f").help("How far you glide between strokes (less of the water's drag)."),
+        toggle("Ledge Grab (Experimental)", "vr_climb").help("Grip a ledge with an empty hand to hang from it; pull down to climb onto it. Only ledges, not walls."),
+        slider("Lowest Ledge", "vr_climb_min_height", 0.f, 64.f, 2.f, "%.0f units").help("How far above your feet a ledge must be to grab it."),
+        slider("Ledge Fling", "vr_climb_fling", 0.f, 2.f, 0.1f, "%.1f").help("How much letting go of a ledge flings you with your hands' motion."),
     };
 }
 
@@ -144,6 +149,7 @@
         toggle("Weapon Text", "vr_show_weapon_text").help("Show floating ammunition text attached to weapons"),
         toggle("Weapon Ammo Screen", "vr_weapon_screen").help("The ammunition text on a small screen on the weapon (colours from the wrist gadget's screen)."),
         slider("Ammo Screen Margin", "vr_weapon_screen_padding", 0.f, 2.f, 0.1f, "%.1f"),
+        slider("Ammo Screen CRT Look", "vr_weapon_screen_crt", 0.f, 2.f, 0.1f, "%.1fx").help("Scanlines, a slight flicker, faint static and now and then a glitch, as on the wrist gadget's screen (0 off)."),
         toggle("Body Picks Up Items", "vr_body_interactions").help("Pick up items and level weapons by walking over them. Thrown and dropped weapons still need your hands."),
         toggle("Disable Haptics", "vr_disablehaptics").help("Disable all haptics (vibration)."),
         cycle("Weapon Mode", "vr_holster_mode", {{0.f, "Immersive"}, {1.f, "Quick Slots"}}).help("Immersive: a holster holds one weapon, and taking it out empties it. Quick Slots: holsters never empty (with weapon cycling)."),
@@ -194,7 +200,7 @@
         slider("Gib Blood Trail", "vr_gib_blood_trail", 0.f, 3.f, 0.25f, "%.2fx").help("How dense their trail of blood and drops is (0 none)."),
         toggle("Coloured Lights", "vr_colored_lights").help("Warm muzzle flashes, rockets and explosions; the lightning gun's blue."),
         slider("Projectile Light", "vr_projectile_lights", 0.f, 2.f, 0.05f, "%.2fx").help("Hell knight flames, scrag spit, vore balls and lasers light up the room, and where they hit (0 off)."),
-        slider("Ammo Screen Light", "vr_weapon_screen_light", 0.f, 3.f, 0.1f, "%.1fx").help("Your weapons' ammo screens cast a faint light in their colour (0 off)."),
+        slider("Ammo Screen Light", "vr_weapon_screen_light", 0.f, 3.f, 0.1f, "%.1fx").help("Your weapons' ammo screens cast a small light in their colour on what is in front of them (0 off)."),
         slider("Screen Glow", "vr_screen_glow", 0.f, 3.f, 0.1f, "%.1fx").help("The wrist gadget's and your weapons' screens glow softly round their edges (0 off)."),
         slider("Weapon Sight Glow", "vr_weapon_glow", 0.f, 3.f, 0.1f, "%.1fx").help("Your weapons' glowing parts, as the shotgun's sights, shine brighter and glow (0: as Quake)."),
         cycle("Dynamic Light Falloff", "vr_dlight_falloff", {{0.f, "Quake"}, {1.f, "DarkPlaces"}})
@@ -206,12 +212,24 @@
         toggle("Parallax", "vr_parallax").help("Walls and floors look carved: their dark parts sink in and shift as you move your head (needs Bump Maps)."),
         slider("Parallax Depth", "vr_parallax_depth", 0.5f, 6.f, 0.25f, "%.2f").help("How deep the darkest parts of the textures sink, in Quake units."),
         slider("Parallax Distance", "vr_parallax_distance", 128.f, 2048.f, 64.f, "%.0f").help("How far away walls still look carved (further costs more)."),
+        slider("Parallax Items Depth", "vr_parallax_items", 0.f, 4.f, 0.25f, "%.2f").help("How deep the ammo and health boxes look carved, in their own units (scaled with the box; 0 off)."),
+        slider("Parallax Models Depth", "vr_parallax_models", 0.f, 2.f, 0.125f, "%.3f").help("How deep weapons, pickups, monsters and your body look carved, in their own units (0 off)."),
         toggle("Models Lit as the World", "vr_model_light_parity").help("Monsters and items as bright as the floor they stand on (off: Quake's brighter models)."),
         slider("Hands' Least Light", "vr_viewmodel_minlight", 0.f, 32.f, 1.f, "%.0f").help("How lit your hands and weapons stay in the dark (Quake: 24)."),
         cycle("Smooth Textures", "vr_texture_smooth", {{0.f, "As gl_texturemode"}, {1.f, "Replacements"}, {2.f, "All"}})
             .help("Smooth filtering for high-resolution replacement textures, or for all textures."),
         slider("Headset Gamma", "vr_gamma", 0.5f, 1.5f, 0.02f, "%.2f").help("The headset's own gamma (lower is brighter; 1 neutral). The desktop's is not used."),
         slider("Headset Contrast", "vr_contrast", 0.5f, 2.f, 0.02f, "%.2f").help("The headset's own contrast (1 neutral)."),
+
+        header("Water and Liquids"),
+        slider("Waves", "vr_water_waves", 0.f, 2.f, 0.1f, "%.1f").help("Waves on water, slime and lava, in the lighting (the surfaces stay flat). 0: Quake's flat liquids."),
+        slider("Water Reflection", "vr_water_fresnel", 0.f, 2.f, 0.1f, "%.1f").help("Water is clearer looking straight down and reflects the room at grazing angles."),
+        slider("Water Refraction", "vr_water_refraction", 0.f, 2.f, 0.1f, "%.1f").help("What is under the water is bent by the waves (needs no anti-aliasing and r_oit 1)."),
+        slider("Water Glints", "vr_water_glints", 0.f, 2.f, 0.1f, "%.1f").help("Light glinting off the waves."),
+        slider("Lava Glow", "vr_water_lava_glow", 0.f, 2.f, 0.1f, "%.1f").help("Lava glows, its hot parts brightest, pulsing slowly."),
+        slider("Caustics", "vr_water_caustics", 0.f, 1.5f, 0.05f, "%.2f").help("Dappled light on floors and walls under water."),
+        slider("Underwater View", "vr_water_underwater", 0.f, 1.5f, 0.1f, "%.1f").help("With your head under: the liquid's fog and tint, a little blur. 0: Quake's colour shift."),
+        slider("Underwater Wobble", "vr_water_wobble", 0.f, 2.f, 0.1f, "%.1f").help("A slow wobble of the view under water. Turn it down or off if it makes you uneasy."),
 
         header("Lights and Shadows"),
         cycle("Preset", "vr_graphics_preset", {{-1.f, "Custom"}, {0.f, "Off (Quake)"}, {1.f, "Low"}, {2.f, "Medium"}, {3.f, "High"}, {4.f, "Ultra"}})

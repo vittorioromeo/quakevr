@@ -34,7 +34,7 @@ From the second batch of voice notes.
    from the stroke's peak speed, weighted by its shape: straight 1.25, overhead 0.7, slap 0.6 (arcs move the hand
    about twice as fast). Measured on the dummy: punch 16.1, slap 14.6, overhead 18.8 (were 13.7, 25.8, 27.2);
    flicks and wiggles no hit. An open palm driven forward is a one-hand shove (half a two-hand shove).
-4. **Firing range** (`Misc/quakevr/relight_firingrange.py`): its 17 lamps at 1200 put 87% of the lightmap at the
+4. **Firing range** (`Misc/quakevr/relight_firingrange.py`, now `relight_quakevr_maps.py`): its 17 lamps at 1200 put 87% of the lightmap at the
    maximum; now lit as outdoors: a sun, sky light, ambient occlusion, no bounce.
 5. **Particles:** rocket, lava ball, grenade trails (fire, embers, smoke), scrag/knight/vore projectile ribbons
    in their lights' colours, the tarbaby explosion, lava splash, teleport, spike impacts: all Quake VR particles

@@ -1,7 +1,7 @@
 // vr_emissive.hpp -- things that glow light up what is round them, and look lit: monsters' glowing
 // projectiles (hell knight flames, scrag spit, vore balls, enforcer and laser cannon lasers) carry
 // coloured dynamic lights and flash where they hit (vr_projectile_lights); the weapons' ammo screens
-// cast a faint light in their colour (vr_weapon_screen_light); the held weapons' dim fullbright
+// cast a small light in their colour the way they face (vr_weapon_screen_light); the held weapons' dim fullbright
 // texels (the shotgun's red sights) shine brighter, so that the bloom makes them glow
 // (vr_weapon_glow). All small and unshadowed (lighting::dlightNoShadow); the "Off (Quake)" preset
 // turns them off.

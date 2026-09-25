@@ -105,6 +105,8 @@ void VR_ServerFrameEnd (void);							// Host_ServerFrame, before sending
 int VR_RunThink2 (struct edict_s *ent);				// start of SV_RunThink: 0 if the entity was freed
 void VR_ClientPreMove (struct edict_s *ent);			// SV_Physics_Client: hand and weapon touches
 int VR_ClientTeleport (struct edict_s *ent);			// SV_Physics_Client: 1 teleported, -1 freed
+void VR_ClimbPreThink (struct edict_s *ent);			// SV_Physics_Client, before PlayerPreThink: ledge holds taken and let go (vr_climb.cpp)
+int VR_ClientClimb (struct edict_s *ent);				// SV_Physics_Client, before the move: 1 hung or mantled instead, -1 freed
 void VR_ClientRoomscaleMove (struct edict_s *ent);		// SV_Physics_Client, after the move
 void VR_BeforePlayerPostThink (struct edict_s *ent);	// SV_Physics_Client, before PlayerPostThink
 void VR_AfterPlayerPostThink (struct edict_s *ent);	// and after it
@@ -137,6 +139,12 @@ int VR_NotifyOnWrist (void);							// Con_DrawNotify: nonzero to leave the notif
 void VR_Menu_Open (void);								// Options > VR Settings
 void VR_Menu_Draw (void);								// M_Draw, m_vr
 void VR_Menu_Key (int key);								// M_Keydown, m_vr
+void VR_Menu_Mousemove (float cx, float cy);			// M_Mousemove, m_vr
+// The VR menu style's widgets (vr_menuui.cpp): nonzero if they drew it in place of Quake's.
+int VR_MenuDrawSlider (int x, int y, float range, float marker, const char *desc); // M_DrawSliderWithMarkers (marker < 0: none)
+int VR_MenuDrawCheckbox (int x, int y, int on);			// M_DrawCheckbox: a switch
+int VR_MenuDrawTextBox (int x, int y, int width, int lines); // M_DrawTextBox: a panel
+void VR_MenuDrawHighlight (int cx, int cy);				// M_DrawArrowCursor: the selected row's highlight
 
 #ifdef __cplusplus
 }

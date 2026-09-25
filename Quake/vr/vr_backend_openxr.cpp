@@ -28,12 +28,97 @@
 #include <cmath>
 #include <cstring>
 #include <initializer_list>
+#include <string>
 #include <vector>
 
 namespace qvr
 {
 namespace
 {
+
+// The OpenXR runtime to load (vr_xr_runtime), through the loader's XR_RUNTIME_JSON, set before it
+// first runs. The installed runtimes are the manifests listed under
+// HKLM\SOFTWARE\Khronos\OpenXR\1\AvailableRuntimes; Virtual Desktop's and SteamVR's are found by
+// their file names there, or in their usual places. With vr_xr_runtime 0 the system's active runtime
+// is used (or an XR_RUNTIME_JSON the game was started with).
+[[nodiscard]] std::string installedRuntime(const char* fileName)
+{
+    HKEY key = nullptr;
+    std::string found;
+    if(RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SOFTWARE\\Khronos\\OpenXR\\1\\AvailableRuntimes", 0, KEY_READ, &key) == ERROR_SUCCESS)
+    {
+        char name[1024];
+        for(DWORD i = 0;; i++)
+        {
+            DWORD length = sizeof(name);
+            if(RegEnumValueA(key, i, name, &length, nullptr, nullptr, nullptr, nullptr) != ERROR_SUCCESS)
+            {
+                break;
+            }
+            if(q_strcasestr(name, fileName))
+            {
+                found = name;
+                break;
+            }
+        }
+        RegCloseKey(key);
+    }
+    return found;
+}
+
+void chooseRuntime()
+{
+    static bool ours = false; // XR_RUNTIME_JSON is ours to change (not one the game was started with)
+    static bool checked = false;
+    if(!checked)
+    {
+        checked = true;
+        ours = !getenv("XR_RUNTIME_JSON");
+    }
+    if(!ours)
+    {
+        Con_Printf("OpenXR: XR_RUNTIME_JSON is set outside the game (%s): vr_xr_runtime is ignored\n", getenv("XR_RUNTIME_JSON"));
+        return;
+    }
+
+    std::string manifest;
+    switch(static_cast<int>(vr_xr_runtime.value))
+    {
+        case 1:
+            manifest = installedRuntime("virtualdesktop-openxr.json");
+            if(manifest.empty())
+            {
+                manifest = "C:\\Program Files\\Virtual Desktop Streamer\\OpenXR\\virtualdesktop-openxr.json";
+            }
+            break;
+        case 2:
+            manifest = installedRuntime("steamxr_win64.json");
+            if(manifest.empty())
+            {
+                manifest = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\SteamVR\\steamxr_win64.json";
+            }
+            break;
+        case 3: manifest = vr_xr_runtime_json.string; break;
+        default: break;
+    }
+
+    if(manifest.empty())
+    {
+        SetEnvironmentVariableA("XR_RUNTIME_JSON", nullptr);
+        _putenv_s("XR_RUNTIME_JSON", "");
+        return;
+    }
+    if(GetFileAttributesA(manifest.c_str()) == INVALID_FILE_ATTRIBUTES)
+    {
+        Con_Warning("OpenXR: runtime manifest %s not found: using the system's runtime\n", manifest.c_str());
+        SetEnvironmentVariableA("XR_RUNTIME_JSON", nullptr);
+        _putenv_s("XR_RUNTIME_JSON", "");
+        return;
+    }
+    Con_Printf("OpenXR: runtime %s\n", manifest.c_str());
+    SetEnvironmentVariableA("XR_RUNTIME_JSON", manifest.c_str());
+    _putenv_s("XR_RUNTIME_JSON", manifest.c_str());
+}
 
 class OpenXrBackend final : public Backend
 {
@@ -46,6 +131,11 @@ public:
     [[nodiscard]] const char* name() const override
     {
         return "openxr";
+    }
+
+    [[nodiscard]] const char* runtimeName() const override
+    {
+        return runtime[0] ? runtime : "openxr";
     }
 
     [[nodiscard]] bool start() override
@@ -78,6 +168,12 @@ public:
             }
         }
         panelPending = panelShown = false;
+        for(int eye = 0; eye < 2; eye++)
+        {
+            hidden[eye] = HiddenArea{};
+            hiddenStale[eye] = true;
+        }
+        getVisibilityMask = nullptr;
 
         for(XrSpace& space : handSpaces)
         {
@@ -125,6 +221,13 @@ public:
             return false;
         }
 
+        // vr_render_scale: new eye images between frames (none is acquired now).
+        if(session != XR_NULL_HANDLE && (requestedWidth != scaledWidth() || requestedHeight != scaledHeight()) &&
+            !createEyeSwapchains())
+        {
+            return false;
+        }
+
         if(!sessionRunning && sessionState == XR_SESSION_STATE_READY)
         {
             beginSession(); // the first attempt (on the READY event) failed: retry
@@ -132,6 +235,14 @@ public:
         if(!sessionRunning)
         {
             return true;
+        }
+
+        for(int eye = 0; eye < 2; eye++)
+        {
+            if(hiddenStale[eye])
+            {
+                fetchHiddenArea(eye);
+            }
         }
 
         XrFrameWaitInfo waitInfo{XR_TYPE_FRAME_WAIT_INFO};
@@ -210,6 +321,23 @@ public:
     {
         width = swapchains[0].width;
         height = swapchains[0].height;
+    }
+
+    [[nodiscard]] EyeSizes eyeSizes() const override
+    {
+        EyeSizes s;
+        s.recommendedWidth = static_cast<int>(configViews[0].recommendedImageRectWidth);
+        s.recommendedHeight = static_cast<int>(configViews[0].recommendedImageRectHeight);
+        s.maxWidth = static_cast<int>(configViews[0].maxImageRectWidth);
+        s.maxHeight = static_cast<int>(configViews[0].maxImageRectHeight);
+        s.width = swapchains[0].width;
+        s.height = swapchains[0].height;
+        return s;
+    }
+
+    [[nodiscard]] const HiddenArea* hiddenArea(int eye) const override
+    {
+        return getVisibilityMask ? &hidden[eye] : nullptr;
     }
 
     [[nodiscard]] unsigned acquireEyeImage(int eye) override
@@ -380,6 +508,75 @@ private:
     bool frameBegun{false};
     XrFrameState frameState{XR_TYPE_FRAME_STATE};
     XrView views[2]{{XR_TYPE_VIEW}, {XR_TYPE_VIEW}};
+    XrViewConfigurationView configViews[2]{{XR_TYPE_VIEW_CONFIGURATION_VIEW}, {XR_TYPE_VIEW_CONFIGURATION_VIEW}};
+    bool visibilityMaskExtension{false}; // XR_KHR_visibility_mask enabled
+    char runtime[XR_MAX_RUNTIME_NAME_SIZE + 32]{}; // its name and version
+    bool vdxr{false};                             // Virtual Desktop's own runtime (VDXR)
+    PFN_xrGetVisibilityMaskKHR getVisibilityMask{nullptr};
+    HiddenArea hidden[2];
+    int32_t requestedWidth{0}, requestedHeight{0}; // the eye size last asked for (vr_render_scale)
+    bool hiddenStale[2]{true, true}; // to fetch (again) before the next frame
+
+    // The eye images' size: the recommended one times vr_render_scale.
+    [[nodiscard]] int32_t scaledWidth() const
+    {
+        return scaledEyeSize(static_cast<int>(configViews[0].recommendedImageRectWidth),
+            static_cast<int>(configViews[0].maxImageRectWidth));
+    }
+    [[nodiscard]] int32_t scaledHeight() const
+    {
+        return scaledEyeSize(static_cast<int>(configViews[0].recommendedImageRectHeight),
+            static_cast<int>(configViews[0].maxImageRectHeight));
+    }
+
+    // Reads an eye's hidden area (the triangles the lenses never show).
+    void fetchHiddenArea(int eye)
+    {
+        hiddenStale[eye] = false;
+        if(!getVisibilityMask)
+        {
+            return;
+        }
+        HiddenArea& h = hidden[eye];
+        h.vertices.clear();
+        h.indices.clear();
+
+        XrVisibilityMaskKHR mask{XR_TYPE_VISIBILITY_MASK_KHR};
+        if(!check(getVisibilityMask(session, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, static_cast<uint32_t>(eye),
+                      XR_VISIBILITY_MASK_TYPE_HIDDEN_TRIANGLE_MESH_KHR, &mask),
+               "xrGetVisibilityMaskKHR") ||
+            mask.vertexCountOutput == 0 || mask.indexCountOutput < 3)
+        {
+            return;
+        }
+        std::vector<XrVector2f> vertices(mask.vertexCountOutput);
+        h.indices.resize(mask.indexCountOutput);
+        mask.vertexCapacityInput = mask.vertexCountOutput;
+        mask.vertices = vertices.data();
+        mask.indexCapacityInput = mask.indexCountOutput;
+        mask.indices = h.indices.data();
+        if(!check(getVisibilityMask(session, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, static_cast<uint32_t>(eye),
+                      XR_VISIBILITY_MASK_TYPE_HIDDEN_TRIANGLE_MESH_KHR, &mask),
+               "xrGetVisibilityMaskKHR"))
+        {
+            h.indices.clear();
+            return;
+        }
+        h.indices.resize(mask.indexCountOutput - mask.indexCountOutput % 3);
+        for(std::uint32_t& i : h.indices)
+        {
+            if(i >= mask.vertexCountOutput)
+            {
+                h.indices.clear(); // malformed: none rather than garbage
+                return;
+            }
+        }
+        h.vertices.reserve(mask.vertexCountOutput);
+        for(uint32_t i = 0; i < mask.vertexCountOutput; i++)
+        {
+            h.vertices.emplace_back(vertices[i].x, vertices[i].y);
+        }
+    }
 
     bool check(XrResult result, const char* what) const
     {
@@ -508,7 +705,9 @@ private:
             }
             else if(state.interactionProfile == path("/interaction_profiles/valve/index_controller"))
             {
-                controller[side] = Controller::Index;
+                // Virtual Desktop's "Emulate Index controllers" reports Index controllers for what
+                // are Quest controllers: VDXR's grip is Meta's Touch one whatever the profile.
+                controller[side] = vdxr ? Controller::Touch : Controller::Index;
             }
         }
     }
@@ -578,6 +777,8 @@ private:
 
     bool createInstance()
     {
+        chooseRuntime(); // before the loader first runs
+
         // Quest 3 controllers get their own profile with this extension (Touch otherwise).
         std::vector<const char*> extensions{XR_KHR_OPENGL_ENABLE_EXTENSION_NAME};
         uint32_t available = 0;
@@ -589,6 +790,12 @@ private:
             if(!strcmp(p.extensionName, "XR_META_touch_controller_plus"))
             {
                 extensions.push_back("XR_META_touch_controller_plus");
+            }
+            // The lenses' hidden area (vr_visibility_mask).
+            if(!strcmp(p.extensionName, XR_KHR_VISIBILITY_MASK_EXTENSION_NAME))
+            {
+                extensions.push_back(XR_KHR_VISIBILITY_MASK_EXTENSION_NAME);
+                visibilityMaskExtension = true;
             }
         }
 
@@ -609,9 +816,10 @@ private:
         XrInstanceProperties props{XR_TYPE_INSTANCE_PROPERTIES};
         if(XR_SUCCEEDED(xrGetInstanceProperties(instance, &props)))
         {
-            Con_Printf("OpenXR runtime: %s %u.%u.%u\n", props.runtimeName,
-                XR_VERSION_MAJOR(props.runtimeVersion), XR_VERSION_MINOR(props.runtimeVersion),
-                XR_VERSION_PATCH(props.runtimeVersion));
+            q_snprintf(runtime, sizeof(runtime), "%s %u.%u.%u", props.runtimeName, XR_VERSION_MAJOR(props.runtimeVersion),
+                XR_VERSION_MINOR(props.runtimeVersion), XR_VERSION_PATCH(props.runtimeVersion));
+            vdxr = !strncmp(props.runtimeName, "VirtualDesktopXR", 16);
+            Con_Printf("OpenXR runtime: %s\n", runtime);
         }
 
         return true;
@@ -644,7 +852,18 @@ private:
         XrSessionCreateInfo info{XR_TYPE_SESSION_CREATE_INFO};
         info.next = &binding;
         info.systemId = systemId;
-        return check(xrCreateSession(instance, &info, &session), "xrCreateSession");
+        if(!check(xrCreateSession(instance, &info, &session), "xrCreateSession"))
+        {
+            return false;
+        }
+
+        getVisibilityMask = nullptr;
+        if(visibilityMaskExtension)
+        {
+            xrGetInstanceProcAddr(instance, "xrGetVisibilityMaskKHR", reinterpret_cast<PFN_xrVoidFunction*>(&getVisibilityMask));
+        }
+        Con_Printf("OpenXR: hidden area mesh %s\n", getVisibilityMask ? "available (XR_KHR_visibility_mask)" : "not available");
+        return true;
     }
 
     bool createSpaces()
@@ -937,9 +1156,10 @@ private:
             return false;
         }
 
-        XrViewConfigurationView configViews[2]{{XR_TYPE_VIEW_CONFIGURATION_VIEW}, {XR_TYPE_VIEW_CONFIGURATION_VIEW}};
         xrEnumerateViewConfigurationViews(instance, systemId,
             XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, 2, &viewCount, configViews);
+        Con_Printf("OpenXR: recommended %ux%u per eye, largest %ux%u\n", configViews[0].recommendedImageRectWidth,
+            configViews[0].recommendedImageRectHeight, configViews[0].maxImageRectWidth, configViews[0].maxImageRectHeight);
 
         // Quake renders gamma-encoded colours: an sRGB swapchain written without sRGB
         // conversion hands them to the compositor unchanged.
@@ -981,18 +1201,36 @@ private:
                 Con_Warning("OpenXR: the swapchain is not sRGB: the headset will show the game brighter and paler than it is\n");
             }
         }
-        for(int eye = 0; eye < 2; eye++)
+        return createEyeSwapchains();
+    }
+
+    // The eyes' swapchains (again), at the recommended size times vr_render_scale; at the
+    // recommended size if that fails.
+    bool createEyeSwapchains()
+    {
+        requestedWidth = scaledWidth();
+        requestedHeight = scaledHeight();
+        for(int attempt = 0; attempt < 2; attempt++)
         {
-            if(!createSwapchain(swapchains[eye], static_cast<int32_t>(configViews[eye].recommendedImageRectWidth),
-                   static_cast<int32_t>(configViews[eye].recommendedImageRectHeight),
-                   XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT, "xrCreateSwapchain"))
+            const int32_t w = attempt == 0 ? scaledWidth() : static_cast<int32_t>(configViews[0].recommendedImageRectWidth);
+            const int32_t h = attempt == 0 ? scaledHeight() : static_cast<int32_t>(configViews[0].recommendedImageRectHeight);
+            bool ok = true;
+            for(Swapchain& sc : swapchains)
             {
-                return false;
+                if(sc.handle != XR_NULL_HANDLE)
+                {
+                    xrDestroySwapchain(sc.handle);
+                    sc = Swapchain{};
+                }
+                ok = ok && createSwapchain(sc, w, h, XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT, "xrCreateSwapchain");
+            }
+            if(ok)
+            {
+                Con_Printf("OpenXR: %dx%d per eye (vr_render_scale %g)\n", w, h, vr_render_scale.value);
+                return true;
             }
         }
-
-        Con_Printf("OpenXR: %dx%d per eye\n", swapchains[0].width, swapchains[0].height);
-        return true;
+        return false;
     }
 
     void beginSession()
@@ -1012,6 +1250,15 @@ private:
             {
                 case XR_TYPE_EVENT_DATA_INSTANCE_LOSS_PENDING: return false;
                 case XR_TYPE_EVENT_DATA_INTERACTION_PROFILE_CHANGED: updateControllers(); break;
+                case XR_TYPE_EVENT_DATA_VISIBILITY_MASK_CHANGED_KHR:
+                {
+                    const auto& changed = reinterpret_cast<const XrEventDataVisibilityMaskChangedKHR&>(event);
+                    if(changed.viewIndex < 2)
+                    {
+                        hiddenStale[changed.viewIndex] = true;
+                    }
+                    break;
+                }
                 case XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED:
                 {
                     const auto& changed = reinterpret_cast<const XrEventDataSessionStateChanged&>(event);

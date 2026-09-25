@@ -2,8 +2,10 @@
 // pages: scrolling lists of labelled settings, changed with left/right (the sticks in VR), with
 // actions on enter (A). "Advanced VR Options" at the bottom opens a list of further pages: the old
 // Quake VR settings pages (vr_menu_pages.inc) and the new body, throwing and force grab tweaks.
-// Escape (B) goes back a page.
+// Escape (B) goes back a page. With the mouse (and the VR laser pointer, vr_menuui.cpp): the row under
+// it is selected, a click picks it, and a slider is set where it is clicked and dragged.
 
+#include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_main.hpp"
@@ -12,6 +14,12 @@
 #include <cmath>
 #include <cstring>
 #include <vector>
+
+extern "C" {
+extern float m_mousex, m_mousey; // menu.c: the mouse in menu coordinates
+extern qboolean keydown[MAX_KEYS]; // keys.c
+extern cvar_t ui_mouse_sound; // menu.c
+}
 
 using namespace qvr;
 
@@ -497,6 +505,12 @@ std::vector<Item> pageMain()
         header("Headset"),
         toggle("VR", vr_enabled),
         action("Restart VR", restartVr),
+        cycle("OpenXR Runtime", vr_xr_runtime, {{0.f, "System default"}, {1.f, "Virtual Desktop (VDXR)"}, {2.f, "SteamVR"}})
+            .help("Which OpenXR runtime runs the headset; VR restarts. VDXR skips SteamVR (keep Virtual Desktop's 'Emulate Index controllers' off)."),
+        slider("Render Scale", vr_render_scale, 0.5f, 1.5f, 0.05f, "%.2f")
+            .help("Eye image size, times the headset's recommended one (SteamVR's resolution included)."), // + the size (renderScaleHelp)
+        toggle("Hide Lens Corners", vr_visibility_mask)
+            .help("Skip the pixels the lenses never show (if the headset gives them): faster, looks the same. Black corners in the desktop mirror."),
 
         header("More"),
         open("Advanced VR Options", PageAdvanced),
@@ -540,6 +554,8 @@ int page = PageMain;
 int parentPage[pageCount]{};
 int cursors[pageCount]{};
 int scrolls[pageCount]{};
+bool sliderGrab = false; // a slider follows the mouse while its button is held
+bool scrollGrab = false; // the scrollbar likewise
 
 constexpr int listTop = 36;
 constexpr int helpTop = 164; // four lines of help under the list, on pages with any
@@ -650,6 +666,87 @@ void change(const Item& item, int dir)
     S_LocalSound("misc/menu3.wav");
 }
 
+// An Off/On choice.
+[[nodiscard]] bool isToggle(const Item& item)
+{
+    return item.choices.size() == 2 && item.choices[0].value == 0.f && item.choices[1].value == 1.f &&
+           !strcmp(item.choices[0].label, "Off") && !strcmp(item.choices[1].label, "On");
+}
+
+// The list row under the mouse, or -1.
+[[nodiscard]] int rowAt(float cy)
+{
+    const auto& list = items(page);
+    const int row = static_cast<int>(std::floor((cy - listTop) / 8.f));
+    const int i = scrolls[page] + row;
+    if(row < 0 || row >= visibleRows(list) || i >= static_cast<int>(list.size()))
+    {
+        return -1;
+    }
+    return i;
+}
+
+// A long list's scrollbar, right of the values (as far as the screen goes), as Ironwail's lists
+// have: its thumb's top (pixels below listTop) and height (rows). False when the list fits.
+int scrollbarX = midPos + 188; // where it was drawn
+
+[[nodiscard]] bool scrollbar(int n, int rows, int& y, int& height)
+{
+    if(n <= rows)
+    {
+        return false;
+    }
+    height = q_max(static_cast<int>(rows * rows / static_cast<float>(n) + 0.5f), 2);
+    y = static_cast<int>(scrolls[page] * 8 / static_cast<float>(n - rows) * (rows - height) + 0.5f);
+    return true;
+}
+
+// The list scrolled to where the mouse holds the scrollbar, the cursor kept on a visible setting.
+void scrollTo(float cy)
+{
+    const auto& list = items(page);
+    const int n = static_cast<int>(list.size());
+    const int rows = visibleRows(list);
+    int y, height;
+    if(!scrollbar(n, rows, y, height))
+    {
+        return;
+    }
+    const float yrel = cy - listTop - height * 4.f;
+    const int range = (rows - height) * 8;
+    int& scroll = scrolls[page];
+    scroll = CLAMP(0, static_cast<int>(yrel * (n - rows) / range + 0.5f), n - rows);
+
+    int& cursor = cursors[page];
+    const int dir = cursor < scroll ? 1 : cursor >= scroll + rows ? -1 : 0;
+    if(dir != 0)
+    {
+        cursor = dir > 0 ? scroll : scroll + rows - 1;
+        while(list[cursor].kind == Item::Header && cursor + dir >= scroll && cursor + dir < scroll + rows)
+        {
+            cursor += dir;
+        }
+    }
+}
+
+// A slider set where the mouse is along it (as Ironwail's: the thumb's middle from midPos + 4 to
+// midPos + 76), on its steps.
+void setSliderAt(const Item& item, float cx)
+{
+    const float frac = CLAMP(0.f, (cx - midPos - 4.f) / 72.f, 1.f);
+    float v = item.min + frac * (item.max - item.min);
+    v = std::round(v / item.step) * item.step;
+    v = CLAMP(item.min, v, item.max);
+    if(v != item.cvar->value)
+    {
+        Cvar_SetValueQuick(item.cvar, v);
+        if(ui_mouse_sound.value)
+        {
+            S_LocalSound("misc/menu1.wav");
+        }
+    }
+}
+
 void drawItem(const Item& item, int y, bool selected)
 {
     if(item.kind == Item::Header)
@@ -670,7 +767,16 @@ void drawItem(const Item& item, int y, bool selected)
             M_DrawSlider(midPos, y, CLAMP(0.f, range, 1.f), buf);
             break;
         }
-        case Item::Cycle: M_Print(midPos, y, item.choices[currentChoice(item)].label); break;
+        case Item::Cycle:
+            if(isToggle(item))
+            {
+                M_DrawCheckbox(midPos, y, item.cvar->value); // a switch in the VR menu style
+            }
+            else
+            {
+                M_Print(midPos, y, item.choices[currentChoice(item)].label);
+            }
+            break;
         case Item::Action: M_Print(midPos - 4, y, "..."); break;
         default: break;
     }
@@ -679,6 +785,26 @@ void drawItem(const Item& item, int y, bool selected)
     {
         M_DrawArrowCursor(midPos - 20, y);
     }
+}
+
+// Render Scale's help: the eye size it makes, and the headset's own.
+[[nodiscard]] const char* renderScaleHelp()
+{
+    static char text[192];
+    const Backend* be = backend();
+    const EyeSizes s = be ? be->eyeSizes() : EyeSizes{};
+    if(s.recommendedWidth <= 0 || s.recommendedHeight <= 0)
+    {
+        return "Eye image size, times the headset's recommended one (SteamVR's resolution included). Lower: faster, "
+               "blurrier.";
+    }
+    const int w = scaledEyeSize(s.recommendedWidth, s.maxWidth);
+    const int h = scaledEyeSize(s.recommendedHeight, s.maxHeight);
+    q_snprintf(text, sizeof(text), "%dx%d per eye, %.0f%% of the pixels of the headset's %dx%d (with SteamVR's "
+                                   "resolution). Lower: faster, blurrier.",
+        w, h, 100.0 * w * h / (static_cast<double>(s.recommendedWidth) * s.recommendedHeight), s.recommendedWidth,
+        s.recommendedHeight);
+    return text;
 }
 
 // Word-wrapped to the screen's width, four lines at most.
@@ -752,6 +878,11 @@ extern "C" void VR_Menu_Draw()
     int& cursor = cursors[page];
     int& scroll = scrolls[page];
 
+    if(!keydown[K_MOUSE1])
+    {
+        sliderGrab = scrollGrab = false;
+    }
+
     M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp"));
     qpic_t* title = Draw_CachePic("gfx/p_option.lmp");
     M_DrawPic((320 - title->width) / 2, 4, title);
@@ -775,7 +906,17 @@ extern "C" void VR_Menu_Draw()
         drawItem(list[i], listTop + (i - scroll) * 8, i == cursor);
     }
 
-    if(cursor < n && list[cursor].helpText)
+    if(int y, height; scrollbar(n, rows, y, height))
+    {
+        scrollbarX = q_min(midPos + 188, static_cast<int>(glcanvas.right) - 16);
+        M_DrawTextBox(scrollbarX - 4, listTop + y - 4, 0, height - 1);
+    }
+
+    if(cursor < n && list[cursor].cvar == &vr_render_scale)
+    {
+        drawHelp(renderScaleHelp());
+    }
+    else if(cursor < n && list[cursor].helpText)
     {
         drawHelp(list[cursor].helpText);
     }
@@ -785,6 +926,15 @@ extern "C" void VR_Menu_Key(int key)
 {
     const auto& list = items(page);
     const int cursor = cursors[page];
+
+    if(sliderGrab || scrollGrab)
+    {
+        if(!keydown[K_MOUSE1] || key == K_ESCAPE || key == K_BBUTTON || key == K_MOUSE2)
+        {
+            sliderGrab = scrollGrab = false;
+        }
+        return;
+    }
 
     switch(key)
     {
@@ -818,10 +968,35 @@ extern "C" void VR_Menu_Key(int key)
         case K_LEFTARROW: change(list[cursor], -1); break;
         case K_RIGHTARROW: change(list[cursor], 1); break;
 
+        case K_MOUSE1:
+            // On the scrollbar: it is dragged.
+            if(int y, height; m_mousex >= scrollbarX - 8 && scrollbar(static_cast<int>(list.size()), visibleRows(list), y, height))
+            {
+                scrollGrab = true;
+                scrollTo(m_mousey);
+                break;
+            }
+            // On the selected row (the one under the mouse): a slider is set there and dragged.
+            if(rowAt(m_mousey) != cursor)
+            {
+                break;
+            }
+            if(list[cursor].kind == Item::Slider)
+            {
+                if(m_mousex >= midPos - 12 && m_mousex <= midPos + 84)
+                {
+                    sliderGrab = true;
+                    setSliderAt(list[cursor], m_mousex);
+                    S_LocalSound("misc/menu3.wav");
+                }
+                break;
+            }
+            change(list[cursor], 1);
+            break;
+
         case K_ENTER:
         case K_KP_ENTER:
         case K_ABUTTON:
-        case K_MOUSE1:
             if(list[cursor].kind != Item::Slider)
             {
                 change(list[cursor], 1);
@@ -829,5 +1004,42 @@ extern "C" void VR_Menu_Key(int key)
             break;
 
         default: break;
+    }
+}
+
+// The mouse (or the laser pointer) over the list selects the row under it, and drags a grabbed
+// slider.
+extern "C" void VR_Menu_Mousemove(float cx, float cy)
+{
+    const auto& list = items(page);
+    int& cursor = cursors[page];
+
+    if(sliderGrab || scrollGrab)
+    {
+        if(!keydown[K_MOUSE1])
+        {
+            sliderGrab = scrollGrab = false;
+            return;
+        }
+        if(scrollGrab)
+        {
+            scrollTo(cy);
+        }
+        else
+        {
+            setSliderAt(list[cursor], cx);
+        }
+        return;
+    }
+
+    const int i = rowAt(cy);
+    if(i < 0 || list[i].kind == Item::Header || i == cursor)
+    {
+        return;
+    }
+    cursor = i;
+    if(ui_mouse_sound.value)
+    {
+        S_LocalSound("misc/menu1.wav");
     }
 }

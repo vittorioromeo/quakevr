@@ -8,7 +8,9 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+#include <cstdint>
 #include <memory>
+#include <vector>
 
 namespace qvr
 {
@@ -93,12 +95,39 @@ struct FrameState
     EyeView eyes[2];          // [0] left, [1] right
 };
 
+// The part of an eye's image the lenses never show (XR_KHR_visibility_mask's hidden triangle
+// mesh): triangles in the eye's tangent space (x = tan of the angle right, y = tan up, the plane
+// z = -1 of the eye's view), mapped to the image by the eye's Fov.
+struct HiddenArea
+{
+    std::vector<glm::vec2> vertices;
+    std::vector<std::uint32_t> indices; // three per triangle
+};
+
+// Eye image sizes: the runtime's recommended and largest, and the one in use (the recommended
+// times vr_render_scale, within the largest).
+struct EyeSizes
+{
+    int recommendedWidth{0}, recommendedHeight{0};
+    int maxWidth{0}, maxHeight{0};
+    int width{0}, height{0};
+};
+
+// The eye image size for a recommended size, vr_render_scale and a largest size.
+[[nodiscard]] int scaledEyeSize(int recommended, int max);
+
 class Backend
 {
 public:
     virtual ~Backend() = default;
 
     [[nodiscard]] virtual const char* name() const = 0;
+
+    // The runtime behind it, with its version (OpenXR's runtimeName), or the backend's name.
+    [[nodiscard]] virtual const char* runtimeName() const
+    {
+        return name();
+    }
 
     // Creates the runtime session. Called with the engine's GL context current.
     [[nodiscard]] virtual bool start() = 0;
@@ -116,6 +145,23 @@ public:
 
     // Render target size of each eye.
     virtual void eyeResolution(int& width, int& height) const = 0;
+
+    // The runtime's recommended and largest eye sizes, and the one in use (vr_render_scale).
+    [[nodiscard]] virtual EyeSizes eyeSizes() const
+    {
+        EyeSizes s;
+        eyeResolution(s.width, s.height);
+        s.recommendedWidth = s.maxWidth = s.width;
+        s.recommendedHeight = s.maxHeight = s.height;
+        return s;
+    }
+
+    // The eye's hidden area (the lenses' blind corners): null if the runtime has none to give
+    // (no XR_KHR_visibility_mask); an empty mesh if it gave none for this eye.
+    [[nodiscard]] virtual const HiddenArea* hiddenArea(int /* eye */) const
+    {
+        return nullptr;
+    }
 
     // GL texture to render an eye into, between acquire and release.
     [[nodiscard]] virtual unsigned acquireEyeImage(int eye) = 0;

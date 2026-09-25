@@ -252,6 +252,7 @@ void M_DrawCharacter (int cx, int line, int num)
 
 void M_DrawArrowCursor (int cx, int cy)
 {
+	VR_MenuDrawHighlight (cx, cy); // QVR
 	M_DrawCharacter (cx, cy, 12+((int)(realtime*4)&1));
 }
 
@@ -416,6 +417,9 @@ void M_DrawTextBox (int x, int y, int width, int lines)
 	qpic_t	*p;
 	int		cx, cy;
 	int		n;
+
+	if (VR_MenuDrawTextBox (x, y, width, lines)) // QVR
+		return;
 
 	// draw left side
 	cx = x;
@@ -3949,6 +3953,9 @@ void M_DrawSliderWithMarkers (int x, int y, float range, const slidermarker_t *m
 
 	range = CLAMP (0.f, range, 1.f);
 
+	if (VR_MenuDrawSlider (x, y, range, nummarkers ? markers[0].frac : -1.f, desc)) // QVR
+		return;
+
 	M_DrawCharacter (x-8, y, 128);
 	for (i = 0; i < SLIDER_RANGE; i++)
 		M_DrawCharacter (x + i*8, y, 129);
@@ -3992,6 +3999,8 @@ void M_DrawThresholdSlider (int x, int y, float range, qboolean enabled, float l
 
 void M_DrawCheckbox (int x, int y, float value)
 {
+	if (VR_MenuDrawCheckbox (x, y, value != 0.f)) // QVR
+		return;
 	M_Print (x, y, value ? "On" : "Off");
 }
 
@@ -7590,6 +7599,10 @@ void M_Mousemove (int screenx, int screeny)
 
 	case m_slist:
 		M_ServerList_Mousemove (x, y);
+		return;
+
+	case m_vr: // QVR
+		VR_Menu_Mousemove (x, y);
 		return;
 	}
 }

@@ -97,6 +97,7 @@ typedef struct texture_s
 	int					anim_min, anim_max;		// time for this frame min <=time< max
 	struct texture_s	*anim_next;		// in the animation sequence
 	struct texture_s	*alternate_anims;	// bmodels in frmae 1 use these
+	float				uvclamp[4];	// QVR: the part of it an item box's faces show (Mod_ItemTextureClamp): s and t from .xy to .zw, repeating; none on an axis whose .z <= .x
 } texture_t;
 
 

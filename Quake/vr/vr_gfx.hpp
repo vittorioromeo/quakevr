@@ -34,8 +34,10 @@ enum class Shade
     SoftEdge,      // the vertex colour, its alpha fading out with |uv| (1 - |uv|^2): lines, discs
     Texture,       // the texture, times the vertex colour
     TextureCutout, // the texture's colour times the vertex colour, opaque, where its alpha is at least 2/3 (the font)
-    Screen,        // the wrist gadget's screen: the texture in one phosphor colour (the vertex colour), as
-                   // a small CRT (State::params: time in seconds, CRT strength, glitch 0..1, unused)
+    Screen,        // a screen (the wrist gadget's, the ammo screens'): the texture in one phosphor colour
+                   // (the vertex colour), as a small CRT (State::params: time in seconds, CRT strength,
+                   // glitch 0..1, unused; State::screen: its virtual screen's size in pixels and its
+                   // scanlines per pixel)
 };
 
 enum class Blend
@@ -54,6 +56,7 @@ struct State
     bool depthTest{true};
     bool depthWrite{false};
     glm::vec4 params{0.f}; // the shade's own settings (Shade::Screen's)
+    glm::vec3 screen{240.f, 150.f, 0.5f}; // Shade::Screen's pixels across, down, and scanlines a pixel
 };
 
 // Triangles (three vertices each), transformed by `mvp` to clip space. No culling.

@@ -32,6 +32,7 @@ void M_DrawArrowCursor (int cx, int cy);			// menu.c
 qboolean SV_RunThink (edict_t *ent);				// sv_phys.c
 int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace);
 void SV_CheckStuck (edict_t *ent);
+qboolean SV_CheckWater (edict_t *ent);
 void SV_WalkMove (edict_t *ent);
 void SV_CheckVelocity (edict_t *ent);
 void SV_CheckWaterTransition (edict_t *ent);

@@ -75,6 +75,9 @@ static gltexture_t	*flatnormaltexture;
 #define HEIGHT_LOW			0.02f // made heights (vr_parallax): the share of a texture's texels at the deepest,
 #define HEIGHT_HIGH			0.98f // and below the surface's top
 #define HEIGHT_MINRANGE		0.2f // a flatter texture's shading isn't stretched to the whole depth (its grain would)
+#define HEIGHT_RIM			2 // made heights of a skin with islands (TexMgr_SetHeightMask): texels over which they rise to the top at an island's edge
+static const byte	*heightmask; // TexMgr_SetHeightMask
+static int			heightmask_width, heightmask_height;
 
 unsigned int d_8to24table_opaque[256];			//standard palette with alpha 255 for all colors
 unsigned int d_8to24table[256];					//standard palette, 255 is transparent
@@ -1440,7 +1443,32 @@ static void TexMgr_ShadingToHeights (const float *lum, float *h, int width, int 
 	range = q_max (hi - lo, HEIGHT_MINRANGE);
 	for (i = 0; i < count; i++)
 		h[i] = 1.f - CLAMP (0.f, (hi - h[i]) / range, 1.f);
+	// a skin's islands (TexMgr_SetHeightMask): up to the top over HEIGHT_RIM texels at their edges, so that the rays
+	// parallax mapping walks stop there instead of reading the skin's other parts past a seam
+	if (heightmask)
+		for (y = 0; y < height; y++)
+			for (x = 0; x < width; x++)
+			{
+				int mx = x * heightmask_width / width, my = y * heightmask_height / height;
+				float d = heightmask[my * heightmask_width + mx] * (width / (float) heightmask_width); // in these texels
+				h[y * width + x] = 1.f - (1.f - h[y * width + x]) * CLAMP (0.f, (d - 0.5f) / HEIGHT_RIM, 1.f);
+			}
 	Hunk_FreeToLowMark (mark);
+}
+
+/*
+================
+TexMgr_SetHeightMask -- QVR: a skin's islands, for the heights of the normal maps made next (until set to NULL):
+per texel of a width x height skin, how many texels it lies inside the triangles (0 outside, HEIGHT_RIM + 1 or more
+well inside); the heights rise to the top at their edges (TexMgr_ShadingToHeights). A normal map reloaded later
+(vid_restart) is made without it.
+================
+*/
+void TexMgr_SetHeightMask (const byte *mask, int width, int height)
+{
+	heightmask = mask && width > 0 && height > 0 ? mask : NULL;
+	heightmask_width = width;
+	heightmask_height = height;
 }
 
 /*

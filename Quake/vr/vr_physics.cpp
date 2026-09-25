@@ -418,6 +418,10 @@ extern "C" void VR_ClientRoomscaleMove(edict_t* ent)
 namespace
 {
 
+// Metres per second beyond vr_swim_stroke_min at which a stroke pushes as vr_swim_stroke says
+// (slower less, faster more: the push grows with the square of the speed).
+constexpr float strokeSpeed = 1.2f;
+
 // A VR player's latest move, when its hands are tracked.
 [[nodiscard]] const VrMove* swimmer(edict_t* ent)
 {
@@ -450,13 +454,16 @@ extern "C" float VR_WaterStickScale(edict_t* ent, int swimming)
 }
 
 // After SV_WaterMove: each hand under water pushes the water, and the body goes the other way:
-// the push is the hand's speed through the water (relative to the body, beyond
-// vr_swim_stroke_min) times vr_swim_stroke, more when the palm meets it flat than when the hand
-// slices edge-first (vr_swim_palm).
-// You swim where you look: the part of a push that drives you towards where the head looks counts
-// fully, a part sideways of it less (vr_swim_look), and a part away from it -- the hands reaching
-// forward again for the next stroke -- hardly at all (vr_swim_recovery), so that the recovery
-// does not undo the stroke. To rise, look up and push down.
+// the push comes from the hand's speed through the water (relative to the body, beyond
+// vr_swim_stroke_min) times vr_swim_stroke, more when the palm (or the back of the hand) meets it
+// flat than at an angle (vr_swim_palm).
+// A hand going edge first -- the recovery, bringing it back for the next stroke -- hardly pushes
+// (vr_swim_recovery), and the push grows with the square of the hand's speed, as water's drag:
+// the stroke, flat and brisk, outdoes the return. So the stroke decides the way, whichever way:
+// a frog stroke (hands from ahead out to the sides and back) swims you forward, the reverse one
+// (hands from the sides forward to meet ahead) backward.
+// You swim where you look: the part of a push along where the head looks (ahead or back) counts
+// fully, a part sideways of it less (vr_swim_look). To rise, look up and push down.
 // Strokes towards where the stick points push more, and against it less (vr_swim_stroke_assist),
 // so that the stick steers the swimming too.
 // Off the bottom you glide between strokes: part of the water friction SV_WaterMove just applied
@@ -504,7 +511,6 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
     const float wishLen = glm::length(wish);
     const glm::vec3 wishDir = wishLen > 1.f ? wish / wishLen : glm::vec3{0.f};
     const float assist = CLAMP(0.f, vr_swim_stroke_assist.value, 1.f);
-
     for(const VrHandMove& hand : move->hands)
     {
         vec3_t p{hand.pos.x, hand.pos.y, hand.pos.z};
@@ -519,20 +525,28 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
         }
         const glm::vec3 dir = glm::normalize(hand.vel);
 
+        // The palm (and the back of the hand) faces the hand's side: how flat the hand meets the
+        // water. Edge first it slices through (the recovery) and hardly pushes.
         vec3_t a{hand.rot.x, hand.rot.y, hand.rot.z}, f, r, u;
         AngleVectors(a, f, r, u);
-        const float flat = std::abs(glm::dot(glm::vec3{r[0], r[1], r[2]}, dir)); // the palm faces the hand's side
+        const float flat = std::abs(glm::dot(glm::vec3{r[0], r[1], r[2]}, dir));
         const float palm = (1.f - palmWeight) + palmWeight * flat;
+        const float edge = recovery + (1.f - recovery) * glm::smoothstep(0.1f, 0.45f, flat);
+
+        // As water's drag, the push grows with the square of the speed (as the linear push at a
+        // brisk stroke): the stroke, faster, outdoes the return for the next one.
+        const float beyond = speed - threshold;
+        const float strength = beyond * beyond / (strokeSpeed * units::metresToUnits());
 
         const glm::vec3 push = -dir; // the body goes against the hand
         const float along = glm::dot(push, wishDir); // 1: the push goes where the stick points
         const float steer = std::max(0.f, 1.f + assist * along);
 
-        // Towards where you look it counts, sideways less, back (the recovery) hardly.
+        // Along where you look (ahead or back) it counts fully, sideways of it less.
         const float ahead = glm::dot(push, look);
-        const glm::vec3 biased = look * (ahead * (ahead >= 0.f ? 1.f : recovery)) + (push - look * ahead) * sideKept;
+        const glm::vec3 biased = look * ahead + (push - look * ahead) * sideKept;
 
-        vel += biased * ((speed - threshold) * vr_swim_stroke.value * palm * steer * dt);
+        vel += biased * (strength * vr_swim_stroke.value * palm * edge * steer * dt);
     }
 
     const float maxSpeed = std::max(0.f, vr_swim_max_speed.value);

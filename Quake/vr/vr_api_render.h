@@ -37,13 +37,18 @@ int VR_RenderView (void);								// SCR_UpdateScreen: nonzero if it rendered the
 int VR_RenderingEye (void);							// forces the post-process path while rendering an eye
 unsigned VR_PostProcessTarget (void);					// GL_PostProcess output framebuffer (0 = window)
 void VR_OverrideProjection (float matrix[16]);			// R_SetFrustum: the eye's asymmetric projection
+void VR_DrawHiddenArea (void);							// R_RenderScene, after R_Clear: the lenses' hidden area at the near plane (vr_visibility_mask)
 void VR_DrawSceneOpaque (void);							// R_RenderScene, after the opaque entities
+void VR_WaterView (int contents, int *waterwarp);			// R_SetupView, after r_waterwarp: the liquids' look this view (the eye in `contents`); may turn the warp off
+void VR_WaterFog (float fog[4], float skyfog[4]);			// Fog_SetupFrame: an eye's fog in a liquid (vr_water.cpp)
+void VR_PostProcessWater (void);						// GL_PostProcess, program in use: an eye's underwater wobble and blur
 void VR_DrawSceneTranslucent (void);						// R_RenderScene, after the translucent pass (particles, blended 3D text)
 
 // The 2D layer (gl_screen.c, gl_vidsdl.c): drawn to a canvas shown in the headset.
 void VR_Begin2D (void);									// SCR_UpdateScreen, before GL_Set2D
 void VR_End2D (void);									// SCR_UpdateScreen, after Draw_Flush
 int VR_CanvasBlend (void);								// GL_SetStateEx, alpha blending: nonzero if it set the blend
+int VR_MenuCanvas (float *scalex, float *scaley);		// Draw_GetCanvasTransform, CANVAS_MENU: nonzero to use these scales (the VR menu style: y scaled more to space the rows out, characters and pictures keeping their size)
 
 // Entities (gl_rmain.c, r_alias.c, r_world.c).
 int VR_HideViewModel (void);							// R_IsViewModelVisible: VR draws its own weapons
@@ -61,7 +66,8 @@ void VR_AliasLightCurve (float lightcolor[3]);				// R_SetupAliasLighting, befor
 int VR_ModelDlightsPerPixel (void);						// R_SetupAliasLighting: nonzero to skip adding dynamic lights (the shader does)
 void VR_RenderShadowMaps (void);						// R_SetupView, before R_PushDlights (once per frame)
 struct gpulight_s;
-void VR_DlightShadow (int index, struct gpulight_s *out);	// R_PushDlights, per light sent: its shadow
+void VR_DlightShadow (int index, struct gpulight_s *out);	// R_PushDlights, per light sent: its shadow (and a spot light's cone)
+float VR_SpotCone (const struct gpulight_s *l, const float point[3]); // how much of a light its cone lets reach a point (1: a point light)
 void VR_PushMapLights (void);							// R_PushDlights, after the dynamic lights
 int VR_AliasBonePoses (const struct entity_s *e, const float **matrices); // bone count of an IK-posed skeletal entity (0: none), its 3x4 skinning matrices
 
@@ -70,6 +76,7 @@ float VR_PostProcessBloom (void);								// GL_PostProcess: an eye's glow bound 
 void VR_PostProcessGamma (float *gamma, float *contrast);	// GL_PostProcess: while rendering an eye, the headset's (vr_gamma, vr_contrast)
 int VR_TextureSmoothing (void);							// TexMgr_ApplySettings: 1 replacement textures smooth, 2 all (vr_texture_smooth)
 int VR_NormalMaps (void);								// Mod_LoadTextures, skins: nonzero to make normal maps (vr_normalmaps)
+float VR_ParallaxDepth (const struct entity_s *e, const float matrix[16], const float modelscale[3]); // instance: its parallax depth in units (0 off); matrix the drawn one, modelscale an alias model's (NULL: a brush model)
 int VR_ModelLightParity (void);							// R_SetupAliasLighting: models as bright as the floor under them
 float VR_ViewModelMinLight (void);						// R_SetupAliasLighting: least light on the hands and weapons (Quake's 24)
 

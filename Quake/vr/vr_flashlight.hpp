@@ -4,9 +4,9 @@
 // lights where the hand points; let go, it flies back to the chest on its retracting cord.
 //
 // Client-side only: its model is a VR view entity (progs/vrflashlight.mdl, make_flashlight.py) and
-// its beam a few dynamic lights (there is no spotlight): a pool of light where the beam lands, a
-// dimmer one along the way, a faint glow at the lamp; and a soft cone of light in the air
-// (vr_flashlight_beam), added onto each eye's scene.
+// its beam a spot light at the lens (lighting::dlightSpot: per pixel on the world and on models,
+// with its own perspective shadow map), a faint wider spill cone and a faint glow at the lamp; and
+// a soft cone of light in the air (vr_flashlight_beam), added onto each eye's scene.
 
 #pragma once
 

@@ -35,8 +35,13 @@ void setPose(const Pose& pose);
 // its texture is drawn over the model's screen.
 void screenRect(glm::vec3& corner, glm::vec2& size);
 
-// Draws the screen's contents into its texture, at the end of the 2D pass.
+// Draws the screen's contents into its texture, at the end of the 2D pass (and the weapons' ammo
+// screens' into theirs: text3d::renderScreens).
 void renderScreen();
+
+// How much a CRT screen glitches at `time` (0..1, the CRT look's): now and then a short burst.
+// The ammo screens' offset their time, so that they glitch at other moments.
+[[nodiscard]] float glitch(double time);
 
 // Draws the texture over the model's screen, in one phosphor colour and as a small CRT
 // (vr_gadget_crt: scanlines, a flicker, faint static and now and then a glitch), in each eye's

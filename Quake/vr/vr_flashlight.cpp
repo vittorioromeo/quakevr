@@ -27,18 +27,22 @@ constexpr glm::vec3 lensPoint{0.997f, 0.f, 1.234f};
 constexpr glm::vec3 capPoint{0.f, 0.f, -1.05f}; // the bottom of the body, where the cord goes in
 constexpr float lensRadius = 0.433f;             // the lens's (1.65 cm)
 
-// The beam's spread: the tangent of its half-angle (about 18 degrees, the pool of light's), and
-// its brighter core's (about 8).
-constexpr float spread = 0.32f;
-constexpr float coreSpread = 0.14f;
+// The beam: a spot light, full within innerAngle degrees of its axis and smoothly down to none at
+// outerAngle; a faint spill round it out to spillAngle. The visible beam's cones are the same:
+// spread the tangent of the outer half angle, coreSpread the inner's.
+constexpr float innerAngle = 10.f;
+constexpr float outerAngle = 22.f;
+constexpr float spillAngle = 45.f;
+const float spread = std::tan(glm::radians(outerAngle));
+const float coreSpread = std::tan(glm::radians(innerAngle));
 
 constexpr float reach = 0.11f;         // metres from the lamp's middle a hand reaches it at
 constexpr float returnOmega = 14.f;    // the cord's pull (critically damped; home in about 0.4 s)
 constexpr float maxThrow = 3.f;        // metres per second the lamp keeps of the hand's at a release
 
 // The dynamic lights' keys (entities' keys are their numbers, never negative).
-constexpr int keyPool = -0x0F1A51;
-constexpr int keyMid = -0x0F1A52;
+constexpr int keySpot = -0x0F1A51;
+constexpr int keySpill = -0x0F1A52;
 constexpr int keyLamp = -0x0F1A53;
 
 enum class Mode
@@ -71,6 +75,9 @@ struct State
     bool swallowed[2][2]{}; // [hand][grip]: a press the flashlight took, whose release it takes too
     bool hovered[2]{};
     const qmodel_t* world{nullptr};
+
+    float beamLength{-1.f}; // the visible beam's length, eased towards where the beam lands (<0: none yet)
+    double beamTime{0.0};
 };
 
 State st;
@@ -239,15 +246,16 @@ void killLight(int key)
 
 void killLights()
 {
-    for(int key : {keyPool, keyMid, keyLamp})
+    for(int key : {keySpot, keySpill, keyLamp})
     {
         killLight(key);
     }
     beam.visible = false;
+    st.beamLength = -1.f;
 }
 
-// Only the pool of light may cast shadows, with vr_flashlight_shadows.
-void light(int key, const glm::vec3& at, float radius, const glm::vec3& color)
+// Only the spot light may cast shadows, with vr_flashlight_shadows.
+dlight_t* light(int key, const glm::vec3& at, float radius, const glm::vec3& color)
 {
     dlight_t* dl = CL_AllocDlight(key);
     dl->origin[0] = at.x;
@@ -256,14 +264,20 @@ void light(int key, const glm::vec3& at, float radius, const glm::vec3& color)
     dl->radius = radius;
     dl->minlight = 0.f;
     dl->die = static_cast<float>(cl.time) + 0.1f;
-    dl->color[0] = color.x;
-    dl->color[1] = color.y;
-    dl->color[2] = color.z;
-    lighting::dlightLook(dl, 0.f, 0.f); // no share for what faces away, and no DarkPlaces boost
-    if(key != keyPool || !vr_flashlight_shadows.value)
+    // Quake's falloff (vr_dlight_falloff 0) gives (radius - distance) / 256 of the colour: scaled to
+    // about as bright as DarkPlaces' close by, whatever the radius.
+    const float k = vr_dlight_falloff.value != 0.f ? 1.f : 200.f / std::max(radius, 1.f);
+    dl->color[0] = color.x * k;
+    dl->color[1] = color.y * k;
+    dl->color[2] = color.z * k;
+    // No DarkPlaces boost. The spot light's angle term is softened (a quarter of its light whatever the
+    // angle, in its cone): floors and walls the beam grazes are not much darker than what faces it.
+    lighting::dlightLook(dl, key == keySpot ? 0.25f : 0.f, 0.f);
+    if(key != keySpot || !vr_flashlight_shadows.value)
     {
         lighting::dlightNoShadow(dl);
     }
+    return dl;
 }
 
 // Shapes the visible beam for this frame (see Beam): from the lens to where the beam lands, `dist`
@@ -314,64 +328,40 @@ void shapeBeam(const Pose& p, const glm::vec3& lens, const glm::vec3& dir, float
     }
 }
 
-// The beam: where it lands (the world, doors and lifts; monsters too when hosting), a pool of
-// light there -- the light off the surface along its normal, which makes a round pool, and a little
-// back along the beam -- growing and dimming with the distance; a dimmer, wider light halfway, for
-// the beam's spill on what it passes; a faint glow at the lamp.
+// The beam: a spot light at the lens, lighting everything in its cone per pixel (the world, doors,
+// monsters, pickups, hands), shadowed by its own perspective shadow map (vr_flashlight_shadows); a
+// faint unshadowed spill cone round it, as a real torch's reflector gives; a faint glow at the lamp.
+// No trace places the light, so nothing pops as the beam crosses an edge: the one trace left only
+// sets how far the visible beam reaches, eased over time.
 void lightBeam(const Pose& p)
 {
     const glm::vec3 lens = modelPointAt(p, lensPoint);
     const glm::vec3 dir = p.rot * glm::vec3{1.f, 0.f, 0.f};
     const float range = std::max(64.f, vr_flashlight_range.value);
-    const glm::vec3 start = lens + dir * 0.5f;
-    const glm::vec3 end = lens + dir * range;
+    const glm::vec3 at = lens + dir * 0.25f; // just out of the lens
 
-    std::optional<trace_t> tr = worldtrace::move(start, glm::vec3{0.f}, glm::vec3{0.f}, end, MOVE_NORMAL);
+    const float base = std::max(0.f, vr_flashlight_brightness.value) * 1.5f;
+    const glm::vec3 warm{1.f, 0.94f, 0.82f};
+
+    lighting::dlightSpot(light(keySpot, at, range, warm * base), dir, innerAngle, outerAngle);
+    lighting::dlightSpot(light(keySpill, at, range * 0.5f, warm * (base * 0.1f)), dir, outerAngle * 0.8f, spillAngle);
+    light(keyLamp, lens + dir * (0.2f * units::metresToUnits()), 0.5f * units::metresToUnits(), warm * (base * 0.15f));
+
+    // The visible beam's length: to where the beam lands (the world, doors and lifts; monsters too
+    // when hosting), eased so that it does not jump as the beam crosses an edge (a stair's, a
+    // doorway's); the beam's own traces cut it at the walls in the meantime.
+    const glm::vec3 start = lens + dir * 0.5f;
+    std::optional<trace_t> tr = worldtrace::move(start, glm::vec3{0.f}, glm::vec3{0.f}, lens + dir * range, MOVE_NORMAL);
     if(!tr)
     {
-        tr = worldtrace::world(start, end);
+        tr = worldtrace::world(start, lens + dir * range);
     }
-    const float fraction = tr->fraction;
-    const float dist = 0.5f + (range - 0.5f) * fraction;
-    const glm::vec3 hit = lens + dir * dist;
-    glm::vec3 normal = worldtrace::normal(*tr);
-    if(glm::dot(normal, normal) < 0.5f)
-    {
-        normal = -dir;
-    }
+    const float target = 0.5f + (range - 0.5f) * tr->fraction;
+    const float dt = static_cast<float>(std::clamp(realtime - st.beamTime, 0.0, 0.1));
+    st.beamTime = realtime;
+    st.beamLength = st.beamLength < 0.f ? target : st.beamLength + (target - st.beamLength) * (1.f - std::exp(-dt * 8.f));
 
-    // DarkPlaces' falloff keeps a light full out to about 40% of its radius, Quake's is linear:
-    // the latter needs more.
-    const float base = std::max(0.f, vr_flashlight_brightness.value) * (vr_dlight_falloff.value != 0.f ? 1.6f : 2.f);
-    const glm::vec3 warm{1.f, 0.94f, 0.82f};
-    const float farRatio = dist / range;
-
-    if(fraction < 1.f)
-    {
-        // The pool's size: the beam's spread.
-        const float pool = std::max(10.f, dist * spread);
-        const glm::vec3 at = hit + normal * (pool * 0.6f) - dir * (pool * 0.25f);
-        const float radius = CLAMP(40.f, pool * 2.2f, 450.f);
-        const float k = base * (1.f - 0.55f * farRatio) * std::min(1.f, (1.f - farRatio) / 0.15f);
-        light(keyPool, at, radius, warm * k);
-    }
-    else
-    {
-        killLight(keyPool); // nothing to land on (the sky, or out of reach)
-    }
-
-    if(dist > 120.f)
-    {
-        light(keyMid, lens + dir * (dist * 0.45f), 24.f + dist * 0.3f, warm * (base * 0.2f * (1.f - 0.5f * farRatio)));
-    }
-    else
-    {
-        killLight(keyMid);
-    }
-
-    light(keyLamp, lens + dir * (0.2f * units::metresToUnits()), 0.7f * units::metresToUnits(), warm * (base * 0.25f));
-
-    shapeBeam(p, lens, dir, dist, warm * std::max(0.f, vr_flashlight_brightness.value));
+    shapeBeam(p, lens, dir, st.beamLength, warm * std::max(0.f, vr_flashlight_brightness.value));
 }
 
 // The retracting cord from the clip on the chest to the lamp's bottom, while it is off the chest:
@@ -567,7 +557,7 @@ void drawTranslucent()
         float slope;
         float weight;
     };
-    constexpr Shell shells[] = {{1.f, spread, 0.5f}, {coreSpread / spread, coreSpread, 1.f}};
+    const Shell shells[] = {{1.f, spread, 0.5f}, {coreSpread / spread, coreSpread, 1.f}};
 
     static std::vector<gfx::Vertex> triangles;
     triangles.clear();

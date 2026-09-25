@@ -97,8 +97,13 @@ void setGlow(dlight_t* dl, glm::vec3 color, float radius, float fade)
     lighting::dlightNoShadow(dl);
 }
 
-// The ammo screens' lights' keys (no entity's: entities' are positive).
+// The ammo screens' lights: their keys (no entity's: entities' are positive), how far in front of
+// the screen they are, how far they reach, and their cone's inner and outer half angles.
 constexpr int screenLightKey = -0x5C00;
+constexpr float screenLightOut = 1.f;
+constexpr float screenLightRadius = 28.f;
+constexpr float screenLightInner = 45.f;
+constexpr float screenLightOuter = 85.f;
 
 } // namespace
 
@@ -158,18 +163,19 @@ void emissive::weaponScreenLight(int hand, const glm::vec3& pos, const glm::vec3
     AngleVectors(a, f, r, u);
     const glm::vec3 n = glm::normalize(glm::cross(glm::vec3{r[0], r[1], r[2]}, glm::vec3{u[0], u[1], u[2]}));
 
-    // A little in front of the screen, small but bright: it lights the hand holding the gun, the
-    // gun's back and what is right by it in the screen's colour (its text's, less saturated), and
-    // hardly the room.
+    // A small, bright spot light on the screen, the way it faces: what is in front of the screen
+    // (the hand holding the gun, the arm, a wall close by) is lit in its text's colour, and
+    // nothing beside or behind it (the gun's sides and back, outside its cone), nor the room (out of
+    // its reach). DarkPlaces' falloff is full to about 40% of the radius.
     dlight_t* dl = CL_AllocDlight(screenLightKey - hand);
-    const glm::vec3 p = pos + n * 4.f;
+    const glm::vec3 p = pos + n * screenLightOut;
     dl->origin[0] = p.x;
     dl->origin[1] = p.y;
     dl->origin[2] = p.z;
     dl->die = static_cast<float>(cl.time + 0.05);
-    dl->radius = 34.f;
+    dl->radius = screenLightRadius;
     const bool darkplaces = vr_dlight_falloff.value != 0.f;
-    const glm::vec3 c = hsv(vr_gadget_screen_hue.value, 0.45f, 1.f) * (bright * k * (darkplaces ? 0.75f : 1.1f));
+    const glm::vec3 c = hsv(vr_gadget_screen_hue.value, 0.55f, 1.f) * (bright * k * (darkplaces ? 1.5f : 2.5f));
     dl->color[0] = c.r;
     dl->color[1] = c.g;
     dl->color[2] = c.b;
@@ -177,6 +183,7 @@ void emissive::weaponScreenLight(int hand, const glm::vec3& pos, const glm::vec3
     {
         lighting::dlightLook(dl, 0.f, 0.f);
     }
+    lighting::dlightSpot(dl, n, screenLightInner, screenLightOuter);
     lighting::dlightNoShadow(dl);
 }
 

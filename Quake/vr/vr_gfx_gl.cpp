@@ -32,15 +32,17 @@ void main()
 
 // Mode: the Shade; Params: its settings (State::params).
 //
-// Mode 4, the wrist gadget's screen: the texture's brightness (between its luminance and its
-// brightest channel, so that the status bar's gold numbers and the face read as bright as the
-// text) in the phosphor's colour, and with CRT strength k: scanlines and a faint aperture grille
-// (fading out where they would be finer than the eye's pixels), a darker rim, a slight flicker, a
-// soft bar rolling down, faint static; while it glitches (g), bands torn sideways, the colours
-// split and the static thick. Seeded by time only: both eyes see the same.
+// Mode 4, a screen (the wrist gadget's, the ammo screens'): the texture's brightness (between its
+// luminance and its brightest channel, so that the status bar's gold numbers and the face read as
+// bright as the text) in the phosphor's colour, and with CRT strength k: scanlines and a faint
+// aperture grille (one a pixel of its virtual screen, Size: fading out where they would be finer
+// than the eye's pixels), a darker rim, a slight flicker, a soft bar rolling down, faint static a
+// pixel at a time; while it glitches (g), bands torn sideways, the colours split and the static
+// thick. Seeded by time only: both eyes see the same.
 constexpr const char* fragmentShader = R"(#version 430
 layout(location = 1) uniform int Mode;
 layout(location = 2) uniform vec4 Params;
+layout(location = 3) uniform vec3 Size; // Mode 4's virtual screen: pixels across, down, scanlines a pixel
 layout(binding = 0) uniform sampler2D Tex;
 in vec2 uv;
 in vec4 color;
@@ -69,14 +71,14 @@ vec4 screen()
             at.x += (hash(vec2(band, seed + 7.0)) - 0.5) * 0.15 * g;
         at.y += (hash(vec2(seed, 11.0)) - 0.5) * 0.02 * g;
     }
-    float split = 0.0006 * k + 0.006 * g;
+    float split = (0.144 * k + 1.44 * g) / Size.x;
     vec3 rgb = color.rgb * vec3(phosphor(at - vec2(split, 0.0)), phosphor(at), phosphor(at + vec2(split, 0.0)));
     rgb *= 1.0 - 0.3 * g;
 
-    float y = uv.y * 75.0;
+    float y = uv.y * Size.y * Size.z;
     float scanFade = clamp(1.0 - (fwidth(y) - 0.25) * 2.5, 0.0, 1.0);
     float scan = 1.0 - 0.3 * k * scanFade * (0.5 + 0.5 * cos(y * 6.2831853));
-    float x = uv.x * 240.0;
+    float x = uv.x * Size.x;
     float grilleFade = clamp(1.0 - (fwidth(x) - 0.25) * 2.5, 0.0, 1.0);
     float grille = 1.0 - 0.12 * k * grilleFade * (0.5 + 0.5 * cos(x * 6.2831853));
     vec2 p = uv * 2.0 - 1.0;
@@ -86,7 +88,7 @@ vec4 screen()
 
     float d = fract(uv.y + fract(t * 0.12) + 0.5) - 0.5;
     rgb += color.rgb * (0.05 * k * exp(-d * d * 400.0));
-    float noise = hash(floor(uv * vec2(240.0, 150.0)) + vec2(seed, seed * 0.37));
+    float noise = hash(floor(uv * Size.xy) + vec2(seed, seed * 0.37));
     rgb += color.rgb * (noise * k * (0.025 + 0.25 * g));
     return vec4(rgb, 1.0);
 }
@@ -256,6 +258,7 @@ void draw(std::span<const Vertex> triangles, const glm::mat4& mvp, const State& 
     if(state.shade == Shade::Screen)
     {
         GL_Uniform4fFunc(2, state.params.x, state.params.y, state.params.z, state.params.w);
+        GL_Uniform3fFunc(3, state.screen.x, state.screen.y, state.screen.z);
     }
     if(texture)
     {

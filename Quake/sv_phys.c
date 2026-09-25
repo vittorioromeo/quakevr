@@ -964,6 +964,7 @@ void SV_Physics_Client (edict_t	*ent, int num)
 //
 	pr_global_struct->time = qcvm->time;
 	pr_global_struct->self = EDICT_TO_PROG(ent);
+	VR_ClimbPreThink (ent); // QVR: ledge holds (vr_climb)
 	PR_ExecuteProgram (pr_global_struct->PlayerPreThink);
 
 //
@@ -976,6 +977,13 @@ void SV_Physics_Client (edict_t	*ent, int num)
 // decide which move function to call
 //
 	switch (VR_ClientTeleport (ent)) // QVR
+	{								// QVR
+	case -1:						// QVR
+		return;						// QVR
+	case 1:							// QVR
+		goto postthink;				// QVR
+	}								// QVR
+	switch (VR_ClientClimb (ent))	// QVR: hanging from a ledge, mantling
 	{								// QVR
 	case -1:						// QVR
 		return;						// QVR

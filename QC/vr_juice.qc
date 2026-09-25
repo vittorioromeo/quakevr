@@ -19,7 +19,9 @@
 // the head are not the hand's motion. A stroke is the wrist moving on (faster than
 // VR_BLOW_MOVING) along a steady line: it ends when the hand slows down or turns away (a wiggle
 // is many short strokes). A blow is a stroke that has travelled vr_melee_distance with the wrist
-// reaching vr_melee_speed, still moving hard.
+// reaching vr_melee_speed, still moving hard: a full punch or swing, going ahead, up, down or
+// sideways -- not back towards or behind the body -- and for a fist not whipped back and forth by the
+// wrist and the forearm (VR_Blow_IsBlow).
 //
 // How hard: the stroke's fastest over vr_melee_speed (up to three times). A hand's blows are also
 // weighted by their shape, as the same effort moves the hand about twice as fast in an arc (a slap,
@@ -39,6 +41,9 @@ float VR_BLOW_BACK = 0.5;
 float VR_BLOW_OVERHEAD = 0.7;
 float VR_BLOW_ARC = 1.8;    // rad/m: an arc of about 55 cm around the shoulder (a straight punch: 0)
 float VR_BLOW_REARM = 0.2;  // s after a blow lands before the next
+float VR_BLOW_BACKMOST = -0.45; // cosine from the head's facing: further back (about 117 degrees) is no blow
+float VR_BLOW_BACKBIAS = 1;     // going back at all, the distance needed grows by this much of the cosine
+float VR_BLOW_WHIP = 2.6;       // rad/m: a fist turning more than this for the way the wrist went is whipped
 
 // A hand's stroke, on an entity of its own (the player's vr_blow_main/vr_blow_off).
 .entity vr_blow_main;
@@ -53,6 +58,7 @@ float VR_BLOW_REARM = 0.2;  // s after a blow lands before the next
 .float blow_tippeak;   // and the controller's (m/s)
 .float blow_turn;      // how far the wrist's path has turned (radians),
 .float blow_path;      // over how long a path (metres)
+.vector blow_fwd0;     // the way the hand pointed as the stroke began (play space)
 .vector blow_dir;      // the direction of the last blow that landed (play space)
 .float blow_rearm;     // no blow before this
 .float blow_arc;       // the blow being dealt: how much of an arc it is (0 .. 1),
@@ -115,6 +121,20 @@ vector(float xHand) VR_Blow_Wrist =
     return VR_Blow_ToPlaySpace(w) * (1 / m2u);
 };
 
+// The way `xHand` points, in the play space.
+vector(float xHand) VR_Blow_HandForward =
+{
+    vector oldForward = v_forward;
+    vector oldRight = v_right;
+    vector oldUp = v_up;
+    makevectors(VRGetHandRot(xHand));
+    vector f = v_forward;
+    v_forward = oldForward;
+    v_right = oldRight;
+    v_up = oldUp;
+    return VR_Blow_ToPlaySpace(f);
+};
+
 // Follows the stroke of `xHand`, once a frame (PlayerVRMelee, before the bashes and the blows).
 void(float xHand) VR_Blow_Update =
 {
@@ -163,6 +183,7 @@ void(float xHand) VR_Blow_Update =
         b.blow_tippeak = 0;
         b.blow_turn = 0;
         b.blow_path = 0;
+        b.blow_fwd0 = VR_Blow_HandForward(xHand);
     }
     else if(oldSpeed > 1 && b.blow_speed > 1)
     {
@@ -182,13 +203,45 @@ float(float xHand) VR_Blow_Distance =
     return b.blow_t0 ? vlen(b.blow_wrist - b.blow_start) : 0;
 };
 
-// Whether `xHand` is in a blow: far enough, fast enough, and still moving hard.
+// The head's facing, flat, in the play space.
+vector() VR_Blow_Facing =
+{
+    return VRForwardOf('0 1 0' * (self.v_viewangle_y - self.vryaw));
+};
+
+// Whether `xHand` is in a blow: far enough, fast enough, and still moving hard. Not going back (more
+// than VR_BLOW_BACKMOST from the head's facing: a hand pulled back out of a monster, or behind the
+// body), and going back at all it must travel further (VR_BLOW_BACKBIAS); ahead, up, down and
+// sideways are all blows. A fist that turned more than VR_BLOW_WHIP for the way the wrist went is
+// whipped back and forth by the wrist and the forearm, no blow (a punch hardly turns the fist -- a
+// corkscrew turns it about its own line, which does not count -- and a slap or a hook swings from the
+// shoulder, the fist turning with the arm's wide arc).
 float(float xHand) VR_Blow_IsBlow =
 {
     entity b = VR_Blow(xHand);
     float speed = max(0.5, cvar_hget(cvarh_vr_melee_speed));
-    return b.blow_t0 && b.blow_peak >= speed && b.blow_speed >= speed * 0.5 &&
-           VR_Blow_Distance(xHand) >= cvar_hget(cvarh_vr_melee_distance);
+    if(!b.blow_t0 || b.blow_peak < speed || b.blow_speed < speed * 0.5)
+    {
+        return FALSE;
+    }
+    vector s = b.blow_wrist - b.blow_start;
+    float dist = vlen(s);
+    float need = cvar_hget(cvarh_vr_melee_distance);
+    if(dist < need)
+    {
+        return FALSE;
+    }
+    float f = (s * (1 / dist)) * VR_Blow_Facing();
+    if(f < VR_BLOW_BACKMOST || (f < 0 && dist < need * (1 - f * VR_BLOW_BACKBIAS)))
+    {
+        return FALSE;
+    }
+    if(VRGetEntWeapon(self, xHand) == WID_FIST &&
+       VRAngleBetween(b.blow_fwd0, VR_Blow_HandForward(xHand)) * (3.14159265 / 180) > dist * VR_BLOW_WHIP)
+    {
+        return FALSE;
+    }
+    return TRUE;
 };
 
 // The stroke's weight by its shape and direction, from the head's facing (see above); sets its
@@ -196,7 +249,7 @@ float(float xHand) VR_Blow_IsBlow =
 float(entity b) VR_Blow_Weight =
 {
     vector dir = normalize(b.blow_wrist - b.blow_start);
-    vector fwd = VRForwardOf('0 1 0' * (self.v_viewangle_y - self.vryaw)); // flat
+    vector fwd = VR_Blow_Facing();
     float f = dir * fwd;
     float z = dir_z;
     float side = max(0, 1 - f * f - z * z);
@@ -405,7 +458,7 @@ float(float xHand, vector xForward) VR_Bash_PalmShove =
 float(vector xAt, vector xForward, float xKind, float xHand, float xScale) VR_Bash_Hit =
 {
     float hits = 0;
-    float push = cvar_hget(cvarh_vr_bash_push) * xScale;
+    float push = cvar_hget(cvarh_vr_bash_push) * max(0.75, xScale); // a one-hand shove still throws (off ledges too)
     float dmg = cvar_hget(cvarh_vr_bash_damage) * xScale;
     entity e = findradius(xAt + xForward * 24, 48);
     while(e)

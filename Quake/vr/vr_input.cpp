@@ -14,6 +14,7 @@
 #include "vr_hands.hpp"
 #include "vr_input.hpp"
 #include "vr_main.hpp"
+#include "vr_menuui.hpp"
 #include "vr_voicenotes.hpp"
 #include "vr_flashlight.hpp"
 
@@ -178,6 +179,9 @@ void update(const InputState& tracked)
     const HandInput& off = in.hands[HAND_OFF];
     const HandInput& main = in.hands[HAND_MAIN];
 
+    // Where the hands point at the menu, before the trigger clicks there.
+    menuui::update(hands::current());
+
     for(int h = 0; h < HAND_COUNT; h++)
     {
         for(const ButtonKeys& b : buttonKeys)
@@ -196,7 +200,9 @@ void update(const InputState& tracked)
                 {
                     continue;
                 }
-                Key_Event(b.key[h], now);
+                // A trigger pointing at the menu is its mouse button.
+                const int key = b.button == &HandInput::trigger ? menuui::triggerKey(h, now, b.key[h]) : b.key[h];
+                Key_Event(key, now);
                 if(now && key_dest == key_menu && !vr_disablehaptics.value)
                 {
                     // A click under the finger, as the old engine gave in menus.

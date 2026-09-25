@@ -17,8 +17,10 @@ namespace qvr
 namespace
 {
 
+// The pretend headset's recommended eye size, and its largest (vr_render_scale).
 constexpr int imageWidth = 1024;
 constexpr int imageHeight = 1024;
+constexpr int maxImageSize = 2048;
 constexpr float halfIpd = 0.032f;
 
 // Controller input set from the console, for testing without a headset.
@@ -193,10 +195,7 @@ public:
 
     [[nodiscard]] bool start() override
     {
-        for(gfx::Texture& tex : textures)
-        {
-            tex = gfx::createTexture(imageWidth, imageHeight);
-        }
+        ensureTextures();
         return true;
     }
 
@@ -207,6 +206,7 @@ public:
             gfx::destroyTexture(tex);
             tex = 0;
         }
+        width_ = height_ = 0;
     }
 
     [[nodiscard]] bool beginFrame(TrackingState& tracking, FrameState& frame) override
@@ -252,6 +252,7 @@ public:
         tracking.head.linearVelocity = headMotion.update(tracking.head.position, realtime);
         tracking.head.velocityValid = true;
 
+        ensureTextures(); // vr_render_scale
         frame.shouldRender = true;
         for(int eye = 0; eye < 2; eye++)
         {
@@ -265,8 +266,34 @@ public:
 
     void eyeResolution(int& width, int& height) const override
     {
-        width = imageWidth;
-        height = imageHeight;
+        width = width_;
+        height = height_;
+    }
+
+    [[nodiscard]] EyeSizes eyeSizes() const override
+    {
+        EyeSizes s;
+        s.recommendedWidth = imageWidth;
+        s.recommendedHeight = imageHeight;
+        s.maxWidth = s.maxHeight = maxImageSize;
+        s.width = width_;
+        s.height = height_;
+        return s;
+    }
+
+    // vr_mock_hidden_area 1: the corners outside a circle a little wider than the image (about
+    // 17% of it, as a headset's lenses hide), to test vr_visibility_mask.
+    [[nodiscard]] const HiddenArea* hiddenArea(int /* eye */) const override
+    {
+        if(vr_mock_hidden_area.value == 0.f)
+        {
+            return nullptr;
+        }
+        if(hidden_.vertices.empty())
+        {
+            makeHiddenArea();
+        }
+        return &hidden_;
     }
 
     [[nodiscard]] unsigned acquireEyeImage(int eye) override
@@ -284,6 +311,53 @@ public:
 
 private:
     gfx::Texture textures[2]{};
+    int width_{0};
+    int height_{0};
+    mutable HiddenArea hidden_;
+
+    void ensureTextures()
+    {
+        const int w = scaledEyeSize(imageWidth, maxImageSize);
+        const int h = scaledEyeSize(imageHeight, maxImageSize);
+        if(textures[0] && w == width_ && h == height_)
+        {
+            return;
+        }
+        for(gfx::Texture& tex : textures)
+        {
+            gfx::destroyTexture(tex);
+            tex = gfx::createTexture(w, h);
+        }
+        width_ = w;
+        height_ = h;
+    }
+
+    // Between a circle of radius 1.04 (the image's half-width 1) and the image's edge, in quads
+    // from the circle out to the edge along rays from the middle (the corners among them), scaled
+    // to the mock's field of view (Fov{}: 0.8 radians each way).
+    void makeHiddenArea() const
+    {
+        constexpr int segments = 64; // a multiple of 8: the corners' rays are among them
+        constexpr float radius = 1.04f;
+        const float tangent = std::tan(Fov{}.right);
+        for(int i = 0; i < segments; i++)
+        {
+            const float a = 2.f * 3.14159265f * static_cast<float>(i) / segments;
+            const glm::vec2 dir{std::cos(a), std::sin(a)};
+            const float toEdge = 1.f / std::max(std::fabs(dir.x), std::fabs(dir.y));
+            hidden_.vertices.push_back(dir * std::min(radius, toEdge) * tangent); // inner
+            hidden_.vertices.push_back(dir * toEdge * tangent);                      // outer
+        }
+        for(int i = 0; i < segments; i++)
+        {
+            const std::uint32_t in0 = 2 * i, out0 = 2 * i + 1;
+            const std::uint32_t in1 = 2 * ((i + 1) % segments), out1 = in1 + 1;
+            for(std::uint32_t v : {in0, out0, out1, in0, out1, in1})
+            {
+                hidden_.indices.push_back(v);
+            }
+        }
+    }
     ScriptedMotion handMotion[HAND_COUNT];
     ScriptedMotion headMotion; // headbutts
 };

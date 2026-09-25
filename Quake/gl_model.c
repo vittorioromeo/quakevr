@@ -780,8 +780,10 @@ static void Mod_LoadTextures (lump_t *l)
 						tx->gltexture = TexMgr_LoadImage (loadmodel, texturename, tx->width, tx->height,
 							SRC_INDEXED, (byte *)(tx+1), loadmodel->name, offset, TEXPREF_MIPMAP | extraflags);
 					}
+					// QVR: heights only if drawn smooth (the shifts would bend its texels), but for the ammo and
+					// health boxes (the expansions' have no replacement textures), whose depth is a texel or two
 					Mod_LoadNormalMap (tx->gltexture, NULL, (byte *)(tx+1), SRC_INDEXED, tx->width,
-						TexMgr_IndexedSmooth () ? NORMALMAP_HEIGHTS : 0); // QVR: heights only if drawn smooth
+						TexMgr_IndexedSmooth () || !q_strncasecmp (loadmodel->name, "maps/b_", 7) ? NORMALMAP_HEIGHTS : 0);
 				}
 				Hunk_FreeToLowMark (mark);
 			}
@@ -2457,6 +2459,92 @@ static void Mod_LoadLeafsExternal(FILE* f)
 Mod_LoadBrushModel
 =================
 */
+/*
+=================
+Mod_ItemTextureClamp -- QVR: the part of each texture the faces of an ammo or health box (maps/b_*.bsp) show, for
+parallax mapping (texture_t uvclamp): the rays it walks stop at the face's edges instead of reading what lies past
+them (the shells' and nails' sides show the lower three quarters of their textures: the black top quarter, which
+the rays wrapped into below the face, sank the box's sides into a black box). In the texture's coordinates (the
+vertices'), each face's range moved by whole textures to start in 0..1; none on an axis where a face shows a whole
+texture or more (it tiles) or the faces' ranges disagree.
+=================
+*/
+static void Mod_ItemTextureClamp (void)
+{
+	int			i, j, e, axis;
+	msurface_t	*s;
+	texture_t	*t, *t2;
+
+	if (q_strncasecmp (loadmodel->name, "maps/b_", 7))
+		return;
+	for (i = 0; i < loadmodel->numtextures; i++)
+		if (loadmodel->textures[i])
+			memset (loadmodel->textures[i]->uvclamp, 0, sizeof (loadmodel->textures[i]->uvclamp));
+	for (i = 0, s = loadmodel->surfaces; i < loadmodel->numsurfaces; i++, s++)
+	{
+		float lo[2] = {FLT_MAX, FLT_MAX}, hi[2] = {-FLT_MAX, -FLT_MAX};
+		t = s->texinfo && s->texinfo->texnum >= 0 && s->texinfo->texnum < loadmodel->numtextures ?
+			loadmodel->textures[s->texinfo->texnum] : NULL;
+		if (!t || (s->flags & (SURF_DRAWSKY | SURF_DRAWTURB)) || !t->width || !t->height)
+			continue;
+		for (j = 0; j < s->numedges; j++)
+		{
+			mvertex_t *v;
+			e = loadmodel->surfedges[s->firstedge + j];
+			v = e >= 0 ? &loadmodel->vertexes[loadmodel->edges[e].v[0]] : &loadmodel->vertexes[loadmodel->edges[-e].v[1]];
+			for (axis = 0; axis < 2; axis++)
+			{
+				float c = (DotProduct (v->position, s->texinfo->vecs[axis]) + s->texinfo->vecs[axis][3]) /
+					(float)(axis ? t->height : t->width);
+				lo[axis] = q_min (lo[axis], c);
+				hi[axis] = q_max (hi[axis], c);
+			}
+		}
+		for (axis = 0; axis < 2; axis++)
+		{
+			float *c = t->uvclamp, k;
+			if (c[axis] < 0.f) // this axis tiles already
+				continue;
+			if (hi[axis] - lo[axis] >= 0.999f)
+			{
+				c[axis] = -1.f;
+				c[axis + 2] = -2.f;
+				continue;
+			}
+			k = floorf (lo[axis] + 1e-4f);
+			lo[axis] -= k;
+			hi[axis] -= k;
+			if (c[axis + 2] > c[axis]) // another face's range: both
+			{
+				lo[axis] = q_min (lo[axis], c[axis]);
+				hi[axis] = q_max (hi[axis], c[axis + 2]);
+				if (hi[axis] - lo[axis] >= 0.999f)
+				{
+					c[axis] = -1.f;
+					c[axis + 2] = -2.f;
+					continue;
+				}
+			}
+			c[axis] = lo[axis];
+			c[axis + 2] = hi[axis];
+		}
+	}
+	// the animation's other frames (their faces name the first)
+	for (i = 0; i < loadmodel->numtextures; i++)
+	{
+		t = loadmodel->textures[i];
+		if (!t || t->name[0] != '+')
+			continue;
+		if (t->uvclamp[2] <= t->uvclamp[0] && t->uvclamp[3] <= t->uvclamp[1])
+			continue;
+		for (t2 = t->anim_next; t2 && t2 != t; t2 = t2->anim_next)
+			memcpy (t2->uvclamp, t->uvclamp, sizeof (t->uvclamp));
+		for (t2 = t->alternate_anims; t2 && t2 != t; t2 = t2->anim_next)
+			if (t2->uvclamp[2] <= t2->uvclamp[0] && t2->uvclamp[3] <= t2->uvclamp[1])
+				memcpy (t2->uvclamp, t->uvclamp, sizeof (t->uvclamp));
+	}
+}
+
 static void Mod_LoadBrushModel (qmodel_t *mod, void *buffer)
 {
 	int			i, j;
@@ -2506,6 +2594,7 @@ static void Mod_LoadBrushModel (qmodel_t *mod, void *buffer)
 	Mod_LoadPlanes (&header->lumps[LUMP_PLANES]);
 	Mod_LoadTexinfo (&header->lumps[LUMP_TEXINFO]);
 	Mod_LoadFaces (&header->lumps[LUMP_FACES], bsp2);
+	Mod_ItemTextureClamp (); // QVR
 	Mod_LoadMarksurfaces (&header->lumps[LUMP_MARKSURFACES], bsp2);
 
 	if (mod->bspversion == BSPVERSION && external_vis.value && sv.modelname[0] && !q_strcasecmp(loadname, sv.name))
@@ -2978,6 +3067,100 @@ static void Mod_FloodFillSkin( byte *skin, int skinwidth, int skinheight )
 
 /*
 ===============
+Mod_SkinNormalMapLater, Mod_LoadSkinNormalMaps -- QVR: a model's skins get their normal maps (vr_normalmaps), with
+heights for parallax mapping (vr_parallax_models), once its triangles are loaded: the heights rise to the top at the
+edges of the skin's islands (the parts its triangles cover; TexMgr_SetHeightMask), so that the rays stop at a seam
+instead of reading another part of the skin (the rest of the skin or another part of the model).
+===============
+*/
+static struct { gltexture_t *glt; byte *data; } skinnormalmaps[MAX_SKINS * 4];
+static int numskinnormalmaps;
+
+static void Mod_SkinNormalMapLater (gltexture_t *glt, byte *data)
+{
+	if (glt && numskinnormalmaps < (int) countof (skinnormalmaps))
+	{
+		skinnormalmaps[numskinnormalmaps].glt = glt;
+		skinnormalmaps[numskinnormalmaps].data = data;
+		numskinnormalmaps++;
+	}
+}
+
+static void Mod_LoadSkinNormalMaps (const stvert_t *verts, const dtriangle_t *tris)
+{
+	int		i, j, k, x, y, w = pheader->skinwidth, h = pheader->skinheight, mark;
+	byte	*mask = NULL;
+
+	if (!numskinnormalmaps)
+		return;
+	mark = Hunk_LowMark ();
+	if (w > 0 && h > 0)
+	{
+		// the islands: the texels within 0.7 of a texel of a triangle (the back's seam vertices half a skin right)
+		mask = (byte *) Hunk_Alloc (w * h);
+		for (i = 0; i < pheader->numtris; i++)
+		{
+			float	p[3][2], area, xmin = FLT_MAX, xmax = -FLT_MAX, ymin = FLT_MAX, ymax = -FLT_MAX;
+			for (j = 0; j < 3; j++)
+				if (tris[i].vertindex[j] < 0 || tris[i].vertindex[j] >= pheader->numverts)
+					break;
+			if (j < 3)
+				continue;
+			for (j = 0; j < 3; j++)
+			{
+				const stvert_t *v = &verts[tris[i].vertindex[j]];
+				p[j][0] = (float) v->s + (!tris[i].facesfront && v->onseam ? w / 2 : 0);
+				p[j][1] = (float) v->t;
+				xmin = q_min (xmin, p[j][0]); xmax = q_max (xmax, p[j][0]);
+				ymin = q_min (ymin, p[j][1]); ymax = q_max (ymax, p[j][1]);
+			}
+			area = (p[1][0] - p[0][0]) * (p[2][1] - p[0][1]) - (p[1][1] - p[0][1]) * (p[2][0] - p[0][0]);
+			for (y = CLAMP (0, (int) floorf (ymin - 1.f), h - 1); y <= CLAMP (0, (int) ceilf (ymax + 1.f), h - 1); y++)
+				for (x = CLAMP (0, (int) floorf (xmin - 1.f), w - 1); x <= CLAMP (0, (int) ceilf (xmax + 1.f), w - 1); x++)
+				{
+					float c[2] = {x + 0.5f, y + 0.5f};
+					qboolean inside = true;
+					for (j = 0; j < 3 && inside; j++)
+					{
+						const float *a = p[j], *b = p[(j + 1) % 3];
+						float ex = b[0] - a[0], ey = b[1] - a[1], len = sqrtf (ex * ex + ey * ey);
+						float e = (ex * (c[1] - a[1]) - ey * (c[0] - a[0])) * (area < 0.f ? -1.f : 1.f);
+						inside = len <= 0.f || e >= -0.7f * len;
+					}
+					if (inside)
+						mask[y * w + x] = 255;
+				}
+		}
+		// how far inside, in texels (0 outside; the skin's edges are outside)
+		for (k = 0; k < 3; k++)
+		{
+			for (y = 0; y < h; y++)
+				for (x = 0; x < w; x++)
+				{
+					int d = mask[y * w + x], dx, dy;
+					if (!d)
+						continue;
+					for (dy = -1; dy <= 1; dy++)
+						for (dx = -1; dx <= 1; dx++)
+						{
+							int nx = x + dx, ny = y + dy;
+							int n = nx < 0 || ny < 0 || nx >= w || ny >= h ? 0 : mask[ny * w + nx];
+							d = q_min (d, n + 1);
+						}
+					mask[y * w + x] = (byte) d;
+				}
+		}
+	}
+	TexMgr_SetHeightMask (mask, w, h);
+	for (i = 0; i < numskinnormalmaps; i++)
+		Mod_LoadNormalMap (skinnormalmaps[i].glt, NULL, skinnormalmaps[i].data, SRC_INDEXED, w, NORMALMAP_HEIGHTS);
+	TexMgr_SetHeightMask (NULL, 0, 0);
+	numskinnormalmaps = 0;
+	Hunk_FreeToLowMark (mark);
+}
+
+/*
+===============
 Mod_LoadAllSkins
 ===============
 */
@@ -2993,6 +3176,7 @@ static void *Mod_LoadAllSkins (int numskins, daliasskintype_t *pskintype)
 	unsigned int		texflags = TEXPREF_PAD;
 
 	skin = (byte *)(pskintype + 1);
+	numskinnormalmaps = 0; // QVR
 
 	if (numskins < 1 || numskins > MAX_SKINS)
 		Sys_Error ("Mod_LoadAliasModel: Invalid # of skins: %d", numskins);
@@ -3042,7 +3226,7 @@ static void *Mod_LoadAllSkins (int numskins, daliasskintype_t *pskintype)
 			pheader->gltextures[i][3] = pheader->gltextures[i][2] = pheader->gltextures[i][1] = pheader->gltextures[i][0];
 			pheader->fbtextures[i][3] = pheader->fbtextures[i][2] = pheader->fbtextures[i][1] = pheader->fbtextures[i][0];
 			//johnfitz
-			Mod_LoadNormalMap (pheader->gltextures[i][0], NULL, (byte *)(pskintype+1), SRC_INDEXED, pheader->skinwidth, 0); // QVR
+			Mod_SkinNormalMapLater (pheader->gltextures[i][0], (byte *)(pskintype+1)); // QVR: once the triangles are known
 
 			pskintype = (daliasskintype_t *)((byte *)(pskintype+1) + size);
 		}
@@ -3091,7 +3275,7 @@ static void *Mod_LoadAllSkins (int numskins, daliasskintype_t *pskintype)
 					pheader->fbtextures[i][j&3] = NULL;
 				}
 				//johnfitz
-				Mod_LoadNormalMap (pheader->gltextures[i][j&3], NULL, (byte *)(pskintype), SRC_INDEXED, pheader->skinwidth, 0); // QVR
+				Mod_SkinNormalMapLater (pheader->gltextures[i][j&3], (byte *)(pskintype)); // QVR
 
 				pskintype = (daliasskintype_t *)((byte *)(pskintype) + size);
 			}
@@ -3508,6 +3692,7 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 					LittleLong (pintriangles[i].vertindex[j]);
 		}
 	}
+	Mod_LoadSkinNormalMaps (pinstverts, pintriangles); // QVR: the skins' normal maps, their islands from these
 
 //
 // load the frames

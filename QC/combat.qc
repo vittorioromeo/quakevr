@@ -170,6 +170,149 @@ The damage is coming from inflictor, but get mad at attacker
 This should be the only function that ever reduces health.
 ============
 */
+// VR: shoved off ledges. A walking monster (MOVETYPE_STEP) only moves by its velocity while it is
+// off the ground: Quake's step physics stops it dead as it lands (FL_ONGROUND), and its AI's walks
+// (walkmove, movetogoal) never step off an edge. So a push was the little hop it gives, a few units
+// at vr_push's strength, and a monster pushed to an edge landed on its lip and stood there, half
+// over the drop. Now a hard push (VR_SHOVE_MINSPEED and more) also slides it along the floor after
+// the hop, slowing down (VR_SHOVE_FRICTION), its feet just clear of the floor, so its AI does not
+// walk it back meanwhile (a monster off the ground does not walk). Over an edge -- nothing under the
+// middle of its feet -- it keeps going and falls, and on landing takes damage for the drop
+// (VR_SHOVE_SAFEFALL units and more; lava and slime burn). Then its AI goes on as before.
+
+float VR_SHOVE_MINSPEED = 100; // units/s: a softer push is only the hop
+float VR_SHOVE_FRICTION = 500; // units/s/s
+float VR_SHOVE_SAFEFALL = 150; // units of drop without damage; 0.4 a unit beyond
+
+.entity vr_shove; // on a monster: its slide (a "vr_shove" entity; world when none)
+
+void() VR_Shove_Think;
+
+// A push of `e` along `xDir` at `xSpeed` (units/s, horizontal) starts a slide (VR_Push).
+void(entity e, vector xDir, float xSpeed) VR_Shove_Start =
+{
+    entity s = e.vr_shove;
+    if(s == world || s.classname != "vr_shove" || s.owner != e)
+    {
+        s = spawn();
+        s.classname = "vr_shove";
+        s.owner = e;
+        s.pos1 = e.origin; // the highest it has been since it was last on the ground
+        e.vr_shove = s;
+    }
+    s.movedir = xDir;
+    s.speed = xSpeed;
+    s.ltime = time + 3;
+    s.think = VR_Shove_Think;
+    s.nextthink = time;
+};
+
+// Landed after a drop of `xDrop` units (self is the slide).
+void(entity m, float xDrop) VR_Shove_Landed =
+{
+    float contents = pointcontents(m.origin);
+    float dmg = 0;
+    if(contents == CONTENT_LAVA)
+    {
+        dmg = 100;
+    }
+    else if(contents == CONTENT_SLIME)
+    {
+        dmg = 30;
+    }
+    else if(contents == CONTENT_EMPTY && xDrop > VR_SHOVE_SAFEFALL)
+    {
+        dmg = (xDrop - VR_SHOVE_SAFEFALL) * 0.4;
+    }
+    if(xDrop > 24 || dmg > 0)
+    {
+        dprint("shove: "); dprint(m.classname); dprint(" landed from "); dprint(ftos(xDrop)); dprint(" units, ");
+        dprint(ftos(dmg)); dprint(" damage\n");
+    }
+    if(dmg > 0)
+    {
+        T_Damage(m, world, world, dmg);
+    }
+};
+
+void() VR_Shove_End =
+{
+    if(self.owner.vr_shove == self)
+    {
+        self.owner.vr_shove = world;
+    }
+    remove(self);
+};
+
+// Once a frame while the monster slides or falls.
+void() VR_Shove_Think =
+{
+    entity m = self.owner;
+    if(m.vr_shove != self || m.health <= 0 || m.movetype != MOVETYPE_STEP || (m.flags & (FL_FLY | FL_SWIM)) ||
+       !(m.flags & FL_MONSTER) || time > self.ltime + 3)
+    {
+        VR_Shove_End();
+        return;
+    }
+    self.nextthink = time;
+
+    // What is right under the middle of its feet.
+    vector foot = m.origin;
+    foot_z = foot_z + m.mins_z;
+    traceline(foot + '0 0 1', foot - '0 0 4', TRUE, m);
+    float supported = trace_fraction < 1 && trace_plane_normal_z > 0.7;
+    float gap = foot_z - trace_endpos_z;
+
+    // Off the ground (the hop, or falling): Quake's physics carries it. Its highest, for the drop.
+    if(!(m.flags & FL_ONGROUND) && (!supported || gap > 0.5 || m.velocity_z > 1))
+    {
+        self.pos1_z = max(self.pos1_z, m.origin_z);
+        self.cnt = 1;
+        return;
+    }
+
+    // Down again.
+    if(self.cnt && (m.flags & FL_ONGROUND))
+    {
+        self.cnt = 0;
+        VR_Shove_Landed(m, self.pos1_z - m.origin_z);
+        if(m.health <= 0)
+        {
+            VR_Shove_End();
+            return;
+        }
+    }
+
+    // On the ground: a drop is measured from here (not from where it was shoved: a ramp down is none).
+    self.pos1 = m.origin;
+
+    // As fast as it goes (a wall stops it).
+    self.speed = min(self.speed, max(0, m.velocity_x * self.movedir_x + m.velocity_y * self.movedir_y));
+
+    // Standing on an edge's lip, the middle of its feet over the drop: it goes on over.
+    if(!supported)
+    {
+        m.flags = m.flags - (m.flags & FL_ONGROUND);
+        self.speed = max(self.speed, 80);
+        m.velocity = self.movedir * self.speed;
+        return;
+    }
+
+    if(self.speed < 20 || time > self.ltime)
+    {
+        m.velocity_x = 0;
+        m.velocity_y = 0; // it settles on the floor (its velocity is no longer the slide)
+        VR_Shove_End();
+        return;
+    }
+
+    // Sliding, slowing down: its feet just clear of the floor (gravity undone for this frame).
+    self.speed = max(0, self.speed - VR_SHOVE_FRICTION * frametime);
+    m.flags = m.flags - (m.flags & FL_ONGROUND);
+    m.velocity = self.movedir * self.speed + '0 0 1' * (cvar_hget(cvarh_sv_gravity) * (m.gravity ? m.gravity : 1) *
+                                                        frametime);
+};
+
 // VR: pushes `e` along `dir` (made horizontal) at `speed` units/s, lifted by `up`: players and
 // walking monsters are thrown (their velocity), flying and swimming monsters stepped aside. Monsters
 // bigger than a grunt move less (by their size), smaller ones more.
@@ -199,6 +342,10 @@ void(entity e, vector dir, float speed, float up) VR_Push =
         }
         e.velocity = dir * speed + '0 0 1' * up;
         e.flags = e.flags - (e.flags & FL_ONGROUND);
+        if(e.health > 0 && speed >= VR_SHOVE_MINSPEED && e.movetype == MOVETYPE_STEP)
+        {
+            VR_Shove_Start(e, dir, speed);
+        }
         return;
     }
 

@@ -105,10 +105,18 @@ models) and keeps the classic pixel look; none of it needs new art.
   `maps/X.bsp` when that comes from `<game>` (`VR_ModelFile` in `Mod_LoadModel` and `Mod_LoadLighting`), per game
   because id1, hipnotic and rogue all have a `start.bsp`; a mod's own maps are left alone. `vr_relit_maps 0` plays
   the original lighting (next map). The relit files are generated locally and not committed (`.gitignore`).
-  The mod's own `vrfiringrange` is relit in place instead (committed): `Misc/quakevr/relight_firingrange.py` swaps its
-  seventeen "light" 1200 lamps (a lightmap at 255 nearly everywhere: glaring, oversaturated yellow) for a sun from
-  the east-north-east (`_sunlight` 150, `_sun_mangle` "200 -40 0"), a sky dome (`_sunlight2` 280) and `-dirt`, in the
-  `.bsp` and its `.ent`; about 150 on the sunlit floor and 90 in shade, so models lit on a par with it do not glare.
+  The mod's own maps are relit in place instead (committed), each with its own settings, by
+  `Misc/quakevr/relight_quakevr_maps.py [--quake <Quake folder>] [--only vrtutorial]` (the palette of id1 is for the
+  glowing textures' colours). `vrfiringrange`: its seventeen "light" 1200 lamps (a lightmap at 255 nearly everywhere:
+  glaring, oversaturated yellow) become a sun from the east-north-east (`_sunlight` 150, `_sun_mangle` "200 -40 0"),
+  a sky dome (`_sunlight2` 280) and `-dirt`, in the `.bsp` and its `.ent`; about 150 on the sunlit floor and 90 in
+  shade, so models lit on a par with it do not glare. `vrtutorial` had never been lit (an empty lightmap: the engine
+  draws that fullbright): now its own lamps light it, the strip lights over the boards with a longer reach (`wait`
+  0.6 in the courtyard, 0.75 indoors) and the lamp posts' four lights at 60, plus the glowing textures' lights
+  (`glow_lights`, coloured `.lit`), `-dirt -dirtscale 1.5`, no bounce, and a faint cool sky and moon over the open
+  courtyard (`_sunlight2` 80, `_sunlight` 50); its sixteen "light" 1200 fill lamps 300 units up are dropped. Pools
+  of light at the boards and lamps, dark corners and corridors between them. `vrstart` is left fullbright (no
+  lightmap and no lights; its worldspawn `"light" "300"` is a minimum light for a menu-like hub).
 - **See-through water.** id's maps were vised with liquids as walls, so the engine keeps their water, slime and
   teleporters opaque whatever `r_wateralpha` says (changing it prints "Map does not appear to be water-vised").
   The relit maps get water-vised visibility from the VisPatch data files (`id1.vis`, `hipnotic.vis`, `rogue.vis`,

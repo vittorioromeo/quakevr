@@ -2,7 +2,8 @@
 // counters, floating damage numbers, the wrist gadget's log), depth-tested in the scene pass: the
 // solid ones with the opaque entities, the blended ones (floating texts, the log) after the
 // translucent pass, over the sky. The ammo screens and the wrist gadget's glow softly round their
-// edges (vr_screen_glow), added in that pass too.
+// edges (vr_screen_glow), added in that pass too; the ammo screens are small CRTs like the
+// gadget's (vr_weapon_screen_crt: their images drawn in the 2D pass, shown a frame later).
 
 #pragma once
 
@@ -29,6 +30,11 @@ void queue(std::string_view text, const glm::vec3& pos, const glm::vec3& angles,
 
 // Once per frame, after the eyes (and the flat view) are drawn.
 void clear();
+
+// At the end of the 2D pass (from gadget::renderScreen), after the eyes: the queued screens' faces
+// and texts into their images, shown through the CRT shader in the next frame's eyes
+// (vr_weapon_screen_crt).
+void renderScreens();
 
 // The blended texts, in each eye's scene after the translucent pass (VR_DrawSceneTranslucent).
 void drawTranslucent();

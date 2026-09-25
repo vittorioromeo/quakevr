@@ -318,6 +318,97 @@ struct Contact
     edict_t* ent{nullptr};
 };
 
+// Water. Things float (items, backpacks, thrown weapons: 60% under at rest); gibs sink, slowly.
+// How much of the body is under water comes from its box's height against the water's surface
+// (found under its centre), so the lift grows smoothly as it goes in -- not a point in or out of
+// the water, which made floating things jump up and drop back forever. The water's drag damps
+// the bob critically (it comes to rest at the surface, bobbing a little), the spin and the drift,
+// and a floating body turns to lie flat on a side.
+constexpr float floatDensity = 1.f / 0.6f; // relative to water's
+constexpr float sinkDensity = 0.5f;
+
+[[nodiscard]] float waterDensity(edict_t* ent)
+{
+    const int flags = static_cast<int>(ent->v.flags);
+    const bool gib = (flags & physics::FL_FORCEGRABBABLE) && !(flags & FL_ITEM);
+    return gib ? sinkDensity : floatDensity;
+}
+
+[[nodiscard]] bool wet(float x, float y, float z)
+{
+    vec3_t p{x, y, z};
+    const int contents = SV_PointContents(p);
+    return contents <= CONTENTS_WATER && contents >= CONTENTS_LAVA;
+}
+
+// The part of the body under water (0 to 1), and its half-height as turned.
+[[nodiscard]] float submerged(const Body& b, float& halfHeight)
+{
+    halfHeight = std::abs(b.rot[0].z) * b.half.x + std::abs(b.rot[1].z) * b.half.y + std::abs(b.rot[2].z) * b.half.z;
+    const float lo = b.com.z - halfHeight;
+    const float hi = b.com.z + halfHeight;
+    float under = lo;
+    if(!wet(b.com.x, b.com.y, lo))
+    {
+        if(!wet(b.com.x, b.com.y, b.com.z))
+        {
+            return 0.f;
+        }
+        under = b.com.z; // the bottom in a floor
+    }
+    if(wet(b.com.x, b.com.y, hi))
+    {
+        return 1.f;
+    }
+    float above = hi;
+    for(int i = 0; i < 12; i++)
+    {
+        const float mid = (under + above) * 0.5f;
+        (wet(b.com.x, b.com.y, mid) ? under : above) = mid;
+    }
+    return CLAMP(0.f, ((under + above) * 0.5f - lo) / std::max(hi - lo, 0.01f), 1.f);
+}
+
+// One substep of the water's lift and drag. The body bobs a little (by entity, a few seconds).
+void waterStep(Body& b, float g, float density, float h)
+{
+    float halfHeight = 0.f;
+    const float s = submerged(b, halfHeight);
+    if(s <= 0.f)
+    {
+        return;
+    }
+    const bool floats = density > 1.f;
+    const float bob = floats ? 1.f + 0.04f * std::sin(static_cast<float>(qcvm->time) * 2.1f + static_cast<float>(NUM_FOR_EDICT(b.ent))) : 1.f;
+    b.vel.z += g * density * s * bob * h;
+
+    // The float is a spring (lift per unit of depth): its drag is a little over critical once
+    // it is in as deep as it floats.
+    const float stiffness = g * density / (2.f * std::max(halfHeight, 0.5f));
+    const float restingPart = std::min(1.f, 1.f / density);
+    const float drag = 2.4f * std::sqrt(stiffness) * std::min(1.f, s / restingPart);
+    b.vel.z *= std::exp(-drag * h);
+    const float drift = std::exp(-1.5f * s * h);
+    b.vel.x *= drift;
+    b.vel.y *= drift;
+    b.spin *= std::exp(-8.f * s * h);
+
+    // Floating, the side nearest the surface turns up to it.
+    if(floats)
+    {
+        int axis = 0;
+        for(int i = 1; i < 3; i++)
+        {
+            if(std::abs(b.rot[i].z) > std::abs(b.rot[axis].z))
+            {
+                axis = i;
+            }
+        }
+        const glm::vec3 up = b.rot[axis].z < 0.f ? -b.rot[axis] : b.rot[axis];
+        b.spin += glm::cross(up, glm::vec3{0.f, 0.f, 1.f}) * (20.f * s * h);
+    }
+}
+
 // The move of a rigid body (a .vr_rigid toss or bounce entity) over this frame.
 void rigidToss(edict_t* ent)
 {
@@ -350,7 +441,10 @@ void rigidToss(edict_t* ent)
     if(static_cast<int>(ent->v.flags) & FL_ONGROUND)
     {
         const bool pushed = glm::length(b.vel) > 1.f;
-        if(!pushed && fieldFloat(ent, f.vr_rest) >= 0.f && supported(b, nullptr))
+        float halfHeight = 0.f;
+        const float density = waterDensity(ent);
+        const bool lifted = density > 1.f && density * submerged(b, halfHeight) > 1.02f; // deeper than it floats
+        if(!pushed && !lifted && fieldFloat(ent, f.vr_rest) >= 0.f && supported(b, nullptr))
         {
             return;
         }
@@ -376,12 +470,13 @@ void rigidToss(edict_t* ent)
     bool floorContact = false;
     edict_t* floorEnt = nullptr;
 
+    const float density = waterDensity(ent);
     for(int step = 0; step < steps; step++)
     {
         b.vel.z -= g * h;
+        waterStep(b, g, density, h);
 
-        const float drag = std::max(vr_throw_spin_drag.value, 0.f) + (ent->v.waterlevel > 0.f ? 3.f : 0.f);
-        b.spin *= std::exp(-drag * h);
+        b.spin *= std::exp(-std::max(vr_throw_spin_drag.value, 0.f) * h);
 
         touchNearby(ent, b.com, b.com + b.vel * h);
         if(ent->free)

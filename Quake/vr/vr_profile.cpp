@@ -299,6 +299,29 @@ struct Stats
     return sum / std::max(intervalFrames, 1);
 }
 
+// GPU time of the scopes so named (summed over the tree), per frame.
+[[nodiscard]] double gpuNamed(const char* name)
+{
+    double sum = 0.0;
+    for(std::size_t i = 1; i < nodes.size(); i++)
+    {
+        if(std::strcmp(nodes[i].name, name) == 0)
+        {
+            sum += nodes[i].gpuSum;
+        }
+    }
+    return sum / std::max(intervalGpuFrames, 1);
+}
+
+// The eyes' GPU time: the frame's GPU work in VR. The frame's GPU time (its outermost GPU scopes',
+// each from its first timestamp to its last) also holds the gaps between the eyes: the runtime's
+// calls ("xr acquire", "xr release", "xr submit"), where the GPU idles while the CPU waits in the
+// runtime, or runs the runtime's and other processes' work (the compositor, a streaming encoder).
+[[nodiscard]] double gpuEyes()
+{
+    return gpuNamed("eye L") + gpuNamed("eye R");
+}
+
 // _Host_Frame's CPU time, less the waits in it (the runtime's frame pacing, the window's buffer swap).
 [[nodiscard]] double cpuBusy()
 {
@@ -371,6 +394,7 @@ void appendf(std::string& out, const char* fmt, ...)
     {
         be->eyeResolution(w, h);
         appendf(c, "# vr_backend,%s\n", be->name());
+        appendf(c, "# xr_runtime,%s\n", be->runtimeName());
     }
     else
     {
@@ -379,7 +403,8 @@ void appendf(std::string& out, const char* fmt, ...)
     appendf(c, "# eye_resolution,%dx%d\n", w, h);
     appendf(c, "# window,%dx%d\n", vid.width, vid.height);
     appendf(c, "# gl_renderer,%s\n", gl_renderer ? gl_renderer : "?");
-    static const char* const cvars[] = {"vr_graphics_preset", "vid_fsaa", "r_scale", "r_oit", "vr_mirror",
+    static const char* const cvars[] = {"vr_graphics_preset", "vid_fsaa", "r_scale", "vr_render_scale",
+        "vr_visibility_mask", "r_oit", "vr_mirror",
         "host_maxfps", "vr_shadow_dlights", "vr_shadow_dlight_size", "vr_shadow_precision", "vr_shadow_muzzleflash",
         "vr_shadow_maplights", "vr_shadow_maplight_size", "vr_shadow_self", "vr_shadow_filter", "vr_shadow_atlas",
         "vr_shadow_distance", "vr_dlight_models", "vr_specular", "vr_normalmaps", "vr_bloom", "vr_bloom_radius",
@@ -530,9 +555,9 @@ void report(std::int64_t now, bool full)
     const Stats frame = stats(0);
     const double period = periodSum / intervalFrames;
     Con_Printf("vr_profile: %s, %d frames in %.1f s, %.2f ms apart (%.0f fps): host frame %.2f ms, CPU busy %.2f, GPU %.2f "
-               "(max %.2f)\n",
+               "(max %.2f; eyes %.2f, runtime's calls %.2f)\n",
         captureMap.c_str(), intervalFrames, seconds, period, period > 0.0 ? 1000.0 / period : 0.0, frame.cpuAvg, cpuBusy(),
-        frame.gpuAvg, frame.gpuMax);
+        frame.gpuAvg, frame.gpuMax, gpuEyes(), gpuNamed("xr acquire") + gpuNamed("xr submit"));
     if(full)
     {
         printTree();
@@ -566,7 +591,7 @@ void updateOverlay(std::int64_t now)
     overlayUpdated = now;
     const Stats frame = stats(0);
     overlayText.clear();
-    appendf(overlayText, "CPU %.2f  GPU %.2f ms\n", cpuBusy(), frame.gpuAvg);
+    appendf(overlayText, "CPU %.2f  GPU %.2f ms\neyes %.2f ms\n", cpuBusy(), frame.gpuAvg, gpuEyes());
     for(const Top& t : top(true, 6))
     {
         appendf(overlayText, "%-16.16s %5.2f\n", t.name, t.ms);

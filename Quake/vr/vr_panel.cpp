@@ -7,7 +7,8 @@
 //   the old engine's VR_DrawSbar (vr_sbar_mode, vr_sbar_offset_*, vr_hud_scale), and the rest
 //   (centre prints, notify lines) on a panel that follows the head.
 // The screen-space crosshair is left out: in VR the hands aim.
-// TODO VR: (P6) menu laser pointer.
+// With the VR menu style (vr_menuui.cpp) the menu panel is sized by the menu's pixels, and a laser
+// from a hand points at it.
 
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -15,6 +16,7 @@
 #include "vr_gfx.hpp"
 #include "vr_hands.hpp"
 #include "vr_main.hpp"
+#include "vr_menuui.hpp"
 #include "vr_panel.hpp"
 #include "vr_profile.hpp"
 
@@ -38,6 +40,7 @@ bool stereoThisFrame = false;
 // Panel placement, frozen when it appears: in front of the head, turning with the player.
 bool panelWasVisible = false;
 float panelYawOffset = 0.f;
+double panelInEyesTime = -1.0; // when the panel was last shown in the eyes
 
 // The in-game HUD panel follows the head, smoothly.
 bool hudAnglesValid = false;
@@ -115,19 +118,40 @@ void drawCanvas(const glm::mat4& mvp, const glm::vec4& uvRect = wholeCanvas, con
     return model;
 }
 
-// The canvas on a panel vr_menu_distance in front of the head, the way `angles` look (`mask` as
-// drawCanvas's): the menus' and the in-game HUD's.
-void drawFacing(const hands::State& s, const glm::vec3& angles, const glm::vec4& mask = noMask)
+// The canvas on a panel vr_menu_distance in front of the head, the way `angles` look, `height`
+// units high: its corner (0, 0) and the axes spanning it.
+void facingQuad(const hands::State& s, const glm::vec3& angles, float height, glm::vec3& corner, glm::vec3& xAxis,
+    glm::vec3& yAxis)
 {
     glm::vec3 fwd, right, up;
     hands::angleVectors(angles, fwd, right, up);
 
-    const float height = 200.f * vr_menu_scale.value;
     const float width = height * static_cast<float>(canvas.width) / canvas.height;
     const glm::vec3 centre = s.head + fwd * vr_menu_distance.value;
-    const glm::vec3 corner = centre - right * (width * 0.5f) - up * (height * 0.5f);
+    corner = centre - right * (width * 0.5f) - up * (height * 0.5f);
+    xAxis = right * width;
+    yAxis = up * height;
+}
 
-    drawCanvas(gfx::sceneViewProjection() * quad(corner, right * width, up * height), wholeCanvas, mask);
+// The canvas on that panel (`mask` as drawCanvas's): the menus' and the in-game HUD's.
+void drawFacing(const hands::State& s, const glm::vec3& angles, float height, const glm::vec4& mask = noMask)
+{
+    glm::vec3 corner, xAxis, yAxis;
+    facingQuad(s, angles, height, corner, xAxis, yAxis);
+    drawCanvas(gfx::sceneViewProjection() * quad(corner, xAxis, yAxis), wholeCanvas, mask);
+}
+
+// The panel's height: 200 of the menu's pixels at vr_menu_scale units each, or with the VR menu
+// style, as many as fill the canvas's height.
+[[nodiscard]] float panelHeight()
+{
+    const float styled = menuui::panelHeight();
+    return styled > 0.f ? styled : 200.f * vr_menu_scale.value;
+}
+
+[[nodiscard]] glm::vec3 menuAngles()
+{
+    return {0.f, panelYawOffset + hands::playSpaceYaw(), 0.f};
 }
 
 // The status bar's rectangle in the canvas (u0, v0, u1, v1; v up), and how many of its 48
@@ -218,7 +242,7 @@ void drawHud(const hands::State& s, const glm::vec4& mask)
         hudAngles.y += std::remainder(head.y - hudAngles.y, 360.f) * t;
     }
 
-    drawFacing(s, {hudAngles.x, hudAngles.y, 0.f}, mask);
+    drawFacing(s, {hudAngles.x, hudAngles.y, 0.f}, 200.f * vr_menu_scale.value, mask);
 }
 
 // The canvas into the backend's panel image, when it has one.
@@ -273,7 +297,20 @@ void drawInEye(const hands::State& s)
     }
     hudAnglesValid = false;
 
-    drawFacing(s, {0.f, panelYawOffset + hands::playSpaceYaw(), 0.f});
+    drawFacing(s, menuAngles(), panelHeight());
+    panelInEyesTime = realtime;
+    menuui::drawInEye(s); // the laser pointer, over the panel
+}
+
+bool menuQuad(const hands::State& s, glm::vec3& corner, glm::vec3& xAxis, glm::vec3& yAxis)
+{
+    // Shown in the eyes (not on the runtime's own panel, without a world), and placed.
+    if(!canvas.texture || !panelWasVisible || !panelVisible() || realtime - panelInEyesTime > 0.25)
+    {
+        return false;
+    }
+    facingQuad(s, menuAngles(), panelHeight(), corner, xAxis, yAxis);
+    return true;
 }
 
 } // namespace qvr::panel

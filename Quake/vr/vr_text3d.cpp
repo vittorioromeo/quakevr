@@ -12,6 +12,8 @@
 #include "vr_profile.hpp"
 
 #include <algorithm>
+#include <array>
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -36,6 +38,63 @@ std::vector<gfx::Vertex> panels;   // screens behind them
 std::vector<gfx::Vertex> floating; // floating texts and the wrist log (blended: they fade)
 std::vector<gfx::Vertex> backings; // the wrist log's backing (blended)
 std::vector<gfx::Vertex> glows;    // the screens' soft glows (added)
+// The ammo screens as small CRTs (vr_weapon_screen_crt): each screen text's image (its face and
+// text, in the order they were queued), drawn at the end of the 2D pass (renderScreens) and shown
+// in the eyes the next frame through Shade::Screen, like the wrist gadget's.
+constexpr int screenScale = 8;   // texels a pixel of the virtual screen (a font pixel)
+constexpr int maxScreenImages = 4;
+struct ScreenImage
+{
+    gfx::Target target;
+    int width{0}, height{0}; // its virtual screen (font pixels), 0 before it is drawn
+    int frame{-1};           // the host frame it was drawn in
+};
+std::array<ScreenImage, maxScreenImages> screenImages;
+
+// An ammo screen's quad this frame, with its own glitch.
+struct ScreenQuad
+{
+    std::array<gfx::Vertex, 6> vertices;
+    glm::vec4 params;
+    glm::vec3 size;
+    gfx::Texture texture;
+};
+std::vector<ScreenQuad> screenQuads;
+int screenCount = 0; // screen texts laid out this frame
+
+// The ammo screens' CRT strength (vr_weapon_screen_crt).
+[[nodiscard]] float screenCrt()
+{
+    return CLAMP(0.f, vr_weapon_screen_crt.value, 2.f);
+}
+
+// A screen text's shape: its lines' longest, and how many there are; the room round them, in font
+// pixels (whole ones, so that its image's pixels fall on the font's).
+struct ScreenShape
+{
+    int columns{0}, rows{0}, pad{0};
+    [[nodiscard]] int width() const { return columns * 8 + pad * 2; }
+    [[nodiscard]] int height() const { return rows * 8 + pad * 2; }
+};
+
+[[nodiscard]] int screenPad()
+{
+    return static_cast<int>(std::lround(8.f * 0.35f * std::max(0.f, vr_weapon_screen_padding.value)));
+}
+
+// The screens' palette (the wrist gadget's): its text, and its face behind it.
+[[nodiscard]] glm::vec3 screenText()
+{
+    const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f);
+    return glm::min(hsv(vr_gadget_screen_hue.value, 0.55f, bright), glm::vec3{1.f});
+}
+
+[[nodiscard]] glm::vec3 screenFace()
+{
+    const float back = CLAMP(0.f, vr_gadget_screen_background.value, 4.f);
+    return hsv(vr_gadget_screen_hue.value, 0.57f, 0.12f * std::max(back, 0.2f));
+}
+
 gadget::Log wristLog;
 gadget::Glow gadgetGlow;
 int builtFrame = -1; // the host frame they were laid out in; -1 when texts were queued since
@@ -215,8 +274,15 @@ void box(const glm::vec3& c, const glm::vec3& right, const glm::vec3& up, const 
     quad(c + u - r - f, c + u - r + f, c + u + r + f, c + u + r - f, shade(0.9f));  // top
 }
 
-void layout(std::string_view text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale,
-    bool screen = false)
+// Characters a line of `length` is moved in by, of the longest `longest`.
+[[nodiscard]] float indent(Align align, size_t longest, size_t length)
+{
+    const float slack = static_cast<float>(longest - length);
+    return align == Align::Left ? 0.f : align == Align::Centre ? slack * 0.5f : slack;
+}
+
+// `text`'s lines into textLines; the longest's length.
+size_t splitLines(std::string_view text)
 {
     textLines.clear();
     for(size_t start = 0; start <= text.size();)
@@ -225,12 +291,18 @@ void layout(std::string_view text, const glm::vec3& pos, const glm::vec3& angles
         textLines.push_back(text.substr(start, end - start));
         start = end + 1;
     }
-
     size_t longest = 0;
     for(std::string_view l : textLines)
     {
         longest = std::max(longest, l.size());
     }
+    return longest;
+}
+
+void layout(std::string_view text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale,
+    bool screen = false)
+{
+    const size_t longest = splitLines(text);
     if(longest == 0)
     {
         return;
@@ -261,29 +333,55 @@ void layout(std::string_view text, const glm::vec3& pos, const glm::vec3& angles
         pos - (hInc * static_cast<float>(longest) + vInc * static_cast<float>(textLines.size())) * 0.5f;
 
     // The screen: a bezel box behind the text and its lit face just behind the text, the readable
-    // side facing the viewer (right x up points at them); the gadget's palette.
+    // side facing the viewer (right x up points at them); the gadget's palette. As a CRT
+    // (vr_weapon_screen_crt), the face and the text are its image (renderScreens), drawn over the
+    // face through the CRT shader, with a glitch of its own: the screens glitch at other moments.
     glm::vec4 textColor{1.f};
+    bool imaged = false;
     if(screen)
     {
+        const int index = screenCount++;
         const glm::vec3 n = glm::normalize(glm::cross(right, up));
-        const float hue = vr_gadget_screen_hue.value;
         const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f);
-        const float back = CLAMP(0.f, vr_gadget_screen_background.value, 4.f);
-        textColor = glm::vec4{glm::min(hsv(hue, 0.55f, bright), glm::vec3{1.f}), 1.f};
+        textColor = glm::vec4{screenText(), 1.f};
 
         const float halfW = charSize * static_cast<float>(longest) * 0.5f;
         const float halfH = charSize * static_cast<float>(textLines.size()) * 0.5f;
-        const float pad = charSize * 0.35f * std::max(0.f, vr_weapon_screen_padding.value);
+        const float pad = charSize / 8.f * static_cast<float>(screenPad());
         const float bezel = charSize * 0.3f;
         const float depth = charSize * 0.5f;
         const float gap = charSize * 0.04f;
 
         box(pos - n * (gap * 2.f + depth * 0.5f), right, up, n, halfW + pad + bezel, halfH + pad + bezel, depth * 0.5f,
             glm::vec3{0.13f, 0.13f, 0.14f});
-        const glm::vec4 face{hsv(hue, 0.57f, 0.12f * std::max(back, 0.2f)), 1.f};
         const glm::vec3 c = pos - n * gap;
-        quad(c - right * (halfW + pad) - up * (halfH + pad), c + right * (halfW + pad) - up * (halfH + pad),
-            c + right * (halfW + pad) + up * (halfH + pad), c - right * (halfW + pad) + up * (halfH + pad), face);
+        const glm::vec3 bl = c - right * (halfW + pad) - up * (halfH + pad);
+        const glm::vec3 br = c + right * (halfW + pad) - up * (halfH + pad);
+        const glm::vec3 tr = c + right * (halfW + pad) + up * (halfH + pad);
+        const glm::vec3 tl = c - right * (halfW + pad) + up * (halfH + pad);
+
+        const float crt = screenCrt();
+        const ScreenImage* image = index < maxScreenImages ? &screenImages[static_cast<size_t>(index)] : nullptr;
+        imaged = crt > 0.f && image && image->width > 0 && image->target.texture &&
+                 image->frame >= host_framecount - 2; // not left over from before a pause of the 2D pass
+        if(imaged)
+        {
+            // The image is last frame's (the 2D pass comes after the eyes), stretched over this one's
+            // face should its text have changed shape.
+            const glm::vec4 phosphor = textColor;
+            const gfx::Vertex v[4] = {
+                {bl, {0.f, 0.f}, phosphor}, {br, {1.f, 0.f}, phosphor}, {tr, {1.f, 1.f}, phosphor}, {tl, {0.f, 1.f}, phosphor}};
+            const double offset = 2.9 + 3.7 * index;
+            const float time = static_cast<float>(std::fmod(realtime, 1000.0));
+            screenQuads.push_back({.vertices = {v[0], v[1], v[2], v[0], v[2], v[3]},
+                .params = {time, crt, gadget::glitch(realtime + offset) * std::min(crt, 1.f), 0.f},
+                .size = {static_cast<float>(image->width), static_cast<float>(image->height), 1.f},
+                .texture = image->target.texture});
+        }
+        else
+        {
+            quad(bl, br, tr, tl, glm::vec4{screenFace(), 1.f});
+        }
 
         // Its glow (vr_screen_glow), over the bezel and a little beyond, just in front of the face.
         const float k = CLAMP(0.f, vr_screen_glow.value, 3.f);
@@ -294,12 +392,9 @@ void layout(std::string_view text, const glm::vec3& pos, const glm::vec3& angles
         }
     }
 
-    for(size_t i = 0; i < textLines.size(); i++)
+    for(size_t i = 0; i < textLines.size() && !imaged; i++)
     {
-        const float slack = static_cast<float>(longest - textLines[i].size());
-        const float indent = align == Align::Left ? 0.f : align == Align::Centre ? slack * 0.5f : slack;
-
-        glm::vec3 p = topLeft + vInc * static_cast<float>(i) + hInc * indent;
+        glm::vec3 p = topLeft + vInc * static_cast<float>(i) + hInc * indent(align, longest, textLines[i].size());
         for(char c : textLines[i])
         {
             if(c != ' ')
@@ -351,6 +446,53 @@ void clear()
     builtFrame = -1;
 }
 
+void renderScreens()
+{
+    if(screenCrt() <= 0.f)
+    {
+        return;
+    }
+
+    int index = 0;
+    for(const Queued& q : queued)
+    {
+        if(!q.screen)
+        {
+            continue;
+        }
+        if(index >= maxScreenImages)
+        {
+            break;
+        }
+        ScreenImage& image = screenImages[static_cast<size_t>(index++)];
+        const size_t longest = splitLines(q.text);
+        if(longest == 0)
+        {
+            image.width = 0;
+            continue;
+        }
+
+        // Its face and its text, in the screen's colours, on a virtual screen of font pixels (the
+        // CRT shader makes it one phosphor colour again).
+        const int pad = screenPad();
+        image.width = static_cast<int>(longest) * 8 + pad * 2;
+        image.height = static_cast<int>(textLines.size()) * 8 + pad * 2;
+        gfx::ensureTarget(image.target, image.width * screenScale, image.height * screenScale);
+        gfx::begin2D(image.target, image.width, image.height);
+        gfx::draw2D::fill(0.f, 0.f, static_cast<float>(image.width), static_cast<float>(image.height), screenFace());
+        gfx::draw2D::color(glm::vec4{screenText(), 1.f});
+        for(size_t i = 0; i < textLines.size(); i++)
+        {
+            const std::string line{textLines[i]};
+            const float x = static_cast<float>(pad) + 8.f * indent(q.align, longest, line.size());
+            gfx::draw2D::text(x, static_cast<float>(pad + 8 * static_cast<int>(i)), 8.f, line.c_str());
+        }
+        gfx::draw2D::color(glm::vec4{1.f});
+        gfx::end2D();
+        image.frame = host_framecount;
+    }
+}
+
 } // namespace qvr::text3d
 
 extern "C" void VR_DrawSceneOpaque()
@@ -378,6 +520,8 @@ extern "C" void VR_DrawSceneOpaque()
         floating.clear();
         backings.clear();
         glows.clear();
+        screenQuads.clear();
+        screenCount = 0;
         if(gadget::screenGlow(gadgetGlow))
         {
             glow(gadgetGlow);
@@ -410,6 +554,13 @@ extern "C" void VR_DrawSceneOpaque()
     gfx::draw(vertices, viewProjection,
         {.shade = gfx::Shade::TextureCutout, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true},
         gfx::fontTexture());
+    for(const ScreenQuad& q : screenQuads)
+    {
+        gfx::draw(q.vertices, viewProjection,
+            {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true,
+                .params = q.params, .screen = q.size},
+            q.texture);
+    }
     // The blended ones wait for the translucent pass (drawTranslucent): drawn here, writing no
     // depth, the sky drawn next would paint over them wherever it is behind.
 }

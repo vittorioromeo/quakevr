@@ -781,6 +781,20 @@ void(vector xDir) VRMeleeHitAt =
     }
 };
 
+// Whether the last traceline of a swing struck something that bleeds, or (`xAnything`) anything. A
+// line starting inside a monster (the fist already in it: a blow must travel vr_melee_distance first)
+// strikes it at `xAt`.
+float(vector xAt, float xAnything) VRMeleeTraceHit =
+{
+    if(trace_fraction == 1.0 && trace_startsolid && trace_ent != world && trace_ent.takedamage)
+    {
+        trace_fraction = 0;
+        trace_endpos = xAt;
+        return TRUE;
+    }
+    return trace_fraction != 1.0 && (xAnything || trace_ent.takedamage);
+};
+
 // What a swing of `xHand` hits: ahead of the hand, and of the weapon's end, along the hand's
 // motion; things that bleed first. Sets the trace_ globals, and v_forward to the motion.
 float(float xHand, float xRange, float xMuzzleRange) VRDoMeleeAttackTracelineFor =
@@ -808,7 +822,7 @@ float(float xHand, float xRange, float xMuzzleRange) VRDoMeleeAttackTracelineFor
     for(float anything = 0; anything < passes; ++anything)
     {
         traceline(handPos - dir * 6, handPos + dir * range, FALSE, self);
-        if(trace_fraction != 1.0 && (anything || trace_ent.takedamage))
+        if(VRMeleeTraceHit(handPos, anything))
         {
             v_forward = dir;
             VRMeleeHitAt(dir);
@@ -816,7 +830,7 @@ float(float xHand, float xRange, float xMuzzleRange) VRDoMeleeAttackTracelineFor
         }
 
         traceline(muzzlePos - dir * 6, muzzlePos + dir * muzzleRange, FALSE, self);
-        if(trace_fraction != 1.0 && (anything || trace_ent.takedamage))
+        if(VRMeleeTraceHit(muzzlePos, anything))
         {
             v_forward = dir;
             VRMeleeHitAt(dir);
@@ -1438,7 +1452,8 @@ void(float shotcount, vector dir, vector spread, vector src) FireBulletsImpl =
     {
         direction = dir + crandom()*spread_x*v_right + crandom()*spread_y*v_up;
 
-        traceline(src, src + direction*2048, MOVE_HITGIBS, self); // VR: gibs and heads too (vr_gib_destroy)
+        traceline(src, src + direction*2048, MOVE_HITGIBS, self); // VR: gibs and heads too (vr_gib_destroy),
+        VR_Gib_TraceHeld(src, src + direction*2048);               // and one held in the other hand
         if(trace_fraction != 1.0)
         //JIM
         {
@@ -1684,7 +1699,8 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
     // HONEY
     self.damage_weapon = IT_LIGHTNING;
 
-    traceline(p1, p2, MOVE_HITGIBS, self); // VR: gibs and heads too (vr_gib_destroy)
+    traceline(p1, p2, MOVE_HITGIBS, self); // VR: gibs and heads too (vr_gib_destroy),
+    VR_Gib_TraceHeld(p1, p2);              // and one held in the other hand
 //JIM
     if(trace_ent.takedamage && !trace_ent.wetsuit_finished)
     {
@@ -3131,6 +3147,37 @@ void() ImpulseCommands =
         DropBackpack();
         self.origin = playerOrigin;
     }
+    if(self.impulse == 244 && !deathmatch && !coop) // QVR: a grunt 64 units ahead (shove and ledge tests)
+    {
+        makevectors('0 1 0' * self.v_angle_y);
+        vector gruntAt = self.origin + v_forward * 64;
+        entity player = self;
+        self = spawn();
+        self.classname = "monster_army";
+        setorigin(self, gruntAt);
+        self.angles_y = player.v_angle_y + 180;
+        monster_army();
+        self = player;
+    }
+    if(self.impulse == 245 && !deathmatch && !coop) // QVR: a gib in the empty off hand (held gib tests)
+    {
+        ThrowGib("progs/gib1.mdl", -10);
+        entity gib = find(world, classname, "");
+        entity newest = world;
+        while(gib)
+        {
+            if(gib.vr_gib && gib.carry_player == world && gib.ltime == time && gib.model == "progs/gib1.mdl")
+            {
+                newest = gib;
+            }
+            gib = find(gib, classname, "");
+        }
+        if(newest != world && VRIsHandEmpty(self, cVR_OffHand) && !VR_Carry_IsHolding(self, cVR_OffHand))
+        {
+            setorigin(newest, VRGetHandPos(cVR_OffHand));
+            VR_Carry_Start(self, cVR_OffHand, newest);
+        }
+    }
     if(dump_coord == 1)
         DumpCoordinates();
     self.impulse = 0;
@@ -3448,7 +3495,14 @@ void() forcegrabbable_think_impl =
             self.ammocounter -= 1;
         }
 
-        if(self.ammocounter > 1)
+        // Rigid bodies float in the engine (vr_rigid.cpp: lift by how deep they are, water drag).
+        if(self.ammocounter > 1 && self.vr_rigid)
+        {
+            self.flags = self.flags | FL_INWATER;
+            self.throwhit = QVR_THROWHIT_HIT;
+            self.solid = SOLID_NOT_BUT_TOUCHABLE;
+        }
+        else if(self.ammocounter > 1)
         {
             if(fabs(self.velocity_x) > 10)
             {

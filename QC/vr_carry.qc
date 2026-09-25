@@ -171,7 +171,7 @@ void(float xHand, entity xBox) VR_Carry_Release =
     {
         xBox.owner = world;
     }
-    VR_Gib_Released(xBox, vlen(v) > 250); // a gib or head thrown hard bursts on a wall
+    VR_Gib_Released(xBox, vlen(v) > 250, xHand); // a gib or head thrown hard bursts on a wall
 };
 
 // Take it: its own pickup, as if the carrying hand had touched it the old way.
@@ -426,7 +426,8 @@ float MOVE_HITGIBS = 256;
 .float vr_gib_armtime;    // when it can first be hit (not by the rest of the blow that threw it)
 .float vr_gib_flight;     // thrown: until when a hard hit on a wall bursts it
 .vector vr_gib_lastvel;   // thrown: its velocity at the last check, to see it strike a wall
-.float vr_gib_releasetime; // when a hand last let go of it
+.float vr_gib_releasetime; // when a hand last let go of it,
+.float vr_gib_releasehand; // and which
 
 float(entity xGib) VR_Gib_IsDestroyable =
 {
@@ -506,15 +507,17 @@ void() VR_Gib_Think2 =
     }
 };
 
-// Let go of (VR_Carry_Release): the hand that let go does not strike it as it follows through
-// (VR_Gib_Struck). Thrown hard (`xHard`), for a few seconds a hard hit on a wall bursts it.
-void(entity xGib, float xHard) VR_Gib_Released =
+// Let go of by `xHand` (VR_Carry_Release): that hand does not strike it as it follows through
+// (VR_Gib_Struck; the other one may: toss it up and punch it). Thrown hard (`xHard`), for a few
+// seconds a hard hit on a wall bursts it.
+void(entity xGib, float xHard, float xHand) VR_Gib_Released =
 {
     if(!VR_Gib_IsDestroyable(xGib))
     {
         return;
     }
     xGib.vr_gib_releasetime = time;
+    xGib.vr_gib_releasehand = xHand;
     if(!xHard)
     {
         return;
@@ -637,21 +640,221 @@ void(entity xGib, vector xDir) VR_Gib_Burst =
     xGib.nextthink2 = 0;
 };
 
-// A hand or a gun striking it at a swing's speed (vr_melee_speed): the blow of a swing, from the
-// base of a punch at that speed up to three times it. Not just after a hand let go of it: a throw's
-// follow-through is not a blow.
-void(entity xPlayer, float xHand, entity xGib) VR_Gib_Struck =
+// The damage of a hand or gun striking a gib at `xSpeed` (m/s; vr_melee_speed or more): the base of
+// a punch at that speed up to three times it.
+float(float xSpeed) VR_Gib_StrikeDamage =
 {
     float threshold = max(0.1, cvar_hget(cvarh_vr_melee_speed));
+    return 20 * min(3, xSpeed / threshold) * cvar_hget(cvarh_vr_melee_dmg_multiplier);
+};
+
+// A hand or a gun striking it at a swing's speed (vr_melee_speed). Not by the hand that just let go
+// of it: a throw's follow-through is not a blow.
+void(entity xPlayer, float xHand, entity xGib) VR_Gib_Struck =
+{
     float speed = vlen(VRGetEntHandVel(xPlayer, xHand));
-    if(speed < threshold || !VR_Gib_IsDestroyable(xGib) || !xGib.takedamage ||
-       time < xGib.vr_gib_releasetime + 0.4)
+    if(speed < max(0.1, cvar_hget(cvarh_vr_melee_speed)) || !VR_Gib_IsDestroyable(xGib) || !xGib.takedamage ||
+       (time < xGib.vr_gib_releasetime + 0.4 && xHand == xGib.vr_gib_releasehand))
     {
         return;
     }
+    T_Damage(xGib, xPlayer, xPlayer, VR_Gib_StrikeDamage(speed));
+};
 
-    float damage = 20 * min(3, speed / threshold) * cvar_hget(cvarh_vr_melee_dmg_multiplier);
-    T_Damage(xGib, xPlayer, xPlayer, damage);
+// ----------------------------------------------------------------------------
+// A gib or head held in one hand can be shot by the gun in the other (FireBullets, the lightning
+// gun, the player's missiles) or struck by the other hand, its fist or its weapon (VR_Gib_HeldFrame).
+// Held, it is not solid, and it is the player's (the player's own traces pass it): hit, it is
+// knocked out of the hand first, and takes the hit as a loose one (it bursts, or flies off).
+
+float vr_slab_t0; // VR_SegmentBox's working
+float vr_slab_t1;
+
+float(float xA, float xD, float xLo, float xHi) VR_Slab =
+{
+    if(fabs(xD) < 0.0001)
+    {
+        return xA >= xLo && xA <= xHi;
+    }
+    float u = (xLo - xA) / xD;
+    float v = (xHi - xA) / xD;
+    if(u > v)
+    {
+        float t = u;
+        u = v;
+        v = t;
+    }
+    vr_slab_t0 = max(vr_slab_t0, u);
+    vr_slab_t1 = min(vr_slab_t1, v);
+    return vr_slab_t0 <= vr_slab_t1;
+};
+
+// Where along the line from `xA` to `xB` (0 .. 1) it enters the box `xLo` .. `xHi` (-1: it misses).
+float(vector xA, vector xB, vector xLo, vector xHi) VR_SegmentBox =
+{
+    vector d = xB - xA;
+    vr_slab_t0 = 0;
+    vr_slab_t1 = 1;
+    if(!VR_Slab(xA_x, d_x, xLo_x, xHi_x) || !VR_Slab(xA_y, d_y, xLo_y, xHi_y) || !VR_Slab(xA_z, d_z, xLo_z, xHi_z))
+    {
+        return -1;
+    }
+    return vr_slab_t0;
+};
+
+// The gib or head `xPlayer` holds in the hand other than `xHand` (the one firing or striking), if it
+// can be destroyed; else world.
+entity(entity xPlayer, float xHand) VR_Gib_HeldByOther =
+{
+    entity g = VR_Carry_Held(xPlayer, xHand == cVR_OffHand ? cVR_MainHand : cVR_OffHand);
+    if(g == world || !g.vr_gib || g.carry_player != xPlayer || !VR_Gib_IsDestroyable(g))
+    {
+        return world;
+    }
+    return g;
+};
+
+// Where the line from `xA` to `xB` enters `xGib`'s box grown by `xPad` (0 .. 1; -1: it misses).
+float(entity xGib, vector xA, vector xB, float xPad) VR_Gib_OnLine =
+{
+    vector pad = '1 1 1' * xPad;
+    return VR_SegmentBox(xA, xB, xGib.origin + xGib.mins - pad, xGib.origin + xGib.maxs + pad);
+};
+
+// Out of the hand, to take a hit: loose, the player's no more, and armed.
+entity vr_gib_knocked; // the last knocked out (VR_Gib_KnockOut),
+float vr_gib_knocktime; // and when
+
+void(entity xPlayer, entity xGib) VR_Gib_KnockOut =
+{
+    vr_gib_knocked = xGib;
+    vr_gib_knocktime = time;
+    if(VR_Carry_Held(xPlayer, cVR_MainHand) == xGib)
+    {
+        VR_Carry_SetHeld(xPlayer, cVR_MainHand, world);
+    }
+    if(VR_Carry_Held(xPlayer, cVR_OffHand) == xGib)
+    {
+        VR_Carry_SetHeld(xPlayer, cVR_OffHand, world);
+    }
+    VR_Carry_Loose(xGib);
+    xGib.velocity = '0 0 0';
+    xGib.owner = world;
+    xGib.throwhit = QVR_THROWHIT_HIT;
+    xGib.takedamage = DAMAGE_YES;
+    xGib.vr_gib_releasetime = 0;
+};
+
+// After a traceline of `self` (a player) from `xA` to `xB`, firing with vr_hithand: a gib or head held
+// in the other hand in the way (before trace_fraction) is what the shot hits, knocked out of the hand
+// (the shots after it hit it as a loose one).
+void(vector xA, vector xB) VR_Gib_TraceHeld =
+{
+    if(!(self.flags & FL_CLIENT) || vr_hithand < 0)
+    {
+        return;
+    }
+    entity g = VR_Gib_HeldByOther(self, vr_hithand);
+    if(g == world && vr_gib_knocked.vr_gib && vr_gib_knocktime == time && vr_gib_knocked.carry_player == world)
+    {
+        g = vr_gib_knocked; // knocked out by this shot's first pellets: the rest hit it too (they start in it)
+    }
+    if(g == world)
+    {
+        return;
+    }
+    float t = VR_Gib_OnLine(g, xA, xB, 1);
+    if(t < 0 || t >= trace_fraction)
+    {
+        return;
+    }
+    dprint("gib: shot in the other hand\n");
+    VR_Gib_KnockOut(self, g);
+    trace_ent = g;
+    trace_fraction = t;
+    trace_endpos = xA + (xB - xA) * t;
+    trace_plane_normal = normalize(xA - xB);
+    trace_allsolid = FALSE;
+    trace_startsolid = FALSE;
+};
+
+// Once a frame (PlayerVRMelee, self is the player): a gib or head held in one hand struck by the
+// other -- its fist or its weapon, moving at a swing's speed (vr_melee_speed) towards it -- or hit by
+// one of the player's missiles (which pass it: it is the player's).
+void(float xHand) VR_Gib_HeldFrameHand =
+{
+    entity g = VR_Gib_HeldByOther(self, xHand);
+    if(g == world)
+    {
+        return;
+    }
+    float holder = xHand == cVR_OffHand ? cVR_MainHand : cVR_OffHand;
+    float m2u = VRMetersToUnits();
+
+    // The striking hand's sweep this frame (its fist), or its weapon (from the hand to the muzzle).
+    // (Not the hand that just let go of it, passing it to this one.)
+    vector rel = VRGetHandVel(xHand) - VRGetHandVel(holder);
+    float speed = vlen(rel);
+    if(speed >= max(0.1, cvar_hget(cvarh_vr_melee_speed)) &&
+       !(time < g.vr_gib_releasetime + 0.4 && xHand == g.vr_gib_releasehand))
+    {
+        vector hand = VRGetHandPos(xHand);
+        float t = VR_Gib_OnLine(g, hand - rel * (m2u * max(frametime, 0.011)), hand, 2.5);
+        if(t < 0 && VRGetEntWeapon(self, xHand) != WID_FIST)
+        {
+            t = VR_Gib_OnLine(g, hand, VRGetMuzzlePos(xHand), 1);
+        }
+        if(t >= 0)
+        {
+            dprint("gib: struck by the other hand at "); dprint(ftos(speed)); dprint("\n");
+            VR_Gib_KnockOut(self, g);
+            VRSetMeleeHitSoundPlayed(xHand, TRUE); // the blow landed (no punch as well)
+            VRMeleeHapticByHand(xHand);
+            sound(self, VRGetGunChannel(xHand), "fisthit.wav", 1.0, ATTN_NORM);
+            VR_SetHitKind(QVR_HITKIND_MELEE, xHand, (g.absmin + g.absmax) * 0.5, normalize(rel));
+            T_Damage(g, self, self, VR_Gib_StrikeDamage(speed));
+            VR_ClearHitKind();
+            return;
+        }
+    }
+
+    // The player's missiles: where each went this frame.
+    vector mid = g.origin + (g.mins + g.maxs) * 0.5;
+    entity e = findradius(mid, 96);
+    while(e)
+    {
+        if(e.owner == self && e.touch && e != g && (e.solid == SOLID_BBOX || e.solid == SOLID_SLIDEBOX) &&
+           (e.movetype == MOVETYPE_FLYMISSILE || e.movetype == MOVETYPE_BOUNCEMISSILE || e.movetype == MOVETYPE_FLY))
+        {
+            vector from = e.origin - e.velocity * max(frametime, 0.011);
+            float at = VR_Gib_OnLine(g, from, e.origin, max(1, e.maxs_x));
+            if(at >= 0)
+            {
+                dprint("gib: "); dprint(e.classname); dprint(" through the other hand's\n");
+                VR_Gib_KnockOut(self, g);
+                setorigin(e, from + (e.origin - from) * at);
+                entity oldSelf = self;
+                entity oldOther = other;
+                self = e;
+                other = g;
+                e.touch();
+                self = oldSelf;
+                other = oldOther;
+                return;
+            }
+        }
+        e = e.chain;
+    }
+};
+
+void() VR_Gib_HeldFrame =
+{
+    if(!cvar_hget(cvarh_vr_gib_destroy) || self.health <= 0)
+    {
+        return;
+    }
+    VR_Gib_HeldFrameHand(cVR_MainHand);
+    VR_Gib_HeldFrameHand(cVR_OffHand);
 };
 
 // From MakeItemGrabbable: the box's pickup moves to carry_use; its hand and gun touches carry.

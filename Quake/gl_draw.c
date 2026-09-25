@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // draw.c -- 2d drawing
 
 #include "quakedef.h"
+#include "vr/vr_api_render.h" // QVR
 
 const vec3_t	rgb_black = {0.f, 0.f, 0.f};
 const vec3_t	rgb_white = {1.f, 1.f, 1.f};
@@ -715,6 +716,26 @@ static void Draw_SetVertex (guivertex_t *v, float x, float y, float s, float t)
 
 /*
 ================
+Draw_KeepMenuGlyphSize -- QVR
+
+The VR menu canvas scales y more than x to space its rows out (VR_MenuCanvas): characters and
+pictures keep their size there, centred where they would have been.
+================
+*/
+static void Draw_KeepMenuGlyphSize (float *y, float *h)
+{
+	float k;
+	if (glcanvas.type != CANVAS_MENU)
+		return;
+	k = -glcanvas.transform.scale[1] * vid.guiheight / (glcanvas.transform.scale[0] * vid.guiwidth);
+	if (k < 1.001f)
+		return;
+	*y += *h * (1.f - 1.f / k) * 0.5f;
+	*h /= k;
+}
+
+/*
+================
 Draw_CharacterQuadEx -- johnfitz -- seperate function to spit out verts
 ================
 */
@@ -723,6 +744,8 @@ void Draw_CharacterQuadEx (float x, float y, float dimx, float dimy, char num)
 	int				row, col;
 	float			frow, fcol, fsize;
 	guivertex_t		*verts;
+
+	Draw_KeepMenuGlyphSize (&y, &dimy); // QVR
 
 	row = num>>4;
 	col = num&15;
@@ -820,6 +843,7 @@ void Draw_Pic (int x, int y, qpic_t *pic)
 {
 	glpic_t		*gl;
 	guivertex_t	*verts;
+	float		y0 = y, h;	// QVR
 
 	if (!pic || Draw_FadedOut ())
 		return;
@@ -827,11 +851,14 @@ void Draw_Pic (int x, int y, qpic_t *pic)
 	gl = (glpic_t *)pic->data;
 	Draw_SetTexture (gl->gltexture);
 
+	h = pic->height;
+	Draw_KeepMenuGlyphSize (&y0, &h); // QVR
+
 	verts = Draw_AllocQuad ();
-	Draw_SetVertex (verts++, x,            y,             gl->sl, gl->tl);
-	Draw_SetVertex (verts++, x+pic->width, y,             gl->sh, gl->tl);
-	Draw_SetVertex (verts++, x+pic->width, y+pic->height, gl->sh, gl->th);
-	Draw_SetVertex (verts++, x,            y+pic->height, gl->sl, gl->th);
+	Draw_SetVertex (verts++, x,            y0,   gl->sl, gl->tl);
+	Draw_SetVertex (verts++, x+pic->width, y0,   gl->sh, gl->tl);
+	Draw_SetVertex (verts++, x+pic->width, y0+h, gl->sh, gl->th);
+	Draw_SetVertex (verts++, x,            y0+h, gl->sl, gl->th);
 }
 
 /*
@@ -847,6 +874,7 @@ void Draw_SubPic (float x, float y, float w, float h, qpic_t *pic, float s1, flo
 	if (!pic || alpha <= 0.0f)
 		return;
 
+	Draw_KeepMenuGlyphSize (&y, &h); // QVR
 	s2 += s1;
 	t2 += t1;
 
@@ -1212,6 +1240,11 @@ void Draw_GetCanvasTransform (canvastype type, drawtransform_t *transform)
 		transform->offset[1] += (1.f - scr_con_current/glheight) * 2.f;
 		break;
 	case CANVAS_MENU:
+		if (VR_MenuCanvas (&s, &s2)) // QVR: the menu in the headset, filling its panel, rows spaced out
+		{
+			Draw_Transform2 (320, 200, s, s2, CANVAS_ALIGN_CENTERX, CANVAS_ALIGN_CENTERY, transform);
+			break;
+		}
 		s = q_min((float)vid.guiwidth / 320.0f, (float)vid.guiheight / 200.0f);
 		s = CLAMP (1.0f, scr_menuscale.value, s);
 		Draw_Transform (320, 200, s, CANVAS_ALIGN_CENTERX, CANVAS_ALIGN_CENTERY, transform);
