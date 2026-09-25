@@ -17,6 +17,7 @@ struct Line
     float width;
     glm::vec4 colorA, colorB;
     bool point;
+    bool additive{false};
 };
 
 std::vector<Line> queue;
@@ -42,6 +43,17 @@ void point(const glm::vec3& p, float size, const glm::vec4& color)
     queue.push_back({p, p, size, color, color, true});
 }
 
+// Premultiplied blending with no alpha adds the colour.
+void glow(const glm::vec3& a, const glm::vec3& b, float width, const glm::vec4& colorA, const glm::vec4& colorB)
+{
+    queue.push_back({a, b, width, {glm::vec3{colorA}, 0.f}, {glm::vec3{colorB}, 0.f}, false, true});
+}
+
+void glowPoint(const glm::vec3& p, float size, const glm::vec4& color)
+{
+    queue.push_back({p, p, size, {glm::vec3{color}, 0.f}, {glm::vec3{color}, 0.f}, true, true});
+}
+
 void drawInEye(const glm::vec3& eye)
 {
     if(queue.empty())
@@ -49,9 +61,15 @@ void drawInEye(const glm::vec3& eye)
         return;
     }
 
+    for(const bool additive : {false, true})
+    {
     vertices.clear();
     for(const Line& l : queue)
     {
+        if(l.additive != additive)
+        {
+            continue;
+        }
         if(l.point)
         {
             // A disc facing the eye.
@@ -78,8 +96,13 @@ void drawInEye(const glm::vec3& eye)
             {{0.f, -1.f}, {0.f, -1.f}, {0.f, 1.f}, {0.f, 1.f}});
     }
 
-    gfx::draw(vertices, gfx::sceneViewProjection(),
-        {.shade = gfx::Shade::SoftEdge, .blend = gfx::Blend::Alpha, .depthTest = false, .depthWrite = false});
+    if(!vertices.empty())
+    {
+        gfx::draw(vertices, gfx::sceneViewProjection(),
+            {.shade = gfx::Shade::SoftEdge, .blend = additive ? gfx::Blend::Premultiplied : gfx::Blend::Alpha,
+                .depthTest = false, .depthWrite = false});
+    }
+    }
 }
 
 void clear()

@@ -524,6 +524,7 @@ DRAW_ELEMENTS_INDIRECT_COMMAND \
 "{\n"\
 "	vec4	mat[3];\n"\
 "	float	alpha;\n"\
+"	float	glow; // QVR: the force grab glow (vr/vr_fgfx.cpp)\n"\
 "};\n"\
 "\n"\
 "layout(std430, binding=2) restrict readonly buffer InstanceBuffer\n"\
@@ -630,6 +631,7 @@ WORLD_VERTEX_BUFFER
 "#if BINDLESS\n"
 "	layout(location=9) flat out uvec4 out_samplers;\n"
 "#endif\n"
+"layout(location=10) flat out float out_glow; // QVR\n"
 "\n"
 "void main()\n"
 "{\n"
@@ -655,6 +657,7 @@ WORLD_VERTEX_BUFFER
 "#else\n"
 "	out_alpha = instance.alpha < 0.0 ? 1.0 : instance.alpha;\n"
 "#endif\n"
+"	out_glow = instance.glow; // QVR\n"
 "	out_styles.x = GetLightStyle(in_styles.x);\n"
 "	if (in_styles.y == 255)\n"
 "		out_styles.yzw = vec3(-1.);\n"
@@ -714,6 +717,7 @@ NOISE_FUNCTIONS
 "#if BINDLESS\n"
 "	layout(location=9) flat in uvec4 in_samplers;\n"
 "#endif\n"
+"layout(location=10) flat in float in_glow; // QVR\n"
 "\n"
 OIT_OUTPUT (out_fragcolor)
 "\n"
@@ -859,6 +863,11 @@ OIT_OUTPUT (out_fragcolor)
 "	result.rgb *= total_light;\n"
 "#endif\n"
 "	result.rgb += fullbright;\n"
+"	if (in_glow > 0.) // QVR: force grab's glow (vr/vr_fgfx.cpp)\n"
+"	{\n"
+"		float rim = 1.0 - abs(dot(normalize(cross(dFdx(in_pos), dFdy(in_pos))), normalize(EyePos - in_pos)));\n"
+"		result.rgb += vec3(0.35, 0.65, 1.0) * in_glow * (pow(rim, 2.0) * 1.1 + 0.12);\n"
+"	}\n"
 "	result = clamp(result, 0.0, 1.0);\n"
 "	result.rgb = ApplyFog(result.rgb, in_pos - EyePos);\n"
 "\n"
@@ -1186,6 +1195,7 @@ NOISE_FUNCTIONS
 "	float	Blend;\n"\
 "	int		Padding;\n"\
 "	vec4	LightDir; // QVR: xyz towards the model's light, w how much it replaces the fixed direction\n"\
+"	vec4	Glow; // QVR: x the force grab glow (vr/vr_fgfx.cpp)\n"\
 "};\n"\
 "\n"\
 "layout(std430, binding=1) restrict readonly buffer InstanceBuffer\n"\
@@ -1282,10 +1292,12 @@ ALIAS_INSTANCE_BUFFER
 "layout(location=3) out vec3 out_nor; // QVR: per-pixel dynamic lights (vr/vr_lighting.cpp)\n"
 "layout(location=4) out float out_depth; // QVR\n"
 "layout(location=5) noperspective out vec2 out_coord; // QVR\n"
+"layout(location=6) flat out float out_glow; // QVR\n"
 "\n"
 "void main()\n"
 "{\n"
 "	InstanceData inst = instances[gl_InstanceID];\n"
+"	out_glow = inst.Glow.x; // QVR\n"
 "	out_texcoord = in_uv;\n"
 "	PoseVertex pose1 = GetPoseVertex(inst.Pose1);\n"
 "	PoseVertex pose2 = GetPoseVertex(inst.Pose2);\n"
@@ -1333,6 +1345,7 @@ NOISE_FUNCTIONS
 "layout(location=3) in vec3 in_nor; // QVR\n"
 "layout(location=4) in float in_depth; // QVR\n"
 "layout(location=5) noperspective in vec2 in_coord; // QVR\n"
+"layout(location=6) flat in float in_glow; // QVR\n"
 "\n"
 OIT_OUTPUT (out_fragcolor)
 "\n"
@@ -1400,6 +1413,11 @@ OIT_OUTPUT (out_fragcolor)
 "#else\n"
 "	result.rgb += texture(FullbrightTex, uv).rgb;\n"
 "#endif\n"
+"	if (in_glow > 0.) // QVR: force grab's glow round the edges (vr/vr_fgfx.cpp)\n"
+"	{\n"
+"		float rim = 1.0 - abs(dot(normalize(in_nor), normalize(-in_pos)));\n"
+"		result.rgb += vec3(0.35, 0.65, 1.0) * in_glow * (pow(rim, 2.0) * 1.1 + 0.08);\n"
+"	}\n"
 "	result.rgb = clamp(result.rgb, 0.0, 1.0);\n"
 "	float fog = exp2(abs(Fog.w) * -dot(in_pos, in_pos));\n"\
 "	fog = clamp(fog, 0.0, 1.0);\n"

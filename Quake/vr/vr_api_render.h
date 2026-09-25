@@ -55,6 +55,7 @@ void VR_BrushTransform (const struct entity_s *e, float matrix[16]);		// brush e
 int VR_AliasZeroBlend (const struct entity_s *e, const void *aliashdr, int totalverts); // instance padding
 void VR_AliasLightModifier (const struct entity_s *e, float lightcolor[3]); // end of R_SetupAliasLighting
 void VR_AliasLightDir (const struct entity_s *e, float dir[4]);	// instance: the direction the model is shaded from (w 0: the fixed one)
+float VR_EntityGlow (const struct entity_s *e);				// the force grab glow round an entity (0..1)
 void VR_AliasLightCurve (float lightcolor[3]);				// R_SetupAliasLighting, before the minimum light: the lightmap contrast
 int VR_ModelDlightsPerPixel (void);						// R_SetupAliasLighting: nonzero to skip adding dynamic lights (the shader does)
 void VR_RenderShadowMaps (void);						// R_SetupView, before R_PushDlights (once per frame)

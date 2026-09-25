@@ -555,7 +555,8 @@ bool spawn(const glm::vec3& org, const glm::vec3& dir, int preset, int count)
         GunPickupPreset,
         GunForceGrab,
         LavaSpike,
-        BigSmoke
+        BigSmoke,
+        ForceGrabTrail // vr_fgfx.cpp: behind an object flying to the hand
     };
 
     switch(preset)
@@ -573,6 +574,7 @@ bool spawn(const glm::vec3& org, const glm::vec3& dir, int preset, int count)
         case GunForceGrab: sparkles(org, count, 106, 111, 90, 140, 1.2, 0.25f, -0.04f, 5.f, 3.f, 1.f, 8.f); break;
         case LavaSpike: sparkles(org, count, 247, 254, 180, 225, 0.5, 0.17f, 0.17f, 0.3f, 2.f, 0.f, 0.f); break;
         case BigSmoke: smoke(org, count, true); break;
+        case ForceGrabTrail: sparkles(org, count, 208, 214, 170, 230, 0.4, 0.28f, 0.f, 1.5f, 4.f, -2.f, 2.f); break;
         default: blood(org, dir, count); break;
     }
     return true;

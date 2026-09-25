@@ -12,6 +12,10 @@ namespace qvr::lines
 void line(const glm::vec3& a, const glm::vec3& b, float width, const glm::vec4& colorA, const glm::vec4& colorB);
 void point(const glm::vec3& p, float size, const glm::vec4& color);
 
+// The same, added onto the scene (light: energy beams), colours not multiplied by their alpha.
+void glow(const glm::vec3& a, const glm::vec3& b, float width, const glm::vec4& colorA, const glm::vec4& colorB);
+void glowPoint(const glm::vec3& p, float size, const glm::vec4& color);
+
 // Draws the frame's queue into the bound framebuffer, facing `eye`.
 void drawInEye(const glm::vec3& eye);
 

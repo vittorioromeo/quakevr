@@ -66,7 +66,9 @@ enum Stat : int
     STAT_QVR_HOLSTERWEAPONFLAGS0 = STAT_QVR_HOLSTERWEAPONMODEL0 + 6,
     STAT_QVR_HOLSTERWEAPONCLIP0 = STAT_QVR_HOLSTERWEAPONFLAGS0 + 6,
 
-    STAT_QVR_END = STAT_QVR_HOLSTERWEAPONCLIP0 + 6
+    STAT_QVR_FGMAIN = STAT_QVR_HOLSTERWEAPONCLIP0 + 6, // force grab: entity * 4 + state (1 aimed, 2 locked, 3 pulled)
+    STAT_QVR_FGOFF,
+    STAT_QVR_END
 };
 
 inline constexpr int numHolsters = 6;

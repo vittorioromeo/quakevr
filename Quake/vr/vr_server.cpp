@@ -242,6 +242,27 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
         f.holsterweaponclip2, f.holsterweaponclip3, f.holsterweaponclip4,
         f.holsterweaponclip5};
 
+    // Force grab, per hand: what it points at (1), is locked on to (2), or pulls in flight (3).
+    const auto entityField = [&](edict_t* e, int ofs) -> edict_t* {
+        const int v = ofs >= 0 ? fieldInt(e, ofs) : 0;
+        return v ? PROG_TO_EDICT(v) : nullptr;
+    };
+    const auto forcegrab = [&](int targetOfs, int lockedOfs, int pulledOfs, float hand) {
+        if(edict_t* p = entityField(ent, pulledOfs); p && !p->free && fieldFloatOr(p, f.fg_state, 0.f) == 1.f &&
+                                                      entityField(p, f.fg_player) == ent &&
+                                                      fieldFloatOr(p, f.fg_hand, -1.f) == hand)
+        {
+            return NUM_FOR_EDICT(p) * 4 + 3;
+        }
+        if(edict_t* t = entityField(ent, targetOfs); t && !t->free)
+        {
+            return NUM_FOR_EDICT(t) * 4 + (fieldFloatOr(ent, lockedOfs, 0.f) != 0.f ? 2 : 1);
+        }
+        return 0;
+    };
+    statsi[STAT_QVR_FGMAIN] = forcegrab(f.mainhand_fgtarget, f.mainhand_fglocked, f.mainhand_fgpulled, 1.f);
+    statsi[STAT_QVR_FGOFF] = forcegrab(f.offhand_fgtarget, f.offhand_fglocked, f.offhand_fgpulled, 0.f);
+
     for(int i = 0; i < numHolsters; i++)
     {
         stat(STAT_QVR_HOLSTERWEAPON0 + i, holsterWeapon[i]);

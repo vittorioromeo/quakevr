@@ -155,6 +155,8 @@
         toggle("Force Grab", "vr_forcegrab_mode").help("Point an empty hand at an object, pull the trigger, flick the hand: it flies to you. Grip as it arrives to catch it."),
         toggle("Force Grab Particles", "vr_forcegrab_eligible_particles").help("Sparkles on the object an empty hand points at, that it can pull."),
         toggle("Force Grab Haptics", "vr_forcegrab_eligible_haptics").help("A tick in the hand when it points at a new object it can pull."),
+        slider("Force Grab Outline", "vr_forcegrab_outline", 0.f, 2.f, 0.1f, "%.1f").help("The soft glow round the object a hand points at (0 off)."),
+        toggle("Force Grab Effects", "vr_forcegrab_fx").help("A faint beam to what you point at, a crackling tendril when locked on, a trail behind what flies to you."),
     };
 }
 
