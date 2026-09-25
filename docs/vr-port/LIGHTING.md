@@ -151,6 +151,47 @@ the light counts with your headset's frame timing.
 - `Quake/vr/vr_lighting.cpp`: all the rest. It is renderer-specific (OpenGL, Ironwail's buffers); a vkQuake port
   rewrites it and the shader parts (see [PORTING.md](PORTING.md)).
 
+## The look (round 7)
+
+The shadows and lights worked but the maps still looked flat: Quake's lightmaps light rooms evenly,
+dynamic lights are capped against bright walls, and nothing glows. Four changes, all in Graphics:
+
+- **Light contrast** (`vr_light_contrast`, 2). The static lightmap is raised to a power about Quake's full
+  light (a lightmap value of a half, before the doubling) in the world shader. Shade gets darker, well-lit walls
+  stay as they were, and the brightest spots get a little brighter, so the level's own lamps carry the scene.
+  Models get the same curve on the light at their feet (`VR_AliasLightCurve`, before the minimum light). 1 is
+  Quake's look.
+- **Shooting lights up rooms.** A muzzle flash's light is `vr_flash_scale` (1.8) times Quake's size. It fades out
+  over a tenth of a second rather than blinking off, and is coloured by the weapon: warm for shotguns, orange for
+  nailguns, red-orange for rockets, blue for the lightning gun. Explosions and rockets are
+  `vr_explosion_light_scale` (1.5) times bigger and warm (`vr_colored_lights`). Dynamic lights are now uncapped
+  by default (`vr_dlight_uncapped` 1): Quake's cap hid them on anything already lit. All of this is set by one
+  hook, `VR_TuneDlight`, called where Quake sets these lights up.
+- **Bloom** (`vr_bloom` 0.8, `vr_bloom_threshold` 0.6, `vr_bloom_radius`; `vr_bloom.cpp`), per eye, after the
+  scene and before post-processing:
+  1. a bright pass at a quarter of the eye's size (the brightest of four taps, with a response that rises
+     steeply towards white, since the scene is low dynamic range: a lamp is 1, not 10);
+  2. two further halvings;
+  3. a separable 9-tap Gaussian on each of the three levels (five linear taps);
+  4. all three levels added onto the scene.
+
+  Lamps, glowing buttons and panels, flashes and explosions glow. It costs a few passes at a sixteenth of the
+  pixels or less.
+- **Glowing textures light their surroundings** (the relight, `Misc/quakevr/relight_maps.py`, on by default;
+  `--no-glow`, `--glow-scale`):
+  - Textures with at least 3% fullbright pixels (palette 224-254) get ericw's surface lights (`_surface` light
+    entities), in the average colour of those pixels, a quarter of the way to white.
+  - Each texture has a budget of light, larger the more of it glows. It is shared by the lights `light` spawns
+    on its faces (about one every 128 x 128 units, at least one a face), none brighter than 130. A small button
+    glows round itself; a big or many-faced glowing surface does not flood the room. (A first version without
+    the budget turned e1m1's arrival room red from its slipgate.)
+  - Fixtures named `*light*` get half, since mappers put lights by them.
+  - The entities are given to `light` only: the relit map keeps its own, so neither the game nor the model
+    lighting sees them.
+
+The presets set all of this: "Off (Quake)" restores Quake's contrast, no bloom, Quake's white capped flashes;
+the others the new look.
+
 ## Next
 
 - **Caching dynamic-light faces** whose light and casters didn't move (Quetoo's hash), and rendering only faces with

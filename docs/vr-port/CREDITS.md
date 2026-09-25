@@ -78,6 +78,11 @@ articles, talks and other engines' source are credited with where they came from
   - guard bands, side culling, and the idea of excluding a light's own entity.
 - **FTE QuakeWorld** (Spike and the FTE team): per-light cached world shadow meshes, and presets.
 - **Quetoo** (Jay Dolan): shadow tiles redrawn only when a hash of the light and casters changes (planned).
+- **Bloom's blur:** the 9-tap Gaussian in five linear taps (its weights and offsets) is from Daniel Rákos,
+  ["Efficient Gaussian blur with linear sampling"](https://www.rastergrid.com/blog/2010/09/efficient-gaussian-blur-with-linear-sampling/)
+  (2010).
+- **Glowing textures' light:** ericw-tools' surface lights (`_surface` light entities), by Eric Wasylishen and
+  contributors.
 - **q2pro-ng** (skullernet): per-pixel dynamic lights shared by world and models, a D32F shadow atlas with a static
   world-only cache under the moving casters, which is the same split used here.
 - **RBDOOM-3-BFG** (Robert Beckebans): shadow-atlas LOD and presets. **The Dark Mod:** soft-shadow quality settings.

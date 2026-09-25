@@ -3,7 +3,7 @@
 | # | Request | Status |
 |---|---|---|
 | 1 | Commit and push everything | done (`origin/vr-ironwail` at 387466c1) |
-| 2 | Lighting: rooms light up when shooting, glowing textures (buttons, lights) glow, darker ambient relying on light sources | |
+| 2 | Lighting: rooms light up when shooting, glowing textures (buttons, lights) glow, darker ambient relying on light sources | done |
 | 3 | Blob shadows named as such; easy to turn off when real shadows are on | done |
 | 4 | Ammo/health boxes: grab box much larger than the model; their real shadow much bigger than the model | done |
 | 5 | Boxes consumed by releasing them at a holster (default); the trigger as an option | done |
@@ -26,6 +26,20 @@
   takes the new one, once (`vr_cfg_version` records it). Settings you changed yourself are kept. Tested with a
   config holding the old swimming stick speed: it became the new one.
 
+2. **Lighting** (details in [LIGHTING.md](LIGHTING.md), "The look"):
+   - a darker ambient (lightmap contrast 2, lamps as bright);
+   - bigger, coloured, fading muzzle flashes and explosions, uncapped against lit walls;
+   - bloom per eye;
+   - the relit maps baked with light from glowing textures.
+
+   Checked on e1m1 and e1m2 with before/after shots:
+   - rooms are darker with pools of light at the lamps;
+   - a shotgun flash floods the start room with warm light, where Quake's barely showed;
+   - lamps and torches glow;
+   - the red button at (544, 2256) tints its corridor and has a halo.
+
+   Your relit maps are re-made with the glow (below). Everything is in Graphics, and "Off (Quake)" restores
+   Quake's look.
 3. **Blob shadows.** The menu says so now: Graphics > "Blob Shadows" (Off / Always / Auto), "Blob Shadows: You"
    (hands, body), "Blob Shadows: Things" (monsters and items). Auto, the default (`vr_blob_shadows` 2), draws them
    only where real shadows do not fall: none under monsters and items while the map lights cast moving things'
