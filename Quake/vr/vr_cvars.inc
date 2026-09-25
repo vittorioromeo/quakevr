@@ -218,6 +218,7 @@ QVR_CVAR(vr_dlight_models, "1", CVAR_ARCHIVE)          // dynamic lights light m
 QVR_CVAR(vr_dlight_angle, "1", CVAR_ARCHIVE)           // dynamic lights fall off with the angle they reach surfaces at (0: Quake's)
 QVR_CVAR(vr_dlight_uncapped, "0", CVAR_ARCHIVE)        // dynamic lights add fully to bright walls (Quake caps them)
 QVR_CVAR(vr_positional_damage, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_headshot_sound, "0.5", CVAR_ARCHIVE)      // volume of the tick on a headshot (0 off)
 QVR_CVAR(vr_leg_holster_model_enabled, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_leg_holster_model_scale, "0.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_leg_holster_model_x_offset, "1", CVAR_ARCHIVE)

@@ -123,6 +123,7 @@
     return {
         toggle("Weapon Text", "vr_show_weapon_text").help("Show floating ammunition text attached to weapons"),
         toggle("Positional Damage", "vr_positional_damage").help("Enables positional damage multipliers for headshots and leg shots. Only applies to humanoid enemies."),
+        slider("Headshot Sound", "vr_headshot_sound", 0.f, 1.f, 0.1f, "%.1f").help("Volume of a subtle tick when you land a headshot (0 off)."),
         toggle("Body Picks Up Items", "vr_body_interactions").help("Pick up items and level weapons by walking over them. Thrown and dropped weapons still need your hands."),
         toggle("Disable Haptics", "vr_disablehaptics").help("Disable all haptics (vibration)."),
         cycle("Weapon Mode", "vr_holster_mode", {{0.f, "Immersive"}, {1.f, "Quick Slots"}}).help("Immersive: a holster holds one weapon, and taking it out empties it. Quick Slots: holsters never empty (with weapon cycling)."),

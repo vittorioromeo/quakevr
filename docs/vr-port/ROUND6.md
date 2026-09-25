@@ -12,7 +12,7 @@ gets a status, what was done, how it was tested, and anything to check on the he
 | 5 | Shoulder offsets, independent of the torso | S | done |
 | 6 | Blob shadows for ammo and health pickups | S | done |
 | 7 | Designer-placed pickups (weapons, keys, armour, powerups) float at torso height | S–M | |
-| 8 | Headshot detection: check rotations, fix; subtle headshot sound (toggle) | M | |
+| 8 | Headshot detection: check rotations, fix; subtle headshot sound (toggle) | M | done |
 | 9 | A force-grabbed ammo pickup, not collected, fell through the floor (twice) | M | |
 | 10 | A small 3D screen behind the ammo counter on weapons (programmatic) | M | |
 | 11 | Parrying enemy melee: weapon held sideways in front; damage reduction, sound, sparks, arm wobble; one hand may drop the weapon, two hands never | L | |
@@ -41,3 +41,20 @@ gets a status, what was done, how it was tested, and anything to check on the he
    now get blob shadows, cast real shadows from dynamic lights, and count as moving casters for map lights.
    To check on the headset: the map lights also cast your hands' and body's shadows (`vr_shadow_self 2`); near a
    light behind you these are large. Set 1 (body only) or 0 if it is too much.
+7. **Floating pickups.** `VRFloatPickup` (`items.qc`, from `PlaceItem`): items that are not force-grabbable
+   physics boxes rise `vr_item_float_height` (26 units, about torso height; next map), stop falling
+   (`MOVETYPE_NONE`), and their box reaches down to the floor so walking over them still picks them up. Checked on
+   e1m1: the green armour's origin went from 76 to 102, its box from the floor; the nailgun from 2 to 28.
+8. **Headshots.** The old test put the head on the vertical axis through the origin and pushed the entry point a
+   fixed depth into the box along the shot. That only worked for shots square to the box, and heads are not on the
+   axis: they sit forward, 3 units for a grunt and 14 for a shambler, so a turned monster was measured wrong. Now
+   (`PositionalDamage`, `weapons.qc`) each target has a head sphere in its own frame (`PositionalHead`: forward, up,
+   radius; measured on the models' standing frames); the shot is a ray, and it is a headshot if its closest
+   approach to the sphere is within the radius. The same ray finds the body (its closest approach to the vertical
+   axis): extremities and legs as before. Zombies, scrags and mummies have heads now.
+   **Sound:** `vr_headshot_sound` (0.5, volume; 0 off; Advanced > Gameplay): a quiet `misc/menu1.wav` tick for
+   the shooter, at most once a frame (shotgun pellets).
+   **Tested** in the mock, shotgun on a grunt from 60 units, hand pitch swept: one volley passed 1.4-2.0 units from
+   the head's centre (headshot), another 10.5-11.4 units (body).
+   **For tests:** `impulse 150 + weapon id` puts a loaded weapon in the main hand, `170 + id` in the off hand
+   (single player; hold `+grabright` or `+grableft` in the mock, since a hand that is not gripping drops its weapon).

@@ -205,146 +205,113 @@ float PositionalDamageFactor(float positionalDamageType)
     return 1;
 }
 
+// The head of a target that supports headshots, in its own frame: `forward` of its origin along its
+// facing, `up` above it, `radius` its size. Measured on the models' standing frames (the centroid of
+// their top vertices), with the old heights as a check. FALSE for targets without a head to aim at.
+float xHeadForward;
+float xHeadUp;
+float xHeadRadius;
+float(entity xTarget) PositionalHead =
+{
+    string c = xTarget.classname;
+    if(c == "monster_army")             { xHeadForward = 3;  xHeadUp = 23; xHeadRadius = 7.2; return TRUE; }
+    if(c == "monster_ogre")             { xHeadForward = 9;  xHeadUp = 33; xHeadRadius = 10;  return TRUE; }
+    if(c == "monster_enforcer")         { xHeadForward = 2;  xHeadUp = 27; xHeadRadius = 7.4; return TRUE; }
+    if(c == "monster_gremlin")          { xHeadForward = 7;  xHeadUp = 12; xHeadRadius = 6.4; return TRUE; }
+    if(c == "monster_hell_knight")      { xHeadForward = 6;  xHeadUp = 33; xHeadRadius = 7.2; return TRUE; }
+    if(c == "monster_knight")           { xHeadForward = 4;  xHeadUp = 22; xHeadRadius = 6.2; return TRUE; }
+    if(c == "monster_shambler")         { xHeadForward = 14; xHeadUp = 57; xHeadRadius = 12;  return TRUE; }
+    if(c == "monster_shalrath")         { xHeadForward = 1;  xHeadUp = 34; xHeadRadius = 9;   return TRUE; }
+    if(c == "monster_zombie")           { xHeadForward = 0;  xHeadUp = 22; xHeadRadius = 6;   return TRUE; }
+    if(c == "monster_wizard")           { xHeadForward = 6;  xHeadUp = 25; xHeadRadius = 7;   return TRUE; }
+    if(c == "monster_mummy")            { xHeadForward = 0;  xHeadUp = 30; xHeadRadius = 6.5; return TRUE; }
+    if(c == "player")                   { xHeadForward = 4;  xHeadUp = 23; xHeadRadius = 7.2; return TRUE; }
+    return FALSE;
+};
+
+// Where a shot entering `xTarget` at `xEndpos` (a point on its box, from a trace) along
+// `xDirection` hits: 1 the head, 2 an extremity (far from its middle), 3 the legs, 0 the body.
+// The shot is a ray through the target: the head is a sphere turned with the target's facing
+// (heads sit forward of the origin: a shambler's by 14 units), so hits are found the same whatever
+// the angle, rather than by pushing the entry point a fixed depth into the box.
 float PositionalDamage(entity xTarget, vector xEndpos, vector xDirection) =
 {
-    float supportHS;   // Target supports headshots.
-    float supportCD;   // Target supports core distance.
-    float maxh;        // Max horizontal dimension.
-    float diagonality; // How "diagonal" the hit was.
-    float headsize;    // Size of target head.
-    float head_hdepth; // Depth of head center in the model (horizontal).
-    float head_vdepth; // Depth of head center in the model (vertical).
-    vector headpos;    // Position of target head.
-    vector hitpos;     // Tweaked hit position.
-    vector hitdiff;    // Temp vector for hit differences.
-
-    if(cvar_hget(cvarh_vr_positional_damage) == 0)
+    if(cvar_hget(cvarh_vr_positional_damage) == 0 || !PositionalHead(xTarget))
     {
         return 0;
     }
 
-    supportHS = 0;
-    supportCD = 0;
-
-    headpos_x = xTarget.origin_x;
-    headpos_y = xTarget.origin_y;
-    head_vdepth = 0;
-
-    if(xTarget.classname == "monster_army")
-    {
-        headpos_z = xTarget.origin_z + 25;
-        headsize = 3.6;
-        head_hdepth = 12;
-        supportHS = 1;
-        supportCD = 1;
-    }
-    else if(xTarget.classname == "monster_ogre")
-    {
-        headpos_z = xTarget.origin_z + 37;
-        headsize = 5;
-        head_hdepth = 24;
-        supportHS = 1;
-        supportCD = 1;
-    }
-    else if(xTarget.classname == "monster_enforcer")
-    {
-        headpos_z = xTarget.origin_z + 26;
-        headsize = 3.7;
-        head_hdepth = 14;
-        supportHS = 1;
-        supportCD = 1;
-    }
-    else if(xTarget.classname == "monster_gremlin")
-    {
-        headpos_z = xTarget.origin_z + 16;
-        headsize = 3.2;
-        head_hdepth = 12;
-        supportHS = 1;
-        supportCD = 1;
-    }
-    else if(xTarget.classname == "monster_hell_knight")
-    {
-        headpos_z = xTarget.origin_z + 34;
-        headsize = 3.6;
-        head_hdepth = 12;
-        supportHS = 1;
-        supportCD = 1;
-    }
-    else if(xTarget.classname == "monster_knight")
-    {
-        headpos_z = xTarget.origin_z + 24;
-        headsize = 3.1;
-        head_hdepth = 12;
-        supportHS = 1;
-        supportCD = 1;
-    }
-    else if(xTarget.classname == "monster_shambler")
-    {
-        headpos_z = xTarget.origin_z + 60;
-        headsize = 6;
-        head_hdepth = 32;
-        supportHS = 1;
-        supportCD = 1;
-    }
-    else if(xTarget.classname == "monster_shalrath")
-    {
-        headpos_z = xTarget.origin_z + 54;
-        headsize = 4.5;
-        head_hdepth = 32;
-        supportHS = 1;
-        supportCD = 1;
-    }
-    else if(xTarget.classname == "player")
-    {
-        headpos_z = xTarget.origin_z + 25;
-        headsize = 3.6;
-        head_hdepth = 12;
-        supportHS = 1;
-        supportCD = 1;
-    }
-    else
+    vector d = normalize(xDirection);
+    if(d == '0 0 0')
     {
         return 0;
     }
 
-    // Since `xEndpos` is from a trace, it always hits one of the AABB planes,
-    // so to compensate we check how "diagonal" the hit was and move the hit
-    // position more to reach the center and check distance from the head more
-    // accurately. This helps shots coming at a 45 degree angle to the AABB.
-    maxh = max(fabs(xDirection_x), fabs(xDirection_y));
-    maxh = max(maxh, fabs(xDirection_z));
-    diagonality = (1 - max(maxh, 0.7)) * 3.33; // Returns a value closer to 1 the more diagonal the shot is.
-    hitpos_x = xEndpos_x + xDirection_x * (head_hdepth + (1.414 * diagonality)); // Approx of square diagonal ratio.
-    hitpos_y = xEndpos_y + xDirection_y * (head_hdepth + (1.414 * diagonality));
-    hitpos_z = xEndpos_z + xDirection_z * head_vdepth;
+    float yaw = xTarget.angles_y * (3.14159265 / 180);
+    vector facing;
+    facing_x = cos(yaw);
+    facing_y = sin(yaw);
+    facing_z = 0;
+    vector head = xTarget.origin + facing * xHeadForward + '0 0 1' * xHeadUp;
 
-    // Check for headshot.
-    if(supportHS && vlen(hitpos - headpos) < headsize * 2)
+    // The ray's closest approach to the head, not behind where it entered.
+    float t = max(0, (head - xEndpos) * d);
+    if(vlen(head - (xEndpos + d * t)) < xHeadRadius)
     {
         return 1; // headshot
     }
 
-    if(!supportCD)
+    // The ray's closest approach to the target's vertical axis: how far out, and how high.
+    vector dh = d;
+    dh_z = 0;
+    float th = 0;
+    if(vlen(dh) > 0.01)
     {
-        return 0; // standard
+        vector toAxis = xTarget.origin - xEndpos;
+        toAxis_z = 0;
+        th = max(0, (toAxis * dh) / (dh * dh));
     }
+    vector q = xEndpos + d * th;
+    vector off = q - xTarget.origin;
+    off_z = 0;
 
-    // Check for core shot.
-    hitdiff = hitpos - xTarget.origin;
-    hitdiff_z = 0;
-
-    if(vlen(hitdiff) > (xTarget.maxs_x - xTarget.mins_x) * 0.35)
+    if(vlen(off) > (xTarget.maxs_x - xTarget.mins_x) * 0.35)
     {
         return 2; // extremities
     }
 
-    if(hitpos_z < xTarget.origin_z)
+    if(q_z < xTarget.origin_z)
     {
         return 3; // legs
     }
 
     return 0; // standard
 }
+
+// A headshot's subtle feedback to the player who made it (vr_headshot_sound), once per frame (a
+// shotgun's pellets).
+float positionalHeadshotTime;
+void(entity xTarget) PositionalHeadshotFeedback =
+{
+    float v = cvar_hget(cvarh_vr_headshot_sound);
+    if(v <= 0 || time == positionalHeadshotTime)
+    {
+        return;
+    }
+    positionalHeadshotTime = time;
+
+    entity shooter = self;
+    if(shooter.classname != "player")
+    {
+        shooter = self.owner;
+    }
+    if(shooter.classname != "player" || shooter == xTarget)
+    {
+        return;
+    }
+
+    sound(shooter, CHAN_AUTO, "misc/menu1.wav", min(1, v), ATTN_NORM);
+};
 
 // HIPNOTIC
 //MED 10/18/96
@@ -388,6 +355,10 @@ void() HIP_LaserTouch =
 
         makeforward(self.angles);
         posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
+        if(posDmgType == 1)
+        {
+            PositionalHeadshotFeedback(trace_ent);
+        }
         adjDmg = self.dmg * PositionalDamageFactor(posDmgType);
 
         T_Damage(other, self, self.lastvictim, adjDmg);
@@ -1352,6 +1323,10 @@ void(float shotcount, vector dir, vector spread, vector src) FireBulletsImpl =
         //JIM
         {
             posDmgType = PositionalDamage(trace_ent, trace_endpos, direction);
+            if(posDmgType == 1)
+            {
+                PositionalHeadshotFeedback(trace_ent);
+            }
             adjDmg = 4 * PositionalDamageFactor(posDmgType);
 
             TraceAttack (adjDmg, direction);
@@ -2112,6 +2087,10 @@ void() spike_touch =
     if(other.takedamage)
     {
         posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
+        if(posDmgType == 1)
+        {
+            PositionalHeadshotFeedback(trace_ent);
+        }
         adjDmg = 9 * PositionalDamageFactor(posDmgType);
 
         if(T_Damage(other, self, self.owner, adjDmg))
@@ -2169,6 +2148,10 @@ void() superspike_touch =
     if(other.takedamage)
     {
         posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
+        if(posDmgType == 1)
+        {
+            PositionalHeadshotFeedback(trace_ent);
+        }
         adjDmg = 18 * PositionalDamageFactor(posDmgType);
 
         if(T_Damage(other, self, self.owner, adjDmg))
@@ -2882,6 +2865,36 @@ void(float xHand) ToggleSecondaryAmmo =
 
 void() ImpulseCommands =
 {
+    // Development and tests (single player): impulse 150 + a weapon id puts that weapon, loaded, in
+    // the main hand; 170 + id in the off hand.
+    if(!deathmatch && self.impulse >= 150 && self.impulse < 190)
+    {
+        float cheatHand = cVR_MainHand;
+        float cheatWid = self.impulse - 150;
+        if(self.impulse >= 170)
+        {
+            cheatHand = cVR_OffHand;
+            cheatWid = self.impulse - 170;
+        }
+        VR_WeaponUtil_EntAddWeapon(self, cheatWid);
+        if(cheatHand == cVR_MainHand)
+        {
+            self.weapon = cheatWid;
+            self.weaponflags = 0;
+            self.weaponclip = WeaponIdToBaseClipSize(cheatWid);
+        }
+        else
+        {
+            self.weapon2 = cheatWid;
+            self.weaponflags2 = 0;
+            self.weaponclip2 = WeaponIdToBaseClipSize(cheatWid);
+        }
+        W_SetCurrentAmmoFor(cheatHand);
+        VRSetEntWeaponClip(self, cheatHand, WeaponIdToBaseClipSize(cheatWid));
+        self.impulse = 0;
+        return;
+    }
+
     if(self.impulse >= 1 && self.impulse <= 8)
     {
         if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
@@ -3455,6 +3468,10 @@ void() forcegrabbable_touch =
 
             // Where it struck, and going which way (not the trace globals, stale in a touch).
             float posDmgType = PositionalDamage(other, self.origin, normalize(self.velocity));
+            if(posDmgType == 1)
+            {
+                PositionalHeadshotFeedback(other);
+            }
             float adjDmg = finalDmg * PositionalDamageFactor(posDmgType);
 
             spawn_touchblood(adjDmg);
