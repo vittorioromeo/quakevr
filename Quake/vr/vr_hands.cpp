@@ -9,6 +9,7 @@
 #include "vr_handpose.hpp"
 #include "vr_main.hpp"
 #include "vr_throw.hpp"
+#include "vr_trace.hpp"
 #include "vr_twohand.hpp"
 
 #include <cmath>
@@ -68,12 +69,36 @@ Previous previous;
 
 // Room-scale movement: the head's horizontal tracking position last frame, and the world-space
 // walk accumulated since the last move was sent.
+//
+// Leaning (vr_lean_radius): the head moves off the middle of the player's box by up to the radius
+// before the body walks after it, so that a face gets near a wall and over a railing where the box
+// (32 units wide, 16 from its middle to a side) stops. The head never leaves the box's footprint,
+// which is always in open space. Only the head's motion beyond the radius is walked; at rest the
+// body slides back under the head (vr_lean_recenter) where its box can go and there is floor under
+// it (not over a ledge).
 bool lastHeadValid = false;
 glm::vec3 lastHead{0.f};
 glm::vec3 roomscaleMove{0.f};
+glm::vec3 lean{0.f};
+glm::vec3 lastBody{0.f};
+bool lastBodyValid = false;
 
-void updateRoomscale(const TrackingState& t, float m2u)
+void resetLean()
 {
+    lean = glm::vec3{0.f};
+    lastBodyValid = false;
+}
+
+void updateRoomscale(const TrackingState& t, float m2u, const glm::vec3& body)
+{
+    // A teleport, a respawn, a new map: the body is put under the head.
+    if(lastBodyValid && glm::length(glm::vec2{body.x - lastBody.x, body.y - lastBody.y}) > 64.f)
+    {
+        lean = glm::vec3{0.f};
+    }
+    lastBody = body;
+    lastBodyValid = true;
+
     const glm::vec3 head{t.head.position.x, 0.f, t.head.position.z};
     if(!t.head.valid)
     {
@@ -89,12 +114,35 @@ void updateRoomscale(const TrackingState& t, float m2u)
         // A jump (recentred play space, tracking lost and found) is not a step.
         if(glm::length(delta) < 50.f)
         {
-            roomscaleMove += delta;
+            lean += glm::vec3{delta.x, delta.y, 0.f};
         }
     }
 
     lastHead = head;
     lastHeadValid = true;
+
+    const float radius = CLAMP(0.f, vr_lean_radius.value, 14.f);
+    const float length = glm::length(lean);
+    if(length > radius)
+    {
+        // Past the radius the body walks after the head (if its box can: else the head stops).
+        const glm::vec3 excess = lean * ((length - radius) / length);
+        roomscaleMove += excess;
+        lean -= excess;
+        return;
+    }
+
+    if(length > 0.01f && vr_lean_recenter.value > 0.f && !noclip_anglehack)
+    {
+        const float dt = static_cast<float>(CLAMP(0.0, host_frametime, 0.1));
+        const float step = std::min(length, vr_lean_recenter.value * m2u * dt);
+        const glm::vec3 to = body + lean * (step / length);
+        if(worldtrace::playerBoxFits(body, to) && worldtrace::line(to, to - glm::vec3{0.f, 0.f, 48.f}) < 1.f)
+        {
+            roomscaleMove += to - body;
+            lean -= to - body;
+        }
+    }
 }
 
 // Fills the velocities: from the runtime when it has them, else by differencing body-relative
@@ -113,13 +161,16 @@ void updateVelocities(const TrackingState* t)
     };
     const auto fromTracking = [&](const glm::vec3& v) { return rotateYaw(quakeFromTracking(v), turnYaw); };
 
-    const glm::vec3 head = state.head - state.playerOrigin;
+    // Relative to the floor below the head (the box's middle and the lean): the body sliding back
+    // under the head is not the hands' own motion.
+    const glm::vec3 base = state.playerOrigin + state.lean;
+    const glm::vec3 head = state.head - base;
     state.headVel = t && t->head.velocityValid ? fromTracking(t->head.linearVelocity)
                                                : differenced(head, previous.head, state.headVel);
 
     for(int h = 0; h < HAND_COUNT; h++)
     {
-        const glm::vec3 local = state.pos[h] - state.playerOrigin;
+        const glm::vec3 local = state.pos[h] - base;
         if(t && t->hands[h].velocityValid)
         {
             state.vel[h] = fromTracking(t->hands[h].linearVelocity);
@@ -205,6 +256,7 @@ void update()
         previous.valid = false;
         lastHeadValid = false;
         roomscaleMove = glm::vec3{0.f};
+        resetLean();
         return;
     }
 
@@ -240,9 +292,13 @@ void update()
 
     if(vrActive())
     {
-        // Positions are relative to the play-space floor below the head.
+        updateRoomscale(t, m2u, state.playerOrigin);
+        state.lean = lean;
+
+        // Positions are relative to the play-space floor below the head: the box's middle and the
+        // lean.
         const glm::vec3 floorBelowHead{t.head.position.x, 0.f, t.head.position.z};
-        const glm::vec3 base = state.playerOrigin + glm::vec3{0.f, 0.f, vr_floor_offset.value};
+        const glm::vec3 base = state.playerOrigin + lean + glm::vec3{0.f, 0.f, vr_floor_offset.value};
         const auto toWorld = [&](const glm::vec3& trackingPos) {
             return base + rotateYaw(quakeFromTracking(trackingPos - floorBelowHead) * m2u, turnYaw);
         };
@@ -253,8 +309,6 @@ void update()
             pendingYawValid = false;
             turnYaw = pendingYaw - anglesFromTracking(t.head.orientation, 0.f).y;
         }
-
-        updateRoomscale(t, m2u);
 
         state.head = toWorld(t.head.position);
         state.headAngles = anglesFromTracking(t.head.orientation, turnYaw);
@@ -290,6 +344,7 @@ void update()
         glm::vec3 fwd, right, up;
         angleVectors(aim, fwd, right, up);
 
+        state.lean = glm::vec3{0.f};
         state.head = state.playerOrigin + glm::vec3{0.f, 0.f, cl.viewheight};
         state.headAngles = aim;
         state.headHeight = vr_height_calibration.value;

@@ -199,6 +199,7 @@
 // ----------------------------------------------------------------------------
 
 .vector headvel;
+.vector headpos; // the head (between the eyes): with a lean it is not above the origin
 
 //
 //

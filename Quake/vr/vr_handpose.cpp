@@ -129,8 +129,10 @@ void resolvePositions(hands::State& s, float turnYaw)
             colliding[h] = stopAtWall(pos, pos, pos + muzzleOffset, muzzleOffset);
         }
 
-        // Weight, in the body's frame.
-        const glm::vec3 local = hands::rotateYaw(pos - s.playerOrigin, -turnYaw);
+        // Weight, in the body's frame (from the floor below the head: the body sliding back under a
+        // lean is not the hand's motion).
+        const glm::vec3 base = s.playerOrigin + s.lean;
+        const glm::vec3 local = hands::rotateYaw(pos - base, -turnYaw);
         if(vr_wpn_pos_weight.value && m.valid && newFrame)
         {
             const int slot = weapons::heldSlot(h);
@@ -142,7 +144,7 @@ void resolvePositions(hands::State& s, float turnYaw)
         {
             m.local = local;
         }
-        pos = s.playerOrigin + hands::rotateYaw(m.local, turnYaw);
+        pos = base + hands::rotateYaw(m.local, turnYaw);
 
         // Not too far from the body.
         constexpr float maxReach = 50.f;

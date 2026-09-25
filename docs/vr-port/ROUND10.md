@@ -10,7 +10,7 @@
 | 6 | Heads can't be grabbed | done |
 | 7 | Gibs: Quake VR blood particles, a lasting trail of blood, splats where they hit or bounce | done |
 | 8 | Thrown gibs hurt monsters even lying still | done |
-| 9 | The player's box keeps you far from walls and ledges | options below; not changed yet |
+| 9 | The player's box keeps you far from walls and ledges | done: leaning |
 | 10 | Water isn't see-through | done (relit maps) |
 | 11 | Wounded arms drip blood | done |
 | 12 | Separate bloom for white and coloured lights | done |
@@ -46,10 +46,16 @@
 9. **The player's box.** Your head is always right above the middle of Quake's 32-unit player box, so your eyes
    stay 16 units (about half a metre) from any wall, railing or ledge lip, and are pushed back with the box. Quake
    maps only have hulls for three box sizes, fixed at compile time. Options:
-   - **Lean within the box (recommended):** the head may move up to about 14 units from the box's middle before
-     the body follows; the box is always in open space, so the head never enters a wall. You could put your
-     face near a wall and lean over a railing. Client-side (the camera and hands are placed from the body plus
-     the head's offset); roomscale walking sends only the part of the head's motion beyond the lean.
+   - **Lean within the box (done):** the head may move up to `vr_lean_radius` (12) units from the box's middle
+     before the body follows; the box is always in open space, so the head never enters a wall. Your face gets
+     to about 4 units from a wall (16 before) and over a railing. Client-side (`vr_hands.cpp`: the camera and
+     hands are placed from the body plus the lean); room-scale walking sends only the head's motion beyond the
+     radius. At rest the body slides back under the head (`vr_lean_recenter`, 0.5 m/s) where its box can go
+     (a client-side hull 1 check) and there is floor under it, so a lean over a ledge doesn't walk you off.
+     Teleports, respawns and new maps put the body under the head. The move carries the head's position
+     (`.headpos`), so the headbutt starts from where the head is. Locomotion page: Lean, Lean Recentre.
+     **Tested:** the first 12 units of head motion leave the body where it is; walking on, the body follows and
+     stops at a wall with the head 12 units past its middle; stepping back, it recentres; a headbutt still kills.
    - **Lean past the box**, with a head-sized trace so the head can't enter walls (more reach, a fade to black
      when it would).
    - **A smaller box against the world:** needs box traces against the map's polygons (as DarkPlaces'

@@ -2675,7 +2675,7 @@ void(float xThreshold) VR_Headbutt_Hit =
 {
     vector dir = normalize(self.headbutt_max_vec);
     float dmg = min(3, vlen(self.headbutt_max_vec) / xThreshold) * cvar_hget(cvarh_vr_headbutt_damage);
-    vector head = self.origin + self.view_ofs;
+    vector head = VRGetHeadPos(self);
     entity victim = VR_Headbutt_Target(head, dir);
     vector at;
     if(victim == world)
@@ -2741,7 +2741,7 @@ void() PlayerVRMeleeHeadbutt =
         }
 
         // Already in a monster: hit now.
-        vector head = self.origin + self.view_ofs;
+        vector head = VRGetHeadPos(self);
         entity close = VR_Headbutt_Target(head, normalize(self.headvel));
         if(close != world && vlen(close.origin + (close.mins + close.maxs) * 0.5 - head) < 20)
         {

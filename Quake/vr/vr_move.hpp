@@ -34,6 +34,7 @@ struct VrMove
     glm::vec3 roomscaleMove{0.f};   // world units / second
     std::uint8_t buttons{0};        // protocol::QVR_BUTTON_*
     glm::vec3 origin{0.f};          // the player origin the client placed the hands from
+    glm::vec3 headPos{0.f};         // the head (between the eyes), world
 };
 
 void writeVrMove(sizebuf_t* buf, const VrMove& move);

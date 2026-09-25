@@ -54,6 +54,7 @@ void writeVrMove(sizebuf_t* buf, const VrMove& move)
     writeVec3(buf, move.roomscaleMove);
     MSG_WriteByte(buf, move.buttons);
     writeVec3(buf, move.origin);
+    writeVec3(buf, move.headPos);
 }
 
 VrMove readVrMove()
@@ -85,6 +86,7 @@ VrMove readVrMove()
     move.roomscaleMove = readVec3();
     move.buttons = static_cast<std::uint8_t>(MSG_ReadByte());
     move.origin = readVec3();
+    move.headPos = readVec3();
 
     return move;
 }

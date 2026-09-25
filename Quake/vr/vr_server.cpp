@@ -151,6 +151,7 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
         f.handvelmag, f.handavel, f.handthrowpos, f.handthrowage);
 
     setFieldVec(ent, f.headvel, move.headVel);
+    setFieldVec(ent, f.headpos, move.headPos);
     setFieldVec(ent, f.offmuzzlepos, move.muzzlePos[0]);
     setFieldVec(ent, f.muzzlepos, move.muzzlePos[1]);
     if(clientNum >= static_cast<int>(clientBits.size()))
@@ -419,7 +420,7 @@ void rebaseHands(edict_t* player)
 
     VrMove& move = m->move;
     const FieldOffsets& f = fields();
-    for(const int ofs : {f.handpos, f.offhandpos, f.muzzlepos, f.offmuzzlepos, f.handthrowpos, f.offhandthrowpos})
+    for(const int ofs : {f.handpos, f.offhandpos, f.muzzlepos, f.offmuzzlepos, f.handthrowpos, f.offhandthrowpos, f.headpos})
     {
         setFieldVec(player, ofs, fieldVec(player, ofs) + delta);
     }
@@ -430,6 +431,7 @@ void rebaseHands(edict_t* player)
     }
     move.muzzlePos[0] += delta;
     move.muzzlePos[1] += delta;
+    move.headPos += delta;
 }
 
 float* clientHeadAngles(edict_t* player)

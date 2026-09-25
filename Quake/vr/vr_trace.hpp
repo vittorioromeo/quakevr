@@ -23,6 +23,10 @@ namespace qvr::worldtrace
 [[nodiscard]] trace_t world(const glm::vec3& start, const glm::vec3& end, bool brushEntities = true);
 [[nodiscard]] float line(const glm::vec3& start, const glm::vec3& end);
 
+// Whether the player's box (Quake's hull 1) moves from `start` to `end` through the world's
+// geometry unblocked, from the client's own data.
+[[nodiscard]] bool playerBoxFits(const glm::vec3& start, const glm::vec3& end);
+
 [[nodiscard]] inline glm::vec3 endPos(const trace_t& tr)
 {
     return {tr.endpos[0], tr.endpos[1], tr.endpos[2]};

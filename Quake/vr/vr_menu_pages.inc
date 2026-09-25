@@ -48,6 +48,8 @@
         slider("Turn Speed", "vr_turn_speed", 0.f, 10.f, 0.25f, "%.1f").help("How quickly you turn with the joystick."),
         toggle("Teleportation", "vr_teleport_enabled").help("Enables or disables teleportation. A controller binding is required to use teleportation."),
         slider("Teleport Range", "vr_teleport_range", 100.f, 800.f, 10.f, "%.0f").help("How far you can teleport."),
+        slider("Lean", "vr_lean_radius", 0.f, 14.f, 1.f, "%.0f units").help("How far your head may lean off the middle of your body's box before the body follows: get your face near walls and over railings. 0: the body always under the head."),
+        slider("Lean Recentre", "vr_lean_recenter", 0.f, 2.f, 0.1f, "%.1f m/s").help("How fast the body slides back under your head when it can (not into walls, not over ledges)."),
         toggle("Roomscale Jump", "vr_roomscale_jump").help("Jumping in the room jumps in the game."),
         slider("Jump Threshold", "vr_roomscale_jump_threshold", 0.3f, 2.f, 0.05f, "%.2f m/s")
             .help("How fast the head must rise above the standing height."),

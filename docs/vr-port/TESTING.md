@@ -129,6 +129,8 @@ came. `developer 1` prints the spawned velocity, gravity, spin and age.
     and bumps under dynamic lights, smooth QRP textures, bloom stronger on coloured lights and weaker on white
     (and on brightly lit maps). Every part has a switch on the Graphics page.
   - **See-through water** in the relit maps.
+  - **Leaning:** walk or lean up to a wall or railing: your head gets close and over it before the body follows
+    (Locomotion: Lean, Lean Recentre).
   - **Training dummy** in vrfiringrange: every hit's damage, kind and body part in the console and as a floating
     number.
   - **Held boxes** keep up when you move; **knockback** has a base and a setting per source; **thrown boxes and

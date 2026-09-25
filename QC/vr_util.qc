@@ -227,6 +227,13 @@ float(entity e, float xHand) VRGetEntFireButtonPressed =
     else                     return e.button0;
 }
 
+// The head (between the eyes): the client's, which leans away from the origin; the old eye point if
+// the client sends none.
+vector(entity e) VRGetHeadPos =
+{
+    return e.headpos != '0 0 0' ? e.headpos : e.origin + e.view_ofs;
+};
+
 vector(entity e, float xHand) VRGetEntHandPos =
 {
     if(xHand == cVR_OffHand) return e.offhandpos;

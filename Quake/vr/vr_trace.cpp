@@ -30,8 +30,9 @@ std::optional<trace_t> move(
 namespace
 {
 
-// A line through one BSP model's hull 0, placed at `origin` (not rotated).
-trace_t hullTrace(qmodel_t* model, const glm::vec3& origin, const glm::vec3& start, const glm::vec3& end)
+// A line through one of a BSP model's hulls (0: a point, 1: the player's box), placed at `origin`
+// (not rotated).
+trace_t hullTrace(qmodel_t* model, const glm::vec3& origin, const glm::vec3& start, const glm::vec3& end, int hullIndex = 0)
 {
     trace_t tr;
     memset(&tr, 0, sizeof(tr));
@@ -40,7 +41,7 @@ trace_t hullTrace(qmodel_t* model, const glm::vec3& origin, const glm::vec3& sta
     vec3_t a{start.x - origin.x, start.y - origin.y, start.z - origin.z};
     vec3_t b{end.x - origin.x, end.y - origin.y, end.z - origin.z};
     VectorCopy(b, tr.endpos);
-    hull_t* hull = &model->hulls[0];
+    hull_t* hull = &model->hulls[hullIndex];
     SV_RecursiveHullCheck(hull, hull->firstclipnode, 0.f, 1.f, a, b, &tr);
     for(int i = 0; i < 3; i++)
     {
@@ -93,6 +94,16 @@ trace_t world(const glm::vec3& start, const glm::vec3& end, bool brushEntities)
         }
     }
     return tr;
+}
+
+bool playerBoxFits(const glm::vec3& start, const glm::vec3& end)
+{
+    if(!cl.worldmodel)
+    {
+        return false;
+    }
+    const trace_t tr = hullTrace(cl.worldmodel, glm::vec3{0.f}, start, end, 1);
+    return !tr.startsolid && !tr.allsolid && tr.fraction >= 1.f;
 }
 
 float line(const glm::vec3& start, const glm::vec3& end)
