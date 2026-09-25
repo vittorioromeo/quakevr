@@ -14,6 +14,7 @@ provide, what carries over as is, and what must be written again.
 | **Engine symbols** | `vr_engine.hpp` | The only place engine headers are included from, and the list of engine symbols no header declares |
 | **Rendering the module does itself** | `vr_gfx.hpp` (interface) + `vr_gfx_gl.cpp` (Ironwail/OpenGL) | Write `vr_gfx_vk.cpp` |
 | **Stereo view setup** | `vr_stereo.cpp` | Rewrite for the other renderer's frame structure |
+| **Shadows and per-pixel lights** | `vr_lighting.cpp` + `SHADOW_FUNCTIONS` and the light loops in `gl_shaders.h` | Rewrite on the other renderer (see [LIGHTING.md](LIGHTING.md)) |
 | **OpenXR graphics binding** | `vr_backend_openxr.cpp` (WGL / `XR_KHR_opengl_enable`) | `XR_KHR_vulkan_enable2` |
 | **Everything else** | about 70 files: hands, body IK, throwing, two-handed aiming, holsters, weapons, particles, panel, gadget, menu, protocol, server, physics, rigid bodies, force-grab support, OpenXR session/input | Recompile |
 

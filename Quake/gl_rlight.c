@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_light.c
 
 #include "quakedef.h"
+#include "vr/vr_api_render.h" // QVR
 
 extern cvar_t r_flatlightstyles; //johnfitz
 extern cvar_t r_lerplightstyles;
@@ -178,8 +179,11 @@ void R_PushDlights (void)
 			out->color[1] = l->color[1];
 			out->color[2] = l->color[2];
 			out->minlight = l->minlight;
+			VR_DlightShadow (i, out); // QVR
 		}
 	}
+
+	VR_PushMapLights (); // QVR
 
 	GL_BeginGroup ("Light clustering");
 

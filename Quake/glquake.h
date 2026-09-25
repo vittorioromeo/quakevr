@@ -412,6 +412,8 @@ typedef struct gpulight_s {
 	float	radius;
 	float	color[3];
 	float	minlight;
+	float	shadow[4];	// QVR: xy its faces' origin in the shadow atlas (texels), z face size (0: no shadow), w kind (vr/vr_lighting.cpp)
+	float	shadow2[4];	// QVR: map lights: xy faces' origin in the static atlas, z "light", w "wait"
 } gpulight_t;
 
 typedef struct gpulightbuffer_s {
@@ -427,13 +429,14 @@ typedef struct gpuframedata_s {
 	float	windphase;
 	float	screendither;
 	float	texturedither;
-	float	_padding1[2];
+	float	shadowbias;		// QVR: vr/vr_lighting.cpp
+	float	dlightangle;	// QVR
 	vec3_t	eyepos;
 	float	time;
 	float	zlogscale;
 	float	zlogbias;
 	int		numlights;
-	int		_padding2;
+	int		shadowflags;	// QVR
 } gpuframedata_t;
 
 extern gpulightbuffer_t r_lightbuffer;

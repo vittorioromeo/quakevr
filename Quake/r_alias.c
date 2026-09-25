@@ -237,9 +237,11 @@ void R_SetupAliasLighting (entity_t	*e)
 		R_LightPoint (e->origin, e->model->maxs[2] * 0.5f, &e->lightcache);
 
 	//add dlights
-	for (i=0; i<r_framedata.numlights; i++)
+	for (i=0; i<r_framedata.numlights && !VR_ModelDlightsPerPixel (); i++) // QVR: or the shader does, per pixel
 	{
 		gpulight_t *l = &r_lightbuffer.lights[i];
+		if (l->shadow[3] != 0.f) // QVR: a map light's shadow entry, not a light
+			continue;
 		VectorSubtract (e->origin, l->pos, dist);
 		add = DotProduct (dist, dist);
 		if (l->radius * l->radius > add)

@@ -10,8 +10,21 @@
 
 #include "vr_engine.hpp"
 
+#include <vector>
+
 namespace qvr::modellight
 {
+
+// A light entity of the map (lit at the start).
+struct MapLight
+{
+    glm::vec3 pos;
+    float value; // Quake's "light": brightness at the light, falling off linearly
+    float scale; // "wait": how fast it falls off (1 by default); it reaches value / scale units
+};
+
+// The current map's lights, parsed when it loads.
+[[nodiscard]] const std::vector<MapLight>& mapLights();
 
 // World-space direction towards the light reaching `e` (xyz) and how much it applies (w, 0..1);
 // {0, 0, 0, 0} keeps the fixed direction. Updated at most once per frame per entity.

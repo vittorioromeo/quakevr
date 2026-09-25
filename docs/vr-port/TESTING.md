@@ -125,6 +125,13 @@ came. `developer 1` prints the spawned velocity, gravity, spin and age.
 ## What to try
 
 - **New in this round** (details in the commit log):
+  - **Real-time shadows and dynamic lights** (`docs/vr-port/LIGHTING.md`; Advanced > Graphical Settings > Lights
+    and Shadows, with a Preset from Off to Ultra; defaults are Medium):
+    - explosions and rockets cast shadows (and stop lighting through walls);
+    - the map lights near you cast the shadows of monsters and of you (body and hands) onto the floor and walls;
+    - dynamic lights light models per pixel, by angle, shadowed.
+    - `vr_light_test` puts a light in front of you; `vr_shadow_stats 1` prints the cost each second. Please tell me
+      the frame timing on your headset at Medium and Ultra, and any shadow speckles or light leaks you see.
   - **Graphics** (`docs/vr-port/GRAPHICS.md`, "Done"; Advanced > Graphical Settings):
     - **Re-lit maps:** softer shadows, ambient occlusion in corners, some bounced light, coloured light. Made on
       your machine by `Misc/quakevr/relight_maps.py` (already run for you); Relit Maps off compares.

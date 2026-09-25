@@ -15,12 +15,7 @@ using namespace qvr;
 namespace
 {
 
-struct Light
-{
-    glm::vec3 pos;
-    float value; // Quake's "light": brightness at the light, falling off linearly
-    float scale; // "wait": how fast it falls off (1 by default)
-};
+using Light = modellight::MapLight;
 
 struct Cached
 {
@@ -166,6 +161,15 @@ glm::vec4 compute(const glm::vec3& p)
 }
 
 } // namespace
+
+const std::vector<modellight::MapLight>& modellight::mapLights()
+{
+    if(cl.worldmodel != loadedWorld)
+    {
+        loadLights();
+    }
+    return lights;
+}
 
 glm::vec4 modellight::direction(const entity_t* e)
 {

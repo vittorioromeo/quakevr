@@ -8,8 +8,8 @@ per eye, an RTX 3070-class GPU, 90 Hz: 11.1 ms per frame).
 ## Status
 
 Done (first step, see "Done" below): #1 re-lit maps, #2 model lighting, #4 the muzzle flash at the gun, #5 blob
-shadows for monsters and items, #6 anti-aliasing default. Next: #3 and #7-#8 (dynamic lights on models, real
-shadows).
+shadows for monsters and items, #6 anti-aliasing default. Second step, [LIGHTING.md](LIGHTING.md): #3 per-pixel
+dynamic lights on models, #7 map lights' shadows of moving things, #8 shadowed dynamic lights.
 
 ## Why it looks flat today
 

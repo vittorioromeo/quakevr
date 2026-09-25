@@ -1042,6 +1042,8 @@ void R_SetupView (void)
 
 	R_SortEntities ();
 
+	VR_RenderShadowMaps (); // QVR: vr/vr_lighting.cpp
+
 	R_PushDlights ();
 
 	//johnfitz -- cheat-protect some draw modes

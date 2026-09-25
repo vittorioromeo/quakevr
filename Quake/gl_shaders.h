@@ -287,11 +287,14 @@ NOISE_FUNCTIONS
 "	float	WindPhase;\n"\
 "	float	ScreenDither;\n"\
 "	float	TextureDither;\n"\
+"	float	ShadowBias; // QVR: vr/vr_lighting.cpp\n"\
+"	float	DlightAngle; // QVR\n"\
 "	vec3	EyePos;\n"\
 "	float	Time;\n"\
 "	float	ZLogScale;\n"\
 "	float	ZLogBias;\n"\
 "	uint	NumLights;\n"\
+"	uint	ShadowFlags; // QVR\n"\
 "};\n"\
 "\n"\
 "vec3 ApplyFog(vec3 clr, vec3 p)\n"\
@@ -316,6 +319,8 @@ NOISE_FUNCTIONS
 "	float	radius;\n"\
 "	vec3	color;\n"\
 "	float	minlight;\n"\
+"	vec4	shadow; // QVR: vr/vr_lighting.cpp\n"\
+"	vec4	shadow2; // QVR\n"\
 "};\n"\
 "\n"\
 "layout(std430, binding=0) restrict readonly buffer LightBuffer\n"\
@@ -339,6 +344,123 @@ NOISE_FUNCTIONS
 
 #define LIGHT_CLUSTER_IMAGE(mode) \
 "layout(rg32ui, binding=0) uniform " mode " uimage3D LightClusters;\n"\
+
+////////////////////////////////////////////////////////////////
+
+// QVR: the frame data the alias shaders read (vr/vr_lighting.cpp); its own names, since the alias
+// instance buffer has a ViewProj, Fog, EyePos and ScreenDither of its own.
+#define ALIAS_FRAMEDATA_BUFFER \
+"layout(std140, binding=0) uniform FrameDataUBO\n"\
+"{\n"\
+"	mat4	FrameViewProj;\n"\
+"	vec4	FrameFog;\n"\
+"	vec4	FrameSkyFog;\n"\
+"	vec3	FrameWindDir;\n"\
+"	float	FrameWindPhase;\n"\
+"	float	FrameScreenDither;\n"\
+"	float	FrameTextureDither;\n"\
+"	float	ShadowBias;\n"\
+"	float	DlightAngle;\n"\
+"	vec3	FrameEyePos;\n"\
+"	float	FrameTime;\n"\
+"	float	ZLogScale;\n"\
+"	float	ZLogBias;\n"\
+"	uint	NumLights;\n"\
+"	uint	ShadowFlags;\n"\
+"};\n"\
+"\n"\
+
+// QVR: shadows and per-pixel light (vr/vr_lighting.cpp). Needs the frame data and LIGHT_BUFFER.
+// ShadowFlags: bits 0-1 filter (1, 4, 9 or 16 taps), 4 dynamic lights uncapped, 8 per-pixel
+// dynamic lights on models. A light's six faces (+x -x +y -y +z -z; right and up below, forward
+// the axis) sit 3 x 2 from its origin in the atlas; depth is reversed, SHADOW_NEAR / distance
+// along the face's axis; each face has a border of SHADOW_BORDER texels for filtering.
+#define SHADOW_FUNCTIONS \
+"layout(binding=4) uniform sampler2DShadow ShadowAtlas;\n"\
+"layout(binding=5) uniform sampler2DShadow ShadowStatic;\n"\
+"\n"\
+"#define SHADOW_NEAR 1.0\n"\
+"#define SHADOW_BORDER 4.0\n"\
+"const vec3 ShadowRight[6] = vec3[6](vec3(0.,-1.,0.), vec3(0.,1.,0.), vec3(1.,0.,0.), vec3(-1.,0.,0.), vec3(0.,1.,0.), vec3(0.,-1.,0.));\n"\
+"const vec3 ShadowUp[6] = vec3[6](vec3(0.,0.,1.), vec3(0.,0.,1.), vec3(0.,0.,1.), vec3(0.,0.,1.), vec3(1.,0.,0.), vec3(1.,0.,0.));\n"\
+"\n"\
+"float ShadowTap(sampler2DShadow atlas, vec2 texel, vec2 inv, float ref)\n"\
+"{\n"\
+"	return texture(atlas, vec3(texel * inv, ref));\n"\
+"}\n"\
+"\n"\
+"// How much of a light reaches the point d away from it, 0..1, from its faces at tile (xy origin, z face size).\n"\
+"float ShadowLookup(sampler2DShadow atlas, vec3 tile, vec3 d)\n"\
+"{\n"\
+"	vec3 a = abs(d);\n"\
+"	int face;\n"\
+"	float z;\n"\
+"	if (a.x >= a.y && a.x >= a.z) { face = d.x > 0. ? 0 : 1; z = a.x; }\n"\
+"	else if (a.y >= a.z) { face = d.y > 0. ? 2 : 3; z = a.y; }\n"\
+"	else { face = d.z > 0. ? 4 : 5; z = a.z; }\n"\
+"	z = max(z, SHADOW_NEAR);\n"\
+"	float size = tile.z;\n"\
+"	float k = 1.0 - 2.0 * SHADOW_BORDER / size;\n"\
+"	vec2 st = vec2(dot(d, ShadowRight[face]), dot(d, ShadowUp[face])) / z;\n"\
+"	vec2 texel = tile.xy + vec2(float(face % 3), float(face / 3)) * size + (st * (0.5 * k) + 0.5) * size;\n"\
+"	float ref = SHADOW_NEAR / z * (1.0 + 0.002 * ShadowBias);\n"\
+"	vec2 inv = 1.0 / vec2(textureSize(atlas, 0));\n"\
+"	uint filt = ShadowFlags & 3u;\n"\
+"	if (filt == 0u)\n"\
+"		return ShadowTap(atlas, texel, inv, ref);\n"\
+"	if (filt == 1u)\n"\
+"		return 0.25 * (ShadowTap(atlas, texel + vec2(-0.5, -0.5), inv, ref) + ShadowTap(atlas, texel + vec2(0.5, -0.5), inv, ref)\n"\
+"			+ ShadowTap(atlas, texel + vec2(-0.5, 0.5), inv, ref) + ShadowTap(atlas, texel + vec2(0.5, 0.5), inv, ref));\n"\
+"	float r = filt == 2u ? 1.0 : 1.5;\n"\
+"	float sum = 0.;\n"\
+"	for (float y = -r; y <= r + 0.01; y += 1.0)\n"\
+"		for (float x = -r; x <= r + 0.01; x += 1.0)\n"\
+"			sum += ShadowTap(atlas, texel + vec2(x, y), inv, ref);\n"\
+"	return sum / ((2.0 * r + 1.0) * (2.0 * r + 1.0));\n"\
+"}\n"\
+"\n"\
+"// The receiver moved along its normal by about a shadow texel (normal-offset bias), more where the light grazes it.\n"\
+"vec3 ShadowOffset(vec3 d, vec3 n, float size)\n"\
+"{\n"\
+"	float z = max(abs(d.x), max(abs(d.y), abs(d.z)));\n"\
+"	float texel = 2.0 * z / max(size - 2.0 * SHADOW_BORDER, 1.0);\n"\
+"	float grazing = 1.0 - clamp(dot(n, -d) / max(length(d), 1e-3), 0.0, 1.0);\n"\
+"	return d + n * texel * ShadowBias * (1.0 + grazing);\n"\
+"}\n"\
+"\n"\
+"// A dynamic light's shadow at pos (normal n).\n"\
+"float LightShadow(Light l, vec3 pos, vec3 n)\n"\
+"{\n"\
+"	if (l.shadow.z <= 0.)\n"\
+"		return 1.0;\n"\
+"	return ShadowLookup(ShadowAtlas, l.shadow.xyz, ShadowOffset(pos - l.origin, n, l.shadow.z));\n"\
+"}\n"\
+"\n"\
+"// Quake's dynamic lights ignore the angle they reach a surface at: DlightAngle blends in Lambert's.\n"\
+"float LightAngle(Light l, vec3 pos, vec3 n, float ambient)\n"\
+"{\n"\
+"	vec3 dir = normalize(l.origin - pos);\n"\
+"	return mix(1.0, ambient + (1.0 - ambient) * 2.0 * max(dot(n, dir), 0.0), DlightAngle);\n"\
+"}\n"\
+"\n"\
+"// A map light's shadow of moving things: the share of the baked light `lit` at pos (normal n) that the\n"\
+"// light gave and something moving now blocks, where the world itself does not (the baked light has that).\n"\
+"float MapLightShadow(Light l, vec3 pos, vec3 n, vec3 lit)\n"\
+"{\n"\
+"	vec3 d = pos - l.origin;\n"\
+"	float dist = length(d);\n"\
+"	float given = (l.shadow2.z - dist * l.shadow2.w) * (0.5 + 0.5 * max(dot(n, -d / max(dist, 1e-3)), 0.0)) / 255.0;\n"\
+"	if (given <= 0.)\n"\
+"		return 1.0;\n"\
+"	vec3 o = ShadowOffset(d, n, l.shadow.z);\n"\
+"	float world = ShadowLookup(ShadowStatic, vec3(l.shadow2.xy, l.shadow.z), o);\n"\
+"	if (world <= 0.)\n"\
+"		return 1.0;\n"\
+"	float blocked = world * (1.0 - ShadowLookup(ShadowAtlas, l.shadow.xyz, o));\n"\
+"	float lum = max(lit.r, max(lit.g, lit.b));\n"\
+"	return 1.0 - clamp(given / max(lum, 1e-3), 0.0, 1.0) * blocked * l.color.x;\n"\
+"}\n"\
+"\n"\
 
 ////////////////////////////////////////////////////////////////
 
@@ -570,6 +692,7 @@ static const char world_fragment_shader[] =
 FRAMEDATA_BUFFER
 LIGHT_BUFFER
 LIGHT_CLUSTER_IMAGE("readonly")
+SHADOW_FUNCTIONS // QVR
 WORLD_CALLDATA_BUFFER
 WORLD_INSTANCEDATA_BUFFER
 NOISE_FUNCTIONS
@@ -684,6 +807,7 @@ OIT_OUTPUT (out_fragcolor)
 "			plane.w = dot(in_pos, plane.xyz);\n"
 "#endif\n"
 "			vec3 dynamic_light = vec3(0.);\n"
+"			vec3 facing = dot(plane.xyz, EyePos - in_pos) < 0. ? -plane.xyz : plane.xyz; // QVR: towards the viewer\n"
 "			for (i = 0u, ofs = 0u; i < 2u; i++, ofs += 32u)\n"
 "			{\n"
 "				uint mask = clusterdata[i];\n"
@@ -692,6 +816,11 @@ OIT_OUTPUT (out_fragcolor)
 "					int j = findLSB(mask);\n"
 "					mask ^= 1u << j;\n"
 "					Light l = Lights[ofs + j];\n"
+"					if (l.shadow.w != 0.) // QVR: a map light's shadow of moving things\n"
+"					{\n"
+"						total_light *= MapLightShadow(l, in_pos, facing, total_light);\n"
+"						continue;\n"
+"					}\n"
 "					// mimics R_AddDynamicLights, up to a point\n"
 "					float rad = l.radius;\n"
 "					float dist = dot(l.origin, plane.xyz) - plane.w;\n"
@@ -702,9 +831,16 @@ OIT_OUTPUT (out_fragcolor)
 "					vec3 local_pos = l.origin - plane.xyz * dist;\n"
 "					minlight = rad - minlight;\n"
 "					dist = length(in_pos - local_pos);\n"
-"					dynamic_light += clamp((minlight - dist) / 16.0, 0.0, 1.0) * max(0., rad - dist) / 256. * l.color;\n"
+"					float add = clamp((minlight - dist) / 16.0, 0.0, 1.0) * max(0., rad - dist) / 256.;\n"
+"					if (add <= 0.) // QVR\n"
+"						continue;\n"
+"					add *= LightAngle(l, in_pos, facing, 0.0) * LightShadow(l, in_pos, facing); // QVR\n"
+"					dynamic_light += add * l.color;\n"
 "				}\n"
 "			}\n"
+"			if ((ShadowFlags & 4u) != 0u) // QVR: uncapped\n"
+"				total_light += dynamic_light;\n"
+"			else\n"
 "			total_light += max(min(dynamic_light, 1. - total_light), 0.);\n"
 "		}\n"
 "	}\n"
@@ -1139,6 +1275,9 @@ ALIAS_INSTANCE_BUFFER
 "#endif\n"
 "layout(location=1) out vec4 out_color;\n"
 "layout(location=2) out vec3 out_pos;\n"
+"layout(location=3) out vec3 out_nor; // QVR: per-pixel dynamic lights (vr/vr_lighting.cpp)\n"
+"layout(location=4) out float out_depth; // QVR\n"
+"layout(location=5) noperspective out vec2 out_coord; // QVR\n"
 "\n"
 "void main()\n"
 "{\n"
@@ -1153,6 +1292,9 @@ ALIAS_INSTANCE_BUFFER
 "	vec3 lerpedVert = (worldmatrix * vec4(lerpedPos, 1.0)).xyz;\n"
 "	gl_Position = ViewProj * vec4(lerpedVert, 1.0);\n"
 "	out_pos = lerpedVert - EyePos;\n"
+"	out_nor = mat3(worldmatrix) * mix(pose1.nor, pose2.nor, inst.Blend); // QVR\n"
+"	out_depth = gl_Position.w; // QVR\n"
+"	out_coord = (gl_Position.xy / gl_Position.w * 0.5 + 0.5) * vec2(" QS_STRINGIFY (LIGHT_TILES_X) ", " QS_STRINGIFY (LIGHT_TILES_Y) "); // QVR\n"
 "	// transform world X and Z axes to local space\n"
 "	mat3 orientation = mat3(normalize(worldmatrix[0].xyz), normalize(worldmatrix[1].xyz), normalize(worldmatrix[2].xyz));\n"
 "	orientation = transpose(orientation);\n"
@@ -1168,6 +1310,10 @@ ALIAS_INSTANCE_BUFFER
 
 static const char alias_fragment_shader[] =
 ALIAS_INSTANCE_BUFFER
+ALIAS_FRAMEDATA_BUFFER // QVR
+LIGHT_BUFFER // QVR
+LIGHT_CLUSTER_IMAGE("readonly") // QVR
+SHADOW_FUNCTIONS // QVR
 NOISE_FUNCTIONS
 "\n"
 "layout(binding=0) uniform sampler2D Tex;\n"
@@ -1180,8 +1326,46 @@ NOISE_FUNCTIONS
 "#endif\n"
 "layout(location=1) in vec4 in_color;\n"
 "layout(location=2) in vec3 in_pos;\n"
+"layout(location=3) in vec3 in_nor; // QVR\n"
+"layout(location=4) in float in_depth; // QVR\n"
+"layout(location=5) noperspective in vec2 in_coord; // QVR\n"
 "\n"
 OIT_OUTPUT (out_fragcolor)
+"\n"
+"// QVR: dynamic lights per pixel (vr/vr_lighting.cpp), in the units of LightColor (Quake adds radius - distance,\n"
+"// and divides by 200), shaded by the angle and shadowed.\n"
+"vec3 ModelDynamicLights()\n"
+"{\n"
+"	if ((ShadowFlags & 8u) == 0u || NumLights == 0u)\n"
+"		return vec3(0.);\n"
+"	ivec3 cluster_coord;\n"
+"	cluster_coord.x = int(floor(in_coord.x));\n"
+"	cluster_coord.y = int(floor(in_coord.y));\n"
+"	cluster_coord.z = int(floor(log2(in_depth) * ZLogScale + ZLogBias));\n"
+"	uvec2 clusterdata = imageLoad(LightClusters, cluster_coord).xy;\n"
+"	if ((clusterdata.x | clusterdata.y) == 0u)\n"
+"		return vec3(0.);\n"
+"	vec3 pos = in_pos + EyePos;\n"
+"	vec3 n = normalize(in_nor);\n"
+"	vec3 total = vec3(0.);\n"
+"	for (uint i = 0u, ofs = 0u; i < 2u; i++, ofs += 32u)\n"
+"	{\n"
+"		uint mask = clusterdata[i];\n"
+"		while (mask != 0u)\n"
+"		{\n"
+"			int j = findLSB(mask);\n"
+"			mask ^= 1u << j;\n"
+"			Light l = Lights[ofs + j];\n"
+"			if (l.shadow.w != 0.)\n"
+"				continue;\n"
+"			float add = max(0., l.radius - distance(l.origin, pos)) / 200.;\n"
+"			if (add <= 0.)\n"
+"				continue;\n"
+"			total += add * LightAngle(l, pos, n, 0.3) * LightShadow(l, pos, n) * l.color;\n"
+"		}\n"
+"	}\n"
+"	return Fog.w < 0. ? total * 2.0 : total; // the sign of Fog.w: overbright models\n"
+"}\n"
 "\n"
 "void main()\n"
 "{\n"
@@ -1195,9 +1379,12 @@ OIT_OUTPUT (out_fragcolor)
 "#if ALPHATEST\n"
 "	if (result.a < 0.666)\n"
 "		discard;\n"
-"	result.rgb *= in_color.rgb;\n"
+"#endif\n"
+"	vec3 light = in_color.rgb + ModelDynamicLights(); // QVR\n"
+"#if ALPHATEST\n"
+"	result.rgb *= light;\n"
 "#else\n"
-"	result.rgb = mix(result.rgb, result.rgb * in_color.rgb, result.a);\n"
+"	result.rgb = mix(result.rgb, result.rgb * light, result.a);\n"
 "#endif\n"
 "#if POSEVERTTYPE == 2 \n"
 "	result.a *= in_color.a;\n"

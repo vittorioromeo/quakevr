@@ -152,6 +152,35 @@
         toggle("Model Lighting", "vr_model_lighting").help("Monsters, items and weapons are shaded from the map's lights, not one fixed direction."),
         toggle("Relit Maps", "vr_relit_maps").help("Maps re-lit with shadows, ambient occlusion and colour, if made (Misc/quakevr/relight_maps.py). Next map."),
         cycle("Anti-aliasing", "vid_fsaa", {{0.f, "Off"}, {2.f, "2x"}, {4.f, "4x"}, {8.f, "8x"}}).help("Multisampling: smoother edges, some GPU time."),
+
+        header("Lights and Shadows"),
+        cycle("Preset", "vr_graphics_preset", {{-1.f, "Custom"}, {0.f, "Off (Quake)"}, {1.f, "Low"}, {2.f, "Medium"}, {3.f, "High"}, {4.f, "Ultra"}})
+            .help("Sets everything below (and the model options above). Change them after to taste."),
+        slider("Shadowed Dynamic Lights", "vr_shadow_dlights", 0.f, 12.f, 1.f, "%.0f")
+            .help("Explosions, rockets and other dynamic lights casting shadows, the most important first (0 off)."),
+        cycle("Dynamic Shadow Detail", "vr_shadow_dlight_size", {{128.f, "128"}, {256.f, "256"}, {512.f, "512"}, {1024.f, "1024"}})
+            .help("Largest shadow face size, in texels; farther lights get smaller ones."),
+        toggle("Muzzle Flash Shadows", "vr_shadow_muzzleflash").help("Your own muzzle flashes cast shadows too (brief; costs more)."),
+        slider("Map Light Shadows", "vr_shadow_maplights", 0.f, 8.f, 1.f, "%.0f")
+            .help("Map lights near you casting the shadows of monsters and of you (0 off)."),
+        cycle("Map Shadow Detail", "vr_shadow_maplight_size", {{256.f, "256"}, {512.f, "512"}, {1024.f, "1024"}})
+            .help("Their shadow face size, in texels."),
+        slider("Map Shadow Strength", "vr_shadow_maplight_strength", 0.f, 1.f, 0.05f, "%.2f")
+            .help("How much of a map light those shadows take away."),
+        cycle("Your Shadow", "vr_shadow_self", {{0.f, "None"}, {1.f, "Body"}, {2.f, "Body and hands"}})
+            .help("What of you casts map lights' shadows."),
+        cycle("Shadow Softness", "vr_shadow_filter", {{0.f, "Hard (1 tap)"}, {1.f, "Soft (4 taps)"}, {2.f, "Softer (9)"}, {3.f, "Softest (16)"}}),
+        slider("Shadow Distance", "vr_shadow_distance", 256.f, 4096.f, 128.f, "%.0f")
+            .help("Lights farther than this from you cast no shadows."),
+        cycle("Shadow Atlas", "vr_shadow_atlas", {{2048.f, "2048"}, {4096.f, "4096"}, {8192.f, "8192"}})
+            .help("Room for all shadows at once: smaller fits fewer or coarser ones (64 MB at 4096)."),
+        slider("Shadow Bias", "vr_shadow_bias", 0.f, 4.f, 0.25f, "%.2f")
+            .help("Higher: fewer speckles on lit surfaces; lower: shadows start closer to what casts them."),
+        toggle("Dynamic Lights on Models", "vr_dlight_models").help("Per pixel, by the angle, and shadowed (off: Quake's flat brightening)."),
+        slider("Dynamic Light Angle", "vr_dlight_angle", 0.f, 1.f, 0.25f, "%.2f")
+            .help("How much surfaces facing away from a dynamic light get less of it (0: Quake's)."),
+        toggle("Uncapped Dynamic Lights", "vr_dlight_uncapped").help("Dynamic lights add fully to bright walls (Quake caps them)."),
+        toggle("Shadow Statistics", "vr_shadow_stats").help("Print what is shadowed and its GPU time, once a second, to the console."),
     };
 }
 
