@@ -62,7 +62,7 @@ static gltexture_t	*active_gltextures, *free_gltextures;
 gltexture_t		*notexture, *nulltexture, *whitetexture, *greytexture, *blacktexture;
 
 // QVR: normal maps (TexMgr_LoadNormalMap), by the index of a texture in the array of them: a texture's normal map,
-// and for a normal map what it is made from and the width of its texture in the world (for its depth).
+// and for a normal map what it is made from (and NORMALMAP_HEIGHTS) and the width of its texture in the world (for its depth).
 static gltexture_t	*gltextures_base;
 static gltexture_t	*normalmap_of[MAX_GLTEXTURES];
 static byte			normalmap_kind[MAX_GLTEXTURES];
@@ -72,6 +72,9 @@ static gltexture_t	*flatnormaltexture;
 #define NORMALMAP_TEXELS	2 // made ones: at most 2 texels a unit (a replacement's finer grain is noise as bumps)
 #define NORMALMAP_DEPTH		4.f // units deep a texture's shading from black to white is, at vr_normalmap_strength 1
 #define NORMALMAP_MEAN		0.35f // the brightness of a texture NORMALMAP_DEPTH is for (relative: dark ones twice as deep at most)
+#define HEIGHT_LOW			0.02f // made heights (vr_parallax): the share of a texture's texels at the deepest,
+#define HEIGHT_HIGH			0.98f // and below the surface's top
+#define HEIGHT_MINRANGE		0.2f // a flatter texture's shading isn't stretched to the whole depth (its grain would)
 
 unsigned int d_8to24table_opaque[256];			//standard palette with alpha 255 for all colors
 unsigned int d_8to24table[256];					//standard palette, 255 is transparent
@@ -1334,13 +1337,16 @@ static void GL_TexImage (gltexture_t *glt, GLint level, GLint internalformat, GL
 TexMgr_ShadingToNormals -- QVR: a texture's shading made a normal map (DarkPlaces' r_shadow_bumpscale_basetexture):
 its luminance taken for height, bumps from its Sobel gradient; `scale` is how deep a step from black to white is, in
 texels, for a texture of average brightness (NORMALMAP_MEAN; darker ones deeper). The texture tiles: the edges wrap
-round. Tangent space: x along the texture's s, y up its rows (green up).
+round. Tangent space: x along the texture's s, y up its rows (green up). With `heights`, alpha is the height parallax
+mapping walks (TexMgr_ShadingToHeights), `texelsperunit` how fine the texture is in the world; else 255.
 ================
 */
-static void TexMgr_ShadingToNormals (byte *data, int width, int height, float scale)
+static void TexMgr_ShadingToHeights (const float *lum, float *h, int width, int height, float texelsperunit);
+
+static void TexMgr_ShadingToNormals (byte *data, int width, int height, float scale, qboolean heights, float texelsperunit)
 {
 	int		x, y, mark;
-	float	*lum, mean = 0.f;
+	float	*lum, *h = NULL, mean = 0.f;
 
 	if (width < 1 || height < 1)
 		return;
@@ -1350,6 +1356,11 @@ static void TexMgr_ShadingToNormals (byte *data, int width, int height, float sc
 	{
 		lum[x] = (data[x*4+0] * 0.299f + data[x*4+1] * 0.587f + data[x*4+2] * 0.114f) * (1.f / 255.f);
 		mean += lum[x];
+	}
+	if (heights)
+	{
+		h = (float *) Hunk_AllocNoFill (width * height * sizeof (float));
+		TexMgr_ShadingToHeights (lum, h, width, height, texelsperunit);
 	}
 	// Shading relative to the texture's own brightness: Quake's dark textures as bumpy as bright ones.
 	mean /= (float)(width * height);
@@ -1374,9 +1385,61 @@ static void TexMgr_ShadingToNormals (byte *data, int width, int height, float sc
 			out[0] = (byte) CLAMP (0, (int)((n[0] * len * 0.5f + 0.5f) * 255.f + 0.5f), 255);
 			out[1] = (byte) CLAMP (0, (int)((n[1] * len * 0.5f + 0.5f) * 255.f + 0.5f), 255);
 			out[2] = (byte) CLAMP (0, (int)((n[2] * len * 0.5f + 0.5f) * 255.f + 0.5f), 255);
-			out[3] = 255;
+			out[3] = h ? (byte) CLAMP (0, (int)(h[y * width + x] * 255.f + 0.5f), 255) : 255;
 		}
 	}
+	Hunk_FreeToLowMark (mark);
+}
+
+/*
+================
+TexMgr_ShadingToHeights -- QVR: the heights parallax mapping (vr_parallax) walks, from a texture's luminance `lum`:
+darker is deeper, as with the bumps. Blurred a little first (1 2 1 across and down, twice on a texture finer than a
+texel a unit: about a unit either side), so that its grain doesn't make spikes; then stretched to the texture's own
+range, HEIGHT_LOW of its texels at the bottom and 1 - HEIGHT_HIGH at the top, the surface (1). A flat texture's range
+is taken as HEIGHT_MINRANGE at least: shallower. The texture tiles: the edges wrap round.
+================
+*/
+static void TexMgr_ShadingToHeights (const float *lum, float *h, int width, int height, float texelsperunit)
+{
+	int		x, y, i, pass, passes, mark, count = width * height;
+	int		histogram[256], seen;
+	float	*tmp, lo, hi, range;
+
+	mark = Hunk_LowMark ();
+	tmp = (float *) Hunk_AllocNoFill (count * sizeof (float));
+	memcpy (h, lum, count * sizeof (float));
+	passes = texelsperunit > 1.5f ? 2 : 1;
+	for (pass = 0; pass < passes; pass++)
+	{
+		for (y = 0; y < height; y++)
+			for (x = 0; x < width; x++)
+			{
+				const float *row = h + y * width;
+				tmp[y * width + x] = (row[(x + width - 1) % width] + 2.f * row[x] + row[(x + 1) % width]) * 0.25f;
+			}
+		for (y = 0; y < height; y++)
+		{
+			const float *up = tmp + ((y + height - 1) % height) * width;
+			const float *mid = tmp + y * width;
+			const float *down = tmp + ((y + 1) % height) * width;
+			for (x = 0; x < width; x++)
+				h[y * width + x] = (up[x] + 2.f * mid[x] + down[x]) * 0.25f;
+		}
+	}
+
+	memset (histogram, 0, sizeof (histogram));
+	for (i = 0; i < count; i++)
+		histogram[CLAMP (0, (int)(h[i] * 255.f + 0.5f), 255)]++;
+	for (i = 0, seen = 0; i < 255 && seen + histogram[i] <= (int)(count * HEIGHT_LOW); i++)
+		seen += histogram[i];
+	lo = i / 255.f;
+	for (i = 255, seen = 0; i > 0 && seen + histogram[i] <= (int)(count * (1.f - HEIGHT_HIGH)); i--)
+		seen += histogram[i];
+	hi = i / 255.f;
+	range = q_max (hi - lo, HEIGHT_MINRANGE);
+	for (i = 0; i < count; i++)
+		h[i] = 1.f - CLAMP (0.f, (hi - h[i]) / range, 1.f);
 	Hunk_FreeToLowMark (mark);
 }
 
@@ -1390,7 +1453,8 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	int	miplevel, mipwidth, mipheight, picmip;
 	glformat_t internalformat;
 	qboolean compress;
-	int normalmap = normalmap_kind[glt - gltextures_base]; // QVR
+	int normalmap = normalmap_kind[glt - gltextures_base] & ~NORMALMAP_HEIGHTS; // QVR
+	qboolean heights; // QVR
 
 	// HASALPHA detection
 	if (glt->source_format == SRC_RGBA && !(glt->flags & TEXPREF_ALPHAPIXELS) && !normalmap) // QVR: normal maps are opaque
@@ -1441,17 +1505,22 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 			TexMgr_AlphaEdgeFix ((byte *)data, glt->width, glt->height);
 	}
 
+	// QVR: the world's normal maps (NORMALMAP_HEIGHTS) carry the heights parallax mapping walks (vr_parallax) in alpha:
+	// made ones from the shading, authored ones their own alpha (DarkPlaces' convention; 255, flat, if they have none)
+	heights = (normalmap_kind[glt - gltextures_base] & NORMALMAP_HEIGHTS) != 0;
 	if (normalmap == NORMALMAP_SHADING) // QVR
-		TexMgr_ShadingToNormals ((byte *)data, glt->width, glt->height,
-			NORMALMAP_DEPTH * glt->width / q_max (1, (int)normalmap_worldwidth[glt - gltextures_base]));
+	{
+		float texelsperunit = glt->width / (float) q_max (1, (int)normalmap_worldwidth[glt - gltextures_base]);
+		TexMgr_ShadingToNormals ((byte *)data, glt->width, glt->height, NORMALMAP_DEPTH * texelsperunit, heights, texelsperunit);
+	}
 
 	// upload
 	compress = gl_compress_textures.value && TexMgr_CanCompress (glt);
 	internalformat = (glt->flags & TEXPREF_HASALPHA) ? glformats[compress].alpha : glformats[compress].solid;
-	if (normalmap) // QVR: x and y only, half the memory (the shaders make z)
+	if (normalmap) // QVR: x and y only, half the memory (the shaders make z); and the height, for the world's
 	{
-		internalformat.id = GL_RG8;
-		internalformat.ratio = 2;
+		internalformat.id = heights ? GL_RGBA8 : GL_RG8;
+		internalformat.ratio = heights ? 1 : 2;
 	}
 	glt->compression = internalformat.ratio;
 	GL_Bind (GL_TEXTURE0, glt);
@@ -1708,7 +1777,8 @@ gltexture_t *TexMgr_LoadImageEx (qmodel_t *owner, const char *name, int width, i
 ================
 TexMgr_LoadNormalMap -- QVR: the normal map dynamic lights light `base` with (vr_normalmaps): made from `data`, the
 texture's own pixels or a *_bump height map (NORMALMAP_SHADING), or an authored *_norm map (NORMALMAP_AUTHORED).
-`worldwidth` is the texture's width in the world (a replacement image has more texels), for the bumps' depth. It is
+`worldwidth` is the texture's width in the world (a replacement image has more texels), for the bumps' depth. With
+NORMALMAP_HEIGHTS or'ed into `kind` (the world's), its alpha is the height parallax mapping walks (vr_parallax). It is
 reloaded from its source like any texture, and freed with its owner.
 ================
 */
@@ -1719,7 +1789,7 @@ gltexture_t *TexMgr_LoadNormalMap (gltexture_t *base, const char *name, int widt
 	gltexture_t	*glt;
 	int			mark;
 
-	if (isDedicated || !base || !data || kind == NORMALMAP_NONE || format == SRC_LIGHTMAP)
+	if (isDedicated || !base || !data || (kind & ~NORMALMAP_HEIGHTS) == NORMALMAP_NONE || format == SRC_LIGHTMAP)
 		return NULL;
 
 	q_snprintf (nmname, sizeof (nmname), "%s_vrnorm", name ? name : base->name);
@@ -1759,6 +1829,17 @@ gltexture_t *TexMgr_LoadNormalMap (gltexture_t *base, const char *name, int widt
 
 	normalmap_of[base - gltextures_base] = glt;
 	return glt;
+}
+
+/*
+================
+TexMgr_IndexedSmooth -- QVR: whether Quake's own (8-bit) textures are drawn smooth (vr_texture_smooth 2, or a linear
+gl_texturemode). Only then do they get heights for parallax mapping: drawn sharp, its shifts bend their texels.
+================
+*/
+qboolean TexMgr_IndexedSmooth (void)
+{
+	return VR_TextureSmoothing () >= 2 || glmodes[gl_texfilter.mode].magfilter == GL_LINEAR;
 }
 
 /*

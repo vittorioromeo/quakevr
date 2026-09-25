@@ -97,38 +97,40 @@ string(entity inflictor, entity attacker, float isVRMelee) VR_Dummy_Kind =
     if(vr_hitkind == QVR_HITKIND_SHOVE)
     {
         vr_dummy_colour = orange;
-        return "shove with both hands";
+        return vr_hithand >= 0 ? sprintf("shove with the %s", VR_Dummy_HandName(vr_hithand)) : "shove with both hands";
     }
 
     if(vr_hitkind == QVR_HITKIND_MELEE)
     {
         vr_dummy_colour = orange;
         float wid = VRGetEntWeapon(attacker, vr_hithand);
-        float speed = vr_hithand == cVR_OffHand ? attacker.offhandvelmag : attacker.handvelmag;
-        string what;
+        entity oldSelf = self;
+        self = attacker;
+        entity b = VR_Blow(vr_hithand);
+        self = oldSelf;
+        string what = VR_Blow_KindName(b.blow_kind);
+        string speed = sprintf("wrist %.1f m/s", b.blow_peak);
         if(wid == WID_FIST)
         {
             if(VR_Carry_IsHolding(attacker, vr_hithand))
             {
-                what = "a box in hand";
+                what = sprintf("%s with a box in hand", what);
             }
-            else
-            {
-                // A punch: the fist moving along its own forward (W_FistMelee).
-                what = normalize(VRGetEntHandVel(attacker, vr_hithand)) *
-                       VRForwardOf(VRGetEntHandRot(attacker, vr_hithand)) >= 0.6 ? "punch" : "fist";
-            }
-        }
-        else if(wid == WID_AXE || wid == WID_SWORD || wid == WID_MJOLNIR)
-        {
-            what = WeaponIdToWeaponName(wid);
         }
         else
         {
-            what = sprintf("%s as a club", WeaponIdToWeaponName(wid));
+            speed = sprintf("%.1f m/s", max(b.blow_peak, b.blow_tippeak));
+            if(wid == WID_AXE || wid == WID_SWORD || wid == WID_MJOLNIR)
+            {
+                what = sprintf("%s, %s", WeaponIdToWeaponName(wid), what);
+            }
+            else
+            {
+                what = sprintf("%s as a club, %s", WeaponIdToWeaponName(wid), what);
+            }
         }
-        return sprintf("melee: %s, %s, %.1f m/s (x%.2f)", what, VR_Dummy_HandName(vr_hithand), speed,
-            VRMeleeStrengthMult(speed));
+        return sprintf("melee: %s, %s, %s over %.0f cm (x%.2f)", what, VR_Dummy_HandName(vr_hithand), speed,
+            b.blow_dist * 100, b.blow_strength);
     }
 
     if(vr_hitkind == QVR_HITKIND_SHOT)

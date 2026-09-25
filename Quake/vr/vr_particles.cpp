@@ -8,6 +8,7 @@
 #include "vr_cvars.hpp"
 #include "vr_gfx.hpp"
 #include "vr_text3d.hpp"
+#include "vr_flashlight.hpp"
 #include "vr_profile.hpp"
 
 #include <algorithm>
@@ -38,7 +39,8 @@ enum Type : std::uint8_t
     Rock,
     GunSmoke,
     GunPickup,
-    Drip, // fades out quickly (a gib's blood trail)
+    Drip,   // fades out quickly (a gib's blood trail)
+    Custom, // fades, grows, slows and spins at its own rates (fade, grow, drag, spin)
 };
 
 // Atlas cells.
@@ -53,6 +55,7 @@ enum Cell : std::uint8_t
     CellSpark,
     CellRock,
     CellGunSmoke,
+    CellGlow, // a soft round glow (generated)
     CellCount
 };
 
@@ -66,9 +69,14 @@ struct Particle
     float scale{1.f};
     float ramp{0.f};
     double die{0.0};
+    float fade{0.f}; // Custom: alpha per second,
+    float grow{0.f}; // scale per second,
+    float drag{0.f}; // the part of its speed lost per second,
+    float spin{0.f}; // radians per second
     Type type{Static};
     Cell cell{CellCircle};
     bool spinBack{false};
+    bool additive{false}; // glows: added to the scene (else alpha blended)
 };
 
 constexpr std::size_t maxParticles = 32768;
@@ -120,6 +128,27 @@ void make(float count, F&& f)
 void setColor(Particle& p, int index, float alpha255)
 {
     p.color = glm::vec4{paletteColor(index), alpha255 / 255.f};
+}
+
+// How many of a trail's particles for `length` units of it, one per `spacing` on average (rounded
+// at random: a short segment each frame still gets its share).
+[[nodiscard]] float perLength(float length, float spacing)
+{
+    return std::floor(length / spacing + rnd(0.f, 1.f));
+}
+
+[[nodiscard]] glm::vec3 inBox(float half)
+{
+    return {rnd(-half, half), rnd(-half, half), rnd(-half, half)};
+}
+
+// A random direction.
+[[nodiscard]] glm::vec3 onSphere()
+{
+    const float z = rnd(-1.f, 1.f);
+    const float a = rndAngle();
+    const float r = std::sqrt(std::max(0.f, 1.f - z * z));
+    return {r * std::cos(a), r * std::sin(a), z};
 }
 
 // ---- Presets --------------------------------------------------------------------------------
@@ -184,9 +213,11 @@ void explosion(const glm::vec3& org)
 
 void bulletPuff(const glm::vec3& org, const glm::vec3& dir, int color, int count)
 {
+    // Quake's black (a bullet, a nail): grey chips of the wall, not black ones.
+    const auto debris = [color]() { return color < 8 ? rndi(6, 13) : (color & ~7) + rndi(0, 8); };
     make(count * 0.7f, [&](Particle& p, int) {
         p.cell = CellRock;
-        setColor(p, (color & ~7) + rndi(0, 8), 255);
+        setColor(p, debris(), 255);
         p.die = cl.time + 0.7 * rndi(0, 5);
         p.scale = rnd(0.5f, 0.9f);
         p.type = Rock;
@@ -207,7 +238,7 @@ void bulletPuff(const glm::vec3& org, const glm::vec3& dir, int color, int count
     });
     make(count * 0.7f, [&](Particle& p, int) {
         p.cell = CellCircle;
-        setColor(p, (color & ~7) + rndi(0, 8), 255);
+        setColor(p, debris(), 255);
         p.die = cl.time + 0.75 * rndi(0, 5);
         p.scale = rnd(0.05f, 0.3f);
         p.type = Static;
@@ -447,6 +478,12 @@ void run()
                 p.scale -= 0.1f * dt;
                 break;
             case Drip: fade(p, -170.f); break;
+            case Custom:
+                p.color.a += p.fade * dt;
+                p.scale += p.grow * dt;
+                p.vel *= std::max(0.f, 1.f - p.drag * dt);
+                p.angle += p.spin * dt;
+                break;
             default: break;
         }
     }
@@ -486,6 +523,24 @@ constexpr int atlasRows = 3;
     return dst;
 }
 
+// A soft glow: white, its alpha falling off as a Gaussian to nothing at the edge.
+[[nodiscard]] std::vector<std::uint8_t> buildGlow(int size)
+{
+    std::vector<std::uint8_t> dst(static_cast<std::size_t>(size * size * 4), 255);
+    const float c = (size - 1) * 0.5f;
+    for(int y = 0; y < size; y++)
+    {
+        for(int x = 0; x < size; x++)
+        {
+            const float dx = (x - c) / c, dy = (y - c) / c;
+            const float r2 = dx * dx + dy * dy;
+            const float a = std::max(0.f, std::exp(-r2 * 4.5f) - std::exp(-4.5f)) / (1.f - std::exp(-4.5f));
+            dst[static_cast<std::size_t>((y * size + x) * 4 + 3)] = static_cast<std::uint8_t>(a * 255.f + 0.5f);
+        }
+    }
+    return dst;
+}
+
 bool ensureAtlas()
 {
     if(atlas || atlasFailed)
@@ -510,6 +565,7 @@ bool ensureAtlas()
     };
 
     put(CellCircle, buildDisc(64).data(), 64, 64);
+    put(CellGlow, buildGlow(64).data(), 64, 64);
 
     struct File
     {
@@ -537,7 +593,15 @@ bool ensureAtlas()
         Hunk_FreeToLowMark(mark);
     }
 
-    atlas = gfx::createTexture(width, height, pixels.data());
+    // Premultiplied (drawn with the premultiplied blend: glows, alpha 0, add) and mipmapped.
+    for(std::size_t i = 0; i < pixels.size(); i += 4)
+    {
+        for(std::size_t c = 0; c < 3; c++)
+        {
+            pixels[i + c] = static_cast<std::uint8_t>((pixels[i + c] * pixels[i + 3] + 127) / 255);
+        }
+    }
+    atlas = gfx::createTexture(width, height, pixels.data(), true);
     atlasFailed = atlas == 0;
     return atlas != 0;
 }
@@ -558,6 +622,343 @@ void explosion2(const glm::vec3& org, int colorStart, int colorLength)
         p.vel = {rnd(-256, 256), rnd(-256, 256), rnd(-256, 256)};
     });
     explosion(org); // the rest as the plain explosion's (minus its ramp circles, close enough)
+}
+
+// ---- Quake's own effects (R_RocketTrail, R_BlobExplosion, R_LavaSplash, R_TeleportSplash) -----
+
+// The colours of the scrag's, hell knight's and vore's projectiles, as their lights (vr_emissive.cpp).
+const glm::vec3 scragGreen{0.45f, 1.f, 0.2f};
+const glm::vec3 knightOrange{1.f, 0.52f, 0.16f};
+const glm::vec3 vorePurple{0.95f, 0.4f, 0.9f};
+
+[[nodiscard]] glm::vec3 fireColor()
+{
+    return glm::mix(glm::vec3{1.f, 0.42f, 0.1f}, glm::vec3{1.f, 0.8f, 0.35f}, rnd(0.f, 1.f));
+}
+
+// Flames licking off something burning as it flies (rockets, lava balls, hell knight flames), at
+// `spacing` units apart along `from` -> `to`.
+void flames(const glm::vec3& from, const glm::vec3& to, float spacing, float scale, const glm::vec3& tint)
+{
+    const glm::vec3 d = to - from;
+    make(perLength(glm::length(d), spacing), [&](Particle& p, int) {
+        p.cell = CellExplosion;
+        p.additive = true;
+        p.color = glm::vec4{fireColor() * tint, rnd(0.45f, 0.7f)};
+        p.die = cl.time + 0.45;
+        p.scale = rnd(0.8f, 1.2f) * scale;
+        p.type = Custom;
+        p.fade = -rnd(1.8f, 2.6f);
+        p.grow = 2.5f * scale;
+        p.spin = rnd(-3.f, 3.f);
+        p.org = from + d * rnd(0.f, 1.f) + inBox(1.f);
+        p.vel = inBox(8.f) + glm::vec3{0.f, 0.f, 12.f};
+    });
+}
+
+// Embers: small sparks thrown off, falling a little, `spacing` units apart.
+void embers(const glm::vec3& from, const glm::vec3& to, float spacing, const glm::vec3& color, float speed, float grav)
+{
+    const glm::vec3 d = to - from;
+    make(perLength(glm::length(d), spacing), [&](Particle& p, int) {
+        p.cell = CellSpark;
+        p.additive = true;
+        p.color = glm::vec4{color, 1.f};
+        p.die = cl.time + rnd(0.5f, 0.9f);
+        p.scale = rnd(0.22f, 0.4f);
+        p.type = Custom;
+        p.fade = -1.5f;
+        p.grow = -0.2f;
+        p.drag = 1.2f;
+        p.spin = rnd(-6.f, 6.f);
+        p.acc = gravity(grav);
+        p.org = from + d * rnd(0.f, 1.f);
+        p.vel = onSphere() * rnd(0.3f, 1.f) * speed;
+    });
+}
+
+// Smoke left behind, `spacing` units apart: `grey` its colour, `alpha` how thick.
+void smokeTrail(const glm::vec3& from, const glm::vec3& to, float spacing, float grey, float alpha, float scale)
+{
+    const glm::vec3 d = to - from;
+    make(perLength(glm::length(d), spacing), [&](Particle& p, int) {
+        p.cell = CellSmoke;
+        const float g = grey * rnd(0.85f, 1.15f);
+        p.color = glm::vec4{g, g, g * 0.97f, alpha * rnd(0.8f, 1.2f)};
+        p.die = cl.time + rnd(1.8f, 2.6f);
+        p.scale = rnd(0.8f, 1.2f) * scale;
+        p.type = Custom;
+        p.fade = -alpha / 2.2f;
+        p.grow = 3.5f * scale;
+        p.drag = 0.8f;
+        p.spin = rnd(-0.6f, 0.6f);
+        p.acc = gravity(-0.02f);
+        p.org = from + d * rnd(0.f, 1.f) + inBox(1.5f);
+        p.vel = inBox(6.f);
+    });
+}
+
+// A magic projectile's trail: a soft glow of its colour and sparkles drifting off it.
+void sparkleTrail(const glm::vec3& from, const glm::vec3& to, const glm::vec3& color, float glowScale)
+{
+    const glm::vec3 d = to - from;
+    const float length = glm::length(d);
+    make(perLength(length, 1.2f), [&](Particle& p, int) {
+        p.cell = CellGlow;
+        p.additive = true;
+        p.color = glm::vec4{color, 0.22f};
+        p.die = cl.time + 0.45;
+        p.scale = rnd(0.9f, 1.1f) * glowScale;
+        p.type = Custom;
+        p.fade = -0.5f;
+        p.grow = -glowScale * 1.8f;
+        p.org = from + d * rnd(0.f, 1.f);
+    });
+    make(perLength(length, 4.f), [&](Particle& p, int) {
+        p.cell = CellSpark;
+        p.additive = true;
+        p.color = glm::vec4{glm::mix(color, glm::vec3{1.f}, rnd(0.f, 0.4f)), 1.f};
+        p.die = cl.time + rnd(0.5f, 0.8f);
+        p.scale = rnd(0.25f, 0.45f);
+        p.type = Custom;
+        p.fade = -1.4f;
+        p.grow = -0.25f;
+        p.drag = 1.5f;
+        p.spin = rnd(-8.f, 8.f);
+        p.acc = gravity(0.03f);
+        p.org = from + d * rnd(0.f, 1.f) + inBox(1.5f);
+        p.vel = onSphere() * rnd(12.f, 36.f);
+    });
+}
+
+// R_RocketTrail's trails, `type` as Quake's (128 and up: denser, the same here), for a model `size`
+// times a rocket's.
+void rocketTrail(const glm::vec3& from, const glm::vec3& to, int type, float size)
+{
+    switch(type & 127)
+    {
+        case 0: // a rocket, a lava ball: fire, embers and dark smoke
+            flames(from, to, 2.2f / size, 1.8f * size, glm::vec3{1.f});
+            embers(from, to, 8.f / size, glm::vec3{1.f, 0.6f, 0.2f}, 40.f * size, 0.15f);
+            smokeTrail(from, to, 4.f, 0.28f, 0.4f, 1.2f * size);
+            break;
+        case 1: // a grenade: light grey smoke, and its fuse
+            smokeTrail(from, to, 3.f, 0.55f, 0.4f, 0.8f);
+            embers(from, to, 14.f, glm::vec3{1.f, 0.55f, 0.15f}, 15.f, 0.1f);
+            break;
+        case 2: // blood
+        case 4: // a little blood
+        {
+            const glm::vec3 d = to - from;
+            const float length = glm::length(d);
+            const glm::vec3 dir = length > 0.f ? d / length : glm::vec3{0.f};
+            const float n = perLength(length, (type & 127) == 2 ? 6.f : 12.f);
+            for(int i = 0; i < static_cast<int>(n); i++)
+            {
+                bloodTrail(from + d * rnd(0.f, 1.f), dir, 1);
+            }
+            break;
+        }
+        case 3: sparkleTrail(from, to, scragGreen, 4.f); break; // a scrag's spit
+        case 5:                                                 // a hell knight's flame
+            flames(from, to, 2.f, 1.2f, glm::vec3{1.f, 0.85f, 0.7f});
+            sparkleTrail(from, to, knightOrange, 3.f);
+            break;
+        case 6: sparkleTrail(from, to, vorePurple, 5.f); break; // a vore's ball
+        default: break;
+    }
+}
+
+// A glowing burst where a scrag's spit or a hell knight's spike hits a wall.
+void magicImpact(const glm::vec3& org, const glm::vec3& color, int count)
+{
+    make(1, [&](Particle& p, int) {
+        p.cell = CellGlow;
+        p.additive = true;
+        p.color = glm::vec4{color, 0.7f};
+        p.die = cl.time + 0.3;
+        p.scale = 9.f;
+        p.type = Custom;
+        p.fade = -2.8f;
+        p.grow = 14.f;
+        p.org = org;
+    });
+    make(count, [&](Particle& p, int) {
+        p.cell = CellSpark;
+        p.additive = true;
+        p.color = glm::vec4{glm::mix(color, glm::vec3{1.f}, rnd(0.f, 0.35f)), 1.f};
+        p.die = cl.time + rnd(0.4f, 0.8f);
+        p.scale = rnd(0.3f, 0.55f);
+        p.type = Custom;
+        p.fade = -1.4f;
+        p.drag = 2.f;
+        p.spin = rnd(-8.f, 8.f);
+        p.acc = gravity(0.2f);
+        p.org = org + inBox(2.f);
+        p.vel = onSphere() * rnd(40.f, 120.f);
+    });
+}
+
+// A tarbaby blowing up: violet and red blobs flung out, a violet flash, sparks and smoke.
+void blobExplosion(const glm::vec3& org)
+{
+    make(160, [&](Particle& p, int i) {
+        p.cell = CellGlow;
+        p.additive = true;
+        p.color = glm::vec4{i & 1 ? glm::vec3{0.65f, 0.25f, 1.f} : glm::vec3{1.f, 0.2f, 0.35f}, 0.9f};
+        p.die = cl.time + rnd(1.f, 1.4f);
+        p.scale = rnd(1.4f, 2.4f);
+        p.type = Custom;
+        p.fade = -0.8f;
+        p.grow = -0.6f;
+        p.drag = 1.6f;
+        p.acc = gravity(0.3f);
+        p.org = org + inBox(16.f);
+        p.vel = inBox(256.f);
+    });
+    make(3, [&](Particle& p, int) {
+        p.cell = CellSmoke; // grey: tinted violet (the fireball's texture is orange)
+        p.additive = true;
+        p.color = glm::vec4{0.6f, 0.3f, 1.f, 1.f};
+        p.die = cl.time + 1.5;
+        p.scale = rnd(1.2f, 2.f) * 2.f;
+        p.type = TxExplode;
+        p.spinBack = rndi(0, 2);
+        p.org = org + inBox(8.f);
+        p.vel = inBox(8.f);
+    });
+    make(48, [&](Particle& p, int) {
+        p.cell = CellSpark;
+        p.additive = true;
+        p.color = glm::vec4{glm::mix(glm::vec3{0.7f, 0.35f, 1.f}, glm::vec3{1.f}, rnd(0.f, 0.4f)), 1.f};
+        p.die = cl.time + 1.2;
+        p.scale = rnd(0.9f, 1.4f);
+        p.type = Rock;
+        p.spinBack = rndi(0, 2);
+        p.acc = gravity(0.5f);
+        p.org = org + inBox(12.f);
+        p.vel = inBox(220.f);
+    });
+    make(4, [&](Particle& p, int) {
+        p.cell = CellSmoke;
+        p.color = glm::vec4{0.22f, 0.16f, 0.26f, 0.8f};
+        p.die = cl.time + 3.5;
+        p.scale = rnd(1.4f, 1.9f);
+        p.type = TxSmoke;
+        p.acc = gravity(-0.09f);
+        p.org = org + inBox(6.f);
+        p.vel = inBox(24.f);
+    });
+}
+
+// Lava thrown up over a 256-unit square (Chthon rising): glowing droplets and embers, bursts of
+// fire and smoke.
+void lavaSplash(const glm::vec3& org)
+{
+    const auto spot = [&](glm::vec3& dir) {
+        dir = {rnd(-128.f, 128.f), rnd(-128.f, 128.f), 256.f};
+        return org + glm::vec3{dir.x, dir.y, rnd(0.f, 63.f)};
+    };
+    make(260, [&](Particle& p, int) {
+        glm::vec3 dir;
+        p.org = spot(dir);
+        p.cell = CellGlow;
+        p.additive = true;
+        p.color = glm::vec4{1.f, rnd(0.25f, 0.55f), 0.05f, 0.9f};
+        p.die = cl.time + rnd(1.6f, 2.4f);
+        p.scale = rnd(0.9f, 1.6f);
+        p.type = Custom;
+        p.fade = -0.4f;
+        p.grow = -0.3f;
+        p.acc = gravity(0.12f);
+        p.vel = glm::normalize(dir) * rnd(60.f, 140.f);
+    });
+    make(200, [&](Particle& p, int) {
+        glm::vec3 dir;
+        p.org = spot(dir);
+        p.cell = CellSpark;
+        p.additive = true;
+        p.color = glm::vec4{fireColor(), 1.f};
+        p.die = cl.time + rnd(1.f, 2.f);
+        p.scale = rnd(0.35f, 0.6f);
+        p.type = Custom;
+        p.fade = -0.6f;
+        p.drag = 0.5f;
+        p.spin = rnd(-6.f, 6.f);
+        p.acc = gravity(0.2f);
+        p.vel = glm::normalize(dir) * rnd(90.f, 220.f) + inBox(30.f);
+    });
+    make(24, [&](Particle& p, int) {
+        glm::vec3 dir;
+        p.org = spot(dir);
+        p.cell = CellExplosion;
+        p.additive = true;
+        p.color = glm::vec4{fireColor(), 0.8f};
+        p.die = cl.time + 1.2;
+        p.scale = rnd(3.f, 5.f);
+        p.type = Custom;
+        p.fade = -0.9f;
+        p.grow = 6.f;
+        p.spin = rnd(-1.f, 1.f);
+        p.vel = {0.f, 0.f, rnd(30.f, 70.f)};
+    });
+    make(10, [&](Particle& p, int) {
+        glm::vec3 dir;
+        p.org = spot(dir);
+        p.cell = CellSmoke;
+        p.color = glm::vec4{0.2f, 0.18f, 0.16f, 0.7f};
+        p.die = cl.time + 4.0;
+        p.scale = rnd(4.f, 6.f);
+        p.type = TxBigSmoke;
+        p.acc = gravity(-0.05f);
+        p.vel = {rnd(-10.f, 10.f), rnd(-10.f, 10.f), rnd(20.f, 40.f)};
+    });
+}
+
+// A teleport: a flash, sparkles bursting out of the player's shape and motes rising.
+void teleportSplash(const glm::vec3& org)
+{
+    const glm::vec3 pale{0.7f, 0.82f, 1.f};
+    make(1, [&](Particle& p, int) {
+        p.cell = CellGlow;
+        p.additive = true;
+        p.color = glm::vec4{pale, 0.8f};
+        p.die = cl.time + 0.4;
+        p.scale = 30.f;
+        p.type = Custom;
+        p.fade = -2.4f;
+        p.grow = 30.f;
+        p.org = org + glm::vec3{0.f, 0.f, 4.f};
+    });
+    make(180, [&](Particle& p, int) {
+        const glm::vec3 at{rnd(-16.f, 16.f), rnd(-16.f, 16.f), rnd(-24.f, 32.f)};
+        p.cell = CellSpark;
+        p.additive = true;
+        p.color = glm::vec4{glm::mix(pale, glm::vec3{1.f}, rnd(0.f, 1.f)), 1.f};
+        p.die = cl.time + rnd(0.6f, 1.2f);
+        p.scale = rnd(0.3f, 0.55f);
+        p.type = Custom;
+        p.fade = -1.1f;
+        p.drag = 1.8f;
+        p.spin = rnd(-8.f, 8.f);
+        p.acc = gravity(0.05f);
+        p.org = org + at;
+        p.vel = glm::normalize(at + glm::vec3{0.f, 0.f, 1e-3f}) * rnd(50.f, 120.f);
+    });
+    make(60, [&](Particle& p, int) {
+        const float a = rndAngle();
+        const float r = rnd(4.f, 16.f);
+        p.cell = CellGlow;
+        p.additive = true;
+        p.color = glm::vec4{pale, 0.5f};
+        p.die = cl.time + rnd(0.8f, 1.3f);
+        p.scale = rnd(1.f, 1.6f);
+        p.type = Custom;
+        p.fade = -0.5f;
+        p.grow = -0.6f;
+        p.org = org + glm::vec3{std::cos(a) * r, std::sin(a) * r, rnd(-24.f, 24.f)};
+        p.vel = {0.f, 0.f, rnd(30.f, 80.f)};
+    });
 }
 
 } // namespace
@@ -612,6 +1013,7 @@ extern "C" void VR_DrawSceneTranslucent()
     using namespace qvr::particles;
 
     text3d::drawTranslucent(); // the floating texts, the wrist log (vr_text3d.cpp)
+    flashlight::drawTranslucent(); // the flashlight's visible beam (vr_flashlight.cpp)
 
     if(!(cl.protocolflags & PRFL_QUAKEVR) || pool.empty() || !atlas)
     {
@@ -635,7 +1037,9 @@ extern "C" void VR_DrawSceneTranslucent()
         const glm::vec3 r = (right * c + up * s) * (0.75f * p.scale);
         const glm::vec3 u = (up * c - right * s) * (0.75f * p.scale);
         const glm::vec4& uv = cellUv[p.cell];
-        const glm::vec4 color{p.color.r, p.color.g, p.color.b, std::min(p.color.a, 1.f)};
+        // Premultiplied: a glow's alpha 0 adds it.
+        const float a = std::min(p.color.a, 1.f);
+        const glm::vec4 color{glm::vec3{p.color} * a, p.additive ? 0.f : a};
 
         const gfx::Vertex downLeft{p.org - u - r, {uv.x, uv.y}, color};
         const gfx::Vertex upRight{p.org + u + r, {uv.z, uv.w}, color};
@@ -649,7 +1053,7 @@ extern "C" void VR_DrawSceneTranslucent()
     }
 
     gfx::draw(vertices, gfx::sceneViewProjection(),
-        {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Alpha, .depthTest = true, .depthWrite = false}, atlas);
+        {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Premultiplied, .depthTest = true, .depthWrite = false}, atlas);
 }
 
 // Quake's own effects, when Quake VR's particles are on (as the old engine drew them).
@@ -671,11 +1075,17 @@ extern "C" int VR_RunParticleEffect(const float* org, const float* dir, int colo
     {
         return spawn(o, d, Preset::Blood, std::max(1, count / 8));
     }
-    // Impacts: the bullet puff in the effect's colour.
     if(!vr_particles.value || !ensureAtlas())
     {
         return 0;
     }
+    // A scrag's spit and a hell knight's spike on a wall (TE_WIZSPIKE, TE_KNIGHTSPIKE).
+    if((color == 20 && count == 30) || (color == 226 && count == 20))
+    {
+        magicImpact(o, color == 20 ? scragGreen : knightOrange, count);
+        return 1;
+    }
+    // Impacts: the bullet puff in the effect's colour.
     bulletPuff(o, d, color, count);
     return 1;
 }
@@ -696,5 +1106,59 @@ extern "C" int VR_ParticleExplosion2(const float* org, int colorStart, int color
         return 0;
     }
     explosion2({org[0], org[1], org[2]}, colorStart, colorLength);
+    return 1;
+}
+
+// Quake's trails (CL_RocketTrail, R_RocketTrail's types) and splashes (r_part.c), when Quake VR's
+// particles are on. A trail is as big as the model leaving it (a lava ball's bigger than a rocket's).
+extern "C" int VR_EntityTrail(int ent, int type)
+{
+    using namespace qvr::particles;
+    if(!enabled() || ent <= 0 || ent >= cl.num_entities)
+    {
+        return 0;
+    }
+    const entity_t& e = cl_entities[ent];
+    float size = 1.f;
+    if(e.model)
+    {
+        const glm::vec3 extent{e.model->maxs[0] - e.model->mins[0], e.model->maxs[1] - e.model->mins[1],
+            e.model->maxs[2] - e.model->mins[2]};
+        size = std::clamp(glm::length(extent) * 0.5f / 9.f, 0.7f, 2.5f);
+    }
+    rocketTrail({e.trailorg[0], e.trailorg[1], e.trailorg[2]}, {e.origin[0], e.origin[1], e.origin[2]}, type, size);
+    return 1;
+}
+
+extern "C" int VR_BlobExplosion(const float* org)
+{
+    using namespace qvr::particles;
+    if(!enabled())
+    {
+        return 0;
+    }
+    blobExplosion({org[0], org[1], org[2]});
+    return 1;
+}
+
+extern "C" int VR_LavaSplash(const float* org)
+{
+    using namespace qvr::particles;
+    if(!enabled())
+    {
+        return 0;
+    }
+    lavaSplash({org[0], org[1], org[2]});
+    return 1;
+}
+
+extern "C" int VR_TeleportSplash(const float* org)
+{
+    using namespace qvr::particles;
+    if(!enabled())
+    {
+        return 0;
+    }
+    teleportSplash({org[0], org[1], org[2]});
     return 1;
 }

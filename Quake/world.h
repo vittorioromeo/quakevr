@@ -44,6 +44,7 @@ typedef struct
 #define	MOVE_NORMAL		0
 #define	MOVE_NOMONSTERS	1
 #define	MOVE_MISSILE	2
+#define	MOVE_HITGIBS	256	// QVR, added to a type: also hit gibs and heads (touchable non-solids that take damage), as missiles do
 
 
 void SV_ClearWorld (void);

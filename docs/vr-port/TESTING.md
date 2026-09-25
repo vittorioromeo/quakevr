@@ -141,7 +141,17 @@ context and screenshot, ready to paste or to point me at.
 
 ## What to try
 
-- **New in this round** (details in `docs/vr-port/ROUND11.md`, from your voice notes):
+- **New in this round** (details in `docs/vr-port/ROUND12.md`, your second batch of notes):
+  - **Melee:** real blows only (no flicks or wiggles), punches/slaps/overheads balanced, one-hand palm shove.
+  - **Parallax:** walls with depth (Graphics: Parallax, Depth, Distance).
+  - **Flashlight:** held right, shadows on, a soft beam of light.
+  - **Effects:** Quake VR particles for lava balls, rockets, grenades and projectiles; dented bullet holes;
+    gibs burst in a mist of blood when shot or thrown hard.
+  - **Gadget:** a CRT screen in one colour, a directed light, a soft glow; ammo screens tighter and glowing.
+  - **Firing range** relit; the shotgun's sights like the double shotgun's.
+  - **Graphics > Performance Profile** to record a profile.
+
+- **Previous round** (`docs/vr-port/ROUND11.md`, from your voice notes):
   - **Carrying:** held things stay in the hand when you move or turn; backpacks go to a holster; the force grab
     beam hits the middle of things; gibs stay on the floor.
   - **Chest flashlight:** trigger near your chest toggles it, grip takes it, let go and it springs back.

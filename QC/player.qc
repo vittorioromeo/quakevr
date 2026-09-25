@@ -779,6 +779,7 @@ void(string gibname, float dm) ThrowGib =
     new.frame = 0;
     new.flags = 0;
     VR_MakeGibGrabbable(new);
+    VR_Gib_MakeDestroyable(new, 1);
 
     particle2(self.origin, new.velocity, QVR_PARTICLE_PRESET_BLOOD, 40);
 };
@@ -816,6 +817,7 @@ void(string gibname, float dm) ThrowHead =
     self.gorging = TRUE;
     self.think = HeadThink;
     VR_MakeGibGrabbable(self);
+    VR_Gib_MakeDestroyable(self, 1.5);
 
     particle2(self.origin, self.velocity, QVR_PARTICLE_PRESET_BLOOD, 40);
 };

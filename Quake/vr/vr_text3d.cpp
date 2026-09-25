@@ -35,7 +35,9 @@ std::vector<gfx::Vertex> vertices; // glyphs
 std::vector<gfx::Vertex> panels;   // screens behind them
 std::vector<gfx::Vertex> floating; // floating texts and the wrist log (blended: they fade)
 std::vector<gfx::Vertex> backings; // the wrist log's backing (blended)
+std::vector<gfx::Vertex> glows;    // the screens' soft glows (added)
 gadget::Log wristLog;
+gadget::Glow gadgetGlow;
 int builtFrame = -1; // the host frame they were laid out in; -1 when texts were queued since
 std::vector<std::string_view> textLines; // layout()'s, kept between calls
 
@@ -160,6 +162,44 @@ void layoutLog(const gadget::Log& log, const glm::vec3& eye, const glm::vec3& ri
     }
 }
 
+// A soft glow round a screen's edge (gadget::Glow), as the bloom would give it: two rings, a
+// narrow bright one and a wide faint one, each fading out from the edge (the vertex colour's alpha
+// times 1 - distance^2: Shade::SoftEdge), their corners quarter discs.
+void glowRing(const gadget::Glow& g, float spread, float alpha)
+{
+    const glm::vec3 r = g.right, u = g.up;
+    const float w = g.halfSize.x, h = g.halfSize.y;
+    const glm::vec4 color{glm::vec3{g.color}, alpha};
+    // A quad from (x0, y0) to (x1, y1) in the screen's plane, with its corners' fading coordinates.
+    const auto piece = [&](float x0, float y0, float x1, float y1, glm::vec2 f00, glm::vec2 f10, glm::vec2 f11,
+                           glm::vec2 f01) {
+        const gfx::Vertex a{g.centre + r * x0 + u * y0, f00, color};
+        const gfx::Vertex b{g.centre + r * x1 + u * y0, f10, color};
+        const gfx::Vertex c{g.centre + r * x1 + u * y1, f11, color};
+        const gfx::Vertex d{g.centre + r * x0 + u * y1, f01, color};
+        for(const gfx::Vertex* v : {&a, &b, &c, &a, &c, &d})
+        {
+            glows.push_back(*v);
+        }
+    };
+    const float s = spread;
+    const glm::vec2 o{0.f}, x{1.f, 0.f}, y{0.f, 1.f}, xy{1.f, 1.f};
+    piece(w, -h, w + s, h, o, x, x, o);     // right
+    piece(-w - s, -h, -w, h, x, o, o, x);   // left
+    piece(-w, h, w, h + s, o, o, y, y);     // top
+    piece(-w, -h - s, w, -h, y, y, o, o);   // bottom
+    piece(w, h, w + s, h + s, o, x, xy, y); // corners
+    piece(-w - s, h, -w, h + s, x, o, y, xy);
+    piece(w, -h - s, w + s, -h, y, xy, x, o);
+    piece(-w - s, -h - s, -w, -h, xy, y, o, x);
+}
+
+void glow(const gadget::Glow& g)
+{
+    glowRing(g, g.spread * 0.35f, g.color.a);
+    glowRing(g, g.spread, g.color.a * 0.45f);
+}
+
 // A box centred on `c`, half extents `hr` along `right`, `hu` along `up`, `hn` along `n`; its
 // faces shaded a little by which way they face, so that it reads as a solid.
 void box(const glm::vec3& c, const glm::vec3& right, const glm::vec3& up, const glm::vec3& n, float hr, float hu, float hn,
@@ -244,6 +284,14 @@ void layout(std::string_view text, const glm::vec3& pos, const glm::vec3& angles
         const glm::vec3 c = pos - n * gap;
         quad(c - right * (halfW + pad) - up * (halfH + pad), c + right * (halfW + pad) - up * (halfH + pad),
             c + right * (halfW + pad) + up * (halfH + pad), c - right * (halfW + pad) + up * (halfH + pad), face);
+
+        // Its glow (vr_screen_glow), over the bezel and a little beyond, just in front of the face.
+        const float k = CLAMP(0.f, vr_screen_glow.value, 3.f);
+        if(k > 0.f && bright > 0.f)
+        {
+            glow({.centre = pos - n * (gap * 0.5f), .right = right, .up = up, .halfSize = {halfW + pad, halfH + pad},
+                .spread = bezel + charSize * 0.6f, .color = glm::vec4{glm::vec3{textColor}, 0.22f * k}});
+        }
     }
 
     for(size_t i = 0; i < textLines.size(); i++)
@@ -267,11 +315,17 @@ void layout(std::string_view text, const glm::vec3& pos, const glm::vec3& angles
 
 void drawTranslucent()
 {
-    if(!(cl.protocolflags & PRFL_QUAKEVR) || builtFrame != host_framecount || (floating.empty() && backings.empty()))
+    if(!(cl.protocolflags & PRFL_QUAKEVR) || builtFrame != host_framecount ||
+        (floating.empty() && backings.empty() && glows.empty()))
     {
         return;
     }
     const glm::mat4 viewProjection = gfx::sceneViewProjection();
+    if(!glows.empty())
+    {
+        gfx::draw(glows, viewProjection,
+            {.shade = gfx::Shade::SoftEdge, .blend = gfx::Blend::Additive, .depthTest = true, .depthWrite = false});
+    }
     if(!backings.empty())
     {
         gfx::draw(backings, viewProjection,
@@ -305,6 +359,8 @@ extern "C" void VR_DrawSceneOpaque()
     using namespace qvr;
     using namespace qvr::text3d;
 
+    gadget::drawScreen(); // the wrist gadget's screen (vr_gadget.cpp)
+
     if(!(cl.protocolflags & PRFL_QUAKEVR))
     {
         return;
@@ -321,6 +377,11 @@ extern "C" void VR_DrawSceneOpaque()
         panels.clear();
         floating.clear();
         backings.clear();
+        glows.clear();
+        if(gadget::screenGlow(gadgetGlow))
+        {
+            glow(gadgetGlow);
+        }
         for(const worldtext::WorldText& wt : worldtext::clientTexts())
         {
             layout(wt.text, wt.pos, wt.angles, static_cast<Align>(wt.hAlign), wt.scale);

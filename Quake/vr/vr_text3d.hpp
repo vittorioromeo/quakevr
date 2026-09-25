@@ -1,7 +1,8 @@
 // vr_text3d.hpp -- text drawn in the world with the console font (world texts, weapon ammo
 // counters, floating damage numbers, the wrist gadget's log), depth-tested in the scene pass: the
 // solid ones with the opaque entities, the blended ones (floating texts, the log) after the
-// translucent pass, over the sky.
+// translucent pass, over the sky. The ammo screens and the wrist gadget's glow softly round their
+// edges (vr_screen_glow), added in that pass too.
 
 #pragma once
 

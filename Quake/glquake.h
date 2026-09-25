@@ -438,14 +438,17 @@ typedef struct gpuframedata_s {
 	int		numlights;
 	int		shadowflags;	// QVR
 	float	lighttweak[4];	// QVR: lightmap contrast, its pivot (vr_light_contrast), specular intensity, normal map strength
+	float	parallax[4];	// QVR: parallax mapping (vr_parallax): depth in units (0 off), distance it ends at, steps, unused
 } gpuframedata_t;
 
 // QVR: normal maps for world textures and model skins (gl_texmgr.c; vr_normalmaps): made from the texture's shading
 // (NORMALMAP_SHADING: its luminance as height, or a *_bump height map's), or an authored *_norm map (NORMALMAP_AUTHORED).
-enum { NORMALMAP_NONE, NORMALMAP_SHADING, NORMALMAP_AUTHORED };
+// The world's (NORMALMAP_HEIGHTS or'ed in) carry the height parallax mapping walks in alpha (vr_parallax).
+enum { NORMALMAP_NONE, NORMALMAP_SHADING, NORMALMAP_AUTHORED, NORMALMAP_HEIGHTS = 4 };
 struct gltexture_s *TexMgr_LoadNormalMap (struct gltexture_s *base, const char *name, int width, int height, enum srcformat format,
 	byte *data, const char *source_file, src_offset_t source_offset, int kind, int worldwidth);
 struct gltexture_s *TexMgr_NormalMap (struct gltexture_s *glt); // its normal map, or a flat one
+qboolean TexMgr_IndexedSmooth (void); // Quake's own textures filtered smoothly (only then do they get heights)
 
 extern gpulightbuffer_t r_lightbuffer;
 extern gpuframedata_t r_framedata;

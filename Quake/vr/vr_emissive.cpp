@@ -158,17 +158,18 @@ void emissive::weaponScreenLight(int hand, const glm::vec3& pos, const glm::vec3
     AngleVectors(a, f, r, u);
     const glm::vec3 n = glm::normalize(glm::cross(glm::vec3{r[0], r[1], r[2]}, glm::vec3{u[0], u[1], u[2]}));
 
-    // A little in front of the screen: it lights the hand holding the gun, the gun's back and what
-    // is close by, faintly, in the screen's colour (its text's, less saturated).
+    // A little in front of the screen, small but bright: it lights the hand holding the gun, the
+    // gun's back and what is right by it in the screen's colour (its text's, less saturated), and
+    // hardly the room.
     dlight_t* dl = CL_AllocDlight(screenLightKey - hand);
-    const glm::vec3 p = pos + n * 3.f;
+    const glm::vec3 p = pos + n * 4.f;
     dl->origin[0] = p.x;
     dl->origin[1] = p.y;
     dl->origin[2] = p.z;
     dl->die = static_cast<float>(cl.time + 0.05);
-    dl->radius = 56.f;
+    dl->radius = 34.f;
     const bool darkplaces = vr_dlight_falloff.value != 0.f;
-    const glm::vec3 c = hsv(vr_gadget_screen_hue.value, 0.45f, 1.f) * (bright * k * (darkplaces ? 0.5f : 0.8f));
+    const glm::vec3 c = hsv(vr_gadget_screen_hue.value, 0.45f, 1.f) * (bright * k * (darkplaces ? 0.75f : 1.1f));
     dl->color[0] = c.r;
     dl->color[1] = c.g;
     dl->color[2] = c.b;

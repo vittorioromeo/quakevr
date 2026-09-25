@@ -1,8 +1,13 @@
 // vr_particles.hpp -- Quake VR's own particles (the old engine's r_part.cpp, ported): textured,
 // coloured, spinning and fading sprites for the QC's particle2 presets (QVR_PARTICLE_PRESET_*:
 // bullet puffs, blood, explosions, lightning, smoke, sparks, gun smoke, teleports, pickup and
-// force grab sparkles, lava spikes). The textures are quakevr/textures/particle_*.tga; drawn
-// through vr_gfx in the scene's translucent pass (VR_DrawSceneTranslucent).
+// force grab sparkles, lava spikes). They also stand in for Quake's own effects (r_part.c): wall
+// hits, explosions, the trails of rockets, lava balls, grenades, gibs and the scrag's, hell
+// knight's and vore's projectiles (fire and smoke; glowing ribbons with sparkles in the colours of
+// their lights), the tarbaby's explosion, lava splashes and teleports. The textures are
+// quakevr/textures/particle_*.tga (and a generated disc and glow), premultiplied and mipmapped;
+// glows are added to the scene, the rest alpha blended, in one draw through vr_gfx in the scene's
+// translucent pass (VR_DrawSceneTranslucent).
 //
 // vr_particles 0 falls back to Quake's own particle effects.
 

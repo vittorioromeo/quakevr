@@ -496,7 +496,8 @@ static void CL_RocketTrail (entity_t *ent, int type)
 	ent->traildelay -= cl.time - cl.oldtime;
 	if (ent->traildelay > 0.f)
 		return;
-	R_RocketTrail (ent->trailorg, ent->origin, type);
+	if (!VR_EntityTrail ((int)(ent - cl_entities), type)) // QVR: Quake VR's particles
+		R_RocketTrail (ent->trailorg, ent->origin, type);
 	CL_ResetTrail (ent);
 }
 
@@ -712,6 +713,9 @@ void CL_RelinkEntities (void)
 		ent->forcelink = false;
 
 		if (i == cl.viewentity && !chase_active.value)
+			continue;
+
+		if (VR_BulletHoleSprite (i)) // QVR: a chip decal in its place
 			continue;
 
 		if (cl_numvisedicts < MAX_VISEDICTS)

@@ -298,6 +298,9 @@ void R_BlobExplosion (vec3_t org)
 	int			i, j;
 	particle_t	*p;
 
+	if (VR_BlobExplosion (org)) // QVR: Quake VR's particles
+		return;
+
 	for (i=0 ; i<1024 ; i++)
 	{
 		if (!(p = R_AllocParticle ()))
@@ -396,6 +399,9 @@ void R_LavaSplash (vec3_t org)
 	float		vel;
 	vec3_t		dir;
 
+	if (VR_LavaSplash (org)) // QVR: Quake VR's particles
+		return;
+
 	for (i=-16 ; i<16 ; i++)
 		for (j=-16 ; j<16 ; j++)
 			for (k=0 ; k<1 ; k++)
@@ -432,6 +438,9 @@ void R_TeleportSplash (vec3_t org)
 	particle_t	*p;
 	float		vel;
 	vec3_t		dir;
+
+	if (VR_TeleportSplash (org)) // QVR: Quake VR's particles
+		return;
 
 	for (i=-16 ; i<16 ; i+=4)
 	{

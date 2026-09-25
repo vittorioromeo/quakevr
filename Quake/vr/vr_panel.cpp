@@ -49,8 +49,10 @@ float savedCrosshair = 0.f;
 
 // Draws the canvas as a quad: `mvp` maps the quad's (0..1, 0..1) to clip space, and its corners
 // to `uvRect` (u0, v0, u1, v1) of the canvas; texels inside `mask` (same layout, empty when
-// u1 <= u0) are left out. The canvas holds colours already multiplied by their alpha (2D was
-// drawn over transparent black).
+// u1 <= u0) are left out, with a texel round them: the filtering at the hole's edge would
+// otherwise blend in the texels just inside it, a faint outline of the status bar in front of the
+// head. The canvas holds colours already multiplied by their alpha (2D was drawn over transparent
+// black).
 void drawCanvas(const glm::mat4& mvp, const glm::vec4& uvRect = wholeCanvas, const glm::vec4& mask = noMask)
 {
     if(!canvas.texture)
@@ -80,11 +82,12 @@ void drawCanvas(const glm::mat4& mvp, const glm::vec4& uvRect = wholeCanvas, con
     }
     else
     {
-        // The quad around the mask's hole (in the quad's coordinates).
+        // The quad around the mask's hole (in the quad's coordinates), a texel wider all round.
         const glm::vec2 m0 = (glm::vec2{mask.x, mask.y} - uv0) / (uv1 - uv0);
         const glm::vec2 m1 = (glm::vec2{mask.z, mask.w} - uv0) / (uv1 - uv0);
-        const glm::vec2 lo = glm::clamp(glm::min(m0, m1), 0.f, 1.f);
-        const glm::vec2 hi = glm::clamp(glm::max(m0, m1), 0.f, 1.f);
+        const glm::vec2 texel = glm::abs(1.f / (glm::vec2{canvas.width, canvas.height} * (uv1 - uv0)));
+        const glm::vec2 lo = glm::clamp(glm::min(m0, m1) - texel, 0.f, 1.f);
+        const glm::vec2 hi = glm::clamp(glm::max(m0, m1) + texel, 0.f, 1.f);
         rect(0.f, 0.f, 1.f, lo.y);
         rect(0.f, hi.y, 1.f, 1.f);
         rect(0.f, lo.y, lo.x, hi.y);
@@ -94,22 +97,6 @@ void drawCanvas(const glm::mat4& mvp, const glm::vec4& uvRect = wholeCanvas, con
     gfx::draw(vertices, mvp,
         {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Premultiplied, .depthTest = false, .depthWrite = false},
         canvas.texture);
-}
-
-// An opaque texture on a quad in the world (`mvp` as drawCanvas's), hidden behind what is in
-// front of it: the gadget's screen, which a hand can pass in front of.
-void drawSurface(gfx::Texture texture, const glm::mat4& mvp)
-{
-    if(!texture)
-    {
-        return;
-    }
-
-    const gfx::Vertex c[4] = {{{0.f, 0.f, 0.f}, {0.f, 0.f}}, {{1.f, 0.f, 0.f}, {1.f, 0.f}}, {{1.f, 1.f, 0.f}, {1.f, 1.f}},
-        {{0.f, 1.f, 0.f}, {0.f, 1.f}}};
-    const gfx::Vertex quad[6] = {c[0], c[1], c[2], c[0], c[2], c[3]};
-    gfx::draw(quad, mvp, {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = false},
-        texture);
 }
 
 [[nodiscard]] bool panelVisible()
@@ -274,23 +261,10 @@ void drawInEye(const hands::State& s)
 
     if(!visible)
     {
-        // In game: the status bar on a hand (or the wrist gadget's screen instead), the rest in
-        // front of the head.
+        // In game: the status bar on a hand (unless the wrist gadget shows the HUD: its screen is
+        // drawn in the scene, gadget::drawScreen), the rest in front of the head.
         const SbarRect sbar = sbarRect();
-        if(gadget::active())
-        {
-            const gadget::Pose& g = gadget::pose();
-            if(g.valid)
-            {
-                glm::vec3 corner;
-                glm::vec2 size;
-                gadget::screenRect(corner, size);
-                const glm::vec3 origin = g.origin + g.axes * (corner * g.scale);
-                const glm::mat4 model = quad(origin, g.axes[0] * (size.x * g.scale), g.axes[1] * (size.y * g.scale));
-                drawSurface(gadget::screenTexture(), gfx::sceneViewProjection() * model);
-            }
-        }
-        else if(sbar.rows > 0.f)
+        if(!gadget::active() && sbar.rows > 0.f)
         {
             drawSbar(s, sbar);
         }

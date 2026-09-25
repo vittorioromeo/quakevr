@@ -34,6 +34,8 @@ enum class Shade
     SoftEdge,      // the vertex colour, its alpha fading out with |uv| (1 - |uv|^2): lines, discs
     Texture,       // the texture, times the vertex colour
     TextureCutout, // the texture's colour times the vertex colour, opaque, where its alpha is at least 2/3 (the font)
+    Screen,        // the wrist gadget's screen: the texture in one phosphor colour (the vertex colour), as
+                   // a small CRT (State::params: time in seconds, CRT strength, glitch 0..1, unused)
 };
 
 enum class Blend
@@ -42,6 +44,7 @@ enum class Blend
     Alpha,         // colours with a separate alpha
     Premultiplied, // colours already multiplied by their alpha (the 2D canvas)
     Modulate,      // the scene times the colour (premultiplied: dst * (colour + 1 - alpha)), decals
+    Additive,      // the colour times its alpha added to the scene (glows)
 };
 
 struct State
@@ -50,6 +53,7 @@ struct State
     Blend blend{Blend::Alpha};
     bool depthTest{true};
     bool depthWrite{false};
+    glm::vec4 params{0.f}; // the shade's own settings (Shade::Screen's)
 };
 
 // Triangles (three vertices each), transformed by `mvp` to clip space. No culling.
@@ -106,8 +110,9 @@ void endCanvas();
 void copy(const Target& target, Texture image);
 
 // RGBA8 colour textures: the mock backend's eye images (no data), or images such as the particle
-// atlas (`rgba`, rows top first; linear filtering, clamped).
-[[nodiscard]] Texture createTexture(int width, int height, const void* rgba = nullptr);
+// atlas (`rgba`, rows top first; linear filtering, clamped). `mipmaps`: with a full mipmap chain
+// built from `rgba`, filtered trilinearly and anisotropically (the decals' atlas).
+[[nodiscard]] Texture createTexture(int width, int height, const void* rgba = nullptr, bool mipmaps = false);
 void destroyTexture(Texture texture);
 
 // OpenGL only, for the module's own GL passes (vr_bloom.cpp, vr_lighting.cpp): a program from GLSL

@@ -2597,17 +2597,23 @@ float(float xHand, float xWpnId, string xSound, void(float xHand) xWpnFn) DoXHan
     return FALSE;
 }
 
-void(float xHand, float xInMelee, float xHandVelMag,
-     float* xOutMeleeAttackFinished, float* xOutInMelee, float* xMeleeHitSoundPlayed)
-     PlayerVRMeleeImpl =
+void(float xHand, float xInMelee, float* xOutMeleeAttackFinished, float* xOutInMelee,
+     float* xMeleeHitSoundPlayed) PlayerVRMeleeImpl =
 {
-    float vr_melee_threshold;
-    vr_melee_threshold = cvar_hget(cvarh_vr_melee_speed);
-
-    // Once per swing: after a hit (the hit sound played), not again until the hand slows down.
-    if(VRHandsTracked(self) && time >= xInMelee && xHandVelMag > vr_melee_threshold &&
-       !VRGetMeleeHitSoundPlayed(xHand))
+    // Once per blow (a real one: VR_Blow_IsBlow): after a hit (the hit sound played), not again
+    // until the hand stops or pulls back, and not within VR_BLOW_REARM.
+    entity b = VR_Blow(xHand);
+    if(VRGetMeleeHitSoundPlayed(xHand) && time >= b.blow_rearm &&
+       (b.blow_speed < VR_BLOW_MOVING || b.blow_vel * b.blow_dir < -VR_BLOW_MOVING))
     {
+        *xMeleeHitSoundPlayed = FALSE;
+    }
+
+    float blow = VR_Blow_IsBlow(xHand);
+    if(VRHandsTracked(self) && time >= xInMelee && blow && !VRGetMeleeHitSoundPlayed(xHand))
+    {
+        VR_Blow_Measure(xHand, VRGetEntWeapon(self, xHand) == WID_FIST);
+
         // A gun swung downwards makes no whoosh (only a hit sounds): reaching down to a holster
         // to reload is a fast swing too.
         string gunSound = "knight/sword1.wav";
@@ -2627,15 +2633,18 @@ void(float xHand, float xInMelee, float xHandVelMag,
 
         *xOutMeleeAttackFinished = time + 0.1;
         *xOutInMelee = time + 0.02;
+
+        if(VRGetMeleeHitSoundPlayed(xHand))
+        {
+            // It landed.
+            b.blow_dir = normalize(b.blow_wrist - b.blow_start);
+            b.blow_rearm = time + VR_BLOW_REARM;
+        }
     }
 
-    if(xHandVelMag <= vr_melee_threshold)
+    if(blow)
     {
-        *xMeleeHitSoundPlayed = FALSE;
-    }
-    else if(VRHandsTracked(self))
-    {
-        VR_Deflect(xHand); // any fast swing bats enemy projectiles back
+        VR_Deflect(xHand); // any blow bats enemy projectiles back
     }
 }
 
@@ -2764,12 +2773,13 @@ void() PlayerVRMelee =
 {
     PlayerVRMeleeHeadbutt();
     VR_Heartbeat();
+    VR_Blow_Update(cVR_MainHand);
+    VR_Blow_Update(cVR_OffHand);
     VR_Bash();
 
     PlayerVRMeleeImpl(
         cVR_MainHand,
         self.in_melee,
-        self.handvelmag,
         &self.mainhand_melee_attack_finished,
         &self.in_melee,
         &self.melee_hit_sound_played
@@ -2778,7 +2788,6 @@ void() PlayerVRMelee =
     PlayerVRMeleeImpl(
         cVR_OffHand,
         self.offhand_in_melee,
-        self.offhandvelmag,
         &self.offhand_melee_attack_finished,
         &self.offhand_in_melee,
         &self.offhand_melee_hit_sound_played

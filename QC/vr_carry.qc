@@ -71,6 +71,16 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Nudge =
         return;
     }
 
+    // A gib or head struck with a swing bursts (VR_Gib_Struck).
+    if(xBox.vr_gib)
+    {
+        VR_Gib_Struck(xPlayer, xHand, xBox);
+        if(!xBox.vr_gib)
+        {
+            return;
+        }
+    }
+
     vector v = VRGetEntHandVel(xPlayer, xHand) * VRMetersToUnits() * cvar_hget(cvarh_vr_carry_nudge);
     float speed = vlen(v);
     if(speed < 10)
@@ -161,6 +171,7 @@ void(float xHand, entity xBox) VR_Carry_Release =
     {
         xBox.owner = world;
     }
+    VR_Gib_Released(xBox, vlen(v) > 250); // a gib or head thrown hard bursts on a wall
 };
 
 // Take it: its own pickup, as if the carrying hand had touched it the old way.
@@ -329,7 +340,8 @@ void() VR_Carry_Weapontouch =
 
 void() VR_Gib_Touch =
 {
-    float fast = vlen(self.velocity) > 220;
+    float speed = vlen(self.velocity);
+    float fast = speed > 220;
     if(fast && other.solid == SOLID_BSP)
     {
         sound(self, CHAN_AUTO, "zombie/z_miss.wav", 0.7, ATTN_NORM);
@@ -353,7 +365,18 @@ void() VR_Gib_Touch =
         self.vr_spin = VRThrowSpinCapped(self.avelocity * 0.0087); // half its tumble, in radians
         self.avelocity = '0 0 0';
     }
+
+    // Thrown hard into a monster: it hurts it (forcegrabbable_touch, which ends the throw; not the
+    // thrower, whose body it leaves through), and bursts.
+    float thrown = self.throwhit == QVR_THROWHIT_NEVER_HIT;
+    vector dir = self.velocity;
     forcegrabbable_touch();
+    if(thrown && self.throwhit != QVR_THROWHIT_NEVER_HIT && other.takedamage &&
+       speed >= cvar_hget(cvarh_vr_gib_splat_speed) && VR_Gib_IsDestroyable(self))
+    {
+        dprint("gib: struck "); dprint(other.classname); dprint(" at "); dprint(ftos(speed)); dprint("\n");
+        VR_Gib_Burst(self, dir);
+    }
 };
 
 void(entity xGib) VR_MakeGibGrabbable =
@@ -384,6 +407,251 @@ void(entity xGib) VR_MakeGibGrabbable =
     {
         xGib.nextthink = time + 30 + random() * 15;
     }
+};
+
+// ----------------------------------------------------------------------------
+// Destroying gibs and heads (vr_gib_destroy): shot, blown up, struck, or thrown hard at a wall or a
+// monster, a gib or head bursts in a mist of blood and is gone. It has a little health
+// (vr_gib_health); its damage never reaches Quake's death code (T_Damage hands it to
+// VR_Gib_Damage), so nothing is counted or killed again. Shots and missiles stop at it (the
+// engine's MOVE_HITGIBS: it is not solid, and never blocks anything else). Only a grabbable one
+// (vr_grab_gibs) can be destroyed: it has a box to hit.
+
+// Added to a traceline's "nomonsters" (FALSE or TRUE): it also stops at gibs and heads that can be
+// destroyed (the engine's MOVE_HITGIBS). Missiles always do.
+float MOVE_HITGIBS = 256;
+
+.float vr_gib_healthmult; // 1 a gib, 1.5 a head
+.float vr_gib_hp;         // what damage it takes yet (not .health: a head is a dead monster, which must stay dead)
+.float vr_gib_armtime;    // when it can first be hit (not by the rest of the blow that threw it)
+.float vr_gib_flight;     // thrown: until when a hard hit on a wall bursts it
+.vector vr_gib_lastvel;   // thrown: its velocity at the last check, to see it strike a wall
+.float vr_gib_releasetime; // when a hand last let go of it
+
+float(entity xGib) VR_Gib_IsDestroyable =
+{
+    return xGib.th_die == VR_Gib_Die && cvar_hget(cvarh_vr_gib_destroy);
+};
+
+// From ThrowGib and ThrowHead, after VR_MakeGibGrabbable: `xHealthMult` of vr_gib_health.
+void(entity xGib, float xHealthMult) VR_Gib_MakeDestroyable =
+{
+    // Not a player's head (the player itself, who comes back).
+    if(!xGib.vr_gib || (xGib.flags & FL_CLIENT) || !cvar_hget(cvarh_vr_gib_destroy))
+    {
+        return;
+    }
+
+    xGib.vr_gib_healthmult = xHealthMult;
+    xGib.vr_gib_hp = max(1, cvar_hget(cvarh_vr_gib_health) * xHealthMult);
+    if(xGib.health >= 0)
+    {
+        xGib.health = -1; // dead meat: a rocket's direct hit looks for some health (T_MissileTouch), a headbutt for more
+    }
+    xGib.th_die = VR_Gib_Die; // a head's own death code (it is the monster) never runs again
+    xGib.th_pain = SUB_NullPain;
+    xGib.takedamage = DAMAGE_NO; // until armed: VR_Gib_Think2
+    xGib.vr_gib_armtime = time + 0.2;
+    xGib.think2 = VR_Gib_Think2;
+    xGib.nextthink2 = xGib.vr_gib_armtime;
+};
+
+// Arms it, and follows a thrown one's flight (VR_Gib_Released). A thrown gib is a rigid body, whose
+// landing on the world touches nothing: a hard hit is seen in its velocity, turned sharply between
+// two frames.
+void() VR_Gib_Think2 =
+{
+    if(!cvar_hget(cvarh_vr_gib_destroy))
+    {
+        self.takedamage = DAMAGE_NO;
+        self.vr_gib_flight = 0;
+        return;
+    }
+
+    float next = 0;
+    if(!self.takedamage)
+    {
+        if(time >= self.vr_gib_armtime && self.carry_player == world)
+        {
+            self.takedamage = DAMAGE_YES; // not DAMAGE_AIM: no autoaim at it
+        }
+        else
+        {
+            next = time + 0.1; // picked up at once: armed once let go of
+        }
+    }
+
+    if(self.vr_gib_flight && (time >= self.vr_gib_flight || self.carry_player != world))
+    {
+        self.vr_gib_flight = 0;
+    }
+    if(self.vr_gib_flight)
+    {
+        float splat = cvar_hget(cvarh_vr_gib_splat_speed);
+        vector change = self.velocity - self.vr_gib_lastvel;
+        if(vlen(self.vr_gib_lastvel) >= splat && vlen(change) >= splat)
+        {
+            dprint("gib: struck the world at "); dprint(ftos(vlen(self.vr_gib_lastvel))); dprint(", now ");
+            dprint(vtos(self.velocity)); dprint("\n");
+            VR_Gib_Burst(self, self.vr_gib_lastvel);
+            return;
+        }
+        self.vr_gib_lastvel = self.velocity;
+        next = time + 0.01; // the next frame
+    }
+
+    if(next)
+    {
+        self.nextthink2 = next;
+    }
+};
+
+// Let go of (VR_Carry_Release): the hand that let go does not strike it as it follows through
+// (VR_Gib_Struck). Thrown hard (`xHard`), for a few seconds a hard hit on a wall bursts it.
+void(entity xGib, float xHard) VR_Gib_Released =
+{
+    if(!VR_Gib_IsDestroyable(xGib))
+    {
+        return;
+    }
+    xGib.vr_gib_releasetime = time;
+    if(!xHard)
+    {
+        return;
+    }
+    dprint("gib: thrown at "); dprint(vtos(xGib.velocity)); dprint("\n");
+    xGib.vr_gib_flight = time + 3;
+    xGib.vr_gib_lastvel = xGib.velocity;
+    xGib.think2 = VR_Gib_Think2;
+    xGib.nextthink2 = time + 0.01;
+};
+
+// Its damage, from T_Damage (instead of Quake's). Pushed by the blow, burst at no health. Held, it
+// takes none.
+float(entity targ, entity inflictor, entity attacker, float damage) VR_Gib_Damage =
+{
+    if(!cvar_hget(cvarh_vr_gib_destroy))
+    {
+        targ.takedamage = DAMAGE_NO;
+        return FALSE;
+    }
+    if(targ.carry_player != world || damage <= 0)
+    {
+        return FALSE;
+    }
+
+    vector dir = '0 0 0';
+    if(inflictor != world && inflictor != targ)
+    {
+        dir = normalize((targ.absmin + targ.absmax) * 0.5 - (inflictor.absmin + inflictor.absmax) * 0.5);
+    }
+
+    targ.vr_gib_hp = targ.vr_gib_hp - damage;
+    dprint("gib: hit by "); dprint(inflictor.classname); dprint(" for "); dprint(ftos(damage)); dprint(", ");
+    dprint(ftos(max(0, targ.vr_gib_hp))); dprint(" left\n");
+    if(targ.vr_gib_hp <= 0)
+    {
+        VR_Gib_Burst(targ, dir);
+        return TRUE;
+    }
+
+    // Knocked away (a rigid body lying asleep wakes as it moves).
+    targ.velocity = targ.velocity + dir * min(400, damage * 12) + '0 0 1' * min(150, damage * 4);
+    targ.flags = targ.flags - (targ.flags & FL_ONGROUND);
+    return TRUE;
+};
+
+// Quake's death code, should anything run it (Killed): it bursts.
+void() VR_Gib_Die =
+{
+    VR_Gib_Burst(self, '0 0 0');
+};
+
+float vr_gib_burstsoundtime;
+
+// Bursts in a mist of blood and is gone: soft clouds of blood through where it was, a spray of blood
+// all round (splatting the walls and floor near by: the particles' decals), more along the blow
+// (`xDir`, if any), and the gib sound.
+void(entity xGib, vector xDir) VR_Gib_Burst =
+{
+    vector org = (xGib.absmin + xGib.absmax) * 0.5;
+    dprint("gib: burst at "); dprint(vtos(org)); dprint("\n");
+    float size = max(1, xGib.vr_gib_healthmult);
+    vector d;
+    float i;
+
+    // The mist.
+    for(i = 0; i < 3; i++)
+    {
+        d_x = crandom() * 6;
+        d_y = crandom() * 6;
+        d_z = crandom() * 6;
+        particle2(org + d, d * 0.5, QVR_PARTICLE_PRESET_BLOOD, 12 * size);
+    }
+
+    // The spray, every way.
+    for(i = 0; i < 4; i++)
+    {
+        d_x = crandom();
+        d_y = crandom();
+        d_z = crandom() * 0.7;
+        particle2(org, normalize(d) * 22, QVR_PARTICLE_PRESET_BLOOD, 8 * size);
+    }
+
+    // Along the blow.
+    if(xDir != '0 0 0')
+    {
+        particle2(org, normalize(xDir) * 30, QVR_PARTICLE_PRESET_BLOOD, 16 * size);
+    }
+
+    // Once a frame (a rocket bursts many).
+    if(vr_gib_burstsoundtime != time)
+    {
+        vr_gib_burstsoundtime = time;
+        sound(xGib, CHAN_AUTO, "player/udeath.wav", min(1, 0.55 * size), ATTN_NORM);
+    }
+
+    // Gone. Removed the next frame, not now: what struck it may still use it this frame.
+    xGib.takedamage = DAMAGE_NO;
+    xGib.th_die = SUB_Null;
+    xGib.vr_gib_hp = 0;
+    xGib.touch = SUB_Null;
+    xGib.handtouch = SUB_Null;
+    xGib.vr_wpntouch = SUB_Null;
+    xGib.vr_gib = FALSE;
+    xGib.vr_gib_flight = 0;
+    xGib.flags = xGib.flags - (xGib.flags & FL_FORCEGRABBABLE);
+    xGib.movetype = MOVETYPE_NONE;
+    xGib.solid = SOLID_NOT;
+    xGib.velocity = '0 0 0';
+    xGib.avelocity = '0 0 0';
+    xGib.vr_spin = '0 0 0';
+    xGib.vr_rigid = 0;
+    xGib.effects = 0;
+    xGib.model = string_null;
+    xGib.modelindex = 0;
+    setorigin(xGib, xGib.origin);
+    xGib.think = SUB_Remove;
+    xGib.nextthink = time + 0.1;
+    xGib.think2 = SUB_Null;
+    xGib.nextthink2 = 0;
+};
+
+// A hand or a gun striking it at a swing's speed (vr_melee_speed): the blow of a swing, from the
+// base of a punch at that speed up to three times it. Not just after a hand let go of it: a throw's
+// follow-through is not a blow.
+void(entity xPlayer, float xHand, entity xGib) VR_Gib_Struck =
+{
+    float threshold = max(0.1, cvar_hget(cvarh_vr_melee_speed));
+    float speed = vlen(VRGetEntHandVel(xPlayer, xHand));
+    if(speed < threshold || !VR_Gib_IsDestroyable(xGib) || !xGib.takedamage ||
+       time < xGib.vr_gib_releasetime + 0.4)
+    {
+        return;
+    }
+
+    float damage = 20 * min(3, speed / threshold) * cvar_hget(cvarh_vr_melee_dmg_multiplier);
+    T_Damage(xGib, xPlayer, xPlayer, damage);
 };
 
 // From MakeItemGrabbable: the box's pickup moves to carry_use; its hand and gun touches carry.

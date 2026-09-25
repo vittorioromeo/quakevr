@@ -5,7 +5,8 @@
 //
 // Client-side only: its model is a VR view entity (progs/vrflashlight.mdl, make_flashlight.py) and
 // its beam a few dynamic lights (there is no spotlight): a pool of light where the beam lands, a
-// dimmer one along the way, a faint glow at the lamp, and optionally a faint visible beam.
+// dimmer one along the way, a faint glow at the lamp; and a soft cone of light in the air
+// (vr_flashlight_beam), added onto each eye's scene.
 
 #pragma once
 
@@ -21,6 +22,10 @@ void init();
 // Once per frame, as the view is set up: moves the lamp, places its model in `ve` and lights its
 // beam.
 void setupView(const hands::State& s, view::ViewEntity& ve);
+
+// The visible beam, in each eye's scene after the translucent pass (VR_DrawSceneTranslucent):
+// depth-tested, added onto the scene.
+void drawTranslucent();
 
 // A controller's trigger or grip pressed or released (vr_input.cpp). True when the flashlight
 // takes it (switching it, holding it): the game does not see it. A press it takes, it also takes

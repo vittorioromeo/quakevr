@@ -102,8 +102,9 @@
 [[nodiscard]] std::vector<Item> pageMeleeSettings()
 {
     return {
-        slider("Swing Speed", "vr_melee_speed", 1.f, 8.f, 0.25f, "%.2f m/s").help("How fast a hand must swing to hit. Damage grows with the speed beyond it, up to three times."),
-        slider("Punch Damage Mult.", "vr_melee_punch_mult", 1.f, 3.f, 0.05f, "%.2f").help("Damage of a punch (the fist moving knuckles first) over any other swing."),
+        slider("Swing Speed", "vr_melee_speed", 1.f, 8.f, 0.25f, "%.2f m/s").help("How fast the wrist must move in a blow to hit. Damage grows with the speed beyond it, up to three times."),
+        slider("Blow Distance", "vr_melee_distance", 0.05f, 0.5f, 0.05f, "%.2f m").help("How far the wrist must travel in a blow to hit: wrist flicks and wiggles don't."),
+        slider("Punch Damage Mult.", "vr_melee_punch_mult", 1.f, 3.f, 0.05f, "%.2f").help("Damage of a straight punch (where you face) over a slap; overhead blows land between."),
         slider("Damage Multiplier", "vr_melee_dmg_multiplier", 0.25f, 15.f, 0.25f, "%.1f").help("Damage multiplier for melee attacks."),
         slider("Range Multiplier", "vr_melee_range_multiplier", 0.25f, 15.f, 0.25f, "%.1f").help("Range multiplier for melee attacks."),
         cycle("Melee Bloodlust", "vr_melee_bloodlust", {{0.f, "On"}, {1.f, "Off"}}).help("When enabled, restores the player's health when performing melee attacks on enemies."),
@@ -194,6 +195,7 @@
         toggle("Coloured Lights", "vr_colored_lights").help("Warm muzzle flashes, rockets and explosions; the lightning gun's blue."),
         slider("Projectile Light", "vr_projectile_lights", 0.f, 2.f, 0.05f, "%.2fx").help("Hell knight flames, scrag spit, vore balls and lasers light up the room, and where they hit (0 off)."),
         slider("Ammo Screen Light", "vr_weapon_screen_light", 0.f, 3.f, 0.1f, "%.1fx").help("Your weapons' ammo screens cast a faint light in their colour (0 off)."),
+        slider("Screen Glow", "vr_screen_glow", 0.f, 3.f, 0.1f, "%.1fx").help("The wrist gadget's and your weapons' screens glow softly round their edges (0 off)."),
         slider("Weapon Sight Glow", "vr_weapon_glow", 0.f, 3.f, 0.1f, "%.1fx").help("Your weapons' glowing parts, as the shotgun's sights, shine brighter and glow (0: as Quake)."),
         cycle("Dynamic Light Falloff", "vr_dlight_falloff", {{0.f, "Quake"}, {1.f, "DarkPlaces"}})
             .help("DarkPlaces: strong lights, full near and smoothly gone at the edge. Quake: dimmer, fading linearly all the way."),
@@ -201,6 +203,9 @@
         toggle("Bump Maps", "vr_normalmaps").help("Bumps made from the textures, shown by the map's light and dynamic lights. Next map."),
         slider("Bump Depth", "vr_normalmap_strength", 0.f, 3.f, 0.05f, "%.2f"),
         slider("Bumps in Map Light", "vr_normalmap_baked", 0.f, 2.f, 0.1f, "%.1f").help("How much the bumps shade the map's own light, lit from where it seems to come from (0: only dynamic lights show them)."),
+        toggle("Parallax", "vr_parallax").help("Walls and floors look carved: their dark parts sink in and shift as you move your head (needs Bump Maps)."),
+        slider("Parallax Depth", "vr_parallax_depth", 0.5f, 6.f, 0.25f, "%.2f").help("How deep the darkest parts of the textures sink, in Quake units."),
+        slider("Parallax Distance", "vr_parallax_distance", 128.f, 2048.f, 64.f, "%.0f").help("How far away walls still look carved (further costs more)."),
         toggle("Models Lit as the World", "vr_model_light_parity").help("Monsters and items as bright as the floor they stand on (off: Quake's brighter models)."),
         slider("Hands' Least Light", "vr_viewmodel_minlight", 0.f, 32.f, 1.f, "%.0f").help("How lit your hands and weapons stay in the dark (Quake: 24)."),
         cycle("Smooth Textures", "vr_texture_smooth", {{0.f, "As gl_texturemode"}, {1.f, "Replacements"}, {2.f, "All"}})
@@ -236,6 +241,8 @@
             .help("How much surfaces facing away from a dynamic light get less of it (0: Quake's)."),
         toggle("Uncapped Dynamic Lights", "vr_dlight_uncapped").help("Dynamic lights add fully to bright walls (Quake caps them)."),
         toggle("Shadow Statistics", "vr_shadow_stats").help("Print what is shadowed and its GPU time, once a second, to the console."),
+        cycle("Performance Profile", "vr_profile", {{0.f, "Off"}, {1.f, "Record"}, {2.f, "Record and show"}})
+            .help("Record CPU and GPU time per effect into quakevr/profile/ every 5 seconds (and show the top costs over the wrist). Not kept after a restart."),
     };
 }
 

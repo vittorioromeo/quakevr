@@ -88,6 +88,7 @@ int VR_ParseBeamEntity (int ent);						// CL_ParseBeam: beam key for an entity
 enum { QVR_DLIGHT_MUZZLE, QVR_DLIGHT_ROCKET, QVR_DLIGHT_EXPLOSION };
 void VR_DecalTempEntity (int scorch, const float *pos);	// cl_tent.c: a wall hit (0) or an explosion (1) leaves a mark
 int VR_GibTrail (int ent, int zombie);					// CL_RelinkEntities: a gib's blood (a trail, drops on the floor, splats where it hits); nonzero if it drew the trail (not Quake's)
+int VR_BulletHoleSprite (int ent);						// CL_RelinkEntities: Hipnotic's bullet hole sprite, a chip decal instead; nonzero if it is not drawn
 void VR_TuneDlight (int kind, int ent, void *dlight);	// after Quake sets a muzzle flash, rocket or explosion light up: size, colour, fade (the local player's flash at the gun)
 void VR_ProjectileLight (int ent);						// CL_RelinkEntities, after the trails: glowing projectiles (hell knight flames, scrag spit, vore balls, lasers) light up the room
 void VR_ProjectileImpactLight (int kind, const float *pos); // cl_tent.c: a scrag's (0) or a hell knight's (1) spike hitting a wall flashes
@@ -121,6 +122,10 @@ float VR_MissileExtent (float fallback);				// SV_Move MOVE_MISSILE box extent
 int VR_RunParticleEffect (const float *org, const float *dir, int color, int count);	// impacts, blood (svc_particle)
 int VR_ParticleExplosion (const float *org);										// TE_EXPLOSION
 int VR_ParticleExplosion2 (const float *org, int colorStart, int colorLength);	// TE_EXPLOSION2
+int VR_BlobExplosion (const float *org);											// TE_TAREXPLOSION
+int VR_LavaSplash (const float *org);												// TE_LAVASPLASH
+int VR_TeleportSplash (const float *org);											// TE_TELEPORT
+int VR_EntityTrail (int ent, int type);											// CL_RocketTrail: rockets, lava balls, grenades, blood, scrag/knight/vore trails (R_RocketTrail's types)
 
 // Client view (view.c): runs on the main thread, before the renderer.
 void VR_SetupViewEntities (void);						// V_RenderView, before R_RenderView

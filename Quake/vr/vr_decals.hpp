@@ -4,10 +4,13 @@
 // under them, a splat where they hit a wall or the floor, and Quake VR's blood trail behind them.
 //
 // Each is a quad lying on the surface found by a trace (the static world only: none on doors or
-// lifts), turned at random, shrunk or dropped where it would hang over an edge. They darken what is
-// under them (a modulating blend: the surface times the mark), so they take the light of where they
-// are with no lighting of their own. The marks are drawn once at start-up into an atlas (splats,
-// drops, scorches, chips; several of each). At most vr_decal_max are kept (the oldest go first),
+// lifts), turned at random, shrunk or dropped where it would hang over an edge. They multiply what
+// is under them by 0..2 (a modulating blend that can darken and brighten), so they take the light
+// of where they are with no lighting of their own. The marks are drawn once at start-up into a
+// mipmapped atlas (splats, drops, scorches, chips; several of each). A chip is a dent: a crater, a
+// rim and cracks, their relief baked in as lit from one side, the decal turned so that side faces
+// the map's strongest light that reaches it (else up). Hipnotic's low-resolution bullet hole
+// sprites become chips too (VR_BulletHoleSprite). At most vr_decal_max are kept (the oldest go first),
 // each fading out at the end of vr_decal_life seconds. One draw a frame in each eye, in the opaque
 // pass (VR_DrawSceneOpaque), depth-tested.
 
@@ -25,6 +28,9 @@ void fromEffect(const glm::vec3& org, const glm::vec3& dir, particles::Preset pr
 
 // A small drop of blood on the floor (or a gentle slope) just below `org`, `size` units across.
 void drop(const glm::vec3& org, float size);
+
+// A bullet's chip on the surface nearest `org` (Hipnotic's bullet hole sprites, VR_BulletHoleSprite).
+void chip(const glm::vec3& org);
 
 // Drawn in each eye (VR_DrawSceneOpaque).
 void draw();

@@ -233,6 +233,12 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
 
     IsExplosionDamage = 0;
 
+    // VR: a gib or head only ever bursts (vr_gib_destroy, vr_carry.qc), never dies again.
+    if(targ.th_die == VR_Gib_Die)
+    {
+        return VR_Gib_Damage(targ, inflictor, attacker, damage);
+    }
+
     if(VR_ItemUtil_EntHasItem(targ, IID_SHIELD))
     {
         // Allow some damage to pass through.

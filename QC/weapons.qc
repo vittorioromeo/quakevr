@@ -115,18 +115,13 @@ float() VRMeleeDmgQuadMult =
     return 1;
 }
 
-// Melee: a swing of a hand faster than vr_melee_speed (m/s), in any direction, hits what is ahead
-// of the hand (and of the weapon's end) along its motion, once per swing: the hand must slow down
-// again before it hits anything else. The damage is the weapon's base at vr_melee_speed, growing
-// with the speed up to three times that; a punch (the fist moving along its own forward, knuckles
-// first) does vr_melee_punch_mult more (W_FistMelee).
-
-// How hard the hand swings: its speed over vr_melee_speed, up to 3.
-float(float velmag) VRMeleeStrengthMult =
-{
-    float threshold = max(0.1, cvar_hget(cvarh_vr_melee_speed));
-    return min(3, velmag / threshold);
-}
+// Melee: a blow of a hand (a real one: the wrist travelling vr_melee_distance, as fast as
+// vr_melee_speed; VR_Blow in vr_juice.qc, PlayerVRMeleeImpl in client.qc), in any direction, hits
+// what is ahead of the hand (and of the weapon's end) along its motion, once: the hand must stop or
+// pull back before it hits again. The damage is the weapon's base times the blow's strength: 1 at
+// vr_melee_speed, growing with the speed up to three times that; a fist's blows are weighted by
+// their shape and direction (a straight punch vr_melee_punch_mult, an arc -- a slap, an overhead
+// blow -- less for the same speed: VR_Blow_Weight).
 
 float(float xHand, float xBase) VRMeleeDmg =
 {
@@ -135,8 +130,7 @@ float(float xHand, float xBase) VRMeleeDmg =
         return 20;
     }
 
-    return xBase * VRMeleeStrengthMult(VRGetHandVelMag(xHand)) * cvar_hget(cvarh_vr_melee_dmg_multiplier) *
-           VRMeleeDmgQuadMult();
+    return xBase * VR_Blow_Strength(xHand) * cvar_hget(cvarh_vr_melee_dmg_multiplier) * VRMeleeDmgQuadMult();
 }
 
 float(float v) VRMeleeRange =
@@ -160,15 +154,15 @@ float(float v) VRMeleeRange =
     return v * cvar_hget(cvarh_vr_melee_range_multiplier) * mult;
 }
 
-void(float hand, float velmag) VRMeleeHaptic =
+// Stronger and longer for harder blows (`power`: the blow's strength, 1 .. 3).
+void(float hand, float power) VRMeleeHaptic =
 {
     if(!self.ishuman)
     {
         return;
     }
 
-    // Stronger and longer for harder swings.
-    float power = VRMeleeStrengthMult(velmag); // 1 .. 3
+    power = max(0.5, power);
     float amplitude = min(1.0, 0.35 + 0.25 * power);
     float xduration = min(0.9, 0.25 + 0.15 * power);
 
@@ -177,7 +171,7 @@ void(float hand, float velmag) VRMeleeHaptic =
 
 void (float xHand) VRMeleeHapticByHand =
 {
-    VRMeleeHaptic(xHand, VRGetHandVelMag(xHand));
+    VRMeleeHaptic(xHand, VR_Blow_Strength(xHand));
 };
 
 float PositionalDamageFactor(float positionalDamageType)
@@ -238,7 +232,9 @@ float(entity xTarget) PositionalHead =
 // the angle, rather than by pushing the entry point a fixed depth into the box.
 float PositionalRegion(entity xTarget, vector xEndpos, vector xDirection) =
 {
-    if(cvar_hget(cvarh_vr_positional_damage) == 0 || !PositionalHead(xTarget))
+    // A monster's head thrown off (vr_gib) keeps its classname, not its head.
+    if(cvar_hget(cvarh_vr_positional_damage) == 0 || (xTarget.vr_gib && !(xTarget.flags & FL_CLIENT)) ||
+       !PositionalHead(xTarget))
     {
         return -1;
     }
@@ -1160,13 +1156,7 @@ void(float xHand) W_FistMelee =
         xdmg = xdmg * cvar_hget(cvarh_vr_carry_melee_mult);
     }
 
-    // A punch: the fist moving along its own forward.
-    makevectors(VRGetHandRot(xHand));
-    if(normalize(VRGetHandVel(xHand)) * v_forward >= 0.6)
-    {
-        xdmg = xdmg * cvar_hget(cvarh_vr_melee_punch_mult);
-    }
-
+    // (A straight punch's vr_melee_punch_mult is in the blow's strength: VR_Blow_Measure.)
     if(!VRDoMeleeAttackTracelineFor(xHand, 16, 8))
     {
         return;
@@ -1448,7 +1438,7 @@ void(float shotcount, vector dir, vector spread, vector src) FireBulletsImpl =
     {
         direction = dir + crandom()*spread_x*v_right + crandom()*spread_y*v_up;
 
-        traceline(src, src + direction*2048, FALSE, self);
+        traceline(src, src + direction*2048, MOVE_HITGIBS, self); // VR: gibs and heads too (vr_gib_destroy)
         if(trace_fraction != 1.0)
         //JIM
         {
@@ -1694,7 +1684,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
     // HONEY
     self.damage_weapon = IT_LIGHTNING;
 
-    traceline(p1, p2, FALSE, self);
+    traceline(p1, p2, MOVE_HITGIBS, self); // VR: gibs and heads too (vr_gib_destroy)
 //JIM
     if(trace_ent.takedamage && !trace_ent.wetsuit_finished)
     {
@@ -1711,7 +1701,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
     }
     e1 = trace_ent;
 
-    traceline(p1 + f, p2 + f, FALSE, self);
+    traceline(p1 + f, p2 + f, MOVE_HITGIBS, self);
 //JIM
     if(trace_ent != e1 && trace_ent.takedamage &&
     !trace_ent.wetsuit_finished)
@@ -1723,7 +1713,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
     }
     e2 = trace_ent;
 
-    traceline(p1 - f, p2 - f, FALSE, self);
+    traceline(p1 - f, p2 - f, MOVE_HITGIBS, self);
 //JIM
     if(trace_ent != e1 && trace_ent != e2 && trace_ent.takedamage &&
         !trace_ent.wetsuit_finished)

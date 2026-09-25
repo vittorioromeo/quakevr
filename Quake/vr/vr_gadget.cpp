@@ -2,8 +2,10 @@
 //
 // The screen is drawn with the engine's own 2D functions (the status bar's pictures from gfx.wad,
 // the console font; vr_gfx.hpp's draw2D) into an offscreen target, on a virtual 240 x 150 screen
-// covering it. The panel (vr_panel.cpp) draws the texture over the model's
-// screen in each eye, a frame later, as it does the rest of the HUD.
+// covering it, at the end of the 2D pass. Each eye's scene then shows the texture over the model's
+// screen, a frame later, after the opaque entities (so that the bloom catches it): in one phosphor
+// colour, as a small CRT (vr_gadget_crt), with a soft glow round its edge (vr_screen_glow, drawn by
+// vr_text3d with the weapons' ammo screens').
 //
 // The log over it (vr_notify_wrist) is the console's notify lines (console.c keeps the times of
 // its last 16 lines for it: Con_NotifyLine), laid out by vr_text3d facing the viewer.
@@ -18,6 +20,8 @@
 #include "vr_profile.hpp"
 
 #include <algorithm>
+#include <cmath>
+#include <cstdint>
 #include <cstring>
 #include <string_view>
 
@@ -37,9 +41,48 @@ constexpr int logColumns = 40;
 constexpr int logRows = 8;
 constexpr float logFade = 1.f;
 
-// The screen's light's key (no entity's: entities' are positive; vr_emissive.cpp's ammo screens
-// take -0x5C00 and below).
-constexpr int lightKey = -0x5C10;
+// The screen's lights' keys (no entity's: entities' are positive; vr_emissive.cpp's ammo screens
+// take -0x5C00 and below): the beam in front of it, and the faint glow round it.
+constexpr int beamLightKey = -0x5C10;
+constexpr int glowLightKey = -0x5C11;
+
+// The screen's CRT strength (vr_gadget_crt).
+[[nodiscard]] float crtStrength()
+{
+    return CLAMP(0.f, vr_gadget_crt.value, 2.f);
+}
+
+// A number from 0 to 1 for `n`, the same every time.
+[[nodiscard]] float hash(uint32_t n)
+{
+    n ^= n >> 16;
+    n *= 0x7feb352dU;
+    n ^= n >> 15;
+    n *= 0x846ca68bU;
+    n ^= n >> 16;
+    return static_cast<float>(n & 0xffffff) / static_cast<float>(0x1000000);
+}
+
+// How much the screen glitches at `time` (0..1): once in each 7 seconds, at a random moment of
+// them, a burst of 0.12 to 0.35 seconds rising and falling; one in four slots has none.
+[[nodiscard]] float glitch(double time)
+{
+    constexpr double slot = 7.0;
+    const double index = std::floor(time / slot);
+    const uint32_t n = static_cast<uint32_t>(static_cast<int64_t>(index)) * 3u;
+    if(hash(n + 2u) < 0.25f)
+    {
+        return 0.f;
+    }
+    const double start = index * slot + hash(n) * (slot - 0.5);
+    const double length = 0.12 + 0.23 * hash(n + 1u);
+    const double x = (time - start) / length;
+    if(x <= 0.0 || x >= 1.0)
+    {
+        return 0.f;
+    }
+    return static_cast<float>(std::sin(x * 3.14159265)) * (0.6f + 0.4f * hash(n + 2u));
+}
 
 // Status bar pictures (gfx.wad) by name.
 [[nodiscard]] const char* digitPic(int digit, bool red)
@@ -92,9 +135,14 @@ struct Palette
 
 using gfx::draw2D::fill;
 
-// Big numbers, right-aligned in `digits` places of 24 x 24 (scaled).
+// Big numbers, right-aligned in `digits` places of 24 x 24 (scaled). The screen is of one colour:
+// red ones (a warning) blink.
 void number(float x, float y, int value, int digits, bool red, float scale)
 {
+    if(red && std::fmod(realtime, 0.8) >= 0.5)
+    {
+        return;
+    }
     char str[16];
     q_snprintf(str, sizeof(str), "%d", CLAMP(-99, value, 999));
     const int length = static_cast<int>(strlen(str));
@@ -110,9 +158,9 @@ void layout()
 {
     const Palette pal = palette();
 
-    // A tinted screen with faint scanlines and a frame.
+    // A tinted screen with faint scanlines (the CRT look has its own) and a frame.
     fill(0.f, 0.f, width, height, pal.background);
-    for(int y = 0; y < height; y += 3)
+    for(int y = 0; y < height && crtStrength() <= 0.f; y += 3)
     {
         fill(0.f, static_cast<float>(y), width, 1.f, pal.scanline);
     }
@@ -198,26 +246,18 @@ void layout()
     gfx::draw2D::color(white);
 }
 
-// A faint light in the screen's colour just in front of it: it lights the hand and forearm, and
-// a wall close by in the dark. Placed before each eye's scene, it lasts until the next frame's.
-void glow(const Pose& pose)
+// One of the screen's lights, `out` units in front of it, in its colour times `k`.
+void light(int key, const Pose& pose, float out, float radius, float k)
 {
-    const float k = vr_gadget_light.value;
-    const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f);
-    if(!pose.valid || k <= 0.f || bright <= 0.f)
-    {
-        return;
-    }
-
-    dlight_t* dl = CL_AllocDlight(lightKey);
-    const glm::vec3 p = pose.origin + pose.axes[2] * (2.f * pose.scale);
+    dlight_t* dl = CL_AllocDlight(key);
+    const glm::vec3 p = pose.origin + pose.axes[2] * out;
     dl->origin[0] = p.x;
     dl->origin[1] = p.y;
     dl->origin[2] = p.z;
     dl->die = static_cast<float>(cl.time + 0.05);
-    dl->radius = 72.f;
+    dl->radius = radius;
     const bool darkplaces = vr_dlight_falloff.value != 0.f;
-    const glm::vec3 c = hsv(vr_gadget_screen_hue.value, 0.5f, 1.f) * (bright * k * (darkplaces ? 0.3f : 0.6f));
+    const glm::vec3 c = hsv(vr_gadget_screen_hue.value, 0.5f, 1.f) * (k * (darkplaces ? 0.3f : 0.6f));
     dl->color[0] = c.r;
     dl->color[1] = c.g;
     dl->color[2] = c.b;
@@ -226,6 +266,23 @@ void glow(const Pose& pose)
         lighting::dlightLook(dl, 0.f, 0.f);
     }
     lighting::dlightNoShadow(dl);
+}
+
+// The screen's light, in its colour. There are no spot lights: the beam is a light well in front of
+// the screen, reaching out about 1.5 m the way it faces and hardly behind it (so that a wall
+// beyond the wrist stays dark while the screen faces the player), and a faint small one just in
+// front of it lights the hand and forearm round it. Placed before each eye's scene, they last
+// until the next frame's.
+void glow(const Pose& pose)
+{
+    const float k = vr_gadget_light.value;
+    const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f);
+    if(!pose.valid || k <= 0.f || bright <= 0.f)
+    {
+        return;
+    }
+    light(beamLightKey, pose, 14.f, 36.f, bright * k * 1.1f);
+    light(glowLightKey, pose, 1.5f * pose.scale, 16.f, bright * k * 0.35f);
 }
 
 // `text` broken into lines of at most logColumns characters, between words where it can be,
@@ -307,9 +364,54 @@ void renderScreen()
     gfx::end2D();
 }
 
-unsigned screenTexture()
+void drawScreen()
 {
-    return target.texture;
+    if(!active() || !current.valid || !target.texture)
+    {
+        return;
+    }
+
+    glm::vec3 corner;
+    glm::vec2 size;
+    screenRect(corner, size);
+    const glm::vec3 origin = current.origin + current.axes * (corner * current.scale);
+    const glm::vec3 xAxis = current.axes[0] * (size.x * current.scale);
+    const glm::vec3 yAxis = current.axes[1] * (size.y * current.scale);
+
+    // The phosphor's colour is the text's; the texture's brightness says how lit each texel is.
+    const glm::vec4 phosphor = palette().text;
+    const gfx::Vertex c[4] = {{origin, {0.f, 0.f}, phosphor}, {origin + xAxis, {1.f, 0.f}, phosphor},
+        {origin + xAxis + yAxis, {1.f, 1.f}, phosphor}, {origin + yAxis, {0.f, 1.f}, phosphor}};
+    const gfx::Vertex quad[6] = {c[0], c[1], c[2], c[0], c[2], c[3]};
+
+    const float time = static_cast<float>(std::fmod(realtime, 1000.0));
+    const float k = crtStrength();
+    gfx::draw(quad, gfx::sceneViewProjection(),
+        {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true,
+            .params = {time, k, k > 0.f ? glitch(realtime) * std::min(k, 1.f) : 0.f, 0.f}},
+        target.texture);
+}
+
+bool screenGlow(Glow& out)
+{
+    const float k = CLAMP(0.f, vr_screen_glow.value, 3.f);
+    const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f);
+    if(k <= 0.f || bright <= 0.f || !active() || !current.valid || !target.texture)
+    {
+        return false;
+    }
+
+    // Just over the screen (its face 0.43 out), round it over the bezel and the casing.
+    glm::vec3 corner;
+    glm::vec2 size;
+    screenRect(corner, size);
+    out.centre = current.origin + current.axes[2] * ((corner.z + 0.02f) * current.scale);
+    out.right = current.axes[0];
+    out.up = current.axes[1];
+    out.halfSize = size * (0.5f * current.scale);
+    out.spread = 0.32f * current.scale;
+    out.color = glm::vec4{glm::vec3{palette().text}, 0.25f * k};
+    return true;
 }
 
 bool log(Log& out)

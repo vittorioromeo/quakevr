@@ -264,6 +264,8 @@ textures are filtered smoothly; and `r_shadow_gloss 2` gives dynamic lights a fa
 | `vr_normalmaps` | 1 (0 on Low) | 0 |
 | `vr_normalmap_strength` | 1 | (not in presets) |
 | `vr_normalmap_baked` | 1 | (not in presets; nothing without `vr_normalmaps`) |
+| `vr_parallax` (see Parallax below) | 1 (0 on Low) | 0 |
+| `vr_parallax_depth`, `vr_parallax_distance`, `vr_parallax_steps` | 3, 512, 16 | (not in presets) |
 | `vr_bloom_white`, `vr_bloom_color` | 0.5, 1.5 | (bloom off) |
 | `vr_flash_scale`, `vr_explosion_light_scale` | 1, 1 (were 1.8, 1.5; a config holding those takes 1) | 1, 1 |
 | `vr_projectile_lights`, `vr_weapon_screen_light`, `vr_weapon_glow` | 1, 1, 1 | 0, 0, 0 |
@@ -276,11 +278,14 @@ textures are filtered smoothly; and `r_shadow_gloss 2` gives dynamic lights a fa
   spike hitting a wall (TE_WIZSPIKE, TE_KNIGHTSPIKE) flashes its colour, 120, fading out over 0.25 s. With Quake's
   falloff the colours are scaled to at most 1; without `vr_colored_lights` they are white. Nails and grenades stay
   unlit (as in DarkPlaces); rockets and lava balls have the rocket light.
-- `vr_weapon_screen_light` (strength): each weapon's ammo screen casts a faint light 3 units in front of it, radius 56,
+- `vr_weapon_screen_light` (strength): each weapon's ammo screen casts a small light 4 units in front of it, radius 34,
   in the screen's colour (`vr_gadget_screen_hue`, `vr_gadget_screen_brightness`), lighting the hand and gun (per pixel,
   `vr_dlight_models`) and what is close by.
-- `vr_gadget_light` (strength): the wrist gadget's screen does the same, 2 model units in front of it, radius 72
+- `vr_gadget_light` (strength): the wrist gadget's screen lights mostly where it faces: a light 14 units out along the
+  screen's facing, radius 36, and a faint one (radius 16) just in front of it for the hand and forearm
   (`gadget::setPose`, before each eye's scene; key -0x5C10).
+- `vr_screen_glow` (strength): a soft glow round the gadget's and the ammo screens' edges (additive, in the
+  translucent pass).
 - `vr_weapon_glow` (strength): the held and holstered weapons' fullbright texels get
   `fullbright × (1 + 3 × strength × (1 − brightest channel))` in the alias shader (instance `Glow.z`; the fullbright
   is the fullbright texture's, or for Ironwail's ALPHABRIGHT skins the skin's unlit share, where its alpha is 0): the
@@ -300,13 +305,25 @@ Not done: DarkPlaces' quad-damage explosion colour (the client can't tell); bump
 `vr_flashlight.cpp` (`vr_flashlight`, Body page): a right-angle torch (`progs/vrflashlight.mdl`,
 `Misc/quakevr/make_flashlight.py`) clipped to the chest on the off hand's side, lighting where the torso faces
 (`vr_flashlight_tilt` degrees lower). Trigger with a hand at it switches it (a click, `sound/vr/flashlight_*.wav`, and a
-tap); grip with an empty hand takes it, and it lights where the hand points; let go, it flies home on its cord
-(critically damped, about 0.4 s). The keys it takes never reach the game, so the holding hand grabs nothing else.
+tap); grip with an empty hand takes it, held through the fist by its body (`vr_flashlight_hand_forward` and `_up`,
+metres from the tracked hand: back and down into the drawn fist's grip), and it lights where the hand points; let go,
+it flies home on its cord (critically damped, about 0.4 s). The keys it takes never reach the game, so the holding hand
+grabs nothing else.
 There is no spotlight: the beam is a trace from the lens (the world, doors and lifts; monsters when hosting) and three
-unshadowed dynamic lights: a pool where it lands, off the surface along its normal (a round pool, about 18 degrees
-either side of the beam) and a little back along the beam, growing and dimming with the distance; a wider, dimmer one
-halfway for the spill; a faint one just in front of the lamp. `vr_flashlight_shadows` lets the pool take one of the
-shadowed lights; `vr_flashlight_beam` adds a faint glow line in the air (drawn over everything, so off by default).
+dynamic lights: a pool where it lands, off the surface along its normal (a round pool, about 18 degrees either side of
+the beam) and a little back along the beam, growing and dimming with the distance; a wider, dimmer one halfway for the
+spill; a faint one just in front of the lamp. `vr_flashlight_shadows` (on by default) lets the pool take one of the
+shadowed lights.
+
+The beam is visible in the air (`vr_flashlight_beam`, its strength, 0.35 by default; 0 none): two open cones from the
+lens, the beam's 18 degrees and a brighter 8-degree core, 16 sides by 10 rings (closer together near the lens), out to
+where the beam lands (at most 10 m), added onto each eye's scene after the translucent pass (`VR_DrawSceneTranslucent`),
+depth-tested, writing no depth. Each ring's glow thins as the light spreads (1 / (1 + d / 0.5 m)) and fades out over the
+last third; each eye shades every point by the square of the cosine between its view ray and the cone's surface (seen
+face-on the surface stands for a long way through the lit air, edge-on for none), so it reads as a soft volume with no
+edges, brighter along the middle where the core adds in, and nothing within 10-40 cm of the eye. Where a wall or the
+floor cuts the cone (a short client-side line trace out from the axis for each point, once a frame), the point is pulled
+in to the wall and dark there, fading in over the next 30% of the radius: no hard line where the cone meets the world.
 
 ## Next
 
@@ -332,3 +349,38 @@ Measured: 0.03 ms an eye at 1024 x 1024 (mostly the fixed cost of the passes), a
 texture reads per pixel, so the saving grows with the headset's larger eyes. The look is the same, with
 slightly tighter halos. The glow now also lies over the HUD panel, as it's added after it.
 
+
+## Parallax (after round 11)
+
+The author found the bumps flat ("something more advanced than bump mapping that still reacts to light but gives the
+impression of the geometry becoming more 3D"): parallax occlusion mapping (POM; relief mapping), on the world and
+brush models (`vr_parallax`, Graphics page: Parallax, Parallax Depth, Parallax Distance; needs Bump Maps).
+
+- **Heights** (`gl_texmgr.c`, `TexMgr_ShadingToHeights`): made with the normal map, from the same luminance ("darker
+  is deeper"), blurred a little (1 2 1 across and down, twice when finer than a texel a unit: about a unit either
+  side, so grain doesn't make spikes), then stretched to the texture's own range (2% of its texels at the bottom, 2%
+  at the top; a range of at least 0.2, so an almost flat texture stays shallow): 1 the surface, 0 the deepest. They
+  are the world's normal maps' alpha (RGBA8 instead of RG8: 7.5 MB instead of 3.8 on e1m1 with QRP; skins' stay RG8,
+  8.5 MB). An authored `_norm` gives its own alpha (DarkPlaces' convention; none: flat), a `_bump` its luminance.
+  Quake's own 8-bit textures get heights only if drawn smooth (`vr_texture_smooth 2` or a linear `gl_texturemode`):
+  drawn sharp, the shifts bend their square texels into curves. Made as a map loads (the next map, like the bumps).
+- **The shader** (`ParallaxUV`, world shader, solid surfaces only: not fences or liquids): the ray from each eye's
+  own position (stereo-correct) through the pixel, down into the height field `vr_parallax_depth` units deep (3). The
+  texture's axes on the surface are the gradients of its coordinates from the screen derivatives (the bumps' frame;
+  exact on flat faces, and on moved or rotated brush models). It walks the ray in 8 to `vr_parallax_steps` (16) steps,
+  more at grazing angles, then two secant refinements. The diffuse, fullbright and normal map are read at the point
+  found, with the surface's own mip level (the moved coordinates jump at occlusions); the lightmap is read where it
+  was (shifting it too made no visible difference: a few units is a fraction of a 16-unit luxel, and it would put
+  jumps into the baked light's direction guess). It fades out over the last quarter of `vr_parallax_distance` (512;
+  beyond, no cost but the distance test) and from 70 to 83 degrees off the normal (where it swims and smears); the
+  shift along the surface is at most 3 times the depth.
+- **Presets:** off for "Off (Quake)" and Low, on for Medium, High and Ultra.
+- **Cost** (RTX 4090, mock eyes 1024 x 1024; world+brush GPU time for both eyes, off / on): start's riveted wall at
+  the note's spot 0.125 / 0.148 ms, its hall 0.096 / 0.121, the wall at a grazing angle 0.122 / 0.156; e1m1's start
+  0.124 / 0.173 (0.207 with 32 steps). So about 0.02 to 0.05 ms a frame, 20 to 40% of the world pass; times 4.35 for
+  the headset's eyes (2064 x 2208), about 0.1 to 0.2 ms a frame. Per world pixel within reach: 2 to 18 reads of the
+  height (1 where it is at the top), and the textures read with explicit gradients.
+- **Limits:** heights from luminance are a guess: dark details sink (rust, grooves, dark rivets, thin scratches become
+  thin grooves) and bright ones stand, which is right for most of Quake's metal and stone but not for everything.
+  The walls' outlines stay flat (no silhouettes), and at a face's edge the height field continues the texture's
+  tiling, not the next face. No self-shadowing.

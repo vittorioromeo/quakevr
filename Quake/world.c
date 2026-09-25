@@ -43,6 +43,7 @@ typedef struct
 	trace_t		trace;
 	int			type;
 	edict_t		*passedict;
+	qboolean	hitgibs;		// QVR: MOVE_HITGIBS, or a missile
 } moveclip_t;
 
 
@@ -836,7 +837,11 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 	{
 		next = l->next;
 		touch = EDICT_FROM_AREA(l);
-		if (touch->v.solid == SOLID_NOT || touch->v.solid == SOLID_NOT_BUT_TOUCHABLE) // QVR
+		if (touch->v.solid == SOLID_NOT)
+			continue;
+		// QVR: touchable non-solids never block, but shots and missiles stop at gibs and heads
+		// (those that take damage: vr_gib_destroy).
+		if (touch->v.solid == SOLID_NOT_BUT_TOUCHABLE && !(clip->hitgibs && touch->v.takedamage))
 			continue;
 		if (touch == clip->passedict)
 			continue;
@@ -940,6 +945,12 @@ trace_t SV_Move (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, e
 	int			i;
 
 	memset ( &clip, 0, sizeof ( moveclip_t ) );
+
+	// QVR: a flag on the type (a traceline's "nomonsters").
+	clip.hitgibs = (type & MOVE_HITGIBS) != 0;
+	type &= ~MOVE_HITGIBS;
+	if (type == MOVE_MISSILE)
+		clip.hitgibs = true;
 
 // clip to world
 	clip.trace = SV_ClipMoveToEntity ( qcvm->edicts, start, mins, maxs, end );

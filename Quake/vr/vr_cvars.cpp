@@ -35,8 +35,11 @@ const DefaultChange defaultChanges[] = {
     {4, &vr_carry_throw_damage, "25"},
     {5, &vr_flash_scale, "1.8"},           // sizes over DarkPlaces' lights now (vr_dlight_falloff)
     {5, &vr_explosion_light_scale, "1.5"},
+    {6, &vr_flashlight_shadows, "0"},
+    {6, &vr_flashlight_beam, "0"},         // a soft cone of light now, not a line over everything
+    {7, &vr_melee_speed, "3"},             // the wrist's speed now (a blow must also travel vr_melee_distance)
 };
-constexpr int configVersion = 5;
+constexpr int configVersion = 7;
 
 // Right after the saved config is executed (Cmd_Exec_f queues it).
 void migrateConfig_f()

@@ -1094,6 +1094,13 @@ extern "C" void VR_PushMapLights(void)
     // Dynamic lights' sheen, and how deep the normal maps' bumps are (0: flat).
     r_framedata.lighttweak[2] = std::clamp(vr_specular.value, 0.f, 4.f);
     r_framedata.lighttweak[3] = vr_normalmaps.value != 0.f ? std::clamp(vr_normalmap_strength.value, 0.f, 8.f) : 0.f;
+    // Parallax occlusion mapping on the world (the heights are in the normal maps' alpha): how deep, how far it
+    // reaches, and the most steps along a ray.
+    const bool parallax = vr_parallax.value != 0.f && vr_normalmaps.value != 0.f;
+    r_framedata.parallax[0] = parallax ? std::clamp(vr_parallax_depth.value, 0.f, 16.f) : 0.f;
+    r_framedata.parallax[1] = std::clamp(vr_parallax_distance.value, 64.f, 4096.f);
+    r_framedata.parallax[2] = std::clamp(std::round(vr_parallax_steps.value), 4.f, 64.f);
+    r_framedata.parallax[3] = 0.f;
     r_framedata.shadowbias = std::max(0.f, vr_shadow_bias.value);
     r_framedata.dlightangle = std::clamp(vr_dlight_angle.value, 0.f, 1.f);
 
@@ -1200,19 +1207,19 @@ void lighting::applyPreset(int preset)
         float dlights, dlightSize, maplights, maplightSize, filter, atlasSize, distance, models, angle, entityShadows,
             modelLighting, look, // look: contrast, bloom, coloured uncapped DarkPlaces lights, sheen, models on a
                                  // par with the world, smooth replacement textures (0: Quake's)
-            normalmaps;
+            normalmaps, parallax;
     };
     static constexpr Preset presets[] = {
         // off: Quake's own look (flat dynamic lights, no shadows)
-        {0, 256, 0, 512, 1, 4096, 1024, 0, 0, 0, 0, 0, 0},
+        {0, 256, 0, 512, 1, 4096, 1024, 0, 0, 0, 0, 0, 0, 0},
         // low
-        {2, 256, 0, 512, 1, 4096, 1024, 1, 1, 1, 1, 1, 0},
+        {2, 256, 0, 512, 1, 4096, 1024, 1, 1, 1, 1, 1, 0, 0},
         // medium
-        {4, 512, 2, 512, 1, 4096, 1536, 1, 1, 1, 1, 1, 1},
+        {4, 512, 2, 512, 1, 4096, 1536, 1, 1, 1, 1, 1, 1, 1},
         // high
-        {6, 512, 4, 512, 2, 4096, 2048, 1, 1, 1, 1, 1, 1},
+        {6, 512, 4, 512, 2, 4096, 2048, 1, 1, 1, 1, 1, 1, 1},
         // ultra
-        {8, 1024, 4, 1024, 3, 8192, 3072, 1, 1, 1, 1, 1, 1},
+        {8, 1024, 4, 1024, 3, 8192, 3072, 1, 1, 1, 1, 1, 1, 1},
     };
     preset = std::clamp(preset, 0, 4);
     const Preset& p = presets[preset];
@@ -1238,6 +1245,7 @@ void lighting::applyPreset(int preset)
     look(vr_projectile_lights, 0.f);
     look(vr_weapon_screen_light, 0.f);
     look(vr_gadget_light, 0.f);
+    look(vr_screen_glow, 0.f);
     look(vr_weapon_glow, 0.f);
     look(vr_dlight_uncapped, 0.f);
     look(vr_dlight_falloff, 0.f);
@@ -1246,6 +1254,7 @@ void lighting::applyPreset(int preset)
     look(vr_viewmodel_minlight, 24.f);
     look(vr_texture_smooth, 0.f);
     Cvar_SetValueQuick(&vr_normalmaps, p.normalmaps); // made as the next map loads
+    Cvar_SetValueQuick(&vr_parallax, p.parallax);
 }
 
 namespace

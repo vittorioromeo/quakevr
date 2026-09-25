@@ -4,6 +4,11 @@
 "dmg" "1"
 "health" "9"
 "wad" "C:/OHWorkspace/TrenchBroom/Q.wad"
+"_sunlight" "150"
+"_sun_mangle" "200 -40 0"
+"_sunlight_penumbra" "3"
+"_sunlight_dirt" "-1"
+"_sunlight2" "280"
 }
 {
 "classname" "trigger_multiple"
@@ -27,102 +32,6 @@
 "angle" "180"
 "classname" "info_player_start"
 "origin" "316 -556 56"
-}
-{
-"angle" "0"
-"classname" "light"
-"light" "1200"
-"origin" "-512 -908 373"
-}
-{
-"angle" "0"
-"classname" "light"
-"light" "1200"
-"origin" "208 -948 373"
-}
-{
-"angle" "0"
-"classname" "light"
-"light" "1200"
-"origin" "-814 -372 562"
-}
-{
-"angle" "0"
-"classname" "light"
-"light" "1200"
-"origin" "-494 252 562"
-}
-{
-"angle" "0"
-"classname" "light"
-"light" "1200"
-"origin" "258 300 562"
-}
-{
-"angle" "0"
-"classname" "light"
-"light" "1200"
-"origin" "640 -380 373"
-}
-{
-"angle" "0"
-"classname" "light"
-"light" "1200"
-"origin" "666 652 562"
-}
-{
-"angle" "0"
-"classname" "light"
-"light" "1200"
-"origin" "-102 676 562"
-}
-{
-"angle" "0"
-"classname" "light"
-"light" "1200"
-"origin" "-1022 684 562"
-}
-{
-"angle" "0"
-"classname" "light"
-"light" "1200"
-"origin" "-132 12 811"
-}
-{
-"angle" "0"
-"classname" "light"
-"light" "1200"
-"origin" "-1128 -732 373"
-}
-{
-"angle" "0"
-"classname" "light"
-"light" "1200"
-"origin" "-904 -1204 373"
-}
-{
-"angle" "0"
-"classname" "light"
-"light" "1200"
-"origin" "-200 -1348 373"
-}
-{
-"angle" "0"
-"classname" "light"
-"light" "1200"
-"origin" "640 -1268 373"
-}
-{
-"angle" "0"
-"classname" "light"
-"light" "1200"
-"origin" "808 -772 373"
-}
-{
-"angle" "0"
-"classname" "light"
-"light" "1200"
-"origin" "816 84 373"
 }
 {
 "classname" "func_weapon_grabbable"
@@ -475,12 +384,6 @@
 {
 "classname" "item_artifact_envirosuit"
 "origin" "120 69 44"
-}
-{
-"angle" "0"
-"classname" "light"
-"light" "1200"
-"origin" "-77 -393 157"
 }
 {
 "angle" "180"

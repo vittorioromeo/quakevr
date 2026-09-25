@@ -105,6 +105,10 @@ models) and keeps the classic pixel look; none of it needs new art.
   `maps/X.bsp` when that comes from `<game>` (`VR_ModelFile` in `Mod_LoadModel` and `Mod_LoadLighting`), per game
   because id1, hipnotic and rogue all have a `start.bsp`; a mod's own maps are left alone. `vr_relit_maps 0` plays
   the original lighting (next map). The relit files are generated locally and not committed (`.gitignore`).
+  The mod's own `vrfiringrange` is relit in place instead (committed): `Misc/quakevr/relight_firingrange.py` swaps its
+  seventeen "light" 1200 lamps (a lightmap at 255 nearly everywhere: glaring, oversaturated yellow) for a sun from
+  the east-north-east (`_sunlight` 150, `_sun_mangle` "200 -40 0"), a sky dome (`_sunlight2` 280) and `-dirt`, in the
+  `.bsp` and its `.ent`; about 150 on the sunlit floor and 90 in shade, so models lit on a par with it do not glare.
 - **See-through water.** id's maps were vised with liquids as walls, so the engine keeps their water, slime and
   teleporters opaque whatever `r_wateralpha` says (changing it prints "Map does not appear to be water-vised").
   The relit maps get water-vised visibility from the VisPatch data files (`id1.vis`, `hipnotic.vis`, `rogue.vis`,

@@ -10,7 +10,8 @@
 #
 # Model space: Quake units at vr_world_scale 1 (1 m = 1 / 0.0381 units), +x forward (the beam), +y
 # left, +z up (along the body), the origin at the middle of the body. The lens's centre is at
-# LENS (vr_flashlight.cpp's lensPoint must match). Skins: 0 off, 1 on (the lens fullbright).
+# LENS, its radius 1.65 cm (vr_flashlight.cpp's lensPoint and lensRadius must match; the visible
+# beam starts there). Skins: 0 off, 1 on (the lens fullbright).
 # Palette indices from gfx/palette.lmp: greys 1..15, fullbright yellow-whites 252..254.
 
 import math

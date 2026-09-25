@@ -1,9 +1,10 @@
 // vr_gadget.hpp -- the wrist gadget (vr_hud_mode 1): a device strapped over the back of the off
 // hand's forearm (progs/vrgadget.mdl, from Misc/quakevr/make_gadget.py) whose screen shows the
 // HUD: the player's face, health and armour, ammo, keys, powerups and sigils, the level, kills
-// and secrets. Raise the wrist and turn it to read it, like a watch. Its screen casts a faint
-// light in its colour (vr_gadget_light), and the console's messages float over it in a small log
-// facing the player (vr_notify_wrist), rather than at the edge of the view.
+// and secrets. Raise the wrist and turn it to read it, like a watch. Its screen is a small
+// monochrome CRT (vr_gadget_crt) that glows (vr_screen_glow) and casts a light in its colour the
+// way it faces (vr_gadget_light), and the console's messages float over it in a small log facing
+// the player (vr_notify_wrist), rather than at the edge of the view.
 
 #pragma once
 
@@ -26,20 +27,37 @@ struct Pose
 // Whether the HUD is the gadget's (vr_hud_mode 1, in the headset, in game).
 [[nodiscard]] bool active();
 
-// Set by the view every frame (before each eye's scene), read by the panel. It also places the
-// screen's light.
+// Set by the view every frame (before each eye's scene). It also places the screen's lights.
 void setPose(const Pose& pose);
 [[nodiscard]] const Pose& pose();
 
-// The screen's corners (in model space: the lower-left one, and its extent along x and y), for
-// the textured quad drawn over the model's screen.
+// The screen's corners (in model space: the lower-left one, and its extent along x and y), where
+// its texture is drawn over the model's screen.
 void screenRect(glm::vec3& corner, glm::vec2& size);
 
 // Draws the screen's contents into its texture, at the end of the 2D pass.
 void renderScreen();
 
-// The screen's texture (0 before the first render).
-[[nodiscard]] unsigned screenTexture();
+// Draws the texture over the model's screen, in one phosphor colour and as a small CRT
+// (vr_gadget_crt: scanlines, a flicker, faint static and now and then a glitch), in each eye's
+// scene after the opaque entities (VR_DrawSceneOpaque), where the bloom catches its light.
+void drawScreen();
+
+// A soft glow round a screen's edge (vr_screen_glow): the screen's centre, right and up (unit
+// vectors), its half width and height, how far out the glow reaches, its colour and strength.
+struct Glow
+{
+    glm::vec3 centre{0.f};
+    glm::vec3 right{1.f, 0.f, 0.f};
+    glm::vec3 up{0.f, 1.f, 0.f};
+    glm::vec2 halfSize{0.f};
+    float spread{0.f};
+    glm::vec4 color{0.f};
+};
+
+// The gadget screen's glow, drawn by vr_text3d with the weapons' ammo screens'; false when there
+// is none.
+[[nodiscard]] bool screenGlow(Glow& out);
 
 // The log floating over the gadget (vr_notify_wrist): the console's newest notify lines, wrapped
 // to fit, oldest first, each with how faded in it is (1 .. 0); drawn by vr_text3d, only while the

@@ -197,7 +197,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         header("Parry and Bash"),
         toggle("Unarmed Parry", vr_parry_unarmed).help("Cross your arms in an X in front of you to block a blow with your forearms."),
         slider("Unarmed Parry Reduction", vr_parry_unarmed_reduction, 0.f, 1.f, 0.05f, "%.2f"),
-        toggle("Bash", vr_bash).help("While guarding (a weapon held across in front, or both hands together), drive forward hard: knocks monsters back and staggers them."),
+        toggle("Bash", vr_bash).help("While guarding (a weapon held across in front, or both hands together), drive forward hard: knocks monsters back and staggers them. One open hand, palm ahead, shoves half as hard."),
         slider("Bash Speed", vr_bash_speed, 0.8f, 3.f, 0.1f, "%.1f m/s").help("How fast the guard must drive forward."),
         slider("Bash Damage", vr_bash_damage, 0.f, 40.f, 1.f, "%.0f"),
         slider("Bash Push", vr_bash_push, 0.f, 3.f, 0.05f, "%.2fx").help("How far a bash or shove throws what it hits (times Knockback)."),
@@ -278,12 +278,14 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("A torch on your chest. Trigger at it: on or off. Grip it with an empty hand to take it; let go and it springs back."),
         slider("Brightness", vr_flashlight_brightness, 0.25f, 2.5f, 0.05f, "%.2fx"),
         slider("Range", vr_flashlight_range, 300.f, 2000.f, 50.f, "%.0f"),
-        slider("Visible Beam", vr_flashlight_beam, 0.f, 1.f, 0.05f, "%.2f").help("A faint beam in the air in front of the lamp."),
+        slider("Visible Beam", vr_flashlight_beam, 0.f, 1.f, 0.05f, "%.2f").help("A soft cone of light in the air from the lamp (0: none)."),
         toggle("Casts Shadows", vr_flashlight_shadows).help("Its light casts shadows (takes one of the shadowed dynamic lights)."),
         slider("Tilt Down", vr_flashlight_tilt, -10.f, 30.f, 1.f, "%.0f deg").help("How far below where your torso faces the clipped lamp points."),
         slider("Forward", vr_flashlight_forward, -0.05f, 0.05f, 0.005f, "%.3f m"),
         slider("Up", vr_flashlight_up, -0.15f, 0.15f, 0.01f, "%.2f m"),
         slider("Out", vr_flashlight_out, -0.08f, 0.08f, 0.01f, "%.2f m").help("Towards your off hand's side."),
+        slider("In Hand Forward", vr_flashlight_hand_forward, -0.1f, 0.05f, 0.005f, "%.3f m").help("Where the held lamp sits in your fist."),
+        slider("In Hand Up", vr_flashlight_hand_up, -0.1f, 0.05f, 0.005f, "%.3f m"),
     };
 }
 
@@ -311,7 +313,11 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         header("Screen"),
         toggle("Level and Stats", vr_gadget_show_level),
         slider("Screen Light", vr_gadget_light, 0.f, 3.f, 0.1f, "%.1fx")
-            .help("The screen casts a faint light in its colour on your hand and what is close by (0 off)."),
+            .help("The screen casts a light in its colour the way it faces, and a faint one on your hand (0 off)."),
+        slider("CRT Look", vr_gadget_crt, 0.f, 2.f, 0.1f, "%.1fx")
+            .help("Scanlines, a slight flicker, faint static and now and then a glitch (0 off)."),
+        slider("Screen Glow", vr_screen_glow, 0.f, 3.f, 0.1f, "%.1fx")
+            .help("The gadget's and your weapons' screens glow softly round their edges (0 off)."),
         cycle("Messages", vr_notify_wrist, {{1.f, "Over the gadget"}, {2.f, "Both"}, {0.f, "In view"}})
             .help("The console's messages float in a small log over the gadget, or at the top of the view."),
         slider("Message Time", vr_notify_wrist_time, 2.f, 30.f, 1.f, "%.0f s")
@@ -361,6 +367,11 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Box Punch Damage", vr_carry_melee_mult, 1.f, 3.f, 0.1f, "%.1fx").help("Punching with a box in hand."),
         slider("Thrown Box Damage", vr_carry_throw_damage, 0.f, 50.f, 1.f, "%.0f").help("Damage of a box thrown at about 6 m/s; more the faster."),
         slider("Thrown Gib Damage", vr_gib_throw_damage, 0.f, 50.f, 1.f, "%.0f").help("Damage of a gib or head thrown at about 6 m/s; more the faster."),
+        toggle("Destroy Gibs", vr_gib_destroy)
+            .help("Gibs and heads burst in a mist of blood when shot, blown up, struck, or thrown hard at a wall or a monster."),
+        slider("Gib Health", vr_gib_health, 1.f, 60.f, 1.f, "%.0f").help("The damage that destroys a gib; a head takes half as much again."),
+        slider("Gib Splat Speed", vr_gib_splat_speed, 100.f, 600.f, 25.f, "%.0f")
+            .help("Units/s a thrown gib or head must hit a wall or a monster at to burst."),
     };
 }
 

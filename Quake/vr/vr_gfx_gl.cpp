@@ -6,6 +6,7 @@
 #include "vr_gfx.hpp"
 #include "vr_engine.hpp"
 
+#include <algorithm>
 #include <string>
 #include <unordered_map>
 
@@ -29,13 +30,66 @@ void main()
 }
 )";
 
-// Mode: the Shade.
+// Mode: the Shade; Params: its settings (State::params).
+//
+// Mode 4, the wrist gadget's screen: the texture's brightness (between its luminance and its
+// brightest channel, so that the status bar's gold numbers and the face read as bright as the
+// text) in the phosphor's colour, and with CRT strength k: scanlines and a faint aperture grille
+// (fading out where they would be finer than the eye's pixels), a darker rim, a slight flicker, a
+// soft bar rolling down, faint static; while it glitches (g), bands torn sideways, the colours
+// split and the static thick. Seeded by time only: both eyes see the same.
 constexpr const char* fragmentShader = R"(#version 430
 layout(location = 1) uniform int Mode;
+layout(location = 2) uniform vec4 Params;
 layout(binding = 0) uniform sampler2D Tex;
 in vec2 uv;
 in vec4 color;
 out vec4 result;
+float hash(vec2 p)
+{
+    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
+float phosphor(vec2 at)
+{
+    vec3 c = texture(Tex, at).rgb;
+    return 0.5 * max(c.r, max(c.g, c.b)) + 0.6 * dot(c, vec3(0.2126, 0.7152, 0.0722));
+}
+vec4 screen()
+{
+    float t = Params.x, k = Params.y, g = Params.z;
+    float tick = floor(t * 30.0);
+    float seed = fract(tick * 0.618034) * 512.0;
+    vec2 at = uv;
+    if(g > 0.0)
+    {
+        float band = floor(at.y * 14.0 + hash(vec2(seed, 3.0)) * 4.0);
+        if(hash(vec2(band, seed)) > 1.0 - 0.6 * g)
+            at.x += (hash(vec2(band, seed + 7.0)) - 0.5) * 0.15 * g;
+        at.y += (hash(vec2(seed, 11.0)) - 0.5) * 0.02 * g;
+    }
+    float split = 0.0006 * k + 0.006 * g;
+    vec3 rgb = color.rgb * vec3(phosphor(at - vec2(split, 0.0)), phosphor(at), phosphor(at + vec2(split, 0.0)));
+    rgb *= 1.0 - 0.3 * g;
+
+    float y = uv.y * 75.0;
+    float scanFade = clamp(1.0 - (fwidth(y) - 0.25) * 2.5, 0.0, 1.0);
+    float scan = 1.0 - 0.3 * k * scanFade * (0.5 + 0.5 * cos(y * 6.2831853));
+    float x = uv.x * 240.0;
+    float grilleFade = clamp(1.0 - (fwidth(x) - 0.25) * 2.5, 0.0, 1.0);
+    float grille = 1.0 - 0.12 * k * grilleFade * (0.5 + 0.5 * cos(x * 6.2831853));
+    vec2 p = uv * 2.0 - 1.0;
+    float rim = 1.0 - 0.15 * k * dot(p, p);
+    float flicker = 1.0 - 0.025 * k * hash(vec2(floor(t * 24.0) * 0.618034, 5.0));
+    rgb *= scan * grille * rim * flicker;
+
+    float d = fract(uv.y + fract(t * 0.12) + 0.5) - 0.5;
+    rgb += color.rgb * (0.05 * k * exp(-d * d * 400.0));
+    float noise = hash(floor(uv * vec2(240.0, 150.0)) + vec2(seed, seed * 0.37));
+    rgb += color.rgb * (noise * k * (0.025 + 0.25 * g));
+    return vec4(rgb, 1.0);
+}
 void main()
 {
     if(Mode == 1)
@@ -53,6 +107,10 @@ void main()
         if(c.a < 0.666)
             discard;
         result = vec4(c.rgb * color.rgb, 1.0);
+    }
+    else if(Mode == 4)
+    {
+        result = screen();
     }
     else
     {
@@ -189,8 +247,16 @@ void draw(std::span<const Vertex> triangles, const glm::mat4& mvp, const State& 
     {
         glBlendFunc(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA);
     }
+    else if(state.blend == Blend::Additive)
+    {
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    }
     GL_UniformMatrix4fvFunc(0, 1, GL_FALSE, &mvp[0][0]);
     GL_Uniform1iFunc(1, static_cast<GLint>(state.shade));
+    if(state.shade == Shade::Screen)
+    {
+        GL_Uniform4fFunc(2, state.params.x, state.params.y, state.params.z, state.params.w);
+    }
     if(texture)
     {
         GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, texture);
@@ -207,7 +273,7 @@ void draw(std::span<const Vertex> triangles, const glm::mat4& mvp, const State& 
     glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(triangles.size()));
     GL_BindBuffer(GL_ARRAY_BUFFER, 0);
 
-    if(state.blend == Blend::Premultiplied || state.blend == Blend::Modulate)
+    if(state.blend == Blend::Premultiplied || state.blend == Blend::Modulate || state.blend == Blend::Additive)
     {
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // what GLS_BLEND_ALPHA expects
     }
@@ -387,16 +453,31 @@ void copy(const Target& target, Texture image)
     bindWindow(); // it is called with the window's 2D pass bound
 }
 
-Texture createTexture(int width, int height, const void* rgba)
+Texture createTexture(int width, int height, const void* rgba, bool mipmaps)
 {
+    mipmaps = mipmaps && rgba;
+    int levels = 1;
+    while(mipmaps && std::max(width, height) >> levels)
+    {
+        levels++;
+    }
+
     GLuint tex = 0;
     glGenTextures(1, &tex);
     glBindTexture(GL_TEXTURE_2D, tex);
-    GL_TexStorage2DFunc(GL_TEXTURE_2D, 1, GL_RGBA8, width, height);
+    GL_TexStorage2DFunc(GL_TEXTURE_2D, levels, GL_RGBA8, width, height);
     if(rgba)
     {
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        if(mipmaps)
+        {
+            GL_GenerateMipmapFunc(GL_TEXTURE_2D);
+            if(gl_max_anisotropy > 1.f) // else not supported
+            {
+                glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, std::min(16.f, gl_max_anisotropy));
+            }
+        }
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, mipmaps ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);

@@ -3,6 +3,7 @@
 #include "vr_flashlight.hpp"
 #include "vr_avatar.hpp"
 #include "vr_cvars.hpp"
+#include "vr_gfx.hpp"
 #include "vr_lighting.hpp"
 #include "vr_lines.hpp"
 #include "vr_main.hpp"
@@ -12,6 +13,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 namespace qvr::flashlight
 {
@@ -23,6 +25,12 @@ namespace
 constexpr const char* modelName = "progs/vrflashlight.mdl";
 constexpr glm::vec3 lensPoint{0.997f, 0.f, 1.234f};
 constexpr glm::vec3 capPoint{0.f, 0.f, -1.05f}; // the bottom of the body, where the cord goes in
+constexpr float lensRadius = 0.433f;             // the lens's (1.65 cm)
+
+// The beam's spread: the tangent of its half-angle (about 18 degrees, the pool of light's), and
+// its brighter core's (about 8).
+constexpr float spread = 0.32f;
+constexpr float coreSpread = 0.14f;
 
 constexpr float reach = 0.11f;         // metres from the lamp's middle a hand reaches it at
 constexpr float returnOmega = 14.f;    // the cord's pull (critically damped; home in about 0.4 s)
@@ -66,6 +74,30 @@ struct State
 };
 
 State st;
+
+// The visible beam (vr_flashlight_beam): an open cone of light in the air from the lens, and a
+// narrower one inside it for its brighter core, added onto each eye's scene. Shaped once a frame:
+// rings along the axis, each ring's points pulled in where a wall or the floor cuts the cone (and
+// dark there, so it fades out where it meets them rather than showing a hard line); each eye then
+// shades it by the angle it sees each point at.
+constexpr int beamSides = 16;
+constexpr int beamRings = 10;
+constexpr float beamLookPast = 1.3f; // how far out walls are looked for, of the radius
+constexpr float beamGain = 0.35f;    // the light the air adds at vr_flashlight_beam 1, near the lens
+
+struct Beam
+{
+    bool visible{false};
+    glm::vec3 dir{1.f, 0.f, 0.f};
+    glm::vec3 color{0.f};
+    glm::vec3 around[beamSides];         // unit directions round the axis
+    glm::vec3 axis[beamRings];           // each ring's middle
+    float radius[beamRings]{};           // the outer cone's radius there
+    float glow[beamRings]{};             // how bright the air is there (the light spreading, the end)
+    float reach[beamRings][beamSides]{}; // how far out a wall lets it reach, of the radius (up to beamLookPast)
+};
+
+Beam beam;
 
 [[nodiscard]] bool enabled()
 {
@@ -114,13 +146,16 @@ State st;
     return poseFromAxes(pos, beam, left, beamUp);
 }
 
-// In the hand, held like a pistol's grip: the body in the fist, the beam where the hand points.
+// In the hand, held like a pistol's grip: the body through the fist (the tracked hand is ahead of
+// and above the drawn fist's grip: vr_flashlight_hand_forward and _up move the lamp back and down
+// into it), the beam where the hand points.
 [[nodiscard]] Pose handPose(const hands::State& s, int hand)
 {
     glm::vec3 fwd, right, up;
     hands::angleVectors(s.rot[hand], fwd, right, up);
     const float m2u = units::metresToUnits();
-    return poseFromAxes(s.pos[hand] + (fwd * 0.005f - up * 0.01f) * m2u, fwd, -right, up);
+    const glm::vec3 offset = fwd * vr_flashlight_hand_forward.value + up * vr_flashlight_hand_up.value;
+    return poseFromAxes(s.pos[hand] + offset * m2u, fwd, -right, up);
 }
 
 // Whether a hand holds nothing (the "fist" or no weapon at all).
@@ -208,6 +243,7 @@ void killLights()
     {
         killLight(key);
     }
+    beam.visible = false;
 }
 
 // Only the pool of light may cast shadows, with vr_flashlight_shadows.
@@ -227,6 +263,54 @@ void light(int key, const glm::vec3& at, float radius, const glm::vec3& color)
     if(key != keyPool || !vr_flashlight_shadows.value)
     {
         lighting::dlightNoShadow(dl);
+    }
+}
+
+// Shapes the visible beam for this frame (see Beam): from the lens to where the beam lands, `dist`
+// away, fading out before it (or in the air, when it lands nowhere near).
+void shapeBeam(const Pose& p, const glm::vec3& lens, const glm::vec3& dir, float dist, const glm::vec3& color)
+{
+    const float strength = CLAMP(0.f, vr_flashlight_beam.value, 1.f);
+    const float m2u = units::metresToUnits();
+    // Past 10 m or so the light in the air is too thin to see.
+    const float length = std::min(dist - 1.f, 10.f * m2u);
+    beam.visible = strength > 0.f && length > 0.1f * m2u;
+    if(!beam.visible)
+    {
+        return;
+    }
+
+    beam.dir = dir;
+    beam.color = color * (strength * beamGain);
+    const glm::vec3 left = p.rot * glm::vec3{0.f, 1.f, 0.f};
+    const glm::vec3 up = p.rot * glm::vec3{0.f, 0.f, 1.f};
+    for(int j = 0; j < beamSides; j++)
+    {
+        const float a = 6.2831853f * static_cast<float>(j) / beamSides;
+        beam.around[j] = left * std::cos(a) + up * std::sin(a);
+    }
+
+    const float lensR = lensRadius * units::worldScale();
+    for(int i = 0; i < beamRings; i++)
+    {
+        // The rings closer together near the lens, where the most changes.
+        const float t = static_cast<float>(i) / (beamRings - 1);
+        const float d = length * t * t;
+        beam.axis[i] = lens + dir * d;
+        beam.radius[i] = lensR + d * spread;
+
+        // The light thins as it spreads (less of it on each bit of air); the last third fades out.
+        const float thin = 1.f / (1.f + d / (0.5f * m2u));
+        const float end = glm::smoothstep(0.f, 1.f, std::min(1.f, (1.f - t * t) / 0.35f));
+        beam.glow[i] = thin * end;
+
+        // Where a wall cuts the cone, looked for a little past it (to fade out before a wall just
+        // beyond the cone, too).
+        for(int j = 0; j < beamSides; j++)
+        {
+            beam.reach[i][j] =
+                i == 0 ? beamLookPast : beamLookPast * worldtrace::line(beam.axis[i], beam.axis[i] + beam.around[j] * (beam.radius[i] * beamLookPast));
+        }
     }
 }
 
@@ -264,8 +348,8 @@ void lightBeam(const Pose& p)
 
     if(fraction < 1.f)
     {
-        // The pool's size: a cone of about 18 degrees either side of the beam.
-        const float pool = std::max(10.f, dist * 0.32f);
+        // The pool's size: the beam's spread.
+        const float pool = std::max(10.f, dist * spread);
         const glm::vec3 at = hit + normal * (pool * 0.6f) - dir * (pool * 0.25f);
         const float radius = CLAMP(40.f, pool * 2.2f, 450.f);
         const float k = base * (1.f - 0.55f * farRatio) * std::min(1.f, (1.f - farRatio) / 0.15f);
@@ -287,27 +371,7 @@ void lightBeam(const Pose& p)
 
     light(keyLamp, lens + dir * (0.2f * units::metresToUnits()), 0.7f * units::metresToUnits(), warm * (base * 0.25f));
 
-    // The beam itself, faint in the air: widening, fading out over a metre or so. Lines are drawn
-    // over everything (no depth test), so it is off by default.
-    const float beam = CLAMP(0.f, vr_flashlight_beam.value, 1.f);
-    if(beam > 0.f)
-    {
-        const float m2u = units::metresToUnits();
-        const float from = 0.03f * m2u;
-        const float length = std::min(dist, 1.3f * m2u) - from;
-        constexpr int segments = 5;
-        for(int i = 0; length > 0.f && i < segments; i++)
-        {
-            const float t0 = static_cast<float>(i) / segments;
-            const float t1 = static_cast<float>(i + 1) / segments;
-            const float a0 = beam * 0.05f * (1.f - t0) * (1.f - t0);
-            const float a1 = beam * 0.05f * (1.f - t1) * (1.f - t1);
-            const float width = (0.03f + 0.16f * (t0 + t1) * 0.5f) * m2u;
-            // Added onto the scene: the colour is the light added.
-            lines::glow(lens + dir * (from + length * t0), lens + dir * (from + length * t1), width,
-                glm::vec4{warm * a0, 1.f}, glm::vec4{warm * a1, 1.f});
-        }
-    }
+    shapeBeam(p, lens, dir, dist, warm * std::max(0.f, vr_flashlight_brightness.value));
 }
 
 // The retracting cord from the clip on the chest to the lamp's bottom, while it is off the chest:
@@ -483,6 +547,80 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
     {
         killLights();
     }
+}
+
+void drawTranslucent()
+{
+    if(!beam.visible || !st.on || !enabled())
+    {
+        return;
+    }
+
+    glm::vec3 eye, right, up;
+    gfx::sceneCamera(eye, right, up);
+    const float m2u = units::metresToUnits();
+
+    // The outer cone, and the core: its size of the outer's, its slope, its share of the light.
+    struct Shell
+    {
+        float scale;
+        float slope;
+        float weight;
+    };
+    constexpr Shell shells[] = {{1.f, spread, 0.5f}, {coreSpread / spread, coreSpread, 1.f}};
+
+    static std::vector<gfx::Vertex> triangles;
+    triangles.clear();
+    gfx::Vertex grid[beamRings][beamSides];
+    for(const Shell& shell : shells)
+    {
+        for(int i = 0; i < beamRings; i++)
+        {
+            for(int j = 0; j < beamSides; j++)
+            {
+                const float reach = beam.reach[i][j];
+                const glm::vec3 pos = beam.axis[i] + beam.around[j] * (beam.radius[i] * std::min(shell.scale, reach));
+
+                // Dark where a wall cuts it, fading in away from the wall.
+                const float open = CLAMP(0.f, (reach - shell.scale) / (beamLookPast - 1.f), 1.f);
+
+                // The cone seen face-on stands for a long way through the lit air, bright; seen
+                // edge-on, for none: a soft volume rather than a shell with edges (squared, for a
+                // beam brighter in its middle and soft at its edges).
+                const glm::vec3 normal = glm::normalize(beam.around[j] - beam.dir * shell.slope);
+                const glm::vec3 toPoint = pos - eye;
+                const float away = glm::length(toPoint);
+                const float cosine = away > 0.01f ? std::abs(glm::dot(normal, toPoint)) / away : 0.f;
+                const float facing = cosine * cosine;
+
+                // None right at the eye (the lamp held up to the face).
+                const float atEye = glm::smoothstep(0.1f * m2u, 0.4f * m2u, away);
+
+                const float k = shell.weight * beam.glow[i] * open * facing * atEye;
+                // Added onto the scene (premultiplied, no alpha): the colour is the light added.
+                grid[i][j] = {pos, glm::vec2{0.f}, glm::vec4{beam.color * k, 0.f}};
+            }
+        }
+        for(int i = 0; i + 1 < beamRings; i++)
+        {
+            for(int j = 0; j < beamSides; j++)
+            {
+                const int jn = (j + 1) % beamSides;
+                const gfx::Vertex& a = grid[i][j];
+                const gfx::Vertex& b = grid[i][jn];
+                const gfx::Vertex& c = grid[i + 1][jn];
+                const gfx::Vertex& d = grid[i + 1][j];
+                triangles.insert(triangles.end(), {a, b, c, a, c, d});
+            }
+        }
+    }
+
+    gfx::State state;
+    state.shade = gfx::Shade::Color;
+    state.blend = gfx::Blend::Premultiplied;
+    state.depthTest = true;
+    state.depthWrite = false;
+    gfx::draw(triangles, gfx::sceneViewProjection(), state);
 }
 
 bool button(int hand, bool grip, bool pressed)
