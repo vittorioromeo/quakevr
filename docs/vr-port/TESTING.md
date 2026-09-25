@@ -124,7 +124,29 @@ came. `developer 1` prints the spawned velocity, gravity, spin and age.
 
 ## What to try
 
-- **New in this round** (details in the commit log):
+- **New in this round** (details and what I could not test in `docs/vr-port/ROUND6.md`):
+  - **Carrying boxes:** grip an ammo or health box to hold it, pull the trigger to take it, let go to throw it
+    (thrown hard it hurts). A hand or gun touching a box without gripping nudges it. While a hand holds a box it
+    cannot take a weapon; punching with a box in hand hits harder. Advanced > Throwing and Physics.
+  - **Knights drop their swords** (knights and hell knights, gibbed or not): pick one up for a melee weapon with
+    more reach and damage than the axe; dead knights no longer hold theirs. Advanced > Melee.
+  - **Parrying:** hold a weapon sideways in front of you to block a monster's melee blow: less damage, a clang,
+    sparks, your arm is knocked; one-handed, it may be knocked out of your hand. Advanced > Melee.
+  - **Swimming:** wading is a little slower; under water or off the bottom the stick barely moves you, and
+    swimming strokes (palm first) do. Advanced > Locomotion.
+  - **Pauldrons** on your shoulders and the **ranger's clothes** on the body (olive vest, belt, camouflage
+    trousers with thigh plates, tall boots). Pauldron style, size, position and how much they follow the arm:
+    Advanced > Body.
+  - **Headshots** measured properly whatever way the monster faces, with a quiet tick
+    (Advanced > Gameplay, Headshot Sound). The tick never played before (its sound was not loaded).
+  - **Ammo screen** behind each weapon's ammo counter (Advanced > HUD).
+  - **Weapons, keys, armour and powerups** float at torso height.
+  - **Swing sounds** are back, except when the hand moves down (reaching for a holster).
+  - **Shoulder position** (Body: Shoulders Back/Up/Width); the **body is hidden while dead**; the **green armour**
+    on the body matches the pickup's colour; **ammo and health boxes** have shadows; floating items **splash**
+    only when they hit the water fast; a force-grabbed box missed near a wall no longer falls out of the level.
+
+- **Previous round:**
   - **Real-time shadows and dynamic lights** (`docs/vr-port/LIGHTING.md`; Advanced > Graphical Settings > Lights
     and Shadows, with a Preset from Off to Ultra; defaults are Medium):
     - explosions and rockets cast shadows (and stop lighting through walls);
