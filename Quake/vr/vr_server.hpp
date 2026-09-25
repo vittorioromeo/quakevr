@@ -27,6 +27,7 @@ void resetClients();
 [[nodiscard]] float* clientHeadAngles(struct edict_s* player);
 
 // `haptic(hand, delay, duration, frequency, amplitude)` from QC, sent to `player` (a client).
+void sendHandImpact(edict_t* player, int hand, float strength, const float dir[3]);
 void sendHaptic(struct edict_s* player, int hand, float delay, float duration, float frequency, float amplitude);
 
 } // namespace qvr::server

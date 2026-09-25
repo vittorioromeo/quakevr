@@ -15,7 +15,7 @@ gets a status, what was done, how it was tested, and anything to check on the he
 | 8 | Headshot detection: check rotations, fix; subtle headshot sound (toggle) | M | done |
 | 9 | A force-grabbed ammo pickup, not collected, fell through the floor (twice) | M | done |
 | 10 | A small 3D screen behind the ammo counter on weapons (programmatic) | M | done |
-| 11 | Parrying enemy melee: weapon held sideways in front; damage reduction, sound, sparks, arm wobble; one hand may drop the weapon, two hands never | L | |
+| 11 | Parrying enemy melee: weapon held sideways in front; damage reduction, sound, sparks, arm wobble; one hand may drop the weapon, two hands never | L | done |
 | 12 | Pauldrons on the body (toggle, customisable), after the Quake ranger; improve the body with the same reference | L | |
 | 13 | Swimming: walk in shallow water (small penalty); deep or feet off the floor: slow stick (10%), strokes move you | L | |
 | 14 | Carrying and nudging physics items (ammo, health boxes): push with hands or weapons, hold and carry, no weapons while holding, no phasing through walls, improvised melee and throwing | XL | |
@@ -78,3 +78,21 @@ gets a status, what was done, how it was tested, and anything to check on the he
     to the text (`vr_weapon_screen_padding`); no model changed. `vr_weapon_screen` (1) toggles it; menu: Advanced
     > HUD, "Weapon Ammo Screen", "Ammo Screen Margin". The font's cutout shade now multiplies by the vertex colour
     (white elsewhere, so unchanged). Checked on the shotgun: a small green screen on its back, "8/8" over "100".
+11. **Parrying.** `VR_Parry` (`combat.qc`, in `T_Damage`): a blow from a melee monster itself (knight, hell knight,
+    ogre, fiend, dog, shambler up close, fish, gremlin, mummy; the inflictor is the attacker, within 150 units) on a
+    VR player is parried by a hand holding a weapon (not the fist) that is:
+    - square to the blow within `vr_parry_angle` (50 degrees);
+    - ahead of the body towards the attacker (2-44 units);
+    - between the hips and above the head.
+
+    A parry takes `vr_parry_reduction` (0.75) off the damage, clangs (`player/axhit2` + `weapons/tink1`), throws
+    sparks from the weapon, gives a strong haptic, and knocks the hand. The knock is a new
+    `QVR_SVC_HANDIMPACT` message (`handimpact` builtin): the client offsets the drawn hand, and with it the weapon and
+    the IK arm, along the blow with a shaking, decaying spring (`vr_parry_wobble`); the tracked hand the game uses is
+    untouched. With two hands on the weapon (2H aiming) both hands are knocked and it is never dropped. With one,
+    `vr_parry_drop_chance` (0.5) knocks it out of the hand. The v_forward/right/up globals are restored for the
+    monster's code. Menu: Advanced > Melee.
+
+    **Tested** in the mock: a dog biting a player holding the shotgun sideways, three bites parried; with the drop
+    chance at 1, the gun fell. Not tested: the two-handed case (the mock cannot hold a weapon two-handed), and how
+    the wobble looks; please check both.

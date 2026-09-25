@@ -15,6 +15,7 @@
 #include "vr_teleport.hpp"
 #include "vr_throw.hpp"
 #include "vr_twohand.hpp"
+#include "vr_view.hpp"
 #include "vr_worldtext.hpp"
 
 #include <vector>
@@ -491,6 +492,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_PRECACHE_MODEL: parsePrecacheModel(); break;
         case QVR_SVC_PRECACHE_SOUND: parsePrecacheSound(); break;
         case QVR_SVC_HAPTIC: input::parseHaptic(); break;
+        case QVR_SVC_HANDIMPACT: view::parseHandImpact(); break;
         case QVR_SVC_WORLDTEXT_MAKE:
         case QVR_SVC_WORLDTEXT_TEXT:
         case QVR_SVC_WORLDTEXT_POS:

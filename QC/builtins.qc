@@ -146,6 +146,7 @@ float(float y, float x) atan2 = #474;   // DP_QC_ASINACOSATANATAN2TAN, radians
 
 void(vector o, vector d, float preset, float count) particle2 = #0; // start a particle2 effect
 void(float hand, float delay, float duration, float frequency, float amplitude) haptic = #0; // VR haptics function
+void(float hand, float strength, vector dir) handimpact = #0; // knock the `self` player's drawn hand (a parried blow)
 void(vector ang) makeforward = #0; // sets v_forward
 float(float input, float inputMin, float inputMax, float outputMin, float outputMax) maprange = #0;
 vector(vector input, vector exemplar) redirectvector = #0;

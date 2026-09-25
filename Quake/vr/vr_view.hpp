@@ -9,6 +9,9 @@
 namespace qvr::view
 {
 
+// QVR_SVC_HANDIMPACT: the drawn hand is knocked and wobbles back (a parried blow).
+void parseHandImpact();
+
 struct ViewEntity
 {
     entity_t ent{};

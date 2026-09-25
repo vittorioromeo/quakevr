@@ -931,6 +931,52 @@ void patchModelFlags()
     }
 }
 
+namespace
+{
+
+// Knocks on the drawn hands (parried blows): the hand, and with it the weapon and the arm, is
+// pushed along the blow and springs back, shaking (vr_parry_wobble scales it).
+struct HandImpact
+{
+    double time = -1.0;
+    float strength = 0.f;
+    glm::vec3 dir{0.f};
+};
+HandImpact handImpacts[2];
+
+// The knock now: a position offset and an angle offset (degrees).
+void impactOffset(int hand, glm::vec3& pos, glm::vec3& angles)
+{
+    pos = glm::vec3{0.f};
+    angles = glm::vec3{0.f};
+    const HandImpact& h = handImpacts[hand];
+    const float t = static_cast<float>(cl.time - h.time);
+    if(h.time < 0.0 || t < 0.f || t > 0.6f)
+    {
+        return;
+    }
+    const float k = h.strength * std::max(0.f, vr_parry_wobble.value);
+    const float decay = std::exp(-t * 9.f);
+    pos = h.dir * (k * decay * std::sin(t * 38.f + 0.9f));
+    angles = glm::vec3{std::sin(t * 41.f), std::cos(t * 33.f), std::sin(t * 29.f)} * (k * 2.5f * decay);
+}
+
+} // namespace
+
+void view::parseHandImpact()
+{
+    const int hand = MSG_ReadByte();
+    const float strength = MSG_ReadFloat();
+    glm::vec3 dir;
+    dir.x = MSG_ReadFloat();
+    dir.y = MSG_ReadFloat();
+    dir.z = MSG_ReadFloat();
+    if(hand == OFF || hand == MAIN)
+    {
+        handImpacts[hand] = {cl.time, strength, glm::length(dir) > 0.f ? glm::normalize(dir) : glm::vec3{0.f}};
+    }
+}
+
 extern "C" void VR_SetupViewEntities()
 {
     hands::State& s = hands::current();
@@ -946,6 +992,18 @@ extern "C" void VR_SetupViewEntities()
     }
 
     updateFingerFrames();
+
+    // Parried blows knock the drawn hands (not the tracked ones the game uses): offset for the
+    // view's setup, restored after it.
+    glm::vec3 knockPos[2], knockAngles[2];
+    for(int hand = 0; hand < 2; hand++)
+    {
+        impactOffset(hand, knockPos[hand], knockAngles[hand]);
+        s.pos[hand] += knockPos[hand];
+        s.rot[hand] += knockAngles[hand];
+        s.visualRot[hand] += knockAngles[hand];
+    }
+
     setupWeapon(s, MAIN, precachedModel(cl.stats[STAT_WEAPON]), cl.stats[STAT_WEAPONFRAME]);
     setupWeapon(s, OFF, precachedModel(cl.stats[STAT_QVR_WEAPONMODEL2]),
         cl.stats[STAT_QVR_WEAPONFRAME2]);
@@ -957,6 +1015,12 @@ extern "C" void VR_SetupViewEntities()
     setupGadget(s);
     setupButton(s, MAIN);
     setupButton(s, OFF);
+    for(int hand = 0; hand < 2; hand++)
+    {
+        s.pos[hand] -= knockPos[hand];
+        s.rot[hand] -= knockAngles[hand];
+        s.visualRot[hand] -= knockAngles[hand];
+    }
     if(vrActive())
     {
         pressWeaponButtons(s);

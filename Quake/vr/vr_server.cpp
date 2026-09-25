@@ -405,6 +405,26 @@ void sendHaptic(edict_t* player, int hand, float delay, float duration, float fr
     MSG_WriteFloat(msg, amplitude);
 }
 
+// A knock on a player's drawn hand (a parried blow): `strength` units along `dir`, dying out.
+void sendHandImpact(edict_t* player, int hand, float strength, const float dir[3])
+{
+    const int client = NUM_FOR_EDICT(player) - 1;
+    if(client < 0 || client >= svs.maxclients || !svs.clients[client].active)
+    {
+        return;
+    }
+
+    sizebuf_t* msg = &svs.clients[client].message;
+    MSG_WriteByte(msg, svc_quakevr);
+    MSG_WriteByte(msg, QVR_SVC_HANDIMPACT);
+    MSG_WriteByte(msg, hand);
+    MSG_WriteFloat(msg, strength);
+    for(int i = 0; i < 3; i++)
+    {
+        MSG_WriteFloat(msg, dir[i]);
+    }
+}
+
 void init()
 {
     Cmd_AddCommand("vr_dumpplayer", dumpPlayer_f);

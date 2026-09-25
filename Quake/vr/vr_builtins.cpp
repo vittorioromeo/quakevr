@@ -296,6 +296,13 @@ void PF_haptic()
         G_FLOAT(OFS_PARM1), G_FLOAT(OFS_PARM2), G_FLOAT(OFS_PARM3), G_FLOAT(OFS_PARM4));
 }
 
+// handimpact(hand, strength, dir): knock the `self` player's drawn hand (a parried blow).
+void PF_handimpact()
+{
+    server::sendHandImpact(PROG_TO_EDICT(pr_global_struct->self), static_cast<int>(G_FLOAT(OFS_PARM0)), G_FLOAT(OFS_PARM1),
+        G_VECTOR(OFS_PARM2));
+}
+
 struct VrBuiltin
 {
     const char* name;
@@ -322,6 +329,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"WriteVec3", PF_WriteVec3},
     {"particle2", PF_particle2},
     {"haptic", PF_haptic},
+    {"handimpact", PF_handimpact},
 };
 
 static_assert(firstVrBuiltin + std::size(vrBuiltins) < MAX_BUILTINS - 200,

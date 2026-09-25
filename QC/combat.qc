@@ -366,9 +366,120 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     return TRUE;
 };
 
+// ----------------------------------------------------------------------------
+// Parrying (vr_parry): a monster's melee blow on a VR player who holds a weapon sideways in front
+// of them, between them and the monster, is partly blocked (vr_parry_reduction): a clang, sparks,
+// the hand knocked back. Held in one hand, the weapon may be knocked out of it
+// (vr_parry_drop_chance); held in two, never.
+
+// Monsters that strike in melee (a blow comes from the monster itself, up close).
+float(entity e) VR_Parry_MeleeMonster =
+{
+    string c = e.classname;
+    return c == "monster_knight" || c == "monster_hell_knight" || c == "monster_ogre" || c == "monster_demon1" ||
+           c == "monster_dog" || c == "monster_shambler" || c == "monster_fish" || c == "monster_gremlin" ||
+           c == "monster_mummy";
+};
+
+// Whether `p`'s `hand` holds a weapon across a blow coming from `toAttacker` (horizontal, unit):
+// square to it within vr_parry_angle, ahead of the body towards the attacker, between the hips
+// and above the head.
+float(entity p, float hand, vector toAttacker) VR_Parry_Blocks =
+{
+    if(VRIsHandEmpty(p, hand))
+    {
+        return FALSE;
+    }
+
+    vector rot = p.handrot;
+    if(hand == cVR_OffHand)
+    {
+        rot = p.offhandrot;
+    }
+    makeforward(rot);
+    if(fabs(v_forward * toAttacker) > sin(cvar_hget(cvarh_vr_parry_angle) * 0.0174533))
+    {
+        return FALSE;
+    }
+
+    vector rel = VRGetEntHandPos(p, hand) - p.origin;
+    float ahead = rel * toAttacker;
+    return ahead > 2 && ahead < 44 && rel_z > -8 && rel_z < 50;
+};
+
+float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
+{
+    if(!cvar_hget(cvarh_vr_parry) || damage <= 0 || targ.classname != "player" || !VRHandsTracked(targ) ||
+       inflictor != attacker || !(attacker.flags & FL_MONSTER) || !VR_Parry_MeleeMonster(attacker))
+    {
+        return damage;
+    }
+
+    vector to = attacker.origin - targ.origin;
+    to_z = 0;
+    // Up close only (a shambler's lightning also comes from the shambler itself).
+    if(vlen(to) > 150 || (attacker.classname == "monster_shambler" && vlen(to) > 110))
+    {
+        return damage;
+    }
+    to = normalize(to);
+
+    // The globals the monster's attack code may still use after the damage.
+    vector oldForward = v_forward;
+    vector oldRight = v_right;
+    vector oldUp = v_up;
+
+    float hand = -1;
+    if(VR_Parry_Blocks(targ, cVR_MainHand, to))
+    {
+        hand = cVR_MainHand;
+    }
+    else if(VR_Parry_Blocks(targ, cVR_OffHand, to))
+    {
+        hand = cVR_OffHand;
+    }
+
+    if(hand >= 0)
+    {
+        entity oldSelf = self;
+        self = targ;
+
+        vector at = VRGetHandPos(hand) + to * 4;
+        sound(self, CHAN_AUTO, "player/axhit2.wav", 1, ATTN_NORM);
+        sound(self, CHAN_AUTO, "weapons/tink1.wav", 0.6, ATTN_NORM);
+        particle2(at, (to * -1 + '0 0 0.5') * 80, QVR_PARTICLE_PRESET_SPARKS, 24);
+        haptic(hand, 0.0, 0.3, 90, 1.0);
+        handimpact(hand, 5, to * -1);
+
+        float twoHanded = VRGet2HAiming(self);
+        if(twoHanded)
+        {
+            float other = VRGetOtherHand(hand);
+            haptic(other, 0.0, 0.25, 90, 0.8);
+            handimpact(other, 3, to * -1);
+        }
+        else if(random() < cvar_hget(cvarh_vr_parry_drop_chance))
+        {
+            DropWeaponInHand(self, hand, VRGetEntWeapon(self, hand), VRGetEntWeaponFlags(self, hand),
+                VRGetEntWeaponClip(self, hand));
+            sprint(self, "The blow knocks the weapon out of your hand!\n");
+        }
+
+        self = oldSelf;
+        dprint("parry: "); dprint(attacker.classname); dprint(" with hand "); dprint(ftos(hand));
+        dprint(twoHanded ? " (two hands)\n" : "\n");
+        damage = damage * (1 - min(1, max(0, cvar_hget(cvarh_vr_parry_reduction))));
+    }
+
+    v_forward = oldForward;
+    v_right = oldRight;
+    v_up = oldUp;
+    return damage;
+};
+
 float(entity targ, entity inflictor, entity attacker, float damage) T_Damage =
 {
-    return T_DamageImpl(targ, inflictor, attacker, damage, 0);
+    return T_DamageImpl(targ, inflictor, attacker, VR_Parry(targ, inflictor, attacker, damage), 0);
 };
 
 float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRMelee =
