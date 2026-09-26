@@ -145,8 +145,9 @@ context and screenshot, ready to paste or to point me at.
   - **Hand-off:** let go of a two-handed sword and the other hand keeps it; let go of a gun's grip and it hangs from
     the foregrip hand (grip its handle again to take it back). VR Settings > Weapons > Two-Handed Hand-Off.
   - **Parry:** any weapon held level across in front of you (Gameplay > Parry and Bash: Parry Angle, Parry Reach).
-  - **Weapon models:** a proper sawn-off, the rocket launcher and lightning gun with pistol grips, trigger guards,
-    the super nailgun's grooves.
+  - **Weapon models:** every gun has a real grip now: a proper sawn-off; pistol grips on the shotgun, rocket,
+    grenade, proximity and multi-grenade launchers and the lightning gun; a spade grip on the laser cannon; trigger
+    guards; the super nailgun's grooves. Their hand placements reset once.
   - **Lights:** lava nails glow and light the room; the lightning beam lights its whole length.
   - **Iron sight hue** (Wrist Gadget > Colours, or Graphics); flick-reload shells fall in front; bigger waves.
   - **Corpses** tougher (big monsters more); the laser cannon stops when empty.
