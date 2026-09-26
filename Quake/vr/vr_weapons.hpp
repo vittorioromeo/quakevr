@@ -60,4 +60,16 @@ struct ModelTransform
 // hand on a weapon, muzzles, foregrips) scale with it, so they stay attached at any world scale.
 [[nodiscard]] float offsetScale();
 
+// Moves a slot's weapon in the hand by `d` (in Offset X/Y/Z's units and axes) while the drawn hand
+// stays where it is: Offset += d, and the hand's offset on the weapon (HandOffset, applied in the
+// same mirrored frame but at offsetScale() instead of ModelTransform::k) takes it back:
+// HandOffset -= d * k / offsetScale() (7/6 at any world or gun model scale). As moving both
+// sliders by hand: the muzzle, aim, foregrip, ammo screen follow the weapon. Not for the empty
+// hand's slot (the hand model itself).
+void moveWeaponOnly(int slot, const glm::vec3& d);
+
+// The Weapon Offsets page's "Weapon Only" sliders (vr_weapon_only_x/y/z): their change moves
+// `slot`'s weapon (moveWeaponOnly; -1: the main hand's); zeroed when the page is built.
+void setWeaponOnlyTarget(int slot);
+
 } // namespace qvr::weapons

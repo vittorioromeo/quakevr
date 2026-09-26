@@ -415,10 +415,11 @@ void sparkles(const glm::vec3& org, int count, int lo, int hi, float alphaLo, fl
 }
 
 // The particles made since `first` in the force grab's hue (vr_forcegrab_hue; by default the
-// player's, vr_hue.hpp), each as bright as its palette colour was.
+// player's, vr_hue.hpp) and saturation (vr_forcegrab_saturation), each as bright as its palette
+// colour was.
 void inForceGrabHue(std::size_t first)
 {
-    const glm::vec3 c = hue::color(vr_forcegrab_hue, 0.75f, 1.f);
+    const glm::vec3 c = hue::color(vr_forcegrab_hue, vr_forcegrab_saturation, 0.75f, 1.f);
     for(std::size_t i = first; i < pool.size(); i++)
     {
         Particle& p = pool[i];

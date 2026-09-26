@@ -7,8 +7,9 @@
 // hand the "left" half (LT, LB, X, Y, LS). Menus understand these keys already.
 //
 // The off hand's stick moves (analog, see VR_AdjustMove); the main hand's stick turns, and
-// pushed up or down it is DPAD UP/DOWN. In menus both sticks are the DPAD, except that the main
-// hand's scrolls a page with a scrollbar; the menu button held closes the menu from any page.
+// pushed up or down it is DPAD UP/DOWN. In menus the off hand's stick is the DPAD; the main hand's
+// only scrolls a page with a scrollbar or is DPAD UP/DOWN (never left/right: it doesn't change
+// settings); the menu button held closes the menu from any page.
 
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -270,8 +271,9 @@ void update(const InputState& tracked)
     const bool menu = key_dest != key_game;
     if(menu)
     {
-        // The off hand's stick navigates (the arrow keys). The main hand's does too, but on a page
-        // with a scrollbar pushing it up or down scrolls (left and right still change values).
+        // The off hand's stick navigates and changes values (the arrow keys). The main hand's only
+        // scrolls (on a page with a scrollbar) or moves the selection up and down: its left and
+        // right do nothing, so that navigating never changes a setting by accident (round 20).
         const bool scrolls = menuui::scrollStick(main.stick.y);
         if(scrolls && std::fabs(main.stick.y) > 0.3f)
         {
@@ -284,11 +286,7 @@ void update(const InputState& tracked)
         glm::vec2 stick = off.stick;
         if(!scrolls && !mainStickScrolls)
         {
-            stick += main.stick;
-        }
-        else if(std::fabs(main.stick.x) > std::fabs(main.stick.y))
-        {
-            stick.x += main.stick.x;
+            stick.y += main.stick.y;
         }
         stickKey(stickKeys[0], stick.y, true);
         stickKey(stickKeys[1], -stick.y, true);

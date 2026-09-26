@@ -410,12 +410,16 @@ QVR_CVAR(vr_swim_debug, "0", CVAR_NONE)               // print each stroke: peak
 QVR_CVAR(vr_sword_drop, "1", CVAR_ARCHIVE)            // chance a knight or hell knight drops its sword, a melee weapon
 QVR_CVAR(vr_sword_damage_mult, "1.5", CVAR_ARCHIVE)   // its swing's damage over the axe's
 QVR_CVAR(vr_wofs_version, "0", CVAR_ARCHIVE)          // the weapon settings changes the config has taken (vr_weapons.cpp)
+QVR_CVAR(vr_weapon_only_x, "0", CVAR_NONE)            // the Weapon Offsets page's "Weapon Only" sliders: changed by d, they move the weapon by d
+QVR_CVAR(vr_weapon_only_y, "0", CVAR_NONE)            // (as Offset X/Y/Z) and keep the drawn hand where it is, as Offset and Hand
+QVR_CVAR(vr_weapon_only_z, "0", CVAR_NONE)            // moved together (weapons::moveWeaponOnly); the delta since the page opened
 QVR_CVAR(vr_carry_take, "0", CVAR_ARCHIVE)            // taking a carried box: 0 let go of it at a holster, 1 the trigger, 2 either
 QVR_CVAR(vr_carry_local, "1", CVAR_ARCHIVE)           // what you carry is drawn in your hand as it moves this frame (0: where the server has it, a frame or a ping behind)
 QVR_CVAR(vr_held_surface_fit, "1", CVAR_ARCHIVE)      // a gripped box, gib or backpack sits against the palm, pushed out of the fist, instead of sunk into the hand (0: where it was gripped)
 QVR_CVAR(vr_forcegrab_outline, "1", CVAR_ARCHIVE)     // the glow round what a hand's force grab points at (strength, 0 off)
 QVR_CVAR(vr_forcegrab_fx, "1", CVAR_ARCHIVE)          // force grab's beam and energy tendril from the hand, and the pulled object's trail
 QVR_CVAR(vr_forcegrab_hue, "-1", CVAR_ARCHIVE)        // their colour, the glow's and the sparkles': hue (degrees; 215 blue; -1 vr_player_hue)
+QVR_CVAR(vr_forcegrab_saturation, "0.7", CVAR_ARCHIVE) // and saturation (1 as made, 0 white, up to 2; times vr_player_saturation while the hue is the player's; 0.7: as the wrist gadget's screen)
 QVR_CVAR(vr_grab_gibs, "1", CVAR_ARCHIVE)             // gibs and heads: 0 left alone, 1 picked up and thrown by hand, 2 also force-grabbed
 QVR_CVAR(vr_carry, "1", CVAR_ARCHIVE)                 // ammo and health boxes: grip to carry, trigger to take, nudge with hands and guns (0: touch takes them)
 QVR_CVAR(vr_carry_nudge, "1", CVAR_ARCHIVE)           // how hard hands and guns push them

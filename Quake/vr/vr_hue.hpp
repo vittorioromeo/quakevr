@@ -5,7 +5,9 @@
 // sights, the force grab (its aiming line, the tendril, the target's glow, the sparkles), the
 // teleport arc, the crosshair and the menu's laser. Each has its own hue setting too: -1 (any
 // negative value) follows the player's, 0..360 is its own (vr_gadget_screen_hue, vr_sight_hue,
-// vr_forcegrab_hue, vr_teleport_hue, vr_crosshair_hue, vr_menu_laser_hue).
+// vr_forcegrab_hue, vr_teleport_hue, vr_crosshair_hue, vr_menu_laser_hue). The sights and the
+// force grab have their own saturation too (vr_sight_saturation, vr_forcegrab_saturation), times
+// the player's while their hue follows it.
 
 #pragma once
 
@@ -46,6 +48,21 @@ namespace qvr::hue
 [[nodiscard]] inline glm::vec4 color(const cvar_t& own, float s, float v, float alpha)
 {
     return glm::vec4{color(own, s, v), alpha};
+}
+
+// An effect with its own saturation setting too (`ownSaturation`: 1 as made, 0 white, up to 2):
+// `s` times it, and times vr_player_saturation while the hue follows the player's
+// (vr_forcegrab_saturation).
+[[nodiscard]] inline float saturation(const cvar_t& own, const cvar_t& ownSaturation, float s)
+{
+    const float k = std::clamp(ownSaturation.value, 0.f, 2.f) *
+                     (follows(own) ? std::clamp(vr_player_saturation.value, 0.f, 2.f) : 1.f);
+    return std::clamp(s * k, 0.f, 1.f);
+}
+
+[[nodiscard]] inline glm::vec3 color(const cvar_t& own, const cvar_t& ownSaturation, float s, float v)
+{
+    return hsv(of(own), saturation(own, ownSaturation, s), v);
 }
 
 } // namespace qvr::hue

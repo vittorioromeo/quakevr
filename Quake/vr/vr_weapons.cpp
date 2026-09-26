@@ -134,6 +134,39 @@ void migrate()
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }
 
+// ModelTransform::k: the weapon and hand models' scale.
+[[nodiscard]] float modelScale()
+{
+    // The first Quake VR releases used a 0.75 world scale; weapon settings are relative to it.
+    return (vr_world_scale.value / 0.75f) * vr_gunmodelscale.value;
+}
+
+// The "Weapon Only" sliders: the slot they move (-1: the main hand's weapon), and their values
+// already applied.
+int weaponOnlySlot = -1;
+glm::vec3 weaponOnlyApplied{0.f};
+bool weaponOnlyZeroing = false;
+
+cvar_t* const weaponOnlyCvars[3] = {&vr_weapon_only_x, &vr_weapon_only_y, &vr_weapon_only_z};
+
+void onWeaponOnlyChanged(cvar_t* var)
+{
+    if(weaponOnlyZeroing)
+    {
+        return;
+    }
+    for(int axis = 0; axis < 3; axis++)
+    {
+        if(var == weaponOnlyCvars[axis])
+        {
+            glm::vec3 d{0.f};
+            d[axis] = var->value - weaponOnlyApplied[axis];
+            weaponOnlyApplied[axis] = var->value;
+            moveWeaponOnly(weaponOnlySlot >= 0 ? weaponOnlySlot : heldSlot(1), d);
+        }
+    }
+}
+
 } // namespace
 
 void registerCvars()
@@ -163,6 +196,53 @@ void registerCvars()
     {
         Cvar_SetCallback(&cvarAt(slot, Key::ID), onIdChanged);
     }
+
+    for(cvar_t* var : weaponOnlyCvars)
+    {
+        Cvar_SetCallback(var, onWeaponOnlyChanged);
+    }
+}
+
+void moveWeaponOnly(int slot, const glm::vec3& d)
+{
+    if(slot < 0 || slot >= numSlots || slot == fistSlot() || d == glm::vec3{0.f})
+    {
+        return;
+    }
+
+    // In the weapon entity's (mirrored, turned) frame, before Ironwail's model matrix, a point `a`
+    // of the model (its anchor vertex: scale_origin + scale * Scale * vertex) is at
+    //   k * (Offset + a)                                  (the weapon: applyPre's S(k) * T(Offset))
+    // and the drawn hand, held at the hand anchor vertex,
+    //   offsetScale() * HandOffset + k * (Offset + a)     (anchorPosition's extra, before S(k)).
+    // Offset + d moves every point of the weapon by k * d; the hand stays if HandOffset takes
+    // back k * d / offsetScale(). Both are in the same frame (mirrored alike for the off hand).
+    const float s = offsetScale();
+    const float back = s > 1e-6f ? modelScale() / s : 0.875f / 0.75f;
+    constexpr Key offsets[3] = {Key::OffsetX, Key::OffsetY, Key::OffsetZ};
+    constexpr Key handOffsets[3] = {Key::HandOffsetX, Key::HandOffsetY, Key::HandOffsetZ};
+    for(int axis = 0; axis < 3; axis++)
+    {
+        if(d[axis] != 0.f)
+        {
+            cvar_t& offset = cvarAt(slot, offsets[axis]);
+            cvar_t& hand = cvarAt(slot, handOffsets[axis]);
+            Cvar_SetValueQuick(&offset, offset.value + d[axis]);
+            Cvar_SetValueQuick(&hand, hand.value - d[axis] * back);
+        }
+    }
+}
+
+void setWeaponOnlyTarget(int slot)
+{
+    weaponOnlySlot = slot;
+    weaponOnlyZeroing = true;
+    for(cvar_t* var : weaponOnlyCvars)
+    {
+        Cvar_SetValueQuick(var, 0.f);
+    }
+    weaponOnlyZeroing = false;
+    weaponOnlyApplied = glm::vec3{0.f};
 }
 
 cvar_t* cvar(int slot, Key key)
@@ -278,8 +358,7 @@ ModelTransform modelTransform(const qmodel_t* model)
         return t;
     }
 
-    // The first Quake VR releases used a 0.75 world scale; weapon settings are relative to it.
-    t.k = (vr_world_scale.value / 0.75f) * vr_gunmodelscale.value;
+    t.k = modelScale();
 
     const char* name = model->name;
     if(!strcmp(name, "progs/legholster.mdl"))

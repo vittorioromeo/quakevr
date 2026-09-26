@@ -55,12 +55,14 @@ double lastTime = -1.0;
 }
 
 // The effects' colours: the force grab's hue (vr_forcegrab_hue; by default the player's,
-// vr_player_hue: vr_hue.hpp) at each part's own saturation and brightness (made in blue, 215).
-// Hues of the same brightness are not as bright to the eye (green far more than blue): half the
-// difference in luminance with the blue is taken back, so every hue glows about as much.
+// vr_player_hue: vr_hue.hpp) at each part's own saturation and brightness (made in blue, 215), the
+// saturation times vr_forcegrab_saturation (and vr_player_saturation while the hue is the
+// player's). Hues of the same brightness are not as bright to the eye (green far more than blue):
+// half the difference in luminance with the blue as made is taken back, so every hue, paler or
+// not, glows about as much.
 [[nodiscard]] glm::vec3 tint(float saturation, float value)
 {
-    const glm::vec3 c = hue::color(vr_forcegrab_hue, saturation, value);
+    const glm::vec3 c = hue::color(vr_forcegrab_hue, vr_forcegrab_saturation, saturation, value);
     const glm::vec3 blue = hsv(215.f, saturation, value);
     const glm::vec3 luma{0.2126f, 0.7152f, 0.0722f};
     const float l = glm::dot(c, luma);
@@ -129,7 +131,9 @@ void tendril(const glm::vec3& a, const glm::vec3& b, float strength, int seed)
 void previewInMenu(const hands::State& s)
 {
     const cvar_t* selected = menu::selectedSetting();
-    if(!s.valid || (selected != &vr_player_hue && selected != &vr_player_saturation && selected != &vr_forcegrab_hue))
+    const bool colour = selected == &vr_player_hue || selected == &vr_player_saturation || selected == &vr_forcegrab_hue ||
+                        selected == &vr_forcegrab_saturation;
+    if(!s.valid || !colour)
     {
         return;
     }

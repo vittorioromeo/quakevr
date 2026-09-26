@@ -448,6 +448,8 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Weapon Sight Saturation", vr_sight_saturation, 0.f, 2.f, 0.05f, "%.2f").help("1 their own, 0 white."),
         hueSlider("Force Grab Hue", vr_forcegrab_hue)
             .help("The force grab's beam, energy tendril, glow and sparkles: 215 its old blue. Player's: the Player Effects Hue."),
+        slider("Force Grab Saturation", vr_forcegrab_saturation, 0.f, 2.f, 0.05f, "%.2f")
+            .help("How colourful they are: 1 as made, 0 white, 0.7 like the wrist gadget's screen. Times the Player Effects Saturation."),
         hueSlider("Teleport Arc Hue", vr_teleport_hue)
             .help("Where the teleport arc can land (red where it can't): 220 its old blue. Player's: the Player Effects Hue."),
         hueSlider("Crosshair Hue", vr_crosshair_hue).help("The laser crosshair: 0 its old red. Player's: the Player Effects Hue."),
@@ -724,6 +726,7 @@ void weaponOffsetsOtherHand()
 void weaponOffsetsReset()
 {
     weapons::resetSlotToDefaults(weaponOffsetsSlot);
+    weapons::setWeaponOnlyTarget(weaponOffsetsSlot); // the Weapon Only sliders back to 0
 }
 
 void weaponOffsetsPrint()
@@ -741,6 +744,7 @@ std::vector<Item> pageWeaponOffsets()
         slot = weapons::fistSlot(); // an empty hand: the hand model's own settings
     }
     weaponOffsetsSlot = slot;
+    weapons::setWeaponOnlyTarget(slot); // the Weapon Only sliders at 0, moving this weapon
 
     std::vector<Item> list;
     const char* hand = weaponOffsetsHand == 1 ? "Main hand" : "Off hand";
@@ -762,13 +766,27 @@ std::vector<Item> pageWeaponOffsets()
         action("Edit the Other Hand's Weapon", weaponOffsetsOtherHand)
             .help("The page shows the weapon the hand held when it was opened: reopen it after changing weapons."),
         header("Weapon in the Hand"),
-        s("Offset X (forward)", Key::OffsetX, -30.f, 30.f, 0.1f, "%.2f").help("Moves the weapon in the hand. Doesn't change where it aims."),
+        s("Offset X (forward)", Key::OffsetX, -30.f, 30.f, 0.1f, "%.2f")
+            .help("Moves the weapon and the hand on its grip together. Doesn't change where it aims. Weapon Only, below, moves the weapon alone."),
         s("Offset Y (left)", Key::OffsetY, -30.f, 30.f, 0.1f, "%.2f"),
         s("Offset Z (up)", Key::OffsetZ, -30.f, 30.f, 0.1f, "%.2f"),
         s("Pitch", Key::Pitch, -180.f, 180.f, 0.5f, "%.1f"),
         s("Yaw", Key::Yaw, -180.f, 180.f, 0.5f, "%.1f"),
         s("Roll", Key::Roll, -180.f, 180.f, 0.5f, "%.1f"),
         s("Scale", Key::Scale, 0.1f, 3.f, 0.01f, "%.2f"),
+    };
+    if(slot != weapons::fistSlot()) // the empty hand's "weapon" is the hand
+    {
+        const char* help = "Moves only the weapon: the drawn hand stays put (Offset and Hand change together). "
+                           "Shows how far since the page opened.";
+        list.insert(list.end(), {
+            header("Weapon Only (Hand Stays)"),
+            slider("Weapon Only X", vr_weapon_only_x, -10.f, 10.f, 0.1f, "%+.2f").help(help),
+            slider("Weapon Only Y", vr_weapon_only_y, -10.f, 10.f, 0.1f, "%+.2f").help(help),
+            slider("Weapon Only Z", vr_weapon_only_z, -10.f, 10.f, 0.1f, "%+.2f").help(help),
+        });
+    }
+    list.insert(list.end(), {
         header("Hand on the Weapon"),
         s("Hand X", Key::HandOffsetX, -10.f, 10.f, 0.05f, "%.2f").help("Moves the drawn hand on the weapon's grip."),
         s("Hand Y", Key::HandOffsetY, -10.f, 10.f, 0.05f, "%.2f"),
@@ -801,7 +819,7 @@ std::vector<Item> pageWeaponOffsets()
         action("Print Changes to Console", weaponOffsetsPrint)
             .help("Prints this weapon's settings that differ from the defaults, ready to be made the shipped defaults."),
         action("Reset This Weapon", weaponOffsetsReset).help("Every setting of this weapon back to its default."),
-    };
+    });
     return list;
 }
 
