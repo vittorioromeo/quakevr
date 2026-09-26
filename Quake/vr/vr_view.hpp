@@ -54,6 +54,9 @@ struct WeaponMount
 // Whether models `a` and `b` are the same gun (one is the other's other ammo's: its button switched it).
 [[nodiscard]] bool sameGun(const qmodel_t* a, const qmodel_t* b);
 
+// The jointed hand (vr_handrig.cpp): the skinning matrices of `e` if it is a drawn hand rig (their count, else 0).
+[[nodiscard]] int handBonePoses(const entity_t* e, const float** matrices);
+
 void dumpView_f();
 
 } // namespace qvr::view

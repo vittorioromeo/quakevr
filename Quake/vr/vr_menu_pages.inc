@@ -144,6 +144,10 @@ void resetSwimming()
         slider("Off-Hand Yaw", "vr_offhandyaw", -90.f, 90.f, 0.25f, "%.1f").help("Yaw offset for the guns/hands. Only for off-hand. Affects aiming."),
         slider("Finger Grip Bias", "vr_finger_grip_bias", 0.f, 1.f, 0.05f, "%.2f"),
         toggle("Auto close thumb", "vr_finger_auto_close_thumb"),
+        header("Fingers"),
+        toggle("Jointed Hand", "vr_hand_rig")
+            .help("The hand as one model with three joints a finger and an opposable thumb: the fingers curl smoothly and "
+                  "wrap what they hold. Off: the palm and five finger models as before (their six curl frames)."),
     };
 }
 

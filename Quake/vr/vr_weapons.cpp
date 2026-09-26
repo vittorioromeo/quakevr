@@ -51,7 +51,8 @@ void onIdChanged(cvar_t* /* var */)
 
 [[nodiscard]] bool isHandPart(const char* name)
 {
-    return !strcmp(name, "progs/hand_base.mdl") || !strncmp(name, "progs/finger_", 13);
+    // The palm and finger models, and the jointed hand drawn instead of them (vr_handrig.cpp): the fist slot's scale.
+    return !strcmp(name, "progs/hand_base.mdl") || !strncmp(name, "progs/finger_", 13) || !strcmp(name, "progs/hand_rig.mdl");
 }
 
 // Configs archive every slot's settings, so a slot whose defaults change keeps a config's old

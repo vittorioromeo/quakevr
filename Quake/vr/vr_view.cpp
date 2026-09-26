@@ -13,6 +13,7 @@
 #include "vr_cvars.hpp"
 #include "vr_emissive.hpp"
 #include "vr_hands.hpp"
+#include "vr_handrig.hpp"
 #include "vr_lines.hpp"
 #include "vr_protocol.hpp"
 #include "vr_render.hpp"
@@ -256,7 +257,7 @@ void forEachEntity(F&& f)
 
     const char* n = model->name;
     return !strcmp(n, "progs/hand.mdl") || !strcmp(n, "progs/hand_base.mdl") ||
-           !strncmp(n, "progs/finger_", 13);
+           !strncmp(n, "progs/finger_", 13) || !strcmp(n, handrig::modelName);
 }
 
 [[nodiscard]] qmodel_t* precachedModel(int index)
@@ -706,6 +707,93 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame)
     return health > 75 ? 0 : health > 50 ? 1 : health > 25 ? 2 : 3;
 }
 
+// ----------------------------------------------------------------------------
+// The jointed hand (vr_hand_rig, vr_handrig.cpp): drawn instead of the palm and the five finger models, as
+// entities.hand[hand][FingerBase] (the others hidden), posed here: each joint of a finger at its curl.
+
+struct RigHand
+{
+    bool drawn{false};
+    handrig::Pose pose;
+    handrig::Posed posed;
+    std::array<float, handrig::data::numJoints * 12> skin{};
+};
+RigHand rigHands[2];
+
+constexpr int rigFinger[handrig::FingerCount] = {FingerThumb, FingerIndex, FingerMiddle, FingerRing, FingerPinky};
+
+[[nodiscard]] glm::vec3 vec3Of(const float* v)
+{
+    return {v[0], v[1], v[2]};
+}
+
+// A finger offset (fingerOffset's hand units, y to the hand's right) in model space, at the offsets' scale.
+[[nodiscard]] glm::vec3 offsetInModel(const glm::vec3& v)
+{
+    return glm::vec3{v.x, -v.y, v.z} * weapons::offsetScale();
+}
+
+// A finger's curl as drawn: the controller's (whole frames or between them: the joints turn smoothly), no more
+// than a held weapon's grip limit.
+[[nodiscard]] float rigCurl(int hand, int finger)
+{
+    return std::fmin(fingerFrames[hand][finger], fingerLimits[hand][finger]);
+}
+
+bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool mirrored, bool hide)
+{
+    RigHand& rh = rigHands[hand];
+    rh.drawn = false;
+    if(!vr_hand_rig.value)
+    {
+        return false;
+    }
+    qmodel_t* const model = viewModel(handrig::modelName);
+    if(!handrig::usable(model))
+    {
+        return false;
+    }
+
+    // Where the six models are drawn: each at the hand plus its offset (fingerOffset, at offsetScale), scaled
+    // by the fist slot's Scale about its own scale origin (weapons::modelTransform). The rig is hand_base.mdl's
+    // space: the entity goes where the palm's origin is drawn, each finger moves from its bind place (the
+    // defaults) by what its current offset changes.
+    const weapons::ModelTransform t = weapons::modelTransform(model);
+    const float k = t.active ? t.k : 1.f;
+    const glm::vec3 ts = t.active ? t.scale : glm::vec3{1.f};
+    const glm::vec3 baseOrigin = vec3Of(handrig::data::baseScaleOrigin);
+    const glm::vec3 mBase = offsetInModel(fingerOffset(FingerBase, hand));
+    const glm::vec3 e = mBase + k * (glm::vec3{1.f} - ts) * baseOrigin;
+    for(int f = 0; f < handrig::FingerCount; f++)
+    {
+        const glm::vec3 m = offsetInModel(fingerOffset(rigFinger[f], hand));
+        const glm::vec3 origin = vec3Of(handrig::data::fingerScaleOrigin[f]);
+        rh.pose.shift[f] = ((m - mBase) / k + (glm::vec3{1.f} - ts) * (origin - baseOrigin)) / ts -
+                           vec3Of(handrig::data::fingerBindShift[f]);
+        const float c = rigCurl(hand, rigFinger[f]);
+        for(float& joint : rh.pose.curl[f])
+        {
+            joint = c;
+        }
+    }
+    rh.pose.metacarpal = glm::quat{1.f, 0.f, 0.f, 0.f};
+    handrig::pose(rh.pose, rh.posed);
+    handrig::skin(rh.posed, rh.skin.data());
+
+    view::ViewEntity& ve = entities.hand[hand][FingerBase];
+    place(ve, model, pos + hands::redirect({e.x, mirrored ? e.y : -e.y, e.z}, handRot), {-handRot.x, handRot.y, handRot.z}, 0,
+        mirrored);
+    ve.zeroBlend = 0.f;
+    ve.ent.skinnum = damageLevel();
+    ve.visible = !hide;
+    for(int finger = FingerBase + 1; finger < FingerCount; finger++)
+    {
+        entities.hand[hand][finger].visible = false;
+    }
+    rh.drawn = ve.visible;
+    return true;
+}
+
 void setupHand(const hands::State& s, int hand)
 {
     const view::ViewEntity& weapon = entities.weapon[hand];
@@ -784,6 +872,11 @@ void setupHand(const hands::State& s, int hand)
     else if(twohand::carryingHand(s, hand, pos, handRot))
     {
         hide = false;
+    }
+
+    if(setupRigHand(hand, pos, handRot, mirrored, hide))
+    {
+        return;
     }
 
     const float offsetScale = weapons::offsetScale();
@@ -1761,6 +1854,22 @@ extern "C" void VR_SetupViewEntities()
 
 namespace qvr::view
 {
+
+int handBonePoses(const entity_t* e, const float** matrices)
+{
+    for(int hand = 0; hand < 2; hand++)
+    {
+        if(rigHands[hand].drawn && e == &entities.hand[hand][FingerBase].ent)
+        {
+            if(matrices)
+            {
+                *matrices = rigHands[hand].skin.data();
+            }
+            return handrig::data::numJoints;
+        }
+    }
+    return 0;
+}
 
 // vr_dumpview: lists the VR view entities.
 void dumpView_f()
