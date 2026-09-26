@@ -141,7 +141,18 @@ context and screenshot, ready to paste or to point me at.
 
 ## What to try
 
-- **New in this round** (details in `docs/vr-port/ROUND14.md`, your fourth batch of notes):
+- **New in this round** (details in `docs/vr-port/ROUND15.md`, your fifth batch of notes):
+  - **Swords:** hits along the whole blade (the dummy names the point), two-handed grip below the main hand, both
+    swords in vrfiringrange.
+  - **Batting projectiles:** a brisk, slightly early swing; Gameplay > Feel has Batting Reach, Swing Speed, Timing.
+  - **Corpses** gib from shots, nails and blows. **Shell casings** from the shotgun and the double shotgun's reload.
+  - **Water:** splashes and sounds (shots, throws, jumps, hands, wading, strokes); real waves on liquids.
+  - **Holsters** on the front of the body; a longer holster buzz; a buzz when catching a force-grabbed thing.
+  - **Lights:** fixtures light their rooms (relit maps); map boards are CRT screens; no lines on bumpy walls up close.
+  - **Memory Log** (Graphics > Performance): `quakevr/profile/memstats_<date>.csv`, for the slowdown.
+  - **Your tuned settings** ship as defaults (`quakevr/vr_defaults.cfg`); `vr_savedefaults` rewrites it.
+
+- **Previous round** (details in `docs/vr-port/ROUND14.md`, your fourth batch of notes):
   - **Melee from scratch:** strong swings and straight punches rewarded (the dummy shows speed, acceleration and
     strength); a bash needs a still, level guard first; waving does nothing.
   - **Render Scale fixed** (SteamVR's OpenGL path ignores swapchain resizes: the eyes are now rendered at the

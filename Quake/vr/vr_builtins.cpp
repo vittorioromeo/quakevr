@@ -269,7 +269,7 @@ void PF_liquidentry()
 }
 
 // void watersplash(vector org, vector dir, float strength, float sound): a splash on a liquid's
-// surface at `org`, something going `dir` into it `strength` hard (3 a shot .. 50 a body), and its
+// surface at `org`, something going `dir` into it `strength` hard (4 a shot .. 50 a body), and its
 // sound (QVR_SPLASH_*: none, a shot's plip, a thing's splash by strength).
 void PF_watersplash()
 {

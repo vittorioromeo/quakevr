@@ -727,12 +727,12 @@ void wading(edict_t* ent, WaterFeel& w, float dt)
     }
     const glm::vec3 feet = origin + glm::vec3{0.f, 0.f, ent->v.mins[2] - 4.f};
     const bool onBottom = hasFlag(ent, FL_ONGROUND) || contentsAt(feet) == CONTENTS_SOLID;
-    if(w.wadeSpeed < 40.f || !onBottom)
+    if(w.wadeSpeed < 15.f || !onBottom) // slower than 0.6 m/s: standing, shuffling
     {
         w.wade = std::min(w.wade, 0.6f); // the next step soon after moving again
         return;
     }
-    const float interval = CLAMP(0.3f, 0.62f - w.wadeSpeed / 1000.f, 0.6f);
+    const float interval = CLAMP(0.3f, 0.62f - w.wadeSpeed / 600.f, 0.6f); // a step at a walk (1.4 m/s) about 0.55 s
     w.wade += dt / interval;
     if(w.wade < 1.f)
     {
@@ -748,7 +748,7 @@ void wading(edict_t* ent, WaterFeel& w, float dt)
     }
     const float deep = level >= 2.f ? 1.f : 0.65f;
     sendSplash(at, ahead, 2.f + 2.f * deep);
-    soundAt(at, (w.sloshSound++ & 1) ? "vr/slosh2.wav" : "vr/slosh1.wav", CLAMP(0.25f, w.wadeSpeed / 300.f, 0.8f) * deep);
+    soundAt(at, (w.sloshSound++ & 1) ? "vr/slosh2.wav" : "vr/slosh1.wav", CLAMP(0.3f, 0.25f + w.wadeSpeed / 200.f, 0.8f) * deep);
 }
 
 void waterFeedback(edict_t* ent)
@@ -842,10 +842,64 @@ void strokeFeedback(edict_t* ent, int handIndex, const glm::vec3& hand, float pe
     return glm::length(extent) * 0.5f;
 }
 
+// A thing (not a player) going into a liquid at `at` (entering) or out of it: a splash as hard as it
+// goes and as big as it is, and going in, its sound in place of Quake's h2ohit1; coming out, a
+// smaller one (Quake's sound stays). True if it played its own sound.
+bool thingSplash(edict_t* ent, const glm::vec3& at, bool entering)
+{
+    const glm::vec3 vel = vec(ent->v.velocity);
+    const float speed = glm::length(vel);
+    const float size = CLAMP(0.35f, thingRadius(ent) / 8.f, 3.f);
+    const float strength = CLAMP(2.f, 6.f * CLAMP(0.3f, speed / 400.f, 2.f) * size, 45.f);
+    if(developer.value >= 2)
+    {
+        Con_Printf("VR splash: %s %s at %.0f u/s, radius %.0f\n", PR_GetString(ent->v.classname), entering ? "in" : "out", speed,
+            thingRadius(ent));
+    }
+    if(!entering)
+    {
+        sendSplash(at, glm::vec3{0.f, 0.f, 1.f}, strength * 0.4f);
+        return false;
+    }
+    if(!sendSplash(at, speed > 0.f ? vel / speed : glm::vec3{0.f, 0.f, -1.f}, strength))
+    {
+        return true; // one like it just here (a nailgun's nails): no sound either
+    }
+    if(thingRadius(ent) < 6.f) // a nail, a grenade: a shot's plip
+    {
+        return soundAt(at, "vr/plip.wav", 0.6f);
+    }
+    return soundAt(at, strength >= 18.f ? "vr/splash_big.wav" : "vr/splash_small.wav", CLAMP(0.35f, 0.3f + strength / 25.f, 1.f));
+}
+
 } // namespace
 
 namespace qvr::physics
 {
+
+// Before a thing's move (vr_rigid.cpp): if it goes into a liquid on the way, its splash now, where
+// it goes in. Quake only sees it in after the move, and a rocket, a nail or a grenade that also hits
+// the bottom in that move is gone (or stopped) by then. The transition that follows is debounced.
+void predictWaterEntry(edict_t* ent)
+{
+    if(!active() || f().lastwatertime < 0 || isClient(ent) || hasFlag(ent, FL_ONGROUND))
+    {
+        return;
+    }
+    const glm::vec3 vel = vec(ent->v.velocity);
+    const glm::vec3 from = vec(ent->v.origin);
+    if(glm::length(vel) < vr_water_splash_speed.value || contentsAt(from) != CONTENTS_EMPTY)
+    {
+        return;
+    }
+    glm::vec3 at;
+    if(!liquidEntry(from, from + vel * static_cast<float>(host_frametime), at))
+    {
+        return;
+    }
+    fieldFloat(ent, f().lastwatertime) = static_cast<float>(qcvm->time);
+    thingSplash(ent, at, true);
+}
 
 bool liquidEntry(const glm::vec3& from, const glm::vec3& to, glm::vec3& at)
 {
@@ -1340,32 +1394,15 @@ extern "C" int VR_AllowWaterSplash(edict_t* ent)
         return allow;
     }
 
-    // A thing going in (the watertype is still the old one): a splash as hard as it goes and as
-    // big as it is, its sound in place of Quake's (unless vr_water_sounds is off); coming out, a
-    // smaller one, and Quake's sound.
-    const glm::vec3 origin = vec(ent->v.origin);
-    const glm::vec3 vel = vec(ent->v.velocity);
-    const float speed = glm::length(vel);
-    const float size = CLAMP(0.35f, thingRadius(ent) / 8.f, 3.f);
-    const float strength = CLAMP(2.f, 6.f * CLAMP(0.3f, speed / 400.f, 2.f) * size, 45.f);
+    // A thing going in (the watertype is still the old one) or coming out (see thingSplash).
     glm::vec3 at;
     const bool entering = ent->v.watertype == CONTENTS_EMPTY;
-    if(developer.value >= 2)
-    {
-        Con_Printf("VR splash: %s %s at %.0f u/s, radius %.0f\n", PR_GetString(ent->v.classname), entering ? "in" : "out", speed,
-            thingRadius(ent));
-    }
-    if(!surfaceOver(origin, std::max(48.f, speed * static_cast<float>(host_frametime) * 1.5f), at))
+    const float speed = glm::length(vec(ent->v.velocity));
+    if(!surfaceOver(vec(ent->v.origin), std::max(48.f, speed * static_cast<float>(host_frametime) * 1.5f), at))
     {
         return 1;
     }
-    if(!entering)
-    {
-        sendSplash(at, glm::vec3{0.f, 0.f, 1.f}, strength * 0.4f);
-        return 1;
-    }
-    sendSplash(at, speed > 0.f ? vel / speed : glm::vec3{0.f, 0.f, -1.f}, strength);
-    return !soundAt(at, strength >= 18.f ? "vr/splash_big.wav" : "vr/splash_small.wav", CLAMP(0.35f, 0.3f + strength / 25.f, 1.f));
+    return !thingSplash(ent, at, entering);
 }
 
 extern "C" int VR_TouchLinks(edict_t* ent)

@@ -1,5 +1,43 @@
 # Feedback round 15: plan and notes
 
+From the fifth batch of voice notes (21 notes, two profiles).
+
+| # | Note | Request | Status |
+|---|---|---|---|
+| 1 | r1m1 02-16-40, vrfiringrange 02-12-19 | Slower on every load (120 to 80 fps) | nothing leaks on our side; `vr_memstats`, `vr_memstats_log` |
+| 2 | e1m1 01-52-30 | Light fixtures should light more, customisable | done: relight, `relight_textures.cfg` |
+| 3 | e1m1 01-54-54 | Gib corpses with normal damage | done |
+| 4 | e1m2 01-58-37 | Holster models not visible | done: the body hid them |
+| 5 | e1m2 01-59-00, 02-06-13 | Splashes and water sounds | done |
+| 6 | e1m2 01-59-00 | Geometric waves | done |
+| 7 | e1m2 02-03-41 | Holster "once" haptic a longer burst | done |
+| 8 | e1m2 02-04-12 | Haptic when catching force-grabbed things | done |
+| 9 | e1m1 01-47-01 | No force-grab lines while holding the flashlight | done |
+| 10 | r1m1 02-14-49 | Sword hits register near the hilt | done: swept points along the weapon |
+| 11 | r1m1 02-15-54, vrfiringrange 02-24-03, 02-24-15 | Two-handed swords; both in vrfiringrange | done |
+| 12 | start 02-21-12 | Line artifacts up close on bumpy walls | done: the baked-light bumps' gradient |
+| 13 | start 02-21-59 | Shell casings | done: shotgun, double shotgun on reload |
+| 14 | vrfiringrange 02-26-50 | Batting projectiles more lenient, with options | done |
+| 15 | vrtutorial 02-17-27 | Map boards like the gadget's CRT | done |
+| 16 | vrtutorial 02-18-26 | Throwing and melee independent of the frame rate | done |
+| 17 | vrfiringrange 02-24-38 | The tuned settings as shipped defaults | done: `quakevr/vr_defaults.cfg` |
+
+## Shipped defaults
+
+`quakevr/vr_defaults.cfg` (executed by `default.cfg`, so the saved config still wins) holds the settings the author
+tuned, as `vr_default <cvar> <value>` lines: each sets the value and makes it the cvar's default, so the menus' resets
+and the presets return to it. `vr_savedefaults` rewrites the file from the current settings: the archived Quake VR
+cvars that differ from the compiled-in defaults, less the personal and bookkeeping ones (height calibration, OpenXR
+runtime, microphone, per-weapon offsets, version counters). Configs saved before keep their values (they save every
+archived cvar); new players and "Reset to defaults" get the tuned ones.
+
+## Memory log
+
+`vr_memstats_log` (Graphics > Performance > Memory Log; 60 s by default, 0 off) writes a row to
+`quakevr/profile/memstats_<date>.csv` every so many seconds and 5 s after each map load: the frame time since the last
+row, VRAM used and free (all processes) and the driver's evictions, the working set, private bytes, hunk, managed
+textures, live GL objects and render targets made. The console command `vr_memstats` prints the same.
+
 ## Leaks
 
 Voice notes r1m1_2026-09-26_02-16-40 ("slower and slower on every load ... 120 at the beginning, now around 80") and
@@ -505,3 +543,421 @@ In the headset:
   stereo, and does 3 units look right (`vr_water_geo_amplitude`, up to 8)? Lava is bigger and slower.
 - Look along the rim where water meets a wall, from above and from under water, for slits or flicker.
 - Put your head under and look up: the underside should move with the top.
+
+## Parallax artifacts
+
+Voice note start_2026-09-26_02-21-12 ("If I look up close at walls with parallax, I can see this kind of line
+artifacts. Is that normal or is this something that can be fixed?"). The screenshot shows the start map's stone ledge
+from below. Up close there is a grid of short dark dashes, and on the darker wall under it there are rings of dashes
+round a point.
+
+**Cause: the bumps on the baked light, not the parallax.** I reproduced it in the mock at the note's spot with the
+eyes rendered at 3072 x 3072 (`vr_render_scale 3`), which is close to the headset's pixel density, and then turned
+things off one at a time:
+
+- Parallax off (`vr_parallax 0`): the dashes stay, in the same places on screen.
+- Map-light shadows and self shadows off, a larger shadow bias, `r_dither 0`: no change.
+- **Bumps in Map Light off (`vr_normalmap_baked 0`): the dashes are gone.** Parallax is still on, and its relief is
+  clean.
+
+The bumps on the baked light guess where the light comes from by looking at where the lightmap gets brighter across
+the surface. That guess used the screen derivatives of the filtered lightmap (`dFdx`/`dFdy`). But the texture filter
+blends luxels with 8-bit weights (steps of 1/256 of a luxel, about 0.06 units), and the lightmap values are 8-bit
+too. Up close, a pixel covers less than one of those steps. So between two pixels the derivative was either 0 or a
+whole step. The code then divided that step by a pixel's width, multiplied by 96 and divided by the brightness, which
+tilted the guessed light by the full 45 degrees. That made dark dashes along the lines where a step fell between two
+pixels. The steps of the 8-bit brightness follow its contours, which gives the rings round lights. More pixels make it
+worse, so it shows in the headset (3292 x 3524) more than on the desktop.
+
+I checked the parallax itself for the causes that were suspected, with the baked bumps off, the depth at 6 and 16
+against 64 steps, close up and at grazing angles. Its layers and refinement showed no contour lines, and 64 steps
+looked the same as 16, because the limit of 1.5 steps per height texel already applies. I made no parallax change.
+
+**Fix** (`gl_shaders.h`, world shader: `LightmapLumDerivs`, `LightmapGreen`, `LuxelSlope`). The slope is now worked
+out from the luxels themselves in full precision, then multiplied by the (exact) screen derivatives of the lightmap
+coordinates, so `BakedBump` is unchanged:
+
+- The 4 x 4 luxels around the pixel are read with 4 `textureGather`s: the green channel, with the styles combined,
+  one gather per quad and per style (4 per quad with 3 or 4 styles). Brightness is taken relative to green
+  (times the contrast power `vr_light_contrast`), so the result is in the same units as before.
+- Each luxel's slope is the central difference, blended across the cell. So the slope is continuous at luxel lines.
+  The bilinear light's own slope jumps there, and with exact derivatives that showed as a faint straight line every
+  16 units. `dFdx` had the same jump, but the noise hid it.
+- A luxel beyond the cell is used only when its difference agrees with the cell's own. Lightmaps are packed with no
+  gap, so the luxel next to a face's edge luxel in the atlas can belong to another face.
+
+**Before / after:** `parallax_artifacts_before_after.png` in the scratchpad (2x crops, eyes at 3072): the ledge's
+underside, the wall under it, and the ledge top, which also had a luxel line.
+
+**Cost** (RTX 4090, mock eyes 1024 x 1024, world+brush GPU for both eyes, Bumps in Map Light on / off): the note's
+spot 0.18 / 0.16 ms, the wall straight on 0.15 / 0.13, e1m1's first corridor 0.20 / 0.18. The old derivatives cost
+almost nothing, so the fix adds about 0.02 ms. Scaled to the headset's eyes (about 11 times the pixels), that is
+roughly 0.2 ms a frame. A first version with 12 `texelFetch`es cost twice as much.
+
+**Check in the headset:**
+
+- At the note's spot, put your face close to the ledge and the wall under it, and to other bumpy walls near lights.
+  The dashes and the rings should be gone, while the relief and its shading stay.
+- Look for straight lines in the shading every 16 units, or along a face's edge. A face's edge luxels can still
+  differ from its neighbour's, but I saw none in my tests.
+- If something still flickers up close, compare with Bumps in Map Light off. If it goes away, the cause is the baked
+  bumps again. If not, it is the parallax, so try Parallax Depth lower.
+
+## Shell casings
+
+Voice note start_2026-09-26_02-21-59: spent shells should fall out of the weapons in the right direction, with gravity
+and physics. The shotgun ejects one every time it cycles a round. The double shotgun ejects only when it's reloaded,
+especially on a flick reload. The shells should be simple low-poly models in Quake's style, with a subtle smoke trail
+or a few sparks.
+
+**What you see** (`vr_shells`, default 1; `vr_shells_life`, default 20 s; `vr_shells_sound`, default 1; menu:
+Immersion, "Shell Casings", "Shell Casing Life" and "Shell Casing Sound"):
+
+- **Shotgun.** 0.22 s after each shot (the recoil and pump sound), a shell comes out of the port on the right side of
+  the receiver. It goes right, a little up and back, at about 1.6 m/s plus the hand's own motion, tumbling end over
+  end. The port leaves a faint puff of smoke and three tiny powder sparks.
+- **Super shotgun.** Nothing comes out when it fires. When it's reloaded (a hip holster, the reload button or a flick),
+  its spent shells come out of the two chambers at the breech: one or two, as many as were fired. They go back and up
+  with more smoke (a hot breech). On a **flick reload** they're flung by the spinning gun: they take 60% of the
+  breech's own speed (the spin, easily 3-4 m/s) and extra tumble, so they fly over your shoulder. With reloading off
+  (`vr_reload_mode 0` or Quick Slots), the gun has no reload to eject on: its shells come out 0.45 s after each shot
+  instead, as if it reloaded itself.
+- **In flight.** Real gravity (9.81 m/s², times `sv_gravity`/800, so low-gravity maps are floaty) and a little air
+  drag. For its first 1.2 s a shell trails a thin, fading wisp of smoke.
+- **Landing.** A shell bounces off walls and floors with restitution 0.3-0.45 and some friction, tumbling anew, with a
+  quiet metallic tink on each of its first few hard hits. Once it's too slow to bounce on a floor, it lies down on its
+  side, rolls across its axis or slides along it to a stop, and rests. Off a ledge it falls again. In water it sinks
+  slowly, without tinks. After `vr_shells_life` seconds it fades out over 1.5 s.
+
+**How it works.**
+
+- **Client-side debris** (`Quake/vr/vr_shells.cpp`). The shells aren't server entities, so there's no network cost and
+  no edicts: a pool of at most 64 on the client (a new one replaces the oldest). Each shell has a position, velocity,
+  orientation (quaternion), angular velocity and age. Each is drawn as an alias entity added to the scene with the VR
+  view entities, so it gets the level's lighting, dynamic lights (muzzle flashes light it up) and fog.
+- **Collisions** are line traces through the world and the moving brush models (`worldtrace::world`, from the
+  client's own data, so it works in multiplayer too). A shell in the air traces once per frame, as does a rolling
+  one (plus a short check for its floor). A resting shell costs nothing but a floor check every 0.3-0.6 s, so it
+  falls if a lift goes down. At most that's 64 small entities and about 128 short traces a frame, and that only while
+  they all move at once.
+- **When: the QC says.** A new builtin, `ejectcasings(hand, kind, count, delay, flags)` (QC/builtins.qc), sends
+  `svc_quakevr` / `QVR_SVC_EJECT` to the firing player only (`vr_server.cpp`, `sendEject`: 7 bytes). It's called by
+  `W_FireShotgun` (the shotgun, delay 0.22; or the super shotgun firing its last shell with reloading off),
+  `W_FireSuperShotgun` (reloading off only) and `VRReloadWeapon` (the super shotgun: the shells fired since the last
+  reload, with `QVR_EJECT_FLICK` when `VR_HandGrabUtil_IsHandReloadFlicking`). So it's right whatever triggers the
+  shot or the reload, and bots and other players' shots send nothing.
+- **Where from and which way: the weapon model.** The client knows each hand's drawn weapon (`vr_view.cpp`). A small
+  table in `vr_shells.cpp` gives, per model, the ports in model space (v_shot: the receiver's right side, 14.5 -2.8
+  4.3; v_shot2: the chambers, 11.6 ±1.2 6.9), the ejection direction, speed and tumble. It also gives an anchor
+  vertex that moves the ports with the firing animation, since v_shot recoils 7 units back while its shell is
+  ejected. It's mirrored with the model, so a left hand's shotgun ejects to the left. The port is followed from frame
+  to frame, so its speed goes into the shell: a swung hand, a flick's spin and the player's own movement all carry
+  over. Adding another weapon is one table row (and, if it needs another casing, a model and a `kind`).
+- **The model** (`progs/vr_shell.mdl`, `Misc/quakevr/make_shell.py`, 112 triangles). An 8-sided fired 12-gauge shell,
+  7 cm by 2 cm: a red ribbed plastic hull with its crimp opened (dark and sooty inside), on a dull brass head with a
+  rim and a primer. The colours are from Quake's palette (the dark reds, the browns and olive for the brass). It's
+  drawn 1.25 times real size, because Quake's shotgun model is about that much bigger than a real one (1.25 m long).
+  It's scaled with `vr_world_scale`.
+- **The sound** (`quakevr/sound/vr/shell_tink1..3.wav`, `Misc/quakevr/make_sounds.py`). A brass ring (inharmonic
+  partials), a plastic tock and a click, then a softer second bounce, in three pitches. It's played with
+  `S_StartSound` at the shell, at idle attenuation and a volume from the impact speed (up to 0.45 × `vr_shells_sound`).
+- **Particles** (`vr_particles.cpp`: `particles::shellEject`, `shellTrail`). The ejection puff and sparks and the
+  trail. They're off with `vr_particles 0`.
+- **Tuning command:** `vr_shells_eject [hand] [count] [flick]` ejects out of a hand's weapon without firing.
+
+**Tested with the mock** (`vr_mock_hand`, `+attack`, `+reloadright`, a `vr_mock_play` flick; screenshots in the
+scratchpad, `shells.png` and `shellshots/`):
+
+- **Shotgun.** One shell per shot, out of the right side, flying right and down. It lands 1-2 m to the right, bounces
+  (off the start pad's 16-unit step too), rolls and rests in 1-3 s. With many shots, they lie on the floor on their
+  sides.
+- **Super shotgun, reload button.** Two shells up and back out of the breech with a puff of smoke. A temporary client log
+  showed one eject of 2 shells on the reload and nothing on the shot itself.
+- **Super shotgun, flick** (a 75° wrist flick in 0.07 s, 18.7 rad/s). "flick reload" was logged, and the two shells
+  left at about 100 units/s with the spinning gun and landed behind the player.
+- In a close view, the muzzle flash's light makes a freshly ejected shell glow; it's the flash, not the skin.
+
+**Check in the headset:**
+
+- Does the shotgun's shell come out of where the port should be, at the right moment (it's timed to the recoil;
+  `delay` in `W_FireShotgun`)? Does it go right, not into your face? Try the left hand too (mirrored).
+- Flick-reload the super shotgun: do the shells fly out nicely with the spin, or too far/too fast? The share of the
+  spin they take is `inherit` in `eject()`.
+- Size and colour: at 1.25 times real they should match the gun. Too small to notice, or too bright?
+- The tink: audible, but not louder than the room? It's `vr_shells_sound`.
+- Performance with many shells lying around. It should be nothing, but fire a few boxes of shells and watch the
+  frame time.
+
+## Water splashes and sounds
+
+Voice notes e1m2_2026-09-26_01-59-00 (first part: "splashing effects for the water when you shoot in it or when you
+jump or when items land in it") and e1m2_2026-09-26_02-06-13 ("sounds for when you wade through water or when you
+stroke in the water or when your weapons hit the water ... audio and visual feedback when interacting with water").
+The geometric waves of the first note are a separate change.
+
+**The splash** is a new Quake VR particle preset, `Preset::Splash` (vr_particles.cpp, `splash`). It is sent like QC's
+`particle2`, from the surface point, the direction the thing went in, and how hard (4 a shot, 6-15 a hand or a thrown
+thing, 20-50 a body). Each client draws it from that, so both eyes see the same particles and the cost is a few dozen
+sprites:
+
+- a **crown** of drops thrown up and out, leaning away from where a slanted shot came from. The drops fall back and
+  vanish at the surface (a new per-particle floor height);
+- a **jet**: a thin column of drops thrown straight up (most of a bullet's splash);
+- **foam**: soft puffs spreading on the surface;
+- **ripples**: one to three rings lying flat on the surface, spreading and fading. These are a new generated ring
+  sprite, and particles can now lie flat instead of facing the view.
+
+The liquid is read from the map under the point. Water is pale blue-white and slime green. Lava throws hot
+yellow-orange blobs, which are alpha blended, since added to the bright lava they vanished. Its ripples are a dark
+crust, and it adds embers and a little dark smoke. Water and slime drops are shaded by the lightmap under them, so
+they don't glow in a dark pool.
+
+**What splashes, and what you hear** (the sounds come from the server, so everyone hears them). Sounds that belong to
+a point are sent at that point, not at an entity, so your own hand's splash is placed at your hand.
+
+| event | where | splash | sound |
+|---|---|---|---|
+| a bullet or pellet crossing a surface | QC `FireBulletsImpl` (players' and grunts' shots) → new builtins `liquidentry` + `watersplash` | small, leaning with the shot | `vr/plip.wav` |
+| a rocket, grenade, nail, laser, gib, item, backpack or thrown weapon going in | `predictWaterEntry` before its move (vr_rigid.cpp hook), else `VR_AllowWaterSplash` (SV_CheckWaterTransition, rigid bodies too); only above `vr_water_splash_speed` | by speed × model size | small things (nails, grenades): `vr/plip`; else `vr/splash_small` or `vr/splash_big` by strength (instead of Quake's `h2ohit1`) |
+| ... coming out | same | smaller | Quake's `h2ohit1` |
+| an explosion under the surface (a rocket into a pool) | client side, in the explosion preset | a big splash above it, smaller the deeper | the explosion's |
+| you going in (jumping, falling, walking in) | QC `WaterMove` → `VR_PlayerWaterSplash` | by fall and run speed | Quake's own (`inh2o`, `slimbrn2`, `inlava`) |
+| a hand or a gun's muzzle hitting the surface going down (> 0.9 m/s) | `waterFeedback` (vr_physics.cpp, every frame) | by speed | `vr/splash_small`, plus a short buzz in that hand |
+| ... pulled out going up (> 1.4 m/s) | same | smaller | `vr/splash_small`, quieter |
+| wading (legs in, head out, on the bottom or walking in the room) | same | ripples at the legs | `vr/slosh1/2` alternating, at a walking pace (0.3 - 0.6 s by speed), louder waist deep |
+| a swimming stroke, as its power gate opens | `VR_AfterWaterMove` (the stroke model's gate) | a splash if the hand is within 10 units of the surface | `vr/stroke1/2` alternating, at the hand, at most one per 0.3 s (both hands together make one sound) |
+
+A splash no stronger than one already sent that frame within 12 units is dropped, sound and all. So a super
+shotgun's 14 pellets into a pool make one splash and one plip, not 14 of each. At most 3 water sounds are sent per
+server frame.
+
+The predicted entry matters for projectiles. Quake only notices a thing is in water after its move. A rocket or
+nail that goes in and hits the bottom in the same move is gone (or stopped) by then. And one fired into water from
+close by was taken as "spawned in water" and never splashed at all. VR_RigidToss now also marks a thing that
+starts its first move in the open as being in the open.
+
+**The new sounds** are synthesized by `Misc/quakevr/make_sounds.py`:
+
+- `splash_small` (0.5 s): a wet slap, a short body of noise, bubbles ringing up, and drops falling back.
+- `splash_big` (1.2 s): a low thump, a crash that darkens as it falls away, many bubbles, and a rain of drops.
+- `plip` (0.24 s): a tick and one bright bubble.
+- `slosh1/2` (0.6 s): a soft swell of darkened noise with a low gurgle.
+- `stroke1/2` (0.75 s): a whoosh of band noise with turbulence, full of bubbles.
+
+Bubbles are modelled as rising sine rings (a bubble's Minnaert resonance). QC/world.qc precaches the sounds.
+
+**Cvars and menu** (Graphics → Water and Liquids):
+
+- `vr_water_splash` (default 1): "Splashes", 0 off to 2 (more drops). Each client reads it. The graphics preset
+  "Off (Quake)" sets it to 0.
+- `vr_water_sounds` (default 1): "Water Sounds", the volume. At 0 only Quake's own splash sounds are left.
+- `vr_water_splash_speed` (existing, 150 u/s): how fast a thing must move to splash.
+- `developer 2` prints each splash's point and strength.
+
+**Tested** on the mock backend (e1m2's moat, surface at z 148; the shallows at 1792 20, waist deep; the start
+map's lava). Everything below was confirmed with `developer 2` lines and screenshots:
+
+- **Super shotgun:** into the moat from the ledge, one splash and one `plip`.
+- **Nails:** 1750 u/s, a splash and a plip each.
+- **Rocket:** 1000 u/s, strength 19, `splash_big`. Before the predicted entry, this rocket made no splash: it hit
+  the bottom in the same move.
+- **Grenade:** 659 u/s, a splash and a plip.
+- **Dropped shotgun:** a rigid body at 234 u/s, strength 10.5, `splash_small`.
+- **Player dropped from 150 units up:** a splash of strength 21.
+- **Wading with the stick:** sloshes alternate at a walking pace, with ripples ahead.
+- **Scripted slap:** 4.8 m/s down, then pulled out at 2 m/s. It gave splash 16 with `splash_small` at full volume,
+  then a small exit splash at 0.26 volume. It gave no stroke sound; a slap's stroke is suppressed.
+- **Scripted frog strokes** at the surface: one stroke sound per stroke, alternating, with a splash each.
+- **`vr_particle_test 14 <n>`** on water (4, 12, 35) and on lava: the looks, in the screenshots.
+- **`vr_water_splash 0`:** removes the particles.
+
+I did not hear the sounds. The mock has audio, but I only checked the envelopes of the files
+(`make_sounds.py`'s output).
+
+**What to check in the headset:**
+
+- **The sounds first.** They are synthesized and I haven't listened to them. Are the splash, plip, slosh and stroke
+  believable, and loud enough next to Quake's own? `vr_water_sounds` scales them all. If one is bad, say which.
+- Are the drops the right size and brightness? Look at pools in dark and bright places. `vr_water_splash 2` for more.
+- Do shots into water plip, and do slanted shots lean the crown?
+- Jump into the e1m2 moat: a big splash around you, with Quake's sound.
+- Slap the water with an open hand, then with a gun: there should be a splash, a sound and a buzz. A slow dip should
+  do nothing. Pull the hand out fast.
+- Wade in the shallows: are the sloshes at a natural pace, and are the ripples at your legs visible when you look
+  down?
+- Swim with brisk strokes: one stroke sound per stroke, and no sound for the slow return.
+- Throw a weapon, a backpack or a gib into water. Try a grenade or a rocket.
+- Lava (start map, e1m7) and slime: the colours and the embers.
+
+## Melee points, deflect, frame rate
+
+Voice notes r1m1 02-14-49 (sword hits register near the hilt, not at the tip; hit with several points along the
+weapon, the hilt too, one hit per swing), vrfiringrange 02-26-50 (batting projectiles back worked once in 20-30
+tries: more lenient timing and reach, with settings) and vrtutorial 02-18-26 (throws and melee hits harder to line
+up at a lower frame rate).
+
+**Why sword hits missed.** Four causes stacked up:
+
+- The hit test was two short lines cast along the hand's motion, from the hand and from the weapon's muzzle point,
+  on each server frame of a blow. It tested where the weapon was at that moment. What the blade swept through
+  between two frames, and anything along the blade between the hand and the tip, was never tested.
+- The client stopped hands and weapons at monsters' boxes, not only at walls (`stopAtWall` in `vr_handpose.cpp`
+  traced with `MOVE_NORMAL`, through the local server). A grunt's box is much wider than the grunt. The sword's tip
+  reached the box first, the weapon was held at the box, and the hand was pushed back. The server saw the wrist
+  jump back and started a new stroke, so the swing never became a blow. A close punch was stopped the same way.
+- A stroke also restarted when the striking point moved more than 0.6 m in one server frame (meant to catch
+  teleports). A hard sword swing's tip moves 0.6 m in 1/45 s, so at 45 fps, and at 90 fps (the server runs at
+  45 Hz there too), sword swings never hit at all.
+- The weapon's weight smoothing (`vr_wpn_pos_weight`) moved the hand a factor times the frame time of the way per
+  frame, clocked by `cl.time`, which moves in steps with the server's messages. At 45 fps it didn't smooth at all.
+  At 144 fps (server frames of 14 and 21 ms by turns) it moved the hand in jerks, and the server read the wrist as
+  speeding up and slowing down by up to half again.
+
+**Striking points** (`QC/vr_juice.qc`, "Striking points"). Each hand strikes with points along what it holds,
+from the hand (`handpos`) to the weapon's far end (`muzzlepos`: the models' anchors, so a grip moved in
+`vr_weapons.inc`, or the two-handed blade, moves them too):
+
+| Weapon | Points (damage multiplier) |
+|---|---|
+| Sword | pommel (0.6), hilt (the hand, 0.6), guard (0.85), mid-blade, outer blade, tip (1) |
+| Axe, Mjolnir | hand, handle (0.5), head x2 (1) |
+| Gun as a club | grip, barrel, muzzle (1) |
+| Fist (or a box in hand) | fist, knuckles (1) |
+
+- Each server frame with a new pose, every point is swept from its last position to its current one. The sweep is
+  a line, 3 units thick (`vr_melee_range_multiplier` scales this), tested against the boxes of things that bleed.
+  Walls and brush entities are tested with an exact line. The sweep covers what the weapon passed through at any
+  frame rate.
+- A stroke's first contact is kept: what was hit, where, the point's direction and which point it was. The
+  stroke's blow lands on it once. If the contact came earlier in the stroke, the blow lands as soon as the stroke
+  becomes a blow; otherwise it lands at the contact, as long as the stroke goes on. Things that bleed come first.
+  A wall counts only if it was touched in the last 0.1 s, and not by a point moving down (reaching for a holster).
+- If several points strike in the same frame, the strongest wins (the blade over the hilt), then the earliest. A
+  weak point's contact (hilt, pommel, guard, handle) waits 0.05 s for a stronger one to follow it in. So a pommel
+  strike counts as a pommel strike only when the blade doesn't also connect.
+- The blow's strength is multiplied by the point's multiplier (a pommel strike is about a third of a blade hit).
+  The dummy names the point: `melee: Knight's Sword, swing with the tip, ...`.
+- One hit per swing. After a hit, the hand must stop, or turn back after slowing to a third of the blow's peak
+  speed (a jab after a jab). A wide arc keeps going fast as it curves round, so it is still the same blow. It used
+  to rearm as soon as the arc's direction turned against the blow's, which gave two hits in one wide sweep. The
+  swing sound plays once per stroke.
+- The client no longer stops hands or weapons at monsters (anything that takes damage and isn't a brush), only at
+  walls. Weapons pass through monsters as the hand does.
+
+**Batting projectiles** (`VR_Deflect`). A batting swing is a stroke whose wrist reached `vr_deflect_speed` x
+`vr_melee_speed`, still moving at half that. It doesn't need a real blow: no reach, snap or shape. Each frame of the
+swing, the weapon's line (pommel to tip, fist to knuckles) is kept for `vr_deflect_window` seconds. A monster's
+projectile is batted back when its path this frame, from 0.05 s behind it to where it will be at the frame's end,
+passes within `vr_deflect_radius` (plus its size) of any kept line. So a swing that's a little early still bats
+what flies into where the weapon went, and the test is swept, so the frame rate doesn't matter. The projectile flies
+back where the hand points. If its thrower is within 25 degrees of that, it is aimed at the thrower. It goes 1.2x
+faster than before (at least 500), as it did.
+
+| Setting | Default | Menu (Gameplay > Feel) |
+|---|---|---|
+| `vr_deflect_radius` | 14 units | Batting Reach, 4-32 |
+| `vr_deflect_speed` | 0.6 (x `vr_melee_speed`: 2.1 m/s) | Batting Swing Speed, 0.2-1.5 |
+| `vr_deflect_window` | 0.2 s | Batting Timing, 0-0.5 |
+
+Before, a projectile had to be within 16 units of the hand-to-muzzle line at the moment of a frame, during a full
+blow (the late, fast part of a swing).
+
+**Frame rate: what I checked.**
+
+- Server frames: at `host_maxfps` above 72, Ironwail runs the server when 1/72 s has built up. At 90 fps that means
+  every second frame (45 Hz, the same as 45 fps). At 144 fps it runs every second or third frame (72 and 48 Hz by
+  turns). Anything measured per server frame therefore sees 45 Hz on a Quest at 90 Hz.
+- Stroke tracking (`VR_Blow_Track`): speeds are distances over time, and the thresholds are in m/s, m/s2 and
+  seconds. Two fixes:
+  - The jump test is now a speed: 20 m/s for the wrist, 60 m/s for the striking point, and never less than the old
+    0.3 m and 0.6 m.
+  - Poses are timed at `time + frametime`. QC's `time` is the start of the server frame, while the pose is the
+    client's as the frame ends. Timing by `time` made each speed one frame late, which is wrong when frames differ
+    in length.
+- Hit tests: they were point-in-time; now they are swept (above). Deflect likewise.
+- Weapon weight smoothing (`vr_handpose.cpp`): the blend is now compounded, `1 - (1 - f)^(dt x 100)`, and clocked
+  by `realtime` every frame. A weapon lags its hand by about 14 ms at any frame rate (the sword and axe: f = 0.5).
+- Throwing (`vr_throw.cpp`): the release windows were already in seconds, on the runtime's clock. But the peak was
+  the fastest sample, and at 45 fps samples are 22 ms apart, so the peak could fall between them: throws came out
+  8% slower at 45 fps than at 72 (7.39 against 8.01 m/s). The peak speed is now the top of a quadratic fitted to
+  the speeds within 30 ms of the fastest sample (least squares, kept within 20% of it). The direction and averaging
+  are unchanged.
+- Throw origin (`DropWeaponInHand`): the thrown weapon starts where it would have flown since the peak. That was
+  skipped when the peak was over 0.15 s old, and the weapon then started from the follow-through, lower and
+  behind. A lower frame rate makes that age larger. The age is now capped at 0.3 s instead. If a monster is on the
+  way from the palm, the weapon starts at it.
+- Unchanged, and fine: thrown rigid bodies substep with swept corners and a swept hit box; bashes and headbutts use
+  the runtime's velocities and time windows.
+
+**Measured** on the training dummy with scripted mock motions that play on the clock. `vr_mock_play <file>` plays
+timed keyframes (poses, buttons, console commands), so the same motion runs at any frame rate; `wait`-paced scripts
+ran at the server's rate. The settings were `vr_melee_speed 3.5` and `vr_melee_distance 0.25`. The sword's blade was
+held level along the swing, and "d" is the gap from the player's origin to the dummy's face, in units. The mock's
+hand reaches about 19 units ahead, and the sword's tip about 43. Each cell is damage, the point, and the wrist's
+peak speed. The generator is `melee_gen4.py` in the session's scratchpad.
+
+| Motion | 45 fps | 72 fps | 90 fps | 144 fps |
+|---|---|---|---|---|
+| Sword side swing, d 18 | 60 mid-blade (9.2) | 60 mid-blade (9.3) | 60 mid-blade (9.2) | 51 guard (9.3) |
+| Sword side swing, d 30 | 60 blade (9.2) | 60 blade (9.3) | 60 blade (9.1) | 60 blade (9.1) |
+| Sword side swing, d 38 (outer blade only) | 60 tip (9.2) | 60 tip (9.3) | 60 tip (9.2) | 60 tip (9.1) |
+| Sword side swing, d 46 (out of reach) | - | - | - | - |
+| Sword wide sweep (160 degrees), d 24 | 60 mid-blade (10.2) | 60 mid-blade (10.2) | 60 mid-blade (10.5) | 60 mid-blade (10.8) |
+| Sword overhead, d 18 | 51 guard (9.6) | 60 mid-blade (9.6) | 60 mid-blade (9.5) | - |
+| Sword overhead, d 34 | 60 blade (9.6) | 60 blade (9.6) | 60 blade (9.6) | 60 blade (9.5) |
+| Sword overhead, d 44 (out of reach) | - | - | - | - |
+| Sword pommel punch (blade back), d 16 | 12.4 pommel (5.8) | 13.1 pommel (6.0) | 14.7 pommel (6.4) | 11.3 pommel (5.1) |
+| Sword slow flag wave, 2 cycles, d 24 | - | - | 19.6 mid-blade (4.4) | - |
+| Axe side swing, d 18 | 40 head (10.2) | 40 head (10.3) | 40 head (10.9) | 40 head (10.2) |
+| Axe side swing, d 30 | - | - | - | - |
+| Axe overhead, d 18 | 40 head (10.5) | 40 head (10.4) | 40 head (10.3) | 40 head (10.4) |
+| Punch, d 16 | 16.2 knuckles (6.4) | 17.1 knuckles (6.6) | 17.9 knuckles (6.6) | 18 knuckles (6.5) |
+| Shotgun as a club, overhead, d 18 | 24 grip (9.8) | 24 grip (9.8) | 24 grip (9.4) | 24 grip (9.6) |
+| Spike 600 u/s, sword, swing -0.15 s | batted | batted | batted | batted |
+| Spike 600 u/s, sword, swing -0.10 s | batted | batted | batted | batted |
+| Spike 600 u/s, sword, swing -0.05 s | batted | batted | batted | batted |
+| Spike 600 u/s, sword, swing +0.00 s | batted | batted | batted | batted |
+| Spike 600 u/s, sword, swing +0.05 s | - | - | batted | - |
+| Spike 300 u/s, sword, swing -0.20 s | batted | batted | batted | batted |
+| Spike 300 u/s, sword, swing -0.10 s | batted | batted | batted | batted |
+| Spike 300 u/s, sword, swing +0.00 s | batted | batted | batted | batted |
+| Spike 300 u/s, sword, swing +0.05 s | - | - | - | - |
+| Spike 600 u/s, fist, swing -0.10 s | batted | batted | batted | batted |
+| Spike 600 u/s, fist, swing +0.00 s | - | batted | batted | batted |
+| Throw the axe at the dummy, 110 units (estimate, damage) | 8.05 m/s, 73.9 | 8.23 m/s, 74.9 | 8.08 m/s, 73.9 | 8.13 m/s, 74.5 |
+| Throw the sword, 110 units | 8.05 m/s, 122.9 | 8.23 m/s, 124.9 | 8.18 m/s, 124.5 | 8.17 m/s, 124.4 |
+
+Before these changes, at 72 fps (and the old test geometry): sword side swings where only the outer blade reached
+missed, and so did the overhead at 34 units. At 45 fps, a debug trace showed every hard sword swing reset by the
+tip's "jump": no hits. The old swept spike test batted 3 of 5 timings at 600 units/s and 1 of 4 at 300. The throw
+estimate was 7.39 / 8.01 / 7.52 / 7.92 m/s at 45 / 72 / 90 / 144 fps, and is now 8.05 / 8.23 / 8.08 / 8.13.
+
+Notes:
+- "Deflect" rows: the spike is aimed 16 units ahead of the face (the front of the player's box), from 300 units, and
+  a side swing at chest height takes 0.24 s. The offset is when the swing's middle passes, relative to the spike's
+  arrival (negative is early). "Late" swings (+0.05) mostly miss, because the spike reaches the player first.
+- The sword's reach is physical now: the tip reaches about 43 units in this mock, so 46 misses. Old hits at a
+  distance came from the forward lines' extra reach (22 to 52 units beyond the hand), and those are gone. The axe's
+  head reaches less than 30 units, the fist about 20.
+- The slow flag wave (`sword_wave_24`, a 0.6 s stroke) peaks at 4.4 to 4.6 m/s, just over a swung weapon's least
+  (4.375). It hits once in a while at any frame rate. That's the round-14 threshold, unchanged.
+- A second run at 45, 90 and 144 fps matched this one: every sword, axe, fist and club motion hit the same way,
+  the throws came out at 8.04 to 8.18 m/s, and the batting results were the same. The misses marked above (the
+  overhead at 18 units at 144 fps) and the extra hits (the wave at 90, the late spike at 90) didn't happen again.
+  The sword overhead at 18 units hit 3 of 3 in a separate 144 fps run.
+
+**In the headset** (firing range dummy):
+
+- Sword: side swings at a distance where only the last third of the blade reaches the dummy should hit, with
+  "the tip" or "the blade" in the dummy's line. Close in, "mid-blade" or "the guard". A punch with the sword held
+  back over your shoulder should hit "with the pommel" for about 12. Each swing should hit once, even a wide sweep
+  that drags the blade across the dummy.
+- The weapon now passes through a monster's box instead of stopping at it. Does that look wrong anywhere (guns
+  poking into monsters)? It's what made the tip register.
+- Batting: stand in front of a scrag, an enforcer or a hell knight and swing at the projectile a moment before it
+  arrives. A brisk swing (not a full blow) should bat it, even slightly early. If it's still too hard, raise
+  Batting Reach and Batting Timing (Gameplay > Feel). If it's too easy, lower Batting Reach or raise Batting Swing
+  Speed.
+- Frame rate: compare melee and throws at 72 and 90 Hz (and 120). Hits and throw speeds should feel the same. The
+  weapon now lags the hand by the same ~14 ms at every refresh rate. Before, it didn't lag at 45 fps and lagged more
+  at 144.

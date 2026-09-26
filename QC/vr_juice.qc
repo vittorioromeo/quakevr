@@ -251,7 +251,11 @@ vector(float xHand) VR_Blow_HandForward =
 // started over (a gap or a jump), 1 otherwise.
 float(float xHand, entity b) VR_Blow_Track =
 {
-    float dt = time - b.blow_time;
+    // The pose is the client's as this server frame ends (time + frametime): QC's time is still the
+    // frame's start, one frame behind it, and frames differ (144 fps runs the server at 72 and 48 Hz
+    // by turns): measured by time, the wrist's speed came out up to half again too fast or too slow.
+    float now = time + frametime;
+    float dt = now - b.blow_time;
     vector w = VR_Blow_Wrist(xHand);
     vector d = w - b.blow_wrist;
     vector tip = VR_Blow_Tip(xHand);
@@ -263,7 +267,7 @@ float(float xHand, entity b) VR_Blow_Track =
     {
         return 0;
     }
-    b.blow_time = time;
+    b.blow_time = now;
     b.blow_wrist = w;
     b.blow_tip = tip;
 
@@ -284,7 +288,6 @@ float(float xHand, entity b) VR_Blow_Track =
     vector oldVel = b.blow_vel;
     float oldSpeed = b.blow_speed;
     b.blow_vel = d * (1 / dt);
-    if(cvar("developer") >= 3 && xHand == cVR_MainHand && vlen(d) > 0.01) dprint(sprintf("TRK t %.4f dt %.4f d %.3f v %.2f\n", time, dt, vlen(d), vlen(d) / dt)); // TEMPDEBUG
     b.blow_speed = vlen(b.blow_vel);
     b.blow_tipspeed = vlen(dtip) / dt;
 
@@ -295,7 +298,7 @@ float(float xHand, entity b) VR_Blow_Track =
         vector s = w - b.blow_start;
         float sl = vlen(s);
         if(b.blow_speed < VR_BLOW_MOVING || (sl > 0.03 && b.blow_vel * s < 0.4 * b.blow_speed * sl) ||
-           time - b.blow_t0 > 0.5)
+           now - b.blow_t0 > 0.5)
         {
             b.blow_t0 = 0;
         }
@@ -307,10 +310,10 @@ float(float xHand, entity b) VR_Blow_Track =
             return 1;
         }
         // A new stroke, from the last still point (or the turn).
-        b.blow_t0 = time - dt;
+        b.blow_t0 = now - dt;
         b.blow_start = w - d;
         b.blow_peak = 0;
-        b.blow_peaktime = time;
+        b.blow_peaktime = now;
         b.blow_tippeak = 0;
         b.blow_turn = 0;
         b.blow_path = 0;
@@ -326,7 +329,7 @@ float(float xHand, entity b) VR_Blow_Track =
     if(b.blow_speed > b.blow_peak)
     {
         b.blow_peak = b.blow_speed;
-        b.blow_peaktime = time;
+        b.blow_peaktime = now;
     }
     b.blow_tippeak = max(b.blow_tippeak, b.blow_tipspeed);
     return 1;

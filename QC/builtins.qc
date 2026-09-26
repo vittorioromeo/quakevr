@@ -177,7 +177,7 @@ void(float to, vector v) WriteVec3 = #0; // three WriteCoords
 
 // Water splashes (vr_physics.cpp): where a segment first goes into water, slime or lava from the
 // open (or out of it), on the surface -- `start` itself if it crosses none (the trace globals are
-// left alone); and a splash there, something going `dir` in `strength` hard (3 a shot, 6-15 a hand
+// left alone); and a splash there, something going `dir` in `strength` hard (4 a shot, 6-15 a hand
 // or a thrown thing, 20-50 a body), with its sound (QVR_SPLASH_*; vr_water_splash, vr_water_sounds).
 vector(vector start, vector end) liquidentry = #0;
 void(vector org, vector dir, float strength, float snd) watersplash = #0;

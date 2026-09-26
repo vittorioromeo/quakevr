@@ -1099,7 +1099,7 @@ void splash(const glm::vec3& org, const glm::vec3& dir, int count)
         p.cell = CellCircle;
         p.color = glm::vec4{lava ? hotLava() : drops * rnd(0.8f, 1.15f), lava ? 1.f : rnd(0.55f, 0.85f)};
         p.die = cl.time + 2.5;
-        p.scale = rnd(0.7f, 1.6f) * (0.8f + 0.25f * size);
+        p.scale = rnd(0.45f, 1.1f) * (0.8f + 0.25f * size); // 1-3 cm
         p.type = Custom;
         p.fade = lava ? -0.5f : -0.15f;
         p.acc = gravity(1.f);
@@ -1114,7 +1114,7 @@ void splash(const glm::vec3& org, const glm::vec3& dir, int count)
         p.cell = CellCircle;
         p.color = glm::vec4{lava ? hotLava() : drops, lava ? 1.f : 0.8f};
         p.die = cl.time + 3.0;
-        p.scale = rnd(0.8f, 1.6f) * (0.8f + 0.4f * size);
+        p.scale = rnd(0.55f, 1.2f) * (0.8f + 0.4f * size);
         p.type = Custom;
         p.fade = lava ? -0.4f : -0.1f;
         p.acc = gravity(1.f);

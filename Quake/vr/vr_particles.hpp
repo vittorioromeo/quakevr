@@ -37,7 +37,7 @@ enum class Preset : int
     BloodTrail,     // vr_decals.cpp: behind a flying gib (`dir`: the way it goes)
     // Something hitting water, slime or lava (QC's QVR_PARTICLE_PRESET_SPLASH; the server's water
     // splashes, vr_physics.cpp): `org` on the surface, `dir` the way it went in, `count` how hard
-    // (3 a bullet, 6-15 a hand or a thrown thing, 20-50 a body). Drops thrown up and out in a crown,
+    // (4 a bullet, 6-15 a hand or a thrown thing, 20-50 a body). Drops thrown up and out in a crown,
     // foam and rings spreading on the surface, in the liquid's colour (lava glows and throws
     // embers); vr_water_splash scales them (0 off).
     Splash

@@ -243,8 +243,9 @@ textures are filtered smoothly; and `r_shadow_gloss 2` gives dynamic lights a fa
   load (the setting applies next map; model skins already loaded keep what they have).
   - **On the baked light too** (round 11, `vr_normalmap_baked`, 0..2, "Bumps in Map Light"; the author saw walls flat
     where no dynamic light was): a fake deluxe map. The world shader guesses where the baked light comes from: towards
-    where the lightmap gets brighter over the surface (the screen derivatives of its brightness, made a gradient per
-    unit with the same cotangent frame, times 96 over the brightness) and a little from above, at most 45° off the
+    where the lightmap gets brighter over the surface (the slope of its brightness across the luxels, from a 4x4 gather,
+    continuous across luxel lines, times the lightmap coordinates' derivatives: round 15; the screen derivatives of the
+    filtered lightmap stepped up close and drew dashes; times 96 over the brightness) and a little from above, at most 45° off the
     normal; the light is shaded `dot(bumped, l) / dot(n, l)`, so the flat is as bright as before and bumps facing the
     light are brighter, those facing away darker. Alpha-tested surfaces have no gradient (after the discard), liquids
     none of it. DarkPlaces' `r_glsl_deluxemapping 2` is the case of light straight on (floors and ceilings under flat

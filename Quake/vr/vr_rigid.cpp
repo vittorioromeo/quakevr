@@ -730,6 +730,7 @@ extern "C" int VR_RigidToss(edict_t* ent)
     const int movetype = static_cast<int>(ent->v.movetype);
     if(!rigid || (movetype != MOVETYPE_TOSS && movetype != MOVETYPE_BOUNCE))
     {
+        physics::predictWaterEntry(ent); // its splash, if it goes into water in this move
         return 0;
     }
 

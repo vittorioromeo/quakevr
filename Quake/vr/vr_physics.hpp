@@ -28,6 +28,10 @@ void resetRigidBodies();
 
 // Water splashes and sounds (vr_physics.cpp).
 
+// Before a toss, bounce or missile's move (vr_rigid.cpp): if it goes into a liquid on the way, its
+// splash, at once (it may hit the bottom in the same move).
+void predictWaterEntry(edict_t* ent);
+
 // Where the segment `from` -> `to` first goes into a liquid (water, slime, lava) from the open, or
 // out of one into it: the surface's point in `at`; false if it crosses none (QC's liquidentry).
 [[nodiscard]] bool liquidEntry(const glm::vec3& from, const glm::vec3& to, glm::vec3& at);
@@ -41,7 +45,7 @@ enum class SplashSound : int
 };
 
 // A splash on a liquid's surface at `at`, something going `dir` into it `strength` hard (particles
-// Preset::Splash's count: 3 a shot, 6-15 a hand or a thrown thing, 20-50 a body), for every
+// Preset::Splash's count: 4 a shot, 6-15 a hand or a thrown thing, 20-50 a body), for every
 // client, and its sound (vr_water_sounds) (QC's watersplash).
 void waterSplash(const glm::vec3& at, const glm::vec3& dir, float strength, SplashSound sound);
 

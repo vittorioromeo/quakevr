@@ -108,9 +108,12 @@ bool stopAtWall(glm::vec3& pos, const glm::vec3 from, const glm::vec3 to, const 
 
 void resolvePositions(hands::State& s, float turnYaw)
 {
-    frameDt = lastTime >= 0.0 ? static_cast<float>(std::clamp(cl.time - lastTime, 0.0, 0.1)) : 0.f;
-    newFrame = cl.time != lastTime;
-    lastTime = cl.time;
+    // On the real clock, every frame: cl.time moves in steps with the server's messages (72 Hz, or
+    // 48 and 72 by turns at 144 fps), so the weight's smoothing moved the hands in uneven jerks that
+    // the server's melee read as a wrist speeding up and slowing down (up to half again at 144 fps).
+    frameDt = lastTime >= 0.0 ? static_cast<float>(std::clamp(realtime - lastTime, 0.0, 0.1)) : 0.f;
+    newFrame = realtime != lastTime;
+    lastTime = realtime;
 
     // The upper torso: the body's chest (kept within the player's box), or 40 units above where
     // the hands are measured from.
