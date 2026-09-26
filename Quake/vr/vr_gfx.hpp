@@ -27,6 +27,7 @@ struct Vertex
     glm::vec3 pos;
     glm::vec2 uv{0.f};
     glm::vec4 color{1.f};
+    float soft{0.f}; // with State::sceneDistances: how close in front of the scene it fades out, in units (0: never)
 };
 
 enum class Shade
@@ -59,6 +60,10 @@ struct State
     bool depthWrite{false};
     glm::vec4 params{0.f}; // the shade's own settings (Shade::Screen's)
     glm::vec3 screen{240.f, 150.f, 0.5f}; // Shade::Screen's pixels across, down, and scanlines a pixel
+    // Soft (premultiplied blends): the opaque scene's distances along the view (vr_water.hpp's opaqueSceneDistances,
+    // half the target's size); each vertex's colour times how far in front of the scene it is over its Vertex::soft
+    // (0 to 1, smoothly). 0: not soft.
+    Texture sceneDistances{0};
 };
 
 // Triangles (three vertices each), transformed by `mvp` to clip space. No culling.

@@ -12,7 +12,8 @@
 .float vr_heartbeat_time; // on a player: the next heartbeat
 .float vr_bash_time;      // on a player: when the next bash may be
 .float vr_guard_hand;     // on a player: the guard held (VR_Bash_Guard),
-.float vr_guard_time;     // and when it was last held still (0: not yet)
+.float vr_guard_time;     // and when it was last held still (0: not yet),
+.float vr_guard_seen;     // and last held at all
 
 // ----------------------------------------------------------------------------
 // Blows: one model for every hand's melee, fist or weapon (docs/vr-port/ROUND14.md, "Melee").
@@ -990,15 +991,23 @@ void() VR_Heartbeat =
 };
 
 // ----------------------------------------------------------------------------
-// Bashes. A bash is a guard pushed forward: the guard held first, still, then driven straight ahead
+// Bashes. A bash is a guard pushed forward: the guard held first, about still, then driven ahead
 // (not down: a chop from a raised weapon is a swing) faster than vr_bash_speed -- less than a blow
-// needs. The guards are the parry's (combat.qc): a weapon held across in front, about level, at chest
-// or face height (VR_Parry_Guard), or both empty hands together in front (VR_Parry_HandsTogether).
-// An open palm driven straight ahead over a blow's distance is a one-hand shove, with no guard.
+// needs. The guards are the parry's (combat.qc): a weapon held about level across in front, in one
+// hand or two (VR_Parry_Guard: the parry's own test since round 18, so a sword or the axe held
+// across bashes too), or both empty hands together in front (VR_Parry_HandsTogether). An open palm
+// driven straight ahead over a blow's distance is a one-hand shove, with no guard. A weapon bash
+// soon after a parry (VR_PARRYBASH_WINDOW) is a parry-bash: a counter, harder.
+// Each has its own sound (vr_bash_sound; Misc/quakevr/make_sounds.py): a shove, a weapon bash and a
+// parry-bash, apart from the blows' and the parry's.
 
-float VR_GUARD_HANDS = 2;   // vr_guard_hand: both empty hands together (else the hand with the weapon; -1 none)
-float VR_BASH_STILL = 1.0;  // m/s: the guard's wrists slower than this hold it still
-float VR_BASH_WINDOW = 0.4; // s: the push must follow the guard held still this soon
+float VR_GUARD_HANDS = 2;        // vr_guard_hand: both empty hands together (else the hand with the weapon; -1 none)
+float VR_BASH_STILL = 1.5;       // m/s: the guard's wrists slower than this hold it (about) still
+float VR_BASH_WINDOW = 0.75;     // s: the push must follow the guard held still this soon
+float VR_GUARD_LOST = 0.25;      // s: a guard lost this briefly is still held (a push tilts it)
+float VR_PARRYBASH_WINDOW = 1.5; // s: a weapon bash this soon after a parry is a parry-bash
+float VR_PARRYBASH_SCALE = 1.3;  // how much harder a parry-bash is (damage, push, stagger)
+float vr_bash_counter;           // while a bash's hits are dealt: a parry-bash (vr_dummy.qc)
 
 // The guard `self` holds now, facing `xForward`: the hand holding a weapon across, VR_GUARD_HANDS,
 // or -1.
@@ -1030,12 +1039,12 @@ float(float xGuard) VR_Bash_GuardStill =
 };
 
 // Whether `xHand` of `self` drives forward (along the body's facing `xForward`) faster than
-// vr_bash_speed (m/s), and mostly forward (within 45 degrees: not a chop down, nor a swing across).
+// vr_bash_speed (m/s), and mostly forward (within 53 degrees: not a chop down, nor a swing across).
 float(float xHand, vector xForward) VR_Bash_Driving =
 {
     vector v = VRGetEntHandVel(self, xHand);
     float ahead = v * xForward;
-    return ahead > cvar_hget(cvarh_vr_bash_speed) && ahead > vlen(v) * 0.7;
+    return ahead > cvar_hget(cvarh_vr_bash_speed) && ahead > vlen(v) * 0.6;
 };
 
 // Whether empty `xHand` of `self` shoves on its own, driven forward (along `xForward`): the open
@@ -1123,16 +1132,31 @@ void() VR_Bash =
     // front aims sideways).
     vector fwd = VRForwardOf('0 1 0' * self.v_viewangle_y);
 
-    // The guard, and when it was last held still: the push must follow it.
+    // The guard, and when it was last held still: the push must follow it. A guard lost for a moment
+    // (VR_GUARD_LOST: a push tilts the blade) is still the one held; any longer (the weapon turned to
+    // thrust, say) and the push is no bash.
     float guard = VR_Bash_Guard(fwd);
-    if(guard != self.vr_guard_hand)
+    if(guard >= 0)
     {
-        self.vr_guard_hand = guard;
-        self.vr_guard_time = 0;
+        if(guard != self.vr_guard_hand)
+        {
+            self.vr_guard_hand = guard;
+            self.vr_guard_time = 0;
+        }
+        self.vr_guard_seen = time;
+        if(VR_Bash_GuardStill(guard))
+        {
+            self.vr_guard_time = time;
+        }
     }
-    if(guard >= 0 && VR_Bash_GuardStill(guard))
+    else if(time - self.vr_guard_seen < VR_GUARD_LOST)
     {
-        self.vr_guard_time = time;
+        guard = self.vr_guard_hand;
+        if(guard == VR_GUARD_HANDS ? !(VRIsHandEmpty(self, cVR_MainHand) && VRIsHandEmpty(self, cVR_OffHand))
+                                   : guard >= 0 && VRIsHandEmpty(self, guard))
+        {
+            guard = -1; // the weapon is gone from the hand (or a hand has taken one)
+        }
     }
 
     float mainDriving = VR_Bash_Driving(cVR_MainHand, fwd);
@@ -1193,21 +1217,39 @@ void() VR_Bash =
         return;
     }
 
-    // What is just ahead of the hands.
+    // What is just ahead of the hands (a weapon held in both: between them).
     vector at = (VRGetHandPos(cVR_MainHand) + VRGetHandPos(cVR_OffHand)) * 0.5;
-    if(armed || oneHand)
+    if(oneHand || (armed && !VRGet2HAiming(self)))
     {
         at = VRGetHandPos(hand);
     }
+    // A weapon bash soon after a parry: a parry-bash, the counter.
+    float counter = armed && self.vr_parry_time > 0 && time - self.vr_parry_time < VR_PARRYBASH_WINDOW;
+    vr_bash_counter = counter;
     float hits = VR_Bash_Hit(at, fwd, armed ? QVR_HITKIND_BASH : QVR_HITKIND_SHOVE, (armed || oneHand) ? hand : -1,
-                             oneHand ? 0.5 : 1);
+                             oneHand ? 0.5 : (counter ? VR_PARRYBASH_SCALE : 1));
+    vr_bash_counter = FALSE;
     if(!hits)
     {
         return; // a push at the air: nothing, no cooldown
     }
     self.vr_bash_time = time + 0.8;
-    sound(self, CHAN_AUTO, armed ? "player/axhit2.wav" : "fisthit.wav", 1, ATTN_NORM);
-    sound(self, CHAN_AUTO, "demon/dland2.wav", oneHand ? 0.45 : 0.7, ATTN_NORM);
+    if(counter)
+    {
+        self.vr_parry_time = 0; // one counter a parry
+    }
+    // Each its own sound (vr_bash_sound; round 18), apart from the blows'; 0: the old ones.
+    float bashSound = min(1, cvar_hget(cvarh_vr_bash_sound));
+    if(bashSound > 0)
+    {
+        sound(self, CHAN_AUTO, counter ? "vr/bash_parry.wav" : (armed ? "vr/bash.wav" : "vr/shove.wav"),
+              bashSound * (oneHand ? 0.7 : 1), ATTN_NORM);
+    }
+    else
+    {
+        sound(self, CHAN_AUTO, armed ? "player/axhit2.wav" : "fisthit.wav", 1, ATTN_NORM);
+        sound(self, CHAN_AUTO, "demon/dland2.wav", oneHand ? 0.45 : 0.7, ATTN_NORM);
+    }
     if(oneHand)
     {
         haptic(hand, 0.0, 0.2, 70, 0.8);
@@ -1221,5 +1263,6 @@ void() VR_Bash =
         handimpact(cVR_OffHand, 3, fwd * -1);
     }
     particle2(at + fwd * 12, fwd * 80, QVR_PARTICLE_PRESET_BULLETPUFF, oneHand ? 10 : 16);
-    dprint("bash: "); dprint(ftos(hits)); dprint(armed ? " (weapon)\n" : (oneHand ? " (one hand)\n" : " (hands)\n"));
+    dprint("bash: "); dprint(ftos(hits));
+    dprint(counter ? " (parry-bash)\n" : (armed ? " (weapon)\n" : (oneHand ? " (one hand)\n" : " (hands)\n")));
 };

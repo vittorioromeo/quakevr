@@ -28,6 +28,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
+#include "vr_hue.hpp"
 #include "vr_main.hpp"
 #include "vr_menu.hpp"
 #include "vr_menuui.hpp"
@@ -555,11 +556,12 @@ void drawInEye(const hands::State& s)
     static std::vector<gfx::Vertex> vertices;
     vertices.clear();
     const float bright = mouseHeld[h] ? 1.f : 0.8f;
-    appendStrip(vertices, start, end, 0.3f, {1.f, 0.75f, 0.4f, 0.9f * bright},
-        {1.f, 0.8f, 0.5f, hit.valid ? 0.5f * bright : 0.f});
+    // In the player's hue (vr_menu_laser_hue; 35 its old amber, the menus' own).
+    appendStrip(vertices, start, end, 0.3f, hue::color(vr_menu_laser_hue, 0.6f, 1.f, 0.9f * bright),
+        hue::color(vr_menu_laser_hue, 0.5f, 1.f, hit.valid ? 0.5f * bright : 0.f));
     if(hit.valid)
     {
-        appendStrip(vertices, hit.point, hit.point, 1.6f, {1.f, 0.9f, 0.7f, 1.f}, {});
+        appendStrip(vertices, hit.point, hit.point, 1.6f, hue::color(vr_menu_laser_hue, 0.3f, 1.f, 1.f), {});
         appendStrip(vertices, hit.point, hit.point, 0.7f, {1.f, 1.f, 1.f, 1.f}, {});
     }
 

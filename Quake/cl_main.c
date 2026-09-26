@@ -771,6 +771,7 @@ int CL_ReadFromServer (void)
 	VR_ProfileBegin ("temp entities"); // QVR: profile
 	CL_UpdateTEnts ();
 	VR_ProfileEnd (); // QVR
+	VR_TorchLights (); // QVR: torches and flames flicker light onto the room
 
 //johnfitz -- devstats
 

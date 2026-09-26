@@ -208,6 +208,7 @@ void CL_ParseTEnt (void)
 		dl->die = cl.time + 0.5;
 		dl->decay = 300;
 		VR_TuneDlight (QVR_DLIGHT_EXPLOSION, 0, dl); // QVR
+		VR_HazeExplosion (pos, 1.f); // QVR: heat haze (vr/vr_haze.cpp)
 		S_StartSound (-1, 0, cl_sfx_r_exp3, pos, 1, 1);
 		break;
 
@@ -216,6 +217,7 @@ void CL_ParseTEnt (void)
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
 		R_BlobExplosion (pos);
+		VR_HazeExplosion (pos, 0.8f); // QVR: heat haze (vr/vr_haze.cpp)
 
 		S_StartSound (-1, 0, cl_sfx_r_exp3, pos, 1, 1);
 		break;
@@ -266,6 +268,7 @@ void CL_ParseTEnt (void)
 		dl->die = cl.time + 0.5;
 		dl->decay = 300;
 		VR_TuneDlight (QVR_DLIGHT_EXPLOSION, 0, dl); // QVR
+		VR_HazeExplosion (pos, 1.f); // QVR: heat haze (vr/vr_haze.cpp)
 		S_StartSound (-1, 0, cl_sfx_r_exp3, pos, 1, 1);
 		break;
 

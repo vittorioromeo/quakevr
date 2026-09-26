@@ -37,10 +37,10 @@ enum Flags : int
 };
 
 // A weapon's ejection ports, in its model's space (as its frames' vertices: +x forward, +y left,
-// +z up; mirrored with the model in the off hand), picked on the models (v_shot: the receiver's
-// right side, where the pump's port would be; v_shot2: the two chambers at the breech). Casings
-// go out along `dir` at `speed` metres per second, tumbling about `spinAxis` (model space) at
-// `spin` radians per second. `anchor` is a vertex near the ports (an anchor index, see
+// +z up; mirrored with the model in the off hand), picked on the models (v_shot: just out of the
+// ejection port on the receiver's right side, improve_weapons3.py; v_shot2: the two chambers at the
+// breech). Casings go out along `dir` at `speed` metres per second, tumbling about `spinAxis`
+// (model space) at `spin` radians per second. `anchor` is a vertex near the ports (an anchor index, see
 // vr_anchor.hpp) whose move from frame 0 moves them with the firing animation (the recoil).
 struct Weapon
 {
@@ -57,7 +57,7 @@ struct Weapon
 };
 
 constexpr Weapon weaponTable[] = {
-    {"progs/v_shot.mdl", 1, {{14.5f, -2.8f, 4.3f}}, {{-0.3f, -1.f, 0.65f}}, 1.6f, {0.f, 0.f, 1.f}, -16.f, 1.f, 3, 70},
+    {"progs/v_shot.mdl", 1, {{14.5f, -2.75f, 4.65f}}, {{-0.3f, -1.f, 0.65f}}, 1.6f, {0.f, 0.f, 1.f}, -16.f, 1.f, 3, 70},
     {"progs/v_shot2.mdl", 2, {{11.6f, 1.2f, 6.9f}, {11.6f, -1.2f, 6.9f}}, {{-1.f, 0.15f, 0.5f}, {-1.f, -0.15f, 0.5f}},
         1.6f, {0.f, 1.f, 0.f}, 9.f, 1.5f, 1, 17},
 };

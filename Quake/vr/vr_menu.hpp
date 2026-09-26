@@ -18,4 +18,8 @@ void reopen(int page);
 // false, doing nothing, when the page fits (or a slider or the scrollbar is held). 0: only asks.
 bool scroll(int rows);
 
+// The setting selected on the page shown (null when the VR Settings are not shown, or the selected
+// row is not a setting): effects preview themselves while their settings are chosen.
+[[nodiscard]] const struct cvar_s* selectedSetting();
+
 } // namespace qvr::menu

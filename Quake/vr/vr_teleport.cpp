@@ -11,6 +11,7 @@
 #include "vr_engine.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
+#include "vr_hue.hpp"
 #include "vr_lines.hpp"
 #include "vr_trace.hpp"
 
@@ -52,7 +53,8 @@ void teleportUp_f()
 
 void drawAim(const hands::State& s)
 {
-    const glm::vec4 color = impactValid ? glm::vec4{0.2f, 0.4f, 1.f, 0.7f} : glm::vec4{1.f, 0.f, 0.f, 0.5f};
+    // Where it can land in the player's hue (vr_teleport_hue; made in blue, 228), red where it can't.
+    const glm::vec4 color = impactValid ? hue::color(vr_teleport_hue, 0.8f, 1.f, 0.7f) : glm::vec4{1.f, 0.f, 0.f, 0.5f};
     const glm::vec4 faded{color.r, color.g, color.b, 0.f};
 
     const glm::vec3 start = s.pos[HAND_OFF];

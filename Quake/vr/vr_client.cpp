@@ -8,6 +8,7 @@
 #include "vr_particles.hpp"
 #include "vr_cvars.hpp"
 #include "vr_flick.hpp"
+#include "vr_gore.hpp"
 #include "vr_handpose.hpp"
 #include "vr_hands.hpp"
 #include "vr_input.hpp"
@@ -284,6 +285,10 @@ void parseParticle2()
 
     const glm::vec3 o{org[0], org[1], org[2]};
     const glm::vec3 d{dir[0], dir[1], dir[2]};
+    if(gore::event(o, d, static_cast<int>(preset), count))
+    {
+        return; // the gore's (vr_gore.cpp): marks only
+    }
     decals::fromEffect(o, d, preset, count);
     if(particles::spawn(o, d, preset, count))
     {
@@ -338,7 +343,8 @@ void parsePrecacheSound()
     cl.sound_precache[index] = S_PrecacheSound(name);
 }
 
-// vr_particle_test <preset> [count]: a particle2 preset 64 units in front of the view (tuning).
+// vr_particle_test <preset> [count]: a particle2 preset 64 units in front of the view (tuning); a splash (14) where
+// the view first meets a liquid's surface, if it does within 2048 units (going that way).
 void particleTest_f()
 {
     if(Cmd_Argc() < 2 || cls.state != ca_connected)
@@ -348,10 +354,45 @@ void particleTest_f()
     }
     vec3_t fwd, right, up;
     AngleVectors(r_refdef.viewangles, fwd, right, up);
-    const glm::vec3 org = glm::vec3{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]} +
-                          glm::vec3{fwd[0], fwd[1], fwd[2]} * 64.f;
+    const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+    const glm::vec3 f{fwd[0], fwd[1], fwd[2]};
+    glm::vec3 org = eye + f * 64.f;
+    glm::vec3 dir{0.f};
+    const auto preset = static_cast<particles::Preset>(Q_atoi(Cmd_Argv(1)));
+    if(preset == particles::Preset::Splash && cl.worldmodel)
+    {
+        const auto contents = [](const glm::vec3& p) {
+            vec3_t v{p.x, p.y, p.z};
+            return Mod_PointInLeaf(v, cl.worldmodel)->contents;
+        };
+        const auto liquid = [](int c) { return c == CONTENTS_WATER || c == CONTENTS_SLIME || c == CONTENTS_LAVA || (c <= CONTENTS_CURRENT_0 && c >= CONTENTS_CURRENT_DOWN); };
+        const bool startWet = liquid(contents(eye));
+        glm::vec3 last = eye;
+        for(float d = 4.f; d <= 2048.f; d += 4.f)
+        {
+            const glm::vec3 q = eye + f * d;
+            const int c = contents(q);
+            if(c == CONTENTS_SOLID || c == CONTENTS_SKY)
+            {
+                break;
+            }
+            if(liquid(c) != startWet)
+            {
+                glm::vec3 a = last, b = q; // a on the eye's side
+                for(int i = 0; i < 12; i++)
+                {
+                    const glm::vec3 mid = (a + b) * 0.5f;
+                    (liquid(contents(mid)) == startWet ? a : b) = mid;
+                }
+                org = (a + b) * 0.5f;
+                dir = f;
+                break;
+            }
+            last = q;
+        }
+    }
     const int count = Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : 8;
-    if(!particles::spawn(org, glm::vec3{0.f}, static_cast<particles::Preset>(Q_atoi(Cmd_Argv(1))), count))
+    if(!particles::spawn(org, dir, preset, count))
     {
         Con_Printf("vr_particle_test: Quake VR particles are off (vr_particles) or unavailable\n");
     }

@@ -3,6 +3,8 @@
 #include "vr_engine.hpp"
 #include "vr_anchor.hpp"
 #include "vr_decals.hpp"
+#include "vr_gore.hpp"
+#include "vr_envmap.hpp"
 #include "vr_lighting.hpp"
 #include "vr_backend.hpp"
 #include "vr_throw.hpp"
@@ -20,6 +22,7 @@
 #include "vr_server.hpp"
 #include "vr_view.hpp"
 #include "vr_voicenotes.hpp"
+#include "vr_detail.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_gfx.hpp"
 #include "vr_weapons.hpp"
@@ -869,13 +872,17 @@ extern "C" void VR_Init()
     input::init();
     voicenotes::init();
     flashlight::init();
+    detail::init();
     client::init();
     server::init();
     Cmd_AddCommand("vr_dumpview", view::dumpView_f);
     anchor::registerCommands();
     Cmd_AddCommand("vr_decal_count", decals::count_f);
+    Cmd_AddCommand("vr_decal_atlas", decals::atlas_f);
+    Cmd_AddCommand("vr_gore_test", gore::test_f);
     Cmd_AddCommand("vr_memstats", VR_MemStats_f);
     lighting::init();
+    envmap::init(); // vr_envmap_dump
     profile::init();
 
     state->restartRequested = true;

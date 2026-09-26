@@ -764,7 +764,7 @@ void(string gibname, float dm) ThrowGib =
     new.origin = self.origin;
     setmodel(new, gibname);
     setsize(new, '0 0 0', '0 0 0');
-    new.velocity = VelocityForDamage(dm);
+    new.velocity = VR_Gore_Fling(VelocityForDamage(dm)); // VR: harder with vr_gore 2
     new.movetype = MOVETYPE_BOUNCE;
     new.solid = SOLID_NOT;
     new.avelocity_x = random()*600;
@@ -777,6 +777,7 @@ void(string gibname, float dm) ThrowGib =
     new.flags = 0;
     VR_MakeGibGrabbable(new);
     VR_Gib_MakeDestroyable(new, 1);
+    VR_Gore_WatchFling(new); // VR: it may stick to a ceiling or a wall (vr_gore_stick)
 
     particle2(self.origin, new.velocity, QVR_PARTICLE_PRESET_BLOOD, 40);
 };
@@ -796,6 +797,7 @@ void() HeadThink =
 
 void(string gibname, float dm) ThrowHead =
 {
+    VR_Gore_Gibbed(); // VR: blood all round (vr_gore, vr_carry.qc)
     setmodel(self, gibname);
     self.frame = 0;
 //   self.nextthink = -1;
@@ -816,6 +818,7 @@ void(string gibname, float dm) ThrowHead =
     self.vr_corpse = 0; // VR: a head, no longer a corpse (vr_corpse_gib; a gremlin gorged on it)
     VR_MakeGibGrabbable(self);
     VR_Gib_MakeDestroyable(self, 1.5);
+    VR_Gore_WatchFling(self); // VR: it may stick to a ceiling or a wall (vr_gore_stick)
 
     particle2(self.origin, self.velocity, QVR_PARTICLE_PRESET_BLOOD, 40);
 };

@@ -11,6 +11,7 @@
 #include "vr_gfx.hpp"
 #include "vr_bloom.hpp"
 #include "vr_body.hpp"
+#include "vr_envmap.hpp"
 #include "vr_engine.hpp"
 #include "vr_crosshair.hpp"
 #include "vr_cvars.hpp"
@@ -21,6 +22,7 @@
 #include "vr_profile.hpp"
 #include "vr_stereo.hpp"
 #include "vr_text3d.hpp"
+#include "vr_tonemap.hpp"
 
 #include <cmath>
 #include <cstdint>
@@ -35,6 +37,8 @@ glframebufs_t eyeFramebufs{};
 int eyeFramebufsWidth = 0;
 int eyeFramebufsHeight = 0;
 float eyeFramebufsFsaa = 0.f; // vid_fsaa they were made with
+unsigned eyeFramebufsFormat = 0; // their scene colour format (vr_tonemap: float)
+bool creatingEyeFramebufs = false; // VR_SceneColorFormat
 GLuint targetFbo = 0;
 
 // vr_render_scale: the eyes are rendered at the scaled size, post-processed into this texture of
@@ -76,11 +80,14 @@ void ensureResampleTarget(int width, int height)
 
 void ensureEyeFramebuffers(int width, int height)
 {
-    if(eyeFramebufsWidth == width && eyeFramebufsHeight == height && eyeFramebufsFsaa == vid_fsaa.value)
+    const unsigned format = tonemap::sceneFormat();
+    if(eyeFramebufsWidth == width && eyeFramebufsHeight == height && eyeFramebufsFsaa == vid_fsaa.value &&
+        eyeFramebufsFormat == format)
     {
         return;
     }
     eyeFramebufsFsaa = vid_fsaa.value;
+    eyeFramebufsFormat = format;
 
     const glframebufs_t windowFramebufs = framebufs;
     const int windowWidth = vid.width;
@@ -94,7 +101,9 @@ void ensureEyeFramebuffers(int width, int height)
 
     vid.width = width;
     vid.height = height;
+    creatingEyeFramebufs = true;
     GL_CreateFrameBuffers();
+    creatingEyeFramebufs = false;
     eyeFramebufs = framebufs;
 
     framebufs = windowFramebufs;
@@ -111,8 +120,9 @@ void ensureEyeFramebuffers(int width, int height)
 }
 
 // The mirror: the eye's scene (before its post-processing, which writes into the headset's image)
-// with the eye's glow added as the post-processing adds it (vr_bloom.cpp), so the window shows
-// what the headset does.
+// with the eye's glow added, the tone curve and the grade as the post-processing does them (vr_bloom.cpp,
+// vr_tonemap.cpp), so the window shows what the headset does (the window's own post-processing then
+// applies the desktop's gamma and contrast).
 GLuint mirrorProgram = 0;
 bool mirrorFailed = false;
 
@@ -127,10 +137,13 @@ void main()
 constexpr const char* mirrorFs = R"(#version 430
 layout(binding = 0) uniform sampler2D Scene;
 layout(binding = 1) uniform sampler2D Bloom;
+layout(binding = 3) uniform sampler3D GradeLUT;
 layout(location = 0) uniform vec4 Source; // the eye's rectangle in uv: x0, y0, width, height
 layout(location = 1) uniform vec4 Dest;   // the window's rectangle: x0, y0, 1 / width, 1 / height
 layout(location = 2) uniform float BloomStrength;
+layout(location = 3) uniform vec4 Tone;   // as the post-process's (vr_tonemap.hpp: tonemap::bind)
 layout(location = 0) out vec4 Out;
+)" QVR_TONE_GLSL R"(
 void main()
 {
     vec2 uv = Source.xy + (gl_FragCoord.xy - Dest.xy) * Dest.zw * Source.zw;
@@ -142,6 +155,10 @@ void main()
               texture(Bloom, uv + vec2(-bt.x, bt.y)).rgb + texture(Bloom, uv + vec2(bt.x, bt.y)).rgb) *
              (0.25 * BloomStrength);
     }
+    if(Tone.x > 0.0)
+        c = QvrTonemap(c * Tone.x, Tone.yz);
+    if(Tone.w > 0.0)
+        c = QvrGrade(GradeLUT, c, Tone.w);
     Out = vec4(c, 1.0);
 }
 )";
@@ -207,6 +224,8 @@ void mirrorToWindow(int eye, GLuint windowTarget, int windowWidth, int windowHei
     GL_Uniform4fFunc(0, x0 / ew, y0 / eh, (x1 - x0) / ew, (y1 - y0) / eh);
     GL_Uniform4fFunc(1, static_cast<float>(dx0), 0.f, 1.f / (dx1 - dx0), 1.f / windowHeight);
     GL_Uniform1fFunc(2, hasGlow ? 1.f : 0.f);
+    const glm::vec4 tone = tonemap::bind(3);
+    GL_Uniform4fFunc(3, tone.x, tone.y, tone.z, tone.w);
     glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
@@ -333,6 +352,7 @@ extern "C" int VR_RenderView()
     crosshair::queue(hands::current());
     fgfx::queue(hands::current());
     body::queueDebug(hands::current());
+    envmap::update(); // the weapons' reflections: a face of the cube, once for both eyes (vr_envmap.cpp)
 
     int eyesRendered = 0;
     for(int eye = 0; eye < 2; eye++)
@@ -370,6 +390,7 @@ extern "C" int VR_RenderView()
 
         profile::begin("postprocess", true);
         GL_PostProcess(); // into the image, or the resample target (VR_PostProcessTarget)
+        tonemap::eyeshot(eye, VR_PostProcessTarget(), framebufs.composite.fbo, width, height); // vr_eyeshot
         if(stereo::resampling)
         {
             GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, stereo::resampleFbo);
@@ -433,6 +454,11 @@ extern "C" void VR_DrawHiddenArea()
     {
         stereo::drawHiddenArea();
     }
+}
+
+extern "C" unsigned VR_SceneColorFormat(unsigned format)
+{
+    return stereo::creatingEyeFramebufs ? stereo::eyeFramebufsFormat : format;
 }
 
 extern "C" unsigned VR_PostProcessTarget()

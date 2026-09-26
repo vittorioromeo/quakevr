@@ -9,6 +9,7 @@
 #include "vr_engine.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
+#include "vr_hue.hpp"
 #include "vr_lines.hpp"
 #include "vr_protocol.hpp"
 #include "vr_trace.hpp"
@@ -52,8 +53,9 @@ void queue(const hands::State& s)
         return;
     }
 
-    const glm::vec4 red{1.f, 0.f, 0.f, alpha};
-    const glm::vec4 faded{1.f, 0.f, 0.f, alpha * 0.01f};
+    // In the player's hue (vr_crosshair_hue; 0 its old red).
+    const glm::vec4 red = hue::color(vr_crosshair_hue, 1.f, 1.f, alpha);
+    const glm::vec4 faded{glm::vec3{red}, alpha * 0.01f};
 
     for(int h = 0; h < HAND_COUNT; h++)
     {

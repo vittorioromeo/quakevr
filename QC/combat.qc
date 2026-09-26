@@ -157,6 +157,9 @@ void(entity targ, entity attacker) Killed =
     // VR: a monster that died whole becomes a corpse that can be gibbed (vr_corpse_gib).
     VR_Corpse_Watch(self);
 
+    // VR: gore: a pool of blood spreads under the corpse (vr_gore, vr_carry.qc).
+    VR_Gore_Killed(self);
+
     self = oself;
 };
 
@@ -1033,6 +1036,9 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         return TRUE;
     }
 
+    // VR: gore: blood sprayed onto the walls, floor and ceiling behind the hit (vr_gore, vr_carry.qc).
+    VR_Gore_Hit(targ, inflictor, take);
+
     // do the damage
     targ.health = targ.health - take;
 
@@ -1111,6 +1117,8 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
 // the hand knocked back. Held in one hand, the weapon may be knocked out of it
 // (vr_parry_drop_chance); held in two, never.
 
+.float vr_parry_time; // on a player: when it last parried a blow with a weapon (a bash soon after is a parry-bash)
+
 // Monsters that strike in melee (a blow comes from the monster itself, up close).
 float(entity e) VR_Parry_MeleeMonster =
 {
@@ -1122,9 +1130,9 @@ float(entity e) VR_Parry_MeleeMonster =
 
 // Whether `p`'s `hand` holds a weapon with the hand's forward across `toAttacker` (horizontal, unit):
 // square to it within 50 degrees, the hand ahead of the body, between the hips and above the head.
-// The guard's test (VR_Parry_Guard, for the bash). It was the parry's too, until round 16: a sword's
-// blade or the axe's handle is about 70 degrees off the hand's forward (the aim), so a sword or axe
-// held level across had its hand's forward pointing at the attacker, and never parried.
+// The bash guard's test until round 18 and the parry's until round 16, now only VR_Parry_Probe's "old
+// test": a sword's blade or the axe's handle is about 70 degrees off the hand's forward (the aim), so
+// a sword or axe held level across had its hand's forward pointing at the attacker, and never parried.
 float(entity p, float hand, vector toAttacker) VR_Parry_HandAcross =
 {
     if(VRIsHandEmpty(p, hand))
@@ -1316,17 +1324,20 @@ float(entity p, vector xAt) VR_Parry_GuardHeight =
     return dz > -0.65 && dz < 0.15;
 };
 
-// Whether `p`'s `hand` holds a weapon in a guard, facing `xForward` (horizontal, unit): the hand's
-// forward across in front (VR_Parry_HandAcross), about level (within 30 degrees: a weapon raised or
-// pointing down, as in a swing, is no guard), at a guard's height.
+// Whether `p`'s `hand` holds a weapon in a guard, facing `xForward` (horizontal, unit): the parry's
+// pose (VR_Parry_Blocks, as for a blow from straight ahead): the weapon's line (or, held with both
+// hands, the line through them) about level, across and in front. One hand or two, a sword (by its
+// grip or its blade), the axe or a gun held across. Until round 18 the guard was the hand's forward
+// across (VR_Parry_HandAcross, the parry's old test), which a sword or the axe held level across
+// never passed (their blades are some 70 degrees off the hand's forward). A gun carried by its
+// foregrip (the hand-off) is no guard.
 float(entity p, float hand, vector xForward) VR_Parry_Guard =
 {
-    if(!VR_Parry_HandAcross(p, hand, xForward))
+    if(VRIsHandCarryingByForegrip(p, hand))
     {
         return FALSE;
     }
-    makeforward(VRGetEntHandRot(p, hand));
-    return fabs(v_forward_z) < 0.5 && VR_Parry_GuardHeight(p, VRGetEntHandPos(p, hand));
+    return VR_Parry_Blocks(p, hand, xForward);
 };
 
 // Whether `p` holds both empty hands together in front, facing `xForward`: crossed or side by side,
@@ -1409,8 +1420,19 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         self = targ;
 
         vector at = vr_parry_at + to * 4;
-        sound(self, CHAN_AUTO, "player/axhit2.wav", 1, ATTN_NORM);
-        sound(self, CHAN_AUTO, "weapons/tink1.wav", 0.6, ATTN_NORM);
+        // Its own ring (vr_bash_sound; round 18), apart from a blow landing; 0: the old clang.
+        float parrySound = cvar_hget(cvarh_vr_bash_sound);
+        if(parrySound > 0)
+        {
+            sound(self, CHAN_AUTO, "vr/parry.wav", min(1, parrySound), ATTN_NORM);
+            sound(self, CHAN_AUTO, "player/axhit2.wav", 0.35 * min(1, parrySound), ATTN_NORM);
+        }
+        else
+        {
+            sound(self, CHAN_AUTO, "player/axhit2.wav", 1, ATTN_NORM);
+            sound(self, CHAN_AUTO, "weapons/tink1.wav", 0.6, ATTN_NORM);
+        }
+        self.vr_parry_time = time; // a bash soon after is a parry-bash (VR_Bash)
         particle2(at, (to * -1 + '0 0 0.5') * 80, QVR_PARTICLE_PRESET_SPARKS, 24);
         haptic(hand, 0.0, 0.3, 90, 1.0);
         handimpact(hand, 5, to * -1);

@@ -4,6 +4,7 @@
 // unbound, so they are given numbers from a private range here and bound by name.
 
 #include "vr_progs.hpp"
+#include "vr_held.hpp"
 #include "vr_engine.hpp"
 #include "vr_physics.hpp"
 #include "vr_protocol.hpp"
@@ -293,6 +294,19 @@ void PF_carryangles()
         G_VECTOR(OFS_RETURN));
 }
 
+// vector(entity e, vector handpos, vector palm) carryfit: how far to move an object a hand grips so
+// that it sits against the palm, not sunk into the fist (vr_held.cpp; vr_held_surface_fit).
+void PF_carryfit()
+{
+    const float* h = G_VECTOR(OFS_PARM1);
+    const float* p = G_VECTOR(OFS_PARM2);
+    const glm::vec3 v = held::surfaceFit(G_EDICT(OFS_PARM0), glm::vec3{h[0], h[1], h[2]}, glm::vec3{p[0], p[1], p[2]});
+    float* out = G_VECTOR(OFS_RETURN);
+    out[0] = v.x;
+    out[1] = v.y;
+    out[2] = v.z;
+}
+
 // handimpact(hand, strength, dir): knock the `self` player's drawn hand (a parried blow).
 void PF_handimpact()
 {
@@ -333,6 +347,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"haptic", PF_haptic},
     {"handimpact", PF_handimpact},
     {"carryangles", PF_carryangles},
+    {"carryfit", PF_carryfit},
     {"floattext", PF_floattext},
     {"ejectcasings", PF_ejectcasings},
     {"liquidentry", PF_liquidentry},

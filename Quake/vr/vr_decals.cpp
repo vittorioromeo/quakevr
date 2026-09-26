@@ -4,6 +4,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
+#include "vr_gore.hpp"
 #include "vr_modellight.hpp"
 #include "vr_profile.hpp"
 #include "vr_trace.hpp"
@@ -24,16 +25,24 @@ enum Kind : int
     Blood,
     BloodDrop,
     Scorch,
-    Hole
+    Hole,
+    // The gore's (vr_gore.cpp):
+    Splatter, // a hit's spray: a blot and droplets flung along the cell's +x (the spray's way)
+    Streak,   // runs of blood down a wall, from a blot at the cell's -x end to +x (down)
+    Pool,     // a pool of blood, thick and dark
+    Splotch,  // a gib's splat: a big blot with spikes and drops all round
+    KindCount
 };
 
-// The atlas: 4 x 4 cells of 256 texels (1024 x 1024 RGBA, mipmapped: 5.3 MB). Blood splats 0-5,
-// drops 6-7, scorches 8-10, chips 11-15.
+// The atlas: 8 x 4 cells of 256 texels (2048 x 1024 RGBA, mipmapped: 11 MB). Blood splats 0-5,
+// drops 6-7, scorches 8-10, chips 11-15, splatters 16-19, streaks 20-22, pools 23-25, splotches 26-28.
 constexpr int cellSize = 256;
-constexpr int cellsPerRow = 4;
-constexpr int atlasSize = cellSize * cellsPerRow;
-constexpr int firstCell[] = {0, 6, 8, 11};
-constexpr int cellCount[] = {6, 2, 3, 5};
+constexpr int cellsPerRow = 8;
+constexpr int cellRows = 4;
+constexpr int atlasWidth = cellSize * cellsPerRow;
+constexpr int atlasHeight = cellSize * cellRows;
+constexpr int firstCell[KindCount] = {0, 6, 8, 11, 16, 20, 23, 26};
+constexpr int cellCount[KindCount] = {6, 2, 3, 5, 4, 3, 3, 3};
 
 // The chips are lit from the cell's +y (the decal's v, turned towards the light that reaches it),
 // this high above the surface.
@@ -41,18 +50,34 @@ const glm::vec3 chipLight = glm::normalize(glm::vec3{0.f, 0.8f, 0.6f});
 
 gfx::Texture atlas = 0;
 
+// A corner of a decal's triangles: on a face of the world, where in the decal's cell (0..1).
+struct Corner
+{
+    glm::vec3 pos;
+    glm::vec2 uv;
+};
+
 struct Decal
 {
-    glm::vec3 centre, u, v; // u, v: half extents on the surface
+    glm::vec3 centre, u, v; // u, v: half extents on the surface (at its full size)
     int cell;
-    double born;
+    double born;            // when it shows (a delayed one later than it was placed)
+    float grow = 0.f;       // seconds it takes to spread to its full size (0: at once),
+    float growFrom = 1.f;   // from this part of it
+    bool fromStart = false; // spreading from its -u end (a run down a wall), not its middle
+    float darken = 0.f;     // how much darker it gets as it spreads and dries
+    std::vector<Corner> tris; // its footprint clipped to the world's faces under it (clipToWorld)
 };
 
 std::deque<Decal> decals;
-std::vector<gfx::Vertex> vertices;
+std::vector<gfx::Vertex> vertices;       // the marks that change this frame
+std::vector<gfx::Vertex> staticVertices; // the others
+double staticUntil = 0.0;                // when one of those starts to change (fades)
+double staticLife = 0.0;                 // vr_decal_life they were built for
 int builtFrame = -1; // the host frame `vertices` were built in; -1 when decals came or went since
 int addedThisFrame = 0;
 int addedFrame = -1;
+int goreFrame = -1; // the host frame gore::frame last ran in
 
 // ---- The atlas ---------------------------------------------------------------------------------
 
@@ -225,7 +250,7 @@ void cellTexel(Kind kind, int seed, const std::vector<Blob>& blobs, glm::vec2 p,
             }
             alpha = cover * (0.8f + 0.12f * noise(p * 14.f, seed) + 0.08f * noise(p * 45.f, seed + 1));
             // Darker, thicker in the middle.
-            color = glm::mix(glm::vec3{0.18f, 0.01f, 0.01f}, glm::vec3{0.42f, 0.04f, 0.03f}, smoothstep(0.f, 0.7f, r));
+            color = glm::mix(glm::vec3{0.3f, 0.015f, 0.012f}, glm::vec3{0.6f, 0.05f, 0.04f}, smoothstep(0.f, 0.7f, r));
             break;
         }
         case Scorch:
@@ -236,8 +261,201 @@ void cellTexel(Kind kind, int seed, const std::vector<Blob>& blobs, glm::vec2 p,
             color = glm::vec3{0.1f, 0.085f, 0.07f};
             break;
         }
-        case Hole: break; // chipTexel
+        default: break; // chipTexel, goreTexel
     }
+}
+
+// ---- The gore's marks: shapes by their signed distance (cell units, < 0 inside) ------------------
+
+struct Ellipse
+{
+    glm::vec2 c, r;
+};
+
+// A capsule from `a` (radius `ra`) tapering to `b` (radius `rb`).
+struct Capsule
+{
+    glm::vec2 a, b;
+    float ra, rb;
+};
+
+// A run down a wall: along +x from `x0` to `x1` about `y`, wavering, `width` across (half),
+// narrowing to its end, where a drop swells.
+struct Run
+{
+    float x0, x1, y, width, phase;
+};
+
+struct GoreShape
+{
+    std::vector<Ellipse> ellipses;
+    std::vector<Capsule> capsules;
+    std::vector<Run> runs;
+    float edge = 0.f; // a ragged blot round the middle this big (0 none): splotches and pools
+    int lobes = 9;
+};
+
+[[nodiscard]] float ellipseDistance(const Ellipse& e, glm::vec2 p)
+{
+    const glm::vec2 q = (p - e.c) / e.r;
+    return (glm::length(q) - 1.f) * std::min(e.r.x, e.r.y);
+}
+
+[[nodiscard]] float goreDistance(const GoreShape& s, int seed, glm::vec2 p)
+{
+    float d = 10.f;
+    if(s.edge > 0.f)
+    {
+        const float a = std::atan2(p.y, p.x) / 6.2831853f + 0.5f;
+        const float edge = s.edge * (1.f + 0.3f * (ring(a, s.lobes, seed) - 0.5f) + 0.14f * (ring(a, 23, seed + 1) - 0.5f) +
+                                        0.05f * (ring(a, 61, seed + 2) - 0.5f));
+        d = glm::length(p) - edge;
+    }
+    for(const Ellipse& e : s.ellipses)
+    {
+        if(std::fabs(p.x - e.c.x) < e.r.x + 0.05f && std::fabs(p.y - e.c.y) < e.r.y + 0.05f)
+        {
+            d = std::min(d, ellipseDistance(e, p));
+        }
+    }
+    for(const Capsule& c : s.capsules)
+    {
+        float t = 0.f;
+        const float dist = segmentDistance(p, c.a, c.b, t);
+        d = std::min(d, dist - glm::mix(c.ra, c.rb, t));
+    }
+    for(const Run& r : s.runs)
+    {
+        if(p.x < r.x0 - 0.1f || p.x > r.x1 + 0.1f)
+        {
+            continue;
+        }
+        const float along = std::clamp((p.x - r.x0) / std::max(r.x1 - r.x0, 1e-3f), 0.f, 1.f);
+        const float y = r.y + 0.025f * std::sin(p.x * 7.f + r.phase) + 0.012f * std::sin(p.x * 19.f + r.phase * 2.f);
+        const float w = r.width * (1.f - 0.4f * along);
+        const float inside = std::max(r.x0 - p.x, p.x - r.x1); // < 0 between its ends
+        d = std::min(d, std::max(std::fabs(p.y - y) - w, inside));
+        // The drop at its end (the quad is stretched along x: short in x).
+        d = std::min(d, ellipseDistance({{r.x1, y}, {w * 0.7f, w * 1.6f}}, p));
+    }
+    return d;
+}
+
+// A gore cell's shape, variant `seed` (frand seeded by it).
+[[nodiscard]] GoreShape goreShape(Kind kind)
+{
+    GoreShape s;
+    switch(kind)
+    {
+        case Splatter:
+        {
+            // A blot where it struck (towards -x), a few lumps round it, then droplets flung along
+            // +x in a fan, smaller and more drawn out the further they flew, some with a tail.
+            const glm::vec2 core{-0.45f + 0.06f * frand(), (frand() - 0.5f) * 0.08f};
+            s.ellipses.push_back({core, {0.3f + 0.06f * frand(), 0.24f + 0.06f * frand()}});
+            for(int i = 0; i < 5; i++)
+            {
+                const float a = frand() * 6.2831853f;
+                s.ellipses.push_back({core + glm::vec2{std::cos(a) * 0.24f + 0.1f, std::sin(a) * 0.2f},
+                    glm::vec2{0.09f + 0.07f * frand(), 0.08f + 0.06f * frand()}});
+            }
+            for(int i = 0; i < 46; i++)
+            {
+                const float t = std::pow(frand(), 0.8f);
+                const float ang = (frand() + frand() + frand() - 1.5f) * 0.55f;
+                const glm::vec2 dir{std::cos(ang), std::sin(ang)};
+                const glm::vec2 at = core + dir * (0.2f + t * 1.1f);
+                if(std::fabs(at.x) > 0.9f || std::fabs(at.y) > 0.9f)
+                {
+                    continue;
+                }
+                const float r = (0.07f * (1.f - t) + 0.014f) * (0.6f + 0.8f * frand());
+                const float stretch = 1.f + 2.5f * t * frand();
+                if(t > 0.2f && frand() < 0.55f)
+                {
+                    s.capsules.push_back({at - dir * (0.05f + 0.22f * t), at, r * 0.3f, r});
+                }
+                // Drawn out along its flight (a rotated ellipse: a capsule of its length).
+                s.capsules.push_back({at - dir * r * (stretch - 1.f), at, r * 0.85f, r});
+            }
+            break;
+        }
+        case Streak:
+        {
+            // The quad is about three times as long (x) as it is wide (y): the blot at the top is
+            // short in x, the runs' widths are across.
+            s.ellipses.push_back({{-0.8f, (frand() - 0.5f) * 0.1f}, {0.14f, 0.34f + 0.1f * frand()}});
+            s.ellipses.push_back({{-0.72f, (frand() - 0.5f) * 0.3f}, {0.08f, 0.16f}});
+            const int runs = 2 + static_cast<int>(frand() * 3.f);
+            for(int i = 0; i < runs; i++)
+            {
+                const float y = (static_cast<float>(i) + 0.5f) / runs * 0.56f - 0.28f + (frand() - 0.5f) * 0.08f;
+                s.runs.push_back({-0.78f, -0.35f + frand() * 1.15f, y, 0.025f + 0.045f * frand(), frand() * 6.28f});
+            }
+            break;
+        }
+        case Pool:
+        {
+            s.edge = 0.6f;
+            s.lobes = 5 + static_cast<int>(frand() * 3.f);
+            for(int i = 0; i < 4; i++)
+            {
+                const float a = frand() * 6.2831853f;
+                const glm::vec2 dir{std::cos(a), std::sin(a)};
+                s.ellipses.push_back({dir * (0.5f + 0.15f * frand()), glm::vec2{0.14f + 0.1f * frand()}});
+            }
+            for(int i = 0; i < 10; i++)
+            {
+                const float a = frand() * 6.2831853f;
+                s.ellipses.push_back(
+                    {glm::vec2{std::cos(a), std::sin(a)} * (0.78f + 0.12f * frand()), glm::vec2{0.015f + 0.025f * frand()}});
+            }
+            break;
+        }
+        case Splotch:
+        {
+            // A ragged blot, spikes thrown out from it ending in drops, drops round it.
+            s.edge = 0.3f;
+            s.lobes = 7 + static_cast<int>(frand() * 5.f);
+            const int spikes = 8 + static_cast<int>(frand() * 6.f);
+            for(int i = 0; i < spikes; i++)
+            {
+                const float a = (static_cast<float>(i) + frand() * 0.8f) / spikes * 6.2831853f;
+                const glm::vec2 dir{std::cos(a), std::sin(a)};
+                const float len = 0.5f + 0.4f * frand();
+                const float w = 0.045f + 0.04f * frand();
+                s.capsules.push_back({dir * 0.2f, dir * len, w, w * 0.25f});
+                s.ellipses.push_back({dir * (len + 0.03f), glm::vec2{w * (0.5f + 0.4f * frand())}});
+            }
+            for(int i = 0; i < 26; i++)
+            {
+                const float a = frand() * 6.2831853f;
+                s.ellipses.push_back(
+                    {glm::vec2{std::cos(a), std::sin(a)} * (0.4f + 0.5f * frand()), glm::vec2{0.01f + 0.03f * frand()}});
+            }
+            break;
+        }
+        default: break;
+    }
+    return s;
+}
+
+// What the surface is multiplied by at `p` (-1..1) for a gore cell: blood, darker where it is thick
+// (deep inside the shape), a pool darker still.
+[[nodiscard]] glm::vec3 goreTexel(Kind kind, int seed, const GoreShape& s, glm::vec2 p)
+{
+    const float d = goreDistance(s, seed, p);
+    if(d > 0.02f)
+    {
+        return glm::vec3{1.f};
+    }
+    const float cover = smoothstep(0.012f, -0.012f, d);
+    const float thick = smoothstep(0.f, kind == Pool ? -0.25f : -0.07f, d);
+    const float alpha = cover * (0.84f + 0.1f * noise(p * 14.f, seed) + 0.06f * noise(p * 45.f, seed + 1));
+    const glm::vec3 thin = kind == Pool ? glm::vec3{0.72f, 0.04f, 0.03f} : glm::vec3{0.8f, 0.05f, 0.04f};
+    const glm::vec3 deep = kind == Pool ? glm::vec3{0.38f, 0.015f, 0.01f} : glm::vec3{0.42f, 0.02f, 0.015f};
+    const glm::vec3 color = glm::mix(thin, deep, thick * (0.75f + 0.25f * noise(p * 6.f, seed + 2)));
+    return glm::mix(glm::vec3{1.f}, color, std::clamp(alpha, 0.f, 1.f));
 }
 
 // A texel of what the surface is multiplied by, `f` (0..2 in each channel; 1 leaves it as it is),
@@ -255,10 +473,10 @@ void encode(glm::vec3 f, unsigned char* out)
     out[3] = static_cast<unsigned char>(std::clamp(dim, 0.f, 1.f) * 255.f + 0.5f);
 }
 
-void makeAtlas()
+[[nodiscard]] std::vector<unsigned char> buildAtlas()
 {
-    std::vector<unsigned char> rgba(atlasSize * atlasSize * 4, 0);
-    for(int kind = 0; kind < 4; kind++)
+    std::vector<unsigned char> rgba(atlasWidth * atlasHeight * 4, 0);
+    for(int kind = 0; kind < KindCount; kind++)
     {
         for(int n = 0; n < cellCount[kind]; n++)
         {
@@ -316,6 +534,9 @@ void makeAtlas()
                     dir * streak});
             }
 
+            // The gore's shapes.
+            const GoreShape gore = kind >= Splatter ? goreShape(static_cast<Kind>(kind)) : GoreShape{};
+
             const int ox = (cell % cellsPerRow) * cellSize, oy = (cell / cellsPerRow) * cellSize;
             for(int y = 0; y < cellSize; y++)
             {
@@ -326,6 +547,10 @@ void makeAtlas()
                     if(kind == Hole)
                     {
                         f = chipTexel(seed, chip, p);
+                    }
+                    else if(kind >= Splatter)
+                    {
+                        f = goreTexel(static_cast<Kind>(kind), seed, gore, p);
                     }
                     else
                     {
@@ -338,12 +563,18 @@ void makeAtlas()
                     // mipmaps) must not reach the next cell.
                     const int edge = std::min({x, y, cellSize - 1 - x, cellSize - 1 - y});
                     f = glm::mix(glm::vec3{1.f}, f, smoothstep(3.f, 14.f, static_cast<float>(edge)));
-                    encode(f, &rgba[((oy + y) * atlasSize + ox + x) * 4]);
+                    encode(f, &rgba[((oy + y) * atlasWidth + ox + x) * 4]);
                 }
             }
         }
     }
-    atlas = gfx::createTexture(atlasSize, atlasSize, rgba.data(), true);
+    return rgba;
+}
+
+void makeAtlas()
+{
+    const std::vector<unsigned char> rgba = buildAtlas();
+    atlas = gfx::createTexture(atlasWidth, atlasHeight, rgba.data(), true);
 }
 
 // ---- Placing ----------------------------------------------------------------------------------
@@ -386,11 +617,129 @@ void makeAtlas()
 }
 
 // Whether a surface with normal `n` lies under `p` (the decal's corner does not hang in the air).
-[[nodiscard]] bool supported(const glm::vec3& p, const glm::vec3& n)
+// Keeps the part of `poly` on the inner side of the plane (dot(p, normal) <= dist) into `out`.
+void clipPolygon(const std::vector<glm::vec3>& poly, const glm::vec3& normal, float dist, std::vector<glm::vec3>& out)
 {
-    glm::vec3 w, hn;
-    float f;
-    return hitWorld(p + n * 2.f, p - n * 2.f, w, hn, f) && glm::dot(hn, n) > 0.9f;
+    out.clear();
+    const std::size_t n = poly.size();
+    for(std::size_t i = 0; i < n; i++)
+    {
+        const glm::vec3& a = poly[i];
+        const glm::vec3& b = poly[(i + 1) % n];
+        const float da = glm::dot(a, normal) - dist, db = glm::dot(b, normal) - dist;
+        if(da <= 0.f)
+        {
+            out.push_back(a);
+        }
+        if((da < 0.f && db > 0.f) || (da > 0.f && db < 0.f))
+        {
+            out.push_back(a + (b - a) * (da / (da - db)));
+        }
+    }
+}
+
+// Lays decal `d` (on a surface facing `n`) on the world: its footprint (the box of its centre, u
+// and v, `depth` deep either side of the surface) cut out of each face of the world in it that faces
+// about its way, as triangles, lifted off the face a little. Faces are found down the BSP tree
+// (those on the nodes whose planes cross the box); sky, liquids and fences are left out.
+void clipToWorld(Decal& d, const glm::vec3& n, float depth)
+{
+    const qmodel_t* m = cl.worldmodel;
+    const float hu = glm::length(d.u), hv = glm::length(d.v);
+    if(!m || !m->nodes || hu <= 0.f || hv <= 0.f)
+    {
+        return;
+    }
+    const glm::vec3 U = d.u / hu, V = d.v / hv;
+    const glm::vec3 extent = glm::abs(d.u) + glm::abs(d.v) + glm::abs(n) * depth;
+    const glm::vec3 lo = d.centre - extent, hi = d.centre + extent;
+    const float sideDist[4] = {glm::dot(d.centre, U) + hu, glm::dot(d.centre, -U) + hu, glm::dot(d.centre, V) + hv,
+        glm::dot(d.centre, -V) + hv};
+    const glm::vec3 sideNormal[4] = {U, -U, V, -V};
+
+    std::vector<glm::vec3> poly, clipped;
+    constexpr std::size_t maxCorners = 32 * 3; // over very broken ground, the rest is left out
+    const mnode_t* stack[256];
+    int top = 0;
+    stack[top++] = m->nodes + m->hulls[0].firstclipnode;
+    while(top > 0 && d.tris.size() < maxCorners)
+    {
+        const mnode_t* node = stack[--top];
+        if(node->contents < 0)
+        {
+            continue; // a leaf
+        }
+        const mplane_t* plane = node->plane;
+        const glm::vec3 pn{plane->normal[0], plane->normal[1], plane->normal[2]};
+        const float side = glm::dot(d.centre, pn) - plane->dist;
+        const float reach = glm::dot(extent, glm::abs(pn));
+        if(side > reach)
+        {
+            stack[top++] = node->children[0];
+            continue;
+        }
+        if(side < -reach)
+        {
+            stack[top++] = node->children[1];
+            continue;
+        }
+        if(top + 2 <= 256)
+        {
+            stack[top++] = node->children[0];
+            stack[top++] = node->children[1];
+        }
+
+        // The faces on this node's plane.
+        for(unsigned int i = 0; i < node->numsurfaces && d.tris.size() < maxCorners; i++)
+        {
+            const msurface_t* s = m->surfaces + node->firstsurface + i;
+            if(s->flags & (SURF_DRAWSKY | SURF_DRAWTURB | SURF_DRAWFENCE | SURF_NOTEXTURE))
+            {
+                continue;
+            }
+            if(s->maxs[0] < lo.x || s->mins[0] > hi.x || s->maxs[1] < lo.y || s->mins[1] > hi.y || s->maxs[2] < lo.z ||
+                s->mins[2] > hi.z)
+            {
+                continue;
+            }
+            const float flip = (s->flags & SURF_PLANEBACK) ? -1.f : 1.f;
+            const glm::vec3 sn = glm::vec3{s->plane->normal[0], s->plane->normal[1], s->plane->normal[2]} * flip;
+            const float off = glm::dot(d.centre, sn) - s->plane->dist * flip; // the centre in front of it (> 0)
+            if(glm::dot(sn, n) < 0.5f || std::fabs(off) > depth)
+            {
+                continue;
+            }
+            poly.clear();
+            for(int e = 0; e < s->numedges; e++)
+            {
+                const int se = m->surfedges[s->firstedge + e];
+                const unsigned int vi = se >= 0 ? m->edges[se].v[0] : m->edges[-se].v[1];
+                const float* p = m->vertexes[vi].position;
+                poly.push_back({p[0], p[1], p[2]});
+            }
+            for(int k = 0; k < 4 && poly.size() >= 3; k++)
+            {
+                clipPolygon(poly, sideNormal[k], sideDist[k], clipped);
+                poly.swap(clipped);
+            }
+            if(poly.size() < 3)
+            {
+                continue;
+            }
+            // A fan of triangles, lifted off the face (not fighting it for depth), its cell
+            // coordinates from where each corner is in the footprint.
+            const auto corner = [&](const glm::vec3& p) {
+                const glm::vec3 r = p - d.centre;
+                return Corner{p + sn * 0.2f, {glm::dot(r, U) / hu * 0.5f + 0.5f, glm::dot(r, V) / hv * 0.5f + 0.5f}};
+            };
+            for(std::size_t k = 1; k + 1 < poly.size() && d.tris.size() < maxCorners; k++)
+            {
+                d.tris.push_back(corner(poly[0]));
+                d.tris.push_back(corner(poly[k]));
+                d.tris.push_back(corner(poly[k + 1]));
+            }
+        }
+    }
 }
 
 // The direction along a surface at `where` (normal `n`) that the light lighting it comes from: the
@@ -444,29 +793,29 @@ void makeAtlas()
     return glm::length(up) > 0.3f ? glm::normalize(up) : glm::vec3{0.f};
 }
 
-void add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size)
+bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size, const MarkOptions& o = {})
 {
     const int max = static_cast<int>(vr_decal_max.value);
     if(!vr_decals.value || max <= 0 || !cl.worldmodel)
     {
-        return;
+        return false;
     }
     if(addedFrame != host_framecount)
     {
         addedFrame = host_framecount;
         addedThisFrame = 0;
     }
-    if(++addedThisFrame > 24)
+    if(++addedThisFrame > 64)
     {
-        return; // a shotgun blast into a wall is enough at once
+        return false; // a shotgun blast into a wall is enough at once (the gore spreads its own over frames)
     }
 
     // Not the same mark twice in one place (Quake's effect and Quake VR's for one hit).
     for(auto it = decals.rbegin(); it != decals.rend() && it - decals.rbegin() < 16; ++it)
     {
-        if(cl.time - it->born < 0.1 && glm::distance(it->centre, where) < 2.f)
+        if(cl.time - it->born < 0.1 && glm::distance(it->centre, where) < 2.f && o.delay <= 0.f)
         {
-            return;
+            return false;
         }
     }
 
@@ -475,6 +824,11 @@ void add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size)
     const glm::vec3 t1 = glm::cross(n, t0);
     const float ang = static_cast<float>(rand() % 6283) * 0.001f;
     glm::vec3 u = (t0 * std::cos(ang) + t1 * std::sin(ang));
+    // Turned along `along` on the surface, if given (a spray's way, a run's down).
+    if(const glm::vec3 a = o.along - n * glm::dot(o.along, n); glm::length(a) > 0.1f * glm::length(o.along) && glm::length(a) > 1e-4f)
+    {
+        u = glm::normalize(a);
+    }
     glm::vec3 v = glm::cross(n, u);
     if(kind == Hole)
     {
@@ -486,38 +840,49 @@ void add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size)
             u = glm::cross(v, n) * (rand() & 1 ? 1.f : -1.f);
         }
     }
-    const glm::vec3 centre = where + n * 0.2f;
-
-    // Shrunk (once) or dropped where it would hang over an edge.
-    for(int attempt = 0; attempt < 2; attempt++)
+    // Laid on the world's faces under it, cut where they end (an edge, a corner): over a wall's
+    // panels and recesses, the floor of an alcove, the steps of a stair. A run down a wall keeps
+    // its top where it is.
+    const bool big = kind >= Splatter;
+    const float halfV = size * 0.5f, halfU = halfV * std::max(0.25f, o.aspect);
+    Decal d{o.fromStart ? where + u * halfU : where, u * halfU, v * halfV, firstCell[kind] + rand() % cellCount[kind],
+        cl.time + o.delay};
+    d.grow = o.grow;
+    d.growFrom = std::clamp(o.growFrom, 0.f, 1.f);
+    d.fromStart = o.fromStart;
+    d.darken = std::clamp(o.darken, 0.f, 0.9f);
+    clipToWorld(d, n, big ? std::clamp(halfV * 0.35f, 4.f, 12.f) : 3.f);
+    if(d.tris.empty())
     {
-        const float half = size * 0.5f;
-        bool ok = true;
-        for(const glm::vec2 c : {glm::vec2{-1, -1}, glm::vec2{1, -1}, glm::vec2{1, 1}, glm::vec2{-1, 1}})
+        return false;
+    }
+    // Drops (a steady drip from wounds, gibs and ceilings) take at most a quarter of the marks: the
+    // oldest drop goes, not a splat or a pool.
+    if(kind == BloodDrop)
+    {
+        int count = 0;
+        for(const Decal& e : decals)
         {
-            if(!supported(where + (u * c.x + v * c.y) * (half * 0.8f), n))
-            {
-                ok = false;
-                break;
-            }
+            count += e.cell >= firstCell[BloodDrop] && e.cell < firstCell[BloodDrop] + cellCount[BloodDrop];
         }
-        if(ok)
+        if(count >= std::max(16, max / 4))
         {
-            const int cell = firstCell[kind] + rand() % cellCount[kind];
-            decals.push_back({centre, u * half, v * half, cell, cl.time});
-            while(static_cast<int>(decals.size()) > max)
+            const auto oldest = std::find_if(decals.begin(), decals.end(), [](const Decal& e) {
+                return e.cell >= firstCell[BloodDrop] && e.cell < firstCell[BloodDrop] + cellCount[BloodDrop];
+            });
+            if(oldest != decals.end())
             {
-                decals.pop_front();
+                decals.erase(oldest);
             }
-            builtFrame = -1;
-            return;
-        }
-        size *= 0.55f;
-        if(size < 2.f)
-        {
-            return;
         }
     }
+    decals.push_back(std::move(d));
+    while(static_cast<int>(decals.size()) > max)
+    {
+        decals.pop_front();
+    }
+    builtFrame = -1;
+    return true;
 }
 
 [[nodiscard]] float random(float lo, float hi)
@@ -540,6 +905,10 @@ struct Gib
     float sinceDrop = 0.f;   // and since the last drop on the floor
     int dropsLeft = 0;       // a gib bleeds dry
     double splatTime = 0.0;  // its last splat
+    double stillSince = 0.0; // cl.time it stopped moving (0: moving)
+    bool restChecked = false; // looked under it since it stopped,
+    bool hanging = false;     // nothing under it (stuck to a ceiling or a wall, or held): it drips
+    int pools = 0;            // pools left under it at rest (vr_gore)
 };
 
 std::unordered_map<int, Gib> gibs;
@@ -600,7 +969,11 @@ void splat(const glm::vec3& from, const glm::vec3& to, const glm::vec3& oldVeloc
     {
         return;
     }
-    add(Blood, where, normal, std::clamp(16.f + strength * 0.03f, 16.f, 40.f));
+    // With the gore (vr_gore), a big splat, runs down a wall, drips from a ceiling.
+    if(!gore::gibImpact(where, normal, strength, oldVelocity))
+    {
+        add(Blood, where, normal, std::clamp(16.f + strength * 0.03f, 16.f, 40.f));
+    }
 
     // Quake VR's blood (Quake's own with vr_particles 0).
     vec3_t org, dir;
@@ -623,6 +996,17 @@ void drop(const glm::vec3& org, float size)
     {
         add(BloodDrop, where, normal, size);
     }
+}
+
+bool place(Mark mark, const glm::vec3& where, const glm::vec3& normal, float size, const MarkOptions& o)
+{
+    constexpr Kind kinds[] = {Blood, BloodDrop, Splatter, Streak, Pool, Splotch};
+    return vr_decals.value && cl.worldmodel && add(kinds[static_cast<int>(mark)], where, normal, size, o);
+}
+
+bool trace(const glm::vec3& from, const glm::vec3& to, glm::vec3& where, glm::vec3& normal, float& fraction)
+{
+    return hitWorld(from, to, where, normal, fraction);
 }
 
 void chip(const glm::vec3& org)
@@ -661,9 +1045,10 @@ void fromEffect(const glm::vec3& org, const glm::vec3& dir, particles::Preset pr
             {
                 add(Blood, where, normal, size * (0.8f + f * 0.6f)); // the farther it falls, the wider it spreads
             }
+            // (With the gore, its sprays mark the walls: vr_gore.cpp.)
             const float a = random(0.f, 6.2831853f);
             const glm::vec3 side = glm::dot(dir, dir) > 1e-4f ? glm::normalize(dir) : glm::vec3{std::cos(a), std::sin(a), random(-0.3f, 0.2f)};
-            if(hitWorld(org, org + glm::normalize(side) * 72.f, where, normal, f))
+            if(gore::level() == 0 && hitWorld(org, org + glm::normalize(side) * 72.f, where, normal, f))
             {
                 add(Blood, where, normal, size * 0.7f);
             }
@@ -693,10 +1078,61 @@ void fromEffect(const glm::vec3& org, const glm::vec3& dir, particles::Preset pr
     }
 }
 
+// A decal's triangles as they are now (spreading, darkening, fading) into `out`.
+void appendDecal(const Decal& d, double life, std::vector<gfx::Vertex>& out)
+{
+    const float age = static_cast<float>(cl.time - d.born);
+    if(age < 0.f)
+    {
+        return; // not there yet (blood flying to it)
+    }
+    constexpr float insetU = 0.5f / atlasWidth, insetV = 0.5f / atlasHeight;
+    const float a = std::clamp(static_cast<float>((life - age) / 5.0), 0.f, 1.f);
+    // Spreading (a pool, a run down a wall; eased out: fast at first), and darkening as it does
+    // (and dries).
+    float s = 1.f;
+    if(d.grow > 0.f)
+    {
+        const float t = 1.f - std::min(1.f, age / d.grow);
+        s = d.growFrom + (1.f - d.growFrom) * (1.f - t * t);
+    }
+    const float dark = 1.f - d.darken * std::min(1.f, age / std::max(d.grow, 8.f));
+    const glm::vec4 c{a * dark, a * dark, a * dark, a};
+    const float u0 = static_cast<float>(d.cell % cellsPerRow) / cellsPerRow + insetU;
+    const float v0 = static_cast<float>(d.cell / cellsPerRow) / cellRows + insetV;
+    const glm::vec2 cellSpan{1.f / cellsPerRow - 2.f * insetU, 1.f / cellRows - 2.f * insetV};
+    // Spreading: its triangles drawn in towards where it spreads from, along the surface (its
+    // middle; a run's top, along u only).
+    const glm::vec3 U = glm::normalize(d.u), V = glm::normalize(d.v);
+    const glm::vec3 anchor = d.fromStart ? d.centre - d.u : d.centre;
+    const float su = s, sv = d.fromStart ? 1.f : s;
+    for(const Corner& k : d.tris)
+    {
+        glm::vec3 p = k.pos;
+        if(s < 1.f)
+        {
+            const glm::vec3 r = p - anchor;
+            const float ru = glm::dot(r, U), rv = glm::dot(r, V);
+            p = anchor + r - U * (ru * (1.f - su)) - V * (rv * (1.f - sv));
+        }
+        out.push_back({p, {u0 + k.uv.x * cellSpan.x, v0 + k.uv.y * cellSpan.y}, c});
+    }
+}
+
 void draw()
 {
     QVR_GPU_PROFILE("decals");
-    if(decals.empty() || !vr_decals.value)
+    if(!vr_decals.value)
+    {
+        return;
+    }
+    // The gore's work for the frame first (its marks, drips and pools: vr_gore.cpp), once.
+    if(goreFrame != host_framecount)
+    {
+        goreFrame = host_framecount;
+        gore::frame();
+    }
+    if(decals.empty())
     {
         return;
     }
@@ -705,53 +1141,104 @@ void draw()
         makeAtlas();
     }
 
-    // Built once a frame (and again when marks come or go), for both eyes.
+    // Built once a frame for both eyes: the marks that change (spreading, darkening, showing,
+    // fading) each frame, the others only when marks come or go or one of them starts or stops
+    // changing.
     if(builtFrame != host_framecount)
     {
+        const bool setChanged = builtFrame == -1;
         builtFrame = host_framecount;
 
         // Faded out over their last five seconds.
         const double life = std::max(5.f, vr_decal_life.value);
+        bool popped = false;
         while(!decals.empty() && cl.time - decals.front().born > life)
         {
             decals.pop_front();
+            popped = true;
         }
 
+        const bool restatic = setChanged || popped || cl.time >= staticUntil || life != staticLife;
+        if(restatic)
+        {
+            staticVertices.clear();
+            staticUntil = 1e30;
+            staticLife = life;
+        }
         vertices.clear();
-        constexpr float inset = 0.5f / atlasSize;
         for(const Decal& d : decals)
         {
-            const float age = static_cast<float>(cl.time - d.born);
-            const float a = std::clamp(static_cast<float>((life - age) / 5.0), 0.f, 1.f);
-            const glm::vec4 c{a, a, a, a};
-            const float u0 = static_cast<float>(d.cell % cellsPerRow) / cellsPerRow + inset;
-            const float v0 = static_cast<float>(d.cell / cellsPerRow) / cellsPerRow + inset;
-            const float u1 = u0 + 1.f / cellsPerRow - 2.f * inset, v1 = v0 + 1.f / cellsPerRow - 2.f * inset;
-            const gfx::Vertex q[4] = {{d.centre - d.u - d.v, {u0, v0}, c}, {d.centre + d.u - d.v, {u1, v0}, c},
-                {d.centre + d.u + d.v, {u1, v1}, c}, {d.centre - d.u + d.v, {u0, v1}, c}};
-            for(int i : {0, 1, 2, 0, 2, 3})
+            // When it last changes: shown, spread, darkened; then its fading.
+            const double settled = d.born + std::max({0.f, d.grow, d.darken > 0.f ? std::max(d.grow, 8.f) : 0.f});
+            const double fades = d.born + life - 5.0;
+            if(cl.time >= settled && cl.time < fades)
             {
-                vertices.push_back(q[i]);
+                if(restatic)
+                {
+                    appendDecal(d, life, staticVertices);
+                    staticUntil = std::min(staticUntil, fades);
+                }
+            }
+            else
+            {
+                appendDecal(d, life, vertices);
+                if(cl.time < settled)
+                {
+                    staticUntil = std::min(staticUntil, settled);
+                }
             }
         }
     }
-    gfx::draw(vertices, gfx::sceneViewProjection(),
-        {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Modulate, .depthTest = true, .depthWrite = false}, atlas);
+    const gfx::State state{
+        .shade = gfx::Shade::Texture, .blend = gfx::Blend::Modulate, .depthTest = true, .depthWrite = false};
+    if(!staticVertices.empty())
+    {
+        gfx::draw(staticVertices, gfx::sceneViewProjection(), state, atlas);
+    }
+    if(!vertices.empty())
+    {
+        gfx::draw(vertices, gfx::sceneViewProjection(), state, atlas);
+    }
 }
 
 void count_f()
 {
-    int kinds[4]{};
+    int kinds[KindCount]{};
     for(const Decal& d : decals)
     {
-        const Kind kind = d.cell >= firstCell[Hole]        ? Hole
-                          : d.cell >= firstCell[Scorch]    ? Scorch
-                          : d.cell >= firstCell[BloodDrop] ? BloodDrop
-                                                           : Blood;
+        int kind = KindCount - 1;
+        while(kind > 0 && d.cell < firstCell[kind])
+        {
+            kind--;
+        }
         kinds[kind]++;
     }
-    Con_Printf("%d decals: %d blood, %d drops, %d scorch, %d chips\n", static_cast<int>(decals.size()), kinds[0], kinds[1],
-        kinds[2], kinds[3]);
+    Con_Printf("%d decals: %d blood, %d drops, %d scorch, %d chips, %d splatters, %d streaks, %d pools, %d splotches\n",
+        static_cast<int>(decals.size()), kinds[Blood], kinds[BloodDrop], kinds[Scorch], kinds[Hole], kinds[Splatter],
+        kinds[Streak], kinds[Pool], kinds[Splotch]);
+    gore::count();
+}
+
+void atlas_f()
+{
+    // As the marks look on a mid grey wall: grey * (colour + 1 - alpha), the texels premultiplied.
+    const std::vector<unsigned char> rgba = buildAtlas();
+    std::vector<unsigned char> out(static_cast<std::size_t>(atlasWidth) * atlasHeight * 3);
+    for(std::size_t i = 0; i < out.size() / 3; i++)
+    {
+        const float dim = rgba[i * 4 + 3] / 255.f;
+        for(int c = 0; c < 3; c++)
+        {
+            const float f = rgba[i * 4 + c] / 255.f + 1.f - dim;
+            out[i * 3 + c] = static_cast<unsigned char>(std::clamp(f * 0.6f, 0.f, 1.f) * 255.f + 0.5f);
+        }
+    }
+    const char* name = "decal_atlas.png";
+    if(Image_WritePNG(name, out.data(), atlasWidth, atlasHeight, 24, false))
+    {
+        Con_Printf("Wrote %s/%s (%d x %d cells: blood, drops, scorches, chips, splatters, streaks, pools, splotches)\n",
+            com_gamedir, name, cellsPerRow, cellRows);
+    }
 }
 
 void clear()
@@ -760,6 +1247,7 @@ void clear()
     builtFrame = -1;
     gibs.clear();
     holes.clear();
+    gore::clear();
 }
 
 // Decals on the walls (vr_memstats).
@@ -890,6 +1378,39 @@ extern "C" int VR_GibTrail(int ent, int zombie)
                     g.dropsLeft--;
                 });
         }
+    }
+
+    // At rest (vr_gore): a small pool spreads under it; hanging (nothing under it: stuck to a
+    // ceiling or a wall, or held still), it drips.
+    if(travelled < 0.05f && vr_decals.value && gore::level() > 0)
+    {
+        if(g.stillSince <= 0.0)
+        {
+            g.stillSince = cl.time;
+        }
+        if(!g.restChecked && cl.time - g.stillSince > 0.3)
+        {
+            g.restChecked = true;
+            glm::vec3 where, normal;
+            float f;
+            const float below = (e.model ? std::clamp(-e.model->mins[2], 4.f, 16.f) : 8.f) + 10.f;
+            g.hanging = !hitWorld(o, o - glm::vec3{0.f, 0.f, below}, where, normal, f);
+            if(!g.hanging && normal.z > 0.7f && g.pools < 2)
+            {
+                g.pools++;
+                gore::gibRest(where, normal);
+            }
+        }
+        if(g.hanging)
+        {
+            gore::gibHanging(ent, o);
+        }
+    }
+    else if(travelled >= 0.05f)
+    {
+        g.stillSince = 0.0;
+        g.restChecked = false;
+        g.hanging = false;
     }
     g.origin = o;
     g.seen = cl.time;

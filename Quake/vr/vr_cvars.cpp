@@ -42,8 +42,10 @@ const DefaultChange defaultChanges[] = {
     {9, &vr_parallax_models, "0.75"},      // off: parallax on 8-bit skins bends their texels (the bumps give models relief now)
     {10, &vr_parry_angle, "50"},          // degrees off level now (was off square to the blow, by the hand's forward)
     {10, &vr_corpse_health, "40"},        // doubled (big monsters take more again)
+    {11, &vr_bash_speed, "1.6"},          // a gentler push bashes (round 18: the guard is the parry's now)
+    {12, &vr_sight_hue, "30"},            // their own orange: they follow the player's hue now (vr_player_hue)
 };
-constexpr int configVersion = 10;
+constexpr int configVersion = 12;
 
 // Right after the saved config is executed (Cmd_Exec_f queues it).
 void migrateConfig_f()
@@ -60,6 +62,15 @@ void migrateConfig_f()
             Con_DPrintf("VR: %s: new default %s (was %s)\n", c.var->name, c.var->default_string, c.before);
             Cvar_SetQuick(c.var, c.var->default_string);
         }
+    }
+    // 12: one colour for the player's effects (vr_player_hue, vr_hue.hpp). The gadget's screen hue
+    // was the one; a config's becomes the player's, and the screen follows it: nothing changes but
+    // the effects that had colours of their own (the force grab's, the teleport arc's...) now match.
+    if(from < 12 && vr_gadget_screen_hue.value >= 0.f)
+    {
+        Con_DPrintf("VR: vr_player_hue %s (the gadget's screen hue, which follows it now)\n", vr_gadget_screen_hue.string);
+        Cvar_SetQuick(&vr_player_hue, vr_gadget_screen_hue.string);
+        Cvar_SetQuick(&vr_gadget_screen_hue, "-1");
     }
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
 }

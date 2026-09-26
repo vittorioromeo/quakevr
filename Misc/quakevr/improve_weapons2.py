@@ -12,6 +12,10 @@
 #                               grip. The gun sits 2.5 model units higher over the hand (the fist
 #                               used to be half inside its body).
 #   quakevr/progs/v_nail.mdl    the nailgun: a trigger guard round the index finger and a trigger.
+#   quakevr/progs/v_lava2.mdl, v_plasma.mdl, v_lava.mdl: their alternates (the secondary ammo), the
+#                               same builders on their own sources, placed as they are
+#                               (improve_weapons_alt.py; round 18); v_lava2.mdl's painted lava windows
+#                               on the barrels are sunk into them (lava2_windows).
 #
 # Usage: python Misc/quakevr/improve_weapons2.py [output game folder, default quakevr]
 #
@@ -46,6 +50,7 @@ import struct
 import sys
 
 import mdlgen
+from improve_weapons_alt import IDENTITY, align_slot, prepare
 from mdlgen import HEADER, add, sub, mul, dot, cross, norm
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -423,12 +428,14 @@ NAIL2_GROOVE_S = (412, 419, 476, 483)
 NAIL2_DEPTH = 1.0
 
 
-def nail2(m):
-    body = sorted({v for pair in NAIL2_COLUMNS for edge in pair for v in edge})
+def nail2(m, V=IDENTITY):
+    """`V`: the super nailgun's vertices -> m's (m an alternate: improve_weapons_alt.py)."""
+    columns = [tuple(tuple(V(v) for v in edge) for edge in pair) for pair in NAIL2_COLUMNS]
+    body = sorted({v for pair in columns for edge in pair for v in edge})
     replaced = [i for i, (_, a, b, c) in enumerate(m.tris) if {a, b, c} <= set(body)]
     assert len(replaced) == 8, replaced
     m.tris = [t for i, t in enumerate(m.tris) if i not in replaced]
-    part = m.part([158, 159, 160, 161, 162, 163, 165, 166, 167, 168])
+    part = m.part([V(v) for v in (158, 159, 160, 161, 162, 163, 165, 166, 167, 168)])
 
     rows = [NAIL2_FRONT_T] + [t for g in NAIL2_GROOVES_T for t in g] + [NAIL2_BACK_T]
     s_rim_l, s_floor_l, s_floor_r, s_rim_r = NAIL2_GROOVE_S
@@ -438,7 +445,7 @@ def nail2(m):
 
     def column_at(c, t):
         """Column c's left and right edge points and s at row t."""
-        (bl, br), (fl, fr) = NAIL2_COLUMNS[c]
+        (bl, br), (fl, fr) = columns[c]
         k = (NAIL2_BACK_T - t) / (NAIL2_BACK_T - NAIL2_FRONT_T)  # 0 at the back, 1 at the front
         L = lerp(m.pos(bl), m.pos(fl), k)
         R = lerp(m.pos(br), m.pos(fr), k)
@@ -447,7 +454,7 @@ def nail2(m):
         return L, R, sl, sr
 
     def normal_at(c, t):
-        (bl, br), (fl, fr) = NAIL2_COLUMNS[c]
+        (bl, br), (fl, fr) = columns[c]
         L, R, _, _ = column_at(c, t)
         along = sub(lerp(m.pos(fl), m.pos(fr), 0.5), lerp(m.pos(bl), m.pos(br), 0.5))
         n = norm(cross(along, sub(R, L)))
@@ -457,9 +464,9 @@ def nail2(m):
     def is_floor(s, t):
         return s_floor_l <= s <= s_floor_r and any(g[1] <= t <= g[2] for g in NAIL2_GROOVES_T)
 
-    corner = {(0, NAIL2_BACK_T): 168, (0, NAIL2_FRONT_T): 166}
+    corner = {(0, NAIL2_BACK_T): V(168), (0, NAIL2_FRONT_T): V(166)}
     for b in range(1, 6):
-        (bl, br), (fl, fr) = NAIL2_COLUMNS[b - 1]
+        (bl, br), (fl, fr) = columns[b - 1]
         corner[(b, NAIL2_BACK_T)], corner[(b, NAIL2_FRONT_T)] = br, fr
 
     # Nodes of each row: the column boundaries (b = 0..5) and the groove lines inside columns.
@@ -643,14 +650,20 @@ LIGHT_BODY = [149, 150, 151, 152, 174, 175, 176, 177]  # the back block and the 
 LIGHT_STUB = [166, 167, 168, 169, 230, 231, 232, 233]  # the old stub of a handle
 
 
-def light_hand_space(m):
-    anchor = m.pos(vertex_order(m.old_tris)[LIGHT_HAND_ANCHOR])
+def old_anchor(m, V, index):
+    """The vertex an anchor index named in the normal model before this, in m (an alternate: the
+    vertex there, improve_weapons_alt.py)."""
+    return V(V.order[index]) if V is not IDENTITY else vertex_order(m.old_tris)[index]
+
+
+def light_hand_space(m, V=IDENTITY):
+    anchor = m.pos(old_anchor(m, V, LIGHT_HAND_ANCHOR))
     p0 = add(anchor, mul(LIGHT_HAND_OFFSET, 1.0 / (K * LIGHT_SW)))
     # Lowered on the gun, and centred on the grip across.
     return HandSpace((p0[0], LIGHT_Y - GRIP_Y / LIGHT_SW, p0[2] - LIGHT_RAISE), LIGHT_SW)
 
 
-def light(m):
+def light(m, V=IDENTITY):
     row = m.grow_skin(32)
     R = {"knurl": (0, row, 48, row + 32), "metal": (48, row, 80, row + 32), "strap": (80, row, 104, row + 32),
          "dark": (104, row, 128, row + 32), "trigger": (128, row, 144, row + 32)}
@@ -660,8 +673,8 @@ def light(m):
     paint_panel(m, R["dark"], [16, 16, 16, 174, 173, 172], 4)
     paint_panel(m, R["trigger"], BROWN[1:], 5)
 
-    hs = light_hand_space(m)
-    part = m.part(LIGHT_BODY)
+    hs = light_hand_space(m, V)
+    part = m.part([V(v) for v in LIGHT_BODY])
 
     # The grip: octagonal rings square to its leaning axis, from inside the body down to a
     # flared butt below the pinky; knurled sides, plain front and back straps.
@@ -689,7 +702,8 @@ def light(m):
     # The old stub of a handle would poke out behind the grip: it folds away inside it.
     inside = hs.m(grip_x(-0.95), -0.95)
     for v in LIGHT_STUB:
-        part.pin(v, inside)
+        for w in V.all(v):
+            part.pin(w, inside)
 
     def to_model(path):
         return [(p[0], p[2]) for p in (hs.m(x, z) for x, z in path)]
@@ -721,14 +735,14 @@ NAIL_HAND_OFFSET = (0.8, -1.299998, 0.1)
 NAIL_GRIP_FRONT = -3.0  # inside the grip, at the guard's height
 
 
-def nail(m):
+def nail(m, V=IDENTITY):
     row = m.grow_skin(32)
     R = {"metal": (0, row, 32, row + 32), "dark": (32, row, 56, row + 32), "trigger": (56, row, 72, row + 32)}
     paint_panel(m, R["metal"], [0, 32, 33, 34, 35], 11)
     paint_panel(m, R["dark"], [0, 0, 32, 33, 34], 12)
     paint_panel(m, R["trigger"], [32, 33, 34, 35, 36], 13)
-    part = m.part([21, 23, 25, 26, 131, 132])  # the lower body (it does not move)
-    anchor = m.pos(vertex_order(m.old_tris)[NAIL_HAND_ANCHOR])
+    part = m.part([V(v) for v in (21, 23, 25, 26, 131, 132)])  # the lower body (it does not move)
+    anchor = m.pos(old_anchor(m, V, NAIL_HAND_ANCHOR))
     hs = HandSpace(add(anchor, mul(NAIL_HAND_OFFSET, 1.0 / (K * NAIL_SW))), NAIL_SW)
     # The guard round the index finger (the hand stays where it was: the fist fits the old grip),
     # its bar carried back into the grip's front (further back than the double shotgun's).
@@ -737,6 +751,132 @@ def nail(m):
     bar(part, path, NAIL_Y, 0.26 / hs.sw, 0.19 / hs.sw, R["metal"], R["dark"])
     # The trigger: the index finger's lower half shows under the body; the blade hangs there.
     bar(part, [(0.8, -1.3), (0.9, -1.85), (0.7, -2.2), (0.35, -2.35)], NAIL_Y, 0.36, 0.24, R["trigger"], R["trigger"])
+
+
+# ---------------------------------------------------------------------------------------------
+# The lava super nailgun's windows (round 18, voice note 14-37-48: "the lava grooves that were added
+# to the barrels ... make those a little bit indented"). v_lava2.mdl paints a window of glowing lava
+# in the barrels' shared texture (s 278..305 along the outer face, t 89 at its back .. 5 at its
+# front; the outer faces' back halves, x 19.6..30, carry it): a capsule, its bright core (fullbright,
+# s 285..297, t 50..81, rounded at the front) in a dark red frame (s 280..284 and 298..302). Each
+# barrel's outer face is re-cut round it: the frame's outer edge stays on the face (the rim), the
+# core sinks LAVA2_DEPTH into the barrel (the floor), and the frame's texels become the sloping walls
+# between them. Both polygons in the texture's texels (integers: MDL UVs are), the same count
+# (their walls pair them up); the face round the rim is fanned to the face's old vertices, so no
+# vertex is added on its edges. The barrels spin when firing: the windows follow each barrel's own
+# frame (its back end, front end and outer face; improve_weapons.py's Carrier).
+
+LAVA2_FACE = (278, 305, 89)  # the outer face's s range and its back t (its front t is 5 or 6)
+LAVA2_RIM = [(280, 49), (283, 46), (299, 46), (302, 49), (302, 84), (299, 87), (283, 87), (280, 84)]
+LAVA2_FLOOR = [(285, 53), (288, 50), (294, 50), (297, 53), (297, 81), (296, 82), (286, 82), (285, 81)]
+LAVA2_DEPTH = 0.5
+
+
+def lava2_windows(m):
+    from improve_weapons import Carrier
+
+    P = m.frames[0][1]
+    s_lo, s_hi, t_back = LAVA2_FACE
+
+    def on_face(v):
+        s, t = m.st[v][1], m.st[v][2]
+        return s_lo <= s <= s_hi and (t == t_back or t <= 6)
+
+    def comps():
+        parent = list(range(len(m.st)))
+
+        def find(a):
+            while parent[a] != a:
+                parent[a] = parent[parent[a]]
+                a = parent[a]
+            return a
+
+        for _, a, b, c in m.tris:
+            parent[find(a)] = find(b)
+            parent[find(b)] = find(c)
+        out = {}
+        for v in range(m.num_old):
+            out.setdefault(find(v), []).append(v)
+        return out.values()
+
+    barrels = [c for c in comps() if len(c) > 20 and min(P[v][0] for v in c) > 15.0]
+    assert len(barrels) == 4, [len(c) for c in barrels]
+    for barrel in barrels:
+        members = set(barrel)
+        x_front = max(P[v][0] for v in barrel)
+        # The outer face's back half: its triangles that are not slivers (the exporter's zero-area
+        # triangles along its edges stay).
+        face = [t for t in m.tris if t[1] in members and all(on_face(v) for v in t[1:])
+                and max(P[v][0] for v in t[1:]) < x_front - 5.0
+                and length(cross(sub(P[t[2]], P[t[1]]), sub(P[t[3]], P[t[1]]))) > 1e-6]
+        edge = sorted({v for t in face for v in t[1:]})
+        st = {v: (m.st[v][1], m.st[v][2]) for v in edge}
+        a = next(v for v in edge if st[v] == (s_lo, t_back))
+        b = next(v for v in edge if st[v] == (s_hi, t_back))
+        c = next(v for v in edge if st[v][0] == s_lo and st[v][1] <= 6)
+        t_front = st[c][1]
+
+        def at(s, t):
+            """The face's point at texel (s, t)."""
+            return add(P[a], add(mul(sub(P[b], P[a]), (s - s_lo) / (s_hi - s_lo)),
+                                 mul(sub(P[c], P[a]), (t - t_back) / (t_front - t_back))))
+
+        centre = mul(sum_v([P[v] for v in barrel]), 1.0 / len(barrel))
+        n = norm(cross(sub(P[b], P[a]), sub(P[c], P[a])))
+        if dot(n, sub(P[a], centre)) < 0:
+            n = mul(n, -1.0)
+        m.tris = [t for t in m.tris if t not in face]
+
+        clusters = [[v for v in barrel if P[v][0] < min(P[w][0] for w in barrel) + 1.0],
+                    [v for v in barrel if P[v][0] > x_front - 0.5], edge]
+        carrier = Carrier(m, clusters)
+
+        def vert(p, s, t):
+            m.st.append([0, s, t])
+            for f, fr in enumerate(m.frames):
+                fr[1].append(carrier.place(f, p))
+                fr[2].append(0)
+            return len(m.st) - 1
+
+        rim = [vert(at(s, t), s, t) for s, t in LAVA2_RIM]
+        floor = [vert(add(at(s, t), mul(n, -LAVA2_DEPTH)), s, t) for s, t in LAVA2_FLOOR]
+        # The face round the rim: the two outlines zipped by their angle round the window's middle.
+        mid_st = (sum(s for s, _ in LAVA2_FLOOR) / 8.0, sum(t for _, t in LAVA2_FLOOR) / 8.0)
+
+        def angle(s, t):
+            return math.atan2((t - mid_st[1]) / (t_back - t_front), (s - mid_st[0]) / (s_hi - s_lo))
+
+        outer = sorted(edge, key=lambda v: angle(*st[v]))
+        inner = sorted(range(8), key=lambda i: angle(*LAVA2_RIM[i]))
+        a0 = min(angle(*st[outer[0]]), angle(*LAVA2_RIM[inner[0]]))
+        ao = [(angle(*st[v]) - a0) % (2 * math.pi) for v in outer] + [None]
+        ai = [(angle(*LAVA2_RIM[i]) - a0) % (2 * math.pi) for i in inner] + [None]
+        ao[-1], ai[-1] = ao[0] + 2 * math.pi, ai[0] + 2 * math.pi
+        O = outer + [outer[0]]
+        I = [rim[i] for i in inner] + [rim[inner[0]]]
+        i = j = 0
+        while i < len(outer) or j < 8:
+            if j == 8 or (i < len(outer) and ao[i + 1] <= ai[j + 1]):
+                tri_out(m, O[i], O[i + 1], I[j], n)
+                i += 1
+            else:
+                tri_out(m, O[i], I[j + 1], I[j], n)
+                j += 1
+        # The walls, facing into the window, and its floor.
+        middle = at(*mid_st)
+        for k in range(8):
+            k2 = (k + 1) % 8
+            wall_mid = mul(add(add(P[rim[k]], P[rim[k2]]), add(P[floor[k]], P[floor[k2]])), 0.25)
+            out = add(n, norm(sub(sub(middle, wall_mid), mul(n, dot(sub(middle, wall_mid), n)))))
+            tri_out(m, rim[k], rim[k2], floor[k2], out)
+            tri_out(m, rim[k], floor[k2], floor[k], out)
+        for k in range(1, 7):
+            tri_out(m, floor[0], floor[k], floor[k + 1], n)
+
+
+def lava2(m, V):
+    nail2(m, V)
+    lava2_windows(m)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -749,8 +889,16 @@ MODELS = [  # file, builder, vr_weapons.inc slot, anchors, the slot's new settin
 ]
 
 
+ALTERNATES = [  # the alternate models (the secondary ammo; improve_weapons_alt.py): normal file, file, slot, builder
+    ("v_nail2.mdl", "v_lava2.mdl", 12, lava2),
+    ("v_light.mdl", "v_plasma.mdl", 15, light),
+    ("v_nail.mdl", "v_lava.mdl", 11, nail),
+]
+
+
 def main():
     game = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "..", "..", "quakevr")
+    printed = {}
     for name, build, slot, anchors, settings in MODELS:
         m = Model(os.path.join(SRC, name))
         verts, tris = len(m.st), len(m.tris)
@@ -759,9 +907,26 @@ def main():
         m.write(out)
         print("%s: %d -> %d vertices, %d -> %d triangles, skin %dx%d" % (name, verts, len(m.st), tris, len(m.tris), m.sw, m.sh))
         report_anchors(m, name, anchors)
+        printed[name] = {}
         if settings:
             for key, value in settings(m).items():
-                print('  QVR_WEAPON_DEFAULT(%d, %s, "%s")' % (slot, key, ("%.6f" % value).rstrip("0").rstrip(".")))
+                printed[name][key] = ("%.6f" % value).rstrip("0").rstrip(".")
+                print('  QVR_WEAPON_DEFAULT(%d, %s, "%s")' % (slot, key, printed[name][key]))
+
+    # Each alternate after its normal model: the same builder on its own source, moved onto the normal
+    # one; its slot set up from the normal one's.
+    for normal_name, name, slot, build in ALTERNATES:
+        _, _, normal_slot, anchors, _ = next(e for e in MODELS if e[0] == normal_name)
+        normal = Model(os.path.join(SRC, normal_name))
+        m = Model(os.path.join(SRC, name))
+        verts, tris = len(m.st), len(m.tris)
+        print("%s (the alternate of %s):" % (name, normal_name))
+        V = prepare(normal, m, vertex_order(normal.tris)[dict(anchors)["hand"]])
+        build(m, V)
+        m.write(os.path.join(game, "progs", name))
+        print("  %d -> %d vertices, %d -> %d triangles, skin %dx%d" % (verts, len(m.st), tris, len(m.tris), m.sw, m.sh))
+        align_slot(os.path.join(game, "progs"), normal_name, name, normal_slot, slot, printed[normal_name], V,
+                   (normal.num_old, verts))
 
 
 if __name__ == "__main__":

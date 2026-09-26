@@ -475,3 +475,69 @@ with its own dial.
   when drawn sharp), and luminance isn't the skins' shape: it looked like the skin swimming. The bumps on the models'
   own light give them relief instead. When on, it now fades out from 50 to 70 degrees off the triangle (a model's
   sides are grazing all round). See ROUND14.md, "Model bumps and parallax".
+
+## Deluxemaps: the baked light's real direction (round 17)
+
+The bumps on the baked light (`vr_normalmap_baked`, "Bumps in Map Light") guessed where the light comes from: towards
+where the lightmap gets brighter, and a little from above. The relit maps now carry the real direction: ericw-tools
+2.0.0-alpha11's `light -lux` writes, for every luxel, the direction the light arrives from (the average of the lights
+that reach it, each weighted by how much it gives). `vr_deluxemap` 1 (Graphics, "Real Light Directions", after Bumps
+in Map Light) uses it; 0, and every map without one (custom maps, `vr_relit_maps 0`, the item boxes), keeps the guess.
+
+**The file** (`<map>.lux` beside the `.lit`: `quakevr/relit/<game>/maps/`, and the committed `quakevr/maps/vrtutorial.lux`
+and `vrfiringrange.lux`). The format DarkPlaces, FTE and QuakeSpasm-Spiked read: `QLIT`, version 1 (int), then 3 bytes
+for every byte of the lighting lump, in its order: every style of a face has its own directions, like the `.lit`'s
+colours. Each is a unit vector mapped from -1..1 to 0..255 (`(v + 1) * 128`, clamped), **in the face's texture
+space**, not world space: x along the texture's s axis, y along minus its t axis, z the face's normal (ericw-tools
+`light/write.cc`: `dot(dir, snormal), dot(dir, tnormal), dot(dir, plane.normal)`, with `snormal = normalize(vecs[0])`,
+`tnormal = -normalize(vecs[1])`; a luxel no light reaches gets (0, 0, 1)). The texture's axes are the texinfo's as they
+are: on walls whose texture is projected from the side they are not in the face's plane (Quake's axial projection), so
+the three are not orthogonal and the frame has to be inverted, not transposed. Checked against the map's lights
+(`e1m1`: the direction rebuilt from the file and the direction to the lights that reach each of 7232 luxels, occlusion
+ignored, agree to 3.7 degrees at the median; with the t axis's sign flipped, 46).
+
+**Loading** (`gl_model.c`, `Mod_LoadLux`): from the same folder as the map (`VR_ModelFile`: the relit one), only from
+the map's own game folder or one searched before it, and only if it is 8 + 3 x the lighting lump (a `.lux` of another
+lighting of the map is refused); the faces get `luxsamples` beside `samples`. **The texture** (`r_brush.c`,
+`GL_FillSurfaceLux`): `luxmap`, RGBA8 the size of the lightmap atlas, each face's directions where its first style's
+lightmap is (the same coordinates: `lmuv`), in the frame the shader can rebuild: x along the texture's s axis *in the
+face's plane*, y the normal crossed with it, z the normal. Each luxel's styles' directions are turned back into world
+space and added, each weighted by its light there (styles 0, flickering and switched lights share one direction: the
+shader could weigh them by the styles' current values, but a switched-off lamp's direction would then come and go).
+Alpha 255 where a face has directions, 0 elsewhere (the shader keeps the guess there). Bound on unit 9 (`LuxTex`) with
+the lightmap for the world and brush models (`r_world.c`); `ShadowFlags` 128 tells the shader a map has one and
+`vr_deluxemap` is on (`vr_lighting.cpp`).
+
+**The shader** (`gl_shaders.h`, world fragment shader, `LuxDirection`, `LuxLight`): the s axis on the face is the
+gradient of the texture coordinate, from the same screen derivatives the bumps' frame comes from (exact on flat faces,
+the same in both eyes, turning with a rotating brush model); the filtered direction is shorter where its luxels
+disagree, and leans less. It is kept within 50 degrees of the normal (the shading divides by `dot(n, l)`: at 60 the lit
+sides of ridges clipped white at the note spot of start; the guess leans at most 45), and the bumps are shaded as
+before, `dot(bumped, l) / dot(n, l)` mixed by `vr_normalmap_baked`: the flat is as bright as before. **Sheen**: the
+baked light now glints off the bumps too, as the dynamic lights do (`vr_specular`, the lobe `vr_specular_aa` sets),
+at a quarter of their strength, towards each eye: a lamp's glint on the bumps round it (at half, rough walls by a
+lamp looked hazy and 7 to 12% brighter). The
+guess's slope (4 to 16 lightmap gathers) isn't needed where there is a direction: one texture read instead. Liquids
+(no bumps) and the translucent passes are untouched; alpha-tested surfaces get the direction too (the guess had no
+slope after their discard).
+
+**The look.** The relief now faces the lamp that lights it: the half-pipes and panels of e1m1's walls lit from the
+lantern beside them rather than from above, e2m1's riveted walls from the blue lights over them, a ledge's stones from
+the torch in front. On the whole as bright as the guess (the mean of nine views within 4%, most within 1%, without the sheen).
+
+**Cost** (RTX 4090, mock eyes 1024², both eyes' world+brush GPU): start's note spot guess 0.206 ms, deluxemap 0.195,
+bumps off 0.185; e1m1's first corridor 0.284 / 0.248 / 0.235. Cheaper than the guess (one read instead of its gathers):
+about 0.01 ms over no bumps at the mock's size, about 0.1 ms at the headset's (11 times the pixels), where the guess
+cost about twice that. Memory: a second atlas as large as the lightmap's (4 bytes a texel; a few MB), and the `.lux` files
+on disk (as large as the `.lit`s).
+
+**Light grid.** `light -lightgrid` also writes the `LIGHTGRID_OCTREE` BSPX lump into each relit `.bsp` (after its 15
+lumps, at a multiple of 4: `BSPX`, a count, then 24-byte names with offsets and lengths): the light at points every 32
+units (64 in the committed `quakevr/maps`), with no direction: a header (`vec3 grid_dist`, `ivec3 grid_size`, `vec3
+grid_mins`, `uint8 num_styles`, `uint32 root_node`), nodes (`ivec3 division_point`, 8 `uint32` children: bit 31 a
+leaf's index, bit 30 all occluded), leaves (`ivec3 mins, size`, then per point, z-major: `0xff` occluded, else a count
+and per style `uint8 style, uint8 r g b`); ericw-tools' `common/bspxfile.cc`, read by QuakeSpasm-Spiked's
+`BSPX_LightGridLoad` and FTE. Quake VR doesn't read it yet (the models' directional ambient traces the lightmaps
+instead, ROUND17.md); `vis_maps.packed` keeps the BSPX lumps where engines look for them when the relight scripts
+replace the entities or the visibility. alpha11 can also write `-lightgrid_format lightgrids` (the `LIGHTGRIDS` lump:
+six directional colours per point, an ambient cube; "wip, non-final" in its source), not used.

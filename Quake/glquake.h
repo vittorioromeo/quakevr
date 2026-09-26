@@ -439,11 +439,17 @@ typedef struct gpuframedata_s {
 	int		numlights;
 	int		shadowflags;	// QVR
 	float	lighttweak[4];	// QVR: lightmap contrast, its pivot (vr_light_contrast), specular intensity, normal map strength
-	float	parallax[4];	// QVR: parallax mapping (vr_parallax): depth in units (0 off), distance it ends at, steps, unused
+	float	parallax[4];	// QVR: parallax mapping (vr_parallax): depth in units (0 off), distance it ends at, steps; specular anti-aliasing (vr_specular_aa)
 	float	water[4];		// QVR: liquids (vr/vr_water.cpp): waves, fresnel, refraction, glints
 	float	water2[4];		// QVR: lava glow, caustics, the eye in a liquid, unused
 	float	causticsorigin[4];	// QVR: the liquid volume's origin (xyz)
 	float	causticsscale[4];	// QVR: one over its size (xyz); w 1: the scene's distances to refract by
+	float	detail[4];			// QVR: detail textures (vr/vr_detail.cpp): strength (0 off), fade start, fade end, fine octave's scale
+	float	scenetone[4];		// QVR: the brightest the world and models write (1: Quake's clamp; vr/vr_tonemap.cpp), the force grab glow's colour (vr/vr_fgfx.cpp)
+	float	water3[4];		// QVR: shoreline foam (vr/vr_water.cpp: vr_water_foam, 0 off), unused
+	float	ripple[4];			// QVR: splash ripples (vr/vr_water.cpp: vr_water_ripples): how many, their speed, wave number, the share in the geometry
+	float	rippleat[32][4];	// QVR: ... each's centre (xy), surface height (z), age in seconds (w)
+	float	rippleamp[8][4];	// QVR: ... each's height now, in units
 } gpuframedata_t;
 
 // QVR: normal maps for world textures and model skins (gl_texmgr.c; vr_normalmaps): made from the texture's shading
@@ -461,6 +467,8 @@ extern gpuframedata_t r_framedata;
 GLuint R_OpaqueSceneTexture (void); // QVR: the opaque scene's colours translucent liquids can read (0: none)
 GLuint R_OpaqueSceneDepthTexture (void); // QVR: and its depth/stencil (the translucent pass's target: vr/vr_water.cpp reads it first)
 void R_RestoreTranslucentTarget (void); // QVR: the translucent pass's framebuffer and viewport again
+GLuint R_SceneTarget (GLuint *color, GLuint *depth, int *samples, int viewport[4]); // QVR: the scene's framebuffer, textures, viewport (vr/vr_water.cpp, vr/vr_haze.cpp)
+void R_SetupGL (void); // QVR: the scene's framebuffer and viewport again (after a pass of vr/vr_water.cpp's or vr/vr_haze.cpp's)
 
 void R_AnimateLight (void);
 void R_MarkSurfaces (void);
@@ -486,6 +494,8 @@ void R_DrawBrushModels_SkyCubemap (entity_t **ents, int count);
 void R_DrawBrushModels_SkyStencil (entity_t **ents, int count);
 void R_DrawAliasModels (entity_t **ents, int count);
 void R_DrawSpriteModels (entity_t **ents, int count);
+qboolean R_SoftSpritesPending (void); // QVR: sprites left for R_DrawSpriteModelsSoft (VR_SoftSprites)
+void R_DrawSpriteModelsSoft (GLuint distances); // QVR: them, soft, after the translucent pass (vr/vr_particles.cpp)
 void R_DrawBrushModels_ShowTris (entity_t **ents, int count);
 void R_DrawAliasModels_ShowTris (entity_t **ents, int count);
 void R_DrawSpriteModels_ShowTris (entity_t **ents, int count);

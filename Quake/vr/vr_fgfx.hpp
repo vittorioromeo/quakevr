@@ -2,7 +2,8 @@
 // points at glows softly round its edges (vr_forcegrab_outline), fading in and out; a faint beam
 // runs from the hand to it; locked on, a crackling tendril of energy joins them; pulled, the tendril
 // follows the object and it leaves a sparkling trail. The server sends each hand's target and state
-// (STAT_QVR_FGMAIN, STAT_QVR_FGOFF: entity * 4 + state).
+// (STAT_QVR_FGMAIN, STAT_QVR_FGOFF: entity * 4 + state). All in the force grab's hue
+// (vr_forcegrab_hue; by default the player's, vr_hue.hpp).
 
 #pragma once
 
@@ -17,5 +18,8 @@ void queue(const hands::State& s);
 
 // How much `e` glows (0..1), for the renderers.
 [[nodiscard]] float entityGlow(const entity_t* e);
+
+// The glow's colour (the force grab's hue: vr_forcegrab_hue, by default vr_player_hue).
+[[nodiscard]] glm::vec3 glowColor();
 
 } // namespace qvr::fgfx

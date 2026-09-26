@@ -68,8 +68,13 @@ void onIdChanged(cvar_t* /* var */)
 // bounds; Misc/quakevr/improve_weapons2.py); 9: slots 2, 6, 10, 11 and 14 (the shotgun, the grenade
 // launcher, the laser cannon, the proximity gun and the multi-grenade launcher: pistol and spade
 // grips with trigger guards; the three launchers sit higher and further forward over the hand,
-// the offsets follow the models' new bounds; Misc/quakevr/improve_weapons3.py).
-constexpr int settingsVersion = 9;
+// the offsets follow the models' new bounds; Misc/quakevr/improve_weapons3.py); 10: slots 12..16
+// (the alternate models the secondary ammo switches to: the lava nailguns, the multi-grenade and
+// multi-rocket launchers, the plasma gun, placed exactly as the normal guns, their grips, guards and
+// grooves too; Misc/quakevr/improve_weapons_alt.py); 11: slots 2, 3 and 18 (the shotguns' muzzle
+// flashes widen the models' bounds, the offsets follow them; the grappling hook's pistol grip:
+// Misc/quakevr/improve_weapons.py and improve_weapons3.py).
+constexpr int settingsVersion = 11;
 
 void resetSlot(int slot)
 {
@@ -112,6 +117,19 @@ void migrate()
         resetSlot(9);
         resetSlot(10);
         resetSlot(13);
+    }
+    if(vr_wofs_version.value < 10)
+    {
+        for(int slot = 11; slot <= 15; slot++)
+        {
+            resetSlot(slot);
+        }
+    }
+    if(vr_wofs_version.value < 11)
+    {
+        resetSlot(1);
+        resetSlot(2);
+        resetSlot(17);
     }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }

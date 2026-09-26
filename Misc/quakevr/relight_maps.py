@@ -29,22 +29,26 @@
 # lists each map's glowing textures and their lights without relighting. These entities are only
 # given to `light`: the relit map keeps its own.
 #
-# The results go into quakevr/relit/<game>/maps/<map>.bsp and .lit. Quake VR loads them in place of
+# The results go into quakevr/relit/<game>/maps/<map>.bsp, .lit and .lux. Quake VR loads them in place of
 # <game>'s own maps (vr_relit_maps 1, the default; 0 plays the original lighting). The maps are
 # id Software's: the relit copies are made on your machine from the ones you own and are not
-# distributed.
+# distributed. The .lux holds where the light comes from at each luxel (deluxemaps: Quake VR shades the
+# bumps of the baked light with it, vr_deluxemap), and the .bsp a grid of the light in the air (the
+# LIGHTGRID_OCTREE BSPX lump, every 32 units): both from ericw-tools 2 (OUTPUT_ARGS).
 #
 # Usage:
 #   python Misc/quakevr/relight_maps.py --quake "C:/Program Files (x86)/Steam/steamapps/common/Quake"
-#       --light C:/tools/ericw-tools/bin/light.exe [--games id1 hipnotic rogue] [--out quakevr/relit]
+#       [--light C:/tools/ericw-tools-2.0.0-alpha11-win64/light.exe] [--games id1 hipnotic rogue] [--out quakevr/relit]
 #       [--light-args "..."] [--force] [--only e1m1 ...] [--no-glow] [--glow-scale 1.0]
 #       [--glow-budget 300] [--fixture-scale 1.0] [--fixture-lit 0.5] [--textures <cfg>] [--no-luma]
 #       [--list-glows] [--bright] [--vis-dir <folder with id1.vis hipnotic.vis rogue.vis>]
 #
-# ericw-tools: https://github.com/ericwa/ericw-tools/releases (v0.18.1 was used; GPL). `light` may
-# also be given by the ERICW_LIGHT environment variable or found on PATH.
+# ericw-tools 2.0.0-alpha11 (GPL): https://github.com/ericwa/ericw-tools/releases/tag/2.0.0-alpha11 (v0.18.1
+# before round 17; it still works, without the light grid). `light` may also be given by the ERICW_LIGHT
+# environment variable or found on PATH; else DEFAULT_LIGHT.
 #
-# Already relit maps are skipped unless their source or the options changed (--force relights all).
+# Already relit maps are skipped unless their source, the options or `light`'s version changed (--force
+# relights all).
 #
 # See-through water (--vis-dir, or the QUAKEVR_VISPATCH environment variable): id's maps were vised
 # with water as a wall, so the engine keeps their liquids opaque; with the VisPatch data files
@@ -54,6 +58,7 @@
 import argparse
 import fnmatch
 import hashlib
+import math
 import os
 import re
 import shutil
@@ -67,10 +72,20 @@ import vis_maps
 
 # Smooth shadow edges, strong ambient occlusion in corners, coloured .lit output. No bounced light:
 # it fills the shade and brightens maps (which the 2021 re-release was criticised for), where
-# DarkPlaces, the moodier look, has none.
+# DarkPlaces, the moodier look, has none. ericw-tools 2.0.0-alpha11 gives the same light as v0.18.1 did
+# with these (round 17: the luxels of e1m1, e1m2, e1m6, e2m1 and start agree to within 1%).
 DEFAULT_LIGHT_ARGS = "-extra4 -dirt -dirtscale 1.5 -dirtdepth 96 -lit"
 # The look before round 10 (--bright): weaker ambient occlusion and a little bounced light.
 BRIGHT_LIGHT_ARGS = "-extra4 -dirt -dirtscale 1.0 -dirtdepth 96 -bounce -bouncescale 0.5 -lit"
+# What else `light` writes (round 17; ericw-tools 2): the light's direction at each luxel (.lux beside the
+# .lit: deluxemaps, the bumps' real light direction in Quake VR, vr_deluxemap) and a grid of the light in
+# the air every 32 units (the LIGHTGRID_OCTREE BSPX lump inside the .bsp, about 0.3 MB a map: models' light).
+OUTPUT_ARGS = "-lux -lightgrid"
+# The ericw-tools the relit maps are made with (--light, ERICW_LIGHT or PATH win over it): 2.0.0-alpha11,
+# https://github.com/ericwa/ericw-tools/releases/tag/2.0.0-alpha11 (GPL).
+DEFAULT_LIGHT = "C:/OHWorkspace/ericw-tools-2.0.0-alpha11-win64/light.exe"
+# In each map's stamp: a change to what this script gives `light` (beyond the lights and options) relights.
+REVISION = "round 17: id's light 0"
 DEFAULT_GLOW_BUDGET = 300.0
 BRIGHT_GLOW_BUDGET = 600.0
 
@@ -107,21 +122,31 @@ def lump(data, index):
 
 
 def with_entities(data, text):
-    """The .bsp with its entity lump replaced by `text` (appended at the end; the old one is left
-    unused where it was)."""
-    blob = text.encode("latin-1") + b"\0"
-    out = bytearray(data)
-    while len(out) % 4:
-        out.append(0)
-    offset = len(out)
-    out += blob
-    struct.pack_into("<ii", out, 4, offset, len(blob))
-    return bytes(out)
+    """The .bsp with its entity lump replaced by `text` (repacked: its BSPX lumps, such as light's
+    LIGHTGRID_OCTREE, stay where engines look for them)."""
+    return vis_maps.packed(data, {0: text.encode("latin-1") + b"\0"})
 
 
 def entities_text(data):
     offset, length = lump(data, 0)
     return data[offset : offset + length].split(b"\0")[0].decode("latin-1")
+
+
+def id_light_values(text):
+    """The entities with id's `light` rule for a light of "light" "0": it gets the default, 300 (id's light.exe
+    and ericw-tools v0.18 did so; ericw-tools 2 takes it as 0: e1m4's six torches went dark). For `light` only."""
+    def fix(match):
+        block = match.group(0)
+        keys = dict(re.findall(r'"([^"]*)"\s+"([^"]*)"', block))
+        if not keys.get("classname", "").startswith("light"):
+            return block
+        try:
+            if float(keys.get("light", "300").split()[-1]) != 0:
+                return block
+        except (ValueError, IndexError):
+            return block
+        return re.sub(r'"light"\s+"[^"]*"', '"light" "300"', block)
+    return re.sub(r"\{[^{}]*\}", fix, text)
 
 
 def texture_faces(data):
@@ -161,6 +186,58 @@ def texture_faces(data):
         m = miptex_of[texinfo] if 0 <= texinfo < len(miptex_of) else -1
         faces.setdefault(m, []).append((centre, area, normal, pts))
     return faces
+
+
+def face_lightmaps(data):
+    """Each face's lightmap as the engine reads it: [(lighting offset or -1, styles, luxels per style)] (BSP29;
+    the extents as Ironwail's CalcSurfaceExtents works them out)."""
+    if struct.unpack_from("<i", data, 0)[0] != 29:
+        return []
+    vofs, vlen = lump(data, 3)
+    tofs, tlen = lump(data, 6)
+    fofs, flen = lump(data, 7)
+    eofs, elen = lump(data, 12)
+    sofs, slen = lump(data, 13)
+    verts = [struct.unpack_from("<3f", data, vofs + i * 12) for i in range(vlen // 12)]
+    edges = [struct.unpack_from("<2H", data, eofs + i * 4) for i in range(elen // 4)]
+    surfedges = struct.unpack_from("<%di" % (slen // 4), data, sofs)
+    texinfo = [struct.unpack_from("<8fii", data, tofs + i * 40) for i in range(tlen // 40)]
+    out = []
+    for i in range(flen // 20):
+        _, _, first, count, ti = struct.unpack_from("<hhihh", data, fofs + i * 20)
+        styles = struct.unpack_from("<4B", data, fofs + i * 20 + 12)
+        (lightofs,) = struct.unpack_from("<i", data, fofs + i * 20 + 16)
+        vecs = texinfo[ti]
+        size = 0
+        if not vecs[9] & 1:  # (TEX_SPECIAL: no lightmap)
+            sizes = []
+            for j in range(2):
+                vals = []
+                for k in range(count):
+                    e = surfedges[first + k]
+                    v = verts[edges[e][0]] if e >= 0 else verts[edges[-e][1]]
+                    vals.append(struct.unpack("<f", struct.pack("<f", v[0] * vecs[j * 4] + v[1] * vecs[j * 4 + 1] +
+                                                                  v[2] * vecs[j * 4 + 2] + vecs[j * 4 + 3]))[0])
+                sizes.append(int(math.ceil(max(vals) / 16) - math.floor(min(vals) / 16)) + 1)
+            size = sizes[0] * sizes[1]
+        out.append((lightofs, styles, size))
+    return out
+
+
+def remapped_lux(lux, lux_data, lit_data):
+    """The .lux of `lux_data` (a .bsp) laid out for `lit_data` (the same map lit by another run of `light`: the same
+    faces, their lightmaps elsewhere and their styles maybe in another order); a face whose styles differ gets the
+    light straight on (128 128 255)."""
+    body = bytearray(b"\x80\x80\xff" * lump(lit_data, 8)[1])
+    for (src, src_styles, size), (dst, dst_styles, _) in zip(face_lightmaps(lux_data), face_lightmaps(lit_data)):
+        if src < 0 or dst < 0 or not size or set(src_styles) != set(dst_styles):
+            continue
+        for k, style in enumerate(dst_styles):
+            if style == 255:
+                break
+            j = src_styles.index(style)
+            body[(dst + k * size) * 3 : (dst + (k + 1) * size) * 3] = lux[8 + (src + j * size) * 3 : 8 + (src + (j + 1) * size) * 3]
+    return lux[:8] + bytes(body)
 
 
 def solid_at(data):
@@ -625,52 +702,66 @@ def water_vise(path, patches, base):
     with open(path, "rb") as f:
         data = f.read()
     vis, leafs = entry
-    if lump_bytes(data, 4) == vis and lump_bytes(data, 10) == leafs:
-        result = packed(data)  # patched already (a map that was up to date)
+    if vis_maps.lump_bytes(data, 4) == vis and vis_maps.lump_bytes(data, 10) == leafs:
+        result = vis_maps.packed(data)  # patched already (a map that was up to date)
     else:
-        result = vis_maps.vispatch(data, entry)
+        result = vis_maps.vispatch(data, entry)  # (repacked, keeping the BSPX lumps)
         if result is None:
             print("%s: the water-vis patch is for another version of the map, left alone" % base)
             return
-        result = packed(result)
     if result != data:
         with open(path, "wb") as f:
             f.write(result)
 
 
-def lump_bytes(data, index):
-    offset, length = lump(data, index)
-    return data[offset : offset + length]
-
-
-def packed(data):
-    """The .bsp with its lumps one after another (replacing a lump appends it and leaves the old one
-    unused: patching an up-to-date map again, before round 15, grew it by its visibility each run)."""
-    out = bytearray(data[:4] + bytes(15 * 8))
-    for index in range(15):
-        body = lump_bytes(data, index)
-        while len(out) % 4:
-            out.append(0)
-        struct.pack_into("<ii", out, 4 + index * 8, len(out), len(body))
-        out += body
-    return bytes(out)
-
-
 def find_light(explicit):
-    for candidate in (explicit, os.environ.get("ERICW_LIGHT"), shutil.which("light"), shutil.which("light.exe")):
+    for candidate in (explicit, os.environ.get("ERICW_LIGHT"), shutil.which("light"), shutil.which("light.exe"),
+                      DEFAULT_LIGHT):
         if candidate and os.path.isfile(candidate):
             return candidate
-    sys.exit("ericw-tools' light not found: pass --light <path to light(.exe)> or set ERICW_LIGHT")
+    sys.exit("ericw-tools' light not found: pass --light <path to light(.exe)> or set ERICW_LIGHT "
+             "(ericw-tools 2.0.0-alpha11: https://github.com/ericwa/ericw-tools/releases/tag/2.0.0-alpha11)")
+
+
+def light_version(light):
+    """`light`'s version as it prints it ("ericw-tools 2.0.0-alpha11", "TyrUtils-ericw v0.18.1-..."): part of
+    each map's stamp, so that a new `light` relights every map once."""
+    try:
+        with tempfile.TemporaryDirectory() as tmp:  # (v0.18 writes a light.log where it runs)
+            result = subprocess.run([light], cwd=tmp, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                                    errors="replace", timeout=60)
+        found = re.search(r"---- light / (.+?) ----", result.stdout)
+        if found:
+            return found.group(1).strip()
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    with open(light, "rb") as f:  # (unknown: the executable itself)
+        return "sha1 " + hashlib.sha1(f.read()).hexdigest()
+
+
+def light_command(light, args):
+    """`light` and its options, less those an old `light` does not know (v0.18 has no -lightgrid): with a
+    warning, once."""
+    version = light_version(light)
+    if not version.startswith("ericw-tools 2") and "-lightgrid" in args:
+        print("%s: not ericw-tools 2: no -lightgrid (the maps get no light grid)" % version)
+        if "-lightgrid_dist" in args:
+            i = args.index("-lightgrid_dist")
+            args = args[:i] + args[i + 4 :]
+        args = [a for a in args if a != "-lightgrid"]
+    return [light] + args, version
 
 
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--quake", required=True, help="Quake folder (the one containing id1)")
-    parser.add_argument("--light", help="ericw-tools light executable")
+    parser.add_argument("--light", help="ericw-tools light executable (default: ERICW_LIGHT, PATH, then %s)"
+                        % DEFAULT_LIGHT)
     parser.add_argument("--games", nargs="+", default=["id1", "hipnotic", "rogue"])
     parser.add_argument("--out", default=os.path.normpath(os.path.join(here, "..", "..", "quakevr", "relit")))
-    parser.add_argument("--light-args", help="light's options (default: %r)" % DEFAULT_LIGHT_ARGS)
+    parser.add_argument("--light-args", help="light's options for the look (default: %r; %r are added)"
+                        % (DEFAULT_LIGHT_ARGS, OUTPUT_ARGS))
     parser.add_argument("--only", nargs="*", help="map names (e1m1 ...) to relight, for trying options")
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--no-glow", action="store_true", help="no surface lights for glowing textures")
@@ -701,7 +792,10 @@ def main():
     light = None if args.list_glows else find_light(args.light)
     rules = load_rules(args.textures)
     lumas = None if args.no_luma else Lumas(args.quake)
-    light_args = args.light_args.split()
+    light_args = args.light_args.split() + [a for a in OUTPUT_ARGS.split() if a not in args.light_args.split()]
+    command, version = light_command(light, light_args) if light else ([], "")
+    if light:
+        print("relighting with %s (%s)" % (version, light))
     total = done = failed = 0
     palette = None
     if not args.no_glow:
@@ -734,9 +828,11 @@ def main():
                 for line in report or ["  (nothing glows)"]:
                     print(line)
                 continue
-            stamp_value = hashlib.sha1(data + (" ".join(light_args) + lights).encode("latin-1")).hexdigest()
+            # So are `light`'s version and options: a new `light` relights every map once.
+            stamp_value = hashlib.sha1(data + (" ".join(command[1:]) + version + lights + REVISION).encode("latin-1")).hexdigest()
             out_bsp = os.path.join(out_dir, base + ".bsp")
             out_lit = os.path.join(out_dir, base + ".lit")
+            out_lux = os.path.join(out_dir, base + ".lux")
             stamp = os.path.join(out_dir, base + ".relit")
             if not args.force and os.path.isfile(out_bsp) and os.path.isfile(stamp):
                 with open(stamp) as f:
@@ -747,24 +843,29 @@ def main():
             with tempfile.TemporaryDirectory() as tmp:
                 work = os.path.join(tmp, base + ".bsp")
                 with open(work, "wb") as f:
-                    f.write(with_entities(data, entities_text(data) + lights) if lights else data)
+                    f.write(with_entities(data, id_light_values(entities_text(data)) + lights))
                 print("%s/%s ..." % (game, base), end=" ", flush=True)
-                result = subprocess.run([light] + light_args + [work], cwd=tmp, stdout=subprocess.PIPE,
+                result = subprocess.run(command + [work], cwd=tmp, stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT, text=True, errors="replace")
                 lit = os.path.join(tmp, base + ".lit")
+                lux = os.path.join(tmp, base + ".lux")
                 if result.returncode != 0 or not os.path.isfile(lit):
                     failed += 1
                     print("failed")
                     print(result.stdout[-2000:])
                     continue
-                if lights:
-                    # The map keeps its own entities (the surface lights were for `light` only).
-                    with open(work, "rb") as f:
-                        relit = f.read()
-                    with open(work, "wb") as f:
-                        f.write(with_entities(relit, entities_text(data)))
+                with open(work, "rb") as f:
+                    relit = f.read()
+                # The map keeps its own entities (the surface lights were for `light` only); repacked either
+                # way, with its BSPX lumps (the light grid) where engines look for them.
+                with open(work, "wb") as f:
+                    f.write(with_entities(relit, entities_text(data)))
                 shutil.copyfile(work, out_bsp)
                 shutil.copyfile(lit, out_lit)
+                if os.path.isfile(lux):
+                    shutil.copyfile(lux, out_lux)
+                elif os.path.isfile(out_lux):
+                    os.remove(out_lux)  # (a stale one would not match the new lightmap)
                 water_vise(out_bsp, patches, base)
                 with open(stamp, "w") as f:
                     f.write(stamp_value + "\n")

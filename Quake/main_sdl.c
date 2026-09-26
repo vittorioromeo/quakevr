@@ -190,7 +190,7 @@ int main(int argc, char *argv[])
 	while (1)
 	{
 		/* If we have no input focus at all, sleep a bit */
-		if ((!VID_HasMouseOrInputFocus() || cl.paused) && !VR_IsActive ()) // QVR: the headset needs every frame
+		if ((!VID_HasMouseOrInputFocus() || cl.paused) && !VR_IsActive () && !getenv ("QVR_TEST_BACKGROUND")) // QVR: the headset (and a test run in the background) needs every frame
 		{
 			SDL_Delay(16);
 		}

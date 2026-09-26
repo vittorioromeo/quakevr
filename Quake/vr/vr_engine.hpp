@@ -24,6 +24,9 @@ extern cvar_t r_lerpmodels;							// r_alias.c
 extern cvar_t gl_farclip;							// gl_rmain.c
 extern cvar_t vid_fsaa;								// gl_vidsdl.c
 extern GLuint gl_bmodel_vbo;						// r_brush.c
+extern size_t gl_bmodel_vbo_size;					// r_brush.c: its size in bytes (glvert_t each)
+extern gltexture_t* lightmap_texture;				// r_brush.c: the map's lightmaps
+extern gltexture_t* lux_texture;					// r_brush.c: the map's light directions (deluxemaps), or NULL
 extern gltexture_t* char_texture;					// gl_draw.c
 extern char com_gamenames[];						// common.c
 byte *Image_LoadImage (const char *name, int *width, int *height, enum srcformat *fmt); // image.c (image.h hides it from C++)

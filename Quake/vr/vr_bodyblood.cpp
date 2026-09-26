@@ -177,7 +177,7 @@ void addDrop(const hands::State& s, int hand, bool flung)
         return;
     }
     d.hand = static_cast<std::uint8_t>(hand);
-    d.size = rnd(0.006f, 0.01f) * l.m2w;
+    d.size = rnd(0.006f, 0.01f) * l.m2w * std::clamp(vr_body_blood_amount.value, 0.25f, 4.f);
     if(flung)
     {
         // Thrown off the swung arm at once, a little behind its speed.
@@ -192,8 +192,9 @@ void addDrop(const hands::State& s, int hand, bool flung)
     drops.push_back(d);
 }
 
-// A drop reaches a surface: specks thrown up off a floor, and a small mark on it (at most one
-// every 0.3 s: a steady drip would otherwise fill the decal budget).
+// A drop reaches a surface: specks thrown up off a floor, and a mark on it (vr_body_blood_marks: the
+// chance, vr_body_blood_mark_size; at most one every 0.08 s: a steady drip would otherwise fill the
+// decal budget).
 double lastMark = -1.0;
 
 void land(const Drop& d, const glm::vec3& where, const glm::vec3& normal, float m2w)
@@ -202,12 +203,13 @@ void land(const Drop& d, const glm::vec3& where, const glm::vec3& normal, float 
     {
         return; // a wall: it runs down out of sight
     }
-    if(cl.time < lastMark || cl.time - lastMark > 0.3)
+    const float amount = std::clamp(vr_body_blood_amount.value, 0.25f, 4.f);
+    if(rnd(0.f, 1.f) < std::clamp(vr_body_blood_marks.value, 0.f, 1.f) && (cl.time < lastMark || cl.time - lastMark > 0.08))
     {
         lastMark = cl.time;
-        decals::drop(where, rnd(1.5f, 3.f));
+        decals::drop(where, rnd(3.5f, 6.5f) * std::clamp(vr_body_blood_mark_size.value, 0.25f, 4.f) * std::sqrt(amount));
     }
-    const int specks = 2 + static_cast<int>(rnd(0.f, 2.99f));
+    const int specks = static_cast<int>((2.f + rnd(0.f, 2.99f)) * std::sqrt(amount));
     for(int i = 0; i < specks && drops.size() + splashes.size() < maxDrops; i++)
     {
         Drop sp;

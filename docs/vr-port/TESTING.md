@@ -141,7 +141,19 @@ context and screenshot, ready to paste or to point me at.
 
 ## What to try
 
-- **New in this round** (details in `docs/vr-port/ROUND16.md`, your sixth batch of notes):
+- **New in this round** (details in `docs/vr-port/ROUND17.md` and `ROUND18.md`):
+  - **Graphics** (Graphics page, each with a switch): real light directions, detail textures up close, directional
+    ambient and a rim light on models, sheen anti-aliasing, fence coverage, tone mapping and dither and colour grades,
+    soft particles, shoreline foam and heat haze, reflections on your weapons, flickering torch lights.
+  - **Gore** (Advanced > Gore): sprays on walls, gibs stuck to ceilings dripping, pools under corpses, your wounds
+    marking the floor.
+  - **Water:** big modern splashes and ripples that move the water.
+  - **Weapons:** a sword blade grip (off hand near the tip), bash from a level weapon, new bash/parry/shove sounds;
+    the carried gun's button; shotgun port, pump grooves and flames; dark super shotgun; the alternate models match.
+  - **Colours:** Wrist Gadget > Colours > Player Effects Hue drives every effect of yours (force grab too).
+  - **Performance:** your last log shows the slowdown in SteamVR's submit, not the game: try the VDXR runtime.
+
+- **Previous round** (details in `docs/vr-port/ROUND16.md`, your sixth batch of notes):
   - **Hand-off:** let go of a two-handed sword and the other hand keeps it; let go of a gun's grip and it hangs from
     the foregrip hand (grip its handle again to take it back). VR Settings > Weapons > Two-Handed Hand-Off.
   - **Parry:** any weapon held level across in front of you (Gameplay > Parry and Bash: Parry Angle, Parry Reach).

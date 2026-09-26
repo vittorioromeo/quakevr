@@ -22,6 +22,8 @@ build/
 /quakevr/screenshots/
 /quakevr/notes/
 /quakevr/profile/
+/quakevr/eyeshots/
+/quakevr/envmap.tga
 !/quakevr/default.cfg
 !/quakevr/vr_bindings.cfg
 !/quakevr/vr_defaults.cfg

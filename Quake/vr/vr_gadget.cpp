@@ -13,6 +13,7 @@
 #include "vr_gadget.hpp"
 #include "vr_color.hpp"
 #include "vr_gfx.hpp"
+#include "vr_hue.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
 #include "vr_lighting.hpp"
@@ -90,8 +91,8 @@ constexpr const char* sigilPics[4] = {"sb_sigil1", "sb_sigil2", "sb_sigil3", "sb
 
 constexpr glm::vec4 white{1.f};
 
-// The screen's palette, from vr_gadget_screen_hue / _brightness / _background (the default is
-// the green of a phosphor screen).
+// The screen's palette, from vr_gadget_screen_hue (by default the player's, vr_hue.hpp) /
+// _brightness / _background (the default is the green of a phosphor screen).
 struct Palette
 {
     glm::vec3 background;
@@ -102,14 +103,14 @@ struct Palette
 
 [[nodiscard]] Palette palette()
 {
-    const float hue = vr_gadget_screen_hue.value;
+    const cvar_t& own = vr_gadget_screen_hue;
     const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f);
     const float back = CLAMP(0.f, vr_gadget_screen_background.value, 4.f);
     Palette p;
-    p.background = hsv(hue, 0.57f, 0.07f * back);
-    p.scanline = hsv(hue, 0.6f, 0.05f * back);
-    p.line = glm::min(hsv(hue, 0.58f, 0.6f * bright), glm::vec3{1.f});
-    p.text = glm::vec4{glm::min(hsv(hue, 0.55f, bright), glm::vec3{1.f}), 1.f};
+    p.background = hue::color(own, 0.57f, 0.07f * back);
+    p.scanline = hue::color(own, 0.6f, 0.05f * back);
+    p.line = glm::min(hue::color(own, 0.58f, 0.6f * bright), glm::vec3{1.f});
+    p.text = glm::vec4{glm::min(hue::color(own, 0.55f, bright), glm::vec3{1.f}), 1.f};
     return p;
 }
 
@@ -237,7 +238,7 @@ void light(int key, const Pose& pose, float out, float radius, float k)
     dl->die = static_cast<float>(cl.time + 0.05);
     dl->radius = radius;
     const bool darkplaces = vr_dlight_falloff.value != 0.f;
-    const glm::vec3 c = hsv(vr_gadget_screen_hue.value, 0.5f, 1.f) * (k * (darkplaces ? 0.3f : 0.6f));
+    const glm::vec3 c = hue::color(vr_gadget_screen_hue, 0.5f, 1.f) * (k * (darkplaces ? 0.3f : 0.6f));
     dl->color[0] = c.r;
     dl->color[1] = c.g;
     dl->color[2] = c.b;
@@ -476,7 +477,7 @@ bool log(Log& out)
     out.normal = current.axes[2];
     out.charSize = 0.23f * current.scale;
     out.color = glm::vec3{pal.text};
-    out.backColor = hsv(vr_gadget_screen_hue.value, 0.57f, 0.05f);
+    out.backColor = hue::color(vr_gadget_screen_hue, 0.57f, 0.05f);
     return true;
 }
 

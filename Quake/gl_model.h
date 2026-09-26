@@ -152,6 +152,7 @@ typedef struct msurface_s
 
 	byte		styles[MAXLIGHTMAPS];
 	byte		*samples;			// [numstyles*surfsize]
+	byte		*luxsamples;		// QVR: the light's directions (.lux, deluxemaps): [numstyles*surfsize*3], or NULL
 
 	int			texturemins[2];
 	mtexinfo_t	*texinfo;
@@ -495,6 +496,7 @@ typedef struct qmodel_s
 
 	byte		*visdata;
 	byte		*lightdata;
+	byte		*luxdata;	// QVR: the light's directions at each luxel (a .lux beside the .lit; deluxemaps), or NULL
 	char		*entities;
 
 	qboolean	litfile;

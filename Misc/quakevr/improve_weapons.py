@@ -289,6 +289,43 @@ class Parts:
             self.tri(centre, ids[k], ids[(k + 1) % len(ring)], outward)
 
 
+def band(parts, ring_a, ring_b, region, outward):
+    """Quads between two rings of the same number of points (closed), textured as a loft's; each
+    quad faces `outward(midpoint)`. For surfaces a loft cannot orient (a loft faces away from its
+    axis: wrong for a flat annulus, whose faces are square to the axis, and for an inner wall)."""
+    s0, t0, s1, t1 = region
+    n = len(ring_a)
+    edges = [math.dist(ring_a[k], ring_a[(k + 1) % n]) for k in range(n)]
+    around = [sum(edges[:k]) / sum(edges) for k in range(n + 1)]
+    ids = [[parts.vert(r[k % n], s0 + 0.5 + around[k] * (s1 - s0 - 1), t0 + 0.5 + j * (t1 - t0 - 1))
+            for k in range(n + 1)] for j, r in enumerate((ring_a, ring_b))]
+    for k in range(n):
+        a, b, c, d = ids[0][k], ids[0][k + 1], ids[1][k + 1], ids[1][k]
+        out = outward(centroid([parts.verts[i][0] for i in (a, b, c, d)]))
+        parts.tri(a, b, c, out)
+        parts.tri(a, c, d, out)
+
+
+def open_mouth(parts, rim_outer, rim_inner, floor, rim_region, wall_region, floor_region):
+    """The open back end of a tube (a nozzle's bell, a muzzle): a flat rim from the outer ring to the
+    inner one, an inner wall from the inner ring down to the floor ring, and the floor. Rim and floor
+    face out of the mouth, the wall towards the axis, so that looking into the mouth shows its
+    inside (round 18: the rocket launcher's nozzle, whose loft faced them the other way round and
+    showed the gun through its back). The rings: closed, the same number of points, in order."""
+    c_rim, c_floor = centroid(rim_inner), centroid(floor)
+    back = norm(sub(c_rim, c_floor))
+    depth = math.dist(c_rim, c_floor)
+
+    def to_axis(p):
+        # The axis point at p's depth, minus p.
+        a = add(c_floor, mul(back, dot(sub(p, c_floor), back)))
+        return sub(a, p) if depth > 0 else back
+
+    band(parts, rim_outer, rim_inner, rim_region, lambda p: back)
+    band(parts, rim_inner, floor, wall_region, to_axis)
+    parts.cap(floor, floor_region, back)
+
+
 def section(c, ex, ey, hx, hy, ch):
     """A bevelled rectangle round `c` in the plane of ex, ey: 8 points (4 unbevelled), round the
     axis ex x ey."""
@@ -511,6 +548,134 @@ def nozzle_inside(noise):
 
 
 # ----------------------------------------------------------------------------
+# Round 18: muzzle flashes for the shotguns, and steel/grip paint shared by them
+#
+# Quake's view models show their muzzle flash as a part of the model: fire-coloured (fullbright)
+# triangles that are collapsed into a point in every frame but the firing ones (the nailguns', the
+# launchers'; the engine draws them like the rest of the gun). The shotguns had none. Their skins
+# carry the glowing sights in the fire indices (224..239, 252, 253), which vr_sights.cpp turns to
+# the sight hue: their flashes use the other fullbright indices, reds to yellow to white.
+
+FLASH = [250, 240, 241, 243, 254]   # a flame's tip to its white core
+BLUED = [0, 32, 1, 33, 2, 34, 3, 35, 4, 36, 5, 6, 7]  # blued steel, black to its highlights
+PUMPBROWN = [16, 174, 17, 173, 18, 19, 172, 20]     # the shotgun's grip and pump (improve_weapons3.py)
+
+
+def grow_rows(model, rows):
+    """Adds `rows` rows under the skin (every old texel and UV stays); returns the first new row."""
+    first = model.sh
+    model.skin += bytes(model.sw * rows)
+    model.sh += rows
+    model.h[14] = model.sh
+    return first
+
+
+def paint_glow(skin, sw, region, fn):
+    """`paint` for a flash: fullbright, but never in the sights' indices (vr_sights.cpp)."""
+    s0, t0, s1, t1 = region
+    for t in range(t0, t1):
+        for s in range(s0, s1):
+            v = fn(s - s0, t - t0, s1 - s0, t1 - t0)
+            assert v in FLASH
+            skin[t * sw + s] = v
+
+
+def flame_paint(noise):
+    """A flash: a white-yellow core at its base, streaks, reddening towards the tip."""
+    def fn(s, t, w, h):
+        along = (t + 0.5) / h
+        streak = noise.smooth(s * 0.7, t * 0.08)
+        v = 1.0 - 0.9 * along ** 1.3 + 0.35 * (streak - 0.5) + (noise.hash(s, t) - 0.5) * 0.15
+        return pick(FLASH, v, s, t)
+    return fn
+
+
+def flame(parts, centre, axis, up, length, radius, region, points=5):
+    """A muzzle flash: a spiky cone from just inside the muzzle (`centre`) along `axis`, its star
+    section widest a fifth of the way out, twisted and narrowing to the tip. Closed but at its base
+    (inside the barrel). Returns the range of its vertices in `parts`."""
+    first = len(parts.verts)
+    side = cross(axis, up)
+    n = 2 * points
+
+    def star(x, r_out, r_in, phase):
+        c = add(centre, mul(axis, x))
+        return [add(c, add(mul(up, (r_out if k % 2 == 0 else r_in) * math.cos(2 * math.pi * k / n + phase)),
+                           mul(side, (r_out if k % 2 == 0 else r_in) * math.sin(2 * math.pi * k / n + phase))))
+                for k in range(n)]
+
+    rings = [star(-0.3, 0.35 * radius, 0.3 * radius, 0.0), star(0.2 * length, radius, 0.55 * radius, 0.0),
+             star(0.55 * length, 0.72 * radius, 0.38 * radius, math.pi / n),
+             star(length, 0.12 * radius, 0.06 * radius, 2 * math.pi / n)]
+    parts.loft(rings, region, cap_end=region)
+    return range(first, len(parts.verts))
+
+
+def show_flash(model, base, verts, parts, centre, carrier, scales):
+    """After `assemble`: the flash's vertices (`verts` in `parts`, `base` the first new vertex in the
+    model) drawn at `scales[f]` of their size about `centre` (frame 0's) in frame f, and collapsed into
+    it (0, not drawn) in the others; carried with the gun."""
+    for f, frame in enumerate(model.frames):
+        s = scales.get(f, 0.0)
+        for i in verts:
+            p = parts.verts[i][0]
+            frame[1][base + i] = carrier.place(f, add(centre, mul(sub(p, centre), s)))
+
+
+def blued_steel(noise, faces=None, shine=0.18):
+    """Blued steel, near black as the barrels, with a soft highlight along the faces that turn to the
+    light (the bevels of a `section` loft: `faces` its fractions of the way round) and fine wear."""
+    def fn(s, t, w, h):
+        v = 0.16 + 0.1 * (noise.smooth(s * 0.2, t * 0.1) - 0.5) + (noise.hash(s, t) - 0.5) * 0.05
+        if faces:
+            u = (s + 0.5) / w
+            for f, k in ((0, 0.45), (1, 1.0), (7, 1.0), (2, 0.3), (6, 0.3)):  # top, its bevels, sides
+                a, b = faces[f], faces[f + 1]
+                if a < u < b:
+                    v += shine * k * math.sin(math.pi * (u - a) / (b - a))
+        if noise.hash(s // 5, t) > 0.99:
+            v += 0.15  # a worn scratch
+        v *= 0.8 + 0.2 * edge(s, w, 2.0) * edge(t, h, 2.0)
+        return pick(BLUED, v, s, t)
+    return fn
+
+
+def ribbed_grip(seed):
+    """The shotgun's ribbed grip (improve_weapons3.py): the pump's browns, a rib every 4 texels."""
+    return ribbed(Noise(seed), PUMPBROWN, 4)
+
+
+def dark_wood(noise):
+    """Dark stained wood in the grip's browns: grain along t."""
+    def fn(s, t, w, h):
+        g = noise.smooth(s * 0.45, t * 0.06) * 0.7 + noise.smooth(s * 1.3, t * 0.2) * 0.3
+        v = 0.22 + 0.4 * g
+        if (g * 9.0) % 1.0 < 0.16:
+            v -= 0.15
+        v += (noise.hash(s, t) - 0.5) * 0.1
+        v *= 0.75 + 0.25 * edge(t, h, 3.0)
+        return pick(PUMPBROWN, v, s, t)
+    return fn
+
+
+def repaint_shotgun2(model, regions, faces):
+    """Round 18 (voice note 14-30-52): the receiver's grey (GUNMETAL) did not go with the rest of the
+    gun: it is blued steel as dark as the barrels now, with subtle highlights on its bevels; the
+    handle is painted as the shotgun's (ribbed grip in the pump's browns, the wrist dark wood)."""
+    paint(model.skin, model.sw, regions["receiver"], blued_steel(Noise(18), section_faces(2.05, 2.95, 0.7)))
+    paint(model.skin, model.sw, regions["knuckle"], blued_steel(Noise(26), section_faces(1.3, 2.95, 0.7)))
+    paint(model.skin, model.sw, regions["breech"], blued_steel(Noise(27), shine=0.0))
+    paint(model.skin, model.sw, regions["tang"], blued_steel(Noise(19), shine=0.0))
+    paint(model.skin, model.sw, regions["caps"], blued_steel(Noise(20), shine=0.0))
+    paint(model.skin, model.sw, regions["guard"], blued_steel(Noise(23), shine=0.0))
+    paint(model.skin, model.sw, regions["butt"], metal(Noise(21), BLUED, 0.3, 0.1))
+    paint(model.skin, model.sw, regions["bottom"], metal(Noise(22), BLUED, 0.25, 0.1, lines=3))
+    paint(model.skin, model.sw, regions["grip"], ribbed_grip(16))
+    paint(model.skin, model.sw, regions["wrist"], dark_wood(Noise(17)))
+    paint(model.skin, model.sw, regions["cutend"], dark_wood(Noise(25)))
+
+
+# ----------------------------------------------------------------------------
 # Building
 
 def free_region_check(model, regions):
@@ -577,6 +742,21 @@ def fmt(x):
 # ----------------------------------------------------------------------------
 # The double shotgun
 
+# Round 18: the frames the shotguns' flashes show in (QC player_shot1 shows frame 1 with the muzzle
+# flash; the next frame the flash dies down) and their size in them.
+SHOTGUN_FLASH_FRAMES = {1: 1.0, 2: 0.35}
+SHOTGUN2_MUZZLES = [(28.3, -1.27, 6.4), (28.3, 1.21, 6.4)]   # the barrels' mouths (frame 0)
+
+
+def shotgun2_flashes(parts, row):
+    """A flash out of each barrel of the double shotgun, painted in the skin rows from `row`."""
+    region = (0, row, 80, row + 16)
+    return [(flame(parts, c, (1.0, 0.0, 0.0), (0.0, 0.0, 1.0), 16.0, 3.6, region), c) for c in SHOTGUN2_MUZZLES]
+
+
+def paint_flash(model, row):
+    paint_glow(model.skin, model.sw, (0, row, 80, row + 16), flame_paint(Noise(28)))
+
 def build_shotgun(out_dir):
     src = open(os.path.join(SRC, "v_shot2.mdl"), "rb").read()
     model = Mdl(src)
@@ -632,6 +812,9 @@ def build_shotgun(out_dir):
     # The top lever over the breech, and the tang behind it.
     parts.loft([rsec(9.4, 0.55, 6.8, 7.25, 0.0), rsec(6.6, 0.55, 6.8, 7.2, 0.0), rsec(5.4, 0.4, 6.6, 6.95, 0.0)],
                regions["tang"], cap_start=regions["tang"], cap_end=regions["tang"])
+    # Round 18: a flash out of each barrel (last, so that no anchor depends on it).
+    flash_row = grow_rows(model, 16)
+    flashes = shotgun2_flashes(parts, flash_row)
 
 
     noise = Noise(16)
@@ -647,6 +830,8 @@ def build_shotgun(out_dir):
     paint(model.skin, model.sw, regions["bottom"], metal(Noise(22), STEEL, 0.38, 0.15, lines=3))
     paint(model.skin, model.sw, regions["guard"], metal(Noise(23), GUNMETAL, 0.45, 0.1, grain=0.03))
     paint(model.skin, model.sw, regions["trigger"], metal(Noise(24), STEEL, 0.55, 0.1))
+    repaint_shotgun2(model, regions, faces)
+    paint_flash(model, flash_row)
 
     # Carried by the barrels' breech ends, their muzzles and the fore-end's underside.
     body = [v for c in comps if c is not handle for v in c]
@@ -656,6 +841,8 @@ def build_shotgun(out_dir):
     carrier = Carrier(model, clusters)
     remap = assemble(model, keep, parts, carrier)
     check_anchors(old_tris, model.tris, remap, kept_anchors)
+    for verts, centre in flashes:
+        show_flash(model, len(remap), verts, parts, centre, carrier, SHOTGUN_FLASH_FRAMES)
 
     # The hand's anchor: the new grip's vertex nearest the middle of the hand's hold.
     base = len(remap)
@@ -679,9 +866,12 @@ def build_shotgun(out_dir):
 RAISE = 2.0  # model units the tube goes up over the hand (it went through the fist)
 
 
-def build_rocket_launcher(out_dir):
+def build_rocket_launcher(out_dir, alt=None):
+    """`alt`: (model, file name): its alternate built instead, with the same parts (rogue's
+    multi-rocket launcher, moved onto this model first: improve_weapons_alt.py; its slot is set up
+    from this one's there, not from what this returns)."""
     src = open(os.path.join(SRC, "v_rock2.mdl"), "rb").read()
-    model = Mdl(src)
+    model, name = alt or (Mdl(src), "v_rock2.mdl")
     old_tris = list(model.tris)
     old_origin = model.origin
     comps = model.components()
@@ -720,7 +910,8 @@ def build_rocket_launcher(out_dir):
 
     parts.loft([ring(0.2, 2.15), ring(-1.4, 1.75), ring(-2.1, 1.75), ring(-2.3, 1.95), ring(-2.9, 1.95),
                 ring(-3.1, 1.7), ring(-5.4, 2.05), ring(-6.0, 2.2)], regions["nozzle"])
-    parts.loft([ring(-6.0, 2.2), ring(-6.0, 1.75), ring(-5.2, 1.5)], regions["rear"], cap_end=regions["mouth"])
+    open_mouth(parts, ring(-6.0, 2.2), ring(-6.0, 1.75), ring(-5.2, 1.5), regions["rear"], regions["rear"],
+               regions["mouth"])
 
     paint(model.skin, model.sw, regions["grip"], ribbed(Noise(30), GRIPBROWN, 4))
     paint(model.skin, model.sw, regions["butt"], metal(Noise(31), LAUNCHER, 0.5, 0.15))
@@ -741,10 +932,10 @@ def build_rocket_launcher(out_dir):
     check_anchors(old_tris, model.tris, remap, kept_anchors)
 
     new_hand = mul(sub(hs.p0, anchor_pos), K * sw)
-    origin = model.write(os.path.join(out_dir, "v_rock2.mdl"))
+    origin = model.write(os.path.join(out_dir, name))
     new_offset = [offset[k] + (old_origin[k] - origin[k]) * (1 - sw) for k in range(3)]
     new_offset[2] += RAISE * sw
-    return "v_rock2.mdl (slot 6)", {
+    return "%s (slot 6)" % name, {
         "HandOffsetX": fmt(new_hand[0]), "HandOffsetY": fmt(new_hand[1]), "HandOffsetZ": fmt(new_hand[2]),
         "OffsetX": fmt(new_offset[0]), "OffsetY": fmt(new_offset[1]), "OffsetZ": fmt(new_offset[2]),
     }, model
@@ -752,11 +943,16 @@ def build_rocket_launcher(out_dir):
 
 def main():
     out_dir = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "..", "..", "quakevr", "progs")
+    printed = {}
     for build in (build_shotgun, build_rocket_launcher):
         name, settings, model = build(out_dir)
+        printed[name] = settings
         print("%s: %d vertices, %d triangles, %d frames" % (name, len(model.st), len(model.tris), len(model.frames)))
         for key, value in settings.items():
             print("    %s = %s" % (key, value))
+    # The rocket launcher's alternate (the multi-rockets' v_multi2.mdl), after the model it is placed from.
+    import improve_weapons_alt
+    improve_weapons_alt.rocket_launcher(out_dir, printed["v_rock2.mdl (slot 6)"])
 
 
 if __name__ == "__main__":

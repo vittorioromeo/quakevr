@@ -4,7 +4,9 @@
 #include "vr_cvars.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_held.hpp"
+#include "vr_hue.hpp"
 #include "vr_lines.hpp"
+#include "vr_menu.hpp"
 #include "vr_particles.hpp"
 #include "vr_protocol.hpp"
 
@@ -52,6 +54,25 @@ double lastTime = -1.0;
     return held::drawnCentre(ent);
 }
 
+// The effects' colours: the force grab's hue (vr_forcegrab_hue; by default the player's,
+// vr_player_hue: vr_hue.hpp) at each part's own saturation and brightness (made in blue, 215).
+// Hues of the same brightness are not as bright to the eye (green far more than blue): half the
+// difference in luminance with the blue is taken back, so every hue glows about as much.
+[[nodiscard]] glm::vec3 tint(float saturation, float value)
+{
+    const glm::vec3 c = hue::color(vr_forcegrab_hue, saturation, value);
+    const glm::vec3 blue = hsv(215.f, saturation, value);
+    const glm::vec3 luma{0.2126f, 0.7152f, 0.0722f};
+    const float l = glm::dot(c, luma);
+    const float want = glm::dot(blue, luma);
+    return l > 1e-4f ? c * std::clamp(std::sqrt(want / l), 0.6f, 1.6f) : c;
+}
+
+[[nodiscard]] glm::vec4 tint(float saturation, float value, float alpha)
+{
+    return glm::vec4{tint(saturation, value), alpha};
+}
+
 // A small hash noise, -1..1.
 [[nodiscard]] float noise(int a, int b)
 {
@@ -73,6 +94,8 @@ void tendril(const glm::vec3& a, const glm::vec3& b, float strength, int seed)
     const glm::vec3 dir = d / len;
     const glm::vec3 side1 = glm::normalize(glm::cross(dir, std::fabs(dir.z) < 0.9f ? glm::vec3{0, 0, 1} : glm::vec3{1, 0, 0}));
     const glm::vec3 side2 = glm::cross(dir, side1);
+    const glm::vec4 haloColor = tint(0.83f, 0.9f, 1.f);
+    const glm::vec4 coreColor = tint(0.3f, 1.f, 1.f);
 
     const int tick = static_cast<int>(realtime * 24.0);
     const int segments = std::clamp(static_cast<int>(len / 6.f), 6, 24);
@@ -91,14 +114,30 @@ void tendril(const glm::vec3& a, const glm::vec3& b, float strength, int seed)
                      side2 * (noise(tick + seed * 17 + strand * 3, i + 97) * bulge);
             }
             const float fade = strength * (strand == 0 ? 1.f : 0.5f);
-            const glm::vec4 halo = glm::vec4{0.15f, 0.35f, 0.9f, 1.f} * (0.22f * fade);
-            const glm::vec4 core = glm::vec4{0.7f, 0.9f, 1.f, 1.f} * (0.9f * fade);
+            const glm::vec4 halo = haloColor * (0.22f * fade);
+            const glm::vec4 core = coreColor * (0.9f * fade);
             lines::glow(prev, p, 1.4f, halo, halo);
             lines::glow(prev, p, 0.35f, core, core);
             prev = p;
         }
     }
-    lines::glowPoint(a, 2.5f * strength, glm::vec4{0.4f, 0.7f, 1.f, 1.f} * (0.5f * strength));
+    lines::glowPoint(a, 2.5f * strength, tint(0.6f, 1.f, 1.f) * (0.5f * strength));
+}
+
+// While the menu's colour settings that the force grab takes are selected: a tendril from the off
+// hand, to see the colour as it is set.
+void previewInMenu(const hands::State& s)
+{
+    const cvar_t* selected = menu::selectedSetting();
+    if(!s.valid || (selected != &vr_player_hue && selected != &vr_player_saturation && selected != &vr_forcegrab_hue))
+    {
+        return;
+    }
+    const int hand = 0; // the off hand (the main one points at the menu)
+    const glm::vec3 fwd = hands::forward(s.rot[hand]);
+    const glm::vec3 palm = s.pos[hand] + fwd * 2.f;
+    const float pulse = 0.85f + 0.15f * std::sin(static_cast<float>(realtime) * 17.f);
+    tendril(palm, palm + fwd * 28.f, pulse, 4242);
 }
 
 } // namespace
@@ -159,6 +198,7 @@ void queue(const hands::State& s)
     {
         return;
     }
+    previewInMenu(s);
     for(int hand = 0; hand < 2; hand++)
     {
         const Target& t = targets[hand];
@@ -170,7 +210,8 @@ void queue(const hands::State& s)
         const glm::vec3 to = centre(t.ent);
         if(t.state == Aimed)
         {
-            lines::glow(palm, to, 0.3f, glm::vec4{0.3f, 0.6f, 1.f, 1.f} * 0.18f, glm::vec4{0.3f, 0.6f, 1.f, 1.f} * 0.03f);
+            const glm::vec4 beam = tint(0.7f, 1.f, 1.f);
+            lines::glow(palm, to, 0.3f, beam * 0.18f, beam * 0.03f);
             continue;
         }
         const float pulse = 0.85f + 0.15f * std::sin(static_cast<float>(realtime) * 17.f);
@@ -197,9 +238,22 @@ float entityGlow(const entity_t* e)
     return std::clamp(it->second * breathe * vr_forcegrab_outline.value, 0.f, 1.f);
 }
 
+glm::vec3 glowColor()
+{
+    return tint(0.65f, 1.f);
+}
+
 } // namespace qvr::fgfx
 
 extern "C" float VR_EntityGlow(const entity_t* e)
 {
     return qvr::fgfx::entityGlow(e);
+}
+
+extern "C" void VR_EntityGlowColor(float rgb[3])
+{
+    const glm::vec3 c = qvr::fgfx::glowColor();
+    rgb[0] = c.r;
+    rgb[1] = c.g;
+    rgb[2] = c.b;
 }

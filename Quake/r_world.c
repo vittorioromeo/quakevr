@@ -30,6 +30,7 @@ extern cvar_t gl_zfix; // QuakeSpasm z-fighting fix
 extern cvar_t r_oit;
 
 extern gltexture_t *lightmap_texture;
+extern gltexture_t *lux_texture; // QVR: r_brush.c
 
 extern GLuint gl_bmodel_vbo;
 extern size_t gl_bmodel_vbo_size;
@@ -167,6 +168,7 @@ typedef struct bmodel_bindless_gpu_call_s {
 	GLuint64	fullbright;
 	GLuint64	normalmap;	// QVR: vr_normalmaps
 	GLfloat		uvclamp[4];	// QVR: texture_t's (parallax mapping)
+	GLfloat		detail[4];	// QVR: its detail texture (vr/vr_detail.cpp)
 } bmodel_bindless_gpu_call_t;
 
 typedef struct bmodel_bound_gpu_call_s {
@@ -175,6 +177,7 @@ typedef struct bmodel_bound_gpu_call_s {
 	GLint		baseinstance;
 	GLint		padding;
 	GLfloat		uvclamp[4];	// QVR: texture_t's (parallax mapping)
+	GLfloat		detail[4];	// QVR: its detail texture (vr/vr_detail.cpp)
 } bmodel_bound_gpu_call_t;
 
 typedef struct bmodel_gpu_call_remap_s {
@@ -336,6 +339,7 @@ static void R_AddBModelCall (int index, int first_instance, int num_instances, t
 		call->fullbright = fb ? fb->bindless_handle : blacktexture->bindless_handle;
 		call->normalmap = TexMgr_NormalMap (tx)->bindless_handle; // QVR
 		memcpy (call->uvclamp, t ? t->uvclamp : noclamp, sizeof (call->uvclamp)); // QVR
+		VR_DetailCall (tx ? t : NULL, call->detail); // QVR
 	}
 	else
 	{
@@ -349,6 +353,7 @@ static void R_AddBModelCall (int index, int first_instance, int num_instances, t
 		textures[1] = fb ? fb : blacktexture;
 		textures[2] = TexMgr_NormalMap (tx); // QVR
 		memcpy (call->uvclamp, t ? t->uvclamp : noclamp, sizeof (call->uvclamp)); // QVR
+		VR_DetailCall (tx ? t : NULL, call->detail); // QVR
 	}
 
 	SDL_assert (num_instances > 0);
@@ -414,6 +419,7 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	GLbyte *ofs;
 	textype_t texbegin, texend;
 	qboolean oit;
+	qboolean a2c; // QVR
 
 	if (!count)
 		return;
@@ -477,8 +483,17 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	
 	R_ResetBModelCalls (program);
 	GL_SetState (state);
+	a2c = pass == BP_ALPHATEST && !translucent && VR_AlphaToCoverage (); // QVR: fences' edges by alpha to coverage (vr_alpha_coverage, MSAA)
+	if (a2c)
+	{
+		glEnable (GL_SAMPLE_ALPHA_TO_COVERAGE);
+		glEnable (GL_SAMPLE_ALPHA_TO_ONE);
+	}
 	if (pass <= BP_ALPHATEST)
+	{
 		GL_Bind (GL_TEXTURE2, r_fullbright_cheatsafe ? greytexture : lightmap_texture);
+		GL_Bind (GL_TEXTURE9, lux_texture); // QVR: the light's directions (deluxemaps: LuxTex; read only with ShadowFlags 128)
+	}
 	else if (pass == BP_SKYCUBEMAP)
 		GL_Bind (GL_TEXTURE2, skybox->cubemap);
 
@@ -513,6 +528,11 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	}
 
 	R_FlushBModelCalls ();
+	if (a2c) // QVR
+	{
+		glDisable (GL_SAMPLE_ALPHA_TO_COVERAGE);
+		glDisable (GL_SAMPLE_ALPHA_TO_ONE);
+	}
 }
 
 /*
@@ -652,9 +672,9 @@ void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent)
 
 	GL_BeginGroup (translucent ? "Water (translucent)" : "Water (opaque)");
 
-	// QVR: how far the opaque scene is, for the refraction not to read what is in front of the water (vr/vr_water.cpp;
-	// a small pass of its own: before this draw's state is set)
-	scenedepth = translucent ? VR_WaterSceneDepth () : 0;
+	// QVR: how far the opaque scene is, for the refraction not to read what is in front of the water and for the
+	// shoreline foam (vr/vr_water.cpp; a small pass of its own: before this draw's state is set)
+	scenedepth = VR_WaterSceneDepth (translucent);
 
 	// setup state
 	state = GLS_CULL_BACK | GLS_ATTRIBS(4);

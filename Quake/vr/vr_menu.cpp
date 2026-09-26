@@ -64,6 +64,9 @@ struct Item
     // Shown under the list while selected.
     const char* helpText{nullptr};
 
+    // Slider: shown instead of the value while it is negative (-1: a hue following the player's).
+    const char* negativeLabel{nullptr};
+
     [[nodiscard]] Item help(const char* text) const
     {
         Item i = *this;
@@ -111,6 +114,14 @@ void restartVr()
 [[nodiscard]] Item slider(const char* label, const char* cvar, float min, float max, float step, const char* format)
 {
     return slider(label, Cvar_FindVar(cvar), min, max, step, format);
+}
+
+// An effect's hue (degrees), its leftmost step -1: the player's (vr_player_hue, vr_hue.hpp).
+[[nodiscard]] Item hueSlider(const char* label, cvar_t& cvar)
+{
+    Item i = slider(label, cvar, -5.f, 355.f, 5.f, "%.0f");
+    i.negativeLabel = "Player's";
+    return i;
 }
 
 [[nodiscard]] Item cycle(const char* label, cvar_t* cvar, std::vector<Choice> choices)
@@ -210,10 +221,12 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Parry Reach", vr_parry_reach, 0.5f, 2.5f, 0.1f, "%.1f m").help("How far in front of you a held weapon still parries."),
         toggle("Unarmed Parry", vr_parry_unarmed).help("Cross your arms in an X in front of you to block a blow with your forearms."),
         slider("Unarmed Parry Reduction", vr_parry_unarmed_reduction, 0.f, 1.f, 0.05f, "%.2f"),
-        toggle("Bash", vr_bash).help("Hold a guard (a weapon level across in front, or both hands together), then push it forward: knocks monsters back and staggers them. One open hand, palm ahead, shoves half as hard."),
+        toggle("Bash", vr_bash).help("Hold a guard (a weapon level across in front, as for a parry, one hand or two; or both hands together), then push it forward: knocks monsters back and staggers them. One open hand, palm ahead, shoves half as hard."),
         slider("Bash Speed", vr_bash_speed, 0.8f, 3.f, 0.1f, "%.1f m/s").help("How fast the guard must be pushed forward (less than a blow needs)."),
         slider("Bash Damage", vr_bash_damage, 0.f, 40.f, 1.f, "%.0f"),
         slider("Bash Push", vr_bash_push, 0.f, 3.f, 0.05f, "%.2fx").help("How far a bash or shove throws what it hits (times Knockback)."),
+        slider("Bash and Parry Sounds", vr_bash_sound, 0.f, 1.f, 0.1f, "%.1f")
+            .help("Volume of the sounds that tell a shove, a weapon bash, a parry-bash (a bash right after a parry) and a parry apart from your blows (0: the old sounds)."),
         header("Playtesting"),
         toggle("Voice Notes", vr_notes).help("Raise your off hand to your mouth and hold Y to record a note, with a screenshot and where you are; they go to quakevr/notes."),
         header("Feel"),
@@ -305,6 +318,38 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
     };
 }
 
+// Gore (vr_gore.cpp, vr_decals.cpp, vr_bodyblood.cpp; the QC's gibs sticking: vr_carry.qc).
+[[nodiscard]] std::vector<Item> pageGore()
+{
+    return {
+        cycle("Gore", vr_gore, {{0.f, "Quake VR"}, {1.f, "More"}, {2.f, "Over the top"}})
+            .help("Over the top: hits spray blood onto the walls, floor and ceiling behind, gibbing paints the room, pools spread under corpses, gibs stick to ceilings and drip."),
+        header("Hits, Gibs and Corpses"),
+        slider("Blood Sprays", vr_gore_spray, 0.f, 3.f, 0.25f, "%.2fx")
+            .help("How many splats a hit or a gibbing throws onto the walls, floor and ceiling round it (0 none)."),
+        slider("Splat Size", vr_gore_size, 0.5f, 2.f, 0.1f, "%.1fx").help("How big the gore's splats, pools and runs are."),
+        slider("Blood Pools", vr_gore_pools, 0.f, 2.f, 0.1f, "%.1fx").help("Pools of blood spreading under corpses and gibs: their size (0 none)."),
+        slider("Dripping", vr_gore_drips, 0.f, 3.f, 0.25f, "%.2fx")
+            .help("Blood dripping from splats on the ceiling and from gibs stuck there: how long and how much (0 none)."),
+        slider("Gibs Stick", vr_gore_stick, 0.f, 30.f, 1.f, "%.0f s")
+            .help("Gibs flung into a ceiling or a wall may stick there about this long, dripping, then fall (0 never)."),
+        header("Your Wounds"),
+        slider("Arm Drip Rate", vr_body_blood, 0.f, 4.f, 0.25f, "%.2fx")
+            .help("How often blood drips from your wounded arms and hands (the body's wounds: Show Armour and Wounds; 0 none)."),
+        slider("Drop Size", vr_body_blood_amount, 0.5f, 3.f, 0.25f, "%.2fx").help("How big the drops are and how much they splash."),
+        slider("Drips Round Feet", vr_body_blood_floor, 0.f, 4.f, 0.25f, "%.2fx")
+            .help("While wounded, blood drips from your body round your feet, faster when badly hurt or just hit (0 none)."),
+        slider("Drops Mark Floor", vr_body_blood_marks, 0.f, 1.f, 0.05f, "%.2f").help("The chance a drop leaves a mark on the floor."),
+        slider("Floor Mark Size", vr_body_blood_mark_size, 0.5f, 4.f, 0.25f, "%.2fx"),
+        header("Marks"),
+        toggle("Decals", vr_decals).help("Blood, scorch marks and bullet chips on walls and floors (the gore needs them)."),
+        slider("Max Decals", vr_decal_max, 64.f, 4096.f, 64.f, "%.0f").help("The oldest go first. The gore makes many: 1024 or more."),
+        slider("Decal Lifetime", vr_decal_life, 10.f, 600.f, 10.f, "%.0f s"),
+        toggle("Gib Blood", vr_gib_blood).help("Gibs and heads leave a trail of blood drops and splat where they hit walls and floors. Off: Quake's trail."),
+        slider("Gib Blood Trail", vr_gib_blood_trail, 0.f, 3.f, 0.25f, "%.2fx").help("How dense their trail of blood and drops is (0 none)."),
+    };
+}
+
 [[nodiscard]] std::vector<Item> pageGadget()
 {
     return {
@@ -320,15 +365,25 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Roll", vr_gadget_roll, -180.f, 180.f, 15.f, "%.0f deg")
             .help("Turns the screen: 90 reads along the arm, 180 turns the text the other way."),
         header("Colours"),
-        slider("Screen Hue", vr_gadget_screen_hue, 0.f, 355.f, 5.f, "%.0f")
-            .help("The screen's colour: 128 green, 40 amber, 200 blue, 0 red."),
+        slider("Player Effects Hue", vr_player_hue, 0.f, 355.f, 5.f, "%.0f")
+            .help("One colour for all your effects: this screen, your weapons' screens and sights, the force grab, the teleport arc, the crosshair, the menu laser. 128 green, 40 amber, 200 blue, 0 red."),
+        slider("Player Effects Saturation", vr_player_saturation, 0.f, 2.f, 0.05f, "%.2f")
+            .help("How colourful they are: 1 as made, 0 white."),
+        hueSlider("Screen Hue", vr_gadget_screen_hue)
+            .help("The screen's colour (and your weapons' screens'). Player's: the Player Effects Hue."),
         slider("Screen Brightness", vr_gadget_screen_brightness, 0.3f, 1.5f, 0.05f, "%.2f"),
         slider("Screen Background", vr_gadget_screen_background, 0.f, 4.f, 0.1f, "%.1f"),
         slider("Casing Tint", vr_gadget_tint, 0.f, 1.f, 0.05f, "%.2f").help("0 keeps the casing's own olive drab."),
         slider("Casing Tint Hue", vr_gadget_tint_hue, 0.f, 355.f, 5.f, "%.0f"),
-        slider("Weapon Sight Hue", vr_sight_hue, 0.f, 355.f, 5.f, "%.0f")
-            .help("The glowing iron sights of the shotgun and double shotgun: 30 their own orange, 0 red, 120 green, 240 blue."),
+        hueSlider("Weapon Sight Hue", vr_sight_hue)
+            .help("The glowing iron sights of the shotgun and double shotgun: 30 their own orange, 0 red, 120 green, 240 blue. Player's: the Player Effects Hue."),
         slider("Weapon Sight Saturation", vr_sight_saturation, 0.f, 2.f, 0.05f, "%.2f").help("1 their own, 0 white."),
+        hueSlider("Force Grab Hue", vr_forcegrab_hue)
+            .help("The force grab's beam, energy tendril, glow and sparkles: 215 its old blue. Player's: the Player Effects Hue."),
+        hueSlider("Teleport Arc Hue", vr_teleport_hue)
+            .help("Where the teleport arc can land (red where it can't): 220 its old blue. Player's: the Player Effects Hue."),
+        hueSlider("Crosshair Hue", vr_crosshair_hue).help("The laser crosshair: 0 its old red. Player's: the Player Effects Hue."),
+        hueSlider("Menu Laser Hue", vr_menu_laser_hue).help("The menu's pointer: 35 its old amber. Player's: the Player Effects Hue."),
         header("Screen"),
         toggle("Level and Stats", vr_gadget_show_level),
         slider("Screen Light", vr_gadget_light, 0.f, 3.f, 0.1f, "%.1fx")
@@ -455,6 +510,7 @@ const Page pages[] = {
     {"Play", pagePlay},
     {"Gameplay", pageGameplay},
     {"Body", pageBody},
+    {"Gore", pageGore},
     {"Wrist Gadget", pageGadget},
     {"Throwing and Physics", pageThrowing},
     {"Force Grab", pageForceGrab},
@@ -787,7 +843,8 @@ void change(const Item& item, int dir)
         {
             float v = item.cvar->value + dir * item.step;
             v = std::round(v / item.step) * item.step;
-            Cvar_SetValueQuick(item.cvar, CLAMP(item.min, v, item.max));
+            v = CLAMP(item.min, v, item.max);
+            Cvar_SetValueQuick(item.cvar, item.negativeLabel && v < 0.f ? -1.f : v);
             break;
         }
         case Item::Cycle:
@@ -890,6 +947,10 @@ void setSliderAt(const Item& item, float cx)
     float v = item.min + frac * (item.max - item.min);
     v = std::round(v / item.step) * item.step;
     v = CLAMP(item.min, v, item.max);
+    if(item.negativeLabel && v < 0.f)
+    {
+        v = -1.f;
+    }
     if(v != item.cvar->value)
     {
         Cvar_SetValueQuick(item.cvar, v);
@@ -915,7 +976,14 @@ void drawItem(const Item& item, int y, bool selected)
     {
         case Item::Slider:
         {
-            q_snprintf(buf, sizeof(buf), item.format, item.cvar->value);
+            if(item.negativeLabel && item.cvar->value < 0.f)
+            {
+                q_strlcpy(buf, item.negativeLabel, sizeof(buf));
+            }
+            else
+            {
+                q_snprintf(buf, sizeof(buf), item.format, item.cvar->value);
+            }
             const float range = (item.cvar->value - item.min) / (item.max - item.min);
             M_DrawSlider(midPos, y, CLAMP(0.f, range, 1.f), buf);
             break;
@@ -1027,6 +1095,17 @@ void qvr::menu::command_f()
 int qvr::menu::currentPage()
 {
     return page;
+}
+
+const cvar_t* qvr::menu::selectedSetting()
+{
+    if(m_state != m_vr)
+    {
+        return nullptr;
+    }
+    const auto& list = items(page);
+    const int cursor = cursors[page];
+    return cursor >= 0 && cursor < static_cast<int>(list.size()) ? list[cursor].cvar : nullptr;
 }
 
 void qvr::menu::reopen(int target)

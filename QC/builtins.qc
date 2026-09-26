@@ -155,6 +155,7 @@ void(float hand, float kind, float count, float delay, float flags) ejectcasings
 float QVR_CASING_SHOTGUNSHELL = 0;
 float QVR_EJECT_FLICK = 1; // a flick reload: flung by the spinning weapon
 vector(entity e, vector handangles, float grab) carryangles = #0; // a held object's angles: at the grip (grab 1) its turn in the hand is kept; after, it turns with the hand
+vector(entity e, vector handpos, vector palm) carryfit = #0; // at the grip: how far to move it (the way the palm faces) to sit against the palm, not in the fist (vr_held_surface_fit)
 void(vector ang) makeforward = #0; // sets v_forward
 vector(entity e, float max) modelbounds = #0; // the model's mins (max 0) or maxs, in model space
 vector(entity e) modelcentre = #0; // the middle of the drawn model (turned with it, scaled and offset as drawn), in the world

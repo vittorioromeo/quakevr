@@ -15,6 +15,15 @@
 // from the model's forward, and to its left); the holding hand is turned (the least turn) until
 // the blade, drawn as the view draws it, lies along that line. No virtual stock.
 //
+// Weapons may have more than one two-handed grip (round 18). A sword has two: the grip below the
+// holding hand (above), and its blade towards the tip (weapon key TwoHBladeGrip, a share of the way
+// from the hand to the tip): the "half-sword" grip, the blade held across the body with the helping
+// hand on it, like a staff. The helping hand takes the nearest grip in reach (the blade: within 6
+// units of its outer part); with the blade grip the blade lies along the line from the holding hand
+// (at the hilt, leading) through the helping hand, and the helping hand is drawn on the blade
+// (bladeGripHand). The server sees two-handed aiming as with the other grip: a level blade held so
+// parries and bashes (QC VR_Parry_Blocks) and swings as a two-handed sword.
+//
 // Hand-off (vr_2h_handoff; the server's side is QC VRTryHandOff): when the holding hand lets go of a
 // weapon held two-handed, the helping hand keeps it. A sword simply changes hands. A gun hangs from
 // its foregrip (QVR_WPNFLAG_FOREGRIP_CARRIED in the carrying hand's weapon flags): drawn as the hand
@@ -66,6 +75,22 @@ float aimTransition[2]{0.f, 0.f};   // per holding hand, 0..1
 float stockTransition[2]{0.f, 0.f}; // per holding hand, 0..1
 bool shouldAim[2]{false, false};    // per holding hand
 bool helpingHand[2]{false, false};
+
+// A weapon's two-handed grips (round 18): where on it the helping hand may take hold. The nearest
+// within reach takes it; once held, that grip holds on until the hand lets go or moves off it.
+enum GripKind : int
+{
+    GRIP_FOREGRIP = 0, // the "fixed" display mode's grip point: a gun's foregrip, a sword's grip below the hand
+    GRIP_BLADE = 1,    // a sword's blade towards its tip (weapon key TwoHBladeGrip): the half-sword grip
+};
+int grip[2]{GRIP_FOREGRIP, GRIP_FOREGRIP}; // per holding hand: the grip held (or last held, while letting go)
+float gripLength[2]{0.f, 0.f};             // per holding hand: the hand-to-tip length when the blade was taken
+
+constexpr float foregripTake = 5.5f;  // units from the grip point to take hold
+constexpr float foregripKeep = 20.f;  // and to keep it
+constexpr float bladeTake = 6.f;      // units from the blade's outer part (TwoHBladeGrip -0.3 .. the tip)
+constexpr float bladeKeepMin = 0.25f; // the hands kept this share of the blade's length apart,
+constexpr float bladeKeepMax = 1.35f; // at most this
 
 double lastTime = -1.0;
 
@@ -179,6 +204,14 @@ void transition(float& var, bool on, float speed)
     return hands::anglesFromVectors(turn(fwd), turn(up));
 }
 
+[[nodiscard]] float segmentDistance(const glm::vec3& p, const glm::vec3& a, const glm::vec3& b)
+{
+    const glm::vec3 ab = b - a;
+    const float len2 = glm::dot(ab, ab);
+    const float t = len2 > 0.f ? std::clamp(glm::dot(p - a, ab) / len2, 0.f, 1.f) : 0.f;
+    return glm::distance(p, a + ab * t);
+}
+
 void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding, int helping, int slot)
 {
     const glm::vec3 holdingPos = s.pos[holding];
@@ -190,18 +223,62 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     }
     helpingPos += hands::redirect(off, originalRots[holding]);
 
-    const glm::vec3 line = safeNormalize(holdingPos - helpingPos); // pommel to blade
     const glm::vec3 blade = bladeDirection(slot, holding, originalRots[holding]);
-
-    // Take hold at the grip point below the holding hand, keep it a little further off. Unlike a
-    // gun's, the grip holds when the blade touches a wall or the floor (a swing's end): the hands are
-    // kept out of walls anyway, and letting go would turn the sword back mid-swing.
-    const bool goodDistance =
-        s.grip2HValid[holding] && glm::distance(s.pos[helping], s.grip2H[holding]) < (shouldAim[holding] ? 20.f : 5.5f);
     const bool canGrab = client::grabbing(helping) && weaponId(helping) == widFist;
-    const bool goodDot = vr_2h_angle_threshold.value <= -1.f || glm::dot(line, blade) > vr_2h_angle_threshold.value;
 
-    shouldAim[holding] = canGrab && goodDistance && goodDot;
+    // The grips (round 18). The grip point below the holding hand (GRIP_FOREGRIP): the blade along the
+    // line from the helping hand through the holding hand. Unlike a gun's, it holds when the blade
+    // touches a wall or the floor (a swing's end): the hands are kept out of walls anyway, and
+    // letting go would turn the sword back mid-swing. The blade towards the tip (GRIP_BLADE, the
+    // half-sword grip): the blade along the line from the holding hand (at the hilt) through the
+    // helping hand, wherever the holding hand's wrist points it.
+    const float foreDist = s.grip2HValid[holding] ? glm::distance(s.pos[helping], s.grip2H[holding]) : 1e9f;
+    const float bladeAt = weapons::value(slot, Key::TwoHBladeGrip);
+    const float length = s.muzzleValid[holding] ? glm::distance(holdingPos, s.muzzle[holding]) : 0.f;
+    float bladeDist = 1e9f;
+    if(bladeAt > 0.f && length > 8.f)
+    {
+        const glm::vec3 toTip = s.muzzle[holding] - holdingPos;
+        bladeDist = segmentDistance(s.pos[helping], holdingPos + toTip * std::max(0.3f, bladeAt - 0.3f), holdingPos + toTip * 1.05f);
+    }
+
+    bool held = false;
+    if(canGrab && shouldAim[holding])
+    {
+        // Held: the grip holds on.
+        if(grip[holding] == GRIP_BLADE)
+        {
+            const float apart = glm::distance(holdingPos, s.pos[helping]);
+            held = apart > gripLength[holding] * bladeKeepMin && apart < gripLength[holding] * bladeKeepMax;
+        }
+        else
+        {
+            held = foreDist < foregripKeep;
+        }
+    }
+    else if(canGrab)
+    {
+        // Taking hold: the nearest grip within reach.
+        if(bladeDist < bladeTake && bladeDist < foreDist)
+        {
+            grip[holding] = GRIP_BLADE;
+            gripLength[holding] = length;
+            held = true;
+        }
+        else if(foreDist < foregripTake)
+        {
+            grip[holding] = GRIP_FOREGRIP;
+            held = true;
+        }
+    }
+
+    const glm::vec3 line = grip[holding] == GRIP_BLADE ? safeNormalize(s.pos[helping] - holdingPos) // hilt to tip
+                                                       : safeNormalize(holdingPos - helpingPos);    // pommel to blade
+    // The blade grip is on the blade already: the wrist may point it anywhere.
+    const bool goodDot = grip[holding] == GRIP_BLADE || vr_2h_angle_threshold.value <= -1.f ||
+                         glm::dot(line, blade) > vr_2h_angle_threshold.value;
+
+    shouldAim[holding] = held && goodDot;
     helpingHand[helping] = shouldAim[holding];
     transition(aimTransition[holding], shouldAim[holding], 5.f);
     stockTransition[holding] = 0.f;
@@ -352,12 +429,57 @@ bool helping(int hand)
     return helpingHand[hand];
 }
 
+bool bladeGrip(int hand)
+{
+    return aimTransition[hand] > 0.f && grip[hand] == GRIP_BLADE;
+}
+
+bool bladeGripHand(const hands::State& s, int hand, const glm::vec3& holderPos, const glm::vec3& holderRot, glm::vec3& pos,
+    glm::vec3& rot)
+{
+    const int holding = 1 - hand;
+    const int slot = weapons::heldSlot(holding);
+    if(!bladeGrip(holding) || !s.muzzleValid[holding] || slot < 0)
+    {
+        return false;
+    }
+
+    // The blade's axis, as drawn: through its tip, along its direction.
+    const glm::vec3 d = bladeDirection(slot, holding, s.visualRot[holding]);
+    const glm::vec3 tip = s.muzzle[holding];
+    const auto onAxis = [&](const glm::vec3& p) { return tip + d * glm::dot(p - tip, d); };
+    const auto local = [](const glm::vec3& v, const glm::vec3& angles) {
+        glm::vec3 f, r, u;
+        hands::angleVectors(angles, f, r, u);
+        return glm::vec3{glm::dot(v, f), glm::dot(v, r), glm::dot(v, u)};
+    };
+
+    // How the holding hand holds it, in its own frame: the hand's origin off the blade's axis, and the
+    // blade's direction. The helping hand is the other hand, drawn mirrored: the same grip, mirrored.
+    glm::vec3 o = local(holderPos - onAxis(holderPos), holderRot);
+    glm::vec3 g = local(d, holderRot);
+    o.y = -o.y;
+    g.y = -g.y;
+
+    // The helping hand as tracked, turned (the least turn) until its grip lies along the blade, either
+    // way round (the thumb towards the tip or towards the hilt).
+    const glm::vec3 gw = safeNormalize(hands::redirect(g, rot));
+    rot = turnAngles(rot, gw, glm::dot(gw, d) >= 0.f ? d : -d);
+
+    // Slid onto the blade where it holds it, between the hilt and the tip.
+    const float hilt = glm::dot(holderPos - tip, d); // negative
+    const float along = std::clamp(glm::dot(pos - hands::redirect(o, rot) - tip, d), hilt * 0.75f, hilt * 0.05f);
+    pos = tip + d * along + hands::redirect(o, rot);
+    return true;
+}
+
 void reset()
 {
     for(int h = 0; h < 2; h++)
     {
         aimTransition[h] = stockTransition[h] = 0.f;
         shouldAim[h] = helpingHand[h] = false;
+        grip[h] = GRIP_FOREGRIP;
         help[h] = HelpRecord{};
         carryWasOn[h] = carryPoseValid[h] = handleValid[h] = false;
     }

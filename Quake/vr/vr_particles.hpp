@@ -7,7 +7,8 @@
 // their lights), the tarbaby's explosion, lava splashes and teleports. The textures are
 // quakevr/textures/particle_*.tga (and a generated disc and glow), premultiplied and mipmapped;
 // glows are added to the scene, the rest alpha blended, in one draw through vr_gfx in the scene's
-// translucent pass (VR_DrawSceneTranslucent).
+// translucent pass (VR_DrawSceneTranslucent). With vr_soft_particles they fade out close in front of the opaque scene
+// (its distances: vr_water.hpp), as do the sprites (explosions, bubbles), left to that pass by r_sprite.c.
 //
 // vr_particles 0 falls back to Quake's own particle effects.
 
@@ -37,9 +38,12 @@ enum class Preset : int
     BloodTrail,     // vr_decals.cpp: behind a flying gib (`dir`: the way it goes)
     // Something hitting water, slime or lava (sent by the server's water splashes, vr_physics.cpp, and
     // QC's watersplash builtin): `org` on the surface, `dir` the way it went in, `count` how hard
-    // (4 a bullet, 6-15 a hand or a thrown thing, 20-50 a body). Drops thrown up and out in a crown,
-    // foam and rings spreading on the surface, in the liquid's colour (lava glows and throws
-    // embers); vr_water_splash scales them (0 off).
+    // (4 a bullet, 6-15 a hand or a thrown thing, 20-50 a body). Drops streaked along their motion
+    // thrown up in a crown and a jet, fine spray, clouds of spray and mist, foam and rings lying on
+    // the surface (on its waves), in the liquid's colour (lava glows and throws embers);
+    // vr_water_splash scales how many (0 off), vr_water_splash_size how big, _ring_speed and
+    // _ring_size the rings. Also the ripples on the liquid (water::addRipple), with or without
+    // Quake VR's particles (as an explosion under a surface does).
     Splash
 };
 
@@ -52,6 +56,12 @@ bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count)
 
 // Removes them all (a new map, a disconnect).
 void clear();
+
+// The gore's drops (vr_gore.cpp): one falling straight down from `org` for `fall` seconds (Quake's
+// gravity) until it reaches `floorZ`, `size` about as big as a particle's scale, in `color` (lit
+// already); and `count` tiny specks thrown up off `normal` where one lands.
+void bloodDrip(const glm::vec3& org, float fall, float floorZ, float size, const glm::vec3& color);
+void bloodSpecks(const glm::vec3& org, const glm::vec3& normal, int count, const glm::vec3& color);
 
 // Spent casings (vr_shells.cpp): a faint puff of smoke and a few tiny sparks where one is thrown
 // out going `dir` (`smoke` how much: a hot breech smokes more), and the thin wisp one trails from

@@ -23,13 +23,18 @@ layout(location = 0) uniform mat4 MVP;
 layout(location = 0) in vec3 Pos;
 layout(location = 1) in vec2 UV;
 layout(location = 2) in vec4 Color;
+layout(location = 3) in float Soft;
 out vec2 uv;
 out vec4 color;
+out float soft;
+out float viewDepth;
 void main()
 {
     uv = UV;
     color = Color;
+    soft = Soft;
     gl_Position = MVP * vec4(Pos, 1.0);
+    viewDepth = gl_Position.w; // the distance along the view (a perspective projection's w)
 }
 )";
 
@@ -48,9 +53,13 @@ constexpr const char* fragmentShader = R"(#version 430
 layout(location = 1) uniform int Mode;
 layout(location = 2) uniform vec4 Params;
 layout(location = 3) uniform vec3 Size; // Mode 4's virtual screen: pixels across, down, scanlines a pixel
+layout(location = 4) uniform int SoftOn; // State::sceneDistances on unit 1
 layout(binding = 0) uniform sampler2D Tex;
+layout(binding = 1) uniform sampler2D SceneDistances;
 in vec2 uv;
 in vec4 color;
+in float soft;
+in float viewDepth;
 out vec4 result;
 float hash(vec2 p)
 {
@@ -164,6 +173,14 @@ void main()
     {
         result = color;
     }
+    // Soft: fading out as the opaque scene comes close behind (premultiplied: all four). The distances are half the
+    // target's size, each the nearest of its four pixels.
+    if(SoftOn != 0 && soft > 0.0)
+    {
+        ivec2 p = min(ivec2(gl_FragCoord.xy) >> 1, textureSize(SceneDistances, 0) - 1);
+        float f = clamp((texelFetch(SceneDistances, p, 0).r - viewDepth) / soft, 0.0, 1.0);
+        result *= f * f * (3.0 - 2.0 * f);
+    }
 }
 )";
 
@@ -275,7 +292,7 @@ void draw(std::span<const Vertex> triangles, const glm::mat4& mvp, const State& 
         return;
     }
 
-    unsigned flags = GLS_CULL_NONE | GLS_ATTRIBS(3);
+    unsigned flags = GLS_CULL_NONE | GLS_ATTRIBS(4);
     flags |= state.blend == Blend::Opaque ? GLS_BLEND_OPAQUE : GLS_BLEND_ALPHA;
     if(!state.depthTest)
     {
@@ -307,9 +324,14 @@ void draw(std::span<const Vertex> triangles, const glm::mat4& mvp, const State& 
         GL_Uniform4fFunc(2, state.params.x, state.params.y, state.params.z, state.params.w);
         GL_Uniform3fFunc(3, state.screen.x, state.screen.y, state.screen.z);
     }
+    GL_Uniform1iFunc(4, state.sceneDistances ? 1 : 0);
     if(texture)
     {
         GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, texture);
+    }
+    if(state.sceneDistances)
+    {
+        GL_BindNative(GL_TEXTURE1, GL_TEXTURE_2D, state.sceneDistances);
     }
 
     // Into the frame's upload buffer, like Ironwail's own dynamic geometry.
@@ -320,6 +342,7 @@ void draw(std::span<const Vertex> triangles, const glm::mat4& mvp, const State& 
     GL_VertexAttribPointerFunc(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), ofs + offsetof(Vertex, pos));
     GL_VertexAttribPointerFunc(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), ofs + offsetof(Vertex, uv));
     GL_VertexAttribPointerFunc(2, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), ofs + offsetof(Vertex, color));
+    GL_VertexAttribPointerFunc(3, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex), ofs + offsetof(Vertex, soft));
     glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(triangles.size()));
     GL_BindBuffer(GL_ARRAY_BUFFER, 0);
 

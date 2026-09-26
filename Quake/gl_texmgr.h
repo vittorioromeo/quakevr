@@ -156,6 +156,7 @@ gltexture_t *TexMgr_LoadImageEx (qmodel_t *owner, const char *name, int width, i
 void TexMgr_ReloadImage (gltexture_t *glt, int shirt, int pants);
 void TexMgr_ReloadImages (void);
 void TexMgr_ReloadNobrightImages (void);
+void TexMgr_ReloadAlphaTested (void); // QVR: as vr_alpha_coverage changes
 
 int TexMgr_Pad(int s);
 int TexMgr_SafeTextureSize (int s);

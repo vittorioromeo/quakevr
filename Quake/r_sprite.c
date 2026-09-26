@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //r_sprite.c -- sprite model rendering
 
 #include "quakedef.h"
+#include "vr/vr_api_render.h" // QVR
 
 typedef struct spritevert_t {
 	vec3_t		pos;
@@ -38,6 +39,14 @@ static qboolean batchshowtris;
 
 static GLushort batchindices[6 * MAX_BATCH_SPRITES];
 static qboolean batchindices_init = false;
+
+// QVR: soft sprites (vr/vr_particles.cpp): left by the opaque pass, drawn after the translucent one, fading out close in
+// front of the scene (premultiplied, writing depth where they are, as in the opaque pass)
+static entity_t **softsprites;
+static int numsoftsprites;
+static qboolean softpass;
+static GLuint softdistances;
+static float batchsoftfade;
 
 /*
 ================
@@ -157,8 +166,16 @@ static void R_FlushSpriteInstances (void)
 
 	if (showtris)
 		GL_SetState (GLS_BLEND_OPAQUE | GLS_NO_ZWRITE | GLS_CULL_BACK | GLS_ATTRIBS(2));
+	else if (softpass) // QVR
+	{
+		GL_SetState (GLS_BLEND_ALPHA | GLS_CULL_BACK | GLS_ATTRIBS(2));
+		glBlendFunc (GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+	}
 	else
 		GL_SetState (GLS_BLEND_OPAQUE | GLS_CULL_BACK | GLS_ATTRIBS(2));
+	GL_Uniform4fFunc (0, softpass && softdistances ? batchsoftfade : 0.f, softpass ? 1.f : 0.f, 0.f, 0.f); // QVR
+	if (softpass && softdistances) // QVR
+		GL_BindNative (GL_TEXTURE1, GL_TEXTURE_2D, softdistances);
 
 	GL_Bind (GL_TEXTURE0, showtris ? whitetexture : batchtexture);
 
@@ -170,6 +187,8 @@ static void R_FlushSpriteInstances (void)
 	GL_Upload (GL_ELEMENT_ARRAY_BUFFER, batchindices, sizeof(batchindices[0]) * 6 * numbatchquads, &buf, &ofs);
 	GL_BindBuffer (GL_ELEMENT_ARRAY_BUFFER, buf);
 	glDrawElements (GL_TRIANGLES, 6 * numbatchquads, GL_UNSIGNED_SHORT, ofs);
+	if (softpass) // QVR
+		glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // what GLS_BLEND_ALPHA expects
 
 	//johnfitz: offset decals
 	if (psprite->type == SPR_ORIENTED)
@@ -194,6 +213,7 @@ static void R_DrawSpriteModel_Real (entity_t *e, qboolean showtris)
 	float			angle, sr, cr;
 	spritevert_t	*verts;
 	float			scale = ENTSCALE_DECODE(e->scale);
+	float			softfade = 0.f; // QVR
 
 	frame = R_GetSpriteFrame (e);
 	psprite = (msprite_t *) e->model->cache.data;
@@ -248,8 +268,12 @@ static void R_DrawSpriteModel_Real (entity_t *e, qboolean showtris)
 		return;
 	}
 
+	if (softpass && softdistances && psprite->type != SPR_ORIENTED) // QVR: not those lying on walls
+		softfade = VR_SoftSpriteFade (0.5f * q_max (frame->right - frame->left, frame->up - frame->down) * scale);
+
 	if (numbatchquads)
-		if (numbatchquads == countof(batchverts) / 4 || batchmodel != e->model || batchtexture != frame->gltexture)
+		if (numbatchquads == countof(batchverts) / 4 || batchmodel != e->model || batchtexture != frame->gltexture
+			|| batchsoftfade != softfade) // QVR
 			R_FlushSpriteInstances ();
 
 	if (!numbatchquads)
@@ -257,6 +281,7 @@ static void R_DrawSpriteModel_Real (entity_t *e, qboolean showtris)
 		batchmodel = e->model;
 		batchtexture = frame->gltexture;
 		batchshowtris = showtris;
+		batchsoftfade = softfade; // QVR
 	}
 	verts = batchverts + numbatchquads * 4;
 	++numbatchquads;
@@ -287,9 +312,49 @@ R_DrawSpriteModels
 void R_DrawSpriteModels (entity_t **ents, int count)
 {
 	int i;
+	if (VR_SoftSprites ()) // QVR: left for R_DrawSpriteModelsSoft
+	{
+		softsprites = ents;
+		numsoftsprites = count;
+		return;
+	}
 	for (i = 0; i < count; i++)
 		R_DrawSpriteModel_Real (ents[i], false);
 	R_FlushSpriteInstances ();
+}
+
+/*
+=================
+R_SoftSpritesPending -- QVR
+
+Whether sprites were left for R_DrawSpriteModelsSoft this view.
+=================
+*/
+qboolean R_SoftSpritesPending (void)
+{
+	return numsoftsprites > 0;
+}
+
+/*
+=================
+R_DrawSpriteModelsSoft -- QVR
+
+The sprites R_DrawSpriteModels left, after the translucent pass (vr/vr_particles.cpp): fading out close in front of
+the opaque scene, its distances along the view `distances` (0: none, drawn hard).
+=================
+*/
+void R_DrawSpriteModelsSoft (GLuint distances)
+{
+	int i;
+	if (!numsoftsprites)
+		return;
+	softpass = true;
+	softdistances = distances;
+	for (i = 0; i < numsoftsprites; i++)
+		R_DrawSpriteModel_Real (softsprites[i], false);
+	R_FlushSpriteInstances ();
+	softpass = false;
+	numsoftsprites = 0;
 }
 
 /*

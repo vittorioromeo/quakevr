@@ -40,14 +40,20 @@ void VR_OverrideProjection (float matrix[16]);			// R_SetFrustum: the eye's asym
 void VR_DrawHiddenArea (void);							// R_RenderScene, after R_Clear: the lenses' hidden area at the near plane (vr_visibility_mask)
 void VR_DrawSceneOpaque (void);							// R_RenderScene, after the opaque entities
 void VR_WaterView (int contents, int *waterwarp);			// R_SetupView, after r_waterwarp: the liquids' look this view (the eye in `contents`); may turn the warp off
+void VR_DetailView (void);								// R_SetupView: the detail textures' settings this view (frame data), their array on unit 12 (vr_detail.cpp)
+struct texture_s;
+void VR_DetailCall (const struct texture_s *t, float out[4]);	// R_AddBModelCall: a texture's detail (s and t scales, strength, layer; zero: none)
 void VR_WaterFog (float fog[4], float skyfog[4]);			// Fog_SetupFrame: an eye's fog in a liquid (vr_water.cpp)
 void VR_PostProcessWater (void);						// GL_PostProcess, program in use: an eye's underwater wobble and blur
-unsigned VR_WaterSceneDepth (void);					// translucent water drawn: how far the opaque scene is, to refract by (0: none)
+unsigned VR_WaterSceneDepth (int translucent);		// liquids drawn: how far the opaque scene is, to refract by and for the foam (0: none)
 void VR_WaterMarkVis (const unsigned char *vis);		// R_MarkSurfaces: the geometric waves' mesh faces seen this view (vis: the PVS, null all)
 int VR_WaterMeshActive (void);							// R_DrawBrushModels_Water: nonzero to draw the world's liquids from that mesh
 int VR_WaterMeshRanges (int texnum, const unsigned **ranges);	// ... its (first index, count) pairs for a world texture
-void VR_WaterMeshBind (void);							// ... binds its buffers, attributes 0-4 (4: the swells' pin)
+void VR_WaterMeshBind (void);							// ... binds its buffers, attributes 0-4 (4: the swells' pin, the foam's distance to the shore)
+void VR_DrawHeatHaze (void);								// R_RenderScene, after the translucent pass: heat haze (vr_haze.cpp)
 void VR_DrawSceneTranslucent (void);						// R_RenderScene, after the translucent pass (particles, blended 3D text)
+int VR_SoftSprites (void);								// R_DrawSpriteModels: nonzero to leave the sprites to VR_DrawSceneTranslucent, soft (R_DrawSpriteModelsSoft)
+float VR_SoftSpriteFade (float radius);				// ... how close in front of the scene a sprite of that radius fades out
 
 // The 2D layer (gl_screen.c, gl_vidsdl.c): drawn to a canvas shown in the headset.
 void VR_Begin2D (void);									// SCR_UpdateScreen, before GL_Set2D
@@ -65,7 +71,11 @@ void VR_BrushTransform (const struct entity_s *e, float matrix[16]);		// brush e
 int VR_AliasZeroBlend (const struct entity_s *e, const void *aliashdr, int totalverts); // instance padding
 void VR_AliasLightModifier (const struct entity_s *e, float lightcolor[3]); // end of R_SetupAliasLighting
 void VR_AliasLightDir (const struct entity_s *e, float dir[4]);	// instance: the direction the model is shaded from (w 0: the fixed one)
+void VR_AliasAmbient (const struct entity_s *e, const float matrix[16], const void *aliashdr, int enabled, float cube[24]); // instance: the light around it, 6 faces (vr_ambient.cpp)
+void VR_AliasSurface (const struct entity_s *e, float out[4]); // instance: rim light, reflections' strength and blur (vr_envmap.cpp)
+unsigned VR_EnvCubeTexture (void);							// the reflections' cube map (0: none yet; vr_envmap.cpp)
 float VR_EntityGlow (const struct entity_s *e);				// the force grab glow round an entity (0..1)
+void VR_EntityGlowColor (float rgb[3]);						// and its colour (the player's hue; SceneTone.yzw in the frame data)
 float VR_EntityFullbrightBoost (const struct entity_s *e);	// how much brighter its dim fullbright texels shine (0 none): the held weapons' sights (vr_weapon_glow)
 void VR_AliasLightCurve (float lightcolor[3]);				// R_SetupAliasLighting, before the minimum light: the lightmap contrast
 int VR_ModelDlightsPerPixel (void);						// R_SetupAliasLighting: nonzero to skip adding dynamic lights (the shader does)
@@ -81,6 +91,8 @@ float VR_PostProcessBloom (void);								// GL_PostProcess: an eye's glow bound 
 void VR_PostProcessGamma (float *gamma, float *contrast);	// GL_PostProcess: while rendering an eye, the headset's (vr_gamma, vr_contrast)
 int VR_TextureSmoothing (void);							// TexMgr_ApplySettings: 1 replacement textures smooth, 2 all (vr_texture_smooth)
 int VR_NormalMaps (void);								// Mod_LoadTextures, skins: nonzero to make normal maps (vr_normalmaps)
+int VR_AlphaMipCoverage (void);							// TexMgr_LoadImage32: nonzero to keep alpha-tested textures' coverage in their mips (vr_alpha_coverage)
+int VR_AlphaToCoverage (void);							// alpha-tested draws (r_world.c, r_alias.c): nonzero for alpha to coverage (vr_alpha_coverage, with MSAA)
 float VR_ParallaxDepth (const struct entity_s *e, const float matrix[16], const float modelscale[3]); // instance: its parallax depth in units (0 off); matrix the drawn one, modelscale an alias model's (NULL: a brush model)
 int VR_ModelLightParity (void);							// R_SetupAliasLighting: models as bright as the floor under them
 float VR_ModelBumps (const struct entity_s *e);				// instance: how much the skin's bumps shade the model's own light (0 none)

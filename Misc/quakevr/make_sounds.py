@@ -8,6 +8,9 @@
 #   plip.wav      a shot into water
 #   slosh1/2.wav  wading
 #   stroke1/2.wav swimming strokes
+#   shove.wav, bash.wav, bash_parry.wav, parry.wav  melee contacts other than blows (vr_bash_sound): a
+#                 shove (a whoosh into a thud), a weapon bash (a dull clang on a thud), a parry-bash (a
+#                 scrape and ring over the bash) and a parry (a bright ring of steel)
 #
 # Usage: python Misc/quakevr/make_sounds.py [output sound folder [names of the water/headshot sounds...]]
 
@@ -278,6 +281,138 @@ def stroke(seed):
     return finish(out, 0.8)
 
 
+# ---- Melee feedback (QC vr_juice.qc VR_Bash, combat.qc VR_Parry; docs/vr-port/ROUND18.md) -------------
+# Each kind of contact has its own sound, apart from the blows' (fist and weapon hits keep Quake's):
+# a shove is flesh and air (a whoosh into a heavy thud), a weapon bash is metal driven into a body (a
+# dull clang on a thud), a parry is steel on steel (a bright ring), and a parry-bash (a bash right
+# after a parry) is both: the blade's scrape and ring over the bash's clang and thud.
+
+
+def partials(t, pitch, table):
+    """A struck metal body: inharmonic sine partials (f, amp, decay), the high ones dying first."""
+    return sum(a * math.sin(2 * math.pi * f * pitch * t + f) * math.exp(-t / d) for f, a, d in table)
+
+
+def thud(t, phase, f0=45.0, f1=70.0, tau=0.13):
+    """A heavy low body hit: a sine sweeping from f0 + f1 Hz down to f0 (the phase is carried)."""
+    phase[0] += 2 * math.pi * (f0 + f1 * math.exp(-t / 0.035)) / RATE
+    return math.sin(phase[0]) * math.exp(-t / tau) * min(1.0, t / 0.002)
+
+
+def shove():
+    """Both hands (or an open palm) shoving a body: a short whoosh of air rising into the push, a
+    heavy low thud, and the slap of cloth and flesh (mid noise). No metal."""
+    rng = random.Random(83)
+    n = int(RATE * 0.55)
+    hit = 0.075  # the whoosh leads into the contact
+    air = VarLowPass()
+    air_hp = OnePole(250)
+    slap_lp, slap_hp = OnePole(2600), OnePole(400)
+    body_lp = OnePole(260)
+    phase = [0.0]
+    out = []
+    for i in range(n):
+        t = i / RATE
+        noise = rng.uniform(-1, 1)
+        swell = (t / hit) ** 2 if t < hit else math.exp(-(t - hit) / 0.06)
+        w = air(noise, 400 + 1600 * swell)
+        w -= air_hp(w)
+        whoosh = w * swell * 2.2
+        s = whoosh
+        if t >= hit:
+            u = t - hit
+            slap = (slap_lp(noise) - slap_hp(slap_lp.y)) * math.exp(-u / 0.025) * min(1.0, u / 0.001)
+            body = body_lp(noise) * math.exp(-u / 0.09) * 2.5
+            s += thud(u, phase, 42, 75, 0.14) * 1.3 + slap * 1.1 + body
+        out.append(math.tanh(s * 1.5))
+    return finish(out, 0.92)
+
+
+def bash_weapon():
+    """A weapon's guard driven into a body: a short whoosh, a dull clang (low, heavy metal partials
+    that die fast: a gun's body or a blade's flat, not a ring) on a heavy thud."""
+    rng = random.Random(89)
+    n = int(RATE * 0.55)
+    hit = 0.05
+    air = VarLowPass()
+    air_hp = OnePole(300)
+    click_hp = OnePole(2500)
+    body_lp = OnePole(300)
+    phase = [0.0]
+    table = ((310, 0.55, 0.12), (740, 0.5, 0.09), (1290, 0.4, 0.06), (1980, 0.3, 0.04), (2870, 0.2, 0.025))
+    out = []
+    for i in range(n):
+        t = i / RATE
+        noise = rng.uniform(-1, 1)
+        swell = (t / hit) ** 2 if t < hit else math.exp(-(t - hit) / 0.04)
+        w = air(noise, 500 + 1500 * swell)
+        w -= air_hp(w)
+        s = w * swell * 1.4
+        if t >= hit:
+            u = t - hit
+            click = (noise - click_hp(noise)) * math.exp(-u / 0.002)
+            clang = partials(u, 1.0, table) * min(1.0, u / 0.0005)
+            s += click * 0.7 + clang * 0.9 + thud(u, phase, 48, 80, 0.12) * 1.2 + body_lp(noise) * math.exp(-u / 0.07) * 1.8
+        out.append(math.tanh(s * 1.4))
+    return finish(out, 0.92)
+
+
+def parry():
+    """A blow caught on the blade: a sharp strike, a bright ring of steel (high inharmonic partials,
+    long), and a short scrape of edge on edge."""
+    rng = random.Random(97)
+    n = int(RATE * 0.8)
+    click_hp = OnePole(3500)
+    scrape = VarLowPass()
+    scrape_hp = OnePole(1800)
+    table = ((1480, 0.45, 0.30), (2310, 0.55, 0.26), (3390, 0.45, 0.18), (4870, 0.3, 0.12), (6620, 0.2, 0.07),
+             (8150, 0.1, 0.04))
+    out = []
+    for i in range(n):
+        t = i / RATE
+        noise = rng.uniform(-1, 1)
+        click = (noise - click_hp(noise)) * math.exp(-t / 0.0025)
+        ring = partials(t, 1.0 - 0.01 * min(1.0, t / 0.3), table) * min(1.0, t / 0.0004)
+        sc = scrape(noise, 2500 + 4000 * min(1.0, t / 0.08))
+        sc -= scrape_hp(sc)
+        sc *= math.exp(-t / 0.05) * (0.6 + 0.4 * math.sin(2 * math.pi * 55 * t))
+        out.append(click * 0.9 + ring * 0.75 + sc * 1.2)
+    return finish([math.tanh(s * 1.2) for s in out], 0.9)
+
+
+def bash_parry():
+    """A parry-bash (a bash right after a parry): the blade's scrape rising and its bright ring, over
+    the bash's clang and a heavier thud."""
+    rng = random.Random(101)
+    n = int(RATE * 0.8)
+    hit = 0.06
+    shing = VarLowPass()
+    shing_hp = OnePole(2000)
+    click_hp = OnePole(3000)
+    body_lp = OnePole(280)
+    phase = [0.0]
+    ring_table = ((1720, 0.4, 0.28), (2650, 0.5, 0.22), (3980, 0.35, 0.15), (5710, 0.2, 0.09))
+    clang_table = ((330, 0.5, 0.13), (790, 0.45, 0.1), (1370, 0.35, 0.07), (2090, 0.25, 0.045))
+    out = []
+    for i in range(n):
+        t = i / RATE
+        noise = rng.uniform(-1, 1)
+        # The scrape: band noise sweeping up into the hit.
+        sw = min(1.0, t / hit)
+        sh = shing(noise, 2200 + 5000 * sw)
+        sh -= shing_hp(sh)
+        s = sh * (sw ** 2 if t < hit else math.exp(-(t - hit) / 0.03)) * 1.3
+        if t >= hit:
+            u = t - hit
+            click = (noise - click_hp(noise)) * math.exp(-u / 0.002)
+            ring = partials(u, 1.0, ring_table) * min(1.0, u / 0.0004)
+            clang = partials(u, 1.0, clang_table) * min(1.0, u / 0.0005)
+            s += click * 0.8 + ring * 0.6 + clang * 0.7 + thud(u, phase, 44, 85, 0.15) * 1.3 + \
+                body_lp(noise) * math.exp(-u / 0.08) * 2.0
+        out.append(math.tanh(s * 1.4))
+    return finish(out, 0.92)
+
+
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "..", "..", "quakevr", "sound", "vr")
@@ -291,6 +426,10 @@ def main():
         "slosh2.wav": lambda: slosh(47),
         "stroke1.wav": lambda: stroke(53),
         "stroke2.wav": lambda: stroke(71),
+        "shove.wav": shove,
+        "bash.wav": bash_weapon,
+        "bash_parry.wav": bash_parry,
+        "parry.wav": parry,
     }
     only = sys.argv[2:]  # optional: just these
     for name, make in sounds.items():

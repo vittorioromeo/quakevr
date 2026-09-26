@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "vr/vr_api_render.h" // QVR
 #include "vr/vr_profile.h" // QVR
+#include "vr/vr_tonemap.h" // QVR
 
 qboolean	r_cache_thrash;		// compatability
 
@@ -225,7 +226,7 @@ GL_CreateFrameBuffers
 */
 void GL_CreateFrameBuffers (void)
 {
-	GLenum color_format = GL_RGB10_A2;
+	GLenum color_format = VR_SceneColorFormat (GL_RGB10_A2); // QVR: the eyes' is float with vr_tonemap
 	GLenum depth_format = GL_DEPTH24_STENCIL8;
 
 	/* query MSAA limits */
@@ -359,6 +360,8 @@ void GL_PostProcess (void)
 		GL_Uniform4fFunc (0, gamma, contrast, 1.f/r_refdef.scale, dither);
 	GL_Uniform1fFunc (1, VR_PostProcessBloom ()); // QVR: an eye's glow (vr_bloom.cpp)
 	VR_PostProcessWater (); // QVR: an eye's underwater wobble (vr/vr_water.cpp)
+	if (variant == 0)
+		VR_PostProcessTone (); // QVR: an eye's tone curve, grade and dither (vr/vr_tonemap.cpp)
 
 	glDrawArrays (GL_TRIANGLES, 0, 3);
 
@@ -970,6 +973,42 @@ void R_RestoreTranslucentTarget (void)
 
 /*
 =============
+R_SceneTarget -- QVR
+
+The framebuffer the scene is drawn into (R_SetupGL's), its colour and depth/stencil textures (multisampled with
+samples > 1) and its viewport: vr/vr_water.cpp's scene distances (the shoreline foam: any alpha mode, with
+multisampling too) and vr/vr_haze.cpp's copy of the scene. 0 and no textures: the window's own.
+=============
+*/
+GLuint R_SceneTarget (GLuint *color, GLuint *depth, int *samples, int viewport[4])
+{
+	if (GL_NeedsSceneEffects ())
+	{
+		*color = framebufs.scene.color_tex;
+		*depth = framebufs.scene.depth_stencil_tex;
+		*samples = framebufs.scene.samples;
+		viewport[0] = viewport[1] = 0;
+		viewport[2] = r_refdef.vrect.width / r_refdef.scale;
+		viewport[3] = r_refdef.vrect.height / r_refdef.scale;
+		return framebufs.scene.fbo;
+	}
+	*samples = 1;
+	viewport[0] = glx + r_refdef.vrect.x;
+	viewport[1] = gly + glheight - r_refdef.vrect.y - r_refdef.vrect.height;
+	viewport[2] = r_refdef.vrect.width;
+	viewport[3] = r_refdef.vrect.height;
+	if (!GL_NeedsPostprocess ())
+	{
+		*color = *depth = 0;
+		return 0;
+	}
+	*color = framebufs.composite.color_tex;
+	*depth = framebufs.composite.depth_stencil_tex;
+	return framebufs.composite.fbo;
+}
+
+/*
+=============
 R_Clear -- johnfitz -- rewritten and gutted
 =============
 */
@@ -1041,7 +1080,7 @@ void R_SetupView (void)
 	}
 	else if (softemu == SOFTEMU_OFF)
 	{
-		r_framedata.screendither = r_dither.value * (1.f/255.f);
+		r_framedata.screendither = VR_SceneDither (r_dither.value * (1.f/255.f)); // QVR: the eyes dither last (vr_dither)
 		r_framedata.texturedither = 0.f;
 	}
 	else // FINE (screen-space dithering applied during postprocessing), or BANDED (no dithering)
@@ -1049,6 +1088,8 @@ void R_SetupView (void)
 		r_framedata.screendither = 0.f;
 		r_framedata.texturedither = 0.f;
 	}
+	r_framedata.scenetone[0] = VR_SceneTone (); // QVR: above 1 in the eyes' float scene (vr_tonemap)
+	VR_EntityGlowColor (&r_framedata.scenetone[1]); // QVR: the force grab glow's colour (the player's hue, vr/vr_fgfx.cpp)
 
 	Fog_SetupFrame (); //johnfitz
 	Sky_SetupFrame ();
@@ -1089,6 +1130,7 @@ void R_SetupView (void)
 	}
 	//johnfitz
 	VR_WaterView (r_viewleaf->contents, &water_warp); // QVR: liquids' settings, the underwater view (vr/vr_water.cpp)
+	VR_DetailView (); // QVR: detail textures (vr/vr_detail.cpp)
 
 	R_SetFrustum ();
 
@@ -2025,6 +2067,8 @@ void R_RenderScene (void)
 
 	R_EndTranslucency ();
 	VR_ProfileEnd (); // QVR
+
+	VR_DrawHeatHaze (); // QVR: the air shimmering over lava, round explosions and flames (vr/vr_haze.cpp)
 
 	VR_DrawSceneTranslucent (); // QVR: particles
 

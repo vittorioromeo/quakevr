@@ -894,6 +894,44 @@ static void Mod_LoadTextures (lump_t *l)
 
 /*
 =================
+Mod_LoadLux -- QVR: the light's directions (deluxemaps): a .lux beside the map's .lit, as ericw-tools' `light -lux`
+writes it and DarkPlaces, FTE and QuakeSpasm-Spiked read it: "QLIT", version 1, then 3 bytes (x, y, z mapped from
+-1..1 to 0..255) for each byte of the lighting lump, in the same order (every style of a face has its own), the
+direction the light comes from at the luxel in the face's texture space (x along the texture's s axis, y against its
+t axis, z the face's normal: ericw-tools' light/write.cc). GL_BuildLightmaps makes a texture of them.
+=================
+*/
+static void Mod_LoadLux (lump_t *l)
+{
+	char luxfilename[MAX_OSPATH];
+	unsigned int path_id;
+	int mark;
+	byte *data;
+
+	loadmodel->luxdata = NULL;
+	if (!l->filelen || loadmodel->bspversion == BSPVERSION_QUAKE64)
+		return;
+	q_strlcpy (luxfilename, VR_ModelFile (loadmodel->name), sizeof (luxfilename)); // the relit map's, if any
+	COM_StripExtension (luxfilename, luxfilename, sizeof (luxfilename));
+	q_strlcat (luxfilename, ".lux", sizeof (luxfilename));
+	mark = Hunk_LowMark ();
+	data = (byte *) COM_LoadHunkFile (luxfilename, &path_id);
+	if (!data)
+		return;
+	// as the .lit: only from the map's own game folder or one searched before it, and for this lightmap
+	if (path_id < loadmodel->path_id || com_filesize != 8 + l->filelen * 3 || memcmp (data, "QLIT", 4) ||
+		LittleLong (((int *)data)[1]) != 1)
+	{
+		Hunk_FreeToLowMark (mark);
+		Con_DPrintf ("ignored %s (another game folder, version or size)\n", luxfilename);
+		return;
+	}
+	Con_DPrintf2 ("%s loaded\n", luxfilename);
+	loadmodel->luxdata = data + 8;
+}
+
+/*
+=================
 Mod_LoadLighting -- johnfitz -- replaced with lit support code via lordhavoc
 =================
 */
@@ -905,6 +943,7 @@ static void Mod_LoadLighting (lump_t *l)
 	char litfilename[MAX_OSPATH];
 	unsigned int path_id;
 
+	Mod_LoadLux (l); // QVR: deluxemaps
 	loadmodel->lightdata = NULL;
 	loadmodel->litfile = false;
 	// LordHavoc: check for a .lit file
@@ -1422,6 +1461,7 @@ static void Mod_LoadFaces (lump_t *l, qboolean bsp2)
 			out->samples = NULL;
 		else
 			out->samples = loadmodel->lightdata + (lofs * 3); //johnfitz -- lit support via lordhavoc (was "+ i")
+		out->luxsamples = lofs != -1 && loadmodel->luxdata ? loadmodel->luxdata + (lofs * 3) : NULL; // QVR: deluxemaps
 
 		texture = loadmodel->textures[out->texinfo->texnum];
 

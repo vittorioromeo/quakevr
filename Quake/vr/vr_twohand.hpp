@@ -19,6 +19,15 @@ void apply(hands::State& s);
 // Whether `hand` is the helping hand of a two-handed grip (it follows the weapon).
 [[nodiscard]] bool helping(int hand);
 
+// Whether the weapon in `hand` is held two-handed by its blade (a sword's half-sword grip: the other
+// hand towards the tip), rather than by its foregrip or grip.
+[[nodiscard]] bool bladeGrip(int hand);
+
+// Where the helping hand `hand` is drawn on the blade it holds (bladeGrip(1 - hand)): its pose
+// (`pos`, `rot`: in, as tracked and drawn; out, on the blade), given the holding hand's drawn pose.
+[[nodiscard]] bool bladeGripHand(const hands::State& s, int hand, const glm::vec3& holderPos, const glm::vec3& holderRot,
+    glm::vec3& pos, glm::vec3& rot);
+
 void reset();
 
 // Hand-off (vr_2h_handoff; QC VRTryHandOff, docs/vr-port/ROUND16.md): the hand holding a gun two-handed

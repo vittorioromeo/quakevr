@@ -3,6 +3,7 @@
 #include "vr_sights.hpp"
 #include "vr_color.hpp"
 #include "vr_cvars.hpp"
+#include "vr_hue.hpp"
 #include "vr_engine.hpp"
 
 #include <algorithm>
@@ -54,6 +55,19 @@ constexpr float ownHue = 30.f;
     return std::fmod(std::fmod(h, 360.f) + 360.f, 360.f);
 }
 
+// The sights' hue and saturation: their own (vr_sight_hue), or by default the player's
+// (vr_player_hue, vr_player_saturation: vr_hue.hpp).
+[[nodiscard]] float sightHue()
+{
+    return wrapDegrees(hue::of(vr_sight_hue));
+}
+
+[[nodiscard]] float sightSaturation()
+{
+    const float own = std::clamp(vr_sight_saturation.value, 0.f, 2.f);
+    return hue::follows(vr_sight_hue) ? own * std::clamp(vr_player_saturation.value, 0.f, 2.f) : own;
+}
+
 // An RGB colour (0..255) turned `shift` degrees round the hue circle, its saturation times
 // `saturation`, its value (the brightest channel) kept.
 void recolor(std::uint8_t* rgb, float shift, float saturation)
@@ -95,8 +109,8 @@ float appliedSaturation = 1.f;
 
 void onSightColorChanged(cvar_t*)
 {
-    const float hue = wrapDegrees(vr_sight_hue.value);
-    const float sat = std::clamp(vr_sight_saturation.value, 0.f, 2.f);
+    const float hue = sightHue();
+    const float sat = sightSaturation();
     if(hue == appliedHue && sat == appliedSaturation)
     {
         return;
@@ -124,6 +138,8 @@ extern "C" unsigned int* VR_SightPalette(const char* texname, unsigned int* pale
     {
         Cvar_SetCallback(&vr_sight_hue, onSightColorChanged);
         Cvar_SetCallback(&vr_sight_saturation, onSightColorChanged);
+        Cvar_SetCallback(&vr_player_hue, onSightColorChanged);
+        Cvar_SetCallback(&vr_player_saturation, onSightColorChanged);
         callbacks = true;
     }
 
@@ -131,8 +147,8 @@ extern "C" unsigned int* VR_SightPalette(const char* texname, unsigned int* pale
     {
         return palette;
     }
-    const float hue = wrapDegrees(vr_sight_hue.value);
-    const float sat = std::clamp(vr_sight_saturation.value, 0.f, 2.f);
+    const float hue = sightHue();
+    const float sat = sightSaturation();
     appliedHue = hue;
     appliedSaturation = sat;
     if(std::fabs(hue - ownHue) < 0.01f && std::fabs(sat - 1.f) < 0.001f)

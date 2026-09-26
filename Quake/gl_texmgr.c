@@ -1527,6 +1527,59 @@ void TexMgr_SetHeightMask (const byte *mask, int width, int height)
 
 /*
 ================
+TexMgr_AlphaTested -- QVR: whether a texture is drawn alpha-tested: the world's cutout ("{") textures and holey
+models' skins (TEXPREF_ALPHA with TEXPREF_UNCOMPRESSED; mipmapped), not their glow textures
+================
+*/
+static qboolean TexMgr_AlphaTested (gltexture_t *glt)
+{
+	const unsigned need = TEXPREF_MIPMAP | TEXPREF_ALPHA | TEXPREF_UNCOMPRESSED;
+	return (glt->flags & need) == need && !(glt->flags & (TEXPREF_ALPHABRIGHT | TEXPREF_FULLBRIGHT | TEXPREF_ARRAY | TEXPREF_CUBEMAP)) &&
+		normalmap_kind[glt - gltextures_base] == NORMALMAP_NONE;
+}
+
+#define ALPHATEST_CUTOFF 170 // QVR: the shaders' alpha test (0.666): 8-bit alphas from 170 pass
+
+/*
+================
+TexMgr_AlphaCoverageMip -- QVR: coverage-preserving mipmaps (Castano; vr_alpha_coverage): a mip level of an
+alpha-tested texture (`in`, `count` texels) copied into `out` with its alpha scaled so that the share of its texels
+that pass the alpha test is the top level's, `coverage`. The box filter averages thin bars and wires into alphas
+under the cutoff: fences and grates thin out and vanish with distance, and crawl as they come and go. The scale is
+the cutoff over the alpha that as many texels reach (the middle of the range of alphas that give that count).
+================
+*/
+static void TexMgr_AlphaCoverageMip (const byte *in, byte *out, int count, float coverage)
+{
+	int		hist[256], i, t, above = 0, target = (int)(coverage * count + 0.5f), err = INT_MAX, hi = ALPHATEST_CUTOFF, lo = ALPHATEST_CUTOFF, hiabove = -1;
+
+	memset (hist, 0, sizeof (hist));
+	for (i = 0; i < count; i++)
+		hist[in[i * 4 + 3]]++;
+	for (t = 255; t >= 1; t--) // above: the texels whose alpha is t or more
+	{
+		above += hist[t];
+		if (abs (above - target) < err)
+		{
+			err = abs (above - target);
+			hi = lo = t;
+			hiabove = above;
+		}
+		else if (above == hiabove)
+			lo = t;
+	}
+	t = (hi + lo + 1) / 2;
+	for (i = 0; i < count; i++)
+	{
+		out[i * 4 + 0] = in[i * 4 + 0];
+		out[i * 4 + 1] = in[i * 4 + 1];
+		out[i * 4 + 2] = in[i * 4 + 2];
+		out[i * 4 + 3] = (byte) q_min (255, (in[i * 4 + 3] * ALPHATEST_CUTOFF + t / 2) / t);
+	}
+}
+
+/*
+================
 TexMgr_LoadImage32 -- handles 32bit source data
 ================
 */
@@ -1537,6 +1590,9 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	qboolean compress;
 	int normalmap = normalmap_kind[glt - gltextures_base] & ~NORMALMAP_HEIGHTS; // QVR
 	qboolean heights; // QVR
+	byte *coveragemip = NULL; // QVR: an alpha-tested texture's mip with its coverage kept (vr_alpha_coverage)
+	float coverage = 0.f;
+	int mark = 0;
 
 	// HASALPHA detection
 	if (glt->source_format == SRC_RGBA && !(glt->flags & TEXPREF_ALPHAPIXELS) && !normalmap) // QVR: normal maps are opaque
@@ -1620,6 +1676,16 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 			mipwidth = glt->width;
 			mipheight = glt->height;
 
+			if (TexMgr_AlphaTested (glt) && VR_AlphaMipCoverage () && glt->width * glt->height > 1) // QVR
+			{
+				int i, n = glt->width * glt->height, pass = 0;
+				for (i = 0; i < n; i++)
+					pass += ((const byte *) data)[i * 4 + 3] >= ALPHATEST_CUTOFF;
+				coverage = pass / (float) n;
+				mark = Hunk_LowMark ();
+				coveragemip = (byte *) Hunk_AllocNoFill (q_max (1, n / 2) * 4);
+			}
+
 			for (miplevel=1; mipwidth > 1 || mipheight > 1; miplevel++)
 			{
 				if (mipheight > 1)
@@ -1632,8 +1698,18 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 					TexMgr_MipMapW (data, mipwidth, mipheight, glt->depth);
 					mipwidth >>= 1;
 				}
-				GL_TexImage (glt, miplevel, internalformat.id, mipwidth, mipheight, GL_RGBA, GL_UNSIGNED_BYTE, data);
+				if (coveragemip) // QVR: the next level is made from this one as it was
+				{
+					TexMgr_AlphaCoverageMip ((const byte *) data, coveragemip, mipwidth * mipheight, coverage);
+					GL_TexImage (glt, miplevel, internalformat.id, mipwidth, mipheight, GL_RGBA, GL_UNSIGNED_BYTE, coveragemip);
+				}
+				else
+				{
+					GL_TexImage (glt, miplevel, internalformat.id, mipwidth, mipheight, GL_RGBA, GL_UNSIGNED_BYTE, data);
+				}
 			}
+			if (coveragemip) // QVR
+				Hunk_FreeToLowMark (mark);
 		}
 	}
 
@@ -2183,6 +2259,22 @@ void TexMgr_ReloadNobrightImages (void)
 	for (glt = active_gltextures; glt; glt = glt->next)
 		if (glt->flags & (TEXPREF_NOBRIGHT|TEXPREF_ALPHABRIGHT))
 			TexMgr_ReloadImage(glt, -1, -1);
+}
+
+/*
+================
+TexMgr_ReloadAlphaTested -- QVR: reloads the alpha-tested textures, their mips made again (vr_alpha_coverage changed)
+================
+*/
+void TexMgr_ReloadAlphaTested (void)
+{
+	gltexture_t *glt;
+
+	in_reload_images = true; // no texture freed under the walk (see TexMgr_ReloadImages)
+	for (glt = active_gltextures; glt; glt = glt->next)
+		if (TexMgr_AlphaTested (glt))
+			TexMgr_ReloadImage (glt, -1, -1);
+	in_reload_images = false;
 }
 
 /*

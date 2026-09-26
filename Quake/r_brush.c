@@ -47,6 +47,8 @@ unsigned		*lightmap_data;
 gltexture_t		*lightmap_texture;
 int				lightmap_width;
 int				lightmap_height;
+gltexture_t		*lux_texture;	// QVR: the light's directions (deluxemaps), laid out as lightmap_texture; NULL without
+static unsigned	*lux_data;		// QVR
 
 
 /*
@@ -289,6 +291,85 @@ static void GL_FillSurfaceLightmap (msurface_t *surf)
 }
 
 /*
+========================
+GL_FillSurfaceLux -- QVR: a face's light directions (deluxemaps) where its first style's lightmap is, in the frame
+the world shader rebuilds from its derivatives (LuxDirection): x along the texture's s axis on the face, y the face's
+normal crossed with it, z the normal; alpha 255 (faces without them keep 0: the shader guesses). ericw-tools' .lux has
+them in the frame (s, -t, normal), s and t the texture's axes as they are (not in the face's plane where a wall's
+texture is projected from the side: Mod_LoadLux), one direction for each style: turned back into world directions
+here, and the styles' added together, each as strong as its light at the luxel (the shader can't combine them by the
+styles' current values, and flickering and switched lights share the steady one's direction anyway).
+========================
+*/
+static void GL_FillSurfaceLux (msurface_t *surf)
+{
+	lightmap_t	*lm;
+	int			smax, tmax, size, i, map, nummaps;
+	vec3_t		n, r0, r1, c0, c1, c2, t, b;
+	float		det, len;
+	unsigned	*dst;
+
+	if (!surf->luxsamples || !surf->samples || surf->styles[0] == 255)
+		return;
+
+	smax = (surf->extents[0]>>4)+1;
+	tmax = (surf->extents[1]>>4)+1;
+	size = smax * tmax;
+	for (nummaps = 0; nummaps < MAXLIGHTMAPS && surf->styles[nummaps] != 255; nummaps++)
+		;
+
+	VectorCopy (surf->plane->normal, n);
+	if (surf->flags & SURF_PLANEBACK)
+		VectorScale (n, -1.f, n);
+	// ericw's rows (r0 s, r1 -t, n): world direction = their inverse times the stored one (columns c0 c1 c2 / det)
+	VectorCopy (surf->texinfo->vecs[0], r0);
+	VectorScale (surf->texinfo->vecs[1], -1.f, r1);
+	VectorNormalize (r0);
+	VectorNormalize (r1);
+	CrossProduct (r1, n, c0);
+	CrossProduct (n, r0, c1);
+	CrossProduct (r0, r1, c2);
+	det = DotProduct (r0, c0);
+	if (fabs (det) < 1e-4f)
+		return; // (a texture seen edge on: no frame)
+	// the frame out: t the texture's s axis on the face, b = n x t
+	VectorMA (r0, -DotProduct (r0, n), n, t);
+	if (VectorNormalize (t) < 1e-4f)
+		return;
+	CrossProduct (n, t, b);
+
+	lm = &lightmaps[surf->lightmaptexturenum];
+	dst = lux_data + (lm->yofs + surf->light_t) * lightmap_width + lm->xofs + surf->light_s;
+	for (i = 0; i < size; i++)
+	{
+		vec3_t dir = {0.f, 0.f, 0.f}, out;
+		for (map = 0; map < nummaps; map++)
+		{
+			const byte *lux = surf->luxsamples + (map * size + i) * 3;
+			const byte *lit = surf->samples + (map * size + i) * 3;
+			float x = lux[0] * (1.f/128.f) - 1.f, y = lux[1] * (1.f/128.f) - 1.f, z = lux[2] * (1.f/128.f) - 1.f;
+			float w = (lit[0] + lit[1] + lit[2]) / det;
+			vec3_t world;
+			VectorScale (c0, x, world);
+			VectorMA (world, y, c1, world);
+			VectorMA (world, z, c2, world);
+			len = VectorLength (world);
+			if (len > 1e-6f)
+				VectorMA (dir, w / len, world, dir);
+		}
+		if (VectorNormalize (dir) < 1e-6f)
+			VectorCopy (n, dir); // unlit: straight on
+		out[0] = DotProduct (dir, t);
+		out[1] = DotProduct (dir, b);
+		out[2] = DotProduct (dir, n);
+		dst[(i / smax) * lightmap_width + i % smax] =
+			(unsigned) Q_rint (out[0] * 127.5f + 127.5f) |
+			((unsigned) Q_rint (out[1] * 127.5f + 127.5f) << 8) |
+			((unsigned) Q_rint (out[2] * 127.5f + 127.5f) << 16) | 0xff000000u;
+	}
+}
+
+/*
 ==================
 GL_FreeLightmapData
 ==================
@@ -308,6 +389,9 @@ static void GL_FreeLightmapData (void)
 
 	VEC_CLEAR (lit_surfs);
 
+	free (lux_data); // QVR
+	lux_data = NULL;
+	lux_texture = NULL;
 	lightmap_texture = NULL; // freed by the texture manager
 	last_lightmap_allocated = 0;
 	lightmap_count = 0;
@@ -510,6 +594,19 @@ void GL_BuildLightmaps (void)
 	// fill lightmap samples
 	for (i = 0, j = VEC_SIZE (lit_surfs); i < j; i++)
 		GL_FillSurfaceLightmap (lit_surfs[i]);
+
+	// QVR: the light's directions (deluxemaps: the world's .lux), in a texture laid out as the lightmap's
+	if (cl.worldmodel->luxdata)
+	{
+		lux_data = (unsigned *) calloc (lmsize, sizeof (*lux_data));
+		if (!lux_data)
+			Sys_Error ("GL_BuildLightmaps: out of memory on %" SDL_PRIu64 " bytes", (uint64_t)(lmsize * sizeof (*lux_data)));
+		for (i = 0, j = VEC_SIZE (lit_surfs); i < j; i++)
+			GL_FillSurfaceLux (lit_surfs[i]);
+		lux_texture = TexMgr_LoadImage (cl.worldmodel, "luxmap", lightmap_width, lightmap_height,
+			SRC_LIGHTMAP, (byte *)lux_data, "", (src_offset_t)lux_data,
+			TEXPREF_ALPHA | TEXPREF_LINEAR | TEXPREF_NOPICMIP);
+	}
 
 	lightmap_texture =
 		TexMgr_LoadImage (cl.worldmodel, "lightmap", lightmap_width, lightmap_height,

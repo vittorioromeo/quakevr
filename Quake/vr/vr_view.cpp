@@ -213,6 +213,24 @@ void place(view::ViewEntity& ve, qmodel_t* model, const glm::vec3& origin, const
 // ----------------------------------------------------------------------------
 // Weapons
 
+// Per hand: the pose its weapon is drawn from this frame (the hand's own, or, for a gun carried by
+// its foregrip, the pose of the hand that let it go: twohand::carriedWeapon). Everything attached
+// to the weapon (the ammo screen, the button) is placed from it, never from the hand.
+twohand::HeldAs drawnAs[2]{{glm::vec3{0.f}, glm::vec3{0.f}, true}, {glm::vec3{0.f}, glm::vec3{0.f}, false}};
+
+// Angles `offsets` (in the weapon's frame, as the per-weapon attachment angles are tuned) turned by
+// `rot` (a hand pose): composed, not added (added Euler angles only agree while the hand is level).
+[[nodiscard]] glm::vec3 composeAngles(const glm::vec3& rot, const glm::vec3& offsets)
+{
+    const auto axes = [](const glm::vec3& a) {
+        vec3_t in{a.x, a.y, a.z}, f, r, u;
+        AngleVectors(in, f, r, u);
+        return glm::mat3{glm::vec3{f[0], f[1], f[2]}, -glm::vec3{r[0], r[1], r[2]}, glm::vec3{u[0], u[1], u[2]}};
+    };
+    const glm::mat3 m = axes(rot) * axes(offsets);
+    return hands::anglesFromVectors(glm::normalize(m[0]), glm::normalize(m[2]));
+}
+
 [[nodiscard]] glm::vec3 weaponAngleOffsets(int slot, bool mirrored)
 {
     glm::vec3 o = weapons::vec(slot, Key::Pitch, Key::Yaw, Key::Roll);
@@ -249,15 +267,7 @@ void queueWeaponText(const glm::vec3& handRot, bool mirrored, int hand, const vi
     // Read from behind the weapon, along its aim: the weapon's offset turned by the hand (composed,
     // not added: added angles only agree while the hand is level, and a gun pointing up tilted the
     // screen the wrong way).
-    {
-        const auto axes = [](const glm::vec3& a) {
-            vec3_t in{a.x, a.y, a.z}, f, r, u;
-            AngleVectors(in, f, r, u);
-            return glm::mat3{glm::vec3{f[0], f[1], f[2]}, -glm::vec3{r[0], r[1], r[2]}, glm::vec3{u[0], u[1], u[2]}};
-        };
-        const glm::mat3 m = axes(handRot) * axes(angles);
-        angles = hands::anglesFromVectors(glm::normalize(m[0]), glm::normalize(m[2]));
-    }
+    angles = composeAngles(handRot, angles);
 
     const bool main = hand == HAND_MAIN;
     const int clip = cl.stats[main ? STAT_QVR_WEAPONCLIP : STAT_QVR_WEAPONCLIP2];
@@ -293,6 +303,7 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame)
     twohand::HeldAs held{s.pos[hand], s.visualRot[hand], hand == HAND_OFF};
     const bool carried = twohand::carriedWeapon(s, hand, held);
     const bool mirrored = held.mirrored;
+    drawnAs[hand] = held; // what the weapon's attachments (its button) follow
 
     glm::vec3 gunOffset = weapons::vec(slot, Key::GunOffsetX, Key::GunOffsetY, Key::GunOffsetZ) * weapons::offsetScale();
     if(mirrored)
@@ -440,7 +451,21 @@ void setupHand(const hands::State& s, int hand)
     // hand plus the weapon's fixed-hand angles (old engine's V_SetupFixedHelpingHandViewEnt).
     const int other = 1 - hand;
     const float gripBlend = s.grip2HValid[other] ? twohand::transition(other) : 0.f;
-    if(gripBlend > 0.f)
+    const int otherSlot = weapons::slotForModel(entities.weapon[other].ent.model);
+    glm::vec3 bladePos = pos, bladeRot = handRot;
+    if(gripBlend > 0.f && twohand::bladeGrip(other) && otherSlot >= 0 &&
+        twohand::bladeGripHand(s, hand,
+            view::anchorPosition(entities.weapon[other], static_cast<int>(weapons::value(otherSlot, Key::HandAnchorVertex)),
+                weapons::vec(otherSlot, Key::HandOffsetX, Key::HandOffsetY, Key::HandOffsetZ)),
+            s.rot[other] + weaponAngleOffsets(fist, other == HAND_OFF), bladePos, bladeRot))
+    {
+        // Holding the other hand's sword by its blade (round 18): on the blade where the hand is,
+        // turned (the least turn) to close round it.
+        pos = glm::mix(pos, bladePos, gripBlend);
+        handRot = bladeRot;
+        hide = false;
+    }
+    else if(gripBlend > 0.f)
     {
         pos = glm::mix(pos, s.grip2H[other], gripBlend);
         hide = false;
@@ -928,7 +953,7 @@ void pressWeaponButtons(const hands::State& s)
     }
 }
 
-void setupButton(const hands::State& s, int hand)
+void setupButton(int hand)
 {
     view::ViewEntity& ve = entities.button[hand];
     const view::ViewEntity& weapon = entities.weapon[hand];
@@ -940,7 +965,11 @@ void setupButton(const hands::State& s, int hand)
         return;
     }
 
-    const bool mirrored = hand == HAND_OFF;
+    // On the weapon as it is drawn: mirrored as the weapon is, and turned with the pose it is drawn
+    // from (a gun carried by its foregrip is drawn from the pose of the hand that let it go, not
+    // from the carrying hand's: round 18).
+    const twohand::HeldAs& held = drawnAs[hand];
+    const bool mirrored = held.mirrored;
     const glm::vec3 pos = view::anchorPosition(weapon,
         static_cast<int>(weapons::value(slot, Key::WpnButtonAnchorVertex)),
         weapons::vec(slot, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ));
@@ -950,8 +979,8 @@ void setupButton(const hands::State& s, int hand)
     {
         angles.z = -angles.z;
     }
-    angles += s.visualRot[hand];
-    angles.x = -angles.x;
+    angles = composeAngles(held.rot, angles);
+    angles.x = -angles.x; // alias models' pitch is the other way
 
     place(ve, Mod_ForName("progs/wpnbutton.mdl", false), pos, angles, 0, mirrored);
 }
@@ -1161,8 +1190,8 @@ extern "C" void VR_SetupViewEntities()
     setupGadget(s);
     flashlight::setupView(s, entities.flashlight);
     dripBlood(s);
-    setupButton(s, HAND_MAIN);
-    setupButton(s, HAND_OFF);
+    setupButton(HAND_MAIN);
+    setupButton(HAND_OFF);
     for(int hand = 0; hand < 2; hand++)
     {
         s.pos[hand] -= knockPos[hand];
@@ -1222,6 +1251,12 @@ void dumpView_f()
         {
             Con_Printf("%s weapon foregrip (%.1f %.1f %.1f)\n", h == HAND_MAIN ? "main" : "off", s.grip2H[h].x,
                 s.grip2H[h].y, s.grip2H[h].z);
+        }
+        if(s.muzzleValid[h])
+        {
+            Con_Printf("%s weapon muzzle (%.1f %.1f %.1f), %.1f units from the hand%s\n", h == HAND_MAIN ? "main" : "off",
+                s.muzzle[h].x, s.muzzle[h].y, s.muzzle[h].z, glm::distance(s.muzzle[h], s.pos[h]),
+                twohand::bladeGrip(h) ? ", held two-handed by its blade" : "");
         }
         const HandInput& in = tracking().input.hands[h];
         Con_Printf("%s hand: trigger %.2f grip %.2f thumb %d, curls %.1f %.1f %.1f %.1f %.1f\n",

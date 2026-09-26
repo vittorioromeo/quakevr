@@ -234,6 +234,12 @@ void() worldspawn =
     // VR: a headshot's tick; the knights' swords, which a player can carry into any map, and their
     // sounds (also a carried box's grab).
     precache_sound("vr/headshot.wav");
+    // VR: melee contacts other than blows (vr_bash_sound; vr_juice.qc VR_Bash, combat.qc VR_Parry;
+    // Misc/quakevr/make_sounds.py): a shove, a weapon bash, a parry-bash, a parry.
+    precache_sound("vr/shove.wav");
+    precache_sound("vr/bash.wav");
+    precache_sound("vr/bash_parry.wav");
+    precache_sound("vr/parry.wav");
     precache_sound("zombie/z_miss.wav"); // a thrown gib's splat
     precache_sound("fisthit.wav");
     precache_sound("knight/sword1.wav");

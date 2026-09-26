@@ -4,8 +4,14 @@
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
 #include "vr_hands.hpp"
+#include "vr_progs.hpp"
 #include "vr_protocol.hpp"
+#include "vr_units.hpp"
 #include "vr_weapons.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <limits>
 
 using namespace qvr;
 
@@ -90,6 +96,64 @@ glm::vec3 drawnCentre(int num)
     modelBox(e.model, net ? net->scale : zero, net ? net->scaleOrigin : zero, net ? net->offset : zero, lo, hi);
     const bool brush = e.model->type == mod_brush;
     return origin + axesFromAngles(e.angles, brush) * ((lo + hi) * 0.5f * ENTSCALE_DECODE(e.scale)); // and Ironwail's scale
+}
+
+glm::vec3 surfaceFit(edict_t* ent, const glm::vec3& hand, const glm::vec3& palm)
+{
+    // The fist round the grip (the controller's handle in it): its fingers, curled the way the
+    // palm faces, reach about this far from the grip's centre.
+    constexpr float fistRadius = 0.04f; // metres
+    // Never pushed further than this (a big thing gripped deep inside).
+    constexpr float mostPush = 0.25f;
+
+    const int index = static_cast<int>(ent->v.modelindex);
+    const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    if(!vr_held_surface_fit.value || !model || glm::length(palm) < 0.5f)
+    {
+        return glm::vec3{0.f};
+    }
+
+    // The drawn box (as vr_rigid.cpp's): an alias model's with the networked scale and offset;
+    // a brush model's (the ammo and health boxes) is its entity box.
+    const bool brush = model->type == mod_brush;
+    glm::vec3 lo{ent->v.mins[0], ent->v.mins[1], ent->v.mins[2]};
+    glm::vec3 hi{ent->v.maxs[0], ent->v.maxs[1], ent->v.maxs[2]};
+    if(model->type == mod_alias)
+    {
+        using namespace progs;
+        const FieldOffsets& f = fields();
+        modelBox(model, fieldVec(ent, f.model_scale), fieldVec(ent, f.model_scale_origin), fieldVec(ent, f.model_offset), lo, hi);
+    }
+
+    // In the box's axes. The fist's ball overlaps the box while the grip is in the box grown by the
+    // ball's radius; the box moving along the palm, the grip goes the other way through it, and
+    // the box is clear once the grip leaves the grown box.
+    const float m2u = units::metresToUnits();
+    const float r = fistRadius * m2u;
+    const glm::vec3 p = glm::normalize(palm);
+    const glm::mat3 axes = axesFromAngles(ent->v.angles, brush);
+    const glm::vec3 origin{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
+    const glm::vec3 c = glm::transpose(axes) * (hand - origin);
+    const glm::vec3 d = glm::transpose(axes) * -p;
+    const glm::vec3 glo = lo - glm::vec3{r};
+    const glm::vec3 ghi = hi + glm::vec3{r};
+    if(glm::any(glm::lessThan(c, glo)) || glm::any(glm::greaterThan(c, ghi)))
+    {
+        return glm::vec3{0.f}; // the fist is clear of it
+    }
+    float t = std::numeric_limits<float>::max();
+    for(int i = 0; i < 3; i++)
+    {
+        if(std::fabs(d[i]) > 1e-4f)
+        {
+            t = std::min(t, ((d[i] > 0.f ? ghi[i] : glo[i]) - c[i]) / d[i]);
+        }
+    }
+    if(t <= 0.f || t == std::numeric_limits<float>::max())
+    {
+        return glm::vec3{0.f};
+    }
+    return p * std::min(t, mostPush * m2u);
 }
 
 } // namespace qvr::held

@@ -31,6 +31,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define SHOW_ACTIVE_LIGHT_CLUSTERS	0
 #define SHOW_WORLD_NORMALS			0
 
+#include "vr/vr_tonemap.h" // QVR: QVR_TONE_GLSL, the eyes' tone curve and grade (the post-process and the mirror)
+
 ////////////////////////////////////////////////////////////////
 //
 // GUI
@@ -253,6 +255,11 @@ NOISE_FUNCTIONS
 "layout(location=4) uniform vec3 WaterFwd; // QVR: the eye's axes in the world\n"
 "layout(location=5) uniform vec3 WaterLeft; // QVR\n"
 "layout(location=6) uniform vec3 WaterUp; // QVR\n"
+"layout(binding=3) uniform sampler3D GradeLUT; // QVR: the eye's colour grade (vr_grade; vr/vr_tonemap.cpp)\n"
+"layout(location=7) uniform vec4 Tone; // QVR: exposure (0: no tone curve), the curve's knee and white point, the grade's strength (0: none)\n"
+"layout(location=8) uniform vec4 Dither; // QVR: the eye's last dither: amplitude (0: none), the right eye's own noise (1), frame offset (0: fixed), unused\n"
+"\n"
+QVR_TONE_GLSL
 "\n"
 "layout(location=0) out vec4 out_fragcolor;\n"
 "\n"
@@ -296,7 +303,18 @@ NOISE_FUNCTIONS
 "	out_fragcolor.rgb = vec3(UnpackRGB8(remap)) * (1./255.);\n"
 "#else\n"
 "	out_fragcolor.rgb *= contrast;\n"
+"	if (Tone.x > 0.0) // QVR: the eye's float scene rolled off instead of clipped (vr_tonemap)\n"
+"		out_fragcolor.rgb = QvrTonemap(out_fragcolor.rgb * Tone.x, Tone.yz);\n"
 "	out_fragcolor = vec4(pow(out_fragcolor.rgb, vec3(gamma)), 1.0);\n"
+"	if (Tone.w > 0.0) // QVR: graded (vr_grade)\n"
+"		out_fragcolor.rgb = QvrGrade(GradeLUT, out_fragcolor.rgb, Tone.w);\n"
+"	if (Dither.x > 0.0) // QVR: dithered last, into the 8-bit image: triangular noise, 1/255 either way, from two hashes\n"
+"	{ // (no pattern; the eyes' own, unrelated, so they don't fuse into a layer seen \"in the lens\"); less on black\n"
+"		vec2 p = floor(gl_FragCoord.xy) + Dither.y * vec2(1733.0, 911.0) + Dither.z * vec2(193.0, 97.0);\n"
+"		float n = whitenoise01(p) + whitenoise01(p + vec2(57.0, 113.0)) - 1.0;\n"
+"		float m = max(out_fragcolor.r, max(out_fragcolor.g, out_fragcolor.b));\n"
+"		out_fragcolor.rgb += n * Dither.x * clamp(m * 255.0, 0.0, 1.0);\n"
+"	}\n"
 "#endif // PALETTIZE\n"
 "}\n";
 
@@ -325,11 +343,17 @@ NOISE_FUNCTIONS
 "	uint	NumLights;\n"\
 "	uint	ShadowFlags; // QVR\n"\
 "	vec4	LightTweak; // QVR: lightmap contrast, the normal maps' share of the baked light, specular intensity, normal map strength\n"\
-"	vec4	Parallax; // QVR: parallax mapping: depth in units (0 off), the distance it ends at, the most steps, unused\n"\
+"	vec4	Parallax; // QVR: parallax mapping: depth in units (0 off), the distance it ends at, the most steps; w specular anti-aliasing (vr_specular_aa, 0 off)\n"\
 "	vec4	Water; // QVR: liquids (vr/vr_water.cpp): waves, fresnel, refraction (0: no scene to read), glints\n"\
 "	vec4	Water2; // QVR: lava glow, caustics (0 off), the eye in a liquid (1), unused\n"\
 "	vec4	CausticsOrigin; // QVR: xyz where the liquid volume (LiquidVolume) starts, in the world; w its cell size\n"\
-"	vec4	CausticsScale; // QVR: xyz one over its size in units; w 1: the scene's distances to refract by (LiquidDepth)\n"\
+"	vec4	CausticsScale; // QVR: xyz one over its size in units; w 1: the scene's distances to refract by and for the foam (LiquidDepth)\n"\
+"	vec4	Detail; // QVR: detail textures (vr/vr_detail.cpp): strength (0 off), the distance they start fading, where gone, the fine octave's scale (0 none)\n"\
+"	vec4	SceneTone; // QVR: x the brightest the world and models write (1: Quake's clamp; more in the eyes' float scene with vr_tonemap: vr/vr_tonemap.cpp), yzw the force grab glow's colour (vr/vr_fgfx.cpp)\n"\
+"	vec4	Water3; // QVR: x shoreline foam (vr/vr_water.cpp: vr_water_foam, 0 off), yzw unused\n"\
+"	vec4	Ripple; // QVR: splash ripples (vr/vr_water.cpp: vr_water_ripples): x how many, y their rings' speed (units/s), z the wave number, w the share of them in the geometry\n"\
+"	vec4	RippleAt[32]; // QVR: ... each's centre (xy), the surface's height (z), its age in seconds (w)\n"\
+"	vec4	RippleAmp[8]; // QVR: ... each's height now, in units (four a vec4)\n"\
 "};\n"\
 "\n"\
 "vec3 ApplyFog(vec3 clr, vec3 p)\n"\
@@ -405,6 +429,12 @@ NOISE_FUNCTIONS
 "	uint	ShadowFlags;\n"\
 "	vec4	LightTweak;\n"\
 "	vec4	Parallax;\n"\
+"	vec4	FrameWater; // QVR: the rest as FRAMEDATA_BUFFER's, up to SceneTone\n"\
+"	vec4	FrameWater2;\n"\
+"	vec4	FrameCausticsOrigin;\n"\
+"	vec4	FrameCausticsScale;\n"\
+"	vec4	FrameDetail;\n"\
+"	vec4	SceneTone; // QVR: x the brightest models write (vr/vr_tonemap.cpp), yzw the force grab glow's colour\n"\
 "};\n"\
 "\n"\
 
@@ -530,6 +560,17 @@ NOISE_FUNCTIONS
 "	return mix(1.0, l.minlight + (1.0 - l.minlight) * max(dot(n, dir), 0.0), DlightAngle);\n"\
 "}\n"\
 "\n"\
+"// QVR: specular anti-aliasing (vr_specular_aa: Parallax.w, 0 off). Bumps smaller than a pixel make the sheen sparkle\n"\
+"// as the head moves (the filtered normal map still gets the full exponent): the lobe is widened by how much the\n"\
+"// normal varies under the pixel. Blinn's exponent p is a lobe of variance about 1/p, and the variances add: Toksvig's\n"\
+"// from the normal map's mip (BumpedNormal sets BumpSpread: its averaged normal is shorter where the normals under it\n"\
+"// differ) and the screen derivatives of the normal (Kaplanyan and Tokuyoshi's geometric specular AA: bumps about a\n"\
+"// pixel in size, curved models, clamped). The intensity keeps the lobe's energy ((p' + 1) / (p + 1)): a patch of\n"\
+"// sparkles becomes a dimmer, steady sheen as bright on the whole. SpecularAA (SPECULAR_AA_FUNCTIONS, fragment\n"\
+"// shaders) sets the pixel's lobe.\n"\
+"float BumpSpread = 0.0;\n"\
+"vec2 SpecLobe = vec2(32.0, 1.0); // the exponent, the intensity's scale\n"\
+"\n"\
 "// A dynamic light's sheen towards the eye (DarkPlaces' r_shadow_gloss 2): Blinn's, exponent 32, LightTweak.z strong.\n"\
 "float LightSpecular(Light l, vec3 pos, vec3 n, vec3 eye)\n"\
 "{\n"\
@@ -539,7 +580,7 @@ NOISE_FUNCTIONS
 "	if (dot(n, dir) <= 0.)\n"\
 "		return 0.0;\n"\
 "	vec3 h = normalize(dir + normalize(eye - pos));\n"\
-"	return pow(max(dot(n, h), 0.0), 32.0) * LightTweak.z;\n"\
+"	return pow(max(dot(n, h), 0.0), SpecLobe.x) * SpecLobe.y * LightTweak.z; // QVR: SpecLobe (SpecularAA)\n"\
 "}\n"\
 "\n"\
 "// The normal n bent by a normal map (tangent space, green up; LightTweak.w deepens it), in the frame the texture\n"\
@@ -552,8 +593,15 @@ NOISE_FUNCTIONS
 "	vec3 t = dp2perp * duvdx.x + dp1perp * duvdy.x;\n"\
 "	vec3 b = dp2perp * duvdx.y + dp1perp * duvdy.y;\n"\
 "	float k = inversesqrt(max(max(dot(t, t), dot(b, b)), 1e-24));\n"\
-"	vec2 m = textureGrad(tex, uv, duvdx, duvdy).xy * 2.0 - 1.0; // x and y (RG8): z makes it unit length\n"\
+"	vec4 s = textureGrad(tex, uv, duvdx, duvdy);\n"\
+"	vec2 m = s.xy * 2.0 - 1.0; // x and y (RG8): z makes it unit length\n"\
 "	float z = sqrt(max(1.0 - dot(m, m), 0.0025));\n"\
+"	if (Parallax.w > 0. && s.z > 0.25) // QVR: RGBA maps keep z: the mip's averaged normal, shorter where the normals under it differ (SpecularAA)\n"\
+"	{\n"\
+"		vec2 size = vec2(textureSize(tex, 0)), ex = duvdx * size, ey = duvdy * size;\n"\
+"		float len = length(s.xyz * 2.0 - 1.0), minified = clamp(0.5 * log2(max(max(dot(ex, ex), dot(ey, ey)), 1e-8)), 0.0, 1.0);\n"\
+"		BumpSpread = max(1.0 - len - 0.004, 0.0) / max(len, 0.1) * LightTweak.w * LightTweak.w * minified; // 0.004: 8 bits' rounding; not magnified (a blend of two texels is a slope)\n"\
+"	}\n"\
 "	m *= LightTweak.w;\n"\
 "	return normalize((t * m.x - b * m.y) * k + n * z);\n"\
 "}\n"\
@@ -673,6 +721,62 @@ NOISE_FUNCTIONS
 
 ////////////////////////////////////////////////////////////////
 
+// QVR: specular anti-aliasing (vr_specular_aa; see SpecLobe in LIGHT_BUFFER), fragment shaders only. NormalSpread: the
+// variance of the normal n over the pixel from its screen derivatives (Kaplanyan and Tokuyoshi: a pixel's filter of
+// variance 0.25 over its change per pixel, at most 0.09). SpecularAA: the pixel's lobe from it (0 where there are no
+// derivatives: after a discard) and the normal map's (BumpSpread).
+#define SPECULAR_AA_FUNCTIONS \
+"float NormalSpread(vec3 n)\n"\
+"{\n"\
+"	vec3 dx = dFdx(n), dy = dFdy(n);\n"\
+"	return min(0.25 * (dot(dx, dx) + dot(dy, dy)), 0.09);\n"\
+"}\n"\
+"void SpecularAA(float spread)\n"\
+"{\n"\
+"	float p = 1.0 / (1.0 / 32.0 + (spread + BumpSpread) * Parallax.w);\n"\
+"	SpecLobe = vec2(p, (p + 1.0) / 33.0);\n"\
+"}\n"\
+"\n"\
+
+////////////////////////////////////////////////////////////////
+
+// QVR: detail textures (vr/vr_detail.cpp, vr_detail): a fine grain (stone, metal, wood, grime...) from a texture array,
+// multiplied over the world's textures close to the eye. Needs the frame data (Detail).
+#define DETAIL_FUNCTIONS \
+"layout(binding=12) uniform sampler2DArray DetailTex;\n"\
+"\n"\
+"// The factor to multiply a texture's colour by (1 on average): d the call's detail (s and t scales, s < 0 the axes\n"\
+"// swapped; the strength; the layer), uv its coordinates (after parallax) and their screen derivatives dx and dy, dist\n"\
+"// the distance from the eye. Full up to Detail.y, gone by Detail.z; a finer octave (Detail.w times, off the coarse\n"\
+"// one's grid) within half those. The layers' mips average to mid-grey: the grain fades as it gets small on screen.\n"\
+"float DetailFactor(vec4 d, vec2 uv, vec2 dx, vec2 dy, float dist)\n"\
+"{\n"\
+"	float fade = 1.0 - smoothstep(Detail.y, Detail.z, dist);\n"\
+"	if (fade <= 0.)\n"\
+"		return 1.0;\n"\
+"	vec2 k = abs(d.xy);\n"\
+"	uv *= k;\n"\
+"	dx *= k;\n"\
+"	dy *= k;\n"\
+"	if (d.x < 0.) // the grain along t\n"\
+"	{\n"\
+"		uv = uv.yx;\n"\
+"		dx = dx.yx;\n"\
+"		dy = dy.yx;\n"\
+"	}\n"\
+"	float g = textureGrad(DetailTex, vec3(uv, d.w), dx, dy).r * 2.0 - 1.0;\n"\
+"	float fine = Detail.w > 0. ? 1.0 - smoothstep(Detail.y * 0.5, Detail.z * 0.5, dist) : 0.0;\n"\
+"	if (fine > 0.)\n"\
+"	{\n"\
+"		float g2 = textureGrad(DetailTex, vec3(uv * Detail.w + vec2(0.37, 0.61), d.w), dx * Detail.w, dy * Detail.w).r * 2.0 - 1.0;\n"\
+"		g = g * (1.0 - 0.3 * fine) + g2 * (0.6 * fine);\n"\
+"	}\n"\
+"	return max(1.0 + g * d.z * Detail.x * fade, 0.0);\n"\
+"}\n"\
+"\n"\
+
+////////////////////////////////////////////////////////////////
+
 #define DRAW_ELEMENTS_INDIRECT_COMMAND \
 "struct DrawElementsIndirectCommand\n"\
 "{\n"\
@@ -709,6 +813,7 @@ DRAW_ELEMENTS_INDIRECT_COMMAND \
 "	int		padding;\n"\
 "#endif // BINDLESS\n"\
 "	vec4	uvclamp; // QVR: parallax mapping's rays stay in s .x to .z, t .y to .w, repeating (none where .z <= .x)\n"\
+"	vec4	detail; // QVR: the texture's detail (vr/vr_detail.cpp): s and t scales (s < 0: axes swapped), strength (0 none), layer\n"\
 "};\n"\
 "const uint\n"\
 "	CF_USE_POLYGON_OFFSET = 1u,\n"\
@@ -848,14 +953,61 @@ DRAW_ELEMENTS_INDIRECT_COMMAND \
 "	return r;\n"\
 "}\n"\
 "\n"\
-"// A vertex of the swells' mesh (vr_water.cpp) raised: pin 0 at a pool's rim to 1 inside (0 for any other liquid face:\n"\
-"// attribute 4 unset), fading out from 512 to 1024 units from the eye (vr_water.cpp's kFadeEnd).\n"\
-"vec3 LiquidDisplace(vec3 pos, float pin, uint kind)\n"\
+"// The splashes' ripples (vr_water.cpp, vr_water_ripples; Ripple.x of them, 0: none) over a level liquid at pos: xy the\n"\
+"// height's gradient, z the height. Round each on a surface at pos.z, a ring of crests: a packet 0.7 wavelengths wide\n"\
+"// spreading at Ripple.y units/s, lower the farther it has spread, its crests running out through it twice as fast;\n"\
+"// with fine > 0, that much of ripples a third as long riding in it (the shading's). Lava's slow and long, slime's\n"\
+"// slower, teleports' none.\n"\
+"vec3 LiquidRipples(vec3 pos, uint kind, float fine)\n"\
 "{\n"\
-"	if (pin <= 0. || Water2.w <= 0.)\n"\
+"	vec3 r = vec3(0.);\n"\
+"	int n = int(Ripple.x);\n"\
+"	if (n <= 0 || kind == 3u)\n"\
+"		return r;\n"\
+"	float speed = Ripple.y * (kind == 1u ? 0.35 : kind == 2u ? 0.7 : 1.0); // (vr_water.cpp's rippleSpeed)\n"\
+"	float k = Ripple.z / (kind == 1u ? 1.5 : 1.0);\n"\
+"	float amp = kind == 1u ? 0.6 : kind == 2u ? 0.8 : 1.0;\n"\
+"	float width = 4.4 / k;\n"\
+"	for (int i = 0; i < n; i++)\n"\
+"	{\n"\
+"		vec4 e = RippleAt[i];\n"\
+"		vec2 d = pos.xy - e.xy;\n"\
+"		float dist = length(d);\n"\
+"		float front = speed * e.w;\n"\
+"		float u = (dist - front) / width;\n"\
+"		if (abs(pos.z - e.z) > 4. || abs(u) > 3.)\n"\
+"			continue;\n"\
+"		float a = amp * RippleAmp[i >> 2][i & 3] / sqrt(1.0 + dist * k * 0.16);\n"\
+"		float env = exp(-u * u);\n"\
+"		float denv = -2.0 * u / width * env;\n"\
+"		float ph = k * (dist - 2.0 * front);\n"\
+"		float h = -a * env * cos(ph);\n"\
+"		float dh = -a * (denv * cos(ph) - env * k * sin(ph));\n"\
+"		if (fine > 0.)\n"\
+"		{\n"\
+"			float phf = 3.0 * k * (dist - 1.6 * front) + 1.3;\n"\
+"			float af = 0.14 * a * fine;\n"\
+"			h -= af * env * cos(phf);\n"\
+"			dh -= af * (denv * cos(phf) - env * 3.0 * k * sin(phf));\n"\
+"		}\n"\
+"		r.z += h;\n"\
+"		r.xy += d * (dh / max(dist, 1e-3));\n"\
+"	}\n"\
+"	return r;\n"\
+"}\n"\
+"\n"\
+"// A vertex of the swells' mesh (vr_water.cpp) raised: rim 1 + how far the pool's rim is in units (0: a face not held,\n"\
+"// or any other liquid face: attribute 4 unset); the pin 0 at the rim to 1 32 units in. Fading out from 512 to 1024\n"\
+"// units from the eye (vr_water.cpp's kFadeEnd). The splashes' ripples too (Ripple.w of them: none where the grid is\n"\
+"// too coarse for them).\n"\
+"vec3 LiquidDisplace(vec3 pos, float rim, uint kind)\n"\
+"{\n"\
+"	if (rim <= 0. || (Water2.w <= 0. && Ripple.x <= 0.))\n"\
 "		return pos;\n"\
+"	float pin = smoothstep(1.0, 33.0, rim);\n"\
 "	float fade = 1.0 - smoothstep(512.0, 1024.0, distance(pos, EyePos));\n"\
-"	return vec3(pos.xy, pos.z + LiquidSwell(pos.xy, kind).z * pin * fade);\n"\
+"	float h = LiquidSwell(pos.xy, kind).z + (Ripple.w > 0. ? LiquidRipples(pos, kind, 0.).z * Ripple.w : 0.);\n"\
+"	return vec3(pos.xy, pos.z + h * pin * fade);\n"\
 "}\n"\
 "\n"\
 
@@ -893,7 +1045,8 @@ LIQUID_SWELL \
 "	}\n"\
 "	r *= Water.x;\n"\
 "	if (a.z >= a.x && a.z >= a.y)\n"\
-"		r += LiquidSwell(pos.xy, kind); // the geometric waves' slopes, whether this face's vertices rise or not\n"\
+"		r += LiquidSwell(pos.xy, kind) // the geometric waves' slopes, whether this face's vertices rise or not\n"\
+"			+ LiquidRipples(pos, kind, 1.0 - smoothstep(300.0, 800.0, distance(pos, EyePos))); // and the splashes' ripples', finer ones close by\n"\
 "	return r;\n"\
 "}\n"\
 "\n"\
@@ -913,6 +1066,8 @@ LIQUID_SWELL \
 "// light from above; lava glows, its hot parts brightest (to bloom), pulsing slowly; teleports shimmer.\n"\
 "vec3 LiquidShade(vec3 tex, vec3 lit, vec3 light, vec3 pos, vec3 n, vec3 facing, float h, uint kind, inout float alpha)\n"\
 "{\n"\
+"	vec3 ndx = dFdx(n), ndy = dFdy(n); // QVR: the waves' spread under the pixel widens the glints (vr_specular_aa: Parallax.w)\n"\
+"	float spread = min(0.25 * (dot(ndx, ndx) + dot(ndy, ndy)), 0.09) * Parallax.w;\n"\
 "	if (kind == 1u)\n"\
 "	{\n"\
 "		float hot = smoothstep(0.2, 0.6, dot(tex, vec3(0.3, 0.59, 0.11)));\n"\
@@ -940,7 +1095,8 @@ LIQUID_SWELL \
 "	vec3 c = mix(lit, env, fresnel);\n"\
 "	vec3 hv = normalize(normalize(facing + vec3(0.25, 0.15, 0.0)) + v);\n"\
 "	float nh = max(dot(n, hv), 0.0);\n"\
-"	float glint = (pow(nh, 200.0) * 2.0 + pow(nh, 24.0) * 0.08) * (0.15 + 0.85 * f) * (1.0 - Water2.z);\n"\
+"	vec2 p = 1.0 / (vec2(1.0 / 200.0, 1.0 / 24.0) + spread); // QVR: Blinn's exponents widened, their energy kept (SpecularAA)\n"\
+"	float glint = (pow(nh, p.x) * 2.0 * (p.x + 1.0) / 201.0 + pow(nh, p.y) * 0.08 * (p.y + 1.0) / 25.0) * (0.15 + 0.85 * f) * (1.0 - Water2.z);\n"\
 "	c += glint * Water.w * l * (kind == 2u ? vec3(0.7, 1.0, 0.5) : vec3(1.0));\n"\
 "	alpha = mix(alpha * (1.0 - 0.3 * Water.y), 1.0, fresnel);\n"\
 "	if (kind == 2u)\n"\
@@ -979,6 +1135,71 @@ LIQUID_SWELL \
 "	}\n"\
 "	vec3 behind = texture(LiquidScene, gl_FragCoord.xy / size + shift).rgb;\n"\
 "	return vec4(mix(behind, c.rgb, c.a), 1.0);\n"\
+"}\n"\
+"\n"\
+"// Value noise, 0..1, on the lattice of whole p (an integer hash: the same everywhere in the world).\n"\
+"float LiquidNoise(vec2 p)\n"\
+"{\n"\
+"	vec2 i = floor(p), f = p - i;\n"\
+"	f = f * f * (3.0 - 2.0 * f);\n"\
+"	uvec2 q = uvec2(ivec2(i) + 65536);\n"\
+"	uvec4 h = uvec4(q.x, q.x + 1u, q.x, q.x + 1u) * 1597334677u ^ uvec4(q.y, q.y, q.y + 1u, q.y + 1u) * 3812015801u;\n"\
+"	h = (h ^ (h >> 16u)) * 2246822519u;\n"\
+"	vec4 v = vec4(h ^ (h >> 13u)) * (1.0 / 4294967296.0);\n"\
+"	return mix(mix(v.x, v.y, f.x), mix(v.z, v.w, f.x), f.y);\n"\
+"}\n"\
+"\n"\
+"// Shoreline foam (Water3.x: vr_water_foam, 0 off) on a level liquid seen from above, where it meets walls, steps and\n"\
+"// things standing in it. How far the shore is: rim, from the swells' mesh (1 + the distance to the pool's rim in units,\n"\
+"// 0 unknown: brush entities' liquids), and with the scene's distances (CausticsScale.w) how far behind the surface\n"\
+"// the scene is along the view ray (a step, an object in the water, a wall seen at a slant). Water: white foam, its\n"\
+"// edge broken by a crawling noise, wider where the swells push against the shore, and faint whitecaps on the swells'\n"\
+"// crests; slime: a dark green scum; lava: a hot yellow rim at the rock (to bloom), a darker crust beyond. All in the\n"\
+"// world (both eyes alike), fading out from 600 to 1000 units. tex the texture's colour, light the light on it (1\n"\
+"// Quake's full); lit: the world program's (the unlit water's foam is as bright as its texture). alpha: its opacity.\n"\
+"vec3 LiquidFoam(vec3 c, vec3 tex, vec3 light, vec3 pos, vec3 facing, float h, float rim, uint kind, bool lit, inout float alpha)\n"\
+"{\n"\
+"	if (Water3.x <= 0. || kind == 3u || facing.z < 0.7 || rim < 0.) // (rim < 0: a surface under more of the liquid)\n"\
+"		return c;\n"\
+"	float dist = distance(pos, EyePos);\n"\
+"	float fade = 1.0 - smoothstep(600.0, 1000.0, dist);\n"\
+"	if (fade <= 0.)\n"\
+"		return c;\n"\
+"	float amp = Water2.w * (kind == 1u ? 1.3 : kind == 2u ? 0.6 : 1.0);\n"\
+"	float swell = amp > 0. ? LiquidSwell(pos.xy, kind).z / amp : 0.0; // -1 .. 1\n"\
+"	float width = (kind == 1u ? 8.0 : kind == 2u ? 7.0 : 10.0) * (0.5 + 0.5 * Water3.x) * (1.0 + 0.3 * swell + 0.1 * clamp(h, -1.0, 1.0));\n"\
+"	float d = rim > 0. ? rim - 1.0 : 1e4;\n"\
+"	if (CausticsScale.w != 0.)\n"\
+"	{\n"\
+"		float w = 1.0 / gl_FragCoord.w; // the surface's distance along the view\n"\
+"		float behind = LiquidSceneDistance(gl_FragCoord.xy) - w;\n"\
+"		if (behind >= 0.) // (less: something in front, beside it)\n"\
+"			d = min(d, behind * dist / w);\n"\
+"	}\n"\
+"	float f = 1.0 - d / width; // 1 at the shore, 0 width away\n"\
+"	bool crest = kind == 4u && swell > 0.75;\n"\
+"	if (f <= -1. && !crest) // (to twice the width: flecks drifting off it)\n"\
+"		return c;\n"\
+"	float t = Time * (kind == 1u ? 0.25 : kind == 2u ? 0.4 : 1.0);\n"\
+"	vec2 p = pos.xy;\n"\
+"	float n = LiquidNoise(p * 0.19 + vec2(t * 0.31, -t * 0.23)) * 0.6 + LiquidNoise(p * 0.47 - vec2(t * 0.47, t * 0.38)) * 0.4;\n"\
+"	float fine = LiquidNoise(p * 0.6 + vec2(t * 0.7, t * 0.5));\n"\
+"	float foam = smoothstep(n - 0.12, n + 0.12, f) * (0.6 + 0.4 * fine); // the foam reaches further where the noise is low\n"\
+"	foam = max(foam, smoothstep(0.78, 0.97, f)); // a line at the shore itself\n"\
+"	foam = max(foam, smoothstep(0.7, 0.85, fine) * smoothstep(0.45, 0.6, n) * 0.5 * clamp(f + 1.0, 0.0, 1.0)); // and flecks\n"\
+"	if (crest)\n"\
+"		foam = max(foam, smoothstep(0.75, 1.0, swell) * smoothstep(0.55, 0.8, n) * fine * 0.35);\n"\
+"	foam *= fade * min(Water3.x, 1.0);\n"\
+"	float b = lit ? min(dot(light, vec3(1.0 / 3.0)), 1.3) : clamp(dot(tex, vec3(0.3, 0.59, 0.11)) * 3.0 + 0.2, 0.4, 1.0);\n"\
+"	if (kind == 1u) // lava: hot where it touches the rock, a cooler crust beyond\n"\
+"	{\n"\
+"		float hot = smoothstep(n * 0.7 + 0.2, n * 0.7 + 0.45, f) * (0.75 + 0.25 * sin(Time * 2.3 + n * 9.0));\n"\
+"		c *= 1.0 - 0.45 * foam * (1.0 - hot) * smoothstep(0.3, 0.7, fine);\n"\
+"		return c + vec3(1.2, 0.55, 0.12) * (hot * fade * min(Water3.x, 1.0) * (0.6 + 0.6 * Water2.x));\n"\
+"	}\n"\
+"	vec3 col = kind == 2u ? vec3(0.28, 0.34, 0.1) * (0.7 + 0.3 * fine) : vec3(0.85, 0.9, 0.92);\n"\
+"	alpha = mix(alpha, 1.0, foam * 0.9);\n"\
+"	return mix(c, col * b, foam * (kind == 2u ? 0.75 : 0.85));\n"\
 "}\n"\
 "\n"\
 "// Caustics: the light on what is under water (the liquid a cell out from the surface, towards the eye) dappled by the\n"\
@@ -1039,6 +1260,10 @@ LIQUID_SWELL // QVR
 "layout(location=10) flat out float out_glow; // QVR\n"
 "layout(location=12) flat out float out_pdepth; // QVR: parallax mapping\n"
 "layout(location=13) flat out vec4 out_uvclamp; // QVR\n"
+"layout(location=14) flat out vec4 out_detail; // QVR: detail textures (vr/vr_detail.cpp)\n"
+"#if MODE == " QS_STRINGIFY (WORLDSHADER_WATER) "\n"
+"	layout(location=20) out float out_rim; // QVR: 1 + the distance to the shore (the swells' mesh), 0 unknown: the foam\n"
+"#endif\n"
 "\n"
 "void main()\n"
 "{\n"
@@ -1050,6 +1275,7 @@ LIQUID_SWELL // QVR
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_WATER) "\n"
 "	if (in_swellpin > 0.) // QVR: the swells move the surface on screen and in depth; out_pos stays the flat one's, for the shading\n"
 "		gl_Position = ViewProj * vec4(LiquidDisplace(out_pos, in_swellpin, LiquidKind(call.flags)), 1.0);\n"
+"	out_rim = in_swellpin; // QVR\n"
 "#endif\n"
 "#if REVERSED_Z\n"
 "	const float ZBIAS = -1./1024;\n"
@@ -1071,6 +1297,7 @@ LIQUID_SWELL // QVR
 "	out_glow = instance.glow; // QVR\n"
 "	out_pdepth = instance.parallax; // QVR\n"
 "	out_uvclamp = call.uvclamp; // QVR\n"
+"	out_detail = call.detail; // QVR\n"
 "	out_styles.x = GetLightStyle(in_styles.x);\n"
 "	if (in_styles.y == 255)\n"
 "		out_styles.yzw = vec3(-1.);\n"
@@ -1107,6 +1334,7 @@ static const char world_fragment_shader[] =
 "	layout(binding=3) uniform sampler2D NormalTex; // QVR\n"
 "#endif\n"
 "layout(binding=2) uniform sampler2D LMTex;\n"
+"layout(binding=9) uniform sampler2D LuxTex; // QVR: the baked light's directions (deluxemaps: r_brush.c), as LMTex\n"
 "\n"
 FRAMEDATA_BUFFER
 LIGHT_BUFFER
@@ -1137,10 +1365,16 @@ LIQUID_FUNCTIONS // QVR
 "layout(location=10) flat in float in_glow; // QVR\n"
 "layout(location=12) flat in float in_pdepth; // QVR: parallax mapping\n"
 "layout(location=13) flat in vec4 in_uvclamp; // QVR\n"
+"layout(location=14) flat in vec4 in_detail; // QVR: detail textures (vr/vr_detail.cpp)\n"
+"#if MODE == " QS_STRINGIFY (WORLDSHADER_WATER) "\n"
+"	layout(location=20) in float in_rim; // QVR: the shoreline foam's distance (LiquidFoam)\n"
+"#endif\n"
 "\n"
 OIT_OUTPUT (out_fragcolor)
 "\n"
+DETAIL_FUNCTIONS // QVR
 PARALLAX_FUNCTIONS // QVR
+SPECULAR_AA_FUNCTIONS // QVR
 "// QVR: the screen derivatives of the baked light's brightness lum, for its bumps (BakedBump): the lightmap's slope\n"
 "// here, from its luxels in full precision, times how its coordinates change across the screen. dFdx of the filtered\n"
 "// light itself was 0 between steps of the filter's 8-bit weights (1/256 of a luxel) and of the 8-bit light, and a\n"
@@ -1162,6 +1396,30 @@ PARALLAX_FUNCTIONS // QVR
 "float LuxelSlope(float outside, float inside, float lum) // at a luxel: the central difference, if its far side agrees\n"
 "{\n"
 "	return abs(outside - inside) <= 0.5 * (abs(outside) + abs(inside)) + max(0.1 * lum, 0.008) ? 0.5 * (outside + inside) : inside;\n"
+"}\n"
+"// QVR: the baked light's real direction at the pixel (deluxemaps: vr_deluxemap, ShadowFlags 128), from the map's\n"
+"// .lux (r_brush.c, GL_FillSurfaceLux): x along the texture's s axis on the face, y the normal n crossed with it, z n.\n"
+"// That axis is the gradient of the texture coordinate over the face, from the derivatives the bumps' frame comes\n"
+"// from: exact on flat faces, the same in both eyes, turning with a rotating brush model. Filtered, the direction is\n"
+"// shorter where its luxels disagree (light from several sides), and leans less. w 0: none (faces without, items).\n"
+"vec4 LuxDirection(vec2 lmuv, vec3 n, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy)\n"
+"{\n"
+"	vec4 lux = textureLod(LuxTex, lmuv, 0.);\n"
+"	float det = dot(n, cross(dpdx, dpdy));\n"
+"	vec3 gs = (cross(dpdy, n) * duvdx.x + cross(n, dpdx) * duvdy.x) * (det < 0. ? -1.0 : 1.0); // along s\n"
+"	if (lux.a < 0.5 || dot(gs, gs) < 1e-30)\n"
+"		return vec4(0.);\n"
+"	vec3 t = normalize(gs), d = lux.xyz * 2.0 - 1.0;\n"
+"	return vec4(t * d.x + cross(n, t) * d.y + n * d.z, 1.0);\n"
+"}\n"
+"// The light's direction l for the bumps: at most 50 degrees off the normal n (the shading divides by dot(n, l): a\n"
+"// light along the wall would divide by nothing; at 60 the lit sides of ridges clipped white; the guess leans 45).\n"
+"vec3 LuxLight(vec3 n, vec3 l)\n"
+"{\n"
+"	vec3 t = l - n * dot(n, l);\n"
+"	float s = length(t);\n"
+"	float a = min(atan(s, max(dot(n, l), 0.0)), 0.8727);\n"
+"	return n * cos(a) + t * (sin(a) / max(s, 1e-4));\n"
 "}\n"
 "vec2 LightmapLumDerivs(float lum)\n"
 "{\n"
@@ -1241,8 +1499,22 @@ PARALLAX_FUNCTIONS // QVR
 "	vec4 plane;\n"
 "	plane.xyz = normalize(cross(dFdx(in_pos), dFdy(in_pos)));\n"
 "	plane.w = dot(in_pos, plane.xyz);\n"
-"	if (result.a < 0.666)\n"
+"	// QVR: alpha to coverage (vr_alpha_coverage with MSAA: ShadowFlags 64; opaque draws): the alpha sharpened to\n"
+"	// about a pixel's width round the cutoff gives the samples covered (smooth edges); without it, Quake's test\n"
+"	float coverage = (result.a - 0.666) / max(fwidth(result.a), 1e-4) + 0.5;\n"
+"	bool a2c = (ShadowFlags & 64u) != 0u && in_alpha >= 1.0;\n"
+"	if (coverage < (a2c ? 0.0 : 0.5))\n"
 "		discard;\n"
+"#endif\n"
+"#if MODE != " QS_STRINGIFY (WORLDSHADER_WATER) " && !DITHER\n"
+"	if (Detail.x > 0. && in_detail.z > 0.) // QVR: detail textures close by (vr/vr_detail.cpp); not on fullbright texels (alpha 0)\n"
+"	{\n"
+"		float detail = DetailFactor(in_detail, puv, duvdx, duvdy, distance(in_pos, EyePos));\n"
+"#if MODE == " QS_STRINGIFY (WORLDSHADER_SOLID) "\n"
+"		detail = mix(1.0, detail, result.a);\n"
+"#endif\n"
+"		result.rgb *= detail;\n"
+"	}\n"
 "#endif\n"
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_WATER) "\n"
 "	vec3 liquid_tex = result.rgb; // QVR: unlit (lava glows)\n"
@@ -1283,25 +1555,48 @@ PARALLAX_FUNCTIONS // QVR
 "\n"
 "	// QVR: the normal bent by the normal map (vr_normalmaps), for the baked light and the dynamic lights\n"
 "	vec3 bumped = facing;\n"
+"	vec3 luxdir = vec3(0.); // QVR: the baked light's real direction (deluxemaps), for its bumps and sheen; 0: none\n"
 "#if MODE != " QS_STRINGIFY (WORLDSHADER_WATER) "\n"
 "	if (LightTweak.w > 0.)\n"
 "	{\n"
 "		bumped = BumpedNormal(NormalTex, puv, duvdx, duvdy, dpdx, dpdy, facing);\n"
 "		if (LightTweak.y > 0.)\n"
 "		{\n"
-"			float lum = dot(total_light, vec3(1.0 / 3.0));\n"
+"			vec4 lux = (ShadowFlags & 128u) != 0u ? LuxDirection(lmuv, facing, duvdx, duvdy, dpdx, dpdy) : vec4(0.);\n"
+"			if (lux.w > 0.) // QVR: from where the light comes from (as BakedBump: as bright as before on the flat)\n"
+"			{\n"
+"				luxdir = LuxLight(facing, lux.xyz);\n"
+"				total_light *= max(mix(1.0, max(dot(bumped, luxdir), 0.0) / dot(facing, luxdir), LightTweak.y), 0.0);\n"
+"			}\n"
+"			else\n"
+"			{\n"
+"				float lum = dot(total_light, vec3(1.0 / 3.0));\n"
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_ALPHATEST) "\n"
-"			vec2 dlum = vec2(0.); // no derivatives after the discard\n"
+"				vec2 dlum = vec2(0.); // no derivatives after the discard\n"
 "#else\n"
-"			vec2 dlum = LightmapLumDerivs(lum); // QVR: not dFdx(lum): stepped (see there)\n"
+"				vec2 dlum = LightmapLumDerivs(lum); // QVR: not dFdx(lum): stepped (see there)\n"
 "#endif\n"
-"			total_light *= BakedBump(facing, bumped, dpdx, dpdy, lum, dlum);\n"
+"				total_light *= BakedBump(facing, bumped, dpdx, dpdy, lum, dlum); // guessed from where it brightens\n"
+"			}\n"
 "		}\n"
 "	}\n"
 "	total_light *= LiquidCaustics(in_pos, facing); // QVR: under water (vr_water_caustics)\n"
 "#else\n"
 "	bumped = LiquidNormal(waves, facing); // QVR: the waves', for the lights' glints\n"
 "#endif\n"
+"#if MODE == " QS_STRINGIFY (WORLDSHADER_ALPHATEST) "\n"
+"	SpecularAA(0.0); // QVR: the normal map's spread only (no derivatives after the discard)\n"
+"#else\n"
+"	SpecularAA(Parallax.w > 0. ? NormalSpread(bumped) : 0.0); // QVR: the sheen's lobe widened by the bumps under the pixel (vr_specular_aa)\n"
+"#endif\n"
+"	// QVR: the baked light's sheen, from its real direction (deluxemaps), as the dynamic lights' (vr_specular, the lobe\n"
+"	// SpecularAA sets) at a quarter of their strength: a lamp's glint on the bumps near it (at half, rough walls by\n"
+"	// a lamp looked hazy, 7 to 12% brighter)\n"
+"	if (luxdir != vec3(0.) && LightTweak.z > 0. && dot(bumped, luxdir) > 0.)\n"
+"	{\n"
+"		vec3 h = normalize(luxdir + normalize(EyePos - in_pos));\n"
+"		specular_light += total_light * (0.5 * LightTweak.z * SpecLobe.y) * pow(max(dot(bumped, h), 0.0), SpecLobe.x);\n"
+"	}\n"
 "\n"
 "	if (NumLights > 0u)\n"
 "	{\n"
@@ -1390,16 +1685,21 @@ PARALLAX_FUNCTIONS // QVR
 "	if (in_glow > 0.) // QVR: force grab's glow (vr/vr_fgfx.cpp)\n"
 "	{\n"
 "		float rim = 1.0 - abs(dot(normalize(cross(dFdx(in_pos), dFdy(in_pos))), normalize(EyePos - in_pos)));\n"
-"		result.rgb += vec3(0.35, 0.65, 1.0) * in_glow * (pow(rim, 2.0) * 1.1 + 0.12);\n"
+"		result.rgb += SceneTone.yzw * in_glow * (pow(rim, 2.0) * 1.1 + 0.12); // QVR: the player's hue\n"
 "	}\n"
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_WATER) "\n"
 "	float liquid_alpha = in_alpha; // QVR: the liquid's look (vr_water_*)\n"
 "	result.rgb = LiquidShade(liquid_tex, result.rgb, total_light, in_pos, bumped, facing, waves.z, liquid, liquid_alpha);\n"
+"	result.rgb = LiquidFoam(result.rgb, liquid_tex, total_light, in_pos, facing, waves.z, in_rim, liquid, true, liquid_alpha);\n"
 "#endif\n"
-"	result = clamp(result, 0.0, 1.0);\n"
+"	result = clamp(result, vec4(0.0), vec4(vec3(SceneTone.x), 1.0)); // QVR: above 1 in the eyes' float scene (vr_tonemap)\n"
 "	result.rgb = ApplyFog(result.rgb, in_pos - EyePos);\n"
 "\n"
 "	result.a = in_alpha; // FIXME: This will make almost transparent things cut holes though heavy fog\n"
+"#if MODE == " QS_STRINGIFY (WORLDSHADER_ALPHATEST) "\n"
+"	if (a2c)\n"
+"		result.a = clamp(coverage, 0.0, 1.0); // QVR: the samples it covers (GL_SAMPLE_ALPHA_TO_ONE writes 1)\n"
+"#endif\n"
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_WATER) "\n"
 "	result.a = liquid_alpha; // QVR: and what is behind it bent by the waves\n"
 "	result = LiquidRefract(result, in_pos, bumped, facing, liquid);\n"
@@ -1446,6 +1746,7 @@ LIQUID_SWELL // QVR
 "	layout(location=3) flat out uvec2 out_sampler;\n"
 "#endif\n"
 "layout(location=4) flat out uint out_flags; // QVR: the liquid's kind\n"
+"layout(location=20) out float out_rim; // QVR: 1 + the distance to the shore (the swells' mesh), 0 unknown: the foam\n"
 "\n"
 "void main()\n"
 "{\n"
@@ -1456,6 +1757,7 @@ LIQUID_SWELL // QVR
 "	gl_Position = ViewProj * vec4(pos, 1.0);\n"
 "	if (in_swellpin > 0.) // QVR: the geometric waves (vr/vr_water.cpp); out_pos stays the flat surface's\n"
 "		gl_Position = ViewProj * vec4(LiquidDisplace(pos, in_swellpin, LiquidKind(call.flags)), 1.0);\n"
+"	out_rim = in_swellpin; // QVR\n"
 "	out_uv = in_uv.xy;\n"
 "	out_pos = pos - EyePos;\n"
 "	out_flags = call.flags; // QVR\n"
@@ -1485,6 +1787,7 @@ LIQUID_FUNCTIONS // QVR
 "	layout(location=3) flat in uvec2 in_sampler;\n"
 "#endif\n"
 "layout(location=4) flat in uint in_flags; // QVR\n"
+"layout(location=20) in float in_rim; // QVR: the shoreline foam's distance (LiquidFoam)\n"
 "\n"
 OIT_OUTPUT (out_fragcolor)
 "\n"
@@ -1502,7 +1805,9 @@ OIT_OUTPUT (out_fragcolor)
 "	vec4 result = texture(Tex, uv);\n"
 "	vec3 n = LiquidNormal(waves, facing); // QVR\n"
 "	float alpha = in_alpha;\n"
-"	result.rgb = clamp(LiquidShade(result.rgb, result.rgb, vec3(1.0), pos, n, facing, waves.z, liquid, alpha), 0.0, 1.0);\n"
+"	vec3 liquid_tex = result.rgb; // QVR\n"
+"	result.rgb = clamp(LiquidShade(result.rgb, result.rgb, vec3(1.0), pos, n, facing, waves.z, liquid, alpha), 0.0, SceneTone.x); // QVR: lava's glow above 1 in the eyes' float scene (vr_tonemap)\n"
+"	result.rgb = min(LiquidFoam(result.rgb, liquid_tex, vec3(1.0), pos, facing, waves.z, in_rim, liquid, false, alpha), vec3(max(SceneTone.x, 1.0))); // QVR\n"
 "	result.rgb = ApplyFog(result.rgb, in_pos);\n"
 "	result.a *= alpha; // QVR\n"
 "	result = LiquidRefract(result, pos, n, facing, liquid); // QVR\n"
@@ -1745,6 +2050,8 @@ NOISE_FUNCTIONS
 "	int		Padding;\n"\
 "	vec4	LightDir; // QVR: xyz towards the model's light, w how much it replaces the fixed direction\n"\
 "	vec4	Glow; // QVR: x the force grab glow (vr/vr_fgfx.cpp), y 1 + the bumps' strength on its own light (vr_normalmap_models), negative unless shaded on a par with the world (vr_model_light_parity), z the fullbright boost (vr/vr_emissive.cpp), w parallax mapping's depth in units\n"\
+"	vec4	Ambient[6]; // QVR: the light around it (vr/vr_ambient.cpp): xyz +X -X +Y -Y +Z -Z over the model's own, [0].w how much it applies, [1].w how much of the directional shading stays\n"\
+"	vec4	Surface; // QVR: rim light and reflections (vr/vr_envmap.cpp): x the rim light's strength, y the reflections', z the cube's mip level they read\n"\
 "};\n"\
 "\n"\
 "layout(std430, binding=1) restrict readonly buffer InstanceBuffer\n"\
@@ -1845,6 +2152,7 @@ ALIAS_INSTANCE_BUFFER
 "layout(location=7) flat out float out_fbboost; // QVR\n"
 "layout(location=8) flat out float out_pdepth; // QVR: parallax mapping\n"
 "layout(location=9) flat out vec4 out_bumplight; // QVR: xyz towards the model's light (world), w how much the bumps shade it\n"
+"layout(location=10) flat out int out_instance; // QVR: its directional ambient (Ambient) for the fragment shader\n"
 "\n"
 "void main()\n"
 "{\n"
@@ -1870,7 +2178,9 @@ ALIAS_INSTANCE_BUFFER
 "	orientation = transpose(orientation);\n"
 "	vec3 lightdir = normalize(mix(vec3(0.70710678, 0.0, 0.70710678), inst.LightDir.xyz, inst.LightDir.w)); // QVR: vr/vr_modellight.cpp\n"
 "	vec3 shadevector = orientation * lightdir;\n"
-"	out_bumplight = vec4(lightdir, abs(inst.Glow.y) - 1.0); // QVR: Glow.y: +-(1 + the bumps' strength), + on a par with the world\n"
+"	out_instance = gl_InstanceID; // QVR\n"
+"	float dirkeep = inst.Ambient[1].w; // QVR: the share of the directional shading the ambient cube leaves (1 without it)\n"
+"	out_bumplight = vec4(lightdir, (abs(inst.Glow.y) - 1.0) * dirkeep); // QVR: Glow.y: +-(1 + the bumps' strength), + on a par with the world\n"
 "	float dot1, dot2;\n"
 "	if (inst.Glow.y > 0.) // QVR: on a par with the world (vr_model_light_parity): 0.6 .. 1.4 by the normal, on average the light given\n"
 "	{\n"
@@ -1882,7 +2192,8 @@ ALIAS_INSTANCE_BUFFER
 "		dot1 = r_avertexnormal_dot(pose1.nor, shadevector);\n"
 "		dot2 = r_avertexnormal_dot(pose2.nor, shadevector);\n"
 "	}\n"
-"	out_color = clamp(inst.LightColor * vec4(vec3(mix(dot1, dot2, inst.Blend)), 1.0), 0.0, 1.0);\n"
+"	float shade = mix(inst.Glow.y > 0. ? 1.0 : 1.18, mix(dot1, dot2, inst.Blend), dirkeep); // QVR: towards its average over the sphere\n"
+"	out_color = clamp(inst.LightColor * vec4(vec3(shade), 1.0), 0.0, 1.0);\n"
 "	uint overbright = floatBitsToUint(Fog.w) >> 31;\n"
 "	out_color.rgb = ldexp(out_color.rgb, ivec3(overbright));\n"
 "}\n";
@@ -1896,6 +2207,7 @@ LIGHT_BUFFER // QVR
 LIGHT_CLUSTER_IMAGE("readonly") // QVR
 SHADOW_FUNCTIONS // QVR
 PARALLAX_FUNCTIONS // QVR
+SPECULAR_AA_FUNCTIONS // QVR
 NOISE_FUNCTIONS
 "\n"
 "layout(binding=0) uniform sampler2D Tex;\n"
@@ -1916,6 +2228,7 @@ NOISE_FUNCTIONS
 "layout(location=7) flat in float in_fbboost; // QVR\n"
 "layout(location=8) flat in float in_pdepth; // QVR: parallax mapping's depth in units (vr_parallax_models; 0 off)\n"
 "layout(location=9) flat in vec4 in_bumplight; // QVR: xyz towards the model's light, w how much the bumps shade it\n"
+"layout(location=10) flat in int in_instance; // QVR: for its Ambient\n"
 "\n"
 OIT_OUTPUT (out_fragcolor)
 "\n"
@@ -1974,6 +2287,81 @@ OIT_OUTPUT (out_fragcolor)
 "	return max(1.0 + lean * in_bumplight.w * (0.3 + 0.7 * smoothstep(-0.5, 0.5, dot(n, l))), 0.0);\n"
 "}\n"
 "\n"
+"// QVR: directional ambient (vr/vr_ambient.cpp, vr_model_ambient_dir): the light around the model from six sides\n"
+"// (+X -X +Y -Y +Z -Z, each over the model's own light: 1 on average), shaded by the normal squared (an ambient\n"
+"// cube, as Half-Life 2's).\n"
+"// AmbientCube(n): the light around the model reaching a unit world-space normal n, relative to the model's own\n"
+"// light (in_color): 1 on average over the sphere, > 1 towards lit surroundings, < 1 towards shade; vec3(1.0) when\n"
+"// off (vr_model_ambient_dir 0). Stable name: other effects (rim light) may tint with it.\n"
+"vec3 AmbientCube(vec3 n)\n"
+"{\n"
+"	vec4 a0 = instances[in_instance].Ambient[0];\n"
+"	if (a0.w <= 0.)\n"
+"		return vec3(1.0);\n"
+"	vec3 n2 = n * n;\n"
+"	vec3 c = n2.x * instances[in_instance].Ambient[n.x >= 0. ? 0 : 1].xyz\n"
+"		+ n2.y * instances[in_instance].Ambient[n.y >= 0. ? 2 : 3].xyz\n"
+"		+ n2.z * instances[in_instance].Ambient[n.z >= 0. ? 4 : 5].xyz;\n"
+"	return mix(vec3(1.0), c, a0.w);\n"
+"}\n"
+"\n"
+"// QVR: the ambient cube at the normal leaning towards the bumped one by the model's bump strength (held weapons half).\n"
+"vec3 ModelAmbient(vec3 n, vec3 bumped)\n"
+"{\n"
+"	float bumps = clamp(abs(instances[in_instance].Glow.y) - 1.0, 0.0, 1.0);\n"
+"	return AmbientCube(normalize(mix(n, bumped, bumps)));\n"
+"}\n"
+"\n"
+"// QVR: rim light and reflections (vr/vr_envmap.cpp; the instance's Surface). EnvCube: the world round the hands.\n"
+"layout(binding=14) uniform samplerCube EnvCube;\n"
+"\n"
+"// QVR: how much a skin's texel looks like metal: greys and blue-greys (Quake's palette rows 0-15, 32-47, the\n"
+"// green-greys), not warm colours (skin, wood, leather, rust) nor saturated ones, nor black.\n"
+"float MetalMask(vec3 c)\n"
+"{\n"
+"	float mx = max(c.r, max(c.g, c.b));\n"
+"	float sat = (mx - min(c.r, min(c.g, c.b))) / max(mx, 1e-3);\n"
+"	float grey = c.r > c.b + 0.02 ? 1.0 - smoothstep(0.06, 0.14, sat) : 1.0 - smoothstep(0.22, 0.4, sat);\n"
+"	return grey * smoothstep(0.03, 0.12, mx);\n"
+"}\n"
+"\n"
+"// QVR: added to the lit colour. The rim light: a fresnel falloff round the edges facing away from this eye, in the\n"
+"// model's light from behind it (its ambient cube away from the eye). The reflections: the world's cube in the\n"
+"// mirrored eye direction (the normal half bent by the bumps), by fresnel (metal: the skin's colour straight on, white\n"
+"// at grazing angles) and the metal mask, darker where the model is dark. lit: the texel's lit share (not fullbright).\n"
+"vec3 ModelRimReflect(vec3 n, vec3 bumped, vec3 skin, float lit)\n"
+"{\n"
+"	vec4 s = instances[in_instance].Surface;\n"
+"	vec3 add = vec3(0.);\n"
+"#if ALPHATEST\n"
+"	lit = 1.0;\n"
+"#endif\n"
+"	if ((s.x <= 0. && s.y <= 0.) || lit <= 0.)\n"
+"		return add;\n"
+"	vec3 v = normalize(-in_pos);\n"
+"	if (s.x > 0.)\n"
+"	{\n"
+"		float f = 1.0 - clamp(dot(n, v), 0.0, 1.0);\n"
+"		vec3 back = n - v;\n"
+"		back *= inversesqrt(max(dot(back, back), 1e-6));\n"
+"		add += min(in_color.rgb, vec3(1.0)) * min(AmbientCube(back), vec3(1.5)) * (pow(f, 4.0) * s.x * 0.6) * skin; // capped: in bright light (outdoors, the sky behind) models glowed\n"
+"	}\n"
+"	float metal = s.y > 0. ? MetalMask(skin) * s.y : 0.;\n"
+"	if (s.w > 0.) // vr_weapon_reflections 2: the cube as a sharp mirror (a test)\n"
+"		return textureLod(EnvCube, reflect(-v, n), 0.).rgb * 2.0 - skin * in_color.rgb;\n"
+"	if (metal > 0.)\n"
+"	{\n"
+"		vec3 nb = normalize(mix(n, bumped, 0.5));\n"
+"		float ndv = clamp(dot(nb, v), 0.0, 1.0);\n"
+"		vec3 env = textureLod(EnvCube, reflect(-v, nb), s.z).rgb;\n"
+"		vec3 f0 = clamp(mix(vec3(0.5), skin * 1.5, 0.5), 0.0, 1.0);\n"
+"		vec3 fres = f0 + (1.0 - f0) * pow(1.0 - ndv, 5.0);\n"
+"		float dark = smoothstep(0.02, 0.35, dot(in_color.rgb, vec3(0.3333)));\n"
+"		add += env * fres * (metal * dark * 1.5);\n"
+"	}\n"
+"	return add * lit;\n"
+"}\n"
+"\n"
 "void main()\n"
 "{\n"
 "	vec2 uv = in_texcoord;\n"
@@ -1998,7 +2386,11 @@ OIT_OUTPUT (out_fragcolor)
 "	vec4 result = textureGrad(Tex, uv, duvdx, duvdy);\n"
 "#endif\n"
 "#if ALPHATEST\n"
-"	if (result.a < 0.666)\n"
+"	// QVR: alpha to coverage (vr_alpha_coverage with MSAA; opaque draws): the alpha sharpened to about a pixel's\n"
+"	// width round the cutoff gives the samples covered; without it, Quake's test\n"
+"	float coverage = (result.a - 0.666) / max(fwidth(result.a), 1e-4) + 0.5;\n"
+"	bool a2c = (ShadowFlags & 64u) != 0u && in_color.a >= 1.0;\n"
+"	if (coverage < (a2c ? 0.0 : 0.5))\n"
 "		discard;\n"
 "#endif\n"
 "#if ALPHATEST\n"
@@ -2008,19 +2400,30 @@ OIT_OUTPUT (out_fragcolor)
 "#endif\n"
 "	// QVR: the normal bent by the skin's normal map (vr_normalmaps), for the model's own light and the dynamic lights\n"
 "	vec3 n = normalize(in_nor);\n"
-"	vec3 bumped = LightTweak.w > 0. && (in_bumplight.w > 0. || NumLights > 0u) ? BumpedNormal(NormalTex, uv, duvdx, duvdy, dpdx, dpdy, n) : n;\n"
+"	vec3 bumped = LightTweak.w > 0. && (in_bumplight.w > 0. || NumLights > 0u || instances[in_instance].Ambient[0].w > 0.) ? BumpedNormal(NormalTex, uv, duvdx, duvdy, dpdx, dpdy, n) : n;\n"
+"#if ALPHATEST\n"
+"	SpecularAA(0.0); // QVR: the normal map's spread only (no derivatives after the discard)\n"
+"#else\n"
+"	SpecularAA(Parallax.w > 0. ? NormalSpread(bumped) : 0.0); // QVR: the sheen's lobe widened by the bumps and curves under the pixel (vr_specular_aa)\n"
+"#endif\n"
+"	vec3 skin = result.rgb; // QVR: for the rim light and reflections\n"
 "	vec3 spec; // QVR\n"
-"	vec3 light = in_color.rgb * ModelBumpShade(n, bumped) + ModelDynamicLights(n, bumped, spec); // QVR\n"
+"	vec3 light = in_color.rgb * ModelBumpShade(n, bumped) * ModelAmbient(n, bumped) + ModelDynamicLights(n, bumped, spec); // QVR\n"
 "#if ALPHATEST\n"
 "	result.rgb *= light;\n"
 "#else\n"
 "	result.rgb = mix(result.rgb, result.rgb * light, result.a);\n"
 "#endif\n"
 "	result.rgb += spec; // QVR\n"
+"	result.rgb += ModelRimReflect(n, bumped, skin, result.a); // QVR: rim light and reflections (vr/vr_envmap.cpp)\n"
 "#if POSEVERTTYPE == 2 \n"
 "	result.a *= in_color.a;\n"
 "#else\n"
 "	result.a = in_color.a;\n"
+"#endif\n"
+"#if ALPHATEST\n"
+"	if (a2c)\n"
+"		result.a = clamp(coverage, 0.0, 1.0); // QVR: the samples it covers (GL_SAMPLE_ALPHA_TO_ONE writes 1)\n"
 "#endif\n"
 "#if MODE == " QS_STRINGIFY (ALIASSHADER_NOPERSP) "\n"
 "	vec3 fullbright = textureLod(FullbrightTex, uv, 0.).rgb;\n"
@@ -2033,9 +2436,9 @@ OIT_OUTPUT (out_fragcolor)
 "	if (in_glow > 0.) // QVR: force grab's glow round the edges (vr/vr_fgfx.cpp)\n"
 "	{\n"
 "		float rim = 1.0 - abs(dot(normalize(in_nor), normalize(-in_pos)));\n"
-"		result.rgb += vec3(0.35, 0.65, 1.0) * in_glow * (pow(rim, 2.0) * 1.1 + 0.08);\n"
+"		result.rgb += SceneTone.yzw * in_glow * (pow(rim, 2.0) * 1.1 + 0.08); // QVR: the player's hue\n"
 "	}\n"
-"	result.rgb = clamp(result.rgb, 0.0, 1.0);\n"
+"	result.rgb = clamp(result.rgb, 0.0, SceneTone.x); // QVR: above 1 in the eyes' float scene (vr_tonemap)\n"
 "	float fog = exp2(abs(Fog.w) * -dot(in_pos, in_pos));\n"\
 "	fog = clamp(fog, 0.0, 1.0);\n"
 "	result.rgb = mix(Fog.rgb, result.rgb, fog);\n"
@@ -2067,12 +2470,14 @@ FRAMEDATA_BUFFER
 "\n"
 "layout(location=0) out vec2 out_uv;\n"
 "layout(location=1) out vec3 out_pos;\n"
+"layout(location=2) out float out_depth; // QVR: the distance along the view (soft sprites)\n"
 "\n"
 "void main()\n"
 "{\n"
 "	gl_Position = ViewProj * vec4(in_pos, 1.0);\n"
 "	out_pos = in_pos - EyePos;\n"
 "	out_uv = in_uv;\n"
+"	out_depth = gl_Position.w; // QVR\n"
 "}\n";
 
 ////////////////////////////////////////////////////////////////
@@ -2082,9 +2487,12 @@ FRAMEDATA_BUFFER
 NOISE_FUNCTIONS
 "\n"
 "layout(binding=0) uniform sampler2D Tex;\n"
+"layout(binding=1) uniform sampler2D SceneDistances; // QVR: soft sprites (vr/vr_water.cpp's opaqueSceneDistances)\n"
+"layout(location=0) uniform vec4 Soft; // QVR: x the fade distance (0: none), y 1: soft (premultiplied, after the translucent pass: r_sprite.c)\n"
 "\n"
 "layout(location=0) in vec2 in_uv;\n"
 "layout(location=1) in vec3 in_pos;\n"
+"layout(location=2) in float in_depth; // QVR\n"
 "\n"
 "layout(location=0) out vec4 out_fragcolor;\n"
 "\n"
@@ -2105,6 +2513,19 @@ NOISE_FUNCTIONS
 "#else\n"
 "	out_fragcolor.rgb += SUPPRESS_BANDING() * ScreenDither;\n"
 "#endif\n"
+"	if (Soft.y > 0.0) // QVR: soft: fading out as the opaque scene comes close behind (its distances: half size, the nearest of four)\n"
+"	{\n"
+"		float f = 1.0;\n"
+"		if (Soft.x > 0.0)\n"
+"		{\n"
+"			ivec2 p = min(ivec2(gl_FragCoord.xy) >> 1, textureSize(SceneDistances, 0) - 1);\n"
+"			f = clamp((texelFetch(SceneDistances, p, 0).r - in_depth) / Soft.x, 0.0, 1.0);\n"
+"			f = f * f * (3.0 - 2.0 * f);\n"
+"			if (f < 0.004)\n"
+"				discard; // nor its depth\n"
+"		}\n"
+"		out_fragcolor = vec4(out_fragcolor.rgb * f, f);\n"
+"	}\n"
 "}\n";
 
 ////////////////////////////////////////////////////////////////

@@ -512,8 +512,16 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, qboolean fu
 			Sys_Error ("Couldn't set fullscreen state mode");
 	}
 
-	SDL_ShowWindow (draw_context);
-	SDL_RaiseWindow (draw_context);
+	if (getenv ("QVR_TEST_BACKGROUND")) // QVR: automated test runs open without taking the focus
+	{
+		SDL_SetHint (SDL_HINT_WINDOW_NO_ACTIVATION_WHEN_SHOWN, "1");
+		SDL_ShowWindow (draw_context);
+	}
+	else
+	{
+		SDL_ShowWindow (draw_context);
+		SDL_RaiseWindow (draw_context);
+	}
 
 	/* Create GL context if needed */
 	if (!gl_context) {

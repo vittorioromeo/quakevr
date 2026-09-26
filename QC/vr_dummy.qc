@@ -91,7 +91,8 @@ string(entity inflictor, entity attacker, float isVRMelee) VR_Dummy_Kind =
     if(vr_hitkind == QVR_HITKIND_BASH)
     {
         vr_dummy_colour = orange;
-        return sprintf("bash with the %s", WeaponIdToWeaponName(VRGetEntWeapon(attacker, vr_hithand)));
+        return sprintf(vr_bash_counter ? "parry-bash with the %s" : "bash with the %s",
+                       WeaponIdToWeaponName(VRGetEntWeapon(attacker, vr_hithand)));
     }
 
     if(vr_hitkind == QVR_HITKIND_SHOVE)

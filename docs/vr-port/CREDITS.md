@@ -18,7 +18,7 @@ articles, talks and other engines' source are credited with where they came from
 | **OpenXR SDK** (loader and headers) | The Khronos Group | Apache-2.0 | `Windows/OpenXR` |
 | **SDL2** | Sam Lantinga and contributors | zlib | `Windows/SDL2` |
 | **FTEQCC** (QuakeC compiler) | the FTE team | GPL-2.0 | used to build `progs.dat` |
-| **ericw-tools** (`light`, used by `relight_maps.py`) | Eric Wasylishen and contributors | GPL-3.0 | run on the player's machine; not bundled |
+| **ericw-tools** 2.0.0-alpha11 (`light`, used by `relight_maps.py` and `relight_quakevr_maps.py`; [release](https://github.com/ericwa/ericw-tools/releases/tag/2.0.0-alpha11)) | Eric Wasylishen, Kevin Shanahan (Tyrann), David Walton (Spike) and contributors | GPL-3.0 | run on the player's machine; not bundled (the committed `quakevr/maps` are its output) |
 
 ## Quake VR (the original port)
 
@@ -91,7 +91,11 @@ articles, talks and other engines' source are credited with where they came from
   **Ironwail** issues #16, #191, #262, #329 (the author's notes on shadows and per-pixel dynamic lights).
 - **Hexenwail** (issues #78, #97), **yquake2** (GL3/GL4 per-pixel dynamic lights, normal nudge), and the **Quake / Quake II re-releases** (id Software, Nightdive;
   released QuakeC and game code: `dynamiclight` and `shadowlight*`).
-- **ericw-tools documentation:** `-dirt`, `-bounce`, `-extra4`, `-lit`, BSPX.
+- **ericw-tools documentation and source:** `-dirt`, `-bounce`, `-extra4`, `-lit`, `-lux`, `-lightgrid`, BSPX; the
+  `.lux` format (per style, in the face's (s, -t, normal) frame) and the `LIGHTGRID_OCTREE` layout from its
+  `light/write.cc`, `light/lightgrid.cc` and `common/bspxfile.cc`.
+- **Deluxemaps** (the baked light's direction per luxel for bump mapping): LordHavoc's DarkPlaces (`.dlit`,
+  `r_glsl_deluxemapping`) and Spike's `.lux` for FTE and QuakeSpasm-Spiked.
 - **Xonotic** effect presets.
 - **Alex Vlachos (Valve):** "Advanced VR Rendering", GDC 2015, and "Advanced VR Rendering Performance",
   GDC 2016. Also [the_lab_renderer](https://github.com/ValveSoftware/the_lab_renderer).

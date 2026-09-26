@@ -18,7 +18,7 @@
 .entity mainhand_held;   // the box each hand carries
 .entity offhand_held;
 .entity carry_player;    // on a box: who carries it
-.vector carry_offset;    // the box's centre in the hand's frame (forward, right, up)
+.vector carry_offset;    // the box's origin in the hand's frame (forward, right, up)
 .float carry_trigger;    // the carrying hand's trigger last frame
 .float carry_nudgetime;
 .void() carry_use;       // taking it: the box's own pickup (ammo_touch, health_touch)
@@ -118,7 +118,13 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
     vector handPos = VRGetEntHandPos(xPlayer, xHand);
     vector handRot = VRGetEntHandRot(xPlayer, xHand);
     makevectors(handRot);
-    vector d = xBox.origin - handPos;
+
+    // Against the palm, not sunk into the fist (vr_held_surface_fit): moved the way the palm faces
+    // (palms face in, as held: a right hand's to its left) just out of the hand. Where it was
+    // gripped is kept otherwise (any part of it can be taken).
+    float rightHand = (xHand == cVR_MainHand) != (cvar("vr_lefthanded") != 0);
+    vector palm = rightHand ? v_right * -1 : v_right;
+    vector d = xBox.origin + carryfit(xBox, handPos, palm) - handPos;
     xBox.carry_offset_x = d * v_forward;
     xBox.carry_offset_y = d * v_right;
     xBox.carry_offset_z = d * v_up;
@@ -339,6 +345,8 @@ void() VR_Carry_Weapontouch =
 // ----------------------------------------------------------------------------
 // Gibs and heads (vr_grab_gibs): carried, thrown and force-grabbed like the boxes, with nothing to
 // take. Their box is the model's; thrown hard they hurt (forcegrabbable_touch) and splatter.
+
+void(vector org, vector xDir, float xSize) VR_Gore_Burst;
 
 void() VR_Gib_Touch =
 {
@@ -614,6 +622,7 @@ void(entity xGib, vector xDir) VR_Gib_Burst =
     dprint("gib: burst at "); dprint(vtos(org)); dprint("\n");
     float size = max(1, xGib.vr_gib_healthmult);
     VR_BloodMist(org, xDir, size);
+    VR_Gore_Burst(org, xDir, size);
 
     // Once a frame (a rocket bursts many).
     if(vr_gib_burstsoundtime != time)
@@ -646,6 +655,286 @@ void(entity xGib, vector xDir) VR_Gib_Burst =
     xGib.nextthink = time + 0.1;
     xGib.think2 = SUB_Null;
     xGib.nextthink2 = 0;
+};
+
+// ----------------------------------------------------------------------------
+// Gore (vr_gore; the engine's vr_gore.cpp draws it all): events sent as particle2 presets far above
+// the particle presets. A hit sprays blood onto the walls, floor and ceiling behind what it hits; a
+// gibbing or a gib bursting paints the room round it; a monster that dies whole bleeds a pool under
+// its corpse. Gibs flung from a body into a ceiling or a wall may stick there a while
+// (vr_gore_stick), dripping (the engine sees them hang), then fall.
+
+float QVR_GORE_HIT    = 40; // org: the hit, dir: its way * 7, count: damage + 1000 * kind (VR_Gore_Hit)
+float QVR_GORE_BURST  = 41; // org, dir: the blow's way * 7 (or none), count: 10 * size
+float QVR_GORE_CORPSE = 42; // org: the corpse's origin, dir_x: its size / 8
+
+.float vr_gib_stuck; // stuck to a ceiling or a wall (vr_gore_stick): until when
+
+float(entity e) VR_Gore_Bleeds =
+{
+    return (e.flags & (FL_MONSTER | FL_CLIENT)) && e.classname != "vr_dummy" && cvar_hget(cvarh_vr_gore) > 0;
+};
+
+// From T_DamageImpl, as `take` is taken: the blow's way from what hit (a shot's own, a missile's
+// flight, away from an explosion), and its kind (0 a shot or a missile, 1 a shotgun blast, 2 an
+// explosion's, 3 a hand's blow). Not for damage from the world (lava, slime, drowning, falls).
+void(entity targ, entity inflictor, float take) VR_Gore_Hit =
+{
+    if(take <= 0 || inflictor == world || !VR_Gore_Bleeds(targ))
+    {
+        return;
+    }
+
+    vector mid = (targ.absmin + targ.absmax) * 0.5;
+    vector org = mid;
+    vector dir = vr_hitdir;
+    float kind = 0;
+    if(vr_hitkind == QVR_HITKIND_SPLASH)
+    {
+        kind = 2;
+        dir = mid - inflictor.origin;
+    }
+    else
+    {
+        if(vr_hitkind == QVR_HITKIND_MELEE || vr_hitkind == QVR_HITKIND_HEADBUTT || vr_hitkind == QVR_HITKIND_BASH ||
+           vr_hitkind == QVR_HITKIND_SHOVE)
+        {
+            kind = 3;
+        }
+        else if(vr_hitpellets > 1)
+        {
+            kind = 1;
+        }
+        if(vr_hitpos != '0 0 0' && vlen(vr_hitpos - mid) < 64)
+        {
+            org = vr_hitpos;
+        }
+        if(dir == '0 0 0' && inflictor != targ)
+        {
+            if(inflictor.velocity != '0 0 0' && !(inflictor.flags & (FL_MONSTER | FL_CLIENT)))
+            {
+                dir = inflictor.velocity; // a missile's flight
+            }
+            else
+            {
+                dir = mid - (inflictor.absmin + inflictor.absmax) * 0.5;
+            }
+        }
+    }
+    if(dir == '0 0 0')
+    {
+        return;
+    }
+    particle2(org, normalize(dir) * 7, QVR_GORE_HIT, min(999, ceil(take)) + kind * 1000);
+};
+
+// A monster gibbed (ThrowHead) or a gib bursting (VR_Gib_Burst) at `org`: blood all round, more
+// along the blow (`xDir`, if any), `xSize` times a gib's.
+void(vector org, vector xDir, float xSize) VR_Gore_Burst =
+{
+    if(cvar_hget(cvarh_vr_gore) <= 0)
+    {
+        return;
+    }
+    vector d = '0 0 0';
+    if(xDir != '0 0 0')
+    {
+        d = normalize(xDir) * 7;
+    }
+    particle2(org, d, QVR_GORE_BURST, rint(xSize * 10));
+};
+
+// From ThrowHead (self is the monster gibbed): the gore's burst, away from what gibbed it.
+void() VR_Gore_Gibbed =
+{
+    vector dir = '0 0 0';
+    if(damage_inflictor != world && damage_inflictor != self)
+    {
+        dir = self.origin - (damage_inflictor.absmin + damage_inflictor.absmax) * 0.5;
+    }
+    VR_Gore_Burst(self.origin, dir, 2);
+};
+
+// From Killed, after the death code: a monster (or player) that died whole bleeds a pool under it.
+void(entity e) VR_Gore_Killed =
+{
+    if(!VR_Gore_Bleeds(e) || e.vr_gib || e.movetype == MOVETYPE_BOUNCE || e.model == string_null ||
+       (e.flags & FL_SWIM))
+    {
+        return;
+    }
+    particle2(e.origin, '1 0 0' * min(7.9, max(16, e.maxs_x) / 8), QVR_GORE_CORPSE, 1);
+};
+
+// Gibs fly harder from a body with the gore (higher: onto the ceiling; not a gib thrown by hand).
+vector(vector v) VR_Gore_Fling =
+{
+    float lvl = cvar_hget(cvarh_vr_gore);
+    if(lvl >= 2)
+    {
+        v = v * 1.3;
+        v_z = v_z + 150 + random() * 100;
+    }
+    else if(lvl >= 1)
+    {
+        v_z = v_z + 50;
+    }
+    return v;
+};
+
+.float vr_gib_flingtill; // flung from a body: until when it is watched for hitting a ceiling or a wall
+
+void() VR_Gib_StuckThink2;
+
+// Sticks `g`, flung from a body and just struck at `at` a surface facing `normal` going at `xSpeed`,
+// to it: often a ceiling, less often a wall (vr_gore: 2 over the top more). TRUE if it stuck.
+float(entity g, vector at, vector normal, float xSpeed) VR_Gore_Stick =
+{
+    float lvl = cvar_hget(cvarh_vr_gore);
+    float stick = cvar_hget(cvarh_vr_gore_stick);
+    if(lvl <= 0 || stick <= 0 || xSpeed < 180 || g.carry_player != world || g.vr_gib_stuck)
+    {
+        return FALSE;
+    }
+    float chance;
+    if(normal_z < -0.7)
+    {
+        chance = lvl >= 2 ? 0.75 : 0.3; // a ceiling
+    }
+    else if(normal_z > -0.3 && normal_z < 0.3)
+    {
+        chance = lvl >= 2 ? 0.35 : 0.1; // a wall
+    }
+    else
+    {
+        return FALSE;
+    }
+    if(random() >= chance)
+    {
+        return FALSE;
+    }
+
+    dprint("gib: stuck at "); dprint(vtos(at)); dprint("\n");
+    g.vr_gib_stuck = time + stick * (0.5 + random());
+    g.movetype = MOVETYPE_NONE;
+    g.vr_rigid = 0; // not the rigid bodies' any more (vr_rigid.cpp) until it lands again
+    g.vr_spin = '0 0 0';
+    g.velocity = '0 0 0';
+    g.avelocity = '0 0 0';
+    g.flags = g.flags - (g.flags & FL_ONGROUND);
+    setorigin(g, at + normal * 3);
+    g.think2 = VR_Gib_StuckThink2;
+    g.nextthink2 = time + 0.1;
+    return TRUE;
+};
+
+// When a gib is let go of by the fling watch or a stuck gib falls: armed as VR_Gib_Think2 would,
+// then that (a destroyable gib) or nothing.
+void() VR_Gore_Handover =
+{
+    if(VR_Gib_IsDestroyable(self))
+    {
+        self.think2 = VR_Gib_Think2;
+        self.nextthink2 = time + 0.01;
+    }
+    else
+    {
+        self.think2 = SUB_Null;
+        self.nextthink2 = 0;
+    }
+};
+
+// A gib flung from a body, every frame for its first seconds: going fast, its velocity turned by a
+// ceiling (it was rising, now it is not) or a wall (its way across reversed) may stick it there
+// (VR_Gore_Stick; Quake's touches do not tell: from its first touch it is a rigid body). Armed
+// meanwhile (VR_Gib_Think2's job).
+void() VR_Gib_FlingThink2 =
+{
+    if(self.carry_player != world || time > self.vr_gib_flingtill || self.vr_gib_stuck || !self.vr_gib)
+    {
+        self.vr_gib_flingtill = 0;
+        VR_Gore_Handover();
+        return;
+    }
+    if(VR_Gib_IsDestroyable(self) && !self.takedamage && time >= self.vr_gib_armtime)
+    {
+        self.takedamage = DAMAGE_YES;
+    }
+
+    vector v0 = self.vr_gib_lastvel;
+    vector v = self.velocity;
+    self.vr_gib_lastvel = v;
+    self.nextthink2 = time + 0.01;
+    float speed = vlen(v0);
+    if(speed < 180)
+    {
+        return;
+    }
+    vector across = v0;
+    across_z = 0;
+    if(v0_z > 120 && v_z < v0_z * 0.3)
+    {
+        traceline(self.origin, self.origin + '0 0 40', TRUE, self); // a ceiling?
+    }
+    else if(vlen(across) > 150 && v * normalize(across) < vlen(across) * 0.3)
+    {
+        traceline(self.origin, self.origin + normalize(across) * 40, TRUE, self); // a wall?
+    }
+    else
+    {
+        return;
+    }
+    if(trace_fraction < 1 && !trace_startsolid && VR_Gore_Stick(self, trace_endpos, trace_plane_normal, speed))
+    {
+        self.vr_gib_flingtill = 0;
+    }
+};
+
+// From ThrowGib and ThrowHead: a grabbable gib flung from a body is watched (VR_Gib_FlingThink2).
+void(entity g) VR_Gore_WatchFling =
+{
+    if(!g.vr_gib || cvar_hget(cvarh_vr_gore) <= 0 || cvar_hget(cvarh_vr_gore_stick) <= 0)
+    {
+        return;
+    }
+    g.vr_gib_flingtill = time + 2.5;
+    g.vr_gib_lastvel = g.velocity;
+    g.think2 = VR_Gib_FlingThink2;
+    g.nextthink2 = time + 0.01;
+};
+
+// A stuck gib, a few times a second: it falls when its time is up, or when it is struck or shot
+// (knocked: it has a velocity); taken by a hand, the hand has it. Armed meanwhile (VR_Gib_Think2's
+// job), so that it can be shot off.
+void() VR_Gib_StuckThink2 =
+{
+    if(self.carry_player != world || self.movetype != MOVETYPE_NONE)
+    {
+        self.vr_gib_stuck = 0;
+    }
+    else if(time >= self.vr_gib_stuck || self.velocity != '0 0 0')
+    {
+        self.vr_gib_stuck = 0;
+        self.movetype = MOVETYPE_BOUNCE; // falls; a rigid body again from its landing (VR_Gib_Touch)
+        if(self.velocity == '0 0 0')
+        {
+            self.velocity = '0 0 -20';
+        }
+        setorigin(self, self.origin);
+    }
+
+    if(VR_Gib_IsDestroyable(self) && !self.takedamage && time >= self.vr_gib_armtime && self.carry_player == world)
+    {
+        self.takedamage = DAMAGE_YES;
+    }
+    if(self.vr_gib_stuck)
+    {
+        self.nextthink2 = time + 0.1;
+    }
+    else
+    {
+        VR_Gore_Handover();
+    }
 };
 
 // The damage of a hand or gun striking a gib at `xSpeed` (m/s; vr_melee_speed or more): the base of

@@ -97,11 +97,17 @@ models) and keeps the classic pixel look; none of it needs new art.
 
 ## Done
 
-- **Re-lit maps** (#1). `Misc/quakevr/relight_maps.py --quake <Quake folder> --light <ericw-tools light>` extracts
-  the maps of id1, hipnotic and rogue from the player's own paks and re-lights them with
-  `-extra4 -dirt -dirtdepth 96 -lit` with stronger ambient occlusion and no bounced light since round 10 (`--bright`: the
-  earlier look with `-bounce -bouncescale 0.5`; about 4 s a map, 73 maps, 143 MB),
-  into `quakevr/relit/<game>/maps/`. The engine loads `relit/<game>/maps/X.bsp` and its `.lit` in place of
+- **Re-lit maps** (#1). `Misc/quakevr/relight_maps.py --quake <Quake folder> [--light <ericw-tools light>]` extracts
+  the maps of id1, hipnotic and rogue from the player's own paks and re-lights them with **ericw-tools 2.0.0-alpha11**
+  (since round 17; https://github.com/ericwa/ericw-tools/releases/tag/2.0.0-alpha11, the win64 zip; GPL; v0.18.1
+  before, which still works, without the light grid). `--light` defaults to `ERICW_LIGHT`, then `light` on `PATH`,
+  then `relight_maps.DEFAULT_LIGHT` (`C:/OHWorkspace/ericw-tools-2.0.0-alpha11-win64/light.exe`). The look's options
+  are `-extra4 -dirt -dirtscale 1.5 -dirtdepth 96 -lit`, stronger ambient occlusion and no bounced light since round
+  10 (`--bright`: the earlier look with `-bounce -bouncescale 0.5`); `OUTPUT_ARGS` adds `-lux` (the light's direction
+  at every luxel, `<map>.lux` beside the `.lit`: deluxemaps, `vr_deluxemap`, LIGHTING.md) and `-lightgrid` (the
+  light in the air every 32 units, the `LIGHTGRID_OCTREE` BSPX lump in the `.bsp`, about 0.3 MB a map). About 1 s a
+  map, 73 maps, 209 MB (143 MB before the `.lux` and the grid), into `quakevr/relit/<game>/maps/`. The 2.0 tool
+  gives the same light with the same options: see "Relight tools" below. The engine loads `relit/<game>/maps/X.bsp` and its `.lit` in place of
   `maps/X.bsp` when that comes from `<game>` (`VR_ModelFile` in `Mod_LoadModel` and `Mod_LoadLighting`), per game
   because id1, hipnotic and rogue all have a `start.bsp`; a mod's own maps are left alone. `vr_relit_maps 0` plays
   the original lighting (next map). The relit files are generated locally and not committed (`.gitignore`).
@@ -147,6 +153,36 @@ models) and keeps the classic pixel look; none of it needs new art.
   `vis_maps.py --check quakevr/relit/id1/maps` reports, and in game `developer 2; map e1m1` prints
   "maps/e1m1.bsp is vised for transparent water tele slime". `quakevr.cfg` sets `r_lavaalpha 1` (lava stays
   opaque); `r_wateralpha` sets the rest. With `vr_relit_maps 0` the original maps load and water is opaque again.
+- **Relight tools: ericw-tools 2.0.0-alpha11** (round 17; https://github.com/ericwa/ericw-tools/releases/tag/2.0.0-alpha11,
+  `ericw-tools-2.0.0-alpha11-win64.zip`: `light.exe` beside its DLLs). Why: `-lux` (deluxemaps, LIGHTING.md), the
+  `-lightgrid` BSPX lump, and the maintained code. The options are the same as with v0.18.1
+  (`-extra4 -dirt -dirtscale 1.5 -dirtdepth 96 -lit`, plus `OUTPUT_ARGS` `-lux -lightgrid`); none of the defaults
+  that changed matters here: 2.0's `-extra4` is `-extra 4`, `-dirt` also darkens minlight (none used), the sky's
+  `-sunsamples` default is 64, `-visapprox` culls lights by the vis data (`none` gave the same luxels). Compared luxel
+  by luxel on all 73 maps with v0.18.1's: the median correlation 0.996, the mean brightness within 1.3% on every map
+  (e1m1 +0.2%), screenshots of e1m1, e1m2, e1m6, e2m1 and start at the fixture views differing by 0.01 to 0.3 of 255
+  on average. What differs, and what the scripts do about it:
+  - A light with `"light" "0"` is dark in 2.0; id's light and v0.18 gave it the default 300. e1m4's six torches went
+    dark (its luxels 5% darker on the whole): `relight_maps.id_light_values` gives such lights 300 again (for `light`
+    only; the map keeps its entities).
+  - 2.0 places the samples of a face strip thinner than a luxel on its edges; where a brush stands at that edge, its
+    face shades them, and the strip comes out half as bright or black (0.02% of id's maps' luxels, more in e1m7 and
+    the mission packs, all small; brighter luxels elsewhere as often: 2.0 also fixed samples 0.18 put inside
+    solids). vrtutorial is built of 4- to 8-unit trims (the wall between each board and the strip light over it):
+    0.6% of its luxels, a dark band over every board. So `relight_quakevr_maps.py` lights vrtutorial with v0.18.1
+    (`--legacy-light`, default the old path, or `ERICW_LIGHT_LEGACY`) and takes 2.0's light grid and its `.lux`, the
+    latter moved face by face to the old lightmap's layout (`relight_maps.remapped_lux`); without the old tool it
+    warns and uses 2.0 alone.
+  - The `.bsp` gets BSPX lumps after its 15 lumps; engines find them only right after the last lump, so replacing
+    the entities or the visibility by appending (as the scripts did) would lose them: `vis_maps.packed` repacks
+    every lump and keeps the BSPX ones after them (`with_entities`, the water-vis patch).
+  - Each map's stamp (`<map>.relit`) holds `light`'s version (`light_version`, from its banner) and a `REVISION` of
+    the script: the new tool relit every map once.
+  - `relight_quakevr_maps.py` uses a 64-unit light grid (`-lightgrid_dist 64 64 64`): the maps are committed, and the
+    firing range's open air made a 1.6 MB grid at 32 (0.2 MB at 64). vrtutorial.bsp 0.97 -> 1.08 MB, vrfiringrange.bsp
+    1.59 -> 1.78 MB, plus their `.lux` (0.24 and 0.20 MB).
+  No source patch was needed (nothing in `Misc/quakevr/tools/`). Sizes: `quakevr/relit` 143 -> 209 MB (the `.lux`
+  files as large as the `.lit`s, the grids about 0.3 MB a map); about 1 s a map.
 - **Model lighting** (#2, `vr_model_lighting`, `vr_modellight.cpp`). The map's light entities (parsed at load;
   "start off" lights with a target name skipped) give each alias model the direction of the strongest four
   lights that reach it (Quake's linear falloff, `light - distance * wait`) and see it (a line through the world's

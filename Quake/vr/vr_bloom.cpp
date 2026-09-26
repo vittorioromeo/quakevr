@@ -50,9 +50,10 @@ void main()
 )";
 
 // Down to a quarter: 16 texels by four bilinear taps, keeping what is over the threshold. The scene
-// is low dynamic range (a lamp is 1, not 10), so the response rises steeply towards white: lamps and
-// glowing panels glow, merely bright walls hardly. White and pale light glows by vr_bloom_white,
-// coloured light (red buttons, blue panels) by vr_bloom_color, blended by how saturated it is.
+// is low dynamic range (a lamp is 1, not 10; with vr_tonemap up to 8, taken as at most 2 here), so
+// the response rises steeply towards white: lamps and glowing panels glow, merely bright walls
+// hardly. White and pale light glows by vr_bloom_white, coloured light (red buttons, blue panels) by
+// vr_bloom_color, blended by how saturated it is.
 constexpr const char* brightFs = R"(#version 430
 layout(binding = 0) uniform sampler2D Scene;
 layout(location = 0) uniform vec4 Params; // threshold, 0, 1 / scene width, 1 / scene height
@@ -65,6 +66,8 @@ void main()
     vec3 c = max(max(texture(Scene, uv + vec2(-t.x, -t.y)).rgb, texture(Scene, uv + vec2(t.x, -t.y)).rgb),
                  max(texture(Scene, uv + vec2(-t.x, t.y)).rgb, texture(Scene, uv + vec2(t.x, t.y)).rgb));
     float bright = max(c.r, max(c.g, c.b));
+    c *= min(bright, 2.0) / max(bright, 1e-3); // the float scene (vr_tonemap) glows by at most 2: no flicker from specks
+    bright = min(bright, 2.0);
     float x = clamp((bright - Params.x) / max(1.0 - Params.x, 1e-3), 0.0, 1.0);
     float saturation = (bright - min(c.r, min(c.g, c.b))) / max(bright, 1e-3);
     float weight = mix(Weights.x, Weights.y, smoothstep(0.15, 0.6, saturation));

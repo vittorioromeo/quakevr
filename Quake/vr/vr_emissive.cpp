@@ -3,14 +3,21 @@
 #include "vr_emissive.hpp"
 #include "vr_color.hpp"
 #include "vr_cvars.hpp"
+#include "vr_hue.hpp"
 #include "vr_lighting.hpp"
 #include "vr_particles.hpp"
+#include "vr_profile.hpp"
+#include "vr_trace.hpp"
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <unordered_map>
+#include <vector>
+
+extern "C" int* cl_efrags; // gl_refrag.c: each static entity's leaves (a count, then the leaves)
 
 using namespace qvr;
 
@@ -128,8 +135,8 @@ void killDlight(int key)
 // Sets a glow's colour and size for the falloff in use, unshadowed; after its death time. With
 // DarkPlaces' falloff the colour is DarkPlaces' (white as bright without vr_colored_lights); with
 // Quake's, the colour at most 1 (white without). `fade`: seconds its colour fades out over before
-// it dies (0 none).
-void setGlow(dlight_t* dl, glm::vec3 color, float radius, float fade)
+// it dies (0 none). `shadow`: it may take one of vr_shadow_dlights' shadows (the nearest torches).
+void setGlow(dlight_t* dl, glm::vec3 color, float radius, float fade, bool shadow = false)
 {
     const bool colored = vr_colored_lights.value != 0.f;
     dl->radius = radius;
@@ -149,7 +156,10 @@ void setGlow(dlight_t* dl, glm::vec3 color, float radius, float fade)
     dl->color[0] = color.r;
     dl->color[1] = color.g;
     dl->color[2] = color.b;
-    lighting::dlightNoShadow(dl);
+    if(!shadow)
+    {
+        lighting::dlightNoShadow(dl);
+    }
 }
 
 // The ammo screens' lights: their keys (no entity's: entities' are positive), how far in front of
@@ -231,6 +241,133 @@ void lavaNailLight(int ent, const entity_t& e, float scale)
     dl->die = static_cast<float>(cl.time + 0.01);
     const float flicker = 0.9f + 0.1f * std::sin(static_cast<float>(cl.time) * 31.f + static_cast<float>(ent) * 2.3f);
     setGlow(dl, lavaNail.color, lavaNail.radius * scale * flicker, 0.f);
+}
+
+// ---- Torches and flames (round 17) ----------------------------------------------------------
+
+// A flame model: where its fire is (model units, before its yaw and scale), how far its light
+// reaches and its colour (DarkPlaces' brightness: a tenth of a muzzle flash's white 4 in the same
+// radius: the baked light already lights the room, this only moves it a little).
+struct TorchKind
+{
+    const char* model;
+    int frame; // -1: any
+    glm::vec3 fire;
+    float radius;
+    glm::vec3 color;
+};
+
+constexpr TorchKind torchKinds[] = {
+    {"progs/flame.mdl", -1, {0.f, 0.f, 20.f}, 150.f, {0.45f, 0.28f, 0.135f}}, // light_torch_small_walltorch
+    {"progs/flame2.mdl", 1, {0.f, 0.f, 14.f}, 170.f, {0.5f, 0.31f, 0.15f}},   // light_flame_large_yellow
+    {"progs/flame2.mdl", -1, {0.f, 0.f, 3.f}, 130.f, {0.42f, 0.26f, 0.125f}}, // light_flame_small_*
+    {"progs/candle.mdl", -1, {0.f, 0.f, 10.f}, 80.f, {0.3f, 0.19f, 0.09f}},    // Rogue's light_candle
+    {"progs/lantern.mdl", -1, {5.f, 0.f, 4.f}, 120.f, {0.38f, 0.24f, 0.115f}}, // Rogue's light_lantern
+};
+
+[[nodiscard]] const TorchKind* torchKind(const entity_t& e)
+{
+    if(!e.model || e.model->type != mod_alias || strncmp(e.model->name, "progs/", 6))
+    {
+        return nullptr;
+    }
+    for(const TorchKind& k : torchKinds)
+    {
+        if((k.frame < 0 || k.frame == e.frame) && !strcmp(e.model->name, k.model))
+        {
+            return &k;
+        }
+    }
+    return nullptr;
+}
+
+// Keys: -0x6000 - a static entity's index (up to 4095), -0x7000 - an entity's number.
+constexpr int torchLightKey = -0x6000;
+constexpr int torchDynamicId = 0x1000;
+constexpr int maxTorchLights = 16;
+constexpr float torchLightDistance = 1200.f; // none farther (fading out over the last quarter)
+constexpr float torchFadeTime = 0.3f;        // seconds a torch's light fades in or out over
+constexpr float torchStandoff = 18.f;        // the light kept this far off walls near the flame
+
+// A torch seen: its light's place (off the wall behind it), how lit it is (fading), its seed.
+struct TorchState
+{
+    glm::vec3 pos{0.f};
+    const TorchKind* kind = nullptr;
+    float scale = 1.f;
+    float weight = 0.f;
+    int rank = -1; // among the chosen this frame, nearest first
+    bool chosen = false;
+    bool lit = false;
+    unsigned seed = 0;
+};
+std::unordered_map<int, TorchState> torches;
+const qmodel_t* torchWorld = nullptr;
+double torchLastTime = 0.0;
+
+// Smooth value noise in -1..1 (a random value at each whole x, eased between).
+[[nodiscard]] float valueNoise(double x, unsigned seed)
+{
+    const double f = std::floor(x);
+    const auto i = static_cast<unsigned>(static_cast<long long>(f));
+    const float t = static_cast<float>(x - f);
+    const float s = t * t * (3.f - 2.f * t);
+    const float a = hash01(i, seed, 17u);
+    const float b = hash01(i + 1u, seed, 17u);
+    return (a + (b - a) * s) * 2.f - 1.f;
+}
+
+// A flame's flicker, -1..1 about 0: two noises at about 5-9 and 9-14 Hz and a slower sway, the
+// same whatever the frame rate (from the client's time).
+[[nodiscard]] float torchFlicker(double t, unsigned seed)
+{
+    return 0.5f * valueNoise(t * 9.0, seed) + 0.3f * valueNoise(t * 14.0 + 31.7, seed ^ 0x55u)
+           + 0.2f * valueNoise(t * 2.3 + 7.1, seed ^ 0xAAu);
+}
+
+// Where a torch's light goes: at its fire, moved out to torchStandoff from walls close by (a wall
+// torch's light otherwise sits a few units from the wall and shines through it into the next
+// room). Eight short traces, once per torch.
+[[nodiscard]] glm::vec3 placeTorchLight(const glm::vec3& fire)
+{
+    glm::vec3 push{0.f};
+    for(int k = 0; k < 8; k++)
+    {
+        const float a = static_cast<float>(k) * (glm::pi<float>() / 4.f);
+        const glm::vec3 dir{std::cos(a), std::sin(a), 0.f};
+        const trace_t tr = worldtrace::world(fire, fire + dir * torchStandoff, false);
+        if(tr.startsolid || tr.allsolid)
+        {
+            return fire;
+        }
+        if(tr.fraction < 1.f)
+        {
+            push += worldtrace::normal(tr) * (torchStandoff * (1.f - tr.fraction));
+        }
+    }
+    push.z = 0.f;
+    const float len = glm::length(push);
+    if(len < 0.5f)
+    {
+        return fire;
+    }
+    push *= std::min(len, torchStandoff) / len;
+    const trace_t tr = worldtrace::world(fire, fire + push, false);
+    return glm::mix(fire, fire + push, std::max(0.f, tr.fraction - 0.05f));
+}
+
+[[nodiscard]] bool leafVisible(int leaf, const byte* vis)
+{
+    return !vis || (vis[leaf >> 3] & (1 << (leaf & 7))) != 0;
+}
+
+void killTorchLight(int id, TorchState& st)
+{
+    if(st.lit)
+    {
+        killDlight(torchLightKey - id);
+        st.lit = false;
+    }
 }
 
 } // namespace
@@ -337,6 +474,189 @@ extern "C" void VR_BeamLights(int index, qmodel_t* model, const float* start, co
     }
 }
 
+// Each client frame, after the entities: torches and flames (Quake's wall torches and flame balls,
+// Rogue's candles and lanterns; static entities, or entities with those models) flicker a small
+// warm light onto the room. The nearest vr_torch_lights of those in the viewer's PVS within
+// torchLightDistance, each fading in and out as it is chosen or dropped (the nearest
+// vr_torch_light_shadows of them may cast shadows); brightness vr_torch_light_scale.
+extern "C" void VR_TorchLights(void)
+{
+    QVR_PROFILE("torch lights");
+    const int cap = std::clamp(static_cast<int>(vr_torch_lights.value), 0, maxTorchLights);
+    if(cls.state != ca_connected || !cl.worldmodel)
+    {
+        return;
+    }
+    if(cl.worldmodel != torchWorld || cl.time < torchLastTime)
+    {
+        torches.clear(); // a new map (its lights were cleared with the client's state)
+        torchWorld = cl.worldmodel;
+        torchLastTime = cl.time;
+    }
+    const float dt = static_cast<float>(std::clamp(cl.time - torchLastTime, 0.0, 0.1));
+    torchLastTime = cl.time;
+    if(cap == 0 && torches.empty())
+    {
+        return;
+    }
+
+    const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+    vec3_t eyev{eye.x, eye.y, eye.z};
+    const mleaf_t* eyeLeaf = Mod_PointInLeaf(eyev, cl.worldmodel);
+    const byte* vis = !eyeLeaf || eyeLeaf->contents == CONTENTS_SOLID
+                          ? nullptr
+                          : Mod_LeafPVS(const_cast<mleaf_t*>(eyeLeaf), cl.worldmodel);
+
+    // The candidates: torches in the PVS, near enough.
+    struct Candidate
+    {
+        int id;
+        float score;
+    };
+    static std::vector<Candidate> candidates;
+    candidates.clear();
+    const float maxDist2 = torchLightDistance * torchLightDistance;
+    const auto consider = [&](int id, const entity_t& e, const TorchKind* kind) {
+        const glm::vec3 org{e.origin[0], e.origin[1], e.origin[2]};
+        const float d2 = glm::dot(org - eye, org - eye);
+        if(d2 > maxDist2)
+        {
+            return;
+        }
+        TorchState& st = torches[id];
+        if(st.kind != kind)
+        {
+            // First seen (or another flame): place its light, seed its flicker by where it is.
+            const float s = e.scale ? ENTSCALE_DECODE(e.scale) : 1.f;
+            const float yaw = glm::radians(e.angles[1]);
+            const glm::vec3 off{kind->fire.x * std::cos(yaw) - kind->fire.y * std::sin(yaw),
+                kind->fire.x * std::sin(yaw) + kind->fire.y * std::cos(yaw), kind->fire.z};
+            st.kind = kind;
+            st.scale = s;
+            st.pos = placeTorchLight(org + off * s);
+            st.seed = static_cast<unsigned>(static_cast<int>(org.x) * 73856093 ^ static_cast<int>(org.y) * 19349663
+                                            ^ static_cast<int>(org.z) * 83492791);
+        }
+        candidates.push_back({id, std::sqrt(d2) * (st.chosen ? 0.8f : 1.f)}); // hysteresis
+    };
+    if(cap > 0)
+    {
+        const int* efrags = cl_efrags;
+        for(int i = 0; i < cl.num_statics && efrags; i++)
+        {
+            const entity_t& e = cl_static_entities[i];
+            if(!e.model)
+            {
+                continue;
+            }
+            const int count = *efrags++;
+            const TorchKind* kind = torchKind(e);
+            if(kind)
+            {
+                bool seen = false;
+                for(int j = 0; j < count && !seen; j++)
+                {
+                    seen = leafVisible(efrags[j], vis);
+                }
+                if(seen)
+                {
+                    consider(i, e, kind);
+                }
+            }
+            efrags += count;
+        }
+        for(int i = 1; i < cl.num_entities; i++)
+        {
+            const entity_t& e = cl_entities[i];
+            const TorchKind* kind = e.model && i != cl.viewentity ? torchKind(e) : nullptr;
+            if(kind && e.msgtime == cl.mtime[0])
+            {
+                vec3_t o{e.origin[0], e.origin[1], e.origin[2]};
+                const std::ptrdiff_t leaf = Mod_PointInLeaf(o, cl.worldmodel) - cl.worldmodel->leafs - 1;
+                if(leaf < 0 || leafVisible(static_cast<int>(leaf), vis))
+                {
+                    consider(torchDynamicId + i, e, kind);
+                }
+            }
+        }
+    }
+    const size_t chosenCount = std::min(candidates.size(), static_cast<size_t>(cap));
+    std::partial_sort(candidates.begin(), candidates.begin() + static_cast<std::ptrdiff_t>(chosenCount),
+        candidates.end(), [](const Candidate& a, const Candidate& b) { return a.score < b.score; });
+
+    for(auto& [id, st] : torches)
+    {
+        st.chosen = false;
+        st.rank = -1;
+    }
+    for(size_t c = 0; c < chosenCount; c++)
+    {
+        TorchState& st = torches[candidates[c].id];
+        st.chosen = true;
+        st.rank = static_cast<int>(c);
+    }
+
+    // Each fades towards its target: lit if chosen (less towards torchLightDistance), out if not.
+    // Of those fading out, the brightest few keep their light until they are out, the rest go out
+    // now.
+    const float step = dt / torchFadeTime;
+    static std::vector<std::pair<float, int>> fading;
+    fading.clear();
+    for(auto& [id, st] : torches)
+    {
+        const float d = glm::distance(st.pos, eye);
+        const float target = st.chosen ? std::clamp((torchLightDistance - d) / (0.25f * torchLightDistance), 0.f, 1.f) : 0.f;
+        st.weight = st.weight < target ? std::min(target, st.weight + step) : std::max(target, st.weight - step);
+        if(!st.chosen && st.weight > 0.f)
+        {
+            fading.emplace_back(st.weight, id);
+        }
+    }
+    if(fading.size() > 4)
+    {
+        std::sort(fading.begin(), fading.end(), [](const auto& a, const auto& b) { return a.first > b.first; });
+        for(size_t f = 4; f < fading.size(); f++)
+        {
+            torches[fading[f].second].weight = 0.f;
+        }
+    }
+
+    // Light them.
+    const float scale = std::max(0.f, vr_torch_light_scale.value);
+    const int shadowed = std::clamp(static_cast<int>(vr_torch_light_shadows.value), 0, cap);
+    const bool darkplaces = vr_dlight_falloff.value != 0.f;
+    const double t = cl.time;
+    for(auto& [id, st] : torches)
+    {
+        if(st.weight <= 0.f || scale <= 0.f || !st.kind)
+        {
+            killTorchLight(id, st);
+            continue;
+        }
+        const float n = torchFlicker(t, st.seed);
+        const float k = 1.f + 0.3f * n; // +-30% brightness (at most; mostly less)
+        const glm::vec3 jitter{0.8f * valueNoise(t * 6.0 + 3.3, st.seed ^ 0x1234u),
+            0.8f * valueNoise(t * 6.0 + 9.1, st.seed ^ 0x4321u), 1.2f * valueNoise(t * 7.0 + 5.7, st.seed ^ 0x2468u)};
+        const glm::vec3 p = st.pos + jitter * st.scale;
+
+        dlight_t* dl = CL_AllocDlight(torchLightKey - id);
+        dl->origin[0] = p.x;
+        dl->origin[1] = p.y;
+        dl->origin[2] = p.z;
+        dl->die = static_cast<float>(cl.time + 0.1);
+        float radius = st.kind->radius * st.scale * (1.f + 0.05f * n) * (0.75f + 0.25f * st.weight);
+        glm::vec3 color = st.kind->color * (scale * k * st.weight);
+        if(!darkplaces)
+        {
+            // Quake's falloff: the colour is at most 1 (setGlow), so the flicker and the scale
+            // change the reach.
+            radius *= std::sqrt(std::clamp(scale * k * st.weight, 0.f, 2.f));
+        }
+        setGlow(dl, color, radius, 0.f, st.chosen && st.rank < shadowed);
+        st.lit = true;
+    }
+}
+
 void emissive::weaponScreenLight(int hand, const glm::vec3& pos, const glm::vec3& angles)
 {
     const float k = vr_weapon_screen_light.value;
@@ -362,7 +682,7 @@ void emissive::weaponScreenLight(int hand, const glm::vec3& pos, const glm::vec3
     dl->die = static_cast<float>(cl.time + 0.05);
     dl->radius = screenLightRadius;
     const bool darkplaces = vr_dlight_falloff.value != 0.f;
-    const glm::vec3 c = hsv(vr_gadget_screen_hue.value, 0.55f, 1.f) * (bright * k * (darkplaces ? 1.5f : 2.5f));
+    const glm::vec3 c = hue::color(vr_gadget_screen_hue, 0.55f, 1.f) * (bright * k * (darkplaces ? 1.5f : 2.5f));
     dl->color[0] = c.r;
     dl->color[1] = c.g;
     dl->color[2] = c.b;

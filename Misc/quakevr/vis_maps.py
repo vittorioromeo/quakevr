@@ -66,19 +66,60 @@ def leaf_shape(leaf_lump):
     return [leaf_lump[i : i + 4] + leaf_lump[i + 8 : i + 24] for i in range(0, len(leaf_lump), LEAF_SIZE)]
 
 
-def with_lumps(data, replacements):
-    """The .bsp with the given lumps ({index: bytes}) appended at its end and pointed to (the old ones
-    are left unused where they were)."""
-    out = bytearray(data)
-    for index, blob in replacements.items():
+def lump_bytes(data, index):
+    offset, length = lump(data, index)
+    return data[offset : offset + length]
+
+
+def bspx_lumps(data):
+    """The BSPX lumps of a .bsp ([(name, bytes)]; ericw-tools 2's LIGHTGRID_OCTREE, ...): engines look for the
+    BSPX header right after the last of the 15 lumps (at a multiple of 4), so a file whose lumps were moved
+    or appended to has lost them."""
+    end = max(sum(lump(data, i)) for i in range(15))
+    end = (end + 3) & ~3
+    if data[end : end + 4] != b"BSPX":
+        return []
+    (count,) = struct.unpack_from("<i", data, end + 4)
+    out = []
+    for i in range(count):
+        name, offset, length = struct.unpack_from("<24sii", data, end + 8 + i * 32)
+        out.append((name.split(b"\0")[0], data[offset : offset + length]))
+    return out
+
+
+def packed(data, replacements=None, bspx=None):
+    """The .bsp with its lumps one after another (those in `replacements`, {index: bytes}, replaced), then its
+    BSPX lumps (`bspx`, or the file's own). Replacing a lump by appending it left the old one unused where it
+    was (patching an up-to-date map again, before round 15, grew it by its visibility each run), and put it
+    after the BSPX lumps, where engines no longer find them."""
+    replacements = replacements or {}
+    if bspx is None:
+        bspx = bspx_lumps(data)
+    out = bytearray(data[:4] + bytes(15 * 8))
+    for index in range(15):
+        body = replacements.get(index, lump_bytes(data, index))
         while len(out) % 4:
             out.append(0)
-        offset = len(out)
-        out += blob
-        struct.pack_into("<ii", out, 4 + index * 8, offset, len(blob))
+        struct.pack_into("<ii", out, 4 + index * 8, len(out), len(body))
+        out += body
     while len(out) % 4:
         out.append(0)
+    if bspx:
+        table = len(out) + 8
+        out += b"BSPX" + struct.pack("<i", len(bspx)) + bytes(32 * len(bspx))
+        for i, (name, body) in enumerate(bspx):
+            while len(out) % 4:
+                out.append(0)
+            struct.pack_into("<24sii", out, table + i * 32, name, len(out), len(body))
+            out += body
+        while len(out) % 4:
+            out.append(0)
     return bytes(out)
+
+
+def with_lumps(data, replacements):
+    """The .bsp with the given lumps ({index: bytes}) in place of its own (repacked, keeping its BSPX lumps)."""
+    return packed(data, replacements)
 
 
 def vispatch(data, entry):

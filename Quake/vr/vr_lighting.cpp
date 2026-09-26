@@ -1221,6 +1221,14 @@ extern "C" void VR_PushMapLights(void)
     {
         flags |= 32u;
     }
+    if(VR_AlphaToCoverage())
+    {
+        flags |= 64u; // alpha-tested surfaces give their coverage as alpha (r_world.c, r_alias.c enable it)
+    }
+    if(vr_deluxemap.value != 0.f && lux_texture != nullptr)
+    {
+        flags |= 128u; // the baked light's real directions (the map's .lux, r_brush.c: LuxTex, unit 9) for its bumps
+    }
     r_framedata.shadowflags = static_cast<int>(flags);
     // Lightmap contrast about Quake's full light (a lightmap value of a half, before the doubling):
     // shade darker, well lit walls as they were, the brightest a little brighter.
@@ -1236,7 +1244,8 @@ extern "C" void VR_PushMapLights(void)
     r_framedata.parallax[0] = parallax ? std::clamp(vr_parallax_depth.value, 0.f, 16.f) : 0.f;
     r_framedata.parallax[1] = std::clamp(vr_parallax_distance.value, 64.f, 4096.f);
     r_framedata.parallax[2] = std::clamp(std::round(vr_parallax_steps.value), 4.f, 64.f);
-    r_framedata.parallax[3] = 0.f;
+    // Specular anti-aliasing: how much the sheen's lobe widens by the bumps under a pixel (0 off).
+    r_framedata.parallax[3] = std::clamp(vr_specular_aa.value, 0.f, 4.f);
     r_framedata.shadowbias = std::max(0.f, vr_shadow_bias.value);
     r_framedata.dlightangle = std::clamp(vr_dlight_angle.value, 0.f, 1.f);
 
@@ -1317,6 +1326,18 @@ extern "C" void VR_PostProcessGamma(float* gamma, float* contrast)
 extern "C" int VR_TextureSmoothing(void)
 {
     return std::clamp(static_cast<int>(vr_texture_smooth.value), 0, 2);
+}
+
+// Fences and grates (alpha-tested textures): their mips keep the top level's coverage (gl_texmgr.c), and with
+// MSAA they are drawn with alpha to coverage.
+extern "C" int VR_AlphaMipCoverage(void)
+{
+    return vr_alpha_coverage.value != 0.f;
+}
+
+extern "C" int VR_AlphaToCoverage(void)
+{
+    return vr_alpha_coverage.value != 0.f && framebufs.scene.samples > 1;
 }
 
 extern "C" int VR_NormalMaps(void)
@@ -1426,6 +1447,8 @@ void lighting::applyPreset(int preset)
     };
     look(vr_light_contrast, 1.f);
     look(vr_bloom, 0.f);
+    look(vr_tonemap, 0.f); // the eyes' float scene and tone curve, the grade (vr_tonemap.cpp)
+    look(vr_grade, 0.f);
     look(vr_flash_scale, 1.f);
     look(vr_explosion_light_scale, 1.f);
     look(vr_colored_lights, 0.f);
@@ -1433,6 +1456,7 @@ void lighting::applyPreset(int preset)
     // The lava nails' lights (a few on Low) and the lightning's stream of lights (Medium and up).
     Cvar_SetQuick(&vr_lavanail_lights, preset >= 2 ? vr_lavanail_lights.default_string : preset == 1 ? "4" : "0");
     Cvar_SetQuick(&vr_beam_lights, preset >= 2 ? vr_beam_lights.default_string : "0");
+    Cvar_SetQuick(&vr_torch_lights, preset >= 2 ? vr_torch_lights.default_string : preset == 1 ? "4" : "0"); // torches' flicker
     look(vr_weapon_screen_light, 0.f);
     look(vr_gadget_light, 0.f);
     look(vr_screen_glow, 0.f);
@@ -1442,11 +1466,17 @@ void lighting::applyPreset(int preset)
     look(vr_dlight_falloff, 0.f);
     look(vr_specular, 0.f);
     look(vr_model_light_parity, 0.f);
+    look(vr_model_ambient_dir, 0.f); // directional ambient on models (vr_ambient.cpp)
+    look(vr_rim_light, 0.f); // rim light on models (vr_envmap.cpp)
+    Cvar_SetQuick(&vr_weapon_reflections, preset >= 2 ? "1" : "0"); // weapons' reflections (vr_envmap.cpp): Medium and up
     look(vr_viewmodel_minlight, 24.f);
     look(vr_texture_smooth, 0.f);
+    look(vr_alpha_coverage, 0.f); // fences' mips as Quake's (thinning out with distance)
     look(vr_water_splash, 0.f); // liquid splashes (vr_particles.cpp)
+    Cvar_SetQuick(&vr_soft_particles, preset >= 2 ? "1" : "0"); // soft particles and sprites (vr_particles.cpp): Medium and up
     Cvar_SetValueQuick(&vr_normalmaps, p.normalmaps); // made as the next map loads
     Cvar_SetValueQuick(&vr_parallax, p.parallax);
+    Cvar_SetQuick(&vr_detail, preset >= 2 ? "1" : "0"); // detail textures (vr_detail.cpp): Medium and up
     water::applyPreset(preset); // liquids (vr_water.cpp)
 }
 
@@ -1460,6 +1490,12 @@ void onPreset(cvar_t* var)
     {
         lighting::applyPreset(static_cast<int>(var->value));
     }
+}
+
+// vr_alpha_coverage: the alpha-tested textures' mips made again (with or without their coverage kept).
+void onAlphaCoverage(cvar_t*)
+{
+    TexMgr_ReloadAlphaTested();
 }
 
 // vr_light_test [radius] [seconds] [distance]: a dynamic light in front of the view, to see (and
@@ -1488,6 +1524,7 @@ void lighting::init()
 {
     Cvar_SetCallback(&vr_graphics_preset, onPreset);
     Cmd_AddCommand("vr_light_test", lightTest_f);
+    Cvar_SetCallback(&vr_alpha_coverage, onAlphaCoverage);
 }
 
 // Lights given shadows this frame: dynamic ones, and map lights (vr_memstats).

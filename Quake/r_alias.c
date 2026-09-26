@@ -64,6 +64,8 @@ typedef struct aliasinstance_s {
 	int32_t		padding;
 	float		lightdir[4]; // QVR: vr/vr_modellight.cpp
 	float		glow[4]; // QVR: the force grab glow (vr/vr_fgfx.cpp)
+	float		ambient[6][4]; // QVR: the light around it, +X -X +Y -Y +Z -Z (vr/vr_ambient.cpp)
+	float		surface[4]; // QVR: rim light, reflections' strength and blur (vr/vr_envmap.cpp)
 } aliasinstance_t;
 
 struct ibuf_s {
@@ -311,6 +313,7 @@ void R_FlushAliasInstances (qboolean showtris)
 	qmodel_t* model;
 	aliashdr_t* mainhdr, *hdr;
 	qboolean	alphatest, translucent, oit;
+	qboolean	a2c; // QVR
 	int			totalverts;
 	int			poseverttype;
 	int			skinnum, anim, mode;
@@ -415,6 +418,7 @@ void R_FlushAliasInstances (qboolean showtris)
 	GL_BindBuffer (GL_ARRAY_BUFFER, model->meshvbo);
 	GL_BindBuffer (GL_ELEMENT_ARRAY_BUFFER, model->meshindexesvbo);
 	GL_BindBuffersRange (GL_SHADER_STORAGE_BUFFER, 1, 2, buffers, offsets, sizes);
+	GL_BindNative (GL_TEXTURE14, GL_TEXTURE_CUBE_MAP, VR_EnvCubeTexture ()); // QVR: the reflections' cube map (EnvCube)
 
 	if (poseverttype == PV_IQM)
 	{
@@ -431,6 +435,12 @@ void R_FlushAliasInstances (qboolean showtris)
 
 	if (!translucent)
 		GL_SetState (opaque_state);
+	a2c = alphatest && !translucent && VR_AlphaToCoverage (); // QVR: holey skins' edges by alpha to coverage (vr_alpha_coverage, MSAA)
+	if (a2c)
+	{
+		glEnable (GL_SAMPLE_ALPHA_TO_COVERAGE);
+		glEnable (GL_SAMPLE_ALPHA_TO_ONE);
+	}
 
 	for (hdr = mainhdr; hdr; hdr = Mod_NextSurface (hdr))
 	{
@@ -455,6 +465,12 @@ void R_FlushAliasInstances (qboolean showtris)
 		GL_BindTextures (0, 3, textures);
 		GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, ibuf.count);
 		rs_aliaspasses += hdr->numtris * ibuf.count;
+	}
+
+	if (a2c) // QVR
+	{
+		glDisable (GL_SAMPLE_ALPHA_TO_COVERAGE);
+		glDisable (GL_SAMPLE_ALPHA_TO_ONE);
 	}
 
 	if (!translucent)
@@ -713,10 +729,14 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 
 	instance->padding = VR_AliasZeroBlend (e, paliashdr, totalverts); // QVR
 	VR_AliasLightDir (e, instance->lightdir); // QVR
+	VR_AliasAmbient (e, model_matrix, paliashdr, mode == ALIAS_STANDARD && !r_fullbright_cheatsafe && !r_lightmap_cheatsafe, &instance->ambient[0][0]); // QVR: directional ambient (vr_model_ambient_dir)
 	instance->glow[0] = VR_EntityGlow (e); // QVR
 	instance->glow[1] = (VR_ModelLightParity () ? 1.f : -1.f) * (1.f + VR_ModelBumps (e)); // QVR: the shader's shading on a par with the world (+), its bumps (vr_normalmap_models)
 	instance->glow[2] = VR_EntityFullbrightBoost (e); // QVR: the held weapons' sights glow (vr_weapon_glow)
 	instance->glow[3] = mode == ALIAS_STANDARD ? VR_ParallaxDepth (e, model_matrix, paliashdr->scale) : 0.f; // QVR: its parallax depth in units
+	memset (instance->surface, 0, sizeof (instance->surface)); // QVR: rim light and reflections (vr_rim_light, vr_weapon_reflections)
+	if (mode == ALIAS_STANDARD && !r_fullbright_cheatsafe && !r_lightmap_cheatsafe) // QVR
+		VR_AliasSurface (e, instance->surface); // QVR
 }
 
 /*

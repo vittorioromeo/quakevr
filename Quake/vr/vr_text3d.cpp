@@ -7,6 +7,7 @@
 #include "vr_shadows.hpp"
 #include "vr_decals.hpp"
 #include "vr_cvars.hpp"
+#include "vr_hue.hpp"
 #include "vr_worldtext.hpp"
 #include "vr_gadget.hpp"
 #include "vr_profile.hpp"
@@ -86,17 +87,17 @@ struct ScreenShape
     return static_cast<int>(std::lround(8.f * 0.35f * std::max(0.f, vr_weapon_screen_padding.value)));
 }
 
-// The screens' palette (the wrist gadget's): its text, and its face behind it.
+// The screens' palette (the wrist gadget's, by default the player's hue): its text, and its face behind it.
 [[nodiscard]] glm::vec3 screenText()
 {
     const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f);
-    return glm::min(hsv(vr_gadget_screen_hue.value, 0.55f, bright), glm::vec3{1.f});
+    return glm::min(hue::color(vr_gadget_screen_hue, 0.55f, bright), glm::vec3{1.f});
 }
 
 [[nodiscard]] glm::vec3 screenFace()
 {
     const float back = CLAMP(0.f, vr_gadget_screen_background.value, 4.f);
-    return hsv(vr_gadget_screen_hue.value, 0.57f, 0.12f * std::max(back, 0.2f));
+    return hue::color(vr_gadget_screen_hue, 0.57f, 0.12f * std::max(back, 0.2f));
 }
 
 // Map text boards (world texts: the tutorial's, func_worldtext_banner) as CRT screens
