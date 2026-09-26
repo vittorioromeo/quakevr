@@ -370,6 +370,7 @@ void update()
                             : 0.f;
 
     body::updateHotspots(state);
+    twohand::updateHotspots(state); // a carried gun's handle
 
     state.valid = true;
 }

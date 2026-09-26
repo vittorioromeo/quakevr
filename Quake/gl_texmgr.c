@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "glquake.h"
 #include "vr/vr_api_render.h" // QVR
+#include "vr/vr_sights.hpp" // QVR: the weapons' sights in the chosen colour
 
 typedef struct {
 	GLenum		id;
@@ -1706,6 +1707,7 @@ static void TexMgr_LoadImage8 (gltexture_t *glt, byte *data)
 		usepal = d_8to24table;
 		padbyte = 255;
 	}
+	usepal = VR_SightPalette (glt->name, usepal); // QVR: a sighted weapon's skin, its sights recoloured (vr_sight_hue)
 
 	// pad each dimention, but only if it's not going to be downsampled later
 	if (glt->flags & TEXPREF_PAD)
@@ -2149,6 +2151,22 @@ void TexMgr_ReloadImages (void)
 	}
 
 	in_reload_images = false;
+}
+
+/*
+================
+TexMgr_ReloadImagesNamed -- QVR: reloads the textures whose names start with `prefix` (vr_sights.cpp: a sighted
+weapon's skins, as vr_sight_hue changes)
+================
+*/
+void TexMgr_ReloadImagesNamed (const char *prefix)
+{
+	gltexture_t *glt;
+	size_t len = strlen (prefix);
+
+	for (glt = active_gltextures; glt; glt = glt->next)
+		if (!q_strncasecmp (glt->name, prefix, (int) len))
+			TexMgr_ReloadImage (glt, -1, -1);
 }
 
 /*

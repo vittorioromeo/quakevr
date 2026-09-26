@@ -53,8 +53,14 @@ void onIdChanged(cvar_t* /* var */)
 // their new defaults once. 1: slots 19 and 20 (the knights' swords; they were unused placeholders);
 // 2: the same (the swords remade with grips, held as the axe); 3: the same (the grips centred on
 // the blades, thicker); 4: the same (new hilts: crossguard, grip and pommel on the blades' axes);
-// 5: the same (longer grips, held just under the crossguard, and two-handed: TwoHMode 3).
-constexpr int settingsVersion = 5;
+// 5: the same (longer grips, held just under the crossguard, and two-handed: TwoHMode 3);
+// 6: slot 5 (the super nailgun: its body re-triangulated for real grooves, which moved its muzzle
+// and two-handed grip anchors in the vertex order); 7: slots 3 and 7 (the double shotgun and the
+// rocket launcher remade with pistol grips: the hand on the new grip, the offsets following the
+// models' new bounds; Misc/quakevr/improve_weapons.py); 8: slot 8 (the lightning gun: a pistol grip
+// under the hand, the gun 2.5 model units higher over it, the offsets following the model's new
+// bounds; Misc/quakevr/improve_weapons2.py).
+constexpr int settingsVersion = 8;
 
 void resetSlot(int slot)
 {
@@ -76,6 +82,19 @@ void migrate()
     {
         resetSlot(18);
         resetSlot(19);
+    }
+    if(vr_wofs_version.value < 6)
+    {
+        resetSlot(4);
+    }
+    if(vr_wofs_version.value < 7)
+    {
+        resetSlot(2);
+        resetSlot(6);
+    }
+    if(vr_wofs_version.value < 8)
+    {
+        resetSlot(7);
     }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }

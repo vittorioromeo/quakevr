@@ -360,7 +360,7 @@ void renderScreen()
         return;
     }
 
-    gfx::ensureTarget(target, width * 2, height * 2, true); // mipmaps: for its text's glow
+    gfx::ensureTarget(target, width * 2, height * 2, true, "gadget screen"); // mipmaps: for its text's glow
     gfx::begin2D(target, width, height);
     layout();
     gfx::end2D();

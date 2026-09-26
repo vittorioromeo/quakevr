@@ -3237,6 +3237,22 @@ void() ImpulseCommands =
         spike.classname = "knightspike";
         self = player;
     }
+    if(self.impulse == 248 && !deathmatch && !coop) // QVR: a knight 64 units ahead (parry tests)
+    {
+        makevectors('0 1 0' * self.v_viewangle_y);
+        vector knightAt = self.origin + v_forward * 64;
+        entity knightPlayer = self;
+        self = spawn();
+        self.classname = "monster_knight";
+        setorigin(self, knightAt);
+        self.angles_y = knightPlayer.v_viewangle_y + 180;
+        monster_knight();
+        self = knightPlayer;
+    }
+    if(self.impulse == 249 && !deathmatch && !coop) // QVR: does the pose parry a blow from ahead? (developer 1)
+    {
+        VR_Parry_Probe();
+    }
     if(dump_coord == 1)
         DumpCoordinates();
     self.impulse = 0;
@@ -3269,6 +3285,12 @@ void(float xHand, float xButton) FrameDrawLightningTrail =
 
 void(float xHand) W_WeaponFrameImpl =
 {
+    // A gun hanging from its foregrip (the hand-off) is carried, not held: it does not fire.
+    if(VRIsHandCarryingByForegrip(self, xHand))
+    {
+        return;
+    }
+
     FrameDrawLightningTrail(xHand, VRGetFireButtonPressed(xHand));
 
     if(!deathmatch && time < readytime)
@@ -4362,6 +4384,8 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponCl
 
     throwVelUnits = VRThrowAssist(ent, origin, throwVelUnits, throwGravity);
 
+    xWeaponFlags = xWeaponFlags - (xWeaponFlags & QVR_WPNFLAG_FOREGRIP_CARRIED); // a hand's state, not the weapon's
+
     entity thrown = world;
     if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_IMMERSIVE)
     {
@@ -4413,6 +4437,7 @@ VRPutWeaponInHolster =
 {
     sound(entPlayer, CHAN_BODY, "weapons/holster1.wav", 1, ATTN_NORM);
 
+    xWeaponFlags = xWeaponFlags - (xWeaponFlags & QVR_WPNFLAG_FOREGRIP_CARRIED); // a hand's state, not the weapon's
     setHolsterWeapon(xHotspot, xWeapon);
     setHolsterWeaponModel(xHotspot, WeaponIdToModel(xWeapon, xWeaponFlags));
     setHolsterWeaponFlags(xHotspot, xWeaponFlags);
@@ -4529,6 +4554,65 @@ float(entity ent, float xHand, float xWeapon) VRWeaponLetGo =
     return !grabbing && (ent.stickypending & bit);
 }
 
+// Hand-off (vr_2h_handoff, docs/vr-port/ROUND16.md): the hand holding a weapon two-handed lets go while
+// the other, empty hand still grips it (steadying it: VRGet2HAiming, or a moment ago). The weapon
+// stays in that hand instead of falling: a sword (held by its grip with both hands) simply changes
+// hands; a gun, held by its foregrip, hangs from it as it was held (QVR_WPNFLAG_FOREGRIP_CARRIED: the
+// client draws it there; it doesn't fire or reload) until a hand takes its handle again. A hand that
+// holds a weapon of its own is never helping, so dual wielding keeps dropping as before.
+float(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponClip) VRTryHandOff =
+{
+    float other = VRGetOtherHand(xHand);
+    if(!cvar_hget(cvarh_vr_2h_handoff) ||
+       (xWeaponFlags & QVR_WPNFLAG_FOREGRIP_CARRIED) ||
+       !(VRGet2HAiming(ent) || time - ent.last_2h_time < 0.1) ||
+       !VR_HandGrabUtil_IsHandGrabbing(ent, other) ||
+       !VRIsHandEmpty(ent, other) ||
+       VR_Carry_IsHolding(ent, other))
+    {
+        return FALSE;
+    }
+
+    float flags = xWeaponFlags - (xWeaponFlags & QVR_WPNFLAG_FOREGRIP_CARRIED);
+    if(xWeapon != WID_SWORD)
+    {
+        flags = flags | QVR_WPNFLAG_FOREGRIP_CARRIED;
+    }
+
+    VRSetEntWeapon(ent, other, xWeapon);
+    VRSetEntWeaponFlags(ent, other, flags);
+    VRSetEntWeaponClip(ent, other, xWeaponClip);
+    VRSetHandEmpty(ent, xHand);
+    W_SetCurrentAmmo();
+
+    sound(ent, CHAN_BODY, "weapons/holster0.wav", 0.5, ATTN_NORM);
+    VRGunHaptic(other, 0.08, 75, 0.6);
+    return TRUE;
+}
+
+// Whether `xHand` carries a gun by its foregrip (the hand-off).
+float(entity ent, float xHand) VRIsHandCarryingByForegrip =
+{
+    return !VRIsHandEmpty(ent, xHand) && (VRGetEntWeaponFlags(ent, xHand) & QVR_WPNFLAG_FOREGRIP_CARRIED);
+}
+
+// The empty `xHand` closes on the handle of the gun the other hand carries by its foregrip: it holds
+// the gun again, and the other hand is back on the foregrip (steadying it, if it still grips there).
+void(entity ent, float xHand) VRTakeCarriedWeapon =
+{
+    float other = VRGetOtherHand(xHand);
+    float flags = VRGetEntWeaponFlags(ent, other);
+
+    VRSetEntWeapon(ent, xHand, VRGetEntWeapon(ent, other));
+    VRSetEntWeaponFlags(ent, xHand, flags - (flags & QVR_WPNFLAG_FOREGRIP_CARRIED));
+    VRSetEntWeaponClip(ent, xHand, VRGetEntWeaponClip(ent, other));
+    VRSetHandEmpty(ent, other);
+    W_SetCurrentAmmo();
+
+    sound(ent, CHAN_BODY, "weapons/holster0.wav", 0.5, ATTN_NORM);
+    VRGunHaptic(xHand, 0.08, 75, 0.6);
+}
+
 void(entity ent, float xHand) VRWeaponLetGoDone =
 {
     if(xHand == cVR_MainHand) ent.stickypending &= ~2;
@@ -4562,7 +4646,9 @@ void(entity ent, float xHand,
         return;
     }
 
-    if(VRIsEntHandReloadingBit(ent, xHand))
+    float carried = !handEmpty && (xWeaponFlags & QVR_WPNFLAG_FOREGRIP_CARRIED);
+
+    if(VRIsEntHandReloadingBit(ent, xHand) && !carried)
     {
         VRTryReloadWeapon(ent, xHand, xWeapon, xWeaponFlags, xWeaponClip, xOutWeaponClip);
     }
@@ -4581,9 +4667,14 @@ void(entity ent, float xHand,
         // (2H hotspots ignored because you can only dual wield with no weapon out.)
         if(xHotspot == QVR_HS_NONE ||
            xHotspot == QVR_HS_OFFHAND_2H_GRAB ||
-           xHotspot == QVR_HS_MAINHAND_2H_GRAB)
+           xHotspot == QVR_HS_MAINHAND_2H_GRAB ||
+           xHotspot == QVR_HS_CARRIED_GRIP)
         {
-            DropWeaponInHand(ent, xHand, xWeapon, xWeaponFlags, xWeaponClip);
+            // Held two-handed: the other hand keeps it (the hand-off). Otherwise it falls, or flies.
+            if(!VRTryHandOff(ent, xHand, xWeapon, xWeaponFlags, xWeaponClip))
+            {
+                DropWeaponInHand(ent, xHand, xWeapon, xWeaponFlags, xWeaponClip);
+            }
         }
         // Put a weapon in a holster.
         else if(isHolsterHotspot(xHotspot))
@@ -4627,7 +4718,7 @@ void(entity ent, float xHand,
                 sound(ent, CHAN_BODY, "knight/sword2.wav", 0.7, ATTN_NORM);
 
                 *xOutOtherWeapon = xWeapon;
-                *xOutOtherWeaponFlags = xWeaponFlags;
+                *xOutOtherWeaponFlags = xWeaponFlags - (xWeaponFlags & QVR_WPNFLAG_FOREGRIP_CARRIED);
                 *xOutOtherWeaponClip = xWeaponClip;
                 VRSetHandEmpty(ent, xHand);
 
@@ -4645,12 +4736,12 @@ void(entity ent, float xHand,
                 VRHolsterHaptic(ent, xHand, xHotspot);
             }
 
-            if(VRIsWeaponReloadingEnabledFor(ent, xHand) && isReloadHolsterHotspot(xHotspot))
+            if(VRIsWeaponReloadingEnabledFor(ent, xHand) && isReloadHolsterHotspot(xHotspot) && !carried)
             {
                 VRTryReloadWeapon(ent, xHand, xWeapon, xWeaponFlags, xWeaponClip, xOutWeaponClip);
             }
         }
-        else if(handReloadFlicking)
+        else if(handReloadFlicking && !carried)
         {
             if(VRIsWeaponReloadingEnabledFor(ent, xHand) && VRIsWeaponReloadFlickingEnabledFor(ent, xHand))
             {
@@ -4677,8 +4768,16 @@ void(entity ent, float xHand,
     // Not holding a weapon (nor carrying a box) and started grabbing the controller.
     else if(handEmpty && startedHandGrabbing && !VR_Carry_IsHolding(ent, xHand))
     {
+        // The handle of the gun the other hand carries by its foregrip: take it.
+        if(xHotspot == QVR_HS_CARRIED_GRIP)
+        {
+            if(VRIsHandCarryingByForegrip(ent, VRGetOtherHand(xHand)))
+            {
+                VRTakeCarriedWeapon(ent, xHand);
+            }
+        }
         // Not a holster. Do nothing.
-        if(xHotspot == QVR_HS_NONE ||
+        else if(xHotspot == QVR_HS_NONE ||
            xHotspot == QVR_HS_OFFHAND_2H_GRAB ||
            xHotspot == QVR_HS_MAINHAND_2H_GRAB ||
            xHotspot == QVR_HS_HAND_SWITCH)

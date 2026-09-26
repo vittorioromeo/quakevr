@@ -203,6 +203,9 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Parry Pushes You", vr_parry_push_player, 0.f, 3.f, 0.05f, "%.2fx"),
         slider("Monsters' Blows Push You", vr_melee_push_player, 0.f, 3.f, 0.05f, "%.2fx"),
         header("Parry and Bash"),
+        slider("Parry Angle", vr_parry_angle, 15.f, 80.f, 5.f, "%.0f deg")
+            .help("Hold a weapon (sword, axe or gun, one hand or two) level across in front of you to block a monster's melee blow: how far it may be tilted off level."),
+        slider("Parry Reach", vr_parry_reach, 0.5f, 2.5f, 0.1f, "%.1f m").help("How far in front of you a held weapon still parries."),
         toggle("Unarmed Parry", vr_parry_unarmed).help("Cross your arms in an X in front of you to block a blow with your forearms."),
         slider("Unarmed Parry Reduction", vr_parry_unarmed_reduction, 0.f, 1.f, 0.05f, "%.2f"),
         toggle("Bash", vr_bash).help("Hold a guard (a weapon level across in front, or both hands together), then push it forward: knocks monsters back and staggers them. One open hand, palm ahead, shoves half as hard."),
@@ -321,6 +324,9 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Screen Background", vr_gadget_screen_background, 0.f, 4.f, 0.1f, "%.1f"),
         slider("Casing Tint", vr_gadget_tint, 0.f, 1.f, 0.05f, "%.2f").help("0 keeps the casing's own olive drab."),
         slider("Casing Tint Hue", vr_gadget_tint_hue, 0.f, 355.f, 5.f, "%.0f"),
+        slider("Weapon Sight Hue", vr_sight_hue, 0.f, 355.f, 5.f, "%.0f")
+            .help("The glowing iron sights of the shotgun and double shotgun: 30 their own orange, 0 red, 120 green, 240 blue."),
+        slider("Weapon Sight Saturation", vr_sight_saturation, 0.f, 2.f, 0.05f, "%.2f").help("1 their own, 0 white."),
         header("Screen"),
         toggle("Level and Stats", vr_gadget_show_level),
         slider("Screen Light", vr_gadget_light, 0.f, 3.f, 0.1f, "%.1fx")
@@ -387,8 +393,8 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("Units/s a thrown gib or head must hit a wall or a monster at to burst."),
         toggle("Gib Corpses", vr_corpse_gib)
             .help("Corpses burst into gibs when shot, blown up or struck enough: shotguns, nails, lightning, rockets, fists, melee weapons."),
-        slider("Corpse Health", vr_corpse_health, 5.f, 150.f, 5.f, "%.0f")
-            .help("The damage that gibs a corpse; a big monster's takes up to twice as much."),
+        slider("Corpse Health", vr_corpse_health, 10.f, 300.f, 10.f, "%.0f")
+            .help("The damage that gibs a corpse; a big monster's takes more (an ogre's 1.75 times, a fiend's 2.25, a shambler's 3.5)."),
     };
 }
 
@@ -491,6 +497,7 @@ std::vector<Item> pageMain()
         slider("Off Hand Angle", vr_offhandpitch, -30.f, 90.f, 2.5f, "%.1f"),
         cycle("Weapon Grip", vr_weapon_grip_mode, {{0.f, "Hold"}, {1.f, "Sticky"}}),
         cycle("Two-Handed", vr_2h_mode, {{0.f, "Off"}, {1.f, "Basic"}, {2.f, "Virtual stock"}}),
+        toggle("Two-Handed Hand-Off", vr_2h_handoff).help("Letting go with the hand holding a two-handed weapon leaves it in the other hand: a sword changes hands; a gun hangs from its foregrip until a hand takes its handle."),
         slider("Throw Speed", vr_weapon_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx"),
         cycle("Throw Gravity", vr_throw_gravity, {{9.81f, "Real"}, {0.f, "Quake"}}),
         toggle("Force Grab", vr_forcegrab_mode),

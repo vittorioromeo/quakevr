@@ -46,4 +46,7 @@ void drawTranslucent();
 // with the HUD panel (vr_stereo.cpp); not depth tested (nothing is between it and the eye but the other hand).
 void drawOverlay();
 
+// Texts queued this frame and map text boards held (vr_memstats).
+void counts(int& queuedTexts, int& boardCount);
+
 } // namespace qvr::text3d

@@ -1430,6 +1430,9 @@ void lighting::applyPreset(int preset)
     look(vr_explosion_light_scale, 1.f);
     look(vr_colored_lights, 0.f);
     look(vr_projectile_lights, 0.f);
+    // The lava nails' lights (a few on Low) and the lightning's stream of lights (Medium and up).
+    Cvar_SetQuick(&vr_lavanail_lights, preset >= 2 ? vr_lavanail_lights.default_string : preset == 1 ? "4" : "0");
+    Cvar_SetQuick(&vr_beam_lights, preset >= 2 ? vr_beam_lights.default_string : "0");
     look(vr_weapon_screen_light, 0.f);
     look(vr_gadget_light, 0.f);
     look(vr_screen_glow, 0.f);
@@ -1485,4 +1488,19 @@ void lighting::init()
 {
     Cvar_SetCallback(&vr_graphics_preset, onPreset);
     Cmd_AddCommand("vr_light_test", lightTest_f);
+}
+
+// Lights given shadows this frame: dynamic ones, and map lights (vr_memstats).
+void lighting::shadowCounts(int& dlights, int& mapLights)
+{
+    dlights = 0;
+    for(const DlightSlot& slot : dlightSlots)
+    {
+        dlights += slot.selected ? 1 : 0;
+    }
+    mapLights = 0;
+    for(const MapSlot& slot : mapSlots)
+    {
+        mapLights += slot.light >= 0 && slot.fade > 0.f ? 1 : 0;
+    }
 }

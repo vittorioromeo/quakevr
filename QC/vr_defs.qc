@@ -8,6 +8,9 @@
 // ----------------------------------------------------------------------------
 
 float QVR_WPNFLAG_USE_SECONDARY_AMMO = VRUTIL_POWER_OF_TWO(0);
+// A gun left hanging from its foregrip by the hand-off (vr_2h_handoff): drawn as it was held, unusable
+// until a hand takes its handle (QVR_HS_CARRIED_GRIP). Never kept outside a hand.
+float QVR_WPNFLAG_FOREGRIP_CARRIED = VRUTIL_POWER_OF_TWO(1);
 
 //
 //
@@ -165,6 +168,7 @@ float QVR_HS_RIGHT_HIP_HOLSTER      = 6;
 float QVR_HS_HAND_SWITCH            = 7;
 float QVR_HS_LEFT_UPPER_HOLSTER     = 8;
 float QVR_HS_RIGHT_UPPER_HOLSTER    = 9;
+float QVR_HS_CARRIED_GRIP           = 10; // the handle of the gun the other hand carries by its foregrip
 
 //
 //

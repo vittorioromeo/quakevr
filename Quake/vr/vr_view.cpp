@@ -227,7 +227,7 @@ void place(view::ViewEntity& ve, qmodel_t* model, const glm::vec3& origin, const
 
 // Floating ammo counter on a weapon (old engine's V_SetupWpnTextViewEnt and the weapon text
 // in R_DrawViewModels): clip/clip size over the ammo left when reloading is on, else the ammo.
-void queueWeaponText(const hands::State& s, int hand, const view::ViewEntity& ve, int slot)
+void queueWeaponText(const glm::vec3& handRot, bool mirrored, int hand, const view::ViewEntity& ve, int slot)
 {
     // The view may be set up more than once per frame; queue once.
     static int queuedFrame[2]{-1, -1};
@@ -238,7 +238,6 @@ void queueWeaponText(const hands::State& s, int hand, const view::ViewEntity& ve
     }
     queuedFrame[hand] = host_framecount;
 
-    const bool mirrored = hand == HAND_OFF;
     const glm::vec3 pos = view::anchorPosition(ve, static_cast<int>(weapons::value(slot, Key::WpnTextAnchorVertex)),
         weapons::vec(slot, Key::WpnTextX, Key::WpnTextY, Key::WpnTextZ));
 
@@ -256,7 +255,7 @@ void queueWeaponText(const hands::State& s, int hand, const view::ViewEntity& ve
             AngleVectors(in, f, r, u);
             return glm::mat3{glm::vec3{f[0], f[1], f[2]}, -glm::vec3{r[0], r[1], r[2]}, glm::vec3{u[0], u[1], u[2]}};
         };
-        const glm::mat3 m = axes(s.visualRot[hand]) * axes(angles);
+        const glm::mat3 m = axes(handRot) * axes(angles);
         angles = hands::anglesFromVectors(glm::normalize(m[0]), glm::normalize(m[2]));
     }
 
@@ -287,8 +286,13 @@ void queueWeaponText(const hands::State& s, int hand, const view::ViewEntity& ve
 void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame)
 {
     view::ViewEntity& ve = entities.weapon[hand];
-    const bool mirrored = hand == HAND_OFF;
     const int slot = weapons::slotForModel(model);
+
+    // A gun hanging from its foregrip (the hand-off, vr_twohand.cpp): drawn as the hand that let it go
+    // held it, carried by this hand.
+    twohand::HeldAs held{s.pos[hand], s.visualRot[hand], hand == HAND_OFF};
+    const bool carried = twohand::carriedWeapon(s, hand, held);
+    const bool mirrored = held.mirrored;
 
     glm::vec3 gunOffset = weapons::vec(slot, Key::GunOffsetX, Key::GunOffsetY, Key::GunOffsetZ) * weapons::offsetScale();
     if(mirrored)
@@ -297,9 +301,9 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame)
     }
 
     const glm::vec3 o = weaponAngleOffsets(slot, mirrored);
-    const glm::vec3& rot = s.visualRot[hand];
+    const glm::vec3& rot = held.rot;
 
-    place(ve, model, s.pos[hand] + gunOffset, {-rot.x + o.x, rot.y + o.y, rot.z + o.z}, frame,
+    place(ve, model, held.pos + gunOffset, {-rot.x + o.x, rot.y + o.y, rot.z + o.z}, frame,
         mirrored);
 
     // Steadied in the "fixed" two-handed display mode: the weapon's own blend towards frame 0
@@ -307,7 +311,7 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame)
     const bool fixed2H = model && slot >= 0 && weapons::value(slot, Key::TwoHDisplayMode) == 1.f;
     ve.zeroBlend = weapons::value(slot, fixed2H && twohand::helping(1 - hand) ? Key::TwoHZeroBlend : Key::ZeroBlend);
 
-    if(model && slot >= 0)
+    if(model && slot >= 0 && !carried) // a carried gun has no aim
     {
         s.muzzle[hand] = view::anchorPosition(ve,
             static_cast<int>(weapons::value(slot, Key::MuzzleAnchorVertex)),
@@ -319,7 +323,13 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame)
         s.muzzleValid[hand] = false;
     }
 
-    s.grip2HValid[hand] = fixed2H;
+    s.grip2HValid[hand] = fixed2H && !carried;
+    if(carried && model && slot >= 0)
+    {
+        // Where the hand that takes it back closes: its handle.
+        twohand::setCarriedHandle(hand, view::anchorPosition(ve, static_cast<int>(weapons::value(slot, Key::HandAnchorVertex)),
+            weapons::vec(slot, Key::HandOffsetX, Key::HandOffsetY, Key::HandOffsetZ)));
+    }
     if(s.grip2HValid[hand])
     {
         // As the old engine's VR_GetWpnFixed2HFinalPosition, which the offsets were tuned with:
@@ -338,7 +348,7 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame)
     }
     else if(model && slot >= 0)
     {
-        queueWeaponText(s, hand, ve, slot);
+        queueWeaponText(held.rot, mirrored, hand, ve, slot);
     }
 }
 
@@ -449,6 +459,17 @@ void setupHand(const hands::State& s, int hand)
             // (old engine's V_SetupFixedHelpingHandViewEnt).
             handRot = s.rot[other] + offsets;
         }
+    }
+
+    // The hand-off (vr_twohand.cpp): a helping hand's drawn pose is what it carries a gun by, and a
+    // hand carrying one is drawn so.
+    if(twohand::helping(hand))
+    {
+        twohand::recordHelp(s, hand, pos, handRot);
+    }
+    else if(twohand::carryingHand(s, hand, pos, handRot))
+    {
+        hide = false;
     }
 
     const float offsetScale = weapons::offsetScale();

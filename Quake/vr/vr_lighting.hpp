@@ -40,4 +40,7 @@ void dlightSpot(const dlight_t* dl, const glm::vec3& dir, float innerDegrees, fl
 
 void init();
 
+// Lights given shadows this frame: dynamic ones, and map lights (vr_memstats).
+void shadowCounts(int& dlights, int& mapLights);
+
 } // namespace qvr::lighting

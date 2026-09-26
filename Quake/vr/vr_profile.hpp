@@ -6,7 +6,8 @@
 // scope's average and worst per-frame time over the interval, written every vr_profile_interval
 // seconds (or on vr_profile_dump) to <gamedir>/profile/profile_<map>_<date>_<time>.csv, with a
 // summary in the console. vr_profile 2 also shows the costliest scopes over the wrist gadget.
-// With vr_profile 0 a scope costs a test of one flag.
+// With vr_profile 0 a scope costs a lookup of its name: a few of them (the phases below) are always
+// timed, cheaply, for vr_memstats_log.
 
 #pragma once
 
@@ -24,30 +25,78 @@ void end();
 void init();    // commands (VR_Init)
 void overlay(); // vr_profile 2: queues the costliest scopes as world text (after text3d::clear)
 
+// ---- Always on, whatever vr_profile is (vr_memstats_log, vr_memstats) ----
+// The scopes of these names add up their CPU time every frame (the same name summed, both eyes'
+// scopes too), and those marked GPU in vr_profile.cpp their GPU time too, through one timestamp
+// query at each end, read back a few frames later (never waited for: a frame not ready by then is
+// dropped). About 30 queries and 150 clock reads a frame.
+enum Phase
+{
+    XrWait,       // VR_BeginFrame's backend->beginFrame: xrWaitFrame, xrBeginFrame, the tracking
+    XrWaitFrame,  // xrWaitFrame alone (OpenXR)
+    Commands,
+    Server,       // Host_ServerFrame
+    Physics,      // SV_Physics
+    ClientRead,   // CL_ReadFromServer
+    ViewEntities, // our view entities (hands, weapons, body)
+    Screen,       // SCR_UpdateScreen: both eyes and the runtime's calls in between
+    EyeL,
+    EyeR,
+    XrAcquire,    // xrAcquire/WaitSwapchainImage
+    XrRelease,
+    XrSubmit,     // xrEndFrame
+    Swap,         // the window's buffer swap
+    RunParticles, // CL_RunParticles
+    Sound,
+    Rigid,        // rigid bodies (gibs, thrown things)
+    ShadowMaps,
+    WorldBrush,
+    Alias,
+    Particles,    // Ironwail's particle pass (Quake VR's particles are drawn in it)
+    VrParticles,
+    Decals,
+    PhaseCount
+};
+
+[[nodiscard]] const char* phaseName(Phase phase);
+[[nodiscard]] bool phaseGpu(Phase phase);
+
+// Sums since the last take().
+struct PhaseSums
+{
+    int frames{0};            // summed (hitches, frames over 250 ms, left out)
+    int hitches{0};
+    int slowFrames{0};        // longer than 1.25 of the runtime's display periods: a refresh missed
+    double periodMs{0.0};     // a frame's start to the next's
+    double periodMaxMs{0.0};
+    double hostMs{0.0};       // _Host_Frame's CPU time (to VR_ProfileFrameEnd)
+    double cpuMs[PhaseCount]{};
+    int gpuFrames{0};         // frames whose GPU times were read back
+    int gpuDropped{0};        // and those not ready in time
+    double gpuMs[PhaseCount]{};
+    double displayPeriodMs{0.0}; // the runtime's, last told (0: not known, the mock)
+};
+
+[[nodiscard]] PhaseSums takePhases();
+
+// The runtime's display period (xrWaitFrame's predictedDisplayPeriod), in milliseconds.
+void noteDisplayPeriod(double ms);
+
 class Scope
 {
 public:
-    Scope(const char* name, bool gpu) : on_{active}
+    Scope(const char* name, bool gpu)
     {
-        if(on_)
-        {
-            begin(name, gpu);
-        }
+        begin(name, gpu);
     }
 
     ~Scope()
     {
-        if(on_)
-        {
-            end();
-        }
+        end();
     }
 
     Scope(const Scope&) = delete;
     Scope& operator=(const Scope&) = delete;
-
-private:
-    bool on_;
 };
 
 } // namespace qvr::profile

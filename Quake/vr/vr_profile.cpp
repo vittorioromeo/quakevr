@@ -24,6 +24,7 @@
 #include <cstring>
 #include <ctime>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace qvr::profile
@@ -121,6 +122,197 @@ std::string mapName = "none";
 
 std::string overlayText;
 std::int64_t overlayUpdated = 0;
+
+// ---- The always-on phases (vr_profile.hpp) ----
+
+struct PhaseInfo
+{
+    const char* name;
+    bool gpu;
+};
+constexpr PhaseInfo phaseInfo[PhaseCount] = {{"xr wait", false}, {"xrWaitFrame", false}, {"commands", false},
+    {"server", false}, {"SV_Physics", false}, {"client read", false}, {"view entities", false}, {"screen", false},
+    {"eye L", true}, {"eye R", true}, {"xr acquire", true}, {"xr release", true}, {"xr submit", true}, {"swap", false},
+    {"run particles", false}, {"sound", false}, {"rigid bodies", false}, {"shadow maps", true}, {"world+brush", true},
+    {"alias", true}, {"particles", true}, {"vr particles", true}, {"decals", true}};
+
+std::unordered_map<const void*, int> phaseOfName; // a name literal's address -> its phase, or -1
+
+struct PhaseOpen
+{
+    int phase; // -1: not a phase
+    std::int64_t start;
+    int gpuRec; // -1: none
+};
+std::vector<PhaseOpen> phaseStack;
+std::int64_t phaseFrameNs[PhaseCount]{};
+PhaseSums phaseSums;
+double displayPeriod = 0.0; // ms
+
+constexpr int phaseGpuSlots = 6;
+constexpr int phaseGpuQueries = 96; // a frame's at most
+struct PhaseGpuRec
+{
+    int phase;
+    int begin;
+    int end;
+};
+struct PhaseGpuSlot
+{
+    GLuint queries[phaseGpuQueries]{};
+    int used{0};
+    PhaseGpuRec recs[phaseGpuQueries / 2]{};
+    int recCount{0};
+    bool pending{false};
+};
+PhaseGpuSlot phaseSlots[phaseGpuSlots];
+int phaseSlot = 0;
+bool phaseGpuMade = false;
+
+[[nodiscard]] int phaseOf(const char* name)
+{
+    const auto it = phaseOfName.find(name);
+    if(it != phaseOfName.end())
+    {
+        return it->second;
+    }
+    int phase = -1;
+    for(int i = 0; i < PhaseCount; i++)
+    {
+        if(std::strcmp(phaseInfo[i].name, name) == 0)
+        {
+            phase = i;
+            break;
+        }
+    }
+    phaseOfName.emplace(name, phase);
+    return phase;
+}
+
+void beginPhase(const char* name, bool gpu)
+{
+    PhaseOpen o{phaseOf(name), 0, -1};
+    if(o.phase >= 0)
+    {
+        o.start = nowNs();
+        PhaseGpuSlot& s = phaseSlots[phaseSlot];
+        if(gpu && phaseInfo[o.phase].gpu && phaseGpuMade && s.used + 2 <= phaseGpuQueries)
+        {
+            GL_QueryCounterFunc(s.queries[s.used], GL_TIMESTAMP);
+            o.gpuRec = s.recCount++;
+            s.recs[o.gpuRec] = {o.phase, s.used++, -1};
+        }
+    }
+    phaseStack.push_back(o);
+}
+
+void endPhase()
+{
+    if(phaseStack.empty())
+    {
+        return;
+    }
+    const PhaseOpen o = phaseStack.back();
+    phaseStack.pop_back();
+    if(o.phase < 0)
+    {
+        return;
+    }
+    phaseFrameNs[o.phase] += nowNs() - o.start;
+    if(o.gpuRec >= 0)
+    {
+        PhaseGpuSlot& s = phaseSlots[phaseSlot];
+        GL_QueryCounterFunc(s.queries[s.used], GL_TIMESTAMP);
+        s.recs[o.gpuRec].end = s.used++;
+    }
+}
+
+// Reads a slot's timestamps if the GPU is done with them (never waits); false if not yet.
+bool resolvePhases(PhaseGpuSlot& s)
+{
+    if(!s.pending)
+    {
+        return true;
+    }
+    GLint available = 0;
+    GL_GetQueryObjectivFunc(s.queries[s.used - 1], GL_QUERY_RESULT_AVAILABLE, &available);
+    if(!available)
+    {
+        return false;
+    }
+    for(int i = 0; i < s.recCount; i++)
+    {
+        const PhaseGpuRec& r = s.recs[i];
+        if(r.end < 0)
+        {
+            continue;
+        }
+        GLuint64 b = 0, e = 0;
+        GL_GetQueryObjectui64vFunc(s.queries[r.begin], GL_QUERY_RESULT, &b);
+        GL_GetQueryObjectui64vFunc(s.queries[r.end], GL_QUERY_RESULT, &e);
+        phaseSums.gpuMs[r.phase] += e > b ? static_cast<double>(e - b) / 1e6 : 0.0;
+    }
+    ++phaseSums.gpuFrames;
+    s.pending = false;
+    return true;
+}
+
+// The frame's end for the phases (VR_ProfileFrame): its times into the sums, its GPU slot sent off,
+// the finished slots read back.
+void endPhaseFrame(std::int64_t now, std::int64_t start, std::int64_t end)
+{
+    phaseStack.clear(); // a Host_Error jumped out of them, or a dialog's frame inside one
+    const double period = start > 0 ? static_cast<double>(now - start) / 1e6 : 0.0;
+    const bool keep = start > 0 && period <= hitchMs;
+    PhaseGpuSlot& s = phaseSlots[phaseSlot];
+    if(keep)
+    {
+        ++phaseSums.frames;
+        phaseSums.periodMs += period;
+        phaseSums.periodMaxMs = std::max(phaseSums.periodMaxMs, period);
+        if(displayPeriod > 0.0 && period > 1.25 * displayPeriod)
+        {
+            ++phaseSums.slowFrames;
+        }
+        phaseSums.hostMs += static_cast<double>(end - start) / 1e6;
+        for(int i = 0; i < PhaseCount; i++)
+        {
+            phaseSums.cpuMs[i] += static_cast<double>(phaseFrameNs[i]) / 1e6;
+        }
+    }
+    else if(start > 0)
+    {
+        ++phaseSums.hitches;
+    }
+    std::fill(std::begin(phaseFrameNs), std::end(phaseFrameNs), std::int64_t{0});
+    s.pending = keep && s.recCount > 0;
+
+    if(!phaseGpuMade && GL_QueryCounterFunc && GL_GetQueryObjectui64vFunc && GL_GetQueryObjectivFunc &&
+        GL_GenQueriesFunc)
+    {
+        for(PhaseGpuSlot& slot : phaseSlots)
+        {
+            GL_GenQueriesFunc(phaseGpuQueries, slot.queries);
+        }
+        phaseGpuMade = true;
+    }
+    phaseSlot = (phaseSlot + 1) % phaseGpuSlots;
+    for(int k = 0; k < phaseGpuSlots; k++) // oldest first: the ring's next slot is the oldest
+    {
+        if(!resolvePhases(phaseSlots[(phaseSlot + k) % phaseGpuSlots]))
+        {
+            break;
+        }
+    }
+    PhaseGpuSlot& next = phaseSlots[phaseSlot];
+    if(next.pending)
+    {
+        next.pending = false; // not done after this many frames: dropped, not waited for
+        ++phaseSums.gpuDropped;
+    }
+    next.used = 0;
+    next.recCount = 0;
+}
 
 [[nodiscard]] int child(int parent, const char* name)
 {
@@ -610,8 +802,32 @@ void dump_f()
 
 } // namespace
 
+const char* phaseName(Phase phase)
+{
+    return phaseInfo[phase].name;
+}
+
+bool phaseGpu(Phase phase)
+{
+    return phaseInfo[phase].gpu;
+}
+
+PhaseSums takePhases()
+{
+    PhaseSums s = phaseSums;
+    s.displayPeriodMs = displayPeriod;
+    phaseSums = PhaseSums{};
+    return s;
+}
+
+void noteDisplayPeriod(double ms)
+{
+    displayPeriod = ms;
+}
+
 void begin(const char* name, bool gpu)
 {
+    beginPhase(name, gpu);
     if(!active)
     {
         return;
@@ -628,7 +844,10 @@ void begin(const char* name, bool gpu)
     stack.push_back(o);
 }
 
-void end()
+namespace
+{
+
+void endScope()
 {
     if(!active || stack.empty())
     {
@@ -650,6 +869,14 @@ void end()
         s.recs[o.gpuRec].end = query(s);
         --gpuDepth;
     }
+}
+
+} // namespace
+
+void end()
+{
+    endPhase();
+    endScope();
 }
 
 void init()
@@ -692,12 +919,13 @@ extern "C" void VR_ProfileFrame()
         return;
     }
     const std::int64_t now = nowNs();
+    endPhaseFrame(now, frameStart, frameEnded ? frameEnd : now);
 
     if(active)
     {
         while(!stack.empty()) // a Host_Error jumped out of them
         {
-            end();
+            endScope();
         }
         Node& root = nodes[0];
         root.frameNs = (frameEnded ? frameEnd : now) - frameStart;
@@ -781,7 +1009,7 @@ extern "C" void VR_ProfileFrame()
 
 extern "C" void VR_ProfileFrameEnd()
 {
-    if(profile::active && !profile::frameEnded)
+    if(!profile::frameEnded)
     {
         profile::frameEnd = profile::nowNs();
         profile::frameEnded = true;
@@ -790,24 +1018,15 @@ extern "C" void VR_ProfileFrameEnd()
 
 extern "C" void VR_ProfileBegin(const char* name)
 {
-    if(profile::active)
-    {
-        profile::begin(name, false);
-    }
+    profile::begin(name, false);
 }
 
 extern "C" void VR_ProfileBeginGPU(const char* name)
 {
-    if(profile::active)
-    {
-        profile::begin(name, true);
-    }
+    profile::begin(name, true);
 }
 
 extern "C" void VR_ProfileEnd()
 {
-    if(profile::active)
-    {
-        profile::end();
-    }
+    profile::end();
 }

@@ -762,6 +762,12 @@ void clear()
     holes.clear();
 }
 
+// Decals on the walls (vr_memstats).
+int liveCount()
+{
+    return static_cast<int>(decals.size());
+}
+
 } // namespace qvr::decals
 
 // cl_tent.c: Quake's own wall hits and explosions.

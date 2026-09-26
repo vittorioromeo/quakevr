@@ -339,8 +339,9 @@ void() DecodeLevelParms =
 
     // ------------------------------------------------------------------------
     // Weapon flags:
-    self.weaponflags = parm23;
-    self.weaponflags2 = parm24;
+    // (A gun carried by its foregrip is held normally in a new level: the client's pose is gone.)
+    self.weaponflags = parm23 - (parm23 & QVR_WPNFLAG_FOREGRIP_CARRIED);
+    self.weaponflags2 = parm24 - (parm24 & QVR_WPNFLAG_FOREGRIP_CARRIED);
     self.holsterweaponflags0 = parm25;
     self.holsterweaponflags1 = parm26;
     self.holsterweaponflags2 = parm27;
@@ -2632,6 +2633,12 @@ void(float xHand, float xInMelee, float* xOutMeleeAttackFinished, float* xOutInM
     // An empty hand steadying the other's weapon (two-handed: a sword's grip, a gun's foregrip)
     // swings with it: the weapon's hand strikes, not this one's fist.
     if(VRGet2HAiming(self) && VRIsHandEmpty(self, xHand))
+    {
+        return;
+    }
+
+    // A gun hanging from its foregrip (the hand-off) is carried, not wielded.
+    if(VRIsHandCarryingByForegrip(self, xHand))
     {
         return;
     }

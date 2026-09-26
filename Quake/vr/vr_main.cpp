@@ -16,17 +16,26 @@
 #include "vr_main.hpp"
 #include "vr_menu.hpp"
 #include "vr_profile.hpp"
+#include "vr_protocol.hpp"
 #include "vr_server.hpp"
 #include "vr_view.hpp"
 #include "vr_voicenotes.hpp"
 #include "vr_flashlight.hpp"
+#include "vr_gfx.hpp"
 #include "vr_weapons.hpp"
+#include "vr_particles.hpp"
+#include "vr_shells.hpp"
+#include "vr_worldtext.hpp"
 
+#include <chrono>
+#include <cstdarg>
 #include <cmath>
 #include <cstring>
 #include <ctime>
 #include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 using namespace qvr;
 
@@ -35,6 +44,7 @@ namespace qvr::gfx
 {
 extern int targetsMade; // vr_gfx_gl.cpp
 }
+extern "C" int r_numactiveparticles; // r_part.c
 
 namespace
 {
@@ -213,9 +223,12 @@ void VR_Status_f()
     {
         for(int h : {qvr::HAND_OFF, qvr::HAND_MAIN})
         {
-            Con_Printf("  %-5s angles (%.1f %.1f %.1f), hotspot %d%s%s\n", h == qvr::HAND_MAIN ? "main" : "off",
-                hs.rot[h].x, hs.rot[h].y, hs.rot[h].z, hs.hotspot[h], client::grabbing(h) ? ", grabbing" : "",
-                twohand::helping(h) ? ", helping two-handed" : "");
+            Con_Printf("  %-5s angles (%.1f %.1f %.1f), weapon %d, hotspot %d%s%s%s\n", h == qvr::HAND_MAIN ? "main" : "off",
+                hs.rot[h].x, hs.rot[h].y, hs.rot[h].z,
+                cl.stats[h == qvr::HAND_MAIN ? protocol::STAT_QVR_WEAPON : protocol::STAT_QVR_WEAPON2], hs.hotspot[h],
+                client::grabbing(h) ? ", grabbing" : "",
+                twohand::helping(h) ? ", helping two-handed" : "",
+                twohand::carrying(h) ? ", carrying by the foregrip" : "");
         }
         Con_Printf("  two-handed aiming: %s\n", twohand::aiming() ? "yes" : "no");
     }
@@ -267,9 +280,10 @@ struct MemSample
     int textures{0}, normalmaps{0};
     double textureMb{0.0};
     int glTextures{0}, buffers{-1}, framebuffers{-1}, queries{-1}, programs{-1};
+    double scanMs{0.0}; // what counting the GL objects took
 };
 
-MemSample sampleMemory()
+MemSample sampleMemory(bool scanGl = true)
 {
     MemSample m;
 
@@ -315,6 +329,11 @@ MemSample sampleMemory()
     // Every live GL object of the kinds that hold memory, the engine's, the module's and the OpenXR
     // runtime's in this context (its swapchain images): a count that grows from one load of a map to
     // the next is a leak.
+    if(!scanGl)
+    {
+        return m;
+    }
+    const auto scanStart = std::chrono::steady_clock::now();
     static GlIsFn isBuffer = nullptr, isFramebuffer = nullptr, isQuery = nullptr, isProgram = nullptr;
     if(!isBuffer)
     {
@@ -330,7 +349,249 @@ MemSample sampleMemory()
     m.framebuffers = count(isFramebuffer);
     m.queries = count(isQuery);
     m.programs = count(isProgram);
+    m.scanMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - scanStart).count();
     return m;
+}
+
+// ---- What the frames cost, and what there is to draw (always on: vr_profile.hpp's phases) ------
+
+// The phases' sums (profile::takePhases), for two readers: the log's rows and the console command.
+void addSums(profile::PhaseSums& to, const profile::PhaseSums& from)
+{
+    to.frames += from.frames;
+    to.hitches += from.hitches;
+    to.slowFrames += from.slowFrames;
+    to.periodMs += from.periodMs;
+    to.periodMaxMs = q_max(to.periodMaxMs, from.periodMaxMs);
+    to.hostMs += from.hostMs;
+    to.gpuFrames += from.gpuFrames;
+    to.gpuDropped += from.gpuDropped;
+    for(int i = 0; i < profile::PhaseCount; i++)
+    {
+        to.cpuMs[i] += from.cpuMs[i];
+        to.gpuMs[i] += from.gpuMs[i];
+    }
+    to.displayPeriodMs = from.displayPeriodMs;
+}
+
+// Things drawn and alive, sampled every few frames and averaged over a row.
+struct FrameCounts
+{
+    int samples{0};
+    double visedicts{0.0}, dlights{0.0}, shadowDlights{0.0}, shadowMapLights{0.0}, particles{0.0}, vrParticles{0.0},
+        beams{0.0}, channels{0.0}, texts{0.0};
+};
+
+void addCounts(FrameCounts& to, const FrameCounts& from)
+{
+    to.samples += from.samples;
+    to.visedicts += from.visedicts;
+    to.dlights += from.dlights;
+    to.shadowDlights += from.shadowDlights;
+    to.shadowMapLights += from.shadowMapLights;
+    to.particles += from.particles;
+    to.vrParticles += from.vrParticles;
+    to.beams += from.beams;
+    to.channels += from.channels;
+    to.texts += from.texts;
+}
+
+struct Readers
+{
+    profile::PhaseSums sums;
+    FrameCounts counts;
+};
+Readers logReader, commandReader;
+
+// The last frame's counts (VR_BeginFrame, before the texts are cleared), every 8th frame.
+void sampleCounts()
+{
+    if(cls.state != ca_connected || cls.signon != SIGNONS || (host_framecount & 7) != 0)
+    {
+        return;
+    }
+    FrameCounts c;
+    c.samples = 1;
+    c.visedicts = cl_numvisedicts;
+    for(const dlight_t& l : cl_dlights)
+    {
+        c.dlights += l.die >= cl.time && l.radius > 0.f ? 1.0 : 0.0;
+    }
+    int dl = 0, ml = 0;
+    lighting::shadowCounts(dl, ml);
+    c.shadowDlights = dl;
+    c.shadowMapLights = ml;
+    c.particles = r_numactiveparticles;
+    c.vrParticles = particles::liveCount();
+    for(const beam_t& b : cl_beams)
+    {
+        c.beams += b.model && b.endtime >= cl.time ? 1.0 : 0.0;
+    }
+    for(int i = 0; i < MAX_DYNAMIC_CHANNELS + NUM_AMBIENTS && i < total_channels; i++)
+    {
+        c.channels += snd_channels[i].sfx ? 1.0 : 0.0;
+    }
+    int texts = 0, boards = 0;
+    text3d::counts(texts, boards);
+    c.texts = texts;
+    addCounts(logReader.counts, c);
+    addCounts(commandReader.counts, c);
+}
+
+void drainPhases()
+{
+    const profile::PhaseSums p = profile::takePhases();
+    addSums(logReader.sums, p);
+    addSums(commandReader.sums, p);
+}
+
+// The server's entities: in use, and of kinds that pile up in play.
+struct EdictCounts
+{
+    int inUse{-1}, highest{-1}, monsters{0}, corpses{0}, heads{0}, gibs{0}, missiles{0}, thrown{0};
+};
+
+EdictCounts countEdicts()
+{
+    EdictCounts e;
+    if(!sv.active || !sv.qcvm.progs)
+    {
+        return e;
+    }
+    qcvm_t* old = nullptr;
+    PR_PushQCVM(&sv.qcvm, &old);
+    e.inUse = 0;
+    e.highest = qcvm->num_edicts;
+    for(int i = 1; i < qcvm->num_edicts; i++)
+    {
+        edict_t* ent = EDICT_NUM(i);
+        if(ent->free)
+        {
+            continue;
+        }
+        e.inUse++;
+        const char* classname = PR_GetString(ent->v.classname);
+        const int modelindex = static_cast<int>(ent->v.modelindex);
+        const char* model = modelindex > 0 && modelindex < MAX_MODELS && sv.model_precache[modelindex]
+                                ? sv.model_precache[modelindex]
+                                : "";
+        if(!std::strncmp(classname, "monster_", 8))
+        {
+            (ent->v.deadflag != 0.f || ent->v.health <= 0.f ? e.corpses : e.monsters)++;
+        }
+        else if(!std::strncmp(model, "progs/h_", 8))
+        {
+            e.heads++;
+        }
+        else if(!std::strncmp(model, "progs/gib", 9))
+        {
+            e.gibs++;
+        }
+        else if(!std::strcmp(classname, "thrown_weapon"))
+        {
+            e.thrown++;
+        }
+        else if(static_cast<int>(ent->v.movetype) == MOVETYPE_FLYMISSILE)
+        {
+            e.missiles++;
+        }
+    }
+    PR_PopQCVM(old);
+    return e;
+}
+
+// A row's (or the command's) numbers: named columns, the old ones first.
+using Columns = std::vector<std::pair<std::string, std::string>>;
+
+void column(Columns& c, const char* name, const char* fmt, ...)
+{
+    char buf[256];
+    va_list args;
+    va_start(args, fmt);
+    q_vsnprintf(buf, sizeof(buf), fmt, args);
+    va_end(args);
+    c.emplace_back(name, buf);
+}
+
+// The phases' and counts' columns, per frame over what `r` gathered since it was last reset.
+void timingColumns(Columns& c, const Readers& r)
+{
+    const profile::PhaseSums& p = r.sums;
+    const double frames = q_max(p.frames, 1);
+    const double gpuFrames = q_max(p.gpuFrames, 1);
+    const auto cpu = [&](profile::Phase ph) { return p.cpuMs[ph] / frames; };
+    const auto gpu = [&](profile::Phase ph) { return p.gpuMs[ph] / gpuFrames; };
+    using namespace profile;
+    const double waits = cpu(XrWait) + cpu(XrAcquire) + cpu(XrRelease) + cpu(XrSubmit) + cpu(Swap);
+    column(c, "display_ms", "%.3f", p.displayPeriodMs);
+    column(c, "slow_frames", "%d", p.slowFrames);
+    column(c, "hitches", "%d", p.hitches);
+    column(c, "period_ms", "%.3f", p.periodMs / frames);
+    column(c, "period_max_ms", "%.2f", p.periodMaxMs);
+    column(c, "host_ms", "%.3f", p.hostMs / frames);
+    column(c, "busy_ms", "%.3f", q_max(0.0, p.hostMs / frames - waits));
+    column(c, "xr_wait_ms", "%.3f", cpu(XrWait));
+    column(c, "xr_waitframe_ms", "%.3f", cpu(XrWaitFrame));
+    column(c, "xr_acquire_ms", "%.3f", cpu(XrAcquire));
+    column(c, "xr_release_ms", "%.3f", cpu(XrRelease));
+    column(c, "xr_submit_ms", "%.3f", cpu(XrSubmit));
+    column(c, "swap_ms", "%.3f", cpu(Swap));
+    column(c, "commands_ms", "%.3f", cpu(Commands));
+    column(c, "server_ms", "%.3f", cpu(Server));
+    column(c, "physics_ms", "%.3f", cpu(Physics));
+    column(c, "rigid_ms", "%.3f", cpu(Rigid));
+    column(c, "client_ms", "%.3f", cpu(ClientRead));
+    column(c, "view_ents_ms", "%.3f", cpu(ViewEntities));
+    column(c, "screen_ms", "%.3f", cpu(Screen));
+    column(c, "eyes_cpu_ms", "%.3f", cpu(EyeL) + cpu(EyeR));
+    column(c, "run_particles_ms", "%.3f", cpu(RunParticles));
+    column(c, "sound_ms", "%.3f", cpu(Sound));
+    column(c, "gpu_frames", "%d", p.gpuFrames);
+    column(c, "gpu_dropped", "%d", p.gpuDropped);
+    column(c, "gpu_eyes_ms", "%.3f", gpu(EyeL) + gpu(EyeR));
+    column(c, "gpu_eye_l_ms", "%.3f", gpu(EyeL));
+    column(c, "gpu_eye_r_ms", "%.3f", gpu(EyeR));
+    column(c, "gpu_shadows_ms", "%.3f", gpu(ShadowMaps));
+    column(c, "gpu_world_ms", "%.3f", gpu(WorldBrush));
+    column(c, "gpu_alias_ms", "%.3f", gpu(Alias));
+    column(c, "gpu_particles_ms", "%.3f", gpu(Particles));
+    column(c, "gpu_vr_particles_ms", "%.3f", gpu(VrParticles));
+    column(c, "gpu_decals_ms", "%.3f", gpu(Decals));
+    column(c, "gpu_acquire_ms", "%.3f", gpu(XrAcquire));
+    column(c, "gpu_release_ms", "%.3f", gpu(XrRelease));
+    column(c, "gpu_submit_ms", "%.3f", gpu(XrSubmit));
+
+    const FrameCounts& f = r.counts;
+    const double n = q_max(f.samples, 1);
+    column(c, "visedicts", "%.1f", f.visedicts / n);
+    column(c, "dlights", "%.1f", f.dlights / n);
+    column(c, "shadow_dlights", "%.1f", f.shadowDlights / n);
+    column(c, "shadow_maplights", "%.1f", f.shadowMapLights / n);
+    column(c, "particles", "%.0f", f.particles / n);
+    column(c, "vr_particles", "%.0f", f.vrParticles / n);
+    column(c, "beams", "%.1f", f.beams / n);
+    column(c, "sound_channels", "%.1f", f.channels / n);
+    column(c, "texts", "%.1f", f.texts / n);
+
+    const EdictCounts e = countEdicts();
+    column(c, "edicts", "%d", e.inUse);
+    column(c, "edicts_high", "%d", e.highest);
+    column(c, "monsters", "%d", e.monsters);
+    column(c, "corpses", "%d", e.corpses);
+    column(c, "heads", "%d", e.heads);
+    column(c, "gibs", "%d", e.gibs);
+    column(c, "missiles", "%d", e.missiles);
+    column(c, "thrown_weapons", "%d", e.thrown);
+    column(c, "cl_entities", "%d", cl.num_entities);
+    column(c, "decals", "%d", decals::liveCount());
+    column(c, "shells", "%d", shells::liveCount());
+    column(c, "world_texts", "%d", static_cast<int>(worldtext::clientTexts().size()));
+    column(c, "float_texts", "%d", static_cast<int>(worldtext::clientFloatTexts(cl.time).size()));
+    int texts = 0, boards = 0;
+    text3d::counts(texts, boards);
+    column(c, "boards", "%d", boards);
+    column(c, "static_sounds", "%d", q_max(0, total_channels - MAX_DYNAMIC_CHANNELS - NUM_AMBIENTS));
+    column(c, "targets_by_name", "%s", gfx::targetsMadeByName().c_str());
 }
 
 void VR_MemStats_f()
@@ -345,7 +606,8 @@ void VR_MemStats_f()
     const double seconds = realtime - lastTime;
     const int frames = host_framecount - lastFrames;
 
-    Con_Printf("vr_memstats #%d, map \"%s\", %.1f s since the last: %d frames, %.2f ms a frame\n", ++calls,
+    ++calls; // not in the call: its arguments are evaluated in no set order (MSVC: right to left)
+    Con_Printf("vr_memstats #%d, map \"%s\", %.1f s since the last: %d frames, %.2f ms a frame\n", calls,
         cl.worldmodel ? cl.worldmodel->name : "", calls > 1 ? seconds : 0.0, calls > 1 ? frames : 0,
         calls > 1 && frames > 0 ? 1000.0 * seconds / frames : 0.0);
     lastTime = realtime;
@@ -370,15 +632,41 @@ void VR_MemStats_f()
 #endif
     Con_Printf("  hunk  %.1f MB used\n", m.hunk);
     Con_Printf("  textures (managed) %d, %d of them normal maps, %.1f MB\n", m.textures, m.normalmaps, m.textureMb);
-    Con_Printf("  GL    %d textures (%d not managed), %d buffers, %d framebuffers, %d queries, %d programs\n", m.glTextures,
-        m.glTextures - m.textures, m.buffers, m.framebuffers, m.queries, m.programs);
-    Con_Printf("  VR    render targets (re)made %d times so far; ", gfx::targetsMade);
+    Con_Printf("  GL    %d textures (%d not managed), %d buffers, %d framebuffers, %d queries, %d programs (%.1f ms to count)\n",
+        m.glTextures, m.glTextures - m.textures, m.buffers, m.framebuffers, m.queries, m.programs, m.scanMs);
+    Con_Printf("  VR    render targets (re)made %d times so far (%s); ", gfx::targetsMade, gfx::targetsMadeByName().c_str());
     decals::count_f();
+
+    // Per frame since the last vr_memstats: the phases' times and the counts, as the log's columns.
+    drainPhases();
+    Columns c;
+    timingColumns(c, commandReader);
+    commandReader = Readers{};
+    std::string line;
+    for(const auto& [name, value] : c)
+    {
+        if(name == "targets_by_name")
+        {
+            continue;
+        }
+        const std::string word = name + " " + value;
+        if(line.size() + word.size() + 2 > 100)
+        {
+            Con_Printf("  %s\n", line.c_str());
+            line.clear();
+        }
+        line += (line.empty() ? "" : ", ") + word;
+    }
+    if(!line.empty())
+    {
+        Con_Printf("  %s\n", line.c_str());
+    }
 }
 
 // vr_memstats_log: the same, as a row of quakevr/profile/memstats_<date>.csv every so many seconds
 // and once after each map load, with the frame rate since the last row: a session's slowdown next to
-// what the game (and, in the VRAM columns, every other program) holds.
+// what the game (and, in the VRAM columns, every other program) holds, whose time grew (ours, on the
+// CPU or the GPU, or the runtime's waits), and what there was to draw.
 struct MemLog
 {
     std::string path;
@@ -386,15 +674,81 @@ struct MemLog
     int lastFrames{0};
     const void* lastWorld{nullptr};
     double worldSince{0.0};
+    double scanMs{0.0};  // the last GL object count's cost
+    int timerRows{0};
+    MemSample last;      // the last GL object counts (not scanned every row when that is slow)
 };
 
 MemLog memLog;
 
 void writeMemLogRow(const char* reason)
 {
+    const double seconds = realtime - memLog.lastTime;
+    const int frames = host_framecount - memLog.lastFrames;
+    memLog.lastTime = realtime;
+    memLog.lastFrames = host_framecount;
+
+    // Counting GL objects takes a few milliseconds (a hitch in the headset): on map rows, and on every
+    // 5th timer row once it has taken more than 2 ms.
+    const bool timer = !std::strcmp(reason, "timer");
+    const bool scan = !timer || memLog.scanMs < 2.0 || ++memLog.timerRows % 5 == 0;
+    MemSample m = sampleMemory(scan);
+    if(scan)
+    {
+        memLog.scanMs = m.scanMs;
+        memLog.last = m;
+    }
+    else
+    {
+        m.glTextures = memLog.last.glTextures;
+        m.buffers = memLog.last.buffers;
+        m.framebuffers = memLog.last.framebuffers;
+        m.queries = memLog.last.queries;
+        m.programs = memLog.last.programs;
+    }
+
+    const std::time_t now = std::time(nullptr);
+    char clock[32];
+    std::strftime(clock, sizeof(clock), "%H:%M:%S", std::localtime(&now));
+    Columns c;
+    column(c, "clock", "%s", clock);
+    column(c, "seconds", "%.1f", realtime);
+    column(c, "reason", "%s", reason);
+    column(c, "map", "%s", cl.worldmodel ? cl.worldmodel->name : "");
+    column(c, "frames", "%d", frames);
+    column(c, "ms_per_frame", "%.3f", frames > 0 ? 1000.0 * seconds / frames : 0.0);
+    column(c, "vram_used_mb", "%d", m.vramTotal > 0 ? m.vramTotal - m.vramFree : -1);
+    column(c, "vram_total_mb", "%d", m.vramTotal);
+    column(c, "vram_free_mb", "%d", m.vramFree);
+    column(c, "evictions", "%d", m.evictions);
+    column(c, "evicted_mb", "%d", m.evictedMb);
+    column(c, "working_set_mb", "%.1f", m.workingSet);
+    column(c, "peak_working_set_mb", "%.1f", m.peakWorkingSet);
+    column(c, "private_mb", "%.1f", m.privateBytes);
+    column(c, "hunk_mb", "%.1f", m.hunk);
+    column(c, "textures", "%d", m.textures);
+    column(c, "normal_maps", "%d", m.normalmaps);
+    column(c, "texture_mb", "%.1f", m.textureMb);
+    column(c, "gl_textures", "%d", m.glTextures);
+    column(c, "gl_buffers", "%d", m.buffers);
+    column(c, "gl_framebuffers", "%d", m.framebuffers);
+    column(c, "gl_queries", "%d", m.queries);
+    column(c, "gl_programs", "%d", m.programs);
+    column(c, "targets_made", "%d", gfx::targetsMade);
+    if(scan)
+    {
+        column(c, "gl_scan_ms", "%.2f", memLog.scanMs);
+    }
+    else
+    {
+        c.emplace_back("gl_scan_ms", "");
+    }
+    drainPhases();
+    timingColumns(c, logReader);
+    logReader = Readers{};
+
     if(memLog.path.empty())
     {
-        const std::time_t now = std::time(nullptr);
         char stamp[64];
         std::strftime(stamp, sizeof(stamp), "%Y-%m-%d_%H-%M-%S", std::localtime(&now));
         const std::string dir = std::string{com_gamedir} + "/profile";
@@ -402,10 +756,11 @@ void writeMemLogRow(const char* reason)
         memLog.path = dir + "/memstats_" + stamp + ".csv";
         if(FILE* f = std::fopen(memLog.path.c_str(), "w"))
         {
-            std::fprintf(f, "clock,seconds,reason,map,frames,ms_per_frame,vram_used_mb,vram_total_mb,vram_free_mb,"
-                            "evictions,evicted_mb,working_set_mb,peak_working_set_mb,private_mb,hunk_mb,textures,"
-                            "normal_maps,texture_mb,gl_textures,gl_buffers,gl_framebuffers,gl_queries,gl_programs,"
-                            "targets_made\n");
+            for(std::size_t i = 0; i < c.size(); i++)
+            {
+                std::fprintf(f, "%s%s", i ? "," : "", c[i].first.c_str());
+            }
+            std::fprintf(f, "\n");
             std::fclose(f);
         }
         Con_DPrintf("vr_memstats_log: %s\n", memLog.path.c_str());
@@ -415,20 +770,11 @@ void writeMemLogRow(const char* reason)
     {
         return;
     }
-    const double seconds = realtime - memLog.lastTime;
-    const int frames = host_framecount - memLog.lastFrames;
-    memLog.lastTime = realtime;
-    memLog.lastFrames = host_framecount;
-
-    const MemSample m = sampleMemory();
-    const std::time_t now = std::time(nullptr);
-    char clock[32];
-    std::strftime(clock, sizeof(clock), "%H:%M:%S", std::localtime(&now));
-    std::fprintf(f, "%s,%.1f,%s,%s,%d,%.3f,%d,%d,%d,%d,%d,%.1f,%.1f,%.1f,%.1f,%d,%d,%.1f,%d,%d,%d,%d,%d,%d\n", clock,
-        realtime, reason, cl.worldmodel ? cl.worldmodel->name : "", frames, frames > 0 ? 1000.0 * seconds / frames : 0.0,
-        m.vramTotal > 0 ? m.vramTotal - m.vramFree : -1, m.vramTotal, m.vramFree, m.evictions, m.evictedMb, m.workingSet,
-        m.peakWorkingSet, m.privateBytes, m.hunk, m.textures, m.normalmaps, m.textureMb, m.glTextures, m.buffers,
-        m.framebuffers, m.queries, m.programs, gfx::targetsMade);
+    for(std::size_t i = 0; i < c.size(); i++)
+    {
+        std::fprintf(f, "%s%s", i ? "," : "", c[i].second.c_str());
+    }
+    std::fprintf(f, "\n");
     std::fclose(f);
 }
 
@@ -568,6 +914,7 @@ extern "C" void VR_BeginFrame()
         stopBackend();
     }
 
+    sampleCounts(); // vr_memstats: the last frame's, before its texts are cleared
     lines::clear(); // queued anew every frame (teleport aim, crosshairs)
     text3d::clear();
     voicenotes::frame(); // after the clear: its indicator is queued anew each frame

@@ -99,6 +99,11 @@ void spin(int hand)
     spinLeft[hand] = 360.f;
 }
 
+float spinAngle(int hand)
+{
+    return spinLeft[hand] > 0.f ? 360.f - spinLeft[hand] : -1.f;
+}
+
 void reset()
 {
     for(int h = 0; h < 2; h++)

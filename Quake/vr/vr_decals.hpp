@@ -41,4 +41,7 @@ void clear();
 // vr_decal_count: how many there are, of each kind.
 void count_f();
 
+// Decals on the walls (vr_memstats).
+[[nodiscard]] int liveCount();
+
 } // namespace qvr::decals

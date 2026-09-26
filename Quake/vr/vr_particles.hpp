@@ -59,4 +59,11 @@ void clear();
 void shellEject(const glm::vec3& org, const glm::vec3& dir, float smoke, int sparks);
 void shellTrail(const glm::vec3& from, const glm::vec3& to, float strength);
 
+// A lava nail's streak (vr_emissive.cpp) from `from` to `to`: a hot, short-lived glowing core and a
+// few embers falling off it. Nothing with vr_particles 0.
+void lavaNailTrail(const glm::vec3& from, const glm::vec3& to);
+
+// Live particles (vr_memstats).
+[[nodiscard]] int liveCount();
+
 } // namespace qvr::particles

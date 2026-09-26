@@ -14,6 +14,7 @@
 #include "vr_anchor.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
+#include "vr_flick.hpp"
 #include "vr_hands.hpp"
 #include "vr_particles.hpp"
 #include "vr_trace.hpp"
@@ -73,6 +74,12 @@ constexpr float shellRadius = 0.0112f * modelScale;
 constexpr int maxShells = 64;
 constexpr float fadeTime = 1.5f; // seconds it fades out over, at the end of vr_shells_life
 constexpr float trailTime = 1.2f; // seconds it trails smoke for
+
+// A flick reload's casings leave when the spin has turned the barrels down (the breech open
+// upwards, in front of the hand): thrown forward and a little up, away from the head, they fall
+// in front of the player. They wait for it at most this long (the spin takes a third of a second).
+constexpr float flickEjectAngle = 255.f;
+constexpr double flickEjectWait = 0.6;
 
 struct Shell
 {
@@ -250,6 +257,63 @@ void trackPorts(const view::ViewEntity (&weapons)[2])
     return *oldest;
 }
 
+// A flick's casing, thrown out of the spinning gun: forward (the way the head looks, turned a
+// little away from it towards where the gun is) and a little up, scattered, with a quarter of the
+// hand's own swing (not the spin's speed, which flung them into the face) and the player's movement.
+[[nodiscard]] glm::vec3 flickVelocity(int hand, const glm::vec3& pos)
+{
+    const hands::State& hs = hands::current();
+    const float upm = unitsPerMetre();
+    const glm::vec3 look = hands::forward({0.f, hs.headAngles.y, 0.f});
+    glm::vec3 away{pos.x - hs.head.x, pos.y - hs.head.y, 0.f};
+    away = glm::length(away) > 1e-3f ? glm::normalize(away) : look;
+    glm::vec3 out = look * 0.7f + away * 0.3f;
+    out = glm::length(out) > 1e-3f ? glm::normalize(out) : look;
+    const glm::vec3 side = glm::normalize(glm::cross(out, glm::vec3{0.f, 0.f, 1.f}));
+
+    glm::vec3 handVel = hs.vel[hand] * upm * 0.25f;
+    const float cap = 1.5f * upm;
+    if(glm::length(handVel) > cap)
+    {
+        handVel *= cap / glm::length(handVel);
+    }
+    const float speed = rnd(1.1f, 1.7f) * upm;
+    return out * speed + side * (rnd(-0.35f, 0.35f) * upm) + glm::vec3{0.f, 0.f, rnd(0.3f, 0.7f) * upm} + handVel +
+           glm::vec3{cl.velocity[0], cl.velocity[1], cl.velocity[2]};
+}
+
+// Never at the face: a casing starting within an arm's length of the head does not fly towards it
+// (it goes away from it at least a little, along the ground), and does not rise to the eyes.
+[[nodiscard]] glm::vec3 awayFromFace(const glm::vec3& pos, glm::vec3 vel)
+{
+    const hands::State& hs = hands::current();
+    if(!hs.valid)
+    {
+        return vel;
+    }
+    const float upm = unitsPerMetre();
+    const glm::vec3 player{cl.velocity[0], cl.velocity[1], 0.f};
+    glm::vec3 toHead{hs.head.x - pos.x, hs.head.y - pos.y, 0.f};
+    const float dist = glm::length(toHead);
+    if(dist >= 1.f * upm || dist < 1e-3f)
+    {
+        return vel;
+    }
+    toHead /= dist;
+    const float towards = glm::dot(vel - player, toHead); // relative to the player, who moves along
+    const float wanted = -0.3f * upm;
+    if(towards > wanted)
+    {
+        vel -= toHead * (towards - wanted);
+    }
+    // Its highest point at least 15 cm under the eyes.
+    const float g = gravity();
+    const float room = hs.head.z - 0.15f * upm - pos.z;
+    const float maxUp = room > 0.f ? std::sqrt(2.f * g * room) : 0.f;
+    vel.z = std::min(vel.z, maxUp);
+    return vel;
+}
+
 void eject(const view::ViewEntity (&weapons)[2], const Pending& p)
 {
     const view::ViewEntity& ve = weapons[p.hand];
@@ -284,10 +348,17 @@ void eject(const view::ViewEntity (&weapons)[2], const Pending& p)
         s.pos = pos;
         s.smoke = flick ? 1.5f : 1.f;
 
-        const float speed = w->speed * upm * rnd(0.8f, 1.2f);
-        const glm::vec3 scatter = onSphere() * (speed * 0.15f);
-        const float inherit = flick ? 0.6f : 0.9f;
-        s.vel = dir * speed + scatter + tracks[p.hand].vel * inherit;
+        if(flick)
+        {
+            s.vel = flickVelocity(p.hand, pos);
+        }
+        else
+        {
+            const float speed = w->speed * upm * rnd(0.8f, 1.2f);
+            const glm::vec3 scatter = onSphere() * (speed * 0.15f);
+            s.vel = dir * speed + scatter + tracks[p.hand].vel * 0.9f;
+        }
+        s.vel = awayFromFace(pos, s.vel);
 
         // Lying in the chamber: its open end forward, the weapon's up its up.
         s.rot = glm::quat_cast(glm::mat3{fwd, left, up});
@@ -500,6 +571,10 @@ void ejectTest_f()
     const int hand = Cmd_Argc() > 1 ? CLAMP(0, Q_atoi(Cmd_Argv(1)), 1) : HAND_MAIN;
     const int count = Cmd_Argc() > 2 ? CLAMP(1, Q_atoi(Cmd_Argv(2)), 8) : 1;
     const int flags = Cmd_Argc() > 3 && Q_atoi(Cmd_Argv(3)) ? FlagFlick : 0;
+    if(flags & FlagFlick)
+    {
+        flick::spin(hand); // as a flick: the casings leave with the spin
+    }
     pending.push_back({hand, 0, count, flags, cl.time});
 }
 
@@ -532,7 +607,11 @@ void frame(const view::ViewEntity (&weapons)[2])
 
     for(std::size_t i = 0; i < pending.size();)
     {
-        if(cl.time >= pending[i].time)
+        // A flick's casings wait for the spin to turn the barrels down.
+        const Pending& pe = pending[i];
+        const float spun = (pe.flags & FlagFlick) ? flick::spinAngle(pe.hand) : -1.f;
+        const bool waitSpin = spun >= 0.f && spun < flickEjectAngle && cl.time < pe.time + flickEjectWait;
+        if(cl.time >= pe.time && !waitSpin)
         {
             if(vr_shells.value)
             {
@@ -603,6 +682,17 @@ void clear()
 void registerCommands()
 {
     Cmd_AddCommand("vr_shells_eject", ejectTest_f);
+}
+
+// Casings in the world (vr_memstats).
+int liveCount()
+{
+    int n = 0;
+    for(const Shell& s : shells)
+    {
+        n += s.active ? 1 : 0;
+    }
+    return n;
 }
 
 } // namespace qvr::shells

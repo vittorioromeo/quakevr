@@ -14,6 +14,14 @@
 // leading. The weapon's TwoHPitch/TwoHYaw say which way its blade points in the model (degrees up
 // from the model's forward, and to its left); the holding hand is turned (the least turn) until
 // the blade, drawn as the view draws it, lies along that line. No virtual stock.
+//
+// Hand-off (vr_2h_handoff; the server's side is QC VRTryHandOff): when the holding hand lets go of a
+// weapon held two-handed, the helping hand keeps it. A sword simply changes hands. A gun hangs from
+// its foregrip (QVR_WPNFLAG_FOREGRIP_CARRIED in the carrying hand's weapon flags): drawn as the hand
+// that let go held it, at that moment, moving rigidly with the carrying hand, which stays drawn on the
+// foregrip. For this the view records, every frame a hand helps, where the holding hand and the drawn
+// helping hand are relative to the helping hand's tracked pose. The empty hand closing on the carried
+// gun's handle (HS_CARRIED_GRIP) takes it back.
 
 #include "vr_twohand.hpp"
 #include "vr_engine.hpp"
@@ -51,6 +59,8 @@ enum Vr2HMode : int
 };
 
 constexpr int widFist = 0; // QC WID_FIST
+constexpr int wpnFlagForegripCarried = 2; // QC QVR_WPNFLAG_FOREGRIP_CARRIED
+constexpr float carriedGripRadius = 6.f; // units from the carried gun's handle the other hand takes it
 
 float aimTransition[2]{0.f, 0.f};   // per holding hand, 0..1
 float stockTransition[2]{0.f, 0.f}; // per holding hand, 0..1
@@ -58,6 +68,49 @@ bool shouldAim[2]{false, false};    // per holding hand
 bool helpingHand[2]{false, false};
 
 double lastTime = -1.0;
+
+// A pose relative to a hand's tracked pose: a position in its frame, and axes (forward and up).
+struct RelPose
+{
+    glm::vec3 pos{0.f};
+    glm::vec3 fwd{1.f, 0.f, 0.f};
+    glm::vec3 up{0.f, 0.f, 1.f};
+};
+
+// Per helping hand: the last frame it helped, the holding hand's pose (what the weapon is drawn at)
+// and the drawn helping hand's, relative to it.
+struct HelpRecord
+{
+    bool valid = false;
+    double time = -1.0;
+    RelPose holder;
+    bool holderMirrored = false;
+    RelPose drawnHand;
+};
+HelpRecord help[2];
+
+// Per carrying hand: the record it carries by (taken when the carry began), and the handle.
+bool carryWasOn[2]{false, false};
+bool carryPoseValid[2]{false, false};
+HelpRecord carryPose[2];
+bool handleValid[2]{false, false};
+glm::vec3 handle[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+
+[[nodiscard]] RelPose relativeTo(const glm::vec3& basePos, const glm::vec3& baseRot, const glm::vec3& pos,
+    const glm::vec3& rot)
+{
+    glm::vec3 bf, br, bu, f, r, u;
+    hands::angleVectors(baseRot, bf, br, bu);
+    hands::angleVectors(rot, f, r, u);
+    const auto local = [&](const glm::vec3& v) { return glm::vec3{glm::dot(v, bf), glm::dot(v, br), glm::dot(v, bu)}; };
+    return RelPose{local(pos - basePos), local(f), local(u)};
+}
+
+void fromRelative(const glm::vec3& basePos, const glm::vec3& baseRot, const RelPose& rel, glm::vec3& pos, glm::vec3& rot)
+{
+    pos = basePos + hands::redirect(rel.pos, baseRot);
+    rot = hands::anglesFromVectors(hands::redirect(rel.fwd, baseRot), hands::redirect(rel.up, baseRot));
+}
 float frameDt = 0.f; // advances once per client frame, however often the hands are recomputed
 
 [[nodiscard]] int weaponId(int hand)
@@ -172,6 +225,14 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
 
 void applyHand(hands::State& s, const glm::vec3 (&originalRots)[2], int holding, int helping, int mode)
 {
+    // A gun carried by its foregrip is not aimed, with one hand or two.
+    if(carrying(holding))
+    {
+        shouldAim[holding] = false;
+        aimTransition[holding] = stockTransition[holding] = 0.f;
+        return;
+    }
+
     const int slot = weapons::heldSlot(holding);
     const bool holdingWeapon = slot >= 0 && weaponId(holding) != widFist;
 
@@ -297,8 +358,97 @@ void reset()
     {
         aimTransition[h] = stockTransition[h] = 0.f;
         shouldAim[h] = helpingHand[h] = false;
+        help[h] = HelpRecord{};
+        carryWasOn[h] = carryPoseValid[h] = handleValid[h] = false;
     }
     lastTime = -1.0;
+}
+
+bool carrying(int hand)
+{
+    const int flags = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2];
+    return weaponId(hand) != widFist && (flags & wpnFlagForegripCarried) != 0;
+}
+
+void recordHelp(const hands::State& s, int hand, const glm::vec3& drawnPos, const glm::vec3& drawnRot)
+{
+    const int holder = 1 - hand;
+    HelpRecord& r = help[hand];
+    const bool going = r.valid && realtime - r.time < 0.1; // helping since the last frames
+    r.time = realtime;
+    if(going && !client::grabbing(holder))
+    {
+        return; // the holding hand let go: the pose at the release (it moves away before the server hands off)
+    }
+    r.valid = true;
+    r.holder = relativeTo(s.pos[hand], s.rot[hand], s.pos[holder], s.visualRot[holder]);
+    r.holderMirrored = holder == HAND_OFF;
+    r.drawnHand = relativeTo(s.pos[hand], s.rot[hand], drawnPos, drawnRot);
+}
+
+namespace
+{
+
+// The pose a carrying hand carries by: taken when its carry begins, from its last help (if that was
+// just now: the server hands off on the release, a few frames at most after the last help).
+[[nodiscard]] const HelpRecord* carriedPose(int hand)
+{
+    const bool on = carrying(hand);
+    if(on && !carryWasOn[hand])
+    {
+        carryPoseValid[hand] = help[hand].valid && realtime - help[hand].time < 0.5;
+        carryPose[hand] = help[hand];
+    }
+    carryWasOn[hand] = on;
+    if(!on)
+    {
+        handleValid[hand] = false;
+    }
+    return on && carryPoseValid[hand] ? &carryPose[hand] : nullptr;
+}
+
+} // namespace
+
+bool carriedWeapon(const hands::State& s, int hand, HeldAs& out)
+{
+    const HelpRecord* r = carriedPose(hand);
+    if(!r)
+    {
+        return false;
+    }
+    fromRelative(s.pos[hand], s.rot[hand], r->holder, out.pos, out.rot);
+    out.mirrored = r->holderMirrored;
+    return true;
+}
+
+bool carryingHand(const hands::State& s, int hand, glm::vec3& pos, glm::vec3& rot)
+{
+    const HelpRecord* r = carriedPose(hand);
+    if(!r)
+    {
+        return false;
+    }
+    fromRelative(s.pos[hand], s.rot[hand], r->drawnHand, pos, rot);
+    return true;
+}
+
+void setCarriedHandle(int hand, const glm::vec3& pos)
+{
+    handleValid[hand] = true;
+    handle[hand] = pos;
+}
+
+void updateHotspots(hands::State& s)
+{
+    for(int hand = 0; hand < 2; hand++)
+    {
+        const int other = 1 - hand;
+        if(weaponId(hand) == widFist && carrying(other) && handleValid[other] &&
+            glm::distance(s.pos[hand], handle[other]) < carriedGripRadius)
+        {
+            s.hotspot[hand] = body::HS_CARRIED_GRIP;
+        }
+    }
 }
 
 } // namespace qvr::twohand

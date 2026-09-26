@@ -14,6 +14,7 @@
 
 #include <cstddef>
 #include <span>
+#include <string>
 
 namespace qvr::gfx
 {
@@ -84,8 +85,12 @@ struct Target
 };
 
 // (Re)creates `target` at the given size; nothing when it already is. `mipmaps`: with a mipmap
-// chain, rebuilt by end2D() (filtered trilinearly).
-void ensureTarget(Target& target, int width, int height, bool mipmaps = false);
+// chain, rebuilt by end2D() (filtered trilinearly). `name` (a literal): what it is, for the count of
+// targets (re)made by name (vr_memstats, and a developer line each time).
+void ensureTarget(Target& target, int width, int height, bool mipmaps = false, const char* name = "target");
+
+// How many times targets of each name were (re)made so far, as "name:count" words.
+[[nodiscard]] std::string targetsMadeByName();
 
 // Draws into `target` with the engine's 2D functions (the 2D pass's own blend and state), on a
 // virtual screen of `virtualWidth` x `virtualHeight` covering it, until end2D() restores the 2D

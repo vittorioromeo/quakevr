@@ -129,6 +129,8 @@ QVR_CVAR(vr_gadget_screen_background, "1", CVAR_ARCHIVE) // and its background's
 QVR_CVAR(vr_gadget_show_level, "1", CVAR_ARCHIVE)     // the level's name, kills and secrets on the screen
 QVR_CVAR(vr_gadget_light, "1", CVAR_ARCHIVE)          // the screen casts a light in its colour the way it faces: strength (0 off)
 QVR_CVAR(vr_gadget_crt, "1", CVAR_ARCHIVE)            // the screen looks like a small CRT (scanlines, a flicker, faint static, now and then a glitch): strength (0 off, up to 2)
+QVR_CVAR(vr_sight_hue, "30", CVAR_ARCHIVE)            // the glowing iron sights of the shotgun and double shotgun (vr_sights.cpp): hue (degrees; 30 their own orange, 0 red, 120 green, 240 blue),
+QVR_CVAR(vr_sight_saturation, "1", CVAR_ARCHIVE)      // and saturation (1 their own, 0 white, up to 2)
 QVR_CVAR(vr_notify_wrist, "1", CVAR_ARCHIVE)          // the console's messages (notify lines) with the gadget: 0 in front of the head, 1 in a log floating over the gadget, 2 both
 QVR_CVAR(vr_notify_wrist_time, "8", CVAR_ARCHIVE)     // seconds a message stays in that log (0: con_notifytime's)
 QVR_CVAR(vr_sbar_offset_x, "-12", CVAR_ARCHIVE)
@@ -287,6 +289,8 @@ QVR_CVAR(vr_flash_scale, "1", CVAR_ARCHIVE)            // muzzle flashes' light:
 QVR_CVAR(vr_explosion_light_scale, "1", CVAR_ARCHIVE)  // explosions' and rockets' light: size over the falloff's own
 QVR_CVAR(vr_colored_lights, "1", CVAR_ARCHIVE)         // muzzle flashes, rockets and explosions coloured (warm; the lightning gun blue)
 QVR_CVAR(vr_projectile_lights, "1", CVAR_ARCHIVE)      // glowing projectiles light up the room (hell knight flames, scrag spit, vore balls, lasers; and where they hit): size (0 off)
+QVR_CVAR(vr_lavanail_lights, "8", CVAR_ARCHIVE)       // lava nails light up the room (sized by vr_projectile_lights): how many at once, the nearest (0 none)
+QVR_CVAR(vr_beam_lights, "6", CVAR_ARCHIVE)          // the lightning (gun, shambler, Chthon) lights the room along its beam: how many lights per beam, unshadowed (0 off)
 QVR_CVAR(vr_weapon_screen_light, "1", CVAR_ARCHIVE)    // the weapons' ammo screens cast a small light in their colour the way they face: strength (0 off)
 QVR_CVAR(vr_screen_glow, "1", CVAR_ARCHIVE)            // the wrist gadget's and the weapons' screens glow softly round their edges: strength (0 off)
 QVR_CVAR(vr_screen_text_glow, "1", CVAR_ARCHIVE)       // the text, numbers and icons on those screens glow: whitish cores, a soft halo in the screen's colour (strength, 0 off, up to 3)
@@ -371,11 +375,12 @@ QVR_CVAR(vr_gib_destroy, "1", CVAR_ARCHIVE)           // gibs and heads can be d
 QVR_CVAR(vr_gib_health, "12", CVAR_ARCHIVE)           // the damage that destroys a gib (a head takes half as much again)
 QVR_CVAR(vr_gib_splat_speed, "250", CVAR_ARCHIVE)     // units/s a thrown gib or head must hit a wall or a monster at to burst
 QVR_CVAR(vr_corpse_gib, "1", CVAR_ARCHIVE)            // corpses can be gibbed: shot, blown up or struck enough, they burst into gibs
-QVR_CVAR(vr_corpse_health, "40", CVAR_ARCHIVE)        // the damage that gibs a corpse (a big monster's takes up to twice as much)
-QVR_CVAR(vr_parry, "1", CVAR_ARCHIVE)                 // parry monsters' melee blows with a weapon held sideways in front of you
+QVR_CVAR(vr_corpse_health, "80", CVAR_ARCHIVE)        // the damage that gibs a corpse (a big monster's takes more: an ogre's 1.75 times, a shambler's 3.5)
+QVR_CVAR(vr_parry, "1", CVAR_ARCHIVE)                 // parry monsters' melee blows with a weapon held level across in front of you
 QVR_CVAR(vr_parry_reduction, "0.75", CVAR_ARCHIVE)    // share of a parried blow's damage taken away
 QVR_CVAR(vr_parry_drop_chance, "0.5", CVAR_ARCHIVE)   // chance a one-handed parry knocks the weapon out of your hand (two hands: never)
-QVR_CVAR(vr_parry_angle, "50", CVAR_ARCHIVE)          // degrees the weapon may be off square to the blow
+QVR_CVAR(vr_parry_angle, "40", CVAR_ARCHIVE)          // degrees the weapon may be off level (tilted up or down) and still parry
+QVR_CVAR(vr_parry_reach, "1.5", CVAR_ARCHIVE)         // metres in front of you a held weapon still parries
 QVR_CVAR(vr_parry_unarmed, "1", CVAR_ARCHIVE)          // parry unarmed with the arms crossed in an X in front
 QVR_CVAR(vr_parry_unarmed_reduction, "0.5", CVAR_ARCHIVE) // share of a blow taken off by crossed arms
 QVR_CVAR(vr_bash, "1", CVAR_ARCHIVE)                   // hold a guard (a weapon across, both hands together), then push it forward to bash; or shove with one open palm
@@ -419,6 +424,7 @@ QVR_CVAR(vr_forcegrab_eligible_haptics, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_weapondrop_particles, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_2h_spread_reduction, "0.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_2h_throw_velocity_mult, "1.0", CVAR_ARCHIVE)
+QVR_CVAR(vr_2h_handoff, "1", CVAR_ARCHIVE)                // letting go of a two-handed weapon leaves it in the other hand: a sword changes hands, a gun hangs from its foregrip
 QVR_CVAR(vr_headbutt, "1", CVAR_ARCHIVE)                 // lunge your head at something to headbutt it
 QVR_CVAR(vr_headbutt_speed, "1", CVAR_ARCHIVE)           // m/s the head must lunge (roughly towards where it looks)
 QVR_CVAR(vr_headbutt_damage, "32", CVAR_ARCHIVE)         // damage at that speed (up to three times it, faster)

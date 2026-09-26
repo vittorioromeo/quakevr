@@ -96,6 +96,7 @@ int VR_SuppressModelRotate (int ent);					// CL_RelinkEntities: nonzero to keep 
 void VR_RelinkHeld (void);								// end of CL_RelinkEntities: the local player's held objects drawn in the hands (vr_held.cpp)
 float VR_BeamScale (struct qmodel_s *model);				// CL_UpdateTEnts: scale of a beam's segments
 int VR_UpdateBeam (int ent, float *start, float *end);	// CL_UpdateTEnts: moves the player's own beams with the gun; nonzero: a rope (no random roll)
+void VR_BeamLights (int index, struct qmodel_s *model, const float *start, const float *end); // CL_UpdateTEnts: a lightning beam lights the room along its length (vr_beam_lights)
 void VR_OnClientClearState (void);						// CL_ParseServerInfo, after CL_ClearState
 void VR_OnSetAngle (float yaw);							// svc_setangle: the server turned the view
 void VR_WriteClientSpawnState (struct sizebuf_s *msg);	// Host_Spawn_f, before the client data

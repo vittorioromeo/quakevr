@@ -164,8 +164,8 @@ void(entity targ, entity attacker) Killed =
 // VR: gibbing corpses (vr_corpse_gib). A monster that died whole, once its death animation is over
 // and it lies still, is a corpse that takes damage: shots (shotguns, nails, lightning, missiles),
 // explosions, and blows of a hand or of what it holds (VR_Corpse_StrikeFrame). Enough of it
-// (vr_corpse_health, more for a big monster) gibs it as its own death code would have: its head,
-// its gibs, the gib sound, and a mist of blood (VR_BloodMist, vr_carry.qc). Its damage never
+// (vr_corpse_health, times vr_corpse_toughness for a big monster) gibs it as its own death code
+// would have: its head, its gibs, the gib sound, and a mist of blood (VR_BloodMist, vr_carry.qc). Its damage never
 // reaches Quake's death code (T_Damage hands it to VR_Corpse_Damage): nothing is counted, killed or
 // triggered again. Only the monsters VR_Corpse_Parts knows (the ones whose death code can gib
 // them) are gibbed: no bosses (Chthon, Shub-Niggurath, the dragon, Armagon), nothing that always
@@ -204,9 +204,11 @@ string vr_corpse_head; // "": none, the body just goes (a fish)
 string vr_corpse_gib1;
 string vr_corpse_gib2;
 string vr_corpse_gib3;
+float vr_corpse_toughness; // times vr_corpse_health: about (its health / a knight's 75) to the 0.6, at least 1
 
 float(entity e) VR_Corpse_Parts =
 {
+    vr_corpse_toughness = 1;
     vr_corpse_head = "";
     vr_corpse_gib1 = "progs/gib1.mdl";
     vr_corpse_gib2 = "progs/gib2.mdl";
@@ -229,18 +231,21 @@ float(entity e) VR_Corpse_Parts =
     else if(e.th_die == demon_die)
     {
         vr_corpse_head = "progs/h_demon.mdl";
+        vr_corpse_toughness = 2.25;
         vr_corpse_gib2 = "progs/gib1.mdl";
         vr_corpse_gib3 = "progs/gib1.mdl";
     }
     else if(e.th_die == ogre_die)
     {
         vr_corpse_head = "progs/h_ogre.mdl";
+        vr_corpse_toughness = 1.75;
         vr_corpse_gib1 = "progs/gib3.mdl";
         vr_corpse_gib2 = "progs/gib3.mdl";
     }
     else if(e.th_die == knight_die || e.th_die == hknight_die)
     {
         vr_corpse_head = e.th_die == knight_die ? "progs/h_knight.mdl" : "progs/h_hellkn.mdl";
+        vr_corpse_toughness = e.th_die == knight_die ? 1 : 2;
         if(e.spawnflags & 2) // a statue
         {
             vr_corpse_gib1 = "progs/statgib1.mdl";
@@ -251,10 +256,12 @@ float(entity e) VR_Corpse_Parts =
     else if(e.th_die == shalrath_die)
     {
         vr_corpse_head = "progs/h_shal.mdl";
+        vr_corpse_toughness = 2.75;
     }
     else if(e.th_die == sham_die)
     {
         vr_corpse_head = "progs/h_shams.mdl";
+        vr_corpse_toughness = 3.5;
     }
     else if(e.th_die == wiz_die)
     {
@@ -269,12 +276,14 @@ float(entity e) VR_Corpse_Parts =
     else if(e.th_die == gremlin_die)
     {
         vr_corpse_head = "progs/h_grem.mdl";
+        vr_corpse_toughness = 1.25;
         vr_corpse_gib2 = "progs/gib1.mdl";
         vr_corpse_gib3 = "progs/gib1.mdl";
     }
     else if(e.th_die == scourge_die)
     {
         vr_corpse_head = "progs/h_scourg.mdl";
+        vr_corpse_toughness = 2.25;
     }
     else if(e.th_die == eel_death)
     {
@@ -379,11 +388,11 @@ void(entity e) VR_Corpse_Arm =
     hi_y = max(e.maxs_y, VR_Corpse_Clear(e, mid, '0 1 0', r));
     lo_y = min(e.mins_y, -VR_Corpse_Clear(e, mid, '0 -1 0', r));
 
-    // Bigger monsters take more (an ogre or a shambler half as much again).
-    float bulk = min(2, max(1, vlen(e.size) / vlen('32 32 64')));
+    // Bigger monsters take more (VR_Corpse_Parts: an ogre 1.75 times, a shambler 3.5 times).
+    VR_Corpse_Parts(e);
 
     e.vr_corpse = 2;
-    e.vr_corpse_hp = max(1, cvar_hget(cvarh_vr_corpse_health) * bulk);
+    e.vr_corpse_hp = max(1, cvar_hget(cvarh_vr_corpse_health) * vr_corpse_toughness);
     if(e.health >= 0)
     {
         e.health = -1; // dead meat: a rocket's direct hit looks for some health (T_MissileTouch)
@@ -1080,8 +1089,9 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
 };
 
 // ----------------------------------------------------------------------------
-// Parrying (vr_parry): a monster's melee blow on a VR player who holds a weapon sideways in front
-// of them, between them and the monster, is partly blocked (vr_parry_reduction): a clang, sparks,
+// Parrying (vr_parry): a monster's melee blow on a VR player who holds a weapon (a sword, the axe,
+// any gun; one hand or two) about level across in front of them, between them and the monster
+// (VR_Parry_Blocks), is partly blocked (vr_parry_reduction): a clang, sparks,
 // the hand knocked back. Held in one hand, the weapon may be knocked out of it
 // (vr_parry_drop_chance); held in two, never.
 
@@ -1094,10 +1104,12 @@ float(entity e) VR_Parry_MeleeMonster =
            c == "monster_mummy";
 };
 
-// Whether `p`'s `hand` holds a weapon across a blow coming from `toAttacker` (horizontal, unit):
-// square to it within vr_parry_angle, ahead of the body towards the attacker, between the hips
-// and above the head.
-float(entity p, float hand, vector toAttacker) VR_Parry_Blocks =
+// Whether `p`'s `hand` holds a weapon with the hand's forward across `toAttacker` (horizontal, unit):
+// square to it within 50 degrees, the hand ahead of the body, between the hips and above the head.
+// The guard's test (VR_Parry_Guard, for the bash). It was the parry's too, until round 16: a sword's
+// blade or the axe's handle is about 70 degrees off the hand's forward (the aim), so a sword or axe
+// held level across had its hand's forward pointing at the attacker, and never parried.
+float(entity p, float hand, vector toAttacker) VR_Parry_HandAcross =
 {
     if(VRIsHandEmpty(p, hand))
     {
@@ -1105,7 +1117,7 @@ float(entity p, float hand, vector toAttacker) VR_Parry_Blocks =
     }
 
     makeforward(VRGetEntHandRot(p, hand));
-    if(fabs(v_forward * toAttacker) > sin(cvar_hget(cvarh_vr_parry_angle) * 0.0174533))
+    if(fabs(v_forward * toAttacker) > 0.766) // sin(50 degrees)
     {
         return FALSE;
     }
@@ -1113,6 +1125,133 @@ float(entity p, float hand, vector toAttacker) VR_Parry_Blocks =
     vector rel = VRGetEntHandPos(p, hand) - p.origin;
     float ahead = rel * toAttacker;
     return ahead > 2 && ahead < 44 && rel_z > -8 && rel_z < 50;
+};
+
+// The weapon's line (VR_Parry_Blocks): from its butt (a sword's pommel, a gun's grip) to its far end
+// (its muzzle point: a sword's tip, the axe's head, a gun's muzzle); where it was blocked.
+vector vr_parry_butt;
+vector vr_parry_end;
+vector vr_parry_at;
+
+// The weapon in `p`'s `hand`, into vr_parry_butt .. vr_parry_end (FALSE: an empty hand).
+float(entity p, float hand) VR_Parry_WeaponLine =
+{
+    if(VRIsHandEmpty(p, hand))
+    {
+        return FALSE;
+    }
+    vector h = VRGetEntHandPos(p, hand);
+    vector m = hand == cVR_OffHand ? p.offmuzzlepos : p.muzzlepos;
+    if(m == '0 0 0' || vlen(m - h) > 80 || vlen(m - h) < 4)
+    {
+        m = h + VRForwardOf(VRGetEntHandRot(p, hand)) * 16;
+    }
+    vr_parry_butt = h - (m - h) * 0.3;
+    vr_parry_end = m;
+    return TRUE;
+};
+
+// Whether the line `butt` .. `end` held by `p` guards against a blow coming from `toAttacker`
+// (horizontal, unit), between the player and the attacker:
+// - about level: within vr_parry_angle of horizontal;
+// - across: not pointing at the attacker (at least 30 degrees off its line, seen from above);
+// - in front: some point of it ahead of the body (of the head or of the player's middle, whichever
+//   is further back), up to vr_parry_reach ahead, no further to the side than 90 cm, and from a
+//   metre below the eyes (the hips) to 45 cm above them (raised over the head). Into vr_parry_at.
+float(entity p, vector butt, vector end, vector toAttacker) VR_Parry_LineBlocks =
+{
+    vector a = end - butt;
+    float len = vlen(a);
+    if(len < 1 || fabs(a_z) / len > sin(min(89, max(5, cvar_hget(cvarh_vr_parry_angle))) * 0.0174533))
+    {
+        return FALSE;
+    }
+    vector flat = a;
+    flat_z = 0;
+    if(fabs(normalize(flat) * toAttacker) > 0.866) // cos(30 degrees)
+    {
+        return FALSE;
+    }
+
+    float mu = VRMetersToUnits();
+    float reach = max(0.3, cvar_hget(cvarh_vr_parry_reach)) * mu;
+    vector head = VRGetHeadPos(p);
+    vector side;
+    side_x = toAttacker_y;
+    side_y = -toAttacker_x;
+    side_z = 0;
+    for(float i = 0; i <= 4; i++)
+    {
+        vector pt = butt + a * (i * 0.25);
+        float aheadBody = (pt - p.origin) * toAttacker;
+        float aheadHead = (pt - head) * toAttacker;
+        float lateral = fabs((pt - (p.origin + head) * 0.5) * side);
+        float dz = (pt_z - head_z) / mu;
+        if(max(aheadBody, aheadHead) > 0 && min(aheadBody, aheadHead) < reach && lateral < 0.9 * mu && dz > -1 &&
+           dz < 0.45)
+        {
+            vr_parry_at = pt;
+            return TRUE;
+        }
+    }
+    return FALSE;
+};
+
+// Whether `p`'s `hand` holds a weapon (a sword, the axe, any gun; in one hand or two) across a blow
+// coming from `toAttacker` (horizontal, unit): the weapon's own line (VR_Parry_WeaponLine), or, held
+// with both hands, the line through the hands (as it was held, whatever way the weapon is drawn).
+float(entity p, float hand, vector toAttacker) VR_Parry_Blocks =
+{
+    if(!VR_Parry_WeaponLine(p, hand))
+    {
+        return FALSE;
+    }
+    if(VR_Parry_LineBlocks(p, vr_parry_butt, vr_parry_end, toAttacker))
+    {
+        return TRUE;
+    }
+    if(hand == cVR_MainHand && VRGet2HAiming(p))
+    {
+        vector h = VRGetEntHandPos(p, cVR_MainHand);
+        vector o = VRGetEntHandPos(p, cVR_OffHand);
+        return VR_Parry_LineBlocks(p, o - (h - o) * 0.5, h + (h - o) * 0.5, toAttacker);
+    }
+    return FALSE;
+};
+
+// QVR: impulse 249 (weapons.qc): prints whether each hand's pose parries a blow from straight ahead
+// (and the guard's test), for tuning in the mock.
+void() VR_Parry_Probe =
+{
+    vector to = '0 0 0';
+    to_x = cos(self.v_viewangle_y * 0.0174533); // the head's yaw (v_angle is the main hand's aim)
+    to_y = sin(self.v_viewangle_y * 0.0174533);
+    for(float hand = 0; hand < 2; hand++)
+    {
+        if(!VR_Parry_WeaponLine(self, hand))
+        {
+            continue;
+        }
+        vector a = vr_parry_end - vr_parry_butt;
+        vector flat = a;
+        flat_z = 0;
+        vector side = '0 0 0';
+        side_x = to_y;
+        side_y = -to_x;
+        float lvl = atan2(fabs(a_z), vlen(flat)) * 57.29578;
+        float off = atan2(fabs(flat * side), fabs(flat * to)) * 57.29578;
+        float blocks = VR_Parry_Blocks(self, hand, to);
+        dprint("parry probe: hand "); dprint(ftos(hand)); dprint(" weapon "); dprint(ftos(VRGetEntWeapon(self, hand)));
+        dprint(": off level "); dprint(ftos(lvl)); dprint(", off the attacker's line "); dprint(ftos(off));
+        dprint(", ahead "); dprint(ftos((vr_parry_end - self.origin) * to));
+        dprint(blocks ? ": PARRIES" : ": no parry");
+        dprint(VR_Parry_HandAcross(self, hand, to) ? " (old test: yes)" : " (old test: no)");
+        dprint(VRGet2HAiming(self) ? ", two hands" : ""); dprint(", health "); dprint(ftos(self.health));
+        vector u = normalize(a);
+        dprint(", along (ahead left up) "); dprint(ftos(u * to)); dprint(" "); dprint(ftos(u * side * -1)); dprint(" ");
+        dprint(ftos(u_z));
+        dprint("\n");
+    }
 };
 
 // Whether `p` holds both empty hands crossed in front (an X, wrists together), facing a blow from
@@ -1159,12 +1298,12 @@ float(entity p, vector xAt) VR_Parry_GuardHeight =
     return dz > -0.65 && dz < 0.15;
 };
 
-// Whether `p`'s `hand` holds a weapon in a guard, facing `xForward` (horizontal, unit): across in
-// front as for a parry (VR_Parry_Blocks), about level (within 30 degrees: a weapon raised or pointing
-// down, as in a swing, is no guard), at a guard's height.
+// Whether `p`'s `hand` holds a weapon in a guard, facing `xForward` (horizontal, unit): the hand's
+// forward across in front (VR_Parry_HandAcross), about level (within 30 degrees: a weapon raised or
+// pointing down, as in a swing, is no guard), at a guard's height.
 float(entity p, float hand, vector xForward) VR_Parry_Guard =
 {
-    if(!VR_Parry_Blocks(p, hand, xForward))
+    if(!VR_Parry_HandAcross(p, hand, xForward))
     {
         return FALSE;
     }
@@ -1217,6 +1356,13 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
     {
         hand = cVR_OffHand;
     }
+    else
+    {
+        // Why not (developer 1): where the blow came from (0 ahead, 90 on the left) and how far.
+        float fromYaw = anglemod(vectoyaw(to) - targ.v_viewangle_y + 180) - 180;
+        dprint("parry: none: "); dprint(attacker.classname); dprint(" at "); dprint(ftos(rint(fromYaw)));
+        dprint(" degrees, "); dprint(ftos(rint(vlen(attacker.origin - targ.origin)))); dprint(" units\n");
+    }
 
     // Unarmed: arms crossed in front take the blow on the forearms (both hands knocked, less taken
     // off than with a weapon).
@@ -1244,7 +1390,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         entity oldSelf = self;
         self = targ;
 
-        vector at = VRGetHandPos(hand) + to * 4;
+        vector at = vr_parry_at + to * 4;
         sound(self, CHAN_AUTO, "player/axhit2.wav", 1, ATTN_NORM);
         sound(self, CHAN_AUTO, "weapons/tink1.wav", 0.6, ATTN_NORM);
         particle2(at, (to * -1 + '0 0 0.5') * 80, QVR_PARTICLE_PRESET_SPARKS, 24);

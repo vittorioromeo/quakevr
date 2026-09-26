@@ -17,6 +17,10 @@ void update(hands::State& s);
 // Starts the spin without the gesture (the +flickreload commands).
 void spin(int hand);
 
+// How far the weapon in `hand` has turned in its spin, in degrees (0 .. 360: 90 the barrel up, 180
+// back, 270 down), or -1 when it is not spinning (vr_shells.cpp times a flick's casings by it).
+[[nodiscard]] float spinAngle(int hand);
+
 void reset();
 
 } // namespace qvr::flick

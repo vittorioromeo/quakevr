@@ -571,7 +571,7 @@ void renderBoards()
         // Its virtual screen in font pixels: whole ones, so that the image's pixels fall on the font's.
         const float fit = std::sqrt(boardTexels / static_cast<float>(width * height));
         const int scale = std::clamp(static_cast<int>(fit), 2, 8);
-        gfx::ensureTarget(b.target, width * scale, height * scale, true); // mipmaps: the glow, and far away
+        gfx::ensureTarget(b.target, width * scale, height * scale, true, "world text board"); // mipmaps: the glow, and far away
         gfx::begin2D(b.target, width, height);
         gfx::draw2D::fill(0.f, 0.f, static_cast<float>(width), static_cast<float>(height), face);
         gfx::draw2D::color(glm::vec4{text, 1.f});
@@ -674,7 +674,9 @@ void renderScreens()
         const int pad = screenPad();
         image.width = static_cast<int>(longest) * 8 + pad * 2;
         image.height = static_cast<int>(textLines.size()) * 8 + pad * 2;
-        gfx::ensureTarget(image.target, image.width * screenScale, image.height * screenScale, true); // mipmaps: the glow
+        static const char* const names[maxScreenImages] = {"ammo screen 1", "ammo screen 2", "ammo screen 3", "ammo screen 4"};
+        gfx::ensureTarget(image.target, image.width * screenScale, image.height * screenScale, true,
+            names[index - 1]); // mipmaps: the glow
         gfx::begin2D(image.target, image.width, image.height);
         gfx::draw2D::fill(0.f, 0.f, static_cast<float>(image.width), static_cast<float>(image.height), screenFace());
         gfx::draw2D::color(glm::vec4{screenText(), 1.f});
@@ -688,6 +690,13 @@ void renderScreens()
         gfx::end2D();
         image.frame = host_framecount;
     }
+}
+
+// Texts queued this frame and map text boards held (vr_memstats).
+void counts(int& queuedTexts, int& boardCount)
+{
+    queuedTexts = static_cast<int>(queued.size());
+    boardCount = static_cast<int>(boards.size());
 }
 
 } // namespace qvr::text3d

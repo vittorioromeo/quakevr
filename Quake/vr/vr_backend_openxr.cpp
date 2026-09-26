@@ -12,6 +12,7 @@
 #ifdef QVR_HAVE_OPENXR
 
 #include "vr_engine.hpp"
+#include "vr_profile.hpp"
 
 #include <windows.h>
 #include <unknwn.h> // IUnknown, which openxr_platform.h needs and lean Windows headers omit
@@ -240,10 +241,14 @@ public:
 
         XrFrameWaitInfo waitInfo{XR_TYPE_FRAME_WAIT_INFO};
         frameState = XrFrameState{XR_TYPE_FRAME_STATE};
-        if(!check(xrWaitFrame(session, &waitInfo, &frameState), "xrWaitFrame"))
+        profile::begin("xrWaitFrame", false); // the runtime's pacing alone (vr_memstats_log)
+        const XrResult waited = xrWaitFrame(session, &waitInfo, &frameState);
+        profile::end();
+        if(!check(waited, "xrWaitFrame"))
         {
             return true;
         }
+        profile::noteDisplayPeriod(static_cast<double>(frameState.predictedDisplayPeriod) * 1e-6);
 
         XrFrameBeginInfo beginInfo{XR_TYPE_FRAME_BEGIN_INFO};
         if(!check(xrBeginFrame(session, &beginInfo), "xrBeginFrame"))

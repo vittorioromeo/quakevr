@@ -332,6 +332,8 @@ void CL_UpdateTEnts (void)
 			VectorCopy (cl_entities[cl.viewentity].origin, b->start);
 		}
 		rope = VR_UpdateBeam (b->entity, b->start, b->end); // QVR
+		if (!rope)
+			VR_BeamLights (i, b->model, b->start, b->end); // QVR: lights along the lightning
 
 	// calculate pitch and yaw
 		VectorSubtract (b->end, b->start, dist);

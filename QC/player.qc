@@ -388,12 +388,14 @@ void(float xHand) player_lava_nail2 =
 
 //============================================================================
 
-void(float xHand, float xLightAtt, void(float) xLightFn) player_light_Impl =
+// The lightning gun's loop: FALSE when it stopped (out of cells or the trigger released): the caller
+// must not fire then (it fired one more bolt after the release, and one with no cells).
+float(float xHand, float xLightAtt, void(float) xLightFn) player_light_Impl =
 {
     if(getCurrentAmmoOrClip(xHand) < 1)
     {
         player_run(xHand);
-        return;
+        return FALSE;
     }
 
     setHandThinkWithArg(xHand, xLightAtt, xLightFn);
@@ -403,7 +405,7 @@ void(float xHand, float xLightAtt, void(float) xLightFn) player_light_Impl =
     if(!VRGetFireButtonPressed(xHand))
     {
         player_run(xHand);
-        return;
+        return FALSE;
     }
 
     VRSetWeaponFrame(xHand, VRGetWeaponFrame(xHand) + 1);
@@ -411,11 +413,15 @@ void(float xHand, float xLightAtt, void(float) xLightFn) player_light_Impl =
         VRSetWeaponFrame(xHand, 1);
 
     SuperDamageSound();
+    return TRUE;
 }
 
 void(float xHand) player_light1 =
 {
-    player_light_Impl(xHand, $light1, player_light2);
+    if(!player_light_Impl(xHand, $light1, player_light2))
+    {
+        return;
+    }
 
     if(VRGetWeaponFlags(xHand) & QVR_WPNFLAG_USE_SECONDARY_AMMO)
     {
@@ -432,7 +438,10 @@ void(float xHand) player_light1 =
 
 void(float xHand) player_light2 =
 {
-    player_light_Impl(xHand, $light2, player_light1);
+    if(!player_light_Impl(xHand, $light2, player_light1))
+    {
+        return;
+    }
 
     if(VRGetWeaponFlags(xHand) & QVR_WPNFLAG_USE_SECONDARY_AMMO)
     {
@@ -462,9 +471,13 @@ void(float xHand) player_mjolnir6 = { setHandThinkWithArg(xHand, 43, player_run)
 
 //============================================================================
 
-void(float xHand, float xLaserAtt, void(float) xLaserFn) player_laser_Impl =
+// The laser cannon's firing loop: frame `xFrame` of the view model, then (`xStat` 0 or 1) a shot. Out
+// of cells, it goes back to the idle frame and stops at once: the frame was set after this returned,
+// so a cannon emptied mid-burst kept its firing frame until the player next moved (player_stand
+// doesn't reset it).
+void(float xHand, float xLaserAtt, void(float) xLaserFn, float xFrame, float xStat) player_laser_Impl =
 {
-    if(getCurrentAmmoOrClip(xHand)< 1)
+    if(getCurrentAmmoOrClip(xHand) < 1)
     {
         player_run(xHand);
         return;
@@ -472,34 +485,18 @@ void(float xHand, float xLaserAtt, void(float) xLaserFn) player_laser_Impl =
 
     setHandThinkWithArg(xHand, xLaserAtt, xLaserFn);
     VRSetAttackFinished(xHand, time + 0.1);
+    VRSetWeaponFrame(xHand, xFrame);
+    if(xStat >= 0)
+    {
+        HIP_FireLaser(xHand, xStat);
+    }
 }
 
 //MED 10/18/96 added HIPSWEAPONS
-void(float xHand) player_laser1 =
-{
-    player_laser_Impl(xHand, $nailatt1, player_laser3);
-    VRSetWeaponFrame(xHand, 1);
-    HIP_FireLaser(xHand, 0);
-}
-
-void(float xHand) player_laser2 =
-{
-    player_laser_Impl(xHand, $nailatt2, player_laser3);
-    VRSetWeaponFrame(xHand, 2);
-}
-
-void(float xHand) player_laser3 =
-{
-    player_laser_Impl(xHand, $nailatt2, player_laser1);
-    VRSetWeaponFrame(xHand, 4);
-    HIP_FireLaser(xHand, 1);
-}
-
-void(float xHand) player_laser4 =
-{
-    player_laser_Impl(xHand, $nailatt1, player_laser1);
-    VRSetWeaponFrame(xHand, 5);
-}
+void(float xHand) player_laser1 = { player_laser_Impl(xHand, $nailatt1, player_laser3, 1, 0); }
+void(float xHand) player_laser2 = { player_laser_Impl(xHand, $nailatt2, player_laser3, 2, -1); }
+void(float xHand) player_laser3 = { player_laser_Impl(xHand, $nailatt2, player_laser1, 4, 1); }
+void(float xHand) player_laser4 = { player_laser_Impl(xHand, $nailatt1, player_laser1, 5, -1); }
 
 //============================================================================
 void(float xHand) player_rocket1 = { setHandThinkWithArg(xHand, $rockatt1, player_rocket2); VRSetWeaponFrame(xHand, 1); self.effects = self.effects | EF_MUZZLEFLASH; };

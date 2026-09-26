@@ -1284,6 +1284,46 @@ void shellEject(const glm::vec3& org, const glm::vec3& dir, float smoke, int spa
     });
 }
 
+void lavaNailTrail(const glm::vec3& from, const glm::vec3& to)
+{
+    if(!enabled())
+    {
+        return;
+    }
+
+    // A hot core: short-lived glows along the path, bright enough for the bloom, so that the
+    // nail draws a brief streak of molten light.
+    const glm::vec3 d = to - from;
+    const float length = glm::length(d);
+    make(perLength(length, 5.f), [&](Particle& p, int) {
+        p.cell = CellGlow;
+        p.additive = true;
+        p.color = glm::vec4{1.f, rnd(0.38f, 0.5f), 0.12f, 0.55f};
+        p.die = cl.time + 0.16;
+        p.scale = rnd(1.4f, 1.9f);
+        p.type = Custom;
+        p.fade = -3.4f;
+        p.grow = -6.f;
+        p.org = from + d * rnd(0.f, 1.f);
+    });
+    // Embers shed on the way, falling and dimming.
+    make(perLength(length, 22.f), [&](Particle& p, int) {
+        p.cell = CellSpark;
+        p.additive = true;
+        p.color = glm::vec4{1.f, rnd(0.35f, 0.6f), rnd(0.08f, 0.18f), 1.f};
+        p.die = cl.time + rnd(0.35f, 0.7f);
+        p.scale = rnd(0.18f, 0.32f);
+        p.type = Custom;
+        p.fade = -1.6f;
+        p.grow = -0.2f;
+        p.drag = 1.6f;
+        p.spin = rnd(-8.f, 8.f);
+        p.acc = gravity(0.25f);
+        p.org = from + d * rnd(0.f, 1.f) + inBox(0.8f);
+        p.vel = onSphere() * rnd(8.f, 28.f);
+    });
+}
+
 void shellTrail(const glm::vec3& from, const glm::vec3& to, float strength)
 {
     if(strength <= 0.f || !vr_particles.value || !ensureAtlas())
@@ -1307,6 +1347,12 @@ void shellTrail(const glm::vec3& from, const glm::vec3& to, float strength)
         p.org = from + d * rnd(0.f, 1.f) + inBox(0.2f);
         p.vel = inBox(1.5f);
     });
+}
+
+// Live particles (vr_memstats).
+int liveCount()
+{
+    return static_cast<int>(pool.size());
 }
 
 } // namespace qvr::particles

@@ -141,7 +141,18 @@ context and screenshot, ready to paste or to point me at.
 
 ## What to try
 
-- **New in this round** (details in `docs/vr-port/ROUND15.md`, your fifth batch of notes):
+- **New in this round** (details in `docs/vr-port/ROUND16.md`, your sixth batch of notes):
+  - **Hand-off:** let go of a two-handed sword and the other hand keeps it; let go of a gun's grip and it hangs from
+    the foregrip hand (grip its handle again to take it back). VR Settings > Weapons > Two-Handed Hand-Off.
+  - **Parry:** any weapon held level across in front of you (Gameplay > Parry and Bash: Parry Angle, Parry Reach).
+  - **Weapon models:** a proper sawn-off, the rocket launcher and lightning gun with pistol grips, trigger guards,
+    the super nailgun's grooves.
+  - **Lights:** lava nails glow and light the room; the lightning beam lights its whole length.
+  - **Iron sight hue** (Wrist Gadget > Colours, or Graphics); flick-reload shells fall in front; bigger waves.
+  - **Corpses** tougher (big monsters more); the laser cannon stops when empty.
+  - **Memory Log** now also times our CPU and GPU work and the runtime's waits: note the time when it feels slower.
+
+- **Previous round** (details in `docs/vr-port/ROUND15.md`, your fifth batch of notes):
   - **Swords:** hits along the whole blade (the dummy names the point), two-handed grip below the main hand, both
     swords in vrfiringrange.
   - **Batting projectiles:** a brisk, slightly early swing; Gameplay > Feel has Batting Reach, Swing Speed, Timing.
@@ -414,7 +425,11 @@ each map load, and send the lines (with `-condebug`, they are in `qconsole.log`)
 while the frame rate drops, the game is not leaking, and the slowdown is in SteamVR / Virtual Desktop (the profile's
 `xr submit` and `xr acquire` growing while the eyes do not says the same). To tell for sure once it has slowed
 down: quit and restart only Quake VR (same map): if the frame rate is back, it is the game; if it is not until
-SteamVR (or Virtual Desktop) is restarted too, it is them.
+SteamVR (or Virtual Desktop) is restarted too, it is them. The Memory Log (`vr_memstats_log`, on by default: a row a
+minute in `quakevr/profile/memstats_<date>.csv`) also times each frame whatever `vr_profile` is: our CPU work
+(`busy_ms`) and the eyes' GPU time (`gpu_eyes_ms`) next to the runtime's waits (`xr_waitframe_ms`, `xr_submit_ms`,
+`gpu_submit_ms`) and missed refreshes (`slow_frames`), with counts of what there is to draw (corpses, thrown weapons,
+decals, lights, particles). Note the time when it feels slower and send that file (ROUND16.md, "Slowdown").
 
 ## If something goes wrong
 

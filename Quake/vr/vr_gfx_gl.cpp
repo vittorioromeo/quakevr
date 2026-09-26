@@ -7,8 +7,11 @@
 #include "vr_engine.hpp"
 
 #include <algorithm>
+#include <cstring>
 #include <string>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 
 namespace qvr::gfx
 {
@@ -356,8 +359,19 @@ glm::vec4 fontGlyph(unsigned char c)
 }
 
 int targetsMade = 0; // targets' textures (re)made so far (vr_memstats: steady in play, not a frame)
+std::vector<std::pair<const char*, int>> targetsMadeNamed; // by name, in the order first made
 
-void ensureTarget(Target& target, int width, int height, bool mipmaps)
+std::string targetsMadeByName()
+{
+    std::string out;
+    for(const auto& [name, count] : targetsMadeNamed)
+    {
+        out += (out.empty() ? "" : " ") + std::string{name} + ":" + std::to_string(count);
+    }
+    return out;
+}
+
+void ensureTarget(Target& target, int width, int height, bool mipmaps, const char* name)
 {
     int levels = 1;
     while(mipmaps && std::max(width, height) >> levels)
@@ -369,6 +383,16 @@ void ensureTarget(Target& target, int width, int height, bool mipmaps)
         return;
     }
     targetsMade++;
+    auto named = std::find_if(targetsMadeNamed.begin(), targetsMadeNamed.end(),
+        [&](const auto& n) { return std::strcmp(n.first, name) == 0; });
+    if(named == targetsMadeNamed.end())
+    {
+        targetsMadeNamed.emplace_back(name, 0);
+        named = targetsMadeNamed.end() - 1;
+    }
+    named->second++;
+    Con_DPrintf("VR: render target \"%s\" made at %dx%d (was %dx%d), %d times so far\n", name, width, height,
+        target.width, target.height, named->second);
 
     GLuint texture = target.texture;
     if(texture)
@@ -472,7 +496,7 @@ void text(float x, float y, float size, const char* str)
 
 void beginCanvas(Target& canvas, int width, int height)
 {
-    ensureTarget(canvas, width, height);
+    ensureTarget(canvas, width, height, false, "panel canvas");
     GL_ResetState(); // re-applies the blend, now with applyCanvasBlend() (VR_CanvasBlend)
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, canvas.framebuffer);
     glViewport(0, 0, width, height);

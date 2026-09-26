@@ -33,6 +33,7 @@ enum Hotspot : int
     HS_HAND_SWITCH = 7,
     HS_LEFT_UPPER_HOLSTER = 8,
     HS_RIGHT_UPPER_HOLSTER = 9,
+    HS_CARRIED_GRIP = 10, // the handle of the gun the other hand carries by its foregrip (vr_twohand.cpp)
 };
 
 // Holster positions follow the body's lean and crouch (vr_avatar) with vr_body_anchors, else the

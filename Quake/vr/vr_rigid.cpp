@@ -694,6 +694,13 @@ void keepInWorld(edict_t* ent, bool rigid)
     {
         return;
     }
+    // Already put back there and still buried (a door or a lift moved in): moving it back again would
+    // loop every frame. Leave it to fall or be moved.
+    if(toGlm(ent->v.origin) == place.origin)
+    {
+        place.valid = false;
+        return;
+    }
     Con_DPrintf("VR: %s buried at %.0f %.0f %.0f, back to %.0f %.0f %.0f\n", PR_GetString(ent->v.classname), ent->v.origin[0],
         ent->v.origin[1], ent->v.origin[2], place.origin.x, place.origin.y, place.origin.z);
     fromGlm(place.origin, ent->v.origin);

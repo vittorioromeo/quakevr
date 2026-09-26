@@ -317,7 +317,7 @@ GLuint sceneDistances()
 
 constexpr float kPinDistance = 32.f;
 constexpr float kFadeEnd = 1024.f;   // gl_shaders.h, LiquidDisplace
-constexpr float kMaxSwell = 12.f;    // the most the swells rise or sink (vr_water_geo_amplitude's range, lava's more)
+constexpr float kMaxSwell = 32.f;    // the most the swells rise or sink (vr_water_geo_amplitude up to 24, lava 1.3 times)
 constexpr std::size_t kMaxCells = 2u << 20; // grid cells in a map at most (the cell grows past it)
 
 struct MeshVert
@@ -1046,7 +1046,7 @@ extern "C" void VR_WaterView(int contents, int* waterwarp)
     r_framedata.water2[1] = water::volumeWet ? std::clamp(vr_water_caustics.value, 0.f, 2.f) : 0.f;
     r_framedata.water2[2] = liquid ? 1.f : 0.f; // surfaces seen from inside
     // the geometric waves' height (0 off): the swells in the shading of every liquid, the mesh's vertices raised by them
-    r_framedata.water2[3] = vr_water_geo_waves.value > 0.f ? std::clamp(vr_water_geo_amplitude.value, 0.f, 8.f) : 0.f;
+    r_framedata.water2[3] = vr_water_geo_waves.value > 0.f ? std::clamp(vr_water_geo_amplitude.value, 0.f, 24.f) : 0.f;
     for(int a = 0; a < 3; a++)
     {
         r_framedata.causticsorigin[a] = water::volumeOrigin[a];
