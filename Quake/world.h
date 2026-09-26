@@ -61,6 +61,9 @@ void SV_LinkEdict (edict_t *ent, qboolean touch_triggers);
 // sets ent->v.absmin and ent->v.absmax
 // if touchtriggers, calls prog functions for the intersected triggers
 
+void SV_AreaEdicts (const float *mins, const float *maxs, edict_t **list, int *listcount, int listspace);
+// QVR: appends the linked edicts (triggers and solids) whose boxes touch mins..maxs (VR_TouchLinks)
+
 int SV_PointContents (vec3_t p);
 int SV_TruePointContents (vec3_t p);
 // returns the CONTENTS_* value from the world at the given point.

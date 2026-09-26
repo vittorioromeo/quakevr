@@ -35,8 +35,8 @@ enum class Preset : int
     BigSmoke,
     ForceGrabTrail, // vr_fgfx.cpp: behind an object flying to the hand
     BloodTrail,     // vr_decals.cpp: behind a flying gib (`dir`: the way it goes)
-    // Something hitting water, slime or lava (QC's QVR_PARTICLE_PRESET_SPLASH; the server's water
-    // splashes, vr_physics.cpp): `org` on the surface, `dir` the way it went in, `count` how hard
+    // Something hitting water, slime or lava (sent by the server's water splashes, vr_physics.cpp, and
+    // QC's watersplash builtin): `org` on the surface, `dir` the way it went in, `count` how hard
     // (4 a bullet, 6-15 a hand or a thrown thing, 20-50 a body). Drops thrown up and out in a crown,
     // foam and rings spreading on the surface, in the liquid's colour (lava glows and throws
     // embers); vr_water_splash scales them (0 off).

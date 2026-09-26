@@ -350,7 +350,7 @@ struct Mesh
     GLuint vbo = 0, ibo = 0;
     std::vector<MeshFace> faces; // by texnum
     std::vector<int> leaves;
-    // this view's: (first index, count) pairs, a texture's from texRanges[texnum] to texRanges[texnum + 1]
+    // this view's: (first index, count) pairs, a texture's from ranges[texBegin[texnum]] to ranges[texEnd[texnum]]
     int framecount = -1;
     std::vector<unsigned> ranges;
     std::vector<int> texBegin, texEnd;
@@ -874,7 +874,7 @@ bool ensureMesh()
     qmodel_t* m = cl.worldmodel;
     if(r_visframecount < mesh.visframe)
     {
-        mesh.built = false; // a map (re)loaded: its lightmaps and Ironwail's vertices made again
+        freeMesh(); // a map (re)loaded: its lightmaps and Ironwail's vertices made again (and not kept with the waves off)
     }
     mesh.visframe = r_visframecount;
     if(!m || vr_water_geo_waves.value <= 0.f || vr_water_geo_amplitude.value <= 0.f)

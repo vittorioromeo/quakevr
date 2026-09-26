@@ -327,6 +327,48 @@ SV_AreaTriggerEdicts ( edict_t *ent, areanode_t *node, edict_t **list, int *list
 
 /*
 ====================
+SV_AreaEdicts
+
+QVR: appends to `list` the linked edicts, triggers and solids alike, whose boxes touch mins..maxs (edges included),
+for VR_TouchLinks (vr/vr_physics.cpp): a walk down the area nodes instead of a scan of every edict.
+====================
+*/
+static void SV_AreaEdictsR (areanode_t *node, const float *mins, const float *maxs, edict_t **list, int *listcount, int listspace)
+{
+	link_t		*l, *start;
+	edict_t		*touch;
+	int			i;
+
+	for (i = 0; i < 2; i++)
+	{
+		start = i ? &node->solid_edicts : &node->trigger_edicts;
+		for (l = start->next ; l != start ; l = l->next)
+		{
+			touch = EDICT_FROM_AREA(l);
+			if (mins[0] > touch->v.absmax[0] || mins[1] > touch->v.absmax[1] || mins[2] > touch->v.absmax[2]
+			|| maxs[0] < touch->v.absmin[0] || maxs[1] < touch->v.absmin[1] || maxs[2] < touch->v.absmin[2])
+				continue;
+			if (*listcount == listspace)
+				return;
+			list[(*listcount)++] = touch;
+		}
+	}
+
+	if (node->axis == -1)
+		return;
+	if (maxs[node->axis] >= node->dist)
+		SV_AreaEdictsR (node->children[0], mins, maxs, list, listcount, listspace);
+	if (mins[node->axis] <= node->dist)
+		SV_AreaEdictsR (node->children[1], mins, maxs, list, listcount, listspace);
+}
+
+void SV_AreaEdicts (const float *mins, const float *maxs, edict_t **list, int *listcount, int listspace)
+{
+	SV_AreaEdictsR (sv_areanodes, mins, maxs, list, listcount, listspace);
+}
+
+/*
+====================
 SV_TouchLinks
 
 ericw -- copy the touching edicts to an array so we can avoid

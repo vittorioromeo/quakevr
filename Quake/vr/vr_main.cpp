@@ -780,8 +780,15 @@ void writeMemLogRow(const char* reason)
 
 void memLogFrame()
 {
-    if(vr_memstats_log.value <= 0.f || cls.state != ca_connected || cls.signon != SIGNONS || !cl.worldmodel)
+    if(vr_memstats_log.value <= 0.f)
     {
+        return;
+    }
+    if(cls.state != ca_connected || cls.signon != SIGNONS || !cl.worldmodel)
+    {
+        // Loading: the map that follows is a new one, even the same map again (a save loaded, a
+        // restart: the same model, which Ironwail keeps).
+        memLog.lastWorld = nullptr;
         return;
     }
     // A new map: a row 5 seconds in (its textures made, the first frames' hitches past).

@@ -901,35 +901,83 @@ void predictWaterEntry(edict_t* ent)
     thingSplash(ent, at, true);
 }
 
+namespace
+{
+
+// The world's leaves along a segment, front to back (liquidEntry): the first place where it goes from
+// the open into a liquid, or out of one into the open.
+struct LiquidWalk
+{
+    const hull_t* hull;
+    glm::dvec3 from, delta;
+    int last{0}; // the contents of the leaf before (0: none yet)
+    bool found{false};
+    double at{0.0}; // the crossing, as a fraction of the segment
+};
+
+void walkLeaves(LiquidWalk& w, int num, double f1, double f2)
+{
+    if(w.found)
+    {
+        return;
+    }
+    if(num < 0)
+    {
+        int c = num;
+        if(c <= CONTENTS_CURRENT_0 && c >= CONTENTS_CURRENT_DOWN)
+        {
+            c = CONTENTS_WATER; // as SV_PointContents
+        }
+        if((isLiquid(c) && w.last == CONTENTS_EMPTY) || (c == CONTENTS_EMPTY && isLiquid(w.last)))
+        {
+            w.found = true;
+            w.at = f1;
+        }
+        w.last = c;
+        return;
+    }
+    const mclipnode_t& node = w.hull->clipnodes[num];
+    const mplane_t& plane = w.hull->planes[node.planenum];
+    const glm::dvec3 p1 = w.from + w.delta * f1;
+    const glm::dvec3 p2 = w.from + w.delta * f2;
+    const glm::dvec3 normal{plane.normal[0], plane.normal[1], plane.normal[2]};
+    const double t1 = (plane.type < 3 ? p1[plane.type] : glm::dot(normal, p1)) - plane.dist;
+    const double t2 = (plane.type < 3 ? p2[plane.type] : glm::dot(normal, p2)) - plane.dist;
+    // SV_HullPointContents' sides: on the plane is in front.
+    if(t1 >= 0.0 && t2 >= 0.0)
+    {
+        walkLeaves(w, node.children[0], f1, f2);
+        return;
+    }
+    if(t1 < 0.0 && t2 < 0.0)
+    {
+        walkLeaves(w, node.children[1], f1, f2);
+        return;
+    }
+    const double mid = f1 + (f2 - f1) * std::clamp(t1 / (t1 - t2), 0.0, 1.0);
+    const int nearSide = t1 >= 0.0 ? 0 : 1;
+    walkLeaves(w, node.children[nearSide], f1, mid);
+    walkLeaves(w, node.children[1 - nearSide], mid, f2);
+}
+
+} // namespace
+
 bool liquidEntry(const glm::vec3& from, const glm::vec3& to, glm::vec3& at)
 {
     const glm::vec3 d = to - from;
-    const float length = glm::length(d);
-    if(length < 0.01f)
+    if(glm::length(d) < 0.01f || !sv.worldmodel)
     {
         return false;
     }
-    const int steps = std::clamp(static_cast<int>(std::ceil(length / 6.f)), 1, 512);
-    glm::vec3 last = from;
-    int lastContents = contentsAt(from);
-    for(int i = 1; i <= steps; i++)
+    // Down the world's BSP (a few dozen nodes for a shot's 2048 units), not point by point: QC asks
+    // this for every pellet of every shot (weapons.qc VR_WaterShotSplash).
+    LiquidWalk w{&sv.worldmodel->hulls[0], glm::dvec3{from}, glm::dvec3{d}};
+    walkLeaves(w, w.hull->firstclipnode, 0.0, 1.0);
+    if(w.found)
     {
-        const glm::vec3 p = from + d * (static_cast<float>(i) / static_cast<float>(steps));
-        const int c = contentsAt(p);
-        if(isLiquid(c) && lastContents == CONTENTS_EMPTY)
-        {
-            at = surfaceBetween(last, p);
-            return true;
-        }
-        if(c == CONTENTS_EMPTY && isLiquid(lastContents))
-        {
-            at = surfaceBetween(p, last);
-            return true;
-        }
-        last = p;
-        lastContents = c;
+        at = from + d * static_cast<float>(w.at);
     }
-    return false;
+    return w.found;
 }
 
 void waterSplash(const glm::vec3& at, const glm::vec3& dir, float strength, SplashSound sound)
@@ -1412,16 +1460,36 @@ extern "C" int VR_TouchLinks(edict_t* ent)
         return 0;
     }
 
-    // Unlike Ironwail's trigger-only area walk, hands can reach outside the body's box and
-    // touch non-triggers, so scan every edict (touch functions may relink, hence the copy).
+    // Unlike Ironwail's trigger-only area walk, hands can reach outside the body's box and touch
+    // non-triggers: the edicts linked near the body's box and each hand's, triggers and solids (every
+    // touchable one is linked: only SOLID_NOT isn't), found down the area nodes rather than by a scan
+    // of every edict for every mover, and taken in edict order as that scan did (touch functions may
+    // relink, hence the copy).
     const int mark = Hunk_LowMark();
-    edict_t** list = static_cast<edict_t**>(Hunk_AllocNoFill(qcvm->num_edicts * sizeof(edict_t*)));
-    int count = 0;
+    const int space = qcvm->num_edicts * 3;
+    edict_t** list = static_cast<edict_t**>(Hunk_AllocNoFill(space * sizeof(edict_t*)));
+    int found = 0;
 
     const bool client = isClient(ent);
-    for(int e = 1; e < qcvm->num_edicts; e++)
+    SV_AreaEdicts(ent->v.absmin, ent->v.absmax, list, &found, space);
+    if(client)
     {
-        edict_t* target = EDICT_NUM(e);
+        const glm::vec3 reach{handHalfSize + easyHandTouchBonus}; // handsReach's
+        for(const int ofs : {f().offhandpos, f().handpos})
+        {
+            const glm::vec3 hand = fieldVec(ent, ofs);
+            const float lo[3] = {hand.x - reach.x, hand.y - reach.y, hand.z - reach.z};
+            const float hi[3] = {hand.x + reach.x, hand.y + reach.y, hand.z + reach.z};
+            SV_AreaEdicts(lo, hi, list, &found, space);
+        }
+    }
+    std::sort(list, list + found); // edict order (the edicts are one array), each once
+    found = static_cast<int>(std::unique(list, list + found) - list);
+
+    int count = 0;
+    for(int i = 0; i < found; i++)
+    {
+        edict_t* target = list[i];
         if(target == ent || target->free || !canBeTouched(target))
         {
             continue;

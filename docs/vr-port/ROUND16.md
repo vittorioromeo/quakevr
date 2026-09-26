@@ -471,6 +471,81 @@ under the body with the index finger at the trigger inside the guard, the butt b
   bar: it passes between them).
 - Two-handed holds on all three; the holsters; the wrist/gun ammo screens.
 
+## Weapon models: grenade launcher, shotgun, mission pack guns
+
+The same voice notes (04-47-40, 04-48-38), for the rest of the guns held in one hand. Quake VR ships its own
+`v_rock.mdl`, `v_shot.mdl`, `v_prox.mdl`, `v_laserg.mdl` and `v_multi.mdl` in `quakevr/progs/` (different from
+id's, hipnotic's and rogue's), and `-game quakevr` comes last on the command line, so they win over the mission
+packs' paks: the new models replace those files.
+
+**Generator.** `Misc/quakevr/improve_weapons3.py` rebuilds the five models from the previous ones, kept byte for
+byte in `Misc/quakevr/src_models/` (pure Python; running it again gives the same files). It reuses
+`improve_weapons.py`'s machinery: the model reader and writer, the strip-order port of vr_anchor.cpp and its
+anchor check, the rigid carrier (the new parts follow three clusters of the body through every frame, recoil
+included), the lofts, and the grip, guard and trigger laid out in the drawn fist's space (GRIP_PROFILE,
+GUARD_PATH, TRIGGER_PATH: the same size in the hand as on the double shotgun, the rocket launcher and the
+lightning gun). Each skin grows downwards (40 to 48 new rows) for the new texels, so every old UV and texel stays.
+The paint uses each gun's own ramps: blue-black metal (32..39), the launcher's and the pump's browns, the proximity
+gun's dark reds, the laser cannon's browns. No fullbright index is used: the counts of texels at 224 and above
+are unchanged on every skin, so the shotgun's sight texels are still the only ones vr_sights.cpp recolours.
+
+- **Grenade launcher** (`v_rock.mdl`, slot 6 in the cvars, `_06`) and **proximity gun** (`v_prox.mdl`, `_11`,
+  the same model with a red skin): the fist used to hold the tube's sloped back corner, and the belly (the deep
+  body under the tube) sat where a guard would go. Now a frame under the back of the tube fills the slope and
+  carries a ribbed pistol grip behind the belly, with a butt plate, a trigger, and a guard whose bar runs from the
+  grip under the index finger into the belly's back face near its bottom: the belly is the guard's front. The
+  frame's back end slopes up into the tube's pointed back. The gun sits 2.8 model units (about 3 cm) higher and
+  4.3 units (about 4 cm) further forward over the hand, so the frame's underside rests on the index finger and the
+  belly's back face is just in front of it (the pointing index finger reaches it). The grip is ribbed in the
+  launcher's dark browns on `v_rock` and in dark reds on `v_prox`.
+- **Multi-grenade launcher** (rogue, `v_multi.mdl`, `_14`): the same model again, modelled apart (its tube 0.06
+  units higher, its belly's back face leaning from x 3.49 at the tube to 3.79 at its bottom): the same parts and
+  layout, the grip in the launcher's browns, the guard meeting the leaning face where it passes (x 3.75). The gun
+  moves over the hand as the grenade launcher does (2.8 units higher, 4.1 further forward).
+- **Shotgun** (`v_shot.mdl`, `_02`): the fist held a thin stub of a grip that leaned back behind the fingers
+  (the hand wrapped the receiver's corner). A pistol grip ribbed like the pump now goes through the fist, with a
+  butt plate, a trigger and a trigger guard; the stub's lower end folds inside the grip's back (what is left is a
+  small tang from the receiver's underside into the back strap). The hand, the barrel, the pump, the sights and
+  the animation are as they were.
+- **Laser cannon** (`v_laserg.mdl`, `_10`): held by a thin kinked blade rising from the back of the body, the hand
+  above the body. Now a spade grip: a head over the fist (its tail over the web of the hand, its front over the
+  index finger, with the trigger under it), a knurled grip down the fist's axis, a neck bending forward into the
+  body's back, and a trigger guard from the grip round the index finger up into the head. The blade folds into
+  the neck (the body's back face now closes onto it). The hand and the gun are where they were.
+- **Mjolnir** is unchanged: the hand holds its shaft.
+
+**Anchors and settings.** No old triangle or vertex index changes (the new parts are appended and share no vertex
+with the old triangles; folded parts only move their vertices), and the script checks every anchor against the strip
+order: grenade launcher hand/button/screen 33, two-handed 15, muzzle 0; proximity gun hand 33, screen 50, two-handed
+15; multi-grenade launcher hand/button/screen 33, two-handed 15, muzzle 0; shotgun hand 165, two-handed 48, muzzle
+1, button 0, screen 159, and vr_shells.cpp's ejection anchor 70 (the receiver's side, untouched: the port table is
+unchanged); laser cannon hand/two-handed 4, muzzle 22, button 0, screen 226. The bounds change (grips lower, a stub
+or blade folded away), which moves the origin the weapon Scale applies about, so the offsets are compensated. New
+defaults (`vr_weapons.inc`): slot 1 Offset X 0.597903, Z 1.180206; slot 5 HandOffset (-1.51514, -1.515769,
+0.775112), Offset (12.741572, 2.263517, 4.199072); slot 10 the same HandOffset, Offset (12.741546, 2.263517,
+4.410033); slot 13 HandOffset (-1.401397, -1.521379, 0.772203), Offset (12.544076, 2.268325, 4.278901); slot 9
+Offset X -1.434042. `settingsVersion` 9 resets slots 1, 5, 9, 10 and 13 in existing configs once. The engine needs a
+rebuild for the new defaults.
+
+**Tested with the mock** (vrfiringrange, `r_fullbright 1`, `impulse 154/158/159/162`, and `impulse 158; impulse 9;
+impulse 43` for the multi-grenade launcher, poses from the side and the author's pose): each fist closes round its
+grip with the index finger in the guard; the recoil frames carry the new parts with the gun (the launcher's recoil
+pitches it 25 degrees: the grip turns with it).
+
+**In the headset:**
+
+- Grenade launcher, proximity gun, multi-grenade launcher (toggle the secondary ammo on the grenade launcher):
+  does the hand close round the grip, the index finger inside the guard, the
+  pointing finger just touching the belly's back? The gun is about 3 cm higher and 4 cm further forward over the
+  hand than before: does it still aim naturally? Grenades still leave the muzzle; fire them: grip, frame and guard
+  recoil with the gun. Two-handed hold, the ammo screen and the button where they were.
+- Shotgun: the grip in the fist (not floating, not sunk), the index finger at the trigger; the ring sight still
+  takes the sight hue and nothing else changes colour; shells still come out of the port on the receiver's side
+  when firing and pumping.
+- Laser cannon: the head sits over the index finger and the grip fills the fist; the neck meets the body without
+  a gap. Is the head too plain or too big?
+- Textures under normal lighting: the ribbed grips (brown, red) and the laser's knurl next to their bodies.
+
 ## Parry, corpses, laser cannon
 
 Voice notes vrfiringrange 04-40-19 (parry doesn't work any more, with the axe or the sword, one hand or two; a
@@ -585,3 +660,107 @@ after release.
 
 **In the headset:** empty the laser cannon with the trigger held, in either hand: it should drop to its idle look
 at once, with the click of an empty gun.
+
+## Review: QuakeC
+
+A review of the QuakeC from rounds 15 and 16 (`git diff 947ab035 -- QC/`), looking at how the features meet.
+Fixed:
+
+- **An impulse weapon switch kept the hand-off's carry** (`W_ChangeWeapon`, `weapons.qc`). The number keys (and
+  impulse 225/226) change the main hand's weapon but kept its flags, so a gun the main hand carried by its foregrip
+  left the new weapon "carried": unable to fire. Mock: off hand on the shotgun's handle, main on its foregrip, off
+  released, `impulse 5`: the nailgun was still "carrying by the foregrip"; now it's held normally. The other ways a
+  weapon changes (the cycle impulses, the test impulses, pickups, a gremlin's theft) already cleared the flags.
+- **Eel corpses couldn't be shot or struck** (`VR_Corpse_Arm`, `combat.qc`). The eel's last death frame loops and
+  sets `SOLID_NOT` every 0.1 s, undoing the corpse's `SOLID_NOT_BUT_TOUCHABLE`, so only explosions reached it. The
+  loop now stops when the corpse is armed. Mock (r1m3, `impulse 205`): the four eels' corpses stayed solid 0; now 5,
+  like the others.
+- **A corpse's first hand strike could come from the wrong hand** (`VR_Corpse_StrikeFrame`). A corpse takes one hand
+  strike per 0.35 s, and the main hand is checked first. With the off hand holding the sword two-handed, the
+  steadying main hand struck first with its fist, which was weaker and made the wrong sound, and the sword's strike
+  was lost. A gun carried by its foregrip also struck. Both are now skipped, as they are for blows
+  (`PlayerVRMeleeImpl`). Mock: fist swings still gib a grunt's corpse (46 a strike, gibbed on the second).
+- **A corpse a gremlin gorged on stayed a corpse** (`ThrowHead`, `player.qc`). The gremlin turns the corpse itself
+  into a head, but `vr_corpse` stayed 2, so a hand's corpse strike also hit the head, on top of the gib's own
+  strike. `ThrowHead` now clears it.
+- **Parry with a two-handed weapon in the off hand** (`VR_Parry_Blocks`). The line through both hands was tested
+  only for the main hand's weapon. An off-hand weapon steadied by the empty main hand is two-handed too (the
+  client's 2H aiming bit). Now it's tested for either hand. The segment is the same either way round.
+
+Checked and fine: the carry flag is cleared on every other path (level change, respawn, throw, drop, holster, hand
+switch, cycle, death drops); pickups can't go into a carrying hand; `ejectcasings`, `haptic` and `handimpact` go
+nowhere for bots (inactive clients); splashes are deduplicated and size-checked by the engine; a batted projectile is
+aimed back only at a living thrower (a dead one's health is 0 or less, and the freed edict of a dead one keeps it); the test impulses 243-249 are single player only; new sounds
+and models are precached (heads by their monsters). Multiplayer smoke test (`deathmatch 1` then `coop 1`,
+`maxplayers 4`, two bots, test impulses, shotgun fire, suicide and respawn): no errors. The round's hand-off script
+gives the same results as before.
+
+Not changed (notes):
+- A savegame keeps a carried gun carried. After loading, the client has no pose record, so the gun is drawn as held
+  normally but still can't fire until the other hand takes its handle, or the hand lets go.
+- `blow_wall_name` (`vr_juice.qc`) is written but never read.
+- The weapon-cheat impulses 150-189 (from before this round) are blocked in deathmatch but still allowed in co-op.
+
+## Review: engine
+
+Rounds 15 and 16's engine code (`git diff 947ab035 -- Quake/`) read through for bugs between features, leftovers and
+per-frame costs. Fixed:
+
+- **`VR_TouchLinks` scanned every edict for every mover** (`vr_physics.cpp`, round 15's "Leaks" note). Each relink of
+  a player, monster, missile or thrown weapon looped over all edicts, so the cost grew with movers times edicts. It
+  now asks the area nodes (`SV_AreaEdicts`, new in `world.c`) for what is near the body's box and each hand's reach,
+  and takes them in edict order, as the scan did. A temporary check against the old scan over about 9000 relinks
+  (walking, every weapon fired, thrown weapons, three maps) found no difference, and the hand-off script gives the same
+  results.
+- **Shots into water took up to 340 point-contents per pellet** (`physics::liquidEntry`, QC's `liquidentry`, asked for
+  every pellet of every shot). A super shotgun blast made about 4800 BSP descents, a few tenths of a millisecond in
+  one server frame. It now walks the world's BSP leaves along the segment once, and the crossing is the plane's own
+  instead of a bisection. Checked against the old stepping on e1m2 (shotguns, nails and grenades into and across the
+  moat and the shallows, 16 places and directions): the same answers, within a unit.
+- **The ammo screens were redrawn every frame** (`text3d::renderScreens`, noted under "Slowdown"). Each image is now
+  drawn (a framebuffer pass and a mipmap rebuild) only when its text, alignment, size or colours change: once per shot.
+- **Profiler phases: a GPU query past the end of its slot** (`vr_profile.cpp`, `endPhase`). A begin kept room for its
+  own end only, so nested GPU scopes near the 96-query limit could write one past the array. That end is now skipped
+  (the record isn't read back). Not reached today (about 45 queries a frame).
+- **Memory log: no "map" row after loading a save or restarting the same map** (`vr_main.cpp`). A new map was told by
+  its model, which Ironwail keeps for the same map. Loading now always starts the new map's 5 s count.
+- **The geometric waves' buffers were kept after a map change with the waves off** (`vr_water.cpp`). They are freed
+  on the map change.
+- **Reloading the sighted skins** as `vr_sight_hue` changes (`TexMgr_ReloadImagesNamed`) now sets the flag Ironwail's
+  own full reload sets, so a cache eviction during the reload can't free a texture under the walk.
+- Small: a `static_assert` that the particle atlas has room for its cells (11 of 12 used); stale comments
+  (`vr_particles.hpp` named a QC splash preset that doesn't exist; the waves' ranges); LIGHTING.md (the sights'
+  colour, the lava nail and beam lights and their presets, the cost of round 15's baked bumps).
+
+Checked and fine:
+- Map changes, `vid_restart`, `vr_restart`, save and load: the waves' mesh is rebuilt for each map (and when
+  `vr_water_geo_cell` changes), and Ironwail's `vid_restart` keeps its buffers. Shells, the hand-off records and the
+  flick state are cleared with the client's state. The world text boards reset with the map. Beam and lava nail
+  lights last a frame and go with the dlights. The refraction's scene size follows `vid`.
+- `r_novis` and BSP2: the mesh's faces are picked with the view's PVS (every leaf with `r_novis`); leaf and
+  mark-surface indices are ints.
+- Both eyes: the mesh's faces are picked per view (each eye's frustum); the lights, shells, trails and boards once a
+  frame.
+- Protocol: `QVR_SVC_EJECT` (7 bytes, reliable, to the firing player only) is read in full before `vr_shells` is
+  looked at, so a demo plays whatever it is set to. As with every round's new sub-commands, `svc_quakevr` has no
+  version: a demo recorded now stops with an error in an older build. The splashes and point sounds go into the
+  datagram with size checks, at most 3 sounds a frame.
+- Config: version 10 moves a saved `vr_parry_angle 50` to 40 and `vr_corpse_health 40` to 80 (`vr_defaults.cfg`
+  sets neither). The only new cvar callbacks (sight hue and saturation) are safe while the config loads.
+- Timing: the weapon's weight smoothing and the throw fit use real time on purpose; shells, splashes' particles,
+  lights and trails use `cl.time` (they stop when paused); the water sounds and hand splashes the server's time.
+
+Not changed (notes):
+- The weapon-cheat impulses (150 + id) accept any id. 164-167 (no such weapons) raise QC assertions and leave a thrown
+  weapon with a NaN origin, which `keepInWorld` then puts back every frame (QC side).
+- `VR_SightPalette` sets its cvar callbacks on the first texture upload after the cvars are registered. It works; an
+  init call would be plainer.
+- A map's world text boards keep their images after it is left, for the next map's boards to reuse: bounded by the
+  most boards seen, not a leak.
+
+Tests (mock, Release build, 0 warnings): e1m1, e1m2 and vrfiringrange in turn with every weapon fired, the waves
+turned off across a map change and on again, `r_novis 1`, `vr_water_geo_cell 8` and back, `vid_restart`,
+`vr_restart`, a flick's casings (`vr_shells_eject 1 2 1`), save and load, `vr_memstats`, the memory log every 5 s and
+`vr_profile 1`: no errors, the GL counts flat, a "map" row after the load. The hand-off script: the same results as
+before. Shots into e1m2's water: 34 splashes. The ammo screen: redrawn 14 times in 2200 frames (once per shot, and
+when its colour changed).

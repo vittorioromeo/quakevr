@@ -48,7 +48,10 @@ struct ScreenImage
 {
     gfx::Target target;
     int width{0}, height{0}; // its virtual screen (font pixels), 0 before it is drawn
-    int frame{-1};           // the host frame it was drawn in
+    int frame{-1};           // the host frame it was last wanted in
+    std::string drawn;       // what is drawn in it: the text, its alignment and the palette (redrawn when they change)
+    int drawnAlign{-1};
+    glm::vec3 drawnFace{-1.f}, drawnText{-1.f};
 };
 std::array<ScreenImage, maxScreenImages> screenImages;
 
@@ -674,12 +677,26 @@ void renderScreens()
         const int pad = screenPad();
         image.width = static_cast<int>(longest) * 8 + pad * 2;
         image.height = static_cast<int>(textLines.size()) * 8 + pad * 2;
+        image.frame = host_framecount;
+        // Drawn again only when something in it changed (it holds until then; the counters change
+        // with a shot, not every frame).
+        const glm::vec3 face = screenFace(), text = screenText();
+        if(image.target.texture && image.target.width == image.width * screenScale &&
+            image.target.height == image.height * screenScale && image.drawn == q.text &&
+            image.drawnAlign == static_cast<int>(q.align) && image.drawnFace == face && image.drawnText == text)
+        {
+            continue;
+        }
+        image.drawn = q.text;
+        image.drawnAlign = static_cast<int>(q.align);
+        image.drawnFace = face;
+        image.drawnText = text;
         static const char* const names[maxScreenImages] = {"ammo screen 1", "ammo screen 2", "ammo screen 3", "ammo screen 4"};
         gfx::ensureTarget(image.target, image.width * screenScale, image.height * screenScale, true,
             names[index - 1]); // mipmaps: the glow
         gfx::begin2D(image.target, image.width, image.height);
-        gfx::draw2D::fill(0.f, 0.f, static_cast<float>(image.width), static_cast<float>(image.height), screenFace());
-        gfx::draw2D::color(glm::vec4{screenText(), 1.f});
+        gfx::draw2D::fill(0.f, 0.f, static_cast<float>(image.width), static_cast<float>(image.height), face);
+        gfx::draw2D::color(glm::vec4{text, 1.f});
         for(size_t i = 0; i < textLines.size(); i++)
         {
             const std::string line{textLines[i]};
@@ -688,7 +705,6 @@ void renderScreens()
         }
         gfx::draw2D::color(glm::vec4{1.f});
         gfx::end2D();
-        image.frame = host_framecount;
     }
 }
 

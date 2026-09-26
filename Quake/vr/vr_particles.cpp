@@ -505,6 +505,7 @@ glm::vec4 cellUv[CellCount]{};
 constexpr int cellSize = 132; // 128 plus a border
 constexpr int atlasColumns = 4;
 constexpr int atlasRows = 3;
+static_assert(CellCount <= atlasColumns * atlasRows, "the atlas has no room for another cell: add a row");
 
 // A soft disc as the old engine's generated circle (sharpness 8): a quarter of the quad across,
 // which is how big the old off-centre disc was.

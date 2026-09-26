@@ -198,6 +198,7 @@ void() f_death1;
 void() gremlin_die;
 void() scourge_die;
 void() eel_death;
+void() eel_death16; // its last frame, looping (VR_Corpse_Arm)
 
 // What gibbing `e` throws (VR_Corpse_Parts), as its death code's gib branch does.
 string vr_corpse_head; // "": none, the body just goes (a fish)
@@ -400,6 +401,13 @@ void(entity e) VR_Corpse_Arm =
     e.solid = SOLID_NOT_BUT_TOUCHABLE;
     e.takedamage = DAMAGE_YES; // not DAMAGE_AIM: no autoaim at it
     setsize(e, lo, hi);
+    if(e.think == eel_death16)
+    {
+        // A rogue eel's last death frame loops, making it SOLID_NOT every 0.1 s: shots and hands
+        // went through its corpse. It lies still now: the loop is over.
+        e.think = SUB_Null;
+        e.nextthink = 0;
+    }
 
     dprint("corpse: "); dprint(e.classname); dprint(" lies still, "); dprint(ftos(e.vr_corpse_hp));
     dprint(" to gib, box "); dprint(vtos(lo)); dprint(" "); dprint(vtos(hi)); dprint("\n");
@@ -531,6 +539,14 @@ void(entity c, entity inflictor, entity attacker, float damage) VR_Corpse_Gib =
 void(float xHand) VR_Corpse_StrikeFrame =
 {
     if(!cvar_hget(cvarh_vr_corpse_gib) || !self.ishuman || self.health <= 0)
+    {
+        return;
+    }
+
+    // As the hands' blows (PlayerVRMeleeImpl): an empty hand steadying the other's weapon doesn't
+    // strike (the weapon's hand does: the first hand to strike takes the swing), nor does a gun
+    // carried by its foregrip.
+    if((VRGet2HAiming(self) && VRIsHandEmpty(self, xHand)) || VRIsHandCarryingByForegrip(self, xHand))
     {
         return;
     }
@@ -1210,7 +1226,9 @@ float(entity p, float hand, vector toAttacker) VR_Parry_Blocks =
     {
         return TRUE;
     }
-    if(hand == cVR_MainHand && VRGet2HAiming(p))
+    // (Either hand's weapon: the off hand's may be steadied by the empty main hand. The line is the
+    // same either way round.)
+    if(VRGet2HAiming(p))
     {
         vector h = VRGetEntHandPos(p, cVR_MainHand);
         vector o = VRGetEntHandPos(p, cVR_OffHand);

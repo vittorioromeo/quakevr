@@ -219,9 +219,11 @@ void endPhase()
         return;
     }
     phaseFrameNs[o.phase] += nowNs() - o.start;
-    if(o.gpuRec >= 0)
+    PhaseGpuSlot& s = phaseSlots[phaseSlot];
+    // A begin keeps room for its own end only: scopes nested inside it can fill the slot first (its
+    // record is then left without an end, and not read back).
+    if(o.gpuRec >= 0 && s.used < phaseGpuQueries)
     {
-        PhaseGpuSlot& s = phaseSlots[phaseSlot];
         GL_QueryCounterFunc(s.queries[s.used], GL_TIMESTAMP);
         s.recs[o.gpuRec].end = s.used++;
     }

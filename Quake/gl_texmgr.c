@@ -2164,9 +2164,11 @@ void TexMgr_ReloadImagesNamed (const char *prefix)
 	gltexture_t *glt;
 	size_t len = strlen (prefix);
 
+	in_reload_images = true; // no texture freed under the walk (see TexMgr_ReloadImages)
 	for (glt = active_gltextures; glt; glt = glt->next)
 		if (!q_strncasecmp (glt->name, prefix, (int) len))
 			TexMgr_ReloadImage (glt, -1, -1);
+	in_reload_images = false;
 }
 
 /*

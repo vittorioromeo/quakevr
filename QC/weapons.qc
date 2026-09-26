@@ -2685,6 +2685,8 @@ void() W_ChangeWeapon =
 
     // set weapon, set ammo
     self.weapon = wid;
+    // VR: the new weapon is held, not carried by its foregrip (a hand's state: the hand-off).
+    self.weaponflags = self.weaponflags - (self.weaponflags & QVR_WPNFLAG_FOREGRIP_CARRIED);
     W_SetCurrentAmmo();
 };
 
@@ -3043,6 +3045,11 @@ void() ImpulseCommands =
         {
             cheatHand = cVR_OffHand;
             cheatWid = self.impulse - 170;
+        }
+        self.impulse = 0;
+        if(cheatWid > WID_SWORD)
+        {
+            return; // no such weapon (it broke the hand's weapon state)
         }
         VR_WeaponUtil_EntAddWeapon(self, cheatWid);
         VRSetEntWeapon(self, cheatHand, cheatWid);

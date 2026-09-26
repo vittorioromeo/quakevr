@@ -59,8 +59,11 @@ void onIdChanged(cvar_t* /* var */)
 // rocket launcher remade with pistol grips: the hand on the new grip, the offsets following the
 // models' new bounds; Misc/quakevr/improve_weapons.py); 8: slot 8 (the lightning gun: a pistol grip
 // under the hand, the gun 2.5 model units higher over it, the offsets following the model's new
-// bounds; Misc/quakevr/improve_weapons2.py).
-constexpr int settingsVersion = 8;
+// bounds; Misc/quakevr/improve_weapons2.py); 9: slots 2, 6, 10, 11 and 14 (the shotgun, the grenade
+// launcher, the laser cannon, the proximity gun and the multi-grenade launcher: pistol and spade
+// grips with trigger guards; the three launchers sit higher and further forward over the hand,
+// the offsets follow the models' new bounds; Misc/quakevr/improve_weapons3.py).
+constexpr int settingsVersion = 9;
 
 void resetSlot(int slot)
 {
@@ -95,6 +98,14 @@ void migrate()
     if(vr_wofs_version.value < 8)
     {
         resetSlot(7);
+    }
+    if(vr_wofs_version.value < 9)
+    {
+        resetSlot(1);
+        resetSlot(5);
+        resetSlot(9);
+        resetSlot(10);
+        resetSlot(13);
     }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }

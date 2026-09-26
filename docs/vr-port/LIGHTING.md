@@ -279,6 +279,7 @@ textures are filtered smoothly; and `r_shadow_gloss 2` gives dynamic lights a fa
 | `vr_bloom_white`, `vr_bloom_color` | 0.5, 1.5 | (bloom off) |
 | `vr_flash_scale`, `vr_explosion_light_scale` | 1, 1 (were 1.8, 1.5; a config holding those takes 1) | 1, 1 |
 | `vr_projectile_lights`, `vr_weapon_screen_light`, `vr_weapon_glow` | 1, 1, 1 | 0, 0, 0 |
+| `vr_lavanail_lights`, `vr_beam_lights` | 8, 6 (Low: 4, 0) | 0, 0 |
 
 **Glows** (`vr/vr_emissive.cpp`; small, unshadowed: `lighting::dlightNoShadow` keeps them out of the shadow slots):
 - `vr_projectile_lights` (size): monsters' glowing projectiles carry a light where they are drawn (`VR_ProjectileLight`
@@ -287,7 +288,13 @@ textures are filtered smoothly; and `r_shadow_gloss 2` gives dynamic lights a fa
   the EF_DIMLIGHT lasers are tinted (the enforcer's yellow-orange, the laser cannon's red). A scrag's or hell knight's
   spike hitting a wall (TE_WIZSPIKE, TE_KNIGHTSPIKE) flashes its colour, 120, fading out over 0.25 s. With Quake's
   falloff the colours are scaled to at most 1; without `vr_colored_lights` they are white. Nails and grenades stay
-  unlit (as in DarkPlaces); rockets and lava balls have the rocket light.
+  unlit (as in DarkPlaces); rockets and lava balls have the rocket light. Rogue's lava nails (`progs/lspike.mdl`,
+  round 16) are the exception: molten orange-red, radius 110, only the nearest `vr_lavanail_lights` of them each
+  frame, with a fullbright boost of 2.5 and a streak of embers (`particles::lavaNailTrail`).
+- `vr_beam_lights` (count, round 16): a lightning beam (`progs/bolt*.mdl`: the lightning gun, the shambler's and
+  Chthon's; not the grappling hook's rope) carries a light every 80 units, up to this many, blue-white, flickering
+  30 times a second, the last one bigger where it strikes (`VR_BeamLights`, from `CL_UpdateTEnts`; keys from -0x5D00
+  down).
 - `vr_weapon_screen_light` (strength): each weapon's ammo screen casts a small spot light (`lighting::dlightSpot`) the
   way it faces: 1 unit out from the screen, radius 28, cone 45/85 degrees, in the screen's colour
   (`vr_gadget_screen_hue`, `vr_gadget_screen_brightness`), lighting what is in front of the screen (the hand, the arm,
@@ -300,11 +307,13 @@ textures are filtered smoothly; and `r_shadow_gloss 2` gives dynamic lights a fa
 - `vr_weapon_glow` (strength): the held and holstered weapons' fullbright texels get
   `fullbright × (1 + 3 × strength × (1 − brightest channel))` in the alias shader (instance `Glow.z`; the fullbright
   is the fullbright texture's, or for Ironwail's ALPHABRIGHT skins the skin's unlit share, where its alpha is 0): the
-  shotgun's dim red sights (palette 226–228) reach full red, so that the coloured bloom makes them glow; bright
-  fullbrights (muzzle flashes) hardly change.
+  shotgun's and double shotgun's sights (the fire indices 224–239, 252, 253, in `vr_sight_hue`'s colour since round
+  16: `vr_sights.cpp`) shine brighter, so that the coloured bloom makes them glow; bright fullbrights (muzzle flashes)
+  hardly change.
 
-**Cost.** Per world pixel: one normal map tap, two more derivatives and about twenty instructions for the bumps on the
-baked light (round 11); per model pixel, only where a dynamic light's cluster reaches: one normal map tap; a few
+**Cost.** Per world pixel: one normal map tap and about twenty instructions for the bumps on the baked light (round
+11), and for its slope 4 to 16 lightmap gathers (by the light styles) instead of the two screen derivatives it took
+before round 15 (about 0.02 ms for both 1024² eyes, about 0.2 ms at the headset's size); per model pixel, only where a dynamic light's cluster reaches: one normal map tap; a few
 instructions per dynamic light (four derivatives are taken for every world and model pixel). Loading: a Sobel pass over
 at most 256² per texture, and a look for `_norm`/`_bump` images beside each replacement. Memory: about 24 MB of normal
 maps on e1m1 with QRP before round 11, less since (at most 2 texels a unit).
