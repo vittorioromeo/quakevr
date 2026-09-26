@@ -23,6 +23,12 @@ constexpr const char* keyNames[numKeys] = {
 #undef QVR_WEAPON_KEY
 };
 
+constexpr const char* keyEnumNames[numKeys] = {
+#define QVR_WEAPON_KEY(e, k) #e,
+#include "vr_weapons.inc"
+#undef QVR_WEAPON_KEY
+};
+
 // Cvar names must outlive the cvars.
 std::array<std::string, numSlots * numKeys> names;
 std::array<cvar_t, numSlots * numKeys> cvars{};
@@ -138,6 +144,39 @@ void registerCvars()
     for(int slot = 0; slot < numSlots; slot++)
     {
         Cvar_SetCallback(&cvarAt(slot, Key::ID), onIdChanged);
+    }
+}
+
+cvar_t* cvar(int slot, Key key)
+{
+    return slot >= 0 && slot < numSlots ? &cvarAt(slot, key) : nullptr;
+}
+
+void resetSlotToDefaults(int slot)
+{
+    if(slot >= 0 && slot < numSlots)
+    {
+        resetSlot(slot);
+    }
+}
+
+// The slot's settings that differ from the shipped defaults, as vr_weapons.inc lines.
+void printSlot(int slot)
+{
+    if(slot < 0 || slot >= numSlots)
+    {
+        return;
+    }
+    Con_Printf("// %s (slot %d, cvars _%02d): the settings changed from the defaults\n", cvarAt(slot, Key::ID).string, slot,
+        slot + 1);
+    for(int key = 0; key < numKeys; key++)
+    {
+        const cvar_t& var = cvarAt(slot, static_cast<Key>(key));
+        if(strcmp(var.string, var.default_string))
+        {
+            Con_Printf("QVR_WEAPON_DEFAULT(%d, %s, \"%s\") // was %s\n", slot, keyEnumNames[key], var.string,
+                var.default_string);
+        }
     }
 }
 

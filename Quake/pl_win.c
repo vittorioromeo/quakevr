@@ -99,6 +99,16 @@ static wchar_t error_buffer[1024];
 void PL_ErrorDialog(const char *errorMsg)
 {
 	wchar_t *msg;
+	if (getenv ("QVR_NO_ERROR_DIALOG")) // QVR: automated test runs quit on an error instead of waiting on a dialog
+	{
+		FILE *f = fopen ("qvr_error.txt", "w"); // in the working directory, for the test scripts to print
+		if (f)
+		{
+			fprintf (f, "%s\n", errorMsg);
+			fclose (f);
+		}
+		return;
+	}
 	if (!MultiByteToWideChar (CP_UTF8, 0, errorMsg, -1, error_buffer, countof (error_buffer)))
 		msg = L"An unknown error occurred";
 	else

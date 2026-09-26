@@ -10,9 +10,11 @@
 #include "vr_engine.hpp"
 #include "vr_main.hpp"
 #include "vr_menu.hpp"
+#include "vr_weapons.hpp"
 
 #include <cmath>
 #include <cstring>
+#include <string>
 #include <vector>
 
 extern "C" {
@@ -444,6 +446,8 @@ struct Page
 
 [[nodiscard]] std::vector<Item> pageMain();
 [[nodiscard]] std::vector<Item> pageAdvanced();
+[[nodiscard]] std::vector<Item> pageWeaponOffsets();
+[[nodiscard]] int weaponOffsetsPage();
 
 const Page pages[] = {
     {"VR Settings", pageMain},
@@ -460,6 +464,7 @@ const Page pages[] = {
     {"Particles", pageParticleSettings},
     {"Locomotion", pageLocomotionSettings},
     {"Hand/Gun Calibration", pageHandGunCalibration},
+    {"Weapon Offsets", pageWeaponOffsets},
     {"Player Calibration", pagePlayerCalibration},
     {"Melee", pageMeleeSettings},
     {"Aiming", pageAimingSettings},
@@ -497,6 +502,7 @@ std::vector<Item> pageMain()
         slider("Off Hand Angle", vr_offhandpitch, -30.f, 90.f, 2.5f, "%.1f"),
         cycle("Weapon Grip", vr_weapon_grip_mode, {{0.f, "Hold"}, {1.f, "Sticky"}}),
         cycle("Two-Handed", vr_2h_mode, {{0.f, "Off"}, {1.f, "Basic"}, {2.f, "Virtual stock"}}),
+        open("Weapon Offsets (Held Weapon)", weaponOffsetsPage()),
         toggle("Two-Handed Hand-Off", vr_2h_handoff).help("Letting go with the hand holding a two-handed weapon leaves it in the other hand: a sword changes hands; a gun hangs from its foregrip until a hand takes its handle."),
         slider("Throw Speed", vr_weapon_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx"),
         cycle("Throw Gravity", vr_throw_gravity, {{9.81f, "Real"}, {0.f, "Quake"}}),
@@ -548,11 +554,128 @@ std::vector<Item> pageAdvanced()
     return list;
 }
 
+// Weapon Offsets: the settings of the weapon a hand holds (vr_wofs_*_NN of its slot), built anew
+// each time the page is shown, as the weapon in hand changes.
+int weaponOffsetsHand = 1; // 1 main hand, 0 off hand
+bool weaponOffsetsStale = true;
+int weaponOffsetsSlot = -1;
+
+[[nodiscard]] int weaponOffsetsPage()
+{
+    for(int p = 0; p < pageCount; p++)
+    {
+        if(pages[p].build == pageWeaponOffsets)
+        {
+            return p;
+        }
+    }
+    return PageMain;
+}
+
+void showPage(int target);
+
+void weaponOffsetsOtherHand()
+{
+    weaponOffsetsHand = 1 - weaponOffsetsHand;
+    weaponOffsetsStale = true;
+    showPage(weaponOffsetsPage());
+}
+
+void weaponOffsetsReset()
+{
+    weapons::resetSlotToDefaults(weaponOffsetsSlot);
+}
+
+void weaponOffsetsPrint()
+{
+    weapons::printSlot(weaponOffsetsSlot);
+}
+
+std::vector<Item> pageWeaponOffsets()
+{
+    using weapons::Key;
+    static std::string title;
+    int slot = vrActive() || cls.state == ca_connected ? weapons::heldSlot(weaponOffsetsHand) : -1;
+    if(slot < 0 && cls.state == ca_connected)
+    {
+        slot = weapons::fistSlot(); // an empty hand: the hand model's own settings
+    }
+    weaponOffsetsSlot = slot;
+
+    std::vector<Item> list;
+    const char* hand = weaponOffsetsHand == 1 ? "Main hand" : "Off hand";
+    if(slot < 0)
+    {
+        title = std::string(hand) + ": hold a weapon in a game to adjust it";
+        list.push_back(header(title.c_str()));
+        list.push_back(action("Edit the Other Hand's Weapon", weaponOffsetsOtherHand));
+        return list;
+    }
+
+    const char* model = weapons::cvar(slot, Key::ID)->string;
+    title = std::string(hand) + ": " + model + " (_" + (slot + 1 < 10 ? "0" : "") + std::to_string(slot + 1) + ")";
+    const auto s = [&](const char* label, Key key, float min, float max, float step, const char* format) {
+        return slider(label, weapons::cvar(slot, key), min, max, step, format);
+    };
+    list = {
+        header(title.c_str()),
+        action("Edit the Other Hand's Weapon", weaponOffsetsOtherHand)
+            .help("The page shows the weapon the hand held when it was opened: reopen it after changing weapons."),
+        header("Weapon in the Hand"),
+        s("Offset X (forward)", Key::OffsetX, -30.f, 30.f, 0.1f, "%.2f").help("Moves the weapon in the hand. Doesn't change where it aims."),
+        s("Offset Y (left)", Key::OffsetY, -30.f, 30.f, 0.1f, "%.2f"),
+        s("Offset Z (up)", Key::OffsetZ, -30.f, 30.f, 0.1f, "%.2f"),
+        s("Pitch", Key::Pitch, -180.f, 180.f, 0.5f, "%.1f"),
+        s("Yaw", Key::Yaw, -180.f, 180.f, 0.5f, "%.1f"),
+        s("Roll", Key::Roll, -180.f, 180.f, 0.5f, "%.1f"),
+        s("Scale", Key::Scale, 0.1f, 3.f, 0.01f, "%.2f"),
+        header("Hand on the Weapon"),
+        s("Hand X", Key::HandOffsetX, -10.f, 10.f, 0.05f, "%.2f").help("Moves the drawn hand on the weapon's grip."),
+        s("Hand Y", Key::HandOffsetY, -10.f, 10.f, 0.05f, "%.2f"),
+        s("Hand Z", Key::HandOffsetZ, -10.f, 10.f, 0.05f, "%.2f"),
+        cycle("Hide Hand", weapons::cvar(slot, Key::HideHand), {{0.f, "No"}, {1.f, "Yes"}}),
+        header("Muzzle"),
+        s("Muzzle X", Key::MuzzleOffsetX, -30.f, 30.f, 0.1f, "%.2f").help("Where shots and the muzzle flash start, from the muzzle vertex."),
+        s("Muzzle Y", Key::MuzzleOffsetY, -30.f, 30.f, 0.1f, "%.2f"),
+        s("Muzzle Z", Key::MuzzleOffsetZ, -30.f, 30.f, 0.1f, "%.2f"),
+        header("Two-Handed"),
+        s("Other Hand X", Key::TwoHOffsetX, -30.f, 30.f, 0.1f, "%.2f").help("Where the other hand holds the weapon (the foregrip)."),
+        s("Other Hand Y", Key::TwoHOffsetY, -30.f, 30.f, 0.1f, "%.2f"),
+        s("Other Hand Z", Key::TwoHOffsetZ, -30.f, 30.f, 0.1f, "%.2f"),
+        s("Other Hand Pitch", Key::TwoHPitch, -180.f, 180.f, 0.5f, "%.1f"),
+        s("Other Hand Yaw", Key::TwoHYaw, -180.f, 180.f, 0.5f, "%.1f"),
+        s("Other Hand Roll", Key::TwoHRoll, -180.f, 180.f, 0.5f, "%.1f"),
+        s("Drawn Hand X", Key::TwoHFixedOffsetX, -30.f, 30.f, 0.1f, "%.2f").help("Where the other hand is drawn on the weapon while it holds it."),
+        s("Drawn Hand Y", Key::TwoHFixedOffsetY, -30.f, 30.f, 0.1f, "%.2f"),
+        s("Drawn Hand Z", Key::TwoHFixedOffsetZ, -30.f, 30.f, 0.1f, "%.2f"),
+        header("Ammo Screen"),
+        s("Screen X", Key::WpnTextX, -20.f, 20.f, 0.05f, "%.2f"),
+        s("Screen Y", Key::WpnTextY, -20.f, 20.f, 0.05f, "%.2f"),
+        s("Screen Z", Key::WpnTextZ, -20.f, 20.f, 0.05f, "%.2f"),
+        s("Screen Pitch", Key::WpnTextPitch, -180.f, 180.f, 0.5f, "%.1f"),
+        s("Screen Yaw", Key::WpnTextYaw, -180.f, 180.f, 0.5f, "%.1f"),
+        s("Screen Roll", Key::WpnTextRoll, -180.f, 180.f, 0.5f, "%.1f"),
+        s("Screen Scale", Key::WpnTextScale, 0.05f, 3.f, 0.05f, "%.2f"),
+        header("This Weapon"),
+        s("Weight", Key::Weight, 0.f, 1.f, 0.05f, "%.2f").help("How much the weapon lags the hand."),
+        action("Print Changes to Console", weaponOffsetsPrint)
+            .help("Prints this weapon's settings that differ from the defaults, ready to be made the shipped defaults."),
+        action("Reset This Weapon", weaponOffsetsReset).help("Every setting of this weapon back to its default."),
+    };
+    return list;
+}
+
 // Built on first use (cvars looked up by name exist by then); items without their cvar dropped.
 [[nodiscard]] const std::vector<Item>& items(int page)
 {
     static std::vector<Item> built[pageCount];
     static bool done[pageCount]{};
+    if(pages[page].build == pageWeaponOffsets && weaponOffsetsStale)
+    {
+        weaponOffsetsStale = false;
+        done[page] = false;
+        built[page].clear();
+    }
     if(!done[page])
     {
         done[page] = true;
@@ -623,6 +746,12 @@ void moveCursor(const std::vector<Item>& list, int dir)
 void showPage(int target)
 {
     page = target;
+    if(pages[page].build == pageWeaponOffsets)
+    {
+        weaponOffsetsStale = true; // the weapon in hand now
+        cursors[page] = 0;
+        scrolls[page] = 0;
+    }
     const auto& list = items(page);
     if(list[cursors[page]].kind == Item::Header)
     {

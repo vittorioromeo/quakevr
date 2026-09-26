@@ -31,6 +31,12 @@ void registerCvars();
 [[nodiscard]] int heldSlot(int hand);
 
 [[nodiscard]] float value(int slot, Key key);
+
+// For the Weapon Offsets menu page: a slot's cvar for a key, its settings back to their defaults, and
+// its settings printed as vr_weapons.inc lines (to make them the shipped defaults).
+[[nodiscard]] cvar_t* cvar(int slot, Key key);
+void resetSlotToDefaults(int slot);
+void printSlot(int slot);
 [[nodiscard]] glm::vec3 vec(int slot, Key x, Key y, Key z);
 
 // Extra transform of an alias model, in the model's own space: Ironwail's
