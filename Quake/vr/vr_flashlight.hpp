@@ -32,4 +32,8 @@ void drawTranslucent();
 // the release of.
 [[nodiscard]] bool button(int hand, bool grip, bool pressed);
 
+// Whether `hand` holds the flashlight: that hand does not force grab (its move tells the server,
+// QVR_BUTTON_*HANDBUSY, and its aim beam is not drawn).
+[[nodiscard]] bool holds(int hand);
+
 } // namespace qvr::flashlight

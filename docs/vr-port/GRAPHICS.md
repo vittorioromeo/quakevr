@@ -117,12 +117,32 @@ models) and keeps the classic pixel look; none of it needs new art.
   courtyard (`_sunlight2` 80, `_sunlight` 50); its sixteen "light" 1200 fill lamps 300 units up are dropped. Pools
   of light at the boards and lamps, dark corners and corridors between them. `vrstart` is left fullbright (no
   lightmap and no lights; its worldspawn `"light" "300"` is a minimum light for a menu-like hub).
+- **Light fixtures** (round 15, `glow_lights` in `relight_maps.py`, `Misc/quakevr/relight_textures.cfg`). Lamps,
+  light panels and strip lights (textures named `*light*`/`*lamp*` and those the file names: `tlight*`, `light1_*`,
+  `light3_*`, `ceil1_1`, `sfloor4_4`, rogue's `metal8_3`/`metal9_2`) each get a light of their own: one point light
+  for a small fixture (in front of it, or on top of a lantern), one every 128 units for a big one; 250 for a lone
+  fixture, half by a mapper's light of 300 that is on from the start and less reduced by a weaker one (a "start off"
+  light, like those of e1m1's rising lanterns, does not count), less for a small or faintly glowing one, divided by
+  the square root of the fixtures in its room; without ambient occlusion (`"_dirt" "-1"`: `-dirt` left a lamp in a
+  recess a fifth of its light). A lamp in a recess or slot (solid past two opposite edges of its face: e1m6's
+  coffered ceiling lamps) has its light stepped out past the recess walls, up to 48 units (`recess_depth`). Before, fixtures shared half a glow budget over the whole map, so none got a light (e1m1's `tlight11`
+  lanterns: 222 x 0.5 / 67 faces = 1.6, under the cut-off of 12): they looked lit and lit nothing. What glows also
+  comes from replacement textures: where a texture has no fullbright pixels, its `_luma` image (QRP's
+  `textures/<name>_luma.tga`, looked up like the engine: `textures/<map>/`, `textures/`, the game then id1) decides,
+  so `light1_*`, `tlight05`/`09`/`10`, shootable and floor buttons and stained-glass windows glow too
+  (`--no-luma`: the 8-bit pixels only). The file raises `light1_4` and `ceil1_1` (x2). Tuning: `--fixture-scale` (1), `--fixture-lit` (0.5), `--glow-scale` (both
+  kinds), and per texture or map in `relight_textures.cfg` (`<[game/][map/]pattern> kind=fixture|glow|off scale= light=
+  color=r,g,b reach=`, documented in the file); `relight_maps.py --quake <Quake> --list-glows [--only e1m1]` lists
+  each map's glowing textures, where their glow comes from, their kind and lights, without relighting. Rerun the
+  relight after a change (only the maps whose lights changed are relit) and reload the map. In game the fixtures'
+  own glow is bloom: `vr_bloom_white` (Graphics, "Bloom: White Lights") for white and pale lamps, `vr_bloom_color`
+  for coloured ones; baked light itself cannot change without relighting.
 - **See-through water.** id's maps were vised with liquids as walls, so the engine keeps their water, slime and
   teleporters opaque whatever `r_wateralpha` says (changing it prints "Map does not appear to be water-vised").
   The relit maps get water-vised visibility from the VisPatch data files (`id1.vis`, `hipnotic.vis`, `rogue.vis`,
   or `<game>/vispatch.dat`; vispatch.sourceforge.net): give their folder to the relight,
   `relight_maps.py ... --vis-dir <folder>` (or set `QUAKEVR_VISPATCH`), which patches every relit map, also ones
-  already up to date. `Misc/quakevr/vis_maps.py --vis-dir <folder> [--relit quakevr/relit]` does it on its own
+  already up to date (once: a map patched already is left as it is, its lumps packed). `Misc/quakevr/vis_maps.py --vis-dir <folder> [--relit quakevr/relit]` does it on its own
   (only the visibility and leaf lumps change; a patch whose leaves are not the map's is refused);
   `vis_maps.py --check quakevr/relit/id1/maps` reports, and in game `developer 2; map e1m1` prints
   "maps/e1m1.bsp is vised for transparent water tele slime". `quakevr.cfg` sets `r_lavaalpha 1` (lava stays

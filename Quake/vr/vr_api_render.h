@@ -43,6 +43,10 @@ void VR_WaterView (int contents, int *waterwarp);			// R_SetupView, after r_wate
 void VR_WaterFog (float fog[4], float skyfog[4]);			// Fog_SetupFrame: an eye's fog in a liquid (vr_water.cpp)
 void VR_PostProcessWater (void);						// GL_PostProcess, program in use: an eye's underwater wobble and blur
 unsigned VR_WaterSceneDepth (void);					// translucent water drawn: how far the opaque scene is, to refract by (0: none)
+void VR_WaterMarkVis (const unsigned char *vis);		// R_MarkSurfaces: the geometric waves' mesh faces seen this view (vis: the PVS, null all)
+int VR_WaterMeshActive (void);							// R_DrawBrushModels_Water: nonzero to draw the world's liquids from that mesh
+int VR_WaterMeshRanges (int texnum, const unsigned **ranges);	// ... its (first index, count) pairs for a world texture
+void VR_WaterMeshBind (void);							// ... binds its buffers, attributes 0-4 (4: the swells' pin)
 void VR_DrawSceneTranslucent (void);						// R_RenderScene, after the translucent pass (particles, blended 3D text)
 
 // The 2D layer (gl_screen.c, gl_vidsdl.c): drawn to a canvas shown in the headset.

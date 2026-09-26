@@ -1316,6 +1316,28 @@ WaterMove
 */
 .float    dmgtime;
 
+// VR: a splash where the player goes in (vr_water_splash; the sound is Quake's, above), as hard as
+// the fall or the run into it.
+void() VR_PlayerWaterSplash =
+{
+    local vector top, at, flat;
+    local float hard;
+
+    top = self.origin + '0 0 1' * (self.maxs_z + 48);
+    at = liquidentry(top, self.origin + '0 0 1' * (self.mins_z - 8));
+    if(at == top)
+        return;
+
+    flat = self.velocity;
+    flat_z = 0;
+    hard = self.velocity_z * -0.045 + vlen(flat) * 0.015;
+    if(hard < 5)
+        hard = 5;
+    if(hard > 50)
+        hard = 50;
+    watersplash(at, normalize(self.velocity), hard, QVR_SPLASH_SILENT);
+};
+
 void() WaterMove =
 {
 //dprint(ftos(self.waterlevel));
@@ -1388,6 +1410,7 @@ void() WaterMove =
             sound(self, CHAN_BODY, "player/inh2o.wav", 1, ATTN_NORM);
         if(self.watertype == CONTENT_SLIME)
             sound(self, CHAN_BODY, "player/slimbrn2.wav", 1, ATTN_NORM);
+        VR_PlayerWaterSplash();
 
         self.flags = self.flags | FL_INWATER;
         self.dmgtime = 0;
@@ -2606,17 +2629,36 @@ void(float xHand, float xInMelee, float* xOutMeleeAttackFinished, float* xOutInM
         return;
     }
 
+    // An empty hand steadying the other's weapon (two-handed: a sword's grip, a gun's foregrip)
+    // swings with it: the weapon's hand strikes, not this one's fist.
+    if(VRGet2HAiming(self) && VRIsHandEmpty(self, xHand))
+    {
+        return;
+    }
+
     // Once per blow (a real one: VR_Blow_IsBlow): after a hit (the hit sound played), not again
-    // until the hand stops or pulls back, and not within VR_BLOW_REARM.
+    // until the hand stops, or pulls back (turned back from the blow's way, having slowed down to a
+    // third of its speed at least once: a jab after a jab; a wide swing's arc curving round goes on
+    // fast, and is still the same blow), and not within VR_BLOW_REARM.
     entity b = VR_Blow(xHand);
+    b.blow_slowest = min(b.blow_slowest, b.blow_speed);
     if(VRGetMeleeHitSoundPlayed(xHand) && time >= b.blow_rearm &&
-       (b.blow_speed < VR_BLOW_MOVING || b.blow_vel * b.blow_dir < -VR_BLOW_MOVING))
+       (b.blow_speed < VR_BLOW_MOVING ||
+        (b.blow_vel * b.blow_dir < -VR_BLOW_MOVING && b.blow_slowest < b.blow_hitpeak * 0.35)))
     {
         *xMeleeHitSoundPlayed = FALSE;
     }
 
+    // A stroke that became a blow stays one to its end: its striking points' first contact in the
+    // stroke (VR_Blow_Sweep), before or after, is where it lands (VR_Blow_Contact), once.
     float blow = VR_Blow_IsBlow(xHand);
-    if(VRHandsTracked(self) && time >= xInMelee && blow && !VRGetMeleeHitSoundPlayed(xHand))
+    float whoosh = blow && b.blow_ok != b.blow_t0; // once a stroke
+    if(blow)
+    {
+        b.blow_ok = b.blow_t0;
+    }
+    float striking = b.blow_t0 && b.blow_ok == b.blow_t0;
+    if(VRHandsTracked(self) && time >= xInMelee && striking && !VRGetMeleeHitSoundPlayed(xHand))
     {
         VR_Blow_Measure(xHand);
 
@@ -2624,16 +2666,18 @@ void(float xHand, float xInMelee, float* xOutMeleeAttackFinished, float* xOutInM
         // to reload is a fast swing too.
         string gunSound = "knight/sword1.wav";
         vector swingDir = normalize(VRGetHandVel(xHand));
-        if(swingDir_z < -0.6)
+        if(swingDir_z < -0.6 || !whoosh)
         {
             gunSound = "";
         }
+        string swordSound = whoosh ? "knight/sword1.wav" : "";
+        string axeSound = whoosh ? "weapons/ax1.wav" : "";
 
         VR_SetHitKind(QVR_HITKIND_MELEE, xHand, '0 0 0', '0 0 0');
-        if(!DoXHandMelee(xHand, WID_FIST, "knight/sword1.wav", W_FistMelee))
-            if(!DoXHandMelee(xHand, WID_AXE, "weapons/ax1.wav", W_FireAxe))
-                if(!DoXHandMelee(xHand, WID_MJOLNIR, "weapons/ax1.wav", HIP_FireMjolnir))
-                if(!DoXHandMelee(xHand, WID_SWORD, "knight/sword1.wav", W_SwordMelee))
+        if(!DoXHandMelee(xHand, WID_FIST, swordSound, W_FistMelee))
+            if(!DoXHandMelee(xHand, WID_AXE, axeSound, W_FireAxe))
+                if(!DoXHandMelee(xHand, WID_MJOLNIR, axeSound, HIP_FireMjolnir))
+                if(!DoXHandMelee(xHand, WID_SWORD, swordSound, W_SwordMelee))
                     DoXHandMeleeImpl(xHand, gunSound, W_GunMelee);
         VR_ClearHitKind();
 
@@ -2645,13 +2689,12 @@ void(float xHand, float xInMelee, float* xOutMeleeAttackFinished, float* xOutInM
             // It landed.
             b.blow_dir = normalize(b.blow_wrist - b.blow_start);
             b.blow_rearm = time + VR_BLOW_REARM;
+            b.blow_slowest = b.blow_speed;
+            b.blow_hitpeak = b.blow_peak;
         }
     }
 
-    if(blow)
-    {
-        VR_Deflect(xHand); // any blow bats enemy projectiles back
-    }
+    VR_Deflect(xHand); // batting swings (less than a blow) bat enemy projectiles back
 }
 
 // Headbutts (vr_headbutt): a lunge of the head, roughly towards where it looks, faster than

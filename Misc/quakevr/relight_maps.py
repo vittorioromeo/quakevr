@@ -9,14 +9,25 @@
 # brighter look, with bounce and weaker ambient occlusion). Geometry and entities stay as they are:
 # only the light changes.
 #
-# Glowing textures light their surroundings (--glow, on by default): textures with fullbright pixels
-# (buttons, computer panels, light fixtures, glowing runes) get lights in the colour of their glowing
-# pixels, as bright as the share of them that glows and the other glowing things in the room allow:
+# Glowing textures light their surroundings (on by default; --no-glow): textures with fullbright pixels
+# (buttons, computer panels, glowing runes), or, where they have none, a replacement texture's glowing
+# _luma image (QRP: light1_*, tlight05, tlight10; --no-luma ignores those), get lights in the colour of
+# what glows, as bright as the share of them that glows and the other glowing things in the room allow:
 # small faces a point light each in front of them, textures with big faces ericw's surface lights
 # ("_surface"); strongly coloured ones brighter and further reaching, so that a red button tints its
-# room; fixtures (named *light*) half as bright, since mappers put lights by them (glow_lights). These
-# entities are only given to `light`: the relit map keeps its own. --glow-budget sets how much light a
-# glowing texture shares out in a room (300; 600 before round 10, and with --bright).
+# room. --glow-budget sets how much light a glowing texture shares out in a room (300; 600 before round
+# 10, and with --bright), --glow-scale scales all of it.
+#
+# Light fixtures (lamps, light panels, strip lights: textures named *light* or *lamp*, and those
+# relight_textures.cfg names) are lamps, not decoration: each gets a light of its own, 250 for a lone
+# one (--fixture-scale), half of it by a mapper's light of 300 that is on from the start (--fixture-lit;
+# less reduced by a weaker one; one that starts off, like those of e1m1's lanterns until you walk in,
+# does not count), less for a small or faint one and in a room of many.
+# Until round 15 they shared half a budget over the whole map, which left every one too faint to get
+# a light: they looked lit and lit nothing. Misc/quakevr/relight_textures.cfg sets, per texture (and
+# map), whether it is a fixture, a glow or nothing, and its brightness, colour and reach; --list-glows
+# lists each map's glowing textures and their lights without relighting. These entities are only
+# given to `light`: the relit map keeps its own.
 #
 # The results go into quakevr/relit/<game>/maps/<map>.bsp and .lit. Quake VR loads them in place of
 # <game>'s own maps (vr_relit_maps 1, the default; 0 plays the original lighting). The maps are
@@ -27,7 +38,8 @@
 #   python Misc/quakevr/relight_maps.py --quake "C:/Program Files (x86)/Steam/steamapps/common/Quake"
 #       --light C:/tools/ericw-tools/bin/light.exe [--games id1 hipnotic rogue] [--out quakevr/relit]
 #       [--light-args "..."] [--force] [--only e1m1 ...] [--no-glow] [--glow-scale 1.0]
-#       [--glow-budget 300] [--bright] [--vis-dir <folder with id1.vis hipnotic.vis rogue.vis>]
+#       [--glow-budget 300] [--fixture-scale 1.0] [--fixture-lit 0.5] [--textures <cfg>] [--no-luma]
+#       [--list-glows] [--bright] [--vis-dir <folder with id1.vis hipnotic.vis rogue.vis>]
 #
 # ericw-tools: https://github.com/ericwa/ericw-tools/releases (v0.18.1 was used; GPL). `light` may
 # also be given by the ERICW_LIGHT environment variable or found on PATH.
@@ -40,8 +52,10 @@
 # visibility too (vis_maps.py, which can also do it on its own).
 
 import argparse
+import fnmatch
 import hashlib
 import os
+import re
 import shutil
 import struct
 import subprocess
@@ -111,7 +125,7 @@ def entities_text(data):
 
 
 def texture_faces(data):
-    """{miptex index: [(centre, area, normal) of each face using it]} (BSP29; empty for BSP2)."""
+    """{miptex index: [(centre, area, normal, points) of each face using it]} (BSP29; empty for BSP2)."""
     if struct.unpack_from("<i", data, 0)[0] != 29:
         return {}
     pofs, plen = lump(data, 1)
@@ -145,7 +159,7 @@ def texture_faces(data):
         if side:
             normal = tuple(-x for x in normal)
         m = miptex_of[texinfo] if 0 <= texinfo < len(miptex_of) else -1
-        faces.setdefault(m, []).append((centre, area, normal))
+        faces.setdefault(m, []).append((centre, area, normal, pts))
     return faces
 
 
@@ -183,11 +197,6 @@ def near(c, d, r):
     return sum((c[j] - d[j]) ** 2 for j in range(3)) < r * r
 
 
-def spawned(faces):
-    """How many lights `light` spawns on these faces."""
-    return sum(max(1.0, f[1] / SURFLIGHT ** 2) for f in faces)
-
-
 def things(faces):
     """Faces grouped into things (closer than GLOW_OBJECT): [(the faces, how many lights it counts as)].
     A thing counts as its area in lights, or the square root of its faces if more (`light` puts one on
@@ -212,17 +221,291 @@ def crowd(thing, everyone):
     return max(1.0, sum(n for g, n in everyone if near(c, g[0][0], GLOW_ROOM)))
 
 
-def glow_lights(data, palette, scale, budget_base):
-    """Light entities for the map's textures with fullbright pixels (palette 224-254).
-    Each glowing texture has a budget of light (more the more of it glows), shared by the glowing
-    things in the room (crowd()), none brighter than 130: a button alone in its room glows round
-    itself, big or many glowing faces glow faintly each, and do not flood the room. Strongly coloured
-    glows (red buttons, blue panels) get up to twice the budget, a cap 30% higher, twice the reach and
-    their colour a tenth of the way to white, so that they tint the room; white and pale ones a quarter
-    of the way to white. Small glowing faces (buttons, panels, signs) get a light each in front of them,
-    as bright as their own room allows, unless in a wall; textures with big faces (a slipgate) get ericw's
-    surface lights ("_surface"), as bright as their most crowded room allows. Fixtures (named *light*)
-    get half, shared by all their lights in the map, since mappers put lights by them."""
+# A lone light fixture's light (--fixture-scale scales it); FIXTURE_LIT of it when a mapper's light of 300
+# or more (on from the start) is within FIXTURE_NEAR of it, less reduced by a weaker one. Fixtures' lights
+# stand FIXTURE_OFFSET in front of them, one every FIXTURE_STEP x FIXTURE_STEP units of a big one.
+FIXTURE_LIGHT = 250.0
+FIXTURE_LIT = 0.5
+FIXTURE_NEAR = 128.0
+FIXTURE_OFFSET = 4.0
+FIXTURE_STEP = 128.0
+# How far out of a recess a fixture's light may go.
+RECESS_MAX = 48.0
+# Textures named so are light fixtures unless relight_textures.cfg says otherwise.
+FIXTURE_WORDS = ("light", "lamp")
+# How much of a texture must glow for it to light: glowing textures, fixtures.
+GLOW_MIN_SHARE = 0.03
+FIXTURE_MIN_SHARE = 0.005
+DEFAULT_TEXTURES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "relight_textures.cfg")
+RULE_KEYS = ("kind", "scale", "light", "color", "reach")
+
+
+def load_rules(path):
+    """The per-texture rules of a relight_textures.cfg: [(pattern game/map/texture, {key: value})]."""
+    rules = []
+    if not path or not os.path.isfile(path):
+        return rules
+    with open(path) as f:
+        for number, line in enumerate(f, 1):
+            line = line.split("#", 1)[0].strip()
+            if not line:
+                continue
+            words = line.split()
+            pattern = words[0].lower()
+            pattern = "/".join(["*"] * (2 - pattern.count("/")) + [pattern])
+            keys = {}
+            for word in words[1:]:
+                key, _, value = word.partition("=")
+                if key not in RULE_KEYS or not value:
+                    sys.exit("%s:%d: unknown setting %r (known: %s)" % (path, number, word, ", ".join(RULE_KEYS)))
+                if key == "kind" and value not in ("fixture", "glow", "off"):
+                    sys.exit("%s:%d: kind is fixture, glow or off" % (path, number))
+                if key in ("scale", "light", "reach"):
+                    value = float(value)
+                if key == "color":
+                    value = tuple(float(x) for x in value.split(","))
+                    if len(value) != 3:
+                        sys.exit("%s:%d: color is r,g,b (0-255)" % (path, number))
+                keys[key] = value
+            rules.append((pattern, keys))
+    return rules
+
+
+def texture_rule(rules, where, name):
+    """The settings of every rule matching game/map/texture, later ones over earlier ones."""
+    full = "%s/%s/%s" % (where[0], where[1], name.lower())
+    merged = {}
+    for pattern, keys in rules:
+        if fnmatch.fnmatchcase(full, pattern):
+            merged.update(keys)
+    return merged
+
+
+def read_tga(path):
+    """(width, height, [(r, g, b)]) of an uncompressed or RLE true-colour TGA, or None."""
+    try:
+        with open(path, "rb") as f:
+            data = f.read()
+        idlen, cmap, kind = data[0], data[1], data[2]
+        width, height, bits = struct.unpack_from("<HHB", data, 12)
+        if cmap or kind not in (2, 10) or bits not in (24, 32):
+            return None
+        size = bits // 8
+        pos = 18 + idlen
+        if kind == 2:
+            raw = data[pos : pos + width * height * size]
+        else:
+            out = bytearray()
+            while len(out) < width * height * size and pos < len(data):
+                head = data[pos]
+                pos += 1
+                n = (head & 0x7F) + 1
+                if head & 0x80:
+                    out += data[pos : pos + size] * n
+                    pos += size
+                else:
+                    out += data[pos : pos + n * size]
+                    pos += n * size
+            raw = bytes(out)
+        return width, height, list(zip(raw[2::size], raw[1::size], raw[0::size]))
+    except (OSError, IndexError, struct.error):
+        return None
+
+
+class Lumas:
+    """The glowing parts of replacement textures (QRP and the like: textures/<name>_luma.tga), which glow
+    in game where the map's own texture has no fullbright pixels (light1_*, tlight05, tlight09, tlight10):
+    looked up as the engine does, textures/<map>/ then textures/, in the game folder then id1."""
+
+    def __init__(self, quake):
+        self.quake = quake
+        self.cache = {}
+
+    def glow(self, game, mapname, name):
+        """(share of pixels that glow, their mean colour) of a texture's luma image, or None."""
+        file = name.lower().replace("*", "#") + "_luma.tga"
+        for folder in dict.fromkeys((game, "id1")):
+            for sub in (mapname, ""):
+                path = os.path.join(self.quake, folder, "textures", sub, file)
+                if path not in self.cache:
+                    self.cache[path] = self.measure(path) if os.path.isfile(path) else None
+                if self.cache[path]:
+                    return self.cache[path]
+        return None
+
+    @staticmethod
+    def measure(path):
+        image = read_tga(path)
+        if not image or not image[2]:
+            return None
+        # QRP's lumas are often dim (tlight10's at most 64): what glows is what is at least half the brightest.
+        peak = max(max(p) for p in image[2])
+        if peak < 32:
+            return None
+        glowing = [p for p in image[2] if max(p) * 2 >= peak]
+        return (len(glowing) / float(len(image[2])),
+                tuple(sum(p[j] for p in glowing) / len(glowing) for j in range(3)))
+
+
+def map_lights(data):
+    """The map's own lights: [(origin, starts off, light)] (a "start off" light with a target name is off
+    until triggered: the fixture by it then looks lit but lights nothing)."""
+    out = []
+    for block in entities_text(data).split("}"):
+        keys = dict(re.findall(r'"([^"]*)"\s+"([^"]*)"', block))
+        if not keys.get("classname", "").startswith("light") or "origin" not in keys:
+            continue
+        try:
+            origin = tuple(float(x) for x in keys["origin"].split()[:3])
+            flags = int(float(keys.get("spawnflags", "0")))
+            value = abs(float(keys.get("light", keys.get("_light", "300")).split()[-1]))
+        except (ValueError, IndexError):
+            continue
+        out.append((origin, bool(keys.get("targetname")) and bool(flags & 1), value))
+    return out
+
+
+def face_samples(face):
+    """Points on a face, one every FIXTURE_STEP x FIXTURE_STEP units (its centre if small)."""
+    centre, area, normal, pts = face
+    if area <= FIXTURE_STEP ** 2 or len(pts) < 3:
+        return [centre]
+    # Axes in the face's plane.
+    helper = (0.0, 0.0, 1.0) if abs(normal[2]) < 0.9 else (1.0, 0.0, 0.0)
+    u = (normal[1] * helper[2] - normal[2] * helper[1], normal[2] * helper[0] - normal[0] * helper[2],
+         normal[0] * helper[1] - normal[1] * helper[0])
+    ul = sum(x * x for x in u) ** 0.5
+    u = tuple(x / ul for x in u)
+    v = (normal[1] * u[2] - normal[2] * u[1], normal[2] * u[0] - normal[0] * u[2], normal[0] * u[1] - normal[1] * u[0])
+    flat = [(sum(p[j] * u[j] for j in range(3)), sum(p[j] * v[j] for j in range(3))) for p in pts]
+    base = sum(pts[0][j] * normal[j] for j in range(3))
+
+    def inside(x, y):
+        sign = 0
+        for k in range(len(flat)):
+            (ax, ay), (bx, by) = flat[k], flat[(k + 1) % len(flat)]
+            c = (bx - ax) * (y - ay) - (by - ay) * (x - ax)
+            if abs(c) > 1e-3:
+                if sign and (c > 0) != (sign > 0):
+                    return False
+                sign = c
+        return True
+
+    lo = [min(p[k] for p in flat) for k in range(2)]
+    hi = [max(p[k] for p in flat) for k in range(2)]
+    out = []
+    counts = [max(1, int((hi[k] - lo[k]) / FIXTURE_STEP + 0.5)) for k in range(2)]
+    for i in range(counts[0]):
+        for j in range(counts[1]):
+            x = lo[0] + (hi[0] - lo[0]) * (i + 0.5) / counts[0]
+            y = lo[1] + (hi[1] - lo[1]) * (j + 0.5) / counts[1]
+            if inside(x, y):
+                out.append(tuple(x * u[k] + y * v[k] + base * normal[k] for k in range(3)))
+    return out or [centre]
+
+
+def recess_depth(face, solid):
+    """How far in front of a face its light goes: FIXTURE_OFFSET, or, for a lamp set in a recess (e1m6's
+    ceiling lamps sit in coffers with a lip), FIXTURE_OFFSET past where the recess walls end, so that the
+    lip does not shade the room (at most RECESS_MAX). The recess walls are found just outside the face's
+    edges: solid there on two opposite sides, at a depth in front of the face, is a recess or a slot round
+    it (one side, or two sides meeting in a corner, is a wall beside it, not a recess)."""
+    centre, _, normal, pts = face
+    if len(pts) < 3:
+        return FIXTURE_OFFSET
+    outside = []
+    for k in range(len(pts)):
+        mid = tuple((pts[k][j] + pts[(k + 1) % len(pts)][j]) / 2 for j in range(3))
+        out = [mid[j] - centre[j] for j in range(3)]
+        along = sum(out[j] * normal[j] for j in range(3))
+        out = [out[j] - along * normal[j] for j in range(3)]
+        length = sum(x * x for x in out) ** 0.5
+        if length > 1e-3:
+            out = [x / length for x in out]
+            outside.append((tuple(mid[j] + out[j] * 4 for j in range(3)), out))
+    last = FIXTURE_OFFSET
+    d = FIXTURE_OFFSET
+    while d <= RECESS_MAX:
+        if solid(tuple(centre[j] + normal[j] * d for j in range(3))):
+            return last
+        walls = [out for o, out in outside if solid(tuple(o[j] + normal[j] * d for j in range(3)))]
+        if not any(sum(a[j] * b[j] for j in range(3)) < -0.5 for a in walls for b in walls):
+            return d if d == FIXTURE_OFFSET else min(RECESS_MAX, d + FIXTURE_OFFSET)
+        last = d
+        d += 2.0
+    return last
+
+
+def fixture_spots(faces, solid):
+    """Where a fixture's light goes: one spot for a small fixture (in front of it, or in its middle, or
+    on top of it, whichever is in the open: several lights close together would add up to several
+    times the light), one every FIXTURE_STEP units in front of its faces for a big one (a long strip,
+    a lit floor)."""
+    total = sum(f[1] for f in faces) or 1.0
+    centre = tuple(sum(f[0][j] * f[1] for f in faces) / total for j in range(3))
+    spread = max((sum((f[0][j] - centre[j]) ** 2 for j in range(3)) ** 0.5 for f in faces), default=0.0)
+    if spread <= FIXTURE_STEP / 2 and all(f[1] <= FIXTURE_STEP ** 2 for f in faces):
+        facing = tuple(sum(f[2][j] * f[1] for f in faces) / total for j in range(3))
+        length = sum(x * x for x in facing) ** 0.5
+        candidates = []
+        if length > 0.3:
+            facing = tuple(x / length for x in facing)
+            depth = max([recess_depth(f, solid) for f in faces
+                         if sum(f[2][j] * facing[j] for j in range(3)) > 0.8] or [FIXTURE_OFFSET])
+            candidates += [tuple(centre[j] + facing[j] * o for j in range(3)) for o in (depth, FIXTURE_OFFSET, 2.0)]
+        top = max(p[2] for f in faces for p in f[3]) if faces[0][3] else centre[2]
+        candidates += [centre, (centre[0], centre[1], top + FIXTURE_OFFSET)]
+        for f in sorted(faces, key=lambda f: -f[1]):
+            candidates.append(tuple(f[0][j] + f[2][j] * FIXTURE_OFFSET for j in range(3)))
+        for p in candidates:
+            if not solid(p):
+                return [p]
+        return []
+    spots = []
+    for f in faces:
+        depth = recess_depth(f, solid)
+        for p in face_samples(f):
+            for offset in (depth, FIXTURE_OFFSET, 2.0):
+                q = tuple(p[j] + f[2][j] * offset for j in range(3))
+                if not solid(q):
+                    if not any(near(q, r, FIXTURE_STEP / 2) for r in spots):
+                        spots.append(q)
+                    break
+    return spots
+
+
+def light_entity(origin, value, wait, colour, extra=""):
+    return ('{\n"classname" "light"\n"origin" "%g %g %g"\n"light" "%d"\n"wait" "%.2f"\n"_color" "%s"\n%s}\n'
+            % (origin[0], origin[1], origin[2], value, wait, colour, extra))
+
+
+def glow_lights(data, palette, scale, budget_base, fixture_scale=1.0, fixture_lit=FIXTURE_LIT, rules=None,
+                where=("*", "*"), lumas=None, report=None):
+    """Light entities for the map's glowing textures: fullbright pixels (palette 224-254), or else the
+    glowing part of a replacement texture's _luma image (`lumas`, a Lumas), in the colour of what glows.
+
+    Light fixtures (lamps, light panels, strip lights: textures named *light* or *lamp*, and what the
+    `rules` of relight_textures.cfg say; `where` is (game, map) for them) get a light of their own:
+    FIXTURE_LIGHT for a lone fixture (times fixture_scale), fixture_lit of it by a mapper's light of 300
+    that is on from the start, less reduced by a weaker one (a "start off" one does not count: it leaves
+    the fixture looking lit and lighting nothing until triggered), a little less for a small fixture or one with little glowing, divided by the square root of
+    the fixtures in its room (GLOW_ROOM): one light for a small fixture (fixture_spots), one every
+    FIXTURE_STEP units for a big one, each divided by the square root of their number (down to 0.4).
+
+    Other glowing textures have a budget of light (more the more of them glows), shared by the glowing
+    things in the room (crowd()), none brighter than 130: a button alone in its room glows round itself,
+    big or many glowing faces glow faintly each, and do not flood the room. Strongly coloured glows (red
+    buttons, blue panels) get up to twice the budget, a cap 30% higher, twice the reach and their colour
+    a tenth of the way to white, so that they tint the room; white and pale ones a quarter of the way to
+    white. Small glowing faces (buttons, panels, signs) get a light each in front of them, as bright as
+    their own room allows, unless in a wall; textures with big faces (a slipgate) get ericw's surface
+    lights ("_surface"), as bright as their most crowded room allows.
+
+    A rule's scale multiplies a texture's light, light= sets a fixture's (instead of FIXTURE_LIGHT),
+    color= its colour, reach= how far it reaches (1: as computed; the light entities' "wait" divided by
+    it), kind= fixture, glow or off. `report`, a list, gets a line for each glowing texture."""
+    if rules is None:
+        rules = load_rules(DEFAULT_TEXTURES)
     faces = texture_faces(data)
     solid = solid_at(data)
     offset, length = lump(data, 2)
@@ -240,45 +523,88 @@ def glow_lights(data, palette, scale, budget_base):
         low = name.lower()
         if not name or pix <= 0 or low.startswith(("*", "sky")) or width * height == 0:
             continue
+        rule = texture_rule(rules, where, low)
+        kind = rule.get("kind", "fixture" if any(w in low for w in FIXTURE_WORDS) else "glow")
+        if kind == "off":
+            continue
+        least = FIXTURE_MIN_SHARE if kind == "fixture" else GLOW_MIN_SHARE
         pixels = data[base + pix : base + pix + width * height]
         glowing = [c for c in pixels if 224 <= c <= 254]
         share = len(glowing) / float(len(pixels))
-        if share < 0.03:
-            continue
-        r = sum(palette[c * 3] for c in glowing) / len(glowing)
-        g = sum(palette[c * 3 + 1] for c in glowing) / len(glowing)
-        b = sum(palette[c * 3 + 2] for c in glowing) / len(glowing)
-        glows.append((name, share, (r, g, b), faces[i], things(faces[i])))
-    everyone = [t for glow in glows for t in glow[4]]
+        source = "fullbright"
+        if share >= least:
+            colour = tuple(sum(palette[c * 3 + j] for c in glowing) / len(glowing) for j in range(3))
+        else:
+            luma = lumas.glow(where[0], where[1], name) if lumas else None
+            if luma and luma[0] >= least:
+                share, colour, source = luma[0], luma[1], "luma"
+            elif kind == "fixture" and "kind" in rule:
+                # Named a fixture but nothing glows: the colour of its brightest tenth.
+                ranked = sorted(pixels, key=lambda c: -sum(palette[c * 3 : c * 3 + 3]))[: max(1, len(pixels) // 10)]
+                share, source = 0.1, "brightest"
+                colour = tuple(sum(palette[c * 3 + j] for c in ranked) / len(ranked) for j in range(3))
+            else:
+                continue
+        if "color" in rule:
+            colour = rule["color"]
+        glows.append((name, kind, share, colour, faces[i], things(faces[i]), rule, source))
+    everyone = [t for glow in glows for t in glow[5]]
+    fixtures = [t for glow in glows if glow[1] == "fixture" for t in glow[5]]
+    lamps = map_lights(data) if fixtures else []
 
     out = []
-    for name, share, (r, g, b), used, mine in glows:
+    for name, kind, share, (r, g, b), used, mine, rule, source in glows:
         top = max(r, g, b, 1.0)
         sat = (top - min(r, g, b)) / top  # 0 white .. 1 pure colour
         white = 0.25 - 0.15 * sat
         r, g, b = (r * (1 - white) + top * white, g * (1 - white) + top * white, b * (1 - white) + top * white)
         colour = "%d %d %d" % (r * 255 / top, g * 255 / top, b * 255 / top)
-        budget = budget_base * min(1.0, 0.4 + share * 2) * scale
-        cap = 130 * scale * (1 + 0.3 * sat)
-        if "light" in name.lower():
-            value = min(130 * scale, budget * 0.5 / spawned(used))
-        elif all(f[1] <= 2 * SURFLIGHT ** 2 for f in used):
+        wait = 1 / (1 + sat) / rule.get("reach", 1.0)
+        own = rule.get("scale", 1.0) * scale
+        made = []
+        if kind == "fixture":
+            each = rule.get("light", FIXTURE_LIGHT) * own * fixture_scale * (0.6 + 0.4 * min(1.0, share * 5))
             for thing in mine:
-                value = min(cap, budget * (1 + sat) / crowd(thing, everyone))
-                spots = [tuple(c[j] + n[j] * 2 for j in range(3)) for c, _, n in thing[0]]
-                spots = [p for p in spots if not solid(p)]
+                value = each
+                c = thing[0][0][0]
+                # A mapper's light by it (on from the start) already lights round it: the stronger, the less.
+                by = [v for o, off, v in lamps if not off and any(near(o, f[0], FIXTURE_NEAR) for f in thing[0])]
+                if by:
+                    value *= 1 - (1 - fixture_lit) * min(1.0, max(by) / 300.0)
+                value /= sum(1 for t in fixtures if near(c, t[0][0][0], GLOW_ROOM)) ** 0.5
+                # A small fixture (a lamp of a few square units) a little less.
+                value *= min(1.0, max(0.5, (sum(f[1] for f in thing[0]) / 1024.0) ** 0.5))
+                spots = fixture_spots(thing[0], solid)
                 for p in spots:
-                    each = value / len(spots) ** 0.5
-                    if each >= 12:
-                        out.append('{\n"classname" "light"\n"origin" "%g %g %g"\n"light" "%d"\n"wait" "%.2f"\n'
-                                   '"_color" "%s"\n}\n' % (p[0], p[1], p[2], each, 1 / (1 + sat), colour))
-            continue
+                    v = min(300 * own * fixture_scale, value * max(0.4, len(spots) ** -0.5))
+                    if v >= 12:
+                        made.append(v)
+                        # No ambient occlusion on a fixture's own light: -dirt all but puts out a lamp set
+                        # in a recess (e1m6's ceiling lamps kept a fifth of their light).
+                        out.append(light_entity(p, v, wait, colour, '"_dirt" "-1"\n'))
         else:
-            value = min(cap, budget * (1 + sat) / max(crowd(t, everyone) for t in mine))
-        if value < 12:
-            continue
-        out.append('{\n"classname" "light"\n"_surface" "%s"\n"light" "%d"\n"wait" "%.2f"\n"_color" "%s"\n'
-                   '"_surface_offset" "2"\n}\n' % (name, value, 1 / (1 + sat), colour))
+            budget = budget_base * min(1.0, 0.4 + share * 2) * own
+            cap = 130 * own * (1 + 0.3 * sat)
+            if all(f[1] <= 2 * SURFLIGHT ** 2 for f in used):
+                for thing in mine:
+                    value = min(cap, budget * (1 + sat) / crowd(thing, everyone))
+                    spots = [tuple(c[j] + n[j] * 2 for j in range(3)) for c, _, n, _ in thing[0]]
+                    spots = [p for p in spots if not solid(p)]
+                    for p in spots:
+                        v = value / len(spots) ** 0.5
+                        if v >= 12:
+                            made.append(v)
+                            out.append(light_entity(p, v, wait, colour))
+            else:
+                value = min(cap, budget * (1 + sat) / max(crowd(t, everyone) for t in mine))
+                if value >= 12:
+                    made.append(value)
+                    out.append('{\n"classname" "light"\n"_surface" "%s"\n"light" "%d"\n"wait" "%.2f"\n"_color" "%s"\n'
+                               '"_surface_offset" "2"\n}\n' % (name, value, wait, colour))
+        if report is not None:
+            report.append("  %-16s %-7s %-10s glows %5.1f%%  faces %4d  things %3d  lights %4d  %s" % (
+                name, kind, source, share * 100, len(used), len(mine), len(made),
+                "light %d..%d" % (min(made), max(made)) if made else "(too faint: none)"))
     return "".join(out)
 
 
@@ -298,12 +624,36 @@ def water_vise(path, patches, base):
         return
     with open(path, "rb") as f:
         data = f.read()
-    result = vis_maps.vispatch(data, entry)
-    if result is None:
-        print("%s: the water-vis patch is for another version of the map, left alone" % base)
-    elif result != data:
+    vis, leafs = entry
+    if lump_bytes(data, 4) == vis and lump_bytes(data, 10) == leafs:
+        result = packed(data)  # patched already (a map that was up to date)
+    else:
+        result = vis_maps.vispatch(data, entry)
+        if result is None:
+            print("%s: the water-vis patch is for another version of the map, left alone" % base)
+            return
+        result = packed(result)
+    if result != data:
         with open(path, "wb") as f:
             f.write(result)
+
+
+def lump_bytes(data, index):
+    offset, length = lump(data, index)
+    return data[offset : offset + length]
+
+
+def packed(data):
+    """The .bsp with its lumps one after another (replacing a lump appends it and leaves the old one
+    unused: patching an up-to-date map again, before round 15, grew it by its visibility each run)."""
+    out = bytearray(data[:4] + bytes(15 * 8))
+    for index in range(15):
+        body = lump_bytes(data, index)
+        while len(out) % 4:
+            out.append(0)
+        struct.pack_into("<ii", out, 4 + index * 8, len(out), len(body))
+        out += body
+    return bytes(out)
 
 
 def find_light(explicit):
@@ -327,6 +677,17 @@ def main():
     parser.add_argument("--glow-scale", type=float, default=1.0, help="brightness of the glowing textures' light")
     parser.add_argument("--glow-budget", type=float,
                         help="light a glowing texture shares out (default %g)" % DEFAULT_GLOW_BUDGET)
+    parser.add_argument("--fixture-scale", type=float, default=1.0,
+                        help="brightness of light fixtures' light (lamps, light panels), times --glow-scale")
+    parser.add_argument("--fixture-lit", type=float, default=FIXTURE_LIT,
+                        help="a fixture's light by a mapper's light that is on from the start (default %g of "
+                             "a lone fixture's)" % FIXTURE_LIT)
+    parser.add_argument("--textures", default=DEFAULT_TEXTURES,
+                        help="per-texture settings (default Misc/quakevr/relight_textures.cfg; '' for none)")
+    parser.add_argument("--no-luma", action="store_true",
+                        help="ignore replacement textures' _luma images (textures/*_luma.tga) in finding what glows")
+    parser.add_argument("--list-glows", action="store_true",
+                        help="list each map's glowing textures and their lights, relighting nothing")
     parser.add_argument("--vis-dir", default=os.environ.get("QUAKEVR_VISPATCH"),
                         help="folder with the VisPatch files (id1.vis ...): see-through water (vis_maps.py)")
     parser.add_argument("--bright", action="store_true",
@@ -337,7 +698,9 @@ def main():
     if args.glow_budget is None:
         args.glow_budget = BRIGHT_GLOW_BUDGET if args.bright else DEFAULT_GLOW_BUDGET
 
-    light = find_light(args.light)
+    light = None if args.list_glows else find_light(args.light)
+    rules = load_rules(args.textures)
+    lumas = None if args.no_luma else Lumas(args.quake)
     light_args = args.light_args.split()
     total = done = failed = 0
     palette = None
@@ -363,7 +726,14 @@ def main():
                 continue
             total += 1
             # The glowing textures' lights are in the stamp: a change to how they are made relights.
-            lights = glow_lights(data, palette, args.glow_scale, args.glow_budget) if palette else ""
+            report = [] if args.list_glows else None
+            lights = glow_lights(data, palette, args.glow_scale, args.glow_budget, args.fixture_scale,
+                                 args.fixture_lit, rules, (game, base), lumas, report) if palette else ""
+            if args.list_glows:
+                print("%s/%s:" % (game, base))
+                for line in report or ["  (nothing glows)"]:
+                    print(line)
+                continue
             stamp_value = hashlib.sha1(data + (" ".join(light_args) + lights).encode("latin-1")).hexdigest()
             out_bsp = os.path.join(out_dir, base + ".bsp")
             out_lit = os.path.join(out_dir, base + ".lit")
@@ -401,6 +771,8 @@ def main():
                 done += 1
                 print("ok")
 
+    if args.list_glows:
+        return 0
     print("%d maps: %d relit, %d up to date, %d failed" % (total, done, total - done - failed, failed))
     return 1 if failed else 0
 

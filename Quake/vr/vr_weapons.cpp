@@ -52,8 +52,9 @@ void onIdChanged(cvar_t* /* var */)
 // values: vr_wofs_version says which of these changes a config has seen, and the slots are reset to
 // their new defaults once. 1: slots 19 and 20 (the knights' swords; they were unused placeholders);
 // 2: the same (the swords remade with grips, held as the axe); 3: the same (the grips centred on
-// the blades, thicker); 4: the same (new hilts: crossguard, grip and pommel on the blades' axes).
-constexpr int settingsVersion = 4;
+// the blades, thicker); 4: the same (new hilts: crossguard, grip and pommel on the blades' axes);
+// 5: the same (longer grips, held just under the crossguard, and two-handed: TwoHMode 3).
+constexpr int settingsVersion = 5;
 
 void resetSlot(int slot)
 {
@@ -71,7 +72,7 @@ void migrate()
     {
         return;
     }
-    if(vr_wofs_version.value < 4)
+    if(vr_wofs_version.value < 5)
     {
         resetSlot(18);
         resetSlot(19);

@@ -221,6 +221,16 @@ void() worldspawn =
     precache_sound("demon/dland2.wav");        // landing thud
     precache_sound("misc/h2ohit1.wav");        // landing splash
 
+    // VR: water sounds played by the engine (vr_physics.cpp: splashes, shots into water, wading,
+    // swimming strokes; Misc/quakevr/make_sounds.py)
+    precache_sound("vr/splash_small.wav");
+    precache_sound("vr/splash_big.wav");
+    precache_sound("vr/plip.wav");
+    precache_sound("vr/slosh1.wav");
+    precache_sound("vr/slosh2.wav");
+    precache_sound("vr/stroke1.wav");
+    precache_sound("vr/stroke2.wav");
+
     // VR: a headshot's tick; the knights' swords, which a player can carry into any map, and their
     // sounds (also a carried box's grab).
     precache_sound("vr/headshot.wav");

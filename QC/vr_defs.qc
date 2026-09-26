@@ -274,6 +274,8 @@ float QVR_VRBITS0_MAINHAND_PREVRELOADFLICKING = VRUTIL_POWER_OF_TWO(13);
 float QVR_VRBITS0_HANDSTRACKED              = VRUTIL_POWER_OF_TWO(14); // set by the engine: real VR hands
 float QVR_VRBITS0_OFFHAND_CLIMBING         = VRUTIL_POWER_OF_TWO(15); // set by the engine: the hand holds a ledge (vr_climb)
 float QVR_VRBITS0_MAINHAND_CLIMBING        = VRUTIL_POWER_OF_TWO(16);
+float QVR_VRBITS0_OFFHAND_BUSY             = VRUTIL_POWER_OF_TWO(17); // set by the engine: the hand holds the flashlight (client-side): no force grab
+float QVR_VRBITS0_MAINHAND_BUSY            = VRUTIL_POWER_OF_TWO(18);
 
 //
 //

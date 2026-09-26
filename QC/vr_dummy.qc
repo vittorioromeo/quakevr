@@ -128,6 +128,10 @@ string(entity inflictor, entity attacker, float isVRMelee) VR_Dummy_Kind =
         {
             what = sprintf("%s as a club, %s", WeaponIdToWeaponName(wid), what);
         }
+        if(b.blow_hit_stroke == b.blow_t0 && b.blow_hit_name != "")
+        {
+            what = sprintf("%s with %s", what, b.blow_hit_name); // the striking point (vr_juice.qc)
+        }
         return sprintf("melee: %s, %s, %s over %.0f cm, %.0f m/s2 (x%.2f)", what, VR_Dummy_HandName(vr_hithand),
             speed, b.blow_dist * 100, b.blow_accel, b.blow_strength);
     }

@@ -247,6 +247,38 @@ void PF_particle2()
     MSG_WriteShort(&sv.datagram, count);
 }
 
+// vector liquidentry(vector start, vector end): where the segment first goes into water, slime or
+// lava from the open (or out of it: a shot from under water), on the surface; `start` itself if it
+// crosses none. Leaves the trace globals alone (a shot's trace is still being used).
+void PF_liquidentry()
+{
+    const float* start = G_VECTOR(OFS_PARM0);
+    const float* end = G_VECTOR(OFS_PARM1);
+    glm::vec3 at{start[0], start[1], start[2]};
+    const bool crossed = physics::liquidEntry(at, {end[0], end[1], end[2]}, at);
+    if(developer.value >= 3)
+    {
+        Con_Printf("liquidentry %.0f %.0f %.0f -> %.0f %.0f %.0f: %s\n", start[0], start[1], start[2], end[0], end[1], end[2],
+            crossed ? "crosses" : "no");
+    }
+    float* out = G_VECTOR(OFS_RETURN);
+    for(int i = 0; i < 3; i++)
+    {
+        out[i] = crossed ? at[i] : start[i];
+    }
+}
+
+// void watersplash(vector org, vector dir, float strength, float sound): a splash on a liquid's
+// surface at `org`, something going `dir` into it `strength` hard (3 a shot .. 50 a body), and its
+// sound (QVR_SPLASH_*: none, a shot's plip, a thing's splash by strength).
+void PF_watersplash()
+{
+    const float* org = G_VECTOR(OFS_PARM0);
+    const float* dir = G_VECTOR(OFS_PARM1);
+    physics::waterSplash({org[0], org[1], org[2]}, {dir[0], dir[1], dir[2]}, G_FLOAT(OFS_PARM2),
+        static_cast<physics::SplashSound>(CLAMP(0, static_cast<int>(G_FLOAT(OFS_PARM3)), 2)));
+}
+
 // haptic(hand, delay, duration, frequency, amplitude), for the `self` player.
 void PF_haptic()
 {
@@ -266,6 +298,14 @@ void PF_handimpact()
 {
     server::sendHandImpact(PROG_TO_EDICT(pr_global_struct->self), static_cast<int>(G_FLOAT(OFS_PARM0)), G_FLOAT(OFS_PARM1),
         G_VECTOR(OFS_PARM2));
+}
+
+// ejectcasings(hand, kind, count, delay, flags): spent casings out of the `self` player's weapon.
+void PF_ejectcasings()
+{
+    server::sendEject(PROG_TO_EDICT(pr_global_struct->self), static_cast<int>(G_FLOAT(OFS_PARM0)),
+        static_cast<int>(G_FLOAT(OFS_PARM1)), static_cast<int>(G_FLOAT(OFS_PARM2)), static_cast<int>(G_FLOAT(OFS_PARM4)),
+        G_FLOAT(OFS_PARM3));
 }
 
 struct VrBuiltin
@@ -294,6 +334,9 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"handimpact", PF_handimpact},
     {"carryangles", PF_carryangles},
     {"floattext", PF_floattext},
+    {"ejectcasings", PF_ejectcasings},
+    {"liquidentry", PF_liquidentry},
+    {"watersplash", PF_watersplash},
 };
 
 static_assert(firstVrBuiltin + std::size(vrBuiltins) < MAX_BUILTINS - 200,

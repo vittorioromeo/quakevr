@@ -719,6 +719,14 @@ extern "C" int VR_RigidToss(edict_t* ent)
     const bool rigid = f.vr_rigid >= 0 && fieldFloat(ent, f.vr_rigid) != 0.f;
     keepInWorld(ent, rigid);
 
+    // Its first move: SV_CheckWaterTransition takes the contents it ends in as where it spawned, so a
+    // rocket or a nail fired into water from close by never went in (no splash, vr_physics.cpp). One
+    // starting in the open is in the open.
+    if(ent->v.watertype == 0.f && SV_PointContents(ent->v.origin) == CONTENTS_EMPTY)
+    {
+        ent->v.watertype = CONTENTS_EMPTY;
+    }
+
     const int movetype = static_cast<int>(ent->v.movetype);
     if(!rigid || (movetype != MOVETYPE_TOSS && movetype != MOVETYPE_BOUNCE))
     {

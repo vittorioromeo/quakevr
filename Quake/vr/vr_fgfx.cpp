@@ -2,6 +2,7 @@
 
 #include "vr_fgfx.hpp"
 #include "vr_cvars.hpp"
+#include "vr_flashlight.hpp"
 #include "vr_held.hpp"
 #include "vr_lines.hpp"
 #include "vr_particles.hpp"
@@ -109,7 +110,16 @@ void queue(const hands::State& s)
     lastTime = now;
 
     // The glows fade towards each hand's target: aimed at, softly; locked on or flying, fully.
-    const Target targets[2] = {target(protocol::STAT_QVR_FGOFF), target(protocol::STAT_QVR_FGMAIN)};
+    Target targets[2] = {target(protocol::STAT_QVR_FGOFF), target(protocol::STAT_QVR_FGMAIN)};
+    // A hand holding the flashlight does not force grab (the server is told; this spares the
+    // round trip).
+    for(int hand = 0; hand < 2; hand++)
+    {
+        if(flashlight::holds(hand))
+        {
+            targets[hand] = Target{};
+        }
+    }
     const auto wanted = [](const Target& t) { return t.state != None && valid(t.ent); };
     const auto goalOf = [&](int ent) {
         float goal = 0.f;

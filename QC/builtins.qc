@@ -148,6 +148,12 @@ string(string fmt, ...) sprintf = #627; // DP_QC_SPRINTF
 void(vector o, vector d, float preset, float count) particle2 = #0; // start a particle2 effect
 void(float hand, float delay, float duration, float frequency, float amplitude) haptic = #0; // VR haptics function
 void(float hand, float strength, vector dir) handimpact = #0; // knock the `self` player's drawn hand (a parried blow)
+// Spent casings out of the weapon in the `self` player's `hand`, `delay` seconds from now: drawn by
+// that player's client from its weapon model's port (vr_shells.cpp; vr_shells). `kind`
+// QVR_CASING_*; `flags` QVR_EJECT_*.
+void(float hand, float kind, float count, float delay, float flags) ejectcasings = #0;
+float QVR_CASING_SHOTGUNSHELL = 0;
+float QVR_EJECT_FLICK = 1; // a flick reload: flung by the spinning weapon
 vector(entity e, vector handangles, float grab) carryangles = #0; // a held object's angles: at the grip (grab 1) its turn in the hand is kept; after, it turns with the hand
 void(vector ang) makeforward = #0; // sets v_forward
 vector(entity e, float max) modelbounds = #0; // the model's mins (max 0) or maxs, in model space
@@ -168,3 +174,13 @@ void(float h, float v) worldtext_hsetscale = #0;
 void(vector org, string text, vector colour, float scale) floattext = #0; // a text rising from `org` and fading (1.5 s), facing the viewer, for every client
 
 void(float to, vector v) WriteVec3 = #0; // three WriteCoords
+
+// Water splashes (vr_physics.cpp): where a segment first goes into water, slime or lava from the
+// open (or out of it), on the surface -- `start` itself if it crosses none (the trace globals are
+// left alone); and a splash there, something going `dir` in `strength` hard (3 a shot, 6-15 a hand
+// or a thrown thing, 20-50 a body), with its sound (QVR_SPLASH_*; vr_water_splash, vr_water_sounds).
+vector(vector start, vector end) liquidentry = #0;
+void(vector org, vector dir, float strength, float snd) watersplash = #0;
+float QVR_SPLASH_SILENT = 0; // the caller plays its own sound
+float QVR_SPLASH_SHOT = 1;   // a small plip
+float QVR_SPLASH_THING = 2;  // a splash, small or big by strength

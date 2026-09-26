@@ -4,6 +4,7 @@
 #include "vr_client.hpp"
 #include "vr_decals.hpp"
 #include "vr_engine.hpp"
+#include "vr_flashlight.hpp"
 #include "vr_particles.hpp"
 #include "vr_cvars.hpp"
 #include "vr_flick.hpp"
@@ -14,6 +15,7 @@
 #include "vr_main.hpp"
 #include "vr_move.hpp"
 #include "vr_protocol.hpp"
+#include "vr_shells.hpp"
 #include "vr_teleport.hpp"
 #include "vr_throw.hpp"
 #include "vr_twohand.hpp"
@@ -222,6 +224,15 @@ throwing::Estimate thrown[2];
     {
         move.buttons |= QVR_BUTTON_HANDSTRACKED;
     }
+    // A hand holding the flashlight does not force grab.
+    if(flashlight::holds(HAND_OFF))
+    {
+        move.buttons |= QVR_BUTTON_OFFHANDBUSY;
+    }
+    if(flashlight::holds(HAND_MAIN))
+    {
+        move.buttons |= QVR_BUTTON_MAINHANDBUSY;
+    }
 
     return move;
 }
@@ -296,6 +307,7 @@ void parseParticle2()
         case Preset::GunForceGrab: puff(208, count); break;
         case Preset::LavaSpike: puff(235, count); break;
         case Preset::BigSmoke: puff(6, count * 2); break;
+        case Preset::Splash: break; // Quake had none (vr_particles.cpp)
         default: puff(73, count); break;
     }
 }
@@ -354,6 +366,7 @@ void init()
 {
     teleport::init();
     Cmd_AddCommand("vr_particle_test", particleTest_f);
+    shells::registerCommands();
     Cmd_AddCommand("+offhandattack", OffhandAttackDown_f);
     Cmd_AddCommand("-offhandattack", OffhandAttackUp_f);
     Cmd_AddCommand("+grableft", GrabLeftDown_f);
@@ -439,6 +452,7 @@ extern "C" void VR_OnClientClearState()
     twohand::reset();
     flick::reset();
     handpose::reset();
+    shells::clear();
 }
 
 extern "C" void VR_WriteMoveExtras(sizebuf_t* buf)
@@ -496,6 +510,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_WORLDTEXT_HALIGN:
         case QVR_SVC_WORLDTEXT_SCALE: worldtext::clientParse(subcmd); break;
         case QVR_SVC_FLOATTEXT: worldtext::clientParseFloatText(); break;
+        case QVR_SVC_EJECT: shells::parseEject(); break;
         default: Host_Error("svc_quakevr: unknown command %d", subcmd);
     }
 

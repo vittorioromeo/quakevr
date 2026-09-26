@@ -7,6 +7,7 @@
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_lines.hpp"
+#include "vr_units.hpp"
 
 namespace qvr::body
 {
@@ -60,13 +61,51 @@ namespace
     }
 }
 
+// With the body drawn (vr_body_mode), the old placement (made for no body: a hand's width behind
+// the eyes) is inside the torso, whose chest hid the hips and upper holsters from the eyes. They
+// come forward onto the front of the body (the belly, the chest), and further as needed to be seen
+// past the chest when looking down, by at most a little (with the torso right under the eyes,
+// vr_body_torso_back 0, the chest still hides part of the hips). Further forward offsets
+// (vr_hip_offset_x, vr_upper_holster_offset_x) still apply. In the standing body, which the
+// Follower carries.
+[[nodiscard]] glm::vec3 onTheBody(const hands::State& standing, Holster holster, const glm::vec3& pos)
+{
+    if(vr_body_mode.value < 1.f || holster == LeftShoulder || holster == RightShoulder)
+    {
+        return pos;
+    }
+
+    // make_vrbody.py: the spine hangs from the top of the neck (vr_body_eye_forward and
+    // vr_body_eye_up from the eyes, then vr_body_torso_back), its rings centred 0.01 m behind it;
+    // the belly (the pelvis ring) is 0.115 m deep, the chest 0.12-0.13 times the build's torso
+    // scale, widest 0.22 m below the neck (1.35 m, the neck at 1.57).
+    const float m2w = units::metresToUnits() * units::bodyScale();
+    const int build = static_cast<int>(vr_body_build.value);
+    const float torsoScale = build <= 0 ? 0.965f : build >= 2 ? 1.175f : 1.07f;
+    const float axis = -(vr_body_eye_forward.value + vr_body_torso_back.value + 0.01f) * m2w; // from the eyes
+    const float chestFront = axis + 0.13f * torsoScale * m2w;
+    const float chestDrop = (vr_body_eye_up.value + 0.22f) * m2w;
+
+    glm::vec3 fwd, right, up;
+    hands::angleVectors({0.f, standing.bodyYaw, 0.f}, fwd, right, up);
+    const float now = glm::dot(pos - standing.head, fwd);
+    const bool hip = holster == LeftHip || holster == RightHip;
+    const float onFront = axis + (hip ? 0.115f : 0.12f * torsoScale) * m2w + 1.5f; // clear of the surface
+
+    // In front of the line from the eyes over the front of the chest.
+    const float drop = standing.head.z - pos.z;
+    const float seen = drop > chestDrop + 1.f ? chestFront * drop / chestDrop + 1.f : onFront;
+    const float target = onFront + CLAMP(0.f, seen - onFront, 2.5f);
+    return now < target ? pos + fwd * (target - now) : pos;
+}
+
 // With vr_body_anchors: where the holster is for the standing body, carried by the pelvis (hips)
 // or the chest.
 [[nodiscard]] glm::vec3 followingHolsterPosition(
     const avatar::Follower& follow, const hands::State& standing, Holster holster)
 {
     const avatar::Part part = holster == LeftHip || holster == RightHip ? avatar::Part::Pelvis : avatar::Part::Chest;
-    return follow(part, legacyHolsterPosition(standing, holster));
+    return follow(part, onTheBody(standing, holster, legacyHolsterPosition(standing, holster)));
 }
 
 [[nodiscard]] Hotspot hotspot(const hands::State& s, int hand, const HolsterPositions& holsters)

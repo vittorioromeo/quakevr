@@ -16,6 +16,7 @@
 #include "vr_lines.hpp"
 #include "vr_protocol.hpp"
 #include "vr_render.hpp"
+#include "vr_shells.hpp"
 #include "vr_stereo.hpp"
 #include "vr_text3d.hpp"
 #include "vr_twohand.hpp"
@@ -1179,6 +1180,9 @@ extern "C" void VR_SetupViewEntities()
             cl_visedicts[cl_numvisedicts++] = &ve.ent;
         }
     });
+
+    // Spent casings thrown out of the weapons (vr_shells.cpp).
+    shells::frame(entities.weapon);
 }
 
 namespace qvr::view

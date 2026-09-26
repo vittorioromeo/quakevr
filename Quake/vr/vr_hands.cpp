@@ -227,7 +227,7 @@ void updateVelocities(const TrackingState* t)
     glm::vec3 headFwd, headRight, headUp;
     angleVectors({0.f, headYaw, 0.f}, headFwd, headRight, headUp);
 
-    const glm::vec3 chest = state.playerOrigin - headFwd * 10.f;
+    const glm::vec3 chest = state.playerOrigin + state.lean - headFwd * 10.f;
     const glm::vec3 shoulders[2]{chest - headRight * 6.5f, chest + headRight * 6.5f};
 
     glm::vec3 handDir{0.f};
@@ -419,7 +419,8 @@ glm::vec3 bodyAnchor(const State& s, const glm::vec3& offsets)
     glm::vec3 fwd, right, up;
     angleVectors({heightRatio * -35.f, s.bodyYaw, 0.f}, fwd, right, up);
 
-    glm::vec3 origin = s.playerOrigin;
+    // Under the head, as the drawn body is: the box's middle and the lean (vr_lean_radius).
+    glm::vec3 origin = s.playerOrigin + s.lean;
     origin.z += 2.f - s.crouchRatio * 18.f;
 
     return origin + right * offsets.y + fwd * offsets.x +

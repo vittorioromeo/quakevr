@@ -10,6 +10,7 @@
 #include "vr_gfx.hpp"
 
 #include <algorithm>
+#include <cstdio>
 #include <cmath>
 
 namespace qvr
@@ -39,6 +40,8 @@ InputState mockInput;
     return -1;
 }
 
+bool setMockButton(int hand, const char* control, bool on);
+
 // vr_mock_button <main|off> <trigger|grip|primary|secondary|stickclick|menu> <0|1>
 void mockButton_f()
 {
@@ -48,7 +51,14 @@ void mockButton_f()
         Con_Printf("usage: vr_mock_button <main|off> <trigger|grip|primary|secondary|stickclick|menu> <0|1>\n");
         return;
     }
+    if(!setMockButton(hand, Cmd_Argv(2), Q_atoi(Cmd_Argv(3)) != 0))
+    {
+        Con_Printf("vr_mock_button: unknown control \"%s\"\n", Cmd_Argv(2));
+    }
+}
 
+bool setMockButton(int hand, const char* control, bool on)
+{
     struct Control
     {
         const char* name;
@@ -60,26 +70,33 @@ void mockButton_f()
 
     for(const Control& c : controls)
     {
-        if(!q_strcasecmp(Cmd_Argv(2), c.name))
+        if(!q_strcasecmp(control, c.name))
         {
             HandInput& in = mockInput.hands[hand];
-            in.*c.button = Q_atoi(Cmd_Argv(3)) != 0;
+            in.*c.button = on;
 
             // Like a real controller: the fingers follow the trigger and grip, the thumb rests
             // on the face buttons.
             in.triggerValue = in.trigger ? 1.f : 0.f;
             in.gripValue = in.grip ? 1.f : 0.f;
             in.thumbTouch = in.primary || in.secondary || in.stickClick;
-            return;
+            return true;
         }
     }
-    Con_Printf("vr_mock_button: unknown control \"%s\"\n", Cmd_Argv(2));
+    return false;
 }
 
 // vr_mock_hand <main|off|head> <x> <y> <z> [<pitch> <yaw> <roll>]: tracking-space position
 // (metres, +x right, +y up, -z forward) and, for a hand, its orientation (degrees: pitch up,
 // yaw left, roll right side up); "vr_mock_hand <main|off|head>" alone restores
 // the standing pose's.
+[[nodiscard]] glm::quat mockRotation(float pitch, float yaw, float roll)
+{
+    return glm::angleAxis(glm::radians(yaw), glm::vec3{0.f, 1.f, 0.f}) *
+           glm::angleAxis(glm::radians(pitch), glm::vec3{1.f, 0.f, 0.f}) *
+           glm::angleAxis(glm::radians(-roll), glm::vec3{0.f, 0.f, -1.f});
+}
+
 constexpr int mockHead = HAND_COUNT;
 glm::vec3 mockHandPos[HAND_COUNT + 1];
 bool mockHandSet[HAND_COUNT + 1]{};
@@ -103,9 +120,179 @@ void mockHand_f()
     if(hand < HAND_COUNT)
     {
         mockHandRotSet[hand] = Cmd_Argc() == 8;
-        mockHandRot[hand] = glm::angleAxis(glm::radians(Q_atof(Cmd_Argv(6))), glm::vec3{0.f, 1.f, 0.f}) *
-                            glm::angleAxis(glm::radians(Q_atof(Cmd_Argv(5))), glm::vec3{1.f, 0.f, 0.f}) *
-                            glm::angleAxis(glm::radians(-Q_atof(Cmd_Argv(7))), glm::vec3{0.f, 0.f, -1.f});
+        mockHandRot[hand] = mockRotation(Q_atof(Cmd_Argv(5)), Q_atof(Cmd_Argv(6)), Q_atof(Cmd_Argv(7)));
+    }
+}
+
+// vr_mock_play <file>: plays a scripted motion on the clock, so that it runs the same at any frame
+// rate (vr_mock_hand moves once per command: scripts paced by "wait" run at the server's rate). The
+// file has one keyframe per line, times in seconds from the start:
+//   <t> <main|off|head> <x> <y> <z> [<pitch> <yaw> <roll>]   (as vr_mock_hand)
+//   <t> button <main|off> <control> <0|1>                     (as vr_mock_button)
+//   <t> cmd <console command>                                (e.g. +grabright, -grabright)
+// Poses in between are interpolated (positions linearly, orientations by slerp), and the hands
+// report the motion's velocities between their keyframes, as a runtime would. At the end the last
+// poses stay, as vr_mock_hand leaves them. "vr_mock_play" alone stops it.
+struct PlayKey
+{
+    double t;
+    glm::vec3 pos;
+    bool hasRot;
+    glm::quat rot;
+};
+struct PlayButton
+{
+    double t;
+    int hand; // -1: `control` is a console command
+    char control[64];
+    bool on;
+};
+std::vector<PlayKey> playKeys[HAND_COUNT + 1];
+std::vector<PlayButton> playButtons;
+std::size_t playNextButton = 0;
+double playStart = -1.0;
+double playEnd = 0.0;
+
+void mockPlay_f()
+{
+    for(auto& keys : playKeys)
+    {
+        keys.clear();
+    }
+    playButtons.clear();
+    playNextButton = 0;
+    playStart = -1.0;
+    playEnd = 0.0;
+    if(Cmd_Argc() != 2)
+    {
+        return;
+    }
+
+    FILE* file = fopen(Cmd_Argv(1), "r");
+    if(!file)
+    {
+        Con_Printf("vr_mock_play: can't open \"%s\"\n", Cmd_Argv(1));
+        return;
+    }
+    char line[256];
+    while(fgets(line, sizeof(line), file))
+    {
+        double t;
+        char what[16], a[16];
+        float x, y, z, pitch, yaw, roll;
+        int on;
+        char command[64];
+        if(sscanf(line, "%lf cmd %63[^\r\n]", &t, command) == 2)
+        {
+            PlayButton b{t, -1, {}, true};
+            q_strlcpy(b.control, command, sizeof(b.control));
+            playButtons.push_back(b);
+            playEnd = std::max(playEnd, t);
+            continue;
+        }
+        if(sscanf(line, "%lf button %15s %15s %d", &t, what, a, &on) == 4)
+        {
+            PlayButton b{t, mockHand(what), {}, on != 0};
+            q_strlcpy(b.control, a, sizeof(b.control));
+            if(b.hand >= 0)
+            {
+                playButtons.push_back(b);
+                playEnd = std::max(playEnd, t);
+            }
+            continue;
+        }
+        const int n = sscanf(line, "%lf %15s %f %f %f %f %f %f", &t, what, &x, &y, &z, &pitch, &yaw, &roll);
+        if(n != 5 && n != 8)
+        {
+            continue;
+        }
+        const int target = !q_strcasecmp(what, "head") ? mockHead : mockHand(what);
+        if(target < 0)
+        {
+            continue;
+        }
+        playKeys[target].push_back({t, {x, y, z}, n == 8 && target < HAND_COUNT,
+            n == 8 ? mockRotation(pitch, yaw, roll) : glm::quat{1.f, 0.f, 0.f, 0.f}});
+        playEnd = std::max(playEnd, t);
+    }
+    fclose(file);
+    std::stable_sort(playButtons.begin(), playButtons.end(),
+        [](const PlayButton& l, const PlayButton& r) { return l.t < r.t; });
+    for(auto& keys : playKeys)
+    {
+        std::stable_sort(keys.begin(), keys.end(), [](const PlayKey& l, const PlayKey& r) { return l.t < r.t; });
+    }
+    playStart = realtime;
+}
+
+// The played motion at realtime `now`: poses into mockHandPos/mockHandRot, and each played hand's
+// velocities (tracking space) into `vel`/`angVel` with `played` set.
+void playFrame(double now, glm::vec3* vel, glm::vec3* angVel, bool* played)
+{
+    if(playStart < 0.0)
+    {
+        return;
+    }
+    const double t = now - playStart;
+    for(int target = 0; target <= HAND_COUNT; target++)
+    {
+        const std::vector<PlayKey>& keys = playKeys[target];
+        if(keys.empty())
+        {
+            continue;
+        }
+        std::size_t i = 0;
+        while(i + 1 < keys.size() && keys[i + 1].t <= t)
+        {
+            i++;
+        }
+        const PlayKey& k0 = keys[i];
+        const PlayKey& k1 = i + 1 < keys.size() ? keys[i + 1] : keys[i];
+        const double span = k1.t - k0.t;
+        const float s = span > 0.0 ? static_cast<float>(std::clamp((t - k0.t) / span, 0.0, 1.0)) : 1.f;
+        mockHandPos[target] = glm::mix(k0.pos, k1.pos, s);
+        mockHandSet[target] = true;
+        if(target == mockHead)
+        {
+            continue;
+        }
+        if(k0.hasRot && k1.hasRot)
+        {
+            mockHandRot[target] = glm::slerp(k0.rot, k1.rot, s);
+            mockHandRotSet[target] = true;
+        }
+        played[target] = true;
+        vel[target] = glm::vec3{0.f};
+        angVel[target] = glm::vec3{0.f};
+        if(span > 0.0 && t >= k0.t && t <= k1.t)
+        {
+            vel[target] = (k1.pos - k0.pos) / static_cast<float>(span);
+            if(k0.hasRot && k1.hasRot)
+            {
+                glm::quat d = k1.rot * glm::inverse(k0.rot);
+                if(d.w < 0.f)
+                {
+                    d = -d;
+                }
+                angVel[target] = glm::axis(d) * (glm::angle(d) / static_cast<float>(span));
+            }
+        }
+    }
+    while(playNextButton < playButtons.size() && playButtons[playNextButton].t <= t)
+    {
+        const PlayButton& b = playButtons[playNextButton++];
+        if(b.hand < 0)
+        {
+            Cbuf_InsertText(va("%s\n", b.control)); // ahead of a script waiting in the buffer
+        }
+        else
+        {
+            setMockButton(b.hand, b.control, b.on);
+        }
+    }
+    if(t > playEnd)
+    {
+        playStart = -1.0;
     }
 }
 
@@ -211,6 +398,10 @@ public:
 
     [[nodiscard]] bool beginFrame(TrackingState& tracking, FrameState& frame) override
     {
+        glm::vec3 playVel[HAND_COUNT + 1], playAngVel[HAND_COUNT + 1];
+        bool played[HAND_COUNT + 1]{};
+        playFrame(realtime, playVel, playAngVel, played);
+
         tracking = standingPose();
         tracking.input = mockInput;
         tracking.time = realtime;
@@ -245,6 +436,11 @@ public:
             }
             hand.linearVelocity = handMotion[h].update(hand.position, realtime);
             hand.angularVelocity = glm::vec3{0.f};
+            if(played[h])
+            {
+                hand.linearVelocity = playVel[h]; // vr_mock_play: the motion's own
+                hand.angularVelocity = playAngVel[h];
+            }
             hand.velocityValid = true;
         }
 
@@ -387,6 +583,7 @@ void registerMockCommands()
     Cmd_AddCommand("vr_mock_stick", mockStick_f);
     Cmd_AddCommand("vr_mock_hand", mockHand_f);
     Cmd_AddCommand("vr_mock_look", mockLook_f);
+    Cmd_AddCommand("vr_mock_play", mockPlay_f);
 }
 
 std::unique_ptr<Backend> makeMockBackend()

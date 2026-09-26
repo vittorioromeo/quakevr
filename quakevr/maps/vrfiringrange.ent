@@ -154,6 +154,17 @@
 "weapon" "10"
 }
 {
+"classname" "func_weapon_grabbable"
+"origin" "120 -868 33"
+"weapon" "13"
+}
+{
+"classname" "func_weapon_grabbable"
+"origin" "168 -868 33"
+"weapon" "13"
+"weaponflags" "1"
+}
+{
 "classname" "item_shells"
 "origin" "360 -964 21"
 }

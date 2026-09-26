@@ -385,13 +385,15 @@ void() func_weapon_dispenser =
     self.use = func_weapon_dispenser_use;
 }
 
+// A weapon lying ready to be picked up: "weapon" its id (WID_*), "weaponflags" its flags (a knight's
+// sword, WID_SWORD 13, with 1 is the hell knight's).
 void() func_weapon_grabbable =
 {
     self.movetype = MOVETYPE_NONE;
     self.solid = SOLID_NOT;
     setmodel(self, self.model);
 
-    CreateThrownWeapon(self, self.weapon, 0 /* weaponflags */,
+    CreateThrownWeapon(self, self.weapon, self.weaponflags,
         WeaponIdToBaseClipSize(self.weapon) /* weaponclip */,
         self.origin, randomVec(180),
         '0 0 0', LegacyThrowSpin('0 0 0', randomVec(20)),

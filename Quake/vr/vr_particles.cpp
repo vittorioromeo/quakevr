@@ -56,6 +56,7 @@ enum Cell : std::uint8_t
     CellRock,
     CellGunSmoke,
     CellGlow, // a soft round glow (generated)
+    CellRing, // a soft ring (generated): ripples on a liquid
     CellCount
 };
 
@@ -73,10 +74,12 @@ struct Particle
     float grow{0.f}; // scale per second,
     float drag{0.f}; // the part of its speed lost per second,
     float spin{0.f}; // radians per second
+    float floor{-1e9f}; // gone once it falls below this height (a drop back into its liquid)
     Type type{Static};
     Cell cell{CellCircle};
     bool spinBack{false};
     bool additive{false}; // glows: added to the scene (else alpha blended)
+    bool flat{false};     // lying flat (a ripple on a liquid), not facing the view
 };
 
 constexpr std::size_t maxParticles = 32768;
@@ -488,7 +491,9 @@ void run()
         }
     }
 
-    std::erase_if(pool, [](const Particle& p) { return p.die < cl.time || p.color.a <= 0.f || p.scale <= 0.f; });
+    std::erase_if(pool, [](const Particle& p) {
+        return p.die < cl.time || p.color.a <= 0.f || p.scale <= 0.f || (p.org.z < p.floor && p.vel.z < 0.f);
+    });
 }
 
 // ---- Drawing --------------------------------------------------------------------------------
@@ -541,6 +546,26 @@ constexpr int atlasRows = 3;
     return dst;
 }
 
+// A ripple: a soft white ring (a Gaussian band at 70% of the radius), fainter inside than out, as
+// a wave's front is the steep side.
+[[nodiscard]] std::vector<std::uint8_t> buildRing(int size)
+{
+    std::vector<std::uint8_t> dst(static_cast<std::size_t>(size * size * 4), 255);
+    const float c = (size - 1) * 0.5f;
+    for(int y = 0; y < size; y++)
+    {
+        for(int x = 0; x < size; x++)
+        {
+            const float dx = (x - c) / c, dy = (y - c) / c;
+            const float r = std::sqrt(dx * dx + dy * dy);
+            const float band = (r - 0.7f) / (r < 0.7f ? 0.16f : 0.08f);
+            const float a = r >= 0.98f ? 0.f : std::exp(-band * band);
+            dst[static_cast<std::size_t>((y * size + x) * 4 + 3)] = static_cast<std::uint8_t>(a * 255.f + 0.5f);
+        }
+    }
+    return dst;
+}
+
 bool ensureAtlas()
 {
     if(atlas || atlasFailed)
@@ -566,6 +591,7 @@ bool ensureAtlas()
 
     put(CellCircle, buildDisc(64).data(), 64, 64);
     put(CellGlow, buildGlow(64).data(), 64, 64);
+    put(CellRing, buildRing(96).data(), 96, 96);
 
     struct File
     {
@@ -961,6 +987,217 @@ void teleportSplash(const glm::vec3& org)
     });
 }
 
+// ---- Splashes ---------------------------------------------------------------------------------
+
+// The client's map's contents at `p`: a liquid's (currents are water), or 0 for anything else.
+[[nodiscard]] int liquidAt(const glm::vec3& p)
+{
+    if(!cl.worldmodel)
+    {
+        return 0;
+    }
+    vec3_t v{p.x, p.y, p.z};
+    const int c = Mod_PointInLeaf(v, cl.worldmodel)->contents;
+    if(c == CONTENTS_WATER || c == CONTENTS_SLIME || c == CONTENTS_LAVA)
+    {
+        return c;
+    }
+    return c <= CONTENTS_CURRENT_0 && c >= CONTENTS_CURRENT_DOWN ? CONTENTS_WATER : 0;
+}
+
+// The liquid a splash on its surface is in (just under it): CONTENTS_WATER, _SLIME or _LAVA; water
+// if none is found.
+[[nodiscard]] int liquidUnder(const glm::vec3& org)
+{
+    for(const float dz : {-2.f, -6.f, -12.f})
+    {
+        if(const int c = liquidAt(org + glm::vec3{0.f, 0.f, dz}))
+        {
+            return c;
+        }
+    }
+    return CONTENTS_WATER;
+}
+
+// The surface above `p` in a liquid, at most `range` units up (false: none, or a ceiling first).
+[[nodiscard]] bool surfaceAbove(const glm::vec3& p, float range, glm::vec3& out)
+{
+    if(!liquidAt(p))
+    {
+        return false;
+    }
+    glm::vec3 wet = p;
+    for(float d = 4.f; d <= range; d += 4.f)
+    {
+        const glm::vec3 q = p + glm::vec3{0.f, 0.f, d};
+        if(liquidAt(q))
+        {
+            wet = q;
+            continue;
+        }
+        vec3_t v{q.x, q.y, q.z};
+        if(Mod_PointInLeaf(v, cl.worldmodel)->contents != CONTENTS_EMPTY)
+        {
+            return false;
+        }
+        glm::vec3 dry = q;
+        for(int i = 0; i < 8; i++)
+        {
+            const glm::vec3 mid = (dry + wet) * 0.5f;
+            (liquidAt(mid) ? wet : dry) = mid;
+        }
+        out = (dry + wet) * 0.5f;
+        return true;
+    }
+    return false;
+}
+
+// How lit the place is (the lightmap under it): the drops take no light of their own, and white
+// ones would glow in a dark pool.
+[[nodiscard]] float shadeAt(const glm::vec3& org)
+{
+    static lightcache_t cache{};
+    if(!cl.worldmodel)
+    {
+        return 1.f;
+    }
+    vec3_t v{org.x, org.y, org.z + 1.f};
+    const float light = static_cast<float>(R_LightPoint(v, 0.f, &cache)); // 128: Quake's full light
+    return std::clamp(std::max(light, 20.f) / 120.f, 0.18f, 1.3f);
+}
+
+// Something hitting a liquid's surface at `org` going `dir`, `count` hard (see Preset::Splash).
+void splash(const glm::vec3& org, const glm::vec3& dir, int count)
+{
+    const float amount = std::clamp(vr_water_splash.value, 0.f, 3.f);
+    if(amount <= 0.f)
+    {
+        return;
+    }
+    const int liquid = liquidUnder(org);
+    const bool lava = liquid == CONTENTS_LAVA;
+    const bool slime = liquid == CONTENTS_SLIME;
+    const float s = std::clamp(count / 10.f, 0.1f, 8.f); // 1: a hand slapping the water hard
+    const float size = std::min(std::sqrt(s), 1.7f);       // heights and spreads grow slower
+    const float shade = lava ? 1.f : shadeAt(org);
+    const glm::vec3 tint = lava ? glm::vec3{1.f, 0.42f, 0.1f} : slime ? glm::vec3{0.42f, 0.78f, 0.2f} : glm::vec3{0.8f, 0.9f, 1.f};
+    const glm::vec3 drops = tint * shade;
+    // Lava's drops, alpha blended (added to the bright lava, they vanish): hot yellow to orange.
+    const auto hotLava = [] { return glm::mix(glm::vec3{1.f, 0.38f, 0.06f}, glm::vec3{1.f, 0.88f, 0.5f}, rnd(0.f, 1.f)); };
+    const glm::vec3 foam = glm::mix(tint, glm::vec3{1.f}, lava ? 0.1f : 0.35f) * shade;
+    const float surface = org.z;
+
+    // The crown leans with a thing going in at an angle (a shot), away from where it came from.
+    glm::vec3 lean{dir.x, dir.y, 0.f};
+    const float leanLength = glm::length(lean);
+    lean = leanLength > 1e-3f ? lean / leanLength * std::min(leanLength, 1.f) : glm::vec3{0.f};
+
+    // The crown: drops thrown up and out, falling back in (gone at the surface).
+    make((6.f + 14.f * s) * amount, [&](Particle& p, int) {
+        const float a = rndAngle();
+        const glm::vec3 out{std::cos(a), std::sin(a), 0.f};
+        p.cell = CellCircle;
+        p.color = glm::vec4{lava ? hotLava() : drops * rnd(0.8f, 1.15f), lava ? 1.f : rnd(0.55f, 0.85f)};
+        p.die = cl.time + 2.5;
+        p.scale = rnd(0.7f, 1.6f) * (0.8f + 0.25f * size);
+        p.type = Custom;
+        p.fade = lava ? -0.5f : -0.15f;
+        p.acc = gravity(1.f);
+        p.floor = surface - 0.5f;
+        p.org = org + out * rnd(0.3f, 2.f) * size + glm::vec3{0.f, 0.f, 0.5f};
+        p.vel = out * rnd(12.f, 45.f) * size + lean * rnd(10.f, 40.f) * size +
+                glm::vec3{0.f, 0.f, rnd(60.f, 160.f) * std::max(size, 0.75f)};
+    });
+
+    // The jet: a thin column of drops thrown straight up (a bullet's is most of its splash).
+    make((2.f + 2.5f * s) * amount, [&](Particle& p, int) {
+        p.cell = CellCircle;
+        p.color = glm::vec4{lava ? hotLava() : drops, lava ? 1.f : 0.8f};
+        p.die = cl.time + 3.0;
+        p.scale = rnd(0.8f, 1.6f) * (0.8f + 0.4f * size);
+        p.type = Custom;
+        p.fade = lava ? -0.4f : -0.1f;
+        p.acc = gravity(1.f);
+        p.floor = surface - 0.5f;
+        p.org = org + inBox(0.5f + 0.5f * size) + glm::vec3{0.f, 0.f, 1.f};
+        p.vel = inBox(5.f + 5.f * size) + lean * rnd(0.f, 25.f) + glm::vec3{0.f, 0.f, rnd(120.f, 230.f) * std::clamp(size, 0.7f, 1.25f)};
+    });
+
+    // Foam and spray: soft puffs at the surface, spreading and fading.
+    make((1.f + 1.2f * s) * amount, [&](Particle& p, int) {
+        const float a = rndAngle();
+        p.cell = lava ? CellExplosion : CellSmoke;
+        p.additive = lava;
+        p.color = glm::vec4{foam * rnd(0.9f, 1.1f), lava ? 0.45f : rnd(0.28f, 0.42f)};
+        p.die = cl.time + 1.6;
+        p.scale = rnd(1.f, 1.6f) * (0.6f + 0.6f * size);
+        p.type = Custom;
+        p.fade = lava ? -0.5f : -0.3f;
+        p.grow = 1.6f * size;
+        p.drag = 2.5f;
+        p.spin = rnd(-1.f, 1.f);
+        p.org = org + glm::vec3{std::cos(a), std::sin(a), 0.f} * rnd(0.f, 3.f) * size + glm::vec3{0.f, 0.f, rnd(0.5f, 3.f) * size};
+        p.vel = glm::vec3{std::cos(a), std::sin(a), 0.f} * rnd(10.f, 30.f) * size + glm::vec3{0.f, 0.f, rnd(4.f, 20.f)};
+    });
+
+    // Ripples: rings spreading on the surface (one more for a harder hit, slower and fainter).
+    const int rings = s < 0.25f ? 1 : s < 2.f ? 2 : 3;
+    for(int i = 0; i < rings; i++)
+    {
+        make(1.f, [&](Particle& p, int) {
+            p.cell = CellRing;
+            p.flat = true;
+            p.color = glm::vec4{lava ? glm::vec3{0.22f, 0.06f, 0.02f} : foam, (lava ? 0.55f : 0.45f) / (1.f + 0.5f * static_cast<float>(i))};
+            p.die = cl.time + 1.6 + 0.4 * i;
+            p.scale = (1.2f + 1.2f * static_cast<float>(i)) * (0.7f + 0.5f * size);
+            p.type = Custom;
+            p.fade = -p.color.a / (1.4f + 0.4f * static_cast<float>(i));
+            p.grow = (7.f - 1.8f * static_cast<float>(i)) * (0.8f + 0.5f * size);
+            p.org = org + glm::vec3{0.f, 0.f, 0.35f};
+        });
+    }
+
+    // Lava: embers thrown up and a little dark smoke.
+    if(lava)
+    {
+        make((4.f + 8.f * s) * amount, [&](Particle& p, int) {
+            p.cell = CellSpark;
+            p.additive = true;
+            p.color = glm::vec4{fireColor(), 1.f};
+            p.die = cl.time + rnd(0.6f, 1.2f);
+            p.scale = rnd(0.25f, 0.45f);
+            p.type = Custom;
+            p.fade = -1.f;
+            p.drag = 0.8f;
+            p.spin = rnd(-6.f, 6.f);
+            p.acc = gravity(0.35f);
+            p.org = org + inBox(2.f) + glm::vec3{0.f, 0.f, 1.f};
+            p.vel = onSphere() * rnd(20.f, 60.f) * size + glm::vec3{0.f, 0.f, rnd(40.f, 120.f) * size};
+        });
+        make(1.f + s * 0.5f, [&](Particle& p, int) {
+            p.cell = CellSmoke;
+            p.color = glm::vec4{0.2f, 0.17f, 0.15f, 0.5f};
+            p.die = cl.time + 2.5;
+            p.scale = rnd(1.2f, 1.8f) * size;
+            p.type = TxSmoke;
+            p.acc = gravity(-0.05f);
+            p.org = org + inBox(2.f) + glm::vec3{0.f, 0.f, 2.f};
+            p.vel = inBox(8.f) + glm::vec3{0.f, 0.f, 20.f};
+        });
+    }
+}
+
+// An explosion under a liquid's surface (a rocket into a pool): the liquid thrown up above it, less
+// the deeper it went off.
+void underwaterExplosion(const glm::vec3& org)
+{
+    glm::vec3 surface;
+    if(surfaceAbove(org, 96.f, surface))
+    {
+        splash(surface, glm::vec3{0.f, 0.f, -1.f}, static_cast<int>(45.f - 0.3f * (surface.z - org.z)));
+    }
+}
+
 } // namespace
 
 bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count)
@@ -974,7 +1211,10 @@ bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count)
     {
         case Preset::BulletPuff: bulletPuff(org, dir, 0, count); break;
         case Preset::Blood: blood(org, dir, count); break;
-        case Preset::Explosion: explosion(org); break;
+        case Preset::Explosion:
+            explosion(org);
+            underwaterExplosion(org);
+            break;
         case Preset::Lightning: lightning(org, count); break;
         case Preset::Smoke: smoke(org, count, false); break;
         case Preset::Sparks: sparks(org, count, 102, 112, 0.45f, 0.0); break;
@@ -987,6 +1227,7 @@ bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count)
         case Preset::BigSmoke: smoke(org, count, true); break;
         case Preset::ForceGrabTrail: sparkles(org, count, 208, 214, 170, 230, 0.4, 0.28f, 0.f, 1.5f, 4.f, -2.f, 2.f); break;
         case Preset::BloodTrail: bloodTrail(org, dir, count); break;
+        case Preset::Splash: splash(org, dir, count); break;
         default: blood(org, dir, count); break;
     }
     return true;
@@ -1001,6 +1242,71 @@ void clear()
 {
     pool.clear();
     lastRun = -1.0;
+}
+
+void shellEject(const glm::vec3& org, const glm::vec3& dir, float smoke, int sparks)
+{
+    if(!vr_particles.value || !ensureAtlas())
+    {
+        return;
+    }
+
+    // A faint grey puff out of the port, drifting after the shell and spreading.
+    make(std::ceil(2.f * smoke), [&](Particle& p, int) {
+        p.cell = CellSmoke;
+        const float g = rnd(0.5f, 0.62f);
+        p.color = glm::vec4{g, g, g * 0.97f, rnd(0.14f, 0.22f) * std::min(smoke, 1.5f)};
+        p.die = cl.time + 1.8;
+        p.scale = rnd(0.35f, 0.55f);
+        p.type = Custom;
+        p.fade = -p.color.a / 1.6f;
+        p.grow = rnd(1.4f, 2.2f);
+        p.drag = 2.5f;
+        p.spin = rnd(-1.f, 1.f);
+        p.acc = gravity(-0.03f);
+        p.org = org + inBox(0.4f);
+        p.vel = dir * rnd(4.f, 14.f) + inBox(3.f);
+    });
+    // A few tiny sparks of burning powder, gone in a blink.
+    make(static_cast<float>(sparks), [&](Particle& p, int) {
+        p.cell = CellSpark;
+        p.additive = true;
+        p.color = glm::vec4{1.f, rnd(0.55f, 0.8f), rnd(0.2f, 0.35f), 1.f};
+        p.die = cl.time + rnd(0.12f, 0.35f);
+        p.scale = rnd(0.1f, 0.18f);
+        p.type = Custom;
+        p.fade = -3.f;
+        p.drag = 3.f;
+        p.spin = rnd(-8.f, 8.f);
+        p.acc = gravity(0.3f);
+        p.org = org;
+        p.vel = dir * rnd(30.f, 80.f) + onSphere() * rnd(5.f, 25.f);
+    });
+}
+
+void shellTrail(const glm::vec3& from, const glm::vec3& to, float strength)
+{
+    if(strength <= 0.f || !vr_particles.value || !ensureAtlas())
+    {
+        return;
+    }
+
+    const glm::vec3 d = to - from;
+    make(perLength(glm::length(d), 1.6f), [&](Particle& p, int) {
+        p.cell = CellSmoke;
+        const float g = rnd(0.52f, 0.62f);
+        p.color = glm::vec4{g, g, g * 0.97f, rnd(0.05f, 0.09f) * strength};
+        p.die = cl.time + 1.4;
+        p.scale = rnd(0.22f, 0.36f);
+        p.type = Custom;
+        p.fade = -p.color.a / 1.2f;
+        p.grow = 1.1f;
+        p.drag = 1.5f;
+        p.spin = rnd(-0.8f, 0.8f);
+        p.acc = gravity(-0.03f);
+        p.org = from + d * rnd(0.f, 1.f) + inBox(0.2f);
+        p.vel = inBox(1.5f);
+    });
 }
 
 } // namespace qvr::particles
@@ -1034,8 +1340,11 @@ extern "C" void VR_DrawSceneTranslucent()
         // The quad's right and up, turned by the particle's angle about the view direction.
         const float c = std::cos(p.angle);
         const float s = std::sin(p.angle);
-        const glm::vec3 r = (right * c + up * s) * (0.75f * p.scale);
-        const glm::vec3 u = (up * c - right * s) * (0.75f * p.scale);
+        // Flat ones (ripples) lie on the horizontal plane.
+        const glm::vec3 pr = p.flat ? glm::vec3{1.f, 0.f, 0.f} : right;
+        const glm::vec3 pu = p.flat ? glm::vec3{0.f, 1.f, 0.f} : up;
+        const glm::vec3 r = (pr * c + pu * s) * (0.75f * p.scale);
+        const glm::vec3 u = (pu * c - pr * s) * (0.75f * p.scale);
         const glm::vec4& uv = cellUv[p.cell];
         // Premultiplied: a glow's alpha 0 adds it.
         const float a = std::min(p.color.a, 1.f);

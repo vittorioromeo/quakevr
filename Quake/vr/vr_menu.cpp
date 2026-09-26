@@ -212,7 +212,10 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         header("Playtesting"),
         toggle("Voice Notes", vr_notes).help("Raise your off hand to your mouth and hold Y to record a note, with a screenshot and where you are; they go to quakevr/notes."),
         header("Feel"),
-        toggle("Bat Back Projectiles", vr_deflect).help("Swing a weapon (or a fist) through a monster's spike, laser, spit or grenade to send it back where your hand points."),
+        toggle("Bat Back Projectiles", vr_deflect).help("Swing a weapon (or a fist) through a monster's spike, laser, spit or grenade to send it back where your hand points (at the monster, when you point near it)."),
+        slider("Batting Reach", vr_deflect_radius, 4.f, 32.f, 1.f, "%.0f units").help("How near the weapon's blade (or your fist) a projectile must pass to be batted back."),
+        slider("Batting Swing Speed", vr_deflect_speed, 0.2f, 1.5f, 0.05f, "%.2fx").help("How fast a batting swing must be, times Swing Speed (a hit needs 1x, and more for a swung weapon)."),
+        slider("Batting Timing", vr_deflect_window, 0.f, 0.5f, 0.05f, "%.2f s").help("How early you may swing: the weapon's path keeps batting this long after it passed."),
         toggle("Explosion Rumble", vr_explosion_rumble).help("Explosions near you rumble in your hands."),
         toggle("Low Health Heartbeat", vr_heartbeat).help("A heartbeat in your hands when your health is low."),
         header("Headbutt"),
@@ -382,6 +385,10 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Gib Health", vr_gib_health, 1.f, 60.f, 1.f, "%.0f").help("The damage that destroys a gib; a head takes half as much again."),
         slider("Gib Splat Speed", vr_gib_splat_speed, 100.f, 600.f, 25.f, "%.0f")
             .help("Units/s a thrown gib or head must hit a wall or a monster at to burst."),
+        toggle("Gib Corpses", vr_corpse_gib)
+            .help("Corpses burst into gibs when shot, blown up or struck enough: shotguns, nails, lightning, rockets, fists, melee weapons."),
+        slider("Corpse Health", vr_corpse_health, 5.f, 150.f, 5.f, "%.0f")
+            .help("The damage that gibs a corpse; a big monster's takes up to twice as much."),
     };
 }
 

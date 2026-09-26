@@ -660,4 +660,9 @@ bool button(int hand, bool grip, bool pressed)
     return false;
 }
 
+bool holds(int hand)
+{
+    return enabled() && st.mode == Mode::Held && st.holder == hand;
+}
+
 } // namespace qvr::flashlight

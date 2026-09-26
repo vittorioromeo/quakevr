@@ -96,6 +96,49 @@ struct ScreenShape
     return hsv(vr_gadget_screen_hue.value, 0.57f, 0.12f * std::max(back, 0.2f));
 }
 
+// Map text boards (world texts: the tutorial's, func_worldtext_banner) as CRT screens
+// (vr_worldtext_crt): each board's text in an image of its own, sized by it and redrawn only when it
+// (or the palette) changes, at the end of the 2D pass (renderScreens), shown through Shade::Screen.
+// A board keeps the size of its largest page so far (a banner's pages differ; it grows once, as
+// they first come round), and glitches at moments of its own and as its page turns.
+constexpr int maxBoardImages = 256;
+constexpr int boardPad = 6;                   // font pixels round the text
+constexpr float boardTexels = 1.5e6f;         // an image's texels at most (8 a font pixel for all but big boards)
+struct Board
+{
+    std::string text;                 // its text as last seen
+    Align align{Align::Left};
+    int columns{0}, rows{0};          // the largest page so far
+    const void* map{nullptr};         // the map it belongs to (handles are reused by the next one)
+    double changed{-100.0};           // realtime its text last changed
+    bool wanted{false};               // laid out this frame
+    gfx::Target target;
+    int width{0}, height{0};          // its image's virtual screen (font pixels), 0 before it is drawn
+    std::string drawn;                // the text in its image
+    glm::vec4 drawnPalette{-1.f};     // and the palette it was drawn in
+};
+std::vector<Board> boards;
+
+// The boards' CRT strength (vr_worldtext_crt; 0 the old plain text).
+[[nodiscard]] float boardCrt()
+{
+    return CLAMP(0.f, vr_worldtext_crt.value, 2.f);
+}
+
+// Their palette: one phosphor colour (vr_worldtext_hue: amber by default), the brightness and the
+// face's darkness of the wrist gadget's screen.
+[[nodiscard]] glm::vec3 boardText()
+{
+    const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f);
+    return glm::min(hsv(vr_worldtext_hue.value, 0.6f, bright), glm::vec3{1.f});
+}
+
+[[nodiscard]] glm::vec3 boardFace()
+{
+    const float back = CLAMP(0.f, vr_gadget_screen_background.value, 4.f);
+    return hsv(vr_worldtext_hue.value, 0.6f, 0.11f * std::max(back, 0.2f));
+}
+
 gadget::Log wristLog;
 gadget::Glow gadgetGlow;
 int builtFrame = -1; // the host frame they were laid out in; -1 when texts were queued since
@@ -407,6 +450,149 @@ void layout(std::string_view text, const glm::vec3& pos, const glm::vec3& angles
     }
 }
 
+// World text `index` as a CRT board (vr_worldtext_crt): a bezel box round its text's block (the
+// largest page's), the face its image through the CRT shader (the plain face until the image is
+// drawn: a frame), a soft glow round it (vr_screen_glow). Read from behind, it turns round, as the
+// plain text does.
+void layoutBoard(size_t index, const worldtext::WorldText& wt)
+{
+    if(index >= boards.size())
+    {
+        boards.resize(index + 1);
+    }
+    Board& b = boards[index];
+    if(b.map != cl.worldmodel)
+    {
+        gfx::Target kept = b.target;
+        b = Board{};
+        b.target = kept;
+        b.map = cl.worldmodel;
+    }
+
+    const size_t longest = splitLines(wt.text);
+    if(wt.text != b.text)
+    {
+        b.text = wt.text;
+        b.changed = realtime;
+    }
+    b.align = static_cast<Align>(wt.hAlign);
+    if(longest == 0)
+    {
+        return;
+    }
+    b.columns = std::max(b.columns, static_cast<int>(longest));
+    b.rows = std::max(b.rows, static_cast<int>(textLines.size()));
+    b.wanted = true;
+
+    vec3_t a{wt.angles.x, wt.angles.y, wt.angles.z}, f, r, u;
+    AngleVectors(a, f, r, u);
+    glm::vec3 right{r[0], r[1], r[2]};
+    const glm::vec3 up{u[0], u[1], u[2]};
+    {
+        glm::vec3 eye, camRight, camUp;
+        gfx::sceneCamera(eye, camRight, camUp);
+        if(glm::dot(eye - wt.pos, glm::cross(right, up)) < 0.f)
+        {
+            right = -right;
+        }
+    }
+    const glm::vec3 n = glm::normalize(glm::cross(right, up));
+
+    const float charSize = 8.f * wt.scale;
+    const float halfW = charSize * static_cast<float>(b.columns) * 0.5f;
+    const float halfH = charSize * static_cast<float>(b.rows) * 0.5f;
+    const float pad = charSize / 8.f * static_cast<float>(boardPad);
+    const float bezel = charSize * 0.45f;
+    const float depth = charSize * 0.6f;
+    const float gap = charSize * 0.04f;
+    const glm::vec3& pos = wt.pos;
+
+    box(pos - n * (gap * 2.f + depth * 0.5f), right, up, n, halfW + pad + bezel, halfH + pad + bezel, depth * 0.5f,
+        glm::vec3{0.1f, 0.1f, 0.11f});
+    const glm::vec3 c = pos - n * gap;
+    const glm::vec3 bl = c - right * (halfW + pad) - up * (halfH + pad);
+    const glm::vec3 br = c + right * (halfW + pad) - up * (halfH + pad);
+    const glm::vec3 tr = c + right * (halfW + pad) + up * (halfH + pad);
+    const glm::vec3 tl = c - right * (halfW + pad) + up * (halfH + pad);
+
+    const glm::vec3 textColor = boardText();
+    if(b.width > 0 && b.target.texture)
+    {
+        // Its own moments (offset by its handle), and a burst as its page turns.
+        const float crt = boardCrt();
+        const float sinceChange = static_cast<float>(realtime - b.changed);
+        const float turn = sinceChange >= 0.f && sinceChange < 0.3f ? 0.8f * std::sin(sinceChange / 0.3f * 3.14159265f) : 0.f;
+        const float glitch = std::max(gadget::glitch(realtime + 11.3 + 5.9 * static_cast<double>(index)), turn);
+        const glm::vec4 phosphor{textColor, 1.f};
+        const gfx::Vertex v[4] = {
+            {bl, {0.f, 0.f}, phosphor}, {br, {1.f, 0.f}, phosphor}, {tr, {1.f, 1.f}, phosphor}, {tl, {0.f, 1.f}, phosphor}};
+        const float time = static_cast<float>(std::fmod(realtime, 1000.0));
+        screenQuads.push_back({.vertices = {v[0], v[1], v[2], v[0], v[2], v[3]},
+            .params = {time, crt, glitch * std::min(crt, 1.f), gadget::textGlow()},
+            .size = {static_cast<float>(b.width), static_cast<float>(b.height), 1.f},
+            .texture = b.target.texture});
+    }
+    else
+    {
+        quad(bl, br, tr, tl, glm::vec4{boardFace(), 1.f});
+    }
+
+    const float k = CLAMP(0.f, vr_screen_glow.value, 3.f);
+    if(k > 0.f)
+    {
+        glow({.centre = pos - n * (gap * 0.5f), .right = right, .up = up, .halfSize = {halfW + pad, halfH + pad},
+            .spread = bezel + charSize * 0.8f, .color = glm::vec4{textColor, 0.16f * k}});
+    }
+}
+
+// The boards' images whose text or palette changed (renderScreens).
+void renderBoards()
+{
+    if(boardCrt() <= 0.f)
+    {
+        return;
+    }
+    const glm::vec3 text = boardText(), face = boardFace();
+    const glm::vec4 palette{vr_worldtext_hue.value, text.g, face.g, text.r};
+    int images = 0;
+    for(Board& b : boards)
+    {
+        if(!b.wanted || b.columns == 0 || images++ >= maxBoardImages)
+        {
+            continue;
+        }
+        const int width = b.columns * 8 + boardPad * 2;
+        const int height = b.rows * 8 + boardPad * 2;
+        if(b.target.texture && b.drawn == b.text && b.drawnPalette == palette && b.width == width && b.height == height)
+        {
+            continue;
+        }
+
+        // Its virtual screen in font pixels: whole ones, so that the image's pixels fall on the font's.
+        const float fit = std::sqrt(boardTexels / static_cast<float>(width * height));
+        const int scale = std::clamp(static_cast<int>(fit), 2, 8);
+        gfx::ensureTarget(b.target, width * scale, height * scale, true); // mipmaps: the glow, and far away
+        gfx::begin2D(b.target, width, height);
+        gfx::draw2D::fill(0.f, 0.f, static_cast<float>(width), static_cast<float>(height), face);
+        gfx::draw2D::color(glm::vec4{text, 1.f});
+        splitLines(b.text);
+        const int top = boardPad + (b.rows - static_cast<int>(textLines.size())) * 4; // the page centred
+        for(size_t i = 0; i < textLines.size(); i++)
+        {
+            const std::string line{textLines[i]};
+            const float x = static_cast<float>(boardPad) + 8.f * indent(b.align, static_cast<size_t>(b.columns), line.size());
+            gfx::draw2D::text(x, static_cast<float>(top + 8 * static_cast<int>(i)), 8.f, line.c_str());
+        }
+        gfx::draw2D::color(glm::vec4{1.f});
+        gfx::end2D();
+
+        b.width = width;
+        b.height = height;
+        b.drawn = b.text;
+        b.drawnPalette = palette;
+    }
+}
+
 } // namespace
 
 void drawTranslucent()
@@ -458,6 +644,7 @@ void clear()
 
 void renderScreens()
 {
+    renderBoards();
     if(screenCrt() <= 0.f)
     {
         return;
@@ -537,9 +724,22 @@ extern "C" void VR_DrawSceneOpaque()
         {
             glow(gadgetGlow);
         }
-        for(const worldtext::WorldText& wt : worldtext::clientTexts())
+        for(Board& b : boards)
         {
-            layout(wt.text, wt.pos, wt.angles, static_cast<Align>(wt.hAlign), wt.scale);
+            b.wanted = false;
+        }
+        const std::vector<worldtext::WorldText>& worldTexts = worldtext::clientTexts();
+        for(size_t i = 0; i < worldTexts.size(); i++)
+        {
+            const worldtext::WorldText& wt = worldTexts[i];
+            if(boardCrt() > 0.f)
+            {
+                layoutBoard(i, wt);
+            }
+            else
+            {
+                layout(wt.text, wt.pos, wt.angles, static_cast<Align>(wt.hAlign), wt.scale);
+            }
         }
         for(const Queued& q : queued)
         {

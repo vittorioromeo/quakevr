@@ -5,7 +5,7 @@
 //   - clc_move: a VR block after the vanilla fields (head, hands, muzzles, VR bits, ...);
 //   - entity updates: model scale / scale origin / offset / no-rotate in update bits 24..27;
 //   - svc_quakevr (39) + sub-command for particles, late precaches, world text, floating texts
-//     (damage numbers), haptics and knocks on the drawn hands;
+//     (damage numbers), haptics, knocks on the drawn hands and spent casings;
 //   - an extra "beam id" byte in TE_LIGHTNING1-3 / TE_BEAM, so one entity can own two beams;
 //   - VR stats (weapons in both hands, holsters, clips) in stat slots 64+, sent through
 //     Ironwail's generic stat channel.
@@ -38,11 +38,14 @@ enum SvcQuakeVr : int
     QVR_SVC_HAPTIC = 10,          // [byte hand][float delay][float duration][float frequency][float amplitude]
     QVR_SVC_HANDIMPACT = 11,      // [byte hand][float strength][float3 direction]: the drawn hand is knocked (a parry)
     QVR_SVC_FLOATTEXT = 12,       // [coord3 org][byte3 colour][byte scale * 32][string]: a text rising from a point and fading
+    QVR_SVC_EJECT = 13,           // [byte hand][byte kind][byte count][byte flags][byte delay * 100]: spent casings out of a weapon (vr_shells.cpp)
 };
 
 // Client -> server: clc_move VR block button bits.
 inline constexpr int QVR_BUTTON_OFFHANDATTACK = 1 << 0; // -> .button3
 inline constexpr int QVR_BUTTON_HANDSTRACKED = 1 << 1;  // hands come from real tracking
+inline constexpr int QVR_BUTTON_OFFHANDBUSY = 1 << 2;   // the hand holds the flashlight (client-side): no force grab
+inline constexpr int QVR_BUTTON_MAINHANDBUSY = 1 << 3;  // (-> QC QVR_VRBITS0_*HAND_BUSY)
 
 // VR stats (cl.stats / cl.statsf indices).
 enum Stat : int

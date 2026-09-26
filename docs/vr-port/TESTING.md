@@ -396,6 +396,15 @@ between frames. Under `screen/3D`, `eye L` and `eye R` hold each eye's `scene` (
 `postprocess`, the `hud panel` and the `mirror` to the window; the shadow maps (`dlight shadows`, `map light
 shadows`) are drawn once, in the left eye's `setup view`. `self` columns leave out the parts inside a part.
 
+**If it gets slower the longer you play:** `vr_memstats` (in the console) prints the GPU's memory (NVIDIA: used by
+all programs, and how often the driver had to move things out of it: "evictions"), the game's RAM, its textures and
+every live OpenGL object, and the average frame time since the last `vr_memstats`. Type it at the start, again after
+each map load, and send the lines (with `-condebug`, they are in `qconsole.log`): if the game's counts stay the same
+while the frame rate drops, the game is not leaking, and the slowdown is in SteamVR / Virtual Desktop (the profile's
+`xr submit` and `xr acquire` growing while the eyes do not says the same). To tell for sure once it has slowed
+down: quit and restart only Quake VR (same map): if the frame rate is back, it is the game; if it is not until
+SteamVR (or Virtual Desktop) is restarted too, it is them.
+
 ## If something goes wrong
 
 Add `-condebug` to the command line (or `QuakeVR.bat -condebug`): the console goes to `qconsole.log` in the Quake folder, which

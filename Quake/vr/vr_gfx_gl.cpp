@@ -62,7 +62,10 @@ float lit(vec2 at, float lod)
 }
 float phosphor(vec2 at)
 {
-    return lit(at, 0.0); // its own texels, sharp, however small it is in the eye (as without mipmaps)
+    // Its own texels, sharp, however small it is in the eye (as without mipmaps); only where they
+    // would be much finer than the eye's pixels (a map's board across a room) a level a step sharper
+    // than the usual, so that far text does not shimmer.
+    return lit(at, max(textureQueryLod(Tex, uv).y - 1.0, 0.0));
 }
 // Mode 4's glow round the lit strokes: the texture's brightness blurred over about one pixel of the
 // virtual screen (inner: 4 taps) and two and a half (outer: 8 taps), each tap a mipmap level about
@@ -352,6 +355,8 @@ glm::vec4 fontGlyph(unsigned char c)
     return {u0, v0, u0 + 8.f / atlas, v0 + 8.f / atlas};
 }
 
+int targetsMade = 0; // targets' textures (re)made so far (vr_memstats: steady in play, not a frame)
+
 void ensureTarget(Target& target, int width, int height, bool mipmaps)
 {
     int levels = 1;
@@ -363,6 +368,7 @@ void ensureTarget(Target& target, int width, int height, bool mipmaps)
     {
         return;
     }
+    targetsMade++;
 
     GLuint texture = target.texture;
     if(texture)

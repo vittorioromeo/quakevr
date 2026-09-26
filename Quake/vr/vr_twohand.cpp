@@ -7,6 +7,13 @@
 // hand (offset by the weapon's 2H offsets), blended in over 0.2 s. With vr_2h_mode 2 ("virtual
 // stock"), a holding hand close to the shoulder (vr_virtual_stock_thresh) aims from the
 // shoulder instead, mixed by vr_2h_virtual_stock_factor.
+//
+// Swords (weapon TwoHMode 3) are held the other way round: the helping hand closes below the
+// holding hand, on the grip towards the pommel (the "fixed" display mode's grip point), and the
+// blade then lies along the line from the helping hand through the holding hand, the holding hand
+// leading. The weapon's TwoHPitch/TwoHYaw say which way its blade points in the model (degrees up
+// from the model's forward, and to its left); the holding hand is turned (the least turn) until
+// the blade, drawn as the view draws it, lies along that line. No virtual stock.
 
 #include "vr_twohand.hpp"
 #include "vr_engine.hpp"
@@ -19,6 +26,7 @@
 #include "vr_weapons.hpp"
 
 #include <algorithm>
+#include <cmath>
 
 namespace qvr::twohand
 {
@@ -32,6 +40,7 @@ enum Wpn2HMode : int
     WPN_2H_DEFAULT = 0,
     WPN_2H_NO_VIRTUAL_STOCK = 1,
     WPN_2H_FORBIDDEN = 2,
+    WPN_2H_SWORD = 3, // the helping hand below the holding hand, the blade along the hands' line
 };
 
 enum Vr2HMode : int
@@ -67,10 +76,110 @@ void transition(float& var, bool on, float speed)
     return len > 0.f ? v / len : v;
 }
 
+// The world direction of a sword's blade held at `rot` in `hand`, as the view draws the weapon
+// (vr_view.cpp setupWeapon: the hand's angles plus the weapon's, the pitch negated for alias
+// models, mirrored in the off hand).
+[[nodiscard]] glm::vec3 bladeDirection(int slot, int hand, const glm::vec3& rot)
+{
+    const bool mirrored = hand == HAND_OFF;
+    glm::vec3 o = weapons::vec(slot, Key::Pitch, Key::Yaw, Key::Roll);
+    o.x += vr_gunmodelpitch.value;
+    if(mirrored)
+    {
+        o.y = -o.y;
+        o.z = -o.z;
+    }
+
+    const float pitch = glm::radians(weapons::value(slot, Key::TwoHPitch));
+    const float yaw = glm::radians(weapons::value(slot, Key::TwoHYaw));
+    glm::vec3 d{std::cos(pitch) * std::cos(yaw), std::cos(pitch) * std::sin(yaw), std::sin(pitch)};
+    if(mirrored)
+    {
+        d.y = -d.y;
+    }
+
+    float m[16];
+    vec3_t origin{0.f, 0.f, 0.f};
+    vec3_t angles{-rot.x + o.x, rot.y + o.y, rot.z + o.z};
+    R_EntityMatrix(m, origin, angles, ENTSCALE_DEFAULT);
+    return safeNormalize(glm::vec3{m[0] * d.x + m[4] * d.y + m[8] * d.z, m[1] * d.x + m[5] * d.y + m[9] * d.z,
+        m[2] * d.x + m[6] * d.y + m[10] * d.z});
+}
+
+// `rot` turned by the least rotation taking `from` to `to` (unit vectors).
+[[nodiscard]] glm::vec3 turnAngles(const glm::vec3& rot, const glm::vec3& from, const glm::vec3& to)
+{
+    const glm::vec3 axis = glm::cross(from, to);
+    const float s = glm::length(axis);
+    const float c = glm::dot(from, to);
+    if(s < 1e-6f)
+    {
+        return rot; // aligned (or exactly opposite: never asked for)
+    }
+    const glm::vec3 k = axis / s;
+    const auto turn = [&](const glm::vec3& v) {
+        return v * c + glm::cross(k, v) * s + k * glm::dot(k, v) * (1.f - c); // Rodrigues
+    };
+
+    glm::vec3 fwd, right, up;
+    hands::angleVectors(rot, fwd, right, up);
+    return hands::anglesFromVectors(turn(fwd), turn(up));
+}
+
+void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding, int helping, int slot)
+{
+    const glm::vec3 holdingPos = s.pos[holding];
+    glm::vec3 helpingPos = s.pos[helping];
+    glm::vec3 off = weapons::vec(slot, Key::TwoHOffsetX, Key::TwoHOffsetY, Key::TwoHOffsetZ);
+    if(holding == HAND_OFF)
+    {
+        off.y = -off.y;
+    }
+    helpingPos += hands::redirect(off, originalRots[holding]);
+
+    const glm::vec3 line = safeNormalize(holdingPos - helpingPos); // pommel to blade
+    const glm::vec3 blade = bladeDirection(slot, holding, originalRots[holding]);
+
+    // Take hold at the grip point below the holding hand, keep it a little further off. Unlike a
+    // gun's, the grip holds when the blade touches a wall or the floor (a swing's end): the hands are
+    // kept out of walls anyway, and letting go would turn the sword back mid-swing.
+    const bool goodDistance =
+        s.grip2HValid[holding] && glm::distance(s.pos[helping], s.grip2H[holding]) < (shouldAim[holding] ? 20.f : 5.5f);
+    const bool canGrab = client::grabbing(helping) && weaponId(helping) == widFist;
+    const bool goodDot = vr_2h_angle_threshold.value <= -1.f || glm::dot(line, blade) > vr_2h_angle_threshold.value;
+
+    shouldAim[holding] = canGrab && goodDistance && goodDot;
+    helpingHand[helping] = shouldAim[holding];
+    transition(aimTransition[holding], shouldAim[holding], 5.f);
+    stockTransition[holding] = 0.f;
+
+    const float t = aimTransition[holding];
+    if(t <= 0.f)
+    {
+        return;
+    }
+
+    // The weapon's angles add to the hand's as Euler angles, so the blade's turn with the hand is
+    // not quite rigid: a few passes settle it.
+    const glm::vec3 target = safeNormalize(glm::mix(blade, line, t));
+    glm::vec3 rot = originalRots[holding];
+    for(int pass = 0; pass < 3; pass++)
+    {
+        rot = turnAngles(rot, bladeDirection(slot, holding, rot), target);
+    }
+    s.rot[holding] = rot;
+}
+
 void applyHand(hands::State& s, const glm::vec3 (&originalRots)[2], int holding, int helping, int mode)
 {
     const int slot = weapons::heldSlot(holding);
     const bool holdingWeapon = slot >= 0 && weaponId(holding) != widFist;
+
+    if(holdingWeapon && static_cast<int>(weapons::value(slot, Key::TwoHMode)) == WPN_2H_SWORD)
+    {
+        applySword(s, originalRots, holding, helping, slot);
+        return;
+    }
 
     const glm::vec3 holdingPos = s.pos[holding];
 

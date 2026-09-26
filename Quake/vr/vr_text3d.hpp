@@ -4,7 +4,9 @@
 // pass, over the sky; the log over the eye's final image, as UI (drawOverlay). The ammo screens
 // and the wrist gadget's glow softly round their edges (vr_screen_glow), added in that pass too;
 // the ammo screens are small CRTs like the gadget's (vr_weapon_screen_crt: their images drawn in
-// the 2D pass, shown a frame later).
+// the 2D pass, shown a frame later). The maps' text boards (world texts) are CRTs too
+// (vr_worldtext_crt, in vr_worldtext_hue): each board's text in an image of its own, redrawn only when
+// it changes, in a bezel with a soft glow.
 
 #pragma once
 
@@ -34,7 +36,7 @@ void clear();
 
 // At the end of the 2D pass (from gadget::renderScreen), after the eyes: the queued screens' faces
 // and texts into their images, shown through the CRT shader in the next frame's eyes
-// (vr_weapon_screen_crt).
+// (vr_weapon_screen_crt); and the map boards' whose text changed (vr_worldtext_crt).
 void renderScreens();
 
 // The blended texts, in each eye's scene after the translucent pass (VR_DrawSceneTranslucent).

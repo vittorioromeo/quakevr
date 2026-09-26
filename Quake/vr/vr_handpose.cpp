@@ -22,6 +22,7 @@
 #include "vr_weapons.hpp"
 
 #include <algorithm>
+#include <cmath>
 
 namespace qvr::handpose
 {
@@ -62,19 +63,30 @@ bool newFrame = false; // the hands may be recomputed within a frame: weight adv
     return std::clamp(glm::mix(single, twoHanded, twohand::transition(hand)), 0.f, 1.f);
 }
 
-// The blend towards the tracked pose this frame, with the weapon's own multiplier `multKey`.
+// The blend towards the tracked pose this frame, with the weapon's own multiplier `multKey`: that
+// part of the way per 1/100 s, compounded over the frame, so a weapon lags its hand the same at any
+// frame rate (the factor times the frame time went all the way at 45 fps, and lagged more the
+// higher the frame rate: melee felt different at each).
 [[nodiscard]] float blend(float factor, int slot, Key multKey)
 {
     const float perWeaponMult = slot >= 0 ? weapons::value(slot, multKey) : 1.f;
-    return std::clamp(factor * perWeaponMult * frameDt * 100.f, 0.f, 1.f);
+    const float perStep = std::clamp(factor * perWeaponMult, 0.f, 1.f);
+    return perStep >= 1.f ? 1.f : 1.f - std::pow(1.f - perStep, frameDt * 100.f);
 }
 
 // Sweeps a small box from `from` to `to`. When it hits, `pos` stops along the axes the hit plane
 // faces, `back` short of where the box stopped (the other axes are kept), and it returns true.
+// Monsters (anything that bleeds, not a brush) don't stop it: their boxes are much bigger than they
+// look, and a sword stopped at one jerked the hand back, which the server's melee took for a new
+// stroke (no hit), so blows with a weapon's far end didn't register (docs/vr-port/ROUND15.md).
 bool stopAtWall(glm::vec3& pos, const glm::vec3 from, const glm::vec3 to, const glm::vec3& back = glm::vec3{0.f})
 {
     const glm::vec3 box{1.f};
-    const auto tr = worldtrace::move(from, -box, box, to, MOVE_NORMAL);
+    auto tr = worldtrace::move(from, -box, box, to, MOVE_NORMAL);
+    if(tr && tr->fraction < 1.f && tr->ent && tr->ent->v.takedamage != 0.f && static_cast<int>(tr->ent->v.solid) != SOLID_BSP)
+    {
+        tr = worldtrace::move(from, -box, box, to, MOVE_NOMONSTERS);
+    }
     if(!tr || tr->fraction >= 1.f)
     {
         return false;

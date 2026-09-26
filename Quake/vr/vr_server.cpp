@@ -164,7 +164,11 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     // Bit 14 (QC QVR_VRBITS0_HANDSTRACKED): this client's hands come from real tracking, so the QC
     // can tell a VR player from a flat-screen one (and from a bot).
     const int tracked = (move.buttons & QVR_BUTTON_HANDSTRACKED) ? (1 << 14) : 0;
-    setFieldFloat(ent, f.vrbits0, static_cast<float>(withPreviousBits(bits.received, bits.previousFrame) | tracked));
+    // Bits 17 and 18 (QVR_VRBITS0_OFFHAND_BUSY, _MAINHAND_BUSY): the hand holds the flashlight.
+    const int busy = ((move.buttons & QVR_BUTTON_OFFHANDBUSY) ? (1 << 17) : 0) |
+                     ((move.buttons & QVR_BUTTON_MAINHANDBUSY) ? (1 << 18) : 0);
+    setFieldFloat(
+        ent, f.vrbits0, static_cast<float>(withPreviousBits(bits.received, bits.previousFrame) | tracked | busy));
     setFieldVec(ent, f.teleport_target, move.teleportTarget);
     setFieldFloat(ent, f.offhand_hotspot, move.hotspots[0]);
     setFieldFloat(ent, f.mainhand_hotspot, move.hotspots[1]);
@@ -483,6 +487,25 @@ void sendHandImpact(edict_t* player, int hand, float strength, const float dir[3
     {
         MSG_WriteFloat(msg, dir[i]);
     }
+}
+
+// Spent casings out of the weapon in a player's hand (vr_shells.cpp): only that player's client
+// draws them, from its own weapon model.
+void sendEject(edict_t* player, int hand, int kind, int count, int flags, float delay)
+{
+    sizebuf_t* msg = clientMessage(player);
+    if(!msg || count <= 0)
+    {
+        return;
+    }
+
+    MSG_WriteByte(msg, svc_quakevr);
+    MSG_WriteByte(msg, QVR_SVC_EJECT);
+    MSG_WriteByte(msg, hand);
+    MSG_WriteByte(msg, kind);
+    MSG_WriteByte(msg, CLAMP(0, count, 255));
+    MSG_WriteByte(msg, flags);
+    MSG_WriteByte(msg, CLAMP(0, static_cast<int>(delay * 100.f + 0.5f), 255));
 }
 
 void init()

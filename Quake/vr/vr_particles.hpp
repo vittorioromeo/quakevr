@@ -1,7 +1,7 @@
 // vr_particles.hpp -- Quake VR's own particles (the old engine's r_part.cpp, ported): textured,
 // coloured, spinning and fading sprites for the QC's particle2 presets (QVR_PARTICLE_PRESET_*:
 // bullet puffs, blood, explosions, lightning, smoke, sparks, gun smoke, teleports, pickup and
-// force grab sparkles, lava spikes). They also stand in for Quake's own effects (r_part.c): wall
+// force grab sparkles, lava spikes, liquid splashes). They also stand in for Quake's own effects (r_part.c): wall
 // hits, explosions, the trails of rockets, lava balls, grenades, gibs and the scrag's, hell
 // knight's and vore's projectiles (fire and smoke; glowing ribbons with sparkles in the colours of
 // their lights), the tarbaby's explosion, lava splashes and teleports. The textures are
@@ -34,7 +34,13 @@ enum class Preset : int
     LavaSpike,
     BigSmoke,
     ForceGrabTrail, // vr_fgfx.cpp: behind an object flying to the hand
-    BloodTrail      // vr_decals.cpp: behind a flying gib (`dir`: the way it goes)
+    BloodTrail,     // vr_decals.cpp: behind a flying gib (`dir`: the way it goes)
+    // Something hitting water, slime or lava (QC's QVR_PARTICLE_PRESET_SPLASH; the server's water
+    // splashes, vr_physics.cpp): `org` on the surface, `dir` the way it went in, `count` how hard
+    // (3 a bullet, 6-15 a hand or a thrown thing, 20-50 a body). Drops thrown up and out in a crown,
+    // foam and rings spreading on the surface, in the liquid's colour (lava glows and throws
+    // embers); vr_water_splash scales them (0 off).
+    Splash
 };
 
 // Spawns a preset's particles (count scaled by vr_particle_mult); false if they are off, for the
@@ -46,5 +52,11 @@ bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count)
 
 // Removes them all (a new map, a disconnect).
 void clear();
+
+// Spent casings (vr_shells.cpp): a faint puff of smoke and a few tiny sparks where one is thrown
+// out going `dir` (`smoke` how much: a hot breech smokes more), and the thin wisp one trails from
+// `from` to `to` as it flies (`strength` 0..1, fading as it cools). Nothing with vr_particles 0.
+void shellEject(const glm::vec3& org, const glm::vec3& dir, float smoke, int sparks);
+void shellTrail(const glm::vec3& from, const glm::vec3& to, float strength);
 
 } // namespace qvr::particles

@@ -62,7 +62,7 @@ void addTurn(float degrees);
 [[nodiscard]] glm::vec3 takeRoomscaleMove();
 
 // Body anchor used for holsters, the torso and shoulder stocks: `offsets` are forward, right
-// and up (scaled by vr_height_calibration), from the player origin.
+// and up (scaled by vr_height_calibration), from the player origin under the head (with the lean).
 [[nodiscard]] glm::vec3 bodyAnchor(const State& s, const glm::vec3& offsets);
 
 // Helpers.

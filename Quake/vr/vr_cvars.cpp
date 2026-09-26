@@ -62,6 +62,86 @@ void migrateConfig_f()
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
 }
 
+// Shipped defaults (quakevr/vr_defaults.cfg, executed by default.cfg): the tuned values over the
+// ones compiled in. "vr_default name value" sets a cvar and makes the value its default, so resets
+// and presets return to it; the saved config still wins, as it's executed after.
+void default_f()
+{
+    if(Cmd_Argc() != 3)
+    {
+        Con_Printf("vr_default <cvar> <value>: set a Quake VR setting and make the value its default\n");
+        return;
+    }
+    cvar_t* var = Cvar_FindVar(Cmd_Argv(1));
+    if(!var)
+    {
+        Con_Printf("vr_default: no cvar \"%s\"\n", Cmd_Argv(1));
+        return;
+    }
+    Cvar_Set(var->name, Cmd_Argv(2));
+    Z_Free(const_cast<char*>(var->default_string));
+    var->default_string = Z_Strdup(var->string);
+}
+
+// The compiled-in defaults, to tell which settings were tuned.
+struct CompiledDefault
+{
+    const cvar_t* var;
+    const char* value;
+};
+
+const CompiledDefault compiledDefaults[] = {
+#define QVR_CVAR(name, def, flags) {&name, def},
+#include "vr_cvars.inc"
+#undef QVR_CVAR
+};
+
+[[nodiscard]] bool sameValue(const char* a, const char* b)
+{
+    char* endA;
+    char* endB;
+    const double x = strtod(a, &endA);
+    const double y = strtod(b, &endB);
+    if(endA != a && !*endA && endB != b && !*endB)
+    {
+        return fabs(x - y) < 1e-6;
+    }
+    return !strcmp(a, b);
+}
+
+// Per-player or bookkeeping settings, never shipped.
+[[nodiscard]] bool personal(const cvar_t* var)
+{
+    return var == &vr_cfg_version || var == &vr_bindings_version || var == &vr_wofs_version || var == &vr_height_calibration
+        || var == &vr_xr_runtime || var == &vr_xr_runtime_json || var == &vr_note_device;
+}
+
+// "vr_savedefaults": writes the archived Quake VR settings that differ from the compiled-in
+// defaults to vr_defaults.cfg in the game folder (per-weapon offsets and personal settings left out).
+void saveDefaults_f()
+{
+    const char* path = va("%s/vr_defaults.cfg", com_gamedir);
+    FILE* f = fopen(path, "wb");
+    if(!f)
+    {
+        Con_Printf("vr_savedefaults: can't write %s\n", path);
+        return;
+    }
+    fprintf(f, "// Quake VR's shipped settings: the tuned values over the compiled-in defaults.\n"
+               "// Executed by default.cfg (so the saved config still wins); written by \"vr_savedefaults\".\n\n");
+    int count = 0;
+    for(const CompiledDefault& d : compiledDefaults)
+    {
+        if((d.var->flags & CVAR_ARCHIVE) && !personal(d.var) && !sameValue(d.var->string, d.value))
+        {
+            fprintf(f, "vr_default %s \"%s\"\n", d.var->name, d.var->string);
+            ++count;
+        }
+    }
+    fclose(f);
+    Con_Printf("Wrote %d settings to %s\n", count, path);
+}
+
 } // namespace
 
 void registerCvars()
@@ -72,6 +152,8 @@ void registerCvars()
 
     Cvar_RegisterVariable(&vr_backend);
     Cmd_AddCommand("vr_migrate_config", migrateConfig_f);
+    Cmd_AddCommand("vr_default", default_f);
+    Cmd_AddCommand("vr_savedefaults", saveDefaults_f);
 }
 
 } // namespace qvr

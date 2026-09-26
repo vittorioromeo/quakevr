@@ -1441,6 +1441,7 @@ void lighting::applyPreset(int preset)
     look(vr_model_light_parity, 0.f);
     look(vr_viewmodel_minlight, 24.f);
     look(vr_texture_smooth, 0.f);
+    look(vr_water_splash, 0.f); // liquid splashes (vr_particles.cpp)
     Cvar_SetValueQuick(&vr_normalmaps, p.normalmaps); // made as the next map loads
     Cvar_SetValueQuick(&vr_parallax, p.parallax);
     water::applyPreset(preset); // liquids (vr_water.cpp)

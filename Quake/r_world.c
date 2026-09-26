@@ -132,6 +132,7 @@ void R_MarkSurfaces (void)
 
 	r_visframecount++;
 
+	VR_WaterMarkVis (vis); // QVR: the geometric waves' faces seen (vr/vr_water.cpp)
 	R_MarkVisSurfaces (vis);
 	R_AddStaticModels (vis);
 }
@@ -516,6 +517,94 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 
 /*
 =============
+R_FlushLiquidMeshCalls
+
+QVR: the world's liquids from the geometric waves' mesh (vr/vr_water.cpp, vr_water_geo_waves): its own vertex and
+index buffers, a pin per vertex (attribute 4) for the vertex shaders' swells. The calls are Ironwail's (R_AddBModelCall),
+their commands the ranges of the faces seen this view (VR_WaterMarkVis), not the GPU's culling's.
+=============
+*/
+static bmodel_draw_indirect_t liquid_mesh_cmds[MAX_BMODEL_DRAWS];
+
+static void R_FlushLiquidMeshCalls (void)
+{
+	GLuint	buf;
+	GLbyte	*ofs;
+
+	if (!num_bmodel_calls)
+		return;
+
+	GL_Upload (GL_DRAW_INDIRECT_BUFFER, liquid_mesh_cmds, sizeof (liquid_mesh_cmds[0]) * num_bmodel_calls, &buf, &ofs);
+	GL_UseProgram (bmodel_batch_program);
+	VR_WaterMeshBind ();
+	GL_BindBuffer (GL_DRAW_INDIRECT_BUFFER, buf);
+	if (gl_bindless_able)
+	{
+		GLuint pbuf;
+		GLbyte *pofs;
+		GL_Upload (GL_SHADER_STORAGE_BUFFER, bmodel_calls.bindless.params, sizeof (bmodel_calls.bindless.params[0]) * num_bmodel_calls, &pbuf, &pofs);
+		GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 1, pbuf, (GLintptr)pofs, sizeof (bmodel_calls.bindless.params[0]) * num_bmodel_calls);
+		GL_MultiDrawElementsIndirectFunc (GL_TRIANGLES, GL_UNSIGNED_INT, (const void *)ofs, num_bmodel_calls, sizeof (bmodel_draw_indirect_t));
+	}
+	else
+	{
+		int i;
+		GLuint pbuf;
+		GLbyte *pofs;
+		GL_Upload (GL_SHADER_STORAGE_BUFFER, &bmodel_calls.bound.params, sizeof (bmodel_calls.bound.params[0]) * num_bmodel_calls, &pbuf, &pofs);
+		GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 1, pbuf, (GLintptr)pofs, sizeof (bmodel_calls.bound.params[0]) * num_bmodel_calls);
+		for (i = 0; i < num_bmodel_calls; i++)
+		{
+			GL_Uniform1iFunc (0, i);
+			GL_BindTextures (0, 2, bmodel_calls.bound.textures[i]);
+			GL_Bind (GL_TEXTURE3, bmodel_calls.bound.textures[i][2]);
+			GL_DrawElementsIndirectFunc (GL_TRIANGLES, GL_UNSIGNED_INT, (const byte *)ofs + i * sizeof (bmodel_draw_indirect_t));
+		}
+	}
+
+	num_bmodel_calls = 0;
+}
+
+/*
+=============
+R_DrawLiquidMesh
+
+QVR: the world's liquids of this pass (translucent or not) from the geometric waves' mesh; baseinst: the world's instance.
+=============
+*/
+static void R_DrawLiquidMesh (int baseinst, qboolean translucent, unsigned state)
+{
+	qmodel_t *model = cl.worldmodel;
+	int j, k, n;
+
+	GL_SetState ((state & ~GLS_MASK_ATTRIBS) | GLS_ATTRIBS(5));
+	for (j = model->texofs[TEXTYPE_FIRSTLIQUID]; j < model->texofs[TEXTYPE_LASTLIQUID+1]; j++)
+	{
+		texture_t *t = model->textures[model->usedtextures[j]];
+		const unsigned *ranges;
+		if ((GL_WaterAlphaForEntityTextureType (&cl_entities[0], t->type) < 1.f) != translucent)
+			continue;
+		n = VR_WaterMeshRanges (model->usedtextures[j], &ranges);
+		for (k = 0; k < n; k++)
+		{
+			bmodel_draw_indirect_t *cmd;
+			if (num_bmodel_calls == MAX_BMODEL_DRAWS)
+				R_FlushLiquidMeshCalls ();
+			cmd = &liquid_mesh_cmds[num_bmodel_calls];
+			cmd->firstIndex = ranges[k * 2];
+			cmd->count = ranges[k * 2 + 1];
+			cmd->instanceCount = 1;
+			cmd->baseVertex = 0;
+			cmd->baseInstance = baseinst;
+			R_AddBModelCall (0, baseinst, 1, R_TextureAnimation (t, 0), false);
+		}
+	}
+	R_FlushLiquidMeshCalls ();
+	GL_SetState (state);
+}
+
+/*
+=============
 R_EntHasWater
 =============
 */
@@ -545,6 +634,7 @@ void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent)
 	GLbyte *ofs;
 	qboolean oit;
 	GLuint scenedepth; // QVR
+	int meshinst = -1; // QVR: the world's instance, its liquids drawn from the geometric waves' mesh (vr/vr_water.cpp)
 
 	if (count > countof(bmodel_instances))
 	{
@@ -603,6 +693,13 @@ void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent)
 		for (numinst = 1; i < count && ents[i]->model == model && numinst < MAX_BMODEL_INSTANCES; i++)
 			numinst += R_EntHasWater (ents[i], translucent);
 
+		if (isworld && VR_WaterMeshActive ()) // QVR
+		{
+			meshinst = baseinst;
+			baseinst += numinst;
+			continue;
+		}
+
 		for (j = model->texofs[TEXTYPE_FIRSTLIQUID]; j < model->texofs[TEXTYPE_LASTLIQUID+1]; j++)
 		{
 			texture_t *t = model->textures[model->usedtextures[j]];
@@ -615,6 +712,9 @@ void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent)
 	}
 
 	R_FlushBModelCalls ();
+
+	if (meshinst >= 0) // QVR
+		R_DrawLiquidMesh (meshinst, translucent, state);
 
 	GL_EndGroup ();
 }

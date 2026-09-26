@@ -253,11 +253,6 @@ void(entity e, entity xPlayer, float xHand) VR_Forcegrab_Catch =
     e.vr_spin = '0 0 0';
     setorigin(e, VRGetEntHandPos(xPlayer, xHand) - (VR_Forcegrab_Centre(e) - e.origin));
 
-    if(xPlayer.ishuman)
-    {
-        haptic(xHand, 0.0, 0.1, 60, 0.8);
-    }
-
     // Handed over as the hand touching it would, the grab taken as started.
     entity oldSelf = self;
     entity oldOther = other;
@@ -271,6 +266,17 @@ void(entity e, entity xPlayer, float xHand) VR_Forcegrab_Catch =
     forcegrabCatching = TRUE;
     self.handtouch();
     forcegrabCatching = FALSE;
+
+    // Felt in the catching hand: a firm knock and a short fade. After the handover, whose own
+    // haptic (a pickup's) it replaces, and sent as the player (haptic() goes to self, which here
+    // was the object: the catch was never felt).
+    if(xPlayer.ishuman)
+    {
+        self = xPlayer;
+        haptic(xHand, 0.0, 0.07, 90, 0.85);
+        haptic(xHand, 0.06, 0.08, 70, 0.4);
+        dprint("force grab: catch haptic, hand "); dprint(ftos(xHand)); dprint("\n");
+    }
 
     self = oldSelf;
     other = oldOther;
@@ -438,8 +444,10 @@ void(entity e, float xHand) VR_Forcegrab_Launch =
 void(float xHand) VR_Forcegrab_HandFrame =
 {
     if(!cvar_hget(cvarh_vr_forcegrab_mode) || !self.ishuman || self.health <= 0 ||
-       !VRIsHandEmpty(self, xHand) || VR_Carry_IsHolding(self, xHand))
+       !VRIsHandEmpty(self, xHand) || VR_Carry_IsHolding(self, xHand) ||
+       VRHasBit(self.vrbits0, xHand == cVR_MainHand ? QVR_VRBITS0_MAINHAND_BUSY : QVR_VRBITS0_OFFHAND_BUSY))
     {
+        // (A hand holding the engine's flashlight is busy too.)
         VR_Forcegrab_Set(xHand, world, FALSE);
         return;
     }

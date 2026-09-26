@@ -77,6 +77,8 @@ float VR_BLOW_REARM = 0.2;  // s after a blow lands before the next
 float VR_BLOW_BACKMOST = -0.45; // cosine from the head's facing: further back (about 117 degrees) is no blow
 float VR_BLOW_BACKBIAS = 1;     // going back at all, the distance needed grows by this much of the cosine
 float VR_BLOW_WHIP = 2.6;       // rad/m: a fist turning more than this for the way the wrist went is whipped
+float VR_BLOW_JUMP = 20;        // m/s: the wrist moving faster than this jumped (a teleport, a re-based play space)
+float VR_BLOW_TIPJUMP = 60;     // m/s: likewise the striking point (a weapon taken)
 
 // A hand's stroke, on an entity of its own (the player's vr_blow_main/vr_blow_off).
 .entity vr_blow_main;
@@ -102,6 +104,38 @@ float VR_BLOW_WHIP = 2.6;       // rad/m: a fist turning more than this for the 
 .float blow_kind;      // what it is (VR_BLOW_KIND_*),
 .float blow_dist;      // how far the wrist travelled (metres),
 .float blow_accel;     // and how fast it got going (the wrist's mean acceleration to its fastest, m/s2)
+
+// The striking points (VR_Blow_Points, "Striking points" below).
+vector vr_pt[6];       // the points of the hand last asked for (world),
+float vr_pt_mult[6];   // each one's damage multiplier,
+string vr_pt_name[6];  // and name,
+float vr_pt_count;     // how many
+.vector blow_pp[6];    // the hand's points at its pose before (world),
+.vector blow_cp[6];    // at its pose now,
+.float blow_pmult[6];  // their damage multipliers,
+.float blow_ppn;       // how many (0: none yet),
+.float blow_ppw;       // and of which weapon (another: nothing to sweep from)
+.float blow_ok;        // the stroke (its blow_t0) that became a blow (VR_Blow_IsBlow)
+.float blow_slowest;   // the wrist's slowest since the last blow landed (m/s),
+.float blow_hitpeak;   // and that blow's fastest
+.float blow_hit_stroke; // the stroke (blow_t0) of the first contact with something that bleeds:
+.entity blow_hit_ent;  // what,
+.vector blow_hit_pos;  // where,
+.vector blow_hit_dir;  // the point's way,
+.float blow_hit_mult;  // its damage multiplier,
+.string blow_hit_name; // and its name ("the tip"),
+.float blow_hit_time;  // when
+.float blow_wall_stroke; // likewise, the stroke's first contact with a wall,
+.float blow_wall_time;
+.vector blow_wall_pos;
+.vector blow_wall_dir;
+.vector blow_wall_normal;
+.entity blow_wall_ent;
+.string blow_wall_name;
+.vector bat_a[8];      // a batting swing's weapon lines, as they were (VR_Deflect),
+.vector bat_b[8];
+.float bat_t[8];       // when,
+.float bat_i;          // and the newest
 
 float VR_BLOW_KIND_PUNCH = 0;
 float VR_BLOW_KIND_SLAP = 1;
@@ -213,10 +247,10 @@ vector(float xHand) VR_Blow_HandForward =
     return VR_Blow_ToPlaySpace(f);
 };
 
-// Follows the stroke of `xHand`, once a frame (PlayerVRMelee, before the bashes and the blows).
-void(float xHand) VR_Blow_Update =
+// Follows the stroke of `xHand` (VR_Blow_Update): 0 for the same pose again (no news), -1 when it
+// started over (a gap or a jump), 1 otherwise.
+float(float xHand, entity b) VR_Blow_Track =
 {
-    entity b = VR_Blow(xHand);
     float dt = time - b.blow_time;
     vector w = VR_Blow_Wrist(xHand);
     vector d = w - b.blow_wrist;
@@ -227,26 +261,30 @@ void(float xHand) VR_Blow_Update =
     // pose's motion spans both frames.
     if(d == '0 0 0' && dtip == '0 0 0' && dt > 0 && dt < 0.05)
     {
-        return;
+        return 0;
     }
     b.blow_time = time;
     b.blow_wrist = w;
     b.blow_tip = tip;
 
     // A gap (the hands lost), or a jump (a teleport, the play space re-based, a weapon taken): start
-    // over.
-    if(!VRHandsTracked(self) || dt <= 0 || dt > 0.1 || vlen(d) > 0.3 || vlen(dtip) > 0.6)
+    // over. A jump is faster than a hand goes (VR_BLOW_JUMP, VR_BLOW_TIPJUMP), not a distance in a
+    // frame: a sword's tip goes 0.6 m in a frame at 45 Hz in a hard swing, which used to end the stroke
+    // (so the swing never hit at 45 or 90 fps: the server runs at 45 Hz at both).
+    if(!VRHandsTracked(self) || dt <= 0 || dt > 0.1 || vlen(d) > max(0.3, VR_BLOW_JUMP * dt) ||
+       vlen(dtip) > max(0.6, VR_BLOW_TIPJUMP * dt))
     {
         b.blow_t0 = 0;
         b.blow_speed = 0;
         b.blow_tipspeed = 0;
         b.blow_vel = '0 0 0';
-        return;
+        return -1;
     }
 
     vector oldVel = b.blow_vel;
     float oldSpeed = b.blow_speed;
     b.blow_vel = d * (1 / dt);
+    if(cvar("developer") >= 3 && xHand == cVR_MainHand && vlen(d) > 0.01) dprint(sprintf("TRK t %.4f dt %.4f d %.3f v %.2f\n", time, dt, vlen(d), vlen(d) / dt)); // TEMPDEBUG
     b.blow_speed = vlen(b.blow_vel);
     b.blow_tipspeed = vlen(dtip) / dt;
 
@@ -266,7 +304,7 @@ void(float xHand) VR_Blow_Update =
     {
         if(b.blow_speed < VR_BLOW_MOVING)
         {
-            return;
+            return 1;
         }
         // A new stroke, from the last still point (or the turn).
         b.blow_t0 = time - dt;
@@ -291,6 +329,36 @@ void(float xHand) VR_Blow_Update =
         b.blow_peaktime = time;
     }
     b.blow_tippeak = max(b.blow_tippeak, b.blow_tipspeed);
+    return 1;
+};
+
+// Follows the stroke of `xHand` and its striking points (below), once a frame (PlayerVRMelee,
+// before the bashes and the blows): the points are swept from the last new pose to this one, and a
+// stroke's first contact is kept (VR_Blow_Sweep).
+void(float xHand) VR_Blow_Update =
+{
+    entity b = VR_Blow(xHand);
+    float tracked = VR_Blow_Track(xHand, b);
+    if(!tracked)
+    {
+        return; // no new pose: the next one's sweep spans both frames
+    }
+
+    VR_Blow_Points(xHand);
+    float wid = VRIsHandEmpty(self, xHand) ? WID_FIST : VRGetEntWeapon(self, xHand);
+    float same = tracked > 0 && b.blow_ppn == vr_pt_count && b.blow_ppw == wid;
+    for(float i = 0; i < vr_pt_count; ++i)
+    {
+        b.blow_pp[i] = same ? b.blow_cp[i] : vr_pt[i];
+        b.blow_cp[i] = vr_pt[i];
+        b.blow_pmult[i] = vr_pt_mult[i];
+    }
+    b.blow_ppn = vr_pt_count;
+    b.blow_ppw = wid;
+    if(same && b.blow_t0)
+    {
+        VR_Blow_Sweep(xHand, b);
+    }
 };
 
 // How far the stroke of `xHand` has taken the wrist (metres; 0 when not in one).
@@ -452,6 +520,11 @@ void(float xHand) VR_Blow_Measure =
         strength = strength * (0.85 + 0.35 * min(1, max(0, (ratio - 1.2) / 0.6)));
     }
     b.blow_strength = min(VR_BLOW_MAX, strength);
+    if(b.blow_hit_stroke == b.blow_t0)
+    {
+        // Struck with a sword's hilt or an axe's handle (VR_Blow_Points).
+        b.blow_strength = b.blow_strength * b.blow_hit_mult;
+    }
 };
 
 // The damage multiplier of the blow `xHand` is dealing (VRMeleeDmg).
@@ -472,6 +545,324 @@ string(float xKind) VR_Blow_KindName =
     return "punch";
 };
 
+// ----------------------------------------------------------------------------
+// Striking points (docs/vr-port/ROUND15.md, "Melee points, deflect, frame rate"). A hand strikes with
+// a few points along what it holds, from the hand (VRGetHandPos) to the weapon's far end (its muzzle
+// point, VRGetMuzzlePos: a sword's tip, the axe's head, a gun's muzzle: anchors on the weapon's model,
+// so a weapon held another way, vr_weapons.inc, takes its points with it):
+//  - a fist (or a box in hand): the fist and the knuckles;
+//  - a sword: the pommel and the hilt (the hand, just under the guard: VR_PT_HILT of the damage), the
+//    guard, the blade's middle, its outer part and the tip;
+//  - the axe and Mjolnir: the hand and the handle (VR_PT_HANDLE), the head's back and the head;
+//  - a gun used as a club: the grip, the barrel and the muzzle.
+// Each server frame with a new pose, every point is swept from where it was to where it is
+// (VR_Blow_Sweep: a line, VR_PT_RADIUS thick, against the boxes of things that bleed; a line against
+// walls), so what the weapon passes through between two frames is struck at any frame rate. The first
+// thing a stroke's points pass through is its contact: the point, where, and which way it went. The
+// stroke's blow lands on it once: as the stroke becomes a blow (VR_Blow_IsBlow) if the contact came
+// earlier in the stroke, or at the contact while the stroke goes on (PlayerVRMeleeImpl); then the hand
+// must stop or pull back before it strikes again. Things that bleed come first: a wall is struck only
+// if nothing else is, when it was touched in the last VR_PT_WALL_AGE seconds, and not by a point going
+// down (a hand reaching for a hip holster).
+
+float VR_PT_RADIUS = 3;      // units around a point's sweep that it strikes (times vr_melee_range_multiplier)
+float VR_PT_HILT = 0.6;      // a sword's hilt (a pommel strike): its damage multiplier
+float VR_PT_HANDLE = 0.5;    // the axe's or Mjolnir's handle
+float VR_PT_WALL_AGE = 0.1;  // s: how recent a wall's contact must be to be the blow's
+float VR_PT_UPGRADE = 0.05;  // s: a weak point's contact waits this long for a strong one's
+
+void(float xIndex, vector xAt, float xMult, string xName) VR_Blow_Point =
+{
+    vr_pt[xIndex] = xAt;
+    vr_pt_mult[xIndex] = xMult;
+    vr_pt_name[xIndex] = xName;
+    vr_pt_count = xIndex + 1;
+};
+
+// The striking points of `xHand` (see above), into vr_pt.
+void(float xHand) VR_Blow_Points =
+{
+    vector h = VRGetHandPos(xHand);
+    vector fwd = VRForwardOf(VRGetHandRot(xHand));
+    float wid = VRGetEntWeapon(self, xHand);
+    if(VRIsHandEmpty(self, xHand) || wid == WID_FIST)
+    {
+        VR_Blow_Point(0, h - fwd * 1, 1, "the fist");
+        VR_Blow_Point(1, h + fwd * 4, 1, "the knuckles");
+        return;
+    }
+
+    vector m = VRGetMuzzlePos(xHand);
+    if(m == '0 0 0' || vlen(m - h) > 80 || vlen(m - h) < 2)
+    {
+        m = h + fwd * 8;
+    }
+    vector a = m - h;
+    if(wid == WID_SWORD)
+    {
+        // The hand closes just under the guard; the grip and the pommel go on below it.
+        VR_Blow_Point(0, h - a * 0.3, VR_PT_HILT, "the pommel");
+        VR_Blow_Point(1, h, VR_PT_HILT, "the hilt");
+        VR_Blow_Point(2, h + a * 0.12, 0.85, "the guard");
+        VR_Blow_Point(3, h + a * 0.45, 1, "mid-blade");
+        VR_Blow_Point(4, h + a * 0.72, 1, "the blade");
+        VR_Blow_Point(5, m, 1, "the tip");
+    }
+    else if(wid == WID_AXE || wid == WID_MJOLNIR)
+    {
+        VR_Blow_Point(0, h, VR_PT_HANDLE, "the hand");
+        VR_Blow_Point(1, h + a * 0.5, VR_PT_HANDLE, "the handle");
+        VR_Blow_Point(2, h + a * 0.8, 1, "the head");
+        VR_Blow_Point(3, m, 1, "the head");
+    }
+    else
+    {
+        VR_Blow_Point(0, h, 1, "the grip");
+        VR_Blow_Point(1, h + a * 0.5, 1, "the barrel");
+        VR_Blow_Point(2, m, 1, "the muzzle");
+    }
+};
+
+// (VR_SegmentBox, a line into a box: vr_carry.qc.)
+
+// The least distance between the segments `xA0` .. `xA1` and `xB0` .. `xB1`.
+float(vector xA0, vector xA1, vector xB0, vector xB1) VR_SegmentDistance =
+{
+    vector d1 = xA1 - xA0;
+    vector d2 = xB1 - xB0;
+    vector r = xA0 - xB0;
+    float a = d1 * d1;
+    float e = d2 * d2;
+    float f = d2 * r;
+    float s = 0;
+    float t = 0;
+    if(a <= 0.0001 && e <= 0.0001)
+    {
+        return vlen(r);
+    }
+    if(a <= 0.0001)
+    {
+        t = min(1, max(0, f / e));
+    }
+    else
+    {
+        float c = d1 * r;
+        if(e <= 0.0001)
+        {
+            s = min(1, max(0, -c / a));
+        }
+        else
+        {
+            float bb = d1 * d2;
+            float denom = a * e - bb * bb;
+            if(denom > 0.0001)
+            {
+                s = min(1, max(0, (bb * f - c * e) / denom));
+            }
+            t = (bb * s + f) / e;
+            if(t < 0)
+            {
+                t = 0;
+                s = min(1, max(0, -c / a));
+            }
+            else if(t > 1)
+            {
+                t = 1;
+                s = min(1, max(0, (bb - c) / a));
+            }
+        }
+    }
+    return vlen((xA0 + d1 * s) - (xB0 + d2 * t));
+};
+
+// Whether `e` can be struck by the hands of `self`: it bleeds (or breaks), it is solid, and it is not
+// the player's own (held or thrown).
+float(entity e) VR_Blow_Strikable =
+{
+    return e != self && e != world && e.takedamage && e.solid != SOLID_NOT && e.solid != SOLID_TRIGGER &&
+           e.owner != self && e.carry_player != self;
+};
+
+// Sweeps the striking points of `xHand` (b.blow_pp to b.blow_cp) for the stroke's first contacts: with
+// something that bleeds, and with a wall. Of the points striking in the same frame, the strongest
+// (the blade over the hilt), then the earliest along the sweep. A weak point's contact (a sword's hilt,
+// an axe's handle) gives way to a strong one's within VR_PT_UPGRADE s: a hilt or handle strikes only
+// when the blade or head doesn't follow it in.
+void(float xHand, entity b) VR_Blow_Sweep =
+{
+    float upgrade = b.blow_hit_stroke == b.blow_t0 && b.blow_hit_mult < 1 && time - b.blow_hit_time <= VR_PT_UPGRADE;
+    float wantHit = b.blow_hit_stroke != b.blow_t0 || upgrade;
+    float n = b.blow_ppn;
+    if(n <= 0)
+    {
+        return;
+    }
+    float r = VR_PT_RADIUS * max(0.25, cvar_hget(cvarh_vr_melee_range_multiplier));
+    vector hand = VRGetHandPos(xHand);
+
+    float bestT = 2;
+    float bestM = upgrade ? b.blow_hit_mult : 0; // (upgrading: only a stronger point)
+    float best = -1;
+    entity bestEnt = world;
+    vector bestAt = '0 0 0';
+    float wallT = 2;
+    float wall = -1;
+    entity wallEnt = world;
+    vector wallAt = '0 0 0';
+    vector wallNormal = '0 0 0';
+    float i;
+    vector p0;
+    vector p1;
+    float t;
+
+    // Walls and brush entities (a line each, exact against the BSP; it finds monsters too).
+    for(i = n - 1; i >= 0; --i)
+    {
+        p0 = b.blow_pp[i];
+        p1 = b.blow_cp[i];
+        if(p0 == p1)
+        {
+            continue;
+        }
+        traceline(p0, p1, FALSE, self);
+        if(trace_startsolid || trace_fraction >= 1)
+        {
+            continue;
+        }
+        if(VR_Blow_Strikable(trace_ent))
+        {
+            if(wantHit && (b.blow_pmult[i] > bestM || (b.blow_pmult[i] == bestM && best >= 0 && trace_fraction < bestT)))
+            {
+                bestM = b.blow_pmult[i];
+                bestT = trace_fraction;
+                best = i;
+                bestEnt = trace_ent;
+                bestAt = trace_endpos;
+            }
+        }
+        else if(trace_fraction < wallT && p1_z - p0_z >= -0.35 * vlen(p1 - p0))
+        {
+            wallT = trace_fraction;
+            wall = i;
+            wallEnt = trace_ent;
+            wallAt = trace_endpos;
+            wallNormal = trace_plane_normal;
+        }
+    }
+
+    // Monsters' boxes, widened by the points' thickness (and not through a wall).
+    if(wantHit)
+    {
+        vector mid = '0 0 0';
+        for(i = 0; i < n; ++i)
+        {
+            mid = mid + b.blow_pp[i] + b.blow_cp[i];
+        }
+        mid = mid * (0.5 / n);
+        float reach = 0;
+        for(i = 0; i < n; ++i)
+        {
+            reach = max(reach, max(vlen(b.blow_pp[i] - mid), vlen(b.blow_cp[i] - mid)));
+        }
+
+        entity e = findradius(mid, reach + r + 96);
+        while(e)
+        {
+            if(VR_Blow_Strikable(e) && (e.solid == SOLID_SLIDEBOX || e.solid == SOLID_BBOX))
+            {
+                vector lo = e.origin + e.mins;
+                vector hi = e.origin + e.maxs;
+                for(i = n - 1; i >= 0; --i)
+                {
+                    p0 = b.blow_pp[i];
+                    p1 = b.blow_cp[i];
+                    t = VR_SegmentBox(p0, p1, lo - '1 1 1' * r, hi + '1 1 1' * r);
+                    if(t >= 0 && (b.blow_pmult[i] > bestM || (b.blow_pmult[i] == bestM && best >= 0 && t < bestT)))
+                    {
+                        // On the box itself.
+                        vector at = p0 + (p1 - p0) * t;
+                        at_x = min(hi_x, max(lo_x, at_x));
+                        at_y = min(hi_y, max(lo_y, at_y));
+                        at_z = min(hi_z, max(lo_z, at_z));
+                        traceline(hand, at, TRUE, self);
+                        if(trace_fraction >= 1)
+                        {
+                            bestM = b.blow_pmult[i];
+                            bestT = t;
+                            best = i;
+                            bestEnt = e;
+                            bestAt = at;
+                        }
+                    }
+                }
+            }
+            e = e.chain;
+        }
+    }
+
+    if(best >= 0)
+    {
+        if(b.blow_hit_stroke != b.blow_t0)
+        {
+            b.blow_hit_time = time; // (an upgrade keeps the first contact's time)
+        }
+        b.blow_hit_stroke = b.blow_t0;
+        b.blow_hit_ent = bestEnt;
+        b.blow_hit_pos = bestAt;
+        b.blow_hit_dir = normalize(b.blow_cp[best] - b.blow_pp[best]);
+        b.blow_hit_mult = b.blow_pmult[best];
+        b.blow_hit_name = vr_pt_name[best];
+    }
+    if(wall >= 0 && (b.blow_wall_stroke != b.blow_t0 || time - b.blow_wall_time > VR_PT_WALL_AGE))
+    {
+        b.blow_wall_stroke = b.blow_t0;
+        b.blow_wall_time = time;
+        b.blow_wall_ent = wallEnt;
+        b.blow_wall_pos = wallAt;
+        b.blow_wall_dir = normalize(b.blow_cp[wall] - b.blow_pp[wall]);
+        b.blow_wall_normal = wallNormal;
+        b.blow_wall_name = vr_pt_name[wall];
+    }
+};
+
+// The contact the blow of `xHand` lands on (see above), in the trace_ globals (trace_ent, trace_endpos,
+// trace_plane_normal, trace_fraction) and v_forward (the striking point's way), as a traceline's hit;
+// FALSE while there is none (a later frame of the stroke may find one).
+float(float xHand) VR_Blow_Contact =
+{
+    entity b = VR_Blow(xHand);
+    if(!b.blow_t0)
+    {
+        return FALSE;
+    }
+    if(b.blow_hit_stroke == b.blow_t0 && b.blow_hit_mult < 1 && time - b.blow_hit_time < VR_PT_UPGRADE)
+    {
+        return FALSE; // a hilt or handle: the blade or head may follow it in (VR_Blow_Sweep)
+    }
+    if(b.blow_hit_stroke == b.blow_t0 && b.blow_hit_ent.takedamage && b.blow_hit_ent.solid != SOLID_NOT)
+    {
+        trace_ent = b.blow_hit_ent;
+        trace_endpos = b.blow_hit_pos;
+        trace_plane_normal = b.blow_hit_dir * -1;
+        v_forward = b.blow_hit_dir;
+    }
+    else if(b.blow_wall_stroke == b.blow_t0 && time - b.blow_wall_time <= VR_PT_WALL_AGE)
+    {
+        trace_ent = b.blow_wall_ent;
+        trace_endpos = b.blow_wall_pos;
+        trace_plane_normal = b.blow_wall_normal;
+        v_forward = b.blow_wall_dir;
+    }
+    else
+    {
+        return FALSE;
+    }
+    trace_fraction = 0.5;
+    trace_startsolid = FALSE;
+    trace_allsolid = FALSE;
+    return TRUE;
+};
+
 // Whether `e` is a monster's projectile in flight (a knight's spike, an enforcer's laser, a
 // scrag's spit, a vore's ball, an ogre's grenade, ...).
 float(entity e) VR_Deflect_IsProjectile =
@@ -484,8 +875,19 @@ float(entity e) VR_Deflect_IsProjectile =
            e.movetype == MOVETYPE_BOUNCEMISSILE;
 };
 
-// During a melee swing of `xHand` (self is the player): enemy projectiles near the weapon (from the
-// hand to its muzzle, or the fist) fly back where the hand points, faster, and now hurt monsters.
+// Batting projectiles back (vr_deflect; docs/vr-port/ROUND15.md). A batting swing is a stroke of the
+// wrist that got to vr_deflect_speed times vr_melee_speed and still goes at half that: much less than
+// a blow (no reach, snap or shape needed). Each frame of it, the weapon's line (from its first striking
+// point to its last: the hilt to the tip, the fist to the knuckles) is kept, for vr_deflect_window
+// seconds. An enemy projectile whose path this frame (from a little behind it, VR_BAT_LATE, to where it
+// will be at the frame's end) comes within vr_deflect_radius (plus its size) of any of those lines is
+// batted back: so a swing a little early still bats what flies into where the weapon went, and the
+// frame rate doesn't matter (the paths are swept). It flies back where the hand points (at its
+// thrower, when that is within VR_BAT_AIM degrees of it), faster, and now hurts monsters.
+float VR_BAT_KEEP = 8;   // weapon lines kept (a ring)
+float VR_BAT_LATE = 0.05; // s: a projectile's path starts this far behind it (just past the weapon)
+float VR_BAT_AIM = 25;    // degrees: a thrower this near where the hand points gets its projectile back
+
 void(float xHand) VR_Deflect =
 {
     if(!cvar_hget(cvarh_vr_deflect))
@@ -493,28 +895,59 @@ void(float xHand) VR_Deflect =
         return;
     }
 
-    vector a = VRGetHandPos(xHand);
-    vector b = VRGetMuzzlePos(xHand);
-    if(b == '0 0 0' || vlen(b - a) > 80)
+    entity b = VR_Blow(xHand);
+    float n = b.blow_ppn;
+    float need = max(0.5, cvar_hget(cvarh_vr_melee_speed)) * max(0, cvar_hget(cvarh_vr_deflect_speed));
+    if(n > 0 && b.blow_t0 && b.blow_peak >= need && b.blow_speed >= need * 0.5)
     {
-        b = a;
+        b.bat_i = b.bat_i + 1;
+        if(b.bat_i >= VR_BAT_KEEP)
+        {
+            b.bat_i = 0;
+        }
+        b.bat_a[b.bat_i] = b.blow_cp[0];
+        b.bat_b[b.bat_i] = b.blow_cp[n - 1];
+        b.bat_t[b.bat_i] = time;
     }
-    vector mid = (a + b) * 0.5;
-    float len = vlen(b - a);
-    vector along = len > 0 ? (b - a) * (1 / len) : '0 0 0';
 
-    entity e = findradius(mid, len * 0.5 + 40);
+    float window = max(0, cvar_hget(cvarh_vr_deflect_window));
+    if(time - b.bat_t[b.bat_i] > window)
+    {
+        return; // no batting swing lately
+    }
+    float radius = max(0, cvar_hget(cvarh_vr_deflect_radius));
+    float dt = max(frametime, 0.011);
+
+    entity e = findradius(VRGetHandPos(xHand), 160);
     while(e)
     {
         if(VR_Deflect_IsProjectile(e) && time >= e.vr_deflect_time + 0.3)
         {
-            // Its distance from the weapon (a segment).
-            float t = min(len, max(0, (e.origin - a) * along));
-            float d = vlen(e.origin - (a + along * t));
-            if(d < 16 + e.maxs_x)
+            vector from = e.origin - e.velocity * max(dt, VR_BAT_LATE);
+            vector to = e.origin + e.velocity * dt;
+            float near = 9999;
+            float when = 0;
+            for(float k = 0; k < VR_BAT_KEEP; ++k)
+            {
+                if(b.bat_t[k] > 0 && time - b.bat_t[k] <= window)
+                {
+                    float d = VR_SegmentDistance(from, to, b.bat_a[k], b.bat_b[k]);
+                    if(d < near)
+                    {
+                        near = d;
+                        when = time - b.bat_t[k];
+                    }
+                }
+            }
+            if(near < radius + e.maxs_x)
             {
                 entity oldOwner = e.owner;
                 vector dir = VRForwardOf(VRGetHandRot(xHand));
+                vector toOwner = normalize(oldOwner.origin + (oldOwner.mins + oldOwner.maxs) * 0.5 - e.origin);
+                if(oldOwner.health > 0 && VRAngleBetween(dir, toOwner) < VR_BAT_AIM)
+                {
+                    dir = toOwner;
+                }
 
                 float speed = max(500, vlen(e.velocity)) * 1.2;
                 e.velocity = dir * speed;
@@ -528,7 +961,8 @@ void(float xHand) VR_Deflect =
                 particle2(e.origin, dir * 120, QVR_PARTICLE_PRESET_SPARKS, 20);
                 haptic(xHand, 0.0, 0.2, 90, 1.0);
                 handimpact(xHand, 3, dir * -1);
-                dprint("deflect: "); dprint(e.classname); dprint(" of "); dprint(oldOwner.classname); dprint("\n");
+                dprint(sprintf("deflect: %s of %s, %.0f units from the swing's line of %.2f s ago\n", e.classname,
+                    oldOwner.classname, near, when));
             }
         }
         e = e.chain;

@@ -55,6 +55,75 @@ struct History
 
 History histories[2];
 
+// The peak of a quadratic fitted (least squares) to the speeds within peakFit seconds of `peakTime`
+// (the fastest sample, `bestSpeed`), kept within 20% of it; 0 when it doesn't fit (fewer than three
+// samples, or not a peak).
+constexpr double peakFit = 0.03;
+
+[[nodiscard]] float peakSpeedFit(const History& h, double peakTime, float bestSpeed)
+{
+    // Sums for s = a + b x + c x^2, x in seconds from the peak sample.
+    double sx[5]{}, sy[3]{};
+    int n = 0;
+    for(int i = 0; i < h.count; i++)
+    {
+        const double x = h.at(i).time - peakTime;
+        if(std::abs(x) > peakFit)
+        {
+            continue;
+        }
+        const double y = glm::length(h.at(i).vel);
+        double p = 1.0;
+        for(int k = 0; k < 5; k++)
+        {
+            sx[k] += p;
+            if(k < 3)
+            {
+                sy[k] += p * y;
+            }
+            p *= x;
+        }
+        n++;
+    }
+    if(n < 3)
+    {
+        return 0.f;
+    }
+
+    // The normal equations (3x3), by Cramer's rule.
+    const double m[3][3] = {{sx[0], sx[1], sx[2]}, {sx[1], sx[2], sx[3]}, {sx[2], sx[3], sx[4]}};
+    const auto det3 = [](const double a[3][3]) {
+        return a[0][0] * (a[1][1] * a[2][2] - a[1][2] * a[2][1]) - a[0][1] * (a[1][0] * a[2][2] - a[1][2] * a[2][0]) +
+               a[0][2] * (a[1][0] * a[2][1] - a[1][1] * a[2][0]);
+    };
+    const double d = det3(m);
+    if(std::abs(d) < 1e-18)
+    {
+        return 0.f;
+    }
+    double coef[3];
+    for(int c = 0; c < 3; c++)
+    {
+        double mc[3][3];
+        for(int r = 0; r < 3; r++)
+        {
+            for(int k = 0; k < 3; k++)
+            {
+                mc[r][k] = k == c ? sy[r] : m[r][k];
+            }
+        }
+        coef[c] = det3(mc) / d;
+    }
+    const double a = coef[0], b = coef[1], c = coef[2];
+    if(c >= 0.0)
+    {
+        return 0.f; // not a peak
+    }
+    const double x = std::clamp(-b / (2.0 * c), -peakFit, peakFit);
+    const double top = a + b * x + c * x * x;
+    return static_cast<float>(std::clamp(top, 0.8 * bestSpeed, 1.2 * bestSpeed));
+}
+
 // The peak of the controller's speed around the release.
 [[nodiscard]] Estimate releasePeak(const History& h, double releaseTime)
 {
@@ -102,6 +171,14 @@ History histories[2];
     }
     vel /= static_cast<float>(nVel);
     angVel /= static_cast<float>(nAng);
+
+    // The speed at the true peak, between the samples: a quadratic fitted to the speeds within
+    // peakFit of the fastest sample. At a low frame rate the samples are far apart and the fastest
+    // one can be well off the peak (throws came out up to 8% slower at 45 fps than at 72).
+    if(const float fitted = peakSpeedFit(h, peak.time, bestSpeed); fitted > 0.f && glm::length(vel) > 1e-4f)
+    {
+        vel = glm::normalize(vel) * std::max(glm::length(vel), fitted);
+    }
 
     // The direction from the samples leading up to the peak: at the peak itself an overarm throw
     // is already curving down, and throws went lower than meant.

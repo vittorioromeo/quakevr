@@ -1936,6 +1936,32 @@ gltexture_t *TexMgr_NormalMap (gltexture_t *glt)
 
 /*
 ================
+TexMgr_MemStats -- QVR: for vr_memstats: the managed textures, how many of them are normal maps, and their size in
+megabytes as imagelist counts it
+================
+*/
+void TexMgr_MemStats (int *count, int *normalmaps, double *megabytes)
+{
+	gltexture_t	*glt;
+	double		bytes = 0;
+	int			nm = 0;
+
+	for (glt = active_gltextures; glt; glt = glt->next)
+	{
+		double s = (double) glt->width * glt->height * (glt->flags & TEXPREF_CUBEMAP ? glt->depth * 6 : glt->depth);
+		if (glt->flags & TEXPREF_MIPMAP)
+			s = s * 4.0 / 3.0;
+		bytes += s * 4 / glt->compression;
+		if (gltextures_base && normalmap_kind[glt - gltextures_base] != NORMALMAP_NONE)
+			nm++;
+	}
+	*count = numgltextures;
+	*normalmaps = nm;
+	*megabytes = bytes / 0x100000;
+}
+
+/*
+================
 TexMgr_LoadImage
 ================
 */

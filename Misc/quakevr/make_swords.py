@@ -18,9 +18,11 @@
 # in id's, the blade's lowest texels and the darkest leather-brown block.
 #
 # The sword is laid where the axe's handle is in progs/v_axe.mdl: its grip along the handle's axis,
-# from its bottom over the stretch the hand holds, the crossguard a little above the hand, the blade
-# going on along the axis with its edges the way the axe's head points. With the axe's weapon settings the
-# hand then holds the grip as it holds the axe, and the sword turns about it. Anchor indices (the
+# the crossguard just above the stretch the axe's hand holds, the blade going on along the axis with
+# its edges the way the axe's head points, and the grip going on below the handle's bottom, long
+# enough for a second hand under the first (two-handed, vr_twohand.cpp). With the axe's weapon
+# settings the hand then holds the grip as it holds the axe, just under the crossguard, and the
+# sword turns about it. Anchor indices (the
 # hand's, the tip's for a swing's reach) follow the old engine's strip order, not the file's: the
 # engine's vr_anchor_nearest finds them (see vr_weapons.inc, slots 18 and 19). Scaled so that the
 # weapon settings' 0.34 gives about the knights' own sword length. Nine identical frames (a weapon's
@@ -40,8 +42,10 @@ SCALE = 2.6  # knight units to weapon model units (the weapon draws at 0.34): ab
 # 12.3 units along it; the head starts at 25).
 HANDLE_BOTTOM = (0.2, 0.0, -3.55)
 HANDLE_DIR = (4.2, 0.0, 11.55)
-GRIP = 15.3          # grip length from the handle's bottom: the axe's hand closes over its first 12
-                     # or so, and the rest keeps the fist off the crossguard
+GRIP_TOP = 12.5      # the crossguard's foot along the handle from its bottom: the axe's hand closes
+                     # over its first 12 or so
+GRIP = 24.0          # grip length: the hand below it, and a second hand below that (each fist covers
+                     # about 11.5 units at the weapon settings' scale)
 GRIP_HALF = 1.5      # the square grip's half width (the axe's handle is about 1.2 in radius)
 GUARD_H = 4.0        # the crossguard's height along the blade; the blade goes 1.2 into it
 DENSITY = 1.25       # texels per unit on the hilt's faces, about the blades'
@@ -312,11 +316,11 @@ def build(m, tris, normals, skin_regions):
     rings = [(-GRIP - 3.6, 1.3), (-GRIP - 2.8, 2.4), (-GRIP - 0.9, 2.4), (-GRIP + 0.3, 1.5)]
     out.loft([(w, -r, r, -r, r) for w, r in rings], 'z', pommel)
 
-    # Into the axe's space: the grip along its handle, the crossguard's foot where the head starts.
+    # Into the axe's space: the grip along its handle, the crossguard's foot just above the axe's hand.
     A = norm(HANDLE_DIR)
     X = norm(sub((1.0, 0.0, 0.0), mul(A, A[0])))  # the edges face the way the axe's head does
     Y = cross(A, X)
-    guard_foot = add(HANDLE_BOTTOM, mul(A, GRIP))
+    guard_foot = add(HANDLE_BOTTOM, mul(A, GRIP_TOP))
 
     def place(p):
         return add(guard_foot, add(mul(X, p[0]), add(mul(Y, p[1]), mul(A, p[2]))))

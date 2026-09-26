@@ -24,9 +24,17 @@
 
 #include <cmath>
 #include <cstring>
+#include <ctime>
 #include <memory>
+#include <string>
 
 using namespace qvr;
+
+extern "C" void TexMgr_MemStats(int* count, int* normalmaps, double* megabytes); // gl_texmgr.c
+namespace qvr::gfx
+{
+extern int targetsMade; // vr_gfx_gl.cpp
+}
 
 namespace
 {
@@ -213,6 +221,242 @@ void VR_Status_f()
     }
 }
 
+// ---- vr_memstats: what the game holds, to tell a leak across map loads ---------------------------
+
+#ifdef _WIN32
+// GetProcessMemoryInfo (kernel32's K32 export), declared here rather than through <windows.h>.
+struct ProcessMemoryCounters
+{
+    unsigned long cb;
+    unsigned long pageFaultCount;
+    std::size_t peakWorkingSetSize, workingSetSize, quotaPeakPagedPoolUsage, quotaPagedPoolUsage,
+        quotaPeakNonPagedPoolUsage, quotaNonPagedPoolUsage, pagefileUsage, peakPagefileUsage, privateUsage;
+};
+extern "C" __declspec(dllimport) void* __stdcall GetCurrentProcess();
+extern "C" __declspec(dllimport) int __stdcall K32GetProcessMemoryInfo(void* process, ProcessMemoryCounters* counters,
+    unsigned long size);
+#endif
+
+// Live GL objects of a kind: the names that are objects, from 1 until 4096 in a row are not.
+using GlIsFn = GLboolean(APIENTRY*)(GLuint);
+int countGlObjects(GlIsFn isObject, GLuint& highest)
+{
+    int count = 0;
+    highest = 0;
+    for(GLuint name = 1, misses = 0; misses < 4096 && name < (1u << 22); name++)
+    {
+        if(isObject(name))
+        {
+            count++;
+            highest = name;
+            misses = 0;
+        }
+        else
+        {
+            misses++;
+        }
+    }
+    return count;
+}
+
+struct MemSample
+{
+    int vramTotal{-1}, vramFree{-1}, evictions{-1}, evictedMb{-1}; // MB; -1: not reported
+    double workingSet{0.0}, peakWorkingSet{0.0}, privateBytes{0.0}; // MB
+    double hunk{0.0};                                               // MB
+    int textures{0}, normalmaps{0};
+    double textureMb{0.0};
+    int glTextures{0}, buffers{-1}, framebuffers{-1}, queries{-1}, programs{-1};
+};
+
+MemSample sampleMemory()
+{
+    MemSample m;
+
+    // The GPU's memory (NVIDIA: GL_NVX_gpu_memory_info, all processes'; AMD: GL_ATI_meminfo, free only).
+    while(glGetError() != GL_NO_ERROR)
+    {
+    }
+    GLint total = 0, available = 0, evictions = 0, evicted = 0;
+    glGetIntegerv(0x9048, &total); // GL_GPU_MEMORY_INFO_TOTAL_AVAILABLE_MEMORY_NVX, KB
+    if(glGetError() == GL_NO_ERROR && total > 0)
+    {
+        glGetIntegerv(0x9049, &available); // GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX
+        glGetIntegerv(0x904A, &evictions); // GL_GPU_MEMORY_INFO_EVICTION_COUNT_NVX
+        glGetIntegerv(0x904B, &evicted);   // GL_GPU_MEMORY_INFO_EVICTED_MEMORY_NVX
+        m.vramTotal = total / 1024;
+        m.vramFree = available / 1024;
+        m.evictions = evictions;
+        m.evictedMb = evicted / 1024;
+    }
+    else
+    {
+        GLint ati[4] = {};
+        glGetIntegerv(0x87FC, ati); // GL_TEXTURE_FREE_MEMORY_ATI
+        if(glGetError() == GL_NO_ERROR && ati[0] > 0)
+        {
+            m.vramFree = ati[0] / 1024;
+        }
+    }
+
+#ifdef _WIN32
+    ProcessMemoryCounters pmc{};
+    pmc.cb = sizeof(pmc);
+    if(K32GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc)))
+    {
+        m.workingSet = pmc.workingSetSize / 1048576.0;
+        m.peakWorkingSet = pmc.peakWorkingSetSize / 1048576.0;
+        m.privateBytes = pmc.privateUsage / 1048576.0;
+    }
+#endif
+    m.hunk = Hunk_LowMark() / 1048576.0;
+    TexMgr_MemStats(&m.textures, &m.normalmaps, &m.textureMb);
+
+    // Every live GL object of the kinds that hold memory, the engine's, the module's and the OpenXR
+    // runtime's in this context (its swapchain images): a count that grows from one load of a map to
+    // the next is a leak.
+    static GlIsFn isBuffer = nullptr, isFramebuffer = nullptr, isQuery = nullptr, isProgram = nullptr;
+    if(!isBuffer)
+    {
+        isBuffer = reinterpret_cast<GlIsFn>(SDL_GL_GetProcAddress("glIsBuffer"));
+        isFramebuffer = reinterpret_cast<GlIsFn>(SDL_GL_GetProcAddress("glIsFramebuffer"));
+        isQuery = reinterpret_cast<GlIsFn>(SDL_GL_GetProcAddress("glIsQuery"));
+        isProgram = reinterpret_cast<GlIsFn>(SDL_GL_GetProcAddress("glIsProgram"));
+    }
+    GLuint highest = 0;
+    m.glTextures = countGlObjects(glIsTexture, highest);
+    const auto count = [&](GlIsFn fn) { return fn ? countGlObjects(fn, highest) : -1; };
+    m.buffers = count(isBuffer);
+    m.framebuffers = count(isFramebuffer);
+    m.queries = count(isQuery);
+    m.programs = count(isProgram);
+    return m;
+}
+
+void VR_MemStats_f()
+{
+    if(cls.state == ca_dedicated)
+    {
+        return;
+    }
+    static double lastTime = 0.0;
+    static int lastFrames = 0;
+    static int calls = 0;
+    const double seconds = realtime - lastTime;
+    const int frames = host_framecount - lastFrames;
+
+    Con_Printf("vr_memstats #%d, map \"%s\", %.1f s since the last: %d frames, %.2f ms a frame\n", ++calls,
+        cl.worldmodel ? cl.worldmodel->name : "", calls > 1 ? seconds : 0.0, calls > 1 ? frames : 0,
+        calls > 1 && frames > 0 ? 1000.0 * seconds / frames : 0.0);
+    lastTime = realtime;
+    lastFrames = host_framecount;
+
+    const MemSample m = sampleMemory();
+    if(m.vramTotal > 0)
+    {
+        Con_Printf("  VRAM  %d MB used of %d (all processes), %d MB free; %d evictions (%d MB) so far\n",
+            m.vramTotal - m.vramFree, m.vramTotal, m.vramFree, m.evictions, m.evictedMb);
+    }
+    else if(m.vramFree > 0)
+    {
+        Con_Printf("  VRAM  %d MB free for textures\n", m.vramFree);
+    }
+    else
+    {
+        Con_Printf("  VRAM  not reported by this driver\n");
+    }
+#ifdef _WIN32
+    Con_Printf("  RAM   working set %.1f MB (peak %.1f), private %.1f MB\n", m.workingSet, m.peakWorkingSet, m.privateBytes);
+#endif
+    Con_Printf("  hunk  %.1f MB used\n", m.hunk);
+    Con_Printf("  textures (managed) %d, %d of them normal maps, %.1f MB\n", m.textures, m.normalmaps, m.textureMb);
+    Con_Printf("  GL    %d textures (%d not managed), %d buffers, %d framebuffers, %d queries, %d programs\n", m.glTextures,
+        m.glTextures - m.textures, m.buffers, m.framebuffers, m.queries, m.programs);
+    Con_Printf("  VR    render targets (re)made %d times so far; ", gfx::targetsMade);
+    decals::count_f();
+}
+
+// vr_memstats_log: the same, as a row of quakevr/profile/memstats_<date>.csv every so many seconds
+// and once after each map load, with the frame rate since the last row: a session's slowdown next to
+// what the game (and, in the VRAM columns, every other program) holds.
+struct MemLog
+{
+    std::string path;
+    double lastTime{0.0};
+    int lastFrames{0};
+    const void* lastWorld{nullptr};
+    double worldSince{0.0};
+};
+
+MemLog memLog;
+
+void writeMemLogRow(const char* reason)
+{
+    if(memLog.path.empty())
+    {
+        const std::time_t now = std::time(nullptr);
+        char stamp[64];
+        std::strftime(stamp, sizeof(stamp), "%Y-%m-%d_%H-%M-%S", std::localtime(&now));
+        const std::string dir = std::string{com_gamedir} + "/profile";
+        Sys_mkdir(dir.c_str());
+        memLog.path = dir + "/memstats_" + stamp + ".csv";
+        if(FILE* f = std::fopen(memLog.path.c_str(), "w"))
+        {
+            std::fprintf(f, "clock,seconds,reason,map,frames,ms_per_frame,vram_used_mb,vram_total_mb,vram_free_mb,"
+                            "evictions,evicted_mb,working_set_mb,peak_working_set_mb,private_mb,hunk_mb,textures,"
+                            "normal_maps,texture_mb,gl_textures,gl_buffers,gl_framebuffers,gl_queries,gl_programs,"
+                            "targets_made\n");
+            std::fclose(f);
+        }
+        Con_DPrintf("vr_memstats_log: %s\n", memLog.path.c_str());
+    }
+    FILE* f = std::fopen(memLog.path.c_str(), "a");
+    if(!f)
+    {
+        return;
+    }
+    const double seconds = realtime - memLog.lastTime;
+    const int frames = host_framecount - memLog.lastFrames;
+    memLog.lastTime = realtime;
+    memLog.lastFrames = host_framecount;
+
+    const MemSample m = sampleMemory();
+    const std::time_t now = std::time(nullptr);
+    char clock[32];
+    std::strftime(clock, sizeof(clock), "%H:%M:%S", std::localtime(&now));
+    std::fprintf(f, "%s,%.1f,%s,%s,%d,%.3f,%d,%d,%d,%d,%d,%.1f,%.1f,%.1f,%.1f,%d,%d,%.1f,%d,%d,%d,%d,%d,%d\n", clock,
+        realtime, reason, cl.worldmodel ? cl.worldmodel->name : "", frames, frames > 0 ? 1000.0 * seconds / frames : 0.0,
+        m.vramTotal > 0 ? m.vramTotal - m.vramFree : -1, m.vramTotal, m.vramFree, m.evictions, m.evictedMb, m.workingSet,
+        m.peakWorkingSet, m.privateBytes, m.hunk, m.textures, m.normalmaps, m.textureMb, m.glTextures, m.buffers,
+        m.framebuffers, m.queries, m.programs, gfx::targetsMade);
+    std::fclose(f);
+}
+
+void memLogFrame()
+{
+    if(vr_memstats_log.value <= 0.f || cls.state != ca_connected || cls.signon != SIGNONS || !cl.worldmodel)
+    {
+        return;
+    }
+    // A new map: a row 5 seconds in (its textures made, the first frames' hitches past).
+    if(cl.worldmodel != memLog.lastWorld)
+    {
+        memLog.lastWorld = cl.worldmodel;
+        memLog.worldSince = realtime;
+        return;
+    }
+    if(memLog.worldSince > 0.0 && realtime - memLog.worldSince >= 5.0)
+    {
+        memLog.worldSince = 0.0;
+        writeMemLogRow("map");
+        return;
+    }
+    if(realtime - memLog.lastTime >= q_max(vr_memstats_log.value, 5.f))
+    {
+        writeMemLogRow("timer");
+    }
+}
+
 } // namespace
 
 namespace qvr
@@ -277,6 +521,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_dumpview", view::dumpView_f);
     anchor::registerCommands();
     Cmd_AddCommand("vr_decal_count", decals::count_f);
+    Cmd_AddCommand("vr_memstats", VR_MemStats_f);
     lighting::init();
     profile::init();
 
@@ -326,6 +571,7 @@ extern "C" void VR_BeginFrame()
     lines::clear(); // queued anew every frame (teleport aim, crosshairs)
     text3d::clear();
     voicenotes::frame(); // after the clear: its indicator is queued anew each frame
+    memLogFrame();
     profile::overlay();  // vr_profile 2
     throwing::filterGrips(state->tracking); // the analog grip's release, before it becomes a key
     input::update(state->tracking.input); // releases held keys when VR is off
@@ -346,7 +592,10 @@ extern "C" int VR_ModalMessageFrame()
         return 0;
     }
 
-    // Keep the headset's frames going, showing the dialog, and the controllers' keys coming.
+    // Keep the headset's frames going, showing the dialog, and the controllers' keys coming. Each is
+    // a frame for the profiler too: else its GPU timer queries piled up (64 more at a time) for as
+    // long as the dialog was up.
+    VR_ProfileFrame();
     VR_BeginFrame();
     scr_drawdialog = true;
     SCR_UpdateScreen();

@@ -26,4 +26,23 @@ void carryAngles(edict_t* ent, const float* handAngles, bool grab, float* out);
 // Forgets rigid bodies' and held objects' state (a new server).
 void resetRigidBodies();
 
+// Water splashes and sounds (vr_physics.cpp).
+
+// Where the segment `from` -> `to` first goes into a liquid (water, slime, lava) from the open, or
+// out of one into it: the surface's point in `at`; false if it crosses none (QC's liquidentry).
+[[nodiscard]] bool liquidEntry(const glm::vec3& from, const glm::vec3& to, glm::vec3& at);
+
+// The sound a splash makes (QC's QVR_SPLASH_*).
+enum class SplashSound : int
+{
+    None,  // its maker plays its own (the player going in)
+    Shot,  // a small plip
+    Thing  // small or big by `strength`
+};
+
+// A splash on a liquid's surface at `at`, something going `dir` into it `strength` hard (particles
+// Preset::Splash's count: 3 a shot, 6-15 a hand or a thrown thing, 20-50 a body), for every
+// client, and its sound (vr_water_sounds) (QC's watersplash).
+void waterSplash(const glm::vec3& at, const glm::vec3& dir, float strength, SplashSound sound);
+
 } // namespace qvr::physics

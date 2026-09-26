@@ -208,6 +208,8 @@ float(float xHand) VR_Carry_AtHolster =
 // Every player frame, for each hand (self is the player).
 void(float xHand) VR_Carry_HandFrame =
 {
+    VR_Corpse_StrikeFrame(xHand); // a blow on a corpse (vr_corpse_gib, combat.qc)
+
     entity box = VR_Carry_Held(self, xHand);
     if(box == world)
     {
@@ -572,14 +574,11 @@ void() VR_Gib_Die =
 
 float vr_gib_burstsoundtime;
 
-// Bursts in a mist of blood and is gone: soft clouds of blood through where it was, a spray of blood
-// all round (splatting the walls and floor near by: the particles' decals), more along the blow
-// (`xDir`, if any), and the gib sound.
-void(entity xGib, vector xDir) VR_Gib_Burst =
+// A mist of blood at `org`, `size` times a gib's: soft clouds of blood through it, a spray of blood
+// all round (splatting the walls and floor near by: the particles' decals), and more along the blow
+// (`xDir`, if any). A gib bursting, a corpse gibbed (VR_Corpse_Gib, combat.qc).
+void(vector org, vector xDir, float size) VR_BloodMist =
 {
-    vector org = (xGib.absmin + xGib.absmax) * 0.5;
-    dprint("gib: burst at "); dprint(vtos(org)); dprint("\n");
-    float size = max(1, xGib.vr_gib_healthmult);
     vector d;
     float i;
 
@@ -606,6 +605,15 @@ void(entity xGib, vector xDir) VR_Gib_Burst =
     {
         particle2(org, normalize(xDir) * 30, QVR_PARTICLE_PRESET_BLOOD, 16 * size);
     }
+};
+
+// Bursts in a mist of blood (VR_BloodMist) and is gone, with the gib sound.
+void(entity xGib, vector xDir) VR_Gib_Burst =
+{
+    vector org = (xGib.absmin + xGib.absmax) * 0.5;
+    dprint("gib: burst at "); dprint(vtos(org)); dprint("\n");
+    float size = max(1, xGib.vr_gib_healthmult);
+    VR_BloodMist(org, xDir, size);
 
     // Once a frame (a rocket bursts many).
     if(vr_gib_burstsoundtime != time)

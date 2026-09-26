@@ -117,8 +117,9 @@ float() VRMeleeDmgQuadMult =
 
 // Melee: a blow of a hand (a real one: a stroke of the wrist over vr_melee_distance, sudden and as
 // fast as vr_melee_speed or more; the model is described in vr_juice.qc, "Blows"; PlayerVRMeleeImpl
-// in client.qc), in any direction, hits what is ahead of the hand (and of the weapon's end) along its
-// motion, once: the hand must stop or pull back before it hits again. The damage is the weapon's base
+// in client.qc), in any direction, hits the first thing the weapon's striking points passed through
+// in the stroke (swept frame to frame: vr_juice.qc, "Striking points"), once: the hand must stop or
+// pull back before it hits again. The damage is the weapon's base
 // times the blow's strength (VR_Blow_Measure: its speed, its reach and its shape; about 1 for a good
 // punch or swing, at most VR_BLOW_MAX).
 
@@ -794,10 +795,22 @@ float(vector xAt, float xAnything) VRMeleeTraceHit =
     return trace_fraction != 1.0 && (xAnything || trace_ent.takedamage);
 };
 
-// What a swing of `xHand` hits: ahead of the hand, and of the weapon's end, along the hand's
-// motion; things that bleed first. Sets the trace_ globals, and v_forward to the motion.
+// What a swing of `xHand` hits. Tracked hands: what the blow's striking points passed through in
+// its stroke (VR_Blow_Contact: swept frame to frame, vr_juice.qc, "Striking points"). Otherwise (a
+// flat-screen swing): ahead of the hand, and of the weapon's end, along the hand's motion. Things
+// that bleed first. Sets the trace_ globals, and v_forward to the motion.
 float(float xHand, float xRange, float xMuzzleRange) VRDoMeleeAttackTracelineFor =
 {
+    if(VRHandsTracked(self) && self.ishuman)
+    {
+        if(!VR_Blow_Contact(xHand))
+        {
+            return FALSE;
+        }
+        VRMeleeHitAt(v_forward);
+        return TRUE;
+    }
+
     float range = VRMeleeRange(xRange);
     float muzzleRange = VRMeleeRange(xRange + xMuzzleRange);
     vector handPos = VRGetHandPos(xHand);
@@ -1430,6 +1443,16 @@ void(float damage, vector dir) TraceAttack =
 };
 
 
+// VR: a shot crossing the surface of water, slime or lava splashes there, with a plip (vr_water_splash,
+// vr_water_sounds). The trace globals stay as the shot's.
+void(vector xFrom, vector xTo) VR_WaterShotSplash =
+{
+    local vector at;
+    at = liquidentry(xFrom, xTo);
+    if(at != xFrom)
+        watersplash(at, normalize(xTo - xFrom), 4, QVR_SPLASH_SHOT);
+};
+
 /*
 ================
 FireBullets
@@ -1453,6 +1476,7 @@ void(float shotcount, vector dir, vector spread, vector src) FireBulletsImpl =
 
         traceline(src, src + direction*2048, MOVE_HITGIBS, self); // VR: gibs and heads too (vr_gib_destroy),
         VR_Gib_TraceHeld(src, src + direction*2048);               // and one held in the other hand
+        VR_WaterShotSplash(src, trace_endpos);                      // a splash where it goes into water
         if(trace_fraction != 1.0)
         //JIM
         {
@@ -1516,6 +1540,17 @@ void(float xHand) W_FireShotgun =
 
     VRGunHaptic(xHand, 0.25, 70, 0.75);
 
+    // The spent shell out of the port as the gun cycles (vr_shells.cpp). The super shotgun's (one
+    // barrel fired) stays in until it is broken open to reload -- unless it reloads itself.
+    if(VRGetWeapon(xHand) == WID_SHOTGUN)
+    {
+        ejectcasings(xHand, QVR_CASING_SHOTGUNSHELL, 1, 0.22, 0);
+    }
+    else if(VRGetWeapon(xHand) == WID_SUPER_SHOTGUN && !VRIsWeaponReloadingEnabledFor(self, xHand))
+    {
+        ejectcasings(xHand, QVR_CASING_SHOTGUNSHELL, 1, 0.45, 0);
+    }
+
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
 
     // HONEY
@@ -1547,6 +1582,12 @@ void(float xHand) W_FireSuperShotgun =
     FireBullets(xHand, 14, dir, '0.035 0.025 0');
 
     VRGunHaptic(xHand, 0.55, 75, 1.0);
+
+    // Without reloading it reloads itself: the two spent shells come out as it would open.
+    if(!VRIsWeaponReloadingEnabledFor(self, xHand))
+    {
+        ejectcasings(xHand, QVR_CASING_SHOTGUNSHELL, 2, 0.45, 0);
+    }
 
     particle2(VRGetMuzzlePos(xHand) - '0 2 0', '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
     particle2(VRGetMuzzlePos(xHand) + '0 2 0', '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
@@ -3177,6 +3218,25 @@ void() ImpulseCommands =
             VR_Carry_Start(self, cVR_OffHand, newest);
         }
     }
+    // QVR: a monster's spike from 300 units ahead at your face, at 600 units/s (246) or a hell
+    // knight's 300 (247), for batting tests (vr_deflect).
+    if((self.impulse == 246 || self.impulse == 247) && !deathmatch && !coop)
+    {
+        makevectors('0 1 0' * self.v_angle_y);
+        vector aim = VRGetHeadPos(self) + v_forward * 16 - '0 0 10';
+        entity shooter = spawn();
+        shooter.classname = "monster_test_shooter";
+        shooter.flags = FL_MONSTER;
+        setorigin(shooter, aim + v_forward * 300);
+        shooter.think = SUB_Remove;
+        shooter.nextthink = time + 6;
+        entity player = self;
+        self = shooter;
+        entity spike = launch_spike(shooter.origin, normalize(aim - shooter.origin));
+        spike.velocity = normalize(aim - shooter.origin) * (player.impulse == 246 ? 600 : 300);
+        spike.classname = "knightspike";
+        self = player;
+    }
     if(dump_coord == 1)
         DumpCoordinates();
     self.impulse = 0;
@@ -3828,7 +3888,16 @@ void(entity xEntPlayer, float xHand, float xHolster) VRHolsterHaptic =
             VRIsHolsterHovered(xEntPlayer, xHolster) &&
             holsterHapticsMode == 2 /* once */)
     {
-        VRGunHaptic(xHand, 0.2, 75, 0.2);
+        // VR: a burst of vr_holster_haptic_time seconds (a quarter of one), strong as the hand
+        // arrives and fading: three pulses, each taking over from the one before (a new vibration
+        // replaces the one playing), so it is felt as one buzz dying away. (It was a faint 0.2
+        // amplitude, hard to tell.)
+        float t = max(0.05, cvar_hget(cvarh_vr_holster_haptic_time));
+        haptic(xHand, 0.0, t * 0.45, 80, 0.65);
+        haptic(xHand, t * 0.4, t * 0.35, 80, 0.4);
+        haptic(xHand, t * 0.7, t * 0.3, 80, 0.2);
+        dprint("holster haptic: hand "); dprint(ftos(xHand)); dprint(", holster "); dprint(ftos(xHolster));
+        dprint(", "); dprint(ftos(rint(t * 1000))); dprint(" ms\n");
     }
 }
 
@@ -4264,16 +4333,25 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponCl
     }
 
     // It left the hand a moment ago (the release lags the throw, and the move carrying it is
-    // later still): start where it would be by now, not where the hand followed through to.
+    // later still, by a frame or two: more at a low frame rate): start where it would be by now, not
+    // where the hand followed through to. (It used to start at the hand when that was over 0.15 s, which
+    // a low frame rate reached: those throws came out of the follow-through, lower and behind.) What it
+    // would have flown into on the way, it starts at.
     vector handNow = VRGetHandPos(xHand);
     vector origin = handNow;
-    float age = VRGetHandThrowAge(xHand);
-    if(VRGetHandThrowPos(xHand) != '0 0 0' && age >= 0 && age < 0.15)
+    float age = min(0.3, VRGetHandThrowAge(xHand));
+    if(VRGetHandThrowPos(xHand) != '0 0 0' && age >= 0)
     {
-        origin = VRGetHandThrowPos(xHand) + throwVelUnits * age;
+        vector from = VRGetHandThrowPos(xHand);
+        origin = from + throwVelUnits * age;
         origin_z = origin_z - 0.5 * throwGravity * age * age;
         throwVelUnits_z = throwVelUnits_z - throwGravity * age;
 
+        traceline(from, origin, FALSE, ent);
+        if(trace_fraction < 1 && trace_ent.takedamage && trace_ent != world)
+        {
+            origin = trace_endpos - normalize(origin - from) * 2; // a monster on the way: hit it next
+        }
         traceline(handNow, origin, TRUE, ent); // never inside a wall
         origin = trace_endpos;
         if(trace_fraction < 1)
@@ -4355,6 +4433,17 @@ VRReloadWeapon =
 
     delAmmoAndUpdateCounter(xHand, ammoId, clampedMissingAmmo);
     *xOutWeaponClip = xWeaponClip + clampedMissingAmmo;
+
+    // The super shotgun, broken open, throws out its spent shells: flung by a flick reload
+    // (vr_shells.cpp).
+    if(xWeapon == WID_SUPER_SHOTGUN && missingAmmo > 0)
+    {
+        entity oself = self;
+        self = entPlayer;
+        ejectcasings(xHand, QVR_CASING_SHOTGUNSHELL, clamp(missingAmmo, 1, 2), 0,
+            VR_HandGrabUtil_IsHandReloadFlicking(entPlayer, xHand) ? QVR_EJECT_FLICK : 0);
+        self = oself;
+    }
 }
 
 void(entity entPlayer, float xHand,

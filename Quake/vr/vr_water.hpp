@@ -1,8 +1,9 @@
 // vr_water.hpp -- liquids: water, slime, lava and teleports less flat, and the view with your head in them.
 //
 // The surfaces (gl_shaders.h, LIQUID_FUNCTIONS; both of Ironwail's liquid programs, lit and unlit water): waves as a
-// sum of sines in the world (the faces stay flat: Ironwail does not subdivide them, so the waves are in the normal,
-// the texture's warp and the refraction, not the geometry), a fresnel term (see-through looking down, a dim room
+// sum of sines in the world (in the normal, the texture's warp and the refraction), and with vr_water_geo_waves long
+// swells that move the geometry too (the world's level liquid faces cut into a grid as a map loads, their vertices
+// raised in the vertex shaders, held still at the walls: vr_water.cpp's mesh, drawn by r_world.c), a fresnel term (see-through looking down, a dim room
 // colour at grazing angles), glints from a light above and from dynamic lights, what is under translucent water bent
 // by the waves (read from the opaque scene while translucent things draw into the OIT buffers; only what is behind
 // the surface, by the scene's distances: no halo round what is in front of the water), lava
@@ -12,7 +13,8 @@
 // little blur of the scene (r_waterwarp's screen warp is off then; the HUD, menus, lasers and the wrist's log are
 // drawn over the eye's image after it, unwobbled). Everything is in the world or per view direction, the same in
 // both eyes but for the view vector. vr_water_* (vr_cvars.inc); 0 is Quake's look. The C hooks are VR_WaterView,
-// VR_WaterFog, VR_WaterSceneDepth and VR_PostProcessWater (vr_api_render.h).
+// VR_WaterFog, VR_WaterSceneDepth, VR_PostProcessWater and the mesh's VR_WaterMarkVis,
+// VR_WaterMeshActive, VR_WaterMeshRanges and VR_WaterMeshBind (vr_api_render.h).
 
 #pragma once
 

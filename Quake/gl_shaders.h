@@ -817,16 +817,54 @@ DRAW_ELEMENTS_INDIRECT_COMMAND \
 // QVR: liquids (vr/vr_water.cpp): waves, fresnel, glints, refraction, lava's glow, and caustics on what is under water.
 // Everything is a function of the world position and the time (the same in both eyes) and of the view vector. Needs
 // the frame data. The kind is in a call's flags (bits 3-5): 1 lava, 2 slime, 3 teleport, 4 water.
-#define LIQUID_FUNCTIONS \
-"layout(binding=6) uniform sampler2D LiquidScene; // the opaque scene, while translucent liquids draw into the OIT buffers\n"\
-"layout(binding=7) uniform sampler3D LiquidVolume; // where the water and slime are (1), a cell round them into walls\n"\
-"layout(binding=8) uniform sampler2D LiquidDepth; // how far the opaque scene is (vr_water.cpp: half the size), with LiquidScene\n"\
-"\n"\
+// LIQUID_SWELL, in the vertex shaders too: the geometric waves (vr_water_geo_waves).
+#define LIQUID_SWELL \
 "uint LiquidKind(uint flags)\n"\
 "{\n"\
 "	return (flags >> 3) & 7u;\n"\
 "}\n"\
 "\n"\
+"// The swells over a level liquid at p (the world's xy), Water2.w units high (0: off): xy the height's gradient, z the\n"\
+"// height. Long and slow, three sines; lava's bigger and slower, slime's small and sluggish, teleports' none.\n"\
+"vec3 LiquidSwell(vec2 p, uint kind)\n"\
+"{\n"\
+"	if (Water2.w <= 0. || kind == 3u)\n"\
+"		return vec3(0.);\n"\
+"	float scale = kind == 1u ? 1.8 : kind == 2u ? 1.2 : 1.0;\n"\
+"	float speed = kind == 1u ? 0.25 : kind == 2u ? 0.4 : 1.0;\n"\
+"	float amp = Water2.w * (kind == 1u ? 1.3 : kind == 2u ? 0.6 : 1.0);\n"\
+"	const vec2 dirs[3] = vec2[3](vec2(0.96, 0.28), vec2(-0.45, 0.89), vec2(0.6, -0.8));\n"\
+"	const float lens[3] = float[3](173., 109., 71.);\n"\
+"	const float shares[3] = float[3](0.5, 0.3, 0.2);\n"\
+"	vec3 r = vec3(0.);\n"\
+"	for (int i = 0; i < 3; i++)\n"\
+"	{\n"\
+"		float k = 6.2831853 / (lens[i] * scale);\n"\
+"		float x = dot(dirs[i], p) * k + Time * sqrt(200. * k) * speed + float(i) * 2.3;\n"\
+"		float h = amp * shares[i];\n"\
+"		r.xy += dirs[i] * (h * k * cos(x));\n"\
+"		r.z += h * sin(x);\n"\
+"	}\n"\
+"	return r;\n"\
+"}\n"\
+"\n"\
+"// A vertex of the swells' mesh (vr_water.cpp) raised: pin 0 at a pool's rim to 1 inside (0 for any other liquid face:\n"\
+"// attribute 4 unset), fading out from 512 to 1024 units from the eye (vr_water.cpp's kFadeEnd).\n"\
+"vec3 LiquidDisplace(vec3 pos, float pin, uint kind)\n"\
+"{\n"\
+"	if (pin <= 0. || Water2.w <= 0.)\n"\
+"		return pos;\n"\
+"	float fade = 1.0 - smoothstep(512.0, 1024.0, distance(pos, EyePos));\n"\
+"	return vec3(pos.xy, pos.z + LiquidSwell(pos.xy, kind).z * pin * fade);\n"\
+"}\n"\
+"\n"\
+
+#define LIQUID_FUNCTIONS \
+"layout(binding=6) uniform sampler2D LiquidScene; // the opaque scene, while translucent liquids draw into the OIT buffers\n"\
+"layout(binding=7) uniform sampler3D LiquidVolume; // where the water and slime are (1), a cell round them into walls\n"\
+"layout(binding=8) uniform sampler2D LiquidDepth; // how far the opaque scene is (vr_water.cpp: half the size), with LiquidScene\n"\
+"\n"\
+LIQUID_SWELL \
 "// Quake's warp of the liquids' texture coordinates; lava's slower with the waves on.\n"\
 "vec2 LiquidWarp(vec2 uv, uint kind)\n"\
 "{\n"\
@@ -853,7 +891,10 @@ DRAW_ELEMENTS_INDIRECT_COMMAND \
 "		r.xy += dirs[i] * (steep * cos(x));\n"\
 "		r.z += steep / k * sin(x);\n"\
 "	}\n"\
-"	return r * Water.x;\n"\
+"	r *= Water.x;\n"\
+"	if (a.z >= a.x && a.z >= a.y)\n"\
+"		r += LiquidSwell(pos.xy, kind); // the geometric waves' slopes, whether this face's vertices rise or not\n"\
+"	return r;\n"\
 "}\n"\
 "\n"\
 "// The normal of the waves w over the flat surface facing (towards the eye).\n"\
@@ -975,6 +1016,8 @@ LIGHT_BUFFER
 WORLD_CALLDATA_BUFFER
 WORLD_INSTANCEDATA_BUFFER
 WORLD_VERTEX_BUFFER
+LIQUID_SWELL // QVR
+"layout(location=4) in float in_swellpin; // QVR: the geometric waves' mesh (vr/vr_water.cpp); 0 elsewhere (unset)\n"
 "\n"
 "layout(location=0) flat out uint out_flags;\n"
 "layout(location=1) flat out float out_alpha;\n"
@@ -1004,6 +1047,10 @@ WORLD_VERTEX_BUFFER
 "	Instance instance = instance_data[instance_id];\n"
 "	out_pos = Transform(in_pos, instance);\n"
 "	gl_Position = ViewProj * vec4(out_pos, 1.0);\n"
+"#if MODE == " QS_STRINGIFY (WORLDSHADER_WATER) "\n"
+"	if (in_swellpin > 0.) // QVR: the swells move the surface on screen and in depth; out_pos stays the flat one's, for the shading\n"
+"		gl_Position = ViewProj * vec4(LiquidDisplace(out_pos, in_swellpin, LiquidKind(call.flags)), 1.0);\n"
+"#endif\n"
 "#if REVERSED_Z\n"
 "	const float ZBIAS = -1./1024;\n"
 "#else\n"
@@ -1094,6 +1141,48 @@ LIQUID_FUNCTIONS // QVR
 OIT_OUTPUT (out_fragcolor)
 "\n"
 PARALLAX_FUNCTIONS // QVR
+"// QVR: the screen derivatives of the baked light's brightness lum, for its bumps (BakedBump): the lightmap's slope\n"
+"// here, from its luxels in full precision, times how its coordinates change across the screen. dFdx of the filtered\n"
+"// light itself was 0 between steps of the filter's 8-bit weights (1/256 of a luxel) and of the 8-bit light, and a\n"
+"// whole step where one fell between two pixels: up close, a grid of dark dashes and rings of them round lights\n"
+"// (round 15). The slope is the luxels' central differences blended across the cell, so it has no jump at the luxel\n"
+"// lines (the bilinear light's own slope has: a line in the bumps' light every 16 units); a luxel past the cell whose\n"
+"// difference disagrees with the cell's own (another face's light beside it in the atlas) isn't used. The luxels are\n"
+"// gathered (4 reads for the 4 x 4 around, a read per style): their green, relative, for the brightness's.\n"
+"vec4 LightmapGreen(vec2 uv, float ofs) // 4 luxels' green, all styles: textureGather's order (x 0 1, y 1 1, z 1 0, w 0 0)\n"
+"{\n"
+"	if (in_styles.y < 0.)\n"
+"		return in_styles.x * textureGather(LMTex, uv, 1);\n"
+"	if (in_styles.z < 0.)\n"
+"		return in_styles.x * textureGather(LMTex, uv, 1) + in_styles.y * textureGather(LMTex, uv + vec2(ofs, 0.), 1);\n"
+"	uv.x += ofs; // 3 or 4 styles: the greens of each, in the second block\n"
+"	return in_styles.x * textureGather(LMTex, uv, 0) + in_styles.y * textureGather(LMTex, uv, 1) +\n"
+"		in_styles.z * textureGather(LMTex, uv, 2) + in_styles.w * textureGather(LMTex, uv, 3);\n"
+"}\n"
+"float LuxelSlope(float outside, float inside, float lum) // at a luxel: the central difference, if its far side agrees\n"
+"{\n"
+"	return abs(outside - inside) <= 0.5 * (abs(outside) + abs(inside)) + max(0.1 * lum, 0.008) ? 0.5 * (outside + inside) : inside;\n"
+"}\n"
+"vec2 LightmapLumDerivs(float lum)\n"
+"{\n"
+"	vec2 size = vec2(textureSize(LMTex, 0));\n"
+"	vec2 p = in_lmuv * size - 0.5; // in luxels, from the first's centre\n"
+"	vec2 dpx = dFdx(p), dpy = dFdy(p);\n"
+"	vec2 c = floor(p), f = p - c; // the cell: luxels c (a) to c + 1 (e)\n"
+"	vec4 q0 = LightmapGreen((c + vec2(0., 0.)) / size, in_lmofs); // the 4 x 4 luxels c - 1 to c + 2, in 2 x 2 quads\n"
+"	vec4 q1 = LightmapGreen((c + vec2(2., 0.)) / size, in_lmofs);\n"
+"	vec4 q2 = LightmapGreen((c + vec2(0., 2.)) / size, in_lmofs);\n"
+"	vec4 q3 = LightmapGreen((c + vec2(2., 2.)) / size, in_lmofs);\n"
+"	float a = q0.y, b = q1.x, d = q2.z, e = q3.w; // the cell's: a b, and d e a row on\n"
+"	float gx0 = mix(LuxelSlope(a - q0.x, b - a, a), LuxelSlope(q1.y - b, b - a, b), f.x);\n"
+"	float gx1 = mix(LuxelSlope(d - q2.w, e - d, d), LuxelSlope(q3.z - e, e - d, e), f.x);\n"
+"	float gy0 = mix(LuxelSlope(a - q0.z, d - a, a), LuxelSlope(q2.y - d, d - a, d), f.y);\n"
+"	float gy1 = mix(LuxelSlope(b - q1.w, e - b, b), LuxelSlope(q3.x - e, e - b, e), f.y);\n"
+"	vec2 g = vec2(mix(gx0, gx1, f.y), mix(gy0, gy1, f.x)); // per luxel\n"
+"	float green = mix(mix(a, b, f.x), mix(d, e, f.x), f.y);\n"
+"	g *= green > 1e-3 ? lum * LightTweak.x / green : 0.0; // relative, as the brightness's (and its contrast's power)\n"
+"	return vec2(dot(g, dpx), dot(g, dpy));\n"
+"}\n"
 "void main()\n"
 "{\n"
 "#if " QS_STRINGIFY (SHOW_WORLD_NORMALS) "\n"
@@ -1204,7 +1293,7 @@ PARALLAX_FUNCTIONS // QVR
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_ALPHATEST) "\n"
 "			vec2 dlum = vec2(0.); // no derivatives after the discard\n"
 "#else\n"
-"			vec2 dlum = vec2(dFdx(lum), dFdy(lum));\n"
+"			vec2 dlum = LightmapLumDerivs(lum); // QVR: not dFdx(lum): stepped (see there)\n"
 "#endif\n"
 "			total_light *= BakedBump(facing, bumped, dpdx, dpdy, lum, dlum);\n"
 "		}\n"
@@ -1347,6 +1436,8 @@ FRAMEDATA_BUFFER
 WORLD_CALLDATA_BUFFER
 WORLD_INSTANCEDATA_BUFFER
 WORLD_VERTEX_BUFFER
+LIQUID_SWELL // QVR
+"layout(location=4) in float in_swellpin; // QVR: the geometric waves' mesh (vr/vr_water.cpp); 0 elsewhere (unset)\n"
 "\n"
 "layout(location=0) flat out float out_alpha;"
 "layout(location=1) out vec2 out_uv;\n"
@@ -1363,6 +1454,8 @@ WORLD_VERTEX_BUFFER
 "	Instance instance = instance_data[instance_id];\n"
 "	vec3 pos = Transform(in_pos, instance);\n"
 "	gl_Position = ViewProj * vec4(pos, 1.0);\n"
+"	if (in_swellpin > 0.) // QVR: the geometric waves (vr/vr_water.cpp); out_pos stays the flat surface's\n"
+"		gl_Position = ViewProj * vec4(LiquidDisplace(pos, in_swellpin, LiquidKind(call.flags)), 1.0);\n"
 "	out_uv = in_uv.xy;\n"
 "	out_pos = pos - EyePos;\n"
 "	out_flags = call.flags; // QVR\n"
