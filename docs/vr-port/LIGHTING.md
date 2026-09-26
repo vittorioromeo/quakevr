@@ -88,7 +88,8 @@ renderer notes; Unity HDRP/URP docs; Ironwail issue #329; Hexenwail issues #78 a
   - Quake's formula is kept.
   - An angle term (`vr_dlight_angle`) and the shadow are added.
   - `vr_dlight_uncapped` lifts Quake's cap against the lightmap (bright walls get more light).
-- **Filtering** (`vr_shadow_filter`): 1, 4, 9 or 16 bilinear compare taps (about 2×2, 3×3, 4×4 and 5×5). The
+- **Filtering** (`vr_shadow_filter`): 1, 4, 9 or 16 bilinear compare taps (about 2×2, 3×3, 4×4 and 5×5; since
+  round 19 the last two are read as 4 and 9 taps with the same weights: ROUND19.md). The
   kernels are fixed, so both eyes match. **Bias:**
   - a normal offset of a texel, doubled at grazing angles (`vr_shadow_bias`);
   - a 0.2% depth scale.

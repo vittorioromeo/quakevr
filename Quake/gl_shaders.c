@@ -360,6 +360,7 @@ void GL_CreateShaders (void)
 		glprogs.sprites[dither] = GL_CreateProgram (sprites_vertex_shader, sprites_fragment_shader, "sprites|DITHER %d", dither);
 	}
 	glprogs.skystencil = GL_CreateProgram (skystencil_vertex_shader, NULL, "sky stencil");
+	glprogs.world_depth = GL_CreateProgram (world_vertex_shader, NULL, "world depth|OIT 0; DITHER 0; MODE %d", WORLDSHADER_SOLID); // QVR
 
 	int poseverttype;
 	for (oit = 0; oit < 2; oit++)
@@ -368,6 +369,8 @@ void GL_CreateShaders (void)
 				for (poseverttype = 0; poseverttype < 3; poseverttype++) 
 					glprogs.alias[oit][mode][alphatest][poseverttype] =
 					GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias|OIT %d; MODE %d; ALPHATEST %d; POSEVERTTYPE %d", oit, mode, alphatest, poseverttype);
+	for (poseverttype = 0; poseverttype < 3; poseverttype++) // QVR
+		glprogs.alias_depth[poseverttype] = GL_CreateProgram (alias_vertex_shader, NULL, "alias depth|POSEVERTTYPE %d", poseverttype);
 
 	glprogs.debug3d = GL_CreateProgram (debug3d_vertex_shader, debug3d_fragment_shader, "debug3d");
 

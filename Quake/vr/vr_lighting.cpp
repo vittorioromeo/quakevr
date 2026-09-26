@@ -1,6 +1,7 @@
 // vr_lighting.cpp -- see vr_lighting.hpp.
 
 #include "vr_lighting.hpp"
+#include "vr_main.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
@@ -304,6 +305,15 @@ struct BrushCaster
 std::vector<BrushCaster> brushCasters;
 std::vector<entity_t*> aliasCasters;
 
+// A map light's moving casters, collected once a frame (whether it has any), drawn later.
+struct SlotCasters
+{
+    std::vector<entity_t*> aliases;
+    std::vector<BrushCaster> brushes;
+    std::vector<uint32_t> indices;
+};
+std::vector<SlotCasters> slotCasters; // by map slot
+
 bool touches(const entity_t* e, const glm::vec3& light, float radius)
 {
     const glm::vec3 lo{e->model->mins[0], e->model->mins[1], e->model->mins[2]};
@@ -383,10 +393,56 @@ void drawIndices(const glm::mat4& mvp, size_t first, size_t count)
         reinterpret_cast<const void*>(first * sizeof(uint32_t)));
 }
 
+// Whether a view (a light's face) can hold any of the moving casters: the brush casters (not culled
+// per face), or an alias caster whose bounding sphere reaches into the face's (widened) pyramid. The
+// player's own models and skeletal (posed) ones get at least 96 units and twice their bounds: posed
+// limbs, hands and held weapons reach past a model's bounds.
+bool viewHasCasters(const glm::vec3& light, const ShadowView& view, float size, bool brushes, bool aliases,
+    const std::vector<unsigned char>& posed)
+{
+    if(brushes && !brushCasters.empty())
+    {
+        return true;
+    }
+    if(!aliases)
+    {
+        return false;
+    }
+    mplane_t planes[4];
+    viewFrustum(light, view, size, planes);
+    for(size_t i = 0; i < aliasCasters.size(); i++)
+    {
+        const entity_t* e = aliasCasters[i];
+        const glm::vec3 lo{e->model->mins[0], e->model->mins[1], e->model->mins[2]};
+        const glm::vec3 hi{e->model->maxs[0], e->model->maxs[1], e->model->maxs[2]};
+        float r = std::max(glm::length(lo), glm::length(hi)) * ENTSCALE_DECODE(e->scale);
+        if((i < posed.size() && posed[i]) || VR_IsViewEntity(e))
+        {
+            r = std::max(r * 2.f, 96.f);
+        }
+        const glm::vec3 c{e->origin[0], e->origin[1], e->origin[2]};
+        bool inside = true;
+        for(const mplane_t& p : planes)
+        {
+            if(p.normal[0] * c.x + p.normal[1] * c.y + p.normal[2] * c.z - p.dist < -r)
+            {
+                inside = false;
+                break;
+            }
+        }
+        if(inside)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 // Renders a light's views (tiles of `size` texels) in `target`: `worldCount` indices of the world
-// (from 0), the brush casters, and the alias casters.
+// (from 0), the brush casters, and the alias casters. faceMask: the views drawn with moving casters
+// in them (viewHasCasters), for the world shader to skip the others' lookups (MapLightShadow).
 void renderLight(DepthTarget& target, const glm::vec3& light, float radius, const ShadowView* views, int numViews, float size,
-    size_t worldCount, bool brushes, bool aliases)
+    size_t worldCount, bool brushes, bool aliases, unsigned* faceMask = nullptr)
 {
     const bool anyGeometry = !indices.empty();
     GLuint ibuf = 0;
@@ -394,6 +450,33 @@ void renderLight(DepthTarget& target, const glm::vec3& light, float radius, cons
     if(anyGeometry)
     {
         GL_Upload(GL_ELEMENT_ARRAY_BUFFER, indices.data(), indices.size() * sizeof(uint32_t), &ibuf, &iofs);
+    }
+
+    // The brush casters' model matrices, the same for every face.
+    static std::vector<glm::mat4> brushModels;
+    brushModels.clear();
+    if(brushes)
+    {
+        for(const BrushCaster& b : brushCasters)
+        {
+            float m[16];
+            // As R_DrawBrushModels draws it: pitch inverted, then the networked scale and
+            // offset (ammo and health boxes are drawn at a quarter of their size).
+            vec3_t angles{-b.e->angles[0], b.e->angles[1], b.e->angles[2]};
+            R_EntityMatrix(m, b.e->origin, angles, b.e->scale);
+            VR_BrushTransform(b.e, m);
+            glm::mat4& model = brushModels.emplace_back();
+            memcpy(&model[0][0], m, sizeof(m));
+        }
+    }
+    // Skeletal (IK-posed) casters: the alias renderer draws them unculled (their limbs reach past the
+    // model's bounds); each face gets them all.
+    static std::vector<entity_t*> faceCasters;
+    static std::vector<unsigned char> posed;
+    posed.resize(aliasCasters.size());
+    for(size_t i = 0; aliases && i < aliasCasters.size(); i++)
+    {
+        posed[i] = VR_AliasBonePoses(aliasCasters[i], nullptr) != 0;
     }
 
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, target.fbo);
@@ -407,6 +490,10 @@ void renderLight(DepthTarget& target, const glm::vec3& light, float radius, cons
         glViewport(static_cast<int>(view.at.x), static_cast<int>(view.at.y), static_cast<int>(size), static_cast<int>(size));
         const glm::mat4 vp = viewProj(light, view, size);
         facesDrawn++;
+        if(faceMask && viewHasCasters(light, view, size, brushes, aliases, posed))
+        {
+            *faceMask |= 1u << face;
+        }
 
         if(anyGeometry && (worldCount || (brushes && !brushCasters.empty())))
         {
@@ -417,35 +504,38 @@ void renderLight(DepthTarget& target, const glm::vec3& light, float radius, cons
             GL_BindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibuf);
             const size_t base = reinterpret_cast<uintptr_t>(iofs) / sizeof(uint32_t);
             drawIndices(vp, base, worldCount);
-            if(brushes)
+            for(size_t i = 0; i < brushModels.size(); i++)
             {
-                for(const BrushCaster& b : brushCasters)
-                {
-                    float m[16];
-                    // As R_DrawBrushModels draws it: pitch inverted, then the networked scale and
-                    // offset (ammo and health boxes are drawn at a quarter of their size).
-                    vec3_t angles{-b.e->angles[0], b.e->angles[1], b.e->angles[2]};
-                    R_EntityMatrix(m, b.e->origin, angles, b.e->scale);
-                    VR_BrushTransform(b.e, m);
-                    glm::mat4 model;
-                    memcpy(&model[0][0], m, sizeof(m));
-                    drawIndices(vp * model, base + b.first, b.count);
-                }
+                drawIndices(vp * brushModels[i], base + brushCasters[i].first, brushCasters[i].count);
             }
         }
 
         if(aliases && !aliasCasters.empty())
         {
+            QVR_PROFILE("shadow alias draw");
             // The alias renderer reads the camera's view-projection and frustum: this face's.
-            float savedViewProj[16];
             mplane_t savedFrustum[4];
-            memcpy(savedViewProj, r_matviewproj, sizeof(savedViewProj));
             memcpy(savedFrustum, frustum, sizeof(savedFrustum));
-            memcpy(r_matviewproj, &vp[0][0], sizeof(r_matviewproj));
             viewFrustum(light, view, size, frustum);
-            R_DrawAliasModels(aliasCasters.data(), static_cast<int>(aliasCasters.size()));
-            modelsDrawn += static_cast<int>(aliasCasters.size());
-            memcpy(r_matviewproj, savedViewProj, sizeof(savedViewProj));
+            // Only the casters in this face: the alias renderer's own cull (R_CullModelForEntity, after
+            // it has set the model up) would leave out the rest.
+            faceCasters.clear();
+            for(size_t i = 0; i < aliasCasters.size(); i++)
+            {
+                if(posed[i] || !R_CullModelForEntity(aliasCasters[i]))
+                {
+                    faceCasters.push_back(aliasCasters[i]);
+                }
+            }
+            if(!faceCasters.empty())
+            {
+                float savedViewProj[16];
+                memcpy(savedViewProj, r_matviewproj, sizeof(savedViewProj));
+                memcpy(r_matviewproj, &vp[0][0], sizeof(r_matviewproj));
+                R_DrawAliasModelsDepth(faceCasters.data(), static_cast<int>(faceCasters.size())); // no lighting set up
+                modelsDrawn += static_cast<int>(faceCasters.size());
+                memcpy(r_matviewproj, savedViewProj, sizeof(savedViewProj));
+            }
             memcpy(frustum, savedFrustum, sizeof(savedFrustum));
         }
     }
@@ -508,12 +598,14 @@ struct MapSlot
     bool wanted = false;
     bool cached = false;  // world depth rendered in staticAtlas
     bool hasCasters = false;
+    unsigned faceMask = 0x3fu; // the faces its moving casters were drawn in this frame (bit 0 +x .. bit 5 -z)
     glm::vec2 staticOrigin{0.f};
     glm::vec2 origin{0.f}; // this frame's moving casters, in the atlas
 };
 std::vector<MapSlot> mapSlots;
 float mapSlotSize = 0.f;
 const qmodel_t* slotsWorld = nullptr;
+int slotsGeneration = -1;
 
 // A light to shadow, and how much it matters (the greater the more).
 struct Candidate
@@ -637,11 +729,12 @@ void selectMapLights(const glm::vec3& eye, float dt)
     const int rows = std::max(1, static_cast<int>(8192.f / (2.f * size)));
     wanted = std::clamp(wanted, 0, columns * rows);
 
-    if(cl.worldmodel != slotsWorld || size != mapSlotSize || static_cast<int>(mapSlots.size()) != wanted)
+    if(cl.worldmodel != slotsWorld || worldGeneration() != slotsGeneration || size != mapSlotSize || static_cast<int>(mapSlots.size()) != wanted)
     {
         mapSlots.assign(static_cast<size_t>(wanted), MapSlot{});
         mapSlotSize = size;
         slotsWorld = cl.worldmodel;
+        slotsGeneration = worldGeneration();
         for(int s = 0; s < wanted; s++)
         {
             mapSlots[s].staticOrigin = {static_cast<float>(s % columns) * 3.f * size, static_cast<float>(s / columns) * 2.f * size};
@@ -828,14 +921,18 @@ extern "C" void VR_RenderShadowMaps(void)
         return;
     }
 
+    profile::begin("shadow select", false);
     const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
     selectDlights(eye);
     selectMapLights(eye, dt);
 
-    // Moving casters of the map lights: none near means nothing to draw (and no light entry).
+    // Moving casters of the map lights: none near means nothing to draw (and no light entry). Kept
+    // for their drawing below.
     const auto& lights = modellight::mapLights();
-    for(MapSlot& s : mapSlots)
+    slotCasters.resize(mapSlots.size());
+    for(size_t i = 0; i < mapSlots.size(); i++)
     {
+        MapSlot& s = mapSlots[i];
         s.hasCasters = false;
         if(s.light >= 0 && s.light < static_cast<int>(lights.size()))
         {
@@ -844,6 +941,10 @@ extern "C" void VR_RenderShadowMaps(void)
             collectAliases(l.pos, l.value / l.scale, 0, true);
             collectBrushes(l.pos, l.value / l.scale, true);
             s.hasCasters = !aliasCasters.empty() || !brushCasters.empty();
+            SlotCasters& c = slotCasters[i];
+            c.aliases.swap(aliasCasters);
+            c.brushes.swap(brushCasters);
+            c.indices.swap(indices);
         }
     }
 
@@ -876,6 +977,7 @@ extern "C" void VR_RenderShadowMaps(void)
     {
         s.hasCasters = s.hasCasters && packScale == 1.f;
     }
+    profile::end();
 
     if(!ensure(atlas, atlasSize, atlasSize, "shadow atlas"))
     {
@@ -1002,11 +1104,13 @@ extern "C" void VR_RenderShadowMaps(void)
         {
             numViews = cubeViews(slot.origin, slot.size, views);
         }
+        profile::begin("dlight casters", false);
         indices.clear();
         collectWorld(cl.worldmodel->nodes, center, reach);
         const size_t worldCount = indices.size();
         collectBrushes(center, reach, false);
         collectAliases(center, reach, l.key > 0 && l.key < cl.num_entities ? l.key : 0, false);
+        profile::end();
         renderLight(atlas, p, l.radius, views, numViews, slot.size, worldCount, true, true);
     }
 
@@ -1014,18 +1118,22 @@ extern "C" void VR_RenderShadowMaps(void)
 
     profile::begin("map light shadows", true);
     // Map lights: the moving things only.
-    for(MapSlot& s : mapSlots)
+    for(size_t i = 0; i < mapSlots.size(); i++)
     {
+        MapSlot& s = mapSlots[i];
         if(s.light < 0 || !s.hasCasters || s.light >= static_cast<int>(lights.size()))
         {
             continue;
         }
         const auto& l = lights[s.light];
-        indices.clear();
-        collectAliases(l.pos, l.value / l.scale, 0, true);
-        collectBrushes(l.pos, l.value / l.scale, true);
+        SlotCasters& c = slotCasters[i]; // collected above
+        aliasCasters.swap(c.aliases);
+        brushCasters.swap(c.brushes);
+        indices.swap(c.indices);
         ShadowView views[6];
-        renderLight(atlas, l.pos, l.value / l.scale, views, cubeViews(s.origin, mapSlotSize, views), mapSlotSize, 0, true, true);
+        s.faceMask = 0u;
+        renderLight(atlas, l.pos, l.value / l.scale, views, cubeViews(s.origin, mapSlotSize, views), mapSlotSize, 0, true, true,
+            &s.faceMask);
     }
 
     profile::end();
@@ -1260,7 +1368,7 @@ extern "C" void VR_PushMapLights(void)
     const float strength = std::clamp(vr_shadow_maplight_strength.value, 0.f, 1.f);
     for(const MapSlot& s : mapSlots)
     {
-        if(s.light < 0 || !s.hasCasters || s.fade <= 0.f || s.light >= static_cast<int>(lights.size()) ||
+        if(s.light < 0 || !s.hasCasters || !s.faceMask || s.fade <= 0.f || s.light >= static_cast<int>(lights.size()) ||
             r_framedata.numlights >= MAX_DLIGHTS)
         {
             continue;
@@ -1293,7 +1401,7 @@ extern "C" void VR_PushMapLights(void)
         out->shadow[0] = s.origin.x;
         out->shadow[1] = s.origin.y;
         out->shadow[2] = mapSlotSize;
-        out->shadow[3] = 1.f;
+        out->shadow[3] = 1.f + static_cast<float>(s.faceMask); // nonzero: a map light; 1 + the faces with moving casters
         out->shadow2[0] = s.staticOrigin.x;
         out->shadow2[1] = s.staticOrigin.y;
         out->shadow2[2] = l.value;

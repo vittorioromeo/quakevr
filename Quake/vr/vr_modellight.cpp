@@ -1,6 +1,7 @@
 // vr_modellight.cpp -- see vr_modellight.hpp.
 
 #include "vr_modellight.hpp"
+#include "vr_main.hpp"
 #include "vr_cvars.hpp"
 #include "vr_trace.hpp"
 
@@ -27,6 +28,7 @@ struct Cached
 };
 
 const qmodel_t* loadedWorld = nullptr;
+int loadedGeneration = -1;
 std::vector<Light> lights;
 std::unordered_map<const entity_t*, Cached> cache;
 
@@ -37,6 +39,7 @@ void loadLights()
     lights.clear();
     cache.clear();
     loadedWorld = cl.worldmodel;
+    loadedGeneration = worldGeneration();
     if(!cl.worldmodel || !cl.worldmodel->entities)
     {
         return;
@@ -164,7 +167,7 @@ glm::vec4 compute(const glm::vec3& p)
 
 const std::vector<modellight::MapLight>& modellight::mapLights()
 {
-    if(cl.worldmodel != loadedWorld)
+    if(cl.worldmodel != loadedWorld || worldGeneration() != loadedGeneration) // the same model can hold another map: a map name loaded again (vr_relit_maps switched)
     {
         loadLights();
     }

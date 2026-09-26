@@ -494,6 +494,7 @@ void() StartFrame =
 
     teamplay = cvar_hget(cvarh_teamplay);
     skill = cvar_hget(cvarh_skill);
+    VR_CVars_Frame();
     framecount = framecount + 1;
 };
 

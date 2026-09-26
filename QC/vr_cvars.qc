@@ -305,3 +305,20 @@ void() VR_CVars_InitAllHandles =
 
 #undef VR_CVAR_HMAKE
 }
+
+// ----------------------------------------------------------------------------
+// Per-frame cvar values: read once a frame (StartFrame) for what every item's think asks (dozens
+// of items think at 50 Hz), not once an entity.
+// ----------------------------------------------------------------------------
+
+float vr_weapondrop_particles_on;  // vr_weapondrop_particles
+float vr_forcegrabbable_return;    // vr_forcegrabbable_return_time_deathmatch or _singleplayer
+float vr_grab_gibs_level;          // vr_grab_gibs (the force grab's target search asks for every gib in reach)
+
+void() VR_CVars_Frame =
+{
+    vr_weapondrop_particles_on = cvar_hget(cvarh_vr_weapondrop_particles);
+    vr_grab_gibs_level = cvar_hget(cvarh_vr_grab_gibs);
+    vr_forcegrabbable_return = deathmatch ? cvar_hget(cvarh_vr_forcegrabbable_return_time_deathmatch)
+                                          : cvar_hget(cvarh_vr_forcegrabbable_return_time_singleplayer);
+}

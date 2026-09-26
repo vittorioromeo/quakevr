@@ -1,6 +1,7 @@
 // vr_emissive.cpp -- see vr_emissive.hpp.
 
 #include "vr_emissive.hpp"
+#include "vr_main.hpp"
 #include "vr_color.hpp"
 #include "vr_cvars.hpp"
 #include "vr_hue.hpp"
@@ -303,6 +304,7 @@ struct TorchState
 };
 std::unordered_map<int, TorchState> torches;
 const qmodel_t* torchWorld = nullptr;
+int torchGeneration = -1;
 double torchLastTime = 0.0;
 
 // Smooth value noise in -1..1 (a random value at each whole x, eased between).
@@ -487,10 +489,11 @@ extern "C" void VR_TorchLights(void)
     {
         return;
     }
-    if(cl.worldmodel != torchWorld || cl.time < torchLastTime)
+    if(cl.worldmodel != torchWorld || worldGeneration() != torchGeneration || cl.time < torchLastTime)
     {
         torches.clear(); // a new map (its lights were cleared with the client's state)
         torchWorld = cl.worldmodel;
+        torchGeneration = worldGeneration();
         torchLastTime = cl.time;
     }
     const float dt = static_cast<float>(std::clamp(cl.time - torchLastTime, 0.0, 0.1));

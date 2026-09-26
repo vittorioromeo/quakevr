@@ -666,7 +666,7 @@ float() FindTarget =
          return FALSE;
       }
 
-   if(VR_ItemUtil_EntHasItem(client, IID_INVISIBILITY))
+   if(client.items & IT_INVISIBILITY) // (VR_ItemUtil_EntHasItem, directly: every sight check)
       return FALSE;
 
     r = range (client);

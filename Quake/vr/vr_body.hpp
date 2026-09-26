@@ -40,7 +40,19 @@ enum Hotspot : int
 // old engine's placement. For several holsters, holsterPositions solves the body once.
 using HolsterPositions = std::array<glm::vec3, HolsterCount>;
 [[nodiscard]] glm::vec3 holsterPosition(const hands::State& s, Holster holster);
-[[nodiscard]] HolsterPositions holsterPositions(const hands::State& s);
+
+// Where a holster rests on the drawn body (vr_body_mode, vr_body_anchors: the hips and upper
+// holsters on its front): the way the body's surface faces there (`out`, away from the body), its
+// up along the surface, and how far the holster's position stands out of it (world units). `out`
+// is zero where the holster is not on the body (no body, the shoulders, the old placement).
+struct HolsterPlate
+{
+    glm::vec3 out{0.f};
+    glm::vec3 up{0.f, 0.f, 1.f};
+    float clearance{0.f};
+};
+using HolsterPlates = std::array<HolsterPlate, HolsterCount>;
+[[nodiscard]] HolsterPositions holsterPositions(const hands::State& s, HolsterPlates* plates = nullptr);
 
 // hands::bodyAnchor, carried by the chest with vr_body_anchors (the virtual stock's shoulders).
 [[nodiscard]] glm::vec3 chestAnchor(const hands::State& s, const glm::vec3& offsets);

@@ -169,11 +169,26 @@ PhaseGpuSlot phaseSlots[phaseGpuSlots];
 int phaseSlot = 0;
 bool phaseGpuMade = false;
 
+// In front of the map: the last name seen in each of a few slots (by its address), since every
+// scope's begin asks, vr_profile off too.
+struct PhaseCacheEntry
+{
+    const char* name;
+    int phase;
+};
+PhaseCacheEntry phaseCache[256]{};
+
 [[nodiscard]] int phaseOf(const char* name)
 {
+    PhaseCacheEntry& cached = phaseCache[(reinterpret_cast<std::uintptr_t>(name) * 0x9E3779B97F4A7C15ull) >> 56];
+    if(cached.name == name)
+    {
+        return cached.phase;
+    }
     const auto it = phaseOfName.find(name);
     if(it != phaseOfName.end())
     {
+        cached = {name, it->second};
         return it->second;
     }
     int phase = -1;
@@ -186,6 +201,7 @@ bool phaseGpuMade = false;
         }
     }
     phaseOfName.emplace(name, phase);
+    cached = {name, phase};
     return phase;
 }
 
@@ -318,9 +334,17 @@ void endPhaseFrame(std::int64_t now, std::int64_t start, std::int64_t end)
 
 [[nodiscard]] int child(int parent, const char* name)
 {
+    // By the name's address first (the same literal: nearly always), then by its text.
     for(int c : nodes[parent].children)
     {
-        if(nodes[c].name == name || std::strcmp(nodes[c].name, name) == 0)
+        if(nodes[c].name == name)
+        {
+            return c;
+        }
+    }
+    for(int c : nodes[parent].children)
+    {
+        if(std::strcmp(nodes[c].name, name) == 0)
         {
             return c;
         }

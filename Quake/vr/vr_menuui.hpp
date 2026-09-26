@@ -16,6 +16,11 @@ namespace qvr::menuui
 // (a character is 8) is vr_menu_scale units, as in the old engine, whatever the canvas's size.
 [[nodiscard]] float panelHeight();
 
+// The menus' height in menu pixels: Quake's 200, or with the style active, 200 times
+// vr_menu_height (whole rows), the 320 x 200 of Quake's layout in its middle. The VR pages lay
+// out their list and help in it.
+[[nodiscard]] int menuHeight();
+
 // Once per frame, before the controller buttons become keys: where each hand points on the panel;
 // the pointing hand's spot is the menu's mouse.
 void update(const hands::State& s);

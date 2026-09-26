@@ -889,11 +889,9 @@ void() forcegrabbable_item_think =
         return;
     }
 
-    float repositionTime = deathmatch ? cvar_hget(cvarh_vr_forcegrabbable_return_time_deathmatch)
-                                      : cvar_hget(cvarh_vr_forcegrabbable_return_time_singleplayer);
-    if(repositionTime > 0)
+    if(vr_forcegrabbable_return > 0) // (vr_cvars.qc, once a frame)
     {
-        forcegrabbable_item_reposition(repositionTime);
+        forcegrabbable_item_reposition(vr_forcegrabbable_return);
     }
 
     forcegrabbable_think_impl();

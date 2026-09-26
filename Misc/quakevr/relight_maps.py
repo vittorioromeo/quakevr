@@ -52,8 +52,11 @@
 #
 # See-through water (--vis-dir, or the QUAKEVR_VISPATCH environment variable): id's maps were vised
 # with water as a wall, so the engine keeps their liquids opaque; with the VisPatch data files
-# (id1.vis, hipnotic.vis, rogue.vis, or <game>/vispatch.dat) the relit maps get water-vised
-# visibility too (vis_maps.py, which can also do it on its own).
+# (id1.vis, hipnotic.vis, rogue.vis, or <game>/vispatch.dat; from https://sourceforge.net/projects/vispatch/files/)
+# the relit maps get water-vised visibility too (vis_maps.py, which can also do it on its own).
+#
+# The release package has this script, vis_maps.py, quakepak.py and relight_textures.cfg in
+# quakevr/tools, where the default --out is the installed quakevr/relit. Step by step: docs/RELIGHTING.md.
 
 import argparse
 import fnmatch
@@ -147,6 +150,17 @@ def id_light_values(text):
             return block
         return re.sub(r'"light"\s+"[^"]*"', '"light" "300"', block)
     return re.sub(r"\{[^{}]*\}", fix, text)
+
+
+def without_map_light_settings(text):
+    """The entities without the worldspawn's light settings ("_bounce", "_dirtmode", "_sunlight_penumbra"...: the
+    2021 re-release's maps carry ericw-tools settings of their own, which `light` would take over our look's; id's
+    original maps have none). For `light` only: the relit map keeps its own entities."""
+    first = re.search(r"\{[^{}]*\}", text)
+    if not first or '"worldspawn"' not in first.group(0):
+        return text
+    block = re.sub(r'\s*"_[^"]*"\s+"[^"]*"', "", first.group(0))
+    return text[: first.start()] + block + text[first.end() :]
 
 
 def texture_faces(data):
@@ -758,8 +772,11 @@ def main():
     parser.add_argument("--quake", required=True, help="Quake folder (the one containing id1)")
     parser.add_argument("--light", help="ericw-tools light executable (default: ERICW_LIGHT, PATH, then %s)"
                         % DEFAULT_LIGHT)
-    parser.add_argument("--games", nargs="+", default=["id1", "hipnotic", "rogue"])
-    parser.add_argument("--out", default=os.path.normpath(os.path.join(here, "..", "..", "quakevr", "relit")))
+    parser.add_argument("--games", nargs="+", default=["id1", "hipnotic", "rogue"],
+                        help="game folders whose maps to relight (default: id1 hipnotic rogue; missing ones are skipped)")
+    parser.add_argument("--out", default=os.path.normpath(os.path.join(here, "..", "..", "quakevr", "relit")),
+                        help="where the relit maps go, as <out>/<game>/maps (default: quakevr/relit in the folder "
+                             "two levels above this script: %(default)s)")
     parser.add_argument("--light-args", help="light's options for the look (default: %r; %r are added)"
                         % (DEFAULT_LIGHT_ARGS, OUTPUT_ARGS))
     parser.add_argument("--only", nargs="*", help="map names (e1m1 ...) to relight, for trying options")
@@ -843,7 +860,7 @@ def main():
             with tempfile.TemporaryDirectory() as tmp:
                 work = os.path.join(tmp, base + ".bsp")
                 with open(work, "wb") as f:
-                    f.write(with_entities(data, id_light_values(entities_text(data)) + lights))
+                    f.write(with_entities(data, id_light_values(without_map_light_settings(entities_text(data))) + lights))
                 print("%s/%s ..." % (game, base), end=" ", flush=True)
                 result = subprocess.run(command + [work], cwd=tmp, stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT, text=True, errors="replace")

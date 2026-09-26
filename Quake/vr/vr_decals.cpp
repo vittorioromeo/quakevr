@@ -1146,6 +1146,7 @@ void draw()
     // changing.
     if(builtFrame != host_framecount)
     {
+        QVR_PROFILE("decal verts");
         const bool setChanged = builtFrame == -1;
         builtFrame = host_framecount;
 
@@ -1216,6 +1217,8 @@ void count_f()
     Con_Printf("%d decals: %d blood, %d drops, %d scorch, %d chips, %d splatters, %d streaks, %d pools, %d splotches\n",
         static_cast<int>(decals.size()), kinds[Blood], kinds[BloodDrop], kinds[Scorch], kinds[Hole], kinds[Splatter],
         kinds[Streak], kinds[Pool], kinds[Splotch]);
+    Con_Printf("%d vertices settled, %d changing (made again each frame)\n", static_cast<int>(staticVertices.size()),
+        static_cast<int>(vertices.size()));
     gore::count();
 }
 
@@ -1311,6 +1314,7 @@ extern "C" int VR_GibTrail(int ent, int zombie)
 {
     using namespace qvr;
     using namespace qvr::decals;
+    QVR_PROFILE("gib trail");
     if(!vr_gib_blood.value || ent <= 0 || ent >= cl.num_entities || !cl.worldmodel)
     {
         return 0;

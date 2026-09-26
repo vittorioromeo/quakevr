@@ -68,21 +68,38 @@ namespace
 // vr_body_torso_back 0, the chest still hides part of the hips). Further forward offsets
 // (vr_hip_offset_x, vr_upper_holster_offset_x) still apply. In the standing body, which the
 // Follower carries.
+[[nodiscard]] bool isOnTheBody(Holster holster)
+{
+    return vr_body_mode.value >= 1.f && holster != LeftShoulder && holster != RightShoulder;
+}
+
+// make_vrbody.py: the spine hangs from the top of the neck (vr_body_eye_forward and
+// vr_body_eye_up from the eyes, then vr_body_torso_back), its rings centred 0.01 m behind it;
+// the belly (the pelvis ring) is 0.115 m deep and 0.17 m to the side, the chest 0.12-0.13 and
+// 0.19 times the build's torso scale, widest 0.22 m below the neck (1.35 m, the neck at 1.57).
+struct TorsoShape
+{
+    float m2w;
+    float torsoScale;
+    float axis; // the rings' centre, forward from the eyes
+};
+
+[[nodiscard]] TorsoShape torsoShape()
+{
+    const float m2w = units::metresToUnits() * units::bodyScale();
+    const int build = static_cast<int>(vr_body_build.value);
+    const float torsoScale = build <= 0 ? 0.965f : build >= 2 ? 1.175f : 1.07f;
+    return {m2w, torsoScale, -(vr_body_eye_forward.value + vr_body_torso_back.value + 0.01f) * m2w};
+}
+
 [[nodiscard]] glm::vec3 onTheBody(const hands::State& standing, Holster holster, const glm::vec3& pos)
 {
-    if(vr_body_mode.value < 1.f || holster == LeftShoulder || holster == RightShoulder)
+    if(!isOnTheBody(holster))
     {
         return pos;
     }
 
-    // make_vrbody.py: the spine hangs from the top of the neck (vr_body_eye_forward and
-    // vr_body_eye_up from the eyes, then vr_body_torso_back), its rings centred 0.01 m behind it;
-    // the belly (the pelvis ring) is 0.115 m deep, the chest 0.12-0.13 times the build's torso
-    // scale, widest 0.22 m below the neck (1.35 m, the neck at 1.57).
-    const float m2w = units::metresToUnits() * units::bodyScale();
-    const int build = static_cast<int>(vr_body_build.value);
-    const float torsoScale = build <= 0 ? 0.965f : build >= 2 ? 1.175f : 1.07f;
-    const float axis = -(vr_body_eye_forward.value + vr_body_torso_back.value + 0.01f) * m2w; // from the eyes
+    const auto [m2w, torsoScale, axis] = torsoShape();
     const float chestFront = axis + 0.13f * torsoScale * m2w;
     const float chestDrop = (vr_body_eye_up.value + 0.22f) * m2w;
 
@@ -99,13 +116,49 @@ namespace
     return now < target ? pos + fwd * (target - now) : pos;
 }
 
+// The body's surface under a holster on it (onTheBody), in the standing body. The torso's ring
+// there is an ellipse round the spine, whose normal the holster's plate faces: the belly's at the
+// hips, the chest's at the upper holsters, which sit above its widest, by the collarbones, where
+// it slopes back towards the neck.
+[[nodiscard]] HolsterPlate plateOnTheBody(const hands::State& standing, Holster holster, const glm::vec3& pos)
+{
+    const auto [m2w, torsoScale, axis] = torsoShape();
+    const bool hip = holster == LeftHip || holster == RightHip;
+    const float depth = (hip ? 0.115f : 0.13f * torsoScale) * m2w;
+    const float width = (hip ? 0.17f : 0.19f * torsoScale) * m2w;
+    const float slope = glm::radians(hip ? 0.f : 20.f);
+
+    glm::vec3 fwd, right, up;
+    hands::angleVectors({0.f, standing.bodyYaw, 0.f}, fwd, right, up);
+    const float x = glm::max(glm::dot(pos - standing.head, fwd) - axis, 1.f);
+    const float y = glm::dot(pos - standing.head, right);
+    const glm::vec3 flat = glm::normalize(fwd * (x / (depth * depth)) + right * (y / (width * width)));
+
+    HolsterPlate p;
+    p.out = flat * std::cos(slope) + up * std::sin(slope);
+    p.up = up * std::cos(slope) - flat * std::sin(slope);
+    const float e = std::sqrt((x / depth) * (x / depth) + (y / width) * (y / width));
+    p.clearance = std::sqrt(x * x + y * y) * (1.f - 1.f / e); // along the ring's radius
+    return p;
+}
+
 // With vr_body_anchors: where the holster is for the standing body, carried by the pelvis (hips)
-// or the chest.
+// or the chest, and (`plate`) the body's surface there.
 [[nodiscard]] glm::vec3 followingHolsterPosition(
-    const avatar::Follower& follow, const hands::State& standing, Holster holster)
+    const avatar::Follower& follow, const hands::State& standing, Holster holster, HolsterPlate* plate = nullptr)
 {
     const avatar::Part part = holster == LeftHip || holster == RightHip ? avatar::Part::Pelvis : avatar::Part::Chest;
-    return follow(part, onTheBody(standing, holster, legacyHolsterPosition(standing, holster)));
+    const glm::vec3 pos = onTheBody(standing, holster, legacyHolsterPosition(standing, holster));
+    const glm::vec3 now = follow(part, pos);
+    if(plate && isOnTheBody(holster))
+    {
+        // The Follower moves points rigidly: directions follow as the difference of two.
+        const HolsterPlate p = plateOnTheBody(standing, holster, pos);
+        plate->out = follow(part, pos + p.out) - now;
+        plate->up = follow(part, pos + p.up) - now;
+        plate->clearance = p.clearance;
+    }
+    return now;
 }
 
 [[nodiscard]] Hotspot hotspot(const hands::State& s, int hand, const HolsterPositions& holsters)
@@ -149,9 +202,13 @@ glm::vec3 holsterPosition(const hands::State& s, Holster holster)
     return followingHolsterPosition(avatar::Follower{s}, avatar::standing(s), holster);
 }
 
-HolsterPositions holsterPositions(const hands::State& s)
+HolsterPositions holsterPositions(const hands::State& s, HolsterPlates* plates)
 {
     HolsterPositions out;
+    if(plates)
+    {
+        *plates = HolsterPlates{};
+    }
     if(!vr_body_anchors.value)
     {
         for(int h = 0; h < HolsterCount; h++)
@@ -165,7 +222,7 @@ HolsterPositions holsterPositions(const hands::State& s)
     const hands::State standing = avatar::standing(s);
     for(int h = 0; h < HolsterCount; h++)
     {
-        out[h] = followingHolsterPosition(follow, standing, static_cast<Holster>(h));
+        out[h] = followingHolsterPosition(follow, standing, static_cast<Holster>(h), plates ? &(*plates)[h] : nullptr);
     }
     return out;
 }

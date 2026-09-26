@@ -24,6 +24,7 @@
 #include "vr_voicenotes.hpp"
 #include "vr_detail.hpp"
 #include "vr_flashlight.hpp"
+#include "vr_gpustats.hpp"
 #include "vr_gfx.hpp"
 #include "vr_weapons.hpp"
 #include "vr_particles.hpp"
@@ -749,6 +750,7 @@ void writeMemLogRow(const char* reason)
     drainPhases();
     timingColumns(c, logReader);
     logReader = Readers{};
+    gpustats::columns(c); // the GPU as the whole system uses it: clocks, slowdowns, programs
 
     if(memLog.path.empty())
     {
@@ -787,6 +789,7 @@ void memLogFrame()
     {
         return;
     }
+    gpustats::start(); // its sampling thread, once
     if(cls.state != ca_connected || cls.signon != SIGNONS || !cl.worldmodel)
     {
         // Loading: the map that follows is a new one, even the same map again (a save loaded, a
@@ -817,6 +820,16 @@ void memLogFrame()
 
 namespace qvr
 {
+
+namespace
+{
+int worldGen = 0;
+}
+
+int worldGeneration()
+{
+    return worldGen;
+}
 
 const TrackingState& tracking()
 {
@@ -852,6 +865,11 @@ int scaledEyeSize(int image, int max)
 }
 
 } // namespace qvr
+
+extern "C" void VR_NewMap()
+{
+    ++qvr::worldGen;
+}
 
 extern "C" void VR_Init()
 {
@@ -896,6 +914,7 @@ extern "C" void VR_Shutdown()
     }
 
     voicenotes::shutdown();
+    gpustats::stop();
     stopBackend();
     delete state;
     state = nullptr;

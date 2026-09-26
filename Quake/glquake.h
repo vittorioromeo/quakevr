@@ -493,6 +493,7 @@ void R_DrawBrushModels_SkyLayers (entity_t **ents, int count);
 void R_DrawBrushModels_SkyCubemap (entity_t **ents, int count);
 void R_DrawBrushModels_SkyStencil (entity_t **ents, int count);
 void R_DrawAliasModels (entity_t **ents, int count);
+void R_DrawAliasModelsDepth (entity_t **ents, int count); // QVR: depth only (the shadow maps' casters)
 void R_DrawSpriteModels (entity_t **ents, int count);
 qboolean R_SoftSpritesPending (void); // QVR: sprites left for R_DrawSpriteModelsSoft (VR_SoftSprites)
 void R_DrawSpriteModelsSoft (GLuint distances); // QVR: them, soft, after the translucent pass (vr/vr_particles.cpp)
@@ -572,10 +573,12 @@ typedef struct glprogs_s {
 	GLuint		world[2][3][3];		// [OIT][standard/dithered/banded][solid/alpha test/water]
 	GLuint		water[2][2];		// [OIT][dither]
 	GLuint		skystencil;
+	GLuint		world_depth;		// QVR: the opaque world's depth pre-pass (r_world.c)
 	GLuint		skylayers[2];		// [dither]
 	GLuint		skycubemap[2][2];	// [anim][dither]
 	GLuint		skyboxside[2];		// [dither]
 	GLuint		alias[2][3][2][3];	// [OIT][mode:standard/dithered/noperspective][alpha test][poseverttype]
+	GLuint		alias_depth[3];		// QVR: [poseverttype] the shadow maps' casters: depth only (no fragment shader)
 	GLuint		sprites[2];			// [dither]
 	GLuint		particles[2][2];	// [OIT][dither]
 	GLuint		debug3d;

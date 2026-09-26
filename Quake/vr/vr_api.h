@@ -44,6 +44,7 @@ struct sizebuf_s;
 
 // Host lifetime and pacing (host.c, main_sdl.c, gl_screen.c).
 void VR_Init (void);		// after SV_Init (also on dedicated servers): registers cvars and commands
+void VR_NewMap (void);		// R_NewMap: a map loaded (the per-map data rebuilt, even for the same model)
 void VR_Shutdown (void);	// client shutdown, before video shutdown
 void VR_BeginFrame (void);	// once per host frame, after input events and before console commands
 int VR_IsActive (void);		// nonzero while vr_enabled is set and a backend session is running: the

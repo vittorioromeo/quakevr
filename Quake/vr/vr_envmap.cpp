@@ -1,6 +1,7 @@
 // vr_envmap.cpp -- see vr_envmap.hpp.
 
 #include "vr_envmap.hpp"
+#include "vr_main.hpp"
 #include "vr_cvars.hpp"
 #include "vr_gfx.hpp"
 #include "vr_hands.hpp"
@@ -33,6 +34,7 @@ constexpr int wantedFrames = 30; // frames the cube is kept up to date after a m
 constexpr int numStyles = static_cast<int>(sizeof(r_lightbuffer.lightstyles) / sizeof(r_lightbuffer.lightstyles[0]));
 
 GLuint cube = 0;
+GLuint faceViews[6] = {}; // each face of the cube as a 2D texture with its levels (glTextureView): its own mipmaps
 GLuint depth = 0;
 GLuint fbo = 0;
 GLuint program = 0;
@@ -43,6 +45,7 @@ bool failed = false;
 
 // What the buffers were made for.
 const qmodel_t* builtWorld = nullptr;
+int builtGeneration = -1;
 GLuint builtVbo = 0;
 size_t builtVboSize = 0;
 
@@ -262,6 +265,7 @@ void buildWorld()
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, 0);
 
     builtWorld = m;
+    builtGeneration = worldGeneration();
     builtVbo = gl_bmodel_vbo;
     builtVboSize = gl_bmodel_vbo_size;
     if(indices.empty())
@@ -299,6 +303,17 @@ void buildWorld()
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
     GL_ObjectLabelFunc(GL_TEXTURE, cube, -1, "vr envmap");
+
+    // One view per face, so that only the face just drawn gets its mipmaps made again (not all six).
+    using TextureViewFn = void(APIENTRY*)(GLuint, GLenum, GLuint, GLenum, GLuint, GLuint, GLuint, GLuint);
+    if(const auto textureView = reinterpret_cast<TextureViewFn>(SDL_GL_GetProcAddress("glTextureView")))
+    {
+        glGenTextures(6, faceViews);
+        for(int f = 0; f < 6; f++)
+        {
+            textureView(faceViews[f], GL_TEXTURE_2D, cube, GL_R11F_G11F_B10F, 0, levels, static_cast<GLuint>(f), 1);
+        }
+    }
 
     glGenTextures(1, &depth);
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, depth);
@@ -363,7 +378,7 @@ void update()
     {
         return;
     }
-    if(builtWorld != cl.worldmodel || builtVbo != gl_bmodel_vbo || builtVboSize != gl_bmodel_vbo_size)
+    if(builtWorld != cl.worldmodel || builtGeneration != worldGeneration() || builtVbo != gl_bmodel_vbo || builtVboSize != gl_bmodel_vbo_size)
     {
         QVR_PROFILE("env cube build");
         buildWorld();
@@ -412,14 +427,25 @@ void update()
     GL_VertexAttribPointerFunc(4, 4, GL_UNSIGNED_BYTE, GL_TRUE, 8, (void*)0);
     GL_VertexAttribPointerFunc(5, 4, GL_UNSIGNED_BYTE, GL_TRUE, 8, (void*)4);
 
-    renderFace(nextFace);
+    const int face = nextFace;
+    renderFace(face);
     nextFace = (nextFace + 1) % 6;
     facesDone = std::min(facesDone + 1, 1 << 20);
 
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, 0);
-    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_CUBE_MAP, cube);
-    GL_GenerateMipmapFunc(GL_TEXTURE_CUBE_MAP);
-    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_CUBE_MAP, 0);
+    if(faceViews[face])
+    {
+        // That face's levels only: the others' are as they were made.
+        GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, faceViews[face]);
+        GL_GenerateMipmapFunc(GL_TEXTURE_2D);
+        GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, 0);
+    }
+    else
+    {
+        GL_BindNative(GL_TEXTURE0, GL_TEXTURE_CUBE_MAP, cube);
+        GL_GenerateMipmapFunc(GL_TEXTURE_CUBE_MAP);
+        GL_BindNative(GL_TEXTURE0, GL_TEXTURE_CUBE_MAP, 0);
+    }
     GL_EndGroup();
 }
 
@@ -477,6 +503,14 @@ void shutdown()
     {
         GL_DeleteFramebuffersFunc(1, &fbo);
         fbo = 0;
+    }
+    for(GLuint& v : faceViews)
+    {
+        if(v)
+        {
+            GL_DeleteNativeTexture(v);
+            v = 0;
+        }
     }
     for(GLuint* t : {&cube, &depth})
     {

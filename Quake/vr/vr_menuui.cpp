@@ -6,8 +6,12 @@
 //   apart comes out further apart, and hit tests, which go through the same transform (the menus'
 //   mouse code), follow. The 2D layer draws characters and pictures at their own size there,
 //   centred on where they were (gl_draw.c, Draw_KeepMenuGlyphSize), so the text is not stretched.
-//   Menus drawn from pictures with a cursor stepping over them (the main, single player and
-//   multiplayer menus...) keep Quake's spacing: their rows are already 20 pixels apart.
+//   The panel is vr_menu_height times Quake's 200 rows high (more rows at once, with room to spare
+//   in a headset): Quake's 320 x 200 stays in its middle, and the menus that lay out from the
+//   canvas's bounds (Ironwail's lists: options, key bindings, maps, mods) and the VR pages use the
+//   rows above and below. Menus drawn from pictures with a cursor stepping over them (the main,
+//   single player and multiplayer menus...) keep Quake's spacing: their rows are already 20
+//   pixels apart.
 // - The widgets are drawn anew (the menus call Quake's M_Draw* functions, which hand over): the
 //   slider is a track filled up to a round thumb, the checkbox a switch, the text box a panel with
 //   a thin border (and a list's scrollbar thumb a pill), and the selected row gets a highlight bar.
@@ -73,6 +77,12 @@ namespace
     return CLAMP(1.f, vr_menu_spacing.value, 2.f);
 }
 
+// The menu's height in menu pixels (Quake's 200, times vr_menu_height), whole rows.
+[[nodiscard]] int heightSetting()
+{
+    return static_cast<int>(std::lround(200.f * CLAMP(1.f, vr_menu_height.value, 2.f) / 8.f)) * 8;
+}
+
 // The current menu's row spacing: 1 for the menus drawn from pictures, whose cursor steps over a
 // picture's rows (spacing would move the cursor off them).
 [[nodiscard]] float rowSpacing()
@@ -91,11 +101,13 @@ namespace
     }
 }
 
-// Canvas (2D) units per menu pixel across: the 320 x 200 menu, its rows spaced out as much as they
-// can be, fits the canvas; the same for every menu, so that the text is the same size in all.
+// Canvas (2D) units per menu pixel across: the menu, 320 wide and heightSetting() high, its rows
+// spaced out as much as they can be, fits the canvas; the same for every menu, so that the text is
+// the same size in all. Quake's 320 x 200 stays in the middle: the menus that lay out from the
+// canvas's bounds (Ironwail's lists, the VR pages) get the rows above and below it.
 [[nodiscard]] float canvasScale()
 {
-    return std::fmin(vid.guiwidth / 320.f, vid.guiheight / (200.f * spacingSetting()));
+    return std::fmin(vid.guiwidth / 320.f, vid.guiheight / (heightSetting() * spacingSetting()));
 }
 
 // The styled widgets are drawn only into the menu canvas while it is the VR one.
@@ -413,6 +425,11 @@ float panelHeight()
     return active() ? vid.guiheight / canvasScale() * vr_menu_scale.value : 0.f;
 }
 
+int menuHeight()
+{
+    return active() ? heightSetting() : 200;
+}
+
 void update(const hands::State& s)
 {
     const bool on = active() && s.valid;
@@ -681,8 +698,8 @@ extern "C" void VR_MenuDrawHighlight(int cx, int cy)
     p.rect(left, left + 1.5f, yc, 4.5f, colors::highlightEdge);
 }
 
-// "Back to game": a button in the panel's top-left corner, over every menu (not while a key is
-// being bound). Its label shows where it fits left of Quake's plaque (x 16), else only the arrow.
+// "Back to game": a button at the panel's top left, over every menu (not while a key is being
+// bound). Its label shows where it fits left of Quake's plaque (x 16), else only the arrow.
 extern "C" void VR_MenuDrawOverlay()
 {
     backButton.menu = m_none;
@@ -699,7 +716,9 @@ extern "C" void VR_MenuDrawOverlay()
     constexpr float arrow = 9.f;
     const float labelWidth = 8.f * static_cast<float>(strlen(label));
 
-    const float x0 = glcanvas.left + corner;
+    // No further out than where it ends a character left of the plaque: on a wide panel, near
+    // the menu rather than out at the panel's corner.
+    const float x0 = std::fmax(glcanvas.left + corner, 16.f - 8.f - (4.f + arrow + 4.f + labelWidth + 5.f));
     const bool withLabel = x0 + 4.f + arrow + 4.f + labelWidth + 5.f <= 16.f;
     const float x1 = x0 + (withLabel ? 4.f + arrow + 4.f + labelWidth + 5.f : 4.f + arrow + 4.f);
     const float yc = glcanvas.top + (corner + half) / p.k;

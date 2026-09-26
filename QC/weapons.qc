@@ -3455,16 +3455,6 @@ void(float xHolster, float v) setHolsterWeaponFlags =
     bprint("\n");
 }
 
-float(float xHotspot) isHolsterHotspot =
-{
-    return xHotspot == QVR_HS_LEFT_SHOULDER_HOLSTER ||
-           xHotspot == QVR_HS_RIGHT_SHOULDER_HOLSTER ||
-           xHotspot == QVR_HS_LEFT_HIP_HOLSTER ||
-           xHotspot == QVR_HS_RIGHT_HIP_HOLSTER ||
-           xHotspot == QVR_HS_LEFT_UPPER_HOLSTER ||
-           xHotspot == QVR_HS_RIGHT_UPPER_HOLSTER;
-}
-
 float(float xHotspot) isReloadHolsterHotspot =
 {
     if(cvar_hget(cvarh_vr_reload_mode) == QVR_RELOADMODE_ALLHOLSTERS)
@@ -3549,22 +3539,33 @@ void(float xOffset, float xAngle, float* xOutAngle) wpnthrow_impl_stabilize =
     }
 }
 
+// Settled (no push left, throwstabilize 0, and the angle already in [offset - 360, offset]), the
+// stabilizing would leave the angle as it is: most thinks of a weapon lying about, so skipped.
 void() wpnthrow_stabilize =
 {
-    if(self.throwstabilizedim == -1)
+    float dim = self.throwstabilizedim;
+    if(dim == 0)
     {
-        // Intentionally empty.
-    }
-    else if(self.throwstabilizedim == 0)
-    {
+        if(!self.throwstabilize && self.angles_x <= 90 && self.angles_x >= -270)
+        {
+            return;
+        }
         wpnthrow_impl_stabilize(90, self.angles_x, &self.angles_x);
     }
-    else if(self.throwstabilizedim == 1)
+    else if(dim == 1)
     {
+        if(!self.throwstabilize && self.angles_y <= 0 && self.angles_y >= -360)
+        {
+            return;
+        }
         wpnthrow_impl_stabilize(0, self.angles_y, &self.angles_y);
     }
-    else if(self.throwstabilizedim == 2)
+    else if(dim == 2)
     {
+        if(!self.throwstabilize && self.angles_z <= 0 && self.angles_z >= -360)
+        {
+            return;
+        }
         wpnthrow_impl_stabilize(0, self.angles_z, &self.angles_z);
     }
 }
@@ -3630,7 +3631,7 @@ void() forcegrabbable_think_impl =
         self.waterlevel = 0;
     }
 
-    if(cvar_hget(cvarh_vr_weapondrop_particles) && (self.flags & (FL_ONGROUND | FL_INWATER)))
+    if(vr_weapondrop_particles_on && (self.flags & (FL_ONGROUND | FL_INWATER))) // (vr_cvars.qc, once a frame)
     {
         if(random() < 0.2 && self.model != string_null)
         {
@@ -3831,20 +3832,11 @@ void() wpnthrow_handtouch =
     wpnthrow_handtouch_ent(self);
 }
 
-float(float xHolster) VRHolsterToIndex =
+// A holster hotspot (QVR_HS_LEFT_SHOULDER_HOLSTER 3 .. QVR_HS_RIGHT_UPPER_HOLSTER 9, but for
+// QVR_HS_HAND_SWITCH 7) as an index 0 .. 5 into holsterhover/holsterprevhover.
+inline float(float xHolster) VRHolsterToIndex =
 {
-    if(xHolster == QVR_HS_LEFT_SHOULDER_HOLSTER)  { return 0; }
-    if(xHolster == QVR_HS_RIGHT_SHOULDER_HOLSTER) { return 1; }
-    if(xHolster == QVR_HS_LEFT_HIP_HOLSTER)       { return 2; }
-    if(xHolster == QVR_HS_RIGHT_HIP_HOLSTER)      { return 3; }
-    if(xHolster == QVR_HS_LEFT_UPPER_HOLSTER)     { return 4; }
-    if(xHolster == QVR_HS_RIGHT_UPPER_HOLSTER)    { return 5; }
-
-    bprint("`VRHolsterToIndex`: invalid holster ID: ");
-    bprint(ftos(xHolster));
-    bprint("\n");
-
-    return 0;
+    return xHolster - QVR_HS_LEFT_SHOULDER_HOLSTER - (xHolster > QVR_HS_HAND_SWITCH);
 }
 
 string(float xHolster) VRGetHolsterName =
@@ -3878,25 +3870,22 @@ float(entity xEntPlayer, float xHolster) VRIsHolsterPrevHovered =
     return xEntPlayer.holsterprevhover[VRHolsterToIndex(xHolster)];
 }
 
-void(entity xEntPlayer, float xHolster, float xValue) VRSetHolsterPrevHovered =
-{
-    xEntPlayer.holsterprevhover[VRHolsterToIndex(xHolster)] = xValue;
-}
-
+// Once a frame: this frame's hovers become the last frame's (constant indices: plain fields, not
+// the array accessor functions a variable index calls).
 void(entity xEntPlayer) UpdateHolsterHover =
 {
-    float i;
-
-    for(i = QVR_HS_LEFT_SHOULDER_HOLSTER; i <= QVR_HS_RIGHT_UPPER_HOLSTER; ++i)
-    {
-        if(!isHolsterHotspot(i))
-        {
-            continue;
-        }
-
-        VRSetHolsterPrevHovered(xEntPlayer, i, VRIsHolsterHovered(xEntPlayer, i));
-        VRSetHolsterHovered(xEntPlayer, i, FALSE);
-    }
+    xEntPlayer.holsterprevhover[0] = xEntPlayer.holsterhover[0];
+    xEntPlayer.holsterprevhover[1] = xEntPlayer.holsterhover[1];
+    xEntPlayer.holsterprevhover[2] = xEntPlayer.holsterhover[2];
+    xEntPlayer.holsterprevhover[3] = xEntPlayer.holsterhover[3];
+    xEntPlayer.holsterprevhover[4] = xEntPlayer.holsterhover[4];
+    xEntPlayer.holsterprevhover[5] = xEntPlayer.holsterhover[5];
+    xEntPlayer.holsterhover[0] = FALSE;
+    xEntPlayer.holsterhover[1] = FALSE;
+    xEntPlayer.holsterhover[2] = FALSE;
+    xEntPlayer.holsterhover[3] = FALSE;
+    xEntPlayer.holsterhover[4] = FALSE;
+    xEntPlayer.holsterhover[5] = FALSE;
 }
 
 void(entity xEntPlayer, float xHand, float xHolster) VRHolsterHaptic =
@@ -4595,12 +4584,6 @@ float(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponC
     sound(ent, CHAN_BODY, "weapons/holster0.wav", 0.5, ATTN_NORM);
     VRGunHaptic(other, 0.08, 75, 0.6);
     return TRUE;
-}
-
-// Whether `xHand` carries a gun by its foregrip (the hand-off).
-float(entity ent, float xHand) VRIsHandCarryingByForegrip =
-{
-    return !VRIsHandEmpty(ent, xHand) && (VRGetEntWeaponFlags(ent, xHand) & QVR_WPNFLAG_FOREGRIP_CARRIED);
 }
 
 // The empty `xHand` closes on the handle of the gun the other hand carries by its foregrip: it holds

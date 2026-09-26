@@ -5,59 +5,38 @@
 // VR Utilities Implementation Details
 // ----------------------------------------------------------------------------
 
-void(string fnName, float xHand) VRImpl_InvalidHandIdMessage =
-{
-    bprint("`");
-    bprint(fnName);
-    bprint("`: invalid hand id '");
-    bprint(ftos(xHand));
-    bprint("'\n");
-}
-
-vector(string fnName, float xHand, vector xOff, vector xMain) VRImpl_VectorGetter =
-{
-    if(xHand == cVR_OffHand)  return xOff;
-    if(xHand == cVR_MainHand) return xMain;
-
-    VRImpl_InvalidHandIdMessage(fnName, xHand);
-    return '0 0 0';
-}
-
-float(string fnName, float xHand, float xOff, float xMain) VRImpl_FloatGetter =
-{
-    if(xHand == cVR_OffHand)  return xOff;
-    if(xHand == cVR_MainHand) return xMain;
-
-    VRImpl_InvalidHandIdMessage(fnName, xHand);
-    return 0.f;
-}
-
-void(string fnName, float xHand,
-      float* xOutOff, float* xOutMain, float xValue) VRImpl_FloatSetter =
-{
-    if(xHand == cVR_OffHand)  { *xOutOff = xValue; return; }
-    if(xHand == cVR_MainHand) { *xOutMain = xValue; return; }
-
-    VRImpl_InvalidHandIdMessage(fnName, xHand);
-}
+// The per-hand getters run many times a frame (the QC VM interprets every statement, and a call
+// costs several), so they are branchless selects that fteqcc inlines (`inline`: its inliner takes
+// only branch-free bodies): the off hand's (cVR_OffHand, 0) value for 0, the main hand's for any
+// other (as the old if/else did). Both fields are read; they are finite, so `a * 1 + b * 0` is `a`.
+#define VR_IMPL_SELECT(xHand, xOff, xMain) ((xMain) * (xHand != cVR_OffHand) + (xOff) * (xHand == cVR_OffHand))
 
 #define VR_IMPL_MAKE_VECTOR_GETTER(xFnName, xOff, xMain) \
-    vector(float xHand) xFnName = \
+    inline vector(float xHand) xFnName = \
     { \
-        return VRImpl_VectorGetter(#xFnName, xHand, xOff, xMain); \
+        return VR_IMPL_SELECT(xHand, xOff, xMain); \
     }
 
 #define VR_IMPL_MAKE_FLOAT_GETTER(xFnName, xOff, xMain) \
-    float(float xHand) xFnName = \
+    inline float(float xHand) xFnName = \
     { \
-        return VRImpl_FloatGetter(#xFnName, xHand, xOff, xMain); \
+        return VR_IMPL_SELECT(xHand, xOff, xMain); \
     }
 
 #define VR_IMPL_MAKE_FLOAT_SETTER(xFnName, xOff, xMain) \
     void(float xHand, float xValue) xFnName = \
     { \
-        VRImpl_FloatSetter(#xFnName, xHand, xOff, xMain, xValue); \
+        if(xHand == cVR_OffHand) *xOff = xValue; \
+        else                     *xMain = xValue; \
     }
+
+// Whether a hotspot is a holster (QVR_HS_LEFT_SHOULDER_HOLSTER 3 .. QVR_HS_RIGHT_UPPER_HOLSTER 9,
+// but for QVR_HS_HAND_SWITCH 7).
+inline float(float xHotspot) isHolsterHotspot =
+{
+    return (xHotspot >= QVR_HS_LEFT_SHOULDER_HOLSTER) * (xHotspot <= QVR_HS_RIGHT_UPPER_HOLSTER) *
+           (xHotspot != QVR_HS_HAND_SWITCH);
+}
 
 //
 //
@@ -216,15 +195,14 @@ VR_IMPL_MAKE_FLOAT_SETTER(VRSetLavaGunFired,
 
 // Whether `e` plays with tracked VR hands (not a flat-screen player, not a bot): the engine tells,
 // per client.
-float(entity e) VRHandsTracked =
+inline float(entity e) VRHandsTracked =
 {
-    return VRHasBit(e.vrbits0, QVR_VRBITS0_HANDSTRACKED);
+    return !!(e.vrbits0 & QVR_VRBITS0_HANDSTRACKED);
 }
 
-float(entity e, float xHand) VRGetEntFireButtonPressed =
+inline float(entity e, float xHand) VRGetEntFireButtonPressed =
 {
-    if(xHand == cVR_OffHand) return e.button3;
-    else                     return e.button0;
+    return VR_IMPL_SELECT(xHand, e.button3, e.button0);
 }
 
 // The head (between the eyes): the client's, which leans away from the origin; the old eye point if
@@ -234,23 +212,20 @@ vector(entity e) VRGetHeadPos =
     return e.headpos != '0 0 0' ? e.headpos : e.origin + e.view_ofs;
 };
 
-vector(entity e, float xHand) VRGetEntHandPos =
+inline vector(entity e, float xHand) VRGetEntHandPos =
 {
-    if(xHand == cVR_OffHand) return e.offhandpos;
-    else                     return e.handpos;
+    return VR_IMPL_SELECT(xHand, e.offhandpos, e.handpos);
 }
 
-vector(entity e, float xHand) VRGetEntHandRot =
+inline vector(entity e, float xHand) VRGetEntHandRot =
 {
-    if(xHand == cVR_OffHand) return e.offhandrot;
-    else                     return e.handrot;
+    return VR_IMPL_SELECT(xHand, e.offhandrot, e.handrot);
 }
 
 // The hand's velocity, in metres per second.
-vector(entity e, float xHand) VRGetEntHandVel =
+inline vector(entity e, float xHand) VRGetEntHandVel =
 {
-    if(xHand == cVR_OffHand) return e.offhandvel;
-    else                     return e.handvel;
+    return VR_IMPL_SELECT(xHand, e.offhandvel, e.handvel);
 }
 
 float(float xHand) VRIsAmmolessWeapon =
@@ -258,10 +233,9 @@ float(float xHand) VRIsAmmolessWeapon =
     return VRGetCurrentAmmo(xHand) == AID_NONE;
 }
 
-float(float xHand) VRGetOtherHand =
+inline float(float xHand) VRGetOtherHand =
 {
-    if(xHand == cVR_OffHand) return cVR_MainHand;
-    else                     return cVR_OffHand;
+    return VR_IMPL_SELECT(xHand, cVR_MainHand, cVR_OffHand);
 }
 
 void(entity e, float xHand, float v) VRSetEntWeapon =
@@ -287,22 +261,19 @@ void(float xHand, float v) VRSetWeapon =
     VRSetEntWeapon(self, xHand, v);
 }
 
-float(entity e, float xHand) VRGetEntWeapon =
+inline float(entity e, float xHand) VRGetEntWeapon =
 {
-    if(xHand == cVR_OffHand) return e.weapon2;
-    else                     return e.weapon;
+    return VR_IMPL_SELECT(xHand, e.weapon2, e.weapon);
 }
 
-float(entity e, float xHand) VRGetEntWeaponFlags =
+inline float(entity e, float xHand) VRGetEntWeaponFlags =
 {
-    if(xHand == cVR_OffHand) return e.weaponflags2;
-    else                     return e.weaponflags;
+    return VR_IMPL_SELECT(xHand, e.weaponflags2, e.weaponflags);
 }
 
-float(entity e, float xHand) VRGetEntWeaponClip =
+inline float(entity e, float xHand) VRGetEntWeaponClip =
 {
-    if(xHand == cVR_OffHand) return e.weaponclip2;
-    else                     return e.weaponclip;
+    return VR_IMPL_SELECT(xHand, e.weaponclip2, e.weaponclip);
 }
 
 float*(entity e, float xHand) VRGetEntWeaponPtr =
@@ -323,9 +294,16 @@ float*(entity e, float xHand) VRGetEntWeaponClipPtr =
     else                     return &e.weaponclip;
 }
 
-float(entity e, float xHand) VRIsHandEmpty =
+inline float(entity e, float xHand) VRIsHandEmpty =
 {
-    return VRGetEntWeapon(e, xHand) == WID_FIST;
+    return VR_IMPL_SELECT(xHand, e.weapon2, e.weapon) == WID_FIST;
+}
+
+// Whether `xHand` carries a gun by its foregrip (the hand-off).
+inline float(entity e, float xHand) VRIsHandCarryingByForegrip =
+{
+    return (VR_IMPL_SELECT(xHand, e.weapon2, e.weapon) != WID_FIST) *
+           !!(VR_IMPL_SELECT(xHand, e.weaponflags2, e.weaponflags) & QVR_WPNFLAG_FOREGRIP_CARRIED);
 }
 
 void(entity e, float xHand) VRSetHandEmpty =
@@ -335,33 +313,29 @@ void(entity e, float xHand) VRSetHandEmpty =
     VRSetEntWeaponClip(e, xHand, 0);
 }
 
-float(float xHand) VRGetWeapon =
+inline float(float xHand) VRGetWeapon =
 {
-    return VRGetEntWeapon(self, xHand);
+    return VR_IMPL_SELECT(xHand, self.weapon2, self.weapon);
 }
 
-float(entity e, float xHand) VRIsEntHandGrabbingBit =
+inline float(entity e, float xHand) VRIsEntHandGrabbingBit =
 {
-    if(xHand == cVR_OffHand) return VRGetOffHandGrabbingBit(e);
-    else                     return VRGetMainHandGrabbingBit(e);
+    return VR_IMPL_SELECT(xHand, !!(e.vrbits0 & QVR_VRBITS0_OFFHAND_GRABBING), !!(e.vrbits0 & QVR_VRBITS0_MAINHAND_GRABBING));
 }
 
-float(entity e, float xHand) VRIsEntHandPrevGrabbingBit =
+inline float(entity e, float xHand) VRIsEntHandPrevGrabbingBit =
 {
-    if(xHand == cVR_OffHand) return VRGetOffHandPrevGrabbingBit(e);
-    else                     return VRGetMainHandPrevGrabbingBit(e);
+    return VR_IMPL_SELECT(xHand, !!(e.vrbits0 & QVR_VRBITS0_OFFHAND_PREVGRABBING), !!(e.vrbits0 & QVR_VRBITS0_MAINHAND_PREVGRABBING));
 }
 
-float(entity e, float xHand) VRIsEntHandReloadingBit =
+inline float(entity e, float xHand) VRIsEntHandReloadingBit =
 {
-    if(xHand == cVR_OffHand) return VRGetOffHandReloadingBit(e);
-    else                     return VRGetMainHandReloadingBit(e);
+    return VR_IMPL_SELECT(xHand, !!(e.vrbits0 & QVR_VRBITS0_OFFHAND_RELOADING), !!(e.vrbits0 & QVR_VRBITS0_MAINHAND_RELOADING));
 }
 
-float(entity e, float xHand) VRIsEntHandReloadFlickingBit =
+inline float(entity e, float xHand) VRIsEntHandReloadFlickingBit =
 {
-    if(xHand == cVR_OffHand) return VRGetOffHandReloadFlickingBit(e);
-    else                     return VRGetMainHandReloadFlickingBit(e);
+    return VR_IMPL_SELECT(xHand, !!(e.vrbits0 & QVR_VRBITS0_OFFHAND_RELOADFLICKING), !!(e.vrbits0 & QVR_VRBITS0_MAINHAND_RELOADFLICKING));
 }
 
 float(entity entPlayer) VRIsTouchingHandFake =
@@ -396,7 +370,7 @@ float(entity entTarget) VRGetHandtouchHand =
 
 // TODO VR: (P2) organize bits
 
-float(float flags, float bit) VRHasBit =
+inline float(float flags, float bit) VRHasBit =
 {
     return !!(flags & bit);
 }
@@ -413,49 +387,49 @@ float(float flags, float bit, float value) VRSetBit =
     }
 }
 
-float(entity ent) VRGetOffHandGrabbingBit =
+inline float(entity ent) VRGetOffHandGrabbingBit =
 {
-    return VRHasBit(ent.vrbits0, QVR_VRBITS0_OFFHAND_GRABBING);
+    return !!(ent.vrbits0 & QVR_VRBITS0_OFFHAND_GRABBING);
 }
 
-float(entity ent) VRGetOffHandPrevGrabbingBit =
+inline float(entity ent) VRGetOffHandPrevGrabbingBit =
 {
-    return VRHasBit(ent.vrbits0, QVR_VRBITS0_OFFHAND_PREVGRABBING);
+    return !!(ent.vrbits0 & QVR_VRBITS0_OFFHAND_PREVGRABBING);
 }
 
-float(entity ent) VRGetMainHandGrabbingBit =
+inline float(entity ent) VRGetMainHandGrabbingBit =
 {
-    return VRHasBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_GRABBING);
+    return !!(ent.vrbits0 & QVR_VRBITS0_MAINHAND_GRABBING);
 }
 
-float(entity ent) VRGetMainHandPrevGrabbingBit =
+inline float(entity ent) VRGetMainHandPrevGrabbingBit =
 {
-    return VRHasBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_PREVGRABBING);
+    return !!(ent.vrbits0 & QVR_VRBITS0_MAINHAND_PREVGRABBING);
 }
 
-float(entity ent) VRGet2HAiming =
+inline float(entity ent) VRGet2HAiming =
 {
-    return VRHasBit(ent.vrbits0, QVR_VRBITS0_2H_AIMING);
+    return !!(ent.vrbits0 & QVR_VRBITS0_2H_AIMING);
 }
 
-float(entity ent) VRGetOffHandReloadingBit =
+inline float(entity ent) VRGetOffHandReloadingBit =
 {
-    return VRHasBit(ent.vrbits0, QVR_VRBITS0_OFFHAND_RELOADING);
+    return !!(ent.vrbits0 & QVR_VRBITS0_OFFHAND_RELOADING);
 }
 
-float(entity ent) VRGetMainHandReloadingBit =
+inline float(entity ent) VRGetMainHandReloadingBit =
 {
-    return VRHasBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_RELOADING);
+    return !!(ent.vrbits0 & QVR_VRBITS0_MAINHAND_RELOADING);
 }
 
-float(entity ent) VRGetOffHandReloadFlickingBit =
+inline float(entity ent) VRGetOffHandReloadFlickingBit =
 {
-    return VRHasBit(ent.vrbits0, QVR_VRBITS0_OFFHAND_RELOADFLICKING);
+    return !!(ent.vrbits0 & QVR_VRBITS0_OFFHAND_RELOADFLICKING);
 }
 
-float(entity ent) VRGetMainHandReloadFlickingBit =
+inline float(entity ent) VRGetMainHandReloadFlickingBit =
 {
-    return VRHasBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_RELOADFLICKING);
+    return !!(ent.vrbits0 & QVR_VRBITS0_MAINHAND_RELOADFLICKING);
 }
 
 

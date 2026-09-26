@@ -1607,7 +1607,7 @@ void() PlayerPreThink =
     }
 
     // ROGUE
-    if(VR_ItemUtil_EntHasItem(self, IID_ANTIGRAV))
+    if(self.rogue_items & ROGUE_IT_ANTIGRAV) // (VR_ItemUtil_EntHasItem, directly: every frame)
     {
         if(time > self.AGping)
         {
@@ -2658,7 +2658,7 @@ void(float xHand, float xInMelee, float* xOutMeleeAttackFinished, float* xOutInM
 
     // A stroke that became a blow stays one to its end: its striking points' first contact in the
     // stroke (VR_Blow_Sweep), before or after, is where it lands (VR_Blow_Contact), once.
-    float blow = VR_Blow_IsBlow(xHand);
+    float blow = VR_Blow_IsBlow(xHand, b);
     float whoosh = blow && b.blow_ok != b.blow_t0; // once a stroke
     if(blow)
     {
@@ -2701,7 +2701,7 @@ void(float xHand, float xInMelee, float* xOutMeleeAttackFinished, float* xOutInM
         }
     }
 
-    VR_Deflect(xHand); // batting swings (less than a blow) bat enemy projectiles back
+    VR_Deflect(xHand, b); // batting swings (less than a blow) bat enemy projectiles back
 }
 
 // Headbutts (vr_headbutt): a lunge of the head, roughly towards where it looks, faster than

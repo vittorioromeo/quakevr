@@ -1,5 +1,6 @@
 # Packages Quake VR into dist\QuakeVR (and dist\QuakeVR.zip): the engine from a Release x64
-# build, its DLLs, and the quakevr game folder with freshly compiled progs. Copy the contents of
+# build, its DLLs, and the quakevr game folder with freshly compiled progs (and the relighting
+# scripts in quakevr\tools; never the relit id maps). Copy the contents of
 # dist\QuakeVR into a Quake folder (the one with id1) and run QuakeVR.bat.
 #
 #   Windows\package-quakevr.ps1 [-Build] [-Fteqcc <path to fteqcc64.exe>]
@@ -47,14 +48,27 @@ foreach ($f in Get-ChildItem $bin -File) {
 
 # Game folder, without anything a player creates.
 $game = Join-Path $root "quakevr"
-$exclude = @("ironwail.cfg", "config.cfg", "autoexec.cfg", "history.txt", "qconsole.log")
+$exclude = @("ironwail.cfg", "config.cfg", "autoexec.cfg", "history.txt", "qconsole.log", "ironwail.cfg.from-tests", "envmap.tga")
+# A player's (and a tester's) own folders: screenshots, voice notes, profiles and memory logs,
+# autosaves, eye captures; and relit, id Software's maps relit on this PC by relight_maps.py,
+# which are id's data and must never be distributed (players make their own: docs/RELIGHTING.md).
+$private = @("screenshots", "notes", "profile", "autosave", "eyeshots", "relit")
 Get-ChildItem $game -Recurse -File | Where-Object {
     $rel = $_.FullName.Substring($game.Length + 1)
-    -not ($exclude -contains $_.Name) -and $_.Extension -notin ".sav", ".dem" -and -not $rel.StartsWith("screenshots")
+    $top = ($rel -split '[\\/]')[0]
+    -not ($exclude -contains $_.Name) -and $_.Extension -notin ".sav", ".dem" -and -not ($private -contains $top)
 } | ForEach-Object {
     $target = Join-Path (Join-Path $dist "quakevr") $_.FullName.Substring($game.Length + 1)
     New-Item -ItemType Directory -Force (Split-Path $target) | Out-Null
     Copy-Item $_.FullName $target
+}
+
+# The relighting scripts (docs/RELIGHTING.md), so players can relight their own maps without the
+# repository. From quakevr\tools, relight_maps.py's default output is <Quake>\quakevr\relit.
+$tools = Join-Path $dist "quakevr\tools"
+New-Item -ItemType Directory -Force $tools | Out-Null
+foreach ($f in "relight_maps.py", "vis_maps.py", "quakepak.py", "relight_textures.cfg") {
+    Copy-Item (Join-Path $root "Misc\quakevr\$f") $tools
 }
 
 Set-Content -Encoding ascii (Join-Path $dist "QuakeVR.bat") "@echo off`r`nstart `"`" `"%~dp0ironwail.exe`" -game quakevr %*`r`n"
@@ -70,6 +84,10 @@ Quake VR (Ironwail + OpenXR)
 Options > VR Settings has the comfort, body, weapon and display settings. The controller
 buttons are ordinary keys (RTRIGGER, LSHOULDER, ABUTTON...) that can be rebound in
 Options > Key Setup or with "bind" in the console. "vr_enabled 0" plays on the monitor.
+
+Optional: relit maps and see-through water. id Software's maps can't be distributed, so
+you relight your own copy once, with quakevr\tools\relight_maps.py (Python 3) and
+ericw-tools. The steps are in docs/RELIGHTING.md in the Quake VR repository.
 "@
 
 $zip = Join-Path $root "dist\QuakeVR.zip"

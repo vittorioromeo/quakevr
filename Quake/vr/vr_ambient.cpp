@@ -1,6 +1,7 @@
 // vr_ambient.cpp -- see vr_ambient.hpp.
 
 #include "vr_ambient.hpp"
+#include "vr_main.hpp"
 #include "vr_cvars.hpp"
 #include "vr_profile.hpp"
 
@@ -222,18 +223,24 @@ float luma(const glm::vec3& c)
 
 using Cube = glm::vec3[6];
 
+constexpr int MAX_PROBE_STYLES = 8;
+
 // What the rays from a point hit: kept, so that the light is read again at the current light
 // styles (flickering and switched lights) without tracing again.
 struct Probe
 {
     Hit hits[NUM_RAYS];
     bool animated{false}; // a surface hit has a light style other than the normal one
+    // The light styles of the surfaces hit (-1: more than MAX_PROBE_STYLES), whose values its shading reads.
+    int numStyles{0};
+    unsigned char styles[MAX_PROBE_STYLES]{};
 };
 
 void traceProbe(const glm::vec3& p, Probe& out)
 {
     const Rays& r = rays();
     out.animated = false;
+    out.numStyles = 0;
     for(int i = 0; i < NUM_RAYS; i++)
     {
         out.hits[i] = Hit{};
@@ -242,7 +249,16 @@ void traceProbe(const glm::vec3& p, Probe& out)
         {
             for(int m = 0; m < MAXLIGHTMAPS && out.hits[i].surf->styles[m] != 255; m++)
             {
-                out.animated |= out.hits[i].surf->styles[m] != 0;
+                const unsigned char style = out.hits[i].surf->styles[m];
+                out.animated |= style != 0;
+                if(out.numStyles >= 0 && std::find(out.styles, out.styles + out.numStyles, style) == out.styles + out.numStyles)
+                {
+                    out.numStyles = out.numStyles < MAX_PROBE_STYLES ? out.numStyles + 1 : -1;
+                    if(out.numStyles > 0)
+                    {
+                        out.styles[out.numStyles - 1] = style;
+                    }
+                }
             }
         }
     }
@@ -326,6 +342,16 @@ void shade(const Probe& probe, Cube& out)
     }
 }
 
+// A probe's shade() (a pure function of the probe, its light styles' values and the two contrast settings), and
+// what it was worked out at.
+struct ShadeMemo
+{
+    bool valid{false};
+    float lightContrast{0.f}, ambientContrast{0.f};
+    int styles[MAX_PROBE_STYLES]{};
+    Cube cube{};
+};
+
 struct Cached
 {
     glm::vec3 samplePos{0.f};
@@ -336,9 +362,50 @@ struct Cached
     float settings{-1.f}; // the contrast settings the cube was shaded with
     double tracedAt{-1.0};
     int frame{-1};
+    ShadeMemo currentShaded, previousShaded; // shade() of current and previous
+    // The model's middle the sample point was last found from, and the anchor: the same again find
+    // the same point (the world does not move).
+    glm::vec3 centerAsked{0.f}, anchorAsked{0.f}, openAt{0.f};
+    bool openValid{false};
 };
 
+// Whether `m` holds shade(probe) as it would be now: the same settings, its light styles at the same values.
+[[nodiscard]] bool shadeFresh(const ShadeMemo& m, const Probe& probe)
+{
+    if(!m.valid || probe.numStyles < 0 || m.lightContrast != vr_light_contrast.value ||
+       m.ambientContrast != vr_model_ambient_contrast.value)
+    {
+        return false;
+    }
+    for(int k = 0; k < probe.numStyles; k++)
+    {
+        if(d_lightstylevalue[probe.styles[k]] != m.styles[k])
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+// shade(probe), from the memo when it is fresh.
+const Cube& shadeMemo(ShadeMemo& m, const Probe& probe)
+{
+    if(!shadeFresh(m, probe))
+    {
+        shade(probe, m.cube);
+        m.valid = probe.numStyles >= 0;
+        m.lightContrast = vr_light_contrast.value;
+        m.ambientContrast = vr_model_ambient_contrast.value;
+        for(int k = 0; k < probe.numStyles; k++)
+        {
+            m.styles[k] = d_lightstylevalue[probe.styles[k]];
+        }
+    }
+    return m.cube;
+}
+
 const qmodel_t* loadedWorld = nullptr;
+int loadedGeneration = -1;
 std::unordered_map<const entity_t*, Cached> cache;
 int budgetFrame = -1;
 int tracedThisFrame = 0;
@@ -459,10 +526,11 @@ void ambient::entityCube(const entity_t* e, const float modelMatrix[16], const v
     {
         return;
     }
-    if(cl.worldmodel != loadedWorld)
+    if(cl.worldmodel != loadedWorld || worldGeneration() != loadedGeneration) // the same model can hold another map: a map name loaded again (vr_relit_maps switched)
     {
         cache.clear();
         loadedWorld = cl.worldmodel;
+        loadedGeneration = worldGeneration();
     }
     if(budgetFrame != host_framecount)
     {
@@ -478,7 +546,15 @@ void ambient::entityCube(const entity_t* e, const float modelMatrix[16], const v
         const bool view = e == &cl.viewent || VR_IsViewEntity(e);
         const glm::vec3 anchor = view ? glm::vec3{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]}
                                       : glm::vec3{e->origin[0], e->origin[1], e->origin[2] + 8.f};
-        const glm::vec3 p = openPoint(modelCenter(e, modelMatrix, static_cast<const aliashdr_t*>(aliashdr)), anchor);
+        const glm::vec3 center = modelCenter(e, modelMatrix, static_cast<const aliashdr_t*>(aliashdr));
+        if(!c.openValid || center != c.centerAsked || anchor != c.anchorAsked)
+        {
+            c.centerAsked = center;
+            c.anchorAsked = anchor;
+            c.openAt = openPoint(center, anchor);
+            c.openValid = true;
+        }
+        const glm::vec3 p = c.openAt;
         const bool fresh = c.tracedAt < 0.0;
         const float moved = fresh ? 0.f : glm::distance(p, c.samplePos);
         // Staggered between entities, so that they don't all come due in the same frame.
@@ -488,12 +564,19 @@ void ambient::entityCube(const entity_t* e, const float modelMatrix[16], const v
         const bool allowed = fresh ? freshThisFrame < MAX_FRESH_PER_FRAME
                                    : view || tracedThisFrame < MAX_TRACED_PER_FRAME;
         bool reshade = false;
-        if(due && allowed)
+        if(due && !fresh && p == c.samplePos)
+        {
+            // Due by time alone, from the same point: the rays (the world's, which does not move) would hit
+            // the same surfaces again, and their light is read as it is now anyway.
+            c.tracedAt = realtime;
+        }
+        else if(due && allowed)
         {
             const auto t0 = std::chrono::steady_clock::now();
             if(fresh || moved > 128.f) // new, or teleported: no easing from where it was
             {
                 traceProbe(p, c.current);
+                c.currentShaded.valid = false;
                 c.blend = 1.f;
             }
             else
@@ -501,8 +584,10 @@ void ambient::entityCube(const entity_t* e, const float modelMatrix[16], const v
                 if(c.blend >= 0.5f) // mid-way the older of the two goes
                 {
                     c.previous = c.current;
+                    c.previousShaded = c.currentShaded;
                 }
                 traceProbe(p, c.current);
+                c.currentShaded.valid = false;
                 c.blend = 0.f;
             }
             sampleSeconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
@@ -522,14 +607,16 @@ void ambient::entityCube(const entity_t* e, const float modelMatrix[16], const v
             }
             // Flickering or switched lights: read every frame, in step with the world's.
             const float settings = vr_model_ambient_contrast.value * 16.f + vr_light_contrast.value;
-            if(reshade || c.current.animated || (c.blend < 1.f && c.previous.animated) || settings != c.settings)
+            // (Each probe's shading is kept while its light styles hold still: easing only mixes them.)
+            if(reshade || (c.current.animated && !shadeFresh(c.currentShaded, c.current)) ||
+               (c.blend < 1.f && c.previous.animated) || settings != c.settings)
             {
                 c.settings = settings;
-                shade(c.current, c.cube);
+                const Cube& now = shadeMemo(c.currentShaded, c.current);
+                std::copy(std::begin(now), std::end(now), std::begin(c.cube));
                 if(c.blend < 1.f)
                 {
-                    Cube older;
-                    shade(c.previous, older);
+                    const Cube& older = shadeMemo(c.previousShaded, c.previous);
                     for(int f = 0; f < 6; f++)
                     {
                         c.cube[f] = glm::mix(older[f], c.cube[f], c.blend);
@@ -546,16 +633,16 @@ void ambient::entityCube(const entity_t* e, const float modelMatrix[16], const v
         }
     }
 
-    const auto it = cache.find(e);
-    if(it == cache.end() || it->second.tracedAt < 0.0)
+    // (`c` is still there: the eviction above leaves the entities drawn this frame.)
+    if(c.tracedAt < 0.0)
     {
         return; // not traced yet (over this frame's budget): shaded as before
     }
     for(int f = 0; f < 6; f++)
     {
-        out[f][0] = it->second.cube[f].r;
-        out[f][1] = it->second.cube[f].g;
-        out[f][2] = it->second.cube[f].b;
+        out[f][0] = c.cube[f].r;
+        out[f][1] = c.cube[f].g;
+        out[f][2] = c.cube[f].b;
     }
     out[0][3] = 1.f;
     out[1][3] = 1.f - DIR_REPLACED;

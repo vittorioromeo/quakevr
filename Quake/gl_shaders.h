@@ -450,15 +450,17 @@ QVR_TONE_GLSL
 "\n"\
 "#define SHADOW_NEAR 1.0\n"\
 "#define SHADOW_BORDER 4.0\n"\
-"const vec3 ShadowRight[6] = vec3[6](vec3(0.,-1.,0.), vec3(0.,1.,0.), vec3(1.,0.,0.), vec3(-1.,0.,0.), vec3(0.,1.,0.), vec3(0.,-1.,0.));\n"\
-"const vec3 ShadowUp[6] = vec3[6](vec3(0.,0.,1.), vec3(0.,0.,1.), vec3(0.,0.,1.), vec3(0.,0.,1.), vec3(1.,0.,0.), vec3(1.,0.,0.));\n"\
+"// The faces' right and up (vr_lighting.cpp's cube views): +x (-y, z), -x (y, z), +y (x, z), -y (-x, z), +z (y, x), -z (-y, x).\n"\
 "\n"\
 "float ShadowTap(sampler2DShadow atlas, vec2 texel, vec2 inv, float ref)\n"\
 "{\n"\
 "	return texture(atlas, vec3(texel * inv, ref));\n"\
 "}\n"\
 "\n"\
-"// The filtered compare at texel (atlas texels) against the reversed depth ref: 1, 4, 9 or 16 taps.\n"\
+"// The filtered compare at texel (atlas texels) against the reversed depth ref: 1, 4, 9 or 16 bilinear taps a texel\n"\
+"// apart (about 2x2 .. 5x5 texels). Those kernels are separable: along each axis a box of 1 .. 4 texels widened by a\n"\
+"// bilinear ramp at each end (weights 1 - g, 1, .., 1, g). The 9 and 16 tap ones read pairs of their texels with one\n"\
+"// bilinear tap each, placed by the pair's weights (Castano's PCF; the same weights): 2 x 2 and 3 x 3 taps.\n"\
 "float ShadowFilter(sampler2DShadow atlas, vec2 texel, float ref)\n"\
 "{\n"\
 "	vec2 inv = 1.0 / vec2(textureSize(atlas, 0));\n"\
@@ -468,29 +470,47 @@ QVR_TONE_GLSL
 "	if (filt == 1u)\n"\
 "		return 0.25 * (ShadowTap(atlas, texel + vec2(-0.5, -0.5), inv, ref) + ShadowTap(atlas, texel + vec2(0.5, -0.5), inv, ref)\n"\
 "			+ ShadowTap(atlas, texel + vec2(-0.5, 0.5), inv, ref) + ShadowTap(atlas, texel + vec2(0.5, 0.5), inv, ref));\n"\
-"	float r = filt == 2u ? 1.0 : 1.5;\n"\
-"	float sum = 0.;\n"\
-"	for (float y = -r; y <= r + 0.01; y += 1.0)\n"\
-"		for (float x = -r; x <= r + 0.01; x += 1.0)\n"\
-"			sum += ShadowTap(atlas, texel + vec2(x, y), inv, ref);\n"\
-"	return sum / ((2.0 * r + 1.0) * (2.0 * r + 1.0));\n"\
+"	if (filt == 2u) // 3 x 3: texels i - 1 .. i + 2 weighted 1 - g, 1, 1, g (i the texel under texel - 0.5, g the rest)\n"\
+"	{\n"\
+"		vec2 s = texel - 0.5, i = floor(s), g = s - i;\n"\
+"		vec2 wa = 2.0 - g, wb = 1.0 + g;\n"\
+"		vec2 ua = (i + (1.0 / wa - 0.5)) * inv, ub = (i + (g / wb + 1.5)) * inv;\n"\
+"		return (wa.y * (wa.x * texture(atlas, vec3(ua, ref)) + wb.x * texture(atlas, vec3(ub.x, ua.y, ref)))\n"\
+"			+ wb.y * (wa.x * texture(atlas, vec3(ua.x, ub.y, ref)) + wb.x * texture(atlas, vec3(ub, ref)))) * (1.0 / 9.0);\n"\
+"	}\n"\
+"	// 4 x 4: texels j .. j + 4 weighted 1 - h, 1, 1, 1, h (j the texel under texel - 2, h the rest)\n"\
+"	vec2 q = texel - 2.0, j = floor(q), h = q - j;\n"\
+"	vec2 wa = 2.0 - h;\n"\
+"	vec2 ua = (j + (1.0 / wa + 0.5)) * inv, ub = (j + 3.0) * inv, uc = (j + 4.5) * inv;\n"\
+"	float ra = wa.x * texture(atlas, vec3(ua.x, ua.y, ref)) + 2.0 * texture(atlas, vec3(ub.x, ua.y, ref)) + h.x * texture(atlas, vec3(uc.x, ua.y, ref));\n"\
+"	float rb = wa.x * texture(atlas, vec3(ua.x, ub.y, ref)) + 2.0 * texture(atlas, vec3(ub.x, ub.y, ref)) + h.x * texture(atlas, vec3(uc.x, ub.y, ref));\n"\
+"	float rc = wa.x * texture(atlas, vec3(ua.x, uc.y, ref)) + 2.0 * texture(atlas, vec3(ub.x, uc.y, ref)) + h.x * texture(atlas, vec3(uc.x, uc.y, ref));\n"\
+"	return (wa.y * ra + 2.0 * rb + h.y * rc) * (1.0 / 16.0);\n"\
+"}\n"\
+"\n"\
+"// Where the point d away from a light falls in its six faces (face size `size`): xy in texels from the block's origin,\n"\
+"// z the reversed depth to compare; cell the face, 0 .. 5 (+x -x +y -y +z -z). The face is d's longest axis; right and\n"\
+"// up as above (branchless).\n"\
+"vec3 ShadowFace(float size, vec3 d, out float cell)\n"\
+"{\n"\
+"	vec3 a = abs(d);\n"\
+"	bool bx = a.x >= a.y && a.x >= a.z, by = !bx && a.y >= a.z;\n"\
+"	float z = max(bx ? a.x : by ? a.y : a.z, SHADOW_NEAR);\n"\
+"	bool neg = (bx ? d.x : by ? d.y : d.z) <= 0.; // the odd faces\n"\
+"	vec2 st = bx ? vec2(d.y, d.z) : by ? vec2(d.x, d.z) : vec2(d.y, d.x);\n"\
+"	st.x = (bx != neg) ? -st.x : st.x; // +x and -y, -z turn right the other way\n"\
+"	cell = (bx ? 0. : by ? 2. : 4.) + (neg ? 1. : 0.); // laid out 3 x 2\n"\
+"	vec2 org = vec2(cell < 3. ? cell : cell - 3., cell < 3. ? 0. : 1.);\n"\
+"	float k = 1.0 - 2.0 * SHADOW_BORDER / size;\n"\
+"	return vec3(org * size + (st / z * (0.5 * k) + 0.5) * size, SHADOW_NEAR / z * (1.0 + 0.002 * ShadowBias));\n"\
 "}\n"\
 "\n"\
 "// How much of a light reaches the point d away from it, 0..1, from its faces at tile (xy origin, z face size).\n"\
 "float ShadowLookup(sampler2DShadow atlas, vec3 tile, vec3 d)\n"\
 "{\n"\
-"	vec3 a = abs(d);\n"\
-"	int face;\n"\
-"	float z;\n"\
-"	if (a.x >= a.y && a.x >= a.z) { face = d.x > 0. ? 0 : 1; z = a.x; }\n"\
-"	else if (a.y >= a.z) { face = d.y > 0. ? 2 : 3; z = a.y; }\n"\
-"	else { face = d.z > 0. ? 4 : 5; z = a.z; }\n"\
-"	z = max(z, SHADOW_NEAR);\n"\
-"	float size = tile.z;\n"\
-"	float k = 1.0 - 2.0 * SHADOW_BORDER / size;\n"\
-"	vec2 st = vec2(dot(d, ShadowRight[face]), dot(d, ShadowUp[face])) / z;\n"\
-"	vec2 texel = tile.xy + vec2(float(face % 3), float(face / 3)) * size + (st * (0.5 * k) + 0.5) * size;\n"\
-"	return ShadowFilter(atlas, texel, SHADOW_NEAR / z * (1.0 + 0.002 * ShadowBias));\n"\
+"	float cell;\n"\
+"	vec3 f = ShadowFace(tile.z, d, cell);\n"\
+"	return ShadowFilter(atlas, tile.xy + f.xy, f.z);\n"\
 "}\n"\
 "\n"\
 "// The receiver moved along its normal by about a shadow texel (normal-offset bias), more where the light grazes it.\n"\
@@ -629,11 +649,14 @@ QVR_TONE_GLSL
 "	float given = (l.shadow2.z - dist * l.shadow2.w) * (0.5 + 0.5 * max(dot(n, -d / max(dist, 1e-3)), 0.0)) / 255.0;\n"\
 "	if (given <= 0.)\n"\
 "		return 1.0;\n"\
-"	vec3 o = ShadowOffset(d, n, l.shadow.z);\n"\
-"	float world = ShadowLookup(ShadowStatic, vec3(l.shadow2.xy, l.shadow.z), o);\n"\
-"	if (world <= 0.)\n"\
+"	float cell;\n"\
+"	vec3 f = ShadowFace(l.shadow.z, ShadowOffset(d, n, l.shadow.z), cell); // the same place in both maps' blocks\n"\
+"	if (((uint(l.shadow.w) - 1u) & (1u << uint(cell))) == 0u) // nothing moving drawn in this face (l.shadow.w: 1 + the\n"\
+"		return 1.0; // faces that have, vr_lighting.cpp)\n"\
+"	float moving = ShadowFilter(ShadowAtlas, l.shadow.xy + f.xy, f.z); // first: nothing moving in the way, mostly\n"\
+"	if (moving > 0.999) // (the filter's weights may not sum to exactly 1)\n"\
 "		return 1.0;\n"\
-"	float blocked = world * (1.0 - ShadowLookup(ShadowAtlas, l.shadow.xyz, o));\n"\
+"	float blocked = ShadowFilter(ShadowStatic, l.shadow2.xy + f.xy, f.z) * (1.0 - moving);\n"\
 "	float lum = max(lit.r, max(lit.g, lit.b));\n"\
 "	return 1.0 - clamp(given / max(lum, 1e-3), 0.0, 1.0) * blocked * l.color.x;\n"\
 "}\n"\
@@ -1026,6 +1049,7 @@ LIQUID_SWELL \
 "\n"\
 "// The waves: a sum of sines over the plane with normal n, in world units along the world axes the plane lies in (t, b).\n"\
 "// xy the height's gradient along t and b, z the height. Lava's are long and slow, slime's slower than water's.\n"\
+"vec2 LiquidSwellHere = vec2(0.); // the swell's height here, y 1 once LiquidWaves has it\n"\
 "vec3 LiquidWaves(vec3 pos, vec3 n, uint kind)\n"\
 "{\n"\
 "	vec3 a = abs(n);\n"\
@@ -1045,8 +1069,11 @@ LIQUID_SWELL \
 "	}\n"\
 "	r *= Water.x;\n"\
 "	if (a.z >= a.x && a.z >= a.y)\n"\
-"		r += LiquidSwell(pos.xy, kind) // the geometric waves' slopes, whether this face's vertices rise or not\n"\
-"			+ LiquidRipples(pos, kind, 1.0 - smoothstep(300.0, 800.0, distance(pos, EyePos))); // and the splashes' ripples', finer ones close by\n"\
+"	{\n"\
+"		vec3 swell = LiquidSwell(pos.xy, kind); // the geometric waves' slopes, whether this face's vertices rise or not\n"\
+"		LiquidSwellHere = vec2(swell.z, 1.0); // (for the foam)\n"\
+"		r += swell + LiquidRipples(pos, kind, 1.0 - smoothstep(300.0, 800.0, distance(pos, EyePos))); // and the splashes' ripples', finer ones close by\n"\
+"	}\n"\
 "	return r;\n"\
 "}\n"\
 "\n"\
@@ -1088,7 +1115,8 @@ LIQUID_SWELL \
 "	}\n"\
 "	else\n"\
 "	{\n"\
-"		f = 0.02 + 0.98 * pow(1.0 - cosv, 3.0);\n"\
+"		float m = 1.0 - cosv;\n"\
+"		f = 0.02 + 0.98 * m * m * m;\n"\
 "		env = l * (kind == 2u ? vec3(0.16, 0.22, 0.11) : vec3(0.22, 0.26, 0.3));\n"\
 "	}\n"\
 "	fresnel = f * Water.y;\n"\
@@ -1110,6 +1138,13 @@ LIQUID_SWELL \
 "{\n"\
 "	return texelFetch(LiquidDepth, clamp(ivec2(p * 0.5), ivec2(0), textureSize(LiquidDepth, 0) - 1), 0).r;\n"\
 "}\n"\
+"vec2 LiquidSceneHere = vec2(0.); // ... at this pixel, read once (the foam's and the refraction's); y 1 once read\n"\
+"float LiquidSceneDistanceHere()\n"\
+"{\n"\
+"	if (LiquidSceneHere.y == 0.)\n"\
+"		LiquidSceneHere = vec2(LiquidSceneDistance(gl_FragCoord.xy), 1.0);\n"\
+"	return LiquidSceneHere.x;\n"\
+"}\n"\
 "\n"\
 "// A translucent liquid over what is behind it, that bent by the waves (n, facing as above): read from the opaque scene\n"\
 "// (Water.z: how far, 0: nothing to read), the liquid then opaque over it. The bend is a shift in the world, projected.\n"\
@@ -1124,12 +1159,12 @@ LIQUID_SWELL \
 "	float dist = distance(pos, EyePos);\n"\
 "	vec3 d = (n - facing) * (Water.z * min(dist * 0.08, 12.0) * (kind == 2u ? 0.5 : 1.0));\n"\
 "	vec4 c0 = ViewProj * vec4(pos, 1.0);\n"\
-"	vec4 c1 = ViewProj * vec4(pos + d, 1.0);\n"\
+"	vec4 c1 = c0 + ViewProj * vec4(d, 0.0);\n"\
 "	vec2 size = vec2(textureSize(LiquidScene, 0));\n"\
 "	vec2 shift = (c1.xy / c1.w - c0.xy / c0.w) * 0.5;\n"\
 "	if (CausticsScale.w != 0.)\n"\
 "	{\n"\
-"		shift *= smoothstep(0.0, 12.0, LiquidSceneDistance(gl_FragCoord.xy) - c0.w);\n"\
+"		shift *= smoothstep(0.0, 12.0, LiquidSceneDistanceHere() - c0.w);\n"\
 "		if (LiquidSceneDistance(gl_FragCoord.xy + shift * size) < c0.w)\n"\
 "			shift *= LiquidSceneDistance(gl_FragCoord.xy + shift * (0.3 * size)) < c0.w ? 0.0 : 0.3;\n"\
 "	}\n"\
@@ -1166,13 +1201,13 @@ LIQUID_SWELL \
 "	if (fade <= 0.)\n"\
 "		return c;\n"\
 "	float amp = Water2.w * (kind == 1u ? 1.3 : kind == 2u ? 0.6 : 1.0);\n"\
-"	float swell = amp > 0. ? LiquidSwell(pos.xy, kind).z / amp : 0.0; // -1 .. 1\n"\
+"	float swell = amp > 0. ? (LiquidSwellHere.y > 0. ? LiquidSwellHere.x : LiquidSwell(pos.xy, kind).z) / amp : 0.0; // -1 .. 1\n"\
 "	float width = (kind == 1u ? 8.0 : kind == 2u ? 7.0 : 10.0) * (0.5 + 0.5 * Water3.x) * (1.0 + 0.3 * swell + 0.1 * clamp(h, -1.0, 1.0));\n"\
 "	float d = rim > 0. ? rim - 1.0 : 1e4;\n"\
 "	if (CausticsScale.w != 0.)\n"\
 "	{\n"\
 "		float w = 1.0 / gl_FragCoord.w; // the surface's distance along the view\n"\
-"		float behind = LiquidSceneDistance(gl_FragCoord.xy) - w;\n"\
+"		float behind = LiquidSceneDistanceHere() - w;\n"\
 "		if (behind >= 0.) // (less: something in front, beside it)\n"\
 "			d = min(d, behind * dist / w);\n"\
 "	}\n"\
@@ -1240,6 +1275,7 @@ WORLD_VERTEX_BUFFER
 LIQUID_SWELL // QVR
 "layout(location=4) in float in_swellpin; // QVR: the geometric waves' mesh (vr/vr_water.cpp); 0 elsewhere (unset)\n"
 "\n"
+"invariant gl_Position; // QVR: the opaque world's depth pre-pass (glprogs.world_depth) gives the very same depths\n"
 "layout(location=0) flat out uint out_flags;\n"
 "layout(location=1) flat out float out_alpha;\n"
 "layout(location=2) out vec3 out_pos;\n"
@@ -1416,10 +1452,13 @@ SPECULAR_AA_FUNCTIONS // QVR
 "// light along the wall would divide by nothing; at 60 the lit sides of ridges clipped white; the guess leans 45).\n"
 "vec3 LuxLight(vec3 n, vec3 l)\n"
 "{\n"
+"	float c = max(dot(n, l), 1e-6); // (straight down or none: n, as atan(0, 0) gave)\n"
 "	vec3 t = l - n * dot(n, l);\n"
-"	float s = length(t);\n"
-"	float a = min(atan(s, max(dot(n, l), 0.0)), 0.8727);\n"
-"	return n * cos(a) + t * (sin(a) / max(s, 1e-4));\n"
+"	float s2 = dot(t, t);\n"
+"	// its angle from the normal, atan(s, c), past 50 degrees (0.8727): tan compared without the trigonometry\n"
+"	if (s2 * (0.6427605 * 0.6427605) >= c * c * (0.7660672 * 0.7660672))\n"
+"		return n * 0.6427605 + t * (0.7660672 * inversesqrt(max(s2, 1e-8)));\n"
+"	return (n * c + t) * inversesqrt(c * c + s2); // (cos a, sin a) = (c, s) / |(c, s)|\n"
 "}\n"
 "vec2 LightmapLumDerivs(float lum)\n"
 "{\n"
@@ -1494,11 +1533,6 @@ SPECULAR_AA_FUNCTIONS // QVR
 "		result = texture(Tex, uv);\n"
 "#endif\n"
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_ALPHATEST) "\n"
-"	// Note: for alpha-tested surfaces we need to compute the plane equation before discard is called,\n"
-"	// otherwise we would get incorrect results for edge pixels due to invalid derivatives.\n"
-"	vec4 plane;\n"
-"	plane.xyz = normalize(cross(dFdx(in_pos), dFdy(in_pos)));\n"
-"	plane.w = dot(in_pos, plane.xyz);\n"
 "	// QVR: alpha to coverage (vr_alpha_coverage with MSAA: ShadowFlags 64; opaque draws): the alpha sharpened to\n"
 "	// about a pixel's width round the cutoff gives the samples covered (smooth edges); without it, Quake's test\n"
 "	float coverage = (result.a - 0.666) / max(fwidth(result.a), 1e-4) + 0.5;\n"
@@ -1612,12 +1646,6 @@ SPECULAR_AA_FUNCTIONS // QVR
 "			int cluster_idx = cluster_coord.x + cluster_coord.y * LIGHT_TILES_X + cluster_coord.z * LIGHT_TILES_X * LIGHT_TILES_Y;\n"
 "			total_light = vec3(ivec3((cluster_idx + 1) * 0x45d9f3b) >> ivec3(0, 8, 16) & 255) / 255.0;\n"
 "#endif // SHOW_ACTIVE_LIGHT_CLUSTERS\n"
-"#if MODE != " QS_STRINGIFY (WORLDSHADER_ALPHATEST) "\n"
-"			// For non-alpha-tested geometry it is safe to defer the plane equation computation until it is actually needed\n"
-"			vec4 plane;\n"
-"			plane.xyz = normalize(cross(dFdx(in_pos), dFdy(in_pos)));\n"
-"			plane.w = dot(in_pos, plane.xyz);\n"
-"#endif\n"
 "			vec3 dynamic_light = vec3(0.);\n"
 "			bool darkplaces = (ShadowFlags & 16u) != 0u; // QVR\n"
 "			for (i = 0u, ofs = 0u; i < 2u; i++, ofs += 32u)\n"
@@ -1647,12 +1675,12 @@ SPECULAR_AA_FUNCTIONS // QVR
 "					}\n"
 "					// mimics R_AddDynamicLights, up to a point\n"
 "					float rad = l.radius;\n"
-"					float dist = dot(l.origin, plane.xyz) - plane.w;\n"
+"					float dist = dot(l.origin - in_pos, facing); // QVR: the plane's (its normal's sign doesn't matter)\n"
 "					rad -= abs(dist);\n"
 "					float minlight = l.minlight;\n"
 "					if (rad < minlight)\n"
 "						continue;\n"
-"					vec3 local_pos = l.origin - plane.xyz * dist;\n"
+"					vec3 local_pos = l.origin - facing * dist;\n"
 "					minlight = rad - minlight;\n"
 "					dist = length(in_pos - local_pos);\n"
 "					float add = clamp((minlight - dist) / 16.0, 0.0, 1.0) * max(0., rad - dist) / 256.;\n"
@@ -1684,7 +1712,7 @@ SPECULAR_AA_FUNCTIONS // QVR
 "	result.rgb += fullbright;\n"
 "	if (in_glow > 0.) // QVR: force grab's glow (vr/vr_fgfx.cpp)\n"
 "	{\n"
-"		float rim = 1.0 - abs(dot(normalize(cross(dFdx(in_pos), dFdy(in_pos))), normalize(EyePos - in_pos)));\n"
+"		float rim = 1.0 - abs(dot(facing, normalize(EyePos - in_pos)));\n"
 "		result.rgb += SceneTone.yzw * in_glow * (pow(rim, 2.0) * 1.1 + 0.12); // QVR: the player's hue\n"
 "	}\n"
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_WATER) "\n"
@@ -2250,7 +2278,11 @@ OIT_OUTPUT (out_fragcolor)
 "	vec3 pos = in_pos + EyePos;\n"
 "	bool darkplaces = (ShadowFlags & 16u) != 0u;\n"
 "	float unit = (ShadowFlags & 32u) != 0u ? 1.0 / 128.0 : Fog.w < 0. ? 2.0 / 200.0 : 1.0 / 200.0; // the sign of Fog.w: overbright models\n"
+"	float angleScale = darkplaces ? 1.0 : 2.0; // LightAngle doubles the lit part (over its ambient 0.3)\n"
+"	vec3 toEye = normalize(EyePos - pos);\n"
 "	vec3 total = vec3(0.);\n"
+"	// LightShadow, LightAngle(DP) and LightSpecular (SHADOW_FUNCTIONS) inlined, the light's distance and direction\n"
+"	// worked out once for all three (and the direction to the eye once for all lights)\n"
 "	for (uint i = 0u, ofs = 0u; i < 2u; i++, ofs += 32u)\n"
 "	{\n"
 "		uint mask = clusterdata[i];\n"
@@ -2261,14 +2293,23 @@ OIT_OUTPUT (out_fragcolor)
 "			Light l = Lights[ofs + j];\n"
 "			if (l.shadow.w != 0.)\n"
 "				continue;\n"
-"			float d = distance(l.origin, pos);\n"
-"			if (d >= l.radius)\n"
+"			vec3 tl = l.origin - pos;\n"
+"			float d2 = dot(tl, tl);\n"
+"			if (d2 >= l.radius * l.radius)\n"
 "				continue;\n"
-"			float lit = (darkplaces ? DarkPlacesAtten(d, l.radius) : (l.radius - d) * unit) * LightShadow(l, pos, n);\n"
+"			float inv = inversesqrt(max(d2, 1e-12));\n"
+"			float d = d2 * inv;\n"
+"			vec3 dir = tl * inv;\n"
+"			float lit = (darkplaces ? DarkPlacesAtten(d, l.radius) : (l.radius - d) * unit) * (1.0 - smoothstep(0.0, 1.0, l.spot.w + dot(l.spot.xyz, dir))); // SpotCone\n"
+"			if (lit > 0. && l.shadow.z > 0.)\n"
+"				lit *= l.shadow2.x > 0. ? SpotShadow(l, pos, n) : ShadowLookup(ShadowAtlas, l.shadow.xyz, ShadowOffset(-tl, n, l.shadow.z));\n"
 "			if (lit <= 0.)\n"
 "				continue;\n"
-"			total += lit * (darkplaces ? LightAngleDP(l, pos, bumped) : LightAngle(l, pos, bumped, 0.3)) * l.color;\n"
-"			spec += lit * LightSpecular(l, pos, bumped, EyePos) * l.color;\n"
+"			float ndl = dot(bumped, dir);\n"
+"			float ambient = darkplaces ? l.minlight : 0.3;\n"
+"			total += lit * mix(1.0, ambient + (1.0 - ambient) * angleScale * max(ndl, 0.0), DlightAngle) * l.color;\n"
+"			if (LightTweak.z > 0. && ndl > 0.)\n"
+"				spec += lit * (pow(max(dot(bumped, normalize(dir + toEye)), 0.0), SpecLobe.x) * SpecLobe.y * LightTweak.z) * l.color;\n"
 "		}\n"
 "	}\n"
 "	return total;\n"

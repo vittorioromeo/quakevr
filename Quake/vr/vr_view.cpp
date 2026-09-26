@@ -25,6 +25,7 @@
 #include "vr_weapons.hpp"
 
 #include <cmath>
+#include <cstdint>
 #include <cstring>
 
 using namespace qvr;
@@ -182,6 +183,28 @@ void forEachEntity(F&& f)
 [[nodiscard]] qmodel_t* precachedModel(int index)
 {
     return index > 0 && index < MAX_MODELS ? cl.model_precache[index] : nullptr;
+}
+
+// Mod_ForName(name, false) for the view entities' own models, asked for every frame: the model found for the
+// same name (string) last time, while it is still that one and loaded (Mod_LoadModel's own check), without
+// Mod_FindName's walk through every model known.
+[[nodiscard]] qmodel_t* viewModel(const char* name)
+{
+    struct Entry
+    {
+        const char* name;
+        qmodel_t* model;
+    };
+    static Entry entries[64]{};
+    Entry& e = entries[(reinterpret_cast<std::uintptr_t>(name) * 0x9E3779B97F4A7C15ull) >> 58];
+    qmodel_t* m = e.name == name ? e.model : nullptr;
+    if(m && !m->needload && (m->type != mod_alias || Cache_Check(&m->cache)) && !strcmp(m->name, name))
+    {
+        return m;
+    }
+    m = Mod_ForName(name, false);
+    e = {name, m};
+    return m;
 }
 
 void place(view::ViewEntity& ve, qmodel_t* model, const glm::vec3& origin, const glm::vec3& angles,
@@ -509,7 +532,7 @@ void setupHand(const hands::State& s, int hand)
             foff.y = -foff.y;
         }
 
-        place(ve, Mod_ForName(fingerModels[finger], false), pos + hands::redirect(foff, handRot),
+        place(ve, viewModel(fingerModels[finger]), pos + hands::redirect(foff, handRot),
             {-handRot.x, handRot.y, handRot.z}, fingerFrame(hand, finger), mirrored);
         ve.ent.skinnum = skin;
 
@@ -539,12 +562,56 @@ void highlight(view::ViewEntity& ve, bool on)
     ve.lightMod = glm::vec3{on ? 6.f : 1.f};
 }
 
+// Alias model angles (their pitch inverted) that turn a model's +x to `fwd` and +z to `up`.
+[[nodiscard]] glm::vec3 aliasAngles(const glm::vec3& fwd, const glm::vec3& up)
+{
+    const glm::vec3 a = hands::anglesFromVectors(fwd, up);
+    return {-a.x, a.y, a.z};
+}
+
+// A holster on the drawn body (body::HolsterPlate) lies against it: legholster.mdl's plate
+// (make_holster.py: +x forward, +z up with the belt loop, +y towards the body, where the plate is
+// concave; the left holsters are drawn mirrored) faces the way the body's surface does there, its
+// +x along the body towards its middle, and its back rests on the surface (the position, a hand's
+// reach target, stands a little out of it). The weapon hangs in the loops, muzzle down along the
+// plate and tipped out a little (more on the chest, as a chest rig carries it), its top towards
+// the body's middle, the grip out towards the hand.
+struct HolsterPose
+{
+    glm::vec3 slotPos, slotAngles, weaponPos, weaponAngles;
+};
+
+[[nodiscard]] HolsterPose holsterOnBody(const glm::vec3& pos, const body::HolsterPlate& plate, bool mirrored,
+    bool upper, qmodel_t* slotModel)
+{
+    const glm::vec3 up = plate.up;
+    const glm::vec3 fwd = mirrored ? glm::cross(plate.out, up) : glm::cross(up, plate.out);
+    const glm::vec3 towardsBody = -plate.out;
+
+    // The plate's back (make_holster.py: PLATE_Y + PLATE_T / 2 from the weapon) as the holster
+    // model is drawn (vr_leg_holster_model_*: scaled, then moved in its axes).
+    constexpr float plateBack = 2.95f;
+    const weapons::ModelTransform t = weapons::modelTransform(slotModel);
+    const glm::vec3 offset = t.active ? t.k * t.offset : glm::vec3{0.f};
+    const float back = t.active ? t.k * (t.offset.y + t.scale.y * plateBack) : plateBack;
+    const glm::vec3 slotPos = pos + plate.out * CLAMP(-4.f, back - plate.clearance, 4.f);
+
+    // The model's origin (the loops round it) in the world: the weapon's grip goes there.
+    const glm::vec3 loops = slotPos + fwd * offset.x + towardsBody * offset.y + up * offset.z;
+
+    const float tip = glm::radians(upper ? 25.f : 10.f);
+    const glm::vec3 muzzle = -up * std::cos(tip) - fwd * std::sin(tip);
+    const glm::vec3 top = fwd * std::cos(tip) - up * std::sin(tip);
+
+    return {slotPos, aliasAngles(fwd, up), loops, aliasAngles(muzzle, top)};
+}
+
 void setupHolsters(const hands::State& s)
 {
     const float yaw = s.bodyYaw;
 
     // Holster stat slots 2..5 are the hips and upper holsters (0 and 1 are the shoulders,
-    // which are not drawn).
+    // which are not drawn). Without a body to lie on, turned with the body's yaw.
     const glm::vec3 angles[HolsterCount] = {
         {-90.f, 0.f, -yaw + 10.f}, {-90.f, 0.f, -yaw - 10.f}, {-20.f, yaw + 180.f, 0.f},
         {-20.f, yaw + 180.f, 0.f}};
@@ -553,7 +620,8 @@ void setupHolsters(const hands::State& s)
         {0.f, yaw - 10.f, 0.f}, {0.f, yaw + 10.f, 0.f}, {-30.f, yaw - 10.f, 0.f},
         {-30.f, yaw + 10.f, 0.f}};
 
-    const body::HolsterPositions positions = body::holsterPositions(s); // one body solve for all
+    body::HolsterPlates plates;
+    const body::HolsterPositions positions = body::holsterPositions(s, &plates); // one body solve for all
     qmodel_t* const slotModel = vr_leg_holster_model_enabled.value ? Mod_ForName("progs/legholster.mdl", false) : nullptr;
     for(int h = 0; h < HolsterCount; h++)
     {
@@ -561,19 +629,39 @@ void setupHolsters(const hands::State& s)
         const glm::vec3 pos = positions[static_cast<std::size_t>(bodyHolster[h])];
         const bool hover = hovered(s, bodyHolster[h]);
 
+        HolsterPose pose{pos, slotAngles[h], pos, angles[h]};
+        if(body::HolsterPlate plate = plates[static_cast<std::size_t>(bodyHolster[h])]; plate.out != glm::vec3{0.f})
+        {
+            glm::vec3 at = pos;
+            if(vr_body_debug.value >= 2.f)
+            {
+                // The body's preview (vr_body_debug 2 and 3: in front of the player, turned)
+                // carries them too.
+                const glm::vec3 root{s.head.x, s.head.y, 0.f};
+                const glm::vec3 centre =
+                    root + hands::forward({0.f, yaw, 0.f}) * (1.8f * units::metresToUnits() * units::bodyScale());
+                const glm::mat3 turn = glm::mat3_cast(glm::angleAxis(
+                    glm::radians(vr_body_debug.value >= 3.f ? -90.f : 180.f), glm::vec3{0.f, 0.f, 1.f}));
+                at = centre + turn * (pos - root);
+                plate.out = turn * plate.out;
+                plate.up = turn * plate.up;
+            }
+            pose = holsterOnBody(at, plate, mirrored, h == LeftUpper || h == RightUpper, slotModel);
+        }
+
         qmodel_t* model = precachedModel(cl.stats[STAT_QVR_HOLSTERWEAPONMODEL0 + 2 + h]);
         if(isHandModel(model))
         {
             model = nullptr;
         }
 
-        place(entities.holster[h], model, pos, angles[h], 0, mirrored);
+        place(entities.holster[h], model, pose.weaponPos, pose.weaponAngles, 0, mirrored);
         highlight(entities.holster[h], hover);
 
         if(slotModel)
         {
-            place(entities.holsterSlot[h], slotModel, pos,
-                slotAngles[h], 0, mirrored);
+            place(entities.holsterSlot[h], slotModel, pose.slotPos,
+                pose.slotAngles, 0, mirrored);
             highlight(entities.holsterSlot[h], hover);
         }
         else
@@ -673,7 +761,7 @@ void setupGadget(const hands::State& s)
     }
 
     const glm::vec3 a = hands::anglesFromVectors(pose.axes[0], pose.axes[2]);
-    place(ve, Mod_ForName("progs/vrgadget.mdl", false), pose.origin, {-a.x, a.y, a.z}, 0, false);
+    place(ve, viewModel("progs/vrgadget.mdl"), pose.origin, {-a.x, a.y, a.z}, 0, false);
     ve.ent.scale = static_cast<unsigned char>(CLAMP(1.f, scale * ENTSCALE_DEFAULT, 255.f));
 
     // The casing's tint: its lighting times a colour.
@@ -815,10 +903,10 @@ void setupBody(const hands::State& s)
         // The build (vr_body_build): progs/vrbody_lean, vrbody (athletic) or vrbody_brawny.
         const int build = static_cast<int>(vr_body_build.value);
         const char* name = build <= 0 ? "progs/vrbody_lean.mdl" : build >= 2 ? "progs/vrbody_brawny.mdl" : "progs/vrbody.mdl";
-        qmodel_t* model = Mod_ForName(name, false);
+        qmodel_t* model = viewModel(name);
         if(!avatar::usable(model))
         {
-            model = Mod_ForName("progs/vrbody.mdl", false);
+            model = viewModel("progs/vrbody.mdl");
         }
         if(avatar::usable(model))
         {
@@ -897,7 +985,7 @@ void setupPauldrons()
         const auto part = [&](view::ViewEntity& ve, const char* model, const glm::quat& rot) {
             const glm::mat3 m = glm::mat3_cast(rot);
             const glm::vec3 a = hands::anglesFromVectors(m[0], m[2]);
-            place(ve, Mod_ForName(model, false), sh.joint + rot * offset, {-a.x, a.y, a.z}, 0, mirrored);
+            place(ve, viewModel(model), sh.joint + rot * offset, {-a.x, a.y, a.z}, 0, mirrored);
             ve.ent.skinnum = skin;
             ve.ent.scale = scale;
             ve.ent.alpha = body.ent.alpha;
@@ -982,7 +1070,7 @@ void setupButton(int hand)
     angles = composeAngles(held.rot, angles);
     angles.x = -angles.x; // alias models' pitch is the other way
 
-    place(ve, Mod_ForName("progs/wpnbutton.mdl", false), pos, angles, 0, mirrored);
+    place(ve, viewModel("progs/wpnbutton.mdl"), pos, angles, 0, mirrored);
 }
 
 } // namespace
@@ -999,14 +1087,10 @@ const ViewEntity* find(const entity_t* e)
         return nullptr;
     }
 
-    const ViewEntity* found = nullptr;
-    forEachEntity([&](ViewEntity& ve) {
-        if(&ve.ent == e)
-        {
-            found = &ve;
-        }
-    });
-    return found;
+    // The view entities are one run of ViewEntity (Entities holds nothing else): the one it falls in.
+    static_assert(sizeof(Entities) % sizeof(ViewEntity) == 0 && alignof(Entities) == alignof(ViewEntity));
+    const auto* ve = reinterpret_cast<const ViewEntity*>(&entities) + (p - first) / sizeof(ViewEntity);
+    return &ve->ent == e ? ve : nullptr;
 }
 
 glm::vec3 modelPoint(const ViewEntity& ve, const glm::vec3& point)

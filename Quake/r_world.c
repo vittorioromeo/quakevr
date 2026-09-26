@@ -404,6 +404,8 @@ typedef enum {
 	BP_SHOWTRIS,
 } brushpass_t;
 
+static void R_AddBModelPassCalls (entity_t **ents, int count, textype_t texbegin, textype_t texend, brushpass_t pass); // QVR
+
 /*
 =============
 R_DrawBrushModels_Real
@@ -411,8 +413,8 @@ R_DrawBrushModels_Real
 */
 static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass, qboolean translucent)
 {
-	int i, j;
-	int totalinst, baseinst;
+	int i;
+	int totalinst;
 	unsigned state;
 	GLuint program;
 	GLuint buf;
@@ -500,6 +502,40 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	GL_Upload (GL_SHADER_STORAGE_BUFFER, bmodel_instances, sizeof(bmodel_instances[0]) * count, &buf, &ofs);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 2, buf, (GLintptr)ofs, sizeof(bmodel_instances[0]) * count);
 
+	// QVR: the opaque world and brush models' depth first (the same draws, depth only), so that their costly shading
+	// (parallax, bumps, the lights' shadows) runs once a pixel, for the nearest surface only, not for the ones drawn
+	// over later. The vertex shader's gl_Position is invariant: the same depths, which the shading pass then passes.
+	if (pass == BP_SOLID && !translucent)
+	{
+		R_ResetBModelCalls (glprogs.world_depth);
+		glColorMask (GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+		R_AddBModelPassCalls (ents, count, texbegin, texend, pass);
+		R_FlushBModelCalls ();
+		glColorMask (GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+		R_ResetBModelCalls (program);
+	}
+
+	R_AddBModelPassCalls (ents, count, texbegin, texend, pass);
+
+	R_FlushBModelCalls ();
+	if (a2c) // QVR
+	{
+		glDisable (GL_SAMPLE_ALPHA_TO_COVERAGE);
+		glDisable (GL_SAMPLE_ALPHA_TO_ONE);
+	}
+}
+
+/*
+=============
+R_AddBModelPassCalls
+
+The draw calls of a pass over the entities (instances filled in bmodel_instances in this order).
+=============
+*/
+static void R_AddBModelPassCalls (entity_t **ents, int count, textype_t texbegin, textype_t texend, brushpass_t pass)
+{
+	int i, j, baseinst;
+
 	// generate drawcalls
 	for (i = 0, baseinst = 0; i < count; /**/)
 	{
@@ -525,13 +561,6 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 		}
 
 		baseinst += numinst;
-	}
-
-	R_FlushBModelCalls ();
-	if (a2c) // QVR
-	{
-		glDisable (GL_SAMPLE_ALPHA_TO_COVERAGE);
-		glDisable (GL_SAMPLE_ALPHA_TO_ONE);
 	}
 }
 

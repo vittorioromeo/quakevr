@@ -278,8 +278,9 @@ void settle(Body& b)
     }
 }
 
-// Whether the lowest corners rest on something (the body may sleep on it, or must wake).
-[[nodiscard]] bool supported(const Body& b, edict_t** ground)
+// Whether the lowest corners rest on something (the body may sleep on it, or must wake); `by`: the
+// first thing found under it.
+[[nodiscard]] bool supported(const Body& b, edict_t** ground, edict_t** by = nullptr)
 {
     const std::array<glm::vec3, 8> corners = b.corners();
     float lowest = 1e9f;
@@ -300,6 +301,10 @@ void settle(Body& b)
             if(ground)
             {
                 *ground = tr.ent ? tr.ent : qcvm->edicts;
+            }
+            if(by)
+            {
+                *by = tr.ent;
             }
             return true;
         }
@@ -409,6 +414,54 @@ void waterStep(Body& b, float g, float density, float h)
     }
 }
 
+// A body asleep asks every frame whether it still rests on something and how much of it is under
+// water: against the world (static: its BSP, its liquids) the answers stay while the body stays where
+// it is, the same box. Kept per entity: what they were asked for, and the answers.
+struct RestMemo
+{
+    const qmodel_t* world{nullptr};
+    glm::vec3 origin{0.f}, angles{0.f}, lo{0.f}, hi{0.f};
+    bool onWorld{false};  // a corner rests on the world (whatever else comes there, it still rests)
+    float under{-1.f};    // submerged(), -1: not asked yet
+    float halfHeight{0.f};
+};
+std::vector<RestMemo> restMemos; // by entity number
+
+// A rigid body's water transition check (SV_CheckWaterTransition): where, and what it left.
+struct WaterMemo
+{
+    const qmodel_t* world{nullptr};
+    glm::vec3 origin{0.f};
+    float watertype{0.f}, waterlevel{0.f};
+};
+std::vector<WaterMemo> waterMemos; // by entity number
+
+[[nodiscard]] WaterMemo& waterMemo(edict_t* ent)
+{
+    const size_t num = static_cast<size_t>(NUM_FOR_EDICT(ent));
+    if(num >= waterMemos.size())
+    {
+        waterMemos.resize(num + 64);
+    }
+    return waterMemos[num];
+}
+
+[[nodiscard]] RestMemo& restMemo(edict_t* ent, const glm::vec3& lo, const glm::vec3& hi)
+{
+    const size_t num = static_cast<size_t>(NUM_FOR_EDICT(ent));
+    if(num >= restMemos.size())
+    {
+        restMemos.resize(num + 64);
+    }
+    RestMemo& m = restMemos[num];
+    const glm::vec3 origin = toGlm(ent->v.origin), angles = toGlm(ent->v.angles);
+    if(m.world != sv.worldmodel || m.origin != origin || m.angles != angles || m.lo != lo || m.hi != hi)
+    {
+        m = RestMemo{sv.worldmodel, origin, angles, lo, hi};
+    }
+    return m;
+}
+
 // The move of a rigid body (a .vr_rigid toss or bounce entity) over this frame.
 void rigidToss(edict_t* ent)
 {
@@ -420,10 +473,22 @@ void rigidToss(edict_t* ent)
     }
     VectorCopy(vec3_origin, ent->v.avelocity);
 
-    Body b;
-    b.ent = ent;
     glm::vec3 lo, hi;
     localBox(ent, lo, hi);
+    // Asleep where it was, still: the memo's answers (below) keep it asleep before anything else is worked out.
+    if(static_cast<int>(ent->v.flags) & FL_ONGROUND)
+    {
+        const RestMemo& memo = restMemo(ent, lo, hi);
+        const float density = waterDensity(ent);
+        if(memo.onWorld && (density <= 1.f || (memo.under >= 0.f && density * memo.under <= 1.02f)) &&
+           glm::length(toGlm(ent->v.velocity)) <= 1.f && fieldFloat(ent, f.vr_rest) >= 0.f)
+        {
+            return;
+        }
+    }
+
+    Body b;
+    b.ent = ent;
     b.half = (hi - lo) * 0.5f;
     b.comLocal = (lo + hi) * 0.5f;
     const bool brush = brushModel(ent);
@@ -440,13 +505,22 @@ void rigidToss(edict_t* ent)
     // Quake left it lying by an unturned box, sunk into the floor or hanging off a ledge.
     if(static_cast<int>(ent->v.flags) & FL_ONGROUND)
     {
+        RestMemo& memo = restMemo(ent, lo, hi);
         const bool pushed = glm::length(b.vel) > 1.f;
-        float halfHeight = 0.f;
         const float density = waterDensity(ent);
-        const bool lifted = density > 1.f && density * submerged(b, halfHeight) > 1.02f; // deeper than it floats
-        if(!pushed && !lifted && fieldFloat(ent, f.vr_rest) >= 0.f && supported(b, nullptr))
+        if(density > 1.f && memo.under < 0.f)
         {
-            return;
+            memo.under = submerged(b, memo.halfHeight);
+        }
+        const bool lifted = density > 1.f && density * memo.under > 1.02f; // deeper than it floats
+        if(!pushed && !lifted && fieldFloat(ent, f.vr_rest) >= 0.f)
+        {
+            edict_t* by = nullptr;
+            if(memo.onWorld || supported(b, nullptr, &by))
+            {
+                memo.onWorld = by == qcvm->edicts || memo.onWorld;
+                return;
+            }
         }
         ent->v.flags = static_cast<float>(static_cast<int>(ent->v.flags) & ~FL_ONGROUND);
         fieldFloat(ent, f.vr_rest) = 0.f;
@@ -683,6 +757,12 @@ void keepInWorld(edict_t* ent, bool rigid)
     }
     FreePlace& place = freePlaces[num];
 
+    // Resting where it was last found free: whether it is buried changes nothing (buried or not, it
+    // stays and its free place is this one), so it is not asked (a trace every frame for every item).
+    if(place.valid && (static_cast<int>(ent->v.flags) & FL_ONGROUND) && toGlm(ent->v.origin) == place.origin)
+    {
+        return;
+    }
     if(!buried(ent, rigid))
     {
         place.origin = toGlm(ent->v.origin);
@@ -744,7 +824,16 @@ extern "C" int VR_RigidToss(edict_t* ent)
     rigidToss(ent);
     if(!ent->free)
     {
-        SV_CheckWaterTransition(ent);
+        // Where it was after the last check, as that check left it: the contents there (the world's) are the
+        // same, and the check would change nothing (no crossing).
+        WaterMemo& w = waterMemo(ent);
+        const glm::vec3 origin = toGlm(ent->v.origin);
+        if(w.world != sv.worldmodel || w.origin != origin || w.watertype != ent->v.watertype ||
+           w.waterlevel != ent->v.waterlevel)
+        {
+            SV_CheckWaterTransition(ent);
+            w = {sv.worldmodel, origin, ent->v.watertype, ent->v.waterlevel};
+        }
     }
     return 1;
 }
@@ -792,6 +881,8 @@ glm::vec3 modelCentre(edict_t* ent)
 void resetRigidBodies()
 {
     freePlaces.clear();
+    restMemos.clear();
+    waterMemos.clear();
     carried.clear();
 }
 

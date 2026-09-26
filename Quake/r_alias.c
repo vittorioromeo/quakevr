@@ -36,11 +36,12 @@ const float	r_avertexnormals[NUMVERTEXNORMALS][3] = {
 #include "anorms.h"
 };
 
-typedef enum { ALIAS_STANDARD, ALIAS_SHOWTRIS, ALIAS_SHOWSKEL, } aliasmode_t;
+typedef enum { ALIAS_STANDARD, ALIAS_SHOWTRIS, ALIAS_SHOWSKEL, ALIAS_DEPTH, } aliasmode_t; // QVR: ALIAS_DEPTH, the shadow maps' casters (depth only: no lighting)
 
 extern vec3_t	lightcolor; //johnfitz -- replaces "float shadelight" for lit support
 
 static float	entalpha; //johnfitz
+static qboolean	aliasdepth; // QVR: drawing the shadow maps' casters (R_DrawAliasModelsDepth)
 
 //johnfitz -- struct for passing lerp information to drawing functions
 typedef struct {
@@ -356,6 +357,8 @@ void R_FlushAliasInstances (qboolean showtris)
 		break;
 	}
 	GL_UseProgram (glprogs.alias[oit][mode][alphatest][poseverttype]);
+	if (aliasdepth && !alphatest && !translucent) // QVR: a shadow map's opaque casters: no fragment shader (holey skins keep theirs)
+		GL_UseProgram (glprogs.alias_depth[poseverttype]);
 
 	if (poseverttype == PV_IQM)
 		state = GLS_CULL_BACK | GLS_ATTRIBS (5);
@@ -683,7 +686,10 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 	// set up lighting
 	//
 	rs_aliaspolys += paliashdr->numtris;
-	R_SetupAliasLighting (e);
+	if (mode == ALIAS_DEPTH) // QVR: a shadow map's caster: its depth only (none of the light it gets)
+		lightcolor[0] = lightcolor[1] = lightcolor[2] = 0.f;
+	else
+		R_SetupAliasLighting (e);
 
 	//
 	// draw it
@@ -728,6 +734,11 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 	}
 
 	instance->padding = VR_AliasZeroBlend (e, paliashdr, totalverts); // QVR
+	if (mode == ALIAS_DEPTH) // QVR: depth only (a shadow map): nothing of the light, glows or surface
+	{
+		memset (instance->lightdir, 0, sizeof (aliasinstance_t) - offsetof (aliasinstance_t, lightdir));
+		return;
+	}
 	VR_AliasLightDir (e, instance->lightdir); // QVR
 	VR_AliasAmbient (e, model_matrix, paliashdr, mode == ALIAS_STANDARD && !r_fullbright_cheatsafe && !r_lightmap_cheatsafe, &instance->ambient[0][0]); // QVR: directional ambient (vr_model_ambient_dir)
 	instance->glow[0] = VR_EntityGlow (e); // QVR
@@ -750,6 +761,24 @@ void R_DrawAliasModels (entity_t **ents, int count)
 	for (i = 0; i < count; i++)
 		R_DrawAliasModel_Real (ents[i], ALIAS_STANDARD);
 	R_FlushAliasInstances (false);
+}
+
+/*
+=================
+R_DrawAliasModelsDepth -- QVR
+
+The shadow maps' casters (vr/vr_lighting.cpp): their depth only, so none of the per-instance lighting (the light
+under them, its direction, the ambient cube, glows, rim and reflections) is worked out for each face they are drawn in.
+=================
+*/
+void R_DrawAliasModelsDepth (entity_t **ents, int count)
+{
+	int i;
+	aliasdepth = true;
+	for (i = 0; i < count; i++)
+		R_DrawAliasModel_Real (ents[i], ALIAS_DEPTH);
+	R_FlushAliasInstances (false);
+	aliasdepth = false;
 }
 
 /*

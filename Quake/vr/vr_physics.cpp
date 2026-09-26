@@ -13,6 +13,7 @@
 #include "vr_protocol.hpp"
 #include "vr_units.hpp"
 #include "vr_particles.hpp"
+#include "vr_profile.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -333,6 +334,7 @@ void waterFeedback(edict_t* ent); // "Water splashes and sounds" below
 
 extern "C" void VR_ClientPreMove(edict_t* ent)
 {
+    QVR_PROFILE("vr hand touches");
     server::rebaseHands(ent);
     if(!active())
     {
@@ -1137,6 +1139,7 @@ extern "C" float VR_WaterStickScale(edict_t* ent, int swimming)
 // vr_swim_debug 1 prints each stroke (peak speed, flatness, power, push) to tune these by.
 extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemove, float upmove)
 {
+    QVR_PROFILE("vr swim");
     const VrMove* move = swimmer(ent);
     const int client = NUM_FOR_EDICT(ent) - 1;
     if(!move || client < 0 || client >= std::min(svs.maxclients, static_cast<int>(MAX_SCOREBOARD)))

@@ -1,8 +1,9 @@
 // vr_menu.cpp -- the "VR Settings" pages (Options > VR Settings), drawn like Ironwail's options
 // pages: scrolling lists of labelled settings, changed with left/right (the sticks in VR), with
 // actions on enter (A). "Advanced VR Options" at the bottom opens a list of further pages: the old
-// Quake VR settings pages (vr_menu_pages.inc) and the new body, throwing and force grab tweaks.
-// Escape (B) goes back a page. With the mouse (and the VR laser pointer, vr_menuui.cpp): the row under
+// Quake VR settings pages (vr_menu_pages.inc) and the new body, throwing and force grab tweaks,
+// grouped by topic, the long ones split into pages of a screenful or so. In a headset the pages are
+// taller (vr_menu_height, vr_menuui.cpp): more rows at once. Escape (B) goes back a page. With the mouse (and the VR laser pointer, vr_menuui.cpp): the row under
 // it is selected, a click picks it, and a slider is set where it is clicked and dragged.
 
 #include "vr_backend.hpp"
@@ -10,6 +11,7 @@
 #include "vr_engine.hpp"
 #include "vr_main.hpp"
 #include "vr_menu.hpp"
+#include "vr_menuui.hpp"
 #include "vr_weapons.hpp"
 
 #include <cmath>
@@ -165,6 +167,11 @@ void restartVr()
     return i;
 }
 
+using PageBuilder = std::vector<Item> (*)();
+
+// The index of the page `build` builds (pages[], below): what a link to it opens.
+[[nodiscard]] int pageIndex(PageBuilder build);
+
 #include "vr_menu_pages.inc"
 
 // ----------------------------------------------------------------------------
@@ -215,6 +222,21 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Parry Pushes Enemy", vr_parry_push_enemy, 0.f, 3.f, 0.05f, "%.2fx"),
         slider("Parry Pushes You", vr_parry_push_player, 0.f, 3.f, 0.05f, "%.2fx"),
         slider("Monsters' Blows Push You", vr_melee_push_player, 0.f, 3.f, 0.05f, "%.2fx"),
+        header("Knights' Swords"),
+        slider("Knights Drop Swords", vr_sword_drop, 0.f, 1.f, 0.05f, "%.2f").help("Chance a dying knight or hell knight drops its sword, a melee weapon you can pick up."),
+        slider("Sword Damage", vr_sword_damage_mult, 0.5f, 3.f, 0.05f, "%.2fx").help("A sword swing's damage over the axe's (the hell knight's sword: 25% more)."),
+        header("Feel"),
+        toggle("Explosion Rumble", vr_explosion_rumble).help("Explosions near you rumble in your hands."),
+        toggle("Low Health Heartbeat", vr_heartbeat).help("A heartbeat in your hands when your health is low."),
+        header("Playtesting"),
+        toggle("Voice Notes", vr_notes).help("Raise your off hand to your mouth and hold Y to record a note, with a screenshot and where you are; they go to quakevr/notes."),
+    };
+}
+
+// Split from Gameplay: blocking and shoving with a guard, batting projectiles back, headbutts.
+[[nodiscard]] std::vector<Item> pageParryBash()
+{
+    return {
         header("Parry and Bash"),
         slider("Parry Angle", vr_parry_angle, 15.f, 80.f, 5.f, "%.0f deg")
             .help("Hold a weapon (sword, axe or gun, one hand or two) level across in front of you to block a monster's melee blow: how far it may be tilted off level."),
@@ -227,22 +249,15 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Bash Push", vr_bash_push, 0.f, 3.f, 0.05f, "%.2fx").help("How far a bash or shove throws what it hits (times Knockback)."),
         slider("Bash and Parry Sounds", vr_bash_sound, 0.f, 1.f, 0.1f, "%.1f")
             .help("Volume of the sounds that tell a shove, a weapon bash, a parry-bash (a bash right after a parry) and a parry apart from your blows (0: the old sounds)."),
-        header("Playtesting"),
-        toggle("Voice Notes", vr_notes).help("Raise your off hand to your mouth and hold Y to record a note, with a screenshot and where you are; they go to quakevr/notes."),
-        header("Feel"),
+        header("Batting Projectiles"),
         toggle("Bat Back Projectiles", vr_deflect).help("Swing a weapon (or a fist) through a monster's spike, laser, spit or grenade to send it back where your hand points (at the monster, when you point near it)."),
         slider("Batting Reach", vr_deflect_radius, 4.f, 32.f, 1.f, "%.0f units").help("How near the weapon's blade (or your fist) a projectile must pass to be batted back."),
         slider("Batting Swing Speed", vr_deflect_speed, 0.2f, 1.5f, 0.05f, "%.2fx").help("How fast a batting swing must be, times Swing Speed (a hit needs 1x, and more for a swung weapon)."),
         slider("Batting Timing", vr_deflect_window, 0.f, 0.5f, 0.05f, "%.2f s").help("How early you may swing: the weapon's path keeps batting this long after it passed."),
-        toggle("Explosion Rumble", vr_explosion_rumble).help("Explosions near you rumble in your hands."),
-        toggle("Low Health Heartbeat", vr_heartbeat).help("A heartbeat in your hands when your health is low."),
         header("Headbutt"),
         toggle("Headbutt", vr_headbutt).help("Lunge your head at something to headbutt it."),
         slider("Headbutt Speed", vr_headbutt_speed, 0.4f, 3.f, 0.05f, "%.2f m/s").help("How fast the head must lunge (towards where you look)."),
         slider("Headbutt Damage", vr_headbutt_damage, 5.f, 100.f, 1.f, "%.0f"),
-        header("Knights' Swords"),
-        slider("Knights Drop Swords", vr_sword_drop, 0.f, 1.f, 0.05f, "%.2f").help("Chance a dying knight or hell knight drops its sword, a melee weapon you can pick up."),
-        slider("Sword Damage", vr_sword_damage_mult, 0.5f, 3.f, 0.05f, "%.2fx").help("A sword swing's damage over the axe's (the hell knight's sword: 25% more)."),
     };
 }
 
@@ -262,17 +277,9 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("Blood drips from your wounded arms and hands, faster when badly hurt or just hit, and splashes on the floor."),
         toggle("Show Powerups", vr_body_powerups)
             .help("Quad damage sparks around your hands, the pentagram makes you glow, the ring fades you."),
-        toggle("Pauldrons", vr_body_pauldrons).help("Leather pads over the shoulders and the tops of the arms, as the Quake ranger wears."),
-        cycle("Pauldron Style", vr_body_pauldron_style, {{0.f, "Ranger leather"}, {1.f, "Armour colour"}, {2.f, "Steel"}})
-            .help("Armour colour: green, yellow or red as the armour you wear (leather without)."),
-        slider("Pauldron Size", vr_body_pauldron_size, 0.5f, 1.5f, 0.05f, "%.2fx"),
-        slider("Pauldron Follows Arm", vr_body_pauldron_follow, 0.f, 1.f, 0.05f, "%.2f")
-            .help("How much the shoulder cap turns with the upper arm (the lower plates follow the arm fully)."),
-        slider("Pauldron Forward", vr_body_pauldron_forward, -0.05f, 0.05f, 0.005f, "%.3f m"),
-        slider("Pauldron Up", vr_body_pauldron_up, -0.05f, 0.05f, 0.005f, "%.3f m"),
-        slider("Pauldron Out", vr_body_pauldron_out, -0.05f, 0.05f, 0.005f, "%.3f m"),
         toggle("Anchors Follow Body", vr_body_anchors)
             .help("Holsters, the virtual stock and hand collisions follow the body's lean and crouch."),
+        header("Placement"),
         slider("Torso Offset", vr_body_torso_back, -0.15f, 0.3f, 0.01f, "%.2f m")
             .help("How far the torso sits behind your neck (negative: in front)."),
         slider("Legs Offset", vr_body_legs_back, -0.15f, 0.3f, 0.01f, "%.2f m")
@@ -287,6 +294,13 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Eyes Up", vr_body_eye_up, 0.f, 0.2f, 0.01f, "%.2f m").help("From the top of the neck to the eyes, up."),
         slider("Crouch Tilt", vr_body_crouch_tilt, 0.f, 60.f, 5.f, "%.0f deg")
             .help("How far the back tilts forward in a full crouch (the hips stay under you)."),
+    };
+}
+
+// Split from Body: the arms' reach and bend, and the pauldrons over the shoulders.
+[[nodiscard]] std::vector<Item> pageBodyArms()
+{
+    return {
         slider("Arm Length", vr_body_arm_length, 0.8f, 1.3f, 0.01f, "%.2f"),
         slider("Arm Stretch", vr_body_arm_stretch, 1.f, 1.5f, 0.05f, "%.2f")
             .help("How far arms may stretch to reach the hands (1: not at all)."),
@@ -302,7 +316,23 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("How far the shoulders rise when reaching up."),
         slider("Shoulders Forward", vr_body_shoulder_forward, 0.f, 45.f, 1.f, "%.0f deg")
             .help("How far the shoulders swing forward when reaching far forward."),
-        header("Flashlight"),
+        header("Pauldrons"),
+        toggle("Pauldrons", vr_body_pauldrons).help("Leather pads over the shoulders and the tops of the arms, as the Quake ranger wears."),
+        cycle("Pauldron Style", vr_body_pauldron_style, {{0.f, "Ranger leather"}, {1.f, "Armour colour"}, {2.f, "Steel"}})
+            .help("Armour colour: green, yellow or red as the armour you wear (leather without)."),
+        slider("Pauldron Size", vr_body_pauldron_size, 0.5f, 1.5f, 0.05f, "%.2fx"),
+        slider("Pauldron Follows Arm", vr_body_pauldron_follow, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How much the shoulder cap turns with the upper arm (the lower plates follow the arm fully)."),
+        slider("Pauldron Forward", vr_body_pauldron_forward, -0.05f, 0.05f, 0.005f, "%.3f m"),
+        slider("Pauldron Up", vr_body_pauldron_up, -0.05f, 0.05f, 0.005f, "%.3f m"),
+        slider("Pauldron Out", vr_body_pauldron_out, -0.05f, 0.05f, 0.005f, "%.3f m"),
+    };
+}
+
+// Split from Body: the torch on the chest.
+[[nodiscard]] std::vector<Item> pageFlashlight()
+{
+    return {
         toggle("Chest Flashlight", vr_flashlight)
             .help("A torch on your chest. Trigger at it: on or off. Grip it with an empty hand to take it; let go and it springs back."),
         slider("Brightness", vr_flashlight_brightness, 0.25f, 2.5f, 0.05f, "%.2fx"),
@@ -364,27 +394,15 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Yaw", vr_gadget_yaw, -90.f, 90.f, 5.f, "%.0f deg"),
         slider("Roll", vr_gadget_roll, -180.f, 180.f, 15.f, "%.0f deg")
             .help("Turns the screen: 90 reads along the arm, 180 turns the text the other way."),
-        header("Colours"),
-        slider("Player Effects Hue", vr_player_hue, 0.f, 355.f, 5.f, "%.0f")
-            .help("One colour for all your effects: this screen, your weapons' screens and sights, the force grab, the teleport arc, the crosshair, the menu laser. 128 green, 40 amber, 200 blue, 0 red."),
-        slider("Player Effects Saturation", vr_player_saturation, 0.f, 2.f, 0.05f, "%.2f")
-            .help("How colourful they are: 1 as made, 0 white."),
-        hueSlider("Screen Hue", vr_gadget_screen_hue)
-            .help("The screen's colour (and your weapons' screens'). Player's: the Player Effects Hue."),
-        slider("Screen Brightness", vr_gadget_screen_brightness, 0.3f, 1.5f, 0.05f, "%.2f"),
-        slider("Screen Background", vr_gadget_screen_background, 0.f, 4.f, 0.1f, "%.1f"),
-        slider("Casing Tint", vr_gadget_tint, 0.f, 1.f, 0.05f, "%.2f").help("0 keeps the casing's own olive drab."),
-        slider("Casing Tint Hue", vr_gadget_tint_hue, 0.f, 355.f, 5.f, "%.0f"),
-        hueSlider("Weapon Sight Hue", vr_sight_hue)
-            .help("The glowing iron sights of the shotgun and double shotgun: 30 their own orange, 0 red, 120 green, 240 blue. Player's: the Player Effects Hue."),
-        slider("Weapon Sight Saturation", vr_sight_saturation, 0.f, 2.f, 0.05f, "%.2f").help("1 their own, 0 white."),
-        hueSlider("Force Grab Hue", vr_forcegrab_hue)
-            .help("The force grab's beam, energy tendril, glow and sparkles: 215 its old blue. Player's: the Player Effects Hue."),
-        hueSlider("Teleport Arc Hue", vr_teleport_hue)
-            .help("Where the teleport arc can land (red where it can't): 220 its old blue. Player's: the Player Effects Hue."),
-        hueSlider("Crosshair Hue", vr_crosshair_hue).help("The laser crosshair: 0 its old red. Player's: the Player Effects Hue."),
-        hueSlider("Menu Laser Hue", vr_menu_laser_hue).help("The menu's pointer: 35 its old amber. Player's: the Player Effects Hue."),
-        header("Screen"),
+    };
+}
+
+// Split from Wrist Gadget (and Immersion): the wrist gadget's screen, the weapons' ammo screens and
+// the maps' text boards.
+[[nodiscard]] std::vector<Item> pageScreens()
+{
+    return {
+        header("Wrist Gadget"),
         toggle("Level and Stats", vr_gadget_show_level),
         slider("Screen Light", vr_gadget_light, 0.f, 3.f, 0.1f, "%.1fx")
             .help("The screen casts a light in its colour the way it faces, and a faint one on your hand (0 off)."),
@@ -398,6 +416,42 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("The console's messages float in a small log over the gadget, or at the top of the view."),
         slider("Message Time", vr_notify_wrist_time, 2.f, 30.f, 1.f, "%.0f s")
             .help("How long a message stays in the gadget's log."),
+        header("Weapons' Ammo Screens"),
+        toggle("Weapon Text", "vr_show_weapon_text").help("Show floating ammunition text attached to weapons"),
+        toggle("Weapon Ammo Screen", "vr_weapon_screen").help("The ammunition text on a small screen on the weapon (colours from the wrist gadget's screen)."),
+        slider("Ammo Screen Margin", "vr_weapon_screen_padding", 0.f, 2.f, 0.1f, "%.1f"),
+        slider("Ammo Screen CRT Look", "vr_weapon_screen_crt", 0.f, 2.f, 0.1f, "%.1fx").help("Scanlines, a slight flicker, faint static and now and then a glitch, as on the wrist gadget's screen (0 off)."),
+        header("Map Boards"),
+        toggle("Map Boards as CRTs", "vr_worldtext_crt").help("The text boards in maps (the tutorial's, the start map's) are CRT screens with glowing text, as the wrist gadget's. Off: plain text."),
+        slider("Map Board Hue", "vr_worldtext_hue", 0.f, 355.f, 5.f, "%.0f").help("Their colour: 40 amber, 128 green, 200 blue, 0 red."),
+    };
+}
+
+// Split from Wrist Gadget: the colours of the player's effects.
+[[nodiscard]] std::vector<Item> pageColours()
+{
+    return {
+        slider("Player Effects Hue", vr_player_hue, 0.f, 355.f, 5.f, "%.0f")
+            .help("One colour for all your effects: the wrist gadget's screen, your weapons' screens and sights, the force grab, the teleport arc, the crosshair, the menu laser. 128 green, 40 amber, 200 blue, 0 red."),
+        slider("Player Effects Saturation", vr_player_saturation, 0.f, 2.f, 0.05f, "%.2f")
+            .help("How colourful they are: 1 as made, 0 white."),
+        header("Wrist Gadget"),
+        hueSlider("Screen Hue", vr_gadget_screen_hue)
+            .help("The screen's colour (and your weapons' screens'). Player's: the Player Effects Hue."),
+        slider("Screen Brightness", vr_gadget_screen_brightness, 0.3f, 1.5f, 0.05f, "%.2f"),
+        slider("Screen Background", vr_gadget_screen_background, 0.f, 4.f, 0.1f, "%.1f"),
+        slider("Casing Tint", vr_gadget_tint, 0.f, 1.f, 0.05f, "%.2f").help("0 keeps the casing's own olive drab."),
+        slider("Casing Tint Hue", vr_gadget_tint_hue, 0.f, 355.f, 5.f, "%.0f"),
+        header("Effects"),
+        hueSlider("Weapon Sight Hue", vr_sight_hue)
+            .help("The glowing iron sights of the shotgun and double shotgun: 30 their own orange, 0 red, 120 green, 240 blue. Player's: the Player Effects Hue."),
+        slider("Weapon Sight Saturation", vr_sight_saturation, 0.f, 2.f, 0.05f, "%.2f").help("1 their own, 0 white."),
+        hueSlider("Force Grab Hue", vr_forcegrab_hue)
+            .help("The force grab's beam, energy tendril, glow and sparkles: 215 its old blue. Player's: the Player Effects Hue."),
+        hueSlider("Teleport Arc Hue", vr_teleport_hue)
+            .help("Where the teleport arc can land (red where it can't): 220 its old blue. Player's: the Player Effects Hue."),
+        hueSlider("Crosshair Hue", vr_crosshair_hue).help("The laser crosshair: 0 its old red. Player's: the Player Effects Hue."),
+        hueSlider("Menu Laser Hue", vr_menu_laser_hue).help("The menu's pointer: 35 its old amber. Player's: the Player Effects Hue."),
     };
 }
 
@@ -429,11 +483,16 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Hitbox", vr_throw_hitbox, 1.f, 12.f, 0.5f, "%.1f").help("Half-size of a thrown weapon's box against monsters."),
         slider("Hit Min Speed", vr_throw_hit_min_speed, 0.f, 600.f, 25.f, "%.0f")
             .help("Units/s a thrown weapon, box or gib must go at to hurt a monster; slower (at rest against it, pushed into it) it does nothing."),
+    };
+}
+
+// Split from Throwing and Physics: carrying ammo and health boxes, and gibs, heads and corpses.
+[[nodiscard]] std::vector<Item> pageCarrying()
+{
+    return {
         header("Carrying Boxes"),
         toggle("Carry Ammo and Health", vr_carry)
             .help("Grip a box or a backpack to carry it, push it with a hand or gun. Off: touching takes it."),
-        cycle("Gibs and Heads", vr_grab_gibs, {{0.f, "Left alone"}, {1.f, "Grab by hand"}, {2.f, "Hand and force grab"}})
-            .help("Pick up and throw gibs and heads, by reaching for them (or force-grabbing them too)."),
         cycle("Take a Box", vr_carry_take, {{0.f, "At a holster"}, {1.f, "Trigger"}, {2.f, "Either"}})
             .help("At a holster: let go of it at a hip or shoulder holster to put it in your pack."),
         toggle("Drawn In the Hand", vr_carry_local)
@@ -442,6 +501,9 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Box Throw Speed", vr_carry_throw_mult, 0.5f, 3.f, 0.1f, "%.1fx"),
         slider("Box Punch Damage", vr_carry_melee_mult, 1.f, 3.f, 0.1f, "%.1fx").help("Punching with a box in hand."),
         slider("Thrown Box Damage", vr_carry_throw_damage, 0.f, 50.f, 1.f, "%.0f").help("Damage of a box thrown at about 6 m/s; more the faster."),
+        header("Gibs and Corpses"),
+        cycle("Gibs and Heads", vr_grab_gibs, {{0.f, "Left alone"}, {1.f, "Grab by hand"}, {2.f, "Hand and force grab"}})
+            .help("Pick up and throw gibs and heads, by reaching for them (or force-grabbing them too)."),
         slider("Thrown Gib Damage", vr_gib_throw_damage, 0.f, 50.f, 1.f, "%.0f").help("Damage of a gib or head thrown at about 6 m/s; more the faster."),
         toggle("Destroy Gibs", vr_gib_destroy)
             .help("Gibs and heads burst in a mist of blood when shot, blown up, struck, or thrown hard at a wall or a monster."),
@@ -475,8 +537,10 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Catch Early", vr_forcegrab_catch_early, 0.05f, 1.f, 0.05f, "%.2f s")
             .help("How long before it arrives the grip may close to catch it."),
         slider("Catch Late", vr_forcegrab_catch_late, 0.f, 0.5f, 0.05f, "%.2f s"),
-        toggle("Pointing Particles", vr_forcegrab_eligible_particles),
-        toggle("Pointing Haptics", vr_forcegrab_eligible_haptics),
+        toggle("Pointing Particles", vr_forcegrab_eligible_particles).help("Sparkles on the object an empty hand points at, that it can pull."),
+        toggle("Pointing Haptics", vr_forcegrab_eligible_haptics).help("A tick in the hand when it points at a new object it can pull."),
+        slider("Outline", "vr_forcegrab_outline", 0.f, 2.f, 0.1f, "%.1f").help("The soft glow round the object a hand points at (0 off)."),
+        toggle("Effects", "vr_forcegrab_fx").help("A faint beam to what you point at, a crackling tendril when locked on, a trail behind what flies to you."),
         slider("Ammo/Health Box Size", vr_forcegrabbable_box_scale, 0.1f, 1.f, 0.05f, "%.2f")
             .help("Takes effect on the next map."),
     };
@@ -495,40 +559,60 @@ enum PageId
 
 struct Page
 {
-    const char* title;
-    std::vector<Item> (*build)();
+    const char* group; // a header before it in the Advanced VR Options list (null: none)
+    const char* label; // its row there (short: right-aligned left of the middle)
+    const char* title; // over the page
+    PageBuilder build;
 };
 
 [[nodiscard]] std::vector<Item> pageMain();
 [[nodiscard]] std::vector<Item> pageAdvanced();
 [[nodiscard]] std::vector<Item> pageWeaponOffsets();
-[[nodiscard]] int weaponOffsetsPage();
 
+// In the Advanced VR Options list's order: the indices are positional (menu_vr <n>); links find
+// their page by its builder (pageIndex).
 const Page pages[] = {
-    {"VR Settings", pageMain},
-    {"Advanced VR Options", pageAdvanced},
-    {"Play", pagePlay},
-    {"Gameplay", pageGameplay},
-    {"Body", pageBody},
-    {"Gore", pageGore},
-    {"Wrist Gadget", pageGadget},
-    {"Throwing and Physics", pageThrowing},
-    {"Force Grab", pageForceGrab},
-    {"Swimming", pageSwimSettings},
-    {"Menu", pageMenuSettings},
-    {"Crosshair", pageCrosshairSettings},
-    {"Particles", pageParticleSettings},
-    {"Locomotion", pageLocomotionSettings},
-    {"Hand/Gun Calibration", pageHandGunCalibration},
-    {"Weapon Offsets", pageWeaponOffsets},
-    {"Player Calibration", pagePlayerCalibration},
-    {"Melee", pageMeleeSettings},
-    {"Aiming", pageAimingSettings},
-    {"Immersion", pageImmersionSettings},
-    {"Graphics", pageGraphicalSettings},
-    {"Status Bar", pageHudConfiguration},
-    {"Hotspots", pageHotspotSettings},
-    {"Transparency", pageTransparencyOptions},
+    {nullptr, "VR Settings", "VR Settings", pageMain},
+    {nullptr, "Advanced VR Options", "Advanced VR Options", pageAdvanced},
+
+    {"Game", "Play", "Play", pagePlay},
+    {nullptr, "Gameplay", "Gameplay", pageGameplay},
+    {nullptr, "Parry, Bash, Headbutt", "Parry, Bash and Headbutt", pageParryBash},
+    {nullptr, "Melee", "Melee", pageMeleeSettings},
+    {nullptr, "Gore", "Gore", pageGore},
+    {nullptr, "Throwing and Physics", "Throwing and Physics", pageThrowing},
+    {nullptr, "Carrying and Gibs", "Carrying and Gibs", pageCarrying},
+    {nullptr, "Force Grab", "Force Grab", pageForceGrab},
+
+    {"Body and Movement", "Body", "Body", pageBody},
+    {nullptr, "Arms and Pauldrons", "Body - Arms and Pauldrons", pageBodyArms},
+    {nullptr, "Flashlight", "Flashlight", pageFlashlight},
+    {nullptr, "Player Calibration", "Player Calibration", pagePlayerCalibration},
+    {nullptr, "Locomotion", "Locomotion", pageLocomotionSettings},
+    {nullptr, "Swimming", "Swimming", pageSwimSettings},
+
+    {"Weapons", "Immersion", "Immersion", pageImmersionSettings},
+    {nullptr, "Hand/Gun Calibration", "Hand/Gun Calibration", pageHandGunCalibration},
+    {nullptr, "Weapon Offsets", "Weapon Offsets", pageWeaponOffsets},
+    {nullptr, "Aiming", "Aiming", pageAimingSettings},
+    {nullptr, "Hotspots", "Hotspots", pageHotspotSettings},
+
+    {"HUD and Menus", "Wrist Gadget", "Wrist Gadget", pageGadget},
+    {nullptr, "Screens", "Screens", pageScreens},
+    {nullptr, "Colours", "Colours", pageColours},
+    {nullptr, "Status Bar", "Status Bar", pageHudConfiguration},
+    {nullptr, "Crosshair", "Crosshair", pageCrosshairSettings},
+    {nullptr, "Menu", "Menu", pageMenuSettings},
+
+    {"Graphics", "Graphics", "Graphics", pageGraphics},
+    {nullptr, "Lights", "Graphics - Lights", pageGraphicsLights},
+    {nullptr, "Shadows", "Graphics - Shadows", pageGraphicsShadows},
+    {nullptr, "Surfaces", "Graphics - Surfaces", pageGraphicsSurfaces},
+    {nullptr, "Liquids", "Graphics - Liquids", pageGraphicsLiquids},
+    {nullptr, "Post-processing", "Graphics - Post-processing", pageGraphicsPost},
+    {nullptr, "Models and Effects", "Graphics - Models and Effects", pageGraphicsModels},
+    {nullptr, "Particles", "Particles", pageParticleSettings},
+    {nullptr, "Transparency", "Transparency", pageTransparencyOptions},
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -558,7 +642,7 @@ std::vector<Item> pageMain()
         slider("Off Hand Angle", vr_offhandpitch, -30.f, 90.f, 2.5f, "%.1f"),
         cycle("Weapon Grip", vr_weapon_grip_mode, {{0.f, "Hold"}, {1.f, "Sticky"}}),
         cycle("Two-Handed", vr_2h_mode, {{0.f, "Off"}, {1.f, "Basic"}, {2.f, "Virtual stock"}}),
-        open("Weapon Offsets (Held Weapon)", weaponOffsetsPage()),
+        open("Weapon Offsets (Held Weapon)", pageIndex(pageWeaponOffsets)),
         toggle("Two-Handed Hand-Off", vr_2h_handoff).help("Letting go with the hand holding a two-handed weapon leaves it in the other hand: a sword changes hands; a gun hangs from its foregrip until a hand takes its handle."),
         slider("Throw Speed", vr_weapon_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx"),
         cycle("Throw Gravity", vr_throw_gravity, {{9.81f, "Real"}, {0.f, "Quake"}}),
@@ -598,16 +682,28 @@ std::vector<Item> pageMain()
 
 std::vector<Item> pageAdvanced()
 {
-    std::vector<Item> list{header("The port's own")};
+    std::vector<Item> list;
     for(int p = PageFirstAdvanced; p < pageCount; p++)
     {
-        if(pages[p].build == pageMenuSettings)
+        if(pages[p].group)
         {
-            list.push_back(header("Quake VR's"));
+            list.push_back(header(pages[p].group));
         }
-        list.push_back(open(pages[p].title, p));
+        list.push_back(open(pages[p].label, p));
     }
     return list;
+}
+
+int pageIndex(PageBuilder build)
+{
+    for(int p = 0; p < pageCount; p++)
+    {
+        if(pages[p].build == build)
+        {
+            return p;
+        }
+    }
+    return PageMain;
 }
 
 // Weapon Offsets: the settings of the weapon a hand holds (vr_wofs_*_NN of its slot), built anew
@@ -616,25 +712,13 @@ int weaponOffsetsHand = 1; // 1 main hand, 0 off hand
 bool weaponOffsetsStale = true;
 int weaponOffsetsSlot = -1;
 
-[[nodiscard]] int weaponOffsetsPage()
-{
-    for(int p = 0; p < pageCount; p++)
-    {
-        if(pages[p].build == pageWeaponOffsets)
-        {
-            return p;
-        }
-    }
-    return PageMain;
-}
-
 void showPage(int target);
 
 void weaponOffsetsOtherHand()
 {
     weaponOffsetsHand = 1 - weaponOffsetsHand;
     weaponOffsetsStale = true;
-    showPage(weaponOffsetsPage());
+    showPage(pageIndex(pageWeaponOffsets));
 }
 
 void weaponOffsetsReset()
@@ -753,9 +837,25 @@ int scrolls[pageCount]{};
 bool sliderGrab = false; // a slider follows the mouse while its button is held
 bool scrollGrab = false; // the scrollbar likewise
 
-constexpr int listTop = 36;
-constexpr int helpTop = 164; // four lines of help under the list, on pages with any
-constexpr int midPos = 204;  // as Ironwail's OPTIONS_MIDPOS
+constexpr int midPos = 204; // as Ironwail's OPTIONS_MIDPOS
+
+// Where things go, in the menu's height (menuui::menuHeight: Quake's 200 on the desktop, more in
+// a headset, Quake's 320 x 200 in its middle): the title at the top, the list under it, and four
+// lines of help under the list on pages with any.
+struct Layout
+{
+    int top;
+    int listTop;
+    int helpTop;
+    int bottom;
+};
+
+[[nodiscard]] Layout layout()
+{
+    const int height = menuui::menuHeight();
+    const int top = (200 - height) / 2;
+    return {top, top + 36, top + height - 36, top + height};
+}
 
 [[nodiscard]] bool hasHelp(const std::vector<Item>& list)
 {
@@ -771,7 +871,8 @@ constexpr int midPos = 204;  // as Ironwail's OPTIONS_MIDPOS
 
 [[nodiscard]] int visibleRows(const std::vector<Item>& list)
 {
-    return ((hasHelp(list) ? helpTop - 4 : 200 - 8) - listTop) / 8;
+    const Layout l = layout();
+    return ((hasHelp(list) ? l.helpTop - 4 : l.bottom - 8) - l.listTop) / 8;
 }
 
 [[nodiscard]] int firstSelectable(const std::vector<Item>& list)
@@ -880,7 +981,7 @@ void change(const Item& item, int dir)
 [[nodiscard]] int rowAt(float cy)
 {
     const auto& list = items(page);
-    const int row = static_cast<int>(std::floor((cy - listTop) / 8.f));
+    const int row = static_cast<int>(std::floor((cy - layout().listTop) / 8.f));
     const int i = scrolls[page] + row;
     if(row < 0 || row >= visibleRows(list) || i >= static_cast<int>(list.size()))
     {
@@ -933,7 +1034,7 @@ void scrollTo(float cy)
     {
         return;
     }
-    const float yrel = cy - listTop - height * 4.f;
+    const float yrel = cy - layout().listTop - height * 4.f;
     const int range = (rows - height) * 8;
     scrolls[page] = CLAMP(0, static_cast<int>(yrel * (n - rows) / range + 0.5f), n - rows);
     keepCursorVisible();
@@ -1056,7 +1157,7 @@ void drawHelp(const char* text)
         char buf[columns + 1];
         memcpy(buf, p, n);
         buf[n] = '\0';
-        M_PrintWhite((320 - 8 * n) / 2, helpTop + line * 8, buf);
+        M_PrintWhite((320 - 8 * n) / 2, layout().helpTop + line * 8, buf);
         p += n;
         line++;
     }
@@ -1073,9 +1174,18 @@ extern "C" void VR_Menu_Open()
     showPage(PageMain);
 }
 
-// menu_vr [page]: the VR Settings, or one of its pages (1: Advanced VR Options).
+// menu_vr [page]: the VR Settings, or one of its pages (1: Advanced VR Options); menu_vr list:
+// the pages' numbers.
 void qvr::menu::command_f()
 {
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "list"))
+    {
+        for(int p = 0; p < pageCount; p++)
+        {
+            Con_Printf("%2d %s\n", p, pages[p].title);
+        }
+        return;
+    }
     VR_Menu_Open();
     if(Cmd_Argc() > 1)
     {
@@ -1146,11 +1256,12 @@ extern "C" void VR_Menu_Draw()
         sliderGrab = scrollGrab = false;
     }
 
-    M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp"));
+    const Layout l = layout();
+    M_DrawTransPic(16, l.top + 4, Draw_CachePic("gfx/qplaque.lmp"));
     qpic_t* title = Draw_CachePic("gfx/p_option.lmp");
-    M_DrawPic((320 - title->width) / 2, 4, title);
+    M_DrawPic((320 - title->width) / 2, l.top + 4, title);
     const char* name = pages[page].title;
-    M_PrintWhite((320 - 8 * static_cast<int>(strlen(name))) / 2, 28, name);
+    M_PrintWhite((320 - 8 * static_cast<int>(strlen(name))) / 2, l.top + 28, name);
 
     const int rows = visibleRows(list);
     const int n = static_cast<int>(list.size());
@@ -1166,13 +1277,13 @@ extern "C" void VR_Menu_Draw()
 
     for(int i = scroll; i < n && i < scroll + rows; i++)
     {
-        drawItem(list[i], listTop + (i - scroll) * 8, i == cursor);
+        drawItem(list[i], l.listTop + (i - scroll) * 8, i == cursor);
     }
 
     if(int y, height; scrollbar(n, rows, y, height))
     {
         scrollbarX = q_min(midPos + 188, static_cast<int>(glcanvas.right) - 16);
-        M_DrawTextBox(scrollbarX - 4, listTop + y - 4, 0, height - 1);
+        M_DrawTextBox(scrollbarX - 4, l.listTop + y - 4, 0, height - 1);
     }
 
     if(cursor < n && list[cursor].cvar == &vr_render_scale)

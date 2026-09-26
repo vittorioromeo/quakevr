@@ -20,22 +20,14 @@ VR_HandGrabUtil_Impl_UpdateStateForHand =
     }
 }
 
-float(entity xEntPlayer, float xHand) VR_HandGrabUtil_Impl_GetLastGrabTime =
+inline float(entity xEntPlayer, float xHand) VR_HandGrabUtil_Impl_GetLastGrabTime =
 {
-    if(xHand == cVR_OffHand)  { return xEntPlayer.offhand_lastgrabtime; }
-    if(xHand == cVR_MainHand) { return xEntPlayer.mainhand_lastgrabtime; }
-
-    ASSERT(FALSE);
-    return 0;
+    return VR_IMPL_SELECT(xHand, xEntPlayer.offhand_lastgrabtime, xEntPlayer.mainhand_lastgrabtime);
 }
 
-float(entity xEntPlayer, float xHand) VR_HandGrabUtil_Impl_GetLastReleaseTime =
+inline float(entity xEntPlayer, float xHand) VR_HandGrabUtil_Impl_GetLastReleaseTime =
 {
-    if(xHand == cVR_OffHand)  { return xEntPlayer.offhand_lastreleasetime; }
-    if(xHand == cVR_MainHand) { return xEntPlayer.mainhand_lastreleasetime; }
-
-    ASSERT(FALSE);
-    return 0;
+    return VR_IMPL_SELECT(xHand, xEntPlayer.offhand_lastreleasetime, xEntPlayer.mainhand_lastreleasetime);
 }
 
 //
@@ -67,12 +59,12 @@ void(entity xEntPlayer) VR_HandGrabUtil_UpdateState =
     );
 }
 
-float(entity xEntPlayer, float xHand) VR_HandGrabUtil_IsHandGrabbing =
+inline float(entity xEntPlayer, float xHand) VR_HandGrabUtil_IsHandGrabbing =
 {
     return VRIsEntHandGrabbingBit(xEntPlayer, xHand);
 }
 
-float(entity xEntPlayer, float xHand) VR_HandGrabUtil_IsHandPrevGrabbing =
+inline float(entity xEntPlayer, float xHand) VR_HandGrabUtil_IsHandPrevGrabbing =
 {
     return VRIsEntHandPrevGrabbingBit(xEntPlayer, xHand);
 }
@@ -91,7 +83,7 @@ float(entity xEntPlayer, float xHand) VR_HandGrabUtil_StartedHandGrabbing =
         && time > lastReleaseTime;
 }
 
-float(entity xEntPlayer, float xHand) VR_HandGrabUtil_IsHandReloadFlicking =
+inline float(entity xEntPlayer, float xHand) VR_HandGrabUtil_IsHandReloadFlicking =
 {
     return VRIsEntHandReloadFlickingBit(xEntPlayer, xHand);
 }

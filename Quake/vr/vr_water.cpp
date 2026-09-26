@@ -1,6 +1,8 @@
 // vr_water.cpp -- see vr_water.hpp.
 
 #include "vr_water.hpp"
+#include "vr_main.hpp"
+#include "vr_profile.hpp"
 #include "vr_haze.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -157,9 +159,11 @@ void ensureVolume()
     {
         return;
     }
-    if(m != volumeModel || std::strcmp(m->name, volumeName) != 0)
+    static int generation = -1;
+    if(m != volumeModel || std::strcmp(m->name, volumeName) != 0 || generation != worldGeneration()) // the same model can hold another map: a map name loaded again (vr_relit_maps switched)
     {
         buildVolume(m);
+        generation = worldGeneration();
     }
 }
 
@@ -1000,6 +1004,7 @@ bool ensureMesh()
 // This view's faces of the mesh: in the PVS, the frustum and seen from their side; cut near the eye, flat past it.
 void markMesh(const byte* vis)
 {
+    QVR_PROFILE("water mesh pick");
     mesh.framecount = -1;
     if(!ensureMesh())
     {

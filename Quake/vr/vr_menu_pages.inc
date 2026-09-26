@@ -2,7 +2,8 @@
 // Settings"), under VR Settings > Advanced VR Options: every setting that still exists in the
 // port, with its old range and help. Included by vr_menu.cpp. Settings that do nothing any more
 // (the menu's anchoring, MSAA, the old force grab's range and power, the old floating torso,
-// voice chat) are left out.
+// voice chat) are left out. The long ones are split into pages of a screenful or so (Graphics in
+// seven; Immersion's screens and force grab moved to the Screens and Force Grab pages).
 
 // Old Quake VR settings: "Menu Settings".
 [[nodiscard]] std::vector<Item> pageMenuSettings()
@@ -11,8 +12,9 @@
         slider("Menu Scale", "vr_menu_scale", 0.05f, 0.6f, 0.01f, "%.2f").help("Scale multiplier for the menu: the size of one of its pixels, in world units."),
         slider("Menu Distance", "vr_menu_distance", 24.f, 256.f, 1.f, "%.0f").help("Distance of the menu from the anchor point."),
         toggle("VR Menu Style", "vr_menu_vr_style").help("The menus fill the panel with their rows spaced out, with modern sliders and switches, and a laser from your hand points at them: trigger to click and drag."),
-        hueSlider("Laser Hue", vr_menu_laser_hue).help("The laser pointer's colour: 35 amber; Player's: the Player Effects Hue (Wrist Gadget > Colours)."),
+        hueSlider("Laser Hue", vr_menu_laser_hue).help("The laser pointer's colour: 35 amber; Player's: the Player Effects Hue (on the Colours page)."),
         slider("Row Spacing", "vr_menu_spacing", 1.f, 2.f, 0.05f, "%.2fx").help("With the VR menu style: how far apart the menus' rows are, over Quake's."),
+        slider("Menu Height", "vr_menu_height", 1.f, 2.f, 0.05f, "%.2fx").help("With the VR menu style: how tall the menus are, over Quake's: more rows at once. 1.35 reaches about 35 degrees up and down at the shipped distance, scale and spacing."),
         toggle("Live Preview", "ui_live_preview").help("Settings pages show their changes in the game as you make them, and in single player the game keeps running under them (paused while a monster is after you)."),
         toggle("Reopen Where Left", "vr_menu_remember").help("After Back to Game (the button at the menu's top left, or holding the menu button), the menu opens again on the page you left."),
     };
@@ -26,7 +28,7 @@
         slider("Crosshair Depth", "vr_crosshair_depth", 0.f, 4096.f, 16.f, "%.0f").help("When zero, the crosshair will be projected to the closest wall. Otherwise, the crosshair will be projected at a fixed depth."),
         slider("Crosshair Size", "vr_crosshair_size", 0.f, 32.f, 0.5f, "%.1f").help("Size of the crosshair."),
         slider("Crosshair Alpha", "vr_crosshair_alpha", 0.f, 1.f, 0.05f, "%.2f").help("Transparency of the crosshair. '1' means fully visible, '0' means fully transparent."),
-        hueSlider("Crosshair Hue", vr_crosshair_hue).help("Its colour: 0 red; Player's: the Player Effects Hue (Wrist Gadget > Colours)."),
+        hueSlider("Crosshair Hue", vr_crosshair_hue).help("Its colour: 0 red; Player's: the Player Effects Hue (on the Colours page)."),
         slider("Crosshair Z Offset", "vr_crosshairy", -10.f, 10.f, 0.05f, "%.2f").help("Z offset applied to the crosshair. Does not affect aiming. Leave to zero unless you changed other weapon options and your aim is off."),
     };
 }
@@ -195,18 +197,14 @@ void resetSwimming()
     };
 }
 
-// Old Quake VR settings: "Immersion Settings".
+// Old Quake VR settings: "Immersion Settings" (its weapons' ammo screens and map boards are on the
+// Screens page now, its force grab settings on Force Grab).
 [[nodiscard]] std::vector<Item> pageImmersionSettings()
 {
     return {
-        toggle("Weapon Text", "vr_show_weapon_text").help("Show floating ammunition text attached to weapons"),
-        toggle("Weapon Ammo Screen", "vr_weapon_screen").help("The ammunition text on a small screen on the weapon (colours from the wrist gadget's screen)."),
-        slider("Ammo Screen Margin", "vr_weapon_screen_padding", 0.f, 2.f, 0.1f, "%.1f"),
-        slider("Ammo Screen CRT Look", "vr_weapon_screen_crt", 0.f, 2.f, 0.1f, "%.1fx").help("Scanlines, a slight flicker, faint static and now and then a glitch, as on the wrist gadget's screen (0 off)."),
-        toggle("Map Boards as CRTs", "vr_worldtext_crt").help("The text boards in maps (the tutorial's, the start map's) are CRT screens with glowing text, as the wrist gadget's. Off: plain text."),
-        slider("Map Board Hue", "vr_worldtext_hue", 0.f, 355.f, 5.f, "%.0f").help("Their colour: 40 amber, 128 green, 200 blue, 0 red."),
         toggle("Body Picks Up Items", "vr_body_interactions").help("Pick up items and level weapons by walking over them. Thrown and dropped weapons still need your hands."),
         toggle("Disable Haptics", "vr_disablehaptics").help("Disable all haptics (vibration)."),
+        header("Weapons and Holsters"),
         cycle("Weapon Mode", "vr_holster_mode", {{0.f, "Immersive"}, {1.f, "Quick Slots"}}).help("Immersive: a holster holds one weapon, and taking it out empties it. Quick Slots: holsters never empty (with weapon cycling)."),
         cycle("Weapon Reloading Mode", "vr_reload_mode", {{0.f, "None"}, {1.f, "All Holsters"}, {2.f, "Hip Holsters"}}).help("Enables weapon reloading mechanics. Weapons can be reloaded by moving them towards an holster. Reloading only works with 'immersive' weapon mode."),
         cycle("Holster Haptics", "vr_holster_haptics", {{0.f, "Off"}, {1.f, "Continuous"}, {2.f, "Once"}}).help("Haptic feedback when hovering a usable holster slot."),
@@ -216,55 +214,73 @@ void resetSwimming()
         slider("Throw Damage Mult.", "vr_weapon_throw_damage_mult", 0.05f, 5.f, 0.05f, "%.2f").help("Multiplier for weapon throw damage."),
         slider("Throw Speed Mult.", "vr_weapon_throw_velocity_mult", 0.05f, 5.f, 0.05f, "%.2f").help("Multiplier for weapon throw velocity."),
         toggle("Dropped Wpn Particles", "vr_weapondrop_particles").help("Enable particle effects for weapons dropped/thrown on the ground."),
+        header("Shell Casings"),
         toggle("Shell Casings", "vr_shells").help("The shotgun throws out a spent shell each shot, the super shotgun its two as you reload (a flick reload flings them). They bounce, roll and lie on the floor."),
         slider("Shell Casing Life", "vr_shells_life", 5.f, 120.f, 5.f, "%.0f s").help("How long spent shells lie on the floor before fading out."),
         slider("Shell Casing Sound", "vr_shells_sound", 0.f, 1.f, 0.1f, "%.1f").help("Volume of their tink as they land (0 off)."),
+        header("Weapon Drops"),
         cycle("Enemy Weapon Drops", "vr_enemy_drops", {{0.f, "When Eligible"}, {1.f, "Always"}, {2.f, "Disabled"}}).help("Controls random enemy weapon drops. 'Eligible' means that the player has obtained a weapon before through a level weapon pickup."),
         slider("Enemy Drops Chance", "vr_enemy_drops_chance_mult", 0.05f, 5.f, 0.05f, "%.2f").help("Multiplier for enemy weapon drops."),
         cycle("Ammo Box Weapon Drops", "vr_ammobox_drops", {{0.f, "When Eligible"}, {1.f, "Always"}, {2.f, "Disabled"}}).help("Controls random ammo box weapon drops. 'Eligible' means that the player has obtained a weapon before through a level weapon pickup."),
         slider("Ammo Box Drops Chance", "vr_ammobox_drops_chance_mult", 0.05f, 5.f, 0.05f, "%.2f").help("Multiplier for ammo box weapon drops."),
-        toggle("Force Grab", "vr_forcegrab_mode").help("Point an empty hand at an object, pull the trigger, flick the hand: it flies to you. Grip as it arrives to catch it."),
-        toggle("Force Grab Particles", "vr_forcegrab_eligible_particles").help("Sparkles on the object an empty hand points at, that it can pull."),
-        toggle("Force Grab Haptics", "vr_forcegrab_eligible_haptics").help("A tick in the hand when it points at a new object it can pull."),
-        slider("Force Grab Outline", "vr_forcegrab_outline", 0.f, 2.f, 0.1f, "%.1f").help("The soft glow round the object a hand points at (0 off)."),
-        toggle("Force Grab Effects", "vr_forcegrab_fx").help("A faint beam to what you point at, a crackling tendril when locked on, a trail behind what flies to you."),
     };
 }
 
-// Old Quake VR settings: "Graphical Settings".
-[[nodiscard]] std::vector<Item> pageGraphicalSettings()
+[[nodiscard]] std::vector<Item> pageGraphicsLights();
+[[nodiscard]] std::vector<Item> pageGraphicsShadows();
+[[nodiscard]] std::vector<Item> pageGraphicsSurfaces();
+[[nodiscard]] std::vector<Item> pageGraphicsLiquids();
+[[nodiscard]] std::vector<Item> pageGraphicsPost();
+[[nodiscard]] std::vector<Item> pageGraphicsModels();
+[[nodiscard]] std::vector<Item> pageTransparencyOptions();
+
+// Old Quake VR settings: "Graphical Settings", in pages: this one, the preset and the image, and links
+// to the others.
+[[nodiscard]] std::vector<Item> pageGraphics()
 {
     return {
-        cycle("Blob Shadows", "vr_blob_shadows", {{0.f, "Off"}, {1.f, "Always"}, {2.f, "Auto"}})
-            .help("Dark discs under you and things, a cheap stand-in for shadows. Auto: only where real shadows (Lights and Shadows below) do not fall."),
-        cycle("Blob Shadows: You", "vr_player_shadows", {{0.f, "Off"}, {1.f, "Hands"}, {2.f, "Body"}, {3.f, "Both"}}),
-        toggle("Blob Shadows: Things", "vr_entity_shadows").help("Blob shadows under monsters and items, away from their light."),
-        toggle("Model Lighting", "vr_model_lighting").help("Monsters, items and weapons are shaded from the map's lights, not one fixed direction."),
-        toggle("Directional Ambient", "vr_model_ambient_dir").help("Monsters, items, weapons and hands take the light around them: brighter on the side facing lit walls, darker facing shade."),
-        slider("Ambient Contrast", "vr_model_ambient_contrast", 0.f, 1.5f, 0.05f, "%.2f").help("How much brighter the lit side is than the shaded one (0: one brightness all round)."),
-        slider("Rim Light", "vr_rim_light", 0.f, 1.f, 0.05f, "%.2f").help("A faint light round the edges of monsters and things, in the light around them, so they stand out from dark backgrounds (0 off)."),
-        toggle("Weapon Reflections", "vr_weapon_reflections").help("The metal of your weapons (barrels, blades) reflects the room around you, dimmer in the dark."),
-        slider("Reflection Strength", "vr_weapon_reflections_strength", 0.f, 2.f, 0.1f, "%.1fx").help("How strongly your weapons' metal reflects the room."),
-        toggle("Relit Maps", "vr_relit_maps").help("Maps re-lit with shadows, ambient occlusion and colour, if made (Misc/quakevr/relight_maps.py). Next map."),
+        cycle("Preset", "vr_graphics_preset", {{-1.f, "Custom"}, {0.f, "Off (Quake)"}, {1.f, "Low"}, {2.f, "Medium"}, {3.f, "High"}, {4.f, "Ultra"}})
+            .help("Sets the settings on all the Graphics pages: lights, shadows, surfaces, liquids, post-processing, models and effects. Change them after to taste."),
+        header("Image"),
         cycle("Anti-aliasing", "vid_fsaa", {{0.f, "Off"}, {2.f, "2x"}, {4.f, "4x"}, {8.f, "8x"}}).help("Multisampling: smoother edges, some GPU time."),
+        cycle("Smooth Textures", "vr_texture_smooth", {{0.f, "As gl_texturemode"}, {1.f, "Replacements"}, {2.f, "All"}})
+            .help("Smooth filtering for high-resolution replacement textures, or for all textures."),
+        toggle("Fence Coverage", "vr_alpha_coverage").help("Fences and grates keep their bars at a distance instead of thinning out and crawling; with Anti-aliasing (MSAA) their edges are smoothed too."),
+        toggle("Relit Maps", "vr_relit_maps").help("Maps re-lit with shadows, ambient occlusion and colour, if made (Misc/quakevr/relight_maps.py). Next map."),
+        slider("Headset Gamma", "vr_gamma", 0.5f, 1.5f, 0.02f, "%.2f").help("The headset's own gamma (lower is brighter; 1 neutral). The desktop's is not used."),
+        slider("Headset Contrast", "vr_contrast", 0.5f, 2.f, 0.02f, "%.2f").help("The headset's own contrast (1 neutral)."),
+        header("More Graphics"),
+        open("Lights", pageIndex(pageGraphicsLights)),
+        open("Shadows", pageIndex(pageGraphicsShadows)),
+        open("Surfaces", pageIndex(pageGraphicsSurfaces)),
+        open("Liquids", pageIndex(pageGraphicsLiquids)),
+        open("Post-processing", pageIndex(pageGraphicsPost)),
+        open("Models and Effects", pageIndex(pageGraphicsModels)),
+        open("Particles", pageIndex(pageParticleSettings)),
+        open("Transparency", pageIndex(pageTransparencyOptions)),
+        header("Performance"),
+        cycle("Performance Profile", "vr_profile", {{0.f, "Off"}, {1.f, "Record"}, {2.f, "Record and show"}})
+            .help("Record CPU and GPU time per effect into quakevr/profile/ every 5 seconds (and show the top costs over the wrist). Not kept after a restart."),
+        cycle("Memory Log", "vr_memstats_log", {{0.f, "Off"}, {30.f, "Every 30 s"}, {60.f, "Every minute"}, {300.f, "Every 5 minutes"}})
+            .help("Write memory use and the frame rate to quakevr/profile/memstats_<date>.csv, and after each map load."),
+    };
+}
 
+// Graphics: the light, dynamic lights and the things that make them.
+[[nodiscard]] std::vector<Item> pageGraphicsLights()
+{
+    return {
         slider("Light Contrast", "vr_light_contrast", 1.f, 2.5f, 0.02f, "%.2f").help("Darker shade, lamps as bright: the level's own light sources carry the scene (1: Quake's)."),
-        slider("Bloom", "vr_bloom", 0.f, 1.5f, 0.02f, "%.2f").help("Glow around lamps, glowing panels and buttons, flashes and explosions (0 off)."),
-        slider("Bloom Threshold", "vr_bloom_threshold", 0.3f, 1.f, 0.01f, "%.2f").help("How bright a thing must be to glow."),
-        slider("Bloom Size", "vr_bloom_radius", 0.25f, 3.f, 0.05f, "%.2f"),
-        slider("Bloom: White Lights", "vr_bloom_white", 0.f, 2.f, 0.02f, "%.2fx").help("Glow of white and pale lights (lamps, flashes), times Bloom."),
-        slider("Bloom: Coloured Lights", "vr_bloom_color", 0.f, 3.f, 0.05f, "%.2fx").help("Glow of coloured lights (red buttons, blue panels), times Bloom."),
-        slider("Bloom: Adapt", "vr_bloom_adapt", 0.f, 10.f, 0.25f, "%.2f").help("How much bloom weakens when much of the view glows (a brightly lit map); 0: never."),
+        toggle("Coloured Lights", "vr_colored_lights").help("Warm muzzle flashes, rockets and explosions; the lightning gun's blue."),
+        cycle("Dynamic Light Falloff", "vr_dlight_falloff", {{0.f, "Quake"}, {1.f, "DarkPlaces"}})
+            .help("DarkPlaces: strong lights, full near and smoothly gone at the edge. Quake: dimmer, fading linearly all the way."),
+        toggle("Uncapped Dynamic Lights", "vr_dlight_uncapped").help("Dynamic lights add fully to bright walls (Quake caps them)."),
+        toggle("Dynamic Lights on Models", "vr_dlight_models").help("Per pixel, by the angle, and shadowed (off: Quake's flat brightening)."),
+        slider("Dynamic Light Angle", "vr_dlight_angle", 0.f, 1.f, 0.25f, "%.2f")
+            .help("How much surfaces facing away from a dynamic light get less of it (0: Quake's)."),
+        header("Light Sources"),
         slider("Muzzle Flash Light", "vr_flash_scale", 0.f, 3.f, 0.05f, "%.2fx").help("How far your shots light up the room (0 off)."),
         slider("Explosion Light", "vr_explosion_light_scale", 0.f, 3.f, 0.05f, "%.2fx"),
-        toggle("Soft Particles", "vr_soft_particles").help("Smoke, fire, blood and explosions fade out where they meet walls and floors instead of cutting hard lines through them."),
-        slider("Soft Particle Distance", "vr_soft_particles_scale", 0.25f, 3.f, 0.25f, "%.2fx").help("How far in front of walls and floors they start fading (bigger: softer, but thin puffs against a wall fainter)."),
-        toggle("Decals", "vr_decals").help("Blood splats, gib trails, scorch marks and bullet chips on walls and floors."),
-        slider("Decal Lifetime", "vr_decal_life", 10.f, 600.f, 10.f, "%.0f s"),
-        slider("Max Decals", "vr_decal_max", 64.f, 4096.f, 64.f, "%.0f"),
-        toggle("Gib Blood", "vr_gib_blood").help("Gibs and heads leave a trail of blood drops and splat where they hit walls and floors. Off: Quake's trail."),
-        slider("Gib Blood Trail", "vr_gib_blood_trail", 0.f, 3.f, 0.25f, "%.2fx").help("How dense their trail of blood and drops is (0 none)."),
-        toggle("Coloured Lights", "vr_colored_lights").help("Warm muzzle flashes, rockets and explosions; the lightning gun's blue."),
         slider("Projectile Light", "vr_projectile_lights", 0.f, 2.f, 0.05f, "%.2fx").help("Hell knight flames, scrag spit, vore balls and lasers light up the room, and where they hit (0 off)."),
         slider("Lava Nail Lights", "vr_lavanail_lights", 0.f, 16.f, 1.f, "%.0f").help("How many lava nails light up the room at once, the nearest; sized by Projectile Light (0 none)."),
         slider("Lightning Beam Lights", "vr_beam_lights", 0.f, 12.f, 1.f, "%.0f").help("Lightning beams light the room along their length with this many flickering lights (0 off)."),
@@ -272,69 +288,13 @@ void resetSwimming()
         slider("Torch Light Brightness", "vr_torch_light_scale", 0.f, 3.f, 0.05f, "%.2fx").help("How bright the torches' flickering light is, on top of the map's own light."),
         slider("Torch Light Shadows", "vr_torch_light_shadows", 0.f, 4.f, 1.f, "%.0f").help("How many of the nearest torches cast shadows (each takes one of the dynamic lights' shadows; 0 none)."),
         slider("Ammo Screen Light", "vr_weapon_screen_light", 0.f, 3.f, 0.1f, "%.1fx").help("Your weapons' ammo screens cast a small light in their colour on what is in front of them (0 off)."),
-        slider("Screen Glow", "vr_screen_glow", 0.f, 3.f, 0.1f, "%.1fx").help("The wrist gadget's and your weapons' screens glow softly round their edges (0 off)."),
-        slider("Screen Text Glow", "vr_screen_text_glow", 0.f, 3.f, 0.1f, "%.1fx").help("The text, numbers and icons on those screens glow: bright whitish cores, a soft halo (0 off)."),
-        slider("Weapon Sight Glow", "vr_weapon_glow", 0.f, 3.f, 0.1f, "%.1fx").help("Your weapons' glowing parts, as the shotgun's sights, shine brighter and glow (0: as Quake)."),
-        hueSlider("Weapon Sight Hue", vr_sight_hue).help("The shotgun's and double shotgun's iron sights: 30 their own orange, 0 red, 120 green, 240 blue; Player's: the Player Effects Hue (also on the Wrist Gadget page, with their saturation)."),
-        cycle("Dynamic Light Falloff", "vr_dlight_falloff", {{0.f, "Quake"}, {1.f, "DarkPlaces"}})
-            .help("DarkPlaces: strong lights, full near and smoothly gone at the edge. Quake: dimmer, fading linearly all the way."),
-        slider("Light Sheen", "vr_specular", 0.f, 0.5f, 0.025f, "%.3f").help("Dynamic lights glint off walls and models (0 off)."),
-        toggle("Sheen Anti-Aliasing", "vr_specular_aa").help("Distant bumps' sheen and the water's glints stay steady instead of sparkling as your head moves."),
-        toggle("Bump Maps", "vr_normalmaps").help("Bumps made from the textures, shown by the map's light and dynamic lights. Next map."),
-        slider("Bump Depth", "vr_normalmap_strength", 0.f, 3.f, 0.05f, "%.2f"),
-        slider("Bumps in Map Light", "vr_normalmap_baked", 0.f, 2.f, 0.1f, "%.1f").help("How much the bumps shade the map's own light, lit from where it seems to come from (0: only dynamic lights show them)."),
-        toggle("Real Light Directions", "vr_deluxemap").help("Relit maps know where their light comes from at every point (.lux): the bumps are lit from there and the lamps glint off them. Off: guessed from where the light gets brighter (always so on maps without it)."),
-        slider("Bumps on Models", "vr_normalmap_models", 0.f, 2.f, 0.1f, "%.1f").help("How much the bumps shade models' own light (monsters, pickups, weapons; held ones half), lit from the map's lights (times Bumps in Map Light; 0: only dynamic lights show them)."),
-        toggle("Parallax", "vr_parallax").help("Walls and floors look carved: their dark parts sink in and shift as you move your head (needs Bump Maps)."),
-        slider("Parallax Depth", "vr_parallax_depth", 0.5f, 6.f, 0.25f, "%.2f").help("How deep the darkest parts of the textures sink, in Quake units."),
-        slider("Parallax Distance", "vr_parallax_distance", 128.f, 2048.f, 64.f, "%.0f").help("How far away walls still look carved (further costs more)."),
-        slider("Parallax Items Depth", "vr_parallax_items", 0.f, 4.f, 0.25f, "%.2f").help("How deep the ammo and health boxes look carved, in their own units (scaled with the box; 0 off)."),
-        slider("Parallax Models Depth", "vr_parallax_models", 0.f, 2.f, 0.125f, "%.3f").help("How deep weapons, pickups, monsters and your body look carved, in their own units (0 off, the default: on Quake's blocky skins it bends the texels)."),
-        toggle("Detail Textures", "vr_detail").help("A fine grain of stone, metal, wood or grime over walls and floors close by, where Quake's textures turn into big blurry texels."),
-        slider("Detail Strength", "vr_detail_strength", 0.f, 2.f, 0.1f, "%.1f").help("How strongly the detail textures show."),
-        slider("Detail Distance", "vr_detail_distance", 64.f, 384.f, 16.f, "%.0f").help("How far away, in Quake units, the detail textures still show (they fade in closer than this)."),
-        toggle("Models Lit as the World", "vr_model_light_parity").help("Monsters and items as bright as the floor they stand on (off: Quake's brighter models)."),
-        slider("Hands' Least Light", "vr_viewmodel_minlight", 0.f, 32.f, 1.f, "%.0f").help("How lit your hands and weapons stay in the dark (Quake: 24)."),
-        cycle("Smooth Textures", "vr_texture_smooth", {{0.f, "As gl_texturemode"}, {1.f, "Replacements"}, {2.f, "All"}})
-            .help("Smooth filtering for high-resolution replacement textures, or for all textures."),
-        toggle("Fence Coverage", "vr_alpha_coverage").help("Fences and grates keep their bars at a distance instead of thinning out and crawling; with Anti-aliasing (MSAA) their edges are smoothed too."),
-        slider("Headset Gamma", "vr_gamma", 0.5f, 1.5f, 0.02f, "%.2f").help("The headset's own gamma (lower is brighter; 1 neutral). The desktop's is not used."),
-        slider("Headset Contrast", "vr_contrast", 0.5f, 2.f, 0.02f, "%.2f").help("The headset's own contrast (1 neutral)."),
-        toggle("Tone Mapping", "vr_tonemap").help("Bright lights, flashes, lava and explosions keep their colour and detail instead of clipping to yellow and white (a filmic shoulder). The rest is unchanged. Off: Quake's."),
-        slider("Exposure", "vr_exposure", 0.5f, 2.f, 0.05f, "%.2f").help("Brightness before tone mapping (1: as Quake)."),
-        cycle("Colour Grade", "vr_grade", {{0.f, "Off"}, {1.f, "Quake VR"}, {2.f, "Cold"}, {3.f, "Warm"}, {4.f, "By Episode"}})
-            .help("A subtle colour mood. Quake VR: a touch of contrast, cool shadows, warm highlights. By Episode: cold, mossy, warm, violet for episodes 1 to 4."),
-        slider("Grade Strength", "vr_grade_strength", 0.f, 1.f, 0.05f, "%.2f"),
-        cycle("Dither", "vr_dither", {{0.f, "Off"}, {1.f, "Per Eye"}, {2.f, "Per Eye, Moving"}, {3.f, "Same in Both Eyes"}})
-            .help("A faint noise of one step that hides banding in dark gradients (fog, dark rooms, under water)."),
+    };
+}
 
-        header("Water and Liquids"),
-        slider("Waves", "vr_water_waves", 0.f, 2.f, 0.1f, "%.1f").help("Waves on water, slime and lava, in the lighting (the surfaces stay flat). 0: Quake's flat liquids."),
-        slider("Water Reflection", "vr_water_fresnel", 0.f, 2.f, 0.1f, "%.1f").help("Water is clearer looking straight down and reflects the room at grazing angles."),
-        slider("Water Refraction", "vr_water_refraction", 0.f, 2.f, 0.1f, "%.1f").help("What is under the water is bent by the waves (needs no anti-aliasing and r_oit 1)."),
-        slider("Water Glints", "vr_water_glints", 0.f, 2.f, 0.1f, "%.1f").help("Light glinting off the waves."),
-        slider("Lava Glow", "vr_water_lava_glow", 0.f, 2.f, 0.1f, "%.1f").help("Lava glows, its hot parts brightest, pulsing slowly."),
-        slider("Caustics", "vr_water_caustics", 0.f, 1.5f, 0.05f, "%.2f").help("Dappled light on floors and walls under water."),
-        slider("Underwater View", "vr_water_underwater", 0.f, 1.5f, 0.1f, "%.1f").help("With your head under: the liquid's fog and tint, a little blur. 0: Quake's colour shift."),
-        slider("Underwater Wobble", "vr_water_wobble", 0.f, 2.f, 0.1f, "%.1f").help("A slow wobble of the view under water. Turn it down or off if it makes you uneasy."),
-        toggle("Real Waves", "vr_water_geo_waves").help("The surfaces of water, slime and lava rise and fall in long swells (still at the walls). Off: flat, the waves only in the lighting."),
-        slider("Real Wave Height", "vr_water_geo_amplitude", 0.5f, 24.f, 0.5f, "%.1f").help("How high the swells rise, in units (lava's are bigger and slower, slime's smaller)."),
-        slider("Shoreline Foam", "vr_water_foam", 0.f, 2.f, 0.1f, "%.1f").help("Foam where water meets walls, steps and things standing in it; a scum on slime, a glowing rim on lava (0 off)."),
-        slider("Heat Haze", "vr_heat_haze", 0.f, 1.f, 0.1f, "%.1f").help("The air shimmers over lava, round explosions and over flames (0 off)."),
-        slider("Splashes", "vr_water_splash", 0.f, 2.f, 0.1f, "%.1f").help("Drops, foam and ripples where shots, thrown things, you and your hands hit water, slime or lava, and as you wade: how many (0 off)."),
-        slider("Splash Size", "vr_water_splash_size", 0.5f, 2.5f, 0.1f, "%.1f").help("How big the splashes' drops, spray, foam and rings are."),
-        slider("Splash Ring Speed", "vr_water_splash_ring_speed", 0.3f, 2.f, 0.1f, "%.1f").help("How fast the rings on the surface spread (1: riding the ripples' crest)."),
-        slider("Splash Ring Size", "vr_water_splash_ring_size", 0.f, 2.5f, 0.1f, "%.1f").help("How big the rings start and how long they last, so how far they get (0: none)."),
-        toggle("Ripples", "vr_water_ripples").help("Splashes, wading and strokes send rings of waves across the surface, in its lighting and, with Real Waves' grid, its shape."),
-        slider("Ripple Height", "vr_water_ripple_amplitude", 0.5f, 8.f, 0.5f, "%.1f").help("How high a hand's slap's ripples rise, in units (a shot's about half, a body's about twice)."),
-        slider("Ripple Speed", "vr_water_ripple_speed", 10.f, 100.f, 2.f, "%.0f").help("How fast the rings of ripples spread, in units a second (lava's a third, slime's slower)."),
-        slider("Ripple Duration", "vr_water_ripple_decay", 0.3f, 4.f, 0.1f, "%.1f").help("Seconds for the ripples to die down to a third."),
-        slider("Ripple Wavelength", "vr_water_ripple_wavelength", 16.f, 128.f, 4.f, "%.0f").help("Units between the ripples' crests. In the shape from two grid cells up (Real Waves' cell), fully from three."),
-        slider("Water Sounds", "vr_water_sounds", 0.f, 1.f, 0.1f, "%.1f").help("Volume of splashes, shots into water, wading and swimming strokes (0 off: Quake's own splash sounds only)."),
-
-        header("Lights and Shadows"),
-        cycle("Preset", "vr_graphics_preset", {{-1.f, "Custom"}, {0.f, "Off (Quake)"}, {1.f, "Low"}, {2.f, "Medium"}, {3.f, "High"}, {4.f, "Ultra"}})
-            .help("Sets everything below (and the model options above). Change them after to taste."),
+// Graphics: shadows, and the blob shadows standing in for them.
+[[nodiscard]] std::vector<Item> pageGraphicsShadows()
+{
+    return {
         slider("Shadowed Dynamic Lights", "vr_shadow_dlights", 0.f, 12.f, 1.f, "%.0f")
             .help("Explosions, rockets and other dynamic lights casting shadows, the most important first (0 off)."),
         cycle("Dynamic Shadow Detail", "vr_shadow_dlight_size", {{128.f, "128"}, {256.f, "256"}, {512.f, "512"}, {1024.f, "1024"}})
@@ -355,15 +315,117 @@ void resetSwimming()
             .help("Room for all shadows at once: smaller fits fewer or coarser ones (64 MB at 4096)."),
         slider("Shadow Bias", "vr_shadow_bias", 0.f, 4.f, 0.25f, "%.2f")
             .help("Higher: fewer speckles on lit surfaces; lower: shadows start closer to what casts them."),
-        toggle("Dynamic Lights on Models", "vr_dlight_models").help("Per pixel, by the angle, and shadowed (off: Quake's flat brightening)."),
-        slider("Dynamic Light Angle", "vr_dlight_angle", 0.f, 1.f, 0.25f, "%.2f")
-            .help("How much surfaces facing away from a dynamic light get less of it (0: Quake's)."),
-        toggle("Uncapped Dynamic Lights", "vr_dlight_uncapped").help("Dynamic lights add fully to bright walls (Quake caps them)."),
         toggle("Shadow Statistics", "vr_shadow_stats").help("Print what is shadowed and its GPU time, once a second, to the console."),
-        cycle("Performance Profile", "vr_profile", {{0.f, "Off"}, {1.f, "Record"}, {2.f, "Record and show"}})
-            .help("Record CPU and GPU time per effect into quakevr/profile/ every 5 seconds (and show the top costs over the wrist). Not kept after a restart."),
-        cycle("Memory Log", "vr_memstats_log", {{0.f, "Off"}, {30.f, "Every 30 s"}, {60.f, "Every minute"}, {300.f, "Every 5 minutes"}})
-            .help("Write memory use and the frame rate to quakevr/profile/memstats_<date>.csv, and after each map load."),
+        header("Blob Shadows"),
+        cycle("Blob Shadows", "vr_blob_shadows", {{0.f, "Off"}, {1.f, "Always"}, {2.f, "Auto"}})
+            .help("Dark discs under you and things, a cheap stand-in for shadows. Auto: only where the real shadows (above) do not fall."),
+        cycle("Blob Shadows: You", "vr_player_shadows", {{0.f, "Off"}, {1.f, "Hands"}, {2.f, "Body"}, {3.f, "Both"}}),
+        toggle("Blob Shadows: Things", "vr_entity_shadows").help("Blob shadows under monsters and items, away from their light."),
+    };
+}
+
+// Graphics: the walls' and models' surfaces: sheen, bumps, parallax, detail.
+[[nodiscard]] std::vector<Item> pageGraphicsSurfaces()
+{
+    return {
+        slider("Light Sheen", "vr_specular", 0.f, 0.5f, 0.025f, "%.3f").help("Dynamic lights glint off walls and models (0 off)."),
+        toggle("Sheen Anti-Aliasing", "vr_specular_aa").help("Distant bumps' sheen and the water's glints stay steady instead of sparkling as your head moves."),
+        header("Bumps"),
+        toggle("Bump Maps", "vr_normalmaps").help("Bumps made from the textures, shown by the map's light and dynamic lights. Next map."),
+        slider("Bump Depth", "vr_normalmap_strength", 0.f, 3.f, 0.05f, "%.2f"),
+        slider("Bumps in Map Light", "vr_normalmap_baked", 0.f, 2.f, 0.1f, "%.1f").help("How much the bumps shade the map's own light, lit from where it seems to come from (0: only dynamic lights show them)."),
+        toggle("Real Light Directions", "vr_deluxemap").help("Relit maps know where their light comes from at every point (.lux): the bumps are lit from there and the lamps glint off them. Off: guessed from where the light gets brighter (always so on maps without it)."),
+        slider("Bumps on Models", "vr_normalmap_models", 0.f, 2.f, 0.1f, "%.1f").help("How much the bumps shade models' own light (monsters, pickups, weapons; held ones half), lit from the map's lights (times Bumps in Map Light; 0: only dynamic lights show them)."),
+        header("Parallax"),
+        toggle("Parallax", "vr_parallax").help("Walls and floors look carved: their dark parts sink in and shift as you move your head (needs Bump Maps)."),
+        slider("Parallax Depth", "vr_parallax_depth", 0.5f, 6.f, 0.25f, "%.2f").help("How deep the darkest parts of the textures sink, in Quake units."),
+        slider("Parallax Distance", "vr_parallax_distance", 128.f, 2048.f, 64.f, "%.0f").help("How far away walls still look carved (further costs more)."),
+        slider("Parallax Items Depth", "vr_parallax_items", 0.f, 4.f, 0.25f, "%.2f").help("How deep the ammo and health boxes look carved, in their own units (scaled with the box; 0 off)."),
+        slider("Parallax Models Depth", "vr_parallax_models", 0.f, 2.f, 0.125f, "%.3f").help("How deep weapons, pickups, monsters and your body look carved, in their own units (0 off, the default: on Quake's blocky skins it bends the texels)."),
+        header("Detail Textures"),
+        toggle("Detail Textures", "vr_detail").help("A fine grain of stone, metal, wood or grime over walls and floors close by, where Quake's textures turn into big blurry texels."),
+        slider("Detail Strength", "vr_detail_strength", 0.f, 2.f, 0.1f, "%.1f").help("How strongly the detail textures show."),
+        slider("Detail Distance", "vr_detail_distance", 64.f, 384.f, 16.f, "%.0f").help("How far away, in Quake units, the detail textures still show (they fade in closer than this)."),
+    };
+}
+
+// Graphics: water, slime and lava.
+[[nodiscard]] std::vector<Item> pageGraphicsLiquids()
+{
+    return {
+        slider("Waves", "vr_water_waves", 0.f, 2.f, 0.1f, "%.1f").help("Waves on water, slime and lava, in the lighting (the surfaces stay flat). 0: Quake's flat liquids."),
+        slider("Water Reflection", "vr_water_fresnel", 0.f, 2.f, 0.1f, "%.1f").help("Water is clearer looking straight down and reflects the room at grazing angles."),
+        slider("Water Refraction", "vr_water_refraction", 0.f, 2.f, 0.1f, "%.1f").help("What is under the water is bent by the waves (needs no anti-aliasing and r_oit 1)."),
+        slider("Water Glints", "vr_water_glints", 0.f, 2.f, 0.1f, "%.1f").help("Light glinting off the waves."),
+        slider("Lava Glow", "vr_water_lava_glow", 0.f, 2.f, 0.1f, "%.1f").help("Lava glows, its hot parts brightest, pulsing slowly."),
+        toggle("Real Waves", "vr_water_geo_waves").help("The surfaces of water, slime and lava rise and fall in long swells (still at the walls). Off: flat, the waves only in the lighting."),
+        slider("Real Wave Height", "vr_water_geo_amplitude", 0.5f, 24.f, 0.5f, "%.1f").help("How high the swells rise, in units (lava's are bigger and slower, slime's smaller)."),
+        slider("Shoreline Foam", "vr_water_foam", 0.f, 2.f, 0.1f, "%.1f").help("Foam where water meets walls, steps and things standing in it; a scum on slime, a glowing rim on lava (0 off)."),
+        slider("Heat Haze", "vr_heat_haze", 0.f, 1.f, 0.1f, "%.1f").help("The air shimmers over lava, round explosions and over flames (0 off)."),
+        header("Under Water"),
+        slider("Caustics", "vr_water_caustics", 0.f, 1.5f, 0.05f, "%.2f").help("Dappled light on floors and walls under water."),
+        slider("Underwater View", "vr_water_underwater", 0.f, 1.5f, 0.1f, "%.1f").help("With your head under: the liquid's fog and tint, a little blur. 0: Quake's colour shift."),
+        slider("Underwater Wobble", "vr_water_wobble", 0.f, 2.f, 0.1f, "%.1f").help("A slow wobble of the view under water. Turn it down or off if it makes you uneasy."),
+        header("Splashes and Ripples"),
+        slider("Splashes", "vr_water_splash", 0.f, 2.f, 0.1f, "%.1f").help("Drops, foam and ripples where shots, thrown things, you and your hands hit water, slime or lava, and as you wade: how many (0 off)."),
+        slider("Splash Size", "vr_water_splash_size", 0.5f, 2.5f, 0.1f, "%.1f").help("How big the splashes' drops, spray, foam and rings are."),
+        slider("Splash Ring Speed", "vr_water_splash_ring_speed", 0.3f, 2.f, 0.1f, "%.1f").help("How fast the rings on the surface spread (1: riding the ripples' crest)."),
+        slider("Splash Ring Size", "vr_water_splash_ring_size", 0.f, 2.5f, 0.1f, "%.1f").help("How big the rings start and how long they last, so how far they get (0: none)."),
+        toggle("Ripples", "vr_water_ripples").help("Splashes, wading and strokes send rings of waves across the surface, in its lighting and, with Real Waves' grid, its shape."),
+        slider("Ripple Height", "vr_water_ripple_amplitude", 0.5f, 8.f, 0.5f, "%.1f").help("How high a hand's slap's ripples rise, in units (a shot's about half, a body's about twice)."),
+        slider("Ripple Speed", "vr_water_ripple_speed", 10.f, 100.f, 2.f, "%.0f").help("How fast the rings of ripples spread, in units a second (lava's a third, slime's slower)."),
+        slider("Ripple Duration", "vr_water_ripple_decay", 0.3f, 4.f, 0.1f, "%.1f").help("Seconds for the ripples to die down to a third."),
+        slider("Ripple Wavelength", "vr_water_ripple_wavelength", 16.f, 128.f, 4.f, "%.0f").help("Units between the ripples' crests. In the shape from two grid cells up (Real Waves' cell), fully from three."),
+        slider("Water Sounds", "vr_water_sounds", 0.f, 1.f, 0.1f, "%.1f").help("Volume of splashes, shots into water, wading and swimming strokes (0 off: Quake's own splash sounds only)."),
+    };
+}
+
+// Graphics: over the whole image: bloom, tone mapping, the colour grade, dither.
+[[nodiscard]] std::vector<Item> pageGraphicsPost()
+{
+    return {
+        slider("Bloom", "vr_bloom", 0.f, 1.5f, 0.02f, "%.2f").help("Glow around lamps, glowing panels and buttons, flashes and explosions (0 off)."),
+        slider("Bloom Threshold", "vr_bloom_threshold", 0.3f, 1.f, 0.01f, "%.2f").help("How bright a thing must be to glow."),
+        slider("Bloom Size", "vr_bloom_radius", 0.25f, 3.f, 0.05f, "%.2f"),
+        slider("Bloom: White Lights", "vr_bloom_white", 0.f, 2.f, 0.02f, "%.2fx").help("Glow of white and pale lights (lamps, flashes), times Bloom."),
+        slider("Bloom: Coloured Lights", "vr_bloom_color", 0.f, 3.f, 0.05f, "%.2fx").help("Glow of coloured lights (red buttons, blue panels), times Bloom."),
+        slider("Bloom: Adapt", "vr_bloom_adapt", 0.f, 10.f, 0.25f, "%.2f").help("How much bloom weakens when much of the view glows (a brightly lit map); 0: never."),
+        header("Tone and Colour"),
+        toggle("Tone Mapping", "vr_tonemap").help("Bright lights, flashes, lava and explosions keep their colour and detail instead of clipping to yellow and white (a filmic shoulder). The rest is unchanged. Off: Quake's."),
+        slider("Exposure", "vr_exposure", 0.5f, 2.f, 0.05f, "%.2f").help("Brightness before tone mapping (1: as Quake)."),
+        cycle("Colour Grade", "vr_grade", {{0.f, "Off"}, {1.f, "Quake VR"}, {2.f, "Cold"}, {3.f, "Warm"}, {4.f, "By Episode"}})
+            .help("A subtle colour mood. Quake VR: a touch of contrast, cool shadows, warm highlights. By Episode: cold, mossy, warm, violet for episodes 1 to 4."),
+        slider("Grade Strength", "vr_grade_strength", 0.f, 1.f, 0.05f, "%.2f"),
+        cycle("Dither", "vr_dither", {{0.f, "Off"}, {1.f, "Per Eye"}, {2.f, "Per Eye, Moving"}, {3.f, "Same in Both Eyes"}})
+            .help("A faint noise of one step that hides banding in dark gradients (fog, dark rooms, under water)."),
+    };
+}
+
+// Graphics: models' light and reflections, glowing screens and sights, particles and decals.
+[[nodiscard]] std::vector<Item> pageGraphicsModels()
+{
+    return {
+        toggle("Model Lighting", "vr_model_lighting").help("Monsters, items and weapons are shaded from the map's lights, not one fixed direction."),
+        toggle("Models Lit as the World", "vr_model_light_parity").help("Monsters and items as bright as the floor they stand on (off: Quake's brighter models)."),
+        toggle("Directional Ambient", "vr_model_ambient_dir").help("Monsters, items, weapons and hands take the light around them: brighter on the side facing lit walls, darker facing shade."),
+        slider("Ambient Contrast", "vr_model_ambient_contrast", 0.f, 1.5f, 0.05f, "%.2f").help("How much brighter the lit side is than the shaded one (0: one brightness all round)."),
+        slider("Rim Light", "vr_rim_light", 0.f, 1.f, 0.05f, "%.2f").help("A faint light round the edges of monsters and things, in the light around them, so they stand out from dark backgrounds (0 off)."),
+        slider("Hands' Least Light", "vr_viewmodel_minlight", 0.f, 32.f, 1.f, "%.0f").help("How lit your hands and weapons stay in the dark (Quake: 24)."),
+        toggle("Weapon Reflections", "vr_weapon_reflections").help("The metal of your weapons (barrels, blades) reflects the room around you, dimmer in the dark."),
+        slider("Reflection Strength", "vr_weapon_reflections_strength", 0.f, 2.f, 0.1f, "%.1fx").help("How strongly your weapons' metal reflects the room."),
+        header("Glow"),
+        slider("Screen Glow", "vr_screen_glow", 0.f, 3.f, 0.1f, "%.1fx").help("The wrist gadget's and your weapons' screens glow softly round their edges (0 off)."),
+        slider("Screen Text Glow", "vr_screen_text_glow", 0.f, 3.f, 0.1f, "%.1fx").help("The text, numbers and icons on those screens glow: bright whitish cores, a soft halo (0 off)."),
+        slider("Weapon Sight Glow", "vr_weapon_glow", 0.f, 3.f, 0.1f, "%.1fx").help("Your weapons' glowing parts, as the shotgun's sights, shine brighter and glow (0: as Quake)."),
+        hueSlider("Weapon Sight Hue", vr_sight_hue).help("The shotgun's and double shotgun's iron sights: 30 their own orange, 0 red, 120 green, 240 blue; Player's: the Player Effects Hue (also on the Colours page, with their saturation)."),
+        header("Effects"),
+        toggle("Soft Particles", "vr_soft_particles").help("Smoke, fire, blood and explosions fade out where they meet walls and floors instead of cutting hard lines through them."),
+        slider("Soft Particle Distance", "vr_soft_particles_scale", 0.25f, 3.f, 0.25f, "%.2fx").help("How far in front of walls and floors they start fading (bigger: softer, but thin puffs against a wall fainter)."),
+        toggle("Decals", "vr_decals").help("Blood splats, gib trails, scorch marks and bullet chips on walls and floors."),
+        slider("Decal Lifetime", "vr_decal_life", 10.f, 600.f, 10.f, "%.0f s"),
+        slider("Max Decals", "vr_decal_max", 64.f, 4096.f, 64.f, "%.0f"),
+        toggle("Gib Blood", "vr_gib_blood").help("Gibs and heads leave a trail of blood drops and splat where they hit walls and floors. Off: Quake's trail."),
+        slider("Gib Blood Trail", "vr_gib_blood_trail", 0.f, 3.f, 0.25f, "%.2fx").help("How dense their trail of blood and drops is (0 none)."),
     };
 }
 

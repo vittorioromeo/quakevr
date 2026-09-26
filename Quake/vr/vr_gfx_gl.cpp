@@ -1,5 +1,5 @@
-// vr_gfx_gl.cpp -- vr_gfx.hpp on Ironwail's OpenGL renderer: one shader for all the module's
-// triangles, framebuffer-backed targets, and Ironwail's 2D functions (Draw_*, glcanvas) pointed
+// vr_gfx_gl.cpp -- vr_gfx.hpp on Ironwail's OpenGL renderer: one shader (a program per shade) for the
+// module's triangles, framebuffer-backed targets, and Ironwail's 2D functions (Draw_*, glcanvas) pointed
 // at a target. The only GL in the module besides the stereo view setup (vr_stereo.cpp), the
 // OpenXR graphics binding and the engine's own entity hooks.
 
@@ -38,7 +38,12 @@ void main()
 }
 )";
 
-// Mode: the Shade; Params: its settings (State::params).
+// MODE: the Shade, one program each (compiled with "#define MODE n" and BLENDED, programFor): each gets only the
+// registers its own shade needs (the screen's glow needs many; a particle's texture read few), no branch on the
+// mode. BLENDED (every blend but Opaque): a fragment that adds nothing is discarded (all four zero: with every
+// blend it leaves the target as it was), so the blend unit skips its read and write (the transparent part of a
+// particle's or decal's quad), and a soft one reads the scene's distances only where it shows. Params: the shade's
+// settings (State::params).
 //
 // Mode 4, a screen (the wrist gadget's, the ammo screens'): the texture's brightness (between its
 // luminance and its brightest channel, so that the status bar's gold numbers and the face read as
@@ -49,8 +54,7 @@ void main()
 // thick. Seeded by time only: both eyes see the same. With glow s (Params.w, vr_screen_text_glow):
 // the lit strokes' cores whitish and a soft halo round them (glow(): from the texture's mipmaps),
 // under the scanlines and torn with the rest.
-constexpr const char* fragmentShader = R"(#version 430
-layout(location = 1) uniform int Mode;
+constexpr const char* fragmentShader = R"(
 layout(location = 2) uniform vec4 Params;
 layout(location = 3) uniform vec3 Size; // Mode 4's virtual screen: pixels across, down, scanlines a pixel
 layout(location = 4) uniform int SoftOn; // State::sceneDistances on unit 1
@@ -149,30 +153,25 @@ vec4 screen()
 }
 void main()
 {
-    if(Mode == 1)
-    {
-        float falloff = clamp(1.0 - dot(uv, uv), 0.0, 1.0);
-        result = vec4(color.rgb, color.a * falloff);
-    }
-    else if(Mode == 2)
-    {
-        result = texture(Tex, uv) * color;
-    }
-    else if(Mode == 3)
-    {
-        vec4 c = texture(Tex, uv);
-        if(c.a < 0.666)
-            discard;
-        result = vec4(c.rgb * color.rgb, 1.0);
-    }
-    else if(Mode == 4)
-    {
-        result = screen();
-    }
-    else
-    {
-        result = color;
-    }
+#if MODE == 1
+    float falloff = clamp(1.0 - dot(uv, uv), 0.0, 1.0);
+    result = vec4(color.rgb, color.a * falloff);
+#elif MODE == 2
+    result = texture(Tex, uv) * color;
+#elif MODE == 3
+    vec4 c = texture(Tex, uv);
+    if(c.a < 0.666)
+        discard;
+    result = vec4(c.rgb * color.rgb, 1.0);
+#elif MODE == 4
+    result = screen();
+#else
+    result = color;
+#endif
+#if BLENDED
+    if(result == vec4(0.0))
+        discard;
+#endif
     // Soft: fading out as the opaque scene comes close behind (premultiplied: all four). The distances are half the
     // target's size, each the nearest of its four pixels.
     if(SoftOn != 0 && soft > 0.0)
@@ -184,8 +183,10 @@ void main()
 }
 )";
 
-GLuint program = 0;
-bool programFailed = false;
+// One program per shade and whether it blends without writing depth (programFor): 0 not made yet.
+constexpr int shadeCount = static_cast<int>(Shade::Screen) + 1;
+GLuint programs[shadeCount][2]{};
+bool programFailed[shadeCount][2]{};
 
 [[nodiscard]] GLuint compile(GLenum type, const char* source, const char* name)
 {
@@ -204,16 +205,21 @@ bool programFailed = false;
     return shader;
 }
 
-bool ensureProgram()
+// The program for a shade; blended: a blend other than Opaque, writing no depth (zero fragments discarded). 0 if it
+// does not build.
+GLuint programFor(Shade shade, bool blended)
 {
-    if(program || programFailed)
+    const int s = static_cast<int>(shade);
+    GLuint& p = programs[s][blended];
+    if(p || programFailed[s][blended])
     {
-        return program != 0;
+        return p;
     }
-
-    program = glProgram(vertexShader, fragmentShader, "vr triangles");
-    programFailed = !program;
-    return program != 0;
+    const std::string fragment = "#version 430\n#define MODE " + std::to_string(s) + "\n#define BLENDED " +
+                                 (blended ? "1" : "0") + "\n" + fragmentShader;
+    p = glProgram(vertexShader, fragment.c_str(), "vr triangles");
+    programFailed[s][blended] = !p;
+    return p;
 }
 
 // begin2D() / end2D().
@@ -287,7 +293,8 @@ unsigned glProgram(const char* vertex, const char* fragment, const char* name)
 
 void draw(std::span<const Vertex> triangles, const glm::mat4& mvp, const State& state, Texture texture)
 {
-    if(triangles.empty() || !ensureProgram())
+    const GLuint program = triangles.empty() ? 0 : programFor(state.shade, state.blend != Blend::Opaque && !state.depthWrite);
+    if(!program)
     {
         return;
     }
@@ -318,7 +325,6 @@ void draw(std::span<const Vertex> triangles, const glm::mat4& mvp, const State& 
         glBlendFunc(GL_SRC_ALPHA, GL_ONE);
     }
     GL_UniformMatrix4fvFunc(0, 1, GL_FALSE, &mvp[0][0]);
-    GL_Uniform1iFunc(1, static_cast<GLint>(state.shade));
     if(state.shade == Shade::Screen)
     {
         GL_Uniform4fFunc(2, state.params.x, state.params.y, state.params.z, state.params.w);

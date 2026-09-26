@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <random>
 #include <vector>
 
@@ -89,6 +90,10 @@ struct Particle
     bool additive{false}; // glows: added to the scene (else alpha blended)
     bool flat{false};     // lying flat (a ripple on a liquid), not facing the view
     bool plink{false};    // a drop that leaves a little ring where it falls back into its liquid (at `floor`)
+    // The cosine and sine of `angle` as of `csAngle` (buildQuads): worked out again only when it has turned since, not
+    // for every eye and frame (most particles never turn).
+    glm::vec2 cs{1.f, 0.f};
+    float csAngle{std::numeric_limits<float>::quiet_NaN()};
 };
 
 constexpr std::size_t maxParticles = 32768;
@@ -1742,6 +1747,7 @@ struct Softness
 // of pieces up to 10 units across (at most 12 a side), each corner at the surface's height there, `p.org.z - p.floor`
 // above it. Else a flat quad would sink into the crests (hidden by an opaque liquid) and float over the troughs.
 std::vector<gfx::Vertex> lyingVertices;
+std::size_t lyingCount = 0; // this view's (lyingVertices only grows: no vertex constructed again for each view)
 
 void lieOnLiquid(const Particle& p, const glm::vec3& r, const glm::vec3& u, const glm::vec4& uv, const glm::vec4& color, const glm::vec3& eye)
 {
@@ -1760,6 +1766,12 @@ void lieOnLiquid(const Particle& p, const glm::vec3& r, const glm::vec3& u, cons
             grid[static_cast<std::size_t>(j * (n + 1) + i)] = {pos, {uv.x + (uv.z - uv.x) * fu, uv.y + (uv.w - uv.y) * fr}, color, 0.f};
         }
     }
+    const std::size_t end = lyingCount + static_cast<std::size_t>(n * n * 6);
+    if(lyingVertices.size() < end)
+    {
+        lyingVertices.resize(end);
+    }
+    gfx::Vertex* out = lyingVertices.data() + lyingCount;
     for(int j = 0; j < n; j++)
     {
         for(int i = 0; i < n; i++)
@@ -1768,78 +1780,55 @@ void lieOnLiquid(const Particle& p, const glm::vec3& r, const glm::vec3& u, cons
             const gfx::Vertex& b = grid[static_cast<std::size_t>(j * (n + 1) + i + 1)];
             const gfx::Vertex& c = grid[static_cast<std::size_t>((j + 1) * (n + 1) + i)];
             const gfx::Vertex& d = grid[static_cast<std::size_t>((j + 1) * (n + 1) + i + 1)];
-            lyingVertices.insert(lyingVertices.end(), {a, b, d, a, d, c});
+            out[0] = a;
+            out[1] = b;
+            out[2] = d;
+            out[3] = a;
+            out[4] = d;
+            out[5] = c;
+            out += 6;
         }
     }
+    lyingCount = end;
 }
 
-} // namespace qvr::particles
+// This view's quads (`quads`, six vertices each; a splash's rings and foam into lyingVertices): only the particles in
+// its frustum (R_CullBox on a box round each, as big as its quad can reach: a streak 8 units more, the pieces lying
+// on the waves 64 more), so neither the CPU nor the GPU spends anything on the ones out of view (most of them, with a
+// headset's field of view). `soft`: moved towards the eye by their Softness (the scene's distances will be read).
+std::vector<gfx::Vertex> quads;
+std::size_t quadCount = 0; // this view's (quads only grows: no vertex constructed again for each view)
 
-// R_DrawSpriteModels: sprites (explosions, bubbles) left for VR_DrawSceneTranslucent, soft.
-extern "C" int VR_SoftSprites(void)
+void buildQuads(bool soft)
 {
-    return qvr::particles::softOn();
-}
-
-// R_DrawSpriteModelsSoft: a sprite's fade distance (as a puff of that radius). Not moved towards the eye: it writes
-// depth, as in the opaque pass, and would hide the particles in front of where it is (the explosion's smoke); an
-// explosion is set 8 units out from what the rocket hit.
-extern "C" float VR_SoftSpriteFade(float radius)
-{
-    return qvr::particles::softness(qvr::particles::CellExplosion, radius).fade;
-}
-
-// R_RenderScene, after the translucent pass: the sprites the opaque pass left (soft), the particles, depth-tested
-// against the scene.
-extern "C" void VR_DrawSceneTranslucent()
-{
-    QVR_GPU_PROFILE("vr particles");
-    using namespace qvr;
-    using namespace qvr::particles;
-
-    // The opaque scene's distances, for the soft ones (the liquids' when they made them this view).
-    const bool particles = (cl.protocolflags & PRFL_QUAKEVR) && !pool.empty() && atlas;
-    gfx::Texture distances = 0;
-    if((particles || R_SoftSpritesPending()) && softOn())
-    {
-        QVR_GPU_PROFILE("vr scene distances");
-        distances = water::opaqueSceneDistances();
-    }
-    if(R_SoftSpritesPending())
-    {
-        QVR_GPU_PROFILE("sprites");
-        R_DrawSpriteModelsSoft(distances); // first: they stood for opaque (and write depth)
-        if(distances && particles)
-        {
-            // The particles fade against them too (moved towards the eye, they would be drawn over them).
-            water::sceneDepthChanged();
-            distances = water::opaqueSceneDistances();
-        }
-    }
-
-    text3d::drawTranslucent(); // the floating texts, the wrist log (vr_text3d.cpp)
-    flashlight::drawTranslucent(); // the flashlight's visible beam (vr_flashlight.cpp)
-
-    if(!particles)
-    {
-        return;
-    }
-
-    run();
-
     glm::vec3 eye, right, up;
     gfx::sceneCamera(eye, right, up);
     const glm::vec3 forward = glm::cross(up, right);
 
-    // Resized rather than cleared (no constructing what is written over): every vertex is set below.
-    static std::vector<gfx::Vertex> vertices;
-    vertices.resize(pool.size() * 6);
-    gfx::Vertex* out = vertices.data();
-    for(const Particle& p : pool)
+    lyingCount = 0;
+    // Grown, never shrunk (no constructing what is written over): every vertex up to quadCount is set below.
+    if(quads.size() < pool.size() * 6)
     {
+        quads.resize(pool.size() * 6);
+    }
+    gfx::Vertex* out = quads.data();
+    for(Particle& p : pool)
+    {
+        const float reach = 1.5f * p.scale + (p.streak > 0.f ? 8.f : 0.f) + (p.flat && p.liquid ? 64.f : 0.f);
+        vec3_t mins = {p.org.x - reach, p.org.y - reach, p.org.z - reach};
+        vec3_t maxs = {p.org.x + reach, p.org.y + reach, p.org.z + reach};
+        if(R_CullBox(mins, maxs))
+        {
+            continue;
+        }
         // The quad's right and up, turned by the particle's angle about the view direction.
-        const float c = std::cos(p.angle);
-        const float s = std::sin(p.angle);
+        if(p.angle != p.csAngle)
+        {
+            p.cs = {std::cos(p.angle), std::sin(p.angle)};
+            p.csAngle = p.angle;
+        }
+        const float c = p.cs.x;
+        const float s = p.cs.y;
         // Flat ones (ripples) lie on the horizontal plane.
         const glm::vec3 pr = p.flat ? glm::vec3{1.f, 0.f, 0.f} : right;
         const glm::vec3 pu = p.flat ? glm::vec3{0.f, 1.f, 0.f} : up;
@@ -1871,43 +1860,122 @@ extern "C" void VR_DrawSceneTranslucent()
 
         // Soft: moved towards the eye along its rays (all four corners alike: the same on screen), its middle `pull`
         // nearer, not nearer than 8 units.
-        Softness soft;
+        Softness sn;
         glm::vec3 o = p.org, qr = r, qu = u;
-        if(distances)
+        if(soft)
         {
-            soft = softness(p.cell, 0.75f * p.scale);
+            sn = softness(p.cell, 0.75f * p.scale);
             const float w = glm::dot(p.org - eye, forward);
-            if(soft.pull > 0.f && w > 0.f)
+            if(sn.pull > 0.f && w > 0.f)
             {
-                const float k = std::max(w - soft.pull, std::min(w, 8.f)) / w;
+                const float k = std::max(w - sn.pull, std::min(w, 8.f)) / w;
                 o = eye + (p.org - eye) * k;
                 qr *= k;
                 qu *= k;
             }
         }
 
-        const gfx::Vertex downLeft{o - qu - qr, {uv.x, uv.y}, color, soft.fade};
-        const gfx::Vertex upRight{o + qu + qr, {uv.z, uv.w}, color, soft.fade};
+        const gfx::Vertex downLeft{o - qu - qr, {uv.x, uv.y}, color, sn.fade};
+        const gfx::Vertex upRight{o + qu + qr, {uv.z, uv.w}, color, sn.fade};
         out[0] = downLeft;
-        out[1] = {o + qu - qr, {uv.z, uv.y}, color, soft.fade}; // up left
+        out[1] = {o + qu - qr, {uv.z, uv.y}, color, sn.fade}; // up left
         out[2] = upRight;
         out[3] = downLeft;
         out[4] = upRight;
-        out[5] = {o - qu + qr, {uv.x, uv.w}, color, soft.fade}; // down right
+        out[5] = {o - qu + qr, {uv.x, uv.w}, color, sn.fade}; // down right
         out += 6;
     }
-    vertices.resize(static_cast<std::size_t>(out - vertices.data()));
+    quadCount = static_cast<std::size_t>(out - quads.data());
+}
 
+} // namespace qvr::particles
+
+// R_DrawSpriteModels: sprites (explosions, bubbles) left for VR_DrawSceneTranslucent, soft.
+extern "C" int VR_SoftSprites(void)
+{
+    return qvr::particles::softOn();
+}
+
+// R_DrawSpriteModelsSoft: a sprite's fade distance (as a puff of that radius). Not moved towards the eye: it writes
+// depth, as in the opaque pass, and would hide the particles in front of where it is (the explosion's smoke); an
+// explosion is set 8 units out from what the rocket hit.
+extern "C" float VR_SoftSpriteFade(float radius)
+{
+    return qvr::particles::softness(qvr::particles::CellExplosion, radius).fade;
+}
+
+// R_RenderScene, after the translucent pass: the sprites the opaque pass left (soft), the particles, depth-tested
+// against the scene.
+extern "C" void VR_DrawSceneTranslucent()
+{
+    QVR_GPU_PROFILE("vr particles");
+    using namespace qvr;
+    using namespace qvr::particles;
+
+    // The particles first (on the CPU): the simulation, then this view's quads, those in its frustum.
+    const bool particles = (cl.protocolflags & PRFL_QUAKEVR) && !pool.empty() && atlas;
+    const bool soft = softOn();
+    if(particles)
+    {
+        {
+            QVR_PROFILE("particle sim");
+            run();
+        }
+        {
+            QVR_PROFILE("particle verts");
+            buildQuads(soft);
+        }
+    }
+    if(!particles)
+    {
+        quadCount = lyingCount = 0;
+    }
+    const bool drawn = quadCount > 0 || lyingCount > 0;
+
+    // The opaque scene's distances, for the soft ones (the liquids' when they made them this view): only when a soft
+    // sprite or particle is drawn.
+    gfx::Texture distances = 0;
+    if((drawn || R_SoftSpritesPending()) && soft)
+    {
+        QVR_GPU_PROFILE("vr scene distances");
+        distances = water::opaqueSceneDistances();
+    }
+    if(R_SoftSpritesPending())
+    {
+        QVR_GPU_PROFILE("sprites");
+        R_DrawSpriteModelsSoft(distances); // first: they stood for opaque (and write depth)
+        if(distances && drawn)
+        {
+            // The particles fade against them too (moved towards the eye, they would be drawn over them).
+            water::sceneDepthChanged();
+            distances = water::opaqueSceneDistances();
+        }
+    }
+
+    text3d::drawTranslucent(); // the floating texts, the wrist log (vr_text3d.cpp)
+    flashlight::drawTranslucent(); // the flashlight's visible beam (vr_flashlight.cpp)
+
+    if(!drawn)
+    {
+        return;
+    }
+    if(soft && !distances) // (no distances after all: not moved towards the eye)
+    {
+        buildQuads(false);
+    }
+
+    QVR_PROFILE("particle upload"); // (and the draw calls)
     const gfx::State state{.shade = gfx::Shade::Texture, .blend = gfx::Blend::Premultiplied, .depthTest = true, .depthWrite = false,
         .sceneDistances = distances};
-    if(!lyingVertices.empty())
+    if(lyingCount > 0)
     {
-        gfx::draw(lyingVertices, gfx::sceneViewProjection(), state, atlas); // first: under the rest
-        lyingVertices.clear();
+        gfx::draw({lyingVertices.data(), lyingCount}, gfx::sceneViewProjection(), state, atlas); // first: under the rest
+        lyingCount = 0;
     }
-    if(!vertices.empty())
+    if(quadCount > 0)
     {
-        gfx::draw(vertices, gfx::sceneViewProjection(), state, atlas);
+        gfx::draw({quads.data(), quadCount}, gfx::sceneViewProjection(), state, atlas);
+        quadCount = 0;
     }
 }
 

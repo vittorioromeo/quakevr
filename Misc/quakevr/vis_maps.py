@@ -7,8 +7,11 @@
 # load (Mod_CheckWaterVis) and keeps id's water opaque. Re-vising the maps needs their portal files,
 # i.e. recompiling them; instead, the community's "vispatch" data files hold a water-vised
 # visibility lump and leaf lump for every map of id1, hipnotic and rogue (id1.vis, hipnotic.vis,
-# rogue.vis; VisPatch, http://vispatch.sourceforge.net/, GPL-2 tool; the data files are from
-# http://www.inside3d.com/qip/vispatch/files.htm). This script puts those two lumps into the maps.
+# rogue.vis; VisPatch, http://vispatch.sourceforge.net/, GPL-2 tool; the data files are
+# id1_vis.tgz, hipnotic_vis.tgz and rogue_vis.tgz from https://sourceforge.net/projects/vispatch/files/
+# ("vispatch data/1.0"; the same data as the 1997 id1.zip, hipnotic.zip and rogue.zip at
+# https://www.quake-info-pool.net/vispatch/files.htm; inside3d.com is gone). This script puts those
+# two lumps into the maps.
 #
 # Only the visibility and leaf lumps change (the leaf lump because it holds each leaf's offset into
 # the visibility data); a map is patched only if the patch's leaves are the map's own (same contents,

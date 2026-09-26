@@ -136,7 +136,8 @@ float vr_pt_count;     // how many
 .vector bat_a[8];      // a batting swing's weapon lines, as they were (VR_Deflect),
 .vector bat_b[8];
 .float bat_t[8];       // when,
-.float bat_i;          // and the newest
+.float bat_i;          // and the newest,
+.float bat_newest;     // its time (bat_t[bat_i])
 
 float VR_BLOW_KIND_PUNCH = 0;
 float VR_BLOW_KIND_SLAP = 1;
@@ -194,11 +195,24 @@ float(float xClass) VR_Blow_MinSpeed =
 };
 
 // `xVec` of the world turned into the play space (the player's turning undone).
+// The turn's cosine and sine are kept for the last yaw (it changes only as the player turns; the
+// hands ask several times a frame).
+float vr_ps_set;
+float vr_ps_yaw;
+float vr_ps_cos;
+float vr_ps_sin;
 vector(vector xVec) VR_Blow_ToPlaySpace =
 {
-    float a = -self.vryaw * (3.14159265 / 180);
-    float c = cos(a);
-    float s = sin(a);
+    if(self.vryaw != vr_ps_yaw || !vr_ps_set)
+    {
+        float a = -self.vryaw * (3.14159265 / 180);
+        vr_ps_cos = cos(a);
+        vr_ps_sin = sin(a);
+        vr_ps_yaw = self.vryaw;
+        vr_ps_set = TRUE;
+    }
+    float c = vr_ps_cos;
+    float s = vr_ps_sin;
     vector r;
     r_x = xVec_x * c - xVec_y * s;
     r_y = xVec_x * s + xVec_y * c;
@@ -208,13 +222,13 @@ vector(vector xVec) VR_Blow_ToPlaySpace =
 
 // The wrist of `xHand`, in metres from the head, in the play space: behind the controller's
 // point along the hand's forward, and below it (the controller sits above the fist, ahead of it).
-vector(float xHand) VR_Blow_Wrist =
+// (`m2u`: VRMetersToUnits(), the caller's.)
+vector(float xHand, float m2u) VR_Blow_Wrist =
 {
     vector oldForward = v_forward;
     vector oldRight = v_right;
     vector oldUp = v_up;
     makevectors(VRGetHandRot(xHand));
-    float m2u = VRMetersToUnits();
     vector w = VRGetHandPos(xHand) - VRGetHeadPos(self) - v_forward * (0.13 * m2u) - v_up * (0.085 * m2u);
     v_forward = oldForward;
     v_right = oldRight;
@@ -223,7 +237,7 @@ vector(float xHand) VR_Blow_Wrist =
 };
 
 // The striking point of `xHand`, likewise: a weapon's head (its muzzle point), or the fist.
-vector(float xHand) VR_Blow_Tip =
+vector(float xHand, float m2u) VR_Blow_Tip =
 {
     vector p = VRGetHandPos(xHand);
     vector m = VRGetMuzzlePos(xHand);
@@ -231,7 +245,7 @@ vector(float xHand) VR_Blow_Tip =
     {
         p = m;
     }
-    return VR_Blow_ToPlaySpace(p - VRGetHeadPos(self)) * (1 / VRMetersToUnits());
+    return VR_Blow_ToPlaySpace(p - VRGetHeadPos(self)) * (1 / m2u);
 };
 
 // The way `xHand` points, in the play space.
@@ -257,9 +271,10 @@ float(float xHand, entity b) VR_Blow_Track =
     // by turns): measured by time, the wrist's speed came out up to half again too fast or too slow.
     float now = time + frametime;
     float dt = now - b.blow_time;
-    vector w = VR_Blow_Wrist(xHand);
+    float m2u = VRMetersToUnits();
+    vector w = VR_Blow_Wrist(xHand, m2u);
     vector d = w - b.blow_wrist;
-    vector tip = VR_Blow_Tip(xHand);
+    vector tip = VR_Blow_Tip(xHand, m2u);
     vector dtip = tip - b.blow_tip;
 
     // The same pose again (a server frame with no new tracking): no news, not a stop; the next
@@ -351,12 +366,22 @@ void(float xHand) VR_Blow_Update =
     VR_Blow_Points(xHand);
     float wid = VRIsHandEmpty(self, xHand) ? WID_FIST : VRGetEntWeapon(self, xHand);
     float same = tracked > 0 && b.blow_ppn == vr_pt_count && b.blow_ppw == wid;
-    for(float i = 0; i < vr_pt_count; ++i)
-    {
-        b.blow_pp[i] = same ? b.blow_cp[i] : vr_pt[i];
-        b.blow_cp[i] = vr_pt[i];
-        b.blow_pmult[i] = vr_pt_mult[i];
+    // Unrolled, constant indices: plain fields and globals, not the array accessor functions a
+    // variable index calls (six of them a point, every frame).
+#define VR_BLOW_KEEP(k) \
+    if(k < vr_pt_count) \
+    { \
+        b.blow_pp[k] = same ? b.blow_cp[k] : vr_pt[k]; \
+        b.blow_cp[k] = vr_pt[k]; \
+        b.blow_pmult[k] = vr_pt_mult[k]; \
     }
+    VR_BLOW_KEEP(0)
+    VR_BLOW_KEEP(1)
+    VR_BLOW_KEEP(2)
+    VR_BLOW_KEEP(3)
+    VR_BLOW_KEEP(4)
+    VR_BLOW_KEEP(5)
+#undef VR_BLOW_KEEP
     b.blow_ppn = vr_pt_count;
     b.blow_ppw = wid;
     if(same && b.blow_t0)
@@ -391,9 +416,8 @@ vector() VR_Blow_Facing =
 // wrist and the forearm, no blow (a punch hardly turns the fist -- a corkscrew turns it about its own
 // line, which does not count -- and a slap or a hook swings from the shoulder, the fist turning with
 // the arm's wide arc).
-float(float xHand) VR_Blow_IsBlow =
+float(float xHand, entity b) VR_Blow_IsBlow = // (b: VR_Blow(xHand))
 {
-    entity b = VR_Blow(xHand);
     float speed = VR_Blow_MinSpeed(VR_Blow_Class(xHand));
     if(!b.blow_t0 || b.blow_peak < speed || b.blow_speed < speed * 0.5 || VR_Blow_Accel(b) < VR_BLOW_SNAP)
     {
@@ -575,13 +599,13 @@ float VR_PT_HANDLE = 0.5;    // the axe's or Mjolnir's handle
 float VR_PT_WALL_AGE = 0.1;  // s: how recent a wall's contact must be to be the blow's
 float VR_PT_UPGRADE = 0.05;  // s: a weak point's contact waits this long for a strong one's
 
-void(float xIndex, vector xAt, float xMult, string xName) VR_Blow_Point =
-{
-    vr_pt[xIndex] = xAt;
-    vr_pt_mult[xIndex] = xMult;
-    vr_pt_name[xIndex] = xName;
-    vr_pt_count = xIndex + 1;
-};
+// A striking point (a macro: the constant index is a plain global, not an array accessor's call;
+// several statements, so only in a block).
+#define VR_Blow_Point(xIndex, xAt, xMult, xName) \
+    vr_pt[xIndex] = xAt; \
+    vr_pt_mult[xIndex] = xMult; \
+    vr_pt_name[xIndex] = xName; \
+    vr_pt_count = xIndex + 1
 
 // The striking points of `xHand` (see above), into vr_pt.
 void(float xHand) VR_Blow_Points =
@@ -892,30 +916,33 @@ float VR_BAT_KEEP = 8;   // weapon lines kept (a ring)
 float VR_BAT_LATE = 0.05; // s: a projectile's path starts this far behind it (just past the weapon)
 float VR_BAT_AIM = 25;    // degrees: a thrower this near where the hand points gets its projectile back
 
-void(float xHand) VR_Deflect =
+void(float xHand, entity b) VR_Deflect = // (b: VR_Blow(xHand))
 {
     if(!cvar_hget(cvarh_vr_deflect))
     {
         return;
     }
 
-    entity b = VR_Blow(xHand);
     float n = b.blow_ppn;
-    float need = max(0.5, cvar_hget(cvarh_vr_melee_speed)) * max(0, cvar_hget(cvarh_vr_deflect_speed));
-    if(n > 0 && b.blow_t0 && b.blow_peak >= need && b.blow_speed >= need * 0.5)
+    if(n > 0 && b.blow_t0) // (in a stroke: most frames are not)
     {
-        b.bat_i = b.bat_i + 1;
-        if(b.bat_i >= VR_BAT_KEEP)
+        float need = max(0.5, cvar_hget(cvarh_vr_melee_speed)) * max(0, cvar_hget(cvarh_vr_deflect_speed));
+        if(b.blow_peak >= need && b.blow_speed >= need * 0.5)
         {
-            b.bat_i = 0;
+            b.bat_i = b.bat_i + 1;
+            if(b.bat_i >= VR_BAT_KEEP)
+            {
+                b.bat_i = 0;
+            }
+            b.bat_a[b.bat_i] = b.blow_cp[0];
+            b.bat_b[b.bat_i] = b.blow_cp[n - 1];
+            b.bat_t[b.bat_i] = time;
+            b.bat_newest = time;
         }
-        b.bat_a[b.bat_i] = b.blow_cp[0];
-        b.bat_b[b.bat_i] = b.blow_cp[n - 1];
-        b.bat_t[b.bat_i] = time;
     }
 
     float window = max(0, cvar_hget(cvarh_vr_deflect_window));
-    if(time - b.bat_t[b.bat_i] > window)
+    if(time - b.bat_newest > window) // (bat_t[bat_i], without the array's accessor call)
     {
         return; // no batting swing lately
     }

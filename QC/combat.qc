@@ -546,17 +546,18 @@ void(float xHand) VR_Corpse_StrikeFrame =
         return;
     }
 
-    // As the hands' blows (PlayerVRMeleeImpl): an empty hand steadying the other's weapon doesn't
-    // strike (the weapon's hand does: the first hand to strike takes the swing), nor does a gun
-    // carried by its foregrip.
-    if((VRGet2HAiming(self) && VRIsHandEmpty(self, xHand)) || VRIsHandCarryingByForegrip(self, xHand))
+    // A blow's speed first: most frames the hand is slower.
+    vector vel = VRGetHandVel(xHand);
+    float speed = vlen(vel);
+    if(speed < max(0.1, cvar_hget(cvarh_vr_melee_speed)))
     {
         return;
     }
 
-    vector vel = VRGetHandVel(xHand);
-    float speed = vlen(vel);
-    if(speed < max(0.1, cvar_hget(cvarh_vr_melee_speed)))
+    // As the hands' blows (PlayerVRMeleeImpl): an empty hand steadying the other's weapon doesn't
+    // strike (the weapon's hand does: the first hand to strike takes the swing), nor does a gun
+    // carried by its foregrip.
+    if((VRGet2HAiming(self) && VRIsHandEmpty(self, xHand)) || VRIsHandCarryingByForegrip(self, xHand))
     {
         return;
     }

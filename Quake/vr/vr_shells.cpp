@@ -17,6 +17,7 @@
 #include "vr_flick.hpp"
 #include "vr_hands.hpp"
 #include "vr_particles.hpp"
+#include "vr_profile.hpp"
 #include "vr_trace.hpp"
 #include "vr_units.hpp"
 
@@ -602,6 +603,7 @@ void frame(const view::ViewEntity (&weapons)[2])
         return;
     }
     lastFrame = host_framecount;
+    QVR_PROFILE("shells");
 
     trackPorts(weapons);
 

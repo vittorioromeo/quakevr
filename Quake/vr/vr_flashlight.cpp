@@ -445,9 +445,11 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
     lastFrame = host_framecount;
 
     // A new map: back on the chest (switched as it was).
-    if(cl.worldmodel != st.world)
+    static int generation = -1;
+    if(cl.worldmodel != st.world || worldGeneration() != generation)
     {
         st.world = cl.worldmodel;
+        generation = worldGeneration();
         st.mode = Mode::Mounted;
         st.holder = -1;
         st.placed = false;

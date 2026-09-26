@@ -109,30 +109,27 @@ vector(entity e) VR_Forcegrab_Centre =
 
 float(entity e) VR_Forcegrab_IsEligible =
 {
-    if(e == world || e.fg_state != 0 || e.model == string_null || e.solid == SOLID_NOT)
+    // Cheapest first: no model (triggers, most of what findradius finds around the hand), then
+    // what kind of thing (monsters and doors are none): a dropped or thrown object, or a weapon lying
+    // in the level in single player (in coop and deathmatch they stay for all).
+    if(e.model == string_null || e.fg_state != 0 || e == world)
+    {
+        return FALSE;
+    }
+    float dropped = (e.flags & FL_FORCEGRABBABLE) || e.classname == "thrown_weapon";
+    if((!dropped && (deathmatch || coop || e.handtouch != weapon_touch)) || e.solid == SOLID_NOT)
     {
         return FALSE;
     }
 
     // Gibs and heads: by hand only, unless vr_grab_gibs 2.
-    if(e.vr_gib && cvar_hget(cvarh_vr_grab_gibs) < 2)
+    if(e.vr_gib && vr_grab_gibs_level < 2) // (vr_cvars.qc, once a frame)
     {
         return FALSE;
     }
 
-    if((e.flags & FL_FORCEGRABBABLE) || e.classname == "thrown_weapon")
-    {
-        // Not while it still flies from a throw.
-        return (e.flags & FL_ONGROUND) || vlen(e.velocity) < 300;
-    }
-
-    // Weapons lying in the level, in single player (in coop and deathmatch they stay for all).
-    if(!deathmatch && !coop && e.handtouch == weapon_touch)
-    {
-        return TRUE;
-    }
-
-    return FALSE;
+    // Not while it still flies from a throw.
+    return !dropped || (e.flags & FL_ONGROUND) || vlen(e.velocity) < 300;
 }
 
 // The eligible object nearest to where the hand points, or world.
@@ -150,7 +147,7 @@ entity(float xHand) VR_Forcegrab_FindTarget =
 
     for(entity e = findradius(handPos, range); e; e = e.chain)
     {
-        if(!VR_Forcegrab_IsEligible(e))
+        if(e.model == string_null || !VR_Forcegrab_IsEligible(e)) // (the first test spares most a call)
         {
             continue;
         }

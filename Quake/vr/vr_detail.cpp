@@ -1,6 +1,7 @@
 // vr_detail.cpp -- see vr_detail.hpp.
 
 #include "vr_detail.hpp"
+#include "vr_main.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 
@@ -79,6 +80,7 @@ struct Entry
 std::unordered_map<const texture_t*, Entry> cache;
 const qmodel_t* cacheWorld = nullptr;
 char cacheWorldName[MAX_QPATH] = {};
+int cacheGeneration = -1;
 
 std::string lower(const char* s)
 {
@@ -541,11 +543,12 @@ Entry resolve(const texture_t* t)
 // A new map: the cfg read again (it may have been edited) and every texture looked at anew.
 void checkWorld()
 {
-    if(cacheWorld == cl.worldmodel && (!cl.worldmodel || !std::strcmp(cacheWorldName, cl.worldmodel->name)))
+    if(cacheWorld == cl.worldmodel && cacheGeneration == worldGeneration() && (!cl.worldmodel || !std::strcmp(cacheWorldName, cl.worldmodel->name)))
     {
         return;
     }
     cacheWorld = cl.worldmodel;
+    cacheGeneration = worldGeneration();
     q_strlcpy(cacheWorldName, cl.worldmodel ? cl.worldmodel->name : "", sizeof(cacheWorldName));
     cache.clear();
     const std::size_t before = kinds.size();
