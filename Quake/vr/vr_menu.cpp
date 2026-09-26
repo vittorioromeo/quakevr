@@ -540,7 +540,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("What you carry is drawn in your hand as it is this frame: no lag or lead as you walk or turn. Off: where the server has it."),
         toggle("Fit to the Hand", vr_held_surface_fit)
             .help("A box, backpack or gib you grip sits against your curled fingers, by its drawn shape. Off: it stays where you gripped it."),
-        slider("Fit Gap", vr_held_fit_gap, -2.f, 3.f, 0.1f, "%.1f cm")
+        slider("Fit Gap", vr_held_fit_gap, -6.f, 3.f, 0.1f, "%.1f cm")
             .help("Space left between your fingers and what they hold (negative: sunk in). Per model: vr_held_fit_gaps in the console."),
         slider("Push Strength", vr_carry_nudge, 0.f, 2.f, 0.1f, "%.1fx"),
         slider("Box Throw Speed", vr_carry_throw_mult, 0.5f, 3.f, 0.1f, "%.1fx"),
