@@ -543,3 +543,419 @@
 "origin" "190 -660 48"
 "angle" "40"
 }
+{
+"classname" "func_wall"
+"model" "maps/vr_spawnpanel.bsp"
+"origin" "380 -76 17.0788"
+}
+{
+"classname" "func_button"
+"model" "maps/vr_spawnbutton.bsp"
+"origin" "380 -76 57.0788"
+"angle" "0"
+"lip" "4"
+"sounds" "1"
+"speed" "50"
+"wait" "1"
+"target" "t5"
+}
+{
+"classname" "func_enemy_dispenser"
+"origin" "-160 -300 148"
+"angle" "0"
+"targetname" "t5"
+"weapon" "5"
+}
+{
+"classname" "func_worldtext_banner"
+"origin" "372 -76 41"
+"angle" "180"
+"speed" "0.085"
+"worldtext" "knight"
+"worldtext_halign" "1"
+"worldtext_scale" "0.75"
+}
+{
+"classname" "func_wall"
+"model" "maps/vr_spawnpanel.bsp"
+"origin" "380 -140 17.0788"
+}
+{
+"classname" "func_button"
+"model" "maps/vr_spawnbutton.bsp"
+"origin" "380 -140 57.0788"
+"angle" "0"
+"lip" "4"
+"sounds" "1"
+"speed" "50"
+"wait" "1"
+"target" "t6"
+}
+{
+"classname" "func_enemy_dispenser"
+"origin" "-160 -380 148"
+"angle" "0"
+"targetname" "t6"
+"weapon" "6"
+}
+{
+"classname" "func_worldtext_banner"
+"origin" "372 -140 41"
+"angle" "180"
+"speed" "0.085"
+"worldtext" "death\nknight"
+"worldtext_halign" "1"
+"worldtext_scale" "0.75"
+}
+{
+"classname" "func_wall"
+"model" "maps/vr_spawnpanel.bsp"
+"origin" "380 -204 17.0788"
+}
+{
+"classname" "func_button"
+"model" "maps/vr_spawnbutton.bsp"
+"origin" "380 -204 57.0788"
+"angle" "0"
+"lip" "4"
+"sounds" "1"
+"speed" "50"
+"wait" "1"
+"target" "t7"
+}
+{
+"classname" "func_enemy_dispenser"
+"origin" "-160 -460 148"
+"angle" "0"
+"targetname" "t7"
+"weapon" "7"
+}
+{
+"classname" "func_worldtext_banner"
+"origin" "372 -204 41"
+"angle" "180"
+"speed" "0.085"
+"worldtext" "dog"
+"worldtext_halign" "1"
+"worldtext_scale" "0.75"
+}
+{
+"classname" "func_wall"
+"model" "maps/vr_spawnpanel.bsp"
+"origin" "380 -268 17.0788"
+}
+{
+"classname" "func_button"
+"model" "maps/vr_spawnbutton.bsp"
+"origin" "380 -268 57.0788"
+"angle" "0"
+"lip" "4"
+"sounds" "1"
+"speed" "50"
+"wait" "1"
+"target" "t8"
+}
+{
+"classname" "func_enemy_dispenser"
+"origin" "20 -300 148"
+"angle" "0"
+"targetname" "t8"
+"weapon" "8"
+}
+{
+"classname" "func_worldtext_banner"
+"origin" "372 -268 41"
+"angle" "180"
+"speed" "0.085"
+"worldtext" "enforcer"
+"worldtext_halign" "1"
+"worldtext_scale" "0.75"
+}
+{
+"classname" "func_wall"
+"model" "maps/vr_spawnpanel.bsp"
+"origin" "380 -332 17.0788"
+}
+{
+"classname" "func_button"
+"model" "maps/vr_spawnbutton.bsp"
+"origin" "380 -332 57.0788"
+"angle" "0"
+"lip" "4"
+"sounds" "1"
+"speed" "50"
+"wait" "1"
+"target" "t9"
+}
+{
+"classname" "func_enemy_dispenser"
+"origin" "20 -380 148"
+"angle" "0"
+"targetname" "t9"
+"weapon" "9"
+}
+{
+"classname" "func_worldtext_banner"
+"origin" "372 -332 41"
+"angle" "180"
+"speed" "0.085"
+"worldtext" "fiend"
+"worldtext_halign" "1"
+"worldtext_scale" "0.75"
+}
+{
+"classname" "func_wall"
+"model" "maps/vr_spawnpanel.bsp"
+"origin" "380 -396 17.0788"
+}
+{
+"classname" "func_button"
+"model" "maps/vr_spawnbutton.bsp"
+"origin" "380 -396 57.0788"
+"angle" "0"
+"lip" "4"
+"sounds" "1"
+"speed" "50"
+"wait" "1"
+"target" "t10"
+}
+{
+"classname" "func_enemy_dispenser"
+"origin" "20 -460 148"
+"angle" "0"
+"targetname" "t10"
+"weapon" "10"
+}
+{
+"classname" "func_worldtext_banner"
+"origin" "372 -396 41"
+"angle" "180"
+"speed" "0.085"
+"worldtext" "vore"
+"worldtext_halign" "1"
+"worldtext_scale" "0.75"
+}
+{
+"classname" "func_wall"
+"model" "maps/vr_spawnpanel.bsp"
+"origin" "380 -460 17.0788"
+}
+{
+"classname" "func_button"
+"model" "maps/vr_spawnbutton.bsp"
+"origin" "380 -460 57.0788"
+"angle" "0"
+"lip" "4"
+"sounds" "1"
+"speed" "50"
+"wait" "1"
+"target" "t11"
+}
+{
+"classname" "func_enemy_dispenser"
+"origin" "-70 -460 148"
+"angle" "0"
+"targetname" "t11"
+"weapon" "11"
+}
+{
+"classname" "func_worldtext_banner"
+"origin" "372 -460 41"
+"angle" "180"
+"speed" "0.085"
+"worldtext" "spawn"
+"worldtext_halign" "1"
+"worldtext_scale" "0.75"
+}
+{
+"classname" "func_wall"
+"model" "maps/vr_spawnpanel.bsp"
+"origin" "380 -524 17.0788"
+}
+{
+"classname" "func_button"
+"model" "maps/vr_spawnbutton.bsp"
+"origin" "380 -524 57.0788"
+"angle" "0"
+"lip" "4"
+"sounds" "1"
+"speed" "50"
+"wait" "1"
+"target" "t12"
+}
+{
+"classname" "func_enemy_dispenser"
+"origin" "-70 -280 148"
+"angle" "0"
+"targetname" "t12"
+"weapon" "12"
+}
+{
+"classname" "func_worldtext_banner"
+"origin" "372 -524 41"
+"angle" "180"
+"speed" "0.085"
+"worldtext" "gremlin"
+"worldtext_halign" "1"
+"worldtext_scale" "0.75"
+}
+{
+"classname" "func_wall"
+"model" "maps/vr_spawnpanel.bsp"
+"origin" "380 -588 17.0788"
+}
+{
+"classname" "func_button"
+"model" "maps/vr_spawnbutton.bsp"
+"origin" "380 -588 57.0788"
+"angle" "0"
+"lip" "4"
+"sounds" "1"
+"speed" "50"
+"wait" "1"
+"target" "t13"
+}
+{
+"classname" "func_enemy_dispenser"
+"origin" "-160 -540 148"
+"angle" "0"
+"targetname" "t13"
+"weapon" "13"
+}
+{
+"classname" "func_worldtext_banner"
+"origin" "372 -588 41"
+"angle" "180"
+"speed" "0.085"
+"worldtext" "centroid"
+"worldtext_halign" "1"
+"worldtext_scale" "0.75"
+}
+{
+"classname" "func_wall"
+"model" "maps/vr_spawnpanel.bsp"
+"origin" "380 -652 17.0788"
+}
+{
+"classname" "func_button"
+"model" "maps/vr_spawnbutton.bsp"
+"origin" "380 -652 57.0788"
+"angle" "0"
+"lip" "4"
+"sounds" "1"
+"speed" "50"
+"wait" "1"
+"target" "t14"
+}
+{
+"classname" "func_enemy_dispenser"
+"origin" "20 -540 148"
+"angle" "0"
+"targetname" "t14"
+"weapon" "14"
+}
+{
+"classname" "func_worldtext_banner"
+"origin" "372 -652 41"
+"angle" "180"
+"speed" "0.085"
+"worldtext" "mummy"
+"worldtext_halign" "1"
+"worldtext_scale" "0.75"
+}
+{
+"classname" "func_wall"
+"model" "maps/vr_spawnpanel.bsp"
+"origin" "380 -716 17.0788"
+}
+{
+"classname" "func_button"
+"model" "maps/vr_spawnbutton.bsp"
+"origin" "380 -716 57.0788"
+"angle" "0"
+"lip" "4"
+"sounds" "1"
+"speed" "50"
+"wait" "1"
+"target" "t15"
+}
+{
+"classname" "func_enemy_dispenser"
+"origin" "-70 -540 148"
+"angle" "0"
+"targetname" "t15"
+"weapon" "15"
+}
+{
+"classname" "func_worldtext_banner"
+"origin" "372 -716 41"
+"angle" "180"
+"speed" "0.085"
+"worldtext" "phantom\nswordsman"
+"worldtext_halign" "1"
+"worldtext_scale" "0.75"
+}
+{
+"classname" "func_wall"
+"model" "maps/vr_spawnpanel.bsp"
+"origin" "380 -780 17.0788"
+}
+{
+"classname" "func_button"
+"model" "maps/vr_spawnbutton.bsp"
+"origin" "380 -780 57.0788"
+"angle" "0"
+"lip" "4"
+"sounds" "1"
+"speed" "50"
+"wait" "1"
+"target" "t16"
+}
+{
+"classname" "func_enemy_dispenser"
+"origin" "-20 -420 200"
+"angle" "0"
+"targetname" "t16"
+"weapon" "16"
+}
+{
+"classname" "func_worldtext_banner"
+"origin" "372 -780 41"
+"angle" "180"
+"speed" "0.085"
+"worldtext" "wrath"
+"worldtext_halign" "1"
+"worldtext_scale" "0.75"
+}
+{
+"classname" "func_wall"
+"model" "maps/vr_spawnpanel.bsp"
+"origin" "380 -844 17.0788"
+}
+{
+"classname" "func_button"
+"model" "maps/vr_spawnbutton.bsp"
+"origin" "380 -844 57.0788"
+"angle" "0"
+"lip" "4"
+"sounds" "1"
+"speed" "50"
+"wait" "1"
+"target" "t17"
+}
+{
+"classname" "func_enemy_dispenser"
+"origin" "-120 -300 200"
+"angle" "0"
+"targetname" "t17"
+"weapon" "17"
+}
+{
+"classname" "func_worldtext_banner"
+"origin" "372 -844 41"
+"angle" "180"
+"speed" "0.085"
+"worldtext" "overlord"
+"worldtext_halign" "1"
+"worldtext_scale" "0.75"
+}

@@ -2,8 +2,9 @@
 
 This is optional, but it changes the look of Quake VR more than anything else. Quake's 1996 lightmaps have no
 ambient occlusion, no coloured light and no bounce, so the world looks flat in VR. The relight gives every map of
-Quake and the mission packs soft shadows, dark corners, coloured light, and lamps, light panels and glowing buttons
-that light their rooms. The same step makes **water, slime and teleporters see-through**.
+Quake and the mission packs soft shadows, dark corners, coloured light, lamps, light panels and glowing buttons
+that light their rooms, and lava that casts a red glow on the walls round it (slime a faint green one). The same
+step makes **water, slime and teleporters see-through**.
 
 id Software's maps can't be redistributed, so the relit maps aren't in the Quake VR package: you make them once, on
 your own PC, from your own copy of Quake. It takes about a minute on a fast PC (about a second a map, 73 maps), and
@@ -131,7 +132,8 @@ If you write the paths as `--quake .` from inside the Quake folder, that works t
 - **In the game:** with *Water Alpha* below 1, start a map with water (`map e1m1` in the console) and look into
   it. You should see the walls and floor below the surface. From under the water, you should see the room above.
 - **The light:** switch *Relit Maps* off, reload the map (`map e1m1`), and compare. The relit version has darker
-  corners, softer shadows and coloured light around lamps and glowing panels.
+  corners, softer shadows and coloured light around lamps and glowing panels, and red light round lava (`map start`:
+  the lava pit by the Hard hall).
 
 ## Options
 

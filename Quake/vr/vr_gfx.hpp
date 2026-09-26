@@ -41,6 +41,11 @@ enum class Shade
                    // glitch 0..1, the lit strokes' glow; State::screen: its virtual screen's size in
                    // pixels and its scanlines per pixel). The glow needs the texture's mipmaps (a
                    // target made with them).
+    Hologram,      // the wrist gadget's hologram (premultiplied): with State::params.w 0 its text, the texture's
+                   // lit strokes in the vertex colour (its alpha: how shown), glowing, with a faint haze round
+                   // them, scanlines, a flicker and glitches (params: time, effect strength, glitch 0..1;
+                   // State::screen as Screen's; mipmaps); with params.w 1 the beam of light up to it, the vertex
+                   // colour fading across (uv.x -1..1) and up (uv.y 0..1), added.
 };
 
 enum class Blend

@@ -20,8 +20,9 @@ Settings**. `menu_vr` in the console opens it directly, and `menu_vr <n>` opens 
 Advanced VR Options, then the pages in the order listed below; `menu_vr list` prints the numbers).
 
 **Using the menus:** point with the laser from your hand and pull the trigger to click. Drag sliders with the
-trigger held. With the sticks, up and down move between rows, left and right change a value, A selects and B goes
-back. The right stick scrolls. *Back to Game* is at the top left, or hold the menu button. Each setting shows a line
+trigger held. With the left stick (the off hand's), up and down move between rows, left and right change a value; A
+selects and B goes back. The right stick (the main hand's) only scrolls or moves between rows: it never changes a
+setting, so navigating can't change one by accident (with *Left Handed* on, the sticks swap). *Back to Game* is at the top left, or hold the menu button. Each setting shows a line
 of help at the bottom when you select it. In the headset the menus are taller than on the desktop, so more rows show
 at once (Menu page > *Menu Height*, `vr_menu_height`: 1.35 times Quake's height, about 35 degrees up and down with
 the shipped menu distance and scale).
@@ -37,7 +38,7 @@ The main page has these sections:
 | **Body** | Left Handed, Height and *Set Height Now*, World Scale, Floor Offset, Chest Flashlight |
 | **Weapons** | Gun Angle, Off Hand Angle, Weapon Grip (hold or sticky), Two-Handed (off, basic, virtual stock), *Weapon Offsets (Held Weapon)*, Two-Handed Hand-Off, Throw Speed, Throw Gravity (real or Quake), Force Grab, Haptics, Crosshair and its size |
 | **Display** | HUD (wrist gadget or status bar), Status Bar hand, HUD Scale, Menu Distance and Scale, Desktop Mirror (off, left eye, both eyes), Body (off, torso and arms, full body), Build, Torso, Legs and Shoulders offsets, Holster Models |
-| **Headset** | VR on or off, Restart VR, OpenXR Runtime, Render Scale, Hide Lens Corners |
+| **Headset** | VR on or off, Restart VR, OpenXR Runtime, Render Scale, Upscaling (bilinear, FSR, NIS), Sharpness, Foveated Rendering (off, conservative, balanced, aggressive), Hide Lens Corners |
 | **More** | Advanced VR Options |
 
 Notes:
@@ -48,6 +49,14 @@ Notes:
   the gun seems to point, change these first. The *Hand/Gun Calibration* page also has the yaw.
 - **Render Scale:** from 0.5 to 1.5 times the runtime's resolution. The image is resampled to the headset, so
   dragging it doesn't restart anything.
+- **Upscaling:** below Render Scale 1, how the eyes are enlarged to the headset's size. *FSR* (AMD FidelityFX Super
+  Resolution 1) and *NIS* (NVIDIA Image Scaling) keep edges and text sharper than *Bilinear*; they run within 40
+  degrees of the lens centre (`vr_upscale_radius`), bilinear beyond, where the lenses blur anyway. The menus, HUD and
+  wrist log are drawn afterwards at the headset's full resolution. *Sharpness*: the upscaler's sharpening (too much
+  makes edges shimmer).
+- **Foveated Rendering:** shades the scene coarser towards the edges of the lenses (once per 2x2 pixels, then 4x4),
+  which the lenses blur anyway: 18% (conservative) to 64% (aggressive) less GPU time for the world in the desktop
+  test headset. NVIDIA GPUs only (variable-rate shading, `GL_NV_shading_rate_image`); elsewhere it does nothing.
 
 ## Advanced VR Options
 
@@ -95,7 +104,7 @@ sub-pages).
 |---|---|
 | **Wrist Gadget** | HUD mode, which arm, size and placement |
 | **Screens** | The wrist gadget's screen (level and stats, light, CRT look, glow, messages on the wrist); the weapons' ammo screens (weapon text, margin, CRT look); map boards as CRTs and their hue |
-| **Colours** | The Player Effects Hue and saturation (that the force grab, teleport arc, crosshair and menu laser follow); the gadget's screen and casing; the iron sights, force grab, teleport arc, crosshair and menu laser hues |
+| **Colours** | The Player Effects Hue and saturation (that the force grab, teleport arc, crosshair and menu laser follow); the gadget's screen and casing; the iron sights, force grab, teleport arc, crosshair and menu laser hues; the iron sights' and the force grab's saturation |
 | **Status Bar** | HUD mode, status bar hand, scale, offsets and angles |
 | **Crosshair** | Crosshair type, depth, size, alpha, hue, height offset |
 | **Menu** | Menu scale and distance, VR menu style, laser hue, row spacing, menu height, live preview, reopen where left |
@@ -143,7 +152,11 @@ Weapon)** edits the weapon your main hand is holding. Open it while holding the 
 - *Edit the Other Hand's Weapon* switches to the off hand. The page shows the weapon held when it was opened, so
   reopen it after changing weapons. With an empty hand, it edits the hand model itself.
 - **Weapon in the Hand:** offset X (forward), Y (left), Z (up), pitch, yaw, roll, scale. These move the model, not
-  where it aims.
+  where it aims. The drawn hand stays on the weapon's grip, so the offsets move the hand with the weapon.
+- **Weapon Only (Hand Stays):** Weapon Only X, Y, Z move just the weapon while the drawn hand stays where it is. Each
+  one changes the offset and the hand's place on the weapon together (by 7/6 of the step, the other way), as if you
+  had moved both sliders yourself, so the muzzle, the two-handed grip and the ammo screen move with the weapon.
+  They show how far you have moved it since the page opened, and start at 0 each time. Not shown for an empty hand.
 - **Hand on the Weapon:** where the drawn hand sits on the grip, or hide it.
 - **Muzzle:** where shots and the flash start.
 - **Two-Handed:** where the other hand grips the weapon, and where that hand is drawn.
@@ -172,7 +185,10 @@ Handed* on, nothing needs rebinding.
 | Stick | turns; up/down are `DPAD_UP` / `DPAD_DOWN` (`+moveup` / `+movedown`: swim up and down) | moves | |
 | Menu button | Escape (not rebindable) | | |
 
-- **Index controllers** have no menu button, so their left B opens the menu. **Vive wands** use the trackpads as
+- **Index controllers** have no menu button, so their left B opens the menu. **Quest (Touch) controllers under
+  SteamVR** reach the game as Index controllers (SteamVR keeps the Touch menu button for its dashboard), so there
+  the left Y opens the menu; under Virtual Desktop's VDXR they are Touch controllers and the left menu button opens
+  it. **Vive wands** use the trackpads as
   sticks and their clicks as A/X, and the right menu button as B. **Windows Mixed Reality** controllers use the
   trackpad clicks as A/X and the right menu button as B.
 - **Useful extra commands to bind:** `+teleport` (with *Teleport* on), `vr_flashlight_toggle`, `+vr_note` (record a
@@ -287,6 +303,13 @@ built-in ones.
 | `vr_enabled` | 1 (from `quakevr.cfg`) | VR on or off |
 | `vr_xr_runtime` | 0 | 0 system default, 1 Virtual Desktop (VDXR), 2 SteamVR, 3 the manifest in `vr_xr_runtime_json` |
 | `vr_render_scale` | 1 | eye resolution multiplier |
+| `vr_upscale` | 1 | below render scale 1: 0 bilinear, 1 FSR 1, 2 NIS |
+| `vr_upscale_sharpness` | 0.5 | the upscaler's sharpening, 0 to 1 |
+| `vr_upscale_radius` | 40 | the upscaler only within this many degrees of the lens centre, bilinear beyond (0: everywhere) |
+| `vr_upscale_sharpen_native` | 0 | at render scale 1: FSR's sharpening (RCAS) alone |
+| `vr_foveated` | 0 | foveated rendering: 0 off, 1 conservative (full rate within 45 degrees, 2x2 to 60, 4x4 beyond), 2 balanced (35, 50), 3 aggressive (25, 40) |
+| `vr_foveated_inner`, `vr_foveated_outer` | 0 | your own angles instead of the preset's (degrees; 0: the preset's) |
+| `vr_foveated_debug` | 0 | shows the shading rates (yellow 2x2, red 4x4) and the upscaler's circle (cyan) in the eyes and mirror |
 | `vr_visibility_mask` | 1 | hide lens corners |
 
 ## Config files, shipped defaults and resetting

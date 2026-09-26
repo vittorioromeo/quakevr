@@ -29,6 +29,10 @@
 # lists each map's glowing textures and their lights without relighting. These entities are only
 # given to `light`: the relit map keeps its own.
 #
+# Glowing liquids (round 20; kind=liquid in relight_textures.cfg: lava, and slime faintly) light what is
+# round them: a light every LIQUID_STEP units over their surface, in their colour, less each in a lake than
+# in a channel (their lights add up), without ambient occlusion. Other liquids (water, teleporters) give none.
+#
 # The results go into quakevr/relit/<game>/maps/<map>.bsp, .lit and .lux. Quake VR loads them in place of
 # <game>'s own maps (vr_relit_maps 1, the default; 0 plays the original lighting). The maps are
 # id Software's: the relit copies are made on your machine from the ones you own and are not
@@ -254,26 +258,36 @@ def remapped_lux(lux, lux_data, lit_data):
     return lux[:8] + bytes(body)
 
 
-def solid_at(data):
-    """A function telling whether a point is inside the world's solid (BSP29 hull 0; never for BSP2)."""
+CONTENTS_EMPTY = -1
+CONTENTS_SOLID = -2
+
+
+def contents_at(data):
+    """A function giving the contents of the world at a point (BSP29 hull 0: -1 empty, -2 solid, -3 water,
+    -4 slime, -5 lava, -6 sky; always empty for BSP2)."""
     if struct.unpack_from("<i", data, 0)[0] != 29:
-        return lambda p: False
+        return lambda p: CONTENTS_EMPTY
     pofs, _ = lump(data, 1)
     nofs, _ = lump(data, 5)
     lofs, _ = lump(data, 10)
 
-    def solid(p):
+    def contents(p):
         node = 0
         for _ in range(4096):
             planenum, front, back = struct.unpack_from("<ihh", data, nofs + node * 24)
             nx, ny, nz, dist = struct.unpack_from("<4f", data, pofs + planenum * 20)
             child = front if p[0] * nx + p[1] * ny + p[2] * nz - dist >= 0 else back
             if child < 0:
-                (contents,) = struct.unpack_from("<i", data, lofs + (-child - 1) * 28)
-                return contents == -2
+                return struct.unpack_from("<i", data, lofs + (-child - 1) * 28)[0]
             node = child
-        return False
-    return solid
+        return CONTENTS_EMPTY
+    return contents
+
+
+def solid_at(data):
+    """A function telling whether a point is inside the world's solid (BSP29 hull 0; never for BSP2)."""
+    contents = contents_at(data)
+    return lambda p: contents(p) == CONTENTS_SOLID
 
 
 # `light` spawns a surface light about every SURFLIGHT x SURFLIGHT units of a face, at least one a face.
@@ -329,6 +343,18 @@ GLOW_MIN_SHARE = 0.03
 FIXTURE_MIN_SHARE = 0.005
 DEFAULT_TEXTURES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "relight_textures.cfg")
 RULE_KEYS = ("kind", "scale", "light", "color", "reach")
+KINDS = ("fixture", "glow", "liquid", "off")
+# Glowing liquids (round 20; kind=liquid in relight_textures.cfg: lava, slime): a light every LIQUID_STEP x
+# LIQUID_STEP units of the surface, LIQUID_HEIGHT over it (less under a low ceiling), LIQUID_LIGHT each
+# unless the rule's light= says otherwise.
+LIQUID_STEP = 96.0
+LIQUID_HEIGHT = 16.0
+LIQUID_LIGHT = 120.0
+# ... times (LIQUID_LONE / the liquid's lights within LIQUID_ROOM of it) ** LIQUID_CROWD where more than
+# LIQUID_LONE (a channel of lava has about 5 within 192 units, a lake 12: 0.7 of the light each).
+LIQUID_ROOM = 192.0
+LIQUID_LONE = 5.0
+LIQUID_CROWD = 0.4
 
 
 def load_rules(path):
@@ -349,8 +375,8 @@ def load_rules(path):
                 key, _, value = word.partition("=")
                 if key not in RULE_KEYS or not value:
                     sys.exit("%s:%d: unknown setting %r (known: %s)" % (path, number, word, ", ".join(RULE_KEYS)))
-                if key == "kind" and value not in ("fixture", "glow", "off"):
-                    sys.exit("%s:%d: kind is fixture, glow or off" % (path, number))
+                if key == "kind" and value not in KINDS:
+                    sys.exit("%s:%d: kind is %s" % (path, number, ", ".join(KINDS)))
                 if key in ("scale", "light", "reach"):
                     value = float(value)
                 if key == "color":
@@ -456,10 +482,10 @@ def map_lights(data):
     return out
 
 
-def face_samples(face):
-    """Points on a face, one every FIXTURE_STEP x FIXTURE_STEP units (its centre if small)."""
+def face_samples(face, step=FIXTURE_STEP):
+    """Points on a face, one every `step` x `step` units (its centre if small)."""
     centre, area, normal, pts = face
-    if area <= FIXTURE_STEP ** 2 or len(pts) < 3:
+    if area <= step ** 2 or len(pts) < 3:
         return [centre]
     # Axes in the face's plane.
     helper = (0.0, 0.0, 1.0) if abs(normal[2]) < 0.9 else (1.0, 0.0, 0.0)
@@ -485,7 +511,7 @@ def face_samples(face):
     lo = [min(p[k] for p in flat) for k in range(2)]
     hi = [max(p[k] for p in flat) for k in range(2)]
     out = []
-    counts = [max(1, int((hi[k] - lo[k]) / FIXTURE_STEP + 0.5)) for k in range(2)]
+    counts = [max(1, int((hi[k] - lo[k]) / step + 0.5)) for k in range(2)]
     for i in range(counts[0]):
         for j in range(counts[1]):
             x = lo[0] + (hi[0] - lo[0]) * (i + 0.5) / counts[0]
@@ -565,6 +591,22 @@ def fixture_spots(faces, solid):
     return spots
 
 
+def liquid_spots(faces, contents):
+    """Where a glowing liquid's lights go: every LIQUID_STEP units over its faces that face the open air (a
+    liquid's faces seen from inside it face the liquid: none there), LIQUID_HEIGHT over the surface, lower
+    under a low ceiling; none closer than LIQUID_STEP / 2 to another (the BSP cuts a pool into many faces)."""
+    spots = []
+    for f in faces:
+        for p in face_samples(f, LIQUID_STEP):
+            for offset in (LIQUID_HEIGHT, 8.0, 2.0):
+                q = tuple(p[j] + f[2][j] * offset for j in range(3))
+                if contents(q) == CONTENTS_EMPTY:
+                    if not any(near(q, r, LIQUID_STEP / 2) for r in spots):
+                        spots.append(q)
+                    break
+    return spots
+
+
 def light_entity(origin, value, wait, colour, extra=""):
     return ('{\n"classname" "light"\n"origin" "%g %g %g"\n"light" "%d"\n"wait" "%.2f"\n"_color" "%s"\n%s}\n'
             % (origin[0], origin[1], origin[2], value, wait, colour, extra))
@@ -598,6 +640,7 @@ def glow_lights(data, palette, scale, budget_base, fixture_scale=1.0, fixture_li
     if rules is None:
         rules = load_rules(DEFAULT_TEXTURES)
     faces = texture_faces(data)
+    contents = contents_at(data)
     solid = solid_at(data)
     offset, length = lump(data, 2)
     if length < 4:
@@ -612,9 +655,21 @@ def glow_lights(data, palette, scale, budget_base, fixture_scale=1.0, fixture_li
         name = data[base : base + 16].split(b"\0")[0].decode("latin-1")
         width, height, pix = struct.unpack_from("<iii", data, base + 16)
         low = name.lower()
-        if not name or pix <= 0 or low.startswith(("*", "sky")) or width * height == 0:
+        if low.startswith("*") and pix > 0 and width * height:
+            # A liquid lights round it only if a rule says so (kind=liquid: lava, slime), in the rule's colour or
+            # its pixels' mean.
+            rule = texture_rule(rules, where, low)
+            if rule.get("kind") == "liquid":
+                pixels = data[base + pix : base + pix + width * height]
+                colour = rule.get("color") or tuple(sum(palette[c * 3 + j] for c in pixels) / len(pixels)
+                                                    for j in range(3))
+                glows.append((name, "liquid", 1.0, colour, faces[i], [], rule, "liquid"))
+            continue
+        if not name or pix <= 0 or low.startswith("sky") or width * height == 0:
             continue
         rule = texture_rule(rules, where, low)
+        if rule.get("kind") == "liquid":
+            continue  # (not a liquid: nothing to do)
         kind = rule.get("kind", "fixture" if any(w in low for w in FIXTURE_WORDS) else "glow")
         if kind == "off":
             continue
@@ -645,6 +700,25 @@ def glow_lights(data, palette, scale, budget_base, fixture_scale=1.0, fixture_li
 
     out = []
     for name, kind, share, (r, g, b), used, mine, rule, source in glows:
+        if kind == "liquid":
+            # Lava and slime: their own colour (not whitened), as bright as the rule says, no ambient occlusion
+            # (the edge of the pool, where it meets the walls, is a corner that -dirt would darken).
+            top = max(r, g, b, 1.0)
+            colour = "%d %d %d" % (r * 255 / top, g * 255 / top, b * 255 / top)
+            value = rule.get("light", LIQUID_LIGHT) * rule.get("scale", 1.0) * scale
+            spots = liquid_spots(used, contents) if value >= 12 else []
+            made = []
+            for p in spots:
+                # A lake's lights add up to more than a channel's: less each where more are round it.
+                crowded = sum(1 for q in spots if near(p, q, LIQUID_ROOM))
+                v = value * min(1.0, LIQUID_LONE / crowded) ** LIQUID_CROWD
+                made.append(v)
+                out.append(light_entity(p, v, 1 / rule.get("reach", 1.0), colour, '"_dirt" "-1"\n'))
+            if report is not None:
+                report.append("  %-16s %-7s %-10s faces %4d  lights %4d  %s" % (
+                    name, kind, "", len(used), len(made),
+                    "light %d..%d" % (min(made), max(made)) if made else "(none)"))
+            continue
         top = max(r, g, b, 1.0)
         sat = (top - min(r, g, b)) / top  # 0 white .. 1 pure colour
         white = 0.25 - 0.15 * sat

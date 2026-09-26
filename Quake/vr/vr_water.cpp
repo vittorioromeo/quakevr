@@ -362,7 +362,7 @@ GLuint sceneDistances(bool translucent)
 
 constexpr float kPinDistance = 32.f;
 constexpr float kFadeEnd = 1024.f;   // gl_shaders.h, LiquidDisplace
-constexpr float kMaxSwell = 40.f;    // the most the swells rise or sink (vr_water_geo_amplitude up to 24, lava 1.3 times), and the ripples
+constexpr float kMaxSwell = 64.f;    // the most the swells rise or sink (vr_water_geo_amplitude up to 24, lava 1.3 times), and the ripples (kMaxRipple)
 constexpr std::size_t kMaxCells = 2u << 20; // grid cells in a map at most (the cell grows past it)
 
 struct MeshVert
@@ -1150,7 +1150,13 @@ namespace
 {
 
 constexpr int kMaxRipples = 32; // gl_shaders.h's RippleAt
-constexpr float kMaxRipple = 8.f; // units, one ripple's height at most (kMaxSwell leaves room for it)
+constexpr float kMaxRipple = 24.f; // units, one ripple's height at most (kMaxSwell leaves room for it)
+
+// How many may be kept (vr_water_ripple_max).
+[[nodiscard]] int maxRipples()
+{
+    return std::clamp(static_cast<int>(vr_water_ripple_max.value), 1, kMaxRipples);
+}
 
 struct RippleEvent
 {
@@ -1178,13 +1184,22 @@ void fillRipples()
     int n = 0;
     if(vr_water_ripples.value > 0.f)
     {
-        for(RippleEvent& e : rippleEvents)
+        const int most = maxRipples();
+        for(int i = 0; i < kMaxRipples; i++)
         {
+            RippleEvent& e = rippleEvents[static_cast<std::size_t>(i)];
+            if(i >= most)
+            {
+                e.amp = 0.f; // over vr_water_ripple_max
+                continue;
+            }
             const float age = static_cast<float>(cl.time - e.time);
             const float h = rippleHeight(e, age);
             if(h < 0.02f)
             {
-                if(age > 0.1f || age < 0.f || e.world != cl.worldmodel)
+                // (a little in the future is one made just before the client's clock was pulled back to the server's:
+                // still to come; far off, a map's or a demo's before)
+                if(age > 0.1f || age < -1.f || e.world != cl.worldmodel)
                 {
                     e.amp = 0.f; // gone (or a map's before this one)
                 }
@@ -1206,6 +1221,7 @@ void fillRipples()
     r_framedata.ripple[1] = rippleSpeed(CONTENTS_WATER);
     r_framedata.ripple[2] = 6.2831853f / wavelength;
     r_framedata.ripple[3] = cells * cells * (3.f - 2.f * cells);
+    r_framedata.water3[1] = std::clamp(vr_water_ripple_normal.value, 0.f, 4.f); // their slopes in the shading, times the shape's
 }
 
 } // namespace
@@ -1216,7 +1232,9 @@ void addRipple(const glm::vec3& at, float strength)
     {
         return;
     }
-    const float amp = std::min(std::clamp(vr_water_ripple_amplitude.value, 0.f, 8.f) * std::clamp(std::sqrt(strength / 10.f), 0.35f, 2.6f), kMaxRipple);
+    // A hand's slap (strength 10) vr_water_ripple_amplitude units high; a shot (4) about half that, a rocket (19) 1.7
+    // times, a body (20-50) 1.7 to 3 times; at most kMaxRipple.
+    const float amp = std::min(std::clamp(vr_water_ripple_amplitude.value, 0.f, 24.f) * std::clamp(std::pow(strength / 10.f, 0.8f), 0.25f, 3.f), kMaxRipple);
     if(amp <= 0.f)
     {
         return;
@@ -1225,7 +1243,7 @@ void addRipple(const glm::vec3& at, float strength)
     for(RippleEvent& e : rippleEvents)
     {
         const double age = cl.time - e.time;
-        if(e.amp > 0.f && e.world == cl.worldmodel && age >= 0.0 && age < 0.15 && std::abs(e.at.z - at.z) < 2.f &&
+        if(e.amp > 0.f && e.world == cl.worldmodel && age >= -0.15 && age < 0.15 && std::abs(e.at.z - at.z) < 2.f &&
             glm::distance(glm::vec2{e.at}, glm::vec2{at}) < 16.f)
         {
             e.amp = std::min(std::max(e.amp, amp) + 0.3f * std::min(e.amp, amp), kMaxRipple);
@@ -1235,10 +1253,11 @@ void addRipple(const glm::vec3& at, float strength)
     // Else in the place of the weakest now (one gone first; one just made is at its start's height).
     RippleEvent* slot = &rippleEvents[0];
     float weakest = 1e9f;
-    for(RippleEvent& e : rippleEvents)
+    for(int i = 0, most = maxRipples(); i < most; i++)
     {
+        RippleEvent& e = rippleEvents[static_cast<std::size_t>(i)];
         const float age = static_cast<float>(cl.time - e.time);
-        const float h = rippleHeight(e, std::max(age, 0.1f)) * (age >= 0.f ? 1.f : 0.f);
+        const float h = rippleHeight(e, std::max(age, 0.1f)) * (age >= -1.f ? 1.f : 0.f);
         if(h < weakest)
         {
             weakest = h;
@@ -1343,7 +1362,13 @@ int gridRisesFrame = -1;
     const float d = glm::distance(glm::vec3{x, y, z}, eye);
     const float f = std::clamp((d - 512.f) / 512.f, 0.f, 1.f);
     const float fade = 1.f - f * f * (3.f - 2.f * f);
-    return rise = (swellHeight(x, y, kind) + rippleHeightAt(x, y, z, kind) * r_framedata.ripple[3]) * pin * fade;
+    const float swell = swellHeight(x, y, kind) * pin * fade;
+    float rip = rippleHeightAt(x, y, z, kind) * r_framedata.ripple[3] * pin * fade;
+    // kept off the eye as LiquidDisplace keeps it
+    const float above = eye.z - z - swell;
+    const float room = std::max(std::abs(above) - 6.f, 0.f) + std::max(glm::distance(glm::vec2{x, y}, glm::vec2{eye}) - 24.f, 0.f);
+    rip = above >= 0.f ? std::min(rip, room) : std::max(rip, -room);
+    return rise = swell + rip;
 }
 
 } // namespace

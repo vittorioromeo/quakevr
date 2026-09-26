@@ -1976,6 +1976,7 @@ static void Host_Map_f (void)
 	if (cmd_source != src_command)
 		return;
 
+	VR_OnFreshStart (); // QVR
 	cls.demonum = -1;		// stop demo loop in case this fails
 
 	CL_Disconnect ();
@@ -2622,6 +2623,7 @@ static void Host_Loadgame_f (void)
 
 	PR_SwitchQCVM(&sv.qcvm);
 	VR_OnBeginLoadGame (); // QVR
+	VR_OnFreshStart (); // QVR
 	SV_SpawnServer (mapname);
 
 	if (!sv.active)

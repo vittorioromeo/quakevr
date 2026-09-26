@@ -2,6 +2,9 @@
 // right-angle torch clipped to the chest on the off hand's side, lighting where the torso faces.
 // A hand at it with the trigger switches it on or off; an empty hand's grip takes it, and it then
 // lights where the hand points; let go, it flies back to the chest on its retracting cord.
+// Held near the gun in the other hand, the upper face button (B or Y) clips it under the gun's
+// barrel: it lights where the gun aims until the free hand takes it off again (at the lamp, B or Y)
+// or the gun leaves the hand (holstered, dropped, thrown, switched), when it goes back to the chest.
 //
 // Client-side only: its model is a VR view entity (progs/vrflashlight.mdl, make_flashlight.py) and
 // its beam a spot light at the lens (lighting::dlightSpot: per pixel on the world and on models,
@@ -27,10 +30,26 @@ void setupView(const hands::State& s, view::ViewEntity& ve);
 // depth-tested, added onto the scene.
 void drawTranslucent();
 
-// A controller's trigger or grip pressed or released (vr_input.cpp). True when the flashlight
-// takes it (switching it, holding it): the game does not see it. A press it takes, it also takes
-// the release of.
-[[nodiscard]] bool button(int hand, bool grip, bool pressed);
+enum class Button
+{
+    Trigger,
+    Grip,
+    Secondary // the upper face button: B on the right controller, Y on the left
+};
+
+// A controller's trigger, grip or upper face button pressed or released (vr_input.cpp). True when
+// the flashlight takes it (switching it, holding it, clipping it to a gun or taking it off): the
+// game does not see it. A press it takes, it also takes the release of.
+[[nodiscard]] bool button(int hand, Button b, bool pressed);
+
+// After a Secondary press it took: true (once) when the flashlight went into `hand` whose grip the
+// game had seen pressed (a hand on the gun's foregrip taking the lamp off): the game must see the
+// grip let go, the flashlight has it now.
+[[nodiscard]] bool tookGrip(int hand);
+
+// A new game, a map started afresh (the map command, the menus) or a save loaded, not a level
+// changed in the game: the flashlight switched off, on the chest.
+void reset();
 
 // Whether `hand` holds the flashlight: that hand does not force grab (its move tells the server,
 // QVR_BUTTON_*HANDBUSY, and its aim beam is not drawn).

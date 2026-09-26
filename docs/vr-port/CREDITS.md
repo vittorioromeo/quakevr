@@ -17,6 +17,8 @@ articles, talks and other engines' source are credited with where they came from
 | **GLM** (OpenGL Mathematics) | G-Truc Creation | MIT / Happy Bunny | `Quake/vr/external/glm` |
 | **OpenXR SDK** (loader and headers) | The Khronos Group | Apache-2.0 | `Windows/OpenXR` |
 | **SDL2** | Sam Lantinga and contributors | zlib | `Windows/SDL2` |
+| **AMD FidelityFX Super Resolution 1** (`ffx_fsr1.h` v1.20210629: EASU upscaling, RCAS sharpening; [GPUOpen-Effects/FidelityFX-FSR](https://github.com/GPUOpen-Effects/FidelityFX-FSR)) | Advanced Micro Devices, Inc. | MIT | `Quake/vr/external/fsr1` (unchanged; its GLSL path compiled by `vr_upscale.cpp`, with a stand-in for the few `ffx_a.h` helpers it uses) |
+| **NVIDIA Image Scaling SDK** v1.0.3 (`NIS_Scaler.h`, `NIS_Config.h`; [NVIDIAGameWorks/NVIDIAImageScaling](https://github.com/NVIDIAGameWorks/NVIDIAImageScaling)) | NVIDIA Corporation & affiliates | MIT | `Quake/vr/external/nis` (unchanged; the scaler's GLSL compute path and the config/coefficients, in `vr_upscale.cpp`) |
 | **FTEQCC** (QuakeC compiler) | the FTE team | GPL-2.0 | used to build `progs.dat` |
 | **ericw-tools** 2.0.0-alpha11 (`light`, used by `relight_maps.py` and `relight_quakevr_maps.py`; [release](https://github.com/ericwa/ericw-tools/releases/tag/2.0.0-alpha11)) | Eric Wasylishen, Kevin Shanahan (Tyrann), David Walton (Spike) and contributors | GPL-3.0 | run on the player's machine; not bundled (the committed `quakevr/maps` are its output) |
 
@@ -49,6 +51,31 @@ articles, talks and other engines' source are credited with where they came from
   **Lunaran**, and a Death Knight converted from the Quake remaster to **MachineGames / Nightdive Studios**
   (**Chillo** remade many others; **Seven** made fixes). *To confirm:* which of these made Quake VR's two models.
 
+### Water sounds (`quakevr/sound/vr/`)
+
+Recordings from [Freesound](https://freesound.org), all released under
+[CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) (public domain: no attribution needed, credited here
+anyway). They replace round 15's synthesized water sounds (`make_sounds.py` no longer makes them). Each was taken from
+Freesound's high-quality preview, cut at the times below, high-passed at 40 Hz, mixed to mono, resampled to 22050 Hz
+(16-bit PCM, like the port's other sounds), trimmed to start 5 ms before the sound, faded in and out, stray clicks in
+the tail held down, and brought to a loudness matched to Quake's own splashes (the loudest 200 ms, band-limited as
+Quake's mixer plays it) with a look-ahead peak limiter (at most 6 dB off the peaks, which stay at -1 dBFS). The engine
+picks one of the variants at random (`vr_physics.cpp`, `variant`). Round 20 (`ROUND20.md`) has the details.
+
+| Files | Used for | Source (Freesound id: title, author) | Cut (s) |
+|---|---|---|---|
+| `splash_big1..3.wav` | a body, a rocket, a heavy thing going in | [585744](https://freesound.org/people/Nox_Sound/sounds/585744/): *Foley_Natural_Water_Jump_Mono.wav*, Nox_Sound | 0.02-1.9, 5.15-7.0, 9.62-11.5 |
+| `splash_big4.wav` | the same | [434978](https://freesound.org/people/felix.blume/sounds/434978/): *Water Splash* (diving into a pool), felix.blume | 0.08-1.9 |
+| `splash_small1.wav`, `splash_small3.wav` | a hand or a gun slapping the surface; a thrown thing going in | [390391](https://freesound.org/people/N-RAZM/sounds/390391/): *Small_Splashes.wav*, N-RAZM | 2.50-3.30, 15.45-16.30 |
+| `splash_small2.wav` | the same | [212143](https://freesound.org/people/qubodup/sounds/212143/): *SPLASH (by blaukreuz)*, qubodup, from [195877](https://freesound.org/people/blaukreuz/sounds/195877/) by blaukreuz (CC0 too) | 0.0-1.0 |
+| `splash_small4.wav` | the same | [390006](https://freesound.org/people/morganveilleux/sounds/390006/): *moving around in water- woosh, splash*, morganveilleux | 4.95-6.0 |
+| `splash_out1.wav` | a hand pulled out fast | [389987](https://freesound.org/people/morganveilleux/sounds/389987/): *coming out of water- woosh*, morganveilleux | 0.05-1.2 |
+| `plip1.wav`, `plip2.wav` | a shot, a nail or a grenade into water | [50623](https://freesound.org/people/vibe_crc/sounds/50623/): *water_splash_10shots.wav* (stones into a bucket), vibe_crc | 13.94-14.30, 4.27-4.60 |
+| `plip3.wav` | the same | [420227](https://freesound.org/people/14FPanska_Nemec_Petr/sounds/420227/): *37 - 2 Water drop - stone.WAV*, 14FPanska_Nemec_Petr | 0.10-0.45 |
+| `plip4.wav` | the same | [272392](https://freesound.org/people/danhelbling/sounds/272392/): *Object Drops In Water.wav*, danhelbling | 0.42-0.80 |
+| `slosh1..4.wav` | wading | [342932](https://freesound.org/people/ryansitz/sounds/342932/): *Wading in Shallow Water.wav*, ryansitz | 4.83-5.50, 6.30-6.95, 12.35-13.00, 24.20-24.95 |
+| `stroke1..4.wav` | swimming strokes | [390006](https://freesound.org/people/morganveilleux/sounds/390006/): *moving around in water- woosh, splash*, morganveilleux | 1.15-2.05, 2.45-3.30, 3.55-4.50, 7.00-7.80 |
+
 ## Techniques, research and references
 
 ### Body IK
@@ -78,7 +105,7 @@ articles, talks and other engines' source are credited with where they came from
   - guard bands, side culling, and the idea of excluding a light's own entity.
 - **FTE QuakeWorld** (Spike and the FTE team): per-light cached world shadow meshes, and presets.
 - **Quetoo** (Jay Dolan): shadow tiles redrawn only when a hash of the light and casters changes (planned).
-- **Bloom's blur:** the 9-tap Gaussian in five linear taps (its weights and offsets) is from Daniel Rákos,
+- **Bloom's blur:** the 9-tap Gaussian in five linear taps (its weights and offsets) is from Daniel RÃ¡kos,
   ["Efficient Gaussian blur with linear sampling"](https://www.rastergrid.com/blog/2010/09/efficient-gaussian-blur-with-linear-sampling/)
   (2010).
 - **Decals** blend by modulating the surface (the scene times the mark), as DarkPlaces' decals do (LordHavoc).
@@ -113,6 +140,11 @@ articles, talks and other engines' source are credited with where they came from
 - **Ilias Kapouranis:** Is single-pass stereo worth it?
 - **UploadVR:** Doom 3 Quest performance notes.
 - **Virtual Desktop / VDXR:** [mbucchia's VirtualDesktop-OpenXR](https://github.com/mbucchia/VirtualDesktop-OpenXR).
+- **OpenXR Toolkit** (Matthieu Bucchianeri, Jean-Luc Dupiot; [mbucchia/OpenXR-Toolkit](https://github.com/mbucchia/OpenXR-Toolkit)):
+  running FSR/NIS only within a radius of the lens centre (bilinear outside), and fixed foveated rendering by
+  variable-rate shading with rings around each eye's projection centre (`vr_upscale_radius`, `vr_foveated`). Ideas
+  only; no code.
+- **NVIDIA:** the `GL_NV_shading_rate_image` extension specification (Khronos registry), used by `vr_foveated.cpp`.
 - **Khronos:** the OpenXR specification.
 
 ## Development

@@ -1,8 +1,8 @@
 // vr_juice.qc -- feedback that makes fights physical (docs/vr-port/ROUND7.md, item 13):
 // - batting enemy projectiles back with a melee swing (vr_deflect);
 // - a heartbeat in the hands when your health is low (vr_heartbeat);
-// - bashing (vr_bash): a guard held in front (a weapon across, as for a parry, or both empty hands
-//   together) and then driven forward knocks monsters back and staggers them; so does an open palm.
+// - bashing (vr_bash): a guard held in front (a weapon across, as for a parry) and then driven forward
+//   knocks monsters back and staggers them; so does a shove, open palms pushed at them.
 // The hands' blows are here too: the melee's model (what makes a motion a punch or a swing, and how
 // hard).
 // Hit reactions (vr_hit_push), explosion rumble (vr_explosion_rumble) and directional damage haptics
@@ -12,8 +12,13 @@
 .float vr_heartbeat_time; // on a player: the next heartbeat
 .float vr_bash_time;      // on a player: when the next bash may be
 .float vr_guard_hand;     // on a player: the guard held (VR_Bash_Guard),
-.float vr_guard_time;     // and when it was last held still (0: not yet),
+.float vr_guard_time;     // and when it was last ready: held still for vr_bash_hold (0: not yet),
+.float vr_guard_since;    // since when it has been held still (0: it isn't),
 .float vr_guard_seen;     // and last held at all
+.float vr_guard_note;     // the stroke (blow_t0) a "no bash" line was printed for (developer)
+.float vr_push_since;     // since when the guard has been pushed (VR_BASH_CONFIRM; 0: it isn't)
+.float vr_bashdef_until;  // on a player: a bash's (or an armed shove's) batting goes on until then (VR_Bash_Deflect),
+.float vr_bashdef_hand;   // with that hand (-1: both)
 
 // ----------------------------------------------------------------------------
 // Blows: one model for every hand's melee, fist or weapon (docs/vr-port/ROUND14.md, "Melee").
@@ -80,6 +85,11 @@ float VR_BLOW_BACKBIAS = 1;     // going back at all, the distance needed grows 
 float VR_BLOW_WHIP = 2.6;       // rad/m: a fist turning more than this for the way the wrist went is whipped
 float VR_BLOW_JUMP = 20;        // m/s: the wrist moving faster than this jumped (a teleport, a re-based play space)
 float VR_BLOW_TIPJUMP = 60;     // m/s: likewise the striking point (a weapon taken)
+float VR_BLOW_STAB_ALIGN = 0.8; // cosine: a sword's stroke this near the blade's line, the tip leading, is a stab
+float VR_BLOW_STAB_TIP = 1.4;   // a stab's tip goes at most this much faster than its wrist (a cut sweeps the tip round)
+float VR_BLOW_STAB_TURN = 150;  // degrees/s: a stab's blade turns slower than this (a cut's turns faster)
+float VR_BLOW_STAB_SNAP = 12;   // m/s2: a stab's least snap (a thrust gets going less suddenly than a swing)
+float VR_BLOW_STAB = 1;         // a stab's shape weight (piercing; another thrust of a swung weapon: VR_BLOW_THRUST)
 
 // A hand's stroke, on an entity of its own (the player's vr_blow_main/vr_blow_off).
 .entity vr_blow_main;
@@ -105,12 +115,18 @@ float VR_BLOW_TIPJUMP = 60;     // m/s: likewise the striking point (a weapon ta
 .float blow_kind;      // what it is (VR_BLOW_KIND_*),
 .float blow_dist;      // how far the wrist travelled (metres),
 .float blow_accel;     // and how fast it got going (the wrist's mean acceleration to its fastest, m/s2)
+.float blow_dt;        // s between the hand's last two poses
+.vector blow_axis;     // the way what it holds points (the hand to the weapon's far end; a fist: the hand's forward), play space,
+.float blow_axisrate;  // and how fast that turns (degrees/s): a swing turns the blade, a bash's push hardly does
+.float blow_swung;     // the stroke (blow_t0) in which the weapon turned as fast as a swing (no bash in it)
+.float blow_stab;      // the stroke is a stab: a sword driven along its blade, the tip leading (VR_Blow_IsBlow)
 
 // The striking points (VR_Blow_Points, "Striking points" below).
 vector vr_pt[6];       // the points of the hand last asked for (world),
 float vr_pt_mult[6];   // each one's damage multiplier,
 string vr_pt_name[6];  // and name,
 float vr_pt_count;     // how many
+vector vr_pt_axis;     // and the way the hand's weapon points (world, unit: the hand to its far end; a fist: the hand's forward)
 .vector blow_pp[6];    // the hand's points at its pose before (world),
 .vector blow_cp[6];    // at its pose now,
 .float blow_pmult[6];  // their damage multipliers,
@@ -125,7 +141,8 @@ float vr_pt_count;     // how many
 .vector blow_hit_dir;  // the point's way,
 .float blow_hit_mult;  // its damage multiplier,
 .string blow_hit_name; // and its name ("the tip"),
-.float blow_hit_time;  // when
+.float blow_hit_time;  // when,
+.float blow_hit_swing; // and whether the weapon was swinging past it (a weak point's contact then waits for the blade)
 .float blow_wall_stroke; // likewise, the stroke's first contact with a wall,
 .float blow_wall_time;
 .vector blow_wall_pos;
@@ -147,6 +164,7 @@ float VR_BLOW_KIND_BACK = 4;
 float VR_BLOW_KIND_SWING = 5; // a swung weapon's arc across
 float VR_BLOW_KIND_THRUST = 6; // a swung weapon driven straight ahead
 float VR_BLOW_KIND_RISING = 7; // a swung weapon swung upwards
+float VR_BLOW_KIND_STAB = 8;   // a sword driven along its blade, the tip leading (piercing)
 
 // What a hand strikes with.
 float VR_BLOW_CLASS_FIST = 0;  // a fist (a box in hand too)
@@ -298,9 +316,11 @@ float(float xHand, entity b) VR_Blow_Track =
         b.blow_speed = 0;
         b.blow_tipspeed = 0;
         b.blow_vel = '0 0 0';
+        b.blow_dt = 0;
         return -1;
     }
 
+    b.blow_dt = dt;
     vector oldVel = b.blow_vel;
     float oldSpeed = b.blow_speed;
     b.blow_vel = d * (1 / dt);
@@ -384,6 +404,19 @@ void(float xHand) VR_Blow_Update =
 #undef VR_BLOW_KEEP
     b.blow_ppn = vr_pt_count;
     b.blow_ppw = wid;
+
+    // How fast what the hand holds turns (a swing, not a bash: VR_Bash).
+    vector axis = VR_Blow_ToPlaySpace(vr_pt_axis);
+    b.blow_axisrate = 0;
+    if(same)
+    {
+        if(b.blow_dt > 0)
+        {
+            b.blow_axisrate = VRAngleBetween(b.blow_axis, axis) / b.blow_dt;
+        }
+    }
+    b.blow_axis = axis;
+
     if(same && b.blow_t0)
     {
         VR_Blow_Sweep(xHand, b);
@@ -418,13 +451,48 @@ vector() VR_Blow_Facing =
 // the arm's wide arc).
 float(float xHand, entity b) VR_Blow_IsBlow = // (b: VR_Blow(xHand))
 {
-    float speed = VR_Blow_MinSpeed(VR_Blow_Class(xHand));
-    if(!b.blow_t0 || b.blow_peak < speed || b.blow_speed < speed * 0.5 || VR_Blow_Accel(b) < VR_BLOW_SNAP)
+    if(!b.blow_t0)
     {
+        b.blow_stab = FALSE;
         return FALSE;
     }
     vector s = b.blow_wrist - b.blow_start;
     float dist = vlen(s);
+
+    // A stab (a sword driven along its blade, the tip leading, the blade hardly turning: its tip no
+    // faster than the wrist, VR_BLOW_STAB_TIP) pierces: it needs less speed and snap than a swing
+    // (vr_melee_stab_speed times vr_melee_speed). A cut's blade may point along its path too (a
+    // diagonal cut's, down and ahead) but sweeps round: its tip goes two to five times the wrist's speed.
+    // (Nested ifs: fteqcc evaluated this as one chain of && to true with one of its terms false.)
+    float stab = FALSE;
+    if(dist > 0.05)
+    {
+        if(VRGetEntWeapon(self, xHand) == WID_SWORD)
+        {
+            if(s * b.blow_axis > dist * VR_BLOW_STAB_ALIGN)
+            {
+                if(b.blow_tippeak < b.blow_peak * VR_BLOW_STAB_TIP)
+                {
+                    if(b.blow_axisrate < VR_BLOW_STAB_TURN)
+                    {
+                        stab = TRUE;
+                    }
+                }
+            }
+        }
+    }
+    b.blow_stab = stab;
+    float speed = VR_Blow_MinSpeed(VR_Blow_Class(xHand));
+    float snap = VR_BLOW_SNAP;
+    if(b.blow_stab)
+    {
+        speed = max(0.5, cvar_hget(cvarh_vr_melee_speed)) * max(0.3, cvar_hget(cvarh_vr_melee_stab_speed));
+        snap = VR_BLOW_STAB_SNAP;
+    }
+    if(b.blow_peak < speed || b.blow_speed < speed * 0.5 || VR_Blow_Accel(b) < snap)
+    {
+        return FALSE;
+    }
     float need = cvar_hget(cvarh_vr_melee_distance);
     if(dist < need)
     {
@@ -500,6 +568,12 @@ float(entity b, float xClass) VR_Blow_Weight =
 
     if(xClass == VR_BLOW_CLASS_SWING)
     {
+        // A sword's stab (VR_Blow_IsBlow) pierces: the point leads, whichever way.
+        if(b.blow_stab)
+        {
+            b.blow_kind = VR_BLOW_KIND_STAB;
+            return VR_BLOW_STAB;
+        }
         // A weapon's natural blows are arcs, down or across; straight, it is a thrust (ahead) or a
         // push; swung upwards, it has little behind it (VR_BLOW_SWING_UP, going straight up).
         if(z > 0.7)
@@ -534,6 +608,11 @@ void(float xHand) VR_Blow_Measure =
     float s = max(0.5, cvar_hget(cvarh_vr_melee_speed));
     float base = s * VR_BLOW_BASE;
     float good = s * (cls == VR_BLOW_CLASS_SWING ? VR_BLOW_SWING_GOOD : VR_BLOW_GOOD);
+    if(b.blow_stab)
+    {
+        // A stab's least speed is less than a swing's: its speed factor starts from half of it.
+        base = min(base, s * max(0.3, cvar_hget(cvarh_vr_melee_stab_speed)) * 0.5);
+    }
     float need = max(0.05, cvar_hget(cvarh_vr_melee_distance));
 
     b.blow_dist = VR_Blow_Distance(xHand);
@@ -570,6 +649,7 @@ string(float xKind) VR_Blow_KindName =
     if(xKind == VR_BLOW_KIND_SWING)  return "swing";
     if(xKind == VR_BLOW_KIND_THRUST) return "thrust";
     if(xKind == VR_BLOW_KIND_RISING) return "rising swing";
+    if(xKind == VR_BLOW_KIND_STAB)   return "stab";
     return "punch";
 };
 
@@ -597,7 +677,10 @@ float VR_PT_RADIUS = 3;      // units around a point's sweep that it strikes (ti
 float VR_PT_HILT = 0.6;      // a sword's hilt (a pommel strike): its damage multiplier
 float VR_PT_HANDLE = 0.5;    // the axe's or Mjolnir's handle
 float VR_PT_WALL_AGE = 0.1;  // s: how recent a wall's contact must be to be the blow's
-float VR_PT_UPGRADE = 0.05;  // s: a weak point's contact waits this long for a strong one's
+float VR_PT_UPGRADE = 0.05;  // s: a weak point's contact in a hilt strike waits this long for a strong one's
+float VR_PT_SWING_TURN = 150; // degrees/s: a weapon turning faster than this is swinging (a hilt strike hardly turns it)
+float VR_PT_SWEEP = 1.5;     // a weapon whose tip sweeps this much further (faster) than the hand is swinging,
+float VR_PT_SWEEP_NOW = 2.5; // or this much, and over 4 m/s, in one frame (the head lags the hand a little: a punch stopping has it faster)
 
 // A striking point (a macro: the constant index is a plain global, not an array accessor's call;
 // several statements, so only in a block).
@@ -617,6 +700,7 @@ void(float xHand) VR_Blow_Points =
     {
         VR_Blow_Point(0, h - fwd * 1, 1, "the fist");
         VR_Blow_Point(1, h + fwd * 4, 1, "the knuckles");
+        vr_pt_axis = fwd;
         return;
     }
 
@@ -626,6 +710,7 @@ void(float xHand) VR_Blow_Points =
         m = h + fwd * 8;
     }
     vector a = m - h;
+    vr_pt_axis = normalize(a);
     if(wid == WID_SWORD)
     {
         // The hand closes just under the guard; the grip and the pommel go on below it.
@@ -713,12 +798,17 @@ float(entity e) VR_Blow_Strikable =
 
 // Sweeps the striking points of `xHand` (b.blow_pp to b.blow_cp) for the stroke's first contacts: with
 // something that bleeds, and with a wall. Of the points striking in the same frame, the strongest
-// (the blade over the hilt), then the earliest along the sweep. A weak point's contact (a sword's hilt,
-// an axe's handle) gives way to a strong one's within VR_PT_UPGRADE s: a hilt or handle strikes only
-// when the blade or head doesn't follow it in.
+// (the blade over the hilt), then the earliest along the sweep. A weak point's contact (a sword's
+// hilt, pommel or guard, an axe's handle) gives way to a strong one's for as long as it hasn't landed
+// (VR_Blow_Contact: a hilt strike's waits VR_PT_UPGRADE, a swing's vr_melee_hilt_window, and a swing's
+// never lands: in a big swing the hands reach a monster before the blade, which sweeps in after).
 void(float xHand, entity b) VR_Blow_Sweep =
 {
-    float upgrade = b.blow_hit_stroke == b.blow_t0 && b.blow_hit_mult < 1 && time - b.blow_hit_time <= VR_PT_UPGRADE;
+    float upgrade = FALSE;
+    if(b.blow_hit_stroke == b.blow_t0)
+    {
+        upgrade = b.blow_hit_mult < 1;
+    }
     float wantHit = b.blow_hit_stroke != b.blow_t0 || upgrade;
     float n = b.blow_ppn;
     if(n <= 0)
@@ -729,7 +819,7 @@ void(float xHand, entity b) VR_Blow_Sweep =
     vector hand = VRGetHandPos(xHand);
 
     float bestT = 2;
-    float bestM = upgrade ? b.blow_hit_mult : 0; // (upgrading: only a stronger point)
+    float bestM = upgrade ? 0.99 : 0; // (upgrading: only the blade or head, not the guard over the pommel)
     float best = -1;
     entity bestEnt = world;
     vector bestAt = '0 0 0';
@@ -833,6 +923,24 @@ void(float xHand, entity b) VR_Blow_Sweep =
         if(b.blow_hit_stroke != b.blow_t0)
         {
             b.blow_hit_time = time; // (an upgrade keeps the first contact's time)
+            // A weak point's contact: is the weapon swinging past it (its tip sweeping round much
+            // further than the hand) or striking with it (the pommel leading, or the weapon driven
+            // along, as a pommel punch or a hilt brought down)?
+            b.blow_hit_swing = FALSE;
+            if(b.blow_pmult[best] < 1)
+            {
+                float hi = n == 6 ? 1 : 0; // the hand's point (a sword's hilt; the axe's hand)
+                vector tipAt = b.blow_cp[n - 1];
+                vector handAt = b.blow_cp[hi];
+                float handSweep = vlen(handAt - b.blow_pp[hi]);
+                vector way = normalize(b.blow_cp[best] - b.blow_pp[best]);
+                float swinging = FALSE; // (a local: see VR_Blow_IsBlow)
+                if(vlen(tipAt - b.blow_pp[n - 1]) > handSweep * VR_PT_SWEEP + 0.5)
+                {
+                    swinging = way * normalize(tipAt - handAt) > -0.5;
+                }
+                b.blow_hit_swing = swinging;
+            }
         }
         b.blow_hit_stroke = b.blow_t0;
         b.blow_hit_ent = bestEnt;
@@ -863,9 +971,29 @@ float(float xHand) VR_Blow_Contact =
     {
         return FALSE;
     }
-    if(b.blow_hit_stroke == b.blow_t0 && b.blow_hit_mult < 1 && time - b.blow_hit_time < VR_PT_UPGRADE)
+    if(b.blow_hit_stroke == b.blow_t0 && b.blow_hit_mult < 1)
     {
-        return FALSE; // a hilt or handle: the blade or head may follow it in (VR_Blow_Sweep)
+        // A hilt or handle: the blade or head may follow it in (VR_Blow_Sweep). A hilt strike lands
+        // after VR_PT_UPGRADE; a swing's hilt never does: once vr_melee_hilt_window is over it is
+        // forgotten, and the swing may still land with the blade later in the stroke.
+        // A swing: the weapon swinging past the contact as it came, or turning fast, or its tip going
+        // (or having gone, in the stroke) much faster than the wrist: a swing's start is slow, and it
+        // may touch first then. A pommel punch or a hilt brought down moves the weapon along whole.
+        if(b.blow_axisrate > VR_PT_SWING_TURN || b.blow_tippeak > b.blow_peak * VR_PT_SWEEP ||
+           b.blow_tipspeed > max(4, b.blow_speed * VR_PT_SWEEP_NOW))
+        {
+            b.blow_hit_swing = TRUE;
+        }
+        if(time - b.blow_hit_time < (b.blow_hit_swing ? max(VR_PT_UPGRADE, cvar_hget(cvarh_vr_melee_hilt_window))
+                                                       : VR_PT_UPGRADE))
+        {
+            return FALSE;
+        }
+        if(b.blow_hit_swing)
+        {
+            b.blow_hit_stroke = 0;
+            return FALSE;
+        }
     }
     if(b.blow_hit_stroke == b.blow_t0 && b.blow_hit_ent.takedamage && b.blow_hit_ent.solid != SOLID_NOT)
     {
@@ -915,6 +1043,40 @@ float(entity e) VR_Deflect_IsProjectile =
 float VR_BAT_KEEP = 8;   // weapon lines kept (a ring)
 float VR_BAT_LATE = 0.05; // s: a projectile's path starts this far behind it (just past the weapon)
 float VR_BAT_AIM = 25;    // degrees: a thrower this near where the hand points gets its projectile back
+
+// Sends the projectile `e` back along `xDir` (at its thrower, when that is within `xAim` degrees of
+// it), faster; `xHand` feels it (-1: both hands).
+void(entity e, vector xDir, float xHand, float xAim) VR_Deflect_Send =
+{
+    entity oldOwner = e.owner;
+    vector dir = xDir;
+    vector toOwner = normalize(oldOwner.origin + (oldOwner.mins + oldOwner.maxs) * 0.5 - e.origin);
+    if(oldOwner.health > 0 && VRAngleBetween(dir, toOwner) < xAim)
+    {
+        dir = toOwner;
+    }
+
+    float speed = max(500, vlen(e.velocity)) * 1.2;
+    e.velocity = dir * speed;
+    e.angles = vectoangles(e.velocity);
+    e.owner = self;
+    e.enemy = oldOwner; // homing ones (a vore's ball) go for their thrower
+    e.vr_deflect_time = time;
+
+    sound(self, CHAN_AUTO, "weapons/tink1.wav", 1, ATTN_NORM);
+    sound(self, CHAN_AUTO, "player/axhit2.wav", 0.6, ATTN_NORM);
+    particle2(e.origin, dir * 120, QVR_PARTICLE_PRESET_SPARKS, 20);
+    if(xHand != cVR_OffHand)
+    {
+        haptic(cVR_MainHand, 0.0, 0.2, 90, 1.0);
+        handimpact(cVR_MainHand, 3, dir * -1);
+    }
+    if(xHand != cVR_MainHand)
+    {
+        haptic(cVR_OffHand, 0.0, 0.2, 90, 1.0);
+        handimpact(cVR_OffHand, 3, dir * -1);
+    }
+};
 
 void(float xHand, entity b) VR_Deflect = // (b: VR_Blow(xHand))
 {
@@ -972,28 +1134,9 @@ void(float xHand, entity b) VR_Deflect = // (b: VR_Blow(xHand))
             }
             if(near < radius + e.maxs_x)
             {
-                entity oldOwner = e.owner;
-                vector dir = VRForwardOf(VRGetHandRot(xHand));
-                vector toOwner = normalize(oldOwner.origin + (oldOwner.mins + oldOwner.maxs) * 0.5 - e.origin);
-                if(oldOwner.health > 0 && VRAngleBetween(dir, toOwner) < VR_BAT_AIM)
-                {
-                    dir = toOwner;
-                }
-
-                float speed = max(500, vlen(e.velocity)) * 1.2;
-                e.velocity = dir * speed;
-                e.angles = vectoangles(e.velocity);
-                e.owner = self;
-                e.enemy = oldOwner; // homing ones (a vore's ball) go for their thrower
-                e.vr_deflect_time = time;
-
-                sound(self, CHAN_AUTO, "weapons/tink1.wav", 1, ATTN_NORM);
-                sound(self, CHAN_AUTO, "player/axhit2.wav", 0.6, ATTN_NORM);
-                particle2(e.origin, dir * 120, QVR_PARTICLE_PRESET_SPARKS, 20);
-                haptic(xHand, 0.0, 0.2, 90, 1.0);
-                handimpact(xHand, 3, dir * -1);
                 dprint(sprintf("deflect: %s of %s, %.0f units from the swing's line of %.2f s ago\n", e.classname,
-                    oldOwner.classname, near, when));
+                    e.owner.classname, near, when));
+                VR_Deflect_Send(e, VRForwardOf(VRGetHandRot(xHand)), xHand, VR_BAT_AIM);
             }
         }
         e = e.chain;
@@ -1018,26 +1161,45 @@ void() VR_Heartbeat =
 };
 
 // ----------------------------------------------------------------------------
-// Bashes. A bash is a guard pushed forward: the guard held first, about still, then driven ahead
-// (not down: a chop from a raised weapon is a swing) faster than vr_bash_speed -- less than a blow
-// needs. The guards are the parry's (combat.qc): a weapon held about level across in front, in one
-// hand or two (VR_Parry_Guard: the parry's own test since round 18, so a sword or the axe held
-// across bashes too), or both empty hands together in front (VR_Parry_HandsTogether). An open palm
-// driven straight ahead over a blow's distance is a one-hand shove, with no guard. A weapon bash
-// soon after a parry (VR_PARRYBASH_WINDOW) is a parry-bash: a counter, harder.
-// Each has its own sound (vr_bash_sound; Misc/quakevr/make_sounds.py): a shove, a weapon bash and a
-// parry-bash, apart from the blows' and the parry's.
+// Bashes and shoves (docs/vr-port/ROUND20.md, "Melee: blade, hilt, bash, shove").
+//
+// A BASH is the parry's guard pushed forward: a weapon held about level across in front, in one hand
+// or two (VR_Parry_Guard: a sword by its grip or its blade, the axe, a gun held across), held there
+// still -- the wrist slower than VR_BASH_STILL, the weapon turning less than half vr_bash_swing_rate --
+// for vr_bash_hold seconds, then driven ahead (within 53 degrees of the facing) faster than
+// vr_bash_speed within VR_BASH_WINDOW, the weapon still turning slower than vr_bash_swing_rate. A swing
+// whose blade passes through level across on its way (a diagonal cut, a side swing from a guard)
+// turns the blade far faster than that, however slow the hands: it is never a bash, it stays a swing
+// and lands with the blade.
+//
+// A SHOVE is an open hand pushed at what is ahead: empty, not gripping (the grip held makes a fist),
+// not steadying the other hand's weapon, not carrying or climbing; the palm facing ahead and the hand
+// moving the way the palm faces, faster than vr_shove_speed, in a snap (VR_SHOVE_SNAP) and a few
+// centimetres straight ahead (VR_SHOVE_TRAVEL). Both hands: a shove; one: half as strong. A slow reach,
+// a punch (the palm faces in or down), a slap (the hand goes sideways) or a hand on a sword's grip is
+// no shove.
+//
+// A weapon bash soon after a parry (VR_PARRYBASH_WINDOW) is a parry-bash: a counter, harder. Each has
+// its own sound (vr_bash_sound; Misc/quakevr/make_sounds.py), apart from the blows' and the parry's.
+// With batting on (vr_deflect), a bash, or a shove while a hand holds a weapon, bats back what meets
+// the guard for a while (VR_Bash_Deflect).
+// The motion is only a bash or a shove: the hands in it don't also punch or swing.
 
-float VR_GUARD_HANDS = 2;        // vr_guard_hand: both empty hands together (else the hand with the weapon; -1 none)
-float VR_BASH_STILL = 1.5;       // m/s: the guard's wrists slower than this hold it (about) still
+float VR_BASH_STILL = 1.0;       // m/s: the guard's wrist slower than this holds it (about) still
 float VR_BASH_WINDOW = 0.75;     // s: the push must follow the guard held still this soon
 float VR_GUARD_LOST = 0.25;      // s: a guard lost this briefly is still held (a push tilts it)
+float VR_BASH_CONFIRM = 0.05;    // s: the push must go on this long, not swinging (a swing from a guard starts as a push)
 float VR_PARRYBASH_WINDOW = 1.5; // s: a weapon bash this soon after a parry is a parry-bash
 float VR_PARRYBASH_SCALE = 1.3;  // how much harder a parry-bash is (damage, push, stagger)
+float VR_SHOVE_PALM = 0.6;       // cosine: the palm faces ahead (within 53 degrees)
+float VR_SHOVE_ALONG = 0.7;      // cosine: the hand goes the way its palm faces (within 45 degrees)
+float VR_SHOVE_SNAP = 8;         // m/s2: the wrist's least mean acceleration to its fastest
+float VR_SHOVE_TRAVEL = 0.1;     // m: the wrist's least travel, straight ahead
+float VR_SHOVE_PAIR = 0.5;       // the other hand shoves with it pushing at this much of vr_shove_speed
+float VR_BASH_AIM = 45;          // degrees: a thrower this near the facing gets its projectile back
 float vr_bash_counter;           // while a bash's hits are dealt: a parry-bash (vr_dummy.qc)
 
-// The guard `self` holds now, facing `xForward`: the hand holding a weapon across, VR_GUARD_HANDS,
-// or -1.
+// The guard `self` holds now, facing `xForward`: the hand holding a weapon across, or -1.
 float(vector xForward) VR_Bash_Guard =
 {
     if(VR_Parry_Guard(self, cVR_MainHand, xForward))
@@ -1048,40 +1210,32 @@ float(vector xForward) VR_Bash_Guard =
     {
         return cVR_OffHand;
     }
-    if(VR_Parry_HandsTogether(self, xForward))
-    {
-        return VR_GUARD_HANDS;
-    }
     return -1;
 };
 
-// Whether the hands of guard `xGuard` are held still (their wrists, from the head).
-float(float xGuard) VR_Bash_GuardStill =
-{
-    if(xGuard == VR_GUARD_HANDS)
-    {
-        return VR_Blow(cVR_MainHand).blow_speed < VR_BASH_STILL && VR_Blow(cVR_OffHand).blow_speed < VR_BASH_STILL;
-    }
-    return VR_Blow(xGuard).blow_speed < VR_BASH_STILL;
-};
-
-// Whether `xHand` of `self` drives forward (along the body's facing `xForward`) faster than
-// vr_bash_speed (m/s), and mostly forward (within 53 degrees: not a chop down, nor a swing across).
-float(float xHand, vector xForward) VR_Bash_Driving =
+// Whether `xHand` of `self` drives forward (along the body's facing `xForward`) faster than `xSpeed`
+// (m/s), and mostly forward (within 53 degrees: not a chop down, nor a swing across).
+float(float xHand, vector xForward, float xSpeed) VR_Bash_Driving =
 {
     vector v = VRGetEntHandVel(self, xHand);
     float ahead = v * xForward;
-    return ahead > cvar_hget(cvarh_vr_bash_speed) && ahead > vlen(v) * 0.6;
+    return ahead > xSpeed && ahead > vlen(v) * 0.6;
 };
 
-// Whether empty `xHand` of `self` shoves on its own, driven forward (along `xForward`): the open
-// palm facing ahead (fingers up or out; a fist's palm faces in or down), over a blow's distance
-// (vr_melee_distance) straight ahead (a wiggle of an open hand is no shove).
-float(float xHand, vector xForward) VR_Bash_PalmShove =
+// Whether `xHand` of `self` shoves, pushed ahead (`xForward`) faster than `xSpeed` (see above).
+float(float xHand, vector xForward, float xSpeed) VR_Bash_Shoving =
 {
-    if(!VRIsHandEmpty(self, xHand) || VR_Carry_IsHolding(self, xHand))
+    vector v = VRGetEntHandVel(self, xHand);
+    float speed = vlen(v);
+    if(v * xForward < max(xSpeed, speed * 0.8)) // (most frames: the hand is not pushing)
     {
         return FALSE;
+    }
+    if(!VRIsHandEmpty(self, xHand) || VR_HandGrabUtil_IsHandGrabbing(self, xHand) || VRGet2HAiming(self) ||
+       VR_Carry_IsHolding(self, xHand) ||
+       VRHasBit(self.vrbits0, xHand == cVR_MainHand ? QVR_VRBITS0_MAINHAND_CLIMBING : QVR_VRBITS0_OFFHAND_CLIMBING))
+    {
+        return FALSE; // not an open hand
     }
 
     vector oldForward = v_forward;
@@ -1092,17 +1246,20 @@ float(float xHand, vector xForward) VR_Bash_PalmShove =
     v_forward = oldForward;
     v_right = oldRight;
     v_up = oldUp;
-    if(palm * xForward < 0.6)
+    if(palm * xForward < VR_SHOVE_PALM || v * palm < speed * VR_SHOVE_ALONG)
+    {
+        return FALSE; // a punch, a slap, a reach
+    }
+
+    // A push, not a drift: in a snap, and a few centimetres straight ahead.
+    entity b = VR_Blow(xHand);
+    if(!b.blow_t0 || VR_Blow_Accel(b) < VR_SHOVE_SNAP)
     {
         return FALSE;
     }
-
-    // Straight ahead, not curving: a slap's arc starts ahead too, palm first.
-    entity b = VR_Blow(xHand);
-    float dist = VR_Blow_Distance(xHand);
-    vector fwd = VR_Blow_ToPlaySpace(xForward);
-    return dist >= cvar_hget(cvarh_vr_melee_distance) && (b.blow_wrist - b.blow_start) * fwd > dist * 0.9 &&
-           b.blow_vel * fwd > b.blow_speed * 0.85;
+    vector s = b.blow_wrist - b.blow_start;
+    float ahead = s * VR_Blow_ToPlaySpace(xForward);
+    return ahead > VR_SHOVE_TRAVEL && ahead > vlen(s) * 0.8;
 };
 
 // What is just ahead of a bash at `xAt` (along `xForward`) takes `xScale` of vr_bash_damage, is
@@ -1140,28 +1297,96 @@ float(vector xAt, vector xForward, float xKind, float xHand, float xScale) VR_Ba
     return hits;
 };
 
-// A bash (vr_bash): a guard held still and then driven forward -- a weapon held across in front
-// (the parry pose), or both empty hands together (crossed or side by side: a shove) -- or one empty
-// hand with the open palm ahead (a shove half as strong). What is just ahead takes a little damage
-// (vr_bash_damage), is thrown back (vr_bash_push) and staggers (its pain animation, forced). The
-// motion is only a bash: the hands in it don't also punch or swing (runs before the hands' melee,
-// PlayerVRMelee in client.qc; they may hit again once they stop or pull back).
+// Batting with a bash (vr_deflect; round 20): for vr_bash_deflect_window seconds from the push, a
+// monster's projectile whose path this frame (from a little behind it to where it will be at the
+// frame's end) comes within vr_bash_deflect_radius of the guard -- each hand's weapon, from its butt to
+// its far end (VR_Parry_WeaponLine), each empty hand, and the line between the hands while they are
+// together -- is sent back ahead (at its thrower, within VR_BASH_AIM of the facing `xForward`).
+// More lenient than a swing's batting (vr_deflect_radius, _window): a push covers less ground.
+void(vector xForward) VR_Bash_Deflect =
+{
+    float radius = max(0, cvar_hget(cvarh_vr_bash_deflect_radius));
+    float dt = max(frametime, 0.011);
+    vector mh = VRGetHandPos(cVR_MainHand);
+    vector oh = VRGetHandPos(cVR_OffHand);
+    vector ma = mh;
+    vector mb = mh;
+    vector oa = oh;
+    vector ob = oh;
+    if(VR_Parry_WeaponLine(self, cVR_MainHand))
+    {
+        ma = vr_parry_butt;
+        mb = vr_parry_end;
+    }
+    if(VR_Parry_WeaponLine(self, cVR_OffHand))
+    {
+        oa = vr_parry_butt;
+        ob = vr_parry_end;
+    }
+    float together = vlen(mh - oh) < 0.7 * VRMetersToUnits();
+    vector head = VRGetHeadPos(self);
+
+    entity e = findradius((mh + oh) * 0.5, 200);
+    while(e)
+    {
+        if(VR_Deflect_IsProjectile(e) && time >= e.vr_deflect_time + 0.3 && (e.origin - head) * xForward > -8)
+        {
+            vector from = e.origin - e.velocity * max(dt, VR_BAT_LATE * 2);
+            vector to = e.origin + e.velocity * dt;
+            float near = min(VR_SegmentDistance(from, to, ma, mb), VR_SegmentDistance(from, to, oa, ob));
+            if(together)
+            {
+                near = min(near, VR_SegmentDistance(from, to, mh, oh));
+            }
+            if(near < radius + e.maxs_x)
+            {
+                dprint(sprintf("deflect: %s of %s, %.0f units from the bash's guard, %.2f s into the push\n",
+                    e.classname, e.owner.classname, near,
+                    time - (self.vr_bashdef_until - max(0, cvar_hget(cvarh_vr_bash_deflect_window)))));
+                VR_Deflect_Send(e, xForward, self.vr_bashdef_hand, VR_BASH_AIM);
+            }
+        }
+        e = e.chain;
+    }
+};
+
+// Starts a bash's batting (vr_deflect), with `xHand` (-1: both), unless it is going on already.
+void(float xHand, vector xForward) VR_Bash_DeflectStart =
+{
+    if(time > self.vr_bashdef_until && cvar_hget(cvarh_vr_deflect))
+    {
+        self.vr_bashdef_hand = xHand;
+        self.vr_bashdef_until = time + max(0, cvar_hget(cvarh_vr_bash_deflect_window));
+        VR_Bash_Deflect(xForward);
+    }
+};
+
+// A bash (vr_bash), or a shove (see above). What is just ahead takes a little damage (vr_bash_damage),
+// is thrown back (vr_bash_push) and staggers (its pain animation, forced). Runs before the hands'
+// melee (PlayerVRMelee in client.qc): the hands in it don't also punch or swing (they may hit again
+// once they stop or pull back).
 void() VR_Bash =
 {
     if(!cvar_hget(cvarh_vr_bash) || !self.ishuman || self.health <= 0 || !VRHandsTracked(self))
     {
         self.vr_guard_hand = -1;
         self.vr_guard_time = 0;
+        self.vr_guard_since = 0;
         return;
     }
 
     // The body's facing is the head's (.v_angle is the main hand's aim: a weapon held across in
     // front aims sideways).
     vector fwd = VRForwardOf('0 1 0' * self.v_viewangle_y);
+    if(time <= self.vr_bashdef_until)
+    {
+        VR_Bash_Deflect(fwd); // a bash's batting goes on
+    }
 
-    // The guard, and when it was last held still: the push must follow it. A guard lost for a moment
-    // (VR_GUARD_LOST: a push tilts the blade) is still the one held; any longer (the weapon turned to
-    // thrust, say) and the push is no bash.
+    // The guard, and when it was last ready (held still for vr_bash_hold): the push must follow it. A
+    // guard lost for a moment (VR_GUARD_LOST: a push tilts the blade) is still the one held; any longer
+    // (the weapon turned to thrust, say) and the push is no bash.
+    float swingRate = max(10, cvar_hget(cvarh_vr_bash_swing_rate));
     float guard = VR_Bash_Guard(fwd);
     if(guard >= 0)
     {
@@ -1169,63 +1394,108 @@ void() VR_Bash =
         {
             self.vr_guard_hand = guard;
             self.vr_guard_time = 0;
+            self.vr_guard_since = 0;
         }
         self.vr_guard_seen = time;
-        if(VR_Bash_GuardStill(guard))
+        entity gb = VR_Blow(guard);
+        if(gb.blow_speed < VR_BASH_STILL && gb.blow_axisrate < swingRate * 0.5)
         {
-            self.vr_guard_time = time;
-        }
-    }
-    else if(time - self.vr_guard_seen < VR_GUARD_LOST)
-    {
-        guard = self.vr_guard_hand;
-        if(guard == VR_GUARD_HANDS ? !(VRIsHandEmpty(self, cVR_MainHand) && VRIsHandEmpty(self, cVR_OffHand))
-                                   : guard >= 0 && VRIsHandEmpty(self, guard))
-        {
-            guard = -1; // the weapon is gone from the hand (or a hand has taken one)
-        }
-    }
-
-    float mainDriving = VR_Bash_Driving(cVR_MainHand, fwd);
-    float offDriving = VR_Bash_Driving(cVR_OffHand, fwd);
-    if(!mainDriving && !offDriving)
-    {
-        return;
-    }
-
-    float armed = FALSE;
-    float hand = -1;
-    if(guard >= 0 && self.vr_guard_time > 0 && time - self.vr_guard_time < VR_BASH_WINDOW)
-    {
-        if(guard == VR_GUARD_HANDS)
-        {
-            if(mainDriving && offDriving)
+            if(!self.vr_guard_since)
             {
-                hand = cVR_MainHand;
+                self.vr_guard_since = time;
             }
-        }
-        else if(guard == cVR_MainHand ? mainDriving : offDriving)
-        {
-            hand = guard;
-            armed = TRUE;
-        }
-    }
-    float oneHand = FALSE;
-    if(hand < 0)
-    {
-        if(mainDriving && VR_Bash_PalmShove(cVR_MainHand, fwd))
-        {
-            hand = cVR_MainHand;
-        }
-        else if(offDriving && VR_Bash_PalmShove(cVR_OffHand, fwd))
-        {
-            hand = cVR_OffHand;
+            if(time - self.vr_guard_since >= cvar_hget(cvarh_vr_bash_hold))
+            {
+                self.vr_guard_time = time;
+            }
         }
         else
         {
+            self.vr_guard_since = 0;
+        }
+    }
+    else
+    {
+        self.vr_guard_since = 0;
+        if(time - self.vr_guard_seen < VR_GUARD_LOST)
+        {
+            guard = self.vr_guard_hand;
+            if(guard >= 0 && VRIsHandEmpty(self, guard))
+            {
+                guard = -1; // the weapon is gone from the hand
+            }
+        }
+    }
+
+    float armed = FALSE;
+    float both = FALSE;
+    float hand = -1;
+    // The push: the guard ready, then driven ahead, the weapon not turning as a swing does -- for
+    // VR_BASH_CONFIRM (a swing started from a guard begins as a push: its blade turns fast a frame
+    // later), and not in a stroke in which it already swung.
+    float pushing = FALSE;
+    if(guard >= 0)
+    {
+        entity pb = VR_Blow(guard);
+        if(pb.blow_axisrate >= swingRate && pb.blow_t0)
+        {
+            pb.blow_swung = pb.blow_t0;
+        }
+        if(self.vr_guard_time > 0 && time - self.vr_guard_time < VR_BASH_WINDOW &&
+           VR_Bash_Driving(guard, fwd, cvar_hget(cvarh_vr_bash_speed)))
+        {
+            if(pb.blow_axisrate < swingRate && !(pb.blow_t0 && pb.blow_swung == pb.blow_t0))
+            {
+                pushing = TRUE;
+                if(!self.vr_push_since)
+                {
+                    self.vr_push_since = time;
+                }
+                VR_Bash_DeflectStart(guard, fwd); // (batting from the push's start: every moment counts)
+                if(time - self.vr_push_since < VR_BASH_CONFIRM)
+                {
+                    return; // (not a shove either: wait and see)
+                }
+                hand = guard;
+                armed = TRUE;
+            }
+            else if(pb.blow_t0 && self.vr_guard_note != pb.blow_t0)
+            {
+                // For tuning (vr_bash_swing_rate): a guard pushed, but swinging.
+                self.vr_guard_note = pb.blow_t0;
+                dprint(sprintf("bash: none, the weapon turns %.0f deg/s (a swing: Bash Swing Limit %.0f)\n",
+                    pb.blow_axisrate, swingRate));
+            }
+        }
+    }
+    if(!pushing)
+    {
+        self.vr_push_since = 0;
+    }
+    if(hand < 0)
+    {
+        float shoveSpeed = cvar_hget(cvarh_vr_shove_speed);
+        float mainShove = VR_Bash_Shoving(cVR_MainHand, fwd, shoveSpeed);
+        float offShove = VR_Bash_Shoving(cVR_OffHand, fwd, shoveSpeed);
+        if(!mainShove && !offShove)
+        {
             return;
         }
-        oneHand = TRUE;
+        hand = mainShove ? cVR_MainHand : cVR_OffHand;
+        // The other hand pushing with it (a little behind) makes it a two-hand shove.
+        if(mainShove && offShove)
+        {
+            both = TRUE;
+        }
+        else
+        {
+            both = VR_Bash_Shoving(mainShove ? cVR_OffHand : cVR_MainHand, fwd, shoveSpeed * VR_SHOVE_PAIR);
+        }
+    }
+    float oneHand = TRUE;
+    if(armed || both)
+    {
+        oneHand = FALSE;
     }
 
     // No punches or swings in this motion, even during the bash's cooldown: the hands' melee counts
@@ -1234,26 +1504,34 @@ void() VR_Bash =
     // weapon (held in both hands).
     VRSetMeleeHitSoundPlayed(hand, TRUE);
     float other = hand == cVR_MainHand ? cVR_OffHand : cVR_MainHand;
-    if((!armed && !oneHand) || (armed && (hand == cVR_MainHand ? offDriving : mainDriving) &&
-                              vlen(VRGetHandPos(other) - VRGetHandPos(hand)) < 24))
+    if(both || (armed && VR_Bash_Driving(other, fwd, cvar_hget(cvarh_vr_bash_speed)) &&
+                vlen(VRGetHandPos(other) - VRGetHandPos(hand)) < 24))
     {
         VRSetMeleeHitSoundPlayed(other, TRUE);
     }
+
+    // Batting (vr_deflect): a bash, or a shove while a hand holds a weapon, sends back what meets the
+    // guard from now on, for vr_bash_deflect_window seconds.
+    if(armed || !VRIsHandEmpty(self, cVR_MainHand) || !VRIsHandEmpty(self, cVR_OffHand))
+    {
+        VR_Bash_DeflectStart(both ? -1 : hand, fwd);
+    }
+
     if(time < self.vr_bash_time)
     {
         return;
     }
 
-    // What is just ahead of the hands (a weapon held in both: between them).
-    vector at = (VRGetHandPos(cVR_MainHand) + VRGetHandPos(cVR_OffHand)) * 0.5;
-    if(oneHand || (armed && !VRGet2HAiming(self)))
+    // What is just ahead of the hands (a weapon held in both, or both hands: between them).
+    vector at = VRGetHandPos(hand);
+    if(both || (armed && VRGet2HAiming(self)))
     {
-        at = VRGetHandPos(hand);
+        at = (VRGetHandPos(cVR_MainHand) + VRGetHandPos(cVR_OffHand)) * 0.5;
     }
     // A weapon bash soon after a parry: a parry-bash, the counter.
     float counter = armed && self.vr_parry_time > 0 && time - self.vr_parry_time < VR_PARRYBASH_WINDOW;
     vr_bash_counter = counter;
-    float hits = VR_Bash_Hit(at, fwd, armed ? QVR_HITKIND_BASH : QVR_HITKIND_SHOVE, (armed || oneHand) ? hand : -1,
+    float hits = VR_Bash_Hit(at, fwd, armed ? QVR_HITKIND_BASH : QVR_HITKIND_SHOVE, both ? -1 : hand,
                              oneHand ? 0.5 : (counter ? VR_PARRYBASH_SCALE : 1));
     vr_bash_counter = FALSE;
     if(!hits)

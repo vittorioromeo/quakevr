@@ -3,6 +3,10 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 
+#include <cstring>
+#include <map>
+#include <string>
+
 namespace qvr
 {
 
@@ -78,6 +82,9 @@ void migrateConfig_f()
 // Shipped defaults (quakevr/vr_defaults.cfg, executed by default.cfg): the tuned values over the
 // ones compiled in. "vr_default name value" sets a cvar and makes the value its default, so resets
 // and presets return to it; the saved config still wins, as it's executed after.
+// The engine cvars' own defaults, before vr_default replaced them.
+std::map<std::string, std::string> engineDefaults;
+
 void default_f()
 {
     if(Cmd_Argc() != 3)
@@ -90,6 +97,11 @@ void default_f()
     {
         Con_Printf("vr_default: no cvar \"%s\"\n", Cmd_Argv(1));
         return;
+    }
+    if(std::strncmp(var->name, "vr_", 3) != 0)
+    {
+        // The engine's own default, for vr_savedefaults (vr_ cvars have compiledDefaults).
+        engineDefaults.try_emplace(var->name, var->default_string ? var->default_string : "");
     }
     Cvar_Set(var->name, Cmd_Argv(2));
     Z_Free(const_cast<char*>(var->default_string));
@@ -148,6 +160,22 @@ void saveDefaults_f()
         if((d.var->flags & CVAR_ARCHIVE) && !personal(d.var) && !sameValue(d.var->string, d.value))
         {
             fprintf(f, "vr_default %s \"%s\"\n", d.var->name, d.var->string);
+            ++count;
+        }
+    }
+    // The engine's graphics settings (r_*, gl_*) changed from its own defaults too.
+    fprintf(f, "\n// The engine's graphics settings.\n");
+    for(const cvar_t* var = Cvar_FindVarAfter("", CVAR_ARCHIVE); var; var = Cvar_FindVarAfter(var->name, CVAR_ARCHIVE))
+    {
+        if(std::strncmp(var->name, "r_", 2) != 0 && std::strncmp(var->name, "gl_", 3) != 0)
+        {
+            continue;
+        }
+        const auto it = engineDefaults.find(var->name);
+        const char* def = it != engineDefaults.end() ? it->second.c_str() : var->default_string;
+        if(def && !sameValue(var->string, def))
+        {
+            fprintf(f, "vr_default %s \"%s\"\n", var->name, var->string);
             ++count;
         }
     }

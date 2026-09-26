@@ -65,6 +65,7 @@ void VR_OnSpawnServerBeforeLoad (void);	// SV_SpawnServer, before ED_LoadFromFil
 void VR_OnSpawnServerAfterLoad (void);	// SV_SpawnServer, after serverinfo is sent
 void VR_OnBeginLoadGame (void);			// Host_Loadgame_f, before SV_SpawnServer
 void VR_OnLoadGame (void);				// Host_Loadgame_f, after globals and edicts are restored
+void VR_OnFreshStart (void);			// Host_Map_f, Host_Loadgame_f: a game started afresh or loaded, not a changelevel (the flashlight off)
 void VR_StoreSpawnParms (int client);	// after parm1..16 are copied from globals into a client_t
 void VR_RestoreSpawnParms (int client);	// after parm1..16 are copied from a client_t into globals
 int VR_AllowLatePrecache (void);		// nonzero if precaches are allowed after map load
@@ -139,6 +140,10 @@ void VR_SetupViewEntities (void);						// V_RenderView, before R_RenderView
 // Console (console.c).
 int VR_NotifyOnWrist (void);							// Con_DrawNotify: nonzero to leave the notify lines to the wrist gadget's log
 
+// Screen (gl_screen.c).
+void VR_GameCenterPrint (const char *str);				// SCR_CenterPrint: a centre print, for the wrist gadget's hologram (vr_gadget.cpp)
+int VR_CenterPrintOnWrist (void);						// SCR_CheckDrawCenterString: nonzero while that hologram shows it (not in view)
+
 // Menu (menu.c).
 void VR_Menu_Open (void);								// Options > VR Settings
 void VR_Menu_Draw (void);								// M_Draw, m_vr
@@ -151,6 +156,7 @@ int VR_MenuDrawTextBox (int x, int y, int width, int lines); // M_DrawTextBox: a
 void VR_MenuDrawHighlight (int cx, int cy);				// M_DrawArrowCursor: the selected row's highlight
 // "Back to game" (vr_menuui.cpp): a button closing the menu from any page, which reopens there.
 void VR_MenuDrawOverlay (void);							// M_Draw, after the menu: the button
+int VR_MenuHidesPlaque (void);							// M_DrawTransPic: the options pages' vertical Quake plaque left out (the VR menu style)
 int VR_MenuClick (void);								// M_Keydown, K_MOUSE1: nonzero if it clicked the button (the menu closed)
 int VR_MenuReopen (void);								// M_ToggleMenu_f, opening: nonzero if it reopened the page left
 int VR_MenuRunsGame (void);								// Host_ServerFrame: nonzero if a single player game runs on under the menu (live preview)

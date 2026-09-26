@@ -697,6 +697,52 @@ void emissive::weaponScreenLight(int hand, const glm::vec3& pos, const glm::vec3
     lighting::dlightNoShadow(dl);
 }
 
+bool emissive::isLavaGun(const qmodel_t* model)
+{
+    return model && (!strcmp(model->name, "progs/v_lava.mdl") || !strcmp(model->name, "progs/v_lava2.mdl"));
+}
+
+// Round 20: the lava nailguns' barrels show lava through their windows; loaded with lava nails the gun glows: a
+// small lava-coloured light at the barrels (vr_lavagun_light, reach vr_lavagun_light_radius), unshadowed, slowly
+// flickering as molten rock would (vr_lavagun_light_flicker). Keys below the ammo screens'.
+void emissive::lavaGunLight(int index, const glm::vec3& pos, float strength)
+{
+    constexpr int lavaGunLightKey = -0x5B00;
+    const float k = std::max(0.f, vr_lavagun_light.value) * std::clamp(strength, 0.f, 1.f);
+    if(index < 0 || index >= lavaGunLights)
+    {
+        return;
+    }
+    if(k <= 0.f)
+    {
+        killDlight(lavaGunLightKey - index);
+        return;
+    }
+
+    // A slow swell (about 1-3 Hz: lava, not a torch's flame) and a quicker shimmer on top.
+    const unsigned seed = 0x1A7Au + static_cast<unsigned>(index) * 7919u;
+    const float n = 0.7f * valueNoise(cl.time * 1.7, seed) + 0.3f * valueNoise(cl.time * 6.5 + 13.1, seed ^ 0x77u);
+    const float flicker = 1.f + std::clamp(vr_lavagun_light_flicker.value, 0.f, 1.f) * 0.6f * n;
+
+    dlight_t* dl = CL_AllocDlight(lavaGunLightKey - index);
+    dl->origin[0] = pos.x;
+    dl->origin[1] = pos.y;
+    dl->origin[2] = pos.z;
+    dl->die = static_cast<float>(cl.time + 0.05);
+    const float radius = std::clamp(vr_lavagun_light_radius.value, 8.f, 400.f) * (0.92f + 0.08f * flicker);
+    // The lava nails' molten orange, a little deeper; dimmer than a nail's (it is under the hand, always on).
+    const glm::vec3 color = glm::vec3{1.9f, 0.55f, 0.12f} * (0.55f * k * flicker);
+    if(vr_dlight_falloff.value != 0.f)
+    {
+        setGlow(dl, color, radius, 0.f);
+    }
+    else
+    {
+        // Quake's falloff: the colour is at most 1, the brightness and the flicker change the reach.
+        setGlow(dl, color, radius * std::sqrt(std::clamp(0.55f * k * flicker, 0.f, 2.f)), 0.f);
+    }
+}
+
 // The held weapons' dim fullbright texels (the shotgun's sights) shine brighter: the alias shader
 // adds the fullbright colour (the fullbright texture's, or for Ironwail's ALPHABRIGHT skins the
 // unlit share of the skin, alpha 0) times 1 + boost * (1 - its brightness), so that dim red sights

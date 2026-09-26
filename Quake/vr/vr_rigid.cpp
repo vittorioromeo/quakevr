@@ -17,7 +17,9 @@
 //   other entities' boxes) becomes a contact; the contacts are solved together with sequential
 //   impulses (accumulated and clamped, Coulomb friction in its cone: vr_throw_friction), bounce
 //   with vr_throw_restitution on real impacts, and push penetrating corners back out over a few
-//   steps. A contact margin keeps resting corners in contact, and static friction holds slow
+//   steps (by a velocity used for the step's move only, never kept: split impulses). A body pushed
+//   out on opposite sides at once (wedged in a gap smaller than it) is moved the least way out.
+//   A contact margin keeps resting corners in contact, and static friction holds slow
 //   bodies on floors flatter than their friction angle. So a weapon lands on a corner, tips
 //   over and comes to rest on a side, on floors and slopes alike.
 // - At rest (in contact, slow, for a while) the body sleeps: Quake's FL_ONGROUND, moved along
@@ -317,9 +319,10 @@ struct Contact
     glm::vec3 r{0.f}; // from the centre of mass
     glm::vec3 n{0.f}; // surface normal, away from it
     glm::vec3 t1{0.f}, t2{0.f};
-    float target{0.f}; // wanted normal velocity: >= 0 pushes out or bounces, < 0 lets it approach
+    float target{0.f}; // wanted normal velocity: > 0 bounces, < 0 lets it approach
+    float push{0.f};   // a corner inside: how fast it is moved out (not kept as velocity)
     float massN{0.f}, massT1{0.f}, massT2{0.f};
-    float accN{0.f}, accT1{0.f}, accT2{0.f};
+    float accN{0.f}, accT1{0.f}, accT2{0.f}, accPush{0.f};
     edict_t* ent{nullptr};
 };
 
@@ -436,6 +439,76 @@ struct WaterMemo
 };
 std::vector<WaterMemo> waterMemos; // by entity number
 
+// Bodies wedged: pushed out of surfaces on opposite sides (a box taller than the gap it is in, a corner
+// squeezed into a crack), which no push along those normals can resolve. By entity number.
+struct Wedge
+{
+    float time{0.f};     // how long it has been wedged
+    bool held{false};    // no way out: held still where it was (at), until moved or pushed or
+    double retry{0.0};   // ... it is looked for again
+    glm::vec3 at{0.f};
+};
+std::vector<Wedge> wedges;
+
+[[nodiscard]] Wedge& wedgeOf(edict_t* ent)
+{
+    const size_t num = static_cast<size_t>(NUM_FOR_EDICT(ent));
+    if(num >= wedges.size())
+    {
+        wedges.resize(num + 64);
+    }
+    return wedges[num];
+}
+
+// Whether the box (shrunk by a unit: the contacts push out of shallow overlaps themselves) is out of
+// the world's solid at its centre, corners, edges' middles and faces' middles.
+[[nodiscard]] bool boxFree(const Body& b, const glm::vec3& com)
+{
+    const glm::vec3 half = glm::max(b.half - glm::vec3{1.f}, glm::vec3{0.f});
+    for(int x = -1; x <= 1; x++)
+    {
+        for(int y = -1; y <= 1; y++)
+        {
+            for(int z = -1; z <= 1; z++)
+            {
+                const glm::vec3 p = com + b.rot * (half * glm::vec3{static_cast<float>(x), static_cast<float>(y), static_cast<float>(z)});
+                vec3_t v{p.x, p.y, p.z};
+                if(SV_PointContents(v) == CONTENTS_SOLID)
+                {
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
+}
+
+// A wedged body is moved the least way out, along the world's axes or its own (within its size): where
+// it can move freely again. False if there is none (it is then held still).
+[[nodiscard]] bool unwedge(Body& b)
+{
+    const float reach = 2.f * std::max({b.half.x, b.half.y, b.half.z}) + 2.f;
+    const glm::vec3 axes[6] = {{1.f, 0.f, 0.f}, {0.f, 1.f, 0.f}, {0.f, 0.f, 1.f}, b.rot[0], b.rot[1], b.rot[2]};
+    for(float distance = 1.f; distance <= reach; distance += 1.f)
+    {
+        for(const glm::vec3& axis : axes)
+        {
+            for(const float sign : {1.f, -1.f})
+            {
+                const glm::vec3 to = b.com + axis * (sign * distance);
+                // Along a clear line, not through a wall to its other side.
+                const trace_t line = pointTrace(b.com, to, b.ent);
+                if(line.fraction >= 1.f && !line.startsolid && boxFree(b, to))
+                {
+                    b.com = to;
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
 [[nodiscard]] WaterMemo& waterMemo(edict_t* ent)
 {
     const size_t num = static_cast<size_t>(NUM_FOR_EDICT(ent));
@@ -483,6 +556,20 @@ void rigidToss(edict_t* ent)
         if(memo.onWorld && (density <= 1.f || (memo.under >= 0.f && density * memo.under <= 1.02f)) &&
            glm::length(toGlm(ent->v.velocity)) <= 1.f && fieldFloat(ent, f.vr_rest) >= 0.f)
         {
+            return;
+        }
+    }
+
+    // Wedged with no way out: held still (not asleep: nothing holds it up) until something moves it.
+    if(Wedge& w = wedgeOf(ent); w.held)
+    {
+        if(glm::length(toGlm(ent->v.velocity)) > 1.f || toGlm(ent->v.origin) != w.at)
+        {
+            w = Wedge{};
+        }
+        else if(qcvm->time < w.retry)
+        {
+            setFieldVec(ent, f.vr_spin, glm::vec3{0.f});
             return;
         }
     }
@@ -541,6 +628,7 @@ void rigidToss(edict_t* ent)
     const float h = dt / static_cast<float>(steps);
 
     bool contact = false;
+    bool wedged = false;
     bool floorContact = false;
     edict_t* floorEnt = nullptr;
 
@@ -574,7 +662,7 @@ void rigidToss(edict_t* ent)
             {
                 c.n = toGlm(inside.plane.normal);
                 const float depth = glm::dot(p - toGlm(inside.endpos), -c.n);
-                c.target = std::min(depth, 4.f) * 0.3f / h; // push out over a few steps
+                c.push = std::min(depth, 4.f) * 0.25f / h; // out over a few steps
                 c.ent = inside.ent;
             }
             else
@@ -619,6 +707,18 @@ void rigidToss(edict_t* ent)
             contacts[count++] = c;
         }
 
+        if(vr_debug_throw.value >= 4.f)
+        {
+            Con_Printf("  c%d step %d com %.1f %.1f %.1f half %.1f %.1f %.1f up %.2f %.2f %.2f\n", NUM_FOR_EDICT(ent), step, b.com.x,
+                b.com.y, b.com.z, b.half.x, b.half.y, b.half.z, b.rot[2].x, b.rot[2].y, b.rot[2].z);
+            for(int i = 0; i < count; i++)
+            {
+                const Contact& c = contacts[i];
+                Con_Printf("  c%d step %d r %.1f %.1f %.1f n %.2f %.2f %.2f target %.1f push %.1f\n", NUM_FOR_EDICT(ent), step,
+                    c.r.x, c.r.y, c.r.z, c.n.x, c.n.y, c.n.z, c.target, c.push);
+            }
+        }
+
         // Sequential impulses (accumulated and clamped: pushes only, friction within its cone).
         for(int iteration = 0; iteration < 10 && count > 0; iteration++)
         {
@@ -641,6 +741,36 @@ void rigidToss(edict_t* ent)
                 const float acc2 = CLAMP(-limit, c.accT2 - glm::dot(v3, c.t2) * c.massT2, limit);
                 b.impulse(c.r, c.t2 * (acc2 - c.accT2));
                 c.accT2 = acc2;
+            }
+        }
+
+        // Corners inside a surface are moved out by a velocity of their own, solved the same way (pushes
+        // only) but used for this step's move alone ("split impulses"): pushed out as velocity, a body
+        // wedged in a corner or released into a wall kept the push, flew off spinning, struck the
+        // other side and was pushed back, over and over.
+        glm::vec3 pushVel{0.f}, pushSpin{0.f};
+        for(int i = 0; i < count && !wedged; i++)
+        {
+            for(int j = i + 1; j < count && !wedged; j++)
+            {
+                wedged = contacts[i].push > 0.f && contacts[j].push > 0.f && glm::dot(contacts[i].n, contacts[j].n) < -0.5f;
+            }
+        }
+        for(int iteration = 0; iteration < 10 && count > 0; iteration++)
+        {
+            for(int i = 0; i < count; i++)
+            {
+                Contact& c = contacts[i];
+                if(c.push <= 0.f)
+                {
+                    continue;
+                }
+                const float vn = glm::dot(pushVel + glm::cross(pushSpin, c.r), c.n);
+                const float acc = std::max(c.accPush + (c.push - vn) * c.massN, 0.f);
+                const glm::vec3 j = c.n * (acc - c.accPush);
+                pushVel += j;
+                pushSpin += b.applyInvInertia(glm::cross(c.r, j));
+                c.accPush = acc;
             }
         }
 
@@ -683,8 +813,30 @@ void rigidToss(edict_t* ent)
             b.spin *= std::exp((slow ? -6.f : -1.f) * h);
         }
 
-        b.com += b.vel * h;
-        b.rot = turned(b.rot, b.spin, h);
+        b.com += (b.vel + pushVel) * h;
+        b.rot = turned(b.rot, b.spin + pushSpin, h);
+    }
+
+    // Wedged for a moment: out the least way (else held still, not dithering between the two pushes).
+    Wedge& wedge = wedgeOf(ent);
+    wedge.time = wedged || wedge.held ? wedge.time + dt : 0.f;
+    if(wedge.time > 0.1f)
+    {
+        const glm::vec3 was = b.com;
+        const bool out = unwedge(b);
+        if(vr_debug_throw.value >= 3.f)
+        {
+            Con_Printf("rigid %d: wedged at %.1f %.1f %.1f, %s\n", NUM_FOR_EDICT(ent), was.x, was.y, was.z,
+                out ? "moved out" : "held still");
+        }
+        if(!out)
+        {
+            b.com = toGlm(ent->v.origin) + axesFromAngles(ent->v.angles, brush) * b.comLocal;
+            b.rot = axesFromAngles(ent->v.angles, brush);
+        }
+        b.vel = glm::vec3{0.f};
+        b.spin = glm::vec3{0.f};
+        wedge = out ? Wedge{} : Wedge{wedge.time, true, qcvm->time + 0.5, b.com - b.rot * b.comLocal};
     }
 
     // Sleep once in floor contact and slow for a moment.
@@ -786,6 +938,10 @@ void keepInWorld(edict_t* ent, bool rigid)
     fromGlm(place.origin, ent->v.origin);
     VectorCopy(vec3_origin, ent->v.velocity);
     VectorCopy(vec3_origin, ent->v.avelocity);
+    if(rigid)
+    {
+        setFieldVec(ent, fields().vr_spin, glm::vec3{0.f}); // put back still, not spinning on
+    }
     SV_LinkEdict(ent, false);
 }
 
@@ -793,6 +949,91 @@ void keepInWorld(edict_t* ent, bool rigid)
 // the grip (`grab`), the object's rotation relative to the hand's is kept; after, the object's
 // angles are the hand's rotation times that, in the object's own convention (brush or alias).
 std::unordered_map<int, glm::mat3> carried; // entity -> its axes in the hand's frame
+
+// For physics tests: "vr_rigid_place <entity> <x> <y> <z> [<pitch> <yaw> <roll> [<vx> <vy> <vz> [<sx> <sy> <sz>]]]"
+// puts a rigid body there, turned so, moving so and spinning so (radians per second), awake;
+// "vr_rigid_place <entity> main|off [<forward> <left> <up> [<pitch> <yaw> <roll>]]" at the first player's hand
+// (and so far from it along its axes), still. <entity>: its number, a classname (the newest), or "new" (the
+// newest rigid body: a backpack just dropped).
+void place_f()
+{
+    if(!sv.active || Cmd_Argc() < 3)
+    {
+        Con_Printf("usage: vr_rigid_place <number | classname | new> <x> <y> <z> [<pitch> <yaw> <roll> [<vx> <vy> <vz> [<sx> <sy> <sz>]]]\n"
+                   "       vr_rigid_place <number | classname | new> main|off [<forward> <left> <up> [<pitch> <yaw> <roll>]]\n");
+        return;
+    }
+    qcvm_t* oldVm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldVm);
+    struct Restore
+    {
+        qcvm_t* vm;
+        ~Restore() { PR_PopQCVM(vm); }
+    } restore{oldVm};
+    const FieldOffsets& f = fields();
+    edict_t* ent = nullptr;
+    const char* which = Cmd_Argv(1);
+    if(which[0] >= '0' && which[0] <= '9')
+    {
+        const int num = Q_atoi(which);
+        ent = num > 0 && num < qcvm->num_edicts ? EDICT_NUM(num) : nullptr;
+    }
+    else
+    {
+        for(int i = qcvm->num_edicts - 1; i > 0 && !ent; i--)
+        {
+            edict_t* e = EDICT_NUM(i);
+            const bool newest = !strcmp(which, "new") && f.vr_rigid >= 0 && fieldFloat(e, f.vr_rigid) != 0.f;
+            if(!e->free && (newest || !strcmp(PR_GetString(e->v.classname), which)))
+            {
+                ent = e;
+            }
+        }
+    }
+    if(!ent || ent->free)
+    {
+        Con_Printf("vr_rigid_place: no such entity\n");
+        return;
+    }
+    const auto arg = [](int i) { return i < Cmd_Argc() ? Q_atof(Cmd_Argv(i)) : 0.f; };
+    if(const bool main = !strcmp(Cmd_Argv(2), "main"); main || !strcmp(Cmd_Argv(2), "off"))
+    {
+        // At the first player's hand, and so far along its forward, left and up.
+        edict_t* player = EDICT_NUM(1);
+        const glm::vec3 angles = fieldVec(player, main ? f.handrot : f.offhandrot);
+        const glm::vec3 at = fieldVec(player, main ? f.handpos : f.offhandpos) +
+                             held::axesFromAngles(&angles[0], true) * glm::vec3{arg(3), arg(4), arg(5)};
+        fromGlm(at, ent->v.origin);
+        if(Cmd_Argc() >= 9)
+        {
+            for(int i = 0; i < 3; i++)
+            {
+                ent->v.angles[i] = arg(6 + i);
+            }
+        }
+        VectorCopy(vec3_origin, ent->v.velocity);
+        setFieldVec(ent, f.vr_spin, glm::vec3{0.f});
+        SV_LinkEdict(ent, false);
+        Con_Printf("vr_rigid_place: %d %s at the %s hand\n", NUM_FOR_EDICT(ent), PR_GetString(ent->v.classname), main ? "main" : "off");
+        return;
+    }
+    if(Cmd_Argc() < 5)
+    {
+        Con_Printf("vr_rigid_place: where?\n");
+        return;
+    }
+    for(int i = 0; i < 3; i++)
+    {
+        ent->v.origin[i] = arg(2 + i);
+        ent->v.angles[i] = arg(5 + i);
+        ent->v.velocity[i] = arg(8 + i);
+    }
+    setFieldVec(ent, f.vr_spin, glm::vec3{arg(11), arg(12), arg(13)});
+    ent->v.flags = static_cast<float>(static_cast<int>(ent->v.flags) & ~FL_ONGROUND);
+    fieldFloat(ent, f.vr_rest) = 0.f;
+    SV_LinkEdict(ent, false);
+    Con_Printf("vr_rigid_place: %d %s\n", NUM_FOR_EDICT(ent), PR_GetString(ent->v.classname));
+}
 
 } // namespace
 
@@ -802,6 +1043,11 @@ std::unordered_map<int, glm::mat3> carried; // entity -> its axes in the hand's 
 extern "C" int VR_RigidToss(edict_t* ent)
 {
     QVR_PROFILE("rigid bodies");
+    if(static bool registered = false; !registered) // a test command (no init hook of its own)
+    {
+        registered = true;
+        Cmd_AddCommand("vr_rigid_place", place_f);
+    }
     const FieldOffsets& f = fields();
     const bool rigid = f.vr_rigid >= 0 && fieldFloat(ent, f.vr_rigid) != 0.f;
     keepInWorld(ent, rigid);
@@ -883,6 +1129,7 @@ void resetRigidBodies()
     freePlaces.clear();
     restMemos.clear();
     waterMemos.clear();
+    wedges.clear();
     carried.clear();
 }
 

@@ -12,4 +12,8 @@ namespace qvr::render
 // anchor vertices consistently with what is drawn.
 void anchorMatrix(const view::ViewEntity& ve, const glm::vec3& extra, float out[16]);
 
+// The same for any alias entity (a weapon lying in the world: its networked scale and offset too), drawn mirrored
+// or not, at `scale` (ENTSCALE_*).
+void entityMatrix(const entity_t& e, bool mirrored, int scale, const glm::vec3& extra, float out[16]);
+
 } // namespace qvr::render

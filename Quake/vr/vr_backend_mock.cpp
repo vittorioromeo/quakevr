@@ -518,12 +518,16 @@ private:
         {
             return;
         }
+        // vr_mock_eye_size: other sizes, to measure the resample (vr_upscale) at a headset's.
+        const int size = vr_mock_eye_size.value > 0.f
+            ? std::clamp(static_cast<int>(vr_mock_eye_size.value), 256, maxImageSize)
+            : imageWidth;
         for(gfx::Texture& tex : textures)
         {
-            tex = gfx::createTexture(imageWidth, imageHeight);
+            tex = gfx::createTexture(size, size);
         }
-        width_ = imageWidth;
-        height_ = imageHeight;
+        width_ = size;
+        height_ = size;
     }
 
     // Between a circle of radius 1.04 (the image's half-width 1) and the image's edge, in quads

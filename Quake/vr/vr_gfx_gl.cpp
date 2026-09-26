@@ -151,6 +151,53 @@ vec4 screen()
     rgb += color.rgb * (noise * k * (0.025 + 0.25 * g));
     return vec4(rgb, 1.0);
 }
+// Mode 5, the wrist gadget's hologram (premultiplied; the vertex colour's alpha: how shown). Params: time, the effect's
+// strength k, glitch g, and 1 for the beam. The text: its lit strokes (the texture's brightness) in the vertex colour,
+// their cores whitish and a soft halo round them (glow(): Size and the mipmaps as mode 4's), a faint dark haze round
+// them (the alpha) so that it reads against a bright wall; with k, scanlines drifting up, a bright band now and then,
+// a flicker and a tiny shake; while it glitches, bands torn sideways and the colours split. The beam: the vertex colour
+// fading across (uv.x -1..1) and up (uv.y 0 at the gadget's screen, 1 at the text), in slow streaks, scanlines rising
+// through it; added (alpha 0).
+vec4 hologram()
+{
+    float t = Params.x, k = Params.y, g = Params.z;
+    float flicker = 1.0 - 0.1 * k * hash(vec2(floor(t * 20.0) * 0.618034, 9.0));
+    if(Params.w > 0.5)
+    {
+        float across = max(1.0 - uv.x * uv.x, 0.0);
+        float up = clamp(uv.y, 0.0, 1.0);
+        float along = smoothstep(0.0, 0.2, up) * mix(1.0, 0.2, up);
+        float streaks = 0.7 + 0.3 * sin(uv.x * 13.0 + t * 1.7) * sin(uv.x * 4.0 - t * 1.1);
+        float scan = 1.0 - 0.35 * min(k, 1.0) * (0.5 + 0.5 * sin((up * 10.0 - t * 1.5) * 6.2831853));
+        return vec4(color.rgb * (color.a * across * across * along * streaks * scan * flicker), 0.0);
+    }
+    float tick = floor(t * 30.0);
+    float seed = fract(tick * 0.618034) * 512.0;
+    vec2 at = uv;
+    at.y += k * 0.3 / Size.y * sin(t * 7.3) * sin(t * 2.9);
+    if(g > 0.0)
+    {
+        float band = floor(at.y * 12.0 + hash(vec2(seed, 3.0)) * 4.0);
+        if(hash(vec2(band, seed)) > 1.0 - 0.6 * g)
+            at.x += (hash(vec2(band, seed + 7.0)) - 0.5) * 0.08 * g;
+        at.y += (hash(vec2(seed, 11.0)) - 0.5) * 0.02 * g;
+    }
+    float split = (0.4 * k + 2.0 * g) / Size.x;
+    float lum = phosphor(at);
+    vec3 rgb = color.rgb * vec3(phosphor(at - vec2(split, 0.0)), lum, phosphor(at + vec2(split, 0.0)));
+    rgb = mix(rgb, vec3(1.1 * lum), 0.3 * smoothstep(0.3, 0.9, lum));
+    rgb += glow(at, 1.0);
+    float haze = lit(at, log2(float(textureSize(Tex, 0).x) / Size.x * 4.0));
+
+    float y = uv.y * Size.y * Size.z;
+    float scanFade = clamp(1.0 - (fwidth(y) - 0.25) * 2.5, 0.0, 1.0);
+    float scan = 1.0 - 0.4 * min(k, 1.5) * scanFade * (0.5 + 0.5 * cos((y - t * 1.5) * 6.2831853));
+    float d = fract(uv.y - t * 0.3) - 0.5;
+    float band = 1.0 + 0.4 * k * exp(-d * d * 150.0);
+    rgb *= scan * band * flicker * (1.0 - 0.3 * g);
+    float a = clamp(haze * 2.0 + lum * 0.4, 0.0, 0.6);
+    return vec4(rgb, a) * color.a;
+}
 void main()
 {
 #if MODE == 1
@@ -165,6 +212,8 @@ void main()
     result = vec4(c.rgb * color.rgb, 1.0);
 #elif MODE == 4
     result = screen();
+#elif MODE == 5
+    result = hologram();
 #else
     result = color;
 #endif
@@ -184,7 +233,7 @@ void main()
 )";
 
 // One program per shade and whether it blends without writing depth (programFor): 0 not made yet.
-constexpr int shadeCount = static_cast<int>(Shade::Screen) + 1;
+constexpr int shadeCount = static_cast<int>(Shade::Hologram) + 1;
 GLuint programs[shadeCount][2]{};
 bool programFailed[shadeCount][2]{};
 
@@ -325,7 +374,7 @@ void draw(std::span<const Vertex> triangles, const glm::mat4& mvp, const State& 
         glBlendFunc(GL_SRC_ALPHA, GL_ONE);
     }
     GL_UniformMatrix4fvFunc(0, 1, GL_FALSE, &mvp[0][0]);
-    if(state.shade == Shade::Screen)
+    if(state.shade == Shade::Screen || state.shade == Shade::Hologram)
     {
         GL_Uniform4fFunc(2, state.params.x, state.params.y, state.params.z, state.params.w);
         GL_Uniform3fFunc(3, state.screen.x, state.screen.y, state.screen.z);

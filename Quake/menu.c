@@ -390,6 +390,8 @@ int M_PrintWordWrap (int x, int y, const char *text, int width, int height, qboo
 
 void M_DrawTransPic (int x, int y, qpic_t *pic)
 {
+	if (VR_MenuHidesPlaque () && pic == Draw_CachePic ("gfx/qplaque.lmp")) // QVR: the tall VR panel's rows reach it
+		return;
 	Draw_Pic (x, y, pic); //johnfitz -- simplified becuase centering is handled elsewhere
 }
 

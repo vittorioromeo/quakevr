@@ -168,7 +168,7 @@ leads to the tutorial and the firing range.
 | B / Y | Next weapon | Previous weapon. Held at your mouth, it records a voice note. |
 | Stick | Turn. Up and down swim up and down. | Move |
 | Stick click | Reload | Run / walk |
-| Menu button | Menu (on Index controllers: the left B button) | |
+| Menu button | Menu (on Index controllers, and Quest controllers under SteamVR: the left B/Y button) | |
 
 Every button can be rebound in **Options > Key Setup** or with `bind` in the console. They are named like gamepad
 keys (`RTRIGGER`, `LSHOULDER`, `ABUTTON`...). See [docs/SETTINGS.md](docs/SETTINGS.md#controls-and-bindings).

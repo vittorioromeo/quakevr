@@ -17,7 +17,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
+#include <string>
+#include <unordered_map>
 #include <vector>
 
 using namespace qvr;
@@ -429,8 +432,8 @@ extern "C" void VR_ClientRoomscaleMove(edict_t* ent)
 //
 // A splash is Quake VR's particle preset (particles::Preset::Splash: drops, foam and ripples,
 // drawn by each client as its vr_water_splash says), sent from here, with a sound at the spot
-// (vr_water_sounds is their volume; the sounds are made by Misc/quakevr/make_sounds.py and
-// precached by QC/world.qc). They come from:
+// (vr_water_sounds is their volume; the sounds are recordings, a few of each picked at random:
+// variant, below; docs/vr-port/CREDITS.md; precached by QC/world.qc). They come from:
 // - things going into a liquid (SV_CheckWaterTransition: shots, grenades, nails, gibs, items,
 //   thrown weapons, a monster falling in), as hard as they go and as big as they are
 //   (VR_AllowWaterSplash, below);
@@ -506,6 +509,21 @@ namespace
 
 double soundFrame = -1.0;
 int soundsThisFrame = 0;
+
+// One of a water sound's recorded variants, vr/<base>1.wav to vr/<base><count>.wav (quakevr/sound/vr; where they come
+// from: docs/vr-port/CREDITS.md), at random, never the one played last.
+[[nodiscard]] std::string variant(const char* base, int count = 4)
+{
+    static std::unordered_map<std::string, int> last;
+    int& prev = last.try_emplace(base, -1).first->second;
+    int k = count > 1 ? std::rand() % (prev >= 0 ? count - 1 : count) : 0;
+    if(prev >= 0 && count > 1 && k >= prev)
+    {
+        k++;
+    }
+    prev = k;
+    return std::string{"vr/"} + base + std::to_string(k + 1) + ".wav";
+}
 
 bool soundAt(const glm::vec3& at, const char* sample, float volume, float attenuation = 1.f)
 {
@@ -626,7 +644,7 @@ bool sendSplash(const glm::vec3& at, const glm::vec3& dir, float strength)
 void splashOut(const glm::vec3& at, float strength, float volume)
 {
     sendSplash(at, glm::vec3{0.f, 0.f, 1.f}, strength);
-    soundAt(at, "vr/splash_small.wav", volume);
+    soundAt(at, variant("splash_out", 1).c_str(), volume);
 }
 
 // Each player's hands, guns and legs in the water.
@@ -643,14 +661,12 @@ struct WaterFeel
     WaterProbe probes[4];                   // off hand, main hand, off gun's muzzle, main gun's
     double handSplash[2]{-10.0, -10.0};     // when each hand last splashed
     double stroke{-10.0};                   // when the last stroke was heard
-    int strokeSound{0};
     glm::vec3 origin{0.f};
     bool originValid{false};
     float wade{0.f};                        // the pace: a slosh at every whole one
     float wadeSpeed{0.f};                   // units/s, smoothed
     glm::vec2 wadeDir{1.f, 0.f};
     double wetSince[2]{-1.0, -1.0};         // since when each hand is in the water (-1: out)
-    int sloshSound{0};
 };
 
 WaterFeel waterFeel[MAX_SCOREBOARD];
@@ -690,7 +706,7 @@ void handCrossing(edict_t* ent, WaterFeel& w, int probe, const WaterProbe& was, 
     {
         const glm::vec3 at = surfaceBetween(was.pos, p);
         sendSplash(at, vel / speed, (4.f + 12.f * hard) * gun);
-        soundAt(at, "vr/splash_small.wav", 0.35f + 0.65f * hard);
+        soundAt(at, variant("splash_small").c_str(), 0.35f + 0.65f * hard);
         server::sendHaptic(ent, hand, 0.f, 0.06f + 0.08f * hard, 60.f, 0.3f + 0.5f * hard);
     }
     else
@@ -750,7 +766,7 @@ void wading(edict_t* ent, WaterFeel& w, float dt)
     }
     const float deep = level >= 2.f ? 1.f : 0.65f;
     sendSplash(at, ahead, 2.f + 2.f * deep);
-    soundAt(at, (w.sloshSound++ & 1) ? "vr/slosh2.wav" : "vr/slosh1.wav", CLAMP(0.3f, 0.25f + w.wadeSpeed / 200.f, 0.8f) * deep);
+    soundAt(at, variant("slosh").c_str(), CLAMP(0.3f, 0.25f + w.wadeSpeed / 200.f, 0.8f) * deep);
 }
 
 void waterFeedback(edict_t* ent)
@@ -823,7 +839,7 @@ void strokeFeedback(edict_t* ent, int handIndex, const glm::vec3& hand, float pe
     }
     w->stroke = qcvm->time;
     const float hard = CLAMP(0.f, (peak - 1.f) / 2.5f, 1.f);
-    soundAt(hand, (w->strokeSound++ & 1) ? "vr/stroke2.wav" : "vr/stroke1.wav", 0.3f + 0.55f * hard);
+    soundAt(hand, variant("stroke").c_str(), 0.3f + 0.55f * hard);
     glm::vec3 at;
     if(surfaceOver(hand, 10.f, at))
     {
@@ -869,9 +885,9 @@ bool thingSplash(edict_t* ent, const glm::vec3& at, bool entering)
     }
     if(thingRadius(ent) < 6.f) // a nail, a grenade: a shot's plip
     {
-        return soundAt(at, "vr/plip.wav", 0.6f);
+        return soundAt(at, variant("plip").c_str(), 0.6f);
     }
-    return soundAt(at, strength >= 18.f ? "vr/splash_big.wav" : "vr/splash_small.wav", CLAMP(0.35f, 0.3f + strength / 25.f, 1.f));
+    return soundAt(at, variant(strength >= 18.f ? "splash_big" : "splash_small").c_str(), CLAMP(0.35f, 0.3f + strength / 25.f, 1.f));
 }
 
 } // namespace
@@ -991,9 +1007,9 @@ void waterSplash(const glm::vec3& at, const glm::vec3& dir, float strength, Spla
     }
     switch(sound)
     {
-        case SplashSound::Shot: soundAt(at, "vr/plip.wav", 0.6f); break;
+        case SplashSound::Shot: soundAt(at, variant("plip").c_str(), 0.6f); break;
         case SplashSound::Thing:
-            soundAt(at, strength >= 18.f ? "vr/splash_big.wav" : "vr/splash_small.wav", CLAMP(0.35f, 0.3f + strength / 25.f, 1.f));
+            soundAt(at, variant(strength >= 18.f ? "splash_big" : "splash_small").c_str(), CLAMP(0.35f, 0.3f + strength / 25.f, 1.f));
             break;
         default: break;
     }

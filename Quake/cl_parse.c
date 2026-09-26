@@ -1160,7 +1160,7 @@ void CL_ParseServerMessage (void)
 			Host_EndGame ("Server disconnected\n");
 
 		case svc_print:
-			Con_Printf ("%s", MSG_ReadString ());
+			Con_ServerPrint (MSG_ReadString ()); // QVR: marked as the server's (the wrist gadget's hologram)
 			break;
 
 		case svc_centerprint:

@@ -12,8 +12,178 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <utility>
+#include <vector>
 
 using namespace qvr;
+
+namespace
+{
+
+// How vr_render.cpp draws a model's vertices, in its axes relative to the entity's origin: the
+// networked scale about model_scale_origin, the weapon scaling, then the model's own, the post
+// scale and the networked offset on raw vertices (brush models: the offset, then the scale).
+struct DrawnTransform
+{
+    bool alias{false};
+    weapons::ModelTransform t{};
+    glm::vec3 so{0.f}, hs{1.f};
+    glm::vec3 netScale{1.f}, scaleOrigin{0.f}, offset{0.f};
+
+    DrawnTransform(const qmodel_t* model, const glm::vec3& scale, const glm::vec3& origin, const glm::vec3& off)
+        : alias{model->type == mod_alias}, netScale{glm::vec3{1.f} + scale}, scaleOrigin{origin}, offset{off}
+    {
+        if(alias)
+        {
+            const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(model)));
+            t = weapons::modelTransform(model);
+            so = glm::vec3{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
+            hs = glm::vec3{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
+        }
+    }
+
+    // A vertex as stored: an alias model's raw one (0..255 an axis), a brush model's in its space.
+    [[nodiscard]] glm::vec3 stored(const glm::vec3& v) const
+    {
+        glm::vec3 p;
+        if(!alias)
+        {
+            p = v + offset;
+        }
+        else if(t.active)
+        {
+            p = so + hs * ((v + offset) * t.scale);
+            p = (t.offset + p) * t.k;
+        }
+        else
+        {
+            p = so + hs * (v + offset);
+        }
+        return scaleOrigin + (p - scaleOrigin) * netScale;
+    }
+
+    // A point in the model's own space (its bounds).
+    [[nodiscard]] glm::vec3 modelPoint(const glm::vec3& v) const { return stored(alias ? (v - so) / hs : v); }
+};
+
+struct Triangle
+{
+    glm::vec3 p[3];
+};
+
+// The surface of the model `ent` is drawn with, as triangles in its axes relative to its origin: an
+// alias model's current frame (its first pose), a brush model's faces. False if it has none to give.
+bool drawnTriangles(edict_t* ent, const qmodel_t* model, std::vector<Triangle>& out)
+{
+    using namespace progs;
+    const FieldOffsets& f = fields();
+    const DrawnTransform xf{model, fieldVec(ent, f.model_scale), fieldVec(ent, f.model_scale_origin), fieldVec(ent, f.model_offset)};
+    out.clear();
+
+    if(model->type == mod_brush)
+    {
+        for(int i = 0; i < model->nummodelsurfaces; i++)
+        {
+            const msurface_t& surf = model->surfaces[model->firstmodelsurface + i];
+            const auto vertex = [&](int k) {
+                const int e = model->surfedges[surf.firstedge + k];
+                const mvertex_t& v = model->vertexes[e >= 0 ? model->edges[e].v[0] : model->edges[-e].v[1]];
+                return xf.stored(glm::vec3{v.position[0], v.position[1], v.position[2]});
+            };
+            for(int k = 2; k < surf.numedges; k++)
+            {
+                out.push_back({{vertex(0), vertex(k - 1), vertex(k)}});
+            }
+        }
+        return !out.empty();
+    }
+
+    if(model->type != mod_alias)
+    {
+        return false;
+    }
+    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(model)));
+    if(hdr->poseverttype != aliashdr_t::PV_QUAKE1 || !hdr->vertexes || !hdr->indexes || !hdr->meshdesc || hdr->numframes <= 0)
+    {
+        return false;
+    }
+    const int frame = static_cast<int>(ent->v.frame);
+    const int pose = hdr->frames[frame >= 0 && frame < hdr->numframes ? frame : 0].firstpose;
+    const auto* base = reinterpret_cast<const byte*>(hdr);
+    const auto* verts = reinterpret_cast<const trivertx_t*>(base + hdr->vertexes) + pose * hdr->numverts;
+    const auto* mesh = reinterpret_cast<const aliasmesh_t*>(base + hdr->meshdesc);
+    const auto* indexes = reinterpret_cast<const unsigned short*>(base + hdr->indexes);
+    const auto vertex = [&](int i) {
+        const trivertx_t& v = verts[mesh[indexes[i]].vertindex];
+        return xf.stored(glm::vec3{v.v[0], v.v[1], v.v[2]});
+    };
+    for(int i = 0; i + 2 < hdr->numindexes; i += 3)
+    {
+        out.push_back({{vertex(i), vertex(i + 1), vertex(i + 2)}});
+    }
+    return !out.empty();
+}
+
+// The drawn fist (hand_base.mdl and the finger models, all curled: grip and trigger held) as seen
+// along its palm's normal: how far its surface reaches towards the palm's side, in cm from the grip
+// (the tracked hand's pose, the controller's), over a 1 cm grid of the hand's forward and up. Measured
+// from the drawn models' triangles as the view places them (vr_view.cpp: the finger offsets and the
+// fist's angles), at the defaults the hand offsets were tuned at (vr_world_scale 1.25,
+// vr_gunmodelscale 0.7); the hand scales with weapons::offsetScale(). Mirrored, the off hand's is the
+// same. The grip is at the fist's front top: the fingers curl round below and behind it, their
+// knuckles furthest out (4.2 cm).
+constexpr float none = -99.f;
+constexpr int fistForward0 = -19; // the first column's cell: -19..-18 cm along the hand's forward
+constexpr int fistUp0 = -2;       // the first row's: -2..-1 cm up
+constexpr int fistColumns = 19;
+constexpr int fistRows = 12;
+constexpr float fistSurface[fistRows][fistColumns] = {
+    { none,  none,  none,  none,  none,  none,  none,  -0.3f,   1.0f,   1.9f,   2.7f,   3.7f,   3.8f,   3.0f,  none,  none,  none,  none,  none}, // up -2
+    { none,  none,  none,  none,  -2.2f,  -1.3f,   0.4f,   1.9f,   2.6f,   3.2f,   3.7f,   4.1f,   4.2f,   3.9f,   3.0f,  none,  none,  none,  none}, // up -3
+    { none,  none,  none,  -1.8f,  -0.8f,   1.5f,   2.0f,   2.5f,   3.0f,   3.2f,   3.6f,   3.8f,   4.1f,   3.9f,   3.6f,   3.0f,  -0.4f,  -1.7f,  none}, // up -4
+    { -1.7f,  -1.4f,  -1.0f,  -0.4f,   0.7f,   1.6f,   2.1f,   2.6f,   3.0f,   3.2f,   3.3f,   3.4f,   4.0f,   3.9f,   3.6f,   3.2f,   1.7f,   0.8f,  -0.3f}, // up -5
+    { -0.8f,  -0.7f,  -0.7f,  -0.4f,   0.9f,   1.7f,   2.2f,   2.7f,   3.0f,   3.1f,   2.7f,   2.9f,   3.0f,   3.8f,   3.6f,   2.7f,   1.8f,   0.8f,  -0.3f}, // up -6
+    { -0.8f,  -0.8f,  -0.8f,  -0.5f,   0.9f,   1.7f,   2.2f,   2.7f,   2.8f,   2.4f,   0.9f,   2.6f,   2.7f,   2.9f,   3.0f,   2.2f,   0.9f,  -0.2f,  none}, // up -7
+    { -0.9f,  -0.8f,  -0.8f,  -0.6f,   0.3f,   1.2f,   1.9f,   2.3f,   2.1f,   1.7f,   0.9f,   2.5f,   2.6f,   2.7f,   2.7f,   1.7f,   0.4f,  -0.9f,  none}, // up -8
+    { -1.0f,  -0.9f,  -0.9f,  -0.7f,   0.2f,   0.8f,   1.3f,   1.4f,   1.3f,   1.1f,   0.4f,   2.0f,   2.2f,   2.4f,   2.4f,   1.2f,  -0.4f,  -1.7f,  none}, // up -9
+    { none,  -1.9f,  -1.3f,  -0.7f,   0.2f,   0.5f,   0.6f,   0.8f,   0.7f,   0.4f,  -0.1f,   1.5f,   1.6f,   1.8f,   1.8f,   0.8f,  -0.7f,  none,  none}, // up -10
+    { none,  none,  none,  -2.6f,  -0.9f,  -0.2f,   0.0f,   0.2f,   0.2f,  -0.3f,  -0.5f,   0.8f,   1.0f,   1.2f,   1.3f,  -0.1f,  -2.1f,  none,  none}, // up -11
+    { none,  none,  none,  none,  none,  none,  -2.2f,  -1.6f,  -1.0f,  -0.7f,  -0.7f,   0.1f,   0.4f,   0.6f,   0.7f,  -0.5f,  none,  none,  none}, // up -12
+    { none,  none,  none,  none,  none,  none,  none,  none,  none,  none,  none,  none,  none,  -0.0f,  -0.0f,  none,  none,  none,  none}, // up -13
+};
+
+// Extra gap for the model (vr_held_fit_gaps: "name=cm ...", a name matching the end of the model's).
+float modelGap(const qmodel_t* model)
+{
+    const char* list = vr_held_fit_gaps.string;
+    const size_t nameLength = strlen(model->name);
+    while(list && *list)
+    {
+        while(*list == ' ' || *list == ',' || *list == ';')
+        {
+            list++;
+        }
+        const char* eq = strchr(list, '=');
+        if(!eq)
+        {
+            break;
+        }
+        const size_t length = static_cast<size_t>(eq - list);
+        const float cm = static_cast<float>(atof(eq + 1));
+        if(length > 0 && length <= nameLength && !q_strncasecmp(model->name + nameLength - length, list, static_cast<int>(length)))
+        {
+            return cm;
+        }
+        list = eq + 1;
+        while(*list && *list != ' ' && *list != ',' && *list != ';')
+        {
+            list++;
+        }
+    }
+    return 0.f;
+}
+
+} // namespace
 
 namespace qvr::held
 {
@@ -43,39 +213,13 @@ void modelBox(const qmodel_t* model, const glm::vec3& scale, const glm::vec3& sc
         return;
     }
 
-    const glm::vec3 netScale = glm::vec3{1.f} + scale;
-    const bool alias = model->type == mod_alias;
-    const auto* hdr = alias ? static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(model))) : nullptr;
-    const weapons::ModelTransform t = alias ? weapons::modelTransform(model) : weapons::ModelTransform{};
-    const glm::vec3 so = hdr ? glm::vec3{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]} : glm::vec3{0.f};
-    const glm::vec3 hs = hdr ? glm::vec3{hdr->scale[0], hdr->scale[1], hdr->scale[2]} : glm::vec3{1.f};
-
+    const DrawnTransform xf{model, scale, scaleOrigin, offset};
     lo = glm::vec3{1e9f};
     hi = glm::vec3{-1e9f};
     for(int i = 0; i < 8; i++)
     {
-        const glm::vec3 v{(i & 1) ? model->maxs[0] : model->mins[0], (i & 2) ? model->maxs[1] : model->mins[1],
-            (i & 4) ? model->maxs[2] : model->mins[2]};
-        glm::vec3 p;
-        if(!alias)
-        {
-            p = v + offset;
-        }
-        else
-        {
-            const glm::vec3 raw = (v - so) / hs;
-            if(t.active)
-            {
-                p = (raw + offset) * t.scale;
-                p = so + hs * p;
-                p = (t.offset + p) * t.k;
-            }
-            else
-            {
-                p = so + hs * (raw + offset);
-            }
-        }
-        p = scaleOrigin + (p - scaleOrigin) * netScale;
+        const glm::vec3 p = xf.modelPoint(glm::vec3{(i & 1) ? model->maxs[0] : model->mins[0],
+            (i & 2) ? model->maxs[1] : model->mins[1], (i & 4) ? model->maxs[2] : model->mins[2]});
         lo = glm::min(lo, p);
         hi = glm::max(hi, p);
     }
@@ -100,11 +244,10 @@ glm::vec3 drawnCentre(int num)
 
 glm::vec3 surfaceFit(edict_t* ent, const glm::vec3& hand, const glm::vec3& palm)
 {
-    // The fist round the grip (the controller's handle in it): its fingers, curled the way the
-    // palm faces, reach about this far from the grip's centre.
-    constexpr float fistRadius = 0.04f; // metres
-    // Never pushed further than this (a big thing gripped deep inside).
-    constexpr float mostPush = 0.25f;
+    // Never pushed further out than this (a big thing gripped deep inside), nor drawn in further
+    // than this (the fingers short of it: a hand reaches a little way round what it grips).
+    constexpr float mostPush = 0.5f; // metres
+    constexpr float mostPull = 0.08f;
 
     const int index = static_cast<int>(ent->v.modelindex);
     const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
@@ -113,47 +256,123 @@ glm::vec3 surfaceFit(edict_t* ent, const glm::vec3& hand, const glm::vec3& palm)
         return glm::vec3{0.f};
     }
 
-    // The drawn box (as vr_rigid.cpp's): an alias model's with the networked scale and offset;
-    // a brush model's (the ammo and health boxes) is its entity box.
-    const bool brush = model->type == mod_brush;
-    glm::vec3 lo{ent->v.mins[0], ent->v.mins[1], ent->v.mins[2]};
-    glm::vec3 hi{ent->v.maxs[0], ent->v.maxs[1], ent->v.maxs[2]};
-    if(model->type == mod_alias)
+    // The hand's axes: the player's whose hand grips (its forward and up; the palm faces its side).
+    const glm::vec3 p = glm::normalize(palm);
+    glm::vec3 forward{0.f}, up{0.f};
     {
         using namespace progs;
         const FieldOffsets& f = fields();
-        modelBox(model, fieldVec(ent, f.model_scale), fieldVec(ent, f.model_scale_origin), fieldVec(ent, f.model_offset), lo, hi);
-    }
-
-    // In the box's axes. The fist's ball overlaps the box while the grip is in the box grown by the
-    // ball's radius; the box moving along the palm, the grip goes the other way through it, and
-    // the box is clear once the grip leaves the grown box.
-    const float m2u = units::metresToUnits();
-    const float r = fistRadius * m2u;
-    const glm::vec3 p = glm::normalize(palm);
-    const glm::mat3 axes = axesFromAngles(ent->v.angles, brush);
-    const glm::vec3 origin{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
-    const glm::vec3 c = glm::transpose(axes) * (hand - origin);
-    const glm::vec3 d = glm::transpose(axes) * -p;
-    const glm::vec3 glo = lo - glm::vec3{r};
-    const glm::vec3 ghi = hi + glm::vec3{r};
-    if(glm::any(glm::lessThan(c, glo)) || glm::any(glm::greaterThan(c, ghi)))
-    {
-        return glm::vec3{0.f}; // the fist is clear of it
-    }
-    float t = std::numeric_limits<float>::max();
-    for(int i = 0; i < 3; i++)
-    {
-        if(std::fabs(d[i]) > 1e-4f)
+        for(int i = 1; i <= svs.maxclients && glm::length(forward) == 0.f; i++)
         {
-            t = std::min(t, ((d[i] > 0.f ? ghi[i] : glo[i]) - c[i]) / d[i]);
+            edict_t* player = EDICT_NUM(i);
+            for(const auto& [pos, rot] : {std::pair{f.handpos, f.handrot}, std::pair{f.offhandpos, f.offhandrot}})
+            {
+                if(pos >= 0 && rot >= 0 && fieldVec(player, pos) == hand)
+                {
+                    const glm::vec3 angles = fieldVec(player, rot);
+                    const glm::mat3 axes = axesFromAngles(&angles[0], true);
+                    forward = axes[0];
+                    up = axes[2];
+                    break;
+                }
+            }
         }
     }
-    if(t <= 0.f || t == std::numeric_limits<float>::max())
+    if(glm::length(forward) == 0.f || std::fabs(glm::dot(forward, p)) > 0.1f) // not found: any upright pair across the palm
     {
-        return glm::vec3{0.f};
+        up = std::fabs(p.z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{1.f, 0.f, 0.f};
+        forward = glm::normalize(glm::cross(p, up));
+        up = glm::cross(forward, p);
     }
-    return p * std::min(t, mostPush * m2u);
+
+    // What it looks like: its drawn surface, or else its box.
+    thread_local std::vector<Triangle> triangles;
+    if(!drawnTriangles(ent, model, triangles))
+    {
+        glm::vec3 lo{ent->v.mins[0], ent->v.mins[1], ent->v.mins[2]};
+        glm::vec3 hi{ent->v.maxs[0], ent->v.maxs[1], ent->v.maxs[2]};
+        if(model->type == mod_alias)
+        {
+            using namespace progs;
+            const FieldOffsets& f = fields();
+            modelBox(model, fieldVec(ent, f.model_scale), fieldVec(ent, f.model_scale_origin), fieldVec(ent, f.model_offset), lo, hi);
+        }
+        const auto corner = [&](int i) { return glm::vec3{(i & 1) ? hi.x : lo.x, (i & 2) ? hi.y : lo.y, (i & 4) ? hi.z : lo.z}; };
+        constexpr int faces[6][4] = {{0, 2, 6, 4}, {1, 5, 7, 3}, {0, 4, 5, 1}, {2, 3, 7, 6}, {0, 1, 3, 2}, {4, 6, 7, 5}};
+        for(const auto& q : faces)
+        {
+            triangles.push_back({{corner(q[0]), corner(q[1]), corner(q[2])}});
+            triangles.push_back({{corner(q[0]), corner(q[2]), corner(q[3])}});
+        }
+    }
+
+    // In the hand's frame (forward, towards the palm's side, up) from the grip.
+    const bool brush = model->type == mod_brush;
+    const glm::mat3 toHand = glm::transpose(glm::mat3{forward, p, up});
+    const glm::mat3 axes = toHand * axesFromAngles(ent->v.angles, brush);
+    const glm::vec3 from = toHand * (glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]} - hand);
+    for(Triangle& t : triangles)
+    {
+        for(glm::vec3& v : t.p)
+        {
+            v = from + axes * v;
+        }
+    }
+
+    // Over each cell of the fist, where the object's surface nearest the back of the hand is (along
+    // the palm's normal through the cell's middle): it goes just clear of the fingers there, and so
+    // the object is moved along the normal until the tightest cell touches (out of the fist, or in to
+    // it). Moving it that way changes nothing of what is over which cell.
+    const float m2u = units::metresToUnits();
+    const float cm = 0.01f * units::perMetre * 1.25f * weapons::offsetScale(); // the hand's cm (as measured), in units
+    const float gap = (vr_held_fit_gap.value + modelGap(model)) * 0.01f * m2u;
+    float move = -std::numeric_limits<float>::max();
+    for(int row = 0; row < fistRows; row++)
+    {
+        for(int column = 0; column < fistColumns; column++)
+        {
+            const float surface = fistSurface[row][column];
+            if(surface == none)
+            {
+                continue;
+            }
+            const float x = (static_cast<float>(fistForward0 + column) + 0.5f) * cm;
+            const float z = (static_cast<float>(fistUp0 - row) + 0.5f) * cm;
+            float nearest = std::numeric_limits<float>::max();
+            for(const Triangle& t : triangles)
+            {
+                // Where the line (x, z) crosses it: barycentric in the forward-up plane.
+                const glm::vec2 a{t.p[0].x, t.p[0].z}, b{t.p[1].x, t.p[1].z}, c{t.p[2].x, t.p[2].z};
+                const float det = (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
+                if(std::fabs(det) < 1e-6f)
+                {
+                    continue;
+                }
+                const float u = ((x - a.x) * (c.y - a.y) - (c.x - a.x) * (z - a.y)) / det;
+                const float v = ((b.x - a.x) * (z - a.y) - (x - a.x) * (b.y - a.y)) / det;
+                if(u < 0.f || v < 0.f || u + v > 1.f)
+                {
+                    continue;
+                }
+                nearest = std::min(nearest, t.p[0].y + u * (t.p[1].y - t.p[0].y) + v * (t.p[2].y - t.p[0].y));
+            }
+            if(nearest != std::numeric_limits<float>::max())
+            {
+                move = std::max(move, surface * cm + gap - nearest);
+            }
+        }
+    }
+    if(move == -std::numeric_limits<float>::max())
+    {
+        return glm::vec3{0.f}; // nothing of it over the fist: beside it
+    }
+
+    const float t = CLAMP(-mostPull * m2u, move, mostPush * m2u);
+    if(vr_debug_throw.value)
+    {
+        Con_Printf("carryfit %s: moved %.1f cm along the palm's normal\n", model->name, t * 100.f / m2u);
+    }
+    return p * t;
 }
 
 } // namespace qvr::held

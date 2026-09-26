@@ -222,14 +222,28 @@ void() worldspawn =
     precache_sound("misc/h2ohit1.wav");        // landing splash
 
     // VR: water sounds played by the engine (vr_physics.cpp: splashes, shots into water, wading,
-    // swimming strokes; Misc/quakevr/make_sounds.py)
-    precache_sound("vr/splash_small.wav");
-    precache_sound("vr/splash_big.wav");
-    precache_sound("vr/plip.wav");
+    // swimming strokes; recordings, docs/vr-port/CREDITS.md): four of each (a hand out: one), the engine picks one
+    precache_sound("vr/splash_small1.wav");
+    precache_sound("vr/splash_small2.wav");
+    precache_sound("vr/splash_small3.wav");
+    precache_sound("vr/splash_small4.wav");
+    precache_sound("vr/splash_big1.wav");
+    precache_sound("vr/splash_big2.wav");
+    precache_sound("vr/splash_big3.wav");
+    precache_sound("vr/splash_big4.wav");
+    precache_sound("vr/splash_out1.wav");
+    precache_sound("vr/plip1.wav");
+    precache_sound("vr/plip2.wav");
+    precache_sound("vr/plip3.wav");
+    precache_sound("vr/plip4.wav");
     precache_sound("vr/slosh1.wav");
     precache_sound("vr/slosh2.wav");
+    precache_sound("vr/slosh3.wav");
+    precache_sound("vr/slosh4.wav");
     precache_sound("vr/stroke1.wav");
     precache_sound("vr/stroke2.wav");
+    precache_sound("vr/stroke3.wav");
+    precache_sound("vr/stroke4.wav");
 
     // VR: a headshot's tick; the knights' swords, which a player can carry into any map, and their
     // sounds (also a carried box's grab).

@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "vr/vr_api_render.h" // QVR
+#include "vr/vr_ao.hpp" // QVR: dynamic ambient occlusion
 
 extern cvar_t gl_overbright_models, gl_fullbrights, r_lerpmodels, r_lerpmove; //johnfitz
 extern cvar_t scr_fov, cl_gun_fovscale, cl_gun_x, cl_gun_y, cl_gun_z;
@@ -67,6 +68,7 @@ typedef struct aliasinstance_s {
 	float		glow[4]; // QVR: the force grab glow (vr/vr_fgfx.cpp)
 	float		ambient[6][4]; // QVR: the light around it, +X -X +Y -Y +Z -Z (vr/vr_ambient.cpp)
 	float		surface[4]; // QVR: rim light, reflections' strength and blur (vr/vr_envmap.cpp)
+	float		ao[4]; // QVR: dynamic ambient occlusion: its own group, its per-vertex occlusion's strength (vr/vr_ao.cpp)
 } aliasinstance_t;
 
 struct ibuf_s {
@@ -741,6 +743,7 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 	}
 	VR_AliasLightDir (e, instance->lightdir); // QVR
 	VR_AliasAmbient (e, model_matrix, paliashdr, mode == ALIAS_STANDARD && !r_fullbright_cheatsafe && !r_lightmap_cheatsafe, &instance->ambient[0][0]); // QVR: directional ambient (vr_model_ambient_dir)
+	VR_AliasMorph (e, paliashdr, &instance->ambient[0][0]); // QVR: a gun morphing into its other ammo's model (vr/vr_render.cpp)
 	instance->glow[0] = VR_EntityGlow (e); // QVR
 	instance->glow[1] = (VR_ModelLightParity () ? 1.f : -1.f) * (1.f + VR_ModelBumps (e)); // QVR: the shader's shading on a par with the world (+), its bumps (vr_normalmap_models)
 	instance->glow[2] = VR_EntityFullbrightBoost (e); // QVR: the held weapons' sights glow (vr_weapon_glow)
@@ -748,6 +751,7 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 	memset (instance->surface, 0, sizeof (instance->surface)); // QVR: rim light and reflections (vr_rim_light, vr_weapon_reflections)
 	if (mode == ALIAS_STANDARD && !r_fullbright_cheatsafe && !r_lightmap_cheatsafe) // QVR
 		VR_AliasSurface (e, instance->surface); // QVR
+	VR_AliasAO (e, instance->ao); // QVR: dynamic ambient occlusion (vr/vr_ao.cpp)
 }
 
 /*

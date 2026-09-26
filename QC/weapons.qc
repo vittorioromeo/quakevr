@@ -3033,6 +3033,9 @@ void(float xHand) ToggleSecondaryAmmo =
     W_SetCurrentAmmoFor(xHand);
 }
 
+float vr_test_armor_kind;   // impulse 250: the next armour it drops (0 green, 1 yellow, 2 red)
+entity vr_test_armor_last;  // and the last it dropped (impulse 251)
+
 void() ImpulseCommands =
 {
     // Development and tests (single player): impulse 150 + a weapon id puts that weapon, loaded, in
@@ -3259,6 +3262,42 @@ void() ImpulseCommands =
     if(self.impulse == 249 && !deathmatch && !coop) // QVR: does the pose parry a blow from ahead? (developer 1)
     {
         VR_Parry_Probe();
+    }
+    if(self.impulse == 250 && !deathmatch && !coop) // QVR: an armour 24 units ahead: green, yellow, red in turn (wearable armour tests)
+    {
+        makevectors('0 1 0' * self.v_viewangle_y);
+        vector armorAt = self.origin + v_forward * 24;
+        entity armorPlayer = self;
+        float armorKind = vr_test_armor_kind;
+        vr_test_armor_kind = armorKind >= 2 ? 0 : armorKind + 1;
+        self = spawn();
+        setorigin(self, armorAt);
+        self.angles_y = armorPlayer.v_viewangle_y + 90;
+        if(armorKind == 0)
+        {
+            self.classname = ITEM_NAME_ARMOR1;
+            item_armor1();
+        }
+        else if(armorKind == 1)
+        {
+            self.classname = ITEM_NAME_ARMOR2;
+            item_armor2();
+        }
+        else
+        {
+            self.classname = ITEM_NAME_ARMORINV;
+            item_armorInv();
+        }
+        dprint("test: "); dprint(self.classname); dprint(" at "); dprint(vtos(armorAt)); dprint(", head ");
+        dprint(vtos(VRGetHeadPos(armorPlayer))); dprint(" yaw "); dprint(ftos(armorPlayer.v_viewangle_y)); dprint(", hands ");
+        dprint(vtos(armorPlayer.offhandpos)); dprint(" "); dprint(vtos(armorPlayer.handpos)); dprint("\n");
+        vr_test_armor_last = self;
+        self = armorPlayer;
+    }
+    // QVR: the last armour impulse 250 dropped comes back 3 s after it is worn (deathmatch's respawn, sped up).
+    if(self.impulse == 251 && !deathmatch && !coop && vr_test_armor_last != world)
+    {
+        vr_test_armor_last.wait = 3;
     }
     if(dump_coord == 1)
         DumpCoordinates();

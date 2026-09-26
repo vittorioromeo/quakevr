@@ -23,6 +23,8 @@ constexpr const char* sightedModels[] = {
     "progs/v_shot.mdl",   // the shotgun: three sights (two rear posts, a front post)
     "progs/v_shot2.mdl",  // the double shotgun: a ring sight
     "progs/g_shot0.mdl",  // the shotgun's pickup: its sights (Quake's dark red)
+    "progs/v_light.mdl",  // the lightning gun: two rear posts, a front post (round 20)
+    "progs/v_plasma.mdl", // its alternate, the plasma gun: the same (its coils in other reds)
 };
 
 // The hue (degrees) the sights' gradient has as painted: its bright orange (palette 236, 227,151,79,

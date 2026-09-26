@@ -203,6 +203,8 @@ void SCR_CenterPrint (const char *str) //update centerprint data
 {
 	int cols;
 
+	VR_GameCenterPrint (str); // QVR: the wrist gadget's hologram shows the game's
+
 	cols = scr_usekfont.value ? SCR_GetCenterPrintWrapLimit () : 0;
 	COM_WordWrap (scr_centerstring, str, sizeof (scr_centerstring), cols);
 
@@ -369,6 +371,8 @@ void SCR_CheckDrawCenterString (void)
 		if (key_dest != key_game)
 			return;
 		if (cl.paused) //johnfitz -- don't show centerprint during a pause
+			return;
+		if (VR_CenterPrintOnWrist ()) // QVR: the wrist gadget's hologram shows it
 			return;
 	}
 

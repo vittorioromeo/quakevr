@@ -350,7 +350,7 @@ QVR_TONE_GLSL
 "	vec4	CausticsScale; // QVR: xyz one over its size in units; w 1: the scene's distances to refract by and for the foam (LiquidDepth)\n"\
 "	vec4	Detail; // QVR: detail textures (vr/vr_detail.cpp): strength (0 off), the distance they start fading, where gone, the fine octave's scale (0 none)\n"\
 "	vec4	SceneTone; // QVR: x the brightest the world and models write (1: Quake's clamp; more in the eyes' float scene with vr_tonemap: vr/vr_tonemap.cpp), yzw the force grab glow's colour (vr/vr_fgfx.cpp)\n"\
-"	vec4	Water3; // QVR: x shoreline foam (vr/vr_water.cpp: vr_water_foam, 0 off), yzw unused\n"\
+"	vec4	Water3; // QVR: x shoreline foam (vr/vr_water.cpp: vr_water_foam, 0 off), y the ripples' slopes in the shading, times their shape's (vr_water_ripple_normal), zw unused\n"\
 "	vec4	Ripple; // QVR: splash ripples (vr/vr_water.cpp: vr_water_ripples): x how many, y their rings' speed (units/s), z the wave number, w the share of them in the geometry\n"\
 "	vec4	RippleAt[32]; // QVR: ... each's centre (xy), the surface's height (z), its age in seconds (w)\n"\
 "	vec4	RippleAmp[8]; // QVR: ... each's height now, in units (four a vec4)\n"\
@@ -664,6 +664,123 @@ QVR_TONE_GLSL
 
 ////////////////////////////////////////////////////////////////
 
+// QVR: dynamic ambient occlusion (vr/vr_ao.cpp): ellipsoids round monsters, items, gibs and your body, boxes round
+// brush models (doors, lifts, the item boxes), darkening the baked light near them; in world space, the same in both
+// eyes. Uniform block 2 (vr_ao.cpp's GpuBlock): up to 64 occluders of 6 vec4s (the centre and the reach round it; 3
+// rows into its own space: an ellipsoid's unit sphere, a box's frame; its radii squared or half sizes, w 1 a box;
+// strength, reach (an ellipsoid's in radii, a box's in units), -, its model's group), and each eye's screen tiles (the
+// light clusters' 32 x 16, two per uvec4) and depth slices (their 32): which occluders can reach the tile, and the
+// slice. Needs LIGHT_BUFFER's tile counts and the frame data's ZLogScale and ZLogBias.
+#define AO_FUNCTIONS \
+"layout(std140, binding=2) uniform AOBlock\n"\
+"{\n"\
+"	vec4	AOParams; // x the occluders (0: none)\n"\
+"	vec4	AOOcc[64 * 6];\n"\
+"	uvec4	AOTiles[LIGHT_TILES_X * LIGHT_TILES_Y / 2];\n"\
+"	uvec4	AOSlices[LIGHT_TILES_Z / 2]; // the light clusters' depth slices, two per uvec4: which occluders reach their depths\n"\
+"};\n"\
+"\n"\
+"// An edge's term in Lambert's formula over 2 pi (a, b: unit vectors to its ends): the angle between them over its sine\n"\
+"// by Heitz et al.'s rational fit (\"Real-Time Polygonal-Light Shading with Linearly Transformed Cosines\"), no atan.\n"\
+"float AOEdge(vec3 a, vec3 b, vec3 n)\n"\
+"{\n"\
+"	float x = dot(a, b), y = abs(x);\n"\
+"	float v = (0.8543985 + (0.4965155 + 0.0145206 * y) * y) / (3.4175940 + (4.1616724 + y) * y);\n"\
+"	return dot(n, cross(a, b)) * (x > 0.0 ? v : 0.5 * inversesqrt(max(1.0 - x * x, 1e-7)) - v);\n"\
+"}\n"\
+"float AOFace(vec3 p, vec3 n, vec3 o, vec3 u, vec3 w) // a box face (centre o, half edges u and w, u x w outwards)\n"\
+"{\n"\
+"	vec3 a = normalize(o - u - w - p), b = normalize(o + u - w - p), c = normalize(o + u + w - p), d = normalize(o - u + w - p);\n"\
+"	return AOEdge(a, b, n) + AOEdge(b, c, n) + AOEdge(c, d, n) + AOEdge(d, a, n);\n"\
+"}\n"\
+"// A box's occlusion at p (normal n; both in its frame; r its half sizes): the form factor of the faces facing p. Not\n"\
+"// clipped at p's horizon: a box partly behind the surface counts less than it should. A face in p's own plane (a wall\n"\
+"// flush with a door or a lift's side) is not seen: its polygon would wind round p and count as the whole hemisphere.\n"\
+"float AOBox(vec3 p, vec3 n, vec3 r)\n"\
+"{\n"\
+"	vec3 s = sign(p);\n"\
+"	float sum = 0.0;\n"\
+"	if (abs(p.x) > r.x + 0.125)\n"\
+"		sum += AOFace(p, n, vec3(s.x * r.x, 0.0, 0.0), s.x > 0. ? vec3(0.0, r.y, 0.0) : vec3(0.0, 0.0, r.z), s.x > 0. ? vec3(0.0, 0.0, r.z) : vec3(0.0, r.y, 0.0));\n"\
+"	if (abs(p.y) > r.y + 0.125)\n"\
+"		sum += AOFace(p, n, vec3(0.0, s.y * r.y, 0.0), s.y > 0. ? vec3(0.0, 0.0, r.z) : vec3(r.x, 0.0, 0.0), s.y > 0. ? vec3(r.x, 0.0, 0.0) : vec3(0.0, 0.0, r.z));\n"\
+"	if (abs(p.z) > r.z + 0.125)\n"\
+"		sum += AOFace(p, n, vec3(0.0, 0.0, s.z * r.z), s.z > 0. ? vec3(r.x, 0.0, 0.0) : vec3(0.0, r.y, 0.0), s.z > 0. ? vec3(0.0, r.y, 0.0) : vec3(r.x, 0.0, 0.0));\n"\
+"	return clamp(-sum, 0.0, 1.0);\n"\
+"}\n"\
+"// An ellipsoid's occlusion at q (normal m; both in its unit sphere's space): a sphere's form factor, s^2 cos (s the\n"\
+"// sine of its angular radius, cos towards its centre), smoothed where it sinks below the horizon ((cos + s)^2 / 4s),\n"\
+"// fading out to none at `reach` radii.\n"\
+"float AOEllipsoid(vec3 q, vec3 m, float reach)\n"\
+"{\n"\
+"	float d = max(length(q), 1e-4);\n"\
+"	float h = -dot(m, q) / d;\n"\
+"	float s = min(1.0 / d, 1.0);\n"\
+"	float ff = h >= s ? h * s * s : h <= -s ? 0.0 : (h + s) * (h + s) * s * 0.25;\n"\
+"	return ff * (1.0 - smoothstep(1.0, reach, d));\n"\
+"}\n"\
+"// The normal the occlusion is worked out for: leaning towards where the baked light comes from (l: the deluxemap's\n"\
+"// direction or the model's light; zero: from above, as Quake's lamps mostly are). The light is mostly direct, from\n"\
+"// lamps: a lift below a wall hides little of the lamp above it, though it fills much of the wall's hemisphere.\n"\
+"vec3 AONormal(vec3 n, vec3 l)\n"\
+"{\n"\
+"	vec3 m = n + 0.6 * (dot(l, l) > 0. ? l : vec3(0.0, 0.0, 1.0));\n"\
+"	return dot(m, m) > 0.04 ? normalize(m) : n;\n"\
+"}\n"\
+"// The light left at p (normal n) by the occluders of its tile (coord: the light clusters' screen coordinates), 1 none;\n"\
+"// `self` the receiver's own group (0 none), which does not darken it. Each occluder takes away its share (at most\n"\
+"// 90%), the shares multiplied.\n"\
+"float DynamicAO(vec3 p, vec3 n, float self, vec2 coord, float depth)\n"\
+"{\n"\
+"	if (AOParams.x <= 0.)\n"\
+"		return 1.0;\n"\
+"	ivec2 t = clamp(ivec2(coord), ivec2(0), ivec2(LIGHT_TILES_X - 1, LIGHT_TILES_Y - 1));\n"\
+"	int tile = t.x + t.y * LIGHT_TILES_X;\n"\
+"	uvec4 pair = AOTiles[tile >> 1];\n"\
+"	uvec2 mask = (tile & 1) != 0 ? pair.zw : pair.xy;\n"\
+"	int slice = clamp(int(floor(log2(depth) * ZLogScale + ZLogBias)), 0, LIGHT_TILES_Z - 1);\n"\
+"	uvec4 spair = AOSlices[slice >> 1];\n"\
+"	mask &= (slice & 1) != 0 ? spair.zw : spair.xy;\n"\
+"	float vis = 1.0;\n"\
+"	vec4 hp = vec4(p, 1.0);\n"\
+"	for (int i = 0; i < 2; i++)\n"\
+"	{\n"\
+"		uint bits = mask[i];\n"\
+"		while (bits != 0u)\n"\
+"		{\n"\
+"			int j = findLSB(bits);\n"\
+"			bits ^= 1u << j;\n"\
+"			int o = (i * 32 + j) * 6;\n"\
+"			vec4 c = AOOcc[o];\n"\
+"			vec3 d = p - c.xyz;\n"\
+"			vec4 k = AOOcc[o + 5];\n"\
+"			if (dot(d, d) >= c.w * c.w || k.w == self)\n"\
+"				continue;\n"\
+"			vec4 r0 = AOOcc[o + 1], r1 = AOOcc[o + 2], r2 = AOOcc[o + 3], sz = AOOcc[o + 4];\n"\
+"			vec3 q = vec3(dot(r0, hp), dot(r1, hp), dot(r2, hp));\n"\
+"			vec3 e = sz.w > 0.5 ? max(abs(q) - sz.xyz, 0.0) : q; // from its faces, or its centre in radii\n"\
+"			float d2 = dot(e, e);\n"\
+"			if (d2 >= k.y * k.y) // out of its reach\n"\
+"				continue;\n"\
+"			vec3 m = vec3(dot(r0.xyz, n), dot(r1.xyz, n), dot(r2.xyz, n));\n"\
+"			float ao;\n"\
+"			if (sz.w > 0.5)\n"\
+"			{\n"\
+"				if (dot(m, q) >= dot(abs(m), sz.xyz)) // all of it behind p's plane\n"\
+"					continue;\n"\
+"				ao = AOBox(q, m, sz.xyz) * (1.0 - smoothstep(0.25 * k.y, k.y, sqrt(d2)));\n"\
+"			}\n"\
+"			else\n"\
+"				ao = AOEllipsoid(q, normalize(m * sz.xyz), k.y);\n"\
+"			vis *= 1.0 - min(ao * k.x, 0.9);\n"\
+"		}\n"\
+"	}\n"\
+"	return max(vis, 0.1);\n"\
+"}\n"\
+"\n"\
+
+////////////////////////////////////////////////////////////////
+
 // QVR: parallax occlusion mapping (vr_parallax): the texture coordinates where the ray from the eye through this
 // pixel (ray: from the eye to it; n: the surface's normal, facing the eye) meets the height field under the surface
 // (tex's alpha: 1 the surface, 0 `depth` units deep; the instance's: the world's, an item box's or a model's).
@@ -864,6 +981,7 @@ DRAW_ELEMENTS_INDIRECT_COMMAND \
 "	float	alpha;\n"\
 "	float	glow; // QVR: the force grab glow (vr/vr_fgfx.cpp)\n"\
 "	float	parallax; // QVR: parallax mapping's depth in units (0 off)\n"\
+"	float	aoself; // QVR: its own dynamic occlusion group (vr/vr_ao.cpp; 0 none)\n"\
 "};\n"\
 "\n"\
 "layout(std430, binding=2) restrict readonly buffer InstanceBuffer\n"\
@@ -1029,8 +1147,14 @@ DRAW_ELEMENTS_INDIRECT_COMMAND \
 "		return pos;\n"\
 "	float pin = smoothstep(1.0, 33.0, rim);\n"\
 "	float fade = 1.0 - smoothstep(512.0, 1024.0, distance(pos, EyePos));\n"\
-"	float h = LiquidSwell(pos.xy, kind).z + (Ripple.w > 0. ? LiquidRipples(pos, kind, 0.).z * Ripple.w : 0.);\n"\
-"	return vec3(pos.xy, pos.z + h * pin * fade);\n"\
+"	float swell = LiquidSwell(pos.xy, kind).z * pin * fade;\n"\
+"	float rip = Ripple.w > 0. ? LiquidRipples(pos, kind, 0.).z * Ripple.w * pin * fade : 0.;\n"\
+"	// a ripple's crest (or trough) kept off the eye: not within 6 units of its height where it is, more further out\n"\
+"	// (a body's splash round you, with your head just over the water)\n"\
+"	float above = EyePos.z - pos.z - swell;\n"\
+"	float room = max(abs(above) - 6.0, 0.0) + max(distance(pos.xy, EyePos.xy) - 24.0, 0.0);\n"\
+"	rip = above >= 0. ? min(rip, room) : max(rip, -room);\n"\
+"	return vec3(pos.xy, pos.z + swell + rip);\n"\
 "}\n"\
 "\n"\
 
@@ -1072,7 +1196,9 @@ LIQUID_SWELL \
 "	{\n"\
 "		vec3 swell = LiquidSwell(pos.xy, kind); // the geometric waves' slopes, whether this face's vertices rise or not\n"\
 "		LiquidSwellHere = vec2(swell.z, 1.0); // (for the foam)\n"\
-"		r += swell + LiquidRipples(pos, kind, 1.0 - smoothstep(300.0, 800.0, distance(pos, EyePos))); // and the splashes' ripples', finer ones close by\n"\
+"		r += swell; // and the splashes' ripples' (Water3.y: how steep, times their shape's), finer ones close by\n"\
+"		if (Water3.y > 0.)\n"\
+"			r += LiquidRipples(pos, kind, 1.0 - smoothstep(300.0, 800.0, distance(pos, EyePos))) * Water3.y;\n"\
 "	}\n"\
 "	return r;\n"\
 "}\n"\
@@ -1297,6 +1423,7 @@ LIQUID_SWELL // QVR
 "layout(location=12) flat out float out_pdepth; // QVR: parallax mapping\n"
 "layout(location=13) flat out vec4 out_uvclamp; // QVR\n"
 "layout(location=14) flat out vec4 out_detail; // QVR: detail textures (vr/vr_detail.cpp)\n"
+"layout(location=15) flat out float out_aoself; // QVR: dynamic ambient occlusion (vr/vr_ao.cpp)\n"
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_WATER) "\n"
 "	layout(location=20) out float out_rim; // QVR: 1 + the distance to the shore (the swells' mesh), 0 unknown: the foam\n"
 "#endif\n"
@@ -1334,6 +1461,7 @@ LIQUID_SWELL // QVR
 "	out_pdepth = instance.parallax; // QVR\n"
 "	out_uvclamp = call.uvclamp; // QVR\n"
 "	out_detail = call.detail; // QVR\n"
+"	out_aoself = instance.aoself; // QVR\n"
 "	out_styles.x = GetLightStyle(in_styles.x);\n"
 "	if (in_styles.y == 255)\n"
 "		out_styles.yzw = vec3(-1.);\n"
@@ -1376,6 +1504,7 @@ FRAMEDATA_BUFFER
 LIGHT_BUFFER
 LIGHT_CLUSTER_IMAGE("readonly")
 SHADOW_FUNCTIONS // QVR
+AO_FUNCTIONS // QVR
 WORLD_CALLDATA_BUFFER
 WORLD_INSTANCEDATA_BUFFER
 NOISE_FUNCTIONS
@@ -1402,6 +1531,7 @@ LIQUID_FUNCTIONS // QVR
 "layout(location=12) flat in float in_pdepth; // QVR: parallax mapping\n"
 "layout(location=13) flat in vec4 in_uvclamp; // QVR\n"
 "layout(location=14) flat in vec4 in_detail; // QVR: detail textures (vr/vr_detail.cpp)\n"
+"layout(location=15) flat in float in_aoself; // QVR: dynamic ambient occlusion's own group (vr/vr_ao.cpp)\n"
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_WATER) "\n"
 "	layout(location=20) in float in_rim; // QVR: the shoreline foam's distance (LiquidFoam)\n"
 "#endif\n"
@@ -1615,6 +1745,7 @@ SPECULAR_AA_FUNCTIONS // QVR
 "		}\n"
 "	}\n"
 "	total_light *= LiquidCaustics(in_pos, facing); // QVR: under water (vr_water_caustics)\n"
+"	total_light *= DynamicAO(in_pos, AONormal(facing, luxdir), in_aoself, in_coord, in_depth); // QVR: what moves darkens the baked light near it (vr/vr_ao.cpp)\n"
 "#else\n"
 "	bumped = LiquidNormal(waves, facing); // QVR: the waves', for the lights' glints\n"
 "#endif\n"
@@ -2080,6 +2211,7 @@ NOISE_FUNCTIONS
 "	vec4	Glow; // QVR: x the force grab glow (vr/vr_fgfx.cpp), y 1 + the bumps' strength on its own light (vr_normalmap_models), negative unless shaded on a par with the world (vr_model_light_parity), z the fullbright boost (vr/vr_emissive.cpp), w parallax mapping's depth in units\n"\
 "	vec4	Ambient[6]; // QVR: the light around it (vr/vr_ambient.cpp): xyz +X -X +Y -Y +Z -Z over the model's own, [0].w how much it applies, [1].w how much of the directional shading stays\n"\
 "	vec4	Surface; // QVR: rim light and reflections (vr/vr_envmap.cpp): x the rim light's strength, y the reflections', z the cube's mip level they read\n"\
+"	vec4	AO; // QVR: dynamic ambient occlusion (vr/vr_ao.cpp): x its own group (0 none), y how much of its baked per-vertex occlusion applies\n"\
 "};\n"\
 "\n"\
 "layout(std430, binding=1) restrict readonly buffer InstanceBuffer\n"\
@@ -2157,6 +2289,43 @@ ALIAS_INSTANCE_BUFFER
 "\n"
 "#endif // POSEVERTTYPE check\n"
 "\n"
+"#if POSEVERTTYPE == 1 || POSEVERTTYPE == 2\n"
+"vec3 ZeroBlend(vec3 pos, InstanceData inst) { return pos; }\n"
+"#else\n"
+"// QVR: the recoil steadied (vr/vr_render.cpp): the pose blended towards frame 0 (Padding: the zero pose times the\n"
+"// vertex count, the blend * 255 in the top byte). A muzzle flash's vertex (the top bit of its normal's 4th byte,\n"
+"// gl_mesh.c) keeps the flash's size: moved only as far as the gun vertex it rides on (its 4th bytes) is steadied.\n"
+"vec3 PackedPos(uint index)\n"
+"{\n"
+"	return vec3((PackedPosNor[index].xxx >> uvec3(0, 8, 16)) & 255u);\n"
+"}\n"
+"vec3 ZeroBlend(vec3 pos, InstanceData inst)\n"
+"{\n"
+"	if (inst.Padding == 0)\n"
+"		return pos;\n"
+"	uint zero = uint(inst.Padding) & 0xFFFFFFu;\n"
+"	float blend = float(uint(inst.Padding) >> 24) / 255.0;\n"
+"	uvec2 z = PackedPosNor[zero + uint(gl_VertexID)];\n"
+"	if ((z.y & 0x80000000u) == 0u)\n"
+"		return mix(pos, vec3((z.xxx >> uvec3(0, 8, 16)) & 255u), blend);\n"
+"	uint ref = (z.x >> 24) | ((z.y >> 16) & 0x7F00u);\n"
+"	vec3 gun = mix(PackedPos(uint(inst.Pose1) + ref), PackedPos(uint(inst.Pose2) + ref), inst.Blend);\n"
+"	return pos - (gun - PackedPos(zero + ref)) * blend;\n"
+"}\n"
+"#endif\n"
+"\n"
+"#if POSEVERTTYPE == 0 // PV_QUAKE1\n"
+"// QVR: the model's own occlusion at this vertex in a pose (vr/vr_ao.cpp: 1 open), in its position's 4th byte\n"
+"// (gl_mesh.c); a muzzle flash's vertex keeps its gun vertex there (the flag in its normal's 4th byte): none.\n"
+"float PoseAO(uint pose)\n"
+"{\n"
+"	uvec2 data = PackedPosNor[pose + gl_VertexID];\n"
+"	return (data.y & 0x80000000u) != 0u ? 1.0 : float(data.x >> 24) * (1.0 / 255.0);\n"
+"}\n"
+"#else\n"
+"float PoseAO(uint pose) { return 1.0; }\n"
+"#endif\n"
+"\n"
 "float r_avertexnormal_dot(vec3 vertexnormal, vec3 dir) // from MH \n"
 "{\n"
 "	float d = dot(vertexnormal, dir);\n"
@@ -2181,6 +2350,9 @@ ALIAS_INSTANCE_BUFFER
 "layout(location=8) flat out float out_pdepth; // QVR: parallax mapping\n"
 "layout(location=9) flat out vec4 out_bumplight; // QVR: xyz towards the model's light (world), w how much the bumps shade it\n"
 "layout(location=10) flat out int out_instance; // QVR: its directional ambient (Ambient) for the fragment shader\n"
+"layout(location=11) out vec3 out_morphpos; // QVR: a gun morphing into its other ammo's model (vr/vr_render.cpp): where in its own units\n"
+"layout(location=12) flat out float out_morph; // QVR: and how far (Ambient[2].w; 0 not morphing)\n"
+"layout(location=13) out float out_vao; // QVR: the model's own occlusion here (vr/vr_ao.cpp), times its strength: 1 none\n"
 "\n"
 "void main()\n"
 "{\n"
@@ -2193,8 +2365,7 @@ ALIAS_INSTANCE_BUFFER
 "	PoseVertex pose2 = GetPoseVertex(inst.Pose2);\n"
 "	mat4x3 worldmatrix = transpose(mat3x4(inst.WorldMatrix[0], inst.WorldMatrix[1], inst.WorldMatrix[2]));\n"
 "	vec3 lerpedPos = mix(pose1.pos, pose2.pos, inst.Blend);\n"
-"	if (inst.Padding != 0) // QVR: blend towards frame 0 (vr/vr_render.cpp)\n"
-"		lerpedPos = mix(lerpedPos, GetPoseVertex(uint(inst.Padding) & 0xFFFFFFu).pos, float(uint(inst.Padding) >> 24) / 255.0);\n"
+"	lerpedPos = ZeroBlend(lerpedPos, inst); // QVR: blend towards frame 0 (vr/vr_render.cpp)\n"
 "	vec3 lerpedVert = (worldmatrix * vec4(lerpedPos, 1.0)).xyz;\n"
 "	gl_Position = ViewProj * vec4(lerpedVert, 1.0);\n"
 "	out_pos = lerpedVert - EyePos;\n"
@@ -2207,6 +2378,9 @@ ALIAS_INSTANCE_BUFFER
 "	vec3 lightdir = normalize(mix(vec3(0.70710678, 0.0, 0.70710678), inst.LightDir.xyz, inst.LightDir.w)); // QVR: vr/vr_modellight.cpp\n"
 "	vec3 shadevector = orientation * lightdir;\n"
 "	out_instance = gl_InstanceID; // QVR\n"
+"	out_morph = inst.Ambient[2].w; // QVR\n"
+"	out_vao = inst.AO.y > 0. ? max(1.0 - inst.AO.y * (1.0 - mix(PoseAO(inst.Pose1), PoseAO(inst.Pose2), inst.Blend)), 0.0) : 1.0; // QVR\n"
+"	out_morphpos = lerpedPos * vec3(inst.Ambient[3].w, inst.Ambient[4].w, inst.Ambient[5].w); // QVR: the model's scale\n"
 "	float dirkeep = inst.Ambient[1].w; // QVR: the share of the directional shading the ambient cube leaves (1 without it)\n"
 "	out_bumplight = vec4(lightdir, (abs(inst.Glow.y) - 1.0) * dirkeep); // QVR: Glow.y: +-(1 + the bumps' strength), + on a par with the world\n"
 "	float dot1, dot2;\n"
@@ -2234,6 +2408,7 @@ ALIAS_FRAMEDATA_BUFFER // QVR
 LIGHT_BUFFER // QVR
 LIGHT_CLUSTER_IMAGE("readonly") // QVR
 SHADOW_FUNCTIONS // QVR
+AO_FUNCTIONS // QVR
 PARALLAX_FUNCTIONS // QVR
 SPECULAR_AA_FUNCTIONS // QVR
 NOISE_FUNCTIONS
@@ -2257,6 +2432,9 @@ NOISE_FUNCTIONS
 "layout(location=8) flat in float in_pdepth; // QVR: parallax mapping's depth in units (vr_parallax_models; 0 off)\n"
 "layout(location=9) flat in vec4 in_bumplight; // QVR: xyz towards the model's light, w how much the bumps shade it\n"
 "layout(location=10) flat in int in_instance; // QVR: for its Ambient\n"
+"layout(location=11) in vec3 in_morphpos; // QVR: a gun's morph (vr/vr_render.cpp)\n"
+"layout(location=12) flat in float in_morph; // QVR\n"
+"layout(location=13) in float in_vao; // QVR: the model's own occlusion (vr/vr_ao.cpp)\n"
 "\n"
 OIT_OUTPUT (out_fragcolor)
 "\n"
@@ -2403,11 +2581,45 @@ OIT_OUTPUT (out_fragcolor)
 "	return add * lit;\n"
 "}\n"
 "\n"
+"// QVR: a gun morphing into its other ammo's model (vr/vr_render.cpp: in_morph + coming in, - going out, 2 * kind +\n"
+"// progress): the two models' surfaces split by a noise in the models' shared units, the one coming in where it is\n"
+"// under the progress, the other where it is over; a glowing seam between them, in the kind's colour (the lava's\n"
+"// orange, the multi-rockets' yellow, the plasma's blue). False where this model is not drawn (yet or any more).\n"
+"float MorphHash(vec3 p)\n"
+"{\n"
+"	p = fract(p * 0.3183099 + 0.1) * 17.0;\n"
+"	return fract(p.x * p.y * p.z * (p.x + p.y + p.z));\n"
+"}\n"
+"float MorphNoise(vec3 x)\n"
+"{\n"
+"	vec3 i = floor(x), f = fract(x);\n"
+"	f = f * f * (3.0 - 2.0 * f);\n"
+"	vec2 o = vec2(0.0, 1.0);\n"
+"	return mix(mix(mix(MorphHash(i + o.xxx), MorphHash(i + o.yxx), f.x), mix(MorphHash(i + o.xyx), MorphHash(i + o.yyx), f.x), f.y),\n"
+"		mix(mix(MorphHash(i + o.xxy), MorphHash(i + o.yxy), f.x), mix(MorphHash(i + o.xyy), MorphHash(i + o.yyy), f.x), f.y), f.z);\n"
+"}\n"
+"bool Morph(out vec3 seam)\n"
+"{\n"
+"	seam = vec3(0.0);\n"
+"	if (in_morph == 0.0)\n"
+"		return true;\n"
+"	float a = abs(in_morph);\n"
+"	float kind = floor(a * 0.5);\n"
+"	float cut = (a - 2.0 * kind) * 1.1 - 0.05;\n"
+"	float n = 0.6 * MorphNoise(in_morphpos * 0.45) + 0.4 * MorphNoise(in_morphpos * 1.3 + 7.3);\n"
+"	float d = n - cut;\n"
+"	vec3 hot = kind > 1.5 ? vec3(0.5, 0.8, 2.4) : kind > 0.5 ? vec3(2.2, 1.4, 0.35) : vec3(2.4, 0.8, 0.15);\n"
+"	seam = hot * 0.8 * (1.0 - smoothstep(0.0, 0.03, abs(d)));\n"
+"	return in_morph > 0.0 ? d < 0.0 : d >= 0.0;\n"
+"}\n"
+"\n"
 "void main()\n"
 "{\n"
 "	vec2 uv = in_texcoord;\n"
 "	vec3 dpdx = dFdx(in_pos), dpdy = dFdy(in_pos); // QVR: for the normal map (before any discard)\n"
 "	vec2 duvdx = dFdx(uv), duvdy = dFdy(uv);\n"
+"	vec3 morphSeam; // QVR\n"
+"	bool morphShown = Morph(morphSeam); // QVR: discarded at the end (after the derivatives)\n"
 "#if MODE == " QS_STRINGIFY (ALIASSHADER_NOPERSP) "\n"
 "	uv -= 0.5 / vec2(textureSize(Tex, 0).xy);\n"
 "	vec4 result = textureLod(Tex, uv, 0.);\n"
@@ -2449,7 +2661,10 @@ OIT_OUTPUT (out_fragcolor)
 "#endif\n"
 "	vec3 skin = result.rgb; // QVR: for the rim light and reflections\n"
 "	vec3 spec; // QVR\n"
-"	vec3 light = in_color.rgb * ModelBumpShade(n, bumped) * ModelAmbient(n, bumped) + ModelDynamicLights(n, bumped, spec); // QVR\n"
+"	// QVR: ambient occlusion (vr/vr_ao.cpp): the model's own and that of what moves near it darken its own light;\n"
+"	// dynamic lights get half of its own (in the log: its square root), shadows stand for the rest\n"
+"	float occlusion = in_vao * DynamicAO(in_pos + EyePos, AONormal(n, in_bumplight.xyz), instances[in_instance].AO.x, in_coord, in_depth);\n"
+"	vec3 light = in_color.rgb * ModelBumpShade(n, bumped) * ModelAmbient(n, bumped) * occlusion + ModelDynamicLights(n, bumped, spec) * sqrt(in_vao); // QVR\n"
 "#if ALPHATEST\n"
 "	result.rgb *= light;\n"
 "#else\n"
@@ -2479,6 +2694,9 @@ OIT_OUTPUT (out_fragcolor)
 "		float rim = 1.0 - abs(dot(normalize(in_nor), normalize(-in_pos)));\n"
 "		result.rgb += SceneTone.yzw * in_glow * (pow(rim, 2.0) * 1.1 + 0.08); // QVR: the player's hue\n"
 "	}\n"
+"	result.rgb += morphSeam; // QVR: a morph's glowing seam\n"
+"	if (!morphShown) // QVR: this model is not there yet (or any more) in a morph\n"
+"		discard;\n"
 "	result.rgb = clamp(result.rgb, 0.0, SceneTone.x); // QVR: above 1 in the eyes' float scene (vr_tonemap)\n"
 "	float fog = exp2(abs(Fog.w) * -dot(in_pos, in_pos));\n"\
 "	fog = clamp(fog, 0.0, 1.0);\n"

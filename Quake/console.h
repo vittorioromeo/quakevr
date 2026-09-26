@@ -61,7 +61,8 @@ void Con_TabComplete (tabcomplete_t mode);
 void Con_AddToTabList (const char *name, const char *partial, const char *type);
 qboolean Con_Match (const char *str, const char *partial);
 void Con_LogCenterPrint (const char *str);
-int Con_NotifyLine (int age, const char **text, int *length, double *seconds); // QVR: the wrist gadget's log
+int Con_NotifyLine (int age, const char **text, int *length, double *seconds, int *server); // QVR: the wrist gadget's log and hologram
+void Con_ServerPrint (const char *str); // QVR: svc_print: printed, its lines marked as the server's (game messages: the wrist gadget's hologram)
 
 void Con_Mousemove (int x, int y);
 void Con_ForceMouseMove (void);

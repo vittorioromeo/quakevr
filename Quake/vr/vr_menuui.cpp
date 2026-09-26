@@ -27,7 +27,9 @@
 //   because a game started or loaded, opens the main menu next time, as Quake does.
 // - The main hand's stick scrolls a page with a scrollbar (the VR pages, and Ironwail's lists: the
 //   options, maps, mods, key bindings), a row at a time at a rate growing with the push, the
-//   selection kept where it is while it stays in view.
+//   selection kept where it is while it stays in view. It never changes a setting: its left and
+//   right do nothing in menus, only the off hand's stick (and the laser) change values
+//   (vr_input.cpp).
 
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -700,6 +702,13 @@ extern "C" void VR_MenuDrawHighlight(int cx, int cy)
 
 // "Back to game": a button at the panel's top left, over every menu (not while a key is being
 // bound). Its label shows where it fits left of Quake's plaque (x 16), else only the arrow.
+// The vertical Quake plaque on the options pages: with the VR style's taller panel the rows reach
+// down past it, so it is left out (the "Back to game" button stands by the title instead).
+extern "C" int VR_MenuHidesPlaque()
+{
+    return qvr::menuui::active();
+}
+
 extern "C" void VR_MenuDrawOverlay()
 {
     backButton.menu = m_none;

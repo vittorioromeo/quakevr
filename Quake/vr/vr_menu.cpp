@@ -243,17 +243,31 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Parry Reach", vr_parry_reach, 0.5f, 2.5f, 0.1f, "%.1f m").help("How far in front of you a held weapon still parries."),
         toggle("Unarmed Parry", vr_parry_unarmed).help("Cross your arms in an X in front of you to block a blow with your forearms."),
         slider("Unarmed Parry Reduction", vr_parry_unarmed_reduction, 0.f, 1.f, 0.05f, "%.2f"),
-        toggle("Bash", vr_bash).help("Hold a guard (a weapon level across in front, as for a parry, one hand or two; or both hands together), then push it forward: knocks monsters back and staggers them. One open hand, palm ahead, shoves half as hard."),
+        toggle("Bash", vr_bash).help("Hold a guard (a weapon level across in front, as for a parry, one hand or two) still, then push it forward: knocks monsters back and staggers them. Open palms pushed at a monster shove it (one hand: half as hard)."),
         slider("Bash Speed", vr_bash_speed, 0.8f, 3.f, 0.1f, "%.1f m/s").help("How fast the guard must be pushed forward (less than a blow needs)."),
+        slider("Bash Guard Hold", vr_bash_hold, 0.f, 0.6f, 0.05f, "%.2f s")
+            .help("How long the guard must be held still before the push. A swing whose blade passes through level on its way never holds it."),
+        slider("Bash Swing Limit", vr_bash_swing_rate, 30.f, 400.f, 10.f, "%.0f deg/s")
+            .help("A weapon turning faster than this is a swing, not a bash (held still, the guard turns under half of it). Lower it if swings still bash; raise it if your pushes tilt the blade and don't bash."),
+        slider("Shove Speed", vr_shove_speed, 0.8f, 4.f, 0.1f, "%.1f m/s")
+            .help("How fast open palms (facing ahead, not holding anything) must be pushed forward to shove. Punches, slaps, slow reaches and a hand on a sword's grip never shove."),
         slider("Bash Damage", vr_bash_damage, 0.f, 40.f, 1.f, "%.0f"),
         slider("Bash Push", vr_bash_push, 0.f, 3.f, 0.05f, "%.2fx").help("How far a bash or shove throws what it hits (times Knockback)."),
         slider("Bash and Parry Sounds", vr_bash_sound, 0.f, 1.f, 0.1f, "%.1f")
             .help("Volume of the sounds that tell a shove, a weapon bash, a parry-bash (a bash right after a parry) and a parry apart from your blows (0: the old sounds)."),
+        header("Sword: Blade, Hilt, Stab"),
+        slider("Hilt Waits for Blade", vr_melee_hilt_window, 0.05f, 0.5f, 0.05f, "%.2f s")
+            .help("In a swing the hands often reach a monster before the blade: the hilt's touch waits this long for the blade to sweep in, and a swing never lands with the hilt. A pommel strike (the pommel leading) still does."),
+        slider("Stab Speed", vr_melee_stab_speed, 0.3f, 1.5f, 0.05f, "%.2fx")
+            .help("A stab (the sword driven along its blade, the tip first) pierces: its least speed, times Swing Speed (a swing needs 1.25x)."),
         header("Batting Projectiles"),
         toggle("Bat Back Projectiles", vr_deflect).help("Swing a weapon (or a fist) through a monster's spike, laser, spit or grenade to send it back where your hand points (at the monster, when you point near it)."),
         slider("Batting Reach", vr_deflect_radius, 4.f, 32.f, 1.f, "%.0f units").help("How near the weapon's blade (or your fist) a projectile must pass to be batted back."),
         slider("Batting Swing Speed", vr_deflect_speed, 0.2f, 1.5f, 0.05f, "%.2fx").help("How fast a batting swing must be, times Swing Speed (a hit needs 1x, and more for a swung weapon)."),
         slider("Batting Timing", vr_deflect_window, 0.f, 0.5f, 0.05f, "%.2f s").help("How early you may swing: the weapon's path keeps batting this long after it passed."),
+        slider("Bash Batting Reach", vr_bash_deflect_radius, 4.f, 48.f, 1.f, "%.0f units")
+            .help("A bash (or a shove with a weapon in hand) bats back projectiles that pass this near the guard: the weapon and the hands."),
+        slider("Bash Batting Timing", vr_bash_deflect_window, 0.f, 1.f, 0.05f, "%.2f s").help("How long a bash goes on batting after the push."),
         header("Headbutt"),
         toggle("Headbutt", vr_headbutt).help("Lunge your head at something to headbutt it."),
         slider("Headbutt Speed", vr_headbutt_speed, 0.4f, 3.f, 0.05f, "%.2f m/s").help("How fast the head must lunge (towards where you look)."),
@@ -271,6 +285,12 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("How fast the legs step at most, in steps a second at full running speed (walking, somewhat fewer)."),
         slider("Turn Before Stepping", vr_body_turn_step, 15.f, 90.f, 5.f, "%.0f deg")
             .help("How far you turn over your planted feet before they step round to follow."),
+        slider("Wading Heaviness", vr_body_wade, 0.f, 2.f, 0.1f, "%.1fx")
+            .help("Wading, the legs walk heavier: shorter, higher, slower steps (0: as on land)."),
+        slider("Swimming Kicks", vr_body_swim_kick, 0.f, 2.f, 0.1f, "%.1fx")
+            .help("Swimming, the legs trail behind and kick where the stick moves you: how wide (0: no kicks)."),
+        slider("Swimming Kick Rate", vr_body_swim_kick_rate, 0.f, 4.f, 0.1f, "+%.1f /s")
+            .help("How many more kicks a second at full stick (treading water, about 0.7)."),
         toggle("Show Armour and Wounds", vr_body_state)
             .help("The armour you wear plates your torso; your arms and hands get bloodier as you are hurt."),
         toggle("Wounds Drip Blood", vr_body_blood)
@@ -279,6 +299,8 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("Quad damage sparks around your hands, the pentagram makes you glow, the ring fades you."),
         toggle("Anchors Follow Body", vr_body_anchors)
             .help("Holsters, the virtual stock and hand collisions follow the body's lean and crouch."),
+        slider("Hip Holsters Follow Legs", vr_holster_leg_follow, 0.f, 1.f, 0.05f, "%.2f")
+            .help("Full body: the hip holsters move with the walking and kicking legs (0: fixed on the body, 1: all the way)."),
         header("Placement"),
         slider("Torso Offset", vr_body_torso_back, -0.15f, 0.3f, 0.01f, "%.2f m")
             .help("How far the torso sits behind your neck (negative: in front)."),
@@ -345,6 +367,10 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Out", vr_flashlight_out, -0.08f, 0.08f, 0.01f, "%.2f m").help("Towards your off hand's side."),
         slider("In Hand Forward", vr_flashlight_hand_forward, -0.1f, 0.05f, 0.005f, "%.3f m").help("Where the held lamp sits in your fist."),
         slider("In Hand Up", vr_flashlight_hand_up, -0.1f, 0.05f, 0.005f, "%.3f m"),
+        slider("On Gun Forward", vr_flashlight_gun_forward, -0.15f, 0.05f, 0.005f, "%.3f m")
+            .help("Held near the gun in your other hand, B or Y clips it under the barrel. B or Y at it takes it off."),
+        slider("On Gun Up", vr_flashlight_gun_up, -0.05f, 0.05f, 0.005f, "%.3f m"),
+        slider("On Gun Out", vr_flashlight_gun_out, -0.05f, 0.05f, 0.005f, "%.3f m").help("Away from your body."),
     };
 }
 
@@ -412,15 +438,28 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("The gadget's and your weapons' screens glow softly round their edges (0 off)."),
         slider("Text Glow", vr_screen_text_glow, 0.f, 3.f, 0.1f, "%.1fx")
             .help("The text, numbers and icons on those screens glow: bright whitish cores, a soft halo (0 off)."),
-        cycle("Messages", vr_notify_wrist, {{1.f, "Over the gadget"}, {2.f, "Both"}, {0.f, "In view"}})
-            .help("The console's messages float in a small log over the gadget, or at the top of the view."),
-        slider("Message Time", vr_notify_wrist_time, 2.f, 30.f, 1.f, "%.0f s")
+        header("Messages"),
+        toggle("Game Messages as Hologram", vr_messages_hologram)
+            .help("The game's messages (a key needed, a secret found, the map's text, pickups) float as a hologram the gadget projects over its screen, while you look at it. Else the key and map messages show in front of you."),
+        slider("Hologram Time", vr_messages_hologram_time, 2.f, 15.f, 0.5f, "%.1f s").help("How long a message stays in the hologram."),
+        slider("Hologram Text Size", vr_messages_hologram_size, 0.5f, 2.f, 0.05f, "%.2fx"),
+        slider("Hologram Height", vr_messages_hologram_height, 0.f, 10.f, 0.5f, "%.1f cm")
+            .help("How high over the gadget it floats."),
+        slider("Hologram Effect", vr_messages_hologram_effect, 0.f, 2.f, 0.1f, "%.1fx")
+            .help("The beam of light from the screen, scanlines, flicker, glitches and the projection as it appears (0: plain glowing text)."),
+        cycle("Console Messages", vr_notify_wrist, {{1.f, "Over the gadget"}, {2.f, "Both"}, {0.f, "In view"}})
+            .help("The console's other messages (the engine's: settings changed, cheats, errors) float in a small log over the gadget, or at the top of the view."),
+        slider("Console Message Time", vr_notify_wrist_time, 2.f, 30.f, 1.f, "%.0f s")
             .help("How long a message stays in the gadget's log."),
+        slider("Console Log Height", vr_notify_wrist_height, 0.f, 20.f, 0.5f, "%.1f cm")
+            .help("How high over the gadget the log floats (always over the hologram)."),
+        slider("Console Log Brightness", vr_notify_wrist_alpha, 0.2f, 1.f, 0.05f, "%.2f"),
         header("Weapons' Ammo Screens"),
         toggle("Weapon Text", "vr_show_weapon_text").help("Show floating ammunition text attached to weapons"),
         toggle("Weapon Ammo Screen", "vr_weapon_screen").help("The ammunition text on a small screen on the weapon (colours from the wrist gadget's screen)."),
         slider("Ammo Screen Margin", "vr_weapon_screen_padding", 0.f, 2.f, 0.1f, "%.1f"),
         slider("Ammo Screen CRT Look", "vr_weapon_screen_crt", 0.f, 2.f, 0.1f, "%.1fx").help("Scanlines, a slight flicker, faint static and now and then a glitch, as on the wrist gadget's screen (0 off)."),
+        toggle("Screens on Weapons at Rest", "vr_weapon_screen_idle").help("Weapons in your holsters and lying in the world show their ammo screen and button too, not only the ones in your hands."),
         header("Map Boards"),
         toggle("Map Boards as CRTs", "vr_worldtext_crt").help("The text boards in maps (the tutorial's, the start map's) are CRT screens with glowing text, as the wrist gadget's. Off: plain text."),
         slider("Map Board Hue", "vr_worldtext_hue", 0.f, 355.f, 5.f, "%.0f").help("Their colour: 40 amber, 128 green, 200 blue, 0 red."),
@@ -499,10 +538,19 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("At a holster: let go of it at a hip or shoulder holster to put it in your pack."),
         toggle("Drawn In the Hand", vr_carry_local)
             .help("What you carry is drawn in your hand as it is this frame: no lag or lead as you walk or turn. Off: where the server has it."),
+        toggle("Fit to the Hand", vr_held_surface_fit)
+            .help("A box, backpack or gib you grip sits against your curled fingers, by its drawn shape. Off: it stays where you gripped it."),
+        slider("Fit Gap", vr_held_fit_gap, -2.f, 3.f, 0.1f, "%.1f cm")
+            .help("Space left between your fingers and what they hold (negative: sunk in). Per model: vr_held_fit_gaps in the console."),
         slider("Push Strength", vr_carry_nudge, 0.f, 2.f, 0.1f, "%.1fx"),
         slider("Box Throw Speed", vr_carry_throw_mult, 0.5f, 3.f, 0.1f, "%.1fx"),
         slider("Box Punch Damage", vr_carry_melee_mult, 1.f, 3.f, 0.1f, "%.1fx").help("Punching with a box in hand."),
         slider("Thrown Box Damage", vr_carry_throw_damage, 0.f, 50.f, 1.f, "%.0f").help("Damage of a box thrown at about 6 m/s; more the faster."),
+        header("Armour"),
+        cycle("Armour", vr_armor_wear, {{0.f, "Touch takes it"}, {1.f, "Wear by hand"}})
+            .help("Wear by hand: grip the armour to carry it and let go of it over your chest to put it on (only if it is better "
+                  "than yours). Walking over it no longer takes it. Next map."),
+        slider("Armour Size", vr_armor_scale, 0.3f, 1.f, 0.05f, "%.2fx").help("The carried armour's size (1: Quake's, a metre tall). Next map."),
         header("Gibs and Corpses"),
         cycle("Gibs and Heads", vr_grab_gibs, {{0.f, "Left alone"}, {1.f, "Grab by hand"}, {2.f, "Hand and force grab"}})
             .help("Pick up and throw gibs and heads, by reaching for them (or force-grabbing them too)."),
@@ -674,6 +722,12 @@ std::vector<Item> pageMain()
             .help("Which OpenXR runtime runs the headset; VR restarts. VDXR skips SteamVR (keep Virtual Desktop's 'Emulate Index controllers' off)."),
         slider("Render Scale", vr_render_scale, 0.5f, 1.5f, 0.05f, "%.2f")
             .help("Eye rendering resolution, times the headset's (SteamVR's resolution included); resampled to it."), // + the size (renderScaleHelp)
+        cycle("Upscaling", vr_upscale, {{0.f, "Bilinear"}, {1.f, "FSR"}, {2.f, "NIS"}})
+            .help("Below Render Scale 1: how the eyes are enlarged to the headset's size. FSR (AMD) and NIS (NVIDIA) keep edges and text sharper than bilinear, near the lens centre."),
+        slider("Sharpness", vr_upscale_sharpness, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The upscaler's sharpening (FSR, NIS). Too much makes edges shimmer."),
+        cycle("Foveated Rendering", vr_foveated, {{0.f, "Off"}, {1.f, "Conservative"}, {2.f, "Balanced"}, {3.f, "Aggressive"}})
+            .help("Shade the scene coarser towards the edges of the lenses, where they blur anyway: faster. NVIDIA GPUs only (variable-rate shading)."),
         toggle("Hide Lens Corners", vr_visibility_mask)
             .help("Skip the pixels the lenses never show (if the headset gives them): faster, looks the same. Black corners in the desktop mirror."),
 
@@ -792,6 +846,35 @@ std::vector<Item> pageWeaponOffsets()
         s("Hand Y", Key::HandOffsetY, -10.f, 10.f, 0.05f, "%.2f"),
         s("Hand Z", Key::HandOffsetZ, -10.f, 10.f, 0.05f, "%.2f"),
         cycle("Hide Hand", weapons::cvar(slot, Key::HideHand), {{0.f, "No"}, {1.f, "Yes"}}),
+    });
+    if(slot != weapons::fistSlot()) // an empty hand's fingers follow the controller alone
+    {
+        const char* fingerHelp = "This finger's openness, added to Grip Openness's (negative: closes further).";
+        list.insert(list.end(), {
+            header("Fingers"),
+            s("Fingers X (forward)", Key::FingersX, -4.f, 4.f, 0.05f, "%+.2f")
+                .help("Moves the fingers and the thumb on the hand: forward (towards the fingertips) to wrap a thick grip "
+                      "from outside instead of sinking into it."),
+            s("Fingers Y (palm)", Key::FingersY, -4.f, 4.f, 0.05f, "%+.2f")
+                .help("Moves the fingers and the thumb towards the palm's side (negative: the back of the hand's)."),
+            s("Fingers Z (up)", Key::FingersZ, -4.f, 4.f, 0.05f, "%+.2f")
+                .help("Moves the fingers and the thumb towards the index finger's side (up the grip)."),
+            s("Thumb X (forward)", Key::FingerThumbX, -4.f, 4.f, 0.05f, "%+.2f").help("Moves the thumb alone, as Fingers X."),
+            s("Thumb Y (palm)", Key::FingerThumbY, -4.f, 4.f, 0.05f, "%+.2f").help("Moves the thumb alone, as Fingers Y."),
+            s("Thumb Z (up)", Key::FingerThumbZ, -4.f, 4.f, 0.05f, "%+.2f").help("Moves the thumb alone, as Fingers Z."),
+            s("Grip Openness", Key::FingerOpen, 0.f, 1.f, 0.02f, "%.2f")
+                .help("How open the fingers stay when closed round this weapon's grip (0: the full fist). Half-curled fingers "
+                      "reach furthest out of the palm: for a thick grip, move them forward (Fingers X) first. Plus All Weapons'."),
+            s("Thumb Openness", Key::FingerThumbOpen, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
+            s("Index Openness", Key::FingerIndexOpen, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
+            s("Middle Openness", Key::FingerMiddleOpen, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
+            s("Ring Openness", Key::FingerRingOpen, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
+            s("Pinky Openness", Key::FingerPinkyOpen, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
+            slider("Grip Openness (All Weapons)", vr_finger_grip_open, 0.f, 1.f, 0.02f, "%.2f")
+                .help("Added to every weapon's Grip Openness (vr_finger_grip_open)."),
+        });
+    }
+    list.insert(list.end(), {
         header("Muzzle"),
         s("Muzzle X", Key::MuzzleOffsetX, -30.f, 30.f, 0.1f, "%.2f").help("Where shots and the muzzle flash start, from the muzzle vertex."),
         s("Muzzle Y", Key::MuzzleOffsetY, -30.f, 30.f, 0.1f, "%.2f"),
@@ -806,6 +889,10 @@ std::vector<Item> pageWeaponOffsets()
         s("Drawn Hand X", Key::TwoHFixedOffsetX, -30.f, 30.f, 0.1f, "%.2f").help("Where the other hand is drawn on the weapon while it holds it."),
         s("Drawn Hand Y", Key::TwoHFixedOffsetY, -30.f, 30.f, 0.1f, "%.2f"),
         s("Drawn Hand Z", Key::TwoHFixedOffsetZ, -30.f, 30.f, 0.1f, "%.2f"),
+        s("Other Hand Openness", Key::TwoHFingerOpen, 0.f, 1.f, 0.02f, "%.2f")
+            .help("How open the other hand's fingers stay round the foregrip (0: a full fist)."),
+        s("Other Hand Thumb", Key::TwoHFingerThumbOpen, -1.f, 1.f, 0.02f, "%+.2f")
+            .help("Its thumb's openness, added to Other Hand Openness (negative: closes further)."),
         header("Ammo Screen"),
         s("Screen X", Key::WpnTextX, -20.f, 20.f, 0.05f, "%.2f"),
         s("Screen Y", Key::WpnTextY, -20.f, 20.f, 0.05f, "%.2f"),

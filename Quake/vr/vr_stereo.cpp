@@ -4,14 +4,17 @@
 // to the eye (vr_view.cpp) with the eye's asymmetric projection (VR_OverrideProjection), the
 // usual V_RenderView runs, and Ironwail's post-process pass (gamma, contrast, dithering)
 // writes into the backend's eye image instead of the window (at a vr_render_scale other than 1,
-// into a texture of the scaled size, resampled into the image). The left eye is then mirrored to
-// the window, where the 2D layer is drawn as usual.
+// into a texture of the scaled size, resampled into the image: bilinear, FSR 1 or NIS, vr_upscale.cpp).
+// The scene is shaded coarser away from the lens centre with vr_foveated (vr_foveated.cpp). The eye's
+// UI is drawn over the final image at its full size. The left eye is then mirrored to the window, where
+// the 2D layer is drawn as usual.
 
 #include "vr_fgfx.hpp"
 #include "vr_gfx.hpp"
 #include "vr_bloom.hpp"
 #include "vr_body.hpp"
 #include "vr_envmap.hpp"
+#include "vr_foveated.hpp"
 #include "vr_engine.hpp"
 #include "vr_crosshair.hpp"
 #include "vr_cvars.hpp"
@@ -23,6 +26,7 @@
 #include "vr_stereo.hpp"
 #include "vr_text3d.hpp"
 #include "vr_tonemap.hpp"
+#include "vr_upscale.hpp"
 
 #include <cmath>
 #include <cstdint>
@@ -42,7 +46,8 @@ bool creatingEyeFramebufs = false; // VR_SceneColorFormat
 GLuint targetFbo = 0;
 
 // vr_render_scale: the eyes are rendered at the scaled size, post-processed into this texture of
-// that size, and resampled (a linear blit) into the eye image, which keeps the runtime's size.
+// that size, and resampled (upscale::resample) into the eye image, which keeps the runtime's size.
+// At scale 1 too with vr_upscale_sharpen_native (sharpened into the image).
 GLuint resampleFbo = 0;
 GLuint resampleTex = 0;
 int resampleWidth = 0;
@@ -334,7 +339,7 @@ extern "C" int VR_RenderView()
     const EyeSizes sizes = be->eyeSizes();
     const int width = scaledEyeSize(imageWidth, sizes.maxWidth);
     const int height = scaledEyeSize(imageHeight, sizes.maxHeight);
-    stereo::resampling = width != imageWidth || height != imageHeight;
+    stereo::resampling = width != imageWidth || height != imageHeight || upscale::sharpenAtNative();
 
     stereo::ensureEyeFramebuffers(width, height);
     if(stereo::resampling)
@@ -386,19 +391,35 @@ extern "C" int VR_RenderView()
         QVR_GPU_PROFILE(eye == 0 ? "eye L" : "eye R");
 
         V_RenderView();
+        foveated::endScene(); // begun after the scene's clear (VR_DrawHiddenArea)
         bloom::apply(framebufs.composite.color_tex, width, height); // added by GL_PostProcess
 
+        // vr_eyeshot 1 takes the eye's final image (after the resample and vr_foveated_debug, before the UI); 2 the
+        // rendered one (before the resample) with its float scene.
+        const bool shotFinal = vr_eyeshot.value > 0.f && vr_eyeshot.value < 2.f;
         profile::begin("postprocess", true);
         GL_PostProcess(); // into the image, or the resample target (VR_PostProcessTarget)
-        tonemap::eyeshot(eye, VR_PostProcessTarget(), framebufs.composite.fbo, width, height); // vr_eyeshot
-        if(stereo::resampling)
+        if(!shotFinal)
         {
-            GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, stereo::resampleFbo);
-            GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, stereo::targetFbo);
-            GL_BlitFramebufferFunc(0, 0, width, height, 0, 0, imageWidth, imageHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
-            GL_BindFramebufferFunc(GL_FRAMEBUFFER, stereo::targetFbo);
+            tonemap::eyeshot(eye, VR_PostProcessTarget(), framebufs.composite.fbo, width, height);
         }
         profile::end();
+        if(stereo::resampling)
+        {
+            // After the tone curve, grade, gamma and dither (FSR and NIS want the display's colours), before the UI.
+            QVR_GPU_PROFILE("upscale");
+            upscale::resample(eye, stereo::resampleTex, stereo::resampleFbo, width, height, stereo::targetFbo,
+                imageWidth, imageHeight);
+        }
+        foveated::drawDebug(eye, stereo::targetFbo, imageWidth, imageHeight, width, height); // vr_foveated_debug
+        if(stereo::mirrored(eye))
+        {
+            foveated::drawDebug(eye, framebufs.composite.fbo, width, height, width, height);
+        }
+        if(shotFinal)
+        {
+            tonemap::eyeshot(eye, stereo::targetFbo, framebufs.composite.fbo, imageWidth, imageHeight);
+        }
 
         // The UI over the eye's final image, at its full size: after the post-processing, it is not warped or blurred
         // under water (vr_water.cpp), the glow is not added over it, nor the eye's gamma. The wrist gadget and all
@@ -453,6 +474,7 @@ extern "C" void VR_DrawHiddenArea()
     if(stereo::renderingEye)
     {
         stereo::drawHiddenArea();
+        foveated::beginScene(stereo::currentEye, vid.width, vid.height); // vr_foveated, until the scene ends
     }
 }
 

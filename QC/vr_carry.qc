@@ -14,6 +14,8 @@
 // - Letting go leaves it with the hand's throw velocity, as a rigid body; thrown hard, it hurts
 //   what it hits (vr_carry_throw_damage).
 // vr_carry 0 restores the old behaviour: a hand touching a box takes it.
+// Armour (vr_armor_wear, items.qc) is carried the same way and put on by letting go of it over the
+// torso (VR_Armor_LetGo), never taken at a holster or with the trigger.
 
 .entity mainhand_held;   // the box each hand carries
 .entity offhand_held;
@@ -113,15 +115,17 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Nudge =
 
 void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
 {
+    dprint("carry: taken\n");
     xBox.carry_player = xPlayer;
 
     vector handPos = VRGetEntHandPos(xPlayer, xHand);
     vector handRot = VRGetEntHandRot(xPlayer, xHand);
     makevectors(handRot);
 
-    // Against the palm, not sunk into the fist (vr_held_surface_fit): moved the way the palm faces
-    // (palms face in, as held: a right hand's to its left) just out of the hand. Where it was
-    // gripped is kept otherwise (any part of it can be taken).
+    // Against the curled fingers, not sunk into the fist nor held short of it (vr_held_surface_fit,
+    // vr_held_fit_gap): moved along the way the palm faces (palms face in, as held: a right hand's
+    // to its left) until its drawn shape just touches the drawn fist. Where it was gripped is kept
+    // otherwise (any part of it can be taken).
     float rightHand = (xHand == cVR_MainHand) != (cvar("vr_lefthanded") != 0);
     vector palm = rightHand ? v_right * -1 : v_right;
     vector d = xBox.origin + carryfit(xBox, handPos, palm) - handPos;
@@ -202,6 +206,7 @@ void(float xHand, entity xBox) VR_Carry_Take =
     if(xBox.model == string_null) // taken (else: full up, still held)
     {
         VR_Carry_SetHeld(self, xHand, world);
+        xBox.carry_player = world; // (a deathmatch item comes back: carried by no one)
     }
 };
 
@@ -246,6 +251,18 @@ void(float xHand) VR_Carry_HandFrame =
     float takeMode = cvar_hget(cvarh_vr_carry_take);
     if(!VR_HandGrabUtil_IsHandGrabbing(self, xHand))
     {
+        // Armour (vr_armor_wear, items.qc): let go of over the torso it is put on; else it drops.
+        // Never into the pack.
+        if(box.vr_wearable)
+        {
+            if(!VR_Armor_LetGo(xHand, box))
+            {
+                dprint("carry: let go\n");
+                VR_Carry_Release(xHand, box);
+            }
+            return;
+        }
+
         // Let go at a holster: into the pack (if full up, it drops there).
         if(takeMode != 1 && VR_Carry_AtHolster(xHand))
         {
@@ -266,7 +283,11 @@ void(float xHand) VR_Carry_HandFrame =
     }
 
     float trigger = VRGetFireButtonPressed(xHand);
-    if(takeMode != 0 && trigger && !box.carry_trigger)
+    if(box.vr_wearable)
+    {
+        VR_Armor_HeldFrame(xHand, box); // over the torso: a haptic hint
+    }
+    else if(takeMode != 0 && trigger && !box.carry_trigger)
     {
         box.carry_trigger = trigger;
         VR_Carry_Take(xHand, box);
@@ -307,7 +328,24 @@ void(float xHand) VR_Carry_HandFrame =
 // ----------------------------------------------------------------------------
 // The box's touches
 
-// A hand touching the box (handtouch): grip to hold it, else nudge it.
+// QVR r20: a grip pressed on the box, now or at most VR_CARRY_GRIP_WINDOW before (the press may come a
+// frame or two before the hand's touch), as a weapon is taken. A grip already held (a fist) never
+// takes it: it punches or nudges it instead (a punch through a gib was a grab).
+float VR_CARRY_GRIP_WINDOW = 0.2;
+float(entity xPlayer, float xHand) VR_Carry_GripPressed =
+{
+    if(!VR_HandGrabUtil_IsHandGrabbing(xPlayer, xHand))
+    {
+        return FALSE;
+    }
+    if(!VR_HandGrabUtil_IsHandPrevGrabbing(xPlayer, xHand))
+    {
+        return TRUE; // pressed this frame (the press's time is recorded after the touches)
+    }
+    return time - VR_HandGrabUtil_Impl_GetLastGrabTime(xPlayer, xHand) <= VR_CARRY_GRIP_WINDOW;
+};
+
+// A hand touching the box (handtouch): press the grip on it to hold it, else nudge it.
 void() VR_Carry_Handtouch =
 {
     if(!cvar_hget(cvarh_vr_carry) || other.classname != "player" || VRIsTouchingHandFake(other))
@@ -322,7 +360,9 @@ void() VR_Carry_Handtouch =
     }
 
     float hand = VRGetTouchingHand(other);
-    if(VR_HandGrabUtil_IsHandGrabbing(other, hand) && VRIsHandEmpty(other, hand) && !VR_Carry_IsHolding(other, hand) &&
+    // A force grab's catch (VR_Forcegrab_Catch) has checked the grip already: its window
+    // (vr_forcegrab_catch_early) is longer than a touch's.
+    if((forcegrabCatching || VR_Carry_GripPressed(other, hand)) && VRIsHandEmpty(other, hand) && !VR_Carry_IsHolding(other, hand) &&
        !VR_Forcegrab_IsHandBusy(other, hand))
     {
         VR_Carry_Start(other, hand, self);

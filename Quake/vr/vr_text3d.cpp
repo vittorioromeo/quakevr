@@ -44,7 +44,7 @@ std::vector<gfx::Vertex> glows;    // the screens' soft glows (added)
 // text, in the order they were queued), drawn at the end of the 2D pass (renderScreens) and shown
 // in the eyes the next frame through Shade::Screen, like the wrist gadget's.
 constexpr int screenScale = 8;   // texels a pixel of the virtual screen (a font pixel)
-constexpr int maxScreenImages = 4;
+constexpr int maxScreenImages = 16; // the hands', the holsters' and the nearest guns lying round (vr_weapon_screen_idle)
 struct ScreenImage
 {
     gfx::Target target;
@@ -601,6 +601,7 @@ void renderBoards()
 
 void drawTranslucent()
 {
+    gadget::drawHologram(); // the wrist gadget's game messages (vr_gadget.cpp)
     if(!(cl.protocolflags & PRFL_QUAKEVR) || builtFrame != host_framecount ||
         (floating.empty() && glows.empty()))
     {
@@ -692,7 +693,10 @@ void renderScreens()
         image.drawnAlign = static_cast<int>(q.align);
         image.drawnFace = face;
         image.drawnText = text;
-        static const char* const names[maxScreenImages] = {"ammo screen 1", "ammo screen 2", "ammo screen 3", "ammo screen 4"};
+        static const char* const names[maxScreenImages] = {"ammo screen 1", "ammo screen 2", "ammo screen 3",
+            "ammo screen 4", "ammo screen 5", "ammo screen 6", "ammo screen 7", "ammo screen 8", "ammo screen 9",
+            "ammo screen 10", "ammo screen 11", "ammo screen 12", "ammo screen 13", "ammo screen 14", "ammo screen 15",
+            "ammo screen 16"};
         gfx::ensureTarget(image.target, image.width * screenScale, image.height * screenScale, true,
             names[index - 1]); // mipmaps: the glow
         gfx::begin2D(image.target, image.width, image.height);

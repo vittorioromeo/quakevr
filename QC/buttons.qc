@@ -1,5 +1,17 @@
 // button and multiple button
 
+// VR: a brush entity drawing an external brush model instead of one of the map's own ("*N"): an entity
+// file can add those (vrfiringrange's second row of monster buttons: maps/vr_spawnpanel.bsp on a
+// func_wall, maps/vr_spawnbutton.bsp on a func_button; Misc/quakevr/make_spawn_buttons.py). Unlike the
+// map's own models they must be precached before setmodel.
+void() VR_PrecacheOwnModel =
+{
+    if(self.model != NULLSTR && substring(self.model, 0, 1) != "*")
+    {
+        precache_model(self.model);
+    }
+};
+
 void(entity entPlayer) VRButtonPressHaptic =
 {
     if(!entPlayer.ishuman)
@@ -158,6 +170,7 @@ void() func_button =
 
     self.movetype = MOVETYPE_PUSH;
     self.solid = SOLID_BSP;
+    VR_PrecacheOwnModel();
     setmodel(self, self.model);
 
     self.blocked = button_blocked;
@@ -403,29 +416,107 @@ void() func_weapon_grabbable =
     );
 }
 
+// A monster dispenser (vrfiringrange's monster buttons): when used, spawns the monster "weapon" at its
+// origin. 0..4 are the map's own row of buttons (west railing), the rest the second row its entity file
+// adds (east edge):
+//   0 soldier, 1 ogre, 2 zombie, 3 shambler, 4 scrag,
+//   5 knight, 6 hell knight, 7 rottweiler, 8 enforcer, 9 fiend, 10 vore, 11 spawn,
+//   12 gremlin, 13 centroid (Scourge of Armagon), 14 mummy, 15 phantom swordsman, 16 wrath,
+//   17 overlord (Dissolution of Eternity).
+// The model of the second row's monsters: the mission packs' (and the registered game's) may not be
+// installed, and precaching a missing model is an error.
+string(float choice) VR_EnemyDispenser_Model =
+{
+         if(choice == 5)  { return "progs/knight.mdl"; }
+    else if(choice == 6)  { return "progs/hknight.mdl"; }
+    else if(choice == 7)  { return "progs/dog.mdl"; }
+    else if(choice == 8)  { return "progs/enforcer.mdl"; }
+    else if(choice == 9)  { return "progs/demon.mdl"; }
+    else if(choice == 10) { return "progs/shalrath.mdl"; }
+    else if(choice == 11) { return "progs/tarbaby.mdl"; }
+    else if(choice == 12) { return "progs/grem.mdl"; }
+    else if(choice == 13) { return "progs/scor.mdl"; }
+    else if(choice == 14) { return "progs/mummy.mdl"; }
+    else if(choice == 15) { return "progs/sword.mdl"; }
+    else if(choice == 16) { return "progs/wrath.mdl"; }
+    else if(choice == 17) { return "progs/s_wrath.mdl"; }
+
+    return NULLSTR;
+};
+
 void() func_enemy_dispenser_use =
 {
     vector org = self.origin;
     float choice = self.weapon;
 
+    // Not installed: say what it needs instead.
+    string mdl = VR_EnemyDispenser_Model(choice);
+    if(mdl != NULLSTR && !fileexists(mdl))
+    {
+        if(activator.classname == "player")
+        {
+            if(choice >= 14)
+            {
+                centerprint(activator, "Needs Dissolution of Eternity (rogue)");
+            }
+            else if(choice >= 12)
+            {
+                centerprint(activator, "Needs Scourge of Armagon (hipnotic)");
+            }
+            else
+            {
+                centerprint(activator, "Needs the registered Quake (pak1.pak)");
+            }
+        }
+
+        return;
+    }
+
     self = spawn();
 
-         if(choice == 0) { monster_army(); }
-    else if(choice == 1) { monster_ogre(); }
-    else if(choice == 2) { monster_zombie(); }
-    else if(choice == 3) { monster_shambler(); }
-    else if(choice == 4) { monster_wizard(); }
+    // The classname a map's monster has: sight sounds, obituaries and the like go by it.
+         if(choice == 0)  { self.classname = "monster_army";        monster_army(); }
+    else if(choice == 1)  { self.classname = "monster_ogre";        monster_ogre(); }
+    else if(choice == 2)  { self.classname = "monster_zombie";      monster_zombie(); }
+    else if(choice == 3)  { self.classname = "monster_shambler";    monster_shambler(); }
+    else if(choice == 4)  { self.classname = "monster_wizard";      monster_wizard(); }
+    else if(choice == 5)  { self.classname = "monster_knight";      monster_knight(); }
+    else if(choice == 6)  { self.classname = "monster_hell_knight"; monster_hell_knight(); }
+    else if(choice == 7)  { self.classname = "monster_dog";         monster_dog(); }
+    else if(choice == 8)  { self.classname = "monster_enforcer";    monster_enforcer(); }
+    else if(choice == 9)  { self.classname = "monster_demon1";      monster_demon1(); }
+    else if(choice == 10) { self.classname = "monster_shalrath";    monster_shalrath(); }
+    else if(choice == 11) { self.classname = "monster_tarbaby";     monster_tarbaby(); }
+    else if(choice == 12) { self.classname = "monster_gremlin";     monster_gremlin(); }
+    else if(choice == 13) { self.classname = "monster_scourge";     monster_scourge(); }
+    else if(choice == 14) { self.classname = "monster_mummy";       monster_mummy(); }
+    else if(choice == 15) { self.classname = "monster_sword";       monster_sword(); }
+    else if(choice == 16) { self.classname = "monster_wrath";       monster_wrath(); }
+    else if(choice == 17) { self.classname = "monster_super_wrath"; monster_super_wrath(); }
 
     setorigin(self, org);
 }
 
 void() func_enemy_dispenser =
 {
-    monster_army_precache();
-    monster_ogre_precache();
-    monster_zombie_precache();
-    monster_shambler_precache();
-    monster_wizard_precache();
+    if(self.weapon < 5)
+    {
+        monster_army_precache();
+        monster_ogre_precache();
+        monster_zombie_precache();
+        monster_shambler_precache();
+        monster_wizard_precache();
+    }
+    else
+    {
+        // The model now, if installed (no hitch at the first press); the monster's other models and
+        // its sounds are precached (late) when it first spawns.
+        string mdl = VR_EnemyDispenser_Model(self.weapon);
+        if(mdl != NULLSTR && fileexists(mdl))
+        {
+            precache_model(mdl);
+        }
+    }
 
     self.movetype = MOVETYPE_NONE;
     self.solid = SOLID_NOT;

@@ -141,7 +141,36 @@ context and screenshot, ready to paste or to point me at.
 
 ## What to try
 
-- **New in this round** (details in `docs/vr-port/ROUND17.md` and `ROUND18.md`):
+- **New in this round** (details in `docs/vr-port/ROUND20.md`, your seventh batch of notes; `ROUND19.md`, the
+  performance review):
+  - **Your settings are the defaults** (graphics too), and your weapon placements (applied once to slots 1, 2, 5,
+    6, 7, 9, 10, 17 and the alternates 13 to 15: check they are where you left them).
+  - **Menus:** Weapon Only X/Y/Z on the Weapon Offsets page (the gun moves, the hand stays); the right stick only
+    scrolls; no Quake plaque on the tall panel; Force Grab Saturation.
+  - **Fingers** (Weapon Offsets > Fingers): per-weapon finger and thumb offsets and openness, for the shotguns',
+    launchers' and rocket launcher's grips.
+  - **Hologram messages:** "You need the gold keycard" and the like over the wrist gadget (e4m1's keys, secrets).
+  - **Armour:** grip a pickup, let go over your torso to wear it; a worse one drops with a knock and a double buzz.
+  - **Flashlight on a gun:** take it from the chest to the gun in the other hand, press B or Y; off on `map`, still on
+    across level changes.
+  - **Melee:** diagonal two-handed cuts, slow cuts and stabs should now be blade hits, not bashes or shoves; a shove
+    needs open palms pushed hard; a bash or shove with a gun bats projectiles back (firing range grunts, ogres).
+  - **Physics:** a fist moved onto a gib no longer grabs it; a backpack in a corner or at water's edge rests; a held
+    health box sits against the hand.
+  - **Firing range:** 13 more monster buttons on the other side of the range.
+  - **Guns:** the nailgun's grip; no see-through faces (super nailgun, lava ones, launchers, rocket launcher); lava
+    nailguns glow; the normal/lava morph; ammo screens only on the gun in hand; the flash stays big in two hands;
+    lightning gun sights in your hue; holstered guns never invisible.
+  - **Water:** bigger ripples in the waves (Graphics - Liquids sliders), recorded splash sounds.
+  - **Lava** lights the walls once you rerun the relight; barrels explode with a light.
+  - **Body:** hip holsters follow the thighs; kicking legs when wading and swimming.
+  - **Graphics, Headset page:** *Upscaling* FSR or NIS (try Render Scale 0.8 with FSR), *Foveated Rendering*
+    (Balanced: look for shimmer at the edges of the view). *Ambient Occlusion* (Graphics - Shadows): dark contact
+    under monsters and round lifts.
+  - **Performance** (round 19): the world pass 40–62% cheaper indoors, the CPU frame ~25% lower; the memory log has
+    GPU columns (clocks, use, the encoder, each program's share) for the slowdown.
+
+- **Previous round** (details in `docs/vr-port/ROUND17.md` and `ROUND18.md`):
   - **Graphics** (Graphics page, each with a switch): real light directions, detail textures up close, directional
     ambient and a rim light on models, sheen anti-aliasing, fence coverage, tone mapping and dither and colour grades,
     soft particles, shoreline foam and heat haze, reflections on your weapons, flickering torch lights.

@@ -843,6 +843,11 @@ def build_shotgun(out_dir):
     check_anchors(old_tris, model.tris, remap, kept_anchors)
     for verts, centre in flashes:
         show_flash(model, len(remap), verts, parts, centre, carrier, SHOTGUN_FLASH_FRAMES)
+    # Round 20: the bead between the muzzles was inside out (seen from outside, one looked at its inner
+    # faces); it is backed, and the cracks filled (seal_mdl.py: new triangles only).
+    from seal_mdl import seal
+    seal(model, regions["caps"], None, "v_shot2.mdl", fix_inverted=True)
+    check_anchors(old_tris, model.tris, remap, kept_anchors)
 
     # The hand's anchor: the new grip's vertex nearest the middle of the hand's hold.
     base = len(remap)
@@ -930,6 +935,8 @@ def build_rocket_launcher(out_dir, alt=None):
     carrier = Carrier(model, clusters)
     remap = assemble(model, old_tris, parts, carrier)
     check_anchors(old_tris, model.tris, remap, kept_anchors)
+    seal_rocket_launcher(model, name)
+    check_anchors(old_tris, model.tris, remap, kept_anchors)
 
     new_hand = mul(sub(hs.p0, anchor_pos), K * sw)
     origin = model.write(os.path.join(out_dir, name))
@@ -939,6 +946,37 @@ def build_rocket_launcher(out_dir, alt=None):
         "HandOffsetX": fmt(new_hand[0]), "HandOffsetY": fmt(new_hand[1]), "HandOffsetZ": fmt(new_hand[2]),
         "OffsetX": fmt(new_offset[0]), "OffsetY": fmt(new_offset[1]), "OffsetZ": fmt(new_offset[2]),
     }, model
+
+
+# ----------------------------------------------------------------------------
+# Round 20: the holes (voice note 20-23-25: "the rocket launcher also has a missing face at the very end of
+# the muzzle ... on both models"). seal_mdl.py closes what check_mdl_holes.py finds, with new triangles and
+# vertices only (the anchors are checked again after it).
+
+RL_MUZZLE_X = 55.0   # the tube's open mouth is at x 56.1
+
+
+def seal_rocket_launcher(model, name):
+    """The rocket launcher and the multi-rocket one: the tube's mouth gets a bore (a thin rim, a sooty wall
+    6 units down the tube, a black floor); the grip's top (inside the tube) and the nozzle's front ring
+    (inside the tube's pointed back) are capped."""
+    from seal_mdl import seal
+
+    row = grow_rows(model, 16)
+    R = {"cap": (0, row, 32, row + 16), "rim": (32, row, 96, row + 8), "wall": (32, row + 8, 96, row + 16),
+         "floor": (96, row, 128, row + 16)}
+    paint(model.skin, model.sw, R["cap"], metal(Noise(38), LAUNCHER, 0.3, 0.1))
+    paint(model.skin, model.sw, R["rim"], metal(Noise(39), LAUNCHER, 0.45, 0.12))
+    paint(model.skin, model.sw, R["wall"], metal(Noise(40), [0, 16, 174, 17, 173], 0.3, 0.15))
+    paint(model.skin, model.sw, R["floor"], nozzle_inside(Noise(41)))
+
+    def special(s, loop):
+        if s.centre(loop)[0] > RL_MUZZLE_X:
+            s.bore(loop, R["rim"], R["wall"], R["floor"], inner=0.78, depth=6.0, what="muzzle")
+            return True
+        return False
+
+    seal(model, R["cap"], special, name)
 
 
 def main():

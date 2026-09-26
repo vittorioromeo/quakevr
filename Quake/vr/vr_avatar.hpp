@@ -4,7 +4,8 @@
 // shoulders rise and swing when reaching, and the arms are two-bone chains to the wrists, with
 // the elbows placed by heuristics after Parger et al., "Human upper-body inverse kinematics for
 // increased embodiment in consumer-grade virtual reality" (VRST 2018). Legs, optionally, stand
-// planted under the body, stepping round as it turns, and walk as the player moves.
+// planted under the body, stepping round as it turns, and walk as the player moves; in water they
+// wade, and swimming they trail behind and kick where the stick moves the player.
 //
 // The pose is drawn through the renderer's skeletal (MD5) path, with the entity's own bone
 // matrices (VR_AliasBonePoses in r_alias.c) instead of the model's animation.
@@ -41,6 +42,16 @@ enum class Part
     Chest
 };
 
+// How a thigh has moved with the legs' animation (walking, stepping, kicking in the water) from
+// where it would be with the legs standing still under the body as it now is: a turn about the hip
+// joint. `down` is the still thigh's direction, from the hip towards the knee.
+struct ThighMotion
+{
+    glm::vec3 joint{0.f};
+    glm::vec3 down{0.f, 0.f, -1.f};
+    glm::mat3 turn{1.f};
+};
+
 // Where points given for the standing body (see standing()) are now, carried by a part as the
 // body leans and crouches. The torso is solved (as it is and standing) once, for any number of
 // points.
@@ -50,6 +61,10 @@ public:
     explicit Follower(const hands::State& s);
 
     [[nodiscard]] glm::vec3 operator()(Part part, const glm::vec3& standingPoint) const;
+
+    // The thigh of `side` (0 the body's left, 1 its right) as the legs were last posed (the full
+    // body, vr_body_mode 3), carried by the pelvis as it is now. False without posed legs.
+    [[nodiscard]] bool thigh(int side, ThighMotion& out) const;
 
 private:
     Torso now;

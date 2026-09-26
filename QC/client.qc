@@ -2694,6 +2694,9 @@ void(float xHand, float xInMelee, float* xOutMeleeAttackFinished, float* xOutInM
         if(VRGetMeleeHitSoundPlayed(xHand))
         {
             // It landed.
+            dprint(sprintf("melee: hand %g, %s with %s, wrist %.1f m/s, head %.1f m/s (x%.2f)\n", xHand,
+                VR_Blow_KindName(b.blow_kind), b.blow_hit_stroke == b.blow_t0 ? b.blow_hit_name : "a wall",
+                b.blow_peak, b.blow_tippeak, b.blow_strength));
             b.blow_dir = normalize(b.blow_wrist - b.blow_start);
             b.blow_rearm = time + VR_BLOW_REARM;
             b.blow_slowest = b.blow_speed;

@@ -248,11 +248,21 @@ void update(const InputState& tracked)
                 {
                     continue;
                 }
-                // A hand at the chest flashlight switches it (trigger) or takes it (grip) instead.
-                if((b.button == &HandInput::trigger || b.button == &HandInput::grip) &&
-                    flashlight::button(h, b.button == &HandInput::grip, now))
+                // A hand at the chest flashlight switches it (trigger) or takes it (grip) instead; the
+                // upper button (B/Y) clips it on a gun or takes it off (the flashlight's grip then).
+                if(b.button == &HandInput::trigger || b.button == &HandInput::grip || b.button == &HandInput::secondary)
                 {
-                    continue;
+                    const auto fb = b.button == &HandInput::trigger ? flashlight::Button::Trigger
+                                    : b.button == &HandInput::grip  ? flashlight::Button::Grip
+                                                                     : flashlight::Button::Secondary;
+                    if(flashlight::button(h, fb, now))
+                    {
+                        if(flashlight::tookGrip(h))
+                        {
+                            Key_Event(buttonKeys[1].key[h], false); // the grip's key
+                        }
+                        continue;
+                    }
                 }
                 // A trigger pointing at the menu is its mouse button.
                 const int key = b.button == &HandInput::trigger ? menuui::triggerKey(h, now, b.key[h]) : b.key[h];

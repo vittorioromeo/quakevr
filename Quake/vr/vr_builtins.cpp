@@ -176,6 +176,17 @@ void PF_floattext()
 }
 
 // ----------------------------------------------------------------------------
+// Files
+
+// float(string path) fileexists: whether a file is in the game's search path. Precaching a missing
+// model is an error, so the QC checks first for data that may not be installed (the mission packs'
+// monsters: vrfiringrange's monster buttons).
+void PF_fileexists()
+{
+    G_FLOAT(OFS_RETURN) = COM_FileExists(G_STRING(OFS_PARM0), nullptr) ? 1.f : 0.f;
+}
+
+// ----------------------------------------------------------------------------
 // Messages
 
 // Same destinations as Ironwail's (static) WriteDest in pr_cmds.c.
@@ -352,6 +363,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"ejectcasings", PF_ejectcasings},
     {"liquidentry", PF_liquidentry},
     {"watersplash", PF_watersplash},
+    {"fileexists", PF_fileexists},
 };
 
 static_assert(firstVrBuiltin + std::size(vrBuiltins) < MAX_BUILTINS - 200,

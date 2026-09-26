@@ -68,6 +68,9 @@ The main hand is your right hand unless *Left Handed* is on.
 - **Carrying boxes:** grip an ammo or health box or a backpack to hold it. Let go of it at a holster to take it
   (*Take a Box* can use the trigger instead). A hand or gun touching a box without gripping nudges it. Punching with
   a box in your hand hits harder, and thrown boxes hurt.
+- **Armour** is a physics object too: take it, and let go of it over your torso to put it on (only if it beats what
+  you wear). Throw it, knock it, force-grab it (Carrying and Gibs > *Armour*).
+- A closed hand never grabs by moving onto something: carrying starts when you press the grip.
 - **Gibs and heads** can be picked up, thrown (they burst against walls) and force-grabbed (*Gibs and Heads*).
   Corpses can be gibbed by shots and blows.
 - Settings: the *Throwing and Physics* page.
@@ -91,7 +94,10 @@ through walls, so it can't get stuck. Settings: the *Force Grab* page, and *Forc
   damage, but it throws the monster back and staggers it. One open hand, palm ahead, shoves half as hard. Shove
   monsters off ledges.
 - **Headbutt:** lunge your head at a monster.
-- **Batting projectiles:** swing a weapon or your fist through a spike, laser, spit or grenade to send it back.
+- **Batting projectiles:** swing a weapon or your fist through a spike, laser, spit or grenade to send it back. A
+  bash or a shove with a weapon in hand bats them back too, with a more lenient reach and timing.
+- **Blade or bash:** a sword hits with the blade whatever its angle; the hilt landing first doesn't spoil the cut.
+  A bash needs the guard held still first, a shove open palms pushed hard at the enemy.
 - **Knockback:** your blows push monsters, their blows push you, and a parry pushes you both apart.
 - Settings: the *Melee* page, and *Gameplay* (Parry and Bash, Feel, Headbutt). The *firing range* has a training
   dummy that shows every hit's damage, kind and body part.
@@ -130,7 +136,8 @@ through walls, so it can't get stuck. Settings: the *Force Grab* page, and *Forc
 - **What you wear:** the ranger's clothes, pauldrons, your armour (green, yellow or red plates), your wounds, and
   your powerups (quad damage sparks round your hands, the pentagram glows red, the ring fades you).
 - **Fingers** curl with the trigger (index), the grip (middle to little finger) and your thumb resting on a button
-  or stick.
+  or stick. Each weapon's finger and thumb positions and openness can be tuned (Weapon Offsets > Fingers).
+- **Holsters** at the hips follow your thighs as the legs walk; in water the legs trail and kick.
 - **Placement:** *Torso Offset*, *Legs Offset* and *Shoulders Offset* on the main page. The *Body* page has much
   more.
 
@@ -141,7 +148,8 @@ through walls, so it can't get stuck. Settings: the *Force Grab* page, and *Forc
   look. Console messages float above it while it faces you. The *Wrist Gadget* page sets its arm, size, placement
   and colours.
 - **Status bar:** the classic Quake status bar on a hand (VR Settings > *HUD: Status bar*).
-- **Messages:** centre prints and notifications float in front of you.
+- **Messages:** the game's messages (a key needed, a secret found, pickups) float as a hologram the wrist gadget
+  projects over its screen (*Game Messages as Hologram*); centre prints float in front of you.
 - **Menus** float in front of you, with modern sliders and switches. Point with the laser from your hand, pull the
   trigger to click, and drag sliders. The sticks work too. *Back to Game* is at the top left, or you can hold the
   menu button. Settings pages show their changes live, and in single player the game keeps running underneath.
@@ -152,8 +160,10 @@ through walls, so it can't get stuck. Settings: the *Force Grab* page, and *Forc
 ## Flashlight
 
 A torch clipped to the front of your chest (VR Settings > *Chest Flashlight*). Put a hand at it and pull the
-trigger to switch it on or off. Grip it to take it in your hand, and let go to send it back. It's a real
-spotlight: it lights models and casts shadows. Settings: the *Body* page, under Flashlight.
+trigger to switch it on or off. Grip it to take it in your hand, and let go to send it back. Bring it to the gun
+in your other hand and press B or Y to clip it on the gun; it comes off with the other hand and B or Y, or goes
+back to your chest when the gun is holstered or dropped. It stays on across level changes and goes off when you
+start a map afresh. It's a real spotlight: it lights models and casts shadows. Settings: the *Body* page, under Flashlight.
 
 ## Haptics
 
@@ -178,17 +188,20 @@ All of these have switches on the *Graphics* page, and the *Preset* there sets m
   (Quake)* through *Low*, *Medium* and *High* to *Ultra*.
 - **Model lighting:** monsters, items, weapons, hands and your body are lit from the map's own lights, with
   directional ambient, a rim light, and reflections on your weapons. Dynamic lights light models per pixel.
+- **Ambient occlusion on what moves:** monsters, your body and items darken the floor and walls round them, lifts
+  and doors their shafts, and models their own creases (*Ambient Occlusion*, Graphics - Shadows).
 - **Surfaces:** bump maps made from every texture (or a texture pack's own normal maps), with a sheen under
   dynamic lights. Parallax makes walls look deep. Detail textures (stone, metal, wood grain) sharpen surfaces up
   close, where Quake's textures would blur. There is also anti-aliasing for sheen and for fences and grates.
 - **Water and liquids:** waves that move the surface, reflection and refraction, glints, caustics, big splashes
-  and ripples, shoreline foam, heat haze over lava, fog and a gentle wobble under water, and water sounds.
+  and ripples that move the waves, shoreline foam, heat haze over lava, fog and a gentle wobble under water, and water sounds.
 - **Particles and effects:** textured smoke, sparks, blood and explosions (*Quake VR Particles*) that fade softly
   into walls, shell casings, and torches whose light flickers.
 - **Tone and colour:** tone mapping, exposure, colour grades and dither, plus the headset's own gamma and contrast.
 - **HD textures:** replacement textures (such as QRP's) are filtered smoothly and get bump maps.
-- **Headset:** *Render Scale* renders the eyes at a lower or higher resolution (0.5 to 1.5), and *Hide Lens
-  Corners* skips the pixels the lenses never show.
+- **Headset:** *Render Scale* renders the eyes at a lower or higher resolution (0.5 to 1.5), with *Upscaling* (FSR 1
+  or NIS) sharpening a lower one back up; *Foveated Rendering* (NVIDIA cards) shades the edges of the view, which
+  the lenses blur, at a lower rate; *Hide Lens Corners* skips the pixels the lenses never show.
 
 ## Maps, mission packs and mods
 

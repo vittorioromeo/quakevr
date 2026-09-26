@@ -140,7 +140,8 @@ plants the object on the floor
 */
 // Pickups (weapons, armour, powerups, keys) drawn at vr_pickup_scale, resting on the floor, so that
 // the player crouches to reach them; their touch box is the model's own. Ammo and health boxes are
-// shrunk when they become grabbable (AfterPlacementAmmoBox, AfterPlacementHealthBox).
+// shrunk when they become grabbable (AfterPlacementAmmoBox, AfterPlacementHealthBox), wearable
+// armour to vr_armor_scale (AfterPlacementArmor).
 void() VRScalePickup =
 {
     float s = cvar_hget(cvarh_vr_pickup_scale);
@@ -148,7 +149,8 @@ void() VRScalePickup =
     {
         return;
     }
-    if(self.think2 == AfterPlacementAmmoBox || self.think2 == AfterPlacementHealthBox)
+    if(self.think2 == AfterPlacementAmmoBox || self.think2 == AfterPlacementHealthBox ||
+       self.think2 == AfterPlacementArmor)
     {
         return;
     }
@@ -174,12 +176,14 @@ void() VRScalePickup =
 
 // The map's weapons, armour, powerups and keys float at about torso height (vr_item_float_height),
 // easier to take by hand: they cannot be force-grabbed. Their box reaches down to the floor, so
-// walking over them still picks them up. Ammo and health boxes (physics objects) stay down.
+// walking over them still picks them up. Ammo and health boxes (physics objects) stay down; wearable
+// armour floats by its own (AfterPlacementArmor).
 void() VRFloatPickup =
 {
     float h = cvar_hget(cvarh_vr_item_float_height);
     if(h <= 0 || self.movetype == MOVETYPE_NONE || (self.flags & FL_FORCEGRABBABLE) ||
-       self.think2 == AfterPlacementAmmoBox || self.think2 == AfterPlacementHealthBox)
+       self.think2 == AfterPlacementAmmoBox || self.think2 == AfterPlacementHealthBox ||
+       self.think2 == AfterPlacementArmor)
     {
         return;
     }
@@ -488,6 +492,236 @@ void(string xModelName, float xWait) impl_equipment_item =
     if(deathmatch) { self.wait = xWait; }
 }
 
+// ----------------------------------------------------------------------------
+// Wearable armour (vr_armor_wear 1): the armour is a physics object, carried like the ammo and
+// health boxes (vr_carry.qc: grip to carry, thrown, nudged, force-grabbed, floats in water), and put
+// on by letting go of it over your torso (VR_Armor_LetGo): armor_touch's own rules (only if better
+// than what you wear), else it drops. Walking over it no longer takes it (with vr_body_interactions,
+// for a player with tracked hands); bots and flat-screen players still take it by touch. It hangs at
+// vr_item_float_height, as the map's pickups do, until a hand takes it or knocks it; then it falls.
+// vr_armor_wear 0 (or vr_carry 0): touching takes it, as before (which kind it is: next map).
+
+.float vr_wearable;     // armour to be worn by hand
+.float vr_wear_hover;   // carried over the torso last frame (for the hover haptic)
+.float vr_wear_floats;  // hangs in the air until taken or knocked (and again when it comes back in deathmatch)
+
+// Its protection, armor_touch's measure: type times value.
+float(entity xArmor) VR_Armor_Protection =
+{
+    if(xArmor.classname == ITEM_NAME_ARMOR1)
+    {
+        return 0.3 * 100;
+    }
+    if(xArmor.classname == ITEM_NAME_ARMOR2)
+    {
+        return 0.6 * 150;
+    }
+    return 0.8 * 200;
+};
+
+// Whether `xPlayer` would put it on (armor_touch: only a better one).
+float(entity xPlayer, entity xArmor) VR_Armor_IsBetter =
+{
+    return xPlayer.armortype * xPlayer.armorvalue < VR_Armor_Protection(xArmor);
+};
+
+// Whether a point is at `xPlayer`'s torso: generously, from just below the neck to the belly, in
+// front of the spine to an arm's short reach (the chest's holsters are in it). By the head, which
+// leans with the body; turned with where the head faces.
+float(entity xPlayer, vector xPos) VR_Armor_PointAtTorso =
+{
+    float m2u = VRMetersToUnits();
+    vector head = VRGetHeadPos(xPlayer);
+    makevectors('0 1 0' * (xPlayer.headpos != '0 0 0' ? xPlayer.v_viewangle_y : xPlayer.v_angle_y));
+    vector d = xPos - (head + v_forward * (0.06 * m2u));
+    float drop = -d_z;
+    d_z = 0;
+    return drop >= 0.1 * m2u && drop <= 0.7 * m2u && vlen(d) <= 0.3 * m2u && d * v_forward >= -0.15 * m2u;
+};
+
+// Whether the hand carrying it, or the armour itself (its box's middle), is at the torso.
+float(entity xPlayer, float xHand, entity xArmor) VR_Armor_AtTorso =
+{
+    return VR_Armor_PointAtTorso(xPlayer, VRGetEntHandPos(xPlayer, xHand)) ||
+           VR_Armor_PointAtTorso(xPlayer, (xArmor.absmin + xArmor.absmax) * 0.5);
+};
+
+// Taken again in deathmatch (itemTouch's SUB_regen): back where it was placed, as it was placed.
+void() VR_Armor_Regen =
+{
+    SUB_regen();
+    self.solid = SOLID_NOT_BUT_TOUCHABLE;
+    self.angles = self.mangle;
+    self.velocity = '0 0 0';
+    self.avelocity = '0 0 0';
+    self.vr_spin = '0 0 0';
+    self.throwhit = QVR_THROWHIT_HIT;
+    self.owner = world;
+    self.movetype = self.vr_wear_floats ? MOVETYPE_NONE : MOVETYPE_TOSS;
+    self.vr_rigid = !self.vr_wear_floats;
+    self.vr_rest = 0;
+    setorigin(self, self.oldorigin);
+    dprint("armour: "); dprint(self.classname); dprint(" back at "); dprint(vtos(self.origin)); dprint("\n");
+};
+
+// After a pickup (armor_touch through itemTouch): if it was taken, it comes back in deathmatch as it
+// was placed (VR_Armor_Regen, not SUB_regen's trigger).
+void(entity xArmor) VR_Armor_Taken =
+{
+    if(xArmor.model == string_null && xArmor.think2 == SUB_regen)
+    {
+        xArmor.think2 = VR_Armor_Regen;
+    }
+};
+
+// From VR_Carry_HandFrame (self is the player): the grip let go of it. Over the torso it is put
+// on (VR_Carry_Take: armor_touch through itemTouch, so its sound, message, the body's plating and
+// the deathmatch respawn are the pickup's own): TRUE. Not better than yours: a dull knock, a
+// buzz, and FALSE (it drops, VR_Carry_Release). Elsewhere FALSE.
+float(float xHand, entity xArmor) VR_Armor_LetGo =
+{
+    if(!cvar_hget(cvarh_vr_armor_wear) || !VR_Armor_AtTorso(self, xHand, xArmor))
+    {
+        return FALSE;
+    }
+
+    VR_Carry_Take(xHand, xArmor);
+    if(xArmor.model == string_null)
+    {
+        dprint("armour: worn ("); dprint(xArmor.classname); dprint("), armour ");
+        dprint(ftos(self.armorvalue)); dprint(" type "); dprint(ftos(self.armortype)); dprint("\n");
+        VR_Armor_Taken(xArmor);
+        return TRUE;
+    }
+
+    dprint("armour: not worn, yours is as good\n");
+    sprint(self, "Your armor is better\n");
+    sound(self, CHAN_ITEM, "player/land.wav", 0.6, ATTN_NORM);
+    if(self.ishuman)
+    {
+        haptic(xHand, 0.0, 0.06, 40, 0.8);
+        haptic(xHand, 0.12, 0.06, 40, 0.8);
+    }
+    return FALSE;
+};
+
+// From VR_Carry_HandFrame, each frame it is carried (self is the player): brought over the torso,
+// a buzz as a holster's (it can go on) or a faint double tap (yours is better).
+void(float xHand, entity xArmor) VR_Armor_HeldFrame =
+{
+    float at = cvar_hget(cvarh_vr_armor_wear) && VR_Armor_AtTorso(self, xHand, xArmor);
+    if(at && !xArmor.vr_wear_hover && self.ishuman)
+    {
+        dprint("armour: over the torso\n");
+        if(VR_Armor_IsBetter(self, xArmor))
+        {
+            float t = max(0.05, cvar_hget(cvarh_vr_holster_haptic_time));
+            haptic(xHand, 0.0, t * 0.45, 80, 0.65);
+            haptic(xHand, t * 0.4, t * 0.35, 80, 0.4);
+            haptic(xHand, t * 0.7, t * 0.3, 80, 0.2);
+        }
+        else
+        {
+            haptic(xHand, 0.0, 0.03, 40, 0.3);
+            haptic(xHand, 0.08, 0.03, 40, 0.3);
+        }
+    }
+    xArmor.vr_wear_hover = at;
+};
+
+// The armour's hand touch (VR_Carry_Handtouch's, but for these).
+void() VR_Armor_Handtouch =
+{
+    if(!cvar_hget(cvarh_vr_armor_wear) || !cvar_hget(cvarh_vr_carry))
+    {
+        self.carry_use(); // touching takes it
+        VR_Armor_Taken(self);
+        return;
+    }
+
+    // Walking over it does not put it on: hands do (bots and flat-screen players still take it).
+    if(other.classname == "player" && VRIsTouchingHandFake(other) && other.ishuman && VRHandsTracked(other))
+    {
+        return;
+    }
+
+    VR_Carry_Handtouch();
+    VR_Armor_Taken(self);
+    if(self.carry_player != world)
+    {
+        self.vr_rigid = 1; // held, it no longer spins as a pickup
+        self.vr_wear_hover = TRUE; // no buzz for where it was taken
+    }
+};
+
+// 0.3 s after it is placed (PlaceItem), with vr_armor_wear: the model's own box at vr_armor_scale,
+// a physics object (MakeItemGrabbable's, but for an alias model: its box, not centred on its origin,
+// is what the rigid body collides with; vr_rigid.cpp), hanging at vr_item_float_height if the map's
+// pickups float.
+void() AfterPlacementArmor =
+{
+    if(self.model == string_null)
+    {
+        self.nextthink2 = time + 0.5; // not spawned yet (a trigger spawns it)
+        return;
+    }
+
+    float s = cvar_hget(cvarh_vr_armor_scale);
+    if(s <= 0)
+    {
+        s = 1;
+    }
+    VR_ScaleUtil_SetScale(self, VR_ScaleUtil_GetUniformScaleVector(s));
+    self.model_scale_origin = '0 0 0';
+    self.model_offset = '0 0 0';
+    vector lo = modelbounds(self, 0) * s;
+    vector hi = modelbounds(self, 1) * s;
+    setsize(self, lo, hi);
+
+    // Placed on the floor (PlaceItem; not a honey floating item): its middle at the float height.
+    float h = cvar_hget(cvarh_vr_item_float_height);
+    self.vr_wear_floats = FALSE;
+    if(h > 0 && self.movetype != MOVETYPE_NONE)
+    {
+        self.vr_wear_floats = TRUE;
+        setorigin(self, self.origin + '0 0 1' * (h - (lo_z + hi_z) * 0.5));
+    }
+    else
+    {
+        setorigin(self, self.origin + '0 0 0.25');
+    }
+
+    self.oldorigin = self.origin;
+    self.mangle = self.angles;
+    self.rad_time = -999;
+
+    MakeGrabbable(self);
+    self.flags |= FL_FORCEGRABBABLE;
+    self.solid = SOLID_NOT_BUT_TOUCHABLE;
+    self.throwhit = QVR_THROWHIT_HIT;
+
+    SetThrownWeaponDealDamage(self, FALSE);
+    SetThrownWeaponDisappearOnHit(self, FALSE);
+
+    self.think = forcegrabbable_item_think;
+    self.nextthink = time + 0.02;
+
+    self.touch = forcegrabbable_touch;
+    self.owner = world;
+
+    VR_Carry_Setup(self);
+    self.handtouch = VR_Armor_Handtouch;
+    self.vr_wearable = TRUE;
+
+    if(self.vr_wear_floats)
+    {
+        self.movetype = MOVETYPE_NONE; // until a hand takes it or knocks it (VR_Carry_Loose)
+        self.vr_rigid = 0;             // spins as a pickup meanwhile
+    }
+    dprint("armour: "); dprint(self.classname); dprint(" wearable at "); dprint(vtos(self.origin));
+    dprint(", box "); dprint(vtos(self.mins)); dprint(" "); dprint(vtos(self.maxs)); dprint("\n");
+};
+
 void(float xSkin) impl_equipment_armor =
 {
     impl_equipment_item("progs/armor.mdl", 20);
@@ -496,6 +730,12 @@ void(float xSkin) impl_equipment_armor =
     self.skin = xSkin;
     setsize(self, '-11 -11 0', '11 11 31');
     StartItem();
+
+    if(cvar_hget(cvarh_vr_armor_wear))
+    {
+        self.think2 = AfterPlacementArmor;
+        self.nextthink2 = time + 0.3; // just after PlaceItem
+    }
 }
 
 /*QUAKED item_armor1 (0 .5 .8) (-16 -16 0) (16 16 32)
@@ -889,9 +1129,28 @@ void() forcegrabbable_item_think =
         return;
     }
 
+    vector wasAt = self.origin;
     if(vr_forcegrabbable_return > 0) // (vr_cvars.qc, once a frame)
     {
         forcegrabbable_item_reposition(vr_forcegrabbable_return);
+    }
+
+    // Wearable armour: hanging still it spins as a pickup; moving, it is a rigid body; brought back
+    // to its place (deathmatch), it hangs there again.
+    if(self.vr_wearable)
+    {
+        if(self.vr_wear_floats && self.origin != wasAt && self.origin == self.oldorigin)
+        {
+            self.movetype = MOVETYPE_NONE;
+            self.velocity = '0 0 0';
+            self.vr_spin = '0 0 0';
+            self.angles = self.mangle;
+            self.vr_rigid = 0;
+        }
+        else if(!self.vr_rigid && self.movetype != MOVETYPE_NONE)
+        {
+            self.vr_rigid = 1;
+        }
     }
 
     forcegrabbable_think_impl();

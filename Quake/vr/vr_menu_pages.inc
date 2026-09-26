@@ -283,6 +283,10 @@ void resetSwimming()
         slider("Explosion Light", "vr_explosion_light_scale", 0.f, 3.f, 0.05f, "%.2fx"),
         slider("Projectile Light", "vr_projectile_lights", 0.f, 2.f, 0.05f, "%.2fx").help("Hell knight flames, scrag spit, vore balls and lasers light up the room, and where they hit (0 off)."),
         slider("Lava Nail Lights", "vr_lavanail_lights", 0.f, 16.f, 1.f, "%.0f").help("How many lava nails light up the room at once, the nearest; sized by Projectile Light (0 none)."),
+        slider("Lava Gun Light", "vr_lavagun_light", 0.f, 3.f, 0.1f, "%.1fx").help("The nailguns loaded with lava nails glow from their barrels, lighting your hand and what is near (0 off)."),
+        slider("Lava Gun Light Reach", "vr_lavagun_light_radius", 16.f, 200.f, 4.f, "%.0f").help("How far the lava guns' glow reaches."),
+        slider("Lava Gun Light Flicker", "vr_lavagun_light_flicker", 0.f, 1.f, 0.05f, "%.2f").help("How much the lava guns' glow flickers (0 steady)."),
+        slider("Lava Gun Light at Rest", "vr_lavagun_light_idle", 0.f, 1.f, 0.05f, "%.2fx").help("Lava guns in your holsters or lying on the floor glow too, this much of a held one's (0 not)."),
         slider("Lightning Beam Lights", "vr_beam_lights", 0.f, 12.f, 1.f, "%.0f").help("Lightning beams light the room along their length with this many flickering lights (0 off)."),
         slider("Torch Lights", "vr_torch_lights", 0.f, 16.f, 1.f, "%.0f").help("Torches and flames flicker a small warm light onto the room: how many at once, the nearest (0 off)."),
         slider("Torch Light Brightness", "vr_torch_light_scale", 0.f, 3.f, 0.05f, "%.2fx").help("How bright the torches' flickering light is, on top of the map's own light."),
@@ -316,6 +320,12 @@ void resetSwimming()
         slider("Shadow Bias", "vr_shadow_bias", 0.f, 4.f, 0.25f, "%.2f")
             .help("Higher: fewer speckles on lit surfaces; lower: shadows start closer to what casts them."),
         toggle("Shadow Statistics", "vr_shadow_stats").help("Print what is shadowed and its GPU time, once a second, to the console."),
+        header("Ambient Occlusion"),
+        slider("Contact Shadows", "vr_ao_dynamic", 0.f, 2.f, 0.1f, "%.1f")
+            .help("Monsters, items, gibs and your body darken the floor and walls close to them, and each other: soft shadows where things touch (0 off)."),
+        slider("Contact Shadow Reach", "vr_ao_dynamic_range", 1.25f, 5.f, 0.25f, "%.2f").help("How far round a thing its darkening reaches, in its own sizes."),
+        slider("Door and Lift Shadows", "vr_ao_brush", 0.f, 2.f, 0.1f, "%.1f").help("Doors, lifts, platforms and the item boxes darken the walls and floors close to them (the map's light never saw them; 0 off)."),
+        slider("Model Self-Shadowing", "vr_ao_models", 0.f, 2.f, 0.1f, "%.1f").help("Monsters, weapons and pickups are darker in their own creases: armpits, under guns, grooves (worked out as each model loads; 0 off)."),
         header("Blob Shadows"),
         cycle("Blob Shadows", "vr_blob_shadows", {{0.f, "Off"}, {1.f, "Always"}, {2.f, "Auto"}})
             .help("Dark discs under you and things, a cheap stand-in for shadows. Auto: only where the real shadows (above) do not fall."),
@@ -372,10 +382,12 @@ void resetSwimming()
         slider("Splash Ring Speed", "vr_water_splash_ring_speed", 0.3f, 2.f, 0.1f, "%.1f").help("How fast the rings on the surface spread (1: riding the ripples' crest)."),
         slider("Splash Ring Size", "vr_water_splash_ring_size", 0.f, 2.5f, 0.1f, "%.1f").help("How big the rings start and how long they last, so how far they get (0: none)."),
         toggle("Ripples", "vr_water_ripples").help("Splashes, wading and strokes send rings of waves across the surface, in its lighting and, with Real Waves' grid, its shape."),
-        slider("Ripple Height", "vr_water_ripple_amplitude", 0.5f, 8.f, 0.5f, "%.1f").help("How high a hand's slap's ripples rise, in units (a shot's about half, a body's about twice)."),
+        slider("Ripple Height (Geometry)", "vr_water_ripple_amplitude", 0.f, 24.f, 0.5f, "%.1f").help("How high a hand's slap's ripples rise in the surface itself, in units (a shot's about half, a body's two to three times)."),
+        slider("Ripple Normal Strength", "vr_water_ripple_normal", 0.f, 2.f, 0.05f, "%.2f").help("How steep the ripples look in the lighting (glints, reflection, refraction), times the geometry's slope: 1 as shaped, 0 the shape only."),
         slider("Ripple Speed", "vr_water_ripple_speed", 10.f, 100.f, 2.f, "%.0f").help("How fast the rings of ripples spread, in units a second (lava's a third, slime's slower)."),
         slider("Ripple Duration", "vr_water_ripple_decay", 0.3f, 4.f, 0.1f, "%.1f").help("Seconds for the ripples to die down to a third."),
-        slider("Ripple Wavelength", "vr_water_ripple_wavelength", 16.f, 128.f, 4.f, "%.0f").help("Units between the ripples' crests. In the shape from two grid cells up (Real Waves' cell), fully from three."),
+        slider("Ripple Wavelength", "vr_water_ripple_wavelength", 16.f, 192.f, 4.f, "%.0f").help("Units between the ripples' crests. In the geometry from two of its 16-unit cells up (vr_water_geo_cell), fully from three; below that in the lighting only."),
+        slider("Ripples at Once", "vr_water_ripple_max", 1.f, 32.f, 1.f, "%.0f").help("How many ripples can spread at once; a new one takes the weakest's place. Fewer costs less GPU time when much is splashing."),
         slider("Water Sounds", "vr_water_sounds", 0.f, 1.f, 0.1f, "%.1f").help("Volume of splashes, shots into water, wading and swimming strokes (0 off: Quake's own splash sounds only)."),
     };
 }
@@ -426,6 +438,7 @@ void resetSwimming()
         slider("Max Decals", "vr_decal_max", 64.f, 4096.f, 64.f, "%.0f"),
         toggle("Gib Blood", "vr_gib_blood").help("Gibs and heads leave a trail of blood drops and splat where they hit walls and floors. Off: Quake's trail."),
         slider("Gib Blood Trail", "vr_gib_blood_trail", 0.f, 3.f, 0.25f, "%.2fx").help("How dense their trail of blood and drops is (0 none)."),
+        slider("Ammo Switch Morph", "vr_weapon_morph_time", 0.f, 1.f, 0.05f, "%.2f s").help("Switching a gun's ammo with its button morphs it into its other look (lava, multi-rockets, plasma) over this long, a glowing seam sweeping over it (0: at once)."),
     };
 }
 

@@ -22,6 +22,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // gl_mesh.c: triangle model functions
 
 #include "quakedef.h"
+#include "vr/vr_api_render.h" // QVR
+#include "vr/vr_ao.hpp" // QVR: dynamic ambient occlusion
 
 
 /*
@@ -213,6 +215,17 @@ void GLMesh_LoadVertexBuffer (qmodel_t *m, aliashdr_t *mainhdr)
 
 	if (mainhdr->poseverttype == PV_QUAKE1 || mainhdr->poseverttype == PV_MD3)
 	{
+		// QVR: a view model's muzzle flash vertices, each with the gun vertex it rides on (vr/vr_render.cpp)
+		unsigned short *flamerefs = NULL;
+		// QVR: the model's own occlusion per pose and vertex (vr/vr_ao.cpp), in each position's spare 4th byte
+		const unsigned char *vertexao = mainhdr->poseverttype == PV_QUAKE1 ? VR_AliasVertexAO (m, mainhdr) : NULL;
+		if (mainhdr->poseverttype == PV_QUAKE1 && !Mod_NextSurface (mainhdr))
+		{
+			flamerefs = (unsigned short *) malloc (mainhdr->numverts_vbo * sizeof (unsigned short));
+			if (flamerefs)
+				VR_AliasFlameRefs (mainhdr, flamerefs);
+		}
+
 		// fill in pose data
 		for (f = 0; f < mainhdr->numposes; f++)
 		{
@@ -241,6 +254,15 @@ void GLMesh_LoadVertexBuffer (qmodel_t *m, aliashdr_t *mainhdr)
 						xyz[v].normal[1] = 127 * r_avertexnormals[trivert.lightnormalindex][1];
 						xyz[v].normal[2] = 127 * r_avertexnormals[trivert.lightnormalindex][2];
 						xyz[v].normal[3] = 0;	// unused; for 4-byte alignment
+						// QVR: the model's own occlusion (255 open; the shader's PoseAO)
+						xyz[v].xyz[3] = hdr == mainhdr && vertexao ? vertexao[f * hdr->numverts + desc[v].vertindex] : 255;
+
+						// QVR: a muzzle flash's vertex: the gun vertex it rides on in the 4th bytes, the flag in the top bit
+						if (flamerefs && hdr == mainhdr && flamerefs[v])
+						{
+							xyz[v].xyz[3] = (byte) ((flamerefs[v] - 1) & 255);
+							xyz[v].normal[3] = (signed char) (unsigned char) (0x80 | ((flamerefs[v] - 1) >> 8));
+						}
 					}
 
 					vertofs += hdr->numverts_vbo * sizeof (meshxyz_t);
@@ -253,6 +275,7 @@ void GLMesh_LoadVertexBuffer (qmodel_t *m, aliashdr_t *mainhdr)
 				}
 			}
 		}
+		free (flamerefs); // QVR
 	}
 	else // PV_IQM
 	{

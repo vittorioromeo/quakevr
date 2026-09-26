@@ -399,6 +399,89 @@ Gait gait;
 // vr_world_scale 1.
 constexpr float RUN_SPEED = 320.f / UNITS;
 
+// In water (found at the body on the client: what the player sees). Wading, on the bottom in water
+// above the knees, the walk gets heavier (vr_body_wade): shorter strides, the knees lifted higher
+// through the water, a slower cadence. Swimming, off the bottom in water above the waist or under
+// it, the legs float: they trail behind where the stick moves the player and flutter kick, the legs
+// in turn, wider (vr_body_swim_kick) and faster (vr_body_swim_kick_rate) the further the stick
+// pushes, so that the stick seems to work the legs while the hands swim. With the stick left alone
+// they tread water: slow small kicks, the knees bent. Each eases in and out.
+struct Water
+{
+    float wade{0.f};     // 0 .. 1
+    float swim{0.f};     // 0 .. 1
+    float stick{0.f};    // 0 .. 1, how far the stick pushes, smoothed
+    glm::vec3 dir{0.f};  // where the stick moves the player (world), smoothed: its length fades with the stick
+    float phase{0.f};    // radians, the kicks' cycle
+};
+
+Water water;
+
+[[nodiscard]] bool isLiquid(int c)
+{
+    return c == CONTENTS_WATER || c == CONTENTS_SLIME || c == CONTENTS_LAVA ||
+           (c <= CONTENTS_CURRENT_0 && c >= CONTENTS_CURRENT_DOWN);
+}
+
+// How high the liquid stands above the body's floor, in metres of the body: sampled up the pelvis's
+// column from the floor to a little above `top` (solid below the water is the bottom, the floor
+// being where the head's height puts it).
+[[nodiscard]] float waterSurface(const Body& b, float top)
+{
+    if(!cl.worldmodel)
+    {
+        return 0.f;
+    }
+
+    constexpr float STEP = 0.1f;
+    const glm::vec3& p = b.bones[Pelvis].pos;
+    float surface = 0.f;
+    bool wet = false;
+    for(float h = 0.05f; h < top + 0.3f; h += STEP)
+    {
+        vec3_t v{p.x, p.y, b.floorZ + h * b.m2w};
+        const int c = Mod_PointInLeaf(v, cl.worldmodel)->contents;
+        if(isLiquid(c))
+        {
+            wet = true;
+            surface = h + STEP * 0.5f;
+        }
+        else if(wet && c != CONTENTS_SOLID)
+        {
+            break;
+        }
+    }
+    return surface;
+}
+
+void updateWater(const Body& b, const hands::State& s, float dt)
+{
+    const float head = (s.head.z - b.floorZ) / b.m2w;
+    const float surface = waterSurface(b, head);
+    const bool under = surface >= head;
+    const bool swimming = under || (!cl.onground && surface > 0.85f);
+    const float deep = CLAMP(0.f, (surface - 0.3f) / 0.45f, 1.f);
+    const float wading = cl.onground && !swimming ? deep * deep * (3.f - 2.f * deep) : 0.f;
+
+    // The stick as the server steers it (the head's angles, VR_MoveAngles), swimming up and down
+    // too; full at the walking speed.
+    glm::vec3 f, r, u;
+    hands::angleVectors(s.headAngles, f, r, u);
+    const glm::vec3 wish = f * cl.cmd.forwardmove + r * cl.cmd.sidemove + UP * cl.cmd.upmove;
+    const float len = glm::length(wish);
+    const float stick = std::min(1.f, len / std::max(1.f, cl_forwardspeed.value));
+
+    const float ease = 1.f - std::exp(-4.f * dt);
+    water.swim += ((swimming ? 1.f : 0.f) - water.swim) * ease;
+    water.wade += (wading - water.wade) * ease;
+    water.stick += (stick - water.stick) * (1.f - std::exp(-6.f * dt));
+    water.dir += ((len > 1.f ? wish / len * stick : glm::vec3{0.f}) - water.dir) * (1.f - std::exp(-5.f * dt));
+
+    // Treading water, about a kick in 1.4 seconds; at full stick, vr_body_swim_kick_rate more a second.
+    const float rate = 0.7f + CLAMP(0.f, vr_body_swim_kick_rate.value, 5.f) * water.stick;
+    water.phase = std::fmod(water.phase + rate * dt * glm::two_pi<float>(), glm::two_pi<float>());
+}
+
 // The offset of a foot (side 0 left, 1 right) from where it stands, in world units. In the first
 // half of its cycle the foot is on the ground, going back from half a stride ahead to half a
 // stride behind at an even pace; in the second it swings forward again, lifted.
@@ -432,11 +515,15 @@ void updateGait(const Body& b, float dt)
         const float run = std::min(1.f, speed / RUN_SPEED);
         const float sideways = std::abs(glm::dot(gait.dir, b.left));
         const float backwards = std::max(0.f, -glm::dot(gait.dir, b.fwd));
-        gait.stride = CLAMP(0.45f, 0.45f + speed * 0.06f, 0.8f) * (1.f - 0.45f * sideways) * (1.f - 0.2f * backwards);
-        gait.lift = 0.07f + 0.07f * run;
+        // Wading: shorter, higher steps, fewer of them.
+        const float wade = water.wade * CLAMP(0.f, vr_body_wade.value, 2.f);
+        gait.stride = CLAMP(0.45f, 0.45f + speed * 0.06f, 0.8f) * (1.f - 0.45f * sideways) * (1.f - 0.2f * backwards) *
+                      std::max(0.3f, 1.f - 0.2f * wade);
+        gait.lift = 0.07f + 0.07f * run + 0.1f * wade;
 
         // Steps per second: as many as it takes to cover the ground, up to the cap.
-        const float cap = CLAMP(0.5f, vr_body_step_rate.value, 6.f) * (0.7f + 0.3f * run);
+        const float cap =
+            CLAMP(0.5f, vr_body_step_rate.value, 6.f) * (0.7f + 0.3f * run) * std::max(0.3f, 1.f - 0.3f * wade);
         const float rate = std::min(speed / gait.stride, cap);
         gait.phase = std::fmod(gait.phase + rate * dt * glm::pi<float>(), glm::two_pi<float>());
     }
@@ -487,9 +574,18 @@ constexpr float STEP_DISTANCE = 0.25f; // metres the body may move from the feet
     return {std::cos(r), std::sin(r), 0.f};
 }
 
+// Where the foot of `side` stands under the body: under the head (the balance point: crouching
+// pushes the hips back and the knees forward; vr_body_legs_back further back, to match a posture),
+// as far apart as the hips.
+[[nodiscard]] glm::vec2 homeOf(const Body& b, const glm::vec3& head, int side)
+{
+    const glm::vec3 centre = head - b.fwd * (vr_body_legs_back.value * b.m2w);
+    const glm::vec3 h = centre + b.left * (bind().pos[side == 0 ? ThighL : ThighR].y * b.m2w);
+    return {h.x, h.y};
+}
+
 void updateStance(const Body& b, const glm::vec3& head, float dt)
 {
-    const Bind& bd = bind();
     const float bodyYaw = glm::degrees(std::atan2(b.fwd.y, b.fwd.x));
     if(dt > 0.f)
     {
@@ -499,15 +595,10 @@ void updateStance(const Body& b, const glm::vec3& head, float dt)
     }
     stance.lastYaw = bodyYaw;
 
-    // Where the feet stand under the body: under the head (the balance point: crouching pushes the
-    // hips back and the knees forward; vr_body_legs_back further back, to match a posture), as
-    // far apart as the hips.
-    const glm::vec3 centre = head - b.fwd * (vr_body_legs_back.value * b.m2w);
     std::array<glm::vec2, 2> home;
     for(int side = 0; side < 2; side++)
     {
-        const glm::vec3 h = centre + b.left * (bd.pos[side == 0 ? ThighL : ThighR].y * b.m2w);
-        home[side] = {h.x, h.y};
+        home[side] = homeOf(b, head, side);
     }
 
     // New, or far away (a teleport, a respawn): stand there.
@@ -625,9 +716,34 @@ void updateStance(const Body& b, const glm::vec3& head, float dt)
     }
 }
 
+// Swimming: where the foot (the ankle) of `side` goes from the hip, the leg `reach` long (world
+// units). The legs trail behind where the stick moves the player, as far as 42 degrees from hanging
+// straight down (half that going backwards: the torso stays upright under the head), and kick in
+// turn across that, in the plane of the body's forward and the way it goes; the knees bend through
+// each kick, more treading water.
+[[nodiscard]] glm::vec3 swimFoot(const Body& b, int side, const glm::vec3& hip, float reach)
+{
+    const glm::vec3 across{water.dir.x, water.dir.y, 0.f}; // the stick's share, sideways of the body's up
+    const float len = glm::length(across);
+    const float backwards = len > 1e-3f ? std::max(0.f, -glm::dot(across, b.fwd) / len) : 0.f;
+    const glm::vec3 trail =
+        safeNormalize(-UP * (1.f + 0.5f * std::min(0.f, water.dir.z)) - across * (0.9f * (1.f - 0.5f * backwards)), -UP);
+
+    const glm::vec3 kickDir = b.fwd + across * 0.8f;
+    const glm::vec3 kickAxis = safeNormalize(kickDir - trail * glm::dot(kickDir, trail), b.fwd);
+    const float amp = glm::radians(6.f + 16.f * water.stick) * CLAMP(0.f, vr_body_swim_kick.value, 2.f);
+    const float phase = water.phase + (side == 0 ? 0.f : glm::pi<float>());
+    const float angle = amp * std::sin(phase);
+    const glm::vec3 dir = trail * std::cos(angle) + kickAxis * std::sin(angle);
+    const float bent = 0.97f - 0.08f * (0.5f + 0.5f * std::cos(phase)) - 0.08f * (1.f - water.stick);
+    return hip + dir * (reach * bent);
+}
+
 // Legs from the hips to the feet where they stand (updateStance) and walk (the gait), the knees
-// over the toes; collapsed when not shown.
-void solveLeg(Body& b, int side, bool shown)
+// over the toes, floating behind the body swimming (swimFoot); collapsed when not shown. `still`
+// gets the thigh's rotation with the legs standing still under the body instead (the feet where
+// they belong, no step, walk or water), for what the thigh carries (ThighMotion).
+void solveLeg(Body& b, const glm::vec3& head, int side, bool shown, glm::mat3& still)
 {
     const Bind& bd = bind();
     const int thigh = side == 0 ? ThighL : ThighR;
@@ -650,6 +766,7 @@ void solveLeg(Body& b, int side, bool shown)
             bone->pos = t.pos;
             bone->size = COLLAPSED;
         }
+        still = t.rot;
         return;
     }
 
@@ -659,12 +776,28 @@ void solveLeg(Body& b, int side, bool shown)
     const glm::vec3 outward = side == 0 ? footLeft : -footLeft;
     const float a = boneLength(thigh, calf) * b.m2w;
     const float l = boneLength(calf, foot) * b.m2w;
-    const glm::vec3 target =
-        glm::vec3{ft.pos.x, ft.pos.y, b.floorZ + (bd.pos[foot].z + ft.lift) * b.m2w} + gaitOffset(b, side);
+    const float footZ = b.floorZ + bd.pos[foot].z * b.m2w;
 
-    // The knee points between the body's forward and the foot's.
+    // Standing still: the knee over the foot, both straight ahead.
+    {
+        const glm::vec2 home = homeOf(b, head, side);
+        glm::vec3 bend;
+        const glm::vec3 knee = twoBone(t.pos, {home.x, home.y, footZ}, a, l,
+            b.fwd + (side == 0 ? b.left : -b.left) * 0.1f, b.fwd, bend);
+        still = basis(knee - t.pos, bend);
+    }
+
+    // The knee points between the body's forward and the foot's (swimming, the body's).
+    glm::vec3 target = glm::vec3{ft.pos.x, ft.pos.y, footZ + ft.lift * b.m2w} + gaitOffset(b, side);
+    glm::vec3 kneeDir = safeNormalize(b.fwd + footFwd, b.fwd);
+    const float swim = water.swim;
+    if(swim > 1e-3f)
+    {
+        target = glm::mix(target, swimFoot(b, side, t.pos, a + l), swim);
+        kneeDir = safeNormalize(glm::mix(kneeDir, b.fwd, swim), b.fwd);
+    }
+
     glm::vec3 bend;
-    const glm::vec3 kneeDir = safeNormalize(b.fwd + footFwd, b.fwd);
     const glm::vec3 knee = twoBone(t.pos, target, a, l, kneeDir + outward * 0.1f, kneeDir, bend);
     t.rot = basis(knee - t.pos, bend);
 
@@ -672,10 +805,16 @@ void solveLeg(Body& b, int side, bool shown)
     const glm::vec3 shinDir = safeNormalize(target - knee, -UP);
     c.rot = basis(shinDir, bend);
 
-    // The foot keeps its bind direction, turned to its own yaw.
+    // The foot keeps its bind direction, turned to its own yaw; swimming, the toes point along the
+    // shin, the top of the foot towards the knee's front.
     const glm::vec3 toe = bd.toe[side] - bd.pos[foot];
     f.pos = knee + shinDir * l;
     f.rot = basis(footFwd * toe.x + footLeft * toe.y + UP * toe.z, UP);
+    if(swim > 1e-3f)
+    {
+        const glm::mat3 pointed = basis(shinDir + bend * 0.35f, bend);
+        f.rot = glm::mat3_cast(glm::slerp(glm::quat_cast(f.rot), glm::quat_cast(pointed), swim));
+    }
 }
 
 // Model bone index of each joint, for the last model checked.
@@ -697,6 +836,10 @@ struct Posed
     glm::vec3 wrist[2]{glm::vec3{0.f}, glm::vec3{0.f}};   // per hand
     glm::vec3 forearm[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     Shoulder shoulders[2];                                // per side
+    bool legs{false};
+    glm::vec3 thighJoint[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // per side, in the pelvis's frame
+    glm::mat3 thighNow[2]{glm::mat3{1.f}, glm::mat3{1.f}};
+    glm::mat3 thighStill[2]{glm::mat3{1.f}, glm::mat3{1.f}};
 };
 
 Posed posed;
@@ -751,6 +894,20 @@ glm::vec3 Follower::operator()(Part part, const glm::vec3& standingPoint) const
     const Frame& f = part == Part::Pelvis ? now.pelvis : now.chest;
     const Frame& r = part == Part::Pelvis ? ref.pelvis : ref.chest;
     return f.pos + f.rot * (glm::transpose(r.rot) * (standingPoint - r.pos));
+}
+
+bool Follower::thigh(int side, ThighMotion& out) const
+{
+    if(!posed.ent || !posed.legs || side < 0 || side > 1)
+    {
+        return false;
+    }
+    const Frame& p = now.pelvis;
+    out.joint = p.pos + p.rot * posed.thighJoint[side];
+    const glm::mat3 still = p.rot * posed.thighStill[side];
+    out.down = still[0];
+    out.turn = p.rot * posed.thighNow[side] * glm::transpose(posed.thighStill[side]) * glm::transpose(p.rot);
+    return true;
 }
 
 bool usable(qmodel_t* model)
@@ -817,10 +974,29 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
     solveArm(b, 0, handPoses[leftHand]);
     solveArm(b, 1, handPoses[1 - leftHand]);
     const float dt = legsDeltaTime();
+    if(legs)
+    {
+        updateWater(b, s, dt);
+    }
     updateGait(b, dt);
     updateStance(b, s.head, dt);
-    solveLeg(b, 0, legs);
-    solveLeg(b, 1, legs);
+    glm::mat3 still[2];
+    solveLeg(b, s.head, 0, legs, still[0]);
+    solveLeg(b, s.head, 1, legs, still[1]);
+
+    // The thighs relative to the pelvis, as they are and standing still (Follower::thigh).
+    posed.legs = legs;
+    {
+        const Bone& p = b.bones[Pelvis];
+        const glm::mat3 toPelvis = glm::transpose(p.rot);
+        for(int side = 0; side < 2; side++)
+        {
+            const Bone& t = b.bones[side == 0 ? ThighL : ThighR];
+            posed.thighJoint[side] = toPelvis * (t.pos - p.pos);
+            posed.thighNow[side] = toPelvis * t.rot;
+            posed.thighStill[side] = toPelvis * still[side];
+        }
+    }
 
     // Preview: the body in front of the player, with its head, facing them (2) or turned to show
     // its left side (3).

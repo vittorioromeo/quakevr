@@ -125,6 +125,7 @@ All of them are Python 3. Run them from the repository root. Each script's heade
 | `relight_maps.py` | Relights the player's own id1, hipnotic and rogue maps with ericw-tools `light` (2.0.0-alpha11) into `quakevr/relit/`, with lights for glowing textures and light fixtures (`relight_textures.cfg`), deluxemaps and a light grid; optionally water-vises them. Shipped in the package's `quakevr\tools\`. See [RELIGHTING.md](RELIGHTING.md). |
 | `vis_maps.py` | Adds water-vis data (from the VisPatch `.vis` files) to relit or original maps, or checks which maps have it |
 | `relight_quakevr_maps.py` | Relights Quake VR's own maps (tutorial, firing range) in place; they are committed |
+| `make_spawn_buttons.py` | Builds the brush models (panel, button) of the firing range's second row of monster buttons, which its entity file places (ericw-tools `qbsp` and `light`); they are committed |
 | `transcribe_notes.py` | Transcribes voice notes with faster-whisper into `quakevr/notes/NOTES.md` |
 | `make_vrbody.py`, `make_pauldron.py`, `make_gadget.py`, `make_holster.py`, `make_flashlight.py`, `make_shell.py`, `make_swords.py` | Generate the body, pauldrons, wrist gadget, holsters, flashlight, shell casing and knights' swords models (with `mdlgen.py`) |
 | `improve_weapons*.py`, `recolor_shotgun_sight.py`, `taper_hand.py`, `make_bloody_hands.py` | Rework the weapon and hand models (grips, trigger guards, details, sights, damage skins) from the sources in `src_models/` |

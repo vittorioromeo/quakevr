@@ -5,6 +5,7 @@
 #                                      the body lies against it; in the hand it is held like a
 #                                      pistol's grip, the beam going where the hand points.
 #   quakevr/sound/vr/flashlight_on.wav, flashlight_off.wav  its switch's clicks
+#   quakevr/sound/vr/flashlight_attach.wav, flashlight_detach.wav  its clamp clipping onto a gun, and off
 #
 # Usage: python Misc/quakevr/make_flashlight.py [output game folder]
 #
@@ -199,6 +200,44 @@ def click(pitch, seed):
     return out
 
 
+def latch(attach, seed):
+    """The clamp on a gun's rail: clipping on, a metal snap (a noise crack, steel ringing at a few
+    inharmonic partials, a low knock of the gun's body) and the latch catching 28 ms later;
+    taking off, a short scrape of the clamp sliding off, then a lighter release click."""
+    rng = random.Random(seed)
+    n = int(RATE * 0.16)
+    out = [0.0] * n
+
+    def snap(at, level, pitch):
+        lp = 0.0
+        for i in range(int(RATE * 0.06)):
+            t = i / RATE
+            j = int((at + t) * RATE)
+            if j >= n:
+                break
+            noise = rng.uniform(-1, 1)
+            lp += 0.3 * (noise - lp)
+            crack = (noise - lp) * math.exp(-t / 0.0009)
+            ring = sum(a * math.sin(2 * math.pi * f * pitch * t) * math.exp(-t / tau)
+                       for f, a, tau in ((1870, 0.5, 0.018), (3120, 0.35, 0.012), (4630, 0.25, 0.007)))
+            knock = math.sin(2 * math.pi * 210 * pitch * t) * math.exp(-t / 0.012) * 0.6
+            out[j] += level * (crack * 0.9 + ring + knock) * 0.45
+
+    if attach:
+        snap(0.0, 1.0, 1.0)
+        snap(0.028, 0.6, 1.12)
+    else:
+        lp = 0.0
+        for i in range(int(RATE * 0.05)):  # the scrape: filtered noise swelling and cut
+            t = i / RATE
+            noise = rng.uniform(-1, 1)
+            lp += 0.5 * (noise - lp)
+            out[i] += (noise - lp) * 0.25 * math.sin(math.pi * t / 0.05)
+        snap(0.045, 0.7, 0.92)
+    peak = max(abs(s) for s in out) or 1.0
+    return [s * 0.85 / peak for s in out]
+
+
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     game = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "..", "..", "quakevr")
@@ -214,6 +253,10 @@ def main():
     for name, pitch, seed in (("flashlight_on", 1.1, 11), ("flashlight_off", 0.9, 12)):
         wav = os.path.join(sounds, name + ".wav")
         write_wav(wav, click(pitch, seed))
+        print("%s.wav -> %s" % (name, os.path.normpath(wav)))
+    for name, attach, seed in (("flashlight_attach", True, 13), ("flashlight_detach", False, 14)):
+        wav = os.path.join(sounds, name + ".wav")
+        write_wav(wav, latch(attach, seed))
         print("%s.wav -> %s" % (name, os.path.normpath(wav)))
 
 

@@ -9,6 +9,8 @@
 #include "vr_lines.hpp"
 #include "vr_units.hpp"
 
+#include <glm/gtc/quaternion.hpp>
+
 namespace qvr::body
 {
 namespace
@@ -142,15 +144,46 @@ struct TorsoShape
     return p;
 }
 
+// With the full body's legs (vr_body_mode 3), the hip holsters ride the thighs, by
+// vr_holster_leg_follow (0 fixed on the body, 1 all the way): they go with the legs' animation
+// (walking, stepping round, tucking up in the air, kicking in the water), from where they are with
+// the legs standing still. A holster moves as the point of the thigh it is strapped to: under it,
+// but at least THIGH_STRAP down the thigh (the hips' holsters are at the top of the thighs, by the
+// hip joint, where the thigh barely moves), and turns with the thigh. Where it is drawn is where the
+// hands find it (updateHotspots).
+constexpr float THIGH_STRAP = 0.2f; // metres of the body
+
+void onTheThigh(const avatar::Follower& follow, Holster holster, glm::vec3& pos, HolsterPlate* plate)
+{
+    const float amount = CLAMP(0.f, vr_holster_leg_follow.value, 1.f);
+    avatar::ThighMotion m;
+    if((holster != LeftHip && holster != RightHip) || amount <= 0.f || vr_body_mode.value < 3.f ||
+        !follow.thigh(holster == LeftHip ? 0 : 1, m))
+    {
+        return;
+    }
+
+    const float strap = THIGH_STRAP * units::metresToUnits() * units::bodyScale();
+    const glm::vec3 anchor = pos + m.down * std::max(0.f, strap - glm::dot(pos - m.joint, m.down));
+    pos += (m.joint + m.turn * (anchor - m.joint) - anchor) * amount;
+    if(plate)
+    {
+        const glm::quat turn = glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, glm::normalize(glm::quat_cast(m.turn)), amount);
+        plate->out = turn * plate->out;
+        plate->up = turn * plate->up;
+    }
+}
+
 // With vr_body_anchors: where the holster is for the standing body, carried by the pelvis (hips)
-// or the chest, and (`plate`) the body's surface there.
+// or the chest, and (`plate`) the body's surface there; the hips' on the thighs (onTheThigh).
 [[nodiscard]] glm::vec3 followingHolsterPosition(
     const avatar::Follower& follow, const hands::State& standing, Holster holster, HolsterPlate* plate = nullptr)
 {
     const avatar::Part part = holster == LeftHip || holster == RightHip ? avatar::Part::Pelvis : avatar::Part::Chest;
     const glm::vec3 pos = onTheBody(standing, holster, legacyHolsterPosition(standing, holster));
-    const glm::vec3 now = follow(part, pos);
-    if(plate && isOnTheBody(holster))
+    glm::vec3 now = follow(part, pos);
+    const bool onBody = plate && isOnTheBody(holster);
+    if(onBody)
     {
         // The Follower moves points rigidly: directions follow as the difference of two.
         const HolsterPlate p = plateOnTheBody(standing, holster, pos);
@@ -158,6 +191,7 @@ struct TorsoShape
         plate->up = follow(part, pos + p.up) - now;
         plate->clearance = p.clearance;
     }
+    onTheThigh(follow, holster, now, onBody ? plate : nullptr);
     return now;
 }
 
@@ -165,13 +199,26 @@ struct TorsoShape
 {
     const glm::vec3& pos = s.pos[hand];
 
+    // The holster the hand is most within (its distance over the holster's reach), not the first in the list: the
+    // shoulders' reach (vr_shoulder_holster_thresh, 7.8) comes down over the top of the upper holsters' (on the chest,
+    // a few units below), and a gun let go at the top of a chest holster went into the shoulder holster over it
+    // (round 20: "invisible until I pick it up and put it back").
+    int best = -1;
+    float bestRatio = 1.f;
     for(int h = 0; h < HolsterCount; h++)
     {
         const auto holster = static_cast<Holster>(h);
-        if(glm::distance(pos, holsters[h]) < threshold(holster))
+        const float reach = threshold(holster);
+        const float ratio = reach > 0.f ? glm::distance(pos, holsters[h]) / reach : 2.f;
+        if(ratio < bestRatio)
         {
-            return holsterHotspot(holster);
+            bestRatio = ratio;
+            best = h;
         }
+    }
+    if(best >= 0)
+    {
+        return holsterHotspot(static_cast<Holster>(best));
     }
 
     // Close enough to the other hand to steady its weapon (the "dynamic" 2H distance), or to

@@ -1,6 +1,7 @@
 // vr_lighting.cpp -- see vr_lighting.hpp.
 
 #include "vr_lighting.hpp"
+#include "vr_ao.hpp"
 #include "vr_main.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -1359,6 +1360,7 @@ extern "C" void VR_PushMapLights(void)
 
     GL_BindNative(GL_TEXTURE4, GL_TEXTURE_2D, atlas.tex);
     GL_BindNative(GL_TEXTURE5, GL_TEXTURE_2D, staticAtlas.tex);
+    ao::upload(); // dynamic ambient occlusion's occluders for this eye (vr_ao.cpp; uniform block 2)
 
     if(!frameEnabled)
     {
@@ -1563,6 +1565,7 @@ void lighting::applyPreset(int preset)
     look(vr_projectile_lights, 0.f);
     // The lava nails' lights (a few on Low) and the lightning's stream of lights (Medium and up).
     Cvar_SetQuick(&vr_lavanail_lights, preset >= 2 ? vr_lavanail_lights.default_string : preset == 1 ? "4" : "0");
+    Cvar_SetQuick(&vr_lavagun_light, preset >= 1 ? vr_lavagun_light.default_string : "0"); // the lava guns' glow (vr_emissive.cpp): Low and up
     Cvar_SetQuick(&vr_beam_lights, preset >= 2 ? vr_beam_lights.default_string : "0");
     Cvar_SetQuick(&vr_torch_lights, preset >= 2 ? vr_torch_lights.default_string : preset == 1 ? "4" : "0"); // torches' flicker
     look(vr_weapon_screen_light, 0.f);
@@ -1585,6 +1588,10 @@ void lighting::applyPreset(int preset)
     Cvar_SetValueQuick(&vr_normalmaps, p.normalmaps); // made as the next map loads
     Cvar_SetValueQuick(&vr_parallax, p.parallax);
     Cvar_SetQuick(&vr_detail, preset >= 2 ? "1" : "0"); // detail textures (vr_detail.cpp): Medium and up
+    // Dynamic ambient occlusion (vr_ao.cpp): Medium and up.
+    Cvar_SetQuick(&vr_ao_dynamic, preset >= 2 ? vr_ao_dynamic.default_string : "0");
+    Cvar_SetQuick(&vr_ao_brush, preset >= 2 ? vr_ao_brush.default_string : "0");
+    Cvar_SetQuick(&vr_ao_models, preset >= 2 ? vr_ao_models.default_string : "0");
     water::applyPreset(preset); // liquids (vr_water.cpp)
 }
 
@@ -1633,6 +1640,7 @@ void lighting::init()
     Cvar_SetCallback(&vr_graphics_preset, onPreset);
     Cmd_AddCommand("vr_light_test", lightTest_f);
     Cvar_SetCallback(&vr_alpha_coverage, onAlphaCoverage);
+    ao::init();
 }
 
 // Lights given shadows this frame: dynamic ones, and map lights (vr_memstats).

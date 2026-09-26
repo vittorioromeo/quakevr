@@ -27,6 +27,8 @@
 #
 # Mjolnir (v_hammer.mdl) is left alone: the hand holds its shaft.
 #
+#   quakevr/progs/v_axe.mdl     round 20: the cracks along the handle filled (build_axe).
+#
 # Usage: python Misc/quakevr/improve_weapons3.py [output progs folder]   (default: quakevr/progs)
 #
 # The inputs are Quake VR's models as they were before (Misc/quakevr/src_models/, byte for byte):
@@ -217,10 +219,57 @@ def build_launcher(out_dir, gl):
     carrier = Carrier(model, clusters)
     remap = assemble(model, old_tris, parts, carrier)
     check_anchors(old_tris, model.tris, remap, gl.kept)
+    seal_launcher(model, gl)
+    check_anchors(old_tris, model.tris, remap, gl.kept)
 
     origin = model.write(os.path.join(out_dir, gl.name))
     return settings_for("%s (slot %d)" % (gl.name, gl.slot), model, old_origin, origin, sw, gl.offset, p0_old,
                         p0_new, anchor), model
+
+
+# Round 20 (voice note 20-09-45: "both the grenade launcher and mine launcher models also have some missing
+# faces when you look at them from the other side"): the launchers were open at the front (the tube's end,
+# the ledge under it and the belly's front): the tube's end is now a bore (a rim, a wall 1 unit down, a
+# dark floor, in front of the old face at x 29.58 (29.94) inside, which faces into the gun), the ledge and the
+# belly's front are capped; so is the frame's front end (inside the belly). seal_mdl.py closes them with new
+# triangles and vertices only (the anchors are checked again after it).
+
+def bore_floor(noise):
+    """A barrel's floor seen down the bore: black, a little metal round its edge."""
+    def fn(s, t, w, h):
+        r = math.hypot((s + 0.5) / w - 0.5, (t + 0.5) / h - 0.5) * 2
+        return pick([0, 0, 32, 1, 33], 0.05 + 0.5 * max(0.0, r - 0.6) + (noise.hash(s, t) - 0.5) * 0.08, s, t)
+    return fn
+
+
+def seal_launcher(model, gl):
+    from seal_mdl import seal
+
+    row = grow_skin(model, 16)
+    ramp = PROXRED if gl.grip_ramp is PROXRED else BROWN
+    R = {"cap": (0, row, 32, row + 16), "front": (32, row, 96, row + 16), "belly": (96, row, 160, row + 16),
+         "rim": (160, row, 224, row + 8), "wall": (160, row + 8, 224, row + 16), "floor": (224, row, 256, row + 16)}
+    paint(model, R["cap"], metal(Noise(gl.seed + 7), BLUE, 0.3, 0.08, grain=0.04))
+    paint(model, R["front"], metal(Noise(gl.seed + 8), BLUE, 0.35, 0.1, grain=0.04))
+    paint(model, R["belly"], metal(Noise(gl.seed + 9), ramp, 0.3, 0.12))
+    paint(model, R["rim"], metal(Noise(gl.seed + 10), BLUE, 0.45, 0.1, grain=0.04))
+    paint(model, R["wall"], metal(Noise(gl.seed + 11), [0, 32, 1, 33, 34], 0.3, 0.15))
+    paint(model, R["floor"], bore_floor(Noise(gl.seed + 12)))
+
+    def special(s, loop):
+        c = s.centre(loop)
+        if c[0] > gl.belly_front + 10.0 and s.size(loop) > 3.0:
+            # The front: the face under the muzzle (x 31.4), then round the corner the ledge under it
+            # (z 2.2, back to x 29.6) and the belly's front (sloping down to x 29.0).
+            face, rest = s.split(loop, lambda p: p[0] > 30.5)
+            ledge, belly = s.split(rest, lambda p: p[2] > 2.0)
+            s.bore(face, R["rim"], R["wall"], R["floor"], inner=0.8, depth=1.0, what="muzzle")
+            s.cap(ledge, R["front"], "ledge under the front")
+            s.cap(belly, R["belly"], "belly front")
+            return True
+        return False
+
+    seal(model, R["cap"], special, gl.name)
 
 
 # ----------------------------------------------------------------------------
@@ -544,7 +593,8 @@ def build_laser(out_dir):
         fwd = (-d[2], 0.0, d[0]) if i else ex  # square to the path, pointing forward/up
         if dot(fwd, ex) < 0 and i == 0:
             fwd = mul(fwd, -1.0)
-        neck.append(section(hs.m(x, z), fwd, ey, hd * k, hw * k, 0.24 * k))
+        # (Round 20: the first ring is the grip's last one, bevel and all, so the two meet without a slit.)
+        neck.append(section(hs.m(x, z), fwd, ey, hd * k, hw * k, (last[3] if i == 0 else 0.24) * k))
     parts.loft(neck, R["neck"], cap_end=R["neckend"])
 
     # The head: a bevelled block over the fist, its tail over the web of the hand, its front over
@@ -568,6 +618,11 @@ def build_laser(out_dir):
     # The blade folds into the neck.
     inside = hs.m(-1.2, -3.9)
     pin(model, remap, carrier, {v: (inside[0], inside[1] + (frame0[v][1] - LASER_Y) * 0.2, inside[2]) for v in blade})
+    # Round 20: where the folded blade's base meets the body's back, cracks and triangles turned round
+    # showed; they are filled and backed (seal_mdl.py: new triangles only).
+    from seal_mdl import seal
+    seal(model, R["headend"], None, "v_laserg.mdl", fix_flips="all")
+    check_anchors(old_tris, model.tris, remap, kept)
 
     origin = model.write(os.path.join(out_dir, "v_laserg.mdl"))
     return settings_for("v_laserg.mdl (slot 9)", model, old_origin, origin, sw, offset, p0, p0, anchor), model
@@ -629,9 +684,34 @@ def build_grapple(out_dir):
     # The stick folds into the grip.
     inside = hs.m(grip_x(-1.2) - 0.2, -1.2)
     pin(model, remap, carrier, {v: (inside[0], inside[1] + frame0[v][1] * 0.2, inside[2]) for v in stick})
+    # Round 20: the body's back underside was open (seen from below, behind the grip); capped (seal_mdl.py:
+    # new triangles only), as are the grip's top and a small hole under the claws.
+    from seal_mdl import seal
+    seal(model, R["bottom"], None, "v_grpple.mdl")
+    check_anchors(old_tris, model.tris, remap, kept)
 
     origin = model.write(os.path.join(out_dir, "v_grpple.mdl"))
     return settings_for("v_grpple.mdl (slot 17)", model, old_origin, origin, sw, offset, p0, p0, anchor), model
+
+
+# ----------------------------------------------------------------------------
+# The axe, round 20 (check_mdl_holes.py over every weapon model): two cracks ran along its handle, where
+# one side of a seam has more vertices than the other (0.13 and 0.08 units wide once rounded to the file's
+# grid). The model is otherwise Quake VR's as it was (src_models/v_axe.mdl, byte for byte): the cracks are
+# filled with new triangles only; frames, skin, vertices and anchors stay.
+
+def build_axe(out_dir):
+    from improve_weapons2 import Model  # its writer keeps the header's box (and so every old vertex's bytes)
+    from seal_mdl import seal
+
+    model = Model(os.path.join(SRC, "v_axe.mdl"))
+    old_tris = [list(t) for t in model.tris]
+    # A rounded source: the cracks' corners are off their edges already.
+    model.seal = lambda m: seal(m, (0, 0, 1, 1), None, "v_axe.mdl", crack_tol=0.2)
+    model.write(os.path.join(out_dir, "v_axe.mdl"))
+    order = strip_order(old_tris)
+    assert strip_order(model.tris)[:len(order)] == order
+    return ("v_axe.mdl", {}), model
 
 
 def main():
@@ -639,7 +719,8 @@ def main():
     builds = [lambda gl=gl: build_launcher(out_dir, gl) for gl in LAUNCHERS]
     builds += [lambda: build_shotgun(out_dir),
               lambda: build_laser(out_dir),
-              lambda: build_grapple(out_dir)]
+              lambda: build_grapple(out_dir),
+              lambda: build_axe(out_dir)]
     for build in builds:
         (name, settings), model = build()
         print("%s: %d vertices, %d triangles, %d frames, skin %dx%d" % (name, len(model.st), len(model.tris),

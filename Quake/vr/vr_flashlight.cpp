@@ -39,6 +39,7 @@ const float coreSpread = std::tan(glm::radians(innerAngle));
 constexpr float reach = 0.11f;         // metres from the lamp's middle a hand reaches it at
 constexpr float returnOmega = 14.f;    // the cord's pull (critically damped; home in about 0.4 s)
 constexpr float maxThrow = 3.f;        // metres per second the lamp keeps of the hand's at a release
+constexpr float gunReach = 0.12f;      // metres from the gun (its line from the hand to the muzzle) it clips on at
 
 // The dynamic lights' keys (entities' keys are their numbers, never negative).
 constexpr int keySpot = -0x0F1A51;
@@ -49,7 +50,8 @@ enum class Mode
 {
     Mounted,
     Held,
-    Returning
+    Returning,
+    OnGun // clipped under the barrel of the gun in st.gunHand
 };
 
 struct Pose
@@ -72,7 +74,14 @@ struct State
     glm::vec3 flightVel{0.f};
     glm::quat flightRot{1.f, 0.f, 0.f, 0.f};
 
-    bool swallowed[2][2]{}; // [hand][grip]: a press the flashlight took, whose release it takes too
+    // On a gun: the hand holding it and its model (the same gun with its other ammo keeps it).
+    int gunHand{-1};
+    const qmodel_t* gunModel{nullptr};
+    bool nearGun{false}; // held within reach of the other hand's gun (B/Y clips it on)
+
+    bool swallowed[2][3]{}; // [hand][Button]: a press the flashlight took, whose release it takes too
+    bool gripDown[2]{};
+    bool tookGrip[2]{};     // see flashlight::tookGrip
     bool hovered[2]{};
     const qmodel_t* world{nullptr};
 
@@ -165,6 +174,35 @@ Beam beam;
     return poseFromAxes(s.pos[hand] + offset * m2u, fwd, -right, up);
 }
 
+// Clipped under the gun's barrel: the lens a little behind the muzzle and below the line it aims along
+// (vr_flashlight_gun_forward, _up and _out move it), the body hanging below like a foregrip, the beam
+// where the gun aims.
+[[nodiscard]] Pose gunPose(const view::WeaponMount& m)
+{
+    glm::vec3 fwd, right, up;
+    hands::angleVectors(m.rot, fwd, right, up);
+    const float out = m.mirrored ? -1.f : 1.f; // away from the body: right for the main hand
+    const glm::vec3 lens = m.muzzle + (fwd * (-0.035f + vr_flashlight_gun_forward.value) + up * (-0.04f + vr_flashlight_gun_up.value) +
+                                          right * (out * vr_flashlight_gun_out.value)) *
+                                          units::metresToUnits();
+    Pose p = poseFromAxes(glm::vec3{0.f}, fwd, -right, up);
+    p.pos = lens - p.rot * (lensPoint * units::worldScale());
+    return p;
+}
+
+// How far (world units) the lamp's middle is from the gun: from its line from the hand to a little
+// past the muzzle.
+[[nodiscard]] float gunDistance(const Pose& lamp, const view::WeaponMount& m)
+{
+    const glm::vec3 middle = modelPointAt(lamp, glm::vec3{0.f, 0.f, 0.3f});
+    const glm::vec3 a = m.pos;
+    const glm::vec3 ab = m.muzzle - a;
+    const float len2 = glm::dot(ab, ab);
+    const float tMax = 1.f + (len2 > 1e-4f ? 0.03f * units::metresToUnits() / std::sqrt(len2) : 0.f);
+    const float t = len2 > 1e-4f ? std::clamp(glm::dot(middle - a, ab) / len2, 0.f, tMax) : 0.f;
+    return glm::distance(middle, a + ab * t);
+}
+
 // Whether a hand holds nothing (the "fist" or no weapon at all).
 [[nodiscard]] bool handEmpty(int hand)
 {
@@ -193,6 +231,7 @@ void haptic(int hand, float seconds, float amplitude)
 void toggle(int hand)
 {
     st.on = !st.on;
+    Con_DPrintf("flashlight: %s\n", st.on ? "on" : "off");
     S_LocalSound(st.on ? "vr/flashlight_on.wav" : "vr/flashlight_off.wav");
     if(hand >= 0)
     {
@@ -230,6 +269,44 @@ void letGo(const hands::State& s, const Pose& mount)
     {
         st.mode = Mode::Mounted;
     }
+}
+
+void clipOn(int gunHand, const view::WeaponMount& m)
+{
+    const int hand = st.holder;
+    st.mode = Mode::OnGun;
+    st.holder = -1;
+    st.gunHand = gunHand;
+    st.gunModel = m.model;
+    st.nearGun = false;
+    Con_DPrintf("flashlight: clipped on the %s hand's gun\n", gunHand == HAND_MAIN ? "main" : "off");
+    S_LocalSound("vr/flashlight_attach.wav");
+    haptic(gunHand, 0.04f, 0.6f);
+    if(hand >= 0)
+    {
+        haptic(hand, 0.04f, 0.6f);
+    }
+}
+
+// Off the gun: into `hand` (its grip held at the lamp), or else back to the chest on its cord.
+void clipOff(const hands::State& s, int hand)
+{
+    const int gunHand = st.gunHand;
+    st.gunHand = -1;
+    st.gunModel = nullptr;
+    Con_DPrintf("flashlight: off the gun, %s\n", hand >= 0 ? "into the other hand" : "back to the chest");
+    S_LocalSound("vr/flashlight_detach.wav");
+    if(gunHand >= 0)
+    {
+        haptic(gunHand, 0.03f, 0.4f);
+    }
+    if(hand >= 0)
+    {
+        take(hand);
+        return;
+    }
+    st.holder = -1; // letGo flies it home from where it is, with no throw
+    letGo(s, mountPose(s));
 }
 
 void killLight(int key)
@@ -452,6 +529,7 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
         generation = worldGeneration();
         st.mode = Mode::Mounted;
         st.holder = -1;
+        st.gunHand = -1;
         st.placed = false;
     }
 
@@ -462,6 +540,8 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
         st.placed = false;
         st.mode = Mode::Mounted;
         st.holder = -1;
+        st.gunHand = -1;
+        st.nearGun = false;
         st.hovered[0] = st.hovered[1] = false;
         killLights();
         return;
@@ -475,10 +555,38 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
         letGo(s, mount);
     }
 
+    // On a gun that left the hand (holstered, dropped, thrown, switched for another; not its other
+    // ammo): back to the chest.
+    view::WeaponMount gun;
+    if(st.mode == Mode::OnGun &&
+        (st.gunHand < 0 || !view::weaponMount(st.gunHand, gun) || !view::sameGun(gun.model, st.gunModel)))
+    {
+        clipOff(s, -1);
+    }
+
     Pose p = mount;
     if(st.mode == Mode::Held)
     {
         p = handPose(s, st.holder);
+
+        // Held near the gun in the other hand: a tap, the lamp lit up; B/Y clips it on.
+        view::WeaponMount other;
+        const bool inReach = key_dest == key_game && view::weaponMount(1 - st.holder, other) &&
+                          gunDistance(p, other) < gunReach * units::metresToUnits();
+        if(inReach && !st.nearGun)
+        {
+            haptic(st.holder, 0.015f, 0.25f);
+        }
+        st.nearGun = inReach;
+    }
+    else
+    {
+        st.nearGun = false;
+    }
+    if(st.mode == Mode::OnGun)
+    {
+        st.gunModel = gun.model; // the other ammo's model, after its button
+        p = gunPose(gun);
     }
     else if(st.mode == Mode::Returning)
     {
@@ -498,11 +606,11 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
     st.pose = p;
     st.placed = true;
 
-    // A hand at the lamp lights it up (and taps, once).
-    bool hover = false;
+    // A hand at the lamp lights it up (and taps, once); on a gun, only the free hand.
+    bool hover = st.nearGun;
     for(int hand = 0; hand < 2; hand++)
     {
-        const bool atLamp = st.mode != Mode::Held && key_dest == key_game && handNear(s, hand);
+        const bool atLamp = st.mode != Mode::Held && hand != st.gunHand && key_dest == key_game && handNear(s, hand);
         if(atLamp && !st.hovered[hand])
         {
             haptic(hand, 0.015f, 0.2f);
@@ -615,13 +723,18 @@ void drawTranslucent()
     gfx::draw(triangles, gfx::sceneViewProjection(), state);
 }
 
-bool button(int hand, bool grip, bool pressed)
+bool button(int hand, Button b, bool pressed)
 {
     if(hand < 0 || hand > 1)
     {
         return false;
     }
-    bool& swallowed = st.swallowed[hand][grip ? 1 : 0];
+    const bool grip = b == Button::Grip;
+    if(grip)
+    {
+        st.gripDown[hand] = pressed;
+    }
+    bool& swallowed = st.swallowed[hand][static_cast<int>(b)];
 
     if(!pressed)
     {
@@ -645,7 +758,41 @@ bool button(int hand, bool grip, bool pressed)
 
     const hands::State& s = hands::current();
     const bool holding = st.mode == Mode::Held && st.holder == hand;
-    const bool atLamp = st.mode != Mode::Held && handNear(s, hand);
+    const bool atLamp = st.mode != Mode::Held && hand != st.gunHand && handNear(s, hand);
+
+    if(b == Button::Secondary)
+    {
+        // Held near the other hand's gun: either hand's B/Y clips it on.
+        view::WeaponMount gun;
+        if(st.mode == Mode::Held && st.nearGun && view::weaponMount(1 - st.holder, gun))
+        {
+            clipOn(1 - st.holder, gun);
+            swallowed = true;
+            return true;
+        }
+        // On a gun: the free hand at the lamp takes it off with its B/Y (or with the gun hand's while
+        // it grips the lamp). Gripping, the lamp goes into it; otherwise back to the chest.
+        if(st.mode == Mode::OnGun && st.gunHand >= 0)
+        {
+            const int freeHand = 1 - st.gunHand;
+            if(handNear(s, freeHand) && (hand == freeHand || st.gripDown[freeHand]))
+            {
+                const bool into = st.gripDown[freeHand] && handEmpty(freeHand);
+                clipOff(s, into ? freeHand : -1);
+                if(into)
+                {
+                    // The lamp has the grip now: its release sends it home. If the game saw the press
+                    // (a hand on the gun's foregrip), it must see the grip let go.
+                    bool& gripSwallowed = st.swallowed[freeHand][static_cast<int>(Button::Grip)];
+                    st.tookGrip[freeHand] = !gripSwallowed;
+                    gripSwallowed = true;
+                }
+                swallowed = true;
+                return true;
+            }
+        }
+        return false;
+    }
 
     if(!grip && (holding || atLamp))
     {
@@ -653,7 +800,8 @@ bool button(int hand, bool grip, bool pressed)
         swallowed = true;
         return true;
     }
-    if(grip && atLamp && handEmpty(hand))
+    // (On a gun, a grip at the lamp is the game's: the foregrip is near. B/Y takes it off.)
+    if(grip && atLamp && st.mode != Mode::OnGun && handEmpty(hand))
     {
         take(hand);
         swallowed = true;
@@ -662,9 +810,39 @@ bool button(int hand, bool grip, bool pressed)
     return false;
 }
 
+bool tookGrip(int hand)
+{
+    if(hand < 0 || hand > 1 || !st.tookGrip[hand])
+    {
+        return false;
+    }
+    st.tookGrip[hand] = false;
+    return true;
+}
+
+void reset()
+{
+    Con_DPrintf("flashlight: reset (a fresh start)\n");
+    st.on = false;
+    st.mode = Mode::Mounted;
+    st.holder = -1;
+    st.gunHand = -1;
+    st.gunModel = nullptr;
+    st.nearGun = false;
+    st.placed = false;
+    killLights();
+}
+
 bool holds(int hand)
 {
     return enabled() && st.mode == Mode::Held && st.holder == hand;
 }
 
 } // namespace qvr::flashlight
+
+// A new game, a map started afresh or a save loaded (host_cmd.c), not a changelevel: the
+// flashlight off, on the chest (in the game, it stays as it was from level to level).
+extern "C" void VR_OnFreshStart()
+{
+    qvr::flashlight::reset();
+}

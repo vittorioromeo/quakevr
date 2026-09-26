@@ -16,6 +16,9 @@
 #                               same builders on their own sources, placed as they are
 #                               (improve_weapons_alt.py; round 18); v_lava2.mdl's painted lava windows
 #                               on the barrels are sunk into them (lava2_windows).
+#   Round 20: the nailguns' pistol grip is the shotguns' (nail_grip); the lightning gun's sights take the
+#   shotguns' sight gradient (light_sights); every hole check_mdl_holes.py finds is closed (seal_*,
+#   seal_mdl.py: barrel bores, caps, cracks), with new triangles only.
 #
 # Usage: python Misc/quakevr/improve_weapons2.py [output game folder, default quakevr]
 #
@@ -163,6 +166,8 @@ class Model:
 
     def write(self, path):
         self._place_parts()
+        if getattr(self, "seal", None):
+            self.seal(self)  # round 20: close the holes (seal_mdl.py), every part in place
         self._normals(mdlgen.anorms())
         nverts = len(self.st)
         for fr in self.frames:
@@ -426,6 +431,14 @@ NAIL2_FRONT_T, NAIL2_BACK_T = 2, 105
 NAIL2_GROOVES_T = [(14, 21, 27, 28), (43, 50, 56, 57), (72, 79, 85, 86)]
 NAIL2_GROOVE_S = (412, 419, 476, 483)
 NAIL2_DEPTH = 1.0
+# Round 20: the back groove is over the hollow the hand reaches into (x -2.58 .. 4.74, its ceiling 0.77
+# under the top): 1 unit deep, its floor went through the ceiling, which showed through the floor from
+# above (back faces) and the floor's underside from inside. It is cut less deep.
+NAIL2_BACK_GROOVE_DEPTH = 0.55
+
+
+def nail2_depth(t):
+    return NAIL2_BACK_GROOVE_DEPTH if t >= NAIL2_GROOVES_T[2][0] else NAIL2_DEPTH
 
 
 def nail2(m, V=IDENTITY):
@@ -464,6 +477,21 @@ def nail2(m, V=IDENTITY):
     def is_floor(s, t):
         return s_floor_l <= s <= s_floor_r and any(g[1] <= t <= g[2] for g in NAIL2_GROOVES_T)
 
+    def sunk_corner(k, t, p):
+        """A groove floor's point at a chamfer (column 1 or 3, or a boundary b 1..4 next to one), in the
+        plane across the body through p: where the floors of the big faces either side of the chamfer
+        meet. (Round 20: sinking each chamfer's own nodes along its normals, 1 unit, more than the
+        chamfers are wide, turned the floor over there: seen from above, bits of it faced down.)"""
+        a, b = (0, 2) if k <= 2 else (2, 4)
+        rows_ = []
+        for c in (a, b):
+            n = normal_at(c, t)
+            rows_.append((n, dot(n, column_at(c, t)[0]) - nail2_depth(t)))
+        rows_.append(((1.0, 0.0, 0.0), p[0]))
+        (n1, d1), (n2, d2), (n3, d3) = rows_
+        det = dot(n1, cross(n2, n3))
+        return mul(add(add(mul(cross(n2, n3), d1), mul(cross(n3, n1), d2)), mul(cross(n1, n2), d3)), 1.0 / det)
+
     corner = {(0, NAIL2_BACK_T): V(168), (0, NAIL2_FRONT_T): V(166)}
     for b in range(1, 6):
         (bl, br), (fl, fr) = columns[b - 1]
@@ -472,6 +500,7 @@ def nail2(m, V=IDENTITY):
     # Nodes of each row: the column boundaries (b = 0..5) and the groove lines inside columns.
     grid = []  # per row: list of (s, vertex, boundary)
     surf = {}  # vertex -> its point on the uncut surface (for the triangles' winding)
+    round16 = {}  # vertex -> where round 16 put it (the triangles it left out as flat stay out: anchors)
     for t in rows:
         nodes = []
         for b in range(6):
@@ -483,24 +512,29 @@ def nail2(m, V=IDENTITY):
                 nodes.append((s, corner[(b, t)], b))
                 surf[corner[(b, t)]] = m.pos(corner[(b, t)])
                 continue
-            q = p
+            q = o = p
             if is_floor(s, t):
                 if 0 < b < 5:
                     na, nb = normal_at(b - 1, t), normal_at(b, t)
-                    p = add(p, mul(add(na, nb), -NAIL2_DEPTH / (1 + dot(na, nb))))
+                    o = add(p, mul(add(na, nb), -NAIL2_DEPTH / (1 + dot(na, nb))))
+                    p = sunk_corner(b, t, p)
                 else:
-                    p = add(p, mul(normal_at(c, t), -NAIL2_DEPTH))
+                    o = add(p, mul(normal_at(c, t), -NAIL2_DEPTH))
+                    p = add(p, mul(normal_at(c, t), -nail2_depth(t)))
             nodes.append((s, part.vert(p, (s, t)), b))
             surf[nodes[-1][1]] = q
+            round16[nodes[-1][1]] = o
         for s in NAIL2_GROOVE_S:
             for c in range(5):
                 L, R, sl, sr = column_at(c, t)
                 if sl < s < sr:
-                    p = q = lerp(L, R, (s - sl) / (sr - sl))
+                    p = q = o = lerp(L, R, (s - sl) / (sr - sl))
                     if is_floor(s, t):
-                        p = add(p, mul(normal_at(c, t), -NAIL2_DEPTH))
+                        o = add(p, mul(normal_at(c, t), -NAIL2_DEPTH))
+                        p = sunk_corner(c, t, p) if c in (1, 3) else add(p, mul(normal_at(c, t), -nail2_depth(t)))
                     nodes.append((s, part.vert(p, (s, t)), None))
                     surf[nodes[-1][1]] = q
+                    round16[nodes[-1][1]] = o
         nodes.sort()
         grid.append(nodes)
 
@@ -509,7 +543,8 @@ def nail2(m, V=IDENTITY):
     def add_tri(x, y, z):
         """A triangle wound clockwise seen from outside: judged on the uncut surface, where every
         triangle (walls included) faces out."""
-        if len({x, y, z}) < 3 or length(cross(sub(P[y], P[x]), sub(P[z], P[x]))) < 1e-6:
+        Q = [round16.get(v, P[v]) for v in (x, y, z)]
+        if len({x, y, z}) < 3 or length(cross(sub(Q[1], Q[0]), sub(Q[2], Q[0]))) < 1e-6:
             return
         S = [surf[x], surf[y], surf[z]]
         c = mul(sum_v(S), 1.0 / 3)
@@ -545,6 +580,7 @@ def nail2(m, V=IDENTITY):
         for k in range(len(inner) - 1):
             add_tri(front if k < half else back, inner[k], inner[k + 1])
         add_tri(front, inner[half], back)
+    m.seal = seal_nail2
 
 
 # ---------------------------------------------------------------------------------------------
@@ -672,6 +708,7 @@ def light(m, V=IDENTITY):
     paint_panel(m, R["strap"], [16, 16, 174, 173, 172], 3, grain=0.35)
     paint_panel(m, R["dark"], [16, 16, 16, 174, 173, 172], 4)
     paint_panel(m, R["trigger"], BROWN[1:], 5)
+    light_sights(m, (144, row, 160, row + 16))
 
     hs = light_hand_space(m, V)
     part = m.part([V(v) for v in LIGHT_BODY])
@@ -710,6 +747,89 @@ def light(m, V=IDENTITY):
 
     bar(part, to_model(GUARD_PATH), LIGHT_Y, 0.26 / hs.sw, 0.13 / hs.sw, R["metal"], R["dark"])
     bar(part, to_model(TRIGGER_PATH), LIGHT_Y, 0.1 / hs.sw, 0.1 / hs.sw, R["trigger"], R["trigger"])
+    m.seal = seal_light
+
+
+# Round 20 (voice note 20-14-24: "make the iron sight texture on the lightning gun the same as the other
+# weapons, so that everything is consistent in colour"): the lightning gun's sights (the back faces of the
+# two rear posts over the back of the body, and the front post's tip over the muzzle) glowed in the pale
+# cyan of its electrodes. They take the shotguns' sight gradient now, in the same fullbright fire indices
+# (vr_sights.cpp recolours those on the skins of the models it lists, which now include v_light.mdl and
+# v_plasma.mdl): a patch painted as recolor_shotgun_sight.py paints the shotgun's (light orange at each
+# sight's top, deep red at its edge), under new UVs for the sights' own vertices (no other triangle uses
+# them: no vertex or triangle index changes, so the anchors stay). The rest of each skin must show no fire
+# index, or it would take the sight hue too: the plasma gun's coils (224..233) move to the nearest other
+# fullbright colours (reds 247..249, 240).
+
+SIGHT_RAMP = [236, 235, 234, 233, 232, 231, 230, 229, 228]   # recolor_shotgun_sight.py's: hub to rim
+SIGHT_INDICES = set(range(224, 240)) | {252, 253}             # vr_sights.cpp isSightIndex
+LIGHT_SIGHT_TEXELS = (270, 2, 285, 8)                         # the old cyan sight texels (s0, t0, s1, t1)
+
+
+def light_sights(m, region):
+    import itertools
+
+    s0, t0, s1, t1 = region
+    cs, ct = (s0 + s1) / 2.0, (t0 + t1) / 2.0
+    rim = (s1 - s0) / 2.0 - 1.5
+    bayer = [[0.0, 0.5], [0.75, 0.25]]
+    for t, s in itertools.product(range(t0, t1), range(s0, s1)):
+        r = math.hypot(s + 0.5 - cs, t + 0.5 - ct) / rim
+        x = min(1.0, r) * (len(SIGHT_RAMP) - 1) + bayer[t % 2][s % 2] - 0.375
+        m.skin[t * m.sw + s] = SIGHT_RAMP[max(0, min(len(SIGHT_RAMP) - 1, int(round(x))))]
+    P = m.frames[0][1]
+    a0, b0, a1, b1 = LIGHT_SIGHT_TEXELS
+
+    def glowing(t):
+        return all(a0 <= m.st[v][1] < a1 and b0 <= m.st[v][2] < b1 for v in t[1:])
+
+    def in_sight(p):
+        return (-2.0 < p[0] < -1.7 and p[2] > 11.25 and abs(p[1]) < 0.8) or (30.9 < p[0] < 31.9 and p[2] > 11.1 and abs(p[1]) < 0.5)
+
+    tris = [t for t in m.tris if glowing(t) and all(in_sight(P[v]) for v in t[1:])]
+    groups = []
+    for t in tris:
+        vs = set(t[1:])
+        near = [g for g in groups if any(math.dist(P[v], P[w]) < 0.05 for v in vs for w in g)]
+        for g in near:
+            vs |= g
+            groups.remove(g)
+        groups.append(vs)
+    assert len(tris) == 8 and len(groups) == 3, (len(tris), len(groups))
+    others = {v for t in m.tris if t not in tris for v in t[1:]}
+    for g in groups:
+        assert not g & others, "a sight vertex is shared"
+        top = max(P[v][2] for v in g)
+        hub = [P[v] for v in g if P[v][2] > top - 0.01]
+        hub = tuple(sum(p[k] for p in hub) / len(hub) for k in range(3))
+        # Seen from behind: across (y, halved: a post's whole top edge is its hot top) and down (z) from
+        # the sight's top.
+        far = max(math.hypot(0.5 * (P[v][1] - hub[1]), P[v][2] - hub[2]) for v in g) or 1.0
+        for v in g:
+            du, dv = 0.5 * (P[v][1] - hub[1]) / far, (hub[2] - P[v][2]) / far
+            m.st[v] = [0, int(round(cs + du * rim * 0.9)), int(round(ct + dv * rim * 0.9))]
+    # No other texel in the sight indices.
+    swap = {i: min([k for k in FIRE_PALETTE if k not in SIGHT_INDICES],
+                   key=lambda k: sum((FIRE_PALETTE[i][c] - FIRE_PALETTE[k][c]) ** 2 for c in range(3))) for i in SIGHT_INDICES}
+    moved = 0
+    for t in range(m.sh):
+        for s in range(m.sw):
+            i = m.skin[t * m.sw + s]
+            if i in SIGHT_INDICES and not (s0 <= s < s1 and t0 <= t < t1):
+                m.skin[t * m.sw + s] = swap[i]
+                moved += 1
+    print("  sights: %d triangles in %d sights; %d other fire texels moved off the sight indices" % (len(tris), len(groups), moved))
+
+
+# gfx/palette.lmp's fullbright entries (224..254).
+FIRE_PALETTE = {
+    224: (43, 0, 0), 225: (59, 0, 0), 226: (75, 7, 0), 227: (95, 7, 0), 228: (111, 15, 0), 229: (127, 23, 7),
+    230: (147, 31, 7), 231: (163, 39, 11), 232: (183, 51, 15), 233: (195, 75, 27), 234: (207, 99, 43),
+    235: (219, 127, 59), 236: (227, 151, 79), 237: (231, 171, 95), 238: (239, 191, 119), 239: (247, 211, 139),
+    240: (167, 123, 59), 241: (183, 155, 55), 242: (199, 195, 55), 243: (231, 227, 87), 244: (127, 191, 255),
+    245: (171, 231, 255), 246: (215, 255, 255), 247: (103, 0, 0), 248: (139, 0, 0), 249: (179, 0, 0),
+    250: (215, 0, 0), 251: (255, 0, 0), 252: (255, 243, 147), 253: (255, 247, 199), 254: (255, 255, 255),
+}
 
 
 def light_settings(m):
@@ -733,6 +853,7 @@ NAIL_SW = 0.48          # vr_weapons.inc slot 3
 NAIL_HAND_ANCHOR = 5
 NAIL_HAND_OFFSET = (0.8, -1.299998, 0.1)
 NAIL_GRIP_FRONT = -3.0  # inside the grip, at the guard's height
+NAIL_OFFSET = (3.6, 2.75, 0.799975)  # vr_weapons.inc slot 3's weapon offsets before round 20
 
 
 def nail(m, V=IDENTITY):
@@ -751,6 +872,55 @@ def nail(m, V=IDENTITY):
     bar(part, path, NAIL_Y, 0.26 / hs.sw, 0.19 / hs.sw, R["metal"], R["dark"])
     # The trigger: the index finger's lower half shows under the body; the blade hangs there.
     bar(part, [(0.8, -1.3), (0.9, -1.85), (0.7, -2.2), (0.35, -2.35)], NAIL_Y, 0.36, 0.24, R["trigger"], R["trigger"])
+    nail_grip(m, V, part, row)
+    m.seal = seal_nail
+
+
+# Round 20 (voice note 20-06-59: "a nicer handle like you did for the shotgun and super shotgun; right now
+# it's looking a bit weird and primitive"): the nailgun's handle was a thin flat slab leaning back 36
+# degrees behind the lower body, which the fist (its fingers curl round a line leaning back 16 degrees)
+# did not close round. Now the shotguns' pistol grip (improve_weapons.py's `grip`: bevelled octagonal
+# rings, GRIP_PROFILE, a steel butt plate; ribbed in the pump's browns as the shotgun's) goes through the
+# fist, from inside the rear block down to the butt under the pinky, with the guard and trigger as they
+# were. The slab folds into it: its back edge moves onto the grip's back just under the rear block (so the
+# rear block's underside now slopes down onto the grip, a beavertail over the web of the hand), its
+# butt inside the grip; its front edge and its bottom's front already are inside. The hand, the gun and
+# every anchor stay where they were.
+
+NAIL_GRIP_TOP = (0.45, 0.74, 0.50, 0.22)          # the grip's top ring, inside the rear block (hand space)
+NAIL_SLAB_BACK = [192, 193, 196, 197, 201, 205]   # the slab's top back edge (x -5.56, z 0.73)
+NAIL_SLAB_BUTT = [194, 195]                        # its bottom back corner (x -6.81, z -4.36)
+
+
+def nail_settings(m):
+    """Round 20: the grip reaches below the old bounding box, so the header's origin moves; the weapon's
+    Scale applies about it, so the weapon offsets keep the gun (and the hand on it) where it was drawn."""
+    d = [(1 - NAIL_SW) * (m.origin[k] - m.out_origin[k]) for k in range(3)]
+    return {"OffsetX": NAIL_OFFSET[0] + d[0], "OffsetY": NAIL_OFFSET[1] + d[1], "OffsetZ": NAIL_OFFSET[2] + d[2]}
+
+
+def nail_grip(m, V, part, row):
+    import improve_weapons as iw
+
+    R = {"grip": (80, row, 168, row + 32), "butt": (168, row, 232, row + 8), "bottom": (168, row + 8, 192, row + 32)}
+    iw.paint(m.skin, m.sw, R["grip"], iw.ribbed_grip(60))
+    iw.paint(m.skin, m.sw, R["butt"], iw.metal(iw.Noise(61), iw.BLUED, 0.3, 0.1))
+    iw.paint(m.skin, m.sw, R["bottom"], iw.metal(iw.Noise(62), iw.BLUED, 0.25, 0.1, lines=3))
+    anchor = m.pos(old_anchor(m, V, NAIL_HAND_ANCHOR))
+    p0 = add(anchor, mul(NAIL_HAND_OFFSET, 1.0 / (K * NAIL_SW)))
+    hs = iw.HandSpace(p0, NAIL_SW, y_centre=NAIL_Y)
+    parts = iw.Parts()
+    iw.grip(parts, hs, R["grip"], R["butt"], R["bottom"], [NAIL_GRIP_TOP] + iw.GRIP_PROFILE)
+    ids = [part.vert(p, st) for p, st in parts.verts]
+    for a, b, c in parts.tris:
+        m.add_tri(ids[a], ids[b], ids[c])
+    # The slab folds in: its back edge just inside the grip's back under the rear block, its butt inside.
+    for vs, (x, z), spread in ((NAIL_SLAB_BACK, (iw.grip_x(-0.2) - 0.62, -0.2), 0.4),
+                               (NAIL_SLAB_BUTT, (iw.grip_x(-3.0) - 0.4, -3.0), 0.3)):
+        for v in vs:
+            y = iw.GRIP_Y + (spread if m.pos(V(v))[1] > NAIL_Y else -spread)
+            for w in V.all(v):
+                part.pin(w, hs.m(x, z, y))
 
 
 # ---------------------------------------------------------------------------------------------
@@ -880,12 +1050,120 @@ def lava2(m, V):
 
 
 # ---------------------------------------------------------------------------------------------
+# Round 20: the holes (voice notes 20-08-09, 20-08-30: "the end of the barrel is see-through and also part
+# of the handle"; 20-15-13: the nailgun's hinge has no bottom). The models were made to be seen from behind
+# and above; held in VR they are seen from every side. seal_mdl.py closes what check_mdl_holes.py finds,
+# with new triangles only (no anchor moves): here the painting and the shapes each gun wants.
+
+NAIL2_BODY_BOTTOM = -6.5   # the super nailgun body's missing bottom is at z -7.0, its front at x 15.8
+NAIL2_MUZZLE_X = 39.0      # the barrels' mouths are at x 40.1
+
+
+def seal_nail2(m):
+    """The super nailgun (and the lava one): the barrels' mouths get bores, the body its missing front and
+    bottom, the hub between the barrels its front; the cracks along the body's back corners (the grooves'
+    new vertices on its edges, round 16) are filled."""
+    from seal_mdl import seal
+
+    row = m.grow_skin(16)
+    R = {"cap": (0, row, 48, row + 16), "rim": (48, row, 112, row + 8), "wall": (48, row + 8, 112, row + 16),
+         "floor": (112, row, 144, row + 16), "hub": (144, row, 176, row + 16)}
+    paint_panel(m, R["cap"], [49, 191, 16, 174, 17, 173], 21)
+    paint_panel(m, R["rim"], [32, 33, 34, 35, 36, 37], 22)
+    paint_panel(m, R["wall"], [0, 32, 1, 33, 34], 23, grain=0.15)
+    paint_panel(m, R["floor"], [0, 0, 0, 32, 1], 24, grain=0.1)
+    paint_panel(m, R["hub"], [32, 33, 34, 35, 36], 25)
+
+    def special(s, loop):
+        c = s.centre(loop)
+        if c[0] > NAIL2_MUZZLE_X:
+            s.bore(loop, R["rim"], R["wall"], R["floor"], inner=0.6, depth=3.0, what="barrel mouth")
+            return True
+        if s.size(loop) > 8.0:  # the body's front and bottom: one loop round the corner between them
+            bottom, front = s.split(loop, lambda p: p[2] < NAIL2_BODY_BOTTOM)
+            s.cap(bottom, R["cap"], "body bottom")
+            s.cap(front, R["cap"], "body front")
+            return True
+        if c[0] > 30.0:
+            s.cap(loop, R["hub"], "hub front")
+            return True
+        return False
+
+    seal(m, R["cap"], special, "v_nail2/v_lava2")
+
+
+def seal_light(m):
+    """The lightning gun (and the plasma gun): the body's underside was open (seen from below, one looked
+    into the gun), the keel under the barrel had its back end wound the wrong way round, and two cracks
+    ran along the body's back corners."""
+    from seal_mdl import seal
+
+    row = m.grow_skin(16)
+    R = {"cap": (0, row, 64, row + 16)}
+    paint_panel(m, R["cap"], [16, 16, 174, 173, 172, 171], 41)
+    seal(m, R["cap"], None, "v_light/v_plasma", fix_flips=True)
+
+
+NAIL_HINGE = (7.4, 0.1, 1.6)   # the hinge block between the barrels (x 6 .. 8.8, z 1.59 .. 2.32)
+
+
+def seal_nail(m):
+    """The nailgun (and the lava one): the hinge block under the barrels had no bottom and no front (one
+    loop round the corner between them), and the new grip's top (inside the rear block) is capped."""
+    from seal_mdl import seal
+
+    row = m.grow_skin(16)
+    R = {"cap": (0, row, 32, row + 16), "hinge": (32, row, 64, row + 16)}
+    paint_panel(m, R["cap"], [0, 0, 32, 33, 34], 31)
+    paint_panel(m, R["hinge"], [0, 32, 33, 34, 35], 32)
+
+    def special(s, loop):
+        c = s.centre(loop)
+        if math.dist(c, NAIL_HINGE) < 1.5 and s.flatness(loop) > 0.1:
+            bottom, front = s.split(loop, lambda p: p[2] < 1.8)
+            s.cap(bottom, R["hinge"], "hinge bottom")
+            s.cap(front, R["hinge"], "hinge front")
+            return True
+        return False
+
+    s = seal(m, R["cap"], special, "v_nail/v_lava")
+    # Where the rear block's sloping sides meet the top rail, each side's slope reaches forward past the
+    # rail's side (its front edge is a "stray" open edge: check_mdl_holes.py), and from in front one saw
+    # its back through the wedge between them. A triangle each side, both ways round, closes the wedge:
+    # the slope's front edge down to the rail's side at the same height.
+    P = m.frames[0][1]
+
+    def at(p):
+        return min(range(m.num_old), key=lambda v: math.dist(P[v], p))
+
+    for side in (1, -1):
+        a, b = at((-0.88, 2.24 if side > 0 else -2.17, 3.45)), at((-2.91, 0.66 if side > 0 else -0.73, 4.32))
+        e, f, g = at((-2.91, 0.66 if side > 0 else -0.73, 4.32)), at((-2.91, 2.2 if side > 0 else -2.13, 2.5)), \
+            at((14.9, 0.66 if side > 0 else -0.73, 4.41))
+        # The rail side's point at a's x and z: e + k (f - e) + w (g - e).
+        E, F, G, A = P[e], P[f], P[g], P[a]
+        d = (F[0] - E[0]) * (G[2] - E[2]) - (G[0] - E[0]) * (F[2] - E[2])
+        k = ((A[0] - E[0]) * (G[2] - E[2]) - (G[0] - E[0]) * (A[2] - E[2])) / d
+        w = ((F[0] - E[0]) * (A[2] - E[2]) - (A[0] - E[0]) * (F[2] - E[2])) / d
+
+        def c_of(Q, e=e, f=f, g=g, k=k, w=w):
+            return add(Q[e], add(mul(sub(Q[f], Q[e]), k), mul(sub(Q[g], Q[e]), w)))
+
+        st = (R["cap"][0] + 8, R["cap"][1] + 8)
+        c1, c2 = s.vert(c_of, st), s.vert(c_of, st)
+        s.tri(s.copy(a, st), s.copy(b, st), c1)
+        s.tri(s.copy(b, st), s.copy(a, st), c2)
+    s.finish()
+
+
+# ---------------------------------------------------------------------------------------------
 
 MODELS = [  # file, builder, vr_weapons.inc slot, anchors, the slot's new settings
     ("v_nail2.mdl", nail2, 4, [("hand", 28), ("muzzle", 129), ("2h", 94), ("wpnbtn", 28), ("wpntxt", 28)], None),
     ("v_light.mdl", light, 7, [("hand", 57), ("muzzle", 104), ("2h", 230), ("wpnbtn", 57), ("wpntxt", 57)],
      light_settings),
-    ("v_nail.mdl", nail, 3, [("hand", 5), ("muzzle", 33), ("2h", 51), ("wpnbtn", 97), ("wpntxt", 0)], None),
+    ("v_nail.mdl", nail, 3, [("hand", 5), ("muzzle", 33), ("2h", 51), ("wpnbtn", 97), ("wpntxt", 0)],
+     nail_settings),
 ]
 
 

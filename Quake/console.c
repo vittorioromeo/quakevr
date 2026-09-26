@@ -129,6 +129,10 @@ double		con_times[NUM_CON_TIMES];	// realtime time the line was generated
 // QVR: the same for more lines, for the wrist gadget's log (vr_notify_wrist, Con_NotifyLine).
 #define	VR_CON_TIMES 16
 static double	vr_con_times[VR_CON_TIMES];
+// And whether each came from the server (svc_print: Con_ServerPrint), and what is being printed: 1 the
+// server's, -1 a centre print's echo (not for the log: the hologram shows the centre print), 0 else.
+static unsigned char	vr_con_server[VR_CON_TIMES];
+static int	vr_con_kind;
 
 int			con_vislines;
 
@@ -935,7 +939,7 @@ newest (0): its text (con_linewidth characters, padded with spaces) and the seco
 printed. 0 when there is no such line, or it is not a notify line (cleared, or [skipnotify]).
 ================
 */
-int Con_NotifyLine (int age, const char **text, int *length, double *seconds)
+int Con_NotifyLine (int age, const char **text, int *length, double *seconds, int *server)
 {
 	int line = con_current - age;
 	double time;
@@ -948,7 +952,23 @@ int Con_NotifyLine (int age, const char **text, int *length, double *seconds)
 	*text = con_text + (line % con_totallines) * con_linewidth;
 	*length = con_linewidth;
 	*seconds = realtime - time;
+	*server = vr_con_server[line % VR_CON_TIMES];
 	return 1;
+}
+
+/*
+================
+Con_ServerPrint
+
+QVR: a server's print (svc_print), its lines marked as the server's: the game's messages (pickups,
+deaths, chat) for the wrist gadget's hologram (vr_messages_hologram).
+================
+*/
+void Con_ServerPrint (const char *str)
+{
+	vr_con_kind = 1;
+	Con_Printf ("%s", str);
+	vr_con_kind = 0;
 }
 
 
@@ -1220,8 +1240,13 @@ static void Con_Print (const char *txt)
 			if (con_current >= 0)
 				con_times[con_current % NUM_CON_TIMES] = skipnotify ? 0 : realtime;
 			if (con_current >= 0)
-				vr_con_times[con_current % VR_CON_TIMES] = skipnotify ? 0 : realtime; // QVR
+			{
+				vr_con_times[con_current % VR_CON_TIMES] = skipnotify || vr_con_kind < 0 ? 0 : realtime; // QVR
+				vr_con_server[con_current % VR_CON_TIMES] = vr_con_kind > 0; // QVR
+			}
 		}
+		if (vr_con_kind > 0 && con_current >= 0)
+			vr_con_server[con_current % VR_CON_TIMES] = 1; // QVR: a server's print continuing a line
 
 		switch (c)
 		{
@@ -1559,10 +1584,15 @@ void Con_LogCenterPrint (const char *str)
 	if (con_logcenterprint.value)
 	{
 		qboolean trailing_newline = *str && str[strlen (str) - 1] == '\n';
+		double vr_saved[VR_CON_TIMES]; // QVR: the wrist gadget's log keeps its lines (the echo is not in it)
+		vr_con_kind = -1; // QVR
 		Con_Printf ("%s", Con_Quakebar(40));
 		Con_CenterPrintf (40, trailing_newline ? "%s" : "%s\n", str);
 		Con_Printf ("%s", Con_Quakebar(40));
+		vr_con_kind = 0; // QVR
+		memcpy (vr_saved, vr_con_times, sizeof (vr_saved)); // QVR
 		Con_ClearNotify ();
+		memcpy (vr_con_times, vr_saved, sizeof (vr_saved)); // QVR
 	}
 }
 

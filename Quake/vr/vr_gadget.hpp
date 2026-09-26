@@ -4,7 +4,8 @@
 // and secrets. Raise the wrist and turn it to read it, like a watch. Its screen is a small
 // monochrome CRT (vr_gadget_crt) that glows (vr_screen_glow) and casts a light in its colour the
 // way it faces (vr_gadget_light), and the console's messages float over it in a small log facing
-// the player (vr_notify_wrist), rather than at the edge of the view.
+// the player (vr_notify_wrist), rather than at the edge of the view; the game's messages (a key
+// needed, a pickup) it projects as a hologram just over its screen (vr_messages_hologram).
 
 #pragma once
 
@@ -85,5 +86,18 @@ struct Log
 
 // False when there is nothing to show.
 [[nodiscard]] bool log(Log& out);
+
+// The game's messages as a hologram the gadget projects over its screen (vr_messages_hologram), apart
+// from the log, which keeps the engine's lines (diagnostics: dimmer, and higher, over the hologram).
+// Game messages: the centre prints (a key needed, a secret found, the map's text: SCR_CenterPrint, but
+// not the intermission's) and the server's prints (svc_print: pickups, deaths, chat), less the engine's
+// own replies among those ("godmode ON", setpos's figures, the server's banner). A few seconds each
+// (vr_messages_hologram_time), the newest nearest the screen, facing the viewer, in the screen's colour,
+// on a faint beam of light from the screen, with a hologram's scanlines, flicker and glitches; it is
+// projected (grows out of the screen) as it appears. Only while the screen faces the viewer and is in
+// view: else the centre prints show in front of the head as before (VR_CenterPrintOnWrist). Their text
+// is drawn into a small image when the messages change (renderScreen), and the hologram in each eye's
+// translucent pass (text3d::drawTranslucent), laid out once a frame.
+void drawHologram();
 
 } // namespace qvr::gadget

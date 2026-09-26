@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "vr/vr_api_render.h" // QVR
+#include "vr/vr_ao.hpp" // QVR: dynamic ambient occlusion
 
 extern cvar_t gl_fullbrights, r_oldskyleaf, r_showtris; //johnfitz
 extern cvar_t gl_zfix; // QuakeSpasm z-fighting fix
@@ -222,6 +223,7 @@ static void R_InitBModelInstance (bmodel_gpu_instance_t *inst, entity_t *ent)
 	memset (&inst->padding, 0, sizeof(inst->padding));
 	inst->padding[0] = ent == &cl_entities[0] ? 0.f : VR_EntityGlow (ent); // QVR: the shader's glow
 	inst->padding[1] = VR_ParallaxDepth (ent, mat, NULL); // QVR: its parallax depth in units (vr_parallax)
+	inst->padding[2] = ent == &cl_entities[0] ? 0.f : VR_BrushAOSelf (ent); // QVR: its own dynamic occlusion group (vr/vr_ao.cpp)
 }
 
 /*

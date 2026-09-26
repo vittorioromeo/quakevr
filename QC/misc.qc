@@ -256,10 +256,15 @@ void() barrel_explode =
     self.classname = "explo_box";
     // did say self.owner
     T_RadiusDamage(self, self, 160, world);
-    sound(self, CHAN_VOICE, "weapons/r_exp3.wav", 1, ATTN_NORM);
-    particle2(self.origin, '0 0 0', QVR_PARTICLE_PRESET_EXPLOSION, 1);
 
-    self.origin_z = self.origin_z + 32;
+    // QVR r20: a rocket's explosion (TE_EXPLOSION: its light, particles, heat haze, scorch and sound)
+    // at the box's middle. id's box only played the sound and threw particles at its corner (the
+    // brush model's origin), so it lit nothing.
+    self.origin = (self.absmin + self.absmax) * 0.5;
+    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte(MSG_BROADCAST, TE_EXPLOSION);
+    WriteVec3(MSG_BROADCAST, self.origin);
+
     BecomeExplosion();
 };
 
@@ -744,6 +749,7 @@ void() func_wall =
     self.movetype = MOVETYPE_PUSH;    // so it doesn't get pushed by anything
     self.solid = SOLID_BSP;
     self.use = func_wall_use;
+    VR_PrecacheOwnModel(); // VR: an external brush model (vrfiringrange's second row of monster buttons)
     setmodel(self, self.model);
 };
 
