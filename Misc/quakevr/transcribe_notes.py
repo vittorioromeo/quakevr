@@ -29,6 +29,11 @@ VOCABULARY = ("Quake VR playtest notes. Quake, Ironwail, cvar, hitbox, headshot,
 
 
 def main():
+    # A note may transcribe to any script (Whisper mishears noise as other languages): print it as UTF-8, not the
+    # console's code page, which stopped the run on the first character it couldn't show.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     here = os.path.dirname(os.path.abspath(__file__))
     parser = argparse.ArgumentParser(description="Transcribe Quake VR voice notes")
     parser.add_argument("--notes", default=os.path.normpath(os.path.join(here, "..", "..", "quakevr", "notes")))
