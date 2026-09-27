@@ -94,6 +94,12 @@ void setLean(const glm::vec3& worldLean);
 // and up (scaled by vr_height_calibration), from the player origin under the head (with the lean).
 [[nodiscard]] glm::vec3 bodyAnchor(const State& s, const glm::vec3& offsets);
 
+// Round 21, third pass: a weapon slot's Hand and Weapon Together offset applied to a hand's pose (`h`: mirrored for
+// the off hand), as the hands are updated with the held weapon's; `turn` the world turn it gave (true if it turned the
+// hand). And the held weapon's taken off a pose of `s` (the posing mode's hand as an empty hand at its controller).
+bool wholeOffset(int slot, int h, glm::vec3& pos, glm::vec3& rot, glm::mat3& turn);
+void undoWholeOffset(const State& s, int h, glm::vec3& pos, glm::vec3& rot);
+
 // Helpers.
 [[nodiscard]] glm::vec3 forward(const glm::vec3& angles);
 void angleVectors(

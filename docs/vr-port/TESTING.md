@@ -554,6 +554,20 @@ box (100 health, 101 shells) `vr_test_spawn_dist` units ahead (`vr_test_spawn_de
 `vr_mock_camera <x> <y> <z> <pitch> <yaw>` draws the mock eyes from elsewhere in the tracking space (a spectator's view of
 your body; the hands stay with the head), `vr_mock_camera` alone puts them back.
 
+Weapon posing mode (ROUND21.md, "Weapon posing mode"): `vr_pose [weapon | 1..4 | new | stop] [main | off]` poses the
+weapon in the main hand (or else the off hand's), held in the hand given (`vr_pose_weapon_hand`); `vr_pose_confirm`,
+`vr_pose_undo`, `vr_pose_next`, `vr_pose_type` and `vr_pose_turn <yaw> <tilt>` (no arguments: back to the start) are
+the buttons' actions. The buttons work in the mock too: the confirming hand's `primary` confirms, `secondary` undoes,
+`trigger` goes on to the next thing to pose, `stickclick` changes a hotspot's type (on the weapon: its turn back to the start), `menu` leaves. `vr_pose_check`, after
+leaving, holding the weapon (and, for a hotspot, the other hand holding it by the hotspot: `+graboff;
+vr_mock_button off grip 1`), prints how far the hand is from the pose confirmed last, relative to the weapon (its rig,
+the weapon's muzzle, the drawn palm), and, for the weapon, how far the hand is in the world from where it was drawn
+while posing (the same controller pose: this one shows the angle offsets' Euler quirk). Recipe: `map vrfiringrange;
+wait60; vr_weapon_grip_mode 1; impulse 155; wait60; vr_mock_look 30 0; vr_mock_hand main 0.0 1.33 -0.38 40 0 0;
+vr_mock_fingers main 1 1 1; vr_pose; wait90; vr_mock_button off primary 1; wait3; vr_mock_button off primary 0; wait10;
+vr_pose stop; wait120; vr_pose_check`. The floating weapon's grip is at (0, 1.35, -0.4) in the mock's tracking space
+(40 cm ahead of the head, 35 cm below it); the super shotgun's foregrip is near (-0.06, 1.31, -0.71).
+
 Tuning the body: `vr_show_hip_holsters 1`, `vr_show_upper_holsters 1`, `vr_show_shoulder_holsters 1` and
 `vr_show_virtual_stock 1` mark where the holsters and the virtual stock's shoulders are (green while a hand is
 there); move them with the `vr_*_offset_*` cvars.

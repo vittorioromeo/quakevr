@@ -89,6 +89,12 @@ void hotspotHere_f();
 
 void dumpView_f();
 
+// vr_pose_check (vr_posing.cpp): the hand holding the weapon now (`weaponTarget`: the weapon hand; else the other hand,
+// holding it by a hotspot) against the pose confirmed: its rig and drawn palm, and the weapon's muzzle, where the pose put
+// them relative to each other (`rigInWeapon`, `palmInWeapon`: in the weapon's model frame).
+void posingCheck(bool weaponTarget, int weaponHand, const glm::mat4& rigInWeapon, const glm::vec3& palmInWeapon,
+    const glm::mat4& rigWorld);
+
 // A new map (VR_OnClientClearState): the per-hand states timed by the client's time or eased frame to frame start
 // afresh (a parried blow's knock, the weapons' button hover and morph, the drawn hands' grasp and curls).
 void resetClientState();
