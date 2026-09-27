@@ -1,6 +1,7 @@
 // vr_ao.cpp -- dynamic ambient occlusion: see vr_ao.hpp.
 
 #include "vr_ao.hpp"
+#include "vr_view.hpp"
 #include "vr_engine.hpp"
 #include "vr_avatar.hpp"
 #include "vr_cvars.hpp"
@@ -402,7 +403,10 @@ void addAlias(const entity_t* e, float strength, float reach)
     const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(model)));
     if(VR_AliasBonePoses(e, nullptr))
     {
-        addBody(e, hdr, strength, reach);
+        if(!view::handBonePoses(e, nullptr)) // the jointed hands: the body's shapes stand for them
+        {
+            addBody(e, hdr, strength, reach);
+        }
         return;
     }
     if(VR_IsViewEntity(e) || e == &cl.viewent || e == &cl_entities[cl.viewentity])

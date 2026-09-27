@@ -155,6 +155,11 @@ void(float hand, float kind, float count, float delay, float flags) ejectcasings
 float QVR_CASING_SHOTGUNSHELL = 0;
 float QVR_EJECT_FLICK = 1; // a flick reload: flung by the spinning weapon
 vector(entity e, vector handangles, float grab) carryangles = #0; // a held object's angles: at the grip (grab 1) its turn in the hand is kept; after, it turns with the hand
+// Round 21: hotspot `index` (0..3) of the weapon in `hand`: where (a grip's point, a blade grip's middle; '0 0 0' if
+// none), and its type (what 0: 0 none, 1 grip, 2 blade), bias (1, units) or a blade's share of the way from the hand
+// to the tip (2). The local player's only (as its view draws them).
+vector(entity player, float hand, float index) weaponhotspot = #0;
+float(entity player, float hand, float index, float what) weaponhotspotinfo = #0;
 vector(entity e, vector handpos, vector palm) carryfit = #0; // at the grip: how far to move it (the way the palm faces) to sit against the palm, not in the fist (vr_held_surface_fit)
 void(vector ang) makeforward = #0; // sets v_forward
 vector(entity e, float max) modelbounds = #0; // the model's mins (max 0) or maxs, in model space

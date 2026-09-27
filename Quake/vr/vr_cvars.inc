@@ -456,9 +456,6 @@ QVR_CVAR(vr_swim_debug, "0", CVAR_NONE)               // print each stroke: peak
 QVR_CVAR(vr_sword_drop, "1", CVAR_ARCHIVE)            // chance a knight or hell knight drops its sword, a melee weapon
 QVR_CVAR(vr_sword_damage_mult, "1.5", CVAR_ARCHIVE)   // its swing's damage over the axe's
 QVR_CVAR(vr_wofs_version, "0", CVAR_ARCHIVE)          // the weapon settings changes the config has taken (vr_weapons.cpp)
-QVR_CVAR(vr_weapon_only_x, "0", CVAR_NONE)            // the Weapon Offsets page's "Weapon Only" sliders: changed by d, they move the weapon by d
-QVR_CVAR(vr_weapon_only_y, "0", CVAR_NONE)            // (as Offset X/Y/Z) and keep the drawn hand where it is, as Offset and Hand
-QVR_CVAR(vr_weapon_only_z, "0", CVAR_NONE)            // moved together (weapons::moveWeaponOnly); the delta since the page opened
 QVR_CVAR(vr_carry_take, "0", CVAR_ARCHIVE)            // taking a carried box: 0 let go of it at a holster, 1 the trigger, 2 either
 QVR_CVAR(vr_carry_local, "1", CVAR_ARCHIVE)           // what you carry is drawn in your hand as it moves this frame (0: where the server has it, a frame or a ping behind)
 QVR_CVAR(vr_held_surface_fit, "1", CVAR_ARCHIVE)      // a gripped box, gib or backpack sits against the palm, pushed out of the fist, instead of sunk into the hand (0: where it was gripped)
@@ -569,7 +566,15 @@ QVR_CVAR(vr_forcegrabbable_return_time_deathmatch, "4", CVAR_ARCHIVE)
 QVR_CVAR(vr_forcegrabbable_return_time_singleplayer, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_finger_auto_close_thumb, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_finger_blending_speed, "50", CVAR_ARCHIVE)
-QVR_CVAR(vr_finger_grip_open, "0", CVAR_ARCHIVE)       // fingers closed round any held weapon stay this much open (share of a full curl), added to its fgr_open
+QVR_CVAR(vr_finger_grip_open, "0", CVAR_ARCHIVE)       // retired in round 21 (the fingers wrap the weapons; its finger tweaks instead): kept so saved configs load silently
+QVR_CVAR(vr_hand_fit, "1", CVAR_ARCHIVE)               // round 21: with the jointed hand, the fingers wrap what the hand holds (guns' grips, a foregrip, carried boxes, gibs, the flashlight), closing joint by joint onto its triangles (vr_grasp.cpp)
+QVR_CVAR(vr_weapon_hotspot, "1", CVAR_NONE)            // the Weapon Offsets page's hotspot being edited (1..4)
+QVR_CVAR(vr_show_weapon_hotspots, "0", CVAR_NONE)      // marks the held weapons' hotspots, where the other hand may hold them (the edited one white)
+QVR_CVAR(vr_hand_fit_palm, "5", CVAR_ARCHIVE)          // with it: cm the drawn hand may move off the controller to sit flush on what it holds (0: stays on the controller)
+QVR_CVAR(vr_hand_fit_palm_weapon, "3", CVAR_ARCHIVE)   // the same on a weapon (its own grip, a foregrip, a blade): cm (the weapon is placed in the hand by its settings)
+QVR_CVAR(vr_hand_fit_palm_turn, "20", CVAR_ARCHIVE)    // and degrees it may turn to face the surface it holds (0: not at all)
+QVR_CVAR(vr_debug_grasp, "0", CVAR_NONE)               // print each grasp solve (1), and each finger's stops (2)
+QVR_CVAR(vr_hand_rig, "1", CVAR_ARCHIVE)               // round 21: the jointed hand (progs/hand_rig.md5mesh: three joints a finger, an opposable thumb, continuous curls; vr_handrig.cpp). 0: the palm and five finger models as before
 QVR_CVAR(vr_reload_mode, "2", CVAR_ARCHIVE)
 QVR_CVAR(vr_show_weapon_text, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_weapon_screen, "1", CVAR_ARCHIVE)          // the weapons' ammo counters on a small screen (colours: vr_gadget_screen_*)

@@ -86,6 +86,25 @@ bool setMockButton(int hand, const char* control, bool on)
     return false;
 }
 
+// vr_mock_fingers <main|off> <trigger> <grip> [<thumb 0|1>]: the finger sensors alone (analog trigger and grip,
+// 0..1, the thumb resting), without pressing the buttons: for the drawn fingers (round 21's curl sweeps).
+void mockFingers_f()
+{
+    const int hand = Cmd_Argc() >= 4 ? mockHand(Cmd_Argv(1)) : -1;
+    if(hand < 0)
+    {
+        Con_Printf("usage: vr_mock_fingers <main|off> <trigger 0..1> <grip 0..1> [<thumb 0|1>]\n");
+        return;
+    }
+    HandInput& in = mockInput.hands[hand];
+    in.triggerValue = CLAMP(0.f, static_cast<float>(Q_atof(Cmd_Argv(2))), 1.f);
+    in.gripValue = CLAMP(0.f, static_cast<float>(Q_atof(Cmd_Argv(3))), 1.f);
+    if(Cmd_Argc() >= 5)
+    {
+        in.thumbTouch = Q_atoi(Cmd_Argv(4)) != 0;
+    }
+}
+
 // vr_mock_hand <main|off|head> <x> <y> <z> [<pitch> <yaw> <roll>]: tracking-space position
 // (metres, +x right, +y up, -z forward) and, for a hand, its orientation (degrees: pitch up,
 // yaw left, roll right side up); "vr_mock_hand <main|off|head>" alone restores
@@ -587,6 +606,7 @@ void registerMockCommands()
     Cmd_AddCommand("vr_mock_stick", mockStick_f);
     Cmd_AddCommand("vr_mock_hand", mockHand_f);
     Cmd_AddCommand("vr_mock_look", mockLook_f);
+    Cmd_AddCommand("vr_mock_fingers", mockFingers_f);
     Cmd_AddCommand("vr_mock_play", mockPlay_f);
 }
 

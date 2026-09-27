@@ -51,7 +51,8 @@ void onIdChanged(cvar_t* /* var */)
 
 [[nodiscard]] bool isHandPart(const char* name)
 {
-    return !strcmp(name, "progs/hand_base.mdl") || !strncmp(name, "progs/finger_", 13);
+    // The palm and finger models, and the jointed hand drawn instead of them (vr_handrig.cpp): the fist slot's scale.
+    return !strcmp(name, "progs/hand_base.mdl") || !strncmp(name, "progs/finger_", 13) || !strcmp(name, "progs/hand_rig.mdl");
 }
 
 // Configs archive every slot's settings, so a slot whose defaults change keeps a config's old
@@ -77,8 +78,14 @@ void onIdChanged(cvar_t* /* var */)
 // lava nailgun: the shotguns' pistol grip reaches below the models' old bounds, the offsets follow
 // them; Misc/quakevr/improve_weapons2.py); 13: slots 2, 3, 6, 7, 8, 10, 11, 14, 15, 16 and 18 (the
 // author's placements tuned in the headset, round 20: the alternates moved by the same amounts as
-// their normal guns).
-constexpr int settingsVersion = 13;
+// their normal guns); 14: slots 1..3, 5..7, 9..11, 13..15, 17 (the author's placements after round 20); 15: none
+// reset (round 21: the hand is where the controller is, the fingers wrap the weapon; the two-handed grips became
+// hotspots: a config's own grips, or a weapon it moved or scaled, are turned into hotspots where they were:
+// takeHotspotMigration).
+constexpr int settingsVersion = 15;
+
+// Slots whose hotspots the view is to derive from the config's two-handed grip keys (round 21).
+bool hotspotMigration[numSlots]{};
 
 void resetSlot(int slot)
 {
@@ -147,6 +154,29 @@ void migrate()
             resetSlot(slot);
         }
     }
+    if(vr_wofs_version.value < 14) // the author's placements and finger settings after round 20
+    {
+        for(const int slot : {1, 2, 3, 5, 6, 7, 9, 10, 11, 13, 14, 15, 17})
+        {
+            resetSlot(slot);
+        }
+    }
+    if(vr_wofs_version.value < 15)
+    {
+        constexpr Key tuned[] = {Key::TwoHDisplayMode, Key::TwoHHandAnchorVertex, Key::TwoHFixedOffsetX, Key::TwoHFixedOffsetY,
+            Key::TwoHFixedOffsetZ, Key::TwoHBladeGrip, Key::OffsetX, Key::OffsetY, Key::OffsetZ, Key::Scale};
+        for(int slot = 0; slot < numSlots; slot++)
+        {
+            for(const Key key : tuned)
+            {
+                const cvar_t& var = cvarAt(slot, key);
+                if(strcmp(var.string, var.default_string) != 0)
+                {
+                    hotspotMigration[slot] = true;
+                }
+            }
+        }
+    }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }
 
@@ -155,32 +185,6 @@ void migrate()
 {
     // The first Quake VR releases used a 0.75 world scale; weapon settings are relative to it.
     return (vr_world_scale.value / 0.75f) * vr_gunmodelscale.value;
-}
-
-// The "Weapon Only" sliders: the slot they move (-1: the main hand's weapon), and their values
-// already applied.
-int weaponOnlySlot = -1;
-glm::vec3 weaponOnlyApplied{0.f};
-bool weaponOnlyZeroing = false;
-
-cvar_t* const weaponOnlyCvars[3] = {&vr_weapon_only_x, &vr_weapon_only_y, &vr_weapon_only_z};
-
-void onWeaponOnlyChanged(cvar_t* var)
-{
-    if(weaponOnlyZeroing)
-    {
-        return;
-    }
-    for(int axis = 0; axis < 3; axis++)
-    {
-        if(var == weaponOnlyCvars[axis])
-        {
-            glm::vec3 d{0.f};
-            d[axis] = var->value - weaponOnlyApplied[axis];
-            weaponOnlyApplied[axis] = var->value;
-            moveWeaponOnly(weaponOnlySlot >= 0 ? weaponOnlySlot : heldSlot(1), d);
-        }
-    }
 }
 
 } // namespace
@@ -212,53 +216,6 @@ void registerCvars()
     {
         Cvar_SetCallback(&cvarAt(slot, Key::ID), onIdChanged);
     }
-
-    for(cvar_t* var : weaponOnlyCvars)
-    {
-        Cvar_SetCallback(var, onWeaponOnlyChanged);
-    }
-}
-
-void moveWeaponOnly(int slot, const glm::vec3& d)
-{
-    if(slot < 0 || slot >= numSlots || slot == fistSlot() || d == glm::vec3{0.f})
-    {
-        return;
-    }
-
-    // In the weapon entity's (mirrored, turned) frame, before Ironwail's model matrix, a point `a`
-    // of the model (its anchor vertex: scale_origin + scale * Scale * vertex) is at
-    //   k * (Offset + a)                                  (the weapon: applyPre's S(k) * T(Offset))
-    // and the drawn hand, held at the hand anchor vertex,
-    //   offsetScale() * HandOffset + k * (Offset + a)     (anchorPosition's extra, before S(k)).
-    // Offset + d moves every point of the weapon by k * d; the hand stays if HandOffset takes
-    // back k * d / offsetScale(). Both are in the same frame (mirrored alike for the off hand).
-    const float s = offsetScale();
-    const float back = s > 1e-6f ? modelScale() / s : 0.875f / 0.75f;
-    constexpr Key offsets[3] = {Key::OffsetX, Key::OffsetY, Key::OffsetZ};
-    constexpr Key handOffsets[3] = {Key::HandOffsetX, Key::HandOffsetY, Key::HandOffsetZ};
-    for(int axis = 0; axis < 3; axis++)
-    {
-        if(d[axis] != 0.f)
-        {
-            cvar_t& offset = cvarAt(slot, offsets[axis]);
-            cvar_t& hand = cvarAt(slot, handOffsets[axis]);
-            Cvar_SetValueQuick(&offset, offset.value + d[axis]);
-            Cvar_SetValueQuick(&hand, hand.value - d[axis] * back);
-        }
-    }
-}
-
-void setWeaponOnlyTarget(int slot)
-{
-    weaponOnlySlot = slot;
-    weaponOnlyZeroing = true;
-    for(cvar_t* var : weaponOnlyCvars)
-    {
-        Cvar_SetValueQuick(var, 0.f);
-    }
-    weaponOnlyZeroing = false;
-    weaponOnlyApplied = glm::vec3{0.f};
 }
 
 cvar_t* cvar(int slot, Key key)
@@ -275,6 +232,87 @@ void resetSlotToDefaults(int slot)
 }
 
 // The slot's settings that differ from the shipped defaults, as vr_weapons.inc lines.
+Key hotspotKey(int index, int field)
+{
+    return static_cast<Key>(static_cast<int>(Key::Hotspot1Type) + 5 * index + field);
+}
+
+Hotspot hotspot(int slot, int index)
+{
+    Hotspot h;
+    if(slot < 0 || slot >= numSlots || index < 0 || index >= maxHotspots)
+    {
+        return h;
+    }
+    const int type = static_cast<int>(value(slot, hotspotKey(index, 0)));
+    h.type = type == 1 ? HotspotType::Grip : type == 2 ? HotspotType::Blade : HotspotType::None;
+    h.pos = vec(slot, hotspotKey(index, 1), hotspotKey(index, 2), hotspotKey(index, 3));
+    h.bias = value(slot, hotspotKey(index, 4));
+    return h;
+}
+
+void setHotspot(int slot, int index, const Hotspot& h)
+{
+    if(slot < 0 || slot >= numSlots || index < 0 || index >= maxHotspots)
+    {
+        return;
+    }
+    Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 0)), static_cast<float>(static_cast<int>(h.type)));
+    for(int k = 0; k < 3; k++)
+    {
+        Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 1 + k)), h.pos[k]);
+    }
+    Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 4)), h.bias);
+}
+
+bool takeHotspotMigration(int slot)
+{
+    if(slot < 0 || slot >= numSlots || !hotspotMigration[slot])
+    {
+        return false;
+    }
+    hotspotMigration[slot] = false;
+    return true;
+}
+
+bool retired(Key key)
+{
+    switch(key)
+    {
+        case Key::HandAnchorVertex:
+        case Key::HandOffsetX:
+        case Key::HandOffsetY:
+        case Key::HandOffsetZ:
+        case Key::GunOffsetX:
+        case Key::GunOffsetY:
+        case Key::GunOffsetZ:
+        case Key::Length:
+        case Key::TwoHFixedMainHandOffsetX:
+        case Key::TwoHFixedMainHandOffsetY:
+        case Key::TwoHFixedMainHandOffsetZ:
+        case Key::WeightHandVelMult:
+        case Key::WeightHandThrowVelMult:
+        case Key::FingersX:
+        case Key::FingersY:
+        case Key::FingersZ:
+        case Key::FingerOpen:
+        case Key::FingerThumbOpen:
+        case Key::FingerIndexOpen:
+        case Key::FingerMiddleOpen:
+        case Key::FingerRingOpen:
+        case Key::FingerPinkyOpen:
+        case Key::TwoHFingerOpen:
+        case Key::TwoHFingerThumbOpen:
+        case Key::TwoHDisplayMode: // the two-handed grips: hotspots now
+        case Key::TwoHHandAnchorVertex:
+        case Key::TwoHFixedOffsetX:
+        case Key::TwoHFixedOffsetY:
+        case Key::TwoHFixedOffsetZ:
+        case Key::TwoHBladeGrip: return true;
+        default: return false;
+    }
+}
+
 void printSlot(int slot)
 {
     if(slot < 0 || slot >= numSlots)
@@ -286,7 +324,7 @@ void printSlot(int slot)
     for(int key = 0; key < numKeys; key++)
     {
         const cvar_t& var = cvarAt(slot, static_cast<Key>(key));
-        if(strcmp(var.string, var.default_string))
+        if(!retired(static_cast<Key>(key)) && strcmp(var.string, var.default_string))
         {
             Con_Printf("QVR_WEAPON_DEFAULT(%d, %s, \"%s\") // was %s\n", slot, keyEnumNames[key], var.string,
                 var.default_string);
