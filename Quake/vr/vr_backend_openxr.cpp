@@ -489,6 +489,7 @@ private:
     XrAction triggerValueAction{XR_NULL_HANDLE};
     XrAction gripValueAction{XR_NULL_HANDLE};
     XrAction thumbTouchAction{XR_NULL_HANDLE};
+    XrAction triggerTouchAction{XR_NULL_HANDLE};
     XrAction hapticAction{XR_NULL_HANDLE};
     XrPath handPaths[2]{XR_NULL_PATH, XR_NULL_PATH}; // [0] left, [1] right
     XrSpace handSpaces[2]{XR_NULL_HANDLE, XR_NULL_HANDLE};
@@ -968,7 +969,8 @@ private:
                     QVR_BOTH(gripValueAction, "input/squeeze/value"),
                     QVR_BOTH(thumbTouchAction, "input/thumbstick/touch"),
                     {&thumbTouchAction, QVR_L("input/x/touch")}, {&thumbTouchAction, QVR_L("input/y/touch")},
-                    {&thumbTouchAction, QVR_R("input/a/touch")}, {&thumbTouchAction, QVR_R("input/b/touch")}});
+                    {&thumbTouchAction, QVR_R("input/a/touch")}, {&thumbTouchAction, QVR_R("input/b/touch")},
+                    QVR_BOTH(triggerTouchAction, "input/trigger/touch")});
         }
 
         // No menu button: the left B opens the menu.
@@ -980,7 +982,8 @@ private:
                 QVR_BOTH(hapticAction, "output/haptic"), QVR_BOTH(triggerValueAction, "input/trigger/value"),
                 QVR_BOTH(gripValueAction, "input/squeeze/value"),
                 QVR_BOTH(thumbTouchAction, "input/thumbstick/touch"), QVR_BOTH(thumbTouchAction, "input/a/touch"),
-                QVR_BOTH(thumbTouchAction, "input/b/touch"), QVR_BOTH(thumbTouchAction, "input/trackpad/touch")});
+                QVR_BOTH(thumbTouchAction, "input/b/touch"), QVR_BOTH(thumbTouchAction, "input/trackpad/touch"),
+                QVR_BOTH(triggerTouchAction, "input/trigger/touch")});
 
         // Trackpads as sticks, their clicks as the primary buttons; the right menu button is the
         // secondary button.
@@ -1033,6 +1036,7 @@ private:
         triggerValueAction = makeAction(XR_ACTION_TYPE_FLOAT_INPUT, "trigger_curl", "Index finger (trigger)", true);
         gripValueAction = makeAction(XR_ACTION_TYPE_FLOAT_INPUT, "grip_curl", "Other fingers (grip)", true);
         thumbTouchAction = makeAction(XR_ACTION_TYPE_BOOLEAN_INPUT, "thumb_touch", "Thumb resting", true);
+        triggerTouchAction = makeAction(XR_ACTION_TYPE_BOOLEAN_INPUT, "trigger_touch", "Index finger on the trigger", true);
         hapticAction = makeAction(XR_ACTION_TYPE_VIBRATION_OUTPUT, "haptic", "Haptics", true);
 
         suggestBindings();
@@ -1112,6 +1116,7 @@ private:
             hand.triggerValue = floatState(triggerValueAction, side);
             hand.gripValue = floatState(gripValueAction, side);
             hand.thumbTouch = boolState(thumbTouchAction, side);
+            hand.triggerTouch = boolState(triggerTouchAction, side);
         }
     }
 
