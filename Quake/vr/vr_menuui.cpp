@@ -129,6 +129,8 @@ constexpr glm::vec4 fill{0.86f, 0.55f, 0.18f, 1.f};
 constexpr glm::vec4 thumbRing{0.55f, 0.32f, 0.10f, 1.f};
 constexpr glm::vec4 thumb{1.f, 0.90f, 0.70f, 1.f};
 constexpr glm::vec4 marker{0.75f, 0.90f, 1.f, 0.9f};
+constexpr glm::vec4 thumbRingPast{0.20f, 0.45f, 0.72f, 1.f}; // a value past the bar's end
+constexpr glm::vec4 thumbPast{0.78f, 0.92f, 1.f, 1.f};
 constexpr glm::vec4 switchOff{0.30f, 0.27f, 0.24f, 1.f};
 constexpr glm::vec4 knobOff{0.62f, 0.58f, 0.52f, 1.f};
 constexpr glm::vec4 highlight{1.f, 0.72f, 0.35f, 0.14f};
@@ -204,6 +206,18 @@ struct Painter
             const float inset = (t + t1) * 0.5f * w / half;
             band(x + inset, x + w, yc, -t1, -t, color);
             band(x + inset, x + w, yc, t, t1, color);
+        }
+    }
+
+    // The same pointing right, its tip at x.
+    void arrowHeadRight(float x, float w, float yc, float half, const glm::vec4& color) const
+    {
+        for(float t = 0.f; t < half; t += step)
+        {
+            const float t1 = std::fmin(t + step, half);
+            const float inset = (t + t1) * 0.5f * w / half;
+            band(x - w, x - inset, yc, -t1, -t, color);
+            band(x - w, x - inset, yc, t, t1, color);
         }
     }
 };
@@ -606,18 +620,18 @@ extern "C" int VR_MenuCanvas(float* scalex, float* scaley)
     return 1;
 }
 
-// Quake's slider: 10 cells from x, the thumb's middle at x + 4 .. x + 76 (as the menus' mouse
-// code maps it), the value's text at x + 96.
-extern "C" int VR_MenuDrawSlider(int x, int y, float range, float marker, const char* desc)
+namespace
 {
-    if(!styled())
-    {
-        return 0;
-    }
 
+// Quake's slider: 10 cells from x, the thumb's middle at x + 4 .. x + 76 (as the menus' mouse
+// code maps it), the value's text at x + 96. A value past an end (`past` -1 left, 1 right): the
+// thumb at that end in another colour, and an arrow just outside it (between the bar and the text,
+// or between the row's cursor and the bar).
+void drawStyledSlider(int x, int y, float range, float marker, int past, const char* desc)
+{
     const Painter p;
     const float yc = y + 4.f;
-    const float thumb = x + 4.f + 72.f * CLAMP(0.f, range, 1.f);
+    const float thumb = x + 4.f + 72.f * (past ? (past > 0 ? 1.f : 0.f) : CLAMP(0.f, range, 1.f));
 
     p.rounded(x - 1.f, x + 81.f, yc, 1.75f, 1.75f, colors::track);
     p.rounded(x - 1.f, thumb, yc, 1.75f, 1.75f, colors::fill);
@@ -626,13 +640,42 @@ extern "C" int VR_MenuDrawSlider(int x, int y, float range, float marker, const 
         const float m = x + 4.f + 72.f * CLAMP(0.f, marker, 1.f);
         p.rect(m - 0.6f, m + 0.6f, yc, 4.f, colors::marker);
     }
-    p.disc(thumb, yc, 4.5f, colors::thumbRing);
-    p.disc(thumb, yc, 3.25f, colors::thumb);
+    p.disc(thumb, yc, 4.5f, past ? colors::thumbRingPast : colors::thumbRing);
+    p.disc(thumb, yc, 3.25f, past ? colors::thumbPast : colors::thumb);
+    if(past > 0)
+    {
+        p.arrowHeadRight(x + 89.f, 5.f, yc, 3.f, colors::thumbPast);
+    }
+    else if(past < 0)
+    {
+        p.arrowHead(x - 9.f, 5.f, yc, 3.f, colors::thumbPast);
+    }
 
     if(x + 96 + 5 * 8 < glcanvas.right)
     {
         M_Print(x + 96, y, desc);
     }
+}
+
+} // namespace
+
+bool qvr::menuui::drawSlider(int x, int y, float range, int past, const char* desc)
+{
+    if(!styled())
+    {
+        return false;
+    }
+    drawStyledSlider(x, y, range, -1.f, past, desc);
+    return true;
+}
+
+extern "C" int VR_MenuDrawSlider(int x, int y, float range, float marker, const char* desc)
+{
+    if(!styled())
+    {
+        return 0;
+    }
+    drawStyledSlider(x, y, range, marker, 0, desc);
     return 1;
 }
 

@@ -4,7 +4,9 @@
 // Quake VR settings pages (vr_menu_pages.inc) and the new body, throwing and force grab tweaks,
 // grouped by topic, the long ones split into pages of a screenful or so. In a headset the pages are
 // taller (vr_menu_height, vr_menuui.cpp): more rows at once. Escape (B) goes back a page. With the mouse (and the VR laser pointer, vr_menuui.cpp): the row under
-// it is selected, a click picks it, and a slider is set where it is clicked and dragged.
+// it is selected, a click picks it, and a slider is set where it is clicked and dragged. Sliders of
+// placements, angles, scales and distances (extend()) go on past their bar's ends with left and right
+// (the bar showing its end, the value the real one); values set further off in the console stay.
 
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
@@ -78,11 +80,35 @@ struct Item
     // Slider: shown instead of the value while it is negative (-1: a hue following the player's).
     const char* negativeLabel{nullptr};
 
+    // Slider: left and right go on past the bar's ends, as far as hardMin..hardMax (extend()).
+    bool extendable{false};
+    float hardMin{0.f};
+    float hardMax{0.f};
+
     [[nodiscard]] Item help(const char* text) const
     {
         Item i = *this;
         i.helpText = text;
         return i;
+    }
+
+    // A slider whose value means something past its bar's ends (offsets, positions, angles, scales,
+    // distances; not shares, volumes, colours or chances): left and right step on past them, to
+    // lo..hi, the bar showing its end (the laser sets it only along the bar).
+    [[nodiscard]] Item extend(float lo, float hi) const
+    {
+        Item i = *this;
+        i.extendable = true;
+        i.hardMin = std::fmin(lo, min);
+        i.hardMax = std::fmax(hi, max);
+        return i;
+    }
+
+    // As far as four times the bar's width beyond each end (none below a bar starting at 0 or more).
+    [[nodiscard]] Item extend() const
+    {
+        const float width = max - min;
+        return extend(min >= 0.f ? min : min - 4.f * width, max + 4.f * width);
     }
 };
 
@@ -373,19 +399,19 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Hip Holsters Follow Legs", vr_holster_leg_follow, 0.f, 1.f, 0.05f, "%.2f")
             .help("Full body: the hip holsters move with the walking and kicking legs (0: fixed on the body, 1: all the way)."),
         header("Placement"),
-        slider("Torso Offset", vr_body_torso_back, -0.15f, 0.3f, 0.01f, "%.2f m")
+        slider("Torso Offset", vr_body_torso_back, -0.2f, 0.4f, 0.01f, "%.2f m").extend(-1.f, 1.f)
             .help("How far the torso sits behind your neck (negative: in front)."),
-        slider("Legs Offset", vr_body_legs_back, -0.15f, 0.3f, 0.01f, "%.2f m")
+        slider("Legs Offset", vr_body_legs_back, -0.2f, 0.4f, 0.01f, "%.2f m").extend(-1.f, 1.f)
             .help("How far the feet stand behind your head (negative: in front)."),
-        slider("Shoulders Back", vr_body_shoulders_back, -0.1f, 0.15f, 0.01f, "%.2f m")
+        slider("Shoulders Back", vr_body_shoulders_back, -0.15f, 0.2f, 0.01f, "%.2f m").extend(-0.5f, 0.5f)
             .help("How far the shoulders sit behind the chest (negative: in front)."),
-        slider("Shoulders Up", vr_body_shoulders_up, -0.1f, 0.1f, 0.01f, "%.2f m"),
-        slider("Shoulders Width", vr_body_shoulders_out, -0.08f, 0.08f, 0.01f, "%.2f m")
+        slider("Shoulders Up", vr_body_shoulders_up, -0.15f, 0.15f, 0.01f, "%.2f m").extend(-0.5f, 0.5f),
+        slider("Shoulders Width", vr_body_shoulders_out, -0.12f, 0.12f, 0.01f, "%.2f m").extend(-0.3f, 0.3f)
             .help("How much further out each shoulder is (negative: in)."),
-        slider("Eyes Forward", vr_body_eye_forward, 0.f, 0.2f, 0.01f, "%.2f m")
+        slider("Eyes Forward", vr_body_eye_forward, 0.f, 0.25f, 0.01f, "%.2f m").extend(-0.1f, 0.5f)
             .help("From the top of the neck to the eyes, forward."),
-        slider("Eyes Up", vr_body_eye_up, 0.f, 0.2f, 0.01f, "%.2f m").help("From the top of the neck to the eyes, up."),
-        slider("Crouch Tilt", vr_body_crouch_tilt, 0.f, 60.f, 5.f, "%.0f deg")
+        slider("Eyes Up", vr_body_eye_up, 0.f, 0.25f, 0.01f, "%.2f m").extend(-0.1f, 0.5f).help("From the top of the neck to the eyes, up."),
+        slider("Crouch Tilt", vr_body_crouch_tilt, 0.f, 80.f, 5.f, "%.0f deg")
             .help("How far the back tilts forward in a full crouch (the hips stay under you)."),
     };
 }
@@ -394,10 +420,10 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
 [[nodiscard]] std::vector<Item> pageBodyArms()
 {
     return {
-        slider("Arm Length", vr_body_arm_length, 0.8f, 1.3f, 0.01f, "%.2f"),
-        slider("Arm Stretch", vr_body_arm_stretch, 1.f, 1.5f, 0.05f, "%.2f")
+        slider("Arm Length", vr_body_arm_length, 0.7f, 1.4f, 0.01f, "%.2f").extend(0.5f, 2.f),
+        slider("Arm Stretch", vr_body_arm_stretch, 1.f, 1.5f, 0.05f, "%.2f").extend(1.f, 3.f)
             .help("How far arms may stretch to reach the hands (1: not at all)."),
-        slider("Shoulder Reach", vr_body_shoulder_reach, 0.f, 0.2f, 0.01f, "%.2f m")
+        slider("Shoulder Reach", vr_body_shoulder_reach, 0.f, 0.25f, 0.01f, "%.2f m").extend(0.f, 0.6f)
             .help("How far the shoulders may move out beyond that."),
         slider("Forearm Twist", vr_body_forearm_twist, 0.f, 1.f, 0.05f, "%.2f")
             .help("Share of the wrist's roll the forearm follows."),
@@ -405,20 +431,20 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Elbow Back", vr_body_elbow_back, 0.f, 1.f, 0.05f, "%.2f"),
         slider("Elbow From Hand", vr_body_elbow_hand, 0.f, 1.f, 0.05f, "%.2f")
             .help("How much the elbow points away from the back of the hand."),
-        slider("Shoulders Up", vr_body_shoulder_up, 0.f, 45.f, 1.f, "%.0f deg")
+        slider("Shoulders Up", vr_body_shoulder_up, 0.f, 60.f, 1.f, "%.0f deg").extend(0.f, 90.f)
             .help("How far the shoulders rise when reaching up."),
-        slider("Shoulders Forward", vr_body_shoulder_forward, 0.f, 45.f, 1.f, "%.0f deg")
+        slider("Shoulders Forward", vr_body_shoulder_forward, 0.f, 60.f, 1.f, "%.0f deg").extend(0.f, 90.f)
             .help("How far the shoulders swing forward when reaching far forward."),
         header("Pauldrons"),
         toggle("Pauldrons", vr_body_pauldrons).help("Leather pads over the shoulders and the tops of the arms, as the Quake ranger wears."),
         cycle("Pauldron Style", vr_body_pauldron_style, {{0.f, "Ranger leather"}, {1.f, "Armour colour"}, {2.f, "Steel"}})
             .help("Armour colour: green, yellow or red as the armour you wear (leather without)."),
-        slider("Pauldron Size", vr_body_pauldron_size, 0.5f, 1.5f, 0.05f, "%.2fx"),
+        slider("Pauldron Size", vr_body_pauldron_size, 0.5f, 1.5f, 0.05f, "%.2fx").extend(0.25f, 4.f),
         slider("Pauldron Follows Arm", vr_body_pauldron_follow, 0.f, 1.f, 0.05f, "%.2f")
             .help("How much the shoulder cap turns with the upper arm (the lower plates follow the arm fully)."),
-        slider("Pauldron Forward", vr_body_pauldron_forward, -0.05f, 0.05f, 0.005f, "%.3f m"),
-        slider("Pauldron Up", vr_body_pauldron_up, -0.05f, 0.05f, 0.005f, "%.3f m"),
-        slider("Pauldron Out", vr_body_pauldron_out, -0.05f, 0.05f, 0.005f, "%.3f m"),
+        slider("Pauldron Forward", vr_body_pauldron_forward, -0.08f, 0.08f, 0.005f, "%.3f m").extend(-0.3f, 0.3f),
+        slider("Pauldron Up", vr_body_pauldron_up, -0.08f, 0.08f, 0.005f, "%.3f m").extend(-0.3f, 0.3f),
+        slider("Pauldron Out", vr_body_pauldron_out, -0.08f, 0.08f, 0.005f, "%.3f m").extend(-0.3f, 0.3f),
     };
 }
 
@@ -429,25 +455,25 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         toggle("Chest Flashlight", vr_flashlight)
             .help("A torch hanging on your belt, on your off hand's side (lighting only your feet there). Trigger at it: on or off. Grip it with an open, still hand to take it (a fist closing by it in a fight does nothing); let go and it springs back. In your hand: B or Y by a gun clips it on the gun, at your head on your head (a head torch), elsewhere turns it round (low grip or overhead)."),
         slider("Brightness", vr_flashlight_brightness, 0.25f, 2.5f, 0.05f, "%.2fx"),
-        slider("Range", vr_flashlight_range, 300.f, 2000.f, 50.f, "%.0f"),
+        slider("Range", vr_flashlight_range, 300.f, 2000.f, 50.f, "%.0f").extend(100.f, 6000.f),
         slider("Visible Beam", vr_flashlight_beam, 0.f, 1.f, 0.05f, "%.2f").help("A soft cone of light in the air from the lamp (0: none)."),
         cycle("Beam Quality", vr_flashlight_beam_quality, {{0.f, "Low"}, {1.f, "Medium"}, {2.f, "High"}})
             .help("How closely the visible beam fades where walls cut it. Higher looks for them more often, costing more time each frame."),
         toggle("Casts Shadows", vr_flashlight_shadows).help("Its light casts shadows (takes one of the shadowed dynamic lights)."),
-        slider("Lean Out", vr_flashlight_tilt, -10.f, 30.f, 1.f, "%.0f deg").help("How far the stored torch, hanging on your belt lens down, leans its lens out from your body."),
-        slider("Forward", vr_flashlight_forward, -0.05f, 0.05f, 0.005f, "%.3f m"),
-        slider("Up", vr_flashlight_up, -0.15f, 0.15f, 0.01f, "%.2f m"),
-        slider("Out", vr_flashlight_out, -0.08f, 0.08f, 0.01f, "%.2f m").help("Towards your off hand's side."),
-        slider("In Hand Forward", vr_flashlight_hand_forward, -0.1f, 0.05f, 0.005f, "%.3f m").help("Where the held lamp sits in your fist."),
-        slider("In Hand Up", vr_flashlight_hand_up, -0.1f, 0.05f, 0.005f, "%.3f m"),
-        slider("On Gun Forward", vr_flashlight_gun_forward, -0.15f, 0.05f, 0.005f, "%.3f m")
+        slider("Lean Out", vr_flashlight_tilt, -10.f, 30.f, 1.f, "%.0f deg").extend(-30.f, 60.f).help("How far the stored torch, hanging on your belt lens down, leans its lens out from your body."),
+        slider("Forward", vr_flashlight_forward, -0.05f, 0.05f, 0.005f, "%.3f m").extend(),
+        slider("Up", vr_flashlight_up, -0.15f, 0.15f, 0.01f, "%.2f m").extend(),
+        slider("Out", vr_flashlight_out, -0.08f, 0.08f, 0.01f, "%.2f m").extend().help("Towards your off hand's side."),
+        slider("In Hand Forward", vr_flashlight_hand_forward, -0.1f, 0.05f, 0.005f, "%.3f m").extend().help("Where the held lamp sits in your fist."),
+        slider("In Hand Up", vr_flashlight_hand_up, -0.1f, 0.05f, 0.005f, "%.3f m").extend(),
+        slider("On Gun Forward", vr_flashlight_gun_forward, -0.15f, 0.05f, 0.005f, "%.3f m").extend()
             .help("Held near the gun in your other hand, B or Y clips it along the barrel (under it, or beside a bulky gun). B or Y at it takes it off."),
-        slider("On Gun Up", vr_flashlight_gun_up, -0.05f, 0.05f, 0.005f, "%.3f m"),
-        slider("On Gun Out", vr_flashlight_gun_out, -0.05f, 0.05f, 0.005f, "%.3f m").help("Away from your body."),
-        slider("On Head Forward", vr_flashlight_head_forward, -0.05f, 0.05f, 0.005f, "%.3f m")
+        slider("On Gun Up", vr_flashlight_gun_up, -0.05f, 0.05f, 0.005f, "%.3f m").extend(),
+        slider("On Gun Out", vr_flashlight_gun_out, -0.05f, 0.05f, 0.005f, "%.3f m").extend().help("Away from your body."),
+        slider("On Head Forward", vr_flashlight_head_forward, -0.05f, 0.05f, 0.005f, "%.3f m").extend()
             .help("Held at a temple, B or Y clips it on your head, lighting where you look. A hand at it with B or Y, or its grip, takes it off."),
-        slider("On Head Up", vr_flashlight_head_up, -0.05f, 0.05f, 0.005f, "%.3f m"),
-        slider("On Head Out", vr_flashlight_head_out, -0.03f, 0.05f, 0.005f, "%.3f m").help("Away from your head, to the side."),
+        slider("On Head Up", vr_flashlight_head_up, -0.05f, 0.05f, 0.005f, "%.3f m").extend(),
+        slider("On Head Out", vr_flashlight_head_out, -0.03f, 0.05f, 0.005f, "%.3f m").extend().help("Away from your head, to the side."),
     };
 }
 
@@ -488,13 +514,13 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
     return {
         cycle("HUD", vr_hud_mode, {{1.f, "Wrist gadget"}, {0.f, "Status bar"}}),
         cycle("Arm", vr_gadget_hand, {{0.f, "Off hand"}, {1.f, "Main hand"}}),
-        slider("Size", vr_gadget_scale, 0.5f, 2.f, 0.05f, "%.2fx"),
+        slider("Size", vr_gadget_scale, 0.5f, 2.f, 0.05f, "%.2fx").extend(0.25f, 3.f),
         header("Placement"),
-        slider("Along the Arm", vr_gadget_x, -10.f, 10.f, 0.5f, "%.1f cm"),
-        slider("Across the Arm", vr_gadget_y, -5.f, 5.f, 0.25f, "%.2f cm"),
-        slider("Height", vr_gadget_z, -3.f, 5.f, 0.25f, "%.2f cm").help("How far it stands out of the forearm."),
-        slider("Pitch", vr_gadget_pitch, -90.f, 90.f, 5.f, "%.0f deg"),
-        slider("Yaw", vr_gadget_yaw, -90.f, 90.f, 5.f, "%.0f deg"),
+        slider("Along the Arm", vr_gadget_x, -15.f, 15.f, 0.5f, "%.1f cm").extend(-40.f, 40.f),
+        slider("Across the Arm", vr_gadget_y, -8.f, 8.f, 0.25f, "%.2f cm").extend(-20.f, 20.f),
+        slider("Height", vr_gadget_z, -5.f, 8.f, 0.25f, "%.2f cm").extend(-15.f, 25.f).help("How far it stands out of the forearm."),
+        slider("Pitch", vr_gadget_pitch, -90.f, 90.f, 5.f, "%.0f deg").extend(-180.f, 180.f),
+        slider("Yaw", vr_gadget_yaw, -90.f, 90.f, 5.f, "%.0f deg").extend(-180.f, 180.f),
         slider("Roll", vr_gadget_roll, -180.f, 180.f, 15.f, "%.0f deg")
             .help("Turns the screen: 90 reads along the arm, 180 turns the text the other way."),
     };
@@ -525,8 +551,8 @@ void hologramTestMessage()
         toggle("Game Messages as Hologram", vr_messages_hologram)
             .help("The game's messages (a key needed, a secret found, the map's text, pickups) float as a hologram the gadget projects over its screen, while you look at it. Else the key and map messages show in front of you."),
         slider("Hologram Time", vr_messages_hologram_time, 2.f, 15.f, 0.5f, "%.1f s").help("How long a message stays in the hologram."),
-        slider("Hologram Text Size", vr_messages_hologram_size, 0.5f, 2.f, 0.05f, "%.2fx"),
-        slider("Hologram Height", vr_messages_hologram_height, 0.f, 10.f, 0.5f, "%.1f cm")
+        slider("Hologram Text Size", vr_messages_hologram_size, 0.5f, 2.f, 0.05f, "%.2fx").extend(0.25f, 4.f),
+        slider("Hologram Height", vr_messages_hologram_height, 0.f, 15.f, 0.5f, "%.1f cm").extend(0.f, 50.f)
             .help("How high over the gadget it floats."),
         slider("Hologram Effect", vr_messages_hologram_effect, 0.f, 2.f, 0.1f, "%.1fx")
             .help("The beam of light from the screen, scanlines, flicker, glitches and the projection as it appears (0: plain glowing text)."),
@@ -538,7 +564,7 @@ void hologramTestMessage()
             .help("The console's other messages (the engine's: settings changed, cheats, errors) float in a small log over the gadget, or at the top of the view."),
         slider("Console Message Time", vr_notify_wrist_time, 2.f, 30.f, 1.f, "%.0f s")
             .help("How long a message stays in the gadget's log."),
-        slider("Console Log Height", vr_notify_wrist_height, 0.f, 20.f, 0.5f, "%.1f cm")
+        slider("Console Log Height", vr_notify_wrist_height, 0.f, 20.f, 0.5f, "%.1f cm").extend(0.f, 60.f)
             .help("How high over the gadget the log floats (always over the hologram)."),
         slider("Console Log Brightness", vr_notify_wrist_alpha, 0.2f, 1.f, 0.05f, "%.2f"),
         header("Weapons' Ammo Screens"),
@@ -660,7 +686,7 @@ void hologramTestMessage()
         toggle("Force Grab", vr_forcegrab_mode)
             .help("Point an empty hand at an object, pull the trigger, flick the hand: it flies to you. Grip as it arrives "
                   "to catch it."),
-        slider("Distance", vr_forcegrab_distance, 100.f, 1500.f, 25.f, "%.0f"),
+        slider("Distance", vr_forcegrab_distance, 100.f, 1500.f, 25.f, "%.0f").extend(100.f, 4000.f),
         slider("Aim Cone", vr_forcegrab_cone, 3.f, 45.f, 1.f, "%.0f deg").help("How far off where the hand points an object may be."),
         slider("Flick Speed", vr_forcegrab_flick_speed, 0.3f, 3.f, 0.1f, "%.1f m/s")
             .help("How fast the hand moves back or up to pull."),
@@ -764,20 +790,20 @@ std::vector<Item> pageMain()
         cycle("Default Speed", "cl_alwaysrun", {{1.f, "Run"}, {0.f, "Walk"}}).help("The speed button switches to the other."),
         slider("Stick Deadzone", vr_deadzone, 0.f, 50.f, 5.f, "%.0f%%"),
         toggle("Teleport", vr_teleport_enabled),
-        slider("Teleport Range", vr_teleport_range, 100.f, 800.f, 50.f, "%.0f"),
-        slider("Room Scale", vr_roomscale_move_mult, 0.5f, 2.f, 0.1f, "%.1fx"),
+        slider("Teleport Range", vr_teleport_range, 100.f, 800.f, 50.f, "%.0f").extend(100.f, 3000.f),
+        slider("Room Scale", vr_roomscale_move_mult, 0.5f, 2.f, 0.1f, "%.1fx").extend(0.2f, 5.f),
 
         header("Body"),
         toggle("Left Handed", vr_lefthanded),
-        slider("Height", vr_height_calibration, 1.2f, 2.2f, 0.01f, "%.2f m"),
+        slider("Height", vr_height_calibration, 1.f, 2.2f, 0.01f, "%.2f m").extend(0.5f, 3.f),
         action("Set Height Now", calibrateHeight),
-        slider("World Scale", vr_world_scale, 0.75f, 1.5f, 0.05f, "%.2f"),
-        slider("Floor Offset", vr_floor_offset, -40.f, 10.f, 1.f, "%.0f"),
+        slider("World Scale", vr_world_scale, 0.5f, 2.f, 0.05f, "%.2f").extend(0.25f, 4.f),
+        slider("Floor Offset", vr_floor_offset, -50.f, 30.f, 1.f, "%.0f").extend(-400.f, 400.f),
         toggle("Chest Flashlight", vr_flashlight).help("A torch on your belt (off hand side): trigger at it with an open hand switches it; grip takes it. B or Y clips it on a gun or on your head."),
 
         header("Weapons"),
-        slider("Gun Angle", vr_gunangle, -30.f, 90.f, 2.5f, "%.1f"),
-        slider("Off Hand Angle", vr_offhandpitch, -30.f, 90.f, 2.5f, "%.1f"),
+        slider("Gun Angle", vr_gunangle, -30.f, 90.f, 2.5f, "%.1f").extend(-180.f, 180.f),
+        slider("Off Hand Angle", vr_offhandpitch, -30.f, 90.f, 2.5f, "%.1f").extend(-180.f, 180.f),
         cycle("Weapon Grip", vr_weapon_grip_mode, {{0.f, "Hold"}, {1.f, "Sticky"}}),
         cycle("Two-Handed", vr_2h_mode, {{0.f, "Off"}, {1.f, "Basic"}, {2.f, "Virtual stock"}}),
         open("Weapon Offsets (Held Weapon)", pageIndex(pageWeaponOffsets)),
@@ -787,20 +813,20 @@ std::vector<Item> pageMain()
         toggle("Force Grab", vr_forcegrab_mode),
         cycle("Haptics", vr_disablehaptics, {{0.f, "On"}, {1.f, "Off"}}),
         cycle("Crosshair", vr_crosshair, {{0.f, "Off"}, {1.f, "Dot"}, {2.f, "Laser"}, {3.f, "Soft laser"}}),
-        slider("Crosshair Size", vr_crosshair_size, 0.5f, 8.f, 0.5f, "%.1f"),
+        slider("Crosshair Size", vr_crosshair_size, 0.5f, 8.f, 0.5f, "%.1f").extend(0.f, 32.f),
 
         header("Display"),
         cycle("HUD", vr_hud_mode, {{1.f, "Wrist gadget"}, {0.f, "Status bar"}}),
         cycle("Status Bar", vr_sbar_mode, {{1.f, "Off hand"}, {0.f, "Main hand"}}),
-        slider("HUD Scale", vr_hud_scale, 0.01f, 0.05f, 0.0025f, "%.4f"),
-        slider("Menu Distance", vr_menu_distance, 40.f, 150.f, 5.f, "%.0f"),
-        slider("Menu Scale", vr_menu_scale, 0.08f, 0.3f, 0.01f, "%.2f"),
+        slider("HUD Scale", vr_hud_scale, 0.01f, 0.05f, 0.0025f, "%.4f").extend(0.005f, 0.3f),
+        slider("Menu Distance", vr_menu_distance, 40.f, 150.f, 5.f, "%.0f").extend(8.f, 600.f),
+        slider("Menu Scale", vr_menu_scale, 0.08f, 0.3f, 0.01f, "%.2f").extend(0.02f, 1.5f),
         cycle("Desktop Mirror", vr_mirror, {{0.f, "Off"}, {1.f, "Left eye"}, {2.f, "Both eyes"}}),
         cycle("Body", vr_body_mode, {{0.f, "Off"}, {2.f, "Torso and arms"}, {3.f, "Full body"}}),
         cycle("Build", vr_body_build, {{0.f, "Lean"}, {1.f, "Athletic"}, {2.f, "Brawny"}}),
-        slider("Torso Offset", vr_body_torso_back, -0.15f, 0.3f, 0.01f, "%.2f m back"),
-        slider("Legs Offset", vr_body_legs_back, -0.15f, 0.3f, 0.01f, "%.2f m back"),
-        slider("Shoulders Offset", vr_body_shoulders_back, -0.1f, 0.15f, 0.01f, "%.2f m back"),
+        slider("Torso Offset", vr_body_torso_back, -0.2f, 0.4f, 0.01f, "%.2f m back").extend(-1.f, 1.f),
+        slider("Legs Offset", vr_body_legs_back, -0.2f, 0.4f, 0.01f, "%.2f m back").extend(-1.f, 1.f),
+        slider("Shoulders Offset", vr_body_shoulders_back, -0.15f, 0.2f, 0.01f, "%.2f m back").extend(-0.5f, 0.5f),
         toggle("Holster Models", vr_leg_holster_model_enabled),
 
         header("Headset"),
@@ -808,7 +834,7 @@ std::vector<Item> pageMain()
         action("Restart VR", restartVr),
         cycle("OpenXR Runtime", vr_xr_runtime, {{0.f, "System default"}, {1.f, "Virtual Desktop (VDXR)"}, {2.f, "SteamVR"}})
             .help("Which OpenXR runtime runs the headset; VR restarts. VDXR skips SteamVR (keep Virtual Desktop's 'Emulate Index controllers' off)."),
-        slider("Render Scale", vr_render_scale, 0.5f, 1.5f, 0.05f, "%.2f")
+        slider("Render Scale", vr_render_scale, 0.5f, 1.5f, 0.05f, "%.2f").extend(0.25f, 2.f)
             .help("Eye rendering resolution, times the headset's (SteamVR's resolution included); resampled to it."), // + the size (renderScaleHelp)
         cycle("Upscaling", vr_upscale, {{0.f, "Bilinear"}, {1.f, "FSR"}, {2.f, "NIS"}})
             .help("Below Render Scale 1: how the eyes are enlarged to the headset's size. FSR (AMD) and NIS (NVIDIA) keep edges and text sharper than bilinear, near the lens centre."),
@@ -1017,16 +1043,16 @@ std::vector<Item> pageWeaponOffsets()
     }
     list.insert(list.end(), {
         header(fist ? "The Hand" : "Weapon in the Hand"),
-        s("Offset X (forward)", Key::OffsetX, -30.f, 30.f, 0.1f, "%.2f")
+        s("Offset X (forward)", Key::OffsetX, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f)
             .help(fist ? "Moves the drawn hand." :
                          "Where the weapon sits in the hand (the hand is where the controller is, and its fingers wrap "
                          "the weapon's grip). Doesn't change where it aims."),
-        s("Offset Y (left)", Key::OffsetY, -30.f, 30.f, 0.1f, "%.2f"),
-        s("Offset Z (up)", Key::OffsetZ, -30.f, 30.f, 0.1f, "%.2f"),
+        s("Offset Y (left)", Key::OffsetY, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f),
+        s("Offset Z (up)", Key::OffsetZ, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f),
         s("Pitch", Key::Pitch, -180.f, 180.f, 0.5f, "%.1f").help("How the weapon is turned in the hand."),
         s("Yaw", Key::Yaw, -180.f, 180.f, 0.5f, "%.1f"),
         s("Roll", Key::Roll, -180.f, 180.f, 0.5f, "%.1f"),
-        s("Scale", Key::Scale, 0.1f, 3.f, 0.01f, "%.2f"),
+        s("Scale", Key::Scale, 0.1f, 3.f, 0.01f, "%.2f").extend(0.02f, 10.f),
         cycle("Hide Hand", weapons::cvar(slot, Key::HideHand), {{0.f, "No"}, {1.f, "Yes"}}),
     });
     if(!fist)
@@ -1040,13 +1066,13 @@ std::vector<Item> pageWeaponOffsets()
             s("Middle Finger", Key::FingerMiddleBias, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
             s("Ring Finger", Key::FingerRingBias, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
             s("Little Finger", Key::FingerPinkyBias, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
-            s("Thumb X (forward)", Key::FingerThumbX, -4.f, 4.f, 0.05f, "%+.2f").help("Moves the thumb on the hand."),
-            s("Thumb Y (palm)", Key::FingerThumbY, -4.f, 4.f, 0.05f, "%+.2f"),
-            s("Thumb Z (up)", Key::FingerThumbZ, -4.f, 4.f, 0.05f, "%+.2f"),
+            s("Thumb X (forward)", Key::FingerThumbX, -4.f, 4.f, 0.05f, "%+.2f").extend(-20.f, 20.f).help("Moves the thumb on the hand."),
+            s("Thumb Y (palm)", Key::FingerThumbY, -4.f, 4.f, 0.05f, "%+.2f").extend(-20.f, 20.f),
+            s("Thumb Z (up)", Key::FingerThumbZ, -4.f, 4.f, 0.05f, "%+.2f").extend(-20.f, 20.f),
             header("Muzzle"),
-            s("Muzzle X", Key::MuzzleOffsetX, -30.f, 30.f, 0.1f, "%.2f").help("Where shots and the muzzle flash start, from the muzzle vertex."),
-            s("Muzzle Y", Key::MuzzleOffsetY, -30.f, 30.f, 0.1f, "%.2f"),
-            s("Muzzle Z", Key::MuzzleOffsetZ, -30.f, 30.f, 0.1f, "%.2f"),
+            s("Muzzle X", Key::MuzzleOffsetX, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f).help("Where shots and the muzzle flash start, from the muzzle vertex."),
+            s("Muzzle Y", Key::MuzzleOffsetY, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f),
+            s("Muzzle Z", Key::MuzzleOffsetZ, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f),
         });
 
         // The two-handed grips: the hotspot being edited.
@@ -1077,41 +1103,41 @@ std::vector<Item> pageWeaponOffsets()
         else
         {
             list.insert(list.end(), {
-                slider("Hotspot X", hk(1), -40.f, 40.f, 0.1f, "%.2f").help("The grip's point, in the weapon's model units."),
-                slider("Hotspot Y", hk(2), -40.f, 40.f, 0.1f, "%.2f"),
-                slider("Hotspot Z", hk(3), -40.f, 40.f, 0.1f, "%.2f"),
+                slider("Hotspot X", hk(1), -40.f, 40.f, 0.1f, "%.2f").extend(-200.f, 200.f).help("The grip's point, in the weapon's model units."),
+                slider("Hotspot Y", hk(2), -40.f, 40.f, 0.1f, "%.2f").extend(-200.f, 200.f),
+                slider("Hotspot Z", hk(3), -40.f, 40.f, 0.1f, "%.2f").extend(-200.f, 200.f),
                 action("Put It Where the Other Hand Is", weaponOffsetsHotspotAtHand)
                     .help("Makes this hotspot a grip (or a cup) at the other hand, as it is now."),
             });
         }
         list.insert(list.end(), {
-            slider("Hand Pitch", hk(5), -90.f, 90.f, 1.f, "%.0f").help("How the hand holding it is turned there."),
-            slider("Hand Yaw", hk(6), -90.f, 90.f, 1.f, "%.0f"),
+            slider("Hand Pitch", hk(5), -90.f, 90.f, 1.f, "%.0f").extend(-180.f, 180.f).help("How the hand holding it is turned there."),
+            slider("Hand Yaw", hk(6), -90.f, 90.f, 1.f, "%.0f").extend(-180.f, 180.f),
             slider("Hand Roll", hk(7), -180.f, 180.f, 1.f, "%.0f"),
             cycle("Thumb", hk(8), {{0.f, "Wraps round"}, {1.f, "Along the top"}})
                 .help("Whether the thumb wraps round it with the fingers, or lies along its top."),
         });
         list.insert(list.end(), {
-            slider("Bias", hk(4), 0.f, 10.f, 0.1f, "%.1f").help("Units taken off its distance: larger, easier to take than the others."),
+            slider("Bias", hk(4), 0.f, 10.f, 0.1f, "%.1f").extend(0.f, 50.f).help("Units taken off its distance: larger, easier to take than the others."),
             action("Remove This Hotspot", weaponOffsetsHotspotRemove),
             toggle("Show Hotspots", vr_show_weapon_hotspots).help("Marks the held weapons' hotspots (the edited one white)."),
             header("Two-Handed Aim"),
-            s("Aim Offset X", Key::TwoHOffsetX, -30.f, 30.f, 0.1f, "%.2f")
+            s("Aim Offset X", Key::TwoHOffsetX, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f)
                 .help("Moves the point the aim is taken from, in the holding hand's frame (nothing drawn moves)."),
-            s("Aim Offset Y", Key::TwoHOffsetY, -30.f, 30.f, 0.1f, "%.2f"),
-            s("Aim Offset Z", Key::TwoHOffsetZ, -30.f, 30.f, 0.1f, "%.2f"),
+            s("Aim Offset Y", Key::TwoHOffsetY, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f),
+            s("Aim Offset Z", Key::TwoHOffsetZ, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f),
             s("Aim Pitch", Key::TwoHPitch, -180.f, 180.f, 0.5f, "%.1f")
                 .help("Turns the two-handed aim (a sword: its blade's direction in the model)."),
             s("Aim Yaw", Key::TwoHYaw, -180.f, 180.f, 0.5f, "%.1f"),
             s("Aim Roll", Key::TwoHRoll, -180.f, 180.f, 0.5f, "%.1f"),
             header("Ammo Screen"),
-            s("Screen X", Key::WpnTextX, -20.f, 20.f, 0.05f, "%.2f"),
-            s("Screen Y", Key::WpnTextY, -20.f, 20.f, 0.05f, "%.2f"),
-            s("Screen Z", Key::WpnTextZ, -20.f, 20.f, 0.05f, "%.2f"),
+            s("Screen X", Key::WpnTextX, -20.f, 20.f, 0.05f, "%.2f").extend(-100.f, 100.f),
+            s("Screen Y", Key::WpnTextY, -20.f, 20.f, 0.05f, "%.2f").extend(-100.f, 100.f),
+            s("Screen Z", Key::WpnTextZ, -20.f, 20.f, 0.05f, "%.2f").extend(-100.f, 100.f),
             s("Screen Pitch", Key::WpnTextPitch, -180.f, 180.f, 0.5f, "%.1f"),
             s("Screen Yaw", Key::WpnTextYaw, -180.f, 180.f, 0.5f, "%.1f"),
             s("Screen Roll", Key::WpnTextRoll, -180.f, 180.f, 0.5f, "%.1f"),
-            s("Screen Scale", Key::WpnTextScale, 0.05f, 3.f, 0.05f, "%.2f"),
+            s("Screen Scale", Key::WpnTextScale, 0.05f, 3.f, 0.05f, "%.2f").extend(0.01f, 10.f),
         });
     }
     list.insert(list.end(), {
@@ -1172,6 +1198,7 @@ int parentPage[pageCount]{};
 int cursors[pageCount]{};
 int scrolls[pageCount]{};
 bool sliderGrab = false; // a slider follows the mouse while its button is held
+float sliderGrabHold = -1.f; // grabbed on a thumb pinned at an end (a value past it): where, kept until the mouse moves off
 bool scrollGrab = false; // the scrollbar likewise
 
 constexpr int midPos = 204; // as Ironwail's OPTIONS_MIDPOS
@@ -1198,7 +1225,7 @@ struct Layout
 {
     for(const Item& item : list)
     {
-        if(item.helpText)
+        if(item.helpText || item.extendable)
         {
             return true;
         }
@@ -1273,18 +1300,89 @@ void openPage(int target)
     return best;
 }
 
+// Where a slider's value lies against its bar: -1 before the left end, 1 past the right one, else 0
+// (a hair's tolerance: a value on an end is on the bar).
+[[nodiscard]] int pastEnd(const Item& item, float value)
+{
+    const float eps = item.step * 0.01f;
+    return value > item.max + eps ? 1 : value < item.min - eps ? -1 : 0;
+}
+
+// A slider's step left or right (`dir`), the key held (`repeat`: its auto-repeat). Never beyond
+// the bar's ends, or for an extendable slider its hard limits; and never back the other way, so a
+// value set further off in the console or a config stays as it is until stepped towards the bar
+// (then it comes onto the limit at once). An extendable slider stops at the bar's end first: a new
+// press goes past, or holding on there for a moment; past the ends, holding steps faster the longer
+// it is held (2x after a second, then 5x, then 10x), on multiples of those steps.
+float stepSlider(const Item& item, int dir, bool repeat)
+{
+    constexpr double endHold = 0.6;
+    static const cvar_t* endCvar = nullptr; // stopped at a bar's end: which, which way, since when
+    static int endDir = 0;
+    static double endSince = 0.0;
+    static double outsideSince = 0.0; // held past the ends since
+
+    const float cur = item.cvar->value;
+    const float eps = item.step * 0.01f;
+    const float end = dir > 0 ? item.max : item.min;
+    const int past = pastEnd(item, cur);
+    const bool atEnd = std::fabs(cur - end) <= eps;
+
+    float step = item.step;
+    if(!repeat || !past)
+    {
+        outsideSince = realtime;
+    }
+    else if(item.extendable)
+    {
+        const double held = realtime - outsideSince;
+        step *= held < 1.0 ? 1.f : held < 2.0 ? 2.f : held < 3.0 ? 5.f : 10.f;
+    }
+    float v = std::round((cur + dir * step) / step) * step;
+
+    float lo = item.min;
+    float hi = item.max;
+    if(item.extendable)
+    {
+        lo = item.hardMin;
+        hi = item.hardMax;
+        const bool pass = atEnd && (!repeat || (endCvar == item.cvar && endDir == dir && realtime - endSince >= endHold));
+        if(!past && !pass)
+        {
+            lo = std::fmax(lo, item.min); // on the bar: its end stops the step
+            hi = std::fmin(hi, item.max);
+        }
+        else if(past * dir < 0)
+        {
+            lo = past > 0 ? std::fmax(lo, item.max) : lo; // coming back: onto the end
+            hi = past < 0 ? std::fmin(hi, item.min) : hi;
+        }
+    }
+    v = CLAMP(lo, v, hi);
+    v = dir > 0 ? std::fmax(v, cur) : std::fmin(v, cur);
+
+    if(item.extendable && std::fabs(v - end) <= eps && (v != cur || endCvar != item.cvar || endDir != dir))
+    {
+        endCvar = item.cvar; // (a new arrival, or a first press held there)
+        endDir = dir;
+        endSince = realtime;
+    }
+    return v;
+}
+
 // (`item` lives in the page's list, which an action -- or a cvar's callback -- may build again: what is needed of it is
 // read before.)
-void change(const Item& item, int dir)
+void change(const Item& item, int dir, bool repeat = false)
 {
     switch(item.kind)
     {
         case Item::Slider:
         {
-            float v = item.cvar->value + dir * item.step;
-            v = std::round(v / item.step) * item.step;
-            v = CLAMP(item.min, v, item.max);
-            Cvar_SetValueQuick(item.cvar, item.negativeLabel && v < 0.f ? -1.f : v);
+            const float v = stepSlider(item, dir, repeat);
+            if(v != item.cvar->value)
+            {
+                Cvar_SetValueQuick(item.cvar, item.negativeLabel && v < 0.f ? -1.f : v);
+            }
             break;
         }
         case Item::Cycle:
@@ -1436,8 +1534,15 @@ void drawItem(const Item& item, int y, bool selected)
             {
                 q_snprintf(buf, sizeof(buf), item.format, item.cvar->value);
             }
+            // Past an end: the thumb stays there, marked, and the value (the real one) is white.
             const float range = (item.cvar->value - item.min) / (item.max - item.min);
-            M_DrawSlider(midPos, y, CLAMP(0.f, range, 1.f), buf);
+            const int past = item.negativeLabel && item.cvar->value < 0.f ? 0 : pastEnd(item, item.cvar->value);
+            char tinted[64];
+            const char* text = past ? COM_TintString(buf, tinted, sizeof(tinted)) : buf;
+            if(!menuui::drawSlider(midPos, y, range, past, text))
+            {
+                M_DrawSlider(midPos, y, CLAMP(0.f, range, 1.f), text);
+            }
             break;
         }
         case Item::Cycle:
@@ -1477,6 +1582,39 @@ void drawItem(const Item& item, int y, bool selected)
                                    "edges, slower. Below 1: faster, blurrier.",
         w, h, s.width, s.height);
     return text;
+}
+
+// An extendable slider's help: its own (`help`, may be null), and that left and right go past the
+// bar's ends and how far; that first while the value is on or past an end, where it matters.
+[[nodiscard]] const char* extendableHelp(const Item& item, const char* help)
+{
+    static std::string text;
+    char lo[32], hi[32], hint[128];
+    q_snprintf(lo, sizeof(lo), item.format, item.hardMin);
+    q_snprintf(hi, sizeof(hi), item.format, item.hardMax);
+    const bool left = item.hardMin < item.min;
+    const bool right = item.hardMax > item.max;
+    if(left && right)
+    {
+        q_snprintf(hint, sizeof(hint), "Hold left or right past the ends to go further (%s to %s).", lo, hi);
+    }
+    else
+    {
+        q_snprintf(hint, sizeof(hint), "Hold %s past the end to go further (%s %s).", right ? "right" : "left",
+            right ? "up to" : "down to", right ? hi : lo);
+    }
+    const float v = item.cvar->value;
+    const float eps = item.step * 0.01f;
+    const bool onEnd = v >= item.max - eps || v <= item.min + eps;
+    if(!help || !help[0])
+    {
+        text = hint;
+    }
+    else
+    {
+        text = onEnd ? std::string(hint) + " " + help : std::string(help) + " " + hint;
+    }
+    return text.c_str();
 }
 
 // Word-wrapped to the screen's width, four lines at most.
@@ -1637,17 +1775,22 @@ extern "C" void VR_Menu_Draw()
         M_DrawTextBox(scrollbarX - 4, l.listTop + y - 4, 0, height - 1);
     }
 
-    if(cursor < n && list[cursor].cvar == &vr_render_scale)
+    if(cursor < n)
     {
-        drawHelp(renderScaleHelp());
-    }
-    else if(cursor < n && list[cursor].helpText)
-    {
-        drawHelp(list[cursor].helpText);
+        const Item& item = list[cursor];
+        const char* help = item.cvar == &vr_render_scale ? renderScaleHelp() : item.helpText;
+        if(item.kind == Item::Slider && item.extendable)
+        {
+            help = extendableHelp(item, help);
+        }
+        if(help)
+        {
+            drawHelp(help);
+        }
     }
 }
 
-extern "C" void VR_Menu_Key(int key)
+extern "C" void VR_Menu_Key(int key, int repeat)
 {
     const auto& list = items(page);
     const int cursor = cursors[page];
@@ -1690,8 +1833,8 @@ extern "C" void VR_Menu_Key(int key)
             moveCursor(list, 1);
             break;
 
-        case K_LEFTARROW: change(list[cursor], -1); break;
-        case K_RIGHTARROW: change(list[cursor], 1); break;
+        case K_LEFTARROW: change(list[cursor], -1, repeat); break;
+        case K_RIGHTARROW: change(list[cursor], 1, repeat); break;
 
         case K_MOUSE1:
             // On the scrollbar: it is dragged.
@@ -1710,8 +1853,21 @@ extern "C" void VR_Menu_Key(int key)
             {
                 if(m_mousex >= midPos - 12 && m_mousex <= midPos + 84)
                 {
+                    // A value past an end, its thumb at that end: a click on the thumb keeps it (a drag
+                    // sets it, along the bar).
+                    const Item& item = list[cursor];
+                    const int past = item.negativeLabel && item.cvar->value < 0.f ? 0 : pastEnd(item, item.cvar->value);
+                    const float thumb = midPos + 4.f + (past > 0 ? 72.f : 0.f);
                     sliderGrab = true;
-                    setSliderAt(list[cursor], m_mousex);
+                    sliderGrabHold = -1.f;
+                    if(past && std::fabs(m_mousex - thumb) <= 6.f)
+                    {
+                        sliderGrabHold = m_mousex;
+                    }
+                    else
+                    {
+                        setSliderAt(item, m_mousex);
+                    }
                     S_LocalSound("misc/menu3.wav");
                 }
                 break;
@@ -1750,8 +1906,9 @@ extern "C" void VR_Menu_Mousemove(float cx, float cy)
         {
             scrollTo(cy);
         }
-        else
+        else if(sliderGrabHold < 0.f || std::fabs(cx - sliderGrabHold) >= 4.f)
         {
+            sliderGrabHold = -1.f;
             setSliderAt(list[cursor], cx);
         }
         return;

@@ -9,8 +9,8 @@
 [[nodiscard]] std::vector<Item> pageMenuSettings()
 {
     return {
-        slider("Menu Scale", "vr_menu_scale", 0.05f, 0.6f, 0.01f, "%.2f").help("Scale multiplier for the menu: the size of one of its pixels, in world units."),
-        slider("Menu Distance", "vr_menu_distance", 24.f, 256.f, 1.f, "%.0f").help("Distance of the menu from the anchor point."),
+        slider("Menu Scale", "vr_menu_scale", 0.05f, 0.6f, 0.01f, "%.2f").extend(0.02f, 1.5f).help("Scale multiplier for the menu: the size of one of its pixels, in world units."),
+        slider("Menu Distance", "vr_menu_distance", 24.f, 256.f, 1.f, "%.0f").extend(8.f, 600.f).help("Distance of the menu from the anchor point."),
         toggle("VR Menu Style", "vr_menu_vr_style").help("The menus fill the panel with their rows spaced out, with modern sliders and switches, and a laser from your hand points at them: trigger to click and drag."),
         hueSlider("Laser Hue", vr_menu_laser_hue).help("The laser pointer's colour: 35 amber; Player's: the Player Effects Hue (on the Colours page)."),
         slider("Row Spacing", "vr_menu_spacing", 1.f, 2.f, 0.05f, "%.2fx").help("With the VR menu style: how far apart the menus' rows are, over Quake's."),
@@ -29,7 +29,7 @@
         slider("Crosshair Size", "vr_crosshair_size", 0.f, 32.f, 0.5f, "%.1f").help("Size of the crosshair."),
         slider("Crosshair Alpha", "vr_crosshair_alpha", 0.f, 1.f, 0.05f, "%.2f").help("Transparency of the crosshair. '1' means fully visible, '0' means fully transparent."),
         hueSlider("Crosshair Hue", vr_crosshair_hue).help("Its colour: 0 red; Player's: the Player Effects Hue (on the Colours page)."),
-        slider("Crosshair Z Offset", "vr_crosshairy", -10.f, 10.f, 0.05f, "%.2f").help("Z offset applied to the crosshair. Does not affect aiming. Leave to zero unless you changed other weapon options and your aim is off."),
+        slider("Crosshair Z Offset", "vr_crosshairy", -10.f, 10.f, 0.05f, "%.2f").extend(-50.f, 50.f).help("Z offset applied to the crosshair. Does not affect aiming. Leave to zero unless you changed other weapon options and your aim is off."),
     };
 }
 
@@ -55,7 +55,7 @@
         slider("Turn", "vr_snap_turn", 0.f, 90.f, 5.f, "%.0f"),
         slider("Turn Speed", "vr_turn_speed", 0.f, 10.f, 0.25f, "%.1f").help("How quickly you turn with the joystick."),
         toggle("Teleportation", "vr_teleport_enabled").help("Enables or disables teleportation. A controller binding is required to use teleportation."),
-        slider("Teleport Range", "vr_teleport_range", 100.f, 800.f, 10.f, "%.0f").help("How far you can teleport."),
+        slider("Teleport Range", "vr_teleport_range", 100.f, 800.f, 10.f, "%.0f").extend(100.f, 3000.f).help("How far you can teleport."),
         slider("Lean", "vr_lean_radius", 0.f, 14.f, 1.f, "%.0f units").help("How far your head may lean off the middle of your body's box before the body follows: get your face near walls and over railings. 0: the body always under the head."),
         slider("Lean Recentre", "vr_lean_recenter", 0.f, 2.f, 0.1f, "%.1f m/s").help("How fast the body slides back under your head when it can (not into walls, not over ledges)."),
         toggle("Roomscale Jump", "vr_roomscale_jump").help("Jumping in the room jumps in the game."),
@@ -135,13 +135,13 @@ void resetSwimming()
 {
     return {
         slider("Gun Angle", "vr_gunangle", -180.f, 180.f, 0.75f, "%.1f").help("Pitch offset for the guns/hands. Affects aiming. Change if your controller is not 'aligned' to your gun."),
-        slider("Gun Model Pitch", "vr_gunmodelpitch", -90.f, 90.f, 0.25f, "%.1f").help("Pitch offset for gun models. Does NOT affect aiming."),
-        slider("Gun Model Scale", "vr_gunmodelscale", 0.1f, 2.f, 0.05f, "%.2f").help("Scale multiplier for gun models. Does NOT affect aiming, but does affect muzzle position (where bullets and projectiles come from)."),
-        slider("Gun Model Z Offset", "vr_gunmodely", -5.f, 5.f, 0.1f, "%.1f").help("Z offset for gun models. Does NOT affect aiming."),
-        slider("Gun Yaw", "vr_gunyaw", -90.f, 90.f, 0.25f, "%.1f").help("Yaw offset for the guns/hands. Affects aiming. Change if your controller is not 'aligned' to your gun."),
-        slider("Gun Z Offset", "vr_gun_z_offset", -30.f, 30.f, 0.25f, "%.1f").help("Z offset for guns/hands. Affects aiming."),
-        slider("Off-Hand Pitch", "vr_offhandpitch", -90.f, 90.f, 0.25f, "%.1f").help("Pitch offset for the guns/hands. Only for off-hand. Affects aiming."),
-        slider("Off-Hand Yaw", "vr_offhandyaw", -90.f, 90.f, 0.25f, "%.1f").help("Yaw offset for the guns/hands. Only for off-hand. Affects aiming."),
+        slider("Gun Model Pitch", "vr_gunmodelpitch", -90.f, 90.f, 0.25f, "%.1f").extend(-180.f, 180.f).help("Pitch offset for gun models. Does NOT affect aiming."),
+        slider("Gun Model Scale", "vr_gunmodelscale", 0.1f, 2.f, 0.05f, "%.2f").extend(0.02f, 5.f).help("Scale multiplier for gun models. Does NOT affect aiming, but does affect muzzle position (where bullets and projectiles come from)."),
+        slider("Gun Model Z Offset", "vr_gunmodely", -10.f, 10.f, 0.1f, "%.1f").extend(-50.f, 50.f).help("Z offset for gun models. Does NOT affect aiming."),
+        slider("Gun Yaw", "vr_gunyaw", -90.f, 90.f, 0.25f, "%.1f").extend(-180.f, 180.f).help("Yaw offset for the guns/hands. Affects aiming. Change if your controller is not 'aligned' to your gun."),
+        slider("Gun Z Offset", "vr_gun_z_offset", -30.f, 30.f, 0.25f, "%.1f").extend(-150.f, 150.f).help("Z offset for guns/hands. Affects aiming."),
+        slider("Off-Hand Pitch", "vr_offhandpitch", -90.f, 90.f, 0.25f, "%.1f").extend(-180.f, 180.f).help("Pitch offset for the guns/hands. Only for off-hand. Affects aiming."),
+        slider("Off-Hand Yaw", "vr_offhandyaw", -90.f, 90.f, 0.25f, "%.1f").extend(-180.f, 180.f).help("Yaw offset for the guns/hands. Only for off-hand. Affects aiming."),
         slider("Finger Grip Bias", "vr_finger_grip_bias", 0.f, 1.f, 0.05f, "%.2f"),
         toggle("Auto close thumb", "vr_finger_auto_close_thumb"),
         header("Fingers"),
@@ -183,8 +183,8 @@ void resetSwimming()
 [[nodiscard]] std::vector<Item> pagePlayerCalibration()
 {
     return {
-        slider("World Scale", "vr_world_scale", 0.5f, 2.f, 0.05f, "%.2f").help("Scale of the world. Affects movement, height, and hand positions."),
-        slider("Floor Offset", "vr_floor_offset", -200.f, 200.f, 2.5f, "%.0f").help("Offset from the floor. Change if you feel like you're floating or stuck in the floor."),
+        slider("World Scale", "vr_world_scale", 0.5f, 2.f, 0.05f, "%.2f").extend(0.25f, 4.f).help("Scale of the world. Affects movement, height, and hand positions."),
+        slider("Floor Offset", "vr_floor_offset", -200.f, 200.f, 2.5f, "%.0f").extend(-400.f, 400.f).help("Offset from the floor. Change if you feel like you're floating or stuck in the floor."),
     };
 }
 
@@ -481,10 +481,10 @@ void resetSwimming()
     return {
         cycle("HUD", "vr_hud_mode", {{1.f, "Wrist gadget"}, {0.f, "Status bar"}}).help("The settings below apply to the status bar."),
         cycle("Status Bar Mode", "vr_sbar_mode", {{0.f, "Main Hand"}, {1.f, "Off Hand"}}).help("The offsets below apply to the off hand."),
-        slider("HUD Scale", "vr_hud_scale", 0.01f, 0.1f, 0.005f, "%.3f"),
-        slider("Offset X", "vr_sbar_offset_x", -200.f, 200.f, 1.f, "%.0f"),
-        slider("Offset Y", "vr_sbar_offset_y", -200.f, 200.f, 1.f, "%.0f"),
-        slider("Offset Z", "vr_sbar_offset_z", -200.f, 200.f, 1.f, "%.0f"),
+        slider("HUD Scale", "vr_hud_scale", 0.01f, 0.1f, 0.005f, "%.3f").extend(0.005f, 0.3f),
+        slider("Offset X", "vr_sbar_offset_x", -200.f, 200.f, 1.f, "%.0f").extend(-1000.f, 1000.f),
+        slider("Offset Y", "vr_sbar_offset_y", -200.f, 200.f, 1.f, "%.0f").extend(-1000.f, 1000.f),
+        slider("Offset Z", "vr_sbar_offset_z", -200.f, 200.f, 1.f, "%.0f").extend(-1000.f, 1000.f),
         slider("Roll", "vr_sbar_offset_roll", -3.14f, 3.14f, 0.05f, "%.2f rad"),
         slider("Pitch", "vr_sbar_offset_pitch", -3.14f, 3.14f, 0.05f, "%.2f rad"),
         slider("Yaw", "vr_sbar_offset_yaw", -3.14f, 3.14f, 0.05f, "%.2f rad"),
@@ -496,30 +496,30 @@ void resetSwimming()
 {
     return {
         toggle("Show Virtual Stock", "vr_show_virtual_stock"),
-        slider("Shoulder X", "vr_shoulder_offset_x", -50.f, 50.f, 0.5f, "%.1f"),
-        slider("Shoulder Y", "vr_shoulder_offset_y", -50.f, 50.f, 0.5f, "%.1f"),
-        slider("Shoulder Z", "vr_shoulder_offset_z", -50.f, 50.f, 0.5f, "%.1f"),
-        slider("Virtual Stock Thresh.", "vr_virtual_stock_thresh", 0.f, 30.f, 0.1f, "%.1f"),
+        slider("Shoulder X", "vr_shoulder_offset_x", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
+        slider("Shoulder Y", "vr_shoulder_offset_y", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
+        slider("Shoulder Z", "vr_shoulder_offset_z", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
+        slider("Virtual Stock Thresh.", "vr_virtual_stock_thresh", 0.f, 30.f, 0.1f, "%.1f").extend(0.f, 100.f),
         toggle("Show Shoulder Holst.", "vr_show_shoulder_holsters"),
-        slider("Shoulder X", "vr_shoulder_holster_offset_x", -50.f, 50.f, 0.5f, "%.1f"),
-        slider("Shoulder Y", "vr_shoulder_holster_offset_y", -50.f, 50.f, 0.5f, "%.1f"),
-        slider("Shoulder Z", "vr_shoulder_holster_offset_z", -50.f, 50.f, 0.5f, "%.1f"),
-        slider("Shoulder Threshold", "vr_shoulder_holster_thresh", 0.f, 30.f, 0.1f, "%.1f"),
+        slider("Shoulder X", "vr_shoulder_holster_offset_x", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
+        slider("Shoulder Y", "vr_shoulder_holster_offset_y", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
+        slider("Shoulder Z", "vr_shoulder_holster_offset_z", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
+        slider("Shoulder Threshold", "vr_shoulder_holster_thresh", 0.f, 30.f, 0.1f, "%.1f").extend(0.f, 100.f),
         toggle("Show Hip Holsters", "vr_show_hip_holsters"),
-        slider("Hip X", "vr_hip_offset_x", -50.f, 50.f, 0.5f, "%.1f"),
-        slider("Hip Y", "vr_hip_offset_y", -50.f, 50.f, 0.5f, "%.1f"),
-        slider("Hip Z", "vr_hip_offset_z", -50.f, 50.f, 0.5f, "%.1f"),
-        slider("Hip Threshold", "vr_hip_holster_thresh", 0.f, 30.f, 0.1f, "%.1f"),
+        slider("Hip X", "vr_hip_offset_x", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
+        slider("Hip Y", "vr_hip_offset_y", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
+        slider("Hip Z", "vr_hip_offset_z", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
+        slider("Hip Threshold", "vr_hip_holster_thresh", 0.f, 30.f, 0.1f, "%.1f").extend(0.f, 100.f),
         toggle("Show Upper Holsters", "vr_show_upper_holsters"),
-        slider("Upper X", "vr_upper_holster_offset_x", -50.f, 50.f, 0.5f, "%.1f"),
-        slider("Upper Y", "vr_upper_holster_offset_y", -50.f, 50.f, 0.5f, "%.1f"),
-        slider("Upper Z", "vr_upper_holster_offset_z", -50.f, 50.f, 0.5f, "%.1f"),
-        slider("Upper Threshold", "vr_upper_holster_thresh", 0.f, 30.f, 0.1f, "%.1f"),
+        slider("Upper X", "vr_upper_holster_offset_x", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
+        slider("Upper Y", "vr_upper_holster_offset_y", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
+        slider("Upper Z", "vr_upper_holster_offset_z", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
+        slider("Upper Threshold", "vr_upper_holster_thresh", 0.f, 30.f, 0.1f, "%.1f").extend(0.f, 100.f),
         toggle("Show Holster Slots", "vr_leg_holster_model_enabled"),
-        slider("Holster Slot Scale", "vr_leg_holster_model_scale", 0.1f, 2.f, 0.05f, "%.2f"),
-        slider("Holster Slot X", "vr_leg_holster_model_x_offset", -100.f, 100.f, 0.5f, "%.1f"),
-        slider("Holster Slot Y", "vr_leg_holster_model_y_offset", -100.f, 100.f, 0.5f, "%.1f"),
-        slider("Holster Slot Z", "vr_leg_holster_model_z_offset", -100.f, 100.f, 0.5f, "%.1f"),
+        slider("Holster Slot Scale", "vr_leg_holster_model_scale", 0.1f, 2.f, 0.05f, "%.2f").extend(0.02f, 5.f),
+        slider("Holster Slot X", "vr_leg_holster_model_x_offset", -100.f, 100.f, 0.5f, "%.1f").extend(-400.f, 400.f),
+        slider("Holster Slot Y", "vr_leg_holster_model_y_offset", -100.f, 100.f, 0.5f, "%.1f").extend(-400.f, 400.f),
+        slider("Holster Slot Z", "vr_leg_holster_model_z_offset", -100.f, 100.f, 0.5f, "%.1f").extend(-400.f, 400.f),
     };
 }
 
