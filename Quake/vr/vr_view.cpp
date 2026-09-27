@@ -1308,14 +1308,6 @@ void setupHand(const hands::State& s, int hand)
     if(slot >= 0 && slot != fist)
     {
         hide = weapons::value(slot, Key::HideHand) != 0.f;
-        if(vr_debug_grasp.value >= 5.f)
-        {
-            glm::vec3 f, r, u;
-            hands::angleVectors(handRot, f, r, u);
-            const glm::vec3 d = (pos - s.pos[hand]) * (100.f / units::metresToUnits());
-            Con_Printf("hand on %s: %.1f cm from the controller (forward %.1f, right %.1f, up %.1f)\n", weapon.ent.model->name,
-                glm::length(d), glm::dot(d, f), glm::dot(d, r), glm::dot(d, u));
-        }
     }
 
     // Steadying the other hand's weapon in the "fixed" two-handed display mode: the hand moves
