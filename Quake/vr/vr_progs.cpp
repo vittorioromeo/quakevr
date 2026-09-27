@@ -112,6 +112,8 @@ extern "C" void VR_OnProgsLoaded()
         b.OnSpawnServerBeforeLoad = findFunction("OnSpawnServerBeforeLoad");
         b.OnSpawnServerAfterLoad = findFunction("OnSpawnServerAfterLoad");
         b.OnLoadGame = findFunction("OnLoadGame");
+        b.Motion_Sample = findFunction("VR_Motion_Sample");
+        b.Motion_Equip = findFunction("VR_Motion_Equip");
 
         const auto globalFloat = [](const char* name) -> float* {
             ddef_t* def = findGlobalDef(name);

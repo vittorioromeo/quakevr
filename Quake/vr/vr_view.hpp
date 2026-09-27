@@ -54,6 +54,9 @@ struct WeaponMount
 // Whether models `a` and `b` are the same gun (one is the other's other ammo's: its button switched it).
 [[nodiscard]] bool sameGun(const qmodel_t* a, const qmodel_t* b);
 
+// How curled a drawn finger is (0 open .. 1 curled): `finger` 0 thumb, 1 index, 2 middle, 3 ring, 4 pinky.
+[[nodiscard]] float fingerCurl(int hand, int finger);
+
 void dumpView_f();
 
 } // namespace qvr::view

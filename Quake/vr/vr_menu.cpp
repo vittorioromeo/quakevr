@@ -12,6 +12,8 @@
 #include "vr_main.hpp"
 #include "vr_menu.hpp"
 #include "vr_menuui.hpp"
+#include "vr_motion.hpp"
+#include "vr_motion_take.hpp"
 #include "vr_weapons.hpp"
 
 #include <cmath>
@@ -43,7 +45,8 @@ struct Item
         Header,
         Slider,
         Cycle,
-        Action
+        Action,
+        Info // a line of text (info()), centred, not selectable
     };
 
     Kind kind;
@@ -62,6 +65,9 @@ struct Item
     // Action: a function, or a page to open.
     void (*action)(){nullptr};
     int page{-1};
+
+    // Info: its text, asked for each time it is drawn.
+    const char* (*info)(){nullptr};
 
     // Shown under the list while selected.
     const char* helpText{nullptr};
@@ -160,6 +166,19 @@ void restartVr()
     return i;
 }
 
+[[nodiscard]] Item info(const char* (*text)())
+{
+    Item i{Item::Info, ""};
+    i.info = text;
+    return i;
+}
+
+// Whether the cursor can rest on it.
+[[nodiscard]] bool selectable(const Item& item)
+{
+    return item.kind != Item::Header && item.kind != Item::Info;
+}
+
 [[nodiscard]] Item open(const char* label, int page)
 {
     Item i{Item::Action, label};
@@ -177,6 +196,65 @@ using PageBuilder = std::vector<Item> (*)();
 // ----------------------------------------------------------------------------
 // Pages of the port's own tweaks
 // ----------------------------------------------------------------------------
+
+// The motion recorder (vr_motion.cpp, docs/vr-port/MOTIONS.md): takes of the player's motions, each
+// labelled with what it should be, for tuning the melee.
+[[nodiscard]] const char* motionNote()
+{
+    static std::string text;
+    text = vr_motion_note.string[0] ? std::string{"note: "} + vr_motion_note.string : "no note (vr_motion_note)";
+    return text.c_str();
+}
+
+[[nodiscard]] const char* motionLastSaved()
+{
+    static std::string text;
+    text = std::string{"last: "} + motion::lastSaved();
+    return text.c_str();
+}
+
+// The category's details, for the Detail choice: the menu rebuilds the page when the category changes.
+int motionPageCategory = -1;
+
+[[nodiscard]] std::vector<Item> pageMotionRecorder()
+{
+    std::vector<Choice> categories;
+    const auto& list = motion::categories();
+    for(size_t i = 0; i < list.size(); i++)
+    {
+        categories.push_back({static_cast<float>(i), list[i].choice.display});
+    }
+    std::vector<Choice> details;
+    const auto& chosen = motion::chosenCategory().details;
+    for(size_t i = 0; i < chosen.size(); i++)
+    {
+        details.push_back({static_cast<float>(i), chosen[i].display});
+    }
+    motionPageCategory = static_cast<int>(vr_motion_category.value);
+    return {
+        header("Record Motions for the Melee"),
+        toggle("Arm Recorder", vr_motion_armed)
+            .help("Armed: click the Record Button to start a take of the Category, click it again to end it and save "
+                  "it (quakevr/motions). A beep and a buzz each time; REC in view."),
+        cycle("Category", vr_motion_category, std::move(categories))
+            .help("What the motion should do. It stays chosen: record many takes of it in a row. No Hit: motions that "
+                  "must do nothing (wiggles, weak moves, reloading)."),
+        cycle("Detail", vr_motion_detail, std::move(details))
+            .help("Optional: which kind (the swing's direction, the weapon). Its takes count apart, and with the "
+                  "category's."),
+        info(motion::labelStatus),
+        cycle("Record Button", vr_motion_button, {{0.f, "Off stick click"}, {1.f, "Main stick click"}})
+            .help("Clicked to start and to end a take, while armed. Its own binding (off hand: run; main hand: reload) "
+                  "rests until you disarm."),
+        info(motionNote),
+        info(motionLastSaved),
+        action("Delete Last Take", motion::discardLast)
+            .help("Moves the last take saved into motions/discarded (a take that went wrong). Again: the one before."),
+        slider("Lead-in", vr_motion_preroll, 0.f, 2.f, 0.1f, "%.1f s")
+            .help("Kept from before the take starts (the motion's start, for the melee's trackers)."),
+        slider("Tail", vr_motion_tail, 0.f, 1.f, 0.05f, "%.2f s").help("Recorded after the take ends (hits that land late)."),
+    };
+}
 
 // The old Single Player and Bot Control menus' extras.
 void playHub() { Cbuf_AddText("map vrstart\n"); }
@@ -619,6 +697,7 @@ const Page pages[] = {
     {nullptr, "Gameplay", "Gameplay", pageGameplay},
     {nullptr, "Parry, Bash, Headbutt", "Parry, Bash and Headbutt", pageParryBash},
     {nullptr, "Melee", "Melee", pageMeleeSettings},
+    {nullptr, "Motion Recorder", "Motion Recorder", pageMotionRecorder},
     {nullptr, "Gore", "Gore", pageGore},
     {nullptr, "Throwing and Physics", "Throwing and Physics", pageThrowing},
     {nullptr, "Carrying and Gibs", "Carrying and Gibs", pageCarrying},
@@ -911,12 +990,17 @@ std::vector<Item> pageWeaponOffsets()
         done[page] = false;
         built[page].clear();
     }
+    if(pages[page].build == pageMotionRecorder && motionPageCategory != static_cast<int>(vr_motion_category.value))
+    {
+        done[page] = false; // the Detail choice is the category's
+        built[page].clear();
+    }
     if(!done[page])
     {
         done[page] = true;
         for(Item& item : pages[page].build())
         {
-            if(item.kind == Item::Header || item.kind == Item::Action || item.cvar)
+            if(item.kind == Item::Header || item.kind == Item::Action || item.kind == Item::Info || item.cvar)
             {
                 built[page].push_back(std::move(item));
             }
@@ -974,7 +1058,7 @@ struct Layout
 {
     for(int i = 0; i < static_cast<int>(list.size()); i++)
     {
-        if(list[i].kind != Item::Header)
+        if(selectable(list[i]))
         {
             return i;
         }
@@ -990,7 +1074,7 @@ void moveCursor(const std::vector<Item>& list, int dir)
     do
     {
         i = (i + dir + n) % n;
-    } while(list[i].kind == Item::Header && i != cursor);
+    } while(!selectable(list[i]) && i != cursor);
     cursor = i;
 }
 
@@ -1005,7 +1089,7 @@ void showPage(int target)
         scrolls[page] = 0;
     }
     const auto& list = items(page);
-    if(list[cursors[page]].kind == Item::Header)
+    if(!selectable(list[cursors[page]]))
     {
         cursors[page] = firstSelectable(list);
     }
@@ -1111,7 +1195,7 @@ void keepCursorVisible()
     if(dir != 0)
     {
         cursor = dir > 0 ? scroll : scroll + rows - 1;
-        while(list[cursor].kind == Item::Header && cursor + dir >= scroll && cursor + dir < scroll + rows)
+        while(!selectable(list[cursor]) && cursor + dir >= scroll && cursor + dir < scroll + rows)
         {
             cursor += dir;
         }
@@ -1162,6 +1246,13 @@ void drawItem(const Item& item, int y, bool selected)
     if(item.kind == Item::Header)
     {
         M_PrintWhite((320 - 8 * static_cast<int>(strlen(item.label))) / 2, y, item.label);
+        return;
+    }
+    if(item.kind == Item::Info)
+    {
+        char text[41];
+        q_strlcpy(text, item.info ? item.info() : "", sizeof(text));
+        M_Print((320 - 8 * static_cast<int>(strlen(text))) / 2, y, text);
         return;
     }
 
@@ -1502,7 +1593,7 @@ extern "C" void VR_Menu_Mousemove(float cx, float cy)
     }
 
     const int i = rowAt(cy);
-    if(i < 0 || list[i].kind == Item::Header || i == cursor)
+    if(i < 0 || !selectable(list[i]) || i == cursor)
     {
         return;
     }

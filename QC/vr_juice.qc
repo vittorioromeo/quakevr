@@ -105,6 +105,7 @@ void(entity e, vector xDir, float xHand, float xAim) VR_Deflect_Send =
     sound(self, CHAN_AUTO, "weapons/tink1.wav", 1, ATTN_NORM);
     sound(self, CHAN_AUTO, "player/axhit2.wav", 0.6, ATTN_NORM);
     particle2(e.origin, dir * 120, QVR_PARTICLE_PRESET_SPARKS, 20);
+    VR_Motion_Event("deflect", e.classname, xHand, 0, e.origin, oldOwner, xAim == VR_BASH_AIM ? "bash" : "swing");
     if(xHand != cVR_OffHand)
     {
         haptic(cVR_MainHand, 0.0, 0.2, 90, 1.0);

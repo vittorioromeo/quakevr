@@ -913,6 +913,9 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     // used to keep track of what hit us
     damage_inflictor = inflictor;
 
+    // VR: the motion recorder's events (vr_motion.qc): a hand's or the head's hit.
+    VR_Motion_Hit(targ, attacker, damage, isVRMelee);
+
 // save damage based on the target's armor level
 
     //ZOID--
@@ -1384,6 +1387,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         VR_Push(attacker, to, 260 * cvar_hget(cvarh_vr_parry_push_enemy), 90 * cvar_hget(cvarh_vr_parry_push_enemy));
         VR_Push(targ, to * -1, 200 * cvar_hget(cvarh_vr_parry_push_player), 40 * cvar_hget(cvarh_vr_parry_push_player));
         dprint("parry: "); dprint(attacker.classname); dprint(" with crossed arms\n");
+        VR_Motion_Event("parry", "arms", -1, damage, VRGetHandPos(cVR_MainHand), attacker, "");
         damage = damage * (1 - min(1, max(0, cvar_hget(cvarh_vr_parry_unarmed_reduction))));
     }
 
@@ -1432,6 +1436,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
 
         dprint("parry: "); dprint(attacker.classname); dprint(" with hand "); dprint(ftos(hand));
         dprint(twoHanded ? " (two hands)\n" : "\n");
+        VR_Motion_Event("parry", VR_Motion_HandSub(hand), hand, damage, vr_parry_at, attacker, twoHanded ? "two hands" : "");
         damage = damage * (1 - min(1, max(0, cvar_hget(cvarh_vr_parry_reduction))));
     }
 

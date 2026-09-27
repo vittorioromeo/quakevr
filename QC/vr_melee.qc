@@ -407,6 +407,7 @@ void(string xWhat) VR_Melee_Event =
     dprint(xWhat);
     dprint("\n");
 };
+.float vr_motion_pushseen; // on a player: the last frame of a push (the motion recorder's "push" event: once a push)
 
 // ----------------------------------------------------------------------------
 // Following a hand
@@ -1013,6 +1014,7 @@ void(float xHand, entity b) VR_Melee_Whoosh =
         return;
     }
     b.mh_whooshed = TRUE;
+    VR_Motion_Event("stroke", VR_Melee_Category(b.mh_thing == VR_MTHING_FIST ? VR_MKIND_PUNCH : VR_MKIND_SLASH, b.mh_thing), xHand, vlen(b.mh_vfar), b.mh_far, world, "");
     string s = "knight/sword1.wav";
     if(b.mh_thing == VR_MTHING_AXE)
     {
@@ -1274,6 +1276,7 @@ void() VR_Bash =
             // (The parry poses are reported: a weapon across, crossed arms; not a palm facing ahead.)
             b.mh_stance_said = TRUE;
             VR_Melee_Event(sprintf("stance weapon, hand %g%s", h, VRGet2HAiming(self) ? ", two hands" : ""));
+            VR_Motion_Event("stance", "weapon", h, 0, VRGetHandPos(h), world, VRGet2HAiming(self) ? "two hands" : "");
         }
         if(stance && cvar("developer") >= 2 && VR_Bash_PushVel(b) * pfwd > speed * 0.5)
         {
@@ -1306,6 +1309,7 @@ void() VR_Bash =
     {
         self.vr_arms_since = 0;
         VR_Melee_Event("stance arms, hand -1");
+        VR_Motion_Event("stance", "arms", -1, 0, VRGetHandPos(cVR_MainHand), world, "");
     }
     if(readyHand < 0)
     {
@@ -1343,6 +1347,14 @@ void() VR_Bash =
             both = TRUE; // the palm on the blade
         }
     }
+
+    // The motion recorder (vr_motion.qc): a push, whatever it meets; once a push (its frames in a row).
+    if(time - self.vr_motion_pushseen > 0.15)
+    {
+        VR_Motion_Event("push", armed ? "bash" : "shove", both ? -1 : readyHand, 0, VRGetHandPos(readyHand), world,
+                        both ? "two hands" : "one hand");
+    }
+    self.vr_motion_pushseen = time;
 
     // The hands in the push strike nothing else in this motion.
     VRSetMeleeHitSoundPlayed(readyHand, TRUE);
