@@ -267,9 +267,38 @@ void glow(const Pose& pose)
     light(glowLightKey, pose, 1.5f * pose.scale, 16.f, bright * k * 0.35f);
 }
 
+// Lines of text kept from call to call (the frames' messages and log): clear() keeps the strings and their buffers,
+// add() hands out the next one emptied, so that lines laid out again every frame allocate nothing once there.
+class Lines
+{
+public:
+    void clear() { count = 0; }
+
+    [[nodiscard]] std::string& add()
+    {
+        if(count == strings.size())
+        {
+            strings.emplace_back();
+        }
+        std::string& s = strings[count++];
+        s.clear();
+        return s;
+    }
+
+    void popBack() { count--; }
+    [[nodiscard]] std::size_t size() const { return count; }
+    [[nodiscard]] bool empty() const { return count == 0; }
+    [[nodiscard]] const std::string& operator[](std::size_t i) const { return strings[i]; }
+    [[nodiscard]] const std::string& back() const { return strings[count - 1]; }
+
+private:
+    std::vector<std::string> strings;
+    std::size_t count{0};
+};
+
 // `text` broken into lines of at most `columns` characters, between words where it can be,
 // appended to `out` (the console's coloured characters plain: the log is in the screen's colour).
-void wrap(std::string_view text, std::vector<std::string>& out, int columns = logColumns)
+void wrap(std::string_view text, Lines& out, int columns = logColumns)
 {
     while(!text.empty() && text.back() == ' ')
     {
@@ -286,12 +315,12 @@ void wrap(std::string_view text, std::vector<std::string>& out, int columns = lo
                 cut = space;
             }
         }
-        std::string line{text.substr(0, cut)};
+        std::string& line = out.add();
+        line.assign(text.substr(0, cut));
         for(char& c : line)
         {
             c = static_cast<char>(static_cast<unsigned char>(c) & 127);
         }
-        out.push_back(std::move(line));
         text.remove_prefix(cut);
         while(!text.empty() && text.front() == ' ')
         {
@@ -524,7 +553,7 @@ constexpr double heldMax = 300.0;
 // `text` as a message: plain, its lines wrapped to holoColumns, the empty ones at its ends left out.
 void makeMessage(std::string_view text, HoloMessage& m)
 {
-    static std::vector<std::string> lines;
+    static Lines lines; // (scratch: the main thread's, one call at a time)
     lines.clear();
     while(!text.empty())
     {
@@ -533,13 +562,13 @@ void makeMessage(std::string_view text, HoloMessage& m)
         wrap(text.substr(0, end), lines, holoColumns);
         if(lines.size() == before)
         {
-            lines.emplace_back(); // an empty line
+            (void)lines.add(); // an empty line
         }
         text.remove_prefix(std::min(end + 1, text.size()));
     }
     while(!lines.empty() && lines.back().empty())
     {
-        lines.pop_back();
+        lines.popBack();
     }
     size_t first = 0;
     while(first < lines.size() && lines[first].empty())
@@ -551,7 +580,11 @@ void makeMessage(std::string_view text, HoloMessage& m)
     m.rows = 0;
     for(size_t i = first; i < lines.size(); i++)
     {
-        m.text += (i > first ? "\n" : "") + lines[i];
+        if(i > first)
+        {
+            m.text += '\n';
+        }
+        m.text += lines[i];
         m.columns = std::max(m.columns, static_cast<int>(lines[i].size()));
         m.rows++;
     }
@@ -655,14 +688,15 @@ void collectMessages()
         return;
     }
     holoCollected = host_framecount;
-    holoMessages.clear();
     if(!hologramOn())
     {
+        holoMessages.clear();
         queue.clear();
         return;
     }
 
-    NotifyLine line;
+    static NotifyLine line;          // (scratch kept between frames: its text's buffer)
+    static HoloMessage continuation; // (likewise)
     for(int age = 0; age < 16; age++)
     {
         if(!notifyLine(age, line))
@@ -682,13 +716,12 @@ void collectMessages()
             [&](const HoloMessage& m) { return m.printed > 0.0 && std::abs(m.printed - printed) < 1e-4; });
         if(it != queue.end())
         {
-            HoloMessage m;
-            makeMessage(line.text, m);
-            if(m.rows > 0 && m.text != it->text)
+            makeMessage(line.text, continuation);
+            if(continuation.rows > 0 && continuation.text != it->text)
             {
-                it->text = std::move(m.text); // continued since
-                it->columns = m.columns;
-                it->rows = m.rows;
+                it->text = continuation.text; // continued since
+                it->columns = continuation.columns;
+                it->rows = continuation.rows;
             }
             continue;
         }
@@ -728,13 +761,20 @@ void collectMessages()
             count++;
         }
     }
+    // (Copied into the elements holoMessages already has: their strings' buffers are reused.)
+    std::size_t shown = 0;
     for(size_t i = 0; i < queue.size(); i++)
     {
         if(!keep[i])
         {
             continue;
         }
-        HoloMessage& m = holoMessages.emplace_back(queue[i]);
+        if(shown == holoMessages.size())
+        {
+            holoMessages.emplace_back();
+        }
+        HoloMessage& m = holoMessages[shown++];
+        m = queue[i];
         if(m.rows > holoRows)
         {
             int lines = 1;
@@ -749,6 +789,7 @@ void collectMessages()
             m.rows = holoRows;
         }
     }
+    holoMessages.resize(shown);
     std::stable_sort(holoMessages.begin(), holoMessages.end(),
         [](const HoloMessage& a, const HoloMessage& b) { return a.start < b.start; });
 }
@@ -781,7 +822,8 @@ void renderHologram()
     {
         return; // the old image holds (its blocks are matched by their text)
     }
-    std::string key;
+    static std::string key; // (scratch kept between frames: its buffer)
+    key.clear();
     for(const HoloMessage& m : holoMessages)
     {
         key += m.text;
@@ -811,7 +853,8 @@ void renderHologram()
         for(int row = 0; row < m.rows; row++)
         {
             const size_t end = std::min(text.find('\n'), text.size());
-            const std::string line{text.substr(0, end)};
+            static std::string line; // (scratch: a c_str for draw2D::text)
+            line.assign(text.substr(0, end));
             const float x = static_cast<float>(holoWidth - static_cast<int>(line.size()) * 8) * 0.5f;
             gfx::draw2D::text(x, static_cast<float>(y + holoPad + row * 8), 8.f, line.c_str());
             text.remove_prefix(std::min(end + 1, text.size()));
@@ -1376,11 +1419,15 @@ bool log(Log& out)
 
     // Newest first, each console line's wrapped lines in reverse; turned round below. The game's
     // lines are the hologram's (vr_messages_hologram); the rest dimmer (vr_notify_wrist_alpha).
-    static std::vector<std::string> wrapped;
+    // The lines are kept here (out.lines views them) until the next call: nothing allocated from frame to frame.
+    static Lines wrapped;
+    static std::vector<std::pair<std::size_t, float>> picked; // wrapped's line, its alpha
     static NotifyLine line;
+    wrapped.clear();
+    picked.clear();
     const bool hologram = hologramOn();
     const float dim = CLAMP(0.1f, vr_notify_wrist_alpha.value, 1.f);
-    for(int age = 0; age < 16 && static_cast<int>(out.lines.size()) < logRows; age++)
+    for(int age = 0; age < 16 && static_cast<int>(picked.size()) < logRows; age++)
     {
         if(!notifyLine(age, line))
         {
@@ -1395,20 +1442,22 @@ bool log(Log& out)
         {
             continue;
         }
-        wrapped.clear();
+        const std::size_t first = wrapped.size();
         wrap(line.text, wrapped);
-        for(auto it = wrapped.rbegin(); it != wrapped.rend() && static_cast<int>(out.lines.size()) < logRows; ++it)
+        for(std::size_t i = wrapped.size(); i-- > first && static_cast<int>(picked.size()) < logRows;)
         {
-            out.lines.push_back(std::move(*it));
-            out.alpha.push_back(alpha);
+            picked.emplace_back(i, alpha);
         }
     }
-    if(out.lines.empty())
+    if(picked.empty())
     {
         return false;
     }
-    std::reverse(out.lines.begin(), out.lines.end());
-    std::reverse(out.alpha.begin(), out.alpha.end());
+    for(auto it = picked.rbegin(); it != picked.rend(); ++it) // (views taken once `wrapped` is complete)
+    {
+        out.lines.push_back(wrapped[it->first]);
+        out.alpha.push_back(it->second);
+    }
 
     // Over the gadget (as seen) and the hologram, its characters about 7 mm, in the screen's colour
     // somewhat greyed; it follows the hologram's top smoothly.
@@ -1537,7 +1586,8 @@ extern "C" int VR_GameLineOnWrist(const char* text, int length)
     {
         return 0;
     }
-    std::string plain(text, static_cast<size_t>(std::max(length, 0)));
+    static std::string plain; // (scratch kept between calls: its buffer; Con_DrawNotify's, one line at a time)
+    plain.assign(text, static_cast<size_t>(std::max(length, 0)));
     for(char& c : plain)
     {
         c = static_cast<char>(static_cast<unsigned char>(c) & 127);

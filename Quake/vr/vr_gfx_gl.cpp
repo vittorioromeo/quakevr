@@ -8,7 +8,9 @@
 
 #include <algorithm>
 #include <cstring>
+#include <functional>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -289,11 +291,17 @@ void bindWindow()
     glViewport(glx, gly, glwidth, glheight);
 }
 
-std::unordered_map<std::string, qpic_t*> pics;
+// By name; looked up by a const char* without making a std::string of it (a transparent hash).
+struct NameHash
+{
+    using is_transparent = void;
+    [[nodiscard]] std::size_t operator()(std::string_view s) const { return std::hash<std::string_view>{}(s); }
+};
+std::unordered_map<std::string, qpic_t*, NameHash, std::equal_to<>> pics;
 
 [[nodiscard]] qpic_t* picNamed(const char* name)
 {
-    const auto it = pics.find(name);
+    const auto it = pics.find(std::string_view{name});
     if(it != pics.end())
     {
         return it->second;
