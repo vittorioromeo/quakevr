@@ -14,6 +14,7 @@
 #include "vr_twohand.hpp"
 #include "vr_units.hpp"
 #include "vr_view.hpp"
+#include "vr_weapons.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -327,6 +328,16 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
     const bool svPlayer = sv && sv->player;
     const glm::vec3 pvel = svPlayer ? dir(sv->velocity) : glm::vec3{0.f};
     s.pos("pvel", svPlayer, pvel, u2m);
+    // The server's own origin (the client's, org_w, lags a moving player a little), and on the ground.
+    s.vec("sv_org_w_", svPlayer, svPlayer ? sv->origin : glm::vec3{0.f}, 3, xyz);
+    if(svPlayer)
+    {
+        s.integer("sv_onground", sv->onGround ? 1 : 0);
+    }
+    else
+    {
+        s.empty("sv_onground");
+    }
     s.pos("lean", true, dir(r.lean), u2m);
     s.num("body_yaw", wrapYaw(r.bodyYaw - yaw0), 3);
     s.num("crouch", r.crouch, 4);
@@ -586,6 +597,49 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
     return out;
 }
 
+// Every Quake VR setting a player keeps (archived vr_ cvars; the weapons' offsets are weaponSettings'),
+// for playback to place the hands and weapons as they were (vr_motion_play applies the ones that do).
+[[nodiscard]] std::string allSettings()
+{
+    std::string out;
+    for(const cvar_t* var = Cvar_FindVarAfter("", CVAR_ARCHIVE); var; var = Cvar_FindVarAfter(var->name, CVAR_ARCHIVE))
+    {
+        if(strncmp(var->name, "vr_", 3) != 0 || !strncmp(var->name, "vr_wofs_", 8) || !strncmp(var->name, "vr_motion_", 10))
+        {
+            continue;
+        }
+        std::string value = var->string;
+        std::replace(value.begin(), value.end(), ' ', '_'); // (none has spaces that matter here)
+        out += (out.empty() ? "" : " ") + std::string{var->name} + "=" + value;
+    }
+    const cvar_t* maxfps = Cvar_FindVar("host_maxfps");
+    out += std::string{" host_maxfps="} + (maxfps ? maxfps->string : "0");
+    return out;
+}
+
+// The weapon offsets (vr_wofs_*) of the empty hand's slot and of the weapons in the hands.
+[[nodiscard]] std::string weaponSettings()
+{
+    std::vector<int> slots{weapons::fistSlot(), weapons::heldSlot(HAND_MAIN), weapons::heldSlot(HAND_OFF)};
+    std::string out;
+    for(size_t i = 0; i < slots.size(); i++)
+    {
+        const int slot = slots[i];
+        if(slot < 0 || std::find(slots.begin(), slots.begin() + static_cast<long>(i), slot) != slots.begin() + static_cast<long>(i))
+        {
+            continue;
+        }
+        for(int key = 0; key < static_cast<int>(weapons::Key::Count); key++)
+        {
+            if(const cvar_t* var = weapons::cvar(slot, static_cast<weapons::Key>(key)))
+            {
+                out += (out.empty() ? "" : " ") + std::string{var->name} + "=" + var->string;
+            }
+        }
+    }
+    return out;
+}
+
 } // namespace
 
 std::string takeHeader(const TakeInfo& info, const std::vector<Row>& rows)
@@ -655,6 +709,8 @@ std::string takeHeader(const TakeInfo& info, const std::vector<Row>& rows)
         line("target", "none");
     }
     line("melee settings", meleeSettings());
+    line("settings", allSettings());
+    line("weapon settings", weaponSettings());
     line("rows", va("%d (pre-roll %d, held %d, tail %d)", static_cast<int>(rows.size()), pre, rec, tail));
     return h;
 }
@@ -1231,6 +1287,7 @@ void initPlayback(); // vr_motion_play.cpp
 void playAfterTracking(TrackingState& tracking, FrameState& frame);
 void playServerSample(edict_t*& target);
 void playFrameEnd(std::vector<Event>& events, bool tick, double svDt);
+void playServerFrame();
 bool playWantsSamples();
 
 void init()
@@ -1294,10 +1351,16 @@ bool stickClick(int hand, bool pressed)
     return true;
 }
 
+Row captureRow(bool tick, double svDt)
+{
+    return makeRow(hands::current(), tick, svDt);
+}
+
 void serverFrame()
 {
     tickThisFrame = true;
     tickDt = host_frametime;
+    playServerFrame(); // a playback's placing and weapons
     if(!armedOrRecording() && !playWantsSamples())
     {
         latest.reset();
@@ -1314,6 +1377,7 @@ void serverFrame()
     s->player = true;
     s->origin = {player->v.origin[0], player->v.origin[1], player->v.origin[2]};
     s->velocity = {player->v.velocity[0], player->v.velocity[1], player->v.velocity[2]};
+    s->onGround = (static_cast<int>(player->v.flags) & FL_ONGROUND) != 0;
 
     edict_t* target = nearestMonster(s->origin);
     playServerSample(target); // a playback's target, while it plays
