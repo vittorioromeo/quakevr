@@ -157,7 +157,7 @@ int VR_GameSound (int entnum, struct sfx_s *sfx);		// CL_ParseStartSoundPacket: 
 // Menu (menu.c).
 void VR_Menu_Open (void);								// Options > VR Settings
 void VR_Menu_Draw (void);								// M_Draw, m_vr
-void VR_Menu_Key (int key);								// M_Keydown, m_vr
+void VR_Menu_Key (int key, int repeat);				// M_Keydown, m_vr (repeat: the key's auto-repeat)
 void VR_Menu_Mousemove (float cx, float cy);			// M_Mousemove, m_vr
 // The VR menu style's widgets (vr_menuui.cpp): nonzero if they drew it in place of Quake's.
 int VR_MenuDrawSlider (int x, int y, float range, float marker, const char *desc); // M_DrawSliderWithMarkers (marker < 0: none)
