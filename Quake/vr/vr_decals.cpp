@@ -85,7 +85,9 @@ void popOldest()
     decals.popFront();
 }
 std::vector<gfx::Vertex> vertices;       // the marks that change this frame
-std::vector<gfx::Vertex> staticVertices; // the others
+std::vector<gfx::Vertex> staticVertices; // the others,
+gfx::StaticTriangles staticTriangles;     // in their own buffer: uploaded when they change, not for each eye and frame
+bool staticDirty = false;                 // staticVertices changed since they were uploaded
 double staticUntil = 0.0;                // when one of those starts to change (fades)
 double staticLife = 0.0;                 // vr_decal_life they were built for
 int builtFrame = -1; // the host frame `vertices` were built in; -1 when decals came or went since
@@ -1189,6 +1191,7 @@ void draw()
             staticVertices.clear();
             staticUntil = 1e30;
             staticLife = life;
+            staticDirty = true;
         }
         vertices.clear();
         for(std::size_t k = 0; k < decals.size(); k++)
@@ -1217,10 +1220,12 @@ void draw()
     }
     const gfx::State state{
         .shade = gfx::Shade::Texture, .blend = gfx::Blend::Modulate, .depthTest = true, .depthWrite = false};
-    if(!staticVertices.empty())
+    if(staticDirty)
     {
-        gfx::draw(staticVertices, gfx::sceneViewProjection(), state, atlas);
+        staticDirty = false;
+        gfx::upload(staticTriangles, staticVertices);
     }
+    gfx::draw(staticTriangles, gfx::sceneViewProjection(), state, atlas);
     if(!vertices.empty())
     {
         gfx::draw(vertices, gfx::sceneViewProjection(), state, atlas);
@@ -1245,6 +1250,10 @@ void count_f()
         kinds[Streak], kinds[Pool], kinds[Splotch]);
     Con_Printf("%d vertices settled, %d changing (made again each frame)\n", static_cast<int>(staticVertices.size()),
         static_cast<int>(vertices.size()));
+    Con_Printf("settled vertices uploaded %lld times so far, %.1f KB in all (%.1f KB a frame for both eyes if copied "
+               "at each draw)\n",
+        staticTriangles.uploads, static_cast<double>(staticTriangles.uploadedBytes) / 1024.0,
+        static_cast<double>(staticVertices.size() * sizeof(gfx::Vertex) * 2) / 1024.0);
     gore::count();
 }
 
