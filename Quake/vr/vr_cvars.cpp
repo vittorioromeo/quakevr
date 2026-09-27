@@ -76,9 +76,10 @@ void migrateConfig_f()
         Cvar_SetQuick(&vr_player_hue, vr_gadget_screen_hue.string);
         Cvar_SetQuick(&vr_gadget_screen_hue, "-1");
     }
-    // 13: melee redesigned (round 21, docs/vr-port/ROUND21.md). vr_melee_speed is the striking part's speed now (a
-    // swing's tip, a fist), not the wrist's; vr_bash_speed the parry stance's push alone, with no still guard before
-    // it. Their old values meant something else: both go to the new defaults, whatever they were.
+    // 13: melee redesigned (round 21, docs/vr-port/ROUND21.md). vr_melee_speed is the striking hand's speed now (the
+    // controller's, relative to the head; a weapon's swing 1.25x), not the estimated wrist's with a stroke's distance
+    // and snap; vr_bash_speed the parry stance's push after it was held, both its ends going forward, however the
+    // weapon turns. Their old values meant something else: both go to the new defaults, whatever they were.
     if(from < 13)
     {
         for(cvar_t* var : {&vr_melee_speed, &vr_bash_speed})

@@ -174,7 +174,7 @@ void resetSwimming()
 [[nodiscard]] std::vector<Item> pageMeleeSettings()
 {
     return {
-        slider("Swing Speed", "vr_melee_speed", 1.f, 8.f, 0.25f, "%.2f m/s").help("How fast what strikes must move to hit: a swing's tip (any part of the blade then hits), a fist, a pommel (a stab: three quarters of it). At this speed a hit is weak; twice it, a full hit; faster, harder still."),
+        slider("Swing Speed", "vr_melee_speed", 1.f, 8.f, 0.25f, "%.2f m/s").help("How fast the striking hand must move to hit: a punch, a pommel strike; a weapon's swing a quarter faster, a stab three quarters of it. Any part of the blade then hits. At this speed a hit is weak; twice it, a full hit; faster, harder still."),
         slider("Punch Damage Mult.", "vr_melee_punch_mult", 1.f, 3.f, 0.05f, "%.2f").help("Damage of every punch: straight, hook, uppercut or overhead alike."),
         slider("Damage Multiplier", "vr_melee_dmg_multiplier", 0.25f, 15.f, 0.25f, "%.1f").help("Damage multiplier for melee attacks."),
         slider("Range Multiplier", "vr_melee_range_multiplier", 0.25f, 15.f, 0.25f, "%.1f").help("Range multiplier for melee attacks."),

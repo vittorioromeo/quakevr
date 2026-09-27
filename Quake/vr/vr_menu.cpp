@@ -325,7 +325,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         toggle("Unarmed Parry", vr_parry_unarmed).help("Cross your arms in an X in front of you to block a blow with your forearms."),
         slider("Unarmed Parry Reduction", vr_parry_unarmed_reduction, 0.f, 1.f, 0.05f, "%.2f"),
         toggle("Bash", vr_bash).help("The parry stance (a weapon level across in front, one hand or two) pushed straight forward bashes: knocks monsters back and staggers them. Open palms facing a monster pushed at it shove it. Two hands (a weapon held two-handed, a palm pushing on the blade, both palms) push harder and further."),
-        slider("Bash Speed", vr_bash_speed, 0.3f, 3.f, 0.1f, "%.1f m/s").help("How fast the stance (a weapon level across) must be pushed forward. A swing through the stance never bashes: its blade turns."),
+        slider("Bash Speed", vr_bash_speed, 0.3f, 3.f, 0.1f, "%.1f m/s").help("How fast the stance (a weapon level across, held half a second) must be pushed forward, both its ends going ahead. A swing passing through the stance doesn't bash."),
         slider("Shove Speed", vr_shove_speed, 0.8f, 5.f, 0.1f, "%.1f m/s").help("How fast open palms (facing ahead, not holding anything) must be pushed out, the arm extending, to shove. Hands waved or patted at a monster don't shove."),
         slider("Bash Damage", vr_bash_damage, 0.f, 40.f, 1.f, "%.0f"),
         slider("Bash Push", vr_bash_push, 0.f, 3.f, 0.05f, "%.2fx").help("How far a bash or shove throws what it hits (times Knockback)."),
