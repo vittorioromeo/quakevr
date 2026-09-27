@@ -185,8 +185,10 @@ writer, and writes `Quake/vr/vr_handrig_data.inc`, the tables compiled into the 
 - The engine uses those tables until it reads the file.
 - The game measures your edits against them.
 
-**Rerunning the generator overwrites the hand files.** That includes your Blender edits and a skin you painted there.
-Before you run it, copy your edited files or keep your .blend. You can export from the .blend again at any time.
+**The generator doesn't overwrite your edited hand.** It stops and names the edited files. `--keep-edited` writes the
+rest (the tables) and leaves your hand as it is; `--force` overwrites it with the generator's hand (see
+[MODELS_IN_BLENDER.md](MODELS_IN_BLENDER.md#6-the-generators)). Keep your .blend: you can export from it again at any
+time.
 
 If you change the generator itself, it gives you a new shipped hand. Rebuild the engine, because the tables change.
 Your .blend then still holds the old hand: import the new one to edit it.

@@ -4824,3 +4824,71 @@ The old strap stubs are gone. 26 closed pieces, 720 triangles (the strap: 272).
 - [ ] **Torch grips:**
   - [ ] Take the torch from the belt after flipping it to the low grip: it comes in the overhead grip.
   - [ ] Take it off your head and off a gun: does the grip it comes in feel right?
+
+## Editing the body, the weapons and the gadget in Blender
+
+Your note: "Could you also enable me to edit other models in Blender? Specifically the body/legs/arms, the weapons, and
+the wrist gadget."
+
+A second add-on, **Quake VR Models** (`Misc/quakevr/blender/addons/quakevr_models`), next to the hand's. The guide:
+[MODELS_IN_BLENDER.md](MODELS_IN_BLENDER.md).
+
+- **The body** (the three builds' `.md5mesh`, `.md5anim` and the 16 `.tga` skins): the armature and weights, as for
+  the hand.
+  - The joints are the engine's, so the export keeps them and refuses a moved or renamed bone. **Apply Pose to Mesh**
+    bakes a pose into the mesh.
+  - Skins: you paint the plain one, and the export carries your changes into the 15 armour and damage skins, under
+    their plates and wounds. The skins stay on Quake's palette unless you untick it (the engine takes full colour).
+  - **The Other Builds Too** makes the same edits in the other two builds.
+- **The weapons and the gadget** (`.mdl`): frames as shape keys, the skin, UVs and onseam vertices.
+  - Frame 0's edits are carried into every frame by each part's motion (recoil, pump, spinning barrels).
+  - The header's scale and origin, the frames and every old vertex's index are kept. New triangles get vertices of
+    their own, so the anchors' strip order doesn't change.
+  - After each export: every anchor before and after (vr_weapons.inc, vr_shells.cpp; the gadget's screen, emitter and
+    lugs), and `check_mdl_holes.py`. A moved anchor warns. An anchor that would name another vertex refuses the
+    export, unless you tick Remap Anchors (it prints the new `vr_wofs_*_av` values).
+  - A vertex outside the model's byte box is refused, unless you tick Grow the Box (it prints the offsets that keep
+    the weapon in place).
+- **`vr_model_reload [model ...]`** reads the weapons, the body and the gadget again, and forgets what was worked out
+  from them (strip orders, grasp shapes, collision triangles, the body's bone check). No restart: a map change
+  doesn't read a model again.
+- **The generators don't overwrite your edits** (`Misc/quakevr/genguard.py`, `generated.json`): `make_vrbody.py`,
+  `polish_weapons.py`, `make_gadget.py`, `make_hand_rig.py` (and the earlier weapon scripts) stop and name the files
+  you edited. `--keep-edited` writes the rest; `--force` overwrites. **Your hand edit (0d5c225b) is protected:**
+  `make_hand_rig.py` now refuses to overwrite it.
+
+### Tests (headless Blender 5.2, then the mock; scratchpad `blendall/`)
+
+- **Unedited round trips, byte for byte:** all 22 `.mdl` (every `v_*.mdl`, `vrgadget.mdl`, `vrgadget_strap.mdl`) and
+  the three bodies with their 16 skins. The same after a second export from the same scene, and through the
+  operators in a fresh Blender profile (installed from the script directory, and from a zip).
+- **The shotgun edited** (a part stretched 1.3× and raised, the skin repainted): the anchors unchanged, no new holes.
+  `vr_dumpview` holding it is the same as with the shipped gun, but for a strap's 0.001 jitter that two runs of the
+  shipped gun show too. It draws edited in the game.
+- **Loud cases:**
+  - moving the muzzle's vertex: "MOVED ... 0.333 units";
+  - deleting an early triangle: refused (4 anchors renamed), then with Remap Anchors the new indices;
+  - an extrusion: new triangles appended, the order unchanged below index 361;
+  - a vertex out of the box: refused, then grown (the offsets printed).
+- **`vr_model_reload`:** the shotgun and the gadget replaced while the game ran, then reloaded: drawn edited. The same
+  for the body (`vr_model_reload vrbody`).
+- **The body edited** (the athletic chest pushed out 1.25×, the skin repainted): the body preview (from the front and
+  the side) draws it, with its arms, legs and holstered guns; `vr_dumpview` is the same. The Other Builds Too moved
+  the same 131 vertices of the lean and brawny files (checked headless, not drawn).
+- **The gadget edited** (its dials scaled): the screen, emitter and lugs unchanged.
+- **The guard:** `make_hand_rig.py` refuses (your 6 hand files); a body file edited is refused, kept with
+  `--keep-edited`, overwritten with `--force`. Every other generator's output matched its file when the manifest was
+  recorded.
+
+### Not verified
+
+- **Blender's interactive UI:** only headless, through the operators. The sidebar panel and the warning popup weren't
+  seen.
+- **Painting in Texture Paint mode:** it paints the same image, but the tests painted it by script.
+- **Colours under the game's light:** a painted blue on the gadget casing looked orange in e1m1's torch light (blue in
+  `r_fullbright 1`); the file holds the colour painted.
+
+### In the headset
+
+- [ ] Import a weapon, move a part, export, `vr_model_reload`: does it draw edited, and is it held as before?
+- [ ] Paint the body's plain skin, export, `vr_model_reload`: do the armour skins show your paint round their plates?
