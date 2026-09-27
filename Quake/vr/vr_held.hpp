@@ -47,4 +47,12 @@ void modelBox(const qmodel_t* model, const glm::vec3& scale, const glm::vec3& sc
 
 [[nodiscard]] glm::vec3 surfaceFit(edict_t* ent, const glm::vec3& hand, const glm::vec3& palm);
 
+// Round 21, second pass: the distance (units) from `point` to the drawn surface of `ent` (its model as drawn: the
+// networked scale and offset), its nearest point in `nearest`; -1 if it has no surface to measure.
+[[nodiscard]] float surfaceDistance(edict_t* ent, const glm::vec3& point, glm::vec3* nearest = nullptr);
+
+// vr_debug_carry: what a hand's touch test found (the server's), and drawn by the view (lines, this frame).
+void noteCarryProbe(int hand, edict_t* ent, const glm::vec3& at, float distance, const glm::vec3& nearest, float reach);
+void drawCarryProbes();
+
 } // namespace qvr::held

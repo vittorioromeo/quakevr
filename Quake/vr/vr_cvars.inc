@@ -463,6 +463,8 @@ QVR_CVAR(vr_carry_take, "0", CVAR_ARCHIVE)            // taking a carried box: 0
 QVR_CVAR(vr_carry_local, "1", CVAR_ARCHIVE)           // what you carry is drawn in your hand as it moves this frame (0: where the server has it, a frame or a ping behind)
 QVR_CVAR(vr_held_surface_fit, "1", CVAR_ARCHIVE)      // a gripped box, gib or backpack sits against the palm, pushed out of the fist, instead of sunk into the hand (0: where it was gripped)
 QVR_CVAR(vr_held_fit_gap, "0", CVAR_ARCHIVE)          // with it: cm between the curled fingers and what they hold (negative: sunk in)
+QVR_CVAR(vr_carry_reach, "8", CVAR_ARCHIVE)           // round 21, second pass: cm from the hand (the controller's point) to the drawn surface of a box, gib or backpack it can take (0: its whole model box, as before)
+QVR_CVAR(vr_debug_carry, "0", CVAR_NONE)              // draws, for each hand, the carriable thing it is in the box of: its box, its surface's nearest point and the reach (green: in reach)
 QVR_CVAR(vr_held_fit_gaps, "", CVAR_ARCHIVE)          // ... and per model, added: "name=cm ...", a name matching the end of the model's (e.g. "backpack.mdl=0.5 b_bh25.bsp=-0.3")
 QVR_CVAR(vr_forcegrab_outline, "1", CVAR_ARCHIVE)     // the glow round what a hand's force grab points at (strength, 0 off)
 QVR_CVAR(vr_forcegrab_fx, "1", CVAR_ARCHIVE)          // force grab's beam and energy tendril from the hand, and the pulled object's trail
@@ -574,7 +576,14 @@ QVR_CVAR(vr_show_weapon_hotspots, "0", CVAR_NONE)      // marks the held weapons
 QVR_CVAR(vr_hand_fit_palm, "5", CVAR_ARCHIVE)          // with it: cm the drawn hand may move off the controller to sit flush on what it holds (0: stays on the controller)
 QVR_CVAR(vr_hand_fit_palm_weapon, "3", CVAR_ARCHIVE)   // the same on a weapon (its own grip, a foregrip, a blade): cm (the weapon is placed in the hand by its settings)
 QVR_CVAR(vr_hand_fit_palm_turn, "20", CVAR_ARCHIVE)    // and degrees it may turn to face the surface it holds (0: not at all)
+QVR_CVAR(vr_hand_fit_overlap, "0.3", CVAR_ARCHIVE)     // round 21, second pass: cm the fingers and palm may sink into what they hold (snug, no gap)
+QVR_CVAR(vr_hand_fit_overlap_hands, "0.6", CVAR_ARCHIVE) // and cm a hand cupping the other (a two-handed pistol grip) may sink into it
+QVR_CVAR(vr_hand_walls, "1", CVAR_ARCHIVE)            // round 21, second pass: the jointed hand's fingers bend (curl) where they would go into walls and floors
+QVR_CVAR(vr_hand_collide, "4", CVAR_ARCHIVE)          // cm a free hand is held out of the weapon in the other hand (drawn only; deeper, it lets go and passes through; 0: never)
+QVR_CVAR(vr_hand_fit_blend, "0.12", CVAR_ARCHIVE)      // seconds the fingers, thumb and palm take to move to a new grasp (0: at once)
+QVR_CVAR(vr_hand_fit_resolve, "0.3", CVAR_ARCHIVE)     // cm (and that many times 2 degrees) what the hand holds may move in it before the grasp is solved again (0: every frame)
 QVR_CVAR(vr_debug_grasp, "0", CVAR_NONE)               // print each grasp solve (1), and each finger's stops (2)
+QVR_CVAR(vr_debug_grasp_trace, "0", CVAR_NONE)         // write the drawn hand's joints every frame to grasp_trace.txt in the game folder: 1 the main hand, 2 the off hand, 3 both
 QVR_CVAR(vr_hand_rig, "1", CVAR_ARCHIVE)               // round 21: the jointed hand (progs/hand_rig.md5mesh: three joints a finger, an opposable thumb, continuous curls; vr_handrig.cpp). 0: the palm and five finger models as before
 QVR_CVAR(vr_reload_mode, "2", CVAR_ARCHIVE)
 QVR_CVAR(vr_show_weapon_text, "1", CVAR_ARCHIVE)

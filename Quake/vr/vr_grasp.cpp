@@ -4,11 +4,16 @@
 #include "vr_render.hpp"
 #include "vr_api_render.h"
 
+#include <glm/gtc/matrix_transform.hpp>
+
 #include <algorithm>
 #include <array>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <memory>
+#include <string>
+#include <unordered_map>
 
 namespace qvr::grasp
 {
@@ -16,708 +21,180 @@ namespace
 {
 
 using handrig::data::firstVertex;
-using handrig::data::fingerTriangles;
-using handrig::data::numFingerTriangles;
 using handrig::data::vertices;
 
-constexpr float maxCurl = 4.f; // the tightest fist
-constexpr int halvings = 10;   // a contact found to 1/1000 of a step
+constexpr float maxCurl = 4.f;       // the tightest fist
+constexpr float tolerance = 0.01f;   // hand units: a sphere this close touches
+constexpr float leastStep = 0.002f;  // curl frames: the smallest step closing makes (conservative advancement)
+constexpr int maxSteps = 64;         // steps closing a finger (a few near a contact, one or two across open air)
+constexpr int halvings = 7;          // opening from the fist to the first clear curl: to 1/512 of a step
+constexpr float searchReach = 0.6f;  // hand units beyond a sphere's radius a distance query looks (farther: "clear by this")
+constexpr float cellHandUnits = 2.f; // the shapes' grid cells, in hand units (as big as they are in the hand)
 
-// Closing a finger: the curl per step (the fingertips then move under a third of a finger's width), coarse when
-// comparing placements of the hand.
-constexpr float fineStep = 0.05f;
-constexpr float coarseStep = 0.2f;
-
-struct Box
+[[nodiscard]] glm::vec3 vec(const float* v)
 {
-    glm::vec3 lo{1e30f}, hi{-1e30f};
+    return {v[0], v[1], v[2]};
+}
 
-    void add(const glm::vec3& p)
-    {
-        lo = glm::min(lo, p);
-        hi = glm::max(hi, p);
-    }
-    [[nodiscard]] bool overlaps(const Box& o) const
-    {
-        return lo.x <= o.hi.x && o.lo.x <= hi.x && lo.y <= o.hi.y && o.lo.y <= hi.y && lo.z <= o.hi.z && o.lo.z <= hi.z;
-    }
+// ----------------------------------------------------------------------------
+// The hand as spheres: each finger segment (bones 1..3) as a row of spheres along its side towards the palm, fitted to
+// its vertices at the bind pose (rig space: each bone's own frame there); the palm's side as spheres just under its
+// skin.
+
+struct Sphere
+{
+    glm::vec3 c;
+    float r;
 };
 
-[[nodiscard]] Box boxOf(const Triangle& t)
+struct Kinematics
 {
-    Box b;
-    for(const glm::vec3& p : t.p)
-    {
-        b.add(p);
-    }
-    return b;
-}
-
-// Whether segment a-b passes through triangle t (its inside, ends included).
-[[nodiscard]] bool segmentHits(const glm::vec3& a, const glm::vec3& b, const Triangle& t)
-{
-    const glm::vec3 e1 = t.p[1] - t.p[0], e2 = t.p[2] - t.p[0], d = b - a;
-    const glm::vec3 pv = glm::cross(d, e2);
-    const float det = glm::dot(e1, pv);
-    if(std::fabs(det) < 1e-12f)
-    {
-        return false;
-    }
-    const float inv = 1.f / det;
-    const glm::vec3 tv = a - t.p[0];
-    const float u = glm::dot(tv, pv) * inv;
-    if(u < 0.f || u > 1.f)
-    {
-        return false;
-    }
-    const glm::vec3 qv = glm::cross(tv, e1);
-    const float v = glm::dot(d, qv) * inv;
-    if(v < 0.f || u + v > 1.f)
-    {
-        return false;
-    }
-    const float s = glm::dot(e2, qv) * inv;
-    return s >= 0.f && s <= 1.f;
-}
-
-// Two triangles cross when an edge of one passes through the other.
-[[nodiscard]] bool trianglesCross(const Triangle& a, const Triangle& b)
-{
-    for(int i = 0; i < 3; i++)
-    {
-        if(segmentHits(a.p[i], a.p[(i + 1) % 3], b) || segmentHits(b.p[i], b.p[(i + 1) % 3], a))
-        {
-            return true;
-        }
-    }
-    return false;
-}
-
-// The held thing's triangles near the hand, in a grid of cells for the tests.
-class Scene
-{
-public:
-    Scene(const std::vector<Triangle>& all, const Box& region)
-    {
-        for(const Triangle& t : all)
-        {
-            const Box b = boxOf(t);
-            if(b.overlaps(region))
-            {
-                tris.push_back(t);
-                boxes.push_back(b);
-                bounds.add(b.lo);
-                bounds.add(b.hi);
-            }
-        }
-        if(tris.empty())
-        {
-            return;
-        }
-        bounds.lo = glm::max(bounds.lo, region.lo);
-        bounds.hi = glm::min(bounds.hi, region.hi);
-        for(int k = 0; k < 3; k++)
-        {
-            size[k] = std::clamp(static_cast<int>((bounds.hi[k] - bounds.lo[k]) / cell) + 1, 1, 64);
-        }
-        cells.assign(static_cast<size_t>(size[0] * size[1] * size[2]), {});
-        for(size_t i = 0; i < tris.size(); i++)
-        {
-            forCells(boxes[i], [&](std::vector<int>& c) { c.push_back(static_cast<int>(i)); });
-        }
-        stamps.assign(tris.size(), 0u);
-    }
-
-    [[nodiscard]] bool empty() const { return tris.empty(); }
-    [[nodiscard]] int count() const { return static_cast<int>(tris.size()); }
-
-    // Whether `t` crosses any of the held thing's triangles.
-    [[nodiscard]] bool crosses(const Triangle& t) const
-    {
-        const Box b = boxOf(t);
-        if(!b.overlaps(bounds))
-        {
-            return false;
-        }
-        stamp++;
-        bool hit = false;
-        forCells(b, [&](const std::vector<int>& c) {
-            for(const int i : c)
-            {
-                if(hit || stamps[i] == stamp)
-                {
-                    continue;
-                }
-                stamps[i] = stamp;
-                hit = b.overlaps(boxes[i]) && trianglesCross(t, tris[i]);
-            }
-        });
-        return hit;
-    }
-
-private:
-    static constexpr float cell = 1.f; // hand units
-
-    template <typename F>
-    void forCells(const Box& b, F&& f) const
-    {
-        int lo[3], hi[3];
-        for(int k = 0; k < 3; k++)
-        {
-            lo[k] = std::clamp(static_cast<int>(std::floor((b.lo[k] - bounds.lo[k]) / cell)), 0, size[k] - 1);
-            hi[k] = std::clamp(static_cast<int>(std::floor((b.hi[k] - bounds.lo[k]) / cell)), 0, size[k] - 1);
-        }
-        for(int z = lo[2]; z <= hi[2]; z++)
-        {
-            for(int y = lo[1]; y <= hi[1]; y++)
-            {
-                for(int x = lo[0]; x <= hi[0]; x++)
-                {
-                    f(const_cast<std::vector<int>&>(cells[static_cast<size_t>((z * size[1] + y) * size[0] + x)]));
-                }
-            }
-        }
-    }
-
-    std::vector<Triangle> tris;
-    std::vector<Box> boxes;
-    Box bounds;
-    int size[3]{1, 1, 1};
-    std::vector<std::vector<int>> cells;
-    mutable std::vector<std::uint32_t> stamps;
-    mutable std::uint32_t stamp{0};
+    std::vector<Sphere> bone[handrig::FingerCount][handrig::jointsPerFinger + 1];
+    float rate[handrig::FingerCount][handrig::jointsPerFinger]{}; // radians a curl frame, at most
+    std::vector<Sphere> palm;
+    std::vector<Sphere> thenar; // the ball of the thumb
+    glm::vec3 palmCentre{0.f};
 };
 
-// A finger's triangles, by segment (the most distal bone of their vertices: 0 the root, glued to the palm).
-struct FingerMesh
+Kinematics buildKinematics()
 {
-    std::vector<std::array<int, 3>> tris;
-    std::vector<int> link;
-};
-
-const FingerMesh& fingerMesh(int finger)
-{
-    static const std::array<FingerMesh, handrig::FingerCount> meshes = [] {
-        std::array<FingerMesh, handrig::FingerCount> m;
-        for(int t = 0; t < numFingerTriangles; t++)
-        {
-            const auto* tri = fingerTriangles[t];
-            const int f = vertices[tri[0]].finger;
-            int link = 0;
-            for(int k = 0; k < 3; k++)
-            {
-                link = std::max(link, static_cast<int>(vertices[tri[k]].bone));
-            }
-            m[f].tris.push_back({tri[0], tri[1], tri[2]});
-            m[f].link.push_back(link);
-        }
-        return m;
-    }();
-    return meshes[finger];
-}
-
-// The segments (from `fromLink` on) of `finger` posed at `c`, the hand moved by `d`, that cross the held thing, as
-// bits (1 << segment).
-[[nodiscard]] unsigned crossing(const handrig::Pose& pose, int finger, const float c[3], int fromLink, const glm::vec3& d,
-    const Scene& scene, handrig::Posed& posed)
-{
-    handrig::poseFinger(pose, finger, c, posed);
-    const FingerMesh& mesh = fingerMesh(finger);
-    unsigned hits = 0;
-    for(size_t i = 0; i < mesh.tris.size(); i++)
+    Kinematics k;
+    for(int f = 0; f < handrig::FingerCount; f++)
     {
-        const int link = mesh.link[i];
-        if(link < fromLink || (hits & (1u << link)))
+        for(int j = 0; j < handrig::jointsPerFinger; j++)
         {
-            continue;
+            k.rate[f][j] = handrig::jointRate(f, j);
         }
-        const Triangle t{{posed.vertex[mesh.tris[i][0]] + d, posed.vertex[mesh.tris[i][1]] + d, posed.vertex[mesh.tris[i][2]] + d}};
-        if(scene.crosses(t))
+        for(int b = 1; b <= handrig::jointsPerFinger; b++)
         {
-            hits |= 1u << link;
-        }
-    }
-    return hits;
-}
-
-// Closes one finger (see vr_grasp.hpp), the hand moved by `d`, `step` curl a step.
-void solveFinger(const handrig::Pose& pose, int finger, const glm::vec3& d, const Scene& scene, float step, bool settle,
-    FingerStop& out)
-{
-    out = FingerStop{};
-    handrig::Posed posed;
-    float c[3]{0.f, 0.f, 0.f};
-    int firstActive = 0; // joints from this one on still close
-    float at = 0.f;
-    if(crossing(pose, finger, c, 1, d, scene, posed))
-    {
-        // Open, the finger is already in it (a gun's frame, where the straight fingers point). Then it closes from
-        // the other end: the tightest curl it is clear at, opening from the full fist (a thick grip through the
-        // fist: the fingers open round it), and from there joint by joint as below.
-        float free = -1.f;
-        for(float t = maxCurl; t > 0.f; t -= step)
-        {
-            const float cs[3]{t, t, t};
-            if(!crossing(pose, finger, cs, 1, d, scene, posed))
+            // The segment's vertices: the ring at its far end (its bone's) and the one at its joint (the bone
+            // before's): its triangles join them. Its axis: from the near ring's middle to the far one's.
+            std::vector<glm::vec3> pts;
+            glm::vec3 ring[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+            int counts[2]{};
+            for(int v = firstVertex[f]; v < firstVertex[f + 1]; v++)
             {
-                free = t;
-                break;
-            }
-        }
-        if(free < 0.f)
-        {
-            out.startsInside = true;
-            return;
-        }
-        if(free < maxCurl)
-        {
-            float lo = free, hi = std::min(free + step, maxCurl);
-            for(int h = 0; h < halvings; h++)
-            {
-                const float mid = 0.5f * (lo + hi);
-                const float cs[3]{mid, mid, mid};
-                (crossing(pose, finger, cs, 1, d, scene, posed) ? hi : lo) = mid;
-            }
-            free = lo;
-        }
-        out.fromClosed = true;
-        at = free;
-        c[0] = c[1] = c[2] = free;
-    }
-    while(firstActive < handrig::jointsPerFinger && at < maxCurl)
-    {
-        const float next = std::min(at + step, maxCurl);
-        float trial[3];
-        for(int j = 0; j < 3; j++)
-        {
-            trial[j] = j >= firstActive ? next : c[j];
-        }
-        unsigned hits = crossing(pose, finger, trial, firstActive + 1, d, scene, posed);
-        if(!hits)
-        {
-            at = next;
-            for(int j = firstActive; j < 3; j++)
-            {
-                c[j] = next;
-            }
-            continue;
-        }
-        // Halve the step to the contact: `lo` free, `hi` crossing.
-        float lo = at, hi = next;
-        for(int h = 0; h < halvings; h++)
-        {
-            const float mid = 0.5f * (lo + hi);
-            for(int j = firstActive; j < 3; j++)
-            {
-                trial[j] = mid;
-            }
-            const unsigned m = crossing(pose, finger, trial, firstActive + 1, d, scene, posed);
-            if(m)
-            {
-                hi = mid;
-                hits = m;
-            }
-            else
-            {
-                lo = mid;
-            }
-        }
-        at = lo;
-        for(int j = firstActive; j < 3; j++)
-        {
-            c[j] = lo;
-        }
-        // The most distal segment met stops the joints that move it; those past it go on.
-        int link = 3;
-        while(link > 0 && !(hits & (1u << link)))
-        {
-            link--;
-        }
-        for(int j = firstActive; j < link; j++)
-        {
-            out.stop[j] = lo;
-        }
-        out.met = true;
-        firstActive = std::max(firstActive, link);
-    }
-
-    // Then it settles round what it met: a joint closes further while a joint past it opens as much as that needs
-    // (a fingertip slides along the surface as the knuckles close), as long as that closes the finger more, knuckles
-    // first; the joints are never past the tightest fist.
-    if(out.met && settle)
-    {
-        float s[3]{out.stop[0], out.stop[1], out.stop[2]};
-        constexpr float weight[3] = {1.2f, 1.f, 0.8f};
-        const auto value = [&](const float* c) { return weight[0] * c[0] + weight[1] * c[1] + weight[2] * c[2]; };
-        for(float delta = 4.f * step; delta >= step * 0.99f; delta *= 0.5f)
-        {
-            for(bool better = true; better;)
-            {
-                better = false;
-                for(int j = 0; j < 3 && !better; j++)
+                const int end = vertices[v].bone == b ? 1 : vertices[v].bone == b - 1 ? 0 : -1;
+                if(end >= 0)
                 {
-                    if(s[j] + delta > maxCurl)
-                    {
-                        continue;
-                    }
-                    // Alone, or with one joint past it opening by as much.
-                    for(int k = j; k < 3 && !better; k++)
-                    {
-                        float t[3]{s[0], s[1], s[2]};
-                        t[j] += delta;
-                        if(k > j)
-                        {
-                            t[k] -= delta;
-                            if(t[k] < 0.f)
-                            {
-                                continue;
-                            }
-                        }
-                        if(value(t) > value(s) + 1e-4f && !crossing(pose, finger, t, 1, d, scene, posed))
-                        {
-                            s[0] = t[0];
-                            s[1] = t[1];
-                            s[2] = t[2];
-                            better = true;
-                        }
-                    }
+                    pts.push_back(vec(vertices[v].local[0]));
+                    ring[end] += pts.back();
+                    counts[end]++;
                 }
             }
-        }
-        out.stop[0] = s[0];
-        out.stop[1] = s[1];
-        out.stop[2] = s[2];
-    }
-}
-
-// How well a finger holds: -1 in it at every curl, 0 touching nothing, else its closure where it stopped (0..1).
-// A wrap (its joints stopped one after another: the segments round what it holds) beats a finger stopped by its tip.
-[[nodiscard]] float score(const FingerStop& s)
-{
-    if(s.startsInside)
-    {
-        return -1.f;
-    }
-    if(!s.met)
-    {
-        return 0.f;
-    }
-    const float closure = (s.stop[0] + s.stop[1] + s.stop[2]) / (3.f * maxCurl);
-    const float wrap = (s.stop[1] - s.stop[0] > 0.1f ? 0.5f : 0.f) + (s.stop[2] - s.stop[1] > 0.1f ? 0.5f : 0.f);
-    return 0.6f * closure + 0.4f * wrap;
-}
-
-// The thumb's turn across the palm at its base (opposition): about the hand's long axis, from beside the index finger
-// towards the palm, `degrees`.
-[[nodiscard]] glm::quat opposition(float degrees)
-{
-    return glm::angleAxis(glm::radians(degrees), glm::vec3{-1.f, 0.f, 0.f});
-}
-
-// The thumb's swing in the palm's plane (about its normal): positive down towards the little finger's side,
-// negative up and away (over the top of what the hand holds).
-[[nodiscard]] glm::quat swing(float degrees)
-{
-    return glm::angleAxis(glm::radians(degrees), glm::vec3{0.f, 1.f, 0.f});
-}
-
-// The thumb: closed at each turn of its metacarpal (across the palm, and swung in its plane), the one holding best
-// (the least turn when as good).
-void solveThumb(handrig::Pose& pose, const glm::vec3& d, const Scene& scene, float step, FingerStop& out, glm::quat& turn)
-{
-    float best = -1e9f;
-    const glm::quat keep = pose.metacarpal;
-    // A turn costs a little (a thumb held naturally beats a contorted one that holds a little better).
-    for(const float o : {0.f, 15.f, 30.f, 45.f})
-    {
-        for(const float s : {0.f, -15.f, 15.f, -30.f})
-        {
-            const glm::quat q = swing(s) * opposition(o);
-            pose.metacarpal = q;
-            FingerStop st;
-            solveFinger(pose, handrig::Thumb, d, scene, step, true, st);
-            const float value = score(st) - 0.004f * (std::fabs(o) + std::fabs(s));
-            if(!st.startsInside && value > best)
+            if(!counts[0] || !counts[1])
             {
-                best = value;
-                out = st;
-                turn = q;
+                continue;
+            }
+            ring[0] /= static_cast<float>(counts[0]);
+            ring[1] /= static_cast<float>(counts[1]);
+            const glm::vec3 mid = 0.5f * (ring[0] + ring[1]);
+            const glm::vec3 dir = glm::normalize(ring[1] - ring[0]);
+
+            // Its cross-section: the direction its vertices spread most across the axis (`deep`), and across that.
+            float lo = 1e9f, hi = -1e9f;
+            glm::mat3 across{0.f};
+            for(const glm::vec3& p : pts)
+            {
+                const float t = glm::dot(p - mid, dir);
+                lo = std::fmin(lo, t);
+                hi = std::fmax(hi, t);
+                const glm::vec3 q = p - mid - dir * t;
+                across += glm::outerProduct(q, q);
+            }
+            glm::vec3 deep = glm::normalize(glm::cross(dir, std::fabs(dir.x) < 0.9f ? glm::vec3{1.f, 0.f, 0.f} : glm::vec3{0.f, 1.f, 0.f}));
+            for(int i = 0; i < 16; i++)
+            {
+                glm::vec3 next = across * deep;
+                next -= dir * glm::dot(next, dir);
+                if(glm::length(next) < 1e-9f)
+                {
+                    break;
+                }
+                deep = glm::normalize(next);
+            }
+            const glm::vec3 wide = glm::cross(dir, deep);
+            glm::vec2 centre{0.f};
+            for(const glm::vec3& p : pts)
+            {
+                centre += glm::vec2{glm::dot(p - mid, deep), glm::dot(p - mid, wide)};
+            }
+            centre /= static_cast<float>(pts.size());
+            float deepHalf = 0.f, wideHalf = 0.f;
+            for(const glm::vec3& p : pts)
+            {
+                deepHalf = std::fmax(deepHalf, std::fabs(glm::dot(p - mid, deep) - centre.x));
+                wideHalf = std::fmax(wideHalf, std::fabs(glm::dot(p - mid, wide) - centre.y));
+            }
+
+            // One row of spheres as wide as the segment, along its side towards the palm (+y, the side that closes
+            // onto what the hand holds): a deep, blocky segment's back is left out. A radius apart, from end to end
+            // (the ends half of one in).
+            const float radius = 0.95f * wideHalf;
+            const float towardsPalm = glm::dot(deep, glm::vec3{0.f, 1.f, 0.f}) >= 0.f ? 1.f : -1.f;
+            const float offset = std::fmax(0.95f * deepHalf - radius, 0.f) * towardsPalm;
+            const glm::vec3 axis = mid + deep * (centre.x + offset) + wide * centre.y;
+            const float a = lo + radius * 0.5f, z = hi - radius * 0.5f;
+            const int n = z > a ? std::max(2, static_cast<int>(std::ceil((z - a) / radius)) + 1) : 1;
+            for(int i = 0; i < n; i++)
+            {
+                const float t = n > 1 ? a + (z - a) * static_cast<float>(i) / static_cast<float>(n - 1) : 0.5f * (lo + hi);
+                k.bone[f][b].push_back({axis + dir * t, radius});
             }
         }
     }
-    if(best > -1e9f)
-    {
-        pose.metacarpal = keep;
-        return;
-    }
 
-    // In it at every turn and curl (its base in a grip): as little in it as it can be, among the natural turns.
-    handrig::Posed posed;
-    const FingerMesh& mesh = fingerMesh(handrig::Thumb);
-    int fewest = 1 << 30;
-    for(const float o : {0.f, 15.f, 30.f, 45.f})
-    {
-        for(const float s : {0.f, -15.f, 15.f})
-        {
-            pose.metacarpal = swing(s) * opposition(o);
-            for(float c = 0.f; c <= maxCurl; c += 1.f)
-            {
-                const float cs[3]{c, c, c};
-                handrig::poseFinger(pose, handrig::Thumb, cs, posed);
-                int crossings = 0;
-                for(size_t i = 0; i < mesh.tris.size(); i++)
-                {
-                    const Triangle t{{posed.vertex[mesh.tris[i][0]] + d, posed.vertex[mesh.tris[i][1]] + d,
-                        posed.vertex[mesh.tris[i][2]] + d}};
-                    crossings += scene.crosses(t) ? 1 : 0;
-                }
-                if(crossings < fewest)
-                {
-                    fewest = crossings;
-                    turn = pose.metacarpal;
-                    out = FingerStop{};
-                    out.met = true;
-                    out.leastInside = true;
-                    out.stop[0] = out.stop[1] = out.stop[2] = c;
-                }
-            }
-        }
-    }
-    pose.metacarpal = keep;
-}
-
-// The palm and the fingers' roots (glued to it), as triangles; not the thumb's socket and the thenar round it (the
-// metacarpal's: the ball of the thumb gives round what the hand holds, and the thumb closes on its own).
-void palmTriangles(const handrig::Pose& pose, std::vector<Triangle>& out, bool thenar = false)
-{
-    out.clear();
-    handrig::Posed posed;
-    handrig::pose(pose, posed);
+    // The palm's side (+y): a sphere under the middle of each of its triangles facing that way, its top on the skin.
+    constexpr float palmRadius = 0.45f;
+    glm::vec3 sum{0.f};
+    int count = 0;
     for(int t = 0; t < handrig::data::numPalmTriangles; t++)
     {
         const auto* tri = handrig::data::palmTriangles[t];
-        if(!thenar && (handrig::data::palmVertices[tri[0]].thumb > 0.f || handrig::data::palmVertices[tri[1]].thumb > 0.f ||
-                          handrig::data::palmVertices[tri[2]].thumb > 0.f))
+        const auto& a = handrig::data::palmVertices[tri[0]];
+        const auto& b = handrig::data::palmVertices[tri[1]];
+        const auto& c = handrig::data::palmVertices[tri[2]];
+        const glm::vec3 pa = vec(a.pos), pb = vec(b.pos), pc = vec(c.pos);
+        glm::vec3 n = glm::cross(pb - pa, pc - pa);
+        if(glm::length(n) < 1e-6f)
         {
             continue;
         }
-        out.push_back({{handrig::palmVertex(posed, tri[0]), handrig::palmVertex(posed, tri[1]), handrig::palmVertex(posed, tri[2])}});
-    }
-    for(int f = handrig::Index; f < handrig::FingerCount; f++)
-    {
-        const FingerMesh& mesh = fingerMesh(f);
-        for(size_t i = 0; i < mesh.tris.size(); i++)
+        n = glm::normalize(n);
+        if(glm::dot(n, vec(a.normal) + vec(b.normal) + vec(c.normal)) < 0.f)
         {
-            if(mesh.link[i] == 0)
-            {
-                out.push_back({{posed.vertex[mesh.tris[i][0]], posed.vertex[mesh.tris[i][1]], posed.vertex[mesh.tris[i][2]]}});
-            }
+            n = -n; // outwards, as the vertices' normals
         }
-    }
-}
-
-[[nodiscard]] bool palmCrosses(const std::vector<Triangle>& palm, const glm::vec3& d, const Scene& scene)
-{
-    for(const Triangle& p : palm)
-    {
-        if(scene.crosses(Triangle{{p.p[0] + d, p.p[1] + d, p.p[2] + d}}))
-        {
-            return true;
-        }
-    }
-    return false;
-}
-
-// Along the palm's normal (+y) from `from`: the place where the palm just touches the held thing, coming from the
-// side away from it (from `from.y - reach` up to `from.y + reach`: the last clear place before it is met; if clear
-// all the way, none). False if there is none.
-[[nodiscard]] bool flush(const std::vector<Triangle>& palm, const Scene& scene, const glm::vec3& from, float reach, glm::vec3& out,
-    const glm::vec3& dir = glm::vec3{0.f, 1.f, 0.f})
-{
-    constexpr float move = 0.25f;
-    bool wasClear = false;
-    float clearAt = 0.f;
-    for(float t = -reach; t <= reach + 1e-4f; t += move)
-    {
-        const bool clear = !palmCrosses(palm, from + dir * t, scene);
-        if(clear)
-        {
-            wasClear = true;
-            clearAt = t;
-            continue;
-        }
-        if(!wasClear)
-        {
-            continue; // still in it on the far side
-        }
-        float lo = clearAt, hi = t;
-        for(int h = 0; h < halvings; h++)
-        {
-            const float mid = 0.5f * (lo + hi);
-            (palmCrosses(palm, from + dir * mid, scene) ? hi : lo) = mid;
-        }
-        out = from + dir * lo;
-        return true;
-    }
-    return false;
-}
-
-struct Placement
-{
-    glm::vec3 d{0.f};
-    FingerStop fingers[handrig::FingerCount];
-    glm::quat thumbTurn{1.f, 0.f, 0.f, 0.f};
-    float total{-1e30f};
-};
-
-// The hand at `d`: its fingers closed, scored: how well its fingers hold, less a little for how far it moved from
-// the controller (a move along the fingers, x, three times). A quick look (`full` false) closes the middle, ring and
-// little fingers coarsely; the full solve all five finely, settled, the thumb at each opposition.
-void place(handrig::Pose& pose, const Scene& scene, const glm::vec3& d, bool full, Placement& p)
-{
-    p.d = d;
-    p.total = -0.1f * glm::length(glm::vec3{3.f * d.x, d.y, d.z});
-    const float step = full ? fineStep : coarseStep;
-    if(full)
-    {
-        solveThumb(pose, d, scene, step, p.fingers[handrig::Thumb], p.thumbTurn);
-        p.total += score(p.fingers[handrig::Thumb]);
-    }
-    for(int f = full ? handrig::Index : handrig::Middle; f < handrig::FingerCount; f++)
-    {
-        solveFinger(pose, f, d, scene, step, full, p.fingers[f]);
-        p.total += score(p.fingers[f]);
-    }
-}
-
-} // namespace
-
-bool worldTriangles(const entity_t& e, bool mirrored, int frame, std::vector<Triangle>& out)
-{
-    out.clear();
-    const qmodel_t* model = e.model;
-    if(!model)
-    {
-        return false;
-    }
-    float m[16];
-    const auto apply = [&](const glm::vec3& v) {
-        return glm::vec3{m[0] * v.x + m[4] * v.y + m[8] * v.z + m[12], m[1] * v.x + m[5] * v.y + m[9] * v.z + m[13],
-            m[2] * v.x + m[6] * v.y + m[10] * v.z + m[14]};
-    };
-
-    if(model->type == mod_brush)
-    {
-        vec3_t origin, angles{-e.angles[0], e.angles[1], e.angles[2]};
-        VectorCopy(e.origin, origin);
-        R_EntityMatrix(m, origin, angles, e.scale);
-        VR_BrushTransform(&e, m);
-        for(int i = 0; i < model->nummodelsurfaces; i++)
-        {
-            const msurface_t& surf = model->surfaces[model->firstmodelsurface + i];
-            const auto vertex = [&](int k) {
-                const int ed = model->surfedges[surf.firstedge + k];
-                const mvertex_t& v = model->vertexes[ed >= 0 ? model->edges[ed].v[0] : model->edges[-ed].v[1]];
-                return apply(glm::vec3{v.position[0], v.position[1], v.position[2]});
-            };
-            for(int k = 2; k < surf.numedges; k++)
-            {
-                out.push_back({{vertex(0), vertex(k - 1), vertex(k)}});
-            }
-        }
-        return !out.empty();
-    }
-
-    if(model->type != mod_alias)
-    {
-        return false;
-    }
-    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(model)));
-    if(hdr->poseverttype != aliashdr_t::PV_QUAKE1 || !hdr->vertexes || !hdr->indexes || !hdr->meshdesc || hdr->numframes <= 0)
-    {
-        return false;
-    }
-    render::entityMatrix(e, mirrored, e.scale, glm::vec3{0.f}, m);
-    const int f = frame >= 0 ? frame : e.frame;
-    const int pose = hdr->frames[f >= 0 && f < hdr->numframes ? f : 0].firstpose;
-    const auto* base = reinterpret_cast<const byte*>(hdr);
-    const auto* verts = reinterpret_cast<const trivertx_t*>(base + hdr->vertexes) + pose * hdr->numverts;
-    const auto* mesh = reinterpret_cast<const aliasmesh_t*>(base + hdr->meshdesc);
-    const auto* indexes = reinterpret_cast<const unsigned short*>(base + hdr->indexes);
-    for(int i = 0; i + 2 < hdr->numindexes; i += 3)
-    {
-        Triangle t;
-        for(int k = 0; k < 3; k++)
-        {
-            const trivertx_t& v = verts[mesh[indexes[i + k]].vertindex];
-            t.p[k] = apply(glm::vec3{v.v[0], v.v[1], v.v[2]});
-        }
-        out.push_back(t);
-    }
-    return !out.empty();
-}
-
-// The middle of the palm's side of the palm (rig space).
-glm::vec3 palmCentre()
-{
-    glm::vec3 sum{0.f};
-    int n = 0;
-    for(int i = 0; i < handrig::data::numPalmVertices; i++)
-    {
-        const float* p = handrig::data::palmVertices[i].pos;
-        if(p[1] > 0.f && handrig::data::palmVertices[i].thumb == 0.f)
-        {
-            sum += glm::vec3{p[0], p[1], p[2]};
-            n++;
-        }
-    }
-    return n ? sum / static_cast<float>(n) : glm::vec3{0.f};
-}
-
-namespace
-{
-
-// Where a ray from `from` along `dir` first meets `tris` (the distance, and the triangle's normal facing back along
-// the ray); false if within `reach` it meets none.
-[[nodiscard]] bool rayHit(const std::vector<Triangle>& tris, const glm::vec3& from, const glm::vec3& dir, float reach, float& at,
-    glm::vec3& normal)
-{
-    at = reach;
-    bool hit = false;
-    for(const Triangle& t : tris)
-    {
-        const glm::vec3 e1 = t.p[1] - t.p[0], e2 = t.p[2] - t.p[0];
-        const glm::vec3 pv = glm::cross(dir, e2);
-        const float det = glm::dot(e1, pv);
-        if(std::fabs(det) < 1e-9f)
+        if(n.y < 0.35f)
         {
             continue;
         }
-        const float inv = 1.f / det;
-        const glm::vec3 tv = from - t.p[0];
-        const float u = glm::dot(tv, pv) * inv;
-        const glm::vec3 qv = glm::cross(tv, e1);
-        const float v = glm::dot(dir, qv) * inv;
-        const float s = glm::dot(e2, qv) * inv;
-        if(u < 0.f || v < 0.f || u + v > 1.f || s < 0.f || s >= at)
+        const glm::vec3 p = (pa + pb + pc) / 3.f;
+        const Sphere s{p - n * palmRadius, palmRadius};
+        if(a.thumb + b.thumb + c.thumb > 0.f)
         {
-            continue;
+            k.thenar.push_back(s);
         }
-        at = s;
-        normal = glm::normalize(glm::cross(e1, e2));
-        if(glm::dot(normal, dir) > 0.f)
+        else
         {
-            normal = -normal;
+            k.palm.push_back(s);
+            sum += p;
+            count++;
         }
-        hit = true;
     }
-    return hit;
+    k.palmCentre = count ? sum / static_cast<float>(count) : glm::vec3{0.f};
+    return k;
 }
 
-// The point of triangle t nearest p (Ericson, Real-Time Collision Detection, 5.1.5).
-[[nodiscard]] glm::vec3 closestOnTriangle(const glm::vec3& p, const Triangle& t)
+const Kinematics& kinematics()
 {
-    const glm::vec3 &a = t.p[0], &b = t.p[1], &c = t.p[2];
+    static const Kinematics k = buildKinematics();
+    return k;
+}
+
+// The point of triangle abc nearest p (Ericson, Real-Time Collision Detection, 5.1.5).
+[[nodiscard]] glm::vec3 closestOnTriangle(const glm::vec3& p, const glm::vec3& a, const glm::vec3& b, const glm::vec3& c)
+{
     const glm::vec3 ab = b - a, ac = c - a, ap = p - a;
     const float d1 = glm::dot(ab, ap), d2 = glm::dot(ac, ap);
     if(d1 <= 0.f && d2 <= 0.f)
@@ -757,210 +234,1003 @@ namespace
 
 } // namespace
 
-void solve(const handrig::Pose& start, const std::vector<Triangle>& given, Solution& out, float palmLimit, float palmTurnLimit)
+// ----------------------------------------------------------------------------
+// The shapes: a model's triangles, kept in its own coordinates as they are measured (an alias model's raw vertices
+// scaled by its header: "real" model units, the same on every axis), with a grid of cells for the distance queries.
+// Made once per model and pose (the grid once per size in the hand), for every solve after.
+
+struct Shape::Space
+{
+    struct Tri
+    {
+        glm::vec3 a, b, c;
+        glm::vec3 normal; // unit (0 for a degenerate one)
+        float plane;      // dot(normal, a)
+        glm::vec3 lo, hi; // its box
+    };
+    std::vector<Tri> tris;
+    glm::mat4 rawToReal{1.f};
+
+    float cell{0.f}; // the grid's (real units), for the hand's size it was made at
+    glm::vec3 lo{0.f}, hi{0.f}; // the triangles' box
+    int size[3]{1, 1, 1};
+    std::vector<std::uint32_t> first; // per cell, its first item; one more at the end
+    std::vector<std::uint16_t> items;
+    std::vector<std::uint32_t> stamps; // per triangle: the query that last looked at it
+    std::uint32_t stamp{0};
+
+    void buildGrid(float cellSize)
+    {
+        cell = cellSize;
+        hi = glm::vec3{-1e9f};
+        lo = glm::vec3{1e9f};
+        for(const Tri& t : tris)
+        {
+            lo = glm::min(lo, t.lo);
+            hi = glm::max(hi, t.hi);
+        }
+        std::size_t cells = 1;
+        for(int k = 0; k < 3; k++)
+        {
+            size[k] = std::clamp(static_cast<int>((hi[k] - lo[k]) / cell) + 1, 1, 256);
+            cells *= static_cast<std::size_t>(size[k]);
+        }
+        const auto each = [&](const Tri& t, auto&& f) {
+            int from[3], to[3];
+            for(int k = 0; k < 3; k++)
+            {
+                from[k] = std::clamp(static_cast<int>((t.lo[k] - lo[k]) / cell), 0, size[k] - 1);
+                to[k] = std::clamp(static_cast<int>((t.hi[k] - lo[k]) / cell), 0, size[k] - 1);
+            }
+            for(int z = from[2]; z <= to[2]; z++)
+            {
+                for(int y = from[1]; y <= to[1]; y++)
+                {
+                    for(int x = from[0]; x <= to[0]; x++)
+                    {
+                        f((static_cast<std::size_t>(z) * static_cast<std::size_t>(size[1]) + static_cast<std::size_t>(y)) *
+                              static_cast<std::size_t>(size[0]) +
+                          static_cast<std::size_t>(x));
+                    }
+                }
+            }
+        };
+        std::vector<std::uint32_t> counts(cells, 0u);
+        for(const Tri& t : tris)
+        {
+            each(t, [&](std::size_t c) { counts[c]++; });
+        }
+        first.assign(cells + 1, 0u);
+        for(std::size_t c = 0; c < cells; c++)
+        {
+            first[c + 1] = first[c] + counts[c];
+        }
+        items.resize(first[cells]);
+        std::fill(counts.begin(), counts.end(), 0u);
+        for(std::size_t i = 0; i < tris.size(); i++)
+        {
+            each(tris[i], [&](std::size_t c) { items[first[c] + counts[c]++] = static_cast<std::uint16_t>(i); });
+        }
+        stamps.assign(tris.size(), 0u);
+        stamp = 0;
+    }
+
+    // The distance from `p` to the nearest triangle, at most `limit` (beyond it, `limit`, or more: the distance to the
+    // triangles' box when that is farther, a lower bound, so that a finger in open air steps as far as it may at once);
+    // its point in `at`, its normal (as wound) in `normal`.
+    [[nodiscard]] float nearest(const glm::vec3& p, float limit, glm::vec3* at = nullptr, glm::vec3* normal = nullptr)
+    {
+        const glm::vec3 away = glm::max(glm::max(lo - p, p - hi), glm::vec3{0.f});
+        const float boxDistance2 = glm::dot(away, away);
+        if(boxDistance2 >= limit * limit)
+        {
+            return std::sqrt(boxDistance2);
+        }
+        float best = limit;
+        int from[3], to[3];
+        for(int k = 0; k < 3; k++)
+        {
+            from[k] = static_cast<int>(std::floor((p[k] - limit - lo[k]) / cell));
+            to[k] = static_cast<int>(std::floor((p[k] + limit - lo[k]) / cell));
+            if(to[k] < 0 || from[k] >= size[k])
+            {
+                return best;
+            }
+            from[k] = std::max(from[k], 0);
+            to[k] = std::min(to[k], size[k] - 1);
+        }
+        if(++stamp == 0)
+        {
+            std::fill(stamps.begin(), stamps.end(), 0u);
+            stamp = 1;
+        }
+        for(int z = from[2]; z <= to[2]; z++)
+        {
+            for(int y = from[1]; y <= to[1]; y++)
+            {
+                const std::size_t row =
+                    (static_cast<std::size_t>(z) * static_cast<std::size_t>(size[1]) + static_cast<std::size_t>(y)) *
+                    static_cast<std::size_t>(size[0]);
+                for(std::size_t c = row + static_cast<std::size_t>(from[0]); c <= row + static_cast<std::size_t>(to[0]); c++)
+                {
+                    for(std::uint32_t i = first[c]; i < first[c + 1]; i++)
+                    {
+                        const std::uint16_t index = items[i];
+                        if(stamps[index] == stamp)
+                        {
+                            continue; // in another cell already looked at
+                        }
+                        stamps[index] = stamp;
+                        const Tri& t = tris[index];
+                        // Lower bounds of its distance: to its box, to its plane.
+                        const glm::vec3 outside = glm::max(glm::max(t.lo - p, p - t.hi), glm::vec3{0.f});
+                        if(glm::dot(outside, outside) >= best * best || std::fabs(glm::dot(t.normal, p) - t.plane) >= best)
+                        {
+                            continue;
+                        }
+                        const glm::vec3 q = closestOnTriangle(p, t.a, t.b, t.c);
+                        const float d = glm::distance(p, q);
+                        if(d < best)
+                        {
+                            best = d;
+                            if(at)
+                            {
+                                *at = q;
+                            }
+                            if(normal)
+                            {
+                                *normal = t.normal;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return best;
+    }
+
+    // Where a ray from `from` along the unit `dir` first meets a triangle (Moller-Trumbore), within `reach`.
+    [[nodiscard]] bool ray(const glm::vec3& from, const glm::vec3& dir, float reach, float& hit, glm::vec3* normal = nullptr) const
+    {
+        hit = reach;
+        bool found = false;
+        const glm::vec3 end = from + dir * reach;
+        const glm::vec3 rlo = glm::min(from, end), rhi = glm::max(from, end);
+        for(const Tri& t : tris)
+        {
+            if(glm::any(glm::lessThan(t.hi, rlo)) || glm::any(glm::greaterThan(t.lo, rhi)))
+            {
+                continue;
+            }
+            const glm::vec3 e1 = t.b - t.a, e2 = t.c - t.a;
+            const glm::vec3 pv = glm::cross(dir, e2);
+            const float det = glm::dot(e1, pv);
+            if(std::fabs(det) < 1e-12f)
+            {
+                continue;
+            }
+            const float inv = 1.f / det;
+            const glm::vec3 tv = from - t.a;
+            const float u = glm::dot(tv, pv) * inv;
+            if(u < 0.f || u > 1.f)
+            {
+                continue;
+            }
+            const glm::vec3 qv = glm::cross(tv, e1);
+            const float v = glm::dot(dir, qv) * inv;
+            const float s = glm::dot(e2, qv) * inv;
+            if(v < 0.f || u + v > 1.f || s < 0.f || s >= hit)
+            {
+                continue;
+            }
+            hit = s;
+            if(normal)
+            {
+                *normal = glm::dot(t.normal, dir) > 0.f ? -t.normal : t.normal;
+            }
+            found = true;
+        }
+        return found;
+    }
+};
+
+Shape::Shape() = default;
+Shape::~Shape() = default;
+Shape::Shape(Shape&&) noexcept = default;
+Shape& Shape::operator=(Shape&&) noexcept = default;
+
+namespace
+{
+
+// ----------------------------------------------------------------------------
+// A solve's view of the held thing: its shape, and the hand's (rig) space taken into the shape's real units.
+
+struct Target
+{
+    Shape::Space* space;
+    glm::mat4 base;      // the rig (as the controller has the hand) to the shape's real units
+    float scale;         // hand units per real unit (the least of the axes', if not the same: distances never overstated)
+    Shape::Space* extra{nullptr}; // another thing in the way (the other hand, for a cup), in rig units
+    glm::mat4 extraBase{1.f};
+    float allowance{0.f}; // hand units it may be sunk into, more than the held thing
+    glm::mat4 rigToReal{1.f}, extraToReal{1.f}; // with the hand turned and moved as the solve has it
+
+    // The hand turned by `turn` about the palm's middle, then moved by `move`.
+    void place(const glm::quat& turn, const glm::vec3& move);
+};
+
+int probes = 0; // this solve's (vr_grasp_bench)
+
+// The distance (hand units) from the rig point `p` to the held thing (or the other thing in the way, less its
+// allowance), at most `limit` hand units.
+[[nodiscard]] float nearest(Target& target, const glm::vec3& p, float limit)
+{
+    float d = target.scale * target.space->nearest(glm::vec3{target.rigToReal * glm::vec4{p, 1.f}}, limit / target.scale);
+    if(target.extra)
+    {
+        d = std::fmin(d, target.extra->nearest(glm::vec3{target.extraToReal * glm::vec4{p, 1.f}}, limit) + target.allowance);
+    }
+    return d;
+}
+
+// ----------------------------------------------------------------------------
+// Closing a finger.
+
+struct Context
+{
+    Target* target;
+    const handrig::Pose* pose;
+    float overlap;
+};
+
+// A finger at curls `c`, the joints from `firstActive` on closing: each bone's (from firstActive + 1 on) clearance
+// (its spheres' least distance to the held thing, less their radius; negative: in it), and the curl its joints may
+// close by before any sphere could reach it (conservative advancement: each sphere's clearance over how far a curl
+// frame of those joints can move it, their turn rates times its distance from their pivots).
+struct Probe
+{
+    float clear[handrig::jointsPerFinger + 1];
+    float advance;
+};
+
+void probe(const Context& ctx, int finger, const float c[handrig::jointsPerFinger], int firstActive, Probe& out)
+{
+    probes++;
+    const Kinematics& k = kinematics();
+    handrig::Rigid seg[handrig::jointsPerFinger + 1];
+    handrig::fingerSegments(*ctx.pose, finger, c, seg);
+    glm::vec3 pivot[handrig::jointsPerFinger];
+    for(int j = firstActive; j < handrig::jointsPerFinger; j++)
+    {
+        pivot[j] = seg[j](vec(handrig::data::pivots[finger][j]));
+    }
+    out.advance = 1e9f;
+    for(float& clear : out.clear)
+    {
+        clear = 1e9f;
+    }
+    for(int b = firstActive + 1; b <= handrig::jointsPerFinger; b++)
+    {
+        for(const Sphere& s : k.bone[finger][b])
+        {
+            const glm::vec3 p = seg[b](s.c);
+            const float r = s.r - ctx.overlap;
+            float lever = 0.f;
+            for(int j = firstActive; j < b; j++)
+            {
+                lever += k.rate[finger][j] * glm::distance(p, pivot[j]);
+            }
+            const float clear = nearest(*ctx.target, p, r + searchReach) - r;
+            out.clear[b] = std::fmin(out.clear[b], clear);
+            if(lever > 1e-6f)
+            {
+                out.advance = std::fmin(out.advance, std::fmax(clear, 0.f) / lever);
+            }
+        }
+    }
+}
+
+[[nodiscard]] bool clearFrom(const Probe& p, int firstActive)
+{
+    for(int b = firstActive + 1; b <= handrig::jointsPerFinger; b++)
+    {
+        if(p.clear[b] < -tolerance)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Closes one finger (see vr_grasp.hpp). `warm`: where it held before (the thing moved a little in the hand): opened from
+// there (all its joints by the same share) until clear, then closed onto it again: a few steps, and no jump to another
+// hold that is as good.
+void solveFinger(const Context& ctx, int finger, bool settle, const FingerStop* warm, FingerStop& out)
+{
+    out = FingerStop{};
+    float c[3]{0.f, 0.f, 0.f};
+    int firstActive = 0; // joints from this one on still close
+    Probe p;
+    bool started = false;
+    if(warm && warm->met && !warm->startsInside)
+    {
+        std::copy(warm->stop, warm->stop + 3, c);
+        probe(ctx, finger, c, 0, p);
+        if(clearFrom(p, 0))
+        {
+            started = true;
+        }
+        else
+        {
+            const float open[3]{0.f, 0.f, 0.f};
+            probe(ctx, finger, open, 0, p);
+            if(clearFrom(p, 0))
+            {
+                float lo = 0.f, hi = 1.f;
+                for(int h = 0; h < halvings; h++)
+                {
+                    const float mid = 0.5f * (lo + hi);
+                    const float cs[3]{warm->stop[0] * mid, warm->stop[1] * mid, warm->stop[2] * mid};
+                    probe(ctx, finger, cs, 0, p);
+                    (clearFrom(p, 0) ? lo : hi) = mid;
+                }
+                for(int j = 0; j < 3; j++)
+                {
+                    c[j] = warm->stop[j] * lo;
+                }
+                started = true;
+            }
+        }
+        out.fromClosed = started && warm->fromClosed;
+        settle = false; // settled before: kept as it was (stable), only closed onto it again
+    }
+    if(!started)
+    {
+        c[0] = c[1] = c[2] = 0.f;
+        probe(ctx, finger, c, 0, p);
+    }
+    if(!started && !clearFrom(p, 0))
+    {
+        // Open, the finger is already in it (a gun's frame, where the straight fingers point). Then it closes from
+        // the other end: the tightest curl it is clear at, opening from the full fist (a thick grip through the
+        // fist: the fingers open round it), and from there joint by joint as below.
+        constexpr float step = 0.5f;
+        float free = -1.f;
+        for(float t = maxCurl; t > 0.f; t -= step)
+        {
+            const float cs[3]{t, t, t};
+            probe(ctx, finger, cs, 0, p);
+            if(clearFrom(p, 0))
+            {
+                free = t;
+                break;
+            }
+        }
+        if(free < 0.f)
+        {
+            out.startsInside = true;
+            return;
+        }
+        if(free < maxCurl)
+        {
+            float lo = free, hi = std::min(free + step, maxCurl);
+            for(int h = 0; h < halvings; h++)
+            {
+                const float mid = 0.5f * (lo + hi);
+                const float cs[3]{mid, mid, mid};
+                probe(ctx, finger, cs, 0, p);
+                (clearFrom(p, 0) ? lo : hi) = mid;
+            }
+            free = lo;
+        }
+        out.fromClosed = true;
+        c[0] = c[1] = c[2] = free;
+    }
+
+    // Closing: the joints from firstActive on together (each by the same step), each step as far as no sphere can
+    // reach anything (conservative advancement).
+    for(int steps = 0; firstActive < handrig::jointsPerFinger && steps < maxSteps; steps++)
+    {
+        bool closing = false;
+        for(int j = firstActive; j < handrig::jointsPerFinger; j++)
+        {
+            closing = closing || c[j] < maxCurl;
+        }
+        if(!closing)
+        {
+            break;
+        }
+        probe(ctx, finger, c, firstActive, p);
+        // The most distal bone touching stops the joints that move it; those past it go on.
+        int touching = 0;
+        for(int b = handrig::jointsPerFinger; b > firstActive; b--)
+        {
+            if(p.clear[b] <= tolerance)
+            {
+                touching = b;
+                break;
+            }
+        }
+        if(touching)
+        {
+            for(int j = firstActive; j < touching; j++)
+            {
+                out.stop[j] = c[j];
+            }
+            out.met = true;
+            firstActive = touching;
+            continue;
+        }
+        const float step = std::fmax(p.advance, leastStep);
+        for(int j = firstActive; j < handrig::jointsPerFinger; j++)
+        {
+            c[j] = std::fmin(c[j] + step, maxCurl);
+        }
+    }
+    for(int j = firstActive; j < handrig::jointsPerFinger; j++)
+    {
+        out.stop[j] = c[j]; // free to the fist (or where it was after the most steps)
+    }
+
+    // Then it settles round what it met: a joint closes further while a joint past it opens as much as that needs
+    // (a fingertip slides along the surface as the knuckles close), as long as that closes the finger more, knuckles
+    // first; the joints are never past the tightest fist.
+    if(out.met && settle)
+    {
+        float s[3]{out.stop[0], out.stop[1], out.stop[2]};
+        constexpr float weight[3] = {1.2f, 1.f, 0.8f};
+        const auto value = [&](const float* v) { return weight[0] * v[0] + weight[1] * v[1] + weight[2] * v[2]; };
+        for(const float delta : {0.3f, 0.15f})
+        {
+            for(int pass = 0; pass < 2; pass++)
+            {
+                bool better = false;
+                for(int j = 0; j < 3 && !better; j++)
+                {
+                    for(int kk = j; kk < 3 && !better; kk++)
+                    {
+                        float t[3]{s[0], s[1], s[2]};
+                        t[j] += delta;
+                        if(kk > j)
+                        {
+                            t[kk] -= delta;
+                        }
+                        if(t[j] > maxCurl || t[kk] < 0.f || value(t) <= value(s) + 1e-4f)
+                        {
+                            continue;
+                        }
+                        probe(ctx, finger, t, j, p);
+                        if(clearFrom(p, j))
+                        {
+                            std::copy(t, t + 3, s);
+                            better = true;
+                        }
+                    }
+                }
+                if(!better)
+                {
+                    break;
+                }
+            }
+        }
+        std::copy(s, s + 3, out.stop);
+    }
+}
+
+// How well a finger holds: -1 in it at every curl, 0 touching nothing, else its closure where it stopped (0..1).
+// A wrap (its joints stopped one after another: the segments round what it holds) beats a finger stopped by its tip.
+[[nodiscard]] float score(const FingerStop& s)
+{
+    if(s.startsInside)
+    {
+        return -1.f;
+    }
+    if(!s.met)
+    {
+        return 0.f;
+    }
+    const float closure = (s.stop[0] + s.stop[1] + s.stop[2]) / (3.f * maxCurl);
+    const float wrap = (s.stop[1] - s.stop[0] > 0.1f ? 0.5f : 0.f) + (s.stop[2] - s.stop[1] > 0.1f ? 0.5f : 0.f);
+    return 0.6f * closure + 0.4f * wrap;
+}
+
+// The thumb's turns at its base: across the palm (opposition: about the hand's long axis, from beside the index
+// finger towards the palm) and swung in the palm's plane (about its normal: positive down towards the little finger's
+// side, negative up and away, over the top of what the hand holds).
+struct ThumbTurn
+{
+    float opposition, swing;
+};
+// (Round 21, second pass: no longer 60 degrees across nor 30 up: the skin round the thumb's base stretched thin.)
+constexpr ThumbTurn thumbTurns[] = {{0.f, 0.f}, {15.f, 0.f}, {30.f, 0.f}, {45.f, 0.f}, {15.f, -15.f}, {30.f, -15.f},
+    {45.f, -15.f}, {30.f, 15.f}, {45.f, 15.f}, {0.f, -15.f}};
+constexpr int thumbTurnCount = static_cast<int>(sizeof(thumbTurns) / sizeof(thumbTurns[0]));
+
+[[nodiscard]] glm::quat thumbQuat(const ThumbTurn& t)
+{
+    return glm::angleAxis(glm::radians(t.swing), glm::vec3{0.f, 1.f, 0.f}) *
+           glm::angleAxis(glm::radians(t.opposition), glm::vec3{-1.f, 0.f, 0.f});
+}
+
+// Whether a thumb turn fits the style: along the top (swung up and away), or wrapping round (not).
+[[nodiscard]] bool thumbStyle(const ThumbTurn& t, bool top)
+{
+    return top ? t.swing < 0.f : t.swing >= 0.f;
+}
+
+// The thumb: closed at each turn of its metacarpal (of the style asked for), the one holding best (a turn costs a
+// little: a thumb held naturally beats a contorted one holding a little better). Solved again (the solve before
+// known): its turn only, closed from where it held.
+void solveThumb(handrig::Pose& pose, const Context& ctx, const Solution* previous, bool top, FingerStop& out, glm::quat& turn,
+    int& choice)
+{
+    float best = -1e9f;
+    const glm::quat keep = pose.metacarpal;
+    const bool again = previous && previous->thumbChoice >= 0 && thumbStyle(thumbTurns[previous->thumbChoice], top);
+    for(int i = 0; i < thumbTurnCount; i++)
+    {
+        if((again && i != previous->thumbChoice) || !thumbStyle(thumbTurns[i], top))
+        {
+            continue;
+        }
+        const ThumbTurn& t = thumbTurns[i];
+        pose.metacarpal = thumbQuat(t);
+        FingerStop st;
+        solveFinger(ctx, handrig::Thumb, true, again ? &previous->finger[handrig::Thumb] : nullptr, st);
+        const float value = score(st) - 0.003f * (t.opposition + std::fabs(t.swing));
+        if(!st.startsInside && value > best)
+        {
+            best = value;
+            out = st;
+            turn = pose.metacarpal;
+            choice = i;
+        }
+    }
+    pose.metacarpal = keep;
+    if(best > -1e9f)
+    {
+        return;
+    }
+    // In it at every turn and curl (its base in a grip): left as the controller has it, at a natural turn.
+    out = FingerStop{};
+    out.startsInside = true;
+    out.leastInside = true;
+    choice = again ? previous->thumbChoice : top ? 4 : 1;
+    turn = thumbQuat(thumbTurns[choice]);
+}
+
+// The palm's spheres' (and the thenar's) least clearance from the held thing (negative: in it).
+[[nodiscard]] float palmClearance(Target& target, float overlap, bool thenar)
+{
+    const Kinematics& k = kinematics();
+    float least = 1e9f;
+    const auto test = [&](const Sphere& sp) {
+        const float r = sp.r - overlap;
+        least = std::fmin(least, nearest(target, sp.c, r + searchReach) - r);
+    };
+    for(const Sphere& sp : k.palm)
+    {
+        test(sp);
+    }
+    if(thenar)
+    {
+        for(const Sphere& sp : k.thenar)
+        {
+            test(sp);
+        }
+    }
+    return least;
+}
+
+// The rig to the shape's real units, the hand turned by `turn` about the palm's middle, then moved by `move`.
+[[nodiscard]] glm::mat4 handTo(const glm::mat4& rigToReal, const glm::quat& turn, const glm::vec3& move)
+{
+    const glm::vec3 c = kinematics().palmCentre;
+    const glm::mat4 hand = glm::translate(glm::mat4{1.f}, c) * glm::mat4_cast(turn) * glm::translate(glm::mat4{1.f}, move - c);
+    return rigToReal * hand;
+}
+
+void Target::place(const glm::quat& turn, const glm::vec3& move)
+{
+    rigToReal = handTo(base, turn, move);
+    if(extra)
+    {
+        extraToReal = handTo(extraBase, turn, move);
+    }
+}
+
+// The palm's place for a grip through the hand (see solve): the places tried, and the best one's move.
+glm::vec3 placeInside(handrig::Pose& pose, Target& target, const Settings& settings, int& tried)
+{
+    const auto at = [&](const glm::vec3& move) { target.place(glm::quat{1.f, 0.f, 0.f, 0.f}, move); };
+    const auto value = [&](const glm::vec3& move) {
+        at(move);
+        const Context ctx{&target, &pose, settings.overlap};
+        float total = -0.1f * glm::length(glm::vec3{3.f * move.x, move.y, move.z});
+        for(int f = handrig::Index; f < handrig::FingerCount; f++)
+        {
+            FingerStop st;
+            solveFinger(ctx, f, false, nullptr, st);
+            total += score(st);
+        }
+        return total;
+    };
+    glm::vec3 best{0.f};
+    float bestValue = value(best);
+    tried = 1;
+    const auto consider = [&](float dx, float dz) {
+        // Flush along the palm's normal: coming from as far back as it may, the last place clear before it meets the
+        // grip (in quarter steps), if any within reach.
+        const float reach = std::sqrt(std::fmax(settings.palmLimit * settings.palmLimit - dx * dx - dz * dz, 0.f));
+        bool wasClear = false;
+        float clearY = 0.f;
+        for(float dy = -reach; dy <= reach + 1e-4f; dy += 0.25f)
+        {
+            at(glm::vec3{dx, dy, dz});
+            if(palmClearance(target, settings.overlap, false) >= -tolerance)
+            {
+                wasClear = true;
+                clearY = dy;
+                continue;
+            }
+            if(!wasClear)
+            {
+                continue;
+            }
+            const glm::vec3 move{dx, clearY, dz};
+            const float v = value(move);
+            tried++;
+            if(v > bestValue)
+            {
+                bestValue = v;
+                best = move;
+            }
+            return;
+        }
+    };
+    for(const float dx : {-1.f, 0.f, 1.f, 2.f})
+    {
+        for(const float dz : {-3.f, -2.f, -1.f, 0.f, 1.f})
+        {
+            consider(dx, dz);
+        }
+    }
+    const glm::vec3 centre = best;
+    for(const float ox : {-0.5f, 0.f, 0.5f})
+    {
+        for(const float oz : {-0.5f, 0.f, 0.5f})
+        {
+            if(ox != 0.f || oz != 0.f)
+            {
+                consider(centre.x + ox, centre.z + oz);
+            }
+        }
+    }
+    return best;
+}
+
+// ----------------------------------------------------------------------------
+// The shapes' cache.
+
+struct ShapeKey
+{
+    const qmodel_t* model;
+    int frame;
+    bool operator==(const ShapeKey& o) const { return model == o.model && frame == o.frame; }
+};
+struct ShapeKeyHash
+{
+    std::size_t operator()(const ShapeKey& k) const
+    {
+        return std::hash<const void*>{}(k.model) ^ (static_cast<std::size_t>(k.frame) * 2654435761u);
+    }
+};
+struct CachedShape
+{
+    std::string name; // the model's (a slot reused by another model after a game change is built again)
+    Shape shape;
+    bool valid{false};
+};
+std::unordered_map<ShapeKey, CachedShape, ShapeKeyHash> shapes;
+
+bool buildShape(const entity_t& e, int frame, Shape& out)
+{
+    out.tris.clear();
+    out.space = std::make_unique<Shape::Space>();
+    const qmodel_t* model = e.model;
+    if(model->type == mod_brush)
+    {
+        for(int i = 0; i < model->nummodelsurfaces; i++)
+        {
+            const msurface_t& surf = model->surfaces[model->firstmodelsurface + i];
+            const auto vertex = [&](int k) {
+                const int ed = model->surfedges[surf.firstedge + k];
+                const mvertex_t& v = model->vertexes[ed >= 0 ? model->edges[ed].v[0] : model->edges[-ed].v[1]];
+                return glm::vec3{v.position[0], v.position[1], v.position[2]};
+            };
+            for(int k = 2; k < surf.numedges; k++)
+            {
+                out.tris.push_back({{vertex(0), vertex(k - 1), vertex(k)}});
+            }
+        }
+    }
+    else if(model->type == mod_alias)
+    {
+        const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(model)));
+        if(hdr->poseverttype != aliashdr_t::PV_QUAKE1 || !hdr->vertexes || !hdr->indexes || !hdr->meshdesc || hdr->numframes <= 0)
+        {
+            return false;
+        }
+        const int pose = hdr->frames[frame >= 0 && frame < hdr->numframes ? frame : 0].firstpose;
+        const auto* base = reinterpret_cast<const byte*>(hdr);
+        const auto* verts = reinterpret_cast<const trivertx_t*>(base + hdr->vertexes) + pose * hdr->numverts;
+        const auto* mesh = reinterpret_cast<const aliasmesh_t*>(base + hdr->meshdesc);
+        const auto* indexes = reinterpret_cast<const unsigned short*>(base + hdr->indexes);
+        for(int i = 0; i + 2 < hdr->numindexes; i += 3)
+        {
+            Triangle t;
+            for(int k = 0; k < 3; k++)
+            {
+                const trivertx_t& v = verts[mesh[indexes[i + k]].vertindex];
+                t.p[k] = glm::vec3{v.v[0], v.v[1], v.v[2]};
+            }
+            out.tris.push_back(t);
+        }
+        // Raw vertices to the model's own units: its header's scale (per axis) and origin.
+        glm::mat4& m = out.space->rawToReal;
+        for(int k = 0; k < 3; k++)
+        {
+            m[k][k] = hdr->scale[k];
+            m[3][k] = hdr->scale_origin[k];
+        }
+    }
+    if(out.tris.size() >= 65535)
+    {
+        out.tris.resize(65535);
+    }
+    for(const Triangle& t : out.tris)
+    {
+        Shape::Space::Tri r;
+        r.a = glm::vec3{out.space->rawToReal * glm::vec4{t.p[0], 1.f}};
+        r.b = glm::vec3{out.space->rawToReal * glm::vec4{t.p[1], 1.f}};
+        r.c = glm::vec3{out.space->rawToReal * glm::vec4{t.p[2], 1.f}};
+        const glm::vec3 n = glm::cross(r.b - r.a, r.c - r.a);
+        const float len = glm::length(n);
+        r.normal = len > 1e-12f ? n / len : glm::vec3{0.f};
+        r.plane = glm::dot(r.normal, r.a);
+        r.lo = glm::min(r.a, glm::min(r.b, r.c));
+        r.hi = glm::max(r.a, glm::max(r.b, r.c));
+        out.space->tris.push_back(r);
+    }
+    return !out.tris.empty();
+}
+
+} // namespace
+
+void reset()
+{
+    shapes.clear();
+}
+
+void makeShape(const std::vector<Triangle>& tris, Shape& out)
+{
+    out.tris = tris;
+    if(!out.space)
+    {
+        out.space = std::make_unique<Shape::Space>();
+    }
+    Shape::Space& space = *out.space;
+    space.tris.clear();
+    space.cell = 0.f; // its grid made for the next solve
+    for(const Triangle& t : out.tris)
+    {
+        Shape::Space::Tri r;
+        r.a = t.p[0];
+        r.b = t.p[1];
+        r.c = t.p[2];
+        const glm::vec3 n = glm::cross(r.b - r.a, r.c - r.a);
+        const float len = glm::length(n);
+        r.normal = len > 1e-12f ? n / len : glm::vec3{0.f};
+        r.plane = glm::dot(r.normal, r.a);
+        r.lo = glm::min(r.a, glm::min(r.b, r.c));
+        r.hi = glm::max(r.a, glm::max(r.b, r.c));
+        space.tris.push_back(r);
+    }
+}
+
+glm::mat4 shapeToWorld(const entity_t& e, bool mirrored)
+{
+    float m[16];
+    if(e.model && e.model->type == mod_brush)
+    {
+        vec3_t origin, angles{-e.angles[0], e.angles[1], e.angles[2]};
+        VectorCopy(e.origin, origin);
+        R_EntityMatrix(m, origin, angles, e.scale);
+        VR_BrushTransform(&e, m);
+    }
+    else
+    {
+        render::entityMatrix(e, mirrored, e.scale, glm::vec3{0.f}, m);
+    }
+    glm::mat4 r;
+    for(int c = 0; c < 16; c++)
+    {
+        r[c / 4][c % 4] = m[c];
+    }
+    return r;
+}
+
+const Shape* shapeOf(const entity_t& e, int frame)
+{
+    if(!e.model || (e.model->type != mod_alias && e.model->type != mod_brush))
+    {
+        return nullptr;
+    }
+    const int f = e.model->type == mod_alias ? (frame >= 0 ? frame : e.frame) : 0;
+    CachedShape& cached = shapes[ShapeKey{e.model, f}];
+    if(cached.name != e.model->name)
+    {
+        cached.name = e.model->name;
+        cached.valid = buildShape(e, f, cached.shape);
+    }
+    return cached.valid ? &cached.shape : nullptr;
+}
+
+bool worldTriangles(const entity_t& e, bool mirrored, int frame, std::vector<Triangle>& out)
+{
+    out.clear();
+    const Shape* shape = shapeOf(e, frame);
+    if(!shape)
+    {
+        return false;
+    }
+    const glm::mat4 m = shapeToWorld(e, mirrored);
+    for(const Triangle& t : shape->tris)
+    {
+        out.push_back({{glm::vec3{m * glm::vec4{t.p[0], 1.f}}, glm::vec3{m * glm::vec4{t.p[1], 1.f}},
+            glm::vec3{m * glm::vec4{t.p[2], 1.f}}}});
+    }
+    return !out.empty();
+}
+
+glm::vec3 palmCentre()
+{
+    return kinematics().palmCentre;
+}
+
+void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shapeToRig, const Settings& settings,
+    const Solution* previous, Solution& out, Shape* extra, const glm::mat4& extraToRig, float extraOverlap)
 {
     const auto t0 = std::chrono::steady_clock::now();
+    const Kinematics& k = kinematics();
     out = Solution{};
+    probes = 0;
+    out.palmCentre = k.palmCentre;
     handrig::Pose pose = start;
     pose.metacarpal = glm::quat{1.f, 0.f, 0.f, 0.f};
+    Shape::Space& space = *shape.space;
+    out.triangles = static_cast<int>(space.tris.size());
 
-    // The palm turned (at most palmTurnLimit degrees, about its middle) to face the surface in front of it: the
-    // held thing turned the other way round it, for everything below (step 4, the palm flush).
-    std::vector<Triangle> turned;
-    const std::vector<Triangle>* use = &given;
-    out.palmCentre = palmCentre();
-    bool palmInside = false;
-    if(palmTurnLimit > 0.f)
+    // The rig in the shape's real units, and how many hand units one of those is (the axes' least, should the
+    // shape be stretched unevenly: distances are then understated, never overstated).
+    const glm::mat4 realToRig = shapeToRig * glm::inverse(space.rawToReal);
+    const glm::mat4 rigToReal = glm::inverse(realToRig);
+    const float scale = std::fmin(glm::length(glm::vec3{realToRig[0]}),
+        std::fmin(glm::length(glm::vec3{realToRig[1]}), glm::length(glm::vec3{realToRig[2]})));
+    if(!(scale > 1e-6f))
     {
-        // Not when the palm is in it (a gun's grip through the hand): nothing to face.
-        Box everywhere;
-        everywhere.add(glm::vec3{-1e6f});
-        everywhere.add(glm::vec3{1e6f});
-        std::vector<Triangle> palm0;
-        palmTriangles(pose, palm0);
-        palmInside = palmCrosses(palm0, glm::vec3{0.f}, Scene(given, everywhere));
+        return;
     }
-    if(palmTurnLimit > 0.f && !palmInside)
+    // Its grid, for cells of cellHandUnits in the hand (made again if held at a quite different size).
+    const float cell = cellHandUnits / scale;
+    if(space.cell <= 0.f || cell < space.cell * 0.7f || cell > space.cell * 1.4f)
     {
-        float at;
-        glm::vec3 n;
-        const glm::vec3 up{0.f, 1.f, 0.f};
-        // The surface in front of the palm, or else the nearest to the palm's middle (beside the fist: a big thing
-        // held by its edge).
-        bool facing = rayHit(given, out.palmCentre, up, palmLimit + 8.f, at, n);
-        if(!facing)
+        space.buildGrid(cell);
+    }
+    Target target{&space, rigToReal, scale};
+    if(extra && extra->space && !extra->space->tris.empty())
+    {
+        if(extra->space->cell <= 0.f)
         {
-            float nearest = palmLimit + 4.f;
-            for(const Triangle& t : given)
+            extra->space->buildGrid(cellHandUnits);
+        }
+        target.extra = extra->space.get();
+        target.extraBase = glm::inverse(extraToRig);
+        target.allowance = std::fmax(extraOverlap - settings.overlap, 0.f);
+    }
+    target.place(glm::quat{1.f, 0.f, 0.f, 0.f}, glm::vec3{0.f});
+
+    // Whether the palm is in it (a gun's grip through the hand).
+    const bool inside = palmClearance(target, settings.overlap, false) < -tolerance;
+
+    // The palm turned (at most palmTurnLimit degrees, about its middle) to face the surface in front of it: the held
+    // thing turned the other way round it, for everything below. Not when the palm is in it: nothing to face. The
+    // surface: the one a ray from the palm's middle along its normal meets, or else the nearest to its middle on its
+    // side (beside the fist: a big thing held by its edge).
+    const glm::vec3 up{0.f, 1.f, 0.f};
+    if(settings.palmTurnLimit > 0.f && !inside)
+    {
+        const glm::vec3 from{rigToReal * glm::vec4{k.palmCentre, 1.f}};
+        const glm::vec3 dir = glm::normalize(glm::vec3{rigToReal * glm::vec4{up, 0.f}});
+        float hit;
+        glm::vec3 n{0.f};
+        bool facing = space.ray(from, dir, (settings.palmLimit + 8.f) / scale, hit, &n);
+        if(facing)
+        {
+            n = glm::normalize(glm::vec3{glm::transpose(rigToReal) * glm::vec4{n, 0.f}}); // a normal into the rig
+        }
+        else
+        {
+            glm::vec3 q;
+            const float reach = (settings.palmLimit + 4.f) / scale;
+            const float d = space.nearest(from, reach, &q);
+            if(d < reach && d > 1e-4f)
             {
-                const glm::vec3 q = closestOnTriangle(out.palmCentre, t);
-                const float d = glm::distance(q, out.palmCentre);
-                if(d < nearest && d > 1e-3f && glm::dot(q - out.palmCentre, up) > 0.f) // on the palm's side
+                const glm::vec3 qr{realToRig * glm::vec4{q, 1.f}};
+                if(glm::dot(qr - k.palmCentre, up) > 0.f)
                 {
-                    nearest = d;
-                    n = (out.palmCentre - q) / d;
+                    n = glm::normalize(k.palmCentre - qr);
                     facing = true;
                 }
             }
         }
         if(facing)
         {
-            const glm::vec3 want = -n; // the palm's normal to face the surface
+            const glm::vec3 want = -n;
             const float angle = std::acos(std::clamp(glm::dot(up, want), -1.f, 1.f));
             if(angle > glm::radians(1.f))
             {
                 const glm::vec3 axis = glm::normalize(glm::cross(up, want));
-                const glm::quat q = glm::angleAxis(std::min(angle, glm::radians(palmTurnLimit)), axis);
-                turned = given;
-                const glm::mat3 back = glm::mat3_cast(glm::inverse(q));
-                for(Triangle& t : turned)
-                {
-                    for(glm::vec3& p : t.p)
-                    {
-                        p = out.palmCentre + back * (p - out.palmCentre);
-                    }
-                }
-                use = &turned;
-                out.palmTurn = q;
-            }
-            out.approach = glm::mat3_cast(glm::inverse(out.palmTurn)) * want; // towards it, in the turned hand's frame
-        }
-    }
-    const std::vector<Triangle>& tris = *use;
-
-    // What the hand can reach: its bounds, fully open or closed, and as far as it may move.
-    Box region;
-    {
-        handrig::Posed posed;
-        for(const float c : {0.f, 1.5f, 3.f, 4.f})
-        {
-            handrig::Pose p = pose;
-            for(auto& finger : p.curl)
-            {
-                finger[0] = finger[1] = finger[2] = c;
-            }
-            for(const float o : {0.f, 60.f})
-            {
-                p.metacarpal = opposition(o);
-                handrig::pose(p, posed);
-                for(const glm::vec3& v : posed.vertex)
-                {
-                    region.add(v);
-                }
-                for(int i = 0; i < handrig::data::numPalmVertices; i++)
-                {
-                    region.add(handrig::palmVertex(posed, i));
-                }
+                out.palmTurn = glm::angleAxis(std::min(angle, glm::radians(settings.palmTurnLimit)), axis);
             }
         }
-        region.lo -= glm::vec3{palmLimit + 1.f};
-        region.hi += glm::vec3{palmLimit + 1.f};
-    }
-    const Scene scene(tris, region);
-    out.triangles = scene.count();
-    if(scene.empty())
-    {
-        out.seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
-        return;
     }
 
-    // Where the palm may sit: as the controller has it if clear, and flush along its normal (in to touch what it
-    // holds, or out of it); if it is in the held thing (a gun's grip through the hand), also a little lower or
-    // higher along the grip (z) and back (x), flush there. The fingers are closed at each (coarsely) and the one
-    // holding best wins, solved again finely.
-    std::vector<Triangle> palm;
-    palmTriangles(pose, palm);
-    const bool inside = palmCrosses(palm, glm::vec3{0.f}, scene);
-    if(!inside)
+    // The palm flush on it (step 4): moved along its normal from as far back as it may go (if clear there), towards it
+    // until its spheres meet it (conservative advancement: each step as far as they are clear), no further in than it
+    // may go. Not when in it.
+    if(settings.palmLimit > 0.f && !inside)
     {
-        palmTriangles(pose, palm, true); // a thing held against the palm meets the ball of the thumb too
-    }
-    int tried = 0;
-    Placement best;
-    const auto consider = [&](float dx, float dz) {
-        const float reach = std::sqrt(std::fmax(palmLimit * palmLimit - dx * dx - dz * dz, 0.f));
-        glm::vec3 at;
-        if(reach > 0.f && flush(palm, scene, glm::vec3{dx, 0.f, dz}, reach, at))
+        float y = -settings.palmLimit;
+        target.place(out.palmTurn, up * y);
+        if(palmClearance(target, settings.overlap, settings.thenar) >= -tolerance)
         {
-            Placement p;
-            place(pose, scene, at, false, p);
-            if(!inside)
+            for(int step = 0; step < 32 && y < settings.palmLimit; step++)
             {
-                p.total += 0.5f; // the palm on what it holds (step 4), unless the fingers hold much worse there
-            }
-            tried++;
-            if(p.total > best.total)
-            {
-                best = p;
-            }
-        }
-    };
-    if(!inside)
-    {
-        place(pose, scene, glm::vec3{0.f}, false, best);
-        tried++;
-    }
-    if(palmLimit > 0.f)
-    {
-        if(!inside)
-        {
-            consider(0.f, 0.f); // flush along the palm's normal
-            if(out.approach != glm::vec3{0.f} && glm::dot(out.approach, glm::vec3{0.f, 1.f, 0.f}) < 0.995f)
-            {
-                glm::vec3 at; // and towards the surface it faces
-                if(flush(palm, scene, glm::vec3{0.f}, palmLimit, at, glm::normalize(out.approach)))
+                target.place(out.palmTurn, up * y);
+                const float clear = palmClearance(target, settings.overlap, settings.thenar);
+                if(clear <= 0.05f)
                 {
-                    Placement p;
-                    place(pose, scene, at, false, p);
-                    p.total += 0.5f;
-                    tried++;
-                    if(p.total > best.total)
-                    {
-                        best = p;
-                    }
+                    break;
                 }
+                y = std::fmin(y + clear, settings.palmLimit);
             }
-        }
-        else
-        {
-            // A grip through the hand: a coarse grid of places along the fingers (x) and the grip (z), then finer
-            // round the best.
-            for(const float dx : {-1.f, 0.f, 1.f, 2.f})
-            {
-                for(const float dz : {-3.f, -2.f, -1.f, 0.f, 1.f})
-                {
-                    consider(dx, dz);
-                }
-            }
-            if(tried > 0)
-            {
-                const glm::vec3 centre = best.d;
-                for(const float ox : {-0.5f, 0.f, 0.5f})
-                {
-                    for(const float oz : {-0.5f, 0.f, 0.5f})
-                    {
-                        if(ox != 0.f || oz != 0.f)
-                        {
-                            consider(centre.x + ox, centre.z + oz);
-                        }
-                    }
-                }
-            }
+            // Nothing met within reach: where it is (the palm doesn't go looking).
+            out.palm = y < settings.palmLimit ? up * y : glm::vec3{0.f};
         }
     }
-    if(tried == 0)
+
+    // A grip through the hand (a weapon's): the palm moved a little along the fingers (x) and the grip (z), flush along
+    // its normal there, to where the fingers hold best, closed coarsely at each (as round 21's first solver did); solved
+    // again, the place before (the weapon doesn't move in the hand).
+    if(inside && settings.palmLimit > 0.f)
     {
-        best.d = glm::vec3{0.f}; // in it wherever it may go: the fingers do what they can
+        out.palm = previous ? previous->palm : placeInside(pose, target, settings, out.places);
     }
-    Placement final;
-    place(pose, scene, best.d, true, final);
-    out.palm = final.d;
-    out.thumbTurn = final.thumbTurn;
-    for(int f = 0; f < handrig::FingerCount; f++)
+    target.place(out.palmTurn, out.palm);
+
+    // The fingers.
+    const Context ctx{&target, &pose, settings.overlap};
+    int before = probes;
+    solveThumb(pose, ctx, previous, settings.thumbTop, out.finger[handrig::Thumb], out.thumbTurn, out.thumbChoice);
+    out.fingerProbes[handrig::Thumb] = probes - before;
+    for(int f = handrig::Index; f < handrig::FingerCount; f++)
     {
-        out.finger[f] = final.fingers[f];
+        before = probes;
+        solveFinger(ctx, f, true, previous ? &previous->finger[f] : nullptr, out.finger[f]);
+        out.fingerProbes[f] = probes - before;
     }
-    out.places = tried;
+    out.probes = probes;
     out.seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
 }
 
@@ -986,6 +1256,183 @@ void curls(const FingerStop& stop, float curl, float engage, float out[handrig::
     {
         out[j] = std::fmin(stop.stop[j], reach);
     }
+}
+
+bool gripChannel(const handrig::Pose& pose, glm::vec3& point, glm::vec3& dir, float& radius)
+{
+    // Each finger half closed: the circle through its three segments' middles (their middle spheres), its centre
+    // and radius; the channel the line through the centres (least squares), less the spheres' radius.
+    const Kinematics& k = kinematics();
+    constexpr float curl = 2.5f;
+    glm::vec3 centres[handrig::FingerCount];
+    int count = 0;
+    float radii = 0.f;
+    for(int f = handrig::Index; f < handrig::FingerCount; f++)
+    {
+        const float c[3]{curl, curl, curl};
+        handrig::Rigid seg[handrig::jointsPerFinger + 1];
+        handrig::fingerSegments(pose, f, c, seg);
+        glm::vec3 p[3];
+        float r = 0.f;
+        bool ok = true;
+        for(int b = 1; b <= 3; b++)
+        {
+            const std::vector<Sphere>& row = k.bone[f][b];
+            if(row.empty())
+            {
+                ok = false;
+                break;
+            }
+            const Sphere& s = row[row.size() / 2];
+            p[b - 1] = seg[b](s.c);
+            r += s.r / 3.f;
+        }
+        if(!ok)
+        {
+            continue;
+        }
+        // The circle through three points: its centre (in their plane).
+        const glm::vec3 a = p[0] - p[2], b = p[1] - p[2];
+        const glm::vec3 axb = glm::cross(a, b);
+        const float d = 2.f * glm::dot(axb, axb);
+        if(d < 1e-9f)
+        {
+            continue;
+        }
+        const glm::vec3 centre = p[2] + glm::cross(glm::dot(a, a) * b - glm::dot(b, b) * a, axb) / d;
+        centres[count++] = centre;
+        radii += (glm::distance(centre, p[0]) + glm::distance(centre, p[1]) + glm::distance(centre, p[2])) / 3.f - r;
+    }
+    if(count < 2)
+    {
+        return false;
+    }
+    point = glm::vec3{0.f};
+    for(int i = 0; i < count; i++)
+    {
+        point += centres[i];
+    }
+    point /= static_cast<float>(count);
+    glm::mat3 cov{0.f};
+    for(int i = 0; i < count; i++)
+    {
+        cov += glm::outerProduct(centres[i] - point, centres[i] - point);
+    }
+    dir = glm::normalize(centres[0] - centres[count - 1]); // from the little finger's side to the index's
+    for(int i = 0; i < 16; i++)
+    {
+        const glm::vec3 next = cov * dir;
+        if(glm::length(next) < 1e-9f)
+        {
+            break;
+        }
+        dir = glm::normalize(next);
+    }
+    if(glm::dot(dir, centres[0] - centres[count - 1]) < 0.f)
+    {
+        dir = -dir;
+    }
+    radius = std::fmax(radii / static_cast<float>(count), 0.f);
+    return true;
+}
+
+bool inside(const Shape& shape, const glm::mat4& shapeToWorld, const glm::vec3& p, float reach, glm::vec3& out)
+{
+    Shape::Space& space = *shape.space;
+    const glm::mat4 realToWorld = shapeToWorld * glm::inverse(space.rawToReal);
+    const float scale = glm::length(glm::vec3{realToWorld[0]});
+    if(!(scale > 1e-6f))
+    {
+        return false;
+    }
+    if(space.cell <= 0.f)
+    {
+        space.buildGrid(0.8f / scale); // about the hand's cells (a hand unit is about 0.4 world units)
+    }
+    const glm::mat4 worldToReal = glm::inverse(realToWorld);
+    const glm::vec3 q{worldToReal * glm::vec4{p, 1.f}};
+    glm::vec3 at, n;
+    const float d = space.nearest(q, reach / scale, &at, &n);
+    if(d >= reach / scale || glm::dot(q - at, n) >= 0.f)
+    {
+        return false; // outside (or nothing near)
+    }
+    // Out along the surface's normal, into the world (normals take the inverse transpose; the models are wound
+    // outwards, mirrored ones inwards: the determinant says which).
+    glm::vec3 nw = glm::normalize(glm::mat3{glm::transpose(worldToReal)} * n);
+    if(glm::determinant(glm::mat3{realToWorld}) < 0.f)
+    {
+        nw = -nw;
+    }
+    out = nw * (d * scale);
+    return true;
+}
+
+void fingerPoints(const handrig::Pose& pose, int finger, const float curls[handrig::jointsPerFinger], glm::vec3 out[4])
+{
+    const Kinematics& k = kinematics();
+    handrig::Rigid seg[handrig::jointsPerFinger + 1];
+    handrig::fingerSegments(pose, finger, curls, seg);
+    for(int j = 0; j < handrig::jointsPerFinger; j++)
+    {
+        out[j] = seg[j](vec(handrig::data::pivots[finger][j]));
+    }
+    const std::vector<Sphere>& row = k.bone[finger][handrig::jointsPerFinger];
+    out[3] = row.empty() ? out[2] : seg[handrig::jointsPerFinger](row.back().c + glm::normalize(row.back().c - row.front().c) * row.back().r);
+}
+
+void fingertips(const handrig::Pose& pose, glm::vec3 out[handrig::FingerCount])
+{
+    const Kinematics& k = kinematics();
+    for(int f = 0; f < handrig::FingerCount; f++)
+    {
+        handrig::Rigid seg[handrig::jointsPerFinger + 1];
+        handrig::fingerSegments(pose, f, pose.curl[f], seg);
+        const std::vector<Sphere>& row = k.bone[f][handrig::jointsPerFinger];
+        out[f] = row.empty() ? seg[handrig::jointsPerFinger].t : seg[handrig::jointsPerFinger](row.back().c);
+    }
+}
+
+void posedSpheres(const handrig::Pose& pose, std::vector<glm::vec4>& out)
+{
+    const Kinematics& k = kinematics();
+    out.clear();
+    for(int f = 0; f < handrig::FingerCount; f++)
+    {
+        handrig::Rigid seg[handrig::jointsPerFinger + 1];
+        handrig::fingerSegments(pose, f, pose.curl[f], seg);
+        for(int b = 1; b <= handrig::jointsPerFinger; b++)
+        {
+            for(const Sphere& s : k.bone[f][b])
+            {
+                out.push_back(glm::vec4{seg[b](s.c), s.r});
+            }
+        }
+    }
+    for(const Sphere& s : k.palm)
+    {
+        out.push_back(glm::vec4{s.c, s.r});
+    }
+}
+
+void spheres_f()
+{
+    const Kinematics& k = kinematics();
+    constexpr const char* names[handrig::FingerCount] = {"thumb", "index", "middle", "ring", "pinky"};
+    for(int f = 0; f < handrig::FingerCount; f++)
+    {
+        Con_Printf("%s: joint rates %.1f %.1f %.1f deg/frame\n", names[f], glm::degrees(k.rate[f][0]), glm::degrees(k.rate[f][1]),
+            glm::degrees(k.rate[f][2]));
+        for(int b = 1; b <= handrig::jointsPerFinger; b++)
+        {
+            for(const Sphere& s : k.bone[f][b])
+            {
+                Con_Printf("  bone %d: (%.2f %.2f %.2f) r %.2f\n", b, s.c.x, s.c.y, s.c.z, s.r);
+            }
+        }
+    }
+    Con_Printf("palm: %d spheres, thenar %d; its middle (%.2f %.2f %.2f)\n", static_cast<int>(k.palm.size()),
+        static_cast<int>(k.thenar.size()), k.palmCentre.x, k.palmCentre.y, k.palmCentre.z);
 }
 
 } // namespace qvr::grasp

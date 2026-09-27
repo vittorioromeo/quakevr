@@ -493,12 +493,19 @@ is the most useful thing to send me along with a description. In particular:
 `vr_backend mock; vr_enabled 1` runs everything with a pretend headset. `vr_mock_button <main|off> <trigger|grip|primary|secondary|stickclick|menu> <0|1>`,
 `vr_mock_stick <main|off> <x> <y>` `vr_mock_hand <main|off|head> <x> <y> <z> [<pitch> <yaw> <roll>]` and `vr_mock_look <pitch> <yaw>` drive it; `vr_mock_swing <period>`
 swings the main hand for throwing tests. `vr_mock_fingers <main|off> <trigger> <grip> [<thumb>]` sets the finger
-sensors (0..1).
+sensors (0..1); a fifth argument sets the index finger's touch on the trigger.
 
 Fitted hands (round 21): `impulse 252` puts a gib or a head (nine kinds in turn) in the empty off hand; `impulse 253`
 prints the held weapons' hotspots through the QC query; `vr_show_weapon_hotspots 1` marks them; `vr_hotspots_check`
 compares every slot's hotspots, muzzle and hand with round 20's placement; `vr_hotspots_legacy` prints the slots'
 round-20 two-handed grips as hotspot defaults.
+
+Fitted hands, second pass: `vr_grasp_bench [n]` times each hand's grasp solve on what it holds (the first solve, and
+again n times: min, median, max in microseconds); `vr_debug_grasp_trace 3` writes both hands' joints, solves and drift
+every frame to `grasp_trace.txt`; `vr_grasp_spheres` prints the hand's collision spheres; `vr_debug_carry 1` shows the
+carry reach test (the thing's box, its nearest surface point, the reach); `vr_weapon_hotspot_here <n> [type]
+[main|off]` puts hotspot n where the other hand is. `vr_profile` has scopes for each hand's update (`hand`, `rig hand`,
+`grasp solve`, `hand walls`, `hand collide`).
 
 Tuning the body: `vr_show_hip_holsters 1`, `vr_show_upper_holsters 1`, `vr_show_shoulder_holsters 1` and
 `vr_show_virtual_stock 1` mark where the holsters and the virtual stock's shoulders are (green while a hand is

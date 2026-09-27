@@ -158,6 +158,24 @@ void resetSwimming()
             .help("As above, for weapons: small, so the hand stays on the gun where you placed it."),
         slider("Palm Turn", "vr_hand_fit_palm_turn", 0.f, 45.f, 5.f, "%.0f deg")
             .help("How far the palm may turn toward the surface of a held thing."),
+        slider("Fit Overlap", "vr_hand_fit_overlap", 0.f, 1.5f, 0.1f, "%.1f cm")
+            .help("How far the fingers and palm may sink into what they hold: snug, with no gap, and steadier (a finger "
+                  "that just touches does not flick between two poses)."),
+        slider("Fit Overlap: Hands", "vr_hand_fit_overlap_hands", 0.f, 2.f, 0.1f, "%.1f cm")
+            .help("How far a hand cupping the other (a two-handed pistol grip) may sink into it."),
+        slider("Pose Blend", "vr_hand_fit_blend", 0.f, 0.3f, 0.01f, "%.2f s")
+            .help("How long the fingers take to ease into a new fit. 0: at once."),
+        slider("Refit Threshold", "vr_hand_fit_resolve", 0.f, 2.f, 0.1f, "%.1f cm")
+            .help("How far the hand must move on what it holds before the fingers are fitted again (smaller: follows "
+                  "closer; larger: steadier)."),
+        toggle("Fingers Stop at Walls", "vr_hand_walls")
+            .help("The fingers bend back where they would go into walls and floors."),
+        slider("Hands Brush Weapons", "vr_hand_collide", 0.f, 10.f, 0.5f, "%.1f cm")
+            .help("The free hand is pushed aside by the other hand's weapon, up to this far, eased, and then passes "
+                  "through. 0: never pushed."),
+        slider("Carry Reach", "vr_carry_reach", 0.f, 30.f, 1.f, "%.0f cm")
+            .help("How near the surface of a box, gib or backpack the hand must be to take it (so it sits in the hand). "
+                  "0: anywhere in its box, as before."),
     };
 }
 

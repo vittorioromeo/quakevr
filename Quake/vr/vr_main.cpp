@@ -25,6 +25,7 @@
 #include "vr_voicenotes.hpp"
 #include "vr_detail.hpp"
 #include "vr_flashlight.hpp"
+#include "vr_grasp.hpp"
 #include "vr_gpustats.hpp"
 #include "vr_gfx.hpp"
 #include "vr_weapons.hpp"
@@ -931,8 +932,11 @@ extern "C" void VR_Init()
     server::init();
     Cmd_AddCommand("vr_dumpview", view::dumpView_f);
     Cmd_AddCommand("vr_grasp_dump", view::graspDump_f);
+    Cmd_AddCommand("vr_grasp_bench", view::graspBench_f);
+    Cmd_AddCommand("vr_grasp_spheres", grasp::spheres_f);
     Cmd_AddCommand("vr_hotspots_legacy", view::hotspotsLegacy_f);
     Cmd_AddCommand("vr_hotspots_check", view::hotspotsCheck_f);
+    Cmd_AddCommand("vr_weapon_hotspot_here", view::hotspotHere_f);
     anchor::registerCommands();
     Cmd_AddCommand("vr_decal_count", decals::count_f);
     Cmd_AddCommand("vr_decal_atlas", decals::atlas_f);

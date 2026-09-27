@@ -63,6 +63,13 @@ void reset();
 // QVR_BUTTON_*HANDBUSY, and its aim beam is not drawn).
 [[nodiscard]] bool holds(int hand);
 
+// The game directory changed (VR_OnGameDirChanged): the guns' torch spots (by model name) forgotten.
+void onGameDirChanged();
+
+// Where the torch held by `hand` is drawn this frame (its entity's origin and angles, as setupView places it): for the
+// hand's grasp, solved before the torch is placed (no frame's lag between them).
+[[nodiscard]] bool heldPlace(const hands::State& s, int hand, glm::vec3& origin, glm::vec3& angles);
+
 // Round 21: whether `hand`'s upper face button (B/Y) is the flashlight's now: the hand holds it, or it is on the head
 // and the hand is at it. The off hand's Y then does not start a voice note at the mouth (vr_input.cpp).
 [[nodiscard]] bool wantsSecondary(int hand);

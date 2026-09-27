@@ -11,6 +11,7 @@
 #include "vr_profile.hpp"
 #include "vr_trace.hpp"
 #include "vr_units.hpp"
+#include "vr_view.hpp"
 #include "vr_weapons.hpp"
 
 #include <algorithm>
@@ -276,6 +277,9 @@ constexpr float lensBack = 0.01f; // metres the lens is behind a gun's muzzle
     return back < headBack ? 0.0195f : back < 0.1245f ? 0.0142f : 0.0065f; // (the tail's rubber button last)
 }
 
+// Each gun's spot for the torch (findGunSpot), by model name and size.
+std::unordered_map<std::string, GunSpot> gunSpots;
+
 // Where the torch goes on a gun (metres from the line the gun aims along to the torch's axis): under it (`down`) or,
 // when the gun's underside there goes too deep (a super nailgun's drum), beside it on the side away from the body
 // (`out`). Found from the drawn gun's surface at rest (its first frame: points over each triangle, 5 mm apart or
@@ -305,7 +309,7 @@ constexpr float lensBack = 0.01f; // metres the lens is behind a gun's muzzle
     {
         return {}; // (not cached: it is drawn from the next frame)
     }
-    static std::unordered_map<std::string, GunSpot> cache;
+    std::unordered_map<std::string, GunSpot>& cache = gunSpots;
     const float size = glm::distance(view::modelPoint(*gun, glm::vec3{0.f}), view::modelPoint(*gun, glm::vec3{1.f, 0.f, 0.f}));
     const std::string key = std::string{m.model->name} + va("/%.4f", size);
     if(const auto it = cache.find(key); it != cache.end())
@@ -932,7 +936,7 @@ void drawCord(const Pose& mount, const Pose& lamp)
 void place(view::ViewEntity& ve, const Pose& p, bool hover)
 {
     entity_t& e = ve.ent;
-    qmodel_t* model = Mod_ForName(modelName, false);
+    qmodel_t* model = view::viewModel(modelName);
     if(model != ve.lastModel)
     {
         e.lerpflags |= LERP_RESETANIM;
@@ -1359,9 +1363,28 @@ void reset()
     killLights();
 }
 
+void onGameDirChanged()
+{
+    gunSpots.clear(); // keyed by model name: another game's model of the same name may differ
+}
+
 bool holds(int hand)
 {
     return enabled() && st.mode == Mode::Held && st.holder == hand;
+}
+
+bool heldPlace(const hands::State& s, int hand, glm::vec3& origin, glm::vec3& angles)
+{
+    if(!holds(hand))
+    {
+        return false;
+    }
+    const Pose p = handPose(s, hand);
+    const glm::mat3 m = glm::mat3_cast(p.rot);
+    const glm::vec3 a = hands::anglesFromVectors(m[0], m[2]);
+    origin = p.pos;
+    angles = glm::vec3{-a.x, a.y, a.z};
+    return true;
 }
 
 bool wantsSecondary(int hand)
