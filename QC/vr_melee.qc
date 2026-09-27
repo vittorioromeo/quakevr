@@ -146,6 +146,7 @@ float VR_MKIND_PUNCH = 3;  // a fist (any way: jab, hook, uppercut, overhead)
 .float mh_push_dist;   // m pushed so far
 .float mh_push_last;   // the last frame it pushed
 .float mh_push_ok;     // the push began from a stance held VR_BASH_HELD (or a palm's)
+.float mh_push_stance; // and which (1 a weapon's, 2 a palm's)
 .float mh_hilt_sweeping; // the last hilt decision (VR_Melee_Decide): a swing's far end sweeping past (it waits for the blade)
 // A hilt's or pommel's touch in a swing, waiting VR_MELEE_HILT_WAIT for the blade (VR_Melee_Sweep): the blow it would be.
 .entity mh_pend_ent;
@@ -1375,12 +1376,20 @@ void() VR_Bash =
             dprint(sprintf("melee debug: held %.2f ok %g pushing %g\n", time - b.mh_stance_since, b.mh_push_ok,
                 VR_Bash_Pushing(h, b, pfwd, speed)));
         }
-        if(stance && VR_Bash_Pushing(h, b, pfwd, speed))
+        // A push begun from the stance goes on while it pushes, the stance tilting or turning as it goes (a push with one
+        // hand swings the far end forward).
+        float going = b.mh_push_ok && b.mh_push_stance == 1 && time - b.mh_push_last <= VR_BASH_GAP;
+        if(!stance && going)
+        {
+            b.mh_stance = 1; // (for the push's test: a weapon's)
+        }
+        if((stance || going) && VR_Bash_Pushing(h, b, pfwd, speed))
         {
             if(b.mh_push_dist <= 0 && time - b.mh_push_last > VR_BASH_GAP)
             {
                 // A push begins: from a stance held (a weapon's; a palm's needs none).
                 b.mh_push_ok = FALSE;
+                b.mh_push_stance = stance;
                 if(stance == 2)
                 {
                     b.mh_push_ok = TRUE;

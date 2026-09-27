@@ -47,7 +47,6 @@ const DefaultChange defaultChanges[] = {
     {10, &vr_corpse_health, "40"},        // doubled (big monsters take more again)
     {11, &vr_bash_speed, "1.6"},          // a gentler push bashes (round 18: the guard is the parry's now)
     {12, &vr_sight_hue, "30"},            // their own orange: they follow the player's hue now (vr_player_hue)
-    {13, &vr_parry_angle, "40"},          // the parry stance (round 21): the author's poses that are no parry tilt 37-40
     {13, &vr_shove_speed, "1.8"},         // the author's shoves go 3.2-4.8 m/s, his hands waved at the dummy 2.2 (round 21)
 };
 constexpr int configVersion = 13;
