@@ -1956,7 +1956,10 @@ void() PlayerPostThink =
     earthquake_postthink();
 
     if(self.deadflag)
+    {
+        VR_Carry_Dead(); // QVR: what the hands carried drops
         return;
+    }
 
     // ROGUE
     if(cutscene_running)

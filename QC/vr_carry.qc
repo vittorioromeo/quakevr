@@ -355,6 +355,31 @@ float(entity box, vector target) VR_Carry_Follow =
     return TRUE;
 };
 
+// Dead (PlayerPostThink, self is the player: the hands' frames no longer run): what the hands carried,
+// in one hand or both, drops with the motion it had (it hung in the air until the respawn).
+void() VR_Carry_Dead =
+{
+    entity a = self.mainhand_held;
+    entity b = self.offhand_held;
+    if(a == world && b == world)
+    {
+        return;
+    }
+    dprint("carry: dead, let go\n");
+    VR_Carry_SetHeld(self, cVR_MainHand, world);
+    VR_Carry_SetHeld(self, cVR_OffHand, world);
+    if(a != world && a.carry_player == self)
+    {
+        VR_Carry_Loose(a);
+        a.owner = world;
+    }
+    if(b != world && b != a && b.carry_player == self)
+    {
+        VR_Carry_Loose(b);
+        b.owner = world;
+    }
+};
+
 // ----------------------------------------------------------------------------
 // Two hands (vr_carry_two_hands)
 
