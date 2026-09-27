@@ -1687,3 +1687,162 @@ the punch (`fisthit.wav`) or nothing.
 - The verdicts are the round's: hilt_pommel 23 of 27 and gun_strike_butt 9 of 17 pass. The pommel takes that fail
   read as slashes (02-44-18, 04-05-33, noted above), and they play the slash's sound.
 - Not heard: the sounds were checked by their spectra and length only, not listened to in the headset.
+
+## Held weapons against models
+
+Your request: a weapon you hold should not pass through monsters, other players, corpses and things on the ground,
+stopped at the model as it is drawn, not at its hitbox (Quake's boxes are much bigger than the models), with a fast
+test on the main thread. Branch `agent/wpncollide`; the code is `Quake/vr/vr_modelcollide.cpp`, hooked into the view
+by two calls. Composites and traces are in the scratchpad's `wpncollide/`.
+
+| | |
+|---|---|
+| What stops | monsters alive or dead (corpses, the training dummy), other players; with Objects, boxes, gibs, heads, backpacks, armour and weapons lying on the ground |
+| What it tests | the model's triangles as the renderer draws them this frame: its two poses and the lerp between them, its movement's lerp, its scale and the networked scale and offset |
+| What is stopped | the weapon in each hand (its own vertices), and with Hands Stop at Models the empty hand (fist or open) |
+| How it gives | a push out of the surface, eased (out in about a hundredth of a second, back in over 0.06 s); up to Model Push Limit (20 cm) all of it, deeper less and less, none at twice (it lets go) |
+| What the game reads | the tracked hands and muzzles as before: melee contacts, kinds and damage, shots, aim and two-handed grips are unchanged (your 474 takes replay exactly as before) |
+| Cost | 0.002 ms a hand with nothing near, 0.006 with a monster near, 0.006-0.010 in contact; 0.045 ms a frame in a crowd of 12 overlapping grunts with both hands among them (budget: well under 0.1) |
+
+### How it works
+
+- **The weapon.** Each hand's weapon as it was drawn last frame (its model, its pose, where it sits in the hand) is 24
+  of its own vertices, spread over it (farthest-point samples of the model's pose, made once per model and pose). The
+  test casts a ray from the hand to each of them, and one more to the hand from 16 units behind it (towards the chest):
+  the hand itself inside a model. An empty hand is its hand model (`progs/hand.mdl`) the same way.
+- **What is near.** Every entity drawn this frame with an alias or brush model, not the player, not what either hand
+  holds, and of the right kind (below). Its box as drawn (its frames' bounds, or a brush model's, placed by the
+  renderer's matrix) must meet the rays' box, grown by twice the push limit (a push moves the rays).
+- **Its triangles as drawn.** For those models only, the vertices are posed as `r_alias.c` draws them: the lerp
+  between their two poses (`R_SetupAliasFrame`, read without changing it) and the move lerp of a walking monster
+  (`R_SetupEntityTransform`), placed with `R_EntityMatrix` and the VR transforms (networked scale and offset).
+  Triangles are kept in runs of 8 under one box: a ray skips a run at once.
+- **The test.** Each ray against the triangles near it (Moller-Trumbore). Quake's models are wound clockwise seen
+  from outside (so the renderer culls `GL_FRONT`): a ray that crosses a triangle from its front goes into the model.
+  The first place a ray goes in, and the first place after it where it comes out of the same model (or its end): that
+  part of the weapon is inside, and must be moved out of the surface it went in by (a plane: its point and normal).
+  A ray that passes through a thin part (an arm) is pushed off it by the part's depth; a blade pushed into a body is
+  pushed back as deep as its tip went in.
+- **The push.** The least move out of every plane found (Gauss-Seidel, 16 sweeps at most); then the rays are tested
+  again from there, three rounds at most (a curved surface, a second model).
+- **Letting go.** Up to `vr_model_collide_max` (20 cm) the push is all of it. Deeper, it is less and less, none at
+  twice that: a monster walking into your gun, or a blade pushed far into a body, passes through smoothly instead of
+  the hand being dragged away without limit. Walls don't let go; models do, as they move.
+- **Easing.** Out in about a hundredth of a second (a time constant of 0.012 s: nearly at once, so nothing shows
+  through), back in over 0.06 s (no snap when the contact ends).
+- **Drawn only.** The view moves `s.pos` of each hand by its push before the weapons, hands, fingers and body are
+  placed (so the weapon, the hand, the fingers and the arm all move together, like the parried-blow knock) and takes
+  it back out afterwards, from the hands, the muzzles and the two-handed grips. So the server, the melee, the aim,
+  the crosshair and laser (where the shots go), the two-handed grip and holstering all read the tracked pose as
+  before. The muzzle flash's light and your beams (lightning, the grapple's rope) start at the drawn muzzle.
+
+**Melee is on the tracked pose.** A blade drawn stopped at a monster's surface still hits it as the tracked blade
+does, with the same kind and damage: the server gets the hands and muzzles it got before. (That is also why the
+walls' collision in `vr_handpose.cpp` leaves monsters out: a hand held back from a monster's box read as a new stroke,
+round 15.)
+
+**Not blocked:** the helping hand of a two-handed grip (drawn on the weapon it helps hold, which is pushed: it
+follows); a gun carried by its foregrip; a hand at a holster or passing a weapon to the other hand; a hand holding a
+thing or the flashlight; your own body (only other entities are tested). The weapon changing this frame is tested
+from the next.
+
+**Which entities.** While you host (single player), by what the server says: Monsters = `FL_MONSTER` (alive or dead)
+and `FL_CLIENT` (other players); Objects = anything else drawn with a model that lies still (moving under 150 u/s:
+not missiles, thrown or flying things), not the level's brush entities (doors, lifts, buttons: `SOLID_BSP` or bigger
+than 72 units, which the walls' collision already stops). As a client of someone else's server, by the model: brush
+models under 72 units and rotating pickups or gibs are objects, models with a missile's trail are nothing, the rest
+monsters.
+
+### Settings
+
+| Menu (Hand/Gun Calibration, "Against Monsters and Things") | Cvar | Default |
+|---|---|---|
+| Weapons Stop at Models: Off / Monsters / Monsters and Objects | `vr_model_collide` 0 / 1 / 2 | Monsters and Objects |
+| Hands Stop at Models | `vr_model_collide_hands` | on |
+| Model Push Limit (5-50 cm, left/right go on to 1-100) | `vr_model_collide_max` | 20 cm |
+
+Tools: `vr_debug_model_collide 1` prints each hand's push while a model stops it (the raw push, what is given, what
+is drawn, the entity, the models, triangles, rays, rounds and planes); `2` also draws the rays (grey where tracked,
+green where drawn, red while pushed) and the push (yellow). `vr_model_collide_bench [n] [list]` times the test of both
+hands as they are (min, median, 99th percentile, max); `vr_model_collide_bench probe` casts a ray along your view and
+lists each model triangle it goes in or out by. For tests: `impulse 241` puts a monster (`vr_test_spawn`: the firing
+range dispenser's numbers, 0 grunt, 2 zombie, 3 shambler...) or a box (100 health, 101 shells) `vr_test_spawn_dist`
+units ahead, facing you, killed at once with `vr_test_spawn_dead 1`; `vr_mock_camera <x> <y> <z> <pitch> <yaw>` draws
+the mock headset's eyes from elsewhere (a spectator's view of your body and hands; the hands stay with the head).
+
+### Costs
+
+Release build, the mock headset, `vr_profile` in exclusive runs; `vr_model_collide_bench 500` (per hand).
+
+| Case (`vr_model_collide_bench 1000`, exclusive runs) | Median | 99% | Triangles near, rounds |
+|---|---|---|---|
+| nothing near | 0.0017-0.0023 ms | 0.0028 | – |
+| a grunt near the sword, no contact | 0.0059 ms | 0.0072 | 0 (its vertices posed: its box meets the rays) |
+| a sword stopped by a grunt's chest | 0.0102 ms | 0.0131 | 138, 3 |
+| a sword stopped by a zombie | 0.0083 ms | 0.0090 | 189, 2 |
+| a fist stopped by a grunt's gun | 0.0087 ms | 0.0225 | 32, 2 |
+| a shotgun on a health box | 0.0058 ms | 0.0355 | 28, 2 |
+| a crowd: 12 grunts spawned overlapping round you, the sword deep among 5 of them, the fist near 5 | 0.020 + 0.013 ms | 0.028 + 0.019 | 473 (14 planes, pushed past the limit: let go), 7 |
+
+`vr_profile` in that crowd (exclusive, 4-second intervals): `model collide` 0.043-0.047 ms a frame for both hands,
+the worst frame of each interval 0.08-0.15 ms (the view's other scopes had their own worst frames of the same size:
+the machine's scheduling). With `vr_model_collide 0` the scope is gone. A model's triangle list and a weapon pose's
+samples are made once, at first use.
+
+### Tests (mock headset; `wpncollide/` in the scratchpad)
+
+Side views of your body with `vr_mock_camera`, before (`vr_model_collide 0`) and after (2), with the rays and the
+hitbox (`r_showbboxes 1`):
+
+- `collide_grunt.png`: a sword stabbed into a grunt's chest, and a shotgun pushed into it: through it before, stopped
+  at its surface after (4.2 and 5.2 units of push, 13 and 16 cm).
+- `collide_corpse_box.png`: a sword pushed down into a corpse (and its dropped backpack near), and a shotgun into a
+  health box on the floor: resting on them after.
+- `collide_hitbox.png`: a zombie, whose hitbox is a 32-unit box round a thin body: the sword inside the box, short of
+  the body, is not stopped (no push: nothing is hit); pushed on into its chest it is stopped at the chest.
+- `collide_fist.png`: a fist pushed into a grunt's gun: held on it, the arm with it; the rays drawn by
+  `vr_debug_model_collide 2` for the grunt and the zombie.
+- `trace_swing.txt`, `trace_swing_2.tsv`: a sword swung through the training dummy and then pushed in slowly and out
+  (`vr_mock_play swing.txt`). In the swing the blade is held out about 3.4 units for the three frames it is inside; in
+  the slow stab the push grows with the depth, holds at the limit (5.25 units at `vr_world_scale` 1), gives way to
+  none at twice that, and comes back as the blade is drawn out; the eased drawn push has no jumps. The dummy reported
+  the same blows with the collision off and on (a slash of 22-23 damage, a stab of 36.4). Scripted on the real clock,
+  these runs vary a little by themselves (three runs off: slashes of 22.7, 44 and 22, stabs of 36.3 and 36.4): the
+  exact check is the replay of your takes.
+- **Melee regression:** your 474 takes (copied), `map vrfiringrange; wait60; vr_motion_eval <copy> quit`, on the base
+  (97d098ef) and on this branch (with vr-cleanup 5c89cec1 merged, the collision on by default): 420 of 474 pass on
+  both, and the two tables are identical line for line: every take's verdict, its blows (kind, sub, hand, damage,
+  point, time), frames and hand error. (`eval_base.csv`, `eval_new.csv`.)
+- The menu: `menu.png`.
+
+### Found on the way
+
+- Quake's triangles face inwards by `cross(b - a, c - a)` (clockwise seen from outside, alias and brush models alike:
+  `vr_model_collide_bench probe` shows the first crossing of a monster as "out" with the opposite convention).
+  `vr_grasp.cpp`'s `inside()` (the free hand held out of the other hand's weapon, `vr_hand_collide`) says the nearest
+  triangle "faces away" from a point inside by that same cross product, which would make it take points just outside
+  the weapon for inside and the reverse. Not checked further and not changed here (the hand agents' file): worth a
+  look.
+
+### Limitations
+
+- A weapon is its vertices as rays from the hand: a part of a monster thinner than the gaps between them (a finger,
+  a claw tip) can poke between two rays into the weapon's side. The rays' fan covers a blade and a barrel closely.
+- A monster's pointed part pushed into the flat of a blade is found by the ray that crosses it; one that lies wholly
+  between two rays is not.
+- Only Quake's `.mdl` (and brush) models: an MD3/IQM replacement model, or a skeletal one, is not tested.
+- The laser and crosshair stay on the tracked aim (where the shots go), a few units from a gun pushed sideways.
+- Mock only: not tried in the headset.
+
+### In the headset
+
+- Poke a monster (the training dummy, a grunt from the range's buttons) with a gun and a sword: the weapon should stop
+  at its body, not at the air round it, and your hand and arm with it; a zombie or a shambler lets it much closer
+  than its box.
+- Swing through the dummy: the hits, kinds and damage should read as before (the blade is drawn held back for a
+  moment, the blow is the tracked one).
+- Push slowly on: past 20 cm (Model Push Limit) the weapon starts to sink in, and at 40 cm goes through; tell whether
+  the limit should be bigger or smaller, or whether it should never let go.
+- Rest a gun on a health box, a corpse, a backpack; an empty hand on a monster (Hands Stop at Models).
+- Hold a weapon two-handed into a monster: the helping hand should stay on it.
+- Holster and draw near a monster: nothing should change.

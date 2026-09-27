@@ -1137,9 +1137,10 @@ void bench_f()
                 s.pos[hand].x, s.pos[hand].y, s.pos[hand].z, tip.x, tip.y, tip.z, reach,
                 s.muzzleValid[hand] ? glm::distance(s.muzzle[hand], s.pos[hand]) : -1.f);
         }
-        Con_Printf("vr_model_collide_bench: %s hand, %s, %d times: min %.1f us, median %.1f, max %.1f; %d models near, %d "
-                   "triangles, %d rays, %d rounds, %d planes; push %.2f units\n",
-            name, recorded[hand].model ? recorded[hand].model->name : "?", n, us.front(), us[us.size() / 2], us.back(),
+        Con_Printf("vr_model_collide_bench: %s hand, %s, %d times: min %.1f us, median %.1f, 99%% %.1f, max %.1f; %d models "
+                   "near, %d triangles, %d rays, %d rounds, %d planes; push %.2f units\n",
+            name, recorded[hand].model ? recorded[hand].model->name : "?", n, us.front(), us[us.size() / 2],
+            us[std::min(us.size() - 1, us.size() * 99 / 100)], us.back(),
             st.models, st.triangles, st.rays, st.rounds, st.planes, glm::length(res.push));
     }
 }
