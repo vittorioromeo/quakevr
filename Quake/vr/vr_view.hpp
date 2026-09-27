@@ -58,5 +58,6 @@ struct WeaponMount
 [[nodiscard]] int handBonePoses(const entity_t* e, const float** matrices);
 
 void dumpView_f();
+void graspDump_f();
 
 } // namespace qvr::view

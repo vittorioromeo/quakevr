@@ -511,6 +511,17 @@ void easeFrame(Easing& ea)
 
 } // namespace
 
+namespace qvr::held
+{
+
+int heldEntity(int hand)
+{
+    const Held& hd = holding[hand];
+    return hd.drawn && valid(hd.ent, hd.model) ? hd.ent : 0;
+}
+
+} // namespace qvr::held
+
 // End of CL_RelinkEntities: the local player's held objects are drawn in the hands drawn this
 // frame (and ease back to the server's position when let go).
 extern "C" void VR_RelinkHeld(void)

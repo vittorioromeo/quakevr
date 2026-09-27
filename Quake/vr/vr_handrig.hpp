@@ -18,6 +18,7 @@
 #include "vr_engine.hpp"
 
 #include <array>
+#include <vector>
 
 namespace qvr::handrig
 {
