@@ -20,6 +20,7 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | Box3D physics | a second rigid-body engine to compare (Throwing and Physics > Physics Engine, live): Erin Catto's Box3D, single-threaded; props collide with each other (stacks, pyramids, piles, knocks), everything else as before; 0.12-0.15 ms a server frame with 52 props settling; your 474 takes identical on both |
 | Carrying after a load | a box carried in one hand or both when the game was saved is drawn in the hand(s) again after loading it (it was drawn 20 m away, out of sight) |
 | After the posing test | a gun held into a monster hits it (a grunt's head: 0 of 6 pellets before, 6 of 6 headshots now); the posing hand passes through the weapon, unsolved (the solved grip shown for 1.5 s after each set); Show Controller at the real grip, shaped as a Quest 3 controller, with offset sliders; Shot Pitch / Shot Yaw per weapon turn where shots go |
+| Body and weapon models | weapons: bands, bolt heads and ribs on the crudest spots (1.3-1.85x the triangles), edge wear in every skin, nothing tuned moved (anchors, hotspots, offsets and the hand fit identical); body: rounder limbs and torso, a belt, shaped feet (1240 -> 2186 triangles), 256x256 skins with a quilted vest, straps, laces, a face, armour lames |
 
 Found on the way: fteqcc stores 0 when `a || b` is assigned into an entity field (rewritten; no other code has that
 shape); a parried blow's hand knock, timed by `cl.time`, came back after a level change (reset now).
@@ -3092,3 +3093,113 @@ headshots, world, nothing) and each damage you deal (target, amount, inflictor, 
 - [ ] Show Controller on: is the preview in your palm where the real controller is? Tune Controller Preview until it
   matches, and tell me the numbers (they can become the defaults).
 - [ ] Show Controller Laser on: turn Shot Pitch / Shot Yaw until the red line runs through the sights.
+
+## Body and weapon models improved
+
+Your request: "some modelling/texturing improvements for the player hands, player body, and weapon models. Improve
+their look while keeping the same art style and low-poly look." The hands were another agent's; this is the body and
+the weapons. Nothing you tuned moves: every weapon's anchors, hotspots, offsets and hand fit are the same to the byte.
+
+### Weapons
+
+**How** (`Misc/quakevr/mdlpolish.py`, `Misc/quakevr/polish_weapons.py`). The script takes the models as rounds 16-20
+left them (kept byte for byte in `Misc/quakevr/src_models/r21/`; running it again gives the same files) and adds to
+them without touching what was there: the header's scale and origin (what each weapon's offsets and Scale are applied
+about) stay, every old vertex keeps its index and its bytes (position and normal), every old triangle and UV stays.
+New vertices and triangles are appended and share no vertex with the old ones, so vr_anchor.cpp's strip order of the
+old vertices is unchanged: the script checks that every anchor of every slot using the model (hand, muzzle,
+two-handed grip, ammo screen and button) names the same vertex at the same place. A new part must fit inside the
+model's old byte box in every frame (the write fails otherwise): the grenade launcher's sides and the axe's head are
+as wide as the bounds, so they got no bolts, and the double shotgun's muzzle bands would have poked out of the box in
+the recoil frames. Each part rides the old piece it sits on through every frame (the best rigid fit of that piece's
+vertices from frame 0): it recoils, pumps and spins with it. The parts keep clear of where the hands hold the guns
+(grips, triggers, foregrips, pumps), so the fitted fingers close on the same surfaces.
+
+**What.** Low-poly, faceted and flat-shaded as id's parts are, painted face by face in each gun's own ramps
+(blue-black, the launchers' browns, worn steel for bolt heads), lit from above as Quake's skins are; never a
+fullbright index, so the sights and screens are untouched:
+
+| Model | Added | Triangles |
+|---|---|---|
+| Shotgun | a muzzle crown, two pins through the receiver each side, a ventilated rib along the barrel's top (under the line from the receiver to the front sight) | 766 -> 1046 |
+| Double shotgun | a band round both barrels, a sighting rib in the valley between them up to the bead, hinge pin and receiver bolts | 688 -> 928 |
+| Nailgun, lava nailgun | two bands on each barrel, bolts on the lower block | 480 -> 888 |
+| Super nailgun, lava super nailgun | a clamp round the four barrels (it spins with them), bolts on the body | 726 -> 1002, 884 -> 1148 |
+| Grenade launcher, proximity gun, multi-grenade launcher | bolt heads along the top bevels | 386 -> 566, 378 -> 558, 380 -> 560 |
+| Rocket launcher, multi-rocket launcher | three bands on the tube, bolts on the warhead | 499 -> 811 |
+| Lightning gun, plasma gun | bolts along the body, a band on the muzzle | 459 -> 711 |
+| Axe | a band at the neck | 56 -> 140 |
+| Grappling hook, laser cannon, Mjolnir | edge wear only | unchanged |
+| Knights' swords | unchanged (no edges the wear pass could take) | unchanged |
+
+At most 1.85 times the triangles (the nailguns; the axe from a tiny 56), each model 2 new skin rows at most.
+
+**Skins: edge wear** (`mdlpolish.edge_wear`, every model above). The texels along the id models' box corners and
+bevels (a convex edge of more than 50 degrees between two faces big enough on the model and in the skin) move one
+step lighter within their own colours (two on sharp corners), and some texels of the next row are scuffed: worn, lit
+edges as Quake's skins paint them. The id models reuse and overlap their UVs heavily, so a texel changes only when
+every triangle using it agrees, only in the rows the id models had (the grips and parts earlier rounds painted keep
+their own highlights), and never where one texel would span a wide band of the model: 246 (shotgun) to 5276
+(grappling hook) texels a model. The lighter colour is matched in RGB (the nearest palette entry of the same hue),
+not stepped along a palette row: the darkest entries of every row are nearly black, and stepping from them brought
+out their row's hue (green on the nailgun's black metal).
+
+### Body
+
+`make_vrbody.py`, all three builds. The skeleton, the joint names and places, the weights, and the rings the engine's
+tables are worked out from (the belly's and the chest's ellipses for the holster plates, the belt for the flashlight's
+clip) are unchanged.
+
+- **Mesh**: each loft is refined between the rings given (Catmull-Rom: the given rings keep their places and sizes,
+  and the texture still runs along them as before), with more sides where the silhouette shows: torso 16 (was 12),
+  arms, bracers, legs and boots 12 (10), head 10 (8); extra rings at the shoulders, elbows and knees. A belt now
+  stands out of the torso (its edges tucked into it). The feet have a heel, instep, ball and toe cap and a flat sole
+  (a squarer section). 1240 -> 2186 triangles.
+- **Skins** at 256x256 (were 128), every texel one of Quake's palette colours, none fullbright: the vest quilted in
+  vertical channels, stitched in rows, laced down the front, shadowed at the belt, collar and armpits; a stitched belt
+  with loops and a steel buckle; creased camouflage trousers with stitched side seams, folds behind the knees, bunched
+  at the ankles; the thigh plates' ridges lit along their tops, riveted; the boots' two buckled straps, back seam,
+  turned-down tops, laces and soles, scuffed toe caps; bracers with stitched rims and two buckled straps; arms shaded
+  by muscle (deltoid, biceps, triceps, the crook of the elbow); the head on its own block now (it shared the arms'
+  texels): short dark hair, brows, deep-set eyes, stubble.
+- **Armour** (green, yellow, red: the armour model's colours, as before): five lames, each lit along its rolled lower
+  edge and shadowed under the lame above, riveted either side of the front closure and by the side straps; chipped
+  paint. The damage (cuts and blood, more with less health) as before, kept inside the arms', torso's and bracers'
+  blocks.
+
+### Checks
+
+- **Anchors and hotspots, in the engine**: `vr_anchor_info` for every anchor of every slot's model, and
+  `vr_hotspots_check`, before and after: identical output (every position to the printed 0.01, every hotspot
+  distance to 0.0001).
+- **The hand on each weapon** (`vr_dumpview` holding each of the 18 weapons, `impulse 253` for their hotspots): the
+  hand, palm, muzzle and foregrip the same (the only differences, 0.0001, are frame-timing noise).
+- **Holes**: `check_mdl_holes.py` passes on every model (the new parts are closed solids).
+- **Melee**: see the canary line below.
+- **Draw cost** (exclusive runs in vrfiringrange, the double shotgun held and the body in view, 1500 frames each, two
+  runs before and two after): alias models 0.01 ms an eye on the GPU and 0.05 ms on the CPU before and after; the
+  whole frame 0.73 ms on the GPU both ways.
+- **Composites** (scratch `models/comp/`): `weapons_1..3.png` (each weapon from the player's view, its right side
+  and the front left, before | after), `body_views.png` (the body from the front, side, back and front left: no
+  armour, green, yellow, red and hurt), `body_bind_a.png`, `body_bind_b.png` (the three builds and their skins,
+  front, side, back and three-quarter, before and after).
+
+### Not done, not verified
+
+- Mock only: not seen in the headset. The details are small (a bolt head is about a centimetre): whether they read in
+  the headset, and whether the bolts on the brown guns are too bright, is for you to judge.
+- The sights and the grips were left alone: the sights are your tuned hues, and the fitted fingers close on the
+  grips.
+- The knights' swords, Mjolnir, the laser cannon and the grappling hook have no new parts.
+- `vr_modelcollide`'s 24 sample vertices are picked from all of a model's vertices (farthest from their middle): the
+  new vertices move the middle a little, so a held weapon's wall-collision samples may differ slightly. Not measured.
+- Rerunning `improve_weapons*.py` rewrites the models this pass starts from: copy their output to
+  `src_models/r21/` and run `polish_weapons.py` again.
+
+### In the headset
+
+- [ ] Each gun close up and from above as you aim: the shotgun's rib and crown, the double's rib and band, the
+  nailguns' bands, the launchers' bolts and bands. Too subtle, too bright, or right?
+- [ ] Fire each: the parts recoil with the gun; the super nailgun's clamp spins with its barrels; the shotgun's pump
+  slides under the rib.
+- [ ] The body in the body preview (`vr_body_debug 2` / `3`) or looking down: the vest, belt, boots, and each armour.
