@@ -686,24 +686,31 @@ void placePlayer(edict_t* player)
     // Where its box is free: a take recorded in noclip (setpos) may have the feet a little in the floor
     // (the server would put the player back where it was), or a step may be higher here.
     glm::vec3 at = placeOrigin;
-    for(float up = 0.f; up <= 18.f; up += 0.25f)
+    bool free = false;
+    for(float up = 0.f; up <= 18.f && !free; up += 0.25f)
     {
         vec3_t p{placeOrigin.x, placeOrigin.y, placeOrigin.z + up};
         const trace_t tr = SV_Move(p, player->v.mins, player->v.maxs, p, MOVE_NORMAL, player);
         if(!tr.startsolid)
         {
+            free = true;
             at.z = placeOrigin.z + up;
             if(up > 0.f)
             {
-                report.warnings += va("placed %.2f units higher (the take's spot is in solid here); ", up);
+                report.warnings += va("placed %.2f units higher (the take's spot is in the floor here); ", up);
             }
-            break;
         }
+    }
+    if(!free && report.warnings.find("overlaps") == std::string::npos)
+    {
+        // (A take recorded in noclip, into the dummy: the replay can't stand there.)
+        report.warnings += "the player's box overlaps something where the take has it (recorded in noclip?); ";
     }
     placeOrigin = at;
     player->v.origin[0] = placeOrigin.x;
     player->v.origin[1] = placeOrigin.y;
     player->v.origin[2] = placeOrigin.z;
+    VectorCopy(player->v.origin, player->v.oldorigin); // (else a stuck check puts it back where it was)
     player->v.velocity[0] = player->v.velocity[1] = player->v.velocity[2] = 0.f;
     SV_LinkEdict(player, false);
 }
