@@ -20,6 +20,7 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | Box3D physics | a second rigid-body engine to compare (Throwing and Physics > Physics Engine, live): Erin Catto's Box3D, single-threaded; props collide with each other (stacks, pyramids, piles, knocks), everything else as before; 0.12-0.15 ms a server frame with 52 props settling; your 474 takes identical on both |
 | Carrying after a load | a box carried in one hand or both when the game was saved is drawn in the hand(s) again after loading it (it was drawn 20 m away, out of sight) |
 | After the posing test | a gun held into a monster hits it (a grunt's head: 0 of 6 pellets before, 6 of 6 headshots now); the posing hand passes through the weapon, unsolved (the solved grip shown for 1.5 s after each set); Show Controller at the real grip, shaped as a Quest 3 controller, with offset sliders; Shot Pitch / Shot Yaw per weapon turn where shots go |
+| Particles, long sessions | particles made into quads on the GPU from one record each, uploaded once a frame: at 4x and 8x their CPU a quarter of before (8x: 0.64 to 0.17 ms), GPU 15-45% less, the same images; long sessions: old maps' text boards freed (VRAM), collision caches per map, haptic delays bounded; a 35-minute soak shows no growth |
 
 Found on the way: fteqcc stores 0 when `a || b` is assigned into an entity field (rewritten; no other code has that
 shape); a parried blow's hand knock, timed by `cl.time`, came back after a level change (reset now).
@@ -3092,3 +3093,158 @@ headshots, world, nothing) and each damage you deal (target, amount, inflictor, 
 - [ ] Show Controller on: is the preview in your palm where the real controller is? Tune Controller Preview until it
   matches, and tell me the numbers (they can become the defaults).
 - [ ] Show Controller Laser on: turn Shot Pitch / Shot Yaw until the red line runs through the sights.
+
+## Particles at high multipliers; long sessions
+
+Your notes: with the particle multiplier at 4, shooting a wall slows the game noticeably; and the game seems to slow
+down a little over time, even with VDXR. One commit for the particles, one for the long-session fixes, one test cvar.
+Measured with `run.sh --exclusive` and `vr_profile`, at 1448 x 1448 an eye (twice the mock's pixels), both eyes, on an
+RTX 4090; scripts and images in the scratchpad's `perf2/`.
+
+### Particles: where the time went
+
+The scene: the firing range, facing the wall behind the start; at each multiplier 12 super-shotgun blasts, 3 s of
+super nailgun, 6 rockets (`vr_particle_seed 7`: the same particles every run). At 4x there are 2000-5000 particles
+alive, at 8x 6000-10 000.
+
+- **CPU: the quads, made for each eye.** Every particle's six 40-byte vertices were made twice a frame (after a
+  frustum test) and copied into the upload buffer twice. `particle verts` was 70% of the particles' CPU, the upload
+  15%, the simulation 10%: 0.64 ms a frame at 8x.
+- **GPU: mostly pixels.** The smoke puffs grow to 45 units across near the wall, and soft particles read the scene's
+  distances at each pixel. The rest is the vertices: 12 per particle a frame, read at a 40-byte stride.
+- **Spawning** is not the problem: `particle spawn` (new) is 0.001-0.002 ms a frame on average and 0.16 ms at
+  worst, for a super-shotgun blast at 8x (about 4000 particles).
+
+**The change.** Each particle is now one 96-byte record, made and uploaded once a frame and drawn in both eyes from the
+same buffer. The record holds the position, size, colour, velocity and streak, the angle's cosine and sine, the
+softness and the cell.
+- The vertex shader builds the same quad from each eye's camera, with the same arithmetic the CPU used: turned by its
+  angle, flat on the ground, streaked along its motion, pulled towards the eye for soft particles.
+- The draw order, the blend and the texture are unchanged.
+- The rings and foam lying on the waves stay on the CPU, per eye (they follow the waves).
+- An eye skips the draw and the scene's distances when the box round all the particles is out of its view.
+- Code: `vr_gfx`'s `uploadParticles` and `drawParticles`. The upload buffer is bound as an SSBO; binding 0 is borrowed
+  and put back (`GL_GetShaderStorageRange`, gl_rmisc.c).
+
+| Scene | Frame CPU before / after | Eyes' GPU before / after | vr particles CPU before / after | vr particles GPU before / after |
+|---|---|---|---|---|
+| 1x super shotgun | 0.821 / 0.708 | 0.556 / 0.540 | 0.030 / 0.022 | 0.036 / 0.052 |
+| 1x super nailgun | 0.877 / 0.713 (B2) | 0.583 / 0.577 | 0.039 / 0.029 | 0.081 / 0.085 |
+| 1x rockets | 0.926 / 0.803 | 0.577 / 0.565 | 0.056 / 0.029 | 0.045 / 0.045 |
+| 4x super shotgun | 1.041 / 0.812 | 0.574 / 0.547 | 0.169 / 0.074 | 0.096 / 0.081 |
+| 4x super nailgun | 1.020 / 0.796 | 0.723 / 0.698 | 0.190 / 0.083 | 0.232 / 0.220 |
+| 4x rockets | 1.207 / 0.815 | 0.683 / 0.609 | 0.304 / 0.086 | 0.141 / 0.096 |
+| 8x super shotgun | 1.406 / 0.861 | 0.808 / 0.650 | 0.588 / 0.147 | 0.332 / 0.178 |
+| 8x super nailgun | 1.435 / 0.887 | 1.120 / 0.935 | 0.637 / 0.168 | 0.633 / 0.453 |
+| 8x rockets | 1.490 / 0.895 | 1.090 / 0.907 | 0.652 / 0.163 | 0.505 / 0.356 |
+
+(Milliseconds a frame; averages of two runs each, alternating before/after/before/after, and a third run of the final
+build agreeing within 0.01 ms. `Frame CPU` is the whole frame. With no particles, the frame is about 0.7 ms and the
+eyes about 0.52 ms. One 1x nailgun run of the new build had a 220 ms hitch in the scene's own drawing (not the
+particles'; a shader made on first use, it seems), so that cell is the other run's.)
+
+- **At 4x**, shooting the wall now adds 0.1 ms of CPU a frame over 1x (0.3 before, with rockets), and 0.03-0.17 ms of
+  GPU.
+- **At 8x** it adds 0.15 ms of CPU (0.6-0.7 before) and 0.1-0.4 ms of GPU (0.3-0.6 before).
+- The particles' CPU is a quarter of what it was at every multiplier, and the upload a tenth.
+- The GPU gains 15-45% at 4x and 8x (the vertices). What is left is the pixels, which is the look: the same puffs
+  cover the same pixels.
+- On this machine the cost at 4x wasn't big before either (0.3 ms CPU plus 0.15 ms GPU). If your frame is already near
+  the headset's budget, a slower GPU and more pixels (a Quest 3 at your resolution, supersampled) make the GPU part
+  several times bigger. If 4x still slows down for you, `vr_profile 2` while shooting shows whether it is `vr particles`
+  (and its GPU column) or something else.
+- **Images:** the same, seeded, before and after: the wall shot with the super shotgun, the nailgun and a rocket, a
+  grunt shot, e1m2's water splashes, e1m1's rocket. The differences are single pixels at sparks' edges, as between two
+  runs of the same build.
+- `vr_particle_seed <n>` (new, for tests): the particles' random numbers restart from this seed at each map.
+
+**Not changed:**
+
+- The simulation: 0.06 ms at 10 000 particles.
+- Sorting: there is none. They are drawn in the order made, which the premultiplied blend relies on (ROUND19.md).
+- Lighting per particle: they aren't lit (their colours are the palette's).
+- Traces per particle: none (only a drop falling into a liquid looks its surface up).
+- Fewer or smaller particles far away: would change the look.
+
+### Long sessions: the audit
+
+I checked every container, cache, pool and GL object in `Quake/vr/*.cpp` and the engine hooks it adds for growth
+without bound, missing eviction, or growth across maps. Nothing leaked without bound. Fixed (one commit):
+
+| Where | What grew | Fix |
+|---|---|---|
+| `vr_text3d.cpp` (world-text boards) | once made, each board's image (up to 8 MB of VRAM; the firing range has 19) was kept for the rest of the session, and drawn again while the next map loaded | a board of an earlier map has its image freed (`gfx::releaseTarget`) and isn't drawn; it is made again when its map comes back |
+| `vr_modelcollide.cpp` (`modelTris`, `samplesCache`) | the models' triangles and samples were never forgotten; a brush submodel (`*N`) was matched by name on the next map, and another game's model in a reused slot could have fewer vertices than the cached triangles index | forgotten at each map, with the posed cache |
+| `vr_input.cpp` (`pendingHaptics`) | a NaN or huge delay from the server never came due, and the haptic stayed | the delay is clamped to 0..10 s; at most 64 wait |
+| `vr_fgfx.cpp`, `vr_view.cpp` | pulses from `realtime` as a float: steps of 4 ms after 10 hours | worked out in double |
+
+Checked and bounded (no change):
+
+- **Particles:** the pool (32 768, reserved once); the frame's records and lying pieces (grown to the most at once);
+  the splash plinks (48 a frame).
+- **Decals:** a ring of `vr_decal_max`; the gibs' and holes' lists are pruned every 100 frames and emptied at each map.
+- **Gore:** rays 320, sources 48, landings 192, pending 32. Body blood: 64 drops. Casings: 64 + 16.
+- **Ambient and model-light caches:** at most 2048; entries older than 100 frames are evicted; emptied at each map and
+  game change.
+- **Grasp shapes:** by held model and frame (a few dozen). **AO:** the baked occlusion by model name grows only with
+  the models seen (a few MB with id1).
+- **Text3d:** floating texts 256, expiring; the frame's vertex buffers are cleared each frame. The gadget's queue 16,
+  the hologram's 6. Lines and debug: cleared each frame.
+- **Motion recorder:** a 60 s cap, the preroll trimmed. Voice notes: 180 s.
+- **Per-entity data** (`entityData`, the posed caches, the rigid memos, carried): by entity number, emptied at each
+  map.
+- **GL objects:** every creation reuses or deletes the old one (render targets, static triangles, envmap, haze, water,
+  bloom, upscalers); programs, atlases and queries are made once.
+- **`GL_Upload`'s ring** grows to the most one frame needs (in 1.5x steps) and stays there. 32 768 particles would now
+  need 3 MB of it (15.7 MB before).
+- **Sound:** the client's own precaches are fixed names (found again, not added); the water sounds are a table
+  refilled at each map.
+- **The profiler:** one node per (parent, literal name); the GPU query pool grows to the most scopes in a frame.
+- **Box3D** (read only, reported): bodies are destroyed and made again per entity slot, and the whole world at each
+  server spawn. `propHulls`' keys include the prop's drawn size, so a prop whose size keeps changing adds a hull for
+  each size until the next map.
+- **Small, left as is:** `vr_gpustats.cpp`'s process names (one per process seen using the GPU, only while the memory
+  log is on). The gadget's and text3d's `fmod(realtime, 1000)`: the CRT's noise jumps once every 16 minutes.
+
+### Long sessions: the soak test
+
+The mock headset, not exclusive (other agents' games ran alongside), at 90 fps: e1m1, e1m2, the firing range, over and
+over. On each map:
+- 5.5 s standing still, profiled (the frame time);
+- then grunts spawned and rocketed, the super shotgun and nailgun at walls, and walking.
+
+The multiplier was 4, `vr_decal_max` 512, and the memory log wrote a row every 20 s.
+
+Two runs: before the fixes (35 minutes, 34 map loads) and after them (19 minutes, 24 map loads; the second run
+had more of the other agents' games alongside, so its GPU times are noisier). Each map is compared with its own
+earlier visits: its second visit (the first is the session's start) against its last.
+
+| | Before: 2nd visit / last | After: 2nd visit / last |
+|---|---|---|
+| Private memory, e1m1 (MB) | 1225.7 / 1237.8 | 1089.1 / 1098.7 |
+| Private memory, e1m2 (MB) | 1215.7 / 1238.7 | 1085.6 / 1086.7 |
+| Private memory, firing range (MB) | 1230.3 / 1237.5 | 1109.0 / 1118.9 |
+| GL textures / buffers / framebuffers, e1m1 | 609 / 211 / 49 and 610 / 211 / 50 | 589 / 211 / 30 and 591 / 211 / 31 |
+| GL textures / buffers / framebuffers, firing range | 555 / 211 / 49 and 556 / 211 / 50 | 555 / 211 / 49 and 556 / 211 / 50 |
+| Idle frame CPU, firing range, median of the first / second half of the visits (ms) | 0.854 / 0.864 | 1.072 / 0.954 |
+| Idle eyes' GPU, firing range, same (ms) | 0.439 / 0.457 | 1.683 / 1.424 |
+
+- **Nothing grows much.** Memory settles within the first two or three cycles. Before the fixes it then crept by
+  about 20 MB in 30 minutes (e1m2: 1216 to 1239 MB over 10 visits; the firing range: 1230 to 1238). After them it
+  stays within 10 MB of its second visit, with no trend over 19 minutes (the run was shorter). The GL objects are the same on every visit to the same map, give or take one or two
+  made once (the hologram's target, an ammo screen's).
+- **Frame times** show no trend from the first half of the run to the second, in either run. Per map, the CPU is
+  0.75-0.95 ms before and 0.93-1.07 ms after (the machine was busier during the second run); the GPU goes up and down
+  with the other games.
+- **The fix shows:** after it, leaving the firing range frees its boards' images (framebuffers 49 to 30 on e1m1 and
+  e1m2, 20 fewer textures). Private memory is also 110-140 MB lower through the second run than the first, on every
+  map (not investigated further).
+- The CSVs are `perf2/soak_base_memstats.csv` and `soak_fin1_memstats.csv`; the tables per map visit are
+  `soak_base.tab` and `soak_fin1.tab`.
+
+### Not verified
+
+- In the headset: 4x and 8x shooting a wall (`vr_profile 2`). The particles should look exactly as before.
+- The slowdown you feel over time. The soak shows no growth in the game: memory, GL objects and frame time stay flat
+  over 35 minutes before the fixes and 19 after. If it persists, compare the memory log's `xr_*` columns with `busy_ms` and `gpu_eyes_ms` over a
+  long session: that says whether it is the runtime (TESTING.md, "If it gets slower the longer you play").
