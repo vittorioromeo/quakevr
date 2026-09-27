@@ -644,8 +644,7 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
         kind = VR_MKIND_PUNCH;
         speed = vfar;
         // The blow's way: rising and steeply falling blows are thrown faster for the same effort.
-        float vz = vfar > 0 ? b.mh_vfar_z / vfar : 0;
-        need = minSpeed * (1 + VR_MELEE_UP * max(0, vz) + VR_MELEE_DOWN * max(0, -vz - VR_MELEE_DOWN_FROM));
+        need = VR_Melee_SwingNeed(xHand, b, b.mh_vfar);
         weight = cvar_hget(cvarh_vr_melee_punch_mult);
         if(VR_Carry_IsHolding(self, xHand))
         {
@@ -1000,7 +999,21 @@ string(float xKind, float xThing) VR_Melee_Category =
     return "slash";
 };
 
-// The weapon's whoosh as `xHand`'s striking part gets going (once a motion).
+// The least speed of a blow by `xHand`'s far end moving along `xVel` (a punch's by its way; a weapon's swing).
+float(float xHand, entity b, vector xVel) VR_Melee_SwingNeed =
+{
+    float minSpeed = VR_Melee_MinSpeed();
+    if(b.mh_thing != VR_MTHING_FIST)
+    {
+        return minSpeed * VR_MELEE_SWING;
+    }
+    float s = vlen(xVel);
+    float vz = s > 0 ? xVel_z / s : 0;
+    return minSpeed * (1 + VR_MELEE_UP * max(0, vz) + VR_MELEE_DOWN * max(0, -vz - VR_MELEE_DOWN_FROM));
+};
+
+// The weapon's whoosh as `xHand`'s striking part gets going as a blow would (once a motion): as fast as a blow needs,
+// come from some way off (and a fist closed). The motion recorder's "stroke".
 void(float xHand, entity b) VR_Melee_Whoosh =
 {
     float minSpeed = VR_Melee_MinSpeed();
@@ -1009,7 +1022,15 @@ void(float xHand, entity b) VR_Melee_Whoosh =
         b.mh_whooshed = FALSE;
         return;
     }
-    if(b.mh_whooshed || vlen(b.mh_vfar) < minSpeed || b.mh_thing == VR_MTHING_NONE)
+    if(b.mh_whooshed || b.mh_thing == VR_MTHING_NONE || vlen(b.mh_vfar) < VR_Melee_SwingNeed(xHand, b, b.mh_vfar))
+    {
+        return;
+    }
+    if(b.mh_thing == VR_MTHING_FIST && !VRIsEntHandGrabbingBit(self, xHand))
+    {
+        return; // an open hand: no blow
+    }
+    if(VR_Melee_Run(b, FALSE) < VR_MELEE_RUN)
     {
         return;
     }

@@ -76,7 +76,7 @@ void(entity xTarg, entity xAttacker, float xDamage, float xIsVRMelee) VR_Motion_
         entity b = VR_Blow(hand);
         self = oldSelf;
         sub = VR_Melee_Category(b.mh_kind, b.mh_thing);
-        point = sprintf("%s (%s) with %s", VR_Melee_KindName(b.mh_kind, b.mh_thing), b.mh_way, b.mh_part);
+        point = b.mh_part;
         if(at == '0 0 0')
         {
             at = b.mh_c_pos;
