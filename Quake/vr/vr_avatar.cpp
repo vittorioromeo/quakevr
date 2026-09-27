@@ -433,6 +433,11 @@ struct WristTurn
 }
 
 // Shoulder and arm of `side` (0 left, 1 right) to the wrist.
+// Whether the arm IK swings the elbow to ease the wrist (vr_body_wrist_limits): for the drawn arms. The arms solved
+// with no body drawn (solveArms: the wrist gadget's forearm) keep the elbow where its pole puts it, as a real forearm
+// stays while the hand bends; there is no drawn arm to spare a strained wrist.
+bool easeWrists = true;
+
 void solveArm(Body& b, int side, const HandPose& handPose)
 {
     const Bind& bd = bind();
@@ -510,7 +515,7 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     static float lastSwivel[2]{0.f, 0.f};
     static double lastSwivelTime[2]{-1.0, -1.0};
     float swivel = 0.f;
-    if(const float limits = vr_body_wrist_limits.value; limits > 0.f && glm::length(handPose.forward) > 0.5f)
+    if(const float limits = easeWrists ? vr_body_wrist_limits.value : 0.f; limits > 0.f && glm::length(handPose.forward) > 0.5f)
     {
         const glm::vec3 axis = safeNormalize(wrist - u.pos);
         const float best = easeWrist(u.pos, wrist, elbow, bend, handRot, limits, lastSwivel[side]);
@@ -1089,6 +1094,58 @@ struct Posed
 };
 
 Posed posed;
+
+// The forearms' frames as last posed or solved (forearmFrame), per hand: the twist, about the forearm's axis from
+// its untwisted axes, at the elbow (none), at each twist joint and at the wrist (the hand's whole roll).
+struct ForearmTwist
+{
+    bool valid{false};
+    glm::vec3 elbow{0.f};
+    glm::mat3 untwisted{1.f}; // the forearm bone's axes
+    glm::mat3 hand{1.f};      // the hand bone's
+    float length{0.f};
+    float places[twistJoints + 2]{};
+    float angles[twistJoints + 2]{}; // radians
+};
+ForearmTwist forearms[2];
+
+// The turn about `axis` (radians, -pi .. pi) that takes `from` to `to`, less any swing off it.
+[[nodiscard]] float twistAbout(const glm::mat3& from, const glm::mat3& to, const glm::vec3& axis)
+{
+    const glm::quat q = glm::normalize(glm::quat_cast(to * glm::transpose(from)));
+    float t = 2.f * std::atan2(glm::dot(glm::vec3{q.x, q.y, q.z}, axis), q.w);
+    return t - glm::two_pi<float>() * std::round(t / glm::two_pi<float>());
+}
+
+// The arms' forearm frames from a solved body (its twist joints; neighbours are well under a half turn apart, so the
+// angles add up past it).
+void keepForearms(const Body& b)
+{
+    const int leftHand = vr_lefthanded.value ? HAND_MAIN : HAND_OFF;
+    for(int side = 0; side < 2; side++)
+    {
+        const int clav = side == 0 ? ClavicleL : ClavicleR;
+        const Bone& fore = b.bones[clav + 2];
+        const Bone& hand = b.bones[clav + 3];
+        ForearmTwist& f = forearms[side == 0 ? leftHand : 1 - leftHand];
+        f.valid = true;
+        f.elbow = fore.pos;
+        f.untwisted = fore.rot;
+        f.hand = hand.rot;
+        f.length = glm::distance(fore.pos, hand.pos);
+        const glm::vec3 axis = fore.rot[0];
+        glm::mat3 last = fore.rot;
+        f.places[0] = 0.f;
+        f.angles[0] = 0.f;
+        for(int k = 1; k <= twistJoints + 1; k++)
+        {
+            const glm::mat3& r = k <= twistJoints ? b.bones[foreHelpers(side) + k - 1].rot : hand.rot;
+            f.places[k] = k <= twistJoints ? twistPlaces[k - 1] : 1.f;
+            f.angles[k] = f.angles[k - 1] + twistAbout(last, r, axis);
+            last = glm::mat3_cast(glm::angleAxis(f.angles[k], axis)) * f.untwisted;
+        }
+    }
+}
 int debugFrame = -1;
 
 // vr_debug_lean: one line a frame into lean_trace.txt (the game directory): the time; the head (x y z, world units) and
@@ -1362,12 +1419,14 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
         posed.wrist[hand] = b.bones[clav + 3].pos;
         posed.forearm[hand] = b.bones[clav + 2].rot[0];
     }
+    keepForearms(b);
     return origin;
 }
 
 void hide()
 {
     posed.ent = nullptr;
+    forearms[0].valid = forearms[1].valid = false;
 }
 
 bool forearm(int hand, glm::vec3& wrist, glm::vec3& direction)
@@ -1379,6 +1438,42 @@ bool forearm(int hand, glm::vec3& wrist, glm::vec3& direction)
     wrist = posed.wrist[hand];
     direction = posed.forearm[hand];
     return true;
+}
+
+bool forearmFrame(int hand, float along, ForearmFrame& out)
+{
+    if(hand < 0 || hand > 1 || !forearms[hand].valid)
+    {
+        return false;
+    }
+    const ForearmTwist& f = forearms[hand];
+    along = CLAMP(0.f, along, 1.f);
+    int k = 1;
+    while(k < twistJoints + 1 && f.places[k] < along)
+    {
+        k++;
+    }
+    const float t = (along - f.places[k - 1]) / std::max(f.places[k] - f.places[k - 1], 1e-4f);
+    const float angle = glm::mix(f.angles[k - 1], f.angles[k], t);
+    const glm::vec3 axis = f.untwisted[0];
+    out.point = f.elbow + axis * (f.length * along);
+    out.axes = glm::mat3_cast(glm::angleAxis(angle, axis)) * f.untwisted;
+    out.hand = f.hand;
+    out.length = f.length;
+    return true;
+}
+
+void solveArms(const hands::State& s, const HandPose handPoses[2])
+{
+    QVR_PROFILE("avatar arms");
+    Body b;
+    solveTorso(s, b);
+    const int leftHand = vr_lefthanded.value ? HAND_MAIN : HAND_OFF;
+    easeWrists = false;
+    solveArm(b, 0, handPoses[leftHand]);
+    solveArm(b, 1, handPoses[1 - leftHand]);
+    easeWrists = true;
+    keepForearms(b);
 }
 
 bool shoulder(int side, Shoulder& out)

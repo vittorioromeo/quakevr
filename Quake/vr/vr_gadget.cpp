@@ -1180,6 +1180,7 @@ void drawFps()
 }
 
 void messageTest_f();
+void gadgetInfo_f();
 
 // A centre print as a message (VR_GameCenterPrint, the test).
 void centrePrint(std::string_view text)
@@ -1342,6 +1343,7 @@ void renderScreen()
     {
         registered = true;
         Cmd_AddCommand("vr_message_test", messageTest_f);
+        Cmd_AddCommand("vr_gadget_info", gadgetInfo_f);
     }
 }
 
@@ -1549,6 +1551,20 @@ void messageTest_f()
     {
         Con_Printf("%s\n", text.c_str());
     }
+}
+
+// vr_gadget_info: the gadget's pose, for tests: its screen's centre and axes (right, up, out), world units.
+void gadgetInfo_f()
+{
+    if(!current.valid)
+    {
+        Con_Printf("vr_gadget_info: no gadget\n");
+        return;
+    }
+    const glm::vec3& o = current.origin;
+    const glm::mat3& a = current.axes;
+    Con_Printf("gadget: origin %.3f %.3f %.3f right %.4f %.4f %.4f up %.4f %.4f %.4f out %.4f %.4f %.4f\n", o.x, o.y, o.z,
+        a[0].x, a[0].y, a[0].z, a[1].x, a[1].y, a[1].z, a[2].x, a[2].y, a[2].z);
 }
 
 } // namespace

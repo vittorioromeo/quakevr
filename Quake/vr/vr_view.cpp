@@ -2985,6 +2985,12 @@ void setupWorldWeapons(const hands::State& s, bool queueTexts)
 // wrist, its screen facing out of the back of the hand like a watch's. It reads like one: with
 // the forearm raised across the chest, its right is towards the fingers (the left arm's; the
 // right arm's, towards the elbow) and its up away from the player.
+//
+// It is strapped to the forearm, not the hand: along the forearm's axis (the elbow to the wrist), turned about it
+// with the forearm's own twist where it sits (the body's twist joints: a share of the hand's roll growing from the
+// elbow to the wrist, as the bracer under it turns). Bending the wrist (up, down or to the sides) doesn't move it;
+// rolling the hand turns the forearm and the gadget with it. Without the body drawn, the arms are solved all the same
+// (avatar::solveArms, the same IK) for their forearms.
 void setupGadget(const hands::State& s)
 {
     view::ViewEntity& ve = entities.gadget;
@@ -2996,17 +3002,33 @@ void setupGadget(const hands::State& s)
     }
 
     const int hand = vr_gadget_hand.value != 0.f ? HAND_MAIN : HAND_OFF;
+    const bool leftArm = (hand == HAND_OFF) == (vr_lefthanded.value == 0.f);
     const avatar::HandPose hp = drawnHand(s, hand);
+    const float body = units::bodyScale();
+    const float m2w = units::metresToUnits() * body;
+
+    // Where along the forearm it sits: 8.5 cm behind the wrist, and the player's Along the Arm (towards the fingers
+    // on the left arm).
+    const float behind = 0.085f * m2w - vr_gadget_x.value * 0.01f * m2w * (leftArm ? 1.f : -1.f);
+    avatar::ForearmFrame fa;
+    bool onForearm = avatar::forearmFrame(hand, 0.f, fa);
+    if(!onForearm)
+    {
+        const avatar::HandPose handPoses[2] = {drawnHand(s, 0), drawnHand(s, 1)};
+        avatar::solveArms(s, handPoses);
+        onForearm = avatar::forearmFrame(hand, 0.f, fa);
+    }
     glm::vec3 wrist = hp.wrist;
     glm::vec3 dir = hp.forward;
-    if(glm::vec3 w, d; avatar::forearm(hand, w, d))
+    glm::vec3 back = hp.back;
+    if(onForearm && fa.length > 1e-3f && avatar::forearmFrame(hand, 1.f - behind / fa.length, fa))
     {
-        wrist = w;
-        dir = glm::normalize(d);
+        dir = fa.axes[0];
+        wrist = fa.point + dir * behind;
+        back = fa.axes * (glm::transpose(fa.hand) * hp.back); // the back of the hand, carried by the forearm there
     }
 
-    const bool leftArm = (hand == HAND_OFF) == (vr_lefthanded.value == 0.f);
-    glm::vec3 out = hp.back - dir * glm::dot(hp.back, dir);
+    glm::vec3 out = back - dir * glm::dot(back, dir);
     if(glm::length(out) < 1e-4f)
     {
         ve.visible = false;
@@ -3018,8 +3040,6 @@ void setupGadget(const hands::State& s)
     const glm::vec3 screenUp = glm::cross(out, right);
 
     // Sized with the body (make_gadget.py's units are at vr_world_scale 1.25, eyes at 1.646 m).
-    const float body = units::bodyScale();
-    const float m2w = units::metresToUnits() * body;
     const float scale = vr_world_scale.value / 1.25f * body * CLAMP(0.25f, vr_gadget_scale.value, 3.f);
 
     // The player's own placement: offsets in cm and turns in degrees, in the device's axes.

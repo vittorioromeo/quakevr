@@ -96,6 +96,26 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
 // elbow). False when the body is not posed.
 [[nodiscard]] bool forearm(int hand, glm::vec3& wrist, glm::vec3& direction);
 
+// The forearm of `hand` as last posed (pose) or solved (solveArms), at `along` it (0 the elbow, 1 the wrist): the
+// point on its axis there, and its axes there: x along the forearm (from the elbow), y and z turned about it by as
+// much of the hand's roll as the forearm turns there (the twist joints' shares, in between them interpolated: none
+// at the elbow, all at the wrist). The wrist's bend (flexion, deviation) doesn't move them. `hand` gets the hand
+// bone's axes (x towards the fingers), whose roll the frame at 1 has without the bend: a direction fixed in the hand,
+// `h`, is carried by the forearm there as axes * transpose(hand) * h. False when neither has run this frame.
+struct ForearmFrame
+{
+    glm::vec3 point{0.f};
+    glm::mat3 axes{1.f};
+    glm::mat3 hand{1.f};
+    float length{0.f}; // the forearm's, elbow to wrist (world units)
+};
+[[nodiscard]] bool forearmFrame(int hand, float along, ForearmFrame& out);
+
+// The arms alone, solved as pose() does (the torso and the arm IK: no legs, no skinning), for the forearms' frames
+// (forearmFrame) when the body isn't drawn. The elbow isn't swung to ease a bent wrist (vr_body_wrist_limits): with no
+// arm drawn, the forearm stays put while the hand bends, as a real one does.
+void solveArms(const hands::State& s, const HandPose handPoses[2]);
+
 // A shoulder as last posed (side 0 the body's left, 1 its right), for what is strapped to it (the
 // pauldrons): the shoulder joint, and the rotations that take the bind pose's body space (x forward,
 // y left, z up; make_vrbody.py) to the world as the clavicle and the upper arm carry it. `m2w` is
