@@ -263,6 +263,8 @@ void resetSwimming()
             .help("Record CPU and GPU time per effect into quakevr/profile/ every 5 seconds (and show the top costs over the wrist). Not kept after a restart."),
         cycle("Memory Log", "vr_memstats_log", {{0.f, "Off"}, {30.f, "Every 30 s"}, {60.f, "Every minute"}, {300.f, "Every 5 minutes"}})
             .help("Write memory use and the frame rate to quakevr/profile/memstats_<date>.csv, and after each map load."),
+        toggle("FPS Counter on the Gadget", "vr_gadget_fps")
+            .help("The wrist gadget's title line shows the frame rate and the CPU's and GPU's milliseconds a frame (our work, the eyes' drawing; not the runtime's waits), averaged over half a second."),
     };
 }
 

@@ -21,4 +21,17 @@ namespace qvr
 [[nodiscard]] Backend* backend();
 [[nodiscard]] const FrameState& frameState();
 
+// QVR round 21: the frames' rate and cost, averaged over half a second, for the wrist gadget's FPS counter
+// (vr_gadget_fps): frames a second (from the frames' periods), the CPU's work a frame (the host frame less the
+// runtime's and the swap's waits: the memory log's busy_ms) and the eyes' GPU time a frame (its gpu_eyes_ms; -1 while
+// none has been read back), from the phases timed every frame anyway (vr_profile.hpp). False until the first half
+// second is in. Call it once a frame while it is shown.
+struct FrameRate
+{
+    float fps{0.f};
+    float cpuMs{0.f};
+    float gpuMs{-1.f};
+};
+[[nodiscard]] bool frameRate(FrameRate& out);
+
 } // namespace qvr

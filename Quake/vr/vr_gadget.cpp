@@ -593,6 +593,7 @@ void buzz()
 {
     if(Backend* be = backend(); be && !vr_disablehaptics.value)
     {
+        Con_DPrintf("gadget: buzz (%s hand)\n", gadgetHand() == HAND_MAIN ? "main" : "off");
         be->haptic(gadgetHand(), 0.05f, 160.f, 0.4f);
         buzzAgain = realtime + 0.13;
     }
@@ -1009,6 +1010,132 @@ void layoutHologram()
     }
 }
 
+// ---------------------------------------------------------------------------------------------
+// The FPS counter (vr_gadget_fps): " 90 FPS CPU  5.2 GPU  8.1" floating just under the gadget as seen, facing the
+// viewer as the hologram over it does, in the screen's colour (the hologram's shade with a little of its look: faint
+// scanlines, no glitches, so that the figures read steadily), characters about 5 mm. The figures are the frames' over
+// the last half second (qvr::frameRate: the memory log's busy_ms and gpu_eyes_ms), drawn into a small image when they
+// change (twice a second), the words dimmer than the figures.
+
+constexpr int fpsColumns = 25;
+constexpr int fpsWidth = fpsColumns * 8 + holoPad * 2; // font pixels
+constexpr int fpsHeight = 8 + holoPad * 2;
+constexpr int fpsTexels = 4;
+constexpr float fpsCharSize = 0.17f; // model units a character is tall (about 5 mm at the default size)
+constexpr float fpsGap = 0.25f;      // model units under the gadget as seen
+
+gfx::Target fpsTarget;
+std::string fpsDrawn; // the text the image holds
+
+struct FpsFrame
+{
+    int frame{-1};
+    std::vector<gfx::Vertex> quad;
+    float time{0.f};
+};
+FpsFrame fps;
+
+[[nodiscard]] bool fpsOn()
+{
+    return vr_gadget_fps.value != 0.f;
+}
+
+// The image, when the figures change (end of the 2D pass).
+void renderFps()
+{
+    if(!fpsOn())
+    {
+        fpsDrawn.clear();
+        return;
+    }
+    FrameRate r;
+    const bool known = frameRate(r);
+    char figures[3][8];
+    q_snprintf(figures[0], sizeof(figures[0]), known ? "%3d" : "  -", CLAMP(0, static_cast<int>(std::lround(r.fps)), 999));
+    q_snprintf(figures[1], sizeof(figures[1]), known ? "%5.1f" : "    -", std::min(r.cpuMs, 999.9f));
+    q_snprintf(figures[2], sizeof(figures[2]), known && r.gpuMs >= 0.f ? "%5.1f" : "    -", std::min(r.gpuMs, 999.9f));
+    const std::string text = std::string{figures[0]} + figures[1] + figures[2];
+    if(text == fpsDrawn && fpsTarget.texture)
+    {
+        return;
+    }
+    fpsDrawn = text;
+
+    QVR_GPU_PROFILE("gadget fps");
+    gfx::ensureTarget(fpsTarget, fpsWidth * fpsTexels, fpsHeight * fpsTexels, true, "gadget fps");
+    gfx::begin2D(fpsTarget, fpsWidth, fpsHeight);
+    fill(0.f, 0.f, fpsWidth, fpsHeight, glm::vec3{0.f});
+    const glm::vec4 word{0.6f, 0.6f, 0.6f, 1.f};
+    float x = static_cast<float>(holoPad);
+    const auto part = [&](const char* s, const glm::vec4& c) {
+        gfx::draw2D::color(c);
+        gfx::draw2D::text(x, static_cast<float>(holoPad), 8.f, s);
+        x += 8.f * static_cast<float>(std::strlen(s));
+    };
+    part(figures[0], white);
+    part(" FPS CPU", word);
+    part(figures[1], white);
+    part(" GPU", word);
+    part(figures[2], white);
+    gfx::draw2D::color(white);
+    gfx::end2D();
+}
+
+// Its quad this frame (once, facing the first view drawn): centred under the gadget as seen, while the screen faces
+// the viewer (as the hologram and the log).
+void layoutFps()
+{
+    if(fps.frame == host_framecount)
+    {
+        return;
+    }
+    fps.frame = host_framecount;
+    fps.quad.clear();
+    if(!fpsOn() || !current.valid || !fpsTarget.texture || fpsDrawn.empty())
+    {
+        return;
+    }
+    glm::vec3 eye, right, up;
+    gfx::sceneCamera(eye, right, up);
+    const float shown = facing(eye);
+    if(shown <= 0.f)
+    {
+        return;
+    }
+    const float scale = current.scale;
+    const glm::vec3 top = screenCentre() - up * (gadgetTop(-up) + fpsGap * scale);
+    const float px = fpsCharSize * scale / 8.f; // a font pixel
+    const float w = static_cast<float>(fpsWidth) * px;
+    const float h = static_cast<float>(fpsHeight) * px;
+    const glm::vec3 tl = top - right * (w * 0.5f);
+    const glm::vec3 tr = tl + right * w;
+    const glm::vec3 br = tr - up * h;
+    const glm::vec3 bl = tl - up * h;
+    const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f);
+    const glm::vec4 color{hue::color(vr_gadget_screen_hue, 0.5f, 0.95f * std::max(bright, 0.3f)), shown};
+    const gfx::Vertex v[4] = {{bl, {0.f, 0.f}, color}, {br, {1.f, 0.f}, color}, {tr, {1.f, 1.f}, color}, {tl, {0.f, 1.f}, color}};
+    for(const gfx::Vertex* p : {&v[0], &v[1], &v[2], &v[0], &v[2], &v[3]})
+    {
+        fps.quad.push_back(*p);
+    }
+    fps.time = static_cast<float>(std::fmod(realtime, 1000.0));
+}
+
+void drawFps()
+{
+    layoutFps();
+    if(fps.quad.empty())
+    {
+        return;
+    }
+    QVR_GPU_PROFILE("gadget fps");
+    // Not depth tested: over the other hand, as the hologram.
+    gfx::draw(fps.quad, gfx::sceneViewProjection(),
+        {.shade = gfx::Shade::Hologram, .blend = gfx::Blend::Premultiplied, .depthTest = false, .depthWrite = false,
+            .params = {fps.time, 0.35f * std::min(hologramEffect(), 1.f), 0.f, 0.f}, .screen = {fpsWidth, fpsHeight, 0.5f}},
+        fpsTarget.texture);
+}
+
 void messageTest_f();
 
 // A centre print as a message (VR_GameCenterPrint, the test).
@@ -1166,6 +1293,7 @@ void renderScreen()
     layout();
     gfx::end2D();
     renderHologram();
+    renderFps();
 
     if(static bool registered = false; !registered) // a test command (the module has no init hook here)
     {
@@ -1307,6 +1435,7 @@ void drawHologram()
     {
         return;
     }
+    drawFps();
     layoutHologram();
     if(holo.text.empty())
     {
