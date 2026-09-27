@@ -49,6 +49,11 @@ namespace
 
 void evalFrame();
 
+// The evaluation's map loads run on fixed frames too (a server frame with each, at 72 Hz), from the "map"
+// command to the take: every take starts at the same server time, in the same state, whatever the machine
+// (the QC's 32-bit floats and its entities' think times depend on the absolute time).
+bool fixedLoading = false;
+
 // ----------------------------------------------------------------------------
 // Reading a take
 // ----------------------------------------------------------------------------
@@ -1211,6 +1216,10 @@ bool playWantsSamples()
 double hostFrameTime(double time)
 {
     double dt = time;
+    if(state == State::Idle && fixedLoading)
+    {
+        return setupDt;
+    }
     if(state == State::Setup || state == State::Post)
     {
         dt = setupDt;
@@ -1240,7 +1249,7 @@ double hostFrameTime(double time)
 
 int serverFrameOverride(double& frametime)
 {
-    if(state == State::Setup || state == State::Post)
+    if(state == State::Setup || state == State::Post || (state == State::Idle && fixedLoading))
     {
         frametime = setupDt;
         return 1;
@@ -1763,6 +1772,53 @@ double evalStart = 0.0;
 
 void evalNext();
 
+// developer 0 while a map loads (the user's value kept, and put back).
+bool quiet = false;
+std::string userDeveloper;
+void quietLoad(bool on)
+{
+    cvar_t* developer = Cvar_FindVar("developer");
+    if(!developer || on == quiet)
+    {
+        return;
+    }
+    quiet = on;
+    if(on)
+    {
+        userDeveloper = developer->string;
+        Cvar_SetQuick(developer, "0");
+    }
+    else
+    {
+        Cvar_SetQuick(developer, userDeveloper.c_str());
+    }
+}
+
+// host_maxfps raised while evaluating: the frames' game time is the takes' own (hostFrameTime), so only the
+// wall clock between them changes (the server stays at 72 Hz: host_maxfps is above 72 either way).
+std::string userMaxfps;
+void fastFrames(bool on)
+{
+    cvar_t* maxfps = Cvar_FindVar("host_maxfps");
+    if(!maxfps)
+    {
+        return;
+    }
+    if(on && userMaxfps.empty())
+    {
+        userMaxfps = maxfps->string;
+        if(maxfps->value > 72.f && maxfps->value < 1000.f)
+        {
+            Cvar_SetQuick(maxfps, "1000");
+        }
+    }
+    else if(!on && !userMaxfps.empty())
+    {
+        Cvar_SetQuick(maxfps, userMaxfps.c_str());
+        userMaxfps.clear();
+    }
+}
+
 void evalDone(const Report& r)
 {
     Result res;
@@ -1802,6 +1858,9 @@ void evalDone(const Report& r)
 
 void writeResults()
 {
+    fixedLoading = false;
+    quietLoad(false);
+    fastFrames(false);
     std::string path = evalOut;
     if(path.empty())
     {
@@ -1888,7 +1947,11 @@ void evalFrame()
                 }
                 return;
             }
-            // Each take in the map loaded afresh: the same start every time.
+            // Each take in the map loaded afresh: the same start every time. Quietly (developer 0: a load's
+            // thousands of "can't find" lines for textures cost seconds); the take plays at the user's.
+            quietLoad(true);
+            fixedLoading = true;
+            std::srand(1);
             Cbuf_AddText(va("map %s\n", evalMap.c_str()));
             evalWait = 0;
             return;
@@ -1903,6 +1966,8 @@ void evalFrame()
             return;
         }
         evalState = Eval::Playing;
+        quietLoad(false);
+        fixedLoading = false;
         onDone = evalDone;
         if(!startPlayback(evalFiles[evalIndex], evalOpts))
         {
@@ -2099,6 +2164,10 @@ void eval_f()
     evalState = Eval::Loading;
     evalWait = -1;
     evalStart = Sys_DoubleTime();
+    if(!evalOpts.watch)
+    {
+        fastFrames(true);
+    }
     Con_Printf("vr_motion_eval: %d takes, each in %s\n", static_cast<int>(evalFiles.size()), evalMap.c_str());
 }
 

@@ -285,7 +285,12 @@ absolute path (`.csv` optional).
    relative to the dummy.
 
 `rand()` is seeded the same at each start, the setup runs a server frame with every host frame at 72 Hz, and the play
-follows the take's frames: a replay is the same every time.
+follows the take's frames: a replay is the same every time. `vr_motion_eval` goes further: from its `map` command to
+the take, every frame is a fixed 1/72 s with a server frame (and `rand()` seeded before the load), so each take starts
+at the same server time in the same state; two evaluations of the same takes write the same table, digit for digit
+(checked: the replays' 386 columns identical but `t`'s last digit, from the engine's absolute clock). The map loads
+run at `developer 0` (their thousands of "can't find" texture lines cost seconds), the takes at yours, and
+`host_maxfps` is raised to 1000 meanwhile (the game time is the takes' own either way): about 1.6 s a take.
 
 Options: `target <classname|#entity>` (another target), `yaw <degrees>` (the player's heading: another placement),
 `rate <hz>` (the take resampled at another headset's frame rate: poses slerped, velocities interpolated, the server
