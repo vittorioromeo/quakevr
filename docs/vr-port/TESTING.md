@@ -587,6 +587,10 @@ what its pellets hit, headshots) and each damage you deal; a monster at the muzz
 weapon's shots; `vr_show_controller_x/y/z/pitch/yaw/roll` (and `_off_own`, `_off_*`) move the controller
 preview; `vr_dumpview` prints each grip and its distance from the tracked pose (10.2 cm with
 `vr_controller_legacy_pose 1`).
+Hand calibration (ROUND21.md, "Hand calibration"): `vr_handcal_x/_y/_z` (cm along the controller's grip axes) and
+`vr_handcal_roll` move and roll the main hand on its controller (`vr_handcal_off_*` the off hand's, or
+`vr_handcal_off_mirror 1` the main hand's mirrored); `vr_handcal_match` is Match Controller Preview; `developer 3`
+prints the melee's grip, far end and wrist as the server has them (`melee trace:`).
 Weapon posing mode (ROUND21.md, "Weapon posing mode"): `vr_pose [weapon | 1..4 | new | stop] [main | off]` poses the
 weapon in the main hand (or else the off hand's), held in the hand given (`vr_pose_weapon_hand`); `vr_pose_confirm`,
 `vr_pose_undo`, `vr_pose_next`, `vr_pose_type` and `vr_pose_turn <yaw> <tilt>` (no arguments: back to the start) are

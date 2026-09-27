@@ -22,6 +22,7 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | After the posing test | a gun held into a monster hits it (a grunt's head: 0 of 6 pellets before, 6 of 6 headshots now); the posing hand passes through the weapon, unsolved (the solved grip shown for 1.5 s after each set); Show Controller at the real grip, shaped as a Quest 3 controller, with offset sliders; Shot Pitch / Shot Yaw per weapon turn where shots go |
 | Particles, long sessions | particles made into quads on the GPU from one record each, uploaded once a frame: at 4x and 8x their CPU a quarter of before (8x: 0.64 to 0.17 ms), GPU 15-45% less, the same images; long sessions: old maps' text boards freed (VRAM), collision caches per map, haptic delays bounded; a 35-minute soak shows no growth |
 | Body and weapon models | weapons: bands, bolt heads and ribs on the crudest spots (1.3-1.85x the triangles), edge wear in every skin, nothing tuned moved (anchors, hotspots, offsets and the hand fit identical); body: rounder limbs and torso, a belt, shaped feet (1240 -> 2186 triangles), 256x256 skins with a quilted vest, straps, laces, a face, armour lames |
+| Hand calibration | Hand/Gun Calibration > Hand Calibration: each hand moved (X/Y/Z cm, along the controller) and turned (Gun Angle and Gun Yaw as its pitch and yaw, plus a roll) on its controller; the off hand mirrored or its own; everything held and the server move with it (2 cm moves them 2.0000 cm, 10° turns them 10.000°); Show Controller and Match Controller Preview to line it up; nothing changes at 0 |
 
 Found on the way: fteqcc stores 0 when `a || b` is assigned into an entity field (rewritten; no other code has that
 shape); a parried blow's hand knock, timed by `cl.time`, came back after a level change (reset now).
@@ -3758,3 +3759,93 @@ little sausages)". Commit `795b0771`; composites in the scratchpad's `handmodel2
 - [ ] Take damage (the blood) and a quad.
 - [ ] If the skin's tone is off in VR, `base_level` in `make_hand_rig.py` sets it (one step of the palette ramp is a
       level).
+
+## Hand calibration
+
+Your question: "Do we have sliders to tweak the general hand position/orientation? I want it to match my real-life
+hands as much as possible". There were only rotations (Gun Angle, Gun Yaw, Off-Hand Pitch, Off-Hand Yaw), with no roll
+and no position. Branch `agent/handcal`; composites and numbers are in the scratchpad's `handcal/`.
+
+**Where:** VR Settings > Advanced VR Options > **Hand/Gun Calibration**, first section, **Hand Calibration**.
+
+- **The steps**, on the page:
+  1. Hold the controller as you always do.
+  2. Turn Show Controller on, and look at it.
+  3. Move and turn the hand until the controller sits in its palm, just where your real one is.
+- **Show Controller**: the same preview as on Weapon Offsets. If the preview itself is off your real controller, line
+  it up first (Weapon Offsets > Controller Preview).
+- **Main Hand X (forward), Y (left), Z (up)**: centimetres along the controller's own axes (the preview's red, green and
+  blue). Bars run -5..5; they extend further.
+- **Main Hand Pitch (down), Yaw (left)**: these are Gun Angle and Gun Yaw (`vr_gunangle`, `vr_gunyaw`), the same cvars,
+  so your saved values stay. They turn about the controller's tracked point, as they always have, and change the aim.
+- **Main Hand Roll**: turns the hand about where it points, through the middle of the handle, so the palm stays on the
+  controller. The right side goes down. It doesn't change the aim.
+- **Off Hand**:
+  - **Its Own Values** (the default, since your off-hand pitch and yaw differ from the main hand's): six sliders of its
+    own. Its pitch and yaw are Off-Hand Pitch and Off-Hand Yaw.
+  - **Mirrors the Main Hand**: the main hand's values, with Y, Yaw and Roll the other way.
+- **Match Controller Preview** (`vr_handcal_match`): moves each hand (X, Y, Z only) so that the middle of its empty
+  fist is on the preview's point.
+  - The middle of the fist is the grip channel's point: the middle of the circles its half-closed fingers curl round.
+  - The preview's point is the middle of the handle, where OpenXR puts the fist.
+  - It is exact: pressing it again moves the hand 0.00 cm. It follows the hand model (the channel is measured on it).
+  - It only moves the hand. Turn it yourself afterwards, then press it again.
+  - The off hand is matched only when it has its own values.
+  - In the mock, from 0 it moved the hand -1.0, ±1.3 and +3.5 cm: the handle ends up in the curled fingers rather
+    than against the palm.
+- **Reset Moves and Rolls**: X, Y, Z and Roll go back to 0 for both hands. Pitch and yaw are left alone, because they
+  are your aim.
+- The rest of the page (the gun model settings) is now under a **Guns** header.
+
+**What moves.** The calibration is applied where Gun Angle was, so the whole hand and whatever it holds move as if the
+controller had been held differently:
+- the empty hand and weapons;
+- carried things and the flashlight;
+- the posing mode's hand;
+- the body's arms;
+- the hand positions sent to the server, so muzzles, shots and melee points move too.
+
+Some details:
+- A weapon is posed from the hand before the roll and then turned rigidly by it, as Hand and Weapon Together does, so
+  the gun rolls exactly with the hand. Without this, its Euler angle offsets would make it turn a little differently.
+- The hand's velocities include the move turning with the controller.
+- The melee's wrist is part of the hand, so it moves with the calibration. `QC/vr_melee.qc` takes out only the pitch
+  and yaw, as before, mirrored in mirror mode.
+- The menu's laser uses the same pitch and yaw.
+- Takes record the values in a `hand calibration` header line. Playing a take recorded before this feature sets them
+  to 0, so the hands are placed as they were when you recorded it.
+
+**At 0 nothing changes.** Every step is skipped at 0, so the numbers are the same bit for bit.
+- The melee canary gives 40/46 pass with 0 differences from the baseline. (One canary take,
+  `no_hit_2026-09-27_02-21-55.csv`, has since been moved to `motions/discarded/`, so 46 of 47 ran.)
+- Every slot's `vr_dumpview` was compared with the base build: 18 main-hand slots, 3 off-hand ones, 230 lines. The only
+  lines that differ are ones that also differ between two runs of the base build (muzzles at the 4th decimal).
+
+**Numbers** (mock, a shotgun in each hand, the weapon's lag off to measure the pose itself: `handcal/parse_num.py`):
+
+| Setting | The hand | The muzzle | Melee on the server (grip, far end, wrist) |
+|---|---|---|---|
+| X 2 cm | +2.0001, 0.0000, -0.0002 cm in the controller's frame | +1.9999, +0.0001, +0.0001 | 2.0000, 2.0001, 2.0000 cm |
+| Y 2 cm | 0.0000, +1.9997, +0.0002 | 0.0000, +1.9997, +0.0002 | 2.0000, 1.9999, 1.9999 |
+| Z 2 cm | +0.0003, -0.0002, +2.0000 | +0.0001, -0.0001, +2.0003 | 2.0000, 2.0000, 2.0000 |
+| Roll 10° | turned 9.9999° about the line through the grip along the hand's forward (axis · forward 1.000000, residual 0.0004 cm) | the same fit | far end and wrist turned 10.0005° about the hand |
+| Off hand X 2 cm, Roll 10° | 2.0000 cm; 10.0000° | 2.0004 cm | 2.0000 cm; 10.0010° |
+
+- Mirror mode with main X 2, Y 1.5, Roll 10 gives an off hand identical to Its Own Values with 2, -1.5, -10 and pitch
+  and yaw 39.5, -4, including its melee on the server.
+- The differences in the last digit are the 4-decimal printing.
+- With the weapon's lag on, the gun reaches the full roll over a few frames, as it does when you roll your wrist.
+
+**Composites** (`handcal/`, first person and from the side, Show Controller on):
+- `handcal_empty.png`: 0; mirror mode with X 1.5, Z -1, Roll 20; own values for the off hand.
+- `handcal_shotgun.png`: shotguns at 0 and calibrated.
+- `handcal_match.png`: before and after Match Controller Preview.
+- `handcal_carry_pose.png`: a carried health box and the posing mode's hand, at 0 and calibrated.
+
+**Settings:** `vr_handcal_x/_y/_z/_roll`, `vr_handcal_off_mirror`, `vr_handcal_off_x/_y/_z/_roll` (all saved,
+0 by default), with `vr_gunangle`, `vr_gunyaw`, `vr_offhandpitch` and `vr_offhandyaw` as before.
+
+**In the headset:**
+- [ ] With Show Controller on, move and turn each hand until the controller sits in your palm as in real life.
+- [ ] Try Match Controller Preview. Does it put the handle in the fingers?
+- [ ] Check that aim, melee and throws still feel right with your values.
