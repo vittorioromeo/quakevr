@@ -1225,6 +1225,10 @@ std::vector<Item> pageWeaponOffsets()
         return slider(label, weapons::cvar(slot, key), min, max, step, format);
     };
     const bool fist = slot == weapons::fistSlot(); // the empty hand's "weapon" is the hand model
+    // After the posing test: Shot Pitch and Yaw, under Posing Mode and under Muzzle (weapons::shotAngles).
+    const char* shotHelp = "Turns where the weapon's shots, projectiles and beams go (the red line, from the muzzle) "
+                           "without moving the weapon: line the red line up with the sights. Degrees, as you hold it "
+                           "(the off hand's yaw mirrored).";
     list = {
         header(title.c_str()),
         action("Edit the Other Hand's Weapon", weaponOffsetsOtherHand)
@@ -1259,6 +1263,8 @@ std::vector<Item> pageWeaponOffsets()
             cycle("Tuning Offsets on Confirm", vr_pose_reset_offsets, {{0.f, "Keep"}, {1.f, "Set to 0"}})
                 .help("Keep: the pose is kept with Hand and Weapon Together, Hand Only and Held Hand as they are. "
                       "Set to 0: confirming sets them to 0 (the pose alone places the hand)."),
+            s("Shot Pitch (up)", Key::ShotPitch, -10.f, 10.f, 0.1f, "%+.1f").extend(-45.f, 45.f).help(shotHelp),
+            s("Shot Yaw (left)", Key::ShotYaw, -10.f, 10.f, 0.1f, "%+.1f").extend(-45.f, 45.f).help(shotHelp),
         });
     }
     list.insert(list.end(), {
@@ -1352,6 +1358,8 @@ std::vector<Item> pageWeaponOffsets()
             s("Muzzle X", Key::MuzzleOffsetX, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f).help("Where shots and the muzzle flash start, from the muzzle vertex."),
             s("Muzzle Y", Key::MuzzleOffsetY, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f),
             s("Muzzle Z", Key::MuzzleOffsetZ, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f),
+            s("Shot Pitch (up)", Key::ShotPitch, -10.f, 10.f, 0.1f, "%+.1f").extend(-45.f, 45.f).help(shotHelp),
+            s("Shot Yaw (left)", Key::ShotYaw, -10.f, 10.f, 0.1f, "%+.1f").extend(-45.f, 45.f).help(shotHelp),
         });
 
         // The two-handed grips: the hotspot being edited.

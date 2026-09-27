@@ -241,6 +241,11 @@ QVR_WEAPON_KEY(Hotspot4CurlMiddle, "hs4_curl_middle")
 QVR_WEAPON_KEY(Hotspot4CurlRing, "hs4_curl_ring")
 QVR_WEAPON_KEY(Hotspot4CurlPinky, "hs4_curl_pinky")
 QVR_WEAPON_KEY(Hotspot4ThumbAcross, "hs4_thumb_across")
+// After the posing test: the direction the weapon's shots, projectiles and beams go, turned from the hand's aim (degrees:
+// pitch up, yaw left; in the aim frame; yaw mirrored for the off hand) without moving anything drawn: the shot line
+// (Show Controller Laser's red, the posing mode's) lined up with the sights. weapons::shotAngles.
+QVR_WEAPON_KEY(ShotPitch, "shot_pitch")
+QVR_WEAPON_KEY(ShotYaw, "shot_yaw")
 #endif
 
 #ifdef QVR_WEAPON_DEFAULT

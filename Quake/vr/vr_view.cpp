@@ -2596,7 +2596,8 @@ void posingMarks(const hands::State& s, const glm::vec3& aimRot)
     lines::point(m, 1.f, glm::vec4{1.f, 0.9f, 0.3f, 1.f});
     const glm::vec4 green{0.3f, 1.f, 0.35f, 0.8f}, red{1.f, 0.25f, 0.2f, 0.8f};
     lines::line(m, m + glm::normalize(glm::vec3{hsFrame[0]}) * length, 0.1f, green, glm::vec4{glm::vec3{green}, 0.f});
-    lines::line(m, m + hands::forward(aimRot) * length, 0.12f, red, glm::vec4{glm::vec3{red}, 0.f});
+    const glm::vec3 shot = hands::forward(weapons::shotAngles(aimRot, ps.slot, wh == HAND_OFF)); // Shot Pitch and Yaw
+    lines::line(m, m + shot * length, 0.12f, red, glm::vec4{glm::vec3{red}, 0.f});
 }
 
 // Posing: the floating weapon (in the weapon hand's view entity), the hands (the posing one at its controller; the
@@ -3587,9 +3588,9 @@ void updatePalmPoints(hands::State& s)
 // pose, before any offset), a translucent handle along its grip with its axes (red forward, green left, blue up), and
 // the drawn hand's own point, joined to it. vr_show_controller_laser: for a held weapon, the controller's aim (white,
 // from the controller along its calibrated aim: Gun Angle and the rest, before the weapon's offsets), the weapon's aim
-// (red, from the muzzle where its shots go: the controller's aim with the weapon's Hand and Weapon Together turn, and
-// the two-handed aim) and its barrel (green, from the muzzle along the drawn model's forward axis): the gun is turned
-// right when green runs along red.
+// (red, from the muzzle where its shots go: the controller's aim with the weapon's Hand and Weapon Together turn, the
+// two-handed aim, and its Shot Pitch and Yaw) and its barrel (green, from the muzzle along the drawn model's forward
+// axis): the gun is turned right when green runs along red (or red turned onto the sights by Shot Pitch and Yaw).
 // `lasers`: Show Controller Laser's lines (not while posing, which draws its own).
 void drawTuningAids(const hands::State& s, bool lasers)
 {
@@ -3658,7 +3659,8 @@ void drawTuningAids(const hands::State& s, bool lasers)
             laser(s.controllerPos[hand], hands::forward(s.aimRot[hand]), {1.f, 1.f, 1.f, 0.55f}, 0.12f);
             if(s.muzzleValid[hand])
             {
-                laser(s.muzzle[hand], hands::forward(s.rot[hand]), {1.f, 0.25f, 0.2f, 0.7f}, 0.12f);
+                laser(s.muzzle[hand], hands::forward(weapons::shotAngles(s.rot[hand], slot, hand == HAND_OFF)),
+                    {1.f, 0.25f, 0.2f, 0.7f}, 0.12f);
                 const entity_t& e = entities.weapon[hand].ent;
                 const glm::mat4 m = hotspotFrame(e, hand == HAND_OFF);
                 laser(s.muzzle[hand], glm::normalize(glm::vec3{m[0]}), {0.3f, 1.f, 0.35f, 0.7f}, 0.08f);
