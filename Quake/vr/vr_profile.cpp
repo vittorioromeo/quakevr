@@ -164,8 +164,15 @@ struct PhaseGpuSlot
     PhaseGpuRec recs[phaseGpuQueries / 2]{};
     int recCount{0};
     bool pending{false};
+    int sample{-1};            // its frame's place in the history (frameSample), if kept there,
+    std::uint64_t serial{0};   // and that frame's serial (the place may have been reused since)
 };
 PhaseGpuSlot phaseSlots[phaseGpuSlots];
+
+// The frames' history (frameSample): a ring, with each place's frame serial.
+FrameSample history[frameHistorySize];
+std::uint64_t historySerial[frameHistorySize]{};
+std::uint64_t frameSerial = 0; // the frames recorded so far
 int phaseSlot = 0;
 bool phaseGpuMade = false;
 
@@ -258,6 +265,7 @@ bool resolvePhases(PhaseGpuSlot& s)
     {
         return false;
     }
+    double eyes = 0.0;
     for(int i = 0; i < s.recCount; i++)
     {
         const PhaseGpuRec& r = s.recs[i];
@@ -268,9 +276,15 @@ bool resolvePhases(PhaseGpuSlot& s)
         GLuint64 b = 0, e = 0;
         GL_GetQueryObjectui64vFunc(s.queries[r.begin], GL_QUERY_RESULT, &b);
         GL_GetQueryObjectui64vFunc(s.queries[r.end], GL_QUERY_RESULT, &e);
-        phaseSums.gpuMs[r.phase] += e > b ? static_cast<double>(e - b) / 1e6 : 0.0;
+        const double ms = e > b ? static_cast<double>(e - b) / 1e6 : 0.0;
+        phaseSums.gpuMs[r.phase] += ms;
+        eyes += r.phase == EyeL || r.phase == EyeR ? ms : 0.0;
     }
     ++phaseSums.gpuFrames;
+    if(s.sample >= 0 && historySerial[s.sample] == s.serial)
+    {
+        history[s.sample].gpuMs = static_cast<float>(eyes);
+    }
     s.pending = false;
     return true;
 }
@@ -301,6 +315,18 @@ void endPhaseFrame(std::int64_t now, std::int64_t start, std::int64_t end)
     else if(start > 0)
     {
         ++phaseSums.hitches;
+    }
+    s.sample = -1;
+    if(start > 0)
+    {
+        const std::int64_t waits = phaseFrameNs[XrWait] + phaseFrameNs[XrAcquire] + phaseFrameNs[XrRelease] +
+                                   phaseFrameNs[XrSubmit] + phaseFrameNs[Swap];
+        const int at = static_cast<int>(frameSerial % frameHistorySize);
+        history[at] = {static_cast<double>(start) / 1e9, static_cast<float>(period),
+            static_cast<float>(std::max<std::int64_t>(0, end - start - waits)) / 1e6f, -1.f};
+        historySerial[at] = ++frameSerial;
+        s.sample = at;
+        s.serial = frameSerial;
     }
     std::fill(std::begin(phaseFrameNs), std::end(phaseFrameNs), std::int64_t{0});
     s.pending = keep && s.recCount > 0;
@@ -849,6 +875,26 @@ PhaseSums takePhases()
 void noteDisplayPeriod(double ms)
 {
     displayPeriod = ms;
+}
+
+double displayPeriodMs()
+{
+    return displayPeriod;
+}
+
+bool frameSample(int back, FrameSample& out)
+{
+    if(back < 0 || back >= frameHistorySize || static_cast<std::uint64_t>(back) >= frameSerial)
+    {
+        return false;
+    }
+    out = history[(frameSerial - 1 - static_cast<std::uint64_t>(back)) % frameHistorySize];
+    return true;
+}
+
+double nowSeconds()
+{
+    return static_cast<double>(nowNs()) / 1e9;
 }
 
 void begin(const char* name, bool gpu)
