@@ -1234,6 +1234,16 @@ struct RigHand
     float rigUnit{0.f};
     glm::vec3 pushed{0.f};   // drawn out of the other hand's weapon (vr_hand_collide), eased
     double pushedTime{-1.0};
+    // Brushing the other hand's weapon (vr_hand_collide, pushOut): the weapon, and the fingers solved against it
+    // (setupRigHand: they rest on it or bend out of it); a finger in it at every curl ("stuck") pushes the hand instead.
+    const entity_t* brushEnt{nullptr};
+    bool brushMirrored{false};
+    bool brushValid{false};
+    grasp::Solution brush;
+    Grasp brushSolve; // where it was solved (solved again when the hand has moved on it: sameGrasp)
+    bool brushStuck[handrig::FingerCount]{};
+    float brushHold[handrig::FingerCount][handrig::jointsPerFinger]{}; // each finger's last pose clear of it
+    bool brushHeld[handrig::FingerCount]{};
     // The palm's fit without the tuning offset (Held::offset): where it was solved, its settings, the palm's move.
     bool fitValid{false};
     glm::mat4 fitInRig{1.f};
@@ -1322,6 +1332,7 @@ constexpr int rigFinger[handrig::FingerCount] = {FingerThumb, FingerIndex, Finge
 }
 
 int graspSolves[2]{}; // solves, per hand (vr_debug_grasp_trace)
+int brushSolves[2]{}; // brushing the other hand's weapon: solves, per hand
 
 void printGrasp(int hand, const Grasp& g, float rigUnit)
 {
@@ -1653,9 +1664,14 @@ void bendOutOfWalls(const RigHand& rh, int finger, const glm::mat4& rigToWorld, 
     }
 }
 
+// Hand units from the palm's middle within which the other hand's weapon makes the fingers react (a finger's reach).
+constexpr float brushReach = 24.f;
+
 // vr_hand_collide: the free `hand` (if `free`) drawn out of the weapon in the other hand: its palm's middle and its
-// fingertips tested against the weapon's surface; the deepest in it sets the push out (along the surface's normal),
-// all of it up to vr_hand_collide cm, then less and less, none at twice as deep (it lets go). Eased over 0.08 s.
+// knuckles tested against the weapon's surface (and the fingertips of the fingers that can't bend out of it); the
+// deepest in it sets the push out (along the surface's normal), all of it up to vr_hand_collide cm, then less and less,
+// none at twice as deep (it lets go). Eased over 0.08 s. The fingers react to the weapon's shape (setupRigHand, the
+// weapon noted here while the hand is near it): they rest on it, or bend out of it, rather than the whole hand moving.
 void pushOut(const hands::State& s, int hand, bool free, glm::vec3& pos, const glm::vec3& handRot, bool mirrored)
 {
     QVR_PROFILE("hand collide");
@@ -1663,6 +1679,7 @@ void pushOut(const hands::State& s, int hand, bool free, glm::vec3& pos, const g
     const double now = cl.time;
     const float dt = rh.pushedTime >= 0.0 ? static_cast<float>(CLAMP(0.0, now - rh.pushedTime, 0.1)) : 0.f;
     rh.pushedTime = now;
+    rh.brushEnt = nullptr;
     glm::vec3 target{0.f};
     const float most = std::fmax(vr_hand_collide.value, 0.f) * 0.01f * units::metresToUnits();
     const view::ViewEntity& other = entities.weapon[1 - hand];
@@ -1673,15 +1690,21 @@ void pushOut(const hands::State& s, int hand, bool free, glm::vec3& pos, const g
         {
             const glm::mat4 toWorld = grasp::shapeToWorld(other.ent, other.mirrored);
             const glm::mat4 rig = rigPlacement(hand, pos, handRot, mirrored, nullptr);
-            // The palm's middle and the fingertips (the hand as posed last frame).
-            glm::vec3 points[handrig::FingerCount + 1];
+            const float unit = glm::length(glm::vec3{rig[0]});
+            // The palm's middle, the knuckles, and the tips of the fingers stuck in it last frame (the hand as posed).
+            glm::vec3 points[1 + 2 * handrig::FingerCount];
             int count = 0;
-            points[count++] = glm::vec3{rig * glm::vec4{grasp::palmCentre(), 1.f}};
-            glm::vec3 tips[handrig::FingerCount];
-            grasp::fingertips(rh.pose, tips);
-            for(const glm::vec3& tip : tips)
+            const glm::vec3 palm{rig * glm::vec4{grasp::palmCentre(), 1.f}};
+            points[count++] = palm;
+            for(int f = 0; f < handrig::FingerCount; f++)
             {
-                points[count++] = glm::vec3{rig * glm::vec4{tip, 1.f}};
+                glm::vec3 p[4];
+                grasp::fingerPoints(rh.pose, f, rh.pose.curl[f], p);
+                points[count++] = glm::vec3{rig * glm::vec4{p[0], 1.f}};
+                if(rh.brushStuck[f] || !vr_hand_collide_fingers.value)
+                {
+                    points[count++] = glm::vec3{rig * glm::vec4{p[3], 1.f}};
+                }
             }
             float deepest = 0.f;
             glm::vec3 out{0.f};
@@ -1694,10 +1717,19 @@ void pushOut(const hands::State& s, int hand, bool free, glm::vec3& pos, const g
                     out = move;
                 }
             }
+            float give = 1.f;
             if(deepest > 0.f)
             {
-                const float give = deepest <= most ? 1.f : std::fmax(0.f, 2.f - deepest / most); // past it: less, then none
+                give = deepest <= most ? 1.f : std::fmax(0.f, 2.f - deepest / most); // past it: less, then none
                 target = out * give;
+            }
+            // Near it (within a hand's length of the palm's middle) and not passing through it: the fingers react.
+            glm::vec3 at;
+            bool in = false;
+            if(vr_hand_collide_fingers.value && give > 0.f && grasp::surfaceDistance(*shape, toWorld, palm, brushReach * unit, at, in) >= 0.f)
+            {
+                rh.brushEnt = &other.ent;
+                rh.brushMirrored = other.mirrored;
             }
         }
     }
@@ -1813,6 +1845,62 @@ bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
     }
     rh.held = held;
     rh.rigToWorld = rigToWorld;
+
+    // A free hand brushing the other hand's weapon (pushOut noted it): its fingers closed onto it from open (the grasp's
+    // solve, the palm where it is), to rest on it or bend out of it (below).
+    const bool brushing = rh.brushEnt && !held.ent && !held.manual;
+    if(brushing)
+    {
+        QVR_PROFILE("hand brush");
+        if(const grasp::Shape* shape = grasp::shapeOf(*rh.brushEnt, rh.brushEnt->frame))
+        {
+            // Solved again only once the hand has moved on it by Refit Threshold (vr_hand_fit_resolve), as a held thing's
+            // grasp: steady, and cheap while the hand rests against it.
+            const glm::mat4 inRig = glm::inverse(rigToWorld) * grasp::shapeToWorld(*rh.brushEnt, rh.brushMirrored);
+            Grasp& last = rh.brushSolve;
+            if(!rh.brushValid || !sameGrasp(last, rh.brushEnt->model, rh.brushEnt->frame, inRig, rh.pose, k * ts.x))
+            {
+                grasp::Settings settings;
+                grasp::solve(rh.pose, *shape, inRig, settings, rh.brushValid ? &rh.brush : nullptr, last.solution);
+                rh.brush = last.solution;
+                rh.brushValid = true;
+                last.valid = true;
+                last.model = rh.brushEnt->model;
+                last.frame = rh.brushEnt->frame;
+                last.inRig = inRig;
+                for(int f = 0; f < handrig::FingerCount; f++)
+                {
+                    last.shift[f] = rh.pose.shift[f];
+                }
+                brushSolves[hand]++;
+            }
+            const grasp::Solution& solution = rh.brush;
+            if(vr_debug_grasp.value)
+            {
+                Con_Printf("brush (%.2f s): %s hand on %s: solve %d, %.1f us, %d triangles; fingers", realtime,
+                    hand == HAND_MAIN ? "main" : "off", rh.brushEnt->model ? rh.brushEnt->model->name : "-", brushSolves[hand],
+                    solution.seconds * 1e6, solution.triangles);
+                for(const grasp::FingerStop& st : solution.finger)
+                {
+                    Con_Printf(" %s%.1f/%.1f/%.1f", st.startsInside ? "in " : st.fromClosed ? "out " : st.met ? "on " : "- ",
+                        st.stop[0], st.stop[1], st.stop[2]);
+                }
+                Con_Printf("\n");
+            }
+        }
+        else
+        {
+            rh.brushValid = false;
+        }
+    }
+    else
+    {
+        rh.brushValid = false;
+    }
+    for(bool& stuck : rh.brushStuck)
+    {
+        stuck = false;
+    }
     const double now = cl.time;
     const float dt = rh.jointsTime >= 0.0 ? static_cast<float>(CLAMP(0.0, now - rh.jointsTime, 0.1)) : 1.f;
     rh.jointsTime = now;
@@ -1890,6 +1978,39 @@ bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
             {
                 t = rigCurl(hand, rigFinger[f]);
             }
+            // Brushing the other hand's weapon: a finger closing onto it stops on its surface (it rests there, as far as
+            // the controller closes it); one in it open bends out of it, closing to where it is clear; one in it at every
+            // curl is left, and pushes the hand out instead (pushOut). Eased in and out as any change of the fingers.
+            if(brushing && rh.brushValid)
+            {
+                const grasp::FingerStop& st = rh.brush.finger[f];
+                rh.brushStuck[f] = st.startsInside;
+                if(st.startsInside && rh.brushHeld[f])
+                {
+                    // In it at every curl (the hand gone deeper): kept as it was last (not back to the controller's
+                    // curl, into the weapon), while the hand is pushed out by its tip.
+                    for(int j = 0; j < handrig::jointsPerFinger; j++)
+                    {
+                        target[j] = rh.brushHold[f][j];
+                    }
+                }
+                else if(!st.startsInside && (st.met || st.fromClosed))
+                {
+                    for(int j = 0; j < handrig::jointsPerFinger; j++)
+                    {
+                        target[j] = st.fromClosed ? st.stop[j] : std::fmin(grasp::pathCurl(target[j]), st.stop[j]);
+                    }
+                }
+                if(!st.startsInside)
+                {
+                    std::copy(target, target + handrig::jointsPerFinger, rh.brushHold[f]);
+                    rh.brushHeld[f] = true;
+                }
+            }
+            else
+            {
+                rh.brushHeld[f] = false;
+            }
         }
         // Into a wall (vr_hand_walls): bent (curled, all its joints alike) as little as keeps it out: the lines from
         // the knuckle through its joints to its tip clear of the world's geometry.
@@ -1908,8 +2029,11 @@ bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
     const float w = CLAMP(0.f, fingerFrames[hand][FingerThumb] / 3.f, 1.f);
     // Set by hand: across the palm by its share of 45 degrees (the solver's widest opposition), about the same axis.
     const glm::quat manualThumb = glm::angleAxis(glm::radians(45.f * held.manualThumbAcross), glm::vec3{-1.f, 0.f, 0.f});
+    const bool brushThumb = brushing && rh.brushValid && !rh.brush.finger[handrig::Thumb].startsInside &&
+                            (rh.brush.finger[handrig::Thumb].met || rh.brush.finger[handrig::Thumb].fromClosed);
     const glm::quat thumbTarget = held.manual   ? glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, manualThumb, w)
                                   : rh.grasp.valid ? glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, rh.grasp.solution.thumbTurn, w)
+                                  : brushThumb     ? rh.brush.thumbTurn
                                                    : glm::quat{1.f, 0.f, 0.f, 0.f};
     rh.thumb = glm::normalize(glm::slerp(rh.thumb, thumbTarget, follow));
     rh.pose.metacarpal = rh.thumb;
