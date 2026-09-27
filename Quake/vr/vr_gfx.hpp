@@ -145,6 +145,8 @@ struct Target
 // chain, rebuilt by end2D() (filtered trilinearly). `name` (a literal): what it is, for the count of
 // targets (re)made by name (vr_memstats, and a developer line each time).
 void ensureTarget(Target& target, int width, int height, bool mipmaps = false, const char* name = "target");
+// Frees `target`'s texture and framebuffer (nothing when it has none); ensureTarget makes it again.
+void releaseTarget(Target& target);
 
 // How many times targets of each name were (re)made so far, as "name:count" words.
 [[nodiscard]] std::string targetsMadeByName();

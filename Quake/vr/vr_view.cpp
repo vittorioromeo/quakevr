@@ -3102,7 +3102,7 @@ void showPlayerState(view::ViewEntity& ve, const hands::State& s)
         return;
     }
 
-    const float pulse = 0.5f + 0.5f * std::sin(static_cast<float>(realtime) * 6.f);
+    const float pulse = 0.5f + 0.5f * static_cast<float>(std::sin(realtime * 6.0));
     if(cl.items & IT_INVULNERABILITY)
     {
         ve.lightMultiply = true;

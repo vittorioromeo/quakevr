@@ -664,6 +664,21 @@ std::string targetsMadeByName()
     return out;
 }
 
+void releaseTarget(Target& target)
+{
+    GLuint texture = target.texture;
+    if(texture)
+    {
+        glDeleteTextures(1, &texture);
+    }
+    GLuint fbo = target.framebuffer;
+    if(fbo)
+    {
+        GL_DeleteFramebuffersFunc(1, &fbo);
+    }
+    target = Target{};
+}
+
 void ensureTarget(Target& target, int width, int height, bool mipmaps, const char* name)
 {
     int levels = 1;
