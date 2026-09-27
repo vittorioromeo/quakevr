@@ -111,6 +111,7 @@ float cvarh_vr_throw_hit_min_speed;
 float cvarh_vr_parry_reduction;
 float cvarh_vr_parry_drop_chance;
 float cvarh_vr_parry_angle;
+float cvarh_vr_parry_muzzle_angle;
 float cvarh_vr_parry_reach;
 float cvarh_vr_throw_gain_max;
 float cvarh_vr_throw_gain_lo;
@@ -274,6 +275,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_parry_reduction);
     VR_CVAR_HMAKE(vr_parry_drop_chance);
     VR_CVAR_HMAKE(vr_parry_angle);
+    VR_CVAR_HMAKE(vr_parry_muzzle_angle);
     VR_CVAR_HMAKE(vr_parry_reach);
     VR_CVAR_HMAKE(vr_throw_gain_max);
     VR_CVAR_HMAKE(vr_throw_gain_lo);
