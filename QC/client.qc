@@ -1976,6 +1976,7 @@ void() PlayerPostThink =
     W_WeaponFrameImpl(cVR_MainHand);
     W_WeaponFrameImpl(cVR_OffHand);
     W_Frame();
+    VR_ShotImpacts(); // QVR: projectiles fired from inside what they hit meet it (weapons.qc)
 
 // check to see if player landed and play landing sound
     if((self.jump_flag < -300) && (self.flags & FL_ONGROUND) && (self.health > 0))

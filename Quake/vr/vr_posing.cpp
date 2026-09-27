@@ -56,8 +56,13 @@ struct Posed
     glm::mat4 rigInWeapon{1.f};
     glm::vec3 palmInWeapon{0.f};
     glm::mat4 rigWorld{1.f};
+    bool palmFitted{false}; // palmInWeapon seen solved (solvedPalm)
 };
 Posed lastPosed;
+
+// After a set, the hand is shown solved (the grip it will have) until then.
+constexpr double solvedShowSeconds = 1.5;
+double solvedUntil = 0.0;
 
 // A line said on confirming, undoing, switching (shown a few seconds).
 std::string feedback;
@@ -270,7 +275,9 @@ void confirm()
     }
     step.what = buf;
     undoSteps.push_back(std::move(step));
-    lastPosed = {true, current.target, current.weaponHand, current.hotspot, c.rigInWeapon, c.palmInWeapon, c.rigWorld};
+    lastPosed = {true, current.target, current.weaponHand, current.hotspot, c.rigInWeapon, c.palmInWeapon, c.rigWorld,
+        c.palmFitted};
+    solvedUntil = realtime + solvedShowSeconds; // the grip it gives, for a moment
     say(buf);
     S_LocalSound("weapons/pkup.wav");
     haptic(posingHand(), 0.05f, 0.7f);
@@ -459,8 +466,8 @@ void check_f()
         Con_Printf("vr_pose_check: nothing confirmed (or it was undone)\n");
         return;
     }
-    view::posingCheck(lastPosed.target == Target::Weapon, lastPosed.weaponHand, lastPosed.rigInWeapon, lastPosed.palmInWeapon,
-        lastPosed.rigWorld);
+    view::posingCheck(lastPosed.target == Target::Weapon, lastPosed.weaponHand, lastPosed.rigInWeapon,
+        lastPosed.palmFitted ? &lastPosed.palmInWeapon : nullptr, lastPosed.rigWorld);
 }
 
 } // namespace
@@ -504,6 +511,32 @@ int confirmHand()
 bool resetOffsets()
 {
     return vr_pose_reset_offsets.value != 0.f;
+}
+
+bool showSolved()
+{
+    return vr_pose_solve.value != 0.f || realtime < solvedUntil;
+}
+
+void solvedPalm(const Candidate& c)
+{
+    if(!lastPosed.valid || !c.valid || !c.palmFitted || lastPosed.target != current.target ||
+        lastPosed.weaponHand != current.weaponHand || lastPosed.hotspot != current.hotspot)
+    {
+        return;
+    }
+    for(int i = 0; i < 4; i++)
+    {
+        for(int j = 0; j < 4; j++)
+        {
+            if(std::fabs(c.rigInWeapon[i][j] - lastPosed.rigInWeapon[i][j]) > 1e-3f)
+            {
+                return; // moved since the set
+            }
+        }
+    }
+    lastPosed.palmInWeapon = c.palmInWeapon;
+    lastPosed.palmFitted = true;
 }
 
 bool start(int slot, qmodel_t* model, int weaponHand, Target target, int hotspot, int returnPage)

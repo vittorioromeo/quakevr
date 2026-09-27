@@ -1159,6 +1159,9 @@ float(entity p, float hand, vector toAttacker) VR_Parry_HandAcross =
 vector vr_parry_butt;
 vector vr_parry_end;
 vector vr_parry_at;
+// Where the blow comes from (world; '0 0 0': unknown, the blow's way is used): set around VR_Parry_Blocks by callers
+// that know the attacker, for the muzzle's test.
+vector vr_parry_from;
 
 // The weapon in `p`'s `hand`, into vr_parry_butt .. vr_parry_end (FALSE: an empty hand): its line from the near end
 // to the far end, as the melee lays it out (VR_Melee_Line, vr_melee.qc; a gun carried by its pump too).
@@ -1237,6 +1240,21 @@ float(entity p, vector butt, vector end, vector toAttacker) VR_Parry_LineBlocks 
 float(entity p, float hand, vector toAttacker) VR_Parry_Blocks =
 {
     if(!VR_Parry_WeaponLine(p, hand))
+    {
+        return FALSE;
+    }
+    // The far end (a gun's muzzle, a sword's tip) pointing at the attacker is no parry, whatever line blocks: it must
+    // point off to the side, within vr_parry_muzzle_angle of the attacker at most, seen from the weapon (the author's
+    // guns held at the dummy 30 degrees off it, his parry poses at least 60; round 21).
+    vector toward = toAttacker;
+    if(vr_parry_from != '0 0 0')
+    {
+        toward = vr_parry_from - (vr_parry_butt + vr_parry_end) * 0.5;
+        toward_z = 0;
+        toward = vlen(toward) > 1 ? normalize(toward) : toAttacker;
+    }
+    if(normalize(vr_parry_end - vr_parry_butt) * toward >
+       cos(min(90, max(0, cvar_hget(cvarh_vr_parry_muzzle_angle))) * 0.0174533))
     {
         return FALSE;
     }
@@ -1360,6 +1378,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
     vector oldUp = v_up;
 
     float hand = -1;
+    vr_parry_from = attacker.origin;
     if(VR_Parry_Blocks(targ, cVR_MainHand, to))
     {
         hand = cVR_MainHand;
@@ -1375,6 +1394,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         dprint("parry: none: "); dprint(attacker.classname); dprint(" at "); dprint(ftos(rint(fromYaw)));
         dprint(" degrees, "); dprint(ftos(rint(vlen(attacker.origin - targ.origin)))); dprint(" units\n");
     }
+    vr_parry_from = '0 0 0';
 
     // Unarmed: arms crossed in front take the blow on the forearms (both hands knocked, less taken
     // off than with a weapon).
@@ -1458,6 +1478,11 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage =
     float parried = VR_Parry(targ, inflictor, attacker, damage);
     float corpse = targ.vr_corpse == 2;
     float r = T_DamageImpl(targ, inflictor, attacker, parried, 0);
+    if(cvar_hget(cvarh_vr_debug_shots) && (attacker.flags & FL_CLIENT) && targ != attacker)
+    {
+        dprint(sprintf("damage: %s %g by %s (part %g at %v), health %g\n", targ.classname, parried, inflictor.classname,
+            vr_hitpart_time == time ? vr_hitpart : -1, vr_hitpart_pos, targ.health));
+    }
 
     // VR: hit reactions: a heavy hit shoves a monster (vr_hit_push), a killing blow throws the body
     // (vr_kill_push; an explosion's away from it). Not a corpse's (vr_corpse_gib): it lies still.
@@ -1534,6 +1559,7 @@ void(vector xOrigin, float xPower) VR_ExplosionRumble =
 void(entity inflictor, entity attacker, float damage, entity ignore) T_RadiusDamage =
 {
     VR_ExplosionRumble(inflictor.origin, damage);
+    physicsblast(inflictor.origin, damage);
 
     float     points;
     entity    head;

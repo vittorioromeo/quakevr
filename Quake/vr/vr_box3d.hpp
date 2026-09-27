@@ -18,4 +18,14 @@ namespace qvr::box3d
 // Forgets the world and everything made for it (a new server: its bodies are rebuilt from the entities).
 void reset();
 
+// An explosion of `damage` at `at` (T_RadiusDamage's, through the physicsblast builtin): the props within its reach
+// that it sees are thrown (Box3D only; vr_physics_engine 0 leaves them, as before).
+void blast(const glm::vec3& at, float damage);
+
+// vr_debug_physics_shapes: every body's shapes as wireframes in the world (this frame's lines), coloured by what it is
+// and does: props awake (green; fast, continuous: white) and asleep (blue), held (yellow), doors and plats (purple),
+// monsters (orange), players (cyan), pickups hanging (grey); a prop's centre of mass, and an awake one's contact
+// points (red: pressed in; pink: apart). The local server's (a listen server: nothing on a client of another).
+void debugDraw();
+
 } // namespace qvr::box3d

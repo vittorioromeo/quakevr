@@ -210,6 +210,8 @@
 
 .vector muzzlepos;
 .vector offmuzzlepos;
+.vector shotrot;    // where the hand's shots go (angles): its aim turned by the weapon's Shot Pitch/Yaw (the engine)
+.vector offshotrot;
 
 //
 //

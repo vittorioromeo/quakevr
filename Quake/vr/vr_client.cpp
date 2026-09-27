@@ -253,6 +253,9 @@ std::vector<MuzzleOffset> muzzleOffsets; // slot * 2 + mirrored
         // Muzzles come from the weapon models (vr_view.cpp), as of the last rendered frame; a carried gun's from
         // where it is drawn (handMuzzle).
         move.muzzlePos[h] = handMuzzle(hs, h);
+
+        // Where its shots go: the aim turned by the weapon's Shot Pitch and Yaw (the drawn weapon doesn't move).
+        move.shotRot[h] = weapons::shotAngles(hs.rot[h], weapons::heldSlot(h), h == HAND_OFF);
     }
 
     move.headVel = hs.headVel;
@@ -313,6 +316,7 @@ std::vector<MuzzleOffset> muzzleOffsets; // slot * 2 + mirrored
             hand.velMag = 0.f;
             move.hotspots[h] = unposed.hotspots[h];
             move.muzzlePos[h] = unposed.muzzlePos[h] + walked;
+            move.shotRot[h] = unposed.shotRot[h];
         }
         move.vrBits0 = static_cast<std::uint16_t>(unposed.vrBits0 & (VRBITS0_OFFHAND_GRABBING | VRBITS0_MAINHAND_GRABBING |
                                                                      VRBITS0_OFFHAND_RELOADING | VRBITS0_MAINHAND_RELOADING));
@@ -815,7 +819,7 @@ extern "C" int VR_UpdateBeam(int ent, float* start, float* end)
         if(id < 2)
         {
             const float len = glm::distance(glm::vec3{start[0], start[1], start[2]}, glm::vec3{end[0], end[1], end[2]});
-            const glm::vec3 e = muzzle + hands::forward(s.rot[hand]) * len;
+            const glm::vec3 e = muzzle + hands::forward(weapons::shotAngles(s.rot[hand], weapons::heldSlot(hand), hand == HAND_OFF)) * len;
             end[0] = e.x;
             end[1] = e.y;
             end[2] = e.z;

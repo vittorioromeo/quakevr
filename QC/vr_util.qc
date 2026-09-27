@@ -81,9 +81,16 @@ VR_IMPL_MAKE_FLOAT_GETTER(VRGetHandVelMag,
                           self.offhandvelmag,
                           self.handvelmag);
 
+// Where a hand's shots, projectiles and beams go: its aim turned by the weapon's Shot Pitch and Yaw (the client's
+// weapons::shotAngles). The hand's aim for a player the engine gives none (a bot: its shotrot stays 0 0 0).
 vector(float xHand) VRGetWeaponFireRot =
 {
-    return VRGetHandRot(xHand);
+    vector r = VR_IMPL_SELECT(xHand, self.offshotrot, self.shotrot);
+    if(r == '0 0 0')
+    {
+        return VRGetHandRot(xHand);
+    }
+    return r;
 }
 
 vector(float xHand) VRGetWeaponFireRotFwd =

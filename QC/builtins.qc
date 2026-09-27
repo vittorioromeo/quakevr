@@ -162,6 +162,7 @@ vector(entity player, float hand, float index) weaponhotspot = #0;
 float(entity player, float hand, float index, float what) weaponhotspotinfo = #0;
 vector(entity e, vector handpos, vector palm) carryfit = #0; // at the grip: how far to move it (the way the palm faces) to sit against the palm, not in the fist (vr_held_surface_fit)
 vector(entity e, entity player, float grab) carry2h = #0; // held in both hands: at the second grip (grab 1) the grips are kept; after, where it goes (its angles are set)
+void(vector at, float damage) physicsblast = #0; // an explosion throws the rigid bodies round it (Box3D's; vr_physics_engine 1)
 float(entity e, vector point, float hand) carryreach = #0; // whether a hand at `point` can take hold of it (vr_carry_reach of its drawn surface)
 void(vector ang) makeforward = #0; // sets v_forward
 vector(entity e, float max) modelbounds = #0; // the model's mins (max 0) or maxs, in model space
