@@ -3712,8 +3712,45 @@ The CPU is a little cheaper (33 matrices instead of 148). The GPU draws 2.8 time
   and the ring were checked.
 - **Hipnotic and Rogue weapons** were not held one by one. Their muzzles and placements don't depend on the hand.
 
+### Second pass
+
+Your note: "a tiny little bit less round", and the fingers "seem disconnected from the main hand (they seem like
+little sausages)". Commit `795b0771`; composites in the scratchpad's `handmodel2/final/` (old | new).
+
+- **The fingers grow out of the palm:**
+  - The palm's front is now the four fingers' first rings, the same vertices, so there is no seam or step at the
+    knuckles.
+  - Between two fingers, a web: a pair of vertices both fingers share, a little past the knuckles and low towards
+    the palm. It follows both knuckles half each, so it stretches smoothly when one finger closes and its
+    neighbour doesn't (the point).
+  - The palm's last section follows the knuckle line's arc, with a low ridge over each metacarpal's head.
+- **A little blockier:**
+  - The fingers' and the thumb's sections are rounded rectangles: still 8 vertices, but flat on the back, the
+    palm's side and the sides, with bevelled corners.
+  - The tips are blunter and squarer, and the knuckles' bulges a little softer.
+- **The skin:** the same palette, grain and details. The palm and the fingers are painted as one surface, so
+  their colours agree where they meet. The broad mottle follows the hand, not the texture. The shade between
+  the fingers is only on the sides that face another finger.
+- **The thumb's base** already read as part of the ball of the thumb (checked in `thumb_closeup.png`). It gets
+  the new section and is otherwise unchanged.
+- **Unchanged:**
+  - The joints, pivots, axes, curls and weights (the web's pair is the only new blend).
+  - Every slot's hand, muzzle, foregrip and drawn palm, and the cups' moves: `vr_dumpview` gives the same lines,
+    old and new, for all nine slots.
+  - The palm's and the thenar's solver spheres are identical. The fingers' spheres move by at most 0.05 units
+    (the squarer tips). The grasps: 42 met, 8 inside, as before.
+  - The melee canary: 40/46, no take differs.
+  - Blood, the quad, the ring, and the six models (`vr_hand_rig 0`).
+- **Cost:** 656 triangles (was 662), 455 MD5 vertices (was 474). `hand` CPU, `alias` GPU and frame GPU are the
+  same within noise (exclusive runs, old and new twice).
+- **Composites:** `poses_open_fist_point.png`, `knuckles_web_closeup.png` (the knuckles and webs close up,
+  open, fist and point), `curl_sweep.png` (smooth, no pinch at the knuckles), `weapons_side.png`,
+  `two_handed_*.png`, `torch_off_hand.png`, `box_off_hand.png`, `blood_quad_ring_both_hands.png`.
+
 ### Try
 
+- [ ] Second pass: do the fingers now read as part of the hand, and is the blockier look right (or too much, or
+      not enough: `BOX_ACROSS` and `BOX_UP` in `make_hand_rig.py` set how flat the faces are)?
 - [ ] Look at your open hand, a fist and a point: do the fingers read as fingers, and does the hand fit your
       controller (the knuckles where yours are)?
 - [ ] Hold each gun and the sword: do the fingers wrap the grip and the thumb close over it?
