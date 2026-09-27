@@ -1051,6 +1051,15 @@ void beforeStep(float dt)
 void writeProp(edict_t* ent, Slot& s)
 {
     const FieldOffsets& f = fields();
+    // Fallen out of the world (made inside a wall, where the mesh has no inside to push it out of, and keepInWorld
+    // could not put it back): it stops there, asleep, instead of falling for ever.
+    if(b3Body_IsAwake(s.body) && b3Body_GetPosition(s.body).z * world->m2u < world->map->mins[2] - 1024.f)
+    {
+        b3Body_SetLinearVelocity(s.body, b3Vec3_zero);
+        b3Body_SetAngularVelocity(s.body, b3Vec3_zero);
+        b3Body_SetAwake(s.body, false);
+        Con_DPrintf("box3d: %d %s fell out of the world, stopped\n", NUM_FOR_EDICT(ent), PR_GetString(ent->v.classname));
+    }
     const bool asleep = !b3Body_IsAwake(s.body);
     const b3WorldTransform xf = b3Body_GetTransform(s.body);
     const glm::vec3 origin = world->toU(xf.p);
