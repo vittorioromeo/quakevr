@@ -7251,6 +7251,10 @@ void M_Draw (void)
 
 	M_UpdateBounds ();
 
+	// QVR: over a see-through background (scr_menubgalpha below about a half), the text gets a dark
+	// outline, the stronger the fainter the background, to stay readable over the game.
+	draw_textoutline = CLAMP (0.f, (0.55f - scr_menubgalpha.value) / 0.45f, 1.f);
+
 	if (!m_recursiveDraw)
 	{
 		//johnfitz -- fade even if console fills screen
@@ -7364,6 +7368,7 @@ void M_Draw (void)
 	}
 
 	VR_MenuDrawOverlay (); // QVR: the "Back to game" button
+	draw_textoutline = 0.f; // QVR
 
 	if (m_entersound)
 	{
