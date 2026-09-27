@@ -27,6 +27,7 @@
 // - On the way, a box of half-size vr_throw_hitbox finds monsters the thin corners would slip
 //   past, so throws that look like hits are hits.
 
+#include "vr_box3d.hpp"
 #include "vr_carry2h.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -1068,6 +1069,10 @@ extern "C" int VR_RigidToss(edict_t* ent)
         return 0;
     }
 
+    if(box3d::toss(ent)) // vr_physics_engine 1: Box3D moves it, with the others, at the frame's end (vr_box3d.cpp)
+    {
+        return 1;
+    }
     rigidToss(ent);
     if(!ent->free)
     {
