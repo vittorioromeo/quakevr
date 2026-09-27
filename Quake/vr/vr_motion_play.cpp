@@ -73,6 +73,8 @@ struct Frame
     // (units), and the melee's events (their `at` in the player's frame).
     bool hasD{false};
     glm::vec3 handD[HAND_COUNT]{};
+    bool hasW{false};                 // world, with the monster's origin
+    glm::vec3 handW[HAND_COUNT]{};
     glm::vec3 headD{0.f};
     std::vector<Event> events;
 
@@ -295,6 +297,11 @@ struct Take
                 take.hasWeapons = true;
                 fr.wid[h] = static_cast<int>(num(p + "wid", 0.0));
                 fr.wflags[h] = static_cast<int>(num(p + "wflags", 0.0));
+            }
+            if(has((p + "pos_w_x").c_str()))
+            {
+                fr.hasW = true;
+                fr.handW[h] = vec(p + "pos_w_x", p + "pos_w_y", p + "pos_w_z");
             }
             if(has((p + "pos_d_x_u").c_str()))
             {
@@ -714,9 +721,9 @@ void workOutPlacement(edict_t* player)
 
     if(f0.hasMon && f0.hasMonW && f0.hasOrg && !opts.yawSet && f0.monClass == report.targetClass)
     {
-        // The same kind of target: as recorded, turned by the targets' difference (none for the dummy of
-        // the same map).
-        delta = std::remainder(tYaw - f0.monYawW, 360.f);
+        // The same kind of target: as recorded, moved with it but not turned (its box doesn't turn: the
+        // training dummy's yaw changes as it is hit, which must not turn the take about it).
+        delta = 0.f;
         placeOrigin = tOrigin + hands::rotateYaw((f0.hasSvOrg ? f0.svOrg : f0.org) - f0.monW, delta);
     }
     else
@@ -1051,10 +1058,10 @@ void stopPlayback(const char* why)
         Con_Printf("vr_motion_play: load a map first (map vrfiringrange)\n");
         return false;
     }
-    // A take without the server's origin (recorded before it was) whose player is moving as it starts
-    // (pushed back by the last shove, a step): the client's origin lags the server's a little, so it
-    // starts where the player stood still for a few frames in its lead-in instead.
-    if(!t.frames.front().hasSvOrg && t.frames.front().hasVel && glm::length(t.frames.front().velPF) > 0.f)
+    // A take whose player is moving as it starts (walking into place with the stick, pushed back by the last
+    // shove): starting it in motion can't be exact (the client's origin lags the server's, the move of the
+    // first frame's server frame), so it starts where the player stood still for a few frames in its lead-in.
+    if(t.frames.front().hasVel && glm::length(t.frames.front().velPF) > 0.f)
     {
         for(size_t i = 3; i < t.firstRec; i++)
         {
@@ -1408,14 +1415,16 @@ void playFrameEnd(std::vector<Event>& events, bool tick, double svDt)
                     report.replayedT.push_back(post ? f.t + postElapsed : f.t);
                 }
             }
-            // The hands relative to the dummy, against the take's.
-            if(!post && f.hasD && r.sv && r.sv->monster)
+            // The hands relative to the target, against the take's: from its origin, in the world's axes turned
+            // as the take was (a synthetic take's: in the dummy's frame).
+            if(!post && (f.hasW ? f.hasMonW : f.hasD) && r.sv && r.sv->monster)
             {
                 const ServerSample& sv = *r.sv;
                 for(const int h : {HAND_MAIN, HAND_OFF})
                 {
-                    const glm::vec3 d = hands::rotateYaw(r.hands[h].pos - sv.monOrigin, -sv.monAngles.y);
-                    const double e = glm::distance(d, f.handD[h]);
+                    const double e = f.hasW
+                        ? glm::distance(r.hands[h].pos - sv.monOrigin, hands::rotateYaw(f.handW[h] - f.monW, delta))
+                        : glm::distance(hands::rotateYaw(r.hands[h].pos - sv.monOrigin, -sv.monAngles.y), f.handD[h]);
                     report.errMax[h] = std::max(report.errMax[h], e);
                     report.errSum[h] += e * e;
                 }
