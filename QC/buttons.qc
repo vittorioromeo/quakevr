@@ -406,10 +406,11 @@ void() func_weapon_grabbable =
     self.solid = SOLID_NOT;
     setmodel(self, self.model);
 
+    // Turned any way, still: it falls and settles on its drawn shape (a rigid body, MakeThrown).
     CreateThrownWeapon(self, self.weapon, self.weaponflags,
         WeaponIdToBaseClipSize(self.weapon) /* weaponclip */,
         self.origin, randomVec(180),
-        '0 0 0', LegacyThrowSpin('0 0 0', randomVec(20)),
+        '0 0 0', '0 0 0',
         FALSE /* disappear on hit */,
         FALSE /* deal damage */,
         WeaponIdToThrowDamage(self.weapon)

@@ -657,7 +657,12 @@ float offsetScale()
 ModelTransform modelTransform(const qmodel_t* model)
 {
     ModelTransform t;
-    if(!model || model->type != mod_alias || !(cl.protocolflags & PRFL_QUAKEVR))
+    // Quake VR's protocol: the client's, or the local server's. The server's physics shapes (vr_box3d.cpp's hulls,
+    // vr_rigid.cpp's boxes, vr_held.cpp's drawn surfaces) are made from these too, and a map's first frames run before
+    // the client has connected (cl.protocolflags then still the last map's, or none): its thrown weapons' hulls were
+    // made at the models' own size, three times the drawn guns', and kept.
+    const bool quakevr = (cl.protocolflags & PRFL_QUAKEVR) || (sv.active && (sv.protocolflags & PRFL_QUAKEVR));
+    if(!model || model->type != mod_alias || !quakevr)
     {
         return t;
     }
