@@ -52,6 +52,7 @@ struct ServerSample
     bool player{false};
     glm::vec3 origin{0.f};
     glm::vec3 velocity{0.f};
+    bool onGround{false};
 
     bool monster{false}; // the nearest monster (or the training dummy)
     int monEnt{0};
