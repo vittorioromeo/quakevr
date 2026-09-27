@@ -312,9 +312,9 @@ int motionPageCategory = -1;
         info(motionLastSaved),
         action("Delete Last Take", motion::discardLast)
             .help("Moves the last take saved into motions/discarded (a take that went wrong). Again: the one before."),
-        slider("Lead-in", vr_motion_preroll, 0.f, 2.f, 0.1f, "%.1f s")
+        slider("Lead-in", vr_motion_preroll, 0.f, 2.f, 0.1f, "%.1f s").extend()
             .help("Kept from before the take starts (the motion's start, for the melee's trackers)."),
-        slider("Tail", vr_motion_tail, 0.f, 1.f, 0.05f, "%.2f s").help("Recorded after the take ends (hits that land late)."),
+        slider("Tail", vr_motion_tail, 0.f, 1.f, 0.05f, "%.2f s").extend().help("Recorded after the take ends (hits that land late)."),
     };
 }
 
@@ -445,27 +445,27 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
 {
     return {
         header("Damage"),
-        slider("Damage to Enemies", vr_damage_to_enemies, 0.25f, 4.f, 0.05f, "%.2fx").help("Damage you deal to monsters."),
-        slider("Damage to You", vr_damage_to_player, 0.f, 4.f, 0.05f, "%.2fx").help("Damage monsters, traps and falls deal to you."),
-        slider("Self Damage", vr_damage_self, 0.f, 2.f, 0.05f, "%.2fx").help("Damage your own rockets and grenades deal to you."),
-        slider("Melee Damage", vr_melee_dmg_multiplier, 0.25f, 15.f, 0.25f, "%.2fx"),
+        slider("Damage to Enemies", vr_damage_to_enemies, 0.25f, 4.f, 0.05f, "%.2fx").extend().help("Damage you deal to monsters."),
+        slider("Damage to You", vr_damage_to_player, 0.f, 4.f, 0.05f, "%.2fx").extend().help("Damage monsters, traps and falls deal to you."),
+        slider("Self Damage", vr_damage_self, 0.f, 2.f, 0.05f, "%.2fx").extend().help("Damage your own rockets and grenades deal to you."),
+        slider("Melee Damage", vr_melee_dmg_multiplier, 0.25f, 15.f, 0.25f, "%.2fx").extend(),
         header("Positional Damage"),
         toggle("Positional Damage", vr_positional_damage).help("Headshots, arm and leg shots on humanoid monsters."),
-        slider("Headshot Damage", vr_headshot_mult, 1.f, 5.f, 0.1f, "%.1fx"),
-        slider("Arm Shot Damage", vr_limbshot_mult, 0.1f, 1.f, 0.05f, "%.2fx"),
-        slider("Leg Shot Damage", vr_legshot_mult, 0.1f, 1.f, 0.05f, "%.2fx"),
+        slider("Headshot Damage", vr_headshot_mult, 1.f, 5.f, 0.1f, "%.1fx").extend(),
+        slider("Arm Shot Damage", vr_limbshot_mult, 0.1f, 1.f, 0.05f, "%.2fx").extend(),
+        slider("Leg Shot Damage", vr_legshot_mult, 0.1f, 1.f, 0.05f, "%.2fx").extend(),
         slider("Headshot Sound", vr_headshot_sound, 0.f, 1.f, 0.1f, "%.1f").help("Volume of the crack you hear when you land a headshot (0 off)."),
         header("Knockback"),
-        slider("Knockback", vr_push, 0.f, 2.f, 0.05f, "%.2fx").help("All knockback; the settings below scale this."),
-        slider("Your Melee Hits", vr_melee_push, 0.f, 3.f, 0.05f, "%.2fx").help("How far your melee blows (and headbutts) push what they hit."),
-        slider("Weapon Hits", vr_hit_push, 0.f, 3.f, 0.05f, "%.2fx").help("How far heavy weapon hits shove monsters."),
-        slider("Killing Blows", vr_kill_push, 0.f, 3.f, 0.05f, "%.2fx").help("How far killing blows and explosions throw the bodies."),
-        slider("Parry Pushes Enemy", vr_parry_push_enemy, 0.f, 3.f, 0.05f, "%.2fx"),
-        slider("Parry Pushes You", vr_parry_push_player, 0.f, 3.f, 0.05f, "%.2fx"),
-        slider("Monsters' Blows Push You", vr_melee_push_player, 0.f, 3.f, 0.05f, "%.2fx"),
+        slider("Knockback", vr_push, 0.f, 2.f, 0.05f, "%.2fx").extend().help("All knockback; the settings below scale this."),
+        slider("Your Melee Hits", vr_melee_push, 0.f, 3.f, 0.05f, "%.2fx").extend().help("How far your melee blows (and headbutts) push what they hit."),
+        slider("Weapon Hits", vr_hit_push, 0.f, 3.f, 0.05f, "%.2fx").extend().help("How far heavy weapon hits shove monsters."),
+        slider("Killing Blows", vr_kill_push, 0.f, 3.f, 0.05f, "%.2fx").extend().help("How far killing blows and explosions throw the bodies."),
+        slider("Parry Pushes Enemy", vr_parry_push_enemy, 0.f, 3.f, 0.05f, "%.2fx").extend(),
+        slider("Parry Pushes You", vr_parry_push_player, 0.f, 3.f, 0.05f, "%.2fx").extend(),
+        slider("Monsters' Blows Push You", vr_melee_push_player, 0.f, 3.f, 0.05f, "%.2fx").extend(),
         header("Knights' Swords"),
         slider("Knights Drop Swords", vr_sword_drop, 0.f, 1.f, 0.05f, "%.2f").help("Chance a dying knight or hell knight drops its sword, a melee weapon you can pick up."),
-        slider("Sword Damage", vr_sword_damage_mult, 0.5f, 3.f, 0.05f, "%.2fx").help("A sword swing's damage over the axe's (the hell knight's sword: 25% more)."),
+        slider("Sword Damage", vr_sword_damage_mult, 0.5f, 3.f, 0.05f, "%.2fx").extend().help("A sword swing's damage over the axe's (the hell knight's sword: 25% more)."),
         header("Feel"),
         toggle("Explosion Rumble", vr_explosion_rumble).help("Explosions near you rumble in your hands."),
         toggle("Low Health Heartbeat", vr_heartbeat).help("A heartbeat in your hands when your health is low."),
@@ -479,30 +479,30 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
 {
     return {
         header("Parry and Bash"),
-        slider("Parry Angle", vr_parry_angle, 15.f, 80.f, 5.f, "%.0f deg")
+        slider("Parry Angle", vr_parry_angle, 15.f, 80.f, 5.f, "%.0f deg").extend()
             .help("Hold a weapon (sword, axe or gun, one hand or two) level across in front of you to block a monster's melee blow: how far it may be tilted off level."),
-        slider("Parry Reach", vr_parry_reach, 0.5f, 2.5f, 0.1f, "%.1f m").help("How far in front of you a held weapon still parries."),
+        slider("Parry Reach", vr_parry_reach, 0.5f, 2.5f, 0.1f, "%.1f m").extend().help("How far in front of you a held weapon still parries."),
         toggle("Unarmed Parry", vr_parry_unarmed).help("Cross your arms in an X in front of you to block a blow with your forearms."),
         slider("Unarmed Parry Reduction", vr_parry_unarmed_reduction, 0.f, 1.f, 0.05f, "%.2f"),
         toggle("Bash", vr_bash).help("The parry stance (a weapon level across in front, one hand or two) pushed straight forward bashes: knocks monsters back and staggers them. Open palms facing a monster pushed at it shove it. Two hands (a weapon held two-handed, a palm pushing on the blade, both palms) push harder and further."),
-        slider("Bash Speed", vr_bash_speed, 0.3f, 3.f, 0.1f, "%.1f m/s").help("How fast the stance (a weapon level across, held half a second) must be pushed forward, both its ends going ahead. A swing passing through the stance doesn't bash."),
-        slider("Shove Speed", vr_shove_speed, 0.8f, 5.f, 0.1f, "%.1f m/s").help("How fast open palms (facing ahead, not holding anything) must be pushed out, the arm extending, to shove. Hands waved or patted at a monster don't shove."),
-        slider("Bash Damage", vr_bash_damage, 0.f, 40.f, 1.f, "%.0f"),
-        slider("Bash Push", vr_bash_push, 0.f, 3.f, 0.05f, "%.2fx").help("How far a bash or shove throws what it hits (times Knockback)."),
+        slider("Bash Speed", vr_bash_speed, 0.3f, 3.f, 0.1f, "%.1f m/s").extend().help("How fast the stance (a weapon level across, held half a second) must be pushed forward, both its ends going ahead. A swing passing through the stance doesn't bash."),
+        slider("Shove Speed", vr_shove_speed, 0.8f, 5.f, 0.1f, "%.1f m/s").extend().help("How fast open palms (facing ahead, not holding anything) must be pushed out, the arm extending, to shove. Hands waved or patted at a monster don't shove."),
+        slider("Bash Damage", vr_bash_damage, 0.f, 40.f, 1.f, "%.0f").extend(),
+        slider("Bash Push", vr_bash_push, 0.f, 3.f, 0.05f, "%.2fx").extend().help("How far a bash or shove throws what it hits (times Knockback)."),
         slider("Bash and Parry Sounds", vr_bash_sound, 0.f, 1.f, 0.1f, "%.1f")
             .help("Volume of the sounds that tell a shove, a weapon bash, a parry-bash (a bash right after a parry) and a parry apart from your blows (0: the old sounds)."),
         header("Batting Projectiles"),
         toggle("Bat Back Projectiles", vr_deflect).help("Swing a weapon (or a fist) through a monster's spike, laser, spit or grenade to send it back where your hand points (at the monster, when you point near it)."),
-        slider("Batting Reach", vr_deflect_radius, 4.f, 32.f, 1.f, "%.0f units").help("How near the weapon's blade (or your fist) a projectile must pass to be batted back."),
-        slider("Batting Swing Speed", vr_deflect_speed, 0.2f, 1.5f, 0.05f, "%.2fx").help("How fast a batting swing must be, times Swing Speed (a hit needs 1x, and more for a swung weapon)."),
-        slider("Batting Timing", vr_deflect_window, 0.f, 0.5f, 0.05f, "%.2f s").help("How early you may swing: the weapon's path keeps batting this long after it passed."),
-        slider("Bash Batting Reach", vr_bash_deflect_radius, 4.f, 48.f, 1.f, "%.0f units")
+        slider("Batting Reach", vr_deflect_radius, 4.f, 32.f, 1.f, "%.0f units").extend().help("How near the weapon's blade (or your fist) a projectile must pass to be batted back."),
+        slider("Batting Swing Speed", vr_deflect_speed, 0.2f, 1.5f, 0.05f, "%.2fx").extend().help("How fast a batting swing must be, times Swing Speed (a hit needs 1x, and more for a swung weapon)."),
+        slider("Batting Timing", vr_deflect_window, 0.f, 0.5f, 0.05f, "%.2f s").extend().help("How early you may swing: the weapon's path keeps batting this long after it passed."),
+        slider("Bash Batting Reach", vr_bash_deflect_radius, 4.f, 48.f, 1.f, "%.0f units").extend()
             .help("A bash (or a shove with a weapon in hand) bats back projectiles that pass this near the guard: the weapon and the hands."),
-        slider("Bash Batting Timing", vr_bash_deflect_window, 0.f, 1.f, 0.05f, "%.2f s").help("How long a bash goes on batting after the push."),
+        slider("Bash Batting Timing", vr_bash_deflect_window, 0.f, 1.f, 0.05f, "%.2f s").extend().help("How long a bash goes on batting after the push."),
         header("Headbutt"),
         toggle("Headbutt", vr_headbutt).help("Lunge your head at something to headbutt it."),
-        slider("Headbutt Speed", vr_headbutt_speed, 0.4f, 3.f, 0.05f, "%.2f m/s").help("How fast the head must lunge (towards where you look)."),
-        slider("Headbutt Damage", vr_headbutt_damage, 5.f, 100.f, 1.f, "%.0f"),
+        slider("Headbutt Speed", vr_headbutt_speed, 0.4f, 3.f, 0.05f, "%.2f m/s").extend().help("How fast the head must lunge (towards where you look)."),
+        slider("Headbutt Damage", vr_headbutt_damage, 5.f, 100.f, 1.f, "%.0f").extend(),
     };
 }
 
@@ -512,15 +512,15 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         cycle("Body", vr_body_mode, {{0.f, "Off"}, {2.f, "Torso and arms"}, {3.f, "Full body"}}),
         cycle("Build", vr_body_build, {{0.f, "Lean"}, {1.f, "Athletic"}, {2.f, "Brawny"}}),
         toggle("Walking Legs", vr_body_walk).help("The legs (full body) walk as you move with the stick."),
-        slider("Step Rate", vr_body_step_rate, 1.f, 5.f, 0.1f, "%.1f /s")
+        slider("Step Rate", vr_body_step_rate, 1.f, 5.f, 0.1f, "%.1f /s").extend()
             .help("How fast the legs step at most, in steps a second at full running speed (walking, somewhat fewer)."),
-        slider("Turn Before Stepping", vr_body_turn_step, 15.f, 90.f, 5.f, "%.0f deg")
+        slider("Turn Before Stepping", vr_body_turn_step, 15.f, 90.f, 5.f, "%.0f deg").extend()
             .help("How far you turn over your planted feet before they step round to follow."),
-        slider("Wading Heaviness", vr_body_wade, 0.f, 2.f, 0.1f, "%.1fx")
+        slider("Wading Heaviness", vr_body_wade, 0.f, 2.f, 0.1f, "%.1fx").extend()
             .help("Wading, the legs walk heavier: shorter, higher, slower steps (0: as on land)."),
-        slider("Swimming Kicks", vr_body_swim_kick, 0.f, 2.f, 0.1f, "%.1fx")
+        slider("Swimming Kicks", vr_body_swim_kick, 0.f, 2.f, 0.1f, "%.1fx").extend()
             .help("Swimming, the legs trail behind and kick where the stick moves you: how wide (0: no kicks)."),
-        slider("Swimming Kick Rate", vr_body_swim_kick_rate, 0.f, 4.f, 0.1f, "+%.1f /s")
+        slider("Swimming Kick Rate", vr_body_swim_kick_rate, 0.f, 4.f, 0.1f, "+%.1f /s").extend()
             .help("How many more kicks a second at full stick (treading water, about 0.7)."),
         toggle("Show Armour and Wounds", vr_body_state)
             .help("The armour you wear plates your torso; your arms and hands get bloodier as you are hurt."),
@@ -545,7 +545,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Eyes Forward", vr_body_eye_forward, 0.f, 0.25f, 0.01f, "%.2f m").extend(-0.1f, 0.5f)
             .help("From the top of the neck to the eyes, forward."),
         slider("Eyes Up", vr_body_eye_up, 0.f, 0.25f, 0.01f, "%.2f m").extend(-0.1f, 0.5f).help("From the top of the neck to the eyes, up."),
-        slider("Crouch Tilt", vr_body_crouch_tilt, 0.f, 80.f, 5.f, "%.0f deg")
+        slider("Crouch Tilt", vr_body_crouch_tilt, 0.f, 80.f, 5.f, "%.0f deg").extend()
             .help("How far the back tilts forward in a full crouch (the hips stay under you)."),
     };
 }
@@ -588,7 +588,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
     return {
         toggle("Chest Flashlight", vr_flashlight)
             .help("A torch hanging on your belt, on your off hand's side (lighting only your feet there). Trigger at it: on or off. Grip it with an open, still hand to take it (a fist closing by it in a fight does nothing); let go and it springs back. In your hand: B or Y by a gun clips it on the gun, at your head on your head (a head torch), elsewhere turns it round (low grip or overhead)."),
-        slider("Brightness", vr_flashlight_brightness, 0.25f, 2.5f, 0.05f, "%.2fx"),
+        slider("Brightness", vr_flashlight_brightness, 0.25f, 2.5f, 0.05f, "%.2fx").extend(),
         slider("Range", vr_flashlight_range, 300.f, 2000.f, 50.f, "%.0f").extend(100.f, 6000.f),
         slider("Visible Beam", vr_flashlight_beam, 0.f, 1.f, 0.05f, "%.2f").help("A soft cone of light in the air from the lamp (0: none)."),
         cycle("Beam Quality", vr_flashlight_beam_quality, {{0.f, "Low"}, {1.f, "Medium"}, {2.f, "High"}})
@@ -597,7 +597,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         toggle("Cord", vr_flashlight_cord).help("The retracting cord from the clip on your belt to the torch while it is off the belt (off: none drawn)."),
         hueSlider("Beam Hue", vr_flashlight_hue).help("The beam's colour, with Beam Saturation (at 0 it is white): its light, the beam in the air and the lens. 40 warm, 200 cold blue; Player's: the Player Effects Hue."),
         slider("Beam Saturation", vr_flashlight_saturation, 0.f, 1.f, 0.05f, "%.2f").help("0 white (the default), 1 the Beam Hue in full."),
-        slider("Lean Out", vr_flashlight_tilt, -90.f, 90.f, 1.f, "%.0f deg").help("How far the stored torch, hanging on your belt lens down, leans its lens out from your body."),
+        slider("Lean Out", vr_flashlight_tilt, -90.f, 90.f, 1.f, "%.0f deg").extend().help("How far the stored torch, hanging on your belt lens down, leans its lens out from your body."),
         slider("Forward", vr_flashlight_forward, -0.3f, 0.3f, 0.005f, "%.3f m").extend(),
         slider("Up", vr_flashlight_up, -0.4f, 0.4f, 0.01f, "%.2f m").extend(),
         slider("Out", vr_flashlight_out, -0.3f, 0.3f, 0.01f, "%.2f m").extend().help("Towards your off hand's side."),
@@ -637,28 +637,28 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         cycle("Gore", vr_gore, {{0.f, "Quake VR"}, {1.f, "More"}, {2.f, "Over the top"}})
             .help("Over the top: hits spray blood onto the walls, floor and ceiling behind, gibbing paints the room, pools spread under corpses, gibs stick to ceilings and drip."),
         header("Hits, Gibs and Corpses"),
-        slider("Blood Sprays", vr_gore_spray, 0.f, 3.f, 0.25f, "%.2fx")
+        slider("Blood Sprays", vr_gore_spray, 0.f, 3.f, 0.25f, "%.2fx").extend()
             .help("How many splats a hit or a gibbing throws onto the walls, floor and ceiling round it (0 none)."),
-        slider("Splat Size", vr_gore_size, 0.5f, 2.f, 0.1f, "%.1fx").help("How big the gore's splats, pools and runs are."),
-        slider("Blood Pools", vr_gore_pools, 0.f, 2.f, 0.1f, "%.1fx").help("Pools of blood spreading under corpses and gibs: their size (0 none)."),
-        slider("Dripping", vr_gore_drips, 0.f, 3.f, 0.25f, "%.2fx")
+        slider("Splat Size", vr_gore_size, 0.5f, 2.f, 0.1f, "%.1fx").extend().help("How big the gore's splats, pools and runs are."),
+        slider("Blood Pools", vr_gore_pools, 0.f, 2.f, 0.1f, "%.1fx").extend().help("Pools of blood spreading under corpses and gibs: their size (0 none)."),
+        slider("Dripping", vr_gore_drips, 0.f, 3.f, 0.25f, "%.2fx").extend()
             .help("Blood dripping from splats on the ceiling and from gibs stuck there: how long and how much (0 none)."),
-        slider("Gibs Stick", vr_gore_stick, 0.f, 30.f, 1.f, "%.0f s")
+        slider("Gibs Stick", vr_gore_stick, 0.f, 30.f, 1.f, "%.0f s").extend()
             .help("Gibs flung into a ceiling or a wall may stick there about this long, dripping, then fall (0 never)."),
         header("Your Wounds"),
-        slider("Arm Drip Rate", vr_body_blood, 0.f, 4.f, 0.25f, "%.2fx")
+        slider("Arm Drip Rate", vr_body_blood, 0.f, 4.f, 0.25f, "%.2fx").extend()
             .help("How often blood drips from your wounded arms and hands (the body's wounds: Show Armour and Wounds; 0 none)."),
-        slider("Drop Size", vr_body_blood_amount, 0.5f, 3.f, 0.25f, "%.2fx").help("How big the drops are and how much they splash."),
-        slider("Drips Round Feet", vr_body_blood_floor, 0.f, 4.f, 0.25f, "%.2fx")
+        slider("Drop Size", vr_body_blood_amount, 0.5f, 3.f, 0.25f, "%.2fx").extend().help("How big the drops are and how much they splash."),
+        slider("Drips Round Feet", vr_body_blood_floor, 0.f, 4.f, 0.25f, "%.2fx").extend()
             .help("While wounded, blood drips from your body round your feet, faster when badly hurt or just hit (0 none)."),
         slider("Drops Mark Floor", vr_body_blood_marks, 0.f, 1.f, 0.05f, "%.2f").help("The chance a drop leaves a mark on the floor."),
-        slider("Floor Mark Size", vr_body_blood_mark_size, 0.5f, 4.f, 0.25f, "%.2fx"),
+        slider("Floor Mark Size", vr_body_blood_mark_size, 0.5f, 4.f, 0.25f, "%.2fx").extend(),
         header("Marks"),
         toggle("Decals", vr_decals).help("Blood, scorch marks and bullet chips on walls and floors (the gore needs them)."),
-        slider("Max Decals", vr_decal_max, 64.f, 4096.f, 64.f, "%.0f").help("The oldest go first. The gore makes many: 1024 or more."),
-        slider("Decal Lifetime", vr_decal_life, 10.f, 600.f, 10.f, "%.0f s"),
+        slider("Max Decals", vr_decal_max, 64.f, 4096.f, 64.f, "%.0f").extend().help("The oldest go first. The gore makes many: 1024 or more."),
+        slider("Decal Lifetime", vr_decal_life, 10.f, 600.f, 10.f, "%.0f s").extend(),
         toggle("Gib Blood", vr_gib_blood).help("Gibs and heads leave a trail of blood drops and splat where they hit walls and floors. Off: Quake's trail."),
-        slider("Gib Blood Trail", vr_gib_blood_trail, 0.f, 3.f, 0.25f, "%.2fx").help("How dense their trail of blood and drops is (0 none)."),
+        slider("Gib Blood Trail", vr_gib_blood_trail, 0.f, 3.f, 0.25f, "%.2fx").extend().help("How dense their trail of blood and drops is (0 none)."),
     };
 }
 
@@ -692,22 +692,22 @@ void hologramTestMessage()
     return {
         header("Wrist Gadget"),
         toggle("Level and Stats", vr_gadget_show_level),
-        slider("Screen Light", vr_gadget_light, 0.f, 3.f, 0.1f, "%.1fx")
+        slider("Screen Light", vr_gadget_light, 0.f, 3.f, 0.1f, "%.1fx").extend()
             .help("The screen casts a light in its colour the way it faces, and a faint one on your hand (0 off)."),
-        slider("CRT Look", vr_gadget_crt, 0.f, 2.f, 0.1f, "%.1fx")
+        slider("CRT Look", vr_gadget_crt, 0.f, 2.f, 0.1f, "%.1fx").extend()
             .help("Scanlines, a slight flicker, faint static and now and then a glitch (0 off)."),
-        slider("Screen Glow", vr_screen_glow, 0.f, 3.f, 0.1f, "%.1fx")
+        slider("Screen Glow", vr_screen_glow, 0.f, 3.f, 0.1f, "%.1fx").extend()
             .help("The gadget's and your weapons' screens glow softly round their edges (0 off)."),
-        slider("Text Glow", vr_screen_text_glow, 0.f, 3.f, 0.1f, "%.1fx")
+        slider("Text Glow", vr_screen_text_glow, 0.f, 3.f, 0.1f, "%.1fx").extend()
             .help("The text, numbers and icons on those screens glow: bright whitish cores, a soft halo (0 off)."),
         header("Messages"),
         toggle("Game Messages as Hologram", vr_messages_hologram)
             .help("The game's messages (a key needed, a secret found, the map's text, pickups) float as a hologram the gadget projects over its screen, while you look at it. Else the key and map messages show in front of you."),
-        slider("Hologram Time", vr_messages_hologram_time, 2.f, 15.f, 0.5f, "%.1f s").help("How long a message stays in the hologram."),
+        slider("Hologram Time", vr_messages_hologram_time, 2.f, 15.f, 0.5f, "%.1f s").extend().help("How long a message stays in the hologram."),
         slider("Hologram Text Size", vr_messages_hologram_size, 0.5f, 2.f, 0.05f, "%.2fx").extend(0.25f, 4.f),
         slider("Hologram Height", vr_messages_hologram_height, 0.f, 15.f, 0.5f, "%.1f cm").extend(0.f, 50.f)
             .help("How high over the gadget it floats."),
-        slider("Hologram Effect", vr_messages_hologram_effect, 0.f, 2.f, 0.1f, "%.1fx")
+        slider("Hologram Effect", vr_messages_hologram_effect, 0.f, 2.f, 0.1f, "%.1fx").extend()
             .help("The beam of light from the screen, scanlines, flicker, glitches and the projection as it appears (0: plain glowing text)."),
         action("Show a Test Message", hologramTestMessage)
             .help("One of the game's messages in the hologram, as they come: raise the gadget to see it while you change these settings. Press again for another: they stack."),
@@ -715,16 +715,16 @@ void hologramTestMessage()
             .help("The game's messages never show in front of you: they wait in the hologram until you look at the gadget. A new one (a key needed, a secret, the map's text; not pickups) chimes from the gadget on your wrist and buzzes it."),
         cycle("Console Messages", vr_notify_wrist, {{1.f, "Over the gadget"}, {2.f, "Both"}, {0.f, "In view"}})
             .help("The console's other messages (the engine's: settings changed, cheats, errors) float in a small log over the gadget, or at the top of the view."),
-        slider("Console Message Time", vr_notify_wrist_time, 2.f, 30.f, 1.f, "%.0f s")
+        slider("Console Message Time", vr_notify_wrist_time, 2.f, 30.f, 1.f, "%.0f s").extend()
             .help("How long a message stays in the gadget's log."),
         slider("Console Log Height", vr_notify_wrist_height, 0.f, 20.f, 0.5f, "%.1f cm").extend(0.f, 60.f)
             .help("How high over the gadget the log floats (always over the hologram)."),
-        slider("Console Log Brightness", vr_notify_wrist_alpha, 0.2f, 1.f, 0.05f, "%.2f"),
+        slider("Console Log Brightness", vr_notify_wrist_alpha, 0.2f, 1.f, 0.05f, "%.2f").extend(),
         header("Weapons' Ammo Screens"),
         toggle("Weapon Text", "vr_show_weapon_text").help("Show floating ammunition text attached to weapons"),
         toggle("Weapon Ammo Screen", "vr_weapon_screen").help("The ammunition text on a small screen on the weapon (colours from the wrist gadget's screen)."),
-        slider("Ammo Screen Margin", "vr_weapon_screen_padding", 0.f, 2.f, 0.1f, "%.1f"),
-        slider("Ammo Screen CRT Look", "vr_weapon_screen_crt", 0.f, 2.f, 0.1f, "%.1fx").help("Scanlines, a slight flicker, faint static and now and then a glitch, as on the wrist gadget's screen (0 off)."),
+        slider("Ammo Screen Margin", "vr_weapon_screen_padding", 0.f, 2.f, 0.1f, "%.1f").extend(),
+        slider("Ammo Screen CRT Look", "vr_weapon_screen_crt", 0.f, 2.f, 0.1f, "%.1fx").extend().help("Scanlines, a slight flicker, faint static and now and then a glitch, as on the wrist gadget's screen (0 off)."),
         toggle("Screens on Weapons at Rest", "vr_weapon_screen_idle").help("Weapons in your holsters and lying in the world show their ammo screen and button too, not only the ones in your hands."),
         header("Map Boards"),
         toggle("Map Boards as CRTs", "vr_worldtext_crt").help("The text boards in maps (the tutorial's, the start map's) are CRT screens with glowing text, as the wrist gadget's. Off: plain text."),
@@ -743,8 +743,8 @@ void hologramTestMessage()
         header("Wrist Gadget"),
         hueSlider("Screen Hue", vr_gadget_screen_hue)
             .help("The screen's colour (and your weapons' screens'). Player's: the Player Effects Hue."),
-        slider("Screen Brightness", vr_gadget_screen_brightness, 0.3f, 1.5f, 0.05f, "%.2f"),
-        slider("Screen Background", vr_gadget_screen_background, 0.f, 4.f, 0.1f, "%.1f"),
+        slider("Screen Brightness", vr_gadget_screen_brightness, 0.3f, 1.5f, 0.05f, "%.2f").extend(),
+        slider("Screen Background", vr_gadget_screen_background, 0.f, 4.f, 0.1f, "%.1f").extend(),
         slider("Casing Tint", vr_gadget_tint, 0.f, 1.f, 0.05f, "%.2f").help("0 keeps the casing's own olive drab."),
         slider("Casing Tint Hue", vr_gadget_tint_hue, 0.f, 355.f, 5.f, "%.0f"),
         header("Effects"),
@@ -765,33 +765,33 @@ void hologramTestMessage()
 [[nodiscard]] std::vector<Item> pageThrowing()
 {
     return {
-        slider("Throw Speed", vr_weapon_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx"),
-        slider("Two-Hand Throw Speed", vr_2h_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx"),
+        slider("Throw Speed", vr_weapon_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend(),
+        slider("Two-Hand Throw Speed", vr_2h_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend(),
         cycle("Throw Gravity", vr_throw_gravity, {{9.81f, "Real"}, {0.f, "Quake"}}),
-        slider("Velocity Window", vr_throw_window, 0.04f, 0.3f, 0.01f, "%.2f s")
+        slider("Velocity Window", vr_throw_window, 0.04f, 0.3f, 0.01f, "%.2f s").extend()
             .help("Around the release, where the hand's fastest moment sets the throw."),
-        slider("Direction Lookback", vr_throw_dir_lookback, 0.f, 0.1f, 0.005f, "%.3f s")
+        slider("Direction Lookback", vr_throw_dir_lookback, 0.f, 0.1f, 0.005f, "%.3f s").extend()
             .help("How far back from that moment the throw's direction is averaged."),
-        slider("Lever Arm", vr_throw_lever_arm, 0.f, 0.3f, 0.01f, "%.2f m")
+        slider("Lever Arm", vr_throw_lever_arm, 0.f, 0.3f, 0.01f, "%.2f m").extend()
             .help("From the palm to the held object's centre: wrist flicks add speed through it."),
         toggle("Analog Release", vr_throw_release)
             .help("A throw lets go as the grip starts to open, not only once it is released."),
-        slider("Max Speed Gain", vr_throw_gain_max, 1.f, 3.f, 0.05f, "%.2fx")
+        slider("Max Speed Gain", vr_throw_gain_max, 1.f, 3.f, 0.05f, "%.2fx").extend()
             .help("Extra speed for fast throws, which feel weak at true speed."),
         toggle("Aim Assist", vr_throw_assist)
             .help("Throws close to an enemy's direction bend towards it."),
-        slider("Assist Cone", vr_throw_assist_cone, 2.f, 30.f, 1.f, "%.0f deg"),
+        slider("Assist Cone", vr_throw_assist_cone, 2.f, 30.f, 1.f, "%.0f deg").extend(),
         slider("Assist Strength", vr_throw_assist_strength, 0.f, 1.f, 0.05f, "%.2f"),
         header("Physics"),
         cycle("Physics Engine", vr_physics_engine, {{0.f, "Quake VR"}, {1.f, "Box3D"}})
             .help("Quake VR: thrown and dropped things each on their own (they pass through each other). Box3D: they also "
                   "collide with each other, so boxes stack and piles form. Switches at once."),
-        slider("Bounciness", vr_throw_restitution, 0.f, 0.8f, 0.05f, "%.2f"),
-        slider("Friction", vr_throw_friction, 0.f, 1.5f, 0.05f, "%.2f"),
-        slider("Max Spin", vr_throw_spin_max, 0.f, 40.f, 1.f, "%.0f rad/s"),
-        slider("Spin Drag", vr_throw_spin_drag, 0.f, 2.f, 0.05f, "%.2f"),
-        slider("Hitbox", vr_throw_hitbox, 1.f, 12.f, 0.5f, "%.1f").help("Half-size of a thrown weapon's box against monsters."),
-        slider("Hit Min Speed", vr_throw_hit_min_speed, 0.f, 600.f, 25.f, "%.0f")
+        slider("Bounciness", vr_throw_restitution, 0.f, 0.8f, 0.05f, "%.2f").extend(),
+        slider("Friction", vr_throw_friction, 0.f, 1.5f, 0.05f, "%.2f").extend(),
+        slider("Max Spin", vr_throw_spin_max, 0.f, 40.f, 1.f, "%.0f rad/s").extend(),
+        slider("Spin Drag", vr_throw_spin_drag, 0.f, 2.f, 0.05f, "%.2f").extend(),
+        slider("Hitbox", vr_throw_hitbox, 1.f, 12.f, 0.5f, "%.1f").extend().help("Half-size of a thrown weapon's box against monsters."),
+        slider("Hit Min Speed", vr_throw_hit_min_speed, 0.f, 600.f, 25.f, "%.0f").extend()
             .help("Units/s a thrown weapon, box or gib must go at to hurt a monster; slower (at rest against it, pushed into it) it does nothing."),
     };
 }
@@ -816,29 +816,29 @@ void hologramTestMessage()
                   "them together. 0: they stay on your real hands."),
         toggle("Fit to the Hand", vr_held_surface_fit)
             .help("A box, backpack or gib you grip sits against your curled fingers, by its drawn shape. Off: it stays where you gripped it."),
-        slider("Fit Gap", vr_held_fit_gap, -6.f, 3.f, 0.1f, "%.1f cm")
+        slider("Fit Gap", vr_held_fit_gap, -6.f, 3.f, 0.1f, "%.1f cm").extend()
             .help("Space left between your fingers and what they hold (negative: sunk in). Per model: vr_held_fit_gaps in the console."),
-        slider("Push Strength", vr_carry_nudge, 0.f, 2.f, 0.1f, "%.1fx"),
-        slider("Box Throw Speed", vr_carry_throw_mult, 0.5f, 3.f, 0.1f, "%.1fx"),
-        slider("Box Punch Damage", vr_carry_melee_mult, 1.f, 3.f, 0.1f, "%.1fx").help("Punching with a box in hand."),
-        slider("Thrown Box Damage", vr_carry_throw_damage, 0.f, 50.f, 1.f, "%.0f").help("Damage of a box thrown at about 6 m/s; more the faster."),
+        slider("Push Strength", vr_carry_nudge, 0.f, 2.f, 0.1f, "%.1fx").extend(),
+        slider("Box Throw Speed", vr_carry_throw_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend(),
+        slider("Box Punch Damage", vr_carry_melee_mult, 1.f, 3.f, 0.1f, "%.1fx").extend().help("Punching with a box in hand."),
+        slider("Thrown Box Damage", vr_carry_throw_damage, 0.f, 50.f, 1.f, "%.0f").extend().help("Damage of a box thrown at about 6 m/s; more the faster."),
         header("Armour"),
         cycle("Armour", vr_armor_wear, {{0.f, "Touch takes it"}, {1.f, "Wear by hand"}})
             .help("Wear by hand: grip the armour to carry it and let go of it over your chest to put it on (only if it is better "
                   "than yours). Walking over it no longer takes it. Next map."),
-        slider("Armour Size", vr_armor_scale, 0.3f, 1.f, 0.05f, "%.2fx").help("The carried armour's size (1: Quake's, a metre tall). Next map."),
+        slider("Armour Size", vr_armor_scale, 0.3f, 1.f, 0.05f, "%.2fx").extend().help("The carried armour's size (1: Quake's, a metre tall). Next map."),
         header("Gibs and Corpses"),
         cycle("Gibs and Heads", vr_grab_gibs, {{0.f, "Left alone"}, {1.f, "Grab by hand"}, {2.f, "Hand and force grab"}})
             .help("Pick up and throw gibs and heads, by reaching for them (or force-grabbing them too)."),
-        slider("Thrown Gib Damage", vr_gib_throw_damage, 0.f, 50.f, 1.f, "%.0f").help("Damage of a gib or head thrown at about 6 m/s; more the faster."),
+        slider("Thrown Gib Damage", vr_gib_throw_damage, 0.f, 50.f, 1.f, "%.0f").extend().help("Damage of a gib or head thrown at about 6 m/s; more the faster."),
         toggle("Destroy Gibs", vr_gib_destroy)
             .help("Gibs and heads burst in a mist of blood when shot, blown up, struck, or thrown hard at a wall or a monster."),
-        slider("Gib Health", vr_gib_health, 1.f, 60.f, 1.f, "%.0f").help("The damage that destroys a gib; a head takes half as much again."),
-        slider("Gib Splat Speed", vr_gib_splat_speed, 100.f, 600.f, 25.f, "%.0f")
+        slider("Gib Health", vr_gib_health, 1.f, 60.f, 1.f, "%.0f").extend().help("The damage that destroys a gib; a head takes half as much again."),
+        slider("Gib Splat Speed", vr_gib_splat_speed, 100.f, 600.f, 25.f, "%.0f").extend()
             .help("Units/s a thrown gib or head must hit a wall or a monster at to burst."),
         toggle("Gib Corpses", vr_corpse_gib)
             .help("Corpses burst into gibs when shot, blown up or struck enough: shotguns, nails, lightning, rockets, fists, melee weapons."),
-        slider("Corpse Health", vr_corpse_health, 10.f, 300.f, 10.f, "%.0f")
+        slider("Corpse Health", vr_corpse_health, 10.f, 300.f, 10.f, "%.0f").extend()
             .help("The damage that gibs a corpse; a big monster's takes more (an ogre's 1.75 times, a fiend's 2.25, a shambler's 3.5)."),
     };
 }
@@ -850,24 +850,24 @@ void hologramTestMessage()
             .help("Point an empty hand at an object, pull the trigger, flick the hand: it flies to you. Grip as it arrives "
                   "to catch it."),
         slider("Distance", vr_forcegrab_distance, 100.f, 1500.f, 25.f, "%.0f").extend(100.f, 4000.f),
-        slider("Aim Cone", vr_forcegrab_cone, 3.f, 45.f, 1.f, "%.0f deg").help("How far off where the hand points an object may be."),
-        slider("Flick Speed", vr_forcegrab_flick_speed, 0.3f, 3.f, 0.1f, "%.1f m/s")
+        slider("Aim Cone", vr_forcegrab_cone, 3.f, 45.f, 1.f, "%.0f deg").extend().help("How far off where the hand points an object may be."),
+        slider("Flick Speed", vr_forcegrab_flick_speed, 0.3f, 3.f, 0.1f, "%.1f m/s").extend()
             .help("How fast the hand moves back or up to pull."),
-        slider("Flick Turn", vr_forcegrab_flick_turn, 50.f, 800.f, 25.f, "%.0f deg/s")
+        slider("Flick Turn", vr_forcegrab_flick_turn, 50.f, 800.f, 25.f, "%.0f deg/s").extend()
             .help("Or how fast the fingers swing back or up."),
-        slider("Flight Time", vr_forcegrab_time, 0.15f, 1.f, 0.05f, "%.2f s"),
-        slider("Flight Speed", vr_forcegrab_speed, 300.f, 3000.f, 100.f, "%.0f")
+        slider("Flight Time", vr_forcegrab_time, 0.15f, 1.f, 0.05f, "%.2f s").extend(),
+        slider("Flight Speed", vr_forcegrab_speed, 300.f, 3000.f, 100.f, "%.0f").extend()
             .help("Units per extra second of flight: longer pulls fly longer."),
-        slider("Arc Height", vr_forcegrab_arc, 0.f, 0.5f, 0.05f, "%.2f"),
-        slider("Catch Radius", vr_forcegrab_catch_radius, 4.f, 32.f, 1.f, "%.0f"),
-        slider("Catch Early", vr_forcegrab_catch_early, 0.05f, 1.f, 0.05f, "%.2f s")
+        slider("Arc Height", vr_forcegrab_arc, 0.f, 0.5f, 0.05f, "%.2f").extend(),
+        slider("Catch Radius", vr_forcegrab_catch_radius, 4.f, 32.f, 1.f, "%.0f").extend(),
+        slider("Catch Early", vr_forcegrab_catch_early, 0.05f, 1.f, 0.05f, "%.2f s").extend()
             .help("How long before it arrives the grip may close to catch it."),
-        slider("Catch Late", vr_forcegrab_catch_late, 0.f, 0.5f, 0.05f, "%.2f s"),
+        slider("Catch Late", vr_forcegrab_catch_late, 0.f, 0.5f, 0.05f, "%.2f s").extend(),
         toggle("Pointing Particles", vr_forcegrab_eligible_particles).help("Sparkles on the object an empty hand points at, that it can pull."),
         toggle("Pointing Haptics", vr_forcegrab_eligible_haptics).help("A tick in the hand when it points at a new object it can pull."),
-        slider("Outline", "vr_forcegrab_outline", 0.f, 2.f, 0.1f, "%.1f").help("The soft glow round the object a hand points at (0 off)."),
+        slider("Outline", "vr_forcegrab_outline", 0.f, 2.f, 0.1f, "%.1f").extend().help("The soft glow round the object a hand points at (0 off)."),
         toggle("Effects", "vr_forcegrab_fx").help("A faint beam to what you point at, a crackling tendril when locked on, a trail behind what flies to you."),
-        slider("Ammo/Health Box Size", vr_forcegrabbable_box_scale, 0.1f, 1.f, 0.05f, "%.2f")
+        slider("Ammo/Health Box Size", vr_forcegrabbable_box_scale, 0.1f, 1.f, 0.05f, "%.2f").extend()
             .help("Takes effect on the next map."),
     };
 }
@@ -950,7 +950,7 @@ std::vector<Item> pageMain()
     return {
         header("Comfort"),
         cycle("Turning", vr_snap_turn, {{0.f, "Smooth"}, {30.f, "Snap 30"}, {45.f, "Snap 45"}, {90.f, "Snap 90"}}),
-        slider("Turn Speed", vr_turn_speed, 1.f, 8.f, 0.25f, "%.2f"),
+        slider("Turn Speed", vr_turn_speed, 1.f, 8.f, 0.25f, "%.2f").extend(),
         cycle("Move Towards", vr_movement_mode, {{1.f, "Head"}, {0.f, "Off hand"}}),
         cycle("Default Speed", "cl_alwaysrun", {{1.f, "Run"}, {0.f, "Walk"}}).help("The speed button switches to the other."),
         slider("Stick Deadzone", vr_deadzone, 0.f, 50.f, 5.f, "%.0f%%"),
@@ -973,7 +973,7 @@ std::vector<Item> pageMain()
         cycle("Two-Handed", vr_2h_mode, {{0.f, "Off"}, {1.f, "Basic"}, {2.f, "Virtual stock"}}),
         open("Weapon Offsets (Held Weapon)", pageIndex(pageWeaponOffsets)),
         toggle("Two-Handed Hand-Off", vr_2h_handoff).help("Letting go with the hand holding a two-handed weapon leaves it in the other hand: a sword changes hands; a gun hangs from its foregrip until a hand takes its handle."),
-        slider("Throw Speed", vr_weapon_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx"),
+        slider("Throw Speed", vr_weapon_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend(),
         cycle("Throw Gravity", vr_throw_gravity, {{9.81f, "Real"}, {0.f, "Quake"}}),
         toggle("Force Grab", vr_forcegrab_mode),
         cycle("Haptics", vr_disablehaptics, {{0.f, "On"}, {1.f, "Off"}}),
