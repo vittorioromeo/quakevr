@@ -392,3 +392,191 @@ nothing).
       bother you? Palm Fit: Things and Palm Turn change it.
 - [ ] Quad, pentagram, ring of shadows and the flashlight on the hands.
 - [ ] Jointed Hand off: the old hands, for comparison.
+
+## Wrist gadget, hologram, casings, flashlight
+
+Five of your voice notes: casings splashing into water, a test button for the hologram, messages only on the
+gadget (a chime from the wrist and a buzz instead), an FPS counter on the gadget, and a straight flashlight held like
+a real one, with a second grip (B/Y) and clipped along the barrel.
+
+| Note | Result |
+|---|---|
+| Casings in water | a tiny splash, the smallest ripple and a quiet, higher plip where a casing goes in; it then sinks slowly |
+| Hologram test | Screens > Messages > **Show a Test Message**: one of the game's own messages, as the game sends them; press again and they stack |
+| Messages only on the gadget | Screens > Messages > **Messages Only on the Gadget** (off by default): nothing in front of you; the message waits in the hologram until you look; a chime from the gadget and a double buzz |
+| FPS counter | Graphics > Performance > **FPS Counter on the Gadget**: ` 90 FPS CPU  5.2 GPU  8.1` floating just under the gadget |
+| Flashlight | a straight 13 cm torch through the fist; B/Y (away from a gun) flips between the low and the overhead grip; on a gun it lies parallel to the barrel |
+
+### Casings into water (`vr_shells.cpp`, `vr_particles.cpp`)
+
+- A casing crossing into water, slime or lava (flying, or rolling in on a sloping floor) finds the surface there and
+  makes `particles::shellSplash`: the splash preset's parts at a casing's size. That is 5-9 small drops thrown up 3-12
+  cm (half leave a little ring where they fall back), one ring riding the ripple's crest, and a wisp of foam. Lava
+  adds an ember or two. It follows vr_water_splash, _size and _ring_size.
+- The ripple is `water::addRipple` with a strength under 1. Those now get a lower floor: 1.1-2.3 units at your
+  amplitude of 16, against a shot's 7.7. Other splashes are unchanged (they are 1 and up).
+- The sound is `shell_plip1..3.wav`: the recorded plips (plip1, 3, 4) pitched up 1.4-1.65 times and cut to 0.2 s, made
+  by `make_sounds.py` (credited in CREDITS.md). It plays at the surface at 0.25-0.55 × vr_shells_sound ×
+  vr_water_sounds, louder the faster the casing goes in. The mixer has no pitch, so the pitch is in the files.
+- The water takes 70% of the casing's speed and half its spin. It then sinks at the old slow rate.
+- Cheap: at most 4 splashes and 2 sounds each tenth of a second, however many casings land. `developer 2` prints each
+  one.
+
+### Hologram: the test button, messages only on the gadget (`vr_gadget.cpp`)
+
+**Which messages go where.** Before this round:
+
+| Message | Where it shows |
+|---|---|
+| Centre prints: a key needed, a secret, the maps' trigger texts, runes | the hologram while the gadget faces you; otherwise in front of you as always |
+| Server prints: pickups, a powerup running out, deaths, chat | the hologram (and at the top of the view with Console Messages set to In view or Both) |
+| The engine's lines: cvars, cheats, errors, the level's name when it loads | the log over the gadget (diagnostics) |
+| The intermission's and finale's texts | in front of you (the gadget is put away) |
+
+**Notifications** are centre prints, plus server prints that aren't pickups ("You got/get/receive ..."). A pickup is
+not news: the thing is already in your hand. The level's name is an engine line, printed as a map loads, and stays in
+the log. It is also on the gadget's screen.
+
+- **Show a Test Message** (`vr_message_test` with no arguments). Each press sends the next of six of the game's own
+  messages, the way the game sends them, with its sound: "You need the gold key", e1m1's "You must press the three
+  buttons...", "You found a secret area!", "Quad Damage is wearing off" (a print), e4m4's two-line exit text, "A
+  secret cave has opened...". It works with the menu open. Raise the gadget beside the panel to see them.
+- **Stacking.** The hologram now keeps its own queue of messages. They are taken from the console as they are printed,
+  so a line pieced together from several prints comes through whole. Centre prints stack as well: before, a new one
+  replaced the last. The same text again, like a locked door touched twice, keeps the shown one on.
+- **Messages Only on the Gadget** (`vr_messages_hologram_only` 0/1):
+  - The game's messages never show in front of you. That covers centre prints, and server prints when Console
+    Messages is set to In view or Both. The engine's lines still go where Console Messages says.
+  - A notification waits in the hologram until you look. Its life (Hologram Time) starts when you first see it,
+    meaning the hologram faces you and has at least half faded in, and it grows in then. It is dropped after five
+    minutes unseen, or on a new map. Waiting messages are kept ahead of pickups when space runs short.
+  - A new notification while the gadget is out of view plays Quake's message sound (misc/talk.wav) at the gadget. It
+    stays there as the arm moves, so you hear it in stereo from the wrist. The gadget's hand also gets two short soft
+    pulses, like a watch.
+  - The game's own talk.wav and secret.wav are moved to the gadget then, not doubled. They arrive just before their
+    message, so one chime covers a burst.
+  - Messages that come while you are looking behave as before.
+- **Hooks:** `VR_GameSound` (cl_parse.c's sound packets), `VR_GameLineOnWrist` (Con_DrawNotify), and
+  `VR_CenterPrintOnWrist`, which now also covers this mode.
+
+### FPS counter (`vr_gadget.cpp`, `vr_main.cpp`)
+
+- `vr_gadget_fps 1` shows ` 90 FPS CPU  5.2 GPU  8.1` just under the gadget as you see it. It faces you, like the
+  hologram above it, and fades in with the gadget's facing.
+- The characters are about 5 mm, in the screen's colour, with the hologram's shade: faint scanlines, no flicker or
+  glitches, so the figures read steadily. The words are dimmer than the figures.
+- **FPS** comes from the frames' own periods.
+- **CPU** is our work per frame: the host frame less the runtime's and the swap's waits (the memory log's `busy_ms`).
+- **GPU** is the eyes' drawing (`gpu_eyes_ms`), from the timer queries that run every frame anyway.
+- All three are averaged over half a second, through a third reader of `profile::takePhases`. There is no new
+  measurement code. Its small image is drawn again only when the figures change.
+- **Cost** (exclusive runs, mock, e1m1, the gadget raised; 8 alternating 30-second blocks, `vr_memstats`):
+
+  | | Off | On |
+  |---|---|---|
+  | CPU busy_ms | 0.611 | 0.611 |
+  | GPU eyes | 0.465 | 0.473 |
+
+  The difference is within noise. vr_profile agrees:
+  - its GPU scopes cost 0.005-0.006 ms per eye;
+  - its image costs 0.066 ms twice a second, which is 0.001 ms per frame on average.
+- An earlier block order (all Off first) showed +0.07 ms of GPU time. It went away once the blocks alternated, so it
+  was the GPU's clocks drifting, not the counter.
+
+### Flashlight (`make_flashlight.py`, `vr_flashlight.cpp`)
+
+**The model.** A straight tactical torch, 13 cm long:
+- a knurled tube, 2.6 cm across, with three grip rings;
+- a ribbed tail cap with a rubber button, where the cord goes in;
+- a rubber switch on the tube just below the head;
+- a finned head, 3.7 cm across, with a steel bezel and the lens.
+
+It is flat-shaded like the other props. The origin is in the middle of the grip. `flashlight_flip.wav` is new: the
+torch scuffing round in the palm and seating. The other sounds come out byte-identical.
+
+**In the hand.**
+- The tube goes through the curled fingers, along the fist's axis. The switch faces the knuckles, under the thumb.
+- **Low grip** (the default): the beam comes out of the thumb's side. Pitch the hand forward a quarter turn from a
+  pistol's aim to light ahead: the thumb points out and forward, as when you hold a torch at your side.
+- **Overhead "searching" grip:** away from a gun, press **B/Y** with the torch in your hand and it turns round in the
+  fist. The beam now comes out of the little finger's side: with the fist raised by your head and the thumb towards
+  your face, it lights ahead. Press again to go back.
+  - Each flip gives a click and a light buzz.
+  - Each hand remembers its own grip for the next time it takes the torch, across letting go and across maps.
+  - The flip is instant, a regrip. Animated over 0.16 s, the hand's grasp had to be solved again every frame and the
+    palm jumped by up to 5 cm.
+- **The fitted hands' grasp** wraps the fingers round the tube. At your In Hand Forward/Up (-5 / -4 cm), the palm
+  moves 1.2-1.5 cm to fit, low or overhead, in either hand (`vr_debug_grasp`).
+- **Voice notes:** while the off hand holds the torch, its Y turns the torch round even at your mouth, instead of
+  starting a voice note. The overhead grip is by the head. The other hand's `+vr_note` binding, or putting the torch
+  back first, still records.
+
+**On the chest.** The torch points forward, tilted down by Tilt Down, its tail 1.2 cm in front of the chest where the
+cord comes out of the clip. It protrudes about 14 cm. Forward/Up/Out move it.
+
+**On a gun.** It lies parallel to the barrel, the lens 1 cm behind the muzzle, running back along the gun, its switch
+out to the side:
+- It sits under the gun. Where the gun's underside is deep over the torch's length, it goes beside the gun on the side
+  away from your body instead.
+- This is fitted once per gun and size, from the gun's drawn triangles, in 0.2-0.5 ms: under the shotgun, super
+  shotgun, nailgun, rocket launcher and lightning gun (4.7-10 cm below the aim line); beside the super nailgun and
+  the grenade launcher.
+- The attach rules are as in round 20. It follows the gun as drawn, in either hand, mirrored for the off hand.
+
+**Everything else:**
+- The beam comes out of the lens along the tube.
+- A hand reaches the torch anywhere along its axis, from the tail to the lens, within 9 cm, both to take it and to
+  switch it.
+- The switch's clicks come from the switch, and the clamp's from the torch, instead of from inside your head.
+- The haptics are as before.
+
+### Tested (mock headset)
+
+Composites are in the scratchpad's `round21_gadget/`:
+- **`casings_before_after.png`** (e1m2's pool, every second frame): before, the casing vanishes into the water; after,
+  the tiny splash, ring and ripple. The log shows "VR shell into a liquid: ... splash, plip".
+- **`hologram_and_fps.png`:**
+  - the test message pressed 1, 2, 3 and 5 times: they stack, and are gone 7 s later;
+  - Messages Only with the wrist down: nothing in view. Raised 8 s later, the message is still there. It is gone 5 s
+    after it was first seen;
+  - e1m1's "You can jump up here..." trigger with the wrist down. Its talk.wav is moved to the gadget, with one chime
+    and the buzz logged. It waits, and a secret's two messages stack with it;
+  - the menu path: the cursor on Show a Test Message, pressed;
+  - Console Messages In view: the game's print is left out of view while the engine's line stays;
+  - the FPS counter under the gadget;
+  - re-checked after merging the fitted hands.
+- **`flashlight_in_hand.png`:** before and after, off hand, four sides.
+- **`flashlight_grips.png`:** both grips in both hands, close and from 90 cm, with the beam on the wall. In every case
+  the beam points ahead, including overhead with the thumb towards the face.
+- **`flashlight_on_guns.png`:** every gun before and after, the off hand's guns mirrored.
+- **`flashlight_chest.png`:** before and after.
+- `fl_model_new.png`: the model on its own.
+
+### In the headset
+
+- [ ] Shoot the shotgun over water, and flick-reload over a pool: a small splash and a quiet plip per casing, nothing
+      louder than the shot's own splash.
+- [ ] Screens > Messages > Show a Test Message with the wrist raised: change Hologram Text Size, Height and Effect
+      and press again. They stack.
+- [ ] Messages Only on the Gadget on, wrist down:
+  - [ ] walk into a trigger or a secret, or touch a locked door. Nothing in front of you, a chime from your wrist
+        (left or right ear, as the arm is) and two soft pulses;
+  - [ ] raise the wrist seconds later: the message is there, and fades after Hologram Time;
+  - [ ] pick something up: no chime, no buzz, as intended. Tell me if you want pickups to notify too.
+- [ ] Graphics > Performance > FPS Counter on the Gadget:
+  - [ ] readable at arm's length?
+  - [ ] check that the figures match what you feel (GPU is the eyes' drawing, CPU our work, both without the
+        runtime's waits).
+- [ ] Flashlight in either hand:
+  - [ ] the tube in the fist, the fingers round it;
+  - [ ] pitch the hand forward to light ahead;
+  - [ ] B/Y away from a gun flips it to the overhead grip. Raise it by your head, thumb to your face: it lights
+        ahead. Flip back;
+  - [ ] let go and take it again: that hand's grip is kept.
+- [ ] On the chest: pointing forward, out of the way of your arms? (Forward/Up/Out and Tilt Down move it.)
+- [ ] Clip it on each gun: parallel to the barrel, under it (beside the super nailgun and the grenade launcher). Say
+      which gun looks off, and use On Gun Forward/Up/Out.
+- [ ] Off hand holding the torch at your mouth: Y flips it rather than recording. Is that the right priority?
+
+Not verified: the haptic pulses and the stereo position of the chime were only logged in the mock (it has no
+haptics or ears), and the counter's legibility at the Quest 3's resolution was not checked (the mock is 960 × 540).
