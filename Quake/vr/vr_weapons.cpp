@@ -79,7 +79,7 @@ void onIdChanged(cvar_t* /* var */)
 // them; Misc/quakevr/improve_weapons2.py); 13: slots 2, 3, 6, 7, 8, 10, 11, 14, 15, 16 and 18 (the
 // author's placements tuned in the headset, round 20: the alternates moved by the same amounts as
 // their normal guns).
-constexpr int settingsVersion = 13;
+constexpr int settingsVersion = 14;
 
 void resetSlot(int slot)
 {
@@ -144,6 +144,13 @@ void migrate()
     if(vr_wofs_version.value < 13)
     {
         for(const int slot : {1, 2, 5, 6, 7, 9, 10, 13, 14, 15, 17})
+        {
+            resetSlot(slot);
+        }
+    }
+    if(vr_wofs_version.value < 14) // the author's placements and finger settings after round 20
+    {
+        for(const int slot : {1, 2, 3, 5, 6, 7, 9, 10, 11, 13, 14, 15, 17})
         {
             resetSlot(slot);
         }
