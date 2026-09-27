@@ -22,6 +22,7 @@
 #include "vr_shells.hpp"
 #include "vr_stereo.hpp"
 #include "vr_text3d.hpp"
+#include "vr_trace.hpp"
 #include "vr_twohand.hpp"
 #include "vr_main.hpp"
 #include "vr_profile.hpp"
@@ -1378,6 +1379,58 @@ void alignChannel(int hand, bool mirrored, const glm::vec3& on, const glm::vec3&
     pos += target - c;
 }
 
+// Whether a finger at `curls` is clear of the world: the lines from its knuckle through its joints to its tip.
+[[nodiscard]] bool fingerClear(const RigHand& rh, int finger, const glm::mat4& rigToWorld, const float curls[handrig::jointsPerFinger])
+{
+    glm::vec3 p[4];
+    grasp::fingerPoints(rh.pose, finger, curls, p);
+    for(int i = 0; i < 3; i++)
+    {
+        const glm::vec3 a{rigToWorld * glm::vec4{drawnInRig(rh, p[i]), 1.f}};
+        const glm::vec3 b{rigToWorld * glm::vec4{drawnInRig(rh, p[i + 1]), 1.f}};
+        if(worldtrace::line(a, b) < 1.f)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+// A finger going into the world's geometry curled (its joints alike) as little as keeps it out (six halvings: a
+// sixty-fourth of the way to the fist); left as it is if it is in it even closed (its knuckle is: the hand is).
+void bendOutOfWalls(const RigHand& rh, int finger, const glm::mat4& rigToWorld, float target[handrig::jointsPerFinger])
+{
+    if(fingerClear(rh, finger, rigToWorld, target))
+    {
+        return;
+    }
+    float lo = 0.f, hi = 4.f;
+    float trial[handrig::jointsPerFinger];
+    const auto bent = [&](float by) {
+        for(int j = 0; j < handrig::jointsPerFinger; j++)
+        {
+            trial[j] = std::fmin(target[j] + by, 4.f);
+        }
+    };
+    bent(hi);
+    if(!fingerClear(rh, finger, rigToWorld, trial))
+    {
+        return;
+    }
+    for(int h = 0; h < 6; h++)
+    {
+        const float mid = 0.5f * (lo + hi);
+        bent(mid);
+        (fingerClear(rh, finger, rigToWorld, trial) ? hi : lo) = mid;
+    }
+    bent(hi);
+    std::copy(trial, trial + handrig::jointsPerFinger, target);
+    if(vr_debug_grasp.value >= 3.f)
+    {
+        Con_Printf("finger %d bent %.2f out of the world\n", finger, hi);
+    }
+}
+
 // vr_hand_collide: the free `hand` (if `free`) drawn out of the weapon in the other hand: its palm's middle and its
 // fingertips tested against the weapon's surface; the deepest in it sets the push out (along the surface's normal),
 // all of it up to vr_hand_collide cm, then less and less, none at twice as deep (it lets go). Eased over 0.08 s.
@@ -1538,6 +1591,12 @@ bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
             {
                 t = rigCurl(hand, rigFinger[f]);
             }
+        }
+        // Into a wall (vr_hand_walls): bent (curled, all its joints alike) as little as keeps it out: the lines from
+        // the knuckle through its joints to its tip clear of the world's geometry.
+        if(vr_hand_walls.value)
+        {
+            bendOutOfWalls(rh, f, rigToWorld, target);
         }
         for(int j = 0; j < handrig::jointsPerFinger; j++)
         {

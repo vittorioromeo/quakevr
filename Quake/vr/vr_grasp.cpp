@@ -1357,6 +1357,19 @@ bool inside(const Shape& shape, const glm::mat4& shapeToWorld, const glm::vec3& 
     return true;
 }
 
+void fingerPoints(const handrig::Pose& pose, int finger, const float curls[handrig::jointsPerFinger], glm::vec3 out[4])
+{
+    const Kinematics& k = kinematics();
+    handrig::Rigid seg[handrig::jointsPerFinger + 1];
+    handrig::fingerSegments(pose, finger, curls, seg);
+    for(int j = 0; j < handrig::jointsPerFinger; j++)
+    {
+        out[j] = seg[j](vec(handrig::data::pivots[finger][j]));
+    }
+    const std::vector<Sphere>& row = k.bone[finger][handrig::jointsPerFinger];
+    out[3] = row.empty() ? out[2] : seg[handrig::jointsPerFinger](row.back().c + glm::normalize(row.back().c - row.front().c) * row.back().r);
+}
+
 void fingertips(const handrig::Pose& pose, glm::vec3 out[handrig::FingerCount])
 {
     const Kinematics& k = kinematics();
