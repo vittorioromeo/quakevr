@@ -97,12 +97,13 @@ KNUCKLE_VALLEY = 0.05  # between them, lowered
 # Per finger: its knuckle's pivot (MCP), its splay (degrees towards +z, the thumb's side), its phalanges' lengths
 # (MCP to PIP, PIP to DIP, DIP to the tip), its half-widths (at the MCP, PIP, DIP and near the tip), how much its
 # closing axis leans (degrees: the fingers converge as they close) and its curl frames' joint angles.
-FLAT = 0.88  # a finger's thickness over its width
+FLAT_BACK = 1.22  # a finger's back over its half-width (from its axis)
+FLAT_PALM = 0.88  # its palm's side over its half-width
 FINGER_SPEC = {
     "index": dict(pivot=(5.45, -1.74, 3.10), splay=3.5, length=(3.15, 1.95, 1.70), half=(1.07, 1.00, 0.88, 0.75), lean=-5.0),
-    "middle": dict(pivot=(5.65, -1.80, 1.28), splay=0.0, length=(3.45, 2.20, 1.80), half=(1.10, 1.03, 0.91, 0.77), lean=1.0),
-    "ring": dict(pivot=(5.45, -1.76, -0.50), splay=-3.5, length=(3.25, 2.10, 1.74), half=(1.05, 0.97, 0.86, 0.73), lean=6.0),
-    "pinky": dict(pivot=(4.95, -1.64, -2.12), splay=-8.0, length=(2.60, 1.58, 1.52), half=(0.92, 0.85, 0.75, 0.65), lean=12.0),
+    "middle": dict(pivot=(5.65, -1.80, 1.28), splay=0.0, length=(3.45, 2.20, 1.80), half=(1.12, 1.06, 0.93, 0.79), lean=1.0),
+    "ring": dict(pivot=(5.45, -1.76, -0.50), splay=-3.5, length=(3.25, 2.10, 1.74), half=(1.07, 1.00, 0.88, 0.75), lean=6.0),
+    "pinky": dict(pivot=(4.95, -1.64, -2.12), splay=-8.0, length=(2.60, 1.58, 1.52), half=(0.94, 0.87, 0.77, 0.67), lean=12.0),
 }
 # Joint angles (MCP, PIP, DIP) per curl frame 0..4 (5 = 3): 0 relaxed, 4 the tightest fist.
 FINGER_FRAMES = {
@@ -118,7 +119,9 @@ FINGER_FRAMES = {
 THUMB_CMC = np.array([-2.55, -0.35, 2.75])
 THUMB_DIRS = [(0.80, 0.44, 0.40), (0.76, 0.44, 0.48), (0.88, 0.28, 0.38)]
 THUMB_LENGTHS = (3.9, 2.75, 2.15)
-THUMB_HALF = (1.30, 1.48, 1.08, 1.00, 0.80)
+THUMB_HALF = (1.34, 1.52, 1.14, 1.06, 0.85)
+THUMB_FLAT_BACK = 1.3  # the thumb's back over its half-width
+THUMB_FLAT_PALM = 0.88  # its palm's side
 THUMB_PAD_TOWARDS = np.array([4.2, 0.9, -2.2])
 # Joint angles (CMC, MCP, IP) per curl frame 0..4 (the CMC's opposition is the grasp solver's metacarpal turn).
 THUMB_FRAMES = [(0, 3, 5), (4, 14, 20), (8, 27, 37), (13, 42, 55), (16, 48, 64)]
@@ -129,13 +132,13 @@ THUMB_ACROSS = [0, 8, 20, 36, 44]
 # The palm's cross-sections, wrist to knuckles: x (for the distal ones plus the knuckle line's arc, below), the
 # ulnar and radial edges (z), and the back's and the palm's heights (y) with the back's arch and the palm's hollow.
 PALM_STATIONS = [
-    dict(x=-5.90, zu=-0.45, zr=3.25, back=-2.40, palm=0.30, arch=0.00, hollow=0.00, arc=0.0),  # inside the forearm
-    dict(x=-4.40, zu=-0.70, zr=3.50, back=-2.50, palm=0.45, arch=0.05, hollow=0.00, arc=0.0),  # the wrist
-    dict(x=-2.50, zu=-1.95, zr=3.95, back=-2.70, palm=0.90, arch=0.15, hollow=0.10, arc=0.0),  # the heel of the hand
-    dict(x=0.10, zu=-2.90, zr=4.00, back=-2.82, palm=0.55, arch=0.22, hollow=0.30, arc=0.0),
-    dict(x=2.70, zu=-3.02, zr=3.92, back=-2.95, palm=0.18, arch=0.22, hollow=0.22, arc=0.4),
-    dict(x=-1.25, zu=-2.95, zr=3.82, back=-3.00, palm=-0.25, arch=0.16, hollow=0.10, arc=1.0, knuckle=-1.25),  # knuckles
-    dict(x=0.00, zu=-2.65, zr=3.55, back=-2.72, palm=-0.80, arch=0.10, hollow=0.00, arc=1.0, knuckle=-0.25),  # front
+    dict(x=-5.90, zu=-0.45, zr=3.25, back=-2.46, palm=0.30, arch=0.00, hollow=0.00, arc=0.0),  # inside the forearm
+    dict(x=-4.40, zu=-0.70, zr=3.50, back=-2.72, palm=0.45, arch=0.05, hollow=0.00, arc=0.0),  # the wrist
+    dict(x=-2.50, zu=-1.95, zr=3.95, back=-3.30, palm=0.90, arch=0.15, hollow=0.10, arc=0.0),  # the heel of the hand
+    dict(x=0.10, zu=-2.90, zr=4.00, back=-3.50, palm=0.55, arch=0.22, hollow=0.30, arc=0.0),
+    dict(x=2.70, zu=-3.02, zr=3.92, back=-3.58, palm=0.18, arch=0.22, hollow=0.22, arc=0.4),
+    dict(x=-1.25, zu=-2.95, zr=3.82, back=-3.38, palm=-0.25, arch=0.16, hollow=0.10, arc=1.0, knuckle=-1.25),  # knuckles
+    dict(x=0.00, zu=-2.65, zr=3.55, back=-2.95, palm=-0.80, arch=0.10, hollow=0.00, arc=1.0, knuckle=-0.25),  # front
 ]
 PALM_FRONT = np.array([5.95, -1.85, 0.55])  # the front cap's middle
 WRIST = (-4.40, -1.05, 1.40)  # the wrist's middle: where the arm meets the hand (vr_view.cpp drawnHand)
@@ -143,6 +146,13 @@ WRIST = (-4.40, -1.05, 1.40)  # the wrist's middle: where the arm meets the hand
 # vertices over the four metacarpals, the palm's over the pads.
 PALM_TEMPLATE = [(0.0, 0.0), (0.035, -0.72), (0.145, -1.0), (0.37, -1.0), (0.62, -1.0), (0.88, -1.0), (0.975, -0.68),
                  (1.0, 0.05), (0.94, 0.78), (0.72, 1.0), (0.45, 1.0), (0.20, 1.0), (0.04, 0.74)]
+# The hand is modelled, rigged and painted at the sizes above, then drawn scaled about the palm's middle
+# (PALM_CENTRE): the grip area stays where it is, so the weapons' placements (relative to the hand) and the cups don't
+# move; the joints' pivots, the wrist and the solver's spheres scale with it. HAND_SCALE along the fingers and across
+# the palm; HAND_SCALE_THICK through the hand (its thickness is the sections' above: the fingers set back from
+# the palm's side by more would meet what the hand holds before they close on it).
+HAND_SCALE = 1.05
+HAND_SCALE_THICK = 1.0
 THENAR_REACH = 2.8  # how far from the thumb's metacarpal the palm follows it (falling off)
 THENAR_MOST = 0.75
 
@@ -523,14 +533,14 @@ def finger_sections(rig, fi, name):
     h = FINGER_SPEC[name]["half"]
     l1, l2, l3 = FINGER_SPEC[name]["length"]
     return [
-        (0.0, h[0], FLAT * h[0] * 1.04, FLAT * h[0], [(half_joint(fi, 0), 1.0)], 1),  # MCP: the palm's front
-        (0.5 * l1, 0.5 * (h[0] + h[1]) * 0.97, FLAT * 0.5 * (h[0] + h[1]) * 0.94, FLAT * 0.5 * (h[0] + h[1]) * 1.06,
+        (0.0, h[0], FLAT_BACK * h[0] * 1.04, FLAT_PALM * h[0], [(half_joint(fi, 0), 1.0)], 1),  # MCP: the palm's front
+        (0.5 * l1, 0.5 * (h[0] + h[1]) * 0.97, FLAT_BACK * 0.5 * (h[0] + h[1]) * 0.94, FLAT_PALM * 0.5 * (h[0] + h[1]) * 1.06,
          [(seg_joint(fi, 1), 1.0)], 1),
-        (l1, h[1] * 1.02, FLAT * h[1] * 1.05, FLAT * h[1], [(half_joint(fi, 1), 1.0)], 2),  # PIP
-        (l1 + l2, h[2] * 1.01, FLAT * h[2] * 1.04, FLAT * h[2], [(half_joint(fi, 2), 1.0)], 3),  # DIP
-        (l1 + l2 + 0.45 * l3, 0.5 * (h[2] + h[3]), FLAT * 0.5 * (h[2] + h[3]) * 0.88, FLAT * 0.5 * (h[2] + h[3]) * 1.1,
+        (l1, h[1] * 1.02, FLAT_BACK * h[1] * 1.05, FLAT_PALM * h[1], [(half_joint(fi, 1), 1.0)], 2),  # PIP
+        (l1 + l2, h[2] * 1.01, FLAT_BACK * h[2] * 1.04, FLAT_PALM * h[2], [(half_joint(fi, 2), 1.0)], 3),  # DIP
+        (l1 + l2 + 0.45 * l3, 0.5 * (h[2] + h[3]), FLAT_BACK * 0.5 * (h[2] + h[3]) * 0.88, FLAT_PALM * 0.5 * (h[2] + h[3]) * 1.1,
          [(seg_joint(fi, 3), 1.0)], 3),
-        (l1 + l2 + 0.87 * l3, h[3] * 0.9, FLAT * h[3] * 0.78, FLAT * h[3] * 0.98, [(seg_joint(fi, 3), 1.0)], 3),
+        (l1 + l2 + 0.87 * l3, h[3] * 0.9, FLAT_BACK * h[3] * 0.78, FLAT_PALM * h[3] * 0.98, [(seg_joint(fi, 3), 1.0)], 3),
     ]
 
 
@@ -640,17 +650,17 @@ def build_mesh(rig):
     l1, l2, l3 = THUMB_LENGTHS
     secs = []
     x, y, z = frame_at(0, 0)
-    secs.append((tp[0], (x, y, z), h[0], FLAT * h[0] * 0.95, FLAT * h[0] * 1.05, [(half_joint(0, 0), 1.0)], 1))
-    secs.append((tp[0] + x * (0.5 * l1) + y * 0.35 - z * 0.25, (x, y, z), h[1], FLAT * h[1] * 0.8, FLAT * h[1] * 1.3,
+    secs.append((tp[0], (x, y, z), h[0], THUMB_FLAT_BACK * h[0] * 0.95, THUMB_FLAT_PALM * h[0] * 1.05, [(half_joint(0, 0), 1.0)], 1))
+    secs.append((tp[0] + x * (0.5 * l1) + y * 0.35 - z * 0.25, (x, y, z), h[1], THUMB_FLAT_BACK * h[1] * 0.8, THUMB_FLAT_PALM * h[1] * 1.3,
                  [(seg_joint(0, 1), 1.0)], 1))
     x, y, z = frame_at(0, 1)
-    secs.append((tp[1], (x, y, z), h[2], FLAT * h[2] * 1.05, FLAT * h[2] * 1.02, [(half_joint(0, 1), 1.0)], 2))
+    secs.append((tp[1], (x, y, z), h[2], THUMB_FLAT_BACK * h[2] * 1.05, THUMB_FLAT_PALM * h[2] * 1.02, [(half_joint(0, 1), 1.0)], 2))
     x, y, z = frame_at(1, 2)
-    secs.append((tp[2], (x, y, z), h[3], FLAT * h[3] * 1.04, FLAT * h[3], [(half_joint(0, 2), 1.0)], 3))
+    secs.append((tp[2], (x, y, z), h[3], THUMB_FLAT_BACK * h[3] * 1.04, THUMB_FLAT_PALM * h[3], [(half_joint(0, 2), 1.0)], 3))
     x, y, z = ts[2][1], ts[2][2], ts[2][3]
     mid = 0.5 * (h[3] + h[4])
-    secs.append((tp[2] + x * (0.45 * l3), (x, y, z), mid, FLAT * mid * 0.86, FLAT * mid * 1.1, [(seg_joint(0, 3), 1.0)], 3))
-    secs.append((tp[2] + x * (0.87 * l3), (x, y, z), h[4] * 0.9, FLAT * h[4] * 0.78, FLAT * h[4] * 0.98,
+    secs.append((tp[2] + x * (0.45 * l3), (x, y, z), mid, THUMB_FLAT_BACK * mid * 0.86, THUMB_FLAT_PALM * mid * 1.1, [(seg_joint(0, 3), 1.0)], 3))
+    secs.append((tp[2] + x * (0.87 * l3), (x, y, z), h[4] * 0.9, THUMB_FLAT_BACK * h[4] * 0.78, THUMB_FLAT_PALM * h[4] * 0.98,
                  [(seg_joint(0, 3), 1.0)], 3))
     rig.fingers["thumb"]["profile"] = [(c, hw, pm) for c, _, hw, bk, pm, _, _ in secs]
     tids = [[mesh.vertex(p, infl, 1, bone, c) for p in box_ring(c, fy, fz, hw, bk, pm)]
@@ -724,6 +734,21 @@ def placement(models, name):
 
 SKIN_RAMP = (112, 127)  # the skin's palette ramp (dark .. light)
 GRAIN = [(140, 20, 255, 56), (110, 70, 186, 118)]  # hand_base.mdl's skin 0: plain skin, the forearm's back and front
+# The skin's tone (levels: one step of the ramp is one level, about 12 of luminance). SKIN_BASE is the plain skin's
+# level; SKIN_CONTRAST scales everything painted round it (the form's light and shade, the knuckles, the creases,
+# the nails); SKIN_GRAIN and SKIN_MOTTLE are the old skin's grain and a broad unevenness. The old skin spans the
+# ramp from its darks (and the brown ramp's) to 124; this one a little less.
+SKIN_BASE = 119.5
+SKIN_CONTRAST = 1.6
+SKIN_GRAIN = 1.4
+SKIN_MOTTLE = 1.0
+SKIN_LIGHTS = 0.15  # a tone curve: the lights lifted (by this share at 4 levels above the plain skin)
+SKIN_SHADES = 0.15  # and the shades deepened
+FORM_SIDES = 0.8  # the sides (of the fingers, the hand's edges) darker
+FORM_LIGHT = 1.5  # the backs' middles (of the hand and the fingers) lighter
+FORM_HOLLOW = 1.0  # the palm's hollow darker
+FORM_PADS = 1.0  # the heel of the hand's pads lighter
+NAIL_LIGHT = 0.5  # the nail lighter than the skin (its free edge a little more)
 
 
 def layout_islands(islands, width=512, most=18.0):
@@ -887,7 +912,7 @@ def lines(d, centres, width):
 
 
 def base_level(side):
-    return 118.7 - 1.0 * side  # the palm's side a little lighter than the back
+    return SKIN_BASE - 1.0 * side  # the palm's side a little lighter than the back
 
 
 def finger_levels(rig, name, p, n):
@@ -898,12 +923,13 @@ def finger_levels(rig, name, p, n):
     pts = rig.fingers[name]["points"]
     lengths = [np.linalg.norm(pts[k + 1] - pts[k]) for k in range(3)]
     thumb = name == "thumb"
-    L = L - 1.4 * lateral ** 2 * np.where(thumb & (seg == 0), 0.0, 1.0)  # form: the sides darker (not the thenar)
+    L = L - FORM_SIDES * lateral ** 2 * np.where(thumb, np.where(seg == 0, 0.0, 0.6), 1.0)  # form: the sides darker (not the thenar)
+    L += FORM_LIGHT * back * np.clip(1.0 - 1.6 * np.abs(lateral), 0, 1)  # form: the back's middle catches the light
     # Distances past the second and third joints (negative before them).
     d1 = np.where(seg == 1, along, np.where(seg == 0, along - lengths[0], 9.0))
     d2 = np.where(seg == 2, along, np.where(seg == 1, along - lengths[1], 9.0))
     # The knuckles on the back: a highlight and their wrinkles.
-    L += back * 0.6 * np.exp(-(d1 / 0.35) ** 2)
+    L += back * 0.9 * np.exp(-(d1 / 0.35) ** 2)
     L -= back * 1.1 * lines(d1, (-0.16, 0.0, 0.15) if not thumb else (-0.12, 0.04), 0.05)
     L -= back * 0.9 * lines(d2, (-0.08, 0.07), 0.045)
     # The joints' creases on the palm's side.
@@ -915,7 +941,7 @@ def finger_levels(rig, name, p, n):
         # between the fingers, where they leave the palm (not the hand's edges: the index's and the pinky's outer
         # sides run on from the palm's)
         facing = np.abs(lateral) if name in ("middle", "ring") else np.maximum(-lateral if name == "index" else lateral, 0)
-        L -= 2.4 * np.clip(1.0 - d0 / 1.3, 0, 1) * np.clip(facing - 0.35, 0, 1) / 0.65
+        L -= 2.8 * np.clip(1.0 - d0 / 1.3, 0, 1) * np.clip(facing - 0.35, 0, 1) / 0.65
     # The fingertip's pad.
     L += front * 0.4 * ((seg == 2) & (along > 0.3 * lengths[2]))
     # The nail: the back of the distal segment, from 40% of it to the tip: lighter, a darker rim, a light free edge.
@@ -924,8 +950,8 @@ def finger_levels(rig, name, p, n):
     nail = (seg == 2) & (a > 0) & (a < 1.05) & (side > 0.5)
     rim = nail & ((side < 0.63) | (a < 0.08))
     edge = nail & (a > 0.86) & ~rim
-    L = np.where(nail, L + 1.1, L)
-    L = np.where(edge, L + 1.3, L)
+    L = np.where(nail, L + NAIL_LIGHT, L)
+    L = np.where(edge, L + 1.2 * NAIL_LIGHT, L)
     L = np.where(rim, base_level(side) - 1.3, L)
     return L
 
@@ -944,7 +970,7 @@ def palm_levels(rig, p, n):
     # The back: the tendons over the metacarpals, fading in from the wrist, and the knuckles.
     fade = np.clip((x + 2.5) / 3.0, 0, 1)
     for uf in (0.145, 0.37, 0.62, 0.88):
-        L += back * fade * (1.0 * np.exp(-((u - uf) / 0.04) ** 2) - 0.45 * np.exp(-((u - uf - 0.11) / 0.05) ** 2))
+        L += back * fade * (0.7 * np.exp(-((u - uf) / 0.05) ** 2) - 0.45 * np.exp(-((u - uf - 0.11) / 0.05) ** 2))
         L += back * 1.2 * np.exp(-((u - uf) / 0.06) ** 2 - ((x - knuckles + 0.9) / 0.5) ** 2)
     # The palm's side: its creases (the heart line under the fingers, the head line across, the life line round the
     # ball of the thumb) and the wrist's.
@@ -955,8 +981,13 @@ def palm_levels(rig, p, n):
     life_u = 0.62 + 0.08 * np.clip(-x - 0.5, 0, 3) - 0.03 * np.clip(x - 0.5, 0, 2)
     L -= front * 1.3 * ((x < 2.0) & (x > -3.3)) * lines(u - life_u, (0.0,), 0.02)
     L -= front * 1.1 * lines(x, (-4.0, -4.35), 0.06)
-    # The pads lighter (the ulnar side's); darker into the forearm and round the fingers' roots.
+    # Form: the back's middle catches the light, the edges turn away into shade, the palm's hollow is in shade.
+    L += FORM_LIGHT * back * (1.0 - (2 * u - 1) ** 2) * np.clip((x + 4.0) / 2.0, 0, 1)
+    L -= FORM_SIDES * 0.7 * n[:, 2] ** 2
+    L -= FORM_HOLLOW * front * np.exp(-((u - 0.42) / 0.22) ** 2 - ((x - 1.2) / 1.6) ** 2)
+    # The pads lighter (the ulnar side's, the heel's); darker into the forearm and round the fingers' roots.
     L += front * 0.35 * np.exp(-((u - 0.12) / 0.12) ** 2 - ((x + 1.5) / 1.8) ** 2)
+    L += front * FORM_PADS * np.exp(-((x + 2.6) / 1.2) ** 2)
     L -= 0.8 * np.clip((-4.6 - x) / 1.0, 0, 1)
     L -= 0.5 * np.clip((x - knuckles + 0.2) / 0.5, 0, 1)
     return L
@@ -999,7 +1030,10 @@ def paint(rig, pos_map, nrm_map, part_map, grain):
                 t = np.clip(((p - c) @ unit(m - c)) / np.linalg.norm(m - c), 0, 1)
                 w = np.clip((t - 0.45) / 0.4, 0, 1)
                 level[sel] = w * level[sel] + (1 - w) * palm_levels(rig, p, n)
-    return level + 1.1 * bombed(grain, H, W) + 0.8 * mottle(pos_map, part_map >= 0)
+    d = SKIN_CONTRAST * (level - SKIN_BASE)
+    # the lights lifted and the shades deepened more the further they are from the plain skin (a tone curve)
+    level = SKIN_BASE + d * (1.0 + np.where(d > 0, SKIN_LIGHTS, SKIN_SHADES) * np.minimum(np.abs(d), 4.0) / 4.0)
+    return level + SKIN_GRAIN * bombed(grain, H, W) + SKIN_MOTTLE * mottle(pos_map, part_map >= 0)
 
 
 def to_palette(level):
@@ -1046,8 +1080,8 @@ def dilate(img, covered, steps=4):
 # The grasp solver's spheres (vr_grasp.cpp)
 
 
-def solver_spheres(rig, mesh):
-    """Each segment as a row of spheres along its palm's side, as wide as it is (their palm's side flush with the
+def solver_spheres(rig, mesh, grow=1.0):
+    """(Their radii times `grow`, their palm's side still flush.) Each segment as a row of spheres along its palm's side, as wide as it is (their palm's side flush with the
     skin, from the sections the mesh was lofted through); the palm's side as spheres under its skin; the ball of
     the thumb's (the thenar) likewise."""
     segs = []
@@ -1081,12 +1115,12 @@ def solver_spheres(rig, mesh):
                 t = lo + (hi - lo) * i / (n - 1)
                 hw = float(np.interp(cum[b - 1] + t, ps, hws))
                 pm = float(np.interp(cum[b - 1] + t, ps, pms))
-                r = min(0.95 * hw, 1.1)
+                r = min(0.95 * hw, 1.1) * grow
                 if b == 3 and i == n - 1:
                     t = hi - 0.6 * r  # the fingertip's, inside its round end
                 segs.append((fi, b, pts[b - 1] + x * t + y * (pm - r), r))
     palm, thenar = [], []
-    radius = 0.45
+    radius = 0.45 * grow
     for x in np.arange(-4.2, 5.2, 1.4):
         for u in np.arange(0.07, 0.97, 0.17):
             # the palm's side at (x, u): interpolate the sections
@@ -1105,7 +1139,7 @@ def solver_spheres(rig, mesh):
     o, x, y, z = rig.fingers["thumb"]["segments"][0]
     ln = np.linalg.norm(rig.fingers["thumb"]["points"][1] - o)
     for t in np.arange(0.25, 0.95, 0.2):
-        thenar.append((o + x * (t * ln) + y * (FLAT * THUMB_HALF[1] * 1.1 - 0.6), 0.6))
+        thenar.append((o + x * (t * ln) + y * (THUMB_FLAT_PALM * THUMB_HALF[1] * 1.1 - 0.6 * grow), 0.6 * grow))
     return segs, palm, thenar
 
 
@@ -1159,6 +1193,12 @@ def joint_bind(rig, j):
     return rig.pivots[fi, idx - 1 if kind == SEGMENT else idx]
 
 
+def to_rig(p):
+    """From the space the hand is modelled in to the one it is drawn in (HAND_SCALE about PALM_CENTRE)."""
+    c = np.array(PALM_CENTRE)
+    return c + np.array([HAND_SCALE, HAND_SCALE_THICK, HAND_SCALE]) * (np.asarray(p, float) - c)
+
+
 def build(progs):
     models = {n: read_mdl(os.path.join(progs, n + ".mdl")) for n in PARTS}
     shifts = {n: placement(models, n) for n in PARTS}
@@ -1188,6 +1228,16 @@ def main():
     for dmg in range(4):
         img = clean if dmg == 0 else bleed(clean, part_map, dmg)
         lmp(os.path.join(progs, "hand_rig_%02d_00.lmp" % dmg), dilate(img, part_map >= 0))
+
+    # The solver's spheres and the thenar's shares where the hand is modelled; then all of it to the drawn size.
+    segs, palm_spheres, thenar_spheres = solver_spheres(rig, mesh, HAND_SCALE)
+    thenar_share = [thenar_weight(rig, p) for p in P]
+    segs = [(f, b, to_rig(c), r) for f, b, c, r in segs]
+    palm_spheres = [(to_rig(c), r) for c, r in palm_spheres]
+    thenar_spheres = [(to_rig(c), r) for c, r in thenar_spheres]
+    P = to_rig(P)
+    rig.pivots = to_rig(rig.pivots)
+    wrist = to_rig(WRIST)
 
     # MD5 vertices: one per (position, texture coordinate).
     verts, vkey = [], {}
@@ -1245,7 +1295,6 @@ def main():
     write_placeholder_mdl(os.path.join(progs, "hand_rig.mdl"))
 
     # The engine's tables.
-    segs, palm_spheres, thenar_spheres = solver_spheres(rig, mesh)
     # Each part's vertices are those its triangles use: the fingers' first rings (the palm's front) are in the
     # palm's too, and a web's pair in both its fingers'.
     def used(part):
@@ -1279,7 +1328,7 @@ def main():
     L.append("inline constexpr float offsetPerModel = %s; // weapons::offsetScale() / ModelTransform::k" % cfloat(OFFSET_PER_MODEL))
     L.append("inline constexpr float baseScaleOrigin[3] = %s; // hand_base.mdl's" % cvec(models["hand_base"]["origin"]))
     L.append("inline constexpr float palmCentre[3] = %s; // the palm's middle (cups, the palm's turn): the old hand's" % cvec(PALM_CENTRE))
-    L.append("inline constexpr float wrist[3] = %s; // the wrist's middle: where the arm meets the hand" % cvec(WRIST))
+    L.append("inline constexpr float wrist[3] = %s; // the wrist's middle: where the arm meets the hand" % cvec(wrist))
     L.append("")
     L.append("// Per finger (thumb, index, middle, ring, pinky): the old finger model's scale origin, and where it sat relative")
     L.append("// to hand_base.mdl at the default settings (the engine moves a finger by what its settings change from these).")
@@ -1341,7 +1390,7 @@ def main():
     L.append("    float weight[4];")
     L.append("};")
     L.append("inline constexpr PalmVertex palmVertices[numPalmVertices] = {%s};" % ", ".join(
-        "{%s, %s, %s}" % (cvec(P[v]), cfloat(thenar_weight(rig, P[v])), infl_c(v)) for v in palm_ids))
+        "{%s, %s, %s}" % (cvec(P[v]), cfloat(thenar_share[v]), infl_c(v)) for v in palm_ids))
     L.append("inline constexpr int numPalmTriangles = %d;" % len(ptris))
     L.append("inline constexpr unsigned short palmTriangles[numPalmTriangles][3] = {%s};" % ", ".join("{%d, %d, %d}" % t for t in ptris))
     L.append("")
