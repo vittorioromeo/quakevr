@@ -72,6 +72,8 @@ QVR_CVAR(vr_physics_engine, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_box3d_substeps, "4", CVAR_ARCHIVE)       // Box3D's sub-steps a server frame (1..8)
 QVR_CVAR(vr_box3d_player_push, "1", CVAR_ARCHIVE)    // the players' bodies push props (a capsule each, one way)
 QVR_CVAR(vr_box3d_player_radius, "15", CVAR_ARCHIVE) // cm, that capsule's radius
+QVR_CVAR(vr_box3d_player_push_speed, "2.5", CVAR_ARCHIVE) // m/s, the most a player's body shoves a prop at (the rest of its move it passes into it, eased out)
+QVR_CVAR(vr_box3d_mesh_junctions, "1", CVAR_NONE)  // the world mesh with its T-junctions joined (no bumps at the seams between faces); 0: the faces as the BSP has them
 QVR_CVAR(vr_debug_box3d, "0", CVAR_NONE)             // 1: bodies made, woken and put to sleep; 2: every awake body every frame
 
 // Desktop mirror of the headset view: 0 off, 1 left eye, 2 both eyes side by side.
@@ -200,7 +202,8 @@ QVR_CVAR(vr_motion_relabel_detail, "0", CVAR_NONE)
 QVR_CVAR(vr_memstats_log, "60", CVAR_ARCHIVE)      // seconds between rows of quakevr/profile/memstats_<date>.csv (and one after each map load; 0: off)
 QVR_CVAR(vr_gadget_fps, "0", CVAR_ARCHIVE)         // QVR round 21: an FPS counter floating just under the wrist gadget: frames a second, the CPU's and the GPU's milliseconds a frame (the memory log's busy_ms and gpu_eyes_ms), over half a second
 QVR_CVAR(vr_lean_radius, "12", CVAR_ARCHIVE)          // units the head may lean from the middle of the player's box before the body follows (0: always above it)
-QVR_CVAR(vr_lean_recenter, "0.5", CVAR_ARCHIVE)       // metres/second the body slides back under the head where it can (0: never)
+QVR_CVAR(vr_lean_recenter, "0.5", CVAR_ARCHIVE)       // metres/second the body slides back under the head where it can (0: never; with vr_lean_detect, faster when further off, and not while leaning)
+QVR_CVAR(vr_lean_detect, "1", CVAR_ARCHIVE)          // tells a lean (the head lower and tilted towards it, the hands left by the hips) from walking in the room: while leaning the body stays where it stands (0: off, the body always slides back under the head; above 1, more readily a lean, up to 2)
 QVR_CVAR(vr_roomscale_jump, "1", CVAR_ARCHIVE)          // jumping in the room jumps in the game: the head rising faster than
 QVR_CVAR(vr_roomscale_jump_threshold, "0.8", CVAR_ARCHIVE) // this (m/s) above the standing height
 QVR_CVAR(vr_roomscale_move_mult, "1.0", CVAR_ARCHIVE)
@@ -310,6 +313,60 @@ QVR_CVAR(vr_flashlight_high_yaw, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_flashlight_high_roll, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_flashlight_hue, "40", CVAR_ARCHIVE)        // round 21: the beam's hue (degrees; -1: the player's), with
 QVR_CVAR(vr_flashlight_saturation, "0", CVAR_ARCHIVE)  // its saturation (0: white, 1: full colour): the light, the visible beam and the lens
+// Round 21, the author's tuning notes: each grip's fingers on the torch, as a weapon's (Weapon Offsets > Fingers on the
+// Weapon). _fingers 0 Automatic (they wrap the torch, sinking _overlap into it: 0..1 of a centimetre), 1 Manual (each
+// finger at its _curl_*, 0 open to 1 a fist, and the thumb across the palm by _thumb_across, 0..1; no fitting); either
+// way the finger tweaks _bias_* (a share of a full curl, negative more open) and the thumb's place _thumb_x/y/z (the
+// hand's units, as a weapon's Thumb X/Y/Z). The manual curls default to the automatic grasp's at a full grip (its
+// joints' mean stop, the thumb's turn; vr_debug_grasp 2 in the mock, the palm unfitted).
+QVR_CVAR(vr_flashlight_low_fingers, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_overlap, "0.3", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_curl_thumb, "0.97", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_curl_index, "0.52", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_curl_middle, "0.78", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_curl_ring, "0.8", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_curl_pinky, "0.93", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_thumb_across, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_bias_thumb, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_bias_index, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_bias_middle, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_bias_ring, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_bias_pinky, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_thumb_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_thumb_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_thumb_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_fingers, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_overlap, "0.3", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_curl_thumb, "0.97", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_curl_index, "0.72", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_curl_middle, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_curl_ring, "0.49", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_curl_pinky, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_thumb_across, "0.73", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_bias_thumb, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_bias_index, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_bias_middle, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_bias_ring, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_bias_pinky, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_thumb_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_thumb_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_thumb_z, "0", CVAR_ARCHIVE)
+// Round 21, the author's tuning notes: the reach zones. The head's: where a held torch's middle clips it on the head (B/Y)
+// and a hand takes it off: balls at each temple (3.5 cm over the eyes, 8.5 out, 3 back) and the forehead (7 cm ahead, 6
+// up), moved forward, up and out (away from the head: to the side at the temples, ahead at the forehead) by these metres,
+// _radius across. Up defaults to 4 cm higher than the first zone (the author: it felt too low). Apart from the
+// torch's own place on the head (vr_flashlight_head_forward/_up/_out). The gun's: where a held torch's middle clips it on
+// the other hand's gun (B/Y): a capsule round the gun's line from the hand to 3 cm past the muzzle, moved along the
+// gun, up and out (away from the body) by these metres, _radius across.
+QVR_CVAR(vr_flashlight_head_zone_forward, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_head_zone_up, "0.04", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_head_zone_out, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_head_zone_radius, "0.1", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_gun_zone_forward, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_gun_zone_up, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_gun_zone_out, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_gun_zone_radius, "0.12", CVAR_ARCHIVE)
+QVR_CVAR(vr_show_flashlight_zones, "0", CVAR_NONE)     // draws those zones (green where the torch or a hand is in one) and the held torch's middle
 // Spent shell casings (vr_shells.cpp): the shotgun throws one out as it cycles, the super shotgun two as it is reloaded.
 QVR_CVAR(vr_shells, "1", CVAR_ARCHIVE)                // 0: none
 QVR_CVAR(vr_shells_life, "20", CVAR_ARCHIVE)          // seconds they lie on the floor before fading out
@@ -334,6 +391,7 @@ QVR_CVAR(vr_weapon_reflections_strength, "1", CVAR_ARCHIVE) // how strongly (0..
 QVR_CVAR(vr_relit_maps, "1", CVAR_ARCHIVE)           // maps re-lit by Misc/quakevr/relight_maps.py, when present (next map)
 QVR_CVAR(vr_particles, "1", CVAR_ARCHIVE)             // Quake VR's textured particles for the QC's effects (0: Quake's own)
 QVR_CVAR(vr_particle_mult, "1", CVAR_ARCHIVE)         // how many of them
+QVR_CVAR(vr_particle_seed, "0", CVAR_NONE)            // tests: the particles' random numbers restarted from this seed at each map (0: random)
 QVR_CVAR(vr_soft_particles, "1", CVAR_ARCHIVE)        // soft particles: smoke, fire, blood and explosion sprites fade out where they meet walls and floors instead of cutting hard lines (0 off)
 QVR_CVAR(vr_soft_particles_scale, "1", CVAR_ARCHIVE)  // how close to the scene they fade, times each kind's own distance (sparks 1.5 units, smoke and fire half their size, at most 32)
 QVR_CVAR(vr_blob_shadows, "2", CVAR_ARCHIVE)          // blob shadows (dark discs under things): 0 off, 1 always, 2 only without real shadows
@@ -500,6 +558,9 @@ QVR_CVAR(vr_held_surface_fit, "1", CVAR_ARCHIVE)      // a gripped box, gib or b
 QVR_CVAR(vr_held_fit_gap, "0", CVAR_ARCHIVE)          // with it: cm between the curled fingers and what they hold (negative: sunk in)
 QVR_CVAR(vr_carry_reach, "8", CVAR_ARCHIVE)           // round 21, second pass: cm from the hand (the controller's point) to the drawn surface of a box, gib or backpack it can take (0: its whole model box, as before)
 QVR_CVAR(vr_debug_carry, "0", CVAR_NONE)              // draws, for each hand, the carriable thing it is in the box of: its box, its surface's nearest point and the reach (green: in reach); 2: also carry_trace.txt, what is carried and both hands every frame, and the second hand's reach test printed
+QVR_CVAR(vr_debug_lean, "0", CVAR_NONE)               // lean_trace.txt (the game directory): the head, the box, the lean, the pelvis and the feet every frame, and the lean's cues (vr_lean_detect)
+QVR_CVAR(vr_debug_physics_shapes, "0", CVAR_NONE)     // Carrying and Gibs > Show Physics Shapes: Box3D's bodies drawn as wireframes (props awake green, asleep blue, held yellow, doors purple, monsters orange, players cyan, hanging pickups grey; contact points), and the hands' grab probes (as vr_debug_carry)
+QVR_CVAR(vr_debug_hand_bones, "0", CVAR_NONE)         // Carrying and Gibs > Show Hand Bones: the jointed hands' joints and bones, the grasp's contact spheres (green touching, yellow near, red sunk in) and the palm's fit (where it was, where the grasp put it)
 QVR_CVAR(vr_carry_two_hands, "1", CVAR_ARCHIVE)       // a box, backpack, gib, head or armour carried in one hand can be gripped by the other too: held in both, it follows both hands (vr_carry2h.cpp)
 QVR_CVAR(vr_carry_two_hands_drift, "8", CVAR_ARCHIVE) // with it: cm each drawn hand may be off its controller to stay on its grip (hands pulled apart or pushed together)
 QVR_CVAR(vr_carry_two_hands_window, "0.1", CVAR_ARCHIVE) // seconds between the two hands letting go that still make a two-handed throw

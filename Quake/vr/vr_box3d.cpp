@@ -32,6 +32,7 @@
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
 #include "vr_held.hpp"
+#include "vr_lines.hpp"
 #include "vr_physics.hpp"
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
@@ -62,6 +63,8 @@ constexpr uint64_t catActor = 4;
 constexpr uint64_t catPlayer = 8;
 constexpr uint64_t catProp = 16;
 constexpr uint64_t catHeld = 32;
+constexpr uint64_t catFixture = 64;
+constexpr uint64_t propMask = catWorld | catMover | catActor | catPlayer | catProp | catHeld | catFixture;
 
 enum class Kind : uint8_t
 {
@@ -71,6 +74,7 @@ enum class Kind : uint8_t
     Mover,  // a brush entity: kinematic
     Actor,  // a monster or another solid box: kinematic
     Player, // a player's body: a kinematic capsule
+    Fixture, // a pickup that is not a rigid body (hanging in the air, on a rack): kinematic, its drawn hull
 };
 
 [[nodiscard]] const char* kindName(Kind k)
@@ -82,6 +86,7 @@ enum class Kind : uint8_t
     case Kind::Mover: return "mover";
     case Kind::Actor: return "actor";
     case Kind::Player: return "player";
+    case Kind::Fixture: return "fixture";
     default: return "none";
     }
 }
@@ -231,6 +236,7 @@ struct Slot // what one edict is in the world (by its number)
     bool bullet{false};   // fast: continuous collision against other props too
     bool soft{false};     // isSoft
     bool brush{false};    // angles as a brush model's
+    const b3HullData* hull{nullptr}; // actors: the hull at rest (actorHull), nullptr for Quake's box
 };
 
 // The hulls made for models, by what they were made from (and the world's scale).
@@ -249,8 +255,9 @@ struct World
     float m2u{1.f};      // units a metre
     float gravity{0.f};  // sv_gravity at the last update
     float friction{-1.f}, restitution{-1.f};
-    b3MeshData* mesh{nullptr};
+    b3MeshData* mesh{nullptr}; // (meshCache's)
     b3ShapeId worldShape{b3_nullShapeId};
+    std::vector<std::pair<int, int>> impacts; // the step's touches (kept: no allocation a frame)
     std::vector<Slot> slots; // by edict number
     std::map<PropHullKey, b3HullData*> propHulls;      // nullptr: no hull (a box instead)
     std::map<const qmodel_t*, std::vector<b3HullData*>> moverHulls;
@@ -318,15 +325,34 @@ void destroyBody(Slot& s)
 // The world model's faces as a triangle mesh (metres), sky and liquids left out, wound counter-clockwise seen from
 // the open side (a face's plane, flipped for SURF_PLANEBACK). Vertices shared by the BSP's faces stay shared, so
 // Box3D finds the triangles' neighbours (identifyEdges: no bumps at inner edges).
-[[nodiscard]] b3MeshData* worldMesh(const qmodel_t* map, float m2u)
+//
+// T-junctions: the BSP splits faces where they meet others, and a face's edge often has another face's corner in its
+// middle (one of the BSP's shared vertices, but not the face's). Two triangles then share no edge there, and a box
+// sliding over the seam can catch on it. Such corners are put into the edge (every drawn face's edges are checked
+// against the corners near them), and a face that got any is fanned from a new vertex in its middle, so that every
+// piece of its outline is a triangle's edge, shared with the neighbour's.
+struct MeshStats
 {
-    std::vector<int32_t> remap(static_cast<size_t>(map->numvertexes), -1);
-    std::vector<b3Vec3> vertices;
-    std::vector<int32_t> indices;
+    int faces{0}, triangles{0}, junctions{0}, junctionFaces{0}, middleFans{0};
+    double ms{0.0};
+};
+
+[[nodiscard]] b3MeshData* worldMesh(const qmodel_t* map, float m2u, MeshStats& stats)
+{
+    const double t0 = Sys_DoubleTime();
+    struct Face
+    {
+        int first, count; // into corners
+        glm::vec3 normal;
+    };
+    std::vector<Face> faces;
+    std::vector<int> corners; // BSP vertex numbers, each face's outline in order
+    std::vector<uint8_t> used(static_cast<size_t>(map->numvertexes), 0);
+    const auto position = [&](int v) { return vec(map->vertexes[v].position); };
     for(int i = 0; i < map->nummodelsurfaces; i++)
     {
         const msurface_t& surf = map->surfaces[map->firstmodelsurface + i];
-        if(surf.flags & (SURF_DRAWSKY | SURF_DRAWTURB))
+        if(surf.flags & (SURF_DRAWSKY | SURF_DRAWTURB) || surf.numedges < 3)
         {
             continue;
         }
@@ -335,56 +361,261 @@ void destroyBody(Slot& s)
         {
             normal = -normal;
         }
-        const auto vertex = [&](int k) {
-            const int e = map->surfedges[surf.firstedge + k];
-            return static_cast<int>(e >= 0 ? map->edges[e].v[0] : map->edges[-e].v[1]);
-        };
-        const auto position = [&](int v) { return vec(map->vertexes[v].position); };
-        const auto index = [&](int v) {
-            int32_t& r = remap[static_cast<size_t>(v)];
-            if(r < 0)
-            {
-                r = static_cast<int32_t>(vertices.size());
-                const glm::vec3 p = position(v) / m2u;
-                vertices.push_back(b3Vec3{p.x, p.y, p.z});
-            }
-            return r;
-        };
-        const int a = vertex(0);
-        for(int k = 2; k < surf.numedges; k++)
+        faces.push_back({static_cast<int>(corners.size()), surf.numedges, normal});
+        for(int k = 0; k < surf.numedges; k++)
         {
-            int b = vertex(k - 1), c = vertex(k);
-            const glm::vec3 n = glm::cross(position(b) - position(a), position(c) - position(a));
-            if(glm::length(n) < 1e-3f)
-            {
-                continue; // degenerate
-            }
-            if(glm::dot(n, normal) < 0.f)
-            {
-                std::swap(b, c);
-            }
-            indices.push_back(index(a));
-            indices.push_back(index(b));
-            indices.push_back(index(c));
+            const int e = map->surfedges[surf.firstedge + k];
+            const int v = static_cast<int>(e >= 0 ? map->edges[e].v[0] : map->edges[-e].v[1]);
+            corners.push_back(v);
+            used[static_cast<size_t>(v)] = 1;
         }
     }
-    if(indices.empty())
+
+    // The corners in a grid (cells of `cell` units, sorted by cell), to find those near an edge.
+    constexpr float cell = 64.f;
+    constexpr float onEdge = 0.1f; // units from the edge's line: in it
+    const auto cellOf = [](const glm::vec3& p) { return glm::ivec3{glm::floor(p / cell)}; };
+    const auto keyOf = [](const glm::ivec3& c) {
+        const auto part = [](int v) { return static_cast<uint64_t>(static_cast<uint32_t>(v) & 0x1fffffu); };
+        return (part(c.x) << 42) | (part(c.y) << 21) | part(c.z);
+    };
+    std::vector<std::pair<uint64_t, int>> grid;
+    for(int v = 0; v < map->numvertexes; v++)
     {
-        return nullptr;
+        if(used[static_cast<size_t>(v)])
+        {
+            grid.emplace_back(keyOf(cellOf(position(v))), v);
+        }
     }
-    b3MeshDef def{};
-    def.vertices = vertices.data();
-    def.stride = 0;
-    def.indices = indices.data();
-    def.materialIndices = nullptr;
-    def.vertexCount = static_cast<int>(vertices.size());
-    def.triangleCount = static_cast<int>(indices.size() / 3);
-    def.weldVertices = false;
-    def.weldTolerance = 0.f;
-    def.useMedianSplit = false;
-    def.identifyEdges = true;
-    def.clockWiseWinding = false;
-    return b3CreateMesh(&def, nullptr, 0);
+    std::sort(grid.begin(), grid.end());
+
+    std::vector<int32_t> remap(static_cast<size_t>(map->numvertexes), -1);
+    std::vector<b3Vec3> vertices;
+    std::vector<int32_t> indices;
+    const auto index = [&](int v) {
+        int32_t& r = remap[static_cast<size_t>(v)];
+        if(r < 0)
+        {
+            r = static_cast<int32_t>(vertices.size());
+            const glm::vec3 p = position(v) / m2u;
+            vertices.push_back(b3Vec3{p.x, p.y, p.z});
+        }
+        return r;
+    };
+    const auto triangle = [&](int32_t a, int32_t b, int32_t c, const glm::vec3& pa, const glm::vec3& pb, const glm::vec3& pc,
+                              const glm::vec3& normal) {
+        const glm::vec3 n = glm::cross(pb - pa, pc - pa);
+        if(glm::length(n) < 1e-3f)
+        {
+            return; // degenerate
+        }
+        if(glm::dot(n, normal) < 0.f)
+        {
+            std::swap(b, c);
+        }
+        indices.push_back(a);
+        indices.push_back(b);
+        indices.push_back(c);
+    };
+
+    std::vector<int> outline;
+    std::vector<uint8_t> corner; // per outline entry: one of the face's own corners (else a T-junction put in)
+    std::vector<std::pair<float, int>> between;
+    const bool junctions = vr_box3d_mesh_junctions.value != 0.f;
+    for(const Face& f : faces)
+    {
+        outline.clear();
+        corner.clear();
+        bool split = false;
+        for(int k = 0; k < f.count; k++)
+        {
+            const int a = corners[static_cast<size_t>(f.first + k)], b = corners[static_cast<size_t>(f.first + (k + 1) % f.count)];
+            outline.push_back(a);
+            corner.push_back(1);
+            if(!junctions)
+            {
+                continue;
+            }
+            const glm::vec3 pa = position(a), pb = position(b);
+            const glm::vec3 d = pb - pa;
+            const float length = glm::length(d);
+            if(length < 4.f * onEdge)
+            {
+                continue;
+            }
+            const glm::vec3 dir = d / length;
+            // The cells along the edge (and those round them), in steps of half a cell.
+            between.clear();
+            const int steps = std::max(1, static_cast<int>(std::ceil(length / (cell * 0.5f))));
+            glm::ivec3 last{INT32_MIN};
+            for(int step = 0; step <= steps; step++)
+            {
+                const glm::ivec3 c = cellOf(pa + d * (static_cast<float>(step) / static_cast<float>(steps)));
+                if(c == last)
+                {
+                    continue;
+                }
+                last = c;
+                for(int dz = -1; dz <= 1; dz++)
+                {
+                    for(int dy = -1; dy <= 1; dy++)
+                    {
+                        for(int dx = -1; dx <= 1; dx++)
+                        {
+                            const uint64_t key = keyOf(c + glm::ivec3{dx, dy, dz});
+                            for(auto it = std::lower_bound(grid.begin(), grid.end(), std::make_pair(key, INT32_MIN));
+                                it != grid.end() && it->first == key; ++it)
+                            {
+                                const int v = it->second;
+                                if(v == a || v == b)
+                                {
+                                    continue;
+                                }
+                                const glm::vec3 p = position(v);
+                                const float t = glm::dot(p - pa, dir);
+                                if(t > 2.f * onEdge && t < length - 2.f * onEdge && glm::length(p - (pa + dir * t)) <= onEdge)
+                                {
+                                    between.emplace_back(t, v);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if(between.empty())
+            {
+                continue;
+            }
+            std::sort(between.begin(), between.end());
+            float lastT = 0.f;
+            for(const auto& [t, v] : between)
+            {
+                if(t - lastT < 2.f * onEdge)
+                {
+                    continue; // (found from two cells, or two BSP vertices at one place)
+                }
+                lastT = t;
+                outline.push_back(v);
+                corner.push_back(0);
+                stats.junctions++;
+                split = true;
+            }
+        }
+        stats.faces++;
+        if(!split)
+        {
+            const int a = outline[0];
+            for(size_t k = 2; k < outline.size(); k++)
+            {
+                triangle(index(a), index(outline[k - 1]), index(outline[k]), position(a), position(outline[k - 1]), position(outline[k]),
+                    f.normal);
+            }
+            continue;
+        }
+        // Fanned from one of its corners whose two edges have no junction in them (the fan's triangles then have every
+        // piece of the outline as an edge, none of them flat), else from a new vertex in its middle.
+        stats.junctionFaces++;
+        const size_t n = outline.size();
+        size_t from = n;
+        for(size_t k = 0; k < n && from == n; k++)
+        {
+            if(corner[k] && corner[(k + 1) % n] && corner[(k + n - 1) % n])
+            {
+                from = k;
+            }
+        }
+        if(from < n)
+        {
+            const int a = outline[from];
+            for(size_t k = 2; k < n; k++)
+            {
+                const int b = outline[(from + k - 1) % n], c = outline[(from + k) % n];
+                triangle(index(a), index(b), index(c), position(a), position(b), position(c), f.normal);
+            }
+            continue;
+        }
+        stats.middleFans++;
+        glm::vec3 middle{0.f};
+        for(const int v : outline)
+        {
+            middle += position(v);
+        }
+        middle /= static_cast<float>(outline.size());
+        const int32_t m = static_cast<int32_t>(vertices.size());
+        vertices.push_back(b3Vec3{middle.x / m2u, middle.y / m2u, middle.z / m2u});
+        for(size_t k = 0; k < outline.size(); k++)
+        {
+            const int a = outline[k], b = outline[(k + 1) % outline.size()];
+            triangle(m, index(a), index(b), middle, position(a), position(b), f.normal);
+        }
+    }
+    stats.triangles = static_cast<int>(indices.size() / 3);
+    b3MeshData* mesh = nullptr;
+    if(!indices.empty())
+    {
+        b3MeshDef def{};
+        def.vertices = vertices.data();
+        def.stride = 0;
+        def.indices = indices.data();
+        def.materialIndices = nullptr;
+        def.vertexCount = static_cast<int>(vertices.size());
+        def.triangleCount = static_cast<int>(indices.size() / 3);
+        def.weldVertices = false;
+        def.weldTolerance = 0.f;
+        def.useMedianSplit = false;
+        def.identifyEdges = true;
+        def.clockWiseWinding = false;
+        mesh = b3CreateMesh(&def, nullptr, 0);
+    }
+    stats.ms = (Sys_DoubleTime() - t0) * 1000.0;
+    return mesh;
+}
+
+// The world's mesh is made once per map and kept while the map is (a saved game loaded, the engine switched off and
+// on, a restart: Box3D's world is made again, not the mesh).
+struct MeshCache
+{
+    char name[MAX_QPATH]{};
+    int vertexes{0}, surfaces{0};
+    float m2u{0.f};
+    bool junctions{true};
+    b3MeshData* mesh{nullptr};
+    MeshStats stats;
+} meshCache;
+
+// Whether the mesh made is this map's, as the settings want it (else the world is made again: destroyed first, as
+// its shape uses the mesh).
+[[nodiscard]] bool meshCurrent(const qmodel_t* map, float m2u)
+{
+    const MeshCache& c = meshCache;
+    return !strcmp(c.name, map->name) && c.vertexes == map->numvertexes && c.surfaces == map->numsurfaces && c.m2u == m2u &&
+           c.junctions == (vr_box3d_mesh_junctions.value != 0.f);
+}
+
+[[nodiscard]] b3MeshData* cachedWorldMesh(const qmodel_t* map, float m2u)
+{
+    MeshCache& c = meshCache;
+    if(c.mesh && meshCurrent(map, m2u))
+    {
+        return c.mesh;
+    }
+    if(c.mesh)
+    {
+        b3DestroyMesh(c.mesh);
+    }
+    c = MeshCache{};
+    q_strlcpy(c.name, map->name, sizeof(c.name));
+    c.vertexes = map->numvertexes;
+    c.surfaces = map->numsurfaces;
+    c.m2u = m2u;
+    c.junctions = vr_box3d_mesh_junctions.value != 0.f;
+    c.mesh = worldMesh(map, m2u, c.stats);
+    if(vr_debug_box3d.value)
+    {
+        Con_Printf("box3d: the mesh of %s: %d faces, %d triangles, %d T-junctions joined in %d faces (%d fanned from the middle), %.1f ms\n", map->name,
+            c.stats.faces, c.stats.triangles, c.stats.junctions, c.stats.junctionFaces, c.stats.middleFans, c.stats.ms);
+    }
+    return c.mesh;
 }
 
 // A convex region as the intersection of half-spaces dot(n, p) <= d: its corners (triples of planes meeting inside
@@ -552,6 +783,49 @@ void solidLeaves(const hull_t& hull, int num, std::vector<HalfSpace>& path, floa
     return hull;
 }
 
+// A monster's (or another solid alias model's) hull: its drawn model at rest (frame 0, its first stand frame), as
+// props' are (propHull's cache, frame -1), turned with its yaw: props rest against the monster, not against Quake's
+// box round it (a grunt's is 32 units wide, its drawn body half that). The one shape for all its frames: a body's
+// shape made again as it animates would lose its contacts (their warm start, and a new touch each time). nullptr: its
+// box.
+[[nodiscard]] b3HullData* actorHull(edict_t* ent, qmodel_t* model)
+{
+    const PropHullKey key{model, -1, {}};
+    auto it = world->propHulls.find(key);
+    if(it != world->propHulls.end())
+    {
+        return it->second;
+    }
+    b3HullData* hull = nullptr;
+    thread_local std::vector<glm::vec3> vertices;
+    const float frame = ent->v.frame;
+    ent->v.frame = 0.f;
+    const bool drawn = held::drawnVertices(ent, vertices);
+    ent->v.frame = frame;
+    if(drawn && vertices.size() >= 4)
+    {
+        std::vector<b3Vec3> points;
+        points.reserve(vertices.size());
+        for(const glm::vec3& v : vertices)
+        {
+            points.push_back(world->toM(v));
+        }
+        hull = b3CreateHull(points.data(), static_cast<int>(points.size()), 24);
+        if(hull && hull->innerRadius * world->m2u < 2.f)
+        {
+            b3DestroyHull(hull); // a thin thing (a sprite-like model): Quake's box
+            hull = nullptr;
+        }
+    }
+    if(vr_debug_box3d.value)
+    {
+        Con_Printf("box3d: %s at rest: %s\n", model->name,
+            hull ? va("a hull of %d vertices, %.0f litres", hull->vertexCount, hull->volume * 1e3f) : "its box");
+    }
+    world->propHulls.emplace(key, hull);
+    return hull;
+}
+
 [[nodiscard]] b3ShapeDef shapeDef(int num, uint64_t category, uint64_t mask)
 {
     b3ShapeDef def = b3DefaultShapeDef();
@@ -567,7 +841,7 @@ void solidLeaves(const hull_t& hull, int num, std::vector<HalfSpace>& path, floa
 // The prop's shapes on `body`: its hull or its box.
 void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, const glm::vec3& hi, b3BodyId body, bool held)
 {
-    b3ShapeDef def = shapeDef(num, held ? catHeld : catProp, held ? catProp : catWorld | catMover | catActor | catPlayer | catProp | catHeld);
+    b3ShapeDef def = shapeDef(num, held ? catHeld : catProp, held ? catProp : propMask);
     def.density = densityOf(ent, model);
     def.baseMaterial.restitution = isSoft(ent, model) ? 0.f : CLAMP(0.f, vr_throw_restitution.value, 1.f);
     def.enableContactEvents = !held;
@@ -600,11 +874,17 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
     {
         return Kind::Held;
     }
-    if(isRigid(ent) && (movetype == MOVETYPE_TOSS || movetype == MOVETYPE_BOUNCE))
+    const bool rigid = isRigid(ent);
+    if(rigid && (movetype == MOVETYPE_TOSS || movetype == MOVETYPE_BOUNCE))
     {
         return model->type == mod_alias || model->type == mod_brush ? Kind::Prop : Kind::None;
     }
     const int solid = static_cast<int>(ent->v.solid);
+    if(!rigid && solid == SOLID_TRIGGER && hasFlag(ent, FL_ITEM) && movetype != MOVETYPE_NOCLIP &&
+        (model->type == mod_alias || model->type == mod_brush))
+    {
+        return Kind::Fixture; // a pickup hanging in the air or on a rack (not a rigid body until a hand knocks it loose)
+    }
     if(num <= svs.maxclients)
     {
         return vr_box3d_player_push.value && solid != SOLID_NOT && ent->v.health > 0.f ? Kind::Player : Kind::None;
@@ -640,9 +920,10 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
     {
     case Kind::Prop:
     case Kind::Held:
+    case Kind::Fixture:
         return s.model != modelOf(ent) || s.frame != static_cast<int>(ent->v.frame) || s.scale != scaleFields(ent);
     case Kind::Mover: return s.model != modelOf(ent);
-    case Kind::Actor: return s.mins != vec(ent->v.mins) || s.maxs != vec(ent->v.maxs);
+    case Kind::Actor: return s.model != modelOf(ent) || s.mins != vec(ent->v.mins) || s.maxs != vec(ent->v.maxs);
     case Kind::Player: return s.radius != playerRadius() || s.mins != vec(ent->v.mins) || s.maxs != vec(ent->v.maxs);
     default: return false;
     }
@@ -650,11 +931,28 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
 
 void writeProp(edict_t* ent, Slot& s);
 
+// A body's turn: an actor's hull turns with its yaw (Quake's box and the players' capsules don't turn), the rest
+// with their angles.
+[[nodiscard]] b3Quat rotationOf(edict_t* ent, const Slot& s)
+{
+    if(s.kind == Kind::Player || (s.kind == Kind::Actor && !s.hull))
+    {
+        return b3Quat_identity;
+    }
+    if(s.kind == Kind::Actor)
+    {
+        const float yaw[3] = {0.f, ent->v.angles[1], 0.f};
+        return toB3(turnOf(yaw, s.brush));
+    }
+    return toB3(turnOf(ent->v.angles, s.brush));
+}
+
 void createBody(edict_t* ent, int num, Slot& s, Kind kind)
 {
     qmodel_t* model = modelOf(ent);
     s.kind = kind;
     s.model = model;
+    s.hull = kind == Kind::Actor && model && model->type == mod_alias ? actorHull(ent, model) : nullptr;
     s.frame = static_cast<int>(ent->v.frame);
     s.scale = scaleFields(ent);
     s.brush = model && model->type == mod_brush;
@@ -665,7 +963,7 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind)
     b3BodyDef def = b3DefaultBodyDef();
     def.userData = userOf(num);
     def.position = world->toM(s.origin);
-    def.rotation = kind == Kind::Actor || kind == Kind::Player ? b3Quat_identity : toB3(turnOf(ent->v.angles, s.brush));
+    def.rotation = rotationOf(ent, s);
     def.type = kind == Kind::Prop ? b3_dynamicBody : b3_kinematicBody;
 
     if(kind == Kind::Prop)
@@ -703,9 +1001,31 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind)
     {
         s.mins = vec(ent->v.mins);
         s.maxs = vec(ent->v.maxs);
+        const b3ShapeDef def2 = shapeDef(num, catActor, catProp);
+        if(s.hull)
+        {
+            b3CreateHullShape(s.body, &def2, s.hull);
+            break;
+        }
         const glm::vec3 half = (s.maxs - s.mins) * 0.5f / world->m2u;
         const b3BoxHull box = b3MakeOffsetBoxHull(half.x, half.y, half.z, world->toM((s.mins + s.maxs) * 0.5f));
-        const b3ShapeDef def2 = shapeDef(num, catActor, catProp);
+        b3CreateHullShape(s.body, &def2, &box.base);
+        break;
+    }
+    case Kind::Fixture:
+    {
+        glm::vec3 lo, hi;
+        localBox(ent, model, lo, hi);
+        s.mins = lo;
+        s.maxs = hi;
+        const b3ShapeDef def2 = shapeDef(num, catFixture, catProp);
+        if(b3HullData* hull = propHull(ent, model, lo, hi))
+        {
+            b3CreateHullShape(s.body, &def2, hull);
+            break;
+        }
+        const glm::vec3 half = (hi - lo) * 0.5f / world->m2u;
+        const b3BoxHull box = b3MakeOffsetBoxHull(half.x, half.y, half.z, world->toM((lo + hi) * 0.5f));
         b3CreateHullShape(s.body, &def2, &box.base);
         break;
     }
@@ -763,8 +1083,9 @@ void follow(edict_t* ent, Slot& s, float dt)
     {
         return;
     }
-    const b3Quat rot = s.kind == Kind::Actor || s.kind == Kind::Player ? b3Quat_identity : toB3(turnOf(ent->v.angles, s.brush));
-    if(glm::distance(origin, s.origin) > 64.f)
+    const b3Quat rot = rotationOf(ent, s);
+    const float distance = glm::distance(origin, s.origin);
+    if(distance > 64.f)
     {
         b3Body_SetTransform(s.body, world->toM(origin), rot);
         b3Body_SetLinearVelocity(s.body, b3Vec3_zero);
@@ -772,6 +1093,16 @@ void follow(edict_t* ent, Slot& s, float dt)
     }
     else
     {
+        // A player's body shoves props at most at vr_box3d_player_push_speed: it jumps the rest of its move, and
+        // the props it then overlaps are eased out of it (Box3D's contact softness, a few metres a second), rather
+        // than kicked ahead at a run's speed (Quake's 320 units a second is 8 m/s). Props don't stop players (they
+        // are not solid in Quake's movement): walking into a stack pushes through it, not into a wall of boxes.
+        const float most = std::max(vr_box3d_player_push_speed.value, 0.1f) * world->m2u * dt;
+        if(s.kind == Kind::Player && distance > most)
+        {
+            const glm::vec3 from = origin - (origin - s.origin) * (most / distance);
+            b3Body_SetTransform(s.body, world->toM(from), rot);
+        }
         b3Body_SetTargetTransform(s.body, b3WorldTransform{world->toM(origin), rot}, dt, true);
     }
     s.origin = origin;
@@ -878,7 +1209,8 @@ void syncEntities(float dt)
         case Kind::Held:
         case Kind::Mover:
         case Kind::Actor:
-        case Kind::Player: follow(ent, s, dt); break;
+        case Kind::Player:
+        case Kind::Fixture: follow(ent, s, dt); break;
         default: break;
         }
     }
@@ -943,9 +1275,10 @@ void beforeStep(float dt)
             }
         }
 
-        // Fast (a throw), its continuous collision takes in the other props too: Box3D's is only against the world
-        // and kinematic bodies otherwise, and a box thrown at 15 m/s crosses a stacked box in a step.
-        const bool fast = glm::length(vel) / world->m2u * dt > 0.2f * b3Body_GetMinExtent(s.body);
+        // Fast (a throw: more than a third of its thickness a step), its continuous collision takes in the other props
+        // too: Box3D's is only against the world and kinematic bodies otherwise, and a box thrown at 15 m/s crosses a
+        // stacked box in a step. (A fifth before: most of a toppling pile's boxes were bullets, a third of its step.)
+        const bool fast = glm::length(vel) / world->m2u * dt > 0.35f * b3Body_GetMinExtent(s.body);
         if(fast != s.bullet)
         {
             b3Body_SetBullet(s.body, fast);
@@ -1205,10 +1538,6 @@ void destroyWorld()
     {
         b3DestroyWorld(world->id);
     }
-    if(world->mesh)
-    {
-        b3DestroyMesh(world->mesh);
-    }
     for(auto& [key, hull] : world->propHulls)
     {
         if(hull)
@@ -1249,9 +1578,16 @@ void buildWorld()
     def.enqueueTask = nullptr;
     def.finishTask = nullptr;
     def.userTaskContext = nullptr;
+    // Room for the map's entities as bodies and a pile's contacts from the start: no growing (a reallocation and copy
+    // of Box3D's arrays) in the frame a pile collapses.
+    def.capacity.staticBodyCount = 1;
+    def.capacity.staticShapeCount = 1;
+    def.capacity.dynamicBodyCount = std::max(qcvm->num_edicts, 256);
+    def.capacity.dynamicShapeCount = std::max(qcvm->num_edicts, 256) + 256;
+    def.capacity.contactCount = 4096;
     world->id = b3CreateWorld(&def);
 
-    world->mesh = worldMesh(sv.worldmodel, world->m2u);
+    world->mesh = cachedWorldMesh(sv.worldmodel, world->m2u);
     if(world->mesh)
     {
         b3BodyDef body = b3DefaultBodyDef();
@@ -1434,6 +1770,52 @@ void pile_f()
     Con_Printf("vr_physics_pile: %d in %d columns\n", static_cast<int>(list.size()), static_cast<int>((list.size() + per - 1) / per));
 }
 
+// vr_physics_blast <x> <y> <z> [<damage>]: an explosion there, from the world (QC's T_RadiusDamage, 120 by default: a
+// rocket's; and its effect): what it does to monsters, gibs and the props (physicsblast). For tests.
+void blast_f()
+{
+    if(!sv.active || Cmd_Argc() < 4)
+    {
+        Con_Printf("usage: vr_physics_blast <x> <y> <z> [<damage>]\n");
+        return;
+    }
+    const VmScope vm;
+    dfunction_t* fn = nullptr;
+    for(int i = 1; i < qcvm->progs->numfunctions && !fn; i++)
+    {
+        if(!strcmp(PR_GetString(qcvm->functions[i].s_name), "T_RadiusDamage"))
+        {
+            fn = &qcvm->functions[i];
+        }
+    }
+    if(!fn)
+    {
+        Con_Printf("vr_physics_blast: no T_RadiusDamage in the progs\n");
+        return;
+    }
+    const float at[3] = {static_cast<float>(Q_atof(Cmd_Argv(1))), static_cast<float>(Q_atof(Cmd_Argv(2))), static_cast<float>(Q_atof(Cmd_Argv(3)))};
+    const float damage = Cmd_Argc() > 4 ? static_cast<float>(Q_atof(Cmd_Argv(4))) : 120.f;
+    edict_t* e = ED_Alloc();
+    VectorCopy(at, e->v.origin);
+    SV_LinkEdict(e, false);
+    pr_global_struct->time = qcvm->time;
+    pr_global_struct->self = EDICT_TO_PROG(e);
+    pr_global_struct->other = EDICT_TO_PROG(qcvm->edicts);
+    G_INT(OFS_PARM0) = EDICT_TO_PROG(e);
+    G_INT(OFS_PARM1) = EDICT_TO_PROG(qcvm->edicts);
+    G_FLOAT(OFS_PARM2) = damage;
+    G_INT(OFS_PARM3) = EDICT_TO_PROG(qcvm->edicts);
+    PR_ExecuteProgram(static_cast<func_t>(fn - qcvm->functions));
+    ED_Free(e);
+    MSG_WriteByte(&sv.datagram, svc_temp_entity);
+    MSG_WriteByte(&sv.datagram, TE_EXPLOSION);
+    for(const float c : at)
+    {
+        MSG_WriteCoord(&sv.datagram, c, sv.protocolflags);
+    }
+    Con_Printf("vr_physics_blast: %.0f at %.0f %.0f %.0f\n", damage, at[0], at[1], at[2]);
+}
+
 // vr_physics_hash: a hash of every rigid body's origin, angles, velocity and spin, bit for bit (determinism tests: two
 // runs of the same script print the same).
 void hash_f()
@@ -1490,6 +1872,7 @@ void registerCommands()
         Cmd_AddCommand("vr_physics_loose", loose_f);
         Cmd_AddCommand("vr_physics_pile", pile_f);
         Cmd_AddCommand("vr_physics_hash", hash_f);
+        Cmd_AddCommand("vr_physics_blast", blast_f);
     }
 }
 
@@ -1514,6 +1897,192 @@ void reset()
 {
     registerCommands();
     destroyWorld();
+}
+
+void blast(const glm::vec3& at, float damage)
+{
+    if(!world || !wanted() || damage <= 0.f)
+    {
+        return;
+    }
+    // As T_RadiusDamage's: within damage + 40 units, `damage` less half the distance to the middle, seen from the
+    // blast (its CanDamage: the middle, or the top). Thrown at 4 units a second per point (half of what Quake gives a
+    // player) for a health box's mass, lighter things faster, heavier slower (by the square root of their mass, within
+    // half to twice), at most 600 (15 m/s): a rocket beside a pile scatters it a few metres, not across the map. A
+    // little upwards (a blast on the floor lifts what is round it).
+    const float reach = damage + 40.f;
+    constexpr float referenceMass = 6.f; // kg: a health box (its hull at 400 kg/m^3)
+    for(int num = 1; num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts; num++)
+    {
+        Slot& s = world->slots[num];
+        if(s.kind != Kind::Prop)
+        {
+            continue;
+        }
+        const glm::vec3 centre = world->toU(b3Body_GetWorldCenter(s.body));
+        const float distance = glm::distance(centre, at);
+        const float points = damage - 0.5f * distance;
+        if(distance > reach || points <= 0.f)
+        {
+            continue;
+        }
+        const b3AABB box = b3Body_ComputeAABB(s.body);
+        bool seen = false;
+        for(const float z : {centre.z, box.upperBound.z * world->m2u - 1.f})
+        {
+            vec3_t from, to;
+            store(at, from);
+            store(glm::vec3{centre.x, centre.y, z}, to);
+            const trace_t tr = SV_Move(from, vec3_origin, vec3_origin, to, MOVE_NOMONSTERS, nullptr);
+            if(tr.fraction >= 1.f && !tr.startsolid)
+            {
+                seen = true;
+                break;
+            }
+        }
+        if(!seen)
+        {
+            continue;
+        }
+        glm::vec3 dir = distance > 0.01f ? (centre - at) / distance : glm::vec3{0.f, 0.f, 1.f};
+        dir = glm::normalize(dir + glm::vec3{0.f, 0.f, 0.35f});
+        const float mass = std::max(b3Body_GetMass(s.body), 1e-3f);
+        const float speed = std::min(4.f * points * CLAMP(0.5f, std::sqrt(referenceMass / mass), 2.f), 600.f); // u/s
+        // Through a point under the middle: the push along the floor turns it over (spin), a lift from under does not.
+        const glm::vec3 low = centre - glm::vec3{0.f, 0.f, 0.3f * b3Body_GetMinExtent(s.body) * world->m2u};
+        b3Body_ApplyLinearImpulse(s.body, world->toM(dir * (speed * mass)), world->toM(low), true);
+        s.asleep = false;
+        if(vr_debug_box3d.value)
+        {
+            Con_Printf("box3d: %d blasted: %.0f points, %.1f kg, %.0f u/s\n", num, points, mass, speed);
+        }
+    }
+}
+
+namespace
+{
+
+// vr_debug_physics_shapes: a body's colour by what it is and does.
+[[nodiscard]] glm::vec4 shapeColour(const Slot& s, bool awake)
+{
+    switch(s.kind)
+    {
+    case Kind::Prop:
+        if(!awake)
+        {
+            return {0.35f, 0.5f, 1.f, 0.9f}; // asleep: blue
+        }
+        return s.bullet ? glm::vec4{1.f, 1.f, 1.f, 1.f} : glm::vec4{0.2f, 1.f, 0.3f, 1.f}; // awake: green (fast: white)
+    case Kind::Held: return {1.f, 0.9f, 0.1f, 1.f};    // held: yellow
+    case Kind::Mover: return {0.9f, 0.3f, 1.f, 0.7f};  // doors, plats: purple
+    case Kind::Actor: return {1.f, 0.45f, 0.1f, 0.9f}; // monsters: orange
+    case Kind::Player: return {0.2f, 0.9f, 1.f, 0.6f}; // players: cyan
+    case Kind::Fixture: return {0.75f, 0.75f, 0.75f, 0.8f}; // pickups hanging: grey
+    default: return {1.f, 0.f, 0.f, 1.f};
+    }
+}
+
+void drawHull(const b3HullData* hull, const b3WorldTransform& xf, const glm::vec4& colour, float width)
+{
+    const b3Vec3* points = b3GetHullPoints(hull);
+    const b3HullHalfEdge* edges = b3GetHullEdges(hull);
+    for(int i = 0; i < hull->edgeCount; i++)
+    {
+        const b3HullHalfEdge& e = edges[i];
+        if(e.twin < i)
+        {
+            continue; // each edge once
+        }
+        const glm::vec3 a = world->toU(b3TransformPoint(xf, points[e.origin]));
+        const glm::vec3 b = world->toU(b3TransformPoint(xf, points[edges[e.twin].origin]));
+        lines::line(a, b, width, colour, colour);
+    }
+}
+
+void drawCapsule(const b3Capsule& c, const b3WorldTransform& xf, const glm::vec4& colour, float width)
+{
+    const glm::vec3 a = world->toU(b3TransformPoint(xf, c.center1)), b = world->toU(b3TransformPoint(xf, c.center2));
+    const float r = c.radius * world->m2u;
+    constexpr int sides = 12;
+    for(const glm::vec3& centre : {a, b})
+    {
+        for(int i = 0; i < sides; i++)
+        {
+            const float t0 = 2.f * glm::pi<float>() * static_cast<float>(i) / sides, t1 = 2.f * glm::pi<float>() * static_cast<float>(i + 1) / sides;
+            lines::line(centre + r * glm::vec3{std::cos(t0), std::sin(t0), 0.f}, centre + r * glm::vec3{std::cos(t1), std::sin(t1), 0.f}, width,
+                colour, colour);
+        }
+    }
+    for(int i = 0; i < 4; i++)
+    {
+        const float t = glm::half_pi<float>() * static_cast<float>(i);
+        const glm::vec3 o = r * glm::vec3{std::cos(t), std::sin(t), 0.f};
+        lines::line(a + o, b + o, width, colour, colour);
+    }
+}
+
+} // namespace
+
+void debugDraw()
+{
+    if(!world || !sv.active)
+    {
+        return;
+    }
+    std::array<b3ShapeId, 64> shapes;
+    std::array<b3ContactData, 16> contacts;
+    constexpr float width = 0.15f;
+    for(int num = 1; num < static_cast<int>(world->slots.size()); num++)
+    {
+        const Slot& s = world->slots[num];
+        if(s.kind == Kind::None || !b3Body_IsValid(s.body))
+        {
+            continue;
+        }
+        const bool awake = b3Body_IsAwake(s.body);
+        glm::vec4 colour = shapeColour(s, awake);
+        if(s.kind == Kind::Player && num == cl.viewentity)
+        {
+            colour.a *= 0.4f; // your own, round you: faint
+        }
+        const b3WorldTransform xf = b3Body_GetTransform(s.body);
+        const int count = b3Body_GetShapes(s.body, shapes.data(), static_cast<int>(shapes.size()));
+        for(int i = 0; i < count; i++)
+        {
+            switch(b3Shape_GetType(shapes[i]))
+            {
+            case b3_hullShape: drawHull(b3Shape_GetHull(shapes[i]), xf, colour, width); break;
+            case b3_capsuleShape: drawCapsule(b3Shape_GetCapsule(shapes[i]), xf, colour, width); break;
+            default: break;
+            }
+        }
+        if(s.kind != Kind::Prop && s.kind != Kind::Held)
+        {
+            continue;
+        }
+        // The centre of mass, and (awake) where it touches things: red dots, pressed into them (or held apart: pink).
+        lines::point(world->toU(b3Body_GetWorldCenter(s.body)), 0.8f, colour);
+        if(!awake)
+        {
+            continue;
+        }
+        const int touching = b3Body_GetContactData(s.body, contacts.data(), static_cast<int>(contacts.size()));
+        for(int c = 0; c < touching; c++)
+        {
+            const b3ContactData& d = contacts[c];
+            const bool isA = B3_ID_EQUALS(b3Shape_GetBody(d.shapeIdA), s.body);
+            const glm::vec3 centre = world->toU(b3Body_GetWorldCenter(s.body));
+            for(int m = 0; m < d.manifoldCount; m++)
+            {
+                for(int p = 0; p < d.manifolds[m].pointCount; p++)
+                {
+                    const b3ManifoldPoint& mp = d.manifolds[m].points[p];
+                    const glm::vec3 at = centre + world->toU(isA ? mp.anchorA : mp.anchorB);
+                    lines::point(at, 0.7f, mp.separation < 0.f ? glm::vec4{1.f, 0.1f, 0.1f, 1.f} : glm::vec4{1.f, 0.5f, 0.7f, 1.f});
+                }
+            }
+        }
+    }
 }
 
 } // namespace qvr::box3d
@@ -1542,10 +2111,16 @@ extern "C" void VR_PhysicsFrameEnd(void)
         return;
     }
     QVR_PROFILE("box3d");
-    if(!world || world->map != sv.worldmodel || world->m2u != units::metresToUnits())
+    if(!world || world->map != sv.worldmodel || world->m2u != units::metresToUnits() ||
+       !meshCurrent(sv.worldmodel, world->m2u))
     {
+        const double b0 = Sys_DoubleTime();
         destroyWorld();
         buildWorld();
+        if(vr_debug_box3d.value || developer.value)
+        {
+            Con_Printf("box3d: world built in %.2f ms\n", (Sys_DoubleTime() - b0) * 1000.0);
+        }
     }
     const double t0 = Sys_DoubleTime();
     updateSettings();
@@ -1560,8 +2135,11 @@ extern "C" void VR_PhysicsFrameEnd(void)
     const double t1 = Sys_DoubleTime();
 
     // Box3D's step, in pieces of at most 1/45 s (a slow server frame).
-    std::vector<std::pair<int, int>> impacts;
-    const int pieces = std::max(1, static_cast<int>(std::ceil(dt * 45.f - 0.01f)));
+    std::vector<std::pair<int, int>>& impacts = world->impacts;
+    impacts.clear();
+    // (At most three: after a hitch (a level's load, a saved game, a slow frame; Quake's frame time is at most a tenth of
+    // a second) the step catches up in pieces of up to 1/30 s rather than adding more steps to the slow frame.)
+    const int pieces = CLAMP(1, static_cast<int>(std::ceil(dt * 45.f - 0.01f)), 3);
     const int substeps = CLAMP(1, static_cast<int>(vr_box3d_substeps.value), 8);
     {
         QVR_PROFILE("box3d step");
@@ -1573,14 +2151,17 @@ extern "C" void VR_PhysicsFrameEnd(void)
         }
     }
     const double t2 = Sys_DoubleTime();
-    if(vr_debug_box3d.value && (t2 - t0) * 1000.0 > 2.0)
+    // Slow frames (over a millisecond; vr_debug_box3d 3: over 0.2) with Box3D's own profile and counts.
+    if((vr_debug_box3d.value || developer.value) && (t2 - t0) * 1000.0 > (vr_debug_box3d.value >= 3.f ? 0.2 : 1.0))
     {
         const b3Counters c = b3World_GetCounters(world->id);
         const b3Profile p = b3World_GetProfile(world->id);
-        Con_Printf("box3d: slow frame %.2f ms (sync and water %.2f, step %.2f: collide %.2f, solve %.2f, continuous %.2f), %d "
-                   "bodies (%d awake), %d contacts\n",
-            (t2 - t0) * 1000.0, (t1 - t0) * 1000.0, (t2 - t1) * 1000.0, p.collide, p.solve, p.bullets, c.bodyCount,
-            b3World_GetAwakeBodyCount(world->id), c.contactCount);
+        Con_Printf("box3d: slow frame %.2f ms (sync and water %.2f, step %.2f: pairs %.2f collide %.2f solve %.2f [setup %.2f "
+                   "constraints %.2f split %.2f sleep %.2f transforms %.2f refit %.2f] continuous %.2f), %d bodies (%d awake), %d "
+                   "contacts, %d pieces\n",
+            (t2 - t0) * 1000.0, (t1 - t0) * 1000.0, (t2 - t1) * 1000.0, p.pairs, p.collide, p.solve, p.solverSetup, p.constraints,
+            p.splitIslands, p.sleepIslands, p.transforms, p.refit, p.bullets, c.bodyCount, b3World_GetAwakeBodyCount(world->id),
+            c.contactCount, pieces);
     }
 
     // The props into their entities (the awake ones, and those that just fell asleep).

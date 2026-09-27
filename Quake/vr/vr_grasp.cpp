@@ -1282,6 +1282,31 @@ bool inside(const Shape& shape, const glm::mat4& shapeToWorld, const glm::vec3& 
     return true;
 }
 
+float surfaceDistance(const Shape& shape, const glm::mat4& shapeToWorld, const glm::vec3& p, float reach, glm::vec3& at, bool& in)
+{
+    Shape::Space& space = *shape.space;
+    const glm::mat4 realToWorld = shapeToWorld * glm::inverse(space.rawToReal);
+    const float scale = glm::length(glm::vec3{realToWorld[0]});
+    if(!(scale > 1e-6f))
+    {
+        return -1.f;
+    }
+    if(space.cell <= 0.f)
+    {
+        space.buildGrid(0.8f / scale); // (as inside's)
+    }
+    const glm::vec3 q{glm::inverse(realToWorld) * glm::vec4{p, 1.f}};
+    glm::vec3 closest, n;
+    const float d = space.nearest(q, reach / scale, &closest, &n);
+    if(d >= reach / scale)
+    {
+        return -1.f;
+    }
+    in = glm::dot(q - closest, n) < 0.f;
+    at = glm::vec3{realToWorld * glm::vec4{closest, 1.f}};
+    return d * scale;
+}
+
 void fingerPoints(const handrig::Pose& pose, int finger, const float curls[handrig::jointsPerFinger], glm::vec3 out[4])
 {
     const Kinematics& k = kinematics();

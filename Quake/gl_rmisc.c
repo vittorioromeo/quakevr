@@ -668,6 +668,24 @@ void GL_BindBufferRange (GLenum target, GLuint index, GLuint buffer, GLintptr of
 
 /*
 ====================
+GL_GetShaderStorageRange
+
+QVR: the range bound (through GL_BindBufferRange) to a cached SSBO binding, to put it back after
+borrowing the binding (vr_gfx_gl.cpp's particles)
+====================
+*/
+qboolean GL_GetShaderStorageRange (GLuint index, GLuint *buffer, GLintptr *offset, GLsizeiptr *size)
+{
+	if (index >= CACHED_BUFFER_RANGES)
+		return false;
+	*buffer = ssbo_ranges[index].buffer;
+	*offset = ssbo_ranges[index].offset;
+	*size = ssbo_ranges[index].size;
+	return true;
+}
+
+/*
+====================
 GL_BindBuffersRange
 
 glBindBuffersRange wrapper with fallback

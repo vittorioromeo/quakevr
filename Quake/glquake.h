@@ -677,6 +677,7 @@ qboolean Sky_IsAnimated (void);
 
 void GL_BindBuffer (GLenum target, GLuint buffer);
 void GL_BindBufferRange (GLenum target, GLuint index, GLuint buffer, GLintptr offset, GLsizeiptr size);
+qboolean GL_GetShaderStorageRange (GLuint index, GLuint *buffer, GLintptr *offset, GLsizeiptr *size); // QVR
 void GL_BindBuffersRange (GLenum target, GLuint first, GLsizei count, const GLuint *buffers, const GLintptr *offsets, const GLsizeiptr *sizes);
 GLuint GL_CreateBuffer (GLenum target, GLenum usage, const char *name, size_t size, const void *data);
 void GL_DeleteBuffer (GLuint buffer);

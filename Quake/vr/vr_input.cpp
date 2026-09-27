@@ -22,6 +22,7 @@
 #include "vr_voicenotes.hpp"
 #include "vr_flashlight.hpp"
 
+#include <cmath>
 #include <string>
 #include <utility>
 #include <vector>
@@ -481,9 +482,11 @@ void parseHaptic()
     const float frequency = MSG_ReadFloat();
     const float amplitude = MSG_ReadFloat();
 
-    if(hand == HAND_OFF || hand == HAND_MAIN)
+    // At most 10 s ahead (a NaN or a huge delay would never come due: kept for ever), at most 64 waiting.
+    if((hand == HAND_OFF || hand == HAND_MAIN) && pendingHaptics.size() < 64)
     {
-        pendingHaptics.push_back({realtime + delay, hand, duration, frequency, amplitude});
+        const double wait = std::isfinite(delay) ? CLAMP(0.0, static_cast<double>(delay), 10.0) : 0.0;
+        pendingHaptics.push_back({realtime + wait, hand, duration, frequency, amplitude});
     }
 }
 

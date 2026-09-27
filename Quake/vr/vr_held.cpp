@@ -351,7 +351,7 @@ CarryProbe carryProbes[2];
 
 void noteCarryProbe(int hand, edict_t* ent, const glm::vec3& at, float distance, const glm::vec3& nearest, float reach)
 {
-    if(!vr_debug_carry.value || hand < 0 || hand > 1)
+    if((!vr_debug_carry.value && !vr_debug_physics_shapes.value) || hand < 0 || hand > 1)
     {
         return;
     }
@@ -381,7 +381,7 @@ void noteCarryProbe(int hand, edict_t* ent, const glm::vec3& at, float distance,
 
 void drawCarryProbes()
 {
-    if(!vr_debug_carry.value)
+    if(!vr_debug_carry.value && !vr_debug_physics_shapes.value)
     {
         return;
     }
