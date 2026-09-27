@@ -558,6 +558,9 @@ where the held thing is in the hand and whether it was solved afresh at rest. Th
 `vr_wofs_whole_*`, `vr_wofs_hand_only_*`, `vr_wofs_overlap`, `vr_wofs_fgr_manual`, `vr_wofs_fgr_curl_*`,
 `vr_wofs_fgr_thumb_across`, and per hotspot `vr_wofs_hsN_overlap`, `_vx/vy/vz/vpitch/vyaw/vroll`, `_manual`,
 `_curl_*`, `_thumb_across`.
+Hands remodelled (ROUND21.md): `python Misc/quakevr/make_hand_rig.py` regenerates the jointed hand (its mesh, rig,
+skins and `vr_handrig_data.inc`; rebuild the engine after it); `vr_grasp_spheres` lists the grasp solver's spheres and
+`vr_debug_hand_bones 1` draws them with the joints; `vr_hand_rig 0` draws the six old models.
 Two-handed props: `vr_rigid_place item_health main 0 3 0` with `+grabright; vr_mock_button main grip 1` puts a health
 box in the main hand; move the off hand to its other side (`vr_mock_hand off -0.19 1.30 -0.45 0 0 0` with the main
 at `0.10 1.30 -0.45`) and press its grip: `carry: both hands` (developer 1). `vr_debug_carry 2` writes the object and

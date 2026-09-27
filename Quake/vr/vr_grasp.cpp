@@ -20,9 +20,6 @@ namespace qvr::grasp
 namespace
 {
 
-using handrig::data::firstVertex;
-using handrig::data::vertices;
-
 constexpr float maxCurl = 4.f;       // the tightest fist
 constexpr float tolerance = 0.01f;   // hand units: a sphere this close touches
 constexpr float leastStep = 0.002f;  // curl frames: the smallest step closing makes (conservative advancement)
@@ -37,9 +34,9 @@ constexpr float cellHandUnits = 2.f; // the shapes' grid cells, in hand units (a
 }
 
 // ----------------------------------------------------------------------------
-// The hand as spheres: each finger segment (bones 1..3) as a row of spheres along its side towards the palm, fitted to
-// its vertices at the bind pose (rig space: each bone's own frame there); the palm's side as spheres just under its
-// skin.
+// The hand as spheres (made with the mesh: make_hand_rig.py): each finger segment (bones 1..3) as a row of spheres
+// along its side towards the palm, as wide as it is (rig space, at rest: each bone's own frame there); the palm's
+// side as spheres just under its skin, the ball of the thumb likewise; and the palm's middle.
 
 struct Sphere
 {
@@ -58,6 +55,7 @@ struct Kinematics
 
 Kinematics buildKinematics()
 {
+    namespace data = handrig::data;
     Kinematics k;
     for(int f = 0; f < handrig::FingerCount; f++)
     {
@@ -65,124 +63,20 @@ Kinematics buildKinematics()
         {
             k.rate[f][j] = handrig::jointRate(f, j);
         }
-        for(int b = 1; b <= handrig::jointsPerFinger; b++)
-        {
-            // The segment's vertices: the ring at its far end (its bone's) and the one at its joint (the bone
-            // before's): its triangles join them. Its axis: from the near ring's middle to the far one's.
-            std::vector<glm::vec3> pts;
-            glm::vec3 ring[2]{glm::vec3{0.f}, glm::vec3{0.f}};
-            int counts[2]{};
-            for(int v = firstVertex[f]; v < firstVertex[f + 1]; v++)
-            {
-                const int end = vertices[v].bone == b ? 1 : vertices[v].bone == b - 1 ? 0 : -1;
-                if(end >= 0)
-                {
-                    pts.push_back(vec(vertices[v].local[0]));
-                    ring[end] += pts.back();
-                    counts[end]++;
-                }
-            }
-            if(!counts[0] || !counts[1])
-            {
-                continue;
-            }
-            ring[0] /= static_cast<float>(counts[0]);
-            ring[1] /= static_cast<float>(counts[1]);
-            const glm::vec3 mid = 0.5f * (ring[0] + ring[1]);
-            const glm::vec3 dir = glm::normalize(ring[1] - ring[0]);
-
-            // Its cross-section: the direction its vertices spread most across the axis (`deep`), and across that.
-            float lo = 1e9f, hi = -1e9f;
-            glm::mat3 across{0.f};
-            for(const glm::vec3& p : pts)
-            {
-                const float t = glm::dot(p - mid, dir);
-                lo = std::fmin(lo, t);
-                hi = std::fmax(hi, t);
-                const glm::vec3 q = p - mid - dir * t;
-                across += glm::outerProduct(q, q);
-            }
-            glm::vec3 deep = glm::normalize(glm::cross(dir, std::fabs(dir.x) < 0.9f ? glm::vec3{1.f, 0.f, 0.f} : glm::vec3{0.f, 1.f, 0.f}));
-            for(int i = 0; i < 16; i++)
-            {
-                glm::vec3 next = across * deep;
-                next -= dir * glm::dot(next, dir);
-                if(glm::length(next) < 1e-9f)
-                {
-                    break;
-                }
-                deep = glm::normalize(next);
-            }
-            const glm::vec3 wide = glm::cross(dir, deep);
-            glm::vec2 centre{0.f};
-            for(const glm::vec3& p : pts)
-            {
-                centre += glm::vec2{glm::dot(p - mid, deep), glm::dot(p - mid, wide)};
-            }
-            centre /= static_cast<float>(pts.size());
-            float deepHalf = 0.f, wideHalf = 0.f;
-            for(const glm::vec3& p : pts)
-            {
-                deepHalf = std::fmax(deepHalf, std::fabs(glm::dot(p - mid, deep) - centre.x));
-                wideHalf = std::fmax(wideHalf, std::fabs(glm::dot(p - mid, wide) - centre.y));
-            }
-
-            // One row of spheres as wide as the segment, along its side towards the palm (+y, the side that closes
-            // onto what the hand holds): a deep, blocky segment's back is left out. A radius apart, from end to end
-            // (the ends half of one in).
-            const float radius = 0.95f * wideHalf;
-            const float towardsPalm = glm::dot(deep, glm::vec3{0.f, 1.f, 0.f}) >= 0.f ? 1.f : -1.f;
-            const float offset = std::fmax(0.95f * deepHalf - radius, 0.f) * towardsPalm;
-            const glm::vec3 axis = mid + deep * (centre.x + offset) + wide * centre.y;
-            const float a = lo + radius * 0.5f, z = hi - radius * 0.5f;
-            const int n = z > a ? std::max(2, static_cast<int>(std::ceil((z - a) / radius)) + 1) : 1;
-            for(int i = 0; i < n; i++)
-            {
-                const float t = n > 1 ? a + (z - a) * static_cast<float>(i) / static_cast<float>(n - 1) : 0.5f * (lo + hi);
-                k.bone[f][b].push_back({axis + dir * t, radius});
-            }
-        }
     }
-
-    // The palm's side (+y): a sphere under the middle of each of its triangles facing that way, its top on the skin.
-    constexpr float palmRadius = 0.45f;
-    glm::vec3 sum{0.f};
-    int count = 0;
-    for(int t = 0; t < handrig::data::numPalmTriangles; t++)
+    for(const data::SegmentSphere& s : data::segmentSpheres)
     {
-        const auto* tri = handrig::data::palmTriangles[t];
-        const auto& a = handrig::data::palmVertices[tri[0]];
-        const auto& b = handrig::data::palmVertices[tri[1]];
-        const auto& c = handrig::data::palmVertices[tri[2]];
-        const glm::vec3 pa = vec(a.pos), pb = vec(b.pos), pc = vec(c.pos);
-        glm::vec3 n = glm::cross(pb - pa, pc - pa);
-        if(glm::length(n) < 1e-6f)
-        {
-            continue;
-        }
-        n = glm::normalize(n);
-        if(glm::dot(n, vec(a.normal) + vec(b.normal) + vec(c.normal)) < 0.f)
-        {
-            n = -n; // outwards, as the vertices' normals
-        }
-        if(n.y < 0.35f)
-        {
-            continue;
-        }
-        const glm::vec3 p = (pa + pb + pc) / 3.f;
-        const Sphere s{p - n * palmRadius, palmRadius};
-        if(a.thumb + b.thumb + c.thumb > 0.f)
-        {
-            k.thenar.push_back(s);
-        }
-        else
-        {
-            k.palm.push_back(s);
-            sum += p;
-            count++;
-        }
+        k.bone[s.finger][s.bone].push_back({vec(s.c), s.r});
     }
-    k.palmCentre = count ? sum / static_cast<float>(count) : glm::vec3{0.f};
+    for(const auto& s : data::palmSpheres)
+    {
+        k.palm.push_back({vec(s), s[3]});
+    }
+    for(const auto& s : data::thenarSpheres)
+    {
+        k.thenar.push_back({vec(s), s[3]});
+    }
+    k.palmCentre = vec(data::palmCentre);
     return k;
 }
 
@@ -1261,6 +1155,21 @@ void curls(const FingerStop& stop, float curl, float engage, float out[handrig::
     {
         out[j] = std::fmin(stop.stop[j], reach);
     }
+}
+
+void legacyGripChannel(const handrig::Pose& pose, glm::vec3& point, glm::vec3& dir, float& radius)
+{
+    // The old hand's channel at rest (its gripChannel with every finger at its default place); a finger's offset
+    // moved its circle's middle with it, and the channel's point is their mean.
+    constexpr glm::vec3 restPoint{4.4881563f, 0.2731901f, -0.0914762f};
+    glm::vec3 shift{0.f};
+    for(int f = handrig::Index; f < handrig::FingerCount; f++)
+    {
+        shift += pose.shift[f];
+    }
+    point = restPoint + shift / static_cast<float>(handrig::FingerCount - handrig::Index);
+    dir = glm::vec3{0.0950148f, 0.1614300f, 0.9822997f};
+    radius = 0.7816211f;
 }
 
 bool gripChannel(const handrig::Pose& pose, glm::vec3& point, glm::vec3& dir, float& radius)

@@ -936,6 +936,7 @@ around the holding hand's channel. The per-hotspot Thumb style (above) chooses w
 A new hand needs a proper thumb with skin weights, better proportions, Quake-style texturing and the blood and powerup
 skins redone. That is an asset job of its own, and the solver and the fixes above don't depend on it. The jointed hand
 is still fitted to the six old models (`make_hand_rig.py`). If you want it, it is the natural next round for the hands.
+(Done later: [Hands remodelled](#hands-remodelled).)
 
 ### Caches and the game directory
 
@@ -3536,3 +3537,187 @@ clip) are unchanged.
 - [ ] Fire each: the parts recoil with the gun; the super nailgun's clamp spins with its barrels; the shotgun's pump
   slides under the rib.
 - [ ] The body in the body preview (`vr_body_debug 2` / `3`) or looking down: the vest, belt, boots, and each armour.
+
+## Hands remodelled
+
+Your note: better hands in the same style and low-poly look — "more high-poly and rounded so they look more like human
+fingers and not just squares", a better thumb and bones so that the fingers wrap things better, and proportions that
+are "normalized". Branch `agent/handmodel`; composites and numbers in the scratchpad's `handmodel/final/`.
+
+| | Before | Now |
+|---|---|---|
+| The mesh | the six old models, fitted: flat 5-vertex strips for fingers, a stub thumb | modelled by `make_hand_rig.py`: a lofted palm, 8-sided tapering fingers with knuckles and rounded tips, a three-segment thumb |
+| Triangles, vertices (MD5) | 234, 256 | 662, 474 (2.8x, 1.9x) |
+| Proportions (1 unit = 1.2 cm) | palm (wrist to middle knuckle) 12.4, middle finger 6.9 | palm 10.0, middle finger 7.5 (about human: finger 3/4 of the palm, phalanges 1 : 0.64 : 0.52) |
+| Joints | 148: one per vertex, their matrices fitted to the old frames | 33: palm, 15 segments, 15 half-turn helpers, 2 for the thenar |
+| Skin | the old skins cut and restacked | painted in the old skin's palette ramp with its grain: creases, knuckle wrinkles, nails, palm lines; the blood as before |
+| Commits | | `c248fee6` mesh, rig and skin; `903be0b4` cups; `8357c53d` fuller fingers, the skin's tone; `a32e1294` the back's tendons |
+
+### The mesh
+
+- **Palm:** lofted through seven sections of 13 vertices, from inside the forearm's cuff to the knuckles. The wrist is
+  narrower than the palm. The heel of the hand has pads, the back arches over the four metacarpals, and the palm is
+  cupped towards the little finger's side. The knuckle line is an arc: the middle finger's knuckle is furthest out
+  and the little finger's furthest back.
+- **Fingers:** 8-sided tubes, a little flatter than wide. They taper from the knuckle to the tip, bulge a little at the
+  knuckles on the back, have fuller pads on the palm's side and a rounded, pad-heavy tip. They splay slightly and are
+  as wide as the palm has room for.
+- **Thumb:** three segments — the metacarpal, from the carpometacarpal joint near the wrist, and two phalanges. The
+  metacarpal is thick: it is the ball of the thumb. The thumb sits abducted towards the palm's side, as the old thumb
+  did, so a handle through the hand passes between the thumb and the fingers.
+- **Proportions:** the knuckles, the palm's side and the fingers' roots stay where the old hand had them, so grips
+  land in the same place. The palm is shorter at the wrist's end: the arm now meets the jointed hand 2.5 units
+  (3 cm) nearer the knuckles (`handrig::data::wrist`; the six models keep their wrist). The fingers are longer (the
+  middle finger 7.5 units, was 6.9).
+
+### The rig
+
+- **Joints:**
+  - Each finger has three hinges: the knuckle (MCP) and the two finger joints (PIP, DIP). The thumb has the CMC, MCP
+    and IP. The pivots are inside the knuckles, on each segment's axis.
+  - Each hinge turns about its own axis. The fingers' knuckle axes lean a little (the index -5 degrees, the little
+    finger +12), so the fingers converge as they close, as a fist's do.
+  - Each joint has its turn per curl frame (0 open .. 4 the tightest fist; 5 is 3). The curls, the trigger's pull, the
+    solver's stops and Manual fingers all mean what they did.
+  - A relaxed hand at 0 has a slight natural curl. In the fist the thumb comes across the palm towards the index and
+    middle fingers; the grasp's opposition turn comes on top of that, about the same axis as before.
+- **Skinning, with no candy-wrapping:**
+  - The ring of vertices at each joint rides a helper joint turned half as far (slerped). Each joint is mitred: the
+    two tubes meet at the plane that bisects them, and the ring keeps its size however far the joint turns.
+  - The rest of each segment is rigid on it.
+  - The palm's thumb side follows the metacarpal by weight (up to 75%, falling off with the distance from it). It
+    blends between helpers turned 1/4, 1/2 and 3/4 as far, so the ball of the thumb never thins when the thumb
+    opposes.
+- **The engine** (`vr_handrig.cpp`):
+  - The CPU computes the 33 joints' matrices from the pose, and the GPU skins the mesh (the body's path, one draw per
+    hand).
+  - The same blend gives the vertices on the CPU for the cup's collision with the other hand and `vr_grasp_dump`.
+  - The old path computed a matrix per vertex (148) and turned each normal to the old models' own.
+- **The grasp solver's proxies** come from the generator (`segmentSpheres`, `palmSpheres`, `thenarSpheres` in
+  `vr_handrig_data.inc`):
+  - Each segment is a row of spheres as wide as it is, their palm's side flush with the skin.
+  - The palm's side is a grid of spheres under its skin.
+  - The ball of the thumb is its own set of spheres. The thumb's metacarpal has no row of its own; the thenar spheres
+    are its contact.
+  - The palm's middle (`palmCentre`) is the old hand's exactly: cups, the palm's turn and the free hand's reach to a
+    cup are measured from it.
+
+### Your placements don't move
+
+- **Every slot held in the same mock pose, before and after** (`vr_dumpview`: the axe, all the guns and the sword):
+  the hand, the muzzle and the foregrip are identical to 4 decimals, and so are the cups' one-time moves.
+- **The drawn palm** moves only by the palm fit: the hand slides flush on the grip, at most Palm Fit: Weapons (3 cm).
+  - The fit depends on the palm's shape, so the drawn palm differs by up to 2.4 cm (0.79 units) on the nailgun and
+    the sword, and by 0.6-2.2 cm on the others.
+  - The weapon, its muzzle and its aim don't move.
+  - The fit per weapon, before / after (cm): shotgun 3.0 / 3.0, super shotgun 2.1 / 3.0, nailgun 3.0 / 3.0, super
+    nailgun 0 / 1.0, grenade launcher 2.7 / 2.7, rocket launcher 2.7 / 2.5, lightning gun 2.8 / 3.0, sword 3.0 / 0,
+    axe 0 / 0.
+  - Most grips sit at the fit's 3 cm limit with either hand: your placements put the grip a little below the palm.
+- **Cups:** the one-time cup move (third pass) works out where the old hand drew the helping hand from both hands'
+  grip channels. With the new fingers it came out up to 0.3 units elsewhere. It now uses the old hand's channel
+  (`grasp::legacyGripChannel`, measured on it), and the moved cups are identical. Live blade and cup alignment use the
+  new fingers' channel.
+- **Posing mode** (`vr_pose_check`, the super shotgun): hand 0.0001 units and 0 degrees from the pose, muzzle 0.0001,
+  as before.
+
+### The fingers wrap better
+
+Each weapon in the main hand, and a gib in the off hand, at the same pose (`vr_debug_grasp 2`), over 50 fingers:
+
+| | Met (wrapped) | Inside (drawn at the controller's curl) | Free |
+|---|---|---|---|
+| Before | 37 | 12 | 1 |
+| Now | 42 | 8 | 0 |
+
+- **The thumb:**
+  - It now closes on the sword, the axe and the gib; before, it was inside the sword and the gib and free of the axe.
+  - On the sword and the axe it lies along the handle rather than over the fingers: the solver's choice of turn, as
+    before.
+  - It is still inside the grips of the super shotgun, the nailgun, both launchers and the lightning gun, as before,
+    and is drawn at the controller's curl there.
+- **The nailgun's index finger** is now inside its trigger guard (it was met): it is drawn at the trigger's curl.
+- **Solve times** (`vr_grasp_bench 200`, exclusive):
+  - Afresh: 2.2-4.7 ms, against 2.0-6.9 before.
+  - Again: a median of 22-37 µs, against 22-88 before (the sword 24 µs, was 88).
+  - Fewer probes on every weapon but the super nailgun.
+- **Stability:** the torch in the off hand and the shotgun in the main hand, each wobbled for 10 s (25 degrees and
+  8 cm; `vr_debug_grasp_trace`). There were no re-solves and no joint moved, before and after.
+
+### Costs (`run.sh --exclusive`, `vr_profile`, start map, both hands, per frame)
+
+| | Before | Now |
+|---|---|---|
+| Empty hands: `hand` CPU / `rig hand` | 0.023 / 0.022 ms | 0.019 / 0.018 ms |
+| Shotgun and gib: `hand` CPU / `rig hand` | 0.037 / 0.024 ms | 0.033 / 0.020 ms |
+| `alias` GPU (every alias model), empty hands | 0.014 ms | 0.014 ms |
+| `alias` GPU, shotgun and gib | 0.037-0.039 ms | 0.041-0.042 ms |
+| Frame GPU | 0.53 / 0.55 ms | 0.52 / 0.55 ms (no change) |
+
+The CPU is a little cheaper (33 matrices instead of 148). The GPU draws 2.8 times the triangles for about 0.003 ms.
+
+### The skin
+
+- **Painted, not cut and restacked:** the old skin is a painting of a whole hand in another pose. Projected onto the
+  new mesh, its painted fingers and shadows landed in the wrong places, so the generator paints the skin itself.
+- **The look is the old skin's:**
+  - The same palette ramp (112-127, and the brown ramp's darks for the deepest shade).
+  - The old skin's grain: two plain patches of it, tiled without visible repeats.
+  - A broad mottle.
+  - The mean brightness matched to the texels the old models used (luminance 73 against 74).
+- **The details, laid out on this mesh:**
+  - Knuckle highlights and wrinkles on the back, and the joints' creases on the palm's side.
+  - Nails with a darker rim and a light free edge, and lighter fingertip pads.
+  - Shade between the fingers' roots, and tendons over the metacarpals.
+  - The palm's lines (heart, head and life lines) and the wrist's creases.
+  - The ball of the thumb painted as the palm where the two meet, so there is no seam.
+- **Blood:** the four damage skins get their blood as `make_bloody_hands.py` paints the six models' (the same marks,
+  per part).
+- **Powerups:** the quad, pentagram and ring go through the entity as before (checked: the quad and the ring).
+
+### Kept working (checked; `final/`)
+
+- **Both hands, mirrored:** `blood_quad_ring_both_hands.png`.
+- **Blood, the quad, the ring:** the same composite.
+- **The six models (`vr_hand_rig 0`):** `six_models_path_vr_hand_rig_0.png` is the same as before.
+- **Weapons:**
+  - `weapons_side.png`: each weapon in the hand.
+  - `shotgun_auto_trigger_manual_tweaks.png`: Automatic, the trigger pulled, Manual, and the finger tweaks.
+- **Two hands:** `two_handed_shotgun_foregrip.png`, `two_handed_cup.png`, `two_handed_sword_blade.png`.
+- **Things in the hand:** `box_off_hand.png` and `torch_off_hand.png` (the flashlight's low grip).
+- **The hand alone:**
+  - `poses_open_fist_point.png`: open, fist, point, three sides.
+  - `thumb_closeup.png`: the thumb up and down, the fist with it open and closed.
+  - `curl_sweep.png`: 0 to 1 in 0.05 steps. It is smooth; the old hand was already half closed at 0.05.
+- **Show Hand Bones:** `hand_bones_shotgun_sword_axe.png`.
+- **The arm** meets the new wrist inside its cuff, with no gap (`arm.png`).
+- **The melee canary** (`eval.sh`) after merging vr-cleanup `f82607ba`: 40/46, no take differs from the baseline.
+
+### Files
+
+- `Misc/quakevr/make_hand_rig.py`: rewritten. It models the hand, rigs it, paints the skin and writes the tables. The
+  six old models are read only for their placement constants.
+- `quakevr/progs/hand_rig.md5mesh`, `.md5anim`, `hand_rig_0N_00.lmp`: generated.
+- `Quake/vr/vr_handrig_data.inc`: generated.
+- `Quake/vr/vr_handrig.hpp/.cpp`: joints and weights, and the skinning matrices.
+- `Quake/vr/vr_grasp.cpp/.hpp`: the proxies from the tables, and `legacyGripChannel`.
+- `Quake/vr/vr_view.cpp`: the rig's wrist for the arm, and the cups' migration on the old channel.
+- `docs/vr-port/TESTING.md`: a line on the generator.
+
+### Not verified
+
+- **In a headset:** only the mock was used. The scale, the thickness of the fingers and the colour under the maps'
+  lighting are worth a look in VR.
+- **The pentagram** was not triggered in a test. It goes through the same entity light path as the suit, and the quad
+  and the ring were checked.
+- **Hipnotic and Rogue weapons** were not held one by one. Their muzzles and placements don't depend on the hand.
+
+### Try
+
+- [ ] Look at your open hand, a fist and a point: do the fingers read as fingers, and does the hand fit your
+      controller (the knuckles where yours are)?
+- [ ] Hold each gun and the sword: do the fingers wrap the grip and the thumb close over it?
+- [ ] Two hands on the shotgun's foregrip, your cups, and the sword's blade.
+- [ ] Take damage (the blood) and a quad.
+- [ ] If the skin's tone is off in VR, `base_level` in `make_hand_rig.py` sets it (one step of the palette ramp is a
+      level).

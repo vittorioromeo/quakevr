@@ -13,8 +13,6 @@ namespace qvr::handrig
 namespace
 {
 
-constexpr const char* fingerNames[FingerCount] = {"thumb", "index", "middle", "ring", "pinky"};
-
 [[nodiscard]] glm::vec3 vec(const float* v)
 {
     return {v[0], v[1], v[2]};
@@ -26,58 +24,23 @@ constexpr const char* fingerNames[FingerCount] = {"thumb", "index", "middle", "r
     return glm::quat{q[3], q[0], q[1], q[2]};
 }
 
-// Where a curl falls between the frames.
-struct Between
-{
-    int a, b;
-    float t;
-};
-
-[[nodiscard]] Between between(float curl)
+[[nodiscard]] glm::quat turn(int finger, int joint, float curl)
 {
     const float c = std::fmin(std::fmax(curl, 0.f), static_cast<float>(data::numFrames - 1));
     const int a = std::min(static_cast<int>(c), data::numFrames - 2);
-    return {a, a + 1, c - static_cast<float>(a)};
+    return glm::slerp(turnAt(finger, joint, a), turnAt(finger, joint, a + 1), c - static_cast<float>(a));
 }
 
-[[nodiscard]] glm::quat turn(int finger, int joint, float curl)
+// A turn about a joint's pivot.
+[[nodiscard]] Rigid about(int finger, int joint, const glm::quat& q)
 {
-    const Between w = between(curl);
-    return glm::slerp(turnAt(finger, joint, w.a), turnAt(finger, joint, w.b), w.t);
+    const glm::mat3 r = glm::mat3_cast(q);
+    const glm::vec3 pivot = vec(data::pivots[finger][joint]);
+    return {r, pivot - r * pivot};
 }
 
-[[nodiscard]] glm::vec3 localAt(int v, float curl)
-{
-    const Between w = between(curl);
-    const float* a = data::vertices[v].local[w.a];
-    const float* b = data::vertices[v].local[w.b];
-    return glm::mix(vec(a), vec(b), w.t);
-}
-
-// The least turn taking unit vector `from` to `to`.
-[[nodiscard]] glm::mat3 arc(const glm::vec3& from, const glm::vec3& to)
-{
-    const float d = glm::dot(from, to);
-    if(d > 0.99999f)
-    {
-        return glm::mat3{1.f};
-    }
-    if(d < -0.99999f)
-    {
-        const glm::vec3 side = std::fabs(from.x) < 0.9f ? glm::vec3{1.f, 0.f, 0.f} : glm::vec3{0.f, 1.f, 0.f};
-        return glm::mat3_cast(glm::angleAxis(glm::pi<float>(), glm::normalize(glm::cross(from, side))));
-    }
-    const glm::vec3 c = glm::cross(from, to);
-    return glm::mat3_cast(glm::normalize(glm::quat{1.f + d, c.x, c.y, c.z}));
-}
-
-[[nodiscard]] glm::vec3 normalAt(int v, float curl)
-{
-    const Between w = between(curl);
-    return glm::mix(vec(data::vertices[v].normal[w.a]), vec(data::vertices[v].normal[w.b]), w.t);
-}
-
-void segments(const Pose& p, int finger, const float curls[jointsPerFinger], Rigid out[jointsPerFinger + 1])
+void segments(const Pose& p, int finger, const float curls[jointsPerFinger], Rigid out[jointsPerFinger + 1],
+    glm::quat turns[jointsPerFinger])
 {
     out[0] = {glm::mat3{1.f}, p.shift[finger]};
     for(int k = 0; k < jointsPerFinger; k++)
@@ -87,22 +50,26 @@ void segments(const Pose& p, int finger, const float curls[jointsPerFinger], Rig
         {
             q = p.metacarpal * q;
         }
-        const glm::mat3 r = glm::mat3_cast(glm::normalize(q));
-        const glm::vec3 pivot = vec(data::pivots[finger][k]);
-        out[k + 1] = out[k] * Rigid{r, pivot - r * pivot};
+        q = glm::normalize(q);
+        turns[k] = q;
+        out[k + 1] = out[k] * about(finger, k, q);
     }
 }
 
-void vertices(const Pose& p, int finger, const float curls[jointsPerFinger], Posed& out)
+// A vertex where its joints put it (the GPU's blend).
+[[nodiscard]] glm::vec3 blend(const Posed& posed, int count, const short* joints, const float* weights, const float* pos)
 {
-    (void)p;
-    for(int v = data::firstVertex[finger]; v < data::firstVertex[finger + 1]; v++)
+    const glm::vec3 p = vec(pos);
+    if(count == 1)
     {
-        const data::Vertex& dv = data::vertices[v];
-        const int joint = dv.bone > 0 ? dv.bone - 1 : 0;
-        out.vertex[v] = out.segment[finger][dv.bone](localAt(v, curls[joint]));
-        out.normal[v] = normalAt(v, curls[joint]);
+        return posed.joint[joints[0]](p);
     }
+    glm::vec3 out{0.f};
+    for(int i = 0; i < count; i++)
+    {
+        out += weights[i] * posed.joint[joints[i]](p);
+    }
+    return out;
 }
 
 struct ModelCheck
@@ -119,20 +86,39 @@ void pose(const Pose& p, Posed& out)
 {
     for(int f = 0; f < FingerCount; f++)
     {
-        segments(p, f, p.curl[f], out.segment[f]);
-        vertices(p, f, p.curl[f], out);
+        segments(p, f, p.curl[f], out.segment[f], out.turn[f]);
     }
-}
-
-void poseFinger(const Pose& p, int finger, const float curls[jointsPerFinger], Posed& out)
-{
-    segments(p, finger, curls, out.segment[finger]);
-    vertices(p, finger, curls, out);
+    const glm::quat none{1.f, 0.f, 0.f, 0.f};
+    for(int j = 0; j < data::numJoints; j++)
+    {
+        const data::Joint& d = data::joints[j];
+        switch(d.kind)
+        {
+        case data::PalmJoint:
+            out.joint[j] = Rigid{};
+            break;
+        case data::SegmentJoint:
+            out.joint[j] = out.segment[d.finger][d.index];
+            break;
+        case data::PartJoint:
+            // After the segment before the joint, the joint's turn by its share (slerped: the ring there keeps its
+            // size however far the joint turns).
+            out.joint[j] = out.segment[d.finger][d.index] *
+                           about(d.finger, d.index, glm::normalize(glm::slerp(none, out.turn[d.finger][d.index], d.share)));
+            break;
+        }
+    }
+    for(int v = 0; v < data::numVertices; v++)
+    {
+        const data::Vertex& dv = data::vertices[v];
+        out.vertex[v] = blend(out, dv.count, dv.joint, dv.weight, dv.pos);
+    }
 }
 
 void fingerSegments(const Pose& p, int finger, const float curls[jointsPerFinger], Rigid out[jointsPerFinger + 1])
 {
-    segments(p, finger, curls, out);
+    glm::quat turns[jointsPerFinger];
+    segments(p, finger, curls, out, turns);
 }
 
 float jointRate(int finger, int joint)
@@ -153,56 +139,22 @@ float jointRate(int finger, int joint)
 glm::vec3 palmVertex(const Posed& posed, int i)
 {
     const data::PalmVertex& pv = data::palmVertices[i];
-    const glm::vec3 p = vec(pv.pos);
-    if(pv.thumb <= 0.f)
-    {
-        return p;
-    }
-    // The ball of the thumb turns with the metacarpal as far as it is its (its weight): that share of the turn about
-    // the thumb's base (round 21, second pass: the places were blended, which pulled the thenar in towards the base
-    // and flattened it under a wide turn of the thumb: its skin stretched thin, "distorted").
-    const Rigid& m = posed.segment[Thumb][1];
-    const glm::vec3 pivot = vec(data::pivots[Thumb][0]);
-    const glm::quat q = glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, glm::normalize(glm::quat_cast(m.r)), pv.thumb);
-    const glm::vec3 moved = m(pivot) - pivot; // the base's own move (the finger's shift)
-    return pivot + glm::mat3_cast(q) * (p - pivot) + moved * pv.thumb;
+    return blend(posed, pv.count, pv.joint, pv.weight, pv.pos);
 }
 
 void skin(const Posed& posed, float out[data::numJoints * 12])
 {
-    const auto write = [&](int joint, const glm::mat3& r, const glm::vec3& t) {
-        float* m = out + joint * 12;
+    for(int j = 0; j < data::numJoints; j++)
+    {
+        const Rigid& m = posed.joint[j];
+        float* o = out + j * 12;
         for(int row = 0; row < 3; row++)
         {
-            m[row * 4 + 0] = r[0][row];
-            m[row * 4 + 1] = r[1][row];
-            m[row * 4 + 2] = r[2][row];
-            m[row * 4 + 3] = t[row];
+            o[row * 4 + 0] = m.r[0][row];
+            o[row * 4 + 1] = m.r[1][row];
+            o[row * 4 + 2] = m.r[2][row];
+            o[row * 4 + 3] = m.t[row];
         }
-    };
-
-    write(0, glm::mat3{1.f}, glm::vec3{0.f});
-    write(1, posed.segment[Thumb][1].r, posed.segment[Thumb][1].t);
-
-    // Each vertex at its place, its normal turned from the one the engine computed for the mesh to the models'
-    // own (as the six models were lit), turned with its segment.
-    const glm::quat thumbTurn = glm::quat_cast(posed.segment[Thumb][1].r);
-    for(int i = 0; i < data::numPalmVertices; i++)
-    {
-        const data::PalmVertex& pv = data::palmVertices[i];
-        glm::vec3 n = vec(pv.normal);
-        if(pv.thumb > 0.f)
-        {
-            n = glm::mat3_cast(glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, thumbTurn, pv.thumb)) * n;
-        }
-        const glm::mat3 r = arc(vec(pv.bindNormal), glm::normalize(n));
-        write(pv.joint, r, palmVertex(posed, i) - r * vec(pv.pos));
-    }
-    for(int v = 0; v < data::numVertices; v++)
-    {
-        const data::Vertex& dv = data::vertices[v];
-        const glm::mat3 r = arc(vec(dv.bindNormal), glm::normalize(posed.segment[dv.finger][dv.bone].r * posed.normal[v]));
-        write(dv.joint, r, posed.vertex[v] - r * vec(dv.local[0]));
     }
 }
 
@@ -230,27 +182,11 @@ bool usable(qmodel_t* model)
         return false;
     }
     const auto* bones = reinterpret_cast<const boneinfo_t*>(reinterpret_cast<const byte*>(hdr) + hdr->boneinfo);
-    if(strcmp(bones[0].name, "palm") != 0 || strcmp(bones[1].name, "thumb_1") != 0)
+    for(int j = 0; j < data::numJoints; j++)
     {
-        return false;
-    }
-    for(int i = 0; i < data::numPalmVertices; i++)
-    {
-        char name[32];
-        q_snprintf(name, sizeof(name), "palm_v%02d", i);
-        if(strcmp(bones[data::palmVertices[i].joint].name, name) != 0)
+        if(strcmp(bones[j].name, data::joints[j].name) != 0)
         {
-            return false;
-        }
-    }
-    for(int v = 0; v < data::numVertices; v++)
-    {
-        const data::Vertex& dv = data::vertices[v];
-        char name[32];
-        q_snprintf(name, sizeof(name), "%s_v%02d", fingerNames[dv.finger], v - data::firstVertex[dv.finger]);
-        if(strcmp(bones[dv.joint].name, name) != 0)
-        {
-            Con_DPrintf("%s: joint %d is \"%s\", not \"%s\"\n", model->name, dv.joint, bones[dv.joint].name, name);
+            Con_DPrintf("%s: joint %d is \"%s\", not \"%s\"\n", model->name, j, bones[j].name, data::joints[j].name);
             return false;
         }
     }

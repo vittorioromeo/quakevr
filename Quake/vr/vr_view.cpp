@@ -1564,12 +1564,21 @@ glm::mat4 rigPlacement(int hand, const glm::vec3& pos, const glm::vec3& handRot,
 // The hand at (`pos`, `handRot`) moved and turned, the least, so that its grip channel (grasp::gripChannel: where a
 // handle lies in the curled fingers) is on the line through `on` along `axis`: turned about the channel's middle to
 // lie along it (either way), then moved onto it (to its nearest point). A blade, a cupped hand: they are then in the
-// fingers' closing reach, not beside them.
-void alignChannel(int hand, bool mirrored, const glm::vec3& on, const glm::vec3& axis, glm::vec3& pos, glm::vec3& handRot)
+// fingers' closing reach, not beside them. `legacy`: the hand before "Hands remodelled"'s channel (migrating settings).
+void alignChannel(int hand, bool mirrored, const glm::vec3& on, const glm::vec3& axis, glm::vec3& pos, glm::vec3& handRot,
+    bool legacy = false)
 {
     glm::vec3 cp, cd;
     float radius;
-    if(!handrig::usable(viewModel(handrig::modelName)) || !grasp::gripChannel(rigHands[hand].pose, cp, cd, radius))
+    if(!handrig::usable(viewModel(handrig::modelName)))
+    {
+        return;
+    }
+    if(legacy)
+    {
+        grasp::legacyGripChannel(rigHands[hand].pose, cp, cd, radius);
+    }
+    else if(!grasp::gripChannel(rigHands[hand].pose, cp, cd, radius))
     {
         return;
     }
@@ -2080,12 +2089,13 @@ void migrateCups(const hands::State& s, int hand)
         // Where round 21's second pass drew it (at full grip).
         glm::vec3 at{hsFrame * glm::vec4{h.pos, 1.f}};
         glm::vec3 turn = helpingTurn(s.rot[other], other, hand, otherSlot, true, h.angles);
+        // As the hand of round 21's second pass drew it: its channels (Hands remodelled changed the fingers).
         glm::vec3 cp, cd;
         float radius;
-        if(grasp::gripChannel(rigHands[other].pose, cp, cd, radius))
+        grasp::legacyGripChannel(rigHands[other].pose, cp, cd, radius);
         {
             const glm::mat4& om = rigHands[other].rigToWorld;
-            alignChannel(hand, mirrored, glm::vec3{om * glm::vec4{cp, 1.f}}, glm::mat3{om} * cd, at, turn);
+            alignChannel(hand, mirrored, glm::vec3{om * glm::vec4{cp, 1.f}}, glm::mat3{om} * cd, at, turn, true);
         }
         weapons::Hotspot moved = h;
         moved.pos = glm::vec3{toHotspot * glm::vec4{palmAt(hand, at, turn, mirrored), 1.f}};
@@ -2945,8 +2955,8 @@ void setupWorldWeapons(const hands::State& s, bool queueTexts)
 // The drawn hands' wrists and orientations, for the body's arms and the wrist gadget.
 [[nodiscard]] avatar::HandPose drawnHand(const hands::State& s, int hand)
 {
-    // The centre of the wrist in hand_base.mdl (frame 0).
-    constexpr glm::vec3 handWrist{-6.86f, -1.08f, 1.42f};
+    // The centre of the wrist in hand_base.mdl (frame 0), or the jointed hand's (its palm is shorter: make_hand_rig.py).
+    const glm::vec3 handWrist = rigHands[hand].drawn ? vec3Of(handrig::data::wrist) : glm::vec3{-6.86f, -1.08f, 1.42f};
 
     avatar::HandPose hp;
     const view::ViewEntity& base = entities.hand[hand][FingerBase];
