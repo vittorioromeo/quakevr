@@ -1860,6 +1860,11 @@ The main hand takes the thing and the off hand takes it second. The object's pos
   had its own.
 - **Walls, monsters:** the box held in both hands, pushed at a grunt: the box and the hands stop together at it.
   Lowered to the floor: they stop on it.
+- **Degenerate hands:** the off hand took hold at the main hand's own place (grips 0 units apart). It was then held
+  by the averaged turn: turned, moved, one hand twisted, pulled 10 cm apart and back. Then a normal hold whose hands
+  passed through each other to swap sides, and back. Every value in the 2054 frames of the trace is finite. When the
+  hands cross, the thing turns over, 180° while they are within 3-6 cm of each other (about 50 ms at that speed).
+  Real hands can't pass through what they hold.
 - **Death, save, map:** killed while holding it in both hands: "carry: dead, let go", on the floor. Saved and loaded
   while held in both: still held in both, and letting go with one hand, then taking hold again, work. A map loaded
   while held in both: nothing held after, no error.
