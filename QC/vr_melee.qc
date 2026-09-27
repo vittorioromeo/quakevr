@@ -1511,7 +1511,7 @@ void() VR_Melee_Frame =
         b.mh_fresh = fresh;
         if(fresh && cvar("developer") >= 3 && b.mh_thing != VR_MTHING_NONE)
         {
-            dprint(sprintf("melee trace: %.3f hand %g grip %v far %v vfar %v vgrip %v\n", time, h, b.mh_rgrip, b.mh_rfar,
+            dprint(sprintf("melee trace: %.3f hand %g thing %g wid %g bits %g grip %v far %v vfar %v vgrip %v\n", time, h, b.mh_thing, VRGetEntWeapon(self, h), self.vrbits0, b.mh_rgrip, b.mh_rfar,
                 b.mh_vfar, b.mh_vgrip));
         }
     }

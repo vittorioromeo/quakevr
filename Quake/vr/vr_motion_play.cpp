@@ -742,7 +742,10 @@ void equip(edict_t* player)
         in.hands[HAND_MAIN].grip = true;
         in.hands[HAND_MAIN].gripValue = all.hands[HAND_MAIN].gripValue;
     }
-    if(setupTime >= setupOffGrip && all.hands[HAND_OFF].grip)
+    // The off hand's grip: after the weapons when it steadies the main hand's (a two-handed grip taken again), but
+    // before them when it holds its own (a weapon in a hand whose grip is up is let go of at once).
+    const double offGrip = take.frames.front().wid[HAND_OFF] != 0 ? setupPress : setupOffGrip;
+    if(setupTime >= offGrip && all.hands[HAND_OFF].grip)
     {
         in.hands[HAND_OFF].grip = true;
         in.hands[HAND_OFF].gripValue = all.hands[HAND_OFF].gripValue;
