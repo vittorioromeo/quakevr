@@ -162,6 +162,8 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     setFieldVec(ent, f.headpos, move.headPos);
     setFieldVec(ent, f.offmuzzlepos, move.muzzlePos[0]);
     setFieldVec(ent, f.muzzlepos, move.muzzlePos[1]);
+    setFieldVec(ent, f.offshotrot, move.shotRot[0]);
+    setFieldVec(ent, f.shotrot, move.shotRot[1]);
     if(clientNum >= static_cast<int>(clientBits.size()))
     {
         clientBits.resize(clientNum + 1);

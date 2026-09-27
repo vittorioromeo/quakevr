@@ -352,7 +352,7 @@ void() HIP_LaserTouch =
     oldvel = normalize(self.old_velocity);
     spot1 = self.origin - (16*oldvel);
     spot2 = self.origin + (16*oldvel);
-    traceline(spot1, spot2, FALSE, self);  // see through other monsters
+    VR_TouchTrace(spot1, spot2);  // see through other monsters
     self.origin = trace_endpos;
 
     org = self.origin;
@@ -412,6 +412,113 @@ void() HIP_LaserThink =
     self.velocity = self.old_velocity;
     self.angles = vectoangles(self.velocity);
     self.nextthink = time + 0.1;
+};
+
+// VR: a shot from a muzzle inside what it shoots. Pushed into a grunt's head, a gun is drawn stopped at the head's
+// surface (vr_model_collide) while its tracked muzzle, where shots start, is past it, inside the grunt's box; and a
+// Quake trace that starts inside a box doesn't report it (the shot went through). So a hand's shots are traced, and its
+// projectiles placed, from behind the muzzle along the shot's own line: from where that line passes the hand (the
+// grip). What lies between there and the muzzle (along the weapon's own length) is hit as what lies past it is; a wall
+// there stops the shot there (a gun poked through a thin wall doesn't shoot from behind it).
+//
+// The point behind `xFrom` (a muzzle, or a point beside it a projectile starts from) on the line along `xDir`, level
+// with the hand: `xFrom` itself if the hand isn't behind it or isn't near (a bot's). A wall between the hand and that
+// point: the hand.
+vector(float xHand, vector xFrom, vector xDir) VR_ShotBackPoint =
+{
+    vector hand = VRGetHandPos(xHand);
+    float back = (xFrom - hand) * xDir;
+    if(back <= 0 || vlen(xFrom - hand) > 96)
+    {
+        return xFrom;
+    }
+    vector at = xFrom - xDir * back;
+    traceline(hand, at, TRUE, self);
+    if(trace_fraction < 1 || trace_startsolid)
+    {
+        return hand;
+    }
+    return at;
+};
+
+// A hand's projectile, just placed at its muzzle: if anything solid lies along the weapon between the grip and there (a
+// monster the muzzle is inside, a wall it poked through), it starts behind it instead. A monster (or anything that takes
+// damage) is met at its surface this frame, as a shot meets it (VR_ShotImpacts): flown from behind, a missile starting
+// that close would begin inside the monster's box grown for missiles (15 units), and the physics would report the touch
+// only after a whole frame's flight, past it (its hit placed beyond it). The globals v_forward, v_right and v_up are left
+// as they were (the trace ones are not).
+.vector vr_shot_to;  // pending (vr_shot_pending, chained by vr_shot_next): the point it left the muzzle at,
+.float vr_shot_time; // this frame
+.entity vr_shot_next;
+entity vr_shot_pending;
+
+void(entity xMissile, float xHand) VR_ShotPlace =
+{
+    vector at = xMissile.origin;
+    vector from = VR_ShotBackPoint(xHand, at, VRForwardOf(VRGetWeaponFireRot(xHand)));
+    if(from == at)
+    {
+        return;
+    }
+    traceline(from, at, FALSE, self);
+    if(trace_fraction < 1 || (trace_startsolid && trace_ent != world))
+    {
+        setorigin(xMissile, from);
+        if(trace_ent != world && trace_ent.takedamage)
+        {
+            xMissile.vr_shot_to = at;
+            xMissile.vr_shot_time = time;
+            xMissile.vr_shot_next = vr_shot_pending;
+            vr_shot_pending = xMissile;
+        }
+    }
+};
+
+// The projectiles placed this frame with something that takes damage along the weapon (VR_ShotPlace) touch what they
+// meet there now (the first one's hit may have shoved it), where they meet it: at the end of the player's frame
+// (PlayerPostThink), after its weapons fired and before the projectiles move.
+void() VR_ShotImpacts =
+{
+    entity player = self;
+    entity oldOther = other;
+    entity m = vr_shot_pending;
+    vr_shot_pending = world;
+    while(m != world)
+    {
+        entity next = m.vr_shot_next;
+        m.vr_shot_next = world;
+        if(m.vr_shot_time == time && m.touch && m.solid != SOLID_NOT)
+        {
+            traceline(m.origin, m.vr_shot_to, FALSE, player);
+            if((trace_fraction < 1 || trace_startsolid) && trace_ent != world && trace_ent.takedamage &&
+               trace_ent.solid != SOLID_NOT)
+            {
+                entity target = trace_ent;
+                if(trace_fraction < 1)
+                {
+                    setorigin(m, trace_endpos - normalize(m.vr_shot_to - m.origin) * 0.25); // just before it
+                }
+                self = m;
+                other = target;
+                self.touch();
+            }
+        }
+        m = next;
+    }
+    self = player;
+    other = oldOther;
+};
+
+// VR: a projectile's touch traces back along its flight to find where it struck. Started inside another box (the
+// shooter's own, a missile fired point blank: VR_ShotImpacts; a monster beside the one struck), that trace reports the
+// box it started in, not what was struck: traced again from the projectile itself.
+void(vector xFrom, vector xTo) VR_TouchTrace =
+{
+    traceline(xFrom, xTo, FALSE, self);
+    if(trace_startsolid && trace_ent != other && trace_ent != world)
+    {
+        traceline(self.origin, xTo, FALSE, self);
+    }
 };
 
 entity(vector org, vector vec, vector extraVel, float light) HIP_LaunchLaser =
@@ -498,8 +605,10 @@ void(float xHand, float stat) HIP_FireLaser =
 
         org = org + (aofs*v_right);
         newmis = HIP_LaunchLaser(org, dir, extraVel, 0);
+        VR_ShotPlace(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
         org = org - (2*aofs*v_right);
         newmis = HIP_LaunchLaser(org, dir, extraVel, 0);
+        VR_ShotPlace(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
     }
     else if(stat == 1)
     {
@@ -510,11 +619,13 @@ void(float xHand, float stat) HIP_FireLaser =
         if(random() < 0.1)
         {
             newmis = HIP_LaunchLaser(org, dir, extraVel, 1);
+            VR_ShotPlace(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
             newmis.dmg = 25;
         }
         else
         {
             newmis = HIP_LaunchLaser(org, dir, extraVel, 0);
+            VR_ShotPlace(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
         }
     }
 
@@ -1461,7 +1572,9 @@ Used by shotgun, and super shotgun
 Go to the trouble of combining multiple pellets into a single damage call.
 ================
 */
-void(float shotcount, vector dir, vector spread, vector src) FireBulletsImpl =
+// VR: `xRange` units from `src`; `xStartHits`: a pellet whose trace starts inside a monster's (or anything damageable's)
+// box hits it there (a trace doesn't report the box it starts in): a hand's shots, traced from its grip (FireBullets).
+void(float shotcount, vector dir, vector spread, vector src, float xRange, float xStartHits) FireBulletsImpl =
 {
     vector direction;
     float adjDmg;
@@ -1469,18 +1582,36 @@ void(float shotcount, vector dir, vector spread, vector src) FireBulletsImpl =
 
     makevectors(vectoangles(dir));
 
+    // vr_debug_shots: what the pellets hit.
+    float debugShots = cvar_hget(cvarh_vr_debug_shots);
+    float hitsTarget = 0, hitsHead = 0, hitsWorld = 0, misses = 0;
+    string targetName = "";
+
     ClearMultiDamage();
     while(shotcount > 0)
     {
         direction = dir + crandom()*spread_x*v_right + crandom()*spread_y*v_up;
 
-        traceline(src, src + direction*2048, MOVE_HITGIBS, self); // VR: gibs and heads too (vr_gib_destroy),
-        VR_Gib_TraceHeld(src, src + direction*2048);               // and one held in the other hand
-        VR_WaterShotSplash(src, trace_endpos);                      // a splash where it goes into water
+        traceline(src, src + direction*xRange, MOVE_HITGIBS, self); // VR: gibs and heads too (vr_gib_destroy),
+        if(xStartHits && trace_startsolid && trace_ent != world && trace_ent.takedamage)
+        {
+            trace_fraction = 0; // started inside it: hit there
+            trace_endpos = src;
+            trace_plane_normal = -direction;
+        }
+        VR_Gib_TraceHeld(src, src + direction*xRange);               // and one held in the other hand
+        VR_WaterShotSplash(src, trace_endpos);                        // a splash where it goes into water
+        if(debugShots)
+        {
+            if(trace_fraction == 1.0) { misses++; }
+            else if(trace_ent == world) { hitsWorld++; }
+            else { hitsTarget++; targetName = trace_ent.classname; }
+        }
         if(trace_fraction != 1.0)
         //JIM
         {
             posDmgType = PositionalDamage(trace_ent, trace_endpos, direction);
+            if(debugShots && posDmgType == 1) { hitsHead++; }
             adjDmg = 4 * PositionalDamageFactor(posDmgType);
 
             TraceAttack (adjDmg, direction);
@@ -1495,6 +1626,11 @@ void(float shotcount, vector dir, vector spread, vector src) FireBulletsImpl =
         shotcount = shotcount - 1;
     }
     ApplyMultiDamage();
+    if(debugShots)
+    {
+        dprint(sprintf("shot: from %v dir %v: %d on %s (%d head), %d world, %d nothing\n", src, dir, hitsTarget,
+            targetName, hitsHead, hitsWorld, misses));
+    }
 };
 
 void(float xHand, float shotcount, vector dir, vector spread) FireBullets =
@@ -1504,8 +1640,12 @@ void(float xHand, float shotcount, vector dir, vector spread) FireBullets =
         spread *= cvar_hget(cvarh_vr_2h_spread_reduction);
     }
 
+    // From behind the muzzle, along the shot's line (VR_ShotBackPoint): what the muzzle is inside is hit too.
+    vector muzzle = VRGetMuzzlePos(xHand);
+    vector src = VR_ShotBackPoint(xHand, muzzle, dir);
+
     VR_SetHitKind(QVR_HITKIND_SHOT, xHand, '0 0 0', dir);
-    FireBulletsImpl(shotcount, dir, spread, VRGetMuzzlePos(xHand));
+    FireBulletsImpl(shotcount, dir, spread, src, 2048 + vlen(muzzle - src), TRUE);
     VR_ClearHitKind();
 }
 
@@ -1516,7 +1656,7 @@ void(float shotcount, vector dir, vector spread) EnemyFireBullets =
     src = self.origin + v_forward*10;
     src_z = self.absmin_z + self.size_z * 0.7;
 
-    FireBulletsImpl(shotcount, dir, spread, src);
+    FireBulletsImpl(shotcount, dir, spread, src, 2048, FALSE);
 };
 
 /*
@@ -1698,6 +1838,7 @@ entity(float xHand) W_FireRocket =
     setmodel(missile, "progs/missile.mdl");
     setsize(missile, '0 0 0', '0 0 0');
     setorigin(missile, VRGetMuzzlePos(xHand));
+    VR_ShotPlace(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
 
     // HIPNOTIC
     //MED 11/09/96
@@ -1819,13 +1960,15 @@ void(float xHand) W_FireLightning =
 
     vector org = VRGetMuzzlePos(xHand);
 
-    makeforward(VRGetHandRot(xHand));
-    traceline(org, org + v_forward*600, TRUE, self);
+    // Along the shot's line, from behind the muzzle (VR_ShotBackPoint): what the muzzle is inside is struck too.
+    makeforward(VRGetWeaponFireRot(xHand));
+    vector from = VR_ShotBackPoint(xHand, org, v_forward);
+    traceline(from, org + v_forward*600, TRUE, self);
     particle2(trace_endpos, '0 0 0', QVR_PARTICLE_PRESET_LIGHTNING, 60);
     particle2(trace_endpos, '0 0 0', QVR_PARTICLE_PRESET_SMOKE, 1);
     particle2(trace_endpos, '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 12);
     VR_SetHitKind(QVR_HITKIND_SHOT, xHand, '0 0 0', v_forward);
-    LightningDamage(org, trace_endpos + v_forward*4, self, 30);
+    LightningDamage(from, trace_endpos + v_forward*4, self, 30);
     VR_ClearHitKind();
 
     VRGunHaptic(xHand, 0.4, 175, 1.0);
@@ -1937,6 +2080,7 @@ void(float xHand) W_FireGrenade =
     setmodel(missile, "progs/grenade.mdl");
     setsize(missile, '0 0 0', '0 0 0');
     setorigin(missile, VRGetMuzzlePos(xHand));
+    VR_ShotPlace(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
 
     VRGunHaptic(xHand, 0.4, 75, 1.0);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 2);
@@ -2118,6 +2262,7 @@ void(float xHand) W_FireProximityGrenade =
 
     setmodel(missile, "progs/proxbomb.mdl");
     setorigin(missile, VRGetMuzzlePos(xHand));
+    VR_ShotPlace(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
     setsize(missile, '-1 -1 -1', '1 1 1');
 
     VRGunHaptic(xHand, 0.4, 75, 1.0);
@@ -2169,6 +2314,7 @@ void(float xHand) W_FireSuperSpikes =
     dir = v_forward;
 
     newmis = launch_spike(VRGetMuzzlePos(xHand), dir);
+    VR_ShotPlace(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
     newmis.touch = superspike_touch;
     setmodel(newmis, "progs/s_spike.mdl");
     setsize(newmis, VEC_ORIGIN, VEC_ORIGIN);
@@ -2204,6 +2350,7 @@ void(float xHand, float ox) W_FireSpikes =
     delAmmoOrClipAndUpdateCounter(xHand, AID_NAILS, 1);
     dir = v_forward;
     newmis = launch_spike(VRGetMuzzlePos(xHand) + v_right*ox, dir);
+    VR_ShotPlace(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
 
     newmis.velocity += vrProjectileVelocity(xHand, 1.0);
 
@@ -2257,7 +2404,7 @@ void() spike_touch =
     }
 
     makeforward_mdl(self.angles);
-    traceline(self.origin - v_forward * 8, self.origin + v_forward * 8, FALSE, self);
+    VR_TouchTrace(self.origin - v_forward * 8, self.origin + v_forward * 8);
 
     // hit something that maybe bleeds
     if(other.takedamage)
@@ -2314,7 +2461,7 @@ void() superspike_touch =
     }
 
     makeforward_mdl(self.angles);
-    traceline(self.origin - v_forward * 8, self.origin + v_forward * 8, FALSE, self);
+    VR_TouchTrace(self.origin - v_forward * 8, self.origin + v_forward * 8);
 
     // hit something that maybe bleeds
     if(other.takedamage)
@@ -3391,7 +3538,7 @@ void() ImpulseCommands =
 void(vector xOrigin, float xHand) PlayerLightningGunEffect =
 {
     makeforward(VRGetWeaponFireRot(xHand));
-    traceline(xOrigin, xOrigin + v_forward*600, TRUE, self);
+    traceline(VR_ShotBackPoint(xHand, xOrigin, v_forward), xOrigin + v_forward*600, TRUE, self); // as W_FireLightning
 
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_LIGHTNING2);

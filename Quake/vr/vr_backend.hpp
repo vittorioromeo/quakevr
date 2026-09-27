@@ -67,10 +67,33 @@ struct InputState
     HandInput hands[HAND_COUNT];
 };
 
+// vr_controller_legacy_pose: the controller pose the released offsets were tuned for (OpenVR's raw pose, at the
+// controller's front) is the runtime's grip pose moved and turned: raw = grip * (T(offset) R)^-1, so the grip is T(offset)
+// R in the raw pose's frame (metres). Touch (Quest) and Index controllers; `side` 0 left, 1 right.
+struct GripInRaw
+{
+    glm::vec3 offset{0.f};
+    glm::quat turn{1.f, 0.f, 0.f, 0.f};
+};
+[[nodiscard]] inline GripInRaw legacyGripInRaw(bool touch, int side)
+{
+    const float s = side == 0 ? 1.f : -1.f;
+    const glm::vec3 xyz = touch ? glm::vec3{20.6f, 0.f, 0.f} : glm::vec3{15.392f, -2.071f * s, 0.303f * s}; // degrees
+    GripInRaw g;
+    g.offset = touch ? glm::vec3{0.007f * s, -0.00182941f, 0.1019482f} : glm::vec3{0.f, -0.015f, 0.13f};
+    g.turn = glm::angleAxis(glm::radians(xyz.x), glm::vec3{1.f, 0.f, 0.f}) *
+             glm::angleAxis(glm::radians(xyz.y), glm::vec3{0.f, 1.f, 0.f}) *
+             glm::angleAxis(glm::radians(xyz.z), glm::vec3{0.f, 0.f, 1.f});
+    return g;
+}
+
 struct TrackingState
 {
     Pose head;
-    Pose hands[HAND_COUNT]; // grip poses, [0] off hand, [1] main hand
+    Pose hands[HAND_COUNT]; // grip poses (or, vr_controller_legacy_pose, the raw ones), [0] off hand, [1] main hand
+    // The runtime's grip pose (the controller's handle; OpenXR's grip/pose) in the frame of hands[]: the identity unless
+    // vr_controller_legacy_pose moved hands[] off it (GripInRaw). The Show Controller preview is drawn there.
+    GripInRaw gripInHand[HAND_COUNT];
     InputState input;
     double time{-1.0};      // seconds on the runtime's clock that the poses are for (< 0: unknown)
 };

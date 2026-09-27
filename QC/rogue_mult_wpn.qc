@@ -170,6 +170,7 @@ void(float xHand) W_FireMultiGrenade =
     setmodel(missile, "progs/mervup.mdl");
     setsize(missile, '0 0 0', '0 0 0');
     setorigin(missile, VRGetMuzzlePos(xHand));
+    VR_ShotPlace(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
 
     VRGunHaptic(xHand, 0.4, 75, 1.0);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 2);
@@ -312,6 +313,7 @@ void(float xHand, float offset, float frameNum) MultiRocketLaunch =
 
     setsize(missile, '0 0 0', '0 0 0');
     setorigin(missile, VRGetMuzzlePos(xHand));
+    VR_ShotPlace(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
 
     if(coop || deathmatch)
     {
@@ -527,7 +529,7 @@ void() PlasmaLaunch =
     self.nextthink = time + 0.01;
 };
 
-void(vector org, vector dir) launch_plasma =
+entity(vector org, vector dir) launch_plasma =
 {
     entity missile;
 
@@ -559,6 +561,8 @@ void(vector org, vector dir) launch_plasma =
 
     particle2(missile.origin, '0 0 0', QVR_PARTICLE_PRESET_LIGHTNING, 25);
     particle2(missile.origin, '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 3);
+
+    return missile;
 };
 
 void(float xHand) W_FirePlasma =
@@ -594,5 +598,5 @@ void(float xHand) W_FirePlasma =
 
     makevectors(VRGetWeaponFireRot(xHand));
     dir = v_forward;
-    launch_plasma(VRGetMuzzlePos(xHand), dir);
+    VR_ShotPlace(launch_plasma(VRGetMuzzlePos(xHand), dir), xHand); // behind what the muzzle is inside (VR_ShotPlace)
 };

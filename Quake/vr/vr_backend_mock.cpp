@@ -491,6 +491,13 @@ public:
             hand.velocityValid = true;
         }
 
+        // The mock stands for Quest controllers: with vr_controller_legacy_pose its hands are the raw poses the real
+        // backend makes of a Touch controller's grip pose, whose grip lies where it would (the Show Controller preview).
+        for(int h = 0; h < HAND_COUNT; h++)
+        {
+            tracking.gripInHand[h] = vr_controller_legacy_pose.value ? legacyGripInRaw(true, h == HAND_MAIN ? 1 : 0) : GripInRaw{};
+        }
+
         // The head likewise (a lunge scripted with vr_mock_hand head).
         tracking.head.linearVelocity = headMotion.update(tracking.head.position, realtime);
         tracking.head.velocityValid = true;

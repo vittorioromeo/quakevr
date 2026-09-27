@@ -300,9 +300,14 @@ public:
         {
             const int side = handSide(h);
             tracking.hands[h] = locate(handSpaces[side], time);
+            tracking.gripInHand[h] = GripInRaw{};
             if(vr_controller_legacy_pose.value)
             {
                 tracking.hands[h] = toLegacyPose(tracking.hands[h], side);
+                if(tracking.hands[h].valid && controller[side] != Controller::Other)
+                {
+                    tracking.gripInHand[h] = legacyGripInRaw(controller[side] == Controller::Touch, side);
+                }
             }
         }
 
@@ -710,22 +715,9 @@ private:
             return grip;
         }
 
-        const float s = side == 0 ? 1.f : -1.f;
-        glm::vec3 offset;
-        glm::vec3 xyz; // degrees
-        if(controller[side] == Controller::Touch)
-        {
-            offset = {0.007f * s, -0.00182941f, 0.1019482f};
-            xyz = {20.6f, 0.f, 0.f};
-        }
-        else
-        {
-            offset = {0.f, -0.015f, 0.13f};
-            xyz = {15.392f, -2.071f * s, 0.303f * s};
-        }
-        const glm::quat r = glm::angleAxis(glm::radians(xyz.x), glm::vec3{1.f, 0.f, 0.f}) *
-                            glm::angleAxis(glm::radians(xyz.y), glm::vec3{0.f, 1.f, 0.f}) *
-                            glm::angleAxis(glm::radians(xyz.z), glm::vec3{0.f, 0.f, 1.f});
+        const GripInRaw g = legacyGripInRaw(controller[side] == Controller::Touch, side);
+        const glm::vec3 offset = g.offset;
+        const glm::quat r = g.turn;
 
         // raw = grip * (T(offset) R)^-1 = grip * R^-1 T(-offset)
         const glm::quat rInv = glm::inverse(r);
