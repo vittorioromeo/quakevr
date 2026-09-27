@@ -894,7 +894,9 @@ float(float xHand, entity b) VR_Melee_Sweep =
                     break;
                 }
                 striker = vr_mpt_kind[i] == VR_MPT_EDGE || vr_mpt_kind[i] == VR_MPT_FIST;
-                if((striker && t >= edgeT) || (!striker && t >= hiltT))
+                // Of the striking points in it, the outermost (a blade strikes with its outer part, its root may have been
+                // in the thing for a while); of the hilt's, the first along the sweep.
+                if((striker && i < edgeI) || (!striker && t >= hiltT))
                 {
                     continue;
                 }
