@@ -1463,6 +1463,32 @@ bool forearmFrame(int hand, float along, ForearmFrame& out)
     return true;
 }
 
+void forearmGirth(int build, float along, float& hint, float& other)
+{
+    // make_vrbody.py: BUILDS' muscularity m (0.9, 1.2, 1.5), forearms fm = 1.08 m, wrists wm = 1 + 0.3 (m - 1); the
+    // bracer's rings (loft "bracer") at 0.13, 0.19 and 0.225 m from the elbow and at the wrist (0.26).
+    const float m = build <= 0 ? 0.9f : build >= 2 ? 1.5f : 1.2f;
+    const float fm = m * 1.08f;
+    const float wm = 1.f + (m - 1.f) * 0.3f;
+    struct Ring
+    {
+        float at, u, v;
+    };
+    const Ring rings[] = {{0.13f, 0.049f * fm, 0.043f * fm},
+        {0.19f, std::max(0.041f * wm, 0.040f), std::max(0.033f * wm, 0.0335f)},
+        {0.225f, std::max(0.0385f * wm, 0.039f), std::max(0.030f * wm, 0.0325f)},
+        {0.26f, std::max(0.036f * wm, 0.037f), std::max(0.027f * wm, 0.0295f)}};
+    const float at = CLAMP(rings[0].at, along * 0.26f, rings[3].at);
+    int k = 1;
+    while(k < 3 && rings[k].at < at)
+    {
+        k++;
+    }
+    const float t = (at - rings[k - 1].at) / (rings[k].at - rings[k - 1].at);
+    hint = glm::mix(rings[k - 1].u, rings[k].u, t);
+    other = glm::mix(rings[k - 1].v, rings[k].v, t);
+}
+
 void solveArms(const hands::State& s, const HandPose handPoses[2])
 {
     QVR_PROFILE("avatar arms");

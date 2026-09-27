@@ -4264,6 +4264,64 @@ kept too: they are the spikes you want to see. There is no new timing code.
 - **B/Y flip, let go, take again:** after, overhead again every time. Before, it kept the grip it was let go in.
 - **Head and gun:** the takes above are in the log only; their placement wasn't composited.
 
+### The gadget remodelled: straps round the forearm
+
+Your note: "improve the wrist gadget model: straps that circle the entire forearm instead of the small bits of metal,
+and a bit more interesting, the same art style and dimensions."
+
+**The straps** (`vrgadget_strap.mdl`, `make_gadget.py`):
+- Two leather bands go all the way round the forearm, under the casing's ends. Each has a buckle and two rivets on
+  the little finger's side.
+- They are separate from the casing and follow the forearm itself:
+  - its frame where each band sits, turning with the forearm's twist there, as the bracer does;
+  - not your offsets and turns of the gadget. The casing rests on them.
+- **Fitted to your build** (`avatar::forearmGirth`: make_vrbody.py's bracer rings, lean, athletic or brawny):
+  - Each band sits 1.5 mm off the bracer's ellipse there. The bracer's 12-sided rings lie inside that ellipse, so a
+    band never sinks in.
+  - The bracer narrows from its cuff to the wrist, so a band is a cone as steep as the bracer under it.
+  - The band model's frame 1 is the steepest cone. The engine blends it towards frame 0, a cylinder, by the bracer's
+    taper there (the zero blend).
+- **Body off:** the athletic forearm's size, round the forearm the gadget uses (the same IK).
+- **Scaled exactly:** view entities gained an exact per-axis scale (`ViewEntity::scale`, applied in
+  `vr_render.cpp`). An entity's own scale is a byte in sixteenths.
+
+**The casing** (`vrgadget.mdl`, the same 3.8 × 2.6 × 0.7 outline, the same screen and bezel):
+- a lower shell and a lid, parted by a dark seam;
+- four screws in the lid at the ends;
+- the two dials on the right end, as before;
+- two buttons on the lower side;
+- grip grooves across the left end;
+- a short antenna on the left end;
+- the hologram's emitter: a slot of dark glass in a metal frame along the top edge, over the screen, where the
+  hologram rises;
+- under it, two riveted lugs that the straps pass under.
+
+The old strap stubs are gone. 26 closed pieces, 720 triangles (the strap: 272).
+
+**Anchors:**
+- The screen, the hologram and the FPS text are placed by code from the same numbers (`screenRect`, `screenCentre`,
+  `gadgetTop`), which don't change.
+- The model's screen and bezel corners, decoded from the old and new files, are the same within the file's grid
+  (0.007 model units, 0.2 mm).
+
+**Also fixed: the gadget drawn at its exact size.**
+- The casing was drawn at the entity's byte scale, rounded down to sixteenths, while the screen's image used the exact
+  scale.
+- At Size 1.3 with world scale 1 (scale 1.04), the casing was drawn 4% small under its screen.
+- It now uses the exact scale too.
+
+**Checks:**
+- `check_mdl_holes.py`: both models ok (no open loops, cracks or flipped edges).
+- Composites: `gadget_model_before_after.png` (your view with the gadget raised; from the top side, the lower side
+  and underneath; lean, athletic, brawny and body off; before and after), and `model_after_defaults.png` (the shipped
+  placement: Size 1.3, turned 35° and moved across: the casing turns on the straps, which stay round the forearm).
+- Not verified: just past the bracer's cuff (Along the Arm towards the elbow) a strap keeps the cuff's size, up to
+  3 mm off the skin there.
+
+**In the headset:**
+- [ ] Look at the gadget from all sides and twist your forearm: do the straps hug the bracer, without gaps or
+      poking through, for your build?
+
 ### Not verified
 
 - **Legibility in the headset:** only checked in the mock, at 960 × 540. The Detailed counter is denser than the Basic

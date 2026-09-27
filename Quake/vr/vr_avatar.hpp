@@ -111,6 +111,12 @@ struct ForearmFrame
 };
 [[nodiscard]] bool forearmFrame(int hand, float along, ForearmFrame& out);
 
+// The forearm's girth `along` it (0 the elbow, 1 the wrist) for a body build (0 lean, 1 athletic, 2 brawny): the
+// semi-axes of the bracer's ring there (make_vrbody.py's, in metres; the bracer runs from 0.13 m to the wrist of a
+// 0.26 m forearm, before it the ring where it starts), `hint` along the forearm frame's z (the little finger's
+// side), `other` along its y. Its rings are polygons inside this ellipse. Between them it is straight.
+void forearmGirth(int build, float along, float& hint, float& other);
+
 // The arms alone, solved as pose() does (the torso and the arm IK: no legs, no skinning), for the forearms' frames
 // (forearmFrame) when the body isn't drawn. The elbow isn't swung to ease a bent wrist (vr_body_wrist_limits): with no
 // arm drawn, the forearm stays put while the hand bends, as a real one does.

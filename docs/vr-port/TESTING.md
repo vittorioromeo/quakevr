@@ -182,6 +182,8 @@ context and screenshot, ready to paste or to point me at.
   - **Gadget on the forearm:** bending the wrist no longer turns it (body off: at all; body on: only as far as the
     drawn forearm turns, which Body > Wrist Limits sets); rolling the hand turns it with the forearm.
   - **Torch from the belt:** always in the overhead grip; off the head or a gun, the grip nearer its beam.
+  - **Gadget model:** olive straps all round the forearm, fitted to the bracer of your build; a seamed casing with
+    screws, buttons, an antenna and the hologram's emitter.
   - **Casings** splash in water; **beam quality** (Flashlight section).
   - **Two-handed props:** grip what one hand carries with the other to hold it in both: it moves and turns with both
     hands, and letting go of both together throws it (tumbling as your hands turned it). Let go of one and the other
