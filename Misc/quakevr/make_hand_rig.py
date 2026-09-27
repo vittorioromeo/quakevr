@@ -81,12 +81,12 @@ SIDES = 8  # finger and thumb cross-sections
 # Per finger: its knuckle's pivot (MCP), its splay (degrees towards +z, the thumb's side), its phalanges' lengths
 # (MCP to PIP, PIP to DIP, DIP to the tip), its half-widths (at the MCP, PIP, DIP and near the tip), how much its
 # closing axis leans (degrees: the fingers converge as they close) and its curl frames' joint angles.
-FLAT = 0.86  # a finger's thickness over its width
+FLAT = 0.88  # a finger's thickness over its width
 FINGER_SPEC = {
-    "index": dict(pivot=(5.45, -1.74, 3.10), splay=3.5, length=(3.15, 1.95, 1.70), half=(1.00, 0.93, 0.82, 0.70), lean=-5.0),
-    "middle": dict(pivot=(5.65, -1.80, 1.28), splay=0.0, length=(3.45, 2.20, 1.80), half=(1.03, 0.96, 0.85, 0.72), lean=1.0),
-    "ring": dict(pivot=(5.45, -1.76, -0.50), splay=-3.5, length=(3.25, 2.10, 1.74), half=(0.98, 0.91, 0.80, 0.68), lean=6.0),
-    "pinky": dict(pivot=(4.95, -1.64, -2.12), splay=-8.0, length=(2.60, 1.58, 1.52), half=(0.86, 0.79, 0.70, 0.61), lean=12.0),
+    "index": dict(pivot=(5.45, -1.74, 3.10), splay=3.5, length=(3.15, 1.95, 1.70), half=(1.07, 1.00, 0.88, 0.75), lean=-5.0),
+    "middle": dict(pivot=(5.65, -1.80, 1.28), splay=0.0, length=(3.45, 2.20, 1.80), half=(1.10, 1.03, 0.91, 0.77), lean=1.0),
+    "ring": dict(pivot=(5.45, -1.76, -0.50), splay=-3.5, length=(3.25, 2.10, 1.74), half=(1.05, 0.97, 0.86, 0.73), lean=6.0),
+    "pinky": dict(pivot=(4.95, -1.64, -2.12), splay=-8.0, length=(2.60, 1.58, 1.52), half=(0.92, 0.85, 0.75, 0.65), lean=12.0),
 }
 # Joint angles (MCP, PIP, DIP) per curl frame 0..4 (5 = 3): 0 relaxed, 4 the tightest fist.
 FINGER_FRAMES = {
@@ -759,7 +759,7 @@ def lines(d, centres, width):
 
 
 def base_level(side):
-    return 119.0 - 1.0 * side  # the palm's side a little lighter than the back
+    return 118.7 - 1.0 * side  # the palm's side a little lighter than the back
 
 
 def finger_levels(rig, name, p, n):
@@ -841,6 +841,13 @@ def paint(rig, pos_map, nrm_map, part_map, grain):
         if sel.any():
             p, n = pos_map[sel], nrm_map[sel]
             level[sel] = palm_levels(rig, p, n) if part == 0 else finger_levels(rig, FINGERS[part - 1], p, n)
+            if part == 1:
+                # The ball of the thumb where it meets the palm: painted as the palm there (no seam where they cross),
+                # the thumb's own from past the middle of its metacarpal.
+                c, m = rig.fingers["thumb"]["points"][:2]
+                t = np.clip(((p - c) @ unit(m - c)) / np.linalg.norm(m - c), 0, 1)
+                w = np.clip((t - 0.45) / 0.4, 0, 1)
+                level[sel] = w * level[sel] + (1 - w) * palm_levels(rig, p, n)
     return level + 1.1 * bombed(grain, H, W) + 0.8 * mottle(H, W)
 
 
