@@ -646,10 +646,11 @@ void resetHandMoves()
 {
     return {
         toggle("(!) No Vis", "r_novis").help("NOT RECOMMENDED: water transparency in maps without vis data, by drawing the whole map every frame. Vispatch maps instead."),
-        slider("Water Alpha", "r_wateralpha", 0.f, 1.f, 0.1f, "%.1f"),
-        slider("Lava Alpha", "r_lavaalpha", 0.f, 1.f, 0.1f, "%.1f"),
-        slider("Tele Alpha", "r_telealpha", 0.f, 1.f, 0.1f, "%.1f"),
-        slider("Slime Alpha", "r_slimealpha", 0.f, 1.f, 0.1f, "%.1f"),
+        slider("Water Alpha", "r_wateralpha", 0.f, 1.f, 0.1f, "%.1f").help("How see-through water is (1: opaque). Only in maps vised for it (the relit maps are)."),
+        slider("Lava Alpha", "r_lavaalpha", 0.f, 1.f, 0.1f, "%.1f").help("How see-through lava is (1: opaque; 0: as Water Alpha). Only in maps vised for it."),
+        slider("Tele Alpha", "r_telealpha", 0.f, 1.f, 0.1f, "%.1f").help("How see-through teleporters are (1: opaque; 0: as Water Alpha). Only in maps vised for it."),
+        slider("Slime Alpha", "r_slimealpha", 0.f, 1.f, 0.1f, "%.1f").help("How see-through slime is (1: opaque; 0: as Water Alpha). Only in maps vised for it."),
+        toggle("Map's Own Alpha", "vr_map_liquid_alpha").help("Maps that set their liquids' alpha themselves (worldspawn keys) use theirs instead of the sliders above."),
     };
 }
 

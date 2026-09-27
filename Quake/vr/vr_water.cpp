@@ -1593,6 +1593,12 @@ extern "C" void VR_WaterFog(float fog[4], float skyfog[4])
     skyfog[3] = 1.f;
 }
 
+// R_UpdateLiquidAlpha (gl_rmisc.c): whether a map's own liquid alphas (worldspawn keys) win over the settings.
+extern "C" int VR_MapLiquidAlpha(void)
+{
+    return vr_map_liquid_alpha.value != 0.f;
+}
+
 // R_DrawBrushModels_Water: how far the opaque scene is, to refract by and for the foam, on unit 8 (0: none).
 extern "C" unsigned VR_WaterSceneDepth(int translucent)
 {

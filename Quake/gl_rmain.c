@@ -124,9 +124,9 @@ extern cvar_t	r_softemu_dither_texture;
 
 cvar_t	gl_zfix = {"gl_zfix", "1", CVAR_ARCHIVE}; // QuakeSpasm z-fighting fix
 
-cvar_t	r_lavaalpha = {"r_lavaalpha","0",CVAR_NONE};
-cvar_t	r_telealpha = {"r_telealpha","0",CVAR_NONE};
-cvar_t	r_slimealpha = {"r_slimealpha","0",CVAR_NONE};
+cvar_t	r_lavaalpha = {"r_lavaalpha","0",CVAR_ARCHIVE}; // QVR: saved, like r_wateralpha (the menu's Transparency sliders)
+cvar_t	r_telealpha = {"r_telealpha","0",CVAR_ARCHIVE}; // QVR
+cvar_t	r_slimealpha = {"r_slimealpha","0",CVAR_ARCHIVE}; // QVR
 
 float	map_wateralpha, map_lavaalpha, map_telealpha, map_slimealpha;
 float	map_fallbackalpha;

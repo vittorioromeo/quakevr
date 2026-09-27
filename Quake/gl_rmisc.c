@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "vr/vr_api.h" // QVR
+#include "vr/vr_api_render.h" // QVR: VR_MapLiquidAlpha
 
 //johnfitz -- new cvars
 extern cvar_t r_clearcolor;
@@ -222,8 +223,7 @@ static void R_SetWateralpha_f (cvar_t *var)
 {
 	if (cls.signon == SIGNONS && cl.worldmodel && !(cl.worldmodel->contentstransparent&SURF_DRAWWATER) && var->value < 1)
 		Con_Warning("Map does not appear to be water-vised\n");
-	map_wateralpha = var->value;
-	map_fallbackalpha = var->value;
+	R_UpdateLiquidAlpha (); // QVR: as at map load (was: this value on any map, until the next)
 }
 
 /*
@@ -235,7 +235,7 @@ static void R_SetLavaalpha_f (cvar_t *var)
 {
 	if (cls.signon == SIGNONS && cl.worldmodel && !(cl.worldmodel->contentstransparent&SURF_DRAWLAVA) && var->value && var->value < 1)
 		Con_Warning("Map does not appear to be lava-vised\n");
-	map_lavaalpha = var->value;
+	R_UpdateLiquidAlpha (); // QVR: as at map load (was: this value on any map, until the next)
 }
 
 /*
@@ -247,7 +247,7 @@ static void R_SetTelealpha_f (cvar_t *var)
 {
 	if (cls.signon == SIGNONS && cl.worldmodel && !(cl.worldmodel->contentstransparent&SURF_DRAWTELE) && var->value && var->value < 1)
 		Con_Warning("Map does not appear to be tele-vised\n");
-	map_telealpha = var->value;
+	R_UpdateLiquidAlpha (); // QVR: as at map load (was: this value on any map, until the next)
 }
 
 /*
@@ -259,7 +259,54 @@ static void R_SetSlimealpha_f (cvar_t *var)
 {
 	if (cls.signon == SIGNONS && cl.worldmodel && !(cl.worldmodel->contentstransparent&SURF_DRAWSLIME) && var->value && var->value < 1)
 		Con_Warning("Map does not appear to be slime-vised\n");
-	map_slimealpha = var->value;
+	R_UpdateLiquidAlpha (); // QVR: as at map load (was: this value on any map, until the next)
+}
+
+// QVR: the map's own liquid alphas (its worldspawn keys wateralpha, lavaalpha, telealpha, slimealpha; < 0: none)
+static float worldspawn_wateralpha = -1.f, worldspawn_lavaalpha = -1.f, worldspawn_telealpha = -1.f, worldspawn_slimealpha = -1.f;
+
+/*
+====================
+R_UpdateLiquidAlpha -- QVR
+
+The liquids' alphas (map_*) from the Transparency settings (r_wateralpha, r_lavaalpha, r_telealpha, r_slimealpha), at
+map load and as one of them changes, so what the menu shows is what applies: each only on the liquids the map is
+vised for (r_novis: all), the others opaque. The map's own worldspawn keys win over them only with
+vr_map_liquid_alpha (Ironwail's rule; by default the player's settings do).
+====================
+*/
+void R_UpdateLiquidAlpha (void)
+{
+	int vised = SURF_DRAWWATER | SURF_DRAWLAVA | SURF_DRAWTELE | SURF_DRAWSLIME;
+	qboolean keys = VR_MapLiquidAlpha ();
+
+	if (cl.worldmodel && !r_novis.value)
+		vised = cl.worldmodel->contentstransparent;
+
+	map_fallbackalpha = r_wateralpha.value;
+	map_wateralpha = (vised & SURF_DRAWWATER) ? r_wateralpha.value : 1;
+	map_lavaalpha = (vised & SURF_DRAWLAVA) ? r_lavaalpha.value : 1;
+	map_telealpha = (vised & SURF_DRAWTELE) ? r_telealpha.value : 1;
+	map_slimealpha = (vised & SURF_DRAWSLIME) ? r_slimealpha.value : 1;
+
+	if (keys && worldspawn_wateralpha >= 0)
+		map_wateralpha = worldspawn_wateralpha;
+	if (keys && worldspawn_lavaalpha >= 0)
+		map_lavaalpha = worldspawn_lavaalpha;
+	if (keys && worldspawn_telealpha >= 0)
+		map_telealpha = worldspawn_telealpha;
+	if (keys && worldspawn_slimealpha >= 0)
+		map_slimealpha = worldspawn_slimealpha;
+}
+
+/*
+====================
+R_SetNovis_f -- QVR: every liquid see-through at its setting from now on (or back to the map's vis)
+====================
+*/
+static void R_SetNovis_f (cvar_t *var)
+{
+	R_UpdateLiquidAlpha ();
 }
 
 /*
@@ -306,6 +353,7 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_litwater);
 	Cvar_RegisterVariable (&r_dynamic);
 	Cvar_RegisterVariable (&r_novis);
+	Cvar_SetCallback (&r_novis, R_SetNovis_f); // QVR: the liquids' alphas follow it
 #if defined(USE_SIMD)
 	Cvar_RegisterVariable (&r_simd);
 	Cvar_SetCallback (&r_simd, R_SIMD_f);
@@ -457,11 +505,9 @@ static void R_ParseWorldspawn (void)
 	char key[128], value[4096];
 	const char *data;
 
-	map_fallbackalpha = r_wateralpha.value;
-	map_wateralpha = (cl.worldmodel->contentstransparent&SURF_DRAWWATER)?r_wateralpha.value:1;
-	map_lavaalpha = (cl.worldmodel->contentstransparent&SURF_DRAWLAVA)?r_lavaalpha.value:1;
-	map_telealpha = (cl.worldmodel->contentstransparent&SURF_DRAWTELE)?r_telealpha.value:1;
-	map_slimealpha = (cl.worldmodel->contentstransparent&SURF_DRAWSLIME)?r_slimealpha.value:1;
+	// QVR: the map's keys kept, R_UpdateLiquidAlpha applies them with the settings (now, and as they change)
+	worldspawn_wateralpha = worldspawn_lavaalpha = worldspawn_telealpha = worldspawn_slimealpha = -1.f;
+	R_UpdateLiquidAlpha ();
 
 	data = COM_Parse(cl.worldmodel->entities);
 	if (!data)
@@ -488,16 +534,28 @@ static void R_ParseWorldspawn (void)
 		q_strlcpy(value, com_token, sizeof(value));
 
 		if (!strcmp("wateralpha", key))
-			map_wateralpha = atof(value);
+		{
+			worldspawn_wateralpha = q_max (0.f, atof(value)); // QVR: kept (was: map_wateralpha, over the setting)
+			R_UpdateLiquidAlpha ();
+		}
 
 		if (!strcmp("lavaalpha", key))
-			map_lavaalpha = atof(value);
+		{
+			worldspawn_lavaalpha = q_max (0.f, atof(value)); // QVR: kept (was: map_lavaalpha, over the setting)
+			R_UpdateLiquidAlpha ();
+		}
 
 		if (!strcmp("telealpha", key))
-			map_telealpha = atof(value);
+		{
+			worldspawn_telealpha = q_max (0.f, atof(value)); // QVR: kept (was: map_telealpha, over the setting)
+			R_UpdateLiquidAlpha ();
+		}
 
 		if (!strcmp("slimealpha", key))
-			map_slimealpha = atof(value);
+		{
+			worldspawn_slimealpha = q_max (0.f, atof(value)); // QVR: kept (was: map_slimealpha, over the setting)
+			R_UpdateLiquidAlpha ();
+		}
 	}
 }
 

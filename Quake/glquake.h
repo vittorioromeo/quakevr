@@ -698,5 +698,6 @@ qboolean GL_NeedsPostprocess (void);
 void GL_PostProcess (void);
 
 float GL_WaterAlphaForTextureType (textype_t type);
+void R_UpdateLiquidAlpha (void); // QVR: the liquids' alphas from the settings, the map's vis and keys (gl_rmisc.c)
 
 #endif	/* GLQUAKE_H */
