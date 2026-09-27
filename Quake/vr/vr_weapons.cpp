@@ -96,7 +96,7 @@ namespace
 // takeHotspotMigration). 16: the alternates inherit (InheritFrom). 17: a hotspot allows two-handed use. 18: none reset
 // (round 21, third pass: a cup hotspot is the helping hand's palm: a config's cups are moved to where their hands were
 // drawn, by the view: cupMigrationPending).
-constexpr int settingsVersion = 18;
+constexpr int settingsVersion = 19;
 
 // Slots whose hotspots the view is to derive from the config's two-handed grip keys (round 21).
 bool hotspotMigration[numSlots]{};
@@ -245,6 +245,13 @@ void migrate()
                     cupMigration[slot] = true;
                 }
             }
+        }
+    }
+    if(vr_wofs_version.value < 19) // the author's poses after the posing mode (axe, shotguns, nailgun, lightning gun, hook)
+    {
+        for(const int slot : {0, 1, 2, 3, 7, 17})
+        {
+            resetSlot(slot);
         }
     }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
