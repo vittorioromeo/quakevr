@@ -550,6 +550,7 @@ void GL_BuildBModelMarkBuffers (void);
 void GLMesh_LoadVertexBuffer (qmodel_t *m, aliashdr_t *hdr);
 void GLMesh_LoadVertexBuffers (void);
 void GLMesh_DeleteVertexBuffers (void);
+void GLMesh_DeleteVertexBuffer (qmodel_t *m); // QVR: one model's (Mod_ReloadAliasModel)
 
 int R_LightPoint (vec3_t p, float ofs, lightcache_t *cache);
 

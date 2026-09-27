@@ -539,6 +539,7 @@ void	Mod_ClearAll (void);
 void	Mod_ResetAll (void); // for gamedir changes (Host_Game_f)
 qmodel_t *Mod_ForName (const char *name, qboolean crash);
 void	*Mod_Extradata (qmodel_t *mod);	// handles caching
+void	Mod_ReloadAliasModel (qmodel_t *mod); // QVR: vr_hand_reload
 void	Mod_TouchModel (const char *name);
 
 #define VIS_ALIGN			16						// vis buffer size alignment (in bytes)

@@ -258,6 +258,23 @@ byte *Mod_NoVisPVS (qmodel_t *model)
 
 /*
 ===================
+Mod_ReloadAliasModel -- QVR: an alias model read again from its files (vr_hand_reload: the hand edited in Blender)
+===================
+*/
+void Mod_ReloadAliasModel (qmodel_t *mod)
+{
+	if (mod->type != mod_alias)
+		return;
+	GLMesh_DeleteVertexBuffer (mod);
+	TexMgr_FreeTexturesForOwner (mod);
+	if (Cache_Check (&mod->cache))
+		Cache_Free (&mod->cache, true);
+	mod->needload = true;
+	Mod_LoadModel (mod, false);
+}
+
+/*
+===================
 Mod_ClearAll
 ===================
 */
@@ -3520,7 +3537,7 @@ qboolean loadMd5Replacement(qmodel_t* mod, char	*path)
 		char* md5buffer = (char*)COM_LoadMallocFile (path, NULL);
 		if (md5buffer)
 		{
-			qboolean result = Mod_LoadMD5MeshModel (mod, md5buffer);
+			qboolean result = VR_ModelReplacementOk (mod->name, md5buffer) && Mod_LoadMD5MeshModel (mod, md5buffer); // QVR: the jointed hand's file checked first
 			free (md5buffer);
 			return result;
 		}

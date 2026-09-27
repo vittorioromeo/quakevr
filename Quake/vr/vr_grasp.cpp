@@ -34,9 +34,10 @@ constexpr float cellHandUnits = 2.f; // the shapes' grid cells, in hand units (a
 }
 
 // ----------------------------------------------------------------------------
-// The hand as spheres (made with the mesh: make_hand_rig.py): each finger segment (bones 1..3) as a row of spheres
-// along its side towards the palm, as wide as it is (rig space, at rest: each bone's own frame there); the palm's
-// side as spheres just under its skin, the ball of the thumb likewise; and the palm's middle.
+// The hand as spheres (made with the mesh: make_hand_rig.py; following an edited mesh, handrig::rig()): each finger
+// segment (bones 1..3) as a row of spheres along its side towards the palm, as wide as it is (rig space, at rest: each
+// bone's own frame there); the palm's side as spheres just under its skin, the ball of the thumb likewise; and the
+// palm's middle (fixed: cups are placed from it).
 
 struct Sphere
 {
@@ -55,7 +56,7 @@ struct Kinematics
 
 Kinematics buildKinematics()
 {
-    namespace data = handrig::data;
+    const handrig::Rig& rig = handrig::rig();
     Kinematics k;
     for(int f = 0; f < handrig::FingerCount; f++)
     {
@@ -64,25 +65,32 @@ Kinematics buildKinematics()
             k.rate[f][j] = handrig::jointRate(f, j);
         }
     }
-    for(const data::SegmentSphere& s : data::segmentSpheres)
+    for(const handrig::SegmentSphere& s : rig.segmentSpheres)
     {
-        k.bone[s.finger][s.bone].push_back({vec(s.c), s.r});
+        k.bone[s.finger][s.bone].push_back({s.c, s.r});
     }
-    for(const auto& s : data::palmSpheres)
+    for(const handrig::Sphere& s : rig.palmSpheres)
     {
-        k.palm.push_back({vec(s), s[3]});
+        k.palm.push_back({s.c, s.r});
     }
-    for(const auto& s : data::thenarSpheres)
+    for(const handrig::Sphere& s : rig.thenarSpheres)
     {
-        k.thenar.push_back({vec(s), s[3]});
+        k.thenar.push_back({s.c, s.r});
     }
-    k.palmCentre = vec(data::palmCentre);
+    k.palmCentre = vec(handrig::data::palmCentre);
     return k;
 }
 
+// Built again when another rig is put in use (vr_hand_reload).
 const Kinematics& kinematics()
 {
-    static const Kinematics k = buildKinematics();
+    static Kinematics k;
+    static unsigned built = 0;
+    if(built != handrig::generation())
+    {
+        k = buildKinematics();
+        built = handrig::generation();
+    }
     return k;
 }
 
@@ -396,7 +404,7 @@ void probe(const Context& ctx, int finger, const float c[handrig::jointsPerFinge
     glm::vec3 pivot[handrig::jointsPerFinger];
     for(int j = firstActive; j < handrig::jointsPerFinger; j++)
     {
-        pivot[j] = seg[j](vec(handrig::data::pivots[finger][j]));
+        pivot[j] = seg[j](handrig::rig().pivot[finger][j]);
     }
     out.advance = 1e9f;
     for(float& clear : out.clear)
@@ -1314,7 +1322,7 @@ void fingerPoints(const handrig::Pose& pose, int finger, const float curls[handr
     handrig::fingerSegments(pose, finger, curls, seg);
     for(int j = 0; j < handrig::jointsPerFinger; j++)
     {
-        out[j] = seg[j](vec(handrig::data::pivots[finger][j]));
+        out[j] = seg[j](handrig::rig().pivot[finger][j]);
     }
     const std::vector<Sphere>& row = k.bone[finger][handrig::jointsPerFinger];
     out[3] = row.empty() ? out[2] : seg[handrig::jointsPerFinger](row.back().c + glm::normalize(row.back().c - row.front().c) * row.back().r);

@@ -3895,6 +3895,122 @@ Some details:
 - [ ] Try Match Controller Preview. Does it put the handle in the fingers?
 - [ ] Check that aim, melee and throws still feel right with your values.
 
+## Hand editable in Blender
+
+Your note: "Ideally I would just like to open the hand model, make some tweaks to the vertices/proportions, save and
+have it work properly." Branch `agent/handblend`. The step-by-step guide is `HANDS_IN_BLENDER.md`. Composites and
+logs are in the scratchpad's `handblend/final/`.
+
+### What changed
+
+- **The engine reads the rig from `progs/hand_rig.md5mesh`** as it loads the model (`vr_handrig.cpp`). That covers
+  the mesh, the weights and the joints' pivots (the bones' heads). The rest is worked out from them in about 2 ms:
+  - **The hinges:** each joint's hinge turns with its segment's direction. If a finger is re-aimed, its curl turns
+    it the new way. The curl frames' angles are the compiled ones.
+  - **The grasp solver's spheres** are the compiled ones (tuned with the solver), moved and resized by how the mesh
+    around each changed:
+    - a finger segment's by its cross-section there (width, where its palm side is) and by the segment's length
+      (from the pivots; a fingertip's from the mesh);
+    - the palm's and the thenar's by the skin over them.
+  - **The grip channel** comes from the spheres, as before.
+- **Fixed, whatever the file says:**
+  - the palm's frame;
+  - `palmCentre` and the placement constants. Weapon placements and cups are measured from these, so an edited palm
+    changes shape around the weapons, and the weapons stay put on the controller.
+  - the wrist, where the arm meets the hand.
+- **`vr_hand_reload`** reads the files again and draws and grasps with them live (the model, its skins and the rig).
+  Held things are solved again.
+- **`vr_hand_rig_info`** says where the rig in use came from, and compares it with the compiled one.
+- **The compiled tables** (`vr_handrig_data.inc`, unchanged) are the fallback and the reference the spheres are
+  fitted against.
+- **Clear errors:** a file the rig can't use is refused with the reason (bone, vertex or line), and the hand you had
+  is kept. This covers a renamed or missing bone, a vertex weighted to no bone, missing weights, weights that don't
+  add up, more than 4 weights, and a damaged or cut-short file. A game started with such a file draws the six-model
+  hand and says why; `vr_hand_reload` brings the jointed hand back once the file is fixed.
+- **The Blender add-on** (`Misc/quakevr/blender/addons/quakevr_hand`, Blender 5.2) imports and exports the hand:
+  - the armature (the 16 joints as finger chains, the 17 helpers in a hidden collection), the weights (vertex groups)
+    and the seams joined;
+  - the skin as an image. The image can be saved as a PNG, painted elsewhere and read back. On export it goes back
+    into Quake's palette (never a fullbright colour). Unchanged texels keep their index, and the edits are carried
+    under the blood of the three damage skins.
+  - **Apply Pose as Rest (Mesh Too)**: scale or turn bones in Pose Mode, then make that the rest shape.
+  - The export refuses renamed or missing bones and unweighted vertices (and selects them).
+- **The generator** (`make_hand_rig.py`) still makes the shipped files. It writes the MD5 through the add-on's writer
+  (`md5hand.py`) with every number exactly the compiled float, so the shipped files read back as the compiled rig bit
+  for bit. Rerunning it overwrites Blender edits: keep the .blend.
+
+### Same results with the shipped files
+
+- **`vr_hand_rig_info`:** "the rig in use is the compiled one, bit for bit". Pivots, curl turns, all 104 solver
+  spheres and every triangle's corners (places, joints, weights) are equal as floats.
+- **The files:**
+  - `vr_handrig_data.inc` and the four skins are byte-identical after regenerating.
+  - The `.md5mesh` changed only in its digits. The old file rounded to 6 decimals; the engine-baked drawn vertices
+    move by at most 5.7e-6 units (0.07 µm).
+- **`vr_dumpview`**, nine slots: the same lines.
+- **The grasps** (every weapon and a gib, `vr_debug_grasp 2`): 42 met, 8 inside. Every grasp line and finger stop is
+  the same; only the timings differ.
+- **The fist's `vr_grasp_dump`:** the same.
+- **The melee canary:** 40/46, no take differs.
+- **A Blender round trip without edits** (import, export) gives the same files byte for byte, but the `commandline`
+  line. The skins come back the same too.
+
+### The round-trip test (headless Blender 5.2, then the mock)
+
+- **The edit:**
+  - The thumb's and the four fingers' first bones scaled 1.1 in Pose Mode, then Apply Pose as Rest (the pivots move
+    up to 0.59 units).
+  - 7 vertices of the palm's pad pulled out 0.35.
+  - The skin saved as a PNG, stripes painted on the back of the hand's texels with PIL, read back.
+  - Exported.
+- **In the game:**
+  - `vr_hand_reload` mid-run: "the pivots moved 0.59 units at most ... the grasp's spheres moved 0.74 at most, sized
+    x1.00 .. x1.10".
+  - The hand is drawn edited, with longer fingers and the stripes (`reload_empty_hand.png`).
+  - The index finger's spheres land where a 1.1x scale about its knuckle puts them, within 0.01 units, radii
+    included (`spheres_open.png`, `spheres_shotgun.png`).
+  - The spheres' fit to the skin is as before: the median of skin minus radius is -0.08 against -0.06.
+- **Grasps with the edited hand:** 37 met, 13 inside (the shipped hand: 42, 8) over the same 50 fingers.
+  - The 10% longer index fingers now start inside the shotgun's, the super shotgun's, the super nailgun's and the
+    lightning gun's trigger guards, and are drawn at the controller's curl there.
+  - The fuller palm pad leaves the nailgun no palm fit (0 cm, was 3), so its other three fingers start inside the
+    grip; its thumb now closes on it, as does the rocket launcher's.
+  - The sword, the axe, the grenade launcher and the gib: every finger met.
+  - The health box: held in the closed fingers, as with the shipped hand. The shotgun and the box as dumped:
+    `dump_shotgun_box.png`.
+  - The composites for the shotgun are `reload_shotgun.png` and `spheres_shotgun.png`.
+- **Blood (two levels), the quad and the ring** work with the edited hand and skin; the damage skins carry the
+  stripes under their blood (`reload_blood_quad_ring.png`, `skins_lmp_shipped_edited.png`).
+- **Also tested:**
+  - A finger splayed 15 degrees: 3 hinges turned, it curls along its new direction.
+  - The middle finger subdivided (602 vertices, 914 triangles, weights interpolated by Blender): loads, and grasps
+    the shotgun as before.
+  - The robustness cases (`robust.png`): each refused with its message and the hand kept. The last shot is a
+    startup with a broken file (the six models), then fixed and reloaded.
+
+### Files
+
+- `Quake/vr/vr_handrig.cpp/.hpp`: the rig read from the file, its derivation, `vr_hand_reload`, `vr_hand_rig_info`.
+- `Quake/vr/vr_grasp.cpp`: the spheres and pivots from `handrig::rig()`, rebuilt when it changes.
+- `Quake/vr/vr_view.cpp`: the cup's and `vr_grasp_dump`'s mesh from the rig; grasps solved again after a reload.
+- `Quake/gl_model.c`, `gl_mesh.c`: `VR_ModelReplacementOk` (the hand's MD5 checked first), `Mod_ReloadAliasModel`.
+- `Misc/quakevr/blender/addons/quakevr_hand/`: the add-on and `md5hand.py`.
+- `Misc/quakevr/make_hand_rig.py`: writes through `md5hand.py`.
+- `quakevr/progs/hand_rig.md5mesh`, `.md5anim`: regenerated (exact digits).
+- `docs/vr-port/HANDS_IN_BLENDER.md`: the guide.
+
+### Not verified
+
+- **Blender's interactive UI:** only tested headless, through the add-on's operators; the sidebar panel wasn't
+  clicked.
+- **Painting in Blender's Texture Paint:** it paints the same image, but only the external-PNG path was tested.
+- **In a headset:** only the mock was used.
+
+### Try
+
+- [ ] Install the add-on, import `hand_rig.md5mesh`, change something, export, `vr_hand_reload`.
+- [ ] Hold the guns and the sword with your edited hand: do the fingers wrap as the new shape suggests?
+
 ## Forearm, bracer and wrist
 
 His note: part of the hand clipped through the bracer, and at extreme angles the bracer and the wrist went thin and

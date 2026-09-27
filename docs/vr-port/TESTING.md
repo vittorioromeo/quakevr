@@ -561,6 +561,9 @@ where the held thing is in the hand and whether it was solved afresh at rest. Th
 Hands remodelled (ROUND21.md): `python Misc/quakevr/make_hand_rig.py` regenerates the jointed hand (its mesh, rig,
 skins and `vr_handrig_data.inc`; rebuild the engine after it); `vr_grasp_spheres` lists the grasp solver's spheres and
 `vr_debug_hand_bones 1` draws them with the joints; `vr_hand_rig 0` draws the six old models.
+Hand editable in Blender (ROUND21.md, HANDS_IN_BLENDER.md): the rig is read from `progs/hand_rig.md5mesh`;
+`vr_hand_reload` reads it again (a file it can't use is refused with the reason, the hand kept), `vr_hand_rig_info`
+says where the rig came from and whether it is the compiled one bit for bit (it is, with the shipped files).
 Two-handed props: `vr_rigid_place item_health main 0 3 0` with `+grabright; vr_mock_button main grip 1` puts a health
 box in the main hand; move the off hand to its other side (`vr_mock_hand off -0.19 1.30 -0.45 0 0 0` with the main
 at `0.10 1.30 -0.45`) and press its grip: `carry: both hands` (developer 1). `vr_debug_carry 2` writes the object and

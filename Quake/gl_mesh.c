@@ -359,6 +359,16 @@ GLMesh_DeleteVertexBuffers
 Delete VBOs for all loaded alias models
 ================
 */
+void GLMesh_DeleteVertexBuffer (qmodel_t *m) // QVR: one model's (Mod_ReloadAliasModel)
+{
+	if (isDedicated)
+		return;
+	GL_DeleteBuffersFunc (1, &m->meshvbo);
+	m->meshvbo = 0;
+	GL_DeleteBuffersFunc (1, &m->meshindexesvbo);
+	m->meshindexesvbo = 0;
+}
+
 void GLMesh_DeleteVertexBuffers (void)
 {
 	int j;

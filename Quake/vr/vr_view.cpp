@@ -1212,6 +1212,7 @@ struct Grasp
     grasp::Solution solution;
     float other[handrig::FingerCount * handrig::jointsPerFinger]{}; // a cup's: the other hand's joints it was solved for
     glm::mat4 otherInRig{1.f};                                      // and where that hand was
+    unsigned rig{0};                                                // handrig::generation() it was solved with
 };
 
 struct RigHand
@@ -1378,6 +1379,11 @@ void updateGrasp(int hand, const Held& held, const glm::mat4& rigMatrix, float r
 {
     RigHand& rh = rigHands[hand];
     Grasp& g = rh.grasp;
+    if(g.rig != handrig::generation()) // the hand was edited (vr_hand_reload): solved afresh
+    {
+        g.valid = false;
+        g.rig = handrig::generation();
+    }
     if(!held.ent || !held.ent->model || !vr_hand_fit.value)
     {
         g.valid = false;
@@ -1490,16 +1496,11 @@ void updateGrasp(int hand, const Held& held, const glm::mat4& rigMatrix, float r
         static std::vector<grasp::Triangle> tris;
         tris.clear();
         const auto at = [&](const glm::vec3& p) { return glm::vec3{otherInRig * glm::vec4{drawnInRig(otherHand, p), 1.f}}; };
-        for(int t = 0; t < handrig::data::numPalmTriangles; t++)
+        static std::vector<glm::vec3> posed;
+        handrig::vertices(otherHand.posed, posed);
+        for(const auto& tri : handrig::rig().triangles)
         {
-            const auto* tri = handrig::data::palmTriangles[t];
-            tris.push_back({{at(handrig::palmVertex(otherHand.posed, tri[0])), at(handrig::palmVertex(otherHand.posed, tri[1])),
-                at(handrig::palmVertex(otherHand.posed, tri[2]))}});
-        }
-        for(int t = 0; t < handrig::data::numFingerTriangles; t++)
-        {
-            const auto* tri = handrig::data::fingerTriangles[t];
-            tris.push_back({{at(otherHand.posed.vertex[tri[0]]), at(otherHand.posed.vertex[tri[1]]), at(otherHand.posed.vertex[tri[2]])}});
+            tris.push_back({{at(posed[tri[0]]), at(posed[tri[1]]), at(posed[tri[2]])}});
         }
         grasp::makeShape(tris, otherShape);
         const float toRig = rigUnit > 0.f ? 0.01f * units::metresToUnits() / rigUnit : 0.f;
@@ -4141,59 +4142,30 @@ void graspDump_f()
         Con_Printf("vr_grasp_dump: can't write %s\n", path);
         return;
     }
+    // The hand's mesh (handrig::rig(): the file's, split at the skin's seams), posed.
     int base = 1;
-    fprintf(f, "o hand\n");
-    for(int i = 0; i < handrig::data::numPalmVertices; i++)
-    {
-        const glm::vec3 p = drawnInRig(rh, handrig::palmVertex(rh.posed, i));
-        fprintf(f, "v %f %f %f\n", p.x, p.y, p.z);
-    }
-    for(int v = 0; v < handrig::data::numVertices; v++)
-    {
-        const glm::vec3 p = drawnInRig(rh, rh.posed.vertex[v]);
-        fprintf(f, "v %f %f %f\n", p.x, p.y, p.z);
-    }
-    for(int t = 0; t < handrig::data::numPalmTriangles; t++)
-    {
-        const auto* tri = handrig::data::palmTriangles[t];
-        fprintf(f, "f %d %d %d\n", base + tri[0], base + tri[1], base + tri[2]);
-    }
-    const int fingers = base + handrig::data::numPalmVertices;
-    for(int t = 0; t < handrig::data::numFingerTriangles; t++)
-    {
-        const auto* tri = handrig::data::fingerTriangles[t];
-        fprintf(f, "f %d %d %d\n", fingers + tri[0], fingers + tri[1], fingers + tri[2]);
-    }
-    base = fingers + handrig::data::numVertices;
+    std::vector<glm::vec3> posed;
+    const auto mesh = [&](const RigHand& which, const glm::mat4& toThis, const char* name) {
+        handrig::vertices(which.posed, posed);
+        fprintf(f, "o %s\n", name);
+        for(const glm::vec3& v : posed)
+        {
+            const glm::vec3 p{toThis * glm::vec4{drawnInRig(which, v), 1.f}};
+            fprintf(f, "v %f %f %f\n", p.x, p.y, p.z);
+        }
+        for(const auto& tri : handrig::rig().triangles)
+        {
+            fprintf(f, "f %d %d %d\n", base + tri[0], base + tri[1], base + tri[2]);
+        }
+        base += static_cast<int>(posed.size());
+    };
+    mesh(rh, glm::mat4{1.f}, "hand");
 
     // The other hand, when this one cups it.
     const RigHand& otherHand = rigHands[1 - hand];
     if(rh.held.cup && otherHand.drawn)
     {
-        const glm::mat4 toThis = glm::inverse(rh.rigToWorld) * otherHand.rigToWorld;
-        fprintf(f, "o other\n");
-        for(int i = 0; i < handrig::data::numPalmVertices; i++)
-        {
-            const glm::vec3 p{toThis * glm::vec4{drawnInRig(otherHand, handrig::palmVertex(otherHand.posed, i)), 1.f}};
-            fprintf(f, "v %f %f %f\n", p.x, p.y, p.z);
-        }
-        for(int v = 0; v < handrig::data::numVertices; v++)
-        {
-            const glm::vec3 p{toThis * glm::vec4{drawnInRig(otherHand, otherHand.posed.vertex[v]), 1.f}};
-            fprintf(f, "v %f %f %f\n", p.x, p.y, p.z);
-        }
-        for(int t = 0; t < handrig::data::numPalmTriangles; t++)
-        {
-            const auto* tri = handrig::data::palmTriangles[t];
-            fprintf(f, "f %d %d %d\n", base + tri[0], base + tri[1], base + tri[2]);
-        }
-        const int otherFingers = base + handrig::data::numPalmVertices;
-        for(int t = 0; t < handrig::data::numFingerTriangles; t++)
-        {
-            const auto* tri = handrig::data::fingerTriangles[t];
-            fprintf(f, "f %d %d %d\n", otherFingers + tri[0], otherFingers + tri[1], otherFingers + tri[2]);
-        }
-        base = otherFingers + handrig::data::numVertices;
+        mesh(otherHand, glm::inverse(rh.rigToWorld) * otherHand.rigToWorld, "other");
     }
 
     // The spheres the solver tests the hand as, each an octahedron.
