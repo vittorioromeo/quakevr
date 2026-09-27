@@ -91,8 +91,9 @@ string(entity inflictor, entity attacker, float isVRMelee) VR_Dummy_Kind =
     if(vr_hitkind == QVR_HITKIND_BASH)
     {
         vr_dummy_colour = orange;
-        return sprintf(vr_bash_counter ? "parry-bash with the %s" : "bash with the %s",
-                       WeaponIdToWeaponName(VRGetEntWeapon(attacker, vr_hithand)));
+        return sprintf("%s with the %s, %s", vr_bash_counter ? "parry-bash" : "bash",
+                       WeaponIdToWeaponName(VRGetEntWeapon(attacker, vr_hithand >= 0 ? vr_hithand : cVR_MainHand)),
+                       vr_bash_both ? "two hands" : "one hand");
     }
 
     if(vr_hitkind == QVR_HITKIND_SHOVE)
@@ -109,10 +110,13 @@ string(entity inflictor, entity attacker, float isVRMelee) VR_Dummy_Kind =
         self = attacker;
         entity b = VR_Blow(vr_hithand);
         self = oldSelf;
-        // What struck, how (the blow's kind), how fast and far the wrist went (and a swung weapon's
-        // head), how suddenly (the wrist's mean acceleration to its fastest), and the strength.
-        string what = VR_Blow_KindName(b.blow_kind);
-        string speed = sprintf("wrist %.1f m/s", b.blow_peak);
+        // What struck (the weapon, the kind of blow, how it moved, the part), with which hand, how fast the striking
+        // part went (a swing's tip, a fist's knuckles) and the strength (vr_melee.qc).
+        string what = VR_Melee_KindName(b.mh_kind, b.mh_thing);
+        if(b.mh_way != "")
+        {
+            what = sprintf("%s (%s)", what, b.mh_way);
+        }
         if(wid == WID_FIST)
         {
             if(VR_Carry_IsHolding(attacker, vr_hithand))
@@ -120,21 +124,16 @@ string(entity inflictor, entity attacker, float isVRMelee) VR_Dummy_Kind =
                 what = sprintf("%s with a box in hand", what);
             }
         }
-        else if(wid == WID_AXE || wid == WID_SWORD || wid == WID_MJOLNIR)
-        {
-            what = sprintf("%s, %s", WeaponIdToWeaponName(wid), what);
-            speed = sprintf("wrist %.1f m/s, head %.1f m/s", b.blow_peak, b.blow_tippeak);
-        }
         else
         {
-            what = sprintf("%s as a club, %s", WeaponIdToWeaponName(wid), what);
+            what = sprintf("%s, %s", WeaponIdToWeaponName(wid), what);
         }
-        if(b.blow_hit_stroke == b.blow_t0 && b.blow_hit_name != "")
+        if(b.mh_part != "")
         {
-            what = sprintf("%s with %s", what, b.blow_hit_name); // the striking point (vr_juice.qc)
+            what = sprintf("%s with %s", what, b.mh_part);
         }
-        return sprintf("melee: %s, %s, %s over %.0f cm, %.0f m/s2 (x%.2f)", what, VR_Dummy_HandName(vr_hithand),
-            speed, b.blow_dist * 100, b.blow_accel, b.blow_strength);
+        return sprintf("melee: %s, %s, %.1f m/s (x%.2f)", what, VR_Dummy_HandName(vr_hithand), b.mh_speed,
+                       b.mh_strength);
     }
 
     if(vr_hitkind == QVR_HITKIND_SHOT)

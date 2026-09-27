@@ -554,10 +554,9 @@ void(float xHand) VR_Corpse_StrikeFrame =
         return;
     }
 
-    // As the hands' blows (PlayerVRMeleeImpl): an empty hand steadying the other's weapon doesn't
-    // strike (the weapon's hand does: the first hand to strike takes the swing), nor does a gun
-    // carried by its foregrip.
-    if((VRGet2HAiming(self) && VRIsHandEmpty(self, xHand)) || VRIsHandCarryingByForegrip(self, xHand))
+    // As the hands' blows (vr_melee.qc): an empty hand steadying the other's weapon doesn't strike (the weapon's hand
+    // does: the first hand to strike takes the swing). A gun carried by its pump strikes (round 21).
+    if(VR_Melee_Thing(self, xHand) == VR_MTHING_NONE)
     {
         return;
     }
@@ -1158,21 +1157,21 @@ vector vr_parry_butt;
 vector vr_parry_end;
 vector vr_parry_at;
 
-// The weapon in `p`'s `hand`, into vr_parry_butt .. vr_parry_end (FALSE: an empty hand).
+// The weapon in `p`'s `hand`, into vr_parry_butt .. vr_parry_end (FALSE: an empty hand): its line from the near end
+// to the far end, as the melee lays it out (VR_Melee_Line, vr_melee.qc; a gun carried by its pump too).
 float(entity p, float hand) VR_Parry_WeaponLine =
 {
     if(VRIsHandEmpty(p, hand))
     {
         return FALSE;
     }
-    vector h = VRGetEntHandPos(p, hand);
-    vector m = hand == cVR_OffHand ? p.offmuzzlepos : p.muzzlepos;
-    if(m == '0 0 0' || vlen(m - h) > 80 || vlen(m - h) < 4)
+    float thing = VR_Melee_Thing(p, hand);
+    if(thing == VR_MTHING_NONE || thing == VR_MTHING_FIST || !VR_Melee_Line(p, hand, thing))
     {
-        m = h + VRForwardOf(VRGetEntHandRot(p, hand)) * 16;
+        return FALSE;
     }
-    vr_parry_butt = h - (m - h) * 0.3;
-    vr_parry_end = m;
+    vr_parry_butt = vr_mline_near;
+    vr_parry_end = vr_mline_far;
     return TRUE;
 };
 
@@ -1237,10 +1236,10 @@ float(entity p, float hand, vector toAttacker) VR_Parry_Blocks =
     }
     // (Either hand's weapon: the off hand's may be steadied by the empty main hand. The line is the
     // same either way round.)
-    if(VRGet2HAiming(p))
+    if(VRGet2HAiming(p) && VRIsHandEmpty(p, VRGetOtherHand(hand)))
     {
-        vector h = VRGetEntHandPos(p, cVR_MainHand);
-        vector o = VRGetEntHandPos(p, cVR_OffHand);
+        vector h = VRGetEntHandPos(p, hand);
+        vector o = VR_Melee_HelpGrip(p, VRGetOtherHand(hand)); // where the helping hand holds it
         return VR_Parry_LineBlocks(p, o - (h - o) * 0.5, h + (h - o) * 0.5, toAttacker);
     }
     return FALSE;
@@ -1322,13 +1321,9 @@ float(entity p, vector toAttacker) VR_Parry_ArmsCrossed =
 // grip or its blade), the axe or a gun held across. Until round 18 the guard was the hand's forward
 // across (VR_Parry_HandAcross, the parry's old test), which a sword or the axe held level across
 // never passed (their blades are some 70 degrees off the hand's forward). A gun carried by its
-// foregrip (the hand-off) is no guard.
+// foregrip (the hand-off) is a guard too (round 21).
 float(entity p, float hand, vector xForward) VR_Parry_Guard =
 {
-    if(VRIsHandCarryingByForegrip(p, hand))
-    {
-        return FALSE;
-    }
     return VR_Parry_Blocks(p, hand, xForward);
 };
 

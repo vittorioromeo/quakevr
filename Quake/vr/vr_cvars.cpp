@@ -42,14 +42,14 @@ const DefaultChange defaultChanges[] = {
     {6, &vr_flashlight_shadows, "0"},
     {6, &vr_flashlight_beam, "0"},         // a soft cone of light now, not a line over everything
     {7, &vr_melee_speed, "3"},             // the wrist's speed now (a blow must also travel vr_melee_distance)
-    {8, &vr_melee_distance, "0.2"},        // a full blow: wiggles and whips of the hand were hitting
     {9, &vr_parallax_models, "0.75"},      // off: parallax on 8-bit skins bends their texels (the bumps give models relief now)
     {10, &vr_parry_angle, "50"},          // degrees off level now (was off square to the blow, by the hand's forward)
     {10, &vr_corpse_health, "40"},        // doubled (big monsters take more again)
     {11, &vr_bash_speed, "1.6"},          // a gentler push bashes (round 18: the guard is the parry's now)
     {12, &vr_sight_hue, "30"},            // their own orange: they follow the player's hue now (vr_player_hue)
+    {13, &vr_shove_speed, "1.8"},         // the author's shoves go 3.2-4.8 m/s, his hands waved at the dummy 2.2 (round 21)
 };
-constexpr int configVersion = 12;
+constexpr int configVersion = 13;
 
 // Right after the saved config is executed (Cmd_Exec_f queues it).
 void migrateConfig_f()
@@ -75,6 +75,18 @@ void migrateConfig_f()
         Con_DPrintf("VR: vr_player_hue %s (the gadget's screen hue, which follows it now)\n", vr_gadget_screen_hue.string);
         Cvar_SetQuick(&vr_player_hue, vr_gadget_screen_hue.string);
         Cvar_SetQuick(&vr_gadget_screen_hue, "-1");
+    }
+    // 13: melee redesigned (round 21, docs/vr-port/ROUND21.md). vr_melee_speed is the striking part's speed now (a
+    // swing's tip, a fist), not the wrist's; vr_bash_speed the parry stance's push alone, with no still guard before
+    // it. Their old values meant something else: both go to the new defaults, whatever they were.
+    if(from < 13)
+    {
+        for(cvar_t* var : {&vr_melee_speed, &vr_bash_speed})
+        {
+            Con_DPrintf("VR: %s: new default %s (was %s; its meaning changed)\n", var->name, var->default_string,
+                var->string);
+            Cvar_SetQuick(var, var->default_string);
+        }
     }
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
 }
