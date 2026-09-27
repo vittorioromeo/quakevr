@@ -715,6 +715,10 @@ void solve(const handrig::Pose& start, const std::vector<Triangle>& tris, Soluti
         {
             Placement p;
             place(pose, scene, at, false, p);
+            if(!inside)
+            {
+                p.total += 0.5f; // the palm on what it holds (step 4), unless the fingers hold much worse there
+            }
             tried++;
             if(p.total > best.total)
             {

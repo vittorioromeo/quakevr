@@ -45,6 +45,7 @@ struct State
     // foregrip vertex of the weapon model), placed with the muzzles.
     bool grip2HValid[2]{false, false};
     glm::vec3 grip2H[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    float grip2HBias[2]{0.f, 0.f}; // its hotspot's bias: units off the distance it is taken by (round 21)
 };
 
 // The server set the view yaw: turn the play space to match (headset only).

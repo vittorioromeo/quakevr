@@ -23,7 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-#define MAX_CVARS	4096
+#define MAX_CVARS	8192 // QVR: 4096 (the weapons' per-slot settings grew past it, round 21)
 
 static int			cvar_count;
 static cvar_t		*cvar_list[MAX_CVARS];
