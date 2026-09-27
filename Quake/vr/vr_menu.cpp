@@ -888,6 +888,9 @@ void weaponOffsetsPrint()
 // The hotspot being edited (vr_weapon_hotspot, 1..4) and its type, as the page was built: a change rebuilds it.
 int weaponOffsetsHotspot = -1;
 int weaponOffsetsHotspotType = -1;
+// Whether the weapon's and the edited hotspot's fingers are set by hand, as the page was built (round 21, third pass).
+int weaponOffsetsManual = -1;
+int weaponOffsetsHotspotManual = -1;
 
 [[nodiscard]] int editedHotspot()
 {
@@ -1072,9 +1075,31 @@ std::vector<Item> pageWeaponOffsets()
                                  "(a share of a full curl).";
         list.insert(list.end(), {
             header("Fingers on the Weapon"),
-            s("Overlap", Key::GripOverlap, 0.f, 1.f, 0.05f, "%.2f")
-                .help("How far the fingers and palm may sink into the weapon: 0 they stop on its surface, 1 a centimetre "
-                      "in."),
+            cycle("Fingers", weapons::cvar(slot, Key::FingerManual), {{0.f, "Automatic"}, {1.f, "Manual"}})
+                .help("Automatic: the fingers wrap the weapon on their own. Manual: they take the curls set below (no "
+                      "fitting); the index finger still pulls the trigger."),
+        });
+        weaponOffsetsManual = weapons::value(slot, Key::FingerManual) >= 0.5f ? 1 : 0;
+        if(weaponOffsetsManual)
+        {
+            const char* curlHelp = "How far this finger is curled: 0 open, 1 a fist (the controller's grip still opens it).";
+            list.insert(list.end(), {
+                s("Thumb Curl", Key::FingerCurlThumb, 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
+                s("Thumb Across", Key::FingerThumbAcross, 0.f, 1.f, 0.02f, "%.2f")
+                    .help("How far the thumb turns across the palm: 0 beside the hand, 1 across it."),
+                s("Index Curl", Key::FingerCurlIndex, 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
+                s("Middle Curl", Key::FingerCurlMiddle, 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
+                s("Ring Curl", Key::FingerCurlRing, 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
+                s("Little Curl", Key::FingerCurlPinky, 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
+            });
+        }
+        else
+        {
+            list.push_back(s("Overlap", Key::GripOverlap, 0.f, 1.f, 0.05f, "%.2f")
+                               .help("How far the fingers and palm may sink into the weapon: 0 they stop on its surface, 1 a "
+                                     "centimetre in."));
+        }
+        list.insert(list.end(), {
             s("Thumb", Key::FingerThumbBias, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
             s("Index Finger", Key::FingerIndexBias, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
             s("Middle Finger", Key::FingerMiddleBias, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
@@ -1134,9 +1159,30 @@ std::vector<Item> pageWeaponOffsets()
             slider("Hand Roll", hk(7), -180.f, 180.f, 1.f, "%.0f"),
             cycle("Thumb", hk(8), {{0.f, "Wraps round"}, {1.f, "Along the top"}})
                 .help("Whether the thumb wraps round it with the fingers, or lies along its top."),
-            slider("Overlap", hk(9), 0.f, 1.f, 0.05f, "%.2f")
-                .help("How far the hand holding it may sink into the weapon: 0 not at all, 1 a centimetre (into the other "
-                      "hand, on a cup: Hand/Gun Calibration's Fit Overlap: Hands)."),
+            cycle("Fingers There", hk(16), {{0.f, "Automatic"}, {1.f, "Manual"}})
+                .help("Automatic: the hand holding it wraps it on its own. Manual: its fingers take the curls set here."),
+        });
+        weaponOffsetsHotspotManual = h.manual ? 1 : 0;
+        if(h.manual)
+        {
+            const char* curlHelp = "How far this finger is curled: 0 open, 1 a fist.";
+            list.insert(list.end(), {
+                slider("Thumb Curl There", hk(17), 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
+                slider("Thumb Across There", hk(22), 0.f, 1.f, 0.02f, "%.2f")
+                    .help("How far the thumb turns across the palm: 0 beside the hand, 1 across it."),
+                slider("Index Curl There", hk(18), 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
+                slider("Middle Curl There", hk(19), 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
+                slider("Ring Curl There", hk(20), 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
+                slider("Little Curl There", hk(21), 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
+            });
+        }
+        else
+        {
+            list.push_back(slider("Overlap There", hk(9), 0.f, 1.f, 0.05f, "%.2f")
+                               .help("How far the hand holding it may sink into the weapon: 0 not at all, 1 a centimetre (into "
+                                     "the other hand, on a cup: Hand/Gun Calibration's Fit Overlap: Hands)."));
+        }
+        list.insert(list.end(), {
             slider("Held Hand X (forward)", hk(10), -10.f, 10.f, 0.1f, "%+.1f")
                 .help("Moves the hand drawn on this hotspot once it holds it (visual only: where it is taken, and the "
                       "aim, don't change). In the holding hand's aim frame, units; as for the off hand helping."),
@@ -1193,9 +1239,12 @@ std::vector<Item> pageWeaponOffsets()
     if(pages[page].build == pageWeaponOffsets && weaponOffsetsSlot >= 0 &&
         (editedHotspot() != weaponOffsetsHotspot ||
             static_cast<int>(weapons::hotspot(weaponOffsetsSlot, editedHotspot()).type) != weaponOffsetsHotspotType ||
-            weapons::inheritsFrom(weaponOffsetsHeldSlot) != weaponOffsetsInherit))
+            weapons::inheritsFrom(weaponOffsetsHeldSlot) != weaponOffsetsInherit ||
+            (weaponOffsetsManual >= 0 && (weapons::value(weaponOffsetsSlot, weapons::Key::FingerManual) >= 0.5f ? 1 : 0) != weaponOffsetsManual) ||
+            (weaponOffsetsHotspotManual >= 0 &&
+                (weapons::hotspot(weaponOffsetsSlot, editedHotspot()).manual ? 1 : 0) != weaponOffsetsHotspotManual)))
     {
-        weaponOffsetsStale = true; // another hotspot picked, its type changed, or what the weapon inherits
+        weaponOffsetsStale = true; // another hotspot picked, its type changed, what the weapon inherits, or a Fingers choice
     }
     if(pages[page].build == pageWeaponOffsets && weaponOffsetsStale)
     {

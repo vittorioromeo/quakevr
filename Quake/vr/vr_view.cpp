@@ -754,6 +754,7 @@ struct WorldHotspot
     float overlap{weapons::defaultOverlap}; // round 21, third pass: the hand's overlap there (0..1), its drawn pose's offset
     glm::vec3 visualPos{0.f};
     glm::vec3 visualAngles{0.f};
+    weapons::Hotspot def; // as set (its fingers set by hand, among the rest)
 };
 WorldHotspot worldHotspots[2][weapons::maxHotspots];
 int chosenGrip[2]{-1, -1}; // per holding hand: the grip hotspot the other hand holds, or last took
@@ -915,7 +916,7 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame)
         const weapons::Hotspot h = model && slot >= 0 ? weapons::hotspot(slot, i) : weapons::Hotspot{};
         WorldHotspot& w = worldHotspots[hand][i];
         w = WorldHotspot{h.type, glm::vec3{0.f}, glm::vec3{0.f}, h.bias, 0.f, h.angles, h.style, h.overlap, h.visualPos,
-            h.visualAngles};
+            h.visualAngles, h};
         if(weapons::isGripType(h.type))
         {
             w.pos = w.end = glm::vec3{hsFrame * glm::vec4{h.pos, 1.f}};
@@ -1089,7 +1090,23 @@ struct Held
     bool thumbTop{false}; // the hotspot's style: the thumb along the top
     float overlap{-1.f};  // cm the fingers and palm may sink into it (round 21, third pass: the weapon's or the hotspot's
                           // overlap slider); negative: vr_hand_fit_overlap's (things)
+    // Round 21, third pass: the fingers set by hand (the weapon's or the hotspot's Fingers: Manual), no solve: each
+    // finger's curl (0..1 of the fist; thumb first) and the thumb across the palm (0..1).
+    bool manual{false};
+    float manualCurl[handrig::FingerCount]{};
+    float manualThumbAcross{0.f};
 };
+
+// The weapon's (Key::FingerManual, FingerCurl*) or a hotspot's fingers set by hand, into `held`.
+void setManualFingers(Held& held, bool manual, const float curl[handrig::FingerCount], float thumbAcross)
+{
+    held.manual = manual;
+    for(int f = 0; f < handrig::FingerCount; f++)
+    {
+        held.manualCurl[f] = CLAMP(0.f, curl[f], 1.f);
+    }
+    held.manualThumbAcross = CLAMP(0.f, thumbAcross, 1.f);
+}
 
 // A hand's grasp: what it was solved against (the held thing's model, pose and place in the hand's rig space, the
 // fingers' places), and the fingers' stops.
@@ -1549,8 +1566,17 @@ bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
     view::ViewEntity& ve = entities.hand[hand][FingerBase];
     const glm::mat4 rigToWorld = rigPlacement(hand, pos, handRot, mirrored, &ve);
 
-    // The fingers: the controller's curls (as the six models'), or wrapping what the hand holds.
-    updateGrasp(hand, held, rigToWorld, k * ts.x);
+    // The fingers: the controller's curls (as the six models'), or wrapping what the hand holds, or set by hand (the
+    // weapon's or the hotspot's Fingers: Manual: no solve).
+    if(held.manual)
+    {
+        rh.grasp.valid = false;
+        rh.inRig = held.ent ? glm::inverse(rigToWorld) * grasp::shapeToWorld(*held.ent, held.mirrored) : glm::mat4{1.f};
+    }
+    else
+    {
+        updateGrasp(hand, held, rigToWorld, k * ts.x);
+    }
     rh.held = held;
     rh.rigToWorld = rigToWorld;
     const double now = cl.time;
@@ -1595,9 +1621,20 @@ bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
         const float curl = fingerFrames[hand][rigFinger[f]];
         const float bias = fingerBias[hand][rigFinger[f]];
         float target[handrig::jointsPerFinger];
-        if(rh.grasp.valid)
+        // Set by hand: the finger stops at its curl, as a solved finger stops on what it holds.
+        grasp::FingerStop manualStop;
+        if(held.manual)
         {
-            grasp::curls(rh.grasp.solution.finger[f], curl, engagement(curl), target);
+            manualStop.met = true;
+            for(float& j : manualStop.stop)
+            {
+                j = 4.f * held.manualCurl[f];
+            }
+        }
+        const grasp::FingerStop* stop = held.manual ? &manualStop : rh.grasp.valid ? &rh.grasp.solution.finger[f] : nullptr;
+        if(stop)
+        {
+            grasp::curls(*stop, curl, engagement(curl), target);
             if(f == handrig::Index && held.trigger)
             {
                 // The trigger finger pulls as the trigger is pulled, past where it met the weapon (the trigger
@@ -1605,7 +1642,7 @@ bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
                 const float pull = CLAMP(0.f, curl / 5.f, 1.f);
                 for(int j = 0; j < handrig::jointsPerFinger; j++)
                 {
-                    target[j] = std::fmax(target[j], std::fmin(rh.grasp.solution.finger[f].stop[j], curl) + pull * triggerPull[j]);
+                    target[j] = std::fmax(target[j], std::fmin(stop->stop[j], curl) + pull * triggerPull[j]);
                 }
             }
             for(float& t : target)
@@ -1635,8 +1672,11 @@ bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
     }
     // The thumb turns across the palm (opposition) as the grasp found, as far as it closes.
     const float w = CLAMP(0.f, fingerFrames[hand][FingerThumb] / 3.f, 1.f);
-    const glm::quat thumbTarget = rh.grasp.valid ? glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, rh.grasp.solution.thumbTurn, w)
-                                                 : glm::quat{1.f, 0.f, 0.f, 0.f};
+    // Set by hand: across the palm by its share of 45 degrees (the solver's widest opposition), about the same axis.
+    const glm::quat manualThumb = glm::angleAxis(glm::radians(45.f * held.manualThumbAcross), glm::vec3{-1.f, 0.f, 0.f});
+    const glm::quat thumbTarget = held.manual   ? glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, manualThumb, w)
+                                  : rh.grasp.valid ? glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, rh.grasp.solution.thumbTurn, w)
+                                                   : glm::quat{1.f, 0.f, 0.f, 0.f};
     rh.thumb = glm::normalize(glm::slerp(rh.thumb, thumbTarget, follow));
     rh.pose.metacarpal = rh.thumb;
     handrig::pose(rh.pose, rh.posed);
@@ -1993,12 +2033,16 @@ void setupHand(const hands::State& s, int hand)
             held.cup = heldSpot->type == weapons::HotspotType::Cup;
             held.thumbTop = heldSpot->style == weapons::HotspotStyle::ThumbTop;
             held.overlap = CLAMP(0.f, heldSpot->overlap, 1.f) * weapons::maxOverlapCm;
+            setManualFingers(held, heldSpot->def.manual, heldSpot->def.curl, heldSpot->def.thumbAcross);
         }
     }
     else if(slot >= 0 && slot != fist)
     {
         held = {&weapon.ent, mirrored, 0, true, true};
         held.overlap = CLAMP(0.f, weapons::value(slot, Key::GripOverlap), 1.f) * weapons::maxOverlapCm;
+        const float curl[handrig::FingerCount] = {weapons::value(slot, Key::FingerCurlThumb), weapons::value(slot, Key::FingerCurlIndex),
+            weapons::value(slot, Key::FingerCurlMiddle), weapons::value(slot, Key::FingerCurlRing), weapons::value(slot, Key::FingerCurlPinky)};
+        setManualFingers(held, weapons::value(slot, Key::FingerManual) >= 0.5f, curl, weapons::value(slot, Key::FingerThumbAcross));
     }
     else if(const int ent = held::heldEntity(hand))
     {

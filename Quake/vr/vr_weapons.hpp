@@ -96,10 +96,15 @@ struct Hotspot
     float overlap{defaultOverlap};
     glm::vec3 visualPos{0.f};
     glm::vec3 visualAngles{0.f};
+    // The fingers set by hand there (no solve): each finger's curl (thumb, index, middle, ring, little: 0 open .. 1
+    // closed) and the thumb across the palm (0 .. 1).
+    bool manual{false};
+    float curl[5]{0.f, 0.f, 0.f, 0.f, 0.f};
+    float thumbAcross{0.f};
 };
 // field: 0 type, 1..3 x y z, 4 bias, 5..7 pitch yaw roll, 8 style, 9 overlap, 10..12 visual x y z, 13..15 visual pitch
-// yaw roll
-inline constexpr int hotspotFields = 16;
+// yaw roll, 16 manual, 17..21 the fingers' curls, 22 the thumb across
+inline constexpr int hotspotFields = 23;
 [[nodiscard]] Key hotspotKey(int index, int field);
 [[nodiscard]] bool isGripType(HotspotType type); // a point the other hand holds: Grip or Cup
 [[nodiscard]] Hotspot hotspot(int slot, int index);

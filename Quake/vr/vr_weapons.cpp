@@ -321,7 +321,11 @@ Key hotspotKey(int index, int field)
     {
         return static_cast<Key>(static_cast<int>(Key::Hotspot1Pitch) + 4 * index + (field - 5));
     }
-    return static_cast<Key>(static_cast<int>(Key::Hotspot1Overlap) + 7 * index + (field - 9));
+    if(field < 16)
+    {
+        return static_cast<Key>(static_cast<int>(Key::Hotspot1Overlap) + 7 * index + (field - 9));
+    }
+    return static_cast<Key>(static_cast<int>(Key::Hotspot1Manual) + 7 * index + (field - 16));
 }
 
 bool isGripType(HotspotType type)
@@ -345,6 +349,12 @@ Hotspot hotspot(int slot, int index)
     h.overlap = value(slot, hotspotKey(index, 9));
     h.visualPos = vec(slot, hotspotKey(index, 10), hotspotKey(index, 11), hotspotKey(index, 12));
     h.visualAngles = vec(slot, hotspotKey(index, 13), hotspotKey(index, 14), hotspotKey(index, 15));
+    h.manual = value(slot, hotspotKey(index, 16)) >= 0.5f;
+    for(int f = 0; f < 5; f++)
+    {
+        h.curl[f] = value(slot, hotspotKey(index, 17 + f));
+    }
+    h.thumbAcross = value(slot, hotspotKey(index, 22));
     return h;
 }
 
@@ -371,6 +381,12 @@ void setHotspot(int slot, int index, const Hotspot& h)
         Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 10 + k)), h.visualPos[k]);
         Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 13 + k)), h.visualAngles[k]);
     }
+    Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 16)), h.manual ? 1.f : 0.f);
+    for(int f = 0; f < 5; f++)
+    {
+        Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 17 + f)), h.curl[f]);
+    }
+    Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 22)), h.thumbAcross);
 }
 
 bool takeHotspotMigration(int slot)
