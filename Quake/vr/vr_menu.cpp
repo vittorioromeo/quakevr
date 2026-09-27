@@ -564,7 +564,9 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Shoulder Reach", vr_body_shoulder_reach, 0.f, 0.25f, 0.01f, "%.2f m").extend(0.f, 0.6f)
             .help("How far the shoulders may move out beyond that."),
         slider("Forearm Twist", vr_body_forearm_twist, 0.f, 1.f, 0.05f, "%.2f")
-            .help("Share of the wrist's roll the forearm follows."),
+            .help("Share of the wrist's roll the middle of the forearm follows (none at the elbow, all at the wrist)."),
+        slider("Wrist Limits", vr_body_wrist_limits, 0.f, 2.f, 0.05f, "%.2f")
+            .help("The elbow swings round to keep the wrist within a real one's bend and roll, times this (0: never)."),
         slider("Elbow Out", vr_body_elbow_out, 0.f, 1.f, 0.05f, "%.2f"),
         slider("Elbow Back", vr_body_elbow_back, 0.f, 1.f, 0.05f, "%.2f"),
         slider("Elbow From Hand", vr_body_elbow_hand, 0.f, 1.f, 0.05f, "%.2f")

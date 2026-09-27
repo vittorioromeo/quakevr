@@ -51,15 +51,39 @@ enum Joint : int
     ThighR,
     CalfR,
     FootR,
+    // The forearms' twist and the wrists' bend, spread (make_vrbody.py): four joints along each forearm, turning
+    // with a growing share of the hand's roll, and one at the wrist with all of it and half of the wrist's bend.
+    ForeTwist1L,
+    ForeTwist2L,
+    ForeTwist3L,
+    ForeTwist4L,
+    WristL,
+    ForeTwist1R,
+    ForeTwist2R,
+    ForeTwist3R,
+    ForeTwist4R,
+    WristR,
     JointCount
 };
 
+// The twist joints' places along the forearm, from the elbow (make_vrbody.py's TWISTS: at its rings).
+constexpr int twistJoints = 4;
+constexpr float twistPlaces[twistJoints] = {0.05f / 0.26f, 0.12f / 0.26f, 0.19f / 0.26f, 0.225f / 0.26f};
+
 constexpr const char* jointNames[JointCount] = {"pelvis", "spine", "chest", "neck", "head", "clavicle_l",
     "upperarm_l", "forearm_l", "hand_l", "clavicle_r", "upperarm_r", "forearm_r", "hand_r", "thigh_l", "calf_l",
-    "foot_l", "thigh_r", "calf_r", "foot_r"};
+    "foot_l", "thigh_r", "calf_r", "foot_r", "foretwist1_l", "foretwist2_l", "foretwist3_l", "foretwist4_l", "wrist_l",
+    "foretwist1_r", "foretwist2_r", "foretwist3_r", "foretwist4_r", "wrist_r"};
 
 constexpr int parentOf[JointCount] = {-1, Pelvis, Spine, Chest, Neck, Chest, ClavicleL, UpperArmL, ForearmL, Chest,
-    ClavicleR, UpperArmR, ForearmR, Pelvis, ThighL, CalfL, Pelvis, ThighR, CalfR};
+    ClavicleR, UpperArmR, ForearmR, Pelvis, ThighL, CalfL, Pelvis, ThighR, CalfR, ForearmL, ForearmL, ForearmL,
+    ForearmL, ForearmL, ForearmR, ForearmR, ForearmR, ForearmR, ForearmR};
+
+// The first of a side's forearm helper joints (ForeTwist1 .. 4, then Wrist).
+[[nodiscard]] constexpr int foreHelpers(int side)
+{
+    return side == 0 ? ForeTwist1L : ForeTwist1R;
+}
 
 constexpr glm::vec3 UP{0.f, 0.f, 1.f};
 constexpr glm::vec3 FWD{1.f, 0.f, 0.f};
@@ -133,6 +157,12 @@ const Bind& bind()
             r.rot[clav + 1] = basis(r.pos[clav + 2] - r.pos[clav + 1], BACK);
             r.rot[clav + 2] = basis(r.pos[clav + 3] - r.pos[clav + 2], BACK);
             r.rot[clav + 3] = basis(r.pos[clav + 3] - r.pos[clav + 2], BACK);
+            for(int k = 0; k <= twistJoints; k++)
+            {
+                const int j = foreHelpers(side) + k;
+                r.pos[j] = glm::mix(r.pos[clav + 2], r.pos[clav + 3], k < twistJoints ? twistPlaces[k] : 1.f);
+                r.rot[j] = r.rot[clav + 2];
+            }
 
             const int thigh = side == 0 ? ThighL : ThighR;
             r.rot[thigh] = basis(r.pos[thigh + 1] - r.pos[thigh], FWD);
@@ -167,6 +197,7 @@ struct Bone
     glm::mat3 rot{1.f};
     float stretch{1.f}; // along the bone
     float size{1.f};    // all axes (COLLAPSED: not drawn)
+    glm::mat3 shape{1.f}; // in the bone's own axes, before the rest (the wrist's mitre)
 };
 
 struct Body
@@ -312,6 +343,95 @@ void solveTorso(const hands::State& s, Body& b)
     return root + dir * (a * cosA) + bend * (a * sinA);
 }
 
+// The wrist's turn from a forearm (along `foreDir`, its hint `hint`) to the hand (`handRot`, the hand bone's axes):
+// its roll about the forearm (radians, -pi .. pi) and, in the rolled forearm's axes, the bend's flexion (towards the
+// palm or the back of the hand) and deviation (towards the little finger or the thumb) (radians, the bend's angle
+// split by its direction).
+struct WristTurn
+{
+    float twist, flexion, deviation;
+};
+
+[[nodiscard]] WristTurn wristTurn(const glm::vec3& foreDir, const glm::vec3& hint, const glm::mat3& handRot)
+{
+    const glm::mat3 untwisted = basis(foreDir, hint);
+    const glm::quat turn = glm::normalize(glm::quat_cast(handRot * glm::transpose(untwisted)));
+    float twist = 2.f * std::atan2(glm::dot(glm::vec3{turn.x, turn.y, turn.z}, foreDir), turn.w);
+    twist -= glm::two_pi<float>() * std::round(twist / glm::two_pi<float>());
+    const glm::vec3 h = glm::transpose(glm::mat3_cast(glm::angleAxis(twist, foreDir)) * untwisted) * handRot[0];
+    const float bend = std::acos(CLAMP(-1.f, h.x, 1.f));
+    const float across = std::sqrt(h.y * h.y + h.z * h.z);
+    return {twist, across > 1e-6f ? bend * h.y / across : 0.f, across > 1e-6f ? bend * h.z / across : 0.f};
+}
+
+// How far past a wrist's comfortable reach a turn is (0 within it; vr_body_wrist_limits scales the reach): its
+// bend against an ellipse of 75 degrees of flexion or extension and 35 of deviation, eased in from 60% of them,
+// and its roll from 60 degrees (a forearm turns about 85 degrees either way).
+[[nodiscard]] float wristStrain(const WristTurn& t, float limits)
+{
+    const float bend = std::sqrt(glm::pow(t.flexion / glm::radians(75.f * limits), 2.f) +
+                                 glm::pow(t.deviation / glm::radians(35.f * limits), 2.f));
+    const float bendStrain = std::max(0.f, bend - 0.6f) / 0.2f;
+    const float twistStrain = std::max(0.f, std::abs(t.twist) - glm::radians(60.f * limits)) / glm::radians(20.f);
+    return bendStrain * bendStrain + twistStrain * twistStrain;
+}
+
+// The elbow's swing round the line from the shoulder to the wrist (radians) that best eases the wrist (the hand bone's
+// axes `handRot`) from the arm's `elbow` and its bend `bend`: the least of the wrist's strain plus the swing's own
+// cost (so that within the wrist's reach the elbow stays where the pole puts it). The swing nearest the last one
+// (`last`) is kept unless another is clearly better, so that where two are about as good (the hand upside down) the
+// elbow does not flick between them.
+[[nodiscard]] float easeWrist(const glm::vec3& shoulder, const glm::vec3& wrist, const glm::vec3& elbow,
+    const glm::vec3& bend, const glm::mat3& handRot, float limits, float last)
+{
+    const glm::vec3 axis = safeNormalize(wrist - shoulder);
+    const glm::vec3 centre = shoulder + axis * glm::dot(elbow - shoulder, axis);
+    const float most = glm::radians(150.f);
+    const auto cost = [&](float swivel) {
+        const glm::quat q = glm::angleAxis(swivel, axis);
+        const glm::vec3 foreDir = safeNormalize(wrist - (centre + q * (elbow - centre)), axis);
+        const float s = swivel / glm::radians(45.f);
+        return wristStrain(wristTurn(foreDir, q * bend, handRot), limits) + s * s;
+    };
+
+    // The least cost within `reach` steps of `step` from `from`, then finer about it, and last the least of the
+    // parabola through it and its neighbours (so that the elbow moves smoothly as the hand does).
+    const auto search = [&](float from, float step, int reach, float& found) {
+        float best = CLAMP(-most, from, most);
+        float bestCost = cost(best);
+        for(int stage = 0; stage < 3; stage++, step *= 0.2f, reach = 5)
+        {
+            const float at = best;
+            for(int i = -reach; i <= reach; i++)
+            {
+                const float swivel = at + step * static_cast<float>(i);
+                if(i == 0 || std::abs(swivel) > most)
+                {
+                    continue;
+                }
+                if(const float c = cost(swivel); c < bestCost)
+                {
+                    best = swivel;
+                    bestCost = c;
+                }
+            }
+        }
+        step *= 5.f; // the last stage's
+        const float below = cost(best - step);
+        const float above = cost(best + step);
+        if(const float curve = below + above - 2.f * bestCost; curve > 1e-6f)
+        {
+            best = CLAMP(-most, best + CLAMP(-0.5f, 0.5f * (below - above) / curve, 0.5f) * step, most);
+        }
+        found = best;
+        return cost(best);
+    };
+    float anywhere, nearby;
+    const float anywhereCost = search(0.f, glm::radians(10.f), 15, anywhere);
+    const float nearbyCost = search(last, glm::radians(2.f), 15, nearby);
+    return anywhereCost < 0.8f * nearbyCost - 0.05f ? anywhere : nearby;
+}
+
 // Shoulder and arm of `side` (0 left, 1 right) to the wrist.
 void solveArm(Body& b, int side, const HandPose& handPose)
 {
@@ -376,33 +496,104 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     const glm::vec3 pole = -cUp + lateral * vr_body_elbow_out.value - cFwd * vr_body_elbow_back.value -
                            handUp * vr_body_elbow_hand.value;
     glm::vec3 bend;
-    const glm::vec3 elbow = twoBone(u.pos, wrist, a, l, pole, lateral, bend);
+    glm::vec3 elbow = twoBone(u.pos, wrist, a, l, pole, lateral, bend);
+
+    // The hand bone's axes: the drawn hand's (or, without one, the wrist's roll only).
+    const glm::mat3 handRot = glm::length(handPose.forward) > 0.5f
+                                  ? basis(handPose.forward, -handUp)
+                                  : basis(safeNormalize(wrist - elbow, glm::normalize(elbow - u.pos)), -handUp);
+
+    // Where the hand would bend or turn the wrist past what a wrist does, the elbow swings round (about the line from
+    // the shoulder to the wrist) as far as eases it, as a person's does: out when the palm turns down, in when it
+    // turns up, up or down when the hand points away from the forearm (easeWrist); it follows the best swing in about
+    // a twentieth of a second.
+    static float lastSwivel[2]{0.f, 0.f};
+    static double lastSwivelTime[2]{-1.0, -1.0};
+    float swivel = 0.f;
+    if(const float limits = vr_body_wrist_limits.value; limits > 0.f && glm::length(handPose.forward) > 0.5f)
+    {
+        const glm::vec3 axis = safeNormalize(wrist - u.pos);
+        const float best = easeWrist(u.pos, wrist, elbow, bend, handRot, limits, lastSwivel[side]);
+        const double now = realtime;
+        const double since = lastSwivelTime[side] >= 0.0 ? CLAMP(0.0, now - lastSwivelTime[side], 0.1) : -1.0;
+        swivel = since < 0.0 ? best
+                             : glm::mix(lastSwivel[side], best, 1.f - std::exp(-static_cast<float>(since) / 0.05f));
+        const glm::vec3 centre = u.pos + axis * glm::dot(elbow - u.pos, axis);
+        const glm::quat q = glm::angleAxis(swivel, axis);
+        elbow = centre + q * (elbow - centre);
+        bend = q * bend;
+        lastSwivelTime[side] = now;
+    }
+    lastSwivel[side] = swivel;
 
     u.rot = basis(elbow - u.pos, bend);
     u.stretch = stretch * length;
 
-    // The forearm twists with the hand: the wrist fully (the hand bone), the forearm by
-    // vr_body_forearm_twist. The bind pose has the palms facing the thighs, thumbs forward: the
-    // bones' hint axis is the little finger's side, opposite the back of the (gripping) hand's
-    // top, where the thumb is.
+    // The forearm turns with the hand's roll: none of it at the elbow, all of it at the wrist, spread along it by
+    // its twist joints (vr_body_forearm_twist: the share at its middle; 0.5 turns it evenly). The hand's turn from
+    // the untwisted forearm is split into its roll about the forearm (the twist) and the swing that bends the wrist
+    // (whatever the twist, the least turn from the forearm to the hand). The bind pose has the palms facing the
+    // thighs, thumbs forward: the bones' hint axis is the little finger's side, opposite the top of the (gripping)
+    // hand, where the thumb is.
     const glm::vec3 foreDir = safeNormalize(wrist - elbow, glm::normalize(elbow - u.pos));
     const glm::mat3 untwisted = basis(foreDir, bend);
-    const glm::mat3 wristRot = basis(foreDir, -handUp); // the hand's roll only
-    const float twist = std::atan2(glm::dot(glm::cross(untwisted[2], wristRot[2]), foreDir),
-        glm::dot(untwisted[2], wristRot[2]));
+    const glm::quat turn = glm::normalize(glm::quat_cast(handRot * glm::transpose(untwisted)));
+    float twist = 2.f * std::atan2(glm::dot(glm::vec3{turn.x, turn.y, turn.z}, foreDir), turn.w);
+    // Kept continuous past a half turn (the nearest to the last frame's, up to 1.25 turns either way): a hand
+    // held upside down would otherwise flip the forearm's twist from one side to the other as it shakes.
+    static float lastTwist[2]{0.f, 0.f};
+    twist -= glm::two_pi<float>() * std::round((twist - lastTwist[side]) / glm::two_pi<float>());
+    if(std::abs(twist) > glm::radians(225.f))
+    {
+        twist -= glm::two_pi<float>() * std::round(twist / glm::two_pi<float>());
+    }
+    lastTwist[side] = twist;
+    const glm::quat roll = glm::angleAxis(twist, foreDir);
+    const glm::quat wristSwing = glm::normalize(turn * glm::conjugate(roll));
 
     Bone& f = b.bones[fore];
     f = Bone{};
     f.pos = elbow;
-    f.rot = glm::mat3_cast(glm::angleAxis(twist * CLAMP(0.f, vr_body_forearm_twist.value, 1.f), foreDir)) * untwisted;
+    f.rot = untwisted;
     f.stretch = stretch * length;
 
-    // The hand bone turns with the hand itself, bent at the wrist too: the wrist and the bracer's
-    // cuff over the back of the hand go with it, so that the hand never comes off the arm.
+    const float share = CLAMP(0.f, vr_body_forearm_twist.value, 1.f);
+    for(int k = 0; k < twistJoints; k++)
+    {
+        const float at = twistPlaces[k];
+        const float s = at <= 0.5f ? share * at / 0.5f : share + (1.f - share) * (at - 0.5f) / 0.5f;
+        Bone& t = b.bones[foreHelpers(side) + k];
+        t = Bone{};
+        t.pos = elbow + foreDir * (l * at);
+        t.rot = glm::mat3_cast(glm::angleAxis(twist * s, foreDir)) * untwisted;
+        t.stretch = f.stretch;
+    }
+
+    // The wrist joint: all of the roll and half of the bend (the bisector of the forearm and the hand), stretched
+    // across the bend by 1 / cos(half the bend), as a mitre joint's section is, so that the bent wrist keeps the
+    // thickness of the arm on both sides of it.
+    const float bendAngle = 2.f * std::acos(CLAMP(-1.f, std::abs(wristSwing.w), 1.f));
+    const glm::quat halfWristSwing =
+        glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, wristSwing.w < 0.f ? -wristSwing : wristSwing, 0.5f);
+    Bone& w = b.bones[foreHelpers(side) + twistJoints];
+    w = Bone{};
+    w.pos = elbow + foreDir * l;
+    w.rot = glm::mat3_cast(halfWristSwing * roll) * untwisted;
+    w.stretch = f.stretch; // the forearm's side of the wrist's rings
+    if(bendAngle > 1e-3f)
+    {
+        const glm::vec3 across = glm::transpose(w.rot) * (handRot[0] - foreDir); // in the wrist joint's axes
+        const glm::vec3 n = safeNormalize(across - glm::vec3{across.x, 0.f, 0.f}, glm::vec3{0.f, 0.f, 1.f});
+        const float mitre = 1.f / std::cos(std::min(bendAngle, glm::radians(120.f)) * 0.5f);
+        w.shape = glm::mat3{1.f} + (mitre - 1.f) * glm::outerProduct(n, n);
+    }
+
+    // The hand bone turns with the hand itself, the whole bend: the bracer's lip over the base of the hand goes
+    // with it, so that the hand never comes off the arm.
     Bone& h = b.bones[hand];
     h = Bone{};
     h.pos = elbow + foreDir * l;
-    h.rot = glm::length(handPose.forward) > 0.5f ? basis(handPose.forward, -handUp) : wristRot;
+    h.rot = handRot;
 }
 
 // The legs' clock: seconds since they were last posed (0 the first time, and for a second pose in
@@ -1134,7 +1325,7 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
     for(int j = 0; j < JointCount; j++)
     {
         const Bone& bone = b.bones[j];
-        const glm::mat3 r = bone.rot * glm::mat3{glm::vec3{bone.stretch * bone.size, 0.f, 0.f},
+        const glm::mat3 r = bone.rot * bone.shape * glm::mat3{glm::vec3{bone.stretch * bone.size, 0.f, 0.f},
                                            glm::vec3{0.f, bone.size, 0.f}, glm::vec3{0.f, 0.f, bone.size}};
         const glm::vec3 t = (bone.pos - origin) / k;
 

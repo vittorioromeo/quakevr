@@ -4010,3 +4010,110 @@ logs are in the scratchpad's `handblend/final/`.
 
 - [ ] Install the add-on, import `hand_rig.md5mesh`, change something, export, `vr_hand_reload`.
 - [ ] Hold the guns and the sword with your edited hand: do the fingers wrap as the new shape suggests?
+
+## Forearm, bracer and wrist
+
+His note: part of the hand clipped through the bracer, and at extreme angles the bracer and the wrist went thin and
+unnatural.
+
+### Why
+
+- **The clipping:** the bracer's cuff went on 3 cm past the point where the arm meets the hand. "Hands remodelled"
+  moved that point 3 cm into the hand. So the cuff lay over the heel of the hand, which is wider than the cuff. The
+  hand came through it even with a straight wrist: 6 to 12 mm, depending on the build.
+- **The thinning:** the whole forearm turned rigidly with half of the hand's roll. The wrist's ring was blended 40/60
+  between the forearm and the hand, so it had to take both the rest of the roll and all of the bend. Blended
+  skinning pulls such a ring in: 83% of its area at 70 degrees of bend, 52% at a half turn.
+- **The angles themselves:** the arm IK placed the elbow only by its pole. Turning the hand bent the wrist far past a
+  real one's reach. In the mock, rolling the controller 90 degrees bent the wrist 75 degrees; pointing the hand a
+  little up bent it 105.
+
+### What changed
+
+- **Skeleton** (`make_vrbody.py`; the engine's `bind()` and joint tables the same). The existing joint names, axes,
+  bind pose and attachments are unchanged. After the legs come ten new joints, children of the forearms:
+  - `foretwist1..4_<side>` on the forearm's axis, at its rings (5, 12, 19 and 22.5 cm from the elbow). They take a
+    share of the hand's roll that grows along the forearm: none at the elbow, all at the wrist.
+    `vr_body_forearm_twist` is now the share at the forearm's middle (0.5, the default, spreads it evenly).
+  - `wrist_<side>` takes all of the roll and half of the wrist's bend. It is stretched across the bend by
+    1 / cos(half the bend), which is how a mitre joint's section widens. `Bone` gained a `shape` matrix in its own
+    axes for this.
+  - The roll is split from the bend exactly (swing and twist). It is kept continuous past a half turn, so a hand held
+    upside down no longer flips the forearm from one side to the other.
+- **Bracer:**
+  - It ends at the wrist in a 7 mm flared lip that turns with the hand and holds the base of the palm.
+  - Near the wrist its rings are at least an athletic build's size, because the hand is the same for every build.
+    The lean bracer's wrist is 2 to 3 mm fuller.
+  - Each ring turns rigidly with one joint, so no ring blends between two rolls.
+  - Its texture runs along it by length: the straps sit behind the wrist and the dark rim at the end.
+- **Arm skin:** it now ends 2 cm inside the bracer (15 cm from the elbow) instead of running on to the wrist under it.
+  Where the two bent differently, a skin underneath could only come out through the bracer. The visible arm and its
+  texture are unchanged, and the model has 2186 triangles as before.
+- **Arm IK: the elbow eases the wrist.**
+  - When the hand would bend or turn the wrist past a real one's reach, the elbow swings round the line from the
+    shoulder to the wrist, as far as that eases it. The reach is an ellipse of 75 degrees of flexion and 35 of
+    deviation, with the strain starting at 60% of it, and 60 degrees of roll.
+  - It chooses the least strain plus a cost for the swing itself. Within the wrist's reach the elbow stays exactly
+    where the pole puts it: neutral poses are unchanged.
+  - It keeps to the swing it had unless another is clearly (20%) better, and follows it in about 0.05 s. Where two
+    swings are about as good, as with the hand upside down, the elbow doesn't flick between them.
+  - `vr_body_wrist_limits` (Body menu, "Wrist Limits") scales the reach. 0 turns it off.
+  - In the mock, with the right hand at the chest:
+    - Controller rolled 90 degrees: the wrist's bend drops from 75 to 33 degrees, and its twist rises from 85 to 106.
+    - Hand pointed a little up: bend 105 to 69, twist 28 to 119. The elbow lifts out to the side.
+    - Neutral pose: no change.
+
+### Numbers
+
+These come from `wristlab.py` in the scratch folder: the engine's skinning of the generated MD5s in Python, with the
+same pose code. Right arm; the left mirrors it.
+
+- "Area" and "radius": the bracer's wrist ring, against the bind pose.
+- "Worst": the thinnest ring of the whole bracer.
+- "Hand": how far the jointed hand comes out of the bracer, in mm.
+
+Athletic build:
+
+| flex / dev / twist | before: area, radius, worst, hand | after: area, radius, worst, hand |
+|---|---|---|
+| 0 / 0 / 0 | 100, 100, 100, **8.9** | 100, 100, 100, **0** |
+| 50 / 0 / 0 | 91, 91, 91, 9.2 | 110, 100, 100, 0 |
+| 70 / 0 / 0 | **83, 83, 83**, 9.3 | 122 (the mitre), 100, 100, 0 |
+| 90 / 0 / 0 | 72, 72, 72, 11.7 | 141, 100, 100, 0 |
+| 0 / ±30 / 0 | 97, 97, 97, 9.4 | 104, 100, 100, 0 |
+| 0 / 0 / 90 | 86, 93, 93, 9.4 | 100, 100, 99, 0 |
+| 0 / 0 / 135 | 70, 84, 84, 9.4 | 100, 100, 98, 0 |
+| 0 / 0 / 180 | **52, 72, 72**, 10.2 | 100, 100, 96, 0 |
+| 70 / 30 / 90 | 69, 74, 74, 10.6 | 124, 101, 98, 0 |
+| -70 / -30 / -90 | 75, 78, 78, 12.0 | 124, 101, 99, 0 |
+
+- **Lean and brawny builds:** the same after, 0 mm everywhere. Before, lean was 11.9 to 13.9 mm and brawny 6.0 to
+  10.2 mm.
+- **The arm's skin:** it no longer comes through the bracer in any of 105 poses (flexion ±70, deviation ±30, twist
+  ±150), in any build.
+
+### Checks
+
+- **Composites** (before, after; the player's view, a camera on the back of the hand, one under the palm), in
+  `armfix/final/`:
+  - The empty hand for all three builds.
+  - The shotgun and the sword.
+  - The off hand.
+  - A calibration offset (X 2 cm, roll 20 degrees).
+  - The body preview.
+- **Weapon poses:** `vr_dumpview` holding every slot, before and after: identical. The hands, muzzles and palms are
+  not touched.
+- **Melee:** the canary gives 40/46 with no difference from the baseline.
+
+### Hand generator (not changed here)
+
+The hand's end inside the arm reaches 2.1 cm behind the wrist (`make_hand_rig.py`'s first palm section and the cap's
+point). At strong bends it swings out towards the bracer. The bracer's fuller rings near the wrist hold it: 0 mm in
+every pose above. If the hand grows again, or its Scale is raised, that margin goes first. The fix would be a shorter
+end (about 1 cm) or a joint for it that turns with the forearm.
+
+**In the headset:**
+- [ ] Bend your wrist hard up, down and to both sides, and turn your palm up and down. Does the hand stay inside the
+  cuff, and does the wrist keep its thickness?
+- [ ] Roll the controller over. Does the elbow swing naturally, or too far? Try Body > Wrist Limits (0 is the old
+  behaviour).
