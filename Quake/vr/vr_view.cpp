@@ -2479,7 +2479,7 @@ WeaponHotspot weaponHotspot(int hand, int index)
 // origin).
 void hotspotsCheck_f()
 {
-    float worstGrip = 0.f, worstHand = 0.f;
+    float worstGrip = 0.f, worstHand = 0.f, worstMuzzle = 0.f;
     for(int slot = 0; slot < weapons::numSlots; slot++)
     {
         const cvar_t* id = weapons::cvar(slot, Key::ID);
@@ -2488,7 +2488,7 @@ void hotspotsCheck_f()
         {
             continue;
         }
-        float grip = -1.f, hand = 0.f;
+        float grip = -1.f, hand = 0.f, muzzle = 0.f;
         for(int pose = 0; pose < 6; pose++)
         {
             const bool mirrored = pose & 1;
@@ -2508,6 +2508,21 @@ void hotspotsCheck_f()
             const glm::vec3 oldHand = anchorPosition(ve, static_cast<int>(weapons::value(slot, Key::HandAnchorVertex)),
                 weapons::vec(slot, Key::HandOffsetX, Key::HandOffsetY, Key::HandOffsetZ));
             hand = std::max(hand, glm::distance(oldHand, origin));
+            // The muzzle: round 20 moved the weapon by its GunOffset (world axes, y mirrored); retired, now not.
+            const int muzzleVertex = static_cast<int>(weapons::value(slot, Key::MuzzleAnchorVertex));
+            const glm::vec3 muzzleOffset = weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ);
+            glm::vec3 gunOffset = weapons::vec(slot, Key::GunOffsetX, Key::GunOffsetY, Key::GunOffsetZ) * weapons::offsetScale();
+            if(mirrored)
+            {
+                gunOffset.y = -gunOffset.y;
+            }
+            ViewEntity shifted = ve;
+            for(int i = 0; i < 3; i++)
+            {
+                shifted.ent.origin[i] += gunOffset[i];
+            }
+            muzzle = std::max(muzzle,
+                glm::distance(anchorPosition(shifted, muzzleVertex, muzzleOffset), anchorPosition(ve, muzzleVertex, muzzleOffset)));
             if(weapons::value(slot, Key::TwoHDisplayMode) != 1.f)
             {
                 continue;
@@ -2522,10 +2537,13 @@ void hotspotsCheck_f()
         }
         worstGrip = std::max(worstGrip, grip);
         worstHand = std::max(worstHand, hand);
-        Con_Printf("slot %2d %-22s foregrip: %s   the hand moved %.2f units (%.2f cm)\n", slot, id->string,
-            grip < 0.f ? "none" : va("old and hotspot %.4f units apart", grip), hand, hand * 100.f / units::metresToUnits());
+        worstMuzzle = std::max(worstMuzzle, muzzle);
+        Con_Printf("slot %2d %-22s foregrip: %s   muzzle %.4f   the hand moved %.2f units (%.2f cm)\n", slot, id->string,
+            grip < 0.f ? "none" : va("old and hotspot %.4f units apart", grip), muzzle, hand,
+            hand * 100.f / units::metresToUnits());
     }
-    Con_Printf("vr_hotspots_check: the most a foregrip moved %.4f units, the hand %.2f units\n", worstGrip, worstHand);
+    Con_Printf("vr_hotspots_check: the most a foregrip moved %.4f units, a muzzle %.4f, the hand %.2f units\n", worstGrip,
+        worstMuzzle, worstHand);
 }
 
 void hotspotsLegacy_f()
