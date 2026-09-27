@@ -2,6 +2,7 @@
 
 #include "vr_flashlight.hpp"
 #include "vr_avatar.hpp"
+#include "vr_body.hpp"
 #include "vr_cvars.hpp"
 #include "vr_gfx.hpp"
 #include "vr_lighting.hpp"
@@ -46,6 +47,10 @@ constexpr float reach = 0.09f;         // metres from the torch's axis (tail to 
 constexpr float returnOmega = 14.f;    // the cord's pull (critically damped; home in about 0.4 s)
 constexpr float maxThrow = 3.f;        // metres per second the lamp keeps of the hand's at a release
 constexpr float gunReach = 0.12f;      // metres from the gun (its line from the hand to the muzzle) it clips on at
+// Where the belt clip is from the pelvis joint (metres): its front, to the side, up.
+constexpr float beltFront = 0.11f;
+constexpr float beltSide = 0.09f;
+constexpr float beltUp = 0.10f;
 constexpr float headReach = 0.10f;     // metres from a place on the head (headSpot) the torch's middle clips on at
 constexpr float headAim = 4.f;         // metres ahead of the eyes the head torch's beam crosses the line of sight
 
@@ -107,6 +112,16 @@ struct State
     // the thumb's side) or the overhead one (true: out of the little finger's side); kept for the next time that hand
     // takes it.
     bool overhead[2]{};
+
+    // Round 21, what a deliberate press is (intent): per hand, for the grip [0] and the trigger [1], since when the
+    // analog value has been under openBelow (-1: it is not) and when it last was; and until when the hand counts as
+    // moving fast (a punch, a swing).
+    double openSince[2][2]{{-1.0, -1.0}, {-1.0, -1.0}};
+    double openFrom[2][2]{};  // the last open stretch's start and end
+    double openUntil[2][2]{};
+    double fastUntil[2]{};
+    glm::vec3 lastPos[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // where the hands were at the last frame (lastPosTime)
+    double lastPosTime{-1.0};
 
     bool swallowed[2][3]{}; // [hand][Button]: a press the flashlight took, whose release it takes too
     bool gripDown[2]{};
@@ -192,28 +207,33 @@ BeamTrace beamTraces[beamRings][beamSides];
     return {pos, glm::normalize(glm::quat_cast(glm::mat3{fwd, left, up}))};
 }
 
-// Stored on the chest (round 21: hanging, before pointing forward): clipped by its tail to a strap on the off hand's
-// side, hanging straight down along the chest, the lens at the bottom, the switch out, leaning its lens out from the
-// chest by vr_flashlight_tilt (vr_flashlight_forward, _up and _out move it). Switched on there, it lights the floor at
-// your feet: of no use but to find it, so that it is taken in a hand, clipped on a gun or put on the head.
+// Stored on the belt (round 21: hanging; on the chest at first, where a boxing guard's fist closed on it): clipped by
+// its tail to the belt on the off hand's side, between the buckle and the hip holster, hanging straight down over the
+// hip, the lens at the bottom, the switch out, leaning its lens out from the body by vr_flashlight_tilt
+// (vr_flashlight_forward, _up and _out move it). Switched on there, it lights the floor at your feet: of no use but to
+// find it, so that it is taken in a hand, clipped on a gun or put on the head.
+//
+// Why the belt: in your 474 recorded takes no hand pressed its grip or trigger within reach of it (at the chest, 7
+// takes did: the guard, the pommel's draw back), and it is out of the way of the guard, the gadget and the upper
+// holsters; the hip holster's slot is 12 cm further out, beyond the torch's reach, so a draw from it takes the gun.
 [[nodiscard]] Pose mountPose(const hands::State& s)
 {
     const avatar::Torso torso = avatar::torso(s);
-    const glm::vec3 up = torso.chest.rot[0];
-    const glm::vec3 fwd = torso.chest.rot[2];
+    const glm::vec3 up = torso.pelvis.rot[0];
+    const glm::vec3 fwd = torso.pelvis.rot[2];
     const glm::vec3 left = glm::cross(up, fwd);
     const float side = vr_lefthanded.value != 0.f ? -1.f : 1.f;
 
-    // The clip on the chest's front (make_vrbody.py's torso rings), 9 cm above the chest joint and 8.5 cm to the
-    // side: below the upper holsters (by the collarbones, further out), deeper for the brawnier builds; the tube's
-    // axis 2.2 cm in front of it (the head's radius and a little). The torch hangs 13 cm down from there.
+    // The clip on the belt's front (make_vrbody.py's torso rings: the belt 10-20% up from the hips), beltUp above the
+    // pelvis joint and beltSide to the side, deeper for the brawnier builds; the tube's axis 2.2 cm in front of it
+    // (the head's radius and a little). The torch hangs 13 cm down from there, over the hip.
     const int build = static_cast<int>(vr_body_build.value);
     const float depth = build <= 0 ? 0.9f : build >= 2 ? 1.1f : 1.f;
     const float m2w = bodyUnits();
-    const glm::vec3 clip = torso.chest.pos + (fwd * (0.125f * depth + 0.022f + vr_flashlight_forward.value) +
-                                                 left * (side * (0.085f + vr_flashlight_out.value)) +
-                                                 up * (0.09f + vr_flashlight_up.value)) *
-                                                 m2w;
+    const glm::vec3 clip = torso.pelvis.pos + (fwd * (beltFront * depth + 0.022f + vr_flashlight_forward.value) +
+                                                  left * (side * (beltSide + vr_flashlight_out.value)) +
+                                                  up * (beltUp + vr_flashlight_up.value)) *
+                                                  m2w;
 
     const float lean = glm::radians(CLAMP(-30.f, vr_flashlight_tilt.value, 60.f));
     const glm::vec3 beam = -up * std::cos(lean) + fwd * std::sin(lean); // down, the lens leaning out
@@ -418,6 +438,78 @@ constexpr float lensBack = 0.01f; // metres the lens is behind a gun's muzzle
     return glm::distance(middle, a + ab * t);
 }
 
+// Intent (round 21). A fist clenched in a guard next to the stored lamp once switched it on and took it mid-fight (the
+// author's recorded punches): a press takes, switches or unclips the lamp only when it is deliberate. The grip or
+// trigger pressed from an open hand (under openBelow for at least openFor, the squeeze begun within squeezeWithin: a
+// slow squeeze counts), and the hand about still at the lamp (under slowSpeed, and so for the last fastHold seconds).
+constexpr float openBelow = 0.3f;
+constexpr double openFor = 0.15;
+constexpr double squeezeWithin = 0.6;
+constexpr float slowSpeed = 1.f; // metres per second (a punch is 2.75 and up)
+constexpr double fastHold = 0.15;
+
+// Once a frame: the hands' analog grip and trigger and their speed, for deliberate().
+void noteIntent(const hands::State& s)
+{
+    const InputState& in = tracking().input;
+    for(int hand = 0; hand < 2; hand++)
+    {
+        const float values[2] = {in.hands[hand].gripValue, in.hands[hand].triggerValue};
+        for(int k = 0; k < 2; k++)
+        {
+            if(values[k] < openBelow)
+            {
+                if(st.openSince[hand][k] < 0.0)
+                {
+                    st.openSince[hand][k] = realtime;
+                }
+                st.openFrom[hand][k] = st.openSince[hand][k];
+                st.openUntil[hand][k] = realtime;
+            }
+            else
+            {
+                st.openSince[hand][k] = -1.0;
+            }
+        }
+        // Fast by the runtime's velocity, or by where it is drawn from frame to frame (a jump: a teleport, the
+        // tracking regained, a recorded take starting with the hand already somewhere).
+        const float dt = static_cast<float>(realtime - st.lastPosTime);
+        const bool jumped = st.lastPosTime >= 0.0 && dt > 0.f && dt < 0.25f &&
+                            glm::distance(s.pos[hand], st.lastPos[hand]) / units::metresToUnits() >= slowSpeed * std::max(dt, 1.f / 90.f);
+        if(s.valid && (glm::length(s.vel[hand]) >= slowSpeed || jumped))
+        {
+            st.fastUntil[hand] = realtime + fastHold;
+        }
+        st.lastPos[hand] = s.pos[hand];
+    }
+    st.lastPosTime = s.valid ? realtime : -1.0;
+}
+
+// Whether a press of `b` by `hand` is deliberate (see noteIntent): the hand still, and for the grip and the trigger,
+// pressed from an open hand. Why not, for developer 1.
+[[nodiscard]] bool deliberate(int hand, Button b)
+{
+    const hands::State& s = hands::current();
+    const bool still = realtime >= st.fastUntil[hand] && (!s.valid || glm::length(s.vel[hand]) < slowSpeed);
+    if(!still)
+    {
+        Con_DPrintf("torch press ignored: the %s hand moving\n", hand == HAND_MAIN ? "main" : "off");
+        return false;
+    }
+    if(b == Button::Secondary)
+    {
+        return true;
+    }
+    const int k = b == Button::Grip ? 0 : 1;
+    const bool opened = st.openUntil[hand][k] - st.openFrom[hand][k] >= openFor && realtime - st.openUntil[hand][k] <= squeezeWithin;
+    if(!opened)
+    {
+        Con_DPrintf("torch press ignored: the %s hand's %s not from an open hand\n", hand == HAND_MAIN ? "main" : "off",
+            k == 0 ? "grip" : "trigger");
+    }
+    return opened;
+}
+
 // Whether a hand holds nothing (the "fist" or no weapon at all).
 [[nodiscard]] bool handEmpty(int hand)
 {
@@ -437,6 +529,60 @@ constexpr float lensBack = 0.01f; // metres the lens is behind a gun's muzzle
     const glm::vec3 ab = modelPointAt(st.pose, lensPoint) - a;
     const float t = std::clamp(glm::dot(s.pos[hand] - a, ab) / std::max(glm::dot(ab, ab), 1e-4f), 0.f, 1.f);
     return glm::distance(s.pos[hand], a + ab * t) < reach * units::metresToUnits();
+}
+
+// Whether a hand is at the other hand's weapon, to hold it with both: within gunReach of its line from 30 cm behind
+// the hand (a two-handed sword's grip below it, its pommel) to the muzzle or the tip.
+[[nodiscard]] bool otherWeaponNear(const hands::State& s, int hand)
+{
+    view::WeaponMount m;
+    if(!view::weaponMount(1 - hand, m))
+    {
+        return false;
+    }
+    const float m2u = units::metresToUnits();
+    const glm::vec3 along = m.muzzle - m.pos;
+    const float len = glm::length(along);
+    if(len < 1e-3f)
+    {
+        return false;
+    }
+    const glm::vec3 a = m.pos - along * (0.3f * m2u / len);
+    const glm::vec3 ab = m.muzzle - a;
+    const float t = std::clamp(glm::dot(s.pos[hand] - a, ab) / glm::dot(ab, ab), 0.f, 1.f);
+    return glm::distance(s.pos[hand], a + ab * t) < gunReach * m2u;
+}
+
+// Whether the game's grip wins over the stored lamp's for a hand at it: at the other hand's weapon (holding it with
+// both: a two-handed sword held low reaches the belt), or at a hotspot (s.hotspot): the other weapon's two-handed grip,
+// passing a weapon between the hands, the handle of a gun carried by its foregrip; or nearer a holster whose reach
+// it is in (a draw).
+[[nodiscard]] bool gameGripWins(const hands::State& s, int hand)
+{
+    if(otherWeaponNear(s, hand))
+    {
+        return true;
+    }
+    body::Holster holster;
+    switch(s.hotspot[hand])
+    {
+        case body::HS_NONE: return false;
+        case body::HS_OFFHAND_2H_GRAB:
+        case body::HS_MAINHAND_2H_GRAB:
+        case body::HS_HAND_SWITCH:
+        case body::HS_CARRIED_GRIP: return true;
+        case body::HS_LEFT_SHOULDER_HOLSTER: holster = body::LeftShoulder; break;
+        case body::HS_RIGHT_SHOULDER_HOLSTER: holster = body::RightShoulder; break;
+        case body::HS_LEFT_HIP_HOLSTER: holster = body::LeftHip; break;
+        case body::HS_RIGHT_HIP_HOLSTER: holster = body::RightHip; break;
+        case body::HS_LEFT_UPPER_HOLSTER: holster = body::LeftUpper; break;
+        case body::HS_RIGHT_UPPER_HOLSTER: holster = body::RightUpper; break;
+        default: return false;
+    }
+    const glm::vec3 a = modelPointAt(st.pose, capPoint);
+    const glm::vec3 ab = modelPointAt(st.pose, lensPoint) - a;
+    const float t = std::clamp(glm::dot(s.pos[hand] - a, ab) / std::max(glm::dot(ab, ab), 1e-4f), 0.f, 1.f);
+    return glm::distance(s.pos[hand], body::holsterPosition(s, holster)) < glm::distance(s.pos[hand], a + ab * t);
 }
 
 // One of its sounds at a point of it (the switch's clicks at the switch, the clamp's at its middle): heard from the
@@ -551,10 +697,10 @@ void clipOnHead(float side)
     }
 }
 
-// Off the head: into `hand` (its grip held at the lamp), or else back to the chest on its cord.
+// Off the head: into `hand` (its grip held at the lamp), or else back to the belt on its cord.
 void clipOffHead(const hands::State& s, int hand)
 {
-    Con_DPrintf("flashlight: off the head, %s\n", hand >= 0 ? "into the hand" : "back to the chest");
+    Con_DPrintf("flashlight: off the head, %s\n", hand >= 0 ? "into the hand" : "back to the belt");
     sound("vr/flashlight_detach.wav", glm::vec3{0.f});
     if(hand >= 0)
     {
@@ -565,13 +711,13 @@ void clipOffHead(const hands::State& s, int hand)
     letGo(s, mountPose(s));
 }
 
-// Off the gun: into `hand` (its grip held at the lamp), or else back to the chest on its cord.
+// Off the gun: into `hand` (its grip held at the lamp), or else back to the belt on its cord.
 void clipOff(const hands::State& s, int hand)
 {
     const int gunHand = st.gunHand;
     st.gunHand = -1;
     st.gunModel = nullptr;
-    Con_DPrintf("flashlight: off the gun, %s\n", hand >= 0 ? "into the other hand" : "back to the chest");
+    Con_DPrintf("flashlight: off the gun, %s\n", hand >= 0 ? "into the other hand" : "back to the belt");
     sound("vr/flashlight_detach.wav", glm::vec3{0.f});
     if(gunHand >= 0)
     {
@@ -758,7 +904,7 @@ void lightBeam(const Pose& p)
     shapeBeam(p, lens, dir, st.beamLength, warm * std::max(0.f, vr_flashlight_brightness.value));
 }
 
-// The retracting cord from the clip on the chest to the lamp's bottom, while it is off the chest:
+// The retracting cord from the clip on the belt to the lamp's bottom, while it is off the belt:
 // taut, sagging a little when the lamp is close.
 void drawCord(const Pose& mount, const Pose& lamp)
 {
@@ -838,8 +984,9 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
         return; // once per frame, however often the view is set up
     }
     lastFrame = host_framecount;
+    noteIntent(s);
 
-    // A new map: back on the chest (switched as it was).
+    // A new map: back on the belt (switched as it was).
     static int generation = -1;
     if(cl.worldmodel != st.world || worldGeneration() != generation)
     {
@@ -875,7 +1022,7 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
     }
 
     // On a gun that left the hand (holstered, dropped, thrown, switched for another; not its other
-    // ammo): back to the chest.
+    // ammo): back to the belt.
     view::WeaponMount gun;
     if(st.mode == Mode::OnGun &&
         (st.gunHand < 0 || !view::weaponMount(st.gunHand, gun) || !view::sameGun(gun.model, st.gunModel)))
@@ -1096,7 +1243,11 @@ bool button(int hand, Button b, bool pressed)
 
     const hands::State& s = hands::current();
     const bool holding = st.mode == Mode::Held && st.holder == hand;
-    const bool atLamp = st.mode != Mode::Held && hand != st.gunHand && handNear(s, hand);
+    bool atLamp = st.mode != Mode::Held && hand != st.gunHand && handNear(s, hand);
+    if(atLamp && (st.mode == Mode::Mounted || st.mode == Mode::Returning) && gameGripWins(s, hand))
+    {
+        atLamp = false; // a two-handed grip, a draw from the holster next to it
+    }
 
     if(b == Button::Secondary)
     {
@@ -1123,11 +1274,11 @@ bool button(int hand, Button b, bool pressed)
             return true;
         }
         // On a gun: the free hand at the lamp takes it off with its B/Y (or with the gun hand's while
-        // it grips the lamp). Gripping, the lamp goes into it; otherwise back to the chest.
+        // it grips the lamp). Gripping, the lamp goes into it; otherwise back to the belt.
         if(st.mode == Mode::OnGun && st.gunHand >= 0)
         {
             const int freeHand = 1 - st.gunHand;
-            if(handNear(s, freeHand) && (hand == freeHand || st.gripDown[freeHand]))
+            if(handNear(s, freeHand) && (hand == freeHand || st.gripDown[freeHand]) && deliberate(hand, b))
             {
                 const bool into = st.gripDown[freeHand] && handEmpty(freeHand);
                 clipOff(s, into ? freeHand : -1);
@@ -1144,8 +1295,8 @@ bool button(int hand, Button b, bool pressed)
             }
         }
         // On the head: a hand at the lamp takes it off with its B/Y, as from a gun: gripping, into that hand;
-        // otherwise back to the chest.
-        if(st.mode == Mode::OnHead && atLamp)
+        // otherwise back to the belt.
+        if(st.mode == Mode::OnHead && atLamp && deliberate(hand, b))
         {
             const bool into = st.gripDown[hand] && handEmpty(hand);
             clipOffHead(s, into ? hand : -1);
@@ -1161,7 +1312,7 @@ bool button(int hand, Button b, bool pressed)
         return false;
     }
 
-    if(!grip && (holding || atLamp))
+    if(!grip && (holding || (atLamp && deliberate(hand, b))))
     {
         toggle(hand);
         swallowed = true;
@@ -1169,7 +1320,7 @@ bool button(int hand, Button b, bool pressed)
     }
     // (On a gun, a grip at the lamp is the game's: the foregrip is near. B/Y takes it off.) On the head, a grip at it
     // takes it off into the hand.
-    if(grip && atLamp && st.mode != Mode::OnGun && handEmpty(hand))
+    if(grip && atLamp && st.mode != Mode::OnGun && handEmpty(hand) && deliberate(hand, b))
     {
         if(st.mode == Mode::OnHead)
         {
@@ -1222,7 +1373,7 @@ bool wantsSecondary(int hand)
 } // namespace qvr::flashlight
 
 // A new game, a map started afresh or a save loaded (host_cmd.c), not a changelevel: the
-// flashlight off, on the chest (in the game, it stays as it was from level to level).
+// flashlight off, on the belt (in the game, it stays as it was from level to level).
 extern "C" void VR_OnFreshStart()
 {
     qvr::flashlight::reset();

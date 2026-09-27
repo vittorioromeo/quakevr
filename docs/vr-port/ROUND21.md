@@ -801,8 +801,8 @@ torch scuffing round in the palm and seating. The other sounds come out byte-ide
   starting a voice note. The overhead grip is by the head. The other hand's `+vr_note` binding, or putting the torch
   back first, still records.
 
-**On the chest.** Stored hanging, lens down (see "Stored on the chest, worn on the head" below; it pointed forward
-at first).
+**Stored.** Hanging lens down on the belt (see "Stored on the belt, worn on the head" below; at first it pointed
+forward from the chest, then hung on the chest).
 
 **On a gun.** It lies parallel to the barrel, the lens 1 cm behind the muzzle, running back along the gun, its switch
 out to the side:
@@ -820,25 +820,51 @@ out to the side:
 - The switch's clicks come from the switch, and the clamp's from the torch, instead of from inside your head.
 - The haptics are as before.
 
-### Stored on the chest, worn on the head (your two later flashlight notes)
+### Stored on the belt, worn on the head (your two later flashlight notes)
 
 "The flashlight should be stored vertically on the body, not horizontally, encouraging the player to attach it on a
 weapon or hold it in the off-hand. It should also be possible to attach the flashlight on top of the player's head,
 with the same controls as for the guns."
 
-The torch now lives in three places: the chest (stored), a gun, and the head. You also hold it in either hand.
+The torch now lives in three places: the belt (stored), a gun, and the head. You also hold it in either hand.
 
-**Stored on the chest** (`mountPose`):
-- It hangs straight down from a clip on a strap on the off hand's side: 9 cm above the chest joint and 8.5 cm to the
-  side, its tube 2.2 cm in front of the chest.
+**Stored on the belt** (`mountPose`):
+- It hangs straight down from a clip on the belt on the off hand's side, between the buckle and the hip holster: 10 cm
+  above the pelvis joint, 9 cm to the side, its tube 2.2 cm in front of the belt, the torch over the hip.
 - The lens is at the bottom, the switch faces out. The lens leans out from the body by **Lean Out**
   (`vr_flashlight_tilt`, 8°; the slider was Tilt Down).
-- That places it under the collarbone, below and inside the upper holsters, and clear of the wrist gadget.
 - Switched on there, it lights only the floor at your feet. That is on purpose: you take it, clip it on a gun, or
   put it on your head.
-- Taking it is as before: the trigger at it switches it, and an empty hand's grip takes it. A hand reaches it anywhere
-  along the tube, within 9 cm.
 - Forward/Up/Out still move the clip.
+
+**Why the belt, not the chest.** The first vertical clip was under the collarbone, where the off hand rests in a
+boxing guard. Replaying your recorded takes, a fist clenched in the guard switched the torch on and took it, and the
+punch that followed was no longer a fist: 4 off hand straight punches and 1 pommel strike lost their hits.
+
+I checked candidate places against all 474 of your takes: where a hand pressed its grip or trigger within reach of the
+torch.
+
+| Place | Takes with such a press |
+|---|---|
+| The chest (that clip) | 7 |
+| High on the shoulder strap | 3 (it also sits on the upper holster) |
+| The ribs | 0 |
+| The belt | 0 (fewest takes with a hand near it at all: 33, the ribs 78) |
+
+The belt is out of the guard, the gadget and the upper holsters. It is also where a torch is carried. The hip holster
+is 12 cm further out; where their reaches overlap, the nearer one wins (below).
+
+**Deliberate presses only.** Taking or switching the stored torch, and taking it off the head or a gun, now needs
+intent, not a fist that happens to close next to it:
+- **An open hand:** the grip or trigger must be pressed from an open hand, under 0.3 for at least 0.15 s. A slow
+  squeeze counts if it began within 0.6 s. B/Y has no analog value, so it needs only the still hand.
+- **A still hand:** under 1 m/s (a punch is 2.75 and up), and so for the last 0.15 s. A hand that jumps (a teleport,
+  tracking regained) also counts as moving.
+- **The game wins** for a hand at the other hand's weapon (holding it with both: a two-handed sword held low reaches
+  the belt), at a two-handed grip or a weapon hand-off hotspot, or nearer a holster whose reach it is in (a draw).
+- A press it ignores goes to the game. `developer 1` prints "torch press ignored: ..." for each.
+- Held in the hand, the torch's own presses (the switch, B/Y to flip, clip on a gun or the head) are unchanged:
+  holding it is intent enough.
 
 **On the head** (`headPose`, mode `OnHead`). The head is where a head torch is most useful: it lights wherever you
 look, and both hands stay free for a gun in each hand, climbing, or carrying.
@@ -855,15 +881,15 @@ look, and both hands stay free for a gun in each hand, climbing, or carrying.
   - The cord isn't drawn there (it runs behind the neck).
   - **On Head Forward/Up/Out** (`vr_flashlight_head_*`) move it.
 - **To take it off**, put a hand at it:
-  - B or Y sends it back to the chest on its cord;
+  - B or Y sends it back to the belt on its cord;
   - B or Y while gripping it, or the grip alone, takes it into that hand;
   - either way with the clamp's detach click.
 - **Voice notes:** the off hand at the head torch uses Y for the torch, not a voice note.
 
 **Death, level changes, fresh starts:**
-- On death, at the intermission and on any map change, the torch goes back to the chest from the head, a gun or a
+- On death, at the intermission and on any map change, the torch goes back to the belt from the head, a gun or a
   hand, switched on or off as it was.
-- A fresh start (the map command, New Game, a loaded save) switches it off, on the chest.
+- A fresh start (the map command, New Game, a loaded save) switches it off, on the belt.
 - A suicide (`kill`) is not a death as the client sees it: the respawn is at once, so the torch stays on the head.
 
 **Tested** (mock, e1m1; composite `round21_flash2/flashlight_storage_head.png`):
@@ -875,6 +901,22 @@ look, and both hands stay free for a gun in each hand, climbing, or carrying.
 - the main hand: taken, to the right temple, B (on the head), gripped off into the hand, let go (back to the chest);
 - the overhead grip by the head still flips, not attaches;
 - `changelevel`: back on the chest, still on. `map`: off.
+
+**The belt and the intent gate, tested** (mock; composite `round21_flash3/flashlight_belt.png`):
+- the belt in the body preview (front, side), and from your view looking down: the chest hides it, as it hides the
+  hip holsters, so you find it by reach. A tap and the lamp brightening tell you your hand is there;
+- the off hand taking it and switching it from an open hand;
+- ignored: a teleported hand pressing at once ("moving"), and a grip released and pressed again within a frame ("not
+  from an open hand");
+- the axe drawn from the left hip holster next to it (the holster nearer), not the torch;
+- clipped on the shotgun in the other hand and taken off with Y;
+- `vr_motion_eval` over all 474 takes, `developer 1`: **no "flashlight:" line at all** (nothing switched or taken, no
+  press even ignored near it). punch_straight 02-18-24, 02-18-27, 02-18-35, 02-18-37 and hilt_pommel 02-44-08 pass;
+  totals 423 pass, 51 fail (the same verdicts, take for take, as a run before the last gate fix). That run had the
+  belt but not the two-handed rule: the two stab_two_hands takes (02-47-29, 02-47-32) had the off hand's grip, going
+  down the sword's grip to its pommel, take the torch. The rule for a hand at the other hand's weapon fixed both.
+- Limitation: in the body preview the holstered axe's head hangs over the torch (both by the left hip). From your own
+  view the chest hides both.
 
 ### Tested (mock headset)
 
@@ -919,12 +961,14 @@ Composites are in the scratchpad's `round21_gadget/`:
   - [ ] B/Y away from a gun flips it to the overhead grip. Raise it by your head, thumb to your face: it lights
         ahead. Flip back;
   - [ ] let go and take it again: that hand's grip is kept.
-- [ ] On the chest: hanging lens down, easy to grip with either hand, clear of the upper holsters and your arms?
-      (Forward/Up/Out and Lean Out move it.)
+- [ ] On the belt (off hand side): hanging lens down, easy to find and grip with either hand? Clear of the hip
+      holster (draw the gun there: the gun, not the torch)? (Forward/Up/Out and Lean Out move it.)
+- [ ] Fight with your fists in a guard, and clench them by your belt: the torch is never taken or switched. An open
+      hand at the torch, then the grip: taken.
 - [ ] On the head, with either hand:
   - [ ] hold the torch at a temple: a tap, then B/Y puts it on your head. Look around: the beam follows, the
         shadows read, nothing in view;
-  - [ ] take it off: B/Y at it (back to the chest), or grip it (into the hand).
+  - [ ] take it off: B/Y at it (back to the belt), or grip it (into the hand).
 - [ ] Clip it on each gun: parallel to the barrel, under it (beside the super nailgun and the grenade launcher). Say
       which gun looks off, and use On Gun Forward/Up/Out.
 - [ ] Off hand holding the torch at your mouth: Y flips it rather than recording. Is that the right priority?

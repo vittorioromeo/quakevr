@@ -427,14 +427,14 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
 {
     return {
         toggle("Chest Flashlight", vr_flashlight)
-            .help("A torch hanging on your chest (lighting only your feet there). Trigger at it: on or off. Grip it with an empty hand to take it; let go and it springs back. In your hand: B or Y by a gun clips it on the gun, at your head on your head (a head torch), elsewhere turns it round (low grip or overhead)."),
+            .help("A torch hanging on your belt, on your off hand's side (lighting only your feet there). Trigger at it: on or off. Grip it with an open, still hand to take it (a fist closing by it in a fight does nothing); let go and it springs back. In your hand: B or Y by a gun clips it on the gun, at your head on your head (a head torch), elsewhere turns it round (low grip or overhead)."),
         slider("Brightness", vr_flashlight_brightness, 0.25f, 2.5f, 0.05f, "%.2fx"),
         slider("Range", vr_flashlight_range, 300.f, 2000.f, 50.f, "%.0f"),
         slider("Visible Beam", vr_flashlight_beam, 0.f, 1.f, 0.05f, "%.2f").help("A soft cone of light in the air from the lamp (0: none)."),
         cycle("Beam Quality", vr_flashlight_beam_quality, {{0.f, "Low"}, {1.f, "Medium"}, {2.f, "High"}})
             .help("How closely the visible beam fades where walls cut it. Higher looks for them more often, costing more time each frame."),
         toggle("Casts Shadows", vr_flashlight_shadows).help("Its light casts shadows (takes one of the shadowed dynamic lights)."),
-        slider("Lean Out", vr_flashlight_tilt, -10.f, 30.f, 1.f, "%.0f deg").help("How far the stored torch, hanging on your chest lens down, leans its lens out from your body."),
+        slider("Lean Out", vr_flashlight_tilt, -10.f, 30.f, 1.f, "%.0f deg").help("How far the stored torch, hanging on your belt lens down, leans its lens out from your body."),
         slider("Forward", vr_flashlight_forward, -0.05f, 0.05f, 0.005f, "%.3f m"),
         slider("Up", vr_flashlight_up, -0.15f, 0.15f, 0.01f, "%.2f m"),
         slider("Out", vr_flashlight_out, -0.08f, 0.08f, 0.01f, "%.2f m").help("Towards your off hand's side."),
@@ -773,7 +773,7 @@ std::vector<Item> pageMain()
         action("Set Height Now", calibrateHeight),
         slider("World Scale", vr_world_scale, 0.75f, 1.5f, 0.05f, "%.2f"),
         slider("Floor Offset", vr_floor_offset, -40.f, 10.f, 1.f, "%.0f"),
-        toggle("Chest Flashlight", vr_flashlight).help("Trigger with a hand at the torch on your chest switches it; grip takes it. B or Y clips it on a gun or on your head."),
+        toggle("Chest Flashlight", vr_flashlight).help("A torch on your belt (off hand side): trigger at it with an open hand switches it; grip takes it. B or Y clips it on a gun or on your head."),
 
         header("Weapons"),
         slider("Gun Angle", vr_gunangle, -30.f, 90.f, 2.5f, "%.1f"),
