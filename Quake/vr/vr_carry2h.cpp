@@ -160,7 +160,7 @@ bool reaches(edict_t* ent, const glm::vec3& point, int hand)
     const bool inBox = physics::pointInModelBox(ent, point, 2.f);
     const float reach = vr_carry_reach.value > 0.f ? vr_carry_reach.value * 0.01f * units::metresToUnits() : 0.f;
     glm::vec3 nearest{0.f};
-    const float distance = inBox && (reach > 0.f || vr_debug_carry.value) ? held::surfaceDistance(ent, point, &nearest) : -1.f;
+    const float distance = inBox && (reach > 0.f || vr_debug_carry.value || vr_debug_physics_shapes.value) ? held::surfaceDistance(ent, point, &nearest) : -1.f;
     if(inBox)
     {
         held::noteCarryProbe(hand, ent, point, distance, nearest, reach);

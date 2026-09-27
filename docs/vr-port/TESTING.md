@@ -142,6 +142,11 @@ context and screenshot, ready to paste or to point me at.
 ## What to try
 
 - **New in this round** (details in `docs/vr-port/ROUND21.md`; each section ends with an "In the headset" list):
+  - **After the posing test** (ROUND21.md, "After the posing test"): hold a gun into a monster's head and fire (a
+    headshot now); while posing, the hand passes through the weapon (the solved grip shows for 1.5 s after A/X);
+    Weapon Offsets > Tuning Aids: Show Controller is drawn in your palm as a Quest 3 controller, **Controller Preview**
+    sliders line it up with your real one; **Shot Pitch / Shot Yaw** (under Muzzle and Posing Mode) turn where shots go
+    without moving the gun: with Show Controller Laser, put the red line through the sights.
   - **Physics engine: Box3D, to compare** (Throwing and Physics > Physics Engine, switches at once): Quake VR is the
     solver you know; Box3D makes thrown and dropped things collide with each other too: stack boxes, build a pyramid,
     throw a box into a stack, sweep one off with a held box. Then the usual: throws at monsters, weapons landing on
@@ -531,7 +536,7 @@ is the most useful thing to send me along with a description. In particular:
 
 `vr_backend mock; vr_enabled 1` runs everything with a pretend headset. `vr_mock_button <main|off> <trigger|grip|primary|secondary|stickclick|menu> <0|1>`,
 `vr_mock_stick <main|off> <x> <y>` `vr_mock_hand <main|off|head> <x> <y> <z> [<pitch> <yaw> <roll>]` and `vr_mock_look <pitch> <yaw>` drive it; `vr_mock_swing <period>`
-swings the main hand for throwing tests. `vr_mock_fingers <main|off> <trigger> <grip> [<thumb>]` sets the finger
+swings the main hand for throwing tests. `vr_particle_seed <n>` (not 0) makes the particles the same in every run (their random numbers restart from it at each map), for comparing images. `vr_mock_fingers <main|off> <trigger> <grip> [<thumb>]` sets the finger
 sensors (0..1); a fifth argument sets the index finger's touch on the trigger.
 
 Fitted hands (round 21): `impulse 252` puts a gib or a head (nine kinds in turn) in the empty off hand; `impulse 253`
@@ -571,6 +576,14 @@ Leaning (round 21): `vr_mock_hand head <x> <y> <z> <pitch> <yaw> <roll>` and `vr
 turn the head too (pitch up, roll as the hands'); `vr_debug_lean 1` writes `lean_trace.txt` (the game directory): the
 head, the box, the lean, the pelvis, the feet and the lean's hold and cues, every frame.
 
+After the posing test (ROUND21.md): `vr_debug_shots 1` with `developer 1` prints each hitscan shot (start, direction,
+what its pellets hit, headshots) and each damage you deal; a monster at the muzzle: `impulse 150 + weapon id` (with
+`vr_weapon_grip_mode 1`, `impulse 9` for ammo a frame before), `vr_mock_hand main 0.08 1.05 -1.2 40 0 0`, then
+`vr_test_spawn 0; vr_test_spawn_dist 44; impulse 241` puts a grunt's head round the muzzle in vrfiringrange.
+`vr_pose_solve 1` solves the posing hand live (as before). `vr_wofs_shot_pitch_NN` / `_shot_yaw_NN` turn a
+weapon's shots; `vr_show_controller_x/y/z/pitch/yaw/roll` (and `_off_own`, `_off_*`) move the controller
+preview; `vr_dumpview` prints each grip and its distance from the tracked pose (10.2 cm with
+`vr_controller_legacy_pose 1`).
 Weapon posing mode (ROUND21.md, "Weapon posing mode"): `vr_pose [weapon | 1..4 | new | stop] [main | off]` poses the
 weapon in the main hand (or else the off hand's), held in the hand given (`vr_pose_weapon_hand`); `vr_pose_confirm`,
 `vr_pose_undo`, `vr_pose_next`, `vr_pose_type` and `vr_pose_turn <yaw> <tilt>` (no arguments: back to the start) are
@@ -587,9 +600,27 @@ vr_pose stop; wait120; vr_pose_check`. The floating weapon's grip is at (0, 1.35
 Rigid bodies (round 21, Box3D): `vr_physics_engine 0|1` switches the solver; `vr_physics_stack`, `vr_physics_pyramid`,
 `vr_physics_pile` put props (a number, a classname or `props`) in a column, a pyramid or toppling columns;
 `vr_physics_loose` makes a hanging armour or a pickup a loose prop; `vr_physics_list` and `vr_physics_hash` print
-them (the hash: determinism); `vr_debug_box3d 1|2`. `vr_forcegrabbable_return 0` keeps moved items from going back
-to their places during a long test.
+them (the hash: determinism); `vr_debug_box3d 1|2|3` (1: bodies made, woken, asleep, the world mesh's build, frames
+over 1 ms with Box3D's profile; 2: every awake body every frame; 3: frames over 0.2 ms; `developer 1` alone prints the
+slow frames). `vr_physics_blast <x> <y> <z> [<damage>]` sets off an explosion there (QC's `T_RadiusDamage` from the
+world, 120 by default, and its effect): monsters take it, props are thrown (Box3D). `vr_forcegrabbable_return 0` keeps
+moved items from going back to their places during a long test.
+Debug views (Carrying and Gibs > Debug, also in the console): `vr_debug_physics_shapes 1` draws every Box3D body as a
+wireframe (props awake green, fast white, asleep blue, held yellow; doors and plats purple; monsters orange; players
+cyan, your own faint; hanging pickups grey), each prop's centre of mass, an awake prop's contact points (red pressed
+in, pink apart), and the hands' grab probes (as `vr_debug_carry`). `vr_debug_hand_bones 1` draws both jointed hands'
+bones and joints (thumb red, index orange, middle yellow, ring green, little blue; joints white), the grasp's spheres
+against what the hand holds (green touching, yellow near, red sunk in, grey nothing near; a line to the nearest point
+of each touching one), the palm's fit (white: its middle before the grasp's move, cyan: after; the cyan stroke is the
+way the palm faces) and the grip channel (magenta). With a gun held: `vr_weapon_grip_mode 1; impulse 154` and
+`+grabright; vr_mock_button main grip 1`; a box in the off hand: `vr_rigid_place item_health off 0 3 0; +graboff;
+vr_mock_button off grip 1`; `vr_mock_camera -0.05 1.45 -1.0 25 180` looks back at both hands.
 
 Tuning the body: `vr_show_hip_holsters 1`, `vr_show_upper_holsters 1`, `vr_show_shoulder_holsters 1` and
 `vr_show_virtual_stock 1` mark where the holsters and the virtual stock's shoulders are (green while a hand is
 there); move them with the `vr_*_offset_*` cvars.
+
+Flashlight tuning (ROUND21.md, "Flashlight tuning"): `vr_show_flashlight_zones 1` draws the reach zones (the head's
+balls, each gun's capsule; green in reach) and the held torch's middle; `vr_flashlight_head_zone_*` and
+`vr_flashlight_gun_zone_*` move them, and `vr_flashlight_low_*` / `_high_*` `fingers`, `curl_*`, `thumb_across`,
+`overlap`, `bias_*`, `thumb_x/y/z` set each grip's fingers. `vr_debug_grasp 2` prints the torch grasp's finger stops.

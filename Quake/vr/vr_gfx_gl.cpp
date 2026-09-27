@@ -256,6 +256,85 @@ bool programFailed[shadeCount][2]{};
     return shader;
 }
 
+// The particles' quads (ParticleInstance, drawParticles): six vertices each, read from the frame's records (no vertex
+// attributes), the same arithmetic as the CPU's quads were made with (vr_particles.cpp, before round 21).
+constexpr const char* particleVertexShader = R"(#version 430
+layout(location = 0) uniform mat4 MVP;
+layout(location = 5) uniform vec3 Eye;
+layout(location = 6) uniform vec3 Right;
+layout(location = 7) uniform vec3 Up;
+layout(location = 8) uniform int Pull;
+struct Particle
+{
+    vec4 orgHalf;   // org, half size
+    vec4 color;     // premultiplied
+    vec4 velStreak; // velocity, streak seconds
+    vec4 csSoft;    // cos, sin, soft fade, pull
+    vec4 uv;        // the cell: u0, v0, u1, v1
+    vec4 flags;     // x: flat
+};
+layout(std430, binding = 0) readonly buffer Particles
+{
+    Particle particles[];
+};
+out vec2 uv;
+out vec4 color;
+out float soft;
+out float viewDepth;
+// The six corners (two triangles): down left, up left, up right, down left, up right, down right.
+const vec2 signs[6] = vec2[6](vec2(-1.0, -1.0), vec2(1.0, -1.0), vec2(1.0, 1.0), vec2(-1.0, -1.0), vec2(1.0, 1.0), vec2(-1.0, 1.0));
+void main()
+{
+    Particle p = particles[gl_VertexID / 6];
+    int corner = gl_VertexID % 6;
+    vec3 org = p.orgHalf.xyz;
+    float h = p.orgHalf.w;
+    float c = p.csSoft.x, s = p.csSoft.y;
+    vec3 pr = p.flags.x != 0.0 ? vec3(1.0, 0.0, 0.0) : Right;
+    vec3 pu = p.flags.x != 0.0 ? vec3(0.0, 1.0, 0.0) : Up;
+    vec3 r = (pr * c + pu * s) * h;
+    vec3 u = (pu * c - pr * s) * h;
+    float streak = p.velStreak.w;
+    if(streak > 0.0)
+    {
+        vec3 vel = p.velStreak.xyz;
+        vec3 ray = normalize(org - Eye);
+        vec3 across = vel - ray * dot(vel, ray);
+        float speed = length(across);
+        if(speed > 1.0)
+        {
+            vec3 along = across / speed;
+            r = cross(along, ray) * h;
+            u = along * (h + min(streak * speed, 8.0));
+        }
+    }
+    vec3 o = org;
+    float pull = p.csSoft.w;
+    if(Pull != 0 && pull > 0.0)
+    {
+        vec3 forward = cross(Up, Right);
+        float w = dot(org - Eye, forward);
+        if(w > 0.0)
+        {
+            float k = max(w - pull, min(w, 8.0)) / w;
+            o = Eye + (org - Eye) * k;
+            r *= k;
+            u *= k;
+        }
+    }
+    vec2 sg = signs[corner];
+    vec3 pos = o + u * sg.x + r * sg.y;
+    uv = vec2(sg.x > 0.0 ? p.uv.z : p.uv.x, sg.y > 0.0 ? p.uv.w : p.uv.y);
+    color = p.color;
+    soft = p.csSoft.z;
+    gl_Position = MVP * vec4(pos, 1.0);
+    viewDepth = gl_Position.w;
+}
+)";
+
+GLuint particleProgram = 0;
+bool particleProgramFailed = false;
+
 // The program for a shade; blended: a blend other than Opaque, writing no depth (zero fragments discarded). 0 if it
 // does not build.
 GLuint programFor(Shade shade, bool blended)
@@ -478,6 +557,71 @@ void draw(const StaticTriangles& t, const glm::mat4& mvp, const State& state, Te
     drawVertices(t.buffer, nullptr, t.count, state);
 }
 
+ParticleBatch uploadParticles(std::span<const ParticleInstance> particles)
+{
+    if(particles.empty())
+    {
+        return {};
+    }
+    GLuint buf = 0;
+    GLbyte* ofs = nullptr;
+    GL_Upload(GL_SHADER_STORAGE_BUFFER, particles.data(), particles.size_bytes(), &buf, &ofs);
+    return {buf, reinterpret_cast<std::size_t>(ofs), particles.size()};
+}
+
+void drawParticles(const ParticleBatch& batch, bool pull, const State& state, Texture texture)
+{
+    if(batch.count == 0 || !batch.buffer)
+    {
+        return;
+    }
+    if(!particleProgram && !particleProgramFailed)
+    {
+        const std::string fragment = "#version 430\n#define MODE " + std::to_string(static_cast<int>(Shade::Texture)) +
+                                     "\n#define BLENDED 1\n" + fragmentShader;
+        particleProgram = glProgram(particleVertexShader, fragment.c_str(), "vr particles");
+        particleProgramFailed = !particleProgram;
+    }
+    if(!particleProgram)
+    {
+        return;
+    }
+
+    GL_UseProgram(particleProgram);
+    GL_SetState(GLS_CULL_NONE | GLS_ATTRIBS(0) | GLS_BLEND_ALPHA | (state.depthTest ? 0 : GLS_NO_ZTEST) | GLS_NO_ZWRITE);
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA); // premultiplied
+    const glm::mat4 mvp = sceneViewProjection();
+    glm::vec3 eye, right, up;
+    sceneCamera(eye, right, up);
+    GL_UniformMatrix4fvFunc(0, 1, GL_FALSE, &mvp[0][0]);
+    GL_Uniform1iFunc(4, state.sceneDistances ? 1 : 0);
+    GL_Uniform3fFunc(5, eye.x, eye.y, eye.z);
+    GL_Uniform3fFunc(6, right.x, right.y, right.z);
+    GL_Uniform3fFunc(7, up.x, up.y, up.z);
+    GL_Uniform1iFunc(8, pull ? 1 : 0);
+    if(texture)
+    {
+        GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, texture);
+    }
+    if(state.sceneDistances)
+    {
+        GL_BindNative(GL_TEXTURE1, GL_TEXTURE_2D, state.sceneDistances);
+    }
+    // Binding 0 borrowed (the scene's lights, R_UploadFrameData): put back for what the view draws after.
+    GLuint savedBuffer = 0;
+    GLintptr savedOffset = 0;
+    GLsizeiptr savedSize = 0;
+    const bool saved = GL_GetShaderStorageRange(0, &savedBuffer, &savedOffset, &savedSize);
+    GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, 0, batch.buffer, static_cast<GLintptr>(batch.offset),
+        static_cast<GLsizeiptr>(batch.count * sizeof(ParticleInstance)));
+    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(batch.count * 6));
+    if(saved && savedBuffer)
+    {
+        GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, 0, savedBuffer, savedOffset, savedSize);
+    }
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // what GLS_BLEND_ALPHA expects
+}
+
 glm::mat4 sceneViewProjection()
 {
     glm::mat4 viewProj;
@@ -518,6 +662,21 @@ std::string targetsMadeByName()
         out += (out.empty() ? "" : " ") + std::string{name} + ":" + std::to_string(count);
     }
     return out;
+}
+
+void releaseTarget(Target& target)
+{
+    GLuint texture = target.texture;
+    if(texture)
+    {
+        glDeleteTextures(1, &texture);
+    }
+    GLuint fbo = target.framebuffer;
+    if(fbo)
+    {
+        GL_DeleteFramebuffersFunc(1, &fbo);
+    }
+    target = Target{};
 }
 
 void ensureTarget(Target& target, int width, int height, bool mipmaps, const char* name)

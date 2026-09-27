@@ -54,6 +54,7 @@ struct Candidate
     glm::mat4 rigInWeapon{1.f};
     glm::vec3 palmInWeapon{0.f};
     glm::mat4 rigWorld{1.f}; // and in the world (vr_pose_check: the hand held with the controller where it was)
+    bool palmFitted{false};  // palmInWeapon is the palm fitted by the grasp (drawn solved), not the rig's
 };
 
 void init(); // the commands
@@ -87,6 +88,14 @@ enum class Button : int
 };
 bool button(int hand, Button b, bool down);
 void sticks(const glm::vec2& off, const glm::vec2& main);
+
+// Whether the posing hand is drawn wrapping the weapon (the grasp solved, the palm fitted): for a moment after each set
+// (the grip play will give it), or always with vr_pose_solve 1. Otherwise it is drawn at its controller, unsolved, its
+// fingers the controller's curls, passing through the weapon: free to be put where it should be.
+[[nodiscard]] bool showSolved();
+// The view, drawing the hand solved: the palm fitted as the pose last set holds it (vr_pose_check), if the hand is still
+// where it was set.
+void solvedPalm(const Candidate& c);
 
 // Once a frame (VR_BeginFrame, after the texts are cleared): its text, leaving when the game does.
 void frame();

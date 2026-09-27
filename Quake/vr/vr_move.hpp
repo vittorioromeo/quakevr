@@ -36,6 +36,9 @@ struct VrMove
     std::uint8_t buttons{0};        // protocol::QVR_BUTTON_*
     glm::vec3 origin{0.f};          // the player origin the client placed the hands from
     glm::vec3 headPos{0.f};         // the head (between the eyes), world
+    // Where each hand's shots go (angles): its aim turned by the held weapon's Shot Pitch and Yaw (weapons::shotAngles);
+    // -> .offshotrot, .shotrot (QC VRGetWeaponFireRot).
+    glm::vec3 shotRot[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // [0] off hand, [1] main hand
 };
 
 void writeVrMove(sizebuf_t* buf, const VrMove& move);

@@ -39,6 +39,10 @@ struct State
     glm::vec3 controllerPos[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     glm::vec3 controllerRot[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     glm::vec3 aimRot[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    // After the posing test: each controller's grip pose (the runtime's: where its handle is; controllerPos/Rot are the
+    // pose moved off it by vr_controller_legacy_pose): the Show Controller preview is drawn there.
+    glm::vec3 gripPos[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    glm::vec3 gripRot[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     // The world turn the held weapon's Hand and Weapon Together offset gave the hand (rot = wholeTurn * the rot it had):
     // the view turns the weapon (posed from the rot before it) rigidly by it, so the muzzle turns exactly with it.
     glm::mat3 wholeTurn[2]{glm::mat3{1.f}, glm::mat3{1.f}};

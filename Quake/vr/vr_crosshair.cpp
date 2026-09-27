@@ -67,7 +67,7 @@ void queue(const hands::State& s)
         }
 
         const glm::vec3 start = s.muzzle[h];
-        const glm::vec3 dir = hands::forward(s.rot[h]);
+        const glm::vec3 dir = hands::forward(weapons::shotAngles(s.rot[h], slot, h == HAND_OFF)); // where shots go
 
         if(mode == POINT)
         {

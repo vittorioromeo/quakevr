@@ -491,6 +491,9 @@ void update()
             state.rot[h] = anglesFromTracking(withHandOffsets(t.hands[h].orientation, h), turnYaw);
             state.controllerPos[h] = state.pos[h];
             state.controllerRot[h] = anglesFromTracking(t.hands[h].orientation, turnYaw);
+            const GripInRaw& grip = t.gripInHand[h];
+            state.gripPos[h] = toWorld(t.hands[h].position + t.hands[h].orientation * grip.offset);
+            state.gripRot[h] = anglesFromTracking(t.hands[h].orientation * grip.turn, turnYaw);
             state.aimRot[h] = state.rot[h];
             state.wholeTurn[h] = glm::mat3{1.f};
             applyWholeOffset(h);
@@ -531,6 +534,8 @@ void update()
         {
             state.controllerPos[h] = state.pos[h];
             state.controllerRot[h] = state.aimRot[h] = state.rot[h];
+            state.gripPos[h] = state.pos[h];
+            state.gripRot[h] = state.rot[h];
             state.wholeTurn[h] = glm::mat3{1.f};
             applyWholeOffset(h);
         }

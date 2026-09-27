@@ -142,7 +142,7 @@ void previewInMenu(const hands::State& s)
     const int hand = 0; // the off hand (the main one points at the menu)
     const glm::vec3 fwd = hands::forward(s.rot[hand]);
     const glm::vec3 palm = s.pos[hand] + fwd * 2.f;
-    const float pulse = 0.85f + 0.15f * std::sin(static_cast<float>(realtime) * 17.f);
+    const float pulse = 0.85f + 0.15f * static_cast<float>(std::sin(realtime * 17.0));
     tendril(palm, palm + fwd * 28.f, pulse, 4242);
 }
 
@@ -220,7 +220,7 @@ void queue(const hands::State& s)
             lines::glow(palm, to, 0.3f, beam * 0.18f, beam * 0.03f);
             continue;
         }
-        const float pulse = 0.85f + 0.15f * std::sin(static_cast<float>(realtime) * 17.f);
+        const float pulse = 0.85f + 0.15f * static_cast<float>(std::sin(realtime * 17.0));
         tendril(palm, to, (t.state == Flying ? 1.f : 0.75f) * pulse, t.ent + hand * 1000);
         if(t.state == Flying && dt > 0.f)
         {
@@ -240,7 +240,7 @@ float entityGlow(const entity_t* e)
     {
         return 0.f;
     }
-    const float breathe = 0.88f + 0.12f * std::sin(static_cast<float>(realtime) * 4.f);
+    const float breathe = 0.88f + 0.12f * static_cast<float>(std::sin(realtime * 4.0));
     return std::clamp(it->second * breathe * vr_forcegrab_outline.value, 0.f, 1.f);
 }
 

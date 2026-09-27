@@ -19,6 +19,8 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | Defaults | your round-20 test settings and weapon placements (`vr_wofs_version` 14); Fit Gap down to -6 cm |
 | Box3D physics | a second rigid-body engine to compare (Throwing and Physics > Physics Engine, live): Erin Catto's Box3D, single-threaded; props collide with each other (stacks, pyramids, piles, knocks), everything else as before; 0.12-0.15 ms a server frame with 52 props settling; your 474 takes identical on both |
 | Carrying after a load | a box carried in one hand or both when the game was saved is drawn in the hand(s) again after loading it (it was drawn 20 m away, out of sight) |
+| After the posing test | a gun held into a monster hits it (a grunt's head: 0 of 6 pellets before, 6 of 6 headshots now); the posing hand passes through the weapon, unsolved (the solved grip shown for 1.5 s after each set); Show Controller at the real grip, shaped as a Quest 3 controller, with offset sliders; Shot Pitch / Shot Yaw per weapon turn where shots go |
+| Particles, long sessions | particles made into quads on the GPU from one record each, uploaded once a frame: at 4x and 8x their CPU a quarter of before (8x: 0.64 to 0.17 ms), GPU 15-45% less, the same images; long sessions: old maps' text boards freed (VRAM), collision caches per map, haptic delays bounded; a 35-minute soak shows no growth |
 
 Found on the way: fteqcc stores 0 when `a || b` is assigned into an entity field (rewritten; no other code has that
 shape); a parried blow's hand knock, timed by `cl.time`, came back after a level change (reset now).
@@ -331,6 +333,34 @@ other           -
 - Replay: a weapon in the off hand needs its grip pressed after it is taken (fixed in the recorder's playback);
   the flashlight is off for the eval (`vr_flashlight 0`: a hand reaching to the head grabbed it).
 
+### Refinements after the author's review
+
+Two fixes for edge cases from his notes on the failing takes. Neither has a menu slider.
+
+- **Wiggles** (the hand flicked back and forth in place, registering as hits). A blow already needed the grip's speed
+  and a 20 cm run, but the grip is the controller's point, and both it and the tip swing fast when only the hand
+  turns: the pivot is well behind them. Fitted on his wiggle takes (fists, sword, axe, gun), the hand turns about a
+  point 17-24 cm behind the controller along its own axis. The melee now tracks that point, the "wrist": 20 cm back,
+  with the gun angle offsets (`vr_gunangle`/`vr_gunyaw`, `vr_offhandpitch`/`vr_offhandyaw`) taken out, or the hand
+  itself for a weapon held two-handed. A blow, and its whoosh, also needs the wrist's net travel over the last 0.12 s
+  to average **`vr_melee_wrist_speed` (1.1 m/s)**. A punch needs twice that, since a fist has no lever and the arm
+  carries it. His real blows carry the wrist at 1.24 m/s or more (a wrist-heavy backswing 1.24, stabs from 1.34,
+  pommel strikes from 1.9, swings and chops from 2.3 to 3, punches from 3.5). His wiggles carry it at 0.2-1.5.
+- **The parry's muzzle.** A weapon whose far end (a gun's muzzle, a blade's tip) points within
+  **`vr_parry_muzzle_angle` (45 degrees)** of the attacker doesn't parry, whichever line blocks. The angle is measured
+  from the weapon's middle to the attacker (`vr_parry_from`, set by `VR_Parry` and the recorder). Without an
+  attacker, as for the bash's guard, it is measured against the blow's way. His parry poses point 60 degrees or more
+  off the dummy. His gun "not parry" poses that still fail point 80-97 degrees off it as seen from the gun, a spread
+  his parry poses share, so no stricter angle takes any of them without breaking parry poses.
+
+All 471 takes (strict; the 3 takes he has since discarded left out): **420 -> 426**. no_hit 26 -> 31 of 37:
+02-20-55, 02-20-59 (fists), 02-36-36 (gun) and 02-43-23 (sword) by the wrist, and 02-36-26 (the carried gun's
+one-hand bash; its stance now points at the dummy) by the muzzle. not_parry_pose 39 -> 40 of 49 (05-14-08, the
+muzzle 30 degrees off the dummy). Every other category is unchanged, with the same events: slashes, stabs, punches,
+pommel strikes, gun strikes, shoves, parry poses and bashes. The no_hit takes still failing are real arm motion
+(the wrist at 2.5-3.6 m/s: 02-21-46, 02-43-28, 04-03-55, most of 04-04-05), or bashes and shoves (02-21-03,
+02-37-14).
+
 ### In the headset
 
 - [ ] Sword, one hand: slashes in every direction, backswings (bottom left to top right, and back), from close and
@@ -349,6 +379,9 @@ other           -
 - [ ] Waving a weapon slowly through the dummy: nothing. Swinging it through at speed: a hit.
 - [ ] Settings: Swing Speed (4), Bash Speed (2), Shove Speed (2.4). Your config moves to them once (version 13).
 - [ ] Parry poses you use in combat still parry (the parry's test is unchanged: 40 degrees).
+- [ ] Wiggle a sword, a gun or a fist in place against the dummy, fast: nothing. Short wrist-heavy cuts and
+      backswings still land (`vr_melee_wrist_speed` 1.1).
+- [ ] A gun held level but aimed at the enemy doesn't parry. Held across, it does (`vr_parry_muzzle_angle` 45).
 
 ## Fitted hands
 
@@ -2649,6 +2682,10 @@ two-handed carrying and its throw, holstering, armour, force grab.
 | (console) | `vr_box3d_substeps` | 4 | Box3D's sub-steps a server frame (1..8) |
 | (console) | `vr_box3d_player_push` | 1 | players' bodies push props |
 | (console) | `vr_box3d_player_radius` | 15 | cm, that capsule's radius |
+| (console) | `vr_box3d_player_push_speed` | 2.5 | m/s, the most a player's capsule shoves a prop at (Polish) |
+| (console) | `vr_box3d_mesh_junctions` | 1 | the world mesh's T-junctions joined (Polish) |
+| Carrying and Gibs > Show Physics Shapes | `vr_debug_physics_shapes` | 0 | Box3D's bodies as wireframes (Polish) |
+| Carrying and Gibs > Show Hand Bones | `vr_debug_hand_bones` | 0 | the jointed hands' bones, grasp spheres, palm fit (Polish) |
 | (console) | `vr_debug_box3d` | 0 | 1: bodies made, moved by QC, put to sleep, hulls, slow frames; 2: every awake body every frame |
 
 The Throwing and Physics page's Bounciness, Friction, Spin Drag, Hitbox and Hit Min Speed act on both engines.
@@ -2736,14 +2773,12 @@ thrown into them): `vr_physics_hash` equal at all four points.
   from there: a hand can't hold a stack steady, press a box down, or catch a falling one by touch alone (a grip
   does). The held thing is a kinematic body and pushes.
 - **Props still don't block anything in Quake.** Players, monsters, missiles and traces pass through them as before
-  (`SOLID_NOT_BUT_TOUCHABLE`); only Box3D sees them. The players' capsules and the monsters' boxes push them aside
-  (one way), and a monster's box is Quake's, much wider than its model: props rest against the air round a grunt.
-- **Only rigid bodies.** Pickups hanging in the air, weapons on the range's racks, armour floating in place, stuck
-  gibs, corpses are not bodies: props pass through them, as before.
-- **Explosions** move only what QC gives a velocity (gibs; boxes and weapons take no damage), as before. Box3D's
-  explosion impulse is not used.
-- **The world mesh** is the drawn faces: T-junctions between faces (the BSP's) are not joined, so a sliding box may
-  bump on some seams; not seen in the tests.
+  (`SOLID_NOT_BUT_TOUCHABLE`); only Box3D sees them. The players' capsules and the monsters' hulls push them aside
+  (one way). (Polish, below: monsters are their drawn hull now, not Quake's box; a player shoves at most at 2.5 m/s.)
+- **Stuck gibs and corpses** are not bodies: props pass through them, as before. (Polish: hanging pickups, rack
+  weapons and floating armour are.)
+- **Explosions**: (Polish) `T_RadiusDamage` throws the props it sees, Box3D only.
+- **The world mesh**: (Polish) T-junctions joined.
 - **A prop made inside a wall** falls through (the mesh has no inside): `keepInWorld` puts it back where it was last
   free, as before; else it now stops under the map instead of falling for ever.
 - **Soft things** (backpacks, gibs, heads) are rigid hulls without a bounce and with more rolling resistance; they
@@ -2779,6 +2814,101 @@ armour and a clear floor):
 11. **Performance:** `vr_profile 2` while a pile settles: `box3d` under `SV_Physics`.
 
 Tell me which you prefer and what either gets wrong.
+
+### Polish
+
+Your request: "Box3D is definitely the way forward ... optimize/polish it", and debug checkboxes on the grabbing menu
+for the physics shapes and the hand's bones. Branch `agent/b3dpolish`. Scratchpad `b3dpolish/`: `prof.sh` (the
+profile), `scen.sh` (the scenes), `hands.sh`, their logs and composites.
+
+**Costs** (`vr_profile` in exclusive runs, the firing range's 52 props, `prof.sh`: asleep 6.4 s; all 52 in 6
+toppling columns of 9 that fall into a pile, 5 s; the pile asleep, 8 s; piled again from the pile, 4.5 s). The same
+script on the branch's start (built from it) and after, milliseconds per server frame (`box3d`):
+
+| | before (5d82758d) | after |
+|---|---|---|
+| 52 asleep | 0.009 | 0.008 |
+| collapse and settle: average | 0.097 (step 0.055, write 0.026) | 0.104 (step 0.056, write 0.028) |
+| collapse: worst frame (its step) | 0.63 (0.56) | 0.40 (0.32) to 0.47; one run had a 1.9 ms frame in the teleport's `sync` (below) |
+| piled again: average, worst | 0.084, 0.42 | 0.11-0.13, 0.34 |
+| the pile asleep | 0.010 | 0.008 |
+
+Run to run the averages move by 20-30% (other agents' games on the machine, the host's frame rate): within that the
+average is unchanged; the worst frames are lower.
+
+What the "0.6 ms collapse frame" and the "one 11 ms frame" were:
+
+- **Continuous collision.** `vr_debug_box3d 3` (new: every frame over 0.2 ms with Box3D's profile) showed a third of
+  a toppling pile's step in `continuous`: every box falling faster than a fifth of its thickness a step was a bullet
+  (continuous against the other props). Now a third (a throw at 450 u/s still is one; a box falling off a stack of 9
+  mostly not): the worst step 0.56 -> 0.32-0.47 ms.
+- **Catch-up steps.** After a slow host frame (a console dump, a save) the server frame is long and was cut into up
+  to 5 pieces of 1/45 s, each a full step: 9 pieces were seen after a hitch (with printing on). Now at most 3 (pieces
+  of up to 1/30 s, still 4 sub-steps each).
+- **Printing.** With `vr_debug_box3d 1` the first frame of a map took 110-200 ms: the console lines for each of ~150
+  bodies made (with `-condebug`, a flush each). Without it no frame over 1 ms was seen (`developer 1` now prints any,
+  with Box3D's profile: a map's load, a second map, piles, blasts). The 11 ms frame was most likely that, or the
+  machine; it did not come back.
+- **The world mesh**: 6 ms for the firing range as before, 37 ms with the T-junctions joined (below), once per map as
+  it loads, and now kept across a saved game, `restart`, switching the engine off and on (only a new map or
+  `vr_box3d_mesh_junctions` make it again).
+- **Growing Box3D's arrays**: its world is made with room for every edict as a body and 4096 contacts (no reallocation
+  in the frame a pile collapses); the step's touch list is kept (no allocation a frame).
+- **Teleporting a pile** (`vr_physics_pile` moving 52 sleeping bodies at once): 0.5-1.7 ms in `sync` that one frame
+  (each move wakes and re-inserts a body). Only the test commands do that.
+- **Kept:** 4 sub-steps (Box3D's recommended; 3 would save a quarter of the solve, and stacks of 9 stand at 4); Box3D's
+  sleep (0.5 s under 5 cm/s: a pile is asleep 3-4 s after it lands); `SV_LinkEdict` for every awake prop each frame
+  (its triggers, as the old solver's toss does).
+
+**The known gaps:**
+
+- **Monsters' shapes.** A monster (an alias model with a solid box) is the convex hull of its drawn model at rest
+  (frame 0, 24 vertices at most) turned with its yaw, not Quake's box: a grunt's 32-unit box was twice its body. One
+  shape for every frame (a shape made again as it animates would lose its contacts and touch again each time).
+  Tested: 3 cells boxes stacked 20 units from a grunt's middle stay there (Quake's box would have pushed them 8 units
+  out); boxes dropped on its head slide off its shoulders. Brush boxes (barrels) keep their box.
+- **Hanging pickups.** A pickup that is not a rigid body (hanging armour, the range's rack weapons: `FL_ITEM` and
+  `SOLID_TRIGGER`) is a kinematic body of its drawn hull: props rest on it and knock against it instead of passing
+  through. No touches (its touch is the player's pickup). A hand's knock still makes it a prop, as before.
+- **Explosions.** `T_RadiusDamage` calls a new builtin, `physicsblast(origin, damage)`: every prop within its reach
+  (damage + 40 units) that the blast sees (its middle or its top, as `CanDamage`) is thrown away from it, a little
+  upwards, at 4 units a second per point (`damage` less half the distance) for a health box's mass, lighter things
+  faster and heavier slower (the square root of the mass ratio, within half to twice), at most 600; through a point
+  under its middle, so that it tumbles. A rocket (120) at a pyramid of 6 health boxes: 430-450 u/s each, blown apart;
+  rockets boxes 90 units off: 250-300. Box3D only (engine 0 unchanged). `vr_physics_blast x y z [damage]` for tests.
+- **The player's push.** The capsule still pushes props (props don't block players: solid in Quake's movement, piles
+  would be walls, steps and traps, and every trace would change; not done), but at most at
+  `vr_box3d_player_push_speed` (2.5 m/s): the rest of a run's move it jumps, and the props it then overlaps are eased
+  out by Box3D's contact softness. Walking into a stack shoves it; running at it no longer kicks boxes ahead at 8 m/s.
+- **World-mesh seams.** Each drawn face's edges are checked against the BSP's vertices lying on them (within 0.1
+  unit), which are put into the edge: every seam is then an edge both triangles share, which Box3D's edge
+  identification smooths (no catching). The firing range: 3020 junctions in 1413 of 4407 faces, 14454 triangles
+  instead of 8608. A face with junctions is fanned from a corner with none on its two edges (else from its middle).
+  The same step time (A/B with `vr_box3d_mesh_junctions 0`).
+
+**Checked** (`scen.sh`, `hands.sh`): stacks of 4 and a pyramid of 6 stand and sleep; a shells box thrown into a stack
+knocks it over; the 52 in columns of 9 fall into a pile (one column of 9 left standing); the grunt's hull and boxes
+by and on it; a blast throwing a pyramid; the melee canary (`eval.sh`).
+
+**Debug views** (Carrying and Gibs > Debug; cvars, off by default, not saved; off, each costs one test a frame):
+
+- **Show Physics Shapes** (`vr_debug_physics_shapes`): every Box3D body's shapes as wireframes (hulls by their edges,
+  capsules by their rings), coloured by what it is and does: props awake green (fast, continuous: white), asleep blue;
+  held yellow; doors, plats, buttons purple; monsters orange; players cyan (your own faint); hanging pickups grey. A
+  prop's centre of mass (a dot), an awake one's contact points (red: pressed in, pink: apart). Also each hand's grab
+  probe (as `vr_debug_carry`: the thing's box, the nearest point of its surface, the reach; green in reach). Drawn
+  from the local server's bodies: a server frame ahead of the drawn models (a unit or two when fast).
+- **Show Hand Bones** (`vr_debug_hand_bones`): both jointed hands as drawn: the bones (the palm's middle to each
+  knuckle, then each finger's three joints to its tip; thumb red, index orange, middle yellow, ring green, little
+  blue), the joints (white); the spheres the grasp tests the hand as, against what it holds: green touching (within a
+  quarter of a unit), yellow near, red sunk in (with a line to the nearest point of the held thing), grey nothing
+  near; the palm's fit: its middle where the hand is (white) and where the grasp moved and turned it (cyan), the way
+  the palm faces (the cyan stroke), and the grip channel (magenta: where a handle lies in the curled fingers). A pose
+  that looks off: red spheres say where the hand is in the thing; a long white-cyan line, the palm pushed far to fit;
+  green on one side only, the thing held off-centre.
+
+**Not checked:** the headset; the menu page by hand (the cvars were); monsters' hulls for every monster (the grunt and
+the dummy seen); the mission packs' explosions (they call `T_RadiusDamage` too); the push speed in play.
 
 ## Carried box after loading a game
 
@@ -2835,6 +2965,382 @@ also gripped by the off hand for the two-handed case; `save`, `load`, screenshot
 ### In the headset
 
 - [ ] Carry a box (one hand, then both), save, load: is it in your hand(s)? Let go, grip it again.
+
+## After the posing test
+
+Your four notes after testing the posing mode. Branch `agent/posefix`; composites and logs in the scratchpad's
+`posefix/`.
+
+### A. A gun held into a monster hits it
+
+**Why it missed.** Pushed into a grunt's head, the gun is drawn stopped at the head (Weapons Stop at Models) while the
+tracked muzzle, where shots start, is inside the grunt's box. A Quake trace that starts inside a box doesn't report it:
+it comes back as a miss (`trace_fraction` 1) and drops what lay behind (the pellets flew on). Reproduced in the mock:
+the shotgun's muzzle 11 units into a grunt's box at head height: **0 of 6 pellets on the grunt** (all on a
+button behind it). Projectiles fared unevenly: nails and rockets starting inside the box already hit (the physics
+reports a missile that starts inside a box), but a gun long enough to reach through it (the laser cannon) missed.
+
+**The fix** (`QC/weapons.qc`):
+- A hand's hitscan shots (shotgun, super shotgun) and the lightning gun are traced from **behind the muzzle, along the
+  shot's own line**, from where that line passes the grip (`VR_ShotBackPoint`), the range lengthened by as much. What
+  lies along the weapon's length is hit like anything past the muzzle; a wall there stops the shot there (a gun poked
+  through a thin wall doesn't shoot from behind it); with a wall between the hand and that point, from the hand. A
+  pellet whose trace still starts inside something that takes damage (the grip itself in a big box) hits it there.
+- **Projectiles** (nails, lava nails, rockets, grenades, proximity and multi grenades, multi rockets, lasers, plasma):
+  with anything between the grip and the muzzle they start behind it (`VR_ShotPlace`), and a monster there is met at
+  its surface in the same frame (`VR_ShotImpacts`, at the end of `PlayerPostThink`). Flying from so close they would
+  start inside the monster's box as grown for missiles (15 units) and be reported a frame's flight past it, the hit
+  placed beyond the monster (a nail in the head counted as an arm).
+- A projectile's touch traces back along its flight to find where it struck; started inside another box (the
+  shooter's own, fired point blank) it reported that box (the laser's hit was placed on the player): now traced again
+  from the projectile (`VR_TouchTrace`: nails, lava nails, lasers).
+
+| Grunt, muzzle inside its head's box (`vr_debug_shots`) | Before | After |
+|---|---|---|
+| Shotgun (6 pellets) | 0 on the grunt, 6 on a button behind | 6 on the grunt, all headshots (gibbed) |
+| Super shotgun, both barrels (14 pellets) | – | 14 on the grunt, all headshots |
+| Nailgun | 9, 9, 9 (body) | 13.5 (head), then 9 as the grunt is shoved |
+| Super nailgun | – | 27, 27 (heads) |
+| Rocket, grenade, proximity grenade | explode inside it | explode at its face (107, 108, 83 damage) |
+| Laser cannon (its muzzle past the grunt) | missed (hit the wall behind) | 18 + 18 (body) |
+| Lightning gun | 30 | 30 |
+
+Composite: `A_shot_in_head.png` (the gun in the head with its box and the shot line; firing; the result), before and
+after.
+
+### B. Posing without the solver
+
+While posing, the **posing hand is drawn at its controller** (moved by its tuning offset if it has one, as before)
+**with no grasp solve and no palm fit**: it passes through the weapon, and its fingers are **the controller's own
+curls** (squeeze for a fist, open the hand to see through it), without the weapon's finger tweaks. So it can be put
+exactly where it should hold the weapon. After each set (A/X) it **shows the solved grip for 1.5 s** (what play will
+draw), then passes through again. Posing a hotspot, the helping hand is unsolved the same way (the weapon hand holding
+the floating weapon still wraps it). What a set writes is unchanged: it was always taken from the hand as tracked.
+`vr_pose_solve 1` solves live, as before. Normal play is untouched.
+
+`vr_pose_check` after a set, held: the weapon (super shotgun): hand 0.0001 units and 0.0000° from the pose, muzzle
+0.0001, drawn palm 0.0001; hotspot 1 (off hand): 0.0001 / 0.0000° / 0.0001 / 0.0001: as before the change. The drawn
+palm is compared when the hand was seen solved where it was set (else it says so). Composites:
+`B_posing_unsolved.png` (fist and open hand unsolved; the old live solve; the solved grip after A/X; unsolved again),
+`B_hotspot_unsolved.png`.
+
+### C. Show Controller where the controller is
+
+**Why it was off.** The preview was drawn at the tracked controller pose. With `vr_controller_legacy_pose 1` (the
+default, which the gun angles and weapon offsets are tuned for) that is not OpenXR's grip pose but the old OpenVR "raw"
+pose made from it: for a Touch controller **10.2 cm further along the controller and turned 20.6°** (the front of a
+Quest 2 controller's ring). So the box floated ahead of the hand.
+
+**Now** it is drawn at the runtime's **grip pose** (OpenXR `grip/pose`, the middle of the handle, in the palm: the
+legacy conversion undone, `TrackingState::gripInHand`), shaped as a **Quest 3 (Touch Plus) controller**: the handle
+(8 × 3.2 × 3.6 cm), the head's oval face over it (level when the controller points ahead), the thumbstick on the
+thumb's side, the trigger in front; its axes at the grip point (red along the handle, green left, blue up). The shape
+follows the controller's proportions, not a scan: the sliders line it up.
+
+**Sliders** (Weapon Offsets > Tuning Aids > **Controller Preview**, saved): Preview X / Y / Z (cm along its red, green,
+blue axes), Pitch (up) / Yaw (left) / Roll; **Off Hand Preview**: Mirrors the Main Hand's (Y, Yaw and Roll the other
+way) or Its Own (six more sliders). All extendable; they move only the preview. Cvars `vr_show_controller_x/y/z`,
+`_pitch/_yaw/_roll`, `vr_show_controller_off_own`, `vr_show_controller_off_*`.
+
+Checked: `vr_dumpview` prints each grip: 10.22 cm from the tracked pose with the legacy pose, 0 without; the grip's
+pitch is 60.6° up when the aim is level (the handle leaning 30° forward). Composite: `C_controller_preview.png`
+(before: ahead of the hand; after: in the palm; with offsets). The menu: `CD_menu.png`.
+
+### D. Shot Pitch and Shot Yaw
+
+There were none (Aim Pitch/Yaw/Roll are two-handed aiming's; Muzzle X/Y/Z moves where shots start). New per weapon
+(`vr_wofs_shot_pitch_NN`, `vr_wofs_shot_yaw_NN`; Weapon Offsets, under **Muzzle** and under **Posing Mode**): they
+turn the direction the weapon's **shots, projectiles and beams** go, in the aim's frame (pitch up, yaw left; the off
+hand's yaw mirrored), **without moving anything drawn**. Inherit From, Print Changes and Reset cover them (ordinary
+keys; no migration: 0 by default).
+
+- End to end: the client turns each hand's aim by them (`weapons::shotAngles`) and sends it in the move
+  (`VrMove::shotRot`); the server puts it in `.shotrot` / `.offshotrot`; QC `VRGetWeaponFireRot` returns it (every
+  weapon's fire direction goes through it; the lightning gun used the hand's aim directly and now uses it too; a bot,
+  given none, keeps its hand's aim).
+- The red line (Show Controller Laser, the posing mode's), the crosshair and your own beams follow it.
+- The melee reads the hand's aim and the weapon's geometry, not the shot direction.
+
+Measured (`vr_debug_shots`, the shotgun): Shot Pitch 5 turns the shots' direction by **5.000°** (up), Shot Yaw 5 by
+**5.000°** (left); in the off hand Shot Yaw 5 turns them 5.000° to the right. The drawn weapon entity's origin and
+angles are identical in all of them. Composite: `D_shot_angle.png` (red turns, green, the barrel as drawn, doesn't).
+
+### Tools
+
+`vr_debug_shots 1` (with `developer 1`): each hitscan shot (start, direction, and what its pellets hit: target and
+headshots, world, nothing) and each damage you deal (target, amount, inflictor, hit region and point). `vr_pose_solve`.
+
+### Checks
+
+- Melee: the canary of your takes after each change, compared with vr-cleanup's own results: no difference. Against
+  the kit's baseline 16 of 471 takes differ; **vr-cleanup 5d82758d alone gives the same 16** (all 471 takes identical
+  to this branch): they come from its new weapon poses (gun butt and muzzle strikes, the no-hit set), not from these
+  changes. Merged with vr-cleanup 71fe2aa9 (melee2) since: the canary is again identical to vr-cleanup's own (40/46
+  pass), and the shot into the grunt's head still 6 of 6 headshots.
+- Mock only: not tried in the headset.
+
+### Limitations and not verified
+
+- The preview's shape is a close guess at a Quest 3 controller; the grip pose itself is the runtime's.
+- A gun poking through a thin wall was not reproduced (the hand's wall collision keeps the barrel out); the shot now
+  starts on the hand's side of the barrel, so it meets the wall.
+- A monster that walks in until your grip is inside its box: the hit still counts, placed at the grip.
+
+### In the headset
+
+- [ ] Hold the shotgun into a grunt's head and fire: a headshot. The same with the nailgun and the rocket launcher.
+- [ ] Posing: the hand passes through the weapon; place it, press A/X: the solved grip shows for a moment.
+- [ ] Show Controller on: is the preview in your palm where the real controller is? Tune Controller Preview until it
+  matches, and tell me the numbers (they can become the defaults).
+- [ ] Show Controller Laser on: turn Shot Pitch / Shot Yaw until the red line runs through the sights.
+
+## Flashlight tuning
+
+Your three notes after the flashlight's last pass. Branch `agent/flash5`. Composites in the scratchpad's
+`flash5/final/`.
+
+| Your note | What you get |
+|---|---|
+| The weapons' manual finger options for the torch, both grips | **Low Grip: Fingers on the Torch** and **Overhead Grip: Fingers on the Torch** |
+| An offset for the head's attach and detach spot (a bit too low) | **On the Head > Head Zone Forward/Up/Out/Radius**; raised 4 cm by default |
+| Is the gun's attach spot customizable? | Where it sits once clipped: **On a Gun > On Gun Forward/Up/Out** (they were there). Where it clips on: **On a Gun > Gun Zone Along/Up/Out/Radius** (new) |
+
+All of it is on **Settings > Flashlight** (`menu_vr 15`). The page now has headers: On the Belt, In the Hand, the two
+grips and their fingers, Reach Zones, On a Gun, On the Head.
+
+### Fingers on the torch
+
+Per grip, the same options as a weapon's Fingers on the Weapon:
+- **Fingers:** Automatic (they wrap the torch) or Manual (each finger at its curl, no fitting).
+- With Manual: Thumb Curl, Thumb Across, Index/Middle/Ring/Little Curl (0 open, 1 a fist). The controller's grip still
+  opens the hand and closes it up to them.
+- With Automatic: Overlap (0..1 of a centimetre; 0.3 as before).
+- Either way: the five finger tweaks (Thumb, Index Finger...: -1..1 of a full curl) and Thumb X/Y/Z (±4, extendable to
+  ±20).
+
+Details:
+- The manual curls start at what the automatic grasp does at a full grip (its joints' mean stops, measured with
+  `vr_debug_grasp 2`): switching to Manual keeps the look. The palm isn't fitted in Manual (as for a weapon), so it sits
+  1.1 cm (low) and 2 cm (overhead) off the automatic place; the grip's Forward/Towards Palm/Up move it.
+- During the flip's spin the fingers keep the old grip's settings (the grasp holds the old grip); the tweaks and the
+  thumb's place go over with the spin.
+- The other hand mirrors them. Cvars: `vr_flashlight_low_*` and `_high_*`: `fingers`, `curl_thumb/index/middle/ring/
+  pinky`, `thumb_across`, `overlap`, `bias_*`, `thumb_x/y/z`.
+
+### The reach zones
+
+**Show Flashlight Zones** (Reach Zones; `vr_show_flashlight_zones`, not saved) draws them:
+- the head's: yellow balls at both temples and the forehead;
+- each gun in a hand: an orange capsule round its line, from the hand to 3 cm past the muzzle;
+- the held torch's middle (white): that is what they measure.
+
+A zone turns green while in reach (B/Y clips the torch on), and so does the torch's middle. From your own view the
+head's balls are round your eyes and aren't drawn; with the body's preview (`vr_body_debug 2` or `3`) they are drawn
+round the preview's head too.
+
+**The head** (On the Head, after On Head Forward/Up/Out, which still place the mounted torch):
+- **Head Zone Forward/Up/Out** move the balls (Out: to the side at the temples, ahead at the forehead), ±20 cm,
+  extendable. **Head Zone Radius**: 10 cm.
+- **Up defaults to 0.04: 4 cm higher than before.** The temples' balls are now 7.5 cm over the eyes, the forehead's
+  10 cm. With the 10 cm radius, the torch at your temple's upper edge, where a head torch's strap runs, is well in.
+- The same zone takes it off: a hand at the head torch (at the torch as before, or its fist in that temple's ball)
+  with B/Y (back to the belt), or the grip (into the hand).
+
+**The gun** (On a Gun):
+- **On Gun Forward/Up/Out** (already there) place the torch once clipped on.
+- **Gun Zone Along/Up/Out** (±20 cm, extendable) move the zone where holding the torch clips it on, in the gun's frame:
+  along the barrel, up, and out (away from your body). **Gun Zone Radius**: 12 cm, as before.
+- Taking it off the gun is unchanged: the free hand at the torch, B/Y.
+
+### Tests (mock headset, e1m1)
+
+- **`final/fingers_off.png`, `final/fingers_main.png`:** each hand, each grip, from the side and the front:
+  Automatic; Manual at the default curls (close to Automatic); Manual with index 0.1, middle 0.35, thumb 0.4, across
+  0.1 (those fingers open); Automatic with the index and little tweaked -0.7 and Thumb X +3.
+- **`final/zones.png`** (spectator camera, zones shown), the log's lines in brackets:
+  - the head's three balls; the torch held at the left temple: green, Y ("on the head, the left temple"); on the head
+    only that temple's ball; a fist in it green, the grip ("off the head, into the hand");
+  - Head Zone Up 0.25: the torch at the old place is out of reach (Y flips it); 21 cm higher it is green and Y puts
+    it on; Y at it with an open hand ("off the head, back to the belt");
+  - the shotgun's capsule; the torch under the barrel green, Y ("clipped on the main hand's gun"); Y at it ("off the
+    gun, back to the belt");
+  - Gun Zone Along 0.35, Radius 0.08: the old place out of reach (Y flips); 35 cm further forward green, Y clips it,
+    and it sits where On Gun puts it, as before;
+  - the body preview with the balls round its head.
+- **`final/menu.png`:** the new sections, and Fingers set to Manual rebuilding the page with the curls.
+- After merging vr-cleanup (b793e23d): the melee canary (`eval.sh`) 40/46 pass, no take differs from the baseline;
+  the zones and the off hand's fingers run again, the same.
+
+### Also fixed: the belt's torch with a gun in the other hand
+
+Testing the gun zone found this: with a gun in the other hand, the torch on the belt could not be taken (`developer 1`:
+"torch press ignored: the off hand's is the game's (hotspot 1)"). The game's two-handed grip hotspot is anywhere
+13-64 cm from the other hand, and the intent gate let the game have the grip there. But a gun held by its fitted
+grips is only taken at its grip (within 5.5 units, `vr_twohand.cpp`), so the grip did nothing at all. Now, for such a
+gun, the game wins only within 8 units of its grip. Swords and the other free two-handed holds keep the old rule, and
+a hand at the other hand's weapon still leaves it to the game. The ignored press now says why under `developer 1`.
+
+### In the headset
+
+- [ ] Flashlight page, each grip: Fingers Manual, then move the curls; the tweaks and Thumb X/Y/Z in both modes.
+- [ ] Show Flashlight Zones, the body preview (`vr_body_debug 2`): the head balls where you expect? Tune Head Zone
+      Up until clipping it on feels natural; tell me the value.
+- [ ] Hold the torch by a gun: the capsule green, B/Y clips it. Gun Zone Along/Up/Out if it's off.
+- [ ] A gun at the ready in one hand, take the torch from the belt with the other: it comes (it didn't before).
+## Particles at high multipliers; long sessions
+
+Your notes: with the particle multiplier at 4, shooting a wall slows the game noticeably; and the game seems to slow
+down a little over time, even with VDXR. One commit for the particles, one for the long-session fixes, one test cvar.
+Measured with `run.sh --exclusive` and `vr_profile`, at 1448 x 1448 an eye (twice the mock's pixels), both eyes, on an
+RTX 4090; scripts and images in the scratchpad's `perf2/`.
+
+### Particles: where the time went
+
+The scene: the firing range, facing the wall behind the start; at each multiplier 12 super-shotgun blasts, 3 s of
+super nailgun, 6 rockets (`vr_particle_seed 7`: the same particles every run). At 4x there are 2000-5000 particles
+alive, at 8x 6000-10 000.
+
+- **CPU: the quads, made for each eye.** Every particle's six 40-byte vertices were made twice a frame (after a
+  frustum test) and copied into the upload buffer twice. `particle verts` was 70% of the particles' CPU, the upload
+  15%, the simulation 10%: 0.64 ms a frame at 8x.
+- **GPU: mostly pixels.** The smoke puffs grow to 45 units across near the wall, and soft particles read the scene's
+  distances at each pixel. The rest is the vertices: 12 per particle a frame, read at a 40-byte stride.
+- **Spawning** is not the problem: `particle spawn` (new) is 0.001-0.002 ms a frame on average and 0.16 ms at
+  worst, for a super-shotgun blast at 8x (about 4000 particles).
+
+**The change.** Each particle is now one 96-byte record, made and uploaded once a frame and drawn in both eyes from the
+same buffer. The record holds the position, size, colour, velocity and streak, the angle's cosine and sine, the
+softness and the cell.
+- The vertex shader builds the same quad from each eye's camera, with the same arithmetic the CPU used: turned by its
+  angle, flat on the ground, streaked along its motion, pulled towards the eye for soft particles.
+- The draw order, the blend and the texture are unchanged.
+- The rings and foam lying on the waves stay on the CPU, per eye (they follow the waves).
+- An eye skips the draw and the scene's distances when the box round all the particles is out of its view.
+- Code: `vr_gfx`'s `uploadParticles` and `drawParticles`. The upload buffer is bound as an SSBO; binding 0 is borrowed
+  and put back (`GL_GetShaderStorageRange`, gl_rmisc.c).
+
+| Scene | Frame CPU before / after | Eyes' GPU before / after | vr particles CPU before / after | vr particles GPU before / after |
+|---|---|---|---|---|
+| 1x super shotgun | 0.821 / 0.708 | 0.556 / 0.540 | 0.030 / 0.022 | 0.036 / 0.052 |
+| 1x super nailgun | 0.877 / 0.713 (B2) | 0.583 / 0.577 | 0.039 / 0.029 | 0.081 / 0.085 |
+| 1x rockets | 0.926 / 0.803 | 0.577 / 0.565 | 0.056 / 0.029 | 0.045 / 0.045 |
+| 4x super shotgun | 1.041 / 0.812 | 0.574 / 0.547 | 0.169 / 0.074 | 0.096 / 0.081 |
+| 4x super nailgun | 1.020 / 0.796 | 0.723 / 0.698 | 0.190 / 0.083 | 0.232 / 0.220 |
+| 4x rockets | 1.207 / 0.815 | 0.683 / 0.609 | 0.304 / 0.086 | 0.141 / 0.096 |
+| 8x super shotgun | 1.406 / 0.861 | 0.808 / 0.650 | 0.588 / 0.147 | 0.332 / 0.178 |
+| 8x super nailgun | 1.435 / 0.887 | 1.120 / 0.935 | 0.637 / 0.168 | 0.633 / 0.453 |
+| 8x rockets | 1.490 / 0.895 | 1.090 / 0.907 | 0.652 / 0.163 | 0.505 / 0.356 |
+
+(Milliseconds a frame; averages of two runs each, alternating before/after/before/after, and a third run of the final
+build agreeing within 0.01 ms. `Frame CPU` is the whole frame. With no particles, the frame is about 0.7 ms and the
+eyes about 0.52 ms. One 1x nailgun run of the new build had a 220 ms hitch in the scene's own drawing (not the
+particles'; a shader made on first use, it seems), so that cell is the other run's.)
+
+- **At 4x**, shooting the wall now adds 0.1 ms of CPU a frame over 1x (0.3 before, with rockets), and 0.03-0.17 ms of
+  GPU.
+- **At 8x** it adds 0.15 ms of CPU (0.6-0.7 before) and 0.1-0.4 ms of GPU (0.3-0.6 before).
+- The particles' CPU is a quarter of what it was at every multiplier, and the upload a tenth.
+- The GPU gains 15-45% at 4x and 8x (the vertices). What is left is the pixels, which is the look: the same puffs
+  cover the same pixels.
+- On this machine the cost at 4x wasn't big before either (0.3 ms CPU plus 0.15 ms GPU). If your frame is already near
+  the headset's budget, a slower GPU and more pixels (a Quest 3 at your resolution, supersampled) make the GPU part
+  several times bigger. If 4x still slows down for you, `vr_profile 2` while shooting shows whether it is `vr particles`
+  (and its GPU column) or something else.
+- **Images:** the same, seeded, before and after: the wall shot with the super shotgun, the nailgun and a rocket, a
+  grunt shot, e1m2's water splashes, e1m1's rocket. The differences are single pixels at sparks' edges, as between two
+  runs of the same build.
+- `vr_particle_seed <n>` (new, for tests): the particles' random numbers restart from this seed at each map.
+
+**Not changed:**
+
+- The simulation: 0.06 ms at 10 000 particles.
+- Sorting: there is none. They are drawn in the order made, which the premultiplied blend relies on (ROUND19.md).
+- Lighting per particle: they aren't lit (their colours are the palette's).
+- Traces per particle: none (only a drop falling into a liquid looks its surface up).
+- Fewer or smaller particles far away: would change the look.
+
+### Long sessions: the audit
+
+I checked every container, cache, pool and GL object in `Quake/vr/*.cpp` and the engine hooks it adds for growth
+without bound, missing eviction, or growth across maps. Nothing leaked without bound. Fixed (one commit):
+
+| Where | What grew | Fix |
+|---|---|---|
+| `vr_text3d.cpp` (world-text boards) | once made, each board's image (up to 8 MB of VRAM; the firing range has 19) was kept for the rest of the session, and drawn again while the next map loaded | a board of an earlier map has its image freed (`gfx::releaseTarget`) and isn't drawn; it is made again when its map comes back |
+| `vr_modelcollide.cpp` (`modelTris`, `samplesCache`) | the models' triangles and samples were never forgotten; a brush submodel (`*N`) was matched by name on the next map, and another game's model in a reused slot could have fewer vertices than the cached triangles index | forgotten at each map, with the posed cache |
+| `vr_input.cpp` (`pendingHaptics`) | a NaN or huge delay from the server never came due, and the haptic stayed | the delay is clamped to 0..10 s; at most 64 wait |
+| `vr_fgfx.cpp`, `vr_view.cpp` | pulses from `realtime` as a float: steps of 4 ms after 10 hours | worked out in double |
+
+Checked and bounded (no change):
+
+- **Particles:** the pool (32 768, reserved once); the frame's records and lying pieces (grown to the most at once);
+  the splash plinks (48 a frame).
+- **Decals:** a ring of `vr_decal_max`; the gibs' and holes' lists are pruned every 100 frames and emptied at each map.
+- **Gore:** rays 320, sources 48, landings 192, pending 32. Body blood: 64 drops. Casings: 64 + 16.
+- **Ambient and model-light caches:** at most 2048; entries older than 100 frames are evicted; emptied at each map and
+  game change.
+- **Grasp shapes:** by held model and frame (a few dozen). **AO:** the baked occlusion by model name grows only with
+  the models seen (a few MB with id1).
+- **Text3d:** floating texts 256, expiring; the frame's vertex buffers are cleared each frame. The gadget's queue 16,
+  the hologram's 6. Lines and debug: cleared each frame.
+- **Motion recorder:** a 60 s cap, the preroll trimmed. Voice notes: 180 s.
+- **Per-entity data** (`entityData`, the posed caches, the rigid memos, carried): by entity number, emptied at each
+  map.
+- **GL objects:** every creation reuses or deletes the old one (render targets, static triangles, envmap, haze, water,
+  bloom, upscalers); programs, atlases and queries are made once.
+- **`GL_Upload`'s ring** grows to the most one frame needs (in 1.5x steps) and stays there. 32 768 particles would now
+  need 3 MB of it (15.7 MB before).
+- **Sound:** the client's own precaches are fixed names (found again, not added); the water sounds are a table
+  refilled at each map.
+- **The profiler:** one node per (parent, literal name); the GPU query pool grows to the most scopes in a frame.
+- **Box3D** (read only, reported): bodies are destroyed and made again per entity slot, and the whole world at each
+  server spawn. `propHulls`' keys include the prop's drawn size, so a prop whose size keeps changing adds a hull for
+  each size until the next map.
+- **Small, left as is:** `vr_gpustats.cpp`'s process names (one per process seen using the GPU, only while the memory
+  log is on). The gadget's and text3d's `fmod(realtime, 1000)`: the CRT's noise jumps once every 16 minutes.
+
+### Long sessions: the soak test
+
+The mock headset, not exclusive (other agents' games ran alongside), at 90 fps: e1m1, e1m2, the firing range, over and
+over. On each map:
+- 5.5 s standing still, profiled (the frame time);
+- then grunts spawned and rocketed, the super shotgun and nailgun at walls, and walking.
+
+The multiplier was 4, `vr_decal_max` 512, and the memory log wrote a row every 20 s.
+
+Two runs: before the fixes (35 minutes, 34 map loads) and after them (19 minutes, 24 map loads; the second run
+had more of the other agents' games alongside, so its GPU times are noisier). Each map is compared with its own
+earlier visits: its second visit (the first is the session's start) against its last.
+
+| | Before: 2nd visit / last | After: 2nd visit / last |
+|---|---|---|
+| Private memory, e1m1 (MB) | 1225.7 / 1237.8 | 1089.1 / 1098.7 |
+| Private memory, e1m2 (MB) | 1215.7 / 1238.7 | 1085.6 / 1086.7 |
+| Private memory, firing range (MB) | 1230.3 / 1237.5 | 1109.0 / 1118.9 |
+| GL textures / buffers / framebuffers, e1m1 | 609 / 211 / 49 and 610 / 211 / 50 | 589 / 211 / 30 and 591 / 211 / 31 |
+| GL textures / buffers / framebuffers, firing range | 555 / 211 / 49 and 556 / 211 / 50 | 555 / 211 / 49 and 556 / 211 / 50 |
+| Idle frame CPU, firing range, median of the first / second half of the visits (ms) | 0.854 / 0.864 | 1.072 / 0.954 |
+| Idle eyes' GPU, firing range, same (ms) | 0.439 / 0.457 | 1.683 / 1.424 |
+
+- **Nothing grows much.** Memory settles within the first two or three cycles. Before the fixes it then crept by
+  about 20 MB in 30 minutes (e1m2: 1216 to 1239 MB over 10 visits; the firing range: 1230 to 1238). After them it
+  stays within 10 MB of its second visit, with no trend over 19 minutes (the run was shorter). The GL objects are the same on every visit to the same map, give or take one or two
+  made once (the hologram's target, an ammo screen's).
+- **Frame times** show no trend from the first half of the run to the second, in either run. Per map, the CPU is
+  0.75-0.95 ms before and 0.93-1.07 ms after (the machine was busier during the second run); the GPU goes up and down
+  with the other games.
+- **The fix shows:** after it, leaving the firing range frees its boards' images (framebuffers 49 to 30 on e1m1 and
+  e1m2, 20 fewer textures). Private memory is also 110-140 MB lower through the second run than the first, on every
+  map (not investigated further).
+- The CSVs are `perf2/soak_base_memstats.csv` and `soak_fin1_memstats.csv`; the tables per map visit are
+  `soak_base.tab` and `soak_fin1.tab`.
+
+### Not verified
+
+- In the headset: 4x and 8x shooting a wall (`vr_profile 2`). The particles should look exactly as before.
+- The slowdown you feel over time. The soak shows no growth in the game: memory, GL objects and frame time stay flat
+  over 35 minutes before the fixes and 19 after. If it persists, compare the memory log's `xr_*` columns with `busy_ms` and `gpu_eyes_ms` over a
+  long session: that says whether it is the runtime (TESTING.md, "If it gets slower the longer you play").
 
 ## Leaning; menu opacity
 

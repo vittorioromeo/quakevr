@@ -1280,7 +1280,10 @@ void playAfterTracking(TrackingState& tracking, FrameState& frame)
     const Frame& f = state == State::Setup ? take.frames.front()
                      : state == State::Post ? take.frames.back()
                                             : take.frames[cur];
+    GripInRaw grips[HAND_COUNT]; // the controllers' own (not in the take): where the Show Controller preview goes
+    std::copy(std::begin(tracking.gripInHand), std::end(tracking.gripInHand), grips);
     tracking = f.tracking;
+    std::copy(std::begin(grips), std::end(grips), tracking.gripInHand);
     tracking.time = realtime;
     if(state == State::Setup)
     {

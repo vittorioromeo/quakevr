@@ -4,6 +4,7 @@
 // unbound, so they are given numbers from a private range here and bound by name.
 
 #include "vr_progs.hpp"
+#include "vr_box3d.hpp"
 #include "vr_carry2h.hpp"
 #include "vr_held.hpp"
 #include "vr_motion.hpp"
@@ -334,6 +335,13 @@ void PF_carry2h()
 
 // float(entity e, vector point, float hand) carryreach: whether a hand at `point` can take hold of `e` (a hand
 // touching it could: in its turned box, within vr_carry_reach of its drawn surface), for a carried one (not solid).
+// physicsblast(at, damage): T_RadiusDamage's explosion throws the rigid bodies round it (vr_box3d.cpp; Box3D only).
+void PF_physicsblast()
+{
+    const float* p = G_VECTOR(OFS_PARM0);
+    box3d::blast(glm::vec3{p[0], p[1], p[2]}, G_FLOAT(OFS_PARM1));
+}
+
 void PF_carryreach()
 {
     const float* p = G_VECTOR(OFS_PARM1);
@@ -421,6 +429,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"weaponhotspotinfo", PF_weaponhotspotinfo},
     {"modelbounds", PF_modelbounds},
     {"modelcentre", PF_modelcentre},
+    {"physicsblast", PF_physicsblast},
     {"tracebox", PF_tracebox},
     {"cvar_hmake", PF_cvar_hmake},
     {"cvar_hget", PF_cvar_hget},

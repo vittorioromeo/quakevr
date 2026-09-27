@@ -88,6 +88,39 @@ struct StaticTriangles
 void upload(StaticTriangles& triangles, std::span<const Vertex> vertices);
 void draw(const StaticTriangles& triangles, const glm::mat4& mvp, const State& state, Texture texture = 0);
 
+// Camera-facing particles (vr_particles.cpp), made into quads on the GPU: one record each, uploaded once a frame and
+// drawn from the same buffer in every view (each view's quads built in the vertex shader from its own camera), rather
+// than six vertices each made and uploaded again for each eye. The quad: 2 x `half` across, turned by (cos, sin) about
+// the view direction (flat: lying on the horizontal plane); streaked (streak > 0): along its velocity as seen from the
+// eye, `half` wide and half + min(streak x speed, 8) long; with `pull` (Shade::Texture, soft): moved towards the eye
+// along its rays by `pull`, not nearer than 8 units. The corners' texture coordinates: the cell's (u0, v0, u1, v1).
+struct ParticleInstance
+{
+    glm::vec3 org;
+    float half;
+    glm::vec4 color; // premultiplied
+    glm::vec3 vel;
+    float streak;
+    float cos, sin;
+    float soft; // as Vertex::soft
+    float pull;
+    glm::vec4 uv;
+    float flat; // 1: lying on the horizontal plane
+    float pad[3];
+};
+static_assert(sizeof(ParticleInstance) == 96);
+
+// Particles uploaded for this frame (uploadParticles), valid until the frame ends.
+struct ParticleBatch
+{
+    unsigned buffer{0};
+    std::size_t offset{0};
+    std::size_t count{0};
+};
+[[nodiscard]] ParticleBatch uploadParticles(std::span<const ParticleInstance> particles);
+// Draws them in the scene view (sceneViewProjection, sceneCamera); `pull`: moved towards the eye by their pull.
+void drawParticles(const ParticleBatch& batch, bool pull, const State& state, Texture texture);
+
 // The scene view's world-to-clip transform, while the scene (or an eye) is rendered.
 [[nodiscard]] glm::mat4 sceneViewProjection();
 
@@ -112,6 +145,8 @@ struct Target
 // chain, rebuilt by end2D() (filtered trilinearly). `name` (a literal): what it is, for the count of
 // targets (re)made by name (vr_memstats, and a developer line each time).
 void ensureTarget(Target& target, int width, int height, bool mipmaps = false, const char* name = "target");
+// Frees `target`'s texture and framebuffer (nothing when it has none); ensureTarget makes it again.
+void releaseTarget(Target& target);
 
 // How many times targets of each name were (re)made so far, as "name:count" words.
 [[nodiscard]] std::string targetsMadeByName();

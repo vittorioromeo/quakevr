@@ -131,6 +131,11 @@ void cupMigrationDone(int slot);
 [[nodiscard]] bool inheritable(Key key);
 void stopInheriting(int slot);
 
+// The direction a weapon's shots go (its projectiles and beams too): the hand's aim `aimRot` (Quake angles) turned by the
+// slot's Shot Pitch (up) and Shot Yaw (left), in the aim's own frame, the yaw mirrored for a weapon held `mirrored` (the
+// off hand). `aimRot` itself for no slot or the empty hand, or with both 0. Nothing drawn moves with it.
+[[nodiscard]] glm::vec3 shotAngles(const glm::vec3& aimRot, int slot, bool mirrored);
+
 // Keys retired in round 21 (fitted hands: the hand's place and its fingers on the weapon): registered, unused.
 [[nodiscard]] bool retired(Key key);
 
