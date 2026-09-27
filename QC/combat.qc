@@ -1193,9 +1193,11 @@ float(entity p, vector butt, vector end, vector toAttacker) VR_Parry_LineBlocks 
     {
         return FALSE;
     }
+    // Across: square to the attacker within 35 degrees (round 21: the author's parry poses hold it 59-90 degrees off the
+    // attacker's line, his poses that are no parry 0-52; it was 30 degrees off).
     vector flat = a;
     flat_z = 0;
-    if(fabs(normalize(flat) * toAttacker) > 0.866) // cos(30 degrees)
+    if(fabs(normalize(flat) * toAttacker) > 0.574) // cos(55 degrees)
     {
         return FALSE;
     }
@@ -1207,6 +1209,11 @@ float(entity p, vector butt, vector end, vector toAttacker) VR_Parry_LineBlocks 
     side_x = toAttacker_y;
     side_y = -toAttacker_x;
     side_z = 0;
+    // In front of the body: the weapon's middle within half a metre of the body's midline (not held out to the side).
+    if(fabs((butt + a * 0.5 - (p.origin + head) * 0.5) * side) > 0.5 * mu)
+    {
+        return FALSE;
+    }
     for(float i = 0; i <= 4; i++)
     {
         vector pt = butt + a * (i * 0.25);
