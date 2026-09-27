@@ -2649,6 +2649,10 @@ two-handed carrying and its throw, holstering, armour, force grab.
 | (console) | `vr_box3d_substeps` | 4 | Box3D's sub-steps a server frame (1..8) |
 | (console) | `vr_box3d_player_push` | 1 | players' bodies push props |
 | (console) | `vr_box3d_player_radius` | 15 | cm, that capsule's radius |
+| (console) | `vr_box3d_player_push_speed` | 2.5 | m/s, the most a player's capsule shoves a prop at (Polish) |
+| (console) | `vr_box3d_mesh_junctions` | 1 | the world mesh's T-junctions joined (Polish) |
+| Carrying and Gibs > Show Physics Shapes | `vr_debug_physics_shapes` | 0 | Box3D's bodies as wireframes (Polish) |
+| Carrying and Gibs > Show Hand Bones | `vr_debug_hand_bones` | 0 | the jointed hands' bones, grasp spheres, palm fit (Polish) |
 | (console) | `vr_debug_box3d` | 0 | 1: bodies made, moved by QC, put to sleep, hulls, slow frames; 2: every awake body every frame |
 
 The Throwing and Physics page's Bounciness, Friction, Spin Drag, Hitbox and Hit Min Speed act on both engines.
@@ -2736,14 +2740,12 @@ thrown into them): `vr_physics_hash` equal at all four points.
   from there: a hand can't hold a stack steady, press a box down, or catch a falling one by touch alone (a grip
   does). The held thing is a kinematic body and pushes.
 - **Props still don't block anything in Quake.** Players, monsters, missiles and traces pass through them as before
-  (`SOLID_NOT_BUT_TOUCHABLE`); only Box3D sees them. The players' capsules and the monsters' boxes push them aside
-  (one way), and a monster's box is Quake's, much wider than its model: props rest against the air round a grunt.
-- **Only rigid bodies.** Pickups hanging in the air, weapons on the range's racks, armour floating in place, stuck
-  gibs, corpses are not bodies: props pass through them, as before.
-- **Explosions** move only what QC gives a velocity (gibs; boxes and weapons take no damage), as before. Box3D's
-  explosion impulse is not used.
-- **The world mesh** is the drawn faces: T-junctions between faces (the BSP's) are not joined, so a sliding box may
-  bump on some seams; not seen in the tests.
+  (`SOLID_NOT_BUT_TOUCHABLE`); only Box3D sees them. The players' capsules and the monsters' hulls push them aside
+  (one way). (Polish, below: monsters are their drawn hull now, not Quake's box; a player shoves at most at 2.5 m/s.)
+- **Stuck gibs and corpses** are not bodies: props pass through them, as before. (Polish: hanging pickups, rack
+  weapons and floating armour are.)
+- **Explosions**: (Polish) `T_RadiusDamage` throws the props it sees, Box3D only.
+- **The world mesh**: (Polish) T-junctions joined.
 - **A prop made inside a wall** falls through (the mesh has no inside): `keepInWorld` puts it back where it was last
   free, as before; else it now stops under the map instead of falling for ever.
 - **Soft things** (backpacks, gibs, heads) are rigid hulls without a bounce and with more rolling resistance; they
@@ -2779,6 +2781,101 @@ armour and a clear floor):
 11. **Performance:** `vr_profile 2` while a pile settles: `box3d` under `SV_Physics`.
 
 Tell me which you prefer and what either gets wrong.
+
+### Polish
+
+Your request: "Box3D is definitely the way forward ... optimize/polish it", and debug checkboxes on the grabbing menu
+for the physics shapes and the hand's bones. Branch `agent/b3dpolish`. Scratchpad `b3dpolish/`: `prof.sh` (the
+profile), `scen.sh` (the scenes), `hands.sh`, their logs and composites.
+
+**Costs** (`vr_profile` in exclusive runs, the firing range's 52 props, `prof.sh`: asleep 6.4 s; all 52 in 6
+toppling columns of 9 that fall into a pile, 5 s; the pile asleep, 8 s; piled again from the pile, 4.5 s). The same
+script on the branch's start (built from it) and after, milliseconds per server frame (`box3d`):
+
+| | before (5d82758d) | after |
+|---|---|---|
+| 52 asleep | 0.009 | 0.008 |
+| collapse and settle: average | 0.097 (step 0.055, write 0.026) | 0.104 (step 0.056, write 0.028) |
+| collapse: worst frame (its step) | 0.63 (0.56) | 0.40 (0.32) to 0.47; one run had a 1.9 ms frame in the teleport's `sync` (below) |
+| piled again: average, worst | 0.084, 0.42 | 0.11-0.13, 0.34 |
+| the pile asleep | 0.010 | 0.008 |
+
+Run to run the averages move by 20-30% (other agents' games on the machine, the host's frame rate): within that the
+average is unchanged; the worst frames are lower.
+
+What the "0.6 ms collapse frame" and the "one 11 ms frame" were:
+
+- **Continuous collision.** `vr_debug_box3d 3` (new: every frame over 0.2 ms with Box3D's profile) showed a third of
+  a toppling pile's step in `continuous`: every box falling faster than a fifth of its thickness a step was a bullet
+  (continuous against the other props). Now a third (a throw at 450 u/s still is one; a box falling off a stack of 9
+  mostly not): the worst step 0.56 -> 0.32-0.47 ms.
+- **Catch-up steps.** After a slow host frame (a console dump, a save) the server frame is long and was cut into up
+  to 5 pieces of 1/45 s, each a full step: 9 pieces were seen after a hitch (with printing on). Now at most 3 (pieces
+  of up to 1/30 s, still 4 sub-steps each).
+- **Printing.** With `vr_debug_box3d 1` the first frame of a map took 110-200 ms: the console lines for each of ~150
+  bodies made (with `-condebug`, a flush each). Without it no frame over 1 ms was seen (`developer 1` now prints any,
+  with Box3D's profile: a map's load, a second map, piles, blasts). The 11 ms frame was most likely that, or the
+  machine; it did not come back.
+- **The world mesh**: 6 ms for the firing range as before, 37 ms with the T-junctions joined (below), once per map as
+  it loads, and now kept across a saved game, `restart`, switching the engine off and on (only a new map or
+  `vr_box3d_mesh_junctions` make it again).
+- **Growing Box3D's arrays**: its world is made with room for every edict as a body and 4096 contacts (no reallocation
+  in the frame a pile collapses); the step's touch list is kept (no allocation a frame).
+- **Teleporting a pile** (`vr_physics_pile` moving 52 sleeping bodies at once): 0.5-1.7 ms in `sync` that one frame
+  (each move wakes and re-inserts a body). Only the test commands do that.
+- **Kept:** 4 sub-steps (Box3D's recommended; 3 would save a quarter of the solve, and stacks of 9 stand at 4); Box3D's
+  sleep (0.5 s under 5 cm/s: a pile is asleep 3-4 s after it lands); `SV_LinkEdict` for every awake prop each frame
+  (its triggers, as the old solver's toss does).
+
+**The known gaps:**
+
+- **Monsters' shapes.** A monster (an alias model with a solid box) is the convex hull of its drawn model at rest
+  (frame 0, 24 vertices at most) turned with its yaw, not Quake's box: a grunt's 32-unit box was twice its body. One
+  shape for every frame (a shape made again as it animates would lose its contacts and touch again each time).
+  Tested: 3 cells boxes stacked 20 units from a grunt's middle stay there (Quake's box would have pushed them 8 units
+  out); boxes dropped on its head slide off its shoulders. Brush boxes (barrels) keep their box.
+- **Hanging pickups.** A pickup that is not a rigid body (hanging armour, the range's rack weapons: `FL_ITEM` and
+  `SOLID_TRIGGER`) is a kinematic body of its drawn hull: props rest on it and knock against it instead of passing
+  through. No touches (its touch is the player's pickup). A hand's knock still makes it a prop, as before.
+- **Explosions.** `T_RadiusDamage` calls a new builtin, `physicsblast(origin, damage)`: every prop within its reach
+  (damage + 40 units) that the blast sees (its middle or its top, as `CanDamage`) is thrown away from it, a little
+  upwards, at 4 units a second per point (`damage` less half the distance) for a health box's mass, lighter things
+  faster and heavier slower (the square root of the mass ratio, within half to twice), at most 600; through a point
+  under its middle, so that it tumbles. A rocket (120) at a pyramid of 6 health boxes: 430-450 u/s each, blown apart;
+  rockets boxes 90 units off: 250-300. Box3D only (engine 0 unchanged). `vr_physics_blast x y z [damage]` for tests.
+- **The player's push.** The capsule still pushes props (props don't block players: solid in Quake's movement, piles
+  would be walls, steps and traps, and every trace would change; not done), but at most at
+  `vr_box3d_player_push_speed` (2.5 m/s): the rest of a run's move it jumps, and the props it then overlaps are eased
+  out by Box3D's contact softness. Walking into a stack shoves it; running at it no longer kicks boxes ahead at 8 m/s.
+- **World-mesh seams.** Each drawn face's edges are checked against the BSP's vertices lying on them (within 0.1
+  unit), which are put into the edge: every seam is then an edge both triangles share, which Box3D's edge
+  identification smooths (no catching). The firing range: 3020 junctions in 1413 of 4407 faces, 14454 triangles
+  instead of 8608. A face with junctions is fanned from a corner with none on its two edges (else from its middle).
+  The same step time (A/B with `vr_box3d_mesh_junctions 0`).
+
+**Checked** (`scen.sh`, `hands.sh`): stacks of 4 and a pyramid of 6 stand and sleep; a shells box thrown into a stack
+knocks it over; the 52 in columns of 9 fall into a pile (one column of 9 left standing); the grunt's hull and boxes
+by and on it; a blast throwing a pyramid; the melee canary (`eval.sh`).
+
+**Debug views** (Carrying and Gibs > Debug; cvars, off by default, not saved; off, each costs one test a frame):
+
+- **Show Physics Shapes** (`vr_debug_physics_shapes`): every Box3D body's shapes as wireframes (hulls by their edges,
+  capsules by their rings), coloured by what it is and does: props awake green (fast, continuous: white), asleep blue;
+  held yellow; doors, plats, buttons purple; monsters orange; players cyan (your own faint); hanging pickups grey. A
+  prop's centre of mass (a dot), an awake one's contact points (red: pressed in, pink: apart). Also each hand's grab
+  probe (as `vr_debug_carry`: the thing's box, the nearest point of its surface, the reach; green in reach). Drawn
+  from the local server's bodies: a server frame ahead of the drawn models (a unit or two when fast).
+- **Show Hand Bones** (`vr_debug_hand_bones`): both jointed hands as drawn: the bones (the palm's middle to each
+  knuckle, then each finger's three joints to its tip; thumb red, index orange, middle yellow, ring green, little
+  blue), the joints (white); the spheres the grasp tests the hand as, against what it holds: green touching (within a
+  quarter of a unit), yellow near, red sunk in (with a line to the nearest point of the held thing), grey nothing
+  near; the palm's fit: its middle where the hand is (white) and where the grasp moved and turned it (cyan), the way
+  the palm faces (the cyan stroke), and the grip channel (magenta: where a handle lies in the curled fingers). A pose
+  that looks off: red spheres say where the hand is in the thing; a long white-cyan line, the palm pushed far to fit;
+  green on one side only, the thing held off-centre.
+
+**Not checked:** the headset; the menu page by hand (the cvars were); monsters' hulls for every monster (the grunt and
+the dummy seen); the mission packs' explosions (they call `T_RadiusDamage` too); the push speed in play.
 
 ## Carried box after loading a game
 
