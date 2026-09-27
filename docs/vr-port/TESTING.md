@@ -183,7 +183,12 @@ context and screenshot, ready to paste or to point me at.
     (Flashlight page, In the Hand: Low Grip / Overhead Grip); the beam is white by default (Beam Hue, Beam
     Saturation); wider offset sliders; Cord off hides the cord.
   - **Wrist gadget:** Screens > Messages (test button, messages only on the gadget), Graphics > Performance > FPS
-    Counter on the Gadget.
+    Counter on the Gadget (Off / Basic / Detailed: now, average, min/max, late frames, graphs).
+  - **Gadget on the forearm:** bending the wrist no longer turns it (body off: at all; body on: only as far as the
+    drawn forearm turns, which Body > Wrist Limits sets); rolling the hand turns it with the forearm.
+  - **Torch from the belt:** always in the overhead grip; off the head or a gun, the grip nearer its beam.
+  - **Gadget model:** olive straps all round the forearm, fitted to the bracer of your build; a seamed casing with
+    screws, buttons, an antenna and the hologram's emitter.
   - **Casings** splash in water; **beam quality** (Flashlight section).
   - **Two-handed props:** grip what one hand carries with the other to hold it in both: it moves and turns with both
     hands, and letting go of both together throws it (tumbling as your hands turned it). Let go of one and the other
@@ -648,3 +653,12 @@ Flashlight tuning (ROUND21.md, "Flashlight tuning"): `vr_show_flashlight_zones 1
 balls, each gun's capsule; green in reach) and the held torch's middle; `vr_flashlight_head_zone_*` and
 `vr_flashlight_gun_zone_*` move them, and `vr_flashlight_low_*` / `_high_*` `fingers`, `curl_*`, `thumb_across`,
 `overlap`, `bias_*`, `thumb_x/y/z` set each grip's fingers. `vr_debug_grasp 2` prints the torch grasp's finger stops.
+With `developer 1` a take logs the grip chosen ("flashlight: overhead grip (from the belt)"). In the mock (e1m1 start)
+the belt torch is reached with `vr_mock_fingers off 0 0; vr_mock_hand off -0.066 1.05 -0.072 -80 0 0; wait40;
+vr_mock_button off grip 1`.
+
+Wrist gadget: `vr_gadget_info` prints its screen's centre and axes (right = along the forearm, up, out). To bend the
+wrist in the mock without moving it, turn the controller about the wrist: the scratchpad's `gadget2/mkposes.py` makes
+such `vr_mock_hand` poses (flexion, deviation, twist about the forearm's own axes, from a straight wrist found by
+`straight.py`). `vr_gadget_fps 2` with `host_maxfps 45` or a `timerefresh` checks the Detailed counter's LATE and spikes
+(the mock doesn't tell a refresh: 90 Hz is assumed, and it paces at about 64 Hz, so every frame is late there).

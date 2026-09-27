@@ -112,8 +112,7 @@ struct State
     float nearHeadSide{-1.f};
 
     // Round 21: each hand's grip, flipped with its B/Y while held away from a gun: the low grip (false: the beam out of
-    // the thumb's side) or the overhead one (true: out of the little finger's side); kept for the next time that hand
-    // takes it.
+    // the thumb's side) or the overhead one (true: out of the little finger's side). Set as it is taken (chooseGrip).
     bool overhead[2]{};
     double flipAt[2]{-10.0, -10.0}; // realtime each hand's last flip began (its spin: flipTime)
 
@@ -792,9 +791,33 @@ void toggle(int hand)
     }
 }
 
+// The grip a hand takes the torch in (no spin: it is taken so):
+// - from the belt, always the overhead one: the torch hangs there lens down, and a hand coming down on it from above
+//   closes round it that way (the author's note);
+// - off the head or a gun, whichever keeps its beam nearer where it points now (the torch goes on shining ahead from
+//   the temple, or along the barrel, rather than turning over as it comes into the hand).
+void chooseGrip(int hand)
+{
+    bool overhead = true;
+    const char* why = "from the belt";
+    if(st.mode == Mode::OnHead || st.mode == Mode::OnGun)
+    {
+        const hands::State& s = hands::current();
+        const glm::vec3 beam = st.pose.rot * glm::vec3{1.f, 0.f, 0.f};
+        const float low = glm::dot(beam, handPoseTurned(s, hand, 0.f).rot * glm::vec3{1.f, 0.f, 0.f});
+        const float high = glm::dot(beam, handPoseTurned(s, hand, 1.f).rot * glm::vec3{1.f, 0.f, 0.f});
+        overhead = high > low;
+        why = st.mode == Mode::OnHead ? "off the head, nearer its beam" : "off the gun, nearer its beam";
+    }
+    st.overhead[hand] = overhead;
+    st.flipAt[hand] = -10.0;
+    Con_DPrintf("flashlight: %s grip (%s)\n", overhead ? "overhead" : "low", why);
+}
+
 void take(int hand)
 {
     Con_DPrintf("flashlight: taken in the %s hand\n", hand == HAND_MAIN ? "main" : "off");
+    chooseGrip(hand);
     st.mode = Mode::Held;
     st.holder = hand;
     haptic(hand, 0.05f, 0.45f);

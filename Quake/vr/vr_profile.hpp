@@ -81,6 +81,25 @@ struct PhaseSums
 
 // The runtime's display period (xrWaitFrame's predictedDisplayPeriod), in milliseconds.
 void noteDisplayPeriod(double ms);
+[[nodiscard]] double displayPeriodMs(); // (0: not known, the mock)
+
+// ---- The last frames, one by one (the wrist gadget's detailed counter, vr_gadget_fps 2) ----
+// A frame from the same phases (always timed): when it began (seconds, the steady clock of nowSeconds), its period (to
+// the next frame's start), our CPU work (the host frame less the runtime's and the swap's waits: the memory log's
+// busy_ms) and the eyes' GPU time (gpu_eyes_ms: read back a few frames later; -1 until then, or if it was dropped).
+// Hitches (frames over 250 ms, left out of the sums) are kept here: they are the worst spikes.
+struct FrameSample
+{
+    double time{0.0};
+    float periodMs{0.f};
+    float cpuMs{0.f};
+    float gpuMs{-1.f};
+};
+constexpr int frameHistorySize = 1024; // 7 s at 144 Hz
+
+// The `back`th newest frame kept (0 the newest); false past the oldest.
+[[nodiscard]] bool frameSample(int back, FrameSample& out);
+[[nodiscard]] double nowSeconds();
 
 class Scope
 {

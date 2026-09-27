@@ -43,6 +43,11 @@ void applyPre(const entity_t* e, bool mirrored, const glm::vec3* extra, float m[
         ApplyScale(m, 1.f, -1.f, 1.f);
     }
 
+    if(const view::ViewEntity* ve = view::find(e); ve && ve->scale != glm::vec3{1.f})
+    {
+        ApplyScale(m, ve->scale.x, ve->scale.y, ve->scale.z);
+    }
+
     if(extra)
     {
         // Tuned at the default scale, like the models they attach to.

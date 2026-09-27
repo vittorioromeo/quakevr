@@ -412,8 +412,8 @@ void resetHandMoves()
             .help("Record CPU and GPU time per effect into quakevr/profile/ every 5 seconds (and show the top costs over the wrist). Not kept after a restart."),
         cycle("Memory Log", "vr_memstats_log", {{0.f, "Off"}, {30.f, "Every 30 s"}, {60.f, "Every minute"}, {300.f, "Every 5 minutes"}})
             .help("Write memory use and the frame rate to quakevr/profile/memstats_<date>.csv, and after each map load."),
-        toggle("FPS Counter on the Gadget", "vr_gadget_fps")
-            .help("The wrist gadget's title line shows the frame rate and the CPU's and GPU's milliseconds a frame (our work, the eyes' drawing; not the runtime's waits), averaged over half a second."),
+        cycle("FPS Counter on the Gadget", "vr_gadget_fps", {{0.f, "Off"}, {1.f, "Basic"}, {2.f, "Detailed"}})
+            .help("Under the wrist gadget: the frame rate and the CPU's and GPU's milliseconds a frame (our work, the eyes' drawing; not the runtime's waits). Basic: one line, averaged over half a second. Detailed: now, the last quarter second's average, the last 5 seconds' least and most, the frames that missed a refresh (Late), and graphs of the last 3 seconds against the frame budget (the dotted line); figures over the budget are highlighted."),
     };
 }
 

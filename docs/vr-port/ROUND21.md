@@ -4595,3 +4595,232 @@ the summary's average and most are of those within 4 units of a floor); `vr_phys
   silver key". A key you have should knock and drop.
 - In the firing range the weapons on the tables should lie on them, none cut by the table top; drop and throw some.
 - Show Physics Shapes: the grey outlines of the hanging items should turn with them.
+
+## Gadget stats; gadget on the forearm; torch grip
+
+Three of your notes:
+
+- more on the gadget's FPS counter, as fpsVR shows it, to see spikes;
+- the gadget spinning when the wrist is bent hard: it should follow the forearm, not the hand;
+- the flashlight taken from the belt should always be in the overhead grip.
+
+Branch `agent/gadget2`. Composites and logs are in the scratchpad's `gadget2/final/`.
+
+### FPS counter: Detailed
+
+Graphics > Performance > **FPS Counter on the Gadget** is now **Off / Basic / Detailed** (`vr_gadget_fps` 0 / 1 / 2).
+Basic is the one line as before. Detailed:
+
+```
+ 90 FPS   90 HZ   0 LATE
+ MS  NOW  AVG  MIN  MAX
+CPU  5.2  5.1  4.8  7.9
+GPU  8.1  8.0  7.6 12.3
+CPU  (graph of the last 3 s)
+GPU  (graph of the last 3 s)
+```
+
+- **FPS:** frames a second over the last quarter second.
+- **HZ:** the headset's refresh, as the runtime says it (`-` in the mock).
+- **LATE:** frames in the last 5 s whose period ran over 1.25 refreshes. Each is a refresh the runtime filled by
+  showing the previous frame again (reprojected).
+  - OpenXR doesn't report reprojection itself under SteamVR. This counts the same thing from our side.
+  - The memory log's `slow_frames` uses the same test.
+- **CPU:** our work in the frame, without the runtime's and the swap's waits (the memory log's `busy_ms`).
+- **GPU:** the two eyes' drawing (`gpu_eyes_ms`).
+- **NOW:** the last frame. **AVG:** the last quarter second. **MIN** and **MAX:** the last 5 seconds.
+  - The GPU's NOW is a few frames old, because its timestamps are read back later.
+- **Budget:** one refresh period. The mock doesn't tell its refresh, so there 90 Hz is assumed.
+  - A figure over the budget sits on a lit block, and so does LATE when it isn't 0.
+- **Graphs:** the last 3 seconds, newest on the right.
+  - Each column shows the worst frame over it. A long frame covers every column it lasted, so a hitch is as wide as
+    it was.
+  - They go up to twice the budget. The dotted line is the budget. What's over it is brighter, with a lit top.
+- **Refresh:** the figures change four times a second, so they can be read. The graphs move twenty times a second.
+- **Size:** 26 characters wide, the same 5 mm characters as Basic, about 13 × 5 cm under the gadget, in the screen's
+  colour and the hologram's look.
+
+**How:** the phases timed every frame anyway (the memory log's) now also keep each frame in a ring of 1024 frames
+(`profile::frameSample`: 7 s at 144 Hz). A frame's GPU time is filled in when its timestamps come back. Hitches are
+kept too: they are the spikes you want to see. There is no new timing code.
+
+**Cost** (`run.sh --exclusive`, mock, e1m1, the gadget raised and facing the camera; 6 alternating 900-frame blocks each;
+`cost_log3.txt`):
+
+| | Off | Detailed |
+|---|---|---|
+| CPU `busy_ms` | 0.949 | 0.935 |
+| GPU `gpu_eyes_ms` | 0.383 | 0.397 |
+
+- The CPU difference is noise.
+- The GPU's +0.014 ms is the image being drawn again. `vr_profile` (`profile_final.csv`) shows:
+  - the image: 0.012 ms GPU and 0.003 ms CPU a frame on average, drawn 0.28 times a frame (at most 0.08 ms GPU);
+  - its quad in each eye: 0.005-0.006 ms, as in Basic.
+- An earlier 3-way run had two blocks with hitches of 0.2 s from outside the game. They landed in Detailed blocks
+  that followed another Detailed block, so no mode switch was involved. The 12-block rerun above had no hitches.
+
+**Tested** (`fps_states.png`, `fps_in_view.png`):
+- **Steady:** the mock paces at 64 Hz against the assumed 90 Hz budget, so every frame counts as LATE (about 320 in 5 s).
+- **`host_maxfps 45`:** the rate halves, and LATE drops with it (fewer frames).
+- **A 0.36 s spike from `timerefresh`:** CPU MAX 356 on a lit block, and a wide block in the CPU graph.
+  - The GPU graph has a gap there: the GPU isn't timed for a hitch frame.
+- **Basic:** unchanged.
+
+### The gadget follows the forearm
+
+**Why it spun:**
+- The gadget's axis was the forearm's, but its turn about the forearm came from the back of the hand, projected
+  across the forearm.
+- Bending the wrist tilted that projection. Past about 60° of extension, the back of the hand crossed the forearm's
+  plane and the projection flipped: the spin.
+- With the body off, the gadget followed the hand one to one.
+
+**Now** (`setupGadget` in `vr_view.cpp`, `avatar::forearmFrame` in `vr_avatar.cpp`):
+- **Along the forearm:** the gadget lies on the forearm's axis, from the elbow to the wrist.
+- **Its turn:** the forearm's own twist where the gadget sits.
+  - That is the twist joints' share of the hand's roll there, interpolated between the joints. The bracer under it
+    turns the same way.
+  - At the default place, 8.5 cm behind the wrist, the share is about two thirds.
+- **What moves it:**
+  - Rolling the hand turns the forearm, and the gadget with it.
+  - Flexion, extension and deviation don't turn it.
+- **Body off:** the arms are still solved with the same IK, but not drawn (`avatar::solveArms`: torso and arms, no legs
+  or skinning, 0.003 ms a frame). The gadget uses that forearm.
+  - Here the elbow doesn't swing to ease a bent wrist (Wrist Limits). There is no drawn arm to spare, and a real
+    forearm stays still while the hand bends.
+- **The armfix change:** the frame reads its twist joints (`foretwist1..4`) as posed. It stays right if those joints'
+  shares change.
+- **Along the Arm** still moves the gadget, and the twist is read at its new place.
+
+**Measured** (`gadget_bend_before_after.png`, `bend_*.txt`):
+- **The test:** the off hand turned about the wrist, which stays put, from a straight wrist. The bends are about the
+  forearm's own axes. The number is how far the gadget turned from the straight wrist.
+
+| Wrist | Before, body on | After, body on | Before, body off | After, body off | Before, Wrist Limits 0 | After, Wrist Limits 0 |
+|---|---|---|---|---|---|---|
+| flexion +60° | 19° | 20° | 60° | **3°** | 14° | **3°** |
+| extension 60° | 17° | 16° | 60° | **2°** | 16° | **2°** |
+| flexion +85° | 38° | 35° | 85° | **6°** | 47° | **6°** |
+| extension 80° | 36° | 33° | 80° | **4°** | 51° | **4°** |
+| deviation ±30° | 11°, 7° | 11°, 7° | 30° | **2°, 1°** | 3°, 2° | **2°, 1°** |
+| flexion 60° + deviation 30° | 37° | 34° | 67° | **12°** | 35° | **12°** |
+| twist ±45° | 49°, 46° | 40°, 34° | 45° | 31°, 34° | 45°, 46° | 31°, 34° |
+
+- **Body off, and Wrist Limits 0:** a bent wrist hardly moves the gadget now.
+  - What is left is the IK's elbow moving a little with the hand, the forearm's own axis by 2-6°.
+  - Before, extreme bends turned it 47-51° (the flip).
+- **Twist:** it follows at the forearm's share (two thirds) instead of all of the hand's roll.
+- **Body on with Wrist Limits 1 (yours): not fixed, and not by the gadget.**
+  - The armfix change swings the elbow when a bend strains the wrist. The drawn forearm itself then turns 16-34° for
+    these bends, and the gadget sits on it.
+  - The gadget's own turn now equals the forearm's (the "axis" figures in `bend_after_on.txt`). Before, it was the
+    forearm's turn plus the projection's.
+  - For the gadget to stay put, the IK would have to leave the forearm alone for ordinary bends. That is the
+    armfix agent's area. Lowering Body > Wrist Limits is the knob until then.
+  - Recommended: have that swing respond to roll only, or start later for flexion.
+
+### Flashlight: the grip it is taken in
+
+- **From the belt, always the overhead grip:**
+  - This is whatever that hand held it in last.
+  - It also applies if the hand catches the torch on its cord on the way back to the belt.
+  - The torch hangs lens down there, and a hand coming down on it closes round it that way.
+- **Off the head or a gun:** the grip that keeps its beam nearer where it points now.
+  - From a temple it goes on lighting ahead, and from a gun along the barrel, instead of turning over as it comes
+    into the hand.
+  - The choice depends on how the hand comes at it. In the mock, taking it off a temple with the hand held four
+    arbitrary ways, the grip picked was the nearer of the two every time (the beam then 40-100° off, as those
+    orientations allowed; a hand closing round the tube naturally leaves one grip close to it).
+  - A hand under the shotgun like a foregrip took the low grip: its beam at 0.81/-0.59 against the gun's
+    0.77/-0.64, the same line. Held across the gun, the overhead or the low grip, whichever was nearer.
+- **In the hand:** B/Y still flips the grip.
+- **No spin:** the torch arrives in the chosen grip; it isn't flipped into it.
+- **Logging:** `developer 1` prints the grip chosen and why.
+
+**Tested** (`torch_belt_before_after.png`, the off hand, from the side):
+- **First take from the belt:** before, the low grip; after, the overhead one.
+- **B/Y flip, let go, take again:** after, overhead again every time. Before, it kept the grip it was let go in.
+- **Head and gun:** the takes above are in the log only; their placement wasn't composited.
+
+### The gadget remodelled: straps round the forearm
+
+Your note: "improve the wrist gadget model: straps that circle the entire forearm instead of the small bits of metal,
+and a bit more interesting, the same art style and dimensions."
+
+**The straps** (`vrgadget_strap.mdl`, `make_gadget.py`):
+- Two leather bands go all the way round the forearm, under the casing's ends. Each has a buckle and two rivets on
+  the little finger's side.
+- They are separate from the casing and follow the forearm itself:
+  - its frame where each band sits, turning with the forearm's twist there, as the bracer does;
+  - not your offsets and turns of the gadget. The casing rests on them.
+- **Fitted to your build** (`avatar::forearmGirth`: make_vrbody.py's bracer rings, lean, athletic or brawny):
+  - Each band sits 1.5 mm off the bracer's ellipse there. The bracer's 12-sided rings lie inside that ellipse, so a
+    band never sinks in.
+  - The bracer narrows from its cuff to the wrist, so a band is a cone as steep as the bracer under it.
+  - The band model's frame 1 is the steepest cone. The engine blends it towards frame 0, a cylinder, by the bracer's
+    taper there (the zero blend).
+- **Body off:** the athletic forearm's size, round the forearm the gadget uses (the same IK).
+- **Scaled exactly:** view entities gained an exact per-axis scale (`ViewEntity::scale`, applied in
+  `vr_render.cpp`). An entity's own scale is a byte in sixteenths.
+
+**The casing** (`vrgadget.mdl`, the same 3.8 × 2.6 × 0.7 outline, the same screen and bezel):
+- a lower shell and a lid, parted by a dark seam;
+- four screws in the lid at the ends;
+- the two dials on the right end, as before;
+- two buttons on the lower side;
+- grip grooves across the left end;
+- a short antenna on the left end;
+- the hologram's emitter: a slot of dark glass in a metal frame along the top edge, over the screen, where the
+  hologram rises;
+- under it, two riveted lugs that the straps pass under.
+
+The old strap stubs are gone. 26 closed pieces, 720 triangles (the strap: 272).
+
+**Anchors:**
+- The screen, the hologram and the FPS text are placed by code from the same numbers (`screenRect`, `screenCentre`,
+  `gadgetTop`), which don't change.
+- The model's screen and bezel corners, decoded from the old and new files, are the same within the file's grid
+  (0.007 model units, 0.2 mm).
+
+**Also fixed: the gadget drawn at its exact size.**
+- The casing was drawn at the entity's byte scale, rounded down to sixteenths, while the screen's image used the exact
+  scale.
+- At Size 1.3 with world scale 1 (scale 1.04), the casing was drawn 4% small under its screen.
+- It now uses the exact scale too.
+
+**Checks:**
+- `check_mdl_holes.py`: both models ok (no open loops, cracks or flipped edges).
+- Composites: `gadget_model_before_after.png` (your view with the gadget raised; from the top side, the lower side
+  and underneath; lean, athletic, brawny and body off; before and after), and `model_after_defaults.png` (the shipped
+  placement: Size 1.3, turned 35° and moved across: the casing turns on the straps, which stay round the forearm).
+- Not verified: just past the bracer's cuff (Along the Arm towards the elbow) a strap keeps the cuff's size, up to
+  3 mm off the skin there.
+
+**In the headset:**
+- [ ] Look at the gadget from all sides and twist your forearm: do the straps hug the bracer, without gaps or
+      poking through, for your build?
+
+### Not verified
+
+- **Legibility in the headset:** only checked in the mock, at 960 × 540. The Detailed counter is denser than the Basic
+  line.
+- **LATE on a real runtime:** needs a real refresh period (SteamVR). In the mock every frame counts as late against
+  the assumed 90 Hz.
+- **The gadget with your hands:** the bends were simulated by turning the controller about the wrist. Your real
+  forearm may differ from the IK's.
+
+### In the headset
+
+- [ ] **Detailed counter:** Graphics > Performance > FPS Counter on the Gadget > Detailed.
+  - [ ] Readable at arm's length?
+  - [ ] Does HZ show your refresh?
+  - [ ] Is LATE 0 when it feels smooth, and does it rise when it stutters?
+  - [ ] Load a big map, or turn on something heavy: the spike should show in MAX and in the graph.
+- [ ] **Wrist bends:** raise the gadget and bend your wrist hard up, down and sideways. With the body on, it turns only
+      as much as the drawn forearm does.
+  - [ ] Try Body > Wrist Limits at 0: the gadget should then stay put.
+  - [ ] Then roll your hand: the gadget turns with the forearm.
+- [ ] **Body off:** the same bends barely move it.
+- [ ] **Torch grips:**
+  - [ ] Take the torch from the belt after flipping it to the low grip: it comes in the overhead grip.
+  - [ ] Take it off your head and off a gun: does the grip it comes in feel right?

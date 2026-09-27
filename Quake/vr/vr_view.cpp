@@ -209,6 +209,7 @@ struct Entities
     view::ViewEntity pauldron[2];    // per side of the body (0 left): the cap,
     view::ViewEntity pauldronArm[2]; // and the lames round the upper arm
     view::ViewEntity gadget;
+    view::ViewEntity gadgetStrap[2]; // round the forearm under its lugs (the elbow's side, the wrist's)
     view::ViewEntity flashlight; // vr_flashlight.cpp
     view::ViewEntity button[2];
     view::ViewEntity ghost[2]; // the motion review's ghost of a take's weapons (view::setGhost)
@@ -250,6 +251,8 @@ void forEachEntity(F&& f)
         f(entities.pauldronArm[side]);
     }
     f(entities.gadget);
+    f(entities.gadgetStrap[0]);
+    f(entities.gadgetStrap[1]);
     f(entities.flashlight);
     for(view::ViewEntity& ve : entities.button)
     {
@@ -353,6 +356,7 @@ void place(view::ViewEntity& ve, qmodel_t* model, const glm::vec3& origin, const
     }
 
     ve.mirrored = mirrored;
+    ve.scale = glm::vec3{1.f};
     ve.visible = model != nullptr;
 }
 
@@ -3160,13 +3164,28 @@ void setupWorldWeapons(const hands::State& s, bool queueTexts)
     return hp;
 }
 
+// The build of the body drawn this frame (0 lean, 1 athletic, 2 brawny; the wrist gadget's straps fit its bracer).
+int drawnBuild = 1;
+
 // The wrist gadget (vr_hud_mode 1): over the back of the off hand's forearm, just behind the
 // wrist, its screen facing out of the back of the hand like a watch's. It reads like one: with
 // the forearm raised across the chest, its right is towards the fingers (the left arm's; the
 // right arm's, towards the elbow) and its up away from the player.
+//
+// It is strapped to the forearm, not the hand: along the forearm's axis (the elbow to the wrist), turned about it
+// with the forearm's own twist where it sits (the body's twist joints: a share of the hand's roll growing from the
+// elbow to the wrist, as the bracer under it turns). Bending the wrist (up, down or to the sides) doesn't move it;
+// rolling the hand turns the forearm and the gadget with it. Without the body drawn, the arms are solved all the same
+// (avatar::solveArms, the same IK) for their forearms.
+//
+// Two straps (vrgadget_strap.mdl) hold it round the forearm under its lugs: in the forearm's own frame there (the
+// twist joints' turn), sized to the bracer's ring of the body's build (avatar::forearmGirth; the athletic one without
+// a body) a millimetre and a half out, as a cone as the bracer narrows (frame 1 blended towards frame 0's cylinder).
+// They follow the forearm, not the player's offsets and turns of the gadget, which rests on them.
 void setupGadget(const hands::State& s)
 {
     view::ViewEntity& ve = entities.gadget;
+    entities.gadgetStrap[0].visible = entities.gadgetStrap[1].visible = false;
     if(!gadget::active())
     {
         ve.visible = false;
@@ -3175,17 +3194,36 @@ void setupGadget(const hands::State& s)
     }
 
     const int hand = vr_gadget_hand.value != 0.f ? HAND_MAIN : HAND_OFF;
+    const bool leftArm = (hand == HAND_OFF) == (vr_lefthanded.value == 0.f);
     const avatar::HandPose hp = drawnHand(s, hand);
+    const float body = units::bodyScale();
+    const float m2w = units::metresToUnits() * body;
+
+    // Where along the forearm it sits: 8.5 cm behind the wrist, and the player's Along the Arm (towards the fingers
+    // on the left arm).
+    const float behind = 0.085f * m2w - vr_gadget_x.value * 0.01f * m2w * (leftArm ? 1.f : -1.f);
+    avatar::ForearmFrame fa;
+    bool onForearm = avatar::forearmFrame(hand, 0.f, fa);
+    const int build = onForearm ? drawnBuild : 1; // (the body's, if it was posed)
+    glm::vec3 elbow = fa.point;
+    if(!onForearm)
+    {
+        const avatar::HandPose handPoses[2] = {drawnHand(s, 0), drawnHand(s, 1)};
+        avatar::solveArms(s, handPoses);
+        onForearm = avatar::forearmFrame(hand, 0.f, fa);
+        elbow = fa.point;
+    }
     glm::vec3 wrist = hp.wrist;
     glm::vec3 dir = hp.forward;
-    if(glm::vec3 w, d; avatar::forearm(hand, w, d))
+    glm::vec3 back = hp.back;
+    if(onForearm && fa.length > 1e-3f && avatar::forearmFrame(hand, 1.f - behind / fa.length, fa))
     {
-        wrist = w;
-        dir = glm::normalize(d);
+        dir = fa.axes[0];
+        wrist = fa.point + dir * behind;
+        back = fa.axes * (glm::transpose(fa.hand) * hp.back); // the back of the hand, carried by the forearm there
     }
 
-    const bool leftArm = (hand == HAND_OFF) == (vr_lefthanded.value == 0.f);
-    glm::vec3 out = hp.back - dir * glm::dot(hp.back, dir);
+    glm::vec3 out = back - dir * glm::dot(back, dir);
     if(glm::length(out) < 1e-4f)
     {
         ve.visible = false;
@@ -3197,8 +3235,6 @@ void setupGadget(const hands::State& s)
     const glm::vec3 screenUp = glm::cross(out, right);
 
     // Sized with the body (make_gadget.py's units are at vr_world_scale 1.25, eyes at 1.646 m).
-    const float body = units::bodyScale();
-    const float m2w = units::metresToUnits() * body;
     const float scale = vr_world_scale.value / 1.25f * body * CLAMP(0.25f, vr_gadget_scale.value, 3.f);
 
     // The player's own placement: offsets in cm and turns in degrees, in the device's axes.
@@ -3223,12 +3259,43 @@ void setupGadget(const hands::State& s)
 
     const glm::vec3 a = hands::anglesFromVectors(pose.axes[0], pose.axes[2]);
     place(ve, viewModel("progs/vrgadget.mdl"), pose.origin, {-a.x, a.y, a.z}, 0, false);
-    ve.ent.scale = static_cast<unsigned char>(CLAMP(1.f, scale * ENTSCALE_DEFAULT, 255.f));
+    ve.scale = glm::vec3{scale}; // exact: the screen's image is drawn at this scale over it
 
     // The casing's tint: its lighting times a colour.
     const float tint = CLAMP(0.f, vr_gadget_tint.value, 1.f);
     ve.lightMultiply = tint > 0.f;
     ve.lightMod = glm::mix(glm::vec3{1.f}, hsv(vr_gadget_tint_hue.value, 1.f, 1.f) * 1.4f, tint);
+
+    // The straps, under the lugs (make_gadget.py: x -+1.25, the band 0.3 either side of it).
+    if(!onForearm || fa.length <= 1e-3f)
+    {
+        return;
+    }
+    constexpr float strapTaper = 0.6f; // make_gadget.py's STRAP_TAPER
+    constexpr float margin = 0.0015f;  // metres off the bracer
+    qmodel_t* strapModel = viewModel("progs/vrgadget_strap.mdl");
+    const float halfWidth = 0.3f * scale;
+    for(int i = 0; i < 2; i++)
+    {
+        const glm::vec3 lug = pose.origin + pose.axes * (glm::vec3{i == 0 ? -1.25f : 1.25f, 0.f, -0.47f} * scale);
+        const float along = glm::dot(lug - elbow, dir) / fa.length;
+        avatar::ForearmFrame sf;
+        if(!avatar::forearmFrame(hand, along, sf))
+        {
+            continue;
+        }
+        const float edge = halfWidth / fa.length;
+        float wu, wv, eu, ev; // the bracer's semi-axes at the band's wrist edge and elbow edge
+        avatar::forearmGirth(build, along + edge, wu, wv);
+        avatar::forearmGirth(build, along - edge, eu, ev);
+        wu += margin, wv += margin, eu += margin, ev += margin;
+        const float taper = CLAMP(0.f, std::max(eu / wu, ev / wv) - 1.f, strapTaper);
+        view::ViewEntity& strap = entities.gadgetStrap[i];
+        const glm::vec3 sa = hands::anglesFromVectors(sf.axes[0], sf.axes[2]);
+        place(strap, strapModel, sf.point, {-sa.x, sa.y, sa.z}, 1, false);
+        strap.scale = {halfWidth, wv * m2w, wu * m2w}; // model y: the frame's y (the ring's other axis), z: its hint
+        strap.zeroBlend = 1.f - taper / strapTaper;    // frame 1 (the cone) towards frame 0 (the cylinder)
+    }
 }
 
 // Quad damage: electric arcs crawling over the hands and forearms, reshaped every frame (the same
@@ -3356,6 +3423,7 @@ void setupBody(const hands::State& s)
     const int mode = static_cast<int>(vr_body_mode.value);
     entities.body.visible = false;
     avatar::hide();
+    drawnBuild = 1;
 
     // Not while dead (the view lies on the floor) or at the end of a level.
     const bool alive = cl.stats[STAT_HEALTH] > 0 && !cl.intermission;
@@ -3371,6 +3439,7 @@ void setupBody(const hands::State& s)
         }
         if(avatar::usable(model))
         {
+            drawnBuild = model == viewModel("progs/vrbody.mdl") ? 1 : CLAMP(0, build, 2);
             const avatar::HandPose handPoses[2] = {drawnHand(s, 0), drawnHand(s, 1)};
 
             view::ViewEntity& ve = entities.body;
@@ -4168,7 +4237,7 @@ extern "C" void VR_SetupViewEntities()
     if(vr_body_powerups.value && (cl.items & IT_INVISIBILITY))
     {
         forEachEntity([](view::ViewEntity& ve) {
-            if(&ve != &entities.gadget)
+            if(&ve != &entities.gadget && &ve != &entities.gadgetStrap[0] && &ve != &entities.gadgetStrap[1])
             {
                 ve.ent.alpha = ENTALPHA_ENCODE(0.3f);
             }
