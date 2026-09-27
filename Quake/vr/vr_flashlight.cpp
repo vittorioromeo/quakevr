@@ -723,6 +723,23 @@ void noteIntent(const hands::State& s)
         case body::HS_NONE: return false;
         case body::HS_OFFHAND_2H_GRAB:
         case body::HS_MAINHAND_2H_GRAB:
+        {
+            // The two-handed grip's hotspot is anywhere 5-25 units from the other hand. A gun held by its fitted grips
+            // (s.grip2HValid) is taken there only (vr_twohand.cpp: within 5.5 units of the grip, less its bias; here
+            // with a margin): a gun held at the ready no longer keeps the other hand from the belt's torch (round 21,
+            // flashlight tuning: the grip there did nothing at all).
+            const int other = 1 - hand;
+            if(handEmpty(other))
+            {
+                return false;
+            }
+            if(!s.grip2HValid[other])
+            {
+                return true;
+            }
+            const glm::vec3 from = s.grip2HPalm[other] ? hands::palmPoint(s, hand) : s.pos[hand];
+            return glm::distance(from, s.grip2H[other]) - s.grip2HBias[other] < 8.f;
+        }
         case body::HS_HAND_SWITCH:
         case body::HS_CARRIED_GRIP: return !handEmpty(1 - hand); // (with nothing in the other hand, nothing to take)
         case body::HS_LEFT_SHOULDER_HOLSTER: holster = body::LeftShoulder; break;
@@ -1573,6 +1590,11 @@ bool button(int hand, Button b, bool pressed)
     if(atLamp && (st.mode == Mode::Mounted || st.mode == Mode::Returning) && gameGripWins(s, hand))
     {
         atLamp = false; // a two-handed grip, a draw from the holster next to it
+        if(pressed)
+        {
+            Con_DPrintf("torch press ignored: the %s hand's is the game's (hotspot %d%s)\n", hand == HAND_MAIN ? "main" : "off",
+                static_cast<int>(s.hotspot[hand]), otherWeaponNear(s, hand) ? ", at the other hand's weapon" : "");
+        }
     }
 
     if(b == Button::Secondary)
