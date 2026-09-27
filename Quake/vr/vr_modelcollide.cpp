@@ -1033,6 +1033,11 @@ void reset()
         last[hand] = Result{};
     }
     posedCache.clear();
+    // The models' triangles and samples too, made again as needed: a brush submodel's slot and name (*N) are the next
+    // map's, and a slot reused by another game's model of the same name may have other vertices (the old triangles'
+    // indices past the new ones' end).
+    modelTris.clear();
+    samplesCache.clear();
     appliedFrame = -1;
     lastTime = -1.0;
 }

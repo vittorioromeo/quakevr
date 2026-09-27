@@ -536,7 +536,7 @@ is the most useful thing to send me along with a description. In particular:
 
 `vr_backend mock; vr_enabled 1` runs everything with a pretend headset. `vr_mock_button <main|off> <trigger|grip|primary|secondary|stickclick|menu> <0|1>`,
 `vr_mock_stick <main|off> <x> <y>` `vr_mock_hand <main|off|head> <x> <y> <z> [<pitch> <yaw> <roll>]` and `vr_mock_look <pitch> <yaw>` drive it; `vr_mock_swing <period>`
-swings the main hand for throwing tests. `vr_mock_fingers <main|off> <trigger> <grip> [<thumb>]` sets the finger
+swings the main hand for throwing tests. `vr_particle_seed <n>` (not 0) makes the particles the same in every run (their random numbers restart from it at each map), for comparing images. `vr_mock_fingers <main|off> <trigger> <grip> [<thumb>]` sets the finger
 sensors (0..1); a fifth argument sets the index finger's touch on the trigger.
 
 Fitted hands (round 21): `impulse 252` puts a gib or a head (nine kinds in turn) in the empty off hand; `impulse 253`

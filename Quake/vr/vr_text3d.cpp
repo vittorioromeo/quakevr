@@ -616,6 +616,20 @@ void layoutBoard(size_t index, const worldtext::WorldText& wt)
 // The boards' images whose text or palette changed (renderScreens).
 void renderBoards()
 {
+    // A board of an earlier map that this one has not laid out (layoutBoard gives a board of this map its map): its
+    // image freed (up to 8 MB of VRAM each, else held for the rest of the session by the most boards any map had), and
+    // not drawn again (while the next map loads, the scene is not laid out: `wanted` is the last map's).
+    for(Board& b : boards)
+    {
+        if(b.map != cl.worldmodel)
+        {
+            b.wanted = false;
+            if(b.target.texture)
+            {
+                gfx::releaseTarget(b.target);
+            }
+        }
+    }
     if(boardCrt() <= 0.f)
     {
         return;
