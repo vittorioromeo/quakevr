@@ -15,6 +15,8 @@
 #include <array>
 #include <cmath>
 #include <cstring>
+#include <string>
+#include <vector>
 
 namespace qvr::avatar
 {
@@ -818,15 +820,29 @@ void solveLeg(Body& b, const glm::vec3& head, int side, bool shown, glm::mat3& s
     }
 }
 
-// Model bone index of each joint, for the last model checked.
+// Model bone index of each joint, per model checked (a few: the builds' bodies, their fallback): a table, so that a
+// missing build's fallback isn't checked again every frame.
 struct ModelInfo
 {
     const qmodel_t* model{nullptr};
+    std::string name; // the model's (its slot is reused by another after a game change)
     bool usable{false};
     std::array<int, JointCount> boneOf{};
 };
 
-ModelInfo info;
+std::vector<ModelInfo> infos;
+
+[[nodiscard]] const ModelInfo* infoOf(const qmodel_t* model)
+{
+    for(const ModelInfo& i : infos)
+    {
+        if(i.model == model && (!model || i.name == model->name))
+        {
+            return &i;
+        }
+    }
+    return nullptr;
+}
 
 // The pose being drawn: skinning matrices in model bone order (the model has JointCount bones).
 struct Posed
@@ -911,15 +927,25 @@ bool Follower::thigh(int side, ThighMotion& out) const
     return true;
 }
 
+void reset()
+{
+    infos.clear();
+}
+
 bool usable(qmodel_t* model)
 {
-    if(model == info.model)
+    if(const ModelInfo* known = infoOf(model))
     {
-        return info.usable;
+        return known->usable;
     }
-
-    info = ModelInfo{};
+    if(infos.size() >= 16)
+    {
+        infos.clear(); // not expected: a handful of models at most
+    }
+    infos.emplace_back();
+    ModelInfo& info = infos.back();
     info.model = model;
+    info.name = model ? model->name : "";
     if(!model || model->type != mod_alias)
     {
         return false;
@@ -1023,6 +1049,12 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
     const float k = b.m2w / UNITS;
     const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(model));
     const auto* bones = reinterpret_cast<const boneinfo_t*>(reinterpret_cast<const byte*>(hdr) + hdr->boneinfo);
+    const ModelInfo* modelInfo = infoOf(model);
+    if(!modelInfo || !modelInfo->usable)
+    {
+        return origin; // not checked (usable() first) or not usable
+    }
+    const std::array<int, JointCount>& boneOf = modelInfo->boneOf;
 
     for(int j = 0; j < JointCount; j++)
     {
@@ -1031,7 +1063,7 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
                                            glm::vec3{0.f, bone.size, 0.f}, glm::vec3{0.f, 0.f, bone.size}};
         const glm::vec3 t = (bone.pos - origin) / k;
 
-        const int i = info.boneOf[j];
+        const int i = boneOf[j];
         const float* inv = bones[i].inverse.mat;
         float* out = &posed.skin[i * 12];
         for(int row = 0; row < 3; row++)

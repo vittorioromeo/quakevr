@@ -406,6 +406,30 @@ glm::vec3 posedVertex(const entity_t& ent, int anchorIndex, float zeroBlend)
     return glm::mix(posed, poseVertex(hdr, zeroPose(hdr), vertex), zeroBlend);
 }
 
+bool posedVertices(const entity_t& ent, float zeroBlend, std::vector<glm::vec3>& rest, std::vector<glm::vec3>& now)
+{
+    rest.clear();
+    now.clear();
+    if(!ent.model || ent.model->type != mod_alias)
+    {
+        return false;
+    }
+    const aliashdr_t* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(ent.model));
+    if(hdr->poseverttype != aliashdr_t::PV_QUAKE1 || !hdr->vertexes)
+    {
+        return false;
+    }
+    const int zero = zeroPose(hdr);
+    rest.resize(hdr->numverts);
+    now.resize(hdr->numverts);
+    for(int v = 0; v < hdr->numverts; v++)
+    {
+        rest[v] = poseVertex(hdr, zero, v);
+        now[v] = glm::mix(drawnVertex(ent, hdr, v), rest[v], CLAMP(0.f, zeroBlend, 1.f));
+    }
+    return true;
+}
+
 namespace
 {
 

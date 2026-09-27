@@ -78,11 +78,20 @@ void pose(const Pose& p, Posed& out);
 // vertices only (data::firstVertex[finger] ..).
 void poseFinger(const Pose& p, int finger, const float curls[jointsPerFinger], Posed& out);
 
+// Only the segments of that finger (no vertices: the grasp solver's fast path).
+void fingerSegments(const Pose& p, int finger, const float curls[jointsPerFinger], Rigid out[jointsPerFinger + 1]);
+
+// The largest turn (radians) a joint makes per curl frame, over its path.
+[[nodiscard]] float jointRate(int finger, int joint);
+
 // The palm's vertices (data::palmVertices) with the thenar following the metacarpal.
 [[nodiscard]] glm::vec3 palmVertex(const Posed& posed, int i);
 
 // Skinning matrices (3x4 row-major, as bonepose_t) for progs/hand_rig.md5mesh's joints.
 void skin(const Posed& posed, float out[data::numJoints * 12]);
+
+// Forgets the model checked (a game directory change reuses its slot).
+void reset();
 
 // Whether `model` is the rig with the joints these tables expect (else the six models are drawn).
 [[nodiscard]] bool usable(qmodel_t* model);

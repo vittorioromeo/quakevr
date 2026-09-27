@@ -427,14 +427,14 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
 {
     return {
         toggle("Chest Flashlight", vr_flashlight)
-            .help("A torch hanging on your chest (lighting only your feet there). Trigger at it: on or off. Grip it with an empty hand to take it; let go and it springs back. In your hand: B or Y by a gun clips it on the gun, at your head on your head (a head torch), elsewhere turns it round (low grip or overhead)."),
+            .help("A torch hanging on your belt, on your off hand's side (lighting only your feet there). Trigger at it: on or off. Grip it with an open, still hand to take it (a fist closing by it in a fight does nothing); let go and it springs back. In your hand: B or Y by a gun clips it on the gun, at your head on your head (a head torch), elsewhere turns it round (low grip or overhead)."),
         slider("Brightness", vr_flashlight_brightness, 0.25f, 2.5f, 0.05f, "%.2fx"),
         slider("Range", vr_flashlight_range, 300.f, 2000.f, 50.f, "%.0f"),
         slider("Visible Beam", vr_flashlight_beam, 0.f, 1.f, 0.05f, "%.2f").help("A soft cone of light in the air from the lamp (0: none)."),
         cycle("Beam Quality", vr_flashlight_beam_quality, {{0.f, "Low"}, {1.f, "Medium"}, {2.f, "High"}})
             .help("How closely the visible beam fades where walls cut it. Higher looks for them more often, costing more time each frame."),
         toggle("Casts Shadows", vr_flashlight_shadows).help("Its light casts shadows (takes one of the shadowed dynamic lights)."),
-        slider("Lean Out", vr_flashlight_tilt, -10.f, 30.f, 1.f, "%.0f deg").help("How far the stored torch, hanging on your chest lens down, leans its lens out from your body."),
+        slider("Lean Out", vr_flashlight_tilt, -10.f, 30.f, 1.f, "%.0f deg").help("How far the stored torch, hanging on your belt lens down, leans its lens out from your body."),
         slider("Forward", vr_flashlight_forward, -0.05f, 0.05f, 0.005f, "%.3f m"),
         slider("Up", vr_flashlight_up, -0.15f, 0.15f, 0.01f, "%.2f m"),
         slider("Out", vr_flashlight_out, -0.08f, 0.08f, 0.01f, "%.2f m").help("Towards your off hand's side."),
@@ -773,7 +773,7 @@ std::vector<Item> pageMain()
         action("Set Height Now", calibrateHeight),
         slider("World Scale", vr_world_scale, 0.75f, 1.5f, 0.05f, "%.2f"),
         slider("Floor Offset", vr_floor_offset, -40.f, 10.f, 1.f, "%.0f"),
-        toggle("Chest Flashlight", vr_flashlight).help("Trigger with a hand at the torch on your chest switches it; grip takes it. B or Y clips it on a gun or on your head."),
+        toggle("Chest Flashlight", vr_flashlight).help("A torch on your belt (off hand side): trigger at it with an open hand switches it; grip takes it. B or Y clips it on a gun or on your head."),
 
         header("Weapons"),
         slider("Gun Angle", vr_gunangle, -30.f, 90.f, 2.5f, "%.1f"),
@@ -865,6 +865,15 @@ void weaponOffsetsOtherHand()
     showPage(pageIndex(pageWeaponOffsets));
 }
 
+int weaponOffsetsHeldSlot = -1; // the weapon in the hand (weaponOffsetsSlot: the one edited: what it inherits from)
+int weaponOffsetsInherit = -1;
+
+void weaponOffsetsStopInheriting()
+{
+    weapons::stopInheriting(weaponOffsetsHeldSlot);
+    weaponOffsetsStale = true;
+}
+
 void weaponOffsetsReset()
 {
     weapons::resetSlotToDefaults(weaponOffsetsSlot);
@@ -901,7 +910,10 @@ void weaponOffsetsHotspotAtHand()
             weaponOffsetsHand == 1 ? "main" : "off");
         return;
     }
-    h.type = weapons::HotspotType::Grip;
+    if(!weapons::isGripType(h.type))
+    {
+        h.type = weapons::HotspotType::Grip; // a grip or a cup stays what it is
+    }
     h.pos = p;
     weapons::setHotspot(slot, editedHotspot(), h);
     weaponOffsetsStale = true;
@@ -939,6 +951,31 @@ std::vector<Item> pageWeaponOffsets()
 
     const char* model = weapons::cvar(slot, Key::ID)->string;
     title = std::string(hand) + ": " + model + " (_" + (slot + 1 < 10 ? "0" : "") + std::to_string(slot + 1) + ")";
+
+    // A weapon inheriting another's settings (InheritFrom: the other ammo's model): the page edits those.
+    const int heldSlot = slot;
+    weaponOffsetsHeldSlot = heldSlot;
+    weaponOffsetsInherit = weapons::inheritsFrom(heldSlot);
+    static std::string inheritTitle;
+    static std::vector<std::pair<float, std::string>> inheritNames;
+    if(weaponOffsetsInherit >= 0)
+    {
+        slot = weaponOffsetsInherit;
+        weaponOffsetsSlot = slot;
+        inheritTitle = std::string("Settings of ") + weapons::cvar(slot, Key::ID)->string + " (inherited)";
+    }
+    inheritNames.clear();
+    inheritNames.push_back({0.f, "None"});
+    for(int other = 0; other < weapons::numSlots; other++)
+    {
+        const char* id = weapons::cvar(other, Key::ID)->string;
+        if(other != heldSlot && other != weapons::fistSlot() && id[0] && strcmp(id, "-1") != 0)
+        {
+            const char* base = strrchr(id, '/');
+            inheritNames.push_back({static_cast<float>(other + 1), base ? base + 1 : id});
+        }
+    }
+
     const auto s = [&](const char* label, Key key, float min, float max, float step, const char* format) {
         return slider(label, weapons::cvar(slot, key), min, max, step, format);
     };
@@ -947,6 +984,25 @@ std::vector<Item> pageWeaponOffsets()
         header(title.c_str()),
         action("Edit the Other Hand's Weapon", weaponOffsetsOtherHand)
             .help("The page shows the weapon the hand held when it was opened: reopen it after changing weapons."),
+    };
+    if(!fist)
+    {
+        std::vector<Choice> choices;
+        for(const auto& [v, name] : inheritNames)
+        {
+            choices.push_back({v, name.c_str()});
+        }
+        list.push_back(cycle("Inherit From", weapons::cvar(heldSlot, Key::InheritFrom), std::move(choices))
+                           .help("Use another weapon's settings (its placement, fingers, hotspots, muzzle, screen): the other "
+                                 "ammo's model, set once for both. This page then edits that weapon's."));
+        if(weaponOffsetsInherit >= 0)
+        {
+            list.push_back(header(inheritTitle.c_str()));
+            list.push_back(action("Stop Inheriting (Copy Them Here)", weaponOffsetsStopInheriting)
+                               .help("This weapon gets its own copy of the settings it inherits, to change apart."));
+        }
+    }
+    list.insert(list.end(), {
         header(fist ? "The Hand" : "Weapon in the Hand"),
         s("Offset X (forward)", Key::OffsetX, -30.f, 30.f, 0.1f, "%.2f")
             .help(fist ? "Moves the drawn hand." :
@@ -959,7 +1015,7 @@ std::vector<Item> pageWeaponOffsets()
         s("Roll", Key::Roll, -180.f, 180.f, 0.5f, "%.1f"),
         s("Scale", Key::Scale, 0.1f, 3.f, 0.01f, "%.2f"),
         cycle("Hide Hand", weapons::cvar(slot, Key::HideHand), {{0.f, "No"}, {1.f, "Yes"}}),
-    };
+    });
     if(!fist)
     {
         const char* fingerHelp = "Closes (+) or opens (-) this finger on top of how it wraps the weapon on its own "
@@ -990,9 +1046,10 @@ std::vector<Item> pageWeaponOffsets()
             header("Other Hand's Grips (Hotspots)"),
             cycle("Hotspot", vr_weapon_hotspot, {{1.f, "1"}, {2.f, "2"}, {3.f, "3"}, {4.f, "4"}})
                 .help("Where the other hand may hold the weapon: it takes the one nearest it, less its bias. Pick one to edit."),
-            cycle("Type", hk(0), {{0.f, "None"}, {1.f, "Grip"}, {2.f, "Blade"}})
-                .help("Grip: a point (a foregrip, a pump, a magazine) the hand is drawn on. Blade: the half-sword grip along "
-                      "the blade."),
+            cycle("Type", hk(0), {{0.f, "None"}, {1.f, "Grip"}, {2.f, "Blade"}, {3.f, "Cup"}})
+                .help("Grip: a point (a foregrip, a pump, a magazine) the hand is drawn on; the two hands aim the weapon. "
+                      "Blade: the half-sword grip along the blade. Cup: a two-handed pistol grip, the hand under and "
+                      "round the holding hand (it doesn't aim)."),
         });
         if(h.type == weapons::HotspotType::Blade)
         {
@@ -1006,9 +1063,16 @@ std::vector<Item> pageWeaponOffsets()
                 slider("Hotspot Y", hk(2), -40.f, 40.f, 0.1f, "%.2f"),
                 slider("Hotspot Z", hk(3), -40.f, 40.f, 0.1f, "%.2f"),
                 action("Put It Where the Other Hand Is", weaponOffsetsHotspotAtHand)
-                    .help("Makes this hotspot a grip at the other hand, as it is now."),
+                    .help("Makes this hotspot a grip (or a cup) at the other hand, as it is now."),
             });
         }
+        list.insert(list.end(), {
+            slider("Hand Pitch", hk(5), -90.f, 90.f, 1.f, "%.0f").help("How the hand holding it is turned there."),
+            slider("Hand Yaw", hk(6), -90.f, 90.f, 1.f, "%.0f"),
+            slider("Hand Roll", hk(7), -180.f, 180.f, 1.f, "%.0f"),
+            cycle("Thumb", hk(8), {{0.f, "Wraps round"}, {1.f, "Along the top"}})
+                .help("Whether the thumb wraps round it with the fingers, or lies along its top."),
+        });
         list.insert(list.end(), {
             slider("Bias", hk(4), 0.f, 10.f, 0.1f, "%.1f").help("Units taken off its distance: larger, easier to take than the others."),
             action("Remove This Hotspot", weaponOffsetsHotspotRemove),
@@ -1049,9 +1113,10 @@ std::vector<Item> pageWeaponOffsets()
     static bool done[pageCount]{};
     if(pages[page].build == pageWeaponOffsets && weaponOffsetsSlot >= 0 &&
         (editedHotspot() != weaponOffsetsHotspot ||
-            static_cast<int>(weapons::hotspot(weaponOffsetsSlot, editedHotspot()).type) != weaponOffsetsHotspotType))
+            static_cast<int>(weapons::hotspot(weaponOffsetsSlot, editedHotspot()).type) != weaponOffsetsHotspotType ||
+            weapons::inheritsFrom(weaponOffsetsHeldSlot) != weaponOffsetsInherit))
     {
-        weaponOffsetsStale = true; // another hotspot picked, or its type changed
+        weaponOffsetsStale = true; // another hotspot picked, its type changed, or what the weapon inherits
     }
     if(pages[page].build == pageWeaponOffsets && weaponOffsetsStale)
     {

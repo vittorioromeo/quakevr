@@ -74,6 +74,9 @@ private:
 // Whether `model` is the skinned body with the expected skeleton.
 [[nodiscard]] bool usable(qmodel_t* model);
 
+// Forgets the models checked (a game directory change reuses their slots).
+void reset();
+
 // A drawn hand, in world space: its wrist, the top of the (gripping) hand, where the thumb and
 // index finger are, the back of the hand (away from the palm), and the direction from the wrist
 // to the fingers.

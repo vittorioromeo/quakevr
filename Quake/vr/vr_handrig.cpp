@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <string>
 
 namespace qvr::handrig
 {
@@ -107,6 +108,7 @@ void vertices(const Pose& p, int finger, const float curls[jointsPerFinger], Pos
 struct ModelCheck
 {
     qmodel_t* model{nullptr};
+    std::string name; // the model's (its slot is reused by another after a game change)
     bool usable{false};
 };
 ModelCheck checked;
@@ -128,11 +130,42 @@ void poseFinger(const Pose& p, int finger, const float curls[jointsPerFinger], P
     vertices(p, finger, curls, out);
 }
 
+void fingerSegments(const Pose& p, int finger, const float curls[jointsPerFinger], Rigid out[jointsPerFinger + 1])
+{
+    segments(p, finger, curls, out);
+}
+
+float jointRate(int finger, int joint)
+{
+    float rate = 0.f;
+    for(int f = 0; f + 1 < data::numFrames - 1; f++) // the closing path, frames 0..4
+    {
+        glm::quat d = glm::normalize(glm::inverse(turnAt(finger, joint, f)) * turnAt(finger, joint, f + 1));
+        if(d.w < 0.f)
+        {
+            d = -d;
+        }
+        rate = std::fmax(rate, glm::angle(d));
+    }
+    return rate;
+}
+
 glm::vec3 palmVertex(const Posed& posed, int i)
 {
     const data::PalmVertex& pv = data::palmVertices[i];
     const glm::vec3 p = vec(pv.pos);
-    return pv.thumb > 0.f ? glm::mix(p, posed.segment[Thumb][1](p), pv.thumb) : p;
+    if(pv.thumb <= 0.f)
+    {
+        return p;
+    }
+    // The ball of the thumb turns with the metacarpal as far as it is its (its weight): that share of the turn about
+    // the thumb's base (round 21, second pass: the places were blended, which pulled the thenar in towards the base
+    // and flattened it under a wide turn of the thumb: its skin stretched thin, "distorted").
+    const Rigid& m = posed.segment[Thumb][1];
+    const glm::vec3 pivot = vec(data::pivots[Thumb][0]);
+    const glm::quat q = glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, glm::normalize(glm::quat_cast(m.r)), pv.thumb);
+    const glm::vec3 moved = m(pivot) - pivot; // the base's own move (the finger's shift)
+    return pivot + glm::mat3_cast(q) * (p - pivot) + moved * pv.thumb;
 }
 
 void skin(const Posed& posed, float out[data::numJoints * 12])
@@ -173,13 +206,18 @@ void skin(const Posed& posed, float out[data::numJoints * 12])
     }
 }
 
+void reset()
+{
+    checked = ModelCheck{};
+}
+
 bool usable(qmodel_t* model)
 {
-    if(model == checked.model)
+    if(model == checked.model && (!model || checked.name == model->name))
     {
         return checked.usable;
     }
-    checked = ModelCheck{model, false};
+    checked = ModelCheck{model, model ? model->name : "", false};
     if(!model || model->type != mod_alias || model->needload)
     {
         return false;

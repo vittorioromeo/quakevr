@@ -106,6 +106,12 @@ picks one of the variants at random (`vr_physics.cpp`, `variant`). Round 20 (`RO
 - **Christer Ericson:** *Real-Time Collision Detection* (2005), 5.1.5, the closest point on a triangle.
 - **Tomas Möller, Ben Trumbore:** "Fast, Minimum Storage Ray/Triangle Intersection", 1997: the segment and ray tests
   against triangles.
+- **Brian Mirtich:** "Impulse-based Dynamic Simulation of Rigid Body Systems", PhD thesis, UC Berkeley, 1996:
+  conservative advancement (each step as far as the distance over the fastest a point can move), used to close the
+  fingers (second pass).
+- **Wolfgang Kabsch:** "A solution for the best rotation to relate two sets of vectors", Acta Crystallographica A32,
+  1976; **Nicholas J. Higham:** "Computing the Polar Decomposition, with Applications", SIAM J. Sci. Stat. Comput.,
+  1986 (the Newton iteration): the firing animation's rigid motion near the hand (second pass).
 - The jointed hand is fitted to Quake VR's own six hand models (`progs/hand_base.mdl` and the five `progs/finger_*.mdl`) by
   `Misc/quakevr/make_hand_rig.py`; no outside assets.
 

@@ -80,20 +80,22 @@ bool setMockButton(int hand, const char* control, bool on)
             in.triggerValue = in.trigger ? 1.f : 0.f;
             in.gripValue = in.grip ? 1.f : 0.f;
             in.thumbTouch = in.primary || in.secondary || in.stickClick;
+            in.triggerTouch = in.trigger;
             return true;
         }
     }
     return false;
 }
 
-// vr_mock_fingers <main|off> <trigger> <grip> [<thumb 0|1>]: the finger sensors alone (analog trigger and grip,
-// 0..1, the thumb resting), without pressing the buttons: for the drawn fingers (round 21's curl sweeps).
+// vr_mock_fingers <main|off> <trigger> <grip> [<thumb 0|1> [<index on the trigger 0|1>]]: the finger sensors alone
+// (analog trigger and grip, 0..1, the thumb resting, the index finger touching the trigger; by default when the trigger
+// is pressed at all), without pressing the buttons: for the drawn fingers (round 21's curl sweeps).
 void mockFingers_f()
 {
     const int hand = Cmd_Argc() >= 4 ? mockHand(Cmd_Argv(1)) : -1;
     if(hand < 0)
     {
-        Con_Printf("usage: vr_mock_fingers <main|off> <trigger 0..1> <grip 0..1> [<thumb 0|1>]\n");
+        Con_Printf("usage: vr_mock_fingers <main|off> <trigger 0..1> <grip 0..1> [<thumb 0|1> [<index on the trigger 0|1>]]\n");
         return;
     }
     HandInput& in = mockInput.hands[hand];
@@ -103,6 +105,7 @@ void mockFingers_f()
     {
         in.thumbTouch = Q_atoi(Cmd_Argv(4)) != 0;
     }
+    in.triggerTouch = Cmd_Argc() >= 6 ? Q_atoi(Cmd_Argv(5)) != 0 : in.triggerValue > 0.f;
 }
 
 // vr_mock_hand <main|off|head> <x> <y> <z> [<pitch> <yaw> <roll>]: tracking-space position

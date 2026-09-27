@@ -49,6 +49,16 @@ void onIdChanged(cvar_t* /* var */)
     fistCache = -2;
 }
 
+} // namespace
+
+void resetCaches()
+{
+    onIdChanged(nullptr);
+}
+
+namespace
+{
+
 [[nodiscard]] bool isHandPart(const char* name)
 {
     // The palm and finger models, and the jointed hand drawn instead of them (vr_handrig.cpp): the fist slot's scale.
@@ -82,7 +92,7 @@ void onIdChanged(cvar_t* /* var */)
 // reset (round 21: the hand is where the controller is, the fingers wrap the weapon; the two-handed grips became
 // hotspots: a config's own grips, or a weapon it moved or scaled, are turned into hotspots where they were:
 // takeHotspotMigration).
-constexpr int settingsVersion = 15;
+constexpr int settingsVersion = 16;
 
 // Slots whose hotspots the view is to derive from the config's two-handed grip keys (round 21).
 bool hotspotMigration[numSlots]{};
@@ -177,6 +187,26 @@ void migrate()
             }
         }
     }
+    if(vr_wofs_version.value < 16)
+    {
+        // Round 21, second pass: the other ammo's models inherit their base's settings: their own (the same as their
+        // base's, tuned twice) go back to their defaults, so that they inherit.
+        for(int slot = 0; slot < numSlots; slot++)
+        {
+            if(Q_atoi(cvarAt(slot, Key::InheritFrom).default_string) <= 0)
+            {
+                continue;
+            }
+            for(int key = 0; key < numKeys; key++)
+            {
+                if(inheritable(static_cast<Key>(key)))
+                {
+                    cvar_t& var = cvarAt(slot, static_cast<Key>(key));
+                    Cvar_SetQuick(&var, var.default_string);
+                }
+            }
+        }
+    }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }
 
@@ -234,7 +264,16 @@ void resetSlotToDefaults(int slot)
 // The slot's settings that differ from the shipped defaults, as vr_weapons.inc lines.
 Key hotspotKey(int index, int field)
 {
-    return static_cast<Key>(static_cast<int>(Key::Hotspot1Type) + 5 * index + field);
+    if(field < 5)
+    {
+        return static_cast<Key>(static_cast<int>(Key::Hotspot1Type) + 5 * index + field);
+    }
+    return static_cast<Key>(static_cast<int>(Key::Hotspot1Pitch) + 4 * index + (field - 5));
+}
+
+bool isGripType(HotspotType type)
+{
+    return type == HotspotType::Grip || type == HotspotType::Cup;
 }
 
 Hotspot hotspot(int slot, int index)
@@ -245,9 +284,11 @@ Hotspot hotspot(int slot, int index)
         return h;
     }
     const int type = static_cast<int>(value(slot, hotspotKey(index, 0)));
-    h.type = type == 1 ? HotspotType::Grip : type == 2 ? HotspotType::Blade : HotspotType::None;
+    h.type = type == 1 ? HotspotType::Grip : type == 2 ? HotspotType::Blade : type == 3 ? HotspotType::Cup : HotspotType::None;
     h.pos = vec(slot, hotspotKey(index, 1), hotspotKey(index, 2), hotspotKey(index, 3));
     h.bias = value(slot, hotspotKey(index, 4));
+    h.angles = vec(slot, hotspotKey(index, 5), hotspotKey(index, 6), hotspotKey(index, 7));
+    h.style = value(slot, hotspotKey(index, 8)) >= 0.5f ? HotspotStyle::ThumbTop : HotspotStyle::Wrap;
     return h;
 }
 
@@ -263,6 +304,11 @@ void setHotspot(int slot, int index, const Hotspot& h)
         Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 1 + k)), h.pos[k]);
     }
     Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 4)), h.bias);
+    for(int k = 0; k < 3; k++)
+    {
+        Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 5 + k)), h.angles[k]);
+    }
+    Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 8)), static_cast<float>(static_cast<int>(h.style)));
 }
 
 bool takeHotspotMigration(int slot)
@@ -389,9 +435,74 @@ int fistSlot()
     return fistCache;
 }
 
+bool inheritable(Key key)
+{
+    switch(key)
+    {
+        case Key::ID:
+        case Key::InheritFrom:
+        case Key::HandAnchorVertex:
+        case Key::MuzzleAnchorVertex:
+        case Key::TwoHHandAnchorVertex:
+        case Key::WpnTextAnchorVertex:
+        case Key::WpnButtonAnchorVertex: return false;
+        default: return !retired(key);
+    }
+}
+
+int inheritsFrom(int slot)
+{
+    if(slot < 0 || slot >= numSlots)
+    {
+        return -1;
+    }
+    const int from = static_cast<int>(cvarAt(slot, Key::InheritFrom).value) - 1;
+    return from >= 0 && from < numSlots && from != slot && cvarAt(from, Key::ID).string[0] && strcmp(cvarAt(from, Key::ID).string, "-1")
+               ? from
+               : -1;
+}
+
 float value(int slot, Key key)
 {
-    return slot >= 0 ? cvarAt(slot, key).value : 0.f;
+    if(slot < 0)
+    {
+        return 0.f;
+    }
+    // Inherited (a chain of at most a few: no loops) where this slot's own is its default.
+    for(int depth = 0; depth < 4 && inheritable(key); depth++)
+    {
+        const cvar_t& own = cvarAt(slot, key);
+        const int from = inheritsFrom(slot);
+        if(from < 0 || strcmp(own.string, own.default_string) != 0)
+        {
+            break;
+        }
+        slot = from;
+    }
+    return cvarAt(slot, key).value;
+}
+
+void stopInheriting(int slot)
+{
+    if(inheritsFrom(slot) < 0)
+    {
+        return;
+    }
+    // Every inherited value made this slot's own, then no parent.
+    float values[numKeys];
+    for(int key = 0; key < numKeys; key++)
+    {
+        values[key] = value(slot, static_cast<Key>(key));
+    }
+    for(int key = 0; key < numKeys; key++)
+    {
+        const cvar_t& own = cvarAt(slot, static_cast<Key>(key));
+        if(inheritable(static_cast<Key>(key)) && !strcmp(own.string, own.default_string))
+        {
+            Cvar_SetValueQuick(&cvarAt(slot, static_cast<Key>(key)), values[key]);
+        }
+    }
+    Cvar_SetValueQuick(&cvarAt(slot, Key::InheritFrom), 0.f);
 }
 
 glm::vec3 vec(int slot, Key x, Key y, Key z)

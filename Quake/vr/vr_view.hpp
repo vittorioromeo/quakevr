@@ -79,6 +79,11 @@ void hotspotsLegacy_f();
 // vr_hotspots_check: the migrated hotspots against the old two-handed grips, every slot, either hand.
 void hotspotsCheck_f();
 
+// vr_weapon_hotspot_here <1..4> [<type>] [main|off]: hotspot n of the weapon in the main hand (or the named one) put
+// where the other hand is now, as a grip (1) or the type given (3: a cup) -- the Weapon Offsets page's "Put It Where the
+// Other Hand Is", for scripts; "vr_weapon_hotspot_here <n> 0" removes it.
+void hotspotHere_f();
+
 // The jointed hand (vr_handrig.cpp): the skinning matrices of `e` if it is a drawn hand rig (their count, else 0).
 [[nodiscard]] int handBonePoses(const entity_t* e, const float** matrices);
 
@@ -88,5 +93,17 @@ void dumpView_f();
 // afresh (a parried blow's knock, the weapons' button hover and morph, the drawn hands' grasp and curls).
 void resetClientState();
 void graspDump_f();
+
+// Mod_ForName(name, false) for a model asked for every frame, `name` a string constant (its address is the key): kept
+// while it is loaded; a missing one remembered until the next map.
+[[nodiscard]] qmodel_t* viewModel(const char* name);
+
+// Forgets every cache keyed by a model (the view models, clip sizes, the jointed hand's check, the grasp shapes): for
+// a game directory change, which reuses the models' slots.
+void resetCaches();
+
+// vr_grasp_bench [n]: solves each hand's grasp of what it holds n times (1000), and prints the times (min, median,
+// max, microseconds).
+void graspBench_f();
 
 } // namespace qvr::view

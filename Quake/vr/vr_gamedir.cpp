@@ -16,6 +16,10 @@
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
 #include "vr_modellight.hpp"
+#include "vr_avatar.hpp"
+#include "vr_flashlight.hpp"
+#include "vr_view.hpp"
+#include "vr_weapons.hpp"
 
 #include <cstring>
 
@@ -188,6 +192,10 @@ extern "C" void VR_OnGameDirChanged()
     qvr::modellight::onGameDirChanged();
     qvr::gfx::onGameDirChanged();
     qvr::bodyblood::clear();
+    qvr::view::resetCaches(); // the view models (the missing ones too), clip sizes, the jointed hand's check, grasp shapes
+    qvr::weapons::resetCaches();
+    qvr::avatar::reset();
+    qvr::flashlight::onGameDirChanged();
     Con_DPrintf("VR: game directory changed: model and game file caches emptied\n");
 }
 

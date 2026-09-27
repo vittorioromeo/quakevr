@@ -1,6 +1,7 @@
 // vr_flashlight.hpp -- the chest flashlight (vr_flashlight): a straight tactical torch (round 21; a
-// right-angle one before) stored hanging from a clip on the chest's off hand side, lens down (lighting only the
-// feet: it is meant to be taken, clipped on a gun or worn on the head).
+// right-angle one before) stored hanging from a clip on the belt's off hand side, lens down (lighting only the feet:
+// it is meant to be taken, clipped on a gun or worn on the head). Only deliberate presses take, switch or unclip it: an
+// open, still hand (a fist clenched in a fight next to it does nothing).
 // A hand at it with the trigger switches it on or off; an empty hand's grip takes it, held in the
 // fist like a real torch (the tube through the curled fingers, lighting along it: out of the thumb's
 // side in the low grip, out of the little finger's in the overhead one; the upper face button, B or
@@ -61,6 +62,13 @@ void reset();
 // Whether `hand` holds the flashlight: that hand does not force grab (its move tells the server,
 // QVR_BUTTON_*HANDBUSY, and its aim beam is not drawn).
 [[nodiscard]] bool holds(int hand);
+
+// The game directory changed (VR_OnGameDirChanged): the guns' torch spots (by model name) forgotten.
+void onGameDirChanged();
+
+// Where the torch held by `hand` is drawn this frame (its entity's origin and angles, as setupView places it): for the
+// hand's grasp, solved before the torch is placed (no frame's lag between them).
+[[nodiscard]] bool heldPlace(const hands::State& s, int hand, glm::vec3& origin, glm::vec3& angles);
 
 // Round 21: whether `hand`'s upper face button (B/Y) is the flashlight's now: the hand holds it, or it is on the head
 // and the hand is at it. The off hand's Y then does not start a voice note at the mouth (vr_input.cpp).

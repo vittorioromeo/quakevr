@@ -46,6 +46,7 @@ struct State
     bool grip2HValid[2]{false, false};
     glm::vec3 grip2H[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     float grip2HBias[2]{0.f, 0.f}; // its hotspot's bias: units off the distance it is taken by (round 21)
+    bool grip2HCup[2]{false, false}; // it is a cup (a two-handed pistol grip): held, but no two-handed aim
 };
 
 // The server set the view yaw: turn the play space to match (headset only).
