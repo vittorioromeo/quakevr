@@ -5,6 +5,7 @@
 #include "vr_api_render.h"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -196,11 +197,8 @@ struct FingerMesh
 
 const FingerMesh& fingerMesh(int finger)
 {
-    static FingerMesh meshes[handrig::FingerCount];
-    static bool built = false;
-    if(!built)
-    {
-        built = true;
+    static const std::array<FingerMesh, handrig::FingerCount> meshes = [] {
+        std::array<FingerMesh, handrig::FingerCount> m;
         for(int t = 0; t < numFingerTriangles; t++)
         {
             const auto* tri = fingerTriangles[t];
@@ -210,10 +208,11 @@ const FingerMesh& fingerMesh(int finger)
             {
                 link = std::max(link, static_cast<int>(vertices[tri[k]].bone));
             }
-            meshes[f].tris.push_back({tri[0], tri[1], tri[2]});
-            meshes[f].link.push_back(link);
+            m[f].tris.push_back({tri[0], tri[1], tri[2]});
+            m[f].link.push_back(link);
         }
-    }
+        return m;
+    }();
     return meshes[finger];
 }
 
@@ -426,21 +425,61 @@ void solveFinger(const handrig::Pose& pose, int finger, const glm::vec3& d, cons
 // (the least turn when as good).
 void solveThumb(handrig::Pose& pose, const glm::vec3& d, const Scene& scene, float step, FingerStop& out, glm::quat& turn)
 {
-    float best = -2.f;
+    float best = -1e9f;
     const glm::quat keep = pose.metacarpal;
-    for(const float o : {0.f, 20.f, 40.f, 60.f, 80.f, -20.f})
+    // A turn costs a little (a thumb held naturally beats a contorted one that holds a little better).
+    for(const float o : {0.f, 15.f, 30.f, 45.f})
     {
-        for(const float s : {0.f, 20.f, -20.f, 40.f, -40.f})
+        for(const float s : {0.f, -15.f, 15.f, -30.f})
         {
             const glm::quat q = swing(s) * opposition(o);
             pose.metacarpal = q;
             FingerStop st;
             solveFinger(pose, handrig::Thumb, d, scene, step, true, st);
-            if(score(st) > best + 0.02f)
+            const float value = score(st) - 0.004f * (std::fabs(o) + std::fabs(s));
+            if(!st.startsInside && value > best)
             {
-                best = score(st);
+                best = value;
                 out = st;
                 turn = q;
+            }
+        }
+    }
+    if(best > -1e9f)
+    {
+        pose.metacarpal = keep;
+        return;
+    }
+
+    // In it at every turn and curl (its base in a grip): as little in it as it can be, among the natural turns.
+    handrig::Posed posed;
+    const FingerMesh& mesh = fingerMesh(handrig::Thumb);
+    int fewest = 1 << 30;
+    for(const float o : {0.f, 15.f, 30.f, 45.f})
+    {
+        for(const float s : {0.f, -15.f, 15.f})
+        {
+            pose.metacarpal = swing(s) * opposition(o);
+            for(float c = 0.f; c <= maxCurl; c += 1.f)
+            {
+                const float cs[3]{c, c, c};
+                handrig::poseFinger(pose, handrig::Thumb, cs, posed);
+                int crossings = 0;
+                for(size_t i = 0; i < mesh.tris.size(); i++)
+                {
+                    const Triangle t{{posed.vertex[mesh.tris[i][0]] + d, posed.vertex[mesh.tris[i][1]] + d,
+                        posed.vertex[mesh.tris[i][2]] + d}};
+                    crossings += scene.crosses(t) ? 1 : 0;
+                }
+                if(crossings < fewest)
+                {
+                    fewest = crossings;
+                    turn = pose.metacarpal;
+                    out = FingerStop{};
+                    out.met = true;
+                    out.leastInside = true;
+                    out.stop[0] = out.stop[1] = out.stop[2] = c;
+                }
             }
         }
     }

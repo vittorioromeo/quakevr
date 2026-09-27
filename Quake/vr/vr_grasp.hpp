@@ -40,6 +40,7 @@ struct FingerStop
     bool met{false};
     bool startsInside{false}; // in it at every curl (left as the controller has it)
     bool fromClosed{false};   // in it open: closed from the tightest curl it is clear at
+    bool leastInside{false};  // the thumb in it at every turn and curl: where it is least in it
 };
 
 struct Solution
