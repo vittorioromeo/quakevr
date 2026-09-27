@@ -1551,6 +1551,11 @@ void clear()
 {
     pool.clear();
     lastRun = -1.0;
+    // Tests: the same particles every run (vr_particle_seed; 0: random).
+    if(vr_particle_seed.value != 0.f)
+    {
+        rng.seed(static_cast<std::uint32_t>(vr_particle_seed.value));
+    }
 }
 
 void bloodDrip(const glm::vec3& org, float fall, float floorZ, float size, const glm::vec3& color)

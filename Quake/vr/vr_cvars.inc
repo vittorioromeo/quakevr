@@ -332,6 +332,7 @@ QVR_CVAR(vr_weapon_reflections_strength, "1", CVAR_ARCHIVE) // how strongly (0..
 QVR_CVAR(vr_relit_maps, "1", CVAR_ARCHIVE)           // maps re-lit by Misc/quakevr/relight_maps.py, when present (next map)
 QVR_CVAR(vr_particles, "1", CVAR_ARCHIVE)             // Quake VR's textured particles for the QC's effects (0: Quake's own)
 QVR_CVAR(vr_particle_mult, "1", CVAR_ARCHIVE)         // how many of them
+QVR_CVAR(vr_particle_seed, "0", CVAR_NONE)            // tests: the particles' random numbers restarted from this seed at each map (0: random)
 QVR_CVAR(vr_soft_particles, "1", CVAR_ARCHIVE)        // soft particles: smoke, fire, blood and explosion sprites fade out where they meet walls and floors instead of cutting hard lines (0 off)
 QVR_CVAR(vr_soft_particles_scale, "1", CVAR_ARCHIVE)  // how close to the scene they fade, times each kind's own distance (sparks 1.5 units, smoke and fire half their size, at most 32)
 QVR_CVAR(vr_blob_shadows, "2", CVAR_ARCHIVE)          // blob shadows (dark discs under things): 0 off, 1 always, 2 only without real shadows
