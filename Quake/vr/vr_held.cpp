@@ -693,7 +693,7 @@ void leaveBoth()
             hd.rot = glm::transpose(hand) * glm::mat3_cast(both.object.rot);
             hd.model = both.model;
             hd.placed = true;
-            hd.since = cl.time - placeTime; // kept (not taken again from the server's place)
+            hd.since = cl.time - 2.0 * placeTime; // kept (not taken again from the server's place)
         }
     }
     if(vr_debug_carry.value)
