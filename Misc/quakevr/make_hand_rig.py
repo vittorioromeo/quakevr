@@ -9,6 +9,11 @@
 #
 # Usage: python Misc/quakevr/make_hand_rig.py [progs folder [include file]]
 #
+# The hand can also be edited in Blender (Misc/quakevr/blender, docs/vr-port/HANDS_IN_BLENDER.md): the engine reads
+# the rig from the .md5mesh, and the tables here are its fallback and the reference its solver spheres are fitted
+# against. Running this script again overwrites the files, Blender's edits and a skin painted there included: keep
+# the edited files (or the .blend) aside first.
+#
 # The mesh is modelled here, procedurally, in the space and at the scale of the six hand models drawn before
 # (progs/hand_base.mdl and the five progs/finger_*.mdl, still the fallback: vr_hand_rig 0). Their skins (and
 # the bloody ones, make_bloody_hands.py) are baked onto it, so the hand keeps its look and palette.
@@ -50,6 +55,9 @@ import sys
 import numpy as np
 
 from mdlgen import HEADER, anorms, read_skins
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "blender", "quakevr_hand"))
+import md5hand  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PARTS = ["hand_base", "finger_thumb", "finger_index", "finger_middle", "finger_ring", "finger_pinky"]
@@ -1171,10 +1179,6 @@ def write_placeholder_mdl(path):
         f.write(data)
 
 
-def fmt(v):
-    return " ".join("%.6f" % c for c in v)
-
-
 def cfloat(x):
     s = "%.7g" % x
     if "e" not in s and "." not in s:
@@ -1254,44 +1258,18 @@ def main():
                 verts.append((v, st))
             t.append(vkey[key])
         tris_out.append((t[0], t[2], t[1]))  # clockwise seen from outside, as Quake's models are drawn
-    weights, vinfo = [], []
-    for v, st in verts:
-        vinfo.append((st, len(weights), len(mesh.infl[v])))
-        for j, w in mesh.infl[v]:
-            weights.append((j, w, P[v] - joint_bind(rig, j)))
+    # The MD5 files, through the Blender add-on's writer (blender/quakevr_hand/md5hand.py): every number exactly the
+    # float the engine's tables below hold (a vertex's rest place, its weights, the joints at their pivots), so the
+    # engine reads back from the files the rig it was built with (vr_handrig.cpp: identical, bit for bit).
+    def f(x):
+        return float(cfloat(x)[:-1])
 
-    with open(os.path.join(progs, "hand_rig.md5mesh"), "w", newline="\n") as fo:
-        fo.write("MD5Version 10\ncommandline \"Misc/quakevr/make_hand_rig.py\"\n\n")
-        fo.write("numJoints %d\nnumMeshes 1\n\njoints {\n" % len(JOINTS))
-        for j, (name, kind, fi, idx, frac) in enumerate(JOINTS):
-            fo.write("\t\"%s\"\t%d ( %s ) ( 0.000000 0.000000 0.000000 )\n" % (name, -1 if j == 0 else 0, fmt(joint_bind(rig, j))))
-        fo.write("}\n\nmesh {\n\tshader \"hand_rig\"\n\n")
-        fo.write("\tnumverts %d\n" % len(verts))
-        for i, (st, start, count) in enumerate(vinfo):
-            fo.write("\tvert %d ( %.6f %.6f ) %d %d\n" % (i, st[0], st[1], start, count))
-        fo.write("\n\tnumtris %d\n" % len(tris_out))
-        for i, t in enumerate(tris_out):
-            fo.write("\ttri %d %d %d %d\n" % (i, t[0], t[1], t[2]))
-        fo.write("\n\tnumweights %d\n" % len(weights))
-        for i, (j, w, p) in enumerate(weights):
-            fo.write("\tweight %d %d %.6f ( %s )\n" % (i, j, w, fmt(p)))
-        fo.write("}\n")
-
-    with open(os.path.join(progs, "hand_rig.md5anim"), "w", newline="\n") as fo:
-        # One frame holding the bind pose (the engine poses the hand: VR_AliasBonePoses).
-        fo.write("MD5Version 10\ncommandline \"Misc/quakevr/make_hand_rig.py\"\n\n")
-        fo.write("numFrames 1\nnumJoints %d\nframeRate 24\nnumAnimatedComponents %d\n\n" % (len(JOINTS), 6 * len(JOINTS)))
-        fo.write("hierarchy {\n")
-        for i, (name, *_rest) in enumerate(JOINTS):
-            fo.write("\t\"%s\"\t%d 63 %d\n" % (name, -1 if i == 0 else 0, 6 * i))
-        fo.write("}\n\nbounds {\n\t( %s ) ( %s )\n}\n\nbaseframe {\n" % (fmt(P.min(0)), fmt(P.max(0))))
-        local = [joint_bind(rig, j) if j == 0 else joint_bind(rig, j) - joint_bind(rig, 0) for j in range(len(JOINTS))]
-        for lp in local:
-            fo.write("\t( %s ) ( 0.000000 0.000000 0.000000 )\n" % fmt(lp))
-        fo.write("}\n\nframe 0 {\n")
-        for lp in local:
-            fo.write("\t%s 0.000000 0.000000 0.000000\n" % fmt(lp))
-        fo.write("}\n")
+    joints = [(name, -1 if j == 0 else 0, [f(c) for c in joint_bind(rig, j)]) for j, (name, *_r) in enumerate(JOINTS)]
+    md5_verts = [((float("%.6f" % st[0]), float("%.6f" % st[1])), [(j, f(w)) for j, w in mesh.infl[v]], [f(c) for c in P[v]])
+                 for v, st in verts]
+    cmd = "Misc/quakevr/make_hand_rig.py"
+    md5hand.write_md5mesh(os.path.join(progs, "hand_rig.md5mesh"), joints, md5_verts, tris_out, "hand_rig", cmd)
+    md5hand.write_md5anim(os.path.join(progs, "hand_rig.md5anim"), joints, [r for _, _, r in md5_verts], cmd)
     write_placeholder_mdl(os.path.join(progs, "hand_rig.mdl"))
 
     # The engine's tables.
@@ -1415,7 +1393,7 @@ def main():
         fo.write("\n".join(L) + "\n")
 
     print("hand_rig: %d joints, %d vertices, %d triangles, %d weights; spheres: %d on the segments, %d palm, %d thenar"
-          % (len(JOINTS), len(verts), len(tris_out), len(weights), len(segs), len(palm_spheres), len(thenar_spheres)))
+          % (len(JOINTS), len(verts), len(tris_out), sum(len(i) for _, i, _ in md5_verts), len(segs), len(palm_spheres), len(thenar_spheres)))
     print("-> %s, %s" % (os.path.normpath(progs), os.path.normpath(inc)))
 
 
