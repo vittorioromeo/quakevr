@@ -333,8 +333,8 @@ void PF_carry2h()
     out[2] = v.z;
 }
 
-// float(entity e, vector point, float hand) carryreach: whether a hand at `point` can take hold of `e` (a hand
-// touching it could: in its turned box, within vr_carry_reach of its drawn surface), for a carried one (not solid).
+// float(entity e, vector point, float hand) carryreach: whether the `self` player's `hand` can take hold of `e` (its fist
+// touches its drawn surface, as a hand touching it could), for a carried one (not solid).
 // physicsblast(at, damage): T_RadiusDamage's explosion throws the rigid bodies round it (vr_box3d.cpp; Box3D only).
 void PF_physicsblast()
 {
@@ -344,8 +344,9 @@ void PF_physicsblast()
 
 void PF_carryreach()
 {
-    const float* p = G_VECTOR(OFS_PARM1);
-    G_FLOAT(OFS_RETURN) = carry2h::reaches(G_EDICT(OFS_PARM0), glm::vec3{p[0], p[1], p[2]}, static_cast<int>(G_FLOAT(OFS_PARM2))) ? 1.f : 0.f;
+    // The hand's place (the point given, OFS_PARM1) and angles are the `self` player's move's.
+    G_FLOAT(OFS_RETURN) =
+        carry2h::reaches(G_EDICT(OFS_PARM0), PROG_TO_EDICT(pr_global_struct->self), static_cast<int>(G_FLOAT(OFS_PARM2))) ? 1.f : 0.f;
 }
 
 // handimpact(hand, strength, dir): knock the `self` player's drawn hand (a parried blow).

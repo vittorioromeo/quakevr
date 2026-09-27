@@ -1707,6 +1707,74 @@ void pushOut(const hands::State& s, int hand, bool free, glm::vec3& pos, const g
 }
 
 // `motion`: the held weapon's firing animation, moving the drawn hand after its grasp (solved without it).
+// Where the six models are drawn: each at the hand plus its offset (fingerOffset, at offsetScale), scaled by the fist
+// slot's Scale about its own scale origin (weapons::modelTransform). The rig is hand_base.mdl's space: the entity goes
+// where the palm's origin is drawn, each finger moves from its bind place (the defaults) by what its current offset
+// changes: `pose`'s shifts.
+void rigShifts(qmodel_t* model, int hand, handrig::Pose& pose)
+{
+    const weapons::ModelTransform t = weapons::modelTransform(model);
+    const float k = t.active ? t.k : 1.f;
+    const glm::vec3 ts = t.active ? t.scale : glm::vec3{1.f};
+    const glm::vec3 baseOrigin = vec3Of(handrig::data::baseScaleOrigin);
+    const glm::vec3 mBase = offsetInModel(fingerOffset(FingerBase, hand));
+    for(int f = 0; f < handrig::FingerCount; f++)
+    {
+        const glm::vec3 m = offsetInModel(fingerOffset(rigFinger[f], hand));
+        const glm::vec3 origin = vec3Of(handrig::data::fingerScaleOrigin[f]);
+        pose.shift[f] = ((m - mBase) / k + (glm::vec3{1.f} - ts) * (origin - baseOrigin)) / ts -
+                        vec3Of(handrig::data::fingerBindShift[f]);
+    }
+}
+
+// The empty hand at the controller's pose (setupHand's: turned by the fist's angle offsets), open (`fist` false) or closed
+// as a full press of the grip, trigger and thumb draws it (every finger curled), as the grasp's spheres, in the hand's
+// frame: its place and the axes of its angles as the move sends them (held::setFist). False without the jointed hand.
+bool emptyHandSpheres(const hands::State& s, int hand, bool fist, std::vector<glm::vec4>& out)
+{
+    out.clear();
+    qmodel_t* const model = viewModel(handrig::modelName);
+    if(!handrig::usable(model))
+    {
+        return false;
+    }
+    const bool mirrored = hand == HAND_OFF;
+    handrig::Pose pose;
+    rigShifts(model, hand, pose);
+    HandInput full;
+    full.gripValue = full.triggerValue = 1.f;
+    full.grip = full.trigger = full.thumbTouch = full.triggerTouch = true;
+    for(int f = 0; f < handrig::FingerCount; f++)
+    {
+        const float curl = fist ? grasp::pathCurl(CLAMP(0.f, targetCurl(full, rigFinger[f], false) * 5.f, 5.f)) : 0.f;
+        for(float& j : pose.curl[f])
+        {
+            j = curl;
+        }
+    }
+    const glm::vec3 handRot = basisAngles(anglesBasis(s.rot[hand]) * anglesBasis(weaponAngleOffsets(weapons::fistSlot(), mirrored)));
+    const glm::mat4 rig = rigPlacement(hand, s.pos[hand], handRot, mirrored, nullptr);
+    const float unit = glm::length(glm::vec3{rig[0]});
+    const glm::mat3 toHand = glm::transpose(held::axesFromAngles(&s.rot[hand][0], true));
+    static std::vector<glm::vec4> spheres;
+    grasp::posedSpheres(pose, spheres);
+    for(const glm::vec4& sp : spheres)
+    {
+        const glm::vec3 w{rig * glm::vec4{glm::vec3{sp}, 1.f}};
+        out.push_back(glm::vec4{toHand * (w - s.pos[hand]), sp.w * unit});
+    }
+    return true;
+}
+
+// Grab reach from the fist (held::setFist): the closed empty hand, every frame; none without the jointed hand model (the
+// server's old test).
+void updateFist(const hands::State& s, int hand)
+{
+    static std::vector<glm::vec4> local;
+    emptyHandSpheres(s, hand, true, local);
+    held::setFist(hand, local);
+}
+
 bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool mirrored, bool hide, const Held& held,
     const glm::mat4& motion)
 {
@@ -1723,23 +1791,10 @@ bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
         return false;
     }
 
-    // Where the six models are drawn: each at the hand plus its offset (fingerOffset, at offsetScale), scaled
-    // by the fist slot's Scale about its own scale origin (weapons::modelTransform). The rig is hand_base.mdl's
-    // space: the entity goes where the palm's origin is drawn, each finger moves from its bind place (the
-    // defaults) by what its current offset changes.
     const weapons::ModelTransform t = weapons::modelTransform(model);
     const float k = t.active ? t.k : 1.f;
     const glm::vec3 ts = t.active ? t.scale : glm::vec3{1.f};
-    const glm::vec3 baseOrigin = vec3Of(handrig::data::baseScaleOrigin);
-    const glm::vec3 mBase = offsetInModel(fingerOffset(FingerBase, hand));
-    const glm::vec3 e = mBase + k * (glm::vec3{1.f} - ts) * baseOrigin;
-    for(int f = 0; f < handrig::FingerCount; f++)
-    {
-        const glm::vec3 m = offsetInModel(fingerOffset(rigFinger[f], hand));
-        const glm::vec3 origin = vec3Of(handrig::data::fingerScaleOrigin[f]);
-        rh.pose.shift[f] = ((m - mBase) / k + (glm::vec3{1.f} - ts) * (origin - baseOrigin)) / ts -
-                           vec3Of(handrig::data::fingerBindShift[f]);
-    }
+    rigShifts(model, hand, rh.pose);
     rh.pose.metacarpal = glm::quat{1.f, 0.f, 0.f, 0.f};
 
     view::ViewEntity& ve = entities.hand[hand][FingerBase];
@@ -3931,6 +3986,10 @@ extern "C" void VR_SetupViewEntities()
         setupHand(s, HAND_OFF);
         showHotspots();
     }
+    for(int hand = 0; hand < 2; hand++)
+    {
+        updateFist(s, hand);
+    }
     drawTuningAids(s, !posingNow);
     held::drawCarryProbes();
     if(vr_debug_physics_shapes.value)
@@ -4421,6 +4480,31 @@ void dumpView_f()
         {
             const glm::vec3 palm{rigHands[h].rigToWorld * glm::vec4{drawnInRig(rigHands[h], grasp::palmCentre()), 1.f}};
             Con_Printf("%s drawn palm at (%.4f %.4f %.4f)\n", h == HAND_MAIN ? "main" : "off", palm.x, palm.y, palm.z);
+        }
+        // The grab test's fist, and the open hand, in the hand's frame (cm from its point: forward, left, up): how far
+        // each reaches along each axis.
+        std::vector<glm::vec4> fist, open;
+        if(emptyHandSpheres(s, h, true, fist) && emptyHandSpheres(s, h, false, open))
+        {
+            const float cm = 100.f / units::metresToUnits();
+            for(const auto& [name, spheres] : {std::pair{"fist", &fist}, std::pair{"open hand", &open}})
+            {
+                glm::vec3 lo{1e9f}, hi{-1e9f};
+                for(const glm::vec4& sp : *spheres)
+                {
+                    lo = glm::min(lo, glm::vec3{sp} - sp.w);
+                    hi = glm::max(hi, glm::vec3{sp} + sp.w);
+                }
+                Con_Printf("%s %s: %d spheres, forward %.1f..%.1f cm, left %.1f..%.1f, up %.1f..%.1f of the hand's point\n",
+                    h == HAND_MAIN ? "main" : "off", name, static_cast<int>(spheres->size()), lo.x * cm, hi.x * cm, lo.y * cm,
+                    hi.y * cm, lo.z * cm, hi.z * cm);
+            }
+            const glm::vec3 palm{glm::transpose(held::axesFromAngles(&s.rot[h][0], true)) *
+                                 (glm::vec3{rigPlacement(h, s.pos[h], basisAngles(anglesBasis(s.rot[h]) *
+                                     anglesBasis(weaponAngleOffsets(weapons::fistSlot(), h == HAND_OFF))), h == HAND_OFF, nullptr) *
+                                     glm::vec4{grasp::palmCentre(), 1.f}} - s.pos[h])};
+            Con_Printf("%s palm's middle: forward %.1f cm, left %.1f, up %.1f of the hand's point\n", h == HAND_MAIN ? "main" : "off",
+                palm.x * cm, palm.y * cm, palm.z * cm);
         }
         if(s.grip2HValid[h])
         {

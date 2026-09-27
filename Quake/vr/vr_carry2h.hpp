@@ -58,9 +58,9 @@ void toAngles(const glm::quat& q, float* out, bool brush);
 // set now); kept first if nothing was (a saved game, a new server). Its hands are the player's fields.
 [[nodiscard]] glm::vec3 serverPlace(edict_t* ent, edict_t* player, bool grab);
 
-// Server side (QC's carryreach): whether a hand at `point` can take hold of `ent` (in its turned box, within
-// vr_carry_reach of its drawn surface), as a hand touching it can (vr_physics.cpp); vr_debug_carry draws the test.
-[[nodiscard]] bool reaches(edict_t* ent, const glm::vec3& point, int hand);
+// Server side (QC's carryreach): whether `player`'s `hand` (0 off, 1 main) can take hold of `ent`: its fist touches the
+// thing's drawn surface, as a hand touching it can (held::grabTouch); vr_debug_carry draws the test.
+[[nodiscard]] bool reaches(edict_t* ent, edict_t* player, int hand);
 
 // Forgets the kept holds (a new server).
 void resetServer();

@@ -918,6 +918,10 @@ void hologramTestMessage()
             .help("Grip a box or a backpack to carry it, push it with a hand or gun. Off: touching takes it."),
         cycle("Take a Box", vr_carry_take, {{0.f, "At a holster"}, {1.f, "Trigger"}, {2.f, "Either"}})
             .help("At a holster: let go of it at a hip or shoulder holster to put it in your pack."),
+        slider("Grab Distance Bias", vr_carry_grab_bias, -3.f, 5.f, 0.5f, "%+.1f cm")
+            .extend(-10.f, 20.f)
+            .help("A hand takes a box, gib, backpack or armour when its fist (the palm and the curled fingers) touches it. "
+                  "Positive: from this far off it too. Negative: only pressed this far into it."),
         toggle("Drawn In the Hand", vr_carry_local)
             .help("What you carry is drawn in your hand as it is this frame: no lag or lead as you walk or turn. Off: where the server has it."),
         toggle("Two-Handed Carrying", vr_carry_two_hands)

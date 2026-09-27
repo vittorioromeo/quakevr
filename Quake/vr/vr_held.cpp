@@ -7,6 +7,7 @@
 #include "vr_hands.hpp"
 #include "vr_lines.hpp"
 #include "vr_profile.hpp"
+#include "vr_physics.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_throw.hpp"
@@ -265,61 +266,131 @@ bool drawnVertices(edict_t* ent, std::vector<glm::vec3>& out)
     return true;
 }
 
-float surfaceDistance(edict_t* ent, const glm::vec3& point, glm::vec3* nearest)
+namespace
+{
+
+// The point of the triangle nearest p (Ericson, Real-Time Collision Detection, 5.1.5).
+[[nodiscard]] glm::vec3 nearestOn(const Triangle& t, const glm::vec3& p)
+{
+    const glm::vec3 &a = t.p[0], &b = t.p[1], &c = t.p[2];
+    const glm::vec3 ab = b - a, ac = c - a, ap = p - a;
+    const float d1 = glm::dot(ab, ap), d2 = glm::dot(ac, ap);
+    if(d1 <= 0.f && d2 <= 0.f)
+    {
+        return a;
+    }
+    const glm::vec3 bp = p - b;
+    const float d3 = glm::dot(ab, bp), d4 = glm::dot(ac, bp);
+    if(d3 >= 0.f && d4 <= d3)
+    {
+        return b;
+    }
+    const float vc = d1 * d4 - d3 * d2;
+    if(vc <= 0.f && d1 >= 0.f && d3 <= 0.f)
+    {
+        return a + ab * (d1 / (d1 - d3));
+    }
+    const glm::vec3 cp = p - c;
+    const float d5 = glm::dot(ab, cp), d6 = glm::dot(ac, cp);
+    if(d6 >= 0.f && d5 <= d6)
+    {
+        return c;
+    }
+    const float vb = d5 * d2 - d1 * d6;
+    if(vb <= 0.f && d2 >= 0.f && d6 <= 0.f)
+    {
+        return a + ac * (d2 / (d2 - d6));
+    }
+    const float va = d3 * d6 - d5 * d4;
+    if(va <= 0.f && (d4 - d3) >= 0.f && (d5 - d6) >= 0.f)
+    {
+        return b + (c - b) * ((d4 - d3) / ((d4 - d3) + (d5 - d6)));
+    }
+    const float denom = 1.f / (va + vb + vc);
+    return a + ab * (vb * denom) + ac * (vc * denom);
+}
+
+// `ent`'s drawn triangles in its axes relative to its origin, and those axes and origin.
+bool entityTriangles(edict_t* ent, std::vector<Triangle>& out, glm::mat3& axes, glm::vec3& origin)
 {
     const int index = static_cast<int>(ent->v.modelindex);
     const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    if(!model || !drawnTriangles(ent, model, out))
+    {
+        return false;
+    }
+    axes = axesFromAngles(ent->v.angles, model->type == mod_brush);
+    origin = glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
+    return true;
+}
+
+// The box `ent`'s model is drawn in (the networked scale and offset), in its axes relative to its origin.
+void drawnBox(edict_t* ent, glm::vec3& lo, glm::vec3& hi)
+{
+    using namespace progs;
+    const FieldOffsets& f = fields();
+    const int index = static_cast<int>(ent->v.modelindex);
+    const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    lo = glm::vec3{ent->v.mins[0], ent->v.mins[1], ent->v.mins[2]};
+    hi = glm::vec3{ent->v.maxs[0], ent->v.maxs[1], ent->v.maxs[2]};
+    if(model && (model->type == mod_alias || model->type == mod_brush))
+    {
+        const glm::vec3 zero{0.f};
+        modelBox(model, f.model_scale >= 0 ? fieldVec(ent, f.model_scale) : zero,
+            f.model_scale_origin >= 0 ? fieldVec(ent, f.model_scale_origin) : zero,
+            f.model_offset >= 0 ? fieldVec(ent, f.model_offset) : zero, lo, hi);
+    }
+}
+
+// Whether the world point `p` is within `margin` of the box `ent` is drawn in.
+bool nearDrawnBox(edict_t* ent, const glm::vec3& p, float margin)
+{
+    glm::vec3 lo, hi;
+    drawnBox(ent, lo, hi);
+    const int index = static_cast<int>(ent->v.modelindex);
+    const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    const glm::mat3 axes = axesFromAngles(ent->v.angles, model && model->type == mod_brush);
+    const glm::vec3 local = glm::transpose(axes) * (p - glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]});
+    return glm::all(glm::lessThanEqual(glm::abs(local - (lo + hi) * 0.5f), (hi - lo) * 0.5f + glm::vec3{margin}));
+}
+
+// The fists in their hands' frames (setFist).
+std::vector<glm::vec4> fists[2];
+
+// A sphere round all of `spheres`: its middle, and its radius.
+float bounds(const std::vector<glm::vec4>& spheres, glm::vec3& centre)
+{
+    centre = glm::vec3{0.f};
+    for(const glm::vec4& s : spheres)
+    {
+        centre += glm::vec3{s};
+    }
+    centre /= static_cast<float>(std::max<size_t>(spheres.size(), 1));
+    float bound = 0.f;
+    for(const glm::vec4& s : spheres)
+    {
+        bound = std::fmax(bound, glm::distance(glm::vec3{s}, centre) + s.w);
+    }
+    return bound;
+}
+
+} // namespace
+
+float surfaceDistance(edict_t* ent, const glm::vec3& point, glm::vec3* nearest)
+{
     thread_local std::vector<Triangle> triangles;
-    if(!model || !drawnTriangles(ent, model, triangles))
+    glm::mat3 axes;
+    glm::vec3 origin;
+    if(!entityTriangles(ent, triangles, axes, origin))
     {
         return -1.f;
     }
-    const glm::mat3 axes = axesFromAngles(ent->v.angles, model->type == mod_brush);
-    const glm::vec3 origin{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
     const glm::vec3 p = glm::transpose(axes) * (point - origin);
     float best = std::numeric_limits<float>::max();
     glm::vec3 at{0.f};
     for(const Triangle& t : triangles)
     {
-        // The point of the triangle nearest p (Ericson, Real-Time Collision Detection, 5.1.5).
-        const glm::vec3 &a = t.p[0], &b = t.p[1], &c = t.p[2];
-        const glm::vec3 ab = b - a, ac = c - a, ap = p - a;
-        glm::vec3 q;
-        const float d1 = glm::dot(ab, ap), d2 = glm::dot(ac, ap);
-        const glm::vec3 bp = p - b;
-        const float d3 = glm::dot(ab, bp), d4 = glm::dot(ac, bp);
-        const glm::vec3 cp = p - c;
-        const float d5 = glm::dot(ab, cp), d6 = glm::dot(ac, cp);
-        const float vc = d1 * d4 - d3 * d2, vb = d5 * d2 - d1 * d6, va = d3 * d6 - d5 * d4;
-        if(d1 <= 0.f && d2 <= 0.f)
-        {
-            q = a;
-        }
-        else if(d3 >= 0.f && d4 <= d3)
-        {
-            q = b;
-        }
-        else if(vc <= 0.f && d1 >= 0.f && d3 <= 0.f)
-        {
-            q = a + ab * (d1 / (d1 - d3));
-        }
-        else if(d6 >= 0.f && d5 <= d6)
-        {
-            q = c;
-        }
-        else if(vb <= 0.f && d2 >= 0.f && d6 <= 0.f)
-        {
-            q = a + ac * (d2 / (d2 - d6));
-        }
-        else if(va <= 0.f && (d4 - d3) >= 0.f && (d5 - d6) >= 0.f)
-        {
-            q = b + (c - b) * ((d4 - d3) / ((d4 - d3) + (d5 - d6)));
-        }
-        else
-        {
-            const float denom = 1.f / (va + vb + vc);
-            q = a + ab * (vb * denom) + ac * (vc * denom);
-        }
+        const glm::vec3 q = nearestOn(t, p);
         const float d = glm::distance(p, q);
         if(d < best)
         {
@@ -334,6 +405,182 @@ float surfaceDistance(edict_t* ent, const glm::vec3& point, glm::vec3* nearest)
     return best;
 }
 
+void setFist(int hand, const std::vector<glm::vec4>& spheres)
+{
+    if(hand >= 0 && hand < 2)
+    {
+        fists[hand] = spheres;
+    }
+}
+
+void fistInWorld(int hand, const glm::vec3& pos, const glm::vec3& angles, std::vector<glm::vec4>& out)
+{
+    out.clear();
+    if(hand < 0 || hand > 1)
+    {
+        return;
+    }
+    const glm::mat3 axes = axesFromAngles(&angles[0], true);
+    for(const glm::vec4& s : fists[hand])
+    {
+        out.push_back(glm::vec4{pos + axes * glm::vec3{s}, s.w});
+    }
+}
+
+bool fistContact(edict_t* ent, const std::vector<glm::vec4>& spheres, float reach, FistContact& out)
+{
+    out = FistContact{};
+    out.gap = std::numeric_limits<float>::max();
+    thread_local std::vector<Triangle> triangles;
+    glm::mat3 axes;
+    glm::vec3 origin;
+    if(spheres.empty() || !entityTriangles(ent, triangles, axes, origin))
+    {
+        return false;
+    }
+
+    // The fist in the thing's axes, and a sphere round all of it.
+    thread_local std::vector<glm::vec4> local;
+    local.clear();
+    for(const glm::vec4& s : spheres)
+    {
+        local.push_back(glm::vec4{glm::transpose(axes) * (glm::vec3{s} - origin), s.w});
+    }
+    glm::vec3 centre;
+    const float bound = bounds(local, centre);
+
+    // Each sphere against the triangles near the fist (within twice its bounds and the reach: every triangle a sphere
+    // near the surface is nearest to, and the nearest to any sphere sunk in). A sphere's middle is inside when its
+    // nearest triangle faces away from it.
+    thread_local std::vector<float> nearest;
+    thread_local std::vector<glm::vec3> nearestAt;
+    thread_local std::vector<char> inside;
+    nearest.assign(local.size(), std::numeric_limits<float>::max());
+    nearestAt.assign(local.size(), glm::vec3{0.f});
+    inside.assign(local.size(), 0);
+    // Which way the triangles are wound (a brush model's faces one way, an alias model's the other): the sign of the
+    // volume they enclose.
+    float volume = 0.f;
+    for(const Triangle& t : triangles)
+    {
+        volume += glm::dot(t.p[0], glm::cross(t.p[1], t.p[2]));
+    }
+    const float outwards = volume < 0.f ? -1.f : 1.f;
+    const float keep = 2.f * bound + std::fmax(reach, 0.f);
+    bool any = false;
+    for(const Triangle& t : triangles)
+    {
+        const glm::vec3 mid = (t.p[0] + t.p[1] + t.p[2]) / 3.f;
+        const float size =
+            std::fmax(glm::distance(mid, t.p[0]), std::fmax(glm::distance(mid, t.p[1]), glm::distance(mid, t.p[2])));
+        if(glm::distance(mid, centre) - size > keep)
+        {
+            continue;
+        }
+        any = true;
+        const glm::vec3 n = outwards * glm::cross(t.p[1] - t.p[0], t.p[2] - t.p[0]);
+        for(size_t i = 0; i < local.size(); i++)
+        {
+            const glm::vec3 c{local[i]};
+            const glm::vec3 q = nearestOn(t, c);
+            const float d = glm::distance(c, q);
+            if(d < nearest[i])
+            {
+                nearest[i] = d;
+                nearestAt[i] = q;
+                inside[i] = glm::dot(c - q, n) < 0.f;
+            }
+        }
+    }
+    if(!any)
+    {
+        return false;
+    }
+    for(size_t i = 0; i < local.size(); i++)
+    {
+        if(nearest[i] == std::numeric_limits<float>::max())
+        {
+            continue;
+        }
+        const float gap = inside[i] ? -nearest[i] - local[i].w : nearest[i] - local[i].w;
+        if(gap < out.gap)
+        {
+            out.gap = gap;
+            out.sphere = static_cast<int>(i);
+            out.from = glm::vec3{spheres[i]};
+            out.at = origin + axes * nearestAt[i];
+        }
+    }
+    return out.sphere >= 0;
+}
+
+bool grabTouch(edict_t* ent, edict_t* player, int hand, float slack)
+{
+    using namespace progs;
+    const FieldOffsets& f = fields();
+    if(hand < 0 || hand > 1)
+    {
+        return false;
+    }
+    const int posField = hand == 0 ? f.offhandpos : f.handpos;
+    const int rotField = hand == 0 ? f.offhandrot : f.handrot;
+    if(posField < 0 || rotField < 0)
+    {
+        return false;
+    }
+    const glm::vec3 pos = fieldVec(player, posField);
+    const glm::vec3 angles = fieldVec(player, rotField);
+    const float m2u = units::metresToUnits();
+    const bool debug = vr_debug_carry.value || vr_debug_physics_shapes.value;
+
+    if(fists[hand].empty())
+    {
+        // Not known (no jointed hand model): the old test, the hand's point in its box and near its surface.
+        constexpr float legacyReach = 0.08f; // metres
+        if(!physics::pointInModelBox(ent, pos, 2.f))
+        {
+            return false;
+        }
+        glm::vec3 nearest{0.f};
+        const float distance = surfaceDistance(ent, pos, &nearest);
+        noteCarryProbe(hand, ent, pos, distance, nearest, legacyReach * m2u);
+        return distance < 0.f || distance <= legacyReach * m2u;
+    }
+
+    thread_local std::vector<glm::vec4> spheres;
+    fistInWorld(hand, pos, angles, spheres);
+    const float allowed = vr_carry_grab_bias.value * 0.01f * m2u + slack;
+    // Nothing of it near (the fist's bounds farther than it may be from the box the thing is drawn in: not its entity
+    // box, which for the brush-model ammo and health boxes is a small cube round their origin, a corner): no
+    // triangles to test.
+    glm::vec3 centre;
+    const float bound = bounds(spheres, centre);
+    if(!nearDrawnBox(ent, centre, bound + std::fmax(allowed, 0.f)))
+    {
+        if(vr_debug_carry.value >= 3.f)
+        {
+            Con_Printf("grab: %s hand, %s: the fist is not near the box it is drawn in\n", hand == 0 ? "off" : "main",
+                PR_GetString(ent->v.classname));
+        }
+        return false;
+    }
+    FistContact c;
+    const bool found = fistContact(ent, spheres, std::fmax(allowed, 0.f) + 1.f, c);
+    const bool touches = found && c.gap <= allowed;
+    if(debug)
+    {
+        noteCarryProbe(hand, ent, found ? c.from : centre, found ? c.gap : -1.f, found ? c.at : centre, allowed, &spheres,
+            touches ? c.sphere : -1);
+    }
+    if(vr_debug_carry.value >= 2.f)
+    {
+        Con_Printf("grab: %s hand, %s: the fist %s, %.2f cm from its surface (allowed %.2f cm)\n", hand == 0 ? "off" : "main",
+            PR_GetString(ent->v.classname), touches ? "touches" : "doesn't touch", found ? c.gap / m2u * 100.f : 999.f,
+            allowed / m2u * 100.f);
+    }
+    return touches;
+}
+
 namespace
 {
 
@@ -344,12 +591,15 @@ struct CarryProbe
     glm::vec3 corners[8]{};
     glm::vec3 at{0.f}, nearest{0.f};
     float distance{0.f}, reach{0.f};
+    std::vector<glm::vec4> fist; // the fist tested (world), if it was
+    int touching{-1};            // its sphere that touches
 };
 CarryProbe carryProbes[2];
 
 } // namespace
 
-void noteCarryProbe(int hand, edict_t* ent, const glm::vec3& at, float distance, const glm::vec3& nearest, float reach)
+void noteCarryProbe(int hand, edict_t* ent, const glm::vec3& at, float distance, const glm::vec3& nearest, float reach,
+    const std::vector<glm::vec4>* fist, int touching)
 {
     if((!vr_debug_carry.value && !vr_debug_physics_shapes.value) || hand < 0 || hand > 1)
     {
@@ -361,16 +611,17 @@ void noteCarryProbe(int hand, edict_t* ent, const glm::vec3& at, float distance,
     p.nearest = nearest;
     p.distance = distance;
     p.reach = reach;
+    p.fist.clear();
+    if(fist)
+    {
+        p.fist = *fist;
+    }
+    p.touching = touching;
     // The model's turned box (as the touch test's), its corners in the world.
     const int index = static_cast<int>(ent->v.modelindex);
     const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
-    glm::vec3 lo{ent->v.mins[0], ent->v.mins[1], ent->v.mins[2]}, hi{ent->v.maxs[0], ent->v.maxs[1], ent->v.maxs[2]};
-    if(model && model->type == mod_alias)
-    {
-        using namespace progs;
-        const FieldOffsets& f = fields();
-        modelBox(model, fieldVec(ent, f.model_scale), fieldVec(ent, f.model_scale_origin), fieldVec(ent, f.model_offset), lo, hi);
-    }
+    glm::vec3 lo, hi;
+    drawnBox(ent, lo, hi);
     const glm::mat3 axes = axesFromAngles(ent->v.angles, model && model->type == mod_brush);
     const glm::vec3 origin{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
     for(int i = 0; i < 8; i++)
@@ -391,12 +642,27 @@ void drawCarryProbes()
         {
             continue;
         }
-        const bool within = p.reach <= 0.f || (p.distance >= 0.f && p.distance <= p.reach);
+        // The fist tested: in reach if its nearest sphere is (its gap may be negative: sunk in); the old point test by
+        // its distance.
+        const bool within = !p.fist.empty() ? p.touching >= 0 : p.reach <= 0.f || (p.distance >= 0.f && p.distance <= p.reach);
         const glm::vec4 colour = within ? glm::vec4{0.2f, 1.f, 0.3f, 1.f} : glm::vec4{1.f, 0.25f, 0.2f, 1.f};
         constexpr int edges[12][2] = {{0, 1}, {2, 3}, {4, 5}, {6, 7}, {0, 2}, {1, 3}, {4, 6}, {5, 7}, {0, 4}, {1, 5}, {2, 6}, {3, 7}};
         for(const auto& e : edges)
         {
             lines::line(p.corners[e[0]], p.corners[e[1]], 0.2f, colour, colour);
+        }
+        if(!p.fist.empty())
+        {
+            // The fist's spheres (faint; the touching one bright), the nearest of them to the surface's nearest point.
+            for(size_t i = 0; i < p.fist.size(); i++)
+            {
+                const bool touching = static_cast<int>(i) == p.touching;
+                lines::point(glm::vec3{p.fist[i]}, 2.f * p.fist[i].w,
+                    touching ? glm::vec4{0.2f, 1.f, 0.3f, 0.6f} : glm::vec4{0.8f, 0.8f, 0.8f, 0.25f});
+            }
+            lines::line(p.at, p.nearest, 0.2f, colour, colour);
+            lines::point(p.nearest, 0.8f, colour);
+            continue;
         }
         if(p.distance >= 0.f)
         {
@@ -409,8 +675,8 @@ void drawCarryProbes()
 
 glm::vec3 surfaceFit(edict_t* ent, const glm::vec3& hand, const glm::vec3& palm)
 {
-    // Never pushed further out than this (round 21, second pass: was half a metre; a thing is taken only within
-    // vr_carry_reach of its surface now, so a big thing gripped deep inside its box no longer floats away), nor drawn
+    // Never pushed further out than this (round 21, second pass: was half a metre; a thing is taken only where
+    // the fist touches it now, so a big thing gripped deep inside its box no longer floats away), nor drawn
     // in further than this (the fingers short of it: a hand reaches a little way round what it grips).
     constexpr float mostPush = 0.15f; // metres
     constexpr float mostPull = 0.08f;

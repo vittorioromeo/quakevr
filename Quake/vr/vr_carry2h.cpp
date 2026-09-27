@@ -155,22 +155,9 @@ glm::vec3 serverPlace(edict_t* ent, edict_t* player, bool grab)
     return object.pos;
 }
 
-bool reaches(edict_t* ent, const glm::vec3& point, int hand)
+bool reaches(edict_t* ent, edict_t* player, int hand)
 {
-    const bool inBox = physics::pointInModelBox(ent, point, 2.f);
-    const float reach = vr_carry_reach.value > 0.f ? vr_carry_reach.value * 0.01f * units::metresToUnits() : 0.f;
-    glm::vec3 nearest{0.f};
-    const float distance = inBox && (reach > 0.f || vr_debug_carry.value || vr_debug_physics_shapes.value) ? held::surfaceDistance(ent, point, &nearest) : -1.f;
-    if(inBox)
-    {
-        held::noteCarryProbe(hand, ent, point, distance, nearest, reach);
-    }
-    if(vr_debug_carry.value >= 2.f)
-    {
-        Con_Printf("carry2h: hand %d at %.1f %.1f %.1f, %s its box, %.1f units from its surface (reach %.1f)\n", hand, point.x,
-            point.y, point.z, inBox ? "in" : "not in", distance, reach);
-    }
-    return inBox && (reach <= 0.f || distance < 0.f || distance <= reach);
+    return held::grabTouch(ent, player, hand);
 }
 
 void resetServer()
