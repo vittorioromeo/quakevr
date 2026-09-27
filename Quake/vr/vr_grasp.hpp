@@ -118,6 +118,13 @@ void curls(const FingerStop& stop, float curl, float engage, float out[handrig::
 // and how thick a handle it is (`radius`). False if it can't be found.
 bool gripChannel(const handrig::Pose& pose, glm::vec3& point, glm::vec3& dir, float& radius);
 
+// Whether the world point `p` is inside `shape` (drawn with `shapeToWorld`) within `reach` world units of its surface
+// (the nearest triangle faces away from it); `out` the move out to that surface.
+bool inside(const Shape& shape, const glm::mat4& shapeToWorld, const glm::vec3& p, float reach, glm::vec3& out);
+
+// The fingertips of the hand at `pose` (rig space: each last segment's last sphere).
+void fingertips(const handrig::Pose& pose, glm::vec3 out[handrig::FingerCount]);
+
 // The spheres the hand at `pose` is tested as (rig space; w the radius): the fingers', the palm's.
 void posedSpheres(const handrig::Pose& pose, std::vector<glm::vec4>& out);
 

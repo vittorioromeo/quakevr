@@ -1097,6 +1097,8 @@ struct RigHand
     glm::mat4 inRig{1.f}; // where what it holds is in the hand this frame (vr_debug_grasp_trace)
     glm::mat4 solveRig{1.f}; // the rig's place the grasp is solved at, and its size (vr_grasp_bench)
     float rigUnit{0.f};
+    glm::vec3 pushed{0.f};   // drawn out of the other hand's weapon (vr_hand_collide), eased
+    double pushedTime{-1.0};
 };
 RigHand rigHands[2];
 
@@ -1376,6 +1378,58 @@ void alignChannel(int hand, bool mirrored, const glm::vec3& on, const glm::vec3&
     pos += target - c;
 }
 
+// vr_hand_collide: the free `hand` (if `free`) drawn out of the weapon in the other hand: its palm's middle and its
+// fingertips tested against the weapon's surface; the deepest in it sets the push out (along the surface's normal),
+// all of it up to vr_hand_collide cm, then less and less, none at twice as deep (it lets go). Eased over 0.08 s.
+void pushOut(const hands::State& s, int hand, bool free, glm::vec3& pos, const glm::vec3& handRot, bool mirrored)
+{
+    RigHand& rh = rigHands[hand];
+    const double now = cl.time;
+    const float dt = rh.pushedTime >= 0.0 ? static_cast<float>(CLAMP(0.0, now - rh.pushedTime, 0.1)) : 0.f;
+    rh.pushedTime = now;
+    glm::vec3 target{0.f};
+    const float most = std::fmax(vr_hand_collide.value, 0.f) * 0.01f * units::metresToUnits();
+    const view::ViewEntity& other = entities.weapon[1 - hand];
+    const int slot = weapons::slotForModel(other.ent.model);
+    if(free && most > 0.f && other.visible && slot >= 0 && slot != weapons::fistSlot() && handrig::usable(viewModel(handrig::modelName)))
+    {
+        if(const grasp::Shape* shape = grasp::shapeOf(other.ent, other.ent.frame))
+        {
+            const glm::mat4 toWorld = grasp::shapeToWorld(other.ent, other.mirrored);
+            const glm::mat4 rig = rigPlacement(hand, pos, handRot, mirrored, nullptr);
+            // The palm's middle and the fingertips (the hand as posed last frame).
+            glm::vec3 points[handrig::FingerCount + 1];
+            int count = 0;
+            points[count++] = glm::vec3{rig * glm::vec4{grasp::palmCentre(), 1.f}};
+            glm::vec3 tips[handrig::FingerCount];
+            grasp::fingertips(rh.pose, tips);
+            for(const glm::vec3& tip : tips)
+            {
+                points[count++] = glm::vec3{rig * glm::vec4{tip, 1.f}};
+            }
+            float deepest = 0.f;
+            glm::vec3 out{0.f};
+            for(int i = 0; i < count; i++)
+            {
+                glm::vec3 move;
+                if(grasp::inside(*shape, toWorld, points[i], 2.f * most, move) && glm::length(move) > deepest)
+                {
+                    deepest = glm::length(move);
+                    out = move;
+                }
+            }
+            if(deepest > 0.f)
+            {
+                const float give = deepest <= most ? 1.f : std::fmax(0.f, 2.f - deepest / most); // past it: less, then none
+                target = out * give;
+            }
+        }
+    }
+    (void)s;
+    rh.pushed += (target - rh.pushed) * std::fmin(1.f, dt / 0.08f);
+    pos += rh.pushed;
+}
+
 // `motion`: the held weapon's firing animation, moving the drawn hand after its grasp (solved without it).
 bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool mirrored, bool hide, const Held& held,
     const glm::mat4& motion)
@@ -1549,9 +1603,9 @@ bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
         }
         // The firing animation's motion at the hand: moved (world units), turned (degrees).
         const glm::vec3 at{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]};
-        line += va(" %.3f %.4f %d %.3f %.2f %d\n", turned, moved, twohand::helping(hand) ? 1 : 0,
+        line += va(" %.3f %.4f %d %.3f %.2f %d %.3f\n", turned, moved, twohand::helping(hand) ? 1 : 0,
             glm::distance(glm::vec3{motion * glm::vec4{at, 1.f}}, at), glm::degrees(glm::angle(glm::quat_cast(glm::mat3{motion}))),
-            entities.weapon[hand].ent.frame);
+            entities.weapon[hand].ent.frame, glm::length(rh.pushed));
         if(!trace)
         {
             trace = fopen(va("%s/grasp_trace.txt", com_gamedir), "w");
@@ -1686,6 +1740,11 @@ void setupHand(const hands::State& s, int hand)
             handRot = basisAngles(glm::mat3_cast(glm::slerp(from, to, gripBlend)));
         }
     }
+
+    // A free hand pushed into the other hand's weapon is held out of it (drawn only), a few centimetres at most: past
+    // that it gives way, and passes through (vr_hand_collide).
+    pushOut(s, hand, gripBlend <= 0.f && (slot < 0 || slot == fist) && !held::heldEntity(hand) && !flashlight::holds(hand), pos,
+        handRot, mirrored);
 
     // The hand-off (vr_twohand.cpp): a helping hand's drawn pose is what it carries a gun by, and a
     // hand carrying one is drawn so.

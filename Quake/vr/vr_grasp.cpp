@@ -315,8 +315,9 @@ struct Shape::Space
         stamp = 0;
     }
 
-    // The distance from `p` to the nearest triangle, at most `limit` (beyond it, `limit`); its point in `at`.
-    [[nodiscard]] float nearest(const glm::vec3& p, float limit, glm::vec3* at = nullptr)
+    // The distance from `p` to the nearest triangle, at most `limit` (beyond it, `limit`); its point in `at`, its
+    // normal (as wound) in `normal`.
+    [[nodiscard]] float nearest(const glm::vec3& p, float limit, glm::vec3* at = nullptr, glm::vec3* normal = nullptr)
     {
         float best = limit;
         int from[3], to[3];
@@ -368,6 +369,10 @@ struct Shape::Space
                             if(at)
                             {
                                 *at = q;
+                            }
+                            if(normal)
+                            {
+                                *normal = t.normal;
                             }
                         }
                     }
@@ -1318,6 +1323,50 @@ bool gripChannel(const handrig::Pose& pose, glm::vec3& point, glm::vec3& dir, fl
     }
     radius = std::fmax(radii / static_cast<float>(count), 0.f);
     return true;
+}
+
+bool inside(const Shape& shape, const glm::mat4& shapeToWorld, const glm::vec3& p, float reach, glm::vec3& out)
+{
+    Shape::Space& space = *shape.space;
+    const glm::mat4 realToWorld = shapeToWorld * glm::inverse(space.rawToReal);
+    const float scale = glm::length(glm::vec3{realToWorld[0]});
+    if(!(scale > 1e-6f))
+    {
+        return false;
+    }
+    if(space.cell <= 0.f)
+    {
+        space.buildGrid(0.8f / scale); // about the hand's cells (a hand unit is about 0.4 world units)
+    }
+    const glm::mat4 worldToReal = glm::inverse(realToWorld);
+    const glm::vec3 q{worldToReal * glm::vec4{p, 1.f}};
+    glm::vec3 at, n;
+    const float d = space.nearest(q, reach / scale, &at, &n);
+    if(d >= reach / scale || glm::dot(q - at, n) >= 0.f)
+    {
+        return false; // outside (or nothing near)
+    }
+    // Out along the surface's normal, into the world (normals take the inverse transpose; the models are wound
+    // outwards, mirrored ones inwards: the determinant says which).
+    glm::vec3 nw = glm::normalize(glm::mat3{glm::transpose(worldToReal)} * n);
+    if(glm::determinant(glm::mat3{realToWorld}) < 0.f)
+    {
+        nw = -nw;
+    }
+    out = nw * (d * scale);
+    return true;
+}
+
+void fingertips(const handrig::Pose& pose, glm::vec3 out[handrig::FingerCount])
+{
+    const Kinematics& k = kinematics();
+    for(int f = 0; f < handrig::FingerCount; f++)
+    {
+        handrig::Rigid seg[handrig::jointsPerFinger + 1];
+        handrig::fingerSegments(pose, f, pose.curl[f], seg);
+        const std::vector<Sphere>& row = k.bone[f][handrig::jointsPerFinger];
+        out[f] = row.empty() ? seg[handrig::jointsPerFinger].t : seg[handrig::jointsPerFinger](row.back().c);
+    }
 }
 
 void posedSpheres(const handrig::Pose& pose, std::vector<glm::vec4>& out)
