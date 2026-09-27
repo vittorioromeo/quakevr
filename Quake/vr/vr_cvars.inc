@@ -610,8 +610,25 @@ QVR_CVAR(vr_finger_grip_open, "0", CVAR_ARCHIVE)       // retired in round 21 (t
 QVR_CVAR(vr_hand_fit, "1", CVAR_ARCHIVE)               // round 21: with the jointed hand, the fingers wrap what the hand holds (guns' grips, a foregrip, carried boxes, gibs, the flashlight), closing joint by joint onto its triangles (vr_grasp.cpp)
 QVR_CVAR(vr_weapon_hotspot, "1", CVAR_NONE)            // the Weapon Offsets page's hotspot being edited (1..4)
 QVR_CVAR(vr_show_weapon_hotspots, "0", CVAR_NONE)      // marks the held weapons' hotspots, where the other hand may hold them (the edited one white)
-QVR_CVAR(vr_show_controller, "0", CVAR_NONE)            // round 21, third pass: draws each controller as tracked (its grip pose, before any offset), translucent, with its axes
+QVR_CVAR(vr_show_controller, "0", CVAR_NONE)            // round 21, third pass: draws each controller as tracked (at the runtime's grip pose, before any offset), translucent, with its axes
 QVR_CVAR(vr_show_controller_laser, "0", CVAR_NONE)      // and, for a held weapon, lasers: the controller's aim (white), the weapon's aim from the muzzle (red), its barrel (green)
+// After the posing test: the Show Controller preview (a Quest 3 Touch Plus controller drawn at the runtime's grip pose)
+// moved and turned to match the real controllers: centimetres along its drawn axes (x red: along the handle, y green:
+// left, z blue: up), degrees (pitch up, yaw left, roll). The main hand's; the off hand's mirrors them (y, yaw and roll
+// the other way) unless vr_show_controller_off_own is 1, then it takes its own.
+QVR_CVAR(vr_show_controller_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_show_controller_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_show_controller_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_show_controller_pitch, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_show_controller_yaw, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_show_controller_roll, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_show_controller_off_own, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_show_controller_off_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_show_controller_off_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_show_controller_off_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_show_controller_off_pitch, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_show_controller_off_yaw, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_show_controller_off_roll, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_pose_weapon_hand, "1", CVAR_NONE)           // the weapon posing mode (vr_posing.cpp): the hand that holds the floating weapon and poses it (1 main, 0 off: mirrored); the other poses its hotspots and confirms
 QVR_CVAR(vr_pose_solve, "0", CVAR_NONE)                 // and the posing hand wraps the weapon while posing (1: the grasp solved live, as before the posing test); 0: it passes through, unsolved, and shows the solved grip for a moment after each set
 QVR_CVAR(vr_pose_reset_offsets, "0", CVAR_NONE)         // and confirming a pose sets the tuning offsets to 0 (the weapon's Hand and Weapon Together and Hand Only; a hotspot's Held Hand)
