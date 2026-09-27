@@ -28,6 +28,10 @@ void resetRigidBodies();
 
 // Water splashes and sounds (vr_physics.cpp).
 
+// A new server, loading (VR_OnSpawnServerBeforeLoad): with Quake VR's progs, the water sounds precached, their indices
+// kept for playing them (none otherwise: no water sounds, as the progs don't have them).
+void precacheWaterSounds();
+
 // Before a toss, bounce or missile's move (vr_rigid.cpp): if it goes into a liquid on the way, its
 // splash, at once (it may hit the bottom in the same move).
 void predictWaterEntry(edict_t* ent);
