@@ -140,8 +140,8 @@ plants the object on the floor
 */
 // Pickups (weapons, armour, powerups, keys) drawn at vr_pickup_scale, resting on the floor, so that
 // the player crouches to reach them; their touch box is the model's own. Ammo and health boxes are
-// shrunk when they become grabbable (AfterPlacementAmmoBox, AfterPlacementHealthBox), wearable
-// armour to vr_armor_scale (AfterPlacementArmor).
+// shrunk when they become grabbable (AfterPlacementAmmoBox, AfterPlacementHealthBox), pickups that
+// become objects by their own (VR_PickupObj_Place).
 void() VRScalePickup =
 {
     float s = cvar_hget(cvarh_vr_pickup_scale);
@@ -149,8 +149,7 @@ void() VRScalePickup =
     {
         return;
     }
-    if(self.think2 == AfterPlacementAmmoBox || self.think2 == AfterPlacementHealthBox ||
-       self.think2 == AfterPlacementArmor)
+    if(self.think2 == AfterPlacementAmmoBox || self.think2 == AfterPlacementHealthBox || self.vr_pickup_obj)
     {
         return;
     }
@@ -176,14 +175,13 @@ void() VRScalePickup =
 
 // The map's weapons, armour, powerups and keys float at about torso height (vr_item_float_height),
 // easier to take by hand: they cannot be force-grabbed. Their box reaches down to the floor, so
-// walking over them still picks them up. Ammo and health boxes (physics objects) stay down; wearable
-// armour floats by its own (AfterPlacementArmor).
+// walking over them still picks them up. Ammo and health boxes (physics objects) stay down; pickups
+// that become objects float by their own (VR_PickupObj_Place).
 void() VRFloatPickup =
 {
     float h = cvar_hget(cvarh_vr_item_float_height);
     if(h <= 0 || self.movetype == MOVETYPE_NONE || (self.flags & FL_FORCEGRABBABLE) ||
-       self.think2 == AfterPlacementAmmoBox || self.think2 == AfterPlacementHealthBox ||
-       self.think2 == AfterPlacementArmor)
+       self.think2 == AfterPlacementAmmoBox || self.think2 == AfterPlacementHealthBox || self.vr_pickup_obj)
     {
         return;
     }
@@ -493,17 +491,46 @@ void(string xModelName, float xWait) impl_equipment_item =
 }
 
 // ----------------------------------------------------------------------------
-// Wearable armour (vr_armor_wear 1): the armour is a physics object, carried like the ammo and
-// health boxes (vr_carry.qc: grip to carry, thrown, nudged, force-grabbed, floats in water), and put
-// on by letting go of it over your torso (VR_Armor_LetGo): armor_touch's own rules (only if better
-// than what you wear), else it drops. Walking over it no longer takes it (with vr_body_interactions,
-// for a player with tracked hands); bots and flat-screen players still take it by touch. It hangs at
-// vr_item_float_height, as the map's pickups do, until a hand takes it or knocks it; then it falls.
-// vr_armor_wear 0 (or vr_carry 0): touching takes it, as before (which kind it is: next map).
+// Pickups as objects. The map's armour (vr_armor_wear 1), weapons, keys, runes, the biosuit, the
+// wetsuit and the horn (vr_item_objects 1) hang at vr_item_float_height, spinning as pickups do,
+// until a hand takes or knocks them or a force grab pulls them; from then on they are physics
+// objects (vr_carry.qc: carried, thrown, nudged, force-grabbed, rigid bodies, floating in water).
+// How each is taken (its own pickup, through itemTouch: its sound, message, flash and deathmatch
+// respawn):
+// - armour: carried and let go of over your torso (VR_Armor_LetGo): armor_touch's own rules (only if
+//   better than what you wear), else it drops;
+// - a weapon: gripped, it is the weapon in that hand at once (weapon_touch), as a thrown one is;
+//   touched without a grip it is knocked loose;
+// - the rest: carried and let go of at a holster (VR_PickupObj_Holster), never with the trigger.
+// Walking over them no longer takes them (for a player with tracked hands; weapons: as before with
+// vr_body_interactions); bots and flat-screen players still take them by touch. The powerups (quad,
+// pentagram, ring, the mission packs' shields, belt, sphere) are unchanged. Off (vr_armor_wear 0,
+// vr_item_objects 0 or vr_carry 0): touching takes them, as before (which kind: next map).
 
+float QVR_PICKUPOBJ_ARMOUR  = 1; // worn at the torso
+float QVR_PICKUPOBJ_WEAPON  = 2; // a grip takes it as the hand's weapon
+float QVR_PICKUPOBJ_HOLSTER = 3; // taken at a holster
+
+.float vr_pickup_obj;   // QVR_PICKUPOBJ_*: a pickup that becomes an object (0: a plain pickup)
 .float vr_wearable;     // armour to be worn by hand
 .float vr_wear_hover;   // carried over the torso last frame (for the hover haptic)
 .float vr_wear_floats;  // hangs in the air until taken or knocked (and again when it comes back in deathmatch)
+.float vr_pickup_sparkle; // a weapon's next sparkle (weapon_item_think's; not its think2, which forcegrabbable_item_reposition reads)
+
+// Whether pickups of its kind are objects now (their setting may have been turned off since the map
+// loaded: touching then takes them).
+float(entity xItem) VR_PickupObj_Enabled =
+{
+    if(!cvar_hget(cvarh_vr_carry))
+    {
+        return FALSE;
+    }
+    if(xItem.vr_pickup_obj == QVR_PICKUPOBJ_ARMOUR)
+    {
+        return cvar_hget(cvarh_vr_armor_wear) != 0;
+    }
+    return cvar_hget(cvarh_vr_item_objects) != 0;
+};
 
 // Its protection, armor_touch's measure: type times value.
 float(entity xArmor) VR_Armor_Protection =
@@ -546,31 +573,53 @@ float(entity xPlayer, float xHand, entity xArmor) VR_Armor_AtTorso =
            VR_Armor_PointAtTorso(xPlayer, (xArmor.absmin + xArmor.absmax) * 0.5);
 };
 
-// Taken again in deathmatch (itemTouch's SUB_regen): back where it was placed, as it was placed.
-void() VR_Armor_Regen =
+// Back where it was placed, as it was placed: hanging (or lying there), still, touchable, carried
+// by no one.
+void(entity xItem) VR_PickupObj_Return =
 {
-    SUB_regen();
-    self.solid = SOLID_NOT_BUT_TOUCHABLE;
-    self.angles = self.mangle;
-    self.velocity = '0 0 0';
-    self.avelocity = '0 0 0';
-    self.vr_spin = '0 0 0';
-    self.throwhit = QVR_THROWHIT_HIT;
-    self.owner = world;
-    self.movetype = self.vr_wear_floats ? MOVETYPE_NONE : MOVETYPE_TOSS;
-    self.vr_rigid = !self.vr_wear_floats;
-    self.vr_rest = 0;
-    setorigin(self, self.oldorigin);
-    dprint("armour: "); dprint(self.classname); dprint(" back at "); dprint(vtos(self.origin)); dprint("\n");
+    xItem.carry_player = world;
+    xItem.carry_2h = FALSE;
+    xItem.solid = SOLID_NOT_BUT_TOUCHABLE;
+    xItem.angles = xItem.mangle;
+    xItem.velocity = '0 0 0';
+    xItem.avelocity = '0 0 0';
+    xItem.vr_spin = '0 0 0';
+    xItem.throwhit = QVR_THROWHIT_HIT;
+    xItem.owner = world;
+    xItem.movetype = xItem.vr_wear_floats ? MOVETYPE_NONE : MOVETYPE_TOSS;
+    xItem.vr_rigid = !xItem.vr_wear_floats;
+    xItem.vr_rest = 0;
+    xItem.flags = xItem.flags - (xItem.flags & FL_ONGROUND);
+    xItem.rad_time = -999;
+    setorigin(xItem, xItem.oldorigin);
+    dprint("pickup: "); dprint(xItem.classname); dprint(" back at "); dprint(vtos(xItem.origin)); dprint("\n");
 };
 
-// After a pickup (armor_touch through itemTouch): if it was taken, it comes back in deathmatch as it
-// was placed (VR_Armor_Regen, not SUB_regen's trigger).
-void(entity xArmor) VR_Armor_Taken =
+// Taken again in deathmatch (itemTouch's SUB_regen, a powerup's): back where it was placed, as it
+// was placed.
+void() VR_PickupObj_Regen =
 {
-    if(xArmor.model == string_null && xArmor.think2 == SUB_regen)
+    SUB_regen();
+    VR_PickupObj_Return(self);
+    self.think = forcegrabbable_item_think;
+    self.nextthink = time + 0.02;
+};
+
+// After its pickup ran: if it was taken, it comes back in deathmatch as it was placed
+// (VR_PickupObj_Regen, not SUB_regen's trigger where it was taken).
+void(entity xItem) VR_PickupObj_Taken =
+{
+    if(xItem.model != string_null)
     {
-        xArmor.think2 = VR_Armor_Regen;
+        return;
+    }
+    if(xItem.think2 == SUB_regen)
+    {
+        xItem.think2 = VR_PickupObj_Regen;
+    }
+    if(xItem.think == SUB_regen) // (a powerup's own respawn: the biosuit's, the wetsuit's, the horn's)
+    {
+        xItem.think = VR_PickupObj_Regen;
     }
 };
 
@@ -590,7 +639,7 @@ float(float xHand, entity xArmor) VR_Armor_LetGo =
     {
         dprint("armour: worn ("); dprint(xArmor.classname); dprint("), armour ");
         dprint(ftos(self.armorvalue)); dprint(" type "); dprint(ftos(self.armortype)); dprint("\n");
-        VR_Armor_Taken(xArmor);
+        VR_PickupObj_Taken(xArmor);
         return TRUE;
     }
 
@@ -603,6 +652,44 @@ float(float xHand, entity xArmor) VR_Armor_LetGo =
         haptic(xHand, 0.12, 0.06, 40, 0.8);
     }
     return FALSE;
+};
+
+// From VR_Carry_HandFrame (self is the player): a key, a rune, a suit or the horn let go of at a
+// holster. Taken (its pickup through itemTouch): gone, or, a key in coop that stays for the others,
+// back at its place. Not taken (a key you have already): it drops there, with a dull knock and a
+// buzz. The hand lets go of it either way.
+void(float xHand, entity xItem) VR_PickupObj_Holster =
+{
+    float had = FALSE;
+    if(xItem.vr_itemId)
+    {
+        had = VR_ItemUtil_EntHasItem(self, xItem.vr_itemId);
+    }
+    VR_Carry_Take(xHand, xItem);
+    if(xItem.model == string_null)
+    {
+        dprint("pickup: "); dprint(xItem.netname); dprint(" taken at a holster\n");
+        VR_PickupObj_Taken(xItem);
+        return;
+    }
+
+    VR_Carry_SetHeld(self, xHand, world);
+    if(!had && xItem.vr_itemId && VR_ItemUtil_EntHasItem(self, xItem.vr_itemId))
+    {
+        dprint("pickup: "); dprint(xItem.netname); dprint(" taken at a holster, left for the others\n");
+        VR_PickupObj_Return(xItem);
+        return;
+    }
+
+    dprint("pickup: "); dprint(xItem.netname); dprint(" not taken (you have it)\n");
+    sound(self, CHAN_ITEM, "player/land.wav", 0.6, ATTN_NORM);
+    if(self.ishuman)
+    {
+        haptic(xHand, 0.0, 0.06, 40, 0.8);
+        haptic(xHand, 0.12, 0.06, 40, 0.8);
+    }
+    VR_Carry_Loose(xItem);
+    xItem.velocity = '0 0 0';
 };
 
 // From VR_Carry_HandFrame, each frame it is carried (self is the player): brought over the torso,
@@ -629,24 +716,75 @@ void(float xHand, entity xArmor) VR_Armor_HeldFrame =
     xArmor.vr_wear_hover = at;
 };
 
-// The armour's hand touch (VR_Carry_Handtouch's, but for these).
-void() VR_Armor_Handtouch =
+// A hand on a weapon object (self): gripped (a press on it, as a thrown weapon's, or a force grab's
+// catch), it is that hand's weapon at once (weapon_touch through itemTouch: its ammo, message, sound
+// and deathmatch respawn); else the hand knocks it loose.
+void() VR_PickupObj_WeaponTouch =
 {
-    if(!cvar_hget(cvarh_vr_armor_wear) || !cvar_hget(cvarh_vr_carry))
+    float hand = VRGetTouchingHand(other);
+    if((forcegrabCatching || (VR_Carry_GripPressed(other, hand) && !VR_Forcegrab_IsHandBusy(other, hand))) &&
+       VRIsHandEmpty(other, hand) && !VR_Carry_IsHolding(other, hand))
     {
-        self.carry_use(); // touching takes it
-        VR_Armor_Taken(self);
+        self.solid = SOLID_NOT_BUT_TOUCHABLE;
+        self.carry_use();
+        VR_PickupObj_Taken(self);
+        if(self.model != string_null)
+        {
+            // Left for the others (coop, deathmatch 2), or not taken: caught by a force grab, it goes
+            // back to where it was rather than stay in the air at the hand.
+            dprint("pickup: "); dprint(self.netname); dprint(" not taken away\n");
+            if(forcegrabCatching)
+            {
+                VR_PickupObj_Return(self);
+            }
+        }
+        else
+        {
+            dprint("pickup: "); dprint(self.netname); dprint(" taken as a weapon\n");
+        }
         return;
     }
 
-    // Walking over it does not put it on: hands do (bots and flat-screen players still take it).
-    if(other.classname == "player" && VRIsTouchingHandFake(other) && other.ishuman && VRHandsTracked(other))
+    VR_Carry_Nudge(other, hand, self);
+};
+
+// The hand touch of an object pickup (VR_Carry_Handtouch's, but for these).
+void() VR_PickupObj_Handtouch =
+{
+    if(!VR_PickupObj_Enabled(self))
     {
+        self.carry_use(); // touching takes it
+        VR_PickupObj_Taken(self);
+        return;
+    }
+
+    // Hanging, it spins as a pickup: taken or knocked, it goes on from the turn it is drawn at.
+    if(!self.vr_rigid && self.carry_player == world)
+    {
+        self.angles_y = anglemod(100 * time);
+    }
+
+    if(other.classname == "player" && VRIsTouchingHandFake(other))
+    {
+        // Walking over it does not take it, but a weapon (with vr_body_interactions, as before);
+        // bots and flat-screen players still take them.
+        if(other.ishuman && VRHandsTracked(other) && self.vr_pickup_obj != QVR_PICKUPOBJ_WEAPON)
+        {
+            return;
+        }
+        self.carry_use();
+        VR_PickupObj_Taken(self);
+        return;
+    }
+
+    if(self.vr_pickup_obj == QVR_PICKUPOBJ_WEAPON && other.classname == "player")
+    {
+        VR_PickupObj_WeaponTouch();
         return;
     }
 
     VR_Carry_Handtouch();
-    VR_Armor_Taken(self);
+    VR_PickupObj_Taken(self);
     if(self.carry_player != world)
     {
         self.vr_rigid = 1; // held, it no longer spins as a pickup
@@ -654,23 +792,46 @@ void() VR_Armor_Handtouch =
     }
 };
 
-// 0.3 s after it is placed (PlaceItem), with vr_armor_wear: the model's own box at vr_armor_scale,
-// a physics object (MakeItemGrabbable's, but for an alias model: its box, not centred on its origin,
-// is what the rigid body collides with; vr_rigid.cpp), hanging at vr_item_float_height if the map's
-// pickups float.
-void() AfterPlacementArmor =
+// A map's pickup that becomes an object, from its spawn function (self), if its setting is on:
+// marked (PlaceItem neither scales nor floats it: VR_PickupObj_Place does), and made one just after
+// it is placed.
+void(float xKind) VR_PickupObj_Mark =
+{
+    if(xKind == QVR_PICKUPOBJ_ARMOUR ? !cvar_hget(cvarh_vr_armor_wear) : !cvar_hget(cvarh_vr_item_objects))
+    {
+        return;
+    }
+    self.vr_pickup_obj = xKind;
+    self.think2 = VR_PickupObj_Place;
+    self.nextthink2 = time + 0.3; // just after PlaceItem
+};
+
+// 0.3 s after it is placed (PlaceItem): the model's own box at its scale (vr_armor_scale for armour,
+// vr_pickup_scale for the rest), a physics object (MakeItemGrabbable's, but for an alias model: its
+// box, not centred on its origin, is what the rigid body collides with), hanging with its middle at
+// vr_item_float_height if the map's pickups float, else lying on the floor.
+void() VR_PickupObj_Place =
 {
     if(self.model == string_null)
     {
         self.nextthink2 = time + 0.5; // not spawned yet (a trigger spawns it)
         return;
     }
+    if(self.think == PlaceItem)
+    {
+        // Not placed yet: as a map loads its frames are long, and this could come first. PlaceItem
+        // drops it to the floor and makes its touch itemTouch (the message's targets, the deathmatch
+        // respawn, its model kept for it); the armour's placement missed it.
+        self.nextthink2 = time + 0.05;
+        return;
+    }
 
-    float s = cvar_hget(cvarh_vr_armor_scale);
+    float s = cvar_hget(self.vr_pickup_obj == QVR_PICKUPOBJ_ARMOUR ? cvarh_vr_armor_scale : cvarh_vr_pickup_scale);
     if(s <= 0)
     {
         s = 1;
     }
+    float floorZ = self.origin_z + self.mins_z; // PlaceItem dropped its box onto the floor
     VR_ScaleUtil_SetScale(self, VR_ScaleUtil_GetUniformScaleVector(s));
     self.model_scale_origin = '0 0 0';
     self.model_offset = '0 0 0';
@@ -678,17 +839,19 @@ void() AfterPlacementArmor =
     vector hi = modelbounds(self, 1) * s;
     setsize(self, lo, hi);
 
-    // Placed on the floor (PlaceItem; not a honey floating item): its middle at the float height.
+    // Hangs with its middle at the float height; a honey floating item where it is; else on the floor.
     float h = cvar_hget(cvarh_vr_item_float_height);
+    // (Not `a || b` in an assignment: fteqcc's short circuit leaves the wrong value there.)
     self.vr_wear_floats = FALSE;
-    if(h > 0 && self.movetype != MOVETYPE_NONE)
+    if(self.movetype == MOVETYPE_NONE || h > 0)
     {
         self.vr_wear_floats = TRUE;
-        setorigin(self, self.origin + '0 0 1' * (h - (lo_z + hi_z) * 0.5));
     }
-    else
+    if(self.movetype != MOVETYPE_NONE)
     {
-        setorigin(self, self.origin + '0 0 0.25');
+        vector o = self.origin;
+        o_z = h > 0 ? floorZ + h - (lo_z + hi_z) * 0.5 : floorZ - lo_z + 0.25;
+        setorigin(self, o);
     }
 
     self.oldorigin = self.origin;
@@ -710,15 +873,15 @@ void() AfterPlacementArmor =
     self.owner = world;
 
     VR_Carry_Setup(self);
-    self.handtouch = VR_Armor_Handtouch;
-    self.vr_wearable = TRUE;
+    self.handtouch = VR_PickupObj_Handtouch;
+    self.vr_wearable = self.vr_pickup_obj == QVR_PICKUPOBJ_ARMOUR;
 
     if(self.vr_wear_floats)
     {
         self.movetype = MOVETYPE_NONE; // until a hand takes it or knocks it (VR_Carry_Loose)
         self.vr_rigid = 0;             // spins as a pickup meanwhile
     }
-    dprint("armour: "); dprint(self.classname); dprint(" wearable at "); dprint(vtos(self.origin));
+    dprint("pickup: "); dprint(self.classname); dprint(" an object at "); dprint(vtos(self.origin));
     dprint(", box "); dprint(vtos(self.mins)); dprint(" "); dprint(vtos(self.maxs)); dprint("\n");
 };
 
@@ -730,12 +893,7 @@ void(float xSkin) impl_equipment_armor =
     self.skin = xSkin;
     setsize(self, '-11 -11 0', '11 11 31');
     StartItem();
-
-    if(cvar_hget(cvarh_vr_armor_wear))
-    {
-        self.think2 = AfterPlacementArmor;
-        self.nextthink2 = time + 0.3; // just after PlaceItem
-    }
+    VR_PickupObj_Mark(QVR_PICKUPOBJ_ARMOUR);
 }
 
 /*QUAKED item_armor1 (0 .5 .8) (-16 -16 0) (16 16 32)
@@ -952,6 +1110,7 @@ void(string xModelName, float xWeaponId) impl_weapon_item =
     setsize(self, '-8 -8 -4', '8 8 38');
     if(deathmatch) { self.wait = 30; }
     StartItem();
+    VR_PickupObj_Mark(QVR_PICKUPOBJ_WEAPON);
 }
 
 /*QUAKED weapon_shotgun (0 .5 .8) (-16 -16 0) (16 16 32)
@@ -1135,9 +1294,11 @@ void() forcegrabbable_item_think =
         forcegrabbable_item_reposition(vr_forcegrabbable_return);
     }
 
-    // Wearable armour: hanging still it spins as a pickup; moving, it is a rigid body; brought back
-    // to its place (deathmatch), it hangs there again.
-    if(self.vr_wearable)
+    // Pickups as objects (armour, weapons, keys...): hanging still it spins as a pickup, and its turn
+    // here follows the drawn one (the physics shape, a hand's reach, and where it starts from when it is
+    // knocked loose or taken); moving, it is a rigid body; brought back to its place (deathmatch), it
+    // hangs there again.
+    if(self.vr_pickup_obj)
     {
         if(self.vr_wear_floats && self.origin != wasAt && self.origin == self.oldorigin)
         {
@@ -1150,6 +1311,16 @@ void() forcegrabbable_item_think =
         else if(!self.vr_rigid && self.movetype != MOVETYPE_NONE)
         {
             self.vr_rigid = 1;
+        }
+        if(!self.vr_rigid && self.movetype == MOVETYPE_NONE)
+        {
+            self.angles_y = anglemod(100 * time);
+        }
+        if(self.vr_pickup_obj == QVR_PICKUPOBJ_WEAPON && time >= self.vr_pickup_sparkle && self.model != string_null)
+        {
+            // A faint sparkle now and then, drifting up (the map's weapons').
+            particle2(self.origin, '0 0 0', QVR_PARTICLE_PRESET_GUNPICKUP, 1);
+            self.vr_pickup_sparkle = time + 0.25;
         }
     }
 
@@ -1423,6 +1594,7 @@ void() item_key1 =
     setsize(self, '-8 -8 -24', '8 8 32');
 
     StartItem();
+    VR_PickupObj_Mark(QVR_PICKUPOBJ_HOLSTER);
 };
 
 /*QUAKED item_key2 (0 .5 .8) (-16 -16 -24) (16 16 32)
@@ -1464,6 +1636,7 @@ void() item_key2 =
     setsize(self, '-8 -8 -24', '8 8 32');
 
     StartItem();
+    VR_PickupObj_Mark(QVR_PICKUPOBJ_HOLSTER);
 };
 
 
@@ -1526,9 +1699,11 @@ void() item_sigil =
     }
 
     self.handtouch = sigil_touch;
+    self.netname = "rune";
 
     setsize(self, '-16 -16 -24', '16 16 32');
     StartItem();
+    VR_PickupObj_Mark(QVR_PICKUPOBJ_HOLSTER);
 };
 
 /*
@@ -1642,6 +1817,7 @@ void() item_artifact_envirosuit =
     setsize(self, '-8 -8 -24', '8 8 32');
     if(deathmatch) { self.wait = 60; }
     StartItem();
+    VR_PickupObj_Mark(QVR_PICKUPOBJ_HOLSTER);
 };
 
 

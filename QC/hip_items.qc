@@ -82,6 +82,7 @@ void() item_artifact_wetsuit =
     setsize(self, '-16 -16 -24', '16 16 32');
 
     StartItem();
+    VR_PickupObj_Mark(QVR_PICKUPOBJ_HOLSTER); // VR: an object, taken at a holster (items.qc)
 };
 
 /*
@@ -131,8 +132,10 @@ void() item_hornofconjuring =
    precache_sound("hipitems/horn.wav");
    setmodel(self, "progs/horn.mdl");
    self.noise = "hipitems/horn.wav";
+   self.netname = "Horn of Conjuring";
    setsize(self, '-16 -16 0', '16 16 32');
     StartItem();
+    VR_PickupObj_Mark(QVR_PICKUPOBJ_HOLSTER); // VR: an object, taken at a holster (items.qc)
    };
 
 /*QUAKED item_artifact_empathy_shields (0 .5 .8) (-16 -16 0) (16 16 32)

@@ -243,6 +243,7 @@ struct Slot // what one edict is in the world (by its number)
     bool bullet{false};   // fast: continuous collision against other props too
     bool soft{false};     // isSoft
     bool brush{false};    // angles as a brush model's
+    bool spins{false};    // a fixture drawn spinning (an EF_ROTATE model: the map's pickups): its shape turns with it
     const b3HullData* hull{nullptr}; // actors: the hull at rest (actorHull), nullptr for Quake's box
 };
 
@@ -927,10 +928,13 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
         return model->type == mod_alias || model->type == mod_brush ? Kind::Prop : Kind::None;
     }
     const int solid = static_cast<int>(ent->v.solid);
-    if(!rigid && solid == SOLID_TRIGGER && hasFlag(ent, FL_ITEM) && movetype != MOVETYPE_NOCLIP &&
+    // A pickup hanging in the air or on a rack, not a rigid body until a hand knocks it loose: the map's pickups
+    // (triggers), and those that become objects once taken (armour, weapons, keys: touchable, still).
+    if(!rigid && hasFlag(ent, FL_ITEM) && movetype != MOVETYPE_NOCLIP &&
+        (solid == SOLID_TRIGGER || (solid == SOLID_NOT_BUT_TOUCHABLE && movetype == MOVETYPE_NONE)) &&
         (model->type == mod_alias || model->type == mod_brush))
     {
-        return Kind::Fixture; // a pickup hanging in the air or on a rack (not a rigid body until a hand knocks it loose)
+        return Kind::Fixture;
     }
     if(num <= svs.maxclients)
     {
@@ -989,6 +993,13 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
 
 void writeProp(edict_t* ent, Slot& s);
 
+// The yaw a spinning pickup is drawn at (cl_main.c's bobjrotate for EF_ROTATE models: 100 degrees a second), by the
+// server's clock (the client's trails it by at most a frame).
+[[nodiscard]] float spinYaw()
+{
+    return anglemod(static_cast<float>(100.0 * sv.qcvm.time));
+}
+
 // A body's turn: an actor's hull turns with its yaw (Quake's box and the players' capsules don't turn), the rest
 // with their angles.
 [[nodiscard]] b3Quat rotationOf(edict_t* ent, const Slot& s)
@@ -1001,6 +1012,11 @@ void writeProp(edict_t* ent, Slot& s);
     {
         const float yaw[3] = {0.f, ent->v.angles[1], 0.f};
         return toB3(turnOf(yaw, s.brush));
+    }
+    if(s.kind == Kind::Fixture && s.spins)
+    {
+        const float angles[3] = {ent->v.angles[0], spinYaw(), ent->v.angles[2]};
+        return toB3(turnOf(angles, s.brush));
     }
     return toB3(turnOf(ent->v.angles, s.brush));
 }
@@ -1083,6 +1099,7 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind)
     s.frame = static_cast<int>(ent->v.frame);
     s.scale = scaleFields(ent);
     s.brush = model && model->type == mod_brush;
+    s.spins = kind == Kind::Fixture && model && (model->flags & EF_ROTATE);
     s.soft = model && isSoft(ent, model);
     s.origin = vec(ent->v.origin);
     s.angles = vec(ent->v.angles);
@@ -1207,7 +1224,7 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind)
 void follow(edict_t* ent, Slot& s, float dt)
 {
     const glm::vec3 origin = vec(ent->v.origin), angles = vec(ent->v.angles);
-    const bool moved = origin != s.origin || angles != s.angles;
+    const bool moved = origin != s.origin || angles != s.angles || s.spins;
     if(!moved && !b3Body_IsAwake(s.body))
     {
         return;
@@ -1991,6 +2008,53 @@ void list_f()
         Con_Printf("  %d %s %.1f %.1f %.1f angles %.0f %.0f %.0f vel %.0f %s (%s)%s\n", num, PR_GetString(e->v.classname), e->v.origin[0],
             e->v.origin[1], e->v.origin[2], e->v.angles[0], e->v.angles[1], e->v.angles[2], VectorLength(e->v.velocity),
             hasFlag(e, FL_ONGROUND) ? "asleep" : "awake", body, e->v.takedamage ? va(" health %.0f", e->v.health) : "");
+        if(vr_debug_box3d.value)
+        {
+            Con_Printf("    movetype %d, solid %d, rigid %d, flags %d\n", static_cast<int>(e->v.movetype), static_cast<int>(e->v.solid),
+                isRigid(e) ? 1 : 0, static_cast<int>(e->v.flags));
+        }
+    }
+}
+
+// vr_physics_spawn <classname> [<distance> [<left>]]: a map entity made by its spawn function (a key, a weapon, the
+// biosuit, a powerup...) on the floor `distance` units (48) ahead of the first player and `left` units to the left, as
+// the map would place it there. For tests.
+void spawn_f()
+{
+    if(!sv.active || Cmd_Argc() < 2 || svs.maxclients < 1)
+    {
+        Con_Printf("usage: vr_physics_spawn <classname> [<distance> [<left>]]\n");
+        return;
+    }
+    const VmScope vm;
+    const func_t fn = qvr::progs::findFunction(Cmd_Argv(1));
+    if(!fn)
+    {
+        Con_Printf("vr_physics_spawn: no spawn function %s\n", Cmd_Argv(1));
+        return;
+    }
+    edict_t* player = EDICT_NUM(1);
+    vec3_t yaw{0.f, player->v.angles[1], 0.f};
+    vec3_t forward, right, up;
+    AngleVectors(yaw, forward, right, up);
+    const float distance = Cmd_Argc() > 2 ? static_cast<float>(Q_atof(Cmd_Argv(2))) : 48.f;
+    const float left = Cmd_Argc() > 3 ? static_cast<float>(Q_atof(Cmd_Argv(3))) : 0.f;
+    edict_t* e = ED_Alloc();
+    for(int i = 0; i < 3; i++)
+    {
+        e->v.origin[i] = player->v.origin[i] + forward[i] * distance - right[i] * left;
+    }
+    char* name = nullptr;
+    const int s = PR_AllocString(static_cast<int>(strlen(Cmd_Argv(1))) + 1, &name);
+    strcpy(name, Cmd_Argv(1));
+    e->v.classname = s;
+    pr_global_struct->time = qcvm->time;
+    pr_global_struct->self = EDICT_TO_PROG(e);
+    PR_ExecuteProgram(fn);
+    if(!e->free)
+    {
+        SV_LinkEdict(e, false);
+        Con_Printf("vr_physics_spawn: %d %s at %.0f %.0f %.0f\n", NUM_FOR_EDICT(e), Cmd_Argv(1), e->v.origin[0], e->v.origin[1], e->v.origin[2]);
     }
 }
 
@@ -2101,6 +2165,7 @@ void registerCommands()
         Cmd_AddCommand("vr_physics_hash", hash_f);
         Cmd_AddCommand("vr_physics_blast", blast_f);
         Cmd_AddCommand("vr_physics_sink", sink_f);
+        Cmd_AddCommand("vr_physics_spawn", spawn_f);
     }
 }
 

@@ -314,6 +314,13 @@ void(entity e) VR_Forcegrab_Miss =
     {
         e.movetype = MOVETYPE_TOSS;
     }
+    // A pickup that hung (armour, a key, a weapon: items.qc's objects) falls as the physics object it
+    // now is, and stays one (VR_Forcegrab_Restore would hang it again wherever it has got to).
+    if(e.vr_pickup_obj)
+    {
+        e.fg_movetype = MOVETYPE_TOSS;
+        e.vr_rigid = 1;
+    }
     e.flags = e.flags - (e.flags & FL_ONGROUND);
     e.vr_rest = 0;
     e.fg_state = 2;
