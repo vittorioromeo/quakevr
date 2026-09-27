@@ -1188,6 +1188,8 @@ void openPage(int target)
     return best;
 }
 
+// (`item` lives in the page's list, which an action -- or a cvar's callback -- may build again: what is needed of it is
+// read before.)
 void change(const Item& item, int dir)
 {
     switch(item.kind)
@@ -1209,12 +1211,17 @@ void change(const Item& item, int dir)
         case Item::Action:
             if(dir > 0)
             {
-                if(item.page >= 0)
+                const int page = item.page;
+                void (*const action)() = item.action;
+                if(page >= 0)
                 {
-                    openPage(item.page);
+                    openPage(page);
                     return;
                 }
-                item.action();
+                if(action)
+                {
+                    action(); // (`item` may be gone after this)
+                }
             }
             break;
         default: break;
