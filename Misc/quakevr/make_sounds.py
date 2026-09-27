@@ -4,6 +4,8 @@
 #                 punch and a wet crunch of bone; short, so that it cuts through gunfire
 #   shell_tink1..3.wav  a spent shotgun shell landing (vr_shells.cpp): a brass ring, a plastic tock and
 #                 a softer second bounce
+#   shell_plip1..3.wav  a spent shell dropping into water (vr_shells.cpp): the recorded plips (plip1, plip3,
+#                 plip4, below) pitched up, for a smaller thing going in, their tails shortened
 #   shove.wav, bash.wav, bash_parry.wav, parry.wav  melee contacts other than blows (vr_bash_sound): a
 #                 shove (a whoosh into a thud), a weapon bash (a dull clang on a thud), a parry-bash (a
 #                 scrape and ring over the bash) and a parry (a bright ring of steel)
@@ -278,6 +280,48 @@ def bash_parry():
     return finish(out, 0.92)
 
 
+def read_wav(path):
+    """A 16-bit mono WAV's samples, -1..1."""
+    with open(path, "rb") as f:
+        data = f.read()
+    at = 12
+    while at + 8 <= len(data):
+        tag, size = data[at:at + 4], struct.unpack("<I", data[at + 4:at + 8])[0]
+        if tag == b"data":
+            raw = data[at + 8:at + 8 + size]
+            return [v / 32768.0 for v in struct.unpack("<%dh" % (len(raw) // 2), raw)]
+        at += 8 + size + (size & 1)
+    raise ValueError("no data in " + path)
+
+
+def pitched(samples, factor, taps=16):
+    """`samples` played `factor` times faster (higher and shorter), band-limited: a Hann-windowed sinc low-pass at
+    the new Nyquist, so nothing folds back."""
+    cutoff = min(1.0, 1.0 / factor) * 0.95
+    out = []
+    n = len(samples)
+    for j in range(int(n / factor)):
+        t = j * factor
+        k0 = int(t)
+        acc = 0.0
+        for k in range(k0 - taps * int(math.ceil(factor)) + 1, k0 + taps * int(math.ceil(factor)) + 1):
+            if 0 <= k < n:
+                x = (t - k) * cutoff
+                w = 0.5 + 0.5 * math.cos(math.pi * (t - k) / (taps * math.ceil(factor)))
+                acc += samples[k] * cutoff * (math.sin(math.pi * x) / (math.pi * x) if x else 1.0) * w
+        out.append(acc)
+    return out
+
+
+def shell_plip(source, factor, length):
+    """A recorded plip pitched up by `factor` (a spent shell is smaller than a stone or a shot), cut to `length`
+    seconds with a 40 ms fade."""
+    s = pitched(read_wav(source), factor)[:int(RATE * length)]
+    fade = int(RATE * 0.04)
+    n = len(s)
+    return [v * min(1.0, (n - i) / fade) for i, v in enumerate(s)]
+
+
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "..", "..", "quakevr", "sound", "vr")
@@ -298,6 +342,11 @@ def main():
     for k, pitch in enumerate((1.0, 0.92, 1.09)):
         name = "shell_tink%d.wav" % (k + 1)
         write_wav(os.path.join(out, name), shell_tink(pitch, 31 + k))
+        print(name + " -> " + os.path.normpath(out))
+    # And dropping into water (vr_shells.cpp): the recordings' plips higher, from the folder they are in.
+    for k, (plip, factor) in enumerate((("plip1.wav", 1.5), ("plip3.wav", 1.4), ("plip4.wav", 1.65))):
+        name = "shell_plip%d.wav" % (k + 1)
+        write_wav(os.path.join(out, name), shell_plip(os.path.join(out, plip), factor, 0.2))
         print(name + " -> " + os.path.normpath(out))
 
 

@@ -163,6 +163,7 @@ struct Category
     std::vector<Choice> details;
 };
 [[nodiscard]] const std::vector<Category>& categories();
+[[nodiscard]] std::vector<int> categoryOrder(); // their indices in the menu's order
 [[nodiscard]] const Category& chosenCategory();
 [[nodiscard]] const Choice& chosenDetail();
 [[nodiscard]] std::string chosenLabel();

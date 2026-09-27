@@ -406,7 +406,7 @@ struct Readers
     profile::PhaseSums sums;
     FrameCounts counts;
 };
-Readers logReader, commandReader;
+Readers logReader, commandReader, rateReader; // rateReader: the wrist gadget's FPS counter (frameRate)
 
 // The last frame's counts (VR_BeginFrame, before the texts are cleared), every 8th frame.
 void sampleCounts()
@@ -448,6 +448,7 @@ void drainPhases()
     const profile::PhaseSums p = profile::takePhases();
     addSums(logReader.sums, p);
     addSums(commandReader.sums, p);
+    addSums(rateReader.sums, p);
 }
 
 // The server's entities: in use, and of kinds that pile up in play.
@@ -852,6 +853,38 @@ const FrameState& frameState()
 {
     static const FrameState none;
     return state && state->backend ? state->frame : none;
+}
+
+bool frameRate(FrameRate& out)
+{
+    static double windowStart = -1.0;
+    static FrameRate last;
+    static bool valid = false;
+    if(windowStart < 0.0 || realtime < windowStart)
+    {
+        drainPhases(); // (what came before is not this window's)
+        rateReader = Readers{};
+        windowStart = realtime;
+    }
+    else if(realtime - windowStart >= 0.5)
+    {
+        drainPhases();
+        const profile::PhaseSums& p = rateReader.sums;
+        if(p.frames > 0)
+        {
+            using namespace profile;
+            const double frames = p.frames;
+            const double waits = p.cpuMs[XrWait] + p.cpuMs[XrAcquire] + p.cpuMs[XrRelease] + p.cpuMs[XrSubmit] + p.cpuMs[Swap];
+            last.fps = p.periodMs > 0.0 ? static_cast<float>(1000.0 * frames / p.periodMs) : 0.f;
+            last.cpuMs = static_cast<float>(q_max(0.0, (p.hostMs - waits) / frames));
+            last.gpuMs = p.gpuFrames > 0 ? static_cast<float>((p.gpuMs[EyeL] + p.gpuMs[EyeR]) / p.gpuFrames) : -1.f;
+            valid = true;
+        }
+        rateReader = Readers{};
+        windowStart = realtime;
+    }
+    out = last;
+    return valid;
 }
 
 int scaledEyeSize(int image, int max)

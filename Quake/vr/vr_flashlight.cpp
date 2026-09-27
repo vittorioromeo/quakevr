@@ -13,6 +13,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace qvr::flashlight
@@ -20,12 +22,15 @@ namespace qvr::flashlight
 namespace
 {
 
-// progs/vrflashlight.mdl (make_flashlight.py): model units at vr_world_scale 1, +x the beam, +z up
-// the body; the origin in the middle of the body.
+// progs/vrflashlight.mdl (make_flashlight.py): a straight torch (round 21), model units at vr_world_scale 1: +x along
+// the tube to the lens (the beam), +z the side its switch is on, +y left; the origin on the axis in the middle of the
+// grip, where the fist holds it.
 constexpr const char* modelName = "progs/vrflashlight.mdl";
-constexpr glm::vec3 lensPoint{0.997f, 0.f, 1.234f};
-constexpr glm::vec3 capPoint{0.f, 0.f, -1.05f}; // the bottom of the body, where the cord goes in
-constexpr float lensRadius = 0.433f;             // the lens's (1.65 cm)
+constexpr glm::vec3 lensPoint{1.982f, 0.f, 0.f};
+constexpr glm::vec3 capPoint{-1.365f, 0.f, 0.f};      // the tail's end, where the cord goes in
+constexpr glm::vec3 switchPoint{0.840f, 0.f, 0.373f}; // the switch (its clicks come from there)
+constexpr float lensRadius = 0.4147f;                 // the lens's (1.58 cm)
+constexpr float tailLength = 0.052f;                  // metres from the grip's middle back to the tail
 
 // The beam: a spot light, full within innerAngle degrees of its axis and smoothly down to none at
 // outerAngle; a faint spill round it out to spillAngle. The visible beam's cones are the same:
@@ -36,15 +41,17 @@ constexpr float spillAngle = 45.f;
 const float spread = std::tan(glm::radians(outerAngle));
 const float coreSpread = std::tan(glm::radians(innerAngle));
 
-constexpr float reach = 0.11f;         // metres from the lamp's middle a hand reaches it at
+constexpr float reach = 0.09f;         // metres from the torch's axis (tail to lens) a hand reaches it at
 constexpr float returnOmega = 14.f;    // the cord's pull (critically damped; home in about 0.4 s)
 constexpr float maxThrow = 3.f;        // metres per second the lamp keeps of the hand's at a release
 constexpr float gunReach = 0.12f;      // metres from the gun (its line from the hand to the muzzle) it clips on at
+
 
 // The dynamic lights' keys (entities' keys are their numbers, never negative).
 constexpr int keySpot = -0x0F1A51;
 constexpr int keySpill = -0x0F1A52;
 constexpr int keyLamp = -0x0F1A53;
+constexpr int soundEntity = -0x0F1A54; // its clicks' (heard from the lamp, not the head)
 
 enum class Mode
 {
@@ -58,6 +65,13 @@ struct Pose
 {
     glm::vec3 pos{0.f};
     glm::quat rot{1.f, 0.f, 0.f, 0.f}; // model axes to the world: x the beam, y left, z up
+};
+
+// Where the torch is clipped on a gun (findGunSpot): metres under the line the gun aims along, or beside it.
+struct GunSpot
+{
+    float down{0.045f};
+    float out{0.f};
 };
 
 struct State
@@ -74,10 +88,16 @@ struct State
     glm::vec3 flightVel{0.f};
     glm::quat flightRot{1.f, 0.f, 0.f, 0.f};
 
-    // On a gun: the hand holding it and its model (the same gun with its other ammo keeps it).
+    // On a gun: the hand holding it and its model (the same gun with its other ammo keeps it), and where on it.
     int gunHand{-1};
     const qmodel_t* gunModel{nullptr};
+    GunSpot gunSpot;
     bool nearGun{false}; // held within reach of the other hand's gun (B/Y clips it on)
+
+    // Round 21: each hand's grip, flipped with its B/Y while held away from a gun: the low grip (false: the beam out of
+    // the thumb's side) or the overhead one (true: out of the little finger's side); kept for the next time that hand
+    // takes it.
+    bool overhead[2]{};
 
     bool swallowed[2][3]{}; // [hand][Button]: a press the flashlight took, whose release it takes too
     bool gripDown[2]{};
@@ -136,8 +156,9 @@ Beam beam;
     return {pos, glm::normalize(glm::quat_cast(glm::mat3{fwd, left, up}))};
 }
 
-// Clipped to the chest on the off hand's side, its back against the chest (vr_flashlight_forward,
-// _up and _out move it), the beam where the torso faces, tilted down by vr_flashlight_tilt.
+// Clipped to the chest on the off hand's side, pointing forward, its tail just in front of the chest where the cord
+// comes out of the clip (vr_flashlight_forward, _up and _out move it), the beam where the torso faces, tilted down by
+// vr_flashlight_tilt, its switch up.
 [[nodiscard]] Pose mountPose(const hands::State& s)
 {
     const avatar::Torso torso = avatar::torso(s);
@@ -146,46 +167,168 @@ Beam beam;
     const glm::vec3 left = glm::cross(up, fwd);
     const float side = vr_lefthanded.value != 0.f ? -1.f : 1.f;
 
-    // The chest's front where the lamp is (make_vrbody.py's torso rings, 6 cm above the chest joint
-    // and 8.5 cm to the side): deeper for the brawnier builds; the lamp's back 2 cm in front of it.
+    // The chest's front where the clip is (make_vrbody.py's torso rings, 6 cm above the chest joint
+    // and 8.5 cm to the side): deeper for the brawnier builds; the tail 1.2 cm in front of it.
     const int build = static_cast<int>(vr_body_build.value);
     const float depth = build <= 0 ? 0.9f : build >= 2 ? 1.1f : 1.f;
     const float m2w = bodyUnits();
-    const glm::vec3 pos = torso.chest.pos + (fwd * (0.125f * depth + 0.021f + vr_flashlight_forward.value) +
-                                                left * (side * (0.085f + vr_flashlight_out.value)) +
-                                                up * (0.06f + vr_flashlight_up.value)) *
-                                                m2w;
+    const glm::vec3 clip = torso.chest.pos + (fwd * (0.125f * depth + 0.012f + vr_flashlight_forward.value) +
+                                                 left * (side * (0.085f + vr_flashlight_out.value)) +
+                                                 up * (0.06f + vr_flashlight_up.value)) *
+                                                 m2w;
 
     const float tilt = glm::radians(CLAMP(-45.f, vr_flashlight_tilt.value, 60.f));
     const glm::vec3 beam = fwd * std::cos(tilt) - up * std::sin(tilt);
     const glm::vec3 beamUp = up * std::cos(tilt) + fwd * std::sin(tilt);
-    return poseFromAxes(pos, beam, left, beamUp);
+    return poseFromAxes(clip + beam * (tailLength * units::metresToUnits()), beam, left, beamUp);
 }
 
-// In the hand, held like a pistol's grip: the body through the fist (the tracked hand is ahead of
-// and above the drawn fist's grip: vr_flashlight_hand_forward and _up move the lamp back and down
-// into it), the beam where the hand points.
+// In the hand, held like a torch (round 21; before, like a pistol's grip): the tube through the curled fingers, along
+// the fist's axis (the hand's up, as a pistol's grip is), the switch towards the knuckles. In the low grip the head is
+// out past the thumb and the index finger and the beam goes that way: the hand is pitched forward a quarter turn from
+// a pistol's aim to light ahead. In the overhead grip (B/Y flips it) the torch is the other way round in the same
+// fist, the beam out of the little finger's side: the fist raised by the head, the thumb towards the face, lights
+// ahead. The tracked hand is ahead of and above the drawn fist: vr_flashlight_hand_forward and _up move the grip's
+// middle back and down into it; the drawn hand's grasp (vr_grasp.cpp) then fits the palm and fingers round the tube
+// (the palm moves 1.2-1.5 cm at the defaults, either grip, either hand).
 [[nodiscard]] Pose handPose(const hands::State& s, int hand)
 {
     glm::vec3 fwd, right, up;
     hands::angleVectors(s.rot[hand], fwd, right, up);
     const float m2u = units::metresToUnits();
     const glm::vec3 offset = fwd * vr_flashlight_hand_forward.value + up * vr_flashlight_hand_up.value;
-    return poseFromAxes(s.pos[hand] + offset * m2u, fwd, -right, up);
+    Pose p = poseFromAxes(s.pos[hand] + offset * m2u, up, right, fwd);
+
+    // Overhead: half a turn about the knuckles' way (the switch stays towards them). At once, a regrip: the grasp
+    // is solved for the new hold once, not chased through a turn.
+    if(st.overhead[hand])
+    {
+        p.rot = glm::normalize(p.rot * glm::angleAxis(3.14159265f, glm::vec3{0.f, 0.f, 1.f}));
+    }
+    return p;
 }
 
-// Clipped under the gun's barrel: the lens a little behind the muzzle and below the line it aims along
-// (vr_flashlight_gun_forward, _up and _out move it), the body hanging below like a foregrip, the beam
-// where the gun aims.
+// The torch's radius (metres) at `back` metres behind its lens: the head's, then the tube's (its grip rings, the tail
+// cap), and how long it is.
+constexpr float headBack = 0.025f;
+constexpr float torchLength = 0.129f;
+constexpr float lensBack = 0.01f; // metres the lens is behind a gun's muzzle
+[[nodiscard]] float torchRadius(float back)
+{
+    return back < headBack ? 0.0195f : back < 0.1245f ? 0.0142f : 0.0065f; // (the tail's rubber button last)
+}
+
+// Where the torch goes on a gun (metres from the line the gun aims along to the torch's axis): under it (`down`) or,
+// when the gun's underside there goes too deep (a super nailgun's drum), beside it on the side away from the body
+// (`out`). Found from the drawn gun's surface at rest (its first frame: points over each triangle, 5 mm apart or
+// closer) over the torch's length, the lens 1 cm behind the muzzle: under, the lowest of those within its reach
+// sideways; beside, the outermost within its reach up and down; each with the torch's radius there and 3 mm. Under
+// at least 4.5 cm, beside at least 3.5; under unless beside is nearer by 2 cm. Once per gun model and size (the
+// weapons' scale), cached.
+[[nodiscard]] GunSpot findGunSpot(const view::WeaponMount& m)
+{
+    // The gun's own view entity: the one drawing its model, mirrored as it is, nearest the hand.
+    const view::ViewEntity* gun = nullptr;
+    float nearest = 1e9f;
+    for(int i = 0; i < cl_numvisedicts; i++)
+    {
+        const view::ViewEntity* ve = view::find(cl_visedicts[i]);
+        if(ve && ve->ent.model == m.model && ve->mirrored == m.mirrored)
+        {
+            const float d = glm::distance(glm::vec3{ve->ent.origin[0], ve->ent.origin[1], ve->ent.origin[2]}, m.pos);
+            if(d < nearest)
+            {
+                nearest = d;
+                gun = ve;
+            }
+        }
+    }
+    if(!gun || m.model->type != mod_alias)
+    {
+        return {}; // (not cached: it is drawn from the next frame)
+    }
+    static std::unordered_map<std::string, GunSpot> cache;
+    const float size = glm::distance(view::modelPoint(*gun, glm::vec3{0.f}), view::modelPoint(*gun, glm::vec3{1.f, 0.f, 0.f}));
+    const std::string key = std::string{m.model->name} + va("/%.4f", size);
+    if(const auto it = cache.find(key); it != cache.end())
+    {
+        return it->second;
+    }
+    const double started = Sys_DoubleTime();
+    glm::vec3 fwd, right, up;
+    hands::angleVectors(m.rot, fwd, right, up);
+    const glm::vec3 outward = right * (m.mirrored ? -1.f : 1.f);
+    const float u2m = 1.f / units::metresToUnits();
+    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(gun->ent.model));
+    if(hdr->poseverttype != aliashdr_t::PV_QUAKE1 || hdr->numposes < 1)
+    {
+        return {};
+    }
+    const auto* base = reinterpret_cast<const byte*>(hdr);
+    const auto* verts = reinterpret_cast<const trivertx_t*>(base + hdr->vertexes) + hdr->frames[0].firstpose * hdr->numverts;
+    const auto* mesh = reinterpret_cast<const aliasmesh_t*>(base + hdr->meshdesc);
+    const auto* indexes = reinterpret_cast<const unsigned short*>(base + hdr->indexes);
+    const auto corner = [&](int i) { // a triangle's corner: metres from the muzzle, in the gun's axes (back, out, up)
+        const trivertx_t& t = verts[mesh[indexes[i]].vertindex];
+        const glm::vec3 p{t.v[0] * hdr->scale[0] + hdr->scale_origin[0], t.v[1] * hdr->scale[1] + hdr->scale_origin[1],
+            t.v[2] * hdr->scale[2] + hdr->scale_origin[2]};
+        const glm::vec3 d = (view::modelPoint(*gun, p) - m.muzzle) * u2m;
+        return glm::vec3{-glm::dot(d, fwd) - lensBack, glm::dot(d, outward), glm::dot(d, up)};
+    };
+    float down = 0.045f, side = 0.035f;
+    for(int i = 0; i + 2 < hdr->numindexes; i += 3)
+    {
+        const glm::vec3 a = corner(i), b = corner(i + 1), c = corner(i + 2);
+        const float span = std::max({glm::distance(a, b), glm::distance(b, c), glm::distance(c, a)});
+        const int n = std::clamp(static_cast<int>(std::ceil(span / 0.005f)), 1, 64);
+        for(int u = 0; u <= n; u++)
+        {
+            for(int v = 0; u + v <= n; v++)
+            {
+                const glm::vec3 q = a + (b - a) * (static_cast<float>(u) / n) + (c - a) * (static_cast<float>(v) / n);
+                if(q.x < -0.005f || q.x > torchLength)
+                {
+                    continue;
+                }
+                const float r = torchRadius(q.x) + 0.003f;
+                if(std::abs(q.y) < r)
+                {
+                    down = std::max(down, r - q.z);
+                }
+                if(std::abs(q.z) < r)
+                {
+                    side = std::max(side, q.y + r);
+                }
+            }
+        }
+    }
+    GunSpot spot;
+    if(side + 0.02f < down)
+    {
+        spot = {0.f, side};
+    }
+    else
+    {
+        spot = {down, 0.f};
+    }
+    Con_DPrintf("flashlight: %s: under it %.1f cm, beside it %.1f cm: %s (%.1f ms)\n", m.model->name, down * 100.f,
+        side * 100.f, spot.out > 0.f ? "beside" : "under", (Sys_DoubleTime() - started) * 1000.0);
+    cache.emplace(key, spot);
+    return spot;
+}
+
+// Clipped on the gun, parallel to its barrel (round 21; before, hanging below like a foregrip): the lens a little behind
+// the muzzle, the tube's axis just under the gun or beside it (findGunSpot; vr_flashlight_gun_forward, _up and _out move
+// it), running back along the gun, its switch out to the side (away from the body), the beam where the gun aims.
 [[nodiscard]] Pose gunPose(const view::WeaponMount& m)
 {
     glm::vec3 fwd, right, up;
     hands::angleVectors(m.rot, fwd, right, up);
     const float out = m.mirrored ? -1.f : 1.f; // away from the body: right for the main hand
-    const glm::vec3 lens = m.muzzle + (fwd * (-0.035f + vr_flashlight_gun_forward.value) + up * (-0.04f + vr_flashlight_gun_up.value) +
-                                          right * (out * vr_flashlight_gun_out.value)) *
+    const glm::vec3 lens = m.muzzle + (fwd * (-lensBack + vr_flashlight_gun_forward.value) + up * (vr_flashlight_gun_up.value - st.gunSpot.down) +
+                                          right * (out * (st.gunSpot.out + vr_flashlight_gun_out.value))) *
                                           units::metresToUnits();
-    Pose p = poseFromAxes(glm::vec3{0.f}, fwd, -right, up);
+    Pose p = poseFromAxes(glm::vec3{0.f}, fwd, up * out, right * out);
     p.pos = lens - p.rot * (lensPoint * units::worldScale());
     return p;
 }
@@ -194,7 +337,7 @@ Beam beam;
 // past the muzzle.
 [[nodiscard]] float gunDistance(const Pose& lamp, const view::WeaponMount& m)
 {
-    const glm::vec3 middle = modelPointAt(lamp, glm::vec3{0.f, 0.f, 0.3f});
+    const glm::vec3 middle = modelPointAt(lamp, glm::vec3{0.f});
     const glm::vec3 a = m.pos;
     const glm::vec3 ab = m.muzzle - a;
     const float len2 = glm::dot(ab, ab);
@@ -210,14 +353,35 @@ Beam beam;
     return slot < 0 || slot == weapons::fistSlot();
 }
 
+// Whether a hand is at the lamp: near its axis, anywhere from the tail to the lens (a long torch is taken by its
+// tube or by its head).
 [[nodiscard]] bool handNear(const hands::State& s, int hand)
 {
     if(!st.placed || !s.valid)
     {
         return false;
     }
-    const glm::vec3 middle = modelPointAt(st.pose, glm::vec3{0.f, 0.f, 0.3f});
-    return glm::distance(s.pos[hand], middle) < reach * units::metresToUnits();
+    const glm::vec3 a = modelPointAt(st.pose, capPoint);
+    const glm::vec3 ab = modelPointAt(st.pose, lensPoint) - a;
+    const float t = std::clamp(glm::dot(s.pos[hand] - a, ab) / std::max(glm::dot(ab, ab), 1e-4f), 0.f, 1.f);
+    return glm::distance(s.pos[hand], a + ab * t) < reach * units::metresToUnits();
+}
+
+// One of its sounds at a point of it (the switch's clicks at the switch, the clamp's at its middle): heard from the
+// lamp, wherever it is (from the head before it has been placed).
+void sound(const char* name, const glm::vec3& point)
+{
+    if(!st.placed)
+    {
+        S_LocalSound(name);
+        return;
+    }
+    if(sfx_t* sfx = S_PrecacheSound(name))
+    {
+        const glm::vec3 p = modelPointAt(st.pose, point);
+        vec3_t org{p.x, p.y, p.z};
+        S_StartSound(soundEntity, 1, sfx, org, 1.f, 1.f);
+    }
 }
 
 void haptic(int hand, float seconds, float amplitude)
@@ -232,7 +396,7 @@ void toggle(int hand)
 {
     st.on = !st.on;
     Con_DPrintf("flashlight: %s\n", st.on ? "on" : "off");
-    S_LocalSound(st.on ? "vr/flashlight_on.wav" : "vr/flashlight_off.wav");
+    sound(st.on ? "vr/flashlight_on.wav" : "vr/flashlight_off.wav", switchPoint);
     if(hand >= 0)
     {
         haptic(hand, 0.03f, 0.55f);
@@ -241,6 +405,7 @@ void toggle(int hand)
 
 void take(int hand)
 {
+    Con_DPrintf("flashlight: taken in the %s hand\n", hand == HAND_MAIN ? "main" : "off");
     st.mode = Mode::Held;
     st.holder = hand;
     haptic(hand, 0.05f, 0.45f);
@@ -271,6 +436,15 @@ void letGo(const hands::State& s, const Pose& mount)
     }
 }
 
+// B/Y with the torch in the hand, away from a gun: the other grip (see handPose), with a click and a light buzz.
+void flip(int hand)
+{
+    st.overhead[hand] = !st.overhead[hand];
+    Con_DPrintf("flashlight: %s grip in the %s hand\n", st.overhead[hand] ? "overhead" : "low", hand == HAND_MAIN ? "main" : "off");
+    sound("vr/flashlight_flip.wav", glm::vec3{0.f});
+    haptic(hand, 0.025f, 0.3f);
+}
+
 void clipOn(int gunHand, const view::WeaponMount& m)
 {
     const int hand = st.holder;
@@ -278,9 +452,10 @@ void clipOn(int gunHand, const view::WeaponMount& m)
     st.holder = -1;
     st.gunHand = gunHand;
     st.gunModel = m.model;
+    st.gunSpot = findGunSpot(m);
     st.nearGun = false;
     Con_DPrintf("flashlight: clipped on the %s hand's gun\n", gunHand == HAND_MAIN ? "main" : "off");
-    S_LocalSound("vr/flashlight_attach.wav");
+    sound("vr/flashlight_attach.wav", glm::vec3{0.f});
     haptic(gunHand, 0.04f, 0.6f);
     if(hand >= 0)
     {
@@ -295,7 +470,7 @@ void clipOff(const hands::State& s, int hand)
     st.gunHand = -1;
     st.gunModel = nullptr;
     Con_DPrintf("flashlight: off the gun, %s\n", hand >= 0 ? "into the other hand" : "back to the chest");
-    S_LocalSound("vr/flashlight_detach.wav");
+    sound("vr/flashlight_detach.wav", glm::vec3{0.f});
     if(gunHand >= 0)
     {
         haptic(gunHand, 0.03f, 0.4f);
@@ -505,6 +680,7 @@ void toggle_f()
     }
 }
 
+
 } // namespace
 
 void init()
@@ -585,7 +761,11 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
     }
     if(st.mode == Mode::OnGun)
     {
-        st.gunModel = gun.model; // the other ammo's model, after its button
+        if(gun.model != st.gunModel)
+        {
+            st.gunModel = gun.model; // the other ammo's model, after its button
+            st.gunSpot = findGunSpot(gun);
+        }
         p = gunPose(gun);
     }
     else if(st.mode == Mode::Returning)
@@ -770,6 +950,13 @@ bool button(int hand, Button b, bool pressed)
             swallowed = true;
             return true;
         }
+        // Held away from a gun: the holding hand's B/Y flips the grip (low / overhead).
+        if(holding)
+        {
+            flip(hand);
+            swallowed = true;
+            return true;
+        }
         // On a gun: the free hand at the lamp takes it off with its B/Y (or with the gun hand's while
         // it grips the lamp). Gripping, the lamp goes into it; otherwise back to the chest.
         if(st.mode == Mode::OnGun && st.gunHand >= 0)
@@ -837,6 +1024,7 @@ bool holds(int hand)
 {
     return enabled() && st.mode == Mode::Held && st.holder == hand;
 }
+
 
 } // namespace qvr::flashlight
 

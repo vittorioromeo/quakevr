@@ -2203,6 +2203,8 @@ void Con_DrawNotify (void)
 		if (alpha <= 0.f)
 			continue;
 		text = con_text + (i % con_totallines)*con_linewidth;
+		if (vr_con_server[i % VR_CON_TIMES] && VR_GameLineOnWrist (text, con_linewidth)) // QVR: the hologram's alone
+			continue;
 
 		clearnotify = 0;
 

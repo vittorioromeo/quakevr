@@ -9,6 +9,7 @@
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_gadget.hpp"
 #include "vr_main.hpp"
 #include "vr_menu.hpp"
 #include "vr_menuui.hpp"
@@ -222,7 +223,7 @@ int motionPageCategory = -1;
 {
     std::vector<Choice> categories;
     const auto& list = motion::categories();
-    for(size_t i = 0; i < list.size(); i++)
+    for(const int i : motion::categoryOrder())
     {
         categories.push_back({static_cast<float>(i), list[i].choice.display});
     }
@@ -426,7 +427,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
 {
     return {
         toggle("Chest Flashlight", vr_flashlight)
-            .help("A torch on your chest. Trigger at it: on or off. Grip it with an empty hand to take it; let go and it springs back."),
+            .help("A torch on your chest. Trigger at it: on or off. Grip it with an empty hand to take it (held like a torch); let go and it springs back. In your hand, away from a gun, B or Y turns it round: low grip or overhead."),
         slider("Brightness", vr_flashlight_brightness, 0.25f, 2.5f, 0.05f, "%.2fx"),
         slider("Range", vr_flashlight_range, 300.f, 2000.f, 50.f, "%.0f"),
         slider("Visible Beam", vr_flashlight_beam, 0.f, 1.f, 0.05f, "%.2f").help("A soft cone of light in the air from the lamp (0: none)."),
@@ -438,7 +439,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("In Hand Forward", vr_flashlight_hand_forward, -0.1f, 0.05f, 0.005f, "%.3f m").help("Where the held lamp sits in your fist."),
         slider("In Hand Up", vr_flashlight_hand_up, -0.1f, 0.05f, 0.005f, "%.3f m"),
         slider("On Gun Forward", vr_flashlight_gun_forward, -0.15f, 0.05f, 0.005f, "%.3f m")
-            .help("Held near the gun in your other hand, B or Y clips it under the barrel. B or Y at it takes it off."),
+            .help("Held near the gun in your other hand, B or Y clips it along the barrel (under it, or beside a bulky gun). B or Y at it takes it off."),
         slider("On Gun Up", vr_flashlight_gun_up, -0.05f, 0.05f, 0.005f, "%.3f m"),
         slider("On Gun Out", vr_flashlight_gun_out, -0.05f, 0.05f, 0.005f, "%.3f m").help("Away from your body."),
     };
@@ -493,6 +494,12 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
     };
 }
 
+// QVR round 21: a game message in the hologram, to see the settings' effect (vr_gadget.cpp).
+void hologramTestMessage()
+{
+    qvr::gadget::testMessage();
+}
+
 // Split from Wrist Gadget (and Immersion): the wrist gadget's screen, the weapons' ammo screens and
 // the maps' text boards.
 [[nodiscard]] std::vector<Item> pageScreens()
@@ -517,6 +524,10 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("How high over the gadget it floats."),
         slider("Hologram Effect", vr_messages_hologram_effect, 0.f, 2.f, 0.1f, "%.1fx")
             .help("The beam of light from the screen, scanlines, flicker, glitches and the projection as it appears (0: plain glowing text)."),
+        action("Show a Test Message", hologramTestMessage)
+            .help("One of the game's messages in the hologram, as they come: raise the gadget to see it while you change these settings. Press again for another: they stack."),
+        toggle("Messages Only on the Gadget", vr_messages_hologram_only)
+            .help("The game's messages never show in front of you: they wait in the hologram until you look at the gadget. A new one (a key needed, a secret, the map's text; not pickups) chimes from the gadget on your wrist and buzzes it."),
         cycle("Console Messages", vr_notify_wrist, {{1.f, "Over the gadget"}, {2.f, "Both"}, {0.f, "In view"}})
             .help("The console's other messages (the engine's: settings changed, cheats, errors) float in a small log over the gadget, or at the top of the view."),
         slider("Console Message Time", vr_notify_wrist_time, 2.f, 30.f, 1.f, "%.0f s")
