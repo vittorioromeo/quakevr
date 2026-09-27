@@ -586,7 +586,7 @@ Classes classify(const Rig& r)
 struct Section
 {
     bool ok{false};
-    float reach{-1e30f}, lo{1e30f}, hi{-1e30f};
+    float reach{-1e30f}, back{1e30f}, lo{1e30f}, hi{-1e30f};
 };
 
 Section section(const Rig& r, const Classes& c, int finger, const glm::vec3& a, const glm::vec3& x, const glm::vec3& D,
@@ -625,11 +625,12 @@ Section section(const Rig& r, const Classes& c, int finger, const glm::vec3& a, 
             const float u = glm::dot(rel, D), w = glm::dot(rel, E);
             s.ok = true;
             s.reach = std::fmax(s.reach, u);
+            s.back = std::fmin(s.back, u);
             s.lo = std::fmin(s.lo, w);
             s.hi = std::fmax(s.hi, w);
         }
     }
-    s.ok = s.ok && s.hi > s.lo;
+    s.ok = s.ok && s.lo < 0.f && s.hi > 0.f && s.back < 0.f && s.reach > 0.f; // all round the axis: a whole section
     return s;
 }
 
@@ -784,6 +785,7 @@ Section section(const Rig& r, const Classes& c, int finger, const glm::vec3& a, 
 struct Report
 {
     std::vector<std::string> notes;
+    double ms{0.0}; // reading and deriving it took
     float pivotMove{0.f};
     float sphereMove{0.f};
     float radiusLo{1.f}, radiusHi{1.f};
@@ -845,7 +847,7 @@ void derive(Rig& out, Report& report)
             const Section sn = section(out, newClasses, f, p0n + xn * atn, xn, rn * dh, rn * eh);
             if(sr.ok && sn.ok)
             {
-                scale = std::fmin(std::fmax((sn.hi - sn.lo) / (sr.hi - sr.lo), 0.25f), 4.f);
+                scale = std::fmin(std::fmax((sn.hi - sn.lo) / (sr.hi - sr.lo), 0.5f), 2.f);
                 du = (sn.reach - sr.reach) - (sr.reach - dl) * (scale - 1.f);
                 de = (sn.hi + sn.lo) * 0.5f - (sr.hi + sr.lo) * 0.5f;
                 measured = true;
@@ -916,9 +918,9 @@ bool readRig(const char* meshText, Rig& out, std::string& error, Report& report)
     }
     if(!missing.empty() || !unknown.empty())
     {
-        error = format("%s: the bones must be the hand's %d, unrenamed.%s%s%s%s Bones can be moved, not renamed or deleted.", meshFile,
-            data::numJoints, missing.empty() ? "" : " Missing: ", missing.c_str(), unknown.empty() ? "" : ". Not the hand's: ",
-            unknown.c_str());
+        error = format("%s: the bones must be the hand's %d, unrenamed.%s%s%s%s%s%s Bones can be moved, not renamed or deleted.",
+            meshFile, data::numJoints, missing.empty() ? "" : " Missing: ", missing.c_str(), missing.empty() ? "" : ".",
+            unknown.empty() ? "" : " Not the hand's: ", unknown.c_str(), unknown.empty() ? "" : ".");
         return false;
     }
     if(static_cast<int>(m.joints.size()) != data::numJoints)
@@ -1132,9 +1134,9 @@ void printReport(const char* who, const Rig& r, const Report& report, bool loud)
 {
     auto print = loud ? Con_Printf : Con_DPrintf;
     print("%s: %s: %d vertices, %d triangles; the pivots moved %.2f units at most, %d hinges turned; the grasp's spheres "
-          "moved %.2f at most, sized x%.2f .. x%.2f\n",
+          "moved %.2f at most, sized x%.2f .. x%.2f (read in %.1f ms)\n",
         who, r.source.c_str(), static_cast<int>(r.vertices.size()), static_cast<int>(r.triangles.size()), report.pivotMove,
-        report.turnedJoints, report.sphereMove, report.radiusLo, report.radiusHi);
+        report.turnedJoints, report.sphereMove, report.radiusLo, report.radiusHi, report.ms);
     if(report.unmeasured)
     {
         print("%s: %d spheres found no skin where the shipped hand's is: they stay where they were\n", who, report.unmeasured);
@@ -1379,7 +1381,10 @@ extern "C" int VR_ModelReplacementOk(const char* name, const char* md5mesh)
     Rig r;
     std::string error;
     Report report;
-    if(!readRig(md5mesh, r, error, report))
+    const double start = Sys_DoubleTime();
+    const bool ok = readRig(md5mesh, r, error, report);
+    report.ms = (Sys_DoubleTime() - start) * 1000.0;
+    if(!ok)
     {
         Con_Warning("%s: %s\n", reloading ? "vr_hand_reload" : "the jointed hand", error.c_str());
         if(!reloading)
