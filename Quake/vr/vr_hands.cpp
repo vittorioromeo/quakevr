@@ -307,7 +307,10 @@ void update()
         {
             smoothZ = z;
         }
-        lastTime = cl.time;
+        // Not eased up from where the player was before the server first placed it (the world's origin, after a
+        // loaded game or a new map): the body rose 12 units over its first frames, and a two-handed hold taken
+        // then kept the gap (vr_held.cpp).
+        lastTime = player.msgtime > 0.0 ? cl.time : -1.0;
         state.playerOrigin.z = smoothZ;
     }
 

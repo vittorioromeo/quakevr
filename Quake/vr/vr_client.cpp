@@ -579,6 +579,7 @@ extern "C" void VR_OnClientClearState()
     throwing::reset();
     thrownValid[0] = thrownValid[1] = false;
     twohand::reset();
+    held::resetClientState();
     flick::reset();
     handpose::reset();
     modelcollide::reset();

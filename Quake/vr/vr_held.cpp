@@ -546,10 +546,18 @@ glm::vec3 surfaceFit(edict_t* ent, const glm::vec3& hand, const glm::vec3& palm)
 namespace
 {
 
-// For this long after the server first says a hand holds an object, its place in the hand is
-// still taken from where the server has it (a caught object's jump to the hand may come a packet
-// late); then it is kept.
+// For this long after its place in the hand is first taken, it is still taken from where the server has it (a
+// caught object's jump to the hand may come a packet late); then it is kept. Timed from the first place taken, not
+// from when the server said it: a loaded game's carry stats come in the signon, before the client's clock jumps
+// to the saved time, and the window would be over at its first frame.
 constexpr double placeTime = 0.1;
+
+// Frames in a row the local player has been placed in the world (signed on, its entity linked). The hands are
+// computed before the entities are relinked (the move is sent first), so on the player's first frame they are
+// still round the world's origin: nothing is taken from them (a place in the hand, a two-handed hold) until the
+// second. (A loaded game's box was held 20 metres off the hand, drawn out of sight, until let go.)
+int playerFrames = 0;
+constexpr int handsInWorld = 2;
 
 // Let go, it eases back to where the server has it over this long.
 constexpr double easeTime = 0.2;
@@ -663,11 +671,10 @@ void holdFrame(int h, const hands::State& s, int bothEnt)
         }
         hd = Held{};
         hd.ent = want;
-        hd.since = cl.time;
     }
 
     hd.drawn = false;
-    if(!hd.ent || !s.valid || !valid(hd.ent, hd.placed ? hd.model : nullptr))
+    if(!hd.ent || !s.valid || playerFrames < handsInWorld || !valid(hd.ent, hd.placed ? hd.model : nullptr))
     {
         return;
     }
@@ -680,6 +687,10 @@ void holdFrame(int h, const hands::State& s, int bothEnt)
     entity_t& e = cl_entities[hd.ent];
     const bool brush = e.model->type == mod_brush;
     const glm::mat3 hand = held::axesFromAngles(&s.rot[h][0], true);
+    if(!hd.placed)
+    {
+        hd.since = cl.time;
+    }
     if(!hd.placed || cl.time - hd.since < placeTime)
     {
         const glm::vec3 o{e.msg_origins[0][0], e.msg_origins[0][1], e.msg_origins[0][2]};
@@ -725,7 +736,7 @@ void leaveBoth()
 // each hand drawn on its grip.
 void bothFrame(const hands::State& s, int ent)
 {
-    if(!ent || !s.valid || !valid(ent, both.ent == ent ? both.model : nullptr))
+    if(!ent || !s.valid || playerFrames < handsInWorld || !valid(ent, both.ent == ent ? both.model : nullptr))
     {
         if(ent && !valid(ent, nullptr))
         {
@@ -954,6 +965,14 @@ bool bothHandsThrow(int hand, double at, bool release, throwing::Estimate& out)
     return true;
 }
 
+void resetClientState()
+{
+    reset();
+    carried[0] = carried[1] = 0;
+    bothCentre = glm::vec3{0.f};
+    playerFrames = 0;
+}
+
 } // namespace qvr::held
 
 // End of CL_RelinkEntities: the local player's held objects are drawn in the hands drawn this
@@ -969,6 +988,9 @@ extern "C" void VR_RelinkHeld(void)
 
     QVR_PROFILE("held");
     const hands::State& s = hands::current();
+    const bool playerPlaced = cls.signon == SIGNONS && cl.viewentity > 0 && cl.viewentity < cl.num_entities &&
+                              cl_entities[cl.viewentity].msgtime > 0.0;
+    playerFrames = playerPlaced ? std::min(playerFrames + 1, handsInWorld) : 0;
     carried[0] = cl.stats[protocol::STAT_QVR_CARRYOFF];
     carried[1] = cl.stats[protocol::STAT_QVR_CARRYMAIN];
     const int bothEnt = carried[1] && carried[1] == carried[0] ? carried[1] : 0;

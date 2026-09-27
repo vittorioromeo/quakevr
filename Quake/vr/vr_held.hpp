@@ -74,4 +74,8 @@ bool bothHandsThrow(int hand, double at, bool release, throwing::Estimate& out);
 void noteCarryProbe(int hand, edict_t* ent, const glm::vec3& at, float distance, const glm::vec3& nearest, float reach);
 void drawCarryProbes();
 
+// Client side, a new map or a loaded game (VR_OnClientClearState): what the hands held is forgotten (it is taken
+// again from the carry stats and where the server has it), as the client's clock starts over.
+void resetClientState();
+
 } // namespace qvr::held
