@@ -5,6 +5,7 @@
 #include "vr_body.hpp"
 #include "vr_cvars.hpp"
 #include "vr_gfx.hpp"
+#include "vr_hue.hpp"
 #include "vr_lighting.hpp"
 #include "vr_lines.hpp"
 #include "vr_main.hpp"
@@ -113,6 +114,7 @@ struct State
     // the thumb's side) or the overhead one (true: out of the little finger's side); kept for the next time that hand
     // takes it.
     bool overhead[2]{};
+    double flipAt[2]{-10.0, -10.0}; // realtime each hand's last flip began (its spin: flipTime)
 
     // Round 21, what a deliberate press is (intent): per hand, for the grip [0] and the trigger [1], since when the
     // analog value has been under openBelow (-1: it is not) and when it last was; and until when the hand counts as
@@ -250,21 +252,76 @@ BeamTrace beamTraces[beamRings][beamSides];
 // ahead. The tracked hand is ahead of and above the drawn fist: vr_flashlight_hand_forward and _up move the grip's
 // middle back and down into it; the drawn hand's grasp (vr_grasp.cpp) then fits the palm and fingers round the tube
 // (the palm moves 1.2-1.5 cm at the defaults, either grip, either hand).
-[[nodiscard]] Pose handPose(const hands::State& s, int hand)
+//
+// Round 21, the author's notes: each grip has its own place in the hand (vr_flashlight_low_* and _high_*: cm forward,
+// towards the palm and up in the hand, degrees of pitch, yaw and roll about the grip's middle), the off hand's
+// mirrored; and B/Y spins the torch over (flipTime), eased, about the knuckles' way across the fist.
+constexpr float flipTime = 0.25f;
+
+struct GripAdjust
+{
+    glm::vec3 pos{0.f}; // cm: forward, towards the palm, up (the hand's)
+    glm::vec3 ang{0.f}; // degrees: pitch (about the hand's right), yaw (about its up, towards the palm), roll (about its forward)
+};
+
+[[nodiscard]] GripAdjust gripAdjust(bool overhead)
+{
+    GripAdjust a;
+    if(overhead)
+    {
+        a.pos = {vr_flashlight_high_x.value, vr_flashlight_high_y.value, vr_flashlight_high_z.value};
+        a.ang = {vr_flashlight_high_pitch.value, vr_flashlight_high_yaw.value, vr_flashlight_high_roll.value};
+    }
+    else
+    {
+        a.pos = {vr_flashlight_low_x.value, vr_flashlight_low_y.value, vr_flashlight_low_z.value};
+        a.ang = {vr_flashlight_low_pitch.value, vr_flashlight_low_yaw.value, vr_flashlight_low_roll.value};
+    }
+    return a;
+}
+
+// How far `hand`'s torch has turned over at `when`: 0 the low grip, 1 the overhead one, eased through a flip.
+[[nodiscard]] float turnedAt(int hand, double when)
+{
+    const float k = std::clamp(static_cast<float>(when - st.flipAt[hand]) / flipTime, 0.f, 1.f);
+    const float t = st.overhead[hand] ? k : 1.f - k;
+    return t * t * (3.f - 2.f * t);
+}
+
+// The torch in `hand` turned `turned` of the way from the low grip (0) to the overhead one (1).
+[[nodiscard]] Pose handPoseTurned(const hands::State& s, int hand, float turned)
 {
     glm::vec3 fwd, right, up;
     hands::angleVectors(s.rot[hand], fwd, right, up);
     const float m2u = units::metresToUnits();
-    const glm::vec3 offset = fwd * vr_flashlight_hand_forward.value + up * vr_flashlight_hand_up.value;
+    const float mirror = hand == HAND_OFF ? -1.f : 1.f;
+    const glm::vec3 palm = -right * mirror; // the main hand's palm faces its left, the off hand's its right
+
+    const GripAdjust lo = gripAdjust(false), hi = gripAdjust(true);
+    const glm::vec3 cm = glm::mix(lo.pos, hi.pos, turned);
+    const glm::vec3 deg = glm::mix(lo.ang, hi.ang, turned);
+    const glm::vec3 offset = fwd * (vr_flashlight_hand_forward.value + 0.01f * cm.x) + palm * (0.01f * cm.y) +
+                             up * (vr_flashlight_hand_up.value + 0.01f * cm.z);
     Pose p = poseFromAxes(s.pos[hand] + offset * m2u, up, right, fwd);
 
-    // Overhead: half a turn about the knuckles' way (the switch stays towards them). At once, a regrip: the grasp
-    // is solved for the new hold once, not chased through a turn.
-    if(st.overhead[hand])
-    {
-        p.rot = glm::normalize(p.rot * glm::angleAxis(3.14159265f, glm::vec3{0.f, 0.f, 1.f}));
-    }
+    // Overhead: half a turn about the knuckles' way (the switch stays towards them), spun through while flipping.
+    p.rot = glm::normalize(p.rot * glm::angleAxis(3.14159265f * turned, glm::vec3{0.f, 0.f, 1.f}));
+    // The grip's own turn in the hand, about its middle.
+    const glm::quat adjust = glm::angleAxis(glm::radians(deg.y * mirror), up) * glm::angleAxis(glm::radians(deg.x), right) *
+                             glm::angleAxis(glm::radians(deg.z * mirror), fwd);
+    p.rot = glm::normalize(adjust * p.rot);
     return p;
+}
+
+[[nodiscard]] Pose handPose(const hands::State& s, int hand)
+{
+    return handPoseTurned(s, hand, turnedAt(hand, realtime));
+}
+
+// The beam's colour (vr_flashlight_hue, _saturation: white at the default saturation 0; the hue -1: the player's).
+[[nodiscard]] glm::vec3 beamColor()
+{
+    return hue::color(vr_flashlight_hue, CLAMP(0.f, vr_flashlight_saturation.value, 1.f), 1.f);
 }
 
 // The torch's radius (metres) at `back` metres behind its lens: the head's, then the tube's (its grip rings, the tail
@@ -574,7 +631,7 @@ void noteIntent(const hands::State& s)
         case body::HS_OFFHAND_2H_GRAB:
         case body::HS_MAINHAND_2H_GRAB:
         case body::HS_HAND_SWITCH:
-        case body::HS_CARRIED_GRIP: return true;
+        case body::HS_CARRIED_GRIP: return !handEmpty(1 - hand); // (with nothing in the other hand, nothing to take)
         case body::HS_LEFT_SHOULDER_HOLSTER: holster = body::LeftShoulder; break;
         case body::HS_RIGHT_SHOULDER_HOLSTER: holster = body::RightShoulder; break;
         case body::HS_LEFT_HIP_HOLSTER: holster = body::LeftHip; break;
@@ -661,7 +718,11 @@ void letGo(const hands::State& s, const Pose& mount)
 // B/Y with the torch in the hand, away from a gun: the other grip (see handPose), with a click and a light buzz.
 void flip(int hand)
 {
+    // A flip during a flip turns back from where the spin is.
+    const float was = turnedAt(hand, realtime);
     st.overhead[hand] = !st.overhead[hand];
+    const float remaining = st.overhead[hand] ? 1.f - was : was; // of the way still to go, eased
+    st.flipAt[hand] = realtime - flipTime * (1.f - remaining);
     Con_DPrintf("flashlight: %s grip in the %s hand\n", st.overhead[hand] ? "overhead" : "low", hand == HAND_MAIN ? "main" : "off");
     sound("vr/flashlight_flip.wav", glm::vec3{0.f});
     haptic(hand, 0.025f, 0.3f);
@@ -885,7 +946,7 @@ void lightBeam(const Pose& p)
     const glm::vec3 at = lens + dir * 0.25f; // just out of the lens
 
     const float base = std::max(0.f, vr_flashlight_brightness.value) * 1.5f;
-    const glm::vec3 warm{1.f, 0.94f, 0.82f};
+    const glm::vec3 warm = beamColor(); // (named for the warm white it was)
 
     lighting::dlightSpot(light(keySpot, at, range, warm * base), dir, innerAngle, outerAngle);
     lighting::dlightSpot(light(keySpill, at, range * 0.5f, warm * (base * 0.1f)), dir, outerAngle * 0.8f, spillAngle);
@@ -944,7 +1005,7 @@ void place(view::ViewEntity& ve, const Pose& p, bool hover)
     }
     e.model = model;
     e.frame = 0;
-    e.skinnum = st.on ? 1 : 0;
+    e.skinnum = 0; // (the lens's glow: drawLens, in the beam's colour)
     e.colormap = vid.colormap;
     e.alpha = ENTALPHA_DEFAULT;
     e.scale = static_cast<unsigned char>(CLAMP(1.f, units::worldScale() * ENTSCALE_DEFAULT + 0.5f, 255.f));
@@ -1138,8 +1199,43 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
     }
 }
 
+// The lens lit, in the beam's colour: a disc over it, bright in the middle, added onto the scene (the skin's own
+// fullbright lens was one colour).
+void drawLens()
+{
+    if(!st.on || !st.placed || !enabled())
+    {
+        return;
+    }
+    const Pose& p = st.pose;
+    const glm::vec3 dir = p.rot * glm::vec3{1.f, 0.f, 0.f};
+    const glm::vec3 a = p.rot * glm::vec3{0.f, 1.f, 0.f};
+    const glm::vec3 b = p.rot * glm::vec3{0.f, 0.f, 1.f};
+    const glm::vec3 centre = modelPointAt(p, lensPoint) + dir * (0.02f * units::worldScale());
+    const float r = lensRadius * units::worldScale();
+    const glm::vec3 c = beamColor() * (0.6f + 0.4f * CLAMP(0.f, vr_flashlight_brightness.value, 2.f));
+    constexpr int sides = 16;
+    static std::vector<gfx::Vertex> fan;
+    fan.clear();
+    for(int i = 0; i < sides; i++)
+    {
+        const float t0 = 6.2831853f * static_cast<float>(i) / sides, t1 = 6.2831853f * static_cast<float>(i + 1) / sides;
+        const gfx::Vertex m{centre, glm::vec2{0.f}, glm::vec4{c * 0.9f, 0.f}};
+        const gfx::Vertex e0{centre + (a * std::cos(t0) + b * std::sin(t0)) * r, glm::vec2{0.f}, glm::vec4{c * 0.35f, 0.f}};
+        const gfx::Vertex e1{centre + (a * std::cos(t1) + b * std::sin(t1)) * r, glm::vec2{0.f}, glm::vec4{c * 0.35f, 0.f}};
+        fan.insert(fan.end(), {m, e0, e1, m, e1, e0}); // both faces (drawn either way round)
+    }
+    gfx::State state;
+    state.shade = gfx::Shade::Color;
+    state.blend = gfx::Blend::Premultiplied;
+    state.depthTest = true;
+    state.depthWrite = false;
+    gfx::draw(fan, gfx::sceneViewProjection(), state);
+}
+
 void drawTranslucent()
 {
+    drawLens();
     if(!beam.visible || !st.on || !enabled())
     {
         return;
@@ -1379,7 +1475,10 @@ bool heldPlace(const hands::State& s, int hand, glm::vec3& origin, glm::vec3& an
     {
         return false;
     }
-    const Pose p = handPose(s, hand);
+    // While it spins over, the grasp holds the grip it had (solved once, not chased through the turn); at the end
+    // it is solved for the new one and blends to it (vr_hand_fit_blend).
+    const bool spinning = realtime - st.flipAt[hand] < flipTime;
+    const Pose p = spinning ? handPoseTurned(s, hand, st.overhead[hand] ? 0.f : 1.f) : handPose(s, hand);
     const glm::mat3 m = glm::mat3_cast(p.rot);
     const glm::vec3 a = hands::anglesFromVectors(m[0], m[2]);
     origin = p.pos;

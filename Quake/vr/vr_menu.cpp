@@ -434,6 +434,8 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         cycle("Beam Quality", vr_flashlight_beam_quality, {{0.f, "Low"}, {1.f, "Medium"}, {2.f, "High"}})
             .help("How closely the visible beam fades where walls cut it. Higher looks for them more often, costing more time each frame."),
         toggle("Casts Shadows", vr_flashlight_shadows).help("Its light casts shadows (takes one of the shadowed dynamic lights)."),
+        hueSlider("Beam Hue", vr_flashlight_hue).help("The beam's colour, with Beam Saturation (at 0 it is white): its light, the beam in the air and the lens. 40 warm, 200 cold blue; Player's: the Player Effects Hue."),
+        slider("Beam Saturation", vr_flashlight_saturation, 0.f, 1.f, 0.05f, "%.2f").help("0 white (the default), 1 the Beam Hue in full."),
         slider("Lean Out", vr_flashlight_tilt, -10.f, 30.f, 1.f, "%.0f deg").help("How far the stored torch, hanging on your belt lens down, leans its lens out from your body."),
         slider("Forward", vr_flashlight_forward, -0.05f, 0.05f, 0.005f, "%.3f m"),
         slider("Up", vr_flashlight_up, -0.15f, 0.15f, 0.01f, "%.2f m"),
@@ -448,6 +450,22 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("Held at a temple, B or Y clips it on your head, lighting where you look. A hand at it with B or Y, or its grip, takes it off."),
         slider("On Head Up", vr_flashlight_head_up, -0.05f, 0.05f, 0.005f, "%.3f m"),
         slider("On Head Out", vr_flashlight_head_out, -0.03f, 0.05f, 0.005f, "%.3f m").help("Away from your head, to the side."),
+        header("In the Hand: Low Grip"),
+        slider("Low Grip Forward", vr_flashlight_low_x, -30.f, 30.f, 0.5f, "%.1f cm")
+            .help("The torch's place in your fist when the beam comes out of the thumb's side (the grip you take it in), on top of In Hand Forward/Up. The other hand's is the mirror image."),
+        slider("Low Grip Towards Palm", vr_flashlight_low_y, -30.f, 30.f, 0.5f, "%.1f cm"),
+        slider("Low Grip Up", vr_flashlight_low_z, -30.f, 30.f, 0.5f, "%.1f cm"),
+        slider("Low Grip Pitch", vr_flashlight_low_pitch, -180.f, 180.f, 5.f, "%.0f deg").help("Tilts the beam up (positive) or down in the hand."),
+        slider("Low Grip Yaw", vr_flashlight_low_yaw, -180.f, 180.f, 5.f, "%.0f deg").help("Turns the beam towards your palm (positive) or away."),
+        slider("Low Grip Roll", vr_flashlight_low_roll, -180.f, 180.f, 5.f, "%.0f deg"),
+        header("In the Hand: Overhead Grip"),
+        slider("Overhead Grip Forward", vr_flashlight_high_x, -30.f, 30.f, 0.5f, "%.1f cm")
+            .help("The same when B or Y has turned it over (the beam out of the little finger's side)."),
+        slider("Overhead Grip Towards Palm", vr_flashlight_high_y, -30.f, 30.f, 0.5f, "%.1f cm"),
+        slider("Overhead Grip Up", vr_flashlight_high_z, -30.f, 30.f, 0.5f, "%.1f cm"),
+        slider("Overhead Grip Pitch", vr_flashlight_high_pitch, -180.f, 180.f, 5.f, "%.0f deg"),
+        slider("Overhead Grip Yaw", vr_flashlight_high_yaw, -180.f, 180.f, 5.f, "%.0f deg"),
+        slider("Overhead Grip Roll", vr_flashlight_high_roll, -180.f, 180.f, 5.f, "%.0f deg"),
     };
 }
 

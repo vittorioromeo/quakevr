@@ -275,6 +275,23 @@ QVR_CVAR(vr_flashlight_gun_out, "0", CVAR_ARCHIVE)     // and out (away from the
 QVR_CVAR(vr_flashlight_head_forward, "0", CVAR_ARCHIVE) // round 21: metres the torch clipped on the head (B/Y) sits further forward (its lens: level with the eyes),
 QVR_CVAR(vr_flashlight_head_up, "0", CVAR_ARCHIVE)      // up (3.5 cm over the eyes),
 QVR_CVAR(vr_flashlight_head_out, "0", CVAR_ARCHIVE)     // and out (8.5 cm to the side)
+// Round 21: the torch's place in the hand, per grip (low: the beam out of the thumb's side; high: overhead, out of the
+// little finger's), on top of vr_flashlight_hand_forward/_up: cm forward, towards the palm and up in the hand, degrees
+// of pitch, yaw (towards the palm) and roll about the grip's middle; the off hand mirrored.
+QVR_CVAR(vr_flashlight_low_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_y, "-0.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_pitch, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_yaw, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_roll, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_y, "-0.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_z, "2", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_pitch, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_yaw, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_roll, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_hue, "40", CVAR_ARCHIVE)        // round 21: the beam's hue (degrees; -1: the player's), with
+QVR_CVAR(vr_flashlight_saturation, "0", CVAR_ARCHIVE)  // its saturation (0: white, 1: full colour): the light, the visible beam and the lens
 // Spent shell casings (vr_shells.cpp): the shotgun throws one out as it cycles, the super shotgun two as it is reloaded.
 QVR_CVAR(vr_shells, "1", CVAR_ARCHIVE)                // 0: none
 QVR_CVAR(vr_shells_life, "20", CVAR_ARCHIVE)          // seconds they lie on the floor before fading out
