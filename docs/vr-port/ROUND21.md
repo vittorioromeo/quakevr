@@ -23,6 +23,7 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | Particles, long sessions | particles made into quads on the GPU from one record each, uploaded once a frame: at 4x and 8x their CPU a quarter of before (8x: 0.64 to 0.17 ms), GPU 15-45% less, the same images; long sessions: old maps' text boards freed (VRAM), collision caches per map, haptic delays bounded; a 35-minute soak shows no growth |
 | Body and weapon models | weapons: bands, bolt heads and ribs on the crudest spots (1.3-1.85x the triangles), edge wear in every skin, nothing tuned moved (anchors, hotspots, offsets and the hand fit identical); body: rounder limbs and torso, a belt, shaped feet (1240 -> 2186 triangles), 256x256 skins with a quilted vest, straps, laces, a face, armour lames |
 | Hand calibration | Hand/Gun Calibration > Hand Calibration: each hand moved (X/Y/Z cm, along the controller) and turned (Gun Angle and Gun Yaw as its pitch and yaw, plus a roll) on its controller; the off hand mirrored or its own; everything held and the server move with it (2 cm moves them 2.0000 cm, 10° turns them 10.000°); Show Controller and Match Controller Preview to line it up; nothing changes at 0 |
+| Grab reach, two-handed detach, brushing fingers | a thing is taken only if the fist touches it (it was 8 cm from the fist's front, past the open fingertips), Grab Distance Bias; a prop held in both hands drops when both are pulled off it (one: the other keeps it); the free hand's fingers rest on or bend out of the weapon they brush |
 
 Found on the way: fteqcc stores 0 when `a || b` is assigned into an entity field (rewritten; no other code has that
 shape); a parried blow's hand knock, timed by `cl.time`, came back after a level change (reset now).
@@ -4010,3 +4011,132 @@ logs are in the scratchpad's `handblend/final/`.
 
 - [ ] Install the add-on, import `hand_rig.md5mesh`, change something, export, `vr_hand_reload`.
 - [ ] Hold the guns and the sword with your edited hand: do the fingers wrap as the new shape suggests?
+
+## Grab reach from the fist; two-handed detach; brushing fingers
+
+Your four notes: things taken from beyond the hand (and your theory that the open hand's pose was tested), a bias
+to force the hand closer or allow it further, a prop held in both hands that floats when the hands are pulled
+apart, and fingers that react to the weapon the free hand brushes. Branch `agent/handsint`, one commit each.
+Composites and logs in the scratchpad's `handsint/final/`.
+
+| Your note | Status | Commit |
+|---|---|---|
+| Grabbing a box with the hand detached from it; the fist, not the open hand; a distance bias | Done: the fist must touch it; Grab Distance Bias | `4d93a3c6` |
+| Two-handed carry: the box floats between hands pulled apart | Done: a hand pulled off lets go; both, and it drops | `a4f693ca` |
+| Brushing weapons: the fingers should react to the weapon's shape | Done: fingers rest on it or bend out of it | `30edbd75` |
+
+### What the grab test measured (and your theory)
+
+The test (`vr_physics.cpp` `handOn`, and `carryreach` for the second hand) took one point, the hand's place as the
+move sends it (`handpos`), and measured from it to the thing's drawn triangles: taken within Carry Reach (8 cm), if
+the point was also within the thing's box plus 2 units. That point is the controller's front, which is the front
+top corner of the drawn fist. Measured in the mock (`vr_dumpview`, in the hand's frame):
+
+| From the hand's point | forward | up |
+|---|---|---|
+| the fist (a full grip, trigger and thumb) | -16.1 .. -0.2 cm | -12.1 .. -3.0 cm |
+| the open hand | -16.1 .. **+6.6 cm** | -12.4 .. +0.3 cm |
+| the palm's middle | -13.5 cm | -7.9 cm |
+
+So a thing could be taken 8 cm from the fist's front (7 cm past the knuckles, face on: `sweep_before.txt`, taken at
+7 cm, not at 8), and 11 cm above the fist's top. The open fingers reach 6.6 cm past the point: at the limit the
+open fingertips are about 1.4 cm short of the thing. Your theory is right in effect: the reach matched the open hand.
+The cause wasn't the open pose itself but the 8 cm reach measured from the front of the fist.
+
+### Grab reach from the fist
+
+- A hand takes a box, backpack, gib, head or armour only if its **fist touches it**. The fist is the empty hand closed
+  as a full press draws it: the jointed hand's grasp spheres, 93 of them (palm and curled fingers).
+  - The view places them every frame in the hand's frame, so they follow Hand Calibration, the fist's angle offsets
+    and the hand's scale (`held::setFist`).
+  - The server tests them at the hand's place and angles against the thing's drawn surface: the same triangles the
+    grasp and the old test use.
+  - It touches if a sphere is within **Grab Distance Bias** of the surface, or its middle is inside the thing (by the
+    winding of the triangles, a brush model's one way and an alias model's the other).
+- **Grab Distance Bias** (Carrying and Gibs, `vr_carry_grab_bias`, 0 cm, -3..5, `.extend()` to -10..20):
+  - positive: taken from this far off too;
+  - negative: only pressed this far into it.
+- The same test for the second hand of a two-handed hold.
+- Carry Reach (`vr_carry_reach`) is retired: kept so your config loads silently, and no longer saved.
+- **Found on the way:** the old box test used the entity's box, a 6-unit cube round the origin for the scaled ammo
+  and health boxes. It worked only because those boxes are drawn that small. The quick test now uses the box the
+  thing is drawn in.
+- **Without the jointed hand model** (a dedicated server, which draws nothing): the old point test.
+- **In multiplayer,** a remote player's fist is the host's (the same rig and fist; hand calibration is the host's).
+- **Debug draw** (`vr_debug_carry 1`, or Show Physics Shapes):
+  - the box the thing is drawn in (green: the fist touches, red: not);
+  - the fist's spheres (faint; the touching one green);
+  - a line from the nearest sphere to the surface's nearest point.
+  - `vr_debug_carry 2` prints each test ("the fist touches, -0.83 cm from its surface"); 3 also prints the fists not
+    near.
+- **Checked** (mock, firing range, a shells box floating face on in front of the fist; `sweep_*.txt`,
+  `grab_before_after.png`):
+  - before: taken with its face 7, 6 ... 0 cm ahead of the hand's point;
+  - now: not taken at 4 cm (gap 4.17 cm) nor at 0 cm (the fist's front 0.17 cm short); taken 1 cm into it (-0.83).
+  - A health box: taken at a gap of -1.69 cm, not at +0.31.
+  - A gib (alias model): taken when the fist is at it (-7.3 cm, inside), not 12 cm back (+1.7 cm).
+
+### Two-handed carry: pulled off
+
+- **The rule:** a hand has let go of a prop held in both hands when both of these hold:
+  - it is further from its grip on the prop than Two-Handed Hand Drift (8 cm) plus `vr_carry_two_hands_detach`
+    (3 cm): its drawn hand can no longer be on the grip;
+  - its fist no longer touches the prop, within 2 cm: pulled away, not sliding along it.
+- **Both off:** it drops, falling with the motion it has. It's not a throw: a haptic tick in both hands, no pickup.
+- **One off:** the other hand keeps it (the hand-over), moved onto that hand's grip so it doesn't float off it.
+- **One hand pulled away from the other:** the prop, centred between the hands, leaves both grips alike, so both are
+  off together. The hand that moved less than half as far as the other (less 3 cm, from the body, since it was last
+  on its grip) keeps it. Because the prop follows the moving hand half-way, that hand lets go about 22 cm from where
+  it held it.
+- `vr_debug_carry 2` prints each hand's distance from its grip, how far it moved, and "pulled off".
+- **Checked** (mock, a health box in both hands; `pull_*.txt`, `pull_before_after.png`):
+  - Both hands pulled apart 2 cm a step each: dropped at 12 cm each (it fell to the pad below). Before: still held at
+    24 cm each, floating between the hands.
+  - The off hand alone pulled away: it lets go at 22-24 cm and the box stays on the main hand's grip (at the main
+    hand's height, held). Before: held in both, floating.
+
+### Brushing weapons: the fingers
+
+- **Before,** the free hand pushed out of the other hand's weapon moved only as a whole: the push came from the
+  deepest of the palm's middle and the fingertips, and the fingers kept the controller's curl.
+- **Now,** within a finger's reach of the weapon, the fingers are solved against it: the grasp's solve (closing
+  from open), with the palm where it is.
+  - A finger closing onto it **stops on its surface**: it rests there, as far as the controller closes it.
+  - A finger in it when open **bends out** of it: it curls to where it's clear.
+  - A finger in it at every curl keeps its last clear pose, and pushes the hand out by its tip.
+  - The push comes from the palm's middle, the knuckles and those stuck fingertips.
+  - The thumb takes the solve's turn.
+- **Stable:**
+  - It's solved again only when the hand has moved on the weapon by Refit Threshold (as a held thing's grasp).
+  - Every change is eased by Pose Blend.
+  - Mock sweep: the off hand crossing the shotgun's barrel 1 mm every 2 frames, half-closed, 8 cm. There were 35
+    solves in 160 frames, no joint reversal over 0.03 curl, and none at rest (`jit_after_trace.txt`).
+  - Before the stuck-finger hold, a finger snapped from 0 back to the controller's 2.5 as it went in. That's fixed.
+- **Cost:** 40-290 µs a solve on the shotgun (1046 triangles). The dearer solves are the ones with fingers in it at
+  every curl. That averages about 20 µs a frame while sweeping, and nothing while still or away from the weapon.
+- **Fingers Brush Weapons** (Hands page, `vr_hand_collide_fingers`, on). Off: the old push by the fingertips.
+- **Checked** (`brush_before_after.png`: top view, the off hand at 4 and 7 cm towards the barrel, open and
+  half-closed):
+  - Before, the fingers go into the gun (half-closed), and at 7 cm the hand is cut by it.
+  - Now the fingers rest on its side or open out of it, and the hand stays out.
+
+### Checks
+
+- The melee canary eval: 40/46, no differences from the baseline.
+- Builds with 0 warnings.
+
+### Not verified
+
+- **In a headset.** The fist's volume matches the drawn fist in the mock, but whether 0 cm feels right is for you
+  (Grab Distance Bias).
+- **The menu pages by hand.** The cvars were checked; the pages weren't clicked.
+- **Grab test cost.** It wasn't profiled with `vr_profile`: 93 spheres against the triangles near the fist, a few
+  hundred at most for the models tested.
+- **Multiplayer:** a remote player's fist and two-handed detach.
+
+### Try
+
+- [ ] Reach for a box as in your screenshot: it's taken only when the drawn fist touches it. Tune Grab Distance Bias.
+- [ ] Hold a box in both hands and pull them apart: it drops once the drawn hands leave their grips (3 cm past the
+      drift). Pull one hand away: the other keeps it.
+- [ ] Brush the free hand along a held shotgun's barrel with the fingers open and half-closed.
