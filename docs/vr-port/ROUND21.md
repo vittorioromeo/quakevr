@@ -2977,7 +2977,8 @@ headshots, world, nothing) and each damage you deal (target, amount, inflictor, 
 - Melee: the canary of your takes after each change, compared with vr-cleanup's own results: no difference. Against
   the kit's baseline 16 of 471 takes differ; **vr-cleanup 5d82758d alone gives the same 16** (all 471 takes identical
   to this branch): they come from its new weapon poses (gun butt and muzzle strikes, the no-hit set), not from these
-  changes.
+  changes. Merged with vr-cleanup 71fe2aa9 (melee2) since: the canary is again identical to vr-cleanup's own (40/46
+  pass), and the shot into the grunt's head still 6 of 6 headshots.
 - Mock only: not tried in the headset.
 
 ### Limitations and not verified
