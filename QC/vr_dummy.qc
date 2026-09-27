@@ -110,8 +110,8 @@ string(entity inflictor, entity attacker, float isVRMelee) VR_Dummy_Kind =
         self = attacker;
         entity b = VR_Blow(vr_hithand);
         self = oldSelf;
-        // What struck (the weapon, the kind of blow, how it moved, the part), with which hand, how fast the striking
-        // part went (a swing's tip, a fist's knuckles) and the strength (vr_melee.qc).
+        // What struck (the weapon, the kind of blow, how it moved, the part), with which hand, how fast the hand went
+        // (a pommel strike: the pommel) and the strength (vr_melee.qc).
         string what = VR_Melee_KindName(b.mh_kind, b.mh_thing);
         if(b.mh_way != "")
         {
