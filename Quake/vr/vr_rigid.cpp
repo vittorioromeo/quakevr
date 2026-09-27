@@ -27,6 +27,7 @@
 // - On the way, a box of half-size vr_throw_hitbox finds monsters the thin corners would slip
 //   past, so throws that look like hits are hits.
 
+#include "vr_carry2h.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_units.hpp"
@@ -1131,6 +1132,7 @@ void resetRigidBodies()
     waterMemos.clear();
     wedges.clear();
     carried.clear();
+    carry2h::resetServer();
 }
 
 } // namespace qvr::physics

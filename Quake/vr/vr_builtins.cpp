@@ -4,6 +4,7 @@
 // unbound, so they are given numbers from a private range here and bound by name.
 
 #include "vr_progs.hpp"
+#include "vr_carry2h.hpp"
 #include "vr_held.hpp"
 #include "vr_motion.hpp"
 #include "vr_engine.hpp"
@@ -320,6 +321,25 @@ void PF_carryfit()
     out[2] = v.z;
 }
 
+// vector(entity e, entity player, float grab) carry2h: a prop held in both hands (vr_carry2h.cpp): at the second
+// hand's grip (grab 1) the grips are kept and its origin returned; after, where it goes (its angles set at once).
+void PF_carry2h()
+{
+    const glm::vec3 v = carry2h::serverPlace(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1), G_FLOAT(OFS_PARM2) != 0.f);
+    float* out = G_VECTOR(OFS_RETURN);
+    out[0] = v.x;
+    out[1] = v.y;
+    out[2] = v.z;
+}
+
+// float(entity e, vector point, float hand) carryreach: whether a hand at `point` can take hold of `e` (a hand
+// touching it could: in its turned box, within vr_carry_reach of its drawn surface), for a carried one (not solid).
+void PF_carryreach()
+{
+    const float* p = G_VECTOR(OFS_PARM1);
+    G_FLOAT(OFS_RETURN) = carry2h::reaches(G_EDICT(OFS_PARM0), glm::vec3{p[0], p[1], p[2]}, static_cast<int>(G_FLOAT(OFS_PARM2))) ? 1.f : 0.f;
+}
+
 // handimpact(hand, strength, dir): knock the `self` player's drawn hand (a parried blow).
 void PF_handimpact()
 {
@@ -417,6 +437,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"handimpact", PF_handimpact},
     {"carryangles", PF_carryangles},
     {"carryfit", PF_carryfit},
+    {"carry2h", PF_carry2h},
+    {"carryreach", PF_carryreach},
     {"floattext", PF_floattext},
     {"ejectcasings", PF_ejectcasings},
     {"liquidentry", PF_liquidentry},

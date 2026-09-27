@@ -1708,14 +1708,18 @@ void setupHand(const hands::State& s, int hand)
         return;
     }
 
+    // A prop held in both hands (vr_held.cpp): the hand is drawn on its grip on it, as if its controller were there.
+    glm::vec3 controllerPos = s.pos[hand], controllerRot = s.rot[hand];
+    held::drawnHand(hand, controllerPos, controllerRot);
+
     // The hand turned from the controller by the fist's angle offsets, rigidly (round 21, second pass: added as Euler
     // angles, the hand slid round what it held as the wrist turned, and its grasp was solved again and again).
-    glm::vec3 handRot = basisAngles(anglesBasis(s.rot[hand]) * anglesBasis(weaponAngleOffsets(fist, mirrored)));
+    glm::vec3 handRot = basisAngles(anglesBasis(controllerRot) * anglesBasis(weaponAngleOffsets(fist, mirrored)));
 
     // The hand is where the controller is, holding a weapon or not (round 21: the weapon is placed in the hand, and the
     // fingers wrap it; it was drawn at an anchor vertex of the weapon, which the settings kept within 0.8 of a
     // centimetre of the controller).
-    glm::vec3 pos = s.pos[hand];
+    glm::vec3 pos = controllerPos;
     bool hide = false;
     glm::mat4 motion{1.f}; // the weapon's firing animation where the hand holds it (animationMotion)
     if(slot >= 0 && slot != fist)
