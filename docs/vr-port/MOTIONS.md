@@ -55,6 +55,7 @@ every take's header until you clear it: `vr_motion_note ""`).
 | No Hit | `no_hit` | nothing at all: no blow, bash, shove, headbutt or batting | wiggling, weak, idle, slow_waving, reloading, aiming, walking, reaching |
 | Expected Bash | `bash` | the weapon's guard pushed into the target | sword_1h, sword_2h, gun |
 | Expected Parry Pose | `parry_pose` | a guard that parries a blow from the target, held (no hit) | sword_1h, sword_2h_blade (a hand on the blade), sword_2h, gun |
+| Not Parry Pose | `not_parry_pose` | a pose that must not count as a parry stance (near a guard but not one), and no melee event | weapon_angled, hands_up, resting, aiming, other |
 | Expected Parry Bash | `parry_bash` | the parry pose, then pushed into the target | sword_1h, sword_2h_blade, sword_2h, gun |
 | Expected Hilt/Pommel | `hilt_pommel` | a hit with the hilt, the pommel or the handle's end (sword, axe, hammer), not the blade or head | |
 | Expected Punch | `punch` | a fist's blow | straight, jab, hook, uppercut, overhead |
@@ -62,6 +63,12 @@ every take's header until you clear it: `vr_motion_note ""`).
 | Expected Palm Shove 2H | `palm_shove_2h` | both palms shoving | |
 | Expected Gun Strike | `gun_strike` | a gun used as a club | swing, butt |
 | Other | `other` | anything else (`vr_motion_note`) | |
+
+The "parry state" the evaluation reads, each server frame of the replay's labelled part (phase `rec`): the parry test
+is `m_parry`, `o_parry` or `parry_arms` (QC `VR_Parry_Blocks` towards the target for either hand's weapon, or
+crossed empty arms, `VR_Parry_ArmsCrossed`); the bash guard is `guard` >= 0 (QC `VR_Bash_Guard`). Expected Parry Pose
+needs the parry test in at least half of those frames; Not Parry Pose in none of them, nor the guard, nor any melee
+event.
 
 A take's label is `<category>` or `<category>_<detail>` (`slash_overhead`, `parry_pose_sword_2h_blade`).
 
@@ -107,7 +114,7 @@ meaning).
 | `map` | the map |
 | `dominant hand` | `vr_lefthanded` |
 | `main weapon`, `off weapon` | at the take's start: QC weapon id (`wid`, below), its flags, the model, and the two-handed grip |
-| `vr_world_scale`, `units per metre` | Quake units per real metre (`32.8084 * vr_world_scale`) |
+| `vr_world_scale`, `units per metre` | Quake units per real metre (`26.2467 * vr_world_scale`: 32.81 at 1.25) |
 | `vr_height_calibration`, `vr_floor_offset` | the player's calibrated height (metres) and the floor offset (units) |
 | `hand angles` | `vr_gunangle`, `vr_gunyaw`, `vr_offhandpitch`, `vr_offhandyaw`, `vr_controller_legacy_pose` |
 | `grips` | `vr_weapon_grip_mode`, `vr_2h_mode` |
@@ -270,7 +277,8 @@ absolute path (`.csv` optional).
    lasting the take's `dt`, the server running exactly where it ran in the take (`sv_tick`, `sv_dt`), the play space
    turned as it was (`play_yaw`; the main stick's own turning is taken out, it is in `play_yaw`), the lean as it was.
    So the melee sees the same poses at the same times, whatever the machine's speed; the game runs faster than real
-   time (`watch`: at the take's pace).
+   time (`watch`: at the take's pace). The controllers' key commands (the grips' `+grabmain`, the trigger's
+   `+attack`) run in the frame of their press, as in the headset, ahead of anything waiting in the command buffer.
 3. **After** it, 0.3 s holding the last pose (late events), then a report: the take's events and the replay's
    (from the take's start; strokes left out), how many of the hits match (the same kind, sub, hand, target and
    striking point; their damage and time differences), and how far the replay's hands were from the take's,
@@ -280,12 +288,20 @@ absolute path (`.csv` optional).
 follows the take's frames: a replay is the same every time.
 
 Options: `target <classname|#entity>` (another target), `yaw <degrees>` (the player's heading: another placement),
+`rate <hz>` (the take resampled at another headset's frame rate: poses slerped, velocities interpolated, the server
+frames left to the engine; to check the melee at 72, 90, 120 or 144 Hz),
 `noplace` (where the player is), `watch` (the recorded pace), `save` (the replay as a take:
 `motions/replays/<take>_replay.csv`, the same columns, to compare with the take), `recorded` (the take's melee
 settings too: `vr_melee_*`, `vr_bash*`, `vr_shove*`, `vr_parry*`, `vr_deflect*`, `vr_headbutt*`; without it the
 current ones: what a change of the melee's settings does), `quiet`. `vr_motion_play stop` stops it.
 
-A take without a monster (recorded far from any) is played with the target 40 units ahead, facing the player.
+A take without a monster (recorded far from any) is played with the target 40 units ahead, facing the player. A
+take whose spot is inside the target (recorded in noclip, or a synthetic take whose box meets the target's turned
+another way) steps the player back until the boxes are apart, and says so.
+
+Takes recorded before the header's `settings` line (the first ones) take the placing settings they don't list (the
+weapons' offsets, the lean) from the current config: play them with the config they were recorded with (the
+author's `ironwail.cfg`, or `exec` a file of its `vr_wofs_*`, `vr_2h_*`, `vr_lean_*` ... lines first).
 
 ## Evaluation
 
@@ -307,7 +323,7 @@ afresh (`vrfiringrange`, or `map <name>`: the same start every time), judges eac
 
 The console prints a line per take, the totals, the pass rate of each category, and how many replays hit as their
 takes did live. Options: `recorded` (the takes' melee settings: to check that the replays reproduce the live
-events), `save` (every replay as a take), `verbose` (each playback's report), `watch`, `map <name>`, `out <file>`,
+events), `rate <hz>` (every take resampled, as above), `save` (every replay as a take), `verbose` (each playback's report), `watch`, `map <name>`, `out <file>`,
 `quit` (quits when done: for scripts). `vr_motion_eval stop` stops it (and writes what it has).
 
 ```
@@ -324,7 +340,37 @@ From the agent kit: `bash <kit>/run.sh <agent> -Script "map vrfiringrange;wait60
 `quakevr/motions/expect.cfg` (in git; the rest of the folder is not) says what each category should do. See its
 comments for the grammar: required events (any of them: `melee`, `melee/stab`, `shove/both`,
 `melee@the_pommel|the_hilt`), forbidden ones (`!push`), `none` (no melee event at all: no hit, stroke, push or
-batting), poses held for half the take (`pose:parry`: the parry test, a weapon's or crossed arms'; `pose:guard`), and
+batting), poses held for half the take (`pose:parry`: the parry test, a weapon's or crossed arms'; `pose:guard`) or
+never (`!pose:parry`, `!pose:guard`: not one frame), and
 the weapons a category is for (`weapon:sword|axe|mjolnir`: with another weapon the take is N/A, reported apart). A
 hit whose kind isn't required fails the take. A line for a label (`slash_overhead melee/overhead_blow`) wins over its
 category's.
+
+## Synthetic takes (`Misc/quakevr/motion_synth.py`)
+
+Takes written from simple curves, in the same format (the columns playback reads: the tracking, the controls,
+the weapons, the target's offset), to build test cases before (and besides) real ones. They play like real takes
+(`vr_motion_play`, `vr_motion_eval`; `same_hits_as_recorded` is `-`: they have no live events).
+
+```
+python Misc/quakevr/motion_synth.py --list                 # the presets
+python Misc/quakevr/motion_synth.py all                    # every preset into quakevr/motions/synth/
+python Misc/quakevr/motion_synth.py slash_overhead --two-handed --duration 0.35 --distance 0.8
+```
+
+Options: `--out <folder>`, `--duration <s>` (the motion; 0.3, a thrust 0.15), `--distance <m>` (from the head to the
+dummy's middle, straight ahead), `--rate <Hz>` (90), `--world-scale` (1.25), `--eye-height` (1.646),
+`--two-handed` (a sword with the off hand on its grip, 12 cm below the main hand).
+
+As a module (`import motion_synth`): a `Take(label, main_weapon=..., target=(ahead, left))`, then segments:
+`hold(seconds)`, `glide({hand: (pos, quat)}, seconds)`, `move(seconds, fn)` (fn(s) -> {hand: (pos, quat)}, s eased
+0..1), each with a `phase` (`pre`, `rec`, `tail`), and `write(path)`. Positions are in the player's frame, metres
+(x forward, y left, z up from the floor under the head; the head at `eye_height`). Orientations:
+`hand_pose(hand, forward, up)` (the game's hand pointing `forward`, its thumb towards `up`: a fist `(1,0,0), (0,0,1)`;
+the main hand's palm ahead, fingers up `(0,0,1), (0,1,0)`), `blade_pose(hand, blade, right)` (a sword's blade along
+`blade`, the back of the main hand towards `right`: `sword_swing` puts the edge, the thumb's side, leading). They
+turn the game's hand into a controller orientation with the shipped hand offsets (`vr_gunangle 39.5`, ...) and, for
+the sword, the blade's direction on the controller measured in the mock headset (`SWORD_BLADE`); another weapon
+points along the hand's forward (approximate).
+
+Velocities are the curves' own (central differences); the server frames are the engine's (72 Hz).

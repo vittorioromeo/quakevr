@@ -66,8 +66,40 @@ const std::vector<Category>& categories()
         {{"palm_shove_2h", "Expected Palm Shove 2H"}, {any}},
         {{"gun_strike", "Expected Gun Strike"}, {any, {"swing", "Swing"}, {"butt", "Butt"}}},
         {{"other", "Other (vr_motion_note)"}, {any}},
+        // Added later: at the end, so vr_motion_category's saved index keeps its category (the menu shows them in
+        // categoryOrder's order).
+        {{"not_parry_pose", "Not Parry Pose"},
+            {any, {"weapon_angled", "Weapon Angled"}, {"hands_up", "Hands Up"}, {"resting", "Resting"},
+                {"aiming", "Aiming"}, {"other", "Other"}}},
     };
     return list;
+}
+
+std::vector<int> categoryOrder()
+{
+    // The menu's order: each category after its kin (Not Parry Pose after Expected Parry Pose).
+    static const char* const order[] = {"slash", "stab", "no_hit", "bash", "parry_pose", "not_parry_pose", "parry_bash",
+        "hilt_pommel", "punch", "palm_shove_1h", "palm_shove_2h", "gun_strike", "other"};
+    const auto& list = categories();
+    std::vector<int> out;
+    for(const char* name : order)
+    {
+        for(size_t i = 0; i < list.size(); i++)
+        {
+            if(!strcmp(list[i].choice.name, name))
+            {
+                out.push_back(static_cast<int>(i));
+            }
+        }
+    }
+    for(size_t i = 0; i < list.size(); i++) // (any not in the order)
+    {
+        if(std::find(out.begin(), out.end(), static_cast<int>(i)) == out.end())
+        {
+            out.push_back(static_cast<int>(i));
+        }
+    }
+    return out;
 }
 
 const Category& chosenCategory()
@@ -581,7 +613,9 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
 // The settings the melee reads, for the header.
 [[nodiscard]] std::string meleeSettings()
 {
-    static const char* const prefixes[] = {"vr_melee_", "vr_bash", "vr_shove", "vr_parry", "vr_deflect", "vr_headbutt"};
+    static const char* const prefixes[] = {"vr_melee_", "vr_bash", "vr_shove", "vr_parry", "vr_deflect", "vr_headbutt",
+        "vr_sword_", "vr_damage_", "vr_push", "vr_hit_push", "vr_kill_push", "vr_carry_melee_mult", "vr_positional_damage",
+        "vr_headshot_mult", "vr_limbshot_mult", "vr_legshot_mult"};
     std::string out;
     for(const cvar_t* var = Cvar_FindVarAfter("", 0); var; var = Cvar_FindVarAfter(var->name, 0))
     {
