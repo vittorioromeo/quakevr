@@ -3233,9 +3233,9 @@ void() ImpulseCommands =
     if(self.impulse == 252 && !deathmatch && !coop && VRIsHandEmpty(self, cVR_OffHand) && !VR_Carry_IsHolding(self, cVR_OffHand))
     {
         string testModel = "progs/gib1.mdl";
-        if(vr_test_held_kind == 1) testModel = "progs/gib2.mdl";
-        else if(vr_test_held_kind == 2) testModel = "progs/gib3.mdl";
-        else if(vr_test_held_kind == 3) testModel = "progs/h_player.mdl";
+        if(vr_test_held_kind == 1) testModel = "progs/h_player.mdl";
+        else if(vr_test_held_kind == 2) testModel = "progs/gib2.mdl";
+        else if(vr_test_held_kind == 3) testModel = "progs/gib3.mdl";
         else if(vr_test_held_kind == 4) testModel = "progs/h_guard.mdl";
         else if(vr_test_held_kind == 5) testModel = "progs/h_ogre.mdl";
         else if(vr_test_held_kind == 6) testModel = "progs/h_knight.mdl";

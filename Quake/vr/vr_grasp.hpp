@@ -47,6 +47,9 @@ struct Solution
 {
     FingerStop finger[handrig::FingerCount];
     glm::vec3 palm{0.f};  // the hand's move (rig space) to hold it flush, the fingers solved there
+    glm::quat palmTurn{1.f, 0.f, 0.f, 0.f}; // and its turn about palmCentre, before the move
+    glm::vec3 palmCentre{0.f};
+    glm::vec3 approach{0.f}; // the way to the surface the palm faces (the turned hand's frame), if any
     glm::quat thumbTurn{1.f, 0.f, 0.f, 0.f}; // the thumb's metacarpal turn (Pose::metacarpal) it closes at
     int places{0};        // the hand's places tried
     double seconds{0.0};
@@ -54,13 +57,17 @@ struct Solution
 };
 
 // Solves the hand of `pose` (its shifts and metacarpal; its curls are ignored) against `tris` (rig space): first
-// the palm, moved along its normal to sit flush on what it holds (out of it, or in to touch it; at most
-// `palmLimit` hand units, 0 not at all), then the fingers there.
-void solve(const handrig::Pose& pose, const std::vector<Triangle>& tris, Solution& out, float palmLimit);
+// the palm, turned (at most `palmTurnLimit` degrees) to face the surface in front of it and moved to sit flush on
+// what it holds (out of it, or in to touch it; at most `palmLimit` hand units; 0: not at all), then the fingers
+// there.
+void solve(const handrig::Pose& pose, const std::vector<Triangle>& tris, Solution& out, float palmLimit, float palmTurnLimit);
 
 // A finger's joint curls this frame: `curl` the controller's (0..5, vr_view.cpp's), `engage` how much it grips
 // (0..1: drawn to the stops past `curl`).
 void curls(const FingerStop& stop, float curl, float engage, float out[handrig::jointsPerFinger]);
+
+// The middle of the palm's side (rig space): what the palm turns about.
+[[nodiscard]] glm::vec3 palmCentre();
 
 // The curl path's place for the controller's curl: 0..4 closing, then 5 back to 3's shape (the old frames').
 [[nodiscard]] float pathCurl(float curl);

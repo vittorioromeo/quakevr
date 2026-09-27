@@ -488,7 +488,7 @@ void solveThumb(handrig::Pose& pose, const glm::vec3& d, const Scene& scene, flo
 
 // The palm and the fingers' roots (glued to it), as triangles; not the thumb's socket and the thenar round it (the
 // metacarpal's: the ball of the thumb gives round what the hand holds, and the thumb closes on its own).
-void palmTriangles(const handrig::Pose& pose, std::vector<Triangle>& out)
+void palmTriangles(const handrig::Pose& pose, std::vector<Triangle>& out, bool thenar = false)
 {
     out.clear();
     handrig::Posed posed;
@@ -496,8 +496,8 @@ void palmTriangles(const handrig::Pose& pose, std::vector<Triangle>& out)
     for(int t = 0; t < handrig::data::numPalmTriangles; t++)
     {
         const auto* tri = handrig::data::palmTriangles[t];
-        if(handrig::data::palmVertices[tri[0]].thumb > 0.f || handrig::data::palmVertices[tri[1]].thumb > 0.f ||
-            handrig::data::palmVertices[tri[2]].thumb > 0.f)
+        if(!thenar && (handrig::data::palmVertices[tri[0]].thumb > 0.f || handrig::data::palmVertices[tri[1]].thumb > 0.f ||
+                          handrig::data::palmVertices[tri[2]].thumb > 0.f))
         {
             continue;
         }
@@ -531,14 +531,15 @@ void palmTriangles(const handrig::Pose& pose, std::vector<Triangle>& out)
 // Along the palm's normal (+y) from `from`: the place where the palm just touches the held thing, coming from the
 // side away from it (from `from.y - reach` up to `from.y + reach`: the last clear place before it is met; if clear
 // all the way, none). False if there is none.
-[[nodiscard]] bool flush(const std::vector<Triangle>& palm, const Scene& scene, const glm::vec3& from, float reach, glm::vec3& out)
+[[nodiscard]] bool flush(const std::vector<Triangle>& palm, const Scene& scene, const glm::vec3& from, float reach, glm::vec3& out,
+    const glm::vec3& dir = glm::vec3{0.f, 1.f, 0.f})
 {
     constexpr float move = 0.25f;
     bool wasClear = false;
     float clearAt = 0.f;
     for(float t = -reach; t <= reach + 1e-4f; t += move)
     {
-        const bool clear = !palmCrosses(palm, from + glm::vec3{0.f, t, 0.f}, scene);
+        const bool clear = !palmCrosses(palm, from + dir * t, scene);
         if(clear)
         {
             wasClear = true;
@@ -553,9 +554,9 @@ void palmTriangles(const handrig::Pose& pose, std::vector<Triangle>& out)
         for(int h = 0; h < halvings; h++)
         {
             const float mid = 0.5f * (lo + hi);
-            (palmCrosses(palm, from + glm::vec3{0.f, mid, 0.f}, scene) ? hi : lo) = mid;
+            (palmCrosses(palm, from + dir * mid, scene) ? hi : lo) = mid;
         }
-        out = from + glm::vec3{0.f, lo, 0.f};
+        out = from + dir * lo;
         return true;
     }
     return false;
@@ -656,12 +657,176 @@ bool worldTriangles(const entity_t& e, bool mirrored, int frame, std::vector<Tri
     return !out.empty();
 }
 
-void solve(const handrig::Pose& start, const std::vector<Triangle>& tris, Solution& out, float palmLimit)
+// The middle of the palm's side of the palm (rig space).
+glm::vec3 palmCentre()
+{
+    glm::vec3 sum{0.f};
+    int n = 0;
+    for(int i = 0; i < handrig::data::numPalmVertices; i++)
+    {
+        const float* p = handrig::data::palmVertices[i].pos;
+        if(p[1] > 0.f && handrig::data::palmVertices[i].thumb == 0.f)
+        {
+            sum += glm::vec3{p[0], p[1], p[2]};
+            n++;
+        }
+    }
+    return n ? sum / static_cast<float>(n) : glm::vec3{0.f};
+}
+
+namespace
+{
+
+// Where a ray from `from` along `dir` first meets `tris` (the distance, and the triangle's normal facing back along
+// the ray); false if within `reach` it meets none.
+[[nodiscard]] bool rayHit(const std::vector<Triangle>& tris, const glm::vec3& from, const glm::vec3& dir, float reach, float& at,
+    glm::vec3& normal)
+{
+    at = reach;
+    bool hit = false;
+    for(const Triangle& t : tris)
+    {
+        const glm::vec3 e1 = t.p[1] - t.p[0], e2 = t.p[2] - t.p[0];
+        const glm::vec3 pv = glm::cross(dir, e2);
+        const float det = glm::dot(e1, pv);
+        if(std::fabs(det) < 1e-9f)
+        {
+            continue;
+        }
+        const float inv = 1.f / det;
+        const glm::vec3 tv = from - t.p[0];
+        const float u = glm::dot(tv, pv) * inv;
+        const glm::vec3 qv = glm::cross(tv, e1);
+        const float v = glm::dot(dir, qv) * inv;
+        const float s = glm::dot(e2, qv) * inv;
+        if(u < 0.f || v < 0.f || u + v > 1.f || s < 0.f || s >= at)
+        {
+            continue;
+        }
+        at = s;
+        normal = glm::normalize(glm::cross(e1, e2));
+        if(glm::dot(normal, dir) > 0.f)
+        {
+            normal = -normal;
+        }
+        hit = true;
+    }
+    return hit;
+}
+
+// The point of triangle t nearest p (Ericson, Real-Time Collision Detection, 5.1.5).
+[[nodiscard]] glm::vec3 closestOnTriangle(const glm::vec3& p, const Triangle& t)
+{
+    const glm::vec3 &a = t.p[0], &b = t.p[1], &c = t.p[2];
+    const glm::vec3 ab = b - a, ac = c - a, ap = p - a;
+    const float d1 = glm::dot(ab, ap), d2 = glm::dot(ac, ap);
+    if(d1 <= 0.f && d2 <= 0.f)
+    {
+        return a;
+    }
+    const glm::vec3 bp = p - b;
+    const float d3 = glm::dot(ab, bp), d4 = glm::dot(ac, bp);
+    if(d3 >= 0.f && d4 <= d3)
+    {
+        return b;
+    }
+    const float vc = d1 * d4 - d3 * d2;
+    if(vc <= 0.f && d1 >= 0.f && d3 <= 0.f)
+    {
+        return a + ab * (d1 / (d1 - d3));
+    }
+    const glm::vec3 cp = p - c;
+    const float d5 = glm::dot(ab, cp), d6 = glm::dot(ac, cp);
+    if(d6 >= 0.f && d5 <= d6)
+    {
+        return c;
+    }
+    const float vb = d5 * d2 - d1 * d6;
+    if(vb <= 0.f && d2 >= 0.f && d6 <= 0.f)
+    {
+        return a + ac * (d2 / (d2 - d6));
+    }
+    const float va = d3 * d6 - d5 * d4;
+    if(va <= 0.f && (d4 - d3) >= 0.f && (d5 - d6) >= 0.f)
+    {
+        return b + (c - b) * ((d4 - d3) / ((d4 - d3) + (d5 - d6)));
+    }
+    const float denom = 1.f / (va + vb + vc);
+    return a + ab * (vb * denom) + ac * (vc * denom);
+}
+
+} // namespace
+
+void solve(const handrig::Pose& start, const std::vector<Triangle>& given, Solution& out, float palmLimit, float palmTurnLimit)
 {
     const auto t0 = std::chrono::steady_clock::now();
     out = Solution{};
     handrig::Pose pose = start;
     pose.metacarpal = glm::quat{1.f, 0.f, 0.f, 0.f};
+
+    // The palm turned (at most palmTurnLimit degrees, about its middle) to face the surface in front of it: the
+    // held thing turned the other way round it, for everything below (step 4, the palm flush).
+    std::vector<Triangle> turned;
+    const std::vector<Triangle>* use = &given;
+    out.palmCentre = palmCentre();
+    bool palmInside = false;
+    if(palmTurnLimit > 0.f)
+    {
+        // Not when the palm is in it (a gun's grip through the hand): nothing to face.
+        Box everywhere;
+        everywhere.add(glm::vec3{-1e6f});
+        everywhere.add(glm::vec3{1e6f});
+        std::vector<Triangle> palm0;
+        palmTriangles(pose, palm0);
+        palmInside = palmCrosses(palm0, glm::vec3{0.f}, Scene(given, everywhere));
+    }
+    if(palmTurnLimit > 0.f && !palmInside)
+    {
+        float at;
+        glm::vec3 n;
+        const glm::vec3 up{0.f, 1.f, 0.f};
+        // The surface in front of the palm, or else the nearest to the palm's middle (beside the fist: a big thing
+        // held by its edge).
+        bool facing = rayHit(given, out.palmCentre, up, palmLimit + 8.f, at, n);
+        if(!facing)
+        {
+            float nearest = palmLimit + 4.f;
+            for(const Triangle& t : given)
+            {
+                const glm::vec3 q = closestOnTriangle(out.palmCentre, t);
+                const float d = glm::distance(q, out.palmCentre);
+                if(d < nearest && d > 1e-3f && glm::dot(q - out.palmCentre, up) > 0.f) // on the palm's side
+                {
+                    nearest = d;
+                    n = (out.palmCentre - q) / d;
+                    facing = true;
+                }
+            }
+        }
+        if(facing)
+        {
+            const glm::vec3 want = -n; // the palm's normal to face the surface
+            const float angle = std::acos(std::clamp(glm::dot(up, want), -1.f, 1.f));
+            if(angle > glm::radians(1.f))
+            {
+                const glm::vec3 axis = glm::normalize(glm::cross(up, want));
+                const glm::quat q = glm::angleAxis(std::min(angle, glm::radians(palmTurnLimit)), axis);
+                turned = given;
+                const glm::mat3 back = glm::mat3_cast(glm::inverse(q));
+                for(Triangle& t : turned)
+                {
+                    for(glm::vec3& p : t.p)
+                    {
+                        p = out.palmCentre + back * (p - out.palmCentre);
+                    }
+                }
+                use = &turned;
+                out.palmTurn = q;
+            }
+            out.approach = glm::mat3_cast(glm::inverse(out.palmTurn)) * want; // towards it, in the turned hand's frame
+        }
+    }
+    const std::vector<Triangle>& tris = *use;
 
     // What the hand can reach: its bounds, fully open or closed, and as far as it may move.
     Box region;
@@ -706,6 +871,10 @@ void solve(const handrig::Pose& start, const std::vector<Triangle>& tris, Soluti
     std::vector<Triangle> palm;
     palmTriangles(pose, palm);
     const bool inside = palmCrosses(palm, glm::vec3{0.f}, scene);
+    if(!inside)
+    {
+        palmTriangles(pose, palm, true); // a thing held against the palm meets the ball of the thumb too
+    }
     int tried = 0;
     Placement best;
     const auto consider = [&](float dx, float dz) {
@@ -736,6 +905,21 @@ void solve(const handrig::Pose& start, const std::vector<Triangle>& tris, Soluti
         if(!inside)
         {
             consider(0.f, 0.f); // flush along the palm's normal
+            if(out.approach != glm::vec3{0.f} && glm::dot(out.approach, glm::vec3{0.f, 1.f, 0.f}) < 0.995f)
+            {
+                glm::vec3 at; // and towards the surface it faces
+                if(flush(palm, scene, glm::vec3{0.f}, palmLimit, at, glm::normalize(out.approach)))
+                {
+                    Placement p;
+                    place(pose, scene, at, false, p);
+                    p.total += 0.5f;
+                    tried++;
+                    if(p.total > best.total)
+                    {
+                        best = p;
+                    }
+                }
+            }
         }
         else
         {
