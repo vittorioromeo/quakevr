@@ -14,8 +14,16 @@ The add-on is in the repository, in `Misc/quakevr/blender/addons/quakevr_hand`. 
 
 1. In Blender, open **Edit > Preferences > File Paths > Script Directories** and click **Add**.
 2. Choose the repository's `Misc/quakevr/blender` folder. Name it `quakevr`.
-3. Restart Blender.
+3. Save the preferences (the menu at the bottom left of Preferences > **Save Preferences**, unless Auto-Save
+   Preferences is on), then **close and reopen Blender**: Blender only reads a new script directory at startup.
 4. In **Edit > Preferences > Add-ons**, search for **Quake VR Hand** and tick it.
+
+"Add-on not loaded: quakevr_hand, cause: No module named 'quakevr_hand'" means step 3 was skipped or the
+preferences weren't saved: the add-on was ticked before Blender had the folder on its path.
+
+Alternatively, install it as a zip (no script directory needed, but reinstall it after the add-on changes): zip the
+`Misc/quakevr/blender/addons/quakevr_hand` folder (the zip must contain the `quakevr_hand` folder), then in
+**Preferences > Add-ons**, the menu at the top right > **Install from Disk...**, pick the zip, and tick it.
 
 Blender now loads the add-on straight from the repository. When the add-on changes in a pull, restart Blender to pick
 it up.
