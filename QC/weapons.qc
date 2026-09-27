@@ -117,7 +117,8 @@ float() VRMeleeDmgQuadMult =
 
 // Melee: a part of what a hand holds swept into something at vr_melee_speed or more (vr_melee.qc; PlayerVRMeleeImpl
 // in client.qc), in any direction. The damage is the weapon's base times the blow's strength (VR_Melee_Decide: the
-// striking part's speed and the kind of blow; 1 at twice vr_melee_speed, at most VR_MELEE_STRONGEST).
+// striking part's speed and the kind of blow; 1 at twice vr_melee_speed, at most VR_MELEE_STRONGEST), and a counter's
+// after a parry (VR_Blow_Counter; vr_counter_damage).
 
 float(float xHand, float xBase) VRMeleeDmg =
 {
@@ -126,7 +127,7 @@ float(float xHand, float xBase) VRMeleeDmg =
         return 20;
     }
 
-    return xBase * VR_Blow_Strength(xHand) * cvar_hget(cvarh_vr_melee_dmg_multiplier) * VRMeleeDmgQuadMult();
+    return xBase * VR_Blow_Strength(xHand) * VR_Blow_Counter(xHand) * cvar_hget(cvarh_vr_melee_dmg_multiplier) * VRMeleeDmgQuadMult();
 }
 
 float(float v) VRMeleeRange =
@@ -3477,6 +3478,10 @@ void() ImpulseCommands =
         spike.velocity = normalize(aim - shooter.origin) * (player.impulse == 246 ? 600 : 300);
         spike.classname = "knightspike";
         self = player;
+    }
+    if(self.impulse == 242 && !deathmatch && !coop) // QVR: the nearest melee monster strikes you now (parry tests; vr_melee.qc)
+    {
+        VR_Parry_TestBlow();
     }
     if(self.impulse == 248 && !deathmatch && !coop) // QVR: a knight 64 units ahead (parry tests)
     {

@@ -9,6 +9,9 @@
 #   shove.wav, bash.wav, bash_parry.wav, parry.wav  melee contacts other than blows (vr_bash_sound): a
 #                 shove (a whoosh into a thud), a weapon bash (a dull clang on a thud), a parry-bash (a
 #                 scrape and ring over the bash) and a parry (a bright ring of steel)
+#   counter_open.wav, counter.wav  counter-attacks (vr_counter_sound; QC vr_melee.qc): the window opening after a
+#                 parry (a blade drawn off into a high ring) and a counter landing (a crack, a deep boom, a sting of
+#                 steel), over the attack's own sound
 #   pommel1..3.wav  a pommel, a hilt or a gun's butt striking (QC vr_melee.qc VR_Melee_HitSound): a blunt knock,
 #                 short and dry, apart from the blades' cuts and the punches; three, a little apart in pitch
 #
@@ -282,6 +285,63 @@ def bash_parry():
     return finish(out, 0.92)
 
 
+def counter_open():
+    """A counter's window opening (a parry just caught a blow; QC vr_melee.qc VR_Counter_Open): after the parry's
+    strike (a short silence: it follows the parry's ring, it doesn't mask it), the blade drawn off the enemy's -- a
+    scrape rising fast -- into a clean, high ring gliding up a little: steel ready to strike back. Lighter than the
+    parry, and nothing low (no hit)."""
+    rng = random.Random(137)
+    lead = 0.07  # after the parry's strike
+    rise = 0.11  # the scrape, rising into the ring
+    n = int(RATE * 0.6)
+    scrape = VarLowPass()
+    scrape_hp = OnePole(2200)
+    table = ((2630, 0.5, 0.22), (3940, 0.45, 0.17), (5310, 0.3, 0.11), (7020, 0.15, 0.06))
+    out = []
+    for i in range(n):
+        t = i / RATE - lead
+        if t < 0:
+            out.append(0.0)
+            continue
+        noise = rng.uniform(-1, 1)
+        sw = min(1.0, t / rise)
+        sc = scrape(noise, 2500 + 6000 * sw)
+        sc -= scrape_hp(sc)
+        s = sc * (sw ** 1.5 if t < rise else math.exp(-(t - rise) / 0.025)) * 1.1
+        if t >= rise:
+            u = t - rise
+            ring = partials(u, 1.0 + 0.025 * min(1.0, u / 0.2), table) * min(1.0, u / 0.003)
+            s += ring * 0.8
+        out.append(s)
+    return finish([math.tanh(s * 1.2) for s in out], 0.8)
+
+
+def counter_hit():
+    """A counter landing (a blow, a bash or a shove in the window after a parry; QC vr_melee.qc VR_Counter_Use),
+    over the attack's own sound: a hard crack, a deep boom under it (lower and longer than the bash's thud) and a
+    short bright sting of steel on top -- the heaviest hit there is, and the only one with both the boom and the
+    ring."""
+    rng = random.Random(139)
+    n = int(RATE * 0.7)
+    crack_hp = OnePole(1500)
+    crack_lp = OnePole(6000)
+    body_lp = OnePole(220)
+    mid_lp, mid_hp = OnePole(1300), OnePole(300)
+    phase = [0.0]
+    sting = ((1830, 0.45, 0.16), (2760, 0.5, 0.12), (4150, 0.35, 0.08), (5930, 0.2, 0.05))
+    out = []
+    for i in range(n):
+        t = i / RATE
+        noise = rng.uniform(-1, 1)
+        crack = (crack_lp(noise) - crack_hp(crack_lp.y)) * math.exp(-t / 0.006)
+        boom = thud(t, phase, 36, 95, 0.22)
+        body = body_lp(noise) * math.exp(-t / 0.11)
+        smack = (mid_lp(noise) - mid_hp(mid_lp.y)) * math.exp(-t / 0.04)  # the flesh and the weapon's body
+        ring = partials(t, 1.0, sting) * min(1.0, t / 0.0005)
+        out.append(math.tanh((crack * 1.4 + boom * 0.6 + body * 1.0 + smack * 6.0 + ring * 1.2) * 1.4))
+    return finish(out, 0.95)
+
+
 def pommel(pitch, seed):
     """A pommel, a hilt or a gun's butt knocked into a body: blunt, short and dry. A hard tick, a wooden knock (low
     inharmonic modes of a dense knob damped in a few tens of ms: no ring, unlike the bash's clang or the parry's
@@ -360,6 +420,8 @@ def main():
         "bash.wav": bash_weapon,
         "bash_parry.wav": bash_parry,
         "parry.wav": parry,
+        "counter_open.wav": counter_open,
+        "counter.wav": counter_hit,
     }
     only = sys.argv[2:]  # optional: just these
     for name, make in sounds.items():

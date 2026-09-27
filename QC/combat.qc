@@ -1118,9 +1118,13 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
 // any gun; one hand or two) about level across in front of them, between them and the monster
 // (VR_Parry_Blocks), is partly blocked (vr_parry_reduction): a clang, sparks,
 // the hand knocked back. Held in one hand, the weapon may be knocked out of it
-// (vr_parry_drop_chance); held in two, never.
+// (vr_parry_drop_chance); held in two, never. With parry stamina on (vr_parry_stamina) the chance is
+// not used: each parry tires you, and the one that leaves you none knocks the weapon away, one hand or
+// two. Any parry opens a counter's window (vr_counter): the next melee attack hits harder.
 
-.float vr_parry_time; // on a player: when it last parried a blow with a weapon (a bash soon after is a parry-bash)
+// Parry stamina and counter-attacks (vr_melee.qc).
+float(entity p, float hand, float twoHanded, vector at) VR_Stamina_Parry;
+void(entity p, float hand) VR_Counter_Open;
 
 // Monsters that strike in melee (a blow comes from the monster itself, up close).
 float(entity e) VR_Parry_MeleeMonster =
@@ -1415,6 +1419,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         VR_Push(targ, to * -1, 200 * cvar_hget(cvarh_vr_parry_push_player), 40 * cvar_hget(cvarh_vr_parry_push_player));
         dprint("parry: "); dprint(attacker.classname); dprint(" with crossed arms\n");
         VR_Motion_Event("parry", "arms", -1, damage, VRGetHandPos(cVR_MainHand), attacker, "");
+        VR_Counter_Open(targ, -1);
         damage = damage * (1 - min(1, max(0, cvar_hget(cvarh_vr_parry_unarmed_reduction))));
     }
 
@@ -1436,7 +1441,6 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
             sound(self, CHAN_AUTO, "player/axhit2.wav", 1, ATTN_NORM);
             sound(self, CHAN_AUTO, "weapons/tink1.wav", 0.6, ATTN_NORM);
         }
-        self.vr_parry_time = time; // a bash soon after is a parry-bash (VR_Bash)
         particle2(at, (to * -1 + '0 0 0.5') * 80, QVR_PARTICLE_PRESET_SPARKS, 24);
         haptic(hand, 0.0, 0.3, 90, 1.0);
         handimpact(hand, 5, to * -1);
@@ -1448,12 +1452,6 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
             haptic(other, 0.0, 0.25, 90, 0.8);
             handimpact(other, 3, to * -1);
         }
-        else if(random() < cvar_hget(cvarh_vr_parry_drop_chance))
-        {
-            DropWeaponInHand(self, hand, VRGetEntWeapon(self, hand), VRGetEntWeaponFlags(self, hand),
-                VRGetEntWeaponClip(self, hand));
-            sprint(self, "The blow knocks the weapon out of your hand!\n");
-        }
 
         self = oldSelf;
 
@@ -1464,6 +1462,28 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         dprint("parry: "); dprint(attacker.classname); dprint(" with hand "); dprint(ftos(hand));
         dprint(twoHanded ? " (two hands)\n" : "\n");
         VR_Motion_Event("parry", VR_Motion_HandSub(hand), hand, damage, vr_parry_at, attacker, twoHanded ? "two hands" : "");
+
+        // What the parry costs: with parry stamina on, the parry that empties it knocks the weapon away (one hand or
+        // two); else, held in one hand, the drop chance may.
+        float knocked = FALSE;
+        if(cvar_hget(cvarh_vr_parry_stamina))
+        {
+            knocked = VR_Stamina_Parry(targ, hand, twoHanded, (vr_parry_butt + vr_parry_end) * 0.5);
+        }
+        else if(!twoHanded)
+        {
+            knocked = random() < cvar_hget(cvarh_vr_parry_drop_chance);
+        }
+        if(knocked)
+        {
+            self = targ;
+            DropWeaponInHand(self, hand, VRGetEntWeapon(self, hand), VRGetEntWeaponFlags(self, hand),
+                VRGetEntWeaponClip(self, hand));
+            sprint(self, cvar_hget(cvarh_vr_parry_stamina) ? "Exhausted: the blow knocks the weapon out of your hand!\n" :
+                "The blow knocks the weapon out of your hand!\n");
+            self = oldSelf;
+        }
+        VR_Counter_Open(targ, hand);
         damage = damage * (1 - min(1, max(0, cvar_hget(cvarh_vr_parry_reduction))));
     }
 
@@ -1515,6 +1535,10 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage =
 float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRMelee =
 {
     float r = T_DamageImpl(targ, inflictor, attacker, damage, 1);
+    if(cvar_hget(cvarh_vr_debug_shots) && (attacker.flags & FL_CLIENT) && targ != attacker)
+    {
+        dprint(sprintf("damage: %s %g by a melee blow, health %g\n", targ.classname, damage, targ.health));
+    }
 
     // VR: melee blows push what they hit, dead or alive (vr_melee_push).
     if(targ != attacker && targ.takedamage)

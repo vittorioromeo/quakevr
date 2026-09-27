@@ -4174,3 +4174,133 @@ Your notes: "enabling anti-aliasing in the graphics options screws up the water 
   shipped defaults.
 - [ ] Turn Anti-aliasing on and look at water with Water Refraction on: what's under it should bend the same as
   with AA off.
+## Parry stamina and counter-attacks
+
+Your two notes: a stamina system in place of the random drop chance, and a counter-attack after a successful parry.
+Both are in `QC/vr_melee.qc` ("Parry stamina and counter-attacks"), called from `VR_Parry` (`combat.qc`). Both are in the
+menu under Gameplay > Parry, Bash and Headbutt, as two new sections.
+
+### Parry stamina (off as shipped)
+
+- **What it does.** Each parry with a weapon costs stamina: 30 with the weapon in one hand, 12 with it in two, out of
+  100. The parry that leaves you no stamina still blocks the blow, but it knocks the parrying weapon out of your hand.
+  This uses the drop chance's code (`DropWeaponInHand`) and applies to one hand or two. With the defaults, the fourth
+  one-handed parry in a row drops the weapon, and the ninth two-handed one does. After 2 s without a parry, stamina
+  comes back at 25 a second, so from empty it is full again 6 s after your last parry.
+- **Why it is off by default.** The system is opt-in: turning it on changes how parrying plays. It is one switch
+  (Parry Stamina) if you want to try it.
+- **It replaces the drop chance.** With stamina on, `vr_parry_drop_chance` is not used at all, so a weapon never drops
+  at random. With it off, the drop chance works as before. The two never combine: two separate reasons to lose a
+  weapon would be hard to read. The Parry Drop Chance help text (Melee Settings) says this.
+- **Shared, not per hand.** There is one pool for both hands. It stands for your arms and body, not the weapon.
+  Separate pools would let you alternate hands to never tire, which defeats the point of choosing when to parry. It
+  would also make "two hands cost less" unclear (whose stamina does it spend?). The weapon that drops is the one that
+  made the parry that emptied the pool.
+- **Crossed arms cost nothing.** An unarmed parry has no weapon to lose.
+- **Feedback, two settings:**
+  - Tiring Warning (0..1, the volume and strength). When one more one-handed parry would drop the weapon, you hear
+    Quake's short breath (`player/gasp2`) and feel a low throb in the hand once the parry's buzz ends. When the weapon
+    is knocked away, you hear the long gasp (`player/gasp1`) and feel a long, low buzz, and the gadget shows
+    "Exhausted: the blow knocks the weapon out of your hand!".
+  - Stamina Bar (on/off). Each parry shows a bar of ten cells rising from the weapon's middle, drawn with Quake's
+    slider glyphs. It is green while you are rested, amber below 60%, and red once the next one-handed parry would
+    drop the weapon. When the weapon drops it reads "EXHAUSTED". It uses the damage numbers' rising text
+    (`floattext`), at a small scale. A bar on the wrist gadget would need changes to the gadget's code, which
+    another agent is working on this round, and the ammo screen can't carry it because swords and axes have no
+    ammo screen.
+
+### Counter-attacks (on as shipped)
+
+- **What it does.** Any parry (with a weapon or with crossed arms) opens a 1.5 s window. Your next melee attack in
+  that window is a counter and does 1.5x the damage. That attack can be a blow with either hand (slash, stab, pommel,
+  punch or gun strike) on something alive, a bash, or a shove; for a bash or a shove the knockback is also 1.5x.
+  You get one counter per parry.
+- **It replaces the parry-bash.** The parry-bash was a weapon bash within 1.5 s of a weapon parry, at 1.3x. It is now
+  this one mechanic, with one window and one multiplier. That means a counter bash hits at 1.5x instead of 1.3x.
+  It keeps its own sound (`vr/bash_parry`) and its `parrybash` event, so the recorder and the eval are unchanged.
+  Counter-Attacks off turns off counter bashes too.
+- **Feedback:**
+  - Counter Sounds (volume). New `vr/counter_open.wav` plays as the window opens: a blade's scrape rising into a
+    high ring, 70 ms after the parry's strike so that it doesn't cover it. Almost all its energy is above 1.5 kHz.
+    New `vr/counter.wav` plays when a counter lands, on top of the attack's own sound: a crack, a deep boom and a
+    sting of steel. Its energy is 0.34 below 150 Hz, 0.40 at 1.5-4 kHz, and 90% of it is out within 0.23 s. Both are
+    synthesised in `make_sounds.py`.
+  - Counter Glow (on/off). While the window is open, what your hands hold gives off golden embers along its length,
+    fewer as the window closes.
+  - Counter Pulses (0..1). Soft 160 Hz pulses in both hands every 0.25 s, weakening as the window closes. Both hands
+    get them because either hand can land the counter.
+  - The dummy's readout shows the bonus: "..., counter x1.50" after a blow, and "counter bash with the ... (x1.50)"
+    after a bash or shove.
+
+### Settings
+
+| Setting | Default | Menu (Parry, Bash and Headbutt) |
+|---|---|---|
+| `vr_parry_stamina` | 0 | Parry Stamina |
+| `vr_parry_stamina_max` | 100 | Stamina (20-300, extends) |
+| `vr_parry_stamina_cost` | 30 | One-Handed Parry Cost (0-100, extends) |
+| `vr_parry_stamina_cost_2h` | 12 | Two-Handed Parry Cost (0-100, extends) |
+| `vr_parry_stamina_delay` | 2 s | Rest Before Recovering (0-6 s, extends) |
+| `vr_parry_stamina_regen` | 25 /s | Recovery Rate (1-100, extends) |
+| `vr_parry_stamina_warn` | 1 | Tiring Warning (0-1) |
+| `vr_parry_stamina_show` | 1 | Stamina Bar |
+| `vr_counter` | 1 | Counter-Attacks |
+| `vr_counter_window` | 1.5 s | Counter Window (0.25-4 s, extends) |
+| `vr_counter_damage` | 1.5 | Counter Damage (1-3x, extends) |
+| `vr_counter_sound` | 1 | Counter Sounds (0-1) |
+| `vr_counter_glow` | 1 | Counter Glow |
+| `vr_counter_haptic` | 1 | Counter Pulses (0-1) |
+
+**Tracing.** With `developer 1`, the console shows each step:
+- "stamina: 40 of 100 left (one hand, -30)", ": low", ": none, the weapon is knocked away";
+- "stamina: 0 left, coming back (2.00 s after the last parry)", "stamina: rested";
+- "counter: open for 1.50 s (hand 1)", "counter: slash on monster_knight, x1.50, 1.17 s after the parry",
+  "counter: closed unused".
+
+With `vr_debug_shots 1`, a melee blow's damage is printed too (the line already existed for other damage).
+
+**Test hook.** `impulse 242`: the nearest monster that strikes in melee, within 150 units, hits you for 10 right
+away, the same way its own attack would. With `notarget`, the monster stands still, so blows come only when the
+script says.
+
+### Tests (mock headset; scripts in the scratchpad's `parry/gen.py`)
+
+e1m1, a knight from `impulse 248` walked up to 33 units, `notarget`, god mode, the sword level across in one hand,
+blows from `impulse 242`:
+
+- **One hand, four parries 0.67 s apart:** 70, 40, 10 ("low", the breath), then 0: "none, the weapon is knocked
+  away", the sword thrown to the floor, "Exhausted: ..." on the gadget.
+- **Rest:** "coming back (2.00 s after the last parry)", then "rested, 100 (5.99 s after the last parry)".
+- **Two hands** (the off hand on the blade): 88, 76, 64.
+- **Counters** (stamina off; `vr_melee_dmg_multiplier 0.25` to keep the knight alive):
+
+  | Test | Result |
+  |---|---|
+  | Slash 1.8 s after a parry | "closed unused (1.52 s)", then 5.40 damage at strength x0.72 |
+  | Slash starting at once, landing 1.17 s after a parry | "counter: slash ... x1.50", 8.37 at x0.744 |
+  | Bash landing just after the window closed | 4.8 (8 x 0.6, one hand) |
+  | Bash 0.5 s after a parry | "counter: bash ... x1.50", 7.2 (x1.5) |
+
+  The slashes' damage per unit of strength is 7.50 without the counter and 11.25 with it: exactly 1.5x.
+- **Dummy** (vrfiringrange): parry the knight, turn, bash the dummy: "Dummy: 7.2 damage - counter bash with the
+  Knight's Sword, one hand (x1.50), at the body".
+- **Pictures** (scratchpad `parry/vis6.png`, `parry/menu_crop.png`): the bars at 70 (green), 40 (amber), 10 (red),
+  the embers during the window, and the menu's two new sections.
+- **Canary eval:** 40/46 pass, 0 differences from the baseline, with the new settings at their defaults.
+
+### Not verified
+
+- In the headset: the haptics (the throb, the buzz, the pulses), the sounds as heard, and how readable the bar is
+  (it rises quickly; the mock's view is narrower than the headset's).
+- The dummy's readout for a counter blow (as opposed to a bash). The mock's scripted slashes didn't reach the dummy
+  from where `setpos` puts you. The same slash did land as a counter on a knight, and the readout code is a single
+  line.
+
+### In the headset
+
+- [ ] Parry Stamina on, a knight: parry one-handed three times, hear the breath on the third, and on the fourth the
+      sword flies. Wait about 6 s, then parry again: the bar is green.
+- [ ] The same with the sword in two hands: many more parries before it drops.
+- [ ] Parry, then slash within about a second: a heavier strike sound, and the embers stop. Wait 2 s after a parry,
+      then slash: a normal hit.
+- [ ] Parry, then bash: the counter bash (1.5x now, was 1.3x).
