@@ -17,6 +17,7 @@
 #include "vr_cvars.hpp"
 #include "vr_main.hpp"
 #include "vr_menu.hpp"
+#include "vr_motion.hpp"
 #include "vr_profile.hpp"
 #include "vr_protocol.hpp"
 #include "vr_server.hpp"
@@ -922,11 +923,15 @@ extern "C" void VR_Init()
     registerMockCommands();
     input::init();
     voicenotes::init();
+    motion::init();
     flashlight::init();
     detail::init();
     client::init();
     server::init();
     Cmd_AddCommand("vr_dumpview", view::dumpView_f);
+    Cmd_AddCommand("vr_grasp_dump", view::graspDump_f);
+    Cmd_AddCommand("vr_hotspots_legacy", view::hotspotsLegacy_f);
+    Cmd_AddCommand("vr_hotspots_check", view::hotspotsCheck_f);
     anchor::registerCommands();
     Cmd_AddCommand("vr_decal_count", decals::count_f);
     Cmd_AddCommand("vr_decal_atlas", decals::atlas_f);
@@ -947,6 +952,7 @@ extern "C" void VR_Shutdown()
     }
 
     voicenotes::shutdown();
+    motion::shutdown();
     gpustats::stop();
     stopBackend();
     delete state;
@@ -979,11 +985,16 @@ extern "C" void VR_BeginFrame()
         Con_Warning("VR: %s session lost\n", state->backend->name());
         stopBackend();
     }
+    if(state->backend)
+    {
+        motion::afterTracking(state->tracking, state->frame); // the recorder's copy; a playback's poses
+    }
 
     sampleCounts(); // vr_memstats: the last frame's, before its texts are cleared
     lines::clear(); // queued anew every frame (teleport aim, crosshairs)
     text3d::clear();
     voicenotes::frame(); // after the clear: its indicator is queued anew each frame
+    motion::frame();     // the motion recorder's indicator, likewise
     memLogFrame();
     profile::overlay();  // vr_profile 2
     throwing::filterGrips(state->tracking); // the analog grip's release, before it becomes a key
@@ -1014,4 +1025,19 @@ extern "C" int VR_ModalMessageFrame()
     SCR_UpdateScreen();
     scr_drawdialog = false;
     return 1;
+}
+
+extern "C" void VR_HostFrameEnd()
+{
+    qvr::motion::hostFrameEnd();
+}
+
+extern "C" double VR_HostFrameTime(double time)
+{
+    return qvr::motion::hostFrameTime(time);
+}
+
+extern "C" int VR_ServerFrameOverride(double* frametime)
+{
+    return qvr::motion::serverFrameOverride(*frametime);
 }

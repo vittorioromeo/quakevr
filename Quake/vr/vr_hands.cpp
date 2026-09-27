@@ -395,6 +395,19 @@ float playSpaceYaw()
     return turnYaw;
 }
 
+void setPlaySpaceYaw(float yaw)
+{
+    turnYaw = std::remainder(yaw, 360.f);
+    pendingYawValid = false;
+    stateFrame = -1;
+}
+
+void setLean(const glm::vec3& worldLean)
+{
+    lean = glm::vec3{worldLean.x, worldLean.y, 0.f};
+    stateFrame = -1;
+}
+
 glm::vec3 takeRoomscaleMove()
 {
     const glm::vec3 move = roomscaleMove;

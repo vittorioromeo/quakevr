@@ -2668,6 +2668,11 @@ void(float xHand, float xInMelee, float* xOutMeleeAttackFinished, float* xOutInM
     if(VRHandsTracked(self) && time >= xInMelee && striking && !VRGetMeleeHitSoundPlayed(xHand))
     {
         VR_Blow_Measure(xHand);
+        if(whoosh)
+        {
+            // The motion recorder (vr_motion.qc): the stroke became a blow, whether it lands or not.
+            VR_Motion_Event("stroke", VR_Motion_BlowSub(b.blow_kind), xHand, b.blow_strength, VRGetHandPos(xHand), world, "");
+        }
 
         // A gun swung downwards makes no whoosh (only a hit sounds): reaching down to a holster
         // to reload is a fast swing too.

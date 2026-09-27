@@ -57,9 +57,4 @@ void reset();
 // QVR_BUTTON_*HANDBUSY, and its aim beam is not drawn).
 [[nodiscard]] bool holds(int hand);
 
-// Round 21: while `hand` holds the flashlight, how open its finger `finger` (vr_view.cpp's: 1 the thumb .. 5 the
-// little finger) stays at most, 0..1, so that the fist closes round the tube instead of through it (the grip limits
-// held weapons have); -1 when it does not hold it.
-[[nodiscard]] float fingerOpen(int hand, int finger);
-
 } // namespace qvr::flashlight

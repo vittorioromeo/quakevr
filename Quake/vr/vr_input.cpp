@@ -17,6 +17,7 @@
 #include "vr_input.hpp"
 #include "vr_main.hpp"
 #include "vr_menuui.hpp"
+#include "vr_motion.hpp"
 #include "vr_voicenotes.hpp"
 #include "vr_flashlight.hpp"
 
@@ -245,6 +246,11 @@ void update(const InputState& tracked)
             {
                 // The off hand's upper button at the mouth records a voice note instead.
                 if(h == HAND_OFF && b.button == &HandInput::secondary && voicenotes::offhandButton(now))
+                {
+                    continue;
+                }
+                // With the motion recorder armed, its button's stick click records a take instead.
+                if(b.button == &HandInput::stickClick && motion::stickClick(h, now))
                 {
                     continue;
                 }

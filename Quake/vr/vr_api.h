@@ -51,6 +51,11 @@ int VR_IsActive (void);		// nonzero while vr_enabled is set and a backend sessio
 							// runtime paces frames (no frame cap, no sleeping when unfocused)
 int VR_ModalMessageFrame (void); // SCR_ModalMessage's loop: with a headset, a frame showing the
 							// dialog (the runtime paces it); zero without one (the loop sleeps)
+double VR_HostFrameTime (double time);	// start of _Host_Frame: the frame's time (a motion take's own while
+							// it plays back, vr_motion_play: the same frames at any speed)
+int VR_ServerFrameOverride (double *frametime); // _Host_Frame: whether the server runs this frame: -1 as
+							// usual; 0 no; 1 yes, for *frametime seconds (a take's recorded server frames)
+void VR_HostFrameEnd (void);	// end of _Host_Frame, after the screen and the sound (the motion recorder's row)
 
 // Filesystem (common.c).
 void VR_BeforeAddGameDirectory (const char *dir);	// start of COM_AddGameDirectory

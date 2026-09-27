@@ -45,6 +45,7 @@ struct State
     // foregrip vertex of the weapon model), placed with the muzzles.
     bool grip2HValid[2]{false, false};
     glm::vec3 grip2H[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    float grip2HBias[2]{0.f, 0.f}; // its hotspot's bias: units off the distance it is taken by (round 21)
 };
 
 // The server set the view yaw: turn the play space to match (headset only).
@@ -53,6 +54,11 @@ void setServerYaw(float yaw);
 // Turns the play space (thumbstick turning), in degrees, positive to the left.
 void addTurn(float degrees);
 [[nodiscard]] float playSpaceYaw();
+
+// Motion playback (vr_motion_play.cpp): the play space's turn as a take had it (a pending server yaw
+// dropped), and the head's lean off the box's middle (world units, horizontal).
+void setPlaySpaceYaw(float yaw);
+void setLean(const glm::vec3& worldLean);
 
 // Updated at most once per host frame; valid only while connected to a VR-protocol server.
 [[nodiscard]] State& current();

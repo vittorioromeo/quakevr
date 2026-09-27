@@ -50,11 +50,9 @@ constexpr float flipTime = 0.16f;      // seconds the torch takes to turn round 
 // The fist's hole, where the grip's middle goes, from the tracked hand as vr_flashlight_hand_forward and _up leave it
 // (metres): towards the back of the hand and down along the fist, found by fitting the drawn fist (the fingers' curls
 // held open as below) round the tube: the tube centred along the four fingers and through their curl, clear of the
-// palm. And how far open the fingers stay round the tube (the grip limits, 0..1): the four fingers, the thumb.
+// palm.
 constexpr float gripBack = 0.025f;
 constexpr float gripUp = -0.03f;
-constexpr float fingersOpen = 0.45f;
-constexpr float thumbOpen = 0.3f;
 
 // The dynamic lights' keys (entities' keys are their numbers, never negative).
 constexpr int keySpot = -0x0F1A51;
@@ -1036,14 +1034,6 @@ bool holds(int hand)
     return enabled() && st.mode == Mode::Held && st.holder == hand;
 }
 
-float fingerOpen(int hand, int finger)
-{
-    if(!holds(hand))
-    {
-        return -1.f;
-    }
-    return finger == 1 ? thumbOpen : fingersOpen;
-}
 
 } // namespace qvr::flashlight
 

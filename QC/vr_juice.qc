@@ -19,6 +19,7 @@
 .float vr_push_since;     // since when the guard has been pushed (VR_BASH_CONFIRM; 0: it isn't)
 .float vr_bashdef_until;  // on a player: a bash's (or an armed shove's) batting goes on until then (VR_Bash_Deflect),
 .float vr_bashdef_hand;   // with that hand (-1: both)
+.float vr_motion_pushseen; // on a player: the last frame of a push (the motion recorder's "push" event: once a push)
 
 // ----------------------------------------------------------------------------
 // Blows: one model for every hand's melee, fist or weapon (docs/vr-port/ROUND14.md, "Melee").
@@ -1066,6 +1067,7 @@ void(entity e, vector xDir, float xHand, float xAim) VR_Deflect_Send =
     sound(self, CHAN_AUTO, "weapons/tink1.wav", 1, ATTN_NORM);
     sound(self, CHAN_AUTO, "player/axhit2.wav", 0.6, ATTN_NORM);
     particle2(e.origin, dir * 120, QVR_PARTICLE_PRESET_SPARKS, 20);
+    VR_Motion_Event("deflect", e.classname, xHand, 0, e.origin, oldOwner, xAim == VR_BASH_AIM ? "bash" : "swing");
     if(xHand != cVR_OffHand)
     {
         haptic(cVR_MainHand, 0.0, 0.2, 90, 1.0);
@@ -1497,6 +1499,14 @@ void() VR_Bash =
     {
         oneHand = FALSE;
     }
+
+    // The motion recorder (vr_motion.qc): a push, whatever it meets; once a push (its frames in a row).
+    if(time - self.vr_motion_pushseen > 0.15)
+    {
+        VR_Motion_Event("push", armed ? "bash" : "shove", both ? -1 : hand, 0, VRGetHandPos(hand), world,
+                        oneHand ? "one hand" : "two hands");
+    }
+    self.vr_motion_pushseen = time;
 
     // No punches or swings in this motion, even during the bash's cooldown: the hands' melee counts
     // a swing as already landed until the hand stops or pulls back (PlayerVRMeleeImpl). A weapon

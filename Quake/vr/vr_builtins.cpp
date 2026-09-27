@@ -5,11 +5,13 @@
 
 #include "vr_progs.hpp"
 #include "vr_held.hpp"
+#include "vr_motion.hpp"
 #include "vr_engine.hpp"
 #include "vr_physics.hpp"
 #include "vr_protocol.hpp"
 #include "vr_server.hpp"
 #include "vr_worldtext.hpp"
+#include "vr_view.hpp"
 
 #include <vector>
 
@@ -333,6 +335,60 @@ void PF_ejectcasings()
         G_FLOAT(OFS_PARM3));
 }
 
+// ----------------------------------------------------------------------------
+// The motion recorder (vr_motion.cpp; QC vr_motion.qc): kept only while a take is recorded or played.
+
+// void(string kind, string sub, float hand, float value, vector at, entity targ, string detail) motionevent
+void PF_motionevent()
+{
+    motion::qcEvent(G_STRING(OFS_PARM0), G_STRING(OFS_PARM1), static_cast<int>(G_FLOAT(OFS_PARM2)), G_FLOAT(OFS_PARM3),
+        G_VECTOR(OFS_PARM4), G_EDICT(OFS_PARM5), G_STRING(OFS_PARM6));
+}
+
+// void(float hand, vector at, string name) motionpoint
+void PF_motionpoint()
+{
+    motion::qcPoint(static_cast<int>(G_FLOAT(OFS_PARM0)), G_VECTOR(OFS_PARM1), G_STRING(OFS_PARM2));
+}
+
+// void(string key, vector value) motionvalue
+void PF_motionvalue()
+{
+    motion::qcValue(G_STRING(OFS_PARM0), G_VECTOR(OFS_PARM1));
+}
+
+// Round 21: the weapons' hotspots (where the other hand may hold them; vr_weapons.hpp), as the local player's view
+// draws them this frame. vector(entity player, float hand, float index) weaponhotspot: hotspot `index` (0..3) of the
+// weapon in `hand` (cVR_MainHand, cVR_OffHand): a grip's point, a blade grip's middle, in the world ('0 0 0' if none);
+// float(entity player, float hand, float index, float what) weaponhotspotinfo: its type (what 0: 0 none, 1 grip,
+// 2 blade), bias in units (1), a blade's share of the way from the hand to the tip (2). Only the local player's (the
+// server's first client, as its view draws it); others' are none.
+[[nodiscard]] view::WeaponHotspot localHotspot()
+{
+    edict_t* player = G_EDICT(OFS_PARM0);
+    if(!sv.active || cls.state != ca_connected || NUM_FOR_EDICT(player) != 1)
+    {
+        return {};
+    }
+    return view::weaponHotspot(static_cast<int>(G_FLOAT(OFS_PARM1)) == 0 ? 0 : 1, static_cast<int>(G_FLOAT(OFS_PARM2)));
+}
+
+void PF_weaponhotspot()
+{
+    const view::WeaponHotspot h = localHotspot();
+    float* out = G_VECTOR(OFS_RETURN);
+    out[0] = h.pos.x;
+    out[1] = h.pos.y;
+    out[2] = h.pos.z;
+}
+
+void PF_weaponhotspotinfo()
+{
+    const view::WeaponHotspot h = localHotspot();
+    const int what = static_cast<int>(G_FLOAT(OFS_PARM3));
+    G_FLOAT(OFS_RETURN) = what == 0 ? static_cast<float>(h.type) : what == 1 ? h.bias : h.share;
+}
+
 struct VrBuiltin
 {
     const char* name;
@@ -341,6 +397,8 @@ struct VrBuiltin
 
 constexpr VrBuiltin vrBuiltins[] = {
     {"makeforward", PF_makeforward},
+    {"weaponhotspot", PF_weaponhotspot},
+    {"weaponhotspotinfo", PF_weaponhotspotinfo},
     {"modelbounds", PF_modelbounds},
     {"modelcentre", PF_modelcentre},
     {"tracebox", PF_tracebox},
@@ -364,6 +422,9 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"liquidentry", PF_liquidentry},
     {"watersplash", PF_watersplash},
     {"fileexists", PF_fileexists},
+    {"motionevent", PF_motionevent},
+    {"motionpoint", PF_motionpoint},
+    {"motionvalue", PF_motionvalue},
 };
 
 static_assert(firstVrBuiltin + std::size(vrBuiltins) < MAX_BUILTINS - 200,

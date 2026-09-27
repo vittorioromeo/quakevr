@@ -21,6 +21,8 @@ build/
 /quakevr/*.dem
 /quakevr/screenshots/
 /quakevr/notes/
+/quakevr/motions/*
+!/quakevr/motions/expect.cfg
 /quakevr/profile/
 /quakevr/eyeshots/
 /quakevr/envmap.tga
@@ -32,3 +34,4 @@ build/
 __pycache__/
 /quakevr/autosave/
 /quakevr/relit/
+/build.log

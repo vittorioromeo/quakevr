@@ -32,6 +32,8 @@ struct Bindings
     func_t OnSpawnServerBeforeLoad{0};
     func_t OnSpawnServerAfterLoad{0};
     func_t OnLoadGame{0};
+    func_t Motion_Sample{0}; // the motion recorder's (QC vr_motion.qc)
+    func_t Motion_Equip{0};
 
     float* spawnServerFromSaveFile{nullptr};
     float* extSpawnParms[numExtSpawnParms]{};
