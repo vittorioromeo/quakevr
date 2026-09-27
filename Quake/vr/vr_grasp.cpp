@@ -252,7 +252,7 @@ struct Shape::Space
     glm::mat4 rawToReal{1.f};
 
     float cell{0.f}; // the grid's (real units), for the hand's size it was made at
-    glm::vec3 lo{0.f};
+    glm::vec3 lo{0.f}, hi{0.f}; // the triangles' box
     int size[3]{1, 1, 1};
     std::vector<std::uint32_t> first; // per cell, its first item; one more at the end
     std::vector<std::uint16_t> items;
@@ -262,7 +262,7 @@ struct Shape::Space
     void buildGrid(float cellSize)
     {
         cell = cellSize;
-        glm::vec3 hi{-1e9f};
+        hi = glm::vec3{-1e9f};
         lo = glm::vec3{1e9f};
         for(const Tri& t : tris)
         {
@@ -315,10 +315,17 @@ struct Shape::Space
         stamp = 0;
     }
 
-    // The distance from `p` to the nearest triangle, at most `limit` (beyond it, `limit`); its point in `at`, its
-    // normal (as wound) in `normal`.
+    // The distance from `p` to the nearest triangle, at most `limit` (beyond it, `limit`, or more: the distance to the
+    // triangles' box when that is farther, a lower bound, so that a finger in open air steps as far as it may at once);
+    // its point in `at`, its normal (as wound) in `normal`.
     [[nodiscard]] float nearest(const glm::vec3& p, float limit, glm::vec3* at = nullptr, glm::vec3* normal = nullptr)
     {
+        const glm::vec3 away = glm::max(glm::max(lo - p, p - hi), glm::vec3{0.f});
+        const float boxDistance2 = glm::dot(away, away);
+        if(boxDistance2 >= limit * limit)
+        {
+            return std::sqrt(boxDistance2);
+        }
         float best = limit;
         int from[3], to[3];
         for(int k = 0; k < 3; k++)
@@ -1214,10 +1221,14 @@ void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shap
 
     // The fingers.
     const Context ctx{&target, &pose, settings.overlap};
+    int before = probes;
     solveThumb(pose, ctx, previous, settings.thumbTop, out.finger[handrig::Thumb], out.thumbTurn, out.thumbChoice);
+    out.fingerProbes[handrig::Thumb] = probes - before;
     for(int f = handrig::Index; f < handrig::FingerCount; f++)
     {
+        before = probes;
         solveFinger(ctx, f, true, previous ? &previous->finger[f] : nullptr, out.finger[f]);
+        out.fingerProbes[f] = probes - before;
     }
     out.probes = probes;
     out.seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();

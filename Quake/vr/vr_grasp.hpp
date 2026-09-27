@@ -78,6 +78,7 @@ struct Solution
     int thumbChoice{-1};  // which of the thumb's turns (for the next solve's preference)
     int triangles{0};     // the held thing's, within the hand's reach
     int probes{0};        // the fingers' places tested
+    int fingerProbes[handrig::FingerCount]{}; // of which each finger's (the thumb's at all its turns)
     int places{0};        // the palm's places tried (a grip through the hand)
     double seconds{0.0};
 };

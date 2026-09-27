@@ -1400,6 +1400,7 @@ void alignChannel(int hand, bool mirrored, const glm::vec3& on, const glm::vec3&
 // sixty-fourth of the way to the fist); left as it is if it is in it even closed (its knuckle is: the hand is).
 void bendOutOfWalls(const RigHand& rh, int finger, const glm::mat4& rigToWorld, float target[handrig::jointsPerFinger])
 {
+    QVR_PROFILE("hand walls");
     if(fingerClear(rh, finger, rigToWorld, target))
     {
         return;
@@ -1436,6 +1437,7 @@ void bendOutOfWalls(const RigHand& rh, int finger, const glm::mat4& rigToWorld, 
 // all of it up to vr_hand_collide cm, then less and less, none at twice as deep (it lets go). Eased over 0.08 s.
 void pushOut(const hands::State& s, int hand, bool free, glm::vec3& pos, const glm::vec3& handRot, bool mirrored)
 {
+    QVR_PROFILE("hand collide");
     RigHand& rh = rigHands[hand];
     const double now = cl.time;
     const float dt = rh.pushedTime >= 0.0 ? static_cast<float>(CLAMP(0.0, now - rh.pushedTime, 0.1)) : 0.f;
@@ -1487,6 +1489,7 @@ void pushOut(const hands::State& s, int hand, bool free, glm::vec3& pos, const g
 bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool mirrored, bool hide, const Held& held,
     const glm::mat4& motion)
 {
+    QVR_PROFILE("rig hand");
     RigHand& rh = rigHands[hand];
     rh.drawn = false;
     if(!vr_hand_rig.value)
@@ -1688,6 +1691,7 @@ bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
 
 void setupHand(const hands::State& s, int hand)
 {
+    QVR_PROFILE("hand");
     const view::ViewEntity& weapon = entities.weapon[hand];
     const bool mirrored = hand == HAND_OFF;
     const int fist = weapons::fistSlot();
@@ -2936,6 +2940,23 @@ void graspBench_f()
                    "%.1f us, median %.1f us, max %.1f us (%d probes)\n",
             hand == HAND_MAIN ? "main" : "off", rh.held.ent->model->name, s.triangles, firstUs, first.probes, first.places, runs,
             us.front(), us[us.size() / 2], us.back(), s.probes);
+        // Where the fingers stopped (afresh | again), to compare solvers.
+        std::string stops;
+        for(const grasp::Solution* sol : {&first, &s})
+        {
+            for(int f = 0; f < handrig::FingerCount; f++)
+            {
+                char b[64];
+                const grasp::FingerStop& st = sol->finger[f];
+                q_snprintf(b, sizeof(b), " %.2f/%.2f/%.2f%s%s%s", st.stop[0], st.stop[1], st.stop[2], st.met ? "m" : "",
+                    st.startsInside ? "i" : "", st.fromClosed ? "c" : "");
+                stops += b;
+                q_snprintf(b, sizeof(b), "(%d)", sol->fingerProbes[f]);
+                stops += b;
+            }
+            stops += sol == &first ? " |" : "";
+        }
+        Con_Printf("vr_grasp_bench: stops%s\n", stops.c_str());
     }
 }
 
