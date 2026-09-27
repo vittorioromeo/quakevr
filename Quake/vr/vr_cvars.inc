@@ -55,6 +55,7 @@ QVR_CVAR(vr_throw_assist_speed, "0.15", CVAR_ARCHIVE)
 // their contacts, their spin at most, and how fast the air slows it.
 QVR_CVAR(vr_throw_restitution, "0.25", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_friction, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_props_collide, "1", CVAR_ARCHIVE)          // rigid props collide with each other (vr_rigid.cpp, stacking): 0 off (they pass through each other), 1 boxes and items (health and ammo boxes, backpacks, armour, thrown weapons), 2 everything (gibs and heads too)
 QVR_CVAR(vr_throw_spin_max, "20", CVAR_ARCHIVE)    // rad/s
 QVR_CVAR(vr_throw_spin_drag, "0.3", CVAR_ARCHIVE)  // per second, in the air
 

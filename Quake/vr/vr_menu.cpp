@@ -651,6 +651,9 @@ void hologramTestMessage()
         header("Physics"),
         slider("Bounciness", vr_throw_restitution, 0.f, 0.8f, 0.05f, "%.2f"),
         slider("Friction", vr_throw_friction, 0.f, 1.5f, 0.05f, "%.2f"),
+        cycle("Props Collide With Each Other", vr_props_collide, {{0.f, "Off"}, {1.f, "Boxes and Items"}, {2.f, "Everything"}})
+            .help("Boxes, backpacks, armour and thrown weapons stack and knock each other over; what you carry pushes them. "
+                  "Everything: gibs and heads too. Off: they pass through each other."),
         slider("Max Spin", vr_throw_spin_max, 0.f, 40.f, 1.f, "%.0f rad/s"),
         slider("Spin Drag", vr_throw_spin_drag, 0.f, 2.f, 0.05f, "%.2f"),
         slider("Hitbox", vr_throw_hitbox, 1.f, 12.f, 0.5f, "%.1f").help("Half-size of a thrown weapon's box against monsters."),
