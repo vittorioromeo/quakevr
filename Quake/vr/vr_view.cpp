@@ -111,7 +111,9 @@ float fingerLimits[2][FingerCount]{{5.f, 5.f, 5.f, 5.f, 5.f, 5.f}, {5.f, 5.f, 5.
         const int slot = weapons::heldSlot(hand);
         if(slot < 0 || slot == weapons::fistSlot())
         {
-            return 5.f;
+            // QVR round 21: the flashlight in the hand, the fingers closed round its tube.
+            const float torch = flashlight::fingerOpen(hand, finger);
+            return torch < 0.f ? 5.f : (1.f - CLAMP(0.f, open + torch, 1.f)) * 5.f;
         }
         constexpr Key perFinger[FingerCount] = {Key::FingerOpen, Key::FingerThumbOpen, Key::FingerIndexOpen,
             Key::FingerMiddleOpen, Key::FingerRingOpen, Key::FingerPinkyOpen};

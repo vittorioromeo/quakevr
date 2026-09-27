@@ -357,7 +357,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
 {
     return {
         toggle("Chest Flashlight", vr_flashlight)
-            .help("A torch on your chest. Trigger at it: on or off. Grip it with an empty hand to take it; let go and it springs back."),
+            .help("A torch on your chest. Trigger at it: on or off. Grip it with an empty hand to take it (held like a torch); let go and it springs back. In your hand, away from a gun, B or Y turns it round: low grip or overhead."),
         slider("Brightness", vr_flashlight_brightness, 0.25f, 2.5f, 0.05f, "%.2fx"),
         slider("Range", vr_flashlight_range, 300.f, 2000.f, 50.f, "%.0f"),
         slider("Visible Beam", vr_flashlight_beam, 0.f, 1.f, 0.05f, "%.2f").help("A soft cone of light in the air from the lamp (0: none)."),
@@ -369,7 +369,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("In Hand Forward", vr_flashlight_hand_forward, -0.1f, 0.05f, 0.005f, "%.3f m").help("Where the held lamp sits in your fist."),
         slider("In Hand Up", vr_flashlight_hand_up, -0.1f, 0.05f, 0.005f, "%.3f m"),
         slider("On Gun Forward", vr_flashlight_gun_forward, -0.15f, 0.05f, 0.005f, "%.3f m")
-            .help("Held near the gun in your other hand, B or Y clips it under the barrel. B or Y at it takes it off."),
+            .help("Held near the gun in your other hand, B or Y clips it along the barrel (under it, or beside a bulky gun). B or Y at it takes it off."),
         slider("On Gun Up", vr_flashlight_gun_up, -0.05f, 0.05f, 0.005f, "%.3f m"),
         slider("On Gun Out", vr_flashlight_gun_out, -0.05f, 0.05f, 0.005f, "%.3f m").help("Away from your body."),
     };
