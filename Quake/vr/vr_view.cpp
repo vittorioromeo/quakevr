@@ -1301,7 +1301,7 @@ void setupHand(const hands::State& s, int hand)
     glm::vec3 handRot = s.rot[hand] + weaponAngleOffsets(fist, mirrored);
 
     // The hand is where the controller is, holding a weapon or not (round 21: the weapon is placed in the hand, and the
-    // fingers wrap it; it was drawn at an anchor vertex of the weapon, which the settings kept within half a
+    // fingers wrap it; it was drawn at an anchor vertex of the weapon, which the settings kept within 0.8 of a
     // centimetre of the controller).
     glm::vec3 pos = s.pos[hand];
     bool hide = false;
