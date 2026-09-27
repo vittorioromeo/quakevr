@@ -249,8 +249,8 @@ struct Highlight
 };
 Highlight drawnHighlight, seenHighlight;
 
-// A hand's pointing ray in the world: the controller as tracked, aimed as a gun is (vr_gunangle,
-// vr_offhandpitch), placed from the head. Not the hands' state's pose, which follows a held
+// A hand's pointing ray in the world: the controller as tracked, aimed as a gun is (the hand calibration's pitch and
+// yaw: vr_gunangle, vr_offhandpitch), placed from the head. Not the hands' state's pose, which follows a held
 // weapon's weight in game time (frozen while a menu pauses the game).
 [[nodiscard]] bool pointerRay(const hands::State& s, int hand, glm::vec3& origin, glm::vec3& dir)
 {
@@ -262,10 +262,7 @@ Highlight drawnHighlight, seenHighlight;
 
     const auto quakeFromTracking = [](const glm::vec3& v) { return glm::vec3{-v.z, -v.x, v.y}; };
     const float turn = hands::playSpaceYaw();
-    const float pitch = hand == HAND_MAIN ? vr_gunangle.value : vr_offhandpitch.value;
-    const float yaw = hand == HAND_MAIN ? vr_gunyaw.value : vr_offhandyaw.value;
-    const glm::quat aim = t.hands[hand].orientation * glm::angleAxis(glm::radians(yaw), glm::vec3{0.f, 1.f, 0.f}) *
-                          glm::angleAxis(glm::radians(-pitch), glm::vec3{1.f, 0.f, 0.f});
+    const glm::quat aim = hands::aimedController(t.hands[hand].orientation, hand); // the calibration's pitch and yaw
 
     origin = s.head + hands::rotateYaw(quakeFromTracking(t.hands[hand].position - t.head.position) * units::metresToUnits(), turn);
     dir = glm::normalize(hands::rotateYaw(quakeFromTracking(aim * glm::vec3{0.f, 0.f, -1.f}), turn));

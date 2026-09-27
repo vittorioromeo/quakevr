@@ -924,6 +924,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_status", VR_Status_f);
     Cmd_AddCommand("vr_restart", VR_Restart_f);
     Cmd_AddCommand("menu_vr", menu::command_f);
+    Cmd_AddCommand("vr_handcal_match", menu::handCalMatch_f);
     Cmd_AddCommand("vr_startgame", VR_StartGame_f);
     registerMockCommands();
     input::init();

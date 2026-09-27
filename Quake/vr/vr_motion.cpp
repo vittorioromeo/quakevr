@@ -724,6 +724,11 @@ std::string takeHeader(const TakeInfo& info, const std::vector<Row>& rows)
     line("hand angles", va("vr_gunangle %s vr_gunyaw %s vr_offhandpitch %s vr_offhandyaw %s vr_controller_legacy_pose %s",
                             vr_gunangle.string, vr_gunyaw.string, vr_offhandpitch.string, vr_offhandyaw.string,
                             vr_controller_legacy_pose.string));
+    line("hand calibration", va("vr_handcal_x %s vr_handcal_y %s vr_handcal_z %s vr_handcal_roll %s vr_handcal_off_mirror %s "
+                                "vr_handcal_off_x %s vr_handcal_off_y %s vr_handcal_off_z %s vr_handcal_off_roll %s",
+                                 vr_handcal_x.string, vr_handcal_y.string, vr_handcal_z.string, vr_handcal_roll.string,
+                                 vr_handcal_off_mirror.string, vr_handcal_off_x.string, vr_handcal_off_y.string,
+                                 vr_handcal_off_z.string, vr_handcal_off_roll.string));
     line("grips", va("vr_weapon_grip_mode %s vr_2h_mode %s", vr_weapon_grip_mode.string, vr_2h_mode.string));
     const cvar_t* maxfps = Cvar_FindVar("host_maxfps");
     line("server rate", std::string{"host_maxfps "} + (maxfps ? maxfps->string : "?") + ", server frame " +

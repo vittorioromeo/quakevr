@@ -38,6 +38,10 @@ struct State
     // (vr_gunangle and the rest: where the controller points, before the weapon's offset: vr_show_controller_laser).
     glm::vec3 controllerPos[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     glm::vec3 controllerRot[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    // The hand calibrated on its controller (hands::calibration), before the held weapon's Hand and Weapon Together
+    // offset: the empty hand's place (Match Controller Preview).
+    glm::vec3 calibratedPos[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    glm::vec3 calibratedRot[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     glm::vec3 aimRot[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     // After the posing test: each controller's grip pose (the runtime's: where its handle is; controllerPos/Rot are the
     // pose moved off it by vr_controller_legacy_pose): the Show Controller preview is drawn there.
@@ -46,6 +50,10 @@ struct State
     // The world turn the held weapon's Hand and Weapon Together offset gave the hand (rot = wholeTurn * the rot it had):
     // the view turns the weapon (posed from the rot before it) rigidly by it, so the muzzle turns exactly with it.
     glm::mat3 wholeTurn[2]{glm::mat3{1.f}, glm::mat3{1.f}};
+    // The world turn the hand calibration's roll gave the hand (calibratedRot = calTurn * the rot before it): the weapon
+    // is posed from the rot before it and turned rigidly by it too (after it, wholeTurn), so that it rolls exactly with
+    // the hand (its angle offsets are Euler angles added to the hand's: turned by them, it would turn a little otherwise).
+    glm::mat3 calTurn[2]{glm::mat3{1.f}, glm::mat3{1.f}};
 
     // Where each hand's palm is (its middle, as the jointed hand is drawn free: the empty hand) relative to pos, in the
     // frame of rot (x forward, y right, z up: hands::redirect's), set by the view: a cup hotspot is taken by the palm.
@@ -75,6 +83,20 @@ struct State
     bool grip2HPalm[2]{false, false}; // a cup hotspot: grip2H is where the helping hand's palm goes (taken by the palm)
 };
 
+// Hand calibration (Hand/Gun Calibration > Hand Calibration): where each hand sits on its controller, so that the drawn
+// hand is where the real one is. `move`: centimetres along the controller's grip axes (x along the handle, y left, z up:
+// Show Controller's red, green, blue, before its preview offsets). `turn`: degrees, pitch (down: vr_gunangle,
+// vr_offhandpitch), yaw (left: vr_gunyaw, vr_offhandyaw), roll (the right side down) -- yaw then pitch turn the
+// controller (about its tracked point, as ever), then the roll turns the hand about where it points, through the grip.
+// The off hand's own values, or (vr_handcal_off_mirror) the main hand's mirrored: y, yaw and roll the other way. The
+// whole hand moves (what it holds, its muzzle, its melee points, the body's arm); 0 moves nothing.
+struct Calibration
+{
+    glm::vec3 move{0.f};
+    glm::vec3 turn{0.f};
+};
+[[nodiscard]] Calibration calibration(int hand);
+
 // Where a hand's palm is (State::palmLocal), or its point if not known.
 [[nodiscard]] glm::vec3 palmPoint(const State& s, int hand);
 
@@ -88,6 +110,10 @@ void addTurn(float degrees);
 // Motion playback (vr_motion_play.cpp): the play space's turn as a take had it (a pending server yaw
 // dropped), and the head's lean off the box's middle (world units, horizontal).
 void setPlaySpaceYaw(float yaw);
+
+// The calibration's pitch and yaw on a controller's tracked orientation (tracking space): where the hand points (the
+// menu's laser).
+[[nodiscard]] glm::quat aimedController(const glm::quat& controller, int hand);
 
 // A new map (VR_OnClientClearState): what follows the client's time (cl.time starts over) begins afresh.
 void resetClientState();

@@ -399,7 +399,7 @@ struct Take
 [[nodiscard]] bool placingSetting(const std::string& name, bool melee)
 {
     static const char* const placing[] = {"vr_world_scale", "vr_height_calibration", "vr_floor_offset", "vr_lefthanded",
-        "vr_gunangle", "vr_gunyaw", "vr_offhandpitch", "vr_offhandyaw", "vr_gunmodel", "vr_weapon_grip_mode", "vr_2h_",
+        "vr_gunangle", "vr_gunyaw", "vr_offhandpitch", "vr_offhandyaw", "vr_handcal_", "vr_gunmodel", "vr_weapon_grip_mode", "vr_2h_",
         "vr_lean_", "vr_roomscale_", "vr_body_", "vr_throw_release", "vr_throw_grab_press", "vr_wofs_",
         "vr_controller_legacy_pose", "vr_weapon_cycle_mode"};
     // (Every setting the QC's melee, damage and hit reactions read.)
@@ -482,6 +482,15 @@ void applySettings(const Take& take, bool melee)
         }
     }
     collectSettings(h("weapon settings"), false, list);
+    // A take from before the hand calibration: the hands as they were then (none), not as calibrated now.
+    for(const cvar_t* var : {&vr_handcal_x, &vr_handcal_y, &vr_handcal_z, &vr_handcal_roll, &vr_handcal_off_mirror,
+            &vr_handcal_off_x, &vr_handcal_off_y, &vr_handcal_off_z, &vr_handcal_off_roll})
+    {
+        if(std::none_of(list.begin(), list.end(), [&](const auto& kv) { return kv.first == var->name; }))
+        {
+            list.emplace_back(var->name, var->default_string);
+        }
+    }
     if(melee)
     {
         collectSettings(h("melee settings"), false, list);

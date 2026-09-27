@@ -132,18 +132,121 @@ void resetSwimming()
     };
 }
 
-// Old Quake VR settings: "Hand/Gun Calibration".
+// Hand Calibration (Hand/Gun Calibration's first section; hands::calibration): the page shows the off hand's own sliders
+// (vr_handcal_off_mirror 0) or not; items() builds it again when that changes.
+int handCalPageOwn = -1;
+
+// Match Controller Preview: each hand calibrated (moved only) so that the middle of the empty hand's fist is on the
+// Show Controller preview's point; the off hand too when it has its own values.
+void matchControllerPreview()
+{
+    const hands::State& s = hands::current();
+    const float cm = 0.01f * units::metresToUnits();
+    const bool own = vr_handcal_off_mirror.value == 0.f;
+    int matched = 0;
+    for(const int hand : {HAND_MAIN, HAND_OFF})
+    {
+        if(hand == HAND_OFF && !own)
+        {
+            continue;
+        }
+        glm::vec3 d;
+        if(!s.valid || !vrActive() || !view::previewGripMove(s, hand, d))
+        {
+            Con_Printf("Match Controller Preview: the %s hand isn't drawn jointed (Jointed Hand on, in the game)\n",
+                hand == HAND_MAIN ? "main" : "off");
+            continue;
+        }
+        glm::vec3 f, r, u;
+        hands::angleVectors(s.gripRot[hand], f, r, u);
+        const glm::vec3 local = glm::vec3{glm::dot(d, f), -glm::dot(d, r), glm::dot(d, u)} / cm;
+        cvar_t& x = hand == HAND_MAIN ? vr_handcal_x : vr_handcal_off_x;
+        cvar_t& y = hand == HAND_MAIN ? vr_handcal_y : vr_handcal_off_y;
+        cvar_t& z = hand == HAND_MAIN ? vr_handcal_z : vr_handcal_off_z;
+        const auto set = [](cvar_t& var, float v) {
+            Cvar_SetQuick(&var, va("%.2f", std::round((var.value + v) * 100.f) / 100.f + 0.f));
+        };
+        set(x, local.x);
+        set(y, local.y);
+        set(z, local.z);
+        Con_Printf("Match Controller Preview: %s hand moved %+.2f %+.2f %+.2f cm (now %s %s %s)\n",
+            hand == HAND_MAIN ? "main" : "off", local.x, local.y, local.z, x.string, y.string, z.string);
+        matched++;
+    }
+    S_LocalSound(matched ? "misc/menu2.wav" : "misc/menu3.wav");
+}
+
+// The calibration's moves and rolls back to 0 (not the pitch and yaw: they are the aim).
+void resetHandMoves()
+{
+    for(cvar_t* var : {&vr_handcal_x, &vr_handcal_y, &vr_handcal_z, &vr_handcal_roll, &vr_handcal_off_x, &vr_handcal_off_y,
+            &vr_handcal_off_z, &vr_handcal_off_roll})
+    {
+        Cvar_SetQuick(var, "0");
+    }
+}
+
+// Old Quake VR settings: "Hand/Gun Calibration", with the hand calibration first.
 [[nodiscard]] std::vector<Item> pageHandGunCalibration()
 {
-    return {
-        slider("Gun Angle", "vr_gunangle", -180.f, 180.f, 0.75f, "%.1f").help("Pitch offset for the guns/hands. Affects aiming. Change if your controller is not 'aligned' to your gun."),
+    const char* moveHelp = "Moves the whole hand, and what it holds (its aim, muzzle and melee with it), along the controller's "
+                           "own axes: X along the handle, Y left, Z up (Show Controller's red, green, blue). Centimetres.";
+    const char* rollHelp = "Turns the whole hand, and what it holds, about where it points, through the controller's grip "
+                           "(the handle's middle): the right side down. Doesn't change where it aims.";
+    std::vector<Item> list{
+        header("Hand Calibration"),
+        info([]() -> const char* { return "1. Hold the controller as you always do."; }),
+        info([]() -> const char* { return "2. Show Controller on, and look at it."; }),
+        info([]() -> const char* { return "3. Move and turn the hand until the"; }),
+        info([]() -> const char* { return "controller sits in its palm, just where"; }),
+        info([]() -> const char* { return "your real one is."; }),
+        toggle("Show Controller", "vr_show_controller")
+            .help("Draws each real controller, translucent, where the game tracks it, with its axes (red along the handle, "
+                  "green left, blue up) and its point (white: the middle of the handle); a yellow line to the hand's "
+                  "point when the calibration moves it. If the preview itself is off your real controller, line it up "
+                  "first (Weapon Offsets > Controller Preview). Not saved."),
+        slider("Main Hand X (forward)", "vr_handcal_x", -5.f, 5.f, 0.1f, "%+.1f cm").extend().help(moveHelp),
+        slider("Main Hand Y (left)", "vr_handcal_y", -5.f, 5.f, 0.1f, "%+.1f cm").extend().help(moveHelp),
+        slider("Main Hand Z (up)", "vr_handcal_z", -5.f, 5.f, 0.1f, "%+.1f cm").extend().help(moveHelp),
+        slider("Main Hand Pitch (down)", "vr_gunangle", 0.f, 80.f, 0.25f, "%.2f").extend(-180.f, 180.f)
+            .help("Gun Angle (vr_gunangle): turns the whole hand, and what it holds, down about the controller's tracked "
+                  "point. Changes where it aims."),
+        slider("Main Hand Yaw (left)", "vr_gunyaw", -30.f, 30.f, 0.25f, "%+.2f").extend(-180.f, 180.f)
+            .help("Gun Yaw (vr_gunyaw): turns the whole hand, and what it holds, left about the controller's tracked "
+                  "point. Changes where it aims."),
+        slider("Main Hand Roll", "vr_handcal_roll", -30.f, 30.f, 0.25f, "%+.2f").extend(-180.f, 180.f).help(rollHelp),
+        cycle("Off Hand", "vr_handcal_off_mirror", {{1.f, "Mirrors the Main Hand"}, {0.f, "Its Own Values"}})
+            .help("Mirrors: the off hand takes the main hand's values mirrored (Y, Yaw and Roll the other way). Its Own "
+                  "Values: its own sliders, below."),
+    };
+    handCalPageOwn = vr_handcal_off_mirror.value == 0.f ? 1 : 0;
+    if(handCalPageOwn)
+    {
+        list.insert(list.end(), {
+            slider("Off Hand X (forward)", "vr_handcal_off_x", -5.f, 5.f, 0.1f, "%+.1f cm").extend().help(moveHelp),
+            slider("Off Hand Y (left)", "vr_handcal_off_y", -5.f, 5.f, 0.1f, "%+.1f cm").extend().help(moveHelp),
+            slider("Off Hand Z (up)", "vr_handcal_off_z", -5.f, 5.f, 0.1f, "%+.1f cm").extend().help(moveHelp),
+            slider("Off Hand Pitch (down)", "vr_offhandpitch", 0.f, 80.f, 0.25f, "%.2f").extend(-180.f, 180.f)
+                .help("Off-Hand Pitch (vr_offhandpitch): turns the whole hand, and what it holds, down about the "
+                      "controller's tracked point. Changes where it aims."),
+            slider("Off Hand Yaw (left)", "vr_offhandyaw", -30.f, 30.f, 0.25f, "%+.2f").extend(-180.f, 180.f)
+                .help("Off-Hand Yaw (vr_offhandyaw): turns the whole hand, and what it holds, left about the "
+                      "controller's tracked point. Changes where it aims."),
+            slider("Off Hand Roll", "vr_handcal_off_roll", -30.f, 30.f, 0.25f, "%+.2f").extend(-180.f, 180.f).help(rollHelp),
+        });
+    }
+    list.insert(list.end(), {
+        action("Match Controller Preview", matchControllerPreview)
+            .help("Moves each hand (X, Y, Z only) so that the middle of its empty fist is on the preview's point (the "
+                  "middle of the handle, where OpenXR puts the fist). Then turn it (Pitch, Yaw, Roll) to fit, and move "
+                  "it again. The off hand only with its own values; needs the jointed hand."),
+        action("Reset Moves and Rolls", resetHandMoves)
+            .help("Both hands' X, Y, Z and Roll back to 0 (the hands as before the calibration). Pitch and Yaw stay."),
+        header("Guns"),
         slider("Gun Model Pitch", "vr_gunmodelpitch", -90.f, 90.f, 0.25f, "%.1f").extend(-180.f, 180.f).help("Pitch offset for gun models. Does NOT affect aiming."),
         slider("Gun Model Scale", "vr_gunmodelscale", 0.1f, 2.f, 0.05f, "%.2f").extend(0.02f, 5.f).help("Scale multiplier for gun models. Does NOT affect aiming, but does affect muzzle position (where bullets and projectiles come from)."),
         slider("Gun Model Z Offset", "vr_gunmodely", -10.f, 10.f, 0.1f, "%.1f").extend(-50.f, 50.f).help("Z offset for gun models. Does NOT affect aiming."),
-        slider("Gun Yaw", "vr_gunyaw", -90.f, 90.f, 0.25f, "%.1f").extend(-180.f, 180.f).help("Yaw offset for the guns/hands. Affects aiming. Change if your controller is not 'aligned' to your gun."),
         slider("Gun Z Offset", "vr_gun_z_offset", -30.f, 30.f, 0.25f, "%.1f").extend(-150.f, 150.f).help("Z offset for guns/hands. Affects aiming."),
-        slider("Off-Hand Pitch", "vr_offhandpitch", -90.f, 90.f, 0.25f, "%.1f").extend(-180.f, 180.f).help("Pitch offset for the guns/hands. Only for off-hand. Affects aiming."),
-        slider("Off-Hand Yaw", "vr_offhandyaw", -90.f, 90.f, 0.25f, "%.1f").extend(-180.f, 180.f).help("Yaw offset for the guns/hands. Only for off-hand. Affects aiming."),
         slider("Finger Grip Bias", "vr_finger_grip_bias", 0.f, 1.f, 0.05f, "%.2f"),
         toggle("Auto close thumb", "vr_finger_auto_close_thumb"),
         header("Fingers"),
@@ -190,7 +293,8 @@ void resetSwimming()
         slider("Model Push Limit", "vr_model_collide_max", 5.f, 50.f, 1.f, "%.0f cm").extend(1.f, 100.f)
             .help("How far the weapon or hand is held out of a model. Pushed deeper, it is held out less and less, and at "
                   "twice this it lets go and passes through (a monster walking into you)."),
-    };
+    });
+    return list;
 }
 
 // Old Quake VR settings: "Player Calibration".

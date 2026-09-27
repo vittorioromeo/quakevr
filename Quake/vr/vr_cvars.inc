@@ -230,6 +230,20 @@ QVR_CVAR(vr_wpn_dir_weight_2h_help_offset, "0.3", CVAR_ARCHIVE)
 QVR_CVAR(vr_wpn_dir_weight_2h_help_mult, "1.0", CVAR_ARCHIVE)
 QVR_CVAR(vr_offhandpitch, "40.25", CVAR_ARCHIVE)
 QVR_CVAR(vr_offhandyaw, "-4", CVAR_ARCHIVE)
+// Hand calibration (Hand/Gun Calibration > Hand Calibration; hands::calibration): each hand's place on its controller,
+// so that the drawn hand sits where the real one does. Centimetres along the controller's grip axes (x along the handle,
+// y left, z up: Show Controller's red, green, blue) and a roll (degrees, right side down) about where the hand points,
+// through the grip; the pitch and yaw are vr_gunangle/vr_gunyaw (vr_offhandpitch/vr_offhandyaw). The off hand's own, or
+// with vr_handcal_off_mirror the main hand's mirrored (y, yaw and roll the other way). 0: the hand as before.
+QVR_CVAR(vr_handcal_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_handcal_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_handcal_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_handcal_roll, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_handcal_off_mirror, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_handcal_off_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_handcal_off_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_handcal_off_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_handcal_off_roll, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_show_hip_holsters, "0", CVAR_NONE)
 QVR_CVAR(vr_hip_offset_x, "-3.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_hip_offset_y, "7.0", CVAR_ARCHIVE)

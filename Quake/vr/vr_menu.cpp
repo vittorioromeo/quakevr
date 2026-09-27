@@ -22,6 +22,7 @@
 #include "vr_hands.hpp"
 #include "vr_posing.hpp"
 #include "vr_view.hpp"
+#include "vr_units.hpp"
 
 #include <cmath>
 #include <cstring>
@@ -1669,6 +1670,12 @@ int scrolls[pageCount]{};
         done[page] = false; // a grip's Fingers choice: its curls or its overlap shown
         built[page].clear();
     }
+    if(pages[page].build == pageHandGunCalibration && handCalPageOwn >= 0 &&
+        (vr_handcal_off_mirror.value == 0.f ? 1 : 0) != handCalPageOwn)
+    {
+        done[page] = false; // the off hand's own sliders shown or not
+        built[page].clear();
+    }
     if(pages[page].build == pageMotionRecorder && motionPageCategory != static_cast<int>(vr_motion_category.value))
     {
         done[page] = false; // the Detail choice is the category's
@@ -2200,6 +2207,11 @@ extern "C" void VR_Menu_Open()
 
 // menu_vr [page [row]]: the VR Settings, or one of its pages (1: Advanced VR Options); menu_vr list:
 // the pages' numbers.
+void qvr::menu::handCalMatch_f()
+{
+    matchControllerPreview();
+}
+
 void qvr::menu::command_f()
 {
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "list"))

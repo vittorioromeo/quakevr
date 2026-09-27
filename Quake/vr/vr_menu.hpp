@@ -9,6 +9,9 @@ namespace qvr::menu
 // menu_vr [page]: the VR Settings, or one of its pages (1: Advanced VR Options).
 void command_f();
 
+// vr_handcal_match: Hand/Gun Calibration > Match Controller Preview.
+void handCalMatch_f();
+
 // The page shown (while m_state is m_vr), and the VR Settings reopened at one (its selection,
 // scroll and way back as they were left).
 [[nodiscard]] int currentPage();
