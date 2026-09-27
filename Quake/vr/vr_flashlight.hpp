@@ -70,6 +70,21 @@ void onGameDirChanged();
 // hand's grasp, solved before the torch is placed (no frame's lag between them).
 [[nodiscard]] bool heldPlace(const hands::State& s, int hand, glm::vec3& origin, glm::vec3& angles);
 
+// Round 21, the author's tuning notes: how a hand's fingers hold the torch, per grip (vr_flashlight_low_* and _high_*), as a
+// weapon's (Weapon Offsets > Fingers on the Weapon).
+struct Fingers
+{
+    bool manual{false};  // Manual: each finger at its curl, no fitting; else they wrap the torch
+    float curl[5]{};     // thumb first: 0 open, 1 a fist (Manual)
+    float thumbAcross{}; // the thumb across the palm, 0..1 (Manual)
+    float overlap{0.3f}; // how far the fingers and palm may sink into it, 0..1 of weapons::maxOverlapCm (Automatic)
+    float bias[5]{};     // the finger tweaks, thumb first: a share of a full curl (negative: more open)
+    glm::vec3 thumb{0.f}; // the thumb's place (as a weapon's Thumb X/Y/Z)
+};
+
+// How `hand`'s fingers hold the torch it holds (false: it does not hold it).
+[[nodiscard]] bool fingers(int hand, Fingers& out);
+
 // Round 21: whether `hand`'s upper face button (B/Y) is the flashlight's now: the hand holds it, or it is on the head
 // and the hand is at it. The off hand's Y then does not start a voice note at the mouth (vr_input.cpp).
 [[nodiscard]] bool wantsSecondary(int hand);

@@ -15,6 +15,7 @@
         hueSlider("Laser Hue", vr_menu_laser_hue).help("The laser pointer's colour: 35 amber; Player's: the Player Effects Hue (on the Colours page)."),
         slider("Row Spacing", "vr_menu_spacing", 1.f, 2.f, 0.05f, "%.2fx").extend().help("With the VR menu style: how far apart the menus' rows are, over Quake's."),
         slider("Menu Height", "vr_menu_height", 1.f, 2.f, 0.05f, "%.2fx").extend().help("With the VR menu style: how tall the menus are, over Quake's: more rows at once. 1.35 reaches about 35 degrees up and down at the shipped distance, scale and spacing."),
+        slider("Menu Background Opacity", "scr_menubgalpha", 0.f, 1.f, 0.05f, "%.2f").help("How dark the panel behind the menus is (0.7 as shipped; the desktop menus' too): lower it to see the game while you tune the graphics. Below about 0.5 the text gets a dark outline, to stay readable."),
         toggle("Live Preview", "ui_live_preview").help("Settings pages show their changes in the game as you make them, and in single player the game keeps running under them (paused while a monster is after you)."),
         toggle("Reopen Where Left", "vr_menu_remember").help("After Back to Game (the button at the menu's top left, or holding the menu button), the menu opens again on the page you left."),
     };
@@ -57,7 +58,8 @@
         toggle("Teleportation", "vr_teleport_enabled").help("Enables or disables teleportation. A controller binding is required to use teleportation."),
         slider("Teleport Range", "vr_teleport_range", 100.f, 800.f, 10.f, "%.0f").extend(100.f, 3000.f).help("How far you can teleport."),
         slider("Lean", "vr_lean_radius", 0.f, 14.f, 1.f, "%.0f units").extend().help("How far your head may lean off the middle of your body's box before the body follows: get your face near walls and over railings. 0: the body always under the head."),
-        slider("Lean Recentre", "vr_lean_recenter", 0.f, 2.f, 0.1f, "%.1f m/s").extend().help("How fast the body slides back under your head when it can (not into walls, not over ledges)."),
+        slider("Lean Recentre", "vr_lean_recenter", 0.f, 2.f, 0.1f, "%.1f m/s").extend().help("How fast the body slides back under your head when it can (not into walls, not over ledges), at least; with Lean Detection, faster the further off it is, and not while you lean. 0: never."),
+        slider("Lean Detection", "vr_lean_detect", 0.f, 2.f, 0.1f, "%.1fx").help("Tells a lean from walking in the room. Leaning (your head lower and tilted the way you lean, your hands left by your hips), your feet and hips stay where you stand and your back tilts; walking, the body follows your head. 0: off, the body always slides back under your head; higher: more readily a lean."),
         toggle("Roomscale Jump", "vr_roomscale_jump").help("Jumping in the room jumps in the game."),
         slider("Jump Threshold", "vr_roomscale_jump_threshold", 0.3f, 2.f, 0.05f, "%.2f m/s").extend()
             .help("How fast the head must rise above the standing height."),

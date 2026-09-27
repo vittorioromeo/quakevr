@@ -536,7 +536,7 @@ is the most useful thing to send me along with a description. In particular:
 
 `vr_backend mock; vr_enabled 1` runs everything with a pretend headset. `vr_mock_button <main|off> <trigger|grip|primary|secondary|stickclick|menu> <0|1>`,
 `vr_mock_stick <main|off> <x> <y>` `vr_mock_hand <main|off|head> <x> <y> <z> [<pitch> <yaw> <roll>]` and `vr_mock_look <pitch> <yaw>` drive it; `vr_mock_swing <period>`
-swings the main hand for throwing tests. `vr_mock_fingers <main|off> <trigger> <grip> [<thumb>]` sets the finger
+swings the main hand for throwing tests. `vr_particle_seed <n>` (not 0) makes the particles the same in every run (their random numbers restart from it at each map), for comparing images. `vr_mock_fingers <main|off> <trigger> <grip> [<thumb>]` sets the finger
 sensors (0..1); a fifth argument sets the index finger's touch on the trigger.
 
 Fitted hands (round 21): `impulse 252` puts a gib or a head (nine kinds in turn) in the empty off hand; `impulse 253`
@@ -572,6 +572,9 @@ the view goes in and out by. `impulse 241` puts a monster (`vr_test_spawn`: the 
 box (100 health, 101 shells) `vr_test_spawn_dist` units ahead (`vr_test_spawn_dead 1`: a corpse);
 `vr_mock_camera <x> <y> <z> <pitch> <yaw>` draws the mock eyes from elsewhere in the tracking space (a spectator's view of
 your body; the hands stay with the head), `vr_mock_camera` alone puts them back.
+Leaning (round 21): `vr_mock_hand head <x> <y> <z> <pitch> <yaw> <roll>` and `vr_mock_play` head keyframes with angles
+turn the head too (pitch up, roll as the hands'); `vr_debug_lean 1` writes `lean_trace.txt` (the game directory): the
+head, the box, the lean, the pelvis, the feet and the lean's hold and cues, every frame.
 
 After the posing test (ROUND21.md): `vr_debug_shots 1` with `developer 1` prints each hitscan shot (start, direction,
 what its pellets hit, headshots) and each damage you deal; a monster at the muzzle: `impulse 150 + weapon id` (with
@@ -616,3 +619,8 @@ vr_mock_button off grip 1`; `vr_mock_camera -0.05 1.45 -1.0 25 180` looks back a
 Tuning the body: `vr_show_hip_holsters 1`, `vr_show_upper_holsters 1`, `vr_show_shoulder_holsters 1` and
 `vr_show_virtual_stock 1` mark where the holsters and the virtual stock's shoulders are (green while a hand is
 there); move them with the `vr_*_offset_*` cvars.
+
+Flashlight tuning (ROUND21.md, "Flashlight tuning"): `vr_show_flashlight_zones 1` draws the reach zones (the head's
+balls, each gun's capsule; green in reach) and the held torch's middle; `vr_flashlight_head_zone_*` and
+`vr_flashlight_gun_zone_*` move them, and `vr_flashlight_low_*` / `_high_*` `fingers`, `curl_*`, `thumb_across`,
+`overlap`, `bias_*`, `thumb_x/y/z` set each grip's fingers. `vr_debug_grasp 2` prints the torch grasp's finger stops.

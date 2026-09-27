@@ -190,6 +190,11 @@ struct Body
 // The spine from the head. The top of the neck is found behind and below the eyes. A crouch lowers
 // the pelvis straight down under the neck (the legs bend) and tilts the back forward about it, as a
 // person crouching does; when the pelvis can go no lower, the back bends further.
+//
+// Leaning (the head off the box's middle, hands::State::lean, where the body stands: vr_lean_radius,
+// vr_lean_detect): the back tilts towards the lean about the hips, which stay over the feet, as far as
+// the head has gone down for it (a tilt swings the head down on an arc); the hips shift the rest of the
+// way (a lean with the head kept high: the legs slant).
 void solveTorso(const hands::State& s, Body& b)
 {
     const Bind& bd = bind();
@@ -205,44 +210,77 @@ void solveTorso(const hands::State& s, Body& b)
     const glm::vec3 top = s.head - (hf * vr_body_eye_forward.value + hu * vr_body_eye_up.value) * b.m2w;
 
     const float torsoLen = glm::distance(bd.pos[Pelvis], bd.pos[Head]) * b.m2w;
+    const float headDrop = std::max(0.f, b.floorZ + bd.pos[Head].z * b.m2w - top.z);
+
+    // The lean's tilt: how far out it swings the top of the neck (at most as far as the head has gone down allows, and
+    // a fifth of the lean always in the hips), and how much of the drop below the calibrated height that takes; the
+    // rest is a crouch.
+    const glm::vec3 leanOff{s.lean.x, s.lean.y, 0.f};
+    const float leanLen = glm::length(leanOff);
+    float tiltReach = 0.f;
+    if(leanLen > 0.01f)
+    {
+        // Down from where the player stands up straight (learnt: the calibrated height is only close to it).
+        const float leanDrop = std::max(0.f, s.standingHeight - s.headHeight) * units::metresToUnits();
+        const float h = std::min(leanDrop, torsoLen);
+        const float allowed = std::sqrt(std::max(0.f, torsoLen * torsoLen - (torsoLen - h) * (torsoLen - h)));
+        // Only as sure as it is a lean (vr_lean_detect): the body lagging the head as the player walks in the room
+        // stays upright, the hips with the head, the feet catching up.
+        const float sure = vr_lean_detect.value > 0.f ? s.leanHold : 1.f;
+        tiltReach = sure * std::min({leanLen * 0.8f, allowed, 0.7f * torsoLen});
+    }
+    const float tiltDrop = torsoLen - std::sqrt(torsoLen * torsoLen - tiltReach * tiltReach);
+    const glm::vec3 top0 = top + UP * tiltDrop; // the neck as it would be without the tilt
+
     // How deep the crouch is: 0 standing, 1 with the pelvis at squatting height.
     const float standZ = b.floorZ + bd.pos[Pelvis].z * b.m2w;
     const float squatZ = b.floorZ + 0.3f * b.m2w;
-    const float drop = std::max(0.f, b.floorZ + bd.pos[Head].z * b.m2w - top.z);
+    const float drop = std::max(0.f, headDrop - tiltDrop);
     const float crouch = standZ > squatZ ? std::min(1.f, drop / (standZ - squatZ)) : 0.f;
     const float tilt = glm::radians(CLAMP(0.f, vr_body_crouch_tilt.value, 80.f)) * crouch;
-    float pelvisZ = std::max(top.z - torsoLen * std::cos(tilt), squatZ);
-    pelvisZ = std::min(pelvisZ, top.z - 0.3f * torsoLen); // lying down: keep the back from folding over
-    const float dz = top.z - pelvisZ;
+    float pelvisZ = std::max(top0.z - torsoLen * std::cos(tilt), squatZ);
+    pelvisZ = std::min(pelvisZ, top0.z - 0.3f * torsoLen); // lying down: keep the back from folding over
+    const float dz = top0.z - pelvisZ;
     const float lean = dz < torsoLen ? std::sqrt(torsoLen * torsoLen - dz * dz) : 0.f;
 
     // The torso sits vr_body_torso_back behind the neck (looking down shows the chest rather than
     // the top of the shoulders), the pelvis under it; the back leans forward from there.
     const glm::vec3 back = b.fwd * (vr_body_torso_back.value * b.m2w);
-    const glm::vec3 pelvis = glm::vec3{top.x, top.y, pelvisZ} - back;
+    const glm::vec3 pelvis0 = glm::vec3{top0.x, top0.y, pelvisZ} - back;
     const glm::vec3 axis = safeNormalize(b.fwd * lean + UP * std::min(dz, torsoLen));
+
+    // Tilted about the hips towards the lean, so that the neck comes to where it is: the hips end up over the feet
+    // (less what the tilt could not reach).
+    glm::mat3 turn{1.f};
+    if(tiltReach > 0.f)
+    {
+        const glm::vec3 spine = top0 - pelvis0;
+        const float angle = std::asin(std::min(1.f, tiltReach / std::max(glm::length(spine), 1e-3f)));
+        turn = glm::mat3_cast(glm::angleAxis(angle, safeNormalize(glm::cross(UP, leanOff / leanLen), b.left)));
+    }
+    const glm::vec3 pelvis = top - turn * (top0 - pelvis0);
 
     Bone& p = b.bones[Pelvis];
     p = Bone{};
     p.pos = pelvis;
-    p.rot = basis(glm::mix(UP, axis, 0.4f), b.fwd);
+    p.rot = turn * basis(glm::mix(UP, axis, 0.4f), b.fwd);
 
     Bone& sp = b.bones[Spine];
     sp = Bone{};
     sp.pos = childPos(b, Spine);
-    sp.rot = basis(glm::mix(UP, axis, 0.75f), b.fwd);
+    sp.rot = turn * basis(glm::mix(UP, axis, 0.75f), b.fwd);
 
     Bone& c = b.bones[Chest];
     c = Bone{};
     c.pos = childPos(b, Chest);
-    c.rot = basis(axis, b.fwd);
+    c.rot = turn * basis(axis, b.fwd);
 
     // The neck spans the rest of the way to the top of the neck; the head sits there. Neither is
     // drawn: the eyes are inside them.
     Bone& n = b.bones[Neck];
     n = Bone{};
     n.pos = childPos(b, Neck);
-    n.rot = basis(top - n.pos, b.fwd);
+    n.rot = basis(top - n.pos, turn * b.fwd);
     n.size = COLLAPSED;
 
     Bone& h = b.bones[Head];
@@ -577,17 +615,17 @@ constexpr float STEP_DISTANCE = 0.25f; // metres the body may move from the feet
     return {std::cos(r), std::sin(r), 0.f};
 }
 
-// Where the foot of `side` stands under the body: under the head (the balance point: crouching
-// pushes the hips back and the knees forward; vr_body_legs_back further back, to match a posture),
-// as far apart as the hips.
-[[nodiscard]] glm::vec2 homeOf(const Body& b, const glm::vec3& head, int side)
+// Where the foot of `side` stands under the body: under where it stands, the head less its lean (the
+// balance point: crouching pushes the hips back and the knees forward; vr_body_legs_back further back,
+// to match a posture), as far apart as the hips.
+[[nodiscard]] glm::vec2 homeOf(const Body& b, const glm::vec3& stand, int side)
 {
-    const glm::vec3 centre = head - b.fwd * (vr_body_legs_back.value * b.m2w);
+    const glm::vec3 centre = stand - b.fwd * (vr_body_legs_back.value * b.m2w);
     const glm::vec3 h = centre + b.left * (bind().pos[side == 0 ? ThighL : ThighR].y * b.m2w);
     return {h.x, h.y};
 }
 
-void updateStance(const Body& b, const glm::vec3& head, float dt)
+void updateStance(const Body& b, const glm::vec3& stand, float dt)
 {
     const float bodyYaw = glm::degrees(std::atan2(b.fwd.y, b.fwd.x));
     if(dt > 0.f)
@@ -601,7 +639,7 @@ void updateStance(const Body& b, const glm::vec3& head, float dt)
     std::array<glm::vec2, 2> home;
     for(int side = 0; side < 2; side++)
     {
-        home[side] = homeOf(b, head, side);
+        home[side] = homeOf(b, stand, side);
     }
 
     // New, or far away (a teleport, a respawn): stand there.
@@ -746,7 +784,7 @@ void updateStance(const Body& b, const glm::vec3& head, float dt)
 // over the toes, floating behind the body swimming (swimFoot); collapsed when not shown. `still`
 // gets the thigh's rotation with the legs standing still under the body instead (the feet where
 // they belong, no step, walk or water), for what the thigh carries (ThighMotion).
-void solveLeg(Body& b, const glm::vec3& head, int side, bool shown, glm::mat3& still)
+void solveLeg(Body& b, const glm::vec3& stand, int side, bool shown, glm::mat3& still)
 {
     const Bind& bd = bind();
     const int thigh = side == 0 ? ThighL : ThighR;
@@ -783,7 +821,7 @@ void solveLeg(Body& b, const glm::vec3& head, int side, bool shown, glm::mat3& s
 
     // Standing still: the knee over the foot, both straight ahead.
     {
-        const glm::vec2 home = homeOf(b, head, side);
+        const glm::vec2 home = homeOf(b, stand, side);
         glm::vec3 bend;
         const glm::vec3 knee = twoBone(t.pos, {home.x, home.y, footZ}, a, l,
             b.fwd + (side == 0 ? b.left : -b.left) * 0.1f, b.fwd, bend);
@@ -862,6 +900,37 @@ struct Posed
 Posed posed;
 int debugFrame = -1;
 
+// vr_debug_lean: one line a frame into lean_trace.txt (the game directory): the time; the head (x y z, world units) and
+// its height (metres); the box's middle (x y); the lean (x y); the pelvis (x y z); each foot (left, right: x y, and its
+// lift in metres); whether each is stepping; the walk's amount; and the lean's hold and cues (hands::State).
+void traceLean(const Body& b, const hands::State& s)
+{
+    static FILE* file = nullptr;
+    if(!vr_debug_lean.value)
+    {
+        if(file)
+        {
+            fclose(file);
+            file = nullptr;
+        }
+        return;
+    }
+    if(!file && !(file = fopen(va("%s/lean_trace.txt", com_gamedir), "w")))
+    {
+        return;
+    }
+    const glm::vec3& p = b.bones[Pelvis].pos;
+    const Foot& l = stance.feet[0];
+    const Foot& r = stance.feet[1];
+    fprintf(file,
+        "%.4f %.3f %.3f %.3f %.4f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %d %d %.3f %.3f %.4f "
+        "%.4f %.4f %.4f\n",
+        realtime, s.head.x, s.head.y, s.head.z, s.headHeight, s.playerOrigin.x, s.playerOrigin.y, s.lean.x, s.lean.y, p.x,
+        p.y, p.z, l.pos.x, l.pos.y, l.lift, r.pos.x, r.pos.y, r.lift, l.step >= 0.f, r.step >= 0.f, gait.amount,
+        s.leanHold, s.leanCues.x, s.leanCues.y, s.leanCues.z, s.leanCues.w);
+    fflush(file);
+}
+
 void queueDebug(const Body& b)
 {
     if(!vr_body_debug.value || debugFrame == host_framecount)
@@ -899,6 +968,10 @@ hands::State standing(const hands::State& s)
     out.headHeight = units::eyeHeight();
     out.headAngles = {0.f, s.bodyYaw, 0.f};
     out.crouchRatio = 0.f;
+    // Standing where the head is, upright over it: the box's middle moved under the head, no lean.
+    out.playerOrigin += glm::vec3{s.lean.x, s.lean.y, 0.f};
+    out.lean = glm::vec3{0.f};
+    out.standingHeight = out.headHeight;
     return out;
 }
 
@@ -1006,10 +1079,12 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
         updateWater(b, s, dt);
     }
     updateGait(b, dt);
-    updateStance(b, s.head, dt);
+    const glm::vec3 stand = s.head - glm::vec3{s.lean.x, s.lean.y, 0.f}; // where the body stands (the box's middle)
+    updateStance(b, stand, dt);
     glm::mat3 still[2];
-    solveLeg(b, s.head, 0, legs, still[0]);
-    solveLeg(b, s.head, 1, legs, still[1]);
+    solveLeg(b, stand, 0, legs, still[0]);
+    solveLeg(b, stand, 1, legs, still[1]);
+    traceLean(b, s);
 
     // The thighs relative to the pelvis, as they are and standing still (Follower::thigh).
     posed.legs = legs;

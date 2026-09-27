@@ -90,8 +90,8 @@ struct Particle
     bool additive{false}; // glows: added to the scene (else alpha blended)
     bool flat{false};     // lying flat (a ripple on a liquid), not facing the view
     bool plink{false};    // a drop that leaves a little ring where it falls back into its liquid (at `floor`)
-    // The cosine and sine of `angle` as of `csAngle` (buildQuads): worked out again only when it has turned since, not
-    // for every eye and frame (most particles never turn).
+    // The cosine and sine of `angle` as of `csAngle` (buildInstances, buildLying): worked out again only when it has
+    // turned since (most particles never turn).
     glm::vec2 cs{1.f, 0.f};
     float csAngle{std::numeric_limits<float>::quiet_NaN()};
 };
@@ -1478,6 +1478,7 @@ void splash(const glm::vec3& org, const glm::vec3& dir, int count)
 
 bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count)
 {
+    QVR_PROFILE("particle spawn");
     // The splash's ripples on the liquid (vr_water_ripples, vr_water.cpp), with Quake VR's particles or without.
     glm::vec3 surface{0.f};
     int under = 0;
@@ -1551,6 +1552,11 @@ void clear()
 {
     pool.clear();
     lastRun = -1.0;
+    // Tests: the same particles every run (vr_particle_seed; 0: random).
+    if(vr_particle_seed.value != 0.f)
+    {
+        rng.seed(static_cast<std::uint32_t>(vr_particle_seed.value));
+    }
 }
 
 void bloodDrip(const glm::vec3& org, float fall, float floorZ, float size, const glm::vec3& color)
@@ -1899,36 +1905,86 @@ void lieOnLiquid(const Particle& p, const glm::vec3& r, const glm::vec3& u, cons
     lyingCount = end;
 }
 
-// This view's quads (`quads`, six vertices each; a splash's rings and foam into lyingVertices): only the particles in
-// its frustum (R_CullBox on a box round each, as big as its quad can reach: a streak 8 units more, the pieces lying
-// on the waves 64 more), so neither the CPU nor the GPU spends anything on the ones out of view (most of them, with a
-// headset's field of view). `soft`: moved towards the eye by their Softness (the scene's distances will be read).
-std::vector<gfx::Vertex> quads;
-std::size_t quadCount = 0; // this view's (quads only grows: no vertex constructed again for each view)
+// The frame's particles for the GPU (gfx::ParticleInstance, one record each, made and uploaded once a frame and drawn
+// in both eyes: the quads are made in the vertex shader from each eye's camera), and a splash's rings and foam lying on
+// the waves (lyingVertices, made on the CPU for each view: only those in its frustum, R_CullBox on a box round each,
+// 64 units more than its quad). Each eye skips the draw (and the scene's distances) when the box round all of them is
+// out of its view.
+std::vector<gfx::ParticleInstance> instances;
+std::size_t instanceCount = 0;   // this frame's (instances only grows: no record constructed again each frame)
+std::vector<std::uint32_t> lying; // this frame's lying ones (indices into the pool)
+gfx::ParticleBatch batch;         // this frame's upload
+glm::vec3 boundsMin{0.f}, boundsMax{0.f}; // round all of this frame's quads (as far as each can reach)
+int builtFrame = -1;             // host_framecount of the last build
 
-void buildQuads(bool soft)
+void buildInstances()
 {
+    lying.clear();
+    if(instances.size() < pool.size())
+    {
+        instances.resize(pool.size());
+    }
+    glm::vec3 lo{std::numeric_limits<float>::max()}, hi{-std::numeric_limits<float>::max()};
+    gfx::ParticleInstance* out = instances.data();
+    for(std::size_t i = 0; i < pool.size(); i++)
+    {
+        Particle& p = pool[i];
+        if(p.flat && p.liquid)
+        {
+            lying.push_back(static_cast<std::uint32_t>(i)); // a splash's rings and foam (per view)
+            continue;
+        }
+        const float reach = 1.5f * p.scale + (p.streak > 0.f ? 8.f : 0.f);
+        lo = glm::min(lo, p.org - reach);
+        hi = glm::max(hi, p.org + reach);
+        // The quad's right and up, turned by the particle's angle about the view direction.
+        if(p.angle != p.csAngle)
+        {
+            p.cs = {std::cos(p.angle), std::sin(p.angle)};
+            p.csAngle = p.angle;
+        }
+        // Premultiplied: a glow's alpha 0 adds it.
+        const float a = std::min(p.color.a, 1.f);
+        const Softness sn = softness(p.cell, 0.75f * p.scale);
+        gfx::ParticleInstance& q = *out++;
+        q.org = p.org;
+        q.half = 0.75f * p.scale;
+        q.color = {glm::vec3{p.color} * a, p.additive ? 0.f : a};
+        q.vel = p.vel;
+        q.streak = p.streak;
+        q.cos = p.cs.x;
+        q.sin = p.cs.y;
+        q.soft = sn.fade;
+        q.pull = sn.pull;
+        q.uv = cellUv[p.cell];
+        q.flat = p.flat ? 1.f : 0.f;
+    }
+    instanceCount = static_cast<std::size_t>(out - instances.data());
+    boundsMin = lo;
+    boundsMax = hi;
+    batch = gfx::uploadParticles({instances.data(), instanceCount});
+}
+
+// This view's lying ones (lieOnLiquid), those in its frustum.
+void buildLying()
+{
+    lyingCount = 0;
+    if(lying.empty())
+    {
+        return;
+    }
     glm::vec3 eye, right, up;
     gfx::sceneCamera(eye, right, up);
-    const glm::vec3 forward = glm::cross(up, right);
-
-    lyingCount = 0;
-    // Grown, never shrunk (no constructing what is written over): every vertex up to quadCount is set below.
-    if(quads.size() < pool.size() * 6)
+    for(const std::uint32_t i : lying)
     {
-        quads.resize(pool.size() * 6);
-    }
-    gfx::Vertex* out = quads.data();
-    for(Particle& p : pool)
-    {
-        const float reach = 1.5f * p.scale + (p.streak > 0.f ? 8.f : 0.f) + (p.flat && p.liquid ? 64.f : 0.f);
+        Particle& p = pool[i];
+        const float reach = 1.5f * p.scale + 64.f;
         vec3_t mins = {p.org.x - reach, p.org.y - reach, p.org.z - reach};
         vec3_t maxs = {p.org.x + reach, p.org.y + reach, p.org.z + reach};
         if(R_CullBox(mins, maxs))
         {
             continue;
         }
-        // The quad's right and up, turned by the particle's angle about the view direction.
         if(p.angle != p.csAngle)
         {
             p.cs = {std::cos(p.angle), std::sin(p.angle)};
@@ -1936,13 +1992,11 @@ void buildQuads(bool soft)
         }
         const float c = p.cs.x;
         const float s = p.cs.y;
-        // Flat ones (ripples) lie on the horizontal plane.
-        const glm::vec3 pr = p.flat ? glm::vec3{1.f, 0.f, 0.f} : right;
-        const glm::vec3 pu = p.flat ? glm::vec3{0.f, 1.f, 0.f} : up;
+        // Lying on the horizontal plane.
+        const glm::vec3 pr{1.f, 0.f, 0.f};
+        const glm::vec3 pu{0.f, 1.f, 0.f};
         glm::vec3 r = (pr * c + pu * s) * (0.75f * p.scale);
         glm::vec3 u = (pu * c - pr * s) * (0.75f * p.scale);
-        // Streaked ones (drops): their length along their motion as seen from the eye, longer the faster (at most 8
-        // units more).
         if(p.streak > 0.f)
         {
             const glm::vec3 ray = glm::normalize(p.org - eye);
@@ -1955,44 +2009,10 @@ void buildQuads(bool soft)
                 u = along * (0.75f * p.scale + std::min(p.streak * speed, 8.f));
             }
         }
-        const glm::vec4& uv = cellUv[p.cell];
-        // Premultiplied: a glow's alpha 0 adds it.
         const float a = std::min(p.color.a, 1.f);
         const glm::vec4 color{glm::vec3{p.color} * a, p.additive ? 0.f : a};
-        if(p.flat && p.liquid)
-        {
-            lieOnLiquid(p, r, u, uv, color, eye); // a splash's rings and foam
-            continue;
-        }
-
-        // Soft: moved towards the eye along its rays (all four corners alike: the same on screen), its middle `pull`
-        // nearer, not nearer than 8 units.
-        Softness sn;
-        glm::vec3 o = p.org, qr = r, qu = u;
-        if(soft)
-        {
-            sn = softness(p.cell, 0.75f * p.scale);
-            const float w = glm::dot(p.org - eye, forward);
-            if(sn.pull > 0.f && w > 0.f)
-            {
-                const float k = std::max(w - sn.pull, std::min(w, 8.f)) / w;
-                o = eye + (p.org - eye) * k;
-                qr *= k;
-                qu *= k;
-            }
-        }
-
-        const gfx::Vertex downLeft{o - qu - qr, {uv.x, uv.y}, color, sn.fade};
-        const gfx::Vertex upRight{o + qu + qr, {uv.z, uv.w}, color, sn.fade};
-        out[0] = downLeft;
-        out[1] = {o + qu - qr, {uv.z, uv.y}, color, sn.fade}; // up left
-        out[2] = upRight;
-        out[3] = downLeft;
-        out[4] = upRight;
-        out[5] = {o - qu + qr, {uv.x, uv.w}, color, sn.fade}; // down right
-        out += 6;
+        lieOnLiquid(p, r, u, cellUv[p.cell], color, eye);
     }
-    quadCount = static_cast<std::size_t>(out - quads.data());
 }
 
 } // namespace qvr::particles
@@ -2019,25 +2039,39 @@ extern "C" void VR_DrawSceneTranslucent()
     using namespace qvr;
     using namespace qvr::particles;
 
-    // The particles first (on the CPU): the simulation, then this view's quads, those in its frustum.
+    // The particles first (on the CPU): the simulation and the records for the GPU once a frame, then this view's
+    // pieces lying on the waves (those in its frustum).
     const bool particles = (cl.protocolflags & PRFL_QUAKEVR) && !pool.empty() && atlas;
     const bool soft = softOn();
+    bool inView = false;
     if(particles)
     {
+        if(builtFrame != host_framecount)
         {
-            QVR_PROFILE("particle sim");
-            run();
-        }
-        {
+            builtFrame = host_framecount;
+            {
+                QVR_PROFILE("particle sim");
+                run();
+            }
             QVR_PROFILE("particle verts");
-            buildQuads(soft);
+            buildInstances();
+        }
+        {
+            QVR_PROFILE("particle lying");
+            buildLying();
+        }
+        if(instanceCount > 0)
+        {
+            vec3_t mins = {boundsMin.x, boundsMin.y, boundsMin.z};
+            vec3_t maxs = {boundsMax.x, boundsMax.y, boundsMax.z};
+            inView = !R_CullBox(mins, maxs);
         }
     }
-    if(!particles)
+    else
     {
-        quadCount = lyingCount = 0;
+        lyingCount = 0;
     }
-    const bool drawn = quadCount > 0 || lyingCount > 0;
+    const bool drawn = inView || lyingCount > 0;
 
     // The opaque scene's distances, for the soft ones (the liquids' when they made them this view): only when a soft
     // sprite or particle is drawn.
@@ -2066,12 +2100,8 @@ extern "C" void VR_DrawSceneTranslucent()
     {
         return;
     }
-    if(soft && !distances) // (no distances after all: not moved towards the eye)
-    {
-        buildQuads(false);
-    }
 
-    QVR_PROFILE("particle upload"); // (and the draw calls)
+    QVR_PROFILE("particle upload"); // (the draw calls; the records were uploaded once this frame)
     const gfx::State state{.shade = gfx::Shade::Texture, .blend = gfx::Blend::Premultiplied, .depthTest = true, .depthWrite = false,
         .sceneDistances = distances};
     if(lyingCount > 0)
@@ -2079,16 +2109,17 @@ extern "C" void VR_DrawSceneTranslucent()
         gfx::draw({lyingVertices.data(), lyingCount}, gfx::sceneViewProjection(), state, atlas); // first: under the rest
         lyingCount = 0;
     }
-    if(quadCount > 0)
+    if(inView)
     {
-        gfx::draw({quads.data(), quadCount}, gfx::sceneViewProjection(), state, atlas);
-        quadCount = 0;
+        // Moved towards the eye only when the scene's distances are read (else not soft at all).
+        gfx::drawParticles(batch, soft && distances, state, atlas);
     }
 }
 
 // Quake's own effects, when Quake VR's particles are on (as the old engine drew them).
 extern "C" int VR_RunParticleEffect(const float* org, const float* dir, int color, int count)
 {
+    QVR_PROFILE("particle spawn");
     using namespace qvr;
     using namespace qvr::particles;
     if(!(cl.protocolflags & PRFL_QUAKEVR))
@@ -2122,6 +2153,7 @@ extern "C" int VR_RunParticleEffect(const float* org, const float* dir, int colo
 
 extern "C" int VR_ParticleExplosion(const float* org)
 {
+    QVR_PROFILE("particle spawn");
     using namespace qvr;
     using namespace qvr::particles;
     return (cl.protocolflags & PRFL_QUAKEVR) && spawn({org[0], org[1], org[2]}, glm::vec3{0.f}, Preset::Explosion, 1);
@@ -2143,6 +2175,7 @@ extern "C" int VR_ParticleExplosion2(const float* org, int colorStart, int color
 // particles are on. A trail is as big as the model leaving it (a lava ball's bigger than a rocket's).
 extern "C" int VR_EntityTrail(int ent, int type)
 {
+    QVR_PROFILE("particle spawn");
     using namespace qvr::particles;
     if(!enabled() || ent <= 0 || ent >= cl.num_entities)
     {

@@ -736,6 +736,45 @@ static void Draw_KeepMenuGlyphSize (float *y, float *h)
 
 /*
 ================
+Draw_TextOutline -- QVR
+
+With draw_textoutline (set by the menus while their background is see-through: scr_menubgalpha), text
+gets a dark outline a glyph pixel wide, drawn under the glyph, so that it stays readable over the
+game. Only the letters (not the box and slider pieces, which join up with their neighbours).
+================
+*/
+float draw_textoutline = 0.f;
+
+static void Draw_TextOutline (float x, float y, float dimx, float dimy, float fcol, float frow, float fsize, int num)
+{
+	static const float dirs[8][2] = {{-1,-1}, {0,-1}, {1,-1}, {-1,0}, {1,0}, {-1,1}, {0,1}, {1,1}};
+	uint32_t color, a;
+	int i;
+	guivertex_t *verts;
+
+	if (draw_textoutline <= 0.f || (num & 0x7f) < 32)
+		return;
+	color = glcanvas.colorstack[glcanvas.colorstacktop];
+	a = (uint32_t) (((color >> 24) & 0xff) * CLAMP (0.f, draw_textoutline, 1.f) * 0.85f + 0.5f);
+	if (!a)
+		return;
+
+	GL_PushCanvasColor (0.f, 0.f, 0.f, a / 255.f);
+	for (i = 0; i < 8; i++)
+	{
+		float ox = x + dirs[i][0] * dimx / 8.f;
+		float oy = y + dirs[i][1] * dimy / 8.f;
+		verts = Draw_AllocQuad ();
+		Draw_SetVertex (verts++, ox,      oy,      fcol,         frow);
+		Draw_SetVertex (verts++, ox+dimx, oy,      fcol + fsize, frow);
+		Draw_SetVertex (verts++, ox+dimx, oy+dimy, fcol + fsize, frow + fsize);
+		Draw_SetVertex (verts++, ox,      oy+dimy, fcol,         frow + fsize);
+	}
+	GL_PopCanvasColor ();
+}
+
+/*
+================
 Draw_CharacterQuadEx -- johnfitz -- seperate function to spit out verts
 ================
 */
@@ -753,6 +792,8 @@ void Draw_CharacterQuadEx (float x, float y, float dimx, float dimy, char num)
 	frow = row * 0.0625f + 1.f / (16.f * 10.f);
 	fcol = col * 0.0625f + 1.f / (16.f * 10.f);
 	fsize = 8.f / (16.f * 10.f);
+
+	Draw_TextOutline (x, y, dimx, dimy, fcol, frow, fsize, (unsigned char) num); // QVR
 
 	verts = Draw_AllocQuad ();
 	Draw_SetVertex (verts++, x,      y,      fcol,         frow);
