@@ -15,6 +15,8 @@
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
 
+#include <glm/gtc/matrix_transform.hpp>
+
 #include <algorithm>
 #include <cmath>
 #include <string>
@@ -48,12 +50,11 @@ const float coreSpread = std::tan(glm::radians(innerAngle));
 constexpr float reach = 0.09f;         // metres from the torch's axis (tail to lens) a hand reaches it at
 constexpr float returnOmega = 14.f;    // the cord's pull (critically damped; home in about 0.4 s)
 constexpr float maxThrow = 3.f;        // metres per second the lamp keeps of the hand's at a release
-constexpr float gunReach = 0.12f;      // metres from the gun (its line from the hand to the muzzle) it clips on at
+constexpr float gunReach = 0.12f;      // metres from the other hand's weapon a hand holds it with both at (the intent gate)
 // Where the belt clip is from the pelvis joint (metres): its front, to the side, up.
 constexpr float beltFront = 0.11f;
 constexpr float beltSide = 0.09f;
 constexpr float beltUp = 0.10f;
-constexpr float headReach = 0.10f;     // metres from a place on the head (headSpot) the torch's middle clips on at
 constexpr float headAim = 4.f;         // metres ahead of the eyes the head torch's beam crosses the line of sight
 
 
@@ -318,6 +319,29 @@ struct GripAdjust
     return handPoseTurned(s, hand, turnedAt(hand, realtime));
 }
 
+// Round 21, the author's tuning notes: a grip's fingers on the torch (vr_flashlight_low_* or _high_*), as a weapon's.
+[[nodiscard]] Fingers gripFingers(bool overhead)
+{
+    const auto v = [&](const cvar_t& low, const cvar_t& high) { return overhead ? high.value : low.value; };
+    Fingers f;
+    f.manual = v(vr_flashlight_low_fingers, vr_flashlight_high_fingers) >= 0.5f;
+    f.overlap = CLAMP(0.f, v(vr_flashlight_low_overlap, vr_flashlight_high_overlap), 1.f);
+    f.curl[0] = v(vr_flashlight_low_curl_thumb, vr_flashlight_high_curl_thumb);
+    f.curl[1] = v(vr_flashlight_low_curl_index, vr_flashlight_high_curl_index);
+    f.curl[2] = v(vr_flashlight_low_curl_middle, vr_flashlight_high_curl_middle);
+    f.curl[3] = v(vr_flashlight_low_curl_ring, vr_flashlight_high_curl_ring);
+    f.curl[4] = v(vr_flashlight_low_curl_pinky, vr_flashlight_high_curl_pinky);
+    f.thumbAcross = v(vr_flashlight_low_thumb_across, vr_flashlight_high_thumb_across);
+    f.bias[0] = v(vr_flashlight_low_bias_thumb, vr_flashlight_high_bias_thumb);
+    f.bias[1] = v(vr_flashlight_low_bias_index, vr_flashlight_high_bias_index);
+    f.bias[2] = v(vr_flashlight_low_bias_middle, vr_flashlight_high_bias_middle);
+    f.bias[3] = v(vr_flashlight_low_bias_ring, vr_flashlight_high_bias_ring);
+    f.bias[4] = v(vr_flashlight_low_bias_pinky, vr_flashlight_high_bias_pinky);
+    f.thumb = {v(vr_flashlight_low_thumb_x, vr_flashlight_high_thumb_x), v(vr_flashlight_low_thumb_y, vr_flashlight_high_thumb_y),
+        v(vr_flashlight_low_thumb_z, vr_flashlight_high_thumb_z)};
+    return f;
+}
+
 // The beam's colour (vr_flashlight_hue, _saturation: white at the default saturation 0; the hue -1: the player's).
 [[nodiscard]] glm::vec3 beamColor()
 {
@@ -472,31 +496,81 @@ std::unordered_map<std::string, GunSpot> gunSpots;
     return p;
 }
 
-// Where on the head a held torch would clip on (the temple on its side) and how far its middle is from there (world
-// units); the forehead counts as the nearer temple.
+// The head's reach zone (round 21; the author's tuning notes: vr_flashlight_head_zone_*): where a held torch's middle
+// clips it on the head, and where a hand takes it off. A ball at each temple and one at the forehead, moved forward, up
+// and out (away from the head: to the side at the temples, ahead at the forehead), apart from the torch's own place
+// there (headPose).
+struct HeadZone
+{
+    glm::vec3 temple[2]; // the left's, the right's
+    glm::vec3 forehead;
+    float radius;        // world units
+};
+
+[[nodiscard]] HeadZone headZone(const hands::State& s)
+{
+    glm::vec3 fwd, right, up;
+    hands::angleVectors(s.headAngles, fwd, right, up);
+    const float m2w = bodyUnits();
+    const float forward = vr_flashlight_head_zone_forward.value, lift = vr_flashlight_head_zone_up.value,
+                out = vr_flashlight_head_zone_out.value;
+    HeadZone z;
+    for(int i = 0; i < 2; i++)
+    {
+        const float side = i == 0 ? -1.f : 1.f;
+        z.temple[i] = s.head + (right * (side * (0.085f + out)) + up * (0.035f + lift) + fwd * (forward - 0.03f)) * m2w;
+    }
+    z.forehead = s.head + (fwd * (0.07f + forward + out) + up * (0.06f + lift)) * m2w;
+    z.radius = std::fmax(vr_flashlight_head_zone_radius.value, 0.f) * m2w;
+    return z;
+}
+
+// Where on the head a held torch would clip on (the temple on its side) and how far its middle is from the zone there
+// (world units); the forehead counts as the nearer temple.
 [[nodiscard]] float headDistance(const hands::State& s, const Pose& lamp, float& side)
 {
     glm::vec3 fwd, right, up;
     hands::angleVectors(s.headAngles, fwd, right, up);
     const glm::vec3 middle = modelPointAt(lamp, glm::vec3{0.f});
     side = glm::dot(middle - s.head, right) >= 0.f ? 1.f : -1.f;
-    const float m2w = bodyUnits();
-    const glm::vec3 temple = s.head + (right * (side * 0.085f) + up * 0.035f - fwd * 0.03f) * m2w;
-    const glm::vec3 forehead = s.head + (fwd * 0.07f + up * 0.06f) * m2w;
-    return std::min(glm::distance(middle, temple), glm::distance(middle, forehead));
+    const HeadZone z = headZone(s);
+    return std::min(glm::distance(middle, z.temple[side > 0.f ? 1 : 0]), glm::distance(middle, z.forehead));
 }
 
-// How far (world units) the lamp's middle is from the gun: from its line from the hand to a little
-// past the muzzle.
-[[nodiscard]] float gunDistance(const Pose& lamp, const view::WeaponMount& m)
+// The gun's reach zone (round 21; the author's tuning notes: vr_flashlight_gun_zone_*): where a held torch's middle clips
+// it on the gun: a capsule round the gun's line from the hand to 3 cm past the muzzle, moved along the gun, up and out
+// (away from the body), `radius` world units across.
+struct GunZone
+{
+    glm::vec3 a, b;
+    float radius;
+};
+
+[[nodiscard]] GunZone gunZone(const view::WeaponMount& m)
+{
+    glm::vec3 fwd, right, up;
+    hands::angleVectors(m.rot, fwd, right, up);
+    const float m2u = units::metresToUnits();
+    const float out = m.mirrored ? -1.f : 1.f;
+    const glm::vec3 shift =
+        (fwd * vr_flashlight_gun_zone_forward.value + up * vr_flashlight_gun_zone_up.value + right * (out * vr_flashlight_gun_zone_out.value)) * m2u;
+    const glm::vec3 along = m.muzzle - m.pos;
+    const float len = glm::length(along);
+    GunZone z;
+    z.a = m.pos + shift;
+    z.b = m.muzzle + (len > 1e-3f ? along * (0.03f * m2u / len) : glm::vec3{0.f}) + shift;
+    z.radius = std::fmax(vr_flashlight_gun_zone_radius.value, 0.f) * m2u;
+    return z;
+}
+
+// How far (world units) the lamp's middle is from the gun's zone's line (inside the zone: under its radius).
+[[nodiscard]] float gunDistance(const Pose& lamp, const GunZone& z)
 {
     const glm::vec3 middle = modelPointAt(lamp, glm::vec3{0.f});
-    const glm::vec3 a = m.pos;
-    const glm::vec3 ab = m.muzzle - a;
+    const glm::vec3 ab = z.b - z.a;
     const float len2 = glm::dot(ab, ab);
-    const float tMax = 1.f + (len2 > 1e-4f ? 0.03f * units::metresToUnits() / std::sqrt(len2) : 0.f);
-    const float t = len2 > 1e-4f ? std::clamp(glm::dot(middle - a, ab) / len2, 0.f, tMax) : 0.f;
-    return glm::distance(middle, a + ab * t);
+    const float t = len2 > 1e-4f ? std::clamp(glm::dot(middle - z.a, ab) / len2, 0.f, 1.f) : 0.f;
+    return glm::distance(middle, z.a + ab * t);
 }
 
 // Intent (round 21). A fist clenched in a guard next to the stored lamp once switched it on and took it mid-fight (the
@@ -590,6 +664,25 @@ void noteIntent(const hands::State& s)
     const glm::vec3 ab = modelPointAt(st.pose, lensPoint) - a;
     const float t = std::clamp(glm::dot(s.pos[hand] - a, ab) / std::max(glm::dot(ab, ab), 1e-4f), 0.f, 1.f);
     return glm::distance(s.pos[hand], a + ab * t) < reach * units::metresToUnits();
+}
+
+// Whether a hand is at the head torch, to take it off: at the lamp, or its fist (where the torch's middle is when that
+// hand holds it) in the head's zone on the torch's side (vr_flashlight_head_zone_*: the zone that clips it on).
+[[nodiscard]] bool handAtHeadTorch(const hands::State& s, int hand)
+{
+    if(!st.placed || !s.valid || st.mode != Mode::OnHead)
+    {
+        return false;
+    }
+    const HeadZone z = headZone(s);
+    const glm::vec3 fist = modelPointAt(handPose(s, hand), glm::vec3{0.f});
+    return handNear(s, hand) || glm::distance(fist, z.temple[st.headSide > 0.f ? 1 : 0]) < z.radius;
+}
+
+// Whether a hand is at the lamp where it is (on the head: handAtHeadTorch).
+[[nodiscard]] bool handAt(const hands::State& s, int hand)
+{
+    return st.mode == Mode::OnHead ? handAtHeadTorch(s, hand) : handNear(s, hand);
 }
 
 // Whether a hand is at the other hand's weapon, to hold it with both: within gunReach of its line from 30 cm behind
@@ -994,6 +1087,123 @@ void drawCord(const Pose& mount, const Pose& lamp)
     }
 }
 
+// vr_show_flashlight_zones (round 21, the author's tuning notes): the reach zones drawn, green while in reach. A ball as
+// three rings, filled faintly; not round the eyes themselves (the head's, from your own view: rings a few centimetres
+// from the eye would be bands across it): those are seen in the body's preview (vr_body_debug 2, 3).
+void zoneBall(const glm::vec3& centre, float radius, const glm::vec3& x, const glm::vec3& y, const glm::vec3& z, const glm::vec3& eye,
+    const glm::vec4& color)
+{
+    if(glm::distance(eye, centre) < radius + 0.05f * units::metresToUnits())
+    {
+        return;
+    }
+    const float width = 0.003f * units::metresToUnits();
+    constexpr int segments = 32;
+    const glm::vec3 axes[3][2] = {{x, y}, {y, z}, {z, x}};
+    for(const auto& ab : axes)
+    {
+        glm::vec3 prev = centre + ab[0] * radius;
+        for(int i = 1; i <= segments; i++)
+        {
+            const float t = 6.2831853f * static_cast<float>(i) / segments;
+            const glm::vec3 p = centre + (ab[0] * std::cos(t) + ab[1] * std::sin(t)) * radius;
+            lines::line(prev, p, width, color, color);
+            prev = p;
+        }
+    }
+    lines::point(centre, 0.01f * units::metresToUnits(), color);
+    lines::point(centre, 2.f * radius, glm::vec4{glm::vec3{color}, 0.12f});
+}
+
+// A capsule: its line, rings round both ends and the middle, four lines along it, and its ends' half rings.
+void zoneCapsule(const glm::vec3& a, const glm::vec3& b, float radius, const glm::vec3& up, const glm::vec4& color)
+{
+    const float width = 0.003f * units::metresToUnits();
+    const glm::vec3 along = glm::length(b - a) > 1e-3f ? glm::normalize(b - a) : glm::vec3{1.f, 0.f, 0.f};
+    glm::vec3 u = up - along * glm::dot(up, along);
+    u = glm::length(u) > 1e-3f ? glm::normalize(u) : glm::normalize(glm::cross(along, glm::vec3{0.f, 0.f, 1.f}) + glm::vec3{1e-3f, 0.f, 0.f});
+    const glm::vec3 v = glm::cross(along, u);
+    constexpr int segments = 32;
+    const auto arc = [&](const glm::vec3& c, const glm::vec3& p, const glm::vec3& q, float from, float to) {
+        glm::vec3 prev = c + (p * std::cos(from) + q * std::sin(from)) * radius;
+        for(int i = 1; i <= segments; i++)
+        {
+            const float t = from + (to - from) * static_cast<float>(i) / segments;
+            const glm::vec3 pt = c + (p * std::cos(t) + q * std::sin(t)) * radius;
+            lines::line(prev, pt, width, color, color);
+            prev = pt;
+        }
+    };
+    constexpr float pi = 3.14159265f;
+    for(const glm::vec3& c : {a, 0.5f * (a + b), b})
+    {
+        arc(c, u, v, 0.f, 2.f * pi);
+    }
+    for(const glm::vec3& side : {u, v, -u, -v})
+    {
+        lines::line(a + side * radius, b + side * radius, width, color, color);
+    }
+    arc(b, u, along, -0.5f * pi, 0.5f * pi); // the far end's cap
+    arc(b, v, along, -0.5f * pi, 0.5f * pi);
+    arc(a, u, -along, -0.5f * pi, 0.5f * pi); // the near end's
+    arc(a, v, -along, -0.5f * pi, 0.5f * pi);
+    lines::line(a, b, width, color, color);
+}
+
+// The head's zones and the held torch's middle, placed by `to` (the world, or the body's preview) and seen from `eye`;
+// the guns' only in the world (the preview has no guns).
+void drawZones(const hands::State& s, const glm::mat4& to, const glm::vec3& eye, bool guns)
+{
+    const glm::vec4 idle{1.f, 0.85f, 0.2f, 0.9f}, inReach{0.2f, 1.f, 0.3f, 1.f};
+    const auto at = [&](const glm::vec3& p) { return glm::vec3{to * glm::vec4{p, 1.f}}; };
+    const glm::mat3 turn{to};
+
+    // The head's: the temples and the forehead (on the head: the temple on its side, where a hand takes it off).
+    glm::vec3 fwd, right, up;
+    hands::angleVectors(s.headAngles, fwd, right, up);
+    fwd = turn * fwd;
+    right = turn * right;
+    up = turn * up;
+    const HeadZone hz = headZone(s);
+    const bool handAtHead = st.mode == Mode::OnHead && (st.hovered[0] || st.hovered[1]);
+    for(int i = 0; i < 2; i++)
+    {
+        const float side = i == 0 ? -1.f : 1.f;
+        if(st.mode == Mode::OnHead && side != st.headSide)
+        {
+            continue;
+        }
+        const bool lit = (st.nearHead && st.nearHeadSide == side) || handAtHead;
+        zoneBall(at(hz.temple[i]), hz.radius, fwd, right, up, eye, lit ? inReach : idle);
+    }
+    if(st.mode != Mode::OnHead)
+    {
+        zoneBall(at(hz.forehead), hz.radius, fwd, right, up, eye, st.nearHead ? inReach : idle);
+    }
+
+    // The guns': round each gun in a hand, while the torch is off it (the one the held torch would clip on green).
+    for(int hand = 0; guns && hand < 2; hand++)
+    {
+        view::WeaponMount m;
+        if(st.mode == Mode::OnGun || !view::weaponMount(hand, m))
+        {
+            continue;
+        }
+        glm::vec3 gf, gr, gu;
+        hands::angleVectors(m.rot, gf, gr, gu);
+        const GunZone z = gunZone(m);
+        const bool lit = st.mode == Mode::Held && st.nearGun && hand == 1 - st.holder;
+        zoneCapsule(z.a, z.b, z.radius, gu, lit ? inReach : glm::vec4{1.f, 0.55f, 0.15f, 0.9f});
+    }
+
+    // The held torch's middle: what the zones measure (green in reach of one).
+    if(st.mode == Mode::Held)
+    {
+        lines::point(at(modelPointAt(st.pose, glm::vec3{0.f})), 0.015f * units::metresToUnits(),
+            st.nearGun || st.nearHead ? inReach : glm::vec4{1.f, 1.f, 1.f, 1.f});
+    }
+}
+
 void place(view::ViewEntity& ve, const Pose& p, bool hover)
 {
     entity_t& e = ve.ent;
@@ -1102,8 +1312,12 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
 
         // Held near the gun in the other hand: a tap, the lamp lit up; B/Y clips it on.
         view::WeaponMount other;
-        const bool inReach = key_dest == key_game && view::weaponMount(1 - st.holder, other) &&
-                          gunDistance(p, other) < gunReach * units::metresToUnits();
+        bool inReach = false;
+        if(key_dest == key_game && view::weaponMount(1 - st.holder, other))
+        {
+            const GunZone z = gunZone(other);
+            inReach = gunDistance(p, z) < z.radius;
+        }
         if(inReach && !st.nearGun)
         {
             haptic(st.holder, 0.015f, 0.25f);
@@ -1112,7 +1326,7 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
 
         // Held at the head (not by a gun): a tap, the lamp lit up; B/Y clips it on there.
         float side = -1.f;
-        const bool atHead = key_dest == key_game && !inReach && headDistance(s, p, side) < headReach * bodyUnits();
+        const bool atHead = key_dest == key_game && !inReach && headDistance(s, p, side) < headZone(s).radius;
         if(atHead && !st.nearHead)
         {
             haptic(st.holder, 0.015f, 0.25f);
@@ -1160,7 +1374,7 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
     bool hover = st.nearGun || st.nearHead;
     for(int hand = 0; hand < 2; hand++)
     {
-        const bool atLamp = st.mode != Mode::Held && hand != st.gunHand && key_dest == key_game && handNear(s, hand);
+        const bool atLamp = st.mode != Mode::Held && hand != st.gunHand && key_dest == key_game && handAt(s, hand);
         if(atLamp && !st.hovered[hand])
         {
             haptic(hand, 0.015f, 0.2f);
@@ -1168,6 +1382,8 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
         st.hovered[hand] = atLamp;
         hover = hover || atLamp;
     }
+
+    const glm::vec3 eyes = 0.5f * (s.eyeOrigin[0] + s.eyeOrigin[1]); // where the zones are seen from (the mock's camera too)
 
     // The body's preview (vr_body_debug 2 and 3: in front of the player, turned) carries it too.
     Pose drawn = p;
@@ -1182,8 +1398,18 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
             q->pos = centre + turn * (q->pos - root);
             q->rot = turn * q->rot;
         }
+        if(vr_show_flashlight_zones.value)
+        {
+            // The head's zones round the preview's head too (from your own view they are round your eyes).
+            const glm::mat4 preview = glm::translate(glm::mat4{1.f}, centre) * glm::mat4_cast(turn) * glm::translate(glm::mat4{1.f}, -root);
+            drawZones(s, preview, eyes, false);
+        }
     }
     place(ve, drawn, hover);
+    if(vr_show_flashlight_zones.value)
+    {
+        drawZones(s, glm::mat4{1.f}, eyes, true);
+    }
     if(st.mode != Mode::Mounted && st.mode != Mode::OnHead && vr_flashlight_cord.value != 0.f) // (on the head, the cord runs behind the neck)
     {
         drawCord(drawnMount, drawn);
@@ -1343,7 +1569,7 @@ bool button(int hand, Button b, bool pressed)
 
     const hands::State& s = hands::current();
     const bool holding = st.mode == Mode::Held && st.holder == hand;
-    bool atLamp = st.mode != Mode::Held && hand != st.gunHand && handNear(s, hand);
+    bool atLamp = st.mode != Mode::Held && hand != st.gunHand && handAt(s, hand);
     if(atLamp && (st.mode == Mode::Mounted || st.mode == Mode::Returning) && gameGripWins(s, hand))
     {
         atLamp = false; // a two-handed grip, a draw from the holster next to it
@@ -1486,9 +1712,30 @@ bool heldPlace(const hands::State& s, int hand, glm::vec3& origin, glm::vec3& an
     return true;
 }
 
+bool fingers(int hand, Fingers& out)
+{
+    if(!holds(hand))
+    {
+        return false;
+    }
+    // The grip the grasp is solved for (heldPlace: while it spins over, the one it had) sets the fingers; the tweaks and
+    // the thumb's place go from one grip's to the other's as it turns, as the curls ease (vr_finger_blending_speed).
+    const bool spinning = realtime - st.flipAt[hand] < flipTime;
+    const bool overhead = spinning ? !st.overhead[hand] : st.overhead[hand];
+    out = gripFingers(overhead);
+    const float turned = turnedAt(hand, realtime);
+    const Fingers lo = gripFingers(false), hi = gripFingers(true);
+    for(int f = 0; f < 5; f++)
+    {
+        out.bias[f] = glm::mix(lo.bias[f], hi.bias[f], turned);
+    }
+    out.thumb = glm::mix(lo.thumb, hi.thumb, turned);
+    return true;
+}
+
 bool wantsSecondary(int hand)
 {
-    return holds(hand) || (enabled() && st.mode == Mode::OnHead && st.placed && handNear(hands::current(), hand));
+    return holds(hand) || (enabled() && handAtHeadTorch(hands::current(), hand));
 }
 
 
