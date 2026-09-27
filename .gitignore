@@ -34,3 +34,4 @@ build/
 __pycache__/
 /quakevr/autosave/
 /quakevr/relit/
+/build.log
