@@ -51,32 +51,35 @@ enum Joint : int
     ThighR,
     CalfR,
     FootR,
-    // The forearms' twist and the wrists' bend, spread (make_vrbody.py): three joints along each forearm, turning
+    // The forearms' twist and the wrists' bend, spread (make_vrbody.py): four joints along each forearm, turning
     // with a growing share of the hand's roll, and one at the wrist with all of it and half of the wrist's bend.
     ForeTwist1L,
     ForeTwist2L,
     ForeTwist3L,
+    ForeTwist4L,
     WristL,
     ForeTwist1R,
     ForeTwist2R,
     ForeTwist3R,
+    ForeTwist4R,
     WristR,
     JointCount
 };
 
-// The twist joints' places along the forearm, from the elbow (make_vrbody.py's TWISTS).
-constexpr float twistPlaces[3] = {0.25f, 0.5f, 0.75f};
+// The twist joints' places along the forearm, from the elbow (make_vrbody.py's TWISTS: at its rings).
+constexpr int twistJoints = 4;
+constexpr float twistPlaces[twistJoints] = {0.05f / 0.26f, 0.12f / 0.26f, 0.19f / 0.26f, 0.225f / 0.26f};
 
 constexpr const char* jointNames[JointCount] = {"pelvis", "spine", "chest", "neck", "head", "clavicle_l",
     "upperarm_l", "forearm_l", "hand_l", "clavicle_r", "upperarm_r", "forearm_r", "hand_r", "thigh_l", "calf_l",
-    "foot_l", "thigh_r", "calf_r", "foot_r", "foretwist1_l", "foretwist2_l", "foretwist3_l", "wrist_l", "foretwist1_r",
-    "foretwist2_r", "foretwist3_r", "wrist_r"};
+    "foot_l", "thigh_r", "calf_r", "foot_r", "foretwist1_l", "foretwist2_l", "foretwist3_l", "foretwist4_l", "wrist_l",
+    "foretwist1_r", "foretwist2_r", "foretwist3_r", "foretwist4_r", "wrist_r"};
 
 constexpr int parentOf[JointCount] = {-1, Pelvis, Spine, Chest, Neck, Chest, ClavicleL, UpperArmL, ForearmL, Chest,
     ClavicleR, UpperArmR, ForearmR, Pelvis, ThighL, CalfL, Pelvis, ThighR, CalfR, ForearmL, ForearmL, ForearmL,
-    ForearmL, ForearmR, ForearmR, ForearmR, ForearmR};
+    ForearmL, ForearmL, ForearmR, ForearmR, ForearmR, ForearmR, ForearmR};
 
-// The first of a side's four forearm helper joints (ForeTwist1, 2, 3, Wrist).
+// The first of a side's forearm helper joints (ForeTwist1 .. 4, then Wrist).
 [[nodiscard]] constexpr int foreHelpers(int side)
 {
     return side == 0 ? ForeTwist1L : ForeTwist1R;
@@ -154,10 +157,10 @@ const Bind& bind()
             r.rot[clav + 1] = basis(r.pos[clav + 2] - r.pos[clav + 1], BACK);
             r.rot[clav + 2] = basis(r.pos[clav + 3] - r.pos[clav + 2], BACK);
             r.rot[clav + 3] = basis(r.pos[clav + 3] - r.pos[clav + 2], BACK);
-            for(int k = 0; k < 4; k++)
+            for(int k = 0; k <= twistJoints; k++)
             {
                 const int j = foreHelpers(side) + k;
-                r.pos[j] = k < 3 ? glm::mix(r.pos[clav + 2], r.pos[clav + 3], twistPlaces[k]) : r.pos[clav + 3];
+                r.pos[j] = glm::mix(r.pos[clav + 2], r.pos[clav + 3], k < twistJoints ? twistPlaces[k] : 1.f);
                 r.rot[j] = r.rot[clav + 2];
             }
 
@@ -440,7 +443,7 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     f.stretch = stretch * length;
 
     const float share = CLAMP(0.f, vr_body_forearm_twist.value, 1.f);
-    for(int k = 0; k < 3; k++)
+    for(int k = 0; k < twistJoints; k++)
     {
         const float at = twistPlaces[k];
         const float s = at <= 0.5f ? share * at / 0.5f : share + (1.f - share) * (at - 0.5f) / 0.5f;
@@ -457,7 +460,7 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     const float bendAngle = 2.f * std::acos(CLAMP(-1.f, std::abs(wristSwing.w), 1.f));
     const glm::quat halfWristSwing =
         glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, wristSwing.w < 0.f ? -wristSwing : wristSwing, 0.5f);
-    Bone& w = b.bones[foreHelpers(side) + 3];
+    Bone& w = b.bones[foreHelpers(side) + twistJoints];
     w = Bone{};
     w.pos = elbow + foreDir * l;
     w.rot = glm::mat3_cast(halfWristSwing * roll) * untwisted;

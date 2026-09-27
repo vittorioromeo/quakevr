@@ -20,9 +20,9 @@
 #   bend forward), back for the arms (elbows bend back), up for the clavicles and feet.
 # - The engine finds bones by name.
 # - The forearm's twist and the wrist's bend are spread over helper joints (after the legs, children of the
-#   forearm, turned as it is in the bind pose): foretwist1..3_<side> on the forearm's axis a quarter, half and
-#   three quarters of the way to the wrist, turning with the hand's roll by their share of it (the engine:
-#   vr_body_forearm_twist), and wrist_<side> at the wrist, with all of the roll and half of the wrist's bend,
+#   forearm, turned as it is in the bind pose): foretwist1..4_<side> on the forearm's axis at its rings (TWISTS),
+#   turning with the hand's roll by a share growing along it (the engine: vr_body_forearm_twist), and
+#   wrist_<side> at the wrist, with all of the roll and half of the wrist's bend,
 #   stretched across the bend (a mitre), so that neither a turned nor a bent wrist thins. forearm_<side> itself
 #   does not roll; hand_<side> carries only the bracer's lip over the base of the hand.
 
@@ -117,7 +117,9 @@ for side, sy in (("l", 1.0), ("r", -1.0)):
     joint("thigh_" + side, "pelvis", (0.0, 0.09 * sy, 0.92))
     joint("calf_" + side, "thigh_" + side, (0.0, 0.09 * sy, 0.50))
     joint("foot_" + side, "calf_" + side, (-0.02, 0.09 * sy, 0.08))
-TWISTS = (0.25, 0.5, 0.75)  # the foretwist joints' places along the forearm (vr_avatar.cpp's bind() the same)
+# The foretwist joints' places along the forearm (0 the elbow, 1 the wrist): at its rings (build_mesh), so that each ring
+# turns rigidly with one; vr_avatar.cpp's twistPlaces the same.
+TWISTS = (0.05 / 0.26, 0.12 / 0.26, 0.19 / 0.26, 0.225 / 0.26)
 for side in ("l", "r"):
     elbow = joints[index["forearm_" + side]][2]
     wrist = joints[index["hand_" + side]][2]
@@ -274,6 +276,10 @@ def refine(rings, per, vpos=None):
     return out, vs
 
 
+def lerp(a, b, t):
+    return a + (b - a) * t
+
+
 def w(*pairs):
     return [(index[n], b) for n, b in pairs]
 
@@ -365,24 +371,33 @@ def build_mesh(m):
             (elbow, ua, va, 0.046 * m, 0.046 * m, w((ua_, 0.5), (fo_, 0.5))),
             (add(elbow, mul(fd, 0.05)), fa, fv, 0.052 * fm, 0.050 * fm, fore_w(side, 0.05 / fl)),
             (add(elbow, mul(fd, 0.12)), fa, fv, 0.046 * fm, 0.040 * fm, fore_w(side, 0.12 / fl)),
-            (add(elbow, mul(fd, 0.19)), fa, fv, 0.037 * wm, 0.029 * wm, fore_w(side, 0.19 / fl)),
-            (wrist, fa, fv, 0.031 * wm, 0.022 * wm, w((wr_, 1.0))),
-        ], "skin", sides=12, per=[2, 1, 1, 1, 2, 2, 1, 1, 1])
+            # Ends inside the bracer (which covers it from 0.13 m on, closed at both ends), 2 cm into it: a skin
+            # under it could only come out through it where the two bend differently. Its texture as before (the
+            # rings given 1/9 apart, the wrist at 1).
+            (add(elbow, mul(fd, 0.15)), fa, fv, lerp(0.046 * fm, 0.037 * wm, 3 / 7),
+             lerp(0.040 * fm, 0.029 * wm, 3 / 7), fore_w(side, 0.15 / fl)),
+        ], "skin", sides=12, per=[2, 1, 1, 1, 2, 2, 1, 1], vpos=[i / 9 for i in range(8)] + [(7 + 3 / 7) / 9])
         # A leather bracer over the forearm's lower half (its straps show how the forearm turns),
-        # ending at the wrist in a flared lip over the base of the hand (make_hand_rig.py's hand:
-        # the arm meets it at its wrist, whose section fits inside the wrist's ring with a few
-        # millimetres to spare; the lip, turning with the hand, holds the base of the palm as it
-        # widens). Its texture runs along it by length: the straps behind the wrist, the rim at
-        # the end.
+        # ending at the wrist in a flared lip over the base of the hand. The arm meets make_hand_rig.py's
+        # hand at its wrist: the wrist's ring holds the hand's wrist with a few millimetres to spare,
+        # and the lip, turning with the hand, the base of the palm as it widens. Near the wrist the
+        # rings are at least an athletic build's (the hand is the same for every build), a little
+        # fuller through the forearm than the wrist itself, where the hand's end inside the arm swings
+        # out as the wrist bends. Each ring but the lip turns with one joint (fore_w: the twist
+        # joints are at these rings; the wrist joint), so that none thins as the forearm turns. Its
+        # texture runs along it by length: the straps behind the wrist, the rim at the end.
         lip = 0.007
-        lip_u, lip_v = max(0.036 * wm + 0.0025, 0.0385), max(0.027 * wm + 0.0025, 0.0295)
-        brac = [0.13, 0.19, fl, fl + lip]
+        ring_u, ring_v = max(0.036 * wm, 0.037), max(0.027 * wm, 0.0295)
+        brac = [0.13, 0.19, 0.225, fl, fl + lip]
         loft([
             (add(elbow, mul(fd, 0.13)), fa, fv, 0.049 * fm, 0.043 * fm, fore_w(side, 0.13 / fl)),
-            (add(elbow, mul(fd, 0.19)), fa, fv, 0.041 * wm, 0.033 * wm, fore_w(side, 0.19 / fl)),
-            (wrist, fa, fv, 0.036 * wm, 0.027 * wm, w((wr_, 1.0))),
-            (add(wrist, mul(fd, lip)), fa, fv, lip_u, lip_v, w((ha_, 1.0))),
-        ], "bracer", sides=12, per=[1, 2, 1], vpos=[(b - brac[0]) / (brac[-1] - brac[0]) for b in brac])
+            (add(elbow, mul(fd, 0.19)), fa, fv, max(0.041 * wm, 0.040), max(0.033 * wm, 0.0335),
+             fore_w(side, 0.19 / fl)),
+            (add(elbow, mul(fd, 0.225)), fa, fv, max(0.0385 * wm, 0.039), max(0.030 * wm, 0.0325),
+             fore_w(side, 0.225 / fl)),
+            (wrist, fa, fv, ring_u, ring_v, w((wr_, 1.0))),
+            (add(wrist, mul(fd, lip)), fa, fv, ring_u + 0.0025, ring_v + 0.0025, w((ha_, 1.0))),
+        ], "bracer", sides=12, vpos=[(b - brac[0]) / (brac[-1] - brac[0]) for b in brac])
 
         hip = joints[index["thigh_" + side]][2]
         knee = joints[index["calf_" + side]][2]
