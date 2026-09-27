@@ -188,6 +188,13 @@ constexpr float sinkDensity = 0.5f;
     return CLAMP(0.f, ((under + above) * 0.5f - lo) / std::max(hi - lo, 0.01f), 1.f);
 }
 
+// Weapons (thrown, dropped, or a map's weapon pickup) and keys: hard, detailed shapes.
+[[nodiscard]] bool isWeaponLike(edict_t* ent)
+{
+    const char* name = PR_GetString(ent->v.classname);
+    return !strcmp(name, "thrown_weapon") || !strncmp(name, "weapon_", 7) || !strncmp(name, "item_key", 8);
+}
+
 // Densities (kg/m^3) of the props' hulls: only their ratios matter (what knocks what how far).
 [[nodiscard]] float densityOf(edict_t* ent, const qmodel_t* model)
 {
@@ -195,9 +202,9 @@ constexpr float sinkDensity = 0.5f;
     {
         return 400.f; // ammo and health boxes: full of shells, nails, cells, medkits
     }
-    if(!strcmp(PR_GetString(ent->v.classname), "thrown_weapon"))
+    if(isWeaponLike(ent))
     {
-        return 700.f; // guns and blades (their hulls are partly air)
+        return 700.f; // guns and blades (their hulls are partly air), keys
     }
     if(hasFlag(ent, FL_ITEM))
     {
@@ -210,7 +217,7 @@ constexpr float sinkDensity = 0.5f;
 // rigid hull of a backpack lands on an edge and tumbles down a gentle slope like a crate).
 [[nodiscard]] bool isSoft(edict_t* ent, const qmodel_t* model)
 {
-    return model->type == mod_alias && strcmp(PR_GetString(ent->v.classname), "thrown_weapon") && !strstr(model->name, "armor");
+    return model->type == mod_alias && !isWeaponLike(ent) && !strstr(model->name, "armor");
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -236,6 +243,7 @@ struct Slot // what one edict is in the world (by its number)
     bool bullet{false};   // fast: continuous collision against other props too
     bool soft{false};     // isSoft
     bool brush{false};    // angles as a brush model's
+    bool spins{false};    // a fixture drawn spinning (an EF_ROTATE model: the map's pickups): its shape turns with it
     const b3HullData* hull{nullptr}; // actors: the hull at rest (actorHull), nullptr for Quake's box
 };
 
@@ -743,6 +751,44 @@ void solidLeaves(const hull_t& hull, int num, std::vector<HalfSpace>& path, floa
     return world->moverHulls.emplace(model, std::move(hulls)).first->second;
 }
 
+// How far the drawn corners reach out of a hull made of some of them (the most any is beyond one of its faces).
+[[nodiscard]] float hullShortfall(const b3HullData* hull, const std::vector<b3Vec3>& points)
+{
+    const b3Plane* planes = b3GetHullPlanes(hull);
+    float most = 0.f;
+    for(const b3Vec3& p : points)
+    {
+        float out = -1e9f;
+        for(int i = 0; i < hull->faceCount; i++)
+        {
+            out = std::max(out, b3Dot(planes[i].normal, p) - planes[i].offset);
+        }
+        most = std::max(most, out);
+    }
+    return most;
+}
+
+// A hull of the drawn corners (metres) with at least `budget` vertices, more as needed to leave none of them further
+// out than hullTolerance units (Box3D's limit is 128).
+constexpr float hullTolerance = 0.2f;
+[[nodiscard]] b3HullData* fittedHull(const std::vector<b3Vec3>& points, int budget)
+{
+    b3HullData* hull = b3CreateHull(points.data(), static_cast<int>(points.size()), budget);
+    while(hull && budget < B3_MAX_HULL_VERTICES && hull->vertexCount >= budget &&
+          hullShortfall(hull, points) * world->m2u > hullTolerance)
+    {
+        budget = std::min(budget * 3 / 2, B3_MAX_HULL_VERTICES);
+        b3HullData* more = b3CreateHull(points.data(), static_cast<int>(points.size()), budget);
+        if(!more)
+        {
+            break;
+        }
+        b3DestroyHull(hull);
+        hull = more;
+    }
+    return hull;
+}
+
 // The prop's hull: the convex hull of its drawn surface (an alias model's frame, a brush model's faces: the ammo and
 // health boxes as drawn, not Quake's padded box), or none (nullptr: its box).
 [[nodiscard]] b3HullData* propHull(edict_t* ent, qmodel_t* model, const glm::vec3& lo, const glm::vec3& hi)
@@ -764,9 +810,11 @@ void solidLeaves(const hull_t& hull, int num, std::vector<HalfSpace>& path, floa
             points.push_back(world->toM(v));
         }
         // A weapon's shape in detail (it rests on its side, its grip, its magazine); the rest a little blockier
-        // (a backpack, a gib: a rounded hull rolls down a slope, a real one's give stops it).
-        const bool weapon = !strcmp(PR_GetString(ent->v.classname), "thrown_weapon");
-        hull = b3CreateHull(points.data(), static_cast<int>(points.size()), weapon ? 32 : 16);
+        // (a backpack, a gib: a rounded hull rolls down a slope, a real one's give stops it). But never short of
+        // the drawn surface by more than hullTolerance: the hull is a subset of the drawn corners (Box3D's quickhull
+        // stops at the budget), and a corner left out is drawn inside what the body rests on (a corpse's 16-corner
+        // hull left its drawn back 1.3 units in the floor). The budget grows until every drawn corner is within it.
+        hull = fittedHull(points, isWeaponLike(ent) ? 32 : 16);
         // A flat model's hull is thinner than Box3D can collide well: its box instead.
         if(hull && hull->innerRadius * world->m2u < 0.25f)
         {
@@ -880,10 +928,13 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
         return model->type == mod_alias || model->type == mod_brush ? Kind::Prop : Kind::None;
     }
     const int solid = static_cast<int>(ent->v.solid);
-    if(!rigid && solid == SOLID_TRIGGER && hasFlag(ent, FL_ITEM) && movetype != MOVETYPE_NOCLIP &&
+    // A pickup hanging in the air or on a rack, not a rigid body until a hand knocks it loose: the map's pickups
+    // (triggers), and those that become objects once taken (armour, weapons, keys: touchable, still).
+    if(!rigid && hasFlag(ent, FL_ITEM) && movetype != MOVETYPE_NOCLIP &&
+        (solid == SOLID_TRIGGER || (solid == SOLID_NOT_BUT_TOUCHABLE && movetype == MOVETYPE_NONE)) &&
         (model->type == mod_alias || model->type == mod_brush))
     {
-        return Kind::Fixture; // a pickup hanging in the air or on a rack (not a rigid body until a hand knocks it loose)
+        return Kind::Fixture;
     }
     if(num <= svs.maxclients)
     {
@@ -921,7 +972,18 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
     case Kind::Prop:
     case Kind::Held:
     case Kind::Fixture:
-        return s.model != modelOf(ent) || s.frame != static_cast<int>(ent->v.frame) || s.scale != scaleFields(ent);
+    {
+        if(s.model != modelOf(ent) || s.frame != static_cast<int>(ent->v.frame) || s.scale != scaleFields(ent))
+        {
+            return true;
+        }
+        // The drawn box: a weapon's is also its settings' (weapons::modelTransform: the world scale, the gun model
+        // scale, each weapon's own), which can change while it lies there.
+        glm::vec3 lo, hi;
+        localBox(ent, modelOf(ent), lo, hi);
+        return glm::any(glm::greaterThan(glm::abs(lo - s.mins), glm::vec3{0.01f})) ||
+               glm::any(glm::greaterThan(glm::abs(hi - s.maxs), glm::vec3{0.01f}));
+    }
     case Kind::Mover: return s.model != modelOf(ent);
     case Kind::Actor: return s.model != modelOf(ent) || s.mins != vec(ent->v.mins) || s.maxs != vec(ent->v.maxs);
     case Kind::Player: return s.radius != playerRadius() || s.mins != vec(ent->v.mins) || s.maxs != vec(ent->v.maxs);
@@ -930,6 +992,13 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
 }
 
 void writeProp(edict_t* ent, Slot& s);
+
+// The yaw a spinning pickup is drawn at (cl_main.c's bobjrotate for EF_ROTATE models: 100 degrees a second), by the
+// server's clock (the client's trails it by at most a frame).
+[[nodiscard]] float spinYaw()
+{
+    return anglemod(static_cast<float>(100.0 * sv.qcvm.time));
+}
 
 // A body's turn: an actor's hull turns with its yaw (Quake's box and the players' capsules don't turn), the rest
 // with their angles.
@@ -944,7 +1013,81 @@ void writeProp(edict_t* ent, Slot& s);
         const float yaw[3] = {0.f, ent->v.angles[1], 0.f};
         return toB3(turnOf(yaw, s.brush));
     }
+    if(s.kind == Kind::Fixture && s.spins)
+    {
+        const float angles[3] = {ent->v.angles[0], spinYaw(), ent->v.angles[2]};
+        return toB3(turnOf(angles, s.brush));
+    }
     return toB3(turnOf(ent->v.angles, s.brush));
+}
+
+// How far the prop's shapes (their corners, where its body is) are sunk into a floor: the deepest of its lower half's
+// corners inside a solid, measured to the upward-facing surface above it, if that surface is below the prop's middle
+// (not a table top it lies under). 0 if none is.
+[[nodiscard]] float floorDepth(edict_t* ent, b3BodyId body)
+{
+    const b3WorldTransform xf = b3Body_GetTransform(body);
+    b3ShapeId shapes[4];
+    const int n = b3Body_GetShapes(body, shapes, 4);
+    thread_local std::vector<glm::vec3> corners;
+    corners.clear();
+    float lo = 1e9f, hi = -1e9f;
+    for(int i = 0; i < n; i++)
+    {
+        const b3HullData* hull = b3Shape_GetType(shapes[i]) == b3_hullShape ? b3Shape_GetHull(shapes[i]) : nullptr;
+        const b3Vec3* points = hull ? b3GetHullPoints(hull) : nullptr;
+        for(int k = 0; points && k < hull->vertexCount; k++)
+        {
+            const glm::vec3 p = world->toU(b3Add(b3RotateVector(xf.q, points[k]), xf.p));
+            corners.push_back(p);
+            lo = std::min(lo, p.z);
+            hi = std::max(hi, p.z);
+        }
+    }
+    const float middle = (lo + hi) * 0.5f;
+    float depth = 0.f;
+    for(const glm::vec3& c : corners)
+    {
+        if(c.z > middle)
+        {
+            continue;
+        }
+        vec3_t at{c.x, c.y, c.z};
+        if(!SV_Move(at, vec3_origin, vec3_origin, at, MOVE_NOMONSTERS, ent).startsolid)
+        {
+            continue;
+        }
+        vec3_t from{c.x, c.y, middle};
+        const trace_t tr = SV_Move(from, vec3_origin, vec3_origin, at, MOVE_NOMONSTERS, ent);
+        if(!tr.startsolid && tr.fraction < 1.f && tr.plane.normal[2] > 0.7f)
+        {
+            depth = std::max(depth, tr.endpos[2] - c.z);
+        }
+    }
+    return depth;
+}
+
+// A prop found sunk into a floor (made there: a weapon dropped where an ammo box stands on the floor, a map's item
+// placed low; or come to rest in it) is lifted out, straight up, by how deep it is and a little more: Box3D's contacts
+// against the world's one-sided triangles push a body out only while its corners are shallow, and a body made deep
+// in a floor stays there. Returns the lift.
+float liftOutOfFloor(edict_t* ent, Slot& s, const char* when)
+{
+    const float depth = floorDepth(ent, s.body);
+    if(depth < 0.05f)
+    {
+        return 0.f;
+    }
+    const float lift = std::min(depth + 0.05f, 64.f);
+    b3WorldTransform xf = b3Body_GetTransform(s.body);
+    xf.p.z += lift / world->m2u;
+    b3Body_SetTransform(s.body, xf.p, xf.q);
+    ent->v.origin[2] += lift;
+    s.origin.z += lift;
+    SV_LinkEdict(ent, false);
+    Con_DPrintf("box3d: %d %s %s %.2f units into the floor: lifted\n", NUM_FOR_EDICT(ent), PR_GetString(ent->v.classname), when,
+        depth);
+    return lift;
 }
 
 void createBody(edict_t* ent, int num, Slot& s, Kind kind)
@@ -956,6 +1099,7 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind)
     s.frame = static_cast<int>(ent->v.frame);
     s.scale = scaleFields(ent);
     s.brush = model && model->type == mod_brush;
+    s.spins = kind == Kind::Fixture && model && (model->flags & EF_ROTATE);
     s.soft = model && isSoft(ent, model);
     s.origin = vec(ent->v.origin);
     s.angles = vec(ent->v.angles);
@@ -1046,6 +1190,8 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind)
 
     if(kind == Kind::Prop)
     {
+        (void)liftOutOfFloor(ent, s, "made");
+
         // Asleep in water deeper than it floats (a map's item under water, a saved game's): it rises (as the old
         // solver's asleep bodies are "lifted").
         if(def.isAwake == false && sv_gravity.value > 0.f)
@@ -1078,7 +1224,7 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind)
 void follow(edict_t* ent, Slot& s, float dt)
 {
     const glm::vec3 origin = vec(ent->v.origin), angles = vec(ent->v.angles);
-    const bool moved = origin != s.origin || angles != s.angles;
+    const bool moved = origin != s.origin || angles != s.angles || s.spins;
     if(!moved && !b3Body_IsAwake(s.body))
     {
         return;
@@ -1395,7 +1541,12 @@ void writeProp(edict_t* ent, Slot& s)
         b3Body_SetAwake(s.body, false);
         Con_DPrintf("box3d: %d %s fell out of the world, stopped\n", NUM_FOR_EDICT(ent), PR_GetString(ent->v.classname));
     }
-    const bool asleep = !b3Body_IsAwake(s.body);
+    bool asleep = !b3Body_IsAwake(s.body);
+    // Just come to rest: not in a floor (a safety net; Box3D's contacts keep a landing body out of it).
+    if(asleep && !s.asleep && liftOutOfFloor(ent, s, "come to rest") > 0.f)
+    {
+        asleep = !b3Body_IsAwake(s.body);
+    }
     const b3WorldTransform xf = b3Body_GetTransform(s.body);
     const glm::vec3 origin = world->toU(xf.p);
     glm::vec3 velocity{0.f}, spin{0.f};
@@ -1857,7 +2008,147 @@ void list_f()
         Con_Printf("  %d %s %.1f %.1f %.1f angles %.0f %.0f %.0f vel %.0f %s (%s)%s\n", num, PR_GetString(e->v.classname), e->v.origin[0],
             e->v.origin[1], e->v.origin[2], e->v.angles[0], e->v.angles[1], e->v.angles[2], VectorLength(e->v.velocity),
             hasFlag(e, FL_ONGROUND) ? "asleep" : "awake", body, e->v.takedamage ? va(" health %.0f", e->v.health) : "");
+        if(vr_debug_box3d.value)
+        {
+            Con_Printf("    movetype %d, solid %d, rigid %d, flags %d\n", static_cast<int>(e->v.movetype), static_cast<int>(e->v.solid),
+                isRigid(e) ? 1 : 0, static_cast<int>(e->v.flags));
+        }
     }
+}
+
+// vr_physics_spawn <classname> [<distance> [<left>]]: a map entity made by its spawn function (a key, a weapon, the
+// biosuit, a powerup...) on the floor `distance` units (48) ahead of the first player and `left` units to the left, as
+// the map would place it there. For tests.
+void spawn_f()
+{
+    if(!sv.active || Cmd_Argc() < 2 || svs.maxclients < 1)
+    {
+        Con_Printf("usage: vr_physics_spawn <classname> [<distance> [<left>]]\n");
+        return;
+    }
+    const VmScope vm;
+    const func_t fn = qvr::progs::findFunction(Cmd_Argv(1));
+    if(!fn)
+    {
+        Con_Printf("vr_physics_spawn: no spawn function %s\n", Cmd_Argv(1));
+        return;
+    }
+    edict_t* player = EDICT_NUM(1);
+    vec3_t yaw{0.f, player->v.angles[1], 0.f};
+    vec3_t forward, right, up;
+    AngleVectors(yaw, forward, right, up);
+    const float distance = Cmd_Argc() > 2 ? static_cast<float>(Q_atof(Cmd_Argv(2))) : 48.f;
+    const float left = Cmd_Argc() > 3 ? static_cast<float>(Q_atof(Cmd_Argv(3))) : 0.f;
+    edict_t* e = ED_Alloc();
+    for(int i = 0; i < 3; i++)
+    {
+        e->v.origin[i] = player->v.origin[i] + forward[i] * distance - right[i] * left;
+    }
+    char* name = nullptr;
+    const int s = PR_AllocString(static_cast<int>(strlen(Cmd_Argv(1))) + 1, &name);
+    strcpy(name, Cmd_Argv(1));
+    e->v.classname = s;
+    pr_global_struct->time = qcvm->time;
+    pr_global_struct->self = EDICT_TO_PROG(e);
+    PR_ExecuteProgram(fn);
+    if(!e->free)
+    {
+        SV_LinkEdict(e, false);
+        Con_Printf("vr_physics_spawn: %d %s at %.0f %.0f %.0f\n", NUM_FOR_EDICT(e), Cmd_Argv(1), e->v.origin[0], e->v.origin[1], e->v.origin[2]);
+    }
+}
+
+// vr_physics_sink [<number | classname | props>]: how far each one's drawn model is inside the floor under it: its
+// drawn surface's lowest corners (held::drawnVertices, where the entity is) against the floor straight below them (a
+// point trace down from 24 units above), and the Box3D shape's lowest point (its hull's corners where the body is). A
+// positive "sunk" is into the floor, negative above it; "hull" is how far the collision shape's bottom is below (-) or
+// above (+) the drawn model's. The summary's average and most are of those within 4 units of the floor (lying on it,
+// not on a box).
+void sink_f()
+{
+    if(!sv.active)
+    {
+        return;
+    }
+    const VmScope vm;
+    const std::vector<edict_t*> list = entitiesNamed(Cmd_Argc() > 1 ? Cmd_Argv(1) : "props");
+    thread_local std::vector<glm::vec3> vertices;
+    float worst = 0.f, total = 0.f;
+    int counted = 0;
+    for(edict_t* e : list)
+    {
+        qmodel_t* model = modelOf(e);
+        if(!model || !held::drawnVertices(e, vertices) || vertices.empty())
+        {
+            continue;
+        }
+        const int num = NUM_FOR_EDICT(e);
+        const glm::mat3 axes = held::axesFromAngles(e->v.angles, model->type == mod_brush);
+        const glm::vec3 origin = vec(e->v.origin);
+        float low = 1e9f;
+        for(glm::vec3& v : vertices)
+        {
+            v = origin + axes * v;
+            low = std::min(low, v.z);
+        }
+        // The floor under the lowest corners (those within 2 units of the lowest: a gun on its side rests on several).
+        float sunk = -1e9f;
+        int traced = 0;
+        for(const glm::vec3& v : vertices)
+        {
+            if(v.z > low + 2.f || traced >= 64)
+            {
+                continue;
+            }
+            traced++;
+            // In a solid: how far under the surface above it (the floor it is sunk into); else how far above the
+            // floor under it (negative).
+            vec3_t at{v.x, v.y, v.z};
+            const bool inside = SV_Move(at, vec3_origin, vec3_origin, at, MOVE_NOMONSTERS, e).startsolid;
+            vec3_t start{v.x, v.y, v.z + (inside ? 24.f : 0.01f)}, end{v.x, v.y, inside ? v.z : v.z - 24.f};
+            const trace_t tr = SV_Move(start, vec3_origin, vec3_origin, end, MOVE_NOMONSTERS, e);
+            if(tr.fraction < 1.f && !tr.startsolid && tr.plane.normal[2] > 0.7f)
+            {
+                sunk = std::max(sunk, tr.endpos[2] - v.z);
+            }
+        }
+        float hullLow = 1e9f;
+        if(world && vr_physics_engine.value == 1 && num < static_cast<int>(world->slots.size()) &&
+            B3_IS_NON_NULL(world->slots[num].body) && b3Body_IsValid(world->slots[num].body))
+        {
+            const b3BodyId body = world->slots[num].body;
+            const b3WorldTransform xf = b3Body_GetTransform(body);
+            b3ShapeId shapes[8];
+            const int n = b3Body_GetShapes(body, shapes, 8);
+            for(int i = 0; i < n; i++)
+            {
+                const b3HullData* hull = b3Shape_GetType(shapes[i]) == b3_hullShape ? b3Shape_GetHull(shapes[i]) : nullptr;
+                const b3Vec3* points = hull ? b3GetHullPoints(hull) : nullptr;
+                for(int k = 0; points && k < hull->vertexCount; k++)
+                {
+                    const b3Vec3 p = b3RotateVector(xf.q, points[k]);
+                    hullLow = std::min(hullLow, (p.z + xf.p.z) * world->m2u);
+                }
+            }
+        }
+        const bool onFloor = sunk > -1e8f;
+        const char* kind = world && num < static_cast<int>(world->slots.size()) ? kindName(world->slots[num].kind) : "-";
+        Con_Printf("  %d %s z %.2f drawn low %.2f", num, PR_GetString(e->v.classname), e->v.origin[2], low);
+        Con_Printf(onFloor ? " sunk %.2f" : " (no floor)", sunk);
+        if(hullLow < 1e8f)
+        {
+            Con_Printf(" hull %+.2f", hullLow - low);
+        }
+        Con_Printf(" %s (%s)\n", hasFlag(e, FL_ONGROUND) ? "asleep" : "awake", kind);
+        if(onFloor && sunk > -4.f)
+        {
+            worst = std::max(worst, sunk);
+            total += sunk;
+            counted++;
+        }
+    }
+    Con_Printf("vr_physics_sink: %d on a floor, sunk %.2f on average, %.2f at most\n", counted,
+        counted ? total / static_cast<float>(counted) : 0.f, worst);
 }
 
 void registerCommands()
@@ -1873,6 +2164,8 @@ void registerCommands()
         Cmd_AddCommand("vr_physics_pile", pile_f);
         Cmd_AddCommand("vr_physics_hash", hash_f);
         Cmd_AddCommand("vr_physics_blast", blast_f);
+        Cmd_AddCommand("vr_physics_sink", sink_f);
+        Cmd_AddCommand("vr_physics_spawn", spawn_f);
     }
 }
 

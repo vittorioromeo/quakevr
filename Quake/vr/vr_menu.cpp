@@ -967,11 +967,15 @@ void hologramTestMessage()
         slider("Box Throw Speed", vr_carry_throw_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend(),
         slider("Box Punch Damage", vr_carry_melee_mult, 1.f, 3.f, 0.1f, "%.1fx").extend().help("Punching with a box in hand."),
         slider("Thrown Box Damage", vr_carry_throw_damage, 0.f, 50.f, 1.f, "%.0f").extend().help("Damage of a box thrown at about 6 m/s; more the faster."),
-        header("Armour"),
+        header("Armour and Pickups"),
         cycle("Armour", vr_armor_wear, {{0.f, "Touch takes it"}, {1.f, "Wear by hand"}})
             .help("Wear by hand: grip the armour to carry it and let go of it over your chest to put it on (only if it is better "
                   "than yours). Walking over it no longer takes it. Next map."),
         slider("Armour Size", vr_armor_scale, 0.3f, 1.f, 0.05f, "%.2fx").extend().help("The carried armour's size (1: Quake's, a metre tall). Next map."),
+        cycle("Weapons and Keys", vr_item_objects, {{0.f, "Touch takes them"}, {1.f, "Objects"}})
+            .help("Objects: the map's weapons, keys, runes and suits hang spinning until you grab, knock or force-grab them, "
+                  "then they are physics objects. A weapon you grip is yours at once; keys, runes and suits you carry to a "
+                  "holster and let go of there. Powerups are as before. Next map."),
         header("Gibs and Corpses"),
         cycle("Gibs and Heads", vr_grab_gibs, {{0.f, "Left alone"}, {1.f, "Grab by hand"}, {2.f, "Hand and force grab"}})
             .help("Pick up and throw gibs and heads, by reaching for them (or force-grabbing them too)."),

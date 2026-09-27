@@ -114,7 +114,11 @@ float(entity entAmmoBox, entity entPlayer, float xWeapon, float xChance) TryAmmo
 
     if(eligible && (roll < xChance))
     {
-        CreateAmmoBoxWeaponDrop(entPlayer, xWeapon, entAmmoBox.origin);
+        // On top of the box, over its middle (its origin is a corner on the floor: a weapon made there was half in
+        // the floor). It falls onto the box, a rigid body, and rests there or tumbles off.
+        vector at = entAmmoBox.origin + (entAmmoBox.mins + entAmmoBox.maxs) * 0.5;
+        at_z = entAmmoBox.origin_z + entAmmoBox.maxs_z + 10;
+        CreateAmmoBoxWeaponDrop(entPlayer, xWeapon, at);
         return TRUE;
     }
 

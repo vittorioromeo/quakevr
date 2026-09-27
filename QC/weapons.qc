@@ -4268,6 +4268,8 @@ void MakeGrabbable(entity newmis)
     SetThrownWeaponMetalNoiseOnTouch(newmis, FALSE);
 }
 
+vector(vector xAVel) VRThrowSpinCapped;
+
 void MakeThrown(entity newmis,
     entity thrower, float xWeapon, float xWeaponFlags, float xWeaponClip,
     vector xOrigin, vector xRotation,
@@ -4324,6 +4326,15 @@ void MakeThrown(entity newmis,
     setorigin(newmis, xOrigin);
 
     newmis.velocity = xThrowVel + thrower.velocity;
+
+    // A rigid body from the start (vr_rigid.cpp, vr_box3d.cpp): it lands and rests on its drawn shape. As Quake's
+    // toss (a monster's dropped gun, a weapon from an ammo box, the firing range's weapons) it landed on its box, a
+    // cube round its origin that its model, turned any way, reaches well out of: it lay up to 20 units into the floor.
+    // Its tumble goes on as the body's spin (radians a second; the throw's cap).
+    newmis.vr_rigid = 1;
+    newmis.vr_rest = 0;
+    newmis.vr_spin = VRThrowSpinCapped(xAVel * 0.0175);
+    newmis.avelocity = '0 0 0';
 }
 
 // The old throw parameters, still used for drops and dispensers: `xThrowVel` scaled by 120

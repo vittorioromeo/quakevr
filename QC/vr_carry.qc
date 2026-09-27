@@ -15,7 +15,8 @@
 //   what it hits (vr_carry_throw_damage).
 // vr_carry 0 restores the old behaviour: a hand touching a box takes it.
 // Armour (vr_armor_wear, items.qc) is carried the same way and put on by letting go of it over the
-// torso (VR_Armor_LetGo), never taken at a holster or with the trigger.
+// torso (VR_Armor_LetGo), never taken at a holster or with the trigger. Keys, runes, suits and the
+// horn (vr_item_objects) are taken only at a holster (VR_PickupObj_Holster), never with the trigger.
 // - Two hands (vr_carry_two_hands): the other hand gripping what one carries (a press within reach of
 //   its surface, as the first grip) holds it too. It then follows both hands rigidly (the engine's
 //   carry2h, vr_carry2h.cpp), and collides as one hand's does. One hand letting go leaves it in the
@@ -282,6 +283,20 @@ void(float xHand) VR_Carry_HandFrame =
             return;
         }
 
+        // A key, a rune, a suit, the horn (vr_item_objects, items.qc): taken only at a holster
+        // (whatever vr_carry_take says), as a box is.
+        if(box.vr_pickup_obj == QVR_PICKUPOBJ_HOLSTER)
+        {
+            if(VR_Carry_AtHolster(xHand) && time - box.carry_2h_end > cvar_hget(cvarh_vr_carry_two_hands_window) + 0.05)
+            {
+                VR_PickupObj_Holster(xHand, box);
+                return;
+            }
+            dprint("carry: let go\n");
+            VR_Carry_Release(xHand, box);
+            return;
+        }
+
         // Let go at a holster: into the pack (if full up, it drops there). Not let go of by both hands
         // (together, as a throw: the other hand at most vr_carry_two_hands_window before, and a frame).
         if(takeMode != 1 && VR_Carry_AtHolster(xHand) && time - box.carry_2h_end > cvar_hget(cvarh_vr_carry_two_hands_window) + 0.05)
@@ -307,7 +322,7 @@ void(float xHand) VR_Carry_HandFrame =
     {
         VR_Armor_HeldFrame(xHand, box); // over the torso: a haptic hint
     }
-    else if(takeMode != 0 && trigger && !box.carry_trigger)
+    else if(takeMode != 0 && trigger && !box.carry_trigger && !box.vr_pickup_obj)
     {
         box.carry_trigger = trigger;
         VR_Carry_Take(xHand, box);
