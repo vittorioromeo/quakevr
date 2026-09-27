@@ -36,6 +36,9 @@ void registerCvars();
 // its settings printed as vr_weapons.inc lines (to make them the shipped defaults).
 [[nodiscard]] cvar_t* cvar(int slot, Key key);
 void resetSlotToDefaults(int slot);
+
+// Forgets the models' slots found (a game directory change reuses their slots).
+void resetCaches();
 void printSlot(int slot);
 [[nodiscard]] glm::vec3 vec(int slot, Key x, Key y, Key z);
 

@@ -85,4 +85,16 @@ void hotspotsCheck_f();
 void dumpView_f();
 void graspDump_f();
 
+// Mod_ForName(name, false) for a model asked for every frame, `name` a string constant (its address is the key): kept
+// while it is loaded; a missing one remembered until the next map.
+[[nodiscard]] qmodel_t* viewModel(const char* name);
+
+// Forgets every cache keyed by a model (the view models, clip sizes, the jointed hand's check, the grasp shapes): for
+// a game directory change, which reuses the models' slots.
+void resetCaches();
+
+// vr_grasp_bench [n]: solves each hand's grasp of what it holds n times (1000), and prints the times (min, median,
+// max, microseconds).
+void graspBench_f();
+
 } // namespace qvr::view

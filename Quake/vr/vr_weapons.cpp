@@ -49,6 +49,16 @@ void onIdChanged(cvar_t* /* var */)
     fistCache = -2;
 }
 
+} // namespace
+
+void resetCaches()
+{
+    onIdChanged(nullptr);
+}
+
+namespace
+{
+
 [[nodiscard]] bool isHandPart(const char* name)
 {
     // The palm and finger models, and the jointed hand drawn instead of them (vr_handrig.cpp): the fist slot's scale.

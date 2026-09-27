@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <string>
 
 namespace qvr::handrig
 {
@@ -107,6 +108,7 @@ void vertices(const Pose& p, int finger, const float curls[jointsPerFinger], Pos
 struct ModelCheck
 {
     qmodel_t* model{nullptr};
+    std::string name; // the model's (its slot is reused by another after a game change)
     bool usable{false};
 };
 ModelCheck checked;
@@ -126,6 +128,26 @@ void poseFinger(const Pose& p, int finger, const float curls[jointsPerFinger], P
 {
     segments(p, finger, curls, out.segment[finger]);
     vertices(p, finger, curls, out);
+}
+
+void fingerSegments(const Pose& p, int finger, const float curls[jointsPerFinger], Rigid out[jointsPerFinger + 1])
+{
+    segments(p, finger, curls, out);
+}
+
+float jointRate(int finger, int joint)
+{
+    float rate = 0.f;
+    for(int f = 0; f + 1 < data::numFrames - 1; f++) // the closing path, frames 0..4
+    {
+        glm::quat d = glm::normalize(glm::inverse(turnAt(finger, joint, f)) * turnAt(finger, joint, f + 1));
+        if(d.w < 0.f)
+        {
+            d = -d;
+        }
+        rate = std::fmax(rate, glm::angle(d));
+    }
+    return rate;
 }
 
 glm::vec3 palmVertex(const Posed& posed, int i)
@@ -173,13 +195,18 @@ void skin(const Posed& posed, float out[data::numJoints * 12])
     }
 }
 
+void reset()
+{
+    checked = ModelCheck{};
+}
+
 bool usable(qmodel_t* model)
 {
-    if(model == checked.model)
+    if(model == checked.model && (!model || checked.name == model->name))
     {
         return checked.usable;
     }
-    checked = ModelCheck{model, false};
+    checked = ModelCheck{model, model ? model->name : "", false};
     if(!model || model->type != mod_alias || model->needload)
     {
         return false;

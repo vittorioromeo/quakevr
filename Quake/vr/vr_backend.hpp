@@ -58,6 +58,7 @@ struct HandInput
     float triggerValue{0.f};
     float gripValue{0.f};
     bool thumbTouch{false};
+    bool triggerTouch{false}; // the index finger on the trigger (Touch, Index controllers; round 21)
 };
 
 // Controller input, [0] off hand, [1] main hand.

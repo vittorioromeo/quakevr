@@ -2,22 +2,24 @@
 // a weapon's grip, the other hand's weapon's foregrip or blade, a carried box, backpack, gib, head or armour, the
 // flashlight -- instead of closing into their fixed fist.
 //
-// The solve (once per grip: when what is held, or where it sits in the hand, changes): each finger closes along its
-// own curl path from open (curl 0) to the tightest fist (curl 4), all its joints together; as soon as one of its
-// segments would pass into the held thing's triangles (the drawn model's, as drawn), the joints that move that segment
-// stop there (found to a hundredth of a degree by halving), and the joints past it go on closing (Miller et al.,
-// GraspIt!'s "auto-grasp"): the finger wraps round what it meets, joint by joint. What the solve keeps, per joint, is
-// the curl it stopped at.
+// The solve (round 21, second pass: on the main thread, every frame the held thing moves in the hand; tens of
+// microseconds): each finger closes along its own curl path from open (curl 0) to the tightest fist (curl 4), all its
+// joints together; as soon as one of its segments touches the held thing's triangles, the joints that move that
+// segment stop there, and the joints past it go on closing (Miller et al., GraspIt!'s "auto-grasp"): the finger wraps
+// round what it meets, joint by joint. The segments are spheres along each finger bone (fitted to the rig's vertices),
+// closed by conservative advancement: each step closes as far as no sphere can reach the nearest triangle (its
+// distance over how fast the joints can move it), so no step passes through anything, and a contact is found in a
+// few steps. What the solve keeps, per joint, is the curl it stopped at.
 //
-// Each frame (no new solve): a finger closes as far as the controller says (its curl), but never past where it
-// stopped; the more the controller closes it (grip, trigger, thumb), the more it is drawn to the stop even past the
-// controller's curl (a gripping hand holds on), up to wrapping fully at a full press. With nothing met, the curl is
-// the controller's as before. Nothing of the solve runs per frame.
+// Each frame: a finger closes as far as the controller says (its curl), but never past where it stopped; the more
+// the controller closes it (grip, trigger, thumb), the more it is drawn to the stop even past the controller's curl
+// (a gripping hand holds on), up to wrapping fully at a full press. With nothing met, the curl is the controller's.
 
 #pragma once
 
 #include "vr_handrig.hpp"
 
+#include <memory>
 #include <vector>
 
 namespace qvr::grasp
@@ -31,6 +33,29 @@ struct Triangle
 // The triangles `e` is drawn with, in world space: an alias model's pose (`frame`, or the entity's if < 0) as the
 // renderer places it (vr_render.cpp's transforms, mirrored or not), a brush model's faces. False if it has none.
 bool worldTriangles(const entity_t& e, bool mirrored, int frame, std::vector<Triangle>& out);
+
+// A held thing's shape: its model's triangles in the model's own coordinates (an alias model's raw vertices of one
+// pose, a brush model's), and what the solve queries them with (vr_grasp.cpp): made once per model and pose and kept.
+struct Shape
+{
+    struct Space;
+    std::vector<Triangle> tris;
+    std::unique_ptr<Space> space;
+
+    Shape();
+    ~Shape();
+    Shape(Shape&&) noexcept;
+    Shape& operator=(Shape&&) noexcept;
+};
+
+// Forgets the shapes made (a game directory change reuses their models' slots).
+void reset();
+
+// The shape of `e`'s model at `frame` (or the entity's own if < 0); nullptr if it has none.
+[[nodiscard]] const Shape* shapeOf(const entity_t& e, int frame);
+
+// The matrix `e`'s model is drawn with: its shape's coordinates to the world (vr_render.cpp's, mirrored or not).
+[[nodiscard]] glm::mat4 shapeToWorld(const entity_t& e, bool mirrored);
 
 // What the solve found for a finger: per joint, the curl it stops at (4, the tightest fist, if nothing stops it),
 // and whether anything was met at all.
@@ -49,18 +74,27 @@ struct Solution
     glm::vec3 palm{0.f};  // the hand's move (rig space) to hold it flush, the fingers solved there
     glm::quat palmTurn{1.f, 0.f, 0.f, 0.f}; // and its turn about palmCentre, before the move
     glm::vec3 palmCentre{0.f};
-    glm::vec3 approach{0.f}; // the way to the surface the palm faces (the turned hand's frame), if any
     glm::quat thumbTurn{1.f, 0.f, 0.f, 0.f}; // the thumb's metacarpal turn (Pose::metacarpal) it closes at
-    int places{0};        // the hand's places tried
+    int thumbChoice{-1};  // which of the thumb's turns (for the next solve's preference)
+    int triangles{0};     // the held thing's, within the hand's reach
+    int probes{0};        // the fingers' places tested
+    int places{0};        // the palm's places tried (a grip through the hand)
     double seconds{0.0};
-    int triangles{0}; // the held thing's, near the fingers
 };
 
-// Solves the hand of `pose` (its shifts and metacarpal; its curls are ignored) against `tris` (rig space): first
-// the palm, turned (at most `palmTurnLimit` degrees) to face the surface in front of it and moved to sit flush on
-// what it holds (out of it, or in to touch it; at most `palmLimit` hand units; 0: not at all), then the fingers
-// there.
-void solve(const handrig::Pose& pose, const std::vector<Triangle>& tris, Solution& out, float palmLimit, float palmTurnLimit);
+struct Settings
+{
+    float palmLimit{0.f};     // hand units the palm may move to sit flush (0: not at all)
+    float palmTurnLimit{0.f}; // degrees it may turn to face the surface in front of it
+    float overlap{0.f};       // hand units the hand may sink into what it holds (snug, no gap)
+    bool thenar{false};       // the ball of the thumb meets it too (a thing held against the palm; not a weapon's grip)
+};
+
+// Solves the hand of `pose` (its shifts; its curls and metacarpal are ignored) holding `shape`, placed in the hand's
+// rig space by `shapeToRig`: the palm turned and moved flush (as the settings allow), then the fingers there.
+// `previous`: the solve before for the same thing: among thumb turns nearly as good, its own wins (no flips).
+void solve(const handrig::Pose& pose, const Shape& shape, const glm::mat4& shapeToRig, const Settings& settings,
+    const Solution* previous, Solution& out);
 
 // A finger's joint curls this frame: `curl` the controller's (0..5, vr_view.cpp's), `engage` how much it grips
 // (0..1: drawn to the stops past `curl`).
@@ -71,5 +105,11 @@ void curls(const FingerStop& stop, float curl, float engage, float out[handrig::
 
 // The curl path's place for the controller's curl: 0..4 closing, then 5 back to 3's shape (the old frames').
 [[nodiscard]] float pathCurl(float curl);
+
+// The spheres the hand at `pose` is tested as (rig space; w the radius): the fingers', the palm's.
+void posedSpheres(const handrig::Pose& pose, std::vector<glm::vec4>& out);
+
+// vr_grasp_spheres: prints the spheres the fingers and palm are tested as.
+void spheres_f();
 
 } // namespace qvr::grasp

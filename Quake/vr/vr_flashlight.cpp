@@ -9,6 +9,7 @@
 #include "vr_main.hpp"
 #include "vr_trace.hpp"
 #include "vr_units.hpp"
+#include "vr_view.hpp"
 #include "vr_weapons.hpp"
 
 #include <algorithm>
@@ -644,7 +645,7 @@ void drawCord(const Pose& mount, const Pose& lamp)
 void place(view::ViewEntity& ve, const Pose& p, bool hover)
 {
     entity_t& e = ve.ent;
-    qmodel_t* model = Mod_ForName(modelName, false);
+    qmodel_t* model = view::viewModel(modelName);
     if(model != ve.lastModel)
     {
         e.lerpflags |= LERP_RESETANIM;
@@ -1023,6 +1024,20 @@ void reset()
 bool holds(int hand)
 {
     return enabled() && st.mode == Mode::Held && st.holder == hand;
+}
+
+bool heldPlace(const hands::State& s, int hand, glm::vec3& origin, glm::vec3& angles)
+{
+    if(!holds(hand))
+    {
+        return false;
+    }
+    const Pose p = handPose(s, hand);
+    const glm::mat3 m = glm::mat3_cast(p.rot);
+    const glm::vec3 a = hands::anglesFromVectors(m[0], m[2]);
+    origin = p.pos;
+    angles = glm::vec3{-a.x, a.y, a.z};
+    return true;
 }
 
 
