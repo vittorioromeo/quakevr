@@ -54,6 +54,10 @@ bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count)
 // Whether they are on and drawn (the VR protocol, vr_particles): false for Quake's effects.
 [[nodiscard]] bool enabled();
 
+// Once, at startup: the particles' pool reserved to its cap (32768 of 128 bytes, 4 MB), so that it never reallocates
+// (and copies every live particle) in the middle of a fight.
+void init();
+
 // Removes them all (a new map, a disconnect).
 void clear();
 
