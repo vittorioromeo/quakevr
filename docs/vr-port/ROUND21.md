@@ -3747,6 +3747,48 @@ little sausages)". Commit `795b0771`; composites in the scratchpad's `handmodel2
   open, fist and point), `curl_sweep.png` (smooth, no pinch at the knuckles), `weapons_side.png`,
   `two_handed_*.png`, `torch_off_hand.png`, `box_off_hand.png`, `blood_quad_ring_both_hands.png`.
 
+### Third pass
+
+Your note: "a bit too skinny", the colouring "a bit too flat/dark", and smaller than the previous hand; "find a middle
+ground". Measured on the drawn meshes (`vr_grasp_dump`, the open hand and the fist) and on screenshots under the same
+light, the fitted hand (`176379f2`) against the second pass (`6b41ec06`); composites (old | current | new) and the
+numbers in the scratchpad's `handmodel3/final/`.
+
+| (hand units) | Previous | Second pass | Now |
+|---|---|---|---|
+| Wrist to the middle fingertip | 18.95 | 17.31 | 18.19 |
+| Across the knuckles (the fingers' roots) | 7.62 | 7.00 | 7.37 |
+| Palm thickness (its middle) | 4.80 | 3.39 | 4.00 |
+| Fingers, width at the first segment (index, middle, ring, little) | 1.74, 2.31, 2.23, 1.81 | 1.87, 1.92, 1.83, 1.62 | 1.97, 2.07, 1.97, 1.74 |
+| Fingers, depth there | 2.71, 2.82, 2.66, 2.13 | 1.70, 1.75, 1.67, 1.49 | 2.01, 2.12, 2.03, 1.80 |
+| Thumb's section (narrow x broad) | 1.74 x 2.96 | 1.75 x 1.94 | 2.09 x 2.46 |
+| Silhouette, open hand: back / side (square units) | 131 / 82 | 108 / 55 | 125 / 67 |
+| Silhouette, fist: back / side | 94 / 77 | 65 / 49 | 76 / 64 |
+| On screen (luminance): mean, spread, 95th percentile | 71, 38, 148 | 55, 19, 87 | 66, 21, 102 |
+| Skin texels: mean, spread, 75th / 95th percentile | 70, 31, 94 / 119 | 76, 12, 81 / 94 | 88, 19, 105 / 119 |
+
+- **Size:** the hand is 5% larger along the fingers and across the palm, scaled about the palm's middle
+  (`palmCentre`, the grip area; `HAND_SCALE` in `make_hand_rig.py`). The joints' pivots, the wrist and the solver's
+  spheres scale with it; the joint limits, turns and weights are unchanged. The length is now halfway back.
+- **Fuller:** the fingers and the thumb are deeper, grown on the back (`FLAT_BACK`, `THUMB_FLAT_BACK`), and the palm is
+  thicker on the back (the sections' `back`). The palm's side, where it meets a grip, stays where it was: grown there
+  (or scaled through the hand), the fingers met the gun before they closed on it, and three grasps got worse. The
+  fingers are now about as deep as they are wide; the old fingers' extra depth was the six models' slab. The shape is
+  kept: the fingers grown out of the palm, the webs, the rounded rectangles.
+- **The skin:** brighter and with more contrast, in the same palette and with the same details: the knuckles, the
+  back's middle and the palm's pads lighter, the palm's hollow and the creases deeper, the sides no darker (the side
+  views were the old hand's brightest). The knobs are together in the generator (`SKIN_BASE`, `SKIN_CONTRAST`,
+  `FORM_*`). On screen the old hand's contrast comes largely from its models' normals under the engine's light, which
+  the skin can't match without overexposing it in brighter light.
+- **Unchanged:** every slot's hand, muzzle and foregrip, and the cups' moves (`vr_dumpview`, nine slots: the same
+  lines). The grasps: 42 met, 8 inside, as before. The drawn palm moves as its place search chooses: the same on
+  seven slots, and the launchers slide further along the grip (the grenade launcher to the 3 cm limit, was 2.7; the
+  rocket launcher 2.8, was 2.5), with all their fingers met as before. The melee canary: 40/46, no take differs. The
+  mesh (656 triangles, 455 vertices) and the costs are the same.
+- **Composites:** `poses_open_fist_point.png`, `knuckles_closeup.png`, `grip_shotgun_sword.png`, `grip_launchers.png`,
+  `grip_torch.png`, `two_handed_cup.png`, `two_handed_shotgun_foregrip.png`, `blood_quad_both_hands.png`,
+  `luminance_shots.png`, `skins_old_current_new.png`.
+
 ### Try
 
 - [ ] Second pass: do the fingers now read as part of the hand, and is the blockier look right (or too much, or
@@ -3756,5 +3798,6 @@ little sausages)". Commit `795b0771`; composites in the scratchpad's `handmodel2
 - [ ] Hold each gun and the sword: do the fingers wrap the grip and the thumb close over it?
 - [ ] Two hands on the shotgun's foregrip, your cups, and the sword's blade.
 - [ ] Take damage (the blood) and a quad.
-- [ ] If the skin's tone is off in VR, `base_level` in `make_hand_rig.py` sets it (one step of the palette ramp is a
-      level).
+- [ ] Third pass: is the size and fullness the middle ground you wanted, and the skin bright enough? `HAND_SCALE`,
+      `FLAT_BACK` and `SKIN_BASE` / `SKIN_CONTRAST` in `make_hand_rig.py` set them (one step of the palette ramp is
+      a level).
