@@ -412,7 +412,8 @@ void(float xHand) VR_Carry_TrySecondHand =
         return;
     }
     if(!VR_Carry_GripPressed(self, xHand) || !VRIsHandEmpty(self, xHand) || VR_Forcegrab_IsHandBusy(self, xHand) ||
-       !VR_HandGrabUtil_IsHandGrabbing(self, other))
+       !VR_HandGrabUtil_IsHandGrabbing(self, other) ||
+       VRHasBit(self.vrbits0, xHand == cVR_MainHand ? QVR_VRBITS0_MAINHAND_BUSY : QVR_VRBITS0_OFFHAND_BUSY))
     {
         return;
     }

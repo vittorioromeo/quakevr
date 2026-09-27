@@ -6,6 +6,7 @@
 #include "vr_cvars.hpp"
 #include "vr_hands.hpp"
 #include "vr_lines.hpp"
+#include "vr_profile.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_throw.hpp"
@@ -574,7 +575,10 @@ struct Both
     carry2h::Frame drawn[2]; // each hand drawn on its grip this frame
 };
 Both both;
-glm::vec3 bothCentre{0.f}; // the object's centre from the middle of the hands (metres), the last frame held in both
+// For the throw (bothHandsThrow): what each hand holds (the carry stats, drawn in the hand or not), and the object's
+// centre from the middle of the hands (metres, world axes), the last frame held in both.
+int carried[2]{0, 0};
+glm::vec3 bothCentre{0.f};
 
 // Let go of by one hand, or both: a hand drawn off its controller (on its grip) eases back onto it.
 constexpr double handEaseTime = 0.15;
@@ -778,9 +782,6 @@ void bothFrame(const hands::State& s, int ent)
         both.drawn[h] = {hands[h].pos + off,
             glm::normalize(glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, turn, share) * hands[h].rot)};
     }
-    const glm::vec3 middle = (hands[0].pos + hands[1].pos) * 0.5f;
-    bothCentre = (held::drawnCentre(ent) - middle) / m2u;
-
 }
 
 void easeFrame(Easing& ea)
@@ -911,8 +912,8 @@ bool bothHandsThrow(int hand, double at, bool release, throwing::Estimate& out)
     {
         return false;
     }
-    const int ent = holding[hand].ent;
-    const bool inBoth = ent && both.ent == ent;
+    const int ent = carried[hand];
+    const bool inBoth = ent && carried[1 - hand] == ent;
     const BothRelease& other = bothRelease[1 - hand];
     const double window = std::fmax(vr_carry_two_hands_window.value, 0.f);
     const bool afterOther = release && ent && other.ent == ent && at - other.at >= -0.02 && at - other.at <= window;
@@ -941,27 +942,44 @@ bool bothHandsThrow(int hand, double at, bool release, throwing::Estimate& out)
 // frame (and ease back to the server's position when let go).
 extern "C" void VR_RelinkHeld(void)
 {
-    if(!(cl.protocolflags & PRFL_QUAKEVR) || cls.state != ca_connected || cls.demoplayback || !vr_carry_local.value)
+    if(!(cl.protocolflags & PRFL_QUAKEVR) || cls.state != ca_connected || cls.demoplayback)
     {
         reset();
+        carried[0] = carried[1] = 0;
         return;
     }
 
+    QVR_PROFILE("held");
     const hands::State& s = hands::current();
-    const int main = cl.stats[protocol::STAT_QVR_CARRYMAIN];
-    const int bothEnt = main && main == cl.stats[protocol::STAT_QVR_CARRYOFF] ? main : 0;
-    if(both.ent && both.ent != bothEnt)
+    carried[0] = cl.stats[protocol::STAT_QVR_CARRYOFF];
+    carried[1] = cl.stats[protocol::STAT_QVR_CARRYMAIN];
+    const int bothEnt = carried[1] && carried[1] == carried[0] ? carried[1] : 0;
+    if(!vr_carry_local.value)
     {
-        leaveBoth();
+        reset();
     }
-    for(int h = 0; h < 2; h++)
+    else
     {
-        holdFrame(h, s, bothEnt);
+        if(both.ent && both.ent != bothEnt)
+        {
+            leaveBoth();
+        }
+        for(int h = 0; h < 2; h++)
+        {
+            holdFrame(h, s, bothEnt);
+        }
+        bothFrame(s, bothEnt);
+        for(Easing& ea : easing)
+        {
+            easeFrame(ea);
+        }
+        trace(s);
     }
-    bothFrame(s, bothEnt);
-    for(Easing& ea : easing)
+
+    // Held in both hands: its centre (as drawn: in the hands this frame, or where the server has it) from the middle
+    // of the hands, for a two-handed throw.
+    if(bothEnt && s.valid && valid(bothEnt, nullptr))
     {
-        easeFrame(ea);
+        bothCentre = (held::drawnCentre(bothEnt) - (s.pos[0] + s.pos[1]) * 0.5f) / units::metresToUnits();
     }
-    trace(s);
 }

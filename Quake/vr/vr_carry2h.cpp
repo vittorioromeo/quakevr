@@ -4,6 +4,7 @@
 #include "vr_cvars.hpp"
 #include "vr_held.hpp"
 #include "vr_physics.hpp"
+#include "vr_profile.hpp"
 #include "vr_progs.hpp"
 #include "vr_units.hpp"
 
@@ -124,6 +125,7 @@ std::unordered_map<int, Hold> holds; // entity -> its hold
 
 glm::vec3 serverPlace(edict_t* ent, edict_t* player, bool grab)
 {
+    QVR_PROFILE("carry2h");
     using namespace progs;
     const FieldOffsets& f = fields();
     const bool brush = brushModel(ent);
