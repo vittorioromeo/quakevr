@@ -4,6 +4,8 @@
 #include "vr_move.hpp"
 #include "vr_engine.hpp"
 
+#include <cmath>
+
 namespace qvr
 {
 namespace
@@ -16,14 +18,28 @@ void writeVec3(sizebuf_t* buf, const glm::vec3& v)
     MSG_WriteFloat(buf, v.z);
 }
 
-[[nodiscard]] glm::vec3 readVec3()
+// Reads the block's floats, noting whether each is finite: a NaN or an infinity (a broken or hostile client) would
+// pass every "reject if x > limit" test downstream and end up in positions and velocities.
+struct Reader
 {
-    glm::vec3 v;
-    v.x = MSG_ReadFloat();
-    v.y = MSG_ReadFloat();
-    v.z = MSG_ReadFloat();
-    return v;
-}
+    bool finite{true};
+
+    [[nodiscard]] float real()
+    {
+        const float f = MSG_ReadFloat();
+        finite = finite && std::isfinite(f);
+        return f;
+    }
+
+    [[nodiscard]] glm::vec3 vec3()
+    {
+        glm::vec3 v;
+        v.x = real();
+        v.y = real();
+        v.z = real();
+        return v;
+    }
+};
 
 } // namespace
 
@@ -57,37 +73,42 @@ void writeVrMove(sizebuf_t* buf, const VrMove& move)
     writeVec3(buf, move.headPos);
 }
 
-VrMove readVrMove()
+std::optional<VrMove> readVrMove()
 {
+    Reader in;
     VrMove move;
 
-    move.headAngles = readVec3();
-    move.vrYaw = MSG_ReadFloat();
+    move.headAngles = in.vec3();
+    move.vrYaw = in.real();
 
     for(VrHandMove& hand : move.hands)
     {
-        hand.pos = readVec3();
-        hand.rot = readVec3();
-        hand.vel = readVec3();
-        hand.throwVel = readVec3();
-        hand.velMag = MSG_ReadFloat();
-        hand.angVel = readVec3();
-        hand.throwPos = readVec3();
-        hand.throwAge = MSG_ReadFloat();
+        hand.pos = in.vec3();
+        hand.rot = in.vec3();
+        hand.vel = in.vec3();
+        hand.throwVel = in.vec3();
+        hand.velMag = in.real();
+        hand.angVel = in.vec3();
+        hand.throwPos = in.vec3();
+        hand.throwAge = in.real();
     }
 
-    move.headVel = readVec3();
-    move.muzzlePos[0] = readVec3();
-    move.muzzlePos[1] = readVec3();
+    move.headVel = in.vec3();
+    move.muzzlePos[0] = in.vec3();
+    move.muzzlePos[1] = in.vec3();
     move.vrBits0 = static_cast<std::uint16_t>(MSG_ReadShort());
-    move.teleportTarget = readVec3();
+    move.teleportTarget = in.vec3();
     move.hotspots[0] = static_cast<std::uint8_t>(MSG_ReadByte());
     move.hotspots[1] = static_cast<std::uint8_t>(MSG_ReadByte());
-    move.roomscaleMove = readVec3();
+    move.roomscaleMove = in.vec3();
     move.buttons = static_cast<std::uint8_t>(MSG_ReadByte());
-    move.origin = readVec3();
-    move.headPos = readVec3();
+    move.origin = in.vec3();
+    move.headPos = in.vec3();
 
+    if(!in.finite)
+    {
+        return std::nullopt;
+    }
     return move;
 }
 

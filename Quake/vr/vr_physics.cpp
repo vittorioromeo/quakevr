@@ -54,6 +54,11 @@ constexpr float easyHandTouchBonus = 4.5f;
     return {v[0], v[1], v[2]};
 }
 
+[[nodiscard]] bool finite(const glm::vec3& v)
+{
+    return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z);
+}
+
 [[nodiscard]] bool hasFlag(edict_t* ent, int flag)
 {
     return (static_cast<int>(ent->v.flags) & flag) != 0;
@@ -363,9 +368,9 @@ extern "C" int VR_ClientTeleport(edict_t* ent)
     }
 
     // The client picks the target: accept it only within the teleport range (with some slack for
-    // the arc) and where the player fits.
+    // the arc) and where the player fits. (Written to turn a NaN away too.)
     const glm::vec3 target = move->teleportTarget;
-    if(glm::distance(vec(ent->v.origin), target) > std::max(vr_teleport_range.value, 100.f) * 1.5f + 64.f)
+    if(!(glm::distance(vec(ent->v.origin), target) <= std::max(vr_teleport_range.value, 100.f) * 1.5f + 64.f))
     {
         return 0;
     }
@@ -394,7 +399,7 @@ extern "C" void VR_ClientRoomscaleMove(edict_t* ent)
     }
 
     const glm::vec3 move = vrMove->roomscaleMove;
-    if(move.x == 0.f && move.y == 0.f)
+    if((move.x == 0.f && move.y == 0.f) || !std::isfinite(move.x) || !std::isfinite(move.y))
     {
         return;
     }
@@ -604,6 +609,11 @@ std::vector<SentSplash> splashesThisFrame;
 
 bool sendSplash(const glm::vec3& at, const glm::vec3& dir, float strength)
 {
+    // (Its figures go into the message as integers: none from a NaN or an infinity.)
+    if(!finite(at) || !finite(dir) || !std::isfinite(strength))
+    {
+        return false;
+    }
     if(splashFrame != qcvm->time)
     {
         splashFrame = qcvm->time;
@@ -687,7 +697,7 @@ void handCrossing(edict_t* ent, WaterFeel& w, int probe, const WaterProbe& was, 
     const bool in = isLiquid(contents);
     const bool crossed = in != isLiquid(was.contents) && (contents == CONTENTS_EMPTY || was.contents == CONTENTS_EMPTY);
     const int hand = probe & 1;
-    if(!crossed || dt <= 0.f || qcvm->time - w.handSplash[hand] < 0.3)
+    if(!crossed || !(dt > 0.f) || qcvm->time - w.handSplash[hand] < 0.3)
     {
         return;
     }
@@ -695,7 +705,7 @@ void handCrossing(edict_t* ent, WaterFeel& w, int probe, const WaterProbe& was, 
     const glm::vec3 vel = (p - was.pos) / dt / m2u; // m/s, the body's motion too
     const float speed = glm::length(vel);
     const float needed = in ? 0.9f : 1.4f; // m/s, down into it or up out of it
-    if(speed > 12.f || (in ? -vel.z : vel.z) < needed)
+    if(!(speed <= 12.f) || !((in ? -vel.z : vel.z) >= needed)) // (a NaN turned away too)
     {
         return; // a tracking jump, or too slow (a hand dipped in)
     }
@@ -1221,11 +1231,11 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
         Stroke& stroke = state.stroke;
         vec3_t p{hand.pos.x, hand.pos.y, hand.pos.z};
         const float speedMs = glm::length(hand.vel); // the move's hand velocities are in m/s
-        if(speedMs > glitchSpeed)
+        if(!(speedMs <= glitchSpeed)) // (a NaN turned away too)
         {
             continue;
         }
-        if(SV_PointContents(p) > CONTENTS_WATER || speedMs <= minSpeed) // out of the water (or slime, lava); still
+        if(SV_PointContents(p) > CONTENTS_WATER || !(speedMs > minSpeed)) // out of the water (or slime, lava); still
         {
             endStroke(state, h, now);
             continue;
@@ -1322,6 +1332,10 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
 
     const float maxSpeed = std::max(0.f, vr_swim_max_speed.value);
     const float len = glm::length(vel);
+    if(!std::isfinite(len))
+    {
+        return; // (a hand's figures gone wrong: SV_WaterMove's velocity stands)
+    }
     if(len > maxSpeed && len > 0.f)
     {
         vel *= maxSpeed / len;
@@ -1378,7 +1392,7 @@ extern "C" void VR_BeforePlayerPostThink(edict_t* ent)
     AngleVectors(ent->v.v_angle, fwd, right, up);
     const glm::vec3 shotPoint = vec(ent->v.origin) + glm::vec3{0.f, 0.f, 16.f};
     const glm::vec3 delta = (muzzle - vec(fwd) * 8.f) - shotPoint;
-    if(glm::length(delta) > 96.f)
+    if(!(glm::length(delta) <= 96.f)) // (a NaN turned away too)
     {
         return; // not where the player is (a teleport, a respawn)
     }
