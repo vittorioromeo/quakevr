@@ -16,9 +16,11 @@
 #include "vr_menu.hpp"
 #include "vr_menuui.hpp"
 #include "vr_motion.hpp"
+#include "vr_motion_review.hpp"
 #include "vr_motion_take.hpp"
 #include "vr_weapons.hpp"
 #include "vr_hands.hpp"
+#include "vr_posing.hpp"
 #include "vr_view.hpp"
 
 #include <cmath>
@@ -84,6 +86,14 @@ struct Item
     bool extendable{false};
     float hardMin{0.f};
     float hardMax{0.f};
+
+    // A line of a list (the Review Takes page's takes, its details): the text, the help and the action take `arg`
+    // (infoLine(), row()). A row (wide) is an action drawn as its text across the whole width.
+    int arg{-1};
+    const char* (*infoArg)(int){nullptr};
+    const char* (*helpArg)(int){nullptr};
+    void (*actionArg)(int){nullptr};
+    bool wide{false};
 
     [[nodiscard]] Item help(const char* text) const
     {
@@ -202,6 +212,29 @@ void restartVr()
     return i;
 }
 
+// A line of text, text(arg) (as info()).
+[[nodiscard]] Item infoLine(const char* (*text)(int), int arg)
+{
+    Item i{Item::Info, ""};
+    i.infoArg = text;
+    i.arg = arg;
+    return i;
+}
+
+// A row of a list across the whole width, its text text(arg), its help help(arg): enter calls pick(arg), then opens
+// `page` (if >= 0).
+[[nodiscard]] Item row(const char* (*text)(int), const char* (*help)(int), void (*pick)(int), int arg, int page)
+{
+    Item i{Item::Action, ""};
+    i.infoArg = text;
+    i.helpArg = help;
+    i.actionArg = pick;
+    i.arg = arg;
+    i.page = page;
+    i.wide = true;
+    return i;
+}
+
 // Whether the cursor can rest on it.
 [[nodiscard]] bool selectable(const Item& item)
 {
@@ -283,6 +316,107 @@ int motionPageCategory = -1;
             .help("Kept from before the take starts (the motion's start, for the melee's trackers)."),
         slider("Tail", vr_motion_tail, 0.f, 1.f, 0.05f, "%.2f s").help("Recorded after the take ends (hits that land late)."),
     };
+}
+
+// Review Takes (vr_motion_review.cpp, MOTIONS.md "Reviewing failing takes"): the takes that fail vr_motion_eval or are
+// suspect, listed; one picked opens the Take page (its details, the ghost replay, keep, discard, relabel).
+[[nodiscard]] std::vector<Item> pageReviewTake();
+[[nodiscard]] int pageIndex(std::vector<Item> (*build)());
+int reviewListGeneration = -1; // the review's generation the pages were built for
+int reviewTakeGeneration = -1;
+int reviewRelabelCategory = -1;
+char reviewListHeader[64];
+
+[[nodiscard]] std::vector<Item> pageReviewTakes()
+{
+    reviewListGeneration = motion::review::generation();
+    std::vector<Choice> categories{{-1.f, "All"}};
+    const auto& list = motion::categories();
+    for(const int i : motion::categoryOrder())
+    {
+        categories.push_back({static_cast<float>(i), list[i].choice.display});
+    }
+    std::vector<Item> items = {
+        info(motion::review::summary),
+        info(motion::review::reviewedLine),
+        info(motion::review::evalLine),
+        cycle("Show", vr_motion_review_show,
+            {{0.f, "To Review"}, {1.f, "Failing"}, {2.f, "Suspect"}, {3.f, "Not Evaluated"}, {4.f, "Reviewed"}, {5.f, "All"},
+                {6.f, "Discarded"}})
+            .help("To Review: failing or suspect, not yet kept. A take picked opens its page: play it as a ghost, "
+                  "keep, discard or relabel it."),
+        cycle("Category", vr_motion_review_category, std::move(categories)),
+        action("Re-evaluate Shown", motion::review::reevaluateShown)
+            .help("Evaluates the takes listed again, in a second copy of the game in the background (the mock "
+                  "headset: yours is untouched), with your settings. About 1.7 s a take."),
+        action("Stop Re-evaluation", motion::review::stopReevaluation),
+        action("Undo Last", motion::review::undo).help("Takes back the last keep, discard, restore or relabel (again: the "
+                                                       "one before)."),
+        info(motion::review::lastAction),
+    };
+    q_strlcpy(reviewListHeader, motion::review::listTitle(), sizeof(reviewListHeader));
+    items.push_back(header(reviewListHeader));
+    const int take = pageIndex(pageReviewTake);
+    for(int r = 0; r < motion::review::rowCount(); r++)
+    {
+        items.push_back(row(motion::review::rowText, motion::review::rowHelp, motion::review::pick, r, take));
+    }
+    return items;
+}
+
+[[nodiscard]] std::vector<Item> pageReviewTake()
+{
+    reviewTakeGeneration = motion::review::generation();
+    reviewRelabelCategory = static_cast<int>(vr_motion_relabel_category.value);
+    std::vector<Choice> categories;
+    const auto& list = motion::categories();
+    for(const int i : motion::categoryOrder())
+    {
+        categories.push_back({static_cast<float>(i), list[i].choice.display});
+    }
+    std::vector<Choice> details;
+    const auto& chosen =
+        list[CLAMP(0, static_cast<int>(vr_motion_relabel_category.value), static_cast<int>(list.size()) - 1)].details;
+    for(size_t i = 0; i < chosen.size(); i++)
+    {
+        details.push_back({static_cast<float>(i), chosen[i].display});
+    }
+    std::vector<Item> items;
+    for(int l = 0; l < motion::review::detailLines && motion::review::detailLine(l)[0]; l++)
+    {
+        items.push_back(infoLine(motion::review::detailLine, l));
+    }
+    const std::vector<Item> rest = {
+        header("Look"),
+        action("Play Ghost", motion::review::playGhost)
+            .help("Replays it in front of the training dummy as a ghost, looping: its weapons where they were, their "
+                  "lines and striking points, the tip's trail, the head, and the events. You are not moved."),
+        action("Stop Ghost", motion::review::stopGhost),
+        cycle("Ghost Speed", vr_motion_review_speed, {{1.f, "1x"}, {0.5f, "0.5x"}, {0.25f, "0.25x"}, {0.1f, "0.1x"}}),
+        action("Replay (Mock Headset)", motion::review::replayMock)
+            .help("vr_motion_play watch: the take drives the tracking, the melee plays it again. The mock headset only."),
+        header("Decide"),
+        action("Keep (Reviewed)", motion::review::keep).help("Marks it reviewed: it leaves To Review. Again: unmarks it."),
+        action("Discard", motion::review::discard)
+            .help("Moves it into motions/discarded/ (no longer played or counted). Restore or Undo Last bring it back."),
+        action("Restore", motion::review::restore).help("A discarded take back into motions/."),
+        cycle("Relabel Category", vr_motion_relabel_category, std::move(categories)),
+        cycle("Relabel Detail", vr_motion_relabel_detail, std::move(details)),
+        action("Relabel", motion::review::relabel)
+            .help("Recorded under the wrong category: renamed to the one above, its header's label changed. The "
+                  "original is kept in motions/review/relabelled/ (Undo Last)."),
+        action("Undo Last", motion::review::undo),
+        info(motion::review::lastAction),
+        header("More"),
+        action("Next Take", motion::review::nextTake),
+        action("Previous Take", motion::review::previousTake),
+        action("Re-evaluate This Take", motion::review::reevaluateTake)
+            .help("Evaluates it again in a second copy of the game in the background (the mock headset), with your "
+                  "settings: a few seconds."),
+        info(motion::review::evalLine),
+    };
+    items.insert(items.end(), rest.begin(), rest.end());
+    return items;
 }
 
 // The old Single Player and Bot Control menus' extras.
@@ -649,6 +783,9 @@ void hologramTestMessage()
         slider("Assist Cone", vr_throw_assist_cone, 2.f, 30.f, 1.f, "%.0f deg"),
         slider("Assist Strength", vr_throw_assist_strength, 0.f, 1.f, 0.05f, "%.2f"),
         header("Physics"),
+        cycle("Physics Engine", vr_physics_engine, {{0.f, "Quake VR"}, {1.f, "Box3D"}})
+            .help("Quake VR: thrown and dropped things each on their own (they pass through each other). Box3D: they also "
+                  "collide with each other, so boxes stack and piles form. Switches at once."),
         slider("Bounciness", vr_throw_restitution, 0.f, 0.8f, 0.05f, "%.2f"),
         slider("Friction", vr_throw_friction, 0.f, 1.5f, 0.05f, "%.2f"),
         cycle("Props Collide With Each Other", vr_props_collide, {{0.f, "Off"}, {1.f, "Boxes and Items"}, {2.f, "Everything"}})
@@ -752,7 +889,7 @@ enum PageId
 struct Page
 {
     const char* group; // a header before it in the Advanced VR Options list (null: none)
-    const char* label; // its row there (short: right-aligned left of the middle)
+    const char* label; // its row there (short: right-aligned left of the middle; null: not listed, opened from another)
     const char* title; // over the page
     PageBuilder build;
 };
@@ -772,6 +909,8 @@ const Page pages[] = {
     {nullptr, "Parry, Bash, Headbutt", "Parry, Bash and Headbutt", pageParryBash},
     {nullptr, "Melee", "Melee", pageMeleeSettings},
     {nullptr, "Motion Recorder", "Motion Recorder", pageMotionRecorder},
+    {nullptr, "Review Takes", "Review Takes", pageReviewTakes},
+    {nullptr, nullptr, "Take", pageReviewTake},
     {nullptr, "Gore", "Gore", pageGore},
     {nullptr, "Throwing and Physics", "Throwing and Physics", pageThrowing},
     {nullptr, "Carrying and Gibs", "Carrying and Gibs", pageCarrying},
@@ -888,7 +1027,10 @@ std::vector<Item> pageAdvanced()
         {
             list.push_back(header(pages[p].group));
         }
-        list.push_back(open(pages[p].label, p));
+        if(pages[p].label)
+        {
+            list.push_back(open(pages[p].label, p));
+        }
     }
     return list;
 }
@@ -993,6 +1135,38 @@ void weaponOffsetsHotspotAtHand()
     weaponOffsetsStale = true;
 }
 
+// The weapon posing mode (vr_posing.cpp) on the page's weapon: the weapon (hotspot -2), a hotspot (0..3), a new one (-1).
+void weaponOffsetsPose(int hotspot)
+{
+    qmodel_t* model = weapons::heldModel(weaponOffsetsHand);
+    if(weapons::slotForModel(model) != weaponOffsetsHeldSlot)
+    {
+        Con_Printf("Posing mode: the %s hand holds another weapon now: reopen the page.\n", weaponOffsetsHand == 1 ? "main" : "off");
+        return;
+    }
+    const int weaponHand = static_cast<int>(vr_pose_weapon_hand.value) == 0 ? HAND_OFF : HAND_MAIN;
+    if(posing::start(weaponOffsetsHeldSlot, model, weaponHand, hotspot == -2 ? posing::Target::Weapon : posing::Target::Hotspot,
+           hotspot, qvr::menu::currentPage()))
+    {
+        weaponOffsetsStale = true;
+    }
+}
+
+void weaponOffsetsPoseWeapon()
+{
+    weaponOffsetsPose(-2);
+}
+
+void weaponOffsetsPoseHotspot()
+{
+    weaponOffsetsPose(editedHotspot());
+}
+
+void weaponOffsetsPoseNewHotspot()
+{
+    weaponOffsetsPose(-1);
+}
+
 void weaponOffsetsHotspotRemove()
 {
     if(weaponOffsetsSlot >= 0)
@@ -1075,6 +1249,20 @@ std::vector<Item> pageWeaponOffsets()
             list.push_back(action("Stop Inheriting (Copy Them Here)", weaponOffsetsStopInheriting)
                                .help("This weapon gets its own copy of the settings it inherits, to change apart."));
         }
+        // The weapon posing mode (vr_posing.cpp).
+        list.insert(list.end(), {
+            header("Posing Mode"),
+            action("Pose This Weapon", weaponOffsetsPoseWeapon)
+                .help("The weapon floats still in front of you: put the weapon hand on it as you want to hold it and "
+                      "press the other hand's A/X to set its place in the hand. B/Y undoes, the trigger goes on to the "
+                      "hotspots, the stick turns the weapon, the menu button comes back here."),
+            cycle("Weapon Hand", vr_pose_weapon_hand, {{1.f, "Main Hand"}, {0.f, "Off Hand (Mirrored)"}})
+                .help("The hand that poses the weapon (the settings are shared: the off hand's are mirrored). The other "
+                      "hand poses the hotspots and confirms."),
+            cycle("Tuning Offsets on Confirm", vr_pose_reset_offsets, {{0.f, "Keep"}, {1.f, "Set to 0"}})
+                .help("Keep: the pose is kept with Hand and Weapon Together, Hand Only and Held Hand as they are. "
+                      "Set to 0: confirming sets them to 0 (the pose alone places the hand)."),
+        });
     }
     list.insert(list.end(), {
         header(fist ? "The Hand" : "Weapon in the Hand"),
@@ -1188,6 +1376,10 @@ std::vector<Item> pageWeaponOffsets()
                 .help("Grip: a point (a foregrip, a pump, a magazine) the hand is drawn on; the two hands aim the weapon. "
                       "Blade: the half-sword grip along the blade. Cup: a two-handed pistol grip, the hand under and "
                       "round the holding hand (it doesn't aim)."),
+            action("Pose This Hotspot", weaponOffsetsPoseHotspot)
+                .help("Posing mode on this hotspot (a grip if it has no type): the weapon floats, held by the weapon "
+                      "hand; put the other hand where it should hold it and press the weapon hand's A/X."),
+            action("Pose a New Hotspot", weaponOffsetsPoseNewHotspot).help("The same on the first free hotspot."),
         });
         if(h.type == weapons::HotspotType::Blade)
         {
@@ -1281,6 +1473,11 @@ std::vector<Item> pageWeaponOffsets()
     return list;
 }
 
+int page = PageMain;
+int parentPage[pageCount]{};
+int cursors[pageCount]{};
+int scrolls[pageCount]{};
+
 // Built on first use (cvars looked up by name exist by then); items without their cvar dropped.
 [[nodiscard]] const std::vector<Item>& items(int page)
 {
@@ -1313,6 +1510,13 @@ std::vector<Item> pageWeaponOffsets()
         done[page] = false; // the Detail choice is the category's
         built[page].clear();
     }
+    if((pages[page].build == pageReviewTakes && reviewListGeneration != motion::review::generation()) ||
+        (pages[page].build == pageReviewTake && (reviewTakeGeneration != motion::review::generation() ||
+                                                    reviewRelabelCategory != static_cast<int>(vr_motion_relabel_category.value))))
+    {
+        done[page] = false; // the list, or the take picked, changed
+        built[page].clear();
+    }
     if(!done[page])
     {
         done[page] = true;
@@ -1323,14 +1527,18 @@ std::vector<Item> pageWeaponOffsets()
                 built[page].push_back(std::move(item));
             }
         }
+        // (Built again with fewer rows: the cursor kept on one.)
+        const int n = static_cast<int>(built[page].size());
+        int& cursor = cursors[page];
+        cursor = CLAMP(0, cursor, q_max(n - 1, 0));
+        for(int i = cursor; n > 0 && !selectable(built[page][cursor]) && i >= 0; i--)
+        {
+            cursor = selectable(built[page][i]) ? i : cursor;
+        }
     }
     return built[page];
 }
 
-int page = PageMain;
-int parentPage[pageCount]{};
-int cursors[pageCount]{};
-int scrolls[pageCount]{};
 bool sliderGrab = false; // a slider follows the mouse while its button is held
 float sliderGrabHold = -1.f; // grabbed on a thumb pinned at an end (a value past it): where, kept until the mouse moves off
 bool scrollGrab = false; // the scrollbar likewise
@@ -1406,6 +1614,10 @@ void showPage(int target)
         weaponOffsetsStale = true; // the weapon in hand now
         cursors[page] = 0;
         scrolls[page] = 0;
+    }
+    if(pages[page].build == pageReviewTakes)
+    {
+        motion::review::invalidate(); // takes recorded, evaluated or moved since
     }
     const auto& list = items(page);
     if(!selectable(list[cursors[page]]))
@@ -1530,6 +1742,12 @@ void change(const Item& item, int dir, bool repeat = false)
             {
                 const int page = item.page;
                 void (*const action)() = item.action;
+                void (*const actionArg)(int) = item.actionArg;
+                const int arg = item.arg;
+                if(actionArg)
+                {
+                    actionArg(arg); // (`item` may be gone after this)
+                }
                 if(page >= 0)
                 {
                     openPage(page);
@@ -1648,8 +1866,24 @@ void drawItem(const Item& item, int y, bool selected)
     if(item.kind == Item::Info)
     {
         char text[41];
-        q_strlcpy(text, item.info ? item.info() : "", sizeof(text));
+        q_strlcpy(text, item.infoArg ? item.infoArg(item.arg) : item.info ? item.info() : "", sizeof(text));
         M_Print((320 - 8 * static_cast<int>(strlen(text))) / 2, y, text);
+        return;
+    }
+
+    if(item.wide)
+    {
+        // A row of a list: its text across the width, white while selected.
+        char text[41];
+        q_strlcpy(text, item.infoArg ? item.infoArg(item.arg) : item.label, sizeof(text));
+        if(selected)
+        {
+            M_PrintWhite(0, y, text);
+        }
+        else
+        {
+            M_Print(0, y, text);
+        }
         return;
     }
 
@@ -1746,7 +1980,10 @@ void drawItem(const Item& item, int y, bool selected)
     }
     else
     {
-        text = onEnd ? std::string(hint) + " " + help : std::string(help) + " " + hint;
+        // Built in place: the static string keeps its capacity, so no allocation per frame.
+        text.assign(onEnd ? hint : help);
+        text += ' ';
+        text += onEnd ? help : hint;
     }
     return text.c_str();
 }
@@ -1797,7 +2034,7 @@ extern "C" void VR_Menu_Open()
     showPage(PageMain);
 }
 
-// menu_vr [page]: the VR Settings, or one of its pages (1: Advanced VR Options); menu_vr list:
+// menu_vr [page [row]]: the VR Settings, or one of its pages (1: Advanced VR Options); menu_vr list:
 // the pages' numbers.
 void qvr::menu::command_f()
 {
@@ -1820,6 +2057,14 @@ void qvr::menu::command_f()
             if(target != PageAdvanced)
             {
                 openPage(target);
+            }
+            // menu_vr <page> <row>: the cursor on that row (counted from 0, headers and lines of text included), if it
+            // can rest there (scripts, screenshots).
+            const auto& list = items(page);
+            if(const int row = Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : -1; row >= 0 && row < static_cast<int>(list.size()) &&
+                selectable(list[row]))
+            {
+                cursors[page] = row;
             }
         }
     }
@@ -1912,7 +2157,7 @@ extern "C" void VR_Menu_Draw()
     if(cursor < n)
     {
         const Item& item = list[cursor];
-        const char* help = item.cvar == &vr_render_scale ? renderScaleHelp() : item.helpText;
+        const char* help = item.cvar == &vr_render_scale ? renderScaleHelp() : item.helpArg ? item.helpArg(item.arg) : item.helpText;
         if(item.kind == Item::Slider && item.extendable)
         {
             help = extendableHelp(item, help);

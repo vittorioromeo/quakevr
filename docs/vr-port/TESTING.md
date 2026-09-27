@@ -142,10 +142,21 @@ context and screenshot, ready to paste or to point me at.
 ## What to try
 
 - **New in this round** (details in `docs/vr-port/ROUND21.md`; each section ends with an "In the headset" list):
+  - **Physics engine: Box3D, to compare** (Throwing and Physics > Physics Engine, switches at once): Quake VR is the
+    solver you know; Box3D makes thrown and dropped things collide with each other too: stack boxes, build a pyramid,
+    throw a box into a stack, sweep one off with a held box. Then the usual: throws at monsters, weapons landing on
+    their sides, backpacks and armour on slopes, boxes on lifts, things floating. The side-by-side list is at the end
+    of ROUND21.md, "Box3D physics".
   - **Melee, redesigned:** swings in any direction (backswings too), stabs with the tip, pommel/butt strikes with
     the near end, parry bash = hold the stance ~0.5 s then push; palm shoves (both palms harder). Melee Speed was
     reset once to 4 m/s. Tell which of your motions still misread, and record more takes of them.
   - **Motion recorder:** Advanced VR Options > Motion Recorder; keep adding takes, especially of what misreads.
+  - **Review Takes** (under Motion Recorder): the takes that fail the evaluation or are suspect (To Review). In the
+    firing range, pick one: Play Ghost replays it in front of the dummy (translucent weapons, their lines, the tip's
+    trail, the events), then Keep, Discard (into `motions/discarded/`) or Relabel it; Undo Last takes any of them
+    back. Re-evaluate This Take / Re-evaluate Shown run the evaluation in a second copy of the game in the background
+    (a small window appears; your headset view is untouched). Tell whether the ghost reads well in the headset, and
+    whether a re-evaluation drops frames.
   - **Weapons stop at monsters and things:** a gun, a sword or a fist pushed into a monster, a corpse or a box on the
     ground stops at the model as drawn (not its box), the hand and arm with it; past 20 cm it gives way (Hand/Gun
     Calibration > Against Monsters and Things). Hits are unchanged: they come from your hand.
@@ -553,6 +564,29 @@ the view goes in and out by. `impulse 241` puts a monster (`vr_test_spawn`: the 
 box (100 health, 101 shells) `vr_test_spawn_dist` units ahead (`vr_test_spawn_dead 1`: a corpse);
 `vr_mock_camera <x> <y> <z> <pitch> <yaw>` draws the mock eyes from elsewhere in the tracking space (a spectator's view of
 your body; the hands stay with the head), `vr_mock_camera` alone puts them back.
+
+Weapon posing mode (ROUND21.md, "Weapon posing mode"): `vr_pose [weapon | 1..4 | new | stop] [main | off]` poses the
+weapon in the main hand (or else the off hand's), held in the hand given (`vr_pose_weapon_hand`); `vr_pose_confirm`,
+`vr_pose_undo`, `vr_pose_next`, `vr_pose_type` and `vr_pose_turn <yaw> <tilt>` (no arguments: back to the start) are
+the buttons' actions. The buttons work in the mock too: the confirming hand's `primary` confirms, `secondary` undoes,
+`trigger` goes on to the next thing to pose, `stickclick` changes a hotspot's type (on the weapon: its turn back to the start), `menu` leaves. `vr_pose_check`, after
+leaving, holding the weapon (and, for a hotspot, the other hand holding it by the hotspot: `+graboff;
+vr_mock_button off grip 1`), prints how far the hand is from the pose confirmed last, relative to the weapon (its rig,
+the weapon's muzzle, the drawn palm), and, for the weapon, how far the hand is in the world from where it was drawn
+while posing (the same controller pose: this one shows the angle offsets' Euler quirk). Recipe: `map vrfiringrange;
+wait60; vr_weapon_grip_mode 1; impulse 155; wait60; vr_mock_look 30 0; vr_mock_hand main 0.0 1.33 -0.38 40 0 0;
+vr_mock_fingers main 1 1 1; vr_pose; wait90; vr_mock_button off primary 1; wait3; vr_mock_button off primary 0; wait10;
+vr_pose stop; wait120; vr_pose_check`. The floating weapon's grip is at (0, 1.35, -0.4) in the mock's tracking space
+(40 cm ahead of the head, 35 cm below it); the super shotgun's foregrip is near (-0.06, 1.31, -0.71).
+Rigid bodies (round 21, Box3D): `vr_physics_engine 0|1` switches the solver; `vr_physics_stack`, `vr_physics_pyramid`,
+`vr_physics_pile` put props (a number, a classname or `props`) in a column, a pyramid or toppling columns;
+`vr_physics_loose` makes a hanging armour or a pickup a loose prop; `vr_physics_list` and `vr_physics_hash` print
+them (the hash: determinism); `vr_debug_box3d 1|2`. `vr_forcegrabbable_return 0` keeps moved items from going back
+to their places during a long test.
+Stacking in Quake VR's own solver (round 21, engine 0): `vr_props_collide 0|1|2` (off, boxes and items, everything);
+`vr_rigid_dump [classname]` prints every rigid body's place, turn, speed and island (asleep or awake);
+`vr_debug_throw 3` prints each island body's motion and `stack: island N sleeps/wakes`, `4` every contact; the same
+`vr_physics_*` placing commands work on both engines.
 
 Tuning the body: `vr_show_hip_holsters 1`, `vr_show_upper_holsters 1`, `vr_show_shoulder_holsters 1` and
 `vr_show_virtual_stock 1` mark where the holsters and the virtual stock's shoulders are (green while a hand is

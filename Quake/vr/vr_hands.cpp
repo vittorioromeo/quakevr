@@ -261,37 +261,10 @@ void updateVelocities(const TrackingState* t)
 // the weapon's own offsets). Not for the empty hand.
 void applyWholeOffset(int h)
 {
-    using weapons::Key;
-    const int slot = weapons::heldSlot(h);
-    if(slot < 0 || slot == weapons::fistSlot())
+    glm::mat3 turn{1.f};
+    if(wholeOffset(weapons::heldSlot(h), h, state.pos[h], state.rot[h], turn))
     {
-        return;
-    }
-    glm::vec3 p = weapons::vec(slot, Key::WholeX, Key::WholeY, Key::WholeZ);
-    glm::vec3 a = weapons::vec(slot, Key::WholePitch, Key::WholeYaw, Key::WholeRoll);
-    if(p == glm::vec3{0.f} && a == glm::vec3{0.f})
-    {
-        return;
-    }
-    if(h == HAND_OFF)
-    {
-        p.y = -p.y;
-        a.y = -a.y;
-        a.z = -a.z;
-    }
-    state.pos[h] += redirect({p.x, -p.y, p.z}, state.rot[h]);
-    if(a != glm::vec3{0.f})
-    {
-        // rot's axes (forward, left, up) times the offset's turn in them (pitch up: the view's pitch is down).
-        const auto basis = [](const glm::vec3& angles) {
-            glm::vec3 f, r, u;
-            angleVectors(angles, f, r, u);
-            return glm::mat3{f, -r, u};
-        };
-        const glm::mat3 before = basis(state.rot[h]);
-        const glm::mat3 b = before * basis({-a.x, a.y, a.z});
-        state.rot[h] = anglesFromVectors(glm::normalize(b[0]), glm::normalize(b[2]));
-        state.wholeTurn[h] = basis(state.rot[h]) * glm::transpose(before);
+        state.wholeTurn[h] = turn;
     }
 }
 
@@ -553,6 +526,77 @@ glm::vec3 redirect(const glm::vec3& v, const glm::vec3& angles)
     glm::vec3 fwd, right, up;
     angleVectors(angles, fwd, right, up);
     return fwd * v.x + right * v.y + up * v.z;
+}
+
+namespace
+{
+
+// rot's axes (forward, left, up).
+[[nodiscard]] glm::mat3 basisOf(const glm::vec3& angles)
+{
+    glm::vec3 f, r, u;
+    angleVectors(angles, f, r, u);
+    return glm::mat3{f, -r, u};
+}
+
+// A slot's Hand and Weapon Together offset, as for hand `h` (mirrored for the off hand); false if it has none.
+bool wholeValues(int slot, int h, glm::vec3& p, glm::vec3& a)
+{
+    using weapons::Key;
+    if(slot < 0 || slot == weapons::fistSlot())
+    {
+        return false;
+    }
+    p = weapons::vec(slot, Key::WholeX, Key::WholeY, Key::WholeZ);
+    a = weapons::vec(slot, Key::WholePitch, Key::WholeYaw, Key::WholeRoll);
+    if(p == glm::vec3{0.f} && a == glm::vec3{0.f})
+    {
+        return false;
+    }
+    if(h == HAND_OFF)
+    {
+        p.y = -p.y;
+        a.y = -a.y;
+        a.z = -a.z;
+    }
+    return true;
+}
+
+} // namespace
+
+bool wholeOffset(int slot, int h, glm::vec3& pos, glm::vec3& rot, glm::mat3& turn)
+{
+    glm::vec3 p, a;
+    if(!wholeValues(slot, h, p, a))
+    {
+        return false;
+    }
+    pos += redirect({p.x, -p.y, p.z}, rot);
+    if(a == glm::vec3{0.f})
+    {
+        return false;
+    }
+    // rot's axes (forward, left, up) times the offset's turn in them (pitch up: the view's pitch is down).
+    const glm::mat3 before = basisOf(rot);
+    const glm::mat3 b = before * basisOf({-a.x, a.y, a.z});
+    rot = anglesFromVectors(glm::normalize(b[0]), glm::normalize(b[2]));
+    turn = basisOf(rot) * glm::transpose(before);
+    return true;
+}
+
+void undoWholeOffset(const State& s, int h, glm::vec3& pos, glm::vec3& rot)
+{
+    glm::vec3 p, a;
+    if(!wholeValues(weapons::heldSlot(h), h, p, a))
+    {
+        return;
+    }
+    if(a != glm::vec3{0.f})
+    {
+        const glm::mat3 b = glm::transpose(s.wholeTurn[h]) * basisOf(rot);
+        rot = anglesFromVectors(glm::normalize(b[0]), glm::normalize(b[2]));
+    }
+    pos -= redirect({p.x, -p.y, p.z}, rot);
 }
 
 } // namespace qvr::hands

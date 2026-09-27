@@ -175,6 +175,9 @@ struct Category
 [[nodiscard]] std::string motionsDir();
 [[nodiscard]] std::string safeLabel(const std::string& label);
 
+// The takes in quakevr/motions changed (moved, relabelled): the recorder's counts are counted again.
+void invalidateTakeCounts();
+
 // The latest server sample (null before the first), and the events of the frame so far.
 [[nodiscard]] std::shared_ptr<const ServerSample> latestSample();
 

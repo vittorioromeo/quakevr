@@ -486,6 +486,8 @@ void SV_PushMove (edict_t *pusher, float movetime)
 		movemask = 1 << (int)check->v.movetype;
 		if (movemask & ((1<<MOVETYPE_PUSH) | (1<<MOVETYPE_NONE) | (1<<MOVETYPE_NOCLIP)))
 			continue;
+		if (VR_PushSkips (check)) // QVR: Box3D's rigid bodies ride it by contact
+			continue;
 
 	// if the entity is standing on the pusher, it will definately be moved
 		if ( ! ( ((int)check->v.flags & FL_ONGROUND)
@@ -1322,6 +1324,9 @@ void SV_Physics (void)
 		}
 	//johnfitz
 	}
+
+	if (!sv_freezenonclients.value)
+		VR_PhysicsFrameEnd (); // QVR: the rigid bodies' world steps (vr_physics_engine 1)
 
 	if (pr_global_struct->force_retouch)
 		pr_global_struct->force_retouch--;

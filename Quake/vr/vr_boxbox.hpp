@@ -4,9 +4,9 @@
 // penetration (or of the largest gap, within a margin: speculative contacts). On a face axis, the other
 // box's face most turned against it (the incident face) is clipped by the side planes of the reference
 // face (Sutherland-Hodgman), and every clipped corner within the margin of the reference face is a
-// contact: up to 8, reduced to the 4 that span the largest area (the deepest first). On an edge axis the
-// contact is the closest points of the two edges. So a box resting flat on another has four contacts, at
-// the corners of their overlap, which is what lets a stack stand still.
+// contact: up to 8 (the overlap of two turned boxes), or reduced to the 4 that span the largest area (the
+// deepest first). On an edge axis the contact is the closest points of the two edges. So a box resting flat
+// on another has a contact at each corner of their overlap, which is what lets a stack stand still.
 //
 // Face axes are preferred to edge axes, and box A's faces to box B's, unless the other is clearly better
 // (relative and absolute tolerances, as Box2D's): nearly equal choices otherwise flip from frame to frame,
@@ -40,7 +40,7 @@ struct Manifold
 {
     glm::vec3 n{0.f}; // unit, from A towards B (B is pushed along it, A against it)
     int count{0};
-    std::array<Point, 4> pts{};
+    std::array<Point, 8> pts{};
     bool edge{false};
 };
 
@@ -77,8 +77,9 @@ inline int clip(const glm::vec3* in, int n, const glm::vec3& axis, float limit, 
 
 } // namespace detail
 
-// Contacts between A and B, or false when they are further apart than `margin` along some axis.
-[[nodiscard]] inline bool collide(const Box& a, const Box& b, float margin, Manifold& out)
+// Contacts between A and B, or false when they are further apart than `margin` along some axis. At most
+// `maxPoints` (4 or 8) of a face's clipped corners are kept.
+[[nodiscard]] inline bool collide(const Box& a, const Box& b, float margin, Manifold& out, int maxPoints = 4)
 {
     using detail::radius;
     const glm::vec3 t = b.c - a.c;
@@ -241,7 +242,7 @@ inline int clip(const glm::vec3* in, int n, const glm::vec3& axis, float limit, 
     }
 
     out.n = ref == 0 ? nr : -nr;
-    if(count <= 4)
+    if(count <= maxPoints)
     {
         out.count = count;
         for(int i = 0; i < count; i++)
@@ -262,13 +263,13 @@ inline int clip(const glm::vec3* in, int n, const glm::vec3& axis, float limit, 
         }
     }
     int i1 = i0 == 0 ? 1 : 0;
-    float far = -1.f;
+    float furthest = -1.f;
     for(int i = 0; i < count; i++)
     {
         const glm::vec3 d = pts[i].p - pts[i0].p;
-        if(i != i0 && glm::dot(d, d) > far)
+        if(i != i0 && glm::dot(d, d) > furthest)
         {
-            far = glm::dot(d, d);
+            furthest = glm::dot(d, d);
             i1 = i;
         }
     }

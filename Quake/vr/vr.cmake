@@ -25,3 +25,17 @@ set_target_properties(ironwail PROPERTIES
 	CXX_STANDARD 20
 	CXX_STANDARD_REQUIRED ON
 	CXX_EXTENSIONS OFF)
+
+# Box3D (external/box3d/README.md): the rigid-body physics library (vr_box3d.cpp), C17, single-threaded.
+# No FMA contraction on gcc and clang: Box3D's cross-platform determinism relies on it.
+file(GLOB QVR_BOX3D_SRC CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/external/box3d/src/*.c")
+add_library(qvr_box3d STATIC ${QVR_BOX3D_SRC})
+target_include_directories(qvr_box3d PUBLIC "${CMAKE_CURRENT_LIST_DIR}/external/box3d/include")
+set_target_properties(qvr_box3d PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED ON C_EXTENSIONS ON)
+if (CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+	target_compile_options(qvr_box3d PRIVATE -ffp-contract=off)
+endif()
+if (UNIX AND NOT APPLE)
+	target_link_libraries(qvr_box3d PUBLIC m)
+endif()
+target_link_libraries(ironwail PRIVATE qvr_box3d)

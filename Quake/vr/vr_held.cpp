@@ -247,6 +247,24 @@ glm::vec3 drawnCentre(int num)
     return origin + axesFromAngles(e.angles, brush) * ((lo + hi) * 0.5f * ENTSCALE_DECODE(e.scale)); // and Ironwail's scale
 }
 
+bool drawnVertices(edict_t* ent, std::vector<glm::vec3>& out)
+{
+    out.clear();
+    const int index = static_cast<int>(ent->v.modelindex);
+    const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    thread_local std::vector<Triangle> triangles;
+    if(!model || !drawnTriangles(ent, model, triangles))
+    {
+        return false;
+    }
+    out.reserve(triangles.size() * 3);
+    for(const Triangle& t : triangles)
+    {
+        out.insert(out.end(), t.p, t.p + 3);
+    }
+    return true;
+}
+
 float surfaceDistance(edict_t* ent, const glm::vec3& point, glm::vec3* nearest)
 {
     const int index = static_cast<int>(ent->v.modelindex);

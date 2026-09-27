@@ -7,6 +7,7 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | Area | Result |
 |---|---|
 | Motion recorder | VR menu page: pick a category, click the off stick to start and end a take; 474 takes recorded so far. `vr_motion_play` / `vr_motion_eval` replay them on the dummy, deterministic and order-independent, ~0.7 s a take |
+| Reviewing takes | the evaluation marks each take (`motions/eval_status.csv`); Review Takes lists the failing and suspect ones, plays one as a ghost in front of the dummy in the headset, keeps, discards or relabels it (Undo Last); Re-evaluate in a second copy of the game |
 | Melee | one model for swords, axes, Mjolnir, guns and fists (`QC/vr_melee.qc`): blows by the hand's speed and 20 cm travelled, the kind by which part hit (tip along the blade = stab, far end = slash, near end = pommel), parry bash = stance held 0.5 s then pushed; your 474 takes: 420 pass (the old code: 346), at 120, 90 and 72 Hz alike |
 | Fitted hands | jointed hands (3 joints a finger, a real thumb) that close smoothly; fingers wrap what they hold (guns, blades, boxes, gibs, armour), solved on the main thread in 19–127 µs when the grip changes, 0.02 ms a hand a frame; recoil moves the hand again; hotspots (up to 4 per weapon, Grip/Blade/Cup, with a bias); Inherit From for alternate models; fingers stop at walls |
 | Weapon offsets | one transform per weapon in the hand (30 of 106 per-weapon keys retired), your placements migrated exactly |
@@ -16,6 +17,7 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | Casings | a tiny splash, ripple and plip in water, slime and lava |
 | C++ audit | 17 fixes: the upscaler's per-frame 60 KB string, NaN-safe network moves, unsigned hashes, flat water-ripple table, decal/gore rings, caches reset on a game directory change, beam quality (Medium default, 0.002–0.010 ms instead of 0.018), O(n²) eviction removed; INSTALL.md requires the VC++ redistributable 14.44+ |
 | Defaults | your round-20 test settings and weapon placements (`vr_wofs_version` 14); Fit Gap down to -6 cm |
+| Box3D physics | a second rigid-body engine to compare (Throwing and Physics > Physics Engine, live): Erin Catto's Box3D, single-threaded; props collide with each other (stacks, pyramids, piles, knocks), everything else as before; 0.12-0.15 ms a server frame with 52 props settling; your 474 takes identical on both |
 
 Found on the way: fteqcc stores 0 when `a || b` is assigned into an entity field (rewritten; no other code has that
 shape); a parried blow's hand knock, timed by `cl.time`, came back after a level change (reset now).
@@ -2327,3 +2329,452 @@ hitbox (`r_showbboxes 1`):
 - Rest a gun on a health box, a corpse, a backpack; an empty hand on a monster (Hands Stop at Models).
 - Hold a weapon two-handed into a monster: the helping hand should stay on it.
 - Holster and draw near a monster: nothing should change.
+
+## Reviewing failing takes
+
+Your request: mark the takes that don't pass and give you an easy way to filter and inspect them in the game, to
+decide whether to keep them or throw them out. `MOTIONS.md`, "Reviewing failing takes", has the details.
+
+- **Marked**: `vr_motion_eval` now also writes each take's verdict into `motions/eval_status.csv` next to the takes
+  (verdict, reason, expectation, the replay's and the take's own events, when), merged across evaluations; the takes
+  themselves are never written. The melee agent's suspect takes (above) are in `quakevr/motions/suspects.cfg` (in git),
+  with the reason.
+- **Review Takes** (Advanced VR Options, under Motion Recorder): "474 takes: 54 failing, 39 suspect", how many you
+  reviewed and discarded, when they were evaluated; Show To Review / Failing / Suspect / Not Evaluated / Reviewed / All
+  / Discarded, and a Category. A row is the verdict (`*` suspect), the label, the time it was recorded and `k` / `r`
+  (kept, relabelled); under the list, why it fails and what it registered. A take's page: expected, replay and live
+  events, the reason, the suspicion; **Play Ghost**, **Keep**, **Discard** / **Restore**, **Relabel**, **Undo Last**,
+  Next / Previous Take, **Re-evaluate This Take**.
+- **The ghost**: the take replayed in front of the dummy, looping at 1x to 0.1x: its weapons and empty hands drawn
+  translucent and tinted where the take had them relative to the dummy, the weapon's line and striking points, the
+  far end's trail, the head, and the events as they happen (live ones where they hit, the replay's over the dummy).
+  Nothing is driven: it plays in the headset with your own tracking untouched.
+- **Discard / Relabel / Undo**: a discard moves the take into `motions/discarded/`; a relabel renames it to the new
+  label (same time) and changes its header's label lines, keeping the original byte for byte in
+  `motions/review/relabelled/`. Every change is in `motions/review/undo.csv`: Undo Last takes back the last one, also
+  after a restart (checked: relabel, discard and keep made in one session and undone in the next leave both takes
+  identical to yours, byte for byte).
+- **Re-evaluate**: the evaluation replaces the head's and hands' tracking and reloads the map for each take, so it
+  can't run in the game you play; the review runs a second copy of the game in the background (`-vrmock`
+  `-noconfigwrite` `-noautoexec` `-evalcopy`: the mock headset, your config and autoexec untouched, no copy of a
+  copy), with your current settings, and reads the verdicts when it quits. One take: 6 s.
+
+### Checked (mock headset, on a copy of your 474 takes)
+
+- `vr_motion_eval` on all of them: **420 of 474** pass, as on the base (the same 54 fail; the tables identical but one
+  take's hand error, 0.073 against 0.091 units, the last take of the run: no verdict or event differs).
+  `eval_status.csv` has all 474.
+- The list: To Review 54 (every suspect take fails too); Failing + Expected Slash 7. A relabel (`no_hit` 02-21-03 to
+  `palm_shove_2h`, the suspect "both open palms pushed out"), then Re-evaluate This Take: FAIL "no shove/both" (the
+  replay registers two one-hand shoves).
+- Robustness: a take renamed by hand shows `old` with its old verdict; new takes `new`; an empty or broken file
+  refuses to play with a message; an undo whose file was deleted says so and is dropped.
+- Found on the way: the engine keeps only the command line's first 256 characters for its `+` commands (a long
+  `-basedir` cut the copy's script off); and the kit's `autoexec.cfg` ran in the copy (it started a copy of its own,
+  and so on): hence `-noautoexec` and `-evalcopy`. `menu_vr <page> <row>` puts the cursor on a row (for scripts).
+
+### Limitations
+
+- The ghost's weapon is placed as a held weapon from the recorded hand pose with today's weapon offsets (the take
+  records the hand, not the drawn model); the recorded weapon line and striking points, drawn with it, are exact.
+  Empty hands are the plain hand model, not the fitted hands' pose. A gun carried by its pump isn't recorded as such.
+- Re-evaluate shares the GPU with the game in the headset: a few takes should not be noticed, a long list may drop
+  frames. Not tried in the headset.
+
+### In the headset
+
+- [ ] Firing range, Review Takes: the list, the filters, a take's page; readable?
+- [ ] Play Ghost on a failing slash and a suspect no_hit: can you tell what went wrong? Is 0.25x a good speed?
+- [ ] Keep, Discard, Relabel a few; Undo Last.
+- [ ] Re-evaluate This Take (a small window appears on the desktop, a few seconds): any hitch in the headset? Then
+      Re-evaluate Shown on a short list.
+## Weapon posing mode
+
+Your request: "a setup mode where the weapon model appears statically in front of the player, then I pose the hand
+(per weapon) and offhands (per hotspot) as desired and I confirm the position by pressing a button on the other hand".
+Branch `agent/posing`. Composites and logs are in the scratchpad's `posing/`.
+
+| | What you get |
+|---|---|
+| Enter | Weapon Offsets > **Posing Mode** > **Pose This Weapon**, or a hotspot's **Pose This Hotspot** / **Pose a New Hotspot**; or `vr_pose` from the console |
+| The weapon | floats still, 40 cm ahead of your head and 35 cm below it (chest height), level, pointing where you looked; drawn as it is held, with its hotspots, its muzzle (yellow), its barrel (green) and where your hand's shots would go (red) |
+| Pose the weapon | the weapon hand is drawn at its controller and wraps the floating weapon live, as it will hold it; the **other** hand's A/X sets the weapon's place in the hand (Offset X/Y/Z, Pitch/Yaw/Roll) |
+| Pose a hotspot | the weapon hand is drawn holding the floating weapon; the other hand poses the hotspot (Grip, Cup or Blade) and the **weapon hand's** A/X sets it (its point, a cup's palm point or a blade's share, and its Hand Pitch/Yaw/Roll) |
+| Feedback | a click in both hands, the weapon pick-up sound, and a line in front of you saying what was set |
+| Undo | B/Y undoes the last set, then the one before (every setting back to the exact text it had) |
+| Leave | the menu button: back on the Weapon Offsets page (or to the game, if you started from the console) |
+
+### Controls while posing
+
+"The other hand" is the hand that isn't posing: the off hand while you pose the weapon with the main hand, the weapon
+hand while you pose a hotspot. The text in front of you names its buttons.
+
+| Button (the other hand) | Does |
+|---|---|
+| A / X | Set: what you see becomes the setting |
+| B / Y | Undo the last set |
+| Trigger | Next thing to pose: the weapon, hotspot 1, 2, 3, 4, the weapon... (the posing hand changes with it) |
+| Stick click | Posing a hotspot: its type (Grip, Cup, Blade). Posing the weapon: the weapon back as it started |
+| Stick | Turn the floating weapon: left/right spins it, up/down tilts it (about the middle of its grip and muzzle) |
+| Menu (either hand) | Leave |
+
+The posing hand's buttons, and the other hand's grip, do nothing: squeeze them freely (the posing hand's grip closes its fingers on the weapon, to see the wrap). You can walk round
+the weapon; the sticks don't move or turn you while posing.
+
+### In the headset, step by step
+
+1. Hold the weapon to tune (in either hand), open the menu, go to Weapon Offsets for that hand.
+2. Under **Posing Mode**, pick **Weapon Hand** (Main Hand, or Off Hand: mirrored; the settings are shared) and
+   **Tuning Offsets on Confirm** (Keep, the default, or Set to 0: see below).
+3. Click **Pose This Weapon**. The menu closes; the weapon floats in front of your chest.
+4. Put your weapon hand on it as you want to hold it and squeeze the grip: the fingers wrap it as they will in play.
+   Turn it with the other hand's stick to check it from the sides.
+5. Press the other hand's A/X. You feel a click in both hands and hear the pick-up sound; the line in front of you says
+   what was set. B/Y undoes it.
+6. For the hotspots, press the other hand's trigger: now hotspot 1. The weapon is held by a copy of your weapon hand;
+   put your other hand where it should hold it (a foregrip: where the hand is; a cup: your palm round the holding
+   hand), pick the type with the weapon hand's stick click, and press the weapon hand's A/X. The trigger again for hotspot 2,
+   and so on (a hotspot with no type becomes a new one).
+7. Press the menu button: you are back on the page, the weapon in your hand, and play resumes. Hold it: hand and
+   weapon are as you posed them.
+
+### How it works (`vr_posing.cpp`, `vr_view.cpp` "Weapon posing mode")
+
+- **The floating weapon** is the weapon hand's view entity, placed by the view's own weapon placement from a hand put
+  where the weapon's current settings leave the weapon where it floats. It is drawn exactly as a held weapon is (skin,
+  scale, hotspots, muzzle, ammo screen), and after a set it stays where it is while its settings change.
+- **What a set writes is the placement's own steps undone:**
+  - Held, the drawn hand's turn is the weapon's turn, times the weapon's angle offsets undone, times the hand's own
+    (`attachedTurn`): `H = W · w0ᵀ · F`. With `H` the hand as tracked (the controller, as an empty hand is drawn) and
+    `W` the floating weapon, `w0 = F · Hᵀ · W`; Pitch/Yaw/Roll come from `w0` (less `vr_gunmodelpitch`; yaw and roll
+    mirrored for the off hand).
+  - Offset X/Y/Z: the weapon's model origin seen from the hand's point, in the weapon's (mirrored) frame, over its model
+    scale, less `vr_gunmodely`.
+  - A grip hotspot's point is where the tracked hand's point is (where it is then taken from); a cup's, where the palm's
+    middle is; a blade's, the share of the way from the hand to the tip. Its Hand Pitch/Yaw/Roll: the hand's turn with
+    `helpingTurn` undone (the weapon's fixed-hand angles for a grip, the hand's own for a cup, mirrored for the main
+    hand helping).
+  - The grasp the posing hand shows is solved as the settings will put it (`Held::canonical`, at the candidate's place
+    in the hand), so the fingers you see while posing are the fingers you get.
+- **The tuning offsets** (Hand and Weapon Together, Hand Only, a hotspot's Held Hand). **Kept by default:** the pose is
+  taken from the hand as tracked, and the posing hand is drawn with them, where play will draw it (Hand Only bends the
+  drawn wrist on top of the grip; Hand and Weapon Together moves both from the controller). **Set to 0** zeroes them on
+  a set, and the posing hand is drawn without them.
+- **Mirroring:** posing with the off hand writes the same keys the main hand reads, mirrored as the off hand reads them.
+- **Inherit From:** a weapon that inherits (the lava nailgun from the nailgun...) is posed with its own model, and the
+  settings are written where the Weapon Offsets page edits them: the weapon it inherits from. Its own copy of each key
+  written goes back to its default, so that both weapons hold the pose. To pose it apart, use "Stop Inheriting (Copy
+  Them Here)" first. The text says whose settings are set.
+- **A hotspot on a weapon whose two-handed use is Not Allowed** allows it, as the page does.
+- **The game while posing:** nothing reaches the server but the finished settings. The moves carry the hands as they
+  were when posing began (moving with you if you walk), with no speed, their buttons as they were, no two-handed aim,
+  no teleport and no attack: no shot, blow, parry, grab, holster, throw or item touched. The buttons pressed while
+  posing are the posing mode's; a grip held since before stays held for the game, so the weapon is still in your hand
+  afterwards (with Weapon Grip Mode 0 too). Posing ends when the menu opens (any way), the map changes, you die, or VR
+  stops.
+
+### Held: exact relative to the hand; on the controller, as every weapon is
+
+The hand and weapon you pose are, held, the same relative to each other at any controller angle (the drawn hand is
+carried rigidly by the weapon). Where the pair sits on the controller is as before: the weapon's angle offsets are
+Euler angles added to the hand's, so on a controller rolled 10° the pair sits about half a degree from where it was
+drawn while posing (0.14° on a level one), more with large angle offsets on a steeply turned controller (numbers
+below). Every weapon placement behaves so today; changing it would
+move every tuned weapon and your takes' replays.
+
+### Settings and commands
+
+| | |
+|---|---|
+| `vr_pose_weapon_hand` (Weapon Hand) | 1 main (default), 0 off: the hand that holds the floating weapon and poses it; the other poses the hotspots and confirms |
+| `vr_pose_reset_offsets` (Tuning Offsets on Confirm) | 0 keep (default), 1 set to 0 |
+| `vr_pose [weapon \| 1..4 \| new \| stop] [main \| off]` | start (the weapon in the main hand, else the off hand's) or stop |
+| `vr_pose_confirm`, `vr_pose_undo`, `vr_pose_next`, `vr_pose_type`, `vr_pose_turn <yaw> <tilt>` | the buttons, from the console |
+| `vr_pose_check` | after leaving, holding the weapon: the hand against the last pose set |
+
+### Tests (mock headset; `posing/` in the scratchpad)
+
+Each: posed in the mock (the controller scripted to a pose on the floating weapon, the fingers closed), set with the
+other hand's button, left, the weapon held (for a hotspot, the other hand taking it with its grip), `vr_pose_check`.
+Units are world units (a 1.25 world scale: 26 to the metre).
+
+| Case | Hand vs the pose (its rig) | Weapon's muzzle | Drawn palm (fitted) |
+|---|---|---|---|
+| Super shotgun, main hand (controller rolled 10°) | 0.0001 units, 0.0000° | 0.0001 | 0.0001 |
+| The same with Hand Only (1.5, -0.7, 0; 8°, 0, -5°) and Hand and Weapon Together (2, 0, -1; 0, 6°, 4°) kept | 0.0001 units, 0.0000° | 0.0000 | 0.0000 |
+| Off hand (mirrored) | 0.0001 units, 0.0000° | 0.0000 | 0.0000 |
+| Lava nailgun (inherits the nailgun's): written to the nailgun, held as the lava and as the nailgun | 0.0001 units, 0.0000° (both) | 0.0001 | 0.0000 |
+| Hotspot 2, Grip (off hand helping) | 0.0001 units, 0.0000° | 0.0001 | 0.0001 |
+| Hotspot 2, Cup (off hand round the main hand) | 0.0000 units, 0.0000° | 0.0001 | 0.0000 |
+| Hotspot 3, Grip, the weapon in the off hand, the main hand helping (mirrored) | 0.0001 units, 0.0000° | 0.0001 | 0.0001 |
+| The floating weapon turned (60° spin, 20° tilt), the hand posed on it there | 0.0001 units, 0.0000° | 0.0002 | 0.0001 |
+
+The drawn palm (after the grasp's palm fit) matching shows that the fingers in the preview are the ones held. The
+same numbers hold with the controller then turned anywhere (tried 80–100° away from the pose). In the world, at the
+same controller pose, the held hand was 0.009 units and 0.14° from where it was drawn while posing (a level
+controller), 0.035 units and 0.57° (a controller rolled 10°), 0.07 units and 1.6° (with the offsets above kept), 0.46 units and 7.7° (the weapon turned, the controller turned 40° and rolled 15°, the angle offsets set to 23° of yaw): the
+Euler angle offsets' quirk.
+
+Undo: the six keys came back as the exact text they had ("0.0" stays "0.0"), and the offsets not touched stayed.
+
+Replays of your 474 takes (`vr_motion_eval`, vrfiringrange): 420 of 474 pass, and the kit's eval finds 0 takes differing from the
+baseline (`eval_posing.csv`). The
+posing mode is off in them; the code they run through changed only in shape (the Hand and Weapon Together offset as a
+function, the hand's drawing split out).
+
+### Files
+
+- `Quake/vr/vr_posing.cpp/.hpp` (new): the session, the buttons, set/undo, the text, the commands.
+- `Quake/vr/vr_view.cpp`: the floating weapon, the posing hand and the solve ("Weapon posing mode"); `setupHand`'s
+  drawing split out (`drawHand`), `showHotspots`' marks (`drawHotspots`), `vr_pose_check`.
+- `Quake/vr/vr_hands.cpp/.hpp`: the Hand and Weapon Together offset as a function of a slot (the same arithmetic).
+- `Quake/vr/vr_input.cpp` (the buttons and sticks while posing), `vr_client.cpp` (the moves while posing),
+  `vr_main.cpp`, `vr_cvars.inc`, `vr_menu.cpp` (the Weapon Offsets page only).
+
+### Limitations and not verified
+
+- Mock only: not tried in the headset. The text's place (80 cm ahead, 20 cm below the eyes) and size are guesses.
+- A blade hotspot is posed as a share along the blade only: the blade grip turns the hand itself, as before.
+- Posing doesn't change the weapon's Scale, the finger tweaks or the muzzle: tune them on the page.
+- Posing a hotspot, the weapon hand's copy is drawn closed as if gripping, whatever its controller does.
+
+### In the headset
+
+- Pose the shotgun with the main hand: does the grip feel the same when you then hold it? Try a tilted wrist.
+- Pose it with the off hand (Weapon Hand: Off Hand), then hold it in the main hand: the mirror image?
+- Pose a foregrip and a cup, then take them in play. Is the cup still round your hand?
+- Is the text readable and out of the way? Is 40 cm ahead at the chest a good place for the weapon?
+- Undo a few times; leave with the menu button; do the page's sliders show the new values?
+## Box3D physics
+
+Your request: two agents in parallel, one extending the current solver to stack, the other (this one) adding Box3D
+and moving all the existing rigid-body physics onto it; you test both and choose. Branch `agent/box3d`. The code is
+`Quake/vr/vr_box3d.cpp`; Box3D itself is vendored in `Quake/vr/external/box3d` (README with the upstream commit).
+Composites and traces are in the scratchpad's `box3d/`.
+
+**The switch:** Throwing and Physics > **Physics Engine**: Quake VR (`vr_physics_engine 0`, the default, the old solver
+unchanged) or Box3D (`1`). It switches at once, live: at the next server frame the Box3D world is built and every
+body made from its entity (where it is, how it is turned and moving, asleep or not), or destroyed (the entities
+already hold every body's state, so the old solver just goes on from it). Saved games and level changes rebuild it
+the same way.
+
+### Box3D
+
+- Erin Catto's 3D engine, the successor to Box2D: [erincatto/box3d](https://github.com/erincatto/box3d), MIT, version
+  0.1.0 (alpha), commit `5643cd81` (2026-09-25). A shallow clone is a 2.9 MB download (the pack; 12.6 MB checked out); what is vendored (the library's
+  sources, its public headers, the licence) is 2.3 MB.
+- Built as C17 (`/std:c17`, no precompiled header) in the Visual Studio project (`quakevr.props`: `.c` files by
+  wildcard, like the module's `.cpp`) and as a static library in the CMake build (`vr.cmake`; not built here: no
+  CMake on this machine). The Release flags are the project's: `/O2`, `/GL` with link-time code generation,
+  `/fp:precise`. SIMD is Box3D's own choice by architecture (`src/core.h`): SSE2 on x86-64 (the x64 baseline, so the
+  build stays portable), NEON on ARM64 (the Quest's). No warning is added: one, C4756 ("overflow in constant
+  arithmetic", whole-program optimization folding `1000 * FLT_MAX` in Box3D's CCD stall logger, a comparison with
+  infinity that is meant), is disabled for Box3D's files only.
+- **Single-threaded.** The world is made with `workerCount = 1` and no `enqueueTask`/`finishTask`: Box3D then takes
+  its serial path (`physics_world.c`: `b3DefaultAddTaskFcn` runs each task inline and returns NULL, so there is
+  nothing to finish). Its scheduler and threads (`scheduler.c`, `timer.c`'s `b3CreateThread`) are only reached with
+  more than one worker. Nothing runs off the main thread.
+- **Deterministic.** Box3D is by design (no FMA contraction, its own trigonometry); the module calls it in the same
+  order every run (entities in edict order). Checked: two runs of the same script (`host_framerate` fixed, a pile of
+  52 props toppling, a box thrown into it) give bit-identical states for every body at four points
+  (`vr_physics_hash`); the motion eval below writes the same table on both engines.
+
+### How it works
+
+Once a server frame, at the end of `SV_Physics` (a new hook, `VR_PhysicsFrameEnd`), after every entity has thought and
+moved:
+
+1. **The world** (built once per map): a static triangle mesh of the world model's faces as drawn (8608 triangles in
+   the firing range), sky and liquid faces left out, wound to face the open side, the BSP's shared vertices kept
+   shared so that Box3D finds each triangle's neighbours (no bumps at inner edges). Clip brushes have no faces: props
+   ignore them, as the old solver's point traces did.
+2. **Brush entities** (`SOLID_BSP`: doors, plats, trains, buttons, walls, the mission packs' rotating brushes) are
+   kinematic bodies made of their model's solid leaves (the BSP's hull 0 split into convex regions, each a convex
+   hull; a door or a plat is usually one), placed each frame from their origin and angles with the velocity that gets
+   them there over the step. So what rests on a lift rides it by contact, and `SV_PushMove` leaves Box3D's props alone
+   (a second new hook, `VR_PushSkips`).
+3. **Monsters and other solid boxes** (`SOLID_BBOX`, `SOLID_SLIDEBOX` with a size: monsters, the training dummy,
+   exploding barrels) are kinematic boxes, Quake's, following them. **Players** (`vr_box3d_player_push`) are kinematic
+   capsules of their body's width (`vr_box3d_player_radius`, 15 cm), feet to head. Kinematic bodies push props one
+   way: nothing pushes them back. Missiles (no size) are left out.
+4. **Props** (every `.vr_rigid` toss or bounce entity: thrown weapons, ammo and health boxes, backpacks, armour,
+   gibs, heads) are dynamic bodies, one each, made or destroyed as their entity becomes or stops being one.
+   Carried ones (in a hand, or both: the players' `mainhand_held`/`offhand_held`) are kinematic, following the hand,
+   so a held box pushes others aside; let go, it is dynamic again with the throw's velocity and spin. A force grab's
+   flight (noclip) has no body; caught it is held, missed it falls as a prop.
+5. **QC in, Box3D out.** Box3D is authoritative for props. Each frame their origin, angles, velocity (the centre of
+   mass's, as the old solver's), spin (`.vr_spin`) and sleep are written back to the entity; what QC changed since
+   (a throw, a nudge, a knock from `T_Damage`, a force grab's drop, a teleport, `keepInWorld` putting a buried one
+   back, `FL_ONGROUND` cleared) is seen against what was written and fed in, waking the body. Gravity is Quake's
+   (`sv_gravity`, and each entity's `.gravity`: thrown things' true 9.81 m/s^2), in metres (`units::metresToUnits`).
+6. **The step**: `b3World_Step` with `vr_box3d_substeps` (4) sub-steps, in pieces of at most 1/45 s.
+7. **Touches**, after the step: a prop meeting a monster's or a brush entity's body touches it (`SV_Impact`: QC's
+   damage and sounds, as the old solver's contacts with other entities); two props hitting each other faster than
+   60 u/s touch each other (a thrown box into a pile: its knock, its throw over). Landing on the world touches
+   nothing, as before.
+
+### The old solver's behaviours, one by one
+
+| Behaviour (`vr_rigid.cpp`) | With Box3D |
+|---|---|
+| An oriented box, the drawn model's bounds | The convex hull of the drawn model: an alias model's frame (weapons 32 vertices at most, the rest 16: blockier), a brush box's faces (the boxes as drawn, not Quake's padded box). A flat model (a hull thinner than a quarter unit) is its box |
+| Mass: uniform density, unit mass | Mass from the hull's volume, a density per kind (weapons 700 kg/m^3, ammo and health boxes 400, armour 600, backpacks 250, gibs and heads 1000): only the ratios matter, what knocks what how far |
+| Contacts: corners traced against the BSP and solid entities | Box3D's manifolds against the world mesh, brush entities' hulls, monsters' boxes, players' capsules, and every other prop |
+| Sequential impulses, Coulomb friction `vr_throw_friction`, bounce `vr_throw_restitution` | Box3D's soft-step solver; the materials are `vr_throw_friction` (on everything: Box3D mixes `sqrt(a b)`) and `vr_throw_restitution` (on props; it takes the larger), updated when the settings change. Soft things (backpacks, gibs, heads) don't bounce |
+| Split impulses: pushed out of surfaces, never flung | Box3D's contact softness: overlap is resolved at at most 3 m/s |
+| Wedged in a gap: moved out the least way, or held still | Nothing special: Box3D resolves both sides at once; continuous collision keeps fast bodies out of walls |
+| Spin drag `vr_throw_spin_drag` | Angular damping, the same rate |
+| Rolling resistance in contact | The same (the spin dies away while touching, fast once slow; soft things twice as fast) |
+| Static friction on slopes | Box3D's friction (a prop stays on a slope flatter than its friction angle) |
+| Sleep: slow in floor contact for 0.3 s, `FL_ONGROUND`, lifts carry it | Box3D's island sleep (0.5 s under 5 cm/s); asleep is `FL_ONGROUND` and `groundentity` (the body under it: the world, a lift, another prop), awake clears it; lifts carry it by contact |
+| Woken by QC's velocity or its support going | By any change QC makes (above), or by Box3D (something touching it, its support moving or going) |
+| The hit box (`vr_throw_hitbox`) along a thrown thing's flight: monsters its thin corners would miss | The same sweep (`SV_Move` of the box from the centre of mass along the frame's move) before each step, then `SV_Impact` |
+| Water: lift by how deep (60% under at rest, gibs sink), drag, drift, floating flat, the bob | The same formulas: the lift a force through the step (it and gravity balance at rest), the drag, drift, spin damping and turn to float flat on the velocity; floating things don't sleep (they bob). The liquids are the BSP's liquid leaves, sampled up the body's column |
+| Splashes (the water transition) | The same: `SV_CheckWaterTransition` after each move, the splash hooks unchanged |
+| Asleep under water deeper than it floats: lifted | The same, when it is made (a map's item under water, a saved game) |
+| `keepInWorld`: a buried item back to its last free place | Unchanged (it runs before the dispatch; the put-back is fed in as a teleport). Also: a prop that falls out of the world (made inside a wall) stops there instead of falling for ever |
+| Carried: moved by QC, not simulated | Kinematic: it pushes other props |
+| Thin fast things through thin walls | Continuous collision against the world and brush entities; fast props (more than a fifth of their thickness a step) are bullets: continuous against other props and kinematic bodies too |
+
+The rest is QC's and unchanged: throws (the velocity and spin QC sets), thrown weapons' and boxes' damage
+(`forcegrabbable_touch`, `vr_throw_hit_min_speed`), gibs bursting on walls (their velocity turning sharply), carrying,
+two-handed carrying and its throw, holstering, armour, force grab.
+
+### Settings
+
+| Menu | Cvar | Default | |
+|---|---|---|---|
+| Throwing and Physics > Physics Engine | `vr_physics_engine` | 0 | 0 Quake VR's solver, 1 Box3D |
+| (console) | `vr_box3d_substeps` | 4 | Box3D's sub-steps a server frame (1..8) |
+| (console) | `vr_box3d_player_push` | 1 | players' bodies push props |
+| (console) | `vr_box3d_player_radius` | 15 | cm, that capsule's radius |
+| (console) | `vr_debug_box3d` | 0 | 1: bodies made, moved by QC, put to sleep, hulls, slow frames; 2: every awake body every frame |
+
+The Throwing and Physics page's Bounciness, Friction, Spin Drag, Hitbox and Hit Min Speed act on both engines.
+
+Test commands (both engines: they only move entities): `vr_physics_stack <what> <n> <x> <y> <z> [<yaw> [<gap>]]`
+(a column), `vr_physics_pyramid <what> <rows> <x> <y> <z> [<yaw>]`, `vr_physics_pile <what> <per column> <x> <y>
+<z> [<spacing>]` (every one of them in toppling columns), `vr_physics_loose <what>` (a hanging armour or a pickup
+made a loose prop, as a hand's knock makes it), `vr_physics_list [<what>]` (where they are, asleep or not, their
+body, health), `vr_physics_hash` (a bitwise hash of every rigid body: determinism). `<what>`: an entity number, a
+classname, or `props` (every rigid body). With `vr_rigid_place` (round 20) and `impulse 241`/`243`/`244`/`250`.
+Note `vr_forcegrabbable_return` sends moved items back to their place after a while: 0 for long tests.
+
+### Costs
+
+`vr_profile` in exclusive runs (`run.sh --exclusive`), the mock headset, the firing range (52 props: 40 ammo and
+health boxes, 12 armours), the server at 72 Hz. Milliseconds per server frame (the CSV's per-host-frame figures
+divided by the server's 0.25 frames per host frame):
+
+| | Quake VR (`rigid bodies`) | Box3D (`box3d`) |
+|---|---|---|
+| 52 props asleep, 6.4 s | 0.004-0.008 | 0.008 (sync 0.004, step under 0.004) |
+| all 52 stacked in 6 columns of 9 that topple into a pile and settle, 4.4 s from the drop | 0.056 (they fall through each other to the floor) | 0.12-0.15 average over three runs (step 0.07-0.08, writing back 0.04, water and hit boxes 0.01, sync 0.004); worst frame 0.60-0.62 (the collapse) |
+| the pile asleep, 8 s | 0.004-0.008 | 0.008 |
+| `SV_Physics` in all (QC and everything) while settling | 0.14 | 0.21-0.24 |
+
+Under the 0.2 ms target on average with 52 bodies all awake and colliding; the frame of the collapse itself (52 bodies
+landing on each other at once, a few hundred contacts) is 0.6 ms. One run's first settle had a single 11 ms frame that
+did not come back in three more (the machine's scheduling or a first allocation; `vr_debug_box3d 1` prints any frame
+over 2 ms with Box3D's own profile and counts: none printed since). Box3D's memory for this map: the world mesh
+(8608 triangles) and a hull per model. The Quest 3 renders; the server runs on the PC, as before.
+
+### Tests (mock headset; scratchpad `box3d/`: each `<name>.png` is engine 0 over engine 1, its logs `<name>_e0.txt`, `<name>_e1.txt`)
+
+The scripts are `compos.sh` (the composites), `t.sh`, `prof.py`; the positions below are `vr_physics_list`'s.
+
+| Case | Quake VR (0) | Box3D (1) |
+|---|---|---|
+| `stack5`: 5 health boxes stacked (firing range), 0.3, 3 and 10 s | fall through each other into one layer | stand; asleep from the first second; every box where it was at 0.3 s at 10 s (to 0.1 unit) |
+| `pyramid6`: 3 + 2 + 1 | a row on the floor | stands, asleep, unchanged at 10 s |
+| `drop`: a shells box dropped level onto a stack of 4 | falls through to the floor | lands on top and stays (z 36.6 on the fourth box's 31.5) |
+| `throw`: a shells box at 450 u/s into a stack of 5 | passes through | knocks the top two off (they land 23 and 48 units behind), rests on the other three |
+| `carry.png`: a held box swept through a stack of 4 shells boxes (`vr_mock_play play_sweep.txt`) | passes through | knocks them over |
+| `shotgun`: a gentle throw (`play_throw_weak.txt`, 145 u/s) | lands and settles on its side (roll -90) | lands and settles on its side (roll 80), 14 units shorter |
+| `throwhit`: a shotgun thrown at a grunt 64 units ahead (`play_throw.txt`, 288 u/s) | kills it (30 health to -8: the hit box), bounces back off its box | kills it the same way (the same damage, -8); the grunt is flung first, the gun flies on and settles on its side |
+| `slope`: a backpack and a loose green armour dropped on e1m1's 13-degree ramp | backpack on its side 14 units down; armour 13 units down | backpack on its back 9 units down; armour 8 units down |
+| `lift`: a health and a shells box on e1m1's plat, a player stepping on | ride up (asleep, carried by `SV_PushMove`) and down | ride up (awake, carried by contact at 150 u/s) and down, 1-2 units of drift |
+| `float4`: a backpack, a shells box and a health box into e4m1's pool | float at 60.3 / rising from a deep dive at 11 u/s / 71.5 | 60.1 / 13 u/s / 71.4 |
+| `float2`: the same into e1m2's deep water | 161.0 / 171.5 / 171.6 | 160.2 / 165 (still rising) / 171.4 |
+| `forcegrab`: a hanging armour pulled to the off hand and caught | caught, held | caught, held (kinematic) |
+| force grab missed | falls, rests | the same place (it lands as Quake's toss before it is a rigid body, in both) |
+| two-handed carry (`props2h/play_box.txt`: both hands, apart, roll, hand-over, both-hands throw) | the same messages, the throw at 78.8 u/s, spin 5.2 | identical |
+| backpacks wedged in e4m1's 16-unit gap under the slab | still (0-1 u/s), none buried | still (0-1 u/s), none buried |
+| save with a stack of 5 asleep, move one, load | - | the stack back as saved (to 0.1 unit), still asleep 5 s later |
+| switching live: 1 -> 0 -> 1 with a stack standing | - | at 0 it falls into a layer (the old solver can't hold it); restacked at 1 it stands again |
+
+**Determinism:** `det1_e1.txt`, `det2_e1.txt`: the same script twice (`host_framerate` 1/72, 52 props piled, a box
+thrown into them): `vr_physics_hash` equal at all four points.
+
+### Melee regression: your 474 takes
+
+`map vrfiringrange; wait60; vr_motion_eval <copy of your motions> quit` (-Timeout 1200), on this branch:
+
+- `vr_physics_engine 0`: **420 of 474 pass**, and the table (`eval_e0.csv` in the scratchpad) is identical line for line
+  to the base's (the held-weapons round's `eval_base.csv`, vr-cleanup before this branch): every verdict, blow, frame
+  and hand error.
+- `vr_physics_engine 1`: **420 of 474**, and the table is identical line for line to engine 0's (`eval_e1.csv`). Your
+  takes are melee against the dummy: no thrown or carried thing is in them, and the dummy is a kinematic box Box3D
+  only reads.
+
+### Files (and what touches the old solver)
+
+- `Quake/vr/vr_box3d.cpp`, `vr_box3d.hpp`: all of it. `Quake/vr/external/box3d/`: the library.
+- `vr_rigid.cpp`: five lines in `VR_RigidToss`, after `keepInWorld` and the first water check: `if(box3d::toss(ent))
+  return 1;` (false with `vr_physics_engine 0`), and the include. Nothing else of the old solver changed: it merges
+  with the stacking work (`agent/stack`) as long as that call stays before `rigidToss`.
+- `sv_phys.c`: `VR_PhysicsFrameEnd()` at the end of `SV_Physics`'s entity loop, `VR_PushSkips()` in `SV_PushMove`
+  (both declared in `vr_api.h`; both do nothing with engine 0).
+- `vr_progs.cpp`: `box3d::reset()` with the other new-server resets. `vr_held.cpp`: `drawnVertices` (the drawn
+  surface's corners, for the hulls). `vr_engine.hpp`: `sv_maxvelocity`. `vr_cvars.inc`, `vr_menu.cpp`: the settings.
+- Build: `Windows/VisualStudio/quakevr.props`, `Quake/vr/vr.cmake`. Credits: `CREDITS.md`.
+
+### Known gaps
+
+- **Hands are not bodies.** A hand touching a prop gives it the hand's speed (QC's nudge, as before), and Box3D takes it
+  from there: a hand can't hold a stack steady, press a box down, or catch a falling one by touch alone (a grip
+  does). The held thing is a kinematic body and pushes.
+- **Props still don't block anything in Quake.** Players, monsters, missiles and traces pass through them as before
+  (`SOLID_NOT_BUT_TOUCHABLE`); only Box3D sees them. The players' capsules and the monsters' boxes push them aside
+  (one way), and a monster's box is Quake's, much wider than its model: props rest against the air round a grunt.
+- **Only rigid bodies.** Pickups hanging in the air, weapons on the range's racks, armour floating in place, stuck
+  gibs, corpses are not bodies: props pass through them, as before.
+- **Explosions** move only what QC gives a velocity (gibs; boxes and weapons take no damage), as before. Box3D's
+  explosion impulse is not used.
+- **The world mesh** is the drawn faces: T-junctions between faces (the BSP's) are not joined, so a sliding box may
+  bump on some seams; not seen in the tests.
+- **A prop made inside a wall** falls through (the mesh has no inside): `keepInWorld` puts it back where it was last
+  free, as before; else it now stops under the map instead of falling for ever.
+- **Soft things** (backpacks, gibs, heads) are rigid hulls without a bounce and with more rolling resistance; they
+  can still come to rest on an edge where a real backpack would slump.
+- **Frame time.** The world steps once a server frame by its time (1/72 s here), in pieces of at most 1/45 s; very
+  low server rates (under 45 Hz) take more steps.
+- **Box3D is 0.1.0, alpha.** No problem met, but untested at scale (large maps full of props, long sessions).
+- **Not checked:** the CMake build (no CMake here), multiplayer (the server does it all, as the old solver did), the
+  mission packs' rotating brushes (kinematic from their angles, like doors, but not tried), the headset.
+
+### In the headset: the comparison
+
+Play each with Physics Engine on Quake VR, then on Box3D (it switches at once; the firing range has the boxes, the
+armour and a clear floor):
+
+1. **Stacking** (the reason for all this): stack boxes by hand (grip, place, let go) in threes, fives; a pyramid. Quake
+   VR: they fall through each other. Box3D: they should stand, still, for minutes, and wake only when touched.
+2. **Knocking over:** throw a box into a stack; drop one on it; sweep a held box through it; walk into it (your body
+   pushes, `vr_box3d_player_push`); push it with a hand. Does it topple plausibly, not explode or jitter?
+3. **Piles:** drop a lot in one place (backpacks from `impulse 243`, boxes): a heap, not all at one height.
+4. **Throwing weapons** at the range's grunts: the hits and the damage should read as before (same hit box); the gun
+   should land and settle on its side, near where it did before.
+5. **Bounce and friction:** the Physics sliders (Bounciness, Friction, Spin Drag) act on both; tell if Box3D feels
+   livelier or deader, and which values you like for each.
+6. **Slopes:** a backpack and armour dropped on a ramp (e1m1's): they should stay, not creep or roll.
+7. **Lifts:** boxes on a plat ride it up and down (e1m1).
+8. **Water:** boxes, backpacks, weapons floating (e1m2's big water, e4m1's pool and under its slab): the same depth and
+   bob as before; gibs sink. Splashes as before.
+9. **Carrying:** one and two hands, the hand-over, the throws (their spin), force grab (catch and miss), holstering and
+   taking: all should be exactly as before, only now what you carry pushes other things.
+10. **Wedges and corners:** boxes and backpacks in corners, under e4m1's slab, in the gap under its walkway: no shaking
+    or spinning, no tunnelling into walls.
+11. **Performance:** `vr_profile 2` while a pile settles: `box3d` under `SV_Physics`.
+
+Tell me which you prefer and what either gets wrong.

@@ -16,6 +16,7 @@ extern "C" {
 
 // Engine symbols that no engine header declares.
 extern cvar_t sv_gravity;							// sv_phys.c
+extern cvar_t sv_maxvelocity;						// sv_phys.c
 int ED_FindFieldOffset (const char *name);			// pr_edict.c
 extern qboolean scr_drawloading;					// gl_screen.c
 extern qboolean scr_drawdialog;						// gl_screen.c

@@ -65,6 +65,15 @@ QVR_CVAR(vr_bindings_version, "0", CVAR_ARCHIVE)
 // Mock backend: swing the main hand in an overhand arc with this period, in seconds (0: still).
 QVR_CVAR(vr_mock_swing, "0", CVAR_NONE)
 
+// Rigid-body physics (docs/vr-port/ROUND21.md, "Box3D physics"): 0 Quake VR's own solver (vr_rigid.cpp), 1 Box3D
+// (vr_box3d.cpp: props also collide with each other, so they stack and pile). Switched live: the bodies are
+// rebuilt from the entities at the next server frame.
+QVR_CVAR(vr_physics_engine, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_box3d_substeps, "4", CVAR_ARCHIVE)       // Box3D's sub-steps a server frame (1..8)
+QVR_CVAR(vr_box3d_player_push, "1", CVAR_ARCHIVE)    // the players' bodies push props (a capsule each, one way)
+QVR_CVAR(vr_box3d_player_radius, "15", CVAR_ARCHIVE) // cm, that capsule's radius
+QVR_CVAR(vr_debug_box3d, "0", CVAR_NONE)             // 1: bodies made, woken and put to sleep; 2: every awake body every frame
+
 // Desktop mirror of the headset view: 0 off, 1 left eye, 2 both eyes side by side.
 QVR_CVAR(vr_mirror, "1", CVAR_ARCHIVE)
 
@@ -181,6 +190,12 @@ QVR_CVAR(vr_motion_note, "", CVAR_NONE)            // a free note written into e
 QVR_CVAR(vr_motion_button, "0", CVAR_ARCHIVE)      // the record button: 0 the off hand's stick click, 1 the main hand's
 QVR_CVAR(vr_motion_preroll, "0.5", CVAR_ARCHIVE)   // seconds kept before the button (phase "pre": the lead-in, for the melee's trackers)
 QVR_CVAR(vr_motion_tail, "0.3", CVAR_ARCHIVE)      // seconds recorded after the button is let go (phase "tail": late events)
+// Reviewing the takes (vr_motion_review.cpp, MOTIONS.md "Reviewing failing takes"): VR Settings > Advanced > Review Takes.
+QVR_CVAR(vr_motion_review_show, "0", CVAR_ARCHIVE)      // the takes listed: 0 to review (failing or suspect, not reviewed), 1 failing, 2 suspect, 3 not evaluated, 4 reviewed, 5 all, 6 discarded
+QVR_CVAR(vr_motion_review_category, "-1", CVAR_ARCHIVE) // and of which category (-1 all; else vr_motion_category's index)
+QVR_CVAR(vr_motion_review_speed, "0.5", CVAR_ARCHIVE)   // the ghost replay's pace (1: as recorded)
+QVR_CVAR(vr_motion_relabel_category, "0", CVAR_NONE)    // Relabel: the category (vr_motion_category's index) and detail a take is given
+QVR_CVAR(vr_motion_relabel_detail, "0", CVAR_NONE)
 QVR_CVAR(vr_memstats_log, "60", CVAR_ARCHIVE)      // seconds between rows of quakevr/profile/memstats_<date>.csv (and one after each map load; 0: off)
 QVR_CVAR(vr_gadget_fps, "0", CVAR_ARCHIVE)         // QVR round 21: an FPS counter floating just under the wrist gadget: frames a second, the CPU's and the GPU's milliseconds a frame (the memory log's busy_ms and gpu_eyes_ms), over half a second
 QVR_CVAR(vr_lean_radius, "12", CVAR_ARCHIVE)          // units the head may lean from the middle of the player's box before the body follows (0: always above it)
@@ -597,6 +612,8 @@ QVR_CVAR(vr_weapon_hotspot, "1", CVAR_NONE)            // the Weapon Offsets pag
 QVR_CVAR(vr_show_weapon_hotspots, "0", CVAR_NONE)      // marks the held weapons' hotspots, where the other hand may hold them (the edited one white)
 QVR_CVAR(vr_show_controller, "0", CVAR_NONE)            // round 21, third pass: draws each controller as tracked (its grip pose, before any offset), translucent, with its axes
 QVR_CVAR(vr_show_controller_laser, "0", CVAR_NONE)      // and, for a held weapon, lasers: the controller's aim (white), the weapon's aim from the muzzle (red), its barrel (green)
+QVR_CVAR(vr_pose_weapon_hand, "1", CVAR_NONE)           // the weapon posing mode (vr_posing.cpp): the hand that holds the floating weapon and poses it (1 main, 0 off: mirrored); the other poses its hotspots and confirms
+QVR_CVAR(vr_pose_reset_offsets, "0", CVAR_NONE)         // and confirming a pose sets the tuning offsets to 0 (the weapon's Hand and Weapon Together and Hand Only; a hotspot's Held Hand)
 QVR_CVAR(vr_hand_fit_palm, "5", CVAR_ARCHIVE)          // with it: cm the drawn hand may move off the controller to sit flush on what it holds (0: stays on the controller)
 QVR_CVAR(vr_hand_fit_palm_weapon, "3", CVAR_ARCHIVE)   // the same on a weapon (its own grip, a foregrip, a blade): cm (the weapon is placed in the hand by its settings)
 QVR_CVAR(vr_hand_fit_palm_turn, "20", CVAR_ARCHIVE)    // and degrees it may turn to face the surface it holds (0: not at all)

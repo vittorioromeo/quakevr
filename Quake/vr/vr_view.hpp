@@ -89,6 +89,12 @@ void hotspotHere_f();
 
 void dumpView_f();
 
+// vr_pose_check (vr_posing.cpp): the hand holding the weapon now (`weaponTarget`: the weapon hand; else the other hand,
+// holding it by a hotspot) against the pose confirmed: its rig and drawn palm, and the weapon's muzzle, where the pose put
+// them relative to each other (`rigInWeapon`, `palmInWeapon`: in the weapon's model frame).
+void posingCheck(bool weaponTarget, int weaponHand, const glm::mat4& rigInWeapon, const glm::vec3& palmInWeapon,
+    const glm::mat4& rigWorld);
+
 // A new map (VR_OnClientClearState): the per-hand states timed by the client's time or eased frame to frame start
 // afresh (a parried blow's knock, the weapons' button hover and morph, the drawn hands' grasp and curls).
 void resetClientState();
@@ -101,6 +107,12 @@ void graspDump_f();
 // Forgets every cache keyed by a model (the view models, clip sizes, the jointed hand's check, the grasp shapes): for
 // a game directory change, which reuses the models' slots.
 void resetCaches();
+
+// The motion review's ghost (vr_motion_review.cpp): a recorded take's weapon (or empty hand) in `hand`, drawn
+// translucent and tinted this frame where the game draws a weapon held at the hand pose `pos`, `rot` (hands::State's
+// pos and rot, as a take records them): the weapon's own angle offsets and model transform, mirrored in the off hand.
+// Asked for every frame it is shown (from VR_BeginFrame); `model` null or not asked for: not drawn.
+void setGhost(int hand, qmodel_t* model, const glm::vec3& pos, const glm::vec3& rot, float alpha);
 
 // vr_grasp_bench [n]: solves each hand's grasp of what it holds n times (1000), and prints the times (min, median,
 // max, microseconds).

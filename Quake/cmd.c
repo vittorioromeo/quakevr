@@ -298,6 +298,11 @@ void Cmd_Exec_f (void)
 	mark = Hunk_LowMark ();
 	path = Cmd_Argv (1);
 
+	// QVR: -noautoexec: a second copy of the game (the motion review's re-evaluation) runs its own script, not the
+	// player's (which could start anything, a re-evaluation among them)
+	if (!q_strcasecmp (path, "autoexec.cfg") && COM_CheckParm ("-noautoexec"))
+		return;
+
 	// HACK:
 	// "exec config.cfg" will execute ironwail.cfg
 	// "exec config.cfg pls" will execute config.cfg

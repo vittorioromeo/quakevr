@@ -23,6 +23,7 @@ build/
 /quakevr/notes/
 /quakevr/motions/*
 !/quakevr/motions/expect.cfg
+!/quakevr/motions/suspects.cfg
 /quakevr/profile/
 /quakevr/eyeshots/
 /quakevr/envmap.tga

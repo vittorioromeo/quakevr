@@ -26,7 +26,10 @@
 //   by lifts; it wakes when what holds it goes away or when QC gives it a velocity.
 // - On the way, a box of half-size vr_throw_hitbox finds monsters the thin corners would slip
 //   past, so throws that look like hits are hits.
+// - With vr_props_collide, props also collide with each other and stack: "Stacking" below (islands
+//   of bodies solved together; a body with no neighbour still moves by rigidToss alone).
 
+#include "vr_box3d.hpp"
 #include "vr_boxbox.hpp"
 #include "vr_carry2h.hpp"
 #include "vr_cvars.hpp"
@@ -540,8 +543,10 @@ std::vector<Wedge> wedges;
 
 // A corner's contact with the world over a step of h (see rigidToss), or false: inside a surface (from the
 // centre, the corner is behind it), or about to reach one within the step (speculative: the solver lets it
-// come exactly up to it).
-[[nodiscard]] bool cornerContact(const Body& b, const glm::vec3& r, float h, float g, float restitution, edict_t* ent, Contact& c)
+// come exactly up to it), looking `reach` further than its own move (a body alone: a quarter unit; one in a
+// stack further, as the others may push it that far within the step). Within `hold` of the surface it touches.
+[[nodiscard]] bool cornerContact(const Body& b, const glm::vec3& r, float h, float g, float restitution, edict_t* ent, Contact& c,
+    float reach = 0.25f, float hold = 0.5f)
 {
     const glm::vec3 p = b.com + r;
     c = Contact{};
@@ -563,7 +568,7 @@ std::vector<Wedge> wedges;
         {
             return false;
         }
-        const trace_t ahead = pointTrace(p, p + move + move / length * 0.25f, ent);
+        const trace_t ahead = pointTrace(p, p + move + move / length * reach, ent);
         if(ahead.startsolid || ahead.fraction >= 1.f)
         {
             return false;
@@ -576,7 +581,7 @@ std::vector<Wedge> wedges;
         // Within the slop (traces keep an epsilon off surfaces) it already touches: it
         // must not come closer, so it is held (and friction acts) instead of sliding.
         const float gap = std::max(0.f, glm::dot(p - toGlm(ahead.endpos), c.n));
-        c.target = gap < 0.5f ? 0.f : -(gap - 0.5f) / h;
+        c.target = gap < hold ? 0.f : -(gap - hold) / h;
         c.ent = ahead.ent;
     }
 
@@ -911,8 +916,11 @@ void rigidToss(edict_t* ent)
 // - Carried props (and those held in both hands) are kinematic: they push the others with the hand's motion
 //   and nothing pushes them back (infinite mass).
 
-constexpr float stackSlop = 0.3f;      // allowed penetration between two bodies (units)
+constexpr float stackSlop = 0.15f;     // allowed penetration between two bodies (units)
 constexpr float stackSleepTime = 0.3f; // resting this long (every body of the island) to sleep
+// A corner this near the world touches it (a body alone: half a unit). Nearer in an island: its world contacts look
+// further ahead (they may be pushed), and a stack would stand on the air of the whole half unit.
+constexpr float stackHold = 0.1f;
 
 // QC's .vr_gib (gibs and heads), looked up once a map (-2: not yet).
 int gibField = -2;
@@ -968,6 +976,7 @@ struct StackBody
     float invMass{0.f};
     float g{0.f};
     bool brush{false};
+    bool shaped{false}; // shape() done this frame
     bool kinematic{false};
     bool awake{false};
     bool dead{false};
@@ -977,19 +986,6 @@ struct StackBody
     int sleepGroup{0};   // falling asleep: its island asleep
 
     [[nodiscard]] bool dynamic() const { return !kinematic && !dead; }
-
-    // Velocity and spin changes from impulse j at r (from the centre of mass).
-    void apply(const glm::vec3& r, const glm::vec3& j, glm::vec3& vel, glm::vec3& spin) const
-    {
-        vel += j * invMass;
-        spin += b.applyInvInertia(glm::cross(r, j)) * invMass;
-    }
-
-    // Along `dir` at r: the impulse's share (1 / effective mass).
-    [[nodiscard]] float inverseMass(const glm::vec3& r, const glm::vec3& dir) const
-    {
-        return invMass * (1.f + glm::dot(dir, glm::cross(b.applyInvInertia(glm::cross(r, dir)), r)));
-    }
 
     [[nodiscard]] boxbox::Box box() const { return {b.com, b.rot, b.half}; }
 };
@@ -1005,7 +1001,15 @@ struct StackContact
     edict_t* ent{nullptr}; // the world's contacts: what was hit
     int feature{-1};        // the world's contacts: the corner
     glm::vec3 local{0.f};   // two bodies: the place on body a (its axes, from its centre)
+    // Per row (0 the normal, 1 and 2 the tangents), fixed over the step: r x dir on each body, and the spin a unit
+    // impulse along it gives each (its inverse mass and inertia), so an iteration is dot products and adds.
+    std::array<glm::vec3, 3> angA{}, angB{}, turnA{}, turnB{};
 };
+
+[[nodiscard]] const glm::vec3& rowDir(const StackContact& c, int k)
+{
+    return k == 0 ? c.n : k == 1 ? c.t1 : c.t2;
+}
 
 // Warm starting: each pair's (and each body's with the world) impulses of the last step.
 struct CachedPoint
@@ -1095,6 +1099,28 @@ StackState stackState;
     return i;
 }
 
+// A body's box, turn, place, inertia and mass, from its entity: worked out once a frame, only when needed (all asleep,
+// a frame costs little more than finding them).
+void shape(StackBody& body)
+{
+    if(body.shaped)
+    {
+        return;
+    }
+    body.shaped = true;
+    Body& b = body.b;
+    edict_t* ent = b.ent;
+    localBox(ent, body.lo, body.hi);
+    b.half = (body.hi - body.lo) * 0.5f;
+    b.comLocal = (body.lo + body.hi) * 0.5f;
+    body.brush = brushModel(ent);
+    b.rot = axesFromAngles(ent->v.angles, body.brush);
+    b.com = toGlm(ent->v.origin) + b.rot * b.comLocal;
+    const glm::vec3 size = b.half * 2.f;
+    b.invInertia = 12.f / glm::vec3{size.y * size.y + size.z * size.z, size.x * size.x + size.z * size.z, size.x * size.x + size.y * size.y};
+    body.invMass = body.kinematic ? 0.f : 1.f / std::max(densityOf(ent) * size.x * size.y * size.z / 4096.f, 1e-3f);
+}
+
 void wakeBody(edict_t* ent)
 {
     ent->v.flags = static_cast<float>(static_cast<int>(ent->v.flags) & ~FL_ONGROUND);
@@ -1150,6 +1176,7 @@ void wake(StackBody& body)
 // rose, the floor gone).
 [[nodiscard]] bool restsOnWorld(StackBody& body)
 {
+    shape(body);
     edict_t* ent = body.b.ent;
     RestMemo& memo = restMemo(ent, body.lo, body.hi);
     const float density = waterDensity(ent);
@@ -1260,6 +1287,60 @@ void boundBody(StackBody& body, float dt)
     body.boxHi = b.com + extent + glm::vec3{grow};
 }
 
+// The rows' fixed parts and effective masses (0 if nothing can move along the normal).
+void prepare(StackContact& c)
+{
+    StackState& s = stackState;
+    const StackBody& a = s.bodies[c.a];
+    const StackBody* b = c.b >= 0 ? &s.bodies[c.b] : nullptr;
+    float* masses[3] = {&c.massN, &c.massT1, &c.massT2};
+    for(int k = 0; k < 3; k++)
+    {
+        const glm::vec3& dir = rowDir(c, k);
+        c.angA[k] = glm::cross(c.ra, dir);
+        c.turnA[k] = a.b.applyInvInertia(c.angA[k]) * a.invMass;
+        float inverse = a.invMass + glm::dot(c.angA[k], c.turnA[k]);
+        if(b)
+        {
+            c.angB[k] = glm::cross(c.rb, dir);
+            c.turnB[k] = b->b.applyInvInertia(c.angB[k]) * b->invMass;
+            inverse += b->invMass + glm::dot(c.angB[k], c.turnB[k]);
+        }
+        *masses[k] = inverse > 0.f ? 1.f / inverse : 0.f;
+    }
+}
+
+// Velocity of a relative to b along row k (split: the push's velocities).
+[[nodiscard]] float rowVelocity(const StackContact& c, int k, bool split)
+{
+    StackState& s = stackState;
+    const StackBody& a = s.bodies[c.a];
+    const glm::vec3& dir = rowDir(c, k);
+    float v = glm::dot(split ? a.pushVel : a.b.vel, dir) + glm::dot(split ? a.pushSpin : a.b.spin, c.angA[k]);
+    if(c.b >= 0)
+    {
+        const StackBody& b = s.bodies[c.b];
+        v -= glm::dot(split ? b.pushVel : b.b.vel, dir) + glm::dot(split ? b.pushSpin : b.b.spin, c.angB[k]);
+    }
+    return v;
+}
+
+// Impulse `amount` along row k: on a, and the opposite on b.
+void rowImpulse(const StackContact& c, int k, float amount, bool split)
+{
+    StackState& s = stackState;
+    StackBody& a = s.bodies[c.a];
+    const glm::vec3& dir = rowDir(c, k);
+    (split ? a.pushVel : a.b.vel) += dir * (amount * a.invMass);
+    (split ? a.pushSpin : a.b.spin) += c.turnA[k] * amount;
+    if(c.b >= 0)
+    {
+        StackBody& b = s.bodies[c.b];
+        (split ? b.pushVel : b.b.vel) -= dir * (amount * b.invMass);
+        (split ? b.pushSpin : b.b.spin) -= c.turnB[k] * amount;
+    }
+}
+
 // The contacts between bodies i and j (i's box A, j's B) for a step of h.
 void pairContacts(int i, int j, float h, float restitution)
 {
@@ -1269,7 +1350,9 @@ void pairContacts(int i, int j, float h, float restitution)
     const float reach = (glm::length(A.b.vel - B.b.vel) + glm::length(A.b.spin) * glm::length(A.b.half) +
                          glm::length(B.b.spin) * glm::length(B.b.half)) * h;
     boxbox::Manifold m;
-    if(!boxbox::collide(A.box(), B.box(), 0.5f + std::min(reach, 64.f), m))
+    // Every corner of the overlap (up to 8): a box turned on another rests on all of them, not on 4 of them, which
+    // left sides unsupported that it sank to, within the slop (a stack of turned boxes leaned a degree a box).
+    if(!boxbox::collide(A.box(), B.box(), 0.5f + std::min(reach, 64.f), m, 8))
     {
         return;
     }
@@ -1307,13 +1390,7 @@ void pairContacts(int i, int j, float h, float restitution)
         c.t1 = glm::normalize(glm::abs(c.n.z) < 0.9f ? glm::cross(c.n, glm::vec3{0.f, 0.f, 1.f})
                                                       : glm::cross(c.n, glm::vec3{1.f, 0.f, 0.f}));
         c.t2 = glm::cross(c.n, c.t1);
-        const auto mass = [&](const glm::vec3& dir) {
-            const float k2 = B.inverseMass(c.ra, dir) + A.inverseMass(c.rb, dir);
-            return k2 > 0.f ? 1.f / k2 : 0.f;
-        };
-        c.massN = mass(c.n);
-        c.massT1 = mass(c.t1);
-        c.massT2 = mass(c.t2);
+        prepare(c);
         if(c.massN > 0.f)
         {
             s.contacts.push_back(c);
@@ -1370,13 +1447,9 @@ void warmStart(float h)
         const float limit = std::max(vr_throw_friction.value, 0.f) * c.accN;
         c.accT1 = CLAMP(-limit, glm::dot(match->friction, c.t1) * scale, limit);
         c.accT2 = CLAMP(-limit, glm::dot(match->friction, c.t2) * scale, limit);
-        const glm::vec3 j = c.n * c.accN + c.t1 * c.accT1 + c.t2 * c.accT2;
-        a.apply(c.ra, j, a.b.vel, a.b.spin);
-        if(c.b >= 0)
-        {
-            StackBody& b = s.bodies[c.b];
-            b.apply(c.rb, -j, b.b.vel, b.b.spin);
-        }
+        rowImpulse(c, 0, c.accN, false);
+        rowImpulse(c, 1, c.accT1, false);
+        rowImpulse(c, 2, c.accT2, false);
     }
 }
 
@@ -1430,6 +1503,11 @@ void solveIsland(const std::vector<int>& members, const std::vector<std::pair<in
         const float travel = glm::length(body.b.vel) * dt / minHalf + glm::length(body.b.spin) * dt / 0.25f;
         steps = std::max(steps, CLAMP(1, static_cast<int>(std::ceil(travel)), 8));
     }
+    // A big pile collapsing (tens of bodies, one of them flung fast) would take every body through the fast one's
+    // substeps: at most 64 body-steps (2 substeps from 32 bodies up). The contacts are speculative over the step (the
+    // pairs' margin covers their motion, the world's traces follow each corner's move), so nothing passes through;
+    // only a fast spin is turned in coarser steps.
+    steps = std::min(steps, std::max(2, 64 / static_cast<int>(members.size())));
     const float h = dt / static_cast<float>(steps);
     // Warm started: more for a taller stack (what it carries comes down through each body), up to 24 for 8 bodies;
     // a bigger pile (rarely a stack) gets 16, where more cost much and show little.
@@ -1454,7 +1532,19 @@ void solveIsland(const std::vector<int>& members, const std::vector<std::pair<in
             body.pushVel = body.pushSpin = body.floorNormal = glm::vec3{0.f};
         }
 
-        // Contacts: the world's, corner by corner (as rigidToss), and the pairs'.
+        // Contacts: the world's, corner by corner (as rigidToss), and the pairs'. The world's look as far ahead as
+        // the fastest of the island (or a hand's prop) could push a body within the step (a box landing on a stack
+        // pushes the ones under it towards the floor at once).
+        float fastest = 0.f;
+        for(const auto& [i, j] : pairs)
+        {
+            for(const int k : {i, j})
+            {
+                const Body& b = s.bodies[k].b;
+                fastest = std::max(fastest, glm::length(b.vel) + glm::length(b.spin) * glm::length(b.half));
+            }
+        }
+        const float reach = 0.25f + std::min(fastest * h, 8.f);
         s.contacts.clear();
         s.touching.clear();
         {
@@ -1471,7 +1561,7 @@ void solveIsland(const std::vector<int>& members, const std::vector<std::pair<in
                 for(int k = 0; k < 8; k++)
                 {
                     Contact c;
-                    if(!cornerContact(body.b, corners[k], h, body.g, restitution, body.b.ent, c))
+                    if(!cornerContact(body.b, corners[k], h, body.g, restitution, body.b.ent, c, reach, stackHold))
                     {
                         continue;
                     }
@@ -1483,11 +1573,9 @@ void solveIsland(const std::vector<int>& members, const std::vector<std::pair<in
                     sc.t2 = c.t2;
                     sc.target = c.target;
                     sc.push = c.push;
-                    sc.massN = c.massN / body.invMass;
-                    sc.massT1 = c.massT1 / body.invMass;
-                    sc.massT2 = c.massT2 / body.invMass;
                     sc.ent = c.ent;
                     sc.feature = k;
+                    prepare(sc);
                     s.contacts.push_back(sc);
                 }
                 // Pushed out of the world on opposite sides at once: wedged (as rigidToss).
@@ -1518,32 +1606,17 @@ void solveIsland(const std::vector<int>& members, const std::vector<std::pair<in
         // Sequential impulses, on both bodies of a pair; until no contact's velocity changes by more than
         // settled (a resting island, warm started, is there in a few).
         constexpr float settled = 0.02f; // units per second
+        const size_t contactCount = s.contacts.size();
         for(int iteration = 0; iteration < iterations; iteration++)
         {
             float largest = 0.f;
-            for(StackContact& c : s.contacts)
+            // Forward, then backward (symmetric Gauss-Seidel): a contact solved first in every sweep takes more than
+            // its share, and a stack leans towards it.
+            for(size_t x = 0; x < contactCount; x++)
             {
-                StackBody& a = s.bodies[c.a];
-                StackBody* b = c.b >= 0 ? &s.bodies[c.b] : nullptr;
-                const auto relative = [&] {
-                    glm::vec3 v = a.b.vel + glm::cross(a.b.spin, c.ra);
-                    if(b)
-                    {
-                        v -= b->b.vel + glm::cross(b->b.spin, c.rb);
-                    }
-                    return v;
-                };
-                const auto impulse = [&](const glm::vec3& j) {
-                    a.apply(c.ra, j, a.b.vel, a.b.spin);
-                    if(b)
-                    {
-                        b->apply(c.rb, -j, b->b.vel, b->b.spin);
-                    }
-                };
-
-                const float dn = (c.target - glm::dot(relative(), c.n)) * c.massN;
-                const float accN = std::max(c.accN + dn, 0.f);
-                impulse(c.n * (accN - c.accN));
+                StackContact& c = s.contacts[iteration % 2 ? contactCount - 1 - x : x];
+                const float accN = std::max(c.accN + (c.target - rowVelocity(c, 0, false)) * c.massN, 0.f);
+                rowImpulse(c, 0, accN - c.accN, false);
                 largest = std::max(largest, std::abs(accN - c.accN) / c.massN);
                 c.accN = accN;
 
@@ -1552,10 +1625,10 @@ void solveIsland(const std::vector<int>& members, const std::vector<std::pair<in
                 {
                     continue; // not pressing: no friction
                 }
-                const float acc1 = CLAMP(-limit, c.accT1 - glm::dot(relative(), c.t1) * c.massT1, limit);
-                impulse(c.t1 * (acc1 - c.accT1));
-                const float acc2 = CLAMP(-limit, c.accT2 - glm::dot(relative(), c.t2) * c.massT2, limit);
-                impulse(c.t2 * (acc2 - c.accT2));
+                const float acc1 = CLAMP(-limit, c.accT1 - rowVelocity(c, 1, false) * c.massT1, limit);
+                rowImpulse(c, 1, acc1 - c.accT1, false);
+                const float acc2 = CLAMP(-limit, c.accT2 - rowVelocity(c, 2, false) * c.massT2, limit);
+                rowImpulse(c, 2, acc2 - c.accT2, false);
                 largest = std::max({largest, std::abs(acc1 - c.accT1) / c.massT1, std::abs(acc2 - c.accT2) / c.massT2});
                 c.accT1 = acc1;
                 c.accT2 = acc2;
@@ -1570,26 +1643,15 @@ void solveIsland(const std::vector<int>& members, const std::vector<std::pair<in
         for(int iteration = 0; iteration < iterations; iteration++)
         {
             float largest = 0.f;
-            for(StackContact& c : s.contacts)
+            for(size_t x = 0; x < contactCount; x++)
             {
+                StackContact& c = s.contacts[iteration % 2 ? contactCount - 1 - x : x];
                 if(c.push <= 0.f)
                 {
                     continue;
                 }
-                StackBody& a = s.bodies[c.a];
-                StackBody* b = c.b >= 0 ? &s.bodies[c.b] : nullptr;
-                glm::vec3 v = a.pushVel + glm::cross(a.pushSpin, c.ra);
-                if(b)
-                {
-                    v -= b->pushVel + glm::cross(b->pushSpin, c.rb);
-                }
-                const float acc = std::max(c.accPush + (c.push - glm::dot(v, c.n)) * c.massN, 0.f);
-                const glm::vec3 j = c.n * (acc - c.accPush);
-                a.apply(c.ra, j, a.pushVel, a.pushSpin);
-                if(b)
-                {
-                    b->apply(c.rb, -j, b->pushVel, b->pushSpin);
-                }
+                const float acc = std::max(c.accPush + (c.push - rowVelocity(c, 0, true)) * c.massN, 0.f);
+                rowImpulse(c, 0, acc - c.accPush, true);
                 largest = std::max(largest, std::abs(acc - c.accPush) / c.massN);
                 c.accPush = acc;
             }
@@ -1898,18 +1960,10 @@ void stack(float dt)
         StackBody body;
         Body& b = body.b;
         b.ent = ent;
-        localBox(ent, body.lo, body.hi);
-        b.half = (body.hi - body.lo) * 0.5f;
-        b.comLocal = (body.lo + body.hi) * 0.5f;
-        body.brush = brushModel(ent);
-        b.rot = axesFromAngles(ent->v.angles, body.brush);
-        b.com = toGlm(ent->v.origin) + b.rot * b.comLocal;
-        const glm::vec3 size = b.half * 2.f;
-        b.invInertia = 12.f / glm::vec3{size.y * size.y + size.z * size.z, size.x * size.x + size.z * size.z,
-                                  size.x * size.x + size.y * size.y};
         body.kinematic = carried;
         if(carried)
         {
+            shape(body);
             // Its motion since the last frame (none the first frame it is carried, or after a jump).
             KinematicPose& last = s.kinematics[num];
             b.vel = glm::vec3{0.f};
@@ -1933,7 +1987,6 @@ void stack(float dt)
         {
             b.vel = toGlm(ent->v.velocity);
             b.spin = fieldVec(ent, f.vr_spin);
-            body.invMass = 1.f / std::max(densityOf(ent) * size.x * size.y * size.z / 4096.f, 1e-3f);
             body.awake = !(static_cast<int>(ent->v.flags) & FL_ONGROUND) || fieldFloat(ent, f.vr_rest) < 0.f;
             s.handled[num] = s.frame;
         }
@@ -1954,6 +2007,10 @@ void stack(float dt)
     s.pairs.clear();
     if(anyAwake)
     {
+        for(StackBody& body : s.bodies)
+        {
+            shape(body);
+        }
         std::vector<int> order(s.bodies.size());
         for(size_t i = 0; i < order.size(); i++)
         {
@@ -2358,7 +2415,11 @@ extern "C" int VR_RigidToss(edict_t* ent)
         return 0;
     }
 
-    if(!stacked(ent))
+    if(box3d::toss(ent)) // vr_physics_engine 1: Box3D moves it, with the others, at the frame's end (vr_box3d.cpp)
+    {
+        return 1;
+    }
+    if(!stacked(ent)) // vr_physics_engine 0 with vr_props_collide: stepped with the others, at the first one's turn
     {
         rigidToss(ent);
     }

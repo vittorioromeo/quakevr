@@ -8,6 +8,8 @@ says, and the "no hit" ones nothing.
 
 - `Quake/vr/vr_motion.cpp`: recording, the take file, the menu's helpers (`vr_motion.hpp`, `vr_motion_take.hpp`).
 - `Quake/vr/vr_motion_play.cpp`: playback and evaluation.
+- `Quake/vr/vr_motion_review.cpp`: reviewing the takes in the game (the Review Takes page, the ghost, the verdicts'
+  file); `vr_motion_child.cpp`: its re-evaluation in a second copy of the game.
 - `QC/vr_motion.qc`: what the QC tells the recorder (the melee's events, striking points and parry state).
 - Takes: `quakevr/motions/<label>_<YYYY-MM-DD_HH-MM-SS>.csv`: your own data, like `notes/`: not in git, not in
   the package.
@@ -331,7 +333,15 @@ afresh (`vrfiringrange`, or `map <name>`: the same start every time), judges eac
 The console prints a line per take, the totals, the pass rate of each category, and how many replays hit as their
 takes did live. Options: `recorded` (the takes' melee settings: to check that the replays reproduce the live
 events), `rate <hz>` (every take resampled, as above), `save` (every replay as a take), `verbose` (each playback's report), `watch`, `map <name>`, `out <file>`,
-`quit` (quits when done: for scripts). `vr_motion_eval stop` stops it (and writes what it has).
+`quit` (quits when done: for scripts), `list <file>` (the takes named in a file, a path a line; relative to `motions/`),
+`progress <file>` (a file told `k/N <take>` after each take and `done N` at the end: the review's re-evaluation).
+`vr_motion_eval stop` stops it (and writes what it has).
+
+Besides the table, each take's verdict goes into **`eval_status.csv` next to the takes** (`motions/eval_status.csv`;
+for a folder, in that folder): the verdict, the reason, the expectation, the replay's and the take's own events, when it
+was evaluated. Merged: an evaluation of some takes (`punch_*`) updates theirs and keeps the others'. Only from an
+evaluation that judges the takes as they are: not with `rate`, `recorded` or another `map` (the console says so). The
+takes themselves are never written. The review (below) reads it.
 
 ```
 map vrfiringrange
@@ -352,6 +362,76 @@ never (`!pose:parry`, `!pose:guard`: not one frame), and
 the weapons a category is for (`weapon:sword|axe|mjolnir`: with another weapon the take is N/A, reported apart). A
 hit whose kind isn't required fails the take. A line for a label (`slash_overhead melee/overhead_blow`) wins over its
 category's.
+
+## Reviewing failing takes
+
+Takes that fail the evaluation are either the melee's fault or the take's (recorded under the wrong category, a motion
+that isn't what its label says). **VR Settings > Advanced VR Options > Review Takes** (under Motion Recorder) lists
+them, plays each one in front of the dummy as a ghost, and keeps, discards or relabels it.
+
+- **The list.** At the top: the takes, how many fail, how many are suspect, how many you reviewed; when they were
+  evaluated (and how many are newer than that). **Show**: To Review (failing or suspect, not yet reviewed), Failing,
+  Suspect, Not Evaluated, Reviewed, All, Discarded; **Category**: All or one. A row is `FAIL* slash_backswing_up_left
+  04:03:12 k`: the verdict (`FAIL`, `PASS`, `ERR`, `N/A`; `new`: not evaluated yet; `old`: relabelled since its
+  evaluation), `*` suspect, the label, the time it was recorded (with the day when the takes span several), `k` kept
+  or `r` relabelled. The row selected shows under the list why it fails, what the replay registered, the suspicion
+  and the expectation. Enter (A) opens the take.
+- **The take** (its own page): the label, when it was recorded, the verdict and the reason, **expected** (the
+  expectation, `expect.cfg`), **replay** (what the evaluation's replay registered, with times from the take's start),
+  **live** (what the take registered as it was recorded, and whether the replay hit the same), the weapons, when it
+  was evaluated, why it is suspect, whether you reviewed it. Then:
+  - **Play Ghost**: the take replayed in front of the training dummy, looping: its weapons (or empty hands)
+    translucent and tinted blue where the take had them relative to the dummy (moved with it, not turned, as playback
+    places the player), each weapon's line from its handle's end to its far end, its striking points (yellow), the far
+    end's trail over the last 0.3 s, the head and where it looked. The events flash as they happen: the take's own
+    (`live: ...`, red, where they hit) and the evaluation's replay (`replay: ...`, over the dummy); over the dummy
+    too, the label, the time in the take, the phase (lead-in, take, tail) and the verdict. **Ghost Speed** 1x, 0.5x,
+    0.25x, 0.1x. Nothing is driven: your tracking, body and weapons stay yours (it plays in the headset as in the mock
+    headset). Without a dummy (another map, a take recorded without one) it is shown around you. **Next Take** and
+    **Previous Take** go on playing the next one.
+  - **Replay (Mock Headset)**: `vr_motion_play <take> watch`: the take drives the tracking and the melee plays it
+    again. The mock headset only (it would move your view).
+  - **Keep (Reviewed)**: it leaves To Review (`k`); again: unmarked.
+  - **Discard**: into `motions/discarded/` (no longer played, evaluated or counted), as the recorder's Delete Last
+    Take. **Restore** (Show: Discarded) brings it back.
+  - **Relabel**: **Relabel Category** and **Relabel Detail** (they start at the take's own), then **Relabel**: the file
+    renamed to the new label (its time kept: `punch_2026-09-27_02-20-55.csv`), its header's `label`, `category` and
+    `detail` lines changed and a `relabelled: from no_hit on <date>` line added; the rest byte for byte. The original
+    is kept in `motions/review/relabelled/`. The take counts as reviewed (`r`); its verdict shows `old` until it is
+    evaluated again.
+  - **Undo Last**: takes back the last keep, discard, restore or relabel (again: the one before; also after a
+    restart). A relabel undone puts the original back byte for byte and removes the relabelled copy.
+  - **Re-evaluate This Take** (a few seconds), and on the list **Re-evaluate Shown** (the takes listed: about 1.7 s
+    each; **Stop Re-evaluation**).
+- **Suspect** takes are listed in `quakevr/motions/suspects.cfg` (in git, like `expect.cfg`): a file name (or a
+  pattern) and why, from the melee's analysis (`ROUND21.md`, "Suspect takes"). Add lines to it as you find more.
+
+**Re-evaluate runs a second copy of the game.** The evaluation replaces the tracking of the head and the hands
+with the take's and loads the map afresh for each take: it can't run in the game you play in the headset. So the
+review starts this game again in the background: `-vrmock` (the mock headset, whatever `vr_backend` says: it never
+opens the runtime's session), `-noconfigwrite` (it doesn't write `ironwail.cfg`), `-noautoexec` (your `autoexec.cfg`
+could start anything), `-evalcopy` (the copy never starts a copy of its own), no sound, a small window that doesn't take
+the focus, below normal priority, no autosaves. Its script is the first thing on its command line (the engine keeps
+only the first 256 characters for `+` commands). It runs `motions/review/eval_job.cfg` (the map, then
+`vr_motion_eval list review/eval_job.txt progress review/eval_progress.txt out review/eval_job_table.csv quit`), with
+your settings: the review writes the config first (as quitting would), so the copy judges with the melee settings you
+have now. The list shows its progress; when it quits the list reads `eval_status.csv` again. It shares the GPU with
+the game in the headset: a few takes cost nothing noticeable, a long list may drop frames (take the headset off, or
+run it on the desktop). From the console, with the mock headset: `vr_motion_eval` as usual (it writes `eval_status.csv`
+too).
+
+**Files** (all in `quakevr/motions/`, none in the takes): `eval_status.csv` (the verdicts), `suspects.cfg`,
+`review/reviewed.csv` (kept and relabelled takes), `review/undo.csv` (every change, newest last: what Undo Last takes
+back), `review/relabelled/` (the originals), `review/eval_job.*` and `eval_progress.txt` (the last re-evaluation),
+`discarded/`. Missing files, takes renamed or moved by hand and takes newer than the evaluation are listed as they are
+(`new`; `old` for a take whose time matches an evaluated one under another label); an undo whose file is gone says so
+and is dropped.
+
+Console: `vr_motion_review [list | pick <row or file> | show | play | stop | keep | discard | restore | relabel
+<category> [detail] | undo | next | prev | reeval [take|shown] | stopeval]`, the page's actions (`list` prints the list
+as shown, `show` the picked take's details). Cvars: `vr_motion_review_show` (0..6), `vr_motion_review_category` (-1
+all, else `vr_motion_category`'s index), `vr_motion_review_speed` (0.5), `vr_motion_relabel_category`,
+`vr_motion_relabel_detail`.
 
 ## Synthetic takes (`Misc/quakevr/motion_synth.py`)
 

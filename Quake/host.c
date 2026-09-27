@@ -418,6 +418,8 @@ Writes key bindings and archived cvars to engine config file
 */
 void Host_WriteConfiguration (void)
 {
+	if (COM_CheckParm ("-noconfigwrite")) // QVR: a second copy of the game (the motion review's re-evaluation) leaves the config alone
+		return;
 	Host_WriteConfigurationToFile (CONFIG_NAME);
 }
 
