@@ -275,6 +275,28 @@ void Mod_ReloadAliasModel (qmodel_t *mod)
 
 /*
 ===================
+Mod_ReloadAliasModels -- QVR: vr_model_reload: every loaded alias model whose name `match` accepts, read again; the
+number read
+===================
+*/
+int Mod_ReloadAliasModels (qboolean (*match) (const char *name, void *ctx), void *ctx)
+{
+	int		i, n = 0;
+	qmodel_t	*mod;
+
+	for (i=0 , mod=mod_known ; i<mod_numknown ; i++, mod++)
+	{
+		if (mod->type == mod_alias && !mod->needload && match (mod->name, ctx))
+		{
+			Mod_ReloadAliasModel (mod);
+			n++;
+		}
+	}
+	return n;
+}
+
+/*
+===================
 Mod_ClearAll
 ===================
 */

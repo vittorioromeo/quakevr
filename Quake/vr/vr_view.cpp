@@ -4300,6 +4300,128 @@ void resetCaches()
     grasp::reset();
 }
 
+namespace
+{
+
+// A model name as the engine knows it: progs/<name>.mdl (a body's .md5mesh is its .mdl's enhanced replacement).
+[[nodiscard]] std::string modelPath(const char* arg)
+{
+    std::string name = arg;
+    std::replace(name.begin(), name.end(), '\\', '/');
+    if(name.find('/') == std::string::npos)
+    {
+        name = "progs/" + name;
+    }
+    const std::size_t dot = name.rfind('.');
+    if(dot == std::string::npos || dot < name.rfind('/'))
+    {
+        name += ".mdl";
+    }
+    else if(!q_strcasecmp(name.c_str() + dot, ".md5mesh") || !q_strcasecmp(name.c_str() + dot, ".md5anim"))
+    {
+        name = name.substr(0, dot) + ".mdl";
+    }
+    return name;
+}
+
+struct ReloadMatch
+{
+    std::vector<std::string> names; // empty: the editable ones
+    std::vector<std::string> done;
+};
+
+qboolean reloadMatch(const char* name, void* ctx)
+{
+    auto& m = *static_cast<ReloadMatch*>(ctx);
+    bool yes = false;
+    if(m.names.empty())
+    {
+        const char* base = strrchr(name, '/');
+        base = base ? base + 1 : name;
+        yes = !q_strncasecmp(name, "progs/", 6) &&
+              (!q_strncasecmp(base, "v_", 2) || !q_strncasecmp(base, "vrbody", 6) || !q_strncasecmp(base, "vrgadget", 8));
+    }
+    else
+    {
+        yes = std::any_of(m.names.begin(), m.names.end(), [&](const std::string& n) { return !q_strcasecmp(n.c_str(), name); });
+    }
+    if(yes)
+    {
+        m.done.emplace_back(name);
+    }
+    return yes;
+}
+
+} // namespace
+
+void modelReload_f()
+{
+    ReloadMatch m;
+    for(int i = 1; i < Cmd_Argc(); i++)
+    {
+        m.names.push_back(modelPath(Cmd_Argv(i)));
+    }
+    Mod_ReloadAliasModels(reloadMatch, &m);
+    for(const std::string& n : m.names)
+    {
+        if(std::find(m.done.begin(), m.done.end(), n) == m.done.end())
+        {
+            Con_Printf("vr_model_reload: %s isn't loaded (it is read when it's first drawn)\n", n.c_str());
+        }
+    }
+    if(m.done.empty())
+    {
+        return;
+    }
+    // What was worked out from the old files: forgotten, worked out again from the new ones as they are drawn.
+    anchor::onGameDirChanged(); // the strip orders (vr_anchor.cpp): by model, and a reloaded model keeps its slot
+    grasp::reset();
+    modelcollide::reset();
+    weapons::resetCaches();
+    avatar::reset();
+    // Each model named, or (all of them) one line, and the body's check.
+    const bool each = !m.names.empty();
+    bool body = false;
+    std::string list;
+    for(const std::string& n : m.done)
+    {
+        qmodel_t* model = Mod_ForName(n.c_str(), false);
+        if(!model || model->type != mod_alias)
+        {
+            continue;
+        }
+        const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(model));
+        const bool isBody = strstr(n.c_str(), "vrbody") != nullptr;
+        body = body || isBody;
+        list += (list.empty() ? "" : ", ") + n.substr(n.rfind('/') + 1);
+        if(hdr->poseverttype == aliashdr_t::PV_QUAKE1)
+        {
+            if(each)
+            {
+                Con_Printf("vr_model_reload: %s: %d vertices, %d triangles, %d frames\n", n.c_str(), hdr->numverts,
+                    hdr->numtris, hdr->numframes);
+            }
+        }
+        else
+        {
+            const bool usable = !isBody || avatar::usable(model);
+            if(each || !usable)
+            {
+                Con_Printf("vr_model_reload: %s: its enhanced replacement (%d vertices, %d bones)%s\n", n.c_str(),
+                    hdr->numverts_vbo, hdr->numbones, usable ? "" : ": NOT usable as the body (see above)");
+            }
+        }
+    }
+    if(!each)
+    {
+        Con_Printf("vr_model_reload: %d models read again: %s\n", static_cast<int>(m.done.size()), list.c_str());
+    }
+    if(body)
+    {
+        bodyblood::clear(); // the wounds painted on the old mesh
+    }
+}
+
 int handBonePoses(const entity_t* e, const float** matrices)
 {
     for(int hand = 0; hand < 2; hand++)

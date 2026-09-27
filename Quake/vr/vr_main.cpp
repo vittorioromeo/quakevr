@@ -942,6 +942,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_grasp_spheres", grasp::spheres_f);
     Cmd_AddCommand("vr_hand_reload", handrig::reload_f);
     Cmd_AddCommand("vr_hand_rig_info", handrig::info_f);
+    Cmd_AddCommand("vr_model_reload", view::modelReload_f);
     Cmd_AddCommand("vr_model_collide_bench", modelcollide::bench_f);
     Cmd_AddCommand("vr_hotspots_legacy", view::hotspotsLegacy_f);
     Cmd_AddCommand("vr_hotspots_check", view::hotspotsCheck_f);

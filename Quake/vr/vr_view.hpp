@@ -111,6 +111,12 @@ void graspDump_f();
 // a game directory change, which reuses the models' slots.
 void resetCaches();
 
+// vr_model_reload [model ...]: models edited in Blender (docs/vr-port/MODELS_IN_BLENDER.md) read again from their files,
+// and what the engine worked out from them forgotten (the anchors' strip order, the grasp's shapes, the collision
+// triangles, the body's bones). Without arguments: the weapons (progs/v_*.mdl), the body (progs/vrbody*.mdl: its
+// .md5mesh and skins) and the wrist gadget (progs/vrgadget*.mdl) that are loaded.
+void modelReload_f();
+
 // The motion review's ghost (vr_motion_review.cpp): a recorded take's weapon (or empty hand) in `hand`, drawn
 // translucent and tinted this frame where the game draws a weapon held at the hand pose `pos`, `rot` (hands::State's
 // pos and rot, as a take records them): the weapon's own angle offsets and model transform, mirrored in the off hand.
