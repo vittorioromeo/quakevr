@@ -97,6 +97,13 @@ void setHotspot(int slot, int index, const Hotspot& h);
 // offset or scale, not the defaults) into hotspots needs the model: true once per such slot, for the view to do it.
 [[nodiscard]] bool takeHotspotMigration(int slot);
 
+// Round 21, second pass: the slot whose settings `slot` inherits (InheritFrom; -1 none), whether a key is inherited
+// (all but the model's name, InheritFrom and the models' vertex indices), and every inherited value made the slot's
+// own, inheriting no more.
+[[nodiscard]] int inheritsFrom(int slot);
+[[nodiscard]] bool inheritable(Key key);
+void stopInheriting(int slot);
+
 // Keys retired in round 21 (fitted hands: the hand's place and its fingers on the weapon): registered, unused.
 [[nodiscard]] bool retired(Key key);
 

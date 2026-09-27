@@ -869,6 +869,15 @@ void weaponOffsetsOtherHand()
     showPage(pageIndex(pageWeaponOffsets));
 }
 
+int weaponOffsetsHeldSlot = -1; // the weapon in the hand (weaponOffsetsSlot: the one edited: what it inherits from)
+int weaponOffsetsInherit = -1;
+
+void weaponOffsetsStopInheriting()
+{
+    weapons::stopInheriting(weaponOffsetsHeldSlot);
+    weaponOffsetsStale = true;
+}
+
 void weaponOffsetsReset()
 {
     weapons::resetSlotToDefaults(weaponOffsetsSlot);
@@ -946,6 +955,31 @@ std::vector<Item> pageWeaponOffsets()
 
     const char* model = weapons::cvar(slot, Key::ID)->string;
     title = std::string(hand) + ": " + model + " (_" + (slot + 1 < 10 ? "0" : "") + std::to_string(slot + 1) + ")";
+
+    // A weapon inheriting another's settings (InheritFrom: the other ammo's model): the page edits those.
+    const int heldSlot = slot;
+    weaponOffsetsHeldSlot = heldSlot;
+    weaponOffsetsInherit = weapons::inheritsFrom(heldSlot);
+    static std::string inheritTitle;
+    static std::vector<std::pair<float, std::string>> inheritNames;
+    if(weaponOffsetsInherit >= 0)
+    {
+        slot = weaponOffsetsInherit;
+        weaponOffsetsSlot = slot;
+        inheritTitle = std::string("Settings of ") + weapons::cvar(slot, Key::ID)->string + " (inherited)";
+    }
+    inheritNames.clear();
+    inheritNames.push_back({0.f, "None"});
+    for(int other = 0; other < weapons::numSlots; other++)
+    {
+        const char* id = weapons::cvar(other, Key::ID)->string;
+        if(other != heldSlot && other != weapons::fistSlot() && id[0] && strcmp(id, "-1") != 0)
+        {
+            const char* base = strrchr(id, '/');
+            inheritNames.push_back({static_cast<float>(other + 1), base ? base + 1 : id});
+        }
+    }
+
     const auto s = [&](const char* label, Key key, float min, float max, float step, const char* format) {
         return slider(label, weapons::cvar(slot, key), min, max, step, format);
     };
@@ -954,6 +988,25 @@ std::vector<Item> pageWeaponOffsets()
         header(title.c_str()),
         action("Edit the Other Hand's Weapon", weaponOffsetsOtherHand)
             .help("The page shows the weapon the hand held when it was opened: reopen it after changing weapons."),
+    };
+    if(!fist)
+    {
+        std::vector<Choice> choices;
+        for(const auto& [v, name] : inheritNames)
+        {
+            choices.push_back({v, name.c_str()});
+        }
+        list.push_back(cycle("Inherit From", weapons::cvar(heldSlot, Key::InheritFrom), std::move(choices))
+                           .help("Use another weapon's settings (its placement, fingers, hotspots, muzzle, screen): the other "
+                                 "ammo's model, set once for both. This page then edits that weapon's."));
+        if(weaponOffsetsInherit >= 0)
+        {
+            list.push_back(header(inheritTitle.c_str()));
+            list.push_back(action("Stop Inheriting (Copy Them Here)", weaponOffsetsStopInheriting)
+                               .help("This weapon gets its own copy of the settings it inherits, to change apart."));
+        }
+    }
+    list.insert(list.end(), {
         header(fist ? "The Hand" : "Weapon in the Hand"),
         s("Offset X (forward)", Key::OffsetX, -30.f, 30.f, 0.1f, "%.2f")
             .help(fist ? "Moves the drawn hand." :
@@ -966,7 +1019,7 @@ std::vector<Item> pageWeaponOffsets()
         s("Roll", Key::Roll, -180.f, 180.f, 0.5f, "%.1f"),
         s("Scale", Key::Scale, 0.1f, 3.f, 0.01f, "%.2f"),
         cycle("Hide Hand", weapons::cvar(slot, Key::HideHand), {{0.f, "No"}, {1.f, "Yes"}}),
-    };
+    });
     if(!fist)
     {
         const char* fingerHelp = "Closes (+) or opens (-) this finger on top of how it wraps the weapon on its own "
@@ -1064,9 +1117,10 @@ std::vector<Item> pageWeaponOffsets()
     static bool done[pageCount]{};
     if(pages[page].build == pageWeaponOffsets && weaponOffsetsSlot >= 0 &&
         (editedHotspot() != weaponOffsetsHotspot ||
-            static_cast<int>(weapons::hotspot(weaponOffsetsSlot, editedHotspot()).type) != weaponOffsetsHotspotType))
+            static_cast<int>(weapons::hotspot(weaponOffsetsSlot, editedHotspot()).type) != weaponOffsetsHotspotType ||
+            weapons::inheritsFrom(weaponOffsetsHeldSlot) != weaponOffsetsInherit))
     {
-        weaponOffsetsStale = true; // another hotspot picked, or its type changed
+        weaponOffsetsStale = true; // another hotspot picked, its type changed, or what the weapon inherits
     }
     if(pages[page].build == pageWeaponOffsets && weaponOffsetsStale)
     {

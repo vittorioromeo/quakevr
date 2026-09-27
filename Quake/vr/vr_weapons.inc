@@ -147,9 +147,18 @@ QVR_WEAPON_KEY(Hotspot4Pitch, "hs4_pitch")
 QVR_WEAPON_KEY(Hotspot4Yaw, "hs4_yaw")
 QVR_WEAPON_KEY(Hotspot4Roll, "hs4_roll")
 QVR_WEAPON_KEY(Hotspot4Style, "hs4_style")
+// Round 21, second pass: the slot (1..32, as the cvars' _NN; 0 none) whose settings this weapon uses (the author:
+// "inherit all the offsets from the base model"): every key but the model's name, this one and the models' vertex
+// indices, wherever this weapon's own is still its default. The other ammo's models inherit their base's.
+QVR_WEAPON_KEY(InheritFrom, "inherit")
 #endif
 
 #ifdef QVR_WEAPON_DEFAULT
+QVR_WEAPON_DEFAULT(11, InheritFrom, "4")
+QVR_WEAPON_DEFAULT(12, InheritFrom, "5")
+QVR_WEAPON_DEFAULT(13, InheritFrom, "6")
+QVR_WEAPON_DEFAULT(14, InheritFrom, "7")
+QVR_WEAPON_DEFAULT(15, InheritFrom, "8")
 QVR_WEAPON_DEFAULT(0, TwoHDisplayMode, "0.0")
 QVR_WEAPON_DEFAULT(0, TwoHFixedHandPitch, "0.0")
 QVR_WEAPON_DEFAULT(0, TwoHFixedHandRoll, "0.0")
