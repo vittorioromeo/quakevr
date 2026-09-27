@@ -149,6 +149,10 @@ context and screenshot, ready to paste or to point me at.
   - **Fitted hands:** fingers wrap guns, blades and objects; recoil moves the hand; two-handed grips steady (no
     jitter); the trigger finger pulls; hotspots (Weapon Offsets) incl. the Cup pistol grip; Inherit From for the
     alternate models. Check the thumb on pistol grips and objects held from far away (no more floating).
+  - **Hand tuning (Weapon Offsets):** Tuning Aids (Show Controller, Show Controller Laser), Hand and Weapon Together
+    (moves the aim too), Hand Only (the bent wrist), per hotspot Held Hand, Overlap per weapon and per hotspot,
+    Fingers: Manual per weapon and per hotspot. A cup hotspot is now where your palm goes (yours was moved once).
+    Take the super nailgun a few times: the same grip each time.
   - **Flashlight:** hanging from the belt (off-hand side; reach for it, it taps and brightens), B/Y away from a gun
     flips the grip (a quick spin now), B/Y at the head wears it; it should never be grabbed by a guard or a punch.
     After your test: the overhead grip sits in the fist (it went through the hand); each grip has its own sliders
@@ -523,6 +527,14 @@ every frame to `grasp_trace.txt`; `vr_grasp_spheres` prints the hand's collision
 carry reach test (the thing's box, its nearest surface point, the reach); `vr_weapon_hotspot_here <n> [type]
 [main|off]` puts hotspot n where the other hand is. `vr_profile` has scopes for each hand's update (`hand`, `rig hand`,
 `grasp solve`, `hand walls`, `hand collide`).
+
+Fitted hands, third pass: `vr_show_controller 1` draws each controller as tracked (before any offset), and
+`vr_show_controller_laser 1` the controller's aim (white), the weapon's shots (red) and its barrel (green);
+`vr_dumpview` prints each hand's place, angles, controller and drawn palm to four decimals; `vr_debug_grasp 1` says
+where the held thing is in the hand and whether it was solved afresh at rest. The tuning keys are per weapon:
+`vr_wofs_whole_*`, `vr_wofs_hand_only_*`, `vr_wofs_overlap`, `vr_wofs_fgr_manual`, `vr_wofs_fgr_curl_*`,
+`vr_wofs_fgr_thumb_across`, and per hotspot `vr_wofs_hsN_overlap`, `_vx/vy/vz/vpitch/vyaw/vroll`, `_manual`,
+`_curl_*`, `_thumb_across`.
 
 Tuning the body: `vr_show_hip_holsters 1`, `vr_show_upper_holsters 1`, `vr_show_shoulder_holsters 1` and
 `vr_show_virtual_stock 1` mark where the holsters and the virtual stock's shoulders are (green while a hand is

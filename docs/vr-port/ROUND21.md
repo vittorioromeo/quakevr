@@ -10,6 +10,7 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | Melee | one model for swords, axes, Mjolnir, guns and fists (`QC/vr_melee.qc`): blows by the hand's speed and 20 cm travelled, the kind by which part hit (tip along the blade = stab, far end = slash, near end = pommel), parry bash = stance held 0.5 s then pushed; your 474 takes: 420 pass (the old code: 346), at 120, 90 and 72 Hz alike |
 | Fitted hands | jointed hands (3 joints a finger, a real thumb) that close smoothly; fingers wrap what they hold (guns, blades, boxes, gibs, armour), solved on the main thread in 19–127 µs when the grip changes, 0.02 ms a hand a frame; recoil moves the hand again; hotspots (up to 4 per weapon, Grip/Blade/Cup, with a bias); Inherit From for alternate models; fingers stop at walls |
 | Weapon offsets | one transform per weapon in the hand (30 of 106 per-weapon keys retired), your placements migrated exactly |
+| Hand tuning | Weapon Offsets: hand and weapon moved together (the aim follows), the hand alone, a hotspot's held hand, overlap and manual fingers per weapon and hotspot; the controller and its lasers drawn; cups where the palm sits; the same grip every time a weapon is taken |
 | Flashlight | a straight torch held through the fist, two grips (B/Y away from a gun), clipped along the barrel, worn on the head, stored hanging from the belt; only deliberate presses take or switch it (the chest clip was grabbed by guard fists) |
 | Wrist gadget | hologram test message; messages only on the gadget (a chime from the wrist and a buzz); an FPS / CPU / GPU counter |
 | Casings | a tiny splash, ripple and plip in water, slime and lava |
@@ -1087,6 +1088,263 @@ Composites in the scratchpad's `hands2/final/`:
 - [ ] Weapon Offsets on a lava nailgun: it says it inherits from the nailgun; changing a value there changes both.
 - [ ] Open hand into a wall or the floor: the fingers bend, not through.
 - [ ] Pose Blend and Refit Threshold: too soft or too twitchy? The defaults are 0.12 s and 0.3 cm.
+
+## Fitted hands, third pass (tuning)
+
+Your eight notes after testing the second pass, all on the Weapon Offsets page. Branch `agent/handtune`, one commit
+each (the merge of vr-cleanup between them). Composites and numbers are in the scratchpad's `handtune/final/`.
+
+| # | Your note | What you get | Commit |
+|---|---|---|---|
+| 1 | Sliders that move the hand and the weapon together | **Hand and Weapon Together** X/Y/Z, Pitch/Yaw/Roll | `0bdb70c2` |
+| 2 | Sliders for the hand alone (the bent wrist) | **Hand Only** X/Y/Z, Pitch/Yaw/Roll | `0bdb70c2`, `88d2b828` |
+| 2 | See where the controller is | **Show Controller** | `0bdb70c2` |
+| 3 | An overlap slider per weapon and per hotspot | **Overlap** (weapon), **Overlap There** (hotspot), 0..1 | `0bdb70c2` |
+| 4 | The Cup hotspot far from where the hand ends up | A cup is now the palm's place: taken there, drawn there; your cups moved once | `0bdb70c2` |
+| 5 | Offsets for the hand once it holds a hotspot | **Held Hand** X/Y/Z, Pitch/Yaw/Roll per hotspot | `0bdb70c2`, `88d2b828` |
+| 6 | A laser to check the aim | **Show Controller Laser**: controller, shot and barrel lines | `0bdb70c2` |
+| 7 | The super nailgun grabbed on its edge, sometimes | The same grip every time, for every weapon and hotspot | `e783bda8` |
+| 8 | Turn the automatic fingers off for some weapons | **Fingers: Automatic / Manual**, per weapon and per hotspot | `c309350d` |
+
+### The Weapon Offsets page
+
+The sections, top to bottom:
+
+1. **Inherit From** (if the weapon inherits, the page edits what it inherits).
+2. **Weapon in the Hand:** Offset, Pitch/Yaw/Roll, Scale, Hide Hand. Unchanged.
+3. **Tuning Aids:** Show Controller, Show Controller Laser.
+4. **Hand and Weapon Together.**
+5. **Hand Only.**
+6. **Fingers on the Weapon:** Fingers (Automatic/Manual); with Manual, the five curls and Thumb Across; with Automatic,
+   Overlap. Then the five finger tweaks and Thumb X/Y/Z, as before.
+7. **Muzzle.**
+8. **Other Hand's Grips (Hotspots).** Per hotspot:
+   - Type, X/Y/Z (for a cup, the palm's place), Put It Where the Other Hand Is.
+   - Hand Pitch/Yaw/Roll and Thumb (as before).
+   - Fingers There (Automatic/Manual, and the curls), Overlap There.
+   - Held Hand X/Y/Z, Pitch/Yaw/Roll.
+   - Bias, Remove, Show Hotspots.
+9. **Two-Handed Aim**, **Ammo Screen**, **This Weapon** (Print Changes to Console, Reset This Weapon): as before.
+
+The positional and angle sliders go past their bar's ends (vr-cleanup's `.extend()`). The curls and the overlaps stay
+within 0..1.
+
+All the new keys are per weapon (`vr_wofs_<key>_NN`):
+
+- They go through Inherit From.
+- Print Changes to Console lists them.
+- Reset This Weapon resets them.
+- Their defaults are 0 in `vr_weapons.inc` (not written there, as for every key), except the overlaps, which default
+  to 0.3: today's fit.
+- The off hand mirrors them, as it does the weapon's own offsets.
+
+`vr_savedefaults` writes the global settings: the new aids are debug views and are not saved.
+
+| Keys | Meaning |
+|---|---|
+| `whole_x/y/z`, `whole_pitch/yaw/roll` | Hand and Weapon Together |
+| `hand_only_x/y/z`, `hand_only_pitch/yaw/roll` | Hand Only |
+| `overlap` | the weapon hand's overlap, 0..1 of a centimetre |
+| `fgr_manual`, `fgr_curl_thumb/index/middle/ring/pinky`, `fgr_thumb_across` | Fingers: Manual |
+| `hsN_overlap`, `hsN_vx/vy/vz`, `hsN_vpitch/vyaw/vroll` | per hotspot: Overlap There, Held Hand |
+| `hsN_manual`, `hsN_curl_*`, `hsN_thumb_across` | per hotspot: Fingers There |
+
+### Hand and Weapon Together (#1)
+
+- The offset is applied to the hand as tracked and calibrated, before anything else sees it (`vr_hands.cpp`). The
+  weapon is placed from that hand, so the muzzle, the aim and the melee points all move with it.
+- **The frame** is the controller's aim frame, including Gun Angle: X forward along the aim, Y left, Z up. Pitch
+  lifts the muzzle, yaw turns it left, roll rolls it. The turn is about the controller's point.
+- **For the axe:** move the hand and the axe until the drawn hand is back on the controller. Show Controller draws
+  both points and a yellow line between them.
+- **The palm fit** is worked out between the hand and the weapon, so this offset doesn't change it: hand and weapon
+  move as one.
+- **Exact:**
+  - Moving by (4, 2, −1.5) moves the muzzle by the offset turned into the aim frame, to 0.00006 units.
+  - Turning by (10, 8, 15) turns the aim by exactly that rotation (error 1e-6), and the muzzle about the controller
+    to 0.0001 units.
+  - Why the weapon had to change for this: its own Pitch/Yaw/Roll are Euler angles added to the hand's, so a turned
+    hand turns it slightly differently (0.07 units at the shotgun's muzzle). The weapon is now posed from the hand's
+    angles before this turn, then turned rigidly by it (`hands::State::wholeTurn`).
+
+### Hand Only (#2, the bent wrist)
+
+- The drawn hand alone moves and turns on the weapon. The frame is the one the weapon carries (the aim frame at
+  rest), and the turn is about the palm's middle.
+- The weapon, its muzzle and its aim stay put: the muzzle moved 0.00000 units in every test. The fingers wrap the
+  grip again where the hand now is.
+- For the bent wrist in your shotgun screenshot, Hand Pitch or Hand Roll turns the hand without touching the gun. The
+  forearm follows the drawn hand.
+- The palm is fitted at the place without this offset, and the offset then moves the fitted hand (`88d2b828`). The
+  first version searched the fit again at the new place, which pulled the hand back towards the best grip: a
+  2.45-unit offset moved it 1.7. Now (2, −1, 1) moves the palm 2.450 units (the offset's length is 2.449).
+
+### Show Controller and Show Controller Laser (#2, #6)
+
+- **Show Controller:**
+  - Each controller as tracked: its grip pose before any offset or IK.
+  - Drawn as a translucent handle (3 × 3.5 × 11 cm along the grip), a ring over its front, and its axes (red forward,
+    green left, blue up).
+  - Where the hand's own point differs (moved by Hand and Weapon Together), a yellow point joined to it.
+  - Drawn through the hands, so it shows even inside the fist.
+- **Show Controller Laser**, for a weapon held in either hand:
+  - **White**, from the controller along where it points (Gun Angle included, before the weapon's own offsets).
+  - **Red**, from the muzzle, where the shots go.
+  - **Green**, from the muzzle, along the barrel as drawn (the model's forward axis).
+  - Turn the weapon (its Pitch and Yaw) until green runs along red.
+  - Each laser ends at the wall it meets, with a dot.
+- Both are `vr_show_controller` and `vr_show_controller_laser`, not saved.
+
+### Overlap (#3)
+
+- **Overlap** (the weapon hand) and **Overlap There** (each hotspot) run 0..1:
+  - 0: the fingers and palm stop on the surface.
+  - 1: they sink in by up to a centimetre (`weapons::maxOverlapCm`).
+- The default, 0.3, is the fit you had: the global `vr_hand_fit_overlap` was 0.3 cm.
+- That global now covers held things only (boxes, gibs, the torch) and is labelled "Fit Overlap: Things".
+- Between the two hands on a cup, it is still "Fit Overlap: Hands".
+- A change solves the grasp again once, from scratch, so it can't jitter.
+
+### The Cup hotspot is where the palm sits (#4)
+
+- **The problem:** a cup's point used to be where the helping hand's grip channel was aligned round the holding
+  hand's, at the point's place along it. The hand ended up far from the point (your white ball), and the hand was
+  grabbed by distance from the controller to that point.
+- **Now:**
+  - **Placement:** a cup's X/Y/Z is where the helping hand's palm (its middle) sits. The hand is placed so, turned as
+    the holding hand is plus the hotspot's Hand Pitch/Yaw/Roll.
+  - **The grab:** by the distance from the free hand's palm to that point (`hands::State::palmLocal`, in
+    `vr_twohand.cpp` and the grip choice). The grab zone and the result coincide.
+  - **Putting one there:** "Put It Where the Other Hand Is" (and `vr_weapon_hotspot_here <n> 3`) stores the palm's
+    place.
+- **Your cups** are moved once (`vr_wofs_version` 18):
+  - The first time the weapon is held with both hands drawn, each cup's old result is worked out from its old point
+    and the holding hand's channel. The palm's place and the hand's turn are stored as the cup's X/Y/Z and Hand
+    Pitch/Yaw/Roll. The console says so.
+  - **Tested:** a round-21 cup beside the shotgun's grip, drawn by the base build and by this one after the move. The
+    weapon and the other hand, seen from the helping hand, are where they were to 0.0002 units.
+  - **The fingers differ,** because they were never reproducible. The base build closes them differently depending on
+    how the hand arrived: two approaches gave fingers up to 7 units apart. This build gives the same fingers every
+    time, within the base build's own spread.
+- **The white ball** of Show Hotspots is now at the cupped hand's palm (`cup_before_after.png`).
+
+### A hotspot's Held Hand offset (#5)
+
+- X/Y/Z and Pitch/Yaw/Roll move the helping hand's drawn pose once it holds the hotspot. They ease in with the grip.
+- The frame is the holding hand's aim frame, carried by the weapon; the turn is about the palm.
+- Visual only: where the hotspot is taken, the two-handed aim and the melee use the tracked hand.
+- Use it where the hands overlap too much on a cup. As with Hand Only, the palm is fitted without it, and it then moves
+  the fitted hand.
+
+### The same grip every time (#7)
+
+- **Measured:** ten takes of the super nailgun, switching to it from the axe with the hand at ten angles and moving.
+  - Two grips came out, by turns: the palm moved 3 cm and turned 20° onto the frame's edge (your screenshot), or it
+    didn't move.
+  - Ten takes of the shotgun's foregrip gave ten grips, their palms up to 1.3 units apart.
+- **Three causes, three fixes:**
+  1. **Where the grasp was solved.**
+     - **Cause:** it was solved from where the weapon was drawn in the hand this frame. That differs from its
+        intended place by float noise (a hundredth of a unit) and, while the hand arrives, by more. The palm's turn
+        towards "the surface its normal meets first" and the thumb's choice flip on such hairs.
+     - **Fix:** a weapon in its hand, and the other hand on a grip or cup hotspot, are solved at their place as the
+        settings define it (`Held::canonical`: worked out with the holding hand at the origin, unturned).
+  2. **Warm solves.**
+     - **Cause:** a solve started from the one before kept what it could of it, so the grip depended on the way in.
+     - **Fix:** once what the hand holds rests in it, the grasp is solved once more from scratch.
+  3. **The palm's turn.**
+     - **Cause:** the turn towards the first surface picked the super nailgun's frame.
+     - **Fix:** a weapon's grip has its palm's place searched within Palm Fit: Weapons (along the grip and the fingers,
+        flush on it) for where the fingers hold best, and never turned. Cups keep their old fit, so migrated cups look
+        as they did.
+- **Result:** ten takes of every weapon (shotgun, super shotgun, nailgun, super nailgun, grenade and rocket launchers,
+  lightning gun, sword, axe) from ten hand angles, and ten of the shotgun's foregrip. Every hand vertex was the same to
+  0.0000 units across the ten takes (`grabs_consistency.txt`).
+- **Better grips on the way** (`guns_before_after.png`): the grenade launcher, rocket launcher, lightning gun and axe
+  now wrap their grips. Before, their palm was turned 20° off them.
+- **The super nailgun** now always takes the middle, inside the frame. Its handle, as the weapon is placed in the
+  hand, lies through the fingers: they are drawn at the controller's curl there, since no curl clears it. Hand Only or
+  Fingers: Manual set it as you want it.
+- **Cost:** one solve from scratch when a weapon comes to rest in the hand: 2–3 ms for a grip searched along the
+  palm, once per take. Nothing per frame after that (see Costs).
+
+### Fingers: Automatic / Manual (#8)
+
+- **Where:** per weapon (Fingers on the Weapon > Fingers) and per hotspot (Fingers There).
+- **What Manual does:**
+  - The grasp isn't solved. Each finger stops at its curl (0 open, 1 a fist) the way a solved finger stops on what it
+    holds, so the controller's grip still opens the hand and closes it up to your pose.
+  - Thumb Across turns the thumb over the palm (up to 45°).
+  - Thumb X/Y/Z and the five finger tweaks still apply.
+  - On the weapon's own hand, the index finger still pulls with the trigger.
+  - There is no palm fit: the hand is where the weapon's offsets put it.
+- It goes through Inherit From, Print Changes and Reset, as every key does (`manual_fingers.png`).
+
+### Tests (mock headset; `handtune/final/`)
+
+- **`offsets_*.png`, `offsets.txt`:** the shotgun held level. From the side and behind: at 0, moved together, turned
+  together, hand only moved, hand only turned, with the controller and the lasers.
+- **`cup_before_after.png`:** your kind of cup, base build against this one after the move.
+- **`sng_grabs_before_after.png`**, **`guns_before_after.png`**, **`grabs_consistency.txt`**.
+- **`manual_fingers.png`:** the shotgun automatic, manual, manual with the trigger pulled; the foregrip automatic and
+  manual.
+- **`overlap.png`:** the shotgun at Overlap 0, 0.3 and 1.
+- **`menu_*.png`:** the page's sections.
+- **Motion takes:**
+  - All 474 of your takes, replayed (`vr_motion_eval`) on vr-cleanup's engine (`5c89cec1`) and on this branch's, with
+    every new slider at 0.
+  - The tables are identical, take by take: the same events, verdicts
+    and hand errors.
+  - On both, 405 of 474 pass by `expect.cfg` and 164 reproduce the hits recorded live. The rest were recorded before
+    the melee redesign, so their live hits came from the old melee code.
+- **The hands in general:**
+  - Muzzles unchanged with every slider at 0.
+  - The second pass's recoil, walls and brushing are untouched: the offsets act before them.
+
+### Costs
+
+Measured with `run.sh --exclusive` and `vr_profile`: 540 frames at 64 fps each, the main hand wobbling. The times
+are both hands together, per frame (`final/p3_*.csv`).
+
+| Scene | `hand` | of which `rig hand` | Second pass |
+|---|---|---|---|
+| Shotgun, the off hand on the foregrip | 0.046 ms | 0.020 | 0.043 / 0.023 |
+| The same with every offset set (together, hand only, held hand) | 0.052 ms | 0.023 | – |
+| The same, re-solved every frame (`vr_hand_fit_resolve 0`) | 0.110 ms | 0.083 | 0.225 / 0.204 |
+| A gib in the off hand | 0.039 ms | 0.037 | 0.031 |
+| The torch in the off hand | 0.039 ms | 0.037 | 0.034 |
+
+- **Per frame:** working out the grips' places from the settings adds 0.003 ms to both hands. The offsets add 0.006
+  ms.
+- **Every frame forced to re-solve** (`vr_hand_fit_resolve 0`) costs half what it did: a weapon's place in the hand no
+  longer changes with float noise, so there is nothing to solve again.
+- **Per take:** a weapon, or a grip hotspot, taken is solved from scratch once it rests, with its palm's place
+  searched: 2–3 ms, once. The Hand Only or Held Hand fit adds one more solve when those sliders change.
+
+### Limitations
+
+- **The super nailgun's handle** lies through the fingers at its placement (above). The weapon's offsets, Hand Only
+  or Manual fix it; I didn't change your placement.
+- **Manual fingers** have no palm fit. A weapon whose grip needed the fit (most guns move the palm 2.6–3 cm) shows the
+  hand where the offsets put it, so Hand Only goes with Manual.
+- **Held Hand and Hand Only move the drawn hand only.** The tracked hand, and the melee and grabs that use it, stay
+  where the controller is. Hand and Weapon Together moves both.
+- **Show Controller** draws the grip pose, not the controller's model. Its handle box is the size of a Touch
+  controller's grip.
+
+### In the headset
+
+- [ ] The axe: Show Controller, then Hand and Weapon Together until the drawn hand sits on the controller box. The
+      axe's head and swings should follow.
+- [ ] The shotgun's bent wrist: Hand Only Pitch/Roll a few degrees; the gun must not move (the red laser stays put).
+- [ ] Show Controller Laser: turn a gun's Pitch/Yaw until green runs along red. Does white (your controller) point
+      where you expect?
+- [ ] Overlap at 0 and 1 on a gun and on the foregrip.
+- [ ] Your cup: it should be where your hand ends up (Show Hotspots); grab it by putting your palm there. The Held
+      Hand sliders pull the hands apart.
+- [ ] The super nailgun: take it ten times; the same grip each time. If the handle through the fingers bothers you,
+      try Hand Only or Fingers: Manual.
+- [ ] Fingers: Manual on a weapon you don't like the fit on; does the trigger finger still pull?
 
 ## Wrist gadget, hologram, casings, flashlight
 
