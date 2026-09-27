@@ -21,6 +21,7 @@ extern qboolean scr_drawloading;					// gl_screen.c
 extern qboolean scr_drawdialog;						// gl_screen.c
 extern cvar_t crosshair;							// gl_screen.c
 extern cvar_t r_lerpmodels;							// r_alias.c
+extern cvar_t r_lerpmove;							// gl_rmain.c
 extern cvar_t gl_farclip;							// gl_rmain.c
 extern cvar_t vid_fsaa;								// gl_vidsdl.c
 extern GLuint gl_bmodel_vbo;						// r_brush.c

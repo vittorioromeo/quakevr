@@ -146,6 +146,9 @@ context and screenshot, ready to paste or to point me at.
     the near end, parry bash = hold the stance ~0.5 s then push; palm shoves (both palms harder). Melee Speed was
     reset once to 4 m/s. Tell which of your motions still misread, and record more takes of them.
   - **Motion recorder:** Advanced VR Options > Motion Recorder; keep adding takes, especially of what misreads.
+  - **Weapons stop at monsters and things:** a gun, a sword or a fist pushed into a monster, a corpse or a box on the
+    ground stops at the model as drawn (not its box), the hand and arm with it; past 20 cm it gives way (Hand/Gun
+    Calibration > Against Monsters and Things). Hits are unchanged: they come from your hand.
   - **Fitted hands:** fingers wrap guns, blades and objects; recoil moves the hand; two-handed grips steady (no
     jitter); the trigger finger pulls; hotspots (Weapon Offsets) incl. the Cup pistol grip; Inherit From for the
     alternate models. Check the thumb on pistol grips and objects held from far away (no more floating).
@@ -544,6 +547,12 @@ box in the main hand; move the off hand to its other side (`vr_mock_hand off -0.
 at `0.10 1.30 -0.45`) and press its grip: `carry: both hands` (developer 1). `vr_debug_carry 2` writes the object and
 both hands every frame to `carry_trace.txt` (and prints the second hand's reach test); `vr_debug_throw 1` prints
 `throw both hands (...)`. `vr_mock_play` keyframes move both hands with their velocities (throws, turns).
+Held weapons against models (round 21): `vr_debug_model_collide 1` prints each hand's push, `2` draws the rays;
+`vr_model_collide_bench [n] [list]` times the test, `vr_model_collide_bench probe` lists the model triangles a ray along
+the view goes in and out by. `impulse 241` puts a monster (`vr_test_spawn`: the firing range dispenser's numbers) or a
+box (100 health, 101 shells) `vr_test_spawn_dist` units ahead (`vr_test_spawn_dead 1`: a corpse);
+`vr_mock_camera <x> <y> <z> <pitch> <yaw>` draws the mock eyes from elsewhere in the tracking space (a spectator's view of
+your body; the hands stay with the head), `vr_mock_camera` alone puts them back.
 
 Tuning the body: `vr_show_hip_holsters 1`, `vr_show_upper_holsters 1`, `vr_show_shoulder_holsters 1` and
 `vr_show_virtual_stock 1` mark where the holsters and the virtual stock's shoulders are (green while a hand is

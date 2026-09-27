@@ -15,6 +15,7 @@
 #include "vr_input.hpp"
 #include "vr_lighting.hpp"
 #include "vr_main.hpp"
+#include "vr_modelcollide.hpp"
 #include "vr_move.hpp"
 #include "vr_protocol.hpp"
 #include "vr_shells.hpp"
@@ -552,6 +553,7 @@ extern "C" void VR_OnClientClearState()
     twohand::reset();
     flick::reset();
     handpose::reset();
+    modelcollide::reset();
     shells::clear();
     view::resetClientState();
     hands::resetClientState();
@@ -732,8 +734,9 @@ extern "C" void VR_TuneDlight(int kind, int ent, void* dlight)
     {
         return;
     }
-    // A little back from the muzzle, so that it is not inside the wall the gun touches.
-    const glm::vec3 p = s.muzzle[hand] - hands::forward(s.rot[hand]) * 4.f;
+    // A little back from the muzzle, so that it is not inside the wall the gun touches; where the gun is drawn (held
+    // out of a monster: vr_model_collide).
+    const glm::vec3 p = s.muzzle[hand] + modelcollide::drawnOffset(hand) - hands::forward(s.rot[hand]) * 4.f;
     dl->origin[0] = p.x;
     dl->origin[1] = p.y;
     dl->origin[2] = p.z;
@@ -779,7 +782,7 @@ extern "C" int VR_UpdateBeam(int ent, float* start, float* end)
     const hands::State& s = hands::current();
     if(s.muzzleValid[hand])
     {
-        const glm::vec3 muzzle = s.muzzle[hand];
+        const glm::vec3 muzzle = s.muzzle[hand] + modelcollide::drawnOffset(hand); // as drawn (vr_model_collide)
         if(id < 2)
         {
             const float len = glm::distance(glm::vec3{start[0], start[1], start[2]}, glm::vec3{end[0], end[1], end[2]});
