@@ -588,27 +588,81 @@ struct Affine
     }
 };
 
-// The pins of the mesh's vertices on the grid's crossings (the tops of level faces), by crossing and height: where the
-// liquid's surface is on the CPU (surfaceRise: the splashes' rings and foam lying on it, drops going back in).
-std::unordered_map<std::uint64_t, float> gridPins;
-float gridPinCell = 0.f;
-
 [[nodiscard]] std::uint64_t gridKey(long long ix, long long iy, float z)
 {
     return (static_cast<std::uint64_t>(ix & 0x1fffff) << 42) | (static_cast<std::uint64_t>(iy & 0x1fffff) << 21) |
            static_cast<std::uint64_t>(std::llround(z * 2.f) & 0x1fffff);
 }
 
+// A grid key's first slot in a table of `mask` + 1 slots (a power of two): the key mixed (splitmix64's finaliser),
+// as neighbouring crossings differ only in a few low bits of each field.
+[[nodiscard]] std::size_t gridSlot(std::uint64_t key, std::size_t mask)
+{
+    key = (key ^ (key >> 30)) * 0xbf58476d1ce4e5b9ull;
+    key = (key ^ (key >> 27)) * 0x94d049bb133111ebull;
+    return static_cast<std::size_t>(key ^ (key >> 31)) & mask;
+}
+
+// The pins of the mesh's vertices on the grid's crossings (the tops of level faces), by crossing and height: where the
+// liquid's surface is on the CPU (surfaceRise: the splashes' rings and foam lying on it, drops going back in). Built
+// once a map: a flat table, open addressed (linear probing), at most half full; a pin of 0 is an empty slot (the ones
+// recorded are 1 or more).
+struct PinSlot
+{
+    std::uint64_t key{0};
+    float pin{0.f};
+};
+std::vector<PinSlot> gridPins;
+std::size_t gridPinCount = 0;
+float gridPinCell = 0.f;
+
 void recordPins(const std::vector<MeshVert>& verts, float cell)
 {
-    gridPins.clear();
     gridPinCell = cell;
+    gridPinCount = 0;
+    const auto onCrossing = [cell](const MeshVert& v) {
+        const float gx = v.pos[0] / cell, gy = v.pos[1] / cell;
+        return v.pin >= 1.f && std::abs(gx - std::round(gx)) < 1e-3f && std::abs(gy - std::round(gy)) < 1e-3f;
+    };
+    const std::size_t most = static_cast<std::size_t>(std::count_if(verts.begin(), verts.end(), onCrossing));
+    std::size_t size = 16;
+    while(size < most * 2)
+    {
+        size *= 2;
+    }
+    gridPins.assign(size, PinSlot{});
+    const std::size_t mask = size - 1;
     for(const MeshVert& v : verts)
     {
-        const float gx = v.pos[0] / cell, gy = v.pos[1] / cell;
-        if(v.pin >= 1.f && std::abs(gx - std::round(gx)) < 1e-3f && std::abs(gy - std::round(gy)) < 1e-3f)
+        if(!onCrossing(v))
         {
-            gridPins[gridKey(std::llround(gx), std::llround(gy), v.pos[2])] = v.pin;
+            continue;
+        }
+        const std::uint64_t key = gridKey(std::llround(v.pos[0] / cell), std::llround(v.pos[1] / cell), v.pos[2]);
+        std::size_t i = gridSlot(key, mask);
+        while(gridPins[i].pin != 0.f && gridPins[i].key != key)
+        {
+            i = (i + 1) & mask;
+        }
+        gridPinCount += gridPins[i].pin == 0.f;
+        gridPins[i] = {key, v.pin}; // the last one at a crossing and height, as before
+    }
+}
+
+// The pin at a crossing and height (its grid key), or 0: none.
+[[nodiscard]] float gridPin(std::uint64_t key)
+{
+    if(gridPins.empty())
+    {
+        return 0.f;
+    }
+    const std::size_t mask = gridPins.size() - 1;
+    for(std::size_t i = gridSlot(key, mask);; i = (i + 1) & mask)
+    {
+        const PinSlot& s = gridPins[i];
+        if(s.pin == 0.f || s.key == key)
+        {
+            return s.pin;
         }
     }
 }
@@ -1336,31 +1390,78 @@ namespace
 }
 
 // LiquidDisplace's rise at a crossing of the grid (0 off the mesh's level tops); each one worked out once a view (the
-// splashes' rings and foam share their crossings, and their drops).
-std::unordered_map<std::uint64_t, float> gridRises;
+// splashes' rings and foam share their crossings, and their drops). A flat table, open addressed, whose slots carry
+// the view they were filled in (a stamp of our own: r_framecount starts again at each map): a new view needs no
+// clearing and, once the table has grown to what the views need, allocates nothing. At most half full: it doubles
+// (the view's entries moved over) before it would be more.
+struct RiseSlot
+{
+    std::uint64_t key{0};
+    unsigned stamp{0}; // riseStamp of the view it holds a rise for (0: none yet)
+    float rise{0.f};
+};
+std::vector<RiseSlot> gridRises;
+std::size_t gridRisesCount = 0; // this view's
+unsigned riseStamp = 0;
 int gridRisesFrame = -1;
+
+void growRises()
+{
+    std::vector<RiseSlot> old(gridRises.empty() ? 1024 : gridRises.size() * 2);
+    old.swap(gridRises);
+    const std::size_t mask = gridRises.size() - 1;
+    for(const RiseSlot& s : old)
+    {
+        if(s.stamp != riseStamp)
+        {
+            continue;
+        }
+        std::size_t i = gridSlot(s.key, mask);
+        while(gridRises[i].stamp == riseStamp)
+        {
+            i = (i + 1) & mask;
+        }
+        gridRises[i] = s;
+    }
+}
 
 [[nodiscard]] float gridRise(long long ix, long long iy, float z, int kind, const glm::vec3& eye)
 {
     if(gridRisesFrame != r_framecount)
     {
         gridRisesFrame = r_framecount;
-        gridRises.clear();
+        gridRisesCount = 0;
+        if(++riseStamp == 0) // wrapped (after years of views): every slot emptied once
+        {
+            std::fill(gridRises.begin(), gridRises.end(), RiseSlot{});
+            riseStamp = 1;
+        }
+    }
+    if((gridRisesCount + 1) * 2 > gridRises.size())
+    {
+        growRises();
     }
     const std::uint64_t key = gridKey(ix, iy, z);
-    const auto cached = gridRises.find(key);
-    if(cached != gridRises.end())
+    const std::size_t mask = gridRises.size() - 1;
+    std::size_t i = gridSlot(key, mask);
+    for(; gridRises[i].stamp == riseStamp; i = (i + 1) & mask)
     {
-        return cached->second;
+        if(gridRises[i].key == key)
+        {
+            return gridRises[i].rise;
+        }
     }
-    float& rise = gridRises[key];
-    const auto it = gridPins.find(key);
-    if(it == gridPins.end())
+    RiseSlot& slot = gridRises[i];
+    slot = {key, riseStamp, 0.f};
+    gridRisesCount++;
+    float& rise = slot.rise;
+    const float pinValue = gridPin(key);
+    if(pinValue == 0.f)
     {
         return rise = 0.f;
     }
     const float x = static_cast<float>(ix) * gridPinCell, y = static_cast<float>(iy) * gridPinCell;
-    const float t = std::clamp((it->second - 1.f) / 32.f, 0.f, 1.f);
+    const float t = std::clamp((pinValue - 1.f) / 32.f, 0.f, 1.f);
     const float pin = t * t * (3.f - 2.f * t);
     const float d = glm::distance(glm::vec3{x, y, z}, eye);
     const float f = std::clamp((d - 512.f) / 512.f, 0.f, 1.f);
@@ -1378,7 +1479,7 @@ int gridRisesFrame = -1;
 
 float surfaceRise(const glm::vec3& p, int contents, const glm::vec3& eye)
 {
-    if(mesh.framecount != r_framecount || gridPinCell <= 0.f || gridPins.empty())
+    if(mesh.framecount != r_framecount || gridPinCell <= 0.f || gridPinCount == 0)
     {
         return 0.f; // the world's liquids are flat this view
     }
