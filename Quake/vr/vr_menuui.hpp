@@ -42,4 +42,10 @@ void backToGame(int hand);
 // page does not scroll: the stick navigates there.
 bool scrollStick(float y);
 
+// A VR page's slider in the VR menu style (as VR_MenuDrawSlider): `range` its value's share of the
+// bar, `past` -1 or 1 when the value lies beyond the bar's left or right end (the thumb stays at
+// that end, a lighter colour, an arrow outside it pointing on). False (nothing drawn) without the
+// style: Quake's slider is drawn instead.
+bool drawSlider(int x, int y, float range, int past, const char* desc);
+
 } // namespace qvr::menuui

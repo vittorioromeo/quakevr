@@ -1530,3 +1530,160 @@ hands' second pass (below).
   entities needs a scene I didn't build).
 - `vr_graphics_preset` doesn't set `vr_flashlight_beam_quality` (medium at every preset).
 - Not tried in the headset.
+
+## Menu: sliders past their ends
+
+Your note: many sliders need wider ranges, and you want to be able to go further yourself. Two changes: the
+ranges of the placement sliders are wider, and those sliders now go on past their ends with left and right (the
+sticks), as far as a hard limit.
+
+**How it works** (`vr_menu.cpp`: `Item::extend`, `stepSlider`; `vr_menuui.cpp`: `drawSlider`)
+
+- A slider is marked extendable (`.extend(lo, hi)`) when going further means something: offsets, positions, angles,
+  scales, distances. Shares, volumes, colours, chances and choices keep their ends.
+- Left and right step past the bar's ends, to the hard limit. Coming from inside the bar, a step stops at the end
+  first. A new press goes past, and so does holding on at the end for 0.6 s. Past the end, holding steps faster the
+  longer it is held (2x after a second, then 5x, then 10x), on multiples of the steps. Coming back, a step lands on
+  the end before going inside again.
+- A value past the end: the thumb stays at that end in light blue, with an arrow outside it pointing on, and the
+  value is in white. With the VR menu style off, the value is in white.
+- The help of an extendable slider says so, with the hard limits: "Hold left or right past the ends to go further
+  (-150.00 to 150.00)". It comes first while the value is on or past an end, and after the slider's own help
+  otherwise. Pages whose only help is this now keep the four help lines too.
+- The laser sets a value only along the bar. Pointing at a slider doesn't change it. A click on a thumb pinned at an
+  end keeps the value until the laser moves 4 menu pixels along; then it follows the laser along the bar.
+- Values set in the console or a config are not clamped by the menu: not when it draws them, not by other keys
+  (up, down, A, the pointer). Left or right towards the bar brings a value beyond the hard limit to that limit. Left
+  or right away from the bar does nothing.
+- `VR_Menu_Key` gets the key's auto-repeat flag from `M_Keydown` (menu.c): the pause at the end and the speed-up need
+  to know a held key from a new press.
+
+**Why this design:** it is one gesture you already use (left and right), it works on every extendable slider, and
+the bar keeps its resolution for the laser. Buttons at the ends would take room on every row, and a typed value
+needs a keyboard.
+
+**Sliders changed** (visible range → new visible range, and the hard limit; "=" unchanged)
+
+| Page | Slider | Bar | Hard limit |
+|---|---|---|---|
+| VR Settings | Teleport Range | = 100..800 | 100..3000 |
+| | Room Scale | = 0.5..2 | 0.2..5 |
+| | Height | 1.2..2.2 → 1.0..2.2 m | 0.5..3 |
+| | World Scale | 0.75..1.5 → 0.5..2 | 0.25..4 |
+| | Floor Offset | -40..10 → -50..30 | -400..400 |
+| | Gun Angle, Off Hand Angle | = -30..90 | -180..180 |
+| | Crosshair Size | = 0.5..8 | 0..32 (the code's clamp) |
+| | HUD Scale | = 0.01..0.05 | 0.005..0.3 |
+| | Menu Distance | = 40..150 | 8..600 |
+| | Menu Scale | = 0.08..0.3 | 0.02..1.5 |
+| | Torso, Legs Offset | -0.15..0.3 → -0.2..0.4 m | -1..1 |
+| | Shoulders Offset | -0.1..0.15 → -0.15..0.2 m | -0.5..0.5 |
+| | Render Scale | = 0.5..1.5 | 0.25..2 (the code's clamp) |
+| Body | Torso, Legs Offset | as above | -1..1 |
+| | Shoulders Back | -0.1..0.15 → -0.15..0.2 m | -0.5..0.5 |
+| | Shoulders Up | ±0.1 → ±0.15 m | ±0.5 |
+| | Shoulders Width | ±0.08 → ±0.12 m | ±0.3 |
+| | Eyes Forward, Eyes Up | 0..0.2 → 0..0.25 m | -0.1..0.5 |
+| | Crouch Tilt | 0..60 → 0..80° (the code's clamp; not extendable) | |
+| Arms and Pauldrons | Arm Length | 0.8..1.3 → 0.7..1.4 | 0.5..2 (the code's clamp) |
+| | Arm Stretch | = 1..1.5 | 1..3 |
+| | Shoulder Reach | 0..0.2 → 0..0.25 m | 0..0.6 |
+| | Shoulders Up, Shoulders Forward | 0..45 → 0..60° | 0..90 |
+| | Pauldron Size | = 0.5..1.5 | 0.25..4 (the code's clamp) |
+| | Pauldron Forward, Up, Out | ±0.05 → ±0.08 m | ±0.3 |
+| Flashlight | Range | = | 100..6000 |
+| | Lean Out | = | -30..60 (the code's clamp) |
+| | Forward, Up, Out, In Hand ×2, On Gun ×3, On Head ×3 | = (the flashlight change widens them) | 4 bar widths beyond each end |
+| Wrist Gadget | Size | = 0.5..2 | 0.25..3 (the code's clamp) |
+| | Along the Arm | ±10 → ±15 cm | ±40 |
+| | Across the Arm | ±5 → ±8 cm | ±20 |
+| | Height | -3..5 → -5..8 cm | -15..25 |
+| | Pitch, Yaw | = ±90 | ±180 |
+| Screens | Hologram Text Size | = 0.5..2 | 0.25..4 (the code's clamp) |
+| | Hologram Height | 0..10 → 0..15 cm | 0..50 |
+| | Console Log Height | = 0..20 cm | 0..60 |
+| Force Grab | Distance | = 100..1500 | 100..4000 |
+| Weapon Offsets | Offset X, Y, Z; Muzzle X, Y, Z; Aim Offset X, Y, Z | = ±30 | ±150 |
+| | Scale | = 0.1..3 | 0.02..10 |
+| | Thumb X, Y, Z | = ±4 | ±20 |
+| | Hotspot X, Y, Z | = ±40 | ±200 |
+| | Hand Pitch, Hand Yaw (hotspot) | = ±90 | ±180 |
+| | Bias (hotspot) | = 0..10 | 0..50 |
+| | Screen X, Y, Z | = ±20 | ±100 |
+| | Screen Scale | = 0.05..3 | 0.01..10 |
+| Hand/Gun Calibration | Gun Model Pitch, Gun Yaw, Off-Hand Pitch, Off-Hand Yaw | = ±90 | ±180 |
+| | Gun Model Scale | = 0.1..2 | 0.02..5 |
+| | Gun Model Z Offset | ±5 → ±10 | ±50 |
+| | Gun Z Offset | = ±30 | ±150 |
+| Player Calibration | World Scale | = 0.5..2 | 0.25..4 |
+| | Floor Offset | = ±200 | ±400 |
+| Locomotion | Teleport Range | = 100..800 | 100..3000 |
+| Status Bar | HUD Scale | = 0.01..0.1 | 0.005..0.3 |
+| | Offset X, Y, Z | = ±200 | ±1000 |
+| Hotspots | Shoulder, shoulder holster, hip, upper holster X, Y, Z (12) | = ±50 | ±200 |
+| | Virtual Stock, Shoulder, Hip, Upper Threshold | = 0..30 | 0..100 |
+| | Holster Slot Scale | = 0.1..2 | 0.02..5 |
+| | Holster Slot X, Y, Z | = ±100 | ±400 |
+| Crosshair | Crosshair Z Offset | = ±10 | ±50 |
+| Menu | Menu Scale, Menu Distance | = | as on VR Settings |
+
+Not extended: the full-circle angles (±180: weapon and screen pitch, yaw and roll, the gadget's roll, Gun Angle on
+Hand/Gun Calibration, the status bar's ±3.14 rad). Also Row Spacing and Menu Height, which the menu's layout clamps
+to 1..2. The Carrying page is left as it is, since another change edits it.
+
+### Tests (mock headset)
+
+- The Wrist Gadget's Along the Arm (bar ±15, limit ±40), held right from 13 with the off stick, printed every 10
+  frames: 13.5, 14, 14.5, 15, 15, 15, 15.5, 16, 16.5, 17.5, ... 19, 21, 22, 23, 25, ... 30, 32.5, 35, 37.5, 40, 40,
+  and so on. That is the stop at the end, then past it, faster, up to the limit. Held left from 40: 39.5 ... 28, 25, 20,
+  17.5, 15, 14, 13.5, 13, 12 ... So it lands on the end and goes on inside at the normal step. Pressed again at 15
+  (not held): 15.5 at once.
+- Set in the console: vr_gadget_x 60 (beyond the limit), vr_gadget_scale 5 (beyond Size's limit of 3). Moving the
+  selection over them, A, and right leave 60 and 5. Left brings them to 40 and 3.
+- Laser (mock hand aimed at the bar, `vr_gunangle 0`): vr_gadget_x 25; pointing at the bar's middle leaves 25. A
+  trigger press on the pinned thumb leaves 25. Moving ~2 px leaves 25. Dragging to the middle sets -0.5. A click on
+  the bar at a quarter sets -7.5.
+- Pictures (`menu_past_end.png`, handed over with the report, not in the repository): the thumb at 15.0 cm with the hint first; past the right end (25.0 cm, 120°) and the
+  left end (-12.00 cm); the laser pressed on the pinned thumb, then dragged; the desktop style with the white values.
+  The Weapon Offsets and Hotspots pages were checked with the help lines.
+
+## Blunt pommel sound
+
+Your note: hilt and pommel hits should sound blunt, different from slashes and stabs. Before this, a sword's pommel
+strike played the sword's cut (`knight/sword2.wav`), and an axe's or Mjolnir's handle end and a gun's butt played
+the punch (`fisthit.wav`) or nothing.
+
+- **The sound:** `vr/pommel1..3.wav`, made by `make_sounds.py` (`pommel()`; synthesised, credited in CREDITS.md). It
+  is a hard tick, then a short wooden knock: the low modes of a dense knob, damped within tens of milliseconds, with
+  no ring. Under it are a crunch of flesh and a short low thump. It has no whoosh (the shove's and the bash's), no
+  metal clang (the bash's) and no ring (the parry's). The three are pitched 1.0, 0.89 and 1.12. Each hit plays one
+  of the two not played last.
+- **Compared** (energy by band; how soon 90% of it is out):
+
+  | Sound | 90% by | Centroid | <150 Hz | 150-500 | 500-1.5k | 1.5-4k |
+  |---|---|---|---|---|---|---|
+  | `vr/pommel1..3` | 0.053 s | 450-530 Hz | 0.22 | 0.49-0.53 | 0.22-0.25 | 0.03 |
+  | `fisthit` (punch, gun swing, axe) | 0.098 s | 310 Hz | 0.48 | 0.44 | 0.03 | 0.03 |
+  | `knight/sword2` (slash, stab) | 0.098 s | 114 Hz | 0.94 | 0.03 | 0.02 | 0.01 |
+  | `vr/bash` | 0.216 s | 388 Hz | 0.72 | 0.13 | 0.10 | 0.03 |
+  | `player/axhit2` (a blade on a wall) | 0.086 s | 1650 Hz | 0.06 | 0.23 | 0.09 | 0.61 |
+
+  It is the shortest of them, and the only one with its weight in the knock's 150 Hz-1.5 kHz, which the Quest's
+  speakers carry.
+- **Where** (`QC/vr_melee.qc` `VR_Melee_HitSound`, `weapons.qc`): a blow of the pommel kind (the near end: a sword's
+  pommel or hilt, an axe's or Mjolnir's handle end, a gun's butt) that lands on something that takes damage.
+  `PlayerVRMeleeImpl` marks the blow being struck (`vr_melee_blunt`). The sword, the axe and the gun then play the
+  knock instead of their own sound, and Mjolnir, whose head's hit plays none, plays it too. Slashes, stabs, chops,
+  a gun's swing and punches keep theirs. So do walls: the pommel on stone still clangs (`player/axhit2`). Precached in
+  `world.qc`. With `developer` on, each melee hit sound prints `melee sound: <file>`.
+
+### Tests (mock headset)
+
+- 53 of your takes (all 27 hilt_pommel and 17 gun_strike_butt, and 2 gun swings, 3 slashes, 2 stabs and 2 punches),
+  copied and replayed with `developer 2; map vrfiringrange; vr_motion_eval <folder> verbose quit`, with the sound on.
+  The console's `melee sound:` lines: all 23 pommel strikes and 6 butt strikes played `vr/pommel1..3`. The 4 slashes
+  and 2 stabs played `knight/sword2`, and the 1 chop, 3 jabs and 2 gun swings played `fisthit`. So the knock played
+  for no other blow, and no pommel or butt strike played anything else. No "not precached" and no load errors.
+- The verdicts are the round's: hilt_pommel 23 of 27 and gun_strike_butt 9 of 17 pass. The pommel takes that fail
+  read as slashes (02-44-18, 04-05-33, noted above), and they play the slash's sound.
+- Not heard: the sounds were checked by their spectra and length only, not listened to in the headset.

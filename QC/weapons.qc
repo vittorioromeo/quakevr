@@ -879,6 +879,10 @@ void(float xHand) HIP_FireMjolnir =
         trace_ent.axhitme = 1;
         SpawnBlood (org, v_forward, xdmg);
         T_Damage_VRMelee (trace_ent, self, self, xdmg);
+        if(vr_melee_blunt && VRGetMeleeHitSoundPlayed(xHand) == FALSE)
+        {
+            sound(self, VRGetGunChannel(xHand), VR_Melee_HitSound(""), 1, ATTN_NORM); // the head's hit has none
+        }
         VRSetMeleeHitSoundPlayed(xHand, TRUE);
     }
     else
@@ -1029,7 +1033,7 @@ void(float xHand) W_FireAxe =
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHapticByHand(xHand);
-            sound(self, VRGetGunChannel(xHand), "fisthit.wav", 1.0, ATTN_NORM);
+            sound(self, VRGetGunChannel(xHand), VR_Melee_HitSound("fisthit.wav"), 1.0, ATTN_NORM);
             VRSetMeleeHitSoundPlayed(xHand, TRUE);
         }
     }
@@ -1079,7 +1083,7 @@ void(float xHand) W_GunMelee =
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHapticByHand(xHand);
-            sound(self, VRGetGunChannel(xHand), "fisthit.wav", 1.0, ATTN_NORM);
+            sound(self, VRGetGunChannel(xHand), VR_Melee_HitSound("fisthit.wav"), 1.0, ATTN_NORM);
             VRSetMeleeHitSoundPlayed(xHand, TRUE);
         }
     }
@@ -1133,7 +1137,7 @@ void(float xHand) W_SwordMelee =
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHapticByHand(xHand);
-            sound(self, VRGetGunChannel(xHand), "knight/sword2.wav", 1.0, ATTN_NORM);
+            sound(self, VRGetGunChannel(xHand), VR_Melee_HitSound("knight/sword2.wav"), 1.0, ATTN_NORM);
             VRSetMeleeHitSoundPlayed(xHand, TRUE);
         }
         return;
