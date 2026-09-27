@@ -388,8 +388,11 @@ struct Take
     static const char* const placing[] = {"vr_world_scale", "vr_height_calibration", "vr_floor_offset", "vr_lefthanded",
         "vr_gunangle", "vr_gunyaw", "vr_offhandpitch", "vr_offhandyaw", "vr_gunmodel", "vr_weapon_grip_mode", "vr_2h_",
         "vr_lean_", "vr_roomscale_", "vr_body_", "vr_throw_release", "vr_throw_grab_press", "vr_wofs_",
-        "vr_controller_legacy_pose"};
-    static const char* const meleeOnes[] = {"vr_melee_", "vr_bash", "vr_shove", "vr_parry", "vr_deflect", "vr_headbutt"};
+        "vr_controller_legacy_pose", "vr_weapon_cycle_mode"};
+    // (Every setting the QC's melee, damage and hit reactions read.)
+    static const char* const meleeOnes[] = {"vr_melee_", "vr_bash", "vr_shove", "vr_parry", "vr_deflect", "vr_headbutt",
+        "vr_sword_", "vr_damage_", "vr_push", "vr_hit_push", "vr_kill_push", "vr_carry_melee_mult", "vr_positional_damage",
+        "vr_headshot_mult", "vr_limbshot_mult", "vr_legshot_mult"};
     for(const char* p : placing)
     {
         if(name.rfind(p, 0) == 0)
@@ -825,16 +828,19 @@ void equip(edict_t* player)
     {
         return all;
     }
+    // A hand holding its own weapon grips before the weapons are given (it holds it: vr_weapon_grip_mode 0
+    // drops a weapon a hand doesn't grip); an empty hand gripping (a two-handed grip on the other's weapon)
+    // after, where it takes that grip.
     InputState in;
-    if(setupTime >= setupPress && all.hands[HAND_MAIN].grip)
+    const Frame& f0 = take.frames.front();
+    for(const int h : {HAND_MAIN, HAND_OFF})
     {
-        in.hands[HAND_MAIN].grip = true;
-        in.hands[HAND_MAIN].gripValue = all.hands[HAND_MAIN].gripValue;
-    }
-    if(setupTime >= setupOffGrip && all.hands[HAND_OFF].grip)
-    {
-        in.hands[HAND_OFF].grip = true;
-        in.hands[HAND_OFF].gripValue = all.hands[HAND_OFF].gripValue;
+        const bool holds = !take.hasWeapons || f0.wid[h] != 0 || h == HAND_MAIN && f0.wid[HAND_OFF] == 0;
+        if(all.hands[h].grip && setupTime >= (holds ? setupPress : setupOffGrip))
+        {
+            in.hands[h].grip = true;
+            in.hands[h].gripValue = all.hands[h].gripValue;
+        }
     }
     return in;
 }

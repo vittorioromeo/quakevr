@@ -270,7 +270,8 @@ absolute path (`.csv` optional).
    lasting the take's `dt`, the server running exactly where it ran in the take (`sv_tick`, `sv_dt`), the play space
    turned as it was (`play_yaw`; the main stick's own turning is taken out, it is in `play_yaw`), the lean as it was.
    So the melee sees the same poses at the same times, whatever the machine's speed; the game runs faster than real
-   time (`watch`: at the take's pace).
+   time (`watch`: at the take's pace). The controllers' key commands (the grips' `+grabmain`, the trigger's
+   `+attack`) run in the frame of their press, as in the headset, ahead of anything waiting in the command buffer.
 3. **After** it, 0.3 s holding the last pose (late events), then a report: the take's events and the replay's
    (from the take's start; strokes left out), how many of the hits match (the same kind, sub, hand, target and
    striking point; their damage and time differences), and how far the replay's hands were from the take's,
@@ -280,12 +281,20 @@ absolute path (`.csv` optional).
 follows the take's frames: a replay is the same every time.
 
 Options: `target <classname|#entity>` (another target), `yaw <degrees>` (the player's heading: another placement),
+`rate <hz>` (the take resampled at another headset's frame rate: poses slerped, velocities interpolated, the server
+frames left to the engine; to check the melee at 72, 90, 120 or 144 Hz),
 `noplace` (where the player is), `watch` (the recorded pace), `save` (the replay as a take:
 `motions/replays/<take>_replay.csv`, the same columns, to compare with the take), `recorded` (the take's melee
 settings too: `vr_melee_*`, `vr_bash*`, `vr_shove*`, `vr_parry*`, `vr_deflect*`, `vr_headbutt*`; without it the
 current ones: what a change of the melee's settings does), `quiet`. `vr_motion_play stop` stops it.
 
-A take without a monster (recorded far from any) is played with the target 40 units ahead, facing the player.
+A take without a monster (recorded far from any) is played with the target 40 units ahead, facing the player. A
+take whose spot is inside the target (recorded in noclip, or a synthetic take whose box meets the target's turned
+another way) steps the player back until the boxes are apart, and says so.
+
+Takes recorded before the header's `settings` line (the first ones) take the placing settings they don't list (the
+weapons' offsets, the lean) from the current config: play them with the config they were recorded with (the
+author's `ironwail.cfg`, or `exec` a file of its `vr_wofs_*`, `vr_2h_*`, `vr_lean_*` ... lines first).
 
 ## Evaluation
 
@@ -307,7 +316,7 @@ afresh (`vrfiringrange`, or `map <name>`: the same start every time), judges eac
 
 The console prints a line per take, the totals, the pass rate of each category, and how many replays hit as their
 takes did live. Options: `recorded` (the takes' melee settings: to check that the replays reproduce the live
-events), `save` (every replay as a take), `verbose` (each playback's report), `watch`, `map <name>`, `out <file>`,
+events), `rate <hz>` (every take resampled, as above), `save` (every replay as a take), `verbose` (each playback's report), `watch`, `map <name>`, `out <file>`,
 `quit` (quits when done: for scripts). `vr_motion_eval stop` stops it (and writes what it has).
 
 ```

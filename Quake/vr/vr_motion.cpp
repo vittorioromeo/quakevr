@@ -581,7 +581,9 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
 // The settings the melee reads, for the header.
 [[nodiscard]] std::string meleeSettings()
 {
-    static const char* const prefixes[] = {"vr_melee_", "vr_bash", "vr_shove", "vr_parry", "vr_deflect", "vr_headbutt"};
+    static const char* const prefixes[] = {"vr_melee_", "vr_bash", "vr_shove", "vr_parry", "vr_deflect", "vr_headbutt",
+        "vr_sword_", "vr_damage_", "vr_push", "vr_hit_push", "vr_kill_push", "vr_carry_melee_mult", "vr_positional_damage",
+        "vr_headshot_mult", "vr_limbshot_mult", "vr_legshot_mult"};
     std::string out;
     for(const cvar_t* var = Cvar_FindVarAfter("", 0); var; var = Cvar_FindVarAfter(var->name, 0))
     {
