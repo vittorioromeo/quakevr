@@ -907,16 +907,51 @@ qboolean GL_NeedsPostprocess (void)
 R_OpaqueSceneTexture -- QVR
 
 The opaque scene's colours, which translucent liquids read to bend what is behind them (vr/vr_water.cpp): only
-while they draw into the OIT buffers (the scene's colours are not a target then) and without multisampling.
+while they draw into the OIT buffers (the scene's colours are not a target then). With multisampling, the resolved
+scene's texture: R_BindOpaqueScene resolves the scene into it before they read it.
 =============
 */
 GLuint R_OpaqueSceneTexture (void)
 {
-	if (R_GetEffectiveAlphaMode () != ALPHAMODE_OIT || framebufs.scene.samples > 1)
+	if (R_GetEffectiveAlphaMode () != ALPHAMODE_OIT)
 		return 0;
+	if (framebufs.scene.samples > 1)
+		return framebufs.resolved_scene.color_tex;
 	if (GL_NeedsSceneEffects ())
 		return framebufs.scene.color_tex;
 	return GL_NeedsPostprocess () ? framebufs.composite.color_tex : 0;
+}
+
+/*
+=============
+R_BindOpaqueScene -- QVR
+
+R_OpaqueSceneTexture on unit 6, for the translucent liquids' refraction (r_world.c), readable: with multisampling
+and the refraction on (vr_water_refraction: r_framedata.water[2]) the scene is resolved into it first, once a view
+(the translucent pass draws into the OIT buffers, so it stays the opaque scene; R_WarpScaleView's resolve of the
+whole scene may reuse the texture after the pass), and the translucent pass's target bound again.
+=============
+*/
+void R_BindOpaqueScene (void)
+{
+	static int resolved = -1; // r_framecount the resolve is of
+	GLuint tex = R_OpaqueSceneTexture ();
+	GLuint color, depth;
+	int samples, viewport[4];
+
+	if (tex && framebufs.scene.samples > 1 && r_framedata.water[2] > 0.f && resolved != r_framecount)
+	{
+		VR_ProfileBeginGPU ("refraction resolve");
+		GL_BeginGroup ("MSAA resolve (refraction)");
+		GL_BindFramebufferFunc (GL_READ_FRAMEBUFFER, R_SceneTarget (&color, &depth, &samples, viewport));
+		GL_BindFramebufferFunc (GL_DRAW_FRAMEBUFFER, framebufs.resolved_scene.fbo);
+		GL_BlitFramebufferFunc (0, 0, viewport[2], viewport[3], 0, 0, viewport[2], viewport[3], GL_COLOR_BUFFER_BIT, GL_NEAREST);
+		R_RestoreTranslucentTarget ();
+		GL_EndGroup ();
+		VR_ProfileEnd ();
+		resolved = r_framecount;
+	}
+	GL_BindNative (GL_TEXTURE6, GL_TEXTURE_2D, tex);
 }
 
 /*

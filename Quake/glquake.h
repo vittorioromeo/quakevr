@@ -465,6 +465,7 @@ void TexMgr_SetHeightMask (const byte *mask, int width, int height); // a skin's
 extern gpulightbuffer_t r_lightbuffer;
 extern gpuframedata_t r_framedata;
 GLuint R_OpaqueSceneTexture (void); // QVR: the opaque scene's colours translucent liquids can read (0: none)
+void R_BindOpaqueScene (void); // QVR: ... on unit 6, resolved first with MSAA (r_world.c)
 GLuint R_OpaqueSceneDepthTexture (void); // QVR: and its depth/stencil (the translucent pass's target: vr/vr_water.cpp reads it first)
 void R_RestoreTranslucentTarget (void); // QVR: the translucent pass's framebuffer and viewport again
 GLuint R_SceneTarget (GLuint *color, GLuint *depth, int *samples, int viewport[4]); // QVR: the scene's framebuffer, textures, viewport (vr/vr_water.cpp, vr/vr_haze.cpp)
