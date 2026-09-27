@@ -1323,6 +1323,56 @@ look, and both hands stay free for a gun in each hand, climbing, or carrying.
 - Limitation: in the body preview the holstered axe's head hangs over the torch (both by the left hip). From your own
   view the chest hides both.
 
+### Your notes after testing it: the overhead grip, sliders, colour, the spin, the cord
+
+- **The overhead grip went through the hand** (your screenshot). The flip turned the torch over about the middle of its
+  grip, which put its wider head (3.9 cm across, the tube 2.6) in your ring and little fingers. The hand's grasp solver
+  then pushed the drawn hand 3 cm off it, towards the palm, so the tube came out of the back of the hand.
+  - Each grip now has its own place in the hand. By default both sit 0.5 cm towards the back of the hand, and the
+    overhead one 2 cm further up the fist, so the head clears the fingers.
+  - The solver now moves the palm 0 cm in the low grip and 0.7-2 cm in the overhead one (3 cm before).
+  - Your own view of the overhead grip, before and after, is in the composite: the tube now goes through the fist in
+    both hands.
+- **Sliders**, Flashlight page, "In the Hand: Low Grip" and "In the Hand: Overhead Grip", six each:
+  - Forward, Towards Palm and Up, ±30 cm;
+  - Pitch, Yaw and Roll, ±180°, turned about the grip's middle.
+
+  They are added on top of In Hand Forward/Up. The other hand gets the mirror image.
+  - Positive Pitch tilts the beam up, in either grip. With the thumb in front and the pitch too high, lower Low
+    Grip Pitch.
+  - Cvars: `vr_flashlight_low_x/y/z/pitch/yaw/roll`, `vr_flashlight_high_*`.
+- **Beam colour:** Beam Hue (`vr_flashlight_hue`, 40; the leftmost step follows the Player Effects Hue) and Beam
+  Saturation (`vr_flashlight_saturation`, 0).
+  - At saturation 0 it is white, the new default. It was a fixed warm white before; Hue 40 with Saturation 0.2
+    gives that back.
+  - It colours the light, the beam in the air and the lens. The lens is now a glowing disc drawn in the beam's colour,
+    not the skin's fixed yellow.
+- **The flip spins:**
+  - B/Y turns the torch over in 0.25 s, eased, about the knuckles' way across the fist. The beam follows as it
+    turns.
+  - A second press during the spin turns it back from where it is.
+  - The hand keeps its old grasp through the spin and is fitted once to the new grip at the end, blending in over
+    the fitted hands' 0.12 s. The grasp trace shows the palm moving at most 0.19 cm a frame, a smooth slide, with no
+    jump.
+- **Wider sliders** (you couldn't go far enough):
+  - the belt's Forward/Out ±30 cm and Up ±40;
+  - In Hand ±30;
+  - On Gun Forward -40..30 cm and Up/Out ±30;
+  - On Head ±30;
+  - Lean Out ±90°.
+- **Cord** (`vr_flashlight_cord`, on) turns the cord from the belt to the torch off.
+- Also fixed: with no body drawn, your off hand at the belt torch sat in the empty main hand's two-handed hotspot, and
+  the torch wouldn't come.
+
+Tested (mock, e1m1; composite `round21_flash4/flashlight_grips_r2.png`, trace `round21_flash4/palm_trace.png`):
+- both grips in both hands, close up from four sides;
+- your view of the overhead grip in four poses, before and after, each hand;
+- the spin frame by frame;
+- the beam in white and four colours on a wall, and the lens in blue;
+- the palm through three flips in each hand;
+- the per-grip Pitch: +20 tilts the beam up 20° in both grips;
+- the Cord toggle.
+
 ### Tested (mock headset)
 
 Composites are in the scratchpad's `round21_gadget/`:
@@ -1366,6 +1416,11 @@ Composites are in the scratchpad's `round21_gadget/`:
   - [ ] B/Y away from a gun flips it to the overhead grip. Raise it by your head, thumb to your face: it lights
         ahead. Flip back;
   - [ ] let go and take it again: that hand's grip is kept.
+  - [ ] the overhead grip in either hand: the tube in the fist, not through the back of the hand. If it still looks
+        off, tune the In the Hand sliders, and tell me the values you end up with;
+  - [ ] the flip spins, and the hand stays put;
+  - [ ] Beam Hue and Saturation on the Flashlight page: white by default.
+- [ ] Cord off: no cord from the belt.
 - [ ] On the belt (off hand side): hanging lens down, easy to find and grip with either hand? Clear of the hip
       holster (draw the gun there: the gun, not the torch)? (Forward/Up/Out and Lean Out move it.)
 - [ ] Fight with your fists in a guard, and clench them by your belt: the torch is never taken or switched. An open
