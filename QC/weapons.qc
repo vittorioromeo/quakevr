@@ -115,13 +115,9 @@ float() VRMeleeDmgQuadMult =
     return 1;
 }
 
-// Melee: a blow of a hand (a real one: a stroke of the wrist over vr_melee_distance, sudden and as
-// fast as vr_melee_speed or more; the model is described in vr_juice.qc, "Blows"; PlayerVRMeleeImpl
-// in client.qc), in any direction, hits the first thing the weapon's striking points passed through
-// in the stroke (swept frame to frame: vr_juice.qc, "Striking points"), once: the hand must stop or
-// pull back before it hits again. The damage is the weapon's base
-// times the blow's strength (VR_Blow_Measure: its speed, its reach and its shape; about 1 for a good
-// punch or swing, at most VR_BLOW_MAX).
+// Melee: a part of what a hand holds swept into something at vr_melee_speed or more (vr_melee.qc; PlayerVRMeleeImpl
+// in client.qc), in any direction. The damage is the weapon's base times the blow's strength (VR_Melee_Decide: the
+// striking part's speed and the kind of blow; 1 at twice vr_melee_speed, at most VR_MELEE_STRONGEST).
 
 float(float xHand, float xBase) VRMeleeDmg =
 {
@@ -782,7 +778,7 @@ void(vector xDir) VRMeleeHitAt =
 };
 
 // Whether the last traceline of a swing struck something that bleeds, or (`xAnything`) anything. A
-// line starting inside a monster (the fist already in it: a blow must travel vr_melee_distance first)
+// line starting inside a monster (the fist already in it)
 // strikes it at `xAt`.
 float(vector xAt, float xAnything) VRMeleeTraceHit =
 {

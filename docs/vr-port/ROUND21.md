@@ -50,6 +50,283 @@ sensitive.
 
 Keep recording as you were; the takes are sufficient for exact replays.
 
+## Melee, redesigned
+
+Voice notes vrfiringrange 01-27 (2026-09-27, three notes and a screenshot): the sword's two-handed "bench press"
+bash (the blade level across the face, one hand on the handle and one on the blade, pulled to the chest and pushed
+out) never registers; backswings (bottom left to top right) almost never land while forehand swings do; a gun held
+by its pump in the off hand after the two-handed hand-off can't strike at all. And the whole thing: one system for
+swords, guns and bare hands, where any part of a blade hits in a swing or a stab, the pommel and hilt strike as their
+own kind of blow, a weapon held level across in front (one hand or two) is a parry stance that bashes when pushed,
+two hands bash harder, punches in any direction hit as hard as a straight one, and open palms pushed shove.
+
+### Audit: the old melee, path by path
+
+Everything is in `QC/vr_juice.qc` ("Blows", "Striking points", bashes and shoves), `QC/client.qc`
+(`PlayerVRMelee`, `PlayerVRMeleeImpl`, headbutts), `QC/weapons.qc` (`W_*Melee`, `VRMeleeDmg`) and `QC/combat.qc`
+(parries, corpse strikes). Each server frame: headbutt, heartbeat, each hand's stroke and striking points, a gib held
+in one hand struck by the other, the bash, then each hand's blow.
+
+| Path | How it was detected |
+|---|---|
+| Blow (punch, swing) | A *stroke* of the estimated wrist (13 cm behind the controller): it starts when the wrist moves faster than 0.7 m/s and ends when it slows down, turns more than ~65 degrees from its line, or after 0.5 s. A stroke is a blow when the **wrist** has gone `vr_melee_distance` (0.2 m), reached `vr_melee_speed` (2.75 m/s; 1.25x, 3.4 m/s, for the sword, axe and Mjolnir), with a mean acceleration to its peak of 25 m/s2, is still moving at half that, is not going back (more than 117 degrees from the facing; any backward part raises the distance needed), and (fists) the fist didn't turn more than 2.6 rad per metre |
+| Contact | Points along the held thing (sword: pommel, hilt, guard, mid-blade, outer blade, tip; axe: hand, handle, head x2; gun: grip, barrel, muzzle; fist: fist, knuckles), swept from pose to pose against boxes (3 units thick) and walls. The stroke's first contact is where the blow lands, once |
+| Kind and damage | Base (fist 10, gun 12, axe 20, sword 20 x `vr_sword_damage_mult`, Mjolnir 25) x strength: wrist speed (0.25 at the minimum, 1 at 1.6x/1.8x), reach (1 to 1.2), shape (straight punch 1.25, uppercut 1, overhead 0.7, slap/hook 0.6; swung weapons: arcs 1, thrust 0.8, straight up 0.5), the head's snap (0.85-1.2) and the point (hilt 0.6, handle 0.5) |
+| Hilt and pommel | A hilt/pommel/guard contact lands only when the weapon moves along whole (turning under 150 deg/s, the tip no faster than 1.5x the wrist); in a swing it waits `vr_melee_hilt_window` (0.2 s) for the blade and never lands itself |
+| Stab | A sword stroke along the blade (within 37 degrees), the tip leading, the tip no faster than 1.4x the wrist, the blade turning under 150 deg/s: 0.8x the speed and a 12 m/s2 snap |
+| Bash | The parry's pose (`VR_Parry_Guard`: the weapon's line, or the hands' line held two-handed, within `vr_parry_angle` of level, across, in front), **held still** (wrist under 1 m/s, the weapon turning under 60 deg/s) for `vr_bash_hold` (0.15 s), then within 0.75 s the **controller** pushed forward (within 53 degrees) faster than `vr_bash_speed` (your config: 1.5 m/s), the weapon turning under `vr_bash_swing_rate` (120 deg/s) for 0.05 s, in a stroke that never turned that fast. Hits monsters within 48 units of a point 24 units ahead of the hands |
+| Shove | An empty, open hand (grip not held, not steadying, not carrying or climbing), its palm within 53 degrees of ahead, moving along the palm (45 degrees), forward faster than `vr_shove_speed` (1.8 m/s), a snap of 8 m/s2 and 10 cm straight ahead. Two hands: full; one: half |
+| Parry-bash | A weapon bash within 1.5 s of a parry: 1.3x |
+| Batting | A stroke whose wrist reached 0.6x `vr_melee_speed` keeps the weapon's line for 0.2 s; projectiles within 14 units fly back. A bash (or a shove with a gun in hand) bats within 24 units for 0.3 s |
+| Headbutt | The head lunging at `vr_headbutt_speed` towards where it looks |
+| Parry | A monster's melee blow on a weapon line held across in front, or crossed forearms |
+| Corpse, held gib | The hand faster than `vr_melee_speed` through a corpse; the other hand struck at that speed through a gib held in one hand |
+| Exclusions | A climbing hand; the empty hand steadying a two-handed weapon; **a gun carried by its foregrip (no blow, no bash guard, no corpse strike)** |
+
+**Why the three failures happen.**
+
+- **The bench-press bash.** The old bash wanted the guard held *still* first (the wrist under 1 m/s, the weapon
+  turning under 60 deg/s, for 0.15 s) and then a push that turns under 120 deg/s. Your real pushes (36 parry-bash
+  takes) turn the weapon by hundreds of degrees a second as the arms extend (665 deg/s in one), and run at 3-6 m/s.
+  Live, the old code registered **0 of 36** of them as a bash.
+- **Backswings.** The old blow was the estimated wrist's *stroke* (3.4 m/s for a weapon, 0.2 m, a 25 m/s2 snap, not
+  going back from the facing; any backward part raised the distance needed). In your recorded takes it did register
+  34 of 37 backswings (as swings), but only as the wrist's stroke allowed: a backswing that starts from a
+  follow-through, going back towards you, fails the "not going back" test, and a synthetic reproduction of that
+  landed 0 of 3. The new model has no direction test at all.
+- **The off-hand gun after the hand-off.** `PlayerVRMeleeImpl` returned at once for a hand carrying a gun by its
+  foregrip (round 16: "carried, not wielded"), `VR_Parry_Guard` refused it as a guard and `VR_Corpse_StrikeFrame`
+  skipped it. And the client sent no muzzle for a carried gun (the view marks it "no aim"), so the server knew only
+  a stub 8 units ahead of the hand, not the gun. Now the client sends a carried gun's muzzle
+  (`vr_client.cpp`, `handMuzzle`: the weapon's muzzle offset in the hand's frame, placed from the carried pose), and
+  the carried gun is a gun like any other: it strikes, parries and bashes.
+
+The common root: the old model decided *whether* there was a blow from the wrist's motion alone (a stroke's speed,
+distance, snap and direction), then asked what the weapon touched; the rules layered on since round 14 (strokes,
+back-bias, hilt windows, stab tests, guard holds, swing-rate limits) each patched one case of that and broke others.
+
+### The design
+
+One model for everything a hand holds, in `QC/vr_melee.qc` (new; `vr_juice.qc` keeps only batting and the
+heartbeat). Its numbers are in one table at the top of the file, each with the takes it came from. It was tuned
+only on your recorded takes, replayed in the engine (`vr_motion_eval`); the synthetic takes were smoke tests.
+
+**1. What a hand holds is a line with points.** Each server frame with a new pose, the held thing is laid out from
+its *near end* through the *grip* (the hand) to its *far end* (the muzzle point of its model: a sword's tip, an
+axe's head, a gun's muzzle), and points of four kinds along it are swept from the last pose to this one against
+the boxes of what bleeds (3 units thick) and against walls:
+
+| Held | Near end (pommel strike) | At the hand (strikes nothing) | Striking |
+|---|---|---|---|
+| Sword | the pommel | the hilt, the guard | the blade's root, mid-blade, the blade, the tip |
+| Axe, Mjolnir | the handle's end | the handle | the head |
+| Gun, held or carried by its pump | the butt | the grip | the barrel, the muzzle |
+| Fist | - | - | the fist, the knuckles |
+
+Two-handed, the helping hand's place is the weapon's nearest grip hotspot within 24 units (`weaponhotspot`, the
+fitted hands' list), else the hand itself (`VR_Melee_HelpGrip`). The steadying hand and a climbing hand hold
+nothing.
+
+**2. The arm drives every blow.** A contact is a blow when the *grip* (the hand, relative to the head, so walking
+and turning don't count) moves at least:
+
+| Blow | Least speed of the hand |
+|---|---|
+| a weapon's swing (slash, chop, gun swing) | 1.25x `vr_melee_speed` (5 m/s) |
+| a stab (a sword's far end moving along the blade, outwards: cosine 0.4 or more) | 0.75x (3 m/s) |
+| a pommel or butt strike | 1x (4 m/s) |
+| a punch (a closed fist: the grip held) | 1x (4 m/s), a little more straight up or steeply down |
+
+and the hand came at least 20 cm towards where it goes now, within the last 0.3 s (a blow, not a wiggle). The
+direction doesn't matter otherwise: overhead, sideways, diagonal, rising, backhand and follow-ups are alike. Your
+takes behind the numbers: your cuts move the hand 4.5-13 m/s, your sword and gun waved at the dummy 2-4 (their tips
+10-30 m/s, which is why the tip's speed was the wrong measure); your stabs drive the tip along the blade at 0.4-0.87
+(cosine), your cuts at most 0.36; your punches come 0.22-0.8 m, your fists waved fast at the dummy 0.05-0.2.
+
+**3. Which part struck decides the kind.** Of a blade's points in the thing, the outermost strikes (the whole blade
+hits, and its root, in the thing for a while, doesn't hide the blade proper). The near end's touch waits 0.1 s for
+the blade proper (from 0.4 of the way to the tip) to reach the same thing: then the blow is the blade's (a cut from
+close by, whose pommel or handle arrives first), else it lands as the pommel strike it was. The points at the hand
+strike nothing: your 25 pommel strikes all land with the near end, while your weapons waved at the dummy touched it
+with the hilt, the handle or a gun's grip.
+
+Damage is the weapon's base x weight x strength: 0.5 at the least speed, 1 at twice it, at most 2. Weights: a
+sword's pommel 0.6, an axe's handle end 0.5, a punch `vr_melee_punch_mult` (every punch alike, whatever its way).
+A hand strikes each thing once per motion, again once its hand slowed below half the least speed, or, out of the
+thing, turned back more than 100 degrees (a backswing) or after 0.6 s.
+
+**4. The parry stance** is the parry's own test (`VR_Parry_Blocks`, `combat.qc`): the weapon's line (a carried gun
+too; two-handed, the line between the hands' grips) within `vr_parry_angle` (40) of level, across (at least 30
+degrees off the line to the attacker), in front, its middle within half a metre of your body's midline. Bare hands:
+crossed forearms (the unarmed parry), or an open palm facing ahead (within 53 degrees) for the shove.
+
+**5. A bash is the stance, held, pushed.** Once a weapon's stance has been held 0.5 s, both ends of the weapon
+moving forward (each within 41 degrees of the facing, each at 0.4x the push or more) with its middle at
+`vr_bash_speed` (2 m/s), for 6 cm, is a bash: it lands on what is within 0.75 m ahead, once. However the weapon turns
+as the arms extend, it goes on (the stance may tilt past its angle as you push). The hold is what separates your
+bashes from your cuts that start from a guard: your cuts from a guard pass through it in 0-0.4 s; your parry bashes
+hold it 0.9-2.3 s. Two hands bash harder (a two-handed weapon, an open palm pushing on a one-handed weapon's line
+within 20 cm, both palms): full `vr_bash_damage` and `vr_bash_push`; one hand 0.6 of the damage and 0.7 of the
+knockback. Within 1.5 s of a parry, a parry-bash (1.3x). A bash with a weapon bats projectiles, as before.
+
+**6. A shove is an open palm pushed out.** An empty open hand (the grip not held), its palm facing ahead (within 53
+degrees), moving the way it faces (45 degrees) and out from its shoulder (cosine 0.82: the arm extending), at
+`vr_shove_speed` (2.4 m/s), for 6 cm. Both palms: a two-handed shove. Your shoves extend the arm at 0.84-0.98; your
+hands waved down or round at the dummy, palm first, at 0.55-0.8.
+
+**What the readout and the recorder see.** The dummy's readout names the blow ("melee: Sword, slash (diagonal,
+down) with the blade, main hand, 9.1 m/s (x1.1)"; "bash with the Sword, two hands"). The recorder's events carry
+the blow's category (`melee/slash`, `stab`, `pommel`, `punch`, `gun`) and its part; a "stroke" is a hand going as a
+blow would (its whoosh), a "stance" the parry stance held 0.2 s.
+
+### Settings
+
+| Setting | Before | Now |
+|---|---|---|
+| `vr_melee_speed` | the estimated wrist's least speed in a stroke (2.75 m/s; yours 2.75), with `vr_melee_distance` and a snap | the striking hand's least speed, **4 m/s**: a punch, a pommel strike; a weapon's swing 1.25x, a stab 0.75x |
+| `vr_bash_speed` | the push after a still guard (yours 1.5 m/s) | the held stance's push, **2 m/s** (your pushes 3-6, your held poses settle at up to 1.6) |
+| `vr_shove_speed` | 1.8 m/s | **2.4 m/s** (your shoves 3.2-4.8, your hands waved at the dummy 2.2) |
+| `vr_melee_punch_mult` | a straight punch over a slap | every punch alike |
+| `vr_parry_angle` | 40 | 40 (unchanged) |
+| `vr_melee_distance`, `vr_melee_hilt_window`, `vr_melee_stab_speed`, `vr_bash_hold`, `vr_bash_swing_rate` | | removed, with their menu sliders (Blow Distance, Hilt, Stab, Hold, Swing Limit) |
+
+Menu: Melee > Swing Speed (`vr_melee_speed`), Bash Speed, Shove Speed, with new help. `quakevr/vr_defaults.cfg` no
+longer sets `vr_melee_speed`, `vr_melee_distance` or `vr_bash_speed`.
+
+**Config migration, version 13** (`vr_cvars.cpp`): `vr_melee_speed` and `vr_bash_speed` go to the new defaults
+whatever they were (their meaning changed); `vr_shove_speed` moves from the old default 1.8 to 2.4 (a value you
+changed yourself stays).
+
+### Checked on your 474 takes
+
+`vr_motion_eval` on all 474 takes (vrfiringrange, developer 0, the takes' 120 Hz), against
+`quakevr/motions/expect.cfg`. The old code's numbers are what the takes registered live. The takes are split per
+category by a hash of the file name: about 70% to tune on ("train"), 30% held out and never looked at while tuning.
+"Buckets" count a take right when it registers the right kind of thing (the coordinator's buckets); "strict" is the
+eval's verdict (the right kind, and nothing else: a slash that also bashes fails).
+
+| Category | Takes (train / held-out) | Old code, live | New, buckets | New, strict |
+|---|---|---|---|---|
+| slash | 95 / 38 | 82 / 35 | 91 / 37 | **90 / 37** |
+| stab | 20 / 8 | 4 / 1 | 19 / 8 | **19 / 8** |
+| hilt_pommel | 23 / 4 | 0 / 0 | 20 / 3 | **20 / 3** |
+| parry_bash (sword and gun) | 25 / 11 | 0 / 0 | 23 / 10 | **23 / 10** |
+| punch | 21 / 7 | 17 / 7 | 21 / 7 | **21 / 7** |
+| gun_strike | 26 / 9 | 21 / 5 | 22 / 4 | **22 / 4** |
+| palm_shove_1h | 3 / 6 | 3 / 6 | 3 / 6 | **3 / 6** |
+| palm_shove_2h | 4 / 4 | 4 / 4 | 4 / 4 | **4 / 4** |
+| parry_pose | 56 / 26 | 52 / 23 (strict) | 56 / 26 | **53 / 24** |
+| not_parry_pose | 36 / 13 | 28 / 10 (strict) | 36 / 13 | **29 / 10** |
+| no_hit | 24 / 15 | 15 / 11 | 17 / 10 | **17 / 9** |
+| all | 333 / 141 | 238 / 108 (buckets) | 312 / 128 | **301 / 122** |
+
+In all, **423 of 474** pass the strict verdict (the old code: 346 right by the buckets). For the poses, the old
+code's strict verdict comes from its parry and guard state recorded each frame. Worse than before on the held-out
+takes: gun strikes (4 of 9 against 5) and no hit (9 of 15 against 11); on all the takes no hit is 26 of 39 against 26
+of 39 and gun strikes 26 of 35 against 26 of 35. The takes behind those are in the list below: guns carried by the
+pump whose carry the replay can't place, gun clubs recorded before the fitted hands, and weapons swung through the
+dummy at blow speed.
+
+By label (strict, all takes; the old code live):
+
+| Label | Takes | Old | New |
+|---|---|---|---|
+| slash_overhead | 24 | 19 | 24 |
+| slash_horizontal_ltr | 23 | 19 | 20 |
+| slash_horizontal_rtl | 17 | 16 | 17 |
+| slash_diagonal_down_left | 17 | 16 | 17 |
+| slash_diagonal_down_right | 15 | 13 | 14 |
+| slash_backswing_up_left | 18 | 17 | 16 |
+| slash_backswing_up_right | 19 | 17 | 19 |
+| stab_one_hand | 18 | 5 | 18 |
+| stab_two_hands | 10 | 0 | 9 |
+| hilt_pommel | 27 | 0 | 23 |
+| parry_bash | 19 | 0 | 19 |
+| parry_bash_gun | 17 | 0 | 14 |
+| punch_jab / straight / uppercut / overhead | 6 / 9 / 7 / 6 | 6 / 9 / 7 / 2 | 6 / 9 / 7 / 6 |
+| gun_strike_swing | 18 | 14 | 17 |
+| gun_strike_butt | 17 | 12 | 9 |
+
+**Frame rate.** The same takes resampled (`vr_motion_eval ... rate <hz>`), strict passes:
+
+| | 120 Hz | 90 Hz | 72 Hz |
+|---|---|---|---|
+| before the last change (the pommel's wait only while the head swept faster) | 415 | 407 | 398 |
+| now | **423** | **423** | **422** |
+
+The difference was close chops: at 72 Hz a frame's sweep is longer, the pommel or handle and the head reached the
+dummy in one frame, and the handle's touch didn't look like a swing's (your chops draw the axe back along its line,
+as a pommel strike does). Now the near end always waits 0.1 s for the blade, and the points at the hand don't strike.
+
+**Suspect takes** (not bent to; the number that says why):
+
+| Takes | Expected | Registers | Why suspect |
+|---|---|---|---|
+| gun_strike_butt 02-31-23, -26, -29, -31; parry_bash_gun 02-35-08, -11, -14; no_hit 02-36-26 | gun strike / bash / nothing | nothing / a muzzle swing / a one-hand bash | a gun carried by its pump: the take doesn't record the carry, so the replay holds no gun there (the far end isn't recorded: no muzzle) |
+| gun_strike_butt 02-31-19, 02-32-05, 02-32-02 | gun strike | nothing | recorded before the fitted hands (the recorder's 15 gun clubs): only the hand reaches the dummy (3 cm in; the butt 7-12 cm off), 02-32-02 never within 10 cm |
+| no_hit 02-36-12, 02-36-36, 02-37-14, 02-43-23, 02-43-28, 04-03-55, 04-04-05 | nothing | slashes, gun swings, a bash | the far end goes 20-34 cm deep into the dummy's box (73 cm wide) with the hand at 5-13 m/s: a blow by any measure |
+| no_hit 02-20-55, 02-20-59, 02-21-46 | nothing | punches | a closed fist at 7-10 m/s, 1-3 cm into the box (your punches go 10-29 cm in) |
+| no_hit 02-21-55 | nothing | strokes only | fists at 14 m/s, 23 cm off: the whooshes, which "none" forbids |
+| no_hit 02-21-03 | nothing | shoves | both open palms pushed out at 11 m/s |
+| parry_pose 02-44-36, 02-45-09, 02-45-25, 02-45-34, 05-17-59 | the parry pose | parry in under half the frames | tilted 41-44 degrees, beyond your `vr_parry_angle` 40 (the old code failed them too) |
+| not_parry_pose 05-12-50, 05-13-18, -21, -25, -49, 05-14-08, -10, 05-15-42 (and 05-15-38, -52: a few frames) | no parry | the parry pose | the weapon level within 8-40 degrees, across, in front: the parry's pose by its test (the old code failed them too) |
+| slash_backswing_up_left 04-03-12 | slash | nothing | the far end never within 10 cm of the dummy |
+
+**Where the model is at fault** (not suspects):
+
+- Cuts that start from a guard held level half a second or more, both ends going forward first (slash 02-39-31,
+  -33, -36, 02-41-28): their first 6 cm are a bench press; they bash. The same for one-handed pushes from a held
+  gun or sword stance (gun_strike 02-37-32, 02-32-30; hilt_pommel 04-05-59).
+- A backswing whose tip moves along the blade at the contact reads as a stab (slash 02-41-57).
+- Pommel strikes whose blade follows into the dummy within 0.1 s read as slashes (hilt_pommel 02-44-18, 04-05-33);
+  hilt_pommel 04-05-38 and stab_two_hands 02-47-48 register nothing (the hand at 5.2 and 5.8 m/s).
+
+**expect.cfg** (`quakevr/motions/expect.cfg`): the categories that named the old blows' shapes (`melee`,
+`melee@the_pommel|the_hilt|...`) now name the new kinds, as strict as before or stricter:
+
+```
+slash           melee/slash                                             weapon:sword|axe|mjolnir
+stab            melee/stab                                              weapon:sword
+no_hit          none
+bash            bash parrybash
+parry_pose      pose:parry !stroke !push
+not_parry_pose  none !pose:parry !pose:guard
+parry_bash      bash parrybash
+hilt_pommel     melee/pommel                                            weapon:sword|axe|mjolnir
+punch           melee/punch                                             weapon:fist
+palm_shove_1h   shove/main shove/off                                    weapon:fist
+palm_shove_2h   shove/both                                              weapon:fist
+gun_strike      melee/gun                                               weapon:gun
+other           -
+```
+
+**Notes.**
+
+- fteqcc stores `a || b` assigned into an entity field as 0 (into a local it works; `&&` works). It made the bash's
+  "stance held" test never pass (parry bash 0 of 36 in one run). Written with if/else; no other such assignment in
+  the QC.
+- Replay: a weapon in the off hand needs its grip pressed after it is taken (fixed in the recorder's playback);
+  the flashlight is off for the eval (`vr_flashlight 0`: a hand reaching to the head grabbed it).
+
+### In the headset
+
+- [ ] Sword, one hand: slashes in every direction, backswings (bottom left to top right, and back), from close and
+      from far: the blade hits, anywhere along it. A hit's strength follows the hand's speed.
+- [ ] Axe and Mjolnir: chops from close by land with the head (not as a handle strike).
+- [ ] Stabs, one and two hands: "stab" on the dummy's readout.
+- [ ] Pommel strikes (sword pommel, axe handle end): "pommel strike" on the readout, weaker than a slash.
+- [ ] Hold the sword level across your face, one hand on the handle and one on the blade, for half a second, and
+      push it out: a two-handed bash with knockback. One hand: weaker. Right after parrying a blow: harder still.
+- [ ] Cut from a held level guard: does it bash instead? (Known: if both ends go forward first, it does.)
+- [ ] The off-hand gun carried by its pump after the two-handed hand-off: swing it, butt-strike with it, hold it
+      across and push (a bash), parry with it.
+- [ ] Guns held normally: swings and butt strikes; a butt strike lands with the butt, not with the hand on the grip.
+- [ ] Punches in every direction (jab, hook, uppercut, overhead): the same damage for the same speed.
+- [ ] Open palms pushed out: a shove; both palms: harder. Hands waved or patted at the dummy: nothing.
+- [ ] Waving a weapon slowly through the dummy: nothing. Swinging it through at speed: a hit.
+- [ ] Settings: Swing Speed (4), Bash Speed (2), Shove Speed (2.4). Your config moves to them once (version 13).
+- [ ] Parry poses you use in combat still parry (the parry's test is unchanged: 40 degrees).
+
 ## Fitted hands
 
 BACKLOG's "Fitted hands", steps 1 to 4, with the weapon offset simplification and the two-handed hotspots you asked

@@ -119,6 +119,53 @@ bool wasGrabbing[2]{false, false};
 bool thrownValid[2]{false, false};
 throwing::Estimate thrown[2];
 
+// A gun carried by its pump (the hand-off) has no aim, so the view gives it no muzzle; the melee and the parry
+// (QC vr_melee.qc) need its line all the same. Each weapon's muzzle is kept in the frame of the hand holding it
+// (forward, right, up; per slot, mirrored or not) while it is held normally, and put where the carried gun is drawn.
+struct MuzzleOffset
+{
+    bool valid = false;
+    glm::vec3 local{0.f};
+};
+std::vector<MuzzleOffset> muzzleOffsets; // slot * 2 + mirrored
+
+[[nodiscard]] glm::vec3 handMuzzle(const hands::State& hs, int h)
+{
+    const int slot = weapons::heldSlot(h);
+    if(slot < 0)
+    {
+        return hs.pos[h] + hands::forward(hs.rot[h]) * 8.f;
+    }
+    if(muzzleOffsets.size() <= static_cast<std::size_t>(slot * 2 + 1))
+    {
+        muzzleOffsets.resize(slot * 2 + 2);
+    }
+    if(hs.muzzleValid[h])
+    {
+        glm::vec3 f, r, u;
+        hands::angleVectors(hs.visualRot[h], f, r, u);
+        const glm::vec3 d = hs.muzzle[h] - hs.pos[h];
+        muzzleOffsets[slot * 2 + (h == HAND_OFF ? 1 : 0)] = {true, {glm::dot(d, f), glm::dot(d, r), glm::dot(d, u)}};
+        return hs.muzzle[h];
+    }
+    twohand::HeldAs held{hs.pos[h], hs.visualRot[h], h == HAND_OFF};
+    if(twohand::carrying(h) && twohand::carriedWeapon(hs, h, held))
+    {
+        const MuzzleOffset& same = muzzleOffsets[slot * 2 + (held.mirrored ? 1 : 0)];
+        const MuzzleOffset& other = muzzleOffsets[slot * 2 + (held.mirrored ? 0 : 1)];
+        if(same.valid || other.valid)
+        {
+            glm::vec3 local = same.valid ? same.local : other.local;
+            if(!same.valid)
+            {
+                local.y = -local.y; // held in the other hand: mirrored
+            }
+            return held.pos + hands::redirect(local, held.rot);
+        }
+    }
+    return hs.pos[h] + hands::forward(hs.rot[h]) * 8.f;
+}
+
 [[nodiscard]] VrMove buildMove()
 {
     VrMove move;
@@ -189,9 +236,9 @@ throwing::Estimate thrown[2];
 
         move.hotspots[h] = static_cast<std::uint8_t>(hs.hotspot[h]);
 
-        // Muzzles come from the weapon models (vr_view.cpp), as of the last rendered frame.
-        move.muzzlePos[h] =
-            hs.muzzleValid[h] ? hs.muzzle[h] : hand.pos + hands::forward(hand.rot) * 8.f;
+        // Muzzles come from the weapon models (vr_view.cpp), as of the last rendered frame; a carried gun's from
+        // where it is drawn (handMuzzle).
+        move.muzzlePos[h] = handMuzzle(hs, h);
     }
 
     move.headVel = hs.headVel;

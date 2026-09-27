@@ -174,9 +174,8 @@ void resetSwimming()
 [[nodiscard]] std::vector<Item> pageMeleeSettings()
 {
     return {
-        slider("Swing Speed", "vr_melee_speed", 1.f, 8.f, 0.25f, "%.2f m/s").help("The least speed of the wrist in a blow (a swung weapon: a quarter more): a weak hit. Damage grows with the speed: a good punch is 1.6 times this, a good swing 1.8 times."),
-        slider("Blow Distance", "vr_melee_distance", 0.05f, 0.5f, 0.05f, "%.2f m").help("How far the wrist must travel in a blow to hit: wrist flicks and wiggles don't. Wider blows (up to twice this) hit a little harder."),
-        slider("Punch Damage Mult.", "vr_melee_punch_mult", 1.f, 3.f, 0.05f, "%.2f").help("Damage of a straight punch (where you face) over a slap; overhead blows land between."),
+        slider("Swing Speed", "vr_melee_speed", 1.f, 8.f, 0.25f, "%.2f m/s").help("How fast the striking hand must move to hit: a punch, a pommel strike; a weapon's swing a quarter faster, a stab three quarters of it. Any part of the blade then hits. At this speed a hit is weak; twice it, a full hit; faster, harder still."),
+        slider("Punch Damage Mult.", "vr_melee_punch_mult", 1.f, 3.f, 0.05f, "%.2f").help("Damage of every punch: straight, hook, uppercut or overhead alike."),
         slider("Damage Multiplier", "vr_melee_dmg_multiplier", 0.25f, 15.f, 0.25f, "%.1f").help("Damage multiplier for melee attacks."),
         slider("Range Multiplier", "vr_melee_range_multiplier", 0.25f, 15.f, 0.25f, "%.1f").help("Range multiplier for melee attacks."),
         cycle("Melee Bloodlust", "vr_melee_bloodlust", {{0.f, "On"}, {1.f, "Off"}}).help("When enabled, restores the player's health when performing melee attacks on enemies."),

@@ -2624,73 +2624,24 @@ float(float xHand, float xWpnId, string xSound, void(float xHand) xWpnFn) DoXHan
 void(float xHand, float xInMelee, float* xOutMeleeAttackFinished, float* xOutInMelee,
      float* xMeleeHitSoundPlayed) PlayerVRMeleeImpl =
 {
-    // A hand holding a ledge (vr_climb) pulls the body, it does not strike.
-    if(VRHasBit(self.vrbits0, xHand == cVR_MainHand ? QVR_VRBITS0_MAINHAND_CLIMBING : QVR_VRBITS0_OFFHAND_CLIMBING))
+    // The blow this frame (vr_melee.qc): a part of what the hand holds swept into something, fast enough, as the kind
+    // of blow its part and motion make; the hands in a bash's push don't strike, and each thing is struck once a motion.
+    if(VRHandsTracked(self) && time >= xInMelee && VR_Melee_Strike(xHand))
     {
-        return;
-    }
-
-    // An empty hand steadying the other's weapon (two-handed: a sword's grip, a gun's foregrip)
-    // swings with it: the weapon's hand strikes, not this one's fist.
-    if(VRGet2HAiming(self) && VRIsHandEmpty(self, xHand))
-    {
-        return;
-    }
-
-    // A gun hanging from its foregrip (the hand-off) is carried, not wielded.
-    if(VRIsHandCarryingByForegrip(self, xHand))
-    {
-        return;
-    }
-
-    // Once per blow (a real one: VR_Blow_IsBlow): after a hit (the hit sound played), not again
-    // until the hand stops, or pulls back (turned back from the blow's way, having slowed down to a
-    // third of its speed at least once: a jab after a jab; a wide swing's arc curving round goes on
-    // fast, and is still the same blow), and not within VR_BLOW_REARM.
-    entity b = VR_Blow(xHand);
-    b.blow_slowest = min(b.blow_slowest, b.blow_speed);
-    if(VRGetMeleeHitSoundPlayed(xHand) && time >= b.blow_rearm &&
-       (b.blow_speed < VR_BLOW_MOVING ||
-        (b.blow_vel * b.blow_dir < -VR_BLOW_MOVING && b.blow_slowest < b.blow_hitpeak * 0.35)))
-    {
-        *xMeleeHitSoundPlayed = FALSE;
-    }
-
-    // A stroke that became a blow stays one to its end: its striking points' first contact in the
-    // stroke (VR_Blow_Sweep), before or after, is where it lands (VR_Blow_Contact), once.
-    float blow = VR_Blow_IsBlow(xHand, b);
-    float whoosh = blow && b.blow_ok != b.blow_t0; // once a stroke
-    if(blow)
-    {
-        b.blow_ok = b.blow_t0;
-    }
-    float striking = b.blow_t0 && b.blow_ok == b.blow_t0;
-    if(VRHandsTracked(self) && time >= xInMelee && striking && !VRGetMeleeHitSoundPlayed(xHand))
-    {
-        VR_Blow_Measure(xHand);
-        if(whoosh)
+        entity b = VR_Blow(xHand);
+        // Each thing struck sounds (a swing through two monsters sounds twice).
+        float spent = VRGetMeleeHitSoundPlayed(xHand);
+        if(spent && b.mh_c_ent != b.mh_hit_ent)
         {
-            // The motion recorder (vr_motion.qc): the stroke became a blow, whether it lands or not.
-            VR_Motion_Event("stroke", VR_Motion_BlowSub(b.blow_kind), xHand, b.blow_strength, VRGetHandPos(xHand), world, "");
+            VRSetMeleeHitSoundPlayed(xHand, FALSE);
         }
-
-        // A gun swung downwards makes no whoosh (only a hit sounds): reaching down to a holster
-        // to reload is a fast swing too.
-        string gunSound = "knight/sword1.wav";
-        vector swingDir = normalize(VRGetHandVel(xHand));
-        if(swingDir_z < -0.6 || !whoosh)
-        {
-            gunSound = "";
-        }
-        string swordSound = whoosh ? "knight/sword1.wav" : "";
-        string axeSound = whoosh ? "weapons/ax1.wav" : "";
 
         VR_SetHitKind(QVR_HITKIND_MELEE, xHand, '0 0 0', '0 0 0');
-        if(!DoXHandMelee(xHand, WID_FIST, swordSound, W_FistMelee))
-            if(!DoXHandMelee(xHand, WID_AXE, axeSound, W_FireAxe))
-                if(!DoXHandMelee(xHand, WID_MJOLNIR, axeSound, HIP_FireMjolnir))
-                if(!DoXHandMelee(xHand, WID_SWORD, swordSound, W_SwordMelee))
-                    DoXHandMeleeImpl(xHand, gunSound, W_GunMelee);
+        if(!DoXHandMelee(xHand, WID_FIST, "", W_FistMelee))
+            if(!DoXHandMelee(xHand, WID_AXE, "", W_FireAxe))
+                if(!DoXHandMelee(xHand, WID_MJOLNIR, "", HIP_FireMjolnir))
+                if(!DoXHandMelee(xHand, WID_SWORD, "", W_SwordMelee))
+                    DoXHandMeleeImpl(xHand, "", W_GunMelee);
         VR_ClearHitKind();
 
         *xOutMeleeAttackFinished = time + 0.1;
@@ -2699,17 +2650,11 @@ void(float xHand, float xInMelee, float* xOutMeleeAttackFinished, float* xOutInM
         if(VRGetMeleeHitSoundPlayed(xHand))
         {
             // It landed.
-            dprint(sprintf("melee: hand %g, %s with %s, wrist %.1f m/s, head %.1f m/s (x%.2f)\n", xHand,
-                VR_Blow_KindName(b.blow_kind), b.blow_hit_stroke == b.blow_t0 ? b.blow_hit_name : "a wall",
-                b.blow_peak, b.blow_tippeak, b.blow_strength));
-            b.blow_dir = normalize(b.blow_wrist - b.blow_start);
-            b.blow_rearm = time + VR_BLOW_REARM;
-            b.blow_slowest = b.blow_speed;
-            b.blow_hitpeak = b.blow_peak;
+            VR_Melee_Landed(xHand);
         }
     }
 
-    VR_Deflect(xHand, b); // batting swings (less than a blow) bat enemy projectiles back
+    VR_Deflect(xHand, VR_Blow(xHand)); // batting swings (less than a blow) bat enemy projectiles back
 }
 
 // Headbutts (vr_headbutt): a lunge of the head, roughly towards where it looks, faster than
@@ -2837,8 +2782,7 @@ void() PlayerVRMelee =
 {
     PlayerVRMeleeHeadbutt();
     VR_Heartbeat();
-    VR_Blow_Update(cVR_MainHand);
-    VR_Blow_Update(cVR_OffHand);
+    VR_Melee_Frame(); // both hands' new poses (vr_melee.qc)
     VR_Gib_HeldFrame(); // a gib held in one hand struck by the other (vr_carry.qc)
     VR_Bash();
 

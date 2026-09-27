@@ -5,10 +5,12 @@
 // do nothing unless a take is being recorded or played:
 //
 // - Events, as the melee registers them (VR_Motion_Event): the hits a hand or the head deals
-//   (VR_Motion_Hit, from T_DamageImpl), a stroke becoming a blow (PlayerVRMeleeImpl), a bash or shove
-//   push (VR_Bash), a parried blow (VR_Parry) and a batted projectile (VR_Deflect_Send). The kinds
-//   and their `sub` are the evaluation's vocabulary (quakevr/motions/expect.cfg): keep them when the
-//   melee changes, or change both.
+//   (VR_Motion_Hit, from T_DamageImpl), a striking part getting going (its whoosh: a "stroke",
+//   VR_Melee_Whoosh), a bash or shove push (VR_Bash), a parry stance held (VR_Bash: "stance"), a parried
+//   blow (VR_Parry) and a batted projectile (VR_Deflect_Send). A hand's blow is "melee" with its category
+//   as `sub` (slash, stab, pommel, punch, gun: VR_Melee_Category) and its kind, way and striking part as
+//   the detail. The kinds and their `sub` are the evaluation's vocabulary (quakevr/motions/expect.cfg):
+//   keep them when the melee changes, or change both.
 // - A sample each server frame (VR_Motion_Sample, called by the engine): the hands' striking points
 //   as the melee computes them, and the parry and bash-guard state. Any motionvalue() added there
 //   lands in the take's `qc` column: a free probe of the melee's own state.
@@ -23,20 +25,6 @@ void(string key, vector value) motionvalue = #0;
 void(string xKind, string xSub, float xHand, float xValue, vector xAt, entity xTarg, string xDetail) VR_Motion_Event =
 {
     motionevent(xKind, xSub, xHand, xValue, xAt, xTarg, xDetail);
-};
-
-// A blow's kind as an event's `sub`: VR_Blow_KindName with underscores ("overhead_blow").
-string(float xKind) VR_Motion_BlowSub =
-{
-    if(xKind == VR_BLOW_KIND_SLAP)   return "slap";
-    if(xKind == VR_BLOW_KIND_DOWN)   return "overhead_blow";
-    if(xKind == VR_BLOW_KIND_UP)     return "uppercut";
-    if(xKind == VR_BLOW_KIND_BACK)   return "backhand";
-    if(xKind == VR_BLOW_KIND_SWING)  return "swing";
-    if(xKind == VR_BLOW_KIND_THRUST) return "thrust";
-    if(xKind == VR_BLOW_KIND_RISING) return "rising_swing";
-    if(xKind == VR_BLOW_KIND_STAB)   return "stab";
-    return "punch";
 };
 
 // A hand as an event's `sub` for the pushes: "main", "off", "both" (-1).
@@ -76,7 +64,7 @@ void(entity xTarg, entity xAttacker, float xDamage, float xIsVRMelee) VR_Motion_
         return;
     }
 
-    // A hand's blow: its kind, and the striking point's contact (VR_Blow_Sweep) when it has one.
+    // A hand's blow (vr_melee.qc): its category, and its kind, way and striking part.
     float hand = vr_hitkind == QVR_HITKIND_MELEE ? vr_hithand : -1;
     string sub = "";
     string point = "";
@@ -87,45 +75,56 @@ void(entity xTarg, entity xAttacker, float xDamage, float xIsVRMelee) VR_Motion_
         self = xAttacker;
         entity b = VR_Blow(hand);
         self = oldSelf;
-        sub = VR_Motion_BlowSub(b.blow_kind);
-        if(b.blow_hit_stroke == b.blow_t0 && b.blow_hit_name != "")
+        sub = VR_Melee_Category(b.mh_kind, b.mh_thing);
+        point = b.mh_part;
+        if(at == '0 0 0')
         {
-            point = b.blow_hit_name;
-            if(at == '0 0 0')
-            {
-                at = b.blow_hit_pos;
-            }
+            at = b.mh_c_pos;
         }
     }
     VR_Motion_Event("melee", sub, hand, xDamage, at, xTarg, point);
 };
 
 // Each server frame while a take is recorded or played (the engine calls it; self: the player,
-// `xTarget` the take's monster or world): the striking points of each hand (VR_Blow_Points), and
+// `xTarget` the take's monster or world): the striking points of each hand (vr_melee.qc's layout, as last
+// swept; six of a sword's nine: the pommel, the hilt, the blade's root, mid-blade, the blade, the tip), and
 //  parry  x, y: whether the main, the off hand's weapon would parry a monster's blow from the target
 //         (or from straight ahead without one; VR_Parry_Blocks), z: crossed arms would (unarmed)
-//  guard  x: the bash's guard held now (VR_Bash_Guard: the hand, -1 none), y: the guard hand the
-//         bash follows (.vr_guard_hand), z: 1 while it is ready to push (held still long enough)
-//  m_blow, o_blow  the hand's stroke (VR_Blow_Track): x its wrist speed (m/s), y the stroke's peak
-//         (0: no stroke), z how fast what it holds turns (degrees/s)
+//  guard  x: the hand in the parry stance (a weapon across; 0 off, 1 main, -1 none), y: the hand pushing it
+//         as a bash does (-1 none), z: how far that push has gone (m)
+//  m_blow, o_blow  the hand's motion (VR_Melee_Track): x the far end's speed (m/s: a sword's tip, the
+//         knuckles), y the grip's, z the far end's run-up towards where it goes (m: VR_Melee_Run)
 void(entity xTarget) VR_Motion_Sample =
 {
     float hand;
     for(hand = 0; hand < 2; ++hand)
     {
-        VR_Blow_Points(hand);
+        entity pb = VR_Blow(hand);
+        VR_Melee_Layout(pb.mh_thing);
         // Constant indices (a variable one reads a vector array's element wrong: its x alone).
 #define VR_MOTION_POINT(k) \
-        if(k < vr_pt_count) \
+        if(k < pb.mh_n) \
         { \
-            motionpoint(hand, vr_pt[k], vr_pt_name[k]); \
+            motionpoint(hand, pb.mh_cp[k], vr_mpt_name[k]); \
         }
-        VR_MOTION_POINT(0)
-        VR_MOTION_POINT(1)
-        VR_MOTION_POINT(2)
-        VR_MOTION_POINT(3)
-        VR_MOTION_POINT(4)
-        VR_MOTION_POINT(5)
+        if(pb.mh_thing == VR_MTHING_SWORD)
+        {
+            VR_MOTION_POINT(0)
+            VR_MOTION_POINT(1)
+            VR_MOTION_POINT(3)
+            VR_MOTION_POINT(5)
+            VR_MOTION_POINT(6)
+            VR_MOTION_POINT(8)
+        }
+        else
+        {
+            VR_MOTION_POINT(0)
+            VR_MOTION_POINT(1)
+            VR_MOTION_POINT(2)
+            VR_MOTION_POINT(3)
+            VR_MOTION_POINT(4)
+            VR_MOTION_POINT(5)
+        }
 #undef VR_MOTION_POINT
         // The weapon's line (VR_Parry_WeaponLine): its butt (a sword's pommel, the axe's or the hammer's
         // handle end, a gun's grip) and its far end (a sword's tip, a head, a muzzle).
@@ -155,19 +154,34 @@ void(entity xTarget) VR_Motion_Sample =
     parry_z = VR_Parry_ArmsCrossed(self, to);
     motionvalue("parry", parry);
 
-    vector guard;
-    guard_x = VR_Bash_Guard(VRForwardOf('0 1 0' * self.v_viewangle_y));
-    guard_y = self.vr_guard_hand;
-    guard_z = self.vr_guard_time > 0 && time - self.vr_guard_time < VR_BASH_WINDOW;
+    entity bm = VR_Blow(cVR_MainHand);
+    entity bo = VR_Blow(cVR_OffHand);
+    vector guard = '-1 -1 0';
+    if(bm.mh_stance == 1)
+    {
+        guard_x = cVR_MainHand;
+    }
+    else if(bo.mh_stance == 1)
+    {
+        guard_x = cVR_OffHand;
+    }
+    if(bm.mh_pushing)
+    {
+        guard_y = cVR_MainHand;
+        guard_z = bm.mh_push_dist;
+    }
+    else if(bo.mh_pushing)
+    {
+        guard_y = cVR_OffHand;
+        guard_z = bo.mh_push_dist;
+    }
     motionvalue("guard", guard);
     v_forward = oldForward;
     v_right = oldRight;
     v_up = oldUp;
 
-    entity b = VR_Blow(cVR_MainHand);
-    motionvalue("m_blow", [b.blow_speed, b.blow_t0 ? b.blow_peak : 0, b.blow_axisrate]);
-    b = VR_Blow(cVR_OffHand);
-    motionvalue("o_blow", [b.blow_speed, b.blow_t0 ? b.blow_peak : 0, b.blow_axisrate]);
+    motionvalue("m_blow", [vlen(bm.mh_vfar), vlen(bm.mh_vgrip), VR_Melee_Run(bm, FALSE)]);
+    motionvalue("o_blow", [vlen(bo.mh_vfar), vlen(bo.mh_vgrip), VR_Melee_Run(bo, FALSE)]);
 };
 
 // Playback (vr_motion_play): `self`'s hand `xHand` holds weapon `xWid` (WID_*, WID_FIST: empty) with

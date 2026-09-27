@@ -118,11 +118,8 @@ QVR_CVAR(vr_turn_speed, "3.25", CVAR_ARCHIVE)
 QVR_CVAR(vr_movement_mode, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_hud_scale, "0.025", CVAR_ARCHIVE)
 QVR_CVAR(vr_menu_scale, "0.15", CVAR_ARCHIVE)
-QVR_CVAR(vr_melee_speed, "3.5", CVAR_ARCHIVE)        // m/s the wrist must reach in a blow, at least (a swung weapon 1.25x; a good blow 1.6x, a good swing 1.8x; QC: vr_juice.qc, "Blows")
-QVR_CVAR(vr_melee_distance, "0.25", CVAR_ARCHIVE)    // metres the wrist must travel in a blow (a full punch or swing): flicks, wiggles and whips don't hit
-QVR_CVAR(vr_melee_punch_mult, "1.25", CVAR_ARCHIVE)   // damage of a straight punch (where you face) over a slap
-QVR_CVAR(vr_melee_hilt_window, "0.2", CVAR_ARCHIVE)  // s a sword's hilt or an axe's handle, reaching a monster first in a swing, waits for the blade (a swing never lands with the hilt; a pommel strike does)
-QVR_CVAR(vr_melee_stab_speed, "0.8", CVAR_ARCHIVE)   // a sword's stab (driven along the blade, the tip first): its least wrist speed, times vr_melee_speed (a swing: 1.25)
+QVR_CVAR(vr_melee_speed, "4", CVAR_ARCHIVE)          // m/s the striking hand must reach (relative to the head) to hit: a punch, a pommel strike; a weapon's swing 1.25x, a stab 0.75x; twice this is a strength-1 blow (QC vr_melee.qc)
+QVR_CVAR(vr_melee_punch_mult, "1.25", CVAR_ARCHIVE)   // damage of every punch (a fist's base damage times this)
 QVR_CVAR(vr_gunyaw, "4", CVAR_ARCHIVE)
 QVR_CVAR(vr_gun_z_offset, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_sbar_mode, "1", CVAR_ARCHIVE)
@@ -488,18 +485,16 @@ QVR_CVAR(vr_corpse_health, "80", CVAR_ARCHIVE)        // the damage that gibs a 
 QVR_CVAR(vr_parry, "1", CVAR_ARCHIVE)                 // parry monsters' melee blows with a weapon held level across in front of you
 QVR_CVAR(vr_parry_reduction, "0.75", CVAR_ARCHIVE)    // share of a parried blow's damage taken away
 QVR_CVAR(vr_parry_drop_chance, "0.5", CVAR_ARCHIVE)   // chance a one-handed parry knocks the weapon out of your hand (two hands: never)
-QVR_CVAR(vr_parry_angle, "40", CVAR_ARCHIVE)          // degrees the weapon may be off level (tilted up or down) and still parry
+QVR_CVAR(vr_parry_angle, "40", CVAR_ARCHIVE)          // degrees the weapon may be off level (tilted up or down) and still parry (the parry stance)
 QVR_CVAR(vr_parry_reach, "1.5", CVAR_ARCHIVE)         // metres in front of you a held weapon still parries
 QVR_CVAR(vr_parry_unarmed, "1", CVAR_ARCHIVE)          // parry unarmed with the arms crossed in an X in front
 QVR_CVAR(vr_parry_unarmed_reduction, "0.5", CVAR_ARCHIVE) // share of a blow taken off by crossed arms
 QVR_CVAR(vr_bash, "1", CVAR_ARCHIVE)                   // hold a guard (a weapon across, both hands together), then push it forward to bash; or shove with one open palm
-QVR_CVAR(vr_bash_speed, "1.2", CVAR_ARCHIVE)           // m/s the guard must be pushed forward
+QVR_CVAR(vr_bash_speed, "2", CVAR_ARCHIVE)             // m/s the parry stance (a weapon across) must be pushed forward to bash (the author's pushes: 3-6 m/s; his held poses settle at up to 1.6)
+QVR_CVAR(vr_shove_speed, "2.4", CVAR_ARCHIVE)          // m/s open palms (facing ahead, the arm extending) must be pushed forward to shove
 QVR_CVAR(vr_bash_damage, "8", CVAR_ARCHIVE)            // a bash's damage (small: it knocks back and staggers)
 QVR_CVAR(vr_bash_push, "1", CVAR_ARCHIVE)              // how far a bash throws what it hits
 QVR_CVAR(vr_bash_sound, "1", CVAR_ARCHIVE)             // volume of the shove, bash, parry-bash and parry sounds (0: the old ones)
-QVR_CVAR(vr_bash_hold, "0.15", CVAR_ARCHIVE)           // s the guard must be held still before the push (a swing passing through level across is no guard)
-QVR_CVAR(vr_bash_swing_rate, "120", CVAR_ARCHIVE)      // degrees/s: a weapon turning faster than this is swinging, never bashing (held still: under half of it)
-QVR_CVAR(vr_shove_speed, "1.8", CVAR_ARCHIVE)          // m/s an open palm (facing ahead) must be pushed forward to shove
 QVR_CVAR(vr_bash_deflect_radius, "24", CVAR_ARCHIVE)   // units around the guard (the weapon, the hands) a bash bats projectiles back within (vr_deflect)
 QVR_CVAR(vr_bash_deflect_window, "0.3", CVAR_ARCHIVE)  // s a bash (or a shove with a weapon in hand) goes on batting after the push
 QVR_CVAR(vr_parry_wobble, "1", CVAR_ARCHIVE)          // how much a parried blow knocks your hand and arm
@@ -560,7 +555,7 @@ QVR_CVAR(vr_explosion_rumble, "1", CVAR_ARCHIVE)         // explosions near you 
 QVR_CVAR(vr_heartbeat, "1", CVAR_ARCHIVE)                // a heartbeat in your hands when your health is low
 QVR_CVAR(vr_deflect, "1", CVAR_ARCHIVE)                  // melee swings bat monsters' projectiles back
 QVR_CVAR(vr_deflect_radius, "14", CVAR_ARCHIVE)          // units around the weapon's line (or fist) a projectile is batted within
-QVR_CVAR(vr_deflect_speed, "0.6", CVAR_ARCHIVE)          // a batting swing's wrist speed, times vr_melee_speed (a blow's least is 1)
+QVR_CVAR(vr_deflect_speed, "0.6", CVAR_ARCHIVE)          // a batting swing's speed (the weapon's far end), times vr_melee_speed (a blow's least is 1)
 QVR_CVAR(vr_deflect_window, "0.2", CVAR_ARCHIVE)         // s a swing's path keeps batting (a swing a little early still bats)
 QVR_CVAR(vr_activestartpaknameidx, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_verbosebots, "0", CVAR_NONE)

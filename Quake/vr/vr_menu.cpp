@@ -324,23 +324,13 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Parry Reach", vr_parry_reach, 0.5f, 2.5f, 0.1f, "%.1f m").help("How far in front of you a held weapon still parries."),
         toggle("Unarmed Parry", vr_parry_unarmed).help("Cross your arms in an X in front of you to block a blow with your forearms."),
         slider("Unarmed Parry Reduction", vr_parry_unarmed_reduction, 0.f, 1.f, 0.05f, "%.2f"),
-        toggle("Bash", vr_bash).help("Hold a guard (a weapon level across in front, as for a parry, one hand or two) still, then push it forward: knocks monsters back and staggers them. Open palms pushed at a monster shove it (one hand: half as hard)."),
-        slider("Bash Speed", vr_bash_speed, 0.8f, 3.f, 0.1f, "%.1f m/s").help("How fast the guard must be pushed forward (less than a blow needs)."),
-        slider("Bash Guard Hold", vr_bash_hold, 0.f, 0.6f, 0.05f, "%.2f s")
-            .help("How long the guard must be held still before the push. A swing whose blade passes through level on its way never holds it."),
-        slider("Bash Swing Limit", vr_bash_swing_rate, 30.f, 400.f, 10.f, "%.0f deg/s")
-            .help("A weapon turning faster than this is a swing, not a bash (held still, the guard turns under half of it). Lower it if swings still bash; raise it if your pushes tilt the blade and don't bash."),
-        slider("Shove Speed", vr_shove_speed, 0.8f, 4.f, 0.1f, "%.1f m/s")
-            .help("How fast open palms (facing ahead, not holding anything) must be pushed forward to shove. Punches, slaps, slow reaches and a hand on a sword's grip never shove."),
+        toggle("Bash", vr_bash).help("The parry stance (a weapon level across in front, one hand or two) pushed straight forward bashes: knocks monsters back and staggers them. Open palms facing a monster pushed at it shove it. Two hands (a weapon held two-handed, a palm pushing on the blade, both palms) push harder and further."),
+        slider("Bash Speed", vr_bash_speed, 0.3f, 3.f, 0.1f, "%.1f m/s").help("How fast the stance (a weapon level across, held half a second) must be pushed forward, both its ends going ahead. A swing passing through the stance doesn't bash."),
+        slider("Shove Speed", vr_shove_speed, 0.8f, 5.f, 0.1f, "%.1f m/s").help("How fast open palms (facing ahead, not holding anything) must be pushed out, the arm extending, to shove. Hands waved or patted at a monster don't shove."),
         slider("Bash Damage", vr_bash_damage, 0.f, 40.f, 1.f, "%.0f"),
         slider("Bash Push", vr_bash_push, 0.f, 3.f, 0.05f, "%.2fx").help("How far a bash or shove throws what it hits (times Knockback)."),
         slider("Bash and Parry Sounds", vr_bash_sound, 0.f, 1.f, 0.1f, "%.1f")
             .help("Volume of the sounds that tell a shove, a weapon bash, a parry-bash (a bash right after a parry) and a parry apart from your blows (0: the old sounds)."),
-        header("Sword: Blade, Hilt, Stab"),
-        slider("Hilt Waits for Blade", vr_melee_hilt_window, 0.05f, 0.5f, 0.05f, "%.2f s")
-            .help("In a swing the hands often reach a monster before the blade: the hilt's touch waits this long for the blade to sweep in, and a swing never lands with the hilt. A pommel strike (the pommel leading) still does."),
-        slider("Stab Speed", vr_melee_stab_speed, 0.3f, 1.5f, 0.05f, "%.2fx")
-            .help("A stab (the sword driven along its blade, the tip first) pierces: its least speed, times Swing Speed (a swing needs 1.25x)."),
         header("Batting Projectiles"),
         toggle("Bat Back Projectiles", vr_deflect).help("Swing a weapon (or a fist) through a monster's spike, laser, spit or grenade to send it back where your hand points (at the monster, when you point near it)."),
         slider("Batting Reach", vr_deflect_radius, 4.f, 32.f, 1.f, "%.0f units").help("How near the weapon's blade (or your fist) a projectile must pass to be batted back."),
