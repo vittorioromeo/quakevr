@@ -66,6 +66,9 @@ for during the round.
 Costs: 0.01 ms more on the main thread per frame than the six models, and no GPU change. Each solve takes 3–28 ms,
 but it runs on a worker thread, and the main thread's share is 0.003–0.04 ms. See [Costs](#costs).
 
+The [second pass](#fitted-hands-second-pass) replaces the worker thread and the solver described below. Solves now take
+20–130 µs on the main thread, and the hand follows the weapon's firing animation again.
+
 ### How it works
 
 **The jointed hand** (`Misc/quakevr/make_hand_rig.py` → `quakevr/progs/hand_rig.md5mesh/.md5anim/.mdl`,
@@ -406,6 +409,389 @@ nothing).
 - [ ] Quad, pentagram, ring of shadows and the flashlight on the hands.
 - [ ] Jointed Hand off: the old hands, for comparison.
 
+## Fitted hands, second pass
+
+Your twelve notes on the fitted hands, plus the coordinator's "no threads" rule for the solver and the C++ audit items in
+this code. Branch `agent/hands2`. Each fix is its own commit, so an early working state can be merged on its own.
+Before/after composites and traces are in the scratchpad's `hands2/final/`.
+
+| # | Your note | Status | Commit |
+|---|---|---|---|
+| 2 | Recoil: the hand, arm and helping hand move with the gun's firing animation again | Done | `e1bc8c6d` |
+| 4 | Stability: solved in the weapon's frame, hysteresis, blending, overlap slider, a tighter thumb | Done | `e1bc8c6d`, `4cf0046d` |
+| 12 | The torch jittery in the left hand | Done: the cause was in both hands | `4cf0046d` |
+| – | No threads: the solver on the main thread, well under 0.1 ms | Done, with the exceptions in [Costs](#costs-1) | `4cf0046d`, `12e8fcad` |
+| 3 | The trigger finger curls with the trigger | Done, and the trigger's touch sensor is read | `4cf0046d`, `97602888` |
+| 5 | Hotspot 2 can't be grabbed; a two-handed pistol grip | Done: every index works; new type Cup | `bd6740df` |
+| 8 | The hand wraps thin things (a blade); wrap vs thumb on top | Done | `339d817b`, `bd6740df` |
+| 10 | The thumb looks distorted (health box) | Improved; the rest is the model | `a308f397` |
+| 9 | Things grabbed from far away float off the hand | Done, with `vr_debug_carry` | `3f6f2543` |
+| 6 | The free hand should collide a little with the other hand's weapon | Done | `e61b30da` |
+| 7 | "Inherit From" for the alternate models | Done | `bc964642` |
+| 1 | Fingers stop at world geometry | Done | `a9510c06` |
+| 11 | Remake the hand model (optional) | Not done | – |
+
+Also: the merge of vr-cleanup with the game directory hook for this code's caches (`2a79220e`), the menu entries
+(`83abfd7b`), and the solver's open-air steps (`12e8fcad`).
+
+### Recoil (#2)
+
+Round 21 placed the hand at the controller, so a firing animation (the shotgun's kick, the super shotgun's, the
+grappling hook's) moved the gun through a still hand. Now:
+
+- The hand holding a weapon, and the hand steadying it on a grip or blade, move with the weapon's animation where they
+  hold it (`animationMotion`). This is the rigid motion that best fits (least squares: Kabsch, by a polar
+  decomposition) the model's vertices near the hand, from the rest pose to the drawn pose. The arm IK follows the
+  drawn hand.
+- The grasp is still solved on the rest pose, so a kick never causes a re-solve.
+- Measured at the kick's peak: the shotgun moves the hand 2.2 units and turns it 9°; the grenade launcher 4.5 units
+  and 23°.
+- `recoil_all.png`: round 20 (`30580890`), round 21 (`6f8b075a`) and now, at the same frames of the shotguns' kick.
+
+### Stability (#4, #12)
+
+The jitter had four causes, each fixed:
+
+1. **The hand slid on the weapon.** The weapon's Pitch/Yaw/Roll were added to the hand's angles as Euler angles, so
+   the hand's pose relative to the gun drifted by a few degrees as the wrist turned. Each drift re-solved the grasp.
+   The hand is now carried rigidly in the weapon's frame (`attachedTurn`). The empty hand likewise turns rigidly with
+   the controller (the fist's angle offsets were Euler too, which let a torch or a carried box slide in the hand).
+2. **The torch was a frame behind** (#12). It was set up after the hands, so its place in the hand changed every
+   frame the hand moved. Worse in the off hand, whose Euler offsets are mirrored. It is now placed this frame
+   (`flashlight::heldPlace`).
+3. **Hysteresis:** the grasp is solved again only when the held thing moves in the hand by more than
+   `vr_hand_fit_resolve` (0.3 cm, or 0.6°). A re-solve warm-starts from the solution before: each finger opens from
+   where it held until clear, then closes again, and the thumb keeps its turn. Two equally good holds can no longer
+   swap.
+4. **Blending:** the joints, the thumb's turn, and the palm's move and turn ease to a new grasp over
+   `vr_hand_fit_blend` (0.12 s, exponential) instead of jumping.
+
+Also:
+
+- **Overlap:** the fingers and palm may sink `vr_hand_fit_overlap` (0.3 cm) into what they hold. They sit snug, and a
+  finger that only just touches doesn't flick between two poses.
+- **A tighter thumb:** the thumb keeps its turn between solves and closes onto the surface like the fingers.
+
+**Traces** (`vr_debug_grasp_trace 3` writes every frame's joints, solves, drift and animation motion to
+`grasp_trace.txt`; plotted by `trace.py`):
+
+| Scene | Before | After |
+|---|---|---|
+| The torch in the off hand, wobbling for 10 s (`tr_torch_before.png`, `tr_torch_after.png`) | 26 solves; the joints moved 186 curl units in all | 0 solves, no motion |
+| The torch in the main hand, the same | 26 solves; 211 curl units | 0 solves, no motion |
+| Your two-handed take `parry_pose_02-33-29`, the helping hand (`tr_sg2h_cmp.png`) | 51 solves, spread over the whole take; 117 curl units; the fingers jump between two holds twice | 14 solves, all in the first 0.3 s while the hand arrives on the grip, eased; 45 curl units; flat afterwards |
+| Your parry, bash and stab takes (`tr_parry_*`, `tr_stab_*`) | | solves only when a grip starts |
+
+### No threads (the solver on the main thread)
+
+`std::async` is gone. The grasp is solved synchronously in `updateGrasp`, so the same inputs always give the same
+pose. The three audit bugs cannot recur, because the code they lived in no longer exists: no job to starve, no
+result cache to go stale after a settings change (the settings are part of what is compared), and no future to block
+at exit.
+
+How it is fast enough (`vr_grasp.cpp`, rewritten):
+
+- **The hand as spheres.** Each finger segment is a row of spheres along its palm side, fitted ring to ring to the
+  rig's vertices at the bind pose (`vr_grasp_spheres` prints them). The palm and the ball of the thumb have their own.
+- **Conservative advancement.** A finger's joints close together, each step as far as no sphere can reach the held
+  thing: the sphere's clearance divided by its lever (the joint rates times its distance from the pivots). When a
+  segment touches, the joints before it stop and the rest go on; then a settle step lets it wrap.
+- **Per model, once.** The held model's triangles are kept in its own units, with a uniform grid (cells of 2 hand
+  units at its size in the hand), normals, planes and boxes. Distance queries use box and plane lower bounds and
+  stamps to skip a triangle seen in another cell. A query from outside the triangles' box returns that box's
+  distance at once, so a finger far from the held thing closes in a step or two (`12e8fcad`).
+- **In the held thing's frame.** The hand is brought into the model's space, never the reverse, so nothing is
+  transformed per triangle.
+- **No allocation per solve.** Scratch lives in the shape.
+- **The placement search** (the palm sliding along a grip through the hand) runs only on the first solve of a grip;
+  re-solves keep its place.
+
+See [Costs](#costs-1) for the numbers.
+
+### The trigger finger (#3)
+
+- On its own weapon, the index finger's target is the grasp's stop plus the trigger's pull (`triggerPull`: 0.6, 1.4
+  and 1.2 curl units on its three joints at full trigger), so it curls onto the trigger past where it met the weapon.
+- The trigger's touch sensor (OpenXR `input/trigger/touch`, on Touch, Touch Plus and Index) is read as
+  `HandInput::triggerTouch`. A finger resting on the trigger curls at least half way onto it instead of pointing.
+  `vr_mock_fingers`' fifth argument sets it in the mock.
+- `trigger_pull.png`: the shotgun, super nailgun and lightning gun with the trigger released, the finger resting on it
+  (touch) and the trigger pulled.
+
+### Hotspots and the two-handed pistol grip (#5)
+
+- **Your hotspot 2:** every index (1 to 4) is taken; I tested each on the shotgun's foregrip. What failed was the
+  place: a grip beside the holding hand, not ahead of it, failed the two-handed aim's test (the hands' line must run
+  along the gun). Such a grip, and the new type **Cup** (3), is now held without aiming. The weapon aims with the
+  holding hand; the other hand is drawn on it.
+- **Cup:** the helping hand turns with the holding hand. Its grip channel is aligned around the holding hand's
+  (coaxial), where the hotspot puts it along it. It wraps the holding hand as well as the weapon: the solver's second
+  shape is the other hand as drawn, and `vr_hand_fit_overlap_hands` (0.6 cm) is how far the hands may overlap.
+- **New keys per hotspot:** `hsN_pitch/yaw/roll` (the helping hand's turn there, on top of the weapon's fixed-hand
+  angles; for a cup, the holding hand's own) and `hsN_style` (0 the thumb wraps around, 1 the thumb along the top).
+- **Menu:** Type gains Cup; Hand Pitch/Yaw/Roll; Thumb. "Put It Where the Other Hand Is" keeps a Cup a Cup.
+- `vr_weapon_hotspot_here <n> [type] [main|off]` is the menu's "Put It Where the Other Hand Is" from the console.
+- `cup_views.png`, `cup_shots.png`: the shotgun held in a cup.
+
+### Wrapping thin things (#8)
+
+Your sword screenshot: the hand holding a blade was placed with its origin on the blade's line, so the blade lay
+beside the fingers. Each hand now has a **grip channel** (`grasp::gripChannel`): the line through the centres of the
+circles its half-closed fingers curl around. The hand is turned (the least) and moved so that its channel lies on the
+blade, and the fingers close around it. It still slides along the blade as before. A cup is placed the same way,
+around the holding hand's channel. The per-hotspot Thumb style (above) chooses wrap or thumb on top.
+`sword_views_now.png`, `sword_now.png`.
+
+### The thumb (#10)
+
+- The ball of the thumb (the thenar) was blended between its place and the metacarpal's by weight. Under a wide turn
+  this pulled the skin in toward the thumb's base, which is the "candy wrapping" you saw. It now turns by its share of
+  the metacarpal's turn about the pivot (a slerp).
+- The solver no longer tries the widest turns (60° across the palm, 30° up and away); they stretched the skin.
+- `thumbs_cmp.png`: the health box, shells box, backpack and armour, before and after.
+- The rest of the crudeness is the model: the thumb is one of six old parts, with no skin weights round its base. That
+  is #11.
+
+### Carrying: nothing floats off the hand (#9)
+
+- **Cause** (`vr_physics.cpp` `handOn`, `vr_held.cpp` `surfaceFit`): a carriable thing (box, gib, backpack) could be
+  taken with the hand anywhere in its model's box, plus 2 units. A big box's model box is mostly air around a gib's or
+  a backpack's shape. The fit then pushed the thing out along the palm's normal (up to half a metre) to sit on the
+  palm, far from the fist.
+- **Fix:** a thing is taken only within `vr_carry_reach` (8 cm) of its drawn surface, measured exactly on its
+  triangles (`held::surfaceDistance`). The fit pushes it out at most 15 cm.
+- `vr_debug_carry 1` draws, for each hand in a carriable thing's box, that box (green in reach, red not), the nearest
+  point of its surface and the reach around the hand.
+- `carry_reach.png`: three hand places near a health box and a gib, with the reach test drawn (`vr_debug_carry 1`),
+  then gripped. What is taken sits against the hand; the gib is not taken from beyond the reach.
+
+### The free hand and the other hand's weapon (#6)
+
+- The drawn free hand is pushed out of the weapon in the other hand, along the surface's normal where its palm's
+  centre or a fingertip is deepest: fully up to `vr_hand_collide` (4 cm), then less and less, none at twice that (it
+  gives way and passes through). The push eases over 0.08 s.
+- Only the drawn hand moves: aim, melee and grabs use the tracked hand as before.
+- `collide.png`: the off hand moving through the shotgun, before and after.
+
+### Inherit From (#7)
+
+- New key `vr_wofs_inherit_NN` (the slot, 1..32; 0 none). A weapon takes that slot's value of every key wherever its
+  own value is still the default. Not inherited: the model's name, the key itself and the models' vertex indices.
+- **Defaults:** the lava nailguns, the multi grenade and rocket launchers and the plasma gun inherit from the
+  nailguns, the grenade and rocket launchers and the lightning gun. Their anchor vertices are within 0.12 units of
+  their bases'. I checked each pair side by side in the game (`alts.png`). The swords differ, so they don't inherit.
+- **Migration** (`vr_wofs_version` 16): those five slots' own values go back to their defaults once, so that they
+  inherit (you had tuned them the same as their bases).
+- **Weapon Offsets:**
+  - Inherit From: None or any weapon, by name.
+  - An inheriting weapon's page edits the settings it inherits (the page title says so).
+  - "Stop Inheriting (Copy Them Here)" makes them its own.
+
+### Fingers and walls (#1)
+
+- The hand itself stops at walls; its fingers used to reach past. Each finger's line from its knuckle through its
+  joints to its tip is traced against the world (the client's BSP and the moving brush models).
+- If a line is blocked, the finger curls (its joints alike) as little as keeps it out, found by halving six times, and
+  eases like any curl.
+- The cost is three traces per finger per frame when clear. `vr_hand_walls 0` turns it off; `vr_debug_grasp 3` prints
+  each bend.
+- `walls.png`: an open hand pushed into e1m1's wall and floor, before and after.
+
+### The hand model (#11): not done
+
+A new hand needs a proper thumb with skin weights, better proportions, Quake-style texturing and the blood and powerup
+skins redone. That is an asset job of its own, and the solver and the fixes above don't depend on it. The jointed hand
+is still fitted to the six old models (`make_hand_rig.py`). If you want it, it is the natural next round for the hands.
+
+### Caches and the game directory
+
+- **`view::viewModel`** caches every lookup, including missing models, until the next map load or game directory
+  change (it had looked on disk every frame for a missing one).
+- **Routed through that cache:** the torch's `place` and the leg holster.
+- **`avatar::usable`** is a small table, so it no longer thrashes between a build's model and its fallback.
+- **Caches keyed by a model** (`handrig::checked`, `avatar::info`, the grasp shapes) compare the model's name too.
+- **`vr_grasp_dump`:** a hand no longer drawn forgets what it held, so the dump can't read a stale entity.
+- **`VR_OnGameDirChanged`** calls `view::resetCaches` (clip sizes, `viewModel`, the jointed hand's check, the grasp
+  shapes), `weapons::resetCaches` (the slot cache), `avatar::reset` and `flashlight::onGameDirChanged` (the gun spots
+  by name).
+- **Tested:** `game rogue`, then `game hipnotic rogue quakevr`, then a map. The hands, the gun and its muzzle are as
+  before (`gamedir.png`).
+
+### Determinism
+
+- The coordinator asked: "the same scripted run twice, and two different builds, must give identical hand
+  screenshots". Tested with `det.sh`: the two-handed shotgun from two views, the super shotgun and the sword, run
+  twice on one build, and once on a build with an unrelated change (a global added to `vr_gadget.cpp`).
+- Both hands' final poses in the trace are identical across all three runs.
+- In the screenshots, the hands differ in at most 0.4% of their pixels, by at most 25 levels. The exception is the
+  shotgun's sight LED, which pulses with time. The rest of the frame differs by the sky, the monsters' animation and
+  time-driven lighting (`det_diff.png`).
+- The audit's note above ("something in the hand's pose depends on the build") was the old worker thread: a solve
+  landed a frame earlier or later depending on timing. With the synchronous solver it can't happen.
+
+### Settings (new)
+
+| Cvar | Default | |
+|---|---|---|
+| `vr_hand_fit_overlap` | 0.3 | cm the fingers and palm may sink into what they hold. |
+| `vr_hand_fit_overlap_hands` | 0.6 | cm a cupping hand may sink into the other. |
+| `vr_hand_fit_blend` | 0.12 | Seconds the fingers, thumb and palm take to ease into a new grasp (0: at once). |
+| `vr_hand_fit_resolve` | 0.3 | cm (and twice that in degrees) the held thing may move in the hand before a re-solve (0: every frame). |
+| `vr_hand_walls` | 1 | Fingers bend out of walls and floors. |
+| `vr_hand_collide` | 4 | cm the free hand is held out of the other hand's weapon (0: never). |
+| `vr_carry_reach` | 8 | cm from a carriable thing's surface within which a hand takes it (0: its whole box, as before). |
+| `vr_debug_carry` | 0 | Draws the carry reach test. |
+| `vr_debug_grasp_trace` | 0 | 1 main, 2 off, 3 both: every frame's grasp to `grasp_trace.txt`. |
+| `vr_wofs_inherit_NN`, `vr_wofs_hsN_pitch/yaw/roll/style_NN` | | Per weapon, above. |
+
+All but the debug cvars are archived and on **Hand/Gun Calibration > Fingers**: Fit Overlap, Fit Overlap: Hands, Pose
+Blend, Refit Threshold, Fingers Stop at Walls, Hands Brush Weapons, Carry Reach (`menu_fingers.png`).
+
+Commands:
+
+- `vr_grasp_bench [n]`: times each hand's solve on what it holds, fresh and again n times (min/median/max).
+- `vr_grasp_spheres`: prints the hand's spheres.
+- `vr_weapon_hotspot_here <n> [type] [main|off]`.
+- `vr_mock_fingers <hand> <trigger> <grip> [<thumb> [<trigger touch>]]`.
+- `vr_grasp_dump` now also writes the spheres and, for a cup, the other hand.
+
+### Costs
+
+All costs were measured with `run.sh --exclusive` on vrfiringrange.
+
+The target was well under 0.1 ms per hand per frame. The per-frame update meets it. A single re-solve on some things
+does not; the reasons and numbers follow.
+
+**Per frame** (`vr_profile`, 540 frames at 64 fps, the hand wobbling through 15–20° and 5–6 cm for 6 s; the times are
+both hands together, per frame; `final/p1_*.csv`):
+
+| Scene | `hand` (both hands' whole update) | of which the jointed hand | grasp solves | walls | brushing | `view entities` |
+|---|---|---|---|---|---|---|
+| Shotgun, off hand on the foregrip | **0.043 ms** (worst 0.24) | 0.023 | none | 0.008 | <0.001 | 0.060 |
+| The same, re-solved every frame (`vr_hand_fit_resolve 0`) | 0.225 ms (worst 0.54) | 0.204 | 0.179 | 0.009 | 0 | 0.242 |
+| The six old models (`vr_hand_rig 0`), for reference | 0.023 ms | – | – | – | – | 0.039 |
+| A gib in the off hand | **0.031 ms** (worst 0.13) | 0.029 | none | 0.005 | 0 | 0.044 |
+| The torch in the off hand | **0.034 ms** (worst 0.17) | 0.033 | none | 0.005 | 0 | 0.049 |
+
+- So each hand's update costs about 0.015–0.022 ms a frame, against 0.012 ms for the six old models.
+- In these runs the held things never moved in the hand by more than the refit threshold, so there were no re-solves
+  at all.
+- The walls' traces cost 0.005–0.008 ms a frame for both hands.
+- The worst frames (0.13–0.24 ms) are the first frames after a grip.
+
+**Each solve** (`vr_grasp_bench`, exclusive, the median of 300–500 solves in each of two runs; `final/ab_new_*.txt`):
+
+| Held | Hand | Triangles | First solve (µs) | Re-solve min / median / max (µs) | Probes |
+|---|---|---|---|---|---|
+| Shotgun | main | 766 | 3012 | 30 / 30 / 106 | 17 |
+| Super shotgun | main | 688 | 2635 | 88 / 88 / 163 | 71 |
+| Nailgun | main | 480 | 4233 | 32 / 32 / 66 | 17 |
+| Super nailgun | main | 726 | 167 | 46 / 47 / 124 | 32 |
+| Grenade launcher | main | 386 | 267 | 44 / 44 / 358 | 27 |
+| Rocket launcher | main | 499 | 297 | 32 / 33 / 258 | 18 |
+| Lightning gun | main | 459 | 417 | 29 / 30 / 152 | 15 |
+| Sword | main | 120 | 2984 | 88 / 89 / 177 | 105 |
+| Shotgun, two hands | off (helping) | 766 | 2704 | 78 / 84 / 367 | 38 |
+| Super shotgun, two hands | off (helping) | 688 | 206 | 19 / 20 / 104 | 17 |
+| Shells box | off | 82 | 2512 | 19 / 19 / 79 | 33 |
+| Health box | off | 292 | 120 | 46 / 46 / 233 | 48 |
+| Backpack | off | 252 | 80 | 23 / 23 / 185 | 40 |
+| Gib | off | 28 | 164 | 121 / 127 / 369 | 146 |
+| Head | off | 92 | 1994 | 41 / 41 / 138 | 86 |
+| Armour | off | 360 | 218 | 115 / 122 / 256 | 145 |
+| Torch | off | 608 | 572 | 65 / 67 / 273 | 21 |
+
+(The maxima are single outliers among hundreds of runs, i.e. the OS scheduling. The carried things' figures change a
+little from run to run, because the physics puts them in the hand slightly differently each time.)
+
+**Where it doesn't reach 0.1 ms, and why:**
+
+1. **A grip's first solve takes 2–4 ms** (the shotguns, nailgun, sword, shells box and head). These are grips through the
+   palm, or things the server pressed into it, and they get the placement search: the palm is tried at up to 28
+   places along the grip, each closing all four fingers, to find where the hand holds best. It runs once per grip, when you take the weapon or the thing, and re-solves keep its place. Doing it
+   once per grip is the point: that is what keeps the hand from hopping between two holds.
+2. **A re-solve on the gib or the armour takes 0.12–0.13 ms.** Two or three fingers there close past the thing
+   without touching it, grazing it. Conservative advancement then takes about 60 short steps per finger (146 probes
+   in all), because near the surface each step may only be as long as the clearance.
+   - The open-air shortcut (`12e8fcad`) only helps fingers far from the thing. It took the head from 71 to 41 µs and
+     the torch from 115 to 67 µs.
+   - I also tried a one-probe test of a whole free finger's close, bounded by its joints' chain lengths. It never
+     succeeded on these things (the bound is too loose that close to them), so I left it out (`final/sweep_ab.txt`).
+   - A re-solve happens only when the thing moves in the hand by more than 0.3 cm, so a single frame pays it, not
+     every frame.
+
+**Before this pass:** 3–30 ms a solve, on a worker thread.
+
+**Before `12e8fcad`**, measured in the same way, alternating builds (`final/ab_old_*.txt`): the weapons are
+unchanged, and the stops are the same within 0.01 of a curl frame. The exception is where the old solver ran out of
+steps before a finger reached the fist.
+
+### Tests (mock headset)
+
+Composites in the scratchpad's `hands2/final/`:
+
+- **Recoil:**
+  - `recoil_all.png`: the shotgun and super shotgun, still and at four frames of the kick, in round 20, round 21 and
+    now (the hand leaves the gun in round 21).
+  - `recoil_k2_*.png`, `recoil_k3_*.png`: the same one build at a time; `recoil_n4.png` … `recoil_n8.png`: the other
+    guns now.
+- **Stability (traces):**
+  - `tr_torch_before.png` / `tr_torch_after.png`.
+  - `tr_sg2h_cmp.png`: before (the worker thread), attached, final.
+  - `tr_parry_*`, `tr_stab_*`, `tr_blade_after.png`: your takes replayed with the trace on.
+- **Solver:** `n_guns.png`, each gun from three views (`vr_grasp_dump`), not fitted against fitted.
+- **Per note:**
+  - `trigger_pull.png`
+  - `cup_views.png`, `cup_shots.png`
+  - `sword_views_now.png`, `sword_now.png`
+  - `thumbs_cmp.png`
+  - `carry_reach.png`
+  - `collide.png`
+  - `alts.png` (each alternate model beside its base)
+  - `walls.png`
+- **Game directory and determinism:** `gamedir.png`, `det_diff.png`.
+- **Menu:** `menu_fingers.png`.
+- **Your motion takes:** `vr_motion_eval` over 97 of them (parries with and without a gun, the gun's butt and swing, pommels,
+  horizontal slashes, two-handed stabs), run on vr-cleanup's engine as merged (`986c4559`; the QC is the same) and on
+  this branch's final build. Both reproduce 91 of 97 live hits. The two tables are identical take by take: the same
+  hits, and the same hand error (0.239 units mean). The six that miss, miss the same way on the base (parry bashes
+  whose live take recorded nothing, or a slap the replay sees as an overhead blow). The same holds with the torch off.
+- **Numbers:**
+  - `ab_old_*.txt`, `ab_new_*.txt`, `bench_*.txt`: `vr_grasp_bench`.
+  - `p1_*.csv`: `vr_profile`.
+  - `eval_sub_base986.csv`, `eval_sub_final*.csv`: the evaluation tables.
+
+### Limitations
+
+- **Two exceptions to the 0.1 ms target:** see [Costs](#costs-1). A grip's first solve takes milliseconds (its
+  placement search, once per grip), and on a few things a re-solve is just over 0.1 ms. Re-solves happen only when
+  the held thing moves in the hand, never every frame.
+- **Cup:** the weapon aims with the holding hand only. The helping hand adds no stability to the aim, as there is no
+  second point along the gun to aim with.
+- **Walls:** only the fingers bend; the palm already stops at the wall. Thin moving brush models are traced, but
+  other entities (monsters, items) are not.
+- **The free hand's push** is visual only. Your tracked hand still passes through the weapon for aim, melee and
+  grabs.
+- **Inherit From:** a value set back to the default is inherited again, because "own" means "differs from the
+  default". To pin a value equal to the default on an inheriting weapon, use Stop Inheriting.
+- **The thumb** is still one of the old six models' parts (#11).
+
+### In the headset
+
+- [ ] Fire every gun: the hand and arm kick with it; the helping hand stays on the foregrip through the kick.
+- [ ] Hold a gun still, then turn your wrist slowly: the fingers don't move. The same for the torch in either hand.
+- [ ] Squeeze the trigger slowly: the index finger follows it onto the trigger. Rest the finger on the trigger
+      without pulling: it curls halfway.
+- [ ] Two-handed pistol grip: on the shotgun, Weapon Offsets > hotspot 2, Type Cup, Put It Where the Other Hand
+      Is (holding it there). Then grab it: the hand should cup the main hand. Try Fit Overlap: Hands.
+- [ ] The sword by the blade, level across your face: the fingers around the blade.
+- [ ] The health box: does the thumb still look wrong?
+- [ ] Grab a box, gib or backpack from the edge of its reach: it sits in the hand. Carry Reach sets how close.
+- [ ] Pass the off hand through the gun: it resists a few cm, then goes through. Hands Brush Weapons sets how far.
+- [ ] Weapon Offsets on a lava nailgun: it says it inherits from the nailgun; changing a value there changes both.
+- [ ] Open hand into a wall or the floor: the fingers bend, not through.
+- [ ] Pose Blend and Refit Threshold: too soft or too twitchy? The defaults are 0.12 s and 0.3 cm.
+
 ## Wrist gadget, hologram, casings, flashlight
 
 Five of your voice notes: casings splashing into water, a test button for the hologram, messages only on the
@@ -707,10 +1093,10 @@ another game's model of the same name); `vr_detail`: detail.cfg's kinds and rule
 details; `vr_emissive`: the torches; `vr_ambient`, `vr_modellight`: the entities' cached light and the map's lights;
 `vr_gfx_gl`: the gfx.wad pictures by name (their pointers were stale after `Draw_NewGame`); `vr_bodyblood`: its drops.
 Per-map state is emptied at the next map as before (`VR_NewMap`'s generation, `VR_OnClientClearState`), and the water
-mesh is rebuilt at each map load. **Still to hook into it** (other agents' files): `vr_view.cpp`'s `clipSizes` and
-`viewModel`, `vr_weapons.cpp`'s `slotCache`, `vr_avatar.cpp`'s `info`, `vr_handrig.cpp`'s `checked`, and
-`vr_flashlight.cpp`'s gun fit cache by name (the `GunSpot` map; left alone here: only the beam code was mine).
-Tested: `game rogue`, then `game hipnotic rogue quakevr`, a map after each.
+mesh is rebuilt at each map load. Tested: `game rogue`, then `game hipnotic rogue quakevr`, a map after each. The
+hands' caches (`vr_view.cpp`'s `clipSizes` and `viewModel`, `vr_weapons.cpp`'s `slotCache`, `vr_avatar.cpp`'s `info`,
+`vr_handrig.cpp`'s `checked`, the grasp shapes and `vr_flashlight.cpp`'s gun spots by name) are hooked in by the fitted
+hands' second pass (below).
 
 ### Tests (mock headset)
 
@@ -727,7 +1113,9 @@ Tested: `game rogue`, then `game hipnotic rogue quakevr`, a map after each.
 - **Images:** the decals, water, torches, e1m1 and the upscalers match. The differences left are on the held gun and
   its hand (a few hundred pixels, up to 150 of 765 at the grip's edge) and one gib's shading (up to 9 of 765). They are
   not from the changed code: bisecting, builds with only keyword or bit-identical changes (item 10 alone; items 4, 8
-  and 9) move them too, so something in the hand's pose depends on the build (worth a look by the hands' owner). The
+  and 9) move them too, so something in the hand's pose depends on the build (worth a look by the hands' owner). It
+  was the grasp's worker thread (a solve landing a frame sooner or later); the second pass solves on the main thread,
+  and the hands are now the same from build to build (see [Determinism](#determinism)). The
   mock's scenes also depend on what ran before in the same process (the decal scene makes 118 marks after the water
   scenes, 128 alone), so comparisons use the same scene list.
 - **Motion takes** (item 3 touches the network path): ten of the author's takes (punches, slashes, a stab, the gun's
