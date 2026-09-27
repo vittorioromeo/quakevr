@@ -16,6 +16,12 @@
 // vr_carry 0 restores the old behaviour: a hand touching a box takes it.
 // Armour (vr_armor_wear, items.qc) is carried the same way and put on by letting go of it over the
 // torso (VR_Armor_LetGo), never taken at a holster or with the trigger.
+// - Two hands (vr_carry_two_hands): the other hand gripping what one carries (a press within reach of
+//   its surface, as the first grip) holds it too. It then follows both hands rigidly (the engine's
+//   carry2h, vr_carry2h.cpp), and collides as one hand's does. One hand letting go leaves it in the
+//   other, held from where it is (to pass it from hand to hand); both letting go together throw it (the
+//   client sends both hands' throw estimate: the object's own motion). Let go of in both hands, it is
+//   never taken at a holster: only a one-handed carry is.
 
 .entity mainhand_held;   // the box each hand carries
 .entity offhand_held;
@@ -23,6 +29,8 @@
 .vector carry_offset;    // the box's origin in the hand's frame (forward, right, up)
 .float carry_trigger;    // the carrying hand's trigger last frame
 .float carry_nudgetime;
+.float carry_2h;         // held in both hands (VR_Carry_TwoHandFrame)
+.float carry_2h_end;     // when it was last held in both hands (let go of by one or both)
 .void() carry_use;       // taking it: the box's own pickup (ammo_touch, health_touch)
 
 entity(entity xPlayer, float xHand) VR_Carry_Held =
@@ -55,6 +63,7 @@ float(entity xPlayer, float xHand) VR_Carry_IsHolding =
 void(entity xBox) VR_Carry_Loose =
 {
     xBox.carry_player = world;
+    xBox.carry_2h = FALSE;
     xBox.movetype = MOVETYPE_TOSS;
     xBox.solid = SOLID_NOT_BUT_TOUCHABLE;
     xBox.vr_rigid = 1;
@@ -142,6 +151,7 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
     xBox.vr_spin = '0 0 0';
     xBox.throwhit = QVR_THROWHIT_HIT;
     xBox.owner = xPlayer;
+    xBox.carry_2h = FALSE;
     VR_Carry_SetHeld(xPlayer, xHand, xBox);
 
     entity oldSelf = self;
@@ -149,6 +159,21 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
     sound(self, CHAN_AUTO, "knight/sword2.wav", 0.4, ATTN_NORM);
     haptic(xHand, 0.0, 0.1, 70, 0.6);
     self = oldSelf;
+};
+
+// Held by `xHand` alone from where it is (self is the player): the other hand let go of it, held in
+// both. Its place and turn in the hand are taken now, as at a grip (not fitted to the fist: it does
+// not move).
+void(float xHand, entity xBox) VR_Carry_Regrip =
+{
+    vector handRot = VRGetHandRot(xHand);
+    makevectors(handRot);
+    vector d = xBox.origin - VRGetHandPos(xHand);
+    xBox.carry_offset_x = d * v_forward;
+    xBox.carry_offset_y = d * v_right;
+    xBox.carry_offset_z = d * v_up;
+    carryangles(xBox, handRot, TRUE);
+    xBox.carry_trigger = VRGetFireButtonPressed(xHand);
 };
 
 // Let go: it keeps the hand's throw (the same estimate thrown weapons use).
@@ -163,6 +188,8 @@ void(float xHand, entity xBox) VR_Carry_Release =
     VR_Carry_Loose(xBox);
     xBox.velocity = v;
     xBox.vr_spin = VRThrowSpinCapped(VRGetHandAVel(xHand));
+    dprint("carry: thrown at "); dprint(vtos(v)); dprint(" ("); dprint(ftos(vlen(v))); dprint(" u/s), spin ");
+    dprint(vtos(xBox.vr_spin)); dprint("\n");
     if(cvar_hget(cvarh_vr_throw_gravity) > 0 && cvar_hget(cvarh_sv_gravity) > 0)
     {
         xBox.gravity = cvar_hget(cvarh_vr_throw_gravity) * m2u / cvar_hget(cvarh_sv_gravity);
@@ -222,9 +249,9 @@ void(float xHand) VR_Carry_HandFrame =
     VR_Corpse_StrikeFrame(xHand); // a blow on a corpse (vr_corpse_gib, combat.qc)
 
     entity box = VR_Carry_Held(self, xHand);
-    if(box == world)
+    if(box == world || (box.carry_2h && box == VR_Carry_Held(self, VRGetOtherHand(xHand))))
     {
-        return;
+        return; // (held in both hands: VR_Carry_TwoHandFrame)
     }
 
     if(box.model == string_null || box.carry_player != self || self.health <= 0 || !cvar_hget(cvarh_vr_carry))
@@ -238,15 +265,7 @@ void(float xHand) VR_Carry_HandFrame =
         return;
     }
 
-    // A held gib or backpack does not vanish.
-    if(box.think == SUB_Remove && box.nextthink < time + 5)
-    {
-        box.nextthink = time + 5;
-    }
-    if(box.think2 == SUB_Remove && box.nextthink2 < time + 5)
-    {
-        box.nextthink2 = time + 5;
-    }
+    VR_Carry_KeepAlive(box);
 
     float takeMode = cvar_hget(cvarh_vr_carry_take);
     if(!VR_HandGrabUtil_IsHandGrabbing(self, xHand))
@@ -263,8 +282,9 @@ void(float xHand) VR_Carry_HandFrame =
             return;
         }
 
-        // Let go at a holster: into the pack (if full up, it drops there).
-        if(takeMode != 1 && VR_Carry_AtHolster(xHand))
+        // Let go at a holster: into the pack (if full up, it drops there). Not let go of by both hands
+        // (together, as a throw: the other hand at most vr_carry_two_hands_window before, and a frame).
+        if(takeMode != 1 && VR_Carry_AtHolster(xHand) && time - box.carry_2h_end > cvar_hget(cvarh_vr_carry_two_hands_window) + 0.05)
         {
             dprint("carry: into the pack\n");
             VR_Carry_Take(xHand, box);
@@ -303,7 +323,18 @@ void(float xHand) VR_Carry_HandFrame =
     makevectors(handRot);
     vector target = VRGetHandPos(xHand) + v_forward * box.carry_offset_x + v_right * box.carry_offset_y +
                     v_up * box.carry_offset_z;
+    if(!VR_Carry_Follow(box, target))
+    {
+        VR_Carry_Release(xHand, box); // stuck behind something
+        return;
+    }
+    box.angles = carryangles(box, handRot, FALSE);
+};
 
+// Moves the held `box` (self is the player) towards `target`, not through walls or monsters: FALSE if
+// it is left behind (stuck).
+float(entity box, vector target) VR_Carry_Follow =
+{
     traceline(box.origin, target, FALSE, self);
     vector dest = trace_endpos;
     if(trace_fraction < 1)
@@ -313,8 +344,7 @@ void(float xHand) VR_Carry_HandFrame =
     if(vlen(dest - target) > 32)
     {
         dprint("carry: stuck at "); dprint(vtos(dest)); dprint(", the hand wants "); dprint(vtos(target)); dprint("\n");
-        VR_Carry_Release(xHand, box); // stuck behind something
-        return;
+        return FALSE;
     }
 
     if(frametime > 0)
@@ -322,7 +352,182 @@ void(float xHand) VR_Carry_HandFrame =
         box.velocity = (dest - box.origin) * (1 / frametime);
     }
     setorigin(box, dest);
-    box.angles = carryangles(box, handRot, FALSE);
+    return TRUE;
+};
+
+// Dead (PlayerPostThink, self is the player: the hands' frames no longer run): what the hands carried,
+// in one hand or both, drops with the motion it had (it hung in the air until the respawn).
+void() VR_Carry_Dead =
+{
+    entity a = self.mainhand_held;
+    entity b = self.offhand_held;
+    if(a == world && b == world)
+    {
+        return;
+    }
+    dprint("carry: dead, let go\n");
+    VR_Carry_SetHeld(self, cVR_MainHand, world);
+    VR_Carry_SetHeld(self, cVR_OffHand, world);
+    if(a != world && a.carry_player == self)
+    {
+        VR_Carry_Loose(a);
+        a.owner = world;
+    }
+    if(b != world && b != a && b.carry_player == self)
+    {
+        VR_Carry_Loose(b);
+        b.owner = world;
+    }
+};
+
+// ----------------------------------------------------------------------------
+// Two hands (vr_carry_two_hands)
+
+// A held gib or backpack does not vanish.
+void(entity box) VR_Carry_KeepAlive =
+{
+    if(box.think == SUB_Remove && box.nextthink < time + 5)
+    {
+        box.nextthink = time + 5;
+    }
+    if(box.think2 == SUB_Remove && box.nextthink2 < time + 5)
+    {
+        box.nextthink2 = time + 5;
+    }
+};
+
+// The other hand (`xHand`) takes hold of what one carries (self is the player): a grip press within
+// reach of its surface, as the first hand's (VR_Carry_Handtouch: a carried thing is not solid, so no
+// touch comes).
+void(float xHand) VR_Carry_TrySecondHand =
+{
+    float other = cVR_MainHand;
+    if(xHand == cVR_MainHand)
+    {
+        other = cVR_OffHand;
+    }
+    entity box = VR_Carry_Held(self, other);
+    if(box == world || box.carry_player != self || box.model == string_null || VR_Carry_IsHolding(self, xHand))
+    {
+        return;
+    }
+    if(!VR_Carry_GripPressed(self, xHand) || !VRIsHandEmpty(self, xHand) || VR_Forcegrab_IsHandBusy(self, xHand) ||
+       !VR_HandGrabUtil_IsHandGrabbing(self, other) ||
+       VRHasBit(self.vrbits0, xHand == cVR_MainHand ? QVR_VRBITS0_MAINHAND_BUSY : QVR_VRBITS0_OFFHAND_BUSY))
+    {
+        return;
+    }
+    if(!carryreach(box, VRGetHandPos(xHand), xHand))
+    {
+        dprint("carry: the other hand is not within reach\n");
+        return;
+    }
+
+    dprint("carry: both hands\n");
+    VR_Carry_SetHeld(self, xHand, box);
+    box.carry_2h = TRUE;
+    carry2h(box, self, TRUE); // the grips are kept
+    sound(self, CHAN_AUTO, "knight/sword2.wav", 0.25, ATTN_NORM);
+    haptic(xHand, 0.0, 0.1, 70, 0.6);
+};
+
+// Let go of by both hands (self is the player): no longer held in both; the main hand's frame then
+// lets go of it (thrown with the client's estimate for both hands, or put on over the torso), never
+// into the pack.
+void(entity box) VR_Carry_EndTwoHands =
+{
+    box.carry_2h = FALSE;
+    box.carry_2h_end = time;
+    VR_Carry_SetHeld(self, cVR_OffHand, world);
+};
+
+// Every player frame, before the hands' own (self is the player): what both hands hold. Taken by the
+// second hand; placed by both; let go of by one (the other keeps it) or by both.
+void() VR_Carry_TwoHandFrame =
+{
+    entity box = self.mainhand_held;
+    if(box == world || box != self.offhand_held)
+    {
+        if(cvar_hget(cvarh_vr_carry_two_hands) && cvar_hget(cvarh_vr_carry) && self.health > 0)
+        {
+            VR_Carry_TrySecondHand(cVR_MainHand);
+            VR_Carry_TrySecondHand(cVR_OffHand);
+        }
+        return;
+    }
+
+    if(box.model == string_null || box.carry_player != self || self.health <= 0 || !cvar_hget(cvarh_vr_carry))
+    {
+        dprint("carry: lost (both hands)\n");
+        VR_Carry_SetHeld(self, cVR_MainHand, world);
+        VR_Carry_SetHeld(self, cVR_OffHand, world);
+        if(box.carry_player == self)
+        {
+            VR_Carry_Loose(box);
+        }
+        return;
+    }
+    VR_Carry_KeepAlive(box);
+    box.carry_2h = TRUE;
+
+    float gripMain = VR_HandGrabUtil_IsHandGrabbing(self, cVR_MainHand);
+    float gripOff = VR_HandGrabUtil_IsHandGrabbing(self, cVR_OffHand);
+    if(!gripMain && !gripOff)
+    {
+        dprint("carry: both hands let go\n");
+        VR_Carry_EndTwoHands(box); // the main hand's frame throws it
+        return;
+    }
+    if(!gripMain || !gripOff)
+    {
+        // One let go: the other holds it, from where it is.
+        float letGo = cVR_MainHand;
+        float keep = cVR_OffHand;
+        if(gripMain)
+        {
+            letGo = cVR_OffHand;
+            keep = cVR_MainHand;
+        }
+        dprint("carry: one hand let go, held in the other\n");
+        box.carry_2h = FALSE;
+        box.carry_2h_end = time;
+        VR_Carry_SetHeld(self, letGo, world);
+        VR_Carry_Regrip(keep, box);
+        haptic(letGo, 0.0, 0.05, 60, 0.3);
+        return;
+    }
+
+    // Taken with either trigger (vr_carry_take 1 or 2; not armour).
+    float trigger = VRGetFireButtonPressed(cVR_MainHand);
+    float triggerHand = cVR_MainHand;
+    if(!trigger && VRGetFireButtonPressed(cVR_OffHand))
+    {
+        trigger = TRUE;
+        triggerHand = cVR_OffHand;
+    }
+    if(box.vr_wearable)
+    {
+        VR_Armor_HeldFrame(cVR_MainHand, box); // over the torso: a haptic hint
+    }
+    else if(cvar_hget(cvarh_vr_carry_take) != 0 && trigger && !box.carry_trigger)
+    {
+        box.carry_trigger = trigger;
+        VR_Carry_Take(triggerHand, box);
+        if(box.model == string_null)
+        {
+            VR_Carry_SetHeld(self, cVR_MainHand, world);
+            VR_Carry_SetHeld(self, cVR_OffHand, world);
+            return; // taken
+        }
+    }
+    box.carry_trigger = trigger;
+
+    // Follow both hands, turning with them; not through walls or monsters.
+    if(!VR_Carry_Follow(box, carry2h(box, self, FALSE)))
+    {
+        VR_Carry_EndTwoHands(box);
+        VR_Carry_Release(cVR_MainHand, box); // stuck behind something
+    }
 };
 
 // ----------------------------------------------------------------------------
@@ -1044,7 +1249,7 @@ float(vector xA, vector xB, vector xLo, vector xHi) VR_SegmentBox =
 entity(entity xPlayer, float xHand) VR_Gib_HeldByOther =
 {
     entity g = VR_Carry_Held(xPlayer, xHand == cVR_OffHand ? cVR_MainHand : cVR_OffHand);
-    if(g == world || !g.vr_gib || g.carry_player != xPlayer || !VR_Gib_IsDestroyable(g))
+    if(g == world || !g.vr_gib || g.carry_player != xPlayer || !VR_Gib_IsDestroyable(g) || VR_Carry_Held(xPlayer, xHand) == g)
     {
         return world;
     }

@@ -26,6 +26,21 @@ struct State
 
     glm::vec3 pos[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // [0] off hand, [1] main hand
     glm::vec3 rot[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+
+    // Round 21, third pass: the controllers as tracked (their grip pose, before the calibration's angles, the held
+    // weapon's Hand and Weapon Together offset and anything after: vr_show_controller), and their calibrated aim
+    // (vr_gunangle and the rest: where the controller points, before the weapon's offset: vr_show_controller_laser).
+    glm::vec3 controllerPos[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    glm::vec3 controllerRot[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    glm::vec3 aimRot[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    // The world turn the held weapon's Hand and Weapon Together offset gave the hand (rot = wholeTurn * the rot it had):
+    // the view turns the weapon (posed from the rot before it) rigidly by it, so the muzzle turns exactly with it.
+    glm::mat3 wholeTurn[2]{glm::mat3{1.f}, glm::mat3{1.f}};
+
+    // Where each hand's palm is (its middle, as the jointed hand is drawn free: the empty hand) relative to pos, in the
+    // frame of rot (x forward, y right, z up: hands::redirect's), set by the view: a cup hotspot is taken by the palm.
+    bool palmValid[2]{false, false};
+    glm::vec3 palmLocal[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     glm::vec3 visualRot[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // what the weapons are drawn at (flick spin)
 
     // Velocities in metres (radians) per second, in Quake axes turned with the play space, not
@@ -47,7 +62,11 @@ struct State
     glm::vec3 grip2H[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     float grip2HBias[2]{0.f, 0.f}; // its hotspot's bias: units off the distance it is taken by (round 21)
     bool grip2HCup[2]{false, false}; // it is a cup (a two-handed pistol grip): held, but no two-handed aim
+    bool grip2HPalm[2]{false, false}; // a cup hotspot: grip2H is where the helping hand's palm goes (taken by the palm)
 };
+
+// Where a hand's palm is (State::palmLocal), or its point if not known.
+[[nodiscard]] glm::vec3 palmPoint(const State& s, int hand);
 
 // The server set the view yaw: turn the play space to match (headset only).
 void setServerYaw(float yaw);

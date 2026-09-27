@@ -146,9 +146,16 @@ context and screenshot, ready to paste or to point me at.
     the near end, parry bash = hold the stance ~0.5 s then push; palm shoves (both palms harder). Melee Speed was
     reset once to 4 m/s. Tell which of your motions still misread, and record more takes of them.
   - **Motion recorder:** Advanced VR Options > Motion Recorder; keep adding takes, especially of what misreads.
+  - **Weapons stop at monsters and things:** a gun, a sword or a fist pushed into a monster, a corpse or a box on the
+    ground stops at the model as drawn (not its box), the hand and arm with it; past 20 cm it gives way (Hand/Gun
+    Calibration > Against Monsters and Things). Hits are unchanged: they come from your hand.
   - **Fitted hands:** fingers wrap guns, blades and objects; recoil moves the hand; two-handed grips steady (no
     jitter); the trigger finger pulls; hotspots (Weapon Offsets) incl. the Cup pistol grip; Inherit From for the
     alternate models. Check the thumb on pistol grips and objects held from far away (no more floating).
+  - **Hand tuning (Weapon Offsets):** Tuning Aids (Show Controller, Show Controller Laser), Hand and Weapon Together
+    (moves the aim too), Hand Only (the bent wrist), per hotspot Held Hand, Overlap per weapon and per hotspot,
+    Fingers: Manual per weapon and per hotspot. A cup hotspot is now where your palm goes (yours was moved once).
+    Take the super nailgun a few times: the same grip each time.
   - **Flashlight:** hanging from the belt (off-hand side; reach for it, it taps and brightens), B/Y away from a gun
     flips the grip (a quick spin now), B/Y at the head wears it; it should never be grabbed by a guard or a punch.
     After your test: the overhead grip sits in the fist (it went through the hand); each grip has its own sliders
@@ -157,6 +164,10 @@ context and screenshot, ready to paste or to point me at.
   - **Wrist gadget:** Screens > Messages (test button, messages only on the gadget), Graphics > Performance > FPS
     Counter on the Gadget.
   - **Casings** splash in water; **beam quality** (Flashlight section).
+  - **Two-handed props:** grip what one hand carries with the other to hold it in both: it moves and turns with both
+    hands, and letting go of both together throws it (tumbling as your hands turned it). Let go of one and the other
+    keeps it: that's how to pass it between hands. Only a one-handed carry goes into the pack at a holster.
+    Carrying and Gibs: Two-Handed Carrying, Two-Handed Hand Drift.
 
 - **Previous round** (details in `docs/vr-port/ROUND20.md`, your seventh batch of notes; `ROUND19.md`, the
   performance review):
@@ -523,6 +534,25 @@ every frame to `grasp_trace.txt`; `vr_grasp_spheres` prints the hand's collision
 carry reach test (the thing's box, its nearest surface point, the reach); `vr_weapon_hotspot_here <n> [type]
 [main|off]` puts hotspot n where the other hand is. `vr_profile` has scopes for each hand's update (`hand`, `rig hand`,
 `grasp solve`, `hand walls`, `hand collide`).
+
+Fitted hands, third pass: `vr_show_controller 1` draws each controller as tracked (before any offset), and
+`vr_show_controller_laser 1` the controller's aim (white), the weapon's shots (red) and its barrel (green);
+`vr_dumpview` prints each hand's place, angles, controller and drawn palm to four decimals; `vr_debug_grasp 1` says
+where the held thing is in the hand and whether it was solved afresh at rest. The tuning keys are per weapon:
+`vr_wofs_whole_*`, `vr_wofs_hand_only_*`, `vr_wofs_overlap`, `vr_wofs_fgr_manual`, `vr_wofs_fgr_curl_*`,
+`vr_wofs_fgr_thumb_across`, and per hotspot `vr_wofs_hsN_overlap`, `_vx/vy/vz/vpitch/vyaw/vroll`, `_manual`,
+`_curl_*`, `_thumb_across`.
+Two-handed props: `vr_rigid_place item_health main 0 3 0` with `+grabright; vr_mock_button main grip 1` puts a health
+box in the main hand; move the off hand to its other side (`vr_mock_hand off -0.19 1.30 -0.45 0 0 0` with the main
+at `0.10 1.30 -0.45`) and press its grip: `carry: both hands` (developer 1). `vr_debug_carry 2` writes the object and
+both hands every frame to `carry_trace.txt` (and prints the second hand's reach test); `vr_debug_throw 1` prints
+`throw both hands (...)`. `vr_mock_play` keyframes move both hands with their velocities (throws, turns).
+Held weapons against models (round 21): `vr_debug_model_collide 1` prints each hand's push, `2` draws the rays;
+`vr_model_collide_bench [n] [list]` times the test, `vr_model_collide_bench probe` lists the model triangles a ray along
+the view goes in and out by. `impulse 241` puts a monster (`vr_test_spawn`: the firing range dispenser's numbers) or a
+box (100 health, 101 shells) `vr_test_spawn_dist` units ahead (`vr_test_spawn_dead 1`: a corpse);
+`vr_mock_camera <x> <y> <z> <pitch> <yaw>` draws the mock eyes from elsewhere in the tracking space (a spectator's view of
+your body; the hands stay with the head), `vr_mock_camera` alone puts them back.
 
 Tuning the body: `vr_show_hip_holsters 1`, `vr_show_upper_holsters 1`, `vr_show_shoulder_holsters 1` and
 `vr_show_virtual_stock 1` mark where the holsters and the virtual stock's shoulders are (green while a hand is

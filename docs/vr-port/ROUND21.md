@@ -10,6 +10,7 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | Melee | one model for swords, axes, Mjolnir, guns and fists (`QC/vr_melee.qc`): blows by the hand's speed and 20 cm travelled, the kind by which part hit (tip along the blade = stab, far end = slash, near end = pommel), parry bash = stance held 0.5 s then pushed; your 474 takes: 420 pass (the old code: 346), at 120, 90 and 72 Hz alike |
 | Fitted hands | jointed hands (3 joints a finger, a real thumb) that close smoothly; fingers wrap what they hold (guns, blades, boxes, gibs, armour), solved on the main thread in 19–127 µs when the grip changes, 0.02 ms a hand a frame; recoil moves the hand again; hotspots (up to 4 per weapon, Grip/Blade/Cup, with a bias); Inherit From for alternate models; fingers stop at walls |
 | Weapon offsets | one transform per weapon in the hand (30 of 106 per-weapon keys retired), your placements migrated exactly |
+| Hand tuning | Weapon Offsets: hand and weapon moved together (the aim follows), the hand alone, a hotspot's held hand, overlap and manual fingers per weapon and hotspot; the controller and its lasers drawn; cups where the palm sits; the same grip every time a weapon is taken |
 | Flashlight | a straight torch held through the fist, two grips (B/Y away from a gun), clipped along the barrel, worn on the head, stored hanging from the belt; only deliberate presses take or switch it (the chest clip was grabbed by guard fists) |
 | Wrist gadget | hologram test message; messages only on the gadget (a chime from the wrist and a buzz); an FPS / CPU / GPU counter |
 | Casings | a tiny splash, ripple and plip in water, slime and lava |
@@ -1088,6 +1089,263 @@ Composites in the scratchpad's `hands2/final/`:
 - [ ] Open hand into a wall or the floor: the fingers bend, not through.
 - [ ] Pose Blend and Refit Threshold: too soft or too twitchy? The defaults are 0.12 s and 0.3 cm.
 
+## Fitted hands, third pass (tuning)
+
+Your eight notes after testing the second pass, all on the Weapon Offsets page. Branch `agent/handtune`, one commit
+each (the merge of vr-cleanup between them). Composites and numbers are in the scratchpad's `handtune/final/`.
+
+| # | Your note | What you get | Commit |
+|---|---|---|---|
+| 1 | Sliders that move the hand and the weapon together | **Hand and Weapon Together** X/Y/Z, Pitch/Yaw/Roll | `0bdb70c2` |
+| 2 | Sliders for the hand alone (the bent wrist) | **Hand Only** X/Y/Z, Pitch/Yaw/Roll | `0bdb70c2`, `88d2b828` |
+| 2 | See where the controller is | **Show Controller** | `0bdb70c2` |
+| 3 | An overlap slider per weapon and per hotspot | **Overlap** (weapon), **Overlap There** (hotspot), 0..1 | `0bdb70c2` |
+| 4 | The Cup hotspot far from where the hand ends up | A cup is now the palm's place: taken there, drawn there; your cups moved once | `0bdb70c2` |
+| 5 | Offsets for the hand once it holds a hotspot | **Held Hand** X/Y/Z, Pitch/Yaw/Roll per hotspot | `0bdb70c2`, `88d2b828` |
+| 6 | A laser to check the aim | **Show Controller Laser**: controller, shot and barrel lines | `0bdb70c2` |
+| 7 | The super nailgun grabbed on its edge, sometimes | The same grip every time, for every weapon and hotspot | `e783bda8` |
+| 8 | Turn the automatic fingers off for some weapons | **Fingers: Automatic / Manual**, per weapon and per hotspot | `c309350d` |
+
+### The Weapon Offsets page
+
+The sections, top to bottom:
+
+1. **Inherit From** (if the weapon inherits, the page edits what it inherits).
+2. **Weapon in the Hand:** Offset, Pitch/Yaw/Roll, Scale, Hide Hand. Unchanged.
+3. **Tuning Aids:** Show Controller, Show Controller Laser.
+4. **Hand and Weapon Together.**
+5. **Hand Only.**
+6. **Fingers on the Weapon:** Fingers (Automatic/Manual); with Manual, the five curls and Thumb Across; with Automatic,
+   Overlap. Then the five finger tweaks and Thumb X/Y/Z, as before.
+7. **Muzzle.**
+8. **Other Hand's Grips (Hotspots).** Per hotspot:
+   - Type, X/Y/Z (for a cup, the palm's place), Put It Where the Other Hand Is.
+   - Hand Pitch/Yaw/Roll and Thumb (as before).
+   - Fingers There (Automatic/Manual, and the curls), Overlap There.
+   - Held Hand X/Y/Z, Pitch/Yaw/Roll.
+   - Bias, Remove, Show Hotspots.
+9. **Two-Handed Aim**, **Ammo Screen**, **This Weapon** (Print Changes to Console, Reset This Weapon): as before.
+
+The positional and angle sliders go past their bar's ends (vr-cleanup's `.extend()`). The curls and the overlaps stay
+within 0..1.
+
+All the new keys are per weapon (`vr_wofs_<key>_NN`):
+
+- They go through Inherit From.
+- Print Changes to Console lists them.
+- Reset This Weapon resets them.
+- Their defaults are 0 in `vr_weapons.inc` (not written there, as for every key), except the overlaps, which default
+  to 0.3: today's fit.
+- The off hand mirrors them, as it does the weapon's own offsets.
+
+`vr_savedefaults` writes the global settings: the new aids are debug views and are not saved.
+
+| Keys | Meaning |
+|---|---|
+| `whole_x/y/z`, `whole_pitch/yaw/roll` | Hand and Weapon Together |
+| `hand_only_x/y/z`, `hand_only_pitch/yaw/roll` | Hand Only |
+| `overlap` | the weapon hand's overlap, 0..1 of a centimetre |
+| `fgr_manual`, `fgr_curl_thumb/index/middle/ring/pinky`, `fgr_thumb_across` | Fingers: Manual |
+| `hsN_overlap`, `hsN_vx/vy/vz`, `hsN_vpitch/vyaw/vroll` | per hotspot: Overlap There, Held Hand |
+| `hsN_manual`, `hsN_curl_*`, `hsN_thumb_across` | per hotspot: Fingers There |
+
+### Hand and Weapon Together (#1)
+
+- The offset is applied to the hand as tracked and calibrated, before anything else sees it (`vr_hands.cpp`). The
+  weapon is placed from that hand, so the muzzle, the aim and the melee points all move with it.
+- **The frame** is the controller's aim frame, including Gun Angle: X forward along the aim, Y left, Z up. Pitch
+  lifts the muzzle, yaw turns it left, roll rolls it. The turn is about the controller's point.
+- **For the axe:** move the hand and the axe until the drawn hand is back on the controller. Show Controller draws
+  both points and a yellow line between them.
+- **The palm fit** is worked out between the hand and the weapon, so this offset doesn't change it: hand and weapon
+  move as one.
+- **Exact:**
+  - Moving by (4, 2, −1.5) moves the muzzle by the offset turned into the aim frame, to 0.00006 units.
+  - Turning by (10, 8, 15) turns the aim by exactly that rotation (error 1e-6), and the muzzle about the controller
+    to 0.0001 units.
+  - Why the weapon had to change for this: its own Pitch/Yaw/Roll are Euler angles added to the hand's, so a turned
+    hand turns it slightly differently (0.07 units at the shotgun's muzzle). The weapon is now posed from the hand's
+    angles before this turn, then turned rigidly by it (`hands::State::wholeTurn`).
+
+### Hand Only (#2, the bent wrist)
+
+- The drawn hand alone moves and turns on the weapon. The frame is the one the weapon carries (the aim frame at
+  rest), and the turn is about the palm's middle.
+- The weapon, its muzzle and its aim stay put: the muzzle moved 0.00000 units in every test. The fingers wrap the
+  grip again where the hand now is.
+- For the bent wrist in your shotgun screenshot, Hand Pitch or Hand Roll turns the hand without touching the gun. The
+  forearm follows the drawn hand.
+- The palm is fitted at the place without this offset, and the offset then moves the fitted hand (`88d2b828`). The
+  first version searched the fit again at the new place, which pulled the hand back towards the best grip: a
+  2.45-unit offset moved it 1.7. Now (2, −1, 1) moves the palm 2.450 units (the offset's length is 2.449).
+
+### Show Controller and Show Controller Laser (#2, #6)
+
+- **Show Controller:**
+  - Each controller as tracked: its grip pose before any offset or IK.
+  - Drawn as a translucent handle (3 × 3.5 × 11 cm along the grip), a ring over its front, and its axes (red forward,
+    green left, blue up).
+  - Where the hand's own point differs (moved by Hand and Weapon Together), a yellow point joined to it.
+  - Drawn through the hands, so it shows even inside the fist.
+- **Show Controller Laser**, for a weapon held in either hand:
+  - **White**, from the controller along where it points (Gun Angle included, before the weapon's own offsets).
+  - **Red**, from the muzzle, where the shots go.
+  - **Green**, from the muzzle, along the barrel as drawn (the model's forward axis).
+  - Turn the weapon (its Pitch and Yaw) until green runs along red.
+  - Each laser ends at the wall it meets, with a dot.
+- Both are `vr_show_controller` and `vr_show_controller_laser`, not saved.
+
+### Overlap (#3)
+
+- **Overlap** (the weapon hand) and **Overlap There** (each hotspot) run 0..1:
+  - 0: the fingers and palm stop on the surface.
+  - 1: they sink in by up to a centimetre (`weapons::maxOverlapCm`).
+- The default, 0.3, is the fit you had: the global `vr_hand_fit_overlap` was 0.3 cm.
+- That global now covers held things only (boxes, gibs, the torch) and is labelled "Fit Overlap: Things".
+- Between the two hands on a cup, it is still "Fit Overlap: Hands".
+- A change solves the grasp again once, from scratch, so it can't jitter.
+
+### The Cup hotspot is where the palm sits (#4)
+
+- **The problem:** a cup's point used to be where the helping hand's grip channel was aligned round the holding
+  hand's, at the point's place along it. The hand ended up far from the point (your white ball), and the hand was
+  grabbed by distance from the controller to that point.
+- **Now:**
+  - **Placement:** a cup's X/Y/Z is where the helping hand's palm (its middle) sits. The hand is placed so, turned as
+    the holding hand is plus the hotspot's Hand Pitch/Yaw/Roll.
+  - **The grab:** by the distance from the free hand's palm to that point (`hands::State::palmLocal`, in
+    `vr_twohand.cpp` and the grip choice). The grab zone and the result coincide.
+  - **Putting one there:** "Put It Where the Other Hand Is" (and `vr_weapon_hotspot_here <n> 3`) stores the palm's
+    place.
+- **Your cups** are moved once (`vr_wofs_version` 18):
+  - The first time the weapon is held with both hands drawn, each cup's old result is worked out from its old point
+    and the holding hand's channel. The palm's place and the hand's turn are stored as the cup's X/Y/Z and Hand
+    Pitch/Yaw/Roll. The console says so.
+  - **Tested:** a round-21 cup beside the shotgun's grip, drawn by the base build and by this one after the move. The
+    weapon and the other hand, seen from the helping hand, are where they were to 0.0002 units.
+  - **The fingers differ,** because they were never reproducible. The base build closes them differently depending on
+    how the hand arrived: two approaches gave fingers up to 7 units apart. This build gives the same fingers every
+    time, within the base build's own spread.
+- **The white ball** of Show Hotspots is now at the cupped hand's palm (`cup_before_after.png`).
+
+### A hotspot's Held Hand offset (#5)
+
+- X/Y/Z and Pitch/Yaw/Roll move the helping hand's drawn pose once it holds the hotspot. They ease in with the grip.
+- The frame is the holding hand's aim frame, carried by the weapon; the turn is about the palm.
+- Visual only: where the hotspot is taken, the two-handed aim and the melee use the tracked hand.
+- Use it where the hands overlap too much on a cup. As with Hand Only, the palm is fitted without it, and it then moves
+  the fitted hand.
+
+### The same grip every time (#7)
+
+- **Measured:** ten takes of the super nailgun, switching to it from the axe with the hand at ten angles and moving.
+  - Two grips came out, by turns: the palm moved 3 cm and turned 20° onto the frame's edge (your screenshot), or it
+    didn't move.
+  - Ten takes of the shotgun's foregrip gave ten grips, their palms up to 1.3 units apart.
+- **Three causes, three fixes:**
+  1. **Where the grasp was solved.**
+     - **Cause:** it was solved from where the weapon was drawn in the hand this frame. That differs from its
+        intended place by float noise (a hundredth of a unit) and, while the hand arrives, by more. The palm's turn
+        towards "the surface its normal meets first" and the thumb's choice flip on such hairs.
+     - **Fix:** a weapon in its hand, and the other hand on a grip or cup hotspot, are solved at their place as the
+        settings define it (`Held::canonical`: worked out with the holding hand at the origin, unturned).
+  2. **Warm solves.**
+     - **Cause:** a solve started from the one before kept what it could of it, so the grip depended on the way in.
+     - **Fix:** once what the hand holds rests in it, the grasp is solved once more from scratch.
+  3. **The palm's turn.**
+     - **Cause:** the turn towards the first surface picked the super nailgun's frame.
+     - **Fix:** a weapon's grip has its palm's place searched within Palm Fit: Weapons (along the grip and the fingers,
+        flush on it) for where the fingers hold best, and never turned. Cups keep their old fit, so migrated cups look
+        as they did.
+- **Result:** ten takes of every weapon (shotgun, super shotgun, nailgun, super nailgun, grenade and rocket launchers,
+  lightning gun, sword, axe) from ten hand angles, and ten of the shotgun's foregrip. Every hand vertex was the same to
+  0.0000 units across the ten takes (`grabs_consistency.txt`).
+- **Better grips on the way** (`guns_before_after.png`): the grenade launcher, rocket launcher, lightning gun and axe
+  now wrap their grips. Before, their palm was turned 20° off them.
+- **The super nailgun** now always takes the middle, inside the frame. Its handle, as the weapon is placed in the
+  hand, lies through the fingers: they are drawn at the controller's curl there, since no curl clears it. Hand Only or
+  Fingers: Manual set it as you want it.
+- **Cost:** one solve from scratch when a weapon comes to rest in the hand: 2–3 ms for a grip searched along the
+  palm, once per take. Nothing per frame after that (see Costs).
+
+### Fingers: Automatic / Manual (#8)
+
+- **Where:** per weapon (Fingers on the Weapon > Fingers) and per hotspot (Fingers There).
+- **What Manual does:**
+  - The grasp isn't solved. Each finger stops at its curl (0 open, 1 a fist) the way a solved finger stops on what it
+    holds, so the controller's grip still opens the hand and closes it up to your pose.
+  - Thumb Across turns the thumb over the palm (up to 45°).
+  - Thumb X/Y/Z and the five finger tweaks still apply.
+  - On the weapon's own hand, the index finger still pulls with the trigger.
+  - There is no palm fit: the hand is where the weapon's offsets put it.
+- It goes through Inherit From, Print Changes and Reset, as every key does (`manual_fingers.png`).
+
+### Tests (mock headset; `handtune/final/`)
+
+- **`offsets_*.png`, `offsets.txt`:** the shotgun held level. From the side and behind: at 0, moved together, turned
+  together, hand only moved, hand only turned, with the controller and the lasers.
+- **`cup_before_after.png`:** your kind of cup, base build against this one after the move.
+- **`sng_grabs_before_after.png`**, **`guns_before_after.png`**, **`grabs_consistency.txt`**.
+- **`manual_fingers.png`:** the shotgun automatic, manual, manual with the trigger pulled; the foregrip automatic and
+  manual.
+- **`overlap.png`:** the shotgun at Overlap 0, 0.3 and 1.
+- **`menu_*.png`:** the page's sections.
+- **Motion takes:**
+  - All 474 of your takes, replayed (`vr_motion_eval`) on vr-cleanup's engine (`5c89cec1`) and on this branch's, with
+    every new slider at 0.
+  - The tables are identical, take by take: the same events, verdicts
+    and hand errors.
+  - On both, 405 of 474 pass by `expect.cfg` and 164 reproduce the hits recorded live. The rest were recorded before
+    the melee redesign, so their live hits came from the old melee code.
+- **The hands in general:**
+  - Muzzles unchanged with every slider at 0.
+  - The second pass's recoil, walls and brushing are untouched: the offsets act before them.
+
+### Costs
+
+Measured with `run.sh --exclusive` and `vr_profile`: 540 frames at 64 fps each, the main hand wobbling. The times
+are both hands together, per frame (`final/p3_*.csv`).
+
+| Scene | `hand` | of which `rig hand` | Second pass |
+|---|---|---|---|
+| Shotgun, the off hand on the foregrip | 0.046 ms | 0.020 | 0.043 / 0.023 |
+| The same with every offset set (together, hand only, held hand) | 0.052 ms | 0.023 | – |
+| The same, re-solved every frame (`vr_hand_fit_resolve 0`) | 0.110 ms | 0.083 | 0.225 / 0.204 |
+| A gib in the off hand | 0.039 ms | 0.037 | 0.031 |
+| The torch in the off hand | 0.039 ms | 0.037 | 0.034 |
+
+- **Per frame:** working out the grips' places from the settings adds 0.003 ms to both hands. The offsets add 0.006
+  ms.
+- **Every frame forced to re-solve** (`vr_hand_fit_resolve 0`) costs half what it did: a weapon's place in the hand no
+  longer changes with float noise, so there is nothing to solve again.
+- **Per take:** a weapon, or a grip hotspot, taken is solved from scratch once it rests, with its palm's place
+  searched: 2–3 ms, once. The Hand Only or Held Hand fit adds one more solve when those sliders change.
+
+### Limitations
+
+- **The super nailgun's handle** lies through the fingers at its placement (above). The weapon's offsets, Hand Only
+  or Manual fix it; I didn't change your placement.
+- **Manual fingers** have no palm fit. A weapon whose grip needed the fit (most guns move the palm 2.6–3 cm) shows the
+  hand where the offsets put it, so Hand Only goes with Manual.
+- **Held Hand and Hand Only move the drawn hand only.** The tracked hand, and the melee and grabs that use it, stay
+  where the controller is. Hand and Weapon Together moves both.
+- **Show Controller** draws the grip pose, not the controller's model. Its handle box is the size of a Touch
+  controller's grip.
+
+### In the headset
+
+- [ ] The axe: Show Controller, then Hand and Weapon Together until the drawn hand sits on the controller box. The
+      axe's head and swings should follow.
+- [ ] The shotgun's bent wrist: Hand Only Pitch/Roll a few degrees; the gun must not move (the red laser stays put).
+- [ ] Show Controller Laser: turn a gun's Pitch/Yaw until green runs along red. Does white (your controller) point
+      where you expect?
+- [ ] Overlap at 0 and 1 on a gun and on the foregrip.
+- [ ] Your cup: it should be where your hand ends up (Show Hotspots); grab it by putting your palm there. The Held
+      Hand sliders pull the hands apart.
+- [ ] The super nailgun: take it ten times; the same grip each time. If the handle through the fingers bothers you,
+      try Hand Only or Fingers: Manual.
+- [ ] Fingers: Manual on a weapon you don't like the fit on; does the trigger finger still pull?
+
 ## Wrist gadget, hologram, casings, flashlight
 
 Five of your voice notes: casings splashing into water, a test button for the hologram, messages only on the
@@ -1687,3 +1945,385 @@ the punch (`fisthit.wav`) or nothing.
 - The verdicts are the round's: hilt_pommel 23 of 27 and gun_strike_butt 9 of 17 pass. The pommel takes that fail
   read as slashes (02-44-18, 04-05-33, noted above), and they play the slash's sound.
 - Not heard: the sounds were checked by their spectra and length only, not listened to in the headset.
+
+## Two-handed props
+
+Your request: hold a physics prop with both hands at once, moving and turning naturally with both, thrown with both,
+and passed from one hand to the other without dropping it. Until now a second hand couldn't take a carried thing:
+the carry was per hand, and a carried thing isn't solid, so no hand touch reached it.
+
+### What it does
+
+- **Taking it in both hands.** While one hand carries a box, backpack, gib, head or armour, grip it with the other
+  hand. The rules are the first grip's: a grip press (not a fist moved onto it) within Carry Reach (8 cm) of its
+  drawn surface. It is then held in both hands, with a softer click and a buzz in the second hand.
+- **Moving and turning.** It follows both hands rigidly, as if held at the two places the hands took it:
+  - Move or turn both hands together (as one body) and it moves and turns exactly with them.
+  - Move one hand and it swings about the other.
+  - Twist both hands about the line between them and it rolls. One hand alone rolls it half as much.
+  - Pull the hands apart or push them together and it doesn't stretch or shrink. It stays centred between them, and
+    each drawn hand stays on its grip, up to Two-Handed Hand Drift (8 cm) off your real hand. Pulled further, the
+    drawn hand leaves its grip.
+- **Fingers.** Both hands' fingers wrap it (the fitted hands' grasp, each hand solved on its own). The second hand's
+  palm moves up to Palm Fit (5 cm) to sit on the surface where it gripped.
+- **Letting go with one hand.** The other hand keeps it, held from where it is, with no jump. The hand that let go,
+  drawn on its grip until then, eases back onto your real hand over 0.15 s. This is the hand-over: grab with the
+  other hand, let go with the first.
+- **Throwing with both.** Let go with both hands within 0.1 s of each other (Two-Handed Throw Window) and it is thrown
+  with its own motion as your hands moved it. Its velocity is that of its centre: the hands' middle, plus its spin
+  about that middle. Its spin is that of a thing held rigidly at both hands: the line between the hands turning, plus
+  the hands' own roll about that line. So a box flicked forward by both wrists tumbles forward. The usual throw rules
+  follow: throw gain, throw gravity, Box Throw Speed, the damage of a box or gib thrown hard.
+- **Holsters.** Let go at a holster with one hand while the other still holds it: it isn't taken; the other hand keeps
+  it. Only a one-handed carry puts a thing in the pack. Both hands letting go together is a throw, never a take, even
+  with a hand at a holster. With Take a Box on Trigger, either hand's trigger takes it.
+- **Armour** held in both hands is put on when you let go over your torso, as with one hand.
+
+### How it works
+
+**The pose from both hands** (`vr_carry2h.cpp`, used by the server and the client alike). When the second hand
+takes hold, three things are kept: each hand's grip in the object's frame, the object's turn in each hand, and the
+direction from the off hand's grip to the main hand's. Each frame:
+
+1. Each hand alone would carry it turned so (its turn in that hand). The two turns are averaged (a quaternion mean,
+   the two on the same side, so never degenerate).
+2. That turn is swung the least way that lines the kept grip-to-grip direction up with the line between the hands
+   now.
+3. The middle of the grips is put on the middle of the hands.
+
+When both hands move as one rigid body, this gives back that motion exactly: steps 1 and 2 then have nothing to
+average or swing. With the hands (or the grips when taken) within 3 cm of each other, there's no line to follow. The
+swing fades out between 6 and 3 cm, and the averaged turn alone is left, as one hand's. Nothing divides by a
+distance that can be zero, so no NaN.
+
+**Server** (`QC/vr_carry.qc`, `VR_Carry_TwoHandFrame`, before the hands' own frames):
+
+- A hand not carrying, with an empty hand, not force-grabbing, not holding the flashlight, pressing its grip in
+  reach of what the other hand carries (`carryreach`, the touch test's), takes hold. Both hand fields then point to
+  the thing, and `carry_2h` is set.
+- The thing goes where `carry2h` puts it. It stops at walls and monsters and is dropped when left 32 units behind, as
+  one hand's carry (`VR_Carry_Follow`, now shared).
+- One hand letting go: `VR_Carry_Regrip` gives the other hand its place and turn from where it is (no carry fit, as
+  it doesn't move).
+- Both letting go: the main hand's frame lets go of it as before (throw, armour, drop), but not into the pack.
+- A holster take needs the last two-handed hold to have ended more than the window (plus 0.05 s) before.
+
+**Client** (`vr_held.cpp`). Your held things are drawn in your hands this frame (Drawn In the Hand). Held in both
+hands (both carry stats name it), it is placed by the same solve from this frame's controllers. It is kept from where
+it was drawn when the second hand took it, so it doesn't jump. Each hand is drawn on its grip: its place moved at most
+the drift off the controller, and its turn at most 40Â° (a twist of one hand the other doesn't share). The hook in
+`vr_view.cpp` is three lines: the hand is drawn as if its controller were there, so the fist's offsets, the arm and
+the fitted fingers follow as usual.
+
+**The throw** (`vr_throw.cpp` `estimateBothAt`, `vr_client.cpp`). The client throws with its own estimate, and
+nothing new is sent. For a hand that lets go of a thing held in both hands, or held in both until the other hand let
+go at most the window before, the throw estimate it sends is the object's. From both hands' samples of the same
+frames, it builds the object's velocity and spin, as above. It then takes the peak as a one-handed throw does (the
+same window, peak averaging and fit, direction look-back). There is no lever-arm flick: the spin about the middle is
+exact. The server throws with the last hand's estimate, as ever.
+
+**Other cases:**
+
+- **Force grab** (the catch is a hand touch): it goes into a free hand as before. A hand that holds something can't
+  force-grab.
+- **Weapons:** a hand with a weapon can't take hold. A carried thing blocks weapons for both hands, as before.
+- **Gibs:** a gib held in both hands can't be struck or shot "by the other hand".
+- **Death:** new, for one hand too. What the hands carried dropped nowhere before: `PlayerPostThink` stops before the
+  hands' frames while dead, so it hung in the air, still yours, until the respawn. `VR_Carry_Dead` lets go of it with
+  the motion it had.
+- **Save and load:** the flag is saved. The kept grips aren't: they are taken again from the loaded pose at the first
+  frame.
+- **Map change:** the new server forgets the grips (`resetRigidBodies`).
+- **Multiplayer:** the server does it all per player, from the hands and throw estimates each client already sends.
+  Your client draws it from your hands, as it does your one-handed carries. Others see where the server puts it.
+  The drawn hands on their grips are local only: others see your hands where they are.
+- **vr_carry_two_hands 0:** no new two-handed holds. One already held stays until let go of.
+
+### Settings (Carrying and Gibs page)
+
+| Cvar | Default | Menu | |
+|---|---|---|---|
+| `vr_carry_two_hands` | 1 | Two-Handed Carrying | The other hand can take hold of what one carries. |
+| `vr_carry_two_hands_drift` | 8 | Two-Handed Hand Drift (0..20 cm, on to 50) | cm each drawn hand may be off your real hand to stay on its grip; 0: the drawn hands stay on your real hands. |
+| `vr_carry_two_hands_window` | 0.1 | (console) | Seconds between the two hands letting go that still make a two-handed throw (the server allows 0.05 s more for the moves' timing). |
+
+Debugging:
+
+- `vr_debug_carry 2` writes `carry_trace.txt` in the game folder, one line a frame: the object's place and turn, and
+  each hand's controller and drawn pose. With 2 or more, the second hand's reach test prints too.
+- `developer 1` prints `carry: both hands`, `carry: one hand let go, held in the other`, `carry: both hands let go`,
+  `carry: thrown at <velocity> (<speed>), spin <rad/s>`, `carry: dead, let go`.
+- `vr_debug_throw 1` also prints `throw both hands (...)`.
+
+### Costs
+
+Measured with `run.sh --exclusive` in the firing range, over 7.4 s of the hands circling and rolling (about 1840
+frames at 249 fps; `vr_profile`'s CSV, ms per frame):
+
+| | `held` (client) | `carry2h` (server) | the two hands (`hand`) | `grasp solve` |
+|---|---|---|---|---|
+| nothing held | 0.000 | - | 0.018 | - |
+| one hand (before this change) | - | - | 0.020 | - |
+| one hand | 0.001 | - | 0.020 | - |
+| both hands | 0.001 (max 0.046) | 0.000 (max 0.034) | 0.020 | none: the hands stay on their grips, so no re-solve |
+| both, pulled 12 cm apart and back again and again (past the drift) | 0.001-0.002 | 0.000 | 0.029-0.032 | 0.24 a frame, 0.008-0.009 ms a frame |
+
+The second hand's first grasp solve on the health box is a one-off 1.0 ms (`vr_grasp_bench`: 29 palm places tried,
+as the hand isn't flush yet). After that it takes 10 Âµs (median of 50). The main hand's is 19 Âµs.
+
+### Tests (mock headset)
+
+Scripted with `vr_mock_play` (keyframes on the clock: the hands report the motion's velocities), in the firing range.
+The main hand takes the thing and the off hand takes it second. The object's pose and the hands come from the trace;
+"rigid" is what a thing rigidly held would do.
+
+| Phase | Health box | Backpack | Green armour |
+|---|---|---|---|
+| Pulled apart 6 cm each: turn / drawn hands off the controllers / off their grips | 0Â° / 6.00 cm / 0.00 cm | 0Â° / 6.00 / 0.00 | 0Â° / 6.00 / 0.00 |
+| Pushed together 5 cm each | 0Â° / 5.00 / 0.00 | 0Â° / 5.00 / 0.00 | 0Â° / 5.00 / 0.00 |
+| Both roll 40Â° about the middle (rigid 40Â°) | 39.99Â° | 39.99Â° | 40.01Â° |
+| Both pitch 45Â° about the grip line (rigid 45Â°) | 45.00Â° | 45.00Â° | 45.00Â° |
+| Both yaw 45Â° about the middle (rigid 45Â°) | 45.00Â° | 45.00Â° | 45.00Â° |
+| The main hand alone twists 40Â° (half: 20Â°) | 20.00Â° | 20.00Â° | 20.00Â° |
+| The main hand alone up 15 cm (the swing about the off hand) | 27.35Â° (27.35) | 27.35Â° (27.35) | 20.56Â° (20.56) |
+
+- **The grips' middle** stays on the hands' middle in every phase held in both hands (0.00 cm).
+- **Changes of hold** (one hand, both, one, both, the hand-over to the off hand, both, thrown): the largest move of
+  the object in one frame over each change is 0.00 cm and 0.00Â°. When the thrown box leaves the hands, it moves at
+  its own speed as before. Stretched 5 cm and the off hand let go: the object stays put. The drawn main hand
+  eases back onto its controller, frame by frame: 5.00, 4.99, 4.84, 4.54, 4.12, 3.61, 3.05, 2.45, 1.86, 1.30, 0.80,
+  0.40, 0.12, 0.00 cm.
+- **Throws** (the hands 0.5 m forward and 0.2 m up in 0.2 s, 2.5 m/s; the wrists flicking 60Â° forward, 5.24 rad/s;
+  both let go together):
+
+  | | Estimate sent (object's centre) | Spin | Thrown (u/s, after the throw gain) |
+  |---|---|---|---|
+  | Health box (its centre near the grip line) | 2.80 m/s | 5.24 rad/s about the grip line | 81.1 u/s |
+  | Backpack (centre about 30 cm above the grips) | 3.94 m/s | 5.24 | 132.5 u/s |
+  | Armour (centre above the grips) | 4.01 m/s | 5.24 | 135.9 u/s |
+
+  Over the last frames held, the object's own motion (from the trace) is 2.50 m/s forward and 1.00 up with the
+  hands' middle, and it spins at 6.11 rad/s (backspin run) or 5.24 (flick) with the hands. The tall things come out
+  faster: their centre is above the hands, and a forward flick moves it forward. This is a rigid body's motion, not a
+  tuning.
+- **Hand timing:** the off hand let go 60 ms before the main: a two-handed throw ("60 ms after the other", 2.72 m/s,
+  the tumble). 250 ms before: the main hand's own one-handed throw (2.69 m/s, its own spin). Drawn in the hand off
+  (`vr_carry_local 0`): the same two-handed estimate.
+- **Holsters:** held in both, the main hand let go at the right hip holster with the off hand also at the left one:
+  "one hand let go, held in the other", not taken. The off hand alone then let go at the left hip holster: "into the
+  pack" (100 health). A shells box let go of by both at once, both hands at hip holsters: dropped, not taken. The
+  trigger (`vr_carry_take 1`) with both holding: taken ("You got the shells").
+- **Weapon hand:** the off hand holding a shotgun (Weapon Grip Mode sticky, grip pressed anew at the box): no hold.
+- **Force grab:** the main hand carrying the box, the off hand force-grabbed a floating armour and caught it; each hand
+  had its own.
+- **Walls, monsters:** the box held in both hands, pushed at a grunt: the box and the hands stop together at it.
+  Lowered to the floor: they stop on it.
+- **Degenerate hands:** the off hand took hold at the main hand's own place (grips 0 units apart). It was then held
+  by the averaged turn: turned, moved, one hand twisted, pulled 10 cm apart and back. Then a normal hold whose hands
+  passed through each other to swap sides, and back. Every value in the 2054 frames of the trace is finite. When the
+  hands cross, the thing turns over, 180° while they are within 3-6 cm of each other (about 50 ms at that speed).
+  Real hands can't pass through what they hold.
+- **Death, save, map:** killed while holding it in both hands: "carry: dead, let go", on the floor. Saved and loaded
+  while held in both: still held in both, and letting go with one hand, then taking hold again, work. A map loaded
+  while held in both: nothing held after, no error.
+- **One hand, before and after** (the baseline build against this one, the same script): the throw estimate is the
+  same, 2.69 m/s, 5.2 rad/s. The holster take is the same, "into the pack". The gib throw is 4.49 against 4.48 m/s
+  (the console-scripted hand's timing). Landing spots vary by a few units from run to run on either build (the rigid
+  body's bounces).
+- **Your motion takes:** all 474, `vr_motion_eval <folder> recorded` in vrfiringrange, before (97d098ef) and after:
+  the tables are identical take by take. 164 of 474 reproduce their live hits on both; the rest were recorded before
+  round 21's melee. The 12 of them picked for the check (punches, a stab, one- and two-palm shoves, a gun butt, parry
+  poses, a no-hit shove) reproduce their live hits, 12 of 12, on the final build.
+- Pictures (handed over with the report, not in the repository): `c_box.png`, `c_backpack.png`, `c_armour.png` (the
+  14 phases each), `c_closeup.png` (the fingers on the box: one hand, both, pulled apart, pitched).
+
+### Limitations
+
+- The grips are kept where the hands were when the second one took hold. The client keeps them from its own frame,
+  a frame after the server, so the drawn thing and the server's may differ by a frame's hand motion while held in
+  both. Let go of, the drawn thing eases to the server's place over 0.2 s, as with one hand.
+- A thing dropped when left 32 units behind a wall or monster could not be shown in the mock. The hands themselves
+  stop at walls and monsters, so the thing never falls that far behind. The code is the one-handed carry's.
+- The backpack is held where one hand's carry fit put it, well out from the fist (up to 15 cm). The second hand then
+  grips it low. That is the one-handed carry fit, unchanged.
+- Found, not changed: after loading a save, a carried box isn't drawn in the hand (with one hand too, on the base
+  build), though the server still has it there.
+- Not tried in the headset.
+
+### In the headset
+
+- [ ] Carry a box in one hand, grip its other side with the other hand: it's held in both, with a click and a buzz,
+      without moving.
+- [ ] Move both hands together, turn them together (roll, pitch, yaw): it moves and turns with them, the hands
+      staying on it.
+- [ ] Move one hand up or forward: it swings about the other. Twist one wrist alone: it rolls half as much.
+- [ ] Pull your hands a little apart, then push them together: it doesn't stretch; your drawn hands stay on it.
+      Pulled further than Two-Handed Hand Drift (8 cm), they come off it. Is 8 cm right?
+- [ ] Hand-over: carry in the right hand, grip with the left, let go with the right. The left keeps it, no jump, and the
+      right hand slides back to where your hand is.
+- [ ] Throw with both (a chest pass, an overhead throw, a flick): does it fly as your hands threw it, and tumble as
+      they turned it? Let go of one hand a little late: still a two-handed throw within 0.1 s (Two-Handed Throw Window,
+      `vr_carry_two_hands_window`).
+- [ ] At a holster: let go with one hand while the other holds it: not taken. Then let go of it with the other hand at a
+      holster: into your pack.
+- [ ] The armour in both hands, let go over your chest: worn.
+- [ ] A backpack, a gib and a head in both hands: do the fingers sit on them?
+- [ ] Die while holding something: it drops.
+## Held weapons against models
+
+Your request: a weapon you hold should not pass through monsters, other players, corpses and things on the ground,
+stopped at the model as it is drawn, not at its hitbox (Quake's boxes are much bigger than the models), with a fast
+test on the main thread. Branch `agent/wpncollide`; the code is `Quake/vr/vr_modelcollide.cpp`, hooked into the view
+by two calls. Composites and traces are in the scratchpad's `wpncollide/`.
+
+| | |
+|---|---|
+| What stops | monsters alive or dead (corpses, the training dummy), other players; with Objects, boxes, gibs, heads, backpacks, armour and weapons lying on the ground |
+| What it tests | the model's triangles as the renderer draws them this frame: its two poses and the lerp between them, its movement's lerp, its scale and the networked scale and offset |
+| What is stopped | the weapon in each hand (its own vertices), and with Hands Stop at Models the empty hand (fist or open) |
+| How it gives | a push out of the surface, eased (out in about a hundredth of a second, back in over 0.06 s); up to Model Push Limit (20 cm) all of it, deeper less and less, none at twice (it lets go) |
+| What the game reads | the tracked hands and muzzles as before: melee contacts, kinds and damage, shots, aim and two-handed grips are unchanged (your 474 takes replay exactly as before) |
+| Cost | 0.002 ms a hand with nothing near, 0.006 with a monster near, 0.006-0.010 in contact; 0.045 ms a frame in a crowd of 12 overlapping grunts with both hands among them (budget: well under 0.1) |
+
+### How it works
+
+- **The weapon.** Each hand's weapon as it was drawn last frame (its model, its pose, where it sits in the hand) is 24
+  of its own vertices, spread over it (farthest-point samples of the model's pose, made once per model and pose). The
+  test casts a ray from the hand to each of them, and one more to the hand from 16 units behind it (towards the chest):
+  the hand itself inside a model. An empty hand is its hand model (`progs/hand.mdl`) the same way.
+- **What is near.** Every entity drawn this frame with an alias or brush model, not the player, not what either hand
+  holds, and of the right kind (below). Its box as drawn (its frames' bounds, or a brush model's, placed by the
+  renderer's matrix) must meet the rays' box, grown by twice the push limit (a push moves the rays).
+- **Its triangles as drawn.** For those models only, the vertices are posed as `r_alias.c` draws them: the lerp
+  between their two poses (`R_SetupAliasFrame`, read without changing it) and the move lerp of a walking monster
+  (`R_SetupEntityTransform`), placed with `R_EntityMatrix` and the VR transforms (networked scale and offset).
+  Triangles are kept in runs of 8 under one box: a ray skips a run at once.
+- **The test.** Each ray against the triangles near it (Moller-Trumbore). Quake's models are wound clockwise seen
+  from outside (so the renderer culls `GL_FRONT`): a ray that crosses a triangle from its front goes into the model.
+  The first place a ray goes in, and the first place after it where it comes out of the same model (or its end): that
+  part of the weapon is inside, and must be moved out of the surface it went in by (a plane: its point and normal).
+  A ray that passes through a thin part (an arm) is pushed off it by the part's depth; a blade pushed into a body is
+  pushed back as deep as its tip went in.
+- **The push.** The least move out of every plane found (Gauss-Seidel, 16 sweeps at most); then the rays are tested
+  again from there, three rounds at most (a curved surface, a second model).
+- **Letting go.** Up to `vr_model_collide_max` (20 cm) the push is all of it. Deeper, it is less and less, none at
+  twice that: a monster walking into your gun, or a blade pushed far into a body, passes through smoothly instead of
+  the hand being dragged away without limit. Walls don't let go; models do, as they move.
+- **Easing.** Out in about a hundredth of a second (a time constant of 0.012 s: nearly at once, so nothing shows
+  through), back in over 0.06 s (no snap when the contact ends).
+- **Drawn only.** The view moves `s.pos` of each hand by its push before the weapons, hands, fingers and body are
+  placed (so the weapon, the hand, the fingers and the arm all move together, like the parried-blow knock) and takes
+  it back out afterwards, from the hands, the muzzles and the two-handed grips. So the server, the melee, the aim,
+  the crosshair and laser (where the shots go), the two-handed grip and holstering all read the tracked pose as
+  before. The muzzle flash's light and your beams (lightning, the grapple's rope) start at the drawn muzzle.
+
+**Melee is on the tracked pose.** A blade drawn stopped at a monster's surface still hits it as the tracked blade
+does, with the same kind and damage: the server gets the hands and muzzles it got before. (That is also why the
+walls' collision in `vr_handpose.cpp` leaves monsters out: a hand held back from a monster's box read as a new stroke,
+round 15.)
+
+**Not blocked:** the helping hand of a two-handed grip (drawn on the weapon it helps hold, which is pushed: it
+follows); a gun carried by its foregrip; a hand at a holster or passing a weapon to the other hand; a hand holding a
+thing or the flashlight; your own body (only other entities are tested). The weapon changing this frame is tested
+from the next.
+
+**Which entities.** While you host (single player), by what the server says: Monsters = `FL_MONSTER` (alive or dead)
+and `FL_CLIENT` (other players); Objects = anything else drawn with a model that lies still (moving under 150 u/s:
+not missiles, thrown or flying things), not the level's brush entities (doors, lifts, buttons: `SOLID_BSP` or bigger
+than 72 units, which the walls' collision already stops). As a client of someone else's server, by the model: brush
+models under 72 units and rotating pickups or gibs are objects, models with a missile's trail are nothing, the rest
+monsters.
+
+### Settings
+
+| Menu (Hand/Gun Calibration, "Against Monsters and Things") | Cvar | Default |
+|---|---|---|
+| Weapons Stop at Models: Off / Monsters / Monsters and Objects | `vr_model_collide` 0 / 1 / 2 | Monsters and Objects |
+| Hands Stop at Models | `vr_model_collide_hands` | on |
+| Model Push Limit (5-50 cm, left/right go on to 1-100) | `vr_model_collide_max` | 20 cm |
+
+Tools: `vr_debug_model_collide 1` prints each hand's push while a model stops it (the raw push, what is given, what
+is drawn, the entity, the models, triangles, rays, rounds and planes); `2` also draws the rays (grey where tracked,
+green where drawn, red while pushed) and the push (yellow). `vr_model_collide_bench [n] [list]` times the test of both
+hands as they are (min, median, 99th percentile, max); `vr_model_collide_bench probe` casts a ray along your view and
+lists each model triangle it goes in or out by. For tests: `impulse 241` puts a monster (`vr_test_spawn`: the firing
+range dispenser's numbers, 0 grunt, 2 zombie, 3 shambler...) or a box (100 health, 101 shells) `vr_test_spawn_dist`
+units ahead, facing you, killed at once with `vr_test_spawn_dead 1`; `vr_mock_camera <x> <y> <z> <pitch> <yaw>` draws
+the mock headset's eyes from elsewhere (a spectator's view of your body and hands; the hands stay with the head).
+
+### Costs
+
+Release build, the mock headset, `vr_profile` in exclusive runs; `vr_model_collide_bench 500` (per hand).
+
+| Case (`vr_model_collide_bench 1000`, exclusive runs) | Median | 99% | Triangles near, rounds |
+|---|---|---|---|
+| nothing near | 0.0017-0.0023 ms | 0.0028 | – |
+| a grunt near the sword, no contact | 0.0059 ms | 0.0072 | 0 (its vertices posed: its box meets the rays) |
+| a sword stopped by a grunt's chest | 0.0102 ms | 0.0131 | 138, 3 |
+| a sword stopped by a zombie | 0.0083 ms | 0.0090 | 189, 2 |
+| a fist stopped by a grunt's gun | 0.0087 ms | 0.0225 | 32, 2 |
+| a shotgun on a health box | 0.0058 ms | 0.0355 | 28, 2 |
+| a crowd: 12 grunts spawned overlapping round you, the sword deep among 5 of them, the fist near 5 | 0.020 + 0.013 ms | 0.028 + 0.019 | 473 (14 planes, pushed past the limit: let go), 7 |
+
+`vr_profile` in that crowd (exclusive, 4-second intervals): `model collide` 0.043-0.047 ms a frame for both hands,
+the worst frame of each interval 0.08-0.15 ms (the view's other scopes had their own worst frames of the same size:
+the machine's scheduling). With `vr_model_collide 0` the scope is gone. A model's triangle list and a weapon pose's
+samples are made once, at first use.
+
+### Tests (mock headset; `wpncollide/` in the scratchpad)
+
+Side views of your body with `vr_mock_camera`, before (`vr_model_collide 0`) and after (2), with the rays and the
+hitbox (`r_showbboxes 1`):
+
+- `collide_grunt.png`: a sword stabbed into a grunt's chest, and a shotgun pushed into it: through it before, stopped
+  at its surface after (4.2 and 5.2 units of push, 13 and 16 cm).
+- `collide_corpse_box.png`: a sword pushed down into a corpse (and its dropped backpack near), and a shotgun into a
+  health box on the floor: resting on them after.
+- `collide_hitbox.png`: a zombie, whose hitbox is a 32-unit box round a thin body: the sword inside the box, short of
+  the body, is not stopped (no push: nothing is hit); pushed on into its chest it is stopped at the chest.
+- `collide_fist.png`: a fist pushed into a grunt's gun: held on it, the arm with it; the rays drawn by
+  `vr_debug_model_collide 2` for the grunt and the zombie.
+- `trace_swing.txt`, `trace_swing_2.tsv`: a sword swung through the training dummy and then pushed in slowly and out
+  (`vr_mock_play swing.txt`). In the swing the blade is held out about 3.4 units for the three frames it is inside; in
+  the slow stab the push grows with the depth, holds at the limit (5.25 units at `vr_world_scale` 1), gives way to
+  none at twice that, and comes back as the blade is drawn out; the eased drawn push has no jumps. The dummy reported
+  the same blows with the collision off and on (a slash of 22-23 damage, a stab of 36.4). Scripted on the real clock,
+  these runs vary a little by themselves (three runs off: slashes of 22.7, 44 and 22, stabs of 36.3 and 36.4): the
+  exact check is the replay of your takes.
+- **Melee regression:** your 474 takes (copied), `map vrfiringrange; wait60; vr_motion_eval <copy> quit`, on the base
+  (97d098ef) and on this branch (with vr-cleanup 5c89cec1 merged, the collision on by default): 420 of 474 pass on
+  both, and the two tables are identical line for line: every take's verdict, its blows (kind, sub, hand, damage,
+  point, time), frames and hand error. (`eval_base.csv`, `eval_new.csv`.)
+- The menu: `menu.png`.
+
+### Found on the way
+
+- Quake's triangles face inwards by `cross(b - a, c - a)` (clockwise seen from outside, alias and brush models alike:
+  `vr_model_collide_bench probe` shows the first crossing of a monster as "out" with the opposite convention).
+  `vr_grasp.cpp`'s `inside()` (the free hand held out of the other hand's weapon, `vr_hand_collide`) says the nearest
+  triangle "faces away" from a point inside by that same cross product, which would make it take points just outside
+  the weapon for inside and the reverse. Not checked further and not changed here (the hand agents' file): worth a
+  look.
+
+### Limitations
+
+- A weapon is its vertices as rays from the hand: a part of a monster thinner than the gaps between them (a finger,
+  a claw tip) can poke between two rays into the weapon's side. The rays' fan covers a blade and a barrel closely.
+- A monster's pointed part pushed into the flat of a blade is found by the ray that crosses it; one that lies wholly
+  between two rays is not.
+- Only Quake's `.mdl` (and brush) models: an MD3/IQM replacement model, or a skeletal one, is not tested.
+- The laser and crosshair stay on the tracked aim (where the shots go), a few units from a gun pushed sideways.
+- Mock only: not tried in the headset.
+
+### In the headset
+
+- Poke a monster (the training dummy, a grunt from the range's buttons) with a gun and a sword: the weapon should stop
+  at its body, not at the air round it, and your hand and arm with it; a zombie or a shambler lets it much closer
+  than its box.
+- Swing through the dummy: the hits, kinds and damage should read as before (the blade is drawn held back for a
+  moment, the blow is the tracked one).
+- Push slowly on: past 20 cm (Model Push Limit) the weapon starts to sink in, and at 40 cm goes through; tell whether
+  the limit should be bigger or smaller, or whether it should never let go.
+- Rest a gun on a health box, a corpse, a backpack; an empty hand on a monster (Hands Stop at Models).
+- Hold a weapon two-handed into a monster: the helping hand should stay on it.
+- Holster and draw near a monster: nothing should change.

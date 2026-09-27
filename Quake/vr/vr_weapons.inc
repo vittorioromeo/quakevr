@@ -151,6 +151,96 @@ QVR_WEAPON_KEY(Hotspot4Style, "hs4_style")
 // "inherit all the offsets from the base model"): every key but the model's name, this one and the models' vertex
 // indices, wherever this weapon's own is still its default. The other ammo's models inherit their base's.
 QVR_WEAPON_KEY(InheritFrom, "inherit")
+// Round 21, third pass (tuning): the hand and the weapon moved and turned together, last, in the controller's aim frame
+// (x forward, y left, z up; degrees: pitch up, yaw left, roll), about the controller's point: a real placement change
+// (the muzzle, the aim and the melee points follow). As for the main hand; mirrored for the off hand.
+QVR_WEAPON_KEY(WholeX, "whole_x")
+QVR_WEAPON_KEY(WholeY, "whole_y")
+QVR_WEAPON_KEY(WholeZ, "whole_z")
+QVR_WEAPON_KEY(WholePitch, "whole_pitch")
+QVR_WEAPON_KEY(WholeYaw, "whole_yaw")
+QVR_WEAPON_KEY(WholeRoll, "whole_roll")
+// The drawn hand alone moved and turned on the weapon (the same frame; turned about the palm's middle): the weapon, its
+// muzzle and aim stay, the fingers wrap it again.
+QVR_WEAPON_KEY(HandOnlyX, "hand_only_x")
+QVR_WEAPON_KEY(HandOnlyY, "hand_only_y")
+QVR_WEAPON_KEY(HandOnlyZ, "hand_only_z")
+QVR_WEAPON_KEY(HandOnlyPitch, "hand_only_pitch")
+QVR_WEAPON_KEY(HandOnlyYaw, "hand_only_yaw")
+QVR_WEAPON_KEY(HandOnlyRoll, "hand_only_roll")
+// How far the holding hand's fingers and palm may sink into the weapon: 0 not at all (they stop on its surface) .. 1
+// a centimetre (default 0.3).
+QVR_WEAPON_KEY(GripOverlap, "overlap")
+// Per hotspot: the same overlap for the hand holding it there, and that hand's drawn pose moved and turned once it
+// holds it (the holding hand's aim frame, about the palm's middle; as for the off hand helping, mirrored for the main
+// hand): visual only, the grab and the aim unchanged.
+QVR_WEAPON_KEY(Hotspot1Overlap, "hs1_overlap")
+QVR_WEAPON_KEY(Hotspot1VisualX, "hs1_vx")
+QVR_WEAPON_KEY(Hotspot1VisualY, "hs1_vy")
+QVR_WEAPON_KEY(Hotspot1VisualZ, "hs1_vz")
+QVR_WEAPON_KEY(Hotspot1VisualPitch, "hs1_vpitch")
+QVR_WEAPON_KEY(Hotspot1VisualYaw, "hs1_vyaw")
+QVR_WEAPON_KEY(Hotspot1VisualRoll, "hs1_vroll")
+QVR_WEAPON_KEY(Hotspot2Overlap, "hs2_overlap")
+QVR_WEAPON_KEY(Hotspot2VisualX, "hs2_vx")
+QVR_WEAPON_KEY(Hotspot2VisualY, "hs2_vy")
+QVR_WEAPON_KEY(Hotspot2VisualZ, "hs2_vz")
+QVR_WEAPON_KEY(Hotspot2VisualPitch, "hs2_vpitch")
+QVR_WEAPON_KEY(Hotspot2VisualYaw, "hs2_vyaw")
+QVR_WEAPON_KEY(Hotspot2VisualRoll, "hs2_vroll")
+QVR_WEAPON_KEY(Hotspot3Overlap, "hs3_overlap")
+QVR_WEAPON_KEY(Hotspot3VisualX, "hs3_vx")
+QVR_WEAPON_KEY(Hotspot3VisualY, "hs3_vy")
+QVR_WEAPON_KEY(Hotspot3VisualZ, "hs3_vz")
+QVR_WEAPON_KEY(Hotspot3VisualPitch, "hs3_vpitch")
+QVR_WEAPON_KEY(Hotspot3VisualYaw, "hs3_vyaw")
+QVR_WEAPON_KEY(Hotspot3VisualRoll, "hs3_vroll")
+QVR_WEAPON_KEY(Hotspot4Overlap, "hs4_overlap")
+QVR_WEAPON_KEY(Hotspot4VisualX, "hs4_vx")
+QVR_WEAPON_KEY(Hotspot4VisualY, "hs4_vy")
+QVR_WEAPON_KEY(Hotspot4VisualZ, "hs4_vz")
+QVR_WEAPON_KEY(Hotspot4VisualPitch, "hs4_vpitch")
+QVR_WEAPON_KEY(Hotspot4VisualYaw, "hs4_vyaw")
+QVR_WEAPON_KEY(Hotspot4VisualRoll, "hs4_vroll")
+// Round 21, third pass: the fingers set by hand instead of wrapped by the solver (the escape hatch: 0 automatic, 1
+// manual): each finger's curl (0 open .. 1 closed) and the thumb across the palm (0 .. 1: 45 degrees), for the main hand
+// on the weapon and per hotspot for the hand holding it there. The thumb's place and the finger tweaks still apply; the
+// index finger still follows the trigger on the weapon's own hand.
+QVR_WEAPON_KEY(FingerManual, "fgr_manual")
+QVR_WEAPON_KEY(FingerCurlThumb, "fgr_curl_thumb")
+QVR_WEAPON_KEY(FingerCurlIndex, "fgr_curl_index")
+QVR_WEAPON_KEY(FingerCurlMiddle, "fgr_curl_middle")
+QVR_WEAPON_KEY(FingerCurlRing, "fgr_curl_ring")
+QVR_WEAPON_KEY(FingerCurlPinky, "fgr_curl_pinky")
+QVR_WEAPON_KEY(FingerThumbAcross, "fgr_thumb_across")
+QVR_WEAPON_KEY(Hotspot1Manual, "hs1_manual")
+QVR_WEAPON_KEY(Hotspot1CurlThumb, "hs1_curl_thumb")
+QVR_WEAPON_KEY(Hotspot1CurlIndex, "hs1_curl_index")
+QVR_WEAPON_KEY(Hotspot1CurlMiddle, "hs1_curl_middle")
+QVR_WEAPON_KEY(Hotspot1CurlRing, "hs1_curl_ring")
+QVR_WEAPON_KEY(Hotspot1CurlPinky, "hs1_curl_pinky")
+QVR_WEAPON_KEY(Hotspot1ThumbAcross, "hs1_thumb_across")
+QVR_WEAPON_KEY(Hotspot2Manual, "hs2_manual")
+QVR_WEAPON_KEY(Hotspot2CurlThumb, "hs2_curl_thumb")
+QVR_WEAPON_KEY(Hotspot2CurlIndex, "hs2_curl_index")
+QVR_WEAPON_KEY(Hotspot2CurlMiddle, "hs2_curl_middle")
+QVR_WEAPON_KEY(Hotspot2CurlRing, "hs2_curl_ring")
+QVR_WEAPON_KEY(Hotspot2CurlPinky, "hs2_curl_pinky")
+QVR_WEAPON_KEY(Hotspot2ThumbAcross, "hs2_thumb_across")
+QVR_WEAPON_KEY(Hotspot3Manual, "hs3_manual")
+QVR_WEAPON_KEY(Hotspot3CurlThumb, "hs3_curl_thumb")
+QVR_WEAPON_KEY(Hotspot3CurlIndex, "hs3_curl_index")
+QVR_WEAPON_KEY(Hotspot3CurlMiddle, "hs3_curl_middle")
+QVR_WEAPON_KEY(Hotspot3CurlRing, "hs3_curl_ring")
+QVR_WEAPON_KEY(Hotspot3CurlPinky, "hs3_curl_pinky")
+QVR_WEAPON_KEY(Hotspot3ThumbAcross, "hs3_thumb_across")
+QVR_WEAPON_KEY(Hotspot4Manual, "hs4_manual")
+QVR_WEAPON_KEY(Hotspot4CurlThumb, "hs4_curl_thumb")
+QVR_WEAPON_KEY(Hotspot4CurlIndex, "hs4_curl_index")
+QVR_WEAPON_KEY(Hotspot4CurlMiddle, "hs4_curl_middle")
+QVR_WEAPON_KEY(Hotspot4CurlRing, "hs4_curl_ring")
+QVR_WEAPON_KEY(Hotspot4CurlPinky, "hs4_curl_pinky")
+QVR_WEAPON_KEY(Hotspot4ThumbAcross, "hs4_thumb_across")
 #endif
 
 #ifdef QVR_WEAPON_DEFAULT

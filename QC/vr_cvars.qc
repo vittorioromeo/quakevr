@@ -76,6 +76,8 @@ float cvarh_vr_headshot_sound;
 float cvarh_vr_parry;
 float cvarh_vr_carry;
 float cvarh_vr_carry_take;
+float cvarh_vr_carry_two_hands;
+float cvarh_vr_carry_two_hands_window;
 float cvarh_vr_armor_wear;
 float cvarh_vr_armor_scale;
 float cvarh_vr_grab_gibs;
@@ -236,6 +238,8 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_parry);
     VR_CVAR_HMAKE(vr_carry);
     VR_CVAR_HMAKE(vr_carry_take);
+    VR_CVAR_HMAKE(vr_carry_two_hands);
+    VR_CVAR_HMAKE(vr_carry_two_hands_window);
     VR_CVAR_HMAKE(vr_armor_wear);
     VR_CVAR_HMAKE(vr_armor_scale);
     VR_CVAR_HMAKE(vr_grab_gibs);

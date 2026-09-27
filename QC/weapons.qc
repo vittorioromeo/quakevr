@@ -3210,6 +3210,43 @@ void() ImpulseCommands =
         monster_army();
         self = player;
     }
+    if(self.impulse == 241 && !deathmatch && !coop) // QVR: a monster or a box ahead, facing you (vr_test_spawn; weapons against models)
+    {
+        makevectors('0 1 0' * self.v_viewangle_y);
+        vector spawnAt = self.origin + v_forward * cvar("vr_test_spawn_dist");
+        float spawnKind = cvar("vr_test_spawn");
+        entity spawnPlayer = self;
+        entity spawned = world;
+        if(spawnKind >= 100)
+        {
+            self = spawn();
+            setorigin(self, spawnAt - '16 16 0'); // a box's origin is its corner: its middle there
+            if(spawnKind == 100) { item_health(); } else { item_shells(); }
+            spawned = self;
+        }
+        else
+        {
+            // The firing range's dispenser, as if its button were pressed (the same numbers).
+            entity dispenser = spawn();
+            dispenser.weapon = spawnKind;
+            setorigin(dispenser, spawnAt);
+            self = dispenser;
+            activator = spawnPlayer;
+            func_enemy_dispenser_use();
+            if(self != dispenser)
+            {
+                spawned = self;
+                spawned.angles_y = spawnPlayer.v_viewangle_y + 180;
+            }
+            remove(dispenser);
+        }
+        self = spawnPlayer;
+        if(spawned != world && spawnKind < 100 && cvar("vr_test_spawn_dead"))
+        {
+            spawned.takedamage = DAMAGE_AIM; // (walkmonster_start gives it a moment later)
+            T_Damage(spawned, world, world, spawned.health + 1);
+        }
+    }
     if(self.impulse == 245 && !deathmatch && !coop) // QVR: a gib in the empty off hand (held gib tests)
     {
         ThrowGib("progs/gib1.mdl", -10);
@@ -4897,6 +4934,7 @@ void() W_Frame =
         ImpulseCommands();
     }
 
+    VR_Carry_TwoHandFrame();
     VR_Carry_HandFrame(cVR_MainHand);
     VR_Carry_HandFrame(cVR_OffHand);
 
