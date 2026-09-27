@@ -7501,7 +7501,7 @@ void M_Keydown (int key, qboolean repeat)
 		return;
 
 	case m_vr: // QVR
-		VR_Menu_Key (key);
+		VR_Menu_Key (key, repeat);
 		return;
 	}
 }
