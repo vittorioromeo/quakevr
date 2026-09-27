@@ -45,14 +45,7 @@ constexpr float reach = 0.09f;         // metres from the torch's axis (tail to 
 constexpr float returnOmega = 14.f;    // the cord's pull (critically damped; home in about 0.4 s)
 constexpr float maxThrow = 3.f;        // metres per second the lamp keeps of the hand's at a release
 constexpr float gunReach = 0.12f;      // metres from the gun (its line from the hand to the muzzle) it clips on at
-constexpr float flipTime = 0.16f;      // seconds the torch takes to turn round in the fist
 
-// The fist's hole, where the grip's middle goes, from the tracked hand as vr_flashlight_hand_forward and _up leave it
-// (metres): towards the back of the hand and down along the fist, found by fitting the drawn fist (the fingers' curls
-// held open as below) round the tube: the tube centred along the four fingers and through their curl, clear of the
-// palm.
-constexpr float gripBack = 0.025f;
-constexpr float gripUp = -0.03f;
 
 // The dynamic lights' keys (entities' keys are their numbers, never negative).
 constexpr int keySpot = -0x0F1A51;
@@ -103,9 +96,8 @@ struct State
 
     // Round 21: each hand's grip, flipped with its B/Y while held away from a gun: the low grip (false: the beam out of
     // the thumb's side) or the overhead one (true: out of the little finger's side); kept for the next time that hand
-    // takes it. The flip turns the torch round in the fist over flipTime (flipAt: when it began).
+    // takes it.
     bool overhead[2]{};
-    double flipAt[2]{-10.0, -10.0};
 
     bool swallowed[2][3]{}; // [hand][Button]: a press the flashlight took, whose release it takes too
     bool gripDown[2]{};
@@ -197,22 +189,22 @@ Beam beam;
 // a pistol's aim to light ahead. In the overhead grip (B/Y flips it) the torch is the other way round in the same
 // fist, the beam out of the little finger's side: the fist raised by the head, the thumb towards the face, lights
 // ahead. The tracked hand is ahead of and above the drawn fist: vr_flashlight_hand_forward and _up move the grip's
-// middle back and down into it.
+// middle back and down into it; the drawn hand's grasp (vr_grasp.cpp) then fits the palm and fingers round the tube
+// (the palm moves 1.2-1.5 cm at the defaults, either grip, either hand).
 [[nodiscard]] Pose handPose(const hands::State& s, int hand)
 {
     glm::vec3 fwd, right, up;
     hands::angleVectors(s.rot[hand], fwd, right, up);
     const float m2u = units::metresToUnits();
-    const float back = hand == HAND_OFF ? -1.f : 1.f; // the back of the hand's side (the palm faces the other way)
-    const glm::vec3 offset = fwd * vr_flashlight_hand_forward.value + up * (vr_flashlight_hand_up.value + gripUp) +
-                             right * (back * gripBack);
+    const glm::vec3 offset = fwd * vr_flashlight_hand_forward.value + up * vr_flashlight_hand_up.value;
     Pose p = poseFromAxes(s.pos[hand] + offset * m2u, up, right, fwd);
 
-    // Flipped: half a turn about the knuckles' way (the switch stays towards them), eased over flipTime.
-    const float k = std::clamp(static_cast<float>(realtime - st.flipAt[hand]) / flipTime, 0.f, 1.f);
-    const float turned = st.overhead[hand] ? k : 1.f - k; // 0 low, 1 overhead
-    const float eased = turned * turned * (3.f - 2.f * turned);
-    p.rot = glm::normalize(p.rot * glm::angleAxis(eased * 3.14159265f, glm::vec3{0.f, 0.f, 1.f}));
+    // Overhead: half a turn about the knuckles' way (the switch stays towards them). At once, a regrip: the grasp
+    // is solved for the new hold once, not chased through a turn.
+    if(st.overhead[hand])
+    {
+        p.rot = glm::normalize(p.rot * glm::angleAxis(3.14159265f, glm::vec3{0.f, 0.f, 1.f}));
+    }
     return p;
 }
 
@@ -448,7 +440,6 @@ void letGo(const hands::State& s, const Pose& mount)
 void flip(int hand)
 {
     st.overhead[hand] = !st.overhead[hand];
-    st.flipAt[hand] = realtime;
     Con_DPrintf("flashlight: %s grip in the %s hand\n", st.overhead[hand] ? "overhead" : "low", hand == HAND_MAIN ? "main" : "off");
     sound("vr/flashlight_flip.wav", glm::vec3{0.f});
     haptic(hand, 0.025f, 0.3f);

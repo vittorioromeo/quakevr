@@ -244,8 +244,11 @@ void update(const InputState& tracked)
             const bool now = in.hands[h].*b.button;
             if(now != previous.hands[h].*b.button)
             {
-                // The off hand's upper button at the mouth records a voice note instead.
-                if(h == HAND_OFF && b.button == &HandInput::secondary && voicenotes::offhandButton(now))
+                // The off hand's upper button at the mouth records a voice note instead (not while that hand holds
+                // the flashlight: its Y turns it round in the fist, held overhead by the head too; a note's release
+                // always ends it).
+                if(h == HAND_OFF && b.button == &HandInput::secondary && (!now || !flashlight::holds(HAND_OFF)) &&
+                    voicenotes::offhandButton(now))
                 {
                     continue;
                 }
