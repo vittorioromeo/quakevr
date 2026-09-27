@@ -441,6 +441,8 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Brightness", vr_flashlight_brightness, 0.25f, 2.5f, 0.05f, "%.2fx"),
         slider("Range", vr_flashlight_range, 300.f, 2000.f, 50.f, "%.0f"),
         slider("Visible Beam", vr_flashlight_beam, 0.f, 1.f, 0.05f, "%.2f").help("A soft cone of light in the air from the lamp (0: none)."),
+        cycle("Beam Quality", vr_flashlight_beam_quality, {{0.f, "Low"}, {1.f, "Medium"}, {2.f, "High"}})
+            .help("How closely the visible beam fades where walls cut it. Higher looks for them more often, costing more time each frame."),
         toggle("Casts Shadows", vr_flashlight_shadows).help("Its light casts shadows (takes one of the shadowed dynamic lights)."),
         slider("Tilt Down", vr_flashlight_tilt, -10.f, 30.f, 1.f, "%.0f deg").help("How far below where your torso faces the clipped lamp points."),
         slider("Forward", vr_flashlight_forward, -0.05f, 0.05f, 0.005f, "%.3f m"),
