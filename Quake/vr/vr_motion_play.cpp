@@ -13,6 +13,7 @@
 
 #include "vr_motion.hpp"
 #include "vr_motion_take.hpp"
+#include "vr_motion_review.hpp"
 
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -1600,6 +1601,7 @@ void loadExpectations()
 
 struct Result
 {
+    std::string path; // the take's file
     std::string file, label, weapons, expectation, verdict, reason, replayed, recorded, same;
     int frames{0};
     double err{0.0};
@@ -1778,6 +1780,25 @@ Options evalOpts;
 int evalWait = 0;
 bool evalQuit = false; // quit the game when done (scripts)
 double evalStart = 0.0;
+std::string evalProgress; // a file told how far it is (the review's re-evaluation, vr_motion_review.cpp)
+
+void writeProgress(const std::string& text)
+{
+    if(evalProgress.empty())
+    {
+        return;
+    }
+    std::filesystem::path p = evalProgress;
+    if(p.is_relative())
+    {
+        p = std::filesystem::path{motionsDir()} / p;
+    }
+    if(FILE* f = fopen(p.string().c_str(), "wb"))
+    {
+        fputs(text.c_str(), f);
+        fclose(f);
+    }
+}
 
 void evalNext();
 
@@ -1831,6 +1852,7 @@ void fastFrames(bool on)
 void evalDone(const Report& r)
 {
     Result res;
+    res.path = evalIndex < evalFiles.size() ? evalFiles[evalIndex] : r.file;
     res.file = r.file;
     std::string label = take.label;
     res.label = label;
@@ -1861,6 +1883,7 @@ void evalDone(const Report& r)
         res.same == "no" ? va(" [live: %s]", res.recorded.c_str()) : "");
     results.push_back(std::move(res));
     evalIndex++;
+    writeProgress(va("%d/%d %s", static_cast<int>(evalIndex), static_cast<int>(evalFiles.size()), r.file.c_str()));
     evalState = Eval::Loading;
     evalWait = -1;
 }
@@ -1933,6 +1956,24 @@ void writeResults()
         Con_Printf("  %-24s %d/%d\n", label.c_str(), c.first, c.second);
     }
     Con_Printf("vr_motion_eval: the table is %s\n", f ? path.c_str() : "(could not be written)");
+
+    // Each take's verdict next to it (eval_status.csv: what Review Takes lists), from an evaluation as the takes are
+    // judged: the current melee settings, the takes' own rate, the firing range.
+    if(evalOpts.rate > 0.f || evalOpts.recorded || q_strcasecmp(evalMap.c_str(), "vrfiringrange") != 0)
+    {
+        Con_Printf("vr_motion_eval: (not the takes' verdicts: rate, recorded or another map; eval_status.csv unchanged)\n");
+    }
+    else
+    {
+        std::vector<review::Verdict> verdicts;
+        for(const Result& r : results)
+        {
+            verdicts.push_back({r.path, r.label, r.weapons, r.expectation, r.verdict, r.reason, r.replayed, r.recorded,
+                r.same, r.frames, r.err});
+        }
+        review::recordEval(verdicts);
+    }
+    writeProgress(va("done %d", static_cast<int>(results.size())));
 }
 
 void evalFrame()
@@ -1981,6 +2022,7 @@ void evalFrame()
         if(!startPlayback(evalFiles[evalIndex], evalOpts))
         {
             Result res;
+            res.path = evalFiles[evalIndex];
             res.file = std::filesystem::path(evalFiles[evalIndex]).filename().string();
             res.verdict = "ERROR";
             res.reason = "could not play";
@@ -2085,7 +2127,8 @@ void evalFrame()
     return out;
 }
 
-// vr_motion_eval [<folder, pattern or take>] [map <name>] [out <file>] [rate <hz>] [save] [recorded] [verbose] [watch] [quit];
+// vr_motion_eval [<folder, pattern or take>] [list <file>] [map <name>] [out <file>] [rate <hz>] [save] [recorded] [verbose]
+// [watch] [progress <file>] [quit];
 // vr_motion_eval stop
 void eval_f()
 {
@@ -2110,8 +2153,9 @@ void eval_f()
         Con_Printf("vr_motion_eval: plays in the mock headset only (vr_backend mock)\n");
         return;
     }
-    std::string arg;
+    std::string arg, list;
     evalOpts = Options{};
+    evalProgress.clear();
     evalOpts.quiet = true;
     evalMap = "vrfiringrange";
     evalOut.clear();
@@ -2151,6 +2195,14 @@ void eval_f()
         {
             evalQuit = true;
         }
+        else if(!q_strcasecmp(a, "list") && i + 1 < Cmd_Argc())
+        {
+            list = Cmd_Argv(++i);
+        }
+        else if(!q_strcasecmp(a, "progress") && i + 1 < Cmd_Argc())
+        {
+            evalProgress = Cmd_Argv(++i);
+        }
         else if(arg.empty())
         {
             arg = a;
@@ -2161,7 +2213,52 @@ void eval_f()
             return;
         }
     }
-    evalFiles = collectTakes(arg);
+    if(!list.empty())
+    {
+        // A file of takes, a path a line (relative: to motions/): the review's Re-evaluate.
+        std::filesystem::path lp = list;
+        if(lp.is_relative())
+        {
+            lp = std::filesystem::path{motionsDir()} / lp;
+        }
+        std::ifstream in(lp, std::ios::binary);
+        if(!in)
+        {
+            Con_Printf("vr_motion_eval: can't read %s\n", lp.string().c_str());
+            return;
+        }
+        evalFiles.clear();
+        std::string line;
+        std::error_code ec;
+        while(std::getline(in, line))
+        {
+            while(!line.empty() && (line.back() == '\r' || line.back() == ' '))
+            {
+                line.pop_back();
+            }
+            if(line.empty())
+            {
+                continue;
+            }
+            std::filesystem::path p = line;
+            if(p.is_relative())
+            {
+                p = std::filesystem::path{motionsDir()} / p;
+            }
+            if(std::filesystem::is_regular_file(p, ec))
+            {
+                evalFiles.push_back(p.string());
+            }
+            else
+            {
+                Con_Printf("vr_motion_eval: no take %s (left out)\n", p.string().c_str());
+            }
+        }
+    }
+    else
+    {
+        evalFiles = collectTakes(arg);
+    }
     if(evalFiles.empty())
     {
         Con_Printf("vr_motion_eval: no takes in \"%s\"\n", arg.empty() ? motionsDir().c_str() : arg.c_str());

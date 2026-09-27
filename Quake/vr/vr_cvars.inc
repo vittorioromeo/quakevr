@@ -180,6 +180,12 @@ QVR_CVAR(vr_motion_note, "", CVAR_NONE)            // a free note written into e
 QVR_CVAR(vr_motion_button, "0", CVAR_ARCHIVE)      // the record button: 0 the off hand's stick click, 1 the main hand's
 QVR_CVAR(vr_motion_preroll, "0.5", CVAR_ARCHIVE)   // seconds kept before the button (phase "pre": the lead-in, for the melee's trackers)
 QVR_CVAR(vr_motion_tail, "0.3", CVAR_ARCHIVE)      // seconds recorded after the button is let go (phase "tail": late events)
+// Reviewing the takes (vr_motion_review.cpp, MOTIONS.md "Reviewing failing takes"): VR Settings > Advanced > Review Takes.
+QVR_CVAR(vr_motion_review_show, "0", CVAR_ARCHIVE)      // the takes listed: 0 to review (failing or suspect, not reviewed), 1 failing, 2 suspect, 3 not evaluated, 4 reviewed, 5 all, 6 discarded
+QVR_CVAR(vr_motion_review_category, "-1", CVAR_ARCHIVE) // and of which category (-1 all; else vr_motion_category's index)
+QVR_CVAR(vr_motion_review_speed, "0.5", CVAR_ARCHIVE)   // the ghost replay's pace (1: as recorded)
+QVR_CVAR(vr_motion_relabel_category, "0", CVAR_NONE)    // Relabel: the category (vr_motion_category's index) and detail a take is given
+QVR_CVAR(vr_motion_relabel_detail, "0", CVAR_NONE)
 QVR_CVAR(vr_memstats_log, "60", CVAR_ARCHIVE)      // seconds between rows of quakevr/profile/memstats_<date>.csv (and one after each map load; 0: off)
 QVR_CVAR(vr_gadget_fps, "0", CVAR_ARCHIVE)         // QVR round 21: an FPS counter floating just under the wrist gadget: frames a second, the CPU's and the GPU's milliseconds a frame (the memory log's busy_ms and gpu_eyes_ms), over half a second
 QVR_CVAR(vr_lean_radius, "12", CVAR_ARCHIVE)          // units the head may lean from the middle of the player's box before the body follows (0: always above it)

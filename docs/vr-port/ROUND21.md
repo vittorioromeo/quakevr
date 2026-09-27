@@ -7,6 +7,7 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | Area | Result |
 |---|---|
 | Motion recorder | VR menu page: pick a category, click the off stick to start and end a take; 474 takes recorded so far. `vr_motion_play` / `vr_motion_eval` replay them on the dummy, deterministic and order-independent, ~0.7 s a take |
+| Reviewing takes | the evaluation marks each take (`motions/eval_status.csv`); Review Takes lists the failing and suspect ones, plays one as a ghost in front of the dummy in the headset, keeps, discards or relabels it (Undo Last); Re-evaluate in a second copy of the game |
 | Melee | one model for swords, axes, Mjolnir, guns and fists (`QC/vr_melee.qc`): blows by the hand's speed and 20 cm travelled, the kind by which part hit (tip along the blade = stab, far end = slash, near end = pommel), parry bash = stance held 0.5 s then pushed; your 474 takes: 420 pass (the old code: 346), at 120, 90 and 72 Hz alike |
 | Fitted hands | jointed hands (3 joints a finger, a real thumb) that close smoothly; fingers wrap what they hold (guns, blades, boxes, gibs, armour), solved on the main thread in 19–127 µs when the grip changes, 0.02 ms a hand a frame; recoil moves the hand again; hotspots (up to 4 per weapon, Grip/Blade/Cup, with a bias); Inherit From for alternate models; fingers stop at walls |
 | Weapon offsets | one transform per weapon in the hand (30 of 106 per-weapon keys retired), your placements migrated exactly |
@@ -2327,3 +2328,62 @@ hitbox (`r_showbboxes 1`):
 - Rest a gun on a health box, a corpse, a backpack; an empty hand on a monster (Hands Stop at Models).
 - Hold a weapon two-handed into a monster: the helping hand should stay on it.
 - Holster and draw near a monster: nothing should change.
+
+## Reviewing failing takes
+
+Your request: mark the takes that don't pass and give you an easy way to filter and inspect them in the game, to
+decide whether to keep them or throw them out. `MOTIONS.md`, "Reviewing failing takes", has the details.
+
+- **Marked**: `vr_motion_eval` now also writes each take's verdict into `motions/eval_status.csv` next to the takes
+  (verdict, reason, expectation, the replay's and the take's own events, when), merged across evaluations; the takes
+  themselves are never written. The melee agent's suspect takes (above) are in `quakevr/motions/suspects.cfg` (in git),
+  with the reason.
+- **Review Takes** (Advanced VR Options, under Motion Recorder): "474 takes: 54 failing, 39 suspect", how many you
+  reviewed and discarded, when they were evaluated; Show To Review / Failing / Suspect / Not Evaluated / Reviewed / All
+  / Discarded, and a Category. A row is the verdict (`*` suspect), the label, the time it was recorded and `k` / `r`
+  (kept, relabelled); under the list, why it fails and what it registered. A take's page: expected, replay and live
+  events, the reason, the suspicion; **Play Ghost**, **Keep**, **Discard** / **Restore**, **Relabel**, **Undo Last**,
+  Next / Previous Take, **Re-evaluate This Take**.
+- **The ghost**: the take replayed in front of the dummy, looping at 1x to 0.1x: its weapons and empty hands drawn
+  translucent and tinted where the take had them relative to the dummy, the weapon's line and striking points, the
+  far end's trail, the head, and the events as they happen (live ones where they hit, the replay's over the dummy).
+  Nothing is driven: it plays in the headset with your own tracking untouched.
+- **Discard / Relabel / Undo**: a discard moves the take into `motions/discarded/`; a relabel renames it to the new
+  label (same time) and changes its header's label lines, keeping the original byte for byte in
+  `motions/review/relabelled/`. Every change is in `motions/review/undo.csv`: Undo Last takes back the last one, also
+  after a restart (checked: relabel, discard and keep made in one session and undone in the next leave both takes
+  identical to yours, byte for byte).
+- **Re-evaluate**: the evaluation replaces the head's and hands' tracking and reloads the map for each take, so it
+  can't run in the game you play; the review runs a second copy of the game in the background (`-vrmock`
+  `-noconfigwrite` `-noautoexec` `-evalcopy`: the mock headset, your config and autoexec untouched, no copy of a
+  copy), with your current settings, and reads the verdicts when it quits. One take: 6 s.
+
+### Checked (mock headset, on a copy of your 474 takes)
+
+- `vr_motion_eval` on all of them: **420 of 474** pass, as on the base (the same 54 fail; the tables identical but one
+  take's hand error, 0.073 against 0.091 units, the last take of the run: no verdict or event differs).
+  `eval_status.csv` has all 474.
+- The list: To Review 54 (every suspect take fails too); Failing + Expected Slash 7. A relabel (`no_hit` 02-21-03 to
+  `palm_shove_2h`, the suspect "both open palms pushed out"), then Re-evaluate This Take: FAIL "no shove/both" (the
+  replay registers two one-hand shoves).
+- Robustness: a take renamed by hand shows `old` with its old verdict; new takes `new`; an empty or broken file
+  refuses to play with a message; an undo whose file was deleted says so and is dropped.
+- Found on the way: the engine keeps only the command line's first 256 characters for its `+` commands (a long
+  `-basedir` cut the copy's script off); and the kit's `autoexec.cfg` ran in the copy (it started a copy of its own,
+  and so on): hence `-noautoexec` and `-evalcopy`. `menu_vr <page> <row>` puts the cursor on a row (for scripts).
+
+### Limitations
+
+- The ghost's weapon is placed as a held weapon from the recorded hand pose with today's weapon offsets (the take
+  records the hand, not the drawn model); the recorded weapon line and striking points, drawn with it, are exact.
+  Empty hands are the plain hand model, not the fitted hands' pose. A gun carried by its pump isn't recorded as such.
+- Re-evaluate shares the GPU with the game in the headset: a few takes should not be noticed, a long list may drop
+  frames. Not tried in the headset.
+
+### In the headset
+
+- [ ] Firing range, Review Takes: the list, the filters, a take's page; readable?
+- [ ] Play Ghost on a failing slash and a suspect no_hit: can you tell what went wrong? Is 0.25x a good speed?
+- [ ] Keep, Discard, Relabel a few; Undo Last.
+- [ ] Re-evaluate This Take (a small window appears on the desktop, a few seconds): any hitch in the headset? Then
+      Re-evaluate Shown on a short list.

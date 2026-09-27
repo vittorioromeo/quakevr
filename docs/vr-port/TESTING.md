@@ -146,6 +146,12 @@ context and screenshot, ready to paste or to point me at.
     the near end, parry bash = hold the stance ~0.5 s then push; palm shoves (both palms harder). Melee Speed was
     reset once to 4 m/s. Tell which of your motions still misread, and record more takes of them.
   - **Motion recorder:** Advanced VR Options > Motion Recorder; keep adding takes, especially of what misreads.
+  - **Review Takes** (under Motion Recorder): the takes that fail the evaluation or are suspect (To Review). In the
+    firing range, pick one: Play Ghost replays it in front of the dummy (translucent weapons, their lines, the tip's
+    trail, the events), then Keep, Discard (into `motions/discarded/`) or Relabel it; Undo Last takes any of them
+    back. Re-evaluate This Take / Re-evaluate Shown run the evaluation in a second copy of the game in the background
+    (a small window appears; your headset view is untouched). Tell whether the ghost reads well in the headset, and
+    whether a re-evaluation drops frames.
   - **Weapons stop at monsters and things:** a gun, a sword or a fist pushed into a monster, a corpse or a box on the
     ground stops at the model as drawn (not its box), the hand and arm with it; past 20 cm it gives way (Hand/Gun
     Calibration > Against Monsters and Things). Hits are unchanged: they come from your hand.

@@ -190,6 +190,7 @@ struct Entities
     view::ViewEntity gadget;
     view::ViewEntity flashlight; // vr_flashlight.cpp
     view::ViewEntity button[2];
+    view::ViewEntity ghost[2]; // the motion review's ghost of a take's weapons (view::setGhost)
 };
 
 Entities entities;
@@ -238,6 +239,10 @@ void forEachEntity(F&& f)
         f(ve);
     }
     for(view::ViewEntity& ve : entities.worldButton)
+    {
+        f(ve);
+    }
+    for(view::ViewEntity& ve : entities.ghost)
     {
         f(ve);
     }
@@ -857,6 +862,42 @@ void showHotspots()
                 lines::point(w.pos, 2.f * w.bias, glm::vec4{colour.r, colour.g, colour.b, 0.15f});
             }
         }
+    }
+}
+
+// The motion review's ghost (view::setGhost): asked for this frame, per hand.
+struct GhostRequest
+{
+    qmodel_t* model{nullptr};
+    glm::vec3 pos{0.f};
+    glm::vec3 rot{0.f};
+    float alpha{0.5f};
+    int frame{-1}; // host_framecount it was asked for in
+};
+GhostRequest ghostRequests[2];
+
+void setupGhosts()
+{
+    for(int hand = 0; hand < 2; hand++)
+    {
+        view::ViewEntity& ve = entities.ghost[hand];
+        const GhostRequest& g = ghostRequests[hand];
+        if(g.frame != host_framecount || !g.model)
+        {
+            ve.visible = false;
+            continue;
+        }
+        // Placed as setupWeapon places a held weapon (the hand's pose, the weapon's angle offsets; no carried gun,
+        // no Hand and Weapon Together turn: a take doesn't record them), the empty hand as the fist's slot.
+        const bool mirrored = hand == HAND_OFF;
+        const int slot = isHandModel(g.model) ? weapons::fistSlot() : weapons::slotForModel(g.model);
+        const glm::vec3 wt = slot >= 0 ? weaponTurn(g.rot, slot, mirrored) : g.rot;
+        place(ve, g.model, g.pos, {-wt.x, wt.y, wt.z}, 0, mirrored);
+        ve.ent.alpha = static_cast<unsigned char>(ENTALPHA_ENCODE(CLAMP(0.05f, g.alpha, 1.f)));
+        ve.zeroBlend = 0.f;
+        ve.morph = 0.f;
+        ve.lightMultiply = true;
+        ve.lightMod = glm::vec3{1.2f, 1.7f, 2.6f}; // a bright cold tint: not the player's own
     }
 }
 
@@ -3325,6 +3366,7 @@ extern "C" void VR_SetupViewEntities()
     setupWeapon(s, HAND_MAIN, precachedModel(cl.stats[STAT_WEAPON]), cl.stats[STAT_WEAPONFRAME]);
     setupWeapon(s, HAND_OFF, precachedModel(cl.stats[STAT_QVR_WEAPONMODEL2]),
         cl.stats[STAT_QVR_WEAPONFRAME2]);
+    setupGhosts();
 
     setupHand(s, HAND_MAIN);
     setupHand(s, HAND_OFF);
@@ -3394,6 +3436,15 @@ extern "C" void VR_SetupViewEntities()
 
 namespace qvr::view
 {
+
+void setGhost(int hand, qmodel_t* model, const glm::vec3& pos, const glm::vec3& rot, float alpha)
+{
+    if(hand < 0 || hand > 1)
+    {
+        return;
+    }
+    ghostRequests[hand] = {model, pos, rot, alpha, host_framecount};
+}
 
 float fingerCurl(int hand, int finger)
 {
