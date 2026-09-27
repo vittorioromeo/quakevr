@@ -141,7 +141,21 @@ context and screenshot, ready to paste or to point me at.
 
 ## What to try
 
-- **New in this round** (details in `docs/vr-port/ROUND20.md`, your seventh batch of notes; `ROUND19.md`, the
+- **New in this round** (details in `docs/vr-port/ROUND21.md`; each section ends with an "In the headset" list):
+  - **Melee, redesigned:** swings in any direction (backswings too), stabs with the tip, pommel/butt strikes with
+    the near end, parry bash = hold the stance ~0.5 s then push; palm shoves (both palms harder). Melee Speed was
+    reset once to 4 m/s. Tell which of your motions still misread, and record more takes of them.
+  - **Motion recorder:** Advanced VR Options > Motion Recorder; keep adding takes, especially of what misreads.
+  - **Fitted hands:** fingers wrap guns, blades and objects; recoil moves the hand; two-handed grips steady (no
+    jitter); the trigger finger pulls; hotspots (Weapon Offsets) incl. the Cup pistol grip; Inherit From for the
+    alternate models. Check the thumb on pistol grips and objects held from far away (no more floating).
+  - **Flashlight:** hanging from the belt (off-hand side; reach for it, it taps and brightens), B/Y away from a gun
+    flips the grip, B/Y at the head wears it; it should never be grabbed by a guard or a punch.
+  - **Wrist gadget:** Screens > Messages (test button, messages only on the gadget), Graphics > Performance > FPS
+    Counter on the Gadget.
+  - **Casings** splash in water; **beam quality** (Flashlight section).
+
+- **Previous round** (details in `docs/vr-port/ROUND20.md`, your seventh batch of notes; `ROUND19.md`, the
   performance review):
   - **Your settings are the defaults** (graphics too), and your weapon placements (applied once to slots 1, 2, 5,
     6, 7, 9, 10, 17 and the alternates 13 to 15: check they are where you left them).
