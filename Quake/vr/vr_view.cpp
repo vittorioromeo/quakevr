@@ -25,6 +25,7 @@
 #include "vr_trace.hpp"
 #include "vr_twohand.hpp"
 #include "vr_main.hpp"
+#include "vr_modelcollide.hpp"
 #include "vr_profile.hpp"
 #include "vr_weapons.hpp"
 
@@ -2851,6 +2852,9 @@ extern "C" void VR_SetupViewEntities()
         s.visualRot[hand] += knockAngles[hand];
     }
 
+    // Held out of the models they are pushed into (vr_model_collide): the weapons, hands and arms drawn moved.
+    modelcollide::beginView(s);
+
     setupWeapon(s, HAND_MAIN, precachedModel(cl.stats[STAT_WEAPON]), cl.stats[STAT_WEAPONFRAME]);
     setupWeapon(s, HAND_OFF, precachedModel(cl.stats[STAT_QVR_WEAPONMODEL2]),
         cl.stats[STAT_QVR_WEAPONFRAME2]);
@@ -2872,6 +2876,11 @@ extern "C" void VR_SetupViewEntities()
     dripBlood(s);
     setupButton(HAND_MAIN);
     setupButton(HAND_OFF);
+    {
+        const entity_t* const drawnWeapons[2]{&entities.weapon[HAND_OFF].ent, &entities.weapon[HAND_MAIN].ent};
+        const bool drawnMirrored[2]{entities.weapon[HAND_OFF].mirrored, entities.weapon[HAND_MAIN].mirrored};
+        modelcollide::endView(s, drawnWeapons, drawnMirrored); // the game reads the tracked hands and muzzles
+    }
     for(int hand = 0; hand < 2; hand++)
     {
         s.pos[hand] -= knockPos[hand];
