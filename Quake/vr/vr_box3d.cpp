@@ -14,8 +14,8 @@
 // - Monsters and other solid boxes (SOLID_BBOX, SOLID_SLIDEBOX with a size) are kinematic boxes, Quake's; players
 //   (vr_box3d_player_push) kinematic capsules of their body's width. Kinematic bodies push props one way.
 // - Props (.vr_rigid toss and bounce entities: thrown weapons, ammo and health boxes, backpacks, armour, gibs,
-//   heads) are dynamic bodies: a convex hull of the drawn alias model's frame (weapons, backpacks, armour, gibs:
-//   they rest on their sides as drawn), a box for the brush-model boxes. Mass from the volume and a density per
+//   heads) are dynamic bodies: the convex hull of the drawn model (an alias model's frame: weapons, backpacks,
+//   armour, gibs rest on their sides as drawn; a brush model's faces: the boxes as drawn, not Quake's padded box). Mass from the volume and a density per
 //   kind. Carried ones (in a hand, or both) are kinematic, following the hand, so they push other props.
 // - Box3D is authoritative for props: their origin, angles, velocity (.velocity, the centre of mass's), spin
 //   (.vr_spin, rad/s) and sleep (FL_ONGROUND and its groundentity) are written back every frame. What QC changes
@@ -221,6 +221,7 @@ struct Slot // what one edict is in the world (by its number)
     float gravityScale{1.f};
     bool asleep{false};
     bool wet{false};      // floating: kept awake (it bobs)
+    bool bullet{false};   // fast: continuous collision against other props too
     bool brush{false};    // angles as a brush model's
 };
 
@@ -503,13 +504,10 @@ void solidLeaves(const hull_t& hull, int num, std::vector<HalfSpace>& path, floa
     return world->moverHulls.emplace(model, std::move(hulls)).first->second;
 }
 
-// The prop's hull: the convex hull of its drawn frame's vertices (an alias model), or none (nullptr: a box).
+// The prop's hull: the convex hull of its drawn surface (an alias model's frame, a brush model's faces: the ammo and
+// health boxes as drawn, not Quake's padded box), or none (nullptr: its box).
 [[nodiscard]] b3HullData* propHull(edict_t* ent, qmodel_t* model, const glm::vec3& lo, const glm::vec3& hi)
 {
-    if(model->type != mod_alias)
-    {
-        return nullptr;
-    }
     const PropHullKey key{model, static_cast<int>(ent->v.frame), {lo.x, lo.y, lo.z, hi.x, hi.y, hi.z}};
     auto it = world->propHulls.find(key);
     if(it != world->propHulls.end())
@@ -716,6 +714,17 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind)
 
     if(kind == Kind::Prop)
     {
+        // Asleep in water deeper than it floats (a map's item under water, a saved game's): it rises (as the old
+        // solver's asleep bodies are "lifted").
+        if(def.isAwake == false && sv_gravity.value > 0.f)
+        {
+            const b3AABB box = b3Body_ComputeAABB(s.body);
+            const float part = submerged(world->toU(b3Body_GetWorldCenter(s.body)), box.lowerBound.z * world->m2u, box.upperBound.z * world->m2u);
+            if(waterDensity(ent) * part > 1.02f)
+            {
+                b3Body_SetAwake(s.body, true);
+            }
+        }
         s.asleep = !b3Body_IsAwake(s.body);
         s.velocity = vec(ent->v.velocity);
         s.spin = fieldVec(ent, fields().vr_spin);
@@ -922,6 +931,15 @@ void beforeStep(float dt)
             }
         }
 
+        // Fast (a throw), its continuous collision takes in the other props too: Box3D's is only against the world
+        // and kinematic bodies otherwise, and a box thrown at 15 m/s crosses a stacked box in a step.
+        const bool fast = glm::length(vel) / world->m2u * dt > 0.2f * b3Body_GetMinExtent(s.body);
+        if(fast != s.bullet)
+        {
+            b3Body_SetBullet(s.body, fast);
+            s.bullet = fast;
+        }
+
         const b3AABB box = b3Body_ComputeAABB(s.body);
         const float lo = box.lowerBound.z * world->m2u, hi = box.upperBound.z * world->m2u;
         const float part = g > 0.f ? submerged(com, lo, hi) : 0.f;
@@ -939,10 +957,15 @@ void beforeStep(float dt)
         const bool floats = density > 1.f;
         const float halfHeight = std::max((hi - lo) * 0.5f, 0.5f);
         const float bob = floats ? 1.f + 0.04f * std::sin(static_cast<float>(qcvm->time) * 2.1f + static_cast<float>(num)) : 1.f;
-        vel.z += g * s.gravityScale * density * part * bob * dt;
-        const float stiffness = g * density / (2.f * halfHeight);
+        // The lift is a force through the step, against the gravity (Box3D's, in the same sub-steps: at rest, where
+        // they balance, nothing moves and the velocity stays nought); the drag is taken off the velocity first, over
+        // the frame (the old solver's per substep, the same per second).
+        const float gs = g * s.gravityScale;
+        const float lift = gs * density * part * bob / world->m2u; // m/s^2
+        b3Body_ApplyForceToCenter(s.body, b3Vec3{0.f, 0.f, b3Body_GetMass(s.body) * lift}, true);
+        const float stiffness = gs * density / (2.f * halfHeight);
         const float restingPart = std::min(1.f, 1.f / density);
-        const float drag = 2.4f * std::sqrt(stiffness) * std::min(1.f, part / restingPart);
+        const float drag = 2.4f * std::sqrt(std::max(stiffness, 0.f)) * std::min(1.f, part / restingPart);
         vel.z *= std::exp(-drag * dt);
         const float drift = std::exp(-1.5f * part * dt);
         vel.x *= drift;
@@ -1041,8 +1064,8 @@ void writeProp(edict_t* ent, Slot& s)
     }
     if(vr_debug_box3d.value >= 2 && !asleep)
     {
-        Con_Printf("box3d: %d at %.1f %.1f %.1f, %.0f u/s, spin %.1f rad/s\n", NUM_FOR_EDICT(ent), origin.x, origin.y, origin.z,
-            glm::length(velocity), glm::length(spin));
+        Con_Printf("box3d: %d at %.1f %.1f %.1f, %.0f u/s (%.1f %.1f %.1f), spin %.1f rad/s\n", NUM_FOR_EDICT(ent), origin.x, origin.y,
+            origin.z, glm::length(velocity), velocity.x, velocity.y, velocity.z, glm::length(spin));
     }
 }
 
@@ -1336,9 +1359,9 @@ void list_f()
     {
         const int num = NUM_FOR_EDICT(e);
         const char* body = world && num < static_cast<int>(world->slots.size()) ? kindName(world->slots[num].kind) : "-";
-        Con_Printf("  %d %s %.1f %.1f %.1f angles %.0f %.0f %.0f vel %.0f %s (%s)\n", num, PR_GetString(e->v.classname), e->v.origin[0],
+        Con_Printf("  %d %s %.1f %.1f %.1f angles %.0f %.0f %.0f vel %.0f %s (%s)%s\n", num, PR_GetString(e->v.classname), e->v.origin[0],
             e->v.origin[1], e->v.origin[2], e->v.angles[0], e->v.angles[1], e->v.angles[2], VectorLength(e->v.velocity),
-            hasFlag(e, FL_ONGROUND) ? "asleep" : "awake", body);
+            hasFlag(e, FL_ONGROUND) ? "asleep" : "awake", body, e->v.takedamage ? va(" health %.0f", e->v.health) : "");
     }
 }
 
