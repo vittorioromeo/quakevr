@@ -1241,6 +1241,84 @@ void curls(const FingerStop& stop, float curl, float engage, float out[handrig::
     }
 }
 
+bool gripChannel(const handrig::Pose& pose, glm::vec3& point, glm::vec3& dir, float& radius)
+{
+    // Each finger half closed: the circle through its three segments' middles (their middle spheres), its centre
+    // and radius; the channel the line through the centres (least squares), less the spheres' radius.
+    const Kinematics& k = kinematics();
+    constexpr float curl = 2.5f;
+    glm::vec3 centres[handrig::FingerCount];
+    int count = 0;
+    float radii = 0.f;
+    for(int f = handrig::Index; f < handrig::FingerCount; f++)
+    {
+        const float c[3]{curl, curl, curl};
+        handrig::Rigid seg[handrig::jointsPerFinger + 1];
+        handrig::fingerSegments(pose, f, c, seg);
+        glm::vec3 p[3];
+        float r = 0.f;
+        bool ok = true;
+        for(int b = 1; b <= 3; b++)
+        {
+            const std::vector<Sphere>& row = k.bone[f][b];
+            if(row.empty())
+            {
+                ok = false;
+                break;
+            }
+            const Sphere& s = row[row.size() / 2];
+            p[b - 1] = seg[b](s.c);
+            r += s.r / 3.f;
+        }
+        if(!ok)
+        {
+            continue;
+        }
+        // The circle through three points: its centre (in their plane).
+        const glm::vec3 a = p[0] - p[2], b = p[1] - p[2];
+        const glm::vec3 axb = glm::cross(a, b);
+        const float d = 2.f * glm::dot(axb, axb);
+        if(d < 1e-9f)
+        {
+            continue;
+        }
+        const glm::vec3 centre = p[2] + glm::cross(glm::dot(a, a) * b - glm::dot(b, b) * a, axb) / d;
+        centres[count++] = centre;
+        radii += (glm::distance(centre, p[0]) + glm::distance(centre, p[1]) + glm::distance(centre, p[2])) / 3.f - r;
+    }
+    if(count < 2)
+    {
+        return false;
+    }
+    point = glm::vec3{0.f};
+    for(int i = 0; i < count; i++)
+    {
+        point += centres[i];
+    }
+    point /= static_cast<float>(count);
+    glm::mat3 cov{0.f};
+    for(int i = 0; i < count; i++)
+    {
+        cov += glm::outerProduct(centres[i] - point, centres[i] - point);
+    }
+    dir = glm::normalize(centres[0] - centres[count - 1]); // from the little finger's side to the index's
+    for(int i = 0; i < 16; i++)
+    {
+        const glm::vec3 next = cov * dir;
+        if(glm::length(next) < 1e-9f)
+        {
+            break;
+        }
+        dir = glm::normalize(next);
+    }
+    if(glm::dot(dir, centres[0] - centres[count - 1]) < 0.f)
+    {
+        dir = -dir;
+    }
+    radius = std::fmax(radii / static_cast<float>(count), 0.f);
+    return true;
+}
+
 void posedSpheres(const handrig::Pose& pose, std::vector<glm::vec4>& out)
 {
     const Kinematics& k = kinematics();

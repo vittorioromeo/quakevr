@@ -113,6 +113,11 @@ void curls(const FingerStop& stop, float curl, float engage, float out[handrig::
 // The curl path's place for the controller's curl: 0..4 closing, then 5 back to 3's shape (the old frames').
 [[nodiscard]] float pathCurl(float curl);
 
+// The hand's grip channel (rig space): where a handle held in the half-closed fingers lies, the line through the
+// middles of the circles the fingers curl round (`point` on it, `dir` from the little finger's side to the index's),
+// and how thick a handle it is (`radius`). False if it can't be found.
+bool gripChannel(const handrig::Pose& pose, glm::vec3& point, glm::vec3& dir, float& radius);
+
 // The spheres the hand at `pose` is tested as (rig space; w the radius): the fingers', the palm's.
 void posedSpheres(const handrig::Pose& pose, std::vector<glm::vec4>& out);
 

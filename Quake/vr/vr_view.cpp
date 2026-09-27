@@ -1328,6 +1328,54 @@ constexpr float triggerPull[handrig::jointsPerFinger] = {0.6f, 1.4f, 1.2f};
     return t * t * (3.f - 2.f * t);
 }
 
+// The jointed hand's rig to the world for the hand at `pos` turned `handRot` (setupRigHand's placement: the entity where
+// the palm model's origin is drawn), placing `ve` there if given.
+glm::mat4 rigPlacement(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool mirrored, view::ViewEntity* ve)
+{
+    qmodel_t* const model = viewModel(handrig::modelName);
+    const weapons::ModelTransform t = weapons::modelTransform(model);
+    const float k = t.active ? t.k : 1.f;
+    const glm::vec3 ts = t.active ? t.scale : glm::vec3{1.f};
+    const glm::vec3 mBase = offsetInModel(fingerOffset(FingerBase, hand));
+    const glm::vec3 e = mBase + k * (glm::vec3{1.f} - ts) * vec3Of(handrig::data::baseScaleOrigin);
+    view::ViewEntity scratch;
+    view::ViewEntity& v = ve ? *ve : scratch;
+    place(v, model, pos + hands::redirect({e.x, mirrored ? e.y : -e.y, e.z}, handRot), {-handRot.x, handRot.y, handRot.z}, 0,
+        mirrored);
+    float m[16];
+    render::entityMatrix(v.ent, mirrored, ENTSCALE_DEFAULT, glm::vec3{0.f}, m);
+    return toMat4(m);
+}
+
+// The hand at (`pos`, `handRot`) moved and turned, the least, so that its grip channel (grasp::gripChannel: where a
+// handle lies in the curled fingers) is on the line through `on` along `axis`: turned about the channel's middle to
+// lie along it (either way), then moved onto it (to its nearest point). A blade, a cupped hand: they are then in the
+// fingers' closing reach, not beside them.
+void alignChannel(int hand, bool mirrored, const glm::vec3& on, const glm::vec3& axis, glm::vec3& pos, glm::vec3& handRot)
+{
+    glm::vec3 cp, cd;
+    float radius;
+    if(!handrig::usable(viewModel(handrig::modelName)) || !grasp::gripChannel(rigHands[hand].pose, cp, cd, radius))
+    {
+        return;
+    }
+    const glm::mat4 m = rigPlacement(hand, pos, handRot, mirrored, nullptr);
+    const glm::vec3 c{m * glm::vec4{cp, 1.f}};
+    glm::vec3 d = glm::normalize(glm::mat3{m} * cd);
+    const glm::vec3 a = glm::normalize(axis);
+    if(glm::dot(d, a) < 0.f)
+    {
+        d = -d;
+    }
+    // The least turn taking d to a (they are within 90 degrees).
+    const glm::vec3 x = glm::cross(d, a);
+    const glm::mat3 r = glm::mat3_cast(glm::normalize(glm::quat{1.f + glm::dot(d, a), x.x, x.y, x.z}));
+    handRot = basisAngles(r * anglesBasis(handRot));
+    pos = c + r * (pos - c);
+    const glm::vec3 target = on + a * glm::dot(c - on, a);
+    pos += target - c;
+}
+
 // `motion`: the held weapon's firing animation, moving the drawn hand after its grasp (solved without it).
 bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool mirrored, bool hide, const Held& held,
     const glm::mat4& motion)
@@ -1364,13 +1412,9 @@ bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
     rh.pose.metacarpal = glm::quat{1.f, 0.f, 0.f, 0.f};
 
     view::ViewEntity& ve = entities.hand[hand][FingerBase];
-    place(ve, model, pos + hands::redirect({e.x, mirrored ? e.y : -e.y, e.z}, handRot), {-handRot.x, handRot.y, handRot.z}, 0,
-        mirrored);
+    const glm::mat4 rigToWorld = rigPlacement(hand, pos, handRot, mirrored, &ve);
 
     // The fingers: the controller's curls (as the six models'), or wrapping what the hand holds.
-    float rigMatrix[16];
-    render::entityMatrix(ve.ent, mirrored, ENTSCALE_DEFAULT, glm::vec3{0.f}, rigMatrix);
-    const glm::mat4 rigToWorld = toMat4(rigMatrix);
     updateGrasp(hand, held, rigToWorld, k * ts.x);
     rh.held = held;
     rh.rigToWorld = rigToWorld;
@@ -1577,7 +1621,14 @@ void setupHand(const hands::State& s, int hand)
             s.rot[other] + weaponAngleOffsets(fist, other == HAND_OFF), bladePos, bladeRot))
     {
         // Holding the other hand's sword by its blade (round 18): on the blade where the hand is,
-        // turned (the least turn) to close round it.
+        // turned (the least turn) to close round it; its fingers' channel on the blade (round 21, second pass: the
+        // blade lay beside the fingers, the author's "very far away from the blade").
+        if(s.muzzleValid[other])
+        {
+            const glm::vec3 hilt{entities.weapon[other].ent.origin[0], entities.weapon[other].ent.origin[1],
+                entities.weapon[other].ent.origin[2]};
+            alignChannel(hand, mirrored, hilt, s.muzzle[other] - hilt, bladePos, bladeRot);
+        }
         pos = glm::mix(pos, bladePos, gripBlend);
         handRot = bladeRot;
         hide = false;
@@ -1589,6 +1640,7 @@ void setupHand(const hands::State& s, int hand)
         hide = false;
         motion = partMotion(animationMotion(entities.weapon[other], s.grip2H[other]), gripBlend, s.grip2H[other]);
 
+        bool cupped = false;
         if(twohand::helping(hand) && otherSlot >= 0)
         {
             // A grip: the weapon's fixed-hand angles; a cup: turned as the holding hand is. Then the hotspot's own.
@@ -1611,10 +1663,25 @@ void setupHand(const hands::State& s, int hand)
             {
                 offsets += weaponAngleOffsets(fist, mirrored); // the hand's own, as the holding hand's
             }
+            cupped = cup;
             // The weapon hand's angles and the grip's, without the fist's own angle offsets (old engine's
             // V_SetupFixedHelpingHandViewEnt), carried rigidly by the weapon (attachedTurn), turned onto it as the
             // hand takes the grip.
-            const glm::vec3 attached = attachedTurn(s.rot[other], otherSlot, other == HAND_OFF, offsets);
+            glm::vec3 attached = attachedTurn(s.rot[other], otherSlot, other == HAND_OFF, offsets);
+            // A cup: its channel round the holding hand's (the holding hand drawn this frame, or the last for the
+            // off hand holding: it is set up after), where the hotspot puts it along it.
+            if(cupped && rigHands[other].drawn)
+            {
+                glm::vec3 cp, cd;
+                float radius;
+                if(grasp::gripChannel(rigHands[other].pose, cp, cd, radius))
+                {
+                    const glm::mat4& om = rigHands[other].rigToWorld;
+                    glm::vec3 at = s.grip2H[other];
+                    alignChannel(hand, mirrored, glm::vec3{om * glm::vec4{cp, 1.f}}, glm::mat3{om} * cd, at, attached);
+                    pos = glm::mix(s.pos[hand], at, gripBlend);
+                }
+            }
             const glm::quat from = glm::quat_cast(anglesBasis(handRot)), to = glm::quat_cast(anglesBasis(attached));
             handRot = basisAngles(glm::mat3_cast(glm::slerp(from, to, gripBlend)));
         }
