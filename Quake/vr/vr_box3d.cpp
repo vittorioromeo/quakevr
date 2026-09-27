@@ -984,15 +984,17 @@ void beforeStep(float dt)
         const float halfHeight = std::max((hi - lo) * 0.5f, 0.5f);
         const float bob = floats ? 1.f + 0.04f * std::sin(static_cast<float>(qcvm->time) * 2.1f + static_cast<float>(num)) : 1.f;
         // The lift is a force through the step, against the gravity (Box3D's, in the same sub-steps: at rest, where
-        // they balance, nothing moves and the velocity stays nought); the drag is taken off the velocity first, over
-        // the frame (the old solver's per substep, the same per second).
+        // they balance, nothing moves and the velocity stays nought). The drag is on the velocity before the step, so
+        // that after the step's lift and gravity it is the old solver's: the drag on (velocity + lift - gravity),
+        // which gives the same terminal speed up or down (a box that dived deep rises as fast as before).
         const float gs = g * s.gravityScale;
         const float lift = gs * density * part * bob / world->m2u; // m/s^2
         b3Body_ApplyForceToCenter(s.body, b3Vec3{0.f, 0.f, b3Body_GetMass(s.body) * lift}, true);
         const float stiffness = gs * density / (2.f * halfHeight);
         const float restingPart = std::min(1.f, 1.f / density);
         const float drag = 2.4f * std::sqrt(std::max(stiffness, 0.f)) * std::min(1.f, part / restingPart);
-        vel.z *= std::exp(-drag * dt);
+        const float e = std::exp(-drag * dt);
+        vel.z = vel.z * e + (e - 1.f) * (gs * density * part * bob - gs) * dt;
         const float drift = std::exp(-1.5f * part * dt);
         vel.x *= drift;
         vel.y *= drift;
