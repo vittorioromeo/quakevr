@@ -3,39 +3,52 @@
 ## Motion recorder
 
 Your proposal: record your own motions, each labelled with what it should do, so that the melee can be tuned
-against them. Recording is in (playback and evaluation follow): `docs/vr-port/MOTIONS.md` has the steps, the
-categories and every column.
+against them, replayed in the mock headset. `docs/vr-port/MOTIONS.md` has the steps, the categories, every column,
+playback, the evaluation and the synthetic takes.
 
 - **Where**: VR Settings > Advanced VR Options > **Motion Recorder** (under Melee). Pick the **Category** (named by
-  the result expected: Expected Slash, Expected Stab, No Hit, Expected Bash, Expected Parry Pose, Expected Parry Bash,
-  Expected Hilt/Pommel, Expected Punch, Expected Palm Shove 1H / 2H, Expected Gun Strike, Other) and optionally a
-  **Detail** (the swing's direction, the weapon, ...), turn **Arm Recorder** on, go back to the game.
+  the result expected: Expected Slash, Expected Stab, No Hit, Expected Bash, Expected Parry Pose, Not Parry Pose,
+  Expected Parry Bash, Expected Hilt/Pommel, Expected Punch, Expected Palm Shove 1H / 2H, Expected Gun Strike, Other)
+  and optionally a **Detail** (the swing's direction, the weapon, ...), turn **Arm Recorder** on, go back to the game.
 - **Recording**: in the firing range, in front of the training dummy, **click the off hand's stick** to start a
   take (a beep, a buzz, "REC slash #4" in view), do the motion, **click again** to end it ("SAVED slash #4 (slash:
   4)"). Many in a row: the category stays chosen, and each take is a new file,
   `quakevr/motions/<label>_<date>_<time>.csv`, counted per category in the menu (the files, so across sessions).
-  **Delete Last Take** in the menu moves a bad one into `motions/discarded/`. A double click (under 0.2 s) is not
-  kept (a buzzer).
+  **Delete Last Take** moves a bad one into `motions/discarded/`. A double click (under 0.2 s) is not kept (a
+  buzzer). A take that can't be written says so loudly and is kept in memory (`vr_motion_save_unsaved`).
 - **What a take holds**, every frame at the headset's rate: the head and both hands as the runtime reported them
-  (positions, orientations, velocities) and as the game placed them, in the world, relative to you (as you faced
-  at the start) and relative to the dummy; the buttons, the analog trigger and grip, the fingers; what each hand
-  holds, the two-handed grip, the weapon's far end, its striking points and its handle's end as the melee computes
-  them (a sword's pommel and hilt, the axe's and the hammer's handle); your position, velocity, yaw and view; the
-  dummy's position, angles, box and class; the parry and bash-guard state; and every melee event the game
-  registered (hits with their damage, kind and striking point, strokes, pushes, parries, batting). 0.5 s before the
-  click is kept too (the lead-in) and 0.3 s after (late hits).
-- **The button**: the off hand's stick click is the one control free during melee on every controller (Touch
-  through SteamVR or VDXR, Index, Vive, WMR); while the recorder is armed it doesn't run (its binding rests).
-  `vr_motion_button 1` uses the main hand's instead.
-- Console: `vr_motion_list` (the counts), `vr_motion_note "..."` (a note in each take's header: the Other
-  category's description), `vr_motion_record <label>` / `vr_motion_stop`.
+  and as the game placed them, in the world, relative to you and relative to the dummy; the buttons, the analog
+  trigger and grip, the fingers; the weapons, the two-handed grip, the striking points and the handle's end as the
+  melee computes them; your position (the client's and the server's), velocity, yaw and view; the dummy's position,
+  angles, box and class; the parry and bash-guard state; every melee event the game registered (hits with their
+  damage, kind and striking point, strokes, pushes, parries, batting); every setting that places the hands and the
+  weapons, and the melee's. 0.5 s before the click (the lead-in) and 0.3 s after (late hits) too.
+- **The button**: the off hand's stick click, the one control free during melee on every controller (Touch
+  through SteamVR or VDXR, Index, Vive, WMR); while armed its binding (run) rests. `vr_motion_button 1`: the main
+  hand's.
 
-Tested in the mock headset (firing range, the dummy 14 units away, a sword swung one-handed and two-handed through
-`vr_mock_play`): takes start and end on the clicks, a double click is dropped, the files hold every column
-(`MOTIONS.md`), the striking points and weapon lines follow the sword, the two-handed grip is recorded, and the
-dummy's hit ("melee: overhead blow with mid-blade") is in the take's events.
+**Playback** (`vr_motion_play <take>`, mock headset): the take's tracking and controls frame by frame at its
+recorded frame times, the server frames where they ran, the settings as recorded, the player put where the take has
+them relative to the dummy, weapons and grips (two-handed too) taken again, then a report against the take's own
+events. **Evaluation** (`vr_motion_eval [folder|pattern]`): every take in the map loaded afresh, judged against
+`quakevr/motions/expect.cfg`, a table in `motions/eval_<date>.csv`; deterministic (two runs write the same table)
+and about 1.6 s a take. `Misc/quakevr/motion_synth.py` writes synthetic takes from curves.
 
-**Send me** the `quakevr/motions` folder (without `discarded/`) once you have some takes.
+**Checked on your 398 takes** (Quest 3, VDXR, 120 Hz, world scale 1.25), replayed with their own settings
+(`vr_motion_eval ... recorded`): **383 register exactly the hits they registered live** (the same kind, hand,
+target, striking point, damage and time): all 82 recorded with the full settings header, and 301 of the 316 before
+it (their weapon offsets taken from your config). The 15 others are mostly guns swung as clubs (a hit with "the
+grip" appears or vanishes), whose placement in the hand the round's fitted hands changed after they were recorded.
+The replayed hands stay within 0.1 units (3 mm) of the take's, relative to the dummy, median; 0.6 units (2 cm) at
+the 95th percentile.
+
+What today's melee makes of them (your settings, against `quakevr/motions/expect.cfg`), for the melee's rework:
+palm shoves 17/17, punches 24/28 (most "punches" register as slaps or overhead blows), gun strikes 30/35, slashes
+117/133, parry poses 48/55, no hit 24/39, and no stab (1/28: thrusts or swings), hilt/pommel strike (0/27) or parry
+bash (0/36) registers as such. Resampled at 72 Hz (`rate 72`), 2 of 8 punches change kind: the melee is frame-rate
+sensitive.
+
+Keep recording as you were; the takes are sufficient for exact replays.
 
 ## Fitted hands
 

@@ -49,6 +49,11 @@ namespace
 
 void evalFrame();
 
+// The evaluation's map loads run on fixed frames too (a server frame with each, at 72 Hz), from the "map"
+// command to the take: every take starts at the same server time, in the same state, whatever the machine
+// (the QC's 32-bit floats and its entities' think times depend on the absolute time).
+bool fixedLoading = false;
+
 // ----------------------------------------------------------------------------
 // Reading a take
 // ----------------------------------------------------------------------------
@@ -68,6 +73,8 @@ struct Frame
     // (units), and the melee's events (their `at` in the player's frame).
     bool hasD{false};
     glm::vec3 handD[HAND_COUNT]{};
+    bool hasW{false};                 // world, with the monster's origin
+    glm::vec3 handW[HAND_COUNT]{};
     glm::vec3 headD{0.f};
     std::vector<Event> events;
 
@@ -290,6 +297,11 @@ struct Take
                 take.hasWeapons = true;
                 fr.wid[h] = static_cast<int>(num(p + "wid", 0.0));
                 fr.wflags[h] = static_cast<int>(num(p + "wflags", 0.0));
+            }
+            if(has((p + "pos_w_x").c_str()))
+            {
+                fr.hasW = true;
+                fr.handW[h] = vec(p + "pos_w_x", p + "pos_w_y", p + "pos_w_z");
             }
             if(has((p + "pos_d_x_u").c_str()))
             {
@@ -709,9 +721,9 @@ void workOutPlacement(edict_t* player)
 
     if(f0.hasMon && f0.hasMonW && f0.hasOrg && !opts.yawSet && f0.monClass == report.targetClass)
     {
-        // The same kind of target: as recorded, turned by the targets' difference (none for the dummy of
-        // the same map).
-        delta = std::remainder(tYaw - f0.monYawW, 360.f);
+        // The same kind of target: as recorded, moved with it but not turned (its box doesn't turn: the
+        // training dummy's yaw changes as it is hit, which must not turn the take about it).
+        delta = 0.f;
         placeOrigin = tOrigin + hands::rotateYaw((f0.hasSvOrg ? f0.svOrg : f0.org) - f0.monW, delta);
     }
     else
@@ -1046,10 +1058,10 @@ void stopPlayback(const char* why)
         Con_Printf("vr_motion_play: load a map first (map vrfiringrange)\n");
         return false;
     }
-    // A take without the server's origin (recorded before it was) whose player is moving as it starts
-    // (pushed back by the last shove, a step): the client's origin lags the server's a little, so it
-    // starts where the player stood still for a few frames in its lead-in instead.
-    if(!t.frames.front().hasSvOrg && t.frames.front().hasVel && glm::length(t.frames.front().velPF) > 0.f)
+    // A take whose player is moving as it starts (walking into place with the stick, pushed back by the last
+    // shove): starting it in motion can't be exact (the client's origin lags the server's, the move of the
+    // first frame's server frame), so it starts where the player stood still for a few frames in its lead-in.
+    if(t.frames.front().hasVel && glm::length(t.frames.front().velPF) > 0.f)
     {
         for(size_t i = 3; i < t.firstRec; i++)
         {
@@ -1211,6 +1223,10 @@ bool playWantsSamples()
 double hostFrameTime(double time)
 {
     double dt = time;
+    if(state == State::Idle && fixedLoading)
+    {
+        return setupDt;
+    }
     if(state == State::Setup || state == State::Post)
     {
         dt = setupDt;
@@ -1240,7 +1256,7 @@ double hostFrameTime(double time)
 
 int serverFrameOverride(double& frametime)
 {
-    if(state == State::Setup || state == State::Post)
+    if(state == State::Setup || state == State::Post || (state == State::Idle && fixedLoading))
     {
         frametime = setupDt;
         return 1;
@@ -1399,14 +1415,16 @@ void playFrameEnd(std::vector<Event>& events, bool tick, double svDt)
                     report.replayedT.push_back(post ? f.t + postElapsed : f.t);
                 }
             }
-            // The hands relative to the dummy, against the take's.
-            if(!post && f.hasD && r.sv && r.sv->monster)
+            // The hands relative to the target, against the take's: from its origin, in the world's axes turned
+            // as the take was (a synthetic take's: in the dummy's frame).
+            if(!post && (f.hasW ? f.hasMonW : f.hasD) && r.sv && r.sv->monster)
             {
                 const ServerSample& sv = *r.sv;
                 for(const int h : {HAND_MAIN, HAND_OFF})
                 {
-                    const glm::vec3 d = hands::rotateYaw(r.hands[h].pos - sv.monOrigin, -sv.monAngles.y);
-                    const double e = glm::distance(d, f.handD[h]);
+                    const double e = f.hasW
+                        ? glm::distance(r.hands[h].pos - sv.monOrigin, hands::rotateYaw(f.handW[h] - f.monW, delta))
+                        : glm::distance(hands::rotateYaw(r.hands[h].pos - sv.monOrigin, -sv.monAngles.y), f.handD[h]);
                     report.errMax[h] = std::max(report.errMax[h], e);
                     report.errSum[h] += e * e;
                 }
@@ -1763,6 +1781,53 @@ double evalStart = 0.0;
 
 void evalNext();
 
+// developer 0 while a map loads (the user's value kept, and put back).
+bool quiet = false;
+std::string userDeveloper;
+void quietLoad(bool on)
+{
+    cvar_t* developer = Cvar_FindVar("developer");
+    if(!developer || on == quiet)
+    {
+        return;
+    }
+    quiet = on;
+    if(on)
+    {
+        userDeveloper = developer->string;
+        Cvar_SetQuick(developer, "0");
+    }
+    else
+    {
+        Cvar_SetQuick(developer, userDeveloper.c_str());
+    }
+}
+
+// host_maxfps raised while evaluating: the frames' game time is the takes' own (hostFrameTime), so only the
+// wall clock between them changes (the server stays at 72 Hz: host_maxfps is above 72 either way).
+std::string userMaxfps;
+void fastFrames(bool on)
+{
+    cvar_t* maxfps = Cvar_FindVar("host_maxfps");
+    if(!maxfps)
+    {
+        return;
+    }
+    if(on && userMaxfps.empty())
+    {
+        userMaxfps = maxfps->string;
+        if(maxfps->value > 72.f && maxfps->value < 1000.f)
+        {
+            Cvar_SetQuick(maxfps, "1000");
+        }
+    }
+    else if(!on && !userMaxfps.empty())
+    {
+        Cvar_SetQuick(maxfps, userMaxfps.c_str());
+        userMaxfps.clear();
+    }
+}
+
 void evalDone(const Report& r)
 {
     Result res;
@@ -1802,6 +1867,9 @@ void evalDone(const Report& r)
 
 void writeResults()
 {
+    fixedLoading = false;
+    quietLoad(false);
+    fastFrames(false);
     std::string path = evalOut;
     if(path.empty())
     {
@@ -1888,7 +1956,11 @@ void evalFrame()
                 }
                 return;
             }
-            // Each take in the map loaded afresh: the same start every time.
+            // Each take in the map loaded afresh: the same start every time. Quietly (developer 0: a load's
+            // thousands of "can't find" lines for textures cost seconds); the take plays at the user's.
+            quietLoad(true);
+            fixedLoading = true;
+            std::srand(1);
             Cbuf_AddText(va("map %s\n", evalMap.c_str()));
             evalWait = 0;
             return;
@@ -1903,6 +1975,8 @@ void evalFrame()
             return;
         }
         evalState = Eval::Playing;
+        quietLoad(false);
+        fixedLoading = false;
         onDone = evalDone;
         if(!startPlayback(evalFiles[evalIndex], evalOpts))
         {
@@ -2099,6 +2173,10 @@ void eval_f()
     evalState = Eval::Loading;
     evalWait = -1;
     evalStart = Sys_DoubleTime();
+    if(!evalOpts.watch)
+    {
+        fastFrames(true);
+    }
     Con_Printf("vr_motion_eval: %d takes, each in %s\n", static_cast<int>(evalFiles.size()), evalMap.c_str());
 }
 

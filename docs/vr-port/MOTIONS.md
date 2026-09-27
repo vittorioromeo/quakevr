@@ -266,12 +266,14 @@ absolute path (`.csv` optional).
    set as the take has them (`vr_world_scale`, `vr_height_calibration`, `vr_floor_offset`, the hand angles, the grip
    and two-handed settings, the lean, the body, the weapons' offsets: the header's `settings` and `weapon settings`
    lines, or for the first takes their older lines), and put back afterwards. The player is put where the take has
-   them relative to its monster: the same offset from the map's monster of the same class (the training dummy),
-   turned by the difference of the two monsters' yaws (none for the same dummy of the same map), so the geometry of
-   the contacts is the take's. A spot in solid (a take recorded in noclip) lifts the player until it is free. The
+   them relative to its monster: the same offset from the map's monster of the same class (the training dummy), not
+   turned (a monster's box doesn't turn, and the dummy's yaw changes as it is hit), so the geometry of the contacts is
+   the take's; another kind of target (or `yaw`), the take turned so the player faces its front. A spot in solid (a take recorded in noclip) lifts the player until it is free. The
    main hand's grip is pressed, the weapons given (QC `VR_Motion_Equip`: the recorded weapon ids and flags), the off
    hand's grip pressed (the two-handed grip is taken again), then every control as the take starts, and the player
-   set moving as the take starts (its velocity and, in takes from after the first ones, the server's own origin).
+   set moving as the take starts (its velocity and, in takes from after the first ones, the server's own origin). A
+   take whose player is still moving as it starts (walking into place, pushed back) starts later in its lead-in,
+   where the player stood still for a few frames, when there is such a moment.
 2. **Play**: frame by frame, the take's tracking (the `raw_*` columns: head and hands, velocities) and controls (`*_buttons`,
    the analog trigger and grip, the thumb, the sticks; never the menu button) replace the mock's, each host frame
    lasting the take's `dt`, the server running exactly where it ran in the take (`sv_tick`, `sv_dt`), the play space
@@ -282,10 +284,15 @@ absolute path (`.csv` optional).
 3. **After** it, 0.3 s holding the last pose (late events), then a report: the take's events and the replay's
    (from the take's start; strokes left out), how many of the hits match (the same kind, sub, hand, target and
    striking point; their damage and time differences), and how far the replay's hands were from the take's,
-   relative to the dummy.
+   relative to the target (from its origin; a synthetic take's in the dummy's frame).
 
 `rand()` is seeded the same at each start, the setup runs a server frame with every host frame at 72 Hz, and the play
-follows the take's frames: a replay is the same every time.
+follows the take's frames: a replay is the same every time. `vr_motion_eval` goes further: from its `map` command to
+the take, every frame is a fixed 1/72 s with a server frame (and `rand()` seeded before the load), so each take starts
+at the same server time in the same state; two evaluations of the same takes write the same table, digit for digit
+(checked: the replays' 386 columns identical but `t`'s last digit, from the engine's absolute clock). The map loads
+run at `developer 0` (their thousands of "can't find" texture lines cost seconds), the takes at yours, and
+`host_maxfps` is raised to 1000 meanwhile (the game time is the takes' own either way): about 1.6 s a take.
 
 Options: `target <classname|#entity>` (another target), `yaw <degrees>` (the player's heading: another placement),
 `rate <hz>` (the take resampled at another headset's frame rate: poses slerped, velocities interpolated, the server
