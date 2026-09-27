@@ -142,6 +142,11 @@ context and screenshot, ready to paste or to point me at.
 ## What to try
 
 - **New in this round** (details in `docs/vr-port/ROUND21.md`; each section ends with an "In the headset" list):
+  - **Items as physics pickups** (ROUND21.md, "Items as physics pickups; sinking; spinning shapes"): grip a hanging
+    weapon (it is yours at once) or knock it with an open hand (it falls); grip or force-grab a key, the biosuit or a
+    rune and let go of it at a hip or shoulder holster to take it (a key you have knocks and drops); powerups as
+    before. Carrying and Gibs > Armour and Pickups > Weapons and Keys turns it off. In the firing range the weapons on
+    the tables should lie on them, none cut by the table top; Show Physics Shapes: hanging items' outlines turn with them.
   - **After the posing test** (ROUND21.md, "After the posing test"): hold a gun into a monster's head and fire (a
     headshot now); while posing, the hand passes through the weapon (the solved grip shows for 1.5 s after A/X);
     Weapon Offsets > Tuning Aids: Show Controller is drawn in your palm as a Quest 3 controller, **Controller Preview**
@@ -615,6 +620,13 @@ over 1 ms with Box3D's profile; 2: every awake body every frame; 3: frames over 
 slow frames). `vr_physics_blast <x> <y> <z> [<damage>]` sets off an explosion there (QC's `T_RadiusDamage` from the
 world, 120 by default, and its effect): monsters take it, props are thrown (Box3D). `vr_forcegrabbable_return 0` keeps
 moved items from going back to their places during a long test.
+Items as physics pickups (ROUND21.md): `vr_physics_spawn <classname> [<distance> [<left>]]` makes a map entity by its
+spawn function on the floor ahead of you (`vr_physics_spawn item_key1 25 -1` puts a hanging key at the off hand's
+`vr_mock_hand off -0.05 0.85 -0.9 0 0 0` in the firing range); the left hip holster is `vr_mock_hand off -0.20 0.95 0.0 0
+0 0`; `developer 1` prints `pickup:` lines (an object at, taken as a weapon, taken at a holster, back at).
+`vr_physics_sink [what]` measures how far props' drawn models are in the floor (and their shapes against the drawn);
+with `vr_debug_box3d 1`, `vr_physics_list` prints movetype, solid, rigid and flags. The firing range has no deathmatch
+starts (`SelectSpawnPoint` loops for ever there): use dm3 for deathmatch tests.
 Debug views (Carrying and Gibs > Debug, also in the console): `vr_debug_physics_shapes 1` draws every Box3D body as a
 wireframe (props awake green, fast white, asleep blue, held yellow; doors and plats purple; monsters orange; players
 cyan, your own faint; hanging pickups grey), each prop's centre of mass, an awake prop's contact points (red pressed

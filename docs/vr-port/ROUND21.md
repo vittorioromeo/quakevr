@@ -23,6 +23,7 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | Particles, long sessions | particles made into quads on the GPU from one record each, uploaded once a frame: at 4x and 8x their CPU a quarter of before (8x: 0.64 to 0.17 ms), GPU 15-45% less, the same images; long sessions: old maps' text boards freed (VRAM), collision caches per map, haptic delays bounded; a 35-minute soak shows no growth |
 | Body and weapon models | weapons: bands, bolt heads and ribs on the crudest spots (1.3-1.85x the triangles), edge wear in every skin, nothing tuned moved (anchors, hotspots, offsets and the hand fit identical); body: rounder limbs and torso, a belt, shaped feet (1240 -> 2186 triangles), 256x256 skins with a quilted vest, straps, laces, a face, armour lames |
 | Hand calibration | Hand/Gun Calibration > Hand Calibration: each hand moved (X/Y/Z cm, along the controller) and turned (Gun Angle and Gun Yaw as its pitch and yaw, plus a roll) on its controller; the off hand mirrored or its own; everything held and the server move with it (2 cm moves them 2.0000 cm, 10° turns them 10.000°); Show Controller and Match Controller Preview to line it up; nothing changes at 0 |
+| Items as physics pickups | the map's weapons, keys, runes and suits hang spinning like the armour until grabbed, knocked or force-grabbed, then are Box3D props; a gripped weapon is yours at once, the rest are taken at a holster (Weapons and Keys, default on). Props no longer rest in the floor (the firing range's weapons: 2.8 units in on average, 19.9 at most; now 0.1 above); spinning pickups' physics shapes turn with the model |
 
 Found on the way: fteqcc stores 0 when `a || b` is assigned into an entity field (rewritten; no other code has that
 shape); a parried blow's hand knock, timed by `cl.time`, came back after a level change (reset now).
@@ -4010,3 +4011,165 @@ logs are in the scratchpad's `handblend/final/`.
 
 - [ ] Install the add-on, import `hand_rig.md5mesh`, change something, export, `vr_hand_reload`.
 - [ ] Hold the guns and the sword with your edited hand: do the fingers wrap as the new shape suggests?
+
+## Items as physics pickups; sinking; spinning shapes
+
+Your three notes: the map's weapons, keys, the hazmat suit and similar made like the armour (force-grabbable, a
+physics object once touched, taken at a holster; weapons yours as soon as you grip them; powerups unchanged); newly
+placed or dropped weapons and props resting a little inside the floor (the firing range's weapons); the spinning
+guns' physics shape not turning with the model. Branch `agent/items`. Scratchpad `items/`: the scripts (`t1.sh` ..
+`t4.sh`, `sink.sh`, `spin.sh`, `drops.txt`) and the composites.
+
+### 1. Pickups as objects (`QC/items.qc`, "Pickups as objects"; `QC/vr_carry.qc`)
+
+The armour's code (round 20, "Wearable armour") is now for every pickup that becomes an object (`VR_PickupObj_*`):
+
+| Pickup | Taken by |
+|---|---|
+| Armour (green, yellow, red) | carried and let go of over your torso, as before (`vr_armor_wear`) |
+| Weapons (id's seven, the mission pack's Mjolnir, laser cannon, proximity gun) | gripped: it is that hand's weapon at once (`weapon_touch`: its ammo, "You got the Shotgun", the sound), as a thrown weapon is; a force grab's catch the same. Touched without a grip, or poked with a gun, it is knocked loose |
+| Keys (silver and gold, every world type: medieval, runic, base; the mission packs use id's), the end-of-episode rune, the biosuit, the wetsuit (Scourge of Armagon), the Horn of Conjuring | carried and let go of at a hip or shoulder holster (`VR_PickupObj_Holster`); never the trigger, whatever `vr_carry_take` says. Let go of anywhere else, it drops (thrown with the hand) |
+| Quad damage, pentagram, ring of shadows, the mission packs' empathy shields, power shield, anti-grav belt, vengeance sphere, random powerup | unchanged: as before |
+
+- **Hanging.** Placed on the floor by the map, each hangs with its middle at `vr_item_float_height` (26 units, as the
+  armour; a honey floating item where it is), spinning as the map's pickups do, not a rigid body. Its Box3D shape is a
+  kinematic body of its drawn hull that turns with it (3. below). A hand gripping it takes it (weapons) or carries it
+  (the rest); a hand or a gun touching it without a grip knocks it loose; a force grab pulls it. From then on it is a
+  physics object like the ammo boxes: a Box3D prop, carried, thrown, two-handed, floats in water. A missed force grab
+  now falls as a prop (it was hung again wherever it had got to after 0.4 s).
+- **The same pickups.** Taking one runs its own touch through `itemTouch`, so the sound, the message, the screen
+  flash, the item's targets (a key that opens something when taken), the deathmatch respawn and the secret count are
+  the originals'.
+- **A key you have** (single player: a second one of the same colour): let go of at a holster, it drops there with a
+  dull knock and a double buzz, as the armour you can't wear.
+- **Coop**: a key taken at a holster stays for the others (Quake's rule): it goes back to its place, hanging, for the
+  next player. A weapon gripped in coop (or deathmatch 2) stays too; caught from a force grab it goes back to its place.
+- **Walking over them** does not take them for a player with tracked hands; bots and flat-screen players still take
+  them by touch (co-op and deathmatch with bots work). Weapons with `vr_body_interactions 1`: as before (walking into
+  one puts it in an empty hand).
+- **Deathmatch.** Taken, each comes back after its usual time (weapons 30 s, the suit 60 s, armour 20 s) hanging where
+  it was placed (`VR_PickupObj_Regen` replaces `itemTouch`'s and the powerups' own `SUB_regen`, which would have left a
+  trigger where it was taken). Knocked away and left, it goes back after `vr_forcegrabbable_return_time_deathmatch`
+  and hangs there again.
+- **Its turn.** While it hangs, the server keeps its yaw on the drawn one (100 degrees a second, as `cl_main.c`'s
+  `bobjrotate`), so a grab, a knock or a force grab goes on from the turn you see (it used to snap to the map's yaw).
+- **The sparkle** of the map's weapons goes on while they hang and lie about.
+- **The setting.** Carrying and Gibs > Armour and Pickups > **Weapons and Keys** (`vr_item_objects`, default 1; 0:
+  touching takes them, as before). Which kind a map's pickup is is chosen as the map loads; turned off during a map, a
+  hand touching one takes it. `vr_carry 0` also turns them back.
+
+Two fixes on the way, both in the armour's code:
+
+- Its placement (0.3 s after the spawn) could run before `PlaceItem` as a map loads (a map's first frames are long):
+  the armour never got `itemTouch` (no deathmatch respawn, no targets fired), `FL_ITEM` or its drop to the floor. It
+  now waits for `PlaceItem`.
+- `self.vr_wear_floats = a || b` stored 0 (the fteqcc short circuit in an assignment already noted this round):
+  rewritten as an `if`.
+
+### 2. Sinking props
+
+**Measured** with a new command, `vr_physics_sink [what]`: each prop's drawn model (its lowest corners, where the
+entity is) against the floor under them, and its collision shape's lowest point against the drawn one. Positive
+"sunk" is into the floor.
+
+**Why they sank** (in order of size):
+
+1. **Most weapons were not rigid bodies.** Only a weapon thrown by hand was (`vr_rigid 1`). Monsters' dropped guns,
+   ammo boxes' weapons and the firing range's weapons (`func_weapon_grabbable`) were Quake's toss, landing on a cube
+   round their origin (`WeaponIdToThrowBounds`) that the model, turned any way (they start at random angles), reaches
+   well out of: up to 20 units in the floor, 2.8 on average. Now every `thrown_weapon` is a rigid body from its making
+   (`MakeThrown`), its tumble its spin. The range's weapons start still (they fall 10 units and settle).
+2. **Their Box3D hulls were three times too big.** `weapons::modelTransform` (the drawn weapon's scale) only applied
+   when the *client* was connected with Quake VR's protocol; a map's first frames run before the client connects, and
+   the hulls made then (from the view models at their own size) were kept. The guns then rested up to 11 units above
+   the floor, or fell through it (4 of 26 in the firing range). It now also takes the local server's protocol, and a
+   prop's shape is made again when its drawn box changes (a weapon's settings changed while it lies there).
+3. **Weapons from ammo boxes were made at the box's origin**, a corner on the floor: half in it, and Box3D's contacts
+   against the world's one-sided triangles can't push out a body made that deep (it stayed 9 units in). They are
+   made on top of the box now.
+4. **Hulls short of the drawn surface.** A hull is a subset of the drawn corners (Box3D's quickhull stops at its
+   vertex budget: 32 for weapons, 16 for the rest), so a corner left out is drawn inside what the body rests on: a
+   corpse's 16-corner hull left its back 1.3 units in the floor, a head 1.0. The budget now grows until no drawn corner
+   is more than 0.2 units out (the firing range's hulls: 11 to 44 corners; Box3D's limit is 128).
+5. Box3D's contact slop is not a cause: its mesh rest offset holds a resting hull 0.005 m off the world's triangles
+   (0.1-0.2 units), which is what the "after" numbers show (props rest a hair *above* the floor).
+
+**The safety net**: a prop found in a floor when its body is made, or when it comes to rest, is lifted out straight up
+by its depth (`liftOutOfFloor`: the lower half's corners inside a solid, measured to the upward-facing surface above,
+if that is below the prop's middle, so never onto a table it lies under). In the tests it lifted 2 of the firing
+range's 26 weapons as they were made (0.5 and 1.8 units in), a grunt's dropped gun (1.9) and gibs that became rigid
+bodies where Quake's bounce had left them (0.1 to 10 units in: a gib is Quake's bounce until it first lands); nothing
+that came to rest.
+
+| vrfiringrange, 6 s after the load (`vr_physics_sink`) | Before | After |
+|---|---|---|
+| the range's 26 weapons and the ammo boxes' weapons, Box3D | 2.79 units in on average, 19.9 at most | 0.12 units above on average, 0.09 in at most |
+| every prop (82-101: boxes, armour, weapons, corpses, gibs, heads) | 1.67 in at most (corpses 1.1-1.3) | 0.09 in at most |
+| the same weapons, the old solver (`vr_physics_engine 0`) | as Box3D's before (Quake's toss) | 0.5 above on average, 0.6 in at most |
+| grunts killed and gibbed by a blast (`drops.txt`): corpses, heads, gibs, dropped guns | 1.26 in at most | 0.09 in at most |
+
+Composites: `sink_compare.png` (top before, bottom after: the range's weapons from above; before, a Mjolnir's handle
+and guns stuck into the tables; after, lying on them).
+
+### 3. Spinning pickups' shapes turn (`vr_box3d.cpp`)
+
+The map's pickups hanging in the air (the "fixtures" of the Box3D polish: kinematic bodies of their drawn hull that
+props rest on and knock against) kept the map's yaw while the model spins on the client (`EF_ROTATE`: 100 degrees a
+second). A fixture of an `EF_ROTATE` model now turns with the drawn yaw every server frame (moved as a kinematic body,
+so what touches it is pushed as by a turning thing). The object pickups of 1. hanging are fixtures too (they had no
+body at all while hanging: the armour, and now the weapons and keys). The shape follows the server's clock; the drawn
+model the client's, a frame behind at most (1.4 degrees at 72 Hz).
+
+`spin_compare.png`: the firing range's biosuit with Show Physics Shapes, three shots 0.3 s apart; before (top) the
+grey hull stays side-on while the suit turns out of it; after (bottom) it turns with the suit. `spawn1_crop.png`: a
+shotgun and two keys, the same.
+
+### Tests (mock headset; scratchpad `items/`)
+
+| Case | Result |
+|---|---|
+| a silver key spawned 25 units ahead (`vr_physics_spawn item_key1 25 -1`), hanging, spinning | a fixture turning with it (its yaw 81, 177, 148... as listed) |
+| gripped by the off hand, carried to the left hip holster, let go | "carry: taken", "silver key taken at a holster", "You got the silver key" (`t1.png`) |
+| a second silver key, the same | "not taken (you have it)": dropped, lies on the floor |
+| a gold key let go of in front | falls, rests 0.10 above the floor |
+| the biosuit to the holster | "You got the Biosuit" (the view turns green) |
+| a shotgun gripped | "Shotgun taken as a weapon", "You got the Shotgun", in the hand (`t4.png`) |
+| force grab of a gold key (`t2.png`), then to the holster | flies 84 units in 0.4 s, caught, carried; taken at the holster |
+| force grab of a shotgun | caught: it is the hand's weapon |
+| force grab of the biosuit, missed | falls as a prop, rests 0.09 above the floor (it hung again where it landed, 1.3 in, before the fix) |
+| coop: a key taken at the holster | "left for the others": back at its place, hanging; you have the key |
+| deathmatch (dm3): a shotgun gripped; the biosuit taken at the holster; the suit knocked away | back hanging at their places after 30 s and 60 s; the knocked one sent back |
+| `vr_item_objects 0` | a key taken by the hand's touch, a shotgun by a grip, as before (they still turn in Box3D) |
+| the melee canary (`eval.sh`) | 40/46, no difference from the baseline |
+
+QC: 0 warnings.
+
+### Settings and commands
+
+| Menu | Cvar | Default | |
+|---|---|---|---|
+| Carrying and Gibs > Armour and Pickups > Weapons and Keys | `vr_item_objects` | 1 | 1 objects (as above), 0 touching takes them (next map) |
+
+`vr_physics_sink [<number | classname | props>]` (the drawn models against the floor, the shapes against the drawn;
+the summary's average and most are of those within 4 units of a floor); `vr_physics_spawn <classname> [<distance>
+[<left>]]` (a map entity made by its spawn function on the floor ahead of you: a key, a weapon, a powerup); with
+`vr_debug_box3d 1`, `vr_physics_list` also prints each one's movetype, solid, rigid and flags.
+
+### Not verified
+
+- The headset: the reach for a small key (8 units wide: the hand's reach test is the grab's own, unchanged), the
+  holster let-go with a key, the look of a weapon gripped from the air.
+- The hand's knock of a hanging weapon or key (the mock's hand has no speed; it is the armour's `VR_Carry_Nudge`,
+  unchanged).
+- The rune in e1m7 and friends, the horn in hip2m1 and the wetsuit in the mission pack's maps were not played to (their
+  spawn functions are marked the same way; the horn's `SUB_UseTargets` runs through `itemTouch` as before).
+- A bot taking one by touch (the path is the armour's, which was checked in round 20).
+- The old solver (`vr_physics_engine 0`) with hanging pickups: it has no kinematic bodies, so nothing turns there.
+
+### In the headset
+
+- Reach for a hanging shotgun and grip it: it should be your weapon at once. Knock one with an open hand: it falls.
+- Grip a key (or force-grab it), bring it to a hip or shoulder holster and let go: the key sound and "You got the
+  silver key". A key you have should knock and drop.
+- In the firing range the weapons on the tables should lie on them, none cut by the table top; drop and throw some.
+- Show Physics Shapes: the grey outlines of the hanging items should turn with them.
