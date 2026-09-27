@@ -814,8 +814,8 @@ def palm_levels(rig, p, n):
     # The back: the tendons over the metacarpals, fading in from the wrist, and the knuckles.
     fade = np.clip((x + 2.5) / 3.0, 0, 1)
     for uf in (0.145, 0.37, 0.62, 0.88):
-        L += back * fade * (0.55 * np.exp(-((u - uf) / 0.04) ** 2) - 0.2 * np.exp(-((u - uf - 0.11) / 0.05) ** 2))
-        L += back * 0.8 * np.exp(-((u - uf) / 0.06) ** 2 - ((x - knuckles + 0.9) / 0.5) ** 2)
+        L += back * fade * (1.0 * np.exp(-((u - uf) / 0.04) ** 2) - 0.45 * np.exp(-((u - uf - 0.11) / 0.05) ** 2))
+        L += back * 1.2 * np.exp(-((u - uf) / 0.06) ** 2 - ((x - knuckles + 0.9) / 0.5) ** 2)
     # The palm's side: its creases (the heart line under the fingers, the head line across, the life line round the
     # ball of the thumb) and the wrist's.
     heart = knuckles - 1.7 - 0.5 * np.clip(u - 0.1, 0, 1)
