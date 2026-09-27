@@ -75,10 +75,10 @@ double lastTime = -1.0;
     return glm::vec4{tint(saturation, value), alpha};
 }
 
-// A small hash noise, -1..1.
-[[nodiscard]] float noise(int a, int b)
+// A small hash noise, -1..1 (unsigned arithmetic: the keys and the hash wrap).
+[[nodiscard]] float noise(unsigned a, unsigned b)
 {
-    unsigned h = static_cast<unsigned>(a) * 73856093u ^ static_cast<unsigned>(b) * 19349663u;
+    unsigned h = a * 73856093u ^ b * 19349663u;
     h = (h ^ (h >> 13)) * 1274126177u;
     return static_cast<float>(h & 0xFFFF) / 32767.5f - 1.f;
 }
@@ -99,7 +99,8 @@ void tendril(const glm::vec3& a, const glm::vec3& b, float strength, int seed)
     const glm::vec4 haloColor = tint(0.83f, 0.9f, 1.f);
     const glm::vec4 coreColor = tint(0.3f, 1.f, 1.f);
 
-    const int tick = static_cast<int>(realtime * 24.0);
+    const unsigned tick = static_cast<unsigned>(static_cast<int>(realtime * 24.0));
+    const unsigned key = static_cast<unsigned>(seed);
     const int segments = std::clamp(static_cast<int>(len / 6.f), 6, 24);
     const float amplitude = std::min(4.f, len * 0.06f);
     for(int strand = 0; strand < 2; strand++)
@@ -112,8 +113,9 @@ void tendril(const glm::vec3& a, const glm::vec3& b, float strength, int seed)
             glm::vec3 p = a + d * t;
             if(i < segments)
             {
-                p += side1 * (noise(tick + seed * 31 + strand * 7, i) * bulge) +
-                     side2 * (noise(tick + seed * 17 + strand * 3, i + 97) * bulge);
+                const unsigned k = static_cast<unsigned>(strand), n = static_cast<unsigned>(i);
+                p += side1 * (noise(tick + key * 31u + k * 7u, n) * bulge) +
+                     side2 * (noise(tick + key * 17u + k * 3u, n + 97u) * bulge);
             }
             const float fade = strength * (strand == 0 ? 1.f : 0.5f);
             const glm::vec4 halo = haloColor * (0.22f * fade);

@@ -537,8 +537,10 @@ extern "C" void VR_TorchLights(void)
             st.kind = kind;
             st.scale = s;
             st.pos = placeTorchLight(org + off * s);
-            st.seed = static_cast<unsigned>(static_cast<int>(org.x) * 73856093 ^ static_cast<int>(org.y) * 19349663
-                                            ^ static_cast<int>(org.z) * 83492791);
+            // (In unsigned arithmetic: it wraps, where signed overflow is undefined.)
+            st.seed = static_cast<unsigned>(static_cast<int>(org.x)) * 73856093u ^
+                      static_cast<unsigned>(static_cast<int>(org.y)) * 19349663u ^
+                      static_cast<unsigned>(static_cast<int>(org.z)) * 83492791u;
         }
         candidates.push_back({id, std::sqrt(d2) * (st.chosen ? 0.8f : 1.f)}); // hysteresis
     };

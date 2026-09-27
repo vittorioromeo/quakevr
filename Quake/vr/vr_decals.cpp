@@ -117,7 +117,9 @@ unsigned rngState = 12345u;
     const int x = static_cast<int>(std::floor(p.x)), y = static_cast<int>(std::floor(p.y));
     const float fx = p.x - x, fy = p.y - y;
     const float sx = fx * fx * (3.f - 2.f * fx), sy = fy * fy * (3.f - 2.f * fy);
-    const auto h = [seed](int i, int j) { return hash(i * 7919 + j * 104729, seed); };
+    const auto h = [seed](int i, int j) { // (the lattice point mixed in unsigned arithmetic: it wraps)
+        return hash(static_cast<int>(static_cast<unsigned>(i) * 7919u + static_cast<unsigned>(j) * 104729u), seed);
+    };
     return (h(x, y) * (1.f - sx) + h(x + 1, y) * sx) * (1.f - sy) + (h(x, y + 1) * (1.f - sx) + h(x + 1, y + 1) * sx) * sy;
 }
 
