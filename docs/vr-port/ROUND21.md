@@ -332,6 +332,34 @@ other           -
 - Replay: a weapon in the off hand needs its grip pressed after it is taken (fixed in the recorder's playback);
   the flashlight is off for the eval (`vr_flashlight 0`: a hand reaching to the head grabbed it).
 
+### Refinements after the author's review
+
+Two fixes for edge cases from his notes on the failing takes. Neither has a menu slider.
+
+- **Wiggles** (the hand flicked back and forth in place, registering as hits). A blow already needed the grip's speed
+  and a 20 cm run, but the grip is the controller's point, and both it and the tip swing fast when only the hand
+  turns: the pivot is well behind them. Fitted on his wiggle takes (fists, sword, axe, gun), the hand turns about a
+  point 17-24 cm behind the controller along its own axis. The melee now tracks that point, the "wrist": 20 cm back,
+  with the gun angle offsets (`vr_gunangle`/`vr_gunyaw`, `vr_offhandpitch`/`vr_offhandyaw`) taken out, or the hand
+  itself for a weapon held two-handed. A blow, and its whoosh, also needs the wrist's net travel over the last 0.12 s
+  to average **`vr_melee_wrist_speed` (1.1 m/s)**. A punch needs twice that, since a fist has no lever and the arm
+  carries it. His real blows carry the wrist at 1.24 m/s or more (a wrist-heavy backswing 1.24, stabs from 1.34,
+  pommel strikes from 1.9, swings and chops from 2.3 to 3, punches from 3.5). His wiggles carry it at 0.2-1.5.
+- **The parry's muzzle.** A weapon whose far end (a gun's muzzle, a blade's tip) points within
+  **`vr_parry_muzzle_angle` (45 degrees)** of the attacker doesn't parry, whichever line blocks. The angle is measured
+  from the weapon's middle to the attacker (`vr_parry_from`, set by `VR_Parry` and the recorder). Without an
+  attacker, as for the bash's guard, it is measured against the blow's way. His parry poses point 60 degrees or more
+  off the dummy. His gun "not parry" poses that still fail point 80-97 degrees off it as seen from the gun, a spread
+  his parry poses share, so no stricter angle takes any of them without breaking parry poses.
+
+All 471 takes (strict; the 3 takes he has since discarded left out): **420 -> 426**. no_hit 26 -> 31 of 37:
+02-20-55, 02-20-59 (fists), 02-36-36 (gun) and 02-43-23 (sword) by the wrist, and 02-36-26 (the carried gun's
+one-hand bash; its stance now points at the dummy) by the muzzle. not_parry_pose 39 -> 40 of 49 (05-14-08, the
+muzzle 30 degrees off the dummy). Every other category is unchanged, with the same events: slashes, stabs, punches,
+pommel strikes, gun strikes, shoves, parry poses and bashes. The no_hit takes still failing are real arm motion
+(the wrist at 2.5-3.6 m/s: 02-21-46, 02-43-28, 04-03-55, most of 04-04-05), or bashes and shoves (02-21-03,
+02-37-14).
+
 ### In the headset
 
 - [ ] Sword, one hand: slashes in every direction, backswings (bottom left to top right, and back), from close and
@@ -350,6 +378,9 @@ other           -
 - [ ] Waving a weapon slowly through the dummy: nothing. Swinging it through at speed: a hit.
 - [ ] Settings: Swing Speed (4), Bash Speed (2), Shove Speed (2.4). Your config moves to them once (version 13).
 - [ ] Parry poses you use in combat still parry (the parry's test is unchanged: 40 degrees).
+- [ ] Wiggle a sword, a gun or a fist in place against the dummy, fast: nothing. Short wrist-heavy cuts and
+      backswings still land (`vr_melee_wrist_speed` 1.1).
+- [ ] A gun held level but aimed at the enemy doesn't parry. Held across, it does (`vr_parry_muzzle_angle` 45).
 
 ## Fitted hands
 
