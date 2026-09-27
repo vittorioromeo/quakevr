@@ -568,6 +568,136 @@ Morph morphs[2];
     return r;
 }
 
+// A turn given as the hands' angles (hands::angleVectors: the columns forward, left, up), and back.
+[[nodiscard]] glm::mat3 anglesBasis(const glm::vec3& a)
+{
+    glm::vec3 f, r, u;
+    hands::angleVectors(a, f, r, u);
+    return glm::mat3{f, -r, u};
+}
+[[nodiscard]] glm::vec3 basisAngles(const glm::mat3& b)
+{
+    return hands::anglesFromVectors(glm::normalize(b[0]), glm::normalize(b[2]));
+}
+
+// A held weapon's turn at the holding hand's angles `rot`, as the hands' angles (setupWeapon draws its entity at
+// these, the pitch negated).
+[[nodiscard]] glm::vec3 weaponTurn(const glm::vec3& rot, int slot, bool mirrored)
+{
+    const glm::vec3 o = weaponAngleOffsets(slot, mirrored);
+    return {rot.x - o.x, rot.y + o.y, rot.z + o.z};
+}
+
+// A hand's turn carried by a weapon (round 21, second pass). The weapon's Pitch/Yaw/Roll are added to the hand's
+// angles, which is no rigid turn: a hand turned by angle offsets of its own would slide round the weapon as the wrist
+// turns (up to a few degrees), and its grasp would be solved again and again. The hand keeps instead the turn it has
+// on the weapon at `rot` 0 (`handAt0`: its angles there), however the weapon is turned.
+[[nodiscard]] glm::vec3 attachedTurn(const glm::vec3& rot, int slot, bool mirrored, const glm::vec3& handAt0)
+{
+    const glm::mat3 w = anglesBasis(weaponTurn(rot, slot, mirrored));
+    const glm::mat3 w0 = anglesBasis(weaponTurn(glm::vec3{0.f}, slot, mirrored));
+    return basisAngles(w * glm::transpose(w0) * anglesBasis(handAt0));
+}
+
+// The firing animation's move of a drawn weapon at the world point `at`: the rigid motion (least squares: Kabsch, by
+// a polar decomposition) of the model's vertices round `at`, weighted by their distance beyond the nearest one's
+// (over 7 cm), from its rest pose (frame 0) to the pose drawn this frame, as a world transform. A hand holding the
+// weapon there (its arm, a hand steadying it) moves with it: the shotgun's kick takes the arm back with it, as the
+// hand drawn at a vertex of the weapon did before round 21. The identity where the model doesn't move.
+[[nodiscard]] glm::mat4 animationMotion(const view::ViewEntity& ve, const glm::vec3& at)
+{
+    static std::vector<glm::vec3> rest, now;
+    if(!ve.ent.model || ve.ent.model->type != mod_alias || !anchor::posedVertices(ve.ent, ve.zeroBlend, rest, now))
+    {
+        return glm::mat4{1.f};
+    }
+    bool moved = false;
+    for(std::size_t i = 0; i < rest.size() && !moved; i++)
+    {
+        moved = rest[i] != now[i];
+    }
+    if(!moved)
+    {
+        return glm::mat4{1.f};
+    }
+
+    float m[16];
+    render::anchorMatrix(ve, glm::vec3{0.f}, m);
+    glm::mat4 a;
+    for(int c = 0; c < 16; c++)
+    {
+        a[c / 4][c % 4] = m[c];
+    }
+    const float sigma = 0.07f * units::metresToUnits();
+    float nearest = 1e30f;
+    for(glm::vec3& p : rest)
+    {
+        p = glm::vec3{a * glm::vec4{p, 1.f}};
+        nearest = std::fmin(nearest, glm::distance(p, at));
+    }
+    double total = 0.0;
+    glm::dvec3 restMid{0.0}, nowMid{0.0};
+    static std::vector<float> weight;
+    weight.resize(rest.size());
+    for(std::size_t i = 0; i < rest.size(); i++)
+    {
+        now[i] = glm::vec3{a * glm::vec4{now[i], 1.f}};
+        const float d = (glm::distance(rest[i], at) - nearest) / sigma;
+        weight[i] = d < 4.f ? std::exp(-d * d) : 0.f;
+        total += weight[i];
+        restMid += glm::dvec3{rest[i]} * static_cast<double>(weight[i]);
+        nowMid += glm::dvec3{now[i]} * static_cast<double>(weight[i]);
+    }
+    restMid /= total;
+    nowMid /= total;
+    glm::dmat3 h{0.0};
+    double spread = 0.0;
+    for(std::size_t i = 0; i < rest.size(); i++)
+    {
+        if(weight[i] > 0.f)
+        {
+            const glm::dvec3 r = glm::dvec3{rest[i]} - restMid, n = glm::dvec3{now[i]} - nowMid;
+            h += glm::outerProduct(n, r) * static_cast<double>(weight[i]);
+            spread += glm::dot(r, r) * weight[i];
+        }
+    }
+    // The turn nearest h: its polar factor, with a touch of the identity (points in a line or a plane: the least turn).
+    glm::dmat3 x = h + glm::dmat3{1.0} * (1e-4 * spread + 1e-12);
+    for(int k = 0; k < 30; k++)
+    {
+        x = 0.5 * (x + glm::transpose(glm::inverse(x)));
+    }
+    if(!(glm::determinant(x) > 0.5))
+    {
+        x = glm::dmat3{1.0};
+    }
+    glm::mat4 out{glm::mat3{x}};
+    out[3] = glm::vec4{glm::vec3{nowMid - x * restMid}, 1.f};
+    return out;
+}
+
+// A share `t` of a rigid motion, about `centre`: its turn there slerped, the centre's move scaled.
+[[nodiscard]] glm::mat4 partMotion(const glm::mat4& m, float t, const glm::vec3& centre)
+{
+    if(t >= 1.f)
+    {
+        return m;
+    }
+    t = std::fmax(t, 0.f);
+    const glm::mat3 r = glm::mat3_cast(glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, glm::quat_cast(glm::mat3{m}), t));
+    const glm::vec3 move = glm::vec3{m * glm::vec4{centre, 1.f}} - centre;
+    glm::mat4 out{r};
+    out[3] = glm::vec4{centre - r * centre + move * t, 1.f};
+    return out;
+}
+
+// A pose (a place, the hands' angles) moved by a rigid motion.
+void movePose(const glm::mat4& m, glm::vec3& pos, glm::vec3& angles)
+{
+    pos = glm::vec3{m * glm::vec4{pos, 1.f}};
+    angles = basisAngles(glm::mat3{m} * anglesBasis(angles));
+}
+
 // Each hand's weapon's hotspots as drawn this frame (for the helping hand, the QC's weaponhotspot, their display).
 struct WorldHotspot
 {
@@ -920,6 +1050,7 @@ struct RigHand
     Held held;           // what it held last frame, and where the hand was (vr_grasp_dump)
     glm::mat4 rigToWorld{1.f};
     double jointsTime{-1.0};
+    glm::mat4 inRig{1.f}; // where what it holds is in the hand this frame (vr_debug_grasp_trace)
 };
 RigHand rigHands[2];
 
@@ -1022,6 +1153,7 @@ struct GraspJob
 };
 GraspJob graspJob;
 std::vector<Grasp> graspCache; // most recent last
+int graspSolves[2]{};          // solves asked for, per hand (vr_debug_grasp_trace)
 
 void printGrasp(int hand, const Grasp& g, int tris, double ms, float rigUnit, double requestMs)
 {
@@ -1067,6 +1199,7 @@ void updateGrasp(int hand, const Held& held, const glm::mat4& rigMatrix, float r
     }
     const glm::mat4 toRig = glm::inverse(rigMatrix);
     const glm::mat4 inRig = toRig * heldMatrix(held);
+    rh.inRig = inRig;
 
     // A solve done: kept, and the hand's if it still holds that nearly the same way (it moved a little on the blade,
     // the weapon lagged a little: a new one is on its way).
@@ -1138,6 +1271,7 @@ void updateGrasp(int hand, const Held& held, const glm::mat4& rigMatrix, float r
     const float limit = rigUnit > 0.f ? std::fmax(cm, 0.f) * 0.01f * units::metresToUnits() / rigUnit : 0.f;
     graspJob.key = key;
     graspJob.hand = hand;
+    graspSolves[hand]++;
     graspJob.tris = static_cast<int>(tris.size());
     graspJob.started = realtime;
     graspJob.running = true;
@@ -1157,7 +1291,9 @@ void updateGrasp(int hand, const Held& held, const glm::mat4& rigMatrix, float r
     return t * t * (3.f - 2.f * t);
 }
 
-bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool mirrored, bool hide, const Held& held)
+// `motion`: the held weapon's firing animation, moving the drawn hand after its grasp (solved without it).
+bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool mirrored, bool hide, const Held& held,
+    const glm::mat4& motion)
 {
     RigHand& rh = rigHands[hand];
     rh.drawn = false;
@@ -1271,6 +1407,68 @@ bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
     }
     handrig::pose(rh.pose, rh.posed);
     handrig::skin(rh.posed, rh.skin.data());
+
+    // The weapon's firing animation moves the hand (and so the arm) with it.
+    if(motion != glm::mat4{1.f})
+    {
+        glm::vec3 o{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]};
+        glm::vec3 a{-ve.ent.angles[0], ve.ent.angles[1], ve.ent.angles[2]};
+        movePose(motion, o, a);
+        for(int i = 0; i < 3; i++)
+        {
+            ve.ent.origin[i] = o[i];
+        }
+        ve.ent.angles[0] = -a.x;
+        ve.ent.angles[1] = a.y;
+        ve.ent.angles[2] = a.z;
+        rh.rigToWorld = motion * rh.rigToWorld;
+    }
+    static FILE* trace = nullptr;
+    if(!vr_debug_grasp_trace.value && trace)
+    {
+        fclose(trace);
+        trace = nullptr;
+    }
+    if(static_cast<int>(vr_debug_grasp_trace.value) & (hand == HAND_MAIN ? 1 : 2))
+    {
+        // One line a frame: the time, the solves so far, whether a grasp holds, the 15 joints, the thumb's
+        // metacarpal turn (degrees), the palm's move (rig units) and turn (degrees), and where the hand is.
+        std::string line = va("gt %d %.4f %d %d", hand, cl.time, graspSolves[hand], rh.grasp.valid ? 1 : 0);
+        for(int f = 0; f < handrig::FingerCount; f++)
+        {
+            for(int j = 0; j < handrig::jointsPerFinger; j++)
+            {
+                line += va(" %.3f", rh.pose.curl[f][j]);
+            }
+        }
+        line += va(" %.2f %.3f %.3f %.3f %.2f %.2f %.2f %.2f", glm::degrees(glm::angle(rh.pose.metacarpal)), rh.palm.x,
+            rh.palm.y, rh.palm.z, glm::degrees(glm::angle(rh.turn)), ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]);
+        // What it holds, relative to the grasp's: turned (degrees; the largest of its axes') and moved (hand units).
+        float turned = 0.f, moved = 0.f;
+        if(rh.grasp.valid)
+        {
+            moved = glm::distance(glm::vec3{rh.inRig[3]}, glm::vec3{rh.grasp.inRig[3]});
+            for(int c = 0; c < 3; c++)
+            {
+                const glm::vec3 a = glm::normalize(glm::vec3{rh.inRig[c]}), b = glm::normalize(glm::vec3{rh.grasp.inRig[c]});
+                turned = std::fmax(turned, glm::degrees(std::acos(CLAMP(-1.f, glm::dot(a, b), 1.f))));
+            }
+        }
+        // The firing animation's motion at the hand: moved (world units), turned (degrees).
+        const glm::vec3 at{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]};
+        line += va(" %.3f %.4f %d %.3f %.2f %d\n", turned, moved, twohand::helping(hand) ? 1 : 0,
+            glm::distance(glm::vec3{motion * glm::vec4{at, 1.f}}, at), glm::degrees(glm::angle(glm::quat_cast(glm::mat3{motion}))),
+            entities.weapon[hand].ent.frame);
+        if(!trace)
+        {
+            trace = fopen(va("%s/grasp_trace.txt", com_gamedir), "w");
+        }
+        if(trace)
+        {
+            fputs(line.c_str(), trace);
+            fflush(trace);
+        }
+    }
     ve.zeroBlend = 0.f;
     ve.ent.skinnum = damageLevel();
     ve.visible = !hide;
@@ -1305,9 +1503,12 @@ void setupHand(const hands::State& s, int hand)
     // centimetre of the controller).
     glm::vec3 pos = s.pos[hand];
     bool hide = false;
+    glm::mat4 motion{1.f}; // the weapon's firing animation where the hand holds it (animationMotion)
     if(slot >= 0 && slot != fist)
     {
         hide = weapons::value(slot, Key::HideHand) != 0.f;
+        handRot = attachedTurn(s.rot[hand], slot, mirrored, weaponAngleOffsets(fist, mirrored));
+        motion = animationMotion(weapon, pos);
     }
 
     // Steadying the other hand's weapon in the "fixed" two-handed display mode: the hand moves
@@ -1327,15 +1528,16 @@ void setupHand(const hands::State& s, int hand)
         pos = glm::mix(pos, bladePos, gripBlend);
         handRot = bladeRot;
         hide = false;
+        motion = partMotion(animationMotion(entities.weapon[other], bladePos), gripBlend, bladePos);
     }
     else if(gripBlend > 0.f)
     {
         pos = glm::mix(pos, s.grip2H[other], gripBlend);
         hide = false;
+        motion = partMotion(animationMotion(entities.weapon[other], s.grip2H[other]), gripBlend, s.grip2H[other]);
 
-        if(twohand::helping(hand))
+        if(twohand::helping(hand) && otherSlot >= 0)
         {
-            const int otherSlot = weapons::heldSlot(other);
             glm::vec3 offsets = weapons::vec(otherSlot, Key::TwoHFixedHandPitch, Key::TwoHFixedHandYaw,
                 Key::TwoHFixedHandRoll);
             if(!mirrored)
@@ -1343,9 +1545,12 @@ void setupHand(const hands::State& s, int hand)
                 offsets.y = -offsets.y;
                 offsets.z = -offsets.z;
             }
-            // The weapon hand's angles and the grip's, without the fist's own angle offsets
-            // (old engine's V_SetupFixedHelpingHandViewEnt).
-            handRot = s.rot[other] + offsets;
+            // The weapon hand's angles and the grip's, without the fist's own angle offsets (old engine's
+            // V_SetupFixedHelpingHandViewEnt), carried rigidly by the weapon (attachedTurn), turned onto it as the
+            // hand takes the grip.
+            const glm::vec3 attached = attachedTurn(s.rot[other], otherSlot, other == HAND_OFF, offsets);
+            const glm::quat from = glm::quat_cast(anglesBasis(handRot)), to = glm::quat_cast(anglesBasis(attached));
+            handRot = basisAngles(glm::mat3_cast(glm::slerp(from, to, gripBlend)));
         }
     }
 
@@ -1379,10 +1584,11 @@ void setupHand(const hands::State& s, int hand)
     {
         held = {&entities.flashlight.ent, entities.flashlight.mirrored, 0};
     }
-    if(setupRigHand(hand, pos, handRot, mirrored, hide, held))
+    if(setupRigHand(hand, pos, handRot, mirrored, hide, held, motion))
     {
         return;
     }
+    movePose(motion, pos, handRot);
 
     const float offsetScale = weapons::offsetScale();
     const int skin = damageLevel();
