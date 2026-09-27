@@ -201,6 +201,13 @@ constexpr float sinkDensity = 0.5f;
     return 1000.f; // gibs and heads: flesh
 }
 
+// Soft things (backpacks, gibs, heads) land with a thud: no bounce, and their tumble dies away fast on the ground (a
+// rigid hull of a backpack lands on an edge and tumbles down a gentle slope like a crate).
+[[nodiscard]] bool isSoft(edict_t* ent, const qmodel_t* model)
+{
+    return model->type == mod_alias && strcmp(PR_GetString(ent->v.classname), "thrown_weapon") && !strstr(model->name, "armor");
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 // Box3D's world
 
@@ -222,6 +229,7 @@ struct Slot // what one edict is in the world (by its number)
     bool asleep{false};
     bool wet{false};      // floating: kept awake (it bobs)
     bool bullet{false};   // fast: continuous collision against other props too
+    bool soft{false};     // isSoft
     bool brush{false};    // angles as a brush model's
 };
 
@@ -524,7 +532,10 @@ void solidLeaves(const hull_t& hull, int num, std::vector<HalfSpace>& path, floa
         {
             points.push_back(world->toM(v));
         }
-        hull = b3CreateHull(points.data(), static_cast<int>(points.size()), 32);
+        // A weapon's shape in detail (it rests on its side, its grip, its magazine); the rest a little blockier
+        // (a backpack, a gib: a rounded hull rolls down a slope, a real one's give stops it).
+        const bool weapon = !strcmp(PR_GetString(ent->v.classname), "thrown_weapon");
+        hull = b3CreateHull(points.data(), static_cast<int>(points.size()), weapon ? 32 : 16);
         // A flat model's hull is thinner than Box3D can collide well: its box instead.
         if(hull && hull->innerRadius * world->m2u < 0.25f)
         {
@@ -558,7 +569,7 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
 {
     b3ShapeDef def = shapeDef(num, held ? catHeld : catProp, held ? catProp : catWorld | catMover | catActor | catPlayer | catProp | catHeld);
     def.density = densityOf(ent, model);
-    def.baseMaterial.restitution = CLAMP(0.f, vr_throw_restitution.value, 1.f);
+    def.baseMaterial.restitution = isSoft(ent, model) ? 0.f : CLAMP(0.f, vr_throw_restitution.value, 1.f);
     def.enableContactEvents = !held;
     def.enableHitEvents = !held;
     if(b3HullData* hull = propHull(ent, model, lo, hi))
@@ -647,6 +658,7 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind)
     s.frame = static_cast<int>(ent->v.frame);
     s.scale = scaleFields(ent);
     s.brush = model && model->type == mod_brush;
+    s.soft = model && isSoft(ent, model);
     s.origin = vec(ent->v.origin);
     s.angles = vec(ent->v.angles);
 
@@ -940,6 +952,20 @@ void beforeStep(float dt)
             s.bullet = fast;
         }
 
+        // Rolling resistance (the old solver's): touching something, the spin dies away, fast once it is slow, so a
+        // thing comes to rest instead of rocking or rolling on (Box3D's own is for spheres and capsules only).
+        if(b3Body_GetContactCapacity(s.body) > 0)
+        {
+            std::array<b3ContactData, 8> contacts;
+            if(b3Body_GetContactData(s.body, contacts.data(), static_cast<int>(contacts.size())) > 0)
+            {
+                const bool slow = glm::length(vel) < 0.5f * world->m2u;
+                const b3Vec3 w = b3Body_GetAngularVelocity(s.body);
+                const float k = std::exp((slow || s.soft ? -6.f : -1.f) * (s.soft ? 2.f : 1.f) * dt);
+                b3Body_SetAngularVelocity(s.body, b3Vec3{w.x * k, w.y * k, w.z * k});
+            }
+        }
+
         const b3AABB box = b3Body_ComputeAABB(s.body);
         const float lo = box.lowerBound.z * world->m2u, hi = box.upperBound.z * world->m2u;
         const float part = g > 0.f ? submerged(com, lo, hi) : 0.f;
@@ -1146,7 +1172,7 @@ void updateSettings()
         for(int i = 0; i < count; i++)
         {
             b3Shape_SetFriction(shapes[i], friction);
-            if(s.kind == Kind::Prop || s.kind == Kind::Held)
+            if((s.kind == Kind::Prop || s.kind == Kind::Held) && !s.soft)
             {
                 b3Shape_SetRestitution(shapes[i], restitution);
             }
@@ -1259,6 +1285,35 @@ void buildWorld()
     return out;
 }
 
+struct VmScope
+{
+    qcvm_t* old{nullptr};
+    VmScope() { PR_PushQCVM(&sv.qcvm, &old); }
+    ~VmScope() { PR_PopQCVM(old); }
+};
+
+// vr_physics_loose <number | classname>: made a loose physics object, as a hand's knock makes it (QC's
+// VR_Carry_Loose: a toss, rigid, touchable), where it is: a hanging armour, a pickup. For tests.
+void loose_f()
+{
+    if(!sv.active || Cmd_Argc() < 2)
+    {
+        Con_Printf("usage: vr_physics_loose <number | classname>\n");
+        return;
+    }
+    const VmScope vm;
+    for(edict_t* e : entitiesNamed(Cmd_Argv(1)))
+    {
+        e->v.movetype = MOVETYPE_TOSS;
+        e->v.solid = SOLID_NOT_BUT_TOUCHABLE;
+        setFieldFloat(e, fields().vr_rigid, 1.f);
+        setFieldFloat(e, fields().vr_rest, 0.f);
+        setFlag(e, FL_ONGROUND, false);
+        SV_LinkEdict(e, false);
+        Con_Printf("vr_physics_loose: %d %s\n", NUM_FOR_EDICT(e), PR_GetString(e->v.classname));
+    }
+}
+
 void placeStill(edict_t* e, const glm::vec3& at, float yaw)
 {
     const FieldOffsets& f = fields();
@@ -1273,13 +1328,6 @@ void placeStill(edict_t* e, const glm::vec3& at, float yaw)
     setFieldFloat(e, f.vr_rest, 0.f);
     SV_LinkEdict(e, false);
 }
-
-struct VmScope
-{
-    qcvm_t* old{nullptr};
-    VmScope() { PR_PushQCVM(&sv.qcvm, &old); }
-    ~VmScope() { PR_PopQCVM(old); }
-};
 
 // vr_physics_stack <number | classname | props> <count> <x> <y> <z> [<yaw> [<gap>]]: the first `count` of them in a
 // column from x y z (their bottoms `gap` units apart, 0.5 by default), still, level, awake.
@@ -1374,6 +1422,7 @@ void registerCommands()
         Cmd_AddCommand("vr_physics_stack", stack_f);
         Cmd_AddCommand("vr_physics_pyramid", pyramid_f);
         Cmd_AddCommand("vr_physics_list", list_f);
+        Cmd_AddCommand("vr_physics_loose", loose_f);
     }
 }
 
