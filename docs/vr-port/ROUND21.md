@@ -3507,7 +3507,8 @@ clip) are unchanged.
 - **The hand on each weapon** (`vr_dumpview` holding each of the 18 weapons, `impulse 253` for their hotspots): the
   hand, palm, muzzle and foregrip the same (the only differences, 0.0001, are frame-timing noise).
 - **Holes**: `check_mdl_holes.py` passes on every model (the new parts are closed solids).
-- **Melee**: see the canary line below.
+- **Melee**: the canary, with the weapons done (before merging vr-cleanup f82607ba) and again with the body done and
+  f82607ba merged: no difference from the kit's baseline either time (40/46 pass).
 - **Draw cost** (exclusive runs in vrfiringrange, the double shotgun held and the body in view, 1500 frames each, two
   runs before and two after): alias models 0.01 ms an eye on the GPU and 0.05 ms on the CPU before and after; the
   whole frame 0.73 ms on the GPU both ways.
