@@ -150,7 +150,10 @@ context and screenshot, ready to paste or to point me at.
     jitter); the trigger finger pulls; hotspots (Weapon Offsets) incl. the Cup pistol grip; Inherit From for the
     alternate models. Check the thumb on pistol grips and objects held from far away (no more floating).
   - **Flashlight:** hanging from the belt (off-hand side; reach for it, it taps and brightens), B/Y away from a gun
-    flips the grip, B/Y at the head wears it; it should never be grabbed by a guard or a punch.
+    flips the grip (a quick spin now), B/Y at the head wears it; it should never be grabbed by a guard or a punch.
+    After your test: the overhead grip sits in the fist (it went through the hand); each grip has its own sliders
+    (Flashlight page, In the Hand: Low Grip / Overhead Grip); the beam is white by default (Beam Hue, Beam
+    Saturation); wider offset sliders; Cord off hides the cord.
   - **Wrist gadget:** Screens > Messages (test button, messages only on the gadget), Graphics > Performance > FPS
     Counter on the Gadget.
   - **Casings** splash in water; **beam quality** (Flashlight section).

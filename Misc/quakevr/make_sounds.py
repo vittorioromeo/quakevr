@@ -9,6 +9,8 @@
 #   shove.wav, bash.wav, bash_parry.wav, parry.wav  melee contacts other than blows (vr_bash_sound): a
 #                 shove (a whoosh into a thud), a weapon bash (a dull clang on a thud), a parry-bash (a
 #                 scrape and ring over the bash) and a parry (a bright ring of steel)
+#   pommel1..3.wav  a pommel, a hilt or a gun's butt striking (QC vr_melee.qc VR_Melee_HitSound): a blunt knock,
+#                 short and dry, apart from the blades' cuts and the punches; three, a little apart in pitch
 #
 # The water sounds in the same folder (splash_small*, splash_big*, splash_out*, plip*, slosh*, stroke*) are not
 # made here: they are recordings (docs/vr-port/CREDITS.md), kept in the repository as they are.
@@ -280,6 +282,32 @@ def bash_parry():
     return finish(out, 0.92)
 
 
+def pommel(pitch, seed):
+    """A pommel, a hilt or a gun's butt knocked into a body: blunt, short and dry. A hard tick, a wooden knock (low
+    inharmonic modes of a dense knob damped in a few tens of ms: no ring, unlike the bash's clang or the parry's
+    steel), a crunch of flesh and a short low thump; no whoosh (the shove's and the bash's), tighter than a punch."""
+    rng = random.Random(seed)
+    n = int(RATE * 0.3)
+    click_hp = OnePole(2200)
+    crunch_lp, crunch_hp = OnePole(1500), OnePole(180)
+    body_lp = OnePole(330)
+    phase = [0.0]
+    table = ((290, 0.8, 0.03), (640, 0.7, 0.02), (1090, 0.45, 0.012), (1650, 0.25, 0.007))
+    out = []
+    for i in range(n):
+        t = i / RATE
+        noise = rng.uniform(-1, 1)
+        click = (noise - click_hp(noise)) * math.exp(-t / 0.0015)
+        knock = partials(t, pitch, table) * min(1.0, t / 0.0004)
+        crunch = crunch_lp(noise)
+        crunch -= crunch_hp(crunch)
+        crunch *= math.exp(-t / 0.02)
+        body = body_lp(noise) * math.exp(-t / 0.045)
+        s = click * 0.6 + knock * 1.6 + crunch * 1.1 + thud(t, phase, 58 * pitch, 95 * pitch, 0.05) * 0.6 + body * 0.8
+        out.append(math.tanh(s * 1.6))
+    return finish(out, 0.92)
+
+
 def read_wav(path):
     """A 16-bit mono WAV's samples, -1..1."""
     with open(path, "rb") as f:
@@ -342,6 +370,11 @@ def main():
     for k, pitch in enumerate((1.0, 0.92, 1.09)):
         name = "shell_tink%d.wav" % (k + 1)
         write_wav(os.path.join(out, name), shell_tink(pitch, 31 + k))
+        print(name + " -> " + os.path.normpath(out))
+    # Pommel, hilt and butt strikes (QC vr_melee.qc): three, a little apart in pitch, picked at random.
+    for k, pitch in enumerate((1.0, 0.89, 1.12)):
+        name = "pommel%d.wav" % (k + 1)
+        write_wav(os.path.join(out, name), pommel(pitch, 131 + k))
         print(name + " -> " + os.path.normpath(out))
     # And dropping into water (vr_shells.cpp): the recordings' plips higher, from the folder they are in.
     for k, (plip, factor) in enumerate((("plip1.wav", 1.5), ("plip3.wav", 1.4), ("plip4.wav", 1.65))):
