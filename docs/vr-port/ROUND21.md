@@ -2835,3 +2835,81 @@ also gripped by the off hand for the two-handed case; `save`, `load`, screenshot
 ### In the headset
 
 - [ ] Carry a box (one hand, then both), save, load: is it in your hand(s)? Let go, grip it again.
+
+## Leaning; menu opacity
+
+Your notes: leaning your head a bit moved the legs, and leaning didn't seem to work at all; and a slider for the
+menu's background opacity, to see the game behind it while tuning graphics.
+
+### Leaning
+
+**What was wrong.** The collision box did let the head lean off its middle (Lean, `vr_lean_radius`), but:
+
+- the drawn body ignored it: the pelvis and the feet were placed under the head, so any head motion carried the whole
+  body, and 25 cm of it made the feet step;
+- the box slid back under the head at Lean Recentre (0.5 m/s) all the time, so a held lean was undone within a second
+  anyway (its feet then stepping after it).
+
+**Now.** Where the body stands is the box's middle: the feet stand under it, and the head's offset from it is the lean.
+The back tilts from the hips towards the head, as far as the head has gone down for it (a tilt swings the head down on
+an arc about the hips); a fifth of the lean is always in the hips, and a lean with the head kept high is the hips
+shifting (the legs slant). The feet step only when the box moves more than 25 cm from them.
+
+Whether the box follows the head (you walk) or stays (you lean) is told by the cues (`senseLean`, `vr_hands.cpp`):
+
+| Cue | A lean | Walking in the room |
+|---|---|---|
+| the head's drop below its standing height (learnt while you stand over the box; the calibration only seeds it), against the drop a lean this far out would give (an arc of 0.43 x eye height about the hips) | lower, about as the arc says (5-6 cm at 28 cm out) | keeps its height (a walk's bob is smoothed out) |
+| the head's tilt towards the offset (roll sideways; pitch forward counts half: you look down walking too) | tilted 5-15 degrees or more | level |
+| the hands' middle, learnt while the head is over the box: how far it went along with the head | hanging hands stay by the hips (a quarter as far) | the hands go along |
+| speed and duration | the first instants show few cues; a slow lean drifts | keeps going at a walking pace (above 0.15-0.35 m/s) |
+
+Any one cue can tell (weighed together, then times Lean Detection), smoothed quick to rise and slower to let go (0.08 s,
+0.35 s): the lean's hold. Within the Lean radius the box then stays while you lean, and otherwise catches up with the
+head, closing the gap in about a quarter of a second (never slower than Lean Recentre); while the head moves, only once
+it has kept going for 0.12-0.35 s at a walking pace. Past the radius the body follows the head as before, and at a wall
+the head stops there as before. The torso's tilt also goes with the hold: walking, the body lagging the head stays
+upright, the hips with the head, and the feet catch up.
+
+**Settings** (VR Settings > Body and Movement > Body, and Advanced > Locomotion):
+
+- **Lean Detection** (`vr_lean_detect`, new, default 1): 0 off (the box always slides back under the head at Lean
+  Recentre, as before; the drawn body still stands at the box); higher, more readily a lean (up to 2).
+- **Lean** (`vr_lean_radius`, now also on the Body page; yours is 12 in the baseline config): how far the head may lean
+  off where the body stands before the body follows.
+- **Lean Recentre** (`vr_lean_recenter`, 0.5): now the least speed the body catches up at (0: never).
+
+### Checked (mock headset, `start`; scripted head and hand paths with head tilt, `vr_debug_lean 1` traces)
+
+Scratch folder `lean/` (the motions `lean.txt`, `leanaim.txt`, `walk.txt`, `crouch.txt`, `wall.txt` from `gen.py`;
+`out/plot_*.png` the head, box, pelvis and feet over time with the cues, before and after; `out/comp_*.png` the body
+from a spectator camera, before and after):
+
+| Motion | Before | After |
+|---|---|---|
+| leans left, right, forward (28-30 cm, head 5-6 cm lower, tilted 16-18 degrees, hands hanging), held 2 s, and back | the box followed the head within 0.1 s; the feet stepped at every lean and every return (14 steps) | the box stays (at most 7.6 cm off, over the lean's first instants); no step; the back tilts from the hips over the feet |
+| a slow lean (3 s in) | as above | the box 7 cm off, no step |
+| the same leans aiming (the hands with the head) | as above | the box at most 11 cm off (the drop and tilt alone tell), no step |
+| walking 0.8 m forward, 0.5 m left, back, a 15 cm shuffle | feet stepping after the head, the first step 0.4 s in | the same (12 steps), the first step 0.64 s in; the body upright, the hips with the head |
+| crouching (head to 1.05 m, 12 cm forward), then leaning left crouched | the pelvis and the box went with the head | the box and feet stay; after standing up the box comes back under the head in 0.3 s |
+| strafing into a wall with the stick, leaning into it, walking 0.8 m into it (Lean Detection 0 and 1) | - | the box stays against the wall; the head stops 0.43 m off it (the radius, 0.46 m at world scale 1), as with detection off |
+
+Known: walking into a wall in the room, the head held off by the radius, the body stays upright (the hips under the
+head, the legs slanted to the feet at the box), as before.
+
+### Menu background opacity
+
+**Menu Background Opacity** (`scr_menubgalpha`, 0 to 1, 0.7 as shipped: today's look), on the Menu settings page (with
+the distance, scale, spacing and height) and in VR Settings > Display under Menu Scale. It is Ironwail's own menu
+background alpha, so the desktop menus follow it too (Ironwail's Interface > BG Alpha is the same setting). Below 0.55
+the menus' text gets a dark outline a glyph pixel wide (`draw_textoutline`, `gl_draw.c`), stronger the fainter the
+background (full at 0.1), so that it stays readable over the game; the box and slider glyphs are left as they are.
+Checked in the mock (`out/menu_opacity.png`, `out/menu_zoom.png`): the VR panel and the desktop Options menu at 0.7,
+0.3 and 0, over a fullbright room.
+
+### In the headset
+
+- [ ] Lean left, right and forward with your feet planted (and aiming round a corner): do the legs stay? Walk a step or
+      two in the room: do they follow? If they still step when you lean, raise Lean Detection; if the body lags when
+      you walk, lower it.
+- [ ] Lower Menu Background Opacity while tuning graphics: is the text readable over bright scenes?

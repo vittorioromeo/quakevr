@@ -110,8 +110,8 @@ void mockFingers_f()
 
 // vr_mock_hand <main|off|head> <x> <y> <z> [<pitch> <yaw> <roll>]: tracking-space position
 // (metres, +x right, +y up, -z forward) and, for a hand, its orientation (degrees: pitch up,
-// yaw left, roll right side up); "vr_mock_hand <main|off|head>" alone restores
-// the standing pose's.
+// yaw left, roll right side up; the head's too, which vr_mock_look sets otherwise); "vr_mock_hand
+// <main|off|head>" alone restores the standing pose's.
 [[nodiscard]] glm::quat mockRotation(float pitch, float yaw, float roll)
 {
     return glm::angleAxis(glm::radians(yaw), glm::vec3{0.f, 1.f, 0.f}) *
@@ -124,6 +124,7 @@ glm::vec3 mockHandPos[HAND_COUNT + 1];
 bool mockHandSet[HAND_COUNT + 1]{};
 glm::quat mockHandRot[HAND_COUNT];
 bool mockHandRotSet[HAND_COUNT]{};
+glm::quat mockHeadOrientation{1.f, 0.f, 0.f, 0.f}; // vr_mock_look, vr_mock_hand head, vr_mock_play
 
 void mockHand_f()
 {
@@ -144,6 +145,10 @@ void mockHand_f()
         mockHandRotSet[hand] = Cmd_Argc() == 8;
         mockHandRot[hand] = mockRotation(Q_atof(Cmd_Argv(5)), Q_atof(Cmd_Argv(6)), Q_atof(Cmd_Argv(7)));
     }
+    else if(Cmd_Argc() == 8)
+    {
+        mockHeadOrientation = mockRotation(Q_atof(Cmd_Argv(5)), Q_atof(Cmd_Argv(6)), Q_atof(Cmd_Argv(7)));
+    }
 }
 
 // vr_mock_play <file>: plays a scripted motion on the clock, so that it runs the same at any frame
@@ -154,7 +159,8 @@ void mockHand_f()
 //   <t> cmd <console command>                                (e.g. +grabright, -grabright)
 // Poses in between are interpolated (positions linearly, orientations by slerp), and the hands
 // report the motion's velocities between their keyframes, as a runtime would. At the end the last
-// poses stay, as vr_mock_hand leaves them. "vr_mock_play" alone stops it.
+// poses stay, as vr_mock_hand leaves them. The head's keyframes with angles turn it too (a lean's tilt: pitch up,
+// yaw left, roll as the hands'). "vr_mock_play" alone stops it.
 struct PlayKey
 {
     double t;
@@ -233,7 +239,7 @@ void mockPlay_f()
         {
             continue;
         }
-        playKeys[target].push_back({t, {x, y, z}, n == 8 && target < HAND_COUNT,
+        playKeys[target].push_back({t, {x, y, z}, n == 8,
             n == 8 ? mockRotation(pitch, yaw, roll) : glm::quat{1.f, 0.f, 0.f, 0.f}});
         playEnd = std::max(playEnd, t);
     }
@@ -276,6 +282,10 @@ void playFrame(double now, glm::vec3* vel, glm::vec3* angVel, bool* played)
         mockHandSet[target] = true;
         if(target == mockHead)
         {
+            if(k0.hasRot && k1.hasRot)
+            {
+                mockHeadOrientation = glm::slerp(k0.rot, k1.rot, s);
+            }
             continue;
         }
         if(k0.hasRot && k1.hasRot)
@@ -319,7 +329,6 @@ void playFrame(double now, glm::vec3* vel, glm::vec3* angVel, bool* played)
 }
 
 // vr_mock_look <pitch> <yaw>: the head's orientation in degrees (pitch down positive).
-glm::quat mockHeadOrientation{1.f, 0.f, 0.f, 0.f};
 
 void mockLook_f()
 {

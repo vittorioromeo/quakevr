@@ -82,7 +82,7 @@ double stairLastTime = -1.0;
 // (32 units wide, 16 from its middle to a side) stops. The head never leaves the box's footprint,
 // which is always in open space. Only the head's motion beyond the radius is walked; at rest the
 // body slides back under the head (vr_lean_recenter) where its box can go and there is floor under
-// it (not over a ledge).
+// it (not over a ledge) -- unless the head is leaning (vr_lean_detect, below).
 bool lastHeadValid = false;
 glm::vec3 lastHead{0.f};
 glm::vec3 roomscaleMove{0.f};
@@ -90,10 +90,129 @@ glm::vec3 lean{0.f};
 glm::vec3 lastBody{0.f};
 bool lastBodyValid = false;
 
+// Leaning or walking (vr_lean_detect). The head moving off the box's middle is either a lean -- the feet stay, the
+// back tilts at the hips or bends sideways, so the head goes down a little as it goes out (more the further out: an
+// arc about the hips) and usually tilts the way it goes, while hands hanging at the sides stay by the hips -- or the
+// player walking in the room: the whole body moves, the head keeping its standing height and staying level, the
+// hands going along. The cues are weighed into how sure it is a lean (`hold`, 0..1). Within vr_lean_radius the box
+// (and the drawn body's hips and feet, vr_avatar.cpp) stays while it is a lean, and otherwise follows the head, the
+// faster the further it is off (walking keeps it close under the head), once the head has moved on for a moment or
+// come to rest (the first instants of a lean show few cues). Past the radius the body follows the head, as ever.
+struct LeanSense
+{
+    bool valid{false};
+    float standing{0.f};        // the head's standing height (metres), learnt while over the box and upright
+    float drop{0.f};            // how far below that it is, smoothed (a walk's bob evened out)
+    glm::vec2 handsRef{0.f};    // the hands' middle off the box's middle (metres), learnt while the head is over it
+    bool handsRefValid{false};
+    float speed{0.f};           // the head's horizontal speed (metres a second), smoothed
+    float moving{0.f};          // seconds it has been moving
+    float hold{0.f};            // how sure it is a lean, smoothed: quick to rise, slower to let go
+    glm::vec4 cues{0.f};        // drop, tilt, hands (0..1 each), standing height: for vr_debug_lean
+};
+
+LeanSense leanSense;
+
 void resetLean()
 {
     lean = glm::vec3{0.f};
     lastBodyValid = false;
+    leanSense = LeanSense{};
+}
+
+[[nodiscard]] float smoothstep01(float e0, float e1, float x)
+{
+    const float u = CLAMP(0.f, (x - e0) / (e1 - e0), 1.f);
+    return u * u * (3.f - 2.f * u);
+}
+
+// How sure the head's offset from the box (`lean`, world units) is a lean, from the tracking this frame (see
+// LeanSense); `step` is the head's horizontal motion this frame (world units, turned and scaled as the lean).
+void senseLean(const TrackingState& t, float m2u, const glm::vec3& step, float dt)
+{
+    LeanSense& ls = leanSense;
+    const float calibrated = units::eyeHeight();
+    const float height = t.head.position.y;
+    // In the room's metres (vr_roomscale_move_mult scales the head's motion in the game, not the body's shape).
+    const float toMetres = 1.f / (m2u * std::max(0.1f, vr_roomscale_move_mult.value));
+    const glm::vec2 off = glm::vec2{lean.x, lean.y} * toMetres;
+    const float offLen = glm::length(off);
+    const glm::vec2 dir = offLen > 1e-4f ? off / offLen : glm::vec2{0.f};
+    constexpr float CENTRED = 0.05f; // metres: the head over the box's middle
+    const auto ease = [&](float tau) { return 1.f - std::exp(-dt / tau); };
+
+    if(!ls.valid)
+    {
+        ls = LeanSense{};
+        ls.standing = height > 0.85f * calibrated ? height : calibrated;
+        ls.valid = true;
+    }
+
+    // The standing height: learnt while the head is over the box and not crouching, rising quickly (standing up
+    // straighter), sinking slowly (settling); kept while the head is off (a lean's drop is not forgotten).
+    if(offLen < CENTRED && height > ls.standing - 0.12f)
+    {
+        ls.standing += (height - ls.standing) * ease(height > ls.standing ? 0.4f : 4.f);
+    }
+    ls.standing = CLAMP(0.8f * calibrated, ls.standing, 1.25f * calibrated);
+    ls.drop += (std::max(0.f, ls.standing - height) - ls.drop) * ease(0.15f);
+
+    // A lean swings the head on an arc about the hips (about 0.43 of the eyes' height below them): how much lower that
+    // puts it this far out. A step keeps the height (a walk bobs about a centimetre).
+    const float arm = 0.43f * ls.standing;
+    const float reach = std::min(offLen, 0.9f * arm);
+    const float arcDrop = arm - std::sqrt(arm * arm - reach * reach);
+    const float dropCue = smoothstep01(std::max(0.015f, 0.35f * arcDrop), std::max(0.035f, 0.75f * arcDrop), ls.drop);
+
+    // The head tilted the way it is off: rolled towards it (sideways), or pitched towards it (forward only half: the
+    // eyes look down walking too).
+    const auto horizontal = [&](const glm::vec3& v) {
+        const glm::vec3 w = rotateYaw(quakeFromTracking(t.head.orientation * v), turnYaw);
+        return glm::vec2{w.x, w.y};
+    };
+    const glm::vec2 up = horizontal({0.f, 1.f, 0.f});
+    glm::vec2 fwd = horizontal({0.f, 0.f, -1.f});
+    fwd = glm::length(fwd) > 1e-3f ? glm::normalize(fwd) : glm::vec2{1.f, 0.f};
+    const glm::vec2 side{-fwd.y, fwd.x};
+    const float along = glm::dot(dir, fwd);
+    const float towards = glm::dot(dir, side) * glm::dot(up, side) + along * glm::dot(up, fwd) * (along > 0.f ? 0.5f : 1.f);
+    const float tiltCue = smoothstep01(0.08f, 0.26f, towards); // about 5 to 15 degrees
+
+    // The hands: their middle off the box, learnt while the head is over it; with the head off, how far they went
+    // along with it. Hanging at the sides they stay by the hips in a lean, and walk along in a step; held up they
+    // tell less (aiming round a corner, they lean with the head).
+    float handsCue = 0.f;
+    if(t.hands[0].valid && t.hands[1].valid)
+    {
+        const glm::vec3 mid = (t.hands[0].position + t.hands[1].position) * 0.5f;
+        const glm::vec3 rel = rotateYaw(quakeFromTracking(mid - t.head.position), turnYaw);
+        const glm::vec2 hands = off + glm::vec2{rel.x, rel.y}; // metres off the box's middle
+        if(offLen < CENTRED)
+        {
+            ls.handsRef = ls.handsRefValid ? ls.handsRef + (hands - ls.handsRef) * ease(0.3f) : hands;
+            ls.handsRefValid = true;
+        }
+        else if(ls.handsRefValid)
+        {
+            const float went = glm::dot(hands - ls.handsRef, dir) / offLen; // 1: as far as the head
+            const float low = std::max(t.hands[0].position.y, t.hands[1].position.y) < 0.62f * ls.standing ? 1.f : 0.5f;
+            handsCue = low * smoothstep01(0.75f, 0.35f, went);
+        }
+    }
+    else
+    {
+        ls.handsRefValid = false;
+    }
+
+    // Weighed together (any one can tell), scaled by vr_lean_detect.
+    const float sure = 1.f - (1.f - dropCue) * (1.f - 0.85f * tiltCue) * (1.f - 0.7f * handsCue);
+    const float target = CLAMP(0.f, sure * vr_lean_detect.value, 1.f);
+    ls.hold += (target - ls.hold) * ease(target > ls.hold ? 0.08f : 0.35f);
+
+    const float speed = dt > 0.f ? glm::length(glm::vec2{step.x, step.y}) * toMetres / dt : 0.f;
+    ls.speed += (speed - ls.speed) * ease(0.1f);
+    ls.moving = ls.speed > 0.12f ? ls.moving + dt : 0.f;
+    ls.cues = {dropCue, tiltCue, handsCue, ls.standing};
 }
 
 void updateRoomscale(const TrackingState& t, float m2u, const glm::vec3& body)
@@ -102,6 +221,7 @@ void updateRoomscale(const TrackingState& t, float m2u, const glm::vec3& body)
     if(lastBodyValid && glm::length(glm::vec2{body.x - lastBody.x, body.y - lastBody.y}) > 64.f)
     {
         lean = glm::vec3{0.f};
+        leanSense.handsRefValid = false;
     }
     lastBody = body;
     lastBodyValid = true;
@@ -113,6 +233,7 @@ void updateRoomscale(const TrackingState& t, float m2u, const glm::vec3& body)
         return;
     }
 
+    glm::vec3 step{0.f};
     if(lastHeadValid)
     {
         const glm::vec3 delta =
@@ -121,12 +242,17 @@ void updateRoomscale(const TrackingState& t, float m2u, const glm::vec3& body)
         // A jump (recentred play space, tracking lost and found) is not a step.
         if(glm::length(delta) < 50.f)
         {
-            lean += glm::vec3{delta.x, delta.y, 0.f};
+            step = glm::vec3{delta.x, delta.y, 0.f};
+            lean += step;
         }
     }
 
     lastHead = head;
     lastHeadValid = true;
+
+    const float dt = static_cast<float>(CLAMP(0.0, host_frametime, 0.1));
+    const bool detect = vr_lean_detect.value > 0.f;
+    senseLean(t, m2u, step, dt); // also the standing height, for the drawn body's lean
 
     const float radius = CLAMP(0.f, vr_lean_radius.value, 14.f);
     const float length = glm::length(lean);
@@ -139,10 +265,21 @@ void updateRoomscale(const TrackingState& t, float m2u, const glm::vec3& body)
         return;
     }
 
-    if(length > 0.01f && vr_lean_recenter.value > 0.f && !noclip_anglehack)
+    // Back under the head: at vr_lean_recenter (0: never); with vr_lean_detect, not while leaning, and otherwise also
+    // as fast as it takes to close the gap in about a quarter of a second. While the head moves, only once it has kept
+    // going for a moment at a walking pace (a lean's first instants show few cues, and a slow lean drifts); at rest,
+    // as the cues say.
+    float speed = vr_lean_recenter.value * m2u;
+    if(detect && speed > 0.f)
     {
-        const float dt = static_cast<float>(CLAMP(0.0, host_frametime, 0.1));
-        const float step = std::min(length, vr_lean_recenter.value * m2u * dt);
+        const LeanSense& ls = leanSense;
+        const float going =
+            ls.moving > 0.f ? smoothstep01(0.12f, 0.35f, ls.moving) * smoothstep01(0.15f, 0.35f, ls.speed) : 1.f;
+        speed = std::max(speed, length / 0.25f) * (1.f - ls.hold) * going;
+    }
+    if(length > 0.01f && speed > 0.f && !noclip_anglehack)
+    {
+        const float step = std::min(length, speed * dt);
         const glm::vec3 to = body + lean * (step / length);
         if(worldtrace::playerBoxFits(body, to) && worldtrace::line(to, to - glm::vec3{0.f, 0.f, 48.f}) < 1.f)
         {
@@ -318,6 +455,9 @@ void update()
     {
         updateRoomscale(t, m2u, state.playerOrigin);
         state.lean = lean;
+        state.leanHold = vr_lean_detect.value > 0.f ? leanSense.hold : 0.f;
+        state.leanCues = leanSense.cues;
+        state.standingHeight = leanSense.valid ? leanSense.standing : units::eyeHeight();
 
         // Positions are relative to the play-space floor below the head: the box's middle and the
         // lean.
@@ -374,6 +514,8 @@ void update()
         angleVectors(aim, fwd, right, up);
 
         state.lean = glm::vec3{0.f};
+        state.leanHold = 0.f;
+        state.standingHeight = units::eyeHeight();
         state.head = state.playerOrigin + glm::vec3{0.f, 0.f, cl.viewheight};
         state.headAngles = aim;
         state.headHeight = vr_height_calibration.value;

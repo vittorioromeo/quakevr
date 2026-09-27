@@ -20,6 +20,12 @@ struct State
     float headHeight{0.f};      // metres above the play-space floor
     float bodyYaw{0.f};
     float crouchRatio{0.f};     // 0 standing .. 1 crouched (relative to vr_height_calibration)
+    // Leaning (vr_lean_detect): how sure the head's offset from the box is a lean (1: the body stays where it stands)
+    // rather than a step (0: it follows), and the cues that told (vr_debug_lean): the head's drop below its standing
+    // height, its tilt towards the offset, the hands left behind, and that standing height (metres).
+    float leanHold{0.f};
+    glm::vec4 leanCues{0.f};
+    float standingHeight{0.f}; // the head's standing height (metres), learnt: how far down it has gone for a lean
 
     glm::vec3 eyeOrigin[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // [0] left, [1] right (headset only)
     glm::vec3 eyeAngles[2]{glm::vec3{0.f}, glm::vec3{0.f}};
