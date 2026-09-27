@@ -5,6 +5,7 @@
 
 #include "vr_progs.hpp"
 #include "vr_held.hpp"
+#include "vr_motion.hpp"
 #include "vr_engine.hpp"
 #include "vr_physics.hpp"
 #include "vr_protocol.hpp"
@@ -333,6 +334,28 @@ void PF_ejectcasings()
         G_FLOAT(OFS_PARM3));
 }
 
+// ----------------------------------------------------------------------------
+// The motion recorder (vr_motion.cpp; QC vr_motion.qc): kept only while a take is recorded or played.
+
+// void(string kind, string sub, float hand, float value, vector at, entity targ, string detail) motionevent
+void PF_motionevent()
+{
+    motion::qcEvent(G_STRING(OFS_PARM0), G_STRING(OFS_PARM1), static_cast<int>(G_FLOAT(OFS_PARM2)), G_FLOAT(OFS_PARM3),
+        G_VECTOR(OFS_PARM4), G_EDICT(OFS_PARM5), G_STRING(OFS_PARM6));
+}
+
+// void(float hand, vector at, string name) motionpoint
+void PF_motionpoint()
+{
+    motion::qcPoint(static_cast<int>(G_FLOAT(OFS_PARM0)), G_VECTOR(OFS_PARM1), G_STRING(OFS_PARM2));
+}
+
+// void(string key, vector value) motionvalue
+void PF_motionvalue()
+{
+    motion::qcValue(G_STRING(OFS_PARM0), G_VECTOR(OFS_PARM1));
+}
+
 struct VrBuiltin
 {
     const char* name;
@@ -364,6 +387,9 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"liquidentry", PF_liquidentry},
     {"watersplash", PF_watersplash},
     {"fileexists", PF_fileexists},
+    {"motionevent", PF_motionevent},
+    {"motionpoint", PF_motionpoint},
+    {"motionvalue", PF_motionvalue},
 };
 
 static_assert(firstVrBuiltin + std::size(vrBuiltins) < MAX_BUILTINS - 200,

@@ -1762,6 +1762,17 @@ extern "C" void VR_SetupViewEntities()
 namespace qvr::view
 {
 
+float fingerCurl(int hand, int finger)
+{
+    if(hand < 0 || hand > 1 || finger < 0 || finger > 4)
+    {
+        return 0.f;
+    }
+    // As drawn: the curl (frames 0..5), held back by a weapon's grip.
+    const int f = FingerThumb + finger;
+    return std::fmin(fingerFrames[hand][f], fingerLimits[hand][f]) / 5.f;
+}
+
 // vr_dumpview: lists the VR view entities.
 void dumpView_f()
 {

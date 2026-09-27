@@ -50,9 +50,9 @@ foreach ($f in Get-ChildItem $bin -File) {
 $game = Join-Path $root "quakevr"
 $exclude = @("ironwail.cfg", "config.cfg", "autoexec.cfg", "history.txt", "qconsole.log", "ironwail.cfg.from-tests", "envmap.tga")
 # A player's (and a tester's) own folders: screenshots, voice notes, profiles and memory logs,
-# autosaves, eye captures; and relit, id Software's maps relit on this PC by relight_maps.py,
+# autosaves, eye captures, motion takes (the motion recorder's, docs/vr-port/MOTIONS.md); and relit, id Software's maps relit on this PC by relight_maps.py,
 # which are id's data and must never be distributed (players make their own: docs/RELIGHTING.md).
-$private = @("screenshots", "notes", "profile", "autosave", "eyeshots", "relit")
+$private = @("screenshots", "notes", "profile", "autosave", "eyeshots", "motions", "relit")
 Get-ChildItem $game -Recurse -File | Where-Object {
     $rel = $_.FullName.Substring($game.Length + 1)
     $top = ($rel -split '[\\/]')[0]
