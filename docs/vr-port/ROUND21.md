@@ -1687,3 +1687,222 @@ the punch (`fisthit.wav`) or nothing.
 - The verdicts are the round's: hilt_pommel 23 of 27 and gun_strike_butt 9 of 17 pass. The pommel takes that fail
   read as slashes (02-44-18, 04-05-33, noted above), and they play the slash's sound.
 - Not heard: the sounds were checked by their spectra and length only, not listened to in the headset.
+
+## Two-handed props
+
+Your request: hold a physics prop with both hands at once, moving and turning naturally with both, thrown with both,
+and passed from one hand to the other without dropping it. Until now a second hand couldn't take a carried thing:
+the carry was per hand, and a carried thing isn't solid, so no hand touch reached it.
+
+### What it does
+
+- **Taking it in both hands.** While one hand carries a box, backpack, gib, head or armour, grip it with the other
+  hand. The rules are the first grip's: a grip press (not a fist moved onto it) within Carry Reach (8 cm) of its
+  drawn surface. It is then held in both hands, with a softer click and a buzz in the second hand.
+- **Moving and turning.** It follows both hands rigidly, as if held at the two places the hands took it:
+  - Move or turn both hands together (as one body) and it moves and turns exactly with them.
+  - Move one hand and it swings about the other.
+  - Twist both hands about the line between them and it rolls. One hand alone rolls it half as much.
+  - Pull the hands apart or push them together and it doesn't stretch or shrink. It stays centred between them, and
+    each drawn hand stays on its grip, up to Two-Handed Hand Drift (8 cm) off your real hand. Pulled further, the
+    drawn hand leaves its grip.
+- **Fingers.** Both hands' fingers wrap it (the fitted hands' grasp, each hand solved on its own). The second hand's
+  palm moves up to Palm Fit (5 cm) to sit on the surface where it gripped.
+- **Letting go with one hand.** The other hand keeps it, held from where it is, with no jump. The hand that let go,
+  drawn on its grip until then, eases back onto your real hand over 0.15 s. This is the hand-over: grab with the
+  other hand, let go with the first.
+- **Throwing with both.** Let go with both hands within 0.1 s of each other (Two-Handed Throw Window) and it is thrown
+  with its own motion as your hands moved it. Its velocity is that of its centre: the hands' middle, plus its spin
+  about that middle. Its spin is that of a thing held rigidly at both hands: the line between the hands turning, plus
+  the hands' own roll about that line. So a box flicked forward by both wrists tumbles forward. The usual throw rules
+  follow: throw gain, throw gravity, Box Throw Speed, the damage of a box or gib thrown hard.
+- **Holsters.** Let go at a holster with one hand while the other still holds it: it isn't taken; the other hand keeps
+  it. Only a one-handed carry puts a thing in the pack. Both hands letting go together is a throw, never a take, even
+  with a hand at a holster. With Take a Box on Trigger, either hand's trigger takes it.
+- **Armour** held in both hands is put on when you let go over your torso, as with one hand.
+
+### How it works
+
+**The pose from both hands** (`vr_carry2h.cpp`, used by the server and the client alike). When the second hand
+takes hold, three things are kept: each hand's grip in the object's frame, the object's turn in each hand, and the
+direction from the off hand's grip to the main hand's. Each frame:
+
+1. Each hand alone would carry it turned so (its turn in that hand). The two turns are averaged (a quaternion mean,
+   the two on the same side, so never degenerate).
+2. That turn is swung the least way that lines the kept grip-to-grip direction up with the line between the hands
+   now.
+3. The middle of the grips is put on the middle of the hands.
+
+When both hands move as one rigid body, this gives back that motion exactly: steps 1 and 2 then have nothing to
+average or swing. With the hands (or the grips when taken) within 3 cm of each other, there's no line to follow. The
+swing fades out between 6 and 3 cm, and the averaged turn alone is left, as one hand's. Nothing divides by a
+distance that can be zero, so no NaN.
+
+**Server** (`QC/vr_carry.qc`, `VR_Carry_TwoHandFrame`, before the hands' own frames):
+
+- A hand not carrying, with an empty hand, not force-grabbing, not holding the flashlight, pressing its grip in
+  reach of what the other hand carries (`carryreach`, the touch test's), takes hold. Both hand fields then point to
+  the thing, and `carry_2h` is set.
+- The thing goes where `carry2h` puts it. It stops at walls and monsters and is dropped when left 32 units behind, as
+  one hand's carry (`VR_Carry_Follow`, now shared).
+- One hand letting go: `VR_Carry_Regrip` gives the other hand its place and turn from where it is (no carry fit, as
+  it doesn't move).
+- Both letting go: the main hand's frame lets go of it as before (throw, armour, drop), but not into the pack.
+- A holster take needs the last two-handed hold to have ended more than the window (plus 0.05 s) before.
+
+**Client** (`vr_held.cpp`). Your held things are drawn in your hands this frame (Drawn In the Hand). Held in both
+hands (both carry stats name it), it is placed by the same solve from this frame's controllers. It is kept from where
+it was drawn when the second hand took it, so it doesn't jump. Each hand is drawn on its grip: its place moved at most
+the drift off the controller, and its turn at most 40Â° (a twist of one hand the other doesn't share). The hook in
+`vr_view.cpp` is three lines: the hand is drawn as if its controller were there, so the fist's offsets, the arm and
+the fitted fingers follow as usual.
+
+**The throw** (`vr_throw.cpp` `estimateBothAt`, `vr_client.cpp`). The client throws with its own estimate, and
+nothing new is sent. For a hand that lets go of a thing held in both hands, or held in both until the other hand let
+go at most the window before, the throw estimate it sends is the object's. From both hands' samples of the same
+frames, it builds the object's velocity and spin, as above. It then takes the peak as a one-handed throw does (the
+same window, peak averaging and fit, direction look-back). There is no lever-arm flick: the spin about the middle is
+exact. The server throws with the last hand's estimate, as ever.
+
+**Other cases:**
+
+- **Force grab** (the catch is a hand touch): it goes into a free hand as before. A hand that holds something can't
+  force-grab.
+- **Weapons:** a hand with a weapon can't take hold. A carried thing blocks weapons for both hands, as before.
+- **Gibs:** a gib held in both hands can't be struck or shot "by the other hand".
+- **Death:** new, for one hand too. What the hands carried dropped nowhere before: `PlayerPostThink` stops before the
+  hands' frames while dead, so it hung in the air, still yours, until the respawn. `VR_Carry_Dead` lets go of it with
+  the motion it had.
+- **Save and load:** the flag is saved. The kept grips aren't: they are taken again from the loaded pose at the first
+  frame.
+- **Map change:** the new server forgets the grips (`resetRigidBodies`).
+- **Multiplayer:** the server does it all per player, from the hands and throw estimates each client already sends.
+  Your client draws it from your hands, as it does your one-handed carries. Others see where the server puts it.
+  The drawn hands on their grips are local only: others see your hands where they are.
+- **vr_carry_two_hands 0:** no new two-handed holds. One already held stays until let go of.
+
+### Settings (Carrying and Gibs page)
+
+| Cvar | Default | Menu | |
+|---|---|---|---|
+| `vr_carry_two_hands` | 1 | Two-Handed Carrying | The other hand can take hold of what one carries. |
+| `vr_carry_two_hands_drift` | 8 | Two-Handed Hand Drift (0..20 cm, on to 50) | cm each drawn hand may be off your real hand to stay on its grip; 0: the drawn hands stay on your real hands. |
+| `vr_carry_two_hands_window` | 0.1 | (console) | Seconds between the two hands letting go that still make a two-handed throw (the server allows 0.05 s more for the moves' timing). |
+
+Debugging:
+
+- `vr_debug_carry 2` writes `carry_trace.txt` in the game folder, one line a frame: the object's place and turn, and
+  each hand's controller and drawn pose. With 2 or more, the second hand's reach test prints too.
+- `developer 1` prints `carry: both hands`, `carry: one hand let go, held in the other`, `carry: both hands let go`,
+  `carry: thrown at <velocity> (<speed>), spin <rad/s>`, `carry: dead, let go`.
+- `vr_debug_throw 1` also prints `throw both hands (...)`.
+
+### Costs
+
+Measured with `run.sh --exclusive` in the firing range, over 7.4 s of the hands circling and rolling (about 1840
+frames at 249 fps; `vr_profile`'s CSV, ms per frame):
+
+| | `held` (client) | `carry2h` (server) | the two hands (`hand`) | `grasp solve` |
+|---|---|---|---|---|
+| nothing held | 0.000 | - | 0.018 | - |
+| one hand (before this change) | - | - | 0.020 | - |
+| one hand | 0.001 | - | 0.020 | - |
+| both hands | 0.001 (max 0.046) | 0.000 (max 0.034) | 0.020 | none: the hands stay on their grips, so no re-solve |
+| both, pulled 12 cm apart and back again and again (past the drift) | 0.001-0.002 | 0.000 | 0.029-0.032 | 0.24 a frame, 0.008-0.009 ms a frame |
+
+The second hand's first grasp solve on the health box is a one-off 1.0 ms (`vr_grasp_bench`: 29 palm places tried,
+as the hand isn't flush yet). After that it takes 10 Âµs (median of 50). The main hand's is 19 Âµs.
+
+### Tests (mock headset)
+
+Scripted with `vr_mock_play` (keyframes on the clock: the hands report the motion's velocities), in the firing range.
+The main hand takes the thing and the off hand takes it second. The object's pose and the hands come from the trace;
+"rigid" is what a thing rigidly held would do.
+
+| Phase | Health box | Backpack | Green armour |
+|---|---|---|---|
+| Pulled apart 6 cm each: turn / drawn hands off the controllers / off their grips | 0Â° / 6.00 cm / 0.00 cm | 0Â° / 6.00 / 0.00 | 0Â° / 6.00 / 0.00 |
+| Pushed together 5 cm each | 0Â° / 5.00 / 0.00 | 0Â° / 5.00 / 0.00 | 0Â° / 5.00 / 0.00 |
+| Both roll 40Â° about the middle (rigid 40Â°) | 39.99Â° | 39.99Â° | 40.01Â° |
+| Both pitch 45Â° about the grip line (rigid 45Â°) | 45.00Â° | 45.00Â° | 45.00Â° |
+| Both yaw 45Â° about the middle (rigid 45Â°) | 45.00Â° | 45.00Â° | 45.00Â° |
+| The main hand alone twists 40Â° (half: 20Â°) | 20.00Â° | 20.00Â° | 20.00Â° |
+| The main hand alone up 15 cm (the swing about the off hand) | 27.35Â° (27.35) | 27.35Â° (27.35) | 20.56Â° (20.56) |
+
+- **The grips' middle** stays on the hands' middle in every phase held in both hands (0.00 cm).
+- **Changes of hold** (one hand, both, one, both, the hand-over to the off hand, both, thrown): the largest move of
+  the object in one frame over each change is 0.00 cm and 0.00Â°. When the thrown box leaves the hands, it moves at
+  its own speed as before. Stretched 5 cm and the off hand let go: the object stays put. The drawn main hand
+  eases back onto its controller, frame by frame: 5.00, 4.99, 4.84, 4.54, 4.12, 3.61, 3.05, 2.45, 1.86, 1.30, 0.80,
+  0.40, 0.12, 0.00 cm.
+- **Throws** (the hands 0.5 m forward and 0.2 m up in 0.2 s, 2.5 m/s; the wrists flicking 60Â° forward, 5.24 rad/s;
+  both let go together):
+
+  | | Estimate sent (object's centre) | Spin | Thrown (u/s, after the throw gain) |
+  |---|---|---|---|
+  | Health box (its centre near the grip line) | 2.80 m/s | 5.24 rad/s about the grip line | 81.1 u/s |
+  | Backpack (centre about 30 cm above the grips) | 3.94 m/s | 5.24 | 132.5 u/s |
+  | Armour (centre above the grips) | 4.01 m/s | 5.24 | 135.9 u/s |
+
+  Over the last frames held, the object's own motion (from the trace) is 2.50 m/s forward and 1.00 up with the
+  hands' middle, and it spins at 6.11 rad/s (backspin run) or 5.24 (flick) with the hands. The tall things come out
+  faster: their centre is above the hands, and a forward flick moves it forward. This is a rigid body's motion, not a
+  tuning.
+- **Hand timing:** the off hand let go 60 ms before the main: a two-handed throw ("60 ms after the other", 2.72 m/s,
+  the tumble). 250 ms before: the main hand's own one-handed throw (2.69 m/s, its own spin). Drawn in the hand off
+  (`vr_carry_local 0`): the same two-handed estimate.
+- **Holsters:** held in both, the main hand let go at the right hip holster with the off hand also at the left one:
+  "one hand let go, held in the other", not taken. The off hand alone then let go at the left hip holster: "into the
+  pack" (100 health). A shells box let go of by both at once, both hands at hip holsters: dropped, not taken. The
+  trigger (`vr_carry_take 1`) with both holding: taken ("You got the shells").
+- **Weapon hand:** the off hand holding a shotgun (Weapon Grip Mode sticky, grip pressed anew at the box): no hold.
+- **Force grab:** the main hand carrying the box, the off hand force-grabbed a floating armour and caught it; each hand
+  had its own.
+- **Walls, monsters:** the box held in both hands, pushed at a grunt: the box and the hands stop together at it.
+  Lowered to the floor: they stop on it.
+- **Death, save, map:** killed while holding it in both hands: "carry: dead, let go", on the floor. Saved and loaded
+  while held in both: still held in both, and letting go with one hand, then taking hold again, work. A map loaded
+  while held in both: nothing held after, no error.
+- **One hand, before and after** (the baseline build against this one, the same script): the throw estimate is the
+  same, 2.69 m/s, 5.2 rad/s. The holster take is the same, "into the pack". The gib throw is 4.49 against 4.48 m/s
+  (the console-scripted hand's timing). Landing spots vary by a few units from run to run on either build (the rigid
+  body's bounces).
+- **Your motion takes:** all 474, `vr_motion_eval <folder> recorded` in vrfiringrange, before (97d098ef) and after:
+  the tables are identical take by take. 164 of 474 reproduce their live hits on both; the rest were recorded before
+  round 21's melee. The 12 of them picked for the check (punches, a stab, one- and two-palm shoves, a gun butt, parry
+  poses, a no-hit shove) reproduce their live hits, 12 of 12, on the final build.
+- Pictures (handed over with the report, not in the repository): `c_box.png`, `c_backpack.png`, `c_armour.png` (the
+  14 phases each), `c_closeup.png` (the fingers on the box: one hand, both, pulled apart, pitched).
+
+### Limitations
+
+- The grips are kept where the hands were when the second one took hold. The client keeps them from its own frame,
+  a frame after the server, so the drawn thing and the server's may differ by a frame's hand motion while held in
+  both. Let go of, the drawn thing eases to the server's place over 0.2 s, as with one hand.
+- A thing dropped when left 32 units behind a wall or monster could not be shown in the mock. The hands themselves
+  stop at walls and monsters, so the thing never falls that far behind. The code is the one-handed carry's.
+- The backpack is held where one hand's carry fit put it, well out from the fist (up to 15 cm). The second hand then
+  grips it low. That is the one-handed carry fit, unchanged.
+- Found, not changed: after loading a save, a carried box isn't drawn in the hand (with one hand too, on the base
+  build), though the server still has it there.
+- Not tried in the headset.
+
+### In the headset
+
+- [ ] Carry a box in one hand, grip its other side with the other hand: it's held in both, with a click and a buzz,
+      without moving.
+- [ ] Move both hands together, turn them together (roll, pitch, yaw): it moves and turns with them, the hands
+      staying on it.
+- [ ] Move one hand up or forward: it swings about the other. Twist one wrist alone: it rolls half as much.
+- [ ] Pull your hands a little apart, then push them together: it doesn't stretch; your drawn hands stay on it.
+      Pulled further than Two-Handed Hand Drift (8 cm), they come off it. Is 8 cm right?
+- [ ] Hand-over: carry in the right hand, grip with the left, let go with the right. The left keeps it, no jump, and the
+      right hand slides back to where your hand is.
+- [ ] Throw with both (a chest pass, an overhead throw, a flick): does it fly as your hands threw it, and tumble as
+      they turned it? Let go of one hand a little late: still a two-handed throw within 0.1 s (Two-Handed Throw Window,
+      `vr_carry_two_hands_window`).
+- [ ] At a holster: let go with one hand while the other holds it: not taken. Then let go of it with the other hand at a
+      holster: into your pack.
+- [ ] The armour in both hands, let go over your chest: worn.
+- [ ] A backpack, a gib and a head in both hands: do the fingers sit on them?
+- [ ] Die while holding something: it drops.

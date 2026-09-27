@@ -482,7 +482,7 @@ QVR_CVAR(vr_carry_local, "1", CVAR_ARCHIVE)           // what you carry is drawn
 QVR_CVAR(vr_held_surface_fit, "1", CVAR_ARCHIVE)      // a gripped box, gib or backpack sits against the palm, pushed out of the fist, instead of sunk into the hand (0: where it was gripped)
 QVR_CVAR(vr_held_fit_gap, "0", CVAR_ARCHIVE)          // with it: cm between the curled fingers and what they hold (negative: sunk in)
 QVR_CVAR(vr_carry_reach, "8", CVAR_ARCHIVE)           // round 21, second pass: cm from the hand (the controller's point) to the drawn surface of a box, gib or backpack it can take (0: its whole model box, as before)
-QVR_CVAR(vr_debug_carry, "0", CVAR_NONE)              // draws, for each hand, the carriable thing it is in the box of: its box, its surface's nearest point and the reach (green: in reach)
+QVR_CVAR(vr_debug_carry, "0", CVAR_NONE)              // draws, for each hand, the carriable thing it is in the box of: its box, its surface's nearest point and the reach (green: in reach); 2: also carry_trace.txt, what is carried and both hands every frame, and the second hand's reach test printed
 QVR_CVAR(vr_carry_two_hands, "1", CVAR_ARCHIVE)       // a box, backpack, gib, head or armour carried in one hand can be gripped by the other too: held in both, it follows both hands (vr_carry2h.cpp)
 QVR_CVAR(vr_carry_two_hands_drift, "8", CVAR_ARCHIVE) // with it: cm each drawn hand may be off its controller to stay on its grip (hands pulled apart or pushed together)
 QVR_CVAR(vr_carry_two_hands_window, "0.1", CVAR_ARCHIVE) // seconds between the two hands letting go that still make a two-handed throw
