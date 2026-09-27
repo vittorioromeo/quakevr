@@ -456,8 +456,10 @@ void(string xWhat) VR_Melee_Event =
 // both) or nothing to sweep from (the first pose, a jump, another weapon).
 // Where the hand of `p` turns about when it wiggles (world): VR_MELEE_WRIST_BACK behind the controller along its own
 // axis. The hand's angles carry the gun angle (vr_gunangle/vr_gunyaw, vr_offhandpitch/vr_offhandyaw: the engine's
-// withHandOffsets turns the controller by the yaw, then by minus the pitch): taken out here. A weapon held two-handed
-// turns with the hands' line, not with one controller: its hand itself.
+// withHandOffsets turns the controller by the yaw, then by minus the pitch): taken out here. The rest of the hand
+// calibration (its move and roll, hands::calibration) is the real hand's place on the controller: the wrist goes with
+// the hand, as it is here. The off hand's pitch and yaw are the main hand's mirrored with vr_handcal_off_mirror. A
+// weapon held two-handed turns with the hands' line, not with one controller: its hand itself.
 vector(entity p, float xHand) VR_Melee_Wrist =
 {
     vector h = VRGetEntHandPos(p, xHand);
@@ -465,8 +467,13 @@ vector(entity p, float xHand) VR_Melee_Wrist =
     {
         return h;
     }
-    float pitch = cvar(xHand == cVR_OffHand ? "vr_offhandpitch" : "vr_gunangle") * 0.0174533;
-    float yaw = cvar(xHand == cVR_OffHand ? "vr_offhandyaw" : "vr_gunyaw") * 0.0174533;
+    float ownOff = xHand == cVR_OffHand && !cvar("vr_handcal_off_mirror");
+    float pitch = cvar(ownOff ? "vr_offhandpitch" : "vr_gunangle") * 0.0174533;
+    float yaw = cvar(ownOff ? "vr_offhandyaw" : "vr_gunyaw") * 0.0174533;
+    if(xHand == cVR_OffHand && !ownOff)
+    {
+        yaw = -yaw;
+    }
     vector oldForward = v_forward;
     vector oldRight = v_right;
     vector oldUp = v_up;
@@ -1705,7 +1712,7 @@ void() VR_Melee_Frame =
         {
             dprint(sprintf("melee trace: %.3f hand %g thing %g wid %g bits %g", time, h, b.mh_thing, VRGetEntWeapon(self, h),
                 self.vrbits0));
-            dprint(sprintf(" grip %v far %v vfar %v vgrip %v\n", b.mh_rgrip, b.mh_rfar, b.mh_vfar, b.mh_vgrip));
+            dprint(sprintf(" grip %v far %v vfar %v vgrip %v wrist %v\n", b.mh_rgrip, b.mh_rfar, b.mh_vfar, b.mh_vgrip, b.mh_rwrist));
         }
     }
 };

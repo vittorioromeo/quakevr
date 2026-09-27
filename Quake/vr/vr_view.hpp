@@ -5,6 +5,7 @@
 #pragma once
 
 #include "vr_engine.hpp"
+#include "vr_hands.hpp"
 
 namespace qvr::view
 {
@@ -118,5 +119,11 @@ void setGhost(int hand, qmodel_t* model, const glm::vec3& pos, const glm::vec3& 
 // vr_grasp_bench [n]: solves each hand's grasp of what it holds n times (1000), and prints the times (min, median,
 // max, microseconds).
 void graspBench_f();
+
+// Hand/Gun Calibration > Match Controller Preview: how far (world) the empty hand drawn on `hand`'s calibrated controller
+// must move for the middle of its fist (grasp::gripChannel's point: the middle of the circles its fingers close round)
+// to be on the Show Controller preview's point (the middle of the handle, where OpenXR puts the fist). False without
+// the jointed hand, or before it has been drawn.
+[[nodiscard]] bool previewGripMove(const hands::State& s, int hand, glm::vec3& worldMove);
 
 } // namespace qvr::view

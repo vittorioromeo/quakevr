@@ -3636,7 +3636,8 @@ void updatePalmPoints(hands::State& s)
 // the handle (8 x 3.2 x 3.6), the head over its top (an oval face, level when the controller points ahead, 6.6 x 5.2,
 // 1.4 thick) with the thumbstick on the thumb's side, and the trigger in front under the head. And, where the hand's own
 // point differs from the pose the game tracks (the held weapon's Hand and Weapon Together), a yellow point joined to it.
-void drawControllerPreview(const hands::State& s, int hand)
+// The preview's place: its point `c` (the middle of the handle) and its axes `b` (world).
+void controllerPreviewPose(const hands::State& s, int hand, glm::vec3& c, glm::mat3& b)
 {
     const bool off = hand == HAND_OFF;
     const bool own = off && vr_show_controller_off_own.value != 0.f;
@@ -3649,8 +3650,17 @@ void drawControllerPreview(const hands::State& s, int hand)
                                      vr_show_controller_roll.value * mirror};
     const float cm = 0.01f * units::metresToUnits();
     const glm::mat3 grip = anglesBasis(s.gripRot[hand]);
-    const glm::vec3 c = s.gripPos[hand] + grip * move * cm;
-    const glm::mat3 b = grip * anglesBasis({-turn.x, turn.y, turn.z}); // pitch up
+    c = s.gripPos[hand] + grip * move * cm;
+    b = grip * anglesBasis({-turn.x, turn.y, turn.z}); // pitch up
+}
+
+void drawControllerPreview(const hands::State& s, int hand)
+{
+    const bool off = hand == HAND_OFF;
+    const float cm = 0.01f * units::metresToUnits();
+    glm::vec3 c;
+    glm::mat3 b;
+    controllerPreviewPose(s, hand, c, b);
     const auto at = [&](float x, float y, float z) { return c + b * glm::vec3{x, y, z} * cm; };
     const glm::vec4 shell{0.85f, 0.9f, 1.f, 0.35f};
     const auto line = [&](const glm::vec3& p, const glm::vec3& q) { lines::line(p, q, 0.12f, shell, shell); };
@@ -3903,8 +3913,8 @@ extern "C" void VR_SetupViewEntities()
     }
 
     updatePalmPoints(s);
-    wholeTurn[HAND_OFF] = s.wholeTurn[HAND_OFF];
-    wholeTurn[HAND_MAIN] = s.wholeTurn[HAND_MAIN];
+    wholeTurn[HAND_OFF] = s.wholeTurn[HAND_OFF] * s.calTurn[HAND_OFF];
+    wholeTurn[HAND_MAIN] = s.wholeTurn[HAND_MAIN] * s.calTurn[HAND_MAIN];
     if(posingNow)
     {
         setupPosing(s);
@@ -4473,6 +4483,32 @@ void dumpView_f()
             e.model ? e.model->name : "-", ve.visible, ve.mirrored, e.frame, e.origin[0], e.origin[1],
             e.origin[2], e.angles[0], e.angles[1], e.angles[2]);
     });
+}
+
+
+bool previewGripMove(const hands::State& s, int hand, glm::vec3& worldMove)
+{
+    glm::vec3 cp, cd;
+    float radius;
+    if(!s.valid || !handrig::usable(viewModel(handrig::modelName)) || !rigHands[hand].drawn ||
+        !grasp::gripChannel(rigHands[hand].pose, cp, cd, radius))
+    {
+        return false;
+    }
+    // The empty hand as it is drawn on the calibrated controller (with the fist's own Hand and Weapon Together offset),
+    // whatever the hand holds now.
+    const bool mirrored = hand == HAND_OFF;
+    const int fist = weapons::fistSlot();
+    glm::vec3 pos = s.calibratedPos[hand], rot = s.calibratedRot[hand];
+    glm::mat3 turn{1.f};
+    hands::wholeOffset(fist, hand, pos, rot, turn);
+    const glm::vec3 handRot = basisAngles(anglesBasis(rot) * anglesBasis(weaponAngleOffsets(fist, mirrored)));
+    const glm::vec3 channel{rigPlacement(hand, pos, handRot, mirrored, nullptr) * glm::vec4{cp, 1.f}};
+    glm::vec3 c;
+    glm::mat3 b;
+    controllerPreviewPose(s, hand, c, b);
+    worldMove = c - channel;
+    return true;
 }
 
 } // namespace qvr::view
