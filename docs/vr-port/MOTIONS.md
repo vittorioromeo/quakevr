@@ -55,6 +55,7 @@ every take's header until you clear it: `vr_motion_note ""`).
 | No Hit | `no_hit` | nothing at all: no blow, bash, shove, headbutt or batting | wiggling, weak, idle, slow_waving, reloading, aiming, walking, reaching |
 | Expected Bash | `bash` | the weapon's guard pushed into the target | sword_1h, sword_2h, gun |
 | Expected Parry Pose | `parry_pose` | a guard that parries a blow from the target, held (no hit) | sword_1h, sword_2h_blade (a hand on the blade), sword_2h, gun |
+| Not Parry Pose | `not_parry_pose` | a pose that must not count as a parry stance (near a guard but not one), and no melee event | weapon_angled, hands_up, resting, aiming, other |
 | Expected Parry Bash | `parry_bash` | the parry pose, then pushed into the target | sword_1h, sword_2h_blade, sword_2h, gun |
 | Expected Hilt/Pommel | `hilt_pommel` | a hit with the hilt, the pommel or the handle's end (sword, axe, hammer), not the blade or head | |
 | Expected Punch | `punch` | a fist's blow | straight, jab, hook, uppercut, overhead |
@@ -62,6 +63,12 @@ every take's header until you clear it: `vr_motion_note ""`).
 | Expected Palm Shove 2H | `palm_shove_2h` | both palms shoving | |
 | Expected Gun Strike | `gun_strike` | a gun used as a club | swing, butt |
 | Other | `other` | anything else (`vr_motion_note`) | |
+
+The "parry state" the evaluation reads, each server frame of the replay's labelled part (phase `rec`): the parry test
+is `m_parry`, `o_parry` or `parry_arms` (QC `VR_Parry_Blocks` towards the target for either hand's weapon, or
+crossed empty arms, `VR_Parry_ArmsCrossed`); the bash guard is `guard` >= 0 (QC `VR_Bash_Guard`). Expected Parry Pose
+needs the parry test in at least half of those frames; Not Parry Pose in none of them, nor the guard, nor any melee
+event.
 
 A take's label is `<category>` or `<category>_<detail>` (`slash_overhead`, `parry_pose_sword_2h_blade`).
 
@@ -333,7 +340,8 @@ From the agent kit: `bash <kit>/run.sh <agent> -Script "map vrfiringrange;wait60
 `quakevr/motions/expect.cfg` (in git; the rest of the folder is not) says what each category should do. See its
 comments for the grammar: required events (any of them: `melee`, `melee/stab`, `shove/both`,
 `melee@the_pommel|the_hilt`), forbidden ones (`!push`), `none` (no melee event at all: no hit, stroke, push or
-batting), poses held for half the take (`pose:parry`: the parry test, a weapon's or crossed arms'; `pose:guard`), and
+batting), poses held for half the take (`pose:parry`: the parry test, a weapon's or crossed arms'; `pose:guard`) or
+never (`!pose:parry`, `!pose:guard`: not one frame), and
 the weapons a category is for (`weapon:sword|axe|mjolnir`: with another weapon the take is N/A, reported apart). A
 hit whose kind isn't required fails the take. A line for a label (`slash_overhead melee/overhead_blow`) wins over its
 category's.

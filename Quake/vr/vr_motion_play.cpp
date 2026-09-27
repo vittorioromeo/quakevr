@@ -1461,7 +1461,8 @@ struct Expectation
     std::vector<std::string> required;  // kind[/sub][@point|point] (any one of them)
     std::vector<std::string> forbidden; // kind[/sub]
     bool none{false};
-    std::vector<std::string> poses;     // parry, guard
+    std::vector<std::string> poses;     // parry, guard: held for half the take
+    std::vector<std::string> notPoses;  // parry, guard: never, in the take
     std::vector<std::string> weapons;   // the weapon classes it applies to (empty: any)
     bool skip{false};                   // "-": reported only
 };
@@ -1509,6 +1510,10 @@ void loadExpectations()
             else if(w == "none")
             {
                 e.none = true;
+            }
+            else if(w.rfind("!pose:", 0) == 0)
+            {
+                e.notPoses.push_back(w.substr(6));
             }
             else if(w[0] == '!')
             {
@@ -1607,6 +1612,10 @@ std::vector<Result> results;
     for(const auto& p : e.poses)
     {
         add("pose:" + p);
+    }
+    for(const auto& p : e.notPoses)
+    {
+        add("!pose:" + p);
     }
     if(!e.weapons.empty())
     {
@@ -1717,6 +1726,15 @@ void judge(const Report& r, const Expectation* e, Result& out)
         if(r.recFrames == 0 || held * 2 < r.recFrames)
         {
             fails.push_back(va("%s pose held %d of %d frames", p.c_str(), held, r.recFrames));
+        }
+    }
+    // Poses that must never be: not a frame of the take in them.
+    for(const std::string& p : e->notPoses)
+    {
+        const int held = p == "parry" ? r.parryAnyFrames : p == "guard" ? r.guardFrames : 0;
+        if(held > 0)
+        {
+            fails.push_back(va("%s pose in %d of %d frames", p.c_str(), held, r.recFrames));
         }
     }
     out.verdict = fails.empty() ? "PASS" : "FAIL";

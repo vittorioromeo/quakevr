@@ -222,7 +222,7 @@ int motionPageCategory = -1;
 {
     std::vector<Choice> categories;
     const auto& list = motion::categories();
-    for(size_t i = 0; i < list.size(); i++)
+    for(const int i : motion::categoryOrder())
     {
         categories.push_back({static_cast<float>(i), list[i].choice.display});
     }

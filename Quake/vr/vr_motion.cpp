@@ -66,8 +66,40 @@ const std::vector<Category>& categories()
         {{"palm_shove_2h", "Expected Palm Shove 2H"}, {any}},
         {{"gun_strike", "Expected Gun Strike"}, {any, {"swing", "Swing"}, {"butt", "Butt"}}},
         {{"other", "Other (vr_motion_note)"}, {any}},
+        // Added later: at the end, so vr_motion_category's saved index keeps its category (the menu shows them in
+        // categoryOrder's order).
+        {{"not_parry_pose", "Not Parry Pose"},
+            {any, {"weapon_angled", "Weapon Angled"}, {"hands_up", "Hands Up"}, {"resting", "Resting"},
+                {"aiming", "Aiming"}, {"other", "Other"}}},
     };
     return list;
+}
+
+std::vector<int> categoryOrder()
+{
+    // The menu's order: each category after its kin (Not Parry Pose after Expected Parry Pose).
+    static const char* const order[] = {"slash", "stab", "no_hit", "bash", "parry_pose", "not_parry_pose", "parry_bash",
+        "hilt_pommel", "punch", "palm_shove_1h", "palm_shove_2h", "gun_strike", "other"};
+    const auto& list = categories();
+    std::vector<int> out;
+    for(const char* name : order)
+    {
+        for(size_t i = 0; i < list.size(); i++)
+        {
+            if(!strcmp(list[i].choice.name, name))
+            {
+                out.push_back(static_cast<int>(i));
+            }
+        }
+    }
+    for(size_t i = 0; i < list.size(); i++) // (any not in the order)
+    {
+        if(std::find(out.begin(), out.end(), static_cast<int>(i)) == out.end())
+        {
+            out.push_back(static_cast<int>(i));
+        }
+    }
+    return out;
 }
 
 const Category& chosenCategory()
