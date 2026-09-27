@@ -99,25 +99,16 @@ constexpr float easyHandTouchBonus = 4.5f;
     return hasFlag(target, FL_EASYHANDTOUCH) ? easyHandTouchBonus : 0.f;
 }
 
-// Whether a hand at `hand` touches `target`: an object that can be carried or pulled by the
-// model's own turned box, a small margin round it; anything else by its box (and the easy-touch
-// bonus).
-[[nodiscard]] bool handOn(edict_t* target, const glm::vec3& hand, int which)
+// Whether `player`'s hand `which` touches `target`: an object that can be carried or pulled by its fist against the
+// thing's drawn surface (held::grabTouch: the palm and the curled fingers, not a point ahead of the hand); anything else
+// by the hand's box against the entity's box (and the easy-touch bonus).
+[[nodiscard]] bool handOn(edict_t* target, edict_t* player, int which)
 {
     if(hasFlag(target, physics::FL_FORCEGRABBABLE))
     {
-        if(!physics::pointInModelBox(target, hand, 2.f))
-        {
-            return false;
-        }
-        // Round 21, second pass: and near its drawn surface (vr_carry_reach), not anywhere in its box (a big thing's
-        // box is mostly air round a gib's or a backpack's shape; taken from far off, it floated away from the hand).
-        const float reach = vr_carry_reach.value > 0.f ? vr_carry_reach.value * 0.01f * units::metresToUnits() : 0.f;
-        glm::vec3 nearest{0.f};
-        const float distance = reach > 0.f || vr_debug_carry.value || vr_debug_physics_shapes.value ? held::surfaceDistance(target, hand, &nearest) : -1.f;
-        held::noteCarryProbe(which, target, hand, distance, nearest, reach);
-        return reach <= 0.f || distance < 0.f || distance <= reach;
+        return held::grabTouch(target, player, which == HAND_OFF ? 0 : 1);
     }
+    const glm::vec3 hand = fieldVec(player, which == HAND_OFF ? f().offhandpos : f().handpos);
     const glm::vec3 extent{handHalfSize};
     const glm::vec3 bonus{handTouchBonus(target)};
     const glm::vec3 origin = vec(target->v.origin);
@@ -194,7 +185,7 @@ void handTouches(edict_t* ent)
 
         for(int h = 0; h < 2; h++)
         {
-            if(handOn(target, hands[h], h == 0 ? HAND_OFF : HAND_MAIN))
+            if(handOn(target, ent, h == 0 ? HAND_OFF : HAND_MAIN))
             {
                 setHandtouchParams(h == 0 ? HAND_OFF : HAND_MAIN, ent, target);
                 impactField(ent, target, f().handtouch);
@@ -288,8 +279,8 @@ void handTouch(edict_t* ent, edict_t* target)
 
     // The entity's own box, not its abs box: Quake widens items' abs boxes by 15 units for walking
     // over them, which made a 6-unit ammo box grabbable from a hand's width away.
-    const bool offHit = handOn(target, fieldVec(ent, f().offhandpos), HAND_OFF);
-    const bool mainHit = handOn(target, fieldVec(ent, f().handpos), HAND_MAIN);
+    const bool offHit = handOn(target, ent, HAND_OFF);
+    const bool mainHit = handOn(target, ent, HAND_MAIN);
 
     if(offHit || mainHit)
     {

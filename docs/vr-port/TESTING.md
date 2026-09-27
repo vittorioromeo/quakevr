@@ -626,6 +626,8 @@ way the palm faces) and the grip channel (magenta). With a gun held: `vr_weapon_
 `+grabright; vr_mock_button main grip 1`; a box in the off hand: `vr_rigid_place item_health off 0 3 0; +graboff;
 vr_mock_button off grip 1`; `vr_mock_camera -0.05 1.45 -1.0 25 180` looks back at both hands.
 
+Grab reach from the fist (ROUND21.md): `vr_debug_carry 2` prints each grab test (the fist's gap to the surface, the allowed Grab Distance Bias `vr_carry_grab_bias`; 3: also fists not near); `vr_dumpview` prints the fist's and the open hand's extents from the hand's point. Two-handed detach: `vr_debug_carry 2` prints each hand's distance from its grip (`vr_carry_two_hands_detach`: cm past the drift). Brushing fingers (`vr_hand_collide_fingers`): `vr_debug_grasp 1` prints each brush solve (the fingers: on, out, in). Put a floating box in front of a hand: `sv_gravity 0; vr_rigid_place item_shells main <forward> 0 -2 0 <the hand's yaw> 0` (units; the box is 6 units, centred on its origin).
+
 Tuning the body: `vr_show_hip_holsters 1`, `vr_show_upper_holsters 1`, `vr_show_shoulder_holsters 1` and
 `vr_show_virtual_stock 1` mark where the holsters and the virtual stock's shoulders are (green while a hand is
 there); move them with the `vr_*_offset_*` cvars.

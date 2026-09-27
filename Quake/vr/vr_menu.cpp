@@ -945,6 +945,10 @@ void hologramTestMessage()
             .help("Grip a box or a backpack to carry it, push it with a hand or gun. Off: touching takes it."),
         cycle("Take a Box", vr_carry_take, {{0.f, "At a holster"}, {1.f, "Trigger"}, {2.f, "Either"}})
             .help("At a holster: let go of it at a hip or shoulder holster to put it in your pack."),
+        slider("Grab Distance Bias", vr_carry_grab_bias, -3.f, 5.f, 0.5f, "%+.1f cm")
+            .extend(-10.f, 20.f)
+            .help("A hand takes a box, gib, backpack or armour when its fist (the palm and the curled fingers) touches it. "
+                  "Positive: from this far off it too. Negative: only pressed this far into it."),
         toggle("Drawn In the Hand", vr_carry_local)
             .help("What you carry is drawn in your hand as it is this frame: no lag or lead as you walk or turn. Off: where the server has it."),
         toggle("Two-Handed Carrying", vr_carry_two_hands)
@@ -953,7 +957,8 @@ void hologramTestMessage()
         slider("Two-Handed Hand Drift", vr_carry_two_hands_drift, 0.f, 20.f, 1.f, "%.0f cm")
             .extend(0.f, 50.f)
             .help("How far your drawn hands may be off your real ones to stay on their grips as you pull them apart or push "
-                  "them together. 0: they stay on your real hands."),
+                  "them together. 0: they stay on your real hands. Pulled 3 cm further off (vr_carry_two_hands_detach), "
+                  "with the hand no longer touching it, that hand lets go; both, and it drops."),
         toggle("Fit to the Hand", vr_held_surface_fit)
             .help("A box, backpack or gib you grip sits against your curled fingers, by its drawn shape. Off: it stays where you gripped it."),
         slider("Fit Gap", vr_held_fit_gap, -6.f, 3.f, 0.1f, "%.1f cm").extend()

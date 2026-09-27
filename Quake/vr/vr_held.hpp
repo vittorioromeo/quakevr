@@ -70,8 +70,43 @@ bool bothHandsThrow(int hand, double at, bool release, throwing::Estimate& out);
 // bodies' convex hulls, vr_box3d.cpp).
 [[nodiscard]] bool drawnVertices(edict_t* ent, std::vector<glm::vec3>& out);
 
+// Grab reach from the fist (ROUND21.md, "Grab reach from the fist; two-handed detach; brushing fingers"): a hand takes
+// hold of a box, backpack, gib, head or armour only if its fist touches the thing's drawn surface: the empty hand
+// closed into a fist (the jointed hand's palm and curled fingers, as the grasp's spheres). Before, the hand's point (the
+// move's handpos: the front top of the fist, 13.5 cm ahead of the palm's middle; an open hand's fingertips reach 6.6 cm
+// past it) within 8 cm of the surface took it (vr_carry_reach): up to 8 cm from the fist, past the open fingertips.
+//
+// Client side, every frame (vr_view.cpp): `hand`'s fist (0 off, 1 main) as spheres (xyz the middle, w the radius, world
+// units) in the hand's frame: relative to its place (the move's handpos) along the axes of its angles (handrot,
+// axesFromAngles(..., true): forward, left, up). Empty: not known (no jointed hand model: a dedicated server).
+void setFist(int hand, const std::vector<glm::vec4>& spheres);
+
+// The fist of `hand` (0 off, 1 main) at (`pos`, `angles`) in the world (empty if not known).
+void fistInWorld(int hand, const glm::vec3& pos, const glm::vec3& angles, std::vector<glm::vec4>& out);
+
+// What a fist found against a thing's drawn surface: the least gap (units) from a sphere of it to the surface (negative:
+// sunk in), that sphere's middle and the surface's nearest point to it.
+struct FistContact
+{
+    float gap{0.f};
+    int sphere{-1};
+    glm::vec3 from{0.f}, at{0.f};
+};
+
+// The gap between `spheres` (world) and `ent`'s drawn surface (its model as drawn: the networked scale and offset); a
+// sphere with its middle inside the thing is sunk in (its gap negative). False if it has no surface to measure or
+// nothing is within `reach` units of the fist's bounds (out.gap is then more than reach).
+bool fistContact(edict_t* ent, const std::vector<glm::vec4>& spheres, float reach, FistContact& out);
+
+// Server side: whether `player`'s `hand` (0 off, 1 main) touches `ent` to take hold of it: its fist at the hand's
+// place and angles (the move's) within vr_carry_grab_bias (cm, may be negative) plus `slack` (units) of its drawn
+// surface. Without a fist (not known), the old test: the hand's point in the thing's box and within 8 cm of its
+// surface. The probe is noted for vr_debug_carry (and printed at 2).
+[[nodiscard]] bool grabTouch(edict_t* ent, edict_t* player, int hand, float slack = 0.f);
+
 // vr_debug_carry: what a hand's touch test found (the server's), and drawn by the view (lines, this frame).
-void noteCarryProbe(int hand, edict_t* ent, const glm::vec3& at, float distance, const glm::vec3& nearest, float reach);
+void noteCarryProbe(int hand, edict_t* ent, const glm::vec3& at, float distance, const glm::vec3& nearest, float reach,
+    const std::vector<glm::vec4>* fist = nullptr, int touching = -1);
 void drawCarryProbes();
 
 // Client side, a new map or a loaded game (VR_OnClientClearState): what the hands held is forgotten (it is taken

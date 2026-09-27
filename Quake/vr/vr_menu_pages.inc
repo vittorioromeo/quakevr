@@ -280,9 +280,9 @@ void resetHandMoves()
         slider("Hands Brush Weapons", "vr_hand_collide", 0.f, 10.f, 0.5f, "%.1f cm").extend()
             .help("The free hand is pushed aside by the other hand's weapon, up to this far, eased, and then passes "
                   "through. 0: never pushed."),
-        slider("Carry Reach", "vr_carry_reach", 0.f, 30.f, 1.f, "%.0f cm").extend()
-            .help("How near the surface of a box, gib or backpack the hand must be to take it (so it sits in the hand). "
-                  "0: anywhere in its box, as before."),
+        toggle("Fingers Brush Weapons", "vr_hand_collide_fingers")
+            .help("With Hands Brush Weapons: the free hand's fingers rest on the other hand's weapon or bend out of it, "
+                  "instead of the whole hand being pushed by its fingertips."),
         header("Against Monsters and Things"),
         cycle("Weapons Stop at Models", "vr_model_collide", {{0.f, "Off"}, {1.f, "Monsters"}, {2.f, "Monsters and Objects"}})
             .help("A weapon held into a monster, a corpse or another player (and, with Objects, a box, gib or weapon on the "

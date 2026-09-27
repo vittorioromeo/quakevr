@@ -478,9 +478,31 @@ void() VR_Carry_TwoHandFrame =
         VR_Carry_EndTwoHands(box); // the main hand's frame throws it
         return;
     }
+    // Pulled off it (carry2hoff: a hand further from its grip than the drift and a margin, its fist off the prop),
+    // gripping or not: both, it drops with the motion it has (not a throw); one, it lets go of it as below.
+    float pulledOff = carry2hoff(box, self);
+    if(pulledOff == 3)
+    {
+        dprint("carry: both hands pulled off it, dropped\n");
+        VR_Carry_EndTwoHands(box);
+        VR_Carry_SetHeld(self, cVR_MainHand, world);
+        VR_Carry_Loose(box); // its velocity: the last frame's follow
+        box.owner = world;
+        haptic(cVR_MainHand, 0.0, 0.05, 60, 0.3);
+        haptic(cVR_OffHand, 0.0, 0.05, 60, 0.3);
+        return;
+    }
+    if(pulledOff == 1)
+    {
+        gripOff = FALSE;
+    }
+    else if(pulledOff == 2)
+    {
+        gripMain = FALSE;
+    }
     if(!gripMain || !gripOff)
     {
-        // One let go: the other holds it, from where it is.
+        // One let go (or pulled off it): the other holds it, from where it is.
         float letGo = cVR_MainHand;
         float keep = cVR_OffHand;
         if(gripMain)
@@ -488,7 +510,7 @@ void() VR_Carry_TwoHandFrame =
             letGo = cVR_OffHand;
             keep = cVR_MainHand;
         }
-        dprint("carry: one hand let go, held in the other\n");
+        dprint(pulledOff ? "carry: one hand pulled off it, held in the other\n" : "carry: one hand let go, held in the other\n");
         box.carry_2h = FALSE;
         box.carry_2h_end = time;
         VR_Carry_SetHeld(self, letGo, world);
