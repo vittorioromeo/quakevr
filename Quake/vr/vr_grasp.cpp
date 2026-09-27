@@ -1157,6 +1157,21 @@ void curls(const FingerStop& stop, float curl, float engage, float out[handrig::
     }
 }
 
+void legacyGripChannel(const handrig::Pose& pose, glm::vec3& point, glm::vec3& dir, float& radius)
+{
+    // The old hand's channel at rest (its gripChannel with every finger at its default place); a finger's offset
+    // moved its circle's middle with it, and the channel's point is their mean.
+    constexpr glm::vec3 restPoint{4.4881563f, 0.2731901f, -0.0914762f};
+    glm::vec3 shift{0.f};
+    for(int f = handrig::Index; f < handrig::FingerCount; f++)
+    {
+        shift += pose.shift[f];
+    }
+    point = restPoint + shift / static_cast<float>(handrig::FingerCount - handrig::Index);
+    dir = glm::vec3{0.0950148f, 0.1614300f, 0.9822997f};
+    radius = 0.7816211f;
+}
+
 bool gripChannel(const handrig::Pose& pose, glm::vec3& point, glm::vec3& dir, float& radius)
 {
     // Each finger half closed: the circle through its three segments' middles (their middle spheres), its centre
