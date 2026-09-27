@@ -3,6 +3,7 @@
 #include "vr_modellight.hpp"
 #include "vr_main.hpp"
 #include "vr_cvars.hpp"
+#include "vr_evict.hpp"
 #include "vr_trace.hpp"
 
 #include <algorithm>
@@ -31,6 +32,7 @@ const qmodel_t* loadedWorld = nullptr;
 int loadedGeneration = -1;
 std::vector<Light> lights;
 std::unordered_map<const entity_t*, Cached> cache;
+Eviction eviction;
 
 // The light entities of the map: classname light*, lit at the start (not "start off" with a
 // target name to switch them on).
@@ -38,6 +40,7 @@ void loadLights()
 {
     lights.clear();
     cache.clear();
+    eviction = {};
     loadedWorld = cl.worldmodel;
     loadedGeneration = worldGeneration();
     if(!cl.worldmodel || !cl.worldmodel->entities)
@@ -210,11 +213,8 @@ glm::vec4 modellight::direction(const entity_t* e)
     c.frame = host_framecount;
     const glm::vec4 result{glm::vec3{c.dir}, c.dir.w * amount};
 
-    // Evict entities not drawn for a while (temporary entities come and go).
-    if(cache.size() > 2048)
-    {
-        std::erase_if(cache, [](const auto& kv) { return kv.second.frame < host_framecount - 100; });
-    }
+    // Evict entities not drawn for a while (temporary entities come and go): at most once a frame (vr_evict.hpp).
+    evictStale(cache, 2048, 100, host_framecount, eviction);
     return result;
 }
 
