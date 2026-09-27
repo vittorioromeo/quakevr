@@ -1,18 +1,22 @@
 // vr_held.cpp -- see vr_held.hpp.
 
 #include "vr_held.hpp"
+#include "vr_carry2h.hpp"
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
 #include "vr_hands.hpp"
 #include "vr_lines.hpp"
+#include "vr_profile.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
+#include "vr_throw.hpp"
 #include "vr_units.hpp"
 #include "vr_weapons.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -560,6 +564,43 @@ struct Easing
 Held holding[2];  // [0] off hand, [1] main hand (as hands::State)
 Easing easing[2];
 
+// Held in both hands (vr_carry2h.hpp): the hold kept when the second hand took it, and this frame's solve.
+struct Both
+{
+    int ent{0};
+    const qmodel_t* model{nullptr};
+    carry2h::Hold hold;
+    carry2h::Frame object;   // drawn this frame
+    carry2h::Frame hands[2]; // the controllers this frame
+    carry2h::Frame drawn[2]; // each hand drawn on its grip this frame
+};
+Both both;
+// For the throw (bothHandsThrow): what each hand holds (the carry stats, drawn in the hand or not), and the object's
+// centre from the middle of the hands (metres, world axes), the last frame held in both.
+int carried[2]{0, 0};
+glm::vec3 bothCentre{0.f};
+
+// Let go of by one hand, or both: a hand drawn off its controller (on its grip) eases back onto it.
+constexpr double handEaseTime = 0.15;
+struct HandEase
+{
+    double since{-1.0};
+    glm::vec3 offset{0.f};
+    glm::quat turn{1.f, 0.f, 0.f, 0.f};
+};
+HandEase handEase[2];
+
+// When a hand let go of what it held in both (tracking clock), for the other's two-handed throw.
+struct BothRelease
+{
+    int ent{0};
+    double at{-1.0};
+};
+BothRelease bothRelease[2];
+
+// The most a drawn hand turns off its controller to stay on its grip (a hand's own twist the other doesn't share).
+constexpr float mostHandTurn = glm::radians(40.f);
+
 [[nodiscard]] bool valid(int ent, const qmodel_t* model)
 {
     return ent > 0 && ent < cl.num_entities && cl_entities[ent].model &&
@@ -572,7 +613,15 @@ void reset()
     {
         holding[h] = Held{};
         easing[h] = Easing{};
+        handEase[h] = HandEase{};
+        bothRelease[h] = BothRelease{};
     }
+    both = Both{};
+}
+
+[[nodiscard]] carry2h::Frame controller(const hands::State& s, int h)
+{
+    return {s.pos[h], carry2h::fromAngles(&s.rot[h][0], true)};
 }
 
 void place(entity_t& e, const glm::vec3& pos, const glm::mat3& rot)
@@ -583,13 +632,14 @@ void place(entity_t& e, const glm::vec3& pos, const glm::mat3& rot)
     held::anglesFromAxes(rot, e.angles, e.model->type == mod_brush);
 }
 
-void holdFrame(int h, const hands::State& s)
+void holdFrame(int h, const hands::State& s, int bothEnt)
 {
     Held& hd = holding[h];
     const int want = cl.stats[h == 1 ? protocol::STAT_QVR_CARRYMAIN : protocol::STAT_QVR_CARRYOFF];
     if(want != hd.ent)
     {
-        if(hd.ent && hd.drawn)
+        // (Let go of by both hands at once: eased once.)
+        if(hd.ent && hd.drawn && easing[0].ent != hd.ent && easing[1].ent != hd.ent)
         {
             easing[h] = Easing{hd.ent, hd.model, cl.time, false, hd.lastPos, hd.lastRot};
         }
@@ -602,6 +652,11 @@ void holdFrame(int h, const hands::State& s)
     if(!hd.ent || !s.valid || !valid(hd.ent, hd.placed ? hd.model : nullptr))
     {
         return;
+    }
+
+    if(hd.ent == bothEnt)
+    {
+        return; // held in both hands: bothFrame places it
     }
 
     entity_t& e = cl_entities[hd.ent];
@@ -620,6 +675,113 @@ void holdFrame(int h, const hands::State& s)
     hd.lastRot = hand * hd.rot;
     place(e, hd.lastPos, hd.lastRot);
     hd.drawn = true;
+}
+
+// Held in both hands no more (one let go, or both): each hand drawn on its grip eases back onto its controller, and
+// the hand still holding it holds it from where it is (as the server does), not from where it first took it.
+void leaveBoth()
+{
+    for(int h = 0; h < 2; h++)
+    {
+        handEase[h] = {cl.time, both.drawn[h].pos - both.hands[h].pos,
+            glm::normalize(both.drawn[h].rot * glm::inverse(both.hands[h].rot))};
+        Held& hd = holding[h];
+        if(hd.ent == both.ent && valid(hd.ent, both.model))
+        {
+            const glm::mat3 hand = glm::mat3_cast(both.hands[h].rot);
+            hd.pos = glm::transpose(hand) * (both.object.pos - both.hands[h].pos);
+            hd.rot = glm::transpose(hand) * glm::mat3_cast(both.object.rot);
+            hd.model = both.model;
+            hd.placed = true;
+            hd.since = cl.time - 2.0 * placeTime; // kept (not taken again from the server's place)
+        }
+    }
+    if(vr_debug_carry.value)
+    {
+        Con_Printf("carry2h: %d held in both hands no more\n", both.ent);
+    }
+    both = Both{};
+}
+
+// Held in both hands (`ent`, both carry stats): placed by both hands' controllers this frame (vr_carry2h.hpp), and
+// each hand drawn on its grip.
+void bothFrame(const hands::State& s, int ent)
+{
+    if(!ent || !s.valid || !valid(ent, both.ent == ent ? both.model : nullptr))
+    {
+        if(ent && !valid(ent, nullptr))
+        {
+            both = Both{};
+        }
+        return;
+    }
+
+    entity_t& e = cl_entities[ent];
+    const bool brush = e.model->type == mod_brush;
+    const carry2h::Frame hands[2] = {controller(s, 0), controller(s, 1)};
+    if(both.ent != ent)
+    {
+        // The second hand took it: from where it is drawn now, in the hand that held it (its place this frame), or
+        // where the server has it.
+        carry2h::Frame object{glm::vec3{e.msg_origins[0][0], e.msg_origins[0][1], e.msg_origins[0][2]},
+            carry2h::fromAngles(e.msg_angles[0], brush)};
+        for(int h = 0; h < 2; h++)
+        {
+            const Held& hd = holding[h];
+            if(hd.ent == ent && hd.placed && hd.model == e.model)
+            {
+                const glm::mat3 hand = glm::mat3_cast(hands[h].rot);
+                object = {hands[h].pos + hand * hd.pos, glm::normalize(glm::quat_cast(hand * hd.rot))};
+                break;
+            }
+        }
+        both = Both{};
+        both.ent = ent;
+        both.model = e.model;
+        both.hold = carry2h::record(object, hands);
+        handEase[0] = handEase[1] = HandEase{};
+        if(vr_debug_carry.value)
+        {
+            Con_Printf("carry2h: %d in both hands, grips %.1f units apart\n", ent, both.hold.span);
+        }
+    }
+
+    both.hands[0] = hands[0];
+    both.hands[1] = hands[1];
+    both.object = carry2h::solve(both.hold, hands);
+    const glm::mat3 rot = glm::mat3_cast(both.object.rot);
+    place(e, both.object.pos, rot);
+    for(Held& hd : holding)
+    {
+        hd.drawn = true;
+        hd.model = e.model;
+        hd.lastPos = both.object.pos;
+        hd.lastRot = rot;
+    }
+
+    // Each hand on its grip, never further than vr_carry_two_hands_drift from its controller (pulled further apart,
+    // it leaves the grip), nor turned more than mostHandTurn off it.
+    const float m2u = units::metresToUnits();
+    const float drift = std::fmax(vr_carry_two_hands_drift.value, 0.f) * 0.01f * m2u;
+    for(int h = 0; h < 2; h++)
+    {
+        const carry2h::Frame grip = carry2h::onGrip(both.hold, both.object, h);
+        glm::vec3 off = grip.pos - hands[h].pos;
+        const float length = glm::length(off);
+        if(length > drift)
+        {
+            off *= length > 0.f ? drift / length : 0.f;
+        }
+        glm::quat turn = grip.rot * glm::inverse(hands[h].rot);
+        if(turn.w < 0.f)
+        {
+            turn = -turn;
+        }
+        const float angle = glm::angle(turn);
+        const float share = drift <= 0.f ? 0.f : angle > mostHandTurn ? mostHandTurn / angle : 1.f;
+        both.drawn[h] = {hands[h].pos + off,
+            glm::normalize(glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, turn, share) * hands[h].rot)};
+    }
 }
 
 void easeFrame(Easing& ea)
@@ -653,6 +815,61 @@ void easeFrame(Easing& ea)
         glm::mat3_cast(glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, ea.turn, w)) * serverRot);
 }
 
+// vr_debug_carry 2: one line a frame into carry_trace.txt (the game directory): the time; what is held (2 both hands,
+// 1 the main hand, 0 the off hand, -1 nothing or easing back) and its entity; its drawn place and turn (x y z, then
+// the quaternion w x y z of its axes); each hand's controller and drawn place and turn (main, then off).
+void trace(const hands::State& s)
+{
+    static FILE* file = nullptr;
+    if(vr_debug_carry.value < 2.f)
+    {
+        if(file)
+        {
+            fclose(file);
+            file = nullptr;
+        }
+        return;
+    }
+    if(!s.valid)
+    {
+        return;
+    }
+    const int mode = both.ent ? 2 : holding[1].drawn ? 1 : holding[0].drawn ? 0 : -1;
+    int ent = both.ent ? both.ent : holding[1].drawn ? holding[1].ent : holding[0].drawn ? holding[0].ent : 0;
+    for(const Easing& ea : easing)
+    {
+        ent = ent ? ent : ea.ent;
+    }
+    if(!ent || !valid(ent, nullptr))
+    {
+        return;
+    }
+    if(!file)
+    {
+        file = fopen(va("%s/carry_trace.txt", com_gamedir), "w");
+        if(!file)
+        {
+            return;
+        }
+    }
+    const entity_t& e = cl_entities[ent];
+    const auto pose = [](const glm::vec3& p, const glm::quat& q) {
+        return std::string{va(" %.4f %.4f %.4f %.7f %.7f %.7f %.7f", p.x, p.y, p.z, q.w, q.x, q.y, q.z)};
+    };
+    std::string line = va("%.4f %d %d", cl.time, mode, ent);
+    line += pose(glm::vec3{e.origin[0], e.origin[1], e.origin[2]}, carry2h::fromAngles(e.angles, e.model->type == mod_brush));
+    for(int h = 1; h >= 0; h--)
+    {
+        glm::vec3 pos = s.pos[h], angles = s.rot[h];
+        line += pose(pos, carry2h::fromAngles(&angles[0], true));
+        held::drawnHand(h, pos, angles);
+        line += pose(pos, carry2h::fromAngles(&angles[0], true));
+    }
+    line += "\n";
+    fputs(line.c_str(), file);
+    fflush(file);
+}
+
 } // namespace
 
 namespace qvr::held
@@ -664,25 +881,105 @@ int heldEntity(int hand)
     return hd.drawn && valid(hd.ent, hd.model) ? hd.ent : 0;
 }
 
+bool drawnHand(int hand, glm::vec3& pos, glm::vec3& angles)
+{
+    if(hand < 0 || hand > 1)
+    {
+        return false;
+    }
+    if(both.ent && holding[hand].ent == both.ent && holding[hand].drawn)
+    {
+        pos = both.drawn[hand].pos;
+        carry2h::toAngles(both.drawn[hand].rot, &angles[0], true);
+        return true;
+    }
+    const HandEase& he = handEase[hand];
+    const double t = cl.time - he.since;
+    if(he.since < 0.0 || t < 0.0 || t >= handEaseTime)
+    {
+        return false;
+    }
+    float w = 1.f - static_cast<float>(t / handEaseTime);
+    w = w * w * (3.f - 2.f * w);
+    pos += he.offset * w;
+    carry2h::toAngles(glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, he.turn, w) * carry2h::fromAngles(&angles[0], true), &angles[0], true);
+    return true;
+}
+
+bool bothHandsThrow(int hand, double at, bool release, throwing::Estimate& out)
+{
+    if(hand < 0 || hand > 1)
+    {
+        return false;
+    }
+    const int ent = carried[hand];
+    const bool inBoth = ent && carried[1 - hand] == ent;
+    const BothRelease& other = bothRelease[1 - hand];
+    const double window = std::fmax(vr_carry_two_hands_window.value, 0.f);
+    const bool afterOther = release && ent && other.ent == ent && at - other.at >= -0.02 && at - other.at <= window;
+    if(!inBoth && !afterOther)
+    {
+        return false;
+    }
+    out = throwing::estimateBothAt(at, bothCentre);
+    if(release)
+    {
+        bothRelease[hand] = {ent, at};
+        if(vr_debug_throw.value)
+        {
+            Con_Printf("throw both hands (%s let go%s): %.2f m/s (%.2f %.2f %.2f), spin %.1f rad/s (%.2f %.2f %.2f)\n",
+                hand == 1 ? "main" : "off", afterOther ? va(", %.0f ms after the other", (at - other.at) * 1000.0) : "",
+                glm::length(out.vel), out.vel.x, out.vel.y, out.vel.z, glm::length(out.angVel), out.angVel.x, out.angVel.y,
+                out.angVel.z);
+        }
+    }
+    return true;
+}
+
 } // namespace qvr::held
 
 // End of CL_RelinkEntities: the local player's held objects are drawn in the hands drawn this
 // frame (and ease back to the server's position when let go).
 extern "C" void VR_RelinkHeld(void)
 {
-    if(!(cl.protocolflags & PRFL_QUAKEVR) || cls.state != ca_connected || cls.demoplayback || !vr_carry_local.value)
+    if(!(cl.protocolflags & PRFL_QUAKEVR) || cls.state != ca_connected || cls.demoplayback)
     {
         reset();
+        carried[0] = carried[1] = 0;
         return;
     }
 
+    QVR_PROFILE("held");
     const hands::State& s = hands::current();
-    for(int h = 0; h < 2; h++)
+    carried[0] = cl.stats[protocol::STAT_QVR_CARRYOFF];
+    carried[1] = cl.stats[protocol::STAT_QVR_CARRYMAIN];
+    const int bothEnt = carried[1] && carried[1] == carried[0] ? carried[1] : 0;
+    if(!vr_carry_local.value)
     {
-        holdFrame(h, s);
+        reset();
     }
-    for(Easing& ea : easing)
+    else
     {
-        easeFrame(ea);
+        if(both.ent && both.ent != bothEnt)
+        {
+            leaveBoth();
+        }
+        for(int h = 0; h < 2; h++)
+        {
+            holdFrame(h, s, bothEnt);
+        }
+        bothFrame(s, bothEnt);
+        for(Easing& ea : easing)
+        {
+            easeFrame(ea);
+        }
+        trace(s);
+    }
+
+    // Held in both hands: its centre (as drawn: in the hands this frame, or where the server has it) from the middle
+    // of the hands, for a two-handed throw.
+    if(bothEnt && s.valid && valid(bothEnt, nullptr))
+    {
+        bothCentre = (held::drawnCentre(bothEnt) - (s.pos[0] + s.pos[1]) * 0.5f) / units::metresToUnits();
     }
 }

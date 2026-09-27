@@ -4897,6 +4897,7 @@ void() W_Frame =
         ImpulseCommands();
     }
 
+    VR_Carry_TwoHandFrame();
     VR_Carry_HandFrame(cVR_MainHand);
     VR_Carry_HandFrame(cVR_OffHand);
 

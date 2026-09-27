@@ -125,7 +125,9 @@ constexpr double peakFit = 0.03;
 }
 
 // The peak of the controller's speed around the release.
-[[nodiscard]] Estimate releasePeak(const History& h, double releaseTime)
+// `lever`: metres along the hand's forward to the held object's centre (vr_throw_lever_arm): a clear wrist flick adds
+// its spin's velocity there (none for two hands: their samples are the object's own).
+[[nodiscard]] Estimate releasePeak(const History& h, double releaseTime, float leverArm)
 {
     const double from = releaseTime - std::max(vr_throw_window.value, 0.f);
     const double to = releaseTime + std::max(vr_throw_lookahead.value, 0.f);
@@ -200,7 +202,7 @@ constexpr double peakFit = 0.03;
     }
 
     // The object's centre, and the velocity a clear wrist flick adds there.
-    const glm::vec3 lever = peak.forward * vr_throw_lever_arm.value; // metres
+    const glm::vec3 lever = peak.forward * leverArm; // metres
     if(glm::length(angVel) > vr_throw_ang_threshold.value)
     {
         vel += glm::cross(angVel, lever) * vr_throw_ang_factor.value;
@@ -257,7 +259,57 @@ Estimate estimateAt(int hand, double releaseTime)
         return {};
     }
 
-    return releasePeak(h, releaseTime);
+    return releasePeak(h, releaseTime, vr_throw_lever_arm.value);
+}
+
+Estimate estimateBothAt(double releaseTime, const glm::vec3& centre)
+{
+    // The hands' samples of the same frames, as the held object's: its centre's velocity (the middle's, and its spin
+    // about the middle) and its spin (the hands' own about the line between them, and the line's turn: a rigid
+    // body's). Not across a hand's gap (a frame one hand missed).
+    static History both;
+    both = History{};
+    const History &h0 = histories[0], &h1 = histories[1];
+    const float m2u = units::metresToUnits();
+    int j = h1.count - 1;
+    for(int i = h0.count - 1; i >= 0; i--) // oldest first
+    {
+        const Sample& a = h0.at(i);
+        while(j >= 0 && h1.at(j).time < a.time)
+        {
+            j--;
+        }
+        if(j < 0 || h1.at(j).time != a.time)
+        {
+            continue;
+        }
+        const Sample& b = h1.at(j);
+        const glm::vec3 line = (b.pos - a.pos) / m2u; // metres, from the off hand to the main
+        const float d = glm::length(line);
+        glm::vec3 spin = (a.angVel + b.angVel) * 0.5f;
+        if(d > 0.03f)
+        {
+            const glm::vec3 u = line / d;
+            const glm::vec3 dv = b.vel - a.vel;
+            const glm::vec3 across = dv - u * glm::dot(dv, u);
+            const glm::vec3 rigid = u * glm::dot(spin, u) + glm::cross(u, across) / d;
+            spin = glm::mix(spin, rigid, glm::clamp((d - 0.03f) / 0.03f, 0.f, 1.f));
+        }
+        Sample s;
+        s.time = a.time;
+        s.pos = (a.pos + b.pos) * 0.5f + centre * m2u;
+        s.vel = (a.vel + b.vel) * 0.5f + glm::cross(spin, centre);
+        s.angVel = spin;
+        s.forward = (a.forward + b.forward) * 0.5f;
+        both.samples[both.next] = s;
+        both.next = (both.next + 1) % capacity;
+        both.count = std::min(both.count + 1, capacity);
+    }
+    if(both.count == 0)
+    {
+        return {};
+    }
+    return releasePeak(both, releaseTime, 0.f);
 }
 
 double latestTime(int hand)

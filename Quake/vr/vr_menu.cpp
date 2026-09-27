@@ -670,6 +670,13 @@ void hologramTestMessage()
             .help("At a holster: let go of it at a hip or shoulder holster to put it in your pack."),
         toggle("Drawn In the Hand", vr_carry_local)
             .help("What you carry is drawn in your hand as it is this frame: no lag or lead as you walk or turn. Off: where the server has it."),
+        toggle("Two-Handed Carrying", vr_carry_two_hands)
+            .help("Grip what your other hand carries to hold it in both: it moves and turns with both hands, and letting go "
+                  "of both together throws it. Let go with one and the other keeps it (to pass it from hand to hand)."),
+        slider("Two-Handed Hand Drift", vr_carry_two_hands_drift, 0.f, 20.f, 1.f, "%.0f cm")
+            .extend(0.f, 50.f)
+            .help("How far your drawn hands may be off your real ones to stay on their grips as you pull them apart or push "
+                  "them together. 0: they stay on your real hands."),
         toggle("Fit to the Hand", vr_held_surface_fit)
             .help("A box, backpack or gib you grip sits against your curled fingers, by its drawn shape. Off: it stays where you gripped it."),
         slider("Fit Gap", vr_held_fit_gap, -6.f, 3.f, 0.1f, "%.1f cm")

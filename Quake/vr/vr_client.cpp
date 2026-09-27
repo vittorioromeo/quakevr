@@ -2,6 +2,7 @@
 // VR input commands, building the VR move from tracking, and parsing VR server data.
 
 #include "vr_client.hpp"
+#include "vr_held.hpp"
 #include "vr_decals.hpp"
 #include "vr_engine.hpp"
 #include "vr_flashlight.hpp"
@@ -204,7 +205,10 @@ std::vector<MuzzleOffset> muzzleOffsets; // slot * 2 + mirrored
             const double released = throwing::releaseTime(h);
             const double at =
                 released >= 0.0 && latest - released >= -0.05 && latest - released < 0.25 ? released : latest;
-            thrown[h] = throwing::estimateAt(h, at);
+            if(!held::bothHandsThrow(h, at, true, thrown[h])) // a prop held in both hands: its own motion
+            {
+                thrown[h] = throwing::estimateAt(h, at);
+            }
             thrownValid[h] = true;
 
             if(vr_debug_throw.value)
@@ -226,7 +230,15 @@ std::vector<MuzzleOffset> muzzleOffsets; // slot * 2 + mirrored
         }
         wasGrabbing[h] = grabbing;
 
-        const throwing::Estimate e = thrownValid[h] ? thrown[h] : throwing::estimate(h);
+        throwing::Estimate e;
+        if(thrownValid[h])
+        {
+            e = thrown[h];
+        }
+        else if(!held::bothHandsThrow(h, latest, false, e))
+        {
+            e = throwing::estimate(h);
+        }
         hand.vel = hs.vel[h];
         hand.velMag = glm::length(hs.vel[h]);
         hand.throwVel = e.vel;

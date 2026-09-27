@@ -161,6 +161,10 @@ context and screenshot, ready to paste or to point me at.
   - **Wrist gadget:** Screens > Messages (test button, messages only on the gadget), Graphics > Performance > FPS
     Counter on the Gadget.
   - **Casings** splash in water; **beam quality** (Flashlight section).
+  - **Two-handed props:** grip what one hand carries with the other to hold it in both: it moves and turns with both
+    hands, and letting go of both together throws it (tumbling as your hands turned it). Let go of one and the other
+    keeps it: that's how to pass it between hands. Only a one-handed carry goes into the pack at a holster.
+    Carrying and Gibs: Two-Handed Carrying, Two-Handed Hand Drift.
 
 - **Previous round** (details in `docs/vr-port/ROUND20.md`, your seventh batch of notes; `ROUND19.md`, the
   performance review):
@@ -535,6 +539,11 @@ where the held thing is in the hand and whether it was solved afresh at rest. Th
 `vr_wofs_whole_*`, `vr_wofs_hand_only_*`, `vr_wofs_overlap`, `vr_wofs_fgr_manual`, `vr_wofs_fgr_curl_*`,
 `vr_wofs_fgr_thumb_across`, and per hotspot `vr_wofs_hsN_overlap`, `_vx/vy/vz/vpitch/vyaw/vroll`, `_manual`,
 `_curl_*`, `_thumb_across`.
+Two-handed props: `vr_rigid_place item_health main 0 3 0` with `+grabright; vr_mock_button main grip 1` puts a health
+box in the main hand; move the off hand to its other side (`vr_mock_hand off -0.19 1.30 -0.45 0 0 0` with the main
+at `0.10 1.30 -0.45`) and press its grip: `carry: both hands` (developer 1). `vr_debug_carry 2` writes the object and
+both hands every frame to `carry_trace.txt` (and prints the second hand's reach test); `vr_debug_throw 1` prints
+`throw both hands (...)`. `vr_mock_play` keyframes move both hands with their velocities (throws, turns).
 
 Tuning the body: `vr_show_hip_holsters 1`, `vr_show_upper_holsters 1`, `vr_show_shoulder_holsters 1` and
 `vr_show_virtual_stock 1` mark where the holsters and the virtual stock's shoulders are (green while a hand is

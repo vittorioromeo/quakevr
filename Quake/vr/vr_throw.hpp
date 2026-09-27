@@ -31,6 +31,12 @@ void sample(int hand, double time, const glm::vec3& pos, const glm::vec3& vel, c
 // The estimate for a release at `releaseTime`: the peak in a window around it.
 [[nodiscard]] Estimate estimateAt(int hand, double releaseTime);
 
+// Both hands holding one object (vr_carry2h.hpp), released at `releaseTime`: the estimate of the object's own motion
+// from both hands' samples (the peak of its centre's speed, as estimateAt's), its centre `centre` metres from the
+// middle of the hands (world axes). Its spin is a rigid body's held at both hands: the hands' own about the line
+// between them, and the line's turn.
+[[nodiscard]] Estimate estimateBothAt(double releaseTime, const glm::vec3& centre);
+
 // Time of the newest sample (0 without any).
 [[nodiscard]] double latestTime(int hand);
 
