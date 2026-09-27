@@ -2,6 +2,7 @@
 
 #include "vr_progs.hpp"
 #include "vr_engine.hpp"
+#include "vr_box3d.hpp"
 #include "vr_physics.hpp"
 #include "vr_server.hpp"
 
@@ -156,6 +157,7 @@ extern "C" void VR_OnSpawnServerBeforeLoad()
 {
     qvr::server::resetClients();
     qvr::physics::resetRigidBodies();
+    qvr::box3d::reset();
     qvr::physics::precacheWaterSounds();
     resetBuiltinState();
     callSpawnServerEntryPoint(sv_bindings.OnSpawnServerBeforeLoad);

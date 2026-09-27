@@ -142,6 +142,11 @@ context and screenshot, ready to paste or to point me at.
 ## What to try
 
 - **New in this round** (details in `docs/vr-port/ROUND21.md`; each section ends with an "In the headset" list):
+  - **Physics engine: Box3D, to compare** (Throwing and Physics > Physics Engine, switches at once): Quake VR is the
+    solver you know; Box3D makes thrown and dropped things collide with each other too: stack boxes, build a pyramid,
+    throw a box into a stack, sweep one off with a held box. Then the usual: throws at monsters, weapons landing on
+    their sides, backpacks and armour on slopes, boxes on lifts, things floating. The side-by-side list is at the end
+    of ROUND21.md, "Box3D physics".
   - **Melee, redesigned:** swings in any direction (backswings too), stabs with the tip, pommel/butt strikes with
     the near end, parry bash = hold the stance ~0.5 s then push; palm shoves (both palms harder). Melee Speed was
     reset once to 4 m/s. Tell which of your motions still misread, and record more takes of them.
@@ -573,6 +578,11 @@ wait60; vr_weapon_grip_mode 1; impulse 155; wait60; vr_mock_look 30 0; vr_mock_h
 vr_mock_fingers main 1 1 1; vr_pose; wait90; vr_mock_button off primary 1; wait3; vr_mock_button off primary 0; wait10;
 vr_pose stop; wait120; vr_pose_check`. The floating weapon's grip is at (0, 1.35, -0.4) in the mock's tracking space
 (40 cm ahead of the head, 35 cm below it); the super shotgun's foregrip is near (-0.06, 1.31, -0.71).
+Rigid bodies (round 21, Box3D): `vr_physics_engine 0|1` switches the solver; `vr_physics_stack`, `vr_physics_pyramid`,
+`vr_physics_pile` put props (a number, a classname or `props`) in a column, a pyramid or toppling columns;
+`vr_physics_loose` makes a hanging armour or a pickup a loose prop; `vr_physics_list` and `vr_physics_hash` print
+them (the hash: determinism); `vr_debug_box3d 1|2`. `vr_forcegrabbable_return 0` keeps moved items from going back
+to their places during a long test.
 
 Tuning the body: `vr_show_hip_holsters 1`, `vr_show_upper_holsters 1`, `vr_show_shoulder_holsters 1` and
 `vr_show_virtual_stock 1` mark where the holsters and the virtual stock's shoulders are (green while a hand is

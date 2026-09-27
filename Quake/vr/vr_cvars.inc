@@ -64,6 +64,15 @@ QVR_CVAR(vr_bindings_version, "0", CVAR_ARCHIVE)
 // Mock backend: swing the main hand in an overhand arc with this period, in seconds (0: still).
 QVR_CVAR(vr_mock_swing, "0", CVAR_NONE)
 
+// Rigid-body physics (docs/vr-port/ROUND21.md, "Box3D physics"): 0 Quake VR's own solver (vr_rigid.cpp), 1 Box3D
+// (vr_box3d.cpp: props also collide with each other, so they stack and pile). Switched live: the bodies are
+// rebuilt from the entities at the next server frame.
+QVR_CVAR(vr_physics_engine, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_box3d_substeps, "4", CVAR_ARCHIVE)       // Box3D's sub-steps a server frame (1..8)
+QVR_CVAR(vr_box3d_player_push, "1", CVAR_ARCHIVE)    // the players' bodies push props (a capsule each, one way)
+QVR_CVAR(vr_box3d_player_radius, "15", CVAR_ARCHIVE) // cm, that capsule's radius
+QVR_CVAR(vr_debug_box3d, "0", CVAR_NONE)             // 1: bodies made, woken and put to sleep; 2: every awake body every frame
+
 // Desktop mirror of the headset view: 0 off, 1 left eye, 2 both eyes side by side.
 QVR_CVAR(vr_mirror, "1", CVAR_ARCHIVE)
 

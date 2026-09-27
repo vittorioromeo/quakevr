@@ -15,6 +15,8 @@
 #pragma once
 
 #include "vr_engine.hpp"
+
+#include <vector>
 #include "vr_throw.hpp"
 
 namespace qvr::held
@@ -62,6 +64,11 @@ bool bothHandsThrow(int hand, double at, bool release, throwing::Estimate& out);
 // Round 21, second pass: the distance (units) from `point` to the drawn surface of `ent` (its model as drawn: the
 // networked scale and offset), its nearest point in `nearest`; -1 if it has no surface to measure.
 [[nodiscard]] float surfaceDistance(edict_t* ent, const glm::vec3& point, glm::vec3* nearest = nullptr);
+
+// Server side: the corners of `ent`'s drawn surface (as surfaceDistance measures it: the alias model's current frame,
+// the brush model's faces), in its axes relative to its origin, three a triangle; false if it has none (the rigid
+// bodies' convex hulls, vr_box3d.cpp).
+[[nodiscard]] bool drawnVertices(edict_t* ent, std::vector<glm::vec3>& out);
 
 // vr_debug_carry: what a hand's touch test found (the server's), and drawn by the view (lines, this frame).
 void noteCarryProbe(int hand, edict_t* ent, const glm::vec3& at, float distance, const glm::vec3& nearest, float reach);
