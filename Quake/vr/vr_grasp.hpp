@@ -88,13 +88,20 @@ struct Settings
     float palmTurnLimit{0.f}; // degrees it may turn to face the surface in front of it
     float overlap{0.f};       // hand units the hand may sink into what it holds (snug, no gap)
     bool thenar{false};       // the ball of the thumb meets it too (a thing held against the palm; not a weapon's grip)
+    bool thumbTop{false};     // the thumb along the top of what it holds, not wrapped round it
 };
 
 // Solves the hand of `pose` (its shifts; its curls and metacarpal are ignored) holding `shape`, placed in the hand's
 // rig space by `shapeToRig`: the palm turned and moved flush (as the settings allow), then the fingers there.
 // `previous`: the solve before for the same thing: among thumb turns nearly as good, its own wins (no flips).
+// `extra`: another thing in the way (the other hand, when this one cups it), its coordinates to the rig by
+// `extraToRig`, the hand allowed `extraOverlap` hand units into it (at least as much as into what it holds).
 void solve(const handrig::Pose& pose, const Shape& shape, const glm::mat4& shapeToRig, const Settings& settings,
-    const Solution* previous, Solution& out);
+    const Solution* previous, Solution& out, Shape* extra = nullptr, const glm::mat4& extraToRig = glm::mat4{1.f},
+    float extraOverlap = 0.f);
+
+// A shape of triangles as they are given (their own coordinates: no model), for solve's `extra`.
+void makeShape(const std::vector<Triangle>& tris, Shape& out);
 
 // A finger's joint curls this frame: `curl` the controller's (0..5, vr_view.cpp's), `engage` how much it grips
 // (0..1: drawn to the stops past `curl`).

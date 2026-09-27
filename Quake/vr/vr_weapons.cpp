@@ -244,7 +244,16 @@ void resetSlotToDefaults(int slot)
 // The slot's settings that differ from the shipped defaults, as vr_weapons.inc lines.
 Key hotspotKey(int index, int field)
 {
-    return static_cast<Key>(static_cast<int>(Key::Hotspot1Type) + 5 * index + field);
+    if(field < 5)
+    {
+        return static_cast<Key>(static_cast<int>(Key::Hotspot1Type) + 5 * index + field);
+    }
+    return static_cast<Key>(static_cast<int>(Key::Hotspot1Pitch) + 4 * index + (field - 5));
+}
+
+bool isGripType(HotspotType type)
+{
+    return type == HotspotType::Grip || type == HotspotType::Cup;
 }
 
 Hotspot hotspot(int slot, int index)
@@ -255,9 +264,11 @@ Hotspot hotspot(int slot, int index)
         return h;
     }
     const int type = static_cast<int>(value(slot, hotspotKey(index, 0)));
-    h.type = type == 1 ? HotspotType::Grip : type == 2 ? HotspotType::Blade : HotspotType::None;
+    h.type = type == 1 ? HotspotType::Grip : type == 2 ? HotspotType::Blade : type == 3 ? HotspotType::Cup : HotspotType::None;
     h.pos = vec(slot, hotspotKey(index, 1), hotspotKey(index, 2), hotspotKey(index, 3));
     h.bias = value(slot, hotspotKey(index, 4));
+    h.angles = vec(slot, hotspotKey(index, 5), hotspotKey(index, 6), hotspotKey(index, 7));
+    h.style = value(slot, hotspotKey(index, 8)) >= 0.5f ? HotspotStyle::ThumbTop : HotspotStyle::Wrap;
     return h;
 }
 
@@ -273,6 +284,11 @@ void setHotspot(int slot, int index, const Hotspot& h)
         Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 1 + k)), h.pos[k]);
     }
     Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 4)), h.bias);
+    for(int k = 0; k < 3; k++)
+    {
+        Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 5 + k)), h.angles[k]);
+    }
+    Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 8)), static_cast<float>(static_cast<int>(h.style)));
 }
 
 bool takeHotspotMigration(int slot)

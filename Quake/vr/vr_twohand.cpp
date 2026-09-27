@@ -381,15 +381,19 @@ void applyHand(hands::State& s, const glm::vec3 (&originalRots)[2], int holding,
 
     const bool canGrab = client::grabbing(helping) && wpnMode != WPN_2H_FORBIDDEN &&
                          weaponId(helping) == widFist && beforeMuzzle && !handpose::gunColliding(holding);
-    const bool goodDot = vr_2h_angle_threshold.value <= -1.f || glm::dot(handDir, origDir) > vr_2h_angle_threshold.value;
+    // A cup (a two-handed pistol grip) is held wherever the hands point: it doesn't aim.
+    const bool cup = fixedMode && s.grip2HCup[holding];
+    const bool goodDot =
+        cup || vr_2h_angle_threshold.value <= -1.f || glm::dot(handDir, origDir) > vr_2h_angle_threshold.value;
 
     shouldAim[holding] = canGrab && goodDistance && goodDot;
     helpingHand[helping] = shouldAim[holding];
     transition(aimTransition[holding], shouldAim[holding], 5.f);
 
     const float t = aimTransition[holding];
-    if(t <= 0.f)
+    if(t <= 0.f || cup)
     {
+        stockTransition[holding] = 0.f;
         return;
     }
 

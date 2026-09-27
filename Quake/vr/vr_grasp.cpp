@@ -436,16 +436,29 @@ namespace
 struct Target
 {
     Shape::Space* space;
-    glm::mat4 rigToReal; // the rig (the palm turned and moved as the solve has it) to the shape's real units
+    glm::mat4 base;      // the rig (as the controller has the hand) to the shape's real units
     float scale;         // hand units per real unit (the least of the axes', if not the same: distances never overstated)
+    Shape::Space* extra{nullptr}; // another thing in the way (the other hand, for a cup), in rig units
+    glm::mat4 extraBase{1.f};
+    float allowance{0.f}; // hand units it may be sunk into, more than the held thing
+    glm::mat4 rigToReal{1.f}, extraToReal{1.f}; // with the hand turned and moved as the solve has it
+
+    // The hand turned by `turn` about the palm's middle, then moved by `move`.
+    void place(const glm::quat& turn, const glm::vec3& move);
 };
 
 int probes = 0; // this solve's (vr_grasp_bench)
 
-// The distance (hand units) from the rig point `p` to the held thing, at most `limit` hand units.
+// The distance (hand units) from the rig point `p` to the held thing (or the other thing in the way, less its
+// allowance), at most `limit` hand units.
 [[nodiscard]] float nearest(Target& target, const glm::vec3& p, float limit)
 {
-    return target.scale * target.space->nearest(glm::vec3{target.rigToReal * glm::vec4{p, 1.f}}, limit / target.scale);
+    float d = target.scale * target.space->nearest(glm::vec3{target.rigToReal * glm::vec4{p, 1.f}}, limit / target.scale);
+    if(target.extra)
+    {
+        d = std::fmin(d, target.extra->nearest(glm::vec3{target.extraToReal * glm::vec4{p, 1.f}}, limit) + target.allowance);
+    }
+    return d;
 }
 
 // ----------------------------------------------------------------------------
@@ -726,18 +739,24 @@ constexpr int thumbTurnCount = static_cast<int>(sizeof(thumbTurns) / sizeof(thum
            glm::angleAxis(glm::radians(t.opposition), glm::vec3{-1.f, 0.f, 0.f});
 }
 
-// The thumb: closed at each turn of its metacarpal, the one holding best (a turn costs a little: a thumb held
-// naturally beats a contorted one holding a little better). Solved again (the solve before known): its turn only, closed
-// from where it held.
-void solveThumb(handrig::Pose& pose, const Context& ctx, const Solution* previous, FingerStop& out, glm::quat& turn,
+// Whether a thumb turn fits the style: along the top (swung up and away), or wrapping round (not).
+[[nodiscard]] bool thumbStyle(const ThumbTurn& t, bool top)
+{
+    return top ? t.swing < 0.f : t.swing >= 0.f;
+}
+
+// The thumb: closed at each turn of its metacarpal (of the style asked for), the one holding best (a turn costs a
+// little: a thumb held naturally beats a contorted one holding a little better). Solved again (the solve before
+// known): its turn only, closed from where it held.
+void solveThumb(handrig::Pose& pose, const Context& ctx, const Solution* previous, bool top, FingerStop& out, glm::quat& turn,
     int& choice)
 {
     float best = -1e9f;
     const glm::quat keep = pose.metacarpal;
-    const bool again = previous && previous->thumbChoice >= 0;
+    const bool again = previous && previous->thumbChoice >= 0 && thumbStyle(thumbTurns[previous->thumbChoice], top);
     for(int i = 0; i < thumbTurnCount; i++)
     {
-        if(again && i != previous->thumbChoice)
+        if((again && i != previous->thumbChoice) || !thumbStyle(thumbTurns[i], top))
         {
             continue;
         }
@@ -763,7 +782,7 @@ void solveThumb(handrig::Pose& pose, const Context& ctx, const Solution* previou
     out = FingerStop{};
     out.startsInside = true;
     out.leastInside = true;
-    choice = again ? previous->thumbChoice : 1;
+    choice = again ? previous->thumbChoice : top ? 5 : 1;
     turn = thumbQuat(thumbTurns[choice]);
 }
 
@@ -798,10 +817,19 @@ void solveThumb(handrig::Pose& pose, const Context& ctx, const Solution* previou
     return rigToReal * hand;
 }
 
-// The palm's place for a grip through the hand (see solve): the places tried, and the best one's move.
-glm::vec3 placeInside(handrig::Pose& pose, Target& target, const glm::mat4& rigToReal, const Settings& settings, int& tried)
+void Target::place(const glm::quat& turn, const glm::vec3& move)
 {
-    const auto at = [&](const glm::vec3& move) { target.rigToReal = handTo(rigToReal, glm::quat{1.f, 0.f, 0.f, 0.f}, move); };
+    rigToReal = handTo(base, turn, move);
+    if(extra)
+    {
+        extraToReal = handTo(extraBase, turn, move);
+    }
+}
+
+// The palm's place for a grip through the hand (see solve): the places tried, and the best one's move.
+glm::vec3 placeInside(handrig::Pose& pose, Target& target, const Settings& settings, int& tried)
+{
+    const auto at = [&](const glm::vec3& move) { target.place(glm::quat{1.f, 0.f, 0.f, 0.f}, move); };
     const auto value = [&](const glm::vec3& move) {
         at(move);
         const Context ctx{&target, &pose, settings.overlap};
@@ -971,6 +999,32 @@ void reset()
     shapes.clear();
 }
 
+void makeShape(const std::vector<Triangle>& tris, Shape& out)
+{
+    out.tris = tris;
+    if(!out.space)
+    {
+        out.space = std::make_unique<Shape::Space>();
+    }
+    Shape::Space& space = *out.space;
+    space.tris.clear();
+    space.cell = 0.f; // its grid made for the next solve
+    for(const Triangle& t : out.tris)
+    {
+        Shape::Space::Tri r;
+        r.a = t.p[0];
+        r.b = t.p[1];
+        r.c = t.p[2];
+        const glm::vec3 n = glm::cross(r.b - r.a, r.c - r.a);
+        const float len = glm::length(n);
+        r.normal = len > 1e-12f ? n / len : glm::vec3{0.f};
+        r.plane = glm::dot(r.normal, r.a);
+        r.lo = glm::min(r.a, glm::min(r.b, r.c));
+        r.hi = glm::max(r.a, glm::max(r.b, r.c));
+        space.tris.push_back(r);
+    }
+}
+
 glm::mat4 shapeToWorld(const entity_t& e, bool mirrored)
 {
     float m[16];
@@ -1032,7 +1086,7 @@ glm::vec3 palmCentre()
 }
 
 void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shapeToRig, const Settings& settings,
-    const Solution* previous, Solution& out)
+    const Solution* previous, Solution& out, Shape* extra, const glm::mat4& extraToRig, float extraOverlap)
 {
     const auto t0 = std::chrono::steady_clock::now();
     const Kinematics& k = kinematics();
@@ -1061,6 +1115,17 @@ void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shap
         space.buildGrid(cell);
     }
     Target target{&space, rigToReal, scale};
+    if(extra && extra->space && !extra->space->tris.empty())
+    {
+        if(extra->space->cell <= 0.f)
+        {
+            extra->space->buildGrid(cellHandUnits);
+        }
+        target.extra = extra->space.get();
+        target.extraBase = glm::inverse(extraToRig);
+        target.allowance = std::fmax(extraOverlap - settings.overlap, 0.f);
+    }
+    target.place(glm::quat{1.f, 0.f, 0.f, 0.f}, glm::vec3{0.f});
 
     // Whether the palm is in it (a gun's grip through the hand).
     const bool inside = palmClearance(target, settings.overlap, false) < -tolerance;
@@ -1114,12 +1179,12 @@ void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shap
     if(settings.palmLimit > 0.f && !inside)
     {
         float y = -settings.palmLimit;
-        target.rigToReal = handTo(rigToReal, out.palmTurn, up * y);
+        target.place(out.palmTurn, up * y);
         if(palmClearance(target, settings.overlap, settings.thenar) >= -tolerance)
         {
             for(int step = 0; step < 32 && y < settings.palmLimit; step++)
             {
-                target.rigToReal = handTo(rigToReal, out.palmTurn, up * y);
+                target.place(out.palmTurn, up * y);
                 const float clear = palmClearance(target, settings.overlap, settings.thenar);
                 if(clear <= 0.05f)
                 {
@@ -1137,13 +1202,13 @@ void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shap
     // again, the place before (the weapon doesn't move in the hand).
     if(inside && settings.palmLimit > 0.f)
     {
-        out.palm = previous ? previous->palm : placeInside(pose, target, rigToReal, settings, out.places);
+        out.palm = previous ? previous->palm : placeInside(pose, target, settings, out.places);
     }
-    target.rigToReal = handTo(rigToReal, out.palmTurn, out.palm);
+    target.place(out.palmTurn, out.palm);
 
     // The fingers.
     const Context ctx{&target, &pose, settings.overlap};
-    solveThumb(pose, ctx, previous, out.finger[handrig::Thumb], out.thumbTurn, out.thumbChoice);
+    solveThumb(pose, ctx, previous, settings.thumbTop, out.finger[handrig::Thumb], out.thumbTurn, out.thumbChoice);
     for(int f = handrig::Index; f < handrig::FingerCount; f++)
     {
         solveFinger(ctx, f, true, previous ? &previous->finger[f] : nullptr, out.finger[f]);

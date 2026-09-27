@@ -127,6 +127,26 @@ QVR_WEAPON_KEY(Hotspot4X, "hs4_x")
 QVR_WEAPON_KEY(Hotspot4Y, "hs4_y")
 QVR_WEAPON_KEY(Hotspot4Z, "hs4_z")
 QVR_WEAPON_KEY(Hotspot4Bias, "hs4_bias")
+// Round 21, second pass: type 3, a cup (a two-handed pistol grip: the other hand under and round the holding hand's
+// grip; no two-handed aim); and each hotspot's hand turn (the helping hand's pitch, yaw and roll there, degrees, on top
+// of how it is turned by the weapon) and its style (0: the fingers and the thumb wrap round it; 1: the thumb along the
+// top).
+QVR_WEAPON_KEY(Hotspot1Pitch, "hs1_pitch")
+QVR_WEAPON_KEY(Hotspot1Yaw, "hs1_yaw")
+QVR_WEAPON_KEY(Hotspot1Roll, "hs1_roll")
+QVR_WEAPON_KEY(Hotspot1Style, "hs1_style")
+QVR_WEAPON_KEY(Hotspot2Pitch, "hs2_pitch")
+QVR_WEAPON_KEY(Hotspot2Yaw, "hs2_yaw")
+QVR_WEAPON_KEY(Hotspot2Roll, "hs2_roll")
+QVR_WEAPON_KEY(Hotspot2Style, "hs2_style")
+QVR_WEAPON_KEY(Hotspot3Pitch, "hs3_pitch")
+QVR_WEAPON_KEY(Hotspot3Yaw, "hs3_yaw")
+QVR_WEAPON_KEY(Hotspot3Roll, "hs3_roll")
+QVR_WEAPON_KEY(Hotspot3Style, "hs3_style")
+QVR_WEAPON_KEY(Hotspot4Pitch, "hs4_pitch")
+QVR_WEAPON_KEY(Hotspot4Yaw, "hs4_yaw")
+QVR_WEAPON_KEY(Hotspot4Roll, "hs4_roll")
+QVR_WEAPON_KEY(Hotspot4Style, "hs4_style")
 #endif
 
 #ifdef QVR_WEAPON_DEFAULT

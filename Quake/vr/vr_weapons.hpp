@@ -70,16 +70,26 @@ inline constexpr int maxHotspots = 4;
 enum class HotspotType : int
 {
     None = 0,
-    Grip = 1,
-    Blade = 2
+    Grip = 1,  // a point the other hand holds (a foregrip, a pump, a magazine): it aims the weapon with the holding hand
+    Blade = 2, // the half-sword grip along the blade
+    Cup = 3    // a two-handed pistol grip: the other hand under and round the holding hand's grip; no two-handed aim
+};
+enum class HotspotStyle : int
+{
+    Wrap = 0,     // the fingers and the thumb wrap round it
+    ThumbTop = 1  // the thumb along the top
 };
 struct Hotspot
 {
     HotspotType type{HotspotType::None};
-    glm::vec3 pos{0.f}; // a grip's point; a blade's: x the share of the way from the hand to the tip
-    float bias{0.f};    // units off the distance it is picked by
+    glm::vec3 pos{0.f};    // a grip's point; a blade's: x the share of the way from the hand to the tip
+    float bias{0.f};       // units off the distance it is picked by
+    glm::vec3 angles{0.f}; // the helping hand's turn there (pitch, yaw, roll: degrees)
+    HotspotStyle style{HotspotStyle::Wrap};
 };
-[[nodiscard]] Key hotspotKey(int index, int field); // field: 0 type, 1..3 x y z, 4 bias
+// field: 0 type, 1..3 x y z, 4 bias, 5..7 pitch yaw roll, 8 style
+[[nodiscard]] Key hotspotKey(int index, int field);
+[[nodiscard]] bool isGripType(HotspotType type); // a point the other hand holds: Grip or Cup
 [[nodiscard]] Hotspot hotspot(int slot, int index);
 void setHotspot(int slot, int index, const Hotspot& h);
 

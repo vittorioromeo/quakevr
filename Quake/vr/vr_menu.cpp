@@ -905,7 +905,10 @@ void weaponOffsetsHotspotAtHand()
             weaponOffsetsHand == 1 ? "main" : "off");
         return;
     }
-    h.type = weapons::HotspotType::Grip;
+    if(!weapons::isGripType(h.type))
+    {
+        h.type = weapons::HotspotType::Grip; // a grip or a cup stays what it is
+    }
     h.pos = p;
     weapons::setHotspot(slot, editedHotspot(), h);
     weaponOffsetsStale = true;
@@ -994,9 +997,10 @@ std::vector<Item> pageWeaponOffsets()
             header("Other Hand's Grips (Hotspots)"),
             cycle("Hotspot", vr_weapon_hotspot, {{1.f, "1"}, {2.f, "2"}, {3.f, "3"}, {4.f, "4"}})
                 .help("Where the other hand may hold the weapon: it takes the one nearest it, less its bias. Pick one to edit."),
-            cycle("Type", hk(0), {{0.f, "None"}, {1.f, "Grip"}, {2.f, "Blade"}})
-                .help("Grip: a point (a foregrip, a pump, a magazine) the hand is drawn on. Blade: the half-sword grip along "
-                      "the blade."),
+            cycle("Type", hk(0), {{0.f, "None"}, {1.f, "Grip"}, {2.f, "Blade"}, {3.f, "Cup"}})
+                .help("Grip: a point (a foregrip, a pump, a magazine) the hand is drawn on; the two hands aim the weapon. "
+                      "Blade: the half-sword grip along the blade. Cup: a two-handed pistol grip, the hand under and "
+                      "round the holding hand (it doesn't aim)."),
         });
         if(h.type == weapons::HotspotType::Blade)
         {
@@ -1010,9 +1014,16 @@ std::vector<Item> pageWeaponOffsets()
                 slider("Hotspot Y", hk(2), -40.f, 40.f, 0.1f, "%.2f"),
                 slider("Hotspot Z", hk(3), -40.f, 40.f, 0.1f, "%.2f"),
                 action("Put It Where the Other Hand Is", weaponOffsetsHotspotAtHand)
-                    .help("Makes this hotspot a grip at the other hand, as it is now."),
+                    .help("Makes this hotspot a grip (or a cup) at the other hand, as it is now."),
             });
         }
+        list.insert(list.end(), {
+            slider("Hand Pitch", hk(5), -90.f, 90.f, 1.f, "%.0f").help("How the hand holding it is turned there."),
+            slider("Hand Yaw", hk(6), -90.f, 90.f, 1.f, "%.0f"),
+            slider("Hand Roll", hk(7), -180.f, 180.f, 1.f, "%.0f"),
+            cycle("Thumb", hk(8), {{0.f, "Wraps round"}, {1.f, "Along the top"}})
+                .help("Whether the thumb wraps round it with the fingers, or lies along its top."),
+        });
         list.insert(list.end(), {
             slider("Bias", hk(4), 0.f, 10.f, 0.1f, "%.1f").help("Units taken off its distance: larger, easier to take than the others."),
             action("Remove This Hotspot", weaponOffsetsHotspotRemove),
