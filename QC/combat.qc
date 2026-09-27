@@ -1193,11 +1193,11 @@ float(entity p, vector butt, vector end, vector toAttacker) VR_Parry_LineBlocks 
     {
         return FALSE;
     }
-    // Across: square to the attacker within 35 degrees (round 21: the author's parry poses hold it 59-90 degrees off the
-    // attacker's line, his poses that are no parry 0-52; it was 30 degrees off).
+    // Across: at least 30 degrees off the attacker's line. (Round 21: 55 degrees took 4 of the author's 49 poses that are
+    // no parry out of the stance, but as many of his parry poses and bashes: his held-out takes did no better.)
     vector flat = a;
     flat_z = 0;
-    if(fabs(normalize(flat) * toAttacker) > 0.574) // cos(55 degrees)
+    if(fabs(normalize(flat) * toAttacker) > 0.866) // cos(30 degrees)
     {
         return FALSE;
     }
