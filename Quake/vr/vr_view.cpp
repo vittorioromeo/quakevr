@@ -105,7 +105,9 @@ float fingerBias[2][FingerCount]{};
     // Posing (vr_posing.cpp): the weapon hand holds the posed weapon; the other hand, posing a hotspot, helps.
     const bool posed = posing::active() && hand == posing::session().weaponHand;
     const bool posingHelper = posing::active() && !posed && posing::session().target == posing::Target::Hotspot;
-    if(finger == FingerBase || posingHelper || (!posed && twohand::helping(hand)))
+    // Posing the weapon unsolved (posing::showSolved): the controller's plain curls, no tweaks.
+    const bool posingPlain = posed && posing::session().target == posing::Target::Weapon && !posing::showSolved();
+    if(finger == FingerBase || posingHelper || posingPlain || (!posed && twohand::helping(hand)))
     {
         return 0.f;
     }
@@ -2332,8 +2334,8 @@ void drawHand(int hand, glm::vec3 pos, glm::vec3 handRot, bool mirrored, bool hi
 // ----------------------------------------------------------------------------
 // Weapon posing mode (vr_posing.cpp): the weapon floating still in front of the player, drawn as the weapon hand holds
 // it (by setupWeapon, from a hand put where its settings, whatever they are now, leave the weapon where it floats); the
-// posing hand drawn at its controller, wrapping it as it will once the pose is confirmed; and what confirming would
-// write (posing::Candidate), worked out from the placement's own steps undone.
+// posing hand drawn at its controller, passing through it (unsolved; for a moment after a set, wrapping it as play will);
+// and what confirming would write (posing::Candidate), worked out from the placement's own steps undone.
 
 // The turn of an entity as drawn (R_EntityMatrix's, without its origin).
 [[nodiscard]] glm::mat3 entityTurn(const entity_t& e)
@@ -2385,8 +2387,9 @@ void holdFloating(hands::State& s, const posing::Session& ps)
 // The posing hand (`hand`, its controller at `pos`, `rot`: the hands' pose, less the held weapon's Hand and Weapon
 // Together offset, plus the posed one's for the weapon hand) holding the floating weapon, and the settings that put the
 // weapon there from it (the candidate): the weapon's place relative to the hand as tracked (a hotspot's point and turn:
-// the hand as tracked there). It is drawn as it will be held: there, moved by its tuning offset (the weapon's Hand Only;
-// a hotspot's Held Hand) if it has one, wrapping the weapon as the settings will.
+// the hand as tracked there). It is drawn where it will be held: there, moved by its tuning offset (the weapon's Hand
+// Only; a hotspot's Held Hand) if it has one; unsolved (its fingers the controller's), or, for a moment after a set,
+// wrapping the weapon as the settings will.
 void setupPosingHand(int hand, const glm::vec3& pos, const glm::vec3& rot)
 {
     const posing::Session& ps = posing::session();
@@ -2519,11 +2522,14 @@ void setupPosingHand(int hand, const glm::vec3& pos, const glm::vec3& rot)
         c.spot = h;
     }
 
-    // The grasp solved at the hand's place on the weapon as the candidate settings put it (as the weapon, held, is:
-    // Held::canonical; the palm fitted without the offset), worked out round the hand (small numbers, as the canonical
-    // places are).
+    // Posing, the hand passes through the weapon: drawn at its controller (moved by its tuning offset), unsolved, its
+    // fingers the controller's curls (drawHand with nothing held), so that it can be put where it should hold it. For a
+    // moment after a set (posing::showSolved) it wraps the weapon as play will: the grasp solved at the hand's place on
+    // the weapon as the candidate settings put it (as the weapon, held, is: Held::canonical; the palm fitted without the
+    // offset), worked out round the hand (small numbers, as the canonical places are).
+    const bool solved = posing::showSolved();
     const bool blade = !weaponTarget && ps.type == weapons::HotspotType::Blade;
-    if(!blade && handrig::usable(viewModel(handrig::modelName)))
+    if(solved && !blade && handrig::usable(viewModel(handrig::modelName)))
     {
         const auto inRig = [&](const glm::vec3& at, const glm::vec3& turn) {
             entity_t e = weapon.ent;
@@ -2541,7 +2547,7 @@ void setupPosingHand(int hand, const glm::vec3& pos, const glm::vec3& rot)
             held.fitInRig = inRig(pos, baseRot);
         }
     }
-    drawHand(hand, drawPos, drawRot, mirrored, false, held, glm::mat4{1.f});
+    drawHand(hand, drawPos, drawRot, mirrored, false, solved ? held : Held{}, glm::mat4{1.f});
 
     const RigHand& rh = rigHands[hand];
     const glm::mat4 toWeapon = glm::inverse(hsFrame);
@@ -2550,7 +2556,12 @@ void setupPosingHand(int hand, const glm::vec3& pos, const glm::vec3& rot)
     c.rigWorld = rig;
     c.palmInWeapon = glm::vec3{toWeapon * (rh.drawn ? rh.rigToWorld * glm::vec4{drawnInRig(rh, grasp::palmCentre()), 1.f}
                                                     : rig * glm::vec4{grasp::palmCentre(), 1.f})};
+    c.palmFitted = solved && rh.drawn;
     c.valid = true;
+    if(solved)
+    {
+        posing::solvedPalm(c); // the palm the set pose gives (vr_pose_check)
+    }
 }
 
 // What the posing shows on the floating weapon: its hotspots; posing one, where it would go (white); posing the weapon,
@@ -4189,7 +4200,7 @@ void hotspotsLegacy_f()
 }
 
 // vr_dumpview: lists the VR view entities.
-void posingCheck(bool weaponTarget, int weaponHand, const glm::mat4& rigInWeapon, const glm::vec3& palmInWeapon,
+void posingCheck(bool weaponTarget, int weaponHand, const glm::mat4& rigInWeapon, const glm::vec3* palmInWeapon,
     const glm::mat4& rigWorld)
 {
     const int hand = weaponTarget ? weaponHand : 1 - weaponHand;
@@ -4210,7 +4221,7 @@ void posingCheck(bool weaponTarget, int weaponHand, const glm::mat4& rigInWeapon
     const float angle = glm::degrees(2.f * std::atan2(glm::length(glm::vec3{q.x, q.y, q.z}), std::fabs(q.w)));
     const float moved = glm::distance(glm::vec3{predicted[3]}, glm::vec3{actual[3]});
     const glm::vec3 palm{actual * glm::vec4{drawnInRig(rh, grasp::palmCentre()), 1.f}};
-    const float palmMoved = glm::distance(glm::vec3{hs * glm::vec4{palmInWeapon, 1.f}}, palm);
+    const float palmMoved = palmInWeapon ? glm::distance(glm::vec3{hs * glm::vec4{*palmInWeapon, 1.f}}, palm) : -1.f;
     // The weapon where the pose puts it from the hand: its muzzle (its far end) against where it is.
     const hands::State& s = hands::current();
     float muzzleMoved = -1.f;
@@ -4220,9 +4231,10 @@ void posingCheck(bool weaponTarget, int weaponHand, const glm::mat4& rigInWeapon
         const glm::vec3 muzzleInWeapon{glm::inverse(hs) * glm::vec4{s.muzzle[weaponHand], 1.f}};
         muzzleMoved = glm::distance(glm::vec3{weaponFromHand * glm::vec4{muzzleInWeapon, 1.f}}, s.muzzle[weaponHand]);
     }
-    Con_Printf("pose check (%s, %s hand%s): hand %.4f units %.4f deg from the pose, muzzle %.4f units, drawn palm %.4f units\n",
+    Con_Printf("pose check (%s, %s hand%s): hand %.4f units %.4f deg from the pose, muzzle %.4f units, drawn palm %s\n",
         weaponTarget ? "the weapon" : "a hotspot", hand == HAND_MAIN ? "main" : "off",
-        weaponTarget || twohand::helping(hand) ? "" : ", NOT holding a hotspot", moved, angle, muzzleMoved, palmMoved);
+        weaponTarget || twohand::helping(hand) ? "" : ", NOT holding a hotspot", moved, angle, muzzleMoved,
+        palmInWeapon ? va("%.4f units", palmMoved) : "not compared (the hand wasn't seen solved after the set)");
     // Where the weapon's hand is drawn in the world against where it was while posing (the same only with the controller,
     // and the player, where they were: the weapon's angle offsets are Euler angles added to the hand's, so the hand and
     // weapon together sit a little differently on a tilted controller).
