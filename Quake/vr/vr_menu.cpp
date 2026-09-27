@@ -1743,7 +1743,10 @@ void drawItem(const Item& item, int y, bool selected)
     }
     else
     {
-        text = onEnd ? std::string(hint) + " " + help : std::string(help) + " " + hint;
+        // Built in place: the static string keeps its capacity, so no allocation per frame.
+        text.assign(onEnd ? hint : help);
+        text += ' ';
+        text += onEnd ? help : hint;
     }
     return text.c_str();
 }
