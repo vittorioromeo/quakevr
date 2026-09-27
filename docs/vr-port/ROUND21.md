@@ -1591,3 +1591,44 @@ to 1..2. The Carrying page is left as it is, since another change edits it.
 - Pictures (`menu_past_end.png`, handed over with the report, not in the repository): the thumb at 15.0 cm with the hint first; past the right end (25.0 cm, 120°) and the
   left end (-12.00 cm); the laser pressed on the pinned thumb, then dragged; the desktop style with the white values.
   The Weapon Offsets and Hotspots pages were checked with the help lines.
+
+## Blunt pommel sound
+
+Your note: hilt and pommel hits should sound blunt, different from slashes and stabs. Before this, a sword's pommel
+strike played the sword's cut (`knight/sword2.wav`), and an axe's or Mjolnir's handle end and a gun's butt played
+the punch (`fisthit.wav`) or nothing.
+
+- **The sound:** `vr/pommel1..3.wav`, made by `make_sounds.py` (`pommel()`; synthesised, credited in CREDITS.md). It
+  is a hard tick, then a short wooden knock: the low modes of a dense knob, damped within tens of milliseconds, with
+  no ring. Under it are a crunch of flesh and a short low thump. It has no whoosh (the shove's and the bash's), no
+  metal clang (the bash's) and no ring (the parry's). The three are pitched 1.0, 0.89 and 1.12. Each hit plays one
+  of the two not played last.
+- **Compared** (energy by band; how soon 90% of it is out):
+
+  | Sound | 90% by | Centroid | <150 Hz | 150-500 | 500-1.5k | 1.5-4k |
+  |---|---|---|---|---|---|---|
+  | `vr/pommel1..3` | 0.053 s | 450-530 Hz | 0.22 | 0.49-0.53 | 0.22-0.25 | 0.03 |
+  | `fisthit` (punch, gun swing, axe) | 0.098 s | 310 Hz | 0.48 | 0.44 | 0.03 | 0.03 |
+  | `knight/sword2` (slash, stab) | 0.098 s | 114 Hz | 0.94 | 0.03 | 0.02 | 0.01 |
+  | `vr/bash` | 0.216 s | 388 Hz | 0.72 | 0.13 | 0.10 | 0.03 |
+  | `player/axhit2` (a blade on a wall) | 0.086 s | 1650 Hz | 0.06 | 0.23 | 0.09 | 0.61 |
+
+  It is the shortest of them, and the only one with its weight in the knock's 150 Hz-1.5 kHz, which the Quest's
+  speakers carry.
+- **Where** (`QC/vr_melee.qc` `VR_Melee_HitSound`, `weapons.qc`): a blow of the pommel kind (the near end: a sword's
+  pommel or hilt, an axe's or Mjolnir's handle end, a gun's butt) that lands on something that takes damage.
+  `PlayerVRMeleeImpl` marks the blow being struck (`vr_melee_blunt`). The sword, the axe and the gun then play the
+  knock instead of their own sound, and Mjolnir, whose head's hit plays none, plays it too. Slashes, stabs, chops,
+  a gun's swing and punches keep theirs. So do walls: the pommel on stone still clangs (`player/axhit2`). Precached in
+  `world.qc`. With `developer` on, each melee hit sound prints `melee sound: <file>`.
+
+### Tests (mock headset)
+
+- 53 of your takes (all 27 hilt_pommel and 17 gun_strike_butt, and 2 gun swings, 3 slashes, 2 stabs and 2 punches),
+  copied and replayed with `developer 2; map vrfiringrange; vr_motion_eval <folder> verbose quit`, with the sound on.
+  The console's `melee sound:` lines: all 23 pommel strikes and 6 butt strikes played `vr/pommel1..3`. The 4 slashes
+  and 2 stabs played `knight/sword2`, and the 1 chop, 3 jabs and 2 gun swings played `fisthit`. So the knock played
+  for no other blow, and no pommel or butt strike played anything else. No "not precached" and no load errors.
+- The verdicts are the round's: hilt_pommel 23 of 27 and gun_strike_butt 9 of 17 pass. The pommel takes that fail
+  read as slashes (02-44-18, 04-05-33, noted above), and they play the slash's sound.
+- Not heard: the sounds were checked by their spectra and length only, not listened to in the headset.

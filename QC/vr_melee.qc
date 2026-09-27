@@ -1045,6 +1045,32 @@ string(float xKind, float xThing) VR_Melee_KindName =
     return "swing";
 };
 
+// The sound of a blow landing on something that takes damage (weapons.qc: the weapons' melee): `xSound`, the weapon's
+// own, or for a pommel, hilt or butt strike a blunt knock of its own (vr/pommel1..3.wav, a little apart in pitch; made by
+// make_sounds.py; one of the two not played last), apart from the blades' cuts and the punches. vr_melee_blunt is set
+// around the weapons' melee by PlayerVRMeleeImpl (client.qc) for the blow being struck. `developer` prints which.
+float vr_melee_blunt;
+float vr_melee_pommel_last; // 1..3 (0: none yet)
+string(string xSound) VR_Melee_HitSound =
+{
+    if(vr_melee_blunt)
+    {
+        float k = min(3, 1 + floor(random() * 3));
+        if(vr_melee_pommel_last)
+        {
+            k = vr_melee_pommel_last + (random() < 0.5 ? 1 : 2);
+            if(k > 3)
+            {
+                k = k - 3;
+            }
+        }
+        vr_melee_pommel_last = k;
+        xSound = k == 1 ? "vr/pommel1.wav" : (k == 2 ? "vr/pommel2.wav" : "vr/pommel3.wav");
+    }
+    dprint(sprintf("melee sound: %s\n", xSound));
+    return xSound;
+};
+
 // The category of a blow for the motion evaluation: slash, stab, pommel, punch, gun.
 string(float xKind, float xThing) VR_Melee_Category =
 {
