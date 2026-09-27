@@ -24,6 +24,7 @@
 #include "vr_text3d.hpp"
 #include "vr_twohand.hpp"
 #include "vr_main.hpp"
+#include "vr_motion.hpp"
 #include "vr_profile.hpp"
 #include "vr_weapons.hpp"
 
@@ -1148,6 +1149,12 @@ void updateGrasp(int hand, const Held& held, const glm::mat4& rigMatrix, float r
         grasp::solve(pose, tris, s, limit, turnLimit);
         return s;
     });
+    if(motion::playing())
+    {
+        // A motion take playing back: done by the next frame whatever the machine's speed (the replay the same
+        // every time).
+        graspJob.result.wait();
+    }
 }
 
 // How much a finger grips (0..1) at the controller's curl: from half closed to nearly the full press.
@@ -1992,14 +1999,16 @@ void setupPauldrons()
 
 // Pressing a weapon's button with the other hand's fingertip toggles its secondary ammo (old
 // engine's VR_DoWpnButton, which sent keys bound to these impulses).
+struct ButtonState
+{
+    bool hover{false};
+    double lastCheck{0.0}; // cl.time
+};
+ButtonState buttonStates[2];
+
 void pressWeaponButtons(const hands::State& s)
 {
-    struct ButtonState
-    {
-        bool hover{false};
-        double lastCheck{0.0};
-    };
-    static ButtonState states[2];
+    ButtonState (&states)[2] = buttonStates;
 
     for(int hand = 0; hand < 2; hand++)
     {
@@ -2224,6 +2233,65 @@ struct HandImpact
     glm::vec3 dir{0.f};
 };
 HandImpact handImpacts[2];
+
+} // namespace
+
+// A new map (VR_OnClientClearState). The client's time starts over with each map, so what is timed by it would
+// act again when the new map's time reaches the old times (a parried blow's knock replaying its wobble on the
+// drawn hand and its weapon, moving the weapon's far end and the melee's striking points); and what is eased
+// from frame to frame starts from nothing, as on the first map: the same start on every map.
+void view::resetClientState()
+{
+    for(HandImpact& h : handImpacts)
+    {
+        h = HandImpact{};
+    }
+    for(ButtonState& b : buttonStates)
+    {
+        b = ButtonState{};
+    }
+    for(Morph& m : morphs)
+    {
+        m = Morph{};
+    }
+    if(graspJob.running)
+    {
+        graspJob.result.wait();
+        graspJob.running = false;
+    }
+    graspCache.clear();
+    for(RigHand& rh : rigHands)
+    {
+        rh.grasp = Grasp{};
+        for(auto& finger : rh.joints)
+        {
+            for(float& j : finger)
+            {
+                j = 0.f;
+            }
+        }
+        rh.palm = glm::vec3{0.f};
+        rh.turn = glm::quat{1.f, 0.f, 0.f, 0.f};
+        rh.jointsTime = -1.0;
+    }
+    for(int h = 0; h < 2; h++)
+    {
+        for(int f = 0; f < FingerCount; f++)
+        {
+            fingerFrames[h][f] = 0.f;
+            fingerBias[h][f] = 0.f;
+        }
+        chosenGrip[h] = -1;
+    }
+    fingerFramesTime = -1.0;
+    forEachEntity([](view::ViewEntity& ve) {
+        ve.lastModel = nullptr; // (its animation's lerp starts over: LERP_RESETANIM)
+        ve.morph = 0.f;
+    });
+}
+
+namespace
+{
 
 // The knock now: a position offset and an angle offset (degrees).
 void impactOffset(int hand, glm::vec3& pos, glm::vec3& angles)

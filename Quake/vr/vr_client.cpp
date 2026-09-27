@@ -541,6 +541,8 @@ extern "C" void VR_OnClientClearState()
     flick::reset();
     handpose::reset();
     shells::clear();
+    view::resetClientState();
+    hands::resetClientState();
 }
 
 extern "C" void VR_WriteMoveExtras(sizebuf_t* buf)

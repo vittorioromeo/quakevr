@@ -68,6 +68,11 @@ struct Previous
 
 Previous previous;
 
+// The stair smoothing (update): the eased height, and the client time it was eased at (cl.time: it starts over
+// with each map, so this is reset with it).
+float stairSmoothZ = 0.f;
+double stairLastTime = -1.0;
+
 // Room-scale movement: the head's horizontal tracking position last frame, and the world-space
 // walk accumulated since the last move was sent.
 //
@@ -273,8 +278,8 @@ void update()
     // Stair steps: the origin rises at once, so ease the body (head, eyes, hands) up after it,
     // as V_CalcRefdef does for the flat view (80 units/s, at most 12 behind).
     {
-        static float smoothZ = 0.f;
-        static double lastTime = -1.0;
+        float& smoothZ = stairSmoothZ;
+        double& lastTime = stairLastTime;
         const float z = state.playerOrigin.z;
         if(!noclip_anglehack && cl.onground && z - smoothZ > 0.f && lastTime >= 0.0)
         {
@@ -393,6 +398,14 @@ void addTurn(float degrees)
 float playSpaceYaw()
 {
     return turnYaw;
+}
+
+void resetClientState()
+{
+    stairSmoothZ = 0.f;
+    stairLastTime = -1.0;
+    previous.valid = false;
+    stateFrame = -1;
 }
 
 void setPlaySpaceYaw(float yaw)

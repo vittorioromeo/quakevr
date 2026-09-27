@@ -83,6 +83,10 @@ void hotspotsCheck_f();
 [[nodiscard]] int handBonePoses(const entity_t* e, const float** matrices);
 
 void dumpView_f();
+
+// A new map (VR_OnClientClearState): the per-hand states timed by the client's time or eased frame to frame start
+// afresh (a parried blow's knock, the weapons' button hover and morph, the drawn hands' grasp and curls).
+void resetClientState();
 void graspDump_f();
 
 } // namespace qvr::view

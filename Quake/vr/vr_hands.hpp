@@ -58,6 +58,9 @@ void addTurn(float degrees);
 // Motion playback (vr_motion_play.cpp): the play space's turn as a take had it (a pending server yaw
 // dropped), and the head's lean off the box's middle (world units, horizontal).
 void setPlaySpaceYaw(float yaw);
+
+// A new map (VR_OnClientClearState): what follows the client's time (cl.time starts over) begins afresh.
+void resetClientState();
 void setLean(const glm::vec3& worldLean);
 
 // Updated at most once per host frame; valid only while connected to a VR-protocol server.
