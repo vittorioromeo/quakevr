@@ -1,5 +1,6 @@
 // vr_flashlight.hpp -- the chest flashlight (vr_flashlight): a straight tactical torch (round 21; a
-// right-angle one before) clipped to the chest on the off hand's side, pointing where the torso faces.
+// right-angle one before) stored hanging from a clip on the chest's off hand side, lens down (lighting only the
+// feet: it is meant to be taken, clipped on a gun or worn on the head).
 // A hand at it with the trigger switches it on or off; an empty hand's grip takes it, held in the
 // fist like a real torch (the tube through the curled fingers, lighting along it: out of the thumb's
 // side in the low grip, out of the little finger's in the overhead one; the upper face button, B or
@@ -7,6 +8,10 @@
 // Held near the gun in the other hand, B or Y clips it along the gun's barrel (under it, or beside a
 // bulky gun): it lights where the gun aims until the free hand takes it off again (at the lamp, B or
 // Y) or the gun leaves the hand (holstered, dropped, thrown, switched), when it goes back to the chest.
+// Held at a temple, B or Y clips it on the head (round 21), a head torch lighting where the head looks, until a hand at
+// it takes it off (B or Y: back to the chest, or into the hand if it grips; or the grip alone: into the hand). On death,
+// at the intermission and on any map change it goes back to the chest, switched as it was; a fresh start switches it
+// off.
 //
 // Client-side only: its model is a VR view entity (progs/vrflashlight.mdl, make_flashlight.py) and
 // its beam a spot light at the lens (lighting::dlightSpot: per pixel on the world and on models,
@@ -56,5 +61,9 @@ void reset();
 // Whether `hand` holds the flashlight: that hand does not force grab (its move tells the server,
 // QVR_BUTTON_*HANDBUSY, and its aim beam is not drawn).
 [[nodiscard]] bool holds(int hand);
+
+// Round 21: whether `hand`'s upper face button (B/Y) is the flashlight's now: the hand holds it, or it is on the head
+// and the hand is at it. The off hand's Y then does not start a voice note at the mouth (vr_input.cpp).
+[[nodiscard]] bool wantsSecondary(int hand);
 
 } // namespace qvr::flashlight

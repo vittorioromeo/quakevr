@@ -524,8 +524,8 @@ torch scuffing round in the palm and seating. The other sounds come out byte-ide
   starting a voice note. The overhead grip is by the head. The other hand's `+vr_note` binding, or putting the torch
   back first, still records.
 
-**On the chest.** The torch points forward, tilted down by Tilt Down, its tail 1.2 cm in front of the chest where the
-cord comes out of the clip. It protrudes about 14 cm. Forward/Up/Out move it.
+**On the chest.** Stored hanging, lens down (see "Stored on the chest, worn on the head" below; it pointed forward
+at first).
 
 **On a gun.** It lies parallel to the barrel, the lens 1 cm behind the muzzle, running back along the gun, its switch
 out to the side:
@@ -542,6 +542,62 @@ out to the side:
   switch it.
 - The switch's clicks come from the switch, and the clamp's from the torch, instead of from inside your head.
 - The haptics are as before.
+
+### Stored on the chest, worn on the head (your two later flashlight notes)
+
+"The flashlight should be stored vertically on the body, not horizontally, encouraging the player to attach it on a
+weapon or hold it in the off-hand. It should also be possible to attach the flashlight on top of the player's head,
+with the same controls as for the guns."
+
+The torch now lives in three places: the chest (stored), a gun, and the head. You also hold it in either hand.
+
+**Stored on the chest** (`mountPose`):
+- It hangs straight down from a clip on a strap on the off hand's side: 9 cm above the chest joint and 8.5 cm to the
+  side, its tube 2.2 cm in front of the chest.
+- The lens is at the bottom, the switch faces out. The lens leans out from the body by **Lean Out**
+  (`vr_flashlight_tilt`, 8°; the slider was Tilt Down).
+- That places it under the collarbone, below and inside the upper holsters, and clear of the wrist gadget.
+- Switched on there, it lights only the floor at your feet. That is on purpose: you take it, clip it on a gun, or
+  put it on your head.
+- Taking it is as before: the trigger at it switches it, and an empty hand's grip takes it. A hand reaches it anywhere
+  along the tube, within 9 cm.
+- Forward/Up/Out still move the clip.
+
+**On the head** (`headPose`, mode `OnHead`). The head is where a head torch is most useful: it lights wherever you
+look, and both hands stay free for a gun in each hand, climbing, or carrying.
+- **To put it on**, hold the torch (either hand) against a temple or the forehead. Within 10 cm of the temple on that
+  side, you get a tap and the lamp brightens, as by a gun. Then press B or Y (either hand's).
+  - It clips on at that side's temple with the gun clamp's click and a buzz in the hand.
+  - The overhead grip is held further out, so B/Y there still turns the torch round.
+- **Where it sits:**
+  - The lens is level with your eyes, 3.5 cm above them and 8.5 cm out to the side. The tube runs back along the side
+    of your head.
+  - The beam goes where the head looks, crossing your line of sight 4 m ahead.
+  - The light comes from beside the eyes, not from them, so shadows still read.
+  - Nothing of it is ever in view: it is behind the eye plane and out at the side.
+  - The cord isn't drawn there (it runs behind the neck).
+  - **On Head Forward/Up/Out** (`vr_flashlight_head_*`) move it.
+- **To take it off**, put a hand at it:
+  - B or Y sends it back to the chest on its cord;
+  - B or Y while gripping it, or the grip alone, takes it into that hand;
+  - either way with the clamp's detach click.
+- **Voice notes:** the off hand at the head torch uses Y for the torch, not a voice note.
+
+**Death, level changes, fresh starts:**
+- On death, at the intermission and on any map change, the torch goes back to the chest from the head, a gun or a
+  hand, switched on or off as it was.
+- A fresh start (the map command, New Game, a loaded save) switches it off, on the chest.
+- A suicide (`kill`) is not a death as the client sees it: the respawn is at once, so the torch stays on the head.
+
+**Tested** (mock, e1m1; composite `round21_flash2/flashlight_storage_head.png`):
+- the chest storage before and after, from your view (off, then on: only the floor at your feet lit) and in the body
+  preview from the front and the side;
+- the head mount from your view: looking ahead, turned right, and looking down-left, the beam following the head
+  with nothing of the torch in view. Also in the body preview facing you, the lens at the temple;
+- the off hand: taken, to the left temple, Y (on the head), Y at it (back to the chest);
+- the main hand: taken, to the right temple, B (on the head), gripped off into the hand, let go (back to the chest);
+- the overhead grip by the head still flips, not attaches;
+- `changelevel`: back on the chest, still on. `map`: off.
 
 ### Tested (mock headset)
 
@@ -586,7 +642,12 @@ Composites are in the scratchpad's `round21_gadget/`:
   - [ ] B/Y away from a gun flips it to the overhead grip. Raise it by your head, thumb to your face: it lights
         ahead. Flip back;
   - [ ] let go and take it again: that hand's grip is kept.
-- [ ] On the chest: pointing forward, out of the way of your arms? (Forward/Up/Out and Tilt Down move it.)
+- [ ] On the chest: hanging lens down, easy to grip with either hand, clear of the upper holsters and your arms?
+      (Forward/Up/Out and Lean Out move it.)
+- [ ] On the head, with either hand:
+  - [ ] hold the torch at a temple: a tap, then B/Y puts it on your head. Look around: the beam follows, the
+        shadows read, nothing in view;
+  - [ ] take it off: B/Y at it (back to the chest), or grip it (into the hand).
 - [ ] Clip it on each gun: parallel to the barrel, under it (beside the super nailgun and the grenade launcher). Say
       which gun looks off, and use On Gun Forward/Up/Out.
 - [ ] Off hand holding the torch at your mouth: Y flips it rather than recording. Is that the right priority?
