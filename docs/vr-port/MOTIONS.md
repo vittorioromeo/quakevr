@@ -116,6 +116,8 @@ meaning).
 | `origin0` | the player's world origin at `t` = 0 |
 | `target` | the nearest monster at `t` = 0: classname, entity number, targetname, origin, angles, box |
 | `melee settings` | every `vr_melee_*`, `vr_bash*`, `vr_shove*`, `vr_parry*`, `vr_deflect*`, `vr_headbutt*` cvar |
+| `settings` | every archived `vr_*` setting (`name=value`, spaces as `_`) and `host_maxfps`: what playback sets again |
+| `weapon settings` | the weapon offsets (`vr_wofs_*`) of the empty hand's slot and of the weapons in the hands as the take is saved |
 | `rows` | how many, and how many in each phase |
 
 ### Frames and units
@@ -158,6 +160,7 @@ The player:
 | `yaw` | the head's world yaw |
 | `play_yaw` | the play space's turn (smooth or snap turning; degrees) |
 | `pvel_*_u/_m` | the player's velocity (the server's; player frame, units/s and m/s) |
+| `sv_org_w_x/y/z`, `sv_onground` | the server's origin of the player (the client's, `org_w`, lags it a little while moving), and whether it stands on the ground |
 | `lean_*_u/_m` | the head's lean off the box's middle (`vr_lean_radius`; player frame) |
 | `body_yaw` | the torso's yaw (between the head and the hands; relative to `yaw0`) |
 | `crouch` | 0 standing .. 1 crouched |
@@ -245,3 +248,83 @@ For the QC side (the melee agent): the events come from `VR_Motion_Event` calls 
 from `VR_SetHitKind`), `PlayerVRMeleeImpl` (strokes), `VR_Bash` (pushes), `VR_Parry` and `VR_Deflect_Send`, and the
 points and values from `VR_Motion_Sample` (`QC/vr_motion.qc`). Keep them when the melee changes (the evaluation's
 expectations are written in these kinds), or change both.
+
+## Playback (the mock headset)
+
+`vr_motion_play <take> [options]` plays a take in the mock headset (`vr_backend mock`), in a map already loaded
+(`map vrfiringrange`). `<take>` is a file name in `quakevr/motions`, a path relative to the game folder, or an
+absolute path (`.csv` optional).
+
+1. **Setup** (1.3 s of game time, holding the take's first pose): the settings that place the hands and the body are
+   set as the take has them (`vr_world_scale`, `vr_height_calibration`, `vr_floor_offset`, the hand angles, the grip
+   and two-handed settings, the lean, the body, the weapons' offsets: the header's `settings` and `weapon settings`
+   lines, or for the first takes their older lines), and put back afterwards. The player is put where the take has
+   them relative to its monster: the same offset from the map's monster of the same class (the training dummy),
+   turned by the difference of the two monsters' yaws (none for the same dummy of the same map), so the geometry of
+   the contacts is the take's. A spot in solid (a take recorded in noclip) lifts the player until it is free. The
+   main hand's grip is pressed, the weapons given (QC `VR_Motion_Equip`: the recorded weapon ids and flags), the off
+   hand's grip pressed (the two-handed grip is taken again), then every control as the take starts, and the player
+   set moving as the take starts (its velocity and, in takes from after the first ones, the server's own origin).
+2. **Play**: frame by frame, the take's tracking (the `raw_*` columns: head and hands, velocities) and controls (`*_buttons`,
+   the analog trigger and grip, the thumb, the sticks; never the menu button) replace the mock's, each host frame
+   lasting the take's `dt`, the server running exactly where it ran in the take (`sv_tick`, `sv_dt`), the play space
+   turned as it was (`play_yaw`; the main stick's own turning is taken out, it is in `play_yaw`), the lean as it was.
+   So the melee sees the same poses at the same times, whatever the machine's speed; the game runs faster than real
+   time (`watch`: at the take's pace).
+3. **After** it, 0.3 s holding the last pose (late events), then a report: the take's events and the replay's
+   (from the take's start; strokes left out), how many of the hits match (the same kind, sub, hand, target and
+   striking point; their damage and time differences), and how far the replay's hands were from the take's,
+   relative to the dummy.
+
+`rand()` is seeded the same at each start, the setup runs a server frame with every host frame at 72 Hz, and the play
+follows the take's frames: a replay is the same every time.
+
+Options: `target <classname|#entity>` (another target), `yaw <degrees>` (the player's heading: another placement),
+`noplace` (where the player is), `watch` (the recorded pace), `save` (the replay as a take:
+`motions/replays/<take>_replay.csv`, the same columns, to compare with the take), `recorded` (the take's melee
+settings too: `vr_melee_*`, `vr_bash*`, `vr_shove*`, `vr_parry*`, `vr_deflect*`, `vr_headbutt*`; without it the
+current ones: what a change of the melee's settings does), `quiet`. `vr_motion_play stop` stops it.
+
+A take without a monster (recorded far from any) is played with the target 40 units ahead, facing the player.
+
+## Evaluation
+
+`vr_motion_eval [<folder, pattern or take>] [options]` plays every take (by default all of `quakevr/motions`; a
+folder: its `.csv` takes; a pattern: `punch_*`, `no_hit_*`, in `motions/` or a folder), each in the map loaded
+afresh (`vrfiringrange`, or `map <name>`: the same start every time), judges each against
+`quakevr/motions/expect.cfg`, and writes the table `motions/eval_<date>_<time>.csv` (or `out <file>`):
+
+| Column | |
+|---|---|
+| `file`, `label`, `weapons` | the take, its label, the weapons in its hands (fist, axe, mjolnir, sword, gun) |
+| `expected` | its expectation (expect.cfg: the label's line, else the category's) |
+| `verdict` | `PASS`, `FAIL`, `N/A` (the category means nothing with this weapon: a stab with a gun), `-` (no expectation), `ERROR` |
+| `reason` | what failed: `no melee/stab`, `unexpected shove/main main 4.0`, `parry pose held 3 of 390 frames` |
+| `events` | the replay's events (hits, pushes, parries, batting), with their times |
+| `recorded_events` | the take's own, as registered live |
+| `same_hits_as_recorded` | `yes` when the replay hit exactly as the take did live (`-` for a synthetic take) |
+| `frames`, `hand_error_u` | the take's frames, and the hands' largest distance from the take's (relative to the dummy, units) |
+
+The console prints a line per take, the totals, the pass rate of each category, and how many replays hit as their
+takes did live. Options: `recorded` (the takes' melee settings: to check that the replays reproduce the live
+events), `save` (every replay as a take), `verbose` (each playback's report), `watch`, `map <name>`, `out <file>`,
+`quit` (quits when done: for scripts). `vr_motion_eval stop` stops it (and writes what it has).
+
+```
+map vrfiringrange
+vr_motion_eval                          // every take in quakevr/motions
+vr_motion_eval punch_*                  // one category
+vr_motion_eval C:/some/folder recorded  // a folder, with the melee settings as recorded
+```
+
+From the agent kit: `bash <kit>/run.sh <agent> -Script "map vrfiringrange;wait60;vr_motion_eval <folder> quit" -Timeout 900 -Filter "eval:|PASS|FAIL"`.
+
+### expect.cfg
+
+`quakevr/motions/expect.cfg` (in git; the rest of the folder is not) says what each category should do. See its
+comments for the grammar: required events (any of them: `melee`, `melee/stab`, `shove/both`,
+`melee@the_pommel|the_hilt`), forbidden ones (`!push`), `none` (no melee event at all: no hit, stroke, push or
+batting), poses held for half the take (`pose:parry`: the parry test, a weapon's or crossed arms'; `pose:guard`), and
+the weapons a category is for (`weapon:sword|axe|mjolnir`: with another weapon the take is N/A, reported apart). A
+hit whose kind isn't required fails the take. A line for a label (`slash_overhead melee/overhead_blow`) wins over its
+category's.
