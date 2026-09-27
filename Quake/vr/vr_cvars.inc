@@ -312,6 +312,60 @@ QVR_CVAR(vr_flashlight_high_yaw, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_flashlight_high_roll, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_flashlight_hue, "40", CVAR_ARCHIVE)        // round 21: the beam's hue (degrees; -1: the player's), with
 QVR_CVAR(vr_flashlight_saturation, "0", CVAR_ARCHIVE)  // its saturation (0: white, 1: full colour): the light, the visible beam and the lens
+// Round 21, the author's tuning notes: each grip's fingers on the torch, as a weapon's (Weapon Offsets > Fingers on the
+// Weapon). _fingers 0 Automatic (they wrap the torch, sinking _overlap into it: 0..1 of a centimetre), 1 Manual (each
+// finger at its _curl_*, 0 open to 1 a fist, and the thumb across the palm by _thumb_across, 0..1; no fitting); either
+// way the finger tweaks _bias_* (a share of a full curl, negative more open) and the thumb's place _thumb_x/y/z (the
+// hand's units, as a weapon's Thumb X/Y/Z). The manual curls default to the automatic grasp's at a full grip (its
+// joints' mean stop, the thumb's turn; vr_debug_grasp 2 in the mock, the palm unfitted).
+QVR_CVAR(vr_flashlight_low_fingers, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_overlap, "0.3", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_curl_thumb, "0.97", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_curl_index, "0.52", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_curl_middle, "0.78", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_curl_ring, "0.8", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_curl_pinky, "0.93", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_thumb_across, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_bias_thumb, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_bias_index, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_bias_middle, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_bias_ring, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_bias_pinky, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_thumb_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_thumb_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_low_thumb_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_fingers, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_overlap, "0.3", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_curl_thumb, "0.97", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_curl_index, "0.72", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_curl_middle, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_curl_ring, "0.49", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_curl_pinky, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_thumb_across, "0.73", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_bias_thumb, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_bias_index, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_bias_middle, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_bias_ring, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_bias_pinky, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_thumb_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_thumb_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_high_thumb_z, "0", CVAR_ARCHIVE)
+// Round 21, the author's tuning notes: the reach zones. The head's: where a held torch's middle clips it on the head (B/Y)
+// and a hand takes it off: balls at each temple (3.5 cm over the eyes, 8.5 out, 3 back) and the forehead (7 cm ahead, 6
+// up), moved forward, up and out (away from the head: to the side at the temples, ahead at the forehead) by these metres,
+// _radius across. Up defaults to 4 cm higher than the first zone (the author: it felt too low). Apart from the
+// torch's own place on the head (vr_flashlight_head_forward/_up/_out). The gun's: where a held torch's middle clips it on
+// the other hand's gun (B/Y): a capsule round the gun's line from the hand to 3 cm past the muzzle, moved along the
+// gun, up and out (away from the body) by these metres, _radius across.
+QVR_CVAR(vr_flashlight_head_zone_forward, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_head_zone_up, "0.04", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_head_zone_out, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_head_zone_radius, "0.1", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_gun_zone_forward, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_gun_zone_up, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_gun_zone_out, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_flashlight_gun_zone_radius, "0.12", CVAR_ARCHIVE)
+QVR_CVAR(vr_show_flashlight_zones, "0", CVAR_NONE)     // draws those zones (green where the torch or a hand is in one) and the held torch's middle
 // Spent shell casings (vr_shells.cpp): the shotgun throws one out as it cycles, the super shotgun two as it is reloaded.
 QVR_CVAR(vr_shells, "1", CVAR_ARCHIVE)                // 0: none
 QVR_CVAR(vr_shells_life, "20", CVAR_ARCHIVE)          // seconds they lie on the floor before fading out

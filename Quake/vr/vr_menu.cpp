@@ -582,10 +582,74 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
     };
 }
 
+// Whether each grip's fingers are set by hand (vr_flashlight_low_fingers, _high_fingers), as the Flashlight page was built:
+// a change rebuilds it (the curls or the overlap shown).
+int flashlightPageManual[2]{-1, -1};
+
+// A grip's fingers on the torch (round 21, the author's tuning notes), as a weapon's (Weapon Offsets > Fingers on the
+// Weapon): Fingers, then with Manual the curls and Thumb Across, with Automatic the Overlap; then the finger tweaks and
+// the thumb's place.
+struct FlashlightFingerCvars
+{
+    cvar_t& fingers;
+    cvar_t& overlap;
+    cvar_t& curlThumb;
+    cvar_t& thumbAcross;
+    cvar_t& curlIndex;
+    cvar_t& curlMiddle;
+    cvar_t& curlRing;
+    cvar_t& curlPinky;
+    cvar_t& biasThumb;
+    cvar_t& biasIndex;
+    cvar_t& biasMiddle;
+    cvar_t& biasRing;
+    cvar_t& biasPinky;
+    cvar_t& thumbX;
+    cvar_t& thumbY;
+    cvar_t& thumbZ;
+};
+
+void flashlightFingers(std::vector<Item>& list, const FlashlightFingerCvars& c, int& manualAsBuilt)
+{
+    const char* curlHelp = "How far this finger is curled round the torch: 0 open, 1 a fist (the controller's grip still opens it).";
+    const char* fingerHelp = "Closes (+) or opens (-) this finger on top of how it holds the torch (a share of a full curl).";
+    list.push_back(cycle("Fingers", c.fingers, {{0.f, "Automatic"}, {1.f, "Manual"}})
+                       .help("Automatic: the fingers wrap the torch on their own. Manual: they take the curls set below "
+                             "(no fitting: the hand is where the grip's sliders put it)."));
+    manualAsBuilt = c.fingers.value >= 0.5f ? 1 : 0;
+    if(manualAsBuilt)
+    {
+        list.insert(list.end(), {
+            slider("Thumb Curl", c.curlThumb, 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
+            slider("Thumb Across", c.thumbAcross, 0.f, 1.f, 0.02f, "%.2f")
+                .help("How far the thumb turns across the palm: 0 beside the hand, 1 across it."),
+            slider("Index Curl", c.curlIndex, 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
+            slider("Middle Curl", c.curlMiddle, 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
+            slider("Ring Curl", c.curlRing, 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
+            slider("Little Curl", c.curlPinky, 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
+        });
+    }
+    else
+    {
+        list.push_back(slider("Overlap", c.overlap, 0.f, 1.f, 0.05f, "%.2f")
+                           .help("How far the fingers and palm may sink into the torch: 0 they stop on its surface, 1 a centimetre in."));
+    }
+    list.insert(list.end(), {
+        slider("Thumb", c.biasThumb, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
+        slider("Index Finger", c.biasIndex, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
+        slider("Middle Finger", c.biasMiddle, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
+        slider("Ring Finger", c.biasRing, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
+        slider("Little Finger", c.biasPinky, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
+        slider("Thumb X (forward)", c.thumbX, -4.f, 4.f, 0.05f, "%+.2f").extend(-20.f, 20.f).help("Moves the thumb on the hand."),
+        slider("Thumb Y (palm)", c.thumbY, -4.f, 4.f, 0.05f, "%+.2f").extend(-20.f, 20.f),
+        slider("Thumb Z (up)", c.thumbZ, -4.f, 4.f, 0.05f, "%+.2f").extend(-20.f, 20.f),
+    });
+}
+
 // Split from Body: the torch on the chest.
 [[nodiscard]] std::vector<Item> pageFlashlight()
 {
-    return {
+    std::vector<Item> list = {
         toggle("Chest Flashlight", vr_flashlight)
             .help("A torch hanging on your belt, on your off hand's side (lighting only your feet there). Trigger at it: on or off. Grip it with an open, still hand to take it (a fist closing by it in a fight does nothing); let go and it springs back. In your hand: B or Y by a gun clips it on the gun, at your head on your head (a head torch), elsewhere turns it round (low grip or overhead)."),
         slider("Brightness", vr_flashlight_brightness, 0.25f, 2.5f, 0.05f, "%.2fx").extend(),
@@ -597,20 +661,14 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         toggle("Cord", vr_flashlight_cord).help("The retracting cord from the clip on your belt to the torch while it is off the belt (off: none drawn)."),
         hueSlider("Beam Hue", vr_flashlight_hue).help("The beam's colour, with Beam Saturation (at 0 it is white): its light, the beam in the air and the lens. 40 warm, 200 cold blue; Player's: the Player Effects Hue."),
         slider("Beam Saturation", vr_flashlight_saturation, 0.f, 1.f, 0.05f, "%.2f").help("0 white (the default), 1 the Beam Hue in full."),
+        header("On the Belt"),
         slider("Lean Out", vr_flashlight_tilt, -90.f, 90.f, 1.f, "%.0f deg").extend().help("How far the stored torch, hanging on your belt lens down, leans its lens out from your body."),
         slider("Forward", vr_flashlight_forward, -0.3f, 0.3f, 0.005f, "%.3f m").extend(),
         slider("Up", vr_flashlight_up, -0.4f, 0.4f, 0.01f, "%.2f m").extend(),
         slider("Out", vr_flashlight_out, -0.3f, 0.3f, 0.01f, "%.2f m").extend().help("Towards your off hand's side."),
+        header("In the Hand"),
         slider("In Hand Forward", vr_flashlight_hand_forward, -0.3f, 0.3f, 0.005f, "%.3f m").extend().help("Where the held lamp sits in your fist."),
         slider("In Hand Up", vr_flashlight_hand_up, -0.3f, 0.3f, 0.005f, "%.3f m").extend(),
-        slider("On Gun Forward", vr_flashlight_gun_forward, -0.4f, 0.3f, 0.005f, "%.3f m").extend()
-            .help("Held near the gun in your other hand, B or Y clips it along the barrel (under it, or beside a bulky gun). B or Y at it takes it off."),
-        slider("On Gun Up", vr_flashlight_gun_up, -0.3f, 0.3f, 0.005f, "%.3f m").extend(),
-        slider("On Gun Out", vr_flashlight_gun_out, -0.3f, 0.3f, 0.005f, "%.3f m").extend().help("Away from your body."),
-        slider("On Head Forward", vr_flashlight_head_forward, -0.3f, 0.3f, 0.005f, "%.3f m").extend()
-            .help("Held at a temple, B or Y clips it on your head, lighting where you look. A hand at it with B or Y, or its grip, takes it off."),
-        slider("On Head Up", vr_flashlight_head_up, -0.3f, 0.3f, 0.005f, "%.3f m").extend(),
-        slider("On Head Out", vr_flashlight_head_out, -0.3f, 0.3f, 0.005f, "%.3f m").extend().help("Away from your head, to the side."),
         header("In the Hand: Low Grip"),
         slider("Low Grip Forward", vr_flashlight_low_x, -30.f, 30.f, 0.5f, "%.1f cm").extend()
             .help("The torch's place in your fist when the beam comes out of the thumb's side (the grip you take it in), on top of In Hand Forward/Up. The other hand's is the mirror image."),
@@ -619,6 +677,15 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Low Grip Pitch", vr_flashlight_low_pitch, -180.f, 180.f, 5.f, "%.0f deg").help("Tilts the beam up (positive) or down in the hand."),
         slider("Low Grip Yaw", vr_flashlight_low_yaw, -180.f, 180.f, 5.f, "%.0f deg").help("Turns the beam towards your palm (positive) or away."),
         slider("Low Grip Roll", vr_flashlight_low_roll, -180.f, 180.f, 5.f, "%.0f deg"),
+    };
+    list.push_back(header("Low Grip: Fingers on the Torch"));
+    flashlightFingers(list,
+        {vr_flashlight_low_fingers, vr_flashlight_low_overlap, vr_flashlight_low_curl_thumb, vr_flashlight_low_thumb_across,
+            vr_flashlight_low_curl_index, vr_flashlight_low_curl_middle, vr_flashlight_low_curl_ring, vr_flashlight_low_curl_pinky,
+            vr_flashlight_low_bias_thumb, vr_flashlight_low_bias_index, vr_flashlight_low_bias_middle, vr_flashlight_low_bias_ring,
+            vr_flashlight_low_bias_pinky, vr_flashlight_low_thumb_x, vr_flashlight_low_thumb_y, vr_flashlight_low_thumb_z},
+        flashlightPageManual[0]);
+    list.insert(list.end(), {
         header("In the Hand: Overhead Grip"),
         slider("Overhead Grip Forward", vr_flashlight_high_x, -30.f, 30.f, 0.5f, "%.1f cm").extend()
             .help("The same when B or Y has turned it over (the beam out of the little finger's side)."),
@@ -627,7 +694,49 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Overhead Grip Pitch", vr_flashlight_high_pitch, -180.f, 180.f, 5.f, "%.0f deg"),
         slider("Overhead Grip Yaw", vr_flashlight_high_yaw, -180.f, 180.f, 5.f, "%.0f deg"),
         slider("Overhead Grip Roll", vr_flashlight_high_roll, -180.f, 180.f, 5.f, "%.0f deg"),
-    };
+    });
+    list.push_back(header("Overhead Grip: Fingers on the Torch"));
+    flashlightFingers(list,
+        {vr_flashlight_high_fingers, vr_flashlight_high_overlap, vr_flashlight_high_curl_thumb, vr_flashlight_high_thumb_across,
+            vr_flashlight_high_curl_index, vr_flashlight_high_curl_middle, vr_flashlight_high_curl_ring, vr_flashlight_high_curl_pinky,
+            vr_flashlight_high_bias_thumb, vr_flashlight_high_bias_index, vr_flashlight_high_bias_middle, vr_flashlight_high_bias_ring,
+            vr_flashlight_high_bias_pinky, vr_flashlight_high_thumb_x, vr_flashlight_high_thumb_y, vr_flashlight_high_thumb_z},
+        flashlightPageManual[1]);
+    list.insert(list.end(), {
+        header("Reach Zones"),
+        toggle("Show Flashlight Zones", vr_show_flashlight_zones)
+            .help("Draws where holding the torch clips it on (yellow balls at your temples and forehead, an orange capsule round "
+                  "each gun) and the held torch's middle (white), which they measure. Green: in reach, B or Y clips it on (on "
+                  "your head: a hand there takes it off)."),
+        header("On a Gun"),
+        slider("On Gun Forward", vr_flashlight_gun_forward, -0.4f, 0.3f, 0.005f, "%.3f m").extend()
+            .help("Where the torch sits once clipped on a gun: along the barrel, under it (or beside a bulky gun). B or Y at it "
+                  "takes it off."),
+        slider("On Gun Up", vr_flashlight_gun_up, -0.3f, 0.3f, 0.005f, "%.3f m").extend(),
+        slider("On Gun Out", vr_flashlight_gun_out, -0.3f, 0.3f, 0.005f, "%.3f m").extend().help("Away from your body."),
+        slider("Gun Zone Along", vr_flashlight_gun_zone_forward, -0.2f, 0.2f, 0.005f, "%.3f m").extend()
+            .help("Where the torch held by the gun in your other hand lets B or Y clip it on: round the gun's line from your hand "
+                  "to its muzzle, moved along the gun (forward), up and out. Apart from where it then sits (On Gun)."),
+        slider("Gun Zone Up", vr_flashlight_gun_zone_up, -0.2f, 0.2f, 0.005f, "%.3f m").extend(),
+        slider("Gun Zone Out", vr_flashlight_gun_zone_out, -0.2f, 0.2f, 0.005f, "%.3f m").extend().help("Away from your body."),
+        slider("Gun Zone Radius", vr_flashlight_gun_zone_radius, 0.02f, 0.3f, 0.005f, "%.3f m").extend()
+            .help("How far from that line the torch's middle may be."),
+        header("On the Head"),
+        slider("On Head Forward", vr_flashlight_head_forward, -0.3f, 0.3f, 0.005f, "%.3f m").extend()
+            .help("Where the torch sits once clipped on your head, lighting where you look."),
+        slider("On Head Up", vr_flashlight_head_up, -0.3f, 0.3f, 0.005f, "%.3f m").extend(),
+        slider("On Head Out", vr_flashlight_head_out, -0.3f, 0.3f, 0.005f, "%.3f m").extend().help("Away from your head, to the side."),
+        slider("Head Zone Forward", vr_flashlight_head_zone_forward, -0.2f, 0.2f, 0.005f, "%.3f m").extend()
+            .help("Where the torch held at your head lets B or Y clip it on, and where a hand takes it off (B or Y, or the grip): "
+                  "balls at your temples and forehead, moved forward, up and out. Apart from where it then sits (On Head)."),
+        slider("Head Zone Up", vr_flashlight_head_zone_up, -0.2f, 0.2f, 0.005f, "%.3f m").extend()
+            .help("The default, 0.040, is 4 cm higher than the first zone."),
+        slider("Head Zone Out", vr_flashlight_head_zone_out, -0.2f, 0.2f, 0.005f, "%.3f m").extend()
+            .help("Away from your head: to the side at the temples, ahead at the forehead."),
+        slider("Head Zone Radius", vr_flashlight_head_zone_radius, 0.02f, 0.3f, 0.005f, "%.3f m").extend()
+            .help("How far from those places the torch's middle (or the fist taking it off) may be."),
+    });
+    return list;
 }
 
 // Gore (vr_gore.cpp, vr_decals.cpp, vr_bodyblood.cpp; the QC's gibs sticking: vr_carry.qc).
@@ -1547,6 +1656,13 @@ int scrolls[pageCount]{};
     {
         weaponOffsetsStale = false;
         done[page] = false;
+        built[page].clear();
+    }
+    if(pages[page].build == pageFlashlight &&
+        ((flashlightPageManual[0] >= 0 && (vr_flashlight_low_fingers.value >= 0.5f ? 1 : 0) != flashlightPageManual[0]) ||
+            (flashlightPageManual[1] >= 0 && (vr_flashlight_high_fingers.value >= 0.5f ? 1 : 0) != flashlightPageManual[1])))
+    {
+        done[page] = false; // a grip's Fingers choice: its curls or its overlap shown
         built[page].clear();
     }
     if(pages[page].build == pageMotionRecorder && motionPageCategory != static_cast<int>(vr_motion_category.value))

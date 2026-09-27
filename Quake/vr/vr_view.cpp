@@ -112,6 +112,11 @@ float fingerBias[2][FingerCount]{};
     {
         return 0.f;
     }
+    // The held torch's (its grip's finger tweaks: vr_flashlight_low_bias_*, _high_bias_*).
+    if(flashlight::Fingers torch; !posed && flashlight::fingers(hand, torch))
+    {
+        return CLAMP(-1.f, torch.bias[finger - FingerThumb], 1.f);
+    }
     const int slot = posed ? posing::session().slot : weapons::heldSlot(hand);
     if(slot < 0 || slot == weapons::fistSlot())
     {
@@ -1105,13 +1110,18 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
     // On a held weapon, its thumb placement (fgr_thumb_x/y/z; round 21: the fingers wrap the grip on their own).
     const int slot = weapons::heldSlot(hand);
     const bool holding = slot >= 0 && slot != weapons::fistSlot() && !twohand::helping(hand);
+    // On the held torch, its grip's (vr_flashlight_low_thumb_*, _high_thumb_*).
+    flashlight::Fingers torch;
+    const bool torchHeld = !holding && flashlight::fingers(hand, torch);
 
     switch(finger)
     {
         case FingerThumb:
             return result + glm::vec3{vr_finger_thumb_x.value, vr_finger_thumb_y.value,
                                 vr_finger_thumb_z.value} +
-                   (holding ? weapons::vec(slot, Key::FingerThumbX, Key::FingerThumbY, Key::FingerThumbZ) : glm::vec3{0.f});
+                   (holding     ? weapons::vec(slot, Key::FingerThumbX, Key::FingerThumbY, Key::FingerThumbZ)
+                       : torchHeld ? torch.thumb
+                                   : glm::vec3{0.f});
         case FingerIndex:
             return result + glm::vec3{vr_finger_index_x.value, vr_finger_index_y.value,
                                 vr_finger_index_z.value};
@@ -2300,6 +2310,12 @@ void setupHand(const hands::State& s, int hand)
                 torch[hand].angles[i] = angles[i];
             }
             held = {&torch[hand], false, 0};
+            // Its grip's fingers (vr_flashlight_low_* or _high_*: Fingers, the curls, Thumb Across, Overlap).
+            if(flashlight::Fingers f; flashlight::fingers(hand, f))
+            {
+                held.overlap = f.overlap * weapons::maxOverlapCm;
+                setManualFingers(held, f.manual, f.curl, f.thumbAcross);
+            }
         }
     }
     drawHand(hand, pos, handRot, mirrored, hide, held, motion);

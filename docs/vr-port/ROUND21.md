@@ -3092,3 +3092,97 @@ headshots, world, nothing) and each damage you deal (target, amount, inflictor, 
 - [ ] Show Controller on: is the preview in your palm where the real controller is? Tune Controller Preview until it
   matches, and tell me the numbers (they can become the defaults).
 - [ ] Show Controller Laser on: turn Shot Pitch / Shot Yaw until the red line runs through the sights.
+
+## Flashlight tuning
+
+Your three notes after the flashlight's last pass. Branch `agent/flash5`. Composites in the scratchpad's
+`flash5/final/`.
+
+| Your note | What you get |
+|---|---|
+| The weapons' manual finger options for the torch, both grips | **Low Grip: Fingers on the Torch** and **Overhead Grip: Fingers on the Torch** |
+| An offset for the head's attach and detach spot (a bit too low) | **On the Head > Head Zone Forward/Up/Out/Radius**; raised 4 cm by default |
+| Is the gun's attach spot customizable? | Where it sits once clipped: **On a Gun > On Gun Forward/Up/Out** (they were there). Where it clips on: **On a Gun > Gun Zone Along/Up/Out/Radius** (new) |
+
+All of it is on **Settings > Flashlight** (`menu_vr 15`). The page now has headers: On the Belt, In the Hand, the two
+grips and their fingers, Reach Zones, On a Gun, On the Head.
+
+### Fingers on the torch
+
+Per grip, the same options as a weapon's Fingers on the Weapon:
+- **Fingers:** Automatic (they wrap the torch) or Manual (each finger at its curl, no fitting).
+- With Manual: Thumb Curl, Thumb Across, Index/Middle/Ring/Little Curl (0 open, 1 a fist). The controller's grip still
+  opens the hand and closes it up to them.
+- With Automatic: Overlap (0..1 of a centimetre; 0.3 as before).
+- Either way: the five finger tweaks (Thumb, Index Finger...: -1..1 of a full curl) and Thumb X/Y/Z (±4, extendable to
+  ±20).
+
+Details:
+- The manual curls start at what the automatic grasp does at a full grip (its joints' mean stops, measured with
+  `vr_debug_grasp 2`): switching to Manual keeps the look. The palm isn't fitted in Manual (as for a weapon), so it sits
+  1.1 cm (low) and 2 cm (overhead) off the automatic place; the grip's Forward/Towards Palm/Up move it.
+- During the flip's spin the fingers keep the old grip's settings (the grasp holds the old grip); the tweaks and the
+  thumb's place go over with the spin.
+- The other hand mirrors them. Cvars: `vr_flashlight_low_*` and `_high_*`: `fingers`, `curl_thumb/index/middle/ring/
+  pinky`, `thumb_across`, `overlap`, `bias_*`, `thumb_x/y/z`.
+
+### The reach zones
+
+**Show Flashlight Zones** (Reach Zones; `vr_show_flashlight_zones`, not saved) draws them:
+- the head's: yellow balls at both temples and the forehead;
+- each gun in a hand: an orange capsule round its line, from the hand to 3 cm past the muzzle;
+- the held torch's middle (white): that is what they measure.
+
+A zone turns green while in reach (B/Y clips the torch on), and so does the torch's middle. From your own view the
+head's balls are round your eyes and aren't drawn; with the body's preview (`vr_body_debug 2` or `3`) they are drawn
+round the preview's head too.
+
+**The head** (On the Head, after On Head Forward/Up/Out, which still place the mounted torch):
+- **Head Zone Forward/Up/Out** move the balls (Out: to the side at the temples, ahead at the forehead), ±20 cm,
+  extendable. **Head Zone Radius**: 10 cm.
+- **Up defaults to 0.04: 4 cm higher than before.** The temples' balls are now 7.5 cm over the eyes, the forehead's
+  10 cm. With the 10 cm radius, the torch at your temple's upper edge, where a head torch's strap runs, is well in.
+- The same zone takes it off: a hand at the head torch (at the torch as before, or its fist in that temple's ball)
+  with B/Y (back to the belt), or the grip (into the hand).
+
+**The gun** (On a Gun):
+- **On Gun Forward/Up/Out** (already there) place the torch once clipped on.
+- **Gun Zone Along/Up/Out** (±20 cm, extendable) move the zone where holding the torch clips it on, in the gun's frame:
+  along the barrel, up, and out (away from your body). **Gun Zone Radius**: 12 cm, as before.
+- Taking it off the gun is unchanged: the free hand at the torch, B/Y.
+
+### Tests (mock headset, e1m1)
+
+- **`final/fingers_off.png`, `final/fingers_main.png`:** each hand, each grip, from the side and the front:
+  Automatic; Manual at the default curls (close to Automatic); Manual with index 0.1, middle 0.35, thumb 0.4, across
+  0.1 (those fingers open); Automatic with the index and little tweaked -0.7 and Thumb X +3.
+- **`final/zones.png`** (spectator camera, zones shown), the log's lines in brackets:
+  - the head's three balls; the torch held at the left temple: green, Y ("on the head, the left temple"); on the head
+    only that temple's ball; a fist in it green, the grip ("off the head, into the hand");
+  - Head Zone Up 0.25: the torch at the old place is out of reach (Y flips it); 21 cm higher it is green and Y puts
+    it on; Y at it with an open hand ("off the head, back to the belt");
+  - the shotgun's capsule; the torch under the barrel green, Y ("clipped on the main hand's gun"); Y at it ("off the
+    gun, back to the belt");
+  - Gun Zone Along 0.35, Radius 0.08: the old place out of reach (Y flips); 35 cm further forward green, Y clips it,
+    and it sits where On Gun puts it, as before;
+  - the body preview with the balls round its head.
+- **`final/menu.png`:** the new sections, and Fingers set to Manual rebuilding the page with the curls.
+- After merging vr-cleanup (b793e23d): the melee canary (`eval.sh`) 40/46 pass, no take differs from the baseline;
+  the zones and the off hand's fingers run again, the same.
+
+### Also fixed: the belt's torch with a gun in the other hand
+
+Testing the gun zone found this: with a gun in the other hand, the torch on the belt could not be taken (`developer 1`:
+"torch press ignored: the off hand's is the game's (hotspot 1)"). The game's two-handed grip hotspot is anywhere
+13-64 cm from the other hand, and the intent gate let the game have the grip there. But a gun held by its fitted
+grips is only taken at its grip (within 5.5 units, `vr_twohand.cpp`), so the grip did nothing at all. Now, for such a
+gun, the game wins only within 8 units of its grip. Swords and the other free two-handed holds keep the old rule, and
+a hand at the other hand's weapon still leaves it to the game. The ignored press now says why under `developer 1`.
+
+### In the headset
+
+- [ ] Flashlight page, each grip: Fingers Manual, then move the curls; the tweaks and Thumb X/Y/Z in both modes.
+- [ ] Show Flashlight Zones, the body preview (`vr_body_debug 2`): the head balls where you expect? Tune Head Zone
+      Up until clipping it on feels natural; tell me the value.
+- [ ] Hold the torch by a gun: the capsule green, B/Y clips it. Gun Zone Along/Up/Out if it's off.
+- [ ] A gun at the ready in one hand, take the torch from the belt with the other: it comes (it didn't before).
