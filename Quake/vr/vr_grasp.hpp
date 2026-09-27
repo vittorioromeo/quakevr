@@ -90,6 +90,9 @@ struct Settings
     float overlap{0.f};       // hand units the hand may sink into what it holds (snug, no gap)
     bool thenar{false};       // the ball of the thumb meets it too (a thing held against the palm; not a weapon's grip)
     bool thumbTop{false};     // the thumb along the top of what it holds, not wrapped round it
+    bool searchPlace{false};  // round 21, third pass: the palm's place always searched (as for a grip through the palm),
+                              // within palmLimit, for where the fingers hold best: a weapon's grip, whatever the palm
+                              // touches (no flush along the normal, no turn)
 };
 
 // Solves the hand of `pose` (its shifts; its curls and metacarpal are ignored) holding `shape`, placed in the hand's

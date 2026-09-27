@@ -151,13 +151,15 @@ void resetSwimming()
         toggle("Fit Fingers to What You Hold", "vr_hand_fit")
             .help("With the jointed hand: the fingers close on what the hand holds (weapons, grabbed things) and stop on its "
                   "surface, never through it and never floating off it. Off: they curl as the controller says."),
-        slider("Palm Fit: Things", "vr_hand_fit_palm", 0.f, 10.f, 0.5f, "%.1f cm")
-            .help("How far the palm may move to lie against a held thing (never more), eased in over a tenth of a second. 0: the "
-                  "hand stays where the controller is."),
+        slider("Palm Fit", "vr_hand_fit_palm", 0.f, 10.f, 0.5f, "%.1f cm")
+            .help("How far the palm may move to lie against a held thing (a box, a gib, the torch; never more), eased in "
+                  "over a tenth of a second. 0: the hand stays where the controller is."),
         slider("Palm Fit: Weapons", "vr_hand_fit_palm_weapon", 0.f, 10.f, 0.5f, "%.1f cm")
-            .help("As above, for weapons: small, so the hand stays on the gun where you placed it."),
+            .help("On a weapon (and a hotspot the other hand holds): how far along the grip and onto it the palm's place is "
+                  "searched for where the fingers hold best. The same place every time the weapon is taken; the weapon's "
+                  "Hand Only offset moves it."),
         slider("Palm Turn", "vr_hand_fit_palm_turn", 0.f, 45.f, 5.f, "%.0f deg")
-            .help("How far the palm may turn toward the surface of a held thing."),
+            .help("How far the palm may turn toward the surface of a held thing (not a weapon's grip)."),
         slider("Fit Overlap: Things", "vr_hand_fit_overlap", 0.f, 1.5f, 0.1f, "%.1f cm")
             .help("How far the fingers and palm may sink into a held thing (a box, a gib, the torch): snug, with no gap, "
                   "and steadier. A weapon has its own (Weapon Offsets: Overlap, and each hotspot's)."),
