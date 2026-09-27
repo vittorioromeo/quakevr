@@ -1534,6 +1534,7 @@ void(vector xOrigin, float xPower) VR_ExplosionRumble =
 void(entity inflictor, entity attacker, float damage, entity ignore) T_RadiusDamage =
 {
     VR_ExplosionRumble(inflictor.origin, damage);
+    physicsblast(inflictor.origin, damage);
 
     float     points;
     entity    head;

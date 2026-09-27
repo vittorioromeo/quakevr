@@ -114,7 +114,7 @@ constexpr float easyHandTouchBonus = 4.5f;
         // box is mostly air round a gib's or a backpack's shape; taken from far off, it floated away from the hand).
         const float reach = vr_carry_reach.value > 0.f ? vr_carry_reach.value * 0.01f * units::metresToUnits() : 0.f;
         glm::vec3 nearest{0.f};
-        const float distance = reach > 0.f || vr_debug_carry.value ? held::surfaceDistance(target, hand, &nearest) : -1.f;
+        const float distance = reach > 0.f || vr_debug_carry.value || vr_debug_physics_shapes.value ? held::surfaceDistance(target, hand, &nearest) : -1.f;
         held::noteCarryProbe(which, target, hand, distance, nearest, reach);
         return reach <= 0.f || distance < 0.f || distance <= reach;
     }

@@ -840,6 +840,13 @@ void hologramTestMessage()
             .help("Corpses burst into gibs when shot, blown up or struck enough: shotguns, nails, lightning, rockets, fists, melee weapons."),
         slider("Corpse Health", vr_corpse_health, 10.f, 300.f, 10.f, "%.0f").extend()
             .help("The damage that gibs a corpse; a big monster's takes more (an ogre's 1.75 times, a fiend's 2.25, a shambler's 3.5)."),
+        header("Debug"),
+        toggle("Show Physics Shapes", vr_debug_physics_shapes)
+            .help("Draws the physics bodies (Box3D) as wireframes: props awake green, asleep blue, held yellow; doors purple, "
+                  "monsters orange, you cyan, hanging pickups grey; red dots where they touch. And each hand's grab reach."),
+        toggle("Show Hand Bones", vr_debug_hand_bones)
+            .help("Draws both hands' joints and bones, and what they grip: the finger spheres (green touching, yellow near, red "
+                  "sunk in) and the palm's fit (white: where the hand is, cyan: where the grip moved the palm)."),
     };
 }
 

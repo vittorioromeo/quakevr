@@ -584,8 +584,21 @@ vr_pose stop; wait120; vr_pose_check`. The floating weapon's grip is at (0, 1.35
 Rigid bodies (round 21, Box3D): `vr_physics_engine 0|1` switches the solver; `vr_physics_stack`, `vr_physics_pyramid`,
 `vr_physics_pile` put props (a number, a classname or `props`) in a column, a pyramid or toppling columns;
 `vr_physics_loose` makes a hanging armour or a pickup a loose prop; `vr_physics_list` and `vr_physics_hash` print
-them (the hash: determinism); `vr_debug_box3d 1|2`. `vr_forcegrabbable_return 0` keeps moved items from going back
-to their places during a long test.
+them (the hash: determinism); `vr_debug_box3d 1|2|3` (1: bodies made, woken, asleep, the world mesh's build, frames
+over 1 ms with Box3D's profile; 2: every awake body every frame; 3: frames over 0.2 ms; `developer 1` alone prints the
+slow frames). `vr_physics_blast <x> <y> <z> [<damage>]` sets off an explosion there (QC's `T_RadiusDamage` from the
+world, 120 by default, and its effect): monsters take it, props are thrown (Box3D). `vr_forcegrabbable_return 0` keeps
+moved items from going back to their places during a long test.
+Debug views (Carrying and Gibs > Debug, also in the console): `vr_debug_physics_shapes 1` draws every Box3D body as a
+wireframe (props awake green, fast white, asleep blue, held yellow; doors and plats purple; monsters orange; players
+cyan, your own faint; hanging pickups grey), each prop's centre of mass, an awake prop's contact points (red pressed
+in, pink apart), and the hands' grab probes (as `vr_debug_carry`). `vr_debug_hand_bones 1` draws both jointed hands'
+bones and joints (thumb red, index orange, middle yellow, ring green, little blue; joints white), the grasp's spheres
+against what the hand holds (green touching, yellow near, red sunk in, grey nothing near; a line to the nearest point
+of each touching one), the palm's fit (white: its middle before the grasp's move, cyan: after; the cyan stroke is the
+way the palm faces) and the grip channel (magenta). With a gun held: `vr_weapon_grip_mode 1; impulse 154` and
+`+grabright; vr_mock_button main grip 1`; a box in the off hand: `vr_rigid_place item_health off 0 3 0; +graboff;
+vr_mock_button off grip 1`; `vr_mock_camera -0.05 1.45 -1.0 25 180` looks back at both hands.
 
 Tuning the body: `vr_show_hip_holsters 1`, `vr_show_upper_holsters 1`, `vr_show_shoulder_holsters 1` and
 `vr_show_virtual_stock 1` mark where the holsters and the virtual stock's shoulders are (green while a hand is

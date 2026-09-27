@@ -10,6 +10,7 @@
 #include "vr_flashlight.hpp"
 #include "vr_body.hpp"
 #include "vr_bodyblood.hpp"
+#include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
 #include "vr_emissive.hpp"
 #include "vr_hands.hpp"
@@ -1227,6 +1228,7 @@ struct RigHand
     const qmodel_t* fitModel{nullptr};
     glm::vec3 fitPalm{0.f};
     glm::quat fitTurn{1.f, 0.f, 0.f, 0.f};
+    glm::mat4 drawnToWorld{1.f}; // the rig as drawn (the palm's fit and the firing motion in): vr_debug_hand_bones
 };
 RigHand rigHands[2];
 
@@ -1851,6 +1853,12 @@ bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
         ve.ent.angles[1] = a.y;
         ve.ent.angles[2] = a.z;
         rh.rigToWorld = motion * rh.rigToWorld;
+    }
+    if(vr_debug_hand_bones.value)
+    {
+        float m[16];
+        render::entityMatrix(ve.ent, mirrored, ENTSCALE_DEFAULT, glm::vec3{0.f}, m);
+        rh.drawnToWorld = toMat4(m);
     }
     static FILE* trace = nullptr;
     if(!vr_debug_grasp_trace.value && trace)
@@ -3591,6 +3599,92 @@ void updatePalmPoints(hands::State& s)
 // the two-handed aim) and its barrel (green, from the muzzle along the drawn model's forward axis): the gun is turned
 // right when green runs along red.
 // `lasers`: Show Controller Laser's lines (not while posing, which draws its own).
+// vr_debug_hand_bones: each jointed hand as drawn this frame -- its bones (the palm's middle to each knuckle, then
+// each finger's joints to its tip; thumb red, index orange, middle yellow, ring green, little finger blue), its joints
+// (white), the spheres the grasp tests it as (vr_grasp.cpp) against what it holds (green touching, within a quarter
+// of a unit; yellow near; red sunk in; grey nothing near), each touching or sunk one's nearest point on the held
+// thing, and the palm's fit: its middle where the hand is (white) and where the grasp moved it (cyan), the way the
+// palm faces (cyan), the grip channel (magenta: where a handle lies in the curled fingers).
+void drawHandBones()
+{
+    static std::vector<glm::vec4> spheres;
+    constexpr glm::vec4 fingerColour[handrig::FingerCount] = {
+        {1.f, 0.25f, 0.25f, 1.f}, {1.f, 0.6f, 0.15f, 1.f}, {1.f, 1.f, 0.2f, 1.f}, {0.3f, 1.f, 0.3f, 1.f}, {0.3f, 0.6f, 1.f, 1.f}};
+    const glm::vec4 white{1.f, 1.f, 1.f, 1.f}, cyan{0.2f, 1.f, 1.f, 1.f};
+    for(int hand = 0; hand < 2; hand++)
+    {
+        const RigHand& rh = rigHands[hand];
+        if(!rh.drawn)
+        {
+            continue;
+        }
+        const glm::mat4& m = rh.drawnToWorld;
+        const auto world = [&](const glm::vec3& p) { return glm::vec3{m * glm::vec4{p, 1.f}}; };
+        const float unit = glm::length(glm::vec3{m[0]}); // world units a rig unit
+        const float width = 0.1f;
+
+        // The bones and joints.
+        const glm::vec3 palm = grasp::palmCentre();
+        for(int f = 0; f < handrig::FingerCount; f++)
+        {
+            glm::vec3 p[4];
+            grasp::fingerPoints(rh.pose, f, rh.pose.curl[f], p);
+            lines::line(world(palm), world(p[0]), width * 0.6f, glm::vec4{0.8f, 0.8f, 0.8f, 0.7f}, fingerColour[f]);
+            for(int j = 0; j < 3; j++)
+            {
+                lines::line(world(p[j]), world(p[j + 1]), width, fingerColour[f], fingerColour[f]);
+            }
+            for(int j = 0; j < 4; j++)
+            {
+                lines::point(world(p[j]), j == 3 ? 0.35f : 0.3f, j == 3 ? fingerColour[f] : white);
+            }
+        }
+
+        // The palm's fit: where it is without the grasp's move and turn, where the grasp put it, the way it faces.
+        const glm::vec3 unfitted{rh.rigToWorld * glm::vec4{palm, 1.f}};
+        lines::point(unfitted, 0.5f, white);
+        lines::point(world(palm), 0.5f, cyan);
+        lines::line(unfitted, world(palm), width, white, cyan);
+        lines::line(world(palm), world(palm + glm::vec3{0.f, 3.f, 0.f}), width, cyan, glm::vec4{0.2f, 1.f, 1.f, 0.f});
+        glm::vec3 cp, cd;
+        float radius;
+        if(grasp::gripChannel(rh.pose, cp, cd, radius))
+        {
+            const glm::vec4 magenta{1.f, 0.3f, 1.f, 0.8f};
+            lines::line(world(cp - cd * 4.f), world(cp + cd * 4.f), width, magenta, magenta);
+        }
+
+        // The spheres against what it holds.
+        const grasp::Shape* shape = rh.held.ent ? grasp::shapeOf(*rh.held.ent, rh.held.frame) : nullptr;
+        const glm::mat4 shapeToWorld = shape ? grasp::shapeToWorld(*rh.held.ent, rh.held.mirrored) : glm::mat4{1.f};
+        grasp::posedSpheres(rh.pose, spheres);
+        for(const glm::vec4& s : spheres)
+        {
+            const glm::vec3 c = world(glm::vec3{s});
+            const float r = s.w * unit;
+            glm::vec4 colour{0.6f, 0.6f, 0.6f, 0.3f};
+            if(shape)
+            {
+                glm::vec3 at;
+                bool in = false;
+                const float d = grasp::surfaceDistance(*shape, shapeToWorld, c, r + 1.f, at, in);
+                if(d >= 0.f)
+                {
+                    const float gap = in ? -d - r : d - r; // from the sphere's surface to the held thing's
+                    colour = gap < -0.25f ? glm::vec4{1.f, 0.15f, 0.15f, 0.8f} : gap <= 0.25f ? glm::vec4{0.2f, 1.f, 0.3f, 0.8f}
+                                                                                              : glm::vec4{1.f, 0.9f, 0.2f, 0.6f};
+                    if(gap <= 0.25f)
+                    {
+                        lines::line(c, at, width * 0.5f, colour, colour);
+                        lines::point(at, 0.25f, colour);
+                    }
+                }
+            }
+            lines::point(c, 2.f * r, glm::vec4{glm::vec3{colour}, colour.a * 0.3f});
+        }
+    }
+}
+
 void drawTuningAids(const hands::State& s, bool lasers)
 {
     if(vr_show_controller.value)
@@ -3745,6 +3839,14 @@ extern "C" void VR_SetupViewEntities()
     }
     drawTuningAids(s, !posingNow);
     held::drawCarryProbes();
+    if(vr_debug_physics_shapes.value)
+    {
+        box3d::debugDraw();
+    }
+    if(vr_debug_hand_bones.value)
+    {
+        drawHandBones();
+    }
     // The guns not in a hand (holstered, lying round) show their screens (queued once a frame).
     static int idleTextFrame = -1;
     const bool idleTexts = idleTextFrame != host_framecount;
