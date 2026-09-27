@@ -49,6 +49,7 @@ void(float xHand) W_FireSuperLavaSpikes =
     dir = v_forward;
 
     newmis = launch_lava_spike(VRGetMuzzlePos(xHand), dir);
+    VR_ShotPlace(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
     newmis.velocity += vrProjectileVelocity(xHand, 1.0);
     newmis.touch = superlavaspike_touch;
 
@@ -85,6 +86,7 @@ void(float xHand, float ox) W_FireLavaSpikes =
 
     dir = v_forward;
     newmis = launch_lava_spike(VRGetMuzzlePos(xHand) + v_right*ox, dir);
+    VR_ShotPlace(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
     newmis.velocity += vrProjectileVelocity(xHand, 1.0);
 
     self.punchangle_x = -2;
@@ -114,7 +116,7 @@ void() lavaspike_touch =
     }
 
     makeforward_mdl(self.angles);
-    traceline(self.origin - v_forward * 8, self.origin + v_forward * 8, FALSE, self);
+    VR_TouchTrace(self.origin - v_forward * 8, self.origin + v_forward * 8);
 
     // hit something that bleeds
     if(other.takedamage)
@@ -181,7 +183,7 @@ void() superlavaspike_touch =
     }
 
     makeforward_mdl(self.angles);
-    traceline(self.origin - v_forward * 8, self.origin + v_forward * 8, FALSE, self);
+    VR_TouchTrace(self.origin - v_forward * 8, self.origin + v_forward * 8);
 
     // hit something that bleeds
     if(other.takedamage)

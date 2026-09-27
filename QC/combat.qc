@@ -1458,6 +1458,11 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage =
     float parried = VR_Parry(targ, inflictor, attacker, damage);
     float corpse = targ.vr_corpse == 2;
     float r = T_DamageImpl(targ, inflictor, attacker, parried, 0);
+    if(cvar_hget(cvarh_vr_debug_shots) && (attacker.flags & FL_CLIENT) && targ != attacker)
+    {
+        dprint(sprintf("damage: %s %g by %s (part %g at %v), health %g\n", targ.classname, parried, inflictor.classname,
+            vr_hitpart_time == time ? vr_hitpart : -1, vr_hitpart_pos, targ.health));
+    }
 
     // VR: hit reactions: a heavy hit shoves a monster (vr_hit_push), a killing blow throws the body
     // (vr_kill_push; an explosion's away from it). Not a corpse's (vr_corpse_gib): it lies still.

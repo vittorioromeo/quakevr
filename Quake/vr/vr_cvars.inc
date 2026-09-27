@@ -24,6 +24,7 @@ QVR_CVAR(vr_throw_ang_threshold, "6", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_ang_factor, "0.7", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_gravity, "9.81", CVAR_ARCHIVE)   // m/s^2 on thrown weapons, bounces included (0: sv_gravity)
 QVR_CVAR(vr_debug_throw, "0", CVAR_NONE)           // print each throw's estimate (2: and its timing)
+QVR_CVAR(vr_debug_shots, "0", CVAR_NONE)           // print each hitscan shot: where it starts, its direction, what its pellets hit
 // Release: the runtime's grip button lets go late. With vr_throw_release 1 the analog grip lets
 // go once it drops vr_throw_release_drop below its peak while the hand moves faster than
 // vr_throw_release_speed m/s (a throw), or below vr_throw_release_floor anyway; it grabs again
