@@ -80,8 +80,6 @@ float VR_BASH_PALM_RADIAL = 0.82; // cosine: a shove extends the arm: the palm m
 float VR_SHOULDER_DOWN = 0.28;    // m: a shoulder below the eyes,
 float VR_SHOULDER_SIDE = 0.2;     // and to the side
 float VR_BASH_COOLDOWN = 0.8;     // s after a bash lands before the next
-float VR_PARRYBASH_WINDOW = 1.5;  // s: a weapon bash this soon after a parry is a parry-bash
-float VR_PARRYBASH_SCALE = 1.3;   // how much harder
 float VR_BASH_AIM = 45;           // degrees: a batted projectile's thrower this near the facing gets it back
 float VR_STANCE_REPORT = 0.2;     // s a stance is held before it is reported (developer: "melee event: stance")
 
@@ -139,6 +137,7 @@ float VR_MKIND_PUNCH = 3;  // a fist (any way: jab, hook, uppercut, overhead)
 .float mh_speed;       // the striking part's speed (m/s)
 .string mh_part;       // its name ("the tip")
 .string mh_way;        // how it moved, for the report ("overhead", "hook")
+.float mh_counter;     // a counter (VR_Counter_Use): its damage multiplier (0: not a counter)
 .entity mh_c_ent;      // where it lands, as a traceline's hit
 .vector mh_c_pos;
 .vector mh_c_dir;
@@ -184,7 +183,7 @@ float VR_MKIND_PUNCH = 3;  // a fist (any way: jab, hook, uppercut, overhead)
 .entity vr_bash_next;     // and the next one found
 .float vr_bashdef_until;  // on a player: a bash's (or an armed shove's) batting goes on until then (VR_Bash_Deflect),
 .float vr_bashdef_hand;   // with that hand (-1: both)
-float vr_bash_counter;    // while a bash's hits are dealt: a parry-bash (vr_dummy.qc)
+float vr_bash_counter;    // while a bash's hits are dealt: a counter's damage multiplier (0: not a counter; vr_dummy.qc)
 float vr_bash_both;       // and with two hands
 
 // The layout of the points (VR_Melee_Layout): their place along the line (the grip 0, the far end 1; the near
@@ -1113,6 +1112,13 @@ float(float xHand) VR_Blow_Strength =
     return VR_Blow(xHand).mh_strength;
 };
 
+// And a counter's (VR_Counter_Use; VRMeleeDmg): 1 for a blow that isn't one.
+float(float xHand) VR_Blow_Counter =
+{
+    float c = VR_Blow(xHand).mh_counter;
+    return c > 0 ? c : 1;
+};
+
 string(float xKind, float xThing) VR_Melee_KindName =
 {
     if(xKind == VR_MKIND_STAB)
@@ -1237,6 +1243,256 @@ void(float xHand, entity b) VR_Melee_Whoosh =
         return;
     }
     sound(self, xHand == cVR_OffHand ? CHAN_WEAPON2 : CHAN_WEAPON, s, 1, ATTN_NORM);
+};
+
+// ----------------------------------------------------------------------------
+// Parry stamina and counter-attacks (docs/vr-port/ROUND21.md, "Parry stamina and counter-attacks")
+//
+// PARRY STAMINA (vr_parry_stamina; off as shipped): one pool for both hands -- your arms' and body's, not the
+// weapon's, so switching hands doesn't rest you. A weapon's parry costs vr_parry_stamina_cost, held in two hands
+// vr_parry_stamina_cost_2h; the parry that leaves none knocks the parrying weapon out of the hand (VR_Parry,
+// combat.qc), one hand or two, and any parry while you have none does too. Stamina comes back at
+// vr_parry_stamina_regen a second once you haven't parried for vr_parry_stamina_delay. On, it replaces the drop
+// chance (vr_parry_drop_chance), which is not used. Crossed arms (the unarmed parry) cost nothing: there's no weapon
+// to lose. The warning (vr_parry_stamina_warn): a breath and a throb in the hand when one more one-handed parry would
+// knock the weapon away, a gasp and a long buzz when it is; the bar (vr_parry_stamina_show): what's left, rising from
+// the parrying weapon at each parry.
+//
+// COUNTER-ATTACKS (vr_counter): any parry (a weapon's or crossed arms) opens a window of vr_counter_window seconds in
+// which your next melee attack -- a blow with either hand, a bash or a shove -- is a counter: vr_counter_damage times
+// the damage (and a bash's or shove's knockback). One counter a parry. It is what the parry-bash was (a weapon bash
+// 1.3x within 1.5 s of a weapon's parry), for every attack. The window opens with a blade's shing, what the hands
+// hold sheds golden embers while it lasts (vr_counter_glow) and the hands feel soft pulses (vr_counter_haptic), both
+// fading as it closes; a counter lands with a heavy strike over the attack's own sound (vr_counter_sound).
+//
+// With developer 1, "stamina:" and "counter:" lines trace both.
+
+float VR_COUNTER_GLOW_EVERY = 0.03;  // s between the embers (each hand)
+float VR_COUNTER_PULSE_EVERY = 0.25; // s between the pulses in the hands
+float VR_COUNTER_PULSE_FIRST = 0.35; // s after the parry the first (the parry's own buzz lasts 0.3)
+
+.float vr_stamina_used;     // on a player: the stamina spent (0: rested; out of vr_parry_stamina_max),
+.float vr_stamina_time;     // when the last parry spent some,
+.float vr_stamina_said;     // its coming back was traced (developer)
+.float vr_counter_until;    // on a player: a counter may land until then (0: no window),
+.float vr_counter_since;    // the window opened then,
+.float vr_counter_glow_at;  // the next embers,
+.float vr_counter_pulse_at; // and the next pulse
+
+float() VR_Stamina_Max =
+{
+    return max(1, cvar_hget(cvarh_vr_parry_stamina_max));
+};
+
+// Stamina left, 0 .. vr_parry_stamina_max.
+float(entity p) VR_Stamina_Left =
+{
+    float most = VR_Stamina_Max();
+    return min(most, max(0, most - p.vr_stamina_used));
+};
+
+// What's left as a bar of ten, filled (#) and empty (.).
+string(float xShare) VR_Stamina_Bar =
+{
+    float n = rint(10 * min(1, max(0, xShare)));
+    if(xShare > 0 && n < 1)
+    {
+        n = 1; // a little left shows
+    }
+    return sprintf("%s%s", substring("\x83\x83\x83\x83\x83\x83\x83\x83\x83\x83", 0, n), substring("\x81\x81\x81\x81\x81\x81\x81\x81\x81\x81", 0, 10 - n));
+};
+
+// A weapon's parry by `p`'s `hand` (VR_Parry; `at`: the weapon's middle) spends stamina, warns, shows what's
+// left: TRUE when it leaves none (the weapon is knocked away).
+float(entity p, float hand, float twoHanded, vector at) VR_Stamina_Parry =
+{
+    float most = VR_Stamina_Max();
+    float oneCost = max(0, cvar_hget(cvarh_vr_parry_stamina_cost));
+    float cost = twoHanded ? max(0, cvar_hget(cvarh_vr_parry_stamina_cost_2h)) : oneCost;
+    float before = VR_Stamina_Left(p);
+    float left = max(0, before - cost);
+    p.vr_stamina_used = most - left;
+    p.vr_stamina_time = time;
+    p.vr_stamina_said = FALSE;
+    float knocked = FALSE;
+    float low = FALSE;
+    if(cost > 0 && left <= 0)
+    {
+        knocked = TRUE;
+    }
+    else if(oneCost > 0 && left <= oneCost)
+    {
+        low = TRUE; // one more one-handed parry knocks it away
+    }
+
+    entity oldSelf = self;
+    self = p;
+    float warn = min(1, max(0, cvar_hget(cvarh_vr_parry_stamina_warn)));
+    if(warn > 0 && knocked)
+    {
+        // Out of breath: a gasp and a long, low buzz in the hand losing its weapon.
+        sound(self, CHAN_AUTO, "player/gasp1.wav", warn, ATTN_NORM);
+        haptic(hand, 0.0, 0.5, 30, warn);
+    }
+    else if(warn > 0 && low)
+    {
+        // Tiring: a breath, and a throb in the hand once the parry's buzz is over.
+        sound(self, CHAN_AUTO, "player/gasp2.wav", 0.8 * warn, ATTN_NORM);
+        haptic(hand, 0.32, 0.18, 30, 0.8 * warn);
+    }
+    if(cvar_hget(cvarh_vr_parry_stamina_show))
+    {
+        // Green while rested, amber, red once low.
+        float share = left / most;
+        vector colour = '0.45 1 0.4';
+        if(knocked || low)
+        {
+            colour = '1 0.3 0.25';
+        }
+        else if(share < 0.6)
+        {
+            colour = '1 0.75 0.2';
+        }
+        floattext(at, knocked ? "exhausted" : VR_Stamina_Bar(share), colour, 0.035);
+    }
+    self = oldSelf;
+
+    dprint(sprintf("stamina: %g of %g left (%s, -%g)%s\n", rint(left), rint(most), twoHanded ? "two hands" : "one hand",
+        cost, knocked ? ": none, the weapon is knocked away" : (low ? ": low" : "")));
+    return knocked;
+};
+
+// Each frame (VR_Melee_Frame): stamina comes back once no parry has spent any for vr_parry_stamina_delay.
+void() VR_Stamina_Frame =
+{
+    if(!cvar_hget(cvarh_vr_parry_stamina))
+    {
+        self.vr_stamina_used = 0; // off: rested when turned on
+        return;
+    }
+    if(self.vr_stamina_used <= 0 || time - self.vr_stamina_time < max(0, cvar_hget(cvarh_vr_parry_stamina_delay)))
+    {
+        return;
+    }
+    if(!self.vr_stamina_said)
+    {
+        self.vr_stamina_said = TRUE;
+        dprint(sprintf("stamina: %g left, coming back (%.2f s after the last parry)\n", rint(VR_Stamina_Left(self)),
+            time - self.vr_stamina_time));
+    }
+    self.vr_stamina_used = max(0, self.vr_stamina_used - max(0, cvar_hget(cvarh_vr_parry_stamina_regen)) * frametime);
+    if(self.vr_stamina_used <= 0)
+    {
+        dprint(sprintf("stamina: rested, %g (%.2f s after the last parry)\n", rint(VR_Stamina_Max()),
+            time - self.vr_stamina_time));
+    }
+};
+
+// A parry by `p` (VR_Parry; `hand` -1: crossed arms) opens a counter's window.
+void(entity p, float hand) VR_Counter_Open =
+{
+    float window = cvar_hget(cvarh_vr_counter_window);
+    if(!cvar_hget(cvarh_vr_counter) || window <= 0)
+    {
+        return;
+    }
+    p.vr_counter_since = time;
+    p.vr_counter_until = time + window;
+    p.vr_counter_glow_at = time;
+    p.vr_counter_pulse_at = time + VR_COUNTER_PULSE_FIRST;
+    float volume = min(1, max(0, cvar_hget(cvarh_vr_counter_sound)));
+    if(volume > 0)
+    {
+        sound(p, CHAN_AUTO, "vr/counter_open.wav", volume, ATTN_NORM);
+    }
+    dprint(sprintf("counter: open for %.2f s (%s)\n", window, hand < 0 ? "crossed arms" : sprintf("hand %g", hand)));
+};
+
+// Whether `self`'s next melee attack is a counter.
+float() VR_Counter_Ready =
+{
+    return self.vr_counter_until > time && cvar_hget(cvarh_vr_counter);
+};
+
+// `self`'s melee attack `xWhat` landing on `xOn` in the window is the counter (one a parry): its sound; its damage
+// multiplier.
+float(string xWhat, entity xOn) VR_Counter_Use =
+{
+    float mult = max(0.1, cvar_hget(cvarh_vr_counter_damage));
+    dprint(sprintf("counter: %s on %s, x%.2f, %.2f s after the parry\n", xWhat, xOn.classname, mult,
+        time - self.vr_counter_since));
+    self.vr_counter_until = 0;
+    float volume = min(1, max(0, cvar_hget(cvarh_vr_counter_sound)));
+    if(volume > 0)
+    {
+        sound(self, CHAN_AUTO, "vr/counter.wav", volume, ATTN_NORM);
+    }
+    return mult;
+};
+
+// Each frame (VR_Melee_Frame): while the window is open, the embers and the pulses, fading as it closes.
+void() VR_Counter_Frame =
+{
+    if(self.vr_counter_until <= 0)
+    {
+        return;
+    }
+    if(time >= self.vr_counter_until || !cvar_hget(cvarh_vr_counter))
+    {
+        self.vr_counter_until = 0;
+        dprint(sprintf("counter: closed unused (%.2f s after the parry)\n", time - self.vr_counter_since));
+        return;
+    }
+    float left = (self.vr_counter_until - time) / max(0.01, self.vr_counter_until - self.vr_counter_since);
+    float h;
+    if(cvar_hget(cvarh_vr_counter_glow) && time >= self.vr_counter_glow_at)
+    {
+        self.vr_counter_glow_at = time + VR_COUNTER_GLOW_EVERY;
+        for(h = 0; h < 2; ++h)
+        {
+            entity b = VR_Blow(h);
+            if(b.mh_n > 0 && b.mh_thing != VR_MTHING_NONE && random() < 0.3 + 0.7 * left)
+            {
+                // Anywhere along what the hand holds (a fist: its knuckles).
+                vector at = b.mh_near + (b.mh_far - b.mh_near) * random();
+                particle2(at, '0 0 0', QVR_PARTICLE_PRESET_LAVASPIKE, 1);
+            }
+        }
+    }
+    float strength = min(1, max(0, cvar_hget(cvarh_vr_counter_haptic)));
+    if(strength > 0 && time >= self.vr_counter_pulse_at)
+    {
+        self.vr_counter_pulse_at = time + VR_COUNTER_PULSE_EVERY;
+        float amp = strength * (0.15 + 0.25 * left);
+        haptic(cVR_MainHand, 0.0, 0.04, 160, amp);
+        haptic(cVR_OffHand, 0.0, 0.04, 160, amp);
+    }
+};
+
+// Tests (impulse 242, single player): the nearest monster that strikes in melee, within the parry's reach (150 units),
+// deals `self` a blow of 10 now, as its own attack would -- parried or not as the pose is (VR_Parry). With `notarget`
+// the monster stands still and blows come only when a script says.
+void() VR_Parry_TestBlow =
+{
+    entity best = world;
+    float bestDist = 150;
+    entity e = findradius(self.origin, 150);
+    while(e)
+    {
+        if(e.health > 0 && (e.flags & FL_MONSTER) && VR_Parry_MeleeMonster(e) && vlen(e.origin - self.origin) <= bestDist)
+        {
+            best = e;
+            bestDist = vlen(e.origin - self.origin);
+        }
+        e = e.chain;
+    }
+    if(best == world)
+    {
+        dprint("parry test: no monster that strikes in melee within 150 units\n");
+        return;
+    }
+    dprint(sprintf("parry test: %s strikes, %.0f units away\n", best.classname, bestDist));
+    T_Damage(self, best, best, 10);
 };
 
 // ----------------------------------------------------------------------------
@@ -1625,14 +1881,18 @@ void() VR_Bash =
         return; // a push at the air: nothing yet (the push may still reach something)
     }
 
-    // A weapon bash soon after a parry: a parry-bash, the counter.
-    float counter = armed && self.vr_parry_time > 0 && time - self.vr_parry_time < VR_PARRYBASH_WINDOW;
+    // A bash or a shove in a counter's window after a parry (VR_Counter_Use): the counter, harder and further.
+    float counter = 0;
+    if(VR_Counter_Ready())
+    {
+        counter = VR_Counter_Use(armed ? "bash" : "shove", vr_bash_victims);
+    }
     float scale = both ? 1 : VR_BASH_ONE_DAMAGE;
     float push = both ? 1 : VR_BASH_ONE_PUSH;
     if(counter)
     {
-        scale = scale * VR_PARRYBASH_SCALE;
-        push = push * VR_PARRYBASH_SCALE;
+        scale = scale * counter;
+        push = push * counter;
     }
     vector at = both ? (VRGetHandPos(cVR_MainHand) + VRGetHandPos(cVR_OffHand)) * 0.5 : VRGetHandPos(readyHand);
     if(armed)
@@ -1655,16 +1915,12 @@ void() VR_Bash =
     vr_bash_counter = FALSE;
     vr_bash_both = FALSE;
     self.vr_bash_time = time + VR_BASH_COOLDOWN;
-    if(counter)
-    {
-        self.vr_parry_time = 0; // one counter a parry
-    }
 
     // Each its own sound (vr_bash_sound; round 18), apart from the blows'; 0: the old ones.
     float bashSound = min(1, cvar_hget(cvarh_vr_bash_sound));
     if(bashSound > 0)
     {
-        sound(self, CHAN_AUTO, counter ? "vr/bash_parry.wav" : (armed ? "vr/bash.wav" : "vr/shove.wav"),
+        sound(self, CHAN_AUTO, (counter && armed) ? "vr/bash_parry.wav" : (armed ? "vr/bash.wav" : "vr/shove.wav"),
               bashSound * (both ? 1 : 0.7), ATTN_NORM);
     }
     else
@@ -1685,8 +1941,8 @@ void() VR_Bash =
         handimpact(readyHand, 2, fwd * -1);
     }
     particle2(at + fwd * 12, fwd * 80, QVR_PARTICLE_PRESET_BULLETPUFF, both ? 16 : 10);
-    VR_Melee_Event(sprintf("%s, hand %g, %s, %g hit%s, push %.1f m/s over %.0f cm", counter ? "parrybash" :
-        (armed ? "bash" : "shove"), readyHand, both ? "two hands" : "one hand", hits, hits == 1 ? "" : "s",
+    VR_Melee_Event(sprintf("%s, hand %g, %s, %g hit%s, push %.1f m/s over %.0f cm", counter ? (armed ? "parrybash" :
+        "counter shove") : (armed ? "bash" : "shove"), readyHand, both ? "two hands" : "one hand", hits, hits == 1 ? "" : "s",
         VR_Bash_PushVel(b) * pfwd, b.mh_push_dist * 100));
 };
 
@@ -1715,6 +1971,8 @@ void() VR_Melee_Frame =
             dprint(sprintf(" grip %v far %v vfar %v vgrip %v wrist %v\n", b.mh_rgrip, b.mh_rfar, b.mh_vfar, b.mh_vgrip, b.mh_rwrist));
         }
     }
+    VR_Stamina_Frame();
+    VR_Counter_Frame();
 };
 
 // The blow of `xHand` this frame, if any (PlayerVRMeleeImpl): FALSE, or TRUE with the contact in mh_c_*, the kind and
@@ -1732,7 +1990,14 @@ float(float xHand) VR_Melee_Strike =
     {
         return FALSE; // a bash's push
     }
-    return VR_Melee_Sweep(xHand, b);
+    float struck = VR_Melee_Sweep(xHand, b);
+    // In a counter's window after a parry, a blow on something alive is the counter (VRMeleeDmg).
+    b.mh_counter = 0;
+    if(struck && b.mh_c_ent.takedamage && b.mh_c_ent.health > 0 && VR_Counter_Ready())
+    {
+        b.mh_counter = VR_Counter_Use(VR_Melee_KindName(b.mh_kind, b.mh_thing), b.mh_c_ent);
+    }
+    return struck;
 };
 
 // After a blow of `xHand` landed on mh_c_ent: once per motion (VR_Melee_Rearm).

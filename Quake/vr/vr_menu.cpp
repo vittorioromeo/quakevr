@@ -491,7 +491,32 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Bash Damage", vr_bash_damage, 0.f, 40.f, 1.f, "%.0f").extend(),
         slider("Bash Push", vr_bash_push, 0.f, 3.f, 0.05f, "%.2fx").extend().help("How far a bash or shove throws what it hits (times Knockback)."),
         slider("Bash and Parry Sounds", vr_bash_sound, 0.f, 1.f, 0.1f, "%.1f")
-            .help("Volume of the sounds that tell a shove, a weapon bash, a parry-bash (a bash right after a parry) and a parry apart from your blows (0: the old sounds)."),
+            .help("Volume of the sounds that tell a shove, a weapon bash, a counter bash (a bash right after a parry) and a parry apart from your blows (0: the old sounds)."),
+        header("Parry Stamina"),
+        toggle("Parry Stamina", vr_parry_stamina)
+            .help("Parrying tires you: each parry with a weapon costs stamina (less with the weapon in two hands), and the parry that leaves you none knocks the weapon out of your hand. It comes back once you stop parrying for a moment. On, it replaces the Parry Drop Chance (Melee Settings). Crossed arms cost nothing."),
+        slider("Stamina", vr_parry_stamina_max, 20.f, 300.f, 5.f, "%.0f").extend().help("Your stamina when rested. Both hands share it."),
+        slider("One-Handed Parry Cost", vr_parry_stamina_cost, 0.f, 100.f, 1.f, "%.0f").extend()
+            .help("Stamina a parry with the weapon in one hand costs (30 of 100: the fourth in a row knocks it away)."),
+        slider("Two-Handed Parry Cost", vr_parry_stamina_cost_2h, 0.f, 100.f, 1.f, "%.0f").extend()
+            .help("Stamina a parry with the weapon in both hands costs (12 of 100: the ninth in a row knocks it away)."),
+        slider("Rest Before Recovering", vr_parry_stamina_delay, 0.f, 6.f, 0.25f, "%.2f s").extend()
+            .help("How long you must go without parrying before stamina starts coming back."),
+        slider("Recovery Rate", vr_parry_stamina_regen, 1.f, 100.f, 1.f, "%.0f /s").extend().help("Stamina a second it then comes back at."),
+        slider("Tiring Warning", vr_parry_stamina_warn, 0.f, 1.f, 0.1f, "%.1f")
+            .help("A breath and a throb in the hand when one more one-handed parry would knock the weapon away; a gasp and a long buzz when it does: their volume and strength (0 off)."),
+        toggle("Stamina Bar", vr_parry_stamina_show)
+            .help("Each parry shows the stamina left: a bar rising from the weapon, green, then amber, then red once one more one-handed parry would knock the weapon away."),
+        header("Counter-Attacks"),
+        toggle("Counter-Attacks", vr_counter)
+            .help("After a parry (a weapon's or crossed arms), your next melee attack in the window is a counter and hits harder: a blow with either hand, a bash or a shove. One a parry."),
+        slider("Counter Window", vr_counter_window, 0.25f, 4.f, 0.05f, "%.2f s").extend().help("How long after a parry a counter may land."),
+        slider("Counter Damage", vr_counter_damage, 1.f, 3.f, 0.05f, "%.2fx").extend().help("A counter's damage (a bash's or a shove's knockback too)."),
+        slider("Counter Sounds", vr_counter_sound, 0.f, 1.f, 0.1f, "%.1f")
+            .help("Volume of a blade's shing as the window opens and of the heavy strike as a counter lands (0 off)."),
+        toggle("Counter Glow", vr_counter_glow).help("While the window is open, what your hands hold sheds golden embers, fewer as it closes."),
+        slider("Counter Pulses", vr_counter_haptic, 0.f, 1.f, 0.1f, "%.1f")
+            .help("Strength of the soft pulses in both hands while the window is open, fading as it closes (0 off)."),
         header("Batting Projectiles"),
         toggle("Bat Back Projectiles", vr_deflect).help("Swing a weapon (or a fist) through a monster's spike, laser, spit or grenade to send it back where your hand points (at the monster, when you point near it)."),
         slider("Batting Reach", vr_deflect_radius, 4.f, 32.f, 1.f, "%.0f units").extend().help("How near the weapon's blade (or your fist) a projectile must pass to be batted back."),

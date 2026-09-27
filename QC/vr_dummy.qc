@@ -91,15 +91,17 @@ string(entity inflictor, entity attacker, float isVRMelee) VR_Dummy_Kind =
     if(vr_hitkind == QVR_HITKIND_BASH)
     {
         vr_dummy_colour = orange;
-        return sprintf("%s with the %s, %s", vr_bash_counter ? "parry-bash" : "bash",
+        string bash = sprintf("bash with the %s, %s",
                        WeaponIdToWeaponName(VRGetEntWeapon(attacker, vr_hithand >= 0 ? vr_hithand : cVR_MainHand)),
                        vr_bash_both ? "two hands" : "one hand");
+        return vr_bash_counter ? sprintf("counter %s (x%.2f)", bash, vr_bash_counter) : bash;
     }
 
     if(vr_hitkind == QVR_HITKIND_SHOVE)
     {
         vr_dummy_colour = orange;
-        return vr_hithand >= 0 ? sprintf("shove with the %s", VR_Dummy_HandName(vr_hithand)) : "shove with both hands";
+        string shove = vr_hithand >= 0 ? sprintf("shove with the %s", VR_Dummy_HandName(vr_hithand)) : "shove with both hands";
+        return vr_bash_counter ? sprintf("counter %s (x%.2f)", shove, vr_bash_counter) : shove;
     }
 
     if(vr_hitkind == QVR_HITKIND_MELEE)
@@ -132,8 +134,12 @@ string(entity inflictor, entity attacker, float isVRMelee) VR_Dummy_Kind =
         {
             what = sprintf("%s with %s", what, b.mh_part);
         }
-        return sprintf("melee: %s, %s, %.1f m/s (x%.2f)", what, VR_Dummy_HandName(vr_hithand), b.mh_speed,
-                       b.mh_strength);
+        what = sprintf("melee: %s, %s, %.1f m/s (x%.2f)", what, VR_Dummy_HandName(vr_hithand), b.mh_speed, b.mh_strength);
+        if(b.mh_counter > 0)
+        {
+            what = sprintf("%s, counter x%.2f", what, b.mh_counter); // after a parry (vr_counter)
+        }
+        return what;
     }
 
     if(vr_hitkind == QVR_HITKIND_SHOT)
