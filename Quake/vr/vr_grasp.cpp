@@ -729,8 +729,9 @@ struct ThumbTurn
 {
     float opposition, swing;
 };
-constexpr ThumbTurn thumbTurns[] = {{0.f, 0.f}, {15.f, 0.f}, {30.f, 0.f}, {45.f, 0.f}, {60.f, 0.f}, {15.f, -15.f},
-    {30.f, -15.f}, {45.f, -15.f}, {30.f, 15.f}, {45.f, 15.f}, {0.f, -15.f}, {15.f, -30.f}};
+// (Round 21, second pass: no longer 60 degrees across nor 30 up: the skin round the thumb's base stretched thin.)
+constexpr ThumbTurn thumbTurns[] = {{0.f, 0.f}, {15.f, 0.f}, {30.f, 0.f}, {45.f, 0.f}, {15.f, -15.f}, {30.f, -15.f},
+    {45.f, -15.f}, {30.f, 15.f}, {45.f, 15.f}, {0.f, -15.f}};
 constexpr int thumbTurnCount = static_cast<int>(sizeof(thumbTurns) / sizeof(thumbTurns[0]));
 
 [[nodiscard]] glm::quat thumbQuat(const ThumbTurn& t)
@@ -782,7 +783,7 @@ void solveThumb(handrig::Pose& pose, const Context& ctx, const Solution* previou
     out = FingerStop{};
     out.startsInside = true;
     out.leastInside = true;
-    choice = again ? previous->thumbChoice : top ? 5 : 1;
+    choice = again ? previous->thumbChoice : top ? 4 : 1;
     turn = thumbQuat(thumbTurns[choice]);
 }
 
