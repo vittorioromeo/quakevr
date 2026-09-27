@@ -1393,6 +1393,60 @@ void pyramid_f()
     }
 }
 
+// vr_physics_pile <number | classname | props> <per column> <x> <y> <z> [<spacing>]: all of them in columns of
+// `per column` (as vr_physics_stack), side by side along x, `spacing` units apart (24): towers that fall into a pile.
+void pile_f()
+{
+    if(!sv.active || Cmd_Argc() < 6)
+    {
+        Con_Printf("usage: vr_physics_pile <number | classname | props> <per column> <x> <y> <z> [<spacing>]\n");
+        return;
+    }
+    const VmScope vm;
+    const std::vector<edict_t*> list = entitiesNamed(Cmd_Argv(1));
+    const size_t per = static_cast<size_t>(std::max(1, Q_atoi(Cmd_Argv(2))));
+    const glm::vec3 base{Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4)), Q_atof(Cmd_Argv(5))};
+    const float spacing = Cmd_Argc() > 6 ? Q_atof(Cmd_Argv(6)) : 24.f;
+    glm::vec3 at = base;
+    for(size_t i = 0; i < list.size(); i++)
+    {
+        if(i % per == 0)
+        {
+            at = base + glm::vec3{spacing * static_cast<float>(i / per), 0.f, 0.f};
+        }
+        edict_t* e = list[i];
+        glm::vec3 lo, hi;
+        localBox(e, modelOf(e), lo, hi);
+        placeStill(e, at - glm::vec3{0.f, 0.f, lo.z}, static_cast<float>((i * 37) % 90));
+        at.z += hi.z - lo.z + 0.5f;
+    }
+    Con_Printf("vr_physics_pile: %d in %d columns\n", static_cast<int>(list.size()), static_cast<int>((list.size() + per - 1) / per));
+}
+
+// vr_physics_hash: a hash of every rigid body's origin, angles, velocity and spin, bit for bit (determinism tests: two
+// runs of the same script print the same).
+void hash_f()
+{
+    if(!sv.active)
+    {
+        return;
+    }
+    const VmScope vm;
+    uint64_t h = 1469598103934665603ull;
+    int count = 0;
+    for(edict_t* e : entitiesNamed("props"))
+    {
+        const glm::vec3 v[4] = {vec(e->v.origin), vec(e->v.angles), vec(e->v.velocity), fieldVec(e, fields().vr_spin)};
+        const auto* bytes = reinterpret_cast<const unsigned char*>(v);
+        for(size_t i = 0; i < sizeof(v); i++)
+        {
+            h = (h ^ bytes[i]) * 1099511628211ull;
+        }
+        count++;
+    }
+    Con_Printf("vr_physics_hash: %d bodies, %016llx\n", count, static_cast<unsigned long long>(h));
+}
+
 // vr_physics_list [<classname | props>]: the rigid bodies (or those), where they are and how they move.
 void list_f()
 {
@@ -1423,6 +1477,8 @@ void registerCommands()
         Cmd_AddCommand("vr_physics_pyramid", pyramid_f);
         Cmd_AddCommand("vr_physics_list", list_f);
         Cmd_AddCommand("vr_physics_loose", loose_f);
+        Cmd_AddCommand("vr_physics_pile", pile_f);
+        Cmd_AddCommand("vr_physics_hash", hash_f);
     }
 }
 
@@ -1480,22 +1536,44 @@ extern "C" void VR_PhysicsFrameEnd(void)
         destroyWorld();
         buildWorld();
     }
+    const double t0 = Sys_DoubleTime();
     updateSettings();
-    syncEntities(dt);
-    beforeStep(dt);
+    {
+        QVR_PROFILE("box3d sync");
+        syncEntities(dt);
+    }
+    {
+        QVR_PROFILE("box3d water and hits");
+        beforeStep(dt);
+    }
+    const double t1 = Sys_DoubleTime();
 
     // Box3D's step, in pieces of at most 1/45 s (a slow server frame).
     std::vector<std::pair<int, int>> impacts;
     const int pieces = std::max(1, static_cast<int>(std::ceil(dt * 45.f - 0.01f)));
     const int substeps = CLAMP(1, static_cast<int>(vr_box3d_substeps.value), 8);
-    for(int i = 0; i < pieces; i++)
     {
-        b3World_Step(world->id, dt / static_cast<float>(pieces), substeps);
-        world->steps++;
-        touches(impacts);
+        QVR_PROFILE("box3d step");
+        for(int i = 0; i < pieces; i++)
+        {
+            b3World_Step(world->id, dt / static_cast<float>(pieces), substeps);
+            world->steps++;
+            touches(impacts);
+        }
+    }
+    const double t2 = Sys_DoubleTime();
+    if(vr_debug_box3d.value && (t2 - t0) * 1000.0 > 2.0)
+    {
+        const b3Counters c = b3World_GetCounters(world->id);
+        const b3Profile p = b3World_GetProfile(world->id);
+        Con_Printf("box3d: slow frame %.2f ms (sync and water %.2f, step %.2f: collide %.2f, solve %.2f, continuous %.2f), %d "
+                   "bodies (%d awake), %d contacts\n",
+            (t2 - t0) * 1000.0, (t1 - t0) * 1000.0, (t2 - t1) * 1000.0, p.collide, p.solve, p.bullets, c.bodyCount,
+            b3World_GetAwakeBodyCount(world->id), c.contactCount);
     }
 
     // The props into their entities (the awake ones, and those that just fell asleep).
+    QVR_PROFILE("box3d write");
     for(int num = 1; num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts; num++)
     {
         Slot& s = world->slots[num];
