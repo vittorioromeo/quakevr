@@ -25,9 +25,9 @@ namespace qvr::gore
 //   EventBurst:  a monster gibbed or a gib burst at `org`, `dir` the blow's way (times 7, or zero),
 //                `count` how big (10: a gib's).
 //   EventCorpse: a monster died whole at `org` (the corpse is the entity there), `dir.x * 8` its size.
-constexpr int EventHit = 40;
-constexpr int EventBurst = 41;
-constexpr int EventCorpse = 42;
+inline constexpr int EventHit = 40;
+inline constexpr int EventBurst = 41;
+inline constexpr int EventCorpse = 42;
 
 // A particle2 message (parseParticle2): true if it was one of the gore's events (drawn as marks
 // only), false for the particles to draw it.
