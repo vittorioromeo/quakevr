@@ -766,6 +766,7 @@ float(float xHand, entity b) VR_Melee_Sweep =
     {
         return FALSE;
     }
+    VR_Melee_Layout(b.mh_thing); // (this hand's: the globals hold the last hand tracked)
     float r = VR_MELEE_RADIUS * max(0.25, cvar_hget(cvarh_vr_melee_range_multiplier));
     vector hand = b.mh_grip;
 
