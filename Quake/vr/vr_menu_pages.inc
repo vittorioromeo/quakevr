@@ -516,7 +516,7 @@ void resetHandMoves()
     return {
         slider("Waves", "vr_water_waves", 0.f, 2.f, 0.1f, "%.1f").extend().help("Waves on water, slime and lava, in the lighting (the surfaces stay flat). 0: Quake's flat liquids."),
         slider("Water Reflection", "vr_water_fresnel", 0.f, 2.f, 0.1f, "%.1f").extend().help("Water is clearer looking straight down and reflects the room at grazing angles."),
-        slider("Water Refraction", "vr_water_refraction", 0.f, 2.f, 0.1f, "%.1f").extend().help("What is under the water is bent by the waves (needs no anti-aliasing and r_oit 1)."),
+        slider("Water Refraction", "vr_water_refraction", 0.f, 2.f, 0.1f, "%.1f").extend().help("What is under the water is bent by the waves (needs r_oit 1)."),
         slider("Water Glints", "vr_water_glints", 0.f, 2.f, 0.1f, "%.1f").extend().help("Light glinting off the waves."),
         slider("Lava Glow", "vr_water_lava_glow", 0.f, 2.f, 0.1f, "%.1f").extend().help("Lava glows, its hot parts brightest, pulsing slowly."),
         toggle("Real Waves", "vr_water_geo_waves").help("The surfaces of water, slime and lava rise and fall in long swells (still at the walls). Off: flat, the waves only in the lighting."),
@@ -646,10 +646,11 @@ void resetHandMoves()
 {
     return {
         toggle("(!) No Vis", "r_novis").help("NOT RECOMMENDED: water transparency in maps without vis data, by drawing the whole map every frame. Vispatch maps instead."),
-        slider("Water Alpha", "r_wateralpha", 0.f, 1.f, 0.1f, "%.1f"),
-        slider("Lava Alpha", "r_lavaalpha", 0.f, 1.f, 0.1f, "%.1f"),
-        slider("Tele Alpha", "r_telealpha", 0.f, 1.f, 0.1f, "%.1f"),
-        slider("Slime Alpha", "r_slimealpha", 0.f, 1.f, 0.1f, "%.1f"),
+        slider("Water Alpha", "r_wateralpha", 0.f, 1.f, 0.1f, "%.1f").help("How see-through water is (1: opaque). Only in maps vised for it (the relit maps are)."),
+        slider("Lava Alpha", "r_lavaalpha", 0.f, 1.f, 0.1f, "%.1f").help("How see-through lava is (1: opaque; 0: as Water Alpha). Only in maps vised for it."),
+        slider("Tele Alpha", "r_telealpha", 0.f, 1.f, 0.1f, "%.1f").help("How see-through teleporters are (1: opaque; 0: as Water Alpha). Only in maps vised for it."),
+        slider("Slime Alpha", "r_slimealpha", 0.f, 1.f, 0.1f, "%.1f").help("How see-through slime is (1: opaque; 0: as Water Alpha). Only in maps vised for it."),
+        toggle("Map's Own Alpha", "vr_map_liquid_alpha").help("Maps that set their liquids' alpha themselves (worldspawn keys) use theirs instead of the sliders above."),
     };
 }
 

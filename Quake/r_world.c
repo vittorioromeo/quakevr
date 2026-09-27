@@ -723,7 +723,10 @@ void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent)
 	R_ResetBModelCalls (program);
 	GL_SetState (state);
 	GL_Bind (GL_TEXTURE2, r_fullbright_cheatsafe ? greytexture : lightmap_texture);
-	GL_BindNative (GL_TEXTURE6, GL_TEXTURE_2D, translucent ? R_OpaqueSceneTexture () : 0); // QVR: refraction (vr/vr_water.cpp)
+	if (translucent) // QVR: refraction (vr/vr_water.cpp): the opaque scene (with MSAA resolved first)
+		R_BindOpaqueScene ();
+	else
+		GL_BindNative (GL_TEXTURE6, GL_TEXTURE_2D, 0);
 	GL_BindNative (GL_TEXTURE8, GL_TEXTURE_2D, scenedepth); // QVR
 
 	GL_Upload (GL_SHADER_STORAGE_BUFFER, bmodel_instances, sizeof(bmodel_instances[0]) * totalinst, &buf, &ofs);

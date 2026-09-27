@@ -151,8 +151,9 @@ models) and keeps the classic pixel look; none of it needs new art.
   already up to date (once: a map patched already is left as it is, its lumps packed). `Misc/quakevr/vis_maps.py --vis-dir <folder> [--relit quakevr/relit]` does it on its own
   (only the visibility and leaf lumps change; a patch whose leaves are not the map's is refused);
   `vis_maps.py --check quakevr/relit/id1/maps` reports, and in game `developer 2; map e1m1` prints
-  "maps/e1m1.bsp is vised for transparent water tele slime". `quakevr.cfg` sets `r_lavaalpha 1` (lava stays
-  opaque); `r_wateralpha` sets the rest. With `vr_relit_maps 0` the original maps load and water is opaque again.
+  "maps/e1m1.bsp is vised for transparent water tele slime". Lava is opaque by default (`r_lavaalpha 1`
+  in `vr_defaults.cfg`); `r_wateralpha` sets the rest. All four are saved (round 21); a map's own worldspawn keys
+  override them only with `vr_map_liquid_alpha 1`. With `vr_relit_maps 0` the original maps load and water is opaque again.
 - **Relight tools: ericw-tools 2.0.0-alpha11** (round 17; https://github.com/ericwa/ericw-tools/releases/tag/2.0.0-alpha11,
   `ericw-tools-2.0.0-alpha11-win64.zip`: `light.exe` beside its DLLs). Why: `-lux` (deluxemaps, LIGHTING.md), the
   `-lightgrid` BSPX lump, and the maintained code. The options are the same as with v0.18.1

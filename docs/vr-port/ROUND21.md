@@ -4117,3 +4117,60 @@ end (about 1 cm) or a joint for it that turns with the forearm.
   cuff, and does the wrist keep its thickness?
 - [ ] Roll the controller over. Does the elbow swing naturally, or too far? Try Body > Wrist Limits (0 is the old
   behaviour).
+## AA and liquids; liquid transparency saved
+
+Your notes: "enabling anti-aliasing in the graphics options screws up the water reflections or refractions", and
+"I've tweaked the transparency settings multiple times for the liquids, but they always get reverted". Branch
+`agent/aawater`. Composites are in the scratchpad's `aawater/`.
+
+### Anti-aliasing and water
+
+- **The cause:** with anti-aliasing (`vid_fsaa` 2/4/8, MSAA) the water's **refraction was switched off**. It reads
+  the opaque scene's colours, which with MSAA are a multisampled texture that a shader can't sample, so
+  `R_OpaqueSceneTexture` returned nothing and the refraction strength went to 0. The water then lost its bending
+  of what is under it and looked flatter. The "reflections" (the fresnel sheen and the glints) are computed in the
+  shader and weren't affected.
+- **The fix:** `R_BindOpaqueScene` resolves the multisampled scene into a plain texture once per eye, as the first
+  translucent liquid draws, and the refraction reads that. The resolve runs only with MSAA on, refraction on and a
+  translucent liquid in view. The translucent pass draws into the OIT buffers, so the copy still holds the opaque
+  scene. The Water Refraction help no longer says it needs anti-aliasing off.
+- **Evidence:** `aa_before_after.png` shows e1m2's pool before and after, with AA off and at 4x. `e4m1_after.png`
+  shows AA off, 4x and 8x. Both eyes match.
+- **Cost:** 0.06 ms per eye at 2048x2048 with 4x MSAA on the RTX 4090 (the `refraction resolve` scope in
+  `vr_profile`). At your 3292x3524 it should be about 0.17 ms per eye (estimated, not measured). It costs nothing
+  without MSAA or with refraction off.
+- **The other effects that read the scene or its depth** already handled MSAA:
+  - the foam's and soft particles' distances read the first sample;
+  - the heat haze resolves its own copy;
+  - bloom, tone mapping and the upscaler run after the scene's resolve;
+  - foveated rendering only sets the shading rate.
+
+### Liquid transparency saved
+
+- **Why your tweaks were lost:**
+  - `r_lavaalpha`, `r_slimealpha` and `r_telealpha` were never written to the config (the old Quake VR saved them).
+  - `quakevr.cfg`, which runs after the saved config, set `r_lavaalpha 1` at every start.
+  - `r_wateralpha` was already saved, and your config has 0.6.
+- **Now:**
+  - All four are saved, and `vr_savedefaults` writes them.
+  - Lava's opaque default moved to `vr_defaults.cfg` (`vr_default r_lavaalpha "1"`), and the forced line is gone.
+  - Slime and teleporters stay at 0 by default, which means "same as Water Alpha".
+- **Maps' own values:** a map's worldspawn keys (`wateralpha`, `lavaalpha`, ...) used to override your settings
+  when the map loaded. Now your settings win. *Map's Own Alpha* (`vr_map_liquid_alpha 1`) in the Transparency menu
+  lets the map's keys win again. No shipped map has these keys, so they weren't what reverted yours.
+- **Moving a slider in game** now gives exactly what a reload would. Only liquids the map is vised for turn
+  see-through, which avoids seeing into the void. `r_novis` also updates them now.
+- **Evidence:**
+  - Two launches: in the first, set water 0.55, lava 0.4, slime 0.5 and tele 0.7, then quit. The second launch has
+    the same values after starting and after loading a map.
+  - `mapkeys.png`: e1m2 with a test `wateralpha 0.1` key, shown with the toggle off, with it on, and with the
+    setting changed while it's on.
+  - `vr_savedefaults` wrote all three new ones.
+
+### For you
+
+- [ ] **Set your liquid values once more** (Transparency menu). They weren't saved before, so I don't have them.
+  Only `r_wateralpha 0.6` is known, and it's already the default. Once they're in your config, I'll make them the
+  shipped defaults.
+- [ ] Turn Anti-aliasing on and look at water with Water Refraction on: what's under it should bend the same as
+  with AA off.

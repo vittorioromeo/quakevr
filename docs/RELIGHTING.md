@@ -115,8 +115,8 @@ If you write the paths as `--quake .` from inside the Quake folder, that works t
   no relit version plays with its own light.
 - **See-through water:** set how transparent it is in *VR Settings > Advanced VR Options > Transparency > Water
   Alpha* (`r_wateralpha`, **0.6** by default in Quake VR; 1 is opaque). Maps that aren't water-vised keep opaque water whatever it says. Slime
-  and teleporters use the same value, unless *Slime Alpha* or *Tele Alpha* is set. Lava stays opaque
-  (`quakevr.cfg` sets `r_lavaalpha 1`).
+  and teleporters use the same value, unless *Slime Alpha* or *Tele Alpha* is set. Lava is opaque by default
+  (*Lava Alpha* 1). All four are saved in the config.
 
 ## Checking the result
 
