@@ -3,6 +3,7 @@
 
 #include "vr_motion.hpp"
 #include "vr_motion_take.hpp"
+#include "vr_motion_review.hpp"
 
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -1115,6 +1116,7 @@ void pollSaves(bool wait)
         savedThisSession.push_back(path);
         lastSavedName = std::filesystem::path(path).filename().string();
         takeCounts[label]++;
+        review::invalidate(); // a new take to list
         int events = 0;
         for(const Row& r : *p.rows)
         {
@@ -1205,6 +1207,7 @@ void saveUnsaved_f()
             Con_Printf("Motion recorder: saved %s\n", path.c_str());
             it = unsaved.erase(it);
             countsValid = false;
+            review::invalidate();
         }
         else
         {
@@ -1324,8 +1327,14 @@ void playFrameEnd(std::vector<Event>& events, bool tick, double svDt);
 void playServerFrame();
 bool playWantsSamples();
 
+void invalidateTakeCounts()
+{
+    countsValid = false;
+}
+
 void init()
 {
+    review::init();
     Cmd_AddCommand("vr_motion_record", record_f);
     Cmd_AddCommand("vr_motion_stop", stop_f);
     Cmd_AddCommand("vr_motion_list", list_f);
@@ -1395,6 +1404,7 @@ void serverFrame()
     tickThisFrame = true;
     tickDt = host_frametime;
     playServerFrame(); // a playback's placing and weapons
+    review::serverFrame(); // where the review's ghost goes
     if(!armedOrRecording() && !playWantsSamples())
     {
         latest.reset();
@@ -1507,6 +1517,7 @@ void hostFrameEnd()
 
 void frame()
 {
+    review::frame(); // the review's ghost and re-evaluation
     if(!armedOrRecording() && realtime >= feedbackUntil)
     {
         return;
@@ -1612,6 +1623,12 @@ const char* lastSaved()
 // Moves the last take saved (again: the one before) into motions/discarded/.
 void discardLast()
 {
+    // Takes the review moved or relabelled since (Review Takes) are no longer this session's to delete.
+    std::error_code ec;
+    while(!savedThisSession.empty() && !std::filesystem::exists(savedThisSession.back(), ec))
+    {
+        savedThisSession.pop_back();
+    }
     if(savedThisSession.empty())
     {
         Con_Printf("Motion recorder: no take saved in this session to delete\n");
@@ -1630,6 +1647,7 @@ void discardLast()
     }
     savedThisSession.pop_back();
     countsValid = false;
+    review::invalidate();
     Con_Printf("Motion recorder: deleted %s (moved into motions/discarded/)\n", name.c_str());
     feedbackText = va("DELETED %s", name.c_str());
     feedbackUntil = realtime + 2.0;

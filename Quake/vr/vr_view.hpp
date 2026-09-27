@@ -102,6 +102,12 @@ void graspDump_f();
 // a game directory change, which reuses the models' slots.
 void resetCaches();
 
+// The motion review's ghost (vr_motion_review.cpp): a recorded take's weapon (or empty hand) in `hand`, drawn
+// translucent and tinted this frame where the game draws a weapon held at the hand pose `pos`, `rot` (hands::State's
+// pos and rot, as a take records them): the weapon's own angle offsets and model transform, mirrored in the off hand.
+// Asked for every frame it is shown (from VR_BeginFrame); `model` null or not asked for: not drawn.
+void setGhost(int hand, qmodel_t* model, const glm::vec3& pos, const glm::vec3& rot, float alpha);
+
 // vr_grasp_bench [n]: solves each hand's grasp of what it holds n times (1000), and prints the times (min, median,
 // max, microseconds).
 void graspBench_f();

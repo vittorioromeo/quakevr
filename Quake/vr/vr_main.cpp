@@ -102,7 +102,9 @@ void stopBackend()
 
 void startBackend()
 {
-    std::unique_ptr<qvr::Backend> backend = createBackend(vr_backend.string);
+    // -vrmock: the mock headset whatever vr_backend says (the review's re-evaluation runs a second copy of the game
+    // beside the one in the headset: it must never open the runtime's session).
+    std::unique_ptr<qvr::Backend> backend = createBackend(COM_CheckParm("-vrmock") ? "mock" : vr_backend.string);
     if(!backend)
     {
         return;
