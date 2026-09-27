@@ -26,9 +26,19 @@ optional extras, and what to do when something goes wrong.
 - **A PC VR headset and an OpenXR runtime.** Quake VR is tested mostly on a Meta Quest 3 through Virtual Desktop.
   Controller bindings are included for Oculus/Meta Touch (and Touch Plus), Valve Index, HTC Vive wands, Windows
   Mixed Reality controllers, and OpenXR's generic "simple controller".
-- **The Microsoft Visual C++ Redistributable for Visual Studio 2015-2022 (x64).** Many games install it already. If
-  `ironwail.exe` complains about a missing `VCRUNTIME140.dll` or `MSVCP140.dll`, install it from
-  [Microsoft](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist).
+- **The Microsoft Visual C++ Redistributable for Visual Studio 2015-2022 (x64), version 14.44 or later.** Quake VR is
+  built with Visual Studio 2022 17.14 (MSVC toolset 14.44.35207), and needs a runtime at least that new: the one
+  that comes with it is 14.44.35112. Many games install the redistributable, but often an older one.
+  - **Older than 14.40 (Visual Studio 2022 17.10), the game crashes as it starts,** with no message or with an
+    access violation in `MSVCP140.dll`: the 17.10 standard library changed `std::mutex`, and an older
+    `MSVCP140.dll` doesn't know it. A missing `VCRUNTIME140.dll` or `MSVCP140.dll` means the same.
+  - **To check:** Settings > Apps > Installed apps, "Microsoft Visual C++ 2015-2022 Redistributable (x64)": its
+    version is the last part of the name (e.g. 14.44.35211).
+  - **To install or update it:** the latest x64 installer is always at
+    [aka.ms/vs/17/release/vc_redist.x64.exe](https://aka.ms/vs/17/release/vc_redist.x64.exe) (Microsoft's
+    permanent link; [the page listing it](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist)).
+    Installing it over an older one updates it.
+  - A future Quake VR installer will check the version and offer the update itself.
 
 ## Your copy of Quake
 

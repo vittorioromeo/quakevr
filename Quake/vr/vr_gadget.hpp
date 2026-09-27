@@ -12,6 +12,7 @@
 #include <glm/glm.hpp>
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace qvr::gadget
@@ -74,7 +75,7 @@ struct Glow
 // screen is turned towards the viewer (like a watch, checked by raising the wrist).
 struct Log
 {
-    std::vector<std::string> lines;
+    std::vector<std::string_view> lines; // the gadget's own text, valid until the next log()
     std::vector<float> alpha;
     glm::vec3 base{0.f}; // the screen's centre: the log's bottom edge is `lift` above it (the view's up)
     float lift{0.f};

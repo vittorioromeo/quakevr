@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -34,7 +35,24 @@ struct Queued
     bool overlay{false}; // over the eye's image, not depth tested (queueOverlay)
 };
 
+// This frame's texts: the first queuedCount of `queued`, whose elements (and their strings' buffers) are kept for the
+// next frame's.
 std::vector<Queued> queued;
+std::size_t queuedCount = 0;
+
+[[nodiscard]] std::span<const Queued> queuedTexts()
+{
+    return {queued.data(), queuedCount};
+}
+
+[[nodiscard]] Queued& nextQueued()
+{
+    if(queuedCount == queued.size())
+    {
+        queued.emplace_back();
+    }
+    return queued[queuedCount++];
+}
 std::vector<gfx::Vertex> vertices; // glyphs
 std::vector<gfx::Vertex> panels;   // screens behind them
 std::vector<gfx::Vertex> floating; // floating texts (blended: they fade)
@@ -157,10 +175,16 @@ void glyph(const glm::vec3& topLeft, const glm::vec3& right, const glm::vec3& do
     const gfx::Vertex tr{topLeft + right, {uv.z, uv.y}, color};
     const gfx::Vertex br{topLeft + right + down, {uv.z, uv.w}, color};
     const gfx::Vertex bl{topLeft + down, {uv.x, uv.w}, color};
-    for(const gfx::Vertex& v : {tl, tr, br, tl, br, bl})
-    {
-        out.push_back(v);
-    }
+    // (Written in place: no temporary list of six copied one push at a time.)
+    const std::size_t n = out.size();
+    out.resize(n + 6);
+    gfx::Vertex* v = out.data() + n;
+    v[0] = tl;
+    v[1] = tr;
+    v[2] = br;
+    v[3] = tl;
+    v[4] = br;
+    v[5] = bl;
 }
 
 // A floating text (worldtext::FloatText) at client time `now`, facing the camera (`eye`, `right`,
@@ -677,21 +701,33 @@ void drawOverlay()
 
 void queue(std::string_view text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale, bool screen)
 {
-    queued.push_back({std::string{text}, pos, angles, align, scale, screen});
+    Queued& q = nextQueued();
+    q.text.assign(text);
+    q.pos = pos;
+    q.angles = angles;
+    q.align = align;
+    q.scale = scale;
+    q.screen = screen;
+    q.overlay = false;
     builtFrame = -1;
 }
 
 void queueOverlay(std::string_view text, const glm::vec3& pos, const glm::vec3& angles, float scale)
 {
-    Queued q{std::string{text}, pos, angles, Align::Centre, scale, false};
+    Queued& q = nextQueued();
+    q.text.assign(text);
+    q.pos = pos;
+    q.angles = angles;
+    q.align = Align::Centre;
+    q.scale = scale;
+    q.screen = false;
     q.overlay = true;
-    queued.push_back(std::move(q));
     builtFrame = -1;
 }
 
 void clear()
 {
-    queued.clear();
+    queuedCount = 0;
     builtFrame = -1;
 }
 
@@ -704,7 +740,7 @@ void renderScreens()
     }
 
     int index = 0;
-    for(const Queued& q : queued)
+    for(const Queued& q : queuedTexts())
     {
         if(!q.screen)
         {
@@ -764,7 +800,7 @@ void renderScreens()
 // Texts queued this frame and map text boards held (vr_memstats).
 void counts(int& queuedTexts, int& boardCount)
 {
-    queuedTexts = static_cast<int>(queued.size());
+    queuedTexts = static_cast<int>(queuedCount);
     boardCount = static_cast<int>(boards.size());
 }
 
@@ -819,7 +855,7 @@ extern "C" void VR_DrawSceneOpaque()
                 layout(wt.text, wt.pos, wt.angles, static_cast<Align>(wt.hAlign), wt.scale);
             }
         }
-        for(const Queued& q : queued)
+        for(const Queued& q : queuedTexts())
         {
             if(q.overlay)
             {

@@ -45,6 +45,10 @@ float VR_BrushAOSelf (const struct entity_s *e);
 namespace qvr::ao
 {
 
+// The game directory changed (VR_OnGameDirChanged): Mod_ResetAll reuses the models' slots for other models, and the
+// files are another game's; the baked occlusion by model name, the brush models' by model, the frame's occluders dropped.
+void onGameDirChanged();
+
 void init();
 
 // VR_PushMapLights (each eye's R_PushDlights): the occluders, chosen once a frame, binned into this eye's tiles and

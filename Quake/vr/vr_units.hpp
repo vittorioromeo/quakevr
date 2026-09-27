@@ -11,10 +11,10 @@ namespace qvr::units
 {
 
 // Quake units per metre at vr_world_scale 1.
-constexpr float perMetre = 1.f / 0.0381f;
+inline constexpr float perMetre = 1.f / 0.0381f;
 
 // Eye height the body and gadget models are made for (make_vrbody.py, make_gadget.py).
-constexpr float modelEyeHeight = 1.646f;
+inline constexpr float modelEyeHeight = 1.646f;
 
 [[nodiscard]] inline float worldScale()
 {

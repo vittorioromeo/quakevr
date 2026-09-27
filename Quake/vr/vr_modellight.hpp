@@ -26,6 +26,10 @@ struct MapLight
 // The current map's lights, parsed when it loads.
 [[nodiscard]] const std::vector<MapLight>& mapLights();
 
+// The game directory changed (VR_OnGameDirChanged): Mod_ResetAll reuses the models' slots for other models, and the
+// files are another game's; the map's lights and the entities' cached directions (and the world they came from).
+void onGameDirChanged();
+
 // World-space direction towards the light reaching `e` (xyz) and how much it applies (w, 0..1);
 // {0, 0, 0, 0} keeps the fixed direction. Updated at most once per frame per entity.
 [[nodiscard]] glm::vec4 direction(const entity_t* e);

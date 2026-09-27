@@ -156,6 +156,7 @@ extern "C" void VR_OnSpawnServerBeforeLoad()
 {
     qvr::server::resetClients();
     qvr::physics::resetRigidBodies();
+    qvr::physics::precacheWaterSounds();
     resetBuiltinState();
     callSpawnServerEntryPoint(sv_bindings.OnSpawnServerBeforeLoad);
 }

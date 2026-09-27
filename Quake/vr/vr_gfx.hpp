@@ -71,8 +71,22 @@ struct State
     Texture sceneDistances{0};
 };
 
-// Triangles (three vertices each), transformed by `mvp` to clip space. No culling.
+// Triangles (three vertices each), transformed by `mvp` to clip space. No culling. They are copied into the frame's
+// upload buffer at each call.
 void draw(std::span<const Vertex> triangles, const glm::mat4& mvp, const State& state, Texture texture = 0);
+
+// Triangles kept in a vertex buffer of their own, for ones that stay the same over many frames (the settled decals):
+// uploaded when they change, then drawn from it in both eyes and every frame until they change again.
+struct StaticTriangles
+{
+    unsigned buffer{0};
+    std::size_t capacity{0}; // bytes
+    std::size_t count{0};    // vertices
+    long long uploads{0};    // so far (vr_decal_count)
+    long long uploadedBytes{0};
+};
+void upload(StaticTriangles& triangles, std::span<const Vertex> vertices);
+void draw(const StaticTriangles& triangles, const glm::mat4& mvp, const State& state, Texture texture = 0);
 
 // The scene view's world-to-clip transform, while the scene (or an eye) is rendered.
 [[nodiscard]] glm::mat4 sceneViewProjection();
@@ -108,6 +122,10 @@ void ensureTarget(Target& target, int width, int height, bool mipmaps = false, c
 // and rebuilds its mipmaps if it has them.
 void begin2D(const Target& target, int virtualWidth, int virtualHeight);
 void end2D();
+
+// The game directory changed (VR_OnGameDirChanged): Mod_ResetAll reuses the models' slots for other models, and the
+// files are another game's; the gfx.wad pictures looked up by name (Draw_NewGame loaded them again).
+void onGameDirChanged();
 
 // 2D drawing between begin2D() and end2D(), in virtual screen coordinates (y down).
 namespace draw2D

@@ -6,10 +6,10 @@
 #include "vr_engine.hpp"
 #include "vr_particles.hpp"
 #include "vr_profile.hpp"
+#include "vr_ring.hpp"
 
 #include <algorithm>
 #include <cmath>
-#include <deque>
 #include <random>
 #include <vector>
 
@@ -86,15 +86,15 @@ struct Ray
     bool big;           // a burst's (splotches head on)
 };
 
-std::deque<Ray> rays;
 constexpr std::size_t maxRays = 320;
 constexpr int raysPerFrame = 24;
+Ring<Ray> rays{maxRays}; // the oldest traced first; while it is full, new ones are left out
 
 void queue(const Ray& r)
 {
-    if(rays.size() < maxRays)
+    if(!rays.full())
     {
-        rays.push_back(r);
+        rays.pushBack() = r;
     }
 }
 
@@ -619,7 +619,7 @@ void frame()
     for(int i = 0; i < raysPerFrame && !rays.empty(); i++)
     {
         const Ray r = rays.front();
-        rays.pop_front();
+        rays.popFront();
         cast(r);
     }
 

@@ -21,13 +21,47 @@
 #include "vr_voicenotes.hpp"
 #include "vr_flashlight.hpp"
 
+#include <string>
 #include <utility>
 #include <vector>
+
+extern "C" qboolean keydown[MAX_KEYS]; // keys.c
 
 using namespace qvr;
 
 namespace
 {
+
+// A take playing back (vr_motion_play): the controllers' key commands go ahead of whatever waits in the
+// command buffer (a script's remaining commands and waits), as they run at once in the headset; else a grip
+// pressed in a replay would take its weapon only after the script. In game only (menus as usual).
+std::string playbackCommands;
+
+void keyEvent(int key, bool down)
+{
+    if(!motion::playing() || key_dest != key_game)
+    {
+        Key_Event(key, down);
+        return;
+    }
+    const bool was = keydown[key] != 0;
+    keydown[key] = down;
+    const char* kb = keybindings[key];
+    if(!kb || down == was)
+    {
+        return;
+    }
+    if(down)
+    {
+        playbackCommands += kb[0] == '+' ? std::string{va("%s %i", kb, key)} : std::string{kb};
+        playbackCommands += '\n';
+    }
+    else if(kb[0] == '+')
+    {
+        playbackCommands += va("-%s %i", kb + 1, key);
+        playbackCommands += '\n';
+    }
+}
 
 struct ButtonKeys
 {
@@ -245,9 +279,9 @@ void update(const InputState& tracked)
             if(now != previous.hands[h].*b.button)
             {
                 // The off hand's upper button at the mouth records a voice note instead (not while that hand holds
-                // the flashlight: its Y turns it round in the fist, held overhead by the head too; a note's release
-                // always ends it).
-                if(h == HAND_OFF && b.button == &HandInput::secondary && (!now || !flashlight::holds(HAND_OFF)) &&
+                // the flashlight or is at it on the head: its Y turns it round in the fist, clips it on the head or
+                // takes it off; a note's release always ends it).
+                if(h == HAND_OFF && b.button == &HandInput::secondary && (!now || !flashlight::wantsSecondary(HAND_OFF)) &&
                     voicenotes::offhandButton(now))
                 {
                     continue;
@@ -268,14 +302,14 @@ void update(const InputState& tracked)
                     {
                         if(flashlight::tookGrip(h))
                         {
-                            Key_Event(buttonKeys[1].key[h], false); // the grip's key
+                            keyEvent(buttonKeys[1].key[h], false); // the grip's key
                         }
                         continue;
                     }
                 }
                 // A trigger pointing at the menu is its mouse button.
                 const int key = b.button == &HandInput::trigger ? menuui::triggerKey(h, now, b.key[h]) : b.key[h];
-                Key_Event(key, now);
+                keyEvent(key, now);
                 if(now && key_dest == key_menu && !vr_disablehaptics.value)
                 {
                     // A click under the finger, as the old engine gave in menus.
@@ -327,6 +361,11 @@ void update(const InputState& tracked)
     }
 
     previous = in;
+    if(!playbackCommands.empty())
+    {
+        Cbuf_InsertText(playbackCommands.c_str());
+        playbackCommands.clear();
+    }
     runHaptics();
 }
 

@@ -518,6 +518,11 @@ void anchorNearest_f()
 
 } // namespace
 
+void onGameDirChanged()
+{
+    vertexOrders.clear();
+}
+
 void registerCommands()
 {
     Cmd_AddCommand("vr_anchor_info", anchorInfo_f);

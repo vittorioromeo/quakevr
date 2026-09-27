@@ -927,6 +927,7 @@ extern "C" void VR_Init()
     motion::init();
     flashlight::init();
     detail::init();
+    particles::init();
     client::init();
     server::init();
     Cmd_AddCommand("vr_dumpview", view::dumpView_f);

@@ -5,6 +5,7 @@
 #include "vr_engine.hpp"
 
 #include <cstdint>
+#include <optional>
 
 namespace qvr
 {
@@ -38,6 +39,9 @@ struct VrMove
 };
 
 void writeVrMove(sizebuf_t* buf, const VrMove& move);
-[[nodiscard]] VrMove readVrMove();
+
+// The block, read whole (the message stays in step); none if any of its floats is not finite (NaN, infinity): the
+// move is dropped, the client's previous one stands.
+[[nodiscard]] std::optional<VrMove> readVrMove();
 
 } // namespace qvr
