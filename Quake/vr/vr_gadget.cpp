@@ -427,11 +427,17 @@ struct HoloMessage
 {
     std::string text; // its lines, joined by '\n'
     int columns{0}, rows{0};
-    double start{0.0};    // realtime it was printed (or last repeated)
-    double appeared{0.0}; // realtime it first was
+    double start{0.0};    // realtime its life counts from: printed (or last repeated); held, when first seen
+    double appeared{0.0}; // realtime it first was (held: first seen): its fade-in and growth
+    double printed{0.0};  // a console line's print time, which it is taken by (0: a centre print)
+    int generation{-1};   // the map's (worldGeneration): a new map's messages start afresh
+    unsigned id{0};
+    bool centre{false};
+    bool notify{false}; // a notification (anything but a pickup): see vr_messages_hologram_only
+    bool seen{false};   // shown to the player once (the hologram facing them, at least half faded in)
 };
 
-// A message's block in the image.
+// A block of the image.
 struct HoloBlock
 {
     std::string text;
@@ -439,7 +445,10 @@ struct HoloBlock
     float v0{0.f}, v1{0.f}; // its texture rows (v up: v0 its bottom)
 };
 
-HoloMessage centre;                    // the latest centre print (empty: none)
+std::vector<HoloMessage> queue;        // the game's messages, oldest first
+double newestLine = 0.0;               // the newest console line taken into it (its print time)
+unsigned nextId = 1;
+std::string latestCentre;              // the latest centre print's text (SCR_CenterPrint's)
 std::vector<HoloMessage> holoMessages; // this frame's, oldest first
 int holoCollected = -1;                // the host frame they were collected in
 gfx::Target holoTarget;
@@ -456,6 +465,8 @@ struct HoloFrame
     bool centreShown{false};   // it shows the centre print
     double lastShown{-100.0};  // realtime it was last shown
     double opened{-100.0};     // realtime it last appeared: its projection's start
+    float shown{0.f};          // how much the gadget is in view and faces the viewer (0..1), this frame
+    int shownFrame{-100};      // the frame of that
 };
 HoloFrame holo;
 float logLift = -1.f; // the log's lift, following the hologram's top smoothly (world units; -1 not yet)
@@ -473,6 +484,41 @@ float logLift = -1.f; // the log's lift, following the hologram's top smoothly (
 [[nodiscard]] float hologramEffect()
 {
     return CLAMP(0.f, vr_messages_hologram_effect.value, 2.f);
+}
+
+// vr_messages_hologram_only: the game's messages are the hologram's alone (never in front of the head), and a
+// notification waits in it until seen, announced by a chime from the gadget and a buzz of its hand.
+[[nodiscard]] bool hologramOnly()
+{
+    return vr_messages_hologram_only.value != 0.f && hologramOn();
+}
+
+// How long a notification waits to be seen at most (a stale one is no use).
+constexpr double heldMax = 300.0;
+
+[[nodiscard]] bool held(const HoloMessage& m)
+{
+    return m.notify && !m.seen && hologramOnly();
+}
+
+[[nodiscard]] bool alive(const HoloMessage& m)
+{
+    return m.generation == worldGeneration() &&
+           (held(m) ? realtime - m.appeared < heldMax : realtime - m.start < static_cast<double>(hologramLife()));
+}
+
+// Whether the gadget was in view and facing the viewer last frame (the hologram's `shown`, at least half).
+[[nodiscard]] bool gadgetInView()
+{
+    return holo.shownFrame >= host_framecount - 1 && holo.shown >= 0.5f;
+}
+
+// A pickup's print ("You got the Grenade Launcher", "You get 20 shells", "You receive 25 health", "You got armor"): the
+// thing is in the hand already, so not a notification.
+[[nodiscard]] bool pickupLine(std::string_view s)
+{
+    constexpr std::string_view prefixes[] = {"You got ", "You get ", "You receive "};
+    return std::any_of(std::begin(prefixes), std::end(prefixes), [&](std::string_view p) { return s.starts_with(p); });
 }
 
 // `text` as a message: plain, its lines wrapped to holoColumns, the empty ones at its ends left out.
@@ -511,8 +557,96 @@ void makeMessage(std::string_view text, HoloMessage& m)
     }
 }
 
-// This frame's messages (once a frame): the game's lines from the console's newest, and the centre
-// print, while they last; oldest first, the oldest left out beyond holoRows lines.
+// ---- The notification (vr_messages_hologram_only): a chime from the gadget and a buzz of its hand ----------------
+
+// The chime is Quake's message sound (misc/talk.wav, the one the maps' messages come with), played at the gadget's
+// screen on an entity number of its own and kept there as the arm moves (setPose): heard from the wrist.
+constexpr int chimeEntity = -0x5C12;
+double lastChime = -100.0;
+double buzzAgain = -1.0; // realtime the buzz's second pulse is due (<0: none)
+
+[[nodiscard]] int gadgetHand()
+{
+    return vr_gadget_hand.value != 0.f ? HAND_MAIN : HAND_OFF;
+}
+
+void chime(sfx_t* sfx = nullptr)
+{
+    if(realtime - lastChime < 0.3 || !current.valid)
+    {
+        return; // one just played (the game's own, moved here, or ours)
+    }
+    sfx = sfx ? sfx : S_PrecacheSound("misc/talk.wav");
+    if(!sfx)
+    {
+        return;
+    }
+    lastChime = realtime;
+    Con_DPrintf("gadget: chime (%s) from the gadget\n", sfx->name);
+    const glm::vec3 c = screenCentre();
+    vec3_t org{c.x, c.y, c.z};
+    S_StartSound(chimeEntity, 1, sfx, org, 1.f, 1.f);
+}
+
+// A watch's buzz: two short gentle pulses.
+void buzz()
+{
+    if(Backend* be = backend(); be && !vr_disablehaptics.value)
+    {
+        be->haptic(gadgetHand(), 0.05f, 160.f, 0.4f);
+        buzzAgain = realtime + 0.13;
+    }
+}
+
+// A message came: with vr_messages_hologram_only, a notification not in view chimes and buzzes.
+void announce(const HoloMessage& m)
+{
+    if(!m.notify || !hologramOnly() || gadgetInView())
+    {
+        return;
+    }
+    Con_DPrintf("gadget: notification \"%s\"\n", m.text.c_str());
+    chime();
+    buzz();
+}
+
+// Adds a message to the queue: the same text again while it is up (a locked door touched again) keeps that one on
+// instead (announced again if it had been seen and is out of view).
+void addMessage(HoloMessage m)
+{
+    m.generation = worldGeneration();
+    for(HoloMessage& e : queue)
+    {
+        if(e.text == m.text && alive(e))
+        {
+            if(held(e))
+            {
+                return; // still waiting to be seen
+            }
+            e.start = m.start;
+            e.printed = std::max(e.printed, m.printed);
+            if(hologramOnly() && e.notify && !gadgetInView())
+            {
+                e.seen = false; // not in view: waits again
+                e.appeared = realtime;
+                announce(e);
+            }
+            return;
+        }
+    }
+    m.id = nextId++;
+    announce(m);
+    queue.push_back(std::move(m));
+    if(queue.size() > 16)
+    {
+        queue.erase(queue.begin());
+    }
+}
+
+// This frame's messages (once a frame): the game's new console lines taken into the queue as they are printed (a
+// line pieced together from several prints, as a pickup's, taken whole within its first second), the queue's dead
+// ones dropped; then the newest that fit, oldest first, beyond holoRows lines or holoMessagesMax messages left out
+// (the ones waiting to be seen kept first).
 void collectMessages()
 {
     if(holoCollected == host_framecount)
@@ -523,64 +657,119 @@ void collectMessages()
     holoMessages.clear();
     if(!hologramOn())
     {
+        queue.clear();
         return;
     }
 
-    const double life = hologramLife();
     NotifyLine line;
-    for(int age = 0; age < 16 && static_cast<int>(holoMessages.size()) < holoMessagesMax; age++)
+    for(int age = 0; age < 16; age++)
     {
         if(!notifyLine(age, line))
         {
             continue;
         }
-        if(line.seconds >= life)
+        if(line.seconds >= 1.0)
         {
-            break; // older lines are older still
+            break; // older lines are older still (taken already)
         }
         if(!line.game || line.text.empty())
         {
             continue;
         }
-        HoloMessage& m = holoMessages.emplace_back();
+        const double printed = realtime - line.seconds;
+        auto it = std::find_if(queue.begin(), queue.end(),
+            [&](const HoloMessage& m) { return m.printed > 0.0 && std::abs(m.printed - printed) < 1e-4; });
+        if(it != queue.end())
+        {
+            HoloMessage m;
+            makeMessage(line.text, m);
+            if(m.rows > 0 && m.text != it->text)
+            {
+                it->text = std::move(m.text); // continued since
+                it->columns = m.columns;
+                it->rows = m.rows;
+            }
+            continue;
+        }
+        if(printed <= newestLine + 1e-4)
+        {
+            continue; // taken before, gone since
+        }
+        newestLine = printed;
+        HoloMessage m;
         makeMessage(line.text, m);
-        m.start = m.appeared = realtime - line.seconds;
         if(m.rows == 0)
         {
-            holoMessages.pop_back();
+            continue;
+        }
+        m.start = m.appeared = m.printed = printed;
+        m.notify = !pickupLine(m.text);
+        addMessage(std::move(m));
+    }
+    std::erase_if(queue, [](const HoloMessage& m) { return !alive(m); });
+
+    // The newest that fit: the waiting ones first, then the rest; one too long alone, its first lines.
+    static std::vector<bool> keep;
+    keep.assign(queue.size(), false);
+    int rows = 0, count = 0;
+    for(const bool waiting : {true, false})
+    {
+        for(size_t i = queue.size(); i-- > 0;)
+        {
+            const HoloMessage& m = queue[i];
+            const int r = std::min(m.rows, holoRows);
+            if(keep[i] || held(m) != waiting || count >= holoMessagesMax || rows + r > holoRows)
+            {
+                continue;
+            }
+            keep[i] = true;
+            rows += r;
+            count++;
         }
     }
-    if(!centre.text.empty() && realtime - centre.start < life)
+    for(size_t i = 0; i < queue.size(); i++)
     {
-        holoMessages.push_back(centre);
+        if(!keep[i])
+        {
+            continue;
+        }
+        HoloMessage& m = holoMessages.emplace_back(queue[i]);
+        if(m.rows > holoRows)
+        {
+            int lines = 1;
+            for(size_t c = 0; c < m.text.size(); c++)
+            {
+                if(m.text[c] == '\n' && ++lines > holoRows)
+                {
+                    m.text.resize(c);
+                    break;
+                }
+            }
+            m.rows = holoRows;
+        }
     }
     std::stable_sort(holoMessages.begin(), holoMessages.end(),
         [](const HoloMessage& a, const HoloMessage& b) { return a.start < b.start; });
+}
 
-    int rows = 0;
-    size_t keep = holoMessages.size();
-    while(keep > 0 && rows + holoMessages[keep - 1].rows <= holoRows &&
-          static_cast<int>(holoMessages.size() - keep) < holoMessagesMax)
+// Marks this frame's messages seen, the hologram facing the viewer (layoutHologram): a waiting one's life starts now,
+// and it grows in as if it had just come.
+void markSeen()
+{
+    for(HoloMessage& shown : holoMessages)
     {
-        rows += holoMessages[--keep].rows;
-    }
-    if(keep == holoMessages.size() && !holoMessages.empty())
-    {
-        // The newest alone is too long: its first lines.
-        HoloMessage& m = holoMessages.back();
-        int lines = 1;
-        for(size_t i = 0; i < m.text.size(); i++)
+        auto it = std::find_if(queue.begin(), queue.end(), [&](const HoloMessage& m) { return m.id == shown.id; });
+        if(it == queue.end() || it->seen)
         {
-            if(m.text[i] == '\n' && ++lines > holoRows)
-            {
-                m.text.resize(i);
-                break;
-            }
+            continue;
         }
-        m.rows = std::min(m.rows, holoRows);
-        keep--;
+        if(held(*it))
+        {
+            it->start = it->appeared = realtime;
+            shown.start = shown.appeared = realtime;
+        }
+        it->seen = shown.seen = true;
     }
-    holoMessages.erase(holoMessages.begin(), holoMessages.begin() + static_cast<std::ptrdiff_t>(keep));
 }
 
 // The image, if the messages changed (end of the 2D pass).
@@ -654,8 +843,10 @@ void layoutHologram()
     holo.beam.clear();
     holo.top = 0.f;
     holo.centreShown = false;
+    holo.shown = 0.f;
+    holo.shownFrame = host_framecount;
     collectMessages();
-    if(holoMessages.empty() || !current.valid || !holoTarget.texture || holoDrawn.empty())
+    if(!current.valid)
     {
         return;
     }
@@ -667,16 +858,21 @@ void layoutHologram()
     const float lift = gadgetTop(up) + std::max(0.f, vr_messages_hologram_height.value) / cmPerModelUnit * scale;
     const glm::vec3 base = c + up * lift;
 
-    // While the screen faces the viewer, and it is in view.
+    // While the screen faces the viewer, and it is in view (with or without messages: gadgetInView).
     float shown = facing(eye);
     const glm::vec4 clip = gfx::sceneViewProjection() * glm::vec4{base, 1.f};
     if(clip.w <= 0.f || std::abs(clip.x) > clip.w * 1.1f || std::abs(clip.y) > clip.w * 1.1f)
     {
         shown = 0.f;
     }
-    if(shown <= 0.f)
+    holo.shown = shown;
+    if(shown <= 0.f || holoMessages.empty() || !holoTarget.texture || holoDrawn.empty())
     {
         return;
+    }
+    if(shown >= 0.5f)
+    {
+        markSeen();
     }
     if(realtime - holo.lastShown > 0.4)
     {
@@ -713,7 +909,7 @@ void layoutHologram()
 
         const float age = static_cast<float>(realtime - m.appeared);
         const float fade = CLAMP(0.f, age / holoFadeIn, 1.f) *
-                           CLAMP(0.f, static_cast<float>(m.start + life - realtime) / holoFadeOut, 1.f);
+                           (held(m) ? 1.f : CLAMP(0.f, static_cast<float>(m.start + life - realtime) / holoFadeOut, 1.f));
         if(fade <= 0.f)
         {
             continue;
@@ -722,7 +918,7 @@ void layoutHologram()
         const float alpha = fade * shown * (0.4f + 0.6f * open);
         newest = std::max(newest, m.appeared);
         strongest = std::max(strongest, alpha);
-        if(!centre.text.empty() && m.text == centre.text && m.start == centre.start)
+        if(m.centre && m.text == latestCentre)
         {
             holo.centreShown = shown >= 0.5f;
         }
@@ -815,6 +1011,34 @@ void layoutHologram()
 
 void messageTest_f();
 
+// A centre print as a message (VR_GameCenterPrint, the test).
+void centrePrint(std::string_view text)
+{
+    HoloMessage m;
+    makeMessage(text, m);
+    if(m.rows == 0)
+    {
+        for(auto it = queue.rbegin(); it != queue.rend(); ++it)
+        {
+            if(it->centre)
+            {
+                if(!held(*it))
+                {
+                    queue.erase(std::next(it).base());
+                }
+                break;
+            }
+        }
+        latestCentre.clear();
+        return;
+    }
+    m.start = m.appeared = realtime;
+    m.centre = true;
+    m.notify = true;
+    latestCentre = m.text;
+    addMessage(std::move(m));
+}
+
 } // namespace
 
 // Once in each 7 seconds, at a random moment of them, a burst of 0.12 to 0.35 seconds rising and
@@ -848,6 +1072,72 @@ void setPose(const Pose& pose)
 {
     current = pose;
     glow(pose);
+
+    // The chime stays at the gadget as the arm moves; the buzz's second pulse.
+    if(realtime - lastChime < 3.0 && pose.valid)
+    {
+        const glm::vec3 c = screenCentre();
+        for(int i = NUM_AMBIENTS; i < total_channels && i < NUM_AMBIENTS + MAX_DYNAMIC_CHANNELS; i++)
+        {
+            channel_t& ch = snd_channels[i];
+            if(ch.sfx && ch.entnum == chimeEntity)
+            {
+                ch.origin[0] = c.x;
+                ch.origin[1] = c.y;
+                ch.origin[2] = c.z;
+            }
+        }
+    }
+    if(buzzAgain >= 0.0 && realtime >= buzzAgain)
+    {
+        buzzAgain = -1.0;
+        if(Backend* be = backend(); be && !vr_disablehaptics.value)
+        {
+            be->haptic(gadgetHand(), 0.05f, 160.f, 0.4f);
+        }
+    }
+}
+
+bool testMessage()
+{
+    if(!hologramOn())
+    {
+        return false;
+    }
+    // The game's own: a key needed, maps' texts (e1m1, e4m4: two lines), a secret, a powerup running out (a print).
+    struct Test
+    {
+        const char* text;
+        bool centre;
+    };
+    static constexpr Test tests[] = {{"You need the gold key", true}, {"You must press the three buttons...", true},
+        {"You found a secret area!", true}, {"Quad Damage is wearing off", false},
+        {"Are you sure you want to exit now?\nYou left something important behind.", true},
+        {"A secret cave has opened...", true}};
+    static int next = 0;
+    const Test& t = tests[next];
+    next = (next + 1) % static_cast<int>(std::size(tests));
+
+    // As the game's: its sound at the head (a trigger's misc/talk.wav), unless it is the notification's (from the
+    // gadget, as the message is taken: announce).
+    if(!hologramOnly() || gadgetInView())
+    {
+        S_LocalSound("misc/talk.wav");
+    }
+    if(!t.centre)
+    {
+        Con_ServerPrint((std::string{t.text} + "\n").c_str());
+    }
+    else if(key_dest == key_menu)
+    {
+        centrePrint(t.text); // (the game's centre prints are not taken while a menu is open)
+    }
+    else
+    {
+        SCR_CenterPrint(t.text);
+        Con_LogCenterPrint(t.text);
+    }
+    return true;
 }
 
 const Pose& pose()
@@ -1040,13 +1330,22 @@ void drawHologram()
 namespace
 {
 
-// vr_message_test <center|print|console> <text>: a message as the game's centre print, a server's
-// print, or the engine's console line ("\n" in it: a new line), to see where it shows.
+// vr_message_test: the next test message (testMessage, the menu's). vr_message_test <center|print|console> <text>: a
+// message as the game's centre print, a server's print, or the engine's console line ("\n" in it: a new line), to see
+// where it shows.
 void messageTest_f()
 {
+    if(Cmd_Argc() == 1)
+    {
+        if(!testMessage())
+        {
+            Con_Printf("vr_message_test: no hologram (in a game, vr_hud_mode 1, vr_messages_hologram 1)\n");
+        }
+        return; // the Screens page's Show a Test Message
+    }
     if(Cmd_Argc() < 3)
     {
-        Con_Printf("usage: vr_message_test <center|print|console> <text>\n");
+        Con_Printf("usage: vr_message_test [<center|print|console> <text>]\n");
         return;
     }
     std::string text;
@@ -1079,8 +1378,9 @@ void messageTest_f()
 } // namespace qvr::gadget
 
 // A centre print (SCR_CenterPrint): the game's, for the hologram; not the options menu's preview, nor
-// the intermission's text (the gadget is put away). An empty one clears it; the same one again while
-// it shows keeps it on (a locked door touched again).
+// the intermission's text (the gadget is put away). Each a message of its own (they stack); the same
+// one again while it shows keeps it on (a locked door touched again); an empty one clears the latest
+// (unless it waits to be seen).
 extern "C" void VR_GameCenterPrint(const char* str)
 {
     using namespace qvr::gadget;
@@ -1088,27 +1388,53 @@ extern "C" void VR_GameCenterPrint(const char* str)
     {
         return;
     }
-    HoloMessage m;
-    makeMessage(str ? str : "", m);
-    if(m.rows == 0)
-    {
-        centre = {};
-        return;
-    }
-    if(m.text == centre.text && realtime - centre.start < hologramLife())
-    {
-        centre.start = realtime;
-        return;
-    }
-    m.start = m.appeared = realtime;
-    centre = std::move(m);
+    centrePrint(str ? str : "");
 }
 
-// While the hologram shows the centre print, it is not shown in front of the head too.
+// While the hologram shows the centre print, it is not shown in front of the head too; with
+// vr_messages_hologram_only, never (it waits in the hologram).
 extern "C" int VR_CenterPrintOnWrist()
 {
     using namespace qvr::gadget;
-    return hologramOn() && holo.centreShown && holo.frame >= host_framecount - 1;
+    return hologramOn() && (hologramOnly() || (holo.centreShown && holo.frame >= host_framecount - 1));
+}
+
+// Con_DrawNotify, a server's line (`text`, `length` characters) about to be drawn in view (vr_notify_wrist 0 or 2):
+// nonzero to leave it out, a game message with vr_messages_hologram_only (it waits in the hologram).
+extern "C" int VR_GameLineOnWrist(const char* text, int length)
+{
+    using namespace qvr::gadget;
+    if(!hologramOnly() || !text)
+    {
+        return 0;
+    }
+    std::string plain(text, static_cast<size_t>(std::max(length, 0)));
+    for(char& c : plain)
+    {
+        c = static_cast<char>(static_cast<unsigned char>(c) & 127);
+    }
+    while(!plain.empty() && plain.back() == ' ')
+    {
+        plain.pop_back();
+    }
+    return !plain.empty() && !engineLine(plain);
+}
+
+// CL_ParseStartSoundPacket: a sound the server started. Quake's message sounds, misc/talk.wav (a trigger's text, on
+// the trigger or the player) and misc/secret.wav (a secret found, on its trigger), are the notification's with
+// vr_messages_hologram_only while the gadget is out of view: played at the gadget instead, as its chime (they come just
+// before their message: announce then only buzzes). Nonzero when taken.
+extern "C" int VR_GameSound(int entnum, sfx_t* sfx)
+{
+    using namespace qvr::gadget;
+    (void)entnum;
+    if(!sfx || (q_strcasecmp(sfx->name, "misc/talk.wav") && q_strcasecmp(sfx->name, "misc/secret.wav")) ||
+        !hologramOnly() || gadgetInView() || !current.valid)
+    {
+        return 0;
+    }
+    chime(sfx); // (nothing if one just played)
+    return 1;
 }
 
 // The notify lines go to the log over the wrist gadget (vr_notify_wrist 1), not the view's edge.

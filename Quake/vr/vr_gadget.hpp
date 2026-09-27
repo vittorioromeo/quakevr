@@ -100,4 +100,14 @@ struct Log
 // translucent pass (text3d::drawTranslucent), laid out once a frame.
 void drawHologram();
 
+// QVR round 21 (the Screens page's Show a Test Message): the next of a few of the game's own messages (a key needed,
+// maps' texts, a secret, a powerup running out), sent as the game sends them, so that pressing again stacks them; with
+// a menu open too. False when there is no hologram (no game, or it is off).
+bool testMessage();
+
+// With vr_messages_hologram_only (round 21) the game's messages never show in front of the head: they wait in the
+// hologram until it is seen (a notification's life starts then; five minutes at most), and a new notification (a
+// centre print, or a server's print other than a pickup) arriving while the gadget is out of view chimes from the
+// gadget (misc/talk.wav, the game's own message sound moved there: VR_GameSound) and buzzes its hand twice.
+
 } // namespace qvr::gadget

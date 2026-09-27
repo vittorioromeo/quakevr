@@ -9,6 +9,7 @@
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_gadget.hpp"
 #include "vr_main.hpp"
 #include "vr_menu.hpp"
 #include "vr_menuui.hpp"
@@ -423,6 +424,12 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
     };
 }
 
+// QVR round 21: a game message in the hologram, to see the settings' effect (vr_gadget.cpp).
+void hologramTestMessage()
+{
+    qvr::gadget::testMessage();
+}
+
 // Split from Wrist Gadget (and Immersion): the wrist gadget's screen, the weapons' ammo screens and
 // the maps' text boards.
 [[nodiscard]] std::vector<Item> pageScreens()
@@ -447,6 +454,10 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("How high over the gadget it floats."),
         slider("Hologram Effect", vr_messages_hologram_effect, 0.f, 2.f, 0.1f, "%.1fx")
             .help("The beam of light from the screen, scanlines, flicker, glitches and the projection as it appears (0: plain glowing text)."),
+        action("Show a Test Message", hologramTestMessage)
+            .help("One of the game's messages in the hologram, as they come: raise the gadget to see it while you change these settings. Press again for another: they stack."),
+        toggle("Messages Only on the Gadget", vr_messages_hologram_only)
+            .help("The game's messages never show in front of you: they wait in the hologram until you look at the gadget. A new one (a key needed, a secret, the map's text; not pickups) chimes from the gadget on your wrist and buzzes it."),
         cycle("Console Messages", vr_notify_wrist, {{1.f, "Over the gadget"}, {2.f, "Both"}, {0.f, "In view"}})
             .help("The console's other messages (the engine's: settings changed, cheats, errors) float in a small log over the gadget, or at the top of the view."),
         slider("Console Message Time", vr_notify_wrist_time, 2.f, 30.f, 1.f, "%.0f s")

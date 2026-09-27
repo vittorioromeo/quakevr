@@ -195,7 +195,8 @@ void CL_ParseStartSoundPacket(void)
 	for (i = 0; i < 3; i++)
 		pos[i] = MSG_ReadCoord (cl.protocolflags);
 
-	S_StartSound (ent, channel, cl.sound_precache[sound_num], pos, volume/255.0, attenuation);
+	if (!VR_GameSound (ent, cl.sound_precache[sound_num])) // QVR: the wrist gadget's notification
+		S_StartSound (ent, channel, cl.sound_precache[sound_num], pos, volume/255.0, attenuation);
 }
 
 /*

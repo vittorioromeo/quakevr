@@ -139,10 +139,14 @@ void VR_SetupViewEntities (void);						// V_RenderView, before R_RenderView
 
 // Console (console.c).
 int VR_NotifyOnWrist (void);							// Con_DrawNotify: nonzero to leave the notify lines to the wrist gadget's log
+int VR_GameLineOnWrist (const char *text, int length);	// Con_DrawNotify: a server's line: nonzero to leave it to the hologram (vr_messages_hologram_only)
 
 // Screen (gl_screen.c).
 void VR_GameCenterPrint (const char *str);				// SCR_CenterPrint: a centre print, for the wrist gadget's hologram (vr_gadget.cpp)
 int VR_CenterPrintOnWrist (void);						// SCR_CheckDrawCenterString: nonzero while that hologram shows it (not in view)
+
+// Sound (cl_parse.c).
+int VR_GameSound (int entnum, struct sfx_s *sfx);		// CL_ParseStartSoundPacket: nonzero when the wrist gadget plays it instead (its notification)
 
 // Menu (menu.c).
 void VR_Menu_Open (void);								// Options > VR Settings
