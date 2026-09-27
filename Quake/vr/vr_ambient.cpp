@@ -3,6 +3,7 @@
 #include "vr_ambient.hpp"
 #include "vr_main.hpp"
 #include "vr_cvars.hpp"
+#include "vr_evict.hpp"
 #include "vr_profile.hpp"
 
 #include <algorithm>
@@ -407,6 +408,7 @@ const Cube& shadeMemo(ShadeMemo& m, const Probe& probe)
 const qmodel_t* loadedWorld = nullptr;
 int loadedGeneration = -1;
 std::unordered_map<const entity_t*, Cached> cache;
+Eviction eviction;
 int budgetFrame = -1;
 int tracedThisFrame = 0;
 int freshThisFrame = 0;
@@ -529,6 +531,7 @@ void ambient::entityCube(const entity_t* e, const float modelMatrix[16], const v
     if(cl.worldmodel != loadedWorld || worldGeneration() != loadedGeneration) // the same model can hold another map: a map name loaded again (vr_relit_maps switched)
     {
         cache.clear();
+        eviction = {};
         loadedWorld = cl.worldmodel;
         loadedGeneration = worldGeneration();
     }
@@ -626,11 +629,8 @@ void ambient::entityCube(const entity_t* e, const float modelMatrix[16], const v
         }
         c.frame = host_framecount;
 
-        // Evict entities not drawn for a while (temporary entities come and go).
-        if(cache.size() > 2048)
-        {
-            std::erase_if(cache, [](const auto& kv) { return kv.second.frame < host_framecount - 100; });
-        }
+        // Evict entities not drawn for a while (temporary entities come and go): at most once a frame (vr_evict.hpp).
+        evictStale(cache, 2048, 100, host_framecount, eviction);
     }
 
     // (`c` is still there: the eviction above leaves the entities drawn this frame.)
@@ -653,4 +653,12 @@ extern "C" void VR_AliasAmbient(const entity_t* e, const float matrix[16], const
                                 float out[24])
 {
     ambient::entityCube(e, matrix, aliashdr, enabled != 0, reinterpret_cast<float(*)[4]>(out));
+}
+
+void ambient::onGameDirChanged()
+{
+    cache.clear();
+    eviction = {};
+    loadedWorld = nullptr;
+    loadedGeneration = -1;
 }

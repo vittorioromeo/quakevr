@@ -54,6 +54,11 @@ constexpr float easyHandTouchBonus = 4.5f;
     return {v[0], v[1], v[2]};
 }
 
+[[nodiscard]] bool finite(const glm::vec3& v)
+{
+    return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z);
+}
+
 [[nodiscard]] bool hasFlag(edict_t* ent, int flag)
 {
     return (static_cast<int>(ent->v.flags) & flag) != 0;
@@ -363,9 +368,9 @@ extern "C" int VR_ClientTeleport(edict_t* ent)
     }
 
     // The client picks the target: accept it only within the teleport range (with some slack for
-    // the arc) and where the player fits.
+    // the arc) and where the player fits. (Written to turn a NaN away too.)
     const glm::vec3 target = move->teleportTarget;
-    if(glm::distance(vec(ent->v.origin), target) > std::max(vr_teleport_range.value, 100.f) * 1.5f + 64.f)
+    if(!(glm::distance(vec(ent->v.origin), target) <= std::max(vr_teleport_range.value, 100.f) * 1.5f + 64.f))
     {
         return 0;
     }
@@ -394,7 +399,7 @@ extern "C" void VR_ClientRoomscaleMove(edict_t* ent)
     }
 
     const glm::vec3 move = vrMove->roomscaleMove;
-    if(move.x == 0.f && move.y == 0.f)
+    if((move.x == 0.f && move.y == 0.f) || !std::isfinite(move.x) || !std::isfinite(move.y))
     {
         return;
     }
@@ -433,7 +438,7 @@ extern "C" void VR_ClientRoomscaleMove(edict_t* ent)
 // A splash is Quake VR's particle preset (particles::Preset::Splash: drops, foam and ripples,
 // drawn by each client as its vr_water_splash says), sent from here, with a sound at the spot
 // (vr_water_sounds is their volume; the sounds are recordings, a few of each picked at random:
-// variant, below; docs/vr-port/CREDITS.md; precached by QC/world.qc). They come from:
+// variant, below; docs/vr-port/CREDITS.md; precached at each map's start: precacheWaterSounds). They come from:
 // - things going into a liquid (SV_CheckWaterTransition: shots, grenades, nails, gibs, items,
 //   thrown weapons, a monster falling in), as hard as they go and as big as they are
 //   (VR_AllowWaterSplash, below);
@@ -493,43 +498,65 @@ namespace
     return false;
 }
 
-// Sounds at a point (not an entity's): the world's entity, on the auto channel, with the position
-// given -- what SV_StartSound sends, where a sound is. At most a few a frame (a shotgun's pellets).
-[[nodiscard]] int soundIndex(const char* sample)
+// The water sounds: each a few recordings (quakevr/sound/vr; where they come from: docs/vr-port/CREDITS.md), one
+// played at random. Precached at each map's start (precacheWaterSounds; QC/world.qc names them too), and played by
+// their precache indices: nothing built or compared by name as they play.
+enum class WaterSound : int
 {
-    for(int i = 1; i < MAX_SOUNDS && sv.sound_precache[i]; i++)
-    {
-        if(!std::strcmp(sample, sv.sound_precache[i]))
-        {
-            return i;
-        }
-    }
-    return 0;
-}
+    SplashSmall,
+    SplashBig,
+    SplashOut, // a hand out (one recording)
+    Plip,
+    Slosh,
+    Stroke,
+    Count
+};
 
-double soundFrame = -1.0;
-int soundsThisFrame = 0;
-
-// One of a water sound's recorded variants, vr/<base>1.wav to vr/<base><count>.wav (quakevr/sound/vr; where they come
-// from: docs/vr-port/CREDITS.md), at random, never the one played last.
-[[nodiscard]] std::string variant(const char* base, int count = 4)
+struct WaterSoundFiles
 {
-    static std::unordered_map<std::string, int> last;
-    int& prev = last.try_emplace(base, -1).first->second;
+    const char* files[4];
+    int count;
+};
+
+constexpr WaterSoundFiles waterSoundFiles[] = {
+    {{"vr/splash_small1.wav", "vr/splash_small2.wav", "vr/splash_small3.wav", "vr/splash_small4.wav"}, 4},
+    {{"vr/splash_big1.wav", "vr/splash_big2.wav", "vr/splash_big3.wav", "vr/splash_big4.wav"}, 4},
+    {{"vr/splash_out1.wav"}, 1},
+    {{"vr/plip1.wav", "vr/plip2.wav", "vr/plip3.wav", "vr/plip4.wav"}, 4},
+    {{"vr/slosh1.wav", "vr/slosh2.wav", "vr/slosh3.wav", "vr/slosh4.wav"}, 4},
+    {{"vr/stroke1.wav", "vr/stroke2.wav", "vr/stroke3.wav", "vr/stroke4.wav"}, 4},
+};
+static_assert(std::size(waterSoundFiles) == static_cast<std::size_t>(WaterSound::Count));
+
+int waterSoundIndices[static_cast<int>(WaterSound::Count)][4]{}; // this server's precache indices (0: none)
+int lastVariant[static_cast<int>(WaterSound::Count)]{-1, -1, -1, -1, -1, -1};
+
+// One of a water sound's recordings, at random, never the one played last: its precache index (0: not precached).
+[[nodiscard]] int variant(WaterSound sound)
+{
+    const int s = static_cast<int>(sound);
+    const int count = waterSoundFiles[s].count;
+    int& prev = lastVariant[s];
     int k = count > 1 ? std::rand() % (prev >= 0 ? count - 1 : count) : 0;
     if(prev >= 0 && count > 1 && k >= prev)
     {
         k++;
     }
     prev = k;
-    return std::string{"vr/"} + base + std::to_string(k + 1) + ".wav";
+    return waterSoundIndices[s][k];
 }
 
-bool soundAt(const glm::vec3& at, const char* sample, float volume, float attenuation = 1.f)
+double soundFrame = -1.0;
+int soundsThisFrame = 0;
+
+// Sounds at a point (not an entity's): the world's entity, on the auto channel, with the position
+// given -- what SV_StartSound sends, where a sound is. At most a few a frame (a shotgun's pellets).
+// `sound`: its precache index (variant).
+bool soundAt(const glm::vec3& at, int sound, float volume, float attenuation = 1.f)
 {
     const float master = CLAMP(0.f, vr_water_sounds.value, 1.f);
     const int vol = static_cast<int>(CLAMP(0.f, volume * master, 1.f) * 255.f);
-    const int index = vol > 0 ? soundIndex(sample) : 0;
+    const int index = vol > 0 ? sound : 0;
     if(!index)
     {
         return false;
@@ -546,7 +573,7 @@ bool soundAt(const glm::vec3& at, const char* sample, float volume, float attenu
     soundsThisFrame++;
     if(developer.value >= 2)
     {
-        Con_Printf("VR water sound: %s, volume %.2f\n", sample, vol / 255.f);
+        Con_Printf("VR water sound: %s, volume %.2f\n", sv.sound_precache[index], vol / 255.f);
     }
 
     int mask = 0;
@@ -604,6 +631,11 @@ std::vector<SentSplash> splashesThisFrame;
 
 bool sendSplash(const glm::vec3& at, const glm::vec3& dir, float strength)
 {
+    // (Its figures go into the message as integers: none from a NaN or an infinity.)
+    if(!finite(at) || !finite(dir) || !std::isfinite(strength))
+    {
+        return false;
+    }
     if(splashFrame != qcvm->time)
     {
         splashFrame = qcvm->time;
@@ -644,7 +676,7 @@ bool sendSplash(const glm::vec3& at, const glm::vec3& dir, float strength)
 void splashOut(const glm::vec3& at, float strength, float volume)
 {
     sendSplash(at, glm::vec3{0.f, 0.f, 1.f}, strength);
-    soundAt(at, variant("splash_out", 1).c_str(), volume);
+    soundAt(at, variant(WaterSound::SplashOut), volume);
 }
 
 // Each player's hands, guns and legs in the water.
@@ -687,7 +719,7 @@ void handCrossing(edict_t* ent, WaterFeel& w, int probe, const WaterProbe& was, 
     const bool in = isLiquid(contents);
     const bool crossed = in != isLiquid(was.contents) && (contents == CONTENTS_EMPTY || was.contents == CONTENTS_EMPTY);
     const int hand = probe & 1;
-    if(!crossed || dt <= 0.f || qcvm->time - w.handSplash[hand] < 0.3)
+    if(!crossed || !(dt > 0.f) || qcvm->time - w.handSplash[hand] < 0.3)
     {
         return;
     }
@@ -695,7 +727,7 @@ void handCrossing(edict_t* ent, WaterFeel& w, int probe, const WaterProbe& was, 
     const glm::vec3 vel = (p - was.pos) / dt / m2u; // m/s, the body's motion too
     const float speed = glm::length(vel);
     const float needed = in ? 0.9f : 1.4f; // m/s, down into it or up out of it
-    if(speed > 12.f || (in ? -vel.z : vel.z) < needed)
+    if(!(speed <= 12.f) || !((in ? -vel.z : vel.z) >= needed)) // (a NaN turned away too)
     {
         return; // a tracking jump, or too slow (a hand dipped in)
     }
@@ -706,7 +738,7 @@ void handCrossing(edict_t* ent, WaterFeel& w, int probe, const WaterProbe& was, 
     {
         const glm::vec3 at = surfaceBetween(was.pos, p);
         sendSplash(at, vel / speed, (4.f + 12.f * hard) * gun);
-        soundAt(at, variant("splash_small").c_str(), 0.35f + 0.65f * hard);
+        soundAt(at, variant(WaterSound::SplashSmall), 0.35f + 0.65f * hard);
         server::sendHaptic(ent, hand, 0.f, 0.06f + 0.08f * hard, 60.f, 0.3f + 0.5f * hard);
     }
     else
@@ -766,7 +798,7 @@ void wading(edict_t* ent, WaterFeel& w, float dt)
     }
     const float deep = level >= 2.f ? 1.f : 0.65f;
     sendSplash(at, ahead, 2.f + 2.f * deep);
-    soundAt(at, variant("slosh").c_str(), CLAMP(0.3f, 0.25f + w.wadeSpeed / 200.f, 0.8f) * deep);
+    soundAt(at, variant(WaterSound::Slosh), CLAMP(0.3f, 0.25f + w.wadeSpeed / 200.f, 0.8f) * deep);
 }
 
 void waterFeedback(edict_t* ent)
@@ -839,7 +871,7 @@ void strokeFeedback(edict_t* ent, int handIndex, const glm::vec3& hand, float pe
     }
     w->stroke = qcvm->time;
     const float hard = CLAMP(0.f, (peak - 1.f) / 2.5f, 1.f);
-    soundAt(hand, variant("stroke").c_str(), 0.3f + 0.55f * hard);
+    soundAt(hand, variant(WaterSound::Stroke), 0.3f + 0.55f * hard);
     glm::vec3 at;
     if(surfaceOver(hand, 10.f, at))
     {
@@ -885,9 +917,9 @@ bool thingSplash(edict_t* ent, const glm::vec3& at, bool entering)
     }
     if(thingRadius(ent) < 6.f) // a nail, a grenade: a shot's plip
     {
-        return soundAt(at, variant("plip").c_str(), 0.6f);
+        return soundAt(at, variant(WaterSound::Plip), 0.6f);
     }
-    return soundAt(at, variant(strength >= 18.f ? "splash_big" : "splash_small").c_str(), CLAMP(0.35f, 0.3f + strength / 25.f, 1.f));
+    return soundAt(at, variant(strength >= 18.f ? WaterSound::SplashBig : WaterSound::SplashSmall), CLAMP(0.35f, 0.3f + strength / 25.f, 1.f));
 }
 
 } // namespace
@@ -998,6 +1030,38 @@ bool liquidEntry(const glm::vec3& from, const glm::vec3& to, glm::vec3& at)
     return w.found;
 }
 
+void precacheWaterSounds()
+{
+    for(auto& indices : waterSoundIndices)
+    {
+        std::fill(std::begin(indices), std::end(indices), 0);
+    }
+    if(!active() || sv.state != ss_loading)
+    {
+        return;
+    }
+    for(int s = 0; s < static_cast<int>(WaterSound::Count); s++)
+    {
+        for(int k = 0; k < waterSoundFiles[s].count; k++)
+        {
+            // As PF_precache_sound (the names are literals: they outlive the server).
+            const char* const name = waterSoundFiles[s].files[k];
+            for(int i = 0; i < MAX_SOUNDS; i++)
+            {
+                if(!sv.sound_precache[i])
+                {
+                    sv.sound_precache[i] = name;
+                }
+                if(!std::strcmp(sv.sound_precache[i], name))
+                {
+                    waterSoundIndices[s][k] = i;
+                    break;
+                }
+            }
+        }
+    }
+}
+
 void waterSplash(const glm::vec3& at, const glm::vec3& dir, float strength, SplashSound sound)
 {
     const float length = glm::length(dir);
@@ -1007,9 +1071,9 @@ void waterSplash(const glm::vec3& at, const glm::vec3& dir, float strength, Spla
     }
     switch(sound)
     {
-        case SplashSound::Shot: soundAt(at, variant("plip").c_str(), 0.6f); break;
+        case SplashSound::Shot: soundAt(at, variant(WaterSound::Plip), 0.6f); break;
         case SplashSound::Thing:
-            soundAt(at, variant(strength >= 18.f ? "splash_big" : "splash_small").c_str(), CLAMP(0.35f, 0.3f + strength / 25.f, 1.f));
+            soundAt(at, variant(strength >= 18.f ? WaterSound::SplashBig : WaterSound::SplashSmall), CLAMP(0.35f, 0.3f + strength / 25.f, 1.f));
             break;
         default: break;
     }
@@ -1221,11 +1285,11 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
         Stroke& stroke = state.stroke;
         vec3_t p{hand.pos.x, hand.pos.y, hand.pos.z};
         const float speedMs = glm::length(hand.vel); // the move's hand velocities are in m/s
-        if(speedMs > glitchSpeed)
+        if(!(speedMs <= glitchSpeed)) // (a NaN turned away too)
         {
             continue;
         }
-        if(SV_PointContents(p) > CONTENTS_WATER || speedMs <= minSpeed) // out of the water (or slime, lava); still
+        if(SV_PointContents(p) > CONTENTS_WATER || !(speedMs > minSpeed)) // out of the water (or slime, lava); still
         {
             endStroke(state, h, now);
             continue;
@@ -1322,6 +1386,10 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
 
     const float maxSpeed = std::max(0.f, vr_swim_max_speed.value);
     const float len = glm::length(vel);
+    if(!std::isfinite(len))
+    {
+        return; // (a hand's figures gone wrong: SV_WaterMove's velocity stands)
+    }
     if(len > maxSpeed && len > 0.f)
     {
         vel *= maxSpeed / len;
@@ -1378,7 +1446,7 @@ extern "C" void VR_BeforePlayerPostThink(edict_t* ent)
     AngleVectors(ent->v.v_angle, fwd, right, up);
     const glm::vec3 shotPoint = vec(ent->v.origin) + glm::vec3{0.f, 0.f, 16.f};
     const glm::vec3 delta = (muzzle - vec(fwd) * 8.f) - shotPoint;
-    if(glm::length(delta) > 96.f)
+    if(!(glm::length(delta) <= 96.f)) // (a NaN turned away too)
     {
         return; // not where the player is (a teleport, a respawn)
     }

@@ -654,3 +654,96 @@ Composites are in the scratchpad's `round21_gadget/`:
 
 Not verified: the haptic pulses and the stereo position of the chime were only logged in the mock (it has no
 haptics or ears), and the counter's legibility at the Quest 3's resolution was not checked (the mock is 960 × 540).
+
+## C++ audit fixes
+
+The fixes chosen from the C++ audit, one commit each (or a small group). Measured with `run.sh --exclusive` and
+`vr_profile`; images compared before and after in the mock (scripts and composites in the scratchpad's `perf/`).
+
+### What changed
+
+| # | Where | Fix |
+|---|---|---|
+| 1 | `vr_upscale.cpp` | FSR's 60 KB shader source is put together only when its program is compiled (`fsrProgram`), not at each call (up to six a frame). FSR, NIS and RCAS-alone images identical. |
+| 2 | `docs/INSTALL.md` | The Visual C++ Redistributable needed: 14.44 or later (built with VS 2022 17.14, toolset 14.44.35207; older than 14.40 crashes at start: the 17.10 STL's constexpr `std::mutex`), how to check it, `aka.ms/vs/17/release/vc_redist.x64.exe`; a future installer will check it. |
+| 3 | `vr_move.cpp`, `vr_server.cpp`, `vr_physics.cpp`, `vr_climb.cpp` | `readVrMove` reads the whole block and drops the move if any float is not finite (the previous move stands). The "reject if x > limit" tests are written `!(x <= limit)`: the teleport range, a hand crossing the surface (dt, speed, the needed speed), the swim's glitch and still tests, the compat muzzle shift, climbing's moved-away and hand-at-the-body tests. `sendSplash` refuses non-finite figures (they become integers in the message); the roomscale move ignores a non-finite one; the swim keeps SV_WaterMove's velocity if its sum isn't finite. |
+| 4 | `vr_emissive.cpp`, `vr_decals.cpp`, `vr_fgfx.cpp` | Hashes in unsigned arithmetic: the torch seed, the decal atlas's noise lattice, the tendrils' noise keys (the only other signed ones found). |
+| 5 | `vr_water.cpp` | `gridRises`: a flat power-of-two table, linear probing, slots stamped with the view (a stamp of our own: `r_framecount` restarts at each map), at most half full, doubling when needed: no clearing, no allocation once grown. `gridPins`: a flat table built once a map. |
+| 6 | `vr_decals.cpp`, `vr_gore.cpp`, `vr_ring.hpp` | The decals in a `Ring` (a vector used as a FIFO ring) of `vr_decal_max` slots, made that size again when the cvar changes (at the next mark, as the deque was trimmed then); a mark goes into the next slot, its triangles into that slot's buffer. The clip buffers and corners are static scratch. The drops' quarter: a running count, the oldest drop removed by swapping the older marks up (their order and buffers kept). Gore's rays: a fixed ring of 320. |
+| 7 | `common.c`, `vr_api.h`, `vr_gamedir.cpp` and the modules | `VR_OnGameDirChanged` (COM_SwitchGame, after `Mod_ResetAll` and the renderer's reload) empties the caches listed below. |
+| 8 | `vr_menu.cpp` | `change()` copies the action's page and function out of the `Item` before running it. |
+| 9 | `vr_climb.cpp` | `climbers` is a fixed array of `MAX_SCOREBOARD`, as the swimmers'. |
+| 10 | headers | `inline constexpr` for the header-scope constants and tables: `vr_handrig_data.inc` (and `make_hand_rig.py`, which writes it), `vr_handrig.hpp`, `vr_gore.hpp`, `vr_units.hpp`, `vr_motion_take.hpp`. The keyword only. |
+| 11 | `vr_gadget.cpp/.hpp`, `vr_text3d.cpp`, `vr_gfx_gl.cpp`, `vr_ao.cpp` | No per-frame string allocations: the gadget's wrapped lines in a reused pool, the hologram's key, the notify line, the messages copied into the elements already there, `VR_GameLineOnWrist`'s copy (all on the main thread, one call at a time). The wrist log's lines are views of the gadget's pool (`gadget::Log::lines` is a `std::vector<std::string_view>`, valid until the next `log()`). `text3d::queue` assigns into kept strings; a glyph's vertices are written in place. `pics` and the AO bake maps use a transparent hash. The AO candidates' order is a kept vector. |
+| 12 | `vr_ao.cpp` | `groupOf`: a flat array of at most 64 (entity, group), searched in order. |
+| 13 | `vr_particles.cpp` | The pool is reserved at startup to its cap: 32768 particles of 128 bytes, 4 MB. |
+| 14 | `vr_physics.cpp`, `vr_progs.cpp` | The water sounds are a table (`WaterSound`), precached from C++ at each map's start with Quake VR's progs (`VR_OnSpawnServerBeforeLoad`; world.qc still names them too), played by precache index; the random choice as before. |
+| 15 | `vr_ambient.cpp`, `vr_modellight.cpp`, `vr_evict.hpp` | Eviction at most once a frame, and only when something can be old enough (a scan notes the oldest entry it keeps). |
+| 16 | `vr_decals.cpp`, `vr_gfx.hpp`, `vr_gfx_gl.cpp` | `gfx::StaticTriangles`: triangles in their own vertex buffer, uploaded (orphaned and refilled) only when they change. The settled decals are drawn from it in both eyes. `vr_decal_count` prints the uploads. |
+| 17 | `vr_flashlight.cpp`, `vr_cvars.inc`, `vr_menu.cpp` | `vr_flashlight_beam_quality` (Flashlight > Beam Quality): 2 high = 16 sides x 9 rings every frame (as before, bit for bit); 1 medium (the default) = 8 x 9, the other sides the mean of their neighbours; 0 low = 8 x 5, the rings between too. Medium and low keep a trace while its line moved less than 1% of its length (at least 0.1 unit), for at most 0.1 s. |
+
+### Measurements
+
+| Item | Scene | Before | After |
+|---|---|---|---|
+| 17, the beam (`flashlight beam` scope) | e1m1's corridor, the torch held along the floor into the wall; still / moving | 0.018 / 0.017 ms | high 0.018 / 0.017; **medium 0.002 / 0.010**; low 0.002 / 0.006 ms |
+| 17 | e1m2's dark room by the water (chest torch) | 0.049 ms average, 0.96 ms worst frame | not measured after |
+| 12, `groupOf` (`vr_ao_show`) | firing range, ten grunts, 31 occluders of 73 | choosing them 0.015 ms a frame | 0.013 ms: the map's clear and refill cost about **2 us a frame** |
+| 5, `gridRise` | e1m2's pool, a shotgun blast every 27 frames | `particle verts` 0.037 / 0.034 ms (the eyes) | 0.041 / 0.028 ms: within the noise at this load |
+| 5, standalone (the same code, 14 lookups per crossing) | 100 / 400 / 1500 crossings a view | 6.1 / 42 / 196 us a view | 3.2 / 16 / 83 us |
+| 16, decal uploads | the decal scene's 441 settled vertices; the cap scenes' 102-201 | 34.5 KB a frame (both eyes); 8-16 KB | uploaded only when they change: 33 uploads (325 KB in all) over the whole decal scene |
+| 6 | firing range, 118-187 marks | `decal verts` 0.020 ms, `decals` 0.028 | 0.021, 0.026 ms (the same work; no allocation per mark) |
+| 15, eviction (standalone, the same maps and test) | 1000 / 2100 / 3000 / 5000 entities drawn a frame, 30 short-lived a frame | 12 / 35 / 60 / 140 ms a frame | 0.015 / 0.023 / 0.028 / 0.042 ms, the same entries kept |
+
+The per-frame costs of items 1, 5, 6, 11, 12 and 16 were already small (tens of microseconds or less): these fixes take
+away allocations, upload bytes and worst cases rather than visible time in these scenes. Item 15's worst case was a
+real hitch: past 2048 cached entities with none old enough, every entity drawn scanned the whole map.
+
+### Caches emptied on a game directory change
+
+`vr_ao`: the baked occlusion (by model name), the brush models' drawable flags (by model), the lit submodels, the
+frame's occluders and groups; `vr_anchor`: the models' strip orders (by model pointer; its name check didn't catch
+another game's model of the same name); `vr_detail`: detail.cfg's kinds and rules, the detail array, the textures'
+details; `vr_emissive`: the torches; `vr_ambient`, `vr_modellight`: the entities' cached light and the map's lights;
+`vr_gfx_gl`: the gfx.wad pictures by name (their pointers were stale after `Draw_NewGame`); `vr_bodyblood`: its drops.
+Per-map state is emptied at the next map as before (`VR_NewMap`'s generation, `VR_OnClientClearState`), and the water
+mesh is rebuilt at each map load. **Still to hook into it** (other agents' files): `vr_view.cpp`'s `clipSizes` and
+`viewModel`, `vr_weapons.cpp`'s `slotCache`, `vr_avatar.cpp`'s `info`, `vr_handrig.cpp`'s `checked`, and
+`vr_flashlight.cpp`'s gun fit cache by name (the `GunSpot` map; left alone here: only the beam code was mine).
+Tested: `game rogue`, then `game hipnotic rogue quakevr`, a map after each.
+
+### Tests (mock headset)
+
+- **Scenes** (the same list, run by the upscaler-only build as the reference and by the final one): e1m2's, e4m1's and
+  the firing range's pools shot with the shotgun (rings, foam, drops), e4m3's lava with nails; the firing range's wall
+  shot, grunts shot and rocketed (decals, gore); the cap at 40 then 20, and changed to 30, 100, 25 while marks are
+  made; e1m2's torches; e1m1's start; FSR, NIS and RCAS alone; the gadget's log, hologram and a centre print; the
+  flashlight's beam. Composites in `perf/report/`: `water_before_after.png`, `decals_before_after.png`,
+  `torches_start_upscale_before_after.png`, `beam_quality.png`, `menu_flashlight.png`.
+- **Identity checks in the running game** (checked builds, never committed): the water tables against the old maps on
+  every call (682,196 calls in e1m2, e4m1 and the firing range, no mismatch); the decal ring against the old deque with
+  the same operations after every mark and expiry (1,235 marks over the decal and cap scenes, no mismatch). The decal
+  counts by kind are the same at every step, before and after.
+- **Images:** the decals, water, torches, e1m1 and the upscalers match. The differences left are on the held gun and
+  its hand (a few hundred pixels, up to 150 of 765 at the grip's edge) and one gib's shading (up to 9 of 765). They are
+  not from the changed code: bisecting, builds with only keyword or bit-identical changes (item 10 alone; items 4, 8
+  and 9) move them too, so something in the hand's pose depends on the build (worth a look by the hands' owner). The
+  mock's scenes also depend on what ran before in the same process (the decal scene makes 118 marks after the water
+  scenes, 128 alone), so comparisons use the same scene list.
+- **Motion takes** (item 3 touches the network path): ten of the author's takes (punches, slashes, a stab, the gun's
+  butt, a shove, a parry bash, a pommel, a miss), `vr_motion_eval <folder> recorded quit` in the firing range: 10 of
+  10 replays hit as their takes did live, before and after, and the two evaluation tables are identical. (Three are
+  FAIL by expect.cfg, hilt_pommel, parry_bash and stab_one_hand, the same before and after.)
+- `vr_flashlight_beam_quality` 0, 1, 2: the beam on walls, the floor and the corridor's corners matches today's within
+  the run-to-run noise at every setting (`beam_quality.png`; its last column is the low setting's difference x16).
+- The Flashlight page shows Beam Quality: Medium.
+
+### Not done or not verified
+
+- The water sounds' random variety was checked only on the plip the water scenes play (the same one before and
+  after). Their precache indices changed: the 22 water sounds now come first in the list.
+- The beam's cost in e1m2's dark room, and with the torch on the chest, was not measured after.
+- The eviction's O(n^2) case was measured in a standalone test with the same maps, not in the game (2048 cached
+  entities needs a scene I didn't build).
+- `vr_graphics_preset` doesn't set `vr_flashlight_beam_quality` (medium at every preset).
+- Not tried in the headset.

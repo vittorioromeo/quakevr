@@ -6,8 +6,16 @@
 // kept in standard-Quake mode: the mission-pack HUDs and weapon encodings do not apply
 // to the VR progs, which use their own weapon IDs.
 
+#include "vr_ambient.hpp"
+#include "vr_anchor.hpp"
+#include "vr_ao.hpp"
+#include "vr_bodyblood.hpp"
 #include "vr_cvars.hpp"
+#include "vr_detail.hpp"
+#include "vr_emissive.hpp"
 #include "vr_engine.hpp"
+#include "vr_gfx.hpp"
+#include "vr_modellight.hpp"
 
 #include <cstring>
 
@@ -165,6 +173,22 @@ extern "C" const char* VR_ModelFile(const char* name)
     static char relit[MAX_QPATH * 2];
     q_snprintf(relit, sizeof(relit), "relit/%s/%s", game, name);
     return COM_FileExists(relit, nullptr) ? relit : name;
+}
+
+// COM_SwitchGame, after Mod_ResetAll and the renderer's reload: the caches that hold models' pointers (their slots are
+// reused for other models), other games' models by name, or files read from the game folders, emptied. (The ones
+// kept per map are emptied at the next map anyway: VR_NewMap's generation, VR_OnClientClearState.)
+extern "C" void VR_OnGameDirChanged()
+{
+    qvr::ao::onGameDirChanged();
+    qvr::anchor::onGameDirChanged();
+    qvr::detail::onGameDirChanged();
+    qvr::emissive::onGameDirChanged();
+    qvr::ambient::onGameDirChanged();
+    qvr::modellight::onGameDirChanged();
+    qvr::gfx::onGameDirChanged();
+    qvr::bodyblood::clear();
+    Con_DPrintf("VR: game directory changed: model and game file caches emptied\n");
 }
 
 extern "C" void VR_AfterAddGameDirectory(const char* dir)

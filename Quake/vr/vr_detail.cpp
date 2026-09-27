@@ -580,6 +580,25 @@ const Entry& lookup(const texture_t* t)
 }
 
 // vr_detail_reload: detail.cfg and the images read again.
+void reload_f();
+
+} // namespace
+
+void onGameDirChanged()
+{
+    deleteArray();
+    cfgLoaded = false;
+    kinds.clear();
+    rules.clear();
+    cache.clear();
+    cacheWorld = nullptr;
+    cacheGeneration = -1;
+    cacheWorldName[0] = '\0';
+}
+
+namespace
+{
+
 void reload_f()
 {
     deleteArray();

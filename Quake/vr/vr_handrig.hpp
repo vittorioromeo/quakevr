@@ -38,8 +38,8 @@ enum Finger : int
     FingerCount
 };
 
-constexpr int jointsPerFinger = 3;
-constexpr const char* modelName = "progs/hand_rig.mdl";
+inline constexpr int jointsPerFinger = 3;
+inline constexpr const char* modelName = "progs/hand_rig.mdl";
 
 // A rigid transform of rig space.
 struct Rigid

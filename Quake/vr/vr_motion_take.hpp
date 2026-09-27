@@ -23,7 +23,7 @@ namespace qvr::motion
 {
 
 // Bumped when a column changes meaning (added columns don't: readers go by name).
-constexpr int formatVersion = 1;
+inline constexpr int formatVersion = 1;
 
 // A melee event (QC VR_Motion_Event): kind, its sub-kind, the hand (-1: both, or not a hand's),
 // a value (damage, or a blow's strength), where (world), against what, a note.

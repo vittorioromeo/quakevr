@@ -8,7 +8,9 @@
 
 #include <algorithm>
 #include <cstring>
+#include <functional>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -289,11 +291,17 @@ void bindWindow()
     glViewport(glx, gly, glwidth, glheight);
 }
 
-std::unordered_map<std::string, qpic_t*> pics;
+// By name; looked up by a const char* without making a std::string of it (a transparent hash).
+struct NameHash
+{
+    using is_transparent = void;
+    [[nodiscard]] std::size_t operator()(std::string_view s) const { return std::hash<std::string_view>{}(s); }
+};
+std::unordered_map<std::string, qpic_t*, NameHash, std::equal_to<>> pics;
 
 [[nodiscard]] qpic_t* picNamed(const char* name)
 {
-    const auto it = pics.find(name);
+    const auto it = pics.find(std::string_view{name});
     if(it != pics.end())
     {
         return it->second;
@@ -310,6 +318,11 @@ using BlendFuncSeparateFn = void(APIENTRY*)(GLenum, GLenum, GLenum, GLenum);
 BlendFuncSeparateFn blendFuncSeparate = nullptr;
 
 } // namespace
+
+void onGameDirChanged()
+{
+    pics.clear();
+}
 
 unsigned glProgram(const char* vertex, const char* fragment, const char* name)
 {
@@ -340,12 +353,16 @@ unsigned glProgram(const char* vertex, const char* fragment, const char* name)
     return p;
 }
 
-void draw(std::span<const Vertex> triangles, const glm::mat4& mvp, const State& state, Texture texture)
+namespace
 {
-    const GLuint program = triangles.empty() ? 0 : programFor(state.shade, state.blend != Blend::Opaque && !state.depthWrite);
+
+// The program and state for `state`, its uniforms and textures set; false if there is no program.
+[[nodiscard]] bool beginDraw(const glm::mat4& mvp, const State& state, Texture texture)
+{
+    const GLuint program = programFor(state.shade, state.blend != Blend::Opaque && !state.depthWrite);
     if(!program)
     {
-        return;
+        return false;
     }
 
     unsigned flags = GLS_CULL_NONE | GLS_ATTRIBS(4);
@@ -388,23 +405,77 @@ void draw(std::span<const Vertex> triangles, const glm::mat4& mvp, const State& 
     {
         GL_BindNative(GL_TEXTURE1, GL_TEXTURE_2D, state.sceneDistances);
     }
+    return true;
+}
 
-    // Into the frame's upload buffer, like Ironwail's own dynamic geometry.
-    GLuint buf = 0;
-    GLbyte* ofs = nullptr;
-    GL_Upload(GL_ARRAY_BUFFER, triangles.data(), triangles.size_bytes(), &buf, &ofs);
-    GL_BindBuffer(GL_ARRAY_BUFFER, buf);
-    GL_VertexAttribPointerFunc(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), ofs + offsetof(Vertex, pos));
-    GL_VertexAttribPointerFunc(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), ofs + offsetof(Vertex, uv));
-    GL_VertexAttribPointerFunc(2, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), ofs + offsetof(Vertex, color));
-    GL_VertexAttribPointerFunc(3, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex), ofs + offsetof(Vertex, soft));
-    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(triangles.size()));
+// `count` vertices from `buffer` at `offset`, then the blend put back as GLS_BLEND_ALPHA expects it.
+void drawVertices(GLuint buffer, const GLbyte* offset, std::size_t count, const State& state)
+{
+    GL_BindBuffer(GL_ARRAY_BUFFER, buffer);
+    GL_VertexAttribPointerFunc(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), offset + offsetof(Vertex, pos));
+    GL_VertexAttribPointerFunc(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), offset + offsetof(Vertex, uv));
+    GL_VertexAttribPointerFunc(2, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), offset + offsetof(Vertex, color));
+    GL_VertexAttribPointerFunc(3, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex), offset + offsetof(Vertex, soft));
+    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(count));
     GL_BindBuffer(GL_ARRAY_BUFFER, 0);
 
     if(state.blend == Blend::Premultiplied || state.blend == Blend::Modulate || state.blend == Blend::Additive)
     {
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // what GLS_BLEND_ALPHA expects
     }
+}
+
+} // namespace
+
+void draw(std::span<const Vertex> triangles, const glm::mat4& mvp, const State& state, Texture texture)
+{
+    if(triangles.empty() || !beginDraw(mvp, state, texture))
+    {
+        return;
+    }
+    // Into the frame's upload buffer, like Ironwail's own dynamic geometry.
+    GLuint buf = 0;
+    GLbyte* ofs = nullptr;
+    GL_Upload(GL_ARRAY_BUFFER, triangles.data(), triangles.size_bytes(), &buf, &ofs);
+    drawVertices(buf, ofs, triangles.size(), state);
+}
+
+void upload(StaticTriangles& t, std::span<const Vertex> triangles)
+{
+    t.count = triangles.size();
+    t.uploads++;
+    t.uploadedBytes += triangles.size_bytes();
+    if(triangles.empty())
+    {
+        return;
+    }
+    if(!t.buffer || triangles.size_bytes() > t.capacity)
+    {
+        if(t.buffer)
+        {
+            GL_DeleteBuffer(t.buffer);
+        }
+        t.capacity = triangles.size_bytes() + triangles.size_bytes() / 2; // room to grow
+        t.buffer = GL_CreateBuffer(GL_ARRAY_BUFFER, GL_DYNAMIC_DRAW, "vr static triangles", t.capacity, nullptr);
+    }
+    else
+    {
+        // Orphaned: the frames still drawing from its old contents keep them, the driver gives it new storage.
+        GL_BindBuffer(GL_ARRAY_BUFFER, t.buffer);
+        GL_BufferDataFunc(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(t.capacity), nullptr, GL_DYNAMIC_DRAW);
+    }
+    GL_BindBuffer(GL_ARRAY_BUFFER, t.buffer);
+    GL_BufferSubDataFunc(GL_ARRAY_BUFFER, 0, static_cast<GLsizeiptr>(triangles.size_bytes()), triangles.data());
+    GL_BindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+void draw(const StaticTriangles& t, const glm::mat4& mvp, const State& state, Texture texture)
+{
+    if(!t.buffer || t.count == 0 || !beginDraw(mvp, state, texture))
+    {
+        return;
+    }
+    drawVertices(t.buffer, nullptr, t.count, state);
 }
 
 glm::mat4 sceneViewProjection()

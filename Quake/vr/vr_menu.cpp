@@ -441,6 +441,8 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Brightness", vr_flashlight_brightness, 0.25f, 2.5f, 0.05f, "%.2fx"),
         slider("Range", vr_flashlight_range, 300.f, 2000.f, 50.f, "%.0f"),
         slider("Visible Beam", vr_flashlight_beam, 0.f, 1.f, 0.05f, "%.2f").help("A soft cone of light in the air from the lamp (0: none)."),
+        cycle("Beam Quality", vr_flashlight_beam_quality, {{0.f, "Low"}, {1.f, "Medium"}, {2.f, "High"}})
+            .help("How closely the visible beam fades where walls cut it. Higher looks for them more often, costing more time each frame."),
         toggle("Casts Shadows", vr_flashlight_shadows).help("Its light casts shadows (takes one of the shadowed dynamic lights)."),
         slider("Lean Out", vr_flashlight_tilt, -10.f, 30.f, 1.f, "%.0f deg").help("How far the stored torch, hanging on your chest lens down, leans its lens out from your body."),
         slider("Forward", vr_flashlight_forward, -0.05f, 0.05f, 0.005f, "%.3f m"),
@@ -1192,6 +1194,8 @@ void openPage(int target)
     return best;
 }
 
+// (`item` lives in the page's list, which an action -- or a cvar's callback -- may build again: what is needed of it is
+// read before.)
 void change(const Item& item, int dir)
 {
     switch(item.kind)
@@ -1213,12 +1217,17 @@ void change(const Item& item, int dir)
         case Item::Action:
             if(dir > 0)
             {
-                if(item.page >= 0)
+                const int page = item.page;
+                void (*const action)() = item.action;
+                if(page >= 0)
                 {
-                    openPage(item.page);
+                    openPage(page);
                     return;
                 }
-                item.action();
+                if(action)
+                {
+                    action(); // (`item` may be gone after this)
+                }
             }
             break;
         default: break;

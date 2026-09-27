@@ -296,37 +296,38 @@ struct Program
 };
 Program easuProgram, composeProgram, nisProgram;
 
-[[nodiscard]] GLuint program(Program& p, const char* vertex, GLenum type, const char* prelude, const std::string& header,
-    const char* main, const char* name)
+// FSR's programs: built on first use (the 60 KB source put together only then), or 0 if they failed.
+[[nodiscard]] GLuint fsrProgram(Program& p, const char* prelude, const char* main, const char* name)
 {
-    if(!p.id && !p.failed)
+    if(p.id || p.failed)
     {
-        const std::string source = std::string{prelude} + ffxA + header + main;
-        p.id = buildProgram(vertex, type, source, name);
-        p.failed = !p.id;
+        return p.id;
     }
+    const std::string source = std::string{prelude} + ffxA + joined(fsrHeader) + main;
+    p.id = buildProgram(fullscreenVs, GL_FRAGMENT_SHADER, source, name);
+    p.failed = !p.id;
     return p.id;
 }
 
 [[nodiscard]] GLuint easu()
 {
-    return program(easuProgram, fullscreenVs, GL_FRAGMENT_SHADER, easuPrelude, joined(fsrHeader), easuMain, "vr fsr easu");
+    return fsrProgram(easuProgram, easuPrelude, easuMain, "vr fsr easu");
 }
 
 [[nodiscard]] GLuint compose()
 {
-    return program(composeProgram, fullscreenVs, GL_FRAGMENT_SHADER, composePrelude, joined(fsrHeader), composeMain,
-        "vr upscale compose");
+    return fsrProgram(composeProgram, composePrelude, composeMain, "vr upscale compose");
 }
 
 [[nodiscard]] GLuint nis()
 {
-    if(!nisProgram.id && !nisProgram.failed)
+    if(nisProgram.id || nisProgram.failed)
     {
-        const std::string source = std::string{nisPrelude} + joined(nisHeader) + nisMain;
-        nisProgram.id = buildProgram(nullptr, GL_COMPUTE_SHADER, source, "vr nis");
-        nisProgram.failed = !nisProgram.id;
+        return nisProgram.id;
     }
+    const std::string source = std::string{nisPrelude} + joined(nisHeader) + nisMain;
+    nisProgram.id = buildProgram(nullptr, GL_COMPUTE_SHADER, source, "vr nis");
+    nisProgram.failed = !nisProgram.id;
     return nisProgram.id;
 }
 

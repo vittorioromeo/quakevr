@@ -120,10 +120,16 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
         return;
     }
 
-    const VrMove move = readVrMove();
+    const std::optional<VrMove> read = readVrMove();
+    const int clientNum = static_cast<int>(client - svs.clients);
+    if(!read)
+    {
+        Con_DPrintf("VR: client %d sent a move that is not finite: dropped\n", clientNum);
+        return;
+    }
+    const VrMove& move = *read;
 
     edict_t* ent = client->edict;
-    const int clientNum = static_cast<int>(client - svs.clients);
     if(clientNum >= static_cast<int>(clientMoves.size()))
     {
         clientMoves.resize(clientNum + 1);

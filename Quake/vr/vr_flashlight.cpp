@@ -7,6 +7,7 @@
 #include "vr_lighting.hpp"
 #include "vr_lines.hpp"
 #include "vr_main.hpp"
+#include "vr_profile.hpp"
 #include "vr_trace.hpp"
 #include "vr_units.hpp"
 #include "vr_weapons.hpp"
@@ -142,6 +143,33 @@ struct Beam
 };
 
 Beam beam;
+
+// How closely the beam's cone finds the walls that cut it (vr_flashlight_beam_quality). Each ring's sides are traced
+// (a short line out from the axis) every `sideStep`, and the rings every `ringStep` (the last ring always); the ones in
+// between take the mean of their traced neighbours'. With `reuse`, a trace is kept while its line has moved less than
+// 1% of its length (at least a tenth of a unit) and for at most `reuseSeconds`: a torch held still, or on the chest
+// of a player standing still, traces little; a moving one, all of them. High is the beam as it always was.
+struct BeamQuality
+{
+    int sideStep;
+    int ringStep;
+    bool reuse;
+};
+constexpr BeamQuality beamQualities[] = {
+    {2, 2, true},  // low: 8 sides of 5 rings, 40 traces at most
+    {2, 1, true},  // medium: 8 sides of 9 rings, 72 at most
+    {1, 1, false}, // high: 16 sides of 9 rings, 144 every frame
+};
+constexpr double reuseSeconds = 0.1; // (a door moving through a still beam is seen within this)
+
+// The traces kept for reuse: each one's line and result.
+struct BeamTrace
+{
+    glm::vec3 from{0.f}, to{0.f};
+    float reach{0.f};
+    double time{-1.0}; // realtime it was traced (-1: never)
+};
+BeamTrace beamTraces[beamRings][beamSides];
 
 [[nodiscard]] bool enabled()
 {
@@ -610,6 +638,7 @@ dlight_t* light(int key, const glm::vec3& at, float radius, const glm::vec3& col
 // away, fading out before it (or in the air, when it lands nowhere near).
 void shapeBeam(const Pose& p, const glm::vec3& lens, const glm::vec3& dir, float dist, const glm::vec3& color)
 {
+    QVR_PROFILE("flashlight beam");
     const float strength = CLAMP(0.f, vr_flashlight_beam.value, 1.f);
     const float m2u = units::metresToUnits();
     // Past 10 m or so the light in the air is too thin to see.
@@ -630,6 +659,9 @@ void shapeBeam(const Pose& p, const glm::vec3& lens, const glm::vec3& dir, float
         beam.around[j] = left * std::cos(a) + up * std::sin(a);
     }
 
+    const BeamQuality& quality = beamQualities[CLAMP(0, static_cast<int>(vr_flashlight_beam_quality.value), 2)];
+    const auto tracedSide = [&](int j) { return j % quality.sideStep == 0; };
+    const auto tracedRing = [&](int i) { return i >= 1 && ((i - 1) % quality.ringStep == 0 || i == beamRings - 1); };
     const float lensR = lensRadius * units::worldScale();
     for(int i = 0; i < beamRings; i++)
     {
@@ -645,11 +677,47 @@ void shapeBeam(const Pose& p, const glm::vec3& lens, const glm::vec3& dir, float
         beam.glow[i] = thin * end;
 
         // Where a wall cuts the cone, looked for a little past it (to fade out before a wall just
-        // beyond the cone, too).
+        // beyond the cone, too): on the traced rings and sides (the quality's), the other sides in between.
+        if(i == 0)
+        {
+            std::fill(std::begin(beam.reach[i]), std::end(beam.reach[i]), beamLookPast);
+            continue;
+        }
+        if(!tracedRing(i))
+        {
+            continue; // (below, once the next ring is done)
+        }
+        for(int j = 0; j < beamSides; j += quality.sideStep)
+        {
+            const glm::vec3 from = beam.axis[i];
+            const glm::vec3 to = from + beam.around[j] * (beam.radius[i] * beamLookPast);
+            BeamTrace& t = beamTraces[i][j];
+            const float still = std::max(0.1f, 0.01f * glm::distance(from, to));
+            if(!quality.reuse || t.time < 0.0 || realtime - t.time > reuseSeconds || realtime < t.time ||
+               glm::distance(from, t.from) > still || glm::distance(to, t.to) > still)
+            {
+                t = {from, to, beamLookPast * worldtrace::line(from, to), realtime};
+            }
+            beam.reach[i][j] = t.reach;
+        }
         for(int j = 0; j < beamSides; j++)
         {
-            beam.reach[i][j] =
-                i == 0 ? beamLookPast : beamLookPast * worldtrace::line(beam.axis[i], beam.axis[i] + beam.around[j] * (beam.radius[i] * beamLookPast));
+            if(!tracedSide(j))
+            {
+                const int before = j - j % quality.sideStep, after = (before + quality.sideStep) % beamSides;
+                beam.reach[i][j] = 0.5f * (beam.reach[i][before] + beam.reach[i][after]);
+            }
+        }
+    }
+    // The rings in between: the mean of the traced ones either side.
+    for(int i = 1; i < beamRings; i++)
+    {
+        if(!tracedRing(i))
+        {
+            for(int j = 0; j < beamSides; j++)
+            {
+                beam.reach[i][j] = 0.5f * (beam.reach[i - 1][j] + beam.reach[i + 1][j]);
+            }
         }
     }
 }

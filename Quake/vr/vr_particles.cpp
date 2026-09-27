@@ -97,7 +97,7 @@ struct Particle
 };
 
 constexpr std::size_t maxParticles = 32768;
-std::vector<Particle> pool;
+std::vector<Particle> pool; // reserved to maxParticles at startup (init): it never reallocates in play
 double lastRun = -1.0;
 
 std::mt19937 rng{std::random_device{}()};
@@ -1539,6 +1539,12 @@ bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count)
 bool enabled()
 {
     return (cl.protocolflags & PRFL_QUAKEVR) && vr_particles.value && ensureAtlas();
+}
+
+void init()
+{
+    static_assert(sizeof(Particle) <= 128, "the pool's reservation (4 MB) grows with it");
+    pool.reserve(maxParticles);
 }
 
 void clear()

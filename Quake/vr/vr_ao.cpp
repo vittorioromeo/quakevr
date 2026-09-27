@@ -18,7 +18,9 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <functional>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <unordered_map>
 #include <vector>
@@ -72,7 +74,27 @@ struct Occluder
 
 std::vector<Occluder> candidates;
 std::vector<Occluder> chosen;
-std::unordered_map<const entity_t*, float> groupOf; // the chosen occluders' models
+// The chosen occluders' models and their groups (a model's shapes share one: they don't darken the model itself), at
+// most MAX_OCCLUDERS, filled each frame: a flat array searched in order (build, and each model drawn in each eye).
+struct Group
+{
+    const entity_t* entity;
+    float group;
+};
+std::array<Group, MAX_OCCLUDERS> groups;
+int groupCount = 0;
+
+[[nodiscard]] float groupOf(const entity_t* e)
+{
+    for(int i = 0; i < groupCount; i++)
+    {
+        if(groups[i].entity == e)
+        {
+            return groups[i].group;
+        }
+    }
+    return 0.f;
+}
 GpuBlock block{};
 int builtFrame = -1;
 double buildSeconds = 0.0; // vr_ao_show
@@ -479,7 +501,7 @@ void build()
     const auto t0 = std::chrono::steady_clock::now();
     candidates.clear();
     chosen.clear();
-    groupOf.clear();
+    groupCount = 0;
     const float dynamic = std::clamp(vr_ao_dynamic.value, 0.f, 2.f);
     const float brush = std::clamp(vr_ao_brush.value, 0.f, 2.f);
     const float reach = std::clamp(vr_ao_dynamic_range.value, 1.25f, 5.f);
@@ -512,8 +534,8 @@ void build()
     vec3_t fwdv, rightv, upv;
     AngleVectors(r_refdef.viewangles, fwdv, rightv, upv);
     const glm::vec3 fwd{fwdv[0], fwdv[1], fwdv[2]};
-    std::vector<int> order;
-    order.reserve(candidates.size());
+    static std::vector<int> order; // (kept between frames: build runs on the main thread, once a frame)
+    order.clear();
     for(int i = 0; i < static_cast<int>(candidates.size()); i++)
     {
         Occluder& o = candidates[i];
@@ -536,8 +558,12 @@ void build()
         o.owner = e;
         if(o.group < 0.f)
         {
-            const auto it = groupOf.find(e);
-            o.group = it != groupOf.end() ? it->second : (groupOf[e] = nextGroup++);
+            o.group = groupOf(e);
+            if(o.group == 0.f) // (a chosen occluder's own group is never 0: they start at PLAYER_GROUP + 1)
+            {
+                o.group = nextGroup++;
+                groups[static_cast<std::size_t>(groupCount++)] = {e, o.group};
+            }
         }
         chosen.push_back(o);
     }
@@ -664,7 +690,13 @@ struct Baked
     std::uint64_t hash{0};
     std::vector<unsigned char> vis;
 };
-std::unordered_map<std::string, Baked> baked;
+// By name; looked up by a model's name without making a std::string of it (a transparent hash).
+struct NameHash
+{
+    using is_transparent = void;
+    [[nodiscard]] std::size_t operator()(std::string_view s) const { return std::hash<std::string_view>{}(s); }
+};
+std::unordered_map<std::string, Baked, NameHash, std::equal_to<>> baked;
 double bakeSeconds = 0.0; // vr_ao_show
 int bakeModels = 0;
 int bakeHits = 0;
@@ -847,7 +879,7 @@ struct BakeQueue
     std::condition_variable wake;
     std::deque<std::unique_ptr<BakeJob>> pending;
     std::vector<std::unique_ptr<BakeJob>> done;
-    std::unordered_map<std::string, std::uint64_t> queued; // queued or being baked: name, hash
+    std::unordered_map<std::string, std::uint64_t, NameHash, std::equal_to<>> queued; // queued or being baked: name, hash
     bool started{false};
 };
 
@@ -1029,7 +1061,7 @@ extern "C" const unsigned char* VR_AliasVertexAO(qmodel_t* model, const void* al
     } timer{t0};
     const size_t count = static_cast<size_t>(hdr->numposes) * hdr->numverts;
     const std::uint64_t h = modelHash(hdr);
-    const auto it = baked.find(model->name);
+    const auto it = baked.find(std::string_view{model->name});
     if(it != baked.end() && it->second.hash == h && it->second.vis.size() == count)
     {
         bakeHits++;
@@ -1038,7 +1070,7 @@ extern "C" const unsigned char* VR_AliasVertexAO(qmodel_t* model, const void* al
 
     BakeQueue& q = bakeQueue();
     std::lock_guard<std::mutex> lock(q.mutex);
-    if(const auto qi = q.queued.find(model->name); qi != q.queued.end() && qi->second == h)
+    if(const auto qi = q.queued.find(std::string_view{model->name}); qi != q.queued.end() && qi->second == h)
     {
         return nullptr; // on its way
     }
@@ -1095,14 +1127,12 @@ extern "C" void VR_AliasAO(const entity_t* e, float out[4])
         out[0] = PLAYER_GROUP;
         return;
     }
-    const auto it = groupOf.find(e);
-    out[0] = it != groupOf.end() ? it->second : 0.f;
+    out[0] = groupOf(e);
 }
 
 extern "C" float VR_BrushAOSelf(const entity_t* e)
 {
-    const auto it = groupOf.find(e);
-    return it != groupOf.end() ? it->second : 0.f;
+    return groupOf(e);
 }
 
 namespace
@@ -1127,6 +1157,19 @@ void show_f()
 }
 
 } // namespace
+
+void ao::onGameDirChanged()
+{
+    baked.clear(); // (a bake still on the worker files its result afterwards: checked by hash before use)
+    brushDrawable.clear();
+    brushGeneration = -1;
+    bakedSubmodels.clear();
+    bakedGeneration = -1;
+    candidates.clear();
+    chosen.clear();
+    groupCount = 0;
+    builtFrame = -1;
+}
 
 void ao::init()
 {

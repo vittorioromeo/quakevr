@@ -177,7 +177,7 @@ struct Ledge
     }
     glm::vec3 away = hand - vec(player->v.origin);
     away.z = 0.f;
-    if(glm::length(away) < 1.f)
+    if(!(glm::length(away) >= 1.f))
     {
         return std::nullopt;
     }
@@ -217,18 +217,16 @@ struct Climber
     }
 };
 
-std::vector<Climber> climbers;
+// A fixed array (as the swimmers'): a climber is held by reference across SV_RunThink, which a growing vector could
+// move.
+Climber climbers[MAX_SCOREBOARD];
 
 [[nodiscard]] Climber* climberOf(edict_t* ent)
 {
     const int client = NUM_FOR_EDICT(ent) - 1;
-    if(client < 0 || client >= svs.maxclients)
+    if(client < 0 || client >= std::min(svs.maxclients, static_cast<int>(MAX_SCOREBOARD)))
     {
         return nullptr;
-    }
-    if(client >= static_cast<int>(climbers.size()))
-    {
-        climbers.resize(client + 1);
     }
     return &climbers[client];
 }
@@ -386,7 +384,7 @@ extern "C" void VR_ClimbPreThink(edict_t* ent)
     // Moved by something else (a teleporter, a respawn, setorigin), disabled, dead, noclipping, the
     // hold's brush model gone: let go, and fall as whatever moved the body has it.
     bool forced = !enabled;
-    if((c.hanging() || c.mantling) && glm::distance(vec(ent->v.origin), c.lastOrigin) > 2.f)
+    if((c.hanging() || c.mantling) && !(glm::distance(vec(ent->v.origin), c.lastOrigin) <= 2.f)) // (a NaN: let go too)
     {
         if(debug())
         {
