@@ -6,19 +6,18 @@
 // fist's knuckles). Points along it, each of one kind (VR_MPT_*), are swept from the last pose to this one against
 // what bleeds and against walls.
 //
-// A HIT is a point sweeping into something while the part it belongs to moves fast enough (vr_melee_speed), relative
-// to the head (walking and turning are not the hand's motion). The direction doesn't matter. A blade (or an axe's
-// head, a gun's barrel) is as fast as the far end: a swing is as fast as its tip. The pommel, hilt, butt and knuckles
-// are as fast as they move themselves. What kind of blow it is follows from which part hit and how it moved
-// (VR_Melee_Decide): a slash or chop or gun swing (the far end sweeping across the line), a stab or jab (driven
-// along the line, the far end first), a pommel or butt strike (the near end or the grip leading, the weapon moving
-// whole), a punch. A hilt or pommel reaching a monster while the blade sweeps past much faster lands nothing: the
-// blade does, a moment later.
+// A HIT is a point sweeping into something while the ARM drives it: the grip's speed, relative to the head (walking and
+// turning are not the hand's motion), at least vr_melee_speed (a weapon's swing VR_MELEE_ARM times that), having come
+// VR_MELEE_RUN towards where it goes (a blow, not a wiggle). The direction doesn't matter. What kind of blow it is follows
+// from which part hit and how it moved (VR_Melee_Decide): a stab or jab (the far end moving along the line, outwards), a
+// slash or chop or gun swing (the far end any other way), a pommel or butt strike (the near end), a punch (a closed
+// fist). Of a blade's points in the thing, the outermost strikes. The pommel's touch waits a moment for the blade
+// proper: a cut from close by is the blade's. The hilt, a handle, a gun's grip (where the hand is) strike nothing.
 //
 // THE PARRY STANCE is the held thing presented across (the parry's pose: VR_Parry_Blocks, combat.qc), or an open palm
-// facing ahead. A BASH is the stance pushed forward, as a whole (its two ends moving alike), a few centimetres: then
-// what is just ahead is knocked back (VR_Bash). Two hands (a weapon held two-handed, an open palm pushing on a
-// one-handed weapon, both palms) bash harder.
+// facing ahead. A BASH is the stance, held VR_BASH_HELD, pushed forward (both its ends going ahead), a few centimetres:
+// then what is just ahead is knocked back (VR_Bash). A palm's SHOVE is the palm pushed out from the shoulder. Two hands
+// (a weapon held two-handed, an open palm pushing on a one-handed weapon, both palms) bash harder.
 //
 // The numbers are in one place, below: tune them against the labelled takes (vr_motion_eval), not case by case.
 
@@ -38,12 +37,13 @@ float VR_MELEE_DOWN_FROM = 0.4;    // (a hammer blow falls easily: his overhead 
 float VR_MELEE_RUN = 0.2;          // m the grip came towards where it goes now, within VR_MELEE_RUN_TIME: a blow, not a wave or a
                                    // wiggle (the author's punches come 0.22-0.8 m, his fists waved fast at the dummy 0.05-0.2)
 float VR_MELEE_RUN_TIME = 0.3;     // s looked back at most
-float VR_MELEE_HILT_WAIT = 0.1;    // s a hilt's or pommel's touch in a swing waits for the blade proper (VR_MELEE_BLADE_FROM out)
+float VR_MELEE_HILT_WAIT = 0.1;    // s the pommel's (the near end's) touch waits for the blade proper (VR_MELEE_BLADE_FROM out):
+                                   // a cut from close by is the blade's (the author's close chops draw the weapon back along
+                                   // its line, as a pommel strike does)
 float VR_MELEE_BLADE_FROM = 0.4;   // the blade proper: from this share of the way from the hand to the tip
 float VR_MELEE_GOOD = 2;           // times the least speed: a blow of strength 1
 float VR_MELEE_WEAKEST = 0.5;      // the strength at the least speed
 float VR_MELEE_STRONGEST = 2;      // and the most
-float VR_MELEE_SWEEP = 1.6;        // the far end this much faster than a hilt's or pommel's contact (plus 1 m/s): a swing passing
 float VR_MELEE_REARM_SLOW = 0.5;   // a hand strikes the same thing again once its part slowed below this share of the least speed,
 float VR_MELEE_REARM_TURN = -0.17; // or, out of it, turned back more than 100 degrees from the blow (cosine: a backswing),
 float VR_MELEE_REARM_TIME = 0.6;   // or, out of it, after this long (s)
@@ -52,9 +52,8 @@ float VR_MELEE_RADIUS = 3;         // units around a point's sweep that it strik
 float VR_MELEE_JUMP = 20;          // m/s: the grip moving faster than this jumped (a teleport, the play space re-based)
 float VR_MELEE_TIPJUMP = 60;       // m/s: likewise the far end (a weapon taken)
 float VR_MELEE_WALL_DOWN = -0.35;  // a point going down more steeply than this (sine) doesn't strike walls (reaching for a holster)
-float VR_MELEE_POMMEL_SWORD = 0.6; // weights: a sword's pommel or hilt strike,
-float VR_MELEE_POMMEL_AXE = 0.5;   // an axe's or Mjolnir's handle,
-float VR_MELEE_GUARD = 0.85;       // a sword's guard in a pommel strike
+float VR_MELEE_POMMEL_SWORD = 0.6; // weights: a sword's pommel strike,
+float VR_MELEE_POMMEL_AXE = 0.5;   // an axe's or Mjolnir's handle's end,
 
 // The stance and the bash.
 float VR_BASH_AHEAD = 0.75;       // cosine: a push within ~41 degrees of the facing
@@ -92,14 +91,16 @@ float VR_MTHING_NONE = 4;  // the empty hand steadying the other's weapon, a cli
 
 // The kinds of points (what they strike as).
 float VR_MPT_EDGE = 0;  // the blade, an axe's head, a gun's barrel and muzzle: moves with the far end
-float VR_MPT_GRIP = 1;  // the hilt, the guard, the hand on a handle or a gun's grip
+float VR_MPT_GRIP = 1;  // the hilt, the guard, the hand on a handle or a gun's grip: where the hand is, it strikes nothing
+                        // (the author's pommel strikes land with the near end; his weapons waved at the dummy touched it
+                        // with the hilt, the handle, a gun's grip); it only keeps a blow's target touched (VR_Melee_Rearm)
 float VR_MPT_NEAR = 2;  // the pommel, the handle's end, a gun's butt
 float VR_MPT_FIST = 3;  // the fist and the knuckles
 
 // The kinds of blows.
 float VR_MKIND_SLASH = 0;  // a swing's blade, an axe's head, a gun's barrel sweeping across
 float VR_MKIND_STAB = 1;   // driven along the line, the far end first
-float VR_MKIND_POMMEL = 2; // the near end or the grip leading, the weapon moving whole
+float VR_MKIND_POMMEL = 2; // the near end (the blade proper not following)
 float VR_MKIND_PUNCH = 3;  // a fist (any way: jab, hook, uppercut, overhead)
 
 // The hand's state, on an entity of its own (the player's vr_blow_main / vr_blow_off).
@@ -147,8 +148,7 @@ float VR_MKIND_PUNCH = 3;  // a fist (any way: jab, hook, uppercut, overhead)
 .float mh_push_last;   // the last frame it pushed
 .float mh_push_ok;     // the push began from a stance held VR_BASH_HELD (or a palm's)
 .float mh_push_stance; // and which (1 a weapon's, 2 a palm's)
-.float mh_hilt_sweeping; // the last hilt decision (VR_Melee_Decide): a swing's far end sweeping past (it waits for the blade)
-// A hilt's or pommel's touch in a swing, waiting VR_MELEE_HILT_WAIT for the blade (VR_Melee_Sweep): the blow it would be.
+// The pommel's touch, waiting VR_MELEE_HILT_WAIT for the blade (VR_Melee_Sweep): the blow it would be.
 .entity mh_pend_ent;
 .float mh_pend_time;
 .vector mh_pend_pos;
@@ -644,7 +644,7 @@ float(entity b, float xGrip) VR_Melee_Run =
 };
 
 // Whether the blow of `xHand` (point `xI`, of kind `xKind`, on `xEnt`) lands, and as what: sets mh_kind, mh_speed,
-// mh_strength, mh_part and mh_way. FALSE: nothing (too slow, or a hilt the blade passes).
+// mh_strength, mh_part and mh_way. FALSE: nothing (too slow, or no blow).
 float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
 {
     float minSpeed = VR_Melee_MinSpeed();
@@ -696,11 +696,10 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
     }
     else
     {
-        // The pommel, the hilt, the handle, a gun's grip or butt: a pommel (butt) strike. While the far end sweeps round
-        // much faster (a swing whose hands arrive first) the blade proper decides if it follows (VR_Melee_Sweep).
+        // The pommel, the handle's end, a gun's butt: a pommel (butt) strike, unless the blade proper follows it into
+        // the thing at once (VR_Melee_Sweep: a cut from close by).
         float sp = vlen(vp);
         lead = sp > 0 ? (vp * axis) / -sp : 0;
-        b.mh_hilt_sweeping = vfar > sp * VR_MELEE_SWEEP + 1;
         kind = VR_MKIND_POMMEL;
         way = vp;
         speed = sp;
@@ -710,7 +709,7 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
         }
         if(b.mh_thing == VR_MTHING_SWORD)
         {
-            weight = xI == 2 ? VR_MELEE_GUARD * VR_MELEE_POMMEL_SWORD : VR_MELEE_POMMEL_SWORD;
+            weight = VR_MELEE_POMMEL_SWORD;
         }
         else if(b.mh_thing == VR_MTHING_AXE)
         {
@@ -786,7 +785,7 @@ void(float xHand, entity b) VR_Melee_Rearm =
 
 // Sweeps the points of `xHand` from the last pose to this one (VR_Melee_Track) and decides the blow: the contact to
 // land on into mh_c_* and TRUE, or FALSE. Things that bleed first: of the points striking this frame, the blade's
-// (or head's, fist's) over the hilt's and pommel's, then the earliest along the sweep. A wall only when nothing that
+// (or head's, fist's) over the pommel's, then the earliest along the sweep. A wall only when nothing that
 // bleeds is struck, and not by a point going down (a hand reaching for a holster).
 float(float xHand, entity b) VR_Melee_Sweep =
 {
@@ -799,7 +798,7 @@ float(float xHand, entity b) VR_Melee_Sweep =
     float r = VR_MELEE_RADIUS * max(0.25, cvar_hget(cvarh_vr_melee_range_multiplier));
     vector hand = b.mh_grip;
 
-    // The best contact of each class: the striking part's (edge, fist) and the hilt's (grip, near end).
+    // The best contact of each class: the striking part's (edge, fist) and the near end's (pommel, butt).
     float edgeT = 2;
     float edgeI = -1;
     entity edgeEnt = world;
@@ -840,6 +839,10 @@ float(float xHand, entity b) VR_Melee_Sweep =
             {
                 b.mh_hit_touch = time;
             }
+            if(vr_mpt_kind[i] == VR_MPT_GRIP)
+            {
+                continue;
+            }
             if(striker && trace_fraction < edgeT && VR_Melee_Armed(xHand, b, trace_ent))
             {
                 edgeT = trace_fraction;
@@ -855,7 +858,7 @@ float(float xHand, entity b) VR_Melee_Sweep =
                 hiltAt = trace_endpos;
             }
         }
-        else if(trace_fraction < wallT && p1_z - p0_z >= VR_MELEE_WALL_DOWN * vlen(p1 - p0))
+        else if(trace_fraction < wallT && vr_mpt_kind[i] != VR_MPT_GRIP && p1_z - p0_z >= VR_MELEE_WALL_DOWN * vlen(p1 - p0))
         {
             wallT = trace_fraction;
             wallI = i;
@@ -886,17 +889,21 @@ float(float xHand, entity b) VR_Melee_Sweep =
                 {
                     continue;
                 }
-                if(!armed)
+                if(!armed || vr_mpt_kind[i] == VR_MPT_GRIP)
                 {
                     if(e == b.mh_hit_ent)
                     {
                         b.mh_hit_touch = time; // still in what it struck
                     }
-                    break;
+                    if(!armed)
+                    {
+                        break;
+                    }
+                    continue;
                 }
                 striker = vr_mpt_kind[i] == VR_MPT_EDGE || vr_mpt_kind[i] == VR_MPT_FIST;
                 // Of the striking points in it, the outermost (a blade strikes with its outer part, its root may have been
-                // in the thing for a while); of the hilt's, the first along the sweep.
+                // in the thing for a while); of the near end's, the first along the sweep.
                 if((striker && i < edgeI) || (!striker && t >= hiltT))
                 {
                     continue;
@@ -930,9 +937,9 @@ float(float xHand, entity b) VR_Melee_Sweep =
         e = e.chain;
     }
 
-    // The striking part first. A hilt's or pommel's touch while the far end sweeps round (a swing whose hands arrive
-    // first) waits VR_MELEE_HILT_WAIT for the blade proper to reach the same thing: then the swing is the blade's; else
-    // it lands as the pommel strike it was. (A pommel driven back along the line lands at once.)
+    // The striking part first. The pommel's touch waits VR_MELEE_HILT_WAIT for the blade proper to reach the
+    // same thing: then the blow is the blade's (a cut whose hands arrive first); else it lands as the pommel strike it
+    // was.
     if(edgeI >= 0 && VR_Melee_Decide(xHand, b, edgeI, vr_mpt_kind[edgeI]))
     {
         if(b.mh_pend_ent == world || b.mh_pend_ent != edgeEnt || vr_mpt_f[edgeI] >= VR_MELEE_BLADE_FROM)
@@ -951,10 +958,6 @@ float(float xHand, entity b) VR_Melee_Sweep =
         b.mh_c_pos = hiltAt;
         b.mh_c_dir = normalize(b.mh_cp[hiltI] - b.mh_pp[hiltI]);
         b.mh_c_normal = b.mh_c_dir * -1;
-        if(!b.mh_hilt_sweeping)
-        {
-            return TRUE;
-        }
         b.mh_pend_ent = hiltEnt;
         b.mh_pend_time = time;
         b.mh_pend_pos = hiltAt;
