@@ -930,7 +930,8 @@ void hologramTestMessage()
         slider("Two-Handed Hand Drift", vr_carry_two_hands_drift, 0.f, 20.f, 1.f, "%.0f cm")
             .extend(0.f, 50.f)
             .help("How far your drawn hands may be off your real ones to stay on their grips as you pull them apart or push "
-                  "them together. 0: they stay on your real hands."),
+                  "them together. 0: they stay on your real hands. Pulled 3 cm further off (vr_carry_two_hands_detach), "
+                  "with the hand no longer touching it, that hand lets go; both, and it drops."),
         toggle("Fit to the Hand", vr_held_surface_fit)
             .help("A box, backpack or gib you grip sits against your curled fingers, by its drawn shape. Off: it stays where you gripped it."),
         slider("Fit Gap", vr_held_fit_gap, -6.f, 3.f, 0.1f, "%.1f cm").extend()
