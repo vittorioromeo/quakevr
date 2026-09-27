@@ -553,6 +553,9 @@ box in the main hand; move the off hand to its other side (`vr_mock_hand off -0.
 at `0.10 1.30 -0.45`) and press its grip: `carry: both hands` (developer 1). `vr_debug_carry 2` writes the object and
 both hands every frame to `carry_trace.txt` (and prints the second hand's reach test); `vr_debug_throw 1` prints
 `throw both hands (...)`. `vr_mock_play` keyframes move both hands with their velocities (throws, turns).
+Put the off hand out of the way first (`vr_mock_hand off -0.35 1.1 -0.2 0 0 0`): at its default pose it touches the
+box before the main hand (no `carry: taken`, and the box drops). Carrying across a save (round 21):
+`save c1; wait10; load c1; wait60; screenshot`; the box should still be in the hand(s).
 Held weapons against models (round 21): `vr_debug_model_collide 1` prints each hand's push, `2` draws the rays;
 `vr_model_collide_bench [n] [list]` times the test, `vr_model_collide_bench probe` lists the model triangles a ray along
 the view goes in and out by. `impulse 241` puts a monster (`vr_test_spawn`: the firing range dispenser's numbers) or a

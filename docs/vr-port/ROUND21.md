@@ -17,6 +17,7 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | Casings | a tiny splash, ripple and plip in water, slime and lava |
 | C++ audit | 17 fixes: the upscaler's per-frame 60 KB string, NaN-safe network moves, unsigned hashes, flat water-ripple table, decal/gore rings, caches reset on a game directory change, beam quality (Medium default, 0.002–0.010 ms instead of 0.018), O(n²) eviction removed; INSTALL.md requires the VC++ redistributable 14.44+ |
 | Defaults | your round-20 test settings and weapon placements (`vr_wofs_version` 14); Fit Gap down to -6 cm |
+| Carrying after a load | a box carried in one hand or both when the game was saved is drawn in the hand(s) again after loading it (it was drawn 20 m away, out of sight) |
 
 Found on the way: fteqcc stores 0 when `a || b` is assigned into an entity field (rewritten; no other code has that
 shape); a parried blow's hand knock, timed by `cl.time`, came back after a level change (reset now).
@@ -2387,3 +2388,59 @@ decide whether to keep them or throw them out. `MOTIONS.md`, "Reviewing failing 
 - [ ] Keep, Discard, Relabel a few; Undo Last.
 - [ ] Re-evaluate This Take (a small window appears on the desktop, a few seconds): any hitch in the headset? Then
       Re-evaluate Shown on a short list.
+
+## Carried box after loading a game
+
+Found while testing two-handed props: load a game saved while carrying an ammo or health box (`vr_carry.qc`, one
+hand or both) and the box is gone. The server still has it in the hand (`edict <n>`: its origin follows the hand,
+letting go and gripping again work), but the client draws it nowhere. The base build (before two-handed props) does
+it too, with one hand.
+
+**Why.** The entity was sent and the client had it: it has its model, it's updated every frame, and `holdFrame`
+(`vr_held.cpp`) placed it every frame. It was placed in the wrong spot:
+
+- **One hand.** The client takes the box's place in the hand from where the server has it, for 0.1 s after the
+  server says the hand holds it (`placeTime`: a caught box's jump to the hand can come a packet late), then keeps
+  it. After a load, the carry stat arrives in the signon, at client time 0. The client clock then jumps to the saved
+  time (3.49 s), so the 0.1 s window was already over on the first frame the box was placed. That frame was also the
+  player's first in the world. The hands are computed before the entities are relinked (the move is sent first), so
+  they were still round the world's origin (-5.6, 0.8, -31.7) while the box was at (304, -557, 69). The box was held
+  647 units (about 20 m) off the hand for as long as it was carried.
+- **Both hands.** The two-handed hold (the grips on the object, `carry2h::record`) is recorded once, on the first
+  frame held in both. After a load that was 12 units (37 cm) too low. The hands' stair smoothing (`vr_hands.cpp`)
+  eased the body up from the player's position before the server first placed it (0 after the client state is
+  cleared). The body rose 12 units over the first 0.15 s, so the hold kept the gap, and the box was drawn 12 units
+  high, at eye level and out of view. One hand was affected by this too, but its 0.1 s window re-took the place
+  while the body rose.
+- The held state (`holding`, `both`, the easings) wasn't cleared with the client state on a new map or a load,
+  unlike the other client modules. Its times came from the old map's clock.
+
+**Fix** (client only; no protocol, save or QC change):
+
+- `held::resetClientState()`, called from `VR_OnClientClearState`: what the hands held is forgotten and taken again
+  from the carry stats.
+- The 0.1 s window starts on the first frame the place in the hand is taken, not when the stat arrives.
+- Nothing is taken from the hands (a place in the hand, a two-handed hold) until the player has been placed in the
+  world for two frames in a row (`playerFrames`): signed on, with its entity updated. Until then (one or two frames
+  after a load) the box is drawn where the server has it.
+- The stair smoothing doesn't start until the server has placed the player (`player.msgtime > 0`). The view, hands
+  and body no longer rise 12 units over the first 0.15 s of every map and load.
+
+### Checked (mock headset, firing range)
+
+A health box placed in the main hand and gripped (the off hand moved out of the way first, see TESTING.md), then
+also gripped by the off hand for the two-handed case; `save`, `load`, screenshots before and after; composites
+`carrysave/b1.png`, `b2.png` (before) and `a1.png`, `a2.png` (after), in the round's scratch folder.
+
+| | Before the save | After the load, before the fix | After the load, fixed |
+|---|---|---|---|
+| One hand | in the hand | not in view (placed 647 units off the hand) | in the hand, as before the save |
+| Both hands | in both hands | not in view (12 units high); the drawn hands on their grips round nothing | in both hands, the grips' hold as before the save (the box at 304.6 -558.4 69.1, the server's place) |
+
+- After the load, letting go drops the box (`carry: let go`); it falls to the floor and is drawn there.
+- A box not carried when saving was drawn after the load before the fix too.
+- Melee canary (`eval.sh`): 39/46 pass, the same as the baseline, no verdict or event differs.
+
+### In the headset
+
+- [ ] Carry a box (one hand, then both), save, load: is it in your hand(s)? Let go, grip it again.
