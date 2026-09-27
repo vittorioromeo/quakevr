@@ -517,6 +517,17 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         toggle("Counter Glow", vr_counter_glow).help("While the window is open, what your hands hold sheds golden embers, fewer as it closes."),
         slider("Counter Pulses", vr_counter_haptic, 0.f, 1.f, 0.1f, "%.1f")
             .help("Strength of the soft pulses in both hands while the window is open, fading as it closes (0 off)."),
+        header("Training Dummy Attacks"),
+        slider("Time Between Blows", vr_dummy_attack_period, 1.f, 8.f, 0.1f, "%.1f s").extend()
+            .help("With the firing range's Dummy Attacks button on, the training dummy strikes at you this often, to practise parrying."),
+        slider("Randomness", vr_dummy_attack_jitter, 0.f, 2.f, 0.05f, "%.2f s").extend()
+            .help("How much sooner or later than that each blow may come, at random."),
+        slider("Wind-Up", vr_dummy_attack_windup, 0.1f, 2.f, 0.05f, "%.2f s")
+            .help("How long before each blow the dummy gives it away: a sound, a glow, the rifle raised as it rears back."),
+        slider("Reach", vr_dummy_attack_reach, 16.f, 150.f, 2.f, "%.0f units")
+            .help("How close you must be for it to strike (a knight's reach is 60). Further away it waits; step out of reach during the wind-up and it misses."),
+        slider("Damage", vr_dummy_attack_damage, 0.f, 50.f, 1.f, "%.0f").extend()
+            .help("A blow's damage, as a monster's: armour, the parry and god mode apply."),
         header("Batting Projectiles"),
         toggle("Bat Back Projectiles", vr_deflect).help("Swing a weapon (or a fist) through a monster's spike, laser, spit or grenade to send it back where your hand points (at the monster, when you point near it)."),
         slider("Batting Reach", vr_deflect_radius, 4.f, 32.f, 1.f, "%.0f units").extend().help("How near the weapon's blade (or your fist) a projectile must pass to be batted back."),

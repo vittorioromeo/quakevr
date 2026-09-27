@@ -11,6 +11,10 @@
 // It flinches (its pain frames, a lean away from the blow) but is not knocked away, and is no
 // monster of the level (not counted, never killed). Attacks that their inflictor does not tell
 // apart are tagged by their code (VR_SetHitKind, combat.qc).
+//
+// With vr_dummy_attacks on (the firing range's "dummy attacks" button: vr_dummy_attack_toggle, below) it
+// strikes back, for practising the parry: see "Attacks" below. Off (the default, and at every map load),
+// it does nothing more than above: the motion takes are replayed against it (docs/vr-port/MOTIONS.md).
 
 .vector vr_dummy_home;       // where it stands
 .vector vr_dummy_angles;     // and its facing
@@ -28,6 +32,14 @@ float VR_DUMMY_PAIN_LAST   = 45;
 float VR_DUMMY_HEALTH = 1000;
 
 vector vr_dummy_colour; // the floating number's, chosen along with the kind of hit
+
+.float vr_dummy_turn; // yaw turned from its facing, towards whom it strikes at (attacks on; else 0)
+
+// Which way it faces: its own facing, turned towards whom it strikes at.
+vector(entity e) VR_Dummy_Facing =
+{
+    return e.vr_dummy_angles + '0 1 0' * e.vr_dummy_turn;
+};
 
 // ----------------------------------------------------------------------------
 // Naming what hit it
@@ -345,7 +357,7 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
     }
     dir_z = 0;
     dir = normalize(dir);
-    makevectors(targ.vr_dummy_angles);
+    makevectors(VR_Dummy_Facing(targ));
     float lean = min(15, 3 + damage * 0.25);
     targ.vr_dummy_lean_x = targ.vr_dummy_lean_x - (dir * v_forward) * lean;
     targ.vr_dummy_lean_z = targ.vr_dummy_lean_z + (dir * v_right) * lean;
@@ -364,6 +376,304 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
     v_forward = oldForward;
     v_right = oldRight;
     v_up = oldUp;
+};
+
+// ----------------------------------------------------------------------------
+// Attacks (parry practice)
+//
+// With vr_dummy_attacks on, it strikes at the nearest living player within vr_dummy_attack_reach (units, origin to
+// origin, as a knight's reach is measured), a blow every vr_dummy_attack_period seconds, give or take
+// vr_dummy_attack_jitter at random. Each blow has a wind-up of vr_dummy_attack_windup seconds first, the tell: a
+// sound (vr/dummy_windup.wav), a glow, the rifle raised as it turns to face you and rears back. Then it lunges.
+// The blow is a monster's melee blow: T_Damage from the dummy itself, as a knight's (ai_melee), so the parry
+// (VR_Parry, combat.qc: the dummy counts as a monster that strikes in melee while its blow is dealt), parry
+// stamina, the counter's window, the knockback and armour all work as in a fight, for vr_dummy_attack_damage. A
+// parried blow throws it back. Stepping out of reach during the wind-up makes it miss; while nobody is within
+// reach it waits, turned back to its own facing. Your hits are reported as before and don't interrupt it.
+//
+// Motion takes (docs/vr-port/MOTIONS.md): a take recorded with attacks on says so in its header ("dummy attacks:
+// on") and has a "strike" event for each wind-up, blow and miss (sub windup, blow, miss; a blow's damage). A
+// replay (vr_motion_play, vr_motion_eval) turns vr_dummy_attacks off, and the dummy strikes when the take says
+// instead (VR_Dummy_Replay, called by the engine for the take's strike events): the same blows at the same moments.
+
+.float vr_dummy_atk_phase;     // 0 idle, 1 winding up, 2 the blow's follow-through
+.float vr_dummy_atk_start;     // when the phase began
+.float vr_dummy_atk_at;        // winding up: when the blow comes (0: when a replay says); follow-through: when it ends
+.float vr_dummy_atk_next;      // idle: when the next wind-up may begin
+.float vr_dummy_atk_live;      // attacks were on at its last think
+.entity vr_dummy_atk_victim;   // whom it winds up against
+.float vr_dummy_replay_what;   // a replay's strike event for its next think: 1 wind-up, 2 blow, 3 miss
+.float vr_dummy_replay_damage;
+.vector vr_dummy_pose;         // the attack's lean (pitch): rearing back, lunging
+
+float VR_DUMMY_SHOOT_FIRST = 81;  // shoot1 .. shoot9: the rifle raised (the wind-up), brought down (the blow)
+float VR_DUMMY_FOLLOW = 0.4;      // s of the blow's follow-through
+float VR_DUMMY_TURN_SPEED = 300;  // degrees a second it turns to face whom it strikes at
+float VR_DUMMY_SETTLE = 0.5;      // s someone must be within reach before a wind-up begins
+
+// The nearest living player within `xReach` of `d` (not one with notarget: as monsters do, it leaves them be).
+entity(entity d, float xReach) VR_Dummy_Victim =
+{
+    entity best = world;
+    float bestDist = xReach;
+    entity p = find(world, classname, "player");
+    while(p)
+    {
+        float dist = vlen(p.origin - d.origin);
+        if(p.health > 0 && p.takedamage && !(p.flags & FL_NOTARGET) && dist <= bestDist)
+        {
+            best = p;
+            bestDist = dist;
+        }
+        p = find(p, classname, "player");
+    }
+    return best;
+};
+
+// (The parry and the push of an unparried blow reach 150 units: beyond, it would be no melee blow.)
+float() VR_Dummy_Reach =
+{
+    return min(150, max(16, cvar_hget(cvarh_vr_dummy_attack_reach)));
+};
+
+float() VR_Dummy_Windup =
+{
+    return min(2, max(0.1, cvar_hget(cvarh_vr_dummy_attack_windup)));
+};
+
+// When the wind-up after a blow at `xBlow` may begin: the period (give or take the jitter), less the wind-up.
+float(float xBlow) VR_Dummy_NextWindup =
+{
+    float jitter = max(0, cvar_hget(cvarh_vr_dummy_attack_jitter));
+    float period = cvar_hget(cvarh_vr_dummy_attack_period) + crandom() * jitter;
+    return xBlow + max(VR_DUMMY_FOLLOW + 0.1, period - VR_Dummy_Windup());
+};
+
+// The wind-up begins (self: the dummy): the tell. A replay's has no time of its own for the blow.
+void(entity xVictim, float xReplay) VR_Dummy_WindUp =
+{
+    self.vr_dummy_atk_phase = 1;
+    self.vr_dummy_atk_start = time;
+    self.vr_dummy_atk_at = xReplay ? 0 : time + VR_Dummy_Windup();
+    self.vr_dummy_atk_victim = xVictim;
+    self.effects = self.effects | EF_DIMLIGHT;
+    sound(self, CHAN_WEAPON, "vr/dummy_windup.wav", 1, ATTN_NORM);
+    VR_Motion_Event("strike", "windup", -1, 0, self.origin, self, "");
+    dprint(sprintf("dummy: winds up%s (%.2f)\n", xReplay ? " (replay)" : sprintf(", the blow in %.2f s", VR_Dummy_Windup()), time));
+};
+
+// The blow (self: the dummy): at `xVictim` for `xDamage`, or a miss (world).
+void(entity xVictim, float xDamage) VR_Dummy_Strike =
+{
+    self.vr_dummy_atk_phase = 2;
+    self.vr_dummy_atk_start = time;
+    self.vr_dummy_atk_at = time + VR_DUMMY_FOLLOW;
+    self.effects = self.effects - (self.effects & EF_DIMLIGHT);
+    sound(self, CHAN_WEAPON, "knight/sword1.wav", 1, ATTN_NORM);
+    if(xVictim == world)
+    {
+        VR_Motion_Event("strike", "miss", -1, 0, self.origin, self, "");
+        dprint(sprintf("dummy: misses: nobody within reach (%.2f)\n", time));
+        return;
+    }
+
+    // As a monster's blow (ai_melee): the parry, its stamina and the counter's window, the knockback, armour.
+    self.vr_dummy_striking = TRUE;
+    self.deathtype = "was beaten by the training dummy";
+    T_Damage(xVictim, self, self, xDamage);
+    self.vr_dummy_striking = FALSE;
+    self.deathtype = NULLSTR;
+    float parried = vr_parried;
+    string how = "";
+    if(parried == 1)
+    {
+        how = "parried";
+    }
+    else if(parried == 2)
+    {
+        how = "parried with the arms";
+    }
+    VR_Motion_Event("strike", "blow", -1, xDamage, self.origin, self, how);
+    dprint(sprintf("dummy: strikes %s for %g, %.0f units away%s (%.2f)\n", xVictim.netname, xDamage,
+        vlen(xVictim.origin - self.origin), how != "" ? sprintf(": %s", how) : "", time));
+    if(parried)
+    {
+        // Thrown back by the parry (a lean, as a hit's).
+        self.vr_dummy_lean_x = min(20, self.vr_dummy_lean_x + 14);
+    }
+};
+
+// A replay's strike event (see above), at the dummy's think: as the take had it.
+void() VR_Dummy_ReplayEvent =
+{
+    float what = self.vr_dummy_replay_what;
+    self.vr_dummy_replay_what = 0;
+    entity p = VR_Dummy_Victim(self, 100000);
+    if(what == 1)
+    {
+        VR_Dummy_WindUp(p, TRUE);
+    }
+    else if(what == 2 && p != world)
+    {
+        self.vr_dummy_atk_victim = p;
+        VR_Dummy_Strike(p, self.vr_dummy_replay_damage);
+    }
+    else
+    {
+        VR_Dummy_Strike(world, 0);
+    }
+};
+
+// The engine, for a take's strike event (vr_motion_play; self: the take's target, xWhat: 1 wind-up, 2 blow, 3 miss):
+// done at the dummy's think in the coming server frame, after the player's, as when it was recorded.
+void(float xWhat, float xDamage) VR_Dummy_Replay =
+{
+    if(self.classname != "vr_dummy")
+    {
+        return;
+    }
+    if(self.vr_dummy_replay_what)
+    {
+        VR_Dummy_ReplayEvent(); // (two before a think: the first now)
+    }
+    self.vr_dummy_replay_what = xWhat;
+    self.vr_dummy_replay_damage = xDamage;
+    self.nextthink = time;
+};
+
+// Once a think (self: the dummy), while attacks are on or something of them is left.
+void() VR_Dummy_Attack =
+{
+    if(self.vr_dummy_replay_what)
+    {
+        VR_Dummy_ReplayEvent();
+    }
+
+    float live = cvar_hget(cvarh_vr_dummy_attacks) != 0;
+    if(!live)
+    {
+        if(self.vr_dummy_atk_live)
+        {
+            // Turned off: a wind-up of its own stops (a replay's goes on).
+            self.vr_dummy_atk_live = FALSE;
+            if(self.vr_dummy_atk_phase == 1 && self.vr_dummy_atk_at)
+            {
+                self.vr_dummy_atk_phase = 0;
+                self.effects = self.effects - (self.effects & EF_DIMLIGHT);
+            }
+        }
+    }
+    else if(!self.vr_dummy_atk_live)
+    {
+        self.vr_dummy_atk_live = TRUE;
+        self.vr_dummy_atk_next = time + 1; // the first wind-up a second after it's turned on
+    }
+
+    float reach = VR_Dummy_Reach();
+    entity near = world;
+    if(live)
+    {
+        near = VR_Dummy_Victim(self, reach);
+    }
+
+    if(self.vr_dummy_atk_phase == 1 && self.vr_dummy_atk_at)
+    {
+        if(time >= self.vr_dummy_atk_at)
+        {
+            // Whom it wound up against, if still within reach: else a miss.
+            entity v = self.vr_dummy_atk_victim;
+            if(v.health <= 0 || !v.takedamage || vlen(v.origin - self.origin) > reach)
+            {
+                v = world;
+            }
+            VR_Dummy_Strike(v, max(0, cvar_hget(cvarh_vr_dummy_attack_damage)));
+            self.vr_dummy_atk_next = VR_Dummy_NextWindup(time);
+        }
+        else
+        {
+            self.nextthink = min(self.nextthink, self.vr_dummy_atk_at); // the blow on time
+        }
+    }
+    else if(self.vr_dummy_atk_phase == 2)
+    {
+        if(time >= self.vr_dummy_atk_at)
+        {
+            self.vr_dummy_atk_phase = 0;
+        }
+    }
+    else if(self.vr_dummy_atk_phase == 0 && live)
+    {
+        if(near == world)
+        {
+            self.vr_dummy_atk_next = max(self.vr_dummy_atk_next, time + VR_DUMMY_SETTLE);
+        }
+        else if(time >= self.vr_dummy_atk_next)
+        {
+            VR_Dummy_WindUp(near, FALSE);
+        }
+    }
+
+    // Turning to face whom it strikes at (during an attack, or someone within reach), else back.
+    float turn = 0;
+    entity face = near;
+    if(self.vr_dummy_atk_phase)
+    {
+        face = self.vr_dummy_atk_victim;
+    }
+    if(face != world)
+    {
+        turn = anglemod(vectoyaw(face.origin - self.origin) - self.vr_dummy_angles_y + 180) - 180;
+    }
+    if(turn != self.vr_dummy_turn)
+    {
+        float step = VR_DUMMY_TURN_SPEED * 0.05;
+        float d = anglemod(turn - self.vr_dummy_turn + 180) - 180;
+        if(fabs(d) <= step)
+        {
+            self.vr_dummy_turn = turn;
+        }
+        else
+        {
+            self.vr_dummy_turn = self.vr_dummy_turn + (d > 0 ? step : -step);
+        }
+    }
+
+    // The pose: rearing back through the wind-up, lunging at the blow, back up in the follow-through.
+    float u;
+    if(self.vr_dummy_atk_phase == 1)
+    {
+        u = min(1, (time - self.vr_dummy_atk_start) / VR_Dummy_Windup());
+        self.vr_dummy_pose_x = 12 * u;
+    }
+    else if(self.vr_dummy_atk_phase == 2)
+    {
+        u = min(1, (time - self.vr_dummy_atk_start) / VR_DUMMY_FOLLOW);
+        if(u < 0.25)
+        {
+            self.vr_dummy_pose_x = -22 * (u / 0.25);
+        }
+        else
+        {
+            self.vr_dummy_pose_x = -22 * (1 - (u - 0.25) / 0.75);
+        }
+    }
+    else
+    {
+        self.vr_dummy_pose_x = 0;
+    }
+};
+
+// Its frame during an attack: the rifle raised through the wind-up (shoot1-4), brought down in the blow (shoot5-9).
+float() VR_Dummy_AttackFrame =
+{
+    float u;
+    if(self.vr_dummy_atk_phase == 1)
+    {
+        u = min(1, (time - self.vr_dummy_atk_start) / VR_Dummy_Windup());
+        return VR_DUMMY_SHOOT_FIRST + min(3, floor(u * 4));
+    }
+    u = min(1, (time - self.vr_dummy_atk_start) / VR_DUMMY_FOLLOW);
+    return VR_DUMMY_SHOOT_FIRST + 4 + min(4, floor(u * 5));
 };
 
 // ----------------------------------------------------------------------------
@@ -390,8 +700,20 @@ void() vr_dummy_think =
 {
     self.nextthink = time + 0.05;
 
-    // Its pain frames, else standing (at 10 frames a second).
-    if(self.vr_dummy_painframe)
+    // Its attacks (off: nothing).
+    if(self.vr_dummy_atk_phase || self.vr_dummy_atk_live || self.vr_dummy_turn || self.vr_dummy_replay_what ||
+       cvar_hget(cvarh_vr_dummy_attacks))
+    {
+        VR_Dummy_Attack();
+    }
+
+    // An attack's frames, else its pain frames, else standing (at 10 frames a second).
+    if(self.vr_dummy_atk_phase)
+    {
+        self.frame = VR_Dummy_AttackFrame();
+        self.vr_dummy_painframe = 0; // (a hit's lean still shows)
+    }
+    else if(self.vr_dummy_painframe)
     {
         self.frame = self.vr_dummy_painframe;
         self.vr_dummy_painframe = self.vr_dummy_painframe + 1;
@@ -412,7 +734,7 @@ void() vr_dummy_think =
     {
         self.vr_dummy_lean = '0 0 0';
     }
-    self.angles = self.vr_dummy_angles + self.vr_dummy_lean;
+    self.angles = VR_Dummy_Facing(self) + self.vr_dummy_lean + self.vr_dummy_pose;
 
     // Pushes (vr_hit_push, vr_melee_push, a bash) move nothing: it stays on its spot.
     self.velocity = '0 0 0';
@@ -448,6 +770,8 @@ a monster.
 void() vr_dummy =
 {
     monster_army_precache();
+    precache_sound("vr/dummy_windup.wav"); // its attacks (vr_dummy_attacks)
+    precache_sound("knight/sword1.wav");
 
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_NONE;
@@ -466,4 +790,80 @@ void() vr_dummy =
 
     self.think = vr_dummy_start;
     self.nextthink = time + 0.1 + random() * 0.1;
+};
+
+// ----------------------------------------------------------------------------
+// The firing range's "dummy attacks" button
+
+.float vr_dummy_label;       // the label's worldtext handle
+.float vr_dummy_label_shown; // what it shows: 0 off, 1 on (-1: nothing yet)
+
+// The label, and the button lit while attacks are on (vr_dummy_attacks: the console's too).
+void() vr_dummy_attack_toggle_show =
+{
+    float on = cvar_hget(cvarh_vr_dummy_attacks) != 0;
+    if(on != self.vr_dummy_label_shown)
+    {
+        self.vr_dummy_label_shown = on;
+        worldtext_hsettext(self.vr_dummy_label, on ? "dummy\nattacks\non" : "dummy\nattacks\noff");
+    }
+    // (Its pressed textures also as it comes back out: button_return turns them off.)
+    entity b = self.enemy;
+    if(b != world && (b.state == STATE_BOTTOM || b.state == STATE_DOWN) && b.frame != on)
+    {
+        b.frame = on;
+    }
+};
+
+void() vr_dummy_attack_toggle_think =
+{
+    if(self.enemy == world)
+    {
+        self.enemy = find(world, target, self.targetname);
+    }
+    vr_dummy_attack_toggle_show();
+    // Every frame while the button moves (after its think: this entity comes after it), else ten times a second.
+    self.nextthink = time + ((self.enemy != world && self.enemy.state != STATE_BOTTOM) ? 0.01 : 0.1);
+};
+
+void() vr_dummy_attack_toggle_use =
+{
+    float on = cvar_hget(cvarh_vr_dummy_attacks) == 0;
+    cvar_set("vr_dummy_attacks", on ? "1" : "0");
+    vr_dummy_attack_toggle_show();
+    if(!(activator.flags & FL_CLIENT))
+    {
+        return;
+    }
+    if(!on)
+    {
+        centerprint(activator, "Dummy attacks OFF");
+        return;
+    }
+    centerprint(activator, "Dummy attacks ON");
+    sprint(activator, sprintf("Dummy attacks on: a blow of %g every %g s (give or take %g) within %g units, after a %g s wind-up (Gameplay > Parry, Bash and Headbutt)\n",
+        cvar_hget(cvarh_vr_dummy_attack_damage), cvar_hget(cvarh_vr_dummy_attack_period),
+        cvar_hget(cvarh_vr_dummy_attack_jitter), VR_Dummy_Reach(), VR_Dummy_Windup()));
+};
+
+/*QUAKED vr_dummy_attack_toggle (1 0.5 0) (-8 -8 -8) (8 8 8)
+Quake VR: the switch of the training dummies' attacks (vr_dummy_attacks: parry practice). Used by the button whose
+target it is, it turns them on or off, and it shows which on a label at its origin ("angle": the way the label
+faces, as a func_worldtext_banner's; "worldtext_scale", 0.75 if not given). The button stays lit while they're on.
+Not saved: off at every map load.
+*/
+void() vr_dummy_attack_toggle =
+{
+    self.solid = SOLID_NOT;
+    self.movetype = MOVETYPE_NONE;
+    self.use = vr_dummy_attack_toggle_use;
+    self.vr_dummy_label = worldtext_hmake();
+    self.vr_dummy_label_shown = -1;
+    worldtext_hsetpos(self.vr_dummy_label, self.origin);
+    worldtext_hsetangles(self.vr_dummy_label, self.angles + '0 180 0');
+    worldtext_hsethalign(self.vr_dummy_label, 1);
+    worldtext_hsetscale(self.vr_dummy_label, self.worldtext_scale ? self.worldtext_scale : 0.75);
+    vr_dummy_attack_toggle_show();
+    self.think = vr_dummy_attack_toggle_think;
+    self.nextthink = time + 0.1;
 };
