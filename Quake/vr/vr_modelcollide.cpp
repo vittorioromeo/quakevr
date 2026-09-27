@@ -5,6 +5,7 @@
 #include "vr_api_render.h"
 #include "vr_backend.hpp"
 #include "vr_body.hpp"
+#include "vr_client.hpp"
 #include "vr_cvars.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_grasp.hpp"
@@ -118,11 +119,16 @@ const ModelTris* trianglesOf(const qmodel_t* model)
 
 struct Posed
 {
-    int frame{-1}; // host_framecount it was posed for
+    int frame{-1}; // host_framecount it was placed for
     bool valid{false};
     const ModelTris* model{nullptr};
+    const entity_t* ent{nullptr};
+    glm::mat4 m{1.f};           // its model's coordinates to the world, as drawn
+    int pose1{0}, pose2{0};     // an alias model's poses and the blend between them
+    float blend{0.f};
+    glm::vec3 lo{0.f}, hi{0.f}; // its box as drawn (its frames' bounds, or a brush model's, placed)
+    int vertsFrame{-1};         // host_framecount its vertices were posed for (only when something comes near)
     std::vector<glm::vec3> verts; // world
-    glm::vec3 lo{0.f}, hi{0.f};   // their box
 };
 std::unordered_map<int, Posed> posedCache; // by entity number
 
@@ -214,6 +220,20 @@ struct Lerped
     return r;
 }
 
+// The pose of an alias model's frame that `pose` is in (its bounds), or -1.
+[[nodiscard]] int frameOfPose(const aliashdr_t* hdr, int pose)
+{
+    for(int f = 0; f < hdr->numframes; f++)
+    {
+        if(pose >= hdr->frames[f].firstpose && pose < hdr->frames[f].firstpose + hdr->frames[f].numposes)
+        {
+            return f;
+        }
+    }
+    return -1;
+}
+
+// Where `e` is drawn this frame and its box (cheap: no vertices yet).
 const Posed* posed(int num, const entity_t& e)
 {
     Posed& p = posedCache[num];
@@ -222,13 +242,16 @@ const Posed* posed(int num, const entity_t& e)
         return p.valid ? &p : nullptr;
     }
     p.frame = host_framecount;
+    p.vertsFrame = -1;
     p.valid = false;
+    p.ent = &e;
     p.model = trianglesOf(e.model);
     if(!p.model)
     {
         return nullptr;
     }
     float m16[16];
+    glm::vec3 blo, bhi; // bounds in the model's coordinates
     if(p.model->alias)
     {
         const aliashdr_t* hdr = quakeAlias(e.model);
@@ -237,23 +260,23 @@ const Posed* posed(int num, const entity_t& e)
             return nullptr;
         }
         const Lerped l = lerpOf(e, hdr);
+        p.pose1 = l.pose1;
+        p.pose2 = l.pose2;
+        p.blend = l.blend;
         vec3_t origin{l.origin.x, l.origin.y, l.origin.z}, angles{l.angles.x, l.angles.y, l.angles.z};
         R_EntityMatrix(m16, origin, angles, e.scale);
         VR_AliasPreTransform(&e, m16);
         ApplyTranslation(m16, hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]);
         ApplyScale(m16, hdr->scale[0], hdr->scale[1], hdr->scale[2]);
         VR_AliasPostTransform(&e, m16);
-        const glm::mat4 m = toMat4(m16);
-        const auto* base = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
-        const trivertx_t* v1 = base + static_cast<std::size_t>(l.pose1) * static_cast<std::size_t>(hdr->numverts);
-        const trivertx_t* v2 = base + static_cast<std::size_t>(l.pose2) * static_cast<std::size_t>(hdr->numverts);
-        p.verts.resize(static_cast<std::size_t>(hdr->numverts));
-        const float b = l.blend;
-        for(int i = 0; i < hdr->numverts; i++)
+        blo = glm::vec3{1e30f};
+        bhi = glm::vec3{-1e30f};
+        for(const int pose : {l.pose1, l.pose2})
         {
-            const glm::vec3 raw{v1[i].v[0] + (v2[i].v[0] - v1[i].v[0]) * b, v1[i].v[1] + (v2[i].v[1] - v1[i].v[1]) * b,
-                v1[i].v[2] + (v2[i].v[2] - v1[i].v[2]) * b};
-            p.verts[static_cast<std::size_t>(i)] = glm::vec3{m * glm::vec4{raw, 1.f}};
+            const int f = frameOfPose(hdr, pose);
+            const maliasframedesc_t& fd = hdr->frames[f >= 0 ? f : 0];
+            blo = glm::min(blo, glm::vec3{fd.bboxmin.v[0], fd.bboxmin.v[1], fd.bboxmin.v[2]});
+            bhi = glm::max(bhi, glm::vec3{fd.bboxmax.v[0], fd.bboxmax.v[1], fd.bboxmax.v[2]});
         }
     }
     else
@@ -262,22 +285,57 @@ const Posed* posed(int num, const entity_t& e)
         VectorCopy(e.origin, origin);
         R_EntityMatrix(m16, origin, angles, e.scale);
         VR_BrushTransform(&e, m16);
-        const glm::mat4 m = toMat4(m16);
+        blo = glm::vec3{e.model->mins[0], e.model->mins[1], e.model->mins[2]};
+        bhi = glm::vec3{e.model->maxs[0], e.model->maxs[1], e.model->maxs[2]};
+    }
+    p.m = toMat4(m16);
+    p.lo = glm::vec3{1e30f};
+    p.hi = glm::vec3{-1e30f};
+    for(int c = 0; c < 8; c++)
+    {
+        const glm::vec3 corner{c & 1 ? bhi.x : blo.x, c & 2 ? bhi.y : blo.y, c & 4 ? bhi.z : blo.z};
+        const glm::vec3 w{p.m * glm::vec4{corner, 1.f}};
+        p.lo = glm::min(p.lo, w);
+        p.hi = glm::max(p.hi, w);
+    }
+    p.lo -= glm::vec3{0.5f}; // a trivertx is rounded
+    p.hi += glm::vec3{0.5f};
+    p.valid = true;
+    return &p;
+}
+
+// Its vertices as drawn this frame (the lerp between its two poses), in the world: once a frame, when something is near.
+const std::vector<glm::vec3>& vertsOf(Posed& p)
+{
+    if(p.vertsFrame == host_framecount)
+    {
+        return p.verts;
+    }
+    p.vertsFrame = host_framecount;
+    if(p.model->alias)
+    {
+        const aliashdr_t* hdr = quakeAlias(p.ent->model);
+        const auto* base = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
+        const trivertx_t* v1 = base + static_cast<std::size_t>(p.pose1) * static_cast<std::size_t>(hdr->numverts);
+        const trivertx_t* v2 = base + static_cast<std::size_t>(p.pose2) * static_cast<std::size_t>(hdr->numverts);
+        p.verts.resize(static_cast<std::size_t>(hdr->numverts));
+        const float b = p.blend;
+        for(int i = 0; i < hdr->numverts; i++)
+        {
+            const glm::vec3 raw{v1[i].v[0] + (v2[i].v[0] - v1[i].v[0]) * b, v1[i].v[1] + (v2[i].v[1] - v1[i].v[1]) * b,
+                v1[i].v[2] + (v2[i].v[2] - v1[i].v[2]) * b};
+            p.verts[static_cast<std::size_t>(i)] = glm::vec3{p.m * glm::vec4{raw, 1.f}};
+        }
+    }
+    else
+    {
         p.verts.resize(p.model->brushVerts.size());
         for(std::size_t i = 0; i < p.verts.size(); i++)
         {
-            p.verts[i] = glm::vec3{m * glm::vec4{p.model->brushVerts[i], 1.f}};
+            p.verts[i] = glm::vec3{p.m * glm::vec4{p.model->brushVerts[i], 1.f}};
         }
     }
-    p.lo = glm::vec3{1e30f};
-    p.hi = glm::vec3{-1e30f};
-    for(const glm::vec3& v : p.verts)
-    {
-        p.lo = glm::min(p.lo, v);
-        p.hi = glm::max(p.hi, v);
-    }
-    p.valid = !p.verts.empty();
-    return p.valid ? &p : nullptr;
+    return p.verts;
 }
 
 // ----------------------------------------------------------------------------
@@ -459,6 +517,14 @@ struct Tri
     int owner;
 };
 
+// Runs of a model's triangles in its own order (neighbours, mostly: a limb's), under one box: a ray skips a run at once.
+constexpr std::uint32_t chunkSize = 8;
+struct Chunk
+{
+    glm::vec3 lo, hi;
+    std::uint32_t first, count;
+};
+
 struct Plane
 {
     glm::vec3 n;
@@ -489,7 +555,8 @@ struct Ray
     bool hand; // the hand's own: counts only if it ends inside
 };
 
-std::vector<Tri> tris;     // the triangles near the rays this round
+std::vector<Tri> tris;     // the triangles near the rays
+std::vector<Chunk> chunks; // and their runs
 std::vector<Ray> rays;
 std::vector<Plane> planes;
 std::vector<int> nearby;     // the entities near the weapon
@@ -514,51 +581,58 @@ struct Crossing
     float outS[maxOuts];
     int outOwner[maxOuts];
     int outs = 0;
-    for(std::size_t i = 0; i < tris.size(); i++)
+    for(const Chunk& k : chunks)
     {
-        const Tri& t = tris[i];
-        if(t.hi.x < rlo.x || t.hi.y < rlo.y || t.hi.z < rlo.z || t.lo.x > rhi.x || t.lo.y > rhi.y || t.lo.z > rhi.z)
+        if(k.hi.x < rlo.x || k.hi.y < rlo.y || k.hi.z < rlo.z || k.lo.x > rhi.x || k.lo.y > rhi.y || k.lo.z > rhi.z)
         {
             continue;
         }
-        const glm::vec3 pv = glm::cross(d, t.e2);
-        const float det = glm::dot(t.e1, pv);
-        if(std::fabs(det) < 1e-9f)
+        for(std::size_t i = k.first; i < k.first + k.count; i++)
         {
-            continue;
-        }
-        const float inv = 1.f / det;
-        const glm::vec3 tv = ray.a - t.a;
-        const float u = glm::dot(tv, pv) * inv;
-        if(u < 0.f || u > 1.f)
-        {
-            continue;
-        }
-        const glm::vec3 qv = glm::cross(tv, t.e1);
-        const float v = glm::dot(d, qv) * inv;
-        if(v < 0.f || u + v > 1.f)
-        {
-            continue;
-        }
-        const float s = glm::dot(t.e2, qv) * inv;
-        if(s < 0.f || s > 1.f)
-        {
-            continue;
-        }
-        // Quake's models are wound clockwise seen from outside (both kinds: glquake culled GL_FRONT): cross(e1, e2)
-        // points in, and det = -dot(d, cross(e1, e2)) is negative going into the model through its front.
-        if(det < 0.f)
-        {
-            if(s < c.sIn)
+            const Tri& t = tris[i];
+            if(t.hi.x < rlo.x || t.hi.y < rlo.y || t.hi.z < rlo.z || t.lo.x > rhi.x || t.lo.y > rhi.y || t.lo.z > rhi.z)
             {
-                c.sIn = s;
-                inTri = static_cast<int>(i);
+                continue;
             }
-        }
-        else if(outs < maxOuts)
-        {
-            outS[outs] = s;
-            outOwner[outs++] = t.owner;
+            const glm::vec3 pv = glm::cross(d, t.e2);
+            const float det = glm::dot(t.e1, pv);
+            if(std::fabs(det) < 1e-9f)
+            {
+                continue;
+            }
+            const float inv = 1.f / det;
+            const glm::vec3 tv = ray.a - t.a;
+            const float u = glm::dot(tv, pv) * inv;
+            if(u < 0.f || u > 1.f)
+            {
+                continue;
+            }
+            const glm::vec3 qv = glm::cross(tv, t.e1);
+            const float v = glm::dot(d, qv) * inv;
+            if(v < 0.f || u + v > 1.f)
+            {
+                continue;
+            }
+            const float s = glm::dot(t.e2, qv) * inv;
+            if(s < 0.f || s > 1.f)
+            {
+                continue;
+            }
+            // Quake's models are wound clockwise seen from outside (both kinds: glquake culled GL_FRONT): cross(e1, e2)
+            // points in, and det = -dot(d, cross(e1, e2)) is negative going into the model through its front.
+            if(det < 0.f)
+            {
+                if(s < c.sIn)
+                {
+                    c.sIn = s;
+                    inTri = static_cast<int>(i);
+                }
+            }
+            else if(outs < maxOuts)
+            {
+                outS[outs] = s;
+                outOwner[outs++] = t.owner;
+            }
         }
     }
     if(inTri < 0)
@@ -583,34 +657,43 @@ struct Crossing
 void gather(const glm::vec3& lo, const glm::vec3& hi, Stats& stats)
 {
     tris.clear();
+    chunks.clear();
     for(const int num : nearby)
     {
-        const Posed& p = posedCache[num];
+        Posed& p = posedCache[num];
         if(p.hi.x < lo.x || p.hi.y < lo.y || p.hi.z < lo.z || p.lo.x > hi.x || p.lo.y > hi.y || p.lo.z > hi.z)
         {
             continue;
         }
+        const std::vector<glm::vec3>& verts = vertsOf(p);
         for(const auto& tri : p.model->tris)
         {
-            if(tri[0] >= p.verts.size() || tri[1] >= p.verts.size() || tri[2] >= p.verts.size())
+            if(tri[0] >= verts.size() || tri[1] >= verts.size() || tri[2] >= verts.size())
             {
                 continue;
             }
-            const glm::vec3& a = p.verts[tri[0]];
-            const glm::vec3& b = p.verts[tri[1]];
-            const glm::vec3& c = p.verts[tri[2]];
+            const glm::vec3& a = verts[tri[0]];
+            const glm::vec3& b = verts[tri[1]];
+            const glm::vec3& c = verts[tri[2]];
             const glm::vec3 tlo = glm::min(a, glm::min(b, c)), thi = glm::max(a, glm::max(b, c));
             if(thi.x < lo.x || thi.y < lo.y || thi.z < lo.z || tlo.x > hi.x || tlo.y > hi.y || tlo.z > hi.z)
             {
                 continue;
             }
+            if(chunks.empty() || chunks.back().count == chunkSize || tris.back().owner != num)
+            {
+                chunks.push_back(Chunk{tlo, thi, static_cast<std::uint32_t>(tris.size()), 0});
+            }
+            Chunk& k = chunks.back();
+            k.lo = glm::min(k.lo, tlo);
+            k.hi = glm::max(k.hi, thi);
+            k.count++;
             tris.push_back(Tri{a, b - a, c - a, tlo, thi, num});
         }
     }
     stats.triangles += static_cast<int>(tris.size());
 }
 
-// Whether `hand` is tested this frame, and against what (vr_model_collide: 1 monsters, 2 objects too).
 // Why `hand` is not tested this frame (nullptr: it is), against what vr_model_collide says (1 monsters, 2 objects too).
 [[nodiscard]] const char* notTested(const hands::State& s, int hand)
 {
@@ -717,13 +800,20 @@ Result test(const hands::State& s, int hand)
         {
             continue;
         }
-        const float k = e.scale ? ENTSCALE_DECODE(e.scale) : 1.f;
-        const float grow = std::fmax(k, 1.f) * 1.5f; // and a networked scale, up to half again
+        // Its model's bounds (all its frames, turned any way), scaled as it is drawn (its scale, the networked one),
+        // and moved by the networked offset.
+        float grow = e.scale ? ENTSCALE_DECODE(e.scale) : 1.f;
+        float pad = 0.f;
+        if(const client::EntityVr* net = client::entityVr(num))
+        {
+            grow *= 1.f + std::fmax(0.f, std::fmax(net->scale.x, std::fmax(net->scale.y, net->scale.z)));
+            pad = glm::length(net->offset) * grow + glm::length(net->scaleOrigin) * glm::length(net->scale);
+        }
         glm::vec3 elo, ehi;
         for(int i = 0; i < 3; i++)
         {
-            elo[i] = e.origin[i] + e.model->rmins[i] * grow;
-            ehi[i] = e.origin[i] + e.model->rmaxs[i] * grow;
+            elo[i] = e.origin[i] + e.model->rmins[i] * grow - pad;
+            ehi[i] = e.origin[i] + e.model->rmaxs[i] * grow + pad;
         }
         if(ehi.x < reachLo.x || ehi.y < reachLo.y || ehi.z < reachLo.z || elo.x > reachHi.x || elo.y > reachHi.y || elo.z > reachHi.z)
         {
@@ -734,7 +824,10 @@ Result test(const hands::State& s, int hand)
         {
             continue;
         }
-        if(posed(num, e))
+        // Its box as drawn this frame (its frames' bounds, placed as it is drawn).
+        const Posed* p = posed(num, e);
+        if(p && !(p->hi.x < reachLo.x || p->hi.y < reachLo.y || p->hi.z < reachLo.z || p->lo.x > reachHi.x || p->lo.y > reachHi.y ||
+                    p->lo.z > reachHi.z))
         {
             nearby.push_back(num);
         }
@@ -755,6 +848,7 @@ Result test(const hands::State& s, int hand)
     glm::vec3 p{0.f};
     for(int round = 0; round < rounds; round++)
     {
+        // The triangles near the rays as the push so far moves them (each ray then skips the runs away from it).
         result.stats.rounds++;
         gather(lo + p - glm::vec3{margin}, hi + p + glm::vec3{margin}, result.stats);
         if(tris.empty())
@@ -973,6 +1067,7 @@ void bench_f()
         for(std::size_t i = 0; i < all.size(); i++)
         {
             tris.assign(1, all[i]);
+            chunks.assign(1, Chunk{all[i].lo, all[i].hi, 0, 1});
             const Crossing c = cross(ray);
             // One triangle: an entry is a front; else test it reversed for a back.
             if(c.in)
@@ -1004,13 +1099,25 @@ void bench_f()
         Result res;
         for(int i = 0; i < n; i++)
         {
-            posedCache.clear(); // posed afresh each time, as each frame
+            for(auto& entry : posedCache)
+            {
+                entry.second.frame = -1; // posed afresh each time, as each frame
+            }
             const auto t0 = std::chrono::steady_clock::now();
             res = test(s, hand);
             us.push_back(std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - t0).count());
         }
         std::sort(us.begin(), us.end());
         const Stats& st = res.stats;
+        if(Cmd_Argc() > 2)
+        {
+            for(const int num : nearby)
+            {
+                const Posed& p = posedCache[num];
+                Con_Printf("  near: %d %s, drawn (%.0f %.0f %.0f)..(%.0f %.0f %.0f)\n", num, cl_entities[num].model->name, p.lo.x,
+                    p.lo.y, p.lo.z, p.hi.x, p.hi.y, p.hi.z);
+            }
+        }
         if(const std::vector<glm::vec3>* samples = samplesOf(recorded[hand].model, recorded[hand].frame))
         {
             // The weapon's reach: its farthest sample from the hand, and the muzzle.

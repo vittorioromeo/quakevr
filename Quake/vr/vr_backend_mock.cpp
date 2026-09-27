@@ -334,6 +334,31 @@ void mockLook_f()
         glm::angleAxis(yaw, glm::vec3{0.f, 1.f, 0.f}) * glm::angleAxis(-pitch, glm::vec3{1.f, 0.f, 0.f});
 }
 
+// vr_mock_camera <x> <y> <z> <pitch> <yaw>: the eyes drawn from there (tracking space, metres; pitch down positive)
+// instead of from the head, which stays where it is (the body and the hands with it): a spectator's view of the
+// player, for screenshots. "vr_mock_camera" alone: from the head again.
+bool mockCameraSet = false;
+glm::vec3 mockCameraPos{0.f};
+glm::quat mockCameraRot{1.f, 0.f, 0.f, 0.f};
+
+void mockCamera_f()
+{
+    if(Cmd_Argc() == 1)
+    {
+        mockCameraSet = false;
+        return;
+    }
+    if(Cmd_Argc() != 6)
+    {
+        Con_Printf("usage: vr_mock_camera [<x> <y> <z> <pitch> <yaw>]\n");
+        return;
+    }
+    mockCameraSet = true;
+    mockCameraPos = {Q_atof(Cmd_Argv(1)), Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3))};
+    mockCameraRot = glm::angleAxis(glm::radians(Q_atof(Cmd_Argv(5))), glm::vec3{0.f, 1.f, 0.f}) *
+                    glm::angleAxis(-glm::radians(Q_atof(Cmd_Argv(4))), glm::vec3{1.f, 0.f, 0.f});
+}
+
 // vr_mock_stick <main|off> <x> <y>
 void mockStick_f()
 {
@@ -474,6 +499,11 @@ public:
         for(int eye = 0; eye < 2; eye++)
         {
             frame.eyes[eye].pose = tracking.head;
+            if(mockCameraSet)
+            {
+                frame.eyes[eye].pose.position = mockCameraPos;
+                frame.eyes[eye].pose.orientation = mockCameraRot;
+            }
             frame.eyes[eye].pose.position.x += eye == 0 ? -halfIpd : halfIpd;
             frame.eyes[eye].fov = Fov{};
         }
@@ -609,6 +639,7 @@ void registerMockCommands()
     Cmd_AddCommand("vr_mock_stick", mockStick_f);
     Cmd_AddCommand("vr_mock_hand", mockHand_f);
     Cmd_AddCommand("vr_mock_look", mockLook_f);
+    Cmd_AddCommand("vr_mock_camera", mockCamera_f);
     Cmd_AddCommand("vr_mock_fingers", mockFingers_f);
     Cmd_AddCommand("vr_mock_play", mockPlay_f);
 }

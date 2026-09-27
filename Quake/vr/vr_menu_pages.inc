@@ -183,7 +183,7 @@ void resetSwimming()
                   "and shots still come from your hand."),
         toggle("Hands Stop at Models", "vr_model_collide_hands")
             .help("The same for an empty hand (a fist, an open hand)."),
-        slider("Model Push Limit", "vr_model_collide_max", 5.f, 50.f, 1.f, "%.0f cm")
+        slider("Model Push Limit", "vr_model_collide_max", 5.f, 50.f, 1.f, "%.0f cm").extend(1.f, 100.f)
             .help("How far the weapon or hand is held out of a model. Pushed deeper, it is held out less and less, and at "
                   "twice this it lets go and passes through (a monster walking into you)."),
     };

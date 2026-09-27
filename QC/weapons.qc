@@ -3220,7 +3220,7 @@ void() ImpulseCommands =
         if(spawnKind >= 100)
         {
             self = spawn();
-            setorigin(self, spawnAt);
+            setorigin(self, spawnAt - '16 16 0'); // a box's origin is its corner: its middle there
             if(spawnKind == 100) { item_health(); } else { item_shells(); }
             spawned = self;
         }
@@ -3243,6 +3243,7 @@ void() ImpulseCommands =
         self = spawnPlayer;
         if(spawned != world && spawnKind < 100 && cvar("vr_test_spawn_dead"))
         {
+            spawned.takedamage = DAMAGE_AIM; // (walkmonster_start gives it a moment later)
             T_Damage(spawned, world, world, spawned.health + 1);
         }
     }

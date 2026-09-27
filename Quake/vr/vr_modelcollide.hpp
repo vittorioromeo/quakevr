@@ -43,8 +43,9 @@ void endView(hands::State& s, const entity_s* const weapon[2], const bool mirror
 // A new map: nothing pushed, nothing recorded.
 void reset();
 
-// vr_model_collide_bench [n]: the test of both hands as they are now, n times (1000): min, median and max
-// microseconds, and what it tested (models near, their triangles near the weapon, rays, rounds).
+// vr_model_collide_bench [n] [list]: the test of both hands as they are now, n times (1000): min, median and max
+// microseconds, and what it tested (models near, their triangles near the weapon, rays, rounds; "list": the models).
+// "vr_model_collide_bench probe": a ray from the head along the view, and each model triangle it goes in or out by.
 void bench_f();
 
 } // namespace qvr::modelcollide
