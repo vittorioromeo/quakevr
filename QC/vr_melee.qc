@@ -31,7 +31,6 @@ float VR_MELEE_ARM = 1.25;         // a weapon's swing: the grip's least speed, 
 float VR_MELEE_STAB_SPEED = 0.75;  // a stab's (jab's) least speed of the grip, times vr_melee_speed (a thrust needs less than a swing)
 float VR_MELEE_STAB_ALONG = 0.4;   // cosine: the far end moving within ~66 degrees of the line, outwards, is a stab (the author's
                                    // stabs 0.4-0.87 at the contact, his cuts at most 0.36)
-float VR_MELEE_POMMEL_LEAD = 0.3;  // cosine: the near end moving within ~72 degrees of back along the line leads (a pommel strike)
 float VR_MELEE_UP = 0.8;           // a punch's least speed grows by this share for a blow going straight up (the author's
                                    // uppercuts go 6-9 m/s, a fist wiggled upwards 4.5-5.5),
 float VR_MELEE_DOWN = 1.5;         // and by this share for each unit (sine) of steepness downwards beyond VR_MELEE_DOWN_FROM
@@ -696,12 +695,11 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
     }
     else
     {
-        // The pommel, the hilt, the handle, a gun's grip or butt: a pommel (butt) strike when the near end leads (the
-        // weapon driven back along its line) or the weapon moves whole; else it is a swing passing (the blade or head
-        // decides, a moment later).
+        // The pommel, the hilt, the handle, a gun's grip or butt: a pommel (butt) strike. While the far end sweeps round
+        // much faster (a swing whose hands arrive first) the blade proper decides if it follows (VR_Melee_Sweep).
         float sp = vlen(vp);
         lead = sp > 0 ? (vp * axis) / -sp : 0;
-        b.mh_hilt_sweeping = lead < VR_MELEE_POMMEL_LEAD && vfar > sp * VR_MELEE_SWEEP + 1;
+        b.mh_hilt_sweeping = vfar > sp * VR_MELEE_SWEEP + 1;
         kind = VR_MKIND_POMMEL;
         way = vp;
         speed = sp;
@@ -1372,13 +1370,23 @@ void() VR_Bash =
         {
             dprint(sprintf("melee debug: hand %g stance %g push %v ends %v %v dist %.3f\n", h, stance,
                 VR_Bash_PushVel(b), b.mh_vnear, b.mh_vfar, b.mh_push_dist));
+            dprint(sprintf("melee debug: held %.2f ok %g pushing %g\n", time - b.mh_stance_since, b.mh_push_ok,
+                VR_Bash_Pushing(h, b, pfwd, speed)));
         }
         if(stance && VR_Bash_Pushing(h, b, pfwd, speed))
         {
             if(b.mh_push_dist <= 0 && time - b.mh_push_last > VR_BASH_GAP)
             {
                 // A push begins: from a stance held (a weapon's; a palm's needs none).
-                b.mh_push_ok = stance == 2 || time - b.mh_stance_since >= VR_BASH_HELD;
+                b.mh_push_ok = FALSE;
+                if(stance == 2)
+                {
+                    b.mh_push_ok = TRUE;
+                }
+                else if(time - b.mh_stance_since >= VR_BASH_HELD)
+                {
+                    b.mh_push_ok = TRUE;
+                }
             }
             b.mh_pushing = b.mh_push_ok;
             b.mh_push_dist = b.mh_push_dist + (VR_Bash_PushVel(b) * pfwd) * b.mh_dt;
