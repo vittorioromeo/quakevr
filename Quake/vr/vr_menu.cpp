@@ -15,6 +15,8 @@
 #include "vr_motion.hpp"
 #include "vr_motion_take.hpp"
 #include "vr_weapons.hpp"
+#include "vr_hands.hpp"
+#include "vr_view.hpp"
 
 #include <cmath>
 #include <cstring>
@@ -859,12 +861,52 @@ void weaponOffsetsOtherHand()
 void weaponOffsetsReset()
 {
     weapons::resetSlotToDefaults(weaponOffsetsSlot);
-    weapons::setWeaponOnlyTarget(weaponOffsetsSlot); // the Weapon Only sliders back to 0
+    weaponOffsetsStale = true;
 }
 
 void weaponOffsetsPrint()
 {
     weapons::printSlot(weaponOffsetsSlot);
+}
+
+// The hotspot being edited (vr_weapon_hotspot, 1..4) and its type, as the page was built: a change rebuilds it.
+int weaponOffsetsHotspot = -1;
+int weaponOffsetsHotspotType = -1;
+
+[[nodiscard]] int editedHotspot()
+{
+    return CLAMP(1, static_cast<int>(vr_weapon_hotspot.value), weapons::maxHotspots) - 1;
+}
+
+// Puts the edited hotspot (a grip) where the other hand is now, on the page's weapon.
+void weaponOffsetsHotspotAtHand()
+{
+    const int slot = weaponOffsetsSlot;
+    if(slot < 0)
+    {
+        return;
+    }
+    weapons::Hotspot h = weapons::hotspot(slot, editedHotspot());
+    glm::vec3 p;
+    if(!view::hotspotAt(weaponOffsetsHand, hands::current().pos[1 - weaponOffsetsHand], p))
+    {
+        Con_Printf("Hold the weapon in the %s hand to place its hotspot with the other hand.\n",
+            weaponOffsetsHand == 1 ? "main" : "off");
+        return;
+    }
+    h.type = weapons::HotspotType::Grip;
+    h.pos = p;
+    weapons::setHotspot(slot, editedHotspot(), h);
+    weaponOffsetsStale = true;
+}
+
+void weaponOffsetsHotspotRemove()
+{
+    if(weaponOffsetsSlot >= 0)
+    {
+        weapons::setHotspot(weaponOffsetsSlot, editedHotspot(), weapons::Hotspot{});
+        weaponOffsetsStale = true;
+    }
 }
 
 std::vector<Item> pageWeaponOffsets()
@@ -877,7 +919,6 @@ std::vector<Item> pageWeaponOffsets()
         slot = weapons::fistSlot(); // an empty hand: the hand model's own settings
     }
     weaponOffsetsSlot = slot;
-    weapons::setWeaponOnlyTarget(slot); // the Weapon Only sliders at 0, moving this weapon
 
     std::vector<Item> list;
     const char* hand = weaponOffsetsHand == 1 ? "Main hand" : "Off hand";
@@ -894,92 +935,97 @@ std::vector<Item> pageWeaponOffsets()
     const auto s = [&](const char* label, Key key, float min, float max, float step, const char* format) {
         return slider(label, weapons::cvar(slot, key), min, max, step, format);
     };
+    const bool fist = slot == weapons::fistSlot(); // the empty hand's "weapon" is the hand model
     list = {
         header(title.c_str()),
         action("Edit the Other Hand's Weapon", weaponOffsetsOtherHand)
             .help("The page shows the weapon the hand held when it was opened: reopen it after changing weapons."),
-        header("Weapon in the Hand"),
+        header(fist ? "The Hand" : "Weapon in the Hand"),
         s("Offset X (forward)", Key::OffsetX, -30.f, 30.f, 0.1f, "%.2f")
-            .help("Moves the weapon and the hand on its grip together. Doesn't change where it aims. Weapon Only, below, moves the weapon alone."),
+            .help(fist ? "Moves the drawn hand." :
+                         "Where the weapon sits in the hand (the hand is where the controller is, and its fingers wrap "
+                         "the weapon's grip). Doesn't change where it aims."),
         s("Offset Y (left)", Key::OffsetY, -30.f, 30.f, 0.1f, "%.2f"),
         s("Offset Z (up)", Key::OffsetZ, -30.f, 30.f, 0.1f, "%.2f"),
-        s("Pitch", Key::Pitch, -180.f, 180.f, 0.5f, "%.1f"),
+        s("Pitch", Key::Pitch, -180.f, 180.f, 0.5f, "%.1f").help("How the weapon is turned in the hand."),
         s("Yaw", Key::Yaw, -180.f, 180.f, 0.5f, "%.1f"),
         s("Roll", Key::Roll, -180.f, 180.f, 0.5f, "%.1f"),
         s("Scale", Key::Scale, 0.1f, 3.f, 0.01f, "%.2f"),
-    };
-    if(slot != weapons::fistSlot()) // the empty hand's "weapon" is the hand
-    {
-        const char* help = "Moves only the weapon: the drawn hand stays put (Offset and Hand change together). "
-                           "Shows how far since the page opened.";
-        list.insert(list.end(), {
-            header("Weapon Only (Hand Stays)"),
-            slider("Weapon Only X", vr_weapon_only_x, -10.f, 10.f, 0.1f, "%+.2f").help(help),
-            slider("Weapon Only Y", vr_weapon_only_y, -10.f, 10.f, 0.1f, "%+.2f").help(help),
-            slider("Weapon Only Z", vr_weapon_only_z, -10.f, 10.f, 0.1f, "%+.2f").help(help),
-        });
-    }
-    list.insert(list.end(), {
-        header("Hand on the Weapon"),
-        s("Hand X", Key::HandOffsetX, -10.f, 10.f, 0.05f, "%.2f").help("Moves the drawn hand on the weapon's grip."),
-        s("Hand Y", Key::HandOffsetY, -10.f, 10.f, 0.05f, "%.2f"),
-        s("Hand Z", Key::HandOffsetZ, -10.f, 10.f, 0.05f, "%.2f"),
         cycle("Hide Hand", weapons::cvar(slot, Key::HideHand), {{0.f, "No"}, {1.f, "Yes"}}),
-    });
-    if(slot != weapons::fistSlot()) // an empty hand's fingers follow the controller alone
+    };
+    if(!fist)
     {
-        const char* fingerHelp = "This finger's openness, added to Grip Openness's (negative: closes further).";
+        const char* fingerHelp = "Closes (+) or opens (-) this finger on top of how it wraps the weapon on its own "
+                                 "(a share of a full curl).";
         list.insert(list.end(), {
-            header("Fingers"),
-            s("Fingers X (forward)", Key::FingersX, -4.f, 4.f, 0.05f, "%+.2f")
-                .help("Moves the fingers and the thumb on the hand: forward (towards the fingertips) to wrap a thick grip "
-                      "from outside instead of sinking into it."),
-            s("Fingers Y (palm)", Key::FingersY, -4.f, 4.f, 0.05f, "%+.2f")
-                .help("Moves the fingers and the thumb towards the palm's side (negative: the back of the hand's)."),
-            s("Fingers Z (up)", Key::FingersZ, -4.f, 4.f, 0.05f, "%+.2f")
-                .help("Moves the fingers and the thumb towards the index finger's side (up the grip)."),
-            s("Thumb X (forward)", Key::FingerThumbX, -4.f, 4.f, 0.05f, "%+.2f").help("Moves the thumb alone, as Fingers X."),
-            s("Thumb Y (palm)", Key::FingerThumbY, -4.f, 4.f, 0.05f, "%+.2f").help("Moves the thumb alone, as Fingers Y."),
-            s("Thumb Z (up)", Key::FingerThumbZ, -4.f, 4.f, 0.05f, "%+.2f").help("Moves the thumb alone, as Fingers Z."),
-            s("Grip Openness", Key::FingerOpen, 0.f, 1.f, 0.02f, "%.2f")
-                .help("How open the fingers stay when closed round this weapon's grip (0: the full fist). Half-curled fingers "
-                      "reach furthest out of the palm: for a thick grip, move them forward (Fingers X) first. Plus All Weapons'."),
-            s("Thumb Openness", Key::FingerThumbOpen, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
-            s("Index Openness", Key::FingerIndexOpen, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
-            s("Middle Openness", Key::FingerMiddleOpen, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
-            s("Ring Openness", Key::FingerRingOpen, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
-            s("Pinky Openness", Key::FingerPinkyOpen, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
-            slider("Grip Openness (All Weapons)", vr_finger_grip_open, 0.f, 1.f, 0.02f, "%.2f")
-                .help("Added to every weapon's Grip Openness (vr_finger_grip_open)."),
+            header("Fingers on the Weapon"),
+            s("Thumb", Key::FingerThumbBias, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
+            s("Index Finger", Key::FingerIndexBias, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
+            s("Middle Finger", Key::FingerMiddleBias, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
+            s("Ring Finger", Key::FingerRingBias, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
+            s("Little Finger", Key::FingerPinkyBias, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
+            s("Thumb X (forward)", Key::FingerThumbX, -4.f, 4.f, 0.05f, "%+.2f").help("Moves the thumb on the hand."),
+            s("Thumb Y (palm)", Key::FingerThumbY, -4.f, 4.f, 0.05f, "%+.2f"),
+            s("Thumb Z (up)", Key::FingerThumbZ, -4.f, 4.f, 0.05f, "%+.2f"),
+            header("Muzzle"),
+            s("Muzzle X", Key::MuzzleOffsetX, -30.f, 30.f, 0.1f, "%.2f").help("Where shots and the muzzle flash start, from the muzzle vertex."),
+            s("Muzzle Y", Key::MuzzleOffsetY, -30.f, 30.f, 0.1f, "%.2f"),
+            s("Muzzle Z", Key::MuzzleOffsetZ, -30.f, 30.f, 0.1f, "%.2f"),
+        });
+
+        // The two-handed grips: the hotspot being edited.
+        const int index = editedHotspot();
+        const weapons::Hotspot h = weapons::hotspot(slot, index);
+        weaponOffsetsHotspot = index;
+        weaponOffsetsHotspotType = static_cast<int>(h.type);
+        const auto hk = [&](int field) { return weapons::cvar(slot, weapons::hotspotKey(index, field)); };
+        list.insert(list.end(), {
+            header("Other Hand's Grips (Hotspots)"),
+            cycle("Hotspot", vr_weapon_hotspot, {{1.f, "1"}, {2.f, "2"}, {3.f, "3"}, {4.f, "4"}})
+                .help("Where the other hand may hold the weapon: it takes the one nearest it, less its bias. Pick one to edit."),
+            cycle("Type", hk(0), {{0.f, "None"}, {1.f, "Grip"}, {2.f, "Blade"}})
+                .help("Grip: a point (a foregrip, a pump, a magazine) the hand is drawn on. Blade: the half-sword grip along "
+                      "the blade."),
+        });
+        if(h.type == weapons::HotspotType::Blade)
+        {
+            list.push_back(slider("Along the Blade", hk(1), 0.f, 1.f, 0.01f, "%.2f")
+                               .help("Where on the blade the grip is centred: a share of the way from the hand to the tip."));
+        }
+        else
+        {
+            list.insert(list.end(), {
+                slider("Hotspot X", hk(1), -40.f, 40.f, 0.1f, "%.2f").help("The grip's point, in the weapon's model units."),
+                slider("Hotspot Y", hk(2), -40.f, 40.f, 0.1f, "%.2f"),
+                slider("Hotspot Z", hk(3), -40.f, 40.f, 0.1f, "%.2f"),
+                action("Put It Where the Other Hand Is", weaponOffsetsHotspotAtHand)
+                    .help("Makes this hotspot a grip at the other hand, as it is now."),
+            });
+        }
+        list.insert(list.end(), {
+            slider("Bias", hk(4), 0.f, 10.f, 0.1f, "%.1f").help("Units taken off its distance: larger, easier to take than the others."),
+            action("Remove This Hotspot", weaponOffsetsHotspotRemove),
+            toggle("Show Hotspots", vr_show_weapon_hotspots).help("Marks the held weapons' hotspots (the edited one white)."),
+            header("Two-Handed Aim"),
+            s("Aim Offset X", Key::TwoHOffsetX, -30.f, 30.f, 0.1f, "%.2f")
+                .help("Moves the point the aim is taken from, in the holding hand's frame (nothing drawn moves)."),
+            s("Aim Offset Y", Key::TwoHOffsetY, -30.f, 30.f, 0.1f, "%.2f"),
+            s("Aim Offset Z", Key::TwoHOffsetZ, -30.f, 30.f, 0.1f, "%.2f"),
+            s("Aim Pitch", Key::TwoHPitch, -180.f, 180.f, 0.5f, "%.1f")
+                .help("Turns the two-handed aim (a sword: its blade's direction in the model)."),
+            s("Aim Yaw", Key::TwoHYaw, -180.f, 180.f, 0.5f, "%.1f"),
+            s("Aim Roll", Key::TwoHRoll, -180.f, 180.f, 0.5f, "%.1f"),
+            header("Ammo Screen"),
+            s("Screen X", Key::WpnTextX, -20.f, 20.f, 0.05f, "%.2f"),
+            s("Screen Y", Key::WpnTextY, -20.f, 20.f, 0.05f, "%.2f"),
+            s("Screen Z", Key::WpnTextZ, -20.f, 20.f, 0.05f, "%.2f"),
+            s("Screen Pitch", Key::WpnTextPitch, -180.f, 180.f, 0.5f, "%.1f"),
+            s("Screen Yaw", Key::WpnTextYaw, -180.f, 180.f, 0.5f, "%.1f"),
+            s("Screen Roll", Key::WpnTextRoll, -180.f, 180.f, 0.5f, "%.1f"),
+            s("Screen Scale", Key::WpnTextScale, 0.05f, 3.f, 0.05f, "%.2f"),
         });
     }
     list.insert(list.end(), {
-        header("Muzzle"),
-        s("Muzzle X", Key::MuzzleOffsetX, -30.f, 30.f, 0.1f, "%.2f").help("Where shots and the muzzle flash start, from the muzzle vertex."),
-        s("Muzzle Y", Key::MuzzleOffsetY, -30.f, 30.f, 0.1f, "%.2f"),
-        s("Muzzle Z", Key::MuzzleOffsetZ, -30.f, 30.f, 0.1f, "%.2f"),
-        header("Two-Handed"),
-        s("Other Hand X", Key::TwoHOffsetX, -30.f, 30.f, 0.1f, "%.2f").help("Where the other hand holds the weapon (the foregrip)."),
-        s("Other Hand Y", Key::TwoHOffsetY, -30.f, 30.f, 0.1f, "%.2f"),
-        s("Other Hand Z", Key::TwoHOffsetZ, -30.f, 30.f, 0.1f, "%.2f"),
-        s("Other Hand Pitch", Key::TwoHPitch, -180.f, 180.f, 0.5f, "%.1f"),
-        s("Other Hand Yaw", Key::TwoHYaw, -180.f, 180.f, 0.5f, "%.1f"),
-        s("Other Hand Roll", Key::TwoHRoll, -180.f, 180.f, 0.5f, "%.1f"),
-        s("Drawn Hand X", Key::TwoHFixedOffsetX, -30.f, 30.f, 0.1f, "%.2f").help("Where the other hand is drawn on the weapon while it holds it."),
-        s("Drawn Hand Y", Key::TwoHFixedOffsetY, -30.f, 30.f, 0.1f, "%.2f"),
-        s("Drawn Hand Z", Key::TwoHFixedOffsetZ, -30.f, 30.f, 0.1f, "%.2f"),
-        s("Other Hand Openness", Key::TwoHFingerOpen, 0.f, 1.f, 0.02f, "%.2f")
-            .help("How open the other hand's fingers stay round the foregrip (0: a full fist)."),
-        s("Other Hand Thumb", Key::TwoHFingerThumbOpen, -1.f, 1.f, 0.02f, "%+.2f")
-            .help("Its thumb's openness, added to Other Hand Openness (negative: closes further)."),
-        header("Ammo Screen"),
-        s("Screen X", Key::WpnTextX, -20.f, 20.f, 0.05f, "%.2f"),
-        s("Screen Y", Key::WpnTextY, -20.f, 20.f, 0.05f, "%.2f"),
-        s("Screen Z", Key::WpnTextZ, -20.f, 20.f, 0.05f, "%.2f"),
-        s("Screen Pitch", Key::WpnTextPitch, -180.f, 180.f, 0.5f, "%.1f"),
-        s("Screen Yaw", Key::WpnTextYaw, -180.f, 180.f, 0.5f, "%.1f"),
-        s("Screen Roll", Key::WpnTextRoll, -180.f, 180.f, 0.5f, "%.1f"),
-        s("Screen Scale", Key::WpnTextScale, 0.05f, 3.f, 0.05f, "%.2f"),
         header("This Weapon"),
         s("Weight", Key::Weight, 0.f, 1.f, 0.05f, "%.2f").help("How much the weapon lags the hand."),
         action("Print Changes to Console", weaponOffsetsPrint)
@@ -994,6 +1040,12 @@ std::vector<Item> pageWeaponOffsets()
 {
     static std::vector<Item> built[pageCount];
     static bool done[pageCount]{};
+    if(pages[page].build == pageWeaponOffsets && weaponOffsetsSlot >= 0 &&
+        (editedHotspot() != weaponOffsetsHotspot ||
+            static_cast<int>(weapons::hotspot(weaponOffsetsSlot, editedHotspot()).type) != weaponOffsetsHotspotType))
+    {
+        weaponOffsetsStale = true; // another hotspot picked, or its type changed
+    }
     if(pages[page].build == pageWeaponOffsets && weaponOffsetsStale)
     {
         weaponOffsetsStale = false;

@@ -145,10 +145,8 @@ context and screenshot, ready to paste or to point me at.
   performance review):
   - **Your settings are the defaults** (graphics too), and your weapon placements (applied once to slots 1, 2, 5,
     6, 7, 9, 10, 17 and the alternates 13 to 15: check they are where you left them).
-  - **Menus:** Weapon Only X/Y/Z on the Weapon Offsets page (the gun moves, the hand stays); the right stick only
-    scrolls; no Quake plaque on the tall panel; Force Grab Saturation.
-  - **Fingers** (Weapon Offsets > Fingers): per-weapon finger and thumb offsets and openness, for the shotguns',
-    launchers' and rocket launcher's grips.
+  - **Menus:** the right stick only scrolls; no Quake plaque on the tall panel; Force Grab Saturation. (Round 20's
+    Weapon Only X/Y/Z and per-weapon finger openness were replaced in round 21 by fitted hands: `ROUND21.md`.)
   - **Hologram messages:** "You need the gold keycard" and the like over the wrist gadget (e4m1's keys, secrets).
   - **Armour:** grip a pickup, let go over your torso to wear it; a worse one drops with a knock and a double buzz.
   - **Flashlight on a gun:** take it from the chest to the gun in the other hand, press B or Y; off on `map`, still on
@@ -484,13 +482,23 @@ is the most useful thing to send me along with a description. In particular:
   screenshot of the desktop mirror (`vr_mirror 2` shows both eyes).
 - **Hands or weapons are in the wrong place or at the wrong angle:** `vr_status` and `vr_dumpview` while holding the
   pose. Gun Angle in VR Settings is the first thing to adjust.
+- **Fingers wrong on something held** (through it, or stuck open): `vr_debug_grasp 1` prints each grasp solve;
+  `vr_grasp_dump main hand.obj` writes the drawn hand and the held model as an .obj to send me. Hand/Gun
+  Calibration > Fit Fingers to What You Hold off shows the controller's curls alone, Jointed Hand off the old
+  hands.
 - **A crash:** the log up to the crash, and what you were doing.
 
 ## Testing without a headset
 
 `vr_backend mock; vr_enabled 1` runs everything with a pretend headset. `vr_mock_button <main|off> <trigger|grip|primary|secondary|stickclick|menu> <0|1>`,
 `vr_mock_stick <main|off> <x> <y>` `vr_mock_hand <main|off|head> <x> <y> <z> [<pitch> <yaw> <roll>]` and `vr_mock_look <pitch> <yaw>` drive it; `vr_mock_swing <period>`
-swings the main hand for throwing tests.
+swings the main hand for throwing tests. `vr_mock_fingers <main|off> <trigger> <grip> [<thumb>]` sets the finger
+sensors (0..1).
+
+Fitted hands (round 21): `impulse 252` puts a gib or a head (nine kinds in turn) in the empty off hand; `impulse 253`
+prints the held weapons' hotspots through the QC query; `vr_show_weapon_hotspots 1` marks them; `vr_hotspots_check`
+compares every slot's hotspots, muzzle and hand with round 20's placement; `vr_hotspots_legacy` prints the slots'
+round-20 two-handed grips as hotspot defaults.
 
 Tuning the body: `vr_show_hip_holsters 1`, `vr_show_upper_holsters 1`, `vr_show_shoulder_holsters 1` and
 `vr_show_virtual_stock 1` mark where the holsters and the virtual stock's shoulders are (green while a hand is

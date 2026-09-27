@@ -57,6 +57,32 @@ struct WeaponMount
 // How curled a drawn finger is (0 open .. 1 curled): `finger` 0 thumb, 1 index, 2 middle, 3 ring, 4 pinky.
 [[nodiscard]] float fingerCurl(int hand, int finger);
 
+// The weapons' hotspots (round 21): the hotspot point (the weapon's model space, weapons::Hotspot) of a world point
+// `p` on the weapon in `hand`; false when the hand holds none.
+[[nodiscard]] bool hotspotAt(int hand, const glm::vec3& p, glm::vec3& out);
+
+// Hotspot `index` of the weapon in `hand` as drawn this frame: its type (weapons::HotspotType, 0 none), where (a grip's
+// point, a blade grip's middle), its bias, and a blade's share of the way from the hand to the tip.
+struct WeaponHotspot
+{
+    int type{0};
+    glm::vec3 pos{0.f};
+    float bias{0.f};
+    float share{0.f};
+};
+[[nodiscard]] WeaponHotspot weaponHotspot(int hand, int index);
+
+// vr_hotspots_legacy [print]: the slots' hotspots worked out from their round-20 two-handed grip keys (their defaults),
+// printed as vr_weapons.inc lines (round 21's migration of the shipped defaults).
+void hotspotsLegacy_f();
+
+// vr_hotspots_check: the migrated hotspots against the old two-handed grips, every slot, either hand.
+void hotspotsCheck_f();
+
+// The jointed hand (vr_handrig.cpp): the skinning matrices of `e` if it is a drawn hand rig (their count, else 0).
+[[nodiscard]] int handBonePoses(const entity_t* e, const float** matrices);
+
 void dumpView_f();
+void graspDump_f();
 
 } // namespace qvr::view

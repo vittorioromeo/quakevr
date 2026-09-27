@@ -232,14 +232,26 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     // letting go would turn the sword back mid-swing. The blade towards the tip (GRIP_BLADE, the
     // half-sword grip): the blade along the line from the holding hand (at the hilt) through the
     // helping hand, wherever the holding hand's wrist points it.
-    const float foreDist = s.grip2HValid[holding] ? glm::distance(s.pos[helping], s.grip2H[holding]) : 1e9f;
-    const float bladeAt = weapons::value(slot, Key::TwoHBladeGrip);
+    const float foreDist =
+        s.grip2HValid[holding] ? glm::distance(s.pos[helping], s.grip2H[holding]) - s.grip2HBias[holding] : 1e9f;
+    // The blade's hotspot (round 21: its grip's middle, a share of the way from the hand to the tip; its bias).
+    float bladeAt = 0.f, bladeBias = 0.f;
+    for(int i = 0; i < weapons::maxHotspots; i++)
+    {
+        if(const weapons::Hotspot h = weapons::hotspot(slot, i); h.type == weapons::HotspotType::Blade)
+        {
+            bladeAt = h.pos.x;
+            bladeBias = h.bias;
+            break;
+        }
+    }
     const float length = s.muzzleValid[holding] ? glm::distance(holdingPos, s.muzzle[holding]) : 0.f;
     float bladeDist = 1e9f;
     if(bladeAt > 0.f && length > 8.f)
     {
         const glm::vec3 toTip = s.muzzle[holding] - holdingPos;
-        bladeDist = segmentDistance(s.pos[helping], holdingPos + toTip * std::max(0.3f, bladeAt - 0.3f), holdingPos + toTip * 1.05f);
+        bladeDist = segmentDistance(s.pos[helping], holdingPos + toTip * std::max(0.3f, bladeAt - 0.3f), holdingPos + toTip * 1.05f) -
+                    bladeBias;
     }
 
     bool held = false;
@@ -359,7 +371,8 @@ void applyHand(hands::State& s, const glm::vec3 (&originalRots)[2], int holding,
     // "Fixed" display mode (most guns): the hand must come to the weapon's foregrip, and may
     // then move a little further before letting go. Otherwise anywhere 5-25 units away.
     const bool fixedMode = holdingWeapon && s.grip2HValid[holding];
-    const bool goodDistance = fixedMode ? glm::distance(s.pos[helping], s.grip2H[holding]) < (shouldAim[holding] ? 20.f : 5.5f)
+    const bool goodDistance = fixedMode ? glm::distance(s.pos[helping], s.grip2H[holding]) - s.grip2HBias[holding] <
+                                              (shouldAim[holding] ? 20.f : 5.5f)
                                         : handDist > 5.f && handDist < 25.f;
 
     // Muzzles move with the firing animation, hence the margin.

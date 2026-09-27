@@ -6,6 +6,9 @@ Items the author approved or asked about, not yet started. Each has a note on wh
 
 ### Fitted hands (the author: "please implement it, but not for this round, for the next one")
 
+Done in round 21 (steps 1–4, plus weapon hotspots: `ROUND21.md`). Left: the controllers' finger-touch sensors
+(OpenXR touch paths), and objects placed into the open hand rather than against the fist (server-side carrying).
+
 Hands that wrap what they hold instead of a rigid pose: physics objects (boxes, backpacks, gibs, heads, armour)
 and weapon handles, Half-Life: Alyx style. Planned in four steps:
 

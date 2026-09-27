@@ -42,6 +42,9 @@ void modelBox(const qmodel_t* model, const glm::vec3& scale, const glm::vec3& sc
 // (a measured height field round the grip at `hand`, in the gripping player's hand axes), plus
 // vr_held_fit_gap and the model's vr_held_fit_gaps; the rest of where it was gripped is kept, so it
 // can still be taken by any part. Zero if nothing of it is over the fist, or with the setting off.
+// Client side: the entity the local player's `hand` (0 off, 1 main) holds, drawn in that hand this frame (0: none).
+[[nodiscard]] int heldEntity(int hand);
+
 [[nodiscard]] glm::vec3 surfaceFit(edict_t* ent, const glm::vec3& hand, const glm::vec3& palm);
 
 } // namespace qvr::held
