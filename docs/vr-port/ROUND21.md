@@ -3403,6 +3403,12 @@ from a spectator camera, before and after):
 Known: walking into a wall in the room, the head held off by the radius, the body stays upright (the hips under the
 head, the legs slanted to the feet at the box), as before.
 
+Melee (`eval.sh`, after merging vr-cleanup b793e23d): the canary differs in 2 takes, so the full set ran: 429/471 pass
+(the baseline 426), 13 takes differ, none from pass to fail: 3 gun-butt strikes now pass, and 10 keep their verdict with
+other strengths (pommels, straight punches, a stab). With Lean Detection 0 the canary is identical to the baseline:
+the difference is the box catching up faster while the head moves at a walking pace with no lean cues (a strike
+stepped into), where it used to follow at 0.5 m/s.
+
 ### Menu background opacity
 
 **Menu Background Opacity** (`scr_menubgalpha`, 0 to 1, 0.7 as shipped: today's look), on the Menu settings page (with
