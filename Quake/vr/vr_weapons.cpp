@@ -92,7 +92,7 @@ namespace
 // reset (round 21: the hand is where the controller is, the fingers wrap the weapon; the two-handed grips became
 // hotspots: a config's own grips, or a weapon it moved or scaled, are turned into hotspots where they were:
 // takeHotspotMigration).
-constexpr int settingsVersion = 16;
+constexpr int settingsVersion = 17;
 
 // Slots whose hotspots the view is to derive from the config's two-handed grip keys (round 21).
 bool hotspotMigration[numSlots]{};
@@ -203,6 +203,27 @@ void migrate()
                 {
                     cvar_t& var = cvarAt(slot, static_cast<Key>(key));
                     Cvar_SetQuick(&var, var.default_string);
+                }
+            }
+        }
+    }
+    if(vr_wofs_version.value < 17)
+    {
+        // A weapon given a hotspot while its two-handed use was forbidden (the grappling hook, the axe, Mjolnir by
+        // default) never let the other hand take it: a hotspot allows it (the menu now does so as it is given).
+        for(int slot = 0; slot < numSlots; slot++)
+        {
+            cvar_t& mode = cvarAt(slot, Key::TwoHMode);
+            if(static_cast<int>(mode.value) != 2) // WPN_2H_FORBIDDEN
+            {
+                continue;
+            }
+            for(int i = 0; i < maxHotspots; i++)
+            {
+                if(static_cast<int>(cvarAt(slot, hotspotKey(i, 0)).value) != 0)
+                {
+                    Cvar_SetValueQuick(&mode, 0.f);
+                    break;
                 }
             }
         }

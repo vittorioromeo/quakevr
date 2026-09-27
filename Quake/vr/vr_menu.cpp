@@ -894,6 +894,18 @@ int weaponOffsetsHotspotType = -1;
     return CLAMP(1, static_cast<int>(vr_weapon_hotspot.value), weapons::maxHotspots) - 1;
 }
 
+// A hotspot given to a weapon whose two-handed use is forbidden (the axe, Mjolnir, the grappling hook by
+// default) would never be taken: giving one allows it (Two-Handed: Allowed).
+void allowTwoHands(int slot)
+{
+    cvar_t* mode = weapons::cvar(slot, weapons::Key::TwoHMode);
+    if(mode && static_cast<int>(mode->value) == 2) // WPN_2H_FORBIDDEN (vr_twohand.cpp)
+    {
+        Cvar_SetValueQuick(mode, 0.f);
+        Con_Printf("Two-handed use allowed for this weapon (it has a hotspot now).\n");
+    }
+}
+
 // Puts the edited hotspot (a grip) where the other hand is now, on the page's weapon.
 void weaponOffsetsHotspotAtHand()
 {
@@ -916,6 +928,7 @@ void weaponOffsetsHotspotAtHand()
     }
     h.pos = p;
     weapons::setHotspot(slot, editedHotspot(), h);
+    allowTwoHands(slot);
     weaponOffsetsStale = true;
 }
 
@@ -1044,6 +1057,11 @@ std::vector<Item> pageWeaponOffsets()
         const auto hk = [&](int field) { return weapons::cvar(slot, weapons::hotspotKey(index, field)); };
         list.insert(list.end(), {
             header("Other Hand's Grips (Hotspots)"),
+            cycle("Two-Handed", weapons::cvar(slot, Key::TwoHMode),
+                {{0.f, "Allowed"}, {1.f, "Allowed, No Stock"}, {2.f, "Not Allowed"}, {3.f, "Sword"}})
+                .help("Whether the other hand may hold this weapon. Not Allowed ignores its hotspots (giving it a "
+                      "hotspot allows it). No Stock: never steadied at the shoulder. Sword: the other hand below "
+                      "the holding hand or on the blade."),
             cycle("Hotspot", vr_weapon_hotspot, {{1.f, "1"}, {2.f, "2"}, {3.f, "3"}, {4.f, "4"}})
                 .help("Where the other hand may hold the weapon: it takes the one nearest it, less its bias. Pick one to edit."),
             cycle("Type", hk(0), {{0.f, "None"}, {1.f, "Grip"}, {2.f, "Blade"}, {3.f, "Cup"}})
@@ -1111,6 +1129,12 @@ std::vector<Item> pageWeaponOffsets()
 {
     static std::vector<Item> built[pageCount];
     static bool done[pageCount]{};
+    if(pages[page].build == pageWeaponOffsets && weaponOffsetsSlot >= 0 && editedHotspot() == weaponOffsetsHotspot &&
+        weaponOffsetsHotspotType == static_cast<int>(weapons::HotspotType::None) &&
+        weapons::hotspot(weaponOffsetsSlot, editedHotspot()).type != weapons::HotspotType::None)
+    {
+        allowTwoHands(weaponOffsetsSlot); // a hotspot's Type set from None
+    }
     if(pages[page].build == pageWeaponOffsets && weaponOffsetsSlot >= 0 &&
         (editedHotspot() != weaponOffsetsHotspot ||
             static_cast<int>(weapons::hotspot(weaponOffsetsSlot, editedHotspot()).type) != weaponOffsetsHotspotType ||
