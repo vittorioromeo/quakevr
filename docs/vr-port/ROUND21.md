@@ -2418,7 +2418,8 @@ the weapon; the sticks don't move or turn you while posing.
 The hand and weapon you pose are, held, the same relative to each other at any controller angle (the drawn hand is
 carried rigidly by the weapon). Where the pair sits on the controller is as before: the weapon's angle offsets are
 Euler angles added to the hand's, so on a controller rolled 10° the pair sits about half a degree from where it was
-drawn while posing (0.14° on a level one; numbers below). Every weapon placement behaves so today; changing it would
+drawn while posing (0.14° on a level one), more with large angle offsets on a steeply turned controller (numbers
+below). Every weapon placement behaves so today; changing it would
 move every tuned weapon and your takes' replays.
 
 ### Settings and commands
@@ -2446,16 +2447,18 @@ Units are world units (a 1.25 world scale: 26 to the metre).
 | Hotspot 2, Grip (off hand helping) | 0.0001 units, 0.0000° | 0.0001 | 0.0001 |
 | Hotspot 2, Cup (off hand round the main hand) | 0.0000 units, 0.0000° | 0.0001 | 0.0000 |
 | Hotspot 3, Grip, the weapon in the off hand, the main hand helping (mirrored) | 0.0001 units, 0.0000° | 0.0001 | 0.0001 |
+| The floating weapon turned (60° spin, 20° tilt), the hand posed on it there | 0.0001 units, 0.0000° | 0.0002 | 0.0001 |
 
 The drawn palm (after the grasp's palm fit) matching shows that the fingers in the preview are the ones held. The
 same numbers hold with the controller then turned anywhere (tried 80–100° away from the pose). In the world, at the
 same controller pose, the held hand was 0.009 units and 0.14° from where it was drawn while posing (a level
-controller), 0.035 units and 0.57° (a controller rolled 10°), 0.07 units and 1.6° (with the offsets above kept): the
+controller), 0.035 units and 0.57° (a controller rolled 10°), 0.07 units and 1.6° (with the offsets above kept), 0.46 units and 7.7° (the weapon turned, the controller turned 40° and rolled 15°, the angle offsets set to 23° of yaw): the
 Euler angle offsets' quirk.
 
 Undo: the six keys came back as the exact text they had ("0.0" stays "0.0"), and the offsets not touched stayed.
 
-Replays of your 474 takes (`vr_motion_eval`, vrfiringrange): 420 of 474 pass, as on the base (`eval_posing.csv`). The
+Replays of your 474 takes (`vr_motion_eval`, vrfiringrange): 420 of 474 pass, and the kit's eval finds 0 takes differing from the
+baseline (`eval_posing.csv`). The
 posing mode is off in them; the code they run through changed only in shape (the Hand and Weapon Together offset as a
 function, the hand's drawing split out).
 
