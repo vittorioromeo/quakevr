@@ -123,6 +123,10 @@ void ensureTarget(Target& target, int width, int height, bool mipmaps = false, c
 void begin2D(const Target& target, int virtualWidth, int virtualHeight);
 void end2D();
 
+// The game directory changed (VR_OnGameDirChanged): Mod_ResetAll reuses the models' slots for other models, and the
+// files are another game's; the gfx.wad pictures looked up by name (Draw_NewGame loaded them again).
+void onGameDirChanged();
+
 // 2D drawing between begin2D() and end2D(), in virtual screen coordinates (y down).
 namespace draw2D
 {

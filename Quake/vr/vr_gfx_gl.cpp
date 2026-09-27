@@ -319,6 +319,11 @@ BlendFuncSeparateFn blendFuncSeparate = nullptr;
 
 } // namespace
 
+void onGameDirChanged()
+{
+    pics.clear();
+}
+
 unsigned glProgram(const char* vertex, const char* fragment, const char* name)
 {
     const GLuint vs = compile(GL_VERTEX_SHADER, vertex, name);

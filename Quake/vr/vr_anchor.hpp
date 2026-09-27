@@ -26,4 +26,9 @@ namespace qvr::anchor
 // prints the anchor index nearest a point.
 void registerCommands();
 
+// The game directory changed (VR_OnGameDirChanged): Mod_ResetAll reuses the models' slots for other models, and the
+// files are another game's; the models' strip orders, by model (and name: another game's model of the same name is
+// another model).
+void onGameDirChanged();
+
 } // namespace qvr::anchor

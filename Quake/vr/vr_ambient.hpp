@@ -20,6 +20,10 @@ namespace qvr::ambient
 // The six faces (+X -X +Y -Y +Z -Z) for the alias instance: xyz each face's light over the model's
 // own (1 on average), [0].w how much the cube applies (0: off), [1].w how much of the model's
 // directional shading (vr_modellight's) to keep.
+// The game directory changed (VR_OnGameDirChanged): Mod_ResetAll reuses the models' slots for other models, and the
+// files are another game's; the entities' cached light (and the world it was traced in).
+void onGameDirChanged();
+
 void entityCube(const entity_t* e, const float modelMatrix[16], const void* aliashdr, bool enabled, float out[6][4]);
 
 } // namespace qvr::ambient

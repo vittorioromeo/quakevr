@@ -654,3 +654,11 @@ extern "C" void VR_AliasAmbient(const entity_t* e, const float matrix[16], const
 {
     ambient::entityCube(e, matrix, aliashdr, enabled != 0, reinterpret_cast<float(*)[4]>(out));
 }
+
+void ambient::onGameDirChanged()
+{
+    cache.clear();
+    eviction = {};
+    loadedWorld = nullptr;
+    loadedGeneration = -1;
+}

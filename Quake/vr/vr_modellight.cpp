@@ -226,3 +226,12 @@ extern "C" void VR_AliasLightDir(const entity_t* e, float dir[4])
     dir[2] = d.z;
     dir[3] = d.w;
 }
+
+void modellight::onGameDirChanged()
+{
+    lights.clear();
+    cache.clear();
+    eviction = {};
+    loadedWorld = nullptr;
+    loadedGeneration = -1;
+}

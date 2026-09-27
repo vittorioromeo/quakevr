@@ -2714,6 +2714,7 @@ void COM_SwitchGame (const char *paths)
 		R_NewGame ();
 		BGM_Stop ();
 	}
+	VR_OnGameDirChanged (); // QVR
 	ExtraMaps_Init ();
 	Host_Resetdemos ();
 	DemoList_Rebuild ();

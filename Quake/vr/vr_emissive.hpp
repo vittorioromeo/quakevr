@@ -31,4 +31,8 @@ void lavaGunLight(int index, const glm::vec3& pos, float strength);
 // Is `model` a lava nailgun's (its lava ammo's model)?
 [[nodiscard]] bool isLavaGun(const qmodel_t* model);
 
+// The game directory changed (VR_OnGameDirChanged): Mod_ResetAll reuses the models' slots for other models, and the
+// files are another game's; the torches' lights (by entity, with the world they were placed in).
+void onGameDirChanged();
+
 } // namespace qvr::emissive

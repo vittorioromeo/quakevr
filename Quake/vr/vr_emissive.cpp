@@ -770,3 +770,10 @@ extern "C" float VR_EntityFullbrightBoost(const entity_t* e)
     }
     return 3.f * k;
 }
+
+void emissive::onGameDirChanged()
+{
+    torches.clear();
+    torchWorld = nullptr;
+    torchGeneration = -1;
+}

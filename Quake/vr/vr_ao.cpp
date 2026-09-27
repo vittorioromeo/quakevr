@@ -1158,6 +1158,19 @@ void show_f()
 
 } // namespace
 
+void ao::onGameDirChanged()
+{
+    baked.clear(); // (a bake still on the worker files its result afterwards: checked by hash before use)
+    brushDrawable.clear();
+    brushGeneration = -1;
+    bakedSubmodels.clear();
+    bakedGeneration = -1;
+    candidates.clear();
+    chosen.clear();
+    groupCount = 0;
+    builtFrame = -1;
+}
+
 void ao::init()
 {
     Cmd_AddCommand("vr_ao_show", show_f);
