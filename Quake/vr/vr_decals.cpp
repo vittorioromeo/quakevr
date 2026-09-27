@@ -7,11 +7,11 @@
 #include "vr_gore.hpp"
 #include "vr_modellight.hpp"
 #include "vr_profile.hpp"
+#include "vr_ring.hpp"
 #include "vr_trace.hpp"
 
 #include <algorithm>
 #include <cmath>
-#include <deque>
 #include <unordered_map>
 #include <vector>
 
@@ -69,7 +69,21 @@ struct Decal
     std::vector<Corner> tris; // its footprint clipped to the world's faces under it (clipToWorld)
 };
 
-std::deque<Decal> decals;
+// Oldest first (drawn in that order; the oldest go first): a ring of vr_decal_max slots, whose marks' triangles keep
+// their buffers for the next mark laid there.
+Ring<Decal> decals;
+int dropCount = 0; // the blood drops among them
+
+[[nodiscard]] bool isDrop(const Decal& d)
+{
+    return d.cell >= firstCell[BloodDrop] && d.cell < firstCell[BloodDrop] + cellCount[BloodDrop];
+}
+
+void popOldest()
+{
+    dropCount -= isDrop(decals.front());
+    decals.popFront();
+}
 std::vector<gfx::Vertex> vertices;       // the marks that change this frame
 std::vector<gfx::Vertex> staticVertices; // the others
 double staticUntil = 0.0;                // when one of those starts to change (fades)
@@ -618,7 +632,6 @@ void makeAtlas()
     return best <= 1.f;
 }
 
-// Whether a surface with normal `n` lies under `p` (the decal's corner does not hang in the air).
 // Keeps the part of `poly` on the inner side of the plane (dot(p, normal) <= dist) into `out`.
 void clipPolygon(const std::vector<glm::vec3>& poly, const glm::vec3& normal, float dist, std::vector<glm::vec3>& out)
 {
@@ -642,10 +655,11 @@ void clipPolygon(const std::vector<glm::vec3>& poly, const glm::vec3& normal, fl
 
 // Lays decal `d` (on a surface facing `n`) on the world: its footprint (the box of its centre, u
 // and v, `depth` deep either side of the surface) cut out of each face of the world in it that faces
-// about its way, as triangles, lifted off the face a little. Faces are found down the BSP tree
-// (those on the nodes whose planes cross the box); sky, liquids and fences are left out.
-void clipToWorld(Decal& d, const glm::vec3& n, float depth)
+// about its way, as triangles (into `tris`, emptied first), lifted off the face a little. Faces are found down the BSP
+// tree (those on the nodes whose planes cross the box); sky, liquids and fences are left out.
+void clipToWorld(const Decal& d, const glm::vec3& n, float depth, std::vector<Corner>& tris)
 {
+    tris.clear();
     const qmodel_t* m = cl.worldmodel;
     const float hu = glm::length(d.u), hv = glm::length(d.v);
     if(!m || !m->nodes || hu <= 0.f || hv <= 0.f)
@@ -659,12 +673,12 @@ void clipToWorld(Decal& d, const glm::vec3& n, float depth)
         glm::dot(d.centre, -V) + hv};
     const glm::vec3 sideNormal[4] = {U, -U, V, -V};
 
-    std::vector<glm::vec3> poly, clipped;
+    static std::vector<glm::vec3> poly, clipped; // (scratch, kept between marks: the main thread's alone)
     constexpr std::size_t maxCorners = 32 * 3; // over very broken ground, the rest is left out
     const mnode_t* stack[256];
     int top = 0;
     stack[top++] = m->nodes + m->hulls[0].firstclipnode;
-    while(top > 0 && d.tris.size() < maxCorners)
+    while(top > 0 && tris.size() < maxCorners)
     {
         const mnode_t* node = stack[--top];
         if(node->contents < 0)
@@ -692,7 +706,7 @@ void clipToWorld(Decal& d, const glm::vec3& n, float depth)
         }
 
         // The faces on this node's plane.
-        for(unsigned int i = 0; i < node->numsurfaces && d.tris.size() < maxCorners; i++)
+        for(unsigned int i = 0; i < node->numsurfaces && tris.size() < maxCorners; i++)
         {
             const msurface_t* s = m->surfaces + node->firstsurface + i;
             if(s->flags & (SURF_DRAWSKY | SURF_DRAWTURB | SURF_DRAWFENCE | SURF_NOTEXTURE))
@@ -734,11 +748,11 @@ void clipToWorld(Decal& d, const glm::vec3& n, float depth)
                 const glm::vec3 r = p - d.centre;
                 return Corner{p + sn * 0.2f, {glm::dot(r, U) / hu * 0.5f + 0.5f, glm::dot(r, V) / hv * 0.5f + 0.5f}};
             };
-            for(std::size_t k = 1; k + 1 < poly.size() && d.tris.size() < maxCorners; k++)
+            for(std::size_t k = 1; k + 1 < poly.size() && tris.size() < maxCorners; k++)
             {
-                d.tris.push_back(corner(poly[0]));
-                d.tris.push_back(corner(poly[k]));
-                d.tris.push_back(corner(poly[k + 1]));
+                tris.push_back(corner(poly[0]));
+                tris.push_back(corner(poly[k]));
+                tris.push_back(corner(poly[k + 1]));
             }
         }
     }
@@ -813,9 +827,10 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
     }
 
     // Not the same mark twice in one place (Quake's effect and Quake VR's for one hit).
-    for(auto it = decals.rbegin(); it != decals.rend() && it - decals.rbegin() < 16; ++it)
+    for(std::size_t k = 0; k < decals.size() && k < 16; k++)
     {
-        if(cl.time - it->born < 0.1 && glm::distance(it->centre, where) < 2.f && o.delay <= 0.f)
+        const Decal& e = decals[decals.size() - 1 - k];
+        if(cl.time - e.born < 0.1 && glm::distance(e.centre, where) < 2.f && o.delay <= 0.f)
         {
             return false;
         }
@@ -853,36 +868,43 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
     d.growFrom = std::clamp(o.growFrom, 0.f, 1.f);
     d.fromStart = o.fromStart;
     d.darken = std::clamp(o.darken, 0.f, 0.9f);
-    clipToWorld(d, n, big ? std::clamp(halfV * 0.35f, 4.f, 12.f) : 3.f);
-    if(d.tris.empty())
+    static std::vector<Corner> tris; // (scratch: the main thread's alone)
+    clipToWorld(d, n, big ? std::clamp(halfV * 0.35f, 4.f, 12.f) : 3.f, tris);
+    if(tris.empty())
     {
         return false;
     }
     // Drops (a steady drip from wounds, gibs and ceilings) take at most a quarter of the marks: the
-    // oldest drop goes, not a splat or a pool.
-    if(kind == BloodDrop)
+    // oldest drop goes, not a splat or a pool (the others keep their order).
+    if(kind == BloodDrop && dropCount >= std::max(16, max / 4))
     {
-        int count = 0;
-        for(const Decal& e : decals)
+        for(std::size_t k = 0; k < decals.size(); k++)
         {
-            count += e.cell >= firstCell[BloodDrop] && e.cell < firstCell[BloodDrop] + cellCount[BloodDrop];
-        }
-        if(count >= std::max(16, max / 4))
-        {
-            const auto oldest = std::find_if(decals.begin(), decals.end(), [](const Decal& e) {
-                return e.cell >= firstCell[BloodDrop] && e.cell < firstCell[BloodDrop] + cellCount[BloodDrop];
-            });
-            if(oldest != decals.end())
+            if(isDrop(decals[k]))
             {
-                decals.erase(oldest);
+                decals.eraseAt(k);
+                dropCount--;
+                break;
             }
         }
     }
-    decals.push_back(std::move(d));
-    while(static_cast<int>(decals.size()) > max)
+    // Room for it: the oldest go (as many as vr_decal_max, lowered, leaves no room for); the ring made that size if
+    // it changed.
+    while(decals.size() >= static_cast<std::size_t>(max))
     {
-        decals.pop_front();
+        popOldest();
     }
+    if(decals.capacity() != static_cast<std::size_t>(max))
+    {
+        decals.setCapacity(static_cast<std::size_t>(max));
+    }
+    // Into the ring's next slot, its triangles into the buffer the slot's last mark had.
+    Decal& slot = decals.pushBack();
+    std::vector<Corner> buffer = std::move(slot.tris);
+    slot = d;
+    slot.tris = std::move(buffer);
+    slot.tris.assign(tris.begin(), tris.end());
+    dropCount += isDrop(slot);
     builtFrame = -1;
     return true;
 }
@@ -1157,7 +1179,7 @@ void draw()
         bool popped = false;
         while(!decals.empty() && cl.time - decals.front().born > life)
         {
-            decals.pop_front();
+            popOldest();
             popped = true;
         }
 
@@ -1169,8 +1191,9 @@ void draw()
             staticLife = life;
         }
         vertices.clear();
-        for(const Decal& d : decals)
+        for(std::size_t k = 0; k < decals.size(); k++)
         {
+            const Decal& d = decals[k];
             // When it last changes: shown, spread, darkened; then its fading.
             const double settled = d.born + std::max({0.f, d.grow, d.darken > 0.f ? std::max(d.grow, 8.f) : 0.f});
             const double fades = d.born + life - 5.0;
@@ -1207,8 +1230,9 @@ void draw()
 void count_f()
 {
     int kinds[KindCount]{};
-    for(const Decal& d : decals)
+    for(std::size_t k = 0; k < decals.size(); k++)
     {
+        const Decal& d = decals[k];
         int kind = KindCount - 1;
         while(kind > 0 && d.cell < firstCell[kind])
         {
@@ -1249,6 +1273,7 @@ void atlas_f()
 void clear()
 {
     decals.clear();
+    dropCount = 0;
     builtFrame = -1;
     gibs.clear();
     holes.clear();
