@@ -632,6 +632,11 @@ def export_mdl(context, ob, path, report, grow=False, allow_remap=False):
             idx.append(new_key[key])
         new_tris.append((1, idx[0], idx[2], idx[1]))  # counter-clockwise to clockwise (Quake)
     total_v = old_nv + len(new_verts)
+    moved_st = [x for x, o in zip(st, old.st) if list(x) != list(o)] + [[0, s_, t_] for (_, s_, t_) in new_verts]
+    outside = sum(1 for x in moved_st if not (0 <= x[1] < sw and 0 <= x[2] < sh))
+    if outside:
+        report({'WARNING'}, "%d skin coordinates are outside the skin (UVs past 0..1): keep the UVs on the image" %
+               outside)
     if total_v > 0x7FFF:
         raise ExportError("%d vertices: the engine takes 32767 at most" % total_v)
 
