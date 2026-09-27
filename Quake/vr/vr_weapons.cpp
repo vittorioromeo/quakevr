@@ -3,9 +3,11 @@
 #include "vr_weapons.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
+#include "vr_hands.hpp"
 #include "vr_protocol.hpp"
 
 #include <array>
+#include <cmath>
 #include <cstring>
 #include <string>
 #include <unordered_map>
@@ -470,6 +472,30 @@ bool retired(Key key)
         case Key::TwoHBladeGrip: return true;
         default: return false;
     }
+}
+
+glm::vec3 shotAngles(const glm::vec3& aimRot, int slot, bool mirrored)
+{
+    if(slot < 0 || slot >= numSlots || slot == fistSlot())
+    {
+        return aimRot;
+    }
+    float pitch = value(slot, Key::ShotPitch);
+    float yaw = value(slot, Key::ShotYaw) * (mirrored ? -1.f : 1.f);
+    pitch = std::isfinite(pitch) ? pitch : 0.f;
+    yaw = std::isfinite(yaw) ? yaw : 0.f;
+    if(pitch == 0.f && yaw == 0.f)
+    {
+        return aimRot;
+    }
+    // In the aim's frame (x forward, y left, z up): pitched up by `pitch`, then turned left by `yaw` about the aim's up.
+    const float p = glm::radians(pitch), y = glm::radians(yaw);
+    const glm::vec3 localFwd{std::cos(p) * std::cos(y), std::cos(p) * std::sin(y), std::sin(p)};
+    const glm::vec3 localUp{-std::sin(p) * std::cos(y), -std::sin(p) * std::sin(y), std::cos(p)};
+    glm::vec3 f, r, u;
+    hands::angleVectors(aimRot, f, r, u);
+    const auto toWorld = [&](const glm::vec3& l) { return f * l.x - r * l.y + u * l.z; };
+    return hands::anglesFromVectors(glm::normalize(toWorld(localFwd)), glm::normalize(toWorld(localUp)));
 }
 
 void printSlot(int slot)

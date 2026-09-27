@@ -19,6 +19,7 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | Defaults | your round-20 test settings and weapon placements (`vr_wofs_version` 14); Fit Gap down to -6 cm |
 | Box3D physics | a second rigid-body engine to compare (Throwing and Physics > Physics Engine, live): Erin Catto's Box3D, single-threaded; props collide with each other (stacks, pyramids, piles, knocks), everything else as before; 0.12-0.15 ms a server frame with 52 props settling; your 474 takes identical on both |
 | Carrying after a load | a box carried in one hand or both when the game was saved is drawn in the hand(s) again after loading it (it was drawn 20 m away, out of sight) |
+| After the posing test | a gun held into a monster hits it (a grunt's head: 0 of 6 pellets before, 6 of 6 headshots now); the posing hand passes through the weapon, unsolved (the solved grip shown for 1.5 s after each set); Show Controller at the real grip, shaped as a Quest 3 controller, with offset sliders; Shot Pitch / Shot Yaw per weapon turn where shots go |
 
 Found on the way: fteqcc stores 0 when `a || b` is assigned into an entity field (rewritten; no other code has that
 shape); a parried blow's hand knock, timed by `cl.time`, came back after a level change (reset now).
@@ -331,6 +332,34 @@ other           -
 - Replay: a weapon in the off hand needs its grip pressed after it is taken (fixed in the recorder's playback);
   the flashlight is off for the eval (`vr_flashlight 0`: a hand reaching to the head grabbed it).
 
+### Refinements after the author's review
+
+Two fixes for edge cases from his notes on the failing takes. Neither has a menu slider.
+
+- **Wiggles** (the hand flicked back and forth in place, registering as hits). A blow already needed the grip's speed
+  and a 20 cm run, but the grip is the controller's point, and both it and the tip swing fast when only the hand
+  turns: the pivot is well behind them. Fitted on his wiggle takes (fists, sword, axe, gun), the hand turns about a
+  point 17-24 cm behind the controller along its own axis. The melee now tracks that point, the "wrist": 20 cm back,
+  with the gun angle offsets (`vr_gunangle`/`vr_gunyaw`, `vr_offhandpitch`/`vr_offhandyaw`) taken out, or the hand
+  itself for a weapon held two-handed. A blow, and its whoosh, also needs the wrist's net travel over the last 0.12 s
+  to average **`vr_melee_wrist_speed` (1.1 m/s)**. A punch needs twice that, since a fist has no lever and the arm
+  carries it. His real blows carry the wrist at 1.24 m/s or more (a wrist-heavy backswing 1.24, stabs from 1.34,
+  pommel strikes from 1.9, swings and chops from 2.3 to 3, punches from 3.5). His wiggles carry it at 0.2-1.5.
+- **The parry's muzzle.** A weapon whose far end (a gun's muzzle, a blade's tip) points within
+  **`vr_parry_muzzle_angle` (45 degrees)** of the attacker doesn't parry, whichever line blocks. The angle is measured
+  from the weapon's middle to the attacker (`vr_parry_from`, set by `VR_Parry` and the recorder). Without an
+  attacker, as for the bash's guard, it is measured against the blow's way. His parry poses point 60 degrees or more
+  off the dummy. His gun "not parry" poses that still fail point 80-97 degrees off it as seen from the gun, a spread
+  his parry poses share, so no stricter angle takes any of them without breaking parry poses.
+
+All 471 takes (strict; the 3 takes he has since discarded left out): **420 -> 426**. no_hit 26 -> 31 of 37:
+02-20-55, 02-20-59 (fists), 02-36-36 (gun) and 02-43-23 (sword) by the wrist, and 02-36-26 (the carried gun's
+one-hand bash; its stance now points at the dummy) by the muzzle. not_parry_pose 39 -> 40 of 49 (05-14-08, the
+muzzle 30 degrees off the dummy). Every other category is unchanged, with the same events: slashes, stabs, punches,
+pommel strikes, gun strikes, shoves, parry poses and bashes. The no_hit takes still failing are real arm motion
+(the wrist at 2.5-3.6 m/s: 02-21-46, 02-43-28, 04-03-55, most of 04-04-05), or bashes and shoves (02-21-03,
+02-37-14).
+
 ### In the headset
 
 - [ ] Sword, one hand: slashes in every direction, backswings (bottom left to top right, and back), from close and
@@ -349,6 +378,9 @@ other           -
 - [ ] Waving a weapon slowly through the dummy: nothing. Swinging it through at speed: a hit.
 - [ ] Settings: Swing Speed (4), Bash Speed (2), Shove Speed (2.4). Your config moves to them once (version 13).
 - [ ] Parry poses you use in combat still parry (the parry's test is unchanged: 40 degrees).
+- [ ] Wiggle a sword, a gun or a fist in place against the dummy, fast: nothing. Short wrist-heavy cuts and
+      backswings still land (`vr_melee_wrist_speed` 1.1).
+- [ ] A gun held level but aimed at the enemy doesn't parry. Held across, it does (`vr_parry_muzzle_angle` 45).
 
 ## Fitted hands
 
@@ -2932,3 +2964,131 @@ also gripped by the off hand for the two-handed case; `save`, `load`, screenshot
 ### In the headset
 
 - [ ] Carry a box (one hand, then both), save, load: is it in your hand(s)? Let go, grip it again.
+
+## After the posing test
+
+Your four notes after testing the posing mode. Branch `agent/posefix`; composites and logs in the scratchpad's
+`posefix/`.
+
+### A. A gun held into a monster hits it
+
+**Why it missed.** Pushed into a grunt's head, the gun is drawn stopped at the head (Weapons Stop at Models) while the
+tracked muzzle, where shots start, is inside the grunt's box. A Quake trace that starts inside a box doesn't report it:
+it comes back as a miss (`trace_fraction` 1) and drops what lay behind (the pellets flew on). Reproduced in the mock:
+the shotgun's muzzle 11 units into a grunt's box at head height: **0 of 6 pellets on the grunt** (all on a
+button behind it). Projectiles fared unevenly: nails and rockets starting inside the box already hit (the physics
+reports a missile that starts inside a box), but a gun long enough to reach through it (the laser cannon) missed.
+
+**The fix** (`QC/weapons.qc`):
+- A hand's hitscan shots (shotgun, super shotgun) and the lightning gun are traced from **behind the muzzle, along the
+  shot's own line**, from where that line passes the grip (`VR_ShotBackPoint`), the range lengthened by as much. What
+  lies along the weapon's length is hit like anything past the muzzle; a wall there stops the shot there (a gun poked
+  through a thin wall doesn't shoot from behind it); with a wall between the hand and that point, from the hand. A
+  pellet whose trace still starts inside something that takes damage (the grip itself in a big box) hits it there.
+- **Projectiles** (nails, lava nails, rockets, grenades, proximity and multi grenades, multi rockets, lasers, plasma):
+  with anything between the grip and the muzzle they start behind it (`VR_ShotPlace`), and a monster there is met at
+  its surface in the same frame (`VR_ShotImpacts`, at the end of `PlayerPostThink`). Flying from so close they would
+  start inside the monster's box as grown for missiles (15 units) and be reported a frame's flight past it, the hit
+  placed beyond the monster (a nail in the head counted as an arm).
+- A projectile's touch traces back along its flight to find where it struck; started inside another box (the
+  shooter's own, fired point blank) it reported that box (the laser's hit was placed on the player): now traced again
+  from the projectile (`VR_TouchTrace`: nails, lava nails, lasers).
+
+| Grunt, muzzle inside its head's box (`vr_debug_shots`) | Before | After |
+|---|---|---|
+| Shotgun (6 pellets) | 0 on the grunt, 6 on a button behind | 6 on the grunt, all headshots (gibbed) |
+| Super shotgun, both barrels (14 pellets) | – | 14 on the grunt, all headshots |
+| Nailgun | 9, 9, 9 (body) | 13.5 (head), then 9 as the grunt is shoved |
+| Super nailgun | – | 27, 27 (heads) |
+| Rocket, grenade, proximity grenade | explode inside it | explode at its face (107, 108, 83 damage) |
+| Laser cannon (its muzzle past the grunt) | missed (hit the wall behind) | 18 + 18 (body) |
+| Lightning gun | 30 | 30 |
+
+Composite: `A_shot_in_head.png` (the gun in the head with its box and the shot line; firing; the result), before and
+after.
+
+### B. Posing without the solver
+
+While posing, the **posing hand is drawn at its controller** (moved by its tuning offset if it has one, as before)
+**with no grasp solve and no palm fit**: it passes through the weapon, and its fingers are **the controller's own
+curls** (squeeze for a fist, open the hand to see through it), without the weapon's finger tweaks. So it can be put
+exactly where it should hold the weapon. After each set (A/X) it **shows the solved grip for 1.5 s** (what play will
+draw), then passes through again. Posing a hotspot, the helping hand is unsolved the same way (the weapon hand holding
+the floating weapon still wraps it). What a set writes is unchanged: it was always taken from the hand as tracked.
+`vr_pose_solve 1` solves live, as before. Normal play is untouched.
+
+`vr_pose_check` after a set, held: the weapon (super shotgun): hand 0.0001 units and 0.0000° from the pose, muzzle
+0.0001, drawn palm 0.0001; hotspot 1 (off hand): 0.0001 / 0.0000° / 0.0001 / 0.0001: as before the change. The drawn
+palm is compared when the hand was seen solved where it was set (else it says so). Composites:
+`B_posing_unsolved.png` (fist and open hand unsolved; the old live solve; the solved grip after A/X; unsolved again),
+`B_hotspot_unsolved.png`.
+
+### C. Show Controller where the controller is
+
+**Why it was off.** The preview was drawn at the tracked controller pose. With `vr_controller_legacy_pose 1` (the
+default, which the gun angles and weapon offsets are tuned for) that is not OpenXR's grip pose but the old OpenVR "raw"
+pose made from it: for a Touch controller **10.2 cm further along the controller and turned 20.6°** (the front of a
+Quest 2 controller's ring). So the box floated ahead of the hand.
+
+**Now** it is drawn at the runtime's **grip pose** (OpenXR `grip/pose`, the middle of the handle, in the palm: the
+legacy conversion undone, `TrackingState::gripInHand`), shaped as a **Quest 3 (Touch Plus) controller**: the handle
+(8 × 3.2 × 3.6 cm), the head's oval face over it (level when the controller points ahead), the thumbstick on the
+thumb's side, the trigger in front; its axes at the grip point (red along the handle, green left, blue up). The shape
+follows the controller's proportions, not a scan: the sliders line it up.
+
+**Sliders** (Weapon Offsets > Tuning Aids > **Controller Preview**, saved): Preview X / Y / Z (cm along its red, green,
+blue axes), Pitch (up) / Yaw (left) / Roll; **Off Hand Preview**: Mirrors the Main Hand's (Y, Yaw and Roll the other
+way) or Its Own (six more sliders). All extendable; they move only the preview. Cvars `vr_show_controller_x/y/z`,
+`_pitch/_yaw/_roll`, `vr_show_controller_off_own`, `vr_show_controller_off_*`.
+
+Checked: `vr_dumpview` prints each grip: 10.22 cm from the tracked pose with the legacy pose, 0 without; the grip's
+pitch is 60.6° up when the aim is level (the handle leaning 30° forward). Composite: `C_controller_preview.png`
+(before: ahead of the hand; after: in the palm; with offsets). The menu: `CD_menu.png`.
+
+### D. Shot Pitch and Shot Yaw
+
+There were none (Aim Pitch/Yaw/Roll are two-handed aiming's; Muzzle X/Y/Z moves where shots start). New per weapon
+(`vr_wofs_shot_pitch_NN`, `vr_wofs_shot_yaw_NN`; Weapon Offsets, under **Muzzle** and under **Posing Mode**): they
+turn the direction the weapon's **shots, projectiles and beams** go, in the aim's frame (pitch up, yaw left; the off
+hand's yaw mirrored), **without moving anything drawn**. Inherit From, Print Changes and Reset cover them (ordinary
+keys; no migration: 0 by default).
+
+- End to end: the client turns each hand's aim by them (`weapons::shotAngles`) and sends it in the move
+  (`VrMove::shotRot`); the server puts it in `.shotrot` / `.offshotrot`; QC `VRGetWeaponFireRot` returns it (every
+  weapon's fire direction goes through it; the lightning gun used the hand's aim directly and now uses it too; a bot,
+  given none, keeps its hand's aim).
+- The red line (Show Controller Laser, the posing mode's), the crosshair and your own beams follow it.
+- The melee reads the hand's aim and the weapon's geometry, not the shot direction.
+
+Measured (`vr_debug_shots`, the shotgun): Shot Pitch 5 turns the shots' direction by **5.000°** (up), Shot Yaw 5 by
+**5.000°** (left); in the off hand Shot Yaw 5 turns them 5.000° to the right. The drawn weapon entity's origin and
+angles are identical in all of them. Composite: `D_shot_angle.png` (red turns, green, the barrel as drawn, doesn't).
+
+### Tools
+
+`vr_debug_shots 1` (with `developer 1`): each hitscan shot (start, direction, and what its pellets hit: target and
+headshots, world, nothing) and each damage you deal (target, amount, inflictor, hit region and point). `vr_pose_solve`.
+
+### Checks
+
+- Melee: the canary of your takes after each change, compared with vr-cleanup's own results: no difference. Against
+  the kit's baseline 16 of 471 takes differ; **vr-cleanup 5d82758d alone gives the same 16** (all 471 takes identical
+  to this branch): they come from its new weapon poses (gun butt and muzzle strikes, the no-hit set), not from these
+  changes. Merged with vr-cleanup 71fe2aa9 (melee2) since: the canary is again identical to vr-cleanup's own (40/46
+  pass), and the shot into the grunt's head still 6 of 6 headshots.
+- Mock only: not tried in the headset.
+
+### Limitations and not verified
+
+- The preview's shape is a close guess at a Quest 3 controller; the grip pose itself is the runtime's.
+- A gun poking through a thin wall was not reproduced (the hand's wall collision keeps the barrel out); the shot now
+  starts on the hand's side of the barrel, so it meets the wall.
+- A monster that walks in until your grip is inside its box: the hit still counts, placed at the grip.
+
+### In the headset
+
+- [ ] Hold the shotgun into a grunt's head and fire: a headshot. The same with the nailgun and the rocket launcher.
+- [ ] Posing: the hand passes through the weapon; place it, press A/X: the solved grip shows for a moment.
+- [ ] Show Controller on: is the preview in your palm where the real controller is? Tune Controller Preview until it
+  matches, and tell me the numbers (they can become the defaults).
+- [ ] Show Controller Laser on: turn Shot Pitch / Shot Yaw until the red line runs through the sights.

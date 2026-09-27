@@ -1091,6 +1091,7 @@ int weaponOffsetsHotspot = -1;
 int weaponOffsetsHotspotType = -1;
 // Whether the weapon's and the edited hotspot's fingers are set by hand, as the page was built (round 21, third pass).
 int weaponOffsetsManual = -1;
+int weaponOffsetsPreviewOwn = -1; // the page shows the off hand's controller preview offsets (vr_show_controller_off_own)
 int weaponOffsetsHotspotManual = -1;
 
 [[nodiscard]] int editedHotspot()
@@ -1232,6 +1233,10 @@ std::vector<Item> pageWeaponOffsets()
         return slider(label, weapons::cvar(slot, key), min, max, step, format);
     };
     const bool fist = slot == weapons::fistSlot(); // the empty hand's "weapon" is the hand model
+    // After the posing test: Shot Pitch and Yaw, under Posing Mode and under Muzzle (weapons::shotAngles).
+    const char* shotHelp = "Turns where the weapon's shots, projectiles and beams go (the red line, from the muzzle) "
+                           "without moving the weapon: line the red line up with the sights. Degrees, as you hold it "
+                           "(the off hand's yaw mirrored).";
     list = {
         header(title.c_str()),
         action("Edit the Other Hand's Weapon", weaponOffsetsOtherHand)
@@ -1266,6 +1271,8 @@ std::vector<Item> pageWeaponOffsets()
             cycle("Tuning Offsets on Confirm", vr_pose_reset_offsets, {{0.f, "Keep"}, {1.f, "Set to 0"}})
                 .help("Keep: the pose is kept with Hand and Weapon Together, Hand Only and Held Hand as they are. "
                       "Set to 0: confirming sets them to 0 (the pose alone places the hand)."),
+            s("Shot Pitch (up)", Key::ShotPitch, -10.f, 10.f, 0.1f, "%+.1f").extend(-45.f, 45.f).help(shotHelp),
+            s("Shot Yaw (left)", Key::ShotYaw, -10.f, 10.f, 0.1f, "%+.1f").extend(-45.f, 45.f).help(shotHelp),
         });
     }
     list.insert(list.end(), {
@@ -1290,12 +1297,42 @@ std::vector<Item> pageWeaponOffsets()
         list.insert(list.end(), {
             header("Tuning Aids"),
             toggle("Show Controller", vr_show_controller)
-                .help("Draws each controller as tracked (translucent, with its axes: red forward, green left, blue up), "
-                      "before any offset, and the hand's point (yellow) where the offsets below move it."),
+                .help("Draws each controller as tracked: a Quest 3 controller at its grip, translucent, with its axes (red "
+                      "along the handle, green left, blue up), before any offset; the hand's point (yellow) where the "
+                      "offsets below move it. Line it up with your real controller under Controller Preview."),
             toggle("Show Controller Laser", vr_show_controller_laser)
                 .help("White: where the controller points (Gun Angle included). Red: where the weapon's shots go, from "
                       "its muzzle. Green: the weapon's barrel, as drawn. Turn the weapon (Pitch, Yaw) until green runs "
-                      "along red."),
+                      "along red, or the shots (Shot Pitch, Shot Yaw, under Muzzle) until red meets the sights."),
+        });
+        // After the posing test: the preview's offsets, to match the real controllers (drawControllerPreview).
+        const char* previewHelp = "Moves the Show Controller preview (not the hands or weapons) to match your real controller: "
+                                  "centimetres along its axes (red: along the handle, green: left, blue: up), degrees.";
+        list.insert(list.end(), {
+            header("Controller Preview (Show Controller)"),
+            slider("Preview X (red)", vr_show_controller_x, -10.f, 10.f, 0.1f, "%+.1f cm").extend().help(previewHelp),
+            slider("Preview Y (green)", vr_show_controller_y, -10.f, 10.f, 0.1f, "%+.1f cm").extend().help(previewHelp),
+            slider("Preview Z (blue)", vr_show_controller_z, -10.f, 10.f, 0.1f, "%+.1f cm").extend().help(previewHelp),
+            slider("Preview Pitch (up)", vr_show_controller_pitch, -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f).help(previewHelp),
+            slider("Preview Yaw (left)", vr_show_controller_yaw, -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f).help(previewHelp),
+            slider("Preview Roll", vr_show_controller_roll, -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f).help(previewHelp),
+            cycle("Off Hand Preview", vr_show_controller_off_own, {{0.f, "Mirrors the Main Hand's"}, {1.f, "Its Own"}})
+                .help("The sliders above are the main hand's; the off hand's preview mirrors them (Y, Yaw and Roll the other "
+                      "way), or takes its own."),
+        });
+        weaponOffsetsPreviewOwn = vr_show_controller_off_own.value != 0.f ? 1 : 0;
+        if(weaponOffsetsPreviewOwn)
+        {
+            list.insert(list.end(), {
+                slider("Off Hand X (red)", vr_show_controller_off_x, -10.f, 10.f, 0.1f, "%+.1f cm").extend().help(previewHelp),
+                slider("Off Hand Y (green)", vr_show_controller_off_y, -10.f, 10.f, 0.1f, "%+.1f cm").extend().help(previewHelp),
+                slider("Off Hand Z (blue)", vr_show_controller_off_z, -10.f, 10.f, 0.1f, "%+.1f cm").extend().help(previewHelp),
+                slider("Off Hand Pitch (up)", vr_show_controller_off_pitch, -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f).help(previewHelp),
+                slider("Off Hand Yaw (left)", vr_show_controller_off_yaw, -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f).help(previewHelp),
+                slider("Off Hand Roll", vr_show_controller_off_roll, -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f).help(previewHelp),
+            });
+        }
+        list.insert(list.end(), {
             header("Hand and Weapon Together"),
             s("Together X (forward)", Key::WholeX, -15.f, 15.f, 0.1f, "%+.1f").extend()
                 .help("Moves the hand and the weapon together, last (after the fingers wrap it and the palm fits): the "
@@ -1359,6 +1396,8 @@ std::vector<Item> pageWeaponOffsets()
             s("Muzzle X", Key::MuzzleOffsetX, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f).help("Where shots and the muzzle flash start, from the muzzle vertex."),
             s("Muzzle Y", Key::MuzzleOffsetY, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f),
             s("Muzzle Z", Key::MuzzleOffsetZ, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f),
+            s("Shot Pitch (up)", Key::ShotPitch, -10.f, 10.f, 0.1f, "%+.1f").extend(-45.f, 45.f).help(shotHelp),
+            s("Shot Yaw (left)", Key::ShotYaw, -10.f, 10.f, 0.1f, "%+.1f").extend(-45.f, 45.f).help(shotHelp),
         });
 
         // The two-handed grips: the hotspot being edited.
@@ -1498,6 +1537,7 @@ int scrolls[pageCount]{};
             static_cast<int>(weapons::hotspot(weaponOffsetsSlot, editedHotspot()).type) != weaponOffsetsHotspotType ||
             weapons::inheritsFrom(weaponOffsetsHeldSlot) != weaponOffsetsInherit ||
             (weaponOffsetsManual >= 0 && (weapons::value(weaponOffsetsSlot, weapons::Key::FingerManual) >= 0.5f ? 1 : 0) != weaponOffsetsManual) ||
+            (weaponOffsetsPreviewOwn >= 0 && (vr_show_controller_off_own.value != 0.f ? 1 : 0) != weaponOffsetsPreviewOwn) ||
             (weaponOffsetsHotspotManual >= 0 &&
                 (weapons::hotspot(weaponOffsetsSlot, editedHotspot()).manual ? 1 : 0) != weaponOffsetsHotspotManual)))
     {

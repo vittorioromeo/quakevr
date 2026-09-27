@@ -149,8 +149,13 @@ void(entity xTarget) VR_Motion_Sample =
     vector oldRight = v_right;
     vector oldUp = v_up;
     vector parry;
+    if(xTarget != world)
+    {
+        vr_parry_from = xTarget.origin + (xTarget.mins + xTarget.maxs) * 0.5;
+    }
     parry_x = VR_Parry_Blocks(self, cVR_MainHand, to);
     parry_y = VR_Parry_Blocks(self, cVR_OffHand, to);
+    vr_parry_from = '0 0 0';
     parry_z = VR_Parry_ArmsCrossed(self, to);
     motionvalue("parry", parry);
 
