@@ -1148,7 +1148,7 @@ void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shap
     // surface: the one a ray from the palm's middle along its normal meets, or else the nearest to its middle on its
     // side (beside the fist: a big thing held by its edge).
     const glm::vec3 up{0.f, 1.f, 0.f};
-    if(settings.palmTurnLimit > 0.f && !inside && !settings.searchPlace)
+    if(settings.palmTurnLimit > 0.f && !inside && !settings.searchPlace && !settings.fixedPalm)
     {
         const glm::vec3 from{rigToReal * glm::vec4{k.palmCentre, 1.f}};
         const glm::vec3 dir = glm::normalize(glm::vec3{rigToReal * glm::vec4{up, 0.f}});
@@ -1189,7 +1189,7 @@ void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shap
     // The palm flush on it (step 4): moved along its normal from as far back as it may go (if clear there), towards it
     // until its spheres meet it (conservative advancement: each step as far as they are clear), no further in than it
     // may go. Not when in it.
-    if(settings.palmLimit > 0.f && !inside && !settings.searchPlace)
+    if(settings.palmLimit > 0.f && !inside && !settings.searchPlace && !settings.fixedPalm)
     {
         float y = -settings.palmLimit;
         target.place(out.palmTurn, up * y);
@@ -1213,7 +1213,12 @@ void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shap
     // A grip through the hand (a weapon's): the palm moved a little along the fingers (x) and the grip (z), flush along
     // its normal there, to where the fingers hold best, closed coarsely at each (as round 21's first solver did); solved
     // again, the place before (the weapon doesn't move in the hand).
-    if((inside || settings.searchPlace) && settings.palmLimit > 0.f)
+    if(settings.fixedPalm)
+    {
+        out.palm = settings.palmMove;
+        out.palmTurn = settings.palmTurnMove;
+    }
+    else if((inside || settings.searchPlace) && settings.palmLimit > 0.f)
     {
         out.palm = previous ? previous->palm : placeInside(pose, target, settings, out.places);
     }
