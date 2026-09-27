@@ -1184,7 +1184,7 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
         }
     }
     place(ve, drawn, hover);
-    if(st.mode != Mode::Mounted && st.mode != Mode::OnHead) // (on the head, the cord runs behind the neck)
+    if(st.mode != Mode::Mounted && st.mode != Mode::OnHead && vr_flashlight_cord.value != 0.f) // (on the head, the cord runs behind the neck)
     {
         drawCord(drawnMount, drawn);
     }
