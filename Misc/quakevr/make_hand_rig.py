@@ -19,11 +19,14 @@
 # defaults, as before.
 #
 # The hand:
-#   - A palm lofted through seven cross-sections (13 vertices round) from the wrist, inside the arm's cuff, to
-#     the knuckles: the wrist, the heel of the hand, the arched back, the cupped palm with its pads.
-#   - Four fingers and a thumb, 8-sided tubes tapering to rounded tips, with slight knuckle bulges. Human
-#     proportions: phalanges about 1 : 0.62 : 0.5, the middle finger longest, the pinky about 3/4 of it; the
-#     fingers' length about the palm's width (the old ones were short on a long palm).
+#   - A palm lofted through six cross-sections (13 vertices round, the last 26) from the wrist, inside the arm's
+#     cuff, to the knuckles: the wrist, the heel of the hand, the arched back, the cupped palm with its pads. Its
+#     front is the fingers' first rings: the fingers grow out of it (no seam), and between two fingers a web (a
+#     pair of vertices both share) sits past their knuckles, low towards the palm.
+#   - Four fingers and a thumb, tubes of rounded rectangles (8 vertices: flat on the back, the palm's side and the
+#     sides, bevelled between) tapering to blunt tips, with slight knuckle bulges. Human proportions: phalanges
+#     about 1 : 0.62 : 0.5, the middle finger longest, the pinky about 3/4 of it; the fingers' length about the
+#     palm's width (the old ones were short on a long palm).
 #   - The thumb has three segments: the metacarpal (its thick base is the ball of the thumb), the proximal and
 #     the distal phalanx; it turns at the carpometacarpal joint near the wrist (the solver's opposition).
 #
@@ -32,7 +35,8 @@
 # joint's turn per curl frame (0 open .. 4 the tightest fist, 5 = 3: the curls vr_view.cpp draws) is given
 # below. Skinning without candy-wrapping or collapse: the ring of vertices at a joint rides a helper joint turned
 # half as far (a mitred joint: both tubes meet at the bisecting plane, the ring keeps its size), the rest of a
-# segment rides the segment; the palm's thumb side follows the thumb's metacarpal by weight, between helpers
+# segment rides the segment; a web's pair rides both knuckles' rings half each (it stretches between two fingers
+# closed differently); the palm's thumb side follows the thumb's metacarpal by weight, between helpers
 # turned a quarter, half and three quarters as far (slerped: the thenar never thins).
 #
 # The engine (vr_handrig.cpp) computes the joints' matrices from the pose on the CPU (33 of them) and the GPU
@@ -76,7 +80,19 @@ PALM_CENTRE = (-2.640542507171631, 0.05627598240971565, 0.4530821740627289)
 # ----------------------------------------------------------------------------
 # The shape (rig space, hand units)
 
-SIDES = 8  # finger and thumb cross-sections
+# The fingers' and the thumb's cross-sections: rounded rectangles, flat on the back, the palm's side and the sides,
+# bevelled between (blocky, as Quake's models are, but not square).
+SIDES = 8
+BOX_ACROSS = 0.58  # the back's and the palm's faces: their corners across (of the half-width)
+BOX_UP = 0.42  # the sides: their corners up and down (of the half-height)
+BOX_SIZE = 0.93  # the section's extents over its nominal half-width and heights
+# The webs between the fingers' roots: a vertex by the back and one by the palm, shared by the two fingers, past
+# their knuckles along them and down towards the palm (the back's, the palm's).
+WEB_ALONG = (0.60, 0.85)
+WEB_DOWN = (0.18, 0.05)
+KNUCKLE_SECTION = -0.85  # the mesh's last section of the palm: behind the knuckles' pivots (the metacarpals' heads)
+KNUCKLE_RIDGE = 0.12  # the back over each metacarpal's head, raised
+KNUCKLE_VALLEY = 0.05  # between them, lowered
 
 # Per finger: its knuckle's pivot (MCP), its splay (degrees towards +z, the thumb's side), its phalanges' lengths
 # (MCP to PIP, PIP to DIP, DIP to the tip), its half-widths (at the MCP, PIP, DIP and near the tip), how much its
@@ -355,58 +371,95 @@ class Mesh:
         self.tpart.append(part)
 
 
-def ellipse_ring(c, x, y, z, half, back, palm, n=SIDES, start=0.5):
-    """n points round centre c in the plane (y, z): half-width `half` along z, `back` towards -y, `palm` towards
-    +y. The first point sits `start` of a step past +z (the thumb's side), going towards +y (the palm)."""
-    pts = []
+def box_ring(c, y, z, half, back, palm):
+    """SIDES points round centre c in the plane (y, z), a rounded rectangle: half-width `half` along z, `back`
+    towards -y, `palm` towards +y. In order round: 0 the radial side's (+z) corner by the palm, 1 2 the palm's
+    face (radial, ulnar), 3 4 the ulnar side (by the palm, by the back), 5 6 the back's face (ulnar, radial), 7 the
+    radial side's by the back."""
+    a, s, k = BOX_ACROSS, BOX_UP, BOX_SIZE
+    shape = [(1, s), (a, 1), (-a, 1), (-1, s), (-1, -s), (-a, -1), (a, -1), (1, -s)]
+    return [c + z * (k * half * cz) + y * (k * (palm if sy > 0 else back) * sy) for cz, sy in shape]
+
+
+def ring_places(pts):
+    """Each point's place round one of the palm's rings (increasing along it, the first in -0.5..0.5): its angle
+    about the ring's middle in the plane (y, z), the ring's extents scaled out (0 the ulnar side, 0.25 the back's
+    middle, 0.5 the radial side, 0.75 the palm's middle)."""
+    P = np.array(pts)
+    c = P.mean(0)
+    dy, dz = P[:, 1] - c[1], P[:, 2] - c[2]
+    t = np.arctan2(-dy / np.abs(dy).max(), -dz / np.abs(dz).max()) / (2 * math.pi) % 1.0
+    t0 = t[0] if t[0] < 0.5 else t[0] - 1.0
+    return [t0 + (ti - t[0]) % 1.0 for ti in t]
+
+
+def strip(mesh, part, A, B, pa, pb, va, vb, per):
+    """The triangles between two rings of vertices (A, then B further along the tube; ids in order round),
+    facing out as the tube's: pa, pb their places round (increasing; the texture's u is the place times `per`,
+    its v `va`, `vb`). Rings of the same count: quads; else zipped by place (each triangle to the nearer next)."""
+    n, m = len(A), len(B)
+    A, B = list(A) + [A[0]], list(B) + [B[0]]
+    pa, pb = list(pa) + [pa[0] + 1.0], list(pb) + [pb[0] + 1.0]
+    if n == m:
+        for j in range(n):
+            a, b, c, d = A[j], A[j + 1], B[j + 1], B[j]
+            mesh.tri((a, c, b), [(pa[j] * per, va), (pb[j + 1] * per, vb), (pa[j + 1] * per, va)], part)
+            mesh.tri((a, d, c), [(pa[j] * per, va), (pb[j] * per, vb), (pb[j + 1] * per, vb)], part)
+        return
+    i = j = 0
+    while i < n or j < m:
+        if j == m or (i < n and pa[i + 1] <= pb[j + 1]):
+            mesh.tri((A[i], B[j], A[i + 1]), [(pa[i] * per, va), (pb[j] * per, vb), (pa[i + 1] * per, va)], part)
+            i += 1
+        else:
+            mesh.tri((A[i], B[j], B[j + 1]), [(pa[i] * per, va), (pb[j] * per, vb), (pb[j + 1] * per, vb)], part)
+            j += 1
+
+
+def cap(mesh, part, ring, places, apex, v_ring, v_apex, per, start):
+    """A fan closing a tube's ring to an apex vertex (`start`: the tube's first ring, else its last)."""
+    n = len(ring)
+    ps = list(places) + [places[0] + 1.0]
     for j in range(n):
-        a = 2 * math.pi * (j + start) / n
-        cz, sy = math.cos(a), math.sin(a)
-        pts.append(c + z * (half * cz) + y * ((palm if sy > 0 else back) * sy))
-    return pts
+        p, q = ring[j], ring[(j + 1) % n]
+        um = 0.5 * (ps[j] + ps[j + 1]) * per
+        if start:
+            mesh.tri((apex, p, q), [(um, v_apex), (ps[j] * per, v_ring), (ps[j + 1] * per, v_ring)], part)
+        else:
+            mesh.tri((apex, q, p), [(um, v_apex), (ps[j + 1] * per, v_ring), (ps[j] * per, v_ring)], part)
 
 
-def loft(mesh, rings, infl, part, bone, u0v0, texel_len, caps):
-    """Tube through `rings` (lists of points, same count), per ring its influences and bone; texture: u round
-    the ring (its mean perimeter), v along (the rings' centres' distance); `caps` = (start apex or None, end apex
-    or None) with their influences and bones. Returns the texture extent (u, v) in hand units."""
-    n = len(rings[0])
-    centres = [np.mean(r, axis=0) for r in rings]
-    per = np.mean([sum(np.linalg.norm(r[(j + 1) % n] - r[j]) for j in range(n)) for r in rings])
-    vs = [0.0]
+def tube(mesh, part, rings, places, caps, per=None):
+    """Triangles along rings of vertex ids (their places round each, see strip) and the caps' fans (per end: an
+    apex vertex or None); v along is the distance between the rings' middles. Returns the texture's u scale."""
+    P = np.array(mesh.pos)
+    centres = [P[r].mean(0) for r in rings]
+    if per is None:
+        per = float(np.mean([sum(np.linalg.norm(P[r[(j + 1) % len(r)]] - P[r[j]]) for j in range(len(r))) for r in rings]))
+    v0 = np.linalg.norm(P[caps[0]] - centres[0]) if caps[0] is not None else 0.0
+    vs = [v0]
     for i in range(1, len(rings)):
         vs.append(vs[-1] + np.linalg.norm(centres[i] - centres[i - 1]))
-    cap0 = caps[0]
-    v_off = np.linalg.norm(cap0[0] - centres[0]) if cap0 else 0.0
-    ids = [[mesh.vertex(p, infl[i], part, bone[i], centres[i]) for p in r] for i, r in enumerate(rings)]
-    us = [per * j / n for j in range(n + 1)]
     for i in range(len(rings) - 1):
-        for j in range(n):
-            j1 = (j + 1) % n
-            a, b, c, d = ids[i][j], ids[i][j1], ids[i + 1][j1], ids[i + 1][j]
-            ua, ub = us[j], us[j + 1]
-            va, vb = v_off + vs[i], v_off + vs[i + 1]
-            mesh.tri((a, c, b), [(ua, va), (ub, vb), (ub, va)], part)
-            mesh.tri((a, d, c), [(ua, va), (ua, vb), (ub, vb)], part)
-    # Caps: fans to an apex (its texture: a row past the ring, the apex's u per triangle).
-    for which, cap in ((0, caps[0]), (1, caps[1])):
-        if not cap:
-            continue
-        apex_p, apex_infl, apex_bone = cap
-        ring = 0 if which == 0 else len(rings) - 1
-        a = mesh.vertex(apex_p, apex_infl, part, apex_bone, centres[ring])
-        vr = v_off + vs[ring]
-        va = 0.0 if which == 0 else vr + np.linalg.norm(apex_p - centres[ring])
-        for j in range(n):
-            j1 = (j + 1) % n
-            p, q = ids[ring][j], ids[ring][j1]
-            um = 0.5 * (us[j] + us[j + 1])
-            if which == 0:
-                mesh.tri((a, p, q), [(um, va), (us[j], vr), (us[j + 1], vr)], part)
-            else:
-                mesh.tri((a, q, p), [(um, va), (us[j + 1], vr), (us[j], vr)], part)
-    v_end = v_off + vs[-1] + (np.linalg.norm(caps[1][0] - centres[-1]) if caps[1] else 0.0)
-    return per, v_end
+        strip(mesh, part, rings[i], rings[i + 1], places[i], places[i + 1], vs[i], vs[i + 1], per)
+    if caps[0] is not None:
+        cap(mesh, part, rings[0], places[0], caps[0], vs[0], 0.0, per, True)
+    if caps[1] is not None:
+        cap(mesh, part, rings[-1], places[-1], caps[1], vs[-1], vs[-1] + np.linalg.norm(P[caps[1]] - centres[-1]), per, False)
+    return per
+
+
+def islands_of(mesh):
+    """Moves each part's texture coordinates to start at 0; returns each part's extent (u, v) in hand units."""
+    out = {}
+    for part in range(6):
+        idx = [i for i, p in enumerate(mesh.tpart) if p == part]
+        uv = np.array([c for i in idx for c in mesh.tuv[i]])
+        lo = uv.min(0)
+        for i in idx:
+            mesh.tuv[i] = [(u - lo[0], v - lo[1]) for u, v in mesh.tuv[i]]
+        out["palm" if part == 0 else FINGERS[part - 1]] = tuple(uv.max(0) - lo)
+    return out
 
 
 def arc_x(u):
@@ -439,7 +492,7 @@ def palm_point(st, u, v):
     if "knuckle" in st:
         x = arc_x(u) + st["knuckle"]
         if v < -0.9 and st["knuckle"] < 0:
-            y -= 0.12  # the knuckles' ridge over each metacarpal
+            y -= KNUCKLE_RIDGE  # the knuckles' ridge over each metacarpal
     return np.array([x, y, z])
 
 
@@ -465,51 +518,119 @@ def thenar_influences(w):
     return [(THENAR_JOINTS[-1][1], 1.0)]
 
 
+def finger_sections(rig, fi, name):
+    """A finger's cross-sections, knuckle to tip: (distance along, half-width, back, palm, influences, bone)."""
+    h = FINGER_SPEC[name]["half"]
+    l1, l2, l3 = FINGER_SPEC[name]["length"]
+    return [
+        (0.0, h[0], FLAT * h[0] * 1.04, FLAT * h[0], [(half_joint(fi, 0), 1.0)], 1),  # MCP: the palm's front
+        (0.5 * l1, 0.5 * (h[0] + h[1]) * 0.97, FLAT * 0.5 * (h[0] + h[1]) * 0.94, FLAT * 0.5 * (h[0] + h[1]) * 1.06,
+         [(seg_joint(fi, 1), 1.0)], 1),
+        (l1, h[1] * 1.02, FLAT * h[1] * 1.05, FLAT * h[1], [(half_joint(fi, 1), 1.0)], 2),  # PIP
+        (l1 + l2, h[2] * 1.01, FLAT * h[2] * 1.04, FLAT * h[2], [(half_joint(fi, 2), 1.0)], 3),  # DIP
+        (l1 + l2 + 0.45 * l3, 0.5 * (h[2] + h[3]), FLAT * 0.5 * (h[2] + h[3]) * 0.88, FLAT * 0.5 * (h[2] + h[3]) * 1.1,
+         [(seg_joint(fi, 3), 1.0)], 3),
+        (l1 + l2 + 0.87 * l3, h[3] * 0.9, FLAT * h[3] * 0.78, FLAT * h[3] * 0.98, [(seg_joint(fi, 3), 1.0)], 3),
+    ]
+
+
 def build_mesh(rig):
     mesh = Mesh()
-    islands = {}
+    order = ["pinky", "ring", "middle", "index"]  # ulnar to radial
+    uniform = [j / SIDES for j in range(SIDES)]
 
-    # The palm.
-    rings = [[palm_point(st, u, v) for u, v in PALM_TEMPLATE] for st in PALM_STATIONS]
-    first = len(mesh.pos)
-    infl = [[None] * len(r) for r in rings]
-    wrist_apex = np.mean(rings[0], axis=0) - np.array([0.35, 0.0, 0.0])
-    islands["palm"] = loft(mesh, rings, [[(0, 1.0)]] * len(rings), 0, [0] * len(rings), None, None,
-                           ((wrist_apex, [(0, 1.0)], 0), (PALM_FRONT, [(0, 1.0)], 0)))
-    for i in range(first, len(mesh.pos)):
-        mesh.infl[i] = thenar_influences(thenar_weight(rig, mesh.pos[i]))
+    # The fingers' first rings, round their knuckles: the palm's front. Between two fingers the sides' corners
+    # are one pair of vertices (the web), shared by both and following both knuckles half each.
+    first, sections = {}, {}
+    for name in order:
+        fi = FINGERS.index(name)
+        _, x, y, z = rig.fingers[name]["segments"][0]
+        sections[name] = finger_sections(rig, fi, name)
+        t, hw, bk, pm, _, _ = sections[name][0]
+        first[name] = box_ring(rig.fingers[name]["points"][0] + x * t, y, z, hw, bk, pm)
+    webs = {}
+    for a, b in zip(order, order[1:]):
+        fa, fb = FINGERS.index(a), FINGERS.index(b)
+        xm = unit(rig.fingers[a]["segments"][0][1] + rig.fingers[b]["segments"][0][1])
+        ym = np.array([0.0, 1.0, 0.0])
+        infl = [(half_joint(fa, 0), 0.5), (half_joint(fb, 0), 0.5)]
+        centre = 0.5 * (rig.fingers[a]["points"][0] + rig.fingers[b]["points"][0])
+        up = 0.5 * (first[a][7] + first[b][4]) + xm * WEB_ALONG[0] + ym * WEB_DOWN[0]
+        low = 0.5 * (first[a][0] + first[b][3]) + xm * WEB_ALONG[1] + ym * WEB_DOWN[1]
+        webs[a, b] = (mesh.vertex(up, infl, fa + 1, 1, centre), mesh.vertex(low, infl, fa + 1, 1, centre))
+    ring0 = {}
+    for k, name in enumerate(order):
+        fi = FINGERS.index(name)
+        ids = []
+        for j, p in enumerate(first[name]):
+            if j in (0, 7) and name != "index":
+                ids.append(webs[name, order[k + 1]][0 if j == 7 else 1])
+            elif j in (3, 4) and name != "pinky":
+                ids.append(webs[order[k - 1], name][0 if j == 4 else 1])
+            else:
+                ids.append(mesh.vertex(p, [(half_joint(fi, 0), 1.0)], fi + 1, 1, rig.fingers[name]["points"][0]))
+        ring0[name] = ids
 
-    # The fingers.
-    for fi, name in enumerate(FINGERS[1:], 1):
-        spec = FINGER_SPEC[name]
+    # The palm: lofted through its cross-sections from inside the forearm's cuff to the knuckles, then on to the
+    # fingers' first rings. The last section (the knuckles) has a vertex for each of the front's: over each
+    # finger's back the metacarpal's head, between them the groove down to the web.
+    front = [ring0["pinky"][4], ring0["pinky"][5], ring0["pinky"][6]]
+    kinds = ["side", "back", "back"]
+    for a, b in zip(order, order[1:]):
+        front += [webs[a, b][0], ring0[b][5], ring0[b][6]]
+        kinds += ["valley", "back", "back"]
+    front += [ring0["index"][7], ring0["index"][0], ring0["index"][1], ring0["index"][2]]
+    kinds += ["side", "side", "palm", "palm"]
+    for a, b in reversed(list(zip(order, order[1:]))):
+        front += [webs[a, b][1], ring0[a][1], ring0[a][2]]
+        kinds += ["palm", "palm", "palm"]
+    front += [ring0["pinky"][3]]
+    kinds += ["side"]
+    st = dict(PALM_STATIONS[5], knuckle=KNUCKLE_SECTION)
+    knuckles = []
+    for vid, kind in zip(front, kinds):
+        p = mesh.pos[vid]
+        u = float(np.clip((p[2] - st["zu"]) / (st["zr"] - st["zu"]), 0.0, 1.0))
+        c = mesh.centre[vid]
+        v = {"back": -1.0, "valley": -1.0, "palm": 1.0}.get(kind, -0.45 if p[1] < c[1] else 0.45)
+        q = palm_point(st, u, v)
+        if kind == "valley":
+            q[1] += KNUCKLE_VALLEY
+        knuckles.append(q)
+    rings = [[palm_point(s, u, v) for u, v in PALM_TEMPLATE] for s in PALM_STATIONS[:5]] + [knuckles]
+    ids = []
+    for r in rings:
+        c = np.mean(r, axis=0)
+        ids.append([mesh.vertex(p, thenar_influences(thenar_weight(rig, p)), 0, 0, c) for p in r])
+    ids.append(front)
+    places = [ring_places([mesh.pos[i] for i in r]) for r in ids]
+    places[-1] = places[-2]  # the knuckles' section and the front: vertex for vertex
+    wrist = np.mean(rings[0], axis=0) - np.array([0.35, 0.0, 0.0])
+    apex = mesh.vertex(wrist, [(0, 1.0)], 0, 0, np.mean(rings[0], axis=0))
+    tube(mesh, 0, ids, places, (apex, None))
+
+    # The fingers, on from their first rings.
+    for name in order:
+        fi = FINGERS.index(name)
         pts = rig.fingers[name]["points"]
         _, x, y, z = rig.fingers[name]["segments"][0]
-        h = spec["half"]
-        l1, l2, l3 = spec["length"]
+        l1, l2, l3 = FINGER_SPEC[name]["length"]
+        h = FINGER_SPEC[name]["half"]
         at = lambda t: pts[0] + x * t
-        # (distance along, half-width, back, palm, influences, bone)
-        sections = [
-            (0.0, h[0], FLAT * h[0] * 1.06, FLAT * h[0], [(half_joint(fi, 0), 1.0)], 1),  # MCP
-            (0.5 * l1, 0.5 * (h[0] + h[1]) * 0.97, FLAT * 0.5 * (h[0] + h[1]) * 0.94, FLAT * 0.5 * (h[0] + h[1]) * 1.06,
-             [(seg_joint(fi, 1), 1.0)], 1),
-            (l1, h[1] * 1.03, FLAT * h[1] * 1.08, FLAT * h[1], [(half_joint(fi, 1), 1.0)], 2),  # PIP
-            (l1 + l2, h[2] * 1.02, FLAT * h[2] * 1.06, FLAT * h[2], [(half_joint(fi, 2), 1.0)], 3),  # DIP
-            (l1 + l2 + 0.45 * l3, 0.5 * (h[2] + h[3]), FLAT * 0.5 * (h[2] + h[3]) * 0.88, FLAT * 0.5 * (h[2] + h[3]) * 1.1,
-             [(seg_joint(fi, 3), 1.0)], 3),
-            (l1 + l2 + 0.84 * l3, h[3] * 0.84, FLAT * h[3] * 0.72, FLAT * h[3] * 0.95, [(seg_joint(fi, 3), 1.0)], 3),
-        ]
-        rings = [ellipse_ring(at(t), x, y, z, hw, bk, pm) for t, hw, bk, pm, _, _ in sections]
-        rig.fingers[name]["profile"] = [(at(t), hw, pm) for t, hw, bk, pm, _, _ in sections]
-        base = (at(-0.62), [(half_joint(fi, 0), 1.0)], 1)
-        tip = (at(l1 + l2 + l3) + y * (0.18 * h[3]), [(seg_joint(fi, 3), 1.0)], 3)
-        islands[name] = loft(mesh, rings, [s[4] for s in sections], fi + 1, [s[5] for s in sections], None, None, (base, tip))
+        secs = sections[name]
+        rig.fingers[name]["profile"] = [(at(t), hw, pm) for t, hw, bk, pm, _, _ in secs]
+        fids = [ring0[name]]
+        for t, hw, bk, pm, infl, bone in secs[1:]:
+            fids.append([mesh.vertex(p, infl, fi + 1, bone, at(t)) for p in box_ring(at(t), y, z, hw, bk, pm)])
+        tip = mesh.vertex(at(l1 + l2 + l3) + y * (0.18 * h[3]), [(seg_joint(fi, 3), 1.0)], fi + 1, 3, at(secs[-1][0]))
+        tube(mesh, fi + 1, fids, [uniform] * len(fids), (None, tip))
 
-    # The thumb.
+    # The thumb: its metacarpal inside the ball of the thumb (the palm there follows it), two phalanges.
     tp = rig.fingers["thumb"]["points"]
     ts = rig.fingers["thumb"]["segments"]
     h = THUMB_HALF
 
-    def frame_at(k0, k1, t):
+    def frame_at(k0, k1):
         """A section's frame between segments k0 and k1 (their mean at a joint)."""
         x = unit(ts[k0][1] + ts[k1][1])
         y = ts[k0][2] + ts[k1][2]
@@ -517,26 +638,27 @@ def build_mesh(rig):
         return x, y, np.cross(x, y)
 
     l1, l2, l3 = THUMB_LENGTHS
-    sections = []
-    x, y, z = frame_at(0, 0, 0)
-    sections.append((tp[0] + x * 0.0, (x, y, z), h[0], FLAT * h[0] * 0.95, FLAT * h[0] * 1.05, [(half_joint(0, 0), 1.0)], 1))
-    sections.append((tp[0] + x * (0.5 * l1) + y * 0.35 - z * 0.25, (x, y, z), h[1], FLAT * h[1] * 0.8, FLAT * h[1] * 1.3,
-                     [(seg_joint(0, 1), 1.0)], 1))
-    x, y, z = frame_at(0, 1, 0)
-    sections.append((tp[1], (x, y, z), h[2], FLAT * h[2] * 1.08, FLAT * h[2] * 1.02, [(half_joint(0, 1), 1.0)], 2))
-    x, y, z = frame_at(1, 2, 0)
-    sections.append((tp[2], (x, y, z), h[3], FLAT * h[3] * 1.06, FLAT * h[3], [(half_joint(0, 2), 1.0)], 3))
+    secs = []
+    x, y, z = frame_at(0, 0)
+    secs.append((tp[0], (x, y, z), h[0], FLAT * h[0] * 0.95, FLAT * h[0] * 1.05, [(half_joint(0, 0), 1.0)], 1))
+    secs.append((tp[0] + x * (0.5 * l1) + y * 0.35 - z * 0.25, (x, y, z), h[1], FLAT * h[1] * 0.8, FLAT * h[1] * 1.3,
+                 [(seg_joint(0, 1), 1.0)], 1))
+    x, y, z = frame_at(0, 1)
+    secs.append((tp[1], (x, y, z), h[2], FLAT * h[2] * 1.05, FLAT * h[2] * 1.02, [(half_joint(0, 1), 1.0)], 2))
+    x, y, z = frame_at(1, 2)
+    secs.append((tp[2], (x, y, z), h[3], FLAT * h[3] * 1.04, FLAT * h[3], [(half_joint(0, 2), 1.0)], 3))
     x, y, z = ts[2][1], ts[2][2], ts[2][3]
     mid = 0.5 * (h[3] + h[4])
-    sections.append((tp[2] + x * (0.45 * l3), (x, y, z), mid, FLAT * mid * 0.86, FLAT * mid * 1.1, [(seg_joint(0, 3), 1.0)], 3))
-    sections.append((tp[2] + x * (0.84 * l3), (x, y, z), h[4] * 0.84, FLAT * h[4] * 0.72, FLAT * h[4] * 0.95,
-                     [(seg_joint(0, 3), 1.0)], 3))
-    rings = [ellipse_ring(c, fx, fy, fz, hw, bk, pm) for c, (fx, fy, fz), hw, bk, pm, _, _ in sections]
-    rig.fingers["thumb"]["profile"] = [(c, hw, pm) for c, _, hw, bk, pm, _, _ in sections]
-    base = (tp[0] - ts[0][1] * 0.7, [(half_joint(0, 0), 1.0)], 1)
-    tip = (tp[3] + ts[2][2] * (0.18 * h[4]), [(seg_joint(0, 3), 1.0)], 3)
-    islands["thumb"] = loft(mesh, rings, [s[5] for s in sections], 1, [s[6] for s in sections], None, None, (base, tip))
-    return mesh, islands
+    secs.append((tp[2] + x * (0.45 * l3), (x, y, z), mid, FLAT * mid * 0.86, FLAT * mid * 1.1, [(seg_joint(0, 3), 1.0)], 3))
+    secs.append((tp[2] + x * (0.87 * l3), (x, y, z), h[4] * 0.9, FLAT * h[4] * 0.78, FLAT * h[4] * 0.98,
+                 [(seg_joint(0, 3), 1.0)], 3))
+    rig.fingers["thumb"]["profile"] = [(c, hw, pm) for c, _, hw, bk, pm, _, _ in secs]
+    tids = [[mesh.vertex(p, infl, 1, bone, c) for p in box_ring(c, fy, fz, hw, bk, pm)]
+            for c, (fx, fy, fz), hw, bk, pm, infl, bone in secs]
+    base = mesh.vertex(tp[0] - ts[0][1] * 0.7, [(half_joint(0, 0), 1.0)], 1, 1, tp[0])
+    tip = mesh.vertex(tp[3] + ts[2][2] * (0.18 * h[4]), [(seg_joint(0, 3), 1.0)], 1, 3, secs[-1][0])
+    tube(mesh, 1, tids, [uniform] * len(tids), (base, tip))
+    return mesh, islands_of(mesh)
 
 
 def check_winding(mesh):
@@ -604,36 +726,29 @@ SKIN_RAMP = (112, 127)  # the skin's palette ramp (dark .. light)
 GRAIN = [(140, 20, 255, 56), (110, 70, 186, 118)]  # hand_base.mdl's skin 0: plain skin, the forearm's back and front
 
 
-def layout_islands(islands, width=512):
-    """Places each part's island (hand units -> texels) on the skin: the palm across the top, the fingers and
-    the thumb in a row below. Returns {name: (x, y, texels per unit)}, the skin's size."""
+def layout_islands(islands, width=512, most=18.0):
+    """Places each part's island (hand units -> texels) on the skin, in rows: the palm, then the thumb and the
+    fingers, each where the row has room. The densest that fits, up to `most` texels a unit (the grain's scale on
+    the hand). Returns {name: (x, y, texels per unit)}, the skin's size."""
     pad = 3
-    for dens in np.arange(22.0, 8.0, -0.5):
-        pu, pv = islands["palm"]
-        pw, ph = int(math.ceil(pu * dens)), int(math.ceil(pv * dens))
-        x, y = pad, pad
-        layout = {"palm": (x, y, dens)}
-        if pw + 2 * pad > width:
-            continue
-        row_y = y + ph + 2 * pad
-        x = pad
-        row_h = 0
+    for dens in np.arange(most, 8.0, -0.5):
+        layout = {}
+        x, y, row_h = pad, pad, 0
         ok = True
-        for name in ["thumb", "index", "middle", "ring", "pinky"]:
+        for name in ["palm", "thumb", "index", "middle", "ring", "pinky"]:
             u, v = islands[name]
             w, h = int(math.ceil(u * dens)), int(math.ceil(v * dens))
             if x + w + pad > width:
+                x, y, row_h = pad, y + row_h + 2 * pad, 0
+            if x + w + pad > width:
                 ok = False
                 break
-            layout[name] = (x, row_y, dens)
+            layout[name] = (x, y, dens)
             x += w + 2 * pad
             row_h = max(row_h, h)
-        if not ok:
-            continue
-        height = row_y + row_h + pad
-        if height <= width:
-            size = 256 if height <= 256 else 512
-            return layout, (width, size)
+        height = y + row_h + pad
+        if ok and height <= width:
+            return layout, (width, 256 if height <= 256 else 512)
     raise RuntimeError("the islands don't fit")
 
 
@@ -719,15 +834,28 @@ def bombed(grain, H, W, cell=22, seed=7):
     return total / np.sqrt(np.maximum(norm, 1e-6))
 
 
-def mottle(H, W, scale=28, seed=3):
-    """Smooth value noise (-1..1), for the skin's broad unevenness."""
+def mottle(pos_map, covered, scale=28 / 18.0, seed=3):
+    """Smooth value noise over the hand (by the texels' places on it, so it runs on across the islands' edges),
+    for the skin's broad unevenness: `scale` hand units (the old 28 texels at 18 a unit); about -1..1 (the
+    spread of a plane's value noise)."""
     rng = np.random.default_rng(seed)
-    g = rng.uniform(-1, 1, size=(H // scale + 3, W // scale + 3))
-    gy, gx = np.mgrid[0:H, 0:W] / scale
-    iy, ix = gy.astype(int), gx.astype(int)
-    fy, fx = gy - iy, gx - ix
-    fy, fx = fy * fy * (3 - 2 * fy), fx * fx * (3 - 2 * fx)
-    return ((g[iy, ix] * (1 - fx) + g[iy, ix + 1] * fx) * (1 - fy) + (g[iy + 1, ix] * (1 - fx) + g[iy + 1, ix + 1] * fx) * fy)
+    p = pos_map[covered]
+    lo = p.min(0)
+    q = (p - lo) / scale
+    g = rng.uniform(-1, 1, size=tuple(int(n) + 3 for n in q.max(0)))
+    i = q.astype(int)
+    f = q - i
+    f = f * f * (3 - 2 * f)
+    val = np.zeros(len(p))
+    for dx in (0, 1):
+        for dy in (0, 1):
+            for dz in (0, 1):
+                w = (f[:, 0] if dx else 1 - f[:, 0]) * (f[:, 1] if dy else 1 - f[:, 1]) * (f[:, 2] if dz else 1 - f[:, 2])
+                val += w * g[i[:, 0] + dx, i[:, 1] + dy, i[:, 2] + dz]
+    val *= 0.40 / max(val.std(), 1e-6)  # a plane's value noise's spread (as the old skin's, painted in its texture)
+    out = np.zeros(covered.shape)
+    out[covered] = val
+    return out
 
 
 def finger_coords(rig, name, p, n):
@@ -784,8 +912,10 @@ def finger_levels(rig, name, p, n):
     if not thumb:
         d0 = np.where(seg == 0, along, 9.0)
         L -= front * 1.3 * lines(d0, (1.05,), 0.05)  # the finger's root crease
-        # between the fingers, where they leave the palm
-        L -= 2.4 * np.clip(1.0 - d0 / 1.3, 0, 1) * np.clip(np.abs(lateral) - 0.35, 0, 1) / 0.65
+        # between the fingers, where they leave the palm (not the hand's edges: the index's and the pinky's outer
+        # sides run on from the palm's)
+        facing = np.abs(lateral) if name in ("middle", "ring") else np.maximum(-lateral if name == "index" else lateral, 0)
+        L -= 2.4 * np.clip(1.0 - d0 / 1.3, 0, 1) * np.clip(facing - 0.35, 0, 1) / 0.65
     # The fingertip's pad.
     L += front * 0.4 * ((seg == 2) & (along > 0.3 * lengths[2]))
     # The nail: the back of the distal segment, from 40% of it to the tip: lighter, a darker rim, a light free edge.
@@ -832,6 +962,27 @@ def palm_levels(rig, p, n):
     return L
 
 
+def hand_levels(rig, p, n):
+    """The palm and the four fingers as one surface: the palm's levels, blended into each finger's over its root
+    (by the texels' places, so the palm's and the fingers' texels agree wherever the two meet)."""
+    L = palm_levels(rig, p, n)
+    names = FINGERS[1:]
+    lateral = []
+    for name in names:
+        o, x, y, z = rig.fingers[name]["segments"][0]
+        lateral.append(np.abs((p - o) @ z))
+    nearest = np.argmin(np.stack(lateral), 0)
+    for k, name in enumerate(names):
+        o, x, y, z = rig.fingers[name]["segments"][0]
+        m = nearest == k
+        w = np.clip(((p[m] - o) @ x - 0.05) / 0.9, 0, 1)
+        some = w > 0
+        if some.any():
+            idx = np.nonzero(m)[0][some]
+            L[idx] = (1 - w[some]) * L[idx] + w[some] * finger_levels(rig, name, p[idx], n[idx])
+    return L
+
+
 def paint(rig, pos_map, nrm_map, part_map, grain):
     """The skin's level (a float in the palette ramp) per texel."""
     H, W = part_map.shape
@@ -840,7 +991,7 @@ def paint(rig, pos_map, nrm_map, part_map, grain):
         sel = part_map == part
         if sel.any():
             p, n = pos_map[sel], nrm_map[sel]
-            level[sel] = palm_levels(rig, p, n) if part == 0 else finger_levels(rig, FINGERS[part - 1], p, n)
+            level[sel] = hand_levels(rig, p, n) if part != 1 else finger_levels(rig, "thumb", p, n)
             if part == 1:
                 # The ball of the thumb where it meets the palm: painted as the palm there (no seam where they cross),
                 # the thumb's own from past the middle of its metacarpal.
@@ -848,7 +999,7 @@ def paint(rig, pos_map, nrm_map, part_map, grain):
                 t = np.clip(((p - c) @ unit(m - c)) / np.linalg.norm(m - c), 0, 1)
                 w = np.clip((t - 0.45) / 0.4, 0, 1)
                 level[sel] = w * level[sel] + (1 - w) * palm_levels(rig, p, n)
-    return level + 1.1 * bombed(grain, H, W) + 0.8 * mottle(H, W)
+    return level + 1.1 * bombed(grain, H, W) + 0.8 * mottle(pos_map, part_map >= 0)
 
 
 def to_palette(level):
@@ -1095,17 +1246,23 @@ def main():
 
     # The engine's tables.
     segs, palm_spheres, thenar_spheres = solver_spheres(rig, mesh)
-    palm_ids = [i for i in range(len(P)) if mesh.part[i] == 0]
-    finger_ids = []
+    # Each part's vertices are those its triangles use: the fingers' first rings (the palm's front) are in the
+    # palm's too, and a web's pair in both its fingers'.
+    def used(part):
+        return sorted({v for t, p in zip(mesh.tris, mesh.tpart) if p == part for v in t})
+
+    palm_ids = used(0)
+    finger_ids = []  # (finger, vertex)
     first = []
     for fi in range(5):
         first.append(len(finger_ids))
-        finger_ids += [i for i in range(len(P)) if mesh.part[i] == fi + 1]
+        finger_ids += [(fi, v) for v in used(fi + 1)]
     first.append(len(finger_ids))
     pidx = {v: i for i, v in enumerate(palm_ids)}
-    fidx = {v: i for i, v in enumerate(finger_ids)}
+    fidx = {fv: i for i, fv in enumerate(finger_ids)}
     ptris = [(pidx[a], pidx[c], pidx[b]) for (a, b, c), part in zip(mesh.tris, mesh.tpart) if part == 0]
-    ftris = [(fidx[a], fidx[c], fidx[b]) for (a, b, c), part in zip(mesh.tris, mesh.tpart) if part > 0]
+    ftris = [(fidx[part - 1, a], fidx[part - 1, c], fidx[part - 1, b])
+             for (a, b, c), part in zip(mesh.tris, mesh.tpart) if part > 0]
 
     def infl_c(v):
         inf = mesh.infl[v] + [(0, 0.0)] * (4 - len(mesh.infl[v]))
@@ -1166,8 +1323,8 @@ def main():
     L.append("    float pos[3];")
     L.append("};")
     L.append("inline constexpr Vertex vertices[numVertices] = {")
-    for v in finger_ids:
-        L.append("    {%d, %d, %s, %s}," % (mesh.part[v] - 1, mesh.bone[v], infl_c(v), cvec(P[v])))
+    for fi, v in finger_ids:
+        L.append("    {%d, %d, %s, %s}," % (fi, mesh.bone[v], infl_c(v), cvec(P[v])))
     L.append("};")
     L.append("inline constexpr int firstVertex[6] = {%s};" % ", ".join(str(x) for x in first))
     L.append("inline constexpr int numFingerTriangles = %d; // by vertex (vertices[]), clockwise seen from outside" % len(ftris))
