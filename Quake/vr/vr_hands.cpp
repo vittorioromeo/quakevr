@@ -12,6 +12,7 @@
 #include "vr_profile.hpp"
 #include "vr_trace.hpp"
 #include "vr_twohand.hpp"
+#include "vr_weapons.hpp"
 
 #include <cmath>
 
@@ -254,6 +255,46 @@ void updateVelocities(const TrackingState* t)
     return glm::length(dir) > 0.f ? glm::degrees(std::atan2(dir.y, dir.x)) : headYaw;
 }
 
+// Round 21, third pass: the held weapon's Hand and Weapon Together offset (vr_wofs_whole_*: x forward, y left, z up;
+// pitch up, yaw left, roll), applied to the hand as tracked and calibrated, in its aim frame, about its point: the
+// weapon, the hand, the muzzle, the aim and the melee all follow. As for the main hand, mirrored for the off hand (as
+// the weapon's own offsets). Not for the empty hand.
+void applyWholeOffset(int h)
+{
+    using weapons::Key;
+    const int slot = weapons::heldSlot(h);
+    if(slot < 0 || slot == weapons::fistSlot())
+    {
+        return;
+    }
+    glm::vec3 p = weapons::vec(slot, Key::WholeX, Key::WholeY, Key::WholeZ);
+    glm::vec3 a = weapons::vec(slot, Key::WholePitch, Key::WholeYaw, Key::WholeRoll);
+    if(p == glm::vec3{0.f} && a == glm::vec3{0.f})
+    {
+        return;
+    }
+    if(h == HAND_OFF)
+    {
+        p.y = -p.y;
+        a.y = -a.y;
+        a.z = -a.z;
+    }
+    state.pos[h] += redirect({p.x, -p.y, p.z}, state.rot[h]);
+    if(a != glm::vec3{0.f})
+    {
+        // rot's axes (forward, left, up) times the offset's turn in them (pitch up: the view's pitch is down).
+        const auto basis = [](const glm::vec3& angles) {
+            glm::vec3 f, r, u;
+            angleVectors(angles, f, r, u);
+            return glm::mat3{f, -r, u};
+        };
+        const glm::mat3 before = basis(state.rot[h]);
+        const glm::mat3 b = before * basis({-a.x, a.y, a.z});
+        state.rot[h] = anglesFromVectors(glm::normalize(b[0]), glm::normalize(b[2]));
+        state.wholeTurn[h] = basis(state.rot[h]) * glm::transpose(before);
+    }
+}
+
 void update()
 {
     QVR_PROFILE("hands");
@@ -332,6 +373,11 @@ void update()
         {
             state.pos[h] = toWorld(t.hands[h].position);
             state.rot[h] = anglesFromTracking(withHandOffsets(t.hands[h].orientation, h), turnYaw);
+            state.controllerPos[h] = state.pos[h];
+            state.controllerRot[h] = anglesFromTracking(t.hands[h].orientation, turnYaw);
+            state.aimRot[h] = state.rot[h];
+            state.wholeTurn[h] = glm::mat3{1.f};
+            applyWholeOffset(h);
         }
 
         handpose::resolvePositions(state, turnYaw);
@@ -362,6 +408,13 @@ void update()
         for(glm::vec3& rot : state.rot)
         {
             rot = aim + glm::vec3{0.f, 0.f, vr_fakevr_handroll.value};
+        }
+        for(int h = 0; h < HAND_COUNT; h++)
+        {
+            state.controllerPos[h] = state.pos[h];
+            state.controllerRot[h] = state.aimRot[h] = state.rot[h];
+            state.wholeTurn[h] = glm::mat3{1.f};
+            applyWholeOffset(h);
         }
     }
 
@@ -488,6 +541,11 @@ glm::vec3 rotateYaw(const glm::vec3& v, float degrees)
     const float c = std::cos(r);
     const float s = std::sin(r);
     return {v.x * c - v.y * s, v.x * s + v.y * c, v.z};
+}
+
+glm::vec3 palmPoint(const State& s, int hand)
+{
+    return s.palmValid[hand] ? s.pos[hand] + redirect(s.palmLocal[hand], s.rot[hand]) : s.pos[hand];
 }
 
 glm::vec3 redirect(const glm::vec3& v, const glm::vec3& angles)

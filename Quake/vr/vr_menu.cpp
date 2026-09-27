@@ -916,7 +916,10 @@ void weaponOffsetsHotspotAtHand()
     }
     weapons::Hotspot h = weapons::hotspot(slot, editedHotspot());
     glm::vec3 p;
-    if(!view::hotspotAt(weaponOffsetsHand, hands::current().pos[1 - weaponOffsetsHand], p))
+    // A cup is where the other hand's palm is (round 21, third pass); a grip, where its point is.
+    const hands::State& hs = hands::current();
+    const glm::vec3 at = h.type == weapons::HotspotType::Cup ? hands::palmPoint(hs, 1 - weaponOffsetsHand) : hs.pos[1 - weaponOffsetsHand];
+    if(!view::hotspotAt(weaponOffsetsHand, at, p))
     {
         Con_Printf("Hold the weapon in the %s hand to place its hotspot with the other hand.\n",
             weaponOffsetsHand == 1 ? "main" : "off");
@@ -1031,10 +1034,47 @@ std::vector<Item> pageWeaponOffsets()
     });
     if(!fist)
     {
+        // Round 21, third pass: the tuning offsets, applied last, and the aids to see them by.
+        const char* frameHelp = "In the controller's aim frame: X forward, Y left, Z up (as for the main hand; the off hand "
+                                "mirrored).";
+        list.insert(list.end(), {
+            header("Tuning Aids"),
+            toggle("Show Controller", vr_show_controller)
+                .help("Draws each controller as tracked (translucent, with its axes: red forward, green left, blue up), "
+                      "before any offset, and the hand's point (yellow) where the offsets below move it."),
+            toggle("Show Controller Laser", vr_show_controller_laser)
+                .help("White: where the controller points (Gun Angle included). Red: where the weapon's shots go, from "
+                      "its muzzle. Green: the weapon's barrel, as drawn. Turn the weapon (Pitch, Yaw) until green runs "
+                      "along red."),
+            header("Hand and Weapon Together"),
+            s("Together X (forward)", Key::WholeX, -15.f, 15.f, 0.1f, "%+.1f")
+                .help("Moves the hand and the weapon together, last (after the fingers wrap it and the palm fits): the "
+                      "muzzle, the aim and the melee move with them. Use it to put the drawn hand back on the controller. "
+                      "Units."),
+            s("Together Y (left)", Key::WholeY, -15.f, 15.f, 0.1f, "%+.1f").help(frameHelp),
+            s("Together Z (up)", Key::WholeZ, -15.f, 15.f, 0.1f, "%+.1f").help(frameHelp),
+            s("Together Pitch (up)", Key::WholePitch, -45.f, 45.f, 0.5f, "%+.1f")
+                .help("Turns the hand and the weapon together about the controller's point: the aim turns too."),
+            s("Together Yaw (left)", Key::WholeYaw, -45.f, 45.f, 0.5f, "%+.1f"),
+            s("Together Roll", Key::WholeRoll, -45.f, 45.f, 0.5f, "%+.1f"),
+            header("Hand Only"),
+            s("Hand X (forward)", Key::HandOnlyX, -10.f, 10.f, 0.1f, "%+.1f")
+                .help("Moves the drawn hand alone on the weapon: the weapon, its muzzle and its aim stay; the fingers wrap "
+                      "it again. Units."),
+            s("Hand Y (left)", Key::HandOnlyY, -10.f, 10.f, 0.1f, "%+.1f").help(frameHelp),
+            s("Hand Z (up)", Key::HandOnlyZ, -10.f, 10.f, 0.1f, "%+.1f").help(frameHelp),
+            s("Hand Pitch (up)", Key::HandOnlyPitch, -45.f, 45.f, 0.5f, "%+.1f")
+                .help("Turns the drawn hand alone about its palm (a bent wrist straightened): the weapon stays."),
+            s("Hand Yaw (left)", Key::HandOnlyYaw, -45.f, 45.f, 0.5f, "%+.1f"),
+            s("Hand Roll", Key::HandOnlyRoll, -45.f, 45.f, 0.5f, "%+.1f"),
+        });
         const char* fingerHelp = "Closes (+) or opens (-) this finger on top of how it wraps the weapon on its own "
                                  "(a share of a full curl).";
         list.insert(list.end(), {
             header("Fingers on the Weapon"),
+            s("Overlap", Key::GripOverlap, 0.f, 1.f, 0.05f, "%.2f")
+                .help("How far the fingers and palm may sink into the weapon: 0 they stop on its surface, 1 a centimetre "
+                      "in."),
             s("Thumb", Key::FingerThumbBias, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
             s("Index Finger", Key::FingerIndexBias, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
             s("Middle Finger", Key::FingerMiddleBias, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
@@ -1077,11 +1117,15 @@ std::vector<Item> pageWeaponOffsets()
         else
         {
             list.insert(list.end(), {
-                slider("Hotspot X", hk(1), -40.f, 40.f, 0.1f, "%.2f").help("The grip's point, in the weapon's model units."),
+                slider("Hotspot X", hk(1), -40.f, 40.f, 0.1f, "%.2f")
+                    .help(h.type == weapons::HotspotType::Cup
+                              ? "Where the helping hand's palm sits, in the weapon's model units: it is taken there (by the "
+                                "palm) and drawn there."
+                              : "The grip's point, in the weapon's model units."),
                 slider("Hotspot Y", hk(2), -40.f, 40.f, 0.1f, "%.2f"),
                 slider("Hotspot Z", hk(3), -40.f, 40.f, 0.1f, "%.2f"),
                 action("Put It Where the Other Hand Is", weaponOffsetsHotspotAtHand)
-                    .help("Makes this hotspot a grip (or a cup) at the other hand, as it is now."),
+                    .help("Makes this hotspot a grip at the other hand, as it is now (a cup: at its palm)."),
             });
         }
         list.insert(list.end(), {
@@ -1090,6 +1134,17 @@ std::vector<Item> pageWeaponOffsets()
             slider("Hand Roll", hk(7), -180.f, 180.f, 1.f, "%.0f"),
             cycle("Thumb", hk(8), {{0.f, "Wraps round"}, {1.f, "Along the top"}})
                 .help("Whether the thumb wraps round it with the fingers, or lies along its top."),
+            slider("Overlap", hk(9), 0.f, 1.f, 0.05f, "%.2f")
+                .help("How far the hand holding it may sink into the weapon: 0 not at all, 1 a centimetre (into the other "
+                      "hand, on a cup: Hand/Gun Calibration's Fit Overlap: Hands)."),
+            slider("Held Hand X (forward)", hk(10), -10.f, 10.f, 0.1f, "%+.1f")
+                .help("Moves the hand drawn on this hotspot once it holds it (visual only: where it is taken, and the "
+                      "aim, don't change). In the holding hand's aim frame, units; as for the off hand helping."),
+            slider("Held Hand Y (left)", hk(11), -10.f, 10.f, 0.1f, "%+.1f"),
+            slider("Held Hand Z (up)", hk(12), -10.f, 10.f, 0.1f, "%+.1f"),
+            slider("Held Hand Pitch (up)", hk(13), -45.f, 45.f, 0.5f, "%+.1f").help("Turns it there, about its palm."),
+            slider("Held Hand Yaw (left)", hk(14), -45.f, 45.f, 0.5f, "%+.1f"),
+            slider("Held Hand Roll", hk(15), -45.f, 45.f, 0.5f, "%+.1f"),
         });
         list.insert(list.end(), {
             slider("Bias", hk(4), 0.f, 10.f, 0.1f, "%.1f").help("Units taken off its distance: larger, easier to take than the others."),

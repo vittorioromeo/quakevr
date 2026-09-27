@@ -158,9 +158,9 @@ void resetSwimming()
             .help("As above, for weapons: small, so the hand stays on the gun where you placed it."),
         slider("Palm Turn", "vr_hand_fit_palm_turn", 0.f, 45.f, 5.f, "%.0f deg")
             .help("How far the palm may turn toward the surface of a held thing."),
-        slider("Fit Overlap", "vr_hand_fit_overlap", 0.f, 1.5f, 0.1f, "%.1f cm")
-            .help("How far the fingers and palm may sink into what they hold: snug, with no gap, and steadier (a finger "
-                  "that just touches does not flick between two poses)."),
+        slider("Fit Overlap: Things", "vr_hand_fit_overlap", 0.f, 1.5f, 0.1f, "%.1f cm")
+            .help("How far the fingers and palm may sink into a held thing (a box, a gib, the torch): snug, with no gap, "
+                  "and steadier. A weapon has its own (Weapon Offsets: Overlap, and each hotspot's)."),
         slider("Fit Overlap: Hands", "vr_hand_fit_overlap_hands", 0.f, 2.f, 0.1f, "%.1f cm")
             .help("How far a hand cupping the other (a two-handed pistol grip) may sink into it."),
         slider("Pose Blend", "vr_hand_fit_blend", 0.f, 0.3f, 0.01f, "%.2f s")

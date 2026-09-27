@@ -233,7 +233,7 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     // half-sword grip): the blade along the line from the holding hand (at the hilt) through the
     // helping hand, wherever the holding hand's wrist points it.
     const float foreDist =
-        s.grip2HValid[holding] ? glm::distance(s.pos[helping], s.grip2H[holding]) - s.grip2HBias[holding] : 1e9f;
+        s.grip2HValid[holding] ? glm::distance(s.grip2HPalm[holding] ? hands::palmPoint(s, helping) : s.pos[helping], s.grip2H[holding]) - s.grip2HBias[holding] : 1e9f;
     // The blade's hotspot (round 21: its grip's middle, a share of the way from the hand to the tip; its bias).
     float bladeAt = 0.f, bladeBias = 0.f;
     for(int i = 0; i < weapons::maxHotspots; i++)
@@ -371,7 +371,7 @@ void applyHand(hands::State& s, const glm::vec3 (&originalRots)[2], int holding,
     // "Fixed" display mode (most guns): the hand must come to the weapon's foregrip, and may
     // then move a little further before letting go. Otherwise anywhere 5-25 units away.
     const bool fixedMode = holdingWeapon && s.grip2HValid[holding];
-    const bool goodDistance = fixedMode ? glm::distance(s.pos[helping], s.grip2H[holding]) - s.grip2HBias[holding] <
+    const bool goodDistance = fixedMode ? glm::distance(s.grip2HPalm[holding] ? hands::palmPoint(s, helping) : s.pos[helping], s.grip2H[holding]) - s.grip2HBias[holding] <
                                               (shouldAim[holding] ? 20.f : 5.5f)
                                         : handDist > 5.f && handDist < 25.f;
 

@@ -91,11 +91,15 @@ namespace
 // their normal guns); 14: slots 1..3, 5..7, 9..11, 13..15, 17 (the author's placements after round 20); 15: none
 // reset (round 21: the hand is where the controller is, the fingers wrap the weapon; the two-handed grips became
 // hotspots: a config's own grips, or a weapon it moved or scaled, are turned into hotspots where they were:
-// takeHotspotMigration).
-constexpr int settingsVersion = 17;
+// takeHotspotMigration). 16: the alternates inherit (InheritFrom). 17: a hotspot allows two-handed use. 18: none reset
+// (round 21, third pass: a cup hotspot is the helping hand's palm: a config's cups are moved to where their hands were
+// drawn, by the view: cupMigrationPending).
+constexpr int settingsVersion = 18;
 
 // Slots whose hotspots the view is to derive from the config's two-handed grip keys (round 21).
 bool hotspotMigration[numSlots]{};
+// Slots owning a cup hotspot made before round 21's third pass (a config's), to move to where its hand was drawn.
+bool cupMigration[numSlots]{};
 
 void resetSlot(int slot)
 {
@@ -228,6 +232,19 @@ void migrate()
             }
         }
     }
+    if(vr_wofs_version.value < 18)
+    {
+        for(int slot = 0; slot < numSlots; slot++)
+        {
+            for(int i = 0; i < maxHotspots; i++)
+            {
+                if(static_cast<int>(cvarAt(slot, hotspotKey(i, 0)).value) == static_cast<int>(HotspotType::Cup))
+                {
+                    cupMigration[slot] = true;
+                }
+            }
+        }
+    }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }
 
@@ -251,6 +268,17 @@ void registerCvars()
             var.name = names[slot * numKeys + key].c_str();
             var.string = "0";
             var.flags = CVAR_ARCHIVE;
+        }
+    }
+
+    // Round 21, third pass: the overlap sliders' default (weapons::defaultOverlap: the snug fit the global
+    // vr_hand_fit_overlap gave before), every slot and hotspot.
+    for(int slot = 0; slot < numSlots; slot++)
+    {
+        cvarAt(slot, Key::GripOverlap).string = "0.3";
+        for(int i = 0; i < maxHotspots; i++)
+        {
+            cvarAt(slot, hotspotKey(i, 9)).string = "0.3";
         }
     }
 
@@ -289,7 +317,11 @@ Key hotspotKey(int index, int field)
     {
         return static_cast<Key>(static_cast<int>(Key::Hotspot1Type) + 5 * index + field);
     }
-    return static_cast<Key>(static_cast<int>(Key::Hotspot1Pitch) + 4 * index + (field - 5));
+    if(field < 9)
+    {
+        return static_cast<Key>(static_cast<int>(Key::Hotspot1Pitch) + 4 * index + (field - 5));
+    }
+    return static_cast<Key>(static_cast<int>(Key::Hotspot1Overlap) + 7 * index + (field - 9));
 }
 
 bool isGripType(HotspotType type)
@@ -310,6 +342,9 @@ Hotspot hotspot(int slot, int index)
     h.bias = value(slot, hotspotKey(index, 4));
     h.angles = vec(slot, hotspotKey(index, 5), hotspotKey(index, 6), hotspotKey(index, 7));
     h.style = value(slot, hotspotKey(index, 8)) >= 0.5f ? HotspotStyle::ThumbTop : HotspotStyle::Wrap;
+    h.overlap = value(slot, hotspotKey(index, 9));
+    h.visualPos = vec(slot, hotspotKey(index, 10), hotspotKey(index, 11), hotspotKey(index, 12));
+    h.visualAngles = vec(slot, hotspotKey(index, 13), hotspotKey(index, 14), hotspotKey(index, 15));
     return h;
 }
 
@@ -330,6 +365,12 @@ void setHotspot(int slot, int index, const Hotspot& h)
         Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 5 + k)), h.angles[k]);
     }
     Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 8)), static_cast<float>(static_cast<int>(h.style)));
+    Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 9)), h.overlap);
+    for(int k = 0; k < 3; k++)
+    {
+        Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 10 + k)), h.visualPos[k]);
+        Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 13 + k)), h.visualAngles[k]);
+    }
 }
 
 bool takeHotspotMigration(int slot)
@@ -340,6 +381,34 @@ bool takeHotspotMigration(int slot)
     }
     hotspotMigration[slot] = false;
     return true;
+}
+
+bool cupMigrationPending(int slot)
+{
+    return slot >= 0 && slot < numSlots && cupMigration[slot];
+}
+
+void cupMigrationDone(int slot)
+{
+    if(slot >= 0 && slot < numSlots)
+    {
+        cupMigration[slot] = false;
+    }
+}
+
+int ownerSlot(int slot, Key key)
+{
+    for(int depth = 0; depth < 4 && slot >= 0 && inheritable(key); depth++)
+    {
+        const cvar_t& own = cvarAt(slot, key);
+        const int from = inheritsFrom(slot);
+        if(from < 0 || strcmp(own.string, own.default_string) != 0)
+        {
+            break;
+        }
+        slot = from;
+    }
+    return slot;
 }
 
 bool retired(Key key)

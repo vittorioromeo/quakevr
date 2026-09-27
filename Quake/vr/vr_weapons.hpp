@@ -63,6 +63,11 @@ struct ModelTransform
 // hand on a weapon, muzzles, foregrips) scale with it, so they stay attached at any world scale.
 [[nodiscard]] float offsetScale();
 
+// Round 21, third pass: the overlap sliders (GripOverlap, a hotspot's) are shares of this many centimetres, the depth
+// the fingers and palm may sink into a weapon; their default (today's snug fit, 0.3 cm).
+inline constexpr float maxOverlapCm = 1.f;
+inline constexpr float defaultOverlap = 0.3f;
+
 // The weapon's hotspots (round 21): where the other hand may hold it. A grip's point p is drawn at
 //   R_EntityMatrix(weapon) * [mirror] * S(k) * T(Offset + (0, 0, vr_gunmodely)) * p
 // (the weapon's model space, as its vertices are drawn, before its Scale).
@@ -86,8 +91,15 @@ struct Hotspot
     float bias{0.f};       // units off the distance it is picked by
     glm::vec3 angles{0.f}; // the helping hand's turn there (pitch, yaw, roll: degrees)
     HotspotStyle style{HotspotStyle::Wrap};
+    // Round 21, third pass: how far the hand holding it may sink into the weapon (0..1: 0 none, 1 maxOverlapCm), and
+    // that hand's drawn pose moved (x y z) and turned (pitch yaw roll) once it holds it: visual only.
+    float overlap{defaultOverlap};
+    glm::vec3 visualPos{0.f};
+    glm::vec3 visualAngles{0.f};
 };
-// field: 0 type, 1..3 x y z, 4 bias, 5..7 pitch yaw roll, 8 style
+// field: 0 type, 1..3 x y z, 4 bias, 5..7 pitch yaw roll, 8 style, 9 overlap, 10..12 visual x y z, 13..15 visual pitch
+// yaw roll
+inline constexpr int hotspotFields = 16;
 [[nodiscard]] Key hotspotKey(int index, int field);
 [[nodiscard]] bool isGripType(HotspotType type); // a point the other hand holds: Grip or Cup
 [[nodiscard]] Hotspot hotspot(int slot, int index);
@@ -96,6 +108,16 @@ void setHotspot(int slot, int index, const Hotspot& h);
 // Round 21's migration of a config's two-handed grips (tuned in it: its foregrip or blade grip keys, or the weapon's
 // offset or scale, not the defaults) into hotspots needs the model: true once per such slot, for the view to do it.
 [[nodiscard]] bool takeHotspotMigration(int slot);
+
+// Round 21, third pass: a cup hotspot is where the helping hand's palm sits (it was a point the hand's grip channel
+// was aligned round, often far from where the hand ended up). A config's cups made before are moved, once, to where
+// their hands were drawn: the slots owning such a cup (their own values, not inherited), for the view to do it (it needs
+// the hands drawn); `done` once it has.
+[[nodiscard]] bool cupMigrationPending(int slot);
+void cupMigrationDone(int slot);
+
+// The slot whose own value of `key` `slot` uses (itself, or what it inherits it from).
+[[nodiscard]] int ownerSlot(int slot, Key key);
 
 // Round 21, second pass: the slot whose settings `slot` inherits (InheritFrom; -1 none), whether a key is inherited
 // (all but the model's name, InheritFrom and the models' vertex indices), and every inherited value made the slot's
