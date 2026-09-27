@@ -98,6 +98,16 @@ picks one of the variants at random (`vr_physics.cpp`, `variant`). Round 20 (`RO
 - Papers: arXiv [2208.02166](https://arxiv.org/pdf/2208.02166), CEUR-WS [Vol-2470 p33](https://ceur-ws.org/Vol-2470/p33.pdf).
 - Rec Room, patent US10990169B2 (aim assist), for reference only.
 
+### Fitted hands (ROUND21.md)
+- **Andrew T. Miller, Peter K. Allen:** "GraspIt! A Versatile Simulator for Robotic Grasping", IEEE Robotics &
+  Automation Magazine, 2004: the auto-grasp idea (joints close together at coupled rates; a link in contact stops the
+  joints before it). Idea only; `vr_grasp.cpp` is written from scratch for Quake's triangles.
+- **Christer Ericson:** *Real-Time Collision Detection* (2005), 5.1.5, the closest point on a triangle.
+- **Tomas Möller, Ben Trumbore:** "Fast, Minimum Storage Ray/Triangle Intersection", 1997: the segment and ray tests
+  against triangles.
+- The jointed hand is fitted to Quake VR's own six hand models (`progs/hand_base.mdl` and the five `progs/finger_*.mdl`) by
+  `Misc/quakevr/make_hand_rig.py`; no outside assets.
+
 ### Graphics (GRAPHICS.md, LIGHTING.md)
 - **DarkPlaces** (LordHavoc and contributors):
   - the shadow-map face-size LOD `radius × precision / √(distance / radius)`;

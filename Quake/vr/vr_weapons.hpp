@@ -60,16 +60,32 @@ struct ModelTransform
 // hand on a weapon, muzzles, foregrips) scale with it, so they stay attached at any world scale.
 [[nodiscard]] float offsetScale();
 
-// Moves a slot's weapon in the hand by `d` (in Offset X/Y/Z's units and axes) while the drawn hand
-// stays where it is: Offset += d, and the hand's offset on the weapon (HandOffset, applied in the
-// same mirrored frame but at offsetScale() instead of ModelTransform::k) takes it back:
-// HandOffset -= d * k / offsetScale() (7/6 at any world or gun model scale). As moving both
-// sliders by hand: the muzzle, aim, foregrip, ammo screen follow the weapon. Not for the empty
-// hand's slot (the hand model itself).
-void moveWeaponOnly(int slot, const glm::vec3& d);
+// The weapon's hotspots (round 21): where the other hand may hold it. A grip's point p is drawn at
+//   R_EntityMatrix(weapon) * [mirror] * S(k) * T(Offset + (0, 0, vr_gunmodely)) * p
+// (the weapon's model space, as its vertices are drawn, before its Scale).
+inline constexpr int maxHotspots = 4;
+enum class HotspotType : int
+{
+    None = 0,
+    Grip = 1,
+    Blade = 2
+};
+struct Hotspot
+{
+    HotspotType type{HotspotType::None};
+    glm::vec3 pos{0.f}; // a grip's point; a blade's: x the share of the way from the hand to the tip
+    float bias{0.f};    // units off the distance it is picked by
+};
+[[nodiscard]] Key hotspotKey(int index, int field); // field: 0 type, 1..3 x y z, 4 bias
+[[nodiscard]] Hotspot hotspot(int slot, int index);
+void setHotspot(int slot, int index, const Hotspot& h);
 
-// The Weapon Offsets page's "Weapon Only" sliders (vr_weapon_only_x/y/z): their change moves
-// `slot`'s weapon (moveWeaponOnly; -1: the main hand's); zeroed when the page is built.
-void setWeaponOnlyTarget(int slot);
+// Round 21's migration of a config's two-handed grips (tuned in it: its foregrip or blade grip keys, or the weapon's
+// offset or scale, not the defaults) into hotspots needs the model: true once per such slot, for the view to do it.
+[[nodiscard]] bool takeHotspotMigration(int slot);
+
+// Keys retired in round 21 (fitted hands: the hand's place and its fingers on the weapon): registered, unused.
+[[nodiscard]] bool retired(Key key);
+
 
 } // namespace qvr::weapons

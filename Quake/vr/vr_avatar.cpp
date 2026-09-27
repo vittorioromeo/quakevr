@@ -7,6 +7,7 @@
 #include "vr_cvars.hpp"
 #include "vr_lines.hpp"
 #include "vr_profile.hpp"
+#include "vr_view.hpp"
 
 #include <glm/gtc/constants.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -1102,6 +1103,10 @@ float modelScale(const entity_t* e)
 extern "C" int VR_AliasBonePoses(const entity_t* e, const float** matrices)
 {
     using namespace qvr::avatar;
+    if(const int hand = qvr::view::handBonePoses(e, matrices))
+    {
+        return hand; // the jointed hands (vr_handrig.cpp)
+    }
     if(!e || e != posed.ent)
     {
         return 0;

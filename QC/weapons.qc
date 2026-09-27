@@ -3030,6 +3030,7 @@ void(float xHand) ToggleSecondaryAmmo =
 }
 
 float vr_test_armor_kind;   // impulse 250: the next armour it drops (0 green, 1 yellow, 2 red)
+float vr_test_held_kind;    // impulse 252: the next gib or head it puts in the off hand (round 21)
 entity vr_test_armor_last;  // and the last it dropped (impulse 251)
 
 void() ImpulseCommands =
@@ -3222,6 +3223,52 @@ void() ImpulseCommands =
         {
             setorigin(newest, VRGetHandPos(cVR_OffHand));
             VR_Carry_Start(self, cVR_OffHand, newest);
+        }
+    }
+    // QVR: a gib or a head in the empty off hand, each in turn (fitted hands tests, round 21).
+    if(self.impulse == 252 && !deathmatch && !coop && VRIsHandEmpty(self, cVR_OffHand) && !VR_Carry_IsHolding(self, cVR_OffHand))
+    {
+        string testModel = "progs/gib1.mdl";
+        if(vr_test_held_kind == 1) testModel = "progs/h_player.mdl";
+        else if(vr_test_held_kind == 2) testModel = "progs/gib2.mdl";
+        else if(vr_test_held_kind == 3) testModel = "progs/gib3.mdl";
+        else if(vr_test_held_kind == 4) testModel = "progs/h_guard.mdl";
+        else if(vr_test_held_kind == 5) testModel = "progs/h_ogre.mdl";
+        else if(vr_test_held_kind == 6) testModel = "progs/h_knight.mdl";
+        else if(vr_test_held_kind == 7) testModel = "progs/h_zombie.mdl";
+        else if(vr_test_held_kind == 8) testModel = "progs/h_demon.mdl";
+        vr_test_held_kind = vr_test_held_kind >= 8 ? 0 : vr_test_held_kind + 1;
+        entity testGib = spawn();
+        setmodel(testGib, testModel);
+        testGib.movetype = MOVETYPE_BOUNCE;
+        testGib.solid = SOLID_NOT;
+        testGib.think = SUB_Remove;
+        testGib.nextthink = time + 60;
+        VR_MakeGibGrabbable(testGib);
+        setorigin(testGib, VRGetHandPos(cVR_OffHand));
+        VR_Carry_Start(self, cVR_OffHand, testGib);
+        dprint("test: "); dprint(testModel); dprint(" in the off hand\n");
+    }
+    // QVR: prints the held weapons' hotspots (weaponhotspot, weaponhotspotinfo; round 21).
+    if(self.impulse == 253)
+    {
+        float testHand = 0;
+        while(testHand < 2)
+        {
+            float testIndex = 0;
+            while(testIndex < 4)
+            {
+                float testType = weaponhotspotinfo(self, testHand, testIndex, 0);
+                if(testType)
+                {
+                    dprint("hotspot: hand "); dprint(ftos(testHand)); dprint(" #"); dprint(ftos(testIndex));
+                    dprint(" type "); dprint(ftos(testType)); dprint(" at "); dprint(vtos(weaponhotspot(self, testHand, testIndex)));
+                    dprint(" bias "); dprint(ftos(weaponhotspotinfo(self, testHand, testIndex, 1)));
+                    dprint(" share "); dprint(ftos(weaponhotspotinfo(self, testHand, testIndex, 2))); dprint("\n");
+                }
+                testIndex = testIndex + 1;
+            }
+            testHand = testHand + 1;
         }
     }
     // QVR: a monster's spike from 300 units ahead at your face, at 600 units/s (246) or a hell

@@ -224,11 +224,26 @@ float(entity p, float xHand) VR_Melee_Thing =
     return VR_MTHING_GUN;
 };
 
-// Where the helping hand `xHelper` of `p` holds the weapon in its other hand (two-handed): today the hand itself;
-// the hand-IK's grip hotspots (agent/hands) go here.
+// Where the helping hand `xHelper` of `p` holds the weapon in its other hand (two-handed): the weapon's grip hotspot
+// nearest it (a gun's foregrip or pump, a sword's handle or a point of its blade: the fitted hands' weaponhotspot, the
+// local player's), else the hand itself.
 vector(entity p, float xHelper) VR_Melee_HelpGrip =
 {
-    return VRGetEntHandPos(p, xHelper);
+    vector h = VRGetEntHandPos(p, xHelper);
+    float holder = VRGetOtherHand(xHelper);
+    vector best = h;
+    float bestD = 24;
+    float i;
+    for(i = 0; i < 4; ++i)
+    {
+        vector at = weaponhotspot(p, holder, i);
+        if(at != '0 0 0' && vlen(at - h) < bestD)
+        {
+            bestD = vlen(at - h);
+            best = at;
+        }
+    }
+    return best;
 };
 
 // The line of what `xHand` of `p` holds, into vr_mline_near, _grip, _far (world): FALSE for nothing to strike with.
