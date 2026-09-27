@@ -54,6 +54,7 @@ import sys
 
 import numpy as np
 
+import genguard
 from mdlgen import HEADER, anorms, read_skins
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "blender", "addons", "quakevr_hand"))
@@ -1214,6 +1215,10 @@ def build(progs):
 def main():
     progs = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "..", "..", "quakevr", "progs")
     inc = sys.argv[2] if len(sys.argv) > 2 else os.path.join(HERE, "..", "..", "Quake", "vr", "vr_handrig_data.inc")
+    # The hand edited in Blender since this wrote it is not overwritten (genguard.py: --keep-edited, --force).
+    guard = genguard.Guard("make_hand_rig.py", [os.path.join(progs, n) for n in (
+        "hand_rig.md5mesh", "hand_rig.md5anim", "hand_rig.mdl")] + [
+        os.path.join(progs, "hand_rig_%02d_00.lmp" % d) for d in range(4)])
     models, shifts, rig, mesh, islands = build(progs)
     bad = check_winding(mesh)
     assert bad == 0, "%d triangles face inwards" % bad
@@ -1394,6 +1399,7 @@ def main():
 
     print("hand_rig: %d joints, %d vertices, %d triangles, %d weights; spheres: %d on the segments, %d palm, %d thenar"
           % (len(JOINTS), len(verts), len(tris_out), sum(len(i) for _, i, _ in md5_verts), len(segs), len(palm_spheres), len(thenar_spheres)))
+    guard.finish()
     print("-> %s, %s" % (os.path.normpath(progs), os.path.normpath(inc)))
 
 

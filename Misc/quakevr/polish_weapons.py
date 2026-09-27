@@ -32,6 +32,7 @@ import sys
 
 import numpy as np
 
+import genguard
 import mdlpolish as mp
 from improve_weapons import strip_order
 
@@ -184,6 +185,8 @@ def main():
     out_dir = args[0] if args and not args[0].endswith(".mdl") else os.path.join(HERE, "..", "..", "quakevr", "progs")
     names = [a for a in args if a.endswith(".mdl")] or sorted(list(RECIPES) + WEAR_ONLY)
     anchors = slot_anchors()
+    # The files edited in Blender since a generator wrote them are not overwritten (genguard.py: --keep-edited, --force).
+    guard = genguard.Guard("polish_weapons.py", [os.path.join(out_dir, n) for n in names])
     bad = 0
     for name in names:
         before = anchors_of(os.path.join(SRC, name), anchors.get(name, set()))
@@ -195,6 +198,7 @@ def main():
               "anchors %s%s" % (name, old_nt, old_nt + tris, tris, (old_nt + tris) / old_nt, verts, rows, texels,
                                 ", ".join(str(a) for a in sorted(before)) or "none",
                                 "" if not moved else "  MOVED: %s" % moved))
+    guard.finish()
     if bad:
         sys.exit("anchors moved")
 

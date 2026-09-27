@@ -20,6 +20,7 @@ import os
 import struct
 import sys
 
+import genguard
 from mdlgen import HEADER
 
 # Palette indices from the hub (hottest) to the rim, all fullbright: gfx/palette.lmp's fire ramp,
@@ -97,12 +98,15 @@ def recolor(data):
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "..", "..", "quakevr", "progs", "v_shot.mdl")
+    # The files edited in Blender since a generator wrote them are not overwritten (genguard.py: --keep-edited, --force).
+    guard = genguard.Guard("recolor_shotgun_sight.py", [path])
     with open(path, "rb") as f:
         data = f.read()
     out = recolor(data)
     assert len(out) == len(data)
     with open(path, "wb") as f:
         f.write(out)
+    guard.finish()
     print("wrote", os.path.normpath(path))
 
 

@@ -31,6 +31,7 @@ import os
 import struct
 import sys
 
+import genguard
 from mdlgen import HEADER, add, cross, dot, mul, norm, sub
 from mdlpolish import palette
 
@@ -910,6 +911,10 @@ def write_placeholder_mdl(path):
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "..", "..", "quakevr", "progs")
+    # The files edited in Blender since this wrote them are not overwritten (genguard.py: --keep-edited, --force).
+    guard = genguard.Guard("make_vrbody.py", [os.path.join(out, "vrbody_%02d_00.tga" % n) for n in range(16)] +
+                           [os.path.join(out, "vrbody" + suffix + ext) for suffix, _ in BUILDS
+                            for ext in (".md5mesh", ".md5anim", ".mdl")])
     for armor in range(4):
         base = skin_indices(armor)
         for damage in range(4):
@@ -921,6 +926,7 @@ def main():
         write_md5anim(os.path.join(out, name + ".md5anim"))
         write_placeholder_mdl(os.path.join(out, name + ".mdl"))
         print("%s: %d joints, %d vertices, %d triangles" % (name, len(joints), len(verts), len(tris)))
+    guard.finish()
     print("-> " + os.path.normpath(out))
 
 

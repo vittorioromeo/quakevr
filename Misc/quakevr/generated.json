@@ -1,0 +1,206 @@
+{
+ "quakevr/progs/hand_rig.md5anim": {
+  "sha256": "b1e712498297c1172aedc63d91549c748efca843db980029952118fe1426bccb",
+  "by": "make_hand_rig.py"
+ },
+ "quakevr/progs/hand_rig.md5mesh": {
+  "sha256": "90dee0aae38a48bfe7ae65ffd16db85ea91b0ea5d178974ea3f4ffa6c21b1153",
+  "by": "make_hand_rig.py"
+ },
+ "quakevr/progs/hand_rig.mdl": {
+  "sha256": "c4e98c757e32f4cf04452e4085f691c20332d593f056a03491a70c6bdfcbed96",
+  "by": "make_hand_rig.py"
+ },
+ "quakevr/progs/hand_rig_00_00.lmp": {
+  "sha256": "9a75a25c252d2f060e7bb35e3831dda4d03d95f2ee294efe4b1a000090fe6dfa",
+  "by": "make_hand_rig.py"
+ },
+ "quakevr/progs/hand_rig_01_00.lmp": {
+  "sha256": "2edb3c52735d4a938a4a374bda5a9c3936d094fdd0d150b01e699935fcd52ce2",
+  "by": "make_hand_rig.py"
+ },
+ "quakevr/progs/hand_rig_02_00.lmp": {
+  "sha256": "dc1a7187e4915707606476baba0adeaa0c34c014f2f19ac9b7d0f34ae13cf24e",
+  "by": "make_hand_rig.py"
+ },
+ "quakevr/progs/hand_rig_03_00.lmp": {
+  "sha256": "b39de69424526656cebbf4d412755656337fb1ba3995cbb6a6d942ae3cee5ef2",
+  "by": "make_hand_rig.py"
+ },
+ "quakevr/progs/v_axe.mdl": {
+  "sha256": "b411c919fa6a6ded00bd87d7040b5ae07f0988619b4eeacc93399738ca4309e4",
+  "by": "polish_weapons.py"
+ },
+ "quakevr/progs/v_grpple.mdl": {
+  "sha256": "bd101fbf3cc2c6dd3da59f1f10a93e2cc56dcda37abfb32b1d7717e3896556a1",
+  "by": "polish_weapons.py"
+ },
+ "quakevr/progs/v_hammer.mdl": {
+  "sha256": "8c30a05ed34b7bf30fc7e3d821944b6098fcc3b1df20fbe6d7a58bf212e47c73",
+  "by": "polish_weapons.py"
+ },
+ "quakevr/progs/v_laserg.mdl": {
+  "sha256": "a08914264b405d82a91f2c3986bdfb450de4d824be191c500d555d7886388030",
+  "by": "polish_weapons.py"
+ },
+ "quakevr/progs/v_lava.mdl": {
+  "sha256": "a8f956e031b7633561fa8ef14f4367a59d83c4301152f3fb4c09c63b6a08d093",
+  "by": "polish_weapons.py"
+ },
+ "quakevr/progs/v_lava2.mdl": {
+  "sha256": "33da2e97be7a5b9e50d79b584975cdf8a8f58f529b0c1b5dce266810e79f475d",
+  "by": "polish_weapons.py"
+ },
+ "quakevr/progs/v_light.mdl": {
+  "sha256": "6fa8d6b354d5753ddf79ceebaa12987b23b0a5c1ce7d2e39e3c55ef864d8c9e8",
+  "by": "polish_weapons.py"
+ },
+ "quakevr/progs/v_multi.mdl": {
+  "sha256": "1a533cb9e5e569aec46b29f1f5e77a4f81a2b49aa3f45efafa61568874facf4d",
+  "by": "polish_weapons.py"
+ },
+ "quakevr/progs/v_multi2.mdl": {
+  "sha256": "a83faf32cb2996f65f8de496842e703bcc7b7ceeed6dd3ee26fd79d1009bc49d",
+  "by": "polish_weapons.py"
+ },
+ "quakevr/progs/v_nail.mdl": {
+  "sha256": "0576ac925ce8e058dd60e746f5d9667621e99744d65ffe8a8ce7bbfc3ef63993",
+  "by": "polish_weapons.py"
+ },
+ "quakevr/progs/v_nail2.mdl": {
+  "sha256": "bef2e4e250a19d966c740b2864b8bdd87937c8f04332cb28035c0a82cbee6e3a",
+  "by": "polish_weapons.py"
+ },
+ "quakevr/progs/v_plasma.mdl": {
+  "sha256": "6e01838c19a6b11f3a6405b696df2cc254b05030c0787c95ebf3e02f233f2599",
+  "by": "polish_weapons.py"
+ },
+ "quakevr/progs/v_prox.mdl": {
+  "sha256": "b6f86160c5975807eb441edde0ec0f72211364e6db01cce85e3acc8e7b5953a7",
+  "by": "polish_weapons.py"
+ },
+ "quakevr/progs/v_rock.mdl": {
+  "sha256": "5b8fc0b1115a2382e1e0e8765adf9f397eeb94a5f31b009f1c08e4bfe6d4dd8e",
+  "by": "polish_weapons.py"
+ },
+ "quakevr/progs/v_rock2.mdl": {
+  "sha256": "f1f2faba7779842444e96b74cd238f832b0de787918d0d1da09b1b51d8f85de6",
+  "by": "polish_weapons.py"
+ },
+ "quakevr/progs/v_shot.mdl": {
+  "sha256": "6522c725dbf93274ec3470f7a889e855370f883cdae2f01ba3243d54b8085f45",
+  "by": "polish_weapons.py"
+ },
+ "quakevr/progs/v_shot2.mdl": {
+  "sha256": "1a8d2d09645f8e87aca8518f4a72826cd1af33c34b65a821c96846c7628f4055",
+  "by": "polish_weapons.py"
+ },
+ "quakevr/progs/vrbody.md5anim": {
+  "sha256": "19dd491a8500c297e93ee278c3c1e9a6c3d7948a585ef87747c5349a1e0858db",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody.md5mesh": {
+  "sha256": "860718f2447e31b865c4c5328f1d08f9bef866b41ec39cf6ea930dabac1c851a",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody.mdl": {
+  "sha256": "d8938abe0fdf324d7dd03e04ba16c29b3e7150bb9f14606bcd653ca36f5aacc6",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_00_00.tga": {
+  "sha256": "1d2e6c43178bc8150b51375339a57341d7f8a66b95fc5e38e590d91f40c20cec",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_01_00.tga": {
+  "sha256": "fc507e03df58be060352245fec17bee927d95cf86920e93a06376e05a29ae519",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_02_00.tga": {
+  "sha256": "ea56dc068b983ff1fb30aee7cf7a486d9920aca648fa998e1bb1b74feff83c1f",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_03_00.tga": {
+  "sha256": "3153bcfb9ad44e6c45d33641fa6ed866abf3c62c3ec6e02cf7264cefbe4b4f7e",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_04_00.tga": {
+  "sha256": "d4c9faf74f0efea2de2282929461ad5c985d0a9a0751a48fc6162a808d027485",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_05_00.tga": {
+  "sha256": "8122a2df6063e0836fb3089149019169a2b4e83484888995c92d6aa900194ca6",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_06_00.tga": {
+  "sha256": "76f1f8e0777f36d02790f08b726051637d68a78fcc03d4257b2620b0dfa175a6",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_07_00.tga": {
+  "sha256": "cfaffb2019f9e3c059a09d6992d205ac9c0c7d6b51f327eb7f3e374676098a5e",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_08_00.tga": {
+  "sha256": "78db49965769bb6b1b2fc36ad669a21f4c6e08df0f1a5ca875bae49f84cda948",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_09_00.tga": {
+  "sha256": "b785ef37db94b0ba642b5a22a2bbc521c53e7a135e16f0b0aa49d8a78459b7bf",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_10_00.tga": {
+  "sha256": "7d86b8224e818e8a303b3dfa6ef3ef9ac59b8c9400c56041d6b815c1cd2d77b8",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_11_00.tga": {
+  "sha256": "2989400d65f398eafc5100f4190930f24ebb9035e0cdb730554557404b3482fa",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_12_00.tga": {
+  "sha256": "966b372fc21dead85f761ff3122baa58ad3b58a8a86e85a8bd8ce1044a09f52e",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_13_00.tga": {
+  "sha256": "98cb921299f605457382e1b03b3bc51275241d32701aaf4fc2df26f12a4c7d05",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_14_00.tga": {
+  "sha256": "35c9e4c154bd6fd5836917828533ed94a54697860104bf847c8b35f0d15db48e",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_15_00.tga": {
+  "sha256": "da37c3ced4c70e72260526d0229f6b692fc3b48a5eddb6275aad4701f0186838",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_brawny.md5anim": {
+  "sha256": "febebb4eb52067b3f857d4a038738f76491223d23ace1f5ebf87264e912afbc1",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_brawny.md5mesh": {
+  "sha256": "ceed2878e4e74d9c3f7a1684de8f78c84dc9f4cb35adc99b704718ae1d8b7cda",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_brawny.mdl": {
+  "sha256": "d8938abe0fdf324d7dd03e04ba16c29b3e7150bb9f14606bcd653ca36f5aacc6",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_lean.md5anim": {
+  "sha256": "eec0d5dcef04e9e1f62dfb03e61a0455f4deee3d568f9cb837e29aa8c31097df",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_lean.md5mesh": {
+  "sha256": "4e2b12319503fbf73c19fd3947eea5d0c5c5190e9a918bcbed3ce05766ca1a9f",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_lean.mdl": {
+  "sha256": "d8938abe0fdf324d7dd03e04ba16c29b3e7150bb9f14606bcd653ca36f5aacc6",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrgadget.mdl": {
+  "sha256": "1074c7261ac990242e91d58b03e9073e749e06a36adb671b07078f8df70dd76b",
+  "by": "make_gadget.py"
+ },
+ "quakevr/progs/vrgadget_strap.mdl": {
+  "sha256": "7f0dbf119708b257b526e0882acfacbf18b55d50fc69fd724763f53f4814d439",
+  "by": "make_gadget.py"
+ }
+}

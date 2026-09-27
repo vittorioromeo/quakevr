@@ -28,6 +28,7 @@ import math
 import os
 import sys
 
+import genguard
 import mdlgen
 
 REGIONS = {"casing": (0, 0, 32, 32), "metal": (32, 0, 64, 32), "screen": (0, 32, 32, 64),
@@ -130,6 +131,8 @@ def build_strap(taper):
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "..", "..", "quakevr", "progs")
+    # The files edited in Blender since this wrote them are not overwritten (genguard.py: --keep-edited, --force).
+    guard = genguard.Guard("make_gadget.py", [os.path.join(out, n) for n in ("vrgadget.mdl", "vrgadget_strap.mdl")])
     m = build()
     skin = mdlgen.dithered_skin(64, 64, REGIONS, RAMPS, 777)
     path = os.path.join(out, "vrgadget.mdl")
@@ -141,6 +144,7 @@ def main():
     mdlgen.write_mdl(path, s0, [mdlgen.dithered_skin(64, 64, REGIONS, STRAP_RAMPS, 778)], "strap", frames=[s1])
     print("vrgadget_strap.mdl: %d vertices, %d triangles, 2 frames -> %s" % (len(s0.verts), len(s0.tris),
                                                                              os.path.normpath(path)))
+    guard.finish()
 
 
 if __name__ == "__main__":

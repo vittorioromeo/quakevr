@@ -58,6 +58,7 @@ from improve_weapons import (CEILING, GRIP_LEAN, GRIP_PROFILE, GRIP_Y, GUARD_PAT
                              TRIGGER_PATH, Carrier, HandSpace, Mdl, Noise, Parts, assemble, centroid, check_anchors,
                              edge, flame, flame_paint, fmt, grip, grip_x, metal, paint_glow, pick, ribbed, section,
                              show_flash, strip_order, sweep)
+import genguard
 from mdlgen import add, cross, dot, mul, norm, sub
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -716,6 +717,9 @@ def build_axe(out_dir):
 
 def main():
     out_dir = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "..", "..", "quakevr", "progs")
+    # The files edited in Blender since a generator wrote them are not overwritten (genguard.py: --keep-edited, --force).
+    guard = genguard.Guard("improve_weapons3.py", [os.path.join(out_dir, n) for n in [gl.name for gl in LAUNCHERS] +
+                                                   ["v_shot.mdl", "v_laserg.mdl", "v_grpple.mdl", "v_axe.mdl"]])
     builds = [lambda gl=gl: build_launcher(out_dir, gl) for gl in LAUNCHERS]
     builds += [lambda: build_shotgun(out_dir),
               lambda: build_laser(out_dir),
@@ -727,6 +731,7 @@ def main():
                                                                        len(model.frames), model.sw, model.sh))
         for key, value in settings.items():
             print("    %s = %s" % (key, value))
+    guard.finish()
 
 
 if __name__ == "__main__":

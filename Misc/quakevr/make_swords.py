@@ -33,6 +33,7 @@ import os
 import struct
 import sys
 
+import genguard
 import quakepak
 from mdlgen import HEADER, add, anorms, cross, dot, mul, norm, read_skins, sub
 
@@ -403,11 +404,14 @@ def main():
                    ('hknight.mdl', by_verts(QVR_HKNIGHT), 'v_hksword.mdl', lambda m: QVR_HKNIGHT_SKIN))
         load = lambda name: open(os.path.join(progs, name), 'rb').read()
     out_dir = args[0] if args else os.path.join(here, '..', '..', 'quakevr', 'progs')
+    # The files edited in Blender since a generator wrote them are not overwritten (genguard.py: --keep-edited, --force).
+    guard = genguard.Guard('make_swords.py', [os.path.join(out_dir, s[2]) for s in sources])
     for src, find, dst, skin_regions in sources:
         m = Mdl(load(src))
         data, nv, nt, tip = build(m, find(m), normals, skin_regions)
         open(os.path.join(out_dir, dst), 'wb').write(data)
         print('%s: %d vertices, %d triangles, tip at %.2f %.2f %.2f' % (dst, nv, nt, *tip))
+    guard.finish()
 
 
 if __name__ == '__main__':

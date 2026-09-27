@@ -45,6 +45,7 @@ import os
 import struct
 import sys
 
+import genguard
 from mdlgen import HEADER, add, anorms, cross, dot, mul, norm, sub
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -981,6 +982,9 @@ def seal_rocket_launcher(model, name):
 
 def main():
     out_dir = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "..", "..", "quakevr", "progs")
+    # The files edited in Blender since a generator wrote them are not overwritten (genguard.py: --keep-edited, --force).
+    guard = genguard.Guard("improve_weapons.py", [os.path.join(out_dir, n) for n in ("v_shot2.mdl", "v_rock2.mdl",
+                                                                                     "v_multi2.mdl")])
     printed = {}
     for build in (build_shotgun, build_rocket_launcher):
         name, settings, model = build(out_dir)
@@ -991,6 +995,7 @@ def main():
     # The rocket launcher's alternate (the multi-rockets' v_multi2.mdl), after the model it is placed from.
     import improve_weapons_alt
     improve_weapons_alt.rocket_launcher(out_dir, printed["v_rock2.mdl (slot 6)"])
+    guard.finish()
 
 
 if __name__ == "__main__":

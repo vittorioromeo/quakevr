@@ -52,6 +52,7 @@ import random
 import struct
 import sys
 
+import genguard
 import mdlgen
 from improve_weapons_alt import IDENTITY, align_slot, prepare
 from mdlgen import HEADER, add, sub, mul, dot, cross, norm
@@ -1176,6 +1177,9 @@ ALTERNATES = [  # the alternate models (the secondary ammo; improve_weapons_alt.
 
 def main():
     game = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "..", "..", "quakevr")
+    # The files edited in Blender since a generator wrote them are not overwritten (genguard.py: --keep-edited, --force).
+    guard = genguard.Guard("improve_weapons2.py", [os.path.join(game, "progs", e[0]) for e in MODELS] +
+                           [os.path.join(game, "progs", e[1]) for e in ALTERNATES])
     printed = {}
     for name, build, slot, anchors, settings in MODELS:
         m = Model(os.path.join(SRC, name))
@@ -1205,6 +1209,7 @@ def main():
         print("  %d -> %d vertices, %d -> %d triangles, skin %dx%d" % (verts, len(m.st), tris, len(m.tris), m.sw, m.sh))
         align_slot(os.path.join(game, "progs"), normal_name, name, normal_slot, slot, printed[normal_name], V,
                    (normal.num_old, verts))
+    guard.finish()
 
 
 if __name__ == "__main__":
