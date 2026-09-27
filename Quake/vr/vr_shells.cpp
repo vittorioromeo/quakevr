@@ -7,7 +7,8 @@
 // data) finds what it hits: it bounces off with some restitution and friction, tumbling anew, and
 // tinks. On a floor too slow to bounce it lies down on its side, rolls (across its axis) or slides
 // (along it) to a stop and rests; a resting casing only checks now and then that its floor is still
-// there (a lift gone down).
+// there (a lift gone down). Going into water, slime or lava it makes a tiny splash, a ripple and a quiet plip
+// (enterLiquid), and the liquid takes most of its speed: it then sinks slowly.
 
 #include "vr_shells.hpp"
 #include "vr_engine.hpp"
@@ -20,6 +21,7 @@
 #include "vr_profile.hpp"
 #include "vr_trace.hpp"
 #include "vr_units.hpp"
+#include "vr_water.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -98,6 +100,7 @@ struct Shell
     int tinks{0};
     bool onGround{false};
     bool resting{false};
+    bool wet{false}; // in a liquid (as of its last move)
     entity_t ent{};
 };
 
@@ -347,6 +350,7 @@ void eject(const view::ViewEntity (&weapons)[2], const Pending& p)
         s.kind = p.kind;
         s.born = cl.time;
         s.pos = pos;
+        s.wet = inLiquid(pos);
         s.smoke = flick ? 1.5f : 1.f;
 
         if(flick)
@@ -395,6 +399,64 @@ void tink(Shell& s, float impact)
     S_StartSound(0, 0, sfx, org, std::min(vr_shells_sound.value, 1.f) * 0.45f * loud, 2.f);
 }
 
+// Going into a liquid between `dry` and `wet` (a move's ends): where it crosses the surface, a tiny splash (the splash
+// preset's parts at a casing's size, particles::shellSplash), the smallest ripple on the liquid (water::addRipple) and
+// a quiet plip (the recorded plips pitched up, make_sounds.py), louder the faster it goes in; the liquid takes most of
+// its speed and spin. Many can land at once (a flick reload's pair, a burst of shots): at most a few splashes and two
+// sounds each tenth of a second.
+void enterLiquid(Shell& s, glm::vec3 dry, glm::vec3 wet)
+{
+    for(int i = 0; i < 8; i++)
+    {
+        const glm::vec3 mid = (dry + wet) * 0.5f;
+        (inLiquid(mid) ? wet : dry) = mid;
+    }
+    const glm::vec3 surface = (dry + wet) * 0.5f;
+    const float upm = unitsPerMetre();
+    const float speed = glm::length(s.vel);
+    const float strength = std::clamp((speed / upm - 0.5f) / 3.5f, 0.f, 1.f); // 0.5 .. 4 m/s
+    const glm::vec3 dir = speed > 1e-3f ? s.vel / speed : glm::vec3{0.f, 0.f, -1.f};
+
+    static double window = -1.0;
+    static int splashes = 0, sounds = 0;
+    if(cl.time - window > 0.1 || cl.time < window)
+    {
+        window = cl.time;
+        splashes = sounds = 0;
+    }
+    const bool splashed = splashes < 4;
+    if(splashed)
+    {
+        splashes++;
+        particles::shellSplash(surface, dir, strength);
+        water::addRipple(surface, 0.4f + 0.5f * strength); // 1.1 to 2.3 units at the shipped amplitude
+    }
+    const float volume = std::min(vr_shells_sound.value, 1.f) * std::clamp(vr_water_sounds.value, 0.f, 1.f);
+    if(developer.value >= 2)
+    {
+        Con_Printf("VR shell into a liquid: %.1f %.1f %.1f, %.2f m/s%s%s\n", surface.x, surface.y, surface.z, speed / upm,
+            splashed ? ", splash" : "", sounds < 2 && volume > 0.f ? ", plip" : "");
+    }
+    if(sounds < 2 && volume > 0.f)
+    {
+        static int last = -1;
+        int k = std::uniform_int_distribution<int>{0, 1}(rng);
+        k += last >= 0 && k >= last ? 1 : 0; // never the one played last
+        last = k;
+        static const char* const names[] = {"vr/shell_plip1.wav", "vr/shell_plip2.wav", "vr/shell_plip3.wav"};
+        if(sfx_t* sfx = S_PrecacheSound(names[k]))
+        {
+            sounds++;
+            vec3_t org{surface.x, surface.y, surface.z};
+            S_StartSound(0, 0, sfx, org, volume * (0.25f + 0.3f * strength), 2.f);
+        }
+    }
+
+    s.vel *= 0.3f;
+    s.angVel *= 0.5f;
+    s.smoke = 0.f;
+}
+
 // The rotation turning unit vector `a` onto `b` (not opposite ones: a lying shell is never
 // upside down along the floor's plane).
 [[nodiscard]] glm::quat shortestArc(const glm::vec3& a, const glm::vec3& b)
@@ -416,7 +478,7 @@ void spinBy(Shell& s, const glm::vec3& angVel, float dt)
 
 void fly(Shell& s, float dt)
 {
-    const bool liquid = inLiquid(s.pos);
+    const bool liquid = s.wet;
     s.vel.z -= gravity() * dt * (liquid ? 0.2f : 1.f);
     s.vel *= std::exp(-(liquid ? 4.f : 0.15f) * dt);
     s.angVel *= std::exp(-(liquid ? 2.f : 0.1f) * dt);
@@ -454,6 +516,14 @@ void fly(Shell& s, float dt)
     {
         s.pos = to;
     }
+    if(const bool wet = inLiquid(s.pos); wet != s.wet)
+    {
+        s.wet = wet;
+        if(wet)
+        {
+            enterLiquid(s, from, s.pos);
+        }
+    }
     spinBy(s, s.angVel, dt);
 
     const float age = static_cast<float>(cl.time - s.born);
@@ -481,6 +551,7 @@ void roll(Shell& s, float dt)
     s.vel = along * std::exp(-7.f * dt) + across * std::exp(-2.2f * dt);
     spinBy(s, glm::cross(n, across) / r, dt);
 
+    const glm::vec3 from = s.pos;
     const glm::vec3 to = s.pos + s.vel * dt;
     const trace_t tr = worldtrace::world(s.pos, to);
     if(tr.fraction < 1.f && !tr.startsolid)
@@ -492,6 +563,14 @@ void roll(Shell& s, float dt)
     else if(!tr.startsolid)
     {
         s.pos = to;
+    }
+    if(const bool wet = inLiquid(s.pos); wet != s.wet) // rolled into a pool on a sloping floor
+    {
+        s.wet = wet;
+        if(wet)
+        {
+            enterLiquid(s, from, s.pos);
+        }
     }
 
     // Still on a floor? Off a ledge it falls again.

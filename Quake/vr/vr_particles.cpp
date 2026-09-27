@@ -1697,6 +1697,106 @@ void shellTrail(const glm::vec3& from, const glm::vec3& to, float strength)
     });
 }
 
+// QVR round 21: a casing dropping into a liquid. The splash preset's parts at a casing's size: a few small drops
+// thrown up a few centimetres (half of them leaving a little ring where they fall back), one ring riding the ripple's
+// crest, a wisp of foam; in lava an ember or two. vr_water_splash scales how many, _size how big, _ring_size the ring.
+void shellSplash(const glm::vec3& org, const glm::vec3& dir, float strength)
+{
+    const float amount = std::clamp(vr_water_splash.value, 0.f, 3.f);
+    if(amount <= 0.f || !vr_particles.value || !ensureAtlas())
+    {
+        return;
+    }
+    const int liquid = liquidUnder(org);
+    const bool lava = liquid == CONTENTS_LAVA;
+    const bool slime = liquid == CONTENTS_SLIME;
+    const float s = std::clamp(strength, 0.f, 1.f);
+    const float big = std::clamp(vr_water_splash_size.value, 0.25f, 4.f);
+    const float shade = lava ? 1.f : shadeAt(org);
+    const glm::vec3 tint = lava ? glm::vec3{1.f, 0.42f, 0.1f} : slime ? glm::vec3{0.42f, 0.78f, 0.2f} : glm::vec3{0.8f, 0.9f, 1.f};
+    const glm::vec3 foam = glm::mix(tint, glm::vec3{1.f}, lava ? 0.1f : 0.45f) * shade;
+    const glm::vec3 lean = glm::vec3{dir.x, dir.y, 0.f} * 0.5f;
+
+    // The drops: a small crown and a jet, 3 to 12 cm up.
+    make((4.f + 4.f * s) * amount, [&](Particle& p, int i) {
+        const float a = rndAngle();
+        const glm::vec3 out{std::cos(a), std::sin(a), 0.f};
+        p.cell = CellDrop;
+        p.type = Custom;
+        p.color = glm::vec4{lava ? glm::mix(glm::vec3{1.f, 0.38f, 0.06f}, glm::vec3{1.f, 0.88f, 0.5f}, rnd(0.f, 1.f))
+                                 : tint * shade * rnd(0.85f, 1.2f),
+            lava ? 1.f : rnd(0.6f, 0.85f)};
+        p.acc = gravity(1.f);
+        p.floor = org.z - 0.5f;
+        p.liquid = liquid;
+        p.streak = 0.012f;
+        p.plink = !lava && i % 2 == 0;
+        p.die = cl.time + 1.2;
+        p.fade = lava ? -0.6f : -0.2f;
+        p.scale = rnd(0.25f, 0.45f) * big;
+        const bool jet = i < 2;
+        p.org = org + out * rnd(0.2f, 0.8f) + glm::vec3{0.f, 0.f, 0.3f};
+        p.vel = jet ? inBox(3.f) + glm::vec3{0.f, 0.f, rnd(45.f, 70.f) * (0.8f + 0.3f * s)}
+                    : out * rnd(8.f, 22.f) + lean * rnd(5.f, 15.f) + glm::vec3{0.f, 0.f, rnd(28.f, 50.f) * (0.8f + 0.3f * s)};
+    });
+
+    // One ring spreading from it, small and faint.
+    const float ringSize = std::clamp(vr_water_splash_ring_size.value, 0.f, 4.f);
+    if(ringSize > 0.f)
+    {
+        const float ringSpeed = water::rippleSpeed(liquid) * std::clamp(vr_water_splash_ring_speed.value, 0.f, 4.f);
+        make(1.f, [&](Particle& p, int) {
+            const float life = 0.9f * ringSize;
+            p.cell = CellRing;
+            p.flat = true;
+            p.floor = org.z;
+            p.liquid = liquid;
+            p.color = glm::vec4{lava ? glm::vec3{0.22f, 0.06f, 0.02f} : foam, lava ? 0.45f : 0.35f};
+            p.die = cl.time + life;
+            p.scale = 0.9f * ringSize * big / 0.525f;
+            p.type = Custom;
+            p.fade = -p.color.a / life;
+            p.grow = ringSpeed * 0.6f / 0.525f;
+            p.org = org + glm::vec3{0.f, 0.f, 0.35f};
+        });
+    }
+
+    // A wisp of foam where it went in (lava: a dark crust), and an ember.
+    make(1.f, [&](Particle& p, int) {
+        const float life = rnd(1.f, 1.6f);
+        p.cell = CellFoam;
+        p.flat = true;
+        p.floor = org.z;
+        p.liquid = liquid;
+        p.color = glm::vec4{lava ? glm::vec3{0.2f, 0.06f, 0.02f} : foam, lava ? 0.5f : rnd(0.3f, 0.4f)};
+        p.die = cl.time + life;
+        p.scale = rnd(0.7f, 1.f) * big;
+        p.type = Custom;
+        p.fade = -p.color.a / life;
+        p.grow = 0.4f * big;
+        p.drag = 2.f;
+        p.spin = rnd(-0.3f, 0.3f);
+        p.org = org + glm::vec3{0.f, 0.f, 0.3f};
+    });
+    if(lava)
+    {
+        make(1.f + 2.f * s, [&](Particle& p, int) {
+            p.cell = CellSpark;
+            p.additive = true;
+            p.color = glm::vec4{fireColor(), 1.f};
+            p.die = cl.time + rnd(0.4f, 0.8f);
+            p.scale = rnd(0.2f, 0.35f);
+            p.type = Custom;
+            p.fade = -1.5f;
+            p.drag = 0.8f;
+            p.spin = rnd(-6.f, 6.f);
+            p.acc = gravity(0.35f);
+            p.org = org + glm::vec3{0.f, 0.f, 0.5f};
+            p.vel = onSphere() * rnd(8.f, 20.f) + glm::vec3{0.f, 0.f, rnd(20.f, 45.f)};
+        });
+    }
+}
+
 // Live particles (vr_memstats).
 int liveCount()
 {

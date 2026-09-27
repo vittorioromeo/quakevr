@@ -69,6 +69,11 @@ void bloodSpecks(const glm::vec3& org, const glm::vec3& normal, int count, const
 void shellEject(const glm::vec3& org, const glm::vec3& dir, float smoke, int sparks);
 void shellTrail(const glm::vec3& from, const glm::vec3& to, float strength);
 
+// A casing dropping into a liquid at `org` on its surface, going `dir` (`strength` 0..1: how fast): the splash
+// preset's drops, ring and foam at a casing's size (the ripple is water::addRipple's, the caller's). Nothing with
+// vr_particles 0 or vr_water_splash 0.
+void shellSplash(const glm::vec3& org, const glm::vec3& dir, float strength);
+
 // A lava nail's streak (vr_emissive.cpp) from `from` to `to`: a hot, short-lived glowing core and a
 // few embers falling off it. Nothing with vr_particles 0.
 void lavaNailTrail(const glm::vec3& from, const glm::vec3& to);

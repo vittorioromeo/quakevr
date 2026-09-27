@@ -1233,8 +1233,11 @@ void addRipple(const glm::vec3& at, float strength)
         return;
     }
     // A hand's slap (strength 10) vr_water_ripple_amplitude units high; a shot (4) about half that, a rocket (19) 1.7
-    // times, a body (20-50) 1.7 to 3 times; at most kMaxRipple.
-    const float amp = std::min(std::clamp(vr_water_ripple_amplitude.value, 0.f, 24.f) * std::clamp(std::pow(strength / 10.f, 0.8f), 0.25f, 3.f), kMaxRipple);
+    // times, a body (20-50) 1.7 to 3 times; at most kMaxRipple. Splashes (1 and up) at least a quarter; a spent casing
+    // (under 1, vr_shells.cpp) less: a tenth of a slap or so.
+    const float amp = std::min(std::clamp(vr_water_ripple_amplitude.value, 0.f, 24.f) *
+                                   std::clamp(std::pow(strength / 10.f, 0.8f), strength < 1.f ? 0.02f : 0.25f, 3.f),
+        kMaxRipple);
     if(amp <= 0.f)
     {
         return;
