@@ -2921,8 +2921,8 @@ void setupWorldWeapons(const hands::State& s, bool queueTexts)
 // The drawn hands' wrists and orientations, for the body's arms and the wrist gadget.
 [[nodiscard]] avatar::HandPose drawnHand(const hands::State& s, int hand)
 {
-    // The centre of the wrist in hand_base.mdl (frame 0).
-    constexpr glm::vec3 handWrist{-6.86f, -1.08f, 1.42f};
+    // The centre of the wrist in hand_base.mdl (frame 0), or the jointed hand's (its palm is shorter: make_hand_rig.py).
+    const glm::vec3 handWrist = rigHands[hand].drawn ? vec3Of(handrig::data::wrist) : glm::vec3{-6.86f, -1.08f, 1.42f};
 
     avatar::HandPose hp;
     const view::ViewEntity& base = entities.hand[hand][FingerBase];
