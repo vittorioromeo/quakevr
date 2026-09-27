@@ -462,6 +462,8 @@ QVR_CVAR(vr_carry_take, "0", CVAR_ARCHIVE)            // taking a carried box: 0
 QVR_CVAR(vr_carry_local, "1", CVAR_ARCHIVE)           // what you carry is drawn in your hand as it moves this frame (0: where the server has it, a frame or a ping behind)
 QVR_CVAR(vr_held_surface_fit, "1", CVAR_ARCHIVE)      // a gripped box, gib or backpack sits against the palm, pushed out of the fist, instead of sunk into the hand (0: where it was gripped)
 QVR_CVAR(vr_held_fit_gap, "0", CVAR_ARCHIVE)          // with it: cm between the curled fingers and what they hold (negative: sunk in)
+QVR_CVAR(vr_carry_reach, "8", CVAR_ARCHIVE)           // round 21, second pass: cm from the hand (the controller's point) to the drawn surface of a box, gib or backpack it can take (0: its whole model box, as before)
+QVR_CVAR(vr_debug_carry, "0", CVAR_NONE)              // draws, for each hand, the carriable thing it is in the box of: its box, its surface's nearest point and the reach (green: in reach)
 QVR_CVAR(vr_held_fit_gaps, "", CVAR_ARCHIVE)          // ... and per model, added: "name=cm ...", a name matching the end of the model's (e.g. "backpack.mdl=0.5 b_bh25.bsp=-0.3")
 QVR_CVAR(vr_forcegrab_outline, "1", CVAR_ARCHIVE)     // the glow round what a hand's force grab points at (strength, 0 off)
 QVR_CVAR(vr_forcegrab_fx, "1", CVAR_ARCHIVE)          // force grab's beam and energy tendril from the hand, and the pulled object's trail

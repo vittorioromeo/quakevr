@@ -4,6 +4,7 @@
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
 #include "vr_hands.hpp"
+#include "vr_lines.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_units.hpp"
@@ -242,11 +243,154 @@ glm::vec3 drawnCentre(int num)
     return origin + axesFromAngles(e.angles, brush) * ((lo + hi) * 0.5f * ENTSCALE_DECODE(e.scale)); // and Ironwail's scale
 }
 
+float surfaceDistance(edict_t* ent, const glm::vec3& point, glm::vec3* nearest)
+{
+    const int index = static_cast<int>(ent->v.modelindex);
+    const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    thread_local std::vector<Triangle> triangles;
+    if(!model || !drawnTriangles(ent, model, triangles))
+    {
+        return -1.f;
+    }
+    const glm::mat3 axes = axesFromAngles(ent->v.angles, model->type == mod_brush);
+    const glm::vec3 origin{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
+    const glm::vec3 p = glm::transpose(axes) * (point - origin);
+    float best = std::numeric_limits<float>::max();
+    glm::vec3 at{0.f};
+    for(const Triangle& t : triangles)
+    {
+        // The point of the triangle nearest p (Ericson, Real-Time Collision Detection, 5.1.5).
+        const glm::vec3 &a = t.p[0], &b = t.p[1], &c = t.p[2];
+        const glm::vec3 ab = b - a, ac = c - a, ap = p - a;
+        glm::vec3 q;
+        const float d1 = glm::dot(ab, ap), d2 = glm::dot(ac, ap);
+        const glm::vec3 bp = p - b;
+        const float d3 = glm::dot(ab, bp), d4 = glm::dot(ac, bp);
+        const glm::vec3 cp = p - c;
+        const float d5 = glm::dot(ab, cp), d6 = glm::dot(ac, cp);
+        const float vc = d1 * d4 - d3 * d2, vb = d5 * d2 - d1 * d6, va = d3 * d6 - d5 * d4;
+        if(d1 <= 0.f && d2 <= 0.f)
+        {
+            q = a;
+        }
+        else if(d3 >= 0.f && d4 <= d3)
+        {
+            q = b;
+        }
+        else if(vc <= 0.f && d1 >= 0.f && d3 <= 0.f)
+        {
+            q = a + ab * (d1 / (d1 - d3));
+        }
+        else if(d6 >= 0.f && d5 <= d6)
+        {
+            q = c;
+        }
+        else if(vb <= 0.f && d2 >= 0.f && d6 <= 0.f)
+        {
+            q = a + ac * (d2 / (d2 - d6));
+        }
+        else if(va <= 0.f && (d4 - d3) >= 0.f && (d5 - d6) >= 0.f)
+        {
+            q = b + (c - b) * ((d4 - d3) / ((d4 - d3) + (d5 - d6)));
+        }
+        else
+        {
+            const float denom = 1.f / (va + vb + vc);
+            q = a + ab * (vb * denom) + ac * (vc * denom);
+        }
+        const float d = glm::distance(p, q);
+        if(d < best)
+        {
+            best = d;
+            at = q;
+        }
+    }
+    if(nearest)
+    {
+        *nearest = origin + axes * at;
+    }
+    return best;
+}
+
+namespace
+{
+
+// vr_debug_carry: per hand, the last probe (the server's), shown for a moment.
+struct CarryProbe
+{
+    double time{-1.0};
+    glm::vec3 corners[8]{};
+    glm::vec3 at{0.f}, nearest{0.f};
+    float distance{0.f}, reach{0.f};
+};
+CarryProbe carryProbes[2];
+
+} // namespace
+
+void noteCarryProbe(int hand, edict_t* ent, const glm::vec3& at, float distance, const glm::vec3& nearest, float reach)
+{
+    if(!vr_debug_carry.value || hand < 0 || hand > 1)
+    {
+        return;
+    }
+    CarryProbe& p = carryProbes[hand];
+    p.time = realtime;
+    p.at = at;
+    p.nearest = nearest;
+    p.distance = distance;
+    p.reach = reach;
+    // The model's turned box (as the touch test's), its corners in the world.
+    const int index = static_cast<int>(ent->v.modelindex);
+    const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    glm::vec3 lo{ent->v.mins[0], ent->v.mins[1], ent->v.mins[2]}, hi{ent->v.maxs[0], ent->v.maxs[1], ent->v.maxs[2]};
+    if(model && model->type == mod_alias)
+    {
+        using namespace progs;
+        const FieldOffsets& f = fields();
+        modelBox(model, fieldVec(ent, f.model_scale), fieldVec(ent, f.model_scale_origin), fieldVec(ent, f.model_offset), lo, hi);
+    }
+    const glm::mat3 axes = axesFromAngles(ent->v.angles, model && model->type == mod_brush);
+    const glm::vec3 origin{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
+    for(int i = 0; i < 8; i++)
+    {
+        p.corners[i] = origin + axes * glm::vec3{(i & 1) ? hi.x : lo.x, (i & 2) ? hi.y : lo.y, (i & 4) ? hi.z : lo.z};
+    }
+}
+
+void drawCarryProbes()
+{
+    if(!vr_debug_carry.value)
+    {
+        return;
+    }
+    for(const CarryProbe& p : carryProbes)
+    {
+        if(p.time < 0.0 || realtime - p.time > 0.1)
+        {
+            continue;
+        }
+        const bool within = p.reach <= 0.f || (p.distance >= 0.f && p.distance <= p.reach);
+        const glm::vec4 colour = within ? glm::vec4{0.2f, 1.f, 0.3f, 1.f} : glm::vec4{1.f, 0.25f, 0.2f, 1.f};
+        constexpr int edges[12][2] = {{0, 1}, {2, 3}, {4, 5}, {6, 7}, {0, 2}, {1, 3}, {4, 6}, {5, 7}, {0, 4}, {1, 5}, {2, 6}, {3, 7}};
+        for(const auto& e : edges)
+        {
+            lines::line(p.corners[e[0]], p.corners[e[1]], 0.2f, colour, colour);
+        }
+        if(p.distance >= 0.f)
+        {
+            lines::line(p.at, p.nearest, 0.2f, colour, colour);
+            lines::point(p.nearest, 0.8f, colour);
+        }
+        lines::point(p.at, 2.f * std::fmax(p.reach, 0.5f), glm::vec4{colour.r, colour.g, colour.b, 0.2f});
+    }
+}
+
 glm::vec3 surfaceFit(edict_t* ent, const glm::vec3& hand, const glm::vec3& palm)
 {
-    // Never pushed further out than this (a big thing gripped deep inside), nor drawn in further
-    // than this (the fingers short of it: a hand reaches a little way round what it grips).
-    constexpr float mostPush = 0.5f; // metres
+    // Never pushed further out than this (round 21, second pass: was half a metre; a thing is taken only within
+    // vr_carry_reach of its surface now, so a big thing gripped deep inside its box no longer floats away), nor drawn
+    // in further than this (the fingers short of it: a hand reaches a little way round what it grips).
+    constexpr float mostPush = 0.15f; // metres
     constexpr float mostPull = 0.08f;
 
     const int index = static_cast<int>(ent->v.modelindex);

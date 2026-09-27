@@ -2677,6 +2677,7 @@ extern "C" void VR_SetupViewEntities()
     setupHand(s, HAND_MAIN);
     setupHand(s, HAND_OFF);
     showHotspots();
+    held::drawCarryProbes();
     // The guns not in a hand (holstered, lying round) show their screens (queued once a frame).
     static int idleTextFrame = -1;
     const bool idleTexts = idleTextFrame != host_framecount;
