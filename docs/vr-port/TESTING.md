@@ -142,6 +142,11 @@ context and screenshot, ready to paste or to point me at.
 ## What to try
 
 - **New in this round** (details in `docs/vr-port/ROUND21.md`; each section ends with an "In the headset" list):
+  - **After the posing test** (ROUND21.md, "After the posing test"): hold a gun into a monster's head and fire (a
+    headshot now); while posing, the hand passes through the weapon (the solved grip shows for 1.5 s after A/X);
+    Weapon Offsets > Tuning Aids: Show Controller is drawn in your palm as a Quest 3 controller, **Controller Preview**
+    sliders line it up with your real one; **Shot Pitch / Shot Yaw** (under Muzzle and Posing Mode) turn where shots go
+    without moving the gun: with Show Controller Laser, put the red line through the sights.
   - **Physics engine: Box3D, to compare** (Throwing and Physics > Physics Engine, switches at once): Quake VR is the
     solver you know; Box3D makes thrown and dropped things collide with each other too: stack boxes, build a pyramid,
     throw a box into a stack, sweep one off with a held box. Then the usual: throws at monsters, weapons landing on
@@ -568,6 +573,14 @@ box (100 health, 101 shells) `vr_test_spawn_dist` units ahead (`vr_test_spawn_de
 `vr_mock_camera <x> <y> <z> <pitch> <yaw>` draws the mock eyes from elsewhere in the tracking space (a spectator's view of
 your body; the hands stay with the head), `vr_mock_camera` alone puts them back.
 
+After the posing test (ROUND21.md): `vr_debug_shots 1` with `developer 1` prints each hitscan shot (start, direction,
+what its pellets hit, headshots) and each damage you deal; a monster at the muzzle: `impulse 150 + weapon id` (with
+`vr_weapon_grip_mode 1`, `impulse 9` for ammo a frame before), `vr_mock_hand main 0.08 1.05 -1.2 40 0 0`, then
+`vr_test_spawn 0; vr_test_spawn_dist 44; impulse 241` puts a grunt's head round the muzzle in vrfiringrange.
+`vr_pose_solve 1` solves the posing hand live (as before). `vr_wofs_shot_pitch_NN` / `_shot_yaw_NN` turn a
+weapon's shots; `vr_show_controller_x/y/z/pitch/yaw/roll` (and `_off_own`, `_off_*`) move the controller
+preview; `vr_dumpview` prints each grip and its distance from the tracked pose (10.2 cm with
+`vr_controller_legacy_pose 1`).
 Weapon posing mode (ROUND21.md, "Weapon posing mode"): `vr_pose [weapon | 1..4 | new | stop] [main | off]` poses the
 weapon in the main hand (or else the off hand's), held in the hand given (`vr_pose_weapon_hand`); `vr_pose_confirm`,
 `vr_pose_undo`, `vr_pose_next`, `vr_pose_type` and `vr_pose_turn <yaw> <tilt>` (no arguments: back to the start) are
