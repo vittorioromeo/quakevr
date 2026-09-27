@@ -17,6 +17,7 @@
 #include "vr_main.hpp"
 #include "vr_modelcollide.hpp"
 #include "vr_move.hpp"
+#include "vr_posing.hpp"
 #include "vr_protocol.hpp"
 #include "vr_shells.hpp"
 #include "vr_teleport.hpp"
@@ -293,6 +294,33 @@ std::vector<MuzzleOffset> muzzleOffsets; // slot * 2 + mirrored
     if(flashlight::holds(HAND_MAIN))
     {
         move.buttons |= QVR_BUTTON_MAINHANDBUSY;
+    }
+
+    // The weapon posing mode (vr_posing.cpp): the game sees the hands held still where they were when it began (with the
+    // player, who may walk round the weapon), their buttons as they were, no two-handed aim, no teleport and no attack:
+    // no shot, blow, grab, holster or throw while the hands pose.
+    static VrMove unposed;
+    if(posing::active())
+    {
+        const glm::vec3 walked = move.origin - unposed.origin;
+        for(int h = 0; h < HAND_COUNT; h++)
+        {
+            VrHandMove& hand = move.hands[h];
+            hand = unposed.hands[h];
+            hand.pos += walked;
+            hand.throwPos += walked;
+            hand.vel = hand.throwVel = hand.angVel = glm::vec3{0.f};
+            hand.velMag = 0.f;
+            move.hotspots[h] = unposed.hotspots[h];
+            move.muzzlePos[h] = unposed.muzzlePos[h] + walked;
+        }
+        move.vrBits0 = static_cast<std::uint16_t>(unposed.vrBits0 & (VRBITS0_OFFHAND_GRABBING | VRBITS0_MAINHAND_GRABBING |
+                                                                     VRBITS0_OFFHAND_RELOADING | VRBITS0_MAINHAND_RELOADING));
+        move.buttons &= ~QVR_BUTTON_OFFHANDATTACK;
+    }
+    else
+    {
+        unposed = move;
     }
 
     return move;

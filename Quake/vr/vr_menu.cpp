@@ -20,6 +20,7 @@
 #include "vr_motion_take.hpp"
 #include "vr_weapons.hpp"
 #include "vr_hands.hpp"
+#include "vr_posing.hpp"
 #include "vr_view.hpp"
 
 #include <cmath>
@@ -1128,6 +1129,38 @@ void weaponOffsetsHotspotAtHand()
     weaponOffsetsStale = true;
 }
 
+// The weapon posing mode (vr_posing.cpp) on the page's weapon: the weapon (hotspot -2), a hotspot (0..3), a new one (-1).
+void weaponOffsetsPose(int hotspot)
+{
+    qmodel_t* model = weapons::heldModel(weaponOffsetsHand);
+    if(weapons::slotForModel(model) != weaponOffsetsHeldSlot)
+    {
+        Con_Printf("Posing mode: the %s hand holds another weapon now: reopen the page.\n", weaponOffsetsHand == 1 ? "main" : "off");
+        return;
+    }
+    const int weaponHand = static_cast<int>(vr_pose_weapon_hand.value) == 0 ? HAND_OFF : HAND_MAIN;
+    if(posing::start(weaponOffsetsHeldSlot, model, weaponHand, hotspot == -2 ? posing::Target::Weapon : posing::Target::Hotspot,
+           hotspot, qvr::menu::currentPage()))
+    {
+        weaponOffsetsStale = true;
+    }
+}
+
+void weaponOffsetsPoseWeapon()
+{
+    weaponOffsetsPose(-2);
+}
+
+void weaponOffsetsPoseHotspot()
+{
+    weaponOffsetsPose(editedHotspot());
+}
+
+void weaponOffsetsPoseNewHotspot()
+{
+    weaponOffsetsPose(-1);
+}
+
 void weaponOffsetsHotspotRemove()
 {
     if(weaponOffsetsSlot >= 0)
@@ -1210,6 +1243,20 @@ std::vector<Item> pageWeaponOffsets()
             list.push_back(action("Stop Inheriting (Copy Them Here)", weaponOffsetsStopInheriting)
                                .help("This weapon gets its own copy of the settings it inherits, to change apart."));
         }
+        // The weapon posing mode (vr_posing.cpp).
+        list.insert(list.end(), {
+            header("Posing Mode"),
+            action("Pose This Weapon", weaponOffsetsPoseWeapon)
+                .help("The weapon floats still in front of you: put the weapon hand on it as you want to hold it and "
+                      "press the other hand's A/X to set its place in the hand. B/Y undoes, the trigger goes on to the "
+                      "hotspots, the stick turns the weapon, the menu button comes back here."),
+            cycle("Weapon Hand", vr_pose_weapon_hand, {{1.f, "Main Hand"}, {0.f, "Off Hand (Mirrored)"}})
+                .help("The hand that poses the weapon (the settings are shared: the off hand's are mirrored). The other "
+                      "hand poses the hotspots and confirms."),
+            cycle("Tuning Offsets on Confirm", vr_pose_reset_offsets, {{0.f, "Keep"}, {1.f, "Set to 0"}})
+                .help("Keep: the pose is kept with Hand and Weapon Together, Hand Only and Held Hand as they are. "
+                      "Set to 0: confirming sets them to 0 (the pose alone places the hand)."),
+        });
     }
     list.insert(list.end(), {
         header(fist ? "The Hand" : "Weapon in the Hand"),
@@ -1323,6 +1370,10 @@ std::vector<Item> pageWeaponOffsets()
                 .help("Grip: a point (a foregrip, a pump, a magazine) the hand is drawn on; the two hands aim the weapon. "
                       "Blade: the half-sword grip along the blade. Cup: a two-handed pistol grip, the hand under and "
                       "round the holding hand (it doesn't aim)."),
+            action("Pose This Hotspot", weaponOffsetsPoseHotspot)
+                .help("Posing mode on this hotspot (a grip if it has no type): the weapon floats, held by the weapon "
+                      "hand; put the other hand where it should hold it and press the weapon hand's A/X."),
+            action("Pose a New Hotspot", weaponOffsetsPoseNewHotspot).help("The same on the first free hotspot."),
         });
         if(h.type == weapons::HotspotType::Blade)
         {

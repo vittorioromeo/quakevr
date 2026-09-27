@@ -18,6 +18,7 @@
 #include "vr_main.hpp"
 #include "vr_menuui.hpp"
 #include "vr_motion.hpp"
+#include "vr_posing.hpp"
 #include "vr_voicenotes.hpp"
 #include "vr_flashlight.hpp"
 
@@ -87,6 +88,15 @@ struct StickKey
 };
 
 StickKey stickKeys[] = {{K_DPAD_UP}, {K_DPAD_DOWN}, {K_DPAD_LEFT}, {K_DPAD_RIGHT}};
+
+[[nodiscard]] posing::Button posingButton(bool HandInput::*button)
+{
+    return button == &HandInput::trigger     ? posing::Button::Trigger
+           : button == &HandInput::grip      ? posing::Button::Grip
+           : button == &HandInput::primary   ? posing::Button::Primary
+           : button == &HandInput::secondary ? posing::Button::Secondary
+                                             : posing::Button::StickClick;
+}
 
 // The menu button is Escape: it opens and closes the menu and can never be unbound. In a menu,
 // held for half a second it goes back to the game at once, from any page (menuui::backToGame);
@@ -278,6 +288,11 @@ void update(const InputState& tracked)
             const bool now = in.hands[h].*b.button;
             if(now != previous.hands[h].*b.button)
             {
+                // The weapon posing mode takes the buttons pressed while it runs (vr_posing.cpp).
+                if(posing::button(h, posingButton(b.button), now))
+                {
+                    continue;
+                }
                 // The off hand's upper button at the mouth records a voice note instead (not while that hand holds
                 // the flashlight or is at it on the head: its Y turns it round in the fist, clips it on the head or
                 // takes it off; a note's release always ends it).
@@ -318,7 +333,10 @@ void update(const InputState& tracked)
             }
         }
 
-        menuButton(h, in.hands[h].menu, previous.hands[h].menu);
+        if(in.hands[h].menu == previous.hands[h].menu || !posing::button(h, posing::Button::Menu, in.hands[h].menu))
+        {
+            menuButton(h, in.hands[h].menu, previous.hands[h].menu);
+        }
     }
 
     const bool menu = key_dest != key_game;
@@ -346,6 +364,16 @@ void update(const InputState& tracked)
         stickKey(stickKeys[2], -stick.x, true);
         stickKey(stickKeys[3], stick.x, true);
         moveAxes = glm::vec2{0.f};
+    }
+    else if(posing::active())
+    {
+        // Posing: the player stands still; the confirming hand's stick turns the floating weapon.
+        for(StickKey& k : stickKeys)
+        {
+            stickKey(k, 0.f, false);
+        }
+        moveAxes = glm::vec2{0.f};
+        posing::sticks(off.stick, main.stick);
     }
     else
     {
@@ -436,7 +464,7 @@ namespace qvr::input
 void roomscaleJump(const hands::State& s)
 {
     static bool jumping = false;
-    const bool rising = vr_roomscale_jump.value && vrActive() && s.valid && key_dest == key_game &&
+    const bool rising = vr_roomscale_jump.value && vrActive() && s.valid && key_dest == key_game && !posing::active() &&
                         s.headVel.z > vr_roomscale_jump_threshold.value && s.headHeight > vr_height_calibration.value;
     if(rising != jumping)
     {

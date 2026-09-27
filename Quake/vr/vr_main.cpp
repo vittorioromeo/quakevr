@@ -18,6 +18,7 @@
 #include "vr_main.hpp"
 #include "vr_menu.hpp"
 #include "vr_motion.hpp"
+#include "vr_posing.hpp"
 #include "vr_profile.hpp"
 #include "vr_protocol.hpp"
 #include "vr_server.hpp"
@@ -927,6 +928,7 @@ extern "C" void VR_Init()
     registerMockCommands();
     input::init();
     voicenotes::init();
+    posing::init();
     motion::init();
     flashlight::init();
     detail::init();
@@ -1004,6 +1006,7 @@ extern "C" void VR_BeginFrame()
     text3d::clear();
     voicenotes::frame(); // after the clear: its indicator is queued anew each frame
     motion::frame();     // the motion recorder's indicator, likewise
+    posing::frame();     // the weapon posing mode's text, likewise
     memLogFrame();
     profile::overlay();  // vr_profile 2
     throwing::filterGrips(state->tracking); // the analog grip's release, before it becomes a key

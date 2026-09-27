@@ -2387,3 +2387,157 @@ decide whether to keep them or throw them out. `MOTIONS.md`, "Reviewing failing 
 - [ ] Keep, Discard, Relabel a few; Undo Last.
 - [ ] Re-evaluate This Take (a small window appears on the desktop, a few seconds): any hitch in the headset? Then
       Re-evaluate Shown on a short list.
+## Weapon posing mode
+
+Your request: "a setup mode where the weapon model appears statically in front of the player, then I pose the hand
+(per weapon) and offhands (per hotspot) as desired and I confirm the position by pressing a button on the other hand".
+Branch `agent/posing`. Composites and logs are in the scratchpad's `posing/`.
+
+| | What you get |
+|---|---|
+| Enter | Weapon Offsets > **Posing Mode** > **Pose This Weapon**, or a hotspot's **Pose This Hotspot** / **Pose a New Hotspot**; or `vr_pose` from the console |
+| The weapon | floats still, 40 cm ahead of your head and 35 cm below it (chest height), level, pointing where you looked; drawn as it is held, with its hotspots, its muzzle (yellow), its barrel (green) and where your hand's shots would go (red) |
+| Pose the weapon | the weapon hand is drawn at its controller and wraps the floating weapon live, as it will hold it; the **other** hand's A/X sets the weapon's place in the hand (Offset X/Y/Z, Pitch/Yaw/Roll) |
+| Pose a hotspot | the weapon hand is drawn holding the floating weapon; the other hand poses the hotspot (Grip, Cup or Blade) and the **weapon hand's** A/X sets it (its point, a cup's palm point or a blade's share, and its Hand Pitch/Yaw/Roll) |
+| Feedback | a click in both hands, the weapon pick-up sound, and a line in front of you saying what was set |
+| Undo | B/Y undoes the last set, then the one before (every setting back to the exact text it had) |
+| Leave | the menu button: back on the Weapon Offsets page (or to the game, if you started from the console) |
+
+### Controls while posing
+
+"The other hand" is the hand that isn't posing: the off hand while you pose the weapon with the main hand, the weapon
+hand while you pose a hotspot. The text in front of you names its buttons.
+
+| Button (the other hand) | Does |
+|---|---|
+| A / X | Set: what you see becomes the setting |
+| B / Y | Undo the last set |
+| Trigger | Next thing to pose: the weapon, hotspot 1, 2, 3, 4, the weapon... (the posing hand changes with it) |
+| Stick click | Posing a hotspot: its type (Grip, Cup, Blade). Posing the weapon: the weapon back as it started |
+| Stick | Turn the floating weapon: left/right spins it, up/down tilts it (about the middle of its grip and muzzle) |
+| Menu (either hand) | Leave |
+
+The posing hand's buttons, and the other hand's grip, do nothing: squeeze them freely (the posing hand's grip closes its fingers on the weapon, to see the wrap). You can walk round
+the weapon; the sticks don't move or turn you while posing.
+
+### In the headset, step by step
+
+1. Hold the weapon to tune (in either hand), open the menu, go to Weapon Offsets for that hand.
+2. Under **Posing Mode**, pick **Weapon Hand** (Main Hand, or Off Hand: mirrored; the settings are shared) and
+   **Tuning Offsets on Confirm** (Keep, the default, or Set to 0: see below).
+3. Click **Pose This Weapon**. The menu closes; the weapon floats in front of your chest.
+4. Put your weapon hand on it as you want to hold it and squeeze the grip: the fingers wrap it as they will in play.
+   Turn it with the other hand's stick to check it from the sides.
+5. Press the other hand's A/X. You feel a click in both hands and hear the pick-up sound; the line in front of you says
+   what was set. B/Y undoes it.
+6. For the hotspots, press the other hand's trigger: now hotspot 1. The weapon is held by a copy of your weapon hand;
+   put your other hand where it should hold it (a foregrip: where the hand is; a cup: your palm round the holding
+   hand), pick the type with the weapon hand's stick click, and press the weapon hand's A/X. The trigger again for hotspot 2,
+   and so on (a hotspot with no type becomes a new one).
+7. Press the menu button: you are back on the page, the weapon in your hand, and play resumes. Hold it: hand and
+   weapon are as you posed them.
+
+### How it works (`vr_posing.cpp`, `vr_view.cpp` "Weapon posing mode")
+
+- **The floating weapon** is the weapon hand's view entity, placed by the view's own weapon placement from a hand put
+  where the weapon's current settings leave the weapon where it floats. It is drawn exactly as a held weapon is (skin,
+  scale, hotspots, muzzle, ammo screen), and after a set it stays where it is while its settings change.
+- **What a set writes is the placement's own steps undone:**
+  - Held, the drawn hand's turn is the weapon's turn, times the weapon's angle offsets undone, times the hand's own
+    (`attachedTurn`): `H = W · w0ᵀ · F`. With `H` the hand as tracked (the controller, as an empty hand is drawn) and
+    `W` the floating weapon, `w0 = F · Hᵀ · W`; Pitch/Yaw/Roll come from `w0` (less `vr_gunmodelpitch`; yaw and roll
+    mirrored for the off hand).
+  - Offset X/Y/Z: the weapon's model origin seen from the hand's point, in the weapon's (mirrored) frame, over its model
+    scale, less `vr_gunmodely`.
+  - A grip hotspot's point is where the tracked hand's point is (where it is then taken from); a cup's, where the palm's
+    middle is; a blade's, the share of the way from the hand to the tip. Its Hand Pitch/Yaw/Roll: the hand's turn with
+    `helpingTurn` undone (the weapon's fixed-hand angles for a grip, the hand's own for a cup, mirrored for the main
+    hand helping).
+  - The grasp the posing hand shows is solved as the settings will put it (`Held::canonical`, at the candidate's place
+    in the hand), so the fingers you see while posing are the fingers you get.
+- **The tuning offsets** (Hand and Weapon Together, Hand Only, a hotspot's Held Hand). **Kept by default:** the pose is
+  taken from the hand as tracked, and the posing hand is drawn with them, where play will draw it (Hand Only bends the
+  drawn wrist on top of the grip; Hand and Weapon Together moves both from the controller). **Set to 0** zeroes them on
+  a set, and the posing hand is drawn without them.
+- **Mirroring:** posing with the off hand writes the same keys the main hand reads, mirrored as the off hand reads them.
+- **Inherit From:** a weapon that inherits (the lava nailgun from the nailgun...) is posed with its own model, and the
+  settings are written where the Weapon Offsets page edits them: the weapon it inherits from. Its own copy of each key
+  written goes back to its default, so that both weapons hold the pose. To pose it apart, use "Stop Inheriting (Copy
+  Them Here)" first. The text says whose settings are set.
+- **A hotspot on a weapon whose two-handed use is Not Allowed** allows it, as the page does.
+- **The game while posing:** nothing reaches the server but the finished settings. The moves carry the hands as they
+  were when posing began (moving with you if you walk), with no speed, their buttons as they were, no two-handed aim,
+  no teleport and no attack: no shot, blow, parry, grab, holster, throw or item touched. The buttons pressed while
+  posing are the posing mode's; a grip held since before stays held for the game, so the weapon is still in your hand
+  afterwards (with Weapon Grip Mode 0 too). Posing ends when the menu opens (any way), the map changes, you die, or VR
+  stops.
+
+### Held: exact relative to the hand; on the controller, as every weapon is
+
+The hand and weapon you pose are, held, the same relative to each other at any controller angle (the drawn hand is
+carried rigidly by the weapon). Where the pair sits on the controller is as before: the weapon's angle offsets are
+Euler angles added to the hand's, so on a controller rolled 10° the pair sits about half a degree from where it was
+drawn while posing (0.14° on a level one; numbers below). Every weapon placement behaves so today; changing it would
+move every tuned weapon and your takes' replays.
+
+### Settings and commands
+
+| | |
+|---|---|
+| `vr_pose_weapon_hand` (Weapon Hand) | 1 main (default), 0 off: the hand that holds the floating weapon and poses it; the other poses the hotspots and confirms |
+| `vr_pose_reset_offsets` (Tuning Offsets on Confirm) | 0 keep (default), 1 set to 0 |
+| `vr_pose [weapon \| 1..4 \| new \| stop] [main \| off]` | start (the weapon in the main hand, else the off hand's) or stop |
+| `vr_pose_confirm`, `vr_pose_undo`, `vr_pose_next`, `vr_pose_type`, `vr_pose_turn <yaw> <tilt>` | the buttons, from the console |
+| `vr_pose_check` | after leaving, holding the weapon: the hand against the last pose set |
+
+### Tests (mock headset; `posing/` in the scratchpad)
+
+Each: posed in the mock (the controller scripted to a pose on the floating weapon, the fingers closed), set with the
+other hand's button, left, the weapon held (for a hotspot, the other hand taking it with its grip), `vr_pose_check`.
+Units are world units (a 1.25 world scale: 26 to the metre).
+
+| Case | Hand vs the pose (its rig) | Weapon's muzzle | Drawn palm (fitted) |
+|---|---|---|---|
+| Super shotgun, main hand (controller rolled 10°) | 0.0001 units, 0.0000° | 0.0001 | 0.0001 |
+| The same with Hand Only (1.5, -0.7, 0; 8°, 0, -5°) and Hand and Weapon Together (2, 0, -1; 0, 6°, 4°) kept | 0.0001 units, 0.0000° | 0.0000 | 0.0000 |
+| Off hand (mirrored) | 0.0001 units, 0.0000° | 0.0000 | 0.0000 |
+| Lava nailgun (inherits the nailgun's): written to the nailgun, held as the lava and as the nailgun | 0.0001 units, 0.0000° (both) | 0.0001 | 0.0000 |
+| Hotspot 2, Grip (off hand helping) | 0.0001 units, 0.0000° | 0.0001 | 0.0001 |
+| Hotspot 2, Cup (off hand round the main hand) | 0.0000 units, 0.0000° | 0.0001 | 0.0000 |
+| Hotspot 3, Grip, the weapon in the off hand, the main hand helping (mirrored) | 0.0001 units, 0.0000° | 0.0001 | 0.0001 |
+
+The drawn palm (after the grasp's palm fit) matching shows that the fingers in the preview are the ones held. The
+same numbers hold with the controller then turned anywhere (tried 80–100° away from the pose). In the world, at the
+same controller pose, the held hand was 0.009 units and 0.14° from where it was drawn while posing (a level
+controller), 0.035 units and 0.57° (a controller rolled 10°), 0.07 units and 1.6° (with the offsets above kept): the
+Euler angle offsets' quirk.
+
+Undo: the six keys came back as the exact text they had ("0.0" stays "0.0"), and the offsets not touched stayed.
+
+Replays of your 474 takes (`vr_motion_eval`, vrfiringrange): 420 of 474 pass, as on the base (`eval_posing.csv`). The
+posing mode is off in them; the code they run through changed only in shape (the Hand and Weapon Together offset as a
+function, the hand's drawing split out).
+
+### Files
+
+- `Quake/vr/vr_posing.cpp/.hpp` (new): the session, the buttons, set/undo, the text, the commands.
+- `Quake/vr/vr_view.cpp`: the floating weapon, the posing hand and the solve ("Weapon posing mode"); `setupHand`'s
+  drawing split out (`drawHand`), `showHotspots`' marks (`drawHotspots`), `vr_pose_check`.
+- `Quake/vr/vr_hands.cpp/.hpp`: the Hand and Weapon Together offset as a function of a slot (the same arithmetic).
+- `Quake/vr/vr_input.cpp` (the buttons and sticks while posing), `vr_client.cpp` (the moves while posing),
+  `vr_main.cpp`, `vr_cvars.inc`, `vr_menu.cpp` (the Weapon Offsets page only).
+
+### Limitations and not verified
+
+- Mock only: not tried in the headset. The text's place (80 cm ahead, 20 cm below the eyes) and size are guesses.
+- A blade hotspot is posed as a share along the blade only: the blade grip turns the hand itself, as before.
+- Posing doesn't change the weapon's Scale, the finger tweaks or the muzzle: tune them on the page.
+- Posing a hotspot, the weapon hand's copy is drawn closed as if gripping, whatever its controller does.
+
+### In the headset
+
+- Pose the shotgun with the main hand: does the grip feel the same when you then hold it? Try a tilted wrist.
+- Pose it with the off hand (Weapon Hand: Off Hand), then hold it in the main hand: the mirror image?
+- Pose a foregrip and a cup, then take them in play. Is the cup still round your hand?
+- Is the text readable and out of the way? Is 40 cm ahead at the chest a good place for the weapon?
+- Undo a few times; leave with the menu button; do the page's sliders show the new values?
