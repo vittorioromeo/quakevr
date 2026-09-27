@@ -532,7 +532,67 @@ struct Options
     bool save{false};     // the replay as a take, into motions/replays/
     bool recorded{false}; // the melee settings as recorded too
     bool quiet{false};
+    float rate{0.f};      // resampled to this many frames a second (0: the take's own frames)
 };
+
+// The take resampled at `hz` frames a second (another headset's rate): poses and velocities interpolated
+// (positions and velocities linearly, orientations by slerp), the controls and the rest from the frame before;
+// the server frames left to the engine (72 Hz). The take's events stay at their times, for the report.
+void resample(Take& take, float hz)
+{
+    std::vector<Frame> out;
+    const std::vector<Frame>& in = take.frames;
+    const double dt = 1.0 / hz;
+    const double tEnd = in.back().t;
+    size_t j = 0;
+    size_t nextEvents = 0;
+    for(double t = in.front().t; t <= tEnd + 1e-9; t += dt)
+    {
+        while(j + 1 < in.size() && in[j + 1].t <= t)
+        {
+            j++;
+        }
+        const Frame& a = in[j];
+        const Frame& b = in[std::min(j + 1, in.size() - 1)];
+        const float s = b.t > a.t ? static_cast<float>(std::clamp((t - a.t) / (b.t - a.t), 0.0, 1.0)) : 0.f;
+        Frame f = a;
+        f.t = t;
+        f.dt = dt;
+        f.tick = false;
+        f.hasD = false;
+        f.events.clear();
+        const auto blend = [&](Pose& p, const Pose& pa, const Pose& pb) {
+            p.position = glm::mix(pa.position, pb.position, s);
+            p.orientation = glm::slerp(pa.orientation, pb.orientation, s);
+            p.linearVelocity = glm::mix(pa.linearVelocity, pb.linearVelocity, s);
+            p.angularVelocity = glm::mix(pa.angularVelocity, pb.angularVelocity, s);
+            p.gripVelocity = glm::mix(pa.gripVelocity, pb.gripVelocity, s);
+        };
+        blend(f.tracking.head, a.tracking.head, b.tracking.head);
+        for(int h = 0; h < HAND_COUNT; h++)
+        {
+            blend(f.tracking.hands[h], a.tracking.hands[h], b.tracking.hands[h]);
+        }
+        f.playYaw = a.playYaw + std::remainder(b.playYaw - a.playYaw, 360.f) * s;
+        // The source frames' events up to this one.
+        for(; nextEvents < in.size() && in[nextEvents].t <= t; nextEvents++)
+        {
+            f.events.insert(f.events.end(), in[nextEvents].events.begin(), in[nextEvents].events.end());
+        }
+        out.push_back(std::move(f));
+    }
+    take.frames = std::move(out);
+    take.hasTicks = false;
+    take.firstRec = 0;
+    for(size_t i = 0; i < take.frames.size(); i++)
+    {
+        if(take.frames[i].phase == PhaseRec)
+        {
+            take.firstRec = i;
+            break;
+        }
+    }
+}
 
 // A playback's outcome.
 struct Report
@@ -687,11 +747,13 @@ void placePlayer(edict_t* player)
     // (the server would put the player back where it was), or a step may be higher here.
     glm::vec3 at = placeOrigin;
     bool free = false;
+    const auto fits = [&](const glm::vec3& p) {
+        vec3_t o{p.x, p.y, p.z};
+        return !SV_Move(o, player->v.mins, player->v.maxs, o, MOVE_NORMAL, player).startsolid;
+    };
     for(float up = 0.f; up <= 18.f && !free; up += 0.25f)
     {
-        vec3_t p{placeOrigin.x, placeOrigin.y, placeOrigin.z + up};
-        const trace_t tr = SV_Move(p, player->v.mins, player->v.maxs, p, MOVE_NORMAL, player);
-        if(!tr.startsolid)
+        if(fits(placeOrigin + glm::vec3{0.f, 0.f, up}))
         {
             free = true;
             at.z = placeOrigin.z + up;
@@ -701,9 +763,29 @@ void placePlayer(edict_t* player)
             }
         }
     }
+    // Into the target (a take recorded in noclip, or a synthetic take against a box turned another way):
+    // stepped back from it until the boxes are apart.
+    if(!free && targetEnt > 0)
+    {
+        edict_t* t = EDICT_NUM(targetEnt);
+        glm::vec3 away{placeOrigin.x - t->v.origin[0], placeOrigin.y - t->v.origin[1], 0.f};
+        away = glm::length(away) > 0.01f ? glm::normalize(away) : glm::vec3{1.f, 0.f, 0.f};
+        for(float back = 0.5f; back <= 32.f && !free; back += 0.5f)
+        {
+            for(float up = 0.f; up <= 2.f && !free; up += 0.25f)
+            {
+                const glm::vec3 p = placeOrigin + away * back + glm::vec3{0.f, 0.f, up};
+                if(fits(p))
+                {
+                    free = true;
+                    at = p;
+                    report.warnings += va("placed %.1f units further from the target (the boxes overlapped); ", back);
+                }
+            }
+        }
+    }
     if(!free && report.warnings.find("overlaps") == std::string::npos)
     {
-        // (A take recorded in noclip, into the dummy: the replay can't stand there.)
         report.warnings += "the player's box overlaps something where the take has it (recorded in noclip?); ";
     }
     placeOrigin = at;
@@ -978,6 +1060,10 @@ void stopPlayback(const char* why)
             }
         }
     }
+    if(o.rate > 0.f)
+    {
+        resample(t, std::clamp(o.rate, 20.f, 500.f));
+    }
     take = std::move(t);
     opts = o;
     report = Report{};
@@ -1015,14 +1101,14 @@ void stopPlayback(const char* why)
     return true;
 }
 
-// vr_motion_play <take> [target <classname|#entity>] [yaw <degrees>] [noplace] [watch] [save] [recorded] [quiet]
+// vr_motion_play <take> [target <classname|#entity>] [yaw <degrees>] [rate <hz>] [noplace] [watch] [save] [recorded] [quiet]
 // vr_motion_play stop
 void play_f()
 {
     if(Cmd_Argc() < 2)
     {
-        Con_Printf("usage: vr_motion_play <take> [target <classname|#entity>] [yaw <degrees>] [noplace] [watch] [save] "
-                   "[recorded] [quiet]; vr_motion_play stop\n");
+        Con_Printf("usage: vr_motion_play <take> [target <classname|#entity>] [yaw <degrees>] [rate <hz>] [noplace] [watch] "
+                   "[save] [recorded] [quiet]; vr_motion_play stop\n");
         return;
     }
     if(!q_strcasecmp(Cmd_Argv(1), "stop"))
@@ -1042,6 +1128,10 @@ void play_f()
         {
             o.yawSet = true;
             o.yaw = Q_atof(Cmd_Argv(++i));
+        }
+        else if(!q_strcasecmp(a, "rate") && i + 1 < Cmd_Argc())
+        {
+            o.rate = Q_atof(Cmd_Argv(++i));
         }
         else if(!q_strcasecmp(a, "noplace"))
         {
@@ -1897,7 +1987,8 @@ void evalFrame()
     return out;
 }
 
-// vr_motion_eval [<folder, pattern or take>] [map <name>] [out <file>] [save] [recorded] [watch]; vr_motion_eval stop
+// vr_motion_eval [<folder, pattern or take>] [map <name>] [out <file>] [rate <hz>] [save] [recorded] [verbose] [watch] [quit];
+// vr_motion_eval stop
 void eval_f()
 {
     if(Cmd_Argc() >= 2 && !q_strcasecmp(Cmd_Argv(1), "stop"))
@@ -1937,6 +2028,10 @@ void eval_f()
         else if(!q_strcasecmp(a, "out") && i + 1 < Cmd_Argc())
         {
             evalOut = Cmd_Argv(++i);
+        }
+        else if(!q_strcasecmp(a, "rate") && i + 1 < Cmd_Argc())
+        {
+            evalOpts.rate = Q_atof(Cmd_Argv(++i));
         }
         else if(!q_strcasecmp(a, "save"))
         {

@@ -107,7 +107,7 @@ meaning).
 | `map` | the map |
 | `dominant hand` | `vr_lefthanded` |
 | `main weapon`, `off weapon` | at the take's start: QC weapon id (`wid`, below), its flags, the model, and the two-handed grip |
-| `vr_world_scale`, `units per metre` | Quake units per real metre (`32.8084 * vr_world_scale`) |
+| `vr_world_scale`, `units per metre` | Quake units per real metre (`26.2467 * vr_world_scale`: 32.81 at 1.25) |
 | `vr_height_calibration`, `vr_floor_offset` | the player's calibrated height (metres) and the floor offset (units) |
 | `hand angles` | `vr_gunangle`, `vr_gunyaw`, `vr_offhandpitch`, `vr_offhandyaw`, `vr_controller_legacy_pose` |
 | `grips` | `vr_weapon_grip_mode`, `vr_2h_mode` |
@@ -328,3 +328,32 @@ batting), poses held for half the take (`pose:parry`: the parry test, a weapon's
 the weapons a category is for (`weapon:sword|axe|mjolnir`: with another weapon the take is N/A, reported apart). A
 hit whose kind isn't required fails the take. A line for a label (`slash_overhead melee/overhead_blow`) wins over its
 category's.
+
+## Synthetic takes (`Misc/quakevr/motion_synth.py`)
+
+Takes written from simple curves, in the same format (the columns playback reads: the tracking, the controls,
+the weapons, the target's offset), to build test cases before (and besides) real ones. They play like real takes
+(`vr_motion_play`, `vr_motion_eval`; `same_hits_as_recorded` is `-`: they have no live events).
+
+```
+python Misc/quakevr/motion_synth.py --list                 # the presets
+python Misc/quakevr/motion_synth.py all                    # every preset into quakevr/motions/synth/
+python Misc/quakevr/motion_synth.py slash_overhead --two-handed --duration 0.35 --distance 0.8
+```
+
+Options: `--out <folder>`, `--duration <s>` (the motion; 0.3, a thrust 0.15), `--distance <m>` (from the head to the
+dummy's middle, straight ahead), `--rate <Hz>` (90), `--world-scale` (1.25), `--eye-height` (1.646),
+`--two-handed` (a sword with the off hand on its grip, 12 cm below the main hand).
+
+As a module (`import motion_synth`): a `Take(label, main_weapon=..., target=(ahead, left))`, then segments:
+`hold(seconds)`, `glide({hand: (pos, quat)}, seconds)`, `move(seconds, fn)` (fn(s) -> {hand: (pos, quat)}, s eased
+0..1), each with a `phase` (`pre`, `rec`, `tail`), and `write(path)`. Positions are in the player's frame, metres
+(x forward, y left, z up from the floor under the head; the head at `eye_height`). Orientations:
+`hand_pose(hand, forward, up)` (the game's hand pointing `forward`, its thumb towards `up`: a fist `(1,0,0), (0,0,1)`;
+the main hand's palm ahead, fingers up `(0,0,1), (0,1,0)`), `blade_pose(hand, blade, right)` (a sword's blade along
+`blade`, the back of the main hand towards `right`: `sword_swing` puts the edge, the thumb's side, leading). They
+turn the game's hand into a controller orientation with the shipped hand offsets (`vr_gunangle 39.5`, ...) and, for
+the sword, the blade's direction on the controller measured in the mock headset (`SWORD_BLADE`); another weapon
+points along the hand's forward (approximate).
+
+Velocities are the curves' own (central differences); the server frames are the engine's (72 Hz).
