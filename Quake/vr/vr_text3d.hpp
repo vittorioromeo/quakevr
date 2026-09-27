@@ -31,6 +31,10 @@ enum class Align : int
 void queue(std::string_view text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale,
     bool screen = false);
 
+// Queued likewise, but drawn over the eye's image with the wrist log (drawOverlay: not depth tested,
+// white on a dark backing), centred: a notice that nothing in the scene may hide (the motion recorder's).
+void queueOverlay(std::string_view text, const glm::vec3& pos, const glm::vec3& angles, float scale);
+
 // Once per frame, after the eyes (and the flat view) are drawn.
 void clear();
 

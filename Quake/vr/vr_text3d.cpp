@@ -31,6 +31,7 @@ struct Queued
     Align align;
     float scale;
     bool screen;
+    bool overlay{false}; // over the eye's image, not depth tested (queueOverlay)
 };
 
 std::vector<Queued> queued;
@@ -347,6 +348,45 @@ size_t splitLines(std::string_view text)
     return longest;
 }
 
+// An overlay text (queueOverlay): centred lines, white on a dark backing, into the log's (drawn over
+// the eye's image, not depth tested).
+void layoutOverlay(const Queued& q)
+{
+    const size_t longest = splitLines(q.text);
+    if(longest == 0)
+    {
+        return;
+    }
+    vec3_t a{q.angles.x, q.angles.y, q.angles.z}, f, r, u;
+    AngleVectors(a, f, r, u);
+    const glm::vec3 right{r[0], r[1], r[2]};
+    const glm::vec3 up{u[0], u[1], u[2]};
+    const float charSize = 8.f * q.scale;
+    const glm::vec3 hInc = right * charSize;
+    const glm::vec3 vInc = -up * charSize;
+    const float width = charSize * static_cast<float>(longest);
+    const float height = charSize * static_cast<float>(textLines.size());
+    const glm::vec3 topLeft = q.pos - right * (width * 0.5f) + up * (height * 0.5f);
+
+    const float pad = charSize * 0.4f;
+    const glm::vec3 l = -right * (width * 0.5f + pad), rr = right * (width * 0.5f + pad);
+    const glm::vec3 b = q.pos - up * (height * 0.5f + pad), t = q.pos + up * (height * 0.5f + pad);
+    quad(b + l, b + rr, t + rr, t + l, glm::vec4{0.f, 0.f, 0.f, 0.55f}, backings);
+    for(size_t i = 0; i < textLines.size(); i++)
+    {
+        const std::string_view line = textLines[i];
+        glm::vec3 p = topLeft + vInc * static_cast<float>(i) + hInc * (static_cast<float>(longest - line.size()) * 0.5f);
+        for(const char c : line)
+        {
+            if(c != ' ')
+            {
+                glyph(p, hInc, vInc, static_cast<unsigned char>(c), glm::vec4{1.f}, logText);
+            }
+            p += hInc;
+        }
+    }
+}
+
 void layout(std::string_view text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale,
     bool screen = false)
 {
@@ -641,6 +681,14 @@ void queue(std::string_view text, const glm::vec3& pos, const glm::vec3& angles,
     builtFrame = -1;
 }
 
+void queueOverlay(std::string_view text, const glm::vec3& pos, const glm::vec3& angles, float scale)
+{
+    Queued q{std::string{text}, pos, angles, Align::Centre, scale, false};
+    q.overlay = true;
+    queued.push_back(std::move(q));
+    builtFrame = -1;
+}
+
 void clear()
 {
     queued.clear();
@@ -773,7 +821,14 @@ extern "C" void VR_DrawSceneOpaque()
         }
         for(const Queued& q : queued)
         {
-            layout(q.text, q.pos, q.angles, q.align, q.scale, q.screen);
+            if(q.overlay)
+            {
+                layoutOverlay(q);
+            }
+            else
+            {
+                layout(q.text, q.pos, q.angles, q.align, q.scale, q.screen);
+            }
         }
 
         // Facing the first view drawn this frame (the eyes are a few centimetres apart).

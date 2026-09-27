@@ -1221,6 +1221,8 @@ void _Host_Frame (double time)
 	if (setjmp (host_abortserver) )
 		return;			// something bad happened, or the server disconnected
 
+	time = VR_HostFrameTime (time); // QVR: a motion take playing back: its recorded frame times
+
 // keep the random time dependent
 	rand ();
 
@@ -1263,10 +1265,17 @@ void _Host_Frame (double time)
 	CL_AccumulateCmd ();
 
 	//Run the server+networking (client->server->client), at a different rate from everyt
-	if (accumtime >= host_netinterval)
+	double vrframetime; // QVR: a motion take playing back runs its recorded server frames
+	int vrserver = VR_ServerFrameOverride (&vrframetime);
+	if (vrserver >= 0 ? vrserver : accumtime >= host_netinterval)
 	{
 		float realframetime = host_frametime;
-		if (host_netinterval)
+		if (vrserver >= 0)
+		{
+			host_frametime = vrframetime;
+			accumtime = 0;
+		}
+		else if (host_netinterval)
 		{
 			host_frametime = q_max(accumtime, (double)host_netinterval);
 			accumtime -= host_frametime;
@@ -1364,6 +1373,7 @@ void _Host_Frame (double time)
 		}
 	}
 
+	VR_HostFrameEnd (); // QVR: the motion recorder's row
 	host_framecount++;
 	VR_ProfileFrameEnd (); // QVR
 }

@@ -2,6 +2,7 @@
 
 #include "vr_climb.hpp"
 #include "vr_move.hpp"
+#include "vr_motion.hpp"
 #include "vr_engine.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
@@ -370,6 +371,8 @@ extern "C" void VR_ServerFrameEnd()
     // Late precaches (setmodel on an unprecached model, precache_* after load).
     broadcastNewPrecaches(sv.model_precache, broadcastModelCount, QVR_SVC_PRECACHE_MODEL);
     broadcastNewPrecaches(sv.sound_precache, broadcastSoundCount, QVR_SVC_PRECACHE_SOUND);
+
+    qvr::motion::serverFrame(); // the motion recorder's sample of this server frame
 }
 
 namespace qvr::server
