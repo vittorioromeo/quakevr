@@ -3,6 +3,7 @@
 #include "vr_progs.hpp"
 #include "vr_engine.hpp"
 #include "vr_box3d.hpp"
+#include "vr_climb.hpp"
 #include "vr_debris.hpp"
 #include "vr_cvars.hpp"
 #include "vr_physics.hpp"
@@ -10,6 +11,7 @@
 #include "vr_walltorch.hpp"
 #include "vr_props.hpp"
 
+#include <algorithm>
 #include <cstring>
 #include <vector>
 
@@ -158,15 +160,43 @@ extern "C" void VR_OnProgsLoaded()
     sv_bindings = b;
 }
 
-extern "C" void VR_OnSpawnServerBeforeLoad()
+namespace
+{
+
+// The world reset: every server subsystem's state of the old world forgotten (a new map, a changelevel, a loaded game,
+// a disconnect). What the server keeps across frames about entities is kept by entity number and forgotten here and
+// when the entity is removed (onEdictFree); an entity number kept past a load would name another entity of the loaded
+// world. A subsystem with such state adds its reset here.
+void resetServerWorld()
 {
     qvr::server::resetClients();
-    qvr::physics::resetRigidBodies();
+    qvr::physics::resetRigidBodies(); // (with the two-handed holds)
     qvr::box3d::reset();
+    qvr::climb::reset();
     qvr::debris::reset();
     qvr::props::resetModelCache(); // (the models' names may be others' now)
-    qvr::physics::precacheWaterSounds();
     resetBuiltinState();
+}
+
+} // namespace
+
+extern "C" void VR_OnClearMemory()
+{
+    // Host_ClearMemory (SV_SpawnServer: every map and loaded game; CL_ClearState without a local server): the edicts,
+    // cl_entities and the models are about to be freed with the hunk. The server's and the client's VR state of the old
+    // world goes first, so that nothing keeps a pointer into the freed hunk (the client's again at the new serverinfo,
+    // VR_OnClientClearState; the server's at VR_OnSpawnServerBeforeLoad).
+    resetServerWorld();
+    if(cls.state != ca_dedicated)
+    {
+        VR_OnClientClearState();
+    }
+}
+
+extern "C" void VR_OnSpawnServerBeforeLoad()
+{
+    resetServerWorld();
+    qvr::physics::precacheWaterSounds();
     // The training dummy's attacks (parry practice; QC vr_dummy.qc) are off at every map load, a saved game's too.
     Cvar_SetQuick(&qvr::vr_dummy_attacks, "0");
     callSpawnServerEntryPoint(sv_bindings.OnSpawnServerBeforeLoad);
@@ -212,6 +242,63 @@ extern "C" void VR_OnBeginLoadGame()
     loadingSaveGame = true;
 }
 
+namespace
+{
+
+[[nodiscard]] int modelPrecacheIndex(const char* name)
+{
+    for(int i = 1; i < MAX_MODELS && sv.model_precache[i]; i++)
+    {
+        if(!strcmp(sv.model_precache[i], name))
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
+// A saved game's entities whose models were precached late (setmodel of a model the map's spawn functions don't
+// precache: the firing range's dispensed boxes, test spawns, wall torches): the loaded map's precache list lacks them, so
+// the saved .modelindex names no model (the entity had no body, no collision model: an explosive box pulled by the
+// grappling hook stood still) or, taken by another late precache since, another one. Such an entity's model is found
+// again by its name, precached now if need be (the client, connecting after the load, gets the whole list). A saved
+// index that names a precached model other than the entity's .model is left alone when that model is precached too
+// (a deliberate index: the ring of shadows' eyes on the player's model).
+void rebindLoadedModels()
+{
+    for(int num = 1; num < qcvm->num_edicts; num++)
+    {
+        edict_t* ent = EDICT_NUM(num);
+        const int saved = static_cast<int>(ent->v.modelindex);
+        if(ent->free || saved == 0 || !ent->v.model)
+        {
+            continue;
+        }
+        const char* name = PR_GetString(ent->v.model);
+        const bool savedValid = saved > 0 && saved < MAX_MODELS && sv.model_precache[saved];
+        if(!name[0] || (savedValid && !strcmp(sv.model_precache[saved], name)))
+        {
+            continue;
+        }
+        int index = modelPrecacheIndex(name);
+        if(savedValid && index >= 0)
+        {
+            continue;
+        }
+        if(index < 0)
+        {
+            index = VR_LatePrecacheModel(name);
+        }
+        Con_DPrintf("load: entity %d's model %s: index %d -> %d\n", num, name, saved, std::max(index, 0));
+        ent->v.modelindex = static_cast<float>(std::max(index, 0));
+        SV_LinkEdict(ent, false);
+    }
+    // Everything precached while loading is in the serverinfo that clients receive (none is connected yet).
+    qvr::server::onSpawnServerAfterLoad();
+}
+
+} // namespace
+
 extern "C" void VR_OnLoadGame()
 {
     loadingSaveGame = false;
@@ -220,6 +307,14 @@ extern "C" void VR_OnLoadGame()
     // values (QC only rewrites them in SetNewParms/SetChangeParms), so they become the
     // single-player client's stored parms, like parm1..16 do from the savegame header.
     VR_StoreSpawnParms(0);
+
+    // The saved edicts replaced the map's own, numbers and all: what SV_SpawnServer's two frames made for the map's
+    // entities (Box3D's bodies, the free places and turns in the hand) would be taken for the loaded ones'. Built
+    // again from the loaded edicts (Box3D at its next step; the world's mesh is cached).
+    qvr::box3d::reset();
+    qvr::physics::resetRigidBodies();
+
+    rebindLoadedModels();
 
     qvr::walltorch::restoreAfterLoad(); // the map's wall torches a save made before they were entities lacks
 

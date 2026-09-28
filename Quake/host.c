@@ -645,6 +645,7 @@ not reinitialize anything.
 */
 void Host_ClearMemory (void)
 {
+	VR_OnClearMemory (); // QVR: the VR state of the old world (entity numbers and pointers) forgotten, before the hunk goes
 	R_ClearBoundingBoxes ();
 
 	if (cl.qcvm.extfuncs.CSQC_Shutdown)

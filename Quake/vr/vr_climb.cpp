@@ -1805,6 +1805,11 @@ constexpr float yawSteps = 256.f;   // the holds' ways out in the stats: a byte 
 
 } // namespace
 
+void qvr::climb::reset()
+{
+    std::fill(std::begin(climbers), std::end(climbers), Climber{});
+}
+
 void qvr::climb::init()
 {
     Cmd_AddCommand("vr_climb_probe", probe_f);

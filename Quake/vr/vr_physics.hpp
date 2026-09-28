@@ -31,6 +31,10 @@ void setCarryTurn(edict_t* ent, const float* handAngles, const glm::mat3& turnIn
 // Forgets rigid bodies' and held objects' state (a new server).
 void resetRigidBodies();
 
+// An entity removed (ED_Free: VR_OnEdictFree): its last free place, its turn in the hand and its two-handed hold
+// forgotten, kept by its number, which the next entity put in its slot would otherwise inherit.
+void forgetEntity(int num);
+
 // Water splashes and sounds (vr_physics.cpp).
 
 // A new server, loading (VR_OnSpawnServerBeforeLoad): with Quake VR's progs, the water sounds precached, their indices

@@ -691,14 +691,19 @@ void bindBuiltins()
 
 void onEdictFree(edict_t* ed)
 {
-    // A wounded entity removed: the clients free its mask, else the next entity put in its slot (edicts are reused),
-    // with the same model (a monster from the same spawner, a gib), would show its wounds. Reliable: once, at its end.
+    // An entity removed: what the server keeps by its number is forgotten (physics::forgetEntity), and for a wounded one
+    // the clients free its mask, else the next entity put in its slot (edicts are reused), with the same model (a
+    // monster from the same spawner, a gib), would show its wounds. Reliable: once, at its end.
     if(qcvm != &sv.qcvm || !sv.active)
     {
         return;
     }
     // Checked: ED_Free runs for any edict, one a saved game's parse frees among them.
     const int num = NUM_FOR_EDICT_CHECKED(ed);
+    if(num > 0)
+    {
+        physics::forgetEntity(num);
+    }
     if(num <= 0 || num >= static_cast<int>(woundsSent.size()) || !woundsSent[static_cast<std::size_t>(num)])
     {
         return;

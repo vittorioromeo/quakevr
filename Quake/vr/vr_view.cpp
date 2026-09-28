@@ -4065,6 +4065,7 @@ void view::resetClientState()
     for(RigHand& rh : rigHands)
     {
         rh.grasp = Grasp{};
+        rh.held = Held{}; // (a pointer into cl_entities, which the new map's client state replaces)
         for(auto& finger : rh.joints)
         {
             for(float& j : finger)

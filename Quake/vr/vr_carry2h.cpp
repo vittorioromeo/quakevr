@@ -256,4 +256,10 @@ void resetServer()
     watches.clear();
 }
 
+void forgetEntity(int num)
+{
+    holds.erase(num);
+    watches.erase(num);
+}
+
 } // namespace qvr::carry2h

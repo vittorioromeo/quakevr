@@ -357,4 +357,14 @@ void resetRigidBodies()
     carry2h::resetServer();
 }
 
+void forgetEntity(int num)
+{
+    if(num >= 0 && num < static_cast<int>(freePlaces.size()))
+    {
+        freePlaces[static_cast<std::size_t>(num)] = FreePlace{};
+    }
+    carried.erase(num);
+    carry2h::forgetEntity(num);
+}
+
 } // namespace qvr::physics

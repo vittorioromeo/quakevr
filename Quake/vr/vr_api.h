@@ -69,6 +69,7 @@ void VR_AliasPosesLoaded (const char *name, void *aliashdr, const stvert_t *stve
 // Server QuakeC (pr_edict.c, pr_cmds.c, sv_main.c, host_cmd.c).
 void VR_OnProgsLoaded (void);			// end of PR_LoadProgs, with the loaded qcvm current
 void VR_OnSpawnServerBeforeLoad (void);	// SV_SpawnServer, before ED_LoadFromFile
+void VR_OnClearMemory (void);			// Host_ClearMemory, before the hunk (edicts, cl_entities, models) is freed: every pointer into it forgotten
 void VR_OnEdictFree (edict_t *ed);	// ED_Free (any VM's)
 void VR_OnSpawnServerAfterLoad (void);	// SV_SpawnServer, after serverinfo is sent
 void VR_OnBeginLoadGame (void);			// Host_Loadgame_f, before SV_SpawnServer

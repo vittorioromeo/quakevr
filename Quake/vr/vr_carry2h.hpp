@@ -71,4 +71,7 @@ void toAngles(const glm::quat& q, float* out, bool brush);
 // Forgets the kept holds (a new server).
 void resetServer();
 
+// Forgets entity `num`'s hold (it was removed: physics::forgetEntity).
+void forgetEntity(int num);
+
 } // namespace qvr::carry2h
