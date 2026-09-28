@@ -25,6 +25,7 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | Hand calibration | Hand/Gun Calibration > Hand Calibration: each hand moved (X/Y/Z cm, along the controller) and turned (Gun Angle and Gun Yaw as its pitch and yaw, plus a roll) on its controller; the off hand mirrored or its own; everything held and the server move with it (2 cm moves them 2.0000 cm, 10° turns them 10.000°); Show Controller and Match Controller Preview to line it up; nothing changes at 0 |
 | Grab reach, two-handed detach, brushing fingers | a thing is taken only if the fist touches it (it was 8 cm from the fist's front, past the open fingertips), Grab Distance Bias; a prop held in both hands drops when both are pulled off it (one: the other keeps it); the free hand's fingers rest on or bend out of the weapon they brush |
 | Items as physics pickups | the map's weapons, keys, runes and suits hang spinning like the armour until grabbed, knocked or force-grabbed, then are Box3D props; a gripped weapon is yours at once, the rest are taken at a holster (Weapons and Keys, default on). Props no longer rest in the floor (the firing range's weapons: 2.8 units in on average, 19.9 at most; now 0.1 above); spinning pickups' physics shapes turn with the model |
+| Arm IK with calibrated hands | the wrist judged against a real, lopsided range (ulnar deviation, which his Gun Angle 70 adds, is natural), the elbow swinging only past it or for a roll; the pole takes the hand's roll only: his takes swing the elbow >30° in 2.6% of frames instead of 24.3%, the same motion gives elbows 4.1 cm apart under the two calibrations instead of 8.6; wrist bends turn the gadget 0-5° (was 7-35°) |
 
 Found on the way: fteqcc stores 0 when `a || b` is assigned into an entity field (rewritten; no other code has that
 shape); a parried blow's hand knock, timed by `cl.time`, came back after a level change (reset now).
@@ -4824,3 +4825,164 @@ The old strap stubs are gone. 26 closed pieces, 720 triangles (the strap: 272).
 - [ ] **Torch grips:**
   - [ ] Take the torch from the belt after flipping it to the low grip: it comes in the overhead grip.
   - [ ] Take it off your head and off a gun: does the grip it comes in feel right?
+
+## Arm IK with calibrated hands
+
+His note: after he calibrated his hands to match his real ones (Gun Angle 70 instead of 39.5, Gun Yaw 0, X -4, Y 0.58,
+Z -2.5 cm, the off hand mirrored), the arm, elbow and shoulder IK looked "completely screwed up". Branch `agent/armik`;
+scripts, traces and composites are in the scratchpad's `armik/` (`final/` for the results).
+
+### Why
+
+- **Not the controller's axes.** The arm IK already worked from the drawn hand: the wrist target is the drawn hand's
+  wrist joint (after the calibration), and the wrist's bend is the drawn hand against the solved forearm. For the same
+  drawn hand, both calibrations gave the same arm to the millimetre.
+- **What changed is the hand it gets.** Gun Angle 70 turns the drawn hand 30.5° about its palm's normal: for a
+  gripping hand that is ulnar deviation (the knuckles tilt towards the little finger).
+  - Measured on 28 of his takes (his real controller motions, replayed under each calibration), against the forearm
+    the elbow's pole alone gives: with his calibration the wrist sits on average in 10-30° of extension and 11-22° of
+    ulnar deviation. That is the textbook posture of a hand gripping a handle, so the calibrated hand is plausible.
+  - With the default one it read as radial deviation instead (-9 to -16° on average), which real wrists barely do.
+- **The cause: the wrist-limits model (round 21's "the elbow eases the wrist").** It judged the wrist against a
+  symmetric range centred on a straight wrist: 75° of flexion or extension and 35° of deviation either way, strained
+  from 60% of it, so from 21° of deviation.
+  - His natural ulnar deviation of 20-35° was "strain", and the elbow swung round to ease it, often by 30-50°: tucked
+    in across the chest in a guard, or lifted out to the side.
+  - With his calibration the elbow swung more than 10° in 51.5% of the frames of his takes, and more than 30° in
+    24.3%. With the default one, 43.9% and 13%.
+  - The same model also swung the elbow for ordinary flexion and extension, and the wrist gadget turned with the
+    forearm: your other note.
+- **A smaller leak:** the pole's hand term (Elbow Away from Hand) used the thumb's direction as it is. Tilting the
+  hand along the forearm (deviation, or a calibration's pitch) moved the elbow too.
+
+### What changed (`solveArm`, `wristStrain`, `wristTurn` in `vr_avatar.cpp`)
+
+- **The wrist's range is a real one, lopsided:** 85° of flexion (towards the palm), 80° of extension, 45° of ulnar
+  deviation and 30° of radial, measured quadrant by quadrant (an ellipse's quarter in each). `wristTurn` now knows the
+  side, so flexion and extension are told apart (they were one symmetric axis).
+- **A bend only strains 15% past that range**, and reaches 1 (as much as a 45° swing of the elbow) at 45% past.
+  - A real elbow doesn't move while the wrist bends, even hard. Only a bend no wrist makes says the forearm is
+    elsewhere.
+  - The roll is unchanged in effect: it strains from 60° (a forearm turns about 85° either way; past that the upper
+    arm turns and the elbow swings), reaching 1 at 85° (it was at 80°).
+  - Wrist Limits (`vr_body_wrist_limits`) still scales the range; 0 still turns the swing off.
+- **The pole's hand term takes only the hand's roll about the forearm:** the thumb's side across the forearm that the
+  body's own pole gives (a first two-bone pass). Bending the wrist, or a calibration's pitch, no longer moves the
+  elbow; rolling the hand still does (palm up brings the elbow in). The drawn arms and the body-off arms (the wrist
+  gadget's) both use it.
+- The forearm's twist joints, the wrist's mitre, the bracer, the hand bone and the gadget's `forearmFrame` are
+  unchanged: they follow the solved forearm as before.
+- **`vr_debug_arm`** (new, not saved):
+  - 1 prints each drawn arm once: the shoulder, elbow and wrist in the body's axes, the elbow's angle and swing, the
+    hand's axes, and the wrist's flexion, deviation, twist and strain against the solved forearm and against the
+    pole's. It also prints them in the tracking space's axes, to set up `vr_mock_hand` poses.
+  - 2 writes the same every frame to `arm_trace.txt`, with whether a take is playing.
+
+### His takes, both calibrations (`final/takes_table.txt`)
+
+28 takes (2 of each of 14 categories: guards, punches, stabs, slashes, gun strikes, shoves, no-hit), 23,326
+arm-frames, replayed with `vr_motion_eval` from his raw controller poses. The calibration was set in copies of the takes'
+headers. The swing is the elbow's turn off its pole.
+
+| | swing > 10° | swing > 30° | mean swing |
+|---|---|---|---|
+| Default calibration, before | 43.9% | 13.0% | 14.4° |
+| His calibration, before | **51.5%** | **24.3%** | 18.2° |
+| His calibration, after | **11.7%** | **2.6%** | 3.3° |
+| Default calibration, after | 13.6% | 5.4% | 4.5° |
+
+- **Natural poses, his calibration, before → after** (swing > 10°):
+  - guard (parry_pose) 79.8% → 21.9% (> 30°: 26.2% → 0.1%);
+  - straight punch 73.7% → 6.7%;
+  - not-a-parry pose 39.5% → 1.2%;
+  - no-hit 21.2% → 1.0%;
+  - jab 27.5% → 1.2%.
+- **What still swings** is mostly sword and gun strikes (two-handed stab 30%, gun parry-bash 36%). There the pole's
+  forearm would bend the wrist past its reach (ulnar deviation of 50-90°, or a roll past 60°).
+- **The same real motion gives nearly the same arm under either calibration.** The elbow's distance between the two
+  calibrations, frame by frame, went from 8.6 cm (median 7.4, 90th percentile 16.9) to 4.1 cm (median 3.1, 90th
+  percentile 7.9).
+  - The drawn wrist itself is 5.2 cm apart between them (the calibration moves it), and the pole alone puts the
+    elbows 3.3 cm apart. So what is left is the wrist's own move, not the IK.
+  - For the same drawn hand the arm is identical under both.
+
+### Posed natural arms (mock, `ev.py`)
+
+- **The poses:** relaxed, guard, aiming forward, reaching up, across the body, punching, and a two-handed shotgun.
+  They are built as real arms (shoulder, elbow, wrist, the hand in line with the forearm), and the controllers are put
+  where his calibration draws those hands.
+- **Before and after, his calibration:** no swing in any of them (13 of 14 arms). The shotgun's front hand, palm up
+  (65° of supination), turns the elbow 15-18° about an almost straight arm.
+- **The default calibration, same controllers:** its hands are 30° off his (radial deviation 17-44°). After the fix
+  they cause no swing either.
+
+### Wrist bends: the gadget and the forearm (your second note)
+
+- **The test:** round 21's (`gadget2/pivoted.py`): the off hand turned about its wrist, from a straight wrist, about the
+  forearm's axes, with its labels.
+  - Under his calibration, the controllers are placed so that the drawn hands are the same.
+  - Body on, Wrist Limits 1 unless stated.
+  - The number is how far the gadget turned from the straight wrist, and in brackets how far the elbow moved.
+
+| Wrist | Before, default | Before, his | After, default | After, his | After, his, body off | After, his, Wrist Limits 0 |
+|---|---|---|---|---|---|---|
+| flexion +60° | 20° | 20° | **2°** (2 cm) | **3°** (2 cm) | 3° | 3° (2 cm) |
+| extension 60° | 16° | 16° | **2°** (1 cm) | **2°** (1 cm) | 2° | 2° (1 cm) |
+| deviation +30° | 11° | 11° | **1°** (1 cm) | **1°** (1 cm) | 1° | 1° (1 cm) |
+| deviation -30° | 7° | 7° | **0°** (0 cm) | **1°** (0 cm) | 1° | 1° (0 cm) |
+| flexion 60° + deviation 30° | 34° | 34° | **12°** (3 cm) | **12°** (3 cm) | 12° | 12° (3 cm) |
+| flexion +85° | 35° | 35° | **5°** (3 cm) | **5°** (3 cm) | 5° | 5° (3 cm) |
+| extension 80° | 33° | 33° | **2°** (1 cm) | **2°** (1 cm) | 4° | 4° (2 cm) |
+| twist +45° | 40° | 40° | 50° (15 cm) | 50° (15 cm) | 31° | 31° (1 cm) |
+| twist -45° | 34° | 34° | 33° (4 cm) | 33° (4 cm) | 33° | 33° (4 cm) |
+
+- **Bends now leave the forearm still:** 0-5°, the same as with the body off.
+  - The 12° of the combined bend is the twist such a turn carries (the forearm's share of it), as with the body off.
+  - The centimetres left are the elbow following the wrist's own small move.
+- **Rolls still swing the elbow.** The straight wrist here is already turned 57° (the palm down, reading the gadget),
+  so twist +45° is a roll of about 100°, past a forearm's reach. The elbow swings out 38° and the gadget turns 50°
+  with it, instead of the forearm's 31°. The other way, back towards the thumb up, nothing swings.
+- On my own version of the test (bends about the hand's own axes, `final/gbtable.md`) the bends move the gadget by
+  0-2°.
+
+### Composites (`final/armik_side.png`, `armik_front.png`, `armik_eyes.png`)
+
+- **What they show:** from the side, from the front (a spectator camera on the player's own body, so the drawn hands
+  show), and from the player's eyes.
+- **The columns:** the default calibration before, his calibration before, his calibration after, and the default
+  calibration after.
+- **The rows:**
+  - the seven posed natural arms;
+  - four frames of his own takes (guard, the start of a punch, a stab, a slash), from their raw controller poses.
+  - The shotgun stays in the main hand after its row, in every column alike.
+- **His take's guard:** before, the right elbow is lifted out to shoulder height (the swing easing his ulnar
+  deviation). After, it hangs under the fist, as with the default calibration.
+- In the posed natural arms the columns barely differ: nothing strained there, before or after.
+
+### Checks
+
+- `vr_body_wrist_limits` now swings the elbow over 10° in 1-7% of the frames of his calm takes (no-hit, not-a-parry,
+  jabs, straight punches), instead of 21-74%. In his guards it's 22% (from 80%), almost all under 30°: there his right
+  hand reads 60° of ulnar deviation against the pole's forearm, and the elbow moves out under the fist.
+- The armfix examples, default calibration, right hand at the chest:
+  - The controller rolled 90°: the elbow still swings, 15°. The twist goes from -64° to -73° and the bend from 73° to
+    63°.
+  - Pointed 50° up: 71° of radial deviation that no swing eases, since the arm is almost straight. The elbow swings
+    14°. The armfix notes had it swinging to a 119° twist.
+- The drawn hand, weapons, the melee's server points and `vr_dumpview` are untouched: only the drawn arms and the
+  gadget's forearm change.
+
+### Not verified
+
+- **His real elbows:** the takes give his controllers, not his elbows. "Natural" is judged by the wrist staying within
+  a real one's reach, and by the same motion giving the same arm under both calibrations.
+- **The ranges:** 85/80/45/30° are textbook maximums. If his wrist reads past them in ordinary moves (the stabs' ulnar
+  deviation), Wrist Limits above 1 widens them.
+- **Melee:** not re-run. It doesn't read the body's arms, and his takes are archived.
+
+### In the headset
+
+- [ ] With your calibration, hold a guard, aim, punch and let your arms hang. Does the elbow stay where yours is,
+      without jumping out or tucking in?
+- [ ] Bend your wrist hard every way with the gadget up: the forearm and gadget should stay still.
+- [ ] Roll your palm fully down and up: the elbow should swing only at the end of the roll.
