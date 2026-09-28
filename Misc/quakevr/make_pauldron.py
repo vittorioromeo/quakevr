@@ -20,6 +20,7 @@ import math
 import os
 import sys
 
+import genguard
 import mdlgen
 from mdlgen import add, sub, mul, dot, cross, norm
 
@@ -202,11 +203,14 @@ def main():
     here = os.path.dirname(os.path.abspath(__file__))
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "..", "..", "quakevr", "progs")
     skins = [paint(style) for style in range(len(RAMPS))]
+    # The files edited by hand since this wrote them are not overwritten (genguard.py: --keep-edited, --force).
+    guard = genguard.Guard("make_pauldron.py", [os.path.join(out, n + ".mdl") for n in ("vrpauldron", "vrpauldron_arm")])
     for name, mesh in (("vrpauldron", cap()), ("vrpauldron_arm", lames())):
         path = os.path.join(out, name + ".mdl")
         mdlgen.write_mdl(path, mesh, skins, name)
         print("%s.mdl: %d vertices, %d triangles, %d skins -> %s" % (name, len(mesh.verts), len(mesh.tris), len(skins),
                                                                      os.path.normpath(path)))
+    guard.finish()
 
 
 if __name__ == "__main__":

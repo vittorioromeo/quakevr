@@ -6,13 +6,16 @@
 # Usage: python Misc/quakevr/make_bloody_hands.py [progs folder]
 #
 # Idempotent: skin 0 is kept, any other skins are replaced. The blood only goes where the model's
-# triangles use the skin. Run it again after changing a model's skin (taper_hand.py keeps skins).
+# triangles use the skin. Run it again after changing a model's skin (taper_hand.py keeps skins; so does
+# the Blender add-on). It stops if the blood skins were painted by hand since it wrote them (genguard.py:
+# --keep-edited leaves those models as they are, --force repaints them).
 
 import math
 import os
 import struct
 import sys
 
+import genguard
 from mdlgen import HEADER, read_skins
 
 MODELS = ["hand_base", "finger_thumb", "finger_index", "finger_middle", "finger_ring", "finger_pinky"]
@@ -139,8 +142,13 @@ def process(path, name):
 
 def main():
     folder = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(__file__), "..", "..", "quakevr", "progs")
-    for name in MODELS:
-        process(os.path.join(folder, name + ".mdl"), name)
+    paths = [os.path.join(folder, name + ".mdl") for name in MODELS]
+    # It rewrites only the blood skins (1-3): a model edited in Blender (its shape, skin 0) is what it is for; blood
+    # skins painted by hand since it wrote them stop it (genguard.py: --keep-edited, --force).
+    guard = genguard.Guard("make_bloody_hands.py", paths, part=genguard.MDL_SKINS_AFTER_0)
+    for name, path in zip(MODELS, paths):
+        process(path, name)
+    guard.finish()
 
 
 if __name__ == "__main__":

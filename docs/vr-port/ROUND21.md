@@ -5053,3 +5053,39 @@ headers. The swing is the elbow's turn off its pole.
       without jumping out or tucking in?
 - [ ] Bend your wrist hard every way with the gadget up: the forearm and gadget should stay still.
 - [ ] Roll your palm fully down and up: the elbow should swing only at the end of the roll.
+
+## The flashlight and every other model in Blender
+
+"Does the addon also support the flashlight?" Now yes, and every other `.mdl` (MODELS_IN_BLENDER.md, "The flashlight
+and the other models").
+
+- **The flashlight follows its model.** The game used to place the beam, the lens's glow, the belt clip, the cord
+  and the gun clamp by numbers matching the shipped torch. It now reads them from `vrflashlight.mdl` as it loads it:
+  the lens (the part painted fullbright in skin 1), its centre and radius; the tail; the switch; the outline. Move or
+  enlarge the lens and the beam and light start there, that wide. With the shipped torch the values are the same;
+  on the shotgun it sits 1 mm closer (8.2 cm under the barrel, was 8.3: the tube's true radius).
+- **Why read it rather than check it:** the lens is marked in the model already (the "on" skin), so nothing is left
+  for you to copy into the code. What can't come from the model stays a rule the export checks: +x is the beam, +z
+  the switch, the origin the grip.
+- **The export checks each VR model** the game places by numbers in its code (the holster's plate, the shell's rim,
+  the pauldrons' skins, the ammo button, the unrigged hand, the knights' swords) and says what to change.
+- **`vr_model_reload`** reads those models too, and prints the flashlight's lens.
+- **Every generator that writes a model or a skin stops before overwriting your edits:** the flashlight, holster,
+  pauldrons, shell, spawn buttons, detail textures, colour grades and the hands' blood skins. `make_bloody_hands.py`
+  still runs after you reshape a hand, as long as you didn't paint its blood skins.
+
+Tests:
+
+- All 103 `.mdl` files round-trip byte for byte, twice, with no check firing. The operators were run in a temporary
+  profile, with the hand add-on enabled beside them. The three bodies also round-trip.
+- The torch's head was enlarged 1.4 times and its lens moved 0.5 forward and 0.3 up, through the operators. In the
+  mock (belt, in the hand, on the shotgun, before and after) the beam comes out of the new lens. A lens left
+  unmarked warns in the console and in the report. A switch turned to -z is refused as a CHECK.
+- The guard: `make_flashlight.py` refused the edited torch, kept it with `--keep-edited` and overwrote it with
+  `--force`. `make_bloody_hands.py` ran after a skin 0 edit and refused painted blood.
+
+### In the headset
+
+- [ ] Move or enlarge the flashlight's lens in Blender, export, `vr_model_reload vrflashlight`: does the beam start at
+      the new lens, on the belt, in the hand and on a gun?
+- [ ] Make the grip thicker: do the fingers still close on it?

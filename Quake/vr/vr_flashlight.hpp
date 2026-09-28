@@ -63,8 +63,12 @@ void reset();
 // QVR_BUTTON_*HANDBUSY, and its aim beam is not drawn).
 [[nodiscard]] bool holds(int hand);
 
-// The game directory changed (VR_OnGameDirChanged): the guns' torch spots (by model name) forgotten.
+// The game directory changed (VR_OnGameDirChanged): the guns' torch spots (by model name) forgotten, the torch's
+// shape read again from its model.
 void onGameDirChanged();
+
+// vr_model_reload: models were read again (`torch`: the torch's among them, its Shape read again and printed).
+void onModelsReloaded(bool torch);
 
 // Where the torch held by `hand` is drawn this frame (its entity's origin and angles, as setupView places it): for the
 // hand's grasp, solved before the torch is placed (no frame's lag between them).

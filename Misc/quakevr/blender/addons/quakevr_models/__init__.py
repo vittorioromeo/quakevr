@@ -1,7 +1,8 @@
 # Quake VR models: imports and exports Quake VR's body (vrbody*.md5mesh, .md5anim and the vrbody_NN_00.tga skins),
-# its weapons (v_*.mdl) and its wrist gadget (vrgadget.mdl) with their frames, skins and UVs, keeping what the engine
-# relies on (the body's joints; the models' anchors, header, frames and vertex indices), so they can be edited in
-# Blender and reloaded in the game (vr_model_reload). The author's guide: docs/vr-port/MODELS_IN_BLENDER.md. The hand
+# its weapons (v_*.mdl), its wrist gadget (vrgadget.mdl), the flashlight and every other model of quakevr/progs (.mdl)
+# with their frames, skins and UVs, keeping what the engine relies on (the body's joints; the models' anchors, header,
+# frames and vertex indices; checks.py: what the engine takes from the flashlight, the holster, the pauldrons, the
+# shell...), so they can be edited in Blender and reloaded in the game (vr_model_reload). The author's guide: docs/vr-port/MODELS_IN_BLENDER.md. The hand
 # has its own add-on (quakevr_hand).
 #
 # Blender 5.2. Install: Preferences > File Paths > Script Directories: add Misc/quakevr/blender, restart Blender,
@@ -13,7 +14,8 @@ bl_info = {
     "version": (1, 0, 0),
     "blender": (5, 2, 0),
     "location": "File > Import/Export > Quake VR Body / Quake VR Model (.mdl); 3D View > Sidebar > Quake VR",
-    "description": "Edit Quake VR's body, weapons and wrist gadget with their bones, frames, skins and anchors",
+    "description": "Edit Quake VR's body, weapons, wrist gadget, flashlight and other models with their bones, "
+                   "frames, skins and anchors",
     "category": "Import-Export",
 }
 
@@ -24,6 +26,7 @@ from bpy.props import BoolProperty, EnumProperty, StringProperty
 from bpy_extras.io_utils import ExportHelper, ImportHelper
 
 from . import body_blender as BB
+from . import checks
 from . import md5body
 from . import mdl
 from . import mdl_blender as MB
@@ -55,6 +58,9 @@ def popup(context, title, lines, icon='ERROR'):
     def draw(self, _context):
         for line in lines[:24]:
             self.layout.label(text=line)
+    if bpy.app.background:  # no window (blender --background): a popup would crash Blender; the report has it
+        print(title)
+        return
     context.window_manager.popup_menu(draw, title=title, icon=icon)
 
 
@@ -63,7 +69,8 @@ def popup(context, title, lines, icon='ERROR'):
 
 
 class QVR_OT_import_mdl(bpy.types.Operator, ImportHelper):
-    """Import a Quake VR weapon (v_*.mdl) or the wrist gadget (vrgadget.mdl) with its frames, skin and UVs"""
+    """Import a Quake VR model (.mdl: a weapon, the wrist gadget, the flashlight, the holster...) with its frames,
+    skins and UVs"""
     bl_idname = "import_scene.quakevr_mdl"
     bl_label = "Import Quake VR Model"
     bl_options = {'REGISTER', 'UNDO'}
@@ -85,8 +92,8 @@ class QVR_OT_import_mdl(bpy.types.Operator, ImportHelper):
 
 
 class QVR_OT_export_mdl(bpy.types.Operator, ExportHelper):
-    """Export the weapon or gadget (keeps its header, frames, vertex order and anchors; checks them and the holes):
-    then vr_model_reload in the game"""
+    """Export the model (keeps its header, frames, vertex order and anchors; checks them, what the engine takes from
+    it and the holes): then vr_model_reload in the game"""
     bl_idname = "export_scene.quakevr_mdl"
     bl_label = "Export Quake VR Model"
     bl_options = {'REGISTER', 'UNDO'}
@@ -119,13 +126,24 @@ class QVR_OT_export_mdl(bpy.types.Operator, ExportHelper):
             return {'CANCELLED'}
         write_report(["%s -> %s" % (ob.name, self.filepath)] + lines)
         holes = [l for l in lines if "HOLES" in l]
+        model = os.path.basename(ob.get("qvr_source") or self.filepath)  # the model it was read as
+        special = model.lower() in checks.CHECKS
         if moved or renamed or holes:
             what = ", ".join(sorted({m[0] for m in moved} | {r[0] for r in renamed}))
-            msg = "ANCHORS MOVED: %s. Your weapon poses hang off them: check them in the game" % what if (
-                moved or renamed) else "new holes in the model"
+            if special and moved:
+                msg = "CHECK: %s. The engine can't follow this from the model: the report says what to change" % what
+            else:
+                msg = "ANCHORS MOVED: %s. Your weapon poses hang off them: check them in the game" % what if (
+                    moved or renamed) else "new holes in the model"
             self.report({'WARNING'}, msg + " (the report: Text Editor > %s)" % REPORT_TEXT)
             popup(context, "Quake VR: " + msg, [l for l in lines if l.strip().startswith(
-                ("MOVED", "RENAMED", "OVER", "strip", "vr_wofs", "OPEN", "CRACK", "FLIPPED", "holes", "after"))])
+                ("MOVED", "RENAMED", "OVER", "strip", "vr_wofs", "OPEN", "CRACK", "FLIPPED", "holes", "after",
+                 "CHECK", "lens", "changed"))])
+        elif special:
+            lens = [l.strip() for l in lines if l.strip().startswith("lens ")]
+            self.report({'INFO'}, "%sno new holes; in the game: vr_model_reload %s" % (
+                "the engine reads its lens: %s; " % lens[0][len("lens "):].split(":")[0].strip() if lens else
+                "checks passed, ", os.path.splitext(model)[0]))
         else:
             self.report({'INFO'}, "anchors unchanged, no new holes; in the game: vr_model_reload")
         return {'FINISHED'}
@@ -327,7 +345,7 @@ class QVR_PT_models(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         col = layout.column(align=True)
-        col.label(text="Weapons, gadget (.mdl)")
+        col.label(text="Weapons, gadget, flashlight... (.mdl)")
         col.operator(QVR_OT_import_mdl.bl_idname, text="Import Model", icon='IMPORT')
         col.operator(QVR_OT_export_mdl.bl_idname, text="Export Model", icon='EXPORT')
         col.operator(QVR_OT_carry_frames.bl_idname, icon='SHAPEKEY_DATA')

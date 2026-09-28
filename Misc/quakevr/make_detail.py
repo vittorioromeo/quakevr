@@ -31,6 +31,8 @@ import zlib
 
 import numpy as np
 
+import genguard
+
 KINDS = ["stone", "metal", "wood", "dirt", "organic", "plaster"]
 
 # How far each kind's grey strays from 128, as a standard deviation in 0..1 (the engine's per-kind strength
@@ -234,6 +236,8 @@ def main():
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     kinds = [k for k in KINDS if not a.only or k in a.only.split(",")]
+    # The files edited by hand since this wrote them are not overwritten (genguard.py: --keep-edited, --force).
+    guard = genguard.Guard("make_detail.py", [os.path.join(a.out, "detail_%s.png" % k) for k in kinds])
     sheet = []
     for i, k in enumerate(KINDS):
         if k not in kinds:
@@ -245,6 +249,7 @@ def main():
         print("%-8s mean %.3f sd %.1f min %d max %d -> %s" % (k, grey.mean(), grey.std(), grey.min(), grey.max(),
                                                            os.path.normpath(path)))
         sheet.append(np.tile(grey, (2, 2)))
+    guard.finish()
     if a.preview and sheet:
         cols = 3
         rows = (len(sheet) + cols - 1) // cols

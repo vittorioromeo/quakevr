@@ -30,13 +30,319 @@ namespace
 
 // progs/vrflashlight.mdl (make_flashlight.py): a straight torch (round 21), model units at vr_world_scale 1: +x along
 // the tube to the lens (the beam), +z the side its switch is on, +y left; the origin on the axis in the middle of the
-// grip, where the fist holds it.
+// grip, where the fist holds it. Those are the conventions the poses are written in; the rest is read from the model
+// as it is loaded (Shape), so that a torch edited in Blender (docs/vr-port/MODELS_IN_BLENDER.md) keeps its beam, its
+// glow, its belt clip, its cord and its clearance on a gun: the add-on's export prints what this reads
+// (Misc/quakevr/blender/addons/quakevr_models/checks.py, flashlight_shape: the same steps; keep the two the same).
 constexpr const char* modelName = "progs/vrflashlight.mdl";
-constexpr glm::vec3 lensPoint{1.982f, 0.f, 0.f};
-constexpr glm::vec3 capPoint{-1.365f, 0.f, 0.f};      // the tail's end, where the cord goes in
-constexpr glm::vec3 switchPoint{0.840f, 0.f, 0.373f}; // the switch (its clicks come from there)
-constexpr float lensRadius = 0.4147f;                 // the lens's (1.58 cm)
-constexpr float tailLength = 0.052f;                  // metres from the grip's middle back to the tail
+
+// What the torch's model says (model units, its first frame), or make_flashlight.py's torch where it says nothing.
+struct Shape
+{
+    glm::vec3 lens{1.982f, 0.f, 0.f};        // the lens's centre: the beam, its glow and the light start there
+    float lensRadius{0.4147f};               // the lens's (1.58 cm): the beam's width at the lens, the glow's
+    glm::vec3 cap{-1.365f, 0.f, 0.f};        // the tail's end: clipped to the belt there, the cord goes in there
+    glm::vec3 switchAt{0.840f, 0.f, 0.373f}; // the switch (its clicks come from there)
+    // The outline on the side away from the switch (the gun's side when it is clipped on one, the body's on the belt):
+    // per bin of outlineBin units along x from outlineX0, the furthest it reaches from its axis (the model's x axis:
+    // units). Empty: make_flashlight.py's torch (outlineStock).
+    static constexpr float outlineBin = 0.05f;
+    float outlineX0{0.f};
+    std::vector<float> outline;
+    float front{2.021f}; // its front (max x): the bezel stands a little proud of the lens
+    bool fromModel{false}; // the lens found in the model
+    bool read{false};      // read for the current game (stale after a game change or vr_model_reload)
+};
+Shape shape_;
+
+// make_flashlight.py's outline, metres from the axis at `back` metres behind the lens: the head's, then the tube's
+// (its grip rings, the tail cap), the tail's rubber button last.
+[[nodiscard]] float outlineStock(float back)
+{
+    return back < 0.025f ? 0.0195f : back < 0.1245f ? 0.0142f : 0.0065f;
+}
+
+// Reads the torch's Shape from its model file (the loaded model keeps neither its skins' texels nor its triangles'
+// skin coordinates). The lens is what lights up: the triangles whose skin texel (under their middle) is fullbright in
+// skin 1, the "on" skin, and not the same in skin 0 (the engine draws skin 0 and the glow over the lens: skin 1 only
+// marks it). Its centre is their middle weighted by their area seen along the axis, its radius the furthest of their
+// corners across the axis. The torch's axis is the model's x axis (the origin, the grip's middle, is on it: a lens
+// moved off it is lit from where it is). The tail is the rearmost point, on the axis. The outline and the switch come from points over every triangle no further than 0.03 units apart: the outline
+// per bin along x is the furthest from the axis on the half away from the switch (z at most 0.02 over the axis); the
+// switch is what stands up more than 0.03 units (1.1 mm) out of the round torch (below: a round torch has none).
+[[nodiscard]] bool readShape(Shape& out)
+{
+    byte* data = COM_LoadMallocFile(modelName, nullptr);
+    if(!data)
+    {
+        return false;
+    }
+    const int size = com_filesize;
+    bool ok = true;
+    const auto readInt = [&](int ofs) {
+        if(ofs < 0 || ofs + 4 > size)
+        {
+            ok = false;
+            return 0;
+        }
+        int v;
+        memcpy(&v, data + ofs, 4);
+        return LittleLong(v);
+    };
+    const auto readFloat = [&](int ofs) {
+        if(ofs < 0 || ofs + 4 > size)
+        {
+            ok = false;
+            return 0.f;
+        }
+        float v;
+        memcpy(&v, data + ofs, 4);
+        return LittleFloat(v);
+    };
+    const auto fail = [&]() {
+        free(data);
+        return false;
+    };
+    // mdl_t: ident, version, scale[3], scale_origin[3], boundingradius, eyeposition[3], numskins, skinwidth,
+    // skinheight, numverts, numtris, numframes, synctype, flags, size.
+    constexpr int headerSize = 84;
+    if(size < headerSize || readInt(0) != IDPOLYHEADER || readInt(4) != ALIAS_VERSION)
+    {
+        return fail();
+    }
+    const glm::vec3 scale{readFloat(8), readFloat(12), readFloat(16)};
+    const glm::vec3 origin{readFloat(20), readFloat(24), readFloat(28)};
+    const int numSkins = readInt(48), w = readInt(52), h = readInt(56), numVerts = readInt(60), numTris = readInt(64);
+    if(numSkins < 1 || w < 1 || h < 1 || w > 4096 || h > 4096 || numVerts < 3 || numVerts > 65536 || numTris < 1 ||
+        numTris > 65536)
+    {
+        return fail();
+    }
+    int ofs = headerSize;
+    int skinAt[2]{-1, -1}; // skins 0 and 1's (first) images
+    for(int i = 0; i < numSkins && ok; i++)
+    {
+        const int group = readInt(ofs);
+        ofs += 4;
+        const int n = group ? readInt(ofs) : 1;
+        if(n < 1 || n > 256)
+        {
+            return fail();
+        }
+        if(group)
+        {
+            ofs += 4 + 4 * n;
+        }
+        if(i < 2)
+        {
+            skinAt[i] = ofs;
+        }
+        ofs += n * w * h;
+    }
+    const int stAt = ofs;
+    const int trisAt = stAt + 12 * numVerts;
+    ofs = trisAt + 16 * numTris;
+    if(readInt(ofs) != 0) // the first frame: a group's first
+    {
+        const int n = readInt(ofs + 4);
+        ofs += 4 + 8 + 4 * std::clamp(n, 0, 1024);
+    }
+    const int vertsAt = ofs + 4 + 8 + 16; // its bounds and name, then its vertices
+    if(!ok || vertsAt + 4 * numVerts > size)
+    {
+        return fail();
+    }
+    std::vector<glm::vec3> pos(numVerts);
+    for(int i = 0; i < numVerts; i++)
+    {
+        const byte* v = data + vertsAt + 4 * i;
+        pos[i] = origin + scale * glm::vec3{v[0], v[1], v[2]};
+    }
+    struct Tri
+    {
+        int v[3];
+        int texel; // the skin texel under its middle
+    };
+    std::vector<Tri> tris(numTris);
+    for(int i = 0; i < numTris; i++)
+    {
+        const bool facesFront = readInt(trisAt + 16 * i) != 0;
+        float s = 0.f, t = 0.f;
+        for(int k = 0; k < 3; k++)
+        {
+            const int v = readInt(trisAt + 16 * i + 4 + 4 * k);
+            if(v < 0 || v >= numVerts)
+            {
+                return fail();
+            }
+            tris[i].v[k] = v;
+            // A back-facing triangle reads an onseam vertex half a skin further right.
+            s += static_cast<float>(readInt(stAt + 12 * v + 4) + (readInt(stAt + 12 * v) && !facesFront ? w / 2 : 0));
+            t += static_cast<float>(readInt(stAt + 12 * v + 8));
+        }
+        tris[i].texel = std::clamp(static_cast<int>(t / 3.f), 0, h - 1) * w + std::clamp(static_cast<int>(s / 3.f), 0, w - 1);
+    }
+
+    Shape sh;
+    // The lens.
+    if(skinAt[1] >= 0)
+    {
+        const byte* off = data + skinAt[0];
+        const byte* on = data + skinAt[1];
+        double weight = 0.0;
+        glm::dvec3 middle{0.0};
+        std::vector<int> lit;
+        for(int i = 0; i < numTris; i++)
+        {
+            const Tri& tr = tris[i];
+            if(on[tr.texel] < 224 || on[tr.texel] == off[tr.texel])
+            {
+                continue;
+            }
+            const glm::vec3 a = pos[tr.v[0]], b = pos[tr.v[1]], c = pos[tr.v[2]];
+            const float along = std::abs(glm::cross(b - a, c - a).x); // twice its area seen along the axis
+            middle += glm::dvec3{(a + b + c) / 3.f} * static_cast<double>(along);
+            weight += along;
+            lit.push_back(i);
+        }
+        if(!lit.empty() && weight > 1e-9)
+        {
+            sh.lens = glm::vec3{middle / weight};
+            sh.lensRadius = 0.f;
+            for(int i : lit)
+            {
+                for(int v : tris[i].v)
+                {
+                    sh.lensRadius = std::max(sh.lensRadius, glm::length(glm::vec2{pos[v].y - sh.lens.y, pos[v].z - sh.lens.z}));
+                }
+            }
+            sh.fromModel = true;
+        }
+    }
+    free(data);
+
+    // The tail, the outline and the switch.
+    float x0 = 1e9f, x1 = -1e9f;
+    for(const glm::vec3& p : pos)
+    {
+        x0 = std::min(x0, p.x);
+        x1 = std::max(x1, p.x);
+    }
+    constexpr float cy = 0.f, cz = 0.f; // the axis
+    sh.cap = {x0, cy, cz};
+    sh.front = x1;
+    sh.outlineX0 = x0;
+    const int bins = static_cast<int>((x1 - x0) / Shape::outlineBin) + 1;
+    sh.outline.assign(bins, 0.f);
+    std::vector<glm::vec2> lo(bins, glm::vec2{1e9f}), hi(bins, glm::vec2{-1e9f}); // per bin, the least and greatest y, z
+    const auto bin = [&](float x) { return std::clamp(static_cast<int>((x - x0) / Shape::outlineBin), 0, bins - 1); };
+    const auto eachPoint = [&](auto&& f) { // points over each triangle no further than 0.03 units apart
+        for(const Tri& tr : tris)
+        {
+            const glm::vec3 a = pos[tr.v[0]], b = pos[tr.v[1]], c = pos[tr.v[2]];
+            const float span = std::max({glm::distance(a, b), glm::distance(b, c), glm::distance(c, a)});
+            const int n = std::clamp(static_cast<int>(std::ceil(span / 0.03f)), 1, 64);
+            for(int u = 0; u <= n; u++)
+            {
+                for(int v = 0; u + v <= n; v++)
+                {
+                    f(a + (b - a) * (static_cast<float>(u) / n) + (c - a) * (static_cast<float>(v) / n));
+                }
+            }
+        }
+    };
+    eachPoint([&](const glm::vec3& q) {
+        const int k = bin(q.x);
+        const glm::vec2 d{q.y - cy, q.z - cz};
+        if(d.y <= 0.02f)
+        {
+            sh.outline[k] = std::max(sh.outline[k], glm::length(d));
+        }
+        lo[k] = glm::min(lo[k], d);
+        hi[k] = glm::max(hi[k], d);
+    });
+    // What stands up out of the round torch: a cut across it (a bin) taller than it is wide, and further up from the
+    // axis than down (a round torch's cuts are as tall as they are wide, wherever its axis is: a head moved off it). The
+    // switch is the middle of the points above the round part (as high over the cut's bottom as it is wide) where the
+    // cut stands up by more than 0.03 units.
+    const auto standsUp = [&](int k) {
+        return hi[k].x >= lo[k].x && (hi[k].y - lo[k].y) - (hi[k].x - lo[k].x) > 0.03f && hi[k].y > -lo[k].y;
+    };
+    glm::dvec3 sum{0.0};
+    int n = 0;
+    eachPoint([&](const glm::vec3& q) {
+        const int k = bin(q.x);
+        if(standsUp(k) && q.z - cz > lo[k].y + (hi[k].x - lo[k].x) + 0.01f)
+        {
+            sum += glm::dvec3{q};
+            n++;
+        }
+    });
+    if(n > 0)
+    {
+        sh.switchAt = glm::vec3{sum / static_cast<double>(n)};
+    }
+    sh.read = true;
+    out = std::move(sh);
+    return true;
+}
+
+[[nodiscard]] const Shape& shape()
+{
+    if(shape_.read)
+    {
+        return shape_;
+    }
+    if(!readShape(shape_))
+    {
+        shape_ = Shape{};
+        shape_.read = true;
+        Con_Warning("flashlight: %s can't be read: its beam and glow are placed for make_flashlight.py's torch\n", modelName);
+    }
+    else if(!shape_.fromModel)
+    {
+        Con_Warning("flashlight: %s has no lens (no triangle painted fullbright in skin 1 where skin 0 differs): its beam "
+                    "and glow start where make_flashlight.py's lens is\n",
+            modelName);
+    }
+    return shape_;
+}
+
+// The torch's radius (metres) at `back` metres behind its lens, on the side away from its switch (the outline's bin
+// there and its neighbours), and how far it goes back and forward of the lens.
+[[nodiscard]] float torchRadius(float back)
+{
+    const Shape& sh = shape();
+    if(sh.outline.empty())
+    {
+        return outlineStock(back);
+    }
+    const int k = static_cast<int>(std::floor((sh.lens.x - back * units::perMetre - sh.outlineX0) / Shape::outlineBin));
+    float r = 0.f;
+    for(int j = std::max(k - 1, 0); j <= std::min(k + 1, static_cast<int>(sh.outline.size()) - 1); j++)
+    {
+        r = std::max(r, sh.outline[j]);
+    }
+    return r / units::perMetre;
+}
+
+[[nodiscard]] float torchBack()
+{
+    return (shape().lens.x - shape().cap.x) / units::perMetre;
+}
+
+[[nodiscard]] float torchFront()
+{
+    return (shape().front - shape().lens.x) / units::perMetre;
+}
+
+// Its greatest radius (metres) on the side away from its switch (the head's): how far in front of the belt clip its
+// axis hangs.
+[[nodiscard]] float torchThickness()
+{
+    const Shape& sh = shape();
+    return sh.outline.empty() ? 0.0195f : *std::max_element(sh.outline.begin(), sh.outline.end()) / units::perMetre;
+}
 
 // The beam: a spot light, full within innerAngle degrees of its axis and smoothly down to none at
 // outerAngle; a faint spill round it out to spillAngle. The visible beam's cones are the same:
@@ -228,12 +534,12 @@ BeamTrace beamTraces[beamRings][beamSides];
     const float side = vr_lefthanded.value != 0.f ? -1.f : 1.f;
 
     // The clip on the belt's front (make_vrbody.py's torso rings: the belt 10-20% up from the hips), beltUp above the
-    // pelvis joint and beltSide to the side, deeper for the brawnier builds; the tube's axis 2.2 cm in front of it
-    // (the head's radius and a little). The torch hangs 13 cm down from there, over the hip.
+    // pelvis joint and beltSide to the side, deeper for the brawnier builds; the tube's axis the torch's greatest
+    // radius and 2.5 mm in front of it (2.2 cm: the head's). The torch hangs from there by its tail, over the hip.
     const int build = static_cast<int>(vr_body_build.value);
     const float depth = build <= 0 ? 0.9f : build >= 2 ? 1.1f : 1.f;
     const float m2w = bodyUnits();
-    const glm::vec3 clip = torso.pelvis.pos + (fwd * (beltFront * depth + 0.022f + vr_flashlight_forward.value) +
+    const glm::vec3 clip = torso.pelvis.pos + (fwd * (beltFront * depth + torchThickness() + 0.0025f + vr_flashlight_forward.value) +
                                                   left * (side * (beltSide + vr_flashlight_out.value)) +
                                                   up * (beltUp + vr_flashlight_up.value)) *
                                                   m2w;
@@ -241,7 +547,7 @@ BeamTrace beamTraces[beamRings][beamSides];
     const float lean = glm::radians(CLAMP(-30.f, vr_flashlight_tilt.value, 60.f));
     const glm::vec3 beam = -up * std::cos(lean) + fwd * std::sin(lean); // down, the lens leaning out
     const glm::vec3 out = fwd * std::cos(lean) + up * std::sin(lean);   // the switch's side
-    return poseFromAxes(clip + beam * (tailLength * units::metresToUnits()), beam, glm::cross(out, beam), out); // the tail at the clip
+    return poseFromAxes(clip + beam * (-shape().cap.x * units::worldScale()), beam, glm::cross(out, beam), out); // the tail at the clip
 }
 
 // In the hand, held like a torch (round 21; before, like a pistol's grip): the tube through the curled fingers, along
@@ -347,15 +653,7 @@ struct GripAdjust
     return hue::color(vr_flashlight_hue, CLAMP(0.f, vr_flashlight_saturation.value, 1.f), 1.f);
 }
 
-// The torch's radius (metres) at `back` metres behind its lens: the head's, then the tube's (its grip rings, the tail
-// cap), and how long it is.
-constexpr float headBack = 0.025f;
-constexpr float torchLength = 0.129f;
 constexpr float lensBack = 0.01f; // metres the lens is behind a gun's muzzle
-[[nodiscard]] float torchRadius(float back)
-{
-    return back < headBack ? 0.0195f : back < 0.1245f ? 0.0142f : 0.0065f; // (the tail's rubber button last)
-}
 
 // Each gun's spot for the torch (findGunSpot), by model name and size.
 std::unordered_map<std::string, GunSpot> gunSpots;
@@ -418,6 +716,10 @@ std::unordered_map<std::string, GunSpot> gunSpots;
         return glm::vec3{-glm::dot(d, fwd) - lensBack, glm::dot(d, outward), glm::dot(d, up)};
     };
     float down = 0.045f, side = 0.035f;
+    const float front = torchFront() + 0.003f, length = torchBack();
+    // The torch's axis from its lens (a lens off the axis), in these axes: gunPose turns its +z outward and its +y up
+    // (down when mirrored).
+    const float y0 = -shape().lens.z / units::perMetre, z0 = -shape().lens.y * (m.mirrored ? -1.f : 1.f) / units::perMetre;
     for(int i = 0; i + 2 < hdr->numindexes; i += 3)
     {
         const glm::vec3 a = corner(i), b = corner(i + 1), c = corner(i + 2);
@@ -428,18 +730,18 @@ std::unordered_map<std::string, GunSpot> gunSpots;
             for(int v = 0; u + v <= n; v++)
             {
                 const glm::vec3 q = a + (b - a) * (static_cast<float>(u) / n) + (c - a) * (static_cast<float>(v) / n);
-                if(q.x < -0.005f || q.x > torchLength)
+                if(q.x < -front || q.x > length)
                 {
                     continue;
                 }
                 const float r = torchRadius(q.x) + 0.003f;
-                if(std::abs(q.y) < r)
+                if(std::abs(q.y - y0) < r)
                 {
-                    down = std::max(down, r - q.z);
+                    down = std::max(down, r - q.z + z0);
                 }
-                if(std::abs(q.z) < r)
+                if(std::abs(q.z - z0) < r)
                 {
-                    side = std::max(side, q.y + r);
+                    side = std::max(side, q.y + r - y0);
                 }
             }
         }
@@ -471,7 +773,7 @@ std::unordered_map<std::string, GunSpot> gunSpots;
                                           right * (out * (st.gunSpot.out + vr_flashlight_gun_out.value))) *
                                           units::metresToUnits();
     Pose p = poseFromAxes(glm::vec3{0.f}, fwd, up * out, right * out);
-    p.pos = lens - p.rot * (lensPoint * units::worldScale());
+    p.pos = lens - p.rot * (shape().lens * units::worldScale());
     return p;
 }
 
@@ -491,7 +793,7 @@ std::unordered_map<std::string, GunSpot> gunSpots;
     glm::vec3 out = right * side - beam * glm::dot(right * side, beam);
     out = glm::normalize(out);
     Pose p = poseFromAxes(glm::vec3{0.f}, beam, glm::cross(out, beam), out);
-    p.pos = lens - p.rot * (lensPoint * units::worldScale());
+    p.pos = lens - p.rot * (shape().lens * units::worldScale());
     return p;
 }
 
@@ -659,8 +961,8 @@ void noteIntent(const hands::State& s)
     {
         return false;
     }
-    const glm::vec3 a = modelPointAt(st.pose, capPoint);
-    const glm::vec3 ab = modelPointAt(st.pose, lensPoint) - a;
+    const glm::vec3 a = modelPointAt(st.pose, shape().cap);
+    const glm::vec3 ab = modelPointAt(st.pose, shape().lens) - a;
     const float t = std::clamp(glm::dot(s.pos[hand] - a, ab) / std::max(glm::dot(ab, ab), 1e-4f), 0.f, 1.f);
     return glm::distance(s.pos[hand], a + ab * t) < reach * units::metresToUnits();
 }
@@ -749,8 +1051,8 @@ void noteIntent(const hands::State& s)
         case body::HS_RIGHT_UPPER_HOLSTER: holster = body::RightUpper; break;
         default: return false;
     }
-    const glm::vec3 a = modelPointAt(st.pose, capPoint);
-    const glm::vec3 ab = modelPointAt(st.pose, lensPoint) - a;
+    const glm::vec3 a = modelPointAt(st.pose, shape().cap);
+    const glm::vec3 ab = modelPointAt(st.pose, shape().lens) - a;
     const float t = std::clamp(glm::dot(s.pos[hand] - a, ab) / std::max(glm::dot(ab, ab), 1e-4f), 0.f, 1.f);
     return glm::distance(s.pos[hand], body::holsterPosition(s, holster)) < glm::distance(s.pos[hand], a + ab * t);
 }
@@ -784,7 +1086,7 @@ void toggle(int hand)
 {
     st.on = !st.on;
     Con_DPrintf("flashlight: %s\n", st.on ? "on" : "off");
-    sound(st.on ? "vr/flashlight_on.wav" : "vr/flashlight_off.wav", switchPoint);
+    sound(st.on ? "vr/flashlight_on.wav" : "vr/flashlight_off.wav", shape().switchAt);
     if(hand >= 0)
     {
         haptic(hand, 0.03f, 0.55f);
@@ -1006,7 +1308,7 @@ void shapeBeam(const Pose& p, const glm::vec3& lens, const glm::vec3& dir, float
     const BeamQuality& quality = beamQualities[CLAMP(0, static_cast<int>(vr_flashlight_beam_quality.value), 2)];
     const auto tracedSide = [&](int j) { return j % quality.sideStep == 0; };
     const auto tracedRing = [&](int i) { return i >= 1 && ((i - 1) % quality.ringStep == 0 || i == beamRings - 1); };
-    const float lensR = lensRadius * units::worldScale();
+    const float lensR = shape().lensRadius * units::worldScale();
     for(int i = 0; i < beamRings; i++)
     {
         // The rings closer together near the lens, where the most changes.
@@ -1073,7 +1375,7 @@ void shapeBeam(const Pose& p, const glm::vec3& lens, const glm::vec3& dir, float
 // sets how far the visible beam reaches, eased over time.
 void lightBeam(const Pose& p)
 {
-    const glm::vec3 lens = modelPointAt(p, lensPoint);
+    const glm::vec3 lens = modelPointAt(p, shape().lens);
     const glm::vec3 dir = p.rot * glm::vec3{1.f, 0.f, 0.f};
     const float range = std::max(64.f, vr_flashlight_range.value);
     const glm::vec3 at = lens + dir * 0.25f; // just out of the lens
@@ -1106,8 +1408,8 @@ void lightBeam(const Pose& p)
 // taut, sagging a little when the lamp is close.
 void drawCord(const Pose& mount, const Pose& lamp)
 {
-    const glm::vec3 a = modelPointAt(mount, capPoint);
-    const glm::vec3 b = modelPointAt(lamp, capPoint);
+    const glm::vec3 a = modelPointAt(mount, shape().cap);
+    const glm::vec3 b = modelPointAt(lamp, shape().cap);
     const float len = glm::distance(a, b);
     if(len < 0.5f)
     {
@@ -1477,8 +1779,8 @@ void drawLens()
     const glm::vec3 dir = p.rot * glm::vec3{1.f, 0.f, 0.f};
     const glm::vec3 a = p.rot * glm::vec3{0.f, 1.f, 0.f};
     const glm::vec3 b = p.rot * glm::vec3{0.f, 0.f, 1.f};
-    const glm::vec3 centre = modelPointAt(p, lensPoint) + dir * (0.02f * units::worldScale());
-    const float r = lensRadius * units::worldScale();
+    const glm::vec3 centre = modelPointAt(p, shape().lens) + dir * (0.02f * units::worldScale());
+    const float r = shape().lensRadius * units::worldScale();
     const glm::vec3 c = beamColor() * (0.6f + 0.4f * CLAMP(0.f, vr_flashlight_brightness.value, 2.f));
     constexpr int sides = 16;
     static std::vector<gfx::Vertex> fan;
@@ -1733,6 +2035,23 @@ void reset()
 void onGameDirChanged()
 {
     gunSpots.clear(); // keyed by model name: another game's model of the same name may differ
+    shape_.read = false;
+}
+
+void onModelsReloaded(bool torch)
+{
+    gunSpots.clear(); // a gun's shape may have changed
+    if(!torch)
+    {
+        return;
+    }
+    shape_.read = false;
+    const Shape& sh = shape();
+    const float thick = sh.outline.empty() ? 0.039f : torchThickness() * 2.f;
+    Con_Printf("vr_model_reload: %s: lens at (%.3f %.3f %.3f), radius %.3f%s; tail at x %.3f, switch at (%.3f %.3f "
+               "%.3f); %.1f cm long, %.1f cm thick at most\n",
+        modelName, sh.lens.x, sh.lens.y, sh.lens.z, sh.lensRadius, sh.fromModel ? "" : " (NOT from the model: the default)",
+        sh.cap.x, sh.switchAt.x, sh.switchAt.y, sh.switchAt.z, (sh.front - sh.cap.x) / units::perMetre * 100.f, thick * 100.f);
 }
 
 bool holds(int hand)

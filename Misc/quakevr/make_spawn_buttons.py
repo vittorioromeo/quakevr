@@ -29,6 +29,8 @@ import subprocess
 import sys
 import tempfile
 
+import genguard
+
 DEFAULT_TOOLS = "C:/OHWorkspace/ericw-tools-2.0.0-alpha11-win64"
 DEFAULT_WAD = "C:/OHWorkspace/TrenchBroom/Q.wad"
 
@@ -91,14 +93,17 @@ def main():
 
     qbsp = os.path.join(args.tools, "qbsp.exe")
     light = os.path.join(args.tools, "light.exe")
+    # The files edited by hand since this wrote them are not overwritten (genguard.py: --keep-edited, --force).
+    guard = genguard.Guard("make_spawn_buttons.py", [os.path.join(args.out, n + ".bsp") for n in MODELS])
     with tempfile.TemporaryDirectory() as tmp:
         for name, (brush, light_origin) in MODELS.items():
             src = os.path.join(tmp, name + ".map")
             bsp = os.path.join(tmp, name + ".bsp")
             with open(src, "w", newline="\n") as f:
                 f.write(map_text(brush, light_origin, args.wad.replace("\\", "/")))
-            # -nofill: a lone brush in the void, like the ammo boxes' models (no outside to fill).
-            for cmd in ([qbsp, "-nofill", src, bsp], [light, "-extra4", bsp]):
+            # -nofill: a lone brush in the void, like the ammo boxes' models (no outside to fill). -threads 1: the
+            # same file every time (with threads, light.exe lays the lightmaps out in the order they finish).
+            for cmd in ([qbsp, "-nofill", src, bsp], [light, "-threads", "1", "-extra4", bsp]):
                 result = subprocess.run(cmd, capture_output=True, text=True)
                 if result.returncode:
                     sys.exit("%s failed:\n%s%s" % (os.path.basename(cmd[0]), result.stdout, result.stderr))
@@ -106,6 +111,7 @@ def main():
             with open(bsp, "rb") as f, open(dest, "wb") as g:
                 g.write(f.read())
             print("wrote", os.path.normpath(dest))
+    guard.finish()
 
 
 if __name__ == "__main__":

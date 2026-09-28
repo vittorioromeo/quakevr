@@ -17,6 +17,7 @@ import os
 import random
 import sys
 
+import genguard
 import mdlgen
 from mdlgen import add, sub, mul, dot, cross, norm
 
@@ -153,9 +154,12 @@ def main():
 
     mesh = build()
     path = os.path.join(game, "progs", "vr_shell.mdl")
+    # The files edited by hand since this wrote them are not overwritten (genguard.py: --keep-edited, --force).
+    guard = genguard.Guard("make_shell.py", [path])
     mdlgen.write_mdl(path, mesh, [paint()], "shell")
     print("vr_shell.mdl: %d vertices, %d triangles -> %s" % (len(mesh.verts), len(mesh.tris), os.path.normpath(path)))
     print("  %.2f units long, rim radius %.3f units" % (LENGTH * UNITS, RIM_R * UNITS))
+    guard.finish()
 
 
 if __name__ == "__main__":

@@ -11,7 +11,8 @@
 #   quakevr/sound/vr/flashlight_attach.wav, flashlight_detach.wav  its clamp clipping onto a gun, and off
 #   quakevr/sound/vr/flashlight_flip.wav  the hand turning it round in the fist (B/Y: the low and overhead grips)
 #
-# Usage: python Misc/quakevr/make_flashlight.py [output game folder]
+# Usage: python Misc/quakevr/make_flashlight.py [output game folder] [--keep-edited | --force]
+# (genguard.py: it stops rather than overwrite a file edited since it wrote it: the model edited in Blender.)
 #
 # Model space: Quake units at vr_world_scale 1 (1 m = 1 / 0.0381 units), +x along the tube to the lens (the beam),
 # +z the side the switch is on, +y left; the origin on the axis in the middle of the grip (where the fist holds it).
@@ -26,6 +27,7 @@ import random
 import struct
 import sys
 
+import genguard
 import mdlgen
 from mdlgen import add, sub, mul, dot, cross, norm
 
@@ -305,12 +307,15 @@ def main():
 
     mesh = build()
     path = os.path.join(game, "progs", "vrflashlight.mdl")
+    sounds = os.path.join(game, "sound", "vr")
+    # The files edited by hand since this wrote them are not overwritten (genguard.py: --keep-edited, --force).
+    guard = genguard.Guard("make_flashlight.py", [path] + [os.path.join(sounds, n + ".wav") for n in (
+        "flashlight_on", "flashlight_off", "flashlight_attach", "flashlight_detach", "flashlight_flip")])
     mdlgen.write_mdl(path, mesh, [paint(False), paint(True)], "flashlight")
     print("vrflashlight.mdl: %d vertices, %d triangles -> %s" % (len(mesh.verts), len(mesh.tris), os.path.normpath(path)))
     print("  lens at (%.3f %.3f %.3f) units, radius %.4f; tail at %.3f; switch at (%.3f %.3f %.3f)" %
           (tuple(c * UNITS for c in LENS) + (LENS_R * UNITS, TAIL * UNITS) + tuple(c * UNITS for c in SWITCH)))
 
-    sounds = os.path.join(game, "sound", "vr")
     os.makedirs(sounds, exist_ok=True)
     for name, pitch, seed in (("flashlight_on", 1.1, 11), ("flashlight_off", 0.9, 12)):
         wav = os.path.join(sounds, name + ".wav")
@@ -323,6 +328,7 @@ def main():
     wav = os.path.join(sounds, "flashlight_flip.wav")
     write_wav(wav, regrip(15))
     print("flashlight_flip.wav -> %s" % os.path.normpath(wav))
+    guard.finish()
 
 
 if __name__ == "__main__":
