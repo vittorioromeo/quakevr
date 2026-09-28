@@ -78,6 +78,7 @@ void VR_RestoreSpawnParms (int client);	// after parm1..16 are copied from a cli
 int VR_AllowLatePrecache (void);		// nonzero if precaches are allowed after map load
 int VR_LatePrecacheModel (const char *name); // precache index for setmodel, or -1 if not allowed
 int VR_DropToFloor (void);				// start of PF_droptofloor: nonzero if it handled the call
+void VR_OnMakeStatic (edict_t *ent);	// PF_makestatic, before the entity is freed (a static torch or flame: vr_debris.cpp)
 int VR_TossKeepsGround (struct edict_s *ent);	// SV_Physics_Toss, when on the ground: nonzero to stay
 int VR_RigidToss (struct edict_s *ent);		// SV_Physics_Toss, after thinking: nonzero if it moved the entity (.vr_rigid)
 void VR_PhysicsFrameEnd (void);				// end of SV_Physics's entity loop: Box3D's world steps (vr_box3d.cpp)

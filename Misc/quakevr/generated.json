@@ -253,6 +253,78 @@
   "sha256": "aae9981a3f4ede79c2d5e18f0ca2e2522d0b7d3adb5c046794ef918c31e7c7e4",
   "by": "bake_normals.py"
  },
+ "quakevr/progs/vr_brick1.mdl": {
+  "sha256": "72330803fa53bb6ad6a7b29edbef152e43b8530aaf3fcaf0a88a13a733b3c962",
+  "by": "make_debris.py"
+ },
+ "quakevr/progs/vr_brick1.mdl_0_norm.png": {
+  "sha256": "b4e7c27f6c8a44343fec60a06cdb771377bd3e9abe562aeaabc50f15c82e92a1",
+  "by": "bake_normals.py"
+ },
+ "quakevr/progs/vr_brick2.mdl": {
+  "sha256": "af0dc7b20782b8d33d81f48586c994d19109f1c00115126193d71bc3a570c992",
+  "by": "make_debris.py"
+ },
+ "quakevr/progs/vr_brick2.mdl_0_norm.png": {
+  "sha256": "8dd9a29887f1b8495d27155c5d83ee005956ba484ae99d1ae3e7001a090d8cb7",
+  "by": "bake_normals.py"
+ },
+ "quakevr/progs/vr_brick3.mdl": {
+  "sha256": "1350462867ff286e0d0dbf5cd63aad5b661eb101eb4ff934bd7370cacf652b93",
+  "by": "make_debris.py"
+ },
+ "quakevr/progs/vr_brick3.mdl_0_norm.png": {
+  "sha256": "4292c54b03b9c0eb01d58cbf7fd793d1feed05697ec859376dce17ca8ec7ecdd",
+  "by": "bake_normals.py"
+ },
+ "quakevr/progs/vr_brick4.mdl": {
+  "sha256": "71bacd6351d02616abc625bc3eead3bdbe670b042eb2c82e43be0bfb1c09198e",
+  "by": "make_debris.py"
+ },
+ "quakevr/progs/vr_brick4.mdl_0_norm.png": {
+  "sha256": "7957f1b1ad14449038acb6f5c3d9c8a67d2dfc45574ca1dfa82f3b023aa131b3",
+  "by": "bake_normals.py"
+ },
+ "quakevr/progs/vr_rock1.mdl": {
+  "sha256": "23dde9dc02f4be4b65e48bceb8d82388262f79abb0d960e2d672662b4b4fcf47",
+  "by": "make_debris.py"
+ },
+ "quakevr/progs/vr_rock1.mdl_0_norm.png": {
+  "sha256": "f2713c53c480eccdce8e522bf1596a727a233a4cdb1bc907ecc300f09f2b64ff",
+  "by": "bake_normals.py"
+ },
+ "quakevr/progs/vr_rock2.mdl": {
+  "sha256": "76075830abd3290d7c1ffed10e9c4a21483443a393cc88861ebbca1d64c75cfa",
+  "by": "make_debris.py"
+ },
+ "quakevr/progs/vr_rock2.mdl_0_norm.png": {
+  "sha256": "39951349af397109afd340e039fa796689bdb3155de11e47d4010d0e230b7b9a",
+  "by": "bake_normals.py"
+ },
+ "quakevr/progs/vr_rock3.mdl": {
+  "sha256": "b260f613040b4567410b564746dcb69288c0b866301493358cff1c9de5c19429",
+  "by": "make_debris.py"
+ },
+ "quakevr/progs/vr_rock3.mdl_0_norm.png": {
+  "sha256": "f6e73008775f4e2db2b2141ad090cb4aae7a6519c4659e6c96169cf698b44e1b",
+  "by": "bake_normals.py"
+ },
+ "quakevr/progs/vr_rock4.mdl": {
+  "sha256": "5281f863ef68999b4608456fb190785d5c1b440d11de06b5b523577763963552",
+  "by": "make_debris.py"
+ },
+ "quakevr/progs/vr_rock4.mdl_0_norm.png": {
+  "sha256": "a1f2f855bc9b1eee943e59594ab07d9e0e8944a7fd18ef30f6a517342e5e1294",
+  "by": "bake_normals.py"
+ },
+ "quakevr/progs/vr_rock5.mdl": {
+  "sha256": "6e9cdcb563715f38ef6b1683086bf79d6e34df8e1ed1e34730654d9f11420447",
+  "by": "make_debris.py"
+ },
+ "quakevr/progs/vr_rock5.mdl_0_norm.png": {
+  "sha256": "b6c90c24177220bd8af65ef64259360e148259ec2297ea28c3d997e6ac65ce0d",
+  "by": "bake_normals.py"
+ },
  "quakevr/progs/vr_shell.mdl": {
   "sha256": "084175d47faf7f80fec36da4a527f600402d2766dd722501b68cd6307c6ed0b1",
   "by": "make_shell.py"

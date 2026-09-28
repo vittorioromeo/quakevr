@@ -113,6 +113,20 @@ def shell_tiles():
             "tiles": {"hull": hull, "base": base}}
 
 
+def stone_heights(low, skin, depth, scale):
+    """A stone's or a brick's relief from its skin (make_debris.py paints them from 3D noise: dark is a pit or a pore,
+    light a knob): the shading's detail (a fine blur less a broad one), `depth` texels at most, at `scale`."""
+    rgb = skin.astype(np.float64)
+    cov = nb.coverage(low, 1)
+    lum = (rgb[..., 0] * 0.3 + rgb[..., 1] * 0.59 + rgb[..., 2] * 0.11) / 255.0
+    detail = nb.blur(lum, 0.6, cov) - nb.blur(lum, 3.0, cov)
+    h = depth * np.clip(detail / 0.12, -1.0, 1.0)
+    h = nb.dilate(np.dstack([h] * 3), cov, 6)[0][..., 0]
+    return nb.sampler(h)(np.stack(np.meshgrid((np.arange(low.W * scale) + 0.5) / scale,
+                                              (np.arange(low.H * scale) + 0.5) / scale), -1).reshape(-1, 2)
+                         ).reshape(low.H * scale, low.W * scale)
+
+
 # What each model gets. "tiles": a generator's tiles; "paint": its painted skin's seams, rivets and grain (not for
 # the dithered skins of mdlgen.py's models, whose speckle is no shape); "bevel": the creases' width in skin texels.
 MODELS = {
@@ -124,6 +138,12 @@ MODELS = {
     "vrpauldron.mdl": {"paint": True, "grain": 0.3, "bevel": 1.6, "scale": 4},
     "vrpauldron_arm.mdl": {"paint": True, "grain": 0.3, "bevel": 1.6, "scale": 4},
 }
+# The rocks and bricks lying about (make_debris.py): their facets' edges rounded a little, their pits and pores from the
+# skin's shading ("stone": texels deep). A rock's facets meet at wide angles and stay sharp; a brick's worn edges round.
+for _k in range(1, 6):
+    MODELS["vr_rock%d.mdl" % _k] = {"stone": 1.2, "bevel": 1.0, "scale": 4}
+for _k in range(1, 5):
+    MODELS["vr_brick%d.mdl" % _k] = {"stone": 0.9, "bevel": 1.4, "scale": 4}
 VIEW_MODEL = {"paint": True, "grain": 0.55, "bevel": 1.8, "scale": 2}
 # The axe's head is painted with streaks of dried blood in the wood's own browns: only its handle is wood.
 MODELS["v_axe.mdl"] = dict(VIEW_MODEL, wood_rects=[(440, 0, 512, 130)])
@@ -217,6 +237,8 @@ def bake(low, skin, rec=None, supersample=2, base=None, details=True):
             h += tile_heights(low, rec["tiles"](), hs)
         if rec.get("paint"):
             h += paint_heights(low, skin, rec.get("grain", 0.5), hs, rec.get("wood_rects"))
+        if rec.get("stone"):
+            h += stone_heights(low, skin, rec["stone"], hs)
         detail = nb.tangent_uv(r, nb.sampler(h, hs), d=0.5 / hs)
         # the same heights for parallax mapping: texels up, in model units on each face
         heights = nb.sampler(h, hs)(r.uv) * nb.texel_size(r)

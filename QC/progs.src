@@ -25,6 +25,7 @@ vr_carry.qc
 vr_melee.qc
 vr_juice.qc
 vr_grenade.qc
+vr_debris.qc
 vr_walltorch.qc
 
 buttons.qc

@@ -152,6 +152,13 @@ context and screenshot, ready to paste or to point me at.
     shadows). Its blows burn monsters; after 5 blows, or dropped, its fire dies in 6 s; held, it burns for ever; a dead
     one lights again in another torch's flame. Carrying and Gibs > **Wall Torches**; its grip and fingers on **Held
     Object Offsets** (hold it, open the page).
+  - **Rocks and bricks** (ROUND21.md, same title): loose rocks on natural ground (grass, dirt, rock) and at the foot of
+    rock and stone walls, bricks at the foot of brick walls, placed at map load where the textures say, more in
+    corners, the same places every load (e1m2, e2m2, e4m2, e1m1's outdoor ground). Pick one up, punch with it (a rock
+    or a brick hits harder the heavier it is: Held Object Offsets' Blunt), throw it (it hurts what it hits), force grab
+    it (a whole brick is a club, held by its end); they knock and clack as they land. Carrying and Gibs > Rocks and Bricks: on/off, Rocks, Bricks, Chance, In
+    Corners, In the Dark, Most Together, Most in a Map, Most in an Area, Spacing, Size Variation, Layout. Single player.
+    Also fixed: a punch holding a box hit 2.25x, not Box Punch Damage's 1.5x.
   - **Deflection by blows and bashes; catching grenades; ogre aim** (ROUND21.md, same title): a swing or a blow bats
     a monster's spike, laser, spit, ball, grenade or flesh off the weapon's face as a bat hits a ball (across: off to
     the side; the face driven at the thrower: back at him, faster the harder); a bash or an armed shove sends it the
@@ -916,4 +923,14 @@ blow n of 5, dying at t, out at t, taken again, lit again) and `wall torch: its 
 colour, taken, shadowed). A monster to strike: `vr_test_spawn 0; vr_test_spawn_dist 34; impulse 241`; `god; notarget`
 and `gl_cshiftpercent 0` keep the screenshots clear of its shots. The scratchpad's `torches/go.sh <script> <out.png>`
 runs a multi-line script file.
+Rocks and bricks (ROUND21.md): `vr_debug_debris 1` prints a line per map (pieces, spots, rejections by reason, the
+time, the layout's hash, the server's spawn time), `2` each piece (model, skin, place, turn, size, the way out of its
+wall); `vr_debris_list [lit]` lists the pieces in the map with the light where each lies. The scratchpad's
+`debris/view.py <log> <map> <pieces> [dist] [pitch]` turns a `vr_debug_debris 2` log into `setpos` commands looking at
+pieces (`shoot.sh`, `evidence.sh` take screenshots; `perf.sh` the exclusive timings). Hold one: `vr_rigid_place vr_rock
+main 0 0 0; +grabright; vr_mock_button main grip 1` (bricks: `vr_brick`, in a map that has them), with the off hand
+out of the way; punches and throws: `debris/motions/punch2.mock`, `throw.mock` (`vr_mock_play`, the old hand settings
+set as `motions/hc.txt`), a grunt from `vr_test_spawn 0; vr_test_spawn_dist 36; impulse 241` on flat ground
+(`setpos 340 1350 -200 0 180 0; noclip` in e1m1). A worldspawn's `_vr_debris` without editing a map: a
+`maps/<map>.ent` override (`external_ents`).
 Align Sights to My Aim (ROUND21.md): `vr_sight_align [start [main|off] | apply | cancel | undo]` runs the Weapon Offsets page's capture (the mock hand must be lowered, then raised and held 0.4 s, for each capture; `vr_sight_align_captures`), `vr_sight_check [main|off] [size]` prints the sight line against the dominant eye (`vr_dominant_eye`), where the sights and the laser land in that eye's image, and the laser against the line; `vr_sight_lines` lists every weapon's line; `vr_show_sight_line 1` draws them. Higher eye images: `vr_mock_eye_size 2048; vr_restart`, then `vr_eyeshot 1`.

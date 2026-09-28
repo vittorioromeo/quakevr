@@ -171,6 +171,12 @@ float(entity e, string key) propvalue = #0;
 // A prop held the same way every time (its "grip" 1): its turn in the hand set (and its angles now); returns its origin's
 // place in the hand (forward, right, up: .carry_offset). lefthand: the left hand's (mirrored).
 vector(entity e, vector handangles, float lefthand) propgrip = #0;
+// Rocks and bricks lying about (engine vr_debris.cpp; vr_debris.qc): placing them (after the map's entities: how
+// many), piece i's model, and putting piece i on an entity with its model set (its skin, size, turn, place on the floor
+// and box; its kind: 1 a rock, 2 a brick, 0 none).
+float() debrisplan = #0;
+string(float i) debrismodel = #0;
+float(entity e, float i) debrisput = #0;
 vector(entity e, vector angles, vector point) modelpoint = #0; // where a point of e's model (its axes: x forward, y left, z up) is from its origin, turned by angles as drawn
 // A hand's push on a rigid body: the point `at` gets at least `vel`'s speed along it (an impulse there: a tall box pushed
 // high tips over). FALSE if Box3D doesn't move it.
