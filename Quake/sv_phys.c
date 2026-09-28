@@ -1326,7 +1326,7 @@ void SV_Physics (void)
 	}
 
 	if (!sv_freezenonclients.value)
-		VR_PhysicsFrameEnd (); // QVR: the rigid bodies' world steps (vr_physics_engine 1)
+		VR_PhysicsFrameEnd (); // QVR: the rigid bodies' world steps (Box3D)
 
 	if (pr_global_struct->force_retouch)
 		pr_global_struct->force_retouch--;

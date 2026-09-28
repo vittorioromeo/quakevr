@@ -28,6 +28,7 @@
 #include "vr_twohand.hpp"
 #include "vr_main.hpp"
 #include "vr_modelcollide.hpp"
+#include "vr_selfcollide.hpp"
 #include "vr_posing.hpp"
 #include "vr_sightalign.hpp"
 #include "vr_bodycal.hpp"
@@ -1026,9 +1027,10 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
             for(int i = 0; i < weapons::maxHotspots; i++)
             {
                 // A cup is where the helping hand's palm goes: taken by the palm (round 21, third pass).
+                // (As tracked: the hands drawn out of each other and the body, vr_body_collide, choose as without it.)
                 const WorldHotspot& w = worldHotspots[hand][i];
                 const glm::vec3 from = w.type == weapons::HotspotType::Cup ? hands::palmPoint(s, 1 - hand) : s.pos[1 - hand];
-                const float d = glm::distance(from, w.pos) - w.bias;
+                const float d = glm::distance(from - selfcollide::drawnOffset(1 - hand), w.pos - selfcollide::drawnOffset(hand)) - w.bias;
                 if(weapons::isGripType(w.type) && d < best)
                 {
                     best = d;
@@ -4265,6 +4267,52 @@ void drawTuningAids(const hands::State& s, bool lasers)
     }
 }
 
+// What vr_body_collide's proxies are made from (vr_selfcollide.hpp): each hand as drawn (the jointed hand's grasp
+// spheres; the six old models' as three spheres along the hand), and the weapon in it.
+static selfcollide::Drawn selfCollideDrawn(const hands::State& s)
+{
+    static std::vector<glm::vec4> spheres[2];
+    static std::vector<glm::vec4> rig;
+    selfcollide::Drawn d;
+    for(int hand = 0; hand < 2; hand++)
+    {
+        spheres[hand].clear();
+        const RigHand& rh = rigHands[hand];
+        if(rh.drawn)
+        {
+            grasp::posedSpheres(rh.pose, rig);
+            const view::ViewEntity& he = entities.hand[hand][FingerBase];
+            float mm[16];
+            render::entityMatrix(he.ent, he.mirrored, ENTSCALE_DEFAULT, glm::vec3{0.f}, mm); // the rig as drawn
+            const glm::mat4 m = toMat4(mm);
+            const float unit = glm::length(glm::vec3{m[0]});
+            for(const glm::vec4& sp : rig)
+            {
+                spheres[hand].push_back(glm::vec4{glm::vec3{m * glm::vec4{glm::vec3{sp}, 1.f}}, sp.w * unit});
+            }
+            d.hand[hand] = &spheres[hand];
+        }
+        else if(entities.hand[hand][FingerBase].visible && entities.hand[hand][FingerBase].ent.model)
+        {
+            const avatar::HandPose hp = drawnHand(s, hand);
+            const float k = units::metresToUnits() * units::bodyScale();
+            for(const float along : {0.035f, 0.065f, 0.095f})
+            {
+                spheres[hand].push_back(glm::vec4{hp.wrist + hp.forward * (along * k), 0.032f * k});
+            }
+            d.hand[hand] = &spheres[hand];
+        }
+        const view::ViewEntity& we = entities.weapon[hand];
+        const int slot = weapons::slotForModel(we.ent.model);
+        if(we.visible && we.ent.model && slot >= 0 && slot != weapons::fistSlot() && !isHandModel(we.ent.model))
+        {
+            d.weapon[hand] = &we.ent;
+            d.mirrored[hand] = we.mirrored;
+        }
+    }
+    return d;
+}
+
 extern "C" void VR_SetupViewEntities()
 {
     QVR_PROFILE("view entities");
@@ -4321,6 +4369,8 @@ extern "C" void VR_SetupViewEntities()
     if(!posingNow)
     {
         modelcollide::beginView(s);
+        // And out of each other, the arms, the gadget and the body (vr_body_collide): drawn only, as above.
+        selfcollide::beginView(s);
     }
 
     updatePalmPoints(s);
@@ -4375,6 +4425,7 @@ extern "C" void VR_SetupViewEntities()
     setupButton(HAND_OFF);
     if(!posingNow)
     {
+        selfcollide::endView(s, selfCollideDrawn(s));
         const entity_t* const drawnWeapons[2]{&entities.weapon[HAND_OFF].ent, &entities.weapon[HAND_MAIN].ent};
         const bool drawnMirrored[2]{entities.weapon[HAND_OFF].mirrored, entities.weapon[HAND_MAIN].mirrored};
         modelcollide::endView(s, drawnWeapons, drawnMirrored); // the game reads the tracked hands and muzzles
@@ -4551,6 +4602,7 @@ void modelReload_f()
     anchor::onGameDirChanged(); // the strip orders (vr_anchor.cpp): by model, and a reloaded model keeps its slot
     grasp::reset();
     modelcollide::reset();
+    selfcollide::reset();
     weapons::resetCaches();
     avatar::reset();
     flashlight::onModelsReloaded(std::find(m.done.begin(), m.done.end(), "progs/vrflashlight.mdl") != m.done.end());

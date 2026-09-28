@@ -322,7 +322,6 @@ void(entity e) VR_Forcegrab_Miss =
         e.vr_rigid = 1;
     }
     e.flags = e.flags - (e.flags & FL_ONGROUND);
-    e.vr_rest = 0;
     e.fg_state = 2;
     setorigin(e, e.origin);
 }
@@ -420,7 +419,6 @@ void(entity e, float xHand) VR_Forcegrab_Launch =
     e.movetype = MOVETYPE_NOCLIP;
     e.solid = SOLID_NOT;
     e.flags = e.flags - (e.flags & FL_ONGROUND);
-    e.vr_rest = 0;
     e.vr_spin = '0 0 0';
     e.avelocity_x = crandom() * 60;
     e.avelocity_y = crandom() * 180;

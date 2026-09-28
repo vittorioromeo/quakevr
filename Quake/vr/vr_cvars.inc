@@ -52,7 +52,7 @@ QVR_CVAR(vr_throw_assist_full, "4", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_assist_strength, "0.8", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_assist_range, "1200", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_assist_speed, "0.15", CVAR_ARCHIVE)
-// Thrown weapons and backpacks as rigid bodies (vr_rigid.cpp): bounciness and friction of
+// Thrown weapons and backpacks as rigid bodies (Box3D, vr_box3d.cpp): bounciness and friction of
 // their contacts, their spin at most, and how fast the air slows it.
 QVR_CVAR(vr_throw_restitution, "0.25", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_friction, "0.6", CVAR_ARCHIVE)
@@ -65,10 +65,9 @@ QVR_CVAR(vr_bindings_version, "0", CVAR_ARCHIVE)
 // Mock backend: swing the main hand in an overhand arc with this period, in seconds (0: still).
 QVR_CVAR(vr_mock_swing, "0", CVAR_NONE)
 
-// Rigid-body physics (docs/vr-port/ROUND21.md, "Box3D physics"): 0 Quake VR's own solver (vr_rigid.cpp), 1 Box3D
-// (vr_box3d.cpp: props also collide with each other, so they stack and pile). Switched live: the bodies are
-// rebuilt from the entities at the next server frame.
-QVR_CVAR(vr_physics_engine, "0", CVAR_ARCHIVE)
+// Rigid-body physics: Box3D (docs/vr-port/ROUND21.md, "Box3D physics"; vr_box3d.cpp: props also collide with each
+// other, so they stack and pile).
+QVR_CVAR(vr_physics_engine, "1", CVAR_NONE)          // retired (Box3D is the only choice: ROUND21.md, "Simplification: Box3D only"): kept so saved configs load silently
 QVR_CVAR(vr_box3d_substeps, "4", CVAR_ARCHIVE)       // Box3D's sub-steps a server frame (1..8)
 QVR_CVAR(vr_box3d_player_push, "1", CVAR_ARCHIVE)    // the players' bodies push props (a capsule each, one way)
 QVR_CVAR(vr_box3d_player_radius, "15", CVAR_ARCHIVE) // cm, that capsule's radius
@@ -596,8 +595,8 @@ QVR_CVAR(vr_swim_flat_exp, "1", CVAR_ARCHIVE)         // how sharply the palm's 
 QVR_CVAR(vr_swim_speed_exp, "2", CVAR_ARCHIVE)        // push over hand speed: 1 linear, 2 as water's drag (fast strokes outweigh slow ones more), up to 3
 QVR_CVAR(vr_swim_palm_dir, "0", CVAR_ARCHIVE)         // 0: the push goes against the hand's motion; 1: along the palm's facing (sweeping palms-in pushes sideways)
 QVR_CVAR(vr_swim_debug, "0", CVAR_NONE)               // print each stroke: peak speed, power gate, reverse damping and the push it gave
-QVR_CVAR(vr_sword_drop, "1", CVAR_ARCHIVE)            // chance a knight or hell knight drops its sword, a melee weapon
-QVR_CVAR(vr_sword_damage_mult, "1.5", CVAR_ARCHIVE)   // its swing's damage over the axe's
+QVR_CVAR(vr_sword_drop, "1", CVAR_NONE)               // retired (knights and hell knights always drop their sword: ROUND21.md, "Simplification"): kept so saved configs load silently
+QVR_CVAR(vr_sword_damage_mult, "1.5", CVAR_ARCHIVE)   // a knight's sword: its swing's damage over the axe's
 QVR_CVAR(vr_wofs_version, "0", CVAR_ARCHIVE)          // the weapon settings changes the config has taken (vr_weapons.cpp)
 QVR_CVAR(vr_carry_take, "0", CVAR_ARCHIVE)            // taking a carried box: 0 let go of it at a holster, 1 the trigger, 2 either
 QVR_CVAR(vr_carry_local, "1", CVAR_ARCHIVE)           // what you carry is drawn in your hand as it moves this frame (0: where the server has it, a frame or a ping behind)
@@ -787,6 +786,10 @@ QVR_CVAR(vr_test_spawn_dist, "56", CVAR_NONE)         // and how far ahead (unit
 QVR_CVAR(vr_test_spawn_dead, "0", CVAR_NONE)          // 1: a monster killed at once (a corpse)
 QVR_CVAR(vr_hand_collide, "4", CVAR_ARCHIVE)          // cm a free hand is held out of the weapon in the other hand (drawn only; deeper, it lets go and passes through; 0: never)
 QVR_CVAR(vr_hand_collide_fingers, "1", CVAR_ARCHIVE)  // with it: the free hand's fingers react to the other hand's weapon: they rest on it or bend out of it (0: only the hand is pushed, by its fingertips too)
+QVR_CVAR(vr_body_collide, "1", CVAR_ARCHIVE)         // round 21: the drawn hands and held weapons stop at each other, the other arm, the wrist gadget and the body (drawn only: the game reads the tracked hands; vr_selfcollide.cpp); 0 off
+QVR_CVAR(vr_body_collide_pass, "0.7", CVAR_ARCHIVE)  // pushed this share of the way through what stops it (the whole hand or weapon), it lets go and passes through (1: only once all the way through; held out at most this times 15 cm)
+QVR_CVAR(vr_body_collide_elbows, "1", CVAR_ARCHIVE)  // with it: the elbows swing out of the torso rather than through it (the arm's IK)
+QVR_CVAR(vr_debug_body_collide, "0", CVAR_NONE)      // 1: print each hand's drawn offset and its contacts every frame one is on; 2: and draw the proxies (capsules) and the contacts' pushes
 QVR_CVAR(vr_hand_fit_blend, "0.12", CVAR_ARCHIVE)      // seconds the fingers, thumb and palm take to move to a new grasp (0: at once)
 QVR_CVAR(vr_hand_fit_resolve, "0.3", CVAR_ARCHIVE)     // cm (and that many times 2 degrees) what the hand holds may move in it before the grasp is solved again (0: every frame)
 QVR_CVAR(vr_debug_grasp, "0", CVAR_NONE)               // print each grasp solve (1), and each finger's stops (2)
