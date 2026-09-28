@@ -141,6 +141,14 @@ context and screenshot, ready to paste or to point me at.
 ## What to try
 
 - **New in this round** (details in `docs/vr-port/ROUND21.md`; each section ends with an "In the headset" list):
+  - **Deflection by blows and bashes; catching grenades; ogre aim** (ROUND21.md, same title): a swing or a blow bats
+    a monster's spike, laser, spit, ball, grenade or flesh off the weapon's face as a bat hits a ball (across: off to
+    the side; the face driven at the thrower: back at him, faster the harder); a bash or an armed shove sends it the
+    way you push. Parry, Bash and Headbutt > Batting Projectiles: **Batting Bounce** (0.6), **Batting Aim Assist**
+    (0.5). Ogres' grenades bounce and roll as physics; catch them (grip, or force grab even in flight), they fizz and
+    tick (**Held Grenade Fuse** 2.5 s, **Fuse Resets Every Catch** off; Carrying page, Grenades; **Catch Grenades**
+    also takes your launcher's with "Ogres' and yours"), throw them back at the ogre; held too long, they go off in
+    your hand. Ogres (and zombies) now lob at your height (Gameplay > Monsters, **Ogres Aim Grenades Up and Down**).
   - **Swimming: air supply; strokes against the palm** (Swimming page; ROUND21.md, same title): a backhand (palm
     facing you, the hand pushed away) or a hand swept back-first to reposition now pushes a quarter as much as a real
     stroke (**Stroke Against Palm**, 0.25; 1 is the old swimming); palm strokes are unchanged. `vr_swim_debug 1` shows
@@ -834,6 +842,21 @@ impulse 9; impulse 152` first) and `vr_mock_play punch_down_gib.mock` or `chop_d
 `developer 1` prints `melee event: ... a wall` / `a gib`, `gib: struck by a blow`, `flashlight: taken`; `developer 2`
 also `melee debug: going down at ... onto a surface facing ...: strikes|passes` (the wall rule for points going down).
 Note that `setpos` turns noclip on (QuakeSpasm's), which these tests don't mind.
+Deflection, grenades and ogre aim (ROUND21.md, "Deflection by blows and bashes; catching grenades; ogre aim"):
+`impulse 246` fires `vr_test_projectile`'s kind at your face from 300 units (0 a knight's spike, 1 a laser, 2 a
+scrag's spit, 3 a vore's ball, 4 an ogre's grenade, 5 a zombie's flesh; lobbed ones on the arc that reaches you) from
+`vr_test_projectile_side` degrees to your left of ahead (`impulse 247`: a hell knight's spike at 300 u/s).
+`impulse 240` makes the nearest ogre or zombie throw at you now (an ogre from the dispenser: `vr_test_spawn 1;
+vr_test_spawn_dist 200; impulse 241`, with `notarget` it waits; `skill 0` so it isn't a multi-grenade ogre, or
+`vr_test_projectile 6` for one). `vr_rigid_place ogre_grenade main` puts the grenade in the main hand (grip to catch
+it). `developer 1` prints `deflect: <what> by a swing|bash, in <v>, out <v>`, the weapon's point, velocity and face
+(swings) or the push (bashes), `deflect: aim assist towards ...`, `lob: <ogre> at player, <across>, <up>: the lower
+arc|the higher arc|out of reach, <deg>, <s>; <u/s> <v> (Quake's <v>)`, `grenade: caught in hand <h>, the fuse <s> ->
+<s>`, `grenade: let go of at ...`, `grenade: <what> hits <whom>`, `went off in player's hand`, `first bounces at`.
+Drive batting and bashes with `vr_mock_play` in real time (`host_maxfps 90`, not `vr_fixed_frames 1`, which runs the
+game's clock apart from the play's): the scratchpad's `projectiles/gen.py B|P|W|A` (swings, one-handed bashes,
+two-handed parry bashes, the aim assist; round 20's poses, so it sets and prints the old hand settings),
+`gren.py fly|place|force|hold|regrab|show`, and `ledge.sh above|below <aim 0|1>` (vrclimb's platform and trench).
 Stamina for shoves and strikes (ROUND21.md): `setpos 221.2 -656.7 41 0 180 0` (the dummy 0.95 m ahead), the takes
 from `motion_synth.py <palm_shove_2h | punch_straight | slash_horizontal_rtl> --distance 0.95 --mock` played with
 `vr_mock_play` one after another (an empty main hand: `vr_weapon_grip_mode 1; impulse 150`; a fist: `+grabright;

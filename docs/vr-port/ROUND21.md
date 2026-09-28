@@ -8107,3 +8107,176 @@ vrclimb has two new pieces next to the leniency corner, recompiled the "Full" wa
       the buzz and not be pushed back.
 - [ ] Body Calibration: the reach follows your measured arms. If holds let go at full stretch, tell me (the reach is
       the arm plus 5 cm and Shoulder Reach).
+
+## Deflection by blows and bashes; catching grenades; ogre aim
+
+Your two notes: deflecting projectiles should work with parry bashes (sent the way of the bash) and melee hits (as a
+baseball bat would send them, by the direction of the attack); and catching and returning grenades: ogre grenades as
+Box3D physics, grabbable by hand and force grab, their fuse reset to 2-3 s (customisable) while held, and ogres
+lobbing at your height (they threw as if you were level with them). Branch `agent/projectiles`; scripts, logs and
+pictures in the scratchpad's `projectiles/`.
+
+### Batting with blows and swings: off the weapon's face
+
+**Before:** a batting swing (any stroke of the striking part faster than Batting Swing Speed, blows included) sent the
+projectile where the hand pointed, or straight back at its thrower within 25 degrees, at 1.2 times its speed (at
+least 500 u/s).
+
+**Now** (`VR_Deflect_Bat`, vr_juice.qc): each swept line of the weapon keeps its two ends' velocities (the play
+space's, turned to the world, plus your walk). Where the projectile's path passed nearest the line:
+
+- The **weapon's velocity at that point** is its ends' mixed along the line (the line is rigid).
+- The **face that meets it**: across the line, against the projectile's coming as seen from the weapon; a touch off
+  the line's middle tilts it towards where it passed (up to half, at the reach's edge), as a ball hit high or low off
+  a bat. A fist is a ball: its face is just against the coming.
+- It **comes off** with **Batting Bounce** (`vr_deflect_bounce`, 0.6) of the speed it met the face at, and 80% of its
+  speed along the face; the weapon's own velocity is added. So its speed is 0.6 x its own plus 1.6 x the weapon's at
+  that point: a hard swing sends it back faster than it came, a gentle one slower. At least 450 u/s (a tap still
+  sends it off), at most 1500.
+- A swing **across** its path (the blade pointing at the thrower, swept sideways) sends it off to the side of the
+  swing; the **face driven at the thrower** (a bat's swing: the blade across the path, moving ahead) sends it back.
+- **Batting Aim Assist** (`vr_deflect_aim_assist`, 0..1, 0.5): only when it would pass very near a live monster in
+  sight (within 6 degrees; its thrower within 12), it bends that share of the way to it (a falling one to where its
+  arc meets it). 0: only your swing aims.
+- The swing still needs Batting Swing Speed and passes within Batting Reach: the detection is unchanged.
+
+### Bashes: the way the hands push
+
+A bash, an armed shove or the two-handed parry bash (`VR_Bash_Deflect`) sends it **the way the hands push** (their
+velocity at the push, both hands' averaged, kept while its batting lasts), not along the facing, at **750 u/s x the
+push's speed over Bash Speed** (0.7 .. 1.8 of it), a one-handed push 0.7 of that (as its knockback), then the aim
+assist. Round 20's 45-degree snap at the thrower is gone.
+
+### Stamina
+
+- A **batting swing** pays as a blow of that hand (Strike Stamina's costs: punch 4, weapon 8, two hands 6), once a
+  swing: a blow landing in the same swing, or more batting within 0.4 s, doesn't pay again, and a swing whose blow
+  landed first doesn't pay for batting. Short of stamina, the batted speed takes the Exhausted Damage multiplier.
+- A **bash's batting** pays the shove's cost (15, two hands 20), once a push (`VR_Bash_Pay`): if the same push then
+  lands, it doesn't pay again (and the other way round). Short, the batted speed takes Exhausted Knockback.
+
+### All kinds
+
+Anything a monster fires that flies (`VR_Deflect_IsProjectile`: a missile, a flier or a bouncer with a touch, owned by
+a monster) is batted and bashed: knight and hell knight (death knight) spikes, enforcer lasers, scrag spit, vore balls
+(they home on their old thrower), ogre grenades and multi-grenades, zombie flesh, Chthon's lava balls, the mission
+packs' (scourge spikes, lava men, Armagon, the dragons...). Batted, it is yours: it hurts monsters and spares you. The
+motion recorder's `deflect` event keeps its hand, the thrower and "swing" or "bash"; a vore's ball, which has no name,
+is named by its model. The dummy's readout ("deflected ...") is unchanged.
+
+### Ogre grenades: physics you can catch
+
+**Catch Grenades** (`vr_grenade_catch`, Carrying page, Grenades): 0 Off (Quake's), **1 the ogres'** (and the
+multi-grenade ogres', the 25% "boss" ogres on skill 1 and up), 2 also your grenade launcher's (off by default: your
+own grenades are for firing, and catchable ones would change the launcher).
+
+- **Box3D bodies** (`VR_Grenade_Make`, vr_grenade.qc; engine vr_box3d.cpp): the drawn hull of the grenade model (24
+  vertices, 2.6 litres), hard (restitution 0.45, Quake's bounce was 0.5; not the soft thud of gibs), 2000 kg/m^3 (an
+  iron shell), so they bounce, tumble and roll to a stop on their shape, knock boxes about, sink in water. They never
+  meet their thrower's own body (a Box3D custom filter on their shapes, Quake's owner rule): an ogre's grenade leaves
+  the ogre it's thrown from, and yours leave you; thrown back, it meets the ogre. Bounce sounds come from the jumps in
+  its velocity (a prop landing on the world touches nothing).
+- **Quake's rules kept:** it goes off on its 2.5 s fuse, or touching what it can aim at (a monster, a player, not its
+  thrower); else it bounces. Its own touch and explosion run (OgreGrenadeTouch, MultiGrenadeTouch, GrenadeTouch).
+  **One change for you in VR:** a grenade goes off on you when it reaches your **body** (the Box3D body capsule, 15 cm
+  radius, plus its size and 3 units), not Quake's box (1.2 m across, which your arms work inside): a grenade by your
+  hands is yours to catch. Flat-screen players and monsters keep the box.
+- **Grab it** by hand (grip as it touches your hand, in flight or on the floor) or with the **force grab** (even in
+  flight: Force Grab otherwise waits for a thrown thing to slow down).
+- **Caught, it's lit:** its fuse is set to **Held Grenade Fuse** (`vr_grenade_held_fuse`, 2.5 s, 1..5; never
+  shortened), with the lever's clink and a crackling fizz (`vr/grenade_fuse.wav`), sparks, and ticks
+  (`vr/grenade_tick.wav`) faster and faster (0.5 s apart down to 0.08) until it goes off, each felt in the hand. The two
+  sounds are made by `Misc/quakevr/make_sounds.py`.
+- **Once a throw:** dropped and caught again, the fuse keeps running (**Fuse Resets Every Catch**,
+  `vr_grenade_fuse_regrab`, off; on: every catch sets it again, and you could juggle one for ever). During a force
+  grab's pull the fuse doesn't run out (the flight takes the entity's think); a missed catch drops it at your feet with
+  what's left.
+- **Throw it** as any carried thing (the carry code's throw; one hook in `VR_Carry_Release`): let go of, it's yours,
+  whatever the speed: it goes off on a monster (the explosion is yours: kills and credit), never on you.
+- **Held too long** it goes off in your hand, as the thrower's explosion (so in full: yours would be halved and scaled
+  by Self Damage). From 100 health you're left with 67-69.
+- The dummy's readout names it "caught and thrown ogre_grenade".
+
+### Ogres aim up and down
+
+**Ogres Aim Grenades Up and Down** (`vr_ogre_aim_height`, on; Gameplay > Monsters). Quake's ogre throws at 600 u/s
+along the flat direction and 200 u/s up, whatever the height (and so does a zombie's flesh). Now (`VR_Lob_Aim`):
+
+- The launch at Quake's lob speed on flat ground (632 u/s) that falls on your middle, with `sv_gravity`: the **lower
+  arc**; the higher when a wall is in the lower one's way (the arc is traced in 10 segments); leading your walk by 30%
+  of the flight (slightly).
+- **Out of reach** at that speed (a ledge high above), it's thrown harder, as hard as it needs (+3%) up to 1.2x
+  (760 u/s); beyond, the arc that goes furthest towards you.
+- **Flat ground stays Quake's:** at 300 units it is exactly Quake's throw (18.4 degrees, 0.5 s); nearer, flatter
+  (5.8 degrees at 100, 11.8 at 200, where Quake's also flew through you); further, higher (26.6 at 400, 44.8 at 500;
+  at 600 units 35 degrees at 714 u/s), where Quake's fell short and rolled.
+- Zombies' flesh uses the same (the same throw); the marksman ogres (Honey) already aimed with height and are
+  unchanged; Chthon's lava balls fly straight and needed nothing.
+
+### Tests (mock headset; the old hand settings for the melee motions)
+
+Batting and bashes use round 20's pose helpers (its `gen.py`, which assumes the old hands), so every run set
+`vr_gunangle 39.5; vr_gunyaw 4`, every `vr_handcal_*` 0 and `vr_handcal_off_mirror 0`, and printed them. The mock
+plays in real time: `vr_fixed_frames` desynchronises `vr_mock_play` from the game's clock (use `host_maxfps 90`).
+The projectile is `impulse 246` from 300 units ahead at the face (the spike, laser and spit at 600 u/s, the vore's
+ball at 400 then homing at 250, the grenade and flesh lobbed at you); vrfiringrange, `setpos 190 -560 41 0 90 0`
+(ahead is +y).
+
+| Motion | In (u/s) | Out (u/s) |
+|---|---|---|
+| Sword swing right to left (blade ahead, swept across) | spike (0,-600,0) | (-517,-434,-224) 711: to the left |
+| same | laser, spit, vore ball, grenade, flesh | all to the left, 571-898 |
+| Sword swing left to right | spike (0,-600,0) | (767,-458,-161) 908: to the right |
+| Fast blow right to left | spike | (-902,-296,-261) 985 |
+| Bat swing (the blade sweeping round, across the path at its middle, driven ahead) | spike (0,-600,0) | (-72,1041,-155) 1055: back at the thrower |
+| same | laser | (-246,1017,-144) 1056 |
+| Sword guard push ahead (bash, one hand) | spike, laser, spit, vore, grenade, flesh | (0,+y,0) 605-700 |
+| Guard push ahead and right | spike | push (41,68,0): out (410,683,0) 796 |
+| Guard push ahead and left | spike | push (-36,68,0): out (-364,683,0) 774 |
+| Shotgun in hand, off palm shove | spike | (0,807,0) |
+| Two-handed parry bash ahead | all six kinds | (0,+y,0) 960-1053 |
+| Two-handed parry bash ahead and up | spike | push (0,65,48): out (0,935,693) 1164 |
+
+- Aim assist (a bash towards an ogre 4.7 degrees off, Batting Aim Assist 0.5): "aim assist towards monster_ogre, 4.7
+  deg off, 2.3 after"; with 0, straight along the push.
+- Stamina: a batting swing "stamina: 92 of 100 left (a blow, one hand, -8)"; a bash that bats and lands on the dummy
+  pays once (85, "a bash, one hand, -15").
+- Grenades (vrfiringrange, an ogre 200 units ahead with `notarget`, `impulse 240` makes it throw; `skill 0` so it
+  isn't a multi-grenade ogre unless asked):
+
+| Case | Log |
+|---|---|
+| Caught in flight (the grip closing 0.22 s after the throw, the hand 0.8 m ahead) | caught in hand 1, fuse 2.21 -> 2.50 s; thrown at 350 u/s; hits monster_ogre; "damage: monster_ogre 16.6 by ogre_grenade" (credited to you) |
+| The grip 0.26 s after | too late: "hits player" |
+| Put in the hand (`vr_rigid_place ogre_grenade main`), thrown back | caught, 2.41 -> 2.50 s; hits the ogre, 17.1 damage |
+| Force grab (lying 40 units ahead of the off hand; trigger, flick, grip) | "force grab: caught ogre_grenade"; fuse 1.08 -> 2.50 s; thrown back, hits the ogre, 17.9 |
+| Held (no god) | "went off in player's hand"; 100 -> 67 health |
+| Dropped, caught again 0.7 s later | Fuse Resets Every Catch off: "fuse left at 1.50 s"; on: 1.50 -> 2.50 s |
+| Multi-grenade ogre (`vr_test_projectile 6`) | caught, thrown back, hits the ogre: 97 damage (rogue's rule: yours goes off as a full grenade) |
+| Your launcher, Catch Grenades 2 | a Box3D prop, bounces, goes off on its fuse; with 1, Quake's as before |
+| Bounce and roll (an ogre 520 units ahead, Quake's aim) | first bounce at 372 u/s; 629 -> 436 -> 91 -> 17 -> 0 u/s, tumbling (roll 10, 124, 54, -129, -180), asleep on the world after 1.2 s |
+
+- Ogre aim, vrclimb (the platform's floor 0 over the trench's -208; `ledge.sh`):
+
+| Case | Quake's (aim off) | Aim on |
+|---|---|---|
+| You on the platform, the ogre in the trench 300 units off, 211 below | hits the platform's wall at (-151,195,-191), goes off in the trench, 230 units below you | 700 u/s (harder: out of reach at 632), 56 degrees, 0.77 s: hits you at (-150,158,24) |
+| You in the trench, the ogre on the platform 410 units off, 205 above | flies over you: first bounce 152 units past you (y 602), goes off 180 units away | the lower arc hits the platform's edge, so the higher (68 degrees, 1.76 s): hits you at (-150,441,-154) |
+| Flat ground (vrfiringrange), 200 and 350 units | 18.4 degrees | 12.7 and 25.8 degrees, hits you |
+
+- Not rerun: the melee canary (`eval.sh`: the author's takes are archived, it skips); a scripted motion-recorder take
+  with a deflect (the event call is unchanged); the dummy's readout of a deflected spike (in the one geometry where the
+  bash met the spike, the spike started inside the dummy's box, which a missile passes through).
+
+### Check in the headset
+
+- [ ] Swing through a knight's spike or an enforcer's laser: across, it should fly off the way you swung; with the
+      blade across its path, driven at the knight, it should go back at him, faster the harder you swing. If it's too
+      tame or too wild, Batting Bounce; if you want more help aiming, Batting Aim Assist.
+- [ ] Bash or shove a spike with your guard (one hand, two hands): it should go the way you push.
+- [ ] An ogre's grenade: catch it in flight or off the floor (or force-grab it), hear it fizz and tick, and throw it
+      back: it should go off on the ogre. Hold one: it should go off in your hand. Tell me if 2.5 s (Held Grenade
+      Fuse) is too long or too short.
+- [ ] Grenades bouncing and rolling: do they look heavy enough? Do they ever go off on you when you reach for one
+      (they shouldn't, unless it reaches your body)?
+- [ ] Stand on a ledge above an ogre and below one: its grenades should now come at you.
