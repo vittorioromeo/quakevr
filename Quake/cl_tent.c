@@ -304,6 +304,70 @@ entity_t *CL_NewTempEntity (void)
 
 /*
 =================
+CL_UpdateRope
+
+QVR: a grappling hook's rope along its curve (VR_RopeCurve), its links one after another from one piece to the
+next; zero when it is straight (drawn as any beam).
+=================
+*/
+static int CL_UpdateRope (beam_t *b)
+{
+	float		points[17][3];
+	int			n, k, j;
+	float		beamscale, step, carry, d, yaw, pitch, forward;
+	vec3_t		dist, org;
+	entity_t	*ent;
+
+	n = VR_RopeCurve (b->entity, b->start, b->end, points, 17);
+	if (n < 3)
+		return 0;
+
+	beamscale = VR_BeamScale (b->model);
+	step = 30 * beamscale;
+	carry = 0; // how far into this piece the next link starts
+	for (k = 0; k < n - 1; k++)
+	{
+		VectorSubtract (points[k + 1], points[k], dist);
+		d = VectorNormalize (dist);
+		if (d <= 0)
+			continue;
+		if (dist[1] == 0 && dist[0] == 0)
+		{
+			yaw = 0;
+			pitch = dist[2] > 0 ? 90 : 270;
+		}
+		else
+		{
+			yaw = atan2 (dist[1], dist[0]) * 180 / M_PI;
+			if (yaw < 0)
+				yaw += 360;
+			forward = sqrt (dist[0]*dist[0] + dist[1]*dist[1]);
+			pitch = atan2 (dist[2], forward) * 180 / M_PI;
+			if (pitch < 0)
+				pitch += 360;
+		}
+		while (carry < d)
+		{
+			ent = CL_NewTempEntity ();
+			if (!ent)
+				return 1;
+			for (j = 0; j < 3; j++)
+				org[j] = points[k][j] + dist[j] * carry;
+			VectorCopy (org, ent->origin);
+			ent->model = b->model;
+			ent->angles[0] = pitch;
+			ent->angles[1] = yaw;
+			ent->angles[2] = 0;
+			ent->scale = ENTSCALE_ENCODE (beamscale);
+			carry += step;
+		}
+		carry -= d;
+	}
+	return 1;
+}
+
+/*
+=================
 CL_UpdateTEnts
 =================
 */
@@ -337,6 +401,8 @@ void CL_UpdateTEnts (void)
 		rope = VR_UpdateBeam (b->entity, b->start, b->end); // QVR
 		if (!rope)
 			VR_BeamLights (i, b->model, b->start, b->end); // QVR: lights along the lightning
+		else if (CL_UpdateRope (b)) // QVR: a slack rope hangs (drawn along its curve)
+			continue;
 
 	// calculate pitch and yaw
 		VectorSubtract (b->end, b->start, dist);

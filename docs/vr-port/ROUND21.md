@@ -8662,3 +8662,174 @@ The only real cost is the held torch's shadow map (about 0.1 ms of CPU here): Ta
 - [ ] Hit a grunt a few times: does he catch fire, do burns show? After 5 blows, does the fire die in your hand?
 - [ ] Drop one: it dies in 6 s; pick one up while it dies: it burns up again. Light a dead one in a wall torch.
 - [ ] Held Object Offsets with the torch in hand: Grip X/Z and the fingers; Print Changes to Console for me.
+
+## Grappling hook: rope, reel on demand, props and monsters
+
+Your voice notes (vrfiringrange, 17:40-17:43): reel hooked enemies in with the trigger held and the hand's B or Y;
+the hook also takes physics objects (weapons, pickups, power-ups, keys: small ones come quickly, heavy ones slowly,
+the weight setting the speed); **never reel anything in without the button** (the hook sticks where it lands and the
+rope stays as long as it was: no pull on you until you hold Y, or B on the other hand); small enemies (dogs, knights,
+grunts, zombies) reeled in are staggered, larger ones (ogres, death knights) come slower and are not, and for very big
+ones (the shambler) you go to them; the settings on a new menu page. Branch `agent/grapple`; scripts, logs and
+pictures in the scratchpad's `grapple/` (`run_all.sh` runs the checks below).
+
+### What you do
+
+- **Fire:** the trigger (as before). The hook flies 1500 units/s for 1.8 s at most (2700 units) and bites the first
+  thing it meets: a wall, a ceiling, a floor, a door or a lift, a monster, a physics prop, a power-up. Hold the trigger
+  to keep it; let go and it comes off, **in flight too** (before, a hook in flight flew on and came off only where it
+  landed). It also comes off when you are teleported, change weapon or die, and when what it bit dies, is taken (by
+  you or anyone), is force grabbed or goes away. A hook that came off by itself (or missed) with the trigger still held
+  does not fire again until you pull the trigger again (Rogue's fired over and over while it was held).
+- **The rope:** it holds at the length it had when the hook bit, measured from your body (from the gun, for a prop).
+  Nothing pulls: you can walk or fall closer freely, never farther: walk away and it holds you; step off a ledge under
+  a ceiling hook and you swing on it (put back on the rope's sphere each frame, your speed away from the hook taken
+  away, gravity doing the rest: a pendulum). Against a beam or a wall the rope's pull slides along it.
+- **The reel:** hold the hand's upper face button: **B on the right hand, Y on the left** (the hand holding the
+  grapple: the engine's key for that hand's upper button, `BBUTTON`/`YBUTTON`, whatever it is bound to). While it is
+  held the reel winds in: it takes any slack in at once, then shortens the rope at its speed (reaching it in 0.15 s,
+  and slowing to stop at the rope's shortest); let go and the rope keeps its new length. The reel can't outrun what it
+  pulls: a load that is stuck (a box behind a pillar, you under a beam) stalls it (the rope is never more than 8 units
+  shorter than the load is far), so nothing jumps when it comes free. While the hook is out, that hand's B/Y does not
+  cycle its weapon (with Weapon Cycling on it does otherwise, as before).
+- **What comes to what:**
+
+| Hooked | The reel pulls | Speed (defaults) | Staggered |
+|---|---|---|---|
+| a wall, ceiling, floor, door, lift; another player | you, to it | Reel Speed, 450 u/s | |
+| a prop (weapon, pickup, key, ammo or health box, gib, explosive box) lighter than Too Heavy From (100 kg) | it, to your gun, where it hangs from the rope to take with the other hand | Prop Reel Speed (650 u/s) up to Light Up To (8 kg); heavier, in proportion (40 kg: 130 u/s) | |
+| a prop from 100 kg | you, to it | Reel Speed | |
+| a power-up (quad, pentagram, ring, the mission packs' shields and belts; weapons and keys with Weapons and Keys off) | it, flying to your gun, where you take it (as if you walked into it) | as a prop of its mass | |
+| a small monster (up to 120 kg) | it, to you, sliding over the floor | Small Reel Speed, 400 u/s | yes, every second |
+| a medium monster | it, to you | Medium Reel Speed, 160 u/s | no |
+| a huge monster (from 400 kg), or one that can't move (the range's dummies on their posts, Chthon) | you, to it | Reel Speed | no |
+
+- **Monster masses** (their class is their mass against Small Up To and Huge From; any other monster's comes from its
+  box, a grunt's being 80 kg): fish 15, spike mine 20, spawn 25, gremlin 30, dog 35, eel 40, scrag 50, zombie 70,
+  grunt 80, knight 90, wrath 90, enforcer 100 (small); mummy 140, hell knight (death knight) 150, the Honey's knight
+  and the invisible swordsman 150, ogres (both) 250, fiend 250, vore 250, morph 300, scourge 300 (medium); overlord
+  450, shambler 600, Hephaestus, the dragon and Armagon 3000, Chthon 5000, Shub-Niggurath 10000 (huge). Props weigh
+  what Held Object Offsets says (`propvalue(e, "mass")`: set, or estimated from the prop's size).
+- **Monsters pulled** move the way they can: walking ones slide over the floor (the shove's slide, `VR_Shove_Start`:
+  their feet just clear, so their AI can't walk them back; walls stop them; over an edge they fall and land hurt), a
+  small one is lifted when the rope pulls up steeply, flying and swimming ones are swept to where they get each frame
+  (a wall stops them, a fish stays in its water). They stop a step from you. **Staggered** (small ones, Stagger Small
+  Monsters): their pain, forced, as a shove's (`VR_Bash_Hit`): it cuts off their attack, and no attack for a second;
+  again every second of reeling (zombies get a light pain: a hard one knocks them down). The rope holds them too: one
+  that walks away is pulled back to the rope's length; a huge one drags you.
+- **Props pulled** are pulled at the hook's point (Box3D's push: a box pulled by a corner swings round), slowing to
+  stop just short of the gun (12 units past half their size); the rope then holds them hanging there, their swing
+  dying down, to take with the other hand (a weapon gripped is that hand's at once; the hook lets go). A pickup still
+  hanging where the map put it is knocked loose as the hook bites (a physics object from then on).
+- **Rogue's grapple** is still there: Rope > Pulls at once (`vr_grapple_rope 0`) pulls you in as soon as the hook
+  bites, whatever it bit, as before. A player without tracked hands (flat screen, a bot) always gets it: they have no
+  B/Y.
+
+### Feel
+
+- **Haptics** (Haptics, 0..1): a knock as the hook bites; while reeling, a buzz every 50 ms, stronger and lower the
+  heavier the load (a light prop 0.2, you 0.6, a medium monster 0.85; a stalled reel strains at 0.55); a jolt as the
+  rope snaps taut (a fall caught, the end of a swing, a load pulled back), by how fast.
+- **Sounds** (new, synthesised by `Misc/quakevr/make_sounds.py`): `vr/grapple_reel.wav`, a ratchet's pawl over its
+  teeth (28 clicks a second) over the drum's whirr, played back to back while the reel winds (slower under a heavy
+  load, silent when it stalls); `vr/grapple_taut.wav`, a low twang, a chink and a creak as the rope snaps taut (louder
+  the harder). The chain's throw and the bites are Rogue's.
+- **The rope:** Rogue's chain beam, as before, from the gun as drawn to the hook. **Slack, it hangs** (Slack Rope
+  Hangs, `vr_grapple_sag`): the server sends its slack (the share of its length that hangs, in 125 steps, folded into
+  the beam's id: ids 4..255; 2 and 3 are still a taut rope); the client eases to it and draws the chain along the
+  parabola of that length under the line between its ends (sagging across the line: a rope hanging straight down
+  stays straight), lying on the floor where it would go through it (a trace down from the line at each of its 17
+  points).
+
+### The page: Advanced VR Options > Game > Grappling Hook
+
+| Setting | Cvar | Default | |
+|---|---|---|---|
+| Rope | `vr_grapple_rope` | Holds | Holds: the rope above; Pulls at once: Rogue's grapple |
+| Reel Speed | `vr_grapple_reel_speed` | 450 u/s | the reel pulling you |
+| Shortest Rope | `vr_grapple_min_length` | 40 | how short the reel takes it (from your body) |
+| Prop Reel Speed | `vr_grapple_prop_speed` | 650 u/s | light props |
+| Light Up To | `vr_grapple_prop_light` | 8 kg | heavier: slower in proportion |
+| Too Heavy From | `vr_grapple_prop_anchor` | 100 kg | the reel pulls you to it |
+| Small Up To | `vr_grapple_small_mass` | 120 kg | the monster classes |
+| Huge From | `vr_grapple_huge_mass` | 400 kg | |
+| Small Reel Speed | `vr_grapple_small_speed` | 400 u/s | |
+| Medium Reel Speed | `vr_grapple_medium_speed` | 160 u/s | |
+| Stagger Small Monsters | `vr_grapple_stagger` | on | |
+| Stamina a Second | `vr_grapple_stamina` | 0 (free) | reeling a monster in spends the parry/shove/strike pool (paid four times a second); short of it, a quarter as fast |
+| Haptics | `vr_grapple_haptics` | 1 | |
+| Slack Rope Hangs | `vr_grapple_sag` | on | |
+
+`vr_grapple_debug` (not archived; with `developer 1`): 1 prints what the hook bites (mass, class, speed, the rope)
+and each reel four times a second (how far, the rope, how fast it closes, the reel's speed); 2 also the rope's state
+four times a second when not reeling; 3 every frame the rope holds you. The page is inserted after Force Grab, so the
+pages after it are one further on for `menu_vr <n>` (Grappling Hook is 13). New cvars only: no config migration.
+Test spawns: `vr_test_spawn 102` / `103` with `impulse 241` put an explosive box (40 kg) / a small one (25 kg) ahead.
+
+### How it works
+
+- **The button:** the engine keeps each hand's upper face button held as the game gets it (`vr_input.cpp`: not when
+  the posing mode, a voice note or the flashlight takes the press; not in a menu or the console) and sends it with the
+  move (`QVR_BUTTON_OFFHANDSECONDARY`/`MAINHANDSECONDARY`, bits 4 and 5 of the move's button byte); the server puts it
+  in `.vrbits0` bits 19 and 20 (`QVR_VRBITS0_*HAND_SECONDARY`, `VRGetEntSecondaryPressed`). The bindings (B: impulse
+  10, Y: impulse 12) are unchanged; `weapons.qc` skips the cycle while that hand's hook is out.
+- **The hook** (`QC/vr_grapple.qc`, rewritten; after `vr_carry.qc` and `vr_walltorch.qc` in `progs.src`, whose fields
+  it reads): the flight's own touch bites walls, monsters and solid props (explosive boxes); the other props and the
+  power-ups are touchable, which missiles pass through, so each frame of flight looks for them along the hook's next
+  step (`VR_SegmentBox` against their boxes, before whatever the step's trace hits). Biting sets its kind (anchor,
+  prop, monster), the target's mass and class, where on it the hook is (in a prop's model axes, a monster's yaw, a
+  door's origin) and the rope's length; every frame `GrappleService` (the player's, from `client.qc`) keeps the hook
+  there, applies the reel and the rope to whoever moves, and sends the rope with its slack.
+- **You held:** after your move (`PlayerPostThink`), if you are farther from the hook than the rope, you are swept
+  back onto it (`tracebox`; blocked, the rest slides along what blocked it), your speed away from it removed; reeling,
+  at least the reel's speed towards it (and no more when arriving). Lifted, you are off the floor.
+- **A prop pulled:** `physicspush` at the hook's point (at least the speed wanted along the rope, your own motion
+  added), or its velocity while it has no Box3D body; slowed arriving by its velocity (a push can't slow it). Its
+  velocity is never set in a frame it is pushed (Box3D takes a changed `.velocity` over the body's: a weapon hanging
+  under the gun lay on the floor until that was fixed).
+- **A monster pulled:** its velocity and the shove's slide (walkers), a swept `setorigin` (flyers, swimmers).
+
+### Checked (mock headset; `grapple/final_*.log` and `.png`, and the earlier runs' `mon_*`, `slack*`, `swing`)
+
+- **Ceiling** (e1m1's first corridor, the hook 160 units up ahead): 2 s holding: you stay at 480 -352 88, still. Reel
+  0.4 s: up at 450 u/s, rope 160 -> 40. Let go: 40 away, rope 40, hanging at z 147 (off the floor) until you let go of
+  the trigger, a small sideways sway dying down; the picture shows you hanging from the ceiling by the chain. Before
+  the slide fix you slowly slid off the rope under the doorway's beam (the straight way back was blocked).
+- **Swing** (a hook 40 units straight above): hanging, the log's positions swing about ±10 units under the hook with a
+  1.25-1.5 s period (a 40-unit pendulum's is 1.4 s).
+- **Slack:** the far wall bitten 1120 units off, then 550 closer (setpos): the chain lies on the floor to the wall;
+  Slack Rope Hangs off: a straight line in the air (`slack2.png`); a short reel pulls it taut.
+- **Props** (firing range, reeled from 220-300 units): a health box (6 kg): 621 u/s (the reel's 650), stops 16 from
+  the gun and hangs; an explosive box (40 kg): 113-116 u/s (the reel's 130 = 650 × 8/40, less the floor's friction),
+  stops at 45. A range weapon (7.1 kg): 616 u/s, hangs 14-23 units under the gun, swinging; the off hand's grip takes
+  it and the hook lets go ("what it bit is gone"). A quad damage (10.1 kg): flies in at 515 u/s; "You got the Quad
+  Damage".
+- **Monsters** (350-450 units ahead, notarget): a grunt: small, 388-391 u/s (the reel's 400), staggered at the start
+  and a second later, stops 64 units off; an ogre: medium, 150-152 u/s, no stagger; a hell knight: medium, 150 u/s;
+  a dog (35 kg) and a zombie (70 kg): small, 390-399 u/s, staggered; a scrag (flying, swept): about 500 u/s closing (it
+  flies at you as well); a fiend: medium, 150-167 u/s; a shambler: huge: you go to it at 450 u/s and stop 33-40 from
+  the hook; it swats you and the rope holds you (snapping taut at 120-400 u/s).
+- **Hands and buttons:** the off hand's grapple reels with Y; with Weapon Cycling on, B without a hook cycles the main
+  hand's weapon (the next pull fires no hook), and with the hook out it does not (the hook stays, the reel runs).
+- **Rogue's grapple** (`vr_grapple_rope 0`): bites and pulls you in at once (700-820 u/s along the corridor).
+- **Stamina a Second** 30 on an ogre: 7.5 stamina every quarter second (100 -> 33 in 2.3 s).
+- The menu page (`menu_vr 13`) with every row; the QC builds with no warnings; the FGD check passes.
+
+### Not verified
+
+- In the headset: the reel's feel (speeds, the ramp, the haptics' strength), the sounds' mix, whether the hanging
+  rope reads as a rope. Swinging on a long rope: the maps I could test have low ceilings (e1m1's are 60-120 units over
+  your head) or open sky (the firing range).
+- Multiplayer: other players' ropes are drawn straight (their start is the server's, not the gun as drawn); a hooked
+  player still bleeds as in Rogue's; plain pickups aren't hooked in coop or deathmatch (they come back where they are
+  taken: a pulled one would move its place).
+- Saves with a hook out (the tests write no saves; the hook is an ordinary entity with ordinary fields).
+
+### In the headset
+
+- [ ] Hook a ceiling: nothing pulls. Walk away: the rope holds you. Hold Y (or B): up you go; let go: you hang there,
+  and swing when you push off.
+- [ ] Hook a gun lying on the floor, reel it in, grip it with the other hand. Hook a quad and reel it: you get it.
+- [ ] Hook a grunt and reel: he comes, staggering. An ogre: slower, no stagger. A shambler: you fly to it.
+- [ ] Hook a far wall and walk towards it: does the chain sag and lie on the floor?
+- [ ] The Grappling Hook page (Advanced VR Options > Game): speeds, classes, haptics to taste.

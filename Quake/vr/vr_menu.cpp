@@ -1313,6 +1313,50 @@ void hologramTestMessage()
     };
 }
 
+[[nodiscard]] std::vector<Item> pageGrapple()
+{
+    return {
+        cycle("Rope", vr_grapple_rope, {{1.f, "Holds"}, {0.f, "Pulls at once"}})
+            .help("Holds: the hook bites and the rope holds you at its length (swing on it, walk closer), pulling nothing "
+                  "until you hold the hand's B or Y (Y on the left hand) with the trigger. Pulls at once: the mission pack's "
+                  "grapple, pulling you in as soon as it bites."),
+        slider("Reel Speed", vr_grapple_reel_speed, 100.f, 1000.f, 25.f, "%.0f u/s").extend(25.f, 2000.f)
+            .help("How fast the reel pulls you in: to a wall or a ceiling, to a huge monster, to a prop too heavy to come."),
+        slider("Shortest Rope", vr_grapple_min_length, 16.f, 128.f, 4.f, "%.0f").extend(0.f, 400.f)
+            .help("How short the reel takes the rope (units)."),
+
+        header("Props"),
+        slider("Prop Reel Speed", vr_grapple_prop_speed, 100.f, 1500.f, 25.f, "%.0f u/s").extend(25.f, 3000.f)
+            .help("How fast light props come in: weapons, pickups, keys, gibs. They hang at the gun, to take with the "
+                  "other hand."),
+        slider("Light Up To", vr_grapple_prop_light, 1.f, 40.f, 1.f, "%.0f kg").extend(0.1f, 200.f)
+            .help("Props up to this mass come at the Prop Reel Speed; heavier ones slower, in proportion (twice as heavy: "
+                  "half as fast). Masses: Held Object Offsets."),
+        slider("Too Heavy From", vr_grapple_prop_anchor, 10.f, 500.f, 5.f, "%.0f kg").extend(1.f, 10000.f)
+            .help("A prop this heavy does not come: the reel pulls you to it, as to a wall."),
+
+        header("Monsters"),
+        slider("Small Up To", vr_grapple_small_mass, 20.f, 600.f, 10.f, "%.0f kg").extend(0.f, 10000.f)
+            .help("Monsters up to this mass are small: pulled fast and staggered (dogs 35, grunts 80, knights 90, "
+                  "enforcers 100)."),
+        slider("Huge From", vr_grapple_huge_mass, 100.f, 2000.f, 25.f, "%.0f kg").extend(0.f, 100000.f)
+            .help("Monsters this heavy are huge: the reel pulls you to them (shamblers 600, bosses). In between, medium: "
+                  "pulled slowly, not staggered (hell knights 150, ogres and fiends 250)."),
+        slider("Small Reel Speed", vr_grapple_small_speed, 50.f, 1000.f, 25.f, "%.0f u/s").extend(10.f, 2000.f),
+        slider("Medium Reel Speed", vr_grapple_medium_speed, 25.f, 600.f, 25.f, "%.0f u/s").extend(10.f, 2000.f),
+        toggle("Stagger Small Monsters", vr_grapple_stagger)
+            .help("A small monster reeled in is staggered: its pain, cutting off its attack, and again every second."),
+        slider("Stamina a Second", vr_grapple_stamina, 0.f, 50.f, 1.f, "%.0f").extend(0.f, 200.f)
+            .help("Reeling a monster in tires you (the parry, shove and strike stamina): this much a second. Short of it, "
+                  "it comes a quarter as fast. 0: free."),
+
+        header("Feel"),
+        slider("Haptics", vr_grapple_haptics, 0.f, 1.f, 0.1f, "%.1f")
+            .help("The hook biting, the reel's buzz (stronger with a heavier load), the rope snapping taut."),
+        toggle("Slack Rope Hangs", vr_grapple_sag).help("A slack rope is drawn hanging (off: always straight)."),
+    };
+}
+
 // ----------------------------------------------------------------------------
 // Pages
 // ----------------------------------------------------------------------------
@@ -1353,6 +1397,7 @@ const Page pages[] = {
     {nullptr, "Throwing and Physics", "Throwing and Physics", pageThrowing},
     {nullptr, "Carrying and Gibs", "Carrying and Gibs", pageCarrying},
     {nullptr, "Force Grab", "Force Grab", pageForceGrab},
+    {nullptr, "Grappling Hook", "Grappling Hook", pageGrapple},
 
     {"Body and Movement", "Body", "Body", pageBody},
     {nullptr, "Arms and Pauldrons", "Body - Arms and Pauldrons", pageBodyArms},

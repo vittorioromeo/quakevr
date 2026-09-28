@@ -38,7 +38,7 @@ needs no rebinding.
 | Trigger | `RTRIGGER` | `LTRIGGER` | `+attack` / `+offhandattack` |
 | Grip | `RSHOULDER` | `LSHOULDER` | `+grabmain` / `+graboff` |
 | A / X (primary) | `ABUTTON` | `XBUTTON` | `+jump` / `+reloadoff` |
-| B / Y (secondary) | `BBUTTON` | `YBUTTON` | `impulse 10` / `impulse 12` (next weapon) |
+| B / Y (secondary) | `BBUTTON` | `YBUTTON` | `impulse 10` / `impulse 12` (next weapon); held with the grappling hook out: its reel, whatever it is bound to |
 | Stick click | `RTHUMB` | `LTHUMB` | `+reloadmain` / `+speed` |
 | Stick | turn; up/down are `DPAD_UP`/`DPAD_DOWN` (`+moveup`/`+movedown`: swim) | move | |
 | Menu button | Escape (not rebindable) | | |
@@ -141,6 +141,16 @@ context and screenshot, ready to paste or to point me at.
 ## What to try
 
 - **New in this round** (details in `docs/vr-port/ROUND21.md`; each section ends with an "In the headset" list):
+  - **Grappling hook: rope, reel on demand, props and monsters** (ROUND21.md, same title): the hook bites and the rope
+    just holds you at its length (swing on it, walk closer; nothing pulls). Hold that hand's **B** (right) or **Y**
+    (left) with the trigger to reel in; let go and the rope keeps its length. Walls and ceilings, heavy props (100 kg
+    and more) and huge monsters (shamblers, bosses) pull you to them; props come to the gun (light ones fast, heavy
+    ones slowly: the explosive box at a fifth) and hang there for the other hand to take; power-ups fly in and are
+    yours; small monsters (dogs, grunts, knights, zombies, scrags) come fast and staggered, medium ones (ogres, hell
+    knights, fiends, vores) slowly and not. A slack rope hangs. Letting go of the trigger drops it, in flight too.
+    Advanced VR Options > Game > **Grappling Hook** (speeds, the classes' masses, stagger, stamina, haptics; Rope: Pulls
+    at once for the mission pack's old pull). Test it: `impulse 9` gives it (`impulse 151`/`171` put it in the main /
+    off hand).
   - **Wall torches you can take** (ROUND21.md, same title): grip a wall torch and pull it out (or force grab it); it
     is a burning club that lights the room round you as the wall torch did (same colour and brightness, and it casts
     shadows). Its blows burn monsters; after 5 blows, or dropped, its fire dies in 6 s; held, it burns for ever; a dead
@@ -688,9 +698,14 @@ box before the main hand (no `carry: taken`, and the box drops). Carrying across
 Held weapons against models (round 21): `vr_debug_model_collide 1` prints each hand's push, `2` draws the rays;
 `vr_model_collide_bench [n] [list]` times the test, `vr_model_collide_bench probe` lists the model triangles a ray along
 the view goes in and out by. `impulse 241` puts a monster (`vr_test_spawn`: the firing range dispenser's numbers) or a
-box (100 health, 101 shells) `vr_test_spawn_dist` units ahead (`vr_test_spawn_dead 1`: a corpse);
+box (100 health, 101 shells, 102 an explosive box, 103 a small one) `vr_test_spawn_dist` units ahead
+(`vr_test_spawn_dead 1`: a corpse);
 `vr_mock_camera <x> <y> <z> <pitch> <yaw>` draws the mock eyes from elsewhere in the tracking space (a spectator's view of
 your body; the hands stay with the head), `vr_mock_camera` alone puts them back.
+Grappling hook (round 21): `impulse 151` (main hand), `vr_mock_hand main 0.2 1.3 -0.3 70 0 0` aims level (105:
+up ahead, 160: straight up), `+attack` fires and holds, `vr_mock_button main secondary 1` / `0` reels; with
+`developer 1; vr_grapple_debug 1` (2: the rope's state too) the log has what it bit, its mass and class, and each
+reel's distance, rope and closing speed. The scratchpad's `grapple/run_all.sh` has the round's checks.
 Leaning (round 21): `vr_mock_hand head <x> <y> <z> <pitch> <yaw> <roll>` and `vr_mock_play` head keyframes with angles
 turn the head too (pitch up, roll as the hands'); `vr_debug_lean 1` writes `lean_trace.txt` (the game directory): the
 head, the box, the lean, the pelvis, the feet and the lean's hold and cues, every frame.

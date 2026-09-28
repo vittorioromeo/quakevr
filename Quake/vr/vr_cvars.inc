@@ -782,6 +782,21 @@ QVR_CVAR(vr_forcegrab_catch_late, "0.15", CVAR_ARCHIVE)    // or this late
 QVR_CVAR(vr_forcegrab_miss_speed, "0.2", CVAR_ARCHIVE)     // share of its speed a missed object keeps
 QVR_CVAR(vr_forcegrab_eligible_particles, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_forcegrab_eligible_haptics, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_grapple_rope, "1", CVAR_ARCHIVE)             // grappling hook (QC vr_grapple.qc): 1 a rope, held at its length, that reels in only while the hand's B/Y is held; 0 Rogue's grapple, pulling you in as soon as it hooks
+QVR_CVAR(vr_grapple_reel_speed, "450", CVAR_ARCHIVE)     // units/s the reel pulls you in (to walls, huge monsters, props too heavy to move)
+QVR_CVAR(vr_grapple_min_length, "40", CVAR_ARCHIVE)      // the shortest the reel takes the rope (units)
+QVR_CVAR(vr_grapple_prop_speed, "650", CVAR_ARCHIVE)     // units/s a light prop comes in at (weapons, pickups, keys)
+QVR_CVAR(vr_grapple_prop_light, "8", CVAR_ARCHIVE)       // kg up to which props come in at that speed; heavier, slower in proportion (40 kg: a fifth)
+QVR_CVAR(vr_grapple_prop_anchor, "100", CVAR_ARCHIVE)    // kg from which a prop does not come: the reel pulls you to it
+QVR_CVAR(vr_grapple_small_mass, "120", CVAR_ARCHIVE)     // kg (QC VR_Grapple_MonsterMass) up to which a monster is small: pulled fast, staggered
+QVR_CVAR(vr_grapple_huge_mass, "400", CVAR_ARCHIVE)      // kg from which a monster is huge: the reel pulls you to it (in between: medium)
+QVR_CVAR(vr_grapple_small_speed, "400", CVAR_ARCHIVE)    // units/s a small monster is reeled in at
+QVR_CVAR(vr_grapple_medium_speed, "160", CVAR_ARCHIVE)   // and a medium one
+QVR_CVAR(vr_grapple_stagger, "1", CVAR_ARCHIVE)          // small monsters reeled in are staggered (their pain, forced; again every second of reeling)
+QVR_CVAR(vr_grapple_stamina, "0", CVAR_ARCHIVE)          // stamina a second reeling a monster in costs (the parry/shove/strike pool); short of it, it comes slower. 0: free
+QVR_CVAR(vr_grapple_haptics, "1", CVAR_ARCHIVE)          // strength of the rope's haptics (the hook biting, the reel, the rope snapping taut); 0 none
+QVR_CVAR(vr_grapple_sag, "1", CVAR_ARCHIVE)              // a slack rope is drawn hanging (0: always straight)
+QVR_CVAR(vr_grapple_debug, "0", CVAR_NONE)               // with developer 1: what the hook bites and each reel (mass, class, speeds); 2 also the rope four times a second; 3 every frame the rope holds you
 QVR_CVAR(vr_weapondrop_particles, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_2h_spread_reduction, "0.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_2h_throw_velocity_mult, "1.0", CVAR_ARCHIVE)

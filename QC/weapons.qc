@@ -1065,6 +1065,8 @@ void() W_Precache =
     // grapple
     precache_sound("weapons/chain1.wav");
     precache_sound("pendulum/hit.wav");
+    precache_sound("vr/grapple_reel.wav"); // the reel winding in (vr_grapple.qc)
+    precache_sound("vr/grapple_taut.wav"); // the rope snapping taut
     precache_sound("lavagun/snail.wav");        // lava nail gun cooldown
 //--ZOID
 
@@ -2709,6 +2711,9 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
     }
     else if(xWeapon == WID_GRAPPLE)
     {
+        // A hook that came off by itself (what it bit died or went) fires again only on a new pull (vr_grapple.qc).
+        if(!getHookOut(xHand) && VR_Grapple_MustRelease(xHand))
+            return;
         if(!getHookOut(xHand))
             player_grapple1(xHand);
         else
@@ -3267,7 +3272,8 @@ void() ImpulseCommands =
 
 
 
-    if(self.impulse == 10 && time >= self.attack_finished)
+    // The hand's B/Y also reels its grappling hook in (vr_grapple.qc): while the hook is out, it cycles nothing.
+    if(self.impulse == 10 && time >= self.attack_finished && !getHookOut(cVR_MainHand))
     {
         if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
         {
@@ -3277,7 +3283,7 @@ void() ImpulseCommands =
         }
     }
 
-    if(self.impulse == 12 && time >= self.offhand_attack_finished)
+    if(self.impulse == 12 && time >= self.offhand_attack_finished && !getHookOut(cVR_OffHand))
     {
         if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
         {
@@ -3375,7 +3381,10 @@ void() ImpulseCommands =
         {
             self = spawn();
             setorigin(self, spawnAt - '16 16 0'); // a box's origin is its corner: its middle there
-            if(spawnKind == 100) { item_health(); } else { item_shells(); }
+            if(spawnKind == 100)      { item_health(); }
+            else if(spawnKind == 102) { misc_explobox(); }  // 40 kg (grappling hook tests)
+            else if(spawnKind == 103) { misc_explobox2(); } // 25 kg
+            else                      { item_shells(); }
             spawned = self;
         }
         else
