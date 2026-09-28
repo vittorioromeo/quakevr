@@ -490,6 +490,10 @@ context and screenshot, ready to paste or to point me at.
   (`vr_roomscale_move_mult`).
 - **Holsters:** bring a hand to a hip, the chest or a shoulder. The holster lights up while hovered; let go of a
   weapon there to holster it, grip there to draw. Bringing both hands together passes a weapon between them.
+- **Body collisions** (VR menu > Body > Body Collisions; ROUND21.md, "Body collisions"): push a hand into your other
+  forearm, your chest, the wrist gadget or the other hand, and sweep a held gun through your other arm. It should stop
+  at the surface and your arm follow it; push on (about 70% of the way through) and it slides through, and stays
+  through until it is clear. Try the two-handed grips, a prop in both hands and the holsters: none should be blocked.
 - **Two-handed aiming:** with a gun in one hand, grip its foregrip with the other (empty) hand: the hand snaps
   onto the gun. Weapons trail the hand a little depending on their weight (`vr_wpn_pos_weight`,
   `vr_wpn_dir_weight`); hands and barrels stop at walls. With a hand
@@ -625,6 +629,17 @@ doing its poses is a take of raw tracking played alongside: `vr_motion_play <tak
 `vr_bodycal standing` in the same frame (the scratchpad's `bodycal/gentake.py` makes them); `vr_bodycal_print`
 prints the result. `vr_bodycal_refit <file>` fits a saved session (`quakevr/bodycal/`) again; `vr_bodycal_debug`
 prints the empty hands' wrists.
+Body collisions (ROUND21.md, "Body collisions"): `vr_debug_body_collide 1` prints each contact's change (in, let
+go, clear: `body collide: t ... main weapon/other forearm: block -> pass (through 0.54, push 10.5 cm)`) and writes
+`body_collide_trace.txt` (the game directory): a line a frame while any is on, each hand's tracked place, its drawn
+offset and target (cm) and each contact's state, weight, share through, push and way out; `2` also draws the proxies
+(torso and head blue, arms green, gadget yellow, hands white, weapons red, stocks dark red) and each push (yellow).
+`vr_body_collide_bench [n] [list]` times the solve as it is now (and lists the capsules). The scratchpad's
+`handcoll/scen.py` runs a scenario with and without it and composes the shots (`s1.py` .. `s10.py`); `trace.py`
+prints a trace in the mock's tracking-space metres (e1m1's start). Poses that meet: the main forearm raised across
+(`vr_mock_hand main -0.10 1.45 -0.45 0 80 0`) with the off hand under it at `0.157 1.26 -0.426` going up; the chest
+from `vr_mock_hand main 0.06 1.33 -0.14 0 90 90` going back (+z); the gadget (off forearm `0.10 1.45 -0.45 0 -80 0`)
+from `vr_mock_hand main -0.15 1.66 -0.50` going down.
 Arm IK (ROUND21.md, "Arm IK with calibrated hands"): `vr_debug_arm 1` prints each drawn arm once (shoulder, elbow,
 wrist, the elbow's swing, the wrist's flexion, deviation, twist and strain against the solved forearm and the pole's;
 `armT` lines in tracking-space metres from the head, for `vr_mock_hand`); `vr_debug_arm 2` writes it every frame to
