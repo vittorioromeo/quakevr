@@ -1,4 +1,62 @@
 {
+ "quakevr/gfx/vr/grade_cold.png": {
+  "sha256": "bc6e15629e2da064e3aca9073afefd29f98606c2d52b9a1a6f3eea4ed9dac085",
+  "by": "make_grades.py"
+ },
+ "quakevr/gfx/vr/grade_film.png": {
+  "sha256": "1d18443b61168e597095f09690fd6d3648be6e5997a2fa0ceb6c149d646aae6e",
+  "by": "make_grades.py"
+ },
+ "quakevr/gfx/vr/grade_moss.png": {
+  "sha256": "168dc7c39065e7ecd35dd80d41208f5e953e8d5bfd8b3b0f07b357717cb8bc6c",
+  "by": "make_grades.py"
+ },
+ "quakevr/gfx/vr/grade_violet.png": {
+  "sha256": "106d3e78b363bf7250f057ff21b2e8a15bc76045650a59d7cb9a57084184bb8a",
+  "by": "make_grades.py"
+ },
+ "quakevr/gfx/vr/grade_warm.png": {
+  "sha256": "cdaac9d1a26b036a6b78e3b82538c54f7bac50dc18d961aaf06dc5a65f932c54",
+  "by": "make_grades.py"
+ },
+ "quakevr/maps/vr_spawnbutton.bsp": {
+  "sha256": "258abc77a48974d8b4d8e85413e43d3c913ee284a91650a7f1f7a0fed5cc84bb",
+  "by": "make_spawn_buttons.py"
+ },
+ "quakevr/maps/vr_spawnpanel.bsp": {
+  "sha256": "35bc4304f5ca2c2028a9b61abd5e9625a6ffb7577cfe5bd4e444be3490d1d239",
+  "by": "make_spawn_buttons.py"
+ },
+ "quakevr/progs/finger_index.mdl": {
+  "sha256": "88f6798e8f9f44459c973b1d93b8912bbeff6d341e4cd822f280c0102f8a0791",
+  "by": "make_bloody_hands.py",
+  "part": "mdl skins after 0"
+ },
+ "quakevr/progs/finger_middle.mdl": {
+  "sha256": "59344a507a02ba34dc5f401397a459910465010d3ebc7920efccddaaba6e7e2e",
+  "by": "make_bloody_hands.py",
+  "part": "mdl skins after 0"
+ },
+ "quakevr/progs/finger_pinky.mdl": {
+  "sha256": "c4af378347169fc06e57591cf05a014a2020813c7e67e9dc1ca8b9ea20aabe1a",
+  "by": "make_bloody_hands.py",
+  "part": "mdl skins after 0"
+ },
+ "quakevr/progs/finger_ring.mdl": {
+  "sha256": "c69ad29dbb9ea37c5864ee67e61ae4add05fd4831f76b3c53b09ba3ecb1626df",
+  "by": "make_bloody_hands.py",
+  "part": "mdl skins after 0"
+ },
+ "quakevr/progs/finger_thumb.mdl": {
+  "sha256": "461aee2e673f31f59f5721c4e7096b8b8ca2717b05b76e2a2b91a3547fcf2f3e",
+  "by": "make_bloody_hands.py",
+  "part": "mdl skins after 0"
+ },
+ "quakevr/progs/hand_base.mdl": {
+  "sha256": "9e6b15ce822e83aa8c4b8075491f07045be5d870e4633b05eb6d11b8148883f7",
+  "by": "make_bloody_hands.py",
+  "part": "mdl skins after 0"
+ },
  "quakevr/progs/hand_rig.md5anim": {
   "sha256": "b1e712498297c1172aedc63d91549c748efca843db980029952118fe1426bccb",
   "by": "make_hand_rig.py"
@@ -27,6 +85,10 @@
   "sha256": "b39de69424526656cebbf4d412755656337fb1ba3995cbb6a6d942ae3cee5ef2",
   "by": "make_hand_rig.py"
  },
+ "quakevr/progs/legholster.mdl": {
+  "sha256": "a4a5ea43a1aaa548501fb231547b8ab40c8221c748b84e408e1bf8dc9a1311ea",
+  "by": "make_holster.py"
+ },
  "quakevr/progs/v_axe.mdl": {
   "sha256": "b411c919fa6a6ded00bd87d7040b5ae07f0988619b4eeacc93399738ca4309e4",
   "by": "polish_weapons.py"
@@ -38,6 +100,14 @@
  "quakevr/progs/v_hammer.mdl": {
   "sha256": "8c30a05ed34b7bf30fc7e3d821944b6098fcc3b1df20fbe6d7a58bf212e47c73",
   "by": "polish_weapons.py"
+ },
+ "quakevr/progs/v_hksword.mdl": {
+  "sha256": "43b40befb6edb8604d1a347626b054f2be4751277001d9d97c1c972f2307c3e3",
+  "by": "make_swords.py"
+ },
+ "quakevr/progs/v_ksword.mdl": {
+  "sha256": "8fd1913f53e1d0e5325cddc30ac4fc9dbe026977f1be77f13707ba3b37103039",
+  "by": "make_swords.py"
  },
  "quakevr/progs/v_laserg.mdl": {
   "sha256": "a08914264b405d82a91f2c3986bdfb450de4d824be191c500d555d7886388030",
@@ -94,6 +164,10 @@
  "quakevr/progs/v_shot2.mdl": {
   "sha256": "1a8d2d09645f8e87aca8518f4a72826cd1af33c34b65a821c96846c7628f4055",
   "by": "polish_weapons.py"
+ },
+ "quakevr/progs/vr_shell.mdl": {
+  "sha256": "084175d47faf7f80fec36da4a527f600402d2766dd722501b68cd6307c6ed0b1",
+  "by": "make_shell.py"
  },
  "quakevr/progs/vrbody.md5anim": {
   "sha256": "19dd491a8500c297e93ee278c3c1e9a6c3d7948a585ef87747c5349a1e0858db",
@@ -195,6 +269,10 @@
   "sha256": "d8938abe0fdf324d7dd03e04ba16c29b3e7150bb9f14606bcd653ca36f5aacc6",
   "by": "make_vrbody.py"
  },
+ "quakevr/progs/vrflashlight.mdl": {
+  "sha256": "c45218c22e2e01d2369006480f08a4491ec1b39e1ad9e57cdd843bc3ef7e4b86",
+  "by": "make_flashlight.py"
+ },
  "quakevr/progs/vrgadget.mdl": {
   "sha256": "1074c7261ac990242e91d58b03e9073e749e06a36adb671b07078f8df70dd76b",
   "by": "make_gadget.py"
@@ -202,5 +280,57 @@
  "quakevr/progs/vrgadget_strap.mdl": {
   "sha256": "7f0dbf119708b257b526e0882acfacbf18b55d50fc69fd724763f53f4814d439",
   "by": "make_gadget.py"
+ },
+ "quakevr/progs/vrpauldron.mdl": {
+  "sha256": "a3a3d9d90c485aa9d9cf53c53b50f35d1861093d11a6f51b4a1c2924581e9a14",
+  "by": "make_pauldron.py"
+ },
+ "quakevr/progs/vrpauldron_arm.mdl": {
+  "sha256": "7f04aed9def5d003469fa8281c4140aee3df62ad8e76c96b3198b3bec9a228c1",
+  "by": "make_pauldron.py"
+ },
+ "quakevr/sound/vr/flashlight_attach.wav": {
+  "sha256": "ff0394963076f0d854dea8fff555eeae421f93017b1588ac528fb51064037b24",
+  "by": "make_flashlight.py"
+ },
+ "quakevr/sound/vr/flashlight_detach.wav": {
+  "sha256": "0e3b4f64e897c5808184012775b9cc5bbfd0f6216a5a7d422661159b7e3ab691",
+  "by": "make_flashlight.py"
+ },
+ "quakevr/sound/vr/flashlight_flip.wav": {
+  "sha256": "777c8a1b80c303e1565ff161158d424d8c82777e35b716cc9d559dcd51614c8a",
+  "by": "make_flashlight.py"
+ },
+ "quakevr/sound/vr/flashlight_off.wav": {
+  "sha256": "07129350309809ec144612c0c2a0bee8d4a191e3d2959942347d0199acfb61d9",
+  "by": "make_flashlight.py"
+ },
+ "quakevr/sound/vr/flashlight_on.wav": {
+  "sha256": "1c49beeeb721a916e51f367126e3a771a1efe68a137aec51bafe0fdd0b83819a",
+  "by": "make_flashlight.py"
+ },
+ "quakevr/textures/vr/detail_dirt.png": {
+  "sha256": "1966e1942940de39faf4d39830d4be2fc5cabac8d1213db06bd8d94dfa422fbe",
+  "by": "make_detail.py"
+ },
+ "quakevr/textures/vr/detail_metal.png": {
+  "sha256": "cc4ae797de0f72973cc87e02b3e45347c6af45b44b022540cbc6dbe749c396bb",
+  "by": "make_detail.py"
+ },
+ "quakevr/textures/vr/detail_organic.png": {
+  "sha256": "123407c2c4a2b1491cddef8399401b716a9b17cfbe282efe92fc526e5ab34eab",
+  "by": "make_detail.py"
+ },
+ "quakevr/textures/vr/detail_plaster.png": {
+  "sha256": "2137ce309cdaf257321896f5e828d842dc5cfd6acc79b1de0b2b18c96f952c4d",
+  "by": "make_detail.py"
+ },
+ "quakevr/textures/vr/detail_stone.png": {
+  "sha256": "02ce647ad713b61be8f871e29e43128319216ddacbf0fe15fa3ec5e8cacb442d",
+  "by": "make_detail.py"
+ },
+ "quakevr/textures/vr/detail_wood.png": {
+  "sha256": "256de31228fc61ec99437e58724613aa53853b8b6d3f8fb66f4e83f13b1a8fcb",
+  "by": "make_detail.py"
  }
 }

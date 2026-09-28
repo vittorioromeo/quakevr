@@ -22,6 +22,7 @@ import math
 import os
 import sys
 
+import genguard
 import mdlgen
 from mdlgen import add, cross, dot, mul, norm, sub
 
@@ -366,8 +367,11 @@ def main():
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "..", "..", "quakevr", "progs")
     m = build()
     path = os.path.join(out, "legholster.mdl")
+    # The files edited by hand since this wrote them are not overwritten (genguard.py: --keep-edited, --force).
+    guard = genguard.Guard("make_holster.py", [path])
     write(path, m, paint_skin())
     print("legholster.mdl: %d vertices, %d triangles -> %s" % (len(m.verts), len(m.tris), os.path.normpath(path)))
+    guard.finish()
 
 
 if __name__ == "__main__":

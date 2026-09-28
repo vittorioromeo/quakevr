@@ -9,6 +9,10 @@
 #   --force        overwrite them too (the edits are lost: keep your .blend; git has the last committed files).
 # Files the manifest doesn't know (a new output, or one written outside the repository) are simply written.
 #
+# A generator that rewrites only a part of its files (make_bloody_hands.py: the hands' blood skins, from their skin 0)
+# guards that part: Guard(..., part=MDL_SKINS_AFTER_0) records and compares the SHA-256 of the part alone, so the rest
+# of the file can be edited freely (the hand's shape, its skin 0) and the generator still runs.
+#
 # In a generator (importing this takes --force and --keep-edited out of sys.argv, so the generator's own arguments
 # read as before):
 #   import genguard
@@ -41,12 +45,35 @@ def rel(path):
 TEXT = (".md5mesh", ".md5anim")
 
 
-def sha256(path):
-    """The file's SHA-256 (a text file's with its line ends as LF, as git may check it out with CRLF)."""
+def mdl_skins_after_0(data):
+    """An .mdl's skins after the first (their bytes, with the skin count); the whole file if it isn't an .mdl."""
+    import struct
+    if len(data) < 84 or data[:4] != b"IDPO":
+        return data
+    ns, w, h = struct.unpack_from("<3i", data, 48)
+    off = 84
+    first = None
+    for i in range(ns):
+        if i == 1:
+            first = off
+        g, = struct.unpack_from("<i", data, off)
+        n = struct.unpack_from("<i", data, off + 4)[0] if g else 1
+        off += 4 + (4 + 4 * n if g else 0) + n * w * h
+    return struct.pack("<i", ns) + (data[first:off] if first is not None else b"")
+
+
+MDL_SKINS_AFTER_0 = "mdl skins after 0"
+PARTS = {MDL_SKINS_AFTER_0: mdl_skins_after_0}
+
+
+def sha256(path, part=None):
+    """The file's SHA-256 (a text file's with its line ends as LF, as git may check it out with CRLF), or its part's."""
     with open(path, "rb") as f:
         data = f.read()
     if path.lower().endswith(TEXT):
         data = data.replace(b"\r\n", b"\n")
+    if part:
+        data = PARTS[part](data)
     return hashlib.sha256(data).hexdigest()
 
 
@@ -70,14 +97,15 @@ def edited(paths, manifest=None):
     for p in paths:
         r = rel(p)
         e = manifest.get(r) if r else None
-        if e is not None and os.path.exists(p) and sha256(p) != e["sha256"]:
+        if e is not None and os.path.exists(p) and sha256(p, e.get("part")) != e["sha256"]:
             out.append(p)
     return out
 
 
 class Guard:
-    def __init__(self, script, paths):
+    def __init__(self, script, paths, part=None):
         self.script = script
+        self.part = part
         self.paths = [os.path.abspath(p) for p in paths]
         self.kept = {}
         changed = edited(self.paths)
@@ -112,5 +140,7 @@ class Guard:
             r = rel(p)
             if r is None or p in self.kept or not os.path.exists(p):
                 continue
-            manifest[r] = {"sha256": sha256(p), "by": self.script}
+            manifest[r] = {"sha256": sha256(p, self.part), "by": self.script}
+            if self.part:
+                manifest[r]["part"] = self.part
         save(manifest)

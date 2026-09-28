@@ -24,6 +24,8 @@ import sys
 import numpy as np
 from PIL import Image
 
+import genguard
+
 N = 32
 LUMA = np.array([0.2126, 0.7152, 0.0722])
 
@@ -109,10 +111,13 @@ def main():
     game = args[0] if args else root
     out = os.path.join(game, "gfx", "vr")
     os.makedirs(out, exist_ok=True)
+    # The files edited by hand since this wrote them are not overwritten (genguard.py: --keep-edited, --force).
+    guard = genguard.Guard("make_grades.py", [os.path.join(out, "grade_%s.png" % n) for n in GRADES])
     for name, params in GRADES.items():
         path = os.path.join(out, "grade_%s.png" % name)
         Image.fromarray(lut(params)).save(path)
         print("wrote", os.path.normpath(path))
+    guard.finish()
     if prev:
         preview(prev)
         print("wrote", prev)
