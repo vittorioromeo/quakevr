@@ -2247,6 +2247,13 @@ gltexture_t *TexMgr_LoadNormalMap (gltexture_t *base, const char *name, int widt
 		return NULL;
 
 	q_snprintf (nmname, sizeof (nmname), "%s_vrnorm", name ? name : base->name);
+	// QVR: an authored file serves every skin of its model that uses it (the hand's 4, the body's 16): one texture
+	if (name && (kind & NORMALMAP_FILE) && (glt = TexMgr_FindTexture (base->owner, nmname)) != NULL &&
+		normalmap_kind[glt - gltextures_base] == (byte) kind)
+	{
+		normalmap_of[base - gltextures_base] = glt;
+		return glt;
+	}
 	glt = TexMgr_NewTexture ();
 	glt->owner = base->owner;
 	glt->target = GL_TEXTURE_2D;
