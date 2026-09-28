@@ -141,6 +141,11 @@ context and screenshot, ready to paste or to point me at.
 ## What to try
 
 - **New in this round** (details in `docs/vr-port/ROUND21.md`; each section ends with an "In the headset" list):
+  - **Swimming: air supply; strokes against the palm** (Swimming page; ROUND21.md, same title): a backhand (palm
+    facing you, the hand pushed away) or a hand swept back-first to reposition now pushes a quarter as much as a real
+    stroke (**Stroke Against Palm**, 0.25; 1 is the old swimming); palm strokes are unchanged. `vr_swim_debug 1` shows
+    each stroke's `palm lead` (+1 palm first, -1 back first). **Air Supply** (1.5): 18 s under water before drowning
+    starts instead of 12.
   - **Stamina on the gadget; the glow** (ROUND21.md, "Stamina on the gadget; the glow"): with Parry Stamina on, the
     bar over the weapon is gone; the wrist gadget's top row shows STAMINA and ten cells instead. In the firing range,
     turn on DUMMY ATTACKS and parry: each one-handed parry takes three cells; the cells blink when one more would
@@ -596,6 +601,17 @@ wall (`setpos 71 0 24 0 0 0; noclip`, the second toggling setpos's noclip off) a
 plays (hand over hand to the top, a two-hand hang and a shimmy with a fall, a mantle, and e1m1 from `setpos 250 2350
 40`). With `vr_climb 1; vr_climb_debug 2`, `climb_trace.py qconsole.log` prints the body's move against the hands'
 pull every frame and at every hand-off. `vr_climb_probe [yaw]` lists the holds ahead.
+Swimming (ROUND21.md, "Swimming: air supply; strokes against the palm"): `python Misc/quakevr/swim/swim_plays.py`
+writes `vr_mock_play` files: `strokes_main.txt` / `strokes_off.txt` (one stroke per case from rest: a palm-first pull,
+a backhand, back-first sweeps square and at 45 degrees, an edge-first slice, a palm-first sweep; each announced by an
+`echo STROKE`), `cycle_edge.txt` / `cycle_backhand.txt` (6 s of hands in turn, `viewpos` at the start and the end),
+`intent.txt` (a pull after a backhand) and `air.txt` (under water at Air Supply 1, 1.5, 2, 3). The pool: `map
+vrfiringrange; sv_gravity 0; setpos 612 474 -180 0 0 0; noclip` (370 for the cycles, which swim towards +x), and
+`vr_swim_stick_speed 0.001; vr_mock_stick off 0 1` so that SV_WaterMove's idle sink (60 units a second, with no
+stick) does not take you out of the pool's bottom: the player falls through it (below -360, anywhere in it).
+`vr_swim_debug 1` prints each stroke. Mock hand poses: pitch -20 points the hand down (Gun Angle 70); yaw 90 (main)
+or -90 (off) turns the palm back towards the body. For the air, nothing prints a drowning hit: add a temporary
+`bprint` after `T_Damage` in `WaterMove` for the run (as for ROUND21.md's table).
 Climbing, hand placement and grab leniency (ROUND21.md, "Climbing: hand placement and grab leniency"):
 `vr_fixed_frames 1` makes every frame 1/72 s of game time with a server frame, so a scripted climb logs the same
 numbers every run (compare two settings' `climbtrace` lines with `diff`). `vr_climb_try <x> <y> <z> [off|main] [<vx>

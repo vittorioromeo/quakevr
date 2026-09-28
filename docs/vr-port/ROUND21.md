@@ -31,6 +31,7 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | Dynamic wounds | blood, burns and wetness painted into each monster's, corpse's and your own skin where the blow lands (chunky, on the skin's texels, Quake's reds), drying, cooling, healing; your body and hands no longer use the wound skins; 16 MB, about 2 µs of GPU a hit |
 | Stamina on the gadget; the glow | the stamina bar over the weapon is gone: parry stamina shows in the gadget screen's top row (ten cells; blinking when low; EXHAUSTED; a sweep while it recovers) with COUNTER while a counter's window is open; the counter glow never showed (1 cm sparks inside the blade, at a lagging pose): now a gold rim glow and embers drawn by the client, off as shipped |
 | Stamina for shoves and strikes; thrown damage on gibs | shoves and bashes (15 one-handed, 20 two-handed) and blows that land (a punch 4, a weapon 8, two-handed 6) spend the parry's stamina pool, shown on the gadget; short of it they do half the damage and a shove half the knockback (in proportion to what's missing); the rest before it comes back counts from the last parry, shove or blow; all in Parry, Bash and Headbutt > Shove and Strike Stamina. A thrown weapon, box or gib landing on a loose gib hurts it as it hurts a monster (it bursts). Your archived takes: identical |
+| Swimming: air supply, strokes against the palm | Air Supply (1.5: 18 s under water before drowning instead of 12; 1 to 4). Stroke Against Palm (0.25): a stroke led by the back of the hand (a backhand, a hand turned round to reposition) pushes a quarter as much; palm-first strokes unchanged. The old Palm Matters counted either side of the hand alike. Swimming 6 s with brisk backhand recoveries: +2 units before, +261 to +319 now |
 
 Found on the way: fteqcc stores 0 when `a || b` is assigned into an entity field (rewritten; no other code has that
 shape); a parried blow's hand knock, timed by `cl.time`, came back after a level change (reset now).
@@ -7746,3 +7747,112 @@ worktree's baseline config was moved aside for the first starts and put back.
   are where you set them; the flashlight sits in the hand as in yours.
 - [ ] The torches at 10 on a first start, close to a wall torch: too hot or right?
 - [ ] Body > Arms on a first start: the compiled arms (Arm Length 1).
+
+## Swimming: air supply; strokes against the palm
+
+Your notes (28 September): swimming is harder in VR than on a flat screen, so a slider to make your breath last
+longer; and a slider for strokes that go against where the palm faces. A backhand (the palm facing you, the hand
+pushed away from your body) or a hand turned round to reposition still pushed you as hard as a real stroke, even with
+Palm Matters high. Swimming page: **Air Supply** (at the top), **Stroke Against Palm** (under Palm Matters).
+
+### Why a backhand pushed
+
+Palm Matters (`vr_swim_palm`) weighs a stroke by how flat the hand meets the water: `|dot(palm axis, motion)|`.
+The absolute value makes the palm and the back of the hand the same. The push always goes against the hand's motion,
+so a backhand with the back of the hand flat to the water is as "flat" as a pull with the palm, and it pushed fully at
+any Palm Matters. Palm Matters only ever cut strokes led by the edge of the hand. Push Along Palm (`vr_swim_palm_dir`,
+0.8 in your config) is the same: it takes the side of the hand that meets the water, whichever side it is.
+
+It was not the new hand calibration. The palm axis the server uses is the calibrated hand's side (the move's hand
+angles include Gun Angle 70 and the Hand Calibration's yaw and roll). A temporary check in the client compared it with
+the drawn jointed hand's palm normal (the rig's palm axis through its placement) in several cases: level poses, poses
+turned (20, 40, 60) and (-30, -50, 120), and with `vr_handcal_roll 25; vr_gunyaw 15`. The dot product was 1.0000 in
+every case, for both hands: the right hand's palm faces its left, the left hand's (drawn mirrored) its right.
+
+### Stroke Against Palm
+
+`vr_swim_against_palm`, 0 to 1, **0.25** by default ("still push me, but a little bit").
+
+- **Palm or back.** Each frame the swim code takes the hand's motion against its palm normal (for the physical left
+  hand the normal is mirrored): 1 when the palm leads, -1 when the back of the hand leads.
+- **The blend.** Within 60 degrees of where the palm faces, the push is full. Within 60 degrees of where the back
+  faces, it is the setting. In between, where the edge of the hand leads, it blends smoothly (a smoothstep over the
+  cosine, from -0.5 to 0.5).
+- **Unchanged.** Flatness, recovery, the look bias, the steering and the intent gate apply as before, and they
+  multiply with it. At 1, swimming is exactly as before.
+- **Intent.** A stroke that counted less than half (a backhand at 0.25) no longer becomes the hand's remembered
+  stroke. Before, it did, and the real pull that followed, going the other way and slower, was damped as a "return".
+- **Stroke sound.** It still plays for a brisk backhand: the hand moved through the water.
+- **Debug.** `vr_swim_debug 1` prints `palm lead` (-1 to 1, speed-weighted) and the factor it came to, for example
+  `swim main: peak 2.00 m/s, flat 1.00, palm lead -1.00 (x0.25), power x1.00, push 51 of 51 (-51 ahead)`.
+- **The other sliders.** Palm Matters (how flat) and Push Along Palm (which way the body goes) keep their meaning.
+  The new slider is the one thing neither did: which side leads. Nothing is renamed or merged, so there is no config
+  migration: your palm 0.8 and palm direction 0.8 stay, and the new setting starts at 0.25. Palm Matters' help text
+  now says it counts either side.
+- **Left-handed.** The palm is taken from the physical hand (the main hand is the left one). The drawn hands are
+  mirrored by role, not side (the off hand is drawn as a left hand), so left-handed, the drawn main hand is a right
+  hand. That was already so and is not changed here.
+
+**Measured** (`Misc/quakevr/swim/swim_plays.py`; the firing range pool, gravity off, your swim settings: stroke 12,
+palm 0.8, palm direction 0.8, glide 0.6, look 0.2, recovery 0.05). One stroke of 0.6 m in 0.3 s (2 m/s) from rest.
+"Push" is the velocity the stroke gave the body, in units per second. "Before" is the old code, the same as 1. The off
+hand gave the same, within 1-2%.
+
+| Stroke (main hand) | palm lead | before / 1 | 0.5 | **0.25** |
+|---|---|---|---|---|
+| Pull back, palm leading (freestyle) | +1.00 | 204 | 204 | **204** |
+| Backhand: palm facing you, hand pushed away | -1.00 | 203 | 101 | **51** |
+| Sweep inwards, back of the hand leading | -1.00 | 163 | 82 | **41** |
+| The same sweep, the hand turned 45 degrees | -0.71 | 137 | 65 | **34** |
+| Slice, edge leading | 0.00 | 1 | 2 | **1** |
+| Sweep outwards, palm leading | +1.00 | 155-172 | 163 | **163-172** |
+
+The sweeps outwards vary with the frame timing. At 0, a backhand and a sweep with the back leading push nothing.
+
+- **Swimming 6 s** (both hands in turn, a 1.2 s cycle; pulls at 1.8 m/s):
+  - bringing each hand back edge-on at 1 m/s: 429 units before, 428 at 0.25;
+  - bringing it back with the back of the hand leading, as brisk as the pull: **+2** units before (each backhand undid
+    its pull) and **+261 to +319** at 0.25 (two runs).
+- **A pull 0.4 s after a backhand** (1.6 m/s after 2 m/s): before, it gave 52 of 139 (x0.37, damped as a return of
+  the backhand). Now it gives 140 of 140.
+- **Left-handed** (`vr_lefthanded 1`): the same mock pose is now the left hand. The pull is back-leading (51), the
+  backhand palm-leading (205).
+
+### Air Supply
+
+`vr_air_supply`, 1 to 4 (0.25 steps), **1.5** by default: the time under water before drowning starts is id's
+12 seconds times this (QC `VR_AirSupply`, `vr_liquids.qc`, used by `PutClientInServer`, `WaterMove` and the suits in
+`client.qc`).
+
+- **Why 1.5.** Swimming by arm strokes is much slower than a key.
+  - Quake's underwater speed is 0.7 of the move: 140 units a second walking, 224 running.
+  - The mock freestyle above averages 71 units a second (the stick at your 0.25 adds about 56).
+  - So the same underwater passage takes about twice as long in VR.
+  - 1.5 (18 s) is the "little bit easier" you asked for. It keeps the maps' underwater stretches tense, and drowning
+    still gives you several seconds before it kills you. 2 would roughly match flat-screen distance per breath; the
+    slider goes to 4.
+- **Drowning damage** is left as id's: once the air is gone, 4, 6, 8... every second. Scaling that too would make
+  drowning toothless. The slider is about how long you can stay down, not about what happens once your breath is gone.
+- **Surfacing.** The gasp comes when a quarter of the breath was used (id's 3 of 12 s; now 4.5 of 18). The big gasp
+  comes after drowning started, as before.
+- **Suits.** The Biosuit and the wetsuit keep your lungs full while worn, and when one runs out you have the full
+  (scaled) breath. Their own durations are unchanged.
+- **Display.** Nothing shows air (not the HUD, not the wrist gadget), so there was nothing to follow.
+
+**Measured** (`air.txt`: put under water at each setting in turn; a temporary print at each drowning hit, removed):
+
+| Air Supply | first drowning damage | then |
+|---|---|---|
+| 1 | 12.0 s | 6, 8, 10 at 13, 14, 15 s |
+| 1.5 | 18.0 s | 19, 20, 21 s |
+| 2 | 24.0 s | 25, 26, 27 s |
+| 3 | 36.0 s | 37, 38 s |
+
+### In the headset
+
+- [ ] Swim freestyle, then bring a hand forward with its back leading, then sweep a hand sideways with the palm facing
+  away from where it moves. Do they still nudge you, and is 0.25 the right amount? Try 0 and 0.5.
+- [ ] `vr_swim_debug 1`: your real strokes should read `palm lead` near +1 and your backhands near -1. If a real stroke
+  reads under 0, tell me the pose (your grip may hold the palm at an angle).
+- [ ] Does anything else feel different with Push Along Palm at 0.8? It should not.
+- [ ] Air Supply 1.5: e1m1's water, or a longer underwater passage, like e1m4's. Is 18 s right, or do you want 2?
