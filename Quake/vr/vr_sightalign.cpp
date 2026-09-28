@@ -430,11 +430,14 @@ struct Pose
     const qmodel_t* model{nullptr};
     int slot{-1};
     glm::vec3 rear{0.f}, front{0.f}, fist{0.f}, eye{0.f};
+    glm::vec3 gaze{1.f, 0.f, 0.f};
     glm::vec3 cPos{0.f};
     glm::mat3 cBasis{1.f};
     glm::vec3 handPos{0.f};
     glm::vec3 handFwd{1.f, 0.f, 0.f};
     glm::mat3 handBasis{1.f}; // the hand's aim frame (hands::State::rot): where its shots go from (weapons::shotAngles)
+    bool gripValid{false};    // the foregrip (the first Grip hotspot), world
+    glm::vec3 grip{0.f};
 };
 [[nodiscard]] bool poseOf(const hands::State& s, int hand, Pose& out)
 {
@@ -454,11 +457,22 @@ struct Pose
     out.front = glm::vec3{wf.modelToWorld * glm::vec4{line.front, 1.f}};
     out.fist = wf.fist;
     out.eye = s.eyeOrigin[dominantEye()];
+    out.gaze = hands::forward(s.eyeAngles[dominantEye()]);
     out.cPos = s.calibratedPos[hand];
     out.cBasis = basisOf(s.calibratedRot[hand]);
     out.handPos = s.pos[hand];
     out.handFwd = hands::forward(s.rot[hand]);
     out.handBasis = basisOf(s.rot[hand]);
+    out.gripValid = false;
+    for(int i = 0; i < weapons::maxHotspots && !out.gripValid; i++)
+    {
+        const view::WeaponHotspot h = view::weaponHotspot(hand, i);
+        if(h.type == static_cast<int>(weapons::HotspotType::Grip))
+        {
+            out.gripValid = true;
+            out.grip = h.pos;
+        }
+    }
     return true;
 }
 
@@ -484,6 +498,9 @@ struct Sample
     double time{0.0};
     glm::vec3 eye{0.f}, rear{0.f}, front{0.f}, fist{0.f};
     glm::vec3 sightInHand{1.f, 0.f, 0.f}; // the sight line's direction in the hand's aim frame (the shots' frame)
+    glm::vec3 gaze{1.f, 0.f, 0.f};        // where the eye faces (the headset's forward for it)
+    glm::vec3 grip{0.f};                  // the weapon's foregrip (its first Grip hotspot) in the hand's frame (f, r, u)
+    bool gripValid{false};
     glm::vec3 handPos{0.f}, handFwd{1.f, 0.f, 0.f}; // world, for the stillness
 };
 
@@ -501,8 +518,11 @@ constexpr float stillDegrees = 1.0f; // the hand's aim
 constexpr float stillWeaponCm = 0.2f; // the sights in the controller's frame: the weapon's lag behind the hand settled
 constexpr float moveCm = 8.f;       // lowered: this far from the last capture (or the go beep)
 constexpr float moveDegrees = 15.f;
-constexpr float plausibleDegrees = 25.f; // a capture is taken only with the sights roughly before the eye
-constexpr float plausibleCm = 25.f;
+// A capture is taken only with the sights roughly before the eye (a gun held low can have its sights on a line with the
+// eye too: then the head doesn't face them).
+constexpr float plausibleDegrees = 15.f;
+constexpr float plausibleCm = 15.f;
+constexpr float plausibleGazeDegrees = 20.f;
 constexpr double giveUpSeconds = 45.0;
 
 struct Capture
@@ -523,7 +543,9 @@ struct Result
     glm::vec3 eye{0.f}, rear{0.f}, front{0.f}, fist{0.f}; // in C (averaged)
     glm::mat3 q{1.f};                                     // the correction in C: x -> q (x - fist) + fist + t
     glm::vec3 t{0.f};
-    float values[8]{}; // whole x y z pitch yaw roll, shot pitch yaw: the keys' values (unmirrored)
+    float values[14]{}; // whole x y z pitch yaw roll, shot pitch yaw, two-handed aim x y z pitch yaw roll (unmirrored)
+    int count{8};       // the values written: 8, or 14 with the two-handed aim
+    float twoHandDegrees{0.f}; // how far holding the foregrip turned the aim before (with the aim offsets as they were)
 };
 
 struct State
@@ -596,8 +618,11 @@ void stopCapture(const char* why, bool reopen)
 {
     const glm::vec3 u = glm::normalize(s.front - s.rear);
     return degreesBetween(u, s.front - s.eye) <= plausibleDegrees && lineDistance(s.eye, s.rear, u) <= cmToUnits(plausibleCm) &&
-           glm::dot(s.rear - s.eye, u) > 0.f; // the eye behind the rear sight
+           glm::dot(s.rear - s.eye, u) > 0.f &&                         // the eye behind the rear sight
+           degreesBetween(s.gaze, s.front - s.eye) <= plausibleGazeDegrees; // and facing the sights, not a gun held low
 }
+
+glm::vec4 lastDev{0.f}; // the last window's largest moves (eye, hand: units; hand: degrees; the sights: units), to debug
 
 // The window's average, if the last stillSeconds were still.
 [[nodiscard]] bool stillMean(double now, Sample& mean)
@@ -608,6 +633,7 @@ void stopCapture(const char* why, bool reopen)
     }
     Sample m;
     m.sightInHand = glm::vec3{0.f};
+    m.gaze = glm::vec3{0.f};
     int n = 0;
     for(const Sample& s : st.window)
     {
@@ -618,6 +644,9 @@ void stopCapture(const char* why, bool reopen)
             m.front += s.front;
             m.fist += s.fist;
             m.sightInHand += s.sightInHand;
+            m.gaze += s.gaze;
+            m.grip += s.grip;
+            m.gripValid = s.gripValid;
             m.handPos += s.handPos;
             m.handFwd += s.handFwd;
             n++;
@@ -635,8 +664,20 @@ void stopCapture(const char* why, bool reopen)
     m.handPos *= k;
     m.handFwd = glm::normalize(m.handFwd);
     m.sightInHand = glm::normalize(m.sightInHand);
+    m.gaze = glm::normalize(m.gaze);
+    m.grip *= k;
     const float tol = cmToUnits(stillCm);
     const float settled = cmToUnits(stillWeaponCm);
+    lastDev = glm::vec4{0.f};
+    for(const Sample& s : st.window)
+    {
+        if(now - s.time <= stillSeconds + 1e-3)
+        {
+            lastDev = glm::max(lastDev, glm::vec4{glm::distance(s.eye, m.eye), glm::distance(s.handPos, m.handPos),
+                                            degreesBetween(s.handFwd, m.handFwd),
+                                            std::fmax(glm::distance(s.rear, m.rear), glm::distance(s.front, m.front))});
+        }
+    }
     for(const Sample& s : st.window)
     {
         if(now - s.time <= stillSeconds + 1e-3 &&
@@ -753,6 +794,43 @@ void solve()
     const float oldShot[2]{weapons::value(r.slot, Key::ShotPitch), weapons::value(r.slot, Key::ShotYaw)};
     const float values[8]{pStore.x, pStore.y, pStore.z, aNew.x, aNew.y, aNew.z, shotPitch, shotYaw};
     std::copy(values, values + 8, r.values);
+
+    // Two-handed: the aim then runs from the hand to the other hand (on the foregrip) moved by the weapon's Aim Offset,
+    // turned by its Aim Pitch/Yaw/Roll (vr_twohand.cpp). Set so that taking the foregrip where it is drawn keeps the gun
+    // exactly as held in one hand (the offset puts the aim's target on the hand's own forward, the turns 0): the sights
+    // stay aligned. The foregrip is fixed in the hand's frame, so this holds for any pose and after the fix.
+    const int mode2h = static_cast<int>(weapons::value(r.slot, Key::TwoHMode));
+    const Sample& last = st.captures.back().mean;
+    if(last.gripValid && mode2h != 2 && mode2h != 3) // 2: no two-handed aim; 3: a sword
+    {
+        glm::vec3 g{0.f};
+        for(const Capture& c : st.captures)
+        {
+            g += c.mean.grip;
+        }
+        g /= static_cast<float>(n);
+        glm::vec3 off{glm::length(g) - g.x, -g.y, -g.z};
+        // What holding it did before: the aim towards the foregrip moved by the old offset, then its turns.
+        glm::vec3 oldOff = weapons::vec(r.slot, Key::TwoHOffsetX, Key::TwoHOffsetY, Key::TwoHOffsetZ);
+        glm::vec3 oldTurn = weapons::vec(r.slot, Key::TwoHPitch, Key::TwoHYaw, Key::TwoHRoll);
+        if(r.hand == HAND_OFF)
+        {
+            oldOff.y = -oldOff.y;
+            oldTurn.y = -oldTurn.y;
+            oldTurn.z = -oldTurn.z;
+        }
+        const glm::vec3 t2 = g + oldOff; // (forward, right, up)
+        // The Euler turns are added to the aim's angles: taken at a level aim, as a turn in its frame.
+        const glm::vec3 aimed = hands::anglesFromVectors(glm::normalize(glm::vec3{t2.x, -t2.y, t2.z}), glm::vec3{0.f, 0.f, 1.f}) + oldTurn;
+        r.twoHandDegrees = degreesBetween(hands::forward(aimed), glm::vec3{1.f, 0.f, 0.f});
+        if(r.hand == HAND_OFF)
+        {
+            off.y = -off.y;
+        }
+        const float more[6]{off.x, off.y, off.z, 0.f, 0.f, 0.f};
+        std::copy(more, more + 6, r.values + 8);
+        r.count = 14;
+    }
     {
         // The shots' turn, in the aim's frame (the off hand's yaw as applied: mirrored).
         const auto dir = [](float pitch, float yaw) {
@@ -775,10 +853,15 @@ void solve()
         r.shotDegrees);
     Con_Printf("  whole %.4f %.4f %.4f / %.4f %.4f %.4f, shot %.4f %.4f\n", values[0], values[1], values[2], values[3], values[4],
         values[5], values[6], values[7]);
+    if(r.count > 8)
+    {
+        Con_Printf("  two-handed: holding the foregrip turned the aim %.2f deg; aim offset %.4f %.4f %.4f, turns 0\n",
+            r.twoHandDegrees, r.values[8], r.values[9], r.values[10]);
+    }
 }
 
-constexpr Key keys[8] = {Key::WholeX, Key::WholeY, Key::WholeZ, Key::WholePitch, Key::WholeYaw, Key::WholeRoll, Key::ShotPitch,
-    Key::ShotYaw};
+constexpr Key keys[14] = {Key::WholeX, Key::WholeY, Key::WholeZ, Key::WholePitch, Key::WholeYaw, Key::WholeRoll, Key::ShotPitch,
+    Key::ShotYaw, Key::TwoHOffsetX, Key::TwoHOffsetY, Key::TwoHOffsetZ, Key::TwoHPitch, Key::TwoHYaw, Key::TwoHRoll};
 
 // Sets what `slot` uses for `key` (its own value, or the one it inherits: as the page edits), recording what it wrote.
 void setEffective(int slot, Key key, float v)
@@ -863,6 +946,28 @@ void check_f()
                "%.4f deg apart\n",
         modelBase(p.model).c_str(), handName(hand), dominantEye() == 1 ? "right" : "left", rayDeg, eyeLine,
         unitsToCm(eyeLine) * 10.f, apparent);
+    if(p.gripValid && twohand::transition(hand) <= 0.f)
+    {
+        // Held two-handed with the other hand's point on the foregrip as drawn now: how far the aim would turn
+        // (vr_twohand.cpp applyHand, without the virtual stock).
+        glm::vec3 off = weapons::vec(p.slot, Key::TwoHOffsetX, Key::TwoHOffsetY, Key::TwoHOffsetZ);
+        glm::vec3 turn = weapons::vec(p.slot, Key::TwoHPitch, Key::TwoHYaw, Key::TwoHRoll);
+        if(hand == HAND_OFF)
+        {
+            off.y = -off.y;
+            turn.y = -turn.y;
+            turn.z = -turn.z;
+        }
+        glm::vec3 f, r, up;
+        hands::angleVectors(s.rot[hand], f, r, up);
+        const glm::vec3 target = p.grip + hands::redirect(off, s.rot[hand]);
+        const glm::vec3 aim = hands::anglesFromVectors(glm::normalize(target - s.pos[hand]), up) + turn;
+        Con_Printf("sightcheck two-handed on the foregrip: the aim would turn %.4f deg\n", degreesBetween(hands::forward(aim), f));
+    }
+    if(twohand::transition(hand) > 0.f)
+    {
+        Con_Printf("sightcheck aimed two-handed (%.2f)%s", twohand::transition(hand), "\n");
+    }
     Con_Printf("sightcheck rear %.3f %.3f %.3f front %.3f %.3f %.3f eye %.3f %.3f %.3f fist %.3f %.3f %.3f\n", p.rear.x, p.rear.y,
         p.rear.z, p.front.x, p.front.y, p.front.z, p.eye.x, p.eye.y, p.eye.z, p.fist.x, p.fist.y, p.fist.z);
     // Where they are seen in the dominant eye's image (the mock's field of view: tangents +-0.8), in pixels of a
@@ -943,7 +1048,7 @@ void align_f()
     const int hand = Cmd_Argc() >= 3 && !q_strcasecmp(Cmd_Argv(2), "off") ? HAND_OFF : HAND_MAIN;
     if(!q_strcasecmp(what, "start"))
     {
-        start(hand, -1);
+        start(hand, key_dest == key_menu ? menu::currentPage() : -1); // from the menu: back to it with the result
     }
     else if(!q_strcasecmp(what, "apply"))
     {
@@ -1086,13 +1191,16 @@ void apply()
         return;
     }
     undoList.clear();
-    for(int i = 0; i < 8; i++)
+    for(int i = 0; i < r.count; i++)
     {
         setEffective(r.slot, keys[i], r.values[i]);
     }
     const int owner = weapons::ownerSlot(r.slot, Key::WholePitch);
-    savedTo = owner == r.slot ? std::string(weapons::cvar(owner, Key::ID)->string)
-                              : std::string(weapons::cvar(owner, Key::ID)->string) + " (inherited by this weapon)";
+    {
+        const char* id = weapons::cvar(owner, Key::ID)->string;
+        const char* base = std::strrchr(id, '/');
+        savedTo = std::string(base ? base + 1 : id) + (owner == r.slot ? "" : " (inherited)");
+    }
     applied = true;
     st.phase = Phase::Idle;
     Con_Printf("Align Sights: applied to %s\n", savedTo.c_str());
@@ -1161,18 +1269,31 @@ const char* statusLine(int i)
     else if(hasResult)
     {
         const Result& r = result;
-        add(va("%s: your sights were %.1f deg and %.1f cm off", modelBase(r.model).c_str(), r.offDegrees, r.offCm));
-        add(va("%d captures agree within %.2f deg%s", r.used, r.spreadDegrees,
-            r.dropped ? va(" (%d dropped)", r.dropped) : ""));
-        add(va("Fix: hand and gun turned %.1f deg, moved %.1f cm", r.turnDegrees, r.moveCm));
-        add(va("Shots turned %.2f deg onto the sight line", r.shotDegrees));
+        add(va("Sights were off %.1f deg, %.1f cm", r.offDegrees, r.offCm));
+        add(r.dropped ? va("%d captures (%d dropped): %.2f deg", r.used, r.dropped, r.spreadDegrees)
+                      : va("%d captures, %.2f deg apart", r.used, r.spreadDegrees));
+        add(va("Fix: turn %.1f deg, move %.1f cm", r.turnDegrees, r.moveCm));
+        add(va("Shots turned %.2f deg", r.shotDegrees));
+        if(r.count > 8)
+        {
+            add(va("Two hands: %.1f deg jump now 0", r.twoHandDegrees));
+        }
         if(applied)
         {
             add("Applied to " + savedTo);
         }
         else
         {
-            add("Green: the new sight line; orange: the old");
+            add("Green: new line, orange: old");
+            const int owner = weapons::ownerSlot(r.slot, Key::WholePitch);
+            if(owner != r.slot)
+            {
+                // Inherit From: the page edits the settings inherited, so Apply does too (the other ammo's model shares
+                // them); a weapon that should keep its own is made to Stop Inheriting first.
+                const char* id = weapons::cvar(owner, Key::ID)->string;
+                const char* base = std::strrchr(id, '/');
+                add(va("Changes %s's (inherited)", base ? base + 1 : id));
+            }
         }
     }
     else if(!st.message.empty())
@@ -1296,6 +1417,14 @@ void viewFrame(const hands::State& s)
     smp.rear = toC(p, p.rear);
     smp.front = toC(p, p.front);
     smp.fist = toC(p, p.fist);
+    smp.gaze = glm::transpose(p.cBasis) * p.gaze;
+    smp.gripValid = p.gripValid;
+    if(p.gripValid)
+    {
+        // (forward, right, up): hands::redirect's, as the two-handed aim offset is applied.
+        const glm::vec3 d = p.grip - p.handPos;
+        smp.grip = {glm::dot(d, p.handBasis[0]), -glm::dot(d, p.handBasis[1]), glm::dot(d, p.handBasis[2])};
+    }
     smp.sightInHand = glm::normalize(glm::transpose(p.handBasis) * (p.front - p.rear));
     smp.handPos = p.cPos;
     smp.handFwd = p.cBasis[0];
@@ -1327,7 +1456,17 @@ void viewFrame(const hands::State& s)
 
     // WaitStill.
     Sample mean;
-    if(!stillMean(now, mean) || !plausible(mean))
+    const bool still = stillMean(now, mean);
+    static int debugFrames = 0;
+    if(developer.value >= 2 && ++debugFrames % 20 == 0)
+    {
+        Con_Printf("Align Sights: waiting: still %d, plausible %d, two-handed %.2f, moves %.3f %.3f %.3f %.3f\n", still ? 1 : 0,
+            still && plausible(mean) ? 1 : 0, twohand::transition(st.hand), lastDev.x, lastDev.y, lastDev.z, lastDev.w);
+        const glm::vec3 u = glm::normalize(smp.front - smp.rear);
+        Con_Printf("Align Sights:   now: %.2f deg off the eye's ray, the eye %.2f cm off the line, hand %.1f %.1f %.1f\n",
+            degreesBetween(u, smp.front - smp.eye), unitsToCm(lineDistance(smp.eye, smp.rear, u)), p.cPos.x, p.cPos.y, p.cPos.z);
+    }
+    if(!still || !plausible(mean))
     {
         return;
     }

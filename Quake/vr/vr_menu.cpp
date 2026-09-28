@@ -1310,6 +1310,7 @@ void weaponOffsetsPose(int hotspot)
 
 // Align Sights to My Aim (vr_sightalign.cpp) on the page's weapon.
 int weaponOffsetsSightVersion = -1;
+bool weaponOffsetsSightFocus = false; // the section changed: the cursor to Apply (a result) or Undo (applied)
 
 void sightAlignStart()
 {
@@ -1775,6 +1776,7 @@ int scrolls[pageCount]{};
     if(pages[page].build == pageWeaponOffsets && weaponOffsetsSightVersion != sightalign::version())
     {
         weaponOffsetsStale = true; // Align Sights to My Aim: its phase or its result changed
+        weaponOffsetsSightFocus = true;
     }
     if(pages[page].build == pageWeaponOffsets && weaponOffsetsStale)
     {
@@ -1824,6 +1826,20 @@ int scrolls[pageCount]{};
         for(int i = cursor; n > 0 && !selectable(built[page][cursor]) && i >= 0; i--)
         {
             cursor = selectable(built[page][i]) ? i : cursor;
+        }
+    }
+    // Once the page is shown again (the menu reopened on it, its cursor restored): the cursor on Apply or Undo.
+    if(pages[page].build == pageWeaponOffsets && weaponOffsetsSightFocus && key_dest == key_menu && m_state == m_vr &&
+        page == qvr::menu::currentPage())
+    {
+        weaponOffsetsSightFocus = false;
+        for(int i = 0; i < static_cast<int>(built[page].size()); i++)
+        {
+            if(built[page][i].action == sightAlignApply || built[page][i].action == sightAlignUndo)
+            {
+                cursors[page] = i;
+                break;
+            }
         }
     }
     return built[page];

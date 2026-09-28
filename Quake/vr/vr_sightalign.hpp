@@ -12,7 +12,8 @@
 // dropped and the rest averaged. The correction is the least turn of the hand and weapon together, about the middle of
 // the fist, taking the sight line onto the ray from the eye through the front sight, then the least move putting it
 // through the eye: stored as the weapon's Hand and Weapon Together offset (vr_wofs_whole_*). Its Shot Pitch and Shot Yaw
-// are set so that its shots go along the sight line. Apply, Cancel, then Undo (the exact values back).
+// are set so that its shots go along the sight line, and (a gun with a foregrip hotspot) its two-handed Aim Offset so that
+// taking the foregrip keeps the gun as held in one hand. Apply, Cancel, then Undo (the exact values back).
 
 #pragma once
 

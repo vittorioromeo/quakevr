@@ -4824,3 +4824,195 @@ The old strap stubs are gone. 26 closed pieces, 720 triangles (the strap: 272).
 - [ ] **Torch grips:**
   - [ ] Take the torch from the belt after flipping it to the low grip: it comes in the overhead grip.
   - [ ] Take it off your head and off a gun: does the grip it comes in feel right?
+
+## Align Sights to My Aim
+
+Your request: line the in-game sights up the way you aim your airsoft guns, by "natural point of aim". Branch
+`agent/sightalign`; composites and logs are in the scratchpad's `sightalign/`.
+
+**Where:** Weapon Offsets, a new section just under Inherit From:
+- **Align Sights to My Aim** (the button), then the result lines;
+- **Apply** / **Cancel** once there is a result, then **Undo** after Apply;
+- **Dominant Eye** (new: `vr_dominant_eye`, Right by default; there was no such setting);
+- **Captures** (3, 4 or 5; `vr_sight_align_captures`, 4);
+- **Show Sight Line** (`vr_show_sight_line`).
+
+For a melee weapon (axe, Mjolnir, the swords, the empty hand) the button is replaced by "No sights: a melee weapon".
+
+### In the headset: the eyes-closed routine
+
+1. Hold the gun in the hand the page edits (the main hand, or the other one with Edit the Other Hand's Weapon).
+2. Press **Align Sights to My Aim**. The menu closes, and the game runs.
+3. Close your eyes and lower the gun. Three beeps count down; a higher beep says go.
+4. Raise the gun exactly as you raise your airsoft gun, and hold still. After 0.4 s of stillness a click (the weapon
+   pickup sound) says the aim was taken.
+5. Lower it, and raise it again: another click. Repeat until the chime (4 captures by default).
+6. Open your eyes. The menu is back on the page with the result:
+   - how far off your sights were (degrees, and how far your eye was from the sight line, in cm);
+   - how many captures were used, how far apart they were, and whether one was dropped;
+   - the fix: how much the hand and gun turn, and how far the fist moves;
+   - how much the shots turn and, for a gun with a foregrip, how much taking it used to turn the aim.
+
+   In the game you see the sight line as it is (orange), as the fix puts it (green), and the eye captured (magenta).
+7. **Apply** or **Cancel**. After Apply, **Undo** puts the values back exactly.
+
+The menu button during the capture stops it; so do a map change or death. A capture is only taken with the gun held
+up before your eye:
+- the sights within 15 degrees of the eye's ray;
+- the eye within 15 cm of the sight line;
+- your head facing the sights within 20 degrees.
+
+So a gun held low, or pointed at the menu, is never taken. After 45 s without a capture it gives up (or finishes, with
+3 or more).
+
+### What it changes
+
+**The sight line.** Each gun has a rear and a front point in its model:
+- **Painted sights**, found on the skin's sight texels (the fire colours) when the model is first needed:
+  - the **shotgun**: two rear posts (the middle of the notch, at their tops) and a front post (its top);
+  - the **double shotgun**: a rear ring (its middle, a circle fitted to it) and a front post (its top);
+  - the **lightning gun** and its **plasma** alternate, which have painted notch sights too (round 20).
+- **The others**, from a table (`Quake/vr/vr_sightalign_table.inc`, made by `Misc/quakevr/sightline_table.py`):
+  - a line on the gun's middle, parallel to its barrel, from above the middle of the fist to the muzzle;
+  - just over the highest part of the gun between them, so nothing stands above it;
+  - the grapple's ends before its claws; the laser cannon's runs along its barrel (its handle and frame stand far
+    above it).
+- `lines_check.png`: every gun from the side and the top, with its line, its rear (yellow) and front (cyan) points and
+  the fist (magenta). In the game, **Show Sight Line** draws the same on the guns you hold, the line going on to the
+  wall.
+
+**The fix** is worked out in the controller's calibrated frame, so it holds wherever you stand and look:
+- The eye's place is averaged over the captures. A capture whose eye is further from the others' median than
+  max(1.5 cm, 3 times their median spread) is dropped.
+- The hand and the gun turn together, **about the middle of the fist**, by the least turn that takes the sight line onto
+  the ray from your eye through the front sight (where you looked). The grip stays in the palm and the fingers keep
+  their grip.
+- They then move by the least amount (across that ray) that puts the line through the eye.
+- It is stored in the gun's **Hand and Weapon Together** keys (`vr_wofs_whole_x/y/z/pitch/yaw/roll_NN`), composed with
+  what they held. There is no new mechanism, and the page's sliders show the result.
+
+**The shots follow the sights.** Shot Pitch and Shot Yaw (`vr_wofs_shot_pitch/yaw_NN`) are set so that the shots (the
+red laser) run parallel to the sight line.
+- They leave the muzzle, which is under the sights, so they land that far below the point the sights cover, at every
+  range: 2.2 cm (double shotgun), 3.1 (shotgun), 3.6 (nailgun), 7.4 (rocket launcher).
+- A zero at one range would be exact there and worse elsewhere (twice the offset at twice the range). Parallel keeps
+  the offset small and the same everywhere.
+- Before, the shots were 0.4 to 2.6 degrees off the sights.
+
+**Two hands.** Two-handed aim points from the hand to the other hand (on the foregrip), moved by the gun's Aim Offset
+and turned by its Aim Pitch/Yaw/Roll. It did not follow the one-handed pose: taking the foregrip turned the gun 6.6 to
+10.7 degrees (in the mock, at your calibration).
+- For a gun with a Grip hotspot, Apply also sets the **Aim Offset** (`vr_wofs_2h_x/y/z`): the aim then runs along the
+  hand's own forward when the other hand holds the foregrip where it is drawn. The Aim Pitch/Yaw/Roll
+  (`2h_pitch/yaw/roll`) go to 0.
+- Taking the foregrip now turns the gun 0.001 degrees, so two-handed shooting keeps the aligned sights.
+- The foregrip is fixed in the hand's frame, so this holds in any pose.
+- Not for guns without a Grip hotspot, with No Two-Handed, or the swords.
+
+**The off hand.** The keys are shared and mirrored, as all weapon offsets are.
+- Aligning in either hand sets both: the other hand gets the mirror image. That is right when you shoot that hand with
+  the eye on its side.
+- Aligned in the off hand with the left eye, the main hand with the right eye was aligned to 0.0043 degrees in the
+  mirrored pose.
+
+**Inherit From.** As on the rest of the page, Apply writes the values the weapon uses: its own, or those of the weapon it
+inherits from (the other ammo's model, the same gun: set once for both).
+- The result says so ("Changes v_nail.mdl's (inherited)").
+- Stop Inheriting first to keep them apart.
+
+**Saved** with your config (the weapon keys are archived), as are `vr_dominant_eye` and `vr_sight_align_captures`.
+
+### Tests (mock headset; the scratchpad's `sightalign/`)
+
+The setup:
+- your calibration (Gun Angle 70, hand X -4, Y 0.58, Z -2.5, the off hand mirrored), in the firing range;
+- a "natural" pose that is off the sights by a known amount: the hand at (0.02, 1.60, -0.42) m, pitched 71, yawed 1;
+  the head at 1.70 m, level;
+- 5 captures, the gun lowered between them: 4 around that pose (pitch and yaw +-0.6 degrees) and one outlier 5 degrees
+  off.
+
+The numbers are `vr_sight_check` in that pose.
+
+| Gun | Before: sights vs eye ray, eye to line | Fix: turn, fist move | After: sights vs eye ray, eye to line | Laser vs sight line, before / after | Two hands on the foregrip, before / after |
+|---|---|---|---|---|---|
+| Shotgun | 5.33 deg, 80.4 mm | 5.33 deg, 4.2 cm | **0.0043 deg, 0.067 mm** | 2.36 / 0.0046 deg | 10.71 / 0.0014 deg |
+| Double shotgun | 6.80 deg, 95.1 mm | 6.81 deg, 4.5 cm | **0.0055 deg, 0.079 mm** | 0.37 / 0.0016 deg | 8.54 / 0.0005 deg |
+| Nailgun | 6.18 deg, 83.5 mm | 6.18 deg, 4.0 cm | **0.0041 deg, 0.057 mm** | 2.00 / 0.0024 deg | 10.51 / 0.0009 deg |
+| Rocket launcher | 4.85 deg, 86.9 mm | 4.88 deg, 5.1 cm | **0.026 deg, 0.47 mm** | 2.55 / 0.0036 deg | 6.63 / 0.0018 deg |
+
+- The outlier was dropped each time (4 used; spread 0.25 to 0.33 degrees).
+- In the dominant eye's image (2048 px), the rear and front sights land on the same pixel. The laser's dot on the wall
+  is 1.3 to 2.8 px from the sight line's.
+- `sightalign_before_after.png`: the right eye before and after, for each gun. The red ring is where the laser meets
+  the wall.
+- The nailgun held two-handed in the mock (the other hand put on its foregrip to 0.05 units, the grab taken): 0.23
+  degrees and 3 mm, the precision of that placement.
+- **Undo:** every key back to its exact string ("0", "0.0", "1.8"...), and `vr_sight_check` the same as before.
+- **Restart:** the config written after Apply, loaded by a fresh game: the same keys, the same 0.0042 degrees (nailgun).
+- **Off hand:** as above.
+- **Inherit From:** the double shotgun made to inherit the shotgun. Apply wrote the shotgun's keys, and the double
+  shotgun was aligned to 0.0044 degrees.
+- **The menu** (`menu_flow.png`): the page before, the result with Apply and Cancel, then Undo after Apply.
+
+### Settings and commands
+
+| | |
+|---|---|
+| `vr_dominant_eye` | 0 right (default), 1 left. Saved. |
+| `vr_sight_align_captures` | 3..5 (4). Saved. |
+| `vr_show_sight_line` | the held guns' sight lines. Not saved. |
+| `vr_sight_align [start [main or off] / apply / cancel / undo]` | the page's buttons, for scripts. Started with the menu open, it comes back to it. |
+| `vr_sight_check [main or off] [size]` | the numbers above (see below). |
+| `vr_sight_lines` | every weapon's sight line (model space) and where it comes from. |
+
+`vr_sight_check` prints:
+- the sight line against the eye's ray, and the eye's distance to it;
+- where the sights, the line and the laser land in the dominant eye's image (pixels of a `size` image);
+- the laser against the line at 2 to 50 m;
+- the two-handed turn;
+- the fist and muzzle in model space.
+
+`developer 2` prints the capture's waiting: still, plausible, and the largest moves in the window.
+
+### Choices that differ from the brief, and why
+
+- **The lightning gun and the plasma gun** use their painted sights (they have real ones since round 20), not a table
+  line.
+- **Captures need the gun lowered between them** (8 cm or 15 degrees). Holding still twice in a row would give the same
+  pose twice, not a second natural raise. The first capture needs it too, so the pose you pointed at the menu with is
+  never taken.
+- **A capture also waits for the gun's lag to settle** (the sights still to 2 mm in the controller's frame). The first
+  tries were taken while the weighted gun was still catching up with the hand, and the fix was 0.13 degrees off.
+- **The head must face the sights.** Without it, a gun held low was taken once: its sights happened to line up with the
+  eye, pointing at the floor.
+- **The fist moves 4 to 5 cm** in these tests. The brief asks for the line on the ray from the eye through the front
+  sight, pivoting at the fist. The turn alone can't put the line through the eye (it turns about the fist, below it), so
+  the rest is a move.
+  - The other choice, a turn only, would keep the drawn hand exactly on yours, but the line through the eye would point
+    elsewhere: 6 to 10 degrees off where you looked, here.
+  - The result shows the move, so you can judge it. If a gun needs a large one, its sights sit higher (or lower) above
+    the grip than your airsoft gun's.
+
+### Limits
+
+- The one-handed fix is exact for the pose you capture. Other ways of holding the same gun differ, as your real aim
+  does.
+- Two hands: exact with your other hand at the drawn foregrip. Elsewhere on the gun it turns the aim, as before. The
+  virtual stock (Two-Handed Mode 2, with the gun hand near the shoulder) mixes in the shoulder's line and doesn't keep
+  it.
+- Sight lines are on the idle frame; a firing animation moves them with the gun.
+- A mod's own gun models get a line only under these names. Painted sights are found on any skin of these models;
+  other models have none until they are added to the table.
+- The shots are parallel to the sights, not converging: a few cm low at every range (see above).
+
+### In the headset
+
+- [ ] Dominant Eye: is Right yours?
+- [ ] Shotgun: do the routine. Opening your eyes, is the front post in the notch? Apply, then raise it again with your
+  eyes closed: are the sights lined up?
+- [ ] The double shotgun (the ring), then a nailgun and the rocket launcher (table lines): the same. Is Show Sight
+  Line's line where you would look along each?
+- [ ] How far does the fix move the fist (the result's cm)? Does the hand still sit right on the gun?
+- [ ] Take the foregrip: do the sights stay lined up?
+- [ ] Shoot a target at a few distances: do the shots land where the sights are (a few cm low)?
+- [ ] Undo; and after a restart, are the values kept?
