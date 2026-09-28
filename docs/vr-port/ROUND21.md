@@ -2595,6 +2595,9 @@ and moving all the existing rigid-body physics onto it; you test both and choose
 `Quake/vr/vr_box3d.cpp`; Box3D itself is vendored in `Quake/vr/external/box3d` (README with the upstream commit).
 Composites and traces are in the scratchpad's `box3d/`.
 
+(Since "Simplification: Box3D only, knights always drop swords", at the end, Box3D is the only engine: the switch
+below is gone and the old solver is on the branch `archive/old-solver-stacking`.)
+
 **The switch:** Throwing and Physics > **Physics Engine**: Quake VR (`vr_physics_engine 0`, the default, the old solver
 unchanged) or Box3D (`1`). It switches at once, live: at the next server frame the Box3D world is built and every
 body made from its entity (where it is, how it is turned and moving, asleep or not), or destroyed (the entities
@@ -2687,7 +2690,7 @@ two-handed carrying and its throw, holstering, armour, force grab.
 
 | Menu | Cvar | Default | |
 |---|---|---|---|
-| Throwing and Physics > Physics Engine | `vr_physics_engine` | 0 | 0 Quake VR's solver, 1 Box3D |
+| (retired) | `vr_physics_engine` | - | was 0 Quake VR's solver, 1 Box3D; Box3D only since "Simplification: Box3D only" (below) |
 | (console) | `vr_box3d_substeps` | 4 | Box3D's sub-steps a server frame (1..8) |
 | (console) | `vr_box3d_player_push` | 1 | players' bodies push props |
 | (console) | `vr_box3d_player_radius` | 15 | cm, that capsule's radius |
@@ -6585,3 +6588,72 @@ the round's latest vr-cleanup; after it, 0.0042 degrees and 0.059 mm (0.0041 and
       does. Switch to Current Settings and compare. Then aim, guard and punch: does the wrist look like yours?
 - [ ] Apply. If it's worse, Undo. Either way, tell me, and keep the session file (`quakevr/bodycal/`).
 - [ ] "Drawn wrists ... off": above 2 cm, your Hand Calibration's wrist isn't your real one.
+
+## Simplification: Box3D only, knights always drop swords
+
+Your voice notes (vrfiringrange, 2026-09-28): remove the too-niche options; knights always drop swords; Box3D is the only
+physics engine, the bespoke pre-Box3D solver goes (Quake's own physics stays). Branch `agent/simplify`.
+
+### What changed
+
+- **The old solver is gone.** `vr_rigid.cpp` was Quake VR's own rigid-body solver (`vr_physics_engine 0`: each body an
+  oriented box colliding by its corners with sequential impulses, split impulses, wedge escape, its own sleep, water
+  and hit box). All of that is removed: `rigidToss`, `Body`, contacts, `settle`, `unwedge`, `waterStep`, the rest and
+  water memos, and its `vr_debug_throw 3|4` prints. The code lives on in git: branch **`archive/old-solver-stacking`**
+  (also on origin), which has it with the stacking experiment.
+- **What stays in `vr_rigid.cpp`** (345 lines, was 1143) is what Box3D and the hands use: `VR_RigidToss` (keeps items
+  and rigid bodies in the world, the first water check, then hands a rigid body to Box3D), `localBox` (the drawn
+  model's box: `pointInModelBox`, `modelCentre`, `keepInWorld`), `carryAngles`, `vr_rigid_place`, the resets.
+- **The `.vr_rest` field** (the old solver's sleep timer) is gone from QC and the engine: only the old solver read it;
+  Box3D only wrote it. Old saved games still load (an unknown field is skipped quietly).
+- **Box3D** is unchanged except that nothing asks for the engine any more (`vr_physics_list` prints `N, Box3D:`).
+  Quake's own physics (`sv_phys.c`, `MOVETYPE_*`, QC's movetypes) is untouched; only a comment changed there.
+- **Knights and hell knights always drop their sword** when they die, gibbed or not. Kept: a statue knight
+  (spawnflags 2) drops none, as before: it has no sword to lose. The random draw is gone from `VR_DropKnightSword`.
+- **Menus:** Throwing and Physics > Physics starts at Bounciness (the Physics Engine cycle is gone); Gameplay >
+  Knights' Swords keeps only Sword Damage, its help now saying they always drop.
+- **Retired cvars:** `vr_physics_engine` and `vr_sword_drop` stay registered, do nothing, and are no longer archived
+  (the project's way, like `vr_carry_reach`): an old `ironwail.cfg` or a bind setting them loads without a word, and
+  the next saved config leaves them out. `vr_defaults.cfg` no longer sets `vr_physics_engine`.
+
+Lines: the code (engine and QC) is 875 lines shorter and 56 longer (comments and the retired cvars): **819 fewer**.
+The Release binary is 27 KB smaller, and none of the old solver's strings are in it (`wedged at`, `rigid %d: origin`,
+the contact prints; `vr_rigid.obj` has no `rigidToss`, `unwedge`, `waterStep`, `restMemo`).
+
+### How it was checked
+
+The same scenes before (vr-cleanup `d1e5bd2a`) and after, with `host_framerate` 1/72 so Box3D is deterministic;
+`vr_physics_list` and `vr_physics_hash` at the end, and the screenshots (scratchpad `simplify/`, `sc.sh`):
+
+| Scene | Before | After |
+|---|---|---|
+| a column of 5 health boxes (firing range) | hash `e92ce6db…` | identical |
+| a shells box dropped on a stack of 4 | `ad1129d0…` | identical |
+| a box thrown into a stack of 5 | `ba8208c2…` | identical |
+| a pyramid of 6 | `650d4f75…` | identical |
+| every prop piled, then a box thrown into the pile | `9474122c…` | identical |
+| a grunt gibbed by a blast (firing range) | `664fdecd…` | identical |
+| e1m1: a backpack and a loose armour on the ramp | `68a87764…` | identical |
+| e1m1: a health and a shells box riding the plat | `d91df523…` | identical |
+| e1m1: a grunt gibbed at the start | `d0bca7ed…` | identical |
+| a shotgun gripped and thrown (`play_throw_weak.txt`) | lands on its side, asleep | the same (see below) |
+| a shotgun thrown at a grunt (`play_throw.txt`) | kills it, lands asleep | the same |
+
+The screenshots differ only in particles and the signs' flicker (the props are where they were). The two throws come
+from recorded hand motions played by real time, so no two runs are the same, before or after: four runs of the
+build before and three after land the shotgun at 309 -688 on the same side (one run before tipped onto the other
+side), and the throw at the grunt kills it every time.
+
+**Swords:** a knight, a hell knight, a knight gibbed by a blast: each dropped its sword (before too, at
+`vr_sword_drop 1`). With `vr_sword_drop 0` set: before, two knights and a hell knight dropped none; after, all three
+dropped theirs. The knights' scenes' hashes differ from before only because the QC draws one random number fewer.
+
+**Old configs:** `exec` of a file with `vr_physics_engine "0"`, `vr_sword_drop "0.3"` and an unknown control cvar: only
+the control prints `Unknown command`; physics stays Box3D.
+
+### For you
+
+- [ ] Throwing and Physics: the Physics section starts at Bounciness. Throw, stack and carry as usual.
+- [ ] Kill a few knights and hell knights: each drops its sword.
+- [ ] Your own `ironwail.cfg` still has `vr_physics_engine` and `vr_sword_drop`: no console error at start; they drop
+      out of it the next time it is saved.

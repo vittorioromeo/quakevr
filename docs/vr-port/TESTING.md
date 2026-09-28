@@ -93,14 +93,13 @@ firmest (`vr_throw_release_drop`), and it always does below 35% (`vr_throw_relea
 **Start position:** the weapon starts where it would be had it left the hand at the release point, not where the
 hand followed through to.
 
-**Flight** (the engine, `vr_rigid.cpp`):
+**Flight** (the engine: Box3D, `vr_box3d.cpp`, since round 21 the only rigid-body physics):
 - **Spin:** the hand's real spin, capped at `vr_throw_spin_max` (20 rad/s). It used to be applied as rates on
   each angle, which tumbled wildly.
 - **Gravity:** the same true-scale gravity for the whole flight. It used to jump to Quake's 2.5 g after the first
   touch.
 - **Bounces:** with `vr_throw_restitution` (0.25) and friction (`vr_throw_friction` 0.5).
-- **Resting:** the weapon turns onto its nearest flat side (`vr_throw_settle_rate`) and stays still. No more
-  wiggling.
+- **Resting:** the weapon comes to rest on a side (its drawn shape) and stays still. No more wiggling.
 - **Hit box:** a 6-unit hit box (`vr_throw_hitbox`) against monsters, so throws that look like hits are hits.
 
 **Aim assist** (`vr_throw_assist 1`, off by default): bends a throw by up to 80% onto the best monster or
@@ -168,11 +167,13 @@ context and screenshot, ready to paste or to point me at.
     Weapon Offsets > Tuning Aids: Show Controller is drawn in your palm as a Quest 3 controller, **Controller Preview**
     sliders line it up with your real one; **Shot Pitch / Shot Yaw** (under Muzzle and Posing Mode) turn where shots go
     without moving the gun: with Show Controller Laser, put the red line through the sights.
-  - **Physics engine: Box3D, to compare** (Throwing and Physics > Physics Engine, switches at once): Quake VR is the
-    solver you know; Box3D makes thrown and dropped things collide with each other too: stack boxes, build a pyramid,
-    throw a box into a stack, sweep one off with a held box. Then the usual: throws at monsters, weapons landing on
-    their sides, backpacks and armour on slopes, boxes on lifts, things floating. The side-by-side list is at the end
-    of ROUND21.md, "Box3D physics".
+  - **Physics: Box3D only** (ROUND21.md, "Simplification: Box3D only, knights always drop swords"): the Physics
+    Engine option is gone (Throwing and Physics > Physics starts at Bounciness), and an old config's
+    `vr_physics_engine` line loads without a word. Thrown and dropped things collide with each other: stack boxes,
+    build a pyramid, throw a box into a stack, sweep one off with a held box; throws at monsters, weapons landing on
+    their sides, backpacks and armour on slopes, boxes on lifts, things floating, gibs.
+  - **Knights always drop their sword** (the Knights Drop Swords slider is gone; Advanced VR Options > Gameplay > Knights' Swords keeps
+    Sword Damage): every knight and hell knight you kill drops it, gibbed or not; a statue knight has none.
   - **Melee, redesigned:** swings in any direction (backswings too), stabs with the tip, pommel/butt strikes with
     the near end, parry bash = hold the stance ~0.5 s then push; palm shoves (both palms harder). Melee Speed was
     reset once to 4 m/s. Tell which of your motions still misread, and record more takes of them.
@@ -473,7 +474,7 @@ context and screenshot, ready to paste or to point me at.
     as you move (`vr_body_walk`).
   - **Pickups:** weapons, armour, powerups and keys are smaller and lie on the floor (`vr_pickup_scale` 0.6 in
     `quakevr.cfg`), so you crouch to take them.
-  - **Physics:** thrown weapons and backpacks are real rigid bodies. `vr_debug_throw 3` prints their state.
+  - **Physics:** thrown weapons and backpacks are real rigid bodies. `vr_physics_list` prints their state.
   - **Near clipping:** things close to your face are no longer cut away (`vr_nearclip`).
 
 - **Body** (new): the old floating torso is replaced by a body whose arms reach your hands and which crouches and
@@ -659,7 +660,7 @@ wait60; vr_weapon_grip_mode 1; impulse 155; wait60; vr_mock_look 30 0; vr_mock_h
 vr_mock_fingers main 1 1 1; vr_pose; wait90; vr_mock_button off primary 1; wait3; vr_mock_button off primary 0; wait10;
 vr_pose stop; wait120; vr_pose_check`. The floating weapon's grip is at (0, 1.35, -0.4) in the mock's tracking space
 (40 cm ahead of the head, 35 cm below it); the super shotgun's foregrip is near (-0.06, 1.31, -0.71).
-Rigid bodies (round 21, Box3D): `vr_physics_engine 0|1` switches the solver; `vr_physics_stack`, `vr_physics_pyramid`,
+Rigid bodies (round 21, Box3D, the only solver): `vr_physics_stack`, `vr_physics_pyramid`,
 `vr_physics_pile` put props (a number, a classname or `props`) in a column, a pyramid or toppling columns;
 `vr_physics_loose` makes a hanging armour or a pickup a loose prop; `vr_physics_list` and `vr_physics_hash` print
 them (the hash: determinism); `vr_debug_box3d 1|2|3` (1: bodies made, woken, asleep, the world mesh's build, frames
