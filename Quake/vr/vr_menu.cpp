@@ -21,6 +21,7 @@
 #include "vr_weapons.hpp"
 #include "vr_hands.hpp"
 #include "vr_posing.hpp"
+#include "vr_sightalign.hpp"
 #include "vr_view.hpp"
 #include "vr_units.hpp"
 
@@ -1307,6 +1308,41 @@ void weaponOffsetsPose(int hotspot)
     }
 }
 
+// Align Sights to My Aim (vr_sightalign.cpp) on the page's weapon.
+int weaponOffsetsSightVersion = -1;
+bool weaponOffsetsSightFocus = false; // the section changed: the cursor to Apply (a result) or Undo (applied)
+
+void sightAlignStart()
+{
+    sightalign::start(weaponOffsetsHand, qvr::menu::currentPage());
+}
+
+void sightAlignApply()
+{
+    sightalign::apply();
+}
+
+void sightAlignCancel()
+{
+    sightalign::cancel();
+}
+
+void sightAlignUndo()
+{
+    sightalign::undo();
+}
+
+const char* sightAlignLine(int i)
+{
+    const char* line = sightalign::statusLine(i);
+    return line ? line : "";
+}
+
+const char* sightAlignNone()
+{
+    return "No sights: a melee weapon";
+}
+
 void weaponOffsetsPoseWeapon()
 {
     weaponOffsetsPose(-2);
@@ -1341,6 +1377,7 @@ std::vector<Item> pageWeaponOffsets()
         slot = weapons::fistSlot(); // an empty hand: the hand model's own settings
     }
     weaponOffsetsSlot = slot;
+    weaponOffsetsSightVersion = sightalign::version();
 
     std::vector<Item> list;
     const char* hand = weaponOffsetsHand == 1 ? "Main hand" : "Off hand";
@@ -1408,6 +1445,49 @@ std::vector<Item> pageWeaponOffsets()
             list.push_back(action("Stop Inheriting (Copy Them Here)", weaponOffsetsStopInheriting)
                                .help("This weapon gets its own copy of the settings it inherits, to change apart."));
         }
+        // Align Sights to My Aim (vr_sightalign.cpp).
+        list.push_back(header("Align Sights to My Aim"));
+        if(sightalign::alignable(weaponOffsetsHand))
+        {
+            if(sightalign::phase() == sightalign::Phase::Result)
+            {
+                list.push_back(action("Apply", sightAlignApply)
+                                   .help("Turns the hand and the gun together about your fist (Hand and Weapon Together) so "
+                                         "that the sights line up in front of your dominant eye, and the shots onto the "
+                                         "sight line (Shot Pitch and Yaw). Undo puts the values back."));
+                list.push_back(action("Cancel", sightAlignCancel).help("Nothing changes."));
+            }
+            else
+            {
+                list.push_back(action("Align Sights to My Aim", sightAlignStart)
+                                   .help("Close your eyes and lower the gun. After three beeps and a high one, raise it as you "
+                                         "raise your own gun, and hold still: a click takes it. Lower it and raise it again "
+                                         "after each click, until the chime. Then open your eyes: Apply or Cancel. The menu "
+                                         "button stops."));
+                if(sightalign::canUndo())
+                {
+                    list.push_back(action("Undo", sightAlignUndo).help("Puts back the values from before Apply, exactly."));
+                }
+            }
+            for(int i = 0; sightalign::statusLine(i); i++)
+            {
+                list.push_back(infoLine(sightAlignLine, i));
+            }
+        }
+        else
+        {
+            list.push_back(info(sightAlignNone));
+        }
+        list.insert(list.end(), {
+            cycle("Dominant Eye", vr_dominant_eye, {{0.f, "Right"}, {1.f, "Left"}})
+                .help("The eye that looks along the sights: pointing at something with both eyes open, the one that stays on "
+                      "it when you close the other."),
+            cycle("Captures", vr_sight_align_captures, {{3.f, "3"}, {4.f, "4"}, {5.f, "5"}})
+                .help("How many times the aim is taken: averaged, one that stands apart from the others dropped."),
+            toggle("Show Sight Line", vr_show_sight_line)
+                .help("Draws each held gun's sight line: its rear point (yellow), its front one (cyan), and the line through "
+                      "them to the wall. Painted sights: the shotguns, the lightning gun; the others a line along the top."),
+        });
         // The weapon posing mode (vr_posing.cpp).
         list.insert(list.end(), {
             header("Posing Mode"),
@@ -1693,6 +1773,11 @@ int scrolls[pageCount]{};
     {
         weaponOffsetsStale = true; // another hotspot picked, its type changed, what the weapon inherits, or a Fingers choice
     }
+    if(pages[page].build == pageWeaponOffsets && weaponOffsetsSightVersion != sightalign::version())
+    {
+        weaponOffsetsStale = true; // Align Sights to My Aim: its phase or its result changed
+        weaponOffsetsSightFocus = true;
+    }
     if(pages[page].build == pageWeaponOffsets && weaponOffsetsStale)
     {
         weaponOffsetsStale = false;
@@ -1741,6 +1826,20 @@ int scrolls[pageCount]{};
         for(int i = cursor; n > 0 && !selectable(built[page][cursor]) && i >= 0; i--)
         {
             cursor = selectable(built[page][i]) ? i : cursor;
+        }
+    }
+    // Once the page is shown again (the menu reopened on it, its cursor restored): the cursor on Apply or Undo.
+    if(pages[page].build == pageWeaponOffsets && weaponOffsetsSightFocus && key_dest == key_menu && m_state == m_vr &&
+        page == qvr::menu::currentPage())
+    {
+        weaponOffsetsSightFocus = false;
+        for(int i = 0; i < static_cast<int>(built[page].size()); i++)
+        {
+            if(built[page][i].action == sightAlignApply || built[page][i].action == sightAlignUndo)
+            {
+                cursors[page] = i;
+                break;
+            }
         }
     }
     return built[page];

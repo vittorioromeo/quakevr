@@ -709,6 +709,11 @@ QVR_CVAR(vr_weapon_hotspot, "1", CVAR_NONE)            // the Weapon Offsets pag
 QVR_CVAR(vr_show_weapon_hotspots, "0", CVAR_NONE)      // marks the held weapons' hotspots, where the other hand may hold them (the edited one white)
 QVR_CVAR(vr_show_controller, "0", CVAR_NONE)            // round 21, third pass: draws each controller as tracked (at the runtime's grip pose, before any offset), translucent, with its axes
 QVR_CVAR(vr_show_controller_laser, "0", CVAR_NONE)      // and, for a held weapon, lasers: the controller's aim (white), the weapon's aim from the muzzle (red), its barrel (green)
+// Align Sights to My Aim (vr_sightalign.cpp): the eye that looks along the sights (0 right, 1 left); each held gun's sight
+// line and its rear (yellow) and front (cyan) points; how many times the aim is captured (3..5), averaged.
+QVR_CVAR(vr_dominant_eye, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_show_sight_line, "0", CVAR_NONE)
+QVR_CVAR(vr_sight_align_captures, "4", CVAR_ARCHIVE)
 // After the posing test: the Show Controller preview (a Quest 3 Touch Plus controller drawn at the runtime's grip pose)
 // moved and turned to match the real controllers: centimetres along its drawn axes (x red: along the handle, y green:
 // left, z blue: up), degrees (pitch up, yaw left, roll). The main hand's; the off hand's mirrors them (y, yaw and roll

@@ -28,6 +28,7 @@
 #include "vr_main.hpp"
 #include "vr_modelcollide.hpp"
 #include "vr_posing.hpp"
+#include "vr_sightalign.hpp"
 #include "vr_profile.hpp"
 #include "vr_weapons.hpp"
 
@@ -3699,6 +3700,36 @@ bool weaponMount(int hand, WeaponMount& out)
     return true;
 }
 
+bool weaponFrame(const hands::State& s, int hand, WeaponFrame& out)
+{
+    const ViewEntity& ve = entities.weapon[hand];
+    const int slot = weapons::slotForModel(ve.ent.model);
+    if(!ve.visible || !ve.ent.model || ve.ent.model->type != mod_alias || slot < 0 || isHandModel(ve.ent.model))
+    {
+        return false;
+    }
+    out.model = ve.ent.model;
+    const glm::vec3 o = modelPoint(ve, glm::vec3{0.f});
+    out.modelToWorld = glm::mat4{glm::vec4{modelPoint(ve, {1.f, 0.f, 0.f}) - o, 0.f}, glm::vec4{modelPoint(ve, {0.f, 1.f, 0.f}) - o, 0.f},
+        glm::vec4{modelPoint(ve, {0.f, 0.f, 1.f}) - o, 0.f}, glm::vec4{o, 1.f}};
+    glm::vec3 cp, cd;
+    float radius;
+    const RigHand& rh = rigHands[hand];
+    const ViewEntity& he = entities.hand[hand][FingerBase];
+    out.fistFromRig = rh.drawn && he.ent.model && grasp::gripChannel(rh.pose, cp, cd, radius);
+    if(out.fistFromRig)
+    {
+        float m[16];
+        render::entityMatrix(he.ent, he.mirrored, ENTSCALE_DEFAULT, glm::vec3{0.f}, m); // the rig as drawn
+        out.fist = glm::vec3{toMat4(m) * glm::vec4{cp, 1.f}};
+    }
+    else
+    {
+        out.fist = hands::palmPoint(s, hand);
+    }
+    return true;
+}
+
 bool sameGun(const qmodel_t* a, const qmodel_t* b)
 {
     return a == b || morphKind(a, b) >= 0;
@@ -4184,6 +4215,10 @@ extern "C" void VR_SetupViewEntities()
         updateFist(s, hand);
     }
     drawTuningAids(s, !posingNow);
+    if(!posingNow)
+    {
+        sightalign::viewFrame(s); // Align Sights to My Aim: its samples, Show Sight Line
+    }
     held::drawCarryProbes();
     if(vr_debug_physics_shapes.value)
     {
