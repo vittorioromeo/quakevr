@@ -22,6 +22,7 @@
 #include "vr_posing.hpp"
 #include "vr_sightalign.hpp"
 #include "vr_bodycal.hpp"
+#include "vr_ao.hpp"
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
@@ -800,11 +801,20 @@ void writeMemLogRow(const char* reason)
 
 void memLogFrame()
 {
+    // The GPU's figures (clocks, slowdowns, each program's use of its engines: gpustats' sampling thread) only while
+    // profiling (vr_profile) or asked for (vr_memstats_log_gpu): no thread otherwise.
+    if(vr_memstats_log.value > 0.f && (vr_profile.value > 0.f || vr_memstats_log_gpu.value > 0.f))
+    {
+        gpustats::start();
+    }
+    else
+    {
+        gpustats::stop();
+    }
     if(vr_memstats_log.value <= 0.f)
     {
         return;
     }
-    gpustats::start(); // its sampling thread, once
     if(cls.state != ca_connected || cls.signon != SIGNONS || !cl.worldmodel)
     {
         // Loading: the map that follows is a new one, even the same map again (a save loaded, a
@@ -980,6 +990,8 @@ extern "C" void VR_Init()
 
 extern "C" void VR_Shutdown()
 {
+    ao::shutdown(); // (the models' occlusion bakes, VR or not)
+    gpustats::stop();
     if(!state)
     {
         return;

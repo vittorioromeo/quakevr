@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cstdio>
 #include <cstring>
 #include <map>
@@ -23,6 +24,8 @@
 #include <pdhmsg.h>
 #pragma comment(lib, "pdh.lib")
 #endif
+
+extern "C" void Con_DPrintf(const char* fmt, ...); // console.h (the sampling thread's start and stop, with developer 1)
 
 namespace qvr::gpustats
 {
@@ -128,6 +131,8 @@ std::mutex mutex;
 Accum accum;
 std::thread worker;
 std::atomic<bool> running{false};
+std::mutex sleepMutex;           // the worker's sleep between samples, and stop's wake-up
+std::condition_variable wake;
 
 std::unordered_map<DWORD, std::string> processNames; // worker thread only
 
@@ -234,9 +239,10 @@ void run()
 
     while(running.load())
     {
-        for(int i = 0; i < 10 && running.load(); i++)
         {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            // A sample a second; stop() wakes it at once.
+            std::unique_lock lock{sleepMutex};
+            wake.wait_for(lock, std::chrono::seconds(1), [] { return !running.load(); });
         }
         if(!running.load())
         {
@@ -351,6 +357,7 @@ void start()
     if(!running.exchange(true))
     {
         worker = std::thread(run);
+        Con_DPrintf("gpustats: sampling thread started\n");
     }
 #endif
 }
@@ -358,9 +365,16 @@ void start()
 void stop()
 {
 #ifdef _WIN32
-    if(running.exchange(false) && worker.joinable())
+    bool was = false;
+    {
+        std::lock_guard lock{sleepMutex};
+        was = running.exchange(false);
+    }
+    wake.notify_all();
+    if(was && worker.joinable())
     {
         worker.join();
+        Con_DPrintf("gpustats: sampling thread stopped\n");
     }
 #endif
 }

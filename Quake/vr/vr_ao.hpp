@@ -50,6 +50,8 @@ namespace qvr::ao
 void onGameDirChanged();
 
 void init();
+// Host_Shutdown (VR_Shutdown): the bake worker stopped and joined (a bake under way given up).
+void shutdown();
 
 // VR_PushMapLights (each eye's R_PushDlights): the occluders, chosen once a frame, binned into this eye's tiles and
 // bound as the shaders' uniform block (binding 2). Always binds one (empty when off).
