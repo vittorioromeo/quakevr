@@ -141,6 +141,12 @@ context and screenshot, ready to paste or to point me at.
 ## What to try
 
 - **New in this round** (details in `docs/vr-port/ROUND21.md`; each section ends with an "In the headset" list):
+  - **Menu: scroll memory and shortcuts** (ROUND21.md, same title): every VR Settings page reopens where you left it
+    (the selected row and the scroll), after Back to Game, after going back and coming again, and after a restart.
+    Weapon Offsets keeps the same row for another weapon. Under Back to Game, top left on every menu: **Advanced VR**
+    (the Advanced VR Options) and **Levels** (the level list). Point and pull the trigger; or click a stick (or go up
+    from a page's first setting), then up and down, A to press, B to go back to the page. B after a jump walks up
+    the menus as always (Advanced VR Options, then VR Settings, then Options; Levels, then Single Player).
   - **Wall torches you can take** (ROUND21.md, same title): grip a wall torch and pull it out (or force grab it); it
     is a burning club that lights the room round you as the wall torch did (same colour and brightness, and it casts
     shadows). Its blows burn monsters; after 5 blows, or dropped, its fire dies in 6 s; held, it burns for ever; a dead
@@ -547,6 +553,7 @@ context and screenshot, ready to paste or to point me at.
 - **Crosshair:** Options > VR Settings > Crosshair: a dot, a laser or a soft laser from each muzzle.
 - **VR Settings:** Options > VR Settings (or `menu_vr`) has the comfort, body, weapon and display settings;
   the sticks move and change, A selects, B goes back. "Set Height Now" calibrates the height while standing.
+  The buttons at the top left of every menu: Back to game, Advanced VR, Levels (the laser; or a stick's click).
 
 `vr_status` shows tracking, hand angles, hotspots and grab and two-handed state; `vr_dumpview` shows the drawn
 hands, weapons and finger curls.
@@ -611,6 +618,14 @@ is the most useful thing to send me along with a description. In particular:
 swings the main hand for throwing tests. `vr_particle_seed <n>` (not 0) makes the particles the same in every run (their random numbers restart from it at each map), for comparing images. `vr_mock_fingers <main|off> <trigger> <grip> [<thumb>]` sets the finger
 sensors (0..1); a fifth argument sets the index finger's touch on the trigger.
 
+Menus (ROUND21.md, "Menu: scroll memory and shortcuts"): `menu_vr pos` prints the menu shown and, on a VR page, its
+selected row (with the header above it), its scroll and the page Back goes to. `vr_mock_laser back|advanced|levels`
+(or `<x> <y>` in menu coordinates; `off`) puts the main hand's laser on a corner button or a spot, whatever the hand's
+pose; then `vr_mock_button main trigger 1` / `0` clicks. `vr_mock_button off stickclick 1` / `0` gives the corner
+buttons the selection, `vr_mock_stick off 0 -1` (then `0 0`) moves down, `vr_mock_button main primary` presses;
+`vr_mock_stick main 0 -1` scrolls a page. Back to Game: `vr_mock_button main menu 1; wait90; vr_mock_button main menu
+0`, reopened by `togglemenu`. Across a restart: `writeconfig <file>` writes `vr_menu_positions`; exec that line at the
+next start (the kit puts `ironwail.cfg` back after each run).
 Climbing (ROUND21.md, "Climbing with both hands"): the mock's grip button does not press the grab. Script
 `+graboff`/`-graboff` and `+grabmain`/`-grabmain` (in a `vr_mock_play` file: `<t> cmd +graboff`). Map `vrclimb` has a rung
 wall (`setpos 71 0 24 0 0 0; noclip`, the second toggling setpos's noclip off) and a long ledge over a trench

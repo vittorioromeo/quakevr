@@ -32,6 +32,7 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | Stamina on the gadget; the glow | the stamina bar over the weapon is gone: parry stamina shows in the gadget screen's top row (ten cells; blinking when low; EXHAUSTED; a sweep while it recovers) with COUNTER while a counter's window is open; the counter glow never showed (1 cm sparks inside the blade, at a lagging pose): now a gold rim glow and embers drawn by the client, off as shipped |
 | Stamina for shoves and strikes; thrown damage on gibs | shoves and bashes (15 one-handed, 20 two-handed) and blows that land (a punch 4, a weapon 8, two-handed 6) spend the parry's stamina pool, shown on the gadget; short of it they do half the damage and a shove half the knockback (in proportion to what's missing); the rest before it comes back counts from the last parry, shove or blow; all in Parry, Bash and Headbutt > Shove and Strike Stamina. A thrown weapon, box or gib landing on a loose gib hurts it as it hurts a monster (it bursts). Your archived takes: identical |
 | Swimming: air supply, strokes against the palm | Air Supply (1.5: 18 s under water before drowning instead of 12; 1 to 4). Stroke Against Palm (0.25): a stroke led by the back of the hand (a backhand, a hand turned round to reposition) pushes a quarter as much; palm-first strokes unchanged. The old Palm Matters counted either side of the hand alike. Swimming 6 s with brisk backhand recoveries: +2 units before, +261 to +319 now |
+| Menu: scroll memory and shortcuts | every VR page reopens on the row and scroll it was left at (Weapon Offsets too, for any weapon; across restarts: `vr_menu_positions`); Advanced VR and Levels buttons under Back to Game on every menu (laser, or a stick click) |
 
 Found on the way: fteqcc stores 0 when `a || b` is assigned into an entity field (rewritten; no other code has that
 shape); a parried blow's hand knock, timed by `cl.time`, came back after a level change (reset now).
@@ -8662,3 +8663,98 @@ The only real cost is the held torch's shadow map (about 0.1 ms of CPU here): Ta
 - [ ] Hit a grunt a few times: does he catch fire, do burns show? After 5 blows, does the fire die in your hand?
 - [ ] Drop one: it dies in 6 s; pick one up while it dies: it burns up again. Light a dead one in a wall torch.
 - [ ] Held Object Offsets with the torch in hand: Grip X/Z and the fingers; Print Changes to Console for me.
+
+## Menu: scroll memory and shortcuts
+
+Your voice notes (firing range, 2026-09-28): "remember the last scrollbar position so that I don't have to scroll
+down all the way every time I reopen the menu on the same page", and "a quick shortcut to the advanced VR settings
+on the top left corner of the menu next to back to game ... and also another shortcut just beneath that to select
+levels ... regardless of where I am in the menu".
+
+### What was wrong
+
+The VR pages kept their selected row and scroll for the session. Two pages did not: Weapon Offsets and Held Object
+Offsets are rebuilt each time they are shown, for whatever the hand holds now. Their selection and scroll were reset
+to the top every time: after Back to Game and reopening, and after going back and opening the page again. Weapon
+Offsets is the 122-row page you tune in the firing range. Nothing was kept across a restart.
+
+### Scroll memory (`vr_menu.cpp`: `RowAnchor`, `items`, `showPage`, `VR_MenuSavePositions`)
+
+- Every page's position is remembered as an anchor, not only as numbers: the selected row's label, the header above
+  it, where it was, and the line of the view it was on.
+- When a page is built anew, the selection goes back to the same row, on the same line of the view. This covers
+  another weapon on Weapon Offsets, a choice that shows more rows or fewer (a hotspot's type, Fingers: Manual, Body
+  Arms after calibrating, Review Takes...), the other hand's weapon and the held prop. Among rows with that label,
+  one under the same header comes first, then the nearest. When the row is gone (the fists have fewer settings), the
+  selection stays at the same place, on a setting, as before.
+- The resets on Weapon Offsets and Held Object Offsets are gone. The one exception stays: after Align Sights to My
+  Aim, the selection still goes to Apply or Undo.
+- The pages' rebuild checks (`items()`) now only mark a page stale (`done[page] = false`). The list is replaced in one
+  place, which knows the row selected before. A check that still clears the list itself only loses that row (the old
+  clamping takes over). Pages added later need nothing: the anchor works from their labels.
+- **Across restarts (decided: yes):** `vr_menu_positions` (archived) keeps the pages' anchors. It is filled in when
+  the config is written (a hook in `Host_WriteConfigurationToFile`, host.c), so nothing is built while you use the
+  menu. The format is `title|header|row|index|line` separated by `;`, the most recently shown pages first. Pages
+  shown at their top are left out, and the text stops at 1000 characters (a config line's token holds 1024). The
+  cvar is read at the menu's first use, and read again if it changes before any page is shown. Each page takes its
+  anchor when it is first built. A page renamed later just loses its record.
+- Reopening itself is unchanged. The menu reopens on the page left after Back to Game (the button, or holding the
+  menu button; `vr_menu_remember`); Escape from the main menu opens the main menu next time. After a restart, the
+  main menu opens first. Each VR page you go to is where you left it, even if it was before the restart.
+- Ironwail's own lists (options, levels, mods, key bindings) keep their own behaviour. Back to Game reopens them where
+  they were (as before). The level list opens on the map being played.
+
+### The shortcuts (`vr_menuui.cpp`: `ToolbarLayout`, `VR_MenuDrawOverlay`, `VR_MenuKey`, `useTool`)
+
+- A column of three buttons at the panel's top left, over every menu (VR pages, Ironwail's menus, dialogs): **Back
+  to game**, **Advanced VR** under it, **Levels** under that. They have the same style as Back to Game had (a
+  rounded panel, gold text, lit and ticked under the laser), each with an icon: the arrow, three sliders, a flag.
+  All are as wide as "Back to game" and end where it ended. Each button is 2 true pixels shorter (14), so the three
+  fit above a VR page's list at the shipped spacing. Where the labels don't fit (a narrow panel), only the icons show, in
+  the corner.
+- **No overlap:** the VR pages' list starts below the column (it moves down only at a Menu Spacing below 1.5). The
+  menus that lay out from the canvas's edges (Ironwail's levels, mods, options, key bindings) start below it too
+  (`VR_MenuBounds`, from `M_UpdateBounds`). The level list, which began at the panel's top, starts lower, with a few rows fewer.
+- **Advanced VR** opens the Advanced VR Options with their selection and scroll as left. **Levels** opens Ironwail's
+  level list (Single Player > Levels, `menu_maps`). Pressing the one for the menu you are on only ticks.
+- **Back after a jump (decided: to the target's parent):** the jumps land where the menus' own links go. B from the
+  Advanced VR Options goes to the VR Settings, then Options, then the main menu. B from Levels goes to Single Player,
+  then the main menu. The other choice, Back to the page you jumped from, can loop: the VR pages keep one parent per
+  page, so jumping from a page to Advanced and opening that page again from there would make each the other's way
+  back. What you want from the page you left is kept anyway: its selection and scroll wait there, and Back to Game
+  reopens where you are.
+- **Laser:** point and pull the trigger (as before for Back to Game).
+- **Controller navigation:** a click of either stick, on any menu, gives the buttons the selection (on Back to Game).
+  Up and down move along them, A presses, and B (or another stick click) gives the selection back to the menu. On a VR
+  page, the buttons are also part of the up-and-down cycle: up from the first setting goes to Levels, and down from the
+  last goes to Back to Game. Past the column's ends you go round to the page's other end, where the cycle used to wrap
+  from last row to first. A held stick stops at each end (as a slider does at its bar's end): a new push goes on.
+  While the buttons have the selection, the menu's own highlight and help are hidden, so only one thing looks
+  selected. Moving the laser on (more than 12 menu pixels) gives the selection back to the menu.
+- `VR_MenuClick` became `VR_MenuKey` (M_Keydown, after the gamepad remap and the repeat filter). `M_DrawArrowCursor`
+  skips its arrow while the buttons have the selection.
+
+### Checks (mock headset, `kit/../menuux/tests.sh`: ALL PASS)
+
+- Scroll: Weapon Offsets (with a gun) scrolled to row 10 ("Weapon Hand", under Posing Mode), Back to Game, reopened:
+  the same row, scroll 10. Back to Advanced and `menu_vr 22` again: the same. Back to Game, another gun (impulse
+  154), reopened: the same row and scroll on the rebuilt page. VR Settings scrolled to "Chest Flashlight" (scroll
+  16), then Advanced and B: the same.
+- Restart: `writeconfig` wrote `vr_menu_positions "Weapon Offsets|Posing Mode|Weapon Hand|10|0"`. The next start
+  (with a `writeconfig` before the line is executed, and another gun) opened Weapon Offsets on row 10, scroll 10.
+- Jumps: the laser on Advanced VR from Weapon Offsets opens Advanced VR Options (Back to VR Settings; B, B: Options).
+  The laser on Levels opens the level list (B: Single Player). A stick click on Single Player selects the buttons,
+  down and A opens Advanced VR Options. Up from its first row selects Levels, and A opens the levels. The laser on
+  Back to game closes the menu, and `togglemenu` reopens the levels.
+- Screenshots (`menuux/buttons.png`, `jumps.png`, `scroll.png`, `t4.png`): the buttons on the VR Settings, Graphics -
+  Lights, Weapon Offsets and Held Object Offsets. The laser lighting Advanced VR, then Levels. The stick selection on
+  Advanced VR over Single Player, and on Levels over Advanced VR Options with no row highlighted. Options, key
+  bindings, mods, video and levels with nothing under the column. Menu Spacing 1: the VR page's list starts below it.
+- No config migration: a new cvar only (number 28, reserved for this, unused).
+
+### In the headset
+
+- [ ] Weapon Offsets: scroll down, Back to Game, reopen: same place? Switch weapons and reopen: same row?
+- [ ] Quit and restart: open a page you had scrolled: same place?
+- [ ] The three buttons: easy to hit with the laser? Are the icons clear? Is "Advanced VR" a good name?
+- [ ] Click a stick in a menu, move down to Levels, press A; on a VR page, go up past the first setting.

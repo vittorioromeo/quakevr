@@ -37,6 +37,19 @@ void drawInEye(const hands::State& s);
 // menu button held.
 void backToGame(int hand);
 
+// The corner's buttons under "Back to game" ("Advanced VR", "Levels"; vr_menuui.cpp): the column's
+// bottom (menu y; far above the menu when the style is off), where the menus' rows start at the
+// latest; whether the sticks' selection is on them (the menu's own cursor then hidden); and the
+// selection moved onto them from a VR page's end (dir 1: down, onto the top one; -1: up, onto the
+// bottom one).
+[[nodiscard]] float toolbarBottom();
+[[nodiscard]] bool toolbarFocused();
+void focusToolbar(int dir);
+
+// vr_mock_laser <x> <y> | back | advanced | levels | off (tests): the main hand's laser on a spot of
+// the menu, or on one of the corner's buttons, whatever the hand's pose.
+void mockLaser_f();
+
 // The main hand's stick (up and down, `y`) in a menu, once a frame: scrolls a page with a
 // scrollbar, a row at a time at a rate growing with the push. False (nothing done) when the
 // page does not scroll: the stick navigates there.

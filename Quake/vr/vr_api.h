@@ -169,11 +169,14 @@ void VR_Menu_Mousemove (float cx, float cy);			// M_Mousemove, m_vr
 int VR_MenuDrawSlider (int x, int y, float range, float marker, const char *desc); // M_DrawSliderWithMarkers (marker < 0: none)
 int VR_MenuDrawCheckbox (int x, int y, int on);			// M_DrawCheckbox: a switch
 int VR_MenuDrawTextBox (int x, int y, int width, int lines); // M_DrawTextBox: a panel
-void VR_MenuDrawHighlight (int cx, int cy);				// M_DrawArrowCursor: the selected row's highlight
-// "Back to game" (vr_menuui.cpp): a button closing the menu from any page, which reopens there.
-void VR_MenuDrawOverlay (void);							// M_Draw, after the menu: the button
+int VR_MenuDrawHighlight (int cx, int cy);				// M_DrawArrowCursor: the selected row's highlight; nonzero: no cursor (the corner's buttons have the selection)
+// The corner's buttons (vr_menuui.cpp): "Back to game" closing the menu from any page, which reopens
+// there; "Advanced VR" and "Levels" jumping to those from any page.
+void VR_MenuDrawOverlay (void);							// M_Draw, after the menu: the buttons
 int VR_MenuHidesPlaque (void);							// M_DrawTransPic: the options pages' vertical Quake plaque left out (the VR menu style)
-int VR_MenuClick (void);								// M_Keydown, K_MOUSE1: nonzero if it clicked the button (the menu closed)
+int VR_MenuKey (int key, int repeat);					// M_Keydown: nonzero if the buttons took the key (a click on one, the sticks' selection on them)
+void VR_MenuBounds (int *top, int *height);				// M_UpdateBounds: the menus laid out from the canvas's bounds start below the buttons
+void VR_MenuSavePositions (void);						// Host_WriteConfigurationToFile: each VR page's selection and scroll into vr_menu_positions
 int VR_MenuReopen (void);								// M_ToggleMenu_f, opening: nonzero if it reopened the page left
 int VR_MenuRunsGame (void);								// Host_ServerFrame: nonzero if a single player game runs on under the menu (live preview)
 
