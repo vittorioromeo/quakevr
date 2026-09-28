@@ -211,12 +211,26 @@ constexpr float sinkDensity = 0.5f;
     return !strcmp(name, "thrown_weapon") || !strncmp(name, "weapon_", 7) || !strncmp(name, "item_key", 8);
 }
 
+// A live grenade that can be caught (QC vr_grenade.qc: an ogre's, a multi-grenade ogre's, or the player's with
+// vr_grenade_catch 2) as a rigid body: Quake's grenade models. Hard and heavy, it bounces as Quake's grenades did, and
+// never meets its thrower's own body (Quake's rule for a missile and its owner: it leaves the ogre it is thrown from).
+[[nodiscard]] bool isGrenade(const qmodel_t* model)
+{
+    return model->type == mod_alias && (!strcmp(model->name, "progs/grenade.mdl") || !strcmp(model->name, "progs/mervup.mdl"));
+}
+
+constexpr float grenadeRestitution = 0.45f; // (Quake's bounce: 0.5; a steel ball on stone)
+
 // Densities (kg/m^3) of the props' hulls: only their ratios matter (what knocks what how far).
 [[nodiscard]] float densityOf(edict_t* ent, const qmodel_t* model)
 {
     if(model->type == mod_brush)
     {
         return 400.f; // ammo and health boxes: full of shells, nails, cells, medkits
+    }
+    if(isGrenade(model))
+    {
+        return 2000.f; // an iron shell full of explosive
     }
     if(isWeaponLike(ent))
     {
@@ -239,7 +253,7 @@ constexpr float sinkDensity = 0.5f;
 // rigid hull of a backpack lands on an edge and tumbles down a gentle slope like a crate).
 [[nodiscard]] bool isSoft(edict_t* ent, const qmodel_t* model)
 {
-    return model->type == mod_alias && !isWeaponLike(ent) && !strstr(model->name, "armor");
+    return model->type == mod_alias && !isWeaponLike(ent) && !strstr(model->name, "armor") && !isGrenade(model);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -939,6 +953,11 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
     def.baseMaterial.restitution = isSoft(ent, model) ? 0.f : CLAMP(0.f, vr_throw_restitution.value, 1.f);
     def.enableContactEvents = !held;
     def.enableHitEvents = !held;
+    if(isGrenade(model))
+    {
+        def.baseMaterial.restitution = grenadeRestitution;
+        def.enableCustomFiltering = !held; // (shouldCollide: not with its thrower)
+    }
     b3HullData* hull = propHull(ent, model, lo, hi);
     const glm::vec3 half = (hi - lo) * 0.5f / world->m2u;
     // A Mass set for its model: the density that gives it (Held Object Offsets).
@@ -1886,6 +1905,21 @@ void callShocks()
     world->shocks.clear();
 }
 
+// Box3D's custom filter, for the shapes that ask for it (a live grenade's, addPropShapes): a grenade doesn't meet
+// its thrower's body (its .owner: the ogre it leaves, or the player who threw it back), as Quake's missiles don't.
+// Asked when two shapes' boxes first overlap: a grenade thrown back at the ogre that threw it meets it.
+bool shouldCollide(b3ShapeId a, b3ShapeId b, void*)
+{
+    const int na = numOf(a), nb = numOf(b);
+    if(na <= 0 || nb <= 0 || na >= qcvm->num_edicts || nb >= qcvm->num_edicts)
+    {
+        return true;
+    }
+    const edict_t* ea = EDICT_NUM(na);
+    const edict_t* eb = EDICT_NUM(nb);
+    return ea->v.owner != EDICT_TO_PROG(eb) && eb->v.owner != EDICT_TO_PROG(ea);
+}
+
 void updateSettings()
 {
     const float g = sv_gravity.value;
@@ -1925,7 +1959,7 @@ void updateSettings()
             b3Shape_SetFriction(shapes[i], friction);
             if((s.kind == Kind::Prop || s.kind == Kind::Held) && !s.soft)
             {
-                b3Shape_SetRestitution(shapes[i], restitution);
+                b3Shape_SetRestitution(shapes[i], s.model && isGrenade(s.model) ? grenadeRestitution : restitution);
             }
         }
         if(s.kind == Kind::Prop)
@@ -1993,6 +2027,7 @@ void buildWorld()
     def.capacity.dynamicShapeCount = std::max(qcvm->num_edicts, 256) + 256;
     def.capacity.contactCount = 4096;
     world->id = b3CreateWorld(&def);
+    b3World_SetCustomFilterCallback(world->id, shouldCollide, nullptr);
 
     world->mesh = cachedWorldMesh(sv.worldmodel, world->m2u);
     if(world->mesh)

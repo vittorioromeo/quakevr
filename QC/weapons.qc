@@ -2081,6 +2081,7 @@ void(float xHand) W_FireGrenade =
     setsize(missile, '0 0 0', '0 0 0');
     setorigin(missile, VRGetMuzzlePos(xHand));
     VR_ShotPlace(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
+    VR_Grenade_Make(missile, GrenadeExplode, 2.5, TRUE); // QVR: catchable too with vr_grenade_catch 2
 
     VRGunHaptic(xHand, 0.4, 75, 1.0);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 2);
@@ -3459,24 +3460,119 @@ void() ImpulseCommands =
             testHand = testHand + 1;
         }
     }
-    // QVR: a monster's spike from 300 units ahead at your face, at 600 units/s (246) or a hell
-    // knight's 300 (247), for batting tests (vr_deflect).
+    // QVR: a monster's projectile from 300 units away at your face, for batting and catching tests (vr_deflect,
+    // vr_grenade.qc): 246 the kind vr_test_projectile says (0 a knight's spike at 600 units/s, 1 an enforcer's laser,
+    // 2 a scrag's spit, 3 a vore's ball, 4 an ogre's grenade, 5 a zombie's flesh; the lobbed ones on the arc that
+    // reaches you), from vr_test_projectile_side degrees to your left of ahead; 247 a hell knight's spike (300 u/s).
     if((self.impulse == 246 || self.impulse == 247) && !deathmatch && !coop)
     {
-        makevectors('0 1 0' * self.v_angle_y);
+        makevectors('0 1 0' * self.v_viewangle_y);
         vector aim = VRGetHeadPos(self) + v_forward * 16 - '0 0 10';
+        float side = cvar("vr_test_projectile_side") * 0.0174533;
+        vector away = v_forward * cos(side) - v_right * sin(side);
         entity shooter = spawn();
         shooter.classname = "monster_test_shooter";
         shooter.flags = FL_MONSTER;
-        setorigin(shooter, aim + v_forward * 300);
+        shooter.enemy = self;
+        setorigin(shooter, aim + away * 300);
+        shooter.angles = vectoangles(away * -1);
         shooter.think = SUB_Remove;
         shooter.nextthink = time + 6;
         entity player = self;
+        float kind = 0;
+        if(player.impulse == 246)
+        {
+            kind = cvar("vr_test_projectile");
+        }
+        vector dir = normalize(aim - shooter.origin);
         self = shooter;
-        entity spike = launch_spike(shooter.origin, normalize(aim - shooter.origin));
-        spike.velocity = normalize(aim - shooter.origin) * (player.impulse == 246 ? 600 : 300);
-        spike.classname = "knightspike";
+        entity shot = world;
+        if(kind == 1)
+        {
+            shot = LaunchLaser(shooter.origin, dir);
+        }
+        else if(kind == 2)
+        {
+            shot = launch_spike(shooter.origin, dir);
+            shot.velocity = dir * 600;
+            shot.classname = "wizspike";
+            setmodel(shot, "progs/w_spike.mdl");
+            setsize(shot, '0 0 0', '0 0 0');
+        }
+        else if(kind == 3)
+        {
+            setorigin(shooter, shooter.origin - '0 0 10'); // (it fires from 10 units above itself)
+            ShalMissile();
+        }
+        else if(kind == 4 || kind == 5)
+        {
+            if(kind == 4)
+            {
+                OgreFireGrenade();
+            }
+            else
+            {
+                makevectors(shooter.angles);
+                ZombieFireGrenade('0 0 24'); // (from its origin)
+            }
+            for(shot = nextent(world); shot; shot = nextent(shot))
+            {
+                if(shot.owner == shooter)
+                {
+                    shot.velocity = VR_Lob_Velocity(shot.origin, aim, VR_LOB_SPEED, shooter); // (at your face)
+                    shot.vr_gren_lastvel = shot.velocity;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            shot = launch_spike(shooter.origin, dir);
+            shot.velocity = dir * (player.impulse == 246 ? 600 : 300);
+            shot.classname = "knightspike";
+        }
         self = player;
+        dprint(sprintf("test: projectile %g from %v at %v\n", kind, shooter.origin, aim));
+    }
+    // QVR: the nearest ogre or zombie throws at you now (grenade and lob tests; vr_grenade.qc); an ogre a multi-grenade
+    // with vr_test_projectile 6.
+    if(self.impulse == 240 && !deathmatch && !coop)
+    {
+        entity lobber = world;
+        float lobberDist = 4000;
+        for(entity near = findradius(self.origin, 4000); near; near = near.chain)
+        {
+            if((near.flags & FL_MONSTER) && near.health > 0 && vlen(near.origin - self.origin) < lobberDist &&
+               (substring(near.classname, 0, 12) == "monster_ogre" || near.classname == "monster_zombie"))
+            {
+                lobber = near;
+                lobberDist = vlen(near.origin - self.origin);
+            }
+        }
+        if(lobber != world)
+        {
+            entity lobPlayer = self;
+            self = lobber;
+            self.enemy = lobPlayer;
+            self.angles_y = vectoyaw(lobPlayer.origin - self.origin);
+            dprint(sprintf("test: %s at %v throws at you at %v\n", self.classname, self.origin, lobPlayer.origin));
+            makevectors(self.angles);
+            if(self.classname == "monster_zombie")
+            {
+                ZombieFireGrenade('-10 -22 30');
+            }
+            else
+            {
+                float lobFlags = self.spawnflags;
+                if(cvar("vr_test_projectile") == 6)
+                {
+                    self.spawnflags = self.spawnflags | OGRE_BOSS; // (a multi-grenade)
+                }
+                OgreFireGrenade();
+                self.spawnflags = lobFlags;
+            }
+            self = lobPlayer;
+        }
     }
     if(self.impulse == 242 && !deathmatch && !coop) // QVR: the nearest melee monster strikes you now (parry tests; vr_melee.qc)
     {

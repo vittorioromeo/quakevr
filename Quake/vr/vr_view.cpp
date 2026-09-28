@@ -2328,8 +2328,8 @@ void setupHand(const hands::State& s, int hand)
     // A prop held in both hands (vr_held.cpp): the hand is drawn on its grip on it, as if its controller were there.
     glm::vec3 controllerPos = s.pos[hand], controllerRot = s.rot[hand];
     held::drawnHand(hand, controllerPos, controllerRot);
-    glm::vec3 lightShift{0.f}; // a hand holding a ledge or a rung: drawn on it (vr_climb.cpp), lit as without the looks' offset
-    climb::drawnHand(s, hand, controllerPos, lightShift);
+    glm::vec3 lightShift{0.f}; // a hand holding a ledge or a rung: drawn on it, facing it (vr_climb.cpp), lit as without the looks' offset
+    climb::drawnHand(s, hand, anglesBasis(weaponAngleOffsets(fist, mirrored)), controllerPos, controllerRot, lightShift);
     for(view::ViewEntity& ve : entities.hand[hand])
     {
         ve.lightShift = lightShift;

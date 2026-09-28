@@ -14,6 +14,8 @@
 #                 steel), over the attack's own sound
 #   dummy_windup.wav  the training dummy winding up a blow (vr_dummy_attacks; QC vr_dummy.qc): two clacks and a
 #                 rising, growling swell, the tell before its blow
+#   grenade_fuse.wav, grenade_tick.wav  a caught grenade (QC vr_grenade.qc): lit (the lever's clink and a fuse's
+#                 crackling fizz), and its ticks, faster and faster until it goes off
 #   pommel1..3.wav  a pommel, a hilt or a gun's butt striking (QC vr_melee.qc VR_Melee_HitSound): a blunt knock,
 #                 short and dry, apart from the blades' cuts and the punches; three, a little apart in pitch
 #
@@ -408,6 +410,60 @@ def pommel(pitch, seed):
     return finish(out, 0.92)
 
 
+# ---- Caught grenades (QC vr_grenade.qc; docs/vr-port/ROUND21.md, "Deflection by blows and bashes; catching grenades;
+# ogre aim"): a caught grenade is lit (its fuse set again) and ticks until it goes off.
+
+
+def grenade_fuse():
+    """A caught grenade lit: the lever's metal clink, then a fuse's fizz (bright hiss that flutters, crackling with
+    sparks) that dies away over half a second; the ticks (grenade_tick) carry on from there."""
+    rng = random.Random(211)
+    n = int(RATE * 0.7)
+    click_lp = OnePole(2500)
+    hiss_lp, hiss_hp = OnePole(7000), OnePole(2600)
+    spark_lp = OnePole(4000)
+    table = ((2150, 0.8, 0.035), (3420, 0.55, 0.022), (5230, 0.35, 0.012), (1380, 0.3, 0.05))
+    flutter = 1.0
+    spark = 0.0
+    out = []
+    for i in range(n):
+        t = i / RATE
+        noise = rng.uniform(-1, 1)
+        click = (noise - click_lp(noise)) * math.exp(-t / 0.002)
+        clink = partials(t, 1.0, table) * min(1.0, t / 0.0003)
+        if i % 300 == 0:
+            flutter = 0.55 + 0.45 * rng.random()  # (about 70 times a second)
+        hiss = hiss_lp(noise)
+        hiss -= hiss_hp(hiss)  # (2.6 to 7 kHz)
+        env = min(1.0, max(0.0, (t - 0.01) / 0.05)) * (1.0 if t < 0.35 else math.exp(-(t - 0.35) / 0.12))
+        if rng.random() < 350.0 / RATE:
+            spark = rng.uniform(0.6, 1.0) * (1 if rng.random() < 0.5 else -1)
+        spark *= 0.93
+        crackle = spark_lp(spark * rng.uniform(0.5, 1.0))
+        s = click * 0.5 + clink * 1.2 + hiss * env * flutter * 0.55 + crackle * env * 1.4
+        out.append(math.tanh(s * 1.3))
+    return finish(out, 0.85)
+
+
+def grenade_tick():
+    """A lit grenade's tick: a hard, tiny metal tick (a click and a short high ring) with a breath of fizz; played
+    faster and faster as it goes off."""
+    rng = random.Random(223)
+    n = int(RATE * 0.08)
+    click_lp = OnePole(3000)
+    fizz_hp = OnePole(3500)
+    table = ((3180, 0.8, 0.012), (4710, 0.5, 0.008), (6350, 0.3, 0.005), (1900, 0.25, 0.02))
+    out = []
+    for i in range(n):
+        t = i / RATE
+        noise = rng.uniform(-1, 1)
+        click = (noise - click_lp(noise)) * math.exp(-t / 0.0012)
+        ring = partials(t, 1.0, table) * min(1.0, t / 0.0002)
+        fizz = (noise - fizz_hp(noise)) * math.exp(-t / 0.03) * 0.25
+        out.append(math.tanh((click * 0.7 + ring * 1.4 + fizz) * 1.4))
+    return finish(out, 0.8, 0.01)
+
+
 def read_wav(path):
     """A 16-bit mono WAV's samples, -1..1."""
     with open(path, "rb") as f:
@@ -463,6 +519,8 @@ def main():
         "counter_open.wav": counter_open,
         "counter.wav": counter_hit,
         "dummy_windup.wav": dummy_windup,
+        "grenade_fuse.wav": grenade_fuse,
+        "grenade_tick.wav": grenade_tick,
     }
     only = sys.argv[2:]  # optional: just these
     for name, make in sounds.items():

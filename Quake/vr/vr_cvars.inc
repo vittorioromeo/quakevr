@@ -623,7 +623,11 @@ QVR_CVAR(vr_climb_leniency, "10", CVAR_ARCHIVE)      // cm: a grip that misses a
 QVR_CVAR(vr_climb_hand_out, "10", CVAR_ARCHIVE)      // cm: the drawn hand on its hold moved towards you (off the lip; negative: deeper), display only
 QVR_CVAR(vr_climb_hand_up, "1", CVAR_ARCHIVE)        // cm: and up (negative: down), display only
 QVR_CVAR(vr_climb_hand_side, "0", CVAR_ARCHIVE)      // cm: and along the edge, outwards (the main hand right, the off hand left), display only
-QVR_CVAR(vr_climb_debug, "0", CVAR_NONE)              // print holds, releases and mantles (2: and a "climbtrace" line every frame: the body, the hands, the pull)
+QVR_CVAR(vr_climb_hand_turn_blend, "0.15", CVAR_ARCHIVE) // a hand on a hold turned as the hold has it (0: facing it, vr_climb_hand_pitch/yaw/roll) or as its controller (1), display only
+QVR_CVAR(vr_climb_hand_pitch, "60", CVAR_ARCHIVE)    // degrees: the hand on a hold (facing it: at 0 the palm down on the top, the knuckles towards the ledge; 90: the palm against the face under the lip, the knuckles up) tilted knuckles up, display only
+QVR_CVAR(vr_climb_hand_yaw, "10", CVAR_ARCHIVE)      // degrees: and turned, the knuckles towards the other hand (mirrored), display only
+QVR_CVAR(vr_climb_hand_roll, "0", CVAR_ARCHIVE)      // degrees: and rolled about the knuckles' way, the thumb's side up (mirrored), display only
+QVR_CVAR(vr_climb_debug, "0", CVAR_NONE)              // print holds, releases and mantles (2: and "climbtrace" and "climbreach" lines every frame: the body, the hands, the pull, the holds' reach; 3: the shoulders, estimated and drawn)
 QVR_CVAR(vr_swim, "1", CVAR_ARCHIVE)                  // VR swimming: the stick slows in water, strokes of the hands move you
 QVR_CVAR(vr_swim_shallow_speed, "0.85", CVAR_ARCHIVE) // the stick's speed with the feet in water,
 QVR_CVAR(vr_swim_wade_speed, "0.6", CVAR_ARCHIVE)     // waist deep standing on the bottom,
@@ -793,6 +797,12 @@ QVR_CVAR(vr_deflect, "1", CVAR_ARCHIVE)                  // melee swings bat mon
 QVR_CVAR(vr_deflect_radius, "14", CVAR_ARCHIVE)          // units around the weapon's line (or fist) a projectile is batted within
 QVR_CVAR(vr_deflect_speed, "0.6", CVAR_ARCHIVE)          // a batting swing's speed (the weapon's far end), times vr_melee_speed (a blow's least is 1)
 QVR_CVAR(vr_deflect_window, "0.2", CVAR_ARCHIVE)         // s a swing's path keeps batting (a swing a little early still bats)
+QVR_CVAR(vr_deflect_bounce, "0.6", CVAR_ARCHIVE)         // a batted projectile's restitution off the weapon (0 dead .. 1 elastic): a little livelier than a ball off a bat
+QVR_CVAR(vr_deflect_aim_assist, "0.5", CVAR_ARCHIVE)     // 0..1: a batted or bashed projectile going very near a monster (its thrower most) bends that share towards it
+QVR_CVAR(vr_grenade_catch, "1", CVAR_ARCHIVE)            // grenades as physics you can catch and throw back: 0 off (Quake's), 1 the ogres', 2 also your own
+QVR_CVAR(vr_grenade_held_fuse, "2.5", CVAR_ARCHIVE)      // s a caught grenade's fuse is set to (never shortened) as a hand takes it
+QVR_CVAR(vr_grenade_fuse_regrab, "0", CVAR_ARCHIVE)      // 1: every catch sets the fuse again; 0: once a throw (the catch of the monster's throw)
+QVR_CVAR(vr_ogre_aim_height, "1", CVAR_ARCHIVE)          // ogres (and zombies) lob at your height: a ballistic arc at their throw's speed (0: Quake's flat lob)
 QVR_CVAR(vr_activestartpaknameidx, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_verbosebots, "0", CVAR_NONE)
 QVR_CVAR(vr_finger_grip_bias, "0.0", CVAR_ARCHIVE)
@@ -849,6 +859,8 @@ QVR_CVAR(vr_debug_model_collide, "0", CVAR_NONE)      // 1: print each hand's pu
 QVR_CVAR(vr_test_spawn, "0", CVAR_NONE)               // impulse 241 (tests): what it puts ahead of you: 0..17 the firing range's dispenser monsters (0 grunt, 1 ogre, 2 zombie, 3 shambler, ...), 100 a health box, 101 a shells box
 QVR_CVAR(vr_test_spawn_dist, "56", CVAR_NONE)         // and how far ahead (units)
 QVR_CVAR(vr_test_spawn_dead, "0", CVAR_NONE)          // 1: a monster killed at once (a corpse)
+QVR_CVAR(vr_test_projectile, "0", CVAR_NONE)          // impulse 246 (tests): the projectile fired at you: 0 a knight's spike, 1 a laser, 2 a scrag's spit, 3 a vore's ball, 4 an ogre's grenade, 5 a zombie's flesh (6: impulse 240's ogre throws a multi-grenade)
+QVR_CVAR(vr_test_projectile_side, "0", CVAR_NONE)     // and from how many degrees to your left of ahead
 QVR_CVAR(vr_hand_collide, "4", CVAR_ARCHIVE)          // cm a free hand is held out of the weapon in the other hand (drawn only; deeper, it lets go and passes through; 0: never)
 QVR_CVAR(vr_hand_collide_fingers, "1", CVAR_ARCHIVE)  // with it: the free hand's fingers react to the other hand's weapon: they rest on it or bend out of it (0: only the hand is pushed, by its fingertips too)
 QVR_CVAR(vr_body_collide, "1", CVAR_ARCHIVE)         // round 21: the drawn hands and held weapons stop at each other, the other arm, the wrist gadget and the body (drawn only: the game reads the tracked hands; vr_selfcollide.cpp); 0 off

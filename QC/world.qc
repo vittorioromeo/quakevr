@@ -256,6 +256,8 @@ void() worldspawn =
     precache_sound("vr/parry.wav");
     precache_sound("vr/counter_open.wav"); // counter-attacks (vr_counter_sound; vr_melee.qc): the window opening,
     precache_sound("vr/counter.wav");      // and a counter landing
+    precache_sound("vr/grenade_fuse.wav"); // a caught grenade lit (vr_grenade.qc),
+    precache_sound("vr/grenade_tick.wav"); // and its ticks
     precache_sound("vr/pommel1.wav"); // pommel, hilt and butt strikes (VR_Melee_HitSound)
     precache_sound("vr/pommel2.wav");
     precache_sound("vr/pommel3.wav");
