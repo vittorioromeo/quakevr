@@ -192,3 +192,24 @@ time.
 
 If you change the generator itself, it gives you a new shipped hand. Rebuild the engine, because the tables change.
 Your .blend then still holds the old hand: import the new one to edit it.
+
+## 8. The normal map
+
+`quakevr/progs/hand_rig_00_00_norm.png` is the hand's baked normal map (all four skins): the knuckles, the tendons and
+a few veins on the back of the hand, the nails with their folds, the pads of the palm and the fingers, and the creases
+and wrinkles painted into the skin, raised or grooved where they are painted. It is baked from the hand's own mesh:
+the knuckles sit over your joints (the rings of vertices at them), the nails and pads follow each finger's bones, so
+an edit of the shape or the proportions carries them along. `Misc/quakevr/bake_normals.py hand` bakes it
+(ROUND21.md, "Baked normal maps").
+
+- **Import** shows it on the hand (a Normal Map node into the material's Normal; Blender's tangent frame is a little
+  different from the game's: judge it in the game).
+- **After an edit, it's one step:** Export bakes it again from the hand you just wrote (Bake Normal Map, ticked in the
+  export's options), or press **Bake Normal Map** in the Quake VR Hand panel (from the hand as last exported). Then
+  `vr_hand_reload` in the game. Baking needs the Quake VR Models add-on enabled too (the baker lives there).
+- **Repaint the skin's creases** and bake again: the grooves follow the dark lines you paint (a line needs to be clearly
+  darker than the skin around it and a few texels long).
+- **Paint the map yourself**, or **bake it from a high poly** (select the high poly, then the hand, and Bake Normal
+  Map): see [MODELS_IN_BLENDER.md](MODELS_IN_BLENDER.md#8-normal-maps). The bake doesn't overwrite a map painted or
+  baked from a high poly unless you tick Overwrite Edited Map.
+- It never changes your mesh or your skin.
