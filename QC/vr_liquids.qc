@@ -192,3 +192,18 @@ void() VR_Liquids_Frame =
         e = nextent(e);
     }
 };
+
+// ----------------------------------------------------------------------------
+// VR: the player's breath under water (vr_air_supply, the Swimming menu's "Air Supply"): id's 12 seconds before
+// drowning starts, times the setting (1 to 4). Swimming with your arms is slower than with a key, so the same
+// underwater passage takes longer (ROUND21.md, "Swimming: air supply"). Used wherever WaterMove and the suits fill
+// the lungs (client.qc); the drowning damage, once it starts, and the suits' own time are id's.
+float() VR_AirSupply =
+{
+    local float scale = cvar("vr_air_supply");
+    if(scale < 1)
+        scale = 1;
+    if(scale > 4)
+        scale = 4;
+    return 12 * scale;
+};

@@ -141,6 +141,11 @@ context and screenshot, ready to paste or to point me at.
 ## What to try
 
 - **New in this round** (details in `docs/vr-port/ROUND21.md`; each section ends with an "In the headset" list):
+  - **Swimming: air supply; strokes against the palm** (Swimming page; ROUND21.md, same title): a backhand (palm
+    facing you, the hand pushed away) or a hand swept back-first to reposition now pushes a quarter as much as a real
+    stroke (**Stroke Against Palm**, 0.25; 1 is the old swimming); palm strokes are unchanged. `vr_swim_debug 1` shows
+    each stroke's `palm lead` (+1 palm first, -1 back first). **Air Supply** (1.5): 18 s under water before drowning
+    starts instead of 12.
   - **Stamina on the gadget; the glow** (ROUND21.md, "Stamina on the gadget; the glow"): with Parry Stamina on, the
     bar over the weapon is gone; the wrist gadget's top row shows STAMINA and ten cells instead. In the firing range,
     turn on DUMMY ATTACKS and parry: each one-handed parry takes three cells; the cells blink when one more would
@@ -158,6 +163,10 @@ context and screenshot, ready to paste or to point me at.
     Hephaestus are immune; zombies burn up in lava.
   - **Holster orientation** (Hotspots: Shoulder / Hip / Upper Pitch, Yaw, Roll): turn each pair of holsters and the
     guns in them; the left mirrors the right. Draw and holster as before.
+  - **Per-weapon holstered pose** (Weapon Offsets > Holstered; ROUND21.md, "Per-weapon holstered pose"): hold a
+    weapon, open its page, pick Hip, Upper (Chest) or Shoulder (Back) and move and turn it with the six sliders: while a
+    Holstered setting is chosen, the weapon you hold is drawn in both holsters of that kind, so look down (or at the body
+    preview) as you tune. Each kind of holster has its own pose; the left mirrors the right. Draw and holster as before.
   - **Items as physics pickups** (ROUND21.md, "Items as physics pickups; sinking; spinning shapes"): grip a hanging
     weapon (it is yours at once) or knock it with an open hand (it falls); grip or force-grab a key, the biosuit or a
     rune and let go of it at a hip or shoulder holster to take it (a key you have knocks and drops); powerups as
@@ -596,6 +605,17 @@ wall (`setpos 71 0 24 0 0 0; noclip`, the second toggling setpos's noclip off) a
 plays (hand over hand to the top, a two-hand hang and a shimmy with a fall, a mantle, and e1m1 from `setpos 250 2350
 40`). With `vr_climb 1; vr_climb_debug 2`, `climb_trace.py qconsole.log` prints the body's move against the hands'
 pull every frame and at every hand-off. `vr_climb_probe [yaw]` lists the holds ahead.
+Swimming (ROUND21.md, "Swimming: air supply; strokes against the palm"): `python Misc/quakevr/swim/swim_plays.py`
+writes `vr_mock_play` files: `strokes_main.txt` / `strokes_off.txt` (one stroke per case from rest: a palm-first pull,
+a backhand, back-first sweeps square and at 45 degrees, an edge-first slice, a palm-first sweep; each announced by an
+`echo STROKE`), `cycle_edge.txt` / `cycle_backhand.txt` (6 s of hands in turn, `viewpos` at the start and the end),
+`intent.txt` (a pull after a backhand) and `air.txt` (under water at Air Supply 1, 1.5, 2, 3). The pool: `map
+vrfiringrange; sv_gravity 0; setpos 612 474 -180 0 0 0; noclip` (370 for the cycles, which swim towards +x), and
+`vr_swim_stick_speed 0.001; vr_mock_stick off 0 1` so that SV_WaterMove's idle sink (60 units a second, with no
+stick) does not take you out of the pool's bottom: the player falls through it (below -360, anywhere in it).
+`vr_swim_debug 1` prints each stroke. Mock hand poses: pitch -20 points the hand down (Gun Angle 70); yaw 90 (main)
+or -90 (off) turns the palm back towards the body. For the air, nothing prints a drowning hit: add a temporary
+`bprint` after `T_Damage` in `WaterMove` for the run (as for ROUND21.md's table).
 Climbing, hand placement and grab leniency (ROUND21.md, "Climbing: hand placement and grab leniency"):
 `vr_fixed_frames 1` makes every frame 1/72 s of game time with a server frame, so a scripted climb logs the same
 numbers every run (compare two settings' `climbtrace` lines with `diff`). `vr_climb_try <x> <y> <z> [off|main] [<vx>
@@ -605,7 +625,19 @@ sweep (ledge, rungs, a wall, stairs, the thin wall with a ledge behind it at vrc
 at leniencies 0 to 30 cm) and `climb_leniency.py table qconsole.log` tabulates it. `climb_plays.py pressL<d>|pressR<d>`
 grips d units in front of the ledge or rung 56 and pulls (a real lenient grab; `vr_climb_debug 3` also prints the
 search's time and the drawn hand's ease), `ledgehang|runghang` hang still for screenshots (`vr_mock_camera` for the
-side view, `vr_mock_fingers main 0 1 1` for a gripping hand).
+side view, `vr_mock_fingers main 1 1 1` for a gripping hand).
+Climbing, hand orientation, staying attached, small ledges (ROUND21.md, the section of that name): `climb_plays.py`
+`ledgeodd|rungodd` hang with the controllers turned oddly (the hand should face the hold whatever they do; Hold Rotation
+Blend 1 is the old look), `push` (the ledge, `setpos 78 176 24 0 0 0`: both hands drawn in and pushed out three times,
+then out past an arm's reach, then the off hand alone), `overtop` (the mantle's motion: at the ledge, at vrclimb's
+narrow wall `setpos -218 -280 24 0 0 0`, which it should mantle onto, and at the ledge with no room on top `setpos -138
+-280 24 0 0 0`, which it should hang on to), `ladderlean` (the ladder with the head leant in, as a player's is: the old
+plays reach about 1 m from the shoulder, past a default arm, so run them with `vr_body_arm_length 2` to compare the
+climbing with older logs). These lean the mock head in 0.28 m first (a `head` keyframe). `vr_climb_debug 2` adds a
+`climbreach` line a frame (each hold's distance from its shoulder / how far it may be, "passive" for a hand that
+doesn't pull, the owed motion, "noroom"), and at a grab its distance and the reach; `vr_climb_debug 3` the server's
+estimated shoulders (`climbshoulder`) and the drawn arm's (`climbarm`, with the hold's distance from it). The mock
+side camera for these: `vr_mock_camera 1.1 1.5 -0.45 5 90`.
 
 Fitted hands (round 21): `impulse 252` puts a gib or a head (nine kinds in turn) in the empty off hand; `impulse 253`
 prints the held weapons' hotspots through the QC query; `vr_show_weapon_hotspots 1` marks them; `vr_hotspots_check`
@@ -744,6 +776,18 @@ grip 0` (the right hip; the right shoulder is `0.1 1.75 0.12`). A new game start
 hips. To draw: `+grabright; vr_mock_button main grip 1` at the holster. Turn them with
 `vr_{hip,upper,shoulder}_holster_{pitch,yaw,roll}`. `vr_body_debug 2` or `3` shows the hip and chest holsters on the
 preview; `vr_mock_camera 0.7 1.9 0.8 20 40` shows the back.
+Per-weapon holstered pose (ROUND21.md, "Per-weapon holstered pose"): `vr_wofs_hol_{hip,upper,shoulder}_{x,y,z,pitch,yaw,roll}_NN`
+(the rocket launcher is `_07`, `progs/v_rock2.mdl`; the nailgun `_04`). A new game's hips are full (the shotgun and the
+axe): empty one first by drawing its gun (`vr_weapon_grip_mode 0`, the hand at the hip, `+grabright; vr_mock_button main
+grip 1`) and letting go of it in front. Holster a test gun with the grip held: `+grabright; vr_mock_button main grip 1;
+impulse 160` in front, then at the holster `-grabright; vr_mock_button main grip 0`. The main hand doesn't reach the left
+chest holster (`-0.12 1.3 -0.15` gives the two-handed grab): holster there with the off hand (`impulse 176`, `+grableft`,
+`vr_mock_button off grip`); the right chest holster is `vr_mock_hand main 0.12 1.3 -0.15`. The preview: hold the gun,
+`menu_vr 22 "Holstered X"` (menu_vr's row may now be a label's start), `vr_weapon_holster 1..3` picks the kind. The mock
+draws the menu over the whole view: `scr_menubgalpha 0` and the camera off to a side (`vr_mock_camera 0.6 1.2 -0.4 4 0`
+with `vr_body_debug 2`) leave the body preview visible on the left. `vr_dumpview` lists each holstered gun's place.
+Runs aren't pixel-identical (particles, the arms' easing, lighting by ones): compare the holstered guns' lines of
+`vr_dumpview`.
 Wounds (ROUND21.md, "Dynamic wounds, burns and wetness"): `vr_wounds_test <entity|self|ahead|all> <kind> [amount]
 [right] [up] [extra]` paints a wound as the server's event would (1 shot, 2 nail, 3 melee, 4 blast, 5 burn, 6 zap,
 7 lava, 8 slime, 9 liquid; a liquid's `up` is its surface over the feet); `ahead` is the model nearest the view's

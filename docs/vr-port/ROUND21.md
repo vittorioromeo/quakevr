@@ -31,6 +31,7 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | Dynamic wounds | blood, burns and wetness painted into each monster's, corpse's and your own skin where the blow lands (chunky, on the skin's texels, Quake's reds), drying, cooling, healing; your body and hands no longer use the wound skins; 16 MB, about 2 µs of GPU a hit |
 | Stamina on the gadget; the glow | the stamina bar over the weapon is gone: parry stamina shows in the gadget screen's top row (ten cells; blinking when low; EXHAUSTED; a sweep while it recovers) with COUNTER while a counter's window is open; the counter glow never showed (1 cm sparks inside the blade, at a lagging pose): now a gold rim glow and embers drawn by the client, off as shipped |
 | Stamina for shoves and strikes; thrown damage on gibs | shoves and bashes (15 one-handed, 20 two-handed) and blows that land (a punch 4, a weapon 8, two-handed 6) spend the parry's stamina pool, shown on the gadget; short of it they do half the damage and a shove half the knockback (in proportion to what's missing); the rest before it comes back counts from the last parry, shove or blow; all in Parry, Bash and Headbutt > Shove and Strike Stamina. A thrown weapon, box or gib landing on a loose gib hurts it as it hurts a monster (it bursts). Your archived takes: identical |
+| Swimming: air supply, strokes against the palm | Air Supply (1.5: 18 s under water before drowning instead of 12; 1 to 4). Stroke Against Palm (0.25): a stroke led by the back of the hand (a backhand, a hand turned round to reposition) pushes a quarter as much; palm-first strokes unchanged. The old Palm Matters counted either side of the hand alike. Swimming 6 s with brisk backhand recoveries: +2 units before, +261 to +319 now |
 
 Found on the way: fteqcc stores 0 when `a || b` is assigned into an entity field (rewritten; no other code has that
 shape); a parried blow's hand knock, timed by `cl.time`, came back after a level change (reset now).
@@ -7746,3 +7747,363 @@ worktree's baseline config was moved aside for the first starts and put back.
   are where you set them; the flashlight sits in the hand as in yours.
 - [ ] The torches at 10 on a first start, close to a wall torch: too hot or right?
 - [ ] Body > Arms on a first start: the compiled arms (Arm Length 1).
+
+## Per-weapon holstered pose
+
+Your note (firing range): "some weapons, when they are in the holsters, they have a not very natural or pleasant
+position, so if I could tweak the positions per weapon, that would be nice." Branch `agent/holsterwpn`; scripts, logs and
+images in the scratchpad's `holsterwpn/`.
+
+### Where
+
+Weapon Offsets (hold the weapon, open its page) > **Holstered**, above This Weapon:
+- **Holster:** Hip, Upper (Chest) or Shoulder (Back): which holsters' pose the six sliders below edit.
+- **Preview in Holster** (on): while any setting of this section is chosen, the weapon you hold is drawn in **both**
+  holsters of that kind, in place of what they hold. You are holding the weapon to edit it, so without this you could
+  never see it holstered while tuning. Move the cursor off the section and the holsters show what they really hold.
+- **Holstered X (off body), Y (outwards), Z (up):** units, -10..10 on the bar, on to -50..50.
+- **Holstered Pitch, Yaw, Roll:** degrees, -90..90 on the bar, on to -180..180, 1-degree steps.
+- **Holstered Back to 0:** this kind's six back to 0.
+
+Every change shows at once, in the holsters and on the body preview (`vr_body_debug 2`).
+
+### The design: per kind of holster
+
+There are three sets, one each for the hips, the chest and the back: 18 keys per weapon,
+`vr_wofs_hol_{hip,upper,shoulder}_{x,y,z,pitch,yaw,roll}_NN`. The page shows six sliders and a Hip / Upper / Shoulder
+choice, as the Hotspot choice does for the four hotspots.
+
+**Why not one set for all three:** each kind of holster carries the gun differently.
+- On the hips and chest it hangs muzzle down along a plate, its top towards your middle, tipped out 10 and 25 degrees.
+- On the back its top faces away from you.
+
+So one "Roll +20" would cant the gun sideways on the hip but turn it about another axis on the back. A long gun that
+clears the thigh on the back can also need moving on the hip. A single set would only fit one kind, and tuning the
+others would undo it.
+
+The left and right holsters of a kind share one set, mirrored, as the Hotspots page's holster sliders are: 3 sets, not 6.
+
+### What the numbers mean
+
+The pose is in the holster's own frame, after the holster's place and turn (Hotspots: Hip X, Hip Pitch...). If you turn
+a holster later, the weapon keeps its pose in it.
+- **X** off the body (negative: into it), **Y** outwards (away from your middle), **Z** up.
+- **Pitch** tips the gun's top off the body, **Yaw** turns it outwards, **Roll** tips its top outwards (a hanging gun's
+  muzzle goes the other way). These are the Hotspots page's holster sliders' axes and order (yaw, pitch, roll).
+- The gun turns about **its grip**: the model's origin, which the weapon's Offset puts in the hand. A turn stays where
+  it hangs rather than swinging it around the holster.
+- **Mirrored:** the left holsters' frame is the right ones' mirror image. So Y, Yaw and Roll mirror, and X, Z and Pitch
+  don't. `vr_dumpview` confirms it: the two hips' rocket launchers sit at x 540.777 and 547.223, the same 3.223 units
+  from the body's middle (544), with the same height and depth. Their yaw is -90 on both (mirrored about the body's
+  facing yaw 90, which leaves -90 as it is) and their roll is -152 and +152.
+
+**Only the drawn gun moves.** The holster's model and the point your hand reaches for (the insert sphere, Threshold)
+stay where the Hotspots settings put them. Drawing and holstering are unchanged.
+
+**Inherit From:** the keys are ordinary per-weapon keys. A weapon inheriting another's settings uses that weapon's
+holstered pose unless it sets its own, and its page edits the inherited ones. Print Changes to Console and Reset This
+Weapon include them: both go over every key in the table.
+
+**Defaults:** 0 everywhere. At 0 the new step is skipped entirely (not computed as a turn by 0), so every weapon sits
+exactly as before. There is no migration and `vr_wofs_version` is unchanged: a config without the keys reads 0.
+`vr_weapon_holster` (the Holster choice) isn't saved. `vr_weapon_holster_preview` is.
+
+**Code:**
+- `vr_weapons.inc`: the key definitions only, no value rows.
+- `weapons::holsteredKey`, `holsteredPose`.
+- `vr_view.cpp`: `turnHolster` is split into `holsterFrame` and `holsterRotation` (the same arithmetic) so that the
+  weapon's pose (`poseHolstered`) uses the turned frame.
+- `menu::holsterPreview`.
+- `menu_vr <page> <label>` now also takes the start of a row's label (`menu_vr 22 "Holstered X"`), for scripts.
+
+### Checks (mock headset)
+
+The rocket launcher (`progs/v_rock2.mdl`, `_07`) is in both hips and the nailgun (`_04`) in both chest holsters. A new
+game's shotgun and axe were drawn and dropped first. Views: the body preview facing you (`vr_body_debug 2`) and from the
+side (`3`) seen close (`vr_mock_camera 0 1.2 -0.4 4 0`), and the eyes looking down (62 degrees).
+
+- **Default 0 is unchanged:** the old build (vr-cleanup aefa5ab3) against the new one, twice each, with the dump printing
+  4 decimals.
+  - Every holstered gun, holster model and button is identical to 4 decimals, in position and angles.
+  - The only lines that differ are the pauldrons and the gadget (the arms' easing). They differ as much between two runs
+    of the same build.
+  - The images aren't byte-identical, not even between two runs of one build: particles, the arms' easing, and the
+    lighting off by ones.
+  - The pixels that differ are scattered one-level lighting noise all over the lit surfaces, the walls included. There
+    is no shape of a moved gun.
+- **Tuned** (`hol_tuned.png`: top row all 0, bottom row tuned):
+  - The rocket launcher at the hips: X +1, Z -4, Pitch +15, Roll -20. It hangs lower, off the thigh, and canted with
+    its muzzle outwards. The two sides are mirror images on the preview facing you.
+  - The nailgun on the chest: X +1.5, Y +2, Yaw +35, Roll -25. It turns outwards off the chest, both sides mirrored
+    (the numbers above).
+- **The preview** (`hol_preview.png`; the menu is open, and the mock draws it over the view, so the body preview is
+  kept on the left):
+  1. No menu: the axe and shotgun at the hips.
+  2. Holstered X chosen, Hip: the rocket launcher you hold is in both hips.
+  3. The hip values set while the page is open: it moves at once.
+  4. Holster: Upper: it moves to the chest, and the hips show the axe and shotgun again.
+  5. The cursor on Weight: no preview.
+
+  `hol_menu.png` shows the section.
+- **Drawing and holstering with a tuned pose:**
+  - The hand at the right hip, grip: the rocket launcher is in the hand, and the right hip is empty.
+  - Back at the hip, let go: it is holstered again, at exactly the tuned pose (the same dump lines as before the draw).
+- **Not checked end to end:**
+  - Print Changes to Console and Reset This Weapon. The mock's buttons don't press the menu's actions. Both loop over
+    every key in the same table the new keys are in.
+  - The shoulder holsters: same code path, with the back's frame (`out` behind you).
+
+### In the headset
+
+- [ ] Hold the rocket launcher, open Weapon Offsets, scroll to Holstered. Leave the cursor on Holstered Roll and look
+      down: the launcher you hold should be in both hip holsters. Move the slider: both should turn as mirror images.
+- [ ] Tune a weapon that sits badly, on the hips, then pick Upper and Shoulder and tune those. Close the menu, holster
+      it and draw it: it should sit as tuned, and reaching for the holster shouldn't change.
+- [ ] If an axis feels backwards, say which one and which way. Print Changes to Console gives me your values to make
+      them the defaults.
+
+## Swimming: air supply; strokes against the palm
+
+Your notes (28 September): swimming is harder in VR than on a flat screen, so a slider to make your breath last
+longer; and a slider for strokes that go against where the palm faces. A backhand (the palm facing you, the hand
+pushed away from your body) or a hand turned round to reposition still pushed you as hard as a real stroke, even with
+Palm Matters high. Swimming page: **Air Supply** (at the top), **Stroke Against Palm** (under Palm Matters).
+
+### Why a backhand pushed
+
+Palm Matters (`vr_swim_palm`) weighs a stroke by how flat the hand meets the water: `|dot(palm axis, motion)|`.
+The absolute value makes the palm and the back of the hand the same. The push always goes against the hand's motion,
+so a backhand with the back of the hand flat to the water is as "flat" as a pull with the palm, and it pushed fully at
+any Palm Matters. Palm Matters only ever cut strokes led by the edge of the hand. Push Along Palm (`vr_swim_palm_dir`,
+0.8 in your config) is the same: it takes the side of the hand that meets the water, whichever side it is.
+
+It was not the new hand calibration. The palm axis the server uses is the calibrated hand's side (the move's hand
+angles include Gun Angle 70 and the Hand Calibration's yaw and roll). A temporary check in the client compared it with
+the drawn jointed hand's palm normal (the rig's palm axis through its placement) in several cases: level poses, poses
+turned (20, 40, 60) and (-30, -50, 120), and with `vr_handcal_roll 25; vr_gunyaw 15`. The dot product was 1.0000 in
+every case, for both hands: the right hand's palm faces its left, the left hand's (drawn mirrored) its right.
+
+### Stroke Against Palm
+
+`vr_swim_against_palm`, 0 to 1, **0.25** by default ("still push me, but a little bit").
+
+- **Palm or back.** Each frame the swim code takes the hand's motion against its palm normal (for the physical left
+  hand the normal is mirrored): 1 when the palm leads, -1 when the back of the hand leads.
+- **The blend.** Within 60 degrees of where the palm faces, the push is full. Within 60 degrees of where the back
+  faces, it is the setting. In between, where the edge of the hand leads, it blends smoothly (a smoothstep over the
+  cosine, from -0.5 to 0.5).
+- **Unchanged.** Flatness, recovery, the look bias, the steering and the intent gate apply as before, and they
+  multiply with it. At 1, swimming is exactly as before.
+- **Intent.** A stroke that counted less than half (a backhand at 0.25) no longer becomes the hand's remembered
+  stroke. Before, it did, and the real pull that followed, going the other way and slower, was damped as a "return".
+- **Stroke sound.** It still plays for a brisk backhand: the hand moved through the water.
+- **Debug.** `vr_swim_debug 1` prints `palm lead` (-1 to 1, speed-weighted) and the factor it came to, for example
+  `swim main: peak 2.00 m/s, flat 1.00, palm lead -1.00 (x0.25), power x1.00, push 51 of 51 (-51 ahead)`.
+- **The other sliders.** Palm Matters (how flat) and Push Along Palm (which way the body goes) keep their meaning.
+  The new slider is the one thing neither did: which side leads. Nothing is renamed or merged, so there is no config
+  migration: your palm 0.8 and palm direction 0.8 stay, and the new setting starts at 0.25. Palm Matters' help text
+  now says it counts either side.
+- **Left-handed.** The palm is taken from the physical hand (the main hand is the left one). The drawn hands are
+  mirrored by role, not side (the off hand is drawn as a left hand), so left-handed, the drawn main hand is a right
+  hand. That was already so and is not changed here.
+
+**Measured** (`Misc/quakevr/swim/swim_plays.py`; the firing range pool, gravity off, your swim settings: stroke 12,
+palm 0.8, palm direction 0.8, glide 0.6, look 0.2, recovery 0.05). One stroke of 0.6 m in 0.3 s (2 m/s) from rest.
+"Push" is the velocity the stroke gave the body, in units per second. "Before" is the old code, the same as 1. The off
+hand gave the same, within 1-2%.
+
+| Stroke (main hand) | palm lead | before / 1 | 0.5 | **0.25** |
+|---|---|---|---|---|
+| Pull back, palm leading (freestyle) | +1.00 | 204 | 204 | **204** |
+| Backhand: palm facing you, hand pushed away | -1.00 | 203 | 101 | **51** |
+| Sweep inwards, back of the hand leading | -1.00 | 163 | 82 | **41** |
+| The same sweep, the hand turned 45 degrees | -0.71 | 137 | 65 | **34** |
+| Slice, edge leading | 0.00 | 1 | 2 | **1** |
+| Sweep outwards, palm leading | +1.00 | 155-172 | 163 | **163-172** |
+
+The sweeps outwards vary with the frame timing. At 0, a backhand and a sweep with the back leading push nothing.
+
+- **Swimming 6 s** (both hands in turn, a 1.2 s cycle; pulls at 1.8 m/s):
+  - bringing each hand back edge-on at 1 m/s: 429 units before, 428 at 0.25;
+  - bringing it back with the back of the hand leading, as brisk as the pull: **+2** units before (each backhand undid
+    its pull) and **+261 to +319** at 0.25 (two runs).
+- **A pull 0.4 s after a backhand** (1.6 m/s after 2 m/s): before, it gave 52 of 139 (x0.37, damped as a return of
+  the backhand). Now it gives 140 of 140.
+- **Left-handed** (`vr_lefthanded 1`): the same mock pose is now the left hand. The pull is back-leading (51), the
+  backhand palm-leading (205).
+
+### Air Supply
+
+`vr_air_supply`, 1 to 4 (0.25 steps), **1.5** by default: the time under water before drowning starts is id's
+12 seconds times this (QC `VR_AirSupply`, `vr_liquids.qc`, used by `PutClientInServer`, `WaterMove` and the suits in
+`client.qc`).
+
+- **Why 1.5.** Swimming by arm strokes is much slower than a key.
+  - Quake's underwater speed is 0.7 of the move: 140 units a second walking, 224 running.
+  - The mock freestyle above averages 71 units a second (the stick at your 0.25 adds about 56).
+  - So the same underwater passage takes about twice as long in VR.
+  - 1.5 (18 s) is the "little bit easier" you asked for. It keeps the maps' underwater stretches tense, and drowning
+    still gives you several seconds before it kills you. 2 would roughly match flat-screen distance per breath; the
+    slider goes to 4.
+- **Drowning damage** is left as id's: once the air is gone, 4, 6, 8... every second. Scaling that too would make
+  drowning toothless. The slider is about how long you can stay down, not about what happens once your breath is gone.
+- **Surfacing.** The gasp comes when a quarter of the breath was used (id's 3 of 12 s; now 4.5 of 18). The big gasp
+  comes after drowning started, as before.
+- **Suits.** The Biosuit and the wetsuit keep your lungs full while worn, and when one runs out you have the full
+  (scaled) breath. Their own durations are unchanged.
+- **Display.** Nothing shows air (not the HUD, not the wrist gadget), so there was nothing to follow.
+
+**Measured** (`air.txt`: put under water at each setting in turn; a temporary print at each drowning hit, removed):
+
+| Air Supply | first drowning damage | then |
+|---|---|---|
+| 1 | 12.0 s | 6, 8, 10 at 13, 14, 15 s |
+| 1.5 | 18.0 s | 19, 20, 21 s |
+| 2 | 24.0 s | 25, 26, 27 s |
+| 3 | 36.0 s | 37, 38 s |
+
+### In the headset
+
+- [ ] Swim freestyle, then bring a hand forward with its back leading, then sweep a hand sideways with the palm facing
+  away from where it moves. Do they still nudge you, and is 0.25 the right amount? Try 0 and 0.5.
+- [ ] `vr_swim_debug 1`: your real strokes should read `palm lead` near +1 and your backhands near -1. If a real stroke
+  reads under 0, tell me the pose (your grip may hold the palm at an angle).
+- [ ] Does anything else feel different with Push Along Palm at 0.8? It should not.
+- [ ] Air Supply 1.5: e1m1's water, or a longer underwater passage, like e1m4's. Is 18 s right, or do you want 2?
+
+## Climbing: hand orientation, staying attached, small ledges
+
+Your notes (vrclimb, 28 September, 14:10): the hand on a hold still turns with the controller, which bends the wrist
+oddly. Holding a ledge and pushing with the arms, the hands come off the arms and the body ends up far from them. This
+also happens on small ledges, in particular when you do the motion of climbing on top where you can't. And small
+ledges can't be climbed onto. Locomotion, under Climbing: **Hold Rotation Blend**, **Hand on Hold: Pitch / Yaw / Roll**.
+
+### The hand faces its hold (looks only)
+
+A hand on a hold is turned as the hold has it: facing the ledge, its knuckles towards it and tilted up over the lip,
+the fingers curled over it. On a rung it's the same: vrclimb's rungs are 30 cm deep beams, and the fist hooks their
+lip. The hand's frame comes from the hold's way out (the normal of the face, which the server sends) and the world's
+up. The off hand's frame is the mirror image (it uses the left hand's model), so the sliders' yaw and roll are mirrored
+too.
+
+- `vr_climb_hand_pitch` (**60** degrees): at 0 the palm is down on the top, the knuckles pointing into the ledge; at 90
+  the palm is flat against the face under the lip, the knuckles up. With your hand offsets (Up -10.5 cm, Towards You
+  10 cm, which put the palm's middle just in front of the face, under the lip), 60 wraps the fist round the lip. I
+  tried 0, 35 and 85: 0 punches the face, 35 splays the fingers on the top, 85 lays the fist flat on the face.
+- `vr_climb_hand_yaw` (**10**): the knuckles turn a little towards the other hand, as hanging hands do.
+  `vr_climb_hand_roll` (0).
+- `vr_climb_hand_turn_blend` (**0.15**): 0 is the hold's turn, 1 the controller's (the old look). 0.15 keeps a little
+  of your wrist's turn. With odd controller turns, 0, 0.15 and 0.25 look alike; 1 is what you saw.
+- The turn eases on and off along with the hand's place (0.06 s, longer for a lenient grab's far hold), and glides from
+  hold to hold. The palm's middle stays on the hold however the hand is turned, because the palm is placed from the
+  turned hand. The arm IK follows the drawn hand, and its wrist limits swing the elbow as before.
+- It changes the display only: the four scripted climbs log the same `climb*` lines byte for byte with the defaults
+  and with blend 1, pitch 0, yaw 0.
+
+### Why the hands came off, and the fix
+
+The body moves by the pull: the holding hands' motion relative to it, the other way. The pull had two faults:
+
+1. **Nothing kept the body within an arm's reach of the holds.** The only limit was 48 units (1.8 m) horizontally from
+   each hold, and it only stopped the body going further. Whenever the body lagged the hands, the holds ended up
+   further away than the arms. Pushing then moved the body back as far as the hands went, from wherever it was.
+2. **A pull the body couldn't make was simply dropped.** Drawing the hands in to the chest pulls the body into the face
+   under the ledge. It can't move, and nothing remembered that pull. Pushing the hands out again then pushed the body
+   back the whole way. In the mock it went 45 cm back from the face at each push and 65 cm when pushing further, with
+   the holds 1.20 m from the shoulders. The drawn arm reaches 0.82 m, so the hands floated off it, as in your
+   screenshot. The motion of climbing on top where you can't mantle is exactly this: you pull down and in (into the
+   face), then push out over the top (so the body goes back).
+   A third, smaller cause: on the client, the tracked hand is stopped at walls (by a trace from the chest to it). That
+   stop came and went as the body moved along the face, and each change acted as a pull of its own. On the ladder's
+   first rung it made a 2.3-unit jump.
+
+The fix is in `Quake/vr/vr_climb.cpp` (see "Staying within reach" at the top of the file):
+
+- **Within reach.** The server estimates each shoulder from the head. The neck's pivot is 8 cm behind and under the
+  eyes, and the shoulder 15 cm under that and 19 cm out, as the arm IK poses the default body; Body Calibration's
+  shoulders move it. In the push test, the estimate was within 1 unit (4 cm) of the drawn shoulder joint (median), and
+  2.8 units at most. A hold may be at most the arm's reach from its shoulder. The reach is the upper arm and forearm
+  (Body Calibration's measurements if you have them, else the default body's times Arm Length, with the tweaks), plus
+  the wrist to the palm's middle (8 cm), Shoulder Reach and 5 cm. After each move, the body is brought back within
+  reach of each hold that pulls, by the least that does. A hold taken further away (a stretched reach, a lenient hold)
+  may stay that far until the body comes closer, so a grab never pops.
+- **Kept within reach, or let go?** Kept: the body stops where the arms are straight, as a real body hangs from
+  straight arms. Letting go would drop you whenever you push off. The exception is a hand that isn't pulling (it moves
+  less than a quarter of the pull). It doesn't hold the body back: when the other hand pulls the body past its reach,
+  it lets go, with a buzz. So hand over hand, the lower hand is torn off as the upper one pulls you past it, rather than
+  anchoring you. A hold that the body couldn't be kept near (because it was blocked) also lets go.
+- **Owed motion.** A pull into the face that the body couldn't make is now owed, and a later pull away from the face
+  makes it up first. Draw your hands in against the wall and push out: the body leaves the wall only once your hands
+  are back where the arms met it. Only that direction is owed. A hand raised while standing, or a pull past the highest
+  hold, owes nothing, so the next pull has no dead zone. Owed motion never moves the body by itself.
+- **The wall stop** stays as it was when the hand took hold, for as long as it holds (`vr_handpose.cpp`). The pull is
+  the controller's own motion.
+- Both hands and one hand work the same way.
+
+### Small ledges
+
+The mantle looked for a spot 22 to 38 units in from the lip. On a narrow top (a wall 4 units thick), the box at that
+spot hangs past the top and stands on nothing, so there was no mantle. A 6-unit wall only "worked" because the box,
+22 units in, touched its far edge: it stood on the corner. Now `findMantle`:
+
+- after those spots, tries a narrow top (at least 3 units deep, measured from the lip in) from over its middle
+  outwards, as long as the box's middle is over it. The box stands on the top, not on its edge. A rung against a wall
+  is no place to stand, so the ladder's top rung isn't mantled onto; the tower's top is, as before.
+- needs the top under a point 3 units in from the box's sides for every spot, not just under its very edge.
+- lets the body rise straight up, else from 2 or 4 units further out. This covers a body pressed against a face under
+  a trim on its lip: in e1m1 the body is now a couple of units nearer the face, and couldn't rise straight up past the
+  ledge's lip.
+- when there's no room on top (a ceiling, a top too thin), just hangs on. The holding hands feel a soft buzz as the pull
+  over the top starts. The push over the top doesn't push you back, because the pull in was owed; at most it
+  straightens the arms.
+
+Lowest Ledge, the mantle's thresholds (pulled 8 units, the head 8 above the ledge) and the rest are unchanged.
+
+vrclimb has two new pieces next to the leniency corner, recompiled the "Full" way: a narrow wall (4 thick, top 48;
+`setpos -218 -280 24 0 0 0`) and a ledge with no room on top (top 48, with a slab 40 above it; `setpos -138 -280 24 0 0
+0`). The rest of the map is unchanged.
+
+### Verified (mock headset, `vr_fixed_frames 1`; `climb3/` in the scratchpad)
+
+- **Push** (`push`): both hands on the ledge are drawn in and pushed 16 cm past where they took hold, three times; then
+  pushed 31 cm past; then the off hand does it alone. Drawn in, the body is against the face at x 80.
+  - Before: the body went back to 68.3 at each push and to 62.9 when pushing further (45 and 65 cm), and to 66.8
+    one-handed. The holds were 1.20 m from the shoulders.
+  - Now: the body goes back to 76.1 (15 cm, the hands' push past the grab) and 74.6 (21 cm, the arms straight), and to
+    78.5 one-handed. The holds are at most 0.76 m from the estimated shoulders (the reach), 0.72 m from the drawn ones.
+  - `push_ba.png`: before, the hands float on the ledge away from the arms, as in your screenshot; after, they're on
+    the arms.
+- **No room on top** (`overtop` at the slab ledge): before, the body was pushed back 10.5 units (40 cm), with the holds
+  1.00 m away (`noroom_ba.png` shows the hands off the arms, as in your third screenshot). Now it logs "no room to
+  mantle", buzzes, and goes back at most 3 units (11 cm) from the face, with the holds 0.74 m away.
+- **Narrow wall** (`overtop`): before, no mantle; the body was pushed back 40 cm, then fell. Now it mantles onto the
+  wall's middle (x -198) and stands on it (`narrow_ba.png`). At the ledge, the mantle is the same as before.
+- **The old climbs.** Their mock hands reach about 1 m from the shoulder (1.03 m on the ladder), further than any arm.
+  The body's box also keeps the head 61 cm from a wall unless you lean in.
+  - With long arms (`vr_body_arm_length 2`, so the reach never binds), the ledge hang and shimmy, the mantle and e1m1 log
+    the same body position every frame as before. The ladder climbs up to 2.2 units (8 cm) higher, because the wall
+    stop's jump on the first rung is gone, and mantles onto the same spot (118, -3, 305).
+  - With a default arm they hit the reach, as they should: the ladder's lower hands are torn off, and it falls two
+    rungs from the top (from rung 236); the shimmy covers less ledge (to y 207, not 228); the mantle and e1m1 still
+    mantle.
+  - `ladderlean` is the ladder with the head leant in 28 cm, as at a wall. It climbs to the top with a default arm,
+    before and after, with the same mantle; the positions differ by 1.25 units (median), from the wall stop. The lower
+    hands are torn off 0.1 s before the play lets go of them.
+- **Hand turn** (`ledgeodd`, `rungodd`: the controllers at pitch 10, yaw ±50, roll ±70, and at 110, ∓40, ∓60):
+  `odd_ledge.png` and `odd_rung.png` show before (blend 1), 0, 0.15 and 0.25, from the eyes and the side. Before, the
+  fist punches the face sideways; after, it hooks the lip.
+- Not rerun: the grab-leniency sweep, since the grab is unchanged.
+
+### Check in the headset
+
+- [ ] The hand on a ledge and on a rung: does it hook the lip naturally? If not, move Pitch/Yaw/Roll (and Hold Rotation
+      Blend) and tell me the numbers.
+- [ ] Hold a ledge and push away with straight arms: you should move back until the arms are straight, no further, with
+      the hands staying on the arms. Pull in against the wall and push again: you should leave the wall only once your
+      arms are back where they met it.
+- [ ] Climb hand over hand without letting go with the lower hand: it should let go by itself (with a buzz) as you pull
+      past it. Tell me if it lets go too early (a stretched reach, a shimmy).
+- [ ] The narrow wall and the no-room ledge in vrclimb: you should get onto the first; on the second, you should feel
+      the buzz and not be pushed back.
+- [ ] Body Calibration: the reach follows your measured arms. If holds let go at full stretch, tell me (the reach is
+      the arm plus 5 cm and Shoulder Reach).

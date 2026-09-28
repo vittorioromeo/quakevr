@@ -139,6 +139,25 @@ void stopInheriting(int slot);
 // off hand). `aimRot` itself for no slot or the empty hand, or with both 0. Nothing drawn moves with it.
 [[nodiscard]] glm::vec3 shotAngles(const glm::vec3& aimRot, int slot, bool mirrored);
 
+// The weapon as it sits in a holster, per kind of holster (the HipHolster*, UpperHolster*, ShoulderHolster* keys): moved
+// (units: x off the body, y outwards, z up) and turned about its grip (pitch, yaw, roll: degrees), in the holster's frame
+// after the holster's own turn; the view mirrors y, yaw and roll for the left holsters. field 0..5: x y z pitch yaw roll.
+enum class HolsterKind : int
+{
+    Hip = 0,
+    Upper = 1,
+    Shoulder = 2
+};
+inline constexpr int holsterKinds = 3;
+inline constexpr int holsteredFields = 6;
+struct HolsteredPose
+{
+    glm::vec3 offset{0.f};
+    glm::vec3 angles{0.f}; // pitch, yaw, roll
+};
+[[nodiscard]] Key holsteredKey(HolsterKind kind, int field);
+[[nodiscard]] HolsteredPose holsteredPose(int slot, HolsterKind kind); // zero for no slot
+
 // Keys retired in round 21 (fitted hands: the hand's place and its fingers on the weapon): registered, unused.
 [[nodiscard]] bool retired(Key key);
 

@@ -24,5 +24,8 @@ bool scroll(int rows);
 // The setting selected on the page shown (null when the VR Settings are not shown, or the selected
 // row is not a setting): effects preview themselves while their settings are chosen.
 [[nodiscard]] const struct cvar_s* selectedSetting();
+// Weapon Offsets > Holstered: while one of its settings is chosen (Preview in Holster on), the hand whose weapon the page
+// edits and the kind of holster (weapons::HolsterKind: 0 hips, 1 chest, 2 back) it is to be drawn in; false otherwise.
+[[nodiscard]] bool holsterPreview(int& hand, int& kind);
 
 } // namespace qvr::menu

@@ -2652,6 +2652,17 @@ float shoulderSwing()
     return (calibrated() ? vr_bodycal_shoulder_swing.value : defaultSwing) + vr_body_tweak_shoulder_swing.value;
 }
 
+float armLengthMetres()
+{
+    const Settings s = current(units::eyeHeight());
+    return s.upper + s.fore;
+}
+
+glm::vec3 shoulderShift()
+{
+    return shoulderOffset() - defaultShoulders;
+}
+
 bool tweaked()
 {
     for(const Split& sp : splits())

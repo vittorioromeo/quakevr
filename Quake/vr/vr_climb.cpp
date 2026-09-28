@@ -9,7 +9,9 @@
 // holster that holds a weapon while standing (the grip draws it; an empty holster, or any while hanging, gives way to
 // the hold). The hold is on the edge's line: the hand's place along the edge, on the top, `holdInset` units behind the
 // edge; the hand is drawn there (its palm's middle, moved by vr_climb_hand_out/up/side: display only) while it holds,
-// whatever the tracked hand does.
+// whatever the tracked hand does, and turned to face the hold (the knuckles towards the ledge and tilted up over its
+// lip by vr_climb_hand_pitch/yaw/roll, mirrored for the off hand; vr_climb_hand_turn_blend of the way to the
+// controller's turn: display only).
 //
 // Leniency (vr_climb_leniency, cm). A grip that takes no hold where the hand is (above) looks round it: the same rule
 // tried from points on shells round the hand, up to that far from it. Of the holds found, the one taken is the nearest
@@ -31,9 +33,28 @@
 // `maxHangReach` units (horizontally) from any hold; each limit only stops the body going further past it (letting
 // go of the higher hand never drops the body back under the lower one's limit).
 //
+// Staying within reach. The body stays within an arm's reach of each hold: from the shoulder (the server's estimate:
+// the head's neck pivot, the shoulders under it and out to the side, as the arm IK poses the default body standing,
+// moved by Body Calibration's shoulders) to the hold, at most the arm (Body Calibration's measured upper arm and forearm,
+// or the default body's times Arm Length, with the tweaks), the wrist to the palm's middle, Shoulder Reach and 5 cm.
+// A hold taken further (a hand reaching past the model's arm, a lenient hold) may stay that far until the body comes
+// closer. Pushing away from the wall moves the body back until the arms are straight, no further. A hold the body is
+// pulled away from by the other hand, while its own hand hardly moves (under `passiveShare` of the pull), is torn off
+// instead (it lets go: hand over hand, the lower hand needn't be let go of by the player before the pull); a hold the
+// body couldn't be kept within reach of (the body blocked) lets go too. The pull into the face under the holds that the
+// body couldn't make (it is against the face) is owed: a later pull away from the face makes it up first, before the
+// body moves (pull into the wall, then push: the body leaves the wall only once the hands are back where the arms met
+// it, as a real body would). Only that: a hand raised while standing on the floor, or pulled down past the highest
+// hold, owes nothing (the next pull moves the body at once). It never moves the body by itself (no pop).
+//
 // Mantle: once a hand has pulled down by `mantlePull` units since it took hold and the head is `mantleHead` units
 // above its ledge, and the player's box fits on top (with floor under it) and the way there (straight up, then over)
-// is clear, the body is carried there in `mantleTime` seconds, and stands.
+// is clear, the body is carried there in `mantleTime` seconds, and stands. The spot is 22 to 38 units in from the lip;
+// on a narrower top (a wall's, a beam's: at least `minFooting` deep), over its middle, or further out, as long as the
+// box's middle is over it (it stands on the top, not on its edge over the drop). With no room on top (a ceiling, a top
+// too thin), it hangs on, and the holding hands feel a soft buzz as the pull over the top starts; the push over the top
+// that follows doesn't push it back off the face (the pull that brought the hands in was owed, above), and at most
+// straightens the arms.
 //
 // Letting go of everything: the player falls, flung by the hands' release (vr_climb_fling, capped). No new hold for
 // `regrabDelay` seconds after letting go of everything or mantling; holds lower than vr_climb_min_height above the
@@ -44,6 +65,8 @@
 // holds (QVR_VRBITS0_*HAND_CLIMBING: no melee blows). The client gets the holds as stats (STAT_QVR_CLIMB*).
 
 #include "vr_climb.hpp"
+#include "vr_avatar.hpp"
+#include "vr_bodycal.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
@@ -96,6 +119,17 @@ constexpr float lenientStep = 2.f;    // units at most between the lenient searc
 constexpr float reachFavour = 0.3f;   // a hold the hand moves (or reaches) towards counts as this much nearer
 constexpr float movingHand = 0.3f;    // m/s: a hand this fast reaches the way it moves (slower: from the head)
 constexpr float lenientReach = edgeSlack + holdInset; // a lenient hold is at most the leniency plus this from the hand
+// The arms' reach (see "Staying within reach" at the top of the file), real metres of the default body (times its scale):
+constexpr float eyeToNeckFwd = 0.08f;  // the neck's pivot behind the eyes (along the head's forward),
+constexpr float eyeToNeckDown = 0.08f; // and under them (along the head's up)
+constexpr float neckToShoulderDown = 0.15f; // the shoulder joints under the pivot,
+constexpr float neckToShoulderOut = 0.19f;  // and out to the side (the model's, as the arm IK poses them standing)
+constexpr float palmReach = 0.08f;     // the wrist to the palm's middle (the hold is where the palm's middle goes)
+constexpr float reachSlack = 0.05f;    // and a little more (the estimate's error; the drawn arm stretches more)
+constexpr float passiveShare = 0.25f;  // a holding hand moving less than this share of the pull doesn't hold the body back
+constexpr float passiveSlack = 2.f;    // units: such a hand's hold that far past its reach lets go,
+constexpr float brokenSlack = 4.f;     // and any hold this far past it (the body couldn't be kept within reach)
+constexpr float minFooting = 3.f;      // units of a ledge's top (from the lip in) the box must stand on to mantle onto it
 
 [[nodiscard]] glm::vec3 vec(const float* v)
 {
@@ -399,6 +433,7 @@ struct Grip
     bool owned{false};         // the grip's press belongs to the hold (hidden from the QC) until let go
     bool ownedLastFrame{false};
     int serial{0};             // counts the holds taken (the client tells a new hold from the last)
+    float allowed{0.f};        // how far the hold may be from the shoulder (the reach, or further if taken further)
 };
 
 struct Climber
@@ -411,6 +446,8 @@ struct Climber
     double lastTime{-1.0};
     bool pressedLastFrame[2]{false, false};
     glm::vec3 lastOrigin{0.f}; // where the climb put the body (moved otherwise: let go)
+    glm::vec3 owed{0.f};       // the pull the body couldn't make (made up first by a pull the other way)
+    bool noRoom{false};        // pulling over the top of a ledge with no room to mantle (felt once)
     bool hanging() const
     {
         return grips[0].active || grips[1].active;
@@ -523,11 +560,55 @@ void letGoAll(Climber& c)
 {
     c.grips[0].active = c.grips[1].active = false;
     c.mantling = false;
+    c.owed = glm::vec3{0.f};
+    c.noRoom = false;
+}
+
+// The arm's reach (see the top of the file), units: the shoulder joint to the palm's middle.
+[[nodiscard]] float armReach()
+{
+    const float body = units::bodyScale();
+    return (bodycal::armLengthMetres() + (palmReach + reachSlack) * body + std::max(0.f, vr_body_shoulder_reach.value) * body) *
+           units::metresToUnits();
+}
+
+// The shoulder joint of hand `h`'s arm (world), from the head of `move` (see the top of the file).
+[[nodiscard]] glm::vec3 shoulderOf(const VrMove& move, int h)
+{
+    const float m2u = units::metresToUnits() * units::bodyScale();
+    glm::vec3 f, r, u;
+    hands::angleVectors(glm::vec3{move.headAngles.x, move.headAngles.y, 0.f}, f, r, u);
+    const glm::vec3 neck = move.headPos - (f * eyeToNeckFwd + u * eyeToNeckDown) * m2u;
+    const float yaw = glm::radians(move.headAngles.y);
+    const glm::vec3 fwd{std::cos(yaw), std::sin(yaw), 0.f}, left{-std::sin(yaw), std::cos(yaw), 0.f};
+    const bool rightSide = (h == 1) == (vr_lefthanded.value == 0.f);
+    const glm::vec3 shift = bodycal::shoulderShift(); // back, up, out
+    return neck + (-fwd * shift.x + glm::vec3{0.f, 0.f, shift.y - neckToShoulderDown} +
+                      left * ((rightSide ? -1.f : 1.f) * (neckToShoulderOut + shift.z))) *
+                      m2u;
+}
+
+// How deep grip `g`'s ledge's top is from its lip in (along the way in), up to `most` units.
+[[nodiscard]] float topDepth(edict_t* ent, const Grip& g, float most)
+{
+    const glm::vec3 lip = holdNow(g) + g.ledge.out * holdInset;
+    const float top = topNow(g);
+    float depth = 0.f;
+    for(float d = 0.5f; d <= most; d += 1.f)
+    {
+        if(!overTop(ent, lip - g.ledge.out * d, top))
+        {
+            break;
+        }
+        depth = d + 0.5f;
+    }
+    return depth;
 }
 
 // The mantle: a spot on top of grip `g`'s ledge where the box fits, over floor, reachable straight up (or up and
-// along the edge a little) and then over: straight in from the hold, else along the edge (near a ledge's end, where
-// the box would stick out past it).
+// along the edge a little, or up from a little further out) and then over: straight in from the hold, else along the edge (near a ledge's end, where
+// the box would stick out past it). 22 to 38 units in from the lip; else (a narrow top: a wall's, a beam's) over the
+// top's middle, or further out, the box's middle over the top.
 [[nodiscard]] bool findMantle(edict_t* ent, const Grip& g, glm::vec3& mid, glm::vec3& to)
 {
     const glm::vec3 origin = vec(ent->v.origin);
@@ -538,29 +619,78 @@ void letGoAll(Climber& c)
         return false;
     }
     const glm::vec3 along{-g.ledge.out.y, g.ledge.out.x, 0.f};
-    for(const float side : {0.f, 8.f, -8.f, 16.f, -16.f})
-    {
-        mid = glm::vec3{origin.x, origin.y, z} + along * side;
-        if(tracePlayer(ent, origin, mid).fraction < 1.f)
+    const glm::vec3 lip = hold + g.ledge.out * holdInset;
+    // The spot `in` units in from the lip, `side` along it.
+    const auto fits = [&](float side, float in) {
+        // Straight up; else from a little further out (a body pressed against the face, under a trim on its lip).
+        bool up = false;
+        for(const float back : {0.f, 2.f, 4.f})
         {
-            continue;
+            mid = glm::vec3{origin.x, origin.y, z} + along * side + g.ledge.out * back;
+            if(tracePlayer(ent, origin, mid).fraction >= 1.f)
+            {
+                up = true;
+                break;
+            }
         }
+        if(!up)
+        {
+            return false;
+        }
+        to = glm::vec3{lip.x, lip.y, z} - g.ledge.out * in + along * side;
+        if(tracePlayer(ent, to, to).startsolid)
+        {
+            return false;
+        }
+        if(traceBox(to, vec(ent->v.mins), vec(ent->v.maxs), to - glm::vec3{0.f, 0.f, 8.f}, MOVE_NOMONSTERS, ent).fraction >= 1.f)
+        {
+            return false; // nothing to stand on
+        }
+        // and not just its very edge (a box touching the far side of a narrow wall's top stood on nothing): the top
+        // under a point `minFooting` in from the box's sides, at least (the box traces are the hull's whole size).
+        bool footing = false;
+        for(int i = -1; i <= 1 && !footing; i++)
+        {
+            for(int j = -1; j <= 1 && !footing; j++)
+            {
+                const glm::vec3 p = to + glm::vec3{i * (ent->v.maxs[0] - minFooting), j * (ent->v.maxs[1] - minFooting),
+                                             ent->v.mins[2] + 0.5f};
+                const trace_t down = traceLine(p, p - glm::vec3{0.f, 0.f, 8.5f}, ent);
+                footing = !down.startsolid && down.fraction < 1.f;
+            }
+        }
+        if(!footing)
+        {
+            return false;
+        }
+        return tracePlayer(ent, mid, to).fraction >= 1.f;
+    };
+    constexpr float sides[] = {0.f, 8.f, -8.f, 16.f, -16.f};
+    for(const float side : sides)
+    {
         for(const float k : {20.f, 28.f, 36.f})
         {
-            to = glm::vec3{hold.x, hold.y, z} - g.ledge.out * k + along * side;
-            if(tracePlayer(ent, to, to).startsolid)
+            if(fits(side, k + holdInset))
             {
-                continue;
+                return true;
             }
-            if(traceBox(to, vec(ent->v.mins), vec(ent->v.maxs), to - glm::vec3{0.f, 0.f, 8.f}, MOVE_NOMONSTERS, ent).fraction >= 1.f)
+        }
+    }
+    // A narrow top (at least `minFooting` deep): from over its middle outwards, the box's middle still over it (not
+    // standing on its edge over the drop: a rung against a wall is no place to stand).
+    const float depth = topDepth(ent, g, 40.f);
+    if(depth < minFooting)
+    {
+        return false;
+    }
+    for(const float side : sides)
+    {
+        for(float in = std::min(0.5f * depth, 22.f); in >= 0.5f; in -= 2.f)
+        {
+            if(fits(side, in))
             {
-                continue; // nothing to stand on
+                return true;
             }
-            if(tracePlayer(ent, mid, to).fraction < 1.f)
-            {
-                continue;
-            }
-            return true;
         }
     }
     return false;
@@ -762,6 +892,12 @@ extern "C" void VR_ClimbPreThink(edict_t* ent)
         g.ledge = *ledge;
         g.entNum = ledge->ent ? NUM_FOR_EDICT(ledge->ent) : 0;
         g.entOrigin = ledge->ent ? vec(ledge->ent->v.origin) : glm::vec3{0.f};
+        g.allowed = std::max(armReach(), glm::distance(ledge->hold, shoulderOf(*move, h)));
+        if(!hanging)
+        {
+            c.owed = glm::vec3{0.f};
+            c.noRoom = false;
+        }
         c.lastOrigin = vec(ent->v.origin);
         server::sendHaptic(ent, h, 0.f, 0.06f, 80.f, 0.6f);
         if(debug())
@@ -769,6 +905,11 @@ extern "C" void VR_ClimbPreThink(edict_t* ent)
             Con_Printf("climb: %s hand holds at %.1f (out %.2f %.2f; hand %.1f %.1f %.1f, hold %.1f %.1f %.1f) from (%.1f %.1f %.1f)%s%s\n",
                 handName(h), ledge->top, ledge->out.x, ledge->out.y, hand.x, hand.y, hand.z, ledge->hold.x, ledge->hold.y,
                 ledge->hold.z, ent->v.origin[0], ent->v.origin[1], ent->v.origin[2], hanging ? ", both hands" : "", how);
+        }
+        if(vr_climb_debug.value >= 2.f)
+        {
+            Con_Printf("climbreach: %s hand's hold %.1f units from its shoulder (reach %.1f: the arm %.3f m)\n", handName(h),
+                glm::distance(ledge->hold, shoulderOf(*move, h)), armReach(), bodycal::armLengthMetres());
         }
     }
 
@@ -882,6 +1023,7 @@ extern "C" int VR_ClientClimb(edict_t* ent)
     // by how far it moved; and the holds' own motion (a moving brush model carries the body).
     const glm::vec3 rel[2] = {handRel(ent, *move, 0), handRel(ent, *move, 1)}; // before the body moves
     glm::vec3 pull{0.f}, carry{0.f};
+    float weight[2]{0.f, 0.f};
     float weights = 0.f;
     float top = -1e9f;
     int count = 0;
@@ -898,17 +1040,35 @@ extern "C" int VR_ClientClimb(edict_t* ent)
         {
             pull += moved * w;
             weights += w;
+            weight[h] = w;
         }
         carry += holdNow(g) - g.lastHold;
         top = std::max(top, topNow(g));
         count++;
     }
-    const glm::vec3 wanted = carry / static_cast<float>(count) - (weights > 1e-6f ? pull / weights : glm::vec3{0.f});
+    carry /= static_cast<float>(count);
+    const glm::vec3 pulled = weights > 1e-6f ? -pull / weights : glm::vec3{0.f};
+    const glm::vec3 wanted = carry + pulled;
+
+    // What the body owes (earlier pulls it couldn't make) is made up first by a pull the other way; it never moves the
+    // body by itself.
+    glm::vec3 move3 = pulled;
+    if(const float owed = glm::length(c.owed); owed > 1e-6f)
+    {
+        const glm::vec3 dir = c.owed / owed;
+        if(const float s = glm::dot(move3, dir); s < 0.f)
+        {
+            const float used = std::min(-s, owed);
+            move3 += dir * used;
+            c.owed -= dir * used;
+        }
+    }
+    const glm::vec3 meant = carry + move3; // what the body would do unhindered
 
     // The limits, each stopping the body only from going further past it: the feet no higher than the highest hold
-    // (the mantle does that), the body within reach of each hold.
+    // (the mantle does that), the body within 48 units (horizontally) of each hold.
     const glm::vec3 origin = vec(ent->v.origin);
-    glm::vec3 target = origin + wanted;
+    glm::vec3 target = origin + carry + move3;
     const float highest = top - ent->v.mins[2] + 2.f;
     if(target.z > highest)
     {
@@ -933,7 +1093,6 @@ extern "C" int VR_ClientClimb(edict_t* ent)
             }
         }
     }
-
     glm::vec3 step = target - origin;
     const float maxStep = maxHangSpeed * static_cast<float>(host_frametime);
     if(glm::length(step) > maxStep)
@@ -941,20 +1100,114 @@ extern "C" int VR_ClientClimb(edict_t* ent)
         step *= maxStep / glm::length(step);
     }
     moveBody(ent, origin + step);
+
+    // And within an arm's reach of each hold whose hand pulls (see the top of the file): where the move took the body
+    // (a move into the floor or the face, blocked, moves it nowhere), moved back towards the holds, the least that
+    // does (a few passes for two holds), from where it was.
+    glm::vec3 shoulder[2];
+    bool driving[2]{false, false};
+    for(int h = 0; h < 2; h++)
+    {
+        shoulder[h] = shoulderOf(*move, h) - origin;
+        driving[h] = c.grips[h].active && (weights <= 1e-6f || weight[h] >= passiveShare * weights);
+    }
+    glm::vec3 kept = vec(ent->v.origin);
+    for(int pass = 0; pass < 4; pass++)
+    {
+        for(int h = 0; h < 2; h++)
+        {
+            if(!driving[h])
+            {
+                continue;
+            }
+            const glm::vec3 toHold = holdNow(c.grips[h]) - (kept + shoulder[h]);
+            if(const float d = glm::length(toHold); d > c.grips[h].allowed + 0.01f)
+            {
+                kept += toHold / d * (d - c.grips[h].allowed);
+            }
+        }
+    }
+    if(kept != vec(ent->v.origin))
+    {
+        setVec(ent->v.origin, origin);
+        moveBody(ent, kept);
+    }
     setVec(ent->v.velocity, glm::vec3{0.f});
     ent->v.flags = static_cast<float>(static_cast<int>(ent->v.flags) & ~FL_ONGROUND);
     c.lastOrigin = vec(ent->v.origin);
+    const glm::vec3 done = vec(ent->v.origin) - origin;
+    // Owed: what of the pull into the face under the holds (towards the ledge) the body couldn't make.
+    glm::vec3 into{0.f};
+    for(const Grip& g : c.grips)
+    {
+        into -= g.active ? g.ledge.out : glm::vec3{0.f};
+    }
+    if(glm::length(into) > 1e-3f)
+    {
+        into = glm::normalize(into);
+        if(const float blocked = glm::dot(meant - done, into); blocked > 0.f)
+        {
+            c.owed += into * blocked;
+        }
+    }
+    if(const float reach = armReach(), owed = glm::length(c.owed); owed > reach)
+    {
+        c.owed *= reach / owed;
+    }
+    float dist[2]{0.f, 0.f};
     for(int h = 0; h < 2; h++)
     {
         Grip& g = c.grips[h];
         g.lastRel = rel[h];
         g.lastHold = holdNow(g);
+        if(!g.active)
+        {
+            continue;
+        }
+        // Out of reach: a hand that hardly pulled is torn off its hold, any hand the body couldn't be kept near lets go.
+        dist[h] = glm::distance(g.lastHold, vec(ent->v.origin) + shoulder[h]);
+        if(dist[h] > g.allowed + (driving[h] ? brokenSlack : passiveSlack))
+        {
+            g.active = false;
+            server::sendHaptic(ent, h, 0.f, 0.08f, 60.f, 0.5f);
+            if(debug())
+            {
+                Con_Printf("climb: %s hand out of reach (%.1f, reach %.1f%s), lets go at (%.1f %.1f %.1f)\n", handName(h),
+                    dist[h], g.allowed, driving[h] ? "" : ", not pulling", ent->v.origin[0], ent->v.origin[1],
+                    ent->v.origin[2]);
+            }
+            continue;
+        }
+        g.allowed = std::max(armReach(), std::min(g.allowed, dist[h]));
     }
     SV_CheckWater(ent);
-    traceFrame(ent, c, move, count > 1 ? "hang2" : "hang1", wanted, vec(ent->v.origin) - origin);
+    traceFrame(ent, c, move, count > 1 ? "hang2" : "hang1", wanted, done);
+    if(vr_climb_debug.value >= 2.f)
+    {
+        Con_Printf("climbreach %.4f off %.2f/%.2f%s main %.2f/%.2f%s owed %.3f %.3f %.3f%s\n", qcvm->time, dist[0],
+            c.grips[0].allowed, driving[0] ? "" : " passive", dist[1], c.grips[1].allowed, driving[1] ? "" : " passive",
+            c.owed.x, c.owed.y, c.owed.z, c.noRoom ? " noroom" : "");
+    }
+    if(vr_climb_debug.value >= 3.f)
+    {
+        const glm::vec3 so = vec(ent->v.origin) + shoulder[0], sm = vec(ent->v.origin) + shoulder[1];
+        Con_Printf("climbshoulder off %.1f %.1f %.1f main %.1f %.1f %.1f\n", so.x, so.y, so.z, sm.x, sm.y, sm.z);
+    }
+    if(!c.hanging())
+    {
+        // Let go of everything (out of reach): fall.
+        letGoAll(c);
+        c.noGrabUntil = time + regrabDelay;
+        if(debug())
+        {
+            Con_Printf("climb: falls, flung at (0 0 0)\n");
+        }
+        return 1;
+    }
 
     // The mantle: pulled down, the head over the ledge, and room on top.
     const float headZ = move->headPos.z;
+    bool noRoom = false;
     for(int h = 0; h < 2; h++)
     {
         const Grip& g = c.grips[h];
@@ -962,19 +1215,16 @@ extern "C" int VR_ClientClimb(edict_t* ent)
         {
             continue;
         }
-        const float pulled = g.relAtGrab.z - rel[h].z;
+        const float pulledDown = g.relAtGrab.z - rel[h].z;
         const float headAbove = headZ + (ent->v.origin[2] - origin.z) - topNow(g);
-        if(pulled < mantlePull || headAbove < mantleHead)
+        if(pulledDown < mantlePull || headAbove < mantleHead)
         {
             continue;
         }
         glm::vec3 mid, to;
         if(!findMantle(ent, g, mid, to))
         {
-            if(debug() && vr_climb_debug.value >= 3.f)
-            {
-                Con_Printf("climb: no room to mantle\n");
-            }
+            noRoom = true;
             continue;
         }
         c.mantling = true;
@@ -983,12 +1233,34 @@ extern "C" int VR_ClientClimb(edict_t* ent)
         c.mantleMid = mid;
         c.mantleTo = to;
         c.grips[0].active = c.grips[1].active = false;
+        c.owed = glm::vec3{0.f};
         if(debug())
         {
             Con_Printf("climb: mantle from (%.1f %.1f %.1f) up to %.1f, onto (%.1f %.1f %.1f)\n", c.mantleFrom.x,
                 c.mantleFrom.y, c.mantleFrom.z, mid.z, to.x, to.y, to.z);
         }
         break;
+    }
+    if(!c.mantling)
+    {
+        // No room on top: a soft buzz as the pull over the top starts (the body stays on the face: the pull into it
+        // is owed, so the push over the top doesn't push it back off).
+        if(noRoom && !c.noRoom)
+        {
+            for(int h = 0; h < 2; h++)
+            {
+                if(c.grips[h].active)
+                {
+                    server::sendHaptic(ent, h, 0.f, 0.12f, 40.f, 0.25f);
+                }
+            }
+            if(debug())
+            {
+                Con_Printf("climb: no room to mantle at (%.1f %.1f %.1f)\n", ent->v.origin[0], ent->v.origin[1],
+                    ent->v.origin[2]);
+            }
+        }
+        c.noRoom = noRoom;
     }
 
     return 1;
@@ -1099,10 +1371,15 @@ struct Pin
     float along{1.f};      // from `from` to `to`
     float inTime{0.06f};   // seconds this hold's ease takes (longer for a hold further from the hand)
     glm::vec3 offset{0.f}; // the looks' offset on the hold (vr_climb_hand_*)
+    glm::vec3 fromOut{1.f, 0.f, 0.f}, toOut{1.f, 0.f, 0.f}; // the holds' ways out (the hand's turn on them)
     double last{-1.0};
+    [[nodiscard]] float eased() const
+    {
+        return along * along * (3.f - 2.f * along);
+    }
     [[nodiscard]] glm::vec3 hold() const
     {
-        return glm::mix(from, to, along * along * (3.f - 2.f * along));
+        return glm::mix(from, to, eased());
     }
 };
 Pin pins[2];
@@ -1129,6 +1406,37 @@ constexpr float yawSteps = 256.f;   // the holds' ways out in the stats: a byte 
     return (out * vr_climb_hand_out.value + glm::vec3{0.f, 0.f, vr_climb_hand_up.value} +
                rightward * (right ? vr_climb_hand_side.value : -vr_climb_hand_side.value)) *
            cm;
+}
+
+// Quake angles to axes (forward, left, up), and back.
+[[nodiscard]] glm::mat3 anglesAxes(const glm::vec3& a)
+{
+    glm::vec3 f, r, u;
+    hands::angleVectors(a, f, r, u);
+    return glm::mat3{f, -r, u};
+}
+[[nodiscard]] glm::vec3 axesAngles(const glm::mat3& m)
+{
+    return hands::anglesFromVectors(glm::normalize(m[0]), glm::normalize(m[2]));
+}
+
+// The drawn hand's turn on a hold whose way out (towards the drop) is `out` (its axes: forward, left, up, as the hand
+// model's): facing the ledge, its front (the fist's knuckles) towards it, the palm down on the top, the fingers
+// curling over the lip; turned by vr_climb_hand_pitch (the front up), _yaw (the front towards the other hand) and
+// _roll (about the front: the thumb's side up), mirrored for the off hand (the left hand's model).
+[[nodiscard]] glm::mat3 holdTurn(const glm::vec3& out, bool mirrored)
+{
+    const float side = mirrored ? -1.f : 1.f;
+    const glm::vec3 up{0.f, 0.f, 1.f};
+    glm::vec3 front{-out.x, -out.y, 0.f};
+    front = glm::length(front) > 1e-4f ? glm::normalize(front) : glm::vec3{1.f, 0.f, 0.f};
+    front = glm::angleAxis(glm::radians(vr_climb_hand_yaw.value) * side, up) * front;
+    const glm::vec3 left = glm::cross(up, front); // facing the ledge, to the left
+    // A right hand's palm faces its model's left (a gun's grip in it): turned a quarter about its front, down; the
+    // mirrored left hand's the other way.
+    glm::mat3 m{front, -up * side, left * side};
+    m = glm::mat3_cast(glm::angleAxis(-glm::radians(vr_climb_hand_pitch.value), left)) * m;
+    return m * glm::mat3_cast(glm::angleAxis(glm::radians(vr_climb_hand_roll.value) * side, glm::vec3{1.f, 0.f, 0.f}));
 }
 
 } // namespace
@@ -1163,7 +1471,8 @@ void qvr::climb::calcStats(edict_t* ent, int* statsi)
     statsi[STAT_QVR_CLIMB] = bits;
 }
 
-void qvr::climb::drawnHand(const hands::State& s, int hand, glm::vec3& pos, glm::vec3& lightShift)
+void qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& handTurn, glm::vec3& pos, glm::vec3& rot,
+    glm::vec3& lightShift)
 {
     using namespace protocol;
     lightShift = glm::vec3{0.f};
@@ -1179,7 +1488,8 @@ void qvr::climb::drawnHand(const hands::State& s, int hand, glm::vec3& pos, glm:
     {
         const int first = hand ? STAT_QVR_CLIMBMAINX : STAT_QVR_CLIMBOFFX;
         const float yaw = static_cast<float>((bits >> (14 + 8 * hand)) & 255) / yawSteps * glm::two_pi<float>();
-        pin.offset = handOffset(glm::vec3{std::cos(yaw), std::sin(yaw), 0.f}, hand);
+        const glm::vec3 out{std::cos(yaw), std::sin(yaw), 0.f};
+        pin.offset = handOffset(out, hand);
         const glm::vec3 hold = glm::vec3{static_cast<float>(cl.stats[first]), static_cast<float>(cl.stats[first + 1]),
                                    static_cast<float>(cl.stats[first + 2])} /
                                    statScale +
@@ -1188,6 +1498,7 @@ void qvr::climb::drawnHand(const hands::State& s, int hand, glm::vec3& pos, glm:
         if(pin.weight <= 0.f)
         {
             pin.from = pin.to = hold;
+            pin.fromOut = out;
             pin.along = 1.f;
             const float dist = glm::distance(hold, hands::palmPoint(s, hand));
             pin.inTime = easeTime(dist);
@@ -1200,10 +1511,12 @@ void qvr::climb::drawnHand(const hands::State& s, int hand, glm::vec3& pos, glm:
         else if(serial != pin.serial)
         {
             pin.from = pin.hold(); // taken again before the hand was back: on to the new hold
+            pin.fromOut = glm::normalize(glm::mix(pin.fromOut, pin.toOut, pin.eased()) + glm::vec3{1e-4f, 0.f, 0.f});
             pin.along = 0.f;
             pin.inTime = easeTime(glm::distance(hold, pin.from));
         }
         pin.to = hold; // (a hold on a moving brush model moves)
+        pin.toOut = out;
         pin.serial = serial;
         pin.along = std::min(1.f, pin.along + dt / pin.inTime);
         pin.weight = std::min(1.f, pin.weight + dt / pin.inTime);
@@ -1217,9 +1530,31 @@ void qvr::climb::drawnHand(const hands::State& s, int hand, glm::vec3& pos, glm:
     {
         return;
     }
-    // The palm's middle on the hold.
-    const glm::vec3 pinned = pin.hold() - (hands::palmPoint(s, hand) - s.pos[hand]);
     const float w = pin.weight * pin.weight * (3.f - 2.f * pin.weight);
+
+    // The hand's turn: the hold's (facing it), blended towards the controller's by vr_climb_hand_turn_blend (1: the
+    // controller's, as it was), eased in and out with the hand's place.
+    const glm::mat3 drawn = anglesAxes(rot) * handTurn;
+    const bool mirrored = hand == 0; // (the off hand: the left hand's model, as vr_view.cpp draws it)
+    const glm::quat onFrom = glm::quat_cast(holdTurn(pin.fromOut, mirrored)), onTo = glm::quat_cast(holdTurn(pin.toOut, mirrored));
+    const glm::quat qDrawn = glm::normalize(glm::quat_cast(drawn));
+    const glm::quat qHold = glm::normalize(glm::slerp(onFrom, onTo, pin.eased()));
+    const glm::quat qBlend = glm::slerp(qHold, qDrawn, CLAMP(0.f, vr_climb_hand_turn_blend.value, 1.f));
+    rot = axesAngles(glm::mat3_cast(glm::normalize(glm::slerp(qDrawn, qBlend, w))) * glm::transpose(handTurn));
+
+    // The palm's middle on the hold (the palm where the hand, so turned, has it).
+    const glm::vec3 palm = s.palmValid[hand] ? hands::redirect(s.palmLocal[hand], rot) : glm::vec3{0.f};
+    const glm::vec3 pinned = pin.hold() - palm;
     pos = glm::mix(pos, pinned, w);
+    if(vr_climb_debug.value >= 3.f)
+    {
+        // The drawn arm's shoulder (last frame's pose) against the server's estimate ("climbshoulder").
+        avatar::Shoulder sh;
+        if(avatar::shoulder((hand == 0) == (vr_lefthanded.value == 0.f) ? 0 : 1, sh))
+        {
+            Con_Printf("climbarm %s shoulder %.1f %.1f %.1f palm %.1f %.1f %.1f: %.1f units\n", handName(hand), sh.joint.x,
+                sh.joint.y, sh.joint.z, pin.hold().x, pin.hold().y, pin.hold().z, glm::distance(sh.joint, pin.hold()));
+        }
+    }
     lightShift = -w * pin.offset;
 }

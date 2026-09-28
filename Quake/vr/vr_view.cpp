@@ -33,6 +33,7 @@
 #include "vr_sightalign.hpp"
 #include "vr_bodycal.hpp"
 #include "vr_profile.hpp"
+#include "vr_menu.hpp"
 #include "vr_weapons.hpp"
 #include "vr_wounds.hpp"
 
@@ -2326,8 +2327,8 @@ void setupHand(const hands::State& s, int hand)
     // A prop held in both hands (vr_held.cpp): the hand is drawn on its grip on it, as if its controller were there.
     glm::vec3 controllerPos = s.pos[hand], controllerRot = s.rot[hand];
     held::drawnHand(hand, controllerPos, controllerRot);
-    glm::vec3 lightShift{0.f}; // a hand holding a ledge or a rung: drawn on it (vr_climb.cpp), lit as without the looks' offset
-    climb::drawnHand(s, hand, controllerPos, lightShift);
+    glm::vec3 lightShift{0.f}; // a hand holding a ledge or a rung: drawn on it, facing it (vr_climb.cpp), lit as without the looks' offset
+    climb::drawnHand(s, hand, anglesBasis(weaponAngleOffsets(fist, mirrored)), controllerPos, controllerRot, lightShift);
     for(view::ViewEntity& ve : entities.hand[hand])
     {
         ve.lightShift = lightShift;
@@ -2985,35 +2986,69 @@ struct HolsterPose
     }
 }
 
+// The body's frame at a holster (turnHolster), made orthonormal: `out` away from the body, `up`, and `outwards`.
+struct HolsterFrame
+{
+    glm::vec3 out, up, side;
+};
+
+[[nodiscard]] HolsterFrame holsterFrame(const glm::vec3& out, const glm::vec3& up, const glm::vec3& outwards)
+{
+    const glm::vec3 o = glm::normalize(out);
+    const glm::vec3 u = glm::normalize(up - o * glm::dot(up, o));
+    return {o, u, glm::normalize(outwards - o * glm::dot(outwards, o) - u * glm::dot(outwards, u))};
+}
+
+// A turn in a holster's frame: pitch tips the top towards `out`, yaw turns `out` towards `side`, roll tips the top
+// towards `side`: yaw then pitch then roll, as Quake's angles. A left holster's frame is the right one's mirror image,
+// so yaw and roll mirror and pitch does not.
+[[nodiscard]] glm::quat holsterRotation(const HolsterFrame& f, const glm::vec3& turn)
+{
+    return glm::angleAxis(glm::radians(turn.y), glm::cross(f.out, f.side)) *
+           glm::angleAxis(glm::radians(turn.x), glm::cross(f.up, f.out)) *
+           glm::angleAxis(glm::radians(turn.z), glm::cross(f.up, f.side));
+}
+
+// Alias model angles turned by `q` in the world.
+[[nodiscard]] glm::vec3 turnAliasAngles(const glm::quat& q, const glm::vec3& drawn)
+{
+    glm::vec3 f, r, t;
+    hands::angleVectors({-drawn.x, drawn.y, drawn.z}, f, r, t); // alias models' pitch is the other way
+    return aliasAngles(q * f, q * t);
+}
+
 // Turns a holster and the gun in it by `turn` about `pivot` (the holster's position: where the hand reaches for it
-// stays), in the body's frame there: `out` away from the body, `up`, and `outwards` (the body's right for the right
-// holsters, its left for the left ones, so that the pairs mirror as their offsets' Y does). Pitch tips the top towards
-// `out`, yaw turns `out` towards `outwards`, roll tips the top towards `outwards`: yaw then pitch then roll, as Quake's
-// angles. The left holster's frame is the right one's mirror image, so yaw and roll mirror and pitch does not.
-void turnHolster(HolsterPose& pose, const glm::vec3& pivot, const glm::vec3& out, const glm::vec3& up,
-    const glm::vec3& outwards, const glm::vec3& turn)
+// stays), in the body's frame there (holsterFrame: `outwards` the body's right for the right holsters, its left for the
+// left ones, so that the pairs mirror as their offsets' Y does; holsterRotation). `frame` becomes the turned frame.
+void turnHolster(HolsterPose& pose, const glm::vec3& pivot, HolsterFrame& frame, const glm::vec3& turn)
 {
     if(turn == glm::vec3{0.f})
     {
         return; // exactly as before
     }
 
-    const glm::vec3 o = glm::normalize(out);
-    const glm::vec3 u = glm::normalize(up - o * glm::dot(up, o));
-    const glm::vec3 side = glm::normalize(outwards - o * glm::dot(outwards, o) - u * glm::dot(outwards, u));
-    const glm::quat q = glm::angleAxis(glm::radians(turn.y), glm::cross(o, side)) *
-                        glm::angleAxis(glm::radians(turn.x), glm::cross(u, o)) *
-                        glm::angleAxis(glm::radians(turn.z), glm::cross(u, side));
-
-    const auto turnAngles = [&](const glm::vec3& drawn) {
-        glm::vec3 f, r, t;
-        hands::angleVectors({-drawn.x, drawn.y, drawn.z}, f, r, t); // alias models' pitch is the other way
-        return aliasAngles(q * f, q * t);
-    };
+    const glm::quat q = holsterRotation(frame, turn);
     pose.slotPos = pivot + q * (pose.slotPos - pivot);
     pose.weaponPos = pivot + q * (pose.weaponPos - pivot);
-    pose.slotAngles = turnAngles(pose.slotAngles);
-    pose.weaponAngles = turnAngles(pose.weaponAngles);
+    pose.slotAngles = turnAliasAngles(q, pose.slotAngles);
+    pose.weaponAngles = turnAliasAngles(q, pose.weaponAngles);
+    frame = {q * frame.out, q * frame.up, q * frame.side};
+}
+
+// The weapon alone in its holster, by its own Holstered pose (weapons::holsteredPose): moved in the holster's (turned)
+// frame, x off the body, y outwards (mirrored with the frame), z up, and turned about its own place (its grip, the
+// model's origin once in the hand's transform) as the holster is turned.
+void poseHolstered(HolsterPose& pose, const HolsterFrame& frame, const weapons::HolsteredPose& p)
+{
+    if(p.offset == glm::vec3{0.f} && p.angles == glm::vec3{0.f})
+    {
+        return; // exactly as before
+    }
+    pose.weaponPos += frame.out * p.offset.x + frame.side * p.offset.y + frame.up * p.offset.z;
+    if(p.angles != glm::vec3{0.f})
+    {
+        pose.weaponAngles = turnAliasAngles(holsterRotation(frame, p.angles), pose.weaponAngles);
+    }
 }
 
 // A gun not in a hand (holstered, lying in the world) carries its button and ammo screen as a held one does
@@ -3072,6 +3107,12 @@ void setupHolsters(const hands::State& s, bool queueTexts)
         {0.f, yaw - 10.f, 0.f}, {0.f, yaw + 10.f, 0.f}, {-30.f, yaw - 10.f, 0.f},
         {-30.f, yaw + 10.f, 0.f}};
 
+    // Weapon Offsets > Holstered, a setting chosen: the page's weapon (the one its hand holds) previewed in the holsters.
+    int previewHand = 0, previewKind = 0;
+    qmodel_t* previewModel = nullptr;
+    const bool preview = menu::holsterPreview(previewHand, previewKind) &&
+                         (previewModel = weapons::heldModel(previewHand)) != nullptr;
+
     body::HolsterPlates plates;
     const body::HolsterPositions positions = body::holsterPositions(s, &plates); // one body solve for all
     qmodel_t* const slotModel = vr_leg_holster_model_enabled.value ? viewModel("progs/legholster.mdl") : nullptr;
@@ -3114,14 +3155,25 @@ void setupHolsters(const hands::State& s, bool queueTexts)
             out = plate.out;
             up = plate.up;
         }
-        turnHolster(pose, pivot, out, up, outwards, holsterTurn(h));
+        HolsterFrame frame = holsterFrame(out, up, outwards);
+        turnHolster(pose, pivot, frame, holsterTurn(h));
 
         const int stat = static_cast<int>(bodyHolster[h]);
         qmodel_t* model = precachedModel(cl.stats[STAT_QVR_HOLSTERWEAPONMODEL0 + stat]);
+        int clip = cl.stats[STAT_QVR_HOLSTERWEAPONCLIP0 + stat];
+        const weapons::HolsterKind kind = shoulder ? weapons::HolsterKind::Shoulder
+                                          : h == LeftUpper || h == RightUpper ? weapons::HolsterKind::Upper
+                                                                               : weapons::HolsterKind::Hip;
+        if(preview && kind == static_cast<weapons::HolsterKind>(previewKind))
+        {
+            model = previewModel; // Weapon Offsets > Holstered: the page's weapon, in both holsters of the kind edited
+            clip = -1;
+        }
         if(isHandModel(model))
         {
             model = nullptr;
         }
+        poseHolstered(pose, frame, weapons::holsteredPose(weapons::slotForModel(model), kind));
 
         view::ViewEntity& ve = entities.holster[h];
         place(ve, model, pose.weaponPos, pose.weaponAngles, 0, mirrored);
@@ -3140,8 +3192,7 @@ void setupHolsters(const hands::State& s, bool queueTexts)
 
         // Its ammo screen and button, and a lava gun's glow, as in a hand.
         const int slot = weapons::slotForModel(model);
-        idleAttachments(ve.ent, mirrored, slot, entities.holsterButton[h], cl.stats[STAT_QVR_HOLSTERWEAPONCLIP0 + stat],
-            queueTexts && model != nullptr);
+        idleAttachments(ve.ent, mirrored, slot, entities.holsterButton[h], clip, queueTexts && model != nullptr);
         highlight(entities.holsterButton[h], hover);
         if(model && slot >= 0 && emissive::isLavaGun(model))
         {

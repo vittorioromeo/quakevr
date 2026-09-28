@@ -1,7 +1,10 @@
 # Mock-hand plays for the climbing tests (vr_mock_play files; docs/vr-port/TESTING.md, "Climbing"):
-# python climb_plays.py ladder|ledge|mantle|e1m1|ledgehang|runghang|pressL<d>|pressR<d> writes <name>.txt here and
-# prints how long it plays (the hangs: both hands on the ledge or rung 56, pulled up a little and held, for screenshots;
-# the presses: the main hand gripping d units in front of the ledge or rung 56 and pulling, for the grab leniency).
+# python climb_plays.py ladder|ladderlean|ledge|mantle|e1m1|ledgehang|runghang|ledgeodd|rungodd|push|overtop|pressL<d>|pressR<d>
+# writes <name>.txt here and prints how long it plays (the hangs: both hands on the ledge or rung 56, pulled up a little
+# and held, for screenshots, the odd ones with the controllers turned oddly; ladderlean: the ladder with the head leant
+# in, as a player's is (the holds within a real arm's reach); push and overtop: staying within reach and
+# the mantle's motion; the presses: the main hand gripping d units in front of the ledge or rung 56 and pulling, for the
+# grab leniency).
 import sys
 HI, LO, FWD = 1.943, 1.18, -0.72
 
@@ -118,14 +121,62 @@ def mantle(hy=1.638, fwd=-0.69):
     L += ["0.700 cmd +graboff", "0.750 cmd +grabmain", "2.600 cmd -graboff", "2.600 cmd -grabmain"]
     return L, 3.0
 
-def hang(y, fwd, pull=0.25, pitch=40):
+def hang(y, fwd, pull=0.25, pitch=40, yaw=0, roll=0):
     # both hands onto the hold (setpos 78 176 24: the ledge, y 1.638; setpos 71 0 24: rung 56, y 1.943), then pulled
-    # down `pull` metres (not enough for a mantle) and held still
+    # down `pull` metres (not enough for a mantle) and held still; the controllers turned by pitch, yaw, roll (the off
+    # hand's yaw and roll mirrored)
     L = []
-    for h, x in (("off", -0.12), ("main", 0.12)):
-        L += [f"0.000 {h} {x} 1.2 -0.3 {pitch} 0 0", f"0.500 {h} {x} {y} {fwd} {pitch} 0 0", f"1.000 {h} {x} {y} {fwd} {pitch} 0 0",
-              f"2.000 {h} {x} {y - pull:.3f} {fwd} {pitch} 0 0", f"6.000 {h} {x} {y - pull:.3f} {fwd} {pitch} 0 0"]
+    for h, x, m in (("off", -0.12, -1), ("main", 0.12, 1)):
+        a = f"{pitch} {yaw * m} {roll * m}"
+        L += [f"0.000 {h} {x} 1.2 -0.3 {a}", f"0.500 {h} {x} {y} {fwd} {a}", f"1.000 {h} {x} {y} {fwd} {a}",
+              f"2.000 {h} {x} {y - pull:.3f} {fwd} {a}", f"6.000 {h} {x} {y - pull:.3f} {fwd} {a}"]
     return L + ["0.700 cmd +graboff", "0.750 cmd +grabmain"], 6.0
+
+# ROUND21.md, "Climbing: hand orientation, staying attached, small ledges". These lean the head in towards the wall
+# (0.28 m: the body's box stays 16 units from the face, a real body doesn't), as a player at a wall does, so that the
+# holds are within a real arm's reach of the shoulders.
+LEAN = ["0.000 head 0 1.646 0", "0.600 head 0 1.62 -0.28"]
+
+def push(hy=1.638, fwd=-0.69):
+    # both hands on the ledge (setpos 78 176 24), pulled up 0.25 m; then three times: the hands drawn in to the chest
+    # (the body against the face: it can't follow) and pushed out past where they took hold; then out further (past
+    # an arm's reach); then the main hand lets go and the off hand alone does it twice more; then both let go
+    L = list(LEAN); t = [0.0]
+    pos = {"off": [-0.25, 1.1, -0.2], "main": [0.25, 1.1, -0.2]}
+    def key(h, x, y, z):
+        pos[h] = [x, y, z]; L.append(f"{t[0]:.3f} {h} {x:.3f} {y:.3f} {z:.3f} 70 0 0")
+    def keys(hs, y, z, dt):
+        for h in hs: key(h, pos[h][0], pos[h][1], pos[h][2])
+        t[0] += dt
+        for h in hs: key(h, pos[h][0], y, z)
+    def cmd(c): L.append(f"{t[0]:.3f} cmd {c}")
+    key("off", *pos["off"]); key("main", *pos["main"]); t[0] = 0.6
+    key("off", -0.12, hy, fwd); key("main", 0.12, hy, fwd); t[0] = 0.7; cmd("+graboff"); t[0] = 0.75; cmd("+grabmain")
+    t[0] = 1.0; keys(("off", "main"), hy - 0.25, fwd, 0.6)
+    both = ("off", "main")
+    for _ in range(3):
+        t[0] += 0.2; keys(both, hy - 0.25, -0.35, 0.6)
+        t[0] += 0.2; keys(both, hy - 0.25, fwd - 0.16, 0.6)
+    t[0] += 0.2; keys(both, hy - 0.25, -1.0, 0.6)
+    t[0] += 0.3; keys(both, hy - 0.25, fwd, 0.6)
+    t[0] += 0.2; cmd("-grabmain"); keys(("main",), 1.1, -0.2, 0.5)
+    for _ in range(2):
+        t[0] += 0.2; keys(("off",), hy - 0.25, -0.35, 0.6)
+        t[0] += 0.2; keys(("off",), hy - 0.25, fwd - 0.16, 0.6)
+    t[0] += 0.5; cmd("-graboff"); t[0] += 1.0
+    for h in both: key(h, *pos[h])
+    return L, t[0]
+
+def overtop(hy=1.638, fwd=-0.69):
+    # the mantle's motion at a ledge (setpos 78 176 24), the narrow wall (setpos -218 -280 24) or the ledge with no room
+    # on top (setpos -138 -280 24): both hands on it, pulled down to the hips and in, then pushed down and out over the
+    # top, held, and let go
+    L = list(LEAN)
+    for h, x in (("off", -0.12), ("main", 0.12)):
+        L += [f"0.000 {h} {x * 2} 1.1 -0.2 70 0 0", f"0.600 {h} {x} {hy} {fwd} 70 0 0", f"1.000 {h} {x} {hy} {fwd} 70 0 0",
+              f"2.000 {h} {x} 1.0 -0.35 70 0 0", f"2.300 {h} {x} 1.0 -0.35 70 0 0", f"2.900 {h} {x} 0.95 -0.75 70 0 0",
+              f"4.000 {h} {x} 0.95 -0.75 70 0 0", f"5.000 {h} {x * 2} 1.1 -0.2 70 0 0"]
+    return L + ["0.700 cmd +graboff", "0.750 cmd +grabmain", "4.000 cmd -graboff", "4.000 cmd -grabmain"], 5.0
 
 def press(where, d, pull=0.25):
     # the main hand d units in front of the ledge's face (setpos 78 176 24: x 96 - d, 1 under the lip) or rung 56's
@@ -146,7 +197,9 @@ def main():
         print(f"{sys.argv[1]}: {t:.2f} s")
         return
     L, t = {"ladder": lambda: ladder(11, True), "ledge": lambda: ledge(7, 1), "mantle": mantle, "e1m1": lambda: ledge(0, 2, 1.638, -0.76, "mantle"),
-            "ledgehang": lambda: hang(1.638, -0.69), "runghang": lambda: hang(1.943, -0.72)}[sys.argv[1]]()
+            "ledgehang": lambda: hang(1.638, -0.69), "runghang": lambda: hang(1.943, -0.72),
+            "ledgeodd": lambda: hang(1.638, -0.69, 0.25, 10, 50, 70), "rungodd": lambda: hang(1.943, -0.72, 0.25, 110, -40, -60),
+            "push": push, "overtop": overtop, "ladderlean": lambda: (lambda L, t: (LEAN + L, t))(*ladder(11, True))}[sys.argv[1]]()
     write(sys.argv[1] + ".txt", L)
     print(f"{sys.argv[1]}: {t:.2f} s")
 

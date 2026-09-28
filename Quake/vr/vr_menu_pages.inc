@@ -75,6 +75,10 @@
         slider("Hand on Hold: Towards You", "vr_climb_hand_out", -10.f, 10.f, 0.5f, "%.1f cm").extend().help("Where your hand is drawn on a ledge or a rung: back from the lip, towards you (negative: deeper). Looks only; the climbing is the same."),
         slider("Hand on Hold: Up", "vr_climb_hand_up", -10.f, 10.f, 0.5f, "%.1f cm").extend().help("Where your hand is drawn on a hold: up (negative: down). Looks only."),
         slider("Hand on Hold: Sideways", "vr_climb_hand_side", -10.f, 10.f, 0.5f, "%.1f cm").extend().help("Where your hand is drawn on a hold: along the edge, outwards (negative: towards the other hand). Looks only."),
+        slider("Hold Rotation Blend", "vr_climb_hand_turn_blend", 0.f, 1.f, 0.05f, "%.2f").extend().help("How your hand is turned on a hold: 0 facing the ledge (Hand on Hold: Pitch, Yaw, Roll), 1 as your controller is. Looks only."),
+        slider("Hand on Hold: Pitch", "vr_climb_hand_pitch", -30.f, 120.f, 5.f, "%.0f deg").extend().help("The hand facing a hold, its knuckles tilted up: 0 the palm down on the top, 90 the palm against the face under the lip. Looks only."),
+        slider("Hand on Hold: Yaw", "vr_climb_hand_yaw", -60.f, 60.f, 5.f, "%.0f deg").extend().help("The hand facing a hold, its knuckles turned towards the other hand (negative: away). Looks only."),
+        slider("Hand on Hold: Roll", "vr_climb_hand_roll", -90.f, 90.f, 5.f, "%.0f deg").extend().help("The hand facing a hold, rolled about its knuckles, the thumb's side up (negative: down). Looks only."),
     };
 }
 
@@ -86,7 +90,7 @@ void resetSwimming()
         "vr_swim_stick_speed", "vr_swim_stroke", "vr_swim_stroke_min", "vr_swim_palm", "vr_swim_stroke_assist",
         "vr_swim_max_speed", "vr_swim_look", "vr_swim_recovery", "vr_swim_glide", "vr_swim_power_threshold",
         "vr_swim_power_knee", "vr_swim_power_whole", "vr_swim_intent_memory", "vr_swim_reverse_damp", "vr_swim_reverse_speed",
-        "vr_swim_flat_exp", "vr_swim_speed_exp", "vr_swim_palm_dir"};
+        "vr_swim_flat_exp", "vr_swim_speed_exp", "vr_swim_palm_dir", "vr_swim_against_palm", "vr_air_supply"};
     for(const char* name : names)
     {
         if(cvar_t* var = Cvar_FindVar(name))
@@ -103,11 +107,15 @@ void resetSwimming()
         slider("Stick in Shallow Water", "vr_swim_shallow_speed", 0.f, 1.f, 0.05f, "%.2f").help("The stick's speed with your feet in water."),
         slider("Stick Wading", "vr_swim_wade_speed", 0.f, 1.f, 0.05f, "%.2f").help("Waist deep, standing on the bottom."),
         slider("Stick Swimming", "vr_swim_stick_speed", 0.f, 1.f, 0.05f, "%.2f").help("Under water or off the bottom: swim with your hands."),
+        slider("Air Supply", "vr_air_supply", 1.f, 4.f, 0.25f, "%.2fx")
+            .help("How long you can stay under water before you start drowning: times Quake's 12 seconds (1.5x: 18 s). Once drowning, the damage comes as ever. The Biosuit's air is unchanged."),
         header("Strokes"),
         slider("Stroke Strength", "vr_swim_stroke", 0.f, 30.f, 1.f, "%.0f").extend().help("How far a stroke of your hand moves you."),
         slider("Speed Curve", "vr_swim_speed_exp", 1.f, 3.f, 0.25f, "%.2f").extend()
             .help("How the push grows with the hand's speed. 1: in proportion. 2: as water's drag, so a brisk stroke outweighs a slower return by far. 3: even more."),
-        slider("Palm Matters", "vr_swim_palm", 0.f, 1.f, 0.1f, "%.1f").help("How much more a flat palm (or back of the hand) pushes than a hand meeting the water at an angle."),
+        slider("Palm Matters", "vr_swim_palm", 0.f, 1.f, 0.1f, "%.1f").help("How much more a hand meeting the water flat pushes than one meeting it at an angle. Either side of the hand: which side leads is Stroke Against Palm."),
+        slider("Stroke Against Palm", "vr_swim_against_palm", 0.f, 1.f, 0.05f, "%.2f")
+            .help("How much a stroke counts when the back of your hand leads (a backhand, or turning a hand round to reposition it) instead of the palm pushing the water. 0: ignored. 1: as a palm stroke. Blends smoothly through the hand edge-on."),
         slider("Palm Sharpness", "vr_swim_flat_exp", 0.5f, 4.f, 0.25f, "%.2f").extend()
             .help("How flat the palm must be to push fully. 1: pushing falls off evenly as the hand turns; 2-3: only a really flat palm pushes well."),
         slider("Recovery Push", "vr_swim_recovery", 0.f, 1.f, 0.05f, "%.2f").help("How much a hand going edge first (bringing it back for the next stroke) pushes."),
