@@ -61,6 +61,9 @@ using HolsterPlates = std::array<HolsterPlate, HolsterCount>;
 // hands.
 void updateHotspots(hands::State& s);
 
+// How near a hand must be to a holster to be at it (world units: vr_*_holster_thresh).
+[[nodiscard]] float holsterReach(Holster holster);
+
 // The hotspot of a holster, for highlighting it when a hand hovers it.
 [[nodiscard]] Hotspot holsterHotspot(Holster holster);
 

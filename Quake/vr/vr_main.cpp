@@ -30,6 +30,7 @@
 #include "vr_flashlight.hpp"
 #include "vr_grasp.hpp"
 #include "vr_modelcollide.hpp"
+#include "vr_selfcollide.hpp"
 #include "vr_gpustats.hpp"
 #include "vr_gfx.hpp"
 #include "vr_weapons.hpp"
@@ -949,6 +950,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_hand_rig_info", handrig::info_f);
     Cmd_AddCommand("vr_model_reload", view::modelReload_f);
     Cmd_AddCommand("vr_model_collide_bench", modelcollide::bench_f);
+    Cmd_AddCommand("vr_body_collide_bench", selfcollide::bench_f);
     Cmd_AddCommand("vr_wounds_test", wounds::test_f);
     Cmd_AddCommand("vr_wounds_info", wounds::info_f);
     Cmd_AddCommand("vr_wounds_dump", wounds::dump_f);

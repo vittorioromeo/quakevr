@@ -1,6 +1,7 @@
 // vr_avatar.cpp -- see vr_avatar.hpp.
 
 #include "vr_avatar.hpp"
+#include "vr_selfcollide.hpp"
 #include "vr_engine.hpp"
 #include "vr_units.hpp"
 #include "vr_backend.hpp"
@@ -650,6 +651,30 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     }
     lastSwivel[side] = swivel;
 
+    // An elbow in the torso (the hand across the chest, the pole down and back) swings out of it about the same line,
+    // as little as takes it out (vr_body_collide_elbows: the torso's capsules, vr_selfcollide.cpp), eased as above.
+    static float lastOut[2]{0.f, 0.f};
+    static double lastOutTime[2]{-1.0, -1.0};
+    if(easeWrists)
+    {
+        // (Its joint kept 2 cm out: 3 cm of its flesh's 5.5, less the centimetre an arm at rest lies against the torso
+        // by; a relaxed arm hanging at the side is 2.5 cm out.)
+        const float want = selfcollide::elbowSwing(u.pos, elbow, wrist, 0.03f * b.m2w);
+        const double now = realtime;
+        const double since = lastOutTime[side] >= 0.0 ? CLAMP(0.0, now - lastOutTime[side], 0.1) : -1.0;
+        const float out = since < 0.0 ? want : glm::mix(lastOut[side], want, 1.f - std::exp(-static_cast<float>(since) / 0.05f));
+        lastOut[side] = std::abs(out) < 1e-4f ? 0.f : out;
+        lastOutTime[side] = now;
+        if(lastOut[side] != 0.f)
+        {
+            const glm::vec3 axis = safeNormalize(wrist - u.pos);
+            const glm::vec3 centre = u.pos + axis * glm::dot(elbow - u.pos, axis);
+            const glm::quat q = glm::angleAxis(lastOut[side], axis);
+            elbow = centre + q * (elbow - centre);
+            bend = q * bend;
+        }
+    }
+
     if(easeWrists && vr_debug_arm.value != 0.f)
     {
         traceArm(b, side, u.pos, poleElbow, poleBend, elbow, bend, wrist, handRot, swivel);
@@ -1218,6 +1243,7 @@ struct Posed
 };
 
 Posed posed;
+Skeleton posedSkeleton; // (skeleton(): valid while posed.ent is set)
 
 // The forearms' frames as last posed or solved (forearmFrame), per hand: the twist, about the forearm's axis from
 // its untwisted axes, at the elbow (none), at each twist joint and at the wrist (the hand's whole roll).
@@ -1512,6 +1538,24 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
         }
     }
 
+    // The joints where the body is (before the preview moves it), for the collision proxies (skeleton()).
+    {
+        Skeleton& k = posedSkeleton;
+        k.m2w = b.m2w;
+        k.legs = legs;
+        for(int side = 0; side < 2; side++)
+        {
+            const int clav = side == 0 ? ClavicleL : ClavicleR;
+            const int hand = side == 0 ? leftHand : 1 - leftHand;
+            k.shoulder[hand] = b.bones[clav + 1].pos;
+            k.elbow[hand] = b.bones[clav + 2].pos;
+            k.wrist[hand] = b.bones[clav + 3].pos;
+            k.hip[side] = b.bones[side == 0 ? ThighL : ThighR].pos;
+            k.knee[side] = b.bones[side == 0 ? CalfL : CalfR].pos;
+            k.ankle[side] = b.bones[side == 0 ? FootL : FootR].pos;
+        }
+    }
+
     // Preview: the body in front of the player, with its head, facing them (2) or turned to show
     // its left side (3).
     if(vr_body_debug.value >= 2.f)
@@ -1585,6 +1629,16 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
     }
     keepForearms(b);
     return origin;
+}
+
+bool skeleton(Skeleton& out)
+{
+    if(!posed.ent)
+    {
+        return false;
+    }
+    out = posedSkeleton;
+    return true;
 }
 
 void hide()
