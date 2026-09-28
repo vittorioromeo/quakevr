@@ -176,13 +176,14 @@ void matchControllerPreview()
     S_LocalSound(matched ? "misc/menu2.wav" : "misc/menu3.wav");
 }
 
-// The calibration's moves and rolls back to 0 (not the pitch and yaw: they are the aim).
+// The calibration's moves and rolls back to their defaults (the shipped calibration, which the shipped weapon offsets were
+// set over; not the pitch and yaw: they are the aim).
 void resetHandMoves()
 {
     for(cvar_t* var : {&vr_handcal_x, &vr_handcal_y, &vr_handcal_z, &vr_handcal_roll, &vr_handcal_off_x, &vr_handcal_off_y,
             &vr_handcal_off_z, &vr_handcal_off_roll})
     {
-        Cvar_SetQuick(var, "0");
+        Cvar_SetQuick(var, var->default_string);
     }
 }
 
@@ -241,7 +242,8 @@ void resetHandMoves()
                   "middle of the handle, where OpenXR puts the fist). Then turn it (Pitch, Yaw, Roll) to fit, and move "
                   "it again. The off hand only with its own values; needs the jointed hand."),
         action("Reset Moves and Rolls", resetHandMoves)
-            .help("Both hands' X, Y, Z and Roll back to 0 (the hands as before the calibration). Pitch and Yaw stay."),
+            .help("Both hands' X, Y, Z and Roll back to their defaults (the calibration the weapon offsets were set with). "
+                  "Pitch and Yaw stay."),
         header("Guns"),
         slider("Gun Model Pitch", "vr_gunmodelpitch", -90.f, 90.f, 0.25f, "%.1f").extend(-180.f, 180.f).help("Pitch offset for gun models. Does NOT affect aiming."),
         slider("Gun Model Scale", "vr_gunmodelscale", 0.1f, 2.f, 0.05f, "%.2f").extend(0.02f, 5.f).help("Scale multiplier for gun models. Does NOT affect aiming, but does affect muzzle position (where bullets and projectiles come from)."),

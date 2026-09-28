@@ -32,6 +32,9 @@ void registerCvars();
 
 [[nodiscard]] float value(int slot, Key key);
 
+// A first start (no saved config): its settings are the defaults, of this version (no migration to run on them).
+void markCurrent();
+
 // For the Weapon Offsets menu page: a slot's cvar for a key, its settings back to their defaults, and
 // its settings printed as vr_weapons.inc lines (to make them the shipped defaults).
 [[nodiscard]] cvar_t* cvar(int slot, Key key);
