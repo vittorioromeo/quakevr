@@ -8319,9 +8319,9 @@ the main hand, instead of straight ahead. Branch `agent/projfix`; scripts and lo
   (swept, from a frame back to half a frame ahead) passes within **Catch Radius** (`vr_grenade_catch_radius`, 15 cm)
   of the palm (1.5 units out from the hand, the way the palm faces), plus the grenade's size:
   - **Grip held or closing:** it's caught (a fist held out still, or a reach with the hand closing).
-  - **Open palm facing it** (not the back of the hand): the palm **stops** it and holds it there for **Catch Window**
-    (`vr_grenade_catch_window`, 0.15 s) so the grip can close. Close in time and it's caught. Otherwise it drops from
-    the hand with the hand's motion, its fuse still the ogre's.
+  - **Open palm facing it** (within 78 degrees; not its edge or back): the palm **stops** it and holds it there for
+    **Catch Window** (`vr_grenade_catch_window`, 0.15 s) so the grip can close. Close in time and it's caught.
+    Otherwise it drops from the hand with the hand's motion, its fuse still the ogre's.
   - The same rules apply when the engine reports the hand touching it (`VR_Grenade_HandTouch`, in
     `VR_Carry_Handtouch`). A grenade in flight is never nudged, by a hand or by a gun poking it. Lying or rolling
     (slower than 150 u/s), it is taken and nudged as before.

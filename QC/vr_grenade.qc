@@ -53,7 +53,7 @@ float VR_GREN_FLYING = 150;     // u/s: faster, a grenade is in flight (caught w
                                 // slower, it lies or rolls (touched with the grip pressed, or nudged: the carry's rule)
 float VR_GREN_CATCH_AGE = 0.2;  // s after its throw a grenade can be caught (not as it leaves your hand or launcher)
 float VR_GREN_PALM = 1.5;       // units from the hand's point to the palm, the way the palm faces
-float VR_GREN_PALM_FACING = -0.3; // an open palm stops a grenade coming at it at least this square (cosine): not its back
+float VR_GREN_PALM_FACING = 0.2; // an open palm stops a grenade coming at it this square (cosine) or more: not edge-on
 
 float VR_GREN_BOUNCE = 90;     // u/s: a jump in its velocity (gravity's taken off) this big is a bounce
 float VR_GREN_TICK_SLOW = 0.5; // s between ticks with vr_grenade_held_fuse (or more) left,
@@ -373,7 +373,7 @@ float(float xHand, entity g) VR_Grenade_Trap =
     vector palm = VR_Grenade_PalmDir(self, xHand);
     if(palm * normalize(g.velocity * -1) < VR_GREN_PALM_FACING)
     {
-        return FALSE; // (the back of the hand: it flies on)
+        return FALSE; // (the edge or back of the hand: it flies on)
     }
     dprint(sprintf("grenade: %s stopped by the open palm of hand %g at %.0f u/s (facing it %.2f): %.2f s for the grip\n",
         g.classname, xHand, vlen(g.velocity), palm * normalize(g.velocity * -1), window));
@@ -415,7 +415,7 @@ float() VR_Grenade_TrapTick =
 };
 
 // A grenade in flight `g` meeting `xHand` of self, not striking (VR_Grenade_HandCatches): the grip held or closing
-// takes it; an open palm facing it stops it (VR_Grenade_Trap); the back of the hand lets it fly on. TRUE if it was
+// takes it; an open palm facing it stops it (VR_Grenade_Trap); its edge or back lets it fly on. TRUE if it was
 // taken or stopped.
 float(float xHand, entity g, string xHow) VR_Grenade_Meet =
 {
