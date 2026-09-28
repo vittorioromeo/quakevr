@@ -1295,7 +1295,7 @@ bool playDummyAttacks()
 double hostFrameTime(double time)
 {
     double dt = time;
-    if(state == State::Idle && fixedLoading)
+    if(state == State::Idle && (fixedLoading || vr_fixed_frames.value != 0.f))
     {
         return setupDt;
     }
@@ -1351,7 +1351,7 @@ int serverFrameOverride(double& frametime)
         }
     }
 
-    if(state == State::Setup || state == State::Post || (state == State::Idle && fixedLoading))
+    if(state == State::Setup || state == State::Post || (state == State::Idle && (fixedLoading || vr_fixed_frames.value != 0.f)))
     {
         frametime = setupDt;
         return 1;

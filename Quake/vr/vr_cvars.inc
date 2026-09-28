@@ -64,6 +64,9 @@ QVR_CVAR(vr_bindings_version, "0", CVAR_ARCHIVE)
 
 // Mock backend: swing the main hand in an overhand arc with this period, in seconds (0: still).
 QVR_CVAR(vr_mock_swing, "0", CVAR_NONE)
+// Test runs: 1 makes every host frame 1/72 s of game time with a server frame (vr_motion_play.cpp hostFrameTime), so a
+// scripted run (vr_mock_play, "wait") logs the same numbers every time, whatever the machine's pace.
+QVR_CVAR(vr_fixed_frames, "0", CVAR_NONE)
 
 // Rigid-body physics: Box3D (docs/vr-port/ROUND21.md, "Box3D physics"; vr_box3d.cpp: props also collide with each
 // other, so they stack and pile).
