@@ -68,7 +68,7 @@
         cycle("Default Speed", "cl_alwaysrun", {{1.f, "Run"}, {0.f, "Walk"}}).help("The speed button switches to the other."),
         slider("Running Mult.", "cl_movespeedkey", 1.f, 3.f, 0.05f, "%.2f").extend().help("How much faster running is than walking."),
         toggle("Swimming", "vr_swim").help("In water the stick slows and strokes of your hands move you (more on the Swimming page)."),
-        toggle("Climbing (Experimental)", "vr_climb").help("Grip a ledge or a rung with either empty hand, or both, to hang from it; pull to climb hand over hand, shimmy along a ledge, pull up onto it. Edges only, not flat walls."),
+        toggle("Climbing", "vr_climb").help("Grip a ledge or a rung with either empty hand, or both, to hang from it; pull to climb hand over hand, shimmy along a ledge, pull up onto it. Edges only, not flat walls."),
         slider("Lowest Ledge", "vr_climb_min_height", 0.f, 64.f, 2.f, "%.0f units").extend().help("How far above your feet a ledge must be to grab it."),
         slider("Ledge Fling", "vr_climb_fling", 0.f, 2.f, 0.1f, "%.1f").extend().help("How much letting go of a ledge flings you with your hands' motion."),
         slider("Grab Leniency", "vr_climb_leniency", 0.f, 30.f, 1.f, "%.0f cm").extend().help("A grip that just misses a ledge or a rung takes the nearest one within this distance of your hand (not through walls, behind you or below your reach). 0: only where your hand is."),
@@ -446,7 +446,7 @@ void resetHandMoves()
         slider("Lava Gun Light at Rest", "vr_lavagun_light_idle", 0.f, 1.f, 0.05f, "%.2fx").help("Lava guns in your holsters or lying on the floor glow too, this much of a held one's (0 not)."),
         slider("Lightning Beam Lights", "vr_beam_lights", 0.f, 12.f, 1.f, "%.0f").extend().help("Lightning beams light the room along their length with this many flickering lights (0 off)."),
         slider("Torch Lights", "vr_torch_lights", 0.f, 16.f, 1.f, "%.0f").extend().help("Torches and flames flicker a small warm light onto the room: how many at once, the nearest (0 off)."),
-        slider("Torch Light Brightness", "vr_torch_light_scale", 0.f, 3.f, 0.05f, "%.2fx").extend().help("How bright the torches' flickering light is, on top of the map's own light."),
+        slider("Torch Light Brightness", "vr_torch_light_scale", 0.f, 16.f, 0.25f, "%.2fx").extend().help("How bright the torches' flickering light is, on top of the map's own light."),
         slider("Torch Light Shadows", "vr_torch_light_shadows", 0.f, 4.f, 1.f, "%.0f").extend().help("How many of the nearest torches cast shadows (each takes one of the dynamic lights' shadows; 0 none)."),
         slider("Ammo Screen Light", "vr_weapon_screen_light", 0.f, 3.f, 0.1f, "%.1fx").extend().help("Your weapons' ammo screens cast a small light in their colour on what is in front of them (0 off)."),
     };

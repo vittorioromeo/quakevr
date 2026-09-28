@@ -7450,3 +7450,113 @@ new corner for the leniency: a thin wall (4 units, 96 high) on the main floor wi
 - [ ] Grab Leniency 10: reach a little short of rungs and ledges. Too eager (holds you didn't mean) or still too strict?
 - [ ] A far grab (Leniency 30, the hand 30 cm short): the drawn hand glides on; you don't move until you pull.
 - [ ] The hand's light on a hold in a dark place (it is lit like the top it grips).
+
+## Defaults, second pass (2026-09-28 afternoon)
+
+Your notes (14:00-14:46): the authored models' parallax and bumps and the hands' and weapons' shadows look good, make
+your tweaks the defaults; torch brightness raised a lot, give its slider room for it and make it the default; more
+offsets and settings; the flashlight's finger poses; climbing on by default. Branch `agent/defaults4`; scripts, dumps,
+logs and screenshots in the scratchpad's `defaults4/`.
+
+**Source:** a copy of your `quakevr/ironwail.cfg` at 14:50 (config version 16, `vr_wofs_version` 20), loaded by this
+build and read back from the game (`writeconfig`, after a map, so that the weapon migration has run), as in the first
+pass. Against a first start of the build before this change it differed in 27 `vr_wofs_*` and 40 other settings.
+
+### Weapon hotspots (`vr_weapons.inc`, `vr_wofs_version` 21)
+
+- **27 values in 3 weapons** (26 changes and one spelling: the nailgun's Two-Handed `0.0` is now `0`, as in your config):
+  - shotgun: its cup (hotspot 2) moved, from (6.03, -0.36, -2.52) turned (21.2, -31.1, -63.4) to (-3.5, -1.7, -5.6)
+    turned (-6, -8.65, -6): 6 values;
+  - super shotgun: a new cup (hotspot 2, at (-8.4, -2.1, -2.9), overlap 0.7) and a new grip (hotspot 3, at (-4.99,
+    -1.52, -0.13) turned (0.09, 19.35, 50.73)): 12 values;
+  - nailgun: a new cup (hotspot 2, at (-7.1, -2.6, -6.1) turned (-2, -3.73, -2), overlap 0.75): 8 values, and the
+    spelling.
+- **The table** takes your exact strings: 7 lines changed in place, 20 added at its end. The super nailgun and the
+  lava nailgun have no values of their own and inherit as before.
+- **Migration 21:** a config below it has slots 1..3 reset to the new defaults once. Checked: a version-20 config with
+  its own super shotgun cup X (5), no nailgun cup and the old shotgun cup takes the new ones, and keeps its super
+  nailgun value (slot 4). Yours is reset to your own values: nothing changes.
+
+### Other settings (`vr_defaults.cfg`, `vr_savedefaults`: 155 settings, were 144)
+
+24 of your settings, and 5 arm settings back to the compiled defaults (below): 29 changes.
+
+| Setting | Was | Now |
+|---|---|---|
+| Torch Light Brightness, `vr_torch_light_scale` | 2 | 10 |
+| Graphics: Parallax Depth: Authored Models (`vr_parallax_authored`), Detail Distance (`vr_detail_distance`) | 1, 144 | 1.5, 256 |
+| Flashlight, low grip: `vr_flashlight_low_x`, `_z` | -0.5, -2 | 0.5, -0.5 |
+| Flashlight, low grip fingers: `_low_overlap`, `_low_curl_thumb` | 0.3, 0.97 | 0.45, 0.4 |
+| `_low_bias_thumb`, `_index`, `_ring`, `_pinky` | 0, 0, 0, 0 | -0.06, 0.02, -0.02, -0.36 |
+| `_low_thumb_x`, `_low_thumb_z` | 0, 0 | 0.5, -0.25 |
+| Flashlight, overhead grip: `vr_flashlight_high_x` | 0 | -1.5 |
+| Holsters: `vr_hip_offset_x` | -3.11 | -7 |
+| `vr_upper_holster_offset_x`, `_y` | -4.25, 7 | -8, 7.5 |
+| `vr_upper_holster_pitch`, `_yaw`, `_roll` | 30, 40, -70 | 40, 20, -60 |
+| Climbing: `vr_climb_hand_up` (the hand on a hold, display only) | 1 | -10.5 |
+| Swimming: `vr_swim_glide`, `vr_swim_palm_dir` | 0.7, 0 | 0.6, 0.8 |
+| Counter Window Glow, `vr_counter_glow` | 0 | 1 |
+
+- **The flashlight's finger poses** are its own settings per grip (`vr_flashlight_low_*`, `vr_flashlight_high_*`; it
+  has no weapon slot), so they ship in `vr_defaults.cfg`, not in the table.
+- **Parallax, bumps and shadows:** of these you changed only Parallax Depth: Authored Models (1.5) and Detail Distance
+  (256) since the first pass; the rest (`vr_normalmap_*`, `vr_parallax_*`, `vr_shadow_self` 2 and the other shadow
+  settings) already were the shipped defaults.
+- **Counter Window Glow on:** it was turned off for you (config version 14: you'd rather play without it), and your
+  config has it on again, so it ships on. Its migration 14 now gives an old config 1 either way. Say if that was a test
+  and it should stay off.
+- **Climbing** was already on by default (`vr_defaults.cfg` since round 15; "still off by default" in "Climbing with
+  both hands" above was wrong). The menu drops "(Experimental)": Locomotion > **Climbing**.
+- **Existing configs** keep their saved values for these, as in the first pass (a config saves every setting): they
+  reach a first start, and yours already has them. No config migration is added.
+
+### Arms are the player's (your decision)
+
+"Arm and elbow settings should not be defaults, players should tweak those themselves." The first pass's arm settings
+are gone from `vr_defaults.cfg`, back to the compiled defaults: `vr_body_arm_length` 0.86 -> 1, `vr_body_shoulder_reach`
+0.1 -> 0.08, `vr_body_elbow_out`, `_back`, `_hand` 1, 0, 0 -> 0.35, 0.25, 0.4. `vr_savedefaults` now leaves out all of
+Body > Arms' shape settings (Arm Length, Arm Stretch, Shoulder Reach, Elbow Out, Elbow Back, Elbow From Hand, Forearm
+Twist, Wrist Limits; the body tweaks were left out already), so they are never baked again. The pauldrons' settings
+still ship. Your config keeps your arms (0.95, 0.1, 1, 0, 0).
+
+### Torch brightness
+
+- **The setting** is Graphics > Torch Light Brightness (`vr_torch_light_scale`): the warm flickering light of wall
+  torches, flames, candles and lanterns. The flashlight's brightness (`vr_flashlight_brightness` 1) is unchanged, so
+  its beam, glare and shadows are as before.
+- **The slider** goes 0..16 in steps of 0.25 (was 0..3 in steps of 0.05, going on to 15 past its end): 10 sits at 62%.
+- **How it looks at 10** (e1m2, the two wall torches by a doorway, mock headset; `defaults4/torch1.png`: 10, 2 and 0,
+  from across the room and at arm's length):
+  - from across the room: a warm pool round each torch on the wall and floor. The picture's mean brightness is 17
+    (9.7 at 2, 7.9 with no torch light); 1.9% of its pixels reach full red, none full white;
+  - at arm's length: the wall round the flame turns a strong orange-yellow; 10% of the pixels reach full red (0.3% at
+    2), still none white; the bricks' relief stays, a little flattened just above the flame. The flame model itself
+    looks paler, yellow-white rather than orange.
+  - Nothing looks broken, so there is no counterpart change. If the wall right by a torch looks too hot in the headset,
+    the mild fix is to keep the torch's own flame out of its light, or to ease the colour towards saturation rather
+    than clip red first. Say if you want either.
+  - With Quake's falloff (`vr_dlight_falloff 0`) the brightness only stretches the reach, up to 2x: above 2 it changes
+    nothing there.
+
+### Checks (mock headset)
+
+The runs used a clean game folder (`defaults4/freshbase`: no configs in `id1`, `hipnotic` or `rogue`); the
+worktree's baseline config was moved aside for the first starts and put back.
+
+- **A first start against yours** (both after a map): all 6432 `vr_wofs_*` identical, the 13 hand calibration settings
+  identical. The 20 other differences are personal or the desktop's: the console, menu, status bar and crosshair scale,
+  the menu background, mouse sensitivity, the window's antialiasing (2), your arms (5) and body tweaks (2), height, the
+  motion recorder (2), the OpenXR runtime, and `vr_finger_grip_bias` spelled `0` in yours and `0.0` in the defaults.
+- **Your config through this build** against the build before: every setting identical but `vr_wofs_version` (21).
+- **`vr_dumpview`**, your config (its arms, body tweaks and height set to a first start's) against a first start, in
+  the firing range: 13 weapons in the main hand, the same in the off hand, and the shotgun, super shotgun and lightning
+  gun in both hands: 29 dumps, 2144 lines, 3 differ (a hand model's yaw -180 against 180, and a hand angle by 0.0001
+  degree). The flashlight in the off hand, e1m1, two poses: the lamp, the hand and its fingers identical (the gadget on
+  the wrist differs by 0.001).
+
+### In the headset
+
+- [ ] A first start (move your config away): the shotgun's cup, the super shotgun's cup and grip and the nailgun's cup
+  are where you set them; the flashlight sits in the hand as in yours.
+- [ ] The torches at 10 on a first start, close to a wall torch: too hot or right?
+- [ ] Body > Arms on a first start: the compiled arms (Arm Length 1).
