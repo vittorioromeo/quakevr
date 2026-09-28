@@ -142,6 +142,10 @@ context and screenshot, ready to paste or to point me at.
 ## What to try
 
 - **New in this round** (details in `docs/vr-port/ROUND21.md`; each section ends with an "In the headset" list):
+  - **Dynamic wounds, burns and wetness** (Gore page > Wounds on Models; ROUND21.md "Dynamic wounds, burns and
+    wetness"): shoot a grunt a few times, blow up an ogre, shove a monster into lava or slime, let a grunt shoot you,
+    wade in water: blood where each blow landed, scorches, char with embers, wet and drying; a health pack washes
+    your blood off. Your body and hands no longer use the wound skins (Dynamic Wounds off: as before).
   - **Enemies Hurt by Liquids** (Gameplay > Damage, on; ROUND21.md, "Enemies hurt by liquids; holster orientation"):
     shove a monster into slime or lava: it burns as you would (lava fast, with smoke; slime slowly). Fish, bosses and
     Hephaestus are immune; zombies burn up in lava.
@@ -679,6 +683,16 @@ grip 0` (the right hip; the right shoulder is `0.1 1.75 0.12`). A new game start
 hips. To draw: `+grabright; vr_mock_button main grip 1` at the holster. Turn them with
 `vr_{hip,upper,shoulder}_holster_{pitch,yaw,roll}`. `vr_body_debug 2` or `3` shows the hip and chest holsters on the
 preview; `vr_mock_camera 0.7 1.9 0.8 20 40` shows the back.
+Wounds (ROUND21.md, "Dynamic wounds, burns and wetness"): `vr_wounds_test <entity|self|ahead|all> <kind> [amount]
+[right] [up] [extra]` paints a wound as the server's event would (1 shot, 2 nail, 3 melee, 4 blast, 5 burn, 6 zap,
+7 lava, 8 slime, 9 liquid; a liquid's `up` is its surface over the feet); `ahead` is the model nearest the view's
+line (a grunt from `vr_test_spawn 0; vr_test_spawn_dist 70; impulse 241` in `vrfiringrange`), `all` every model
+(the stress test). `vr_wounds_dump` writes each mask to `quakevr/wounds/mask_<layer>_<model>.png` (delete them
+after), `vr_wounds_info` lists the pool, `vr_wounds_debug 1` prints each event and where it landed (2: also the
+player's capsules). `give h 30` then `give h 100` checks the heal fade. `vr_physics_blast` from the console loses the
+wound events (they go out in the next server frame's datagram, cleared first): test explosions with
+`vr_wounds_test ahead 4 <damage>`. Screenshots comparable run to run: `host_framerate 0.0111; vr_particle_seed 7;
+vr_body_blood 0; vr_body_blood_floor 0` (the wrist gadget's readout still changes).
 Liquids (ROUND21.md, "Enemies hurt by liquids"): `vr_debug_shots 1; developer 1` logs each burn (`liquid: ... health`);
 with `vr_enemy_liquid_damage 0` it logs a "not burnt" line each second instead. Run `god; notarget` first, then:
 - a grunt in e1m1's slime: `setpos 200 2820 -60; wait5; vr_test_spawn 0; vr_test_spawn_dist 64; impulse 241`;

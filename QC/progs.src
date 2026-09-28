@@ -35,6 +35,7 @@ player.qc
 triggers.qc
 weapons.qc
 vr_liquids.qc
+vr_wounds.qc
 world.qc
 vr_dummy.qc
 vr_motion.qc

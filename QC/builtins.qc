@@ -146,6 +146,7 @@ string(string fmt, ...) sprintf = #627; // DP_QC_SPRINTF
 // ----------------------------------------------------------------------------
 
 void(vector o, vector d, float preset, float count) particle2 = #0; // start a particle2 effect
+void(entity e, vector org, vector dir, float kind, float amount, float extra) woundevent = #0; // a wound painted on e's model by every client (vr_wounds.qc)
 void(float hand, float delay, float duration, float frequency, float amplitude) haptic = #0; // VR haptics function
 void(float hand, float strength, vector dir) handimpact = #0; // knock the `self` player's drawn hand (a parried blow)
 // Spent casings out of the weapon in the `self` player's `hand`, `delay` seconds from now: drawn by

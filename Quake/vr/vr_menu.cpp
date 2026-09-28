@@ -565,7 +565,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Swimming Kick Rate", vr_body_swim_kick_rate, 0.f, 4.f, 0.1f, "+%.1f /s").extend()
             .help("How many more kicks a second at full stick (treading water, about 0.7)."),
         toggle("Show Armour and Wounds", vr_body_state)
-            .help("The armour you wear plates your torso; your arms and hands get bloodier as you are hurt."),
+            .help("The armour you wear plates your torso; your arms and hands get bloodier as you are hurt (with Dynamic Wounds, on the Gore page: where you are hit)."),
         toggle("Wounds Drip Blood", vr_body_blood)
             .help("Blood drips from your wounded arms and hands, faster when badly hurt or just hit, and splashes on the floor."),
         toggle("Show Powerups", vr_body_powerups)
@@ -798,6 +798,13 @@ void flashlightFingers(std::vector<Item>& list, const FlashlightFingerCvars& c, 
             .help("Blood dripping from splats on the ceiling and from gibs stuck there: how long and how much (0 none)."),
         slider("Gibs Stick", vr_gore_stick, 0.f, 30.f, 1.f, "%.0f s").extend()
             .help("Gibs flung into a ceiling or a wall may stick there about this long, dripping, then fall (0 never)."),
+        header("Wounds on Models"),
+        toggle("Dynamic Wounds", vr_wounds)
+            .help("Blood painted on monsters, corpses and you where the hits land, in the skins' own pixels. Your body and hands show your wounds this way instead of the wound skins, and healing washes them off."),
+        toggle("Burns", vr_wounds_burns).help("Explosions, fire, lightning, lava and slime char what they hit; fresh burns glow in their cracks for a moment."),
+        toggle("Wet from Liquids", vr_wounds_wet).help("Monsters and you get wet up to where water or slime came, drip, and dry in about 25 seconds."),
+        cycle("Models Kept", vr_wounds_pool, {{32.f, "32 (8 MB)"}, {64.f, "64 (16 MB)"}, {128.f, "128 (32 MB)"}})
+            .help("How many models keep their wounds at once: past it, the ones seen longest ago give theirs up."),
         header("Your Wounds"),
         slider("Arm Drip Rate", vr_body_blood, 0.f, 4.f, 0.25f, "%.2fx").extend()
             .help("How often blood drips from your wounded arms and hands (the body's wounds: Show Armour and Wounds; 0 none)."),

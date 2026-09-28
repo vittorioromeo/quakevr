@@ -143,6 +143,8 @@ extern	const char	*gl_version;
 	x(GLboolean,	UnmapBuffer, (GLenum target))\
 	x(void*,		MapBufferRange, (GLenum target, GLintptr offset, GLsizeiptr length, GLbitfield access))\
 	x(void,			FlushMappedBufferRange, (GLenum target, GLintptr offset, GLsizeiptr length))\
+	x(void,			BlendEquation, (GLenum mode))\
+	x(void,			FramebufferTextureLayer, (GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer))\
 	x(GLsync,		FenceSync, (GLenum condition, GLbitfield flags))\
 	x(void,			DeleteSync, (GLsync sync))\
 	x(GLenum,		ClientWaitSync, (GLsync sync, GLbitfield flags, GLuint64 timeout))\
@@ -501,6 +503,7 @@ void R_DrawBrushModels_SkyCubemap (entity_t **ents, int count);
 void R_DrawBrushModels_SkyStencil (entity_t **ents, int count);
 void R_DrawAliasModels (entity_t **ents, int count);
 void R_DrawAliasModelsDepth (entity_t **ents, int count); // QVR: depth only (the shadow maps' casters)
+qboolean R_PaintAliasWounds (entity_t *e, int numsplats, const float *splats); // QVR: into its wound mask (vr/vr_wounds.cpp)
 void R_DrawSpriteModels (entity_t **ents, int count);
 qboolean R_SoftSpritesPending (void); // QVR: sprites left for R_DrawSpriteModelsSoft (VR_SoftSprites)
 void R_DrawSpriteModelsSoft (GLuint distances); // QVR: them, soft, after the translucent pass (vr/vr_particles.cpp)
@@ -587,6 +590,7 @@ typedef struct glprogs_s {
 	GLuint		skyboxside[2];		// [dither]
 	GLuint		alias[2][3][2][3];	// [OIT][mode:standard/dithered/noperspective][alpha test][poseverttype]
 	GLuint		alias_depth[3];		// QVR: [poseverttype] the shadow maps' casters: depth only (no fragment shader)
+	GLuint		woundpaint[3];		// QVR: [poseverttype] a model drawn into its wound mask (vr/vr_wounds.cpp)
 	GLuint		sprites[2];			// [dither]
 	GLuint		particles[2][2];	// [OIT][dither]
 	GLuint		debug3d;
