@@ -49,10 +49,10 @@ void armBones(float& upper, float& fore);
 struct ShoulderModel
 {
     float scale{1.f};      // the body's scale (eye height / the models')
-    glm::vec3 offset{0.f}; // vr_body_shoulders_back, _up, _out (metres of the model)
+    glm::vec3 offset{0.f}; // bodycal::shoulderOffset(): back, up, out (metres of the model)
     float armLength{0.55f}; // the upper arm and forearm (real metres)
-    float upDegrees{25.f};  // vr_body_shoulder_up
-    float forwardDegrees{20.f}; // vr_body_shoulder_forward
+    float upDegrees{25.f};  // bodycal::shoulderRise()
+    float forwardDegrees{20.f}; // bodycal::shoulderSwing()
     bool calibrated{true};      // the calibrated arms' continuous rise
 };
 // The shoulder joint of `side` (0 the body's left, 1 its right) with the drawn wrist at `wrist` (the chest's frame).
@@ -155,6 +155,23 @@ struct Shoulder
     float m2w{1.f};
 };
 [[nodiscard]] bool shoulder(int side, Shoulder& out);
+
+// The body as last posed (pose(), before the preview's move: where it is on the player), for the drawn body's collision
+// proxies (vr_selfcollide.cpp): its joints in the world. Per hand (HAND_OFF, HAND_MAIN): the shoulder joint, the
+// elbow and the wrist; per side (0 the body's left, 1 its right): the hip, the knee and the ankle (`legs`: the full
+// body's, posed this frame). `m2w`: world units per metre of the modelled body. False when the body is not posed.
+struct Skeleton
+{
+    float m2w{1.f};
+    glm::vec3 shoulder[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    glm::vec3 elbow[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    glm::vec3 wrist[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    bool legs{false};
+    glm::vec3 hip[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    glm::vec3 knee[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    glm::vec3 ankle[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+};
+[[nodiscard]] bool skeleton(Skeleton& out);
 
 // Not drawn this frame.
 void hide();

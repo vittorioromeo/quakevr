@@ -1,9 +1,11 @@
 // vr_avatar.cpp -- see vr_avatar.hpp.
 
 #include "vr_avatar.hpp"
+#include "vr_selfcollide.hpp"
 #include "vr_engine.hpp"
 #include "vr_units.hpp"
 #include "vr_backend.hpp"
+#include "vr_bodycal.hpp"
 #include "vr_cvars.hpp"
 #include "vr_lines.hpp"
 #include "vr_motion.hpp"
@@ -503,8 +505,8 @@ void traceArm(const Body& b, int side, const glm::vec3& shoulder, const glm::vec
 }
 
 // The arms' lengths in world units: the upper arm (the shoulder joint to the elbow) and the forearm (the elbow to the
-// drawn hand's wrist). Calibrated (Body Calibration: vr_body_upper_arm and vr_body_forearm, real centimetres), or the
-// model's proportions times vr_body_arm_length.
+// drawn hand's wrist). Measured (Body Calibration: vr_bodycal_upper_arm and vr_bodycal_forearm, real centimetres), or the
+// model's proportions times vr_body_arm_length; the player's tweak on top (vr_body_tweak_*, cm).
 struct ArmLengths
 {
     float upper{0.f}, fore{0.f};
@@ -515,11 +517,10 @@ struct ArmLengths
     const float length = CLAMP(0.5f, vr_body_arm_length.value, 2.f);
     const float cm = units::metresToUnits() * 0.01f;
     ArmLengths r;
-    r.upper = vr_body_upper_arm.value > 0.f ? CLAMP(10.f, vr_body_upper_arm.value, 60.f) * cm
-                                            : boneLength(UpperArmL, ForearmL) * m2w * length;
-    r.fore = vr_body_forearm.value > 0.f ? CLAMP(10.f, vr_body_forearm.value, 60.f) * cm
-                                         : boneLength(ForearmL, HandL) * m2w * length;
-    r.calibrated = vr_body_upper_arm.value > 0.f && vr_body_forearm.value > 0.f;
+    const float mu = bodycal::measuredArmCm(0), mf = bodycal::measuredArmCm(1);
+    r.upper = std::max(5.f * cm, (mu > 0.f ? mu * cm : boneLength(UpperArmL, ForearmL) * m2w * length) + bodycal::armTweakCm(0) * cm);
+    r.fore = std::max(5.f * cm, (mf > 0.f ? mf * cm : boneLength(ForearmL, HandL) * m2w * length) + bodycal::armTweakCm(1) * cm);
+    r.calibrated = bodycal::calibrated();
     return r;
 }
 
@@ -563,18 +564,17 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     c = Bone{};
     const glm::mat3 rest = chest.rot * glm::transpose(bd.rot[Chest]) * bd.rot[clav];
     const glm::vec3 lateral = rest[0];
-    // The shoulders' own offset from the chest (vr_body_shoulders_*): back, up, and outwards along
-    // the clavicle, in metres.
-    c.pos = childPos(b, clav) +
-            (-cFwd * vr_body_shoulders_back.value + cUp * vr_body_shoulders_up.value + lateral * vr_body_shoulders_out.value) *
-                b.m2w;
+    // The shoulders' own offset from the chest (bodycal::shoulderOffset: measured, or the default body's, and the
+    // tweaks): back, up, and outwards along the clavicle, in metres.
+    const glm::vec3 so = bodycal::shoulderOffset();
+    c.pos = childPos(b, clav) + (-cFwd * so.x + cUp * so.y + lateral * so.z) * b.m2w;
 
     const ArmLengths lengths = armLengths(b.m2w);
     const float armLen =
         lengths.calibrated ? lengths.upper + lengths.fore : (boneLength(upper, fore) + boneLength(fore, hand)) * b.m2w;
     const glm::vec3 restShoulder = c.pos + rest * (localOffset(upper) * b.m2w);
-    c.rot = clavicleTurn(wrist - restShoulder, lateral, cUp, cFwd, armLen, vr_body_shoulder_up.value,
-                vr_body_shoulder_forward.value, lengths.calibrated) *
+    c.rot = clavicleTurn(wrist - restShoulder, lateral, cUp, cFwd, armLen, bodycal::shoulderRise(),
+                bodycal::shoulderSwing(), lengths.calibrated) *
             rest;
 
     // The arm: the elbow points down, somewhat out and back, and away from the thumb (turning the palm up brings the
@@ -649,6 +649,30 @@ void solveArm(Body& b, int side, const HandPose& handPose)
         lastSwivelTime[side] = now;
     }
     lastSwivel[side] = swivel;
+
+    // An elbow in the torso (the hand across the chest, the pole down and back) swings out of it about the same line,
+    // as little as takes it out (vr_body_collide_elbows: the torso's capsules, vr_selfcollide.cpp), eased as above.
+    static float lastOut[2]{0.f, 0.f};
+    static double lastOutTime[2]{-1.0, -1.0};
+    if(easeWrists)
+    {
+        // (Its joint kept 2 cm out: 3 cm of its flesh's 5.5, less the centimetre an arm at rest lies against the torso
+        // by; a relaxed arm hanging at the side is 2.5 cm out.)
+        const float want = selfcollide::elbowSwing(u.pos, elbow, wrist, 0.03f * b.m2w);
+        const double now = realtime;
+        const double since = lastOutTime[side] >= 0.0 ? CLAMP(0.0, now - lastOutTime[side], 0.1) : -1.0;
+        const float out = since < 0.0 ? want : glm::mix(lastOut[side], want, 1.f - std::exp(-static_cast<float>(since) / 0.05f));
+        lastOut[side] = std::abs(out) < 1e-4f ? 0.f : out;
+        lastOutTime[side] = now;
+        if(lastOut[side] != 0.f)
+        {
+            const glm::vec3 axis = safeNormalize(wrist - u.pos);
+            const glm::vec3 centre = u.pos + axis * glm::dot(elbow - u.pos, axis);
+            const glm::quat q = glm::angleAxis(lastOut[side], axis);
+            elbow = centre + q * (elbow - centre);
+            bend = q * bend;
+        }
+    }
 
     if(easeWrists && vr_debug_arm.value != 0.f)
     {
@@ -1218,6 +1242,7 @@ struct Posed
 };
 
 Posed posed;
+Skeleton posedSkeleton; // (skeleton(): valid while posed.ent is set)
 
 // The forearms' frames as last posed or solved (forearmFrame), per hand: the twist, about the forearm's axis from
 // its untwisted axes, at the elbow (none), at each twist joint and at the wrist (the hand's whole roll).
@@ -1512,6 +1537,24 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
         }
     }
 
+    // The joints where the body is (before the preview moves it), for the collision proxies (skeleton()).
+    {
+        Skeleton& k = posedSkeleton;
+        k.m2w = b.m2w;
+        k.legs = legs;
+        for(int side = 0; side < 2; side++)
+        {
+            const int clav = side == 0 ? ClavicleL : ClavicleR;
+            const int hand = side == 0 ? leftHand : 1 - leftHand;
+            k.shoulder[hand] = b.bones[clav + 1].pos;
+            k.elbow[hand] = b.bones[clav + 2].pos;
+            k.wrist[hand] = b.bones[clav + 3].pos;
+            k.hip[side] = b.bones[side == 0 ? ThighL : ThighR].pos;
+            k.knee[side] = b.bones[side == 0 ? CalfL : CalfR].pos;
+            k.ankle[side] = b.bones[side == 0 ? FootL : FootR].pos;
+        }
+    }
+
     // Preview: the body in front of the player, with its head, facing them (2) or turned to show
     // its left side (3).
     if(vr_body_debug.value >= 2.f)
@@ -1585,6 +1628,16 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
     }
     keepForearms(b);
     return origin;
+}
+
+bool skeleton(Skeleton& out)
+{
+    if(!posed.ent)
+    {
+        return false;
+    }
+    out = posedSkeleton;
+    return true;
 }
 
 void hide()

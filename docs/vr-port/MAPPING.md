@@ -85,7 +85,7 @@ spawn functions but are not entities (`//! internal` in `entities.fgd`, with the
   a weapon by a grip, armour by letting go of it over the torso, keys and runes at a holster. Place them on the floor.
 - Ammo and health boxes: physics objects (carried, thrown, nudged, force-grabbed), taken at a holster or by walking
   over them.
-- Knights and hell knights may drop their swords (`vr_sword_drop`).
+- Knights and hell knights always drop their swords (not statues).
 - Monsters and items: Honey's trigger-spawn flags (appear when triggered, teleport fog, angry, several copies with
   `cnt`, remove corpse, silent wake-up...). Items' "Floating" and "Secret" flags only work on Honey's maps and are not
   listed.

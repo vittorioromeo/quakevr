@@ -160,7 +160,7 @@ struct Result
     float upper{0.f}, fore{0.f}, upperSe{0.f}, foreSe{0.f}; // cm
     float upperNow{0.f}, foreNow{0.f};
     float stretchNow{1.f};
-    glm::vec3 offset{0.f}; // vr_body_shoulders_back, _up, _out
+    glm::vec3 offset{0.f}; // vr_bodycal_shoulders_back, _up, _out
     glm::vec3 offsetSe{0.f}; // cm (real)
     float raise{0.f}, swing{0.f}, raiseSe{0.f}, swingSe{0.f};
     float raiseNow{0.f}, swingNow{0.f};
@@ -327,19 +327,25 @@ struct Settings
     bool calibrated{false};
 };
 
-[[nodiscard]] Settings current(float eyeHeight)
+// The body as drawn (with the tweaks), or (tweaks false) as measured, or the default body: the fit starts from that, so
+// that what it measures doesn't depend on the tweaks.
+[[nodiscard]] Settings current(float eyeHeight, bool tweaks = true)
 {
     Settings s;
     s.scale = eyeHeight / units::modelEyeHeight;
-    s.offset = {vr_body_shoulders_back.value, vr_body_shoulders_up.value, vr_body_shoulders_out.value};
+    const float t = tweaks ? 1.f : 0.f;
+    s.offset = shoulderOffset() - (1.f - t) * glm::vec3{vr_body_tweak_shoulders_back.value,
+                                                  vr_body_tweak_shoulders_up.value, vr_body_tweak_shoulders_out.value};
     float bu = 0.f, bf = 0.f;
     avatar::armBones(bu, bf);
     const float length = CLAMP(0.5f, vr_body_arm_length.value, 2.f);
-    s.upper = vr_body_upper_arm.value > 0.f ? CLAMP(10.f, vr_body_upper_arm.value, 60.f) * 0.01f : bu * s.scale * length;
-    s.fore = vr_body_forearm.value > 0.f ? CLAMP(10.f, vr_body_forearm.value, 60.f) * 0.01f : bf * s.scale * length;
-    s.raise = vr_body_shoulder_up.value;
-    s.swing = vr_body_shoulder_forward.value;
-    s.calibrated = vr_body_upper_arm.value > 0.f && vr_body_forearm.value > 0.f;
+    // As avatar.cpp's armLengths: measured (or the model's times Arm Length), the tweak on top.
+    const float mu = measuredArmCm(0), mf = measuredArmCm(1);
+    s.upper = std::max(0.05f, (mu > 0.f ? mu * 0.01f : bu * s.scale * length) + t * armTweakCm(0) * 0.01f);
+    s.fore = std::max(0.05f, (mf > 0.f ? mf * 0.01f : bf * s.scale * length) + t * armTweakCm(1) * 0.01f);
+    s.raise = shoulderRise() - (1.f - t) * vr_body_tweak_shoulder_rise.value;
+    s.swing = shoulderSwing() - (1.f - t) * vr_body_tweak_shoulder_swing.value;
+    s.calibrated = calibrated();
     return s;
 }
 
@@ -401,7 +407,7 @@ constexpr double captureWeight = 4.47213595; // sqrt(20)
 // Priors: the shoulders' rise and swing (degrees), their spread; the forearm's share of the reach, its spread (metres).
 constexpr double priorRaise = 20.0, priorRaiseSd = 8.0, priorSwing = 15.0, priorSwingSd = 8.0;
 constexpr double priorForeShare = 0.45, priorForeSd = 0.05;
-constexpr double priorOffsetSd = 0.15; // metres of the model: vr_body_shoulders_*
+constexpr double priorOffsetSd = 0.15; // metres of the model: vr_bodycal_shoulders_*
 constexpr double priorElbowSd = 1.0;   // metres: the elbows only where the Elbows step says
 
 struct FitInput
@@ -984,8 +990,9 @@ void analyse()
     r.swingNow = now.swing;
     r.eyeToShoulderNow = eyeToShoulder(modelOf(now), r.eyeHeightNow);
 
-    // The chest frames at the new height; the current body's shoulders there, for the samples' first checks.
-    Settings ref = now;
+    // The chest frames at the new height; the current body's shoulders there (as measured: the tweaks left out), for
+    // the samples' first checks and the fit's start.
+    Settings ref = current(r.eyeHeightNow, false);
     ref.scale = r.scale;
     const avatar::ShoulderModel refModel = modelOf(ref);
     const float reach0 = ref.upper + ref.fore;
@@ -1066,9 +1073,9 @@ void analyse()
 
     // The start: the body as it is (at the new height), the elbows under the shoulders.
     std::array<double, ParamCount> p0{};
-    p0[PBack] = now.offset.x;
-    p0[PUp] = now.offset.y;
-    p0[POut] = now.offset.z;
+    p0[PBack] = ref.offset.x;
+    p0[PUp] = ref.offset.y;
+    p0[POut] = ref.offset.z;
     p0[PReach] = std::max(0.35f, reach0);
     p0[PFore] = priorForeShare * p0[PReach];
     p0[PRaise] = priorRaise;
@@ -1241,13 +1248,21 @@ struct Setting
     {
         add(vr_height_calibration, "%.4f", r.eyeHeight);
     }
-    add(vr_body_upper_arm, "%.1f", r.upper);
-    add(vr_body_forearm, "%.1f", r.fore);
-    add(vr_body_shoulders_back, "%.3f", r.offset.x);
-    add(vr_body_shoulders_up, "%.3f", r.offset.y);
-    add(vr_body_shoulders_out, "%.3f", r.offset.z);
-    add(vr_body_shoulder_up, "%.1f", r.raise);
-    add(vr_body_shoulder_forward, "%.1f", r.swing);
+    add(vr_bodycal_upper_arm, "%.1f", r.upper);
+    add(vr_bodycal_forearm, "%.1f", r.fore);
+    add(vr_bodycal_shoulders_back, "%.3f", r.offset.x);
+    add(vr_bodycal_shoulders_up, "%.3f", r.offset.y);
+    add(vr_bodycal_shoulders_out, "%.3f", r.offset.z);
+    add(vr_bodycal_shoulder_rise, "%.1f", r.raise);
+    add(vr_bodycal_shoulder_swing, "%.1f", r.swing);
+    // The tweaks (vr_body_tweak_*) stay on top of the new measurements; the first calibration sets them to 0 (they were
+    // made for the default body, which the measurements replace). In the list either way, for the preview and Undo.
+    for(cvar_t* c : {&vr_body_tweak_upper_arm, &vr_body_tweak_forearm, &vr_body_tweak_shoulders_back,
+            &vr_body_tweak_shoulders_up, &vr_body_tweak_shoulders_out, &vr_body_tweak_shoulder_rise,
+            &vr_body_tweak_shoulder_swing})
+    {
+        list.push_back({c, calibrated() ? std::string(c->string) : std::string("0")});
+    }
     return list;
 }
 
@@ -1271,6 +1286,8 @@ void write(const std::vector<Setting>& list)
 
 std::vector<Setting> originals;   // the settings before the preview
 bool previewOn = false;           // the result's values set for the preview
+bool calibratedBefore = false;    // the settings before the preview: calibrated, tweaked (the page's note)
+bool tweakedBefore = false;
 bool showNew = true;              // the preview shows the new values
 float bodyDebugBefore = -1.f;     // vr_body_debug before the preview showed the body
 
@@ -1282,6 +1299,8 @@ void setPreview(bool on)
     }
     if(on)
     {
+        calibratedBefore = calibrated();
+        tweakedBefore = tweaked();
         originals = snapshot(candidate());
         write(candidate());
     }
@@ -1338,8 +1357,10 @@ void saveSession()
     fprintf(f, "seated %d\neye_height %.4f\n", ses.seated ? 1 : 0, ses.eyeHeight);
     fprintf(f, "settings");
     for(cvar_t* c : {&vr_height_calibration, &vr_world_scale, &vr_body_torso_back, &vr_body_eye_forward, &vr_body_eye_up,
-            &vr_body_shoulders_back, &vr_body_shoulders_up, &vr_body_shoulders_out, &vr_body_upper_arm, &vr_body_forearm,
-            &vr_body_arm_length, &vr_body_arm_stretch, &vr_body_shoulder_up, &vr_body_shoulder_forward, &vr_gunangle,
+            &vr_bodycal_shoulders_back, &vr_bodycal_shoulders_up, &vr_bodycal_shoulders_out, &vr_bodycal_upper_arm,
+            &vr_bodycal_forearm, &vr_bodycal_shoulder_rise, &vr_bodycal_shoulder_swing, &vr_body_tweak_upper_arm,
+            &vr_body_tweak_forearm, &vr_body_tweak_shoulders_back, &vr_body_tweak_shoulders_up, &vr_body_tweak_shoulders_out,
+            &vr_body_tweak_shoulder_rise, &vr_body_tweak_shoulder_swing, &vr_body_arm_length, &vr_body_arm_stretch, &vr_gunangle,
             &vr_gunyaw, &vr_handcal_x, &vr_handcal_y, &vr_handcal_z, &vr_handcal_roll, &vr_lefthanded})
     {
         fprintf(f, " %s=%s", c->name, c->string);
@@ -1992,8 +2013,15 @@ void cancel_f()
     cancel();
 }
 
+// The command shares its name with the cvar it undoes from, and a command is run before a cvar is set: the saved
+// config's `vr_bodycal_undo "..."` line comes here, and sets the cvar (it was lost at every start before).
 void undo_f()
 {
+    if(Cmd_Argc() >= 2)
+    {
+        Cvar_SetQuick(&vr_bodycal_undo, Cmd_Argv(1));
+        return;
+    }
     undo();
 }
 
@@ -2214,6 +2242,12 @@ const char* statusLine(int i)
         if(!applied)
         {
             add(va("Old arms reached %.1f cm stretched", (r.upperNow + r.foreNow) * r.stretchNow));
+            // Apply keeps the tweaks once calibrated (the preview has them), and sets them to 0 the first time.
+            const bool cal = previewOn ? calibratedBefore : calibrated();
+            if(previewOn ? tweakedBefore : tweaked())
+            {
+                add(cal ? "Your tweaks stay on top (Arms page)" : "Apply sets your tweaks to 0");
+            }
         }
     }
     else if(!ses.message.empty())
@@ -2273,6 +2307,8 @@ const char* stepHelp(int i)
 
 void frame()
 {
+    migrate(); // round 21's arm settings typed in the console (a config's were moved after it ran)
+
     // The preview: the result's values on the body shown in front, while its page is open.
     const bool pageOpen = key_dest == key_menu && ses.returnPage >= 0 && menu::currentPage() == ses.returnPage;
     setPreview(ses.phase == Phase::Result && pageOpen && showNew);
@@ -2451,6 +2487,245 @@ void viewFrame(const hands::State& s)
     S_LocalSound("weapons/pkup.wav");
     Con_Printf("Body Calibration: %s taken\n", steps[step].title);
     nextStep(now);
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// The arms' settings: the measurements with the tweaks on top
+
+namespace
+{
+
+// The default body's shoulders, uncalibrated: metres from the model's joints (back, up, out; round 21 shipped them 4 cm
+// forward, vr_defaults.cfg), degrees of rise and swing (the compiled defaults before the split).
+constexpr glm::vec3 defaultShoulders{-0.04f, 0.f, 0.f};
+constexpr float defaultRise = 25.f;
+constexpr float defaultSwing = 20.f;
+
+// Round 21's settings, their measurements and their tweaks, in the same order: the upper arm, the forearm, the shoulders'
+// back, up and out, their rise and their swing.
+struct Split
+{
+    cvar_t* old;
+    cvar_t* measured;
+    cvar_t* tweak;
+};
+[[nodiscard]] const std::array<Split, 7>& splits()
+{
+    static const std::array<Split, 7> list{{
+        {&vr_body_upper_arm, &vr_bodycal_upper_arm, &vr_body_tweak_upper_arm},
+        {&vr_body_forearm, &vr_bodycal_forearm, &vr_body_tweak_forearm},
+        {&vr_body_shoulders_back, &vr_bodycal_shoulders_back, &vr_body_tweak_shoulders_back},
+        {&vr_body_shoulders_up, &vr_bodycal_shoulders_up, &vr_body_tweak_shoulders_up},
+        {&vr_body_shoulders_out, &vr_bodycal_shoulders_out, &vr_body_tweak_shoulders_out},
+        {&vr_body_shoulder_up, &vr_bodycal_shoulder_rise, &vr_body_tweak_shoulder_rise},
+        {&vr_body_shoulder_forward, &vr_bodycal_shoulder_swing, &vr_body_tweak_shoulder_swing},
+    }};
+    return list;
+}
+
+// The default body's value of each (the shoulders'), under the tweak when uncalibrated.
+[[nodiscard]] float defaultOf(int i)
+{
+    const float d[7]{0.f, 0.f, defaultShoulders.x, defaultShoulders.y, defaultShoulders.z, defaultRise, defaultSwing};
+    return d[i];
+}
+
+[[nodiscard]] std::string number(float v)
+{
+    return va("%.6g", v);
+}
+
+// Round 21's values (`old`, NaN: not given) as measurements and tweaks with the same look: a length set is measured, and
+// with both lengths measured the shoulders' values are too (Apply wrote them); else they are tweaks on the default body.
+// `measured` and `tweak` come in as the settings are and go out changed where `old` gives a value.
+void split(const float (&old)[7], float (&measured)[7], float (&tweak)[7])
+{
+    for(int i = 0; i < 2; i++)
+    {
+        if(!std::isnan(old[i]))
+        {
+            measured[i] = std::max(0.f, old[i]);
+            tweak[i] = 0.f;
+        }
+    }
+    const bool cal = measured[0] > 0.f && measured[1] > 0.f;
+    for(int i = 2; i < 7; i++)
+    {
+        if(!std::isnan(old[i]))
+        {
+            measured[i] = cal ? old[i] : 0.f;
+            tweak[i] = cal ? 0.f : old[i] - defaultOf(i);
+        }
+    }
+}
+
+// An Undo saved before the split ("vr_body_upper_arm 0;...;"): the same settings in the new ones.
+void migrateUndo()
+{
+    bool oldNames = false; // (the old names end in a space there: "vr_body_forearm " isn't in "vr_body_forearm_twist")
+    for(const Split& sp : splits())
+    {
+        const char* at = std::strstr(vr_bodycal_undo.string, sp.old->name);
+        oldNames = oldNames || (at && at[std::strlen(sp.old->name)] == ' ');
+    }
+    if(!oldNames)
+    {
+        return;
+    }
+    const std::string text = vr_bodycal_undo.string;
+    float old[7], measured[7], tweak[7];
+    for(int i = 0; i < 7; i++)
+    {
+        old[i] = std::nanf("");
+        measured[i] = 0.f; // what the Undo puts back is complete: nothing measured, no tweak, unless it says
+        tweak[i] = 0.f;
+    }
+    std::string rest;
+    std::istringstream in(text);
+    std::string item;
+    while(std::getline(in, item, ';'))
+    {
+        std::istringstream w(item);
+        std::string name, value;
+        if(!(w >> name >> value))
+        {
+            continue;
+        }
+        bool known = false;
+        for(int i = 0; i < 7; i++)
+        {
+            if(name == splits()[i].old->name)
+            {
+                old[i] = static_cast<float>(std::atof(value.c_str()));
+                known = true;
+            }
+        }
+        if(!known)
+        {
+            rest += name + " " + value + ";";
+        }
+    }
+    split(old, measured, tweak);
+    for(int i = 0; i < 7; i++)
+    {
+        rest += std::string(splits()[i].measured->name) + " " + number(measured[i]) + ";";
+        rest += std::string(splits()[i].tweak->name) + " " + number(tweak[i]) + ";";
+    }
+    Con_DPrintf("VR: vr_bodycal_undo in the new settings: %s\n", rest.c_str());
+    Cvar_SetQuick(&vr_bodycal_undo, rest.c_str());
+}
+
+} // namespace
+
+bool calibrated()
+{
+    return vr_bodycal_upper_arm.value > 0.f && vr_bodycal_forearm.value > 0.f;
+}
+
+float measuredArmCm(int bone)
+{
+    const float v = bone == 0 ? vr_bodycal_upper_arm.value : vr_bodycal_forearm.value;
+    return v > 0.f ? CLAMP(10.f, v, 60.f) : 0.f;
+}
+
+float armTweakCm(int bone)
+{
+    return bone == 0 ? vr_body_tweak_upper_arm.value : vr_body_tweak_forearm.value;
+}
+
+glm::vec3 shoulderOffset()
+{
+    const glm::vec3 base = calibrated() ? glm::vec3{vr_bodycal_shoulders_back.value, vr_bodycal_shoulders_up.value,
+                                              vr_bodycal_shoulders_out.value}
+                                        : defaultShoulders;
+    return base + glm::vec3{vr_body_tweak_shoulders_back.value, vr_body_tweak_shoulders_up.value,
+                      vr_body_tweak_shoulders_out.value};
+}
+
+float shoulderRise()
+{
+    return (calibrated() ? vr_bodycal_shoulder_rise.value : defaultRise) + vr_body_tweak_shoulder_rise.value;
+}
+
+float shoulderSwing()
+{
+    return (calibrated() ? vr_bodycal_shoulder_swing.value : defaultSwing) + vr_body_tweak_shoulder_swing.value;
+}
+
+bool tweaked()
+{
+    for(const Split& sp : splits())
+    {
+        if(sp.tweak->value != 0.f)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+void resetTweaks()
+{
+    for(const Split& sp : splits())
+    {
+        Cvar_SetQuick(sp.tweak, "0");
+    }
+    Con_Printf("Body: the arm and shoulder tweaks are 0 (%s)\n", calibrated() ? "as measured" : "the default body");
+    bump();
+}
+
+const char* measuredLine(int i)
+{
+    static std::string lines[4];
+    int n = 0;
+    if(!calibrated())
+    {
+        lines[n++] = "Not calibrated: the tweaks below";
+        lines[n++] = "go on the default body's arms.";
+    }
+    else
+    {
+        lines[n++] = va("Measured: upper arm %.1f cm,", measuredArmCm(0));
+        lines[n++] = va("forearm %.1f cm; shoulders (m)", measuredArmCm(1));
+        lines[n++] = va("%.3f back, %.3f up, %.3f out;", vr_bodycal_shoulders_back.value, vr_bodycal_shoulders_up.value,
+            vr_bodycal_shoulders_out.value);
+        lines[n++] = va("rise %.0f, swing %.0f deg. Tweaks add on.", vr_bodycal_shoulder_rise.value,
+            vr_bodycal_shoulder_swing.value);
+    }
+    return i >= 0 && i < n ? lines[i].c_str() : nullptr;
+}
+
+void migrate()
+{
+    migrateUndo();
+    bool any = false;
+    float old[7], measured[7], tweak[7];
+    for(int i = 0; i < 7; i++)
+    {
+        const Split& sp = splits()[i];
+        any = any || sp.old->string[0] != 0;
+        old[i] = sp.old->string[0] != 0 ? static_cast<float>(std::atof(sp.old->string)) : std::nanf("");
+        measured[i] = sp.measured->value;
+        tweak[i] = sp.tweak->value;
+    }
+    if(!any)
+    {
+        return;
+    }
+    split(old, measured, tweak);
+    for(int i = 0; i < 7; i++)
+    {
+        const Split& sp = splits()[i];
+        if(!std::isnan(old[i]))
+        {
+            Con_DPrintf("VR: %s %s is now %s %s, %s %s\n", sp.old->name, sp.old->string, sp.measured->name,
+                number(measured[i]).c_str(), sp.tweak->name, number(tweak[i]).c_str());
+            Cvar_SetQuick(sp.measured, number(measured[i]).c_str());
+            Cvar_SetQuick(sp.tweak, number(tweak[i]).c_str());
+            Cvar_SetQuick(sp.old, "");
+        }
+    }
+    bump();
 }
 
 } // namespace qvr::bodycal

@@ -81,8 +81,8 @@ sub-pages).
 
 | Page | What's on it |
 |---|---|
-| **Body** | Body mode and build, walking legs (step rate, turning before stepping), armour and wounds, powerups, anchors; the body's placement (torso, legs, shoulders, eyes), crouch tilt |
-| **Arms and Pauldrons** | Arm length and stretch, shoulder reach, forearm twist, elbows, shoulders rising and swinging forward; pauldrons (style, size, how they follow the arm, placement) |
+| **Body** | Body mode and build, walking legs (step rate, turning before stepping), armour and wounds, powerups, anchors; the body's placement (torso, legs, eyes), crouch tilt |
+| **Arms and Pauldrons** | Body Calibration and what it measured; tweaks on top of it (upper arm, forearm, the shoulders' place, rise and swing; 0: as measured, uncalibrated: the default body), Arm Length (uncalibrated only), stretch, shoulder reach; forearm twist, wrist limits, elbows; pauldrons (style, size, how they follow the arm, placement) |
 | **Flashlight** | The chest flashlight: brightness, range, visible beam, shadows, placement on the chest and in the hand |
 | **Player Calibration** | World scale, floor offset |
 | **Locomotion** | Movement mode, deadzone, stick turning, turn and turn speed, teleport, lean and lean recentre, roomscale jump and threshold, room-scale multiplier, walk speed, run/walk and run multiplier, swimming, **ledge grab (experimental)** |
@@ -236,7 +236,9 @@ built-in ones.
 | `vr_lefthanded` | 0 | swap the main and off hands |
 | `vr_body_mode` | 3 (shipped) | 0 off, 2 torso and arms, 3 full body |
 | `vr_body_build` | 1 | 0 lean, 1 athletic, 2 brawny |
-| `vr_body_torso_back`, `vr_body_legs_back`, `vr_body_shoulders_back` | 0.07, 0.3, -0.07 (shipped) | body placement, metres behind your head |
+| `vr_body_torso_back`, `vr_body_legs_back` | 0.07, 0.3 (shipped) | body placement, metres behind your head |
+| `vr_bodycal_upper_arm`, `_forearm`, `_shoulders_back/_up/_out`, `_shoulder_rise`, `_swing` | 0 | Body Calibration's measurements (cm, metres, degrees; 0 lengths: not calibrated) |
+| `vr_body_tweak_upper_arm`, `_forearm`, `_shoulders_back/_up/_out`, `_shoulder_rise`, `_swing` | 0 | your tweaks on top of them, the same units (uncalibrated: on the default body) |
 | `vr_flashlight` | 1 | the chest flashlight |
 
 ### Weapons, throwing and melee

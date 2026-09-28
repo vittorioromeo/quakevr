@@ -1265,13 +1265,10 @@ void(float xHand) W_SwordMelee =
     particle2(org, trace_plane_normal * 60, QVR_PARTICLE_PRESET_SPARKS, 8);
 };
 
-// A knight drops its sword when it dies (vr_sword_drop): a weapon lying where its hand was.
+// A knight or hell knight always drops its sword when it dies (gibbed or not; a statue has none): a weapon lying
+// where its hand was.
 void(float xHellKnight) VR_DropKnightSword =
 {
-    if(random() >= cvar_hget(cvarh_vr_sword_drop))
-    {
-        return;
-    }
     makevectors(self.angles);
     vector at = self.origin + v_forward * 10 + v_right * 8 + '0 0 8';
     vector vel = v_forward * 60 + v_right * (crandom() * 40) + '0 0 120';
@@ -4328,12 +4325,11 @@ void MakeThrown(entity newmis,
 
     newmis.velocity = xThrowVel + thrower.velocity;
 
-    // A rigid body from the start (vr_rigid.cpp, vr_box3d.cpp): it lands and rests on its drawn shape. As Quake's
+    // A rigid body from the start (vr_box3d.cpp): it lands and rests on its drawn shape. As Quake's
     // toss (a monster's dropped gun, a weapon from an ammo box, the firing range's weapons) it landed on its box, a
     // cube round its origin that its model, turned any way, reaches well out of: it lay up to 20 units into the floor.
     // Its tumble goes on as the body's spin (radians a second; the throw's cap).
     newmis.vr_rigid = 1;
-    newmis.vr_rest = 0;
     newmis.vr_spin = VRThrowSpinCapped(xAVel * 0.0175);
     newmis.avelocity = '0 0 0';
 }

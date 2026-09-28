@@ -77,6 +77,12 @@ struct WeaponFrame
     bool fistFromRig{false};
 };
 [[nodiscard]] bool weaponFrame(const hands::State& s, int hand, WeaponFrame& out);
+
+// The counter glow (vr_meleehud.cpp): the weapon drawn in `hand` this frame (null: none, or the hand's own model), and
+// which hand an entity belongs to (-1 none): its weapon (or the model a gun morphs out of; `weapon` true) or a part of
+// the hand itself.
+[[nodiscard]] const ViewEntity* heldWeapon(int hand);
+[[nodiscard]] int handOf(const entity_t* e, bool& weapon);
 // Whether models `a` and `b` are the same gun (one is the other's other ammo's: its button switched it).
 [[nodiscard]] bool sameGun(const qmodel_t* a, const qmodel_t* b);
 
