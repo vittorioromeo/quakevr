@@ -84,6 +84,11 @@ void switchShown();
 // Degrees the shoulders rise reaching up and swing forward reaching far forward.
 [[nodiscard]] float shoulderRise();
 [[nodiscard]] float shoulderSwing();
+// The arm as drawn, real metres: the upper arm and the forearm (measured, or the model's times Arm Length and the body's
+// scale; the tweaks on top), as the arm IK has them; and the shoulders' shift from the default body's (shoulderOffset()
+// less the default's: back, up, out). For climbing's reach (vr_climb.cpp).
+[[nodiscard]] float armLengthMetres();
+[[nodiscard]] glm::vec3 shoulderShift();
 // Whether a tweak isn't 0; resetTweaks sets them all to 0 (as measured, or the default body).
 [[nodiscard]] bool tweaked();
 void resetTweaks();

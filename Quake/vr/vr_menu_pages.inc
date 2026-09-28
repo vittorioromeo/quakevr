@@ -75,6 +75,10 @@
         slider("Hand on Hold: Towards You", "vr_climb_hand_out", -10.f, 10.f, 0.5f, "%.1f cm").extend().help("Where your hand is drawn on a ledge or a rung: back from the lip, towards you (negative: deeper). Looks only; the climbing is the same."),
         slider("Hand on Hold: Up", "vr_climb_hand_up", -10.f, 10.f, 0.5f, "%.1f cm").extend().help("Where your hand is drawn on a hold: up (negative: down). Looks only."),
         slider("Hand on Hold: Sideways", "vr_climb_hand_side", -10.f, 10.f, 0.5f, "%.1f cm").extend().help("Where your hand is drawn on a hold: along the edge, outwards (negative: towards the other hand). Looks only."),
+        slider("Hold Rotation Blend", "vr_climb_hand_turn_blend", 0.f, 1.f, 0.05f, "%.2f").extend().help("How your hand is turned on a hold: 0 facing the ledge (Hand on Hold: Pitch, Yaw, Roll), 1 as your controller is. Looks only."),
+        slider("Hand on Hold: Pitch", "vr_climb_hand_pitch", -30.f, 120.f, 5.f, "%.0f deg").extend().help("The hand facing a hold, its knuckles tilted up: 0 the palm down on the top, 90 the palm against the face under the lip. Looks only."),
+        slider("Hand on Hold: Yaw", "vr_climb_hand_yaw", -60.f, 60.f, 5.f, "%.0f deg").extend().help("The hand facing a hold, its knuckles turned towards the other hand (negative: away). Looks only."),
+        slider("Hand on Hold: Roll", "vr_climb_hand_roll", -90.f, 90.f, 5.f, "%.0f deg").extend().help("The hand facing a hold, rolled about its knuckles, the thumb's side up (negative: down). Looks only."),
     };
 }
 

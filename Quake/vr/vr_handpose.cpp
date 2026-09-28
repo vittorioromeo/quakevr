@@ -17,6 +17,7 @@
 #include "vr_avatar.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
+#include "vr_protocol.hpp"
 #include "vr_trace.hpp"
 #include "vr_twohand.hpp"
 #include "vr_weapons.hpp"
@@ -38,6 +39,8 @@ struct HandMemory
     glm::vec3 localAngles{0.f}; // angles with the play-space yaw taken out
     glm::vec3 lastPos{0.f};     // world position last frame (the muzzle was placed from it)
     bool anglesValid{false};
+    bool climbing{false};       // holding a ledge or a rung (vr_climb.cpp),
+    glm::vec3 climbStop{0.f};   // and the wall's stop when it took hold, kept
 };
 
 HandMemory memory[2];
@@ -142,6 +145,20 @@ void resolvePositions(hands::State& s, float turnYaw)
         {
             const glm::vec3 muzzleOffset = s.muzzle[h] - m.lastPos;
             colliding[h] = stopAtWall(pos, pos, pos + muzzleOffset, muzzleOffset);
+        }
+
+        // A hand holding a ledge or a rung (vr_climb.cpp) keeps the stop it had when it took hold: the climb pulls by
+        // the controller's own motion (a stop that came and went as the body moved by the face was a pull of its own),
+        // and the hand is drawn on its hold.
+        const bool climbing = (cl.stats[protocol::STAT_QVR_CLIMB] & (1 << h)) != 0;
+        if(climbing && !m.climbing)
+        {
+            m.climbStop = pos - s.pos[h];
+        }
+        m.climbing = climbing;
+        if(climbing)
+        {
+            pos = s.pos[h] + m.climbStop;
         }
 
         // Weight, in the body's frame (from the floor below the head: the body sliding back under a
