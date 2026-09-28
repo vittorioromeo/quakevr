@@ -347,7 +347,8 @@ light a surface almost straight on, where a tilt of θ only dims it by 1 − cos
     compression towards 1.2 (bevels up to about 50°, not walls);
   - every blur is normalised by the islands' coverage (`TexMgr_BlurIslands`), so nothing outside an island reaches in
     across a seam (the heights still come from the dilated brightness, as before).
-  `developer 1` prints each skin's relief and noise. Cost: a few box blurs per skin at load (about 3 ms for 256²).
+  `developer 1` prints each skin's relief, noise and time. Cost at load: 7-10 ms for a 256² skin (running-sum box
+  blurs), 0.5 s for e1m1's 118 skins; none per frame.
 - **Authored maps** (`Mod_LoadNormalMap`): an alias skin looks for `progs/<model>.mdl_<skin>_norm` (DarkPlaces'
   names; a group's frames `_<skin>_<frame>`), then `_bump` (a height map: white high), then skin 0's (all skins share
   the texture coordinates); an MD5 mesh's skin `progs/<shader>_<ss>_<ff>_norm` / `_bump`, then
