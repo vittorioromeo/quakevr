@@ -8280,3 +8280,211 @@ ball at 400 then homing at 250, the grenade and flesh lobbed at you); vrfiringra
 - [ ] Grenades bouncing and rolling: do they look heavy enough? Do they ever go off on you when you reach for one
       (they shouldn't, unless it reaches your body)?
 - [ ] Stand on a ledge above an ogre and below one: its grenades should now come at you.
+
+## Weight: spring model, stamina, held object offsets; explosive boxes
+
+Your requests: weapons heavier as stamina runs low (unchanged above 50%, smoothly heavier below); a Boneworks-like
+spring weight, with rotation, as an alternative to the current one, to compare; the weight of physics props tunable on
+a page like Weapon Offsets that finds the prop in your hand (weight, finger placement...); and the explosive boxes as
+physics props, not force-grabbable, grabbed by hand, pushed and tipped over. Branch `agent/weight`; scripts, traces,
+plots and pictures in the scratchpad's `weight/`.
+
+### What the old weight did
+
+`vr_handpose.cpp` (the Speed Limit, as it is now called): each frame the whole hand (what it holds, the drawn hand, the
+aim, the melee's points, the arm) moves and turns only part of the way to where it is tracked, `1 - Weight + offset`
+of it per 1/100 s (the weapon's Weight, Weapon Offsets; vr_wpn_pos_weight_* and vr_wpn_dir_weight_*, Aiming page;
+a two-handed grip helps). It is a pure lag: the weapon trails the hand by a time (23 ms for the shotgun, 50 ms for the
+rocket launcher), so the faster you move, the further behind it is (21.5 cm at the peak of the swing below), and it
+never overshoots. It has no idea of mass, length, gravity or turning inertia, and carried props had no weight at all
+(the empty hand's Weight is 0).
+
+### Weight Model: Speed Limit (current) or Spring (Aiming page)
+
+**Speed Limit** is unchanged for weapons (proved below). **Spring** (`vr_weight.cpp`): what a hand holds is a rigid
+body pulled to the tracked hand by a damped spring on its place and on its turn, in the body's frame (walking,
+turning and leaning are not the hand's motion), stepped in fixed substeps of at most 1 ms (the same motion at any
+frame rate):
+
+- **Place:** `F = k (target - x) + c (target's velocity - v)`, `k` 4000 N/m for everything, so a thing of `m` kg
+  follows at `sqrt(k/m)` rad/s (shotgun 3 kg: 37; rocket launcher 8 kg: 22; explosive box 40 kg: 10; capped at 120:
+  what weighs little follows at once). The damping is against the hand's own velocity: a hand moving steadily is
+  followed without lag; the lag is in the starts and stops (the hand's acceleration over the frequency squared), and a
+  stop overshoots a little and settles. Damping 1 (critical) by default.
+- **Turn:** the same about the grip, per axis of the hand, with the inertia about the grip: a rod of the weapon's
+  length with its centre of mass ahead of the grip (new per-weapon keys Mass, Balance, Length on Weapon Offsets >
+  This Weapon: shotgun 3 kg, 12 cm, 80 cm; rocket launcher 8 kg, 15 cm, 100 cm; the axe's head 35 cm out; the
+  alternates inherit), a prop's box. So a long heavy weapon pitches and yaws slowly and rolls quickly. The wrist's
+  stiffness is 400 N m/rad plus 3 per N m of the weight's pull about the grip (a heavy thing is gripped harder).
+- **Strength:** the arm's force (400 N) and the wrist's torque (100 N m), beyond holding the thing up, are limited:
+  a heavy thing can't be swung as fast as the hand goes (a 40 kg box gains 10 m/s² at most, one-handed).
+- **Sag:** 0.3 of gravity's pull (Sag 1), 35% of that with the hand at the shoulder, all of it at arm's length:
+  the place drops and the turn droops about the grip towards the centre of mass. Subtle: 0.6 cm and 0.5° for the
+  rocket launcher at arm's length, 0.2 cm and 0.15° for the shotgun, 3 cm and 3.7° for the box in one hand.
+- **Swing:** the grip's acceleration swings the centre of mass (its weight trailing a moving hand): a quick thrust
+  tips the muzzle.
+- **Two hands:** stiffness and strength times Two-Handed Help (4: twice as quick), and it turns about the middle
+  between the grips (a gun's handle and foregrip, a box's two sides), so the weight's lever almost vanishes: the
+  rocket launcher two-handed lags 2 cm / 2° where one-handed it lags 8 cm / 28° (below).
+- **Snap:** left more than 60 cm or 180° behind, or the hand jumping faster than 20 m/s (a teleport, tracking lost
+  and found), it is put back in the hand at once, at rest. A new weapon or a new prop starts at the hand, at rest.
+- **Drawn and read:** the spring moves `s.pos`/`s.rot` of the hand, as the Speed Limit does: the drawn hand stays on
+  its grip, the arm's IK reaches it, the helping hand stays on the foregrip, the aim and shots, the laser, the melee's
+  points (grip, far end, wrist) and the carried prop all follow the simulated weapon. The hand's velocities sent to
+  the server (throws, nudges) stay the tracked ones, as with the Speed Limit.
+
+**Carried props** (Carried Props Have Weight, `vr_weight_props`, on): boxes, gibs, backpacks, armour, keys, grenades
+and the flashlight weigh their mass, with either model: Spring as above (inertia from their drawn box and where the
+hand holds it), Speed Limit trailing by 6.5 ms a kg (as a weapon of that mass trails: a 6 kg health box 39 ms, the
+40 kg explosive box 0.26 s; half with both hands). Off: weightless, as before. Heavy props are also thrown slower:
+all of the hand's speed up to 12 kg (`vr_weight_throw_mass`; every pickup is lighter: health 6, megahealth 11, big
+nails 8.5), then by the square root of the ratio (the 40 kg box ×0.55).
+
+### Heavier When Tired (both models)
+
+Stamina left (the parry, shove and strike pool, as the gadget shows it; eased over 0.25 s since it arrives in whole
+percent): at or above From Stamina (0.5) the weight is unchanged; below it the mass is multiplied by
+`1 + (Most - 1) u^Curve`, `u` = 0 at the threshold .. 1 at none (Most 2, Curve 2: gentle at first, smooth at the
+threshold). Speed Limit: the lag's time constant times it (`1 - (1 - f)^(1/M)` per step, exactly unchanged at 1).
+Spring: the mass times it (the grip's stiffness isn't: a tired arm droops more). With parry stamina off, nothing.
+
+| Rocket launcher, one hand, the swing below | 100% and 50% | 25% | 0% |
+|---|---|---|---|
+| multiplier | ×1.00 | ×1.25 | ×2.00 |
+| Speed Limit: peak lag, cm / deg; settle | 21.5 / 15.8; 0.36 s | 24.9 / 19.4; 0.47 s | 31.7 / 27.7; 0.76 s |
+| Spring: lag, overshoot (cm); sag at rest | 4.2, 7.6; 0.44 cm | 5.3, 10.1; 0.55 cm | 9.0, 17.8; 0.88 cm |
+
+### Held Object Offsets (a page like Weapon Offsets)
+
+Opened from VR Settings (next to Weapon Offsets), Aiming > Weight and Carrying and Gibs. It shows what the hand holds
+when opened (Edit the Other Hand's Prop; reopen after taking something else) and its model; "Mass now" reads the mass
+in use (set or estimated). Everything applies live: the weight at once, the physics mass on the next frame, the
+fingers at once, the grip from the next grab. Settings (`vr_props.inc`, cvars `vr_prop_<key>_NN`, archived):
+
+| Setting | Key | |
+|---|---|---|
+| Mass | `mass` | kg; 0: estimated (Box3D's hull volume × a density per kind: brush boxes 400 kg/m³, weapons and keys 700, armour 600, backpacks 250, flesh 1000; without a local server: the drawn box × half). **Also its Box3D mass** (the density scaled to it). |
+| Inertia | `inertia` | × its box's inertia (Spring). |
+| Centre of Mass X/Y/Z | `com_x/y/z` | units off its drawn middle, in its model's axes (a torch's head). |
+| Throw | `throw` | × the hand's throw; 0: from the mass. |
+| Grip: Where taken / Always the same | `grip` | 1: held the same way whatever part is taken: Grip X/Y/Z (its origin in the right hand, mirrored for the left) and Pitch/Yaw/Roll (`propgrip`). |
+| Fingers: Fitted / Manual, the five curls, Thumb Across, Overlap | `fgr_*`, `overlap` | as the weapons' Fingers; Overlap -1: Hand/Gun Calibration's Fit Overlap: Things. |
+| Two Hands | `two_hands` | 0: one hand only. |
+| Force Grab | `forcegrab` | -1: as the game has it; 0: never. |
+
+Print Changes to Console prints `QVR_PROP_DEFAULT(...)` lines for the shipped table; Reset This Prop puts the
+defaults back (keeping the model). The page takes a free slot (48) for a model that has none: until you change a
+value, a slot with only its model set changes nothing. `vr_props_version` (1) is the table's migration counter, as
+`vr_wofs_version` is the weapons' (a config's slots are reset to changed defaults once; nothing to migrate yet).
+Shipped entries: the explosive boxes (40 and 25 kg, never force grabbed), the flashlight (0.4 kg: its grip and
+fingers are its own page's), the ogres' grenades (1.2 kg; their Box3D mass was 5.2 kg from 2000 kg/m³, so they knock
+boxes a little less now). Everything else is estimated.
+
+**For the next props (torches, rocks):** a new kind of prop needs no code, only a line per setting in `vr_props.inc`
+(`QVR_PROP_DEFAULT(<free slot>, ID, "progs/torch.mdl")`, its Mass, Com, Grip Mode 1 and Grip, its Fingers), or the
+page and Print Changes. QC reads any setting with `propvalue(e, "key")` (`mass` and `throw` are the effective ones)
+and holds by the settings with `propgrip(e, handangles, lefthand)` (VR_Carry_Start does both already). A new setting
+(a torch's burn damage per second, a rock's hit damage): add `QVR_PROP_KEY(Burn, "burn", "0")` to `vr_props.inc`
+(the cvars, the menu's Print and Reset follow), a slider in `vr_menu_props.inc`, and read `propvalue(self, "burn")`
+in QC. A wall torch as a held melee weapon would rather be a weapon slot (a hilt, a muzzle point for the melee's far
+end, hotspots): the props table is for things carried as props.
+
+### Explosive boxes as physics props
+
+`misc_explobox` and `misc_explobox2` (Physics Explosive Boxes, `vr_explobox_physics`, on; next map) are Box3D
+bodies (their brush model's hull), and **solid**: `.vr_rigid 2`, a new kind of prop that stays `SOLID_BBOX` (shots,
+players and monsters meet it where it lies), its Quake box kept round its drawn shape as it turns (`solidBox`), its
+drawn box its model's bounds (not the Quake box).
+
+- **Pushed and tipped by hand:** the players' hands are now kinematic spheres at their fists in Box3D
+  (`vr_box3d_hand_push`, 4.5 cm), which meet only solid props: a hand pressing a box pushes it where it presses, as
+  long as it presses, with Box3D's friction doing the rest: pushed high, a tall box tips over; pushed low, it slides.
+  At most 3 m/s (`vr_box3d_hand_push_speed`, as the players' bodies: a punch or a weapon appearing in the hand moves
+  it faster than a heavy box should fly). A hand isn't a body while it carries something, nor until it is clear of
+  every solid prop (a box let go of isn't shoved by the hand inside it). A gun poking one uses `physicspush` (an
+  impulse at the point). Before the hand bodies, QC's nudges (a velocity at the middle) only slid it.
+- **Stacked:** two boxes stand on each other, asleep.
+- **Carried by hand only:** a hand's grip takes it as any carried prop; heavy (40 kg; the small one 25), so it lags,
+  sags and swings with the Spring, trails with the Speed Limit, and is thrown at 55% of the hand's speed. Never force
+  grabbed (it isn't a dropped object; its Force Grab setting is 0 too). Carrying it traces from its middle, not its
+  origin (a corner, in the floor it stands on: the carry let go of it at once).
+- **Blows up** when damaged (health 20, as before), also in a hand (the hand lets go), and when it hits something
+  hard: Box3D's hits call its new `.vr_impact(speed)` (a QC field function for any prop), and above Blow Up On Impact
+  (`vr_explobox_impact`, 14 m/s) it takes 20 × (speed / threshold)² damage. Dropped from 85 units or more it goes
+  off (Quake's gravity, 30 m/s²); tipped over, its top lands at about 10 m/s and it doesn't. Hits against players and
+  their hands are ignored (a shove or a bump never breaks it). Too heavy to throw hard enough.
+- **Where it is:** the explosion (its damage, the physics blast and `TE_EXPLOSION`) is at the middle of its box as it
+  lies now; before, the damage came from its corner.
+- **Saves and numbering:** no entity is made or removed at spawn (the motion recorder's numbering is kept); its new
+  fields are ordinary ones (saved). A game saved before loads its boxes fixed, as they were. Off: fixed, as id's.
+
+### Verification (mock headset; the scratchpad's `weight/`)
+
+**Speed Limit: identical.** The canary takes (46, archived, replayed with your old hand settings: `vr_gunangle 39.5`,
+`vr_gunyaw 4`, every `vr_handcal_*` 0, `vr_handcal_off_mirror 0`, printed in the logs) with vr-cleanup's build and
+with this branch (Speed Limit, all defaults: Heavier When Tired and Carried Props Have Weight on): every row of the
+evaluation identical (verdicts, events, damage, times, recorded-hit comparison, hand error). `oldeval.sh`,
+`eval_base2.csv`, `eval_sl2.csv`.
+
+**Spring against the same takes:** 18 of 46 differ, one verdict: `hilt_pommel_2026-09-27_02-44-18` (a pommel strike
+with the off hand) becomes a mid-blade slash (FAIL). The 16 others with the same single hit: damage +1.9 on average
+(-3.0 to +7.3: the far end whips past the hand at the end of a swing), 10 ms earlier (no steady lag). The detection
+rules are unchanged; they read the simulated weapon (`eval_sp2.csv`).
+
+**The swing** (`swing1h.txt`, `swing2h.txt`: 50 cm across and 60° of yaw in 0.2 s, then still; `trace_stats.py`,
+`plot_swings.py` → `swings_plot.png`, `swings_model0/1.png`):
+
+| | Speed Limit: lag cm / deg, settle | Spring: sag cm / deg | lag cm / deg | overshoot cm / deg | settle |
+|---|---|---|---|---|---|
+| shotgun, one hand | 5.2 / 4.0, 0.06 s | 0.16 / 0.11 | 1.9 / 3.6 | 2.8 / 3.3 | 0.10 s |
+| rocket launcher, one hand | 21.5 / 15.8, 0.36 s | 0.44 / 0.35 | 4.2 / 12.5 | 7.6 / 8.3 | 0.24 s |
+| rocket launcher, two hands | 4.1 / 3.4, 0.04 s | 0.11 / 0.04 | 1.4 / 1.4 | 2.4 / 2.1 | 0.08 s |
+| explosive box, one hand (carried) | | 2.9 / 3.6 | 17.2 / 12.6 | 17.4 / 10.8 | 1.03 s |
+
+`vr_weight_test` (the spring alone, a 60 cm / 70° whip in 0.2 s, at 45, 72, 90 and 144 fps): rocket launcher one
+hand 7.9-8.0 cm / 27.4-28.1° lag, 8.6-8.8 cm overshoot, settles in 0.28-0.29 s at every frame rate; two hands 2.1-2.3
+cm / 2.1-2.4°. At rest: no motion at all between frames (0.0000 mm) for the weapons, under a micrometre for the box
+still settling. A 2 m jump of the hand: put back at once.
+
+**The explosive boxes** (vrfiringrange, a box spawned in the open; `tip_shoot.png`, `stack.png`, `carry.png`):
+pushed by the hand at 1.7 m it tips over (3 of 3 runs; lands at 9.5 m/s, no explosion); two stacked stay asleep on
+each other; carried in one hand, as in the table; `vr_physics_forcegrab props`: the box "never force grabbed", the
+firing range's weapons, boxes and a gib "may be"; shot where it lies: "6 on misc_explobox", blew up at its middle
+(207, -440, 33) as it lay on its side; dropped from 40 and 64 units it stays, from 90 it hits at 14.6 m/s and blows
+up (and blows up the box 104 units from it). `vr_explobox_physics 0`: fixed, an actor body, as before.
+
+**The page:** `menu_props.png`: the box in the main hand, the page's "Mass now: 40.0 kg (set)", Mass set to 60 → "60.0
+kg" at once; Fingers: Manual. Saved (`writeconfig`) and executed in a new run: `vr_prop_mass_01` 60, and Box3D's
+mass of the map's box 60 kg.
+
+**Cost** (`--exclusive`, the rocket launcher swinging, three boxes, 2400 frames): the spring 0.002 ms a frame (worst
+0.014); the hands' bodies under 0.001 ms (worst 0.008); Speed Limit 0.000.
+
+### Settings (Aiming page: Weight, Tired Arms, Spring Model, Speed Limit Model; Carrying and Gibs: Explosive Boxes)
+
+| | |
+|---|---|
+| Weight Model (`vr_weight_model`) | 0: Speed Limit (the default, as before); 1: Spring. |
+| Carried Props Have Weight (`vr_weight_props`) | 1. |
+| Heavier When Tired (`vr_weight_stamina`), From Stamina (`_from`), Most Weight (`_max`), Curve (`_curve`) | 1, 0.5, 2, 2. |
+| Stiffness, Damping, Arm Strength, Sag, Swing, Two-Handed Help, Snap Back Beyond (`vr_weight_spring_*`) | 1, 1, 1, 1, 1, 4, 60 cm. |
+| `vr_weight_throw_mass` | 12 kg. |
+| Physics Explosive Boxes (`vr_explobox_physics`), Blow Up On Impact (`vr_explobox_impact`) | 1, 14 m/s. |
+| `vr_box3d_hand_push`, `vr_box3d_hand_push_speed` | 1, 3 m/s. |
+| `vr_debug_weight` | 1: each hand's target and drawn pose a line a frame in `weight_trace.txt` (both models); 2: and printed. |
+| `vr_debug_weight_stamina` | tests: the stamina the weight takes as left (-1: the game's). |
+
+### Not verified
+
+- In the headset: how it feels. The spring's constants are a first guess, set from the numbers above.
+- A two-handed carry of the explosive box in the game (the offline test has it: 12 cm / 34° lag, 0.44 s).
+- Force grabbing the box by the gesture itself (its eligibility is what the check prints).
+- Multiplayer: the hands' bodies are made for every client; only the local player was tested.
+
+### To try
+
+- [ ] Aiming > Weight Model: Spring. Swing the shotgun, then the rocket launcher, one hand then two: does the rocket
+      launcher feel heavy without being hard to aim? Tune Stiffness, Damping, Sag, Swing and Two-Handed Help.
+- [ ] Parry until you're out of stamina: do weapons get heavier as it goes below half?
+- [ ] Carry a health box and an explosive box (Held Object Offsets: try its Mass and Fingers); push an explosive box
+      over from high up, stack two, drop one from a ledge, shoot one lying down.

@@ -16,7 +16,10 @@
 // - Props (.vr_rigid toss and bounce entities: thrown weapons, ammo and health boxes, backpacks, armour, gibs,
 //   heads) are dynamic bodies: the convex hull of the drawn model (an alias model's frame: weapons, backpacks,
 //   armour, gibs rest on their sides as drawn; a brush model's faces: the boxes as drawn, not Quake's padded box). Mass from the volume and a density per
-//   kind. Carried ones (in a hand, or both) are kinematic, following the hand, so they push other props.
+//   kind (or the Mass set for its model: Held Object Offsets, vr_props.inc). Carried ones (in a hand, or both) are
+//   kinematic, following the hand, so they push other props. Solid props (.vr_rigid 2: the explosive boxes) stay
+//   SOLID_BBOX, their Quake box kept round them as they turn (solidBox), and report their hard hits (.vr_impact).
+// - The players' hands are kinematic spheres at their fists that push solid props (syncHands, vr_box3d_hand_push).
 // - Box3D is authoritative for props: their origin, angles, velocity (.velocity, the centre of mass's), spin
 //   (.vr_spin, rad/s) and sleep (FL_ONGROUND and its groundentity) are written back every frame. What QC changes
 //   (a throw, a nudge, a force grab's drop, a knock, a teleport, keepInWorld's put-back) is seen against what was
@@ -1335,6 +1338,7 @@ void follow(edict_t* ent, Slot& s, float dt)
 // its sphere is clear of every solid prop (a box let go of isn't shoved away by the hand inside it).
 void syncHands(float dt)
 {
+    QVR_PROFILE("box3d hands");
     const FieldOffsets& f = fields();
     world->hands.resize(static_cast<size_t>(svs.maxclients) + 1);
     const float radius = 0.045f; // m: a fist's

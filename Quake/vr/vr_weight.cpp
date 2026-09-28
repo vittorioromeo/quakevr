@@ -23,6 +23,7 @@
 #include "vr_flashlight.hpp"
 #include "vr_held.hpp"
 #include "vr_meleehud.hpp"
+#include "vr_profile.hpp"
 #include "vr_props.hpp"
 #include "vr_twohand.hpp"
 #include "vr_units.hpp"
@@ -621,6 +622,7 @@ void traceSpeedLimit(int hand, const glm::vec3& target, const glm::vec3& drawn, 
 
 void spring(hands::State& s, float turnYaw, float dt, bool newFrame)
 {
+    QVR_PROFILE("weight");
     const float m2u = units::metresToUnits();
     const glm::vec3 base = s.playerOrigin + s.lean;
     for(int h = 0; h < HAND_COUNT; h++)

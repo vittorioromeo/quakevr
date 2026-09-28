@@ -45,4 +45,10 @@ QVR_PROP_DEFAULT(1, ForceGrab, "0")
 // The flashlight in the hand (vr_flashlight.cpp: its grip and fingers are its own page's): its weight only.
 QVR_PROP_DEFAULT(2, ID, "progs/vrflashlight.mdl")
 QVR_PROP_DEFAULT(2, Mass, "0.4")
+// The ogres' grenades (vr_grenade.qc: caught, held and thrown back): light and small in the hand, thrown with the hand's
+// whole speed. Also their mass in Box3D (5.2 kg from their hull at 2000 kg/m^3 before: they knock boxes less now).
+QVR_PROP_DEFAULT(3, ID, "progs/grenade.mdl")
+QVR_PROP_DEFAULT(3, Mass, "1.2")
+QVR_PROP_DEFAULT(4, ID, "progs/mervup.mdl")
+QVR_PROP_DEFAULT(4, Mass, "1.2")
 #endif

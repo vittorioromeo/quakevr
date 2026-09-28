@@ -1,5 +1,6 @@
 // vr_handpose.hpp -- where the tracked hands end up in the world: collision with the level
-// (hands and weapon muzzles), and weapon weight (heavier weapons trail the hand).
+// (hands and weapon muzzles), and weapon weight (heavier weapons trail the hand: the Speed Limit here,
+// the Spring in vr_weight.cpp).
 
 #pragma once
 

@@ -870,4 +870,19 @@ then the axe (`impulse 152`) or a sword (`impulse 163`) gripped at `vr_mock_hand
 `vr_test_spawn 101; impulse 241`, wait 2 s for it to become grabbable, `vr_rigid_place item_shells main` and grip;
 a gib: `impulse 245` in the off hand); `developer 1` prints `gib: hit by thrown_weapon for 69.2, 0 left`,
 `vr_debug_box3d 1` also `box3d: ... touch, at 0 and 293 u/s (11 and 146 after the step)` for two props meeting.
+Weight (ROUND21.md, "Weight: spring model, stamina, held object offsets; explosive boxes"): `vr_weight_test [csv]`
+runs the spring alone (shotgun, rocket launcher, a 40 kg box; one and two hands; stamina 100/50/25/0; 45/72/90/144 fps)
+and prints lag, overshoot, settling, sag, jitter and the snap (`csv`: every frame into `weight_test.csv`).
+`vr_debug_weight 1` writes each holding hand's target and drawn pose, a line a frame, to `weight_trace.txt` (both
+models; 2: printed too); `vr_debug_weight_stamina <0..1>` sets the stamina the weight sees (-1: the game's). A swing:
+`vr_fixed_frames 1`, `impulse 160` with `vr_weapon_grip_mode 1; impulse 9`, a `vr_mock_play` of the main hand (and the
+off hand on the foregrip at `0.09 1.37 -0.83 70 0 0` with `+graboff; vr_mock_button off grip 1` for two hands); the
+scratchpad's `weight/trace_stats.py` and `plot_swings.py` read the trace. The canary takes with the old hand settings:
+`weight/oldeval.sh <label> "<cvars>"`. Explosive boxes in the firing range: `vr_physics_spawn misc_explobox`, then
+`vr_rigid_place misc_explobox 240 -456 17.5` with the player at `setpos 300 -440 45 0 180 0; noclip` (clear of the
+dummy); a push: the main hand from `0 1.7 -0.3 70 0 0` to `0 1.7 -1.9` in 1 s; shoot with `+attack` (the mock's
+trigger button didn't fire here after `setpos`). `vr_physics_list` with `vr_debug_box3d 1` prints each prop's mass
+(and whether Held Object Offsets set it) and throw share; `vr_physics_forcegrab <what>` whether the force grab may take
+each; `developer 1` prints `explobox: hit at <m/s>` and `explobox: blows up at <where>`. The Held Object Offsets page is
+`menu_vr 40` (its last page).
 Align Sights to My Aim (ROUND21.md): `vr_sight_align [start [main|off] | apply | cancel | undo]` runs the Weapon Offsets page's capture (the mock hand must be lowered, then raised and held 0.4 s, for each capture; `vr_sight_align_captures`), `vr_sight_check [main|off] [size]` prints the sight line against the dominant eye (`vr_dominant_eye`), where the sights and the laser land in that eye's image, and the laser against the line; `vr_sight_lines` lists every weapon's line; `vr_show_sight_line 1` draws them. Higher eye images: `vr_mock_eye_size 2048; vr_restart`, then `vr_eyeshot 1`.
