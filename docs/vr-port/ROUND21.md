@@ -6133,8 +6133,8 @@ first mask costs nothing measurable.
 5. Your body from ahead (health 30): clean, ten hits, then wet to the waist, then `give h 100` (the blood gone in about
    a second), then dry (`5_body_hits_wet_heal_dry.png`); first person: hits and a burn on the hands
    (`6_hands_firstperson.png`); a QRP grunt (`7_qrp_grunt.png`).
-6. **Real game paths**: a grunt's shotgun at you (each pellet an event on your body and hands), a melee blow into a
-   grunt, a grunt standing in e1m1's slime (wet events four times a second, slime burns once a second with Enemies
+6. **Real game paths**: a grunt's shotgun at you (each pellet an event on your body and hands), an ogre's chainsaw
+   and grenade at you (37 melee events, one blast), a melee blow into a grunt, a grunt standing in e1m1's slime (wet events four times a second, slime burns once a second with Enemies
    Hurt by Liquids on), a gibbing.
 7. **Off is unchanged**: e1m1 (a corpse, your body at health 45 with its wound skin, your hands), fixed frame time,
    against the build before (0a44b4d5): with the three options off the eye images match but for the wrist gadget's
@@ -6143,8 +6143,9 @@ first mask costs nothing measurable.
 
 ### Not verified
 
-- A real rocket or grenade on a monster (the QC's path is `T_RadiusDamage`'s own; checked with the test command,
-  and `vr_physics_blast` from the console loses its datagram: console commands run between server frames).
+- A real rocket or grenade on a monster (on you it is checked: an ogre's grenade; the path is the same
+  `T_RadiusDamage`; `vr_physics_blast` from the console loses its datagram: console commands run between server
+  frames).
 - Other players' `player.mdl` in multiplayer (painted as monsters are; not run).
 - The drips' look (spawned; not caught in a screenshot).
 - The headset: the look at 2064 x 2208 and in motion, the hands' wound size (0.65 of a body's), the blood's tone on
