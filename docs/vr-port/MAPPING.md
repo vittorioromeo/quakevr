@@ -86,6 +86,12 @@ spawn functions but are not entities (`//! internal` in `entities.fgd`, with the
 - Ammo and health boxes: physics objects (carried, thrown, nudged, force-grabbed), taken at a holster or by walking
   over them.
 - Knights and hell knights always drop their swords (not statues).
+- **Rocks and bricks** (ROUND21.md, "Rocks and bricks"): at map load, loose rocks and bricks are placed at the foot of
+  walls by what the textures are named (grass, dirt, ground, `rock<N>_*`: rocks; `*brick*`, `city2_*`: bricks; the full
+  table is in ROUND21.md), clear of doors, lifts, teleporters, triggers, items, monsters and starts, the same places at
+  every load. The worldspawn key **`_vr_debris`** (Rocks and bricks) turns them off for a map (`0`) or scales their
+  chance (`0.5` half as many places, `2` twice); name your textures so (a grass floor `grass_...`, a brick wall
+  `..._brick...`) and they come by themselves. Single player only.
 - Monsters and items: Honey's trigger-spawn flags (appear when triggered, teleport fog, angry, several copies with
   `cnt`, remove corpse, silent wake-up...). Items' "Floating" and "Secret" flags only work on Honey's maps and are not
   listed.

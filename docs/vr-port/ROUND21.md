@@ -32,6 +32,7 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | Stamina on the gadget; the glow | the stamina bar over the weapon is gone: parry stamina shows in the gadget screen's top row (ten cells; blinking when low; EXHAUSTED; a sweep while it recovers) with COUNTER while a counter's window is open; the counter glow never showed (1 cm sparks inside the blade, at a lagging pose): now a gold rim glow and embers drawn by the client, off as shipped |
 | Stamina for shoves and strikes; thrown damage on gibs | shoves and bashes (15 one-handed, 20 two-handed) and blows that land (a punch 4, a weapon 8, two-handed 6) spend the parry's stamina pool, shown on the gadget; short of it they do half the damage and a shove half the knockback (in proportion to what's missing); the rest before it comes back counts from the last parry, shove or blow; all in Parry, Bash and Headbutt > Shove and Strike Stamina. A thrown weapon, box or gib landing on a loose gib hurts it as it hurts a monster (it bursts). Your archived takes: identical |
 | Swimming: air supply, strokes against the palm | Air Supply (1.5: 18 s under water before drowning instead of 12; 1 to 4). Stroke Against Palm (0.25): a stroke led by the back of the hand (a backhand, a hand turned round to reposition) pushes a quarter as much; palm-first strokes unchanged. The old Palm Matters counted either side of the hand alike. Swimming 6 s with brisk backhand recoveries: +2 units before, +261 to +319 now |
+| Menu: scroll memory and shortcuts | every VR page reopens on the row and scroll it was left at (Weapon Offsets too, for any weapon; across restarts: `vr_menu_positions`); Advanced VR and Levels buttons under Back to Game on every menu (laser, or a stick click) |
 
 Found on the way: fteqcc stores 0 when `a || b` is assigned into an entity field (rewritten; no other code has that
 shape); a parried blow's hand knock, timed by `cl.time`, came back after a level change (reset now).
@@ -8281,6 +8282,151 @@ ball at 400 then homing at 250, the grenade and flesh lobbed at you); vrfiringra
       (they shouldn't, unless it reaches your body)?
 - [ ] Stand on a ledge above an ogre and below one: its grenades should now come at you.
 
+## Catching versus deflecting; returned grenades; sword bash direction
+
+Your notes (vrfiringrange, 2026-09-28): an ogre's grenade was mostly knocked away when you held your hand out to catch
+it and closed your fist, rather than caught (knock it away only when you punch, push or bash); grenades you threw back
+seemed to hit softer than your launcher's; and a level two-handed sword parry bash sent spikes off to the right, towards
+the main hand, instead of straight ahead. Branch `agent/projfix`; scripts and logs in the scratchpad's `projfix/`
+(`t.py C|W|D`).
+
+### Why an open hand knocked grenades away
+
+- **It was a batting swing.** An empty hand batted at 0.6 times Melee Speed (Batting Swing Speed: 2.4 m/s at the
+  knuckles), slower than a punch. A hand reaching out to catch easily goes that fast. Before: a reach at 2.6 m/s with
+  the grip closing as the grenade arrived gave "ogre_grenade by a swing ... out (-9,-466,113)". Its fist was also
+  taken as a 5-unit blade along the hand, so the "face" it met was sideways and the grenade went on past the fist,
+  into you (it then hit the dummy behind you). A punch did the same.
+- **A closed fist let it through.** A hand takes a thing it touches only if the grip was pressed in the last 0.2 s. A
+  fist closed earlier, held out still, didn't catch it: "hits player".
+- **Closing the hand as it arrived was too late.** On first touch, an open hand nudged the grenade: along the hand's
+  motion it moved at least as fast as the hand, which turned it round. A still hand let it fly on into you. Nothing
+  let the grip close just after contact.
+- **Not the hands' physics spheres.** The Box3D hand spheres (`vr_box3d_hand_push`) meet only solid props
+  (`.vr_rigid` 2, the explosive boxes). A grenade is `.vr_rigid` 1, so they never touch it. That stays as it is.
+
+### Catching and deflecting now
+
+- **Deflecting needs an attack.** An empty hand (a fist, an open hand, a box in the fist) bats only at a punch's speed
+  (Melee Speed, 4 m/s; `VR_BAT_FIST`). A weapon keeps Batting Swing Speed. A punch or a slap now sends a projectile
+  off the fist as a ball, back the way the fist moves: a 5.5 m/s punch gives out (-26,581,163), towards the thrower.
+- **Pushes deflect grenades.** A shove with both hands empty now pushes a grenade away as a bash does (`VR_Grenade_Is`;
+  a palm still can't bat a spike). A bash and an armed shove bat as before.
+- **A hand in a push doesn't also swing.** While a hand is in a push (or its batting window), its batting swing is off,
+  so the bash's rule decides where the projectile goes.
+- **Catching** (`VR_Grenade_CatchCheck`, every frame before the batting): an empty hand that isn't striking (not a
+  punch-speed motion, not in a push or its batting) catches a grenade in flight (over 150 u/s) whose path this frame
+  (swept, from a frame back to half a frame ahead) passes within **Catch Radius** (`vr_grenade_catch_radius`, 15 cm)
+  of the palm (1.5 units out from the hand, the way the palm faces), plus the grenade's size:
+  - **Grip held or closing:** it's caught (a fist held out still, or a reach with the hand closing).
+  - **Open palm facing it** (within 78 degrees; not its edge or back): the palm **stops** it and holds it there for
+    **Catch Window** (`vr_grenade_catch_window`, 0.15 s) so the grip can close. Close in time and it's caught.
+    Otherwise it drops from the hand with the hand's motion, its fuse still the ogre's.
+  - The same rules apply when the engine reports the hand touching it (`VR_Grenade_HandTouch`, in
+    `VR_Carry_Handtouch`). A grenade in flight is never nudged, by a hand or by a gun poking it. Lying or rolling
+    (slower than 150 u/s), it is taken and nudged as before.
+  - **Not caught again for 0.2 s after a throw** (`VR_GREN_CATCH_AGE`): the hand it leaves, or your launcher's muzzle,
+    doesn't take it back.
+  - **Only grenades.** The ogres' (and, with Catch Grenades on "and yours", your own) can be caught. Spikes, lasers and
+    the rest can't: they fly on and hurt.
+  - Force grab is unchanged.
+- **A fast open-palm reach is a shove.** A palm facing ahead, the arm extending, at Shove Speed (2.4 m/s) or faster,
+  pushes the grenade away. To catch, close the hand as you reach, or reach more slowly.
+
+### Returned grenades hit like yours
+
+- **Measured before** (an ogre 220 units ahead, the grenade put in the hand and thrown back on the same arc):
+  "damage: monster_ogre 17.5 by ogre_grenade". The ogre's explosion is `T_RadiusDamage` 40 over 80 units. Your launcher
+  fired at the same ogre: 104.9 (120 over 160 units).
+- **Now**, with **Returned Grenades Hit Like Yours** (`vr_grenade_return_full`, on; Carrying page, Grenades): an
+  ogre's grenade you throw back (let go of at 150 u/s or more) or bat back (a swing, a bash or a shove) goes off as
+  your launcher's (`GrenadeExplode`, `GrenadeTouch`: 120 over 160, the attacker you). The same throw: 97.3 (the rest is
+  the distance). With a Quad the same throw killed the ogre (200 health) outright, as a launcher grenade would. Off:
+  17.5, as before.
+- **Kept:**
+  - In the ogre's flight, the grenade keeps the ogre's blast.
+  - Going off in your hand, it is the ogre's own blast, even if you had thrown it back once (`vr_gren_boom0`).
+  - Dropped from the hand, it keeps the ogre's blast.
+  - A multi-grenade keeps rogue's rule: your launcher's grenade on what it hits, its cluster on its fuse.
+  - Your own launcher grenade (Catch Grenades on "and yours") is the launcher's already.
+- The log: "grenade: ogre_grenade thrown back: goes off as your launcher's (120 damage, 160 units round), not its
+  thrower's (40, 80)".
+
+### Bash direction off the blade's face
+
+**Before:** a bash sent the projectile along the push: the weapon line's two ends' velocities averaged, for two hands
+the main hand's weapon line alone. A level blade pushed with the main hand a little ahead of the other sent it off to
+that side.
+
+**Now** (`VR_Bash_Direction`, vr_melee.qc): met by a weapon's line, the projectile goes off the blade's face. Take the
+velocity of the blade's point in the push (the line's end velocities kept from the push frames, mixed along the rigid
+line), minus its share along the blade: a blade can't push along itself, the projectile slides.
+
+- **Two hands on one weapon:** the point is the blade's middle (between the grip and the far end), so neither hand's
+  push pulls it aside.
+- **One hand:** the point is where it met the blade.
+- **So:** a level blade held square in front of you sends it straight ahead, whichever hand pushes harder, and
+  tilting the blade turns it by the tilt.
+- **The push's way, as before:** a palm, a fist, the line between the hands, and a push along the blade (a thrust:
+  less than a quarter of its motion across the blade).
+- The speed is unchanged (the push's strength), and the aim assist still applies afterwards.
+- The log: "deflect: off the blade <axis> (two hands: its middle), its point 0.62 along moving <v>: sent <dir>, <deg>
+  from the push".
+
+Tests (the old hand settings, set and printed: `vr_gunangle 39.5`, `vr_gunyaw 4`, every `vr_handcal_*` 0,
+`vr_handcal_off_mirror 0`; round 20's sword poses; a knight's spike from ahead at 600 u/s). The r20 pose helper draws
+the blade 2-8 degrees off the pose asked for, so the table gives the drawn blade's measured turn. Angles are from
+straight ahead; + is right.
+
+| Case | Drawn blade (turn from square) | Push | Before (along the push) | Now |
+|---|---|---|---|---|
+| 2H, pushed straight ahead (W1b) | 2.1 (left end back) | 0.0 | 0.0 | -2.1 |
+| 2H, pushed ahead and right (W2b) | 1.8 | +18.5 | +18.5 | -1.8 |
+| 2H, pushed ahead and right (W2) | 1.6 | +14 to +16 | +16.3 | -1.6 |
+| 2H tilted, left end ahead (W3b) | 20.7 | -0.1 | about 0 | +20.6 |
+| 2H tilted, left end back (W4b) | 17.0 | -3.3 | -3.3 | -17.0 |
+| 2H tilted (W3, W4) | 11.8, 27.4 | about 0 | +0.4, -1.5 | +11.8, -27.3 |
+| 1H across, pushed ahead and right (W5) | 2.4 | +31 | +31 | -1.7 |
+
+With two hands the projectile now leaves square to the drawn blade, within 0.1 degree of its turn. W5's blade was also
+tilted 7.5 degrees up, which is why the numbers differ there. A one-handed guard held upright keeps the push's sideways
+way: an upright blade's face turns only with the push.
+
+### Tests (mock headset)
+
+`t.py C`: current hand defaults (Gun Angle 70), an empty main hand (`vr_weapon_grip_mode 1; impulse 150`), `impulse
+246` with `vr_test_projectile 4` (an ogre's grenade lobbed at 630 u/s at a point 16 units ahead of the face, 10 down),
+`god`.
+
+| Case | Before | Now |
+|---|---|---|
+| C1 open palm held out still, no grip | "hits player" | stopped by the palm (facing it 0.95); "drops from the open hand 1 (no grip in 0.16 s)"; goes off at your feet as the ogre's |
+| C2 fist held out still, grip closed 1 s before | "hits player" | "caught in flight by hand 1 (the palm's reach, 2.0 units off)"; fuse 2.01 -> 2.50 s |
+| C3 reach at 2.6 m/s, grip closing 0.05 s before it arrives | batted: "by a swing ... out (-9,-466,113)" (into you) | caught (the palm's reach) |
+| C4c open palm reaching at 1.6 m/s, grip 0.08 s after it arrives | (not run) | stopped, then "caught ... (the palm's grip, 0.09 s after it met it)" |
+| C4b open palm still, grip 0.3 s after | "hits player" | stopped, dropped after 0.16 s |
+| C4 open palm reaching at 2.6 m/s (a shove) | batted by a swing | pushed away by the shove: out (-46,684,68) |
+| C5 punch at 5.5 m/s | batted, out (-22,-450,120): into you | batted, out (-26,581,163): at the thrower |
+| C6 a knight's spike at the C3 reach | batted by a swing | not caught nor batted: flies on into you |
+| C7 two open palms shoving at 3 m/s | batted by a swing | pushed away: out (0,1125,0) |
+
+- `t.py D` (an ogre 220 units ahead, `vr_debug_shots 1`): thrown back 17.5 before, 97.3 now, 17.5 with the option off;
+  a Quad kills it; the launcher 104.9.
+- **Melee detection unchanged:** the 46 canary takes (archived, replayed with the old hand settings above, set and
+  printed) give the same verdicts and events on this branch and on its base (008b67dc) built side by side: 42 pass, 0
+  differ.
+- **No config migration:** only new settings; no default changed.
+
+### Check in the headset
+
+- [ ] Hold your hand out to an ogre's grenade and close it as the grenade arrives: you should catch it. With the hand
+      open, it should stop in your palm; close within 0.15 s to keep it, otherwise it drops. If catching feels
+      stingy, raise Catch Radius or Catch Window.
+- [ ] Punch it, or push it with open palms: it should fly off, and not be caught.
+- [ ] Throw one back at an ogre: it should hit as hard as your launcher's grenade.
+- [ ] Hold the sword level in both hands in front of you and bash a spike: it should go straight ahead. Tilt the blade
+      and it should follow the tilt.
+
 ## Weight: spring model, stamina, held object offsets; explosive boxes
 
 Your requests: weapons heavier as stamina runs low (unchanged above 50%, smoothly heavier below); a Boneworks-like
@@ -8374,8 +8520,9 @@ fingers at once, the grip from the next grab. Settings (`vr_props.inc`, cvars `v
 
 Print Changes to Console prints `QVR_PROP_DEFAULT(...)` lines for the shipped table; Reset This Prop puts the
 defaults back (keeping the model). The page takes a free slot (48) for a model that has none: until you change a
-value, a slot with only its model set changes nothing. `vr_props_version` (1) is the table's migration counter, as
-`vr_wofs_version` is the weapons' (a config's slots are reset to changed defaults once; nothing to migrate yet).
+value, a slot with only its model set changes nothing. `vr_props_version` (1; 26 since "Rocks and bricks") is the
+table's migration counter, as `vr_wofs_version` is the weapons' (a config's slots are reset to changed defaults once;
+nothing to migrate yet).
 Shipped entries: the explosive boxes (40 and 25 kg, never force grabbed), the flashlight (0.4 kg: its grip and
 fingers are its own page's), the ogres' grenades (1.2 kg; their Box3D mass was 5.2 kg from 2000 kg/m³, so they knock
 boxes a little less now). Everything else is estimated.
@@ -8662,6 +8809,477 @@ The only real cost is the held torch's shadow map (about 0.1 ms of CPU here): Ta
 - [ ] Hit a grunt a few times: does he catch fire, do burns show? After 5 blows, does the fire die in your hand?
 - [ ] Drop one: it dies in 6 s; pick one up while it dies: it burns up again. Light a dead one in a wall torch.
 - [ ] Held Object Offsets with the torch in hand: Grip X/Z and the fingers; Print Changes to Console for me.
+
+## Rocks and bricks
+
+Your request: throwable, force-grabbable rocks and bricks lying about the maps where the textures say (rocks on
+grass, rock and natural floors, bricks by brick walls), near corners and edges, usable as makeshift melee and throwing
+weapons, sized for a hand, each a little different (size, turn, tint, shape), with limits and a chance to tune; all
+placed at map load if that costs no noticeable frame time. Branch `agent/debris`; scripts, logs and pictures in the
+scratchpad's `debris/`.
+
+### The pieces (`Misc/quakevr/make_debris.py`, guarded; normal maps by `bake_normals.py`)
+
+Our own models, generated (no id asset), convex so that Box3D's hull (the drawn model's convex hull) is exactly what
+is drawn: a stone rests on its drawn facets.
+
+| Model | Size (cm) | Mass (kg, at its size) | Shape |
+|---|---|---|---|
+| `vr_rock1..5.mdl` | 9 x 8 x 6 to 14 x 9 x 6 | 0.93, 0.55, 1.12, 1.05, 0.71 | a box cut by a dozen random planes (a fractured stone, flat facets), a flat base to rest on; 76-88 triangles |
+| `vr_brick1.mdl` | 19 x 9 x 6 | 1.9 | a whole brick, its twelve edges unevenly worn, its corners knocked |
+| `vr_brick2.mdl` | 19 x 9 x 6 | 1.8 | the same, a corner and an edge chipped off |
+| `vr_brick3.mdl` | 9.5 x 9 x 6 | 0.9 | a half brick, a rough broken end |
+| `vr_brick4.mdl` | 13 x 9 x 6 | 1.3 | a broken piece, a jagged end and a chip |
+
+- **Skins:** 128 x 128, every facet its own island (a shelf-packed atlas at one texel density, 3-5 texels a cm),
+  painted from 3D value noise at each texel's point on the model, so the pattern runs on over the facets' edges:
+  mottling, grain, pits, worn lighter edges, a darker underside; strata on two rocks. Six skins each, in Quake's
+  palette: rocks grey, beige, brown, mossy (grey, olive moss on the upper facets), red-brown, dark; bricks red, brown,
+  yellow, blue-grey, sooty, pale, with darker fired patches, mortar left on their beds and ends, and fresher, lighter
+  clay on the breaks.
+- **Normal maps** (`vr_rock1.mdl_0_norm.png`...; one per model serves its six skins), the generated models' way
+  (`normaltiles.py`): the facets' creases rounded (1 texel for rocks, 1.4 for the bricks' worn edges) and a new "stone"
+  recipe, the skin's fine shading as relief (dark: a pit or a pore; light: a knob; 1.2 and 0.9 texels deep).
+- **Scale:** modelled at `vr_world_scale` 1 (as the shell); each piece is scaled by the world scale times its own size.
+- **Physics:** stone's density (`props::stoneDensity`: rock 2600 kg/m³, brick 1900), so a bigger piece is heavier;
+  hard (they bounce a little, `vr_throw_restitution`; gibs and backpacks are "soft").
+
+### Where they go (`Quake/vr/vr_debris.cpp`)
+
+At map load, after the map's own entities and before the baselines (QC `vr_debris.qc`, at the first server frame):
+
+1. **Spots:** along the bottom edge of every wall face of the world (faces steeper than 53° from the floor), every 16
+   units, where a floor meets it (a floor within 1.5 units of the edge's height, just out from the wall).
+2. **Materials** by the texture's name (lowercased; an animation's `+0` or a fence's `{` dropped: QRP's replacements,
+   which keep id's names, give the same), the first rule that matches:
+
+   | Material | Names | What lies there (weight) |
+   |---|---|---|
+   | none | `sky*`, `trigger`, `clip`, `skip`, `hint`, `origin`, liquids (`*...`) | nothing |
+   | brick | `*brick*` (wbrick1_5, bricka2_*), `city2_*`, `city1_4` | bricks at the wall's foot (1); on a brick floor (0.25) |
+   | fieldstone | `wall14*`, `church1_2`, `city6_7`, `city6_8`, `*cobble*`, `*rubble*` | rocks at the wall's foot (0.8) |
+   | natural | `*grass*`, `*ground*`, `wgrnd*`, `*dirt*`, `*mud*`, `*sand*`, `*gravel*`, `*moss*`, `*cliff*`, `*earth*`, `wswamp1*`, `rock<digits>` (rock1_2, rock4_1; not rock0sid or rockettop, which are machines) | rocks on the floor (1) and at the wall's foot (1) |
+   | masonry | `wswamp2*`, `wiz1_*`, `*stone*`, `city3_*`, `city4_*`, `city5_*`, `afloor*`, `wall9*`, `church*`, `column*`, `arch*`, `altar*`, `*marble*` | a few rocks at the wall's foot (0.25) |
+   | wood, metal | `*wood*`, `crate*`, `*metal*`, `*met*`, `*tech*`, `*comp*`, `*cop*`, `*plat*`, `*light*`, `*door*`, `*exit*`, `*switch*`, `*button*`, `twall*`, `uwall*`, `sfloor*`, `slip*` | nothing |
+   | other | the rest | nothing |
+
+   A spot's rock weight is the larger of its floor's and its wall's, its brick weight likewise; where both are there,
+   the kind is drawn by their weights.
+3. **The roll:** each spot, in a random order (the limits then favour no part of the map), gets pieces with
+   Chance x its weight x In Corners (2.5, when a wall stands beside the spot along its own wall: a room's corner, a
+   pillar, a ledge's end) x In the Dark (0.3 where the floor's lightmap is under 8, rising to 1 at 40: the foot of a
+   wall is often the darkest part of a room, and a piece nobody sees is a wasted entity).
+4. **A piece's place:** out from the wall by its own extent that way and 0.3-1.5 units more; the others of a cluster
+   (up to Most Together, 3: a second one 30% of the time, 50% in a corner; a third 10%, 25%) beside it along the wall.
+5. **Checks** (a piece failing one is not placed; if a spot's first fails, the spot is dropped): a floor of the world
+   itself under it (not a door, a lift or any brush entity), no steeper than 25°, flat under its footprint's corners
+   (within 1 unit: not over an edge or a step), no liquid at the floor or above the piece, room round it along eight
+   directions, open for 40 units above (not under a stair or a low ledge), and clear of entities' boxes grown by a
+   margin: doors, lifts, trains, buttons and whatever moves (48 units, plus up to their own size where they move;
+   lifts 256 down), teleporters, changelevels, starts and teleport destinations (64), other triggers (24), items,
+   weapons, monsters, path corners, explosive boxes and torches and flames (40; the static ones are recorded as the
+   map spawns, `VR_OnMakeStatic`, since they leave no entity), anything else with a model or a solid (24). Then
+   Spacing (56 units) from another spot's pieces, Most in an Area (8 in a 384-unit square), Most in a Map (160), and
+   never so many that fewer than `vr_debris_edicts_left` (2048) entities stay free.
+6. **Variety:** the model (rocks alike; bricks: whole 30%, chipped 25%, half 25%, broken 20%), the size (Size
+   Variation, 15% either way, a little more along one axis than another; bricks 40% of it: they are made to a size),
+   the turn (rocks any way; bricks half along the wall ±20°, a fifth lying on their side), resting on their lowest
+   corner along the floor's normal, and the **skin by the colour of what it lies by** (the texture's average colour,
+   from the BSP's own pixels, against each skin's, read from the model file; hue counts more than lightness): a brick
+   takes its wall's closely (wbrick1_5: brown and sooty; city2_1: sooty and red; city2_5: blue-grey), a rock loosely
+   (a grey stone on brown earth is no surprise).
+7. **Deterministic:** a seed from the map's name (and Layout, `vr_debris_seed`), the BSP's faces in order: the same
+   pieces at every load. e1m2's layout is b9a02a5f when loaded, when returned to from e1m1 and after `restart`, its 73
+   pieces' places and turns identical; under QRP the same layouts (e1m1 168120a8, e1m2 b9a02a5f, e2m2 ee286406).
+
+**None:** with Rocks and Bricks off; in multiplayer (a remote client's packets are 1400 bytes: 150 pieces in sight
+would not fit); in the maps of `vr_debris_exclude` (vrfiringrange, vrclimb, vrexample: the firing range's entity
+numbering, which the motion recorder relies on, stays as it is); in a map whose worldspawn has `"_vr_debris" "0"`
+(another number scales the chance; MAPPING.md). Tested with an `.ent` override of e1m1: `0` gives none ("its
+worldspawn's _vr_debris is 0"), `2` 35 pieces (18 by default).
+
+**What id's maps get** (the defaults): start 99, e1m1 18 (rocks on ground1_*), e1m2 73 (71 bricks), e1m3 66, e1m4 84,
+e1m5 88, e1m6 0, e1m7 0, e2m1 4, e2m2 102, e2m3 83, e2m4 91, e2m5 17, e2m6 114, e3m1 3, e3m2 to e3m6 0 (metal), e4m1
+0, e4m2 134, e4m3 140, e4m4 160, e4m5 54, e4m6 78, e4m7 160, end 4. Placing them takes 4-24 ms.
+
+### All at map load: the numbers (`--exclusive`, e2m2's densest spot, 3600 frames each; `perf.sh`)
+
+They are spawned at the first server frame, before `SV_CreateBaseline`: a piece lying still sends the client what any
+still entity does (its update bits and the networked scale, 12 bytes, only while in sight), and asleep in Box3D it is
+not simulated at all. No think, no per-frame QC.
+
+| Pieces in e2m2 | 0 | 50 | 150 | 300 |
+|---|---|---|---|---|
+| Entities | 184 | 234 | 334 | 484 |
+| Server spawn, map cached (ms) | 58.7 | 85.5 | 89.4 | 85.0 |
+| Server frame (ms) | 0.204 | 0.228 | 0.284 | 0.364 |
+| of it Box3D (ms; sync / step) | 0.036 (0.016 / 0.016) | 0.048 (0.028 / 0.016) | 0.064 (0.044 / 0.020) | 0.100 (0.072 / 0.020) |
+| Client frame CPU (ms, host at 250 fps) | 0.849 | 0.862 | 0.921 | 0.962 |
+| Alias models' draw, left eye, CPU (ms) | 0.036 | 0.037 | 0.042 | 0.047 |
+
+Placing adds about 27 ms to the server's spawn whatever the count (reading the nine models' skins and bounds, the
+faces, the traces; a map's first load, 920 ms, is the same with or without); the frame gets 0.16 ms more server time
+per server frame at 300 pieces (1.2% of a core at 72 Hz) and 0.11 ms more on the client's frame. None of it is
+noticeable, so everything is placed at load and nothing pops in. (The defaults give at most 160.)
+
+### Using them
+
+- **Carried** as the gibs are (`VR_Carry_Setup`): gripped (the fist touching it; the fingers fitted to its shape; held
+  where gripped), one hand only (Held Object Offsets: Two Hands 0), thrown, nudged; nothing to take at a holster.
+  **Force grabbed** (`FL_FORCEGRABBABLE`; Force Grab -1): "force grab: vr_rock flies 60.5 units in 0.4 s", caught.
+- **Striking with one**, through the wall torches' club keys (Held Object Offsets' Tip and Butt, `vr_melee.qc`'s
+  club): a **whole, chipped or broken brick is a club**, always held by one end (Grip: Always the same; the fingers
+  round its end), its far end the Tip, its near end the Butt, so it slashes, jabs and butts along its length as the
+  torch does (a weapon's blow: stamina 8); a **rock or a half brick** has no Tip and strikes **as the fist holding
+  it** (the keys' default: a punch, stamina 4, a closed fist, the punch's batting). Either way the blow's strength is
+  times `1 + Blunt x the square root of its mass` (Held Object Offsets' new **Blunt** key, 0.8 for rocks and bricks:
+  a 0.35 kg rock 1.47, 1 kg 1.8, a whole brick 2.1; `VR_Carry_BluntMult`), the damage coming from the blow's speed as
+  every blow's. A box stays at Box Punch Damage (1.5), a torch at its own. They knock with their own sound, not the
+  punch's. `modelpoint` (the club's line) now scales a point as the model is drawn (the pieces' size; the torch is
+  unscaled).
+- **Thrown hard** (over 250 u/s, as boxes): it hurts what it hits (monsters, and gibs as thrown things now do) by its
+  speed, `Thrown Box Damage (8) x (1 + Blunt x √mass)` per 5.8 m/s: a 1 kg rock at 12 m/s about 30.
+- **Sounds** (`make_sounds.py`: `vr/rock1..3.wav`, a dense stone's thud with a tick and a scatter of grit;
+  `vr/brick1..3.wav`, fired clay's brighter, hollower clack): Box3D's hits (`.vr_impact`: landing, knocked, thrown
+  into a wall or a monster; not the player's hands or body) above 1.5 m/s, louder the harder, at most every 0.1 s.
+- **Held Object Offsets entries** (`vr_props.inc`, slots 17-25, `vr_prop_*_18` to `_26`, after the torch's): Blunt 0.8, Two Hands 0;
+  the whole, chipped and broken bricks Grip Mode 1 (Grip X 0.8, Z -1.6; the broken one X 0), Tip X 2.4 and Butt X
+  -2.4 (the broken one 1.6); Mass left estimated (each piece's size differs). `vr_props_version` 26 gives a config saved before its empty slots'
+  new defaults (a slot a config gave another model keeps it; that piece then hits as a box).
+
+**A bug found on the way:** a punch holding a box hit 2.25 times as hard, not the 1.5 of Box Punch Damage: the
+multiplier was in the blow's strength (`VR_Melee_Decide`) and again in `W_FistMelee`. It now counts once
+(`W_FistMelee` applies it only for untracked hands, whose blows have no strength).
+
+### Tests (mock headset; the scratchpad's `debris/`)
+
+The synthetic motions' hand settings were set and printed in each run (`vr_gunangle 39.5`, `vr_gunyaw 4`,
+`vr_offhandpitch 40.25`, `vr_offhandyaw -4`, every `vr_handcal_*` 0: `motion_synth.py`'s).
+
+| Test | Result |
+|---|---|
+| A rock in the hand (`hold_vr_rock.png`), a brick (`hold_vr_brick.png`) | gripped at the hand, the fingers round it; the brick held by its end |
+| Punching a grunt holding a rock (0.37 kg; `punch_straight` reaching 0.78 m) | "punch ... 6.6 m/s, x1.44", 14.4 damage, stamina -4 (a bare fist: the same without the x1.49 of a 0.37 kg rock) |
+| The same holding a whole brick, a club (e1m2, 1.5 kg; `club_hit.png`) | "stab ... jab ... 5.8 m/s, x1.91", 19.1 damage, stamina -8 |
+| Its grip (`club_brick.png`: from the side, above, the front) | held by its end, the fingers over it, along the hand |
+| Throwing the rock at a grunt 72 units away (an overhand throw, `throw.mock`) | 465 u/s, base 11.9, 22.0 damage (legs), "vr_rock knocks at 11.2 m/s"; another throw's head hit, 54.2, killed |
+| Throwing a half brick (0.71 kg) / the whole brick (1.5 kg) | 465 u/s, base 13.4, 24.8 damage (legs); 472 u/s, base 15.8, 29.7 (killed); knocks at 6-11 m/s |
+| Force grab (the off hand, as `items/t2.sh`) | flies 60.5 units in 0.4 s, caught (`forcegrab.png`) |
+| `vr_physics_forcegrab props` | every rock "may be force grabbed"; the explosive box still "never" |
+| At load | every piece's body made asleep ("a prop body, asleep"); no knocks at load |
+| Determinism, QRP, the worldspawn key | above |
+| Placement | `ev_<map>_qbase_sheet.png` for e1m1, e1m2, e1m3, e2m2 and e4m2: a wide view and three close-ups, then the same in `r_fullbright` (the foot of a wall is dark) |
+
+### Settings (Carrying and Gibs > Rocks and Bricks; all from the next map)
+
+| Setting | Cvar | Default |
+|---|---|---|
+| Rocks and Bricks | `vr_debris` | 1 |
+| Rocks / Bricks | `vr_debris_rocks` / `vr_debris_bricks` | 1 / 1 |
+| Chance (a spot every 16 units) | `vr_debris_chance` | 0.1 |
+| In Corners | `vr_debris_corner` | 2.5x |
+| In the Dark | `vr_debris_dark` | 0.3x |
+| Most Together | `vr_debris_cluster` | 3 |
+| Most in a Map | `vr_debris_max` | 160 |
+| Most in an Area (a square of `vr_debris_area_size`, 384) | `vr_debris_area_max` | 8 |
+| Spacing | `vr_debris_spacing` | 56 units |
+| Size Variation | `vr_debris_size` | 0.15 |
+| Layout | `vr_debris_seed` | 0 |
+| (console) maps without them | `vr_debris_exclude` | "vrfiringrange vrclimb vrexample" |
+| (console) entities left free | `vr_debris_edicts_left` | 2048 |
+| (Held Object Offsets) Blunt | `vr_prop_blunt_NN` | 0; 0.8 for the rocks and bricks |
+| (console) `vr_debug_debris` | | 1: a line per map (pieces, spots, rejections by reason, time, the layout's hash, the spawn time); 2: also each piece and the way out of its wall; 3: also each spot an entity turned away, and which |
+
+`vr_debris_list [lit]` lists the pieces in the map now (model, skin, place, turn, resting, the light there; `lit`:
+brightest first).
+
+### Files
+
+`Quake/vr/vr_debris.cpp`, `.hpp` (the planner, `vr_debris_list`); `QC/vr_debris.qc` (spawning, sounds); `vr_carry.qc`
+(`VR_Carry_BluntMult`, `VR_Carry_PunchMult`, the throw's damage), `vr_melee.qc` (Blunt on club blows), `weapons.qc` (`W_FistMelee`), `world.qc` (precache,
+StartFrame), `builtins.qc` and `vr_builtins.cpp` (`debrisplan`, `debrismodel`, `debrisput`); `pr_cmds.c` (the
+`VR_OnMakeStatic` hook); `vr_props.*` (Blunt, stone densities, the entries, migration 26); `vr_box3d.cpp` (densities,
+hardness); `vr_menu.cpp`, `vr_menu_props.inc`, `vr_cvars.inc`; `Misc/quakevr/make_debris.py`, `make_sounds.py`,
+`normaltiles.py` and `normalmaps.py` (the stone recipe); `entities.fgd` (`_vr_debris`); `MAPPING.md`; `vr_builtins.cpp`'s
+`modelpoint` (scaled).
+
+### Not verified, limitations
+
+- In the headset: how they look at real scale (small at the foot of Quake's big walls: a 13 cm stone is 4 texels of a
+  floor), how they sit in the hand, the sounds (generated; not listened to here).
+- **Saved games:** not tried (the tests may not write saves). The pieces are ordinary entities with ordinary fields,
+  their models always precached, and a saved game's own pieces replace a new placing; a game saved before has none.
+- The melee canary (`eval.sh`) skips while your takes are archived; blows change only when a hand carries something.
+- Changing `vr_world_scale` during a map leaves the pieces at the old scale until the next map (the shells follow it).
+- Multiplayer and deathmatch: none.
+- Only the world's own faces are read: a brush entity's brick wall (a `func_wall`) sheds nothing.
+- The torches agent's removable torches: pieces keep 40 units from any `light_torch*` or `light_flame*`, static or not.
+
+### In the headset
+
+- [ ] e1m2 and e2m2: bricks at the foot of brick walls, rocks by rock walls and on the ground; e1m1's outdoor ground.
+      Too many or too few (Chance, In Corners, Most in an Area)? Do their colours sit with the walls?
+- [ ] Pick one up: does it sit in the hand? Punch a grunt with it, throw it at one, force grab one.
+- [ ] Reload the map: the same pieces in the same places.
+
+## Menu: scroll memory and shortcuts
+
+Your voice notes (firing range, 2026-09-28): "remember the last scrollbar position so that I don't have to scroll
+down all the way every time I reopen the menu on the same page", and "a quick shortcut to the advanced VR settings
+on the top left corner of the menu next to back to game ... and also another shortcut just beneath that to select
+levels ... regardless of where I am in the menu".
+
+### What was wrong
+
+The VR pages kept their selected row and scroll for the session. Two pages did not: Weapon Offsets and Held Object
+Offsets are rebuilt each time they are shown, for whatever the hand holds now. Their selection and scroll were reset
+to the top every time: after Back to Game and reopening, and after going back and opening the page again. Weapon
+Offsets is the 122-row page you tune in the firing range. Nothing was kept across a restart.
+
+### Scroll memory (`vr_menu.cpp`: `RowAnchor`, `items`, `showPage`, `VR_MenuSavePositions`)
+
+- Every page's position is remembered as an anchor, not only as numbers: the selected row's label, the header above
+  it, where it was, and the line of the view it was on.
+- When a page is built anew, the selection goes back to the same row, on the same line of the view. This covers
+  another weapon on Weapon Offsets, a choice that shows more rows or fewer (a hotspot's type, Fingers: Manual, Body
+  Arms after calibrating, Review Takes...), the other hand's weapon and the held prop. Among rows with that label,
+  one under the same header comes first, then the nearest. When the row is gone (the fists have fewer settings), the
+  selection stays at the same place, on a setting, as before.
+- The resets on Weapon Offsets and Held Object Offsets are gone. The one exception stays: after Align Sights to My
+  Aim, the selection still goes to Apply or Undo.
+- The pages' rebuild checks (`items()`) now only mark a page stale (`done[page] = false`). The list is replaced in one
+  place, which knows the row selected before. A check that still clears the list itself only loses that row (the old
+  clamping takes over). Pages added later need nothing: the anchor works from their labels.
+- **Across restarts (decided: yes):** `vr_menu_positions` (archived) keeps the pages' anchors. It is filled in when
+  the config is written (a hook in `Host_WriteConfigurationToFile`, host.c), so nothing is built while you use the
+  menu. The format is `title|header|row|index|line` separated by `;`, the most recently shown pages first. Pages
+  shown at their top are left out, and the text stops at 1000 characters (a config line's token holds 1024). The
+  cvar is read at the menu's first use, and read again if it changes before any page is shown. Each page takes its
+  anchor when it is first built. A page renamed later just loses its record.
+- Reopening itself is unchanged. The menu reopens on the page left after Back to Game (the button, or holding the
+  menu button; `vr_menu_remember`); Escape from the main menu opens the main menu next time. After a restart, the
+  main menu opens first. Each VR page you go to is where you left it, even if it was before the restart.
+- Ironwail's own lists (options, levels, mods, key bindings) keep their own behaviour. Back to Game reopens them where
+  they were (as before). The level list opens on the map being played.
+
+### The shortcuts (`vr_menuui.cpp`: `ToolbarLayout`, `VR_MenuDrawOverlay`, `VR_MenuKey`, `useTool`)
+
+- A column of three buttons at the panel's top left, over every menu (VR pages, Ironwail's menus, dialogs): **Back
+  to game**, **Advanced VR** under it, **Levels** under that. They have the same style as Back to Game had (a
+  rounded panel, gold text, lit and ticked under the laser), each with an icon: the arrow, three sliders, a flag.
+  All are as wide as "Back to game" and end where it ended. Each button is 2 true pixels shorter (14), so the three
+  fit above a VR page's list at the shipped spacing. Where the labels don't fit (a narrow panel), only the icons show, in
+  the corner.
+- **No overlap:** the VR pages' list starts below the column (it moves down only at a Menu Spacing below 1.5). The
+  menus that lay out from the canvas's edges (Ironwail's levels, mods, options, key bindings) start below it too
+  (`VR_MenuBounds`, from `M_UpdateBounds`). The level list, which began at the panel's top, starts lower, with a few rows fewer.
+- **Advanced VR** opens the Advanced VR Options with their selection and scroll as left. **Levels** opens Ironwail's
+  level list (Single Player > Levels, `menu_maps`). Pressing the one for the menu you are on only ticks.
+- **Back after a jump (decided: to the target's parent):** the jumps land where the menus' own links go. B from the
+  Advanced VR Options goes to the VR Settings, then Options, then the main menu. B from Levels goes to Single Player,
+  then the main menu. The other choice, Back to the page you jumped from, can loop: the VR pages keep one parent per
+  page, so jumping from a page to Advanced and opening that page again from there would make each the other's way
+  back. What you want from the page you left is kept anyway: its selection and scroll wait there, and Back to Game
+  reopens where you are.
+- **Laser:** point and pull the trigger (as before for Back to Game).
+- **Controller navigation:** a click of either stick, on any menu, gives the buttons the selection (on Back to Game).
+  Up and down move along them, A presses, and B (or another stick click) gives the selection back to the menu. On a VR
+  page, the buttons are also part of the up-and-down cycle: up from the first setting goes to Levels, and down from the
+  last goes to Back to Game. Past the column's ends you go round to the page's other end, where the cycle used to wrap
+  from last row to first. A held stick stops at each end (as a slider does at its bar's end): a new push goes on.
+  While the buttons have the selection, the menu's own highlight and help are hidden, so only one thing looks
+  selected. Moving the laser on (more than 12 menu pixels) gives the selection back to the menu.
+- `VR_MenuClick` became `VR_MenuKey` (M_Keydown, after the gamepad remap and the repeat filter). `M_DrawArrowCursor`
+  skips its arrow while the buttons have the selection.
+
+### Checks (mock headset, `kit/../menuux/tests.sh`: ALL PASS)
+
+- Scroll: Weapon Offsets (with a gun) scrolled to row 10 ("Weapon Hand", under Posing Mode), Back to Game, reopened:
+  the same row, scroll 10. Back to Advanced and `menu_vr 22` again: the same. Back to Game, another gun (impulse
+  154), reopened: the same row and scroll on the rebuilt page. VR Settings scrolled to "Chest Flashlight" (scroll
+  16), then Advanced and B: the same.
+- Restart: `writeconfig` wrote `vr_menu_positions "Weapon Offsets|Posing Mode|Weapon Hand|10|0"`. The next start
+  (with a `writeconfig` before the line is executed, and another gun) opened Weapon Offsets on row 10, scroll 10.
+- Jumps: the laser on Advanced VR from Weapon Offsets opens Advanced VR Options (Back to VR Settings; B, B: Options).
+  The laser on Levels opens the level list (B: Single Player). A stick click on Single Player selects the buttons,
+  down and A opens Advanced VR Options. Up from its first row selects Levels, and A opens the levels. The laser on
+  Back to game closes the menu, and `togglemenu` reopens the levels.
+- Screenshots (`menuux/buttons.png`, `jumps.png`, `scroll.png`, `t4.png`): the buttons on the VR Settings, Graphics -
+  Lights, Weapon Offsets and Held Object Offsets. The laser lighting Advanced VR, then Levels. The stick selection on
+  Advanced VR over Single Player, and on Levels over Advanced VR Options with no row highlighted. Options, key
+  bindings, mods, video and levels with nothing under the column. Menu Spacing 1: the VR page's list starts below it.
+- No config migration: a new cvar only (number 28, reserved for this, unused).
+
+### In the headset
+
+- [ ] Weapon Offsets: scroll down, Back to Game, reopen: same place? Switch weapons and reopen: same row?
+- [ ] Quit and restart: open a page you had scrolled: same place?
+- [ ] The three buttons: easy to hit with the laser? Are the icons clear? Is "Advanced VR" a good name?
+- [ ] Click a stick in a menu, move down to Levels, press A; on a VR page, go up past the first setting.
+
+## Climbing: sliding along the wall; throw angle after calibration
+
+Your notes (28 September): in vrclimb, shimmying along a ledge often sticks, as if the body caught on the wall; it goes
+better with the body pushed back and the hands out, but should be easy either way. In vrstart, since you recalibrated
+your hands, throws go into the ground more than you mean; you want the old feel back, or a way to tune the release
+angle. Both fixed. Throwing: **Release Pitch** (`vr_throw_pitch`, degrees, 0 by default).
+
+### Shimmying pressed against the wall
+
+**Your theory is right.** While you hang, the body moves by the hands' pull. `moveBody` (`vr_climb.cpp`) took the move
+whole, else up then across, else across then up. It had no slide. Pressed against the face under the ledge, any part of
+the pull that went into the face stopped the whole trace in its first frame, so the sideways part was lost with it.
+Real hands never push sideways only: drawn in close, they drift towards the chest and wobble in and out. Two centimetres
+of drift over a 33 cm stroke (0.4 units a frame into the wall, beside 8.7 sideways) kept the body in place almost the
+whole stroke. Pushed back off the face, the same pull only moved the body towards the wall, so it slid, until the drift
+brought it to the face. That is why pushing back and reaching out helped.
+
+**The fix.** Where the move is blocked, the box also slides along what it meets: Quake's clip against up to 4 planes,
+along the crease of two. The nearest of the candidates to where the pull would take the body wins (the whole move, the
+slide, up then across, across then up). The part into the face is still owed, as before ("Owed motion"), so pushing out
+again doesn't send you back. The wall memory, the reach and the mantle are unchanged. Walls square to the pull or at an
+angle slide the same way.
+
+**Measured** (`vr_fixed_frames 1`, mock, the head leant in 28 cm; `climb_plays.py shimmy…`, `shimmy_stats.py`). Four
+strokes each way on vrclimb's long ledge, two each way on e1m1's (`nomonsters 1`: with monsters on, a grunt walked into
+the body and blocked it; that was the grunt, not the wall). Each stroke is 33 cm (8.67 units) of both hands.
+
+| Play (the hands' drift in / wobble over a stroke) | Body | Before: along the ledge, per stroke (units) | After |
+|---|---|---|---|
+| vrclimb, straight sideways | against the face | 8.67 every stroke (100%) | 8.67 (100%) |
+| vrclimb, straight sideways | 12 cm off it | 8.56, then 8.67 (99.8%) | the same |
+| vrclimb, 2 cm in | against | 0.45, 0, 0, 0, 1.31, 0, 0, 0 (**2.5%**) | 8.67 every stroke (100%) |
+| vrclimb, 2 cm in, 1 cm wobble | against | 4.82 to 4.99 (56%) | 8.67 (100%) |
+| vrclimb, 2 cm in, 1 cm wobble | off | 8.67 (100%) | 8.67 (100%) |
+| vrclimb, 5 cm in | against | 0.10, 0.07, 0 … (2.1%) | 8.67 (100%) |
+| vrclimb, 5 cm in | off | 8.67 ×3, then 4.61, 1.31, 0.07, 0, 0 as it reached the face (46%) | 8.67 (100%) |
+| e1m1, straight sideways | against | 8.67 (100%) | 8.67 (100%) |
+| e1m1, 2 cm in, 1 cm wobble | against | 4.92, 4.82, 4.82, 4.82 (56%) | 8.67 (100%) |
+| e1m1, 2 cm in, 1 cm wobble | off | 8.50, then 8.67 (99.5%) | the same |
+| e1m1, 5 cm in | against | 0.10, 0.07, 1.34, 0.03 (4.5%) | 8.67 (100%) |
+
+Against the face or off it, the body now goes the same 33 cm a stroke. In every "after" play, it never did less than
+half the pull's sideways part in a frame. The one short stroke (the first, off the face: 8.50 and 8.56) is the reach
+holding the body back while the arms straighten, and it was there before. Plot: `shimmy_plot.svg` in the scratchpad's
+`handfix/` (the body along the ledge, before and after, against the hands' summed pull).
+
+**The earlier climbs** (`runset.sh`, before against after):
+
+- **Identical, byte for byte:** the `climbtrace` and `climb:` lines of the mantle, e1m1, push, overtop (ledge, narrow
+  wall, no-room ledge) and ladderlean.
+- **The ladder:** the same holds, tear-offs and mantle; it logs "no room" 11 times, not 13. The body now drifts 0.5
+  units sideways: kept within reach of a hold 3 units to its side, it can slide there along the wall. It mantles at y
+  -3.5, not -3.0.
+- **The old ledge play** (hands 1 m out, no lean) stuck the same way in its shimmy: 0.17 of 0.17 units lost a frame. It
+  now gets to y 219.6, not 207.0, out over the trench, and falls into it (z -184), as that play was written to do.
+  Before the reach limit, it got to 228.
+- The hand-offs still don't move the body. `climb_trace.py`: the worst frame is 6.1 mm off the hands' pull (against
+  the face), where it was 6.6 mm before.
+
+### Throw angle after the hand calibration
+
+**How a throw leaves the hand** (`vr_throw.cpp`, `releasePeak`). Every frame, each hand stores a sample: its
+velocity, its spin, and "forward". At the release, the throw takes:
+
+- the peak of the speed within 0.12 s before the release;
+- the mean velocity within 17 ms of that peak;
+- the direction from the 40 ms before the peak;
+- above 6 rad/s of spin, `0.7 × ω × (0.1 m × forward)`: a wrist flick's speed at the held object's centre.
+
+The QC only scales the result (gain, weight). There is no aim bias, and Aim Assist is off by default. It already exists
+(Throwing page: Aim Assist, Assist Cone, Assist Strength, for thrown weapons), so nothing new was needed there.
+
+**The cause.** Two terms came from the calibrated hand, not the controller.
+
+1. **The sample's velocity.** In the headset it's the palm's (the grip's) tracked velocity, as it should be. But the
+   calibration's move added the wrist's turn through it: `ω × (grip × move)`. With your move (X -4, Y 0.58, Z -2.5 cm
+   along the grip) that is a point about 4.7 cm below and behind the grip. In a forward swing (the hand turning over,
+   10 to 20 rad/s) that point moves backwards: 0.5 to 0.9 m/s less forward speed, with the up-down speed kept. A throw
+   aimed below level (most overarm throws, at the peak of their speed) goes steeper down and slower.
+2. **The lever along "forward".** That was the drawn hand's forward, so Gun Angle 39.5 to 70 turned the wrist flick's
+   lever 30.5 degrees down with it. In a forward flick, `ω × lever` turned down by the same angle, adding downward
+   speed and taking away forward speed.
+
+**Your motions, in numbers** (`Misc/quakevr/throw_calibration.py` on the 216 archived takes, pre_calibration_2026-09-28,
+that reach 2 m/s). There are no throw takes (474 files, all melee), so these are your fastest moments, the ones a throw
+would be. It is the old code's estimate at the palm's peak, with your old settings (Gun Angle 39.5, Gun Yaw 4, every
+`vr_handcal_*` 0, mirror 0) against your new ones (70, 0, X -4, Y 0.58, Z -2.5, mirror 1), from the same recorded
+controller motion:
+
+| Motion | Elevation, new minus old (median) | Speed, new / old | The move alone | Gun Angle alone |
+|---|---|---|---|---|
+| punch_overhead (the overarm throw's motion) | **-6.6°** (-4.6 to -6.9) | ×0.86 | -5.3° | -0.5° |
+| slash_overhead | **-3.5°** | ×0.82 | -3.8° | +1.3° |
+| hilt_pommel (a downward strike) | -8.4° | ×1.01 | -5.0° | -3.5° |
+| gun_strike_butt | -6.2° | ×0.97 | -4.2° | -1.4° |
+| stab one hand / two hands | -2.3° / -3.6° | ×0.97 / ×1.05 | -2.0 / -2.4° | -0.6 / -0.8° |
+| sideways slashes | +6 to +10° | ×0.86 to ×1.09 | +2 to +5° | +3 to +6° |
+| all 216 | +0.8° (-6.6 to +10.0, 10% to 90%) | ×1.00 | | |
+
+For example, punch_overhead 02-20-11: old -25.5° at 10.21 m/s, new -32.3° at 8.61 m/s. The downward, overarm motions
+(what a throw is) went 3.5 to 7 degrees lower and up to 20% slower, mostly from the move. The sideways ones went up. How
+much depends on how the wrist turns at the release. The throws depended on the calibration, which they shouldn't.
+
+**The fix: throws go with the controller, whatever the calibration** (`vr_hands.cpp`, `throwFrame`).
+
+- **The velocity** is the controller's own: the grip's tracked velocity (Touch and Index with Legacy Pose, the default),
+  or the tracked pose's for other controllers. Nothing of the calibration is added.
+- **The lever** is along a fixed frame on the controller: its turn by the angles the throws were tuned with (Gun Angle
+  39.5, Gun Yaw 4; the off hand 40.25, -4). Your old calibration and every earlier throw used them.
+- **Where the object starts** is still the drawn hand plus the lever (it leaves from where you see it).
+
+So, with any calibration, a throw is the old calibration's throw, to the digit. The formula, per sample `s` (tracking
+space turned to Quake's):
+
+    v_s = v_grip(s)                                  (the controller's palm; no calibration term)
+    f_s = forward(q_controller(s) · R_yaw(4°) · R_pitch(-39.5°))      (off hand: -4°, -40.25°)
+    peak  = argmax |v_s| over [t_release - 0.12 s, t_release + 0.01 s]
+    v     = mean(v_s, |t - t_peak| ≤ 17 ms), its length at least the fitted peak speed
+    v     = |v| · normalize(Σ v_s, t_peak - 40 ms ≤ t ≤ t_peak)
+    ω     = mean(ω_s, |t - t_peak| ≤ 34 ms)
+    v    += 0.7 · ω × (0.1 m · f_peak)                if |ω| > 6 rad/s
+    v     = v tilted up by vr_throw_pitch degrees about the level line square to it (speed kept; not past vertical)
+
+The QC then scales `v` as before (gain, weight, Throw Speed). The two-handed estimate uses the same samples and gets the
+same tilt.
+
+**Release Pitch** (Throwing page, `vr_throw_pitch`, -15 to +15 degrees, **0**). It tilts every throw's direction up or
+down and keeps its speed. At 0, throws are as they were before the calibration, which you liked, so 0 is the default and
+there's nothing to migrate. If they still feel low, try +2 or +3.
+
+**Tested** (mock, `vr_fixed_frames 1`, `Misc/quakevr/throw_plays.py`: an overarm throw with a wrist flick, an underarm
+lob, a straight push, an overarm throw with a still wrist). Each is played as the same controller motion (written for a
+controller pitched 70 on the hand), with `vr_mock_grip_velocity 1` so the throw uses the palm's velocity as in the
+headset. The elevation and speed at the release (`vr_debug_throw`), with the effective settings printed in each log
+(`handfix/T_*.log`):
+
+| Code, calibration | overhand | lob | flat | overhand, still wrist |
+|---|---|---|---|---|
+| old code, old calibration (the feel you liked) | -0.4°, 4.30 m/s | +23.4°, 4.83 | +5.0°, 4.97 | +13.9°, 6.28 |
+| old code, new calibration | +12.2°, 5.44 | +28.5°, 6.03 | +5.0°, 4.97 | **+9.7°, 5.45** |
+| old code, Gun Angle 70 only | +7.3°, 3.17 | +25.6°, 5.34 | +5.0°, 4.97 | +13.3°, 5.88 |
+| old code, move only | +19.2°, 5.79 | +26.9°, 5.51 | +5.0°, 4.97 | +10.6°, 5.85 |
+| **new code, new calibration** | -0.4°, 4.30 | +23.4°, 4.83 | +5.0°, 4.97 | +13.9°, 6.28 |
+| new code, old calibration | the same | | | |
+| new code, Release Pitch +5 / -5 | +4.7 / -5.3° | +28.5 / +18.4° | +10.0 / 0.0° | +19.0 / +9.0° |
+
+- The straight push (no turn) is the same in every row. Only the turn's terms depended on the calibration.
+- The synthetic throws went both ways (the still-wrist throw went 4.2° lower and 13% slower, the flicks higher). Your
+  recorded overarm motions, above, went lower.
+- With the fix, every throw is the old calibration's, to the printed digit.
+- Plot: `throwcal_plot.svg` (your takes by kind: both terms, Gun Angle alone, the move alone).
+- Melee isn't touched: `state.vel`, the hands' velocity for blows, still includes the calibration, since a blow lands
+  with the drawn hand. `eval.sh` skips while the takes are archived.
+
+**Mock:** `vr_mock_grip_velocity` (0 by default, so other tests' numbers don't move): 1 reports the grip's velocity as
+the OpenXR backend does for a Touch controller. Use it for throw tests.
+
+### Check in the headset
+
+- [ ] Shimmy along vrclimb's ledge and an e1m1 ledge with your body close to the wall, hands in: it should slide as
+      easily as with your arms out.
+- [ ] Throw boxes and weapons in vrstart as before: they should go where they used to (before the recalibration). If
+      they're still low (or high), move Release Pitch and tell me the number.
 
 ## Grappling hook: rope, reel on demand, props and monsters
 

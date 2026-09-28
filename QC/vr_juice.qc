@@ -81,9 +81,11 @@ float(entity e) VR_Deflect_IsProjectile =
 // Batting projectiles back (vr_deflect; docs/vr-port/ROUND15.md, ROUND21.md "Deflection by blows and bashes; catching
 // grenades; ogre aim"). A batting swing is a motion whose striking part (the far end of what the hand holds: a sword's
 // tip, a gun's muzzle, the knuckles) goes vr_deflect_speed times vr_melee_speed or faster: less than a blow, and every
-// blow. Each frame of it, the held thing's line (its near end to its far end: the pommel to the tip, the fist to the
-// knuckles; vr_melee.qc) is kept with both ends' velocities, for vr_deflect_window seconds. An enemy projectile whose
-// path this frame (from a little behind it, VR_BAT_LATE, to where it will be at the frame's end) comes within
+// blow; an empty hand's (a fist, an open hand) only as fast as a punch (VR_BAT_FIST: a hand reaching out to catch a
+// grenade is not a swing: VR_Grenade_CatchCheck; ROUND21.md "Catching versus deflecting; returned grenades; sword bash
+// direction"). A hand in a bash's push doesn't swing: its bash bats (VR_Bash_Deflect). Each frame of it, the held
+// thing's line (its near end to its far end: the pommel to the tip, the fist to the knuckles; vr_melee.qc) is kept
+// with both ends' velocities, for vr_deflect_window seconds. An enemy projectile whose path this frame (from a little behind it, VR_BAT_LATE, to where it will be at the frame's end) comes within
 // vr_deflect_radius (plus its size) of any of those lines is batted: so a swing a little early still bats what flies
 // into where the weapon went, and the frame rate doesn't matter (the paths are swept).
 //
@@ -102,6 +104,19 @@ float VR_BAT_MAX_SPEED = 1500;    // and at most
 float VR_BAT_PAID_KEEP = 0.4;     // s a batting swing's stamina covers the rest of the swing (a blow landing, more batting)
 float VR_BAT_ASSIST_THROWER = 12; // degrees: the aim assist's cone round the projectile's thrower,
 float VR_BAT_ASSIST_CONE = 6;     // and round any other monster ("only when very close")
+float VR_BAT_FIST = 1;            // an empty hand's batting speed, times vr_melee_speed: a punch's (a blow's least)
+
+// The speed (m/s) the far end of what `b`'s hand holds must reach to bat: vr_deflect_speed times vr_melee_speed; an
+// empty hand's (a fist, an open hand, a box in the fist), a punch's at least.
+float(entity b) VR_Deflect_Need =
+{
+    float share = max(0, cvar_hget(cvarh_vr_deflect_speed));
+    if(b.mh_thing == VR_MTHING_FIST)
+    {
+        share = max(share, VR_BAT_FIST);
+    }
+    return VR_Melee_MinSpeed() * share;
+};
 
 // The gravity (u/s^2) a projectile `e` falls by (a grenade, a zombie's flesh), else 0.
 float(entity e) VR_Deflect_Gravity =
@@ -196,6 +211,7 @@ void(entity e, vector xVel, float xHand, string xHow) VR_Deflect_Send =
     e.enemy = oldOwner; // homing ones (a vore's ball) go for their thrower
     e.vr_deflect_time = time;
     e.flags = e.flags - (e.flags & FL_ONGROUND);
+    VR_Grenade_Return(e, sprintf("batted back by a %s", xHow)); // (an ogre's: it goes off as your launcher's)
 
     string what = e.classname;
     if(what == "")
@@ -255,8 +271,10 @@ void(entity e, vector xA, vector xB, vector xVA, vector xVB, vector xFrom, vecto
     vector c = xA + (xB - xA) * xT;        // the weapon's point,
     vector vbat = xVA + (xVB - xVA) * xT;  // its velocity,
     vector p = xFrom + (xTo - xFrom) * xS; // and the projectile's
-    vector axis = '0 0 0';                 // (a fist: a ball)
-    if(vlen(xB - xA) > 0.5)
+    // (A fist, an open hand: a ball. Its line, 5 units along the hand, is no blade: taken as one, a punch sent it on
+    // past the fist.)
+    vector axis = '0 0 0';
+    if(vlen(xB - xA) > 0.5 && b.mh_thing != VR_MTHING_FIST)
     {
         axis = normalize(xB - xA);
     }
@@ -300,10 +318,24 @@ void(float xHand, entity b) VR_Deflect = // (b: VR_Blow(xHand))
         return;
     }
 
+    // A hand in a bash's push (or its batting) bats with the bash: the way the hands push, off the weapon's face
+    // (VR_Bash_Deflect), not as a swing of its weapon line.
+    if(b.mh_pushing || (time <= self.vr_bashdef_until && (self.vr_bashdef_hand == xHand || self.vr_bashdef_hand < 0)))
+    {
+        if(b.bat_newest > 0)
+        {
+            b.bat_newest = 0;
+            for(float c = 0; c < VR_BAT_KEEP; ++c)
+            {
+                b.bat_t[c] = 0; // (nor its lines from before the push)
+            }
+        }
+        return;
+    }
+
     if(b.mh_fresh && b.mh_thing != VR_MTHING_NONE) // (a new pose: the line moved)
     {
-        float need = VR_Melee_MinSpeed() * max(0, cvar_hget(cvarh_vr_deflect_speed));
-        if(vlen(b.mh_vfar) >= need)
+        if(vlen(b.mh_vfar) >= VR_Deflect_Need(b))
         {
             b.bat_i = b.bat_i + 1;
             if(b.bat_i >= VR_BAT_KEEP)

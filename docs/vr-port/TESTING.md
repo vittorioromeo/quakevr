@@ -151,11 +151,24 @@ context and screenshot, ready to paste or to point me at.
     Advanced VR Options > Game > **Grappling Hook** (speeds, the classes' masses, stagger, stamina, haptics; Rope: Pulls
     at once for the mission pack's old pull). Test it: `impulse 9` gives it (`impulse 151`/`171` put it in the main /
     off hand).
+  - **Menu: scroll memory and shortcuts** (ROUND21.md, same title): every VR Settings page reopens where you left it
+    (the selected row and the scroll), after Back to Game, after going back and coming again, and after a restart.
+    Weapon Offsets keeps the same row for another weapon. Under Back to Game, top left on every menu: **Advanced VR**
+    (the Advanced VR Options) and **Levels** (the level list). Point and pull the trigger; or click a stick (or go up
+    from a page's first setting), then up and down, A to press, B to go back to the page. B after a jump walks up
+    the menus as always (Advanced VR Options, then VR Settings, then Options; Levels, then Single Player).
   - **Wall torches you can take** (ROUND21.md, same title): grip a wall torch and pull it out (or force grab it); it
     is a burning club that lights the room round you as the wall torch did (same colour and brightness, and it casts
     shadows). Its blows burn monsters; after 5 blows, or dropped, its fire dies in 6 s; held, it burns for ever; a dead
     one lights again in another torch's flame. Carrying and Gibs > **Wall Torches**; its grip and fingers on **Held
     Object Offsets** (hold it, open the page).
+  - **Rocks and bricks** (ROUND21.md, same title): loose rocks on natural ground (grass, dirt, rock) and at the foot of
+    rock and stone walls, bricks at the foot of brick walls, placed at map load where the textures say, more in
+    corners, the same places every load (e1m2, e2m2, e4m2, e1m1's outdoor ground). Pick one up, punch with it (a rock
+    or a brick hits harder the heavier it is: Held Object Offsets' Blunt), throw it (it hurts what it hits), force grab
+    it (a whole brick is a club, held by its end); they knock and clack as they land. Carrying and Gibs > Rocks and Bricks: on/off, Rocks, Bricks, Chance, In
+    Corners, In the Dark, Most Together, Most in a Map, Most in an Area, Spacing, Size Variation, Layout. Single player.
+    Also fixed: a punch holding a box hit 2.25x, not Box Punch Damage's 1.5x.
   - **Deflection by blows and bashes; catching grenades; ogre aim** (ROUND21.md, same title): a swing or a blow bats
     a monster's spike, laser, spit, ball, grenade or flesh off the weapon's face as a bat hits a ball (across: off to
     the side; the face driven at the thrower: back at him, faster the harder); a bash or an armed shove sends it the
@@ -557,6 +570,7 @@ context and screenshot, ready to paste or to point me at.
 - **Crosshair:** Options > VR Settings > Crosshair: a dot, a laser or a soft laser from each muzzle.
 - **VR Settings:** Options > VR Settings (or `menu_vr`) has the comfort, body, weapon and display settings;
   the sticks move and change, A selects, B goes back. "Set Height Now" calibrates the height while standing.
+  The buttons at the top left of every menu: Back to game, Advanced VR, Levels (the laser; or a stick's click).
 
 `vr_status` shows tracking, hand angles, hotspots and grab and two-handed state; `vr_dumpview` shows the drawn
 hands, weapons and finger curls.
@@ -621,6 +635,14 @@ is the most useful thing to send me along with a description. In particular:
 swings the main hand for throwing tests. `vr_particle_seed <n>` (not 0) makes the particles the same in every run (their random numbers restart from it at each map), for comparing images. `vr_mock_fingers <main|off> <trigger> <grip> [<thumb>]` sets the finger
 sensors (0..1); a fifth argument sets the index finger's touch on the trigger.
 
+Menus (ROUND21.md, "Menu: scroll memory and shortcuts"): `menu_vr pos` prints the menu shown and, on a VR page, its
+selected row (with the header above it), its scroll and the page Back goes to. `vr_mock_laser back|advanced|levels`
+(or `<x> <y>` in menu coordinates; `off`) puts the main hand's laser on a corner button or a spot, whatever the hand's
+pose; then `vr_mock_button main trigger 1` / `0` clicks. `vr_mock_button off stickclick 1` / `0` gives the corner
+buttons the selection, `vr_mock_stick off 0 -1` (then `0 0`) moves down, `vr_mock_button main primary` presses;
+`vr_mock_stick main 0 -1` scrolls a page. Back to Game: `vr_mock_button main menu 1; wait90; vr_mock_button main menu
+0`, reopened by `togglemenu`. Across a restart: `writeconfig <file>` writes `vr_menu_positions`; exec that line at the
+next start (the kit puts `ironwail.cfg` back after each run).
 Climbing (ROUND21.md, "Climbing with both hands"): the mock's grip button does not press the grab. Script
 `+graboff`/`-graboff` and `+grabmain`/`-grabmain` (in a `vr_mock_play` file: `<t> cmd +graboff`). Map `vrclimb` has a rung
 wall (`setpos 71 0 24 0 0 0; noclip`, the second toggling setpos's noclip off) and a long ledge over a trench
@@ -661,6 +683,22 @@ climbing with older logs). These lean the mock head in 0.28 m first (a `head` ke
 doesn't pull, the owed motion, "noroom"), and at a grab its distance and the reach; `vr_climb_debug 3` the server's
 estimated shoulders (`climbshoulder`) and the drawn arm's (`climbarm`, with the hold's distance from it). The mock
 side camera for these: `vr_mock_camera 1.1 1.5 -0.45 5 90`.
+Climbing, sliding along the wall (ROUND21.md, "Climbing: sliding along the wall; throw angle after calibration"):
+`climb_plays.py shimmy[e1m1]<close|far>[_<drift cm>[_<wobble cm>]]` hangs from the ledge (vrclimb `setpos 78 176 24 0 0
+0`; e1m1 `setpos 250 2350 40 0 0 0` with `nomonsters 1`, as a grunt walks into the hanging body), with the body drawn in
+against the face (`close`) or pushed 12 cm off it (`far`), and shimmies 4 strokes each way (e1m1: 2), the hands
+drifting in towards the chest and wobbling by that much over each 33 cm stroke; an `echo STROKE` / `STROKEEND` brackets
+each push. `python Misc/quakevr/climb/shimmy_stats.py <log>` prints each stroke's move along the ledge against the
+pull (it should be 8.67 units, 100%), in/out, and the frames stuck.
+Throwing, the release angle (the same section): `python Misc/quakevr/throw_plays.py [--gunangle 70] [--out throws.txt]`
+writes a `vr_mock_play` file of four main-hand throws (an overarm throw with a wrist flick, an underarm lob, a straight
+push, an overarm throw with a still wrist), each announced by `echo THROW <name> <meant elevation>` and let go with
+`-grabmain` at its release; play it with `vr_debug_throw 2; vr_mock_grip_velocity 1` (the grip's velocity, as a Touch
+controller in the headset reports it) and read each `throw main:` line's direction (elevation `atan2(z, hypot(x, y))`).
+Print the hand settings in the same script (`vr_gunangle; vr_gunyaw; vr_handcal_x; ...`): the throws must not change
+with them. `python Misc/quakevr/throw_calibration.py <takes folder>` models the release estimate of the code before the
+fix on recorded takes (the old and the new hand settings, each term alone) and prints the elevation and speed changes
+per take and per kind.
 
 Fitted hands (round 21): `impulse 252` puts a gib or a head (nine kinds in turn) in the empty off hand; `impulse 253`
 prints the held weapons' hotspots through the QC query; `vr_show_weapon_hotspots 1` marks them; `vr_hotspots_check`
@@ -877,6 +915,22 @@ Drive batting and bashes with `vr_mock_play` in real time (`host_maxfps 90`, not
 game's clock apart from the play's): the scratchpad's `projectiles/gen.py B|P|W|A` (swings, one-handed bashes,
 two-handed parry bashes, the aim assist; round 20's poses, so it sets and prints the old hand settings),
 `gren.py fly|place|force|hold|regrab|show`, and `ledge.sh above|below <aim 0|1>` (vrclimb's platform and trench).
+Catching versus deflecting, returned grenades, bash direction (ROUND21.md, "Catching versus deflecting; returned
+grenades; sword bash direction"): the scratchpad's `projfix/t.py C|W|D` prints the console script and writes the play.
+- `C`: an empty main hand (`vr_weapon_grip_mode 1; impulse 150`) meets `impulse 246` grenades (`vr_test_projectile
+  4`, aimed 16 units ahead of the face and 10 down; the hand at `0.02 1.33 -0.66`): held out still, reaching, open or
+  closing, punching, shoving; the open palm is `160 -90 0` (Gun Angle 70).
+- `W`: two- and one-handed bashes against a spike (old hand settings). Round 20's poses draw the blade a few degrees off
+  the pose asked for, so compare the logged blade axis with the direction sent.
+- `D`: throw back vs the launcher, `CASE=gl` for the launcher (`impulse 9; impulse 158`, the grip held, `+attack`),
+  `EXTRA="vr_grenade_return_full 0"` or `EXTRA="impulse 255"` (Quad), with `vr_debug_shots 1` for `damage: ...`.
+- `developer 1` prints:
+  - `grenade: <what> caught in flight by hand <h> (the palm's reach, <d> units off | the palm's grip, <s> s after it met
+    it | touched)`;
+  - `grenade: <what> stopped by the open palm of hand <h> at <u/s> (facing it <cos>)`;
+  - `drops from the open hand`;
+  - `thrown back | batted back by a <how>: goes off as your launcher's`;
+  - `deflect: off the blade <axis> (two hands: its middle | where it met), its point <t> along moving <v>: sent <dir>`.
 Stamina for shoves and strikes (ROUND21.md): `setpos 221.2 -656.7 41 0 180 0` (the dummy 0.95 m ahead), the takes
 from `motion_synth.py <palm_shove_2h | punch_straight | slash_horizontal_rtl> --distance 0.95 --mock` played with
 `vr_mock_play` one after another (an empty main hand: `vr_weapon_grip_mode 1; impulse 150`; a fist: `+grabright;
@@ -916,4 +970,14 @@ blow n of 5, dying at t, out at t, taken again, lit again) and `wall torch: its 
 colour, taken, shadowed). A monster to strike: `vr_test_spawn 0; vr_test_spawn_dist 34; impulse 241`; `god; notarget`
 and `gl_cshiftpercent 0` keep the screenshots clear of its shots. The scratchpad's `torches/go.sh <script> <out.png>`
 runs a multi-line script file.
+Rocks and bricks (ROUND21.md): `vr_debug_debris 1` prints a line per map (pieces, spots, rejections by reason, the
+time, the layout's hash, the server's spawn time), `2` each piece (model, skin, place, turn, size, the way out of its
+wall); `vr_debris_list [lit]` lists the pieces in the map with the light where each lies. The scratchpad's
+`debris/view.py <log> <map> <pieces> [dist] [pitch]` turns a `vr_debug_debris 2` log into `setpos` commands looking at
+pieces (`shoot.sh`, `evidence.sh` take screenshots; `perf.sh` the exclusive timings). Hold one: `vr_rigid_place vr_rock
+main 0 0 0; +grabright; vr_mock_button main grip 1` (bricks: `vr_brick`, in a map that has them), with the off hand
+out of the way; punches and throws: `debris/motions/punch2.mock`, `throw.mock` (`vr_mock_play`, the old hand settings
+set as `motions/hc.txt`), a grunt from `vr_test_spawn 0; vr_test_spawn_dist 36; impulse 241` on flat ground
+(`setpos 340 1350 -200 0 180 0; noclip` in e1m1). A worldspawn's `_vr_debris` without editing a map: a
+`maps/<map>.ent` override (`external_ents`).
 Align Sights to My Aim (ROUND21.md): `vr_sight_align [start [main|off] | apply | cancel | undo]` runs the Weapon Offsets page's capture (the mock hand must be lowered, then raised and held 0.4 s, for each capture; `vr_sight_align_captures`), `vr_sight_check [main|off] [size]` prints the sight line against the dominant eye (`vr_dominant_eye`), where the sights and the laser land in that eye's image, and the laser against the line; `vr_sight_lines` lists every weapon's line; `vr_show_sight_line 1` draws them. Higher eye images: `vr_mock_eye_size 2048; vr_restart`, then `vr_eyeshot 1`.

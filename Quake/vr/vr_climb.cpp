@@ -696,8 +696,63 @@ void letGoAll(Climber& c)
     return false;
 }
 
-// Moves the body towards `target` through the world: the whole way, else up/down then across, else
-// across then up/down (sliding along a wall or a ledge's face).
+// The player's box from `origin` towards `target`, sliding along what it meets (Quake's clip against up to 4 planes,
+// along the crease of two): a move partly into the face under a ledge still makes its part along the face.
+[[nodiscard]] glm::vec3 slideBody(edict_t* ent, const glm::vec3& origin, const glm::vec3& target)
+{
+    const glm::vec3 wanted = target - origin;
+    glm::vec3 pos = origin, delta = wanted;
+    glm::vec3 planes[4];
+    int count = 0;
+    for(int bump = 0; bump < 4 && glm::dot(delta, delta) > 1e-8f; bump++)
+    {
+        const trace_t tr = tracePlayer(ent, pos, pos + delta);
+        if(tr.allsolid)
+        {
+            break;
+        }
+        pos = vec(tr.endpos);
+        if(tr.fraction >= 1.f)
+        {
+            break;
+        }
+        const glm::vec3 rest = delta * (1.f - tr.fraction);
+        planes[count++] = vec(tr.plane.normal);
+        // The rest of the move, off every plane met (along their crease for two); none that turns back.
+        delta = glm::vec3{0.f};
+        for(int i = 0; i < count; i++)
+        {
+            glm::vec3 d = rest - planes[i] * std::min(0.f, glm::dot(rest, planes[i]));
+            bool clear = true;
+            for(int j = 0; j < count; j++)
+            {
+                clear = clear && (j == i || glm::dot(d, planes[j]) >= -1e-4f);
+            }
+            if(clear)
+            {
+                delta = d;
+                break;
+            }
+        }
+        if(delta == glm::vec3{0.f} && count >= 2)
+        {
+            const glm::vec3 crease = glm::cross(planes[count - 2], planes[count - 1]);
+            if(const float l = glm::length(crease); l > 1e-4f)
+            {
+                delta = crease / l * glm::dot(rest, crease / l);
+            }
+        }
+        if(glm::dot(delta, wanted) <= 0.f || count == 4)
+        {
+            break;
+        }
+    }
+    return pos;
+}
+
+// Moves the body towards `target` through the world: the whole way, else the nearest to it of: sliding along what
+// blocks it (the face under a ledge: a shimmy pressed against it, pulled partly into it, still moves along it), up/down
+// then across, across then up/down (round a ledge's lip).
 void moveBody(edict_t* ent, const glm::vec3& target)
 {
     const glm::vec3 origin = vec(ent->v.origin);
@@ -724,6 +779,11 @@ void moveBody(edict_t* ent, const glm::vec3& target)
             {
                 best = end;
             }
+        }
+        if(const glm::vec3 slid = slideBody(ent, origin, target);
+            glm::distance(slid, target) < glm::distance(best, target) - 1e-4f)
+        {
+            best = slid;
         }
     }
     setVec(ent->v.origin, best);

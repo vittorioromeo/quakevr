@@ -1,5 +1,6 @@
 # Mock-hand plays for the climbing tests (vr_mock_play files; docs/vr-port/TESTING.md, "Climbing"):
-# python climb_plays.py ladder|ladderlean|ledge|mantle|e1m1|ledgehang|runghang|ledgeodd|rungodd|push|overtop|pressL<d>|pressR<d>
+# python climb_plays.py ladder|ladderlean|ledge|mantle|e1m1|ledgehang|runghang|ledgeodd|rungodd|push|overtop|pressL<d>|pressR<d>|
+#   shimmy[e1m1]<close|far>[_<drift cm>[_<wobble cm>]]
 # writes <name>.txt here and prints how long it plays (the hangs: both hands on the ledge or rung 56, pulled up a little
 # and held, for screenshots, the odd ones with the controllers turned oddly; ladderlean: the ladder with the head leant
 # in, as a player's is (the holds within a real arm's reach); push and overtop: staying within reach and
@@ -189,8 +190,64 @@ def press(where, d, pull=0.25):
          "0.700 cmd +grabmain", "3.000 cmd -grabmain"]
     return L, 4.0
 
+def shimmy(close, drift=0.0, wobble=0.0, n=4, hy=1.638, fwd=-0.69, right_first=False):
+    # ROUND21.md, "Climbing: sliding along the wall": both hands on the ledge (setpos 78 176 24; e1m1: setpos 250 2350
+    # 40), pulled up 0.25 m, then either drawn in to the chest (`close`: the body pressed against the face under the
+    # ledge) or pushed out 0.12 m past the grab (the body off the face); then `n` shimmy strokes to the left and `n`
+    # back to the right. Each stroke: the leading hand lets go, reaches 0.33 m along and takes hold, both hands push
+    # 0.33 m the other way (the body moves along the ledge), the trailing hand comes over. During the push the hands
+    # drift `drift` metres in towards the chest (a pull into the face) and wobble `wobble` metres in and out (twice a
+    # stroke), as real hands do; each hand takes hold again where it started (z). An "echo STROKE" marks each push.
+    import math
+    L = list(LEAN); t = [0.0]
+    z0 = -0.35 if close else fwd - 0.12
+    pos = {"off": [-0.25, 1.1, -0.2], "main": [0.25, 1.1, -0.2]}
+    def key(h, x, y, z):
+        pos[h] = [x, y, z]; L.append(f"{t[0]:.3f} {h} {x:.4f} {y:.4f} {z:.4f} 70 0 0")
+    def hold(dt):
+        for h in pos: key(h, *pos[h])
+        t[0] += dt
+        for h in pos: key(h, *pos[h])
+    def cmd(c): L.append(f"{t[0]:.3f} cmd {c}")
+    key("off", *pos["off"]); key("main", *pos["main"]); t[0] = 0.6
+    key("off", -0.12, hy, fwd); key("main", 0.12, hy, fwd); t[0] = 0.7; cmd("+graboff"); t[0] = 0.75; cmd("+grabmain")
+    t[0] = 1.0; hold(0.0); t[0] += 0.6; key("off", -0.12, hy - 0.25, fwd); key("main", 0.12, hy - 0.25, fwd); hold(0.2)
+    t[0] += 0.6; key("off", -0.12, hy - 0.25, z0); key("main", 0.12, hy - 0.25, z0); hold(0.3)
+    y = hy - 0.25
+    grab = {"off": "+graboff", "main": "+grabmain"}; free = {"off": "-graboff", "main": "-grabmain"}
+    def stroke(lead, trail, sign):
+        cmd(free[lead]); t[0] += 0.05
+        x0 = pos[lead][0]; x1 = x0 + sign * 0.33
+        key(lead, 0.5 * (x0 + x1), y + 0.08, z0 + 0.05); t[0] += 0.25
+        key(lead, x1, y, z0); t[0] += 0.1; cmd(grab[lead]); hold(0.1)
+        cmd("echo STROKE"); start = {h: list(pos[h]) for h in pos}; t1 = t[0]
+        for k in range(1, 8):
+            u = k / 7; t[0] = t1 + 0.7 * u
+            for h in (lead, trail):
+                key(h, start[h][0] - sign * 0.33 * u, y, z0 + drift * u + wobble * math.sin(2 * math.pi * 2 * u))
+        hold(0.1); cmd("echo STROKEEND")
+        cmd(free[trail]); t[0] += 0.05
+        x0 = pos[trail][0]; x1 = x0 + sign * 0.33
+        key(trail, 0.5 * (x0 + x1), y + 0.08, z0 + 0.05); t[0] += 0.25
+        key(trail, x1, y, z0); t[0] += 0.1; cmd(grab[trail]); hold(0.1)
+    for k in (1, 0) if right_first else (0, 1):
+        for _ in range(n): stroke(*(("main", "off", +1) if k else ("off", "main", -1)))
+        hold(0.3)
+    cmd("-graboff"); cmd("-grabmain"); hold(1.0)
+    return L, t[0]
+
 def main():
     import sys
+    if sys.argv[1].startswith("shimmy"):
+        # shimmy[e1m1]<close|far>[_<drift cm>[_<wobble cm>]], e.g. shimmyclose_2_1 (vrclimb's ledge: 4 strokes left,
+        # 4 right), shimmye1m1close_2_1 (e1m1's ledge, setpos 250 2350 40: 2 strokes right, 2 left)
+        e1 = sys.argv[1].startswith("shimmye1m1")
+        p = sys.argv[1][10 if e1 else 6:].split("_")
+        L, t = shimmy(p[0] == "close", float(p[1]) / 100 if len(p) > 1 else 0.0, float(p[2]) / 100 if len(p) > 2 else 0.0,
+                      *((2, 1.638, -0.76, True) if e1 else ()))
+        write(sys.argv[1] + ".txt", L)
+        print(f"{sys.argv[1]}: {t:.2f} s")
+        return
     if sys.argv[1].startswith("press"):
         L, t = press(sys.argv[1][5], float(sys.argv[1][6:]))
         write(sys.argv[1] + ".txt", L)

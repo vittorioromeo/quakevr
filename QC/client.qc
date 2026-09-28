@@ -2670,6 +2670,7 @@ void(float xHand, float xInMelee, float* xOutMeleeAttackFinished, float* xOutInM
         }
     }
 
+    VR_Grenade_CatchCheck(xHand, VR_Blow(xHand)); // an empty hand not striking catches a grenade in flight (vr_grenade.qc)
     VR_Deflect(xHand, VR_Blow(xHand)); // batting swings (less than a blow) bat enemy projectiles back
 }
 

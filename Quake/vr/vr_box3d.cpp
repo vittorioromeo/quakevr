@@ -174,6 +174,13 @@ constexpr float sinkDensity = 0.5f;
     const bool gib = hasFlag(ent, physics::FL_FORCEGRABBABLE) && !hasFlag(ent, FL_ITEM);
     const int index = static_cast<int>(ent->v.modelindex);
     const bool wood = index > 0 && index < MAX_MODELS && sv.models[index] && !strcmp(sv.models[index]->name, "progs/vrtorch.mdl");
+    if(const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr)
+    {
+        if(const float stone = props::stoneDensity(model); stone > 0.f)
+        {
+            return 1000.f / stone; // a rock or a brick (vr_debris.cpp) sinks as stone does, faster than a gib
+        }
+    }
     return gib && !wood ? sinkDensity : floatDensity; // (a taken wall torch is wood: it floats)
 }
 
@@ -237,6 +244,10 @@ constexpr float grenadeRestitution = 0.45f; // (Quake's bounce: 0.5; a steel bal
     {
         return 2000.f; // an iron shell full of explosive
     }
+    if(const float stone = props::stoneDensity(model); stone > 0.f)
+    {
+        return stone; // the rocks and bricks lying about (vr_debris.cpp)
+    }
     if(isWeaponLike(ent))
     {
         return 700.f; // guns and blades (their hulls are partly air), keys
@@ -258,7 +269,8 @@ constexpr float grenadeRestitution = 0.45f; // (Quake's bounce: 0.5; a steel bal
 // rigid hull of a backpack lands on an edge and tumbles down a gentle slope like a crate).
 [[nodiscard]] bool isSoft(edict_t* ent, const qmodel_t* model)
 {
-    return model->type == mod_alias && !isWeaponLike(ent) && !strstr(model->name, "armor") && !isGrenade(model);
+    return model->type == mod_alias && !isWeaponLike(ent) && !strstr(model->name, "armor") && !isGrenade(model) &&
+        props::stoneDensity(model) <= 0.f; // (rocks and bricks are hard)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
