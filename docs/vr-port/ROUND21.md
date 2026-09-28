@@ -9668,3 +9668,127 @@ moves to a free slot with its settings; a head you had calibrated in another slo
 - [ ] Held Object Weights with an explosive box: its Stiffness and Sag; throw it at a grunt from close.
 - [ ] Aiming > Weight and Damage: Heavier Than 4 kg to have the heavy guns club harder; Heavy Leniency 1 for more.
 - [ ] Throw a head and a gib: they fly as far as your throw now.
+
+## Menus reorganized
+
+Your voice note (28 September): "many sub menus have a lot of options ... maybe split them into a few more menus
+because it's getting hard to navigate everything."
+
+### What it was
+
+VR Settings had 58 rows; its Advanced VR Options listed all 38 pages in one column of 44 rows; nine pages were over 30
+rows (a row: a setting, a header, a link or a line of text):
+
+| Page | Rows | | Page | Rows |
+|---|---|---|---|---|
+| Weapon Offsets | 119 | | Hand/Gun Calibration | 40 |
+| Flashlight | 71 | | Hotspots (no headers) | 34 |
+| Carrying and Gibs | 65 | | Aiming | 32 |
+| VR Settings | 58 | | Arms and Pauldrons | 30 |
+| Parry, Bash and Headbutt | 56 | | Gameplay | 29 |
+| Advanced VR Options | 44 | | Locomotion, Screens | 28 |
+
+Two levels deep at most, but long lists at both.
+
+### The tree now (rows; `menu_vr <n>` number)
+
+```
+VR Settings (30)                         Tuning: links; Comfort; Weapons; More
+├─ Weapon Offsets (119) [23]             ─┐
+├─ Weapon Weights (23) [42]               │ Tuning: one click, as before
+├─ Held Object Offsets / Weights [41, 43] │
+├─ Hand/Gun Calibration (24) [22]         │ (new here)
+├─ Body Calibration (5) [16]             ─┘
+├─ Body and Display (24) [49]            handedness, height, world scale, body model, HUD, crosshair, menu, mirror
+├─ Headset (9) [50]                      VR, runtime, render scale, upscaling, foveated, lens corners
+└─ Advanced VR Options (18) [1]
+   ├─ Game:  Play (8) [2]
+   │         Combat (5) [44]: Melee (10) [5], Parry and Bash (29) [4], Stamina (19) [52],
+   │                          Batting and Catching (16) [53], Damage and Knockback (18) [51]
+   │         Movement (4) [45]: Locomotion (20) [19], Climbing (12) [54], Swimming (27) [20], Grappling Hook (17) [13]
+   │         Carrying and Throwing (9) [46]: Carrying (22) [11], Throwing and Physics (19) [10], Force Grab (16) [12],
+   │                          Wall Torches (11) [55], Rocks and Bricks (12) [56], Gibs and Corpses (7) [57],
+   │                          Held Object Offsets [41], Held Object Weights [43]
+   │         World (13) [3], Gore (24) [9]
+   ├─ Body and Weapons:
+   │         Body (27) [14]: Arms and Pauldrons (30) [15], Body Calibration [16], Player Calibration (2) [18]
+   │         Flashlight (21) [17]: Low Grip (18) [58], Overhead Grip (18) [59], On a Gun or Head (18) [60]
+   │         Weapons (12) [47]: Weapon Offsets [23], Weapon Weights [42], Hand/Gun Calibration [22],
+   │                          Fingers and Collisions (17) [61], Aiming (24) [24], Weight and Damage (8) [62],
+   │                          Immersion (16) [21], Hotspots (24) [25], Hip Holsters (14) [63]
+   ├─ Display: HUD and Menus (6) [48]: Wrist Gadget, Screens, Colours, Status Bar, Crosshair, Menu [26-31]
+   │         Graphics (20) [32]: Lights, Shadows, Surfaces, Liquids, Post-processing, Models and Effects,
+   │                          Particles, Transparency [33-40]
+   └─ Playtesting: Motion Recorder (11) [6], Review Takes (10) [7] (> Take [8]), Debug (6) [64]
+```
+
+Every page is at most three levels below VR Settings, and every one but Weapon Offsets has 30 rows or fewer.
+
+### Decided
+
+- **VR Settings is the page you use most.** At the top, **Tuning**: Weapon Offsets, Weapon Weights, Held Object Offsets
+  and Weights (as before), Hand/Gun Calibration and Body Calibration: one click each. Then Comfort and Weapons as
+  before. The body, display and headset settings went to **Body and Display** and **Headset**, one click away (the
+  body model's rows sat under Display; they are under Body Model now). Crosshair moved with the display.
+- **Advanced VR Options** lists groups. A group of several pages is a page of links (Combat, Movement, Carrying and
+  Throwing, Weapons, HUD and Menus). A page that has the group's main settings keeps them and links its parts at its
+  top (Body, Flashlight; Graphics as before, its links in the middle). Each new link has a line of help saying what
+  is in it.
+- **Split along the existing headers, related settings together:** Parry, Bash and Headbutt became Parry and Bash
+  (with Melee's parry settings, which were apart), Stamina, and Batting and Catching (with the grenades from Carrying);
+  the headbutt went to Melee. Carrying and Gibs became Carrying, Wall Torches, Rocks and Bricks, Gibs and Corpses.
+  Gameplay became Damage and Knockback and **World** (monsters, the enemies' liquid damage, knights' swords, weapon
+  drops from Immersion, rumble and heartbeat). Locomotion lost Climbing to its own page and got headers (Turning,
+  Teleport, Leaning, Room Scale). Flashlight: its two grips and its gun and head mounts are pages of their own.
+  Hand/Gun Calibration: the fingers and model collisions went to Fingers and Collisions (linked at its top). Aiming:
+  Weight and Damage (linked from its Weight section). Hotspots got headers (Virtual Stock, Shoulder Holsters, Upper
+  Holsters); the hip holsters and their slots are Hip Holsters.
+- **Weapon Offsets stays one page (119 rows).** It is the page you tune in the firing range, built for the weapon in
+  your hand, with scroll memory made for it; Align Sights, posing, the holster preview and the hotspot and finger
+  choices rebuild it. Split, you would go back and forth between its parts for one weapon. Say if you want it split
+  anyway (the weapon's place and pose; its grips, muzzle and holster).
+- **Duplicates removed** (the kept copy in brackets): Melee's Parry Angle and Parry Reach (Parry and Bash), Gameplay's
+  Melee Damage (Melee: Damage Multiplier), Body's Lean and Lean Detection (Locomotion: Leaning, with Lean Recentre),
+  Locomotion's Swimming (Swimming). The copies on VR Settings and its two pages are quick settings, kept, as are the
+  deliberate ones (the colours on Colours and on their pages, decals on Gore and Models and Effects, Stamina on the
+  Gadget on Stamina and Screens, Show Controller, Throw Speed on Throwing and Immersion, HUD on Wrist Gadget and
+  Status Bar, Arm Drip Rate and Wounds Drip Blood).
+- **Debug:** Voice Notes (was Gameplay's Playtesting), Show Physics Shapes and Show Hand Bones (were Carrying's Debug),
+  Memory Log (was Graphics' Performance; the profile and the FPS counter stay there, for tuning the graphics).
+- **Nothing renamed** but three page titles, whose content changed: Gameplay is World, Parry, Bash and Headbutt is
+  Parry and Bash, Carrying and Gibs is Carrying. No cvar, default or help changed; no config migration.
+- **Page numbers stay** (0 to 43 as they were; the new pages 44 on). `menu_vr <n>` now opens a page through its place
+  in the tree (each page's entry names the page listing it), so Back goes up the tree: `menu_vr 58` then Back:
+  Flashlight, Advanced VR Options, VR Settings. `menu_vr 0 <row>` now selects a row on VR Settings too. `menu_vr list`
+  prints each page's place (`58 VR Settings > Advanced VR Options > Flashlight > Flashlight - Low Grip`).
+  TESTING.md's numbers were already off by one since the grappling hook's page (13); they are right now.
+- **Scroll memory:** by title and label, as before; nothing to do for the new pages. A saved record of a renamed page,
+  or of a row that moved to another page, is ignored (the page opens at its top) and dropped at the next config write.
+- **The shortcuts** are unchanged: Advanced VR opens Advanced VR Options (Back: VR Settings), Levels the level list.
+
+### Checks (mock headset; scratchpad `menusplit/`)
+
+- **Coverage** (`menu_vr dump` with a gun in the main hand, before and after; `Misc/quakevr/menu_coverage.py`): 802
+  options (a cvar, or an action's label) before, 802 after, **none lost**, none new; 6 on fewer pages (the duplicates
+  above); 254 moved. Pages reached: 43 before (2 deep), 64 after (3 deep). Only Take is reached by its rows, not a
+  link, as before.
+- **Every page** by `menu_vr 0..64` with `menu_vr pos`: each page's Back is the page listing it (65 of 65). Clicks (A)
+  through Advanced > Combat > Melee and Weapons > Hip Holsters, Back (B) up to VR Settings; Low Grip, Back three times:
+  Flashlight, Advanced VR Options, VR Settings.
+- **Shortcuts:** the laser on Advanced VR from Flashlight - On a Gun or Head: Advanced VR Options (Back: VR Settings);
+  Levels: the level list.
+- **Saved positions:** a `vr_menu_positions` with records of Gameplay, Carrying and Gibs, Parry, Bash and Headbutt,
+  Locomotion's Climbing, Flashlight's head zone and VR Settings' Chest Flashlight (all moved or renamed), and of
+  Swimming and Graphics - Liquids (unchanged): the first open at their top, Swimming on Palm Matters and Liquids on
+  Ripple Speed; `writeconfig` then keeps only the last two. A new page (Stamina, on Exhausted Knockback) is back on its
+  row after Back and reopening, and is saved.
+- **Screenshots** (`shots.png`): VR Settings, Advanced VR Options, Combat, Weapons, Carrying and Throwing, Body and
+  Display, Stamina, Flashlight - Low Grip. (The faint double image of the menu in the mock's mirror is there before
+  the change too.)
+
+### In the headset
+
+- [ ] VR Settings: is Tuning at the top right for you, and is it fine that height, body and render scale are one click
+      away (Body and Display, Headset)?
+- [ ] Advanced VR Options: can you find things by the groups? Any name that doesn't say what's in it?
+- [ ] Weapon Offsets: keep it one page, or split it?
