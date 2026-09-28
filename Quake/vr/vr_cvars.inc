@@ -260,6 +260,19 @@ QVR_CVAR(vr_upper_holster_offset_x, "-4.25", CVAR_ARCHIVE)
 QVR_CVAR(vr_upper_holster_offset_y, "7", CVAR_ARCHIVE)
 QVR_CVAR(vr_upper_holster_offset_z, "8.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_upper_holster_thresh, "6.5", CVAR_ARCHIVE)
+// Each pair of holsters turned (the Hotspots menu), degrees, with the gun in it, about the holster's position (where
+// the hand reaches for it), in the body's frame there (vr_view.cpp turnHolster), mirrored for the left one as the
+// offsets' Y is: pitch tips its top away from the body, yaw turns its face outwards, roll tips its top outwards (a
+// hanging gun's muzzle in). 0 0 0: as before.
+QVR_CVAR(vr_hip_holster_pitch, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_hip_holster_yaw, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_hip_holster_roll, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_upper_holster_pitch, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_upper_holster_yaw, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_upper_holster_roll, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_shoulder_holster_pitch, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_shoulder_holster_yaw, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_shoulder_holster_roll, "0", CVAR_ARCHIVE)
 // The player's body (vr_avatar.cpp): 0 none, 2 torso and arms, 3 torso, arms and legs: the skinned
 // progs/vrbody model, posed by IK from the head and hands (1, the old floating torso, is now 2).
 QVR_CVAR(vr_body_mode, "2", CVAR_ARCHIVE)

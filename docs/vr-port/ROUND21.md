@@ -5418,3 +5418,134 @@ pixels), e1m1 with a shambler and an ogre in the hand torch and the shotgun held
 - [ ] With a rocket or a lava ball passing the knight's plates and the grunt's arms: do the forms move with the light?
 - [ ] Your own hands in the torch light: knuckles and creases, and no grain?
 - [ ] Graphics > Authored Model Bumps: nothing should change until an authored map is installed (then 0 flattens it).
+
+## Enemies hurt by liquids; holster orientation
+
+Two voice notes of 2026-09-28. Branch `agent/misc22`; composites in the scratchpad's `misc22/`.
+
+### Enemies Hurt by Liquids (the e1m1 note)
+
+"I've pushed an enemy into Slime and it wasn't taking damage." In id's QuakeC only the player is hurt by liquids
+(`WaterMove`, client.qc); monsters never were. Ours had two partial exceptions. A shove's landing burned once
+(`VR_Shove_Landed`: 100 in lava, 30 in slime), but it tested the monster's origin, the middle of its box, which is above
+e1m1's shallow slime (40 units deep): so nothing. And hipnotic's gremlins die in lava.
+
+**Now:** Gameplay > Damage > **Enemies Hurt by Liquids** (`vr_enemy_liquid_damage`). It is **on** by default for
+three reasons: it is how the world should work, it makes the shove a tactic, and it changes nothing for monsters
+that stay out of slime and lava. The only map-placed monsters that stand in them are the immune ones below.
+
+A monster in slime or lava burns as you do, by how deep it is. Its waterlevel is measured as the engine measures
+yours (feet, waist, eyes):
+
+| Liquid | Damage | Per second at waterlevel 1 / 2 / 3 |
+|---|---|---|
+| Lava | 10 x waterlevel every 0.2 s | 50 / 100 / 150 |
+| Slime | 4 x waterlevel every second | 4 / 8 / 12 |
+| Water | none: no drowning (Quake's monsters never needed air; an ogre wading a deep pool should not die) | - |
+
+| Monster | Rule |
+|---|---|
+| Fish, eels (`FL_SWIM`) | immune: their liquid is their home, whatever it is |
+| Chthon, Shub-Niggurath, Armagon, the dragon, the lava lord (Hephaestus) | immune: bosses with scripted deaths; Chthon and Hephaestus live in lava |
+| The firing range's dummy | immune (it reports hits, vr_dummy.qc) |
+| Zombies | lava burns them up at once, which gibs them (nothing less than a hit their size kills a zombie); slime's small ticks are shrugged off like any small hit (`zombie_pain`) |
+| Everyone else (shamblers too) | burns |
+
+It is the liquid's damage, with no attacker, as the player's. So there is no quad, no Damage to Enemies multiplier,
+no hit push, no gore spray and no hit feedback.
+- The monster's own pain code runs: its pain sounds and flinches, at its own pace.
+- Its own death code runs: past its gib health it bursts, as usual.
+- Lava sizzles as the monster goes in (`player/inlava.wav`). While it burns it smokes and throws embers (the smoke
+  and the lava nails' sparkles, at the surface).
+- Slime hisses (`player/slimbrn2.wav`).
+- Corpses are left alone, so no gibs burst out of a pool later.
+- The shove's landing burn now tests the feet.
+
+The code is in `QC/vr_liquids.qc`, scanned from `StartFrame`. Each monster is checked every 0.1 s, and one in slime
+or lava at its liquid's pace.
+
+**Kill credit:** the shove and knockback code (`VR_Push`, the `vr_shove` slide) doesn't track who pushed, and nothing
+needs it:
+- the kill count counts every monster's death, whatever killed it;
+- monsters have no obituaries;
+- the shove's own hit already made the monster go for you.
+
+Passing the shover as the attacker would have brought quad and the Damage to Enemies multiplier into the liquid's
+damage. It would also have pushed the monster out of the pool with every tick. So the burn has no attacker, as the
+player's.
+
+**Checked** in the mock. `vr_debug_shots 1` with `developer 1` logs each burn with the monster's health.
+- e1m1's slime pool (`setpos 200 2820 -60`, a grunt put in it with `impulse 241`):
+  - on: waterlevel 2, 8 a second: 30, 22, 14, 6, dead at 4 s;
+  - off: 30 throughout (`vr_enemy_liquid_damage 0` logs "not burnt" once a second).
+- e1m7's lava (`setpos -50 48 20`, facing the lava; monsters 200 units ahead):
+  - a grunt (waterlevel 2): dead in 0.4 s;
+  - a zombie: gibbed on the first tick;
+  - an ogre: 200 -> 0 in 2 s;
+  - a shambler (waterlevel 1: the lava is 40 deep): 600 -> 0 in 12 s, with pain animations and smoke rising over it
+    (`liq_shambler.png`);
+  - off: a grunt at 30 throughout.
+- Not checked end to end: an actual shove into slime (the mock's hands can't shove on cue here). The shove only has to
+  put the monster there; the burn doesn't care how it got in.
+
+**In the headset:**
+- [ ] Shove a grunt or a dog off e1m1's walkway into the slime: it should flinch and die in a few seconds. An ogre
+  takes much longer: slime is slow, as it is for you. Push a knight into e1m7's lava: it should be gone at once,
+  smoking. Does it make the shove worth it? If slime feels too weak, say how much stronger.
+- [ ] Monsters walking through slime on their own now get hurt too (their AI doesn't avoid it): fine, or too easy?
+
+### Holster orientation (the start map note)
+
+"Sliders for each holster to change the orientation ... roll, yaw, and pitch, and everything for each holster pair."
+
+**Where:** Hotspots, under each pair's Threshold: **Shoulder / Hip / Upper Pitch, Yaw, Roll**.
+- Range -180..180 degrees, in 5-degree steps.
+- Cvars: `vr_shoulder_holster_pitch/yaw/roll`, `vr_hip_holster_*`, `vr_upper_holster_*`; archived, 0 by default.
+- The three pairs are all the holster slots there are: the hip holsters are the leg holsters (the Holster Slot
+  sliders' model), the upper ones are on the chest, and the shoulder ones are on the back.
+
+**What turns:** the holster model and the gun in it, together. They turn about the holster's position, which is where
+your hand reaches for it. That point stays put, so holstering and drawing work exactly as before.
+
+The turn is in the body's frame at the holster. The axes are "out" (off the body's surface), the body's up, and
+"outwards" (the body's right for the right holster, its left for the left one):
+- **Pitch** tips the holster's top away from the body (negative: towards it);
+- **Yaw** turns its face outwards (negative: inwards);
+- **Roll** tips its top outwards (negative: inwards). A hanging gun's muzzle swings the other way, a cross-draw cant.
+
+The order is yaw, then pitch, then roll, as Quake's angles.
+
+The left holster's frame is the right one's mirror image. So yaw and roll mirror between the two and pitch does not,
+as the offsets' Y mirrors and their X and Z don't.
+
+With the body drawn, the frame is the body's surface where the holster lies. That surface follows the lean, the
+crouch and, for the hips, the thighs, and the turn rides along with it.
+
+0 0 0 skips the turn entirely, so today's look is exact. `vr_savedefaults` keeps the new cvars (it writes every
+archived `vr_` cvar that differs from its default).
+
+**Insertion direction:** there is no insertion direction to follow. A gun goes into a holster when you let go of it
+within the holster's reach (a sphere, Threshold), whichever way it points, and a drawn gun is in your hand at once.
+So turning the holster changes only how the holstered gun is carried and shown.
+
+The only code change is in `vr_view.cpp` (`turnHolster`, `holsterTurn`). `vr_body.cpp` (holster positions) is
+untouched.
+
+**Checked** in the mock, with `r_fullbright 1` and `vr_body_mode 3`:
+- `hol_hip_mirror.png`: the body preview facing you (`vr_body_debug 2`), then from its left (`3`). The hips at 0,
+  pitch 30, yaw 45, roll 45 and roll -45 turn as mirror images. (The right hip holds the shotgun and the left the axe:
+  the starting holsters.)
+- `hol_upper.png`: the empty chest holsters' models at 0, pitch 30, yaw 45 and roll 45, mirrored.
+- `hol_shoulder.png`: a shotgun holstered at the right shoulder, seen from behind
+  (`vr_mock_camera 0.7 1.9 0.8 20 40`). At 0, pitch 30 (its top goes back), yaw 45, and roll 45 (its top goes
+  outwards).
+- `hol_eye.png`, the eyes looking down, with the hips at pitch 20, yaw 30, roll 40:
+  - the guns come into view;
+  - gripping at the right hip draws the shotgun;
+  - letting go there holsters it again, turned.
+
+**In the headset:**
+- [ ] Hotspots: turn a hip holster (try Roll first: a cant) and look down. The gun should follow the holster, and the
+  left one should mirror the right. Draw and holster: nothing about reaching should change.
+- [ ] Try the chest and shoulder pairs the same way. If a slider feels backwards, say which one and which way it
+  should go.
