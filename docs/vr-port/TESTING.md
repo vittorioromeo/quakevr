@@ -878,8 +878,8 @@ a gib: `impulse 245` in the off hand); `developer 1` prints `gib: hit by thrown_
 Weight (ROUND21.md, "Weight: spring model, stamina, held object offsets; explosive boxes"): `vr_weight_test [csv]`
 runs the spring alone (shotgun, rocket launcher, a 40 kg box; one and two hands; stamina 100/50/25/0; 45/72/90/144 fps)
 and prints lag, overshoot, settling, sag, jitter and the snap (`csv`: every frame into `weight_test.csv`).
-`vr_debug_weight 1` writes each holding hand's target and drawn pose, a line a frame, to `weight_trace.txt` (both
-models; 2: printed too); `vr_debug_weight_stamina <0..1>` sets the stamina the weight sees (-1: the game's). A swing:
+`vr_debug_weight 1` writes each holding hand's target and drawn pose, a line a frame, to `weight_trace.txt` (2:
+printed too); `vr_debug_weight_stamina <0..1>` sets the stamina the weight sees (-1: the game's). A swing:
 `vr_fixed_frames 1`, `impulse 160` with `vr_weapon_grip_mode 1; impulse 9`, a `vr_mock_play` of the main hand (and the
 off hand on the foregrip at `0.09 1.37 -0.83 70 0 0` with `+graboff; vr_mock_button off grip 1` for two hands); the
 scratchpad's `weight/trace_stats.py` and `plot_swings.py` read the trace. The canary takes with the old hand settings:
@@ -889,7 +889,22 @@ dummy); a push: the main hand from `0 1.7 -0.3 70 0 0` to `0 1.7 -1.9` in 1 s; s
 trigger button didn't fire here after `setpos`). `vr_physics_list` with `vr_debug_box3d 1` prints each prop's mass
 (and whether Held Object Offsets set it) and throw share; `vr_physics_forcegrab <what>` whether the force grab may take
 each; `developer 1` prints `explobox: hit at <m/s>` and `explobox: blows up at <where>`. The Held Object Offsets page is
-`menu_vr 40` (its last page).
+`menu_vr 40`.
+Spring only; Weapon Weights and Held Object Weights; weight and damage (ROUND21.md): the pages are `menu_vr 41` (Weapon
+Weights) and `menu_vr 42` (Held Object Weights; `menu_vr <page> <row>` scrolls). `vr_weight_table` prints every weapon's
+and prop's mass, its damage multipliers (the curve, times its own Melee and Throw Damage x) and its speed factor (heavy
+leniency), then the level's other things with their mass as the game has it (Box3D's). `vr_weight_test` takes each
+thing's own spring multipliers (`vr_wofs_w_stiff_07 2` changes the rocket launcher's rows, `vr_prop_damping_01 0.5` the
+box's). A slow heavy club: `vr_weapon_grip_mode 1; impulse 9; impulse 152` (the axe), `vr_wofs_w_mass_01 20` **after**
+the map has loaded (a test base's old `vr_wofs_version` resets the slots at the first lookup), a grunt at
+`vr_test_spawn 0; vr_test_spawn_dist 24; impulse 241` from `setpos 300 -440 45 0 180 0; noclip`, and a `vr_mock_play` of
+the main hand from `0.35 1.35 -0.30 70 35 0` to `-0.25 1.35 -0.45 70 -35 0` in 0.3 s (eased); `vr_weight_lenient 0`
+for the old thresholds. A slow throw of the explosive box: `vr_physics_spawn misc_explobox 150 200; vr_rigid_place
+misc_explobox main 0 3 0; +grabright; vr_mock_button main grip 1`, a grunt at `vr_test_spawn_dist 70`, and the hand from
+`0.15 1.25 -0.25` to `0.15 1.45 -0.75` in 0.12 s, then `button main grip 0` and `-grabright`; `developer 1;
+vr_debug_shots 1; vr_debug_box3d 1` print `box3d: ... misc_explobox hit ... monster_army at <m/s>`, `explobox: thrown
+into monster_army at <u/s>: <damage>` and the damage. The scratchpad's `weights2/plays.py` writes the plays,
+`mkswing.sh` / `mkbox.sh` the scripts, `go.sh` runs one; `oldeval.sh` replays the canary takes with the old hand settings.
 Wall torches (ROUND21.md, "Wall torches you can take"): e1m2's torches are edicts 52 (1706 -206 316: pull it by hand
 from `setpos 1714 -190 312 0 243 0; noclip` with the main hand at `0.0 0.8 -0.6 70 0 0`, `+grabright; vr_mock_button
 main grip 1`, then the hand back 10 cm), 53 (2134 -34 316: force grab it from `setpos 2047 -84 312 0 30 0; noclip` with a

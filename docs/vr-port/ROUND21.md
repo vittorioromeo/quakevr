@@ -8301,6 +8301,9 @@ never overshoots. It has no idea of mass, length, gravity or turning inertia, an
 
 ### Weight Model: Speed Limit (current) or Spring (Aiming page)
 
+(Later in the round the Spring became the only model: "Spring only; Weapon Weights and Held Object Weights; weight and
+damage", below.)
+
 **Speed Limit** is unchanged for weapons (proved below). **Spring** (`vr_weight.cpp`): what a hand holds is a rigid
 body pulled to the tracked hand by a damped spring on its place and on its turn, in the body's frame (walking,
 turning and leaning are not the hand's motion), stepped in fixed substeps of at most 1 ms (the same motion at any
@@ -8662,3 +8665,193 @@ The only real cost is the held torch's shadow map (about 0.1 ms of CPU here): Ta
 - [ ] Hit a grunt a few times: does he catch fire, do burns show? After 5 blows, does the fire die in your hand?
 - [ ] Drop one: it dies in 6 s; pick one up while it dies: it burns up again. Light a dead one in a wall torch.
 - [ ] Held Object Offsets with the torch in hand: Grip X/Z and the fingers; Print Changes to Console for me.
+
+## Spring only; Weapon Weights and Held Object Weights; weight and damage
+
+Your notes (vrfiringrange, 2026-09-28 17:20-17:44): the spring is the way forward, so remove the old model and everything
+that only served it; per-weapon multipliers (all 1) of the spring's sliders on a separate Weapon Weights page (the
+normal values stay on the Aiming page); the same for props on a page to calibrate what you hold; per weapon and prop a
+melee and a throw damage multiplier; a global, gentle (not linear) damage scaling by weight; heavy things should strike
+and hit when thrown at lower speeds (a heavy weapon or object thrown at an enemy didn't count). Branch `agent/weights2`;
+scripts, logs and pictures in the scratchpad's `weights2/`.
+
+### Spring only
+
+- **The Speed Limit is gone:** its code (`vr_handpose.cpp`'s per-frame follow and slerp, `weight::speedLimitStep`, its
+  trace), the Weight Model selector and the Aiming page's Speed Limit Model section. Every held weapon, carried prop and
+  the flashlight follow the spring, exactly as with Weight Model: Spring before (proved below).
+- **Retired quietly** (registered, read by nothing, not saved: a config setting them loads silently): `vr_weight_model`,
+  `vr_wpn_pos_weight`, `vr_wpn_dir_weight` and their eight offsets and multipliers, and `vr_weight_props`.
+- **Weapon keys:** `weight`, `w_posmult`, `w_dirmult`, `w_2hposmult`, `w_2hdirmult` (the Speed Limit's) and the long-unused
+  `w_hvelmult`, `w_htvelmult` leave the table; `vr_weapons.inc`'s new `QVR_WEAPON_RETIRED("key")` list registers their
+  `vr_wofs_<key>_NN` cvars unsaved. `vr_wofs_version` stays 21 (no shipped value changed). Your Mass, Balance and Length
+  (`w_mass`, `w_com`, `w_len`) are untouched: your config's load as they are (the rocket launcher 8 kg, 15 cm, 100 cm...).
+- **Carried Props Have Weight** is gone: every carried thing weighs its mass, as every weapon does; a prop that should
+  feel light gets its Mass (or its own Stiffness) on Held Object Weights. A switch for props alone made them inconsistent
+  with the weapons, and the per-prop settings do it better.
+- **Heavier When Tired** stays (it multiplies the mass). `vr_throw_weight_influence` stays too: it is a thrown weapon's
+  speed by weapon (`WeaponIdToThrowMult`), not the hands' weight model.
+
+### Weapon Weights (a page; Weapon Offsets loses its weight rows)
+
+Opened from VR Settings and Advanced VR Options (under Weapon Offsets), Aiming > Weight, and Weapon Offsets > This
+Weapon; `menu_vr 41`. Like Weapon Offsets it shows the weapon the hand held when opened (Edit the Other Hand's Weapon;
+opened with that hand empty and a weapon in the other, it takes that one) and edits what the weapon inherits from
+(Inherit From, on Weapon Offsets). Its readouts: the weight now (mass, stamina, the spring's offset from the hand) and
+what the weight makes of its damage and speeds.
+
+| Row | Key (`vr_wofs_<key>_NN`) | Default |
+|---|---|---|
+| Mass, Balance, Length | `w_mass`, `w_com`, `w_len` | as before (moved here) |
+| Spring (times the Aiming page's): Stiffness, Damping, Arm Strength, Sag, Swing, Two-Handed Help, Snap Back Beyond | `w_stiff`, `w_damp`, `w_strength`, `w_sag`, `w_swing`, `w_2h`, `w_snap` | 1 each |
+| Melee Damage, Throw Damage | `w_meleedmg`, `w_throwdmg` | 1 |
+| Print Changes to Console, Reset This Weapon | | this page's keys only |
+
+Weapon Offsets' Print and Reset now touch its own settings only. Every slot's multipliers default to 1, so a config
+without them is unchanged. Two-Handed Help × multiplies Aiming's (4) before it applies; the result is never below 1.
+
+### Held Object Offsets and Held Object Weights (the prop page, split)
+
+- **Held Object Offsets** (`menu_vr 40`): the grip, the fingers, Carrying (Two Hands, Force Grab) and the melee points
+  (Tip, Butt).
+- **Held Object Weights** (`menu_vr 42`): Mass, Inertia, Centre of Mass, Throw (moved here), the same seven spring
+  multipliers, Melee Damage and Throw Damage (`vr_prop_<key>_NN`: `stiffness`, `damping`, `strength`, `sag`, `swing`,
+  `help_2h`, `snap`, `melee_dmg`, `throw_dmg`; 1), and the readouts (Mass now; what the weight makes of it).
+- Both find the prop in either hand: opened with the chosen hand empty and a prop in the other, they take that one (the
+  pictures: the explosive box in the off hand, the rocket launcher in the main). Each links to the other, and each prints
+  and resets its own settings (the slot keeps its model).
+
+### Weight and damage (Aiming > Weight and Damage)
+
+Every melee blow (`VRMeleeDmg`: weapons, fists, a box or a club in hand) and every thrown thing's hit (`VR_Thrown_Damage`:
+thrown weapons, carried props, gibs, the explosive box) is multiplied by the thing's own Melee or Throw Damage × and by
+
+    curve(m) = (m / Heavier Than)^k    for m above Heavier Than (8 kg),
+               (m / Lighter Than)^k    for m below Lighter Than (1.5 kg),
+               1                       between, and for no mass (the empty hand);
+    clamped to Least Damage .. Most Damage (0.5 .. 2.5); k = Weight Damage Exponent (0.4).
+
+k 0.4 is gentle: twice as heavy, 1.32 times the damage; ten times, 2.5. **Why a band and not one reference mass:** your
+weapons run from 1.5 kg (the hook) to 8 kg (the rocket launcher); with a single reference any k of 0.3-0.5 changes their
+damage by 20-40% either way (the axe and the swords, your melee weapons, would lose most), a rebalance of every weapon
+rather than "heavy things hit harder". Between 1.5 and 8 kg every weapon keeps exactly its damage; heavier things (boxes,
+armour, a shambler's head) hit harder, lighter ones (a torch, the flashlight, a small gib) softer. Heavier Than and
+Lighter Than set to one mass give a single reference (everything heavier more, lighter less); Heavier Than 4 kg has the
+heavy guns club harder. Cvars `vr_weight_damage_exp`, `_heavy`, `_light`, `_min`, `_max`.
+
+**Per weapon, before and after** (your masses; a blow's damage is its base × the blow's strength, a throw's its base ×
+its speed over the full-damage speed; every other factor is unchanged):
+
+| Weapon | Mass (kg) | Melee base | Thrown base | Curve | After |
+|---|---|---|---|---|---|
+| empty hand (fist) | 0 | 10 | 20 | 1.000 | unchanged |
+| axe | 2.0 | 20 | 35 | 1.000 | unchanged |
+| Mjolnir | 5.0 | 25 | 30 | 1.000 | unchanged |
+| sword, hell knight's sword | 1.8, 2.5 | 20 (× vr_sword_damage_mult; ×1.25) | 60 | 1.000 | unchanged |
+| shotgun, super shotgun | 3.0, 3.5 | 12 (a gun's blow) | 20 | 1.000 | unchanged |
+| nailgun, super nailgun (and lava) | 4.0, 7.0 | 12 | 20, 25 | 1.000 | unchanged |
+| grenade launcher (and multi), proximity gun | 5.0 | 12 | 30 | 1.000 | unchanged |
+| rocket launcher (and multi) | 8.0 | 12 | 30 | 1.000 | unchanged |
+| lightning gun (and plasma), laser cannon | 6.0, 7.0 | 12 | 25, 45 | 1.000 | unchanged |
+| grappling hook | 1.5 | 12 | 20 | 1.000 | unchanged |
+
+**Props** (`vr_weight_table`): the explosive box 40 kg ×1.90, the small one 25 kg ×1.58, armour 42 kg (Box3D's) ×1.95,
+the biosuit 23 kg ×1.52, megahealth 11 kg ×1.14, a shambler's head 15 kg ×1.29, a fiend's 12 kg ×1.18, an ogre's 9 kg
+×1.05; ammo and health boxes (2.8-8.5 kg), other heads (3-6 kg), gib2 and gib3 ×1.00; an ogre's grenade 1.2 kg ×0.92,
+the wall torch 0.9 kg ×0.82 (its blow 12 → 9.8 at strength 1), gib1 0.8 kg ×0.78, the flashlight 0.4 kg ×0.59.
+
+### Heavy leniency (Aiming > Weight and Damage)
+
+A thing heavier than **Starts At** (10 kg: above every weapon, so their strikes are detected exactly as before) needs
+lower speeds: every speed threshold of its strikes and of its throw's hit is multiplied by
+
+    lenient(m) = max(Least Speed Factor, (Starts At / m)^Heavy Leniency)     (0.25; 0.75)
+
+(40 kg ×0.35, 25 kg ×0.50, 20 kg ×0.59, 15 kg ×0.74; 1 up to 10 kg; Heavy Leniency 0: off). Cvars `vr_weight_lenient`,
+`_from`, `_min`.
+
+- **Strikes** (`vr_melee.qc`): each hand's blow keeps the factor of what the hand holds (`.mh_lenient`, each tracked
+  frame) and `VR_Melee_MinSpeedOf` gives every threshold from it: a swing's and a punch's need, a stab's, a pommel's, the
+  wrist's (`vr_melee_wrist_speed`), the re-arm and the whoosh. A blow's strength is relative to its need, so a heavy thing
+  at its lowered need strikes as a light one at its own. The run-up distance is unchanged; parries and deflections
+  (`vr_juice.qc`) are left alone.
+- **Throws:** a carried thing becomes a missile above 250 u/s × the factor (`VR_Carry_Release`) and hurts on touch above
+  `vr_throw_hit_min_speed` × the factor (`forcegrabbable_touch`); its full-damage speed is times the factor too (the
+  melee's rule: at its lowered threshold it hits as a light thing at the normal one).
+- **The explosive box thrown into something:** a Box3D body with no touch, a thrown one never hurt what it hit; now its
+  `.vr_impact` does: thrown (a missile, above) into something that bleeds, it deals the thrown damage once (its first
+  hit, whatever it is, ends the throw). Its own blow-up on impact is unchanged. And a hard throw no longer sets the thrown
+  weapons' "deal damage" flag in its `.health` (it left the box at 1 health).
+
+### Gibs and heads weigh what they are
+
+Box3D's estimate (the drawn hull × flesh's 1000 kg/m³) made them 18 to 476 kg (gib1 18, gib3 106, gib2 292; a player's
+or a grunt's head 73, an ogre's 405, a fiend's 476): with the spring they lagged like explosive boxes, they left the hand
+at 20-80% of its speed (the throw's rule by mass), and by the damage curve and the leniency they would have hit up to
+2.5 times harder at a quarter of the speed. They ship Held Object Weights masses (slots `_34`..`_48`, from the table's
+end): gib1 0.8, gib2 2.5, gib3 2; heads: the player's, the grunt's, the enforcer's and the knight's 5, the hell knight's 6,
+the dog's 3, the ogre's 9, the scrag's 3, the zombie's 4, the vore's 6, the shambler's 15, the fiend's 12 kg. The Mass is
+also their Box3D mass. `vr_cfg_version` 27 gives these slots to configs saved before (a model the menu had put there
+moves to a free slot with its settings; a head you had calibrated in another slot keeps yours). The mission packs' heads
+(gremlin, scourge) keep the estimate.
+
+### Verification (mock headset; the scratchpad's `weights2/`)
+
+- **The spring and the melee unchanged:** the 46 canary takes (archived) replayed with your OLD hand settings
+  (`vr_gunangle 39.5`, `vr_gunyaw 4`, every `vr_handcal_*` 0, `vr_handcal_off_mirror 0`; printed in `base.log` and
+  `new2.log`): vr-cleanup 008b67dc with `vr_weight_model 1` (the spring, as the takes' weapons run now) against this
+  branch with its defaults: every cell of every row identical (41 pass, 5 fail; `eval_base.csv`, `eval_new2.csv`,
+  `oldeval.sh`). The Speed Limit's results are no longer a baseline (the previous section: 18 of 46 differ between them).
+- **The multipliers** (`wtest.txt`, `vr_weight_test` at 72 fps): all 1, the previous section's numbers (the rocket
+  launcher one-handed 7.98 cm / 27.97° lag, 0.59 cm sag); `vr_wofs_w_stiff_07 2; vr_wofs_w_sag_07 3`: its lag 6.77 cm, its
+  sag 0.88 cm (three times the pull, twice as stiff), the shotgun's rows unchanged; `vr_prop_damping_01 0.5`: the box
+  overshoots 11.8 cm and doesn't settle within the test.
+- **A slow heavy throw** (`boxA.cfg`, `boxB.cfg`): the explosive box in one hand, pushed 0.54 m in 0.12 s (4.5 m/s): it
+  leaves at 105-107 u/s (it keeps 55% of the throw) and meets a grunt 70 units ahead at 4.1-4.2 m/s. Before
+  (`vr_weight_lenient 0`): `misc_explobox hit 199 monster_army at 4.1 m/s`, nothing more. After: `explobox: thrown into
+  monster_army at 109.4 u/s: 30.8`, `damage: monster_army 30.79 by misc_explobox, health -1`.
+- **A slow heavy club** (`sw_*.cfg`): the axe made 20 kg (`vr_wofs_w_mass_01 20`), swung across a grunt 24 units ahead in
+  0.3 s: before (`vr_weight_lenient 0`) its head reached 3.71 m/s of the 5.00 needed: nothing; after (2.97 needed): `slash,
+  chop (horizontal) with the head, 3.2 m/s, x0.53`, 15.4 damage (20 × 0.53 × its curve 1.44). In 0.45 s (2.9 m/s): before
+  nothing, after a pommel strike, 7.8. Your 2 kg axe on the same swings: nothing either way (unchanged); in 0.12 s it
+  chops at 7.8 m/s for 15.6.
+- **Gibs thrown** (`gib_before.cfg`, `gib_after.cfg`; the off hand at 3.6 m/s): with Box3D's masses gib1 left at 94 u/s,
+  the player's head at 47, gib3 at 39; with theirs each at 115 u/s.
+- **The table** (`tbl4.txt`, `vr_weight_table`): the numbers above; every weapon ×1.000, speeds ×1.000.
+- **Your config** (`C:\OHWorkspace\quakevr-iw\quakevr\ironwail.cfg`, executed in a run: `cfgload.log`): no error from this
+  branch's settings (its `vr_wofs_weight_NN`, `vr_weight_model`, `vr_wpn_*_weight*` and `vr_weight_props` load silently);
+  `vr_wofs_w_mass_07` 8.0, `w_com_07` 15, `w_len_07` 100, `w_mass_01` 2.0, `w_len_20` 110, and your `vr_weight_spring_*`.
+  `writeconfig` saves the new keys and none of the retired ones.
+- **The pages** (`menu_pages.png`): Weapon Weights with the rocket launcher (main hand); Held Object Weights and Held Object
+  Offsets with the explosive box (off hand, found there while the main hand held the gun); the Aiming page's Weight,
+  Tired Arms, Spring and Weight and Damage sections; Weapon Offsets.
+
+### Decisions
+
+- **The damage curve is a band** (above), so today's weapon damage is exactly unchanged; the sliders reach a single
+  reference and any exponent.
+- **Leniency also lowers a throw's full-damage speed:** otherwise a heavy thing thrown at its (lowered) threshold would
+  register and deal a third of a light thing's damage at the normal one. The 40 kg box at 4 m/s deals 31 (a grunt has
+  30); its momentum is 4.4 times a 6 kg health box's at 6 m/s (which deals 8).
+- **Heavy is the thing's mass,** not the stamina's extra (a tired arm is slower, the thing no heavier).
+- **Two pages per kind** (Offsets and Weights), each printing and resetting its own settings.
+- **Nothing of the Speed Limit is kept** as an option.
+
+### Not verified
+
+- In the headset: how the multipliers and the damage feel; a real arm's throw of the box.
+- Print Changes and Reset This Weapon/Prop on the new pages (read, not run: the menu's actions aren't console commands).
+- Multiplayer: the builtins read the local settings (as `propvalue` does).
+- **Merging with the debris branch:** its `Blunt` key (rocks and bricks: 1 + Blunt × √mass) is a mass-based damage of its
+  own; with the curve on top a rock's mass counts twice. At the merge either props with a Blunt skip the curve, or Blunt
+  gives way to the curve and their Melee and Throw Damage ×. Both branches edit `VR_Carry_Release`'s missile test and the
+  config migrations (26 theirs, 27 this).
+- Spotted, not changed: a box punch applies `vr_carry_melee_mult` twice (in the blow's strength and in `W_FistMelee`; the
+  debris branch moves it), and quad damage is ×2.75 in `VRMeleeDmgQuadMult` and ×4 again in `T_DamageImpl`.
+
+### To try
+
+- [ ] Weapon Weights with the rocket launcher: Stiffness 1.5, Sag 2; one hand, then two. The axe: Swing 1.5.
+- [ ] Held Object Weights with an explosive box: its Stiffness and Sag; throw it at a grunt from close.
+- [ ] Aiming > Weight and Damage: Heavier Than 4 kg to have the heavy guns club harder; Heavy Leniency 1 for more.
+- [ ] Throw a head and a gib: they fly as far as your throw now.

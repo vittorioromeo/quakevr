@@ -349,10 +349,11 @@ void resetHandMoves()
         toggle("2H Hand-Off", "vr_2h_handoff").help("Letting go with the hand holding a two-handed weapon leaves it in the other hand: a sword changes hands; a gun hangs from its foregrip, unusable, until a hand takes its handle."),
         header("Weight"),
         info([]() -> const char* {
-            return "What you hold follows your hand through a spring: heavy things lag, overshoot a little and settle.";
-        }).help("By its mass, balance and length (Weapon Weights, Held Object Weights): long ones turn slowly, and they "
-                "droop a little at arm's length. Two hands hold it much steadier. The drawn hand stays on it, and the aim "
-                "and melee follow it. Each weapon and prop multiplies the Spring settings below with its own."),
+            return "What you hold follows on a spring.";
+        }).help("Heavy things lag, overshoot a little and settle, by their mass, balance and length (Weapon Weights, Held "
+                "Object Weights): long ones turn slowly, and they droop a little at arm's length. Two hands hold them much "
+                "steadier. The drawn hand stays on it, and the aim and melee follow it. Each weapon and prop multiplies the "
+                "Spring settings below with its own."),
         open("Weapon Weights (Held Weapon)", pageIndex(pageWeaponWeights)),
         open("Held Object Weights (Held Prop)", pageIndex(pageHeldObjectWeights)),
         infoLine(weightReadout, 1),

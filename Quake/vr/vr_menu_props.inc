@@ -29,14 +29,14 @@ void showPage(int target);
     return text[hand].c_str();
 }
 
-// "Damage x1.90 (melee x1.90, thrown x1.90); speeds x0.35": what a thing of `mass` kg with its own Melee and Throw
-// Damage x deals, by the weight's curve (vr_weight_damage_*), and its strikes' and throws' speed thresholds (heavy
-// leniency, vr_weight_lenient*).
-[[nodiscard]] std::string damageReadout(float mass, float ownMelee, float ownThrow)
+// What a thing of `mass` kg with its own Melee and Throw Damage x deals, by the weight's curve (vr_weight_damage_*), and
+// its strikes' and throws' speed thresholds (heavy leniency, vr_weight_lenient*), on two lines: `line` 0 "Damage: melee
+// x1.90, thrown x1.90", 1 "Weight: damage x1.90, speeds x0.35".
+[[nodiscard]] std::string damageReadout(float mass, float ownMelee, float ownThrow, int line)
 {
     const float curve = weight::damageMultiplier(mass);
-    return va("Weight damage x%.2f (melee x%.2f, thrown x%.2f); speeds x%.2f", curve, curve * ownMelee, curve * ownThrow,
-        weight::leniency(mass));
+    return line == 0 ? va("Damage: melee x%.2f, thrown x%.2f", curve * ownMelee, curve * ownThrow)
+                     : va("Weight: damage x%.2f, speeds x%.2f", curve, weight::leniency(mass));
 }
 
 // A spring multiplier's slider (Weapon Weights, Held Object Weights): times the global setting on the Aiming page.
@@ -77,13 +77,14 @@ void weaponWeightsPrint()
     return weightReadout(weaponWeightsHand);
 }
 
-[[nodiscard]] const char* weaponWeightsDamageReadout(int /* unused */)
+[[nodiscard]] const char* weaponWeightsDamageReadout(int line)
 {
-    static std::string text;
+    static std::string text[2];
     using weapons::Key;
     const int slot = weaponWeightsSlot;
-    text = damageReadout(weapons::value(slot, Key::Mass), weapons::value(slot, Key::MeleeDamage), weapons::value(slot, Key::ThrowDamage));
-    return text.c_str();
+    text[line] = damageReadout(weapons::value(slot, Key::Mass), weapons::value(slot, Key::MeleeDamage),
+        weapons::value(slot, Key::ThrowDamage), line);
+    return text[line].c_str();
 }
 
 // A hand's weapon slot (the empty hand's: the hand model's; -1: not in a game).
@@ -170,6 +171,7 @@ std::vector<Item> pageWeaponWeights()
             "hand."),
         header("Damage"),
         infoLine(weaponWeightsDamageReadout, 0),
+        infoLine(weaponWeightsDamageReadout, 1),
         s("Melee Damage", Key::MeleeDamage, 0.f, 4.f, 0.05f, "%.2fx").extend(0.f, 20.f)
             .help("Times this weapon's melee damage (its blows with any part of it), on top of the weight's (the readout "
                   "above; Aiming: Weight and Damage)."),
@@ -284,17 +286,17 @@ void heldObjectWeightsPrint()
     return text.c_str();
 }
 
-[[nodiscard]] const char* heldObjectDamageReadout(int /* unused */)
+[[nodiscard]] const char* heldObjectDamageReadout(int line)
 {
-    static std::string text;
+    static std::string text[2];
     const weight::Load l = weight::load(heldObjectHand);
     if(!l.valid || strcmp(l.model, heldObjectModel.c_str()) != 0)
     {
-        return "Weight damage: (let go of)";
+        return line == 0 ? "Damage: (let go of)" : "";
     }
     const int slot = heldObjectSlot;
-    text = damageReadout(l.mass, props::value(slot, props::Key::MeleeDamage), props::value(slot, props::Key::ThrowDamage));
-    return text.c_str();
+    text[line] = damageReadout(l.mass, props::value(slot, props::Key::MeleeDamage), props::value(slot, props::Key::ThrowDamage), line);
+    return text[line].c_str();
 }
 
 std::vector<Item> pageHeldObjectOffsets()
@@ -428,6 +430,7 @@ std::vector<Item> pageHeldObjectWeights()
         list.insert(list.end(), {
             header("Damage"),
             infoLine(heldObjectDamageReadout, 0),
+            infoLine(heldObjectDamageReadout, 1),
             s("Melee Damage", Key::MeleeDamage, 0.f, 4.f, 0.05f, "%.2fx").extend(0.f, 20.f)
                 .help("Times its melee damage (a blow with it in hand), on top of the weight's (the readout above; "
                       "Aiming: Weight and Damage)."),
