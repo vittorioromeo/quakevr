@@ -420,7 +420,9 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 //
 // load the file
 //
-	buf = COM_LoadMallocFile (VR_ModelFile (mod->name), &mod->path_id); // QVR: relit maps
+	buf = VR_DerivedModelFile (mod->name, &mod->path_id); // QVR: a model made from another's file (a taken torch's flame)
+	if (!buf)
+		buf = COM_LoadMallocFile (VR_ModelFile (mod->name), &mod->path_id); // QVR: relit maps
 	if (!buf)
 	{
 		if (crash)
@@ -3445,7 +3447,7 @@ static void *Mod_LoadAllSkins (int numskins, daliasskintype_t *pskintype)
 			}
 
 			// QVR: a full-colour replacement (progs/ogre.mdl_0), or the normal map once the triangles are known
-			q_snprintf (name, sizeof(name), "%s_%i", loadmodel->name, i);
+			q_snprintf (name, sizeof(name), "%s_%i", VR_ModelSkinName (loadmodel->name), i); // QVR: a derived model's are its source's
 			Mod_ExternalSkin (&pheader->gltextures[i][0], &pheader->fbtextures[i][0], name, texflags, (byte *)(pskintype+1), size, offset, i, -1);
 
 			pheader->gltextures[i][3] = pheader->gltextures[i][2] = pheader->gltextures[i][1] = pheader->gltextures[i][0];
@@ -3499,7 +3501,7 @@ static void *Mod_LoadAllSkins (int numskins, daliasskintype_t *pskintype)
 					pheader->fbtextures[i][j&3] = NULL;
 				}
 				//johnfitz
-				q_snprintf (name, sizeof(name), "%s_%i_%i", loadmodel->name, i, j); // QVR: progs/ogre.mdl_0_1
+				q_snprintf (name, sizeof(name), "%s_%i_%i", VR_ModelSkinName (loadmodel->name), i, j); // QVR: progs/ogre.mdl_0_1
 				Mod_ExternalSkin (&pheader->gltextures[i][j&3], &pheader->fbtextures[i][j&3], name, texflags, (byte *)(pskintype), size, offset, i, j);
 
 				pskintype = (daliasskintype_t *)((byte *)(pskintype) + size);
@@ -3684,9 +3686,14 @@ void Mod_SetExtraFlags (qmodel_t *mod)
 	if (nameInList(r_noshadow_list.string, mod->name))
 		mod->flags |= MOD_NOSHADOW;
 
+	// QVR: a taken torch's flame (vr_walltorch.cpp) as id's torch's is (r_nolerp_list, r_noshadow_list)
+	if (!strcmp (mod->name, "progs/vrtorch_fire.mdl"))
+		mod->flags |= MOD_NOLERP | MOD_NOSHADOW;
+
 	// fullbright hack (TODO: make this a cvar list)
 	if (!strcmp (mod->name, "progs/flame2.mdl") ||
 		!strcmp (mod->name, "progs/flame.mdl") ||
+		!strcmp (mod->name, "progs/vrtorch_fire.mdl") || // QVR: a taken torch's flame (vr_walltorch.cpp)
 		!strcmp (mod->name, "progs/boss.mdl"))
 	{
 		mod->flags |= MOD_FBRIGHTHACK;

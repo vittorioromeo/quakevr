@@ -95,6 +95,7 @@ float VR_MTHING_SWORD = 1; // a knight's sword
 float VR_MTHING_AXE = 2;   // the axe, Mjolnir: a short handle and a head
 float VR_MTHING_GUN = 3;   // a gun: blunt all along (held, or carried by its pump)
 float VR_MTHING_NONE = 4;  // the empty hand steadying the other's weapon, a climbing hand: strikes nothing
+float VR_MTHING_CLUB = 5;  // a carried prop with a melee tip (Held Object Offsets: Tip; a wall torch): its head strikes
 
 // The kinds of points (what they strike as).
 float VR_MPT_EDGE = 0;  // the blade, an axe's head, a gun's barrel and muzzle: moves with the far end
@@ -249,6 +250,11 @@ float(entity p, float xHand) VR_Melee_Thing =
     float wid = VRGetEntWeapon(p, xHand);
     if(wid == WID_FIST)
     {
+        // A club carried in this hand alone (a wall torch: vr_walltorch.qc): its head strikes.
+        if(VR_Melee_ClubOf(p, xHand) != world)
+        {
+            return VR_MTHING_CLUB;
+        }
         // The empty hand steadying the other's weapon swings with it: the weapon's hand strikes.
         if(VRGet2HAiming(p) && !VRIsHandEmpty(p, VRGetOtherHand(xHand)))
         {
@@ -265,6 +271,30 @@ float(entity p, float xHand) VR_Melee_Thing =
         return VR_MTHING_AXE;
     }
     return VR_MTHING_GUN;
+};
+
+// The club `xHand` of `p` carries (world: none): a prop carried in that hand alone whose Held Object Offsets give it a
+// melee tip (vr_props.inc: tip_x/y/z; butt_x/y/z its other end), into vr_mclub_tip and vr_mclub_butt (its model's axes).
+vector vr_mclub_tip;
+vector vr_mclub_butt;
+entity(entity p, float xHand) VR_Melee_ClubOf =
+{
+    entity c = VR_Carry_Held(p, xHand);
+    if(c == world || c.carry_player != p || c.carry_2h)
+    {
+        return world;
+    }
+    vr_mclub_tip_x = propvalue(c, "tip_x");
+    vr_mclub_tip_y = propvalue(c, "tip_y");
+    vr_mclub_tip_z = propvalue(c, "tip_z");
+    if(vr_mclub_tip == '0 0 0')
+    {
+        return world;
+    }
+    vr_mclub_butt_x = propvalue(c, "butt_x");
+    vr_mclub_butt_y = propvalue(c, "butt_y");
+    vr_mclub_butt_z = propvalue(c, "butt_z");
+    return c;
 };
 
 // Where the helping hand `xHelper` of `p` holds the weapon in its other hand (two-handed): the weapon's grip hotspot
@@ -306,6 +336,23 @@ float(entity p, float xHand, float xThing) VR_Melee_Line =
         vector fwd = VRForwardOf(VRGetEntHandRot(p, xHand));
         vr_mline_near = h - fwd * 1;
         vr_mline_far = h + fwd * 4;
+        return TRUE;
+    }
+    if(xThing == VR_MTHING_CLUB)
+    {
+        // Its tip and butt where the hand holds it now (as VR_Carry_HandFrame places it: its place and turn in the hand),
+        // not where it was put last frame.
+        entity c = VR_Melee_ClubOf(p, xHand);
+        if(c == world)
+        {
+            return FALSE;
+        }
+        vector handRot = VRGetEntHandRot(p, xHand);
+        vector ang = carryangles(c, handRot, FALSE);
+        makevectors(handRot);
+        vector org = h + v_forward * c.carry_offset_x + v_right * c.carry_offset_y + v_up * c.carry_offset_z;
+        vr_mline_far = org + modelpoint(c, ang, vr_mclub_tip);
+        vr_mline_near = vr_mclub_butt != '0 0 0' ? org + modelpoint(c, ang, vr_mclub_butt) : h - (vr_mline_far - h) * 0.25;
         return TRUE;
     }
     vector m = xHand == cVR_OffHand ? p.offmuzzlepos : p.muzzlepos;
@@ -369,6 +416,16 @@ void(float xThing) VR_Melee_Layout =
         VR_MPT(2, 0.45, VR_MPT_GRIP, "the handle");
         VR_MPT(3, 0.75, VR_MPT_EDGE, "the head");
         VR_MPT(4, 1, VR_MPT_EDGE, "the head");
+    }
+    else if(xThing == VR_MTHING_CLUB)
+    {
+        // (A wall torch: its head is most of what is past the hand.)
+        VR_MPT(0, -1, VR_MPT_NEAR, "the club's end");
+        VR_MPT(1, 0, VR_MPT_GRIP, "the handle");
+        VR_MPT(2, 0.3, VR_MPT_EDGE, "the head");
+        VR_MPT(3, 0.55, VR_MPT_EDGE, "the head");
+        VR_MPT(4, 0.8, VR_MPT_EDGE, "the head");
+        VR_MPT(5, 1, VR_MPT_EDGE, "the head's top");
     }
     else if(xThing == VR_MTHING_GUN)
     {
@@ -832,7 +889,7 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
         {
             weight = VR_MELEE_POMMEL_SWORD;
         }
-        else if(b.mh_thing == VR_MTHING_AXE)
+        else if(b.mh_thing == VR_MTHING_AXE || b.mh_thing == VR_MTHING_CLUB)
         {
             weight = VR_MELEE_POMMEL_AXE;
         }
@@ -1310,7 +1367,7 @@ void(float xHand, entity b) VR_Melee_Whoosh =
     b.mh_whooshed = TRUE;
     VR_Motion_Event("stroke", VR_Melee_Category(b.mh_thing == VR_MTHING_FIST ? VR_MKIND_PUNCH : VR_MKIND_SLASH, b.mh_thing), xHand, vlen(b.mh_vfar), b.mh_far, world, "");
     string s = "knight/sword1.wav";
-    if(b.mh_thing == VR_MTHING_AXE)
+    if(b.mh_thing == VR_MTHING_AXE || b.mh_thing == VR_MTHING_CLUB)
     {
         s = "weapons/ax1.wav";
     }

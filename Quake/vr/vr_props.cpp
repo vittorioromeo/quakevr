@@ -214,6 +214,44 @@ int claimSlot(const char* model)
     return -1;
 }
 
+void takeShippedSlot(int slot)
+{
+    if(slot < 0 || slot >= numSlots)
+    {
+        return;
+    }
+    cvar_t& id = cvarAt(slot, Key::ID);
+    if(!freeId(id.string) && strcmp(id.string, id.default_string) != 0)
+    {
+        // Another model the menu gave this slot: its settings move to a free one first.
+        int to = -1;
+        for(int other = 0; other < numSlots && to < 0; other++)
+        {
+            if(other != slot && freeId(cvarAt(other, Key::ID).string) && freeId(cvarAt(other, Key::ID).default_string))
+            {
+                to = other;
+            }
+        }
+        if(to < 0)
+        {
+            Con_Printf("Held Object Offsets: no free slot for %s's settings; %s keeps its defaults\n", id.string,
+                id.default_string);
+            return;
+        }
+        for(int key = 0; key < numKeys; key++)
+        {
+            Cvar_SetQuick(&cvarAt(to, static_cast<Key>(key)), cvarAt(slot, static_cast<Key>(key)).string);
+        }
+        Con_DPrintf("Held Object Offsets: %s's settings moved from slot %d to %d\n", id.string, slot + 1, to + 1);
+    }
+    for(int key = 0; key < numKeys; key++)
+    {
+        cvar_t& var = cvarAt(slot, static_cast<Key>(key));
+        Cvar_SetQuick(&var, var.default_string);
+    }
+    slotCache.clear();
+}
+
 void resetSlotToDefaults(int slot)
 {
     if(slot < 0 || slot >= numSlots)

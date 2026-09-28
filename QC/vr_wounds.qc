@@ -113,7 +113,8 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
     {
         kind = QVR_WOUND_ZAP; // a hitscan shot that is not pellets: lightning
     }
-    else if(m == "progs/lavaball.mdl" || inflictor.classname == "lava_spike" || m == "progs/laser.mdl")
+    else if(m == "progs/lavaball.mdl" || inflictor.classname == "lava_spike" || m == "progs/laser.mdl" ||
+            inflictor.classname == "vr_torch_burn") // (a torch's fire: vr_walltorch.qc)
     {
         kind = QVR_WOUND_BURN;
     }

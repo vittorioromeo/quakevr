@@ -172,7 +172,16 @@ constexpr float sinkDensity = 0.5f;
 [[nodiscard]] float waterDensity(edict_t* ent)
 {
     const bool gib = hasFlag(ent, physics::FL_FORCEGRABBABLE) && !hasFlag(ent, FL_ITEM);
-    return gib ? sinkDensity : floatDensity;
+    const int index = static_cast<int>(ent->v.modelindex);
+    const bool wood = index > 0 && index < MAX_MODELS && sv.models[index] && !strcmp(sv.models[index]->name, "progs/vrtorch.mdl");
+    if(const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr)
+    {
+        if(const float stone = props::stoneDensity(model); stone > 0.f)
+        {
+            return 1000.f / stone; // a rock or a brick (vr_debris.cpp) sinks as stone does, faster than a gib
+        }
+    }
+    return gib && !wood ? sinkDensity : floatDensity; // (a taken wall torch is wood: it floats)
 }
 
 [[nodiscard]] bool wetAt(float x, float y, float z)

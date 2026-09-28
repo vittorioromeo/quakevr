@@ -1161,7 +1161,7 @@ Light-emitting lantern. Default light value is 200 Default style is 0"
 @PointClass base(Appearflags, Light, Target, Targetname) color(0 128 0) size(-4 -4 -12, 4 4 20) model({ "path": ":progs/flame.mdl" }) =
 	light_torch_small_walltorch : "Small walltorch
 
-Short wall torch Default light value is 300 Default style is 0"
+Short wall torch Default light value is 300 Default style is 0 Quake VR: the player can take it off the wall (grip and pull, or force grab: vr_walltorch) and use it as a burning club that lights the room round them; its baked light stays on the wall. Place it where a hand can reach it (or leave it out of reach). Quiet: no crackle."
 [
 	spawnflags(flags) =
 	[

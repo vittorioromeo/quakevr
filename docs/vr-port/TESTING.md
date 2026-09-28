@@ -141,6 +141,11 @@ context and screenshot, ready to paste or to point me at.
 ## What to try
 
 - **New in this round** (details in `docs/vr-port/ROUND21.md`; each section ends with an "In the headset" list):
+  - **Wall torches you can take** (ROUND21.md, same title): grip a wall torch and pull it out (or force grab it); it
+    is a burning club that lights the room round you as the wall torch did (same colour and brightness, and it casts
+    shadows). Its blows burn monsters; after 5 blows, or dropped, its fire dies in 6 s; held, it burns for ever; a dead
+    one lights again in another torch's flame. Carrying and Gibs > **Wall Torches**; its grip and fingers on **Held
+    Object Offsets** (hold it, open the page).
   - **Rocks and bricks** (ROUND21.md, same title): loose rocks on natural ground (grass, dirt, rock) and at the foot of
     rock and stone walls, bricks at the foot of brick walls, placed at map load where the textures say, more in
     corners, the same places every load (e1m2, e2m2, e4m2, e1m1's outdoor ground). Pick one up, punch with it (a rock
@@ -892,6 +897,17 @@ trigger button didn't fire here after `setpos`). `vr_physics_list` with `vr_debu
 (and whether Held Object Offsets set it) and throw share; `vr_physics_forcegrab <what>` whether the force grab may take
 each; `developer 1` prints `explobox: hit at <m/s>` and `explobox: blows up at <where>`. The Held Object Offsets page is
 `menu_vr 40` (its last page).
+Wall torches (ROUND21.md, "Wall torches you can take"): e1m2's torches are edicts 52 (1706 -206 316: pull it by hand
+from `setpos 1714 -190 312 0 243 0; noclip` with the main hand at `0.0 0.8 -0.6 70 0 0`, `+grabright; vr_mock_button
+main grip 1`, then the hand back 10 cm), 53 (2134 -34 316: force grab it from `setpos 2047 -84 312 0 30 0; noclip` with a
+`vr_mock_play` that points the hand at it, `cmd +attack`, flicks it up 0.3 m in 0.1 s, then `cmd +grabright` and the
+grip; the mock's trigger button doesn't lock on here, `+attack` does) and 156 (2134 -474 316). `vr_rigid_place 53 main 0
+0 0` then the grip puts a lying torch back in the hand. `developer 1` prints `walltorch: ...` (gripped, pulled out,
+blow n of 5, dying at t, out at t, taken again, lit again) and `wall torch: its wall's crackle ... silenced` (with
+`-Sound`); `vr_debug_shots 1` the blows and `by vr_torch_burn`; `vr_debug_torch_lights 1` every torch light (radius,
+colour, taken, shadowed). A monster to strike: `vr_test_spawn 0; vr_test_spawn_dist 34; impulse 241`; `god; notarget`
+and `gl_cshiftpercent 0` keep the screenshots clear of its shots. The scratchpad's `torches/go.sh <script> <out.png>`
+runs a multi-line script file.
 Rocks and bricks (ROUND21.md): `vr_debug_debris 1` prints a line per map (pieces, spots, rejections by reason, the
 time, the layout's hash, the server's spawn time), `2` each piece (model, skin, place, turn, size, the way out of its
 wall); `vr_debris_list [lit]` lists the pieces in the map with the light where each lies. The scratchpad's

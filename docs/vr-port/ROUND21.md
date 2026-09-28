@@ -8490,6 +8490,180 @@ mass of the map's box 60 kg.
 - [ ] Carry a health box and an explosive box (Held Object Offsets: try its Mass and Fingers); push an explosive box
       over from high up, stack two, drop one from a ledge, shoot one lying down.
 
+## Wall torches you can take
+
+Your request: pull a wall torch out of its holder (by hand or force grab); held, it is a melee weapon that also burns;
+used a few times, or dropped, its fire dies after a few seconds; held, it burns for ever; its grip and fingers tunable
+as the weapons' are; taken off the wall, it lights the room as the wall torch did, the same colour and brightness.
+Branch `agent/torches`; scripts, logs and pictures in the scratchpad's `torches/`.
+
+### What you do
+
+- **Take one:** grip a wall torch (id's `light_torch_small_walltorch`, the stick with the flame; braziers and flame
+  balls stay) and pull: after 8 cm (Pull to Take) it comes out with a wooden scrape, a knock and a buzz in the hand
+  (a grating buzz grows while you pull). Or force grab it: it comes out as it flies to you. The wall is left bare:
+  id's torch has no holder of its own (the model floats against the wall), so nothing is added; the map's baked glow
+  stays (it is in the lightmap), the flickering torch light goes with the torch, and the wall's crackle stops.
+- **Hold it:** by its handle, like a sword (Grip "Always the same"), in one hand; the other hand can take another
+  torch. Its flame is id's own, over our stick's head, always upright whichever way you hold it, leaning away from the
+  way you swing it. Its light is the wall torch's: the same colour, brightness and flicker (Graphics > Torch Light
+  Brightness), and it casts shadows (yours, the monsters', the stick's).
+- **Strike with it:** it is a club: its head strikes (a swing, or a jab driven along it), its butt knocks (a pommel
+  strike). A blow knocks (the pommel's wooden knock) for 12 times the blow's strength, and lit, it bursts into flame
+  and sets what it hits burning: 4 damage a second for 3 s, a small flame on the monster (id's small flame, which
+  lights it), embers and smoke, and burns painted where the flame is (the wounds' burn and char). Thrown lit into a
+  monster, it sets it burning too. Parrying and batting work with it as with a weapon.
+- **Its fire:** held, it never goes out. Each blow (on a monster or a wall) uses some: after 5 it starts dying even in
+  your hand. Let go of (dropped or thrown), it starts dying at once. Dying, it dims and shrinks over 6 s (Dying Time),
+  then goes out with a puff and a hiss, smokes a while, and is a charred stick (still a club; it can still be carried,
+  thrown and force grabbed). Taken again before it is out, a dropped torch burns up again (in a second); one whose
+  blows are spent goes on dying. In water or slime it goes out at once; lying in lava it keeps burning.
+- **Light it again:** hold a dying (blows spent) or burnt-out torch's head in another torch's flame (one on a wall, or
+  a lit one in your other hand) or dip it in lava: it lights again, as new.
+
+### How it works
+
+- **The same entity** (`QC/vr_walltorch.qc`): with Take Torches Off Walls on (`vr_walltorch`, read as the map spawns),
+  the wall torch is no longer made a static entity: it stays an entity (not solid, touchable by a hand's grip) so
+  that it can be taken, and the torch you hold is that entity (saved with the game like any other; nothing is made
+  or removed). The firing range has no wall torches: its entities and their numbers (the motion recorder's) are
+  exactly as before (200 either way); in a map with torches each one is an entity now. Off: static, as id's, next map.
+- **The stick** (`progs/vrtorch.mdl`, `Misc/quakevr/make_walltorch.py`): ours, the size and shape of id's torch's
+  stick (a handle to a head of wrapped, tarred rag round a shallow pit), along its +x so that it is held like a weapon
+  with no grip rotation; skin 0 lit (the pit's embers glow), skin 1 burnt out. Its 17 frames are one shape: the
+  frame is how much fire it has (0 out, 1..16 sixteenths), as the server sends it: no protocol change, and every
+  client (other players too) sees the same fire.
+- **The flame** (`Quake/vr/vr_walltorch.cpp`): id's torch's own, `progs/flame.mdl` without its stick. The engine makes
+  `progs/vrtorch_fire.mdl` from the game's `flame.mdl` as it loads (the triangles whose corners all move in its
+  animation: 86 of 132; nothing of id's is copied into the repository; a texture pack's skin for `flame.mdl` is used
+  for it too), and draws it each frame over each lit stick's head: upright, leaning up to 40° away from the head's
+  motion, its size the fire's (to the 0.6th power: it shrinks slower than the light dims at first) times Flame Size.
+  Its animation is not in step with the other torches'.
+- **The light** (`vr_emissive.cpp`, VR_TorchLights): a lit stick is a torch of the wall torch's kind (radius 150,
+  colour 0.45 0.28 0.135, times Torch Light Brightness, the same flicker, seeded from where it hung): its light at the
+  flame's middle, where the wall torch's is (20 units over its cup), moved off the walls close by as the wall torch's
+  is, but every frame; dimmer with its fire (colour times the fire, radius 60..100%). It is one of the Torch Lights
+  (the nearest 8) and casts shadows whatever Torch Light Shadows says (Taken Torch Casts Shadows).
+- **Its sound:** the wall's crackle (a static sound) is silenced when the torch leaves (found by where it hung); the
+  torch takes id's crackle with it (the engine moves the sound with the torch, as loud as its fire).
+- **Carrying** is the props' (`vr_carry.qc`): a physics prop in Box3D when loose (0.9 kg; it floats: it is wood),
+  carried in the hand by its Held Object Offsets, thrown with the hand's throw, force grabbed as a lying prop.
+- **The melee** (`vr_melee.qc`): a new kind of thing, a club (`VR_MTHING_CLUB`): a carried prop whose Held Object
+  Offsets give it a melee Tip (new keys `tip_x/y/z`, `butt_x/y/z`). Its line runs from its butt through the hand to
+  its tip, where the hand holds it now (its place and turn in the hand, not where it was put last frame); its points
+  are the head (edge points from 0.3 of the way out) and the butt (a pommel's, weighted as the axe's). It swings as a
+  weapon does (the arm's 1.25), whooshes as the axe does, stabs, parries and bats. The damage and the fire are the
+  torch's (`W_FistMelee` hands a carried torch to `VR_WallTorch_Melee`). No detection rule changed.
+- **Burning** (`VR_WallTorch_Ignite`): a helper entity on the victim (made and removed as it burns): id's small flame
+  (`flame2.mdl`) at 0.6 size wandering over its upper body, which lights it (Torch Lights); every 0.5 s it hurts it
+  (your damage: kills are yours) and paints a burn there (`QVR_WOUND_BURN`, as a lava ball's); embers and smoke. Out
+  when its time is up, when the victim dies or is in water. What lives in lava or water, and the bosses, don't burn
+  (the training dummy does). A new blow while it burns makes it burn 3 s again (not twice as hard).
+- **Old saves:** a game saved before this (or with Take Torches Off Walls off) has no torch entities; loading it with
+  the setting on puts the map's torches back on their walls (`walltorch::restoreAfterLoad`: the map's torches the
+  save has none at are spawned again after the load, with the skill and deathmatch flags respected).
+
+### Settings (Carrying and Gibs > Wall Torches; `vr_walltorch_*`)
+
+| | | |
+|---|---|---|
+| Take Torches Off Walls | `vr_walltorch` | 1; 0: static, as id's (next map) |
+| Pull to Take | `vr_walltorch_pull` | 8 cm |
+| Force Grab Torches | `vr_walltorch_forcegrab` | 1 (the prop's Force Grab: Never also stops it) |
+| Blows Before It Dies | `vr_walltorch_hits` | 5 (0: blows never use it up) |
+| Dying Time | `vr_walltorch_die_time` | 6 s (from a full fire) |
+| Blow Damage | `vr_walltorch_damage` | 12, times the blow's strength (a gun's is 12, the axe's 20) |
+| Burn Damage, Burn Time | `vr_walltorch_burn`, `vr_walltorch_burn_time` | 4 a second, 3 s |
+| Light Again | `vr_walltorch_relight` | 1 |
+| Flame Size | `vr_walltorch_flame` | 1 (the wall torch's) |
+| Taken Torch Casts Shadows | `vr_walltorch_shadows` | 1 |
+| `vr_debug_torch_lights` | | 1: each torch light lit, a line a frame: where, radius, colour, taken or not, shadowed |
+
+**Its grip and fingers** are on Held Object Offsets (hold the torch, open it: `progs/vrtorch.mdl`, slot 17): Mass 0.9
+kg, Centre of Mass X 4 (the head), Grip "Always the same" with Grip X 10 and Z -3 (the fist round the middle of the
+handle), Fingers Fitted, Two Hands off, and a new **Melee** section: Tip X 2.3 (the head's top), Butt X -14 (any prop
+can be made a club this way). Print Changes to Console gives the `vr_props.inc` lines. A config saved before this had
+slot 17 empty (every slot is saved): `vr_cfg_version` 25 gives it the torch's settings (a model you had put there
+moves to a free slot with its own).
+
+### Decisions
+
+- **No holder added:** id's wall torch has none (it floats against the wall); a bracket appearing only once the torch
+  is gone would come from nowhere, and one on every torch would change every map. The wall is left bare.
+- **The entity itself is the torch** (not a new one): saves, multiplayer and the entities' numbers stay sane; the cost
+  is that each wall torch is an entity (a few bytes a frame each in view; e2m6 has the most, 85).
+- **Taken again:** a dropped torch picked up before it is out burns up again (holding it is what keeps it); one whose
+  blows are spent keeps dying (its fuel is gone). Out, it stays a club you can carry, throw and light again in another
+  torch's flame or in lava. The map's braziers and flame balls are static and can't light it.
+- **Blows on walls count** as blows: they knock the burning head too.
+- **Monsters catch fire briefly** (cheap: one helper entity per burning monster, 20 thinks a second, for 3 s).
+- **One hand:** Two Hands off for the torch (it is a one-handed thing; two torches, one in each hand, work).
+- **Upright flame:** the flame is drawn apart from the stick so that it rises whichever way you hold the torch (id's
+  flame is part of its model, straight along the stick); it leans away from a swing.
+
+### Verification (mock headset, e1m2; the scratchpad's `torches/`, `go.sh` runs a script file)
+
+- **Pulled by hand** (`pull.cfg`, `p2.png`, `c1.png`; the torch at 1706 -206 316, from 1714 -190): `walltorch: gripped
+  on its wall`, then `pulled out by hand 1 (11.2 cm)`, `carry: taken`; held by its handle, its flame upright.
+- **Force grabbed** (`fg.cfg`, `fg1.png`; the torch at 2134 -34 316 from 100 units): `pulled out by a force grab`,
+  `flies 91 units in 0.4 s`, `caught`; the corner it hung in is bare, lit by its baked glow.
+- **A grunt struck** (`burn.cfg`, `b1.png`; `vr_debug_shots 1`): `damage: monster_army 11.3 by a melee blow, health
+  18`, `monster_army burns for 3 s at 4 a second`, then `2 by vr_torch_burn` at 16, 14, 12; the second blow killed
+  him. The flame on him in `b1.png` (top right).
+- **Dying after 5 blows** (`hits.cfg`, an ogre): blows 1..5 at 11.3 each, each setting it burning again; after the
+  5th, `dying (its blows spent) at 13.55 s`; it still struck twice more while dying; `out at 19.49 s` (5.9 s).
+- **Dropped** (`drop.cfg`, `d1.png`): `dying (let go of) at 6.99 s`, `out at 12.89 s`; the flame shrinks on the
+  floor, a puff of smoke, dark.
+- **Taken from the floor by hand** (`floor.cfg`): a lying torch's Quake box follows its turn (so a hand finds any
+  part of it): `carry: taken`, `taken again at fire 0.70: it burns up again`.
+- **Taken again, lit again** (`relight.cfg`, `r1.png`): dropped, taken again 2 s later: `taken again at fire 0.60: it
+  burns up again`; dropped again, out after 5.9 s; the burnt-out stick (its charred head) taken to the torch at 2134
+  -474 and moved through its flame: `lit again from a torch on its wall`.
+- **Held a long time** (`hold.cfg`): held 97 s: its frame still 16 (a full fire), no `dying` line.
+- **Its light** (`light.cfg`, `l1.png`, `l10.png` at Torch Light Brightness 10; `vr_debug_torch_lights 1`): the same
+  entity's light on the wall, then taken and held where it hung: on the wall `radius 154.4, colour 5.295 3.295 1.588`,
+  taken `radius 149.0, colour 4.318 2.687 1.295, shadows`, 5.4 units from where the wall's was. Both are exactly
+  radius 150 and colour (0.45 0.28 0.135) × 10, times the same flicker at two moments (+18% and -4%). The wall beside
+  it (brightness 1): mean 21.2 with the wall torch, 19.8 held (shadows off), 18.6 (shadows on: your body's).
+- **Shadows** (`shadow.cfg`, `s1.png`, `shadowdiff_floor.png`, `shadowdiff_grunt.png`): with the taken torch's
+  shadows on, 3.8% of the picture darker by 8 or more: the arm's shadow on the floor, a grunt's on the wall behind
+  him; at brightness 10 (`l10.png`, top right) your body's shadow on the wall.
+- **The wall's crackle** (`snd.cfg`, with sound): `wall torch: its wall's crackle at 2134 -34 316 silenced`.
+- **The pages** (`menu.png`): Held Object Offsets shows `progs/vrtorch.mdl (_17)`, "Mass now: 0.9 kg (set)"; the
+  Carrying page's Wall Torches section. The grip (`grip.png`): the fist round the handle, the fingers wrapped.
+- **Off:** `vr_walltorch 0`: static torches, as before; the firing range has 200 entities either way.
+- **Melee unchanged:** the 46 canary takes (archived) replayed with your OLD hand settings (`vr_gunangle 39.5`,
+  `vr_gunyaw 4`, every `vr_handcal_*` 0, `vr_handcal_off_mirror 0`, printed in the log): every row identical to the
+  weight branch's (42 pass, 4 fail; `eval_torch.csv` against `weight/eval_sl2.csv`).
+- `python Misc/trenchbroom/fgdgen.py --check` passes; the torch's FGD help says it can be taken.
+
+### Costs (`run.sh --exclusive`, RTX 4090, mock eyes 1024², e1m2, `cost.cfg`)
+
+| | frame CPU / GPU (ms) | wall torches (CPU) | torch lights (CPU) | dlight shadows CPU / GPU |
+|---|---|---|---|---|
+| the torch on its wall | 0.82 / 0.82 | 0.001 | 0.005 | 0 / 0 |
+| held, casting shadows | 0.94 / 0.88 | 0.001 | 0.007 | 0.035 / 0.015 |
+| held, no shadows | 0.82 / 0.85 | 0.001 | 0.007 | 0 / 0 |
+
+The flame and the stick add 0.003 ms of GPU an eye; the server's side is a think ten times a second per taken torch.
+The only real cost is the held torch's shadow map (about 0.1 ms of CPU here): Taken Torch Casts Shadows off removes it.
+
+### Not verified
+
+- In the headset: how pulling feels, the grip (the mock's hands are not yours: tune Grip X/Y/Z and the fingers on
+  Held Object Offsets), whether the flame (id's, about 1 m tall) is too big in front of your face (Flame Size).
+- Saves: the tests write no saves, so a save with a taken torch and the old-save restore are untested (the torch is an
+  ordinary entity with ordinary fields).
+- Multiplayer (other players see the fire by the stick's frame; untested), water putting it out, lava lighting it.
+- A texture pack's flame skin on the taken flame (QRP).
+
+### In the headset
+
+- [ ] Grip a wall torch and pull it out; force grab another. Hold one up, swing it, look at the room's light.
+- [ ] Hit a grunt a few times: does he catch fire, do burns show? After 5 blows, does the fire die in your hand?
+- [ ] Drop one: it dies in 6 s; pick one up while it dies: it burns up again. Light a dead one in a wall torch.
+- [ ] Held Object Offsets with the torch in hand: Grip X/Z and the fingers; Print Changes to Console for me.
+
 ## Rocks and bricks
 
 Your request: throwable, force-grabbable rocks and bricks lying about the maps where the textures say (rocks on

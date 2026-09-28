@@ -1286,6 +1286,12 @@ void(float xHand) W_FistMelee =
     float xdmg = VRMeleeDmg(xHand, 10);
     float playedsound = FALSE;
 
+    // A wall torch in hand is a club (vr_walltorch.qc).
+    if(VR_WallTorch_Melee(xHand))
+    {
+        return;
+    }
+
     // A box, a rock or a brick in hand is an improvised weapon (vr_carry.qc VR_Carry_PunchMult). Tracked hands have it in
     // their blow's strength already (VR_Melee_Decide), which VRMeleeDmg multiplies by: not twice.
     entity held = VR_Carry_Held(self, xHand);
@@ -5196,6 +5202,8 @@ void() W_Frame =
     VR_Carry_TwoHandFrame();
     VR_Carry_HandFrame(cVR_MainHand);
     VR_Carry_HandFrame(cVR_OffHand);
+    VR_WallTorch_HandFrame(cVR_MainHand); // a torch gripped on its wall pulled out (vr_walltorch.qc)
+    VR_WallTorch_HandFrame(cVR_OffHand);
 
     UpdateHolsterHover(self);
 

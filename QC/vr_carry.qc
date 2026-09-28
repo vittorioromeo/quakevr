@@ -179,6 +179,8 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Nudge =
 // ----------------------------------------------------------------------------
 // Holding
 
+float vr_carry_quiet; // set round VR_Carry_Start: no pickup sound (a wall torch pulled out played its own: vr_walltorch.qc)
+
 void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
 {
     dprint("carry: taken\n");
@@ -218,7 +220,17 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
 
     entity oldSelf = self;
     self = xPlayer;
-    sound(self, CHAN_AUTO, "knight/sword2.wav", 0.4, ATTN_NORM);
+    if(VR_WallTorch_IsTorch(xBox))
+    {
+        if(!vr_carry_quiet)
+        {
+            sound(self, CHAN_AUTO, "vr/pommel2.wav", 0.35, ATTN_NORM); // a wooden stick taken up: a soft knock
+        }
+    }
+    else
+    {
+        sound(self, CHAN_AUTO, "knight/sword2.wav", 0.4, ATTN_NORM);
+    }
     haptic(xHand, 0.0, 0.1, 70, 0.6);
     self = oldSelf;
 };

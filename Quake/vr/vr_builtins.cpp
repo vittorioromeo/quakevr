@@ -444,6 +444,23 @@ void PF_propgrip()
     out[2] = place.z;
 }
 
+// vector(entity e, vector angles, vector point) modelpoint: where the point `point` of `e`'s model (units in its model's
+// axes: x forward, y left, z up) is from its origin when it is turned by `angles` (as the renderer turns it: an alias
+// model's pitch is inverted). The melee's line of a carried club (a wall torch's head: vr_melee.qc).
+void PF_modelpoint()
+{
+    edict_t* e = G_EDICT(OFS_PARM0);
+    const float* angles = G_VECTOR(OFS_PARM1);
+    const float* p = G_VECTOR(OFS_PARM2);
+    const int index = static_cast<int>(e->v.modelindex);
+    const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    const glm::vec3 v = held::axesFromAngles(angles, model && model->type == mod_brush) * glm::vec3{p[0], p[1], p[2]};
+    float* out = G_VECTOR(OFS_RETURN);
+    out[0] = v.x;
+    out[1] = v.y;
+    out[2] = v.z;
+}
+
 // A push of a hand on a prop (physicspush(e, at, velocity)): the point `at` of the rigid body `e` gets at least the
 // velocity's speed along it (Box3D: an impulse there, so a tall box pushed high tips over; vr_box3d.cpp). False if it is
 // not Box3D's.
@@ -567,6 +584,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"debrisplan", PF_debrisplan},
     {"debrismodel", PF_debrismodel},
     {"debrisput", PF_debrisput},
+    {"modelpoint", PF_modelpoint},
     {"physicspush", PF_physicspush},
     {"tracebox", PF_tracebox},
     {"cvar_hmake", PF_cvar_hmake},

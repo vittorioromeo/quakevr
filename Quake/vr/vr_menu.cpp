@@ -1215,6 +1215,33 @@ void hologramTestMessage()
         slider("Blow Up On Impact", vr_explobox_impact, 0.f, 30.f, 1.f, "%.0f m/s").extend(0.f, 100.f)
             .help("A box hitting something this hard blows up: dropped from about 85 units or more (tipped over, its "
                   "top lands at 11 m/s). 0: never."),
+        header("Wall Torches"),
+        toggle("Take Torches Off Walls", vr_walltorch)
+            .help("Grip a wall torch and pull it out of its holder (or force grab it): it is a burning club, lighting the "
+                  "room round you as the wall torch did. Held, it burns for ever; dropped, thrown or used up by blows, "
+                  "its fire dies. Grip and fingers: Held Object Offsets, holding it. Off: fixed, as in id's Quake. Next map."),
+        slider("Pull to Take", vr_walltorch_pull, 2.f, 30.f, 1.f, "%.0f cm").extend(0.f, 100.f)
+            .help("How far a hand gripping a torch on its wall pulls it before it comes out."),
+        toggle("Force Grab Torches", vr_walltorch_forcegrab)
+            .help("Torches come off their walls, and from where they lie, to a force grab."),
+        slider("Blows Before It Dies", vr_walltorch_hits, 0.f, 20.f, 1.f, "%.0f").extend(0.f, 100.f)
+            .help("A torch's fire starts dying after this many blows, even in your hand. 0: blows never use it up."),
+        slider("Dying Time", vr_walltorch_die_time, 1.f, 30.f, 0.5f, "%.1f s").extend(0.f, 120.f)
+            .help("How long a dying torch's fire takes to go out: dropped, thrown or out of blows. Picked up again before "
+                  "it is out, a dropped torch burns up again; one out of blows goes on dying."),
+        slider("Blow Damage", vr_walltorch_damage, 0.f, 40.f, 1.f, "%.0f").extend(0.f, 200.f)
+            .help("A torch's blow, times the blow's strength (a gun's is 12, the axe's 20)."),
+        slider("Burn Damage", vr_walltorch_burn, 0.f, 20.f, 0.5f, "%.1f / s").extend(0.f, 100.f)
+            .help("A lit torch's blow sets what it hits burning: this much damage a second (monsters catch fire)."),
+        slider("Burn Time", vr_walltorch_burn_time, 0.f, 10.f, 0.5f, "%.1f s").extend(0.f, 60.f),
+        toggle("Light Again", vr_walltorch_relight)
+            .help("A dying or burnt-out torch held in another torch's flame (on a wall or in your other hand) or dipped "
+                  "in lava lights again, as new."),
+        slider("Flame Size", vr_walltorch_flame, 0.25f, 1.5f, 0.05f, "%.2fx").extend(0.f, 4.f)
+            .help("A taken torch's flame (1: the wall torch's)."),
+        toggle("Taken Torch Casts Shadows", vr_walltorch_shadows)
+            .help("A taken torch's light casts shadows (your hands and body, what is round you), whatever Graphics' Torch "
+                  "Light Shadows says. Its brightness is the wall torch's: Graphics' Torch Light Brightness."),
         header("Rocks and Bricks"),
         toggle("Rocks and Bricks", vr_debris)
             .help("Rocks lie on natural ground and at the foot of rock and stone walls, bricks at the foot of brick walls, "

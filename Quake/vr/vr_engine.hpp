@@ -43,6 +43,7 @@ void SV_WalkMove (edict_t *ent);
 void SV_CheckVelocity (edict_t *ent);
 void SV_CheckWaterTransition (edict_t *ent);
 void SV_Impact (edict_t *e1, edict_t *e2);
+entity_t *CL_NewTempEntity (void);				// cl_tent.c: a visedict for this frame (after CL_UpdateTEnts)
 }
 
 #include "vr_api.h"
