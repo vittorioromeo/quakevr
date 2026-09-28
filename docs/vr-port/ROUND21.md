@@ -8516,7 +8516,7 @@ Branch `agent/torches`; scripts, logs and pictures in the scratchpad's `torches/
   your hand. Let go of (dropped or thrown), it starts dying at once. Dying, it dims and shrinks over 6 s (Dying Time),
   then goes out with a puff and a hiss, smokes a while, and is a charred stick (still a club; it can still be carried,
   thrown and force grabbed). Taken again before it is out, a dropped torch burns up again (in a second); one whose
-  blows are spent goes on dying. In water or slime it goes out at once.
+  blows are spent goes on dying. In water or slime it goes out at once; lying in lava it keeps burning.
 - **Light it again:** hold a dying (blows spent) or burnt-out torch's head in another torch's flame (one on a wall, or
   a lit one in your other hand) or dip it in lava: it lights again, as new.
 
@@ -8613,6 +8613,8 @@ moves to a free slot with its own).
   5th, `dying (its blows spent) at 13.55 s`; it still struck twice more while dying; `out at 19.49 s` (5.9 s).
 - **Dropped** (`drop.cfg`, `d1.png`): `dying (let go of) at 6.99 s`, `out at 12.89 s`; the flame shrinks on the
   floor, a puff of smoke, dark.
+- **Taken from the floor by hand** (`floor.cfg`): a lying torch's Quake box follows its turn (so a hand finds any
+  part of it): `carry: taken`, `taken again at fire 0.70: it burns up again`.
 - **Taken again, lit again** (`relight.cfg`, `r1.png`): dropped, taken again 2 s later: `taken again at fire 0.60: it
   burns up again`; dropped again, out after 5.9 s; the burnt-out stick (its charred head) taken to the torch at 2134
   -474 and moved through its flame: `lit again from a torch on its wall`.

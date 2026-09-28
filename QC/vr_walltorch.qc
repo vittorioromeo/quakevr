@@ -385,6 +385,10 @@ void() VR_WallTorch_Think =
     float held = t.carry_player != world || t.fg_state == 1;
     if(!held)
     {
+        held = pointcontents(head) == CONTENT_LAVA; // (lying in lava, it burns as if held)
+    }
+    if(t.carry_player == world && t.fg_state != 1)
+    {
         VR_WallTorch_Box(t); // (where it lies, as it lies)
     }
 
