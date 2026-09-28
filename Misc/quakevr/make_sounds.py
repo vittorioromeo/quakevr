@@ -12,6 +12,8 @@
 #   counter_open.wav, counter.wav  counter-attacks (vr_counter_sound; QC vr_melee.qc): the window opening after a
 #                 parry (a blade drawn off into a high ring) and a counter landing (a crack, a deep boom, a sting of
 #                 steel), over the attack's own sound
+#   dummy_windup.wav  the training dummy winding up a blow (vr_dummy_attacks; QC vr_dummy.qc): two clacks and a
+#                 rising, growling swell, the tell before its blow
 #   pommel1..3.wav  a pommel, a hilt or a gun's butt striking (QC vr_melee.qc VR_Melee_HitSound): a blunt knock,
 #                 short and dry, apart from the blades' cuts and the punches; three, a little apart in pitch
 #
@@ -342,6 +344,44 @@ def counter_hit():
     return finish(out, 0.95)
 
 
+def dummy_windup():
+    """The training dummy winding up a blow (QC vr_dummy.qc, vr_dummy_attacks): the tell, as its wind-up begins. Two
+    hard clacks (the rifle taken up: wood and a little metal), then a rising, growling swell -- a low buzz gliding up an
+    octave and a half under a rush of air -- that breaks off just before the blow. Nothing like the parry's or the
+    counter's rings (no clean high partials): it says "now", and "coming", in 0.45 s."""
+    rng = random.Random(151)
+    n = int(RATE * 0.45)
+    clacks = (0.0, 0.065)
+    knock = ((420, 0.6, 0.03), (1130, 0.45, 0.018), (2350, 0.3, 0.01))
+    click_hp = OnePole(1800)
+    air = VarLowPass()
+    air_hp = OnePole(350)
+    buzz_lp = VarLowPass()
+    phase = 0.0
+    out = []
+    for i in range(n):
+        t = i / RATE
+        noise = rng.uniform(-1, 1)
+        s = 0.0
+        for k, c in enumerate(clacks):
+            if t >= c:
+                u = t - c
+                click = (noise - click_hp(noise)) * math.exp(-u / 0.003)
+                s += (click * 0.8 + partials(u, 1.0 - 0.12 * k, knock) * min(1.0, u / 0.0005)) * (1.0 - 0.25 * k)
+        # The swell: from 0.08 s, rising to the end, then cut (a 15 ms fade).
+        rise = max(0.0, min(1.0, (t - 0.08) / 0.34))
+        if rise > 0.0:
+            f = 70.0 * 2 ** (1.5 * rise)  # 70 Hz up an octave and a half
+            phase += 2 * math.pi * f / RATE
+            saw = 2.0 * ((phase / (2 * math.pi)) % 1.0) - 1.0
+            buzz = buzz_lp(saw, 300 + 1500 * rise) * 0.9
+            w = air(noise, 500 + 3500 * rise)
+            w -= air_hp(w)
+            s += (buzz + w * 1.6) * rise ** 1.6
+        out.append(math.tanh(s * 1.6))
+    return finish(out, 0.9, 0.015)
+
+
 def pommel(pitch, seed):
     """A pommel, a hilt or a gun's butt knocked into a body: blunt, short and dry. A hard tick, a wooden knock (low
     inharmonic modes of a dense knob damped in a few tens of ms: no ring, unlike the bash's clang or the parry's
@@ -422,6 +462,7 @@ def main():
         "parry.wav": parry,
         "counter_open.wav": counter_open,
         "counter.wav": counter_hit,
+        "dummy_windup.wav": dummy_windup,
     }
     only = sys.argv[2:]  # optional: just these
     for name, make in sounds.items():

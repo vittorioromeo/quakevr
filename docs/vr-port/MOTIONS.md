@@ -48,6 +48,12 @@ that must do nothing: wiggles, weak or slow swings, reloading, aiming, walking w
 dummy. **Other** is for anything else: say what it is with `vr_motion_note "..."` in the console (it goes into
 every take's header until you clear it: `vr_motion_note ""`).
 
+**The dummy's attacks** (the Dummy Attacks button beside it) are off unless you turn them on, and off again at every
+map load. With them on, your takes can hold real parries and counters (a counter bash is a `parrybash`); the take
+says so (`dummy attacks: on`) and records each of its blows, and its replays have the dummy strike at the same
+moments. Takes that should not depend on the dummy (all the categories but Parry Bash and Other) are best recorded
+with them off.
+
 ### Categories
 
 | Category (menu) | Label | Meaning | Details |
@@ -124,6 +130,7 @@ meaning).
 | `yaw0` | the player frame's heading: the head's world yaw at `t` = 0 (degrees) |
 | `origin0` | the player's world origin at `t` = 0 |
 | `target` | the nearest monster at `t` = 0: classname, entity number, targetname, origin, angles, box |
+| `dummy attacks` | `on`: the training dummy was striking back at some moment of the take (`vr_dummy_attacks`, the firing range's button; ROUND21.md, "Dummy attacks"). Its blows are the `strike` events, and a replay has it strike exactly then. Not written when it wasn't |
 | `melee settings` | every `vr_melee_*`, `vr_bash*`, `vr_shove*`, `vr_parry*`, `vr_deflect*`, `vr_headbutt*` cvar |
 | `settings` | every archived `vr_*` setting (`name=value`, spaces as `_`) and `host_maxfps`: what playback sets again |
 | `weapon settings` | the weapon offsets (`vr_wofs_*`) of the empty hand's slot and of the weapons in the hands as the take is saved |
@@ -243,6 +250,7 @@ The melee's events (`events`): what the melee registered in this frame (its serv
 | `push` | `bash` or `shove` | 0 | a bash's or shove's push, whether it met anything or not; `one hand` / `two hands` |
 | `parry` | `main`, `off`, `arms` | the blow's damage | a monster's blow parried; its attacker |
 | `deflect` | the projectile's class | 0 | a projectile batted back; its thrower; `swing` or `bash` |
+| `strike` | the training dummy's attack (`dummy attacks: on`): `windup` (the tell begins), `blow` (it struck you), `miss` (nobody within reach at the blow) | a blow's damage (before a parry) | the dummy; a blow's `parried` or `parried with the arms` (its `parry` event is in the same frame) |
 
 The runtime's tracking (tracking space, see above):
 
@@ -254,7 +262,8 @@ The runtime's tracking (tracking space, see above):
 | `raw_m_*`, `raw_o_*` | the same for each hand's controller, and `gx/gy/gz`, `gvalid`: the palm's velocity (with `vr_controller_legacy_pose`) |
 
 For the QC side (the melee agent): the events come from `VR_Motion_Event` calls in `T_DamageImpl` (the hits: kinds
-from `VR_SetHitKind`), `PlayerVRMeleeImpl` (strokes), `VR_Bash` (pushes), `VR_Parry` and `VR_Deflect_Send`, and the
+from `VR_SetHitKind`), `PlayerVRMeleeImpl` (strokes), `VR_Bash` (pushes), `VR_Parry`, `VR_Deflect_Send` and the
+training dummy's attacks (`QC/vr_dummy.qc`: strikes), and the
 points and values from `VR_Motion_Sample` (`QC/vr_motion.qc`). Keep them when the melee changes (the evaluation's
 expectations are written in these kinds), or change both.
 
@@ -304,6 +313,15 @@ frames left to the engine; to check the melee at 72, 90, 120 or 144 Hz),
 settings too: `vr_melee_*`, `vr_bash*`, `vr_shove*`, `vr_parry*`, `vr_deflect*`, `vr_headbutt*`; without it the
 current ones: what a change of the melee's settings does), `quiet`. `vr_motion_play stop` stops it.
 
+**The training dummy's attacks** (`vr_dummy_attacks`, ROUND21.md "Dummy attacks"): a replay turns them off (and back
+as they were afterwards), so the dummy never strikes on its own timer during a replay or an evaluation (the map loads
+turn them off too). A take recorded with them on (`dummy attacks: on`) has the dummy strike when the take says
+instead: each of its `strike` events (a wind-up, a blow with its damage, a miss) is done by the take's target (QC
+`VR_Dummy_Replay`) in the server frame that plays the event's frame, after the player's, as when it was recorded; the
+report says how many. So the parries, the stamina, the counter's window and the knockback come as they came live (a
+counter bash replays as `parrybash`, not as a plain `bash`). Against another kind of target they are left out (a
+note says so).
+
 A take without a monster (recorded far from any) is played with the target 40 units ahead, facing the player. A
 take whose spot is inside the target (recorded in noclip, or a synthetic take whose box meets the target's turned
 another way) steps the player back until the boxes are apart, and says so.
@@ -325,7 +343,7 @@ afresh (`vrfiringrange`, or `map <name>`: the same start every time), judges eac
 | `expected` | its expectation (expect.cfg: the label's line, else the category's) |
 | `verdict` | `PASS`, `FAIL`, `N/A` (the category means nothing with this weapon: a stab with a gun), `-` (no expectation), `ERROR` |
 | `reason` | what failed: `no melee/stab`, `unexpected shove/main main 4.0`, `parry pose held 3 of 390 frames` |
-| `events` | the replay's events (hits, pushes, parries, batting), with their times |
+| `events` | the replay's events (hits, pushes, parries, batting, the dummy's strikes), with their times |
 | `recorded_events` | the take's own, as registered live |
 | `same_hits_as_recorded` | `yes` when the replay hit exactly as the take did live (`-` for a synthetic take) |
 | `frames`, `hand_error_u` | the take's frames, and the hands' largest distance from the take's (relative to the dummy, units) |
