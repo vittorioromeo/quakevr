@@ -4892,3 +4892,141 @@ A second add-on, **Quake VR Models** (`Misc/quakevr/blender/addons/quakevr_model
 
 - [ ] Import a weapon, move a part, export, `vr_model_reload`: does it draw edited, and is it held as before?
 - [ ] Paint the body's plain skin, export, `vr_model_reload`: do the armour skins show your paint round their plates?
+
+## Model bump maps
+
+The author: enabling bump maps for models barely does anything. "Never compromise on quality."
+
+**Why.** Measured first, in the mock at 2048², in e1m1 and the firing range, with `vr_normalmap_strength 0` as a flat
+reference. The round-14 maps changed the grunt, ogre and shambler very little under a light from the side, and hardly
+at all under the torch. There were two reasons:
+
+- The maps were brightness taken as height. Every speck of an 8-bit skin's dithering became a bump, every change of
+  paint a ramp, and dark skins came out shallow.
+- The lights you see most come from about where you look from: the torch on your head or in your hand, a muzzle flash
+  beside the gun. A surface lit straight on only dims by 1 − cos θ where a bump tilts it by θ (4% for 17°). Straight-on
+  light shows little relief in reality too; only edges (steep bevels) and lights from the side show shape.
+
+**What changed** (details in LIGHTING.md, "Model skins' normal maps"):
+
+- **Better made maps for id's skins** (`TexMgr_SkinToNormals`). They are made in the engine at load, so nothing
+  derived from id's skins is stored or shipped.
+  - Edges: coherent ones are kept (plate edges, seams, creases); speckle below the skin's own noise level is dropped.
+  - Forms: the brightness is blurred at three scales, so muscles, folds and plates read as broad shapes.
+  - Paint: a change of colour counts less than a change of brightness.
+  - Materials, by colour: metal is crisp and flat, flesh soft and broad, blood almost nothing.
+  - Relief is relative to the skin's own contrast, so dark skins get as much shape as bright ones.
+  - Bevels are compressed to at most about 50°.
+  - Seams stay clean: every blur stays within the skin's islands.
+- **Authored normal maps for models:**
+  - Where they are looked for: `progs/<model>.mdl_<skin>_norm` (DarkPlaces' names), then `_bump` (heights), then skin
+    0's. For MD5 meshes: `progs/<shader>_<ss>_<ff>_norm`, then `_00_00`'s.
+  - They work under the 8-bit skin and under a full-colour replacement.
+  - They have their own strength: `vr_normalmap_authored`, Graphics > "Authored Model Bumps" (1 = as authored).
+  - They are not halved on held weapons and hands.
+- **External full-colour skins:** `progs/<model>.mdl_<skin>`, with `_glow` or `_luma`, as model packs ship them.
+- **The jointed hands and the body** (MD5 meshes, drawn by the alias shader with their bones) had no normal maps at
+  all. They now get them, lit like any model: their own light and `vr_modellight`, dynamic lights, the torch and
+  muzzle flashes.
+
+**Before and after.** The sheets are in the scratchpad, `bumpmap/composites/` (left: before; right: now), for
+`-Base qbase` and `qrp`:
+
+| Sheets | What each shows |
+|---|---|
+| `grunt_*`, `ogre_*`, `knight_*`, `shambler_*`, `zombie_*` | mid range in the hand torch; close in the hand torch, in its own light, and with a light from the left and from the right |
+| `shotgun_*`, `supernailgun_*` | own light, a light in front, a light from the side, the muzzle flash |
+| `items_*` | the armour (the ammo and health boxes are brush models, so they don't change) |
+| `firingrange_*` | the firing range |
+
+The shots themselves are in `bumpmap/shots/{before,after}_{qbase,qrp}/`.
+
+- **Lit from the side:** clearly more shape than before, and smoother. The ogre's head and arms, the shambler's ribs
+  and thighs, and the knight's plates read as forms. The speckle on the thighs and legs is gone.
+- **In the torch and the muzzle flash:** a little more at the edges (plates, the knight's legs), otherwise close to
+  before, as the physics above predicts.
+- **The hands** now show their knuckles and creases.
+
+**Cost.** Measured on the RTX 4090, run exclusive: mock eyes at 2048² (the headset's 2064 x 2208 has about 8% more
+pixels), e1m1 with a shambler and an ogre in the hand torch and the shotgun held, over 3600 frames.
+
+| | Before | Now |
+|---|---|---|
+| Alias pass, both eyes | 0.022 ms a frame | 0.023 ms a frame |
+| Whole frame, GPU | 1.12 ms | 1.14 ms (within run-to-run noise) |
+| Managed textures on e1m1 | 49.5 MB | 56.2 MB (20 more normal maps: the hands' and the body's skins) |
+
+- The shaders do the same work as before: the hands and the body used to read a flat map.
+- Loading: each made map takes about 7-10 ms for a 256² skin (`developer 1` prints each). On e1m1 that's 118 skins
+  in 0.5 s. Of each 7-10 ms, the steps the round-14 maps also took (the dilation and the heights) are 1-3 ms; the edges and the forms are about 3 ms each.
+
+**A model pack** (CREDITS.md, "Model packs evaluated"):
+
+- **The candidates:**
+  - Quake Reforged's Bestiary: monster skins with `_norm`, `_gloss` and `_luma`, in DarkPlaces' naming.
+  - AMI / Authentic Models for Quake: faithful, 8-bit, no normal maps. Quake VR's monsters appear to come from it
+    already.
+  - QRP's item textures: weapons and items, no model normal maps.
+- **Only Reforged ships normal maps.** The site's previews were thumbnails, so I downloaded its 2048 archive (208 MB,
+  from the official page) to judge it properly, and tried it in the game on id's original models.
+- **It isn't faithful:**
+  - the grunt becomes a dark-green armoured man;
+  - the knight is pink copper;
+  - the shambler is red and brown instead of pale grey;
+  - the zombie is grey-green;
+  - its `_luma` layers are faint copies of the skins (25-45% of their brightness), so the monsters glow in the dark.
+
+  See `pack_*_qbase.png`: left, the stock skins with the new maps; right, Reforged.
+- **It's also incompatible:** it is painted for id's original UV layouts, and Quake VR's monster models (AMI's, many
+  converted from the remaster) have different ones. For example, the grunt's skin is 256 x 256 here and 300 x 194 in
+  id's model.
+- **Decision:** no pack, and no menu toggle. The loading is ready for any pack that uses DarkPlaces' names.
+- **To try one anyway:**
+  1. Put its `progs/` files in a folder next to `quakevr`, for example `qrtest/progs/`.
+  2. For Reforged, add id's own models from `id1/pak0.pak` to that folder.
+  3. Start with `-game quakevr -game qrtest`. Ironwail stacks game folders, and the last one wins.
+- **Licence:** "free with credit", "GPL", changes to be reported to the authors, and the terms "may change". That
+  doesn't plainly allow redistribution, so nothing of the pack is committed.
+
+**For baking our own models' normal maps** (the next task):
+
+- **File names:**
+  - Alias models: `quakevr/progs/<model>.mdl_<skin>_norm.png`, for example `vrflashlight.mdl_0_norm.png`,
+    `vrgadget.mdl_0_norm.png`, `v_shot.mdl_0_norm.png`. One map for skin 0 serves every skin of the model, since they
+    share the UVs; add a `_<skin>_norm` only where a skin differs.
+  - MD5 meshes: `quakevr/progs/hand_rig_00_00_norm.png` covers all four hand skins, and
+    `quakevr/progs/vrbody_00_00_norm.png` all 16 body skins. The lean and brawny bodies use the shader `vrbody` too, but
+    have their own UVs: check them before sharing one map.
+- **Format:**
+  - Tangent space, OpenGL / Blender convention (green = +V, up the image).
+  - RGB = normal × 0.5 + 0.5, linear 8-bit (not sRGB). Keep blue a real z: the sheen's anti-aliasing uses it.
+  - Alpha (optional) = height: 255 is the surface, lower is deeper. Only model parallax (`vr_parallax_models`) uses it;
+    without alpha the surface is flat.
+  - PNG or TGA, any size. The map is stretched over the whole UV square like the skin, so use the skin's aspect ratio
+    at 2-4× its resolution.
+- **Tangent frame:** the engine has no vertex tangents. It builds a per-pixel cotangent frame from the screen
+  derivatives of the position and the UVs, and handles mirrored islands. Bake in Blender's tangent space with the
+  model's own UVs and smooth normals, as the game draws them. An MDL's back-half onseam vertices use their shifted UVs
+  (`s + skinwidth/2`).
+- **Strength:** 1 = as baked (`vr_normalmap_authored`). The map carries the real bevels, so bake them at their true
+  depth. Authored maps aren't halved when held.
+- **Margins:** leave 4-8 texels of margin (dilation) round each island. Nothing outside the islands is read, apart from
+  filtering and mips.
+
+### Not verified
+
+- **In the headset:** whether the new relief reads as shape rather than noise at the headset's resolution and in
+  motion. I judged grain only from 2048² stills.
+- **Held weapons:** the half-strength rule for made maps is unchanged, and the dark weapon skins show little either
+  way.
+- **MD3 models:** they get no normal maps. Quake VR ships none.
+- **The firing range:** its outdoor light overexposes the monsters both before and after (not this round's change),
+  which hides most bumps there.
+- **Muzzle flash:** the shots were taken on the first frames of the flash, not at its peak.
+
+### In the headset
+
+- [ ] Sweep the torch in your hand across a shambler and an ogre up close: do they show shape rather than speckle?
+- [ ] With a rocket or a lava ball passing the knight's plates and the grunt's arms: do the forms move with the light?
+- [ ] Your own hands in the torch light: knuckles and creases, and no grain?
+- [ ] Graphics > Authored Model Bumps: nothing should change until an authored map is installed (then 0 flattens it).
