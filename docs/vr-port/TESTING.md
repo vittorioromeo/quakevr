@@ -141,6 +141,11 @@ context and screenshot, ready to paste or to point me at.
 ## What to try
 
 - **New in this round** (details in `docs/vr-port/ROUND21.md`; each section ends with an "In the headset" list):
+  - **Profiling: where the time goes** (ROUND21.md, same title): VR Settings > Advanced VR Options > Debug >
+    Profiling. Profiler Panel (In Front) shows each system's milliseconds a frame with a bar against the budget; CSV
+    Capture writes a row a second while on; the Hitch Log names what took a slow frame's time. See "Profiling" below.
+    Also found with it: the foveated rendering's setup waited for the driver each eye (0.2-0.4 ms of the CPU a frame,
+    fixed; the pictures are the same).
   - **Recording: smoothed mirror and spectator camera** (ROUND21.md, same title): VR Settings > Body and Display >
     Recording (Window View). **Smoothed Mirror** steadies the window's left-eye view (free); **Spectator Camera**
     draws the game a third time for the window, from your head, steadied, 90 degrees wide (about one more eye's cost at
@@ -587,13 +592,36 @@ hands, weapons and finger curls.
 
 ## Profiling (CPU and GPU time per effect)
 
-`vr_profile 1` (in the console) times each part of every frame, on the CPU and on the GPU (OpenGL timer queries,
-read a few frames later, so measuring does not slow the frame down noticeably), per eye. Every
+**Where the time goes, while you play** (ROUND21.md, "Profiling: where the time goes"): VR Settings > Advanced VR
+Options > Debug > Profiling.
+
+- **Profiler Panel**: *In Front* floats a table a metre ahead (it turns after you when you look 30 degrees away);
+  *Over the Wrist* puts it above the wrist gadget's hand. Each line is one of the game's systems (Box3D, QuakeC, the
+  world's drawing, the shadow maps, waiting for the headset...): its milliseconds a frame over the last second, its
+  worst frame, and a bar against the frame's budget (the whole bar: one refresh, 11.1 ms at 90 Hz). Blue: the CPU's
+  work; grey: waiting (not work); gold: the GPU's; red: one system over the whole budget by itself. The top lines:
+  the frame rate, the CPU's work ("busy": without the waits), the GPU's, and each group's total.
+- **CSV Capture**: turn it on, play what feels slow, turn it off. Each second is a row of
+  `quakevr/profile/systems_<date>_<time>.csv` (a column per system, its average and worst frame, the GPU's, the
+  counts), for a spreadsheet. Send me that file.
+- **Hitch Log** (Over 1.5 Frames by default): while the panel or a capture is on, every frame that takes longer goes
+  to the console and `quakevr/profile/hitches_<date>_<time>.csv`, with what took the time: the systems, and the
+  three costliest scopes by name (e.g. `screen/3D/eye L/scene/vr opaque (text3d)/decals 423.3` for the first decal).
+- **Print Report**: the last 5 seconds' table in the console (`vr_profile_report [seconds]`; with `-condebug` it is
+  in `qconsole.log` too).
+- **Detail**: *Every Trace and Builtin* also times each collision trace and each QuakeC builtin call apart (dearer).
+
+In the console: `vr_profile_overlay 1` / `2`, `vr_profile_csv 1` / `0` (or `vr_profile_csv_toggle`, to bind to a key),
+`vr_profile_hitch 1.5`, `vr_profile_detail 2`, `vr_profile_gpu 4` (the GPU's times on one frame in 4: each timer query
+stalls the GPU a little; 1 every frame, 0 none). All are off again after a restart.
+
+**The call tree:** `vr_profile 1` (in the console) times each part of every frame, on the CPU and on the GPU (OpenGL
+timer queries, read a few frames later, on one frame in `vr_profile_gpu`), per eye. Every
 `vr_profile_interval` seconds (5; 0: only on demand) and on `vr_profile_dump` it writes the averages and the
 worst frame of each part to `quakevr/profile/profile_<map>_<date>_<time>.csv` (one file per map, one block of rows
 per interval; the header lines give the map, the eye resolution, the graphics preset and the graphics settings)
 and prints a one-line summary with the costliest parts. `vr_profile_dump` also prints the whole tree.
-`vr_profile 2` also shows the costliest parts over the wrist gadget. `vr_profile 0` (the default) stops it.
+`vr_profile 2` also shows the profiler's panel over the wrist gadget. `vr_profile 0` (the default) stops it.
 
 To send me a profile: play a while with `vr_profile 1` in the same spot and settings (the start of E1M1, a big
 fight, ...), then `vr_profile_dump`, and send the `.csv` (and `qconsole.log` with `-condebug`). Comparing the
@@ -648,6 +676,12 @@ shake starts (the same poses every run with `vr_fixed_frames 1`); `vr_window_log
 camera's angles each frame (Smoothed Mirror, Spectator Camera: ROUND21.md, "Recording"). The window's `screenshot` is
 the window's view; `vr_eyeshot 1` the eyes'. `vr_particle_seed <n>` (not 0) makes the particles the same in every run (their random numbers restart from it at each map), for comparing images. `vr_mock_fingers <main|off> <trigger> <grip> [<thumb>]` sets the finger
 sensors (0..1); a fifth argument sets the index finger's touch on the trigger.
+Profiler (ROUND21.md, "Profiling: where the time goes"): `vr_profile_csv 1` collects (a row a second) without the
+panel; `vr_profile_report [s]` prints the table; the hitch log prints `vr_profile: hitch` lines. The panel is UI, so
+`vr_eyeshot` misses it: to see it in a screenshot, `vr_window_view 2; vr_spectator_fov 50; vr_spectator_scale 2;
+vr_profile_overlay 2` (the spectator camera, narrow, frames the panel in the 960 x 540 window). Timings need
+`run.sh --exclusive`; the mock's frame cap (`host_maxfps` 250) sleeps in 15.6 ms steps in an exclusive run (Windows'
+timer), which the report shows as "frame cap" (idle), not work.
 
 Menus (ROUND21.md, "Menu: scroll memory and shortcuts"): `menu_vr pos` prints the menu shown and, on a VR page, its
 selected row (with the header above it), its scroll and the page Back goes to. `menu_vr list`: every page's number

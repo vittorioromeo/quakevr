@@ -33,6 +33,7 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | Stamina for shoves and strikes; thrown damage on gibs | shoves and bashes (15 one-handed, 20 two-handed) and blows that land (a punch 4, a weapon 8, two-handed 6) spend the parry's stamina pool, shown on the gadget; short of it they do half the damage and a shove half the knockback (in proportion to what's missing); the rest before it comes back counts from the last parry, shove or blow; all in Parry, Bash and Headbutt > Shove and Strike Stamina. A thrown weapon, box or gib landing on a loose gib hurts it as it hurts a monster (it bursts). Your archived takes: identical |
 | Swimming: air supply, strokes against the palm | Air Supply (1.5: 18 s under water before drowning instead of 12; 1 to 4). Stroke Against Palm (0.25): a stroke led by the back of the hand (a backhand, a hand turned round to reposition) pushes a quarter as much; palm-first strokes unchanged. The old Palm Matters counted either side of the hand alike. Swimming 6 s with brisk backhand recoveries: +2 units before, +261 to +319 now |
 | Menu: scroll memory and shortcuts | every VR page reopens on the row and scroll it was left at (Weapon Offsets too, for any weapon; across restarts: `vr_menu_positions`); Advanced VR and Levels buttons under Back to Game on every menu (laser, or a stick click) |
+| Profiling: where the time goes | the frame split into the game's systems (Box3D, QuakeC, Quake physics, the world's drawing, shadow maps, waiting for the headset...), adding up to the frame time: a panel in the headset with bars (Debug > Profiling), `vr_profile_report`, a CSV row a second, a hitch log naming what took a slow frame's time; off it costs nothing measurable. Found with it: the foveated rendering's setup waited for the driver every eye (0.2-0.4 ms of the CPU a frame, fixed) |
 
 Found on the way: fteqcc stores 0 when `a || b` is assigned into an entity field (rewritten; no other code has that
 shape); a parried blow's hand knock, timed by `cl.time`, came back after a level change (reset now).
@@ -9993,3 +9994,213 @@ Both are now settings, at 1 by default as the author decided, so melee under Qua
 |---|---|---|---|
 | `vr_quad_melee_damage` | Quad: Extra Melee Damage | 1 | 2.75 |
 | `vr_quad_melee_range` | Quad: Extra Melee Reach | 1 | 1.23 |
+
+## Profiling: where the time goes
+
+Your request: basic profiling of the largest systems, e.g. how much CPU time goes to Box3D and to sending commands to
+the GPU. The profiler (`vr_profile`, a call tree of about 100 named scopes, CPU and GPU) now also sorts every frame's
+time into the game's systems, shows them in the headset, prints them, logs them a row a second, and names what took a
+slow frame's time.
+
+**In the headset:** VR Settings > Advanced VR Options > Debug > Profiling.
+
+| Row | What it does |
+|---|---|
+| Profiler Panel | Off / Over the Wrist / In Front (a metre ahead, turning after you past 30 degrees): the last second's systems, CPU then GPU, each with its average, its worst frame and a bar against the frame budget |
+| CSV Capture | a row a second into `quakevr/profile/systems_<date>_<time>.csv` while on |
+| Hitch Log | Over 1.5 Frames (default) / 2 / 3 / Off: slow frames to the console and `quakevr/profile/hitches_<date>_<time>.csv`, with their systems and costliest scopes |
+| Detail | Systems / Every Trace and Builtin (each `SV_Move` and each QuakeC builtin call timed apart) |
+| Print Report | `vr_profile_report`: the last 5 seconds' table in the console |
+
+The panel (In Front, the firing range, seen through a narrow spectator camera): the header gives the map, the frame
+rate, the frame time and its worst, the budget, the CPU's work ("busy") and the GPU's, then each group's total (idle,
+in(put), sv, cl, draw, etc); then the CPU's systems, costliest first (waiting in grey), then the GPU's (gold), then the
+counts. The characters are 9.5 mm at 0.9 m, white on a dark backing (80%), drawn over everything like the wrist log.
+
+### How to read it
+
+**Systems, not scopes.** Each scope's own time (its time less its child scopes') goes to the system its name names, or
+else to its parent's system. So nothing is counted twice: a QuakeC touch run from inside Box3D's step is QuakeC's, the
+Box3D step around it is Box3D's. The systems split the whole frame, from one frame's start to the next's. What no
+scope covers is "other". **The parts add up to the frame time** (the report prints both).
+
+| Group | Systems (scopes) |
+|---|---|
+| waiting (idle, not work) | xr wait frame (`xrWaitFrame`, `xrBeginFrame`), xr swapchain (acquire/wait, release), xr end frame (`xrEndFrame`), window swap, frame cap (`host_maxfps`'s sleep: the flat screen and the mock only) |
+| input | input/tracking (SDL events, `xrSyncActions`, `xrLocateViews`, the controllers, the rest of `VR_BeginFrame`), console cmds (`Cbuf_Execute`) |
+| server | quakec (the outermost `PR_ExecuteProgram`: think, touch, PlayerPreThink/PostThink, the VR QC), qc builtins (detail 2), quake physics (`SV_Physics`, `SV_RunClients`: movement), traces (detail 2), box3d (sync, water and hits, step, write, hands, rigid bodies), vr gameplay (climb, hand touches, swim, two-handed carry), server send, server other |
+| client | net parse, cl entities (relink, temp entities, torches, gore, held things), vr view setup (hands, grasp, IK, body, weapons: `view entities`), particle sim, sound (`S_Update`, the mixer's extra updates), client other |
+| render (the CPU issuing GL) | world, models (alias, sprites, the view model, shells, blob shadows), light setup (clustering, shadow selection, torch lights, the flashlight's beam, model ambient), shadows dlight / maplight / other, particles, decals, water, heat haze, sky, translucent, env cubes, post-process (bloom, tone map, upscale, resolve), ui/hud/menu (panel, gadget, lines, 3D texts, the 2D pass), wound paint, flashlight cord, mirror/spectator, render other (the eyes' own setup, clears, the hidden area, foveation) |
+| other | map loading (`SV_SpawnServer`, `CL_ParseServerInfo`), memory log (`vr_memstats_log`'s row), profiler (its own work: files, panel), other |
+
+- **CPU busy** is the frame less the waiting: the work. In the headset, "xr wait frame" is where the runtime holds the
+  game to the display's rate: a big one means spare time.
+- **GPU** columns: the same systems' GPU time (their GPU scopes' timer queries); the eyes' GPU time is in "views".
+- **Views**: eye L, eye R and the window (mirror or spectator camera), each its CPU and GPU. The spectator's world and
+  models count as "world" and "models" by system, and as "window" by view. The shadow maps are drawn once, in the
+  left eye's setup, so they are eye L's.
+- **Counts a frame**: traces (`SV_Move`), hull traces (`SV_ClipMoveToEntity` and the VR code's own), draw calls
+  (every `glDraw*`, a multi-draw one), alias models drawn (in every view), Box3D bodies, awake bodies, contacts the
+  solver works on, edicts in use.
+- **QuakeC's costliest functions**: by the instructions each ran itself (the VM's own counts, kept anyway), with its
+  share of "quakec"'s time. They say which QC is heavy (in the firing range: `VR_Wounds_Frame` 17%, `VR_Liquids_Frame`
+  15%, `forcegrabbable_think_impl` 15%). Melee, grabbing, the grapple and deflection are QC, so they show here.
+- **Averages and worst**: the report over the last N seconds (5 by default), the panel over the last second
+  (refreshed twice a second). Frames over 250 ms (a map's load) are left out of the averages and counted as "long".
+- `vr_profile_dump` still prints the whole call tree (every scope per eye, CPU and GPU): the detail under a system.
+
+**The hitch log.** A frame whose `_Host_Frame` takes more than `vr_profile_hitch` budgets (1.5: 16.7 ms at 90 Hz) is
+a hitch: a line in the console (at most 5 a second; the rest counted) and a row of `hitches_<date>_<time>.csv` with
+every system's time and the counts. It also names the frame's three costliest scopes by their own time, with their
+path in the tree. The budget is the headset's refresh period, else (the mock) 90 Hz. The frame cap's sleep is left
+out: it is not the game's doing.
+
+In the firing range (the capture on from before the map's load; the mock):
+
+```
+vr_profile: hitch 388.2 ms (34.9 budgets), vrfiringrange: vr view setup 300.6, render other 28.0, particle sim 19.3, water 18.5, world 6.0
+  scopes: screen/3D/eye L/view entities 300.4, screen/3D/eye L/setup view 25.5, client read/parse/particle spawn 19.3
+vr_profile: hitch 419.1 ms (37.7 budgets), vrfiringrange: decals 418.3, box3d 0.2, quakec 0.1, vr view setup 0.1, models 0.1
+  scopes: screen/3D/eye L/scene/vr opaque (text3d)/decals 418.3, server/SV_Physics/quakec 0.1, server/SV_Physics/box3d/box3d step 0.1
+vr_profile: hitch 19.5 ms (1.8 budgets), vrfiringrange: console cmds 18.7, quakec 0.1, vr view setup 0.1, ui/hud/menu 0.1, models 0.1
+  scopes: commands 18.7, server/SV_Physics/quakec 0.1, screen/3D/eye L/view entities 0.1
+```
+
+The first is the first frame drawn after the load (the view entities' own work, 300 ms), the second the first shot
+(the decals' first draw, 418 ms), the third the test's `screenshot` command.
+
+### Example: the firing range
+
+`run.sh --exclusive`, the mock (1024 x 1024 an eye), the dummy attacking, four boxes (one explosive) spawned, the
+nailgun fired for 400 frames, then the panel shown and `vr_profile_report 4`:
+
+```
+vr_profile_report: vrfiringrange, the last 4.1 s: 266 frames, 15.27 ms apart (65.5 fps; worst 18.04), budget 11.11 ms; 256 missed a refresh, 0 hitches, 0 long (over 250 ms, left out)
+ms a frame                 cpu     max  share     gpu     max
+frame                   15.274   18.04 100.0%   0.883    1.79
+waiting                 14.418   17.37  94.4%   0.006    0.02
+  frame cap             14.370   17.34  94.1%
+  window swap            0.046    1.98   0.3%
+input                    0.085    0.64   0.6%   0.000    0.00
+  console cmds           0.073    0.63   0.5%
+  input/tracking         0.012    0.31   0.1%
+server                   0.207    0.63   1.4%   0.000    0.00
+  quakec                 0.118    0.41   0.8%
+  box3d                  0.042    0.17   0.3%
+  server send            0.026    0.12   0.2%
+  quake physics          0.015    0.11   0.1%
+client                   0.169    0.35   1.1%   0.000    0.00
+  vr view setup          0.137    0.32   0.9%
+  particle sim           0.011    0.06   0.1%
+  net parse              0.008    0.03   0.1%
+  client other           0.006    0.07   0.0%
+  cl entities            0.006    0.12   0.0%
+render                   0.371    1.97   2.4%   0.877    1.78
+  ui/hud/menu            0.095    0.81   0.6%   0.106    0.57
+  models                 0.074    0.72   0.5%   0.055    0.08
+  light setup            0.058    0.98   0.4%   0.021    0.05
+  render other           0.045    0.41   0.3%   0.094    0.10
+  particles              0.025    0.75   0.2%   0.088    0.49
+  world                  0.017    0.16   0.1%   0.158    0.17
+  shadows dlight         0.016    0.20   0.1%   0.004    0.02
+  water                  0.015    0.07   0.1%   0.048    0.06
+  decals                 0.007    0.18   0.0%   0.003    0.01
+  post-process           0.004    0.15   0.0%   0.193    0.66
+  wound paint            0.002    0.07   0.0%   0.001    0.00
+  translucent                                   0.037    0.05
+  sky                                           0.034    0.04
+  mirror/spectator                              0.016    0.03
+  shadows other                                 0.013    0.02
+other                    0.024    0.15   0.2%   0.000    0.00
+  profiler               0.019    0.14   0.1%
+the parts add up to 15.274 ms (the frame: 15.274); CPU busy (less waiting) 0.856, worst 2.58
+views (the rest is shared):  eye L 0.345 (gpu 0.243)  eye R 0.070 (gpu 0.267)  window 0.047 (gpu 0.284)
+counts a frame (avg/max): traces 18/18, hull traces 53/65, draw calls 312/519, alias models 116/157, box3d bodies 132/132, box3d awake 19/19, box3d contacts 0/0, edicts 204/204
+quakec by its own instructions (16721 a frame; ~ms of quakec's 0.118): VR_Wounds_Frame 17% (~0.020), VR_Liquids_Frame 15% (~0.018), forcegrabbable_think_impl 15% (~0.017), VR_Wound_Takes 7% (~0.008), VR_Forcegrab_IsEligible 6% (~0.007), forcegrabbable_item_think 5% (~0.006)
+GPU: 67 frames timed, one in 4 (vr_profile_gpu), 209 timer queries each (vr_profile_gpu 0: none, the CPU's times alone)
+```
+
+- The mock sleeps in its frame cap (`host_maxfps` 250, Windows' 15.6 ms timer steps in an exclusive run): 14.4 of the
+  15.3 ms are idle. The work is 0.86 ms: server 0.21 (QuakeC 0.12, Box3D 0.04), client 0.17 (the VR view setup
+  0.14), render 0.37. In the headset the idle part is "xr wait frame" instead.
+- The parts add up to the frame: 15.274 = 15.274. The CSV's rows too (e2m2: each second's groups add up to its
+  `period_ms` within 0.001, the rounding).
+- e2m2's densest debris spot (`setpos 413 914 24`, 210 Box3D bodies, 299 edicts; 5.3 s): busy 0.75 ms, QuakeC 0.12,
+  Box3D 0.05, Quake physics 0.04, light setup 0.07, the GPU 0.52; the memory log's row at the map's load plus 5 s
+  was the worst frame (13.3 ms).
+
+### Found with it
+
+- **Foveated rendering waited for the driver every eye.** `foveated::beginScene` read the bound framebuffer back
+  with `glGetIntegerv`, which waits for the driver's thread: 0.19-0.21 ms of the CPU an eye in the mock (it was most
+  of "render other"; once 10 ms in a frame while the driver was busy). It now takes R_SetupGL's target, which was
+  just bound. The eyes' images are the same (e1m1, fixed frames: 3 and 6 pixels of a million off by 1, from timing;
+  foveation still on: 245,000 pixels differ from `vr_foveated 0`).
+- **The memory log's row costs 12-13 ms** (`vr_memstats_log`, 60 s by default: a row a minute and one 5 s into each
+  map): counting every OpenGL object by name. At 90 Hz that is a dropped frame a minute. It is shown as "memory log"
+  (the report's max, the hitch log). Not changed here (the memory log is its own feature: its GPU sampler is being
+  reworked); it could count only what the game made.
+- **The first frame after a map's load: 300 ms in the view entities' own code** (not in a child scope: hands, IK and
+  weapons are scoped and cheap), and **the first shot: 418 ms in the decals' first draw**. Both are one-off
+  (first-use) costs, seen in the mock; worth a look with finer scopes.
+- `vr_wounds.cpp`'s wound paint reads the framebuffer and viewport back with `glGetIntegerv` (only when it paints,
+  "wound paint" 0.002 ms average, 0.07-0.35 ms worst): the same wait as the foveation's, on hits only. Not changed
+  (another change was under way in that file).
+
+### Cost (`run.sh --exclusive`, mock, e1m1)
+
+`vr_memstats`'s `busy_ms` (our CPU work: the host frame less the waits) and `gpu_eyes_ms` (the eyes' GPU time), over
+blocks of 900 frames.
+
+**Off**, against the build before (3 runs of each build, alternating, 3 blocks each; medians of the 9 blocks):
+
+| Build | busy_ms (median) | gpu_eyes_ms (mean) |
+|---|---|---|
+| before (a4e07681) | 1.109 | 0.337 |
+| the profiler, off | 1.089 | 0.334 |
+| + the foveation fix | 0.659 | 0.336 |
+
+Off, the profiler costs nothing measurable: the hot paths test a flag (each QuakeC call, each trace), the counts are
+increments, the new scopes are about 15 more a frame of the kind every scope already was (a name lookup). The blocks
+before the fix vary from 0.73 to 4 ms: that is the foveation's wait for the driver.
+
+**On** (one run, 3 rounds of alternating blocks, the fixed build):
+
+| State | busy_ms | gpu_eyes_ms |
+|---|---|---|
+| off | 0.629 | 0.339 |
+| on (collecting, CSV; GPU timed 1 frame in 4) | 0.647 (+0.02) | 0.383 (+0.04) |
+| on, the GPU timed every frame (`vr_profile_gpu 1`) | 0.650 | 0.518 (+0.18) |
+| on, no GPU times (`vr_profile_gpu 0`) | 0.645 | 0.342 (+0.00) |
+| on + the panel (In Front) | 0.668 (+0.04) | 0.407 (+0.07) |
+| on + detail 2 (every trace and builtin) | 0.669 (+0.04) | 0.372 |
+
+- The CPU's cost of collecting is about 0.02 ms a frame; the panel 0.02 more (about 1300 characters and 20 bars laid
+  out each frame); the profiler's own frame work shows as "profiler" (0.02 ms, 0.14 worst: the CSV row, the panel's
+  text).
+- The GPU's cost is the timer queries (about 200 a timed frame, 2 a GPU scope): each stalls the GPU's pipeline a
+  little, 0.12-0.18 ms of the mock's eyes when every frame is timed. Timing one frame in 4 (the default) makes it
+  0.04; the GPU averages are then over those frames. `vr_profile_gpu 0` adds nothing to the GPU (the eyes' GPU total
+  still comes from the always-on phases). The noise between blocks is about ±0.04 ms.
+- Before this, `vr_profile 1` timed the GPU every frame: its GPU numbers included 0.12-0.18 ms of their own.
+
+### Settings (console; not saved)
+
+| Cvar | Default | |
+|---|---|---|
+| `vr_profile_overlay` | 0 | the panel: 1 over the wrist, 2 in front (`vr_profile 2` shows it over the wrist too) |
+| `vr_profile_csv` | 0 | 1: a row a second (`vr_profile_csv_toggle` to bind) |
+| `vr_profile_hitch` | 1.5 | the hitch log's threshold in budgets (0 off) |
+| `vr_profile_detail` | 1 | 2: every trace and builtin call timed apart |
+| `vr_profile_gpu` | 4 | GPU timer queries on one frame in this many (1 every frame, 0 none) |
+| `vr_profile` | 0 | 1: the call tree's CSV every `vr_profile_interval` seconds (as before) |
+
+Profiling is on while any of the panel, the CSV capture or `vr_profile` is. No config migration: the new cvars are
+not saved.
+
+### In the headset
+
+- Debug > Profiling > Profiler Panel: In Front. Look ahead: the table, with the frame rate at the top. Turn round:
+  it follows after 30 degrees. Over the Wrist: raise the gadget's hand.
+- Play a fight: Box3D, QuakeC and the drawing move; "xr wait frame" (spare time) shrinks.
+- CSV Capture on, play a minute, off: the file is in `quakevr/profile/`. Hitches show in the console as they happen.
