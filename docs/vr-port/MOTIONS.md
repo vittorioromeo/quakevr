@@ -465,7 +465,12 @@ python Misc/quakevr/motion_synth.py slash_overhead --two-handed --duration 0.35 
 
 Options: `--out <folder>`, `--duration <s>` (the motion; 0.3, a thrust 0.15), `--distance <m>` (from the head to the
 dummy's middle, straight ahead), `--rate <Hz>` (90), `--world-scale` (1.25), `--eye-height` (1.646),
-`--two-handed` (a sword with the off hand on its grip, 12 cm below the main hand).
+`--two-handed` (a sword with the off hand on its grip, 12 cm below the main hand), `--weapon` (the chop presets'),
+`--settings-from <ironwail.cfg>` (the takes written for that config's hand calibration: its `vr_gunangle`,
+`vr_handcal_*`... go into a `settings` line, which playback sets), `--mock` (also a `vr_mock_play` script of each, for
+tests a take can't carry: the flashlight in a hand), `--name` (the file's name). The melee fixes' presets (`chop_*`,
+`punch_down_gib`, `chop_down_gib`, `punch_straight_off`, `palm_shove_2h_torch`, `palm_shove_torch_only`) and how to
+play them: TESTING.md, "Melee fixes".
 
 As a module (`import motion_synth`): a `Take(label, main_weapon=..., target=(ahead, left))`, then segments:
 `hold(seconds)`, `glide({hand: (pos, quat)}, seconds)`, `move(seconds, fn)` (fn(s) -> {hand: (pos, quat)}, s eased

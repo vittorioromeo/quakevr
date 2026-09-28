@@ -1227,6 +1227,20 @@ float(float xSpeed) VR_Gib_StrikeDamage =
     return 20 * min(3, xSpeed / threshold) * cvar_hget(cvarh_vr_melee_dmg_multiplier);
 };
 
+// A melee blow of `xHand` of `self` (vr_melee.qc: its fist or what it holds swept into it, a blow's speed `xSpeed`, m/s)
+// landing on a loose gib or head (on the floor, flying): struck as one held in the other hand is (VR_Gib_HeldFrameHand),
+// at the blow's speed; it bursts.
+void(float xHand, entity xGib, float xSpeed, vector xAt, vector xDir) VR_Gib_Blow =
+{
+    dprint("gib: struck by a blow at "); dprint(ftos(xSpeed)); dprint("\n");
+    VRSetMeleeHitSoundPlayed(xHand, TRUE);
+    VRMeleeHapticByHand(xHand);
+    sound(self, VRGetGunChannel(xHand), "fisthit.wav", 1.0, ATTN_NORM);
+    VR_SetHitKind(QVR_HITKIND_MELEE, xHand, xAt, xDir);
+    T_Damage(xGib, self, self, VR_Gib_StrikeDamage(xSpeed));
+    VR_ClearHitKind();
+};
+
 // A hand or a gun striking it at a swing's speed (vr_melee_speed). Not by the hand that just let go
 // of it: a throw's follow-through is not a blow.
 void(entity xPlayer, float xHand, entity xGib) VR_Gib_Struck =

@@ -172,6 +172,11 @@ context and screenshot, ready to paste or to point me at.
   - **Melee, redesigned:** swings in any direction (backswings too), stabs with the tip, pommel/butt strikes with
     the near end, parry bash = hold the stance ~0.5 s then push; palm shoves (both palms harder). Melee Speed was
     reset once to 4 m/s. Tell which of your motions still misread, and record more takes of them.
+  - **Melee fixes** (ROUND21.md, "Melee fixes: flashlight, axe on walls, gibs"): punch with the torch in your fist
+    (both grips: as hard as a gripped fist); shove with the free palm while the torch hand pushes along (a two-handed
+    shove); the torch hand pushed alone, palm first, does nothing. Chop a wall with the axe, Mjolnir, a sword or a
+    gun, sideways, diagonally and from overhead: the wall's thunk and buzz. Punch or chop a gib lying on the floor:
+    it bursts.
   - **Motion recorder:** Advanced VR Options > Motion Recorder; keep adding takes, especially of what misreads.
   - **Review Takes** (under Motion Recorder): the takes that fail the evaluation or are suspect (To Review). In the
     firing range, pick one: Play Ghost replays it in front of the dummy (translucent weapons, their lines, the tip's
@@ -692,4 +697,22 @@ wrist in the mock without moving it, turn the controller about the wrist: the sc
 such `vr_mock_hand` poses (flexion, deviation, twist about the forearm's own axes, from a straight wrist found by
 `straight.py`). `vr_gadget_fps 2` with `host_maxfps 45` or a `timerefresh` checks the Detailed counter's LATE and spikes
 (the mock doesn't tell a refresh: 90 Hz is assumed, and it paces at about 64 Hz, so every frame is late there).
+Melee fixes (ROUND21.md, "Melee fixes: flashlight, axe on walls, gibs"): the tests' motions come from
+`Misc/quakevr/motion_synth.py` (`--settings-from <ironwail.cfg>` writes them for a config's hand calibration, `--mock`
+also writes a `vr_mock_play` script, `--name` the file's name). A weapon into a wall: `chop_horizontal`,
+`chop_diagonal`, `chop_overhead` with `--weapon axe|mjolnir|sword|shotgun`, played with `setpos 100 106 48 0 90 0;
+wait20; vr_motion_play <take> noplace yaw 90` in the firing range (its north wall 22 units ahead of the player's
+origin; `noplace` keeps the player there and `yaw 90` turns the take to face the wall: without it a synthetic take
+faces yaw 0). The flashlight (a take can't carry it, and playback's first press would send it home): take it first
+(`vr_mock_fingers off 0 0; vr_mock_hand off -0.066 1.05 -0.072 -80 0 0; wait40; vr_mock_button off grip 1; wait20`;
+`vr_mock_button off secondary 1`, then 0, flips the grip), then `setpos 221.2 -656.7 41 0 180 0` (the dummy 0.95 m
+ahead) and `vr_mock_play <punch_straight_off | palm_shove_2h_torch | palm_shove_torch_only>.mock`; for the gripped-fist
+comparison `+graboff; vr_mock_fingers off 1 1; vr_mock_button off grip 1` instead. A gib on the floor: `setpos 316 -556
+56 0 180 0`, `vr_mock_hand off -0.05 0.45 -0.45 0 0 0; +graboff; vr_mock_button off grip 1; impulse 245` (a destroyable
+gib in the off hand; `impulse 252`'s test gibs don't take damage), `-graboff; vr_mock_button off grip 0; wait120` (it
+lies 0.45 m ahead), then the main hand (`+grabright; vr_mock_button main grip 1`, or the axe: `vr_weapon_grip_mode 1;
+impulse 9; impulse 152` first) and `vr_mock_play punch_down_gib.mock` or `chop_down_gib.mock` (`--weapon axe`).
+`developer 1` prints `melee event: ... a wall` / `a gib`, `gib: struck by a blow`, `flashlight: taken`; `developer 2`
+also `melee debug: going down at ... onto a surface facing ...: strikes|passes` (the wall rule for points going down).
+Note that `setpos` turns noclip on (QuakeSpasm's), which these tests don't mind.
 Align Sights to My Aim (ROUND21.md): `vr_sight_align [start [main|off] | apply | cancel | undo]` runs the Weapon Offsets page's capture (the mock hand must be lowered, then raised and held 0.4 s, for each capture; `vr_sight_align_captures`), `vr_sight_check [main|off] [size]` prints the sight line against the dominant eye (`vr_dominant_eye`), where the sights and the laser land in that eye's image, and the laser against the line; `vr_sight_lines` lists every weapon's line; `vr_show_sight_line 1` draws them. Higher eye images: `vr_mock_eye_size 2048; vr_restart`, then `vr_eyeshot 1`.

@@ -27,6 +27,7 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | Items as physics pickups | the map's weapons, keys, runes and suits hang spinning like the armour until grabbed, knocked or force-grabbed, then are Box3D props; a gripped weapon is yours at once, the rest are taken at a holster (Weapons and Keys, default on). Props no longer rest in the floor (the firing range's weapons: 2.8 units in on average, 19.9 at most; now 0.1 above); spinning pickups' physics shapes turn with the model |
 | Arm IK with calibrated hands | the wrist judged against a real, lopsided range (ulnar deviation, which his Gun Angle 70 adds, is natural), the elbow swinging only past it or for a roll; the pole takes the hand's roll only: his takes swing the elbow >30° in 2.6% of frames instead of 24.3%, the same motion gives elbows 4.1 cm apart under the two calibrations instead of 8.6; wrist bends turn the gadget 0-5° (was 7-35°) |
 | Dummy attacks | a DUMMY ATTACKS button beside the firing range's training dummy: it winds up (a sound, a glow, the rifle raised) and strikes you every 2.5 s as a knight would, for parry practice (parry, stamina, counters as in a fight); off at every map load; replays turn it off, and a take recorded with it on replays its blows at the same moments; your 471 archived takes evaluate identically |
+| Melee fixes | a punch holding the torch lands (it never did); the free palm with the torch hand pushing is a two-handed shove, the torch hand alone no shove; axe, Mjolnir, sword and gun blows strike walls (10 of 24 test chops before, 23 now); gibs on the floor burst when punched or chopped; your 471 takes replay identically |
 
 Found on the way: fteqcc stores 0 when `a || b` is assigned into an entity field (rewritten; no other code has that
 shape); a parried blow's hand knock, timed by `cl.time`, came back after a level change (reset now).
@@ -6002,3 +6003,135 @@ real z, no alpha):
 - [ ] The flashlight in your fist and the gadget on your wrist, close: round head and tube, knurling, fins?
 - [ ] The shotgun, nailgun, rocket launcher and axe turned in the torch: rounded edges, panel lines, no sparkle?
 - [ ] Graphics > Authored Model Bumps: 0 flattens them, 2 doubles them: is 1 right?
+## Melee fixes: flashlight, axe on walls, gibs
+
+Voice notes 2026-09-28: a punch with the flashlight in the fist doesn't register; a two-handed shove with the torch in
+one hand should count as long as the other hand is an empty palm facing the enemy; punches register on walls but axe
+blows don't (your theories: the axe pushed back by the wall stops the blow from registering, or the blow is detected
+elsewhere in the swing); gibs on the floor can't be struck, while a gib held in the other hand can. Four bug fixes in
+`QC/vr_melee.qc` (and `vr_carry.qc`, `client.qc`); no rule was retuned for the general classification, and your
+recorded takes replay exactly as before (below).
+
+### Why
+
+- **The punch with the torch.** The torch takes the grip's press (`vr_flashlight.cpp`, `button`): the game never sees
+  the grip, so the server saw an empty hand with its grip open. A punch needs a closed fist (the grip held), so a
+  punch holding the torch never landed, in either grip (low or overhead: the grip turns the torch in the fist, not
+  the hand). The same hand counted as an *open palm*: pushed palm first, the torch hand alone was a palm shove.
+- **The shove with the torch.** The torch fist has no palm facing ahead, so a push of both hands was the free palm's
+  alone: a one-handed shove (0.6 of the damage, 0.7 of the knockback). With the torch hand's palm turned ahead, the
+  torch hand counted as a second palm (the bug above). In the mock the free palm's shove did register (one-handed);
+  if in the headset it doesn't register at all, the free palm isn't passing the shove's own tests (facing ahead within
+  53 degrees, moving the way it faces, the arm extending): tell me.
+- **Weapons on walls.** Both your theories, checked in the mock:
+  - *Pushed back: yes, this is the main cause.* `vr_handpose.cpp` stops the hand at walls, and pushes it back so its
+    weapon's muzzle (the axe's head, a sword's tip, a gun's muzzle) stays a unit off the wall. The melee sweeps each
+    point from the last pose to this one against walls with exact lines, so the head never reached the wall: an axe
+    chopped at a wall 0.853 m ahead stopped its head at 0.834-0.854 m, and no contact was found. A fist's "knuckles"
+    point is 4 units ahead of the hand's point, so when the hand is stopped they are 3 units inside the wall. That
+    is why punches register.
+  - *Detected elsewhere: no, but a second rule threw the contact away.* No other point (the handle's end, the hand)
+    registered first: the handle's points strike nothing. But a point going down more steeply than 20 degrees
+    (`VR_MELEE_WALL_DOWN`, for a hand reaching down to a holster) never struck a wall, and a chop meets the wall going
+    down (the axe's head at -0.7 to -0.9, sine, in the diagonal and overhead chops). So a diagonal or overhead chop
+    whose head did cross the wall was ignored too.
+  - Weapons had world impact detection all along: the same sweep, and `W_FireAxe`'s "hit wall" thunk. The two causes
+    above defeated it. Swords, Mjolnir and gun swings had the same problem; butt and pommel strikes didn't (the near end
+    isn't held off walls).
+- **Gibs on the floor.** A loose gib or head is `SOLID_NOT_BUT_TOUCHABLE`: it can be picked up but never blocks. The
+  melee's sweep strikes monsters' boxes (`SOLID_SLIDEBOX`, `SOLID_BBOX`) and what its lines hit, and lines pass
+  touchables (only shots trace with `MOVE_HITGIBS`), so a blow went straight through. The only way to hit one was the
+  carry code's touch (`VR_Carry_Nudge` -> `VR_Gib_Struck`): the fist's palm and curled fingers on the gib's surface in the frame
+  of the touch, at `vr_melee_speed` (a weapon's poke, `vr_wpntouch`, traces past touchables too). An axe's head or a sword's blade
+  never reached it that way. A held gib has its own code (`VR_Gib_HeldFrameHand` sweeps the other hand's fist and
+  weapon through it every frame), which is why it works. Box3D isn't involved: the gib's solidity is the QC's, and
+  both physics engines failed the same way.
+
+### What changed
+
+- **The flashlight's hand is a closed fist** (`VR_Melee_HoldsTorch`, `VR_Melee_ClosedFist`: the engine's
+  `QVR_VRBITS0_*HAND_BUSY`, "the hand holds the flashlight"). It punches under the same rules and with the same damage
+  as a gripped fist. It is never an open palm, so it doesn't shove alone.
+- **A two-handed shove with the torch** (`VR_Bash_TorchPushing`): an open palm's shove while the torch hand pushes
+  along is a two-handed shove. "Pushes along" means the torch fist is going forward at the second hand's share of the
+  push speed, as a second palm must, and extending the arm as a shove's palm does (`VR_Bash_Extends`, factored out of
+  the palm's test).
+- **Walls** (`VR_Melee_Sweep`, `VR_Melee_WallTaken`):
+  - A striking point (the blade, a head, a muzzle, the fist) strikes a wall within its thickness past its sweep's end.
+    That thickness is the 3 units (x `vr_melee_range_multiplier`) that already widen monsters' boxes.
+  - The downward rule now keeps out only floors (a surface facing up, normal z 0.7 or more) and walls a point merely
+    grazes going down (less than 0.25, cosine, into the wall: 75 degrees off head-on). A chop down into a wall
+    strikes it.
+- **Loose gibs and heads** are swept as boxes, like monsters (not a gib held in your own hand: that one is still
+  `VR_Gib_HeldFrame`'s). A blow on one bursts it the way the held-gib strike does (`VR_Gib_Blow`:
+  `VR_Gib_StrikeDamage` at the blow's speed, 20 x speed/`vr_melee_speed`, at most 60). It doesn't deal the weapon's
+  blow damage, which is 8-12 and under a gib's 12 health.
+- The developer "melee event" line says "a gib" for these. `developer 2` prints the wall rule's decision for points
+  going down.
+
+### Tests (mock headset, your calibration: `vr_gunangle 70`, `vr_handcal_*`, and your weapon offsets)
+
+The motions are `Misc/quakevr/motion_synth.py`'s new presets, written for your config's hand settings
+(`--settings-from`). The recipes are in TESTING.md, "Melee fixes". Before is vr-cleanup `b981ef7e`'s QC; after is this
+branch.
+
+| Test | Before | After |
+|---|---|---|
+| Off-hand punch at the dummy, gripped fist (the control) | punch 5.6 m/s | the same |
+| The same punch holding the torch, low / overhead grip | nothing / nothing | punch (the same speed and strength as gripped) |
+| Free palm + torch fist pushed at the dummy (both grips) | one-handed shove (4.8 damage) | two-handed shove (8) |
+| The torch hand alone pushed palm first (both grips) | one-handed palm shove | nothing |
+| Both palms / one palm, no torch (controls) | two-handed / one-handed | the same |
+| Axe, Mjolnir, sword, shotgun: horizontal, diagonal and overhead chops into a wall, from 22 and 16 units | 10 of 24 hit the wall | 23 of 24 |
+| The same chops in the open (no wall) | nothing | nothing |
+| A gripped fist punched into the wall (22 / 16 units) | hits / nothing | the same |
+| A gib on the floor punched down, and chopped with the axe (Box3D, and the Quake VR solver) | nothing (4 of 4) | bursts (4 of 4) |
+
+- **The chops that still miss.** One of 24: the shotgun's horizontal swing from 16 units. Its muzzle meets the wall
+  while the hand is still speeding up (4.8 m/s, under the swing's 5), then slides along it. That is the rules'
+  verdict, the same before.
+- **Rebounds.** A wall contact now lands at the hand's speed as it arrived (5.2-13.8 m/s in these tests), because it
+  is caught within the points' thickness, before the wall stops the hand. A few swings register a second wall hit
+  on the rebound, as before: the wall pushes the hand back, and that motion can pass as a new blow.
+
+### Your recorded takes (the regression check)
+
+The 471 archived takes (`motions/pre_calibration_2026-09-28/`) were replayed with `vr_motion_eval` before and after,
+on the same build config. Both runs used your hand settings from before the calibration, set explicitly and printed in
+the log: `vr_gunangle 39.5`, `vr_gunyaw 4`, `vr_offhandpitch 40.25`, `vr_offhandyaw -4`, every `vr_handcal_*` at 0 and
+`vr_handcal_off_mirror 0` (playback also resets `vr_handcal_*` for takes that don't list them).
+
+Result: 429 of 471 pass, both before and after, with **no difference**: every verdict, event, reason and hand error
+is identical. The takes hold no flashlight, gib or wall contact.
+
+### The calibrated hand (checked)
+
+- **The points follow the calibration.** The punch's points ("the fist" at the hand's point, "the knuckles" 4 units
+  ahead) and the palm (the hand's right side) are in the hand's frame, which the calibration moves and turns. With
+  your calibration, the melee's hand point sat (+2.5, +/-0.6, -4.0) cm from the controller's pose: the drawn hand's
+  offset (`vr_dumpview`). The palm faces the same way as the drawn palm: the drawn empty hand is turned from the
+  hand's angles only by the fist slot's pitch (-7 degrees), about that same axis.
+- **Found, not changed: the knuckles point is ahead of the drawn fist.** `vr_dumpview` puts the drawn fist 0.9 to
+  16 cm *behind* the hand's point, and 3 to 12 cm below it. So "the fist" point is about 1 cm ahead of the fist's
+  front and 3 cm above its top, and "the knuckles" point is 12-13 cm ahead of the real knuckles, plus the 3-unit
+  (9 cm) thickness. A punch can register before the drawn knuckles reach the target. Moving the points onto the drawn
+  fist would change every punch, and the punch rules were fitted on your takes with these points. It is left for when
+  there are new takes to refit on.
+
+### Not verified
+
+- In the headset: all of it. The torch tests ran through `vr_mock_play` on the mock's real clock (their speeds vary a
+  little run to run). They can't be synthetic takes: playback's first press sends the torch home.
+- Only the off hand was tested holding the torch. The main hand's code path is the same one (a bit per hand).
+- Only straight walls in the firing range were tested. Also untested: brush entities (doors, lifts), and breakables
+  struck within the margin (they take the blow as before, now also from 3 units off).
+
+### In the headset
+
+- [ ] Punch the dummy with the torch in your fist, in both grips (B/Y flips it): does it land like a gripped punch?
+- [ ] Shove with the free palm while the torch hand pushes too: "shove with both hands"? The torch hand alone, palm
+      first: nothing?
+- [ ] Chop a wall with the axe sideways, diagonally and from overhead: the thunk and buzz each time? Also Mjolnir, a
+      sword and a gun swung into a wall.
+- [ ] Reach down to a hip holster beside a wall, and holster a gun near a wall: still no wall hit?
+- [ ] Punch and chop a gib lying on the floor: it bursts. A gib held in the other hand: as before.
