@@ -580,11 +580,6 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("How far the torso sits behind your neck (negative: in front)."),
         slider("Legs Offset", vr_body_legs_back, -0.2f, 0.4f, 0.01f, "%.2f m").extend(-1.f, 1.f)
             .help("How far the feet stand behind your head (negative: in front)."),
-        slider("Shoulders Back", vr_body_shoulders_back, -0.15f, 0.2f, 0.01f, "%.2f m").extend(-0.5f, 0.5f)
-            .help("How far the shoulders sit behind the chest (negative: in front)."),
-        slider("Shoulders Up", vr_body_shoulders_up, -0.15f, 0.15f, 0.01f, "%.2f m").extend(-0.5f, 0.5f),
-        slider("Shoulders Width", vr_body_shoulders_out, -0.12f, 0.12f, 0.01f, "%.2f m").extend(-0.3f, 0.3f)
-            .help("How much further out each shoulder is (negative: in)."),
         slider("Eyes Forward", vr_body_eye_forward, 0.f, 0.25f, 0.01f, "%.2f m").extend(-0.1f, 0.5f)
             .help("From the top of the neck to the eyes, forward."),
         slider("Eyes Up", vr_body_eye_up, 0.f, 0.25f, 0.01f, "%.2f m").extend(-0.1f, 0.5f).help("From the top of the neck to the eyes, up."),
@@ -595,36 +590,92 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
 
 [[nodiscard]] std::vector<Item> pageBodyCalibration();
 
-// Split from Body: the arms' reach and bend, and the pauldrons over the shoulders.
+// Split from Body: the arms' reach and bend, the shoulders, and the pauldrons over them. Body Calibration measures the
+// arms' lengths and the shoulders (vr_bodycal_*); the sliders here are tweaks on top (vr_body_tweak_*, 0: as measured;
+// uncalibrated, on the default body), and the settings it doesn't measure. Built again when calibrated or not
+// (armsPageCalibrated): Arm Length is only for the default body's arms.
+int armsPageCalibrated = -1;
+
+const char* armsMeasured(int i)
+{
+    const char* line = bodycal::measuredLine(i);
+    return line ? line : "";
+}
+
+const char* armLengthUnused()
+{
+    return "Arm Length: not used (arms measured)";
+}
+
+void armsResetTweaks()
+{
+    bodycal::resetTweaks();
+}
+
 [[nodiscard]] std::vector<Item> pageBodyArms()
 {
-    return {
-        open("Body Calibration", pageIndex(pageBodyCalibration)),
-        slider("Upper Arm", vr_body_upper_arm, 0.f, 45.f, 0.5f, "%.1f cm").extend(0.f, 60.f)
-            .help("From the shoulder joint to the elbow, real centimetres (Body Calibration measures it). 0: the model's "
-                  "proportions, times Arm Length."),
-        slider("Forearm", vr_body_forearm, 0.f, 40.f, 0.5f, "%.1f cm").extend(0.f, 60.f)
-            .help("From the elbow to the drawn hand's wrist, real centimetres (Body Calibration measures it). 0: the "
-                  "model's proportions, times Arm Length."),
-        slider("Arm Length", vr_body_arm_length, 0.7f, 1.4f, 0.01f, "%.2f").extend(0.5f, 2.f)
-            .help("The model's arms, times this (only while Upper Arm and Forearm are 0)."),
-        slider("Arm Stretch", vr_body_arm_stretch, 1.f, 1.5f, 0.05f, "%.2f").extend(1.f, 3.f)
-            .help("How far arms may stretch to reach the hands (1: not at all). Calibrated arms (Upper Arm and Forearm "
-                  "set) are your own length: the shoulder reaches out first, and they stretch only past that."),
+    armsPageCalibrated = bodycal::calibrated() ? 1 : 0;
+    std::vector<Item> list{open("Body Calibration", pageIndex(pageBodyCalibration))};
+    for(int i = 0; bodycal::measuredLine(i); i++)
+    {
+        list.push_back(infoLine(armsMeasured, i));
+    }
+    list.insert(list.end(), {
+        header("Arms"),
+        slider("Upper Arm", vr_body_tweak_upper_arm, -10.f, 10.f, 0.5f, "%+.1f cm").extend(-30.f, 30.f)
+            .help("Longer (negative: shorter) than measured, real cm: the shoulder joint to the elbow. 0: as Body "
+                  "Calibration measured it (uncalibrated: the default body's arm, times Arm Length)."),
+        slider("Forearm", vr_body_tweak_forearm, -10.f, 10.f, 0.5f, "%+.1f cm").extend(-30.f, 30.f)
+            .help("Longer (negative: shorter) than measured, real cm: the elbow to the drawn hand's wrist. 0: as Body "
+                  "Calibration measured it (uncalibrated: the default body's forearm, times Arm Length)."),
+    });
+    if(armsPageCalibrated)
+    {
+        list.push_back(info(armLengthUnused));
+    }
+    else
+    {
+        list.push_back(slider("Arm Length", vr_body_arm_length, 0.7f, 1.4f, 0.01f, "%.2fx").extend(0.5f, 2.f)
+                .help("Uncalibrated: the default body's arms (for your height), times this. Once Body Calibration "
+                      "has measured yours, it isn't used."));
+    }
+    list.insert(list.end(), {
+        slider("Arm Stretch", vr_body_arm_stretch, 1.f, 1.5f, 0.05f, "%.2fx").extend(1.f, 3.f)
+            .help("How far the drawn arms may stretch to reach a hand beyond them (1: not at all). Calibrated, only past "
+                  "your measured reach and the Shoulder Reach (tracking glitches, a lunge); uncalibrated, before the "
+                  "shoulders reach."),
         slider("Shoulder Reach", vr_body_shoulder_reach, 0.f, 0.25f, 0.01f, "%.2f m").extend(0.f, 0.6f)
-            .help("How far the shoulders may move out beyond that."),
+            .help("How far the shoulders may move out towards a hand the arm can't reach, metres (not measured)."),
+        header("Shoulders"),
+        slider("Shoulders Back", vr_body_tweak_shoulders_back, -0.1f, 0.1f, 0.005f, "%+.3f m").extend(-0.5f, 0.5f)
+            .help("The shoulder joints further back (negative: forward) than measured, metres. 0: as Body Calibration "
+                  "measured them (uncalibrated: the default body's)."),
+        slider("Shoulders Higher", vr_body_tweak_shoulders_up, -0.1f, 0.1f, 0.005f, "%+.3f m").extend(-0.5f, 0.5f)
+            .help("The shoulder joints higher (negative: lower) than measured, metres. 0: as measured (uncalibrated: "
+                  "the default body's)."),
+        slider("Shoulders Wider", vr_body_tweak_shoulders_out, -0.1f, 0.1f, 0.005f, "%+.3f m").extend(-0.3f, 0.3f)
+            .help("Each shoulder joint further out (negative: in) than measured, metres. 0: as measured "
+                  "(uncalibrated: the default body's)."),
+        slider("Shoulder Rise", vr_body_tweak_shoulder_rise, -30.f, 30.f, 1.f, "%+.0f deg").extend(-90.f, 90.f)
+            .help("Degrees more (negative: fewer) the shoulders rise as you reach up than measured. 0: as measured "
+                  "(uncalibrated: the default body's 25)."),
+        slider("Shoulder Swing", vr_body_tweak_shoulder_swing, -30.f, 30.f, 1.f, "%+.0f deg").extend(-90.f, 90.f)
+            .help("Degrees more (negative: fewer) the shoulders swing forward as you reach far forward than measured. "
+                  "0: as measured (uncalibrated: the default body's 20)."),
+        action("Reset Tweaks", armsResetTweaks)
+            .help("Upper Arm, Forearm and the shoulders' five tweaks to 0: your arms and shoulders as measured "
+                  "(uncalibrated: the default body's). Arm Length and the rest stay."),
+        header("Elbows and Wrists (not measured)"),
         slider("Forearm Twist", vr_body_forearm_twist, 0.f, 1.f, 0.05f, "%.2f")
             .help("Share of the wrist's roll the middle of the forearm follows (none at the elbow, all at the wrist)."),
         slider("Wrist Limits", vr_body_wrist_limits, 0.f, 2.f, 0.05f, "%.2f")
             .help("The elbow swings round to keep the wrist within a real one's bend and roll, times this (0: never)."),
-        slider("Elbow Out", vr_body_elbow_out, 0.f, 1.f, 0.05f, "%.2f"),
-        slider("Elbow Back", vr_body_elbow_back, 0.f, 1.f, 0.05f, "%.2f"),
+        slider("Elbow Out", vr_body_elbow_out, 0.f, 1.f, 0.05f, "%.2f")
+            .help("Where the elbow points: down, plus this much outwards."),
+        slider("Elbow Back", vr_body_elbow_back, 0.f, 1.f, 0.05f, "%.2f")
+            .help("Where the elbow points: down, plus this much backwards."),
         slider("Elbow From Hand", vr_body_elbow_hand, 0.f, 1.f, 0.05f, "%.2f")
             .help("How much the elbow points away from the back of the hand."),
-        slider("Shoulders Up", vr_body_shoulder_up, 0.f, 60.f, 1.f, "%.0f deg").extend(0.f, 90.f)
-            .help("How far the shoulders rise when reaching up."),
-        slider("Shoulders Forward", vr_body_shoulder_forward, 0.f, 60.f, 1.f, "%.0f deg").extend(0.f, 90.f)
-            .help("How far the shoulders swing forward when reaching far forward."),
         header("Pauldrons"),
         toggle("Pauldrons", vr_body_pauldrons).help("Leather pads over the shoulders and the tops of the arms, as the Quake ranger wears."),
         cycle("Pauldron Style", vr_body_pauldron_style, {{0.f, "Ranger leather"}, {1.f, "Armour colour"}, {2.f, "Steel"}})
@@ -635,7 +686,8 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Pauldron Forward", vr_body_pauldron_forward, -0.08f, 0.08f, 0.005f, "%.3f m").extend(-0.3f, 0.3f),
         slider("Pauldron Up", vr_body_pauldron_up, -0.08f, 0.08f, 0.005f, "%.3f m").extend(-0.3f, 0.3f),
         slider("Pauldron Out", vr_body_pauldron_out, -0.08f, 0.08f, 0.005f, "%.3f m").extend(-0.3f, 0.3f),
-    };
+    });
+    return list;
 }
 
 // Body Calibration (vr_bodycal.cpp): start or continue it, the result to Apply or Cancel, each pose to take again.
@@ -1921,6 +1973,11 @@ int scrolls[pageCount]{};
     {
         weaponOffsetsStale = true; // Align Sights to My Aim: its phase or its result changed
         weaponOffsetsSightFocus = true;
+    }
+    if(pages[page].build == pageBodyArms && armsPageCalibrated >= 0 && armsPageCalibrated != (bodycal::calibrated() ? 1 : 0))
+    {
+        done[page] = false; // calibrated (Apply) or not (Undo): Arm Length shown or not
+        built[page].clear();
     }
     if(pages[page].build == pageBodyCalibration &&
         (bodycalVersion != bodycal::version() || bodycalSeated != (vr_bodycal_seated.value != 0.f ? 1 : 0)))

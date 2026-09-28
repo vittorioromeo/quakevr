@@ -298,9 +298,6 @@ QVR_CVAR(vr_body_eye_up, "0.08", CVAR_ARCHIVE)
 QVR_CVAR(vr_body_crouch_tilt, "25", CVAR_ARCHIVE)    // degrees the back tilts forward in a full crouch
 QVR_CVAR(vr_body_torso_back, "0", CVAR_ARCHIVE)       // metres the torso sits further behind the neck (negative: in front)
 QVR_CVAR(vr_body_legs_back, "0", CVAR_ARCHIVE)        // metres the feet stand behind the head (negative: in front)
-QVR_CVAR(vr_body_shoulders_back, "0", CVAR_ARCHIVE)   // metres the shoulders sit behind the chest (negative: in front),
-QVR_CVAR(vr_body_shoulders_up, "0", CVAR_ARCHIVE)     // above it,
-QVR_CVAR(vr_body_shoulders_out, "0", CVAR_ARCHIVE)    // and further out (negative: in)
 QVR_CVAR(vr_body_pauldrons, "1", CVAR_ARCHIVE)        // pauldrons on the body's shoulders, after the Quake ranger's (make_pauldron.py)
 QVR_CVAR(vr_body_pauldron_style, "0", CVAR_ARCHIVE)   // 0 the ranger's brown leather, 1 the colour of the armour worn (leather without), 2 steel
 QVR_CVAR(vr_body_pauldron_size, "1", CVAR_ARCHIVE)    // their size (scaled with the build too)
@@ -405,25 +402,47 @@ QVR_CVAR(vr_shells_life, "20", CVAR_ARCHIVE)          // seconds they lie on the
 QVR_CVAR(vr_shells_sound, "1", CVAR_ARCHIVE)          // volume of their tink as they land (0 off)
 QVR_CVAR(vr_body_arm_length, "1", CVAR_ARCHIVE)      // arm length, relative to the proportions of vr_height_calibration
 QVR_CVAR(vr_body_arm_stretch, "1.2", CVAR_ARCHIVE)    // how far arms may stretch to reach the hands (1: not at all)
-// Body Calibration (vr_bodycal.cpp) measures these: real centimetres from the shoulder joint to the elbow and from the
-// elbow to the drawn hand's wrist (0: the model's proportions, times vr_body_arm_length). Set, the shoulders rise from
-// lower down (continuously, as a real one does), they reach towards a hand before the arm stretches, and
-// vr_body_arm_stretch only makes up what the shoulders' reach can't.
-QVR_CVAR(vr_body_upper_arm, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_body_forearm, "0", CVAR_ARCHIVE)
+// The arms and shoulders (vr_bodycal.hpp, "The arms' settings"): what Body Calibration measured (vr_bodycal_*), and
+// the player's tweaks on top (vr_body_tweak_*, the same units, 0: as measured). Uncalibrated, the tweaks go on the
+// default body: the model's arms times vr_body_arm_length, its shoulders 0.04 m in front of the chest, rising 25 and
+// swinging 20 degrees. Measured: real cm from the shoulder joint to the elbow and from the elbow to the drawn hand's
+// wrist (0: not measured). Both set, the arms are calibrated: the shoulders rise from lower down (continuously, as a
+// real one does), they reach towards a hand before the arm stretches (vr_body_arm_stretch only makes up what their
+// reach can't), and their place (metres from the model's: back, up, out), rise and swing (degrees) are the measured.
+QVR_CVAR(vr_bodycal_upper_arm, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_bodycal_forearm, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_bodycal_shoulders_back, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_bodycal_shoulders_up, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_bodycal_shoulders_out, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_bodycal_shoulder_rise, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_bodycal_shoulder_swing, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_body_tweak_upper_arm, "0", CVAR_ARCHIVE)      // cm longer (negative: shorter)
+QVR_CVAR(vr_body_tweak_forearm, "0", CVAR_ARCHIVE)        // cm longer
+QVR_CVAR(vr_body_tweak_shoulders_back, "0", CVAR_ARCHIVE) // metres further back (negative: forward),
+QVR_CVAR(vr_body_tweak_shoulders_up, "0", CVAR_ARCHIVE)   // higher,
+QVR_CVAR(vr_body_tweak_shoulders_out, "0", CVAR_ARCHIVE)  // further out (negative: in)
+QVR_CVAR(vr_body_tweak_shoulder_rise, "0", CVAR_ARCHIVE)  // degrees more the shoulders rise reaching up,
+QVR_CVAR(vr_body_tweak_shoulder_swing, "0", CVAR_ARCHIVE) // and swing forward reaching far forward
+// Round 21's settings before the split (absolute: Apply wrote the measurements over them). Not saved: a config's are
+// moved to the ones above (bodycal::migrate), and so is one set in the console.
+QVR_CVAR(vr_body_upper_arm, "", CVAR_NONE)
+QVR_CVAR(vr_body_forearm, "", CVAR_NONE)
+QVR_CVAR(vr_body_shoulders_back, "", CVAR_NONE)
+QVR_CVAR(vr_body_shoulders_up, "", CVAR_NONE)
+QVR_CVAR(vr_body_shoulders_out, "", CVAR_NONE)
+QVR_CVAR(vr_body_shoulder_up, "", CVAR_NONE)
+QVR_CVAR(vr_body_shoulder_forward, "", CVAR_NONE)
 // Body Calibration's page: taken seated (the height left as it is); the body shown in front with the result (0 not, 1
 // facing you, 2 from its left); the settings from before the last Apply ("name value;...", for Undo).
 QVR_CVAR(vr_bodycal_seated, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_bodycal_preview, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_bodycal_undo, "", CVAR_ARCHIVE)
-QVR_CVAR(vr_body_shoulder_reach, "0.08", CVAR_ARCHIVE) // metres the shoulders may reach out beyond that
+QVR_CVAR(vr_body_shoulder_reach, "0.08", CVAR_ARCHIVE) // metres the shoulders may reach out towards a hand past the arm
 QVR_CVAR(vr_body_forearm_twist, "0.5", CVAR_ARCHIVE)  // share of the wrist's roll the middle of the forearm follows (none at the elbow, all at the wrist)
 QVR_CVAR(vr_body_wrist_limits, "1", CVAR_ARCHIVE)   // the elbow swings round to keep the wrist within a real one's bend and roll, times this (0: never)
 QVR_CVAR(vr_body_elbow_out, "0.35", CVAR_ARCHIVE)     // elbow direction: down, plus this much outwards,
 QVR_CVAR(vr_body_elbow_back, "0.25", CVAR_ARCHIVE)    // this much backwards,
 QVR_CVAR(vr_body_elbow_hand, "0.4", CVAR_ARCHIVE)     // and this much away from the back of the hand
-QVR_CVAR(vr_body_shoulder_up, "25", CVAR_ARCHIVE)     // degrees the shoulders rise reaching up,
-QVR_CVAR(vr_body_shoulder_forward, "20", CVAR_ARCHIVE) // and swing forward reaching far forward
 QVR_CVAR(vr_holster_haptics, "2", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_haptic_time, "0.25", CVAR_ARCHIVE) // seconds of the buzz as a hand reaches a holster (vr_holster_haptics 2: once)
 QVR_CVAR(vr_model_lighting, "1", CVAR_ARCHIVE)        // models shaded from the map's lights (0: Quake's fixed direction; 0..1 blends)

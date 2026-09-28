@@ -1,6 +1,8 @@
 // vr_cvars.cpp -- Quake VR cvar definitions and registration.
 
 #include "vr_cvars.hpp"
+#include "vr_body.hpp"
+#include "vr_bodycal.hpp"
 #include "vr_engine.hpp"
 
 #include <cstring>
@@ -49,11 +51,18 @@ const DefaultChange defaultChanges[] = {
     {12, &vr_sight_hue, "30"},            // their own orange: they follow the player's hue now (vr_player_hue)
     {13, &vr_shove_speed, "1.8"},         // the author's shoves go 3.2-4.8 m/s, his hands waved at the dummy 2.2 (round 21)
 };
-constexpr int configVersion = 13;
+constexpr int configVersion = 14;
 
-// Right after the saved config is executed (Cmd_Exec_f queues it).
+// Right after the saved config is executed (Cmd_Exec_f queues it). "vr_migrate_config new": there was no saved config
+// (a first start): the settings are this version's, nothing to change.
 void migrateConfig_f()
 {
+    bodycal::migrate(); // round 21's arm settings, whatever the version (they are moved, not changed in place)
+    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "new"))
+    {
+        Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
+        return;
+    }
     const int from = static_cast<int>(vr_cfg_version.value);
     if(from >= configVersion)
     {
@@ -88,6 +97,12 @@ void migrateConfig_f()
                 var->string);
             Cvar_SetQuick(var, var->default_string);
         }
+    }
+    // 14: a hip or upper holster on the body goes on round it past its front, where it used to stop (round 21,
+    // "Arms options after body calibration; holster limits"): an X that was stopped keeps its place.
+    if(from < 14)
+    {
+        body::migrateHolsters();
     }
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
 }
@@ -152,7 +167,8 @@ const CompiledDefault compiledDefaults[] = {
 {
     return var == &vr_cfg_version || var == &vr_bindings_version || var == &vr_wofs_version || var == &vr_height_calibration
         || var == &vr_xr_runtime || var == &vr_xr_runtime_json || var == &vr_note_device
-        || !std::strncmp(var->name, "vr_motion_", 10); // the motion recorder's (a tool's settings)
+        || !std::strncmp(var->name, "vr_motion_", 10) // the motion recorder's (a tool's settings)
+        || !std::strncmp(var->name, "vr_bodycal_", 11) || !std::strncmp(var->name, "vr_body_tweak_", 14); // one's body
 }
 
 // "vr_savedefaults": writes the archived Quake VR settings that differ from the compiled-in

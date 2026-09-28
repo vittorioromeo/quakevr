@@ -8,12 +8,16 @@
 //
 // What is measured, jointly (a least-squares fit with outliers dropped, vr_bodycal.cpp's fit()), with the body's own
 // arm model (avatar::shoulderInChest: the shoulders on the chest, their rise and swing): the shoulders' place on the chest
-// (vr_body_shoulders_back, _up, _out), the reach from the shoulder joint to the drawn wrist and its split into the upper
-// arm and the forearm (vr_body_upper_arm, vr_body_forearm, real centimetres: the circles and poses give the reach, the
-// forearm's sweep about the elbow its length and the elbow's place), and how far the shoulders rise and swing
-// (vr_body_shoulder_up, _forward). The wrists' bends check the hand calibration: how far the drawn hand's wrist is from
-// the real wrist they turn about. The drawn wrist is the empty hand's on the calibrated controller (Hand Calibration's),
-// whatever the hand holds.
+// (vr_bodycal_shoulders_back, _up, _out), the reach from the shoulder joint to the drawn wrist and its split into the
+// upper arm and the forearm (vr_bodycal_upper_arm, vr_bodycal_forearm, real centimetres: the circles and poses give the
+// reach, the forearm's sweep about the elbow its length and the elbow's place), and how far the shoulders rise and swing
+// (vr_bodycal_shoulder_rise, _swing). The wrists' bends check the hand calibration: how far the drawn hand's wrist is
+// from the real wrist they turn about. The drawn wrist is the empty hand's on the calibrated controller (Hand
+// Calibration's), whatever the hand holds.
+//
+// The player's tweaks (vr_body_tweak_*, Arms and Pauldrons) go on top of the measurements, in the same units (0: as
+// measured). Apply keeps them, and the preview shows them; only the first Apply (from the default body, which they were
+// made for) sets them to 0. Undo puts back the measurements and the tweaks from before.
 //
 // Each session's samples are saved (bodycal/<date>.txt in the game folder); vr_bodycal_refit fits one again.
 
@@ -66,5 +70,28 @@ void switchShown();
 [[nodiscard]] const char* stepRow(int i);
 [[nodiscard]] const char* stepHelp(int i);
 [[nodiscard]] bool stepUsed(int i); // (seated: the first isn't)
+
+// The arms' settings (vr_cvars.inc): the measurements with the tweaks on top. Uncalibrated, the tweaks go on the default
+// body: the model's arms times Arm Length, its shoulders 4 cm in front of the chest, rising 25 and swinging 20 degrees.
+// Whether both arms' lengths are measured (the calibrated arm: the shoulders rise from lower down and reach first).
+[[nodiscard]] bool calibrated();
+// A bone's measured length, real cm (0: not measured, the model's times Arm Length instead): 0 the upper arm (the
+// shoulder joint to the elbow), 1 the forearm (the elbow to the drawn hand's wrist); and its tweak, cm.
+[[nodiscard]] float measuredArmCm(int bone);
+[[nodiscard]] float armTweakCm(int bone);
+// The shoulder joints from the model's, metres: back, up, out.
+[[nodiscard]] glm::vec3 shoulderOffset();
+// Degrees the shoulders rise reaching up and swing forward reaching far forward.
+[[nodiscard]] float shoulderRise();
+[[nodiscard]] float shoulderSwing();
+// Whether a tweak isn't 0; resetTweaks sets them all to 0 (as measured, or the default body).
+[[nodiscard]] bool tweaked();
+void resetTweaks();
+// Arms and Pauldrons: what is measured, a line at a time (null past the last).
+[[nodiscard]] const char* measuredLine(int i);
+// Round 21's settings (vr_body_upper_arm, _forearm, _shoulders_*, _shoulder_up, _forward: absolute, Apply wrote over
+// them), set by a config or in the console, moved to the measurements and tweaks with the same look; an Undo saved with
+// them too. After the saved config (vr_migrate_config) and once a frame.
+void migrate();
 
 } // namespace qvr::bodycal

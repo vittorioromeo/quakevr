@@ -49,10 +49,10 @@ void armBones(float& upper, float& fore);
 struct ShoulderModel
 {
     float scale{1.f};      // the body's scale (eye height / the models')
-    glm::vec3 offset{0.f}; // vr_body_shoulders_back, _up, _out (metres of the model)
+    glm::vec3 offset{0.f}; // bodycal::shoulderOffset(): back, up, out (metres of the model)
     float armLength{0.55f}; // the upper arm and forearm (real metres)
-    float upDegrees{25.f};  // vr_body_shoulder_up
-    float forwardDegrees{20.f}; // vr_body_shoulder_forward
+    float upDegrees{25.f};  // bodycal::shoulderRise()
+    float forwardDegrees{20.f}; // bodycal::shoulderSwing()
     bool calibrated{true};      // the calibrated arms' continuous rise
 };
 // The shoulder joint of `side` (0 the body's left, 1 its right) with the drawn wrist at `wrist` (the chest's frame).

@@ -323,6 +323,9 @@ void Cmd_Exec_f (void)
 	if (!f)
 	{
 		Con_Printf ("couldn't exec %s\n", path);
+		// QVR: no saved config (a first start): its settings are the current version's (vr_cvars.cpp)
+		if (!strcmp (Cmd_Argv (1), "config.cfg") || !strcmp (path, CONFIG_NAME))
+			Cbuf_InsertText ("\nvr_migrate_config new\n");
 		return;
 	}
 exec:

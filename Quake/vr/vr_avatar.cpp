@@ -4,6 +4,7 @@
 #include "vr_engine.hpp"
 #include "vr_units.hpp"
 #include "vr_backend.hpp"
+#include "vr_bodycal.hpp"
 #include "vr_cvars.hpp"
 #include "vr_lines.hpp"
 #include "vr_motion.hpp"
@@ -503,8 +504,8 @@ void traceArm(const Body& b, int side, const glm::vec3& shoulder, const glm::vec
 }
 
 // The arms' lengths in world units: the upper arm (the shoulder joint to the elbow) and the forearm (the elbow to the
-// drawn hand's wrist). Calibrated (Body Calibration: vr_body_upper_arm and vr_body_forearm, real centimetres), or the
-// model's proportions times vr_body_arm_length.
+// drawn hand's wrist). Measured (Body Calibration: vr_bodycal_upper_arm and vr_bodycal_forearm, real centimetres), or the
+// model's proportions times vr_body_arm_length; the player's tweak on top (vr_body_tweak_*, cm).
 struct ArmLengths
 {
     float upper{0.f}, fore{0.f};
@@ -515,11 +516,10 @@ struct ArmLengths
     const float length = CLAMP(0.5f, vr_body_arm_length.value, 2.f);
     const float cm = units::metresToUnits() * 0.01f;
     ArmLengths r;
-    r.upper = vr_body_upper_arm.value > 0.f ? CLAMP(10.f, vr_body_upper_arm.value, 60.f) * cm
-                                            : boneLength(UpperArmL, ForearmL) * m2w * length;
-    r.fore = vr_body_forearm.value > 0.f ? CLAMP(10.f, vr_body_forearm.value, 60.f) * cm
-                                         : boneLength(ForearmL, HandL) * m2w * length;
-    r.calibrated = vr_body_upper_arm.value > 0.f && vr_body_forearm.value > 0.f;
+    const float mu = bodycal::measuredArmCm(0), mf = bodycal::measuredArmCm(1);
+    r.upper = std::max(5.f * cm, (mu > 0.f ? mu * cm : boneLength(UpperArmL, ForearmL) * m2w * length) + bodycal::armTweakCm(0) * cm);
+    r.fore = std::max(5.f * cm, (mf > 0.f ? mf * cm : boneLength(ForearmL, HandL) * m2w * length) + bodycal::armTweakCm(1) * cm);
+    r.calibrated = bodycal::calibrated();
     return r;
 }
 
@@ -563,18 +563,17 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     c = Bone{};
     const glm::mat3 rest = chest.rot * glm::transpose(bd.rot[Chest]) * bd.rot[clav];
     const glm::vec3 lateral = rest[0];
-    // The shoulders' own offset from the chest (vr_body_shoulders_*): back, up, and outwards along
-    // the clavicle, in metres.
-    c.pos = childPos(b, clav) +
-            (-cFwd * vr_body_shoulders_back.value + cUp * vr_body_shoulders_up.value + lateral * vr_body_shoulders_out.value) *
-                b.m2w;
+    // The shoulders' own offset from the chest (bodycal::shoulderOffset: measured, or the default body's, and the
+    // tweaks): back, up, and outwards along the clavicle, in metres.
+    const glm::vec3 so = bodycal::shoulderOffset();
+    c.pos = childPos(b, clav) + (-cFwd * so.x + cUp * so.y + lateral * so.z) * b.m2w;
 
     const ArmLengths lengths = armLengths(b.m2w);
     const float armLen =
         lengths.calibrated ? lengths.upper + lengths.fore : (boneLength(upper, fore) + boneLength(fore, hand)) * b.m2w;
     const glm::vec3 restShoulder = c.pos + rest * (localOffset(upper) * b.m2w);
-    c.rot = clavicleTurn(wrist - restShoulder, lateral, cUp, cFwd, armLen, vr_body_shoulder_up.value,
-                vr_body_shoulder_forward.value, lengths.calibrated) *
+    c.rot = clavicleTurn(wrist - restShoulder, lateral, cUp, cFwd, armLen, bodycal::shoulderRise(),
+                bodycal::shoulderSwing(), lengths.calibrated) *
             rest;
 
     // The arm: the elbow points down, somewhat out and back, and away from the thumb (turning the palm up brings the

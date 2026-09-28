@@ -61,6 +61,10 @@ using HolsterPlates = std::array<HolsterPlate, HolsterCount>;
 // hands.
 void updateHotspots(hands::State& s);
 
+// Round 21's hip and upper holster X (vr_hip_offset_x, vr_upper_holster_offset_x) on the body: stopped at the body's
+// front then, it goes round the body now; each becomes the X that keeps the holster where it was (vr_migrate_config).
+void migrateHolsters();
+
 // The hotspot of a holster, for highlighting it when a hand hovers it.
 [[nodiscard]] Hotspot holsterHotspot(Holster holster);
 

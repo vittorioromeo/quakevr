@@ -628,7 +628,8 @@ void resetHandMoves()
         slider("Shoulder Yaw", "vr_shoulder_holster_yaw", -180.f, 180.f, 5.f, "%.0f deg").help("Turns the holster's face outwards (negative: inwards), mirrored for the left one."),
         slider("Shoulder Roll", "vr_shoulder_holster_roll", -180.f, 180.f, 5.f, "%.0f deg").help("Tips the holster's top outwards (negative: inwards; a hanging gun's muzzle goes the other way), mirrored for the left one."),
         toggle("Show Hip Holsters", "vr_show_hip_holsters"),
-        slider("Hip X", "vr_hip_offset_x", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
+        slider("Hip X", "vr_hip_offset_x", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f)
+            .help("Forward (negative: back), units. With the body drawn, the default (-3.5) is on the belly; further back, the holsters go round your hips to your back."),
         slider("Hip Y", "vr_hip_offset_y", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
         slider("Hip Z", "vr_hip_offset_z", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
         slider("Hip Threshold", "vr_hip_holster_thresh", 0.f, 30.f, 0.1f, "%.1f").extend(0.f, 100.f),
@@ -636,7 +637,8 @@ void resetHandMoves()
         slider("Hip Yaw", "vr_hip_holster_yaw", -180.f, 180.f, 5.f, "%.0f deg").help("Turns the holster's face outwards (negative: inwards), mirrored for the left one."),
         slider("Hip Roll", "vr_hip_holster_roll", -180.f, 180.f, 5.f, "%.0f deg").help("Tips the holster's top outwards (negative: inwards; a hanging gun's muzzle goes the other way), mirrored for the left one."),
         toggle("Show Upper Holsters", "vr_show_upper_holsters"),
-        slider("Upper X", "vr_upper_holster_offset_x", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
+        slider("Upper X", "vr_upper_holster_offset_x", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f)
+            .help("Forward (negative: back), units. With the body drawn, the default (-4.25) is on the chest; further back, the holsters go round your ribs to your back."),
         slider("Upper Y", "vr_upper_holster_offset_y", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
         slider("Upper Z", "vr_upper_holster_offset_z", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
         slider("Upper Threshold", "vr_upper_holster_thresh", 0.f, 30.f, 0.1f, "%.1f").extend(0.f, 100.f),
