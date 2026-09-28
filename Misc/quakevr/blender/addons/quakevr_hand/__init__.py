@@ -25,6 +25,15 @@ from mathutils import Matrix, Vector
 
 from . import md5hand as M
 
+
+def normal_maps():
+    """The models' add-on's normal map baking (quakevr_models/normal_blender.py), or None if it isn't there."""
+    try:
+        from quakevr_models import normal_blender
+    except ImportError:
+        return None
+    return normal_blender
+
 ARMATURE_NAME = "hand_rig"
 MESH_NAME = "hand"
 SKIN_NAME = "hand_rig_skin"
@@ -175,6 +184,9 @@ def import_hand(context, path):
         bsdf = next(n for n in nodes if n.type == 'BSDF_PRINCIPLED')
         mat.node_tree.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
         mesh_data.materials.append(mat)
+        nm = os.path.join(folder, "hand_rig_00_00_norm.png")
+        if os.path.exists(nm) and normal_maps() is not None:
+            normal_maps().show(ob, nm)  # the baked normal map (bake_normals.py), as the game draws it
     context.view_layer.objects.active = ob
     ob.select_set(True)
     return arm, ob
@@ -381,6 +393,10 @@ class QVR_OT_export_hand(bpy.types.Operator, ExportHelper):
     write_skin: BoolProperty(name="Skin", default=True,
                              description="Write the skin image into hand_rig_00_00.lmp (and under the blood of the "
                                          "damage skins 01..03)")
+    bake_normals: BoolProperty(name="Bake Normal Map", default=True,
+                               description="Bake hand_rig_00_00_norm.png again from the exported hand (its knuckles, "
+                                           "tendons, nails and creases follow your edit; bake_normals.py). A map "
+                                           "painted or baked from a high poly since is left alone")
 
     def invoke(self, context, event):
         arm, _ = find_hand(context)
@@ -394,6 +410,53 @@ class QVR_OT_export_hand(bpy.types.Operator, ExportHelper):
         except (HandError, M.Md5Error, OSError, ValueError) as e:
             self.report({'ERROR'}, str(e))
             return {'CANCELLED'}
+        nb = normal_maps()
+        if self.bake_normals and nb is not None:
+            _, ob = find_hand(context)
+            try:
+                done = nb.bake(context, ob, self.filepath, report=lambda m: self.report({'WARNING'}, m))
+            except (OSError, ValueError, M.Md5Error) as e:
+                self.report({'WARNING'}, "normal map not baked: %s" % e)
+                done = None
+            if done:
+                self.report({'INFO'}, "normal map baked: %s" % os.path.basename(done[0]))
+        return {'FINISHED'}
+
+
+class QVR_OT_bake_normal_map(bpy.types.Operator):
+    """Bake the hand's normal map (hand_rig_00_00_norm.png) from the hand as last exported (export your edits first):
+    knuckles, tendons, nails and the creases painted in its skin, as Misc/quakevr/bake_normals.py does. With other
+    meshes selected too (the hand active), their shape is baked from them with Cycles (a high poly), the relief laid
+    on it"""
+    bl_idname = "quakevr_hand.bake_normal_map"
+    bl_label = "Bake Normal Map"
+    bl_options = {'REGISTER'}
+    details: BoolProperty(name="Add Details", default=True,
+                          description="Lay the hand's relief (knuckles, tendons, nails, creases) on the shape")
+    overwrite: BoolProperty(name="Overwrite Edited Map", default=False,
+                            description="Replace a map painted or baked from a high poly since the last bake")
+
+    def execute(self, context):
+        nb = normal_maps()
+        if nb is None:
+            self.report({'ERROR'}, "needs the Quake VR Models add-on (quakevr_models) enabled too")
+            return {'CANCELLED'}
+        arm, ob = find_hand(context)
+        path = arm.get("qvr_source") if arm is not None else None
+        if ob is None or not path or not os.path.exists(path):
+            self.report({'ERROR'}, "no exported hand to bake: import it (or export it first)")
+            return {'CANCELLED'}
+        highs = [o for o in context.selected_objects if o is not ob and o.type == 'MESH']
+        try:
+            done = nb.bake(context, ob, path, highs, self.details, self.overwrite,
+                           report=lambda m: self.report({'WARNING'}, m))
+        except (OSError, ValueError, RuntimeError, M.Md5Error) as e:
+            self.report({'ERROR'}, str(e))
+            return {'CANCELLED'}
+        if not done:
+            return {'CANCELLED'}
+        nb.show(ob, done[0])
+        self.report({'INFO'}, "baked %s; in the game: vr_hand_reload" % os.path.basename(done[0]))
         return {'FINISHED'}
 
 
@@ -515,6 +578,8 @@ class QVR_PT_hand(bpy.types.Panel):
         col.separator()
         col.operator(QVR_OT_save_skin.bl_idname, icon='IMAGE_DATA')
         col.operator(QVR_OT_reload_skin.bl_idname, icon='FILE_REFRESH')
+        col.separator()
+        col.operator(QVR_OT_bake_normal_map.bl_idname, icon='NORMALS_FACE')
 
 
 def menu_import(self, context):
@@ -526,7 +591,7 @@ def menu_export(self, context):
 
 
 classes = (QVR_OT_import_hand, QVR_OT_export_hand, QVR_OT_apply_pose, QVR_OT_select_unweighted, QVR_OT_save_skin,
-           QVR_OT_reload_skin, QVR_PT_hand)
+           QVR_OT_reload_skin, QVR_OT_bake_normal_map, QVR_PT_hand)
 
 
 def register():
