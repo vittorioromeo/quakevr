@@ -153,6 +153,7 @@ struct StepQuality
 struct Result
 {
     bool valid{false};
+    bool trusted{false}; // the poses agree: Apply offered
     bool seated{false};
     float scale{1.f};
     float eyeHeight{0.f}, eyeHeightNow{0.f};
@@ -622,6 +623,8 @@ void levenberg(const FitInput& in, const std::vector<double>& weights, std::arra
             }
             q[PReach] = std::max(q[PReach], 0.2);
             q[PFore] = CLAMP(0.08, q[PFore], q[PReach] - 0.08);
+            q[PRaise] = CLAMP(0.0, q[PRaise], 45.0);
+            q[PSwing] = CLAMP(0.0, q[PSwing], 45.0);
             std::vector<double> rq;
             weighted(q, rq);
             const double c = sumSq(rq);
@@ -1203,6 +1206,14 @@ void analyse()
         const bool covered = q.coverage >= wristsNeed;
         q.grade = !ok ? Redo : !covered || worstRms > 2.f ? Redo : worstRms > 1.f ? Fair : Good;
         q.note = !ok ? "no samples" : !covered ? "wrists bent too little" : worstRms > 2.f ? "forearms moved" : "";
+    }
+
+    // Trusted when the poses agree: the samples within 2.5 cm (rms) of the fit, and the moves not to be redone (a held
+    // pose off by a little more only says so).
+    r.trusted = r.valid && r.rms <= 2.5f;
+    for(int st : {Circles, Elbows})
+    {
+        r.trusted = r.trusted && r.quality[st].grade != Redo;
     }
 
     char stamp[32];
@@ -2071,7 +2082,7 @@ bool redo(int step, int returnPage)
 
 void apply()
 {
-    if(ses.phase != Phase::Result || !result.valid)
+    if(ses.phase != Phase::Result || !result.valid || !result.trusted)
     {
         return;
     }
@@ -2096,6 +2107,11 @@ void cancel()
     ses.phase = Phase::Idle;
     result.valid = false;
     bump();
+}
+
+bool trusted()
+{
+    return result.valid && result.trusted;
 }
 
 bool canUndo()
@@ -2171,6 +2187,11 @@ const char* statusLine(int i)
     else if(result.valid && (ses.phase == Phase::Result || applied))
     {
         const Result& r = result;
+        if(!applied && !r.trusted)
+        {
+            add(va("The poses disagree (%.1f cm):", r.rms));
+            add("redo those marked REDO below");
+        }
         add(applied ? va("Applied (%s):", r.when.c_str()) : std::string("Measured:        now     new"));
         if(!r.seated)
         {

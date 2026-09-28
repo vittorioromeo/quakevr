@@ -47,6 +47,8 @@ bool restart(int returnPage);
 bool redo(int step, int returnPage);
 void apply();
 void cancel();
+// Whether the result can be applied (its poses agree).
+[[nodiscard]] bool trusted();
 [[nodiscard]] bool canUndo();
 void undo();
 // Whether some poses are taken but not all (a stopped session: Continue).

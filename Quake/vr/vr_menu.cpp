@@ -688,10 +688,13 @@ const char* bodycalIntro(int i)
                   "the same.")};
     if(bodycal::phase() == bodycal::Phase::Result)
     {
-        list.insert(list.end(), {
-            action("Apply", bodycalApply)
+        if(bodycal::trusted())
+        {
+            list.push_back(action("Apply", bodycalApply)
                 .help("Sets the measurements: your arms' lengths, where your shoulders are and how they rise and swing, and "
-                      "(standing) your height. Undo puts the settings back."),
+                      "(standing) your height. Undo puts the settings back."));
+        }
+        list.insert(list.end(), {
             action("Cancel", bodycalCancel).help("Nothing changes."),
             action(bodycal::showingNew() ? "Showing: New Measurements" : "Showing: Current Settings", bodycalSwitch)
                 .help("Your body (and the one in front of you) with the new measurements, or with the settings as they are: "

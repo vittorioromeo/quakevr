@@ -25,6 +25,7 @@ build/
 !/quakevr/motions/expect.cfg
 !/quakevr/motions/suspects.cfg
 /quakevr/profile/
+/quakevr/bodycal/
 /quakevr/eyeshots/
 /quakevr/envmap.tga
 !/quakevr/default.cfg
