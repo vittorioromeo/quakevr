@@ -30,6 +30,7 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | Melee fixes | a punch holding the torch lands (it never did); the free palm with the torch hand pushing is a two-handed shove, the torch hand alone no shove; axe, Mjolnir, sword and gun blows strike walls (10 of 24 test chops before, 23 now); gibs on the floor burst when punched or chopped; your 471 takes replay identically |
 | Dynamic wounds | blood, burns and wetness painted into each monster's, corpse's and your own skin where the blow lands (chunky, on the skin's texels, Quake's reds), drying, cooling, healing; your body and hands no longer use the wound skins; 16 MB, about 2 µs of GPU a hit |
 | Stamina on the gadget; the glow | the stamina bar over the weapon is gone: parry stamina shows in the gadget screen's top row (ten cells; blinking when low; EXHAUSTED; a sweep while it recovers) with COUNTER while a counter's window is open; the counter glow never showed (1 cm sparks inside the blade, at a lagging pose): now a gold rim glow and embers drawn by the client, off as shipped |
+| Stamina for shoves and strikes; thrown damage on gibs | shoves and bashes (15 one-handed, 20 two-handed) and blows that land (a punch 4, a weapon 8, two-handed 6) spend the parry's stamina pool, shown on the gadget; short of it they do half the damage and a shove half the knockback (in proportion to what's missing); the rest before it comes back counts from the last parry, shove or blow; all in Parry, Bash and Headbutt > Shove and Strike Stamina. A thrown weapon, box or gib landing on a loose gib hurts it as it hurts a monster (it bursts). Your archived takes: identical |
 
 Found on the way: fteqcc stores 0 when `a || b` is assigned into an entity field (rewritten; no other code has that
 shape); a parried blow's hand knock, timed by `cl.time`, came back after a level change (reset now).
@@ -7450,3 +7451,298 @@ new corner for the leniency: a thin wall (4 units, 96 high) on the main floor wi
 - [ ] Grab Leniency 10: reach a little short of rungs and ledges. Too eager (holds you didn't mean) or still too strict?
 - [ ] A far grab (Leniency 30, the hand 30 cm short): the drawn hand glides on; you don't move until you pull.
 - [ ] The hand's light on a hold in a dark place (it is lit like the top it grips).
+## Stamina for shoves and strikes; thrown damage on gibs
+
+Your three notes from the firing range (2026-09-28): a thrown melee weapon or physics object landing on a gib does
+nothing, and it should hurt it as it hurts enemies; shoves and melee attacks should spend stamina too, and be weaker
+when there is none (less damage, a shove less knockback), all of it customizable; and stamina should come back only
+after a pause from parries, shoves and attacks alike. Branch `agent/combat3`; scripts, logs and pictures in the
+scratchpad's `combat3/`.
+
+### Thrown things hit gibs
+
+**Why they didn't.** A gib or head lying about is a Box3D prop, and `SOLID_NOT_BUT_TOUCHABLE`: it never blocks, and
+the traces that aren't shots pass it. A thrown weapon, box or gib meets monsters in two ways, and gibs in neither:
+
+1. **The hit box along the flight** (`touchNearby`, `vr_box3d.cpp`, before each step, `vr_throw_hitbox`): a trace with
+   `MOVE_NORMAL`, which passes gibs. Monsters are found here, at the thrown thing's full speed.
+2. **Two props meeting** (Box3D's hit events, after the step): the gib and the thrown thing do collide, and their
+   touch runs (`forcegrabbable_touch`), but after the step, with the velocity the bounce left. A sword thrown down at
+   293 u/s touched the gib at 146 u/s after the step, under the 200 of Hit Min Speed (`vr_throw_hit_min_speed`), so
+   the throw ended as a harmless landing: "too slow to hurt what bleeds". An axe hit the same way. A box and a thrown
+   gib happened to keep more speed through the bounce and did hurt.
+
+**The fix** (engine, `vr_box3d.cpp`; no QC):
+
+- **The hit box also finds gibs while the throw lasts**: `MOVE_HITGIBS` added to its trace when the thrown thing's
+  `.throwhit` is still `QVR_THROWHIT_NEVER_HIT` (a new engine field, `vr_fields.inc`), as missiles already meet them.
+  Only loose gibs and heads that take damage: a held one is `SOLID_NOT` and is never found. Other props (a box sliding,
+  a gib rolling) trace as before, and nothing else about the trace changed, so monsters are found exactly as before.
+- **Two props meeting touch with the velocities they came with**: each prop's velocity at the step's start is kept
+  (`Slot::arrival`), and for the touch of two props it is put in their entities; what the touch sets stays, else the
+  step's velocity is put back. This is what the monsters' hit box already did (it runs before the step). It changes
+  nothing for props that take no damage (a thrown box into a pile of boxes: the throw ends with its knock, as before;
+  the speed is read only against something that takes damage), nor for monsters or brushes (their touches are
+  untouched).
+- **The same rules as enemies:** `forcegrabbable_touch`'s damage by speed (`vr_weapon_throw_damage_mult`, Hit Min Speed,
+  Thrown Box/Gib Damage), and the gib bursts when that reaches its health (`vr_gib_health`, 12). A thrown gib does
+  about 8 at 300 u/s, as it does to a grunt, so it takes two thrown gibs to burst one (the thrown one bursts itself on
+  the hit, as before).
+- **Nothing new blocks.** Gibs still never block the player, shots or missiles in any new way (no solidity changed);
+  they are only touched by a thrown thing's hit box, as monsters are. Corpses that take damage (`vr_corpse_gib`) are
+  touchables too and are now found the same way, as missiles already find them.
+- `vr_debug_box3d 1` prints each touch of two props with both speeds ("box3d: 198  and 199 thrown_weapon touch, at 0
+  and 293 u/s (11 and 146 after the step)").
+
+**Tests** (vrfiringrange, a destroyable gib (`impulse 245`) dropped 0.9 m ahead, the thing thrown down onto it from
+the main hand; pictures `gt_<thing>_before.png` and `gt_<thing>.png`: before the throw, just after, 1.5 s later):
+
+| Thrown | Before | After |
+|---|---|---|
+| Axe | lands beside it, the gib untouched | "gib: hit by thrown_weapon for 69.2, 0 left", bursts |
+| Knight's sword | lands on it, the gib untouched | 115.0, bursts (the touch after the step) |
+| Ammo box | 15.7, bursts | 15.1, bursts (the same) |
+| A gib | 7.9, 4.1 left (the thrown gib bursts) | 7.7, 4.3 left (the same) |
+
+With only the hit box change, the axe hits and the sword doesn't; both changes are needed.
+
+### Stamina for shoves and strikes
+
+**What it does.** Shoves and bashes that land, and blows that land on something that takes damage, spend stamina from
+the pool parries use (one pool, `vr_parry_stamina_max`, 100). What an effort can't pay, it does weaker. The rest
+before stamina comes back (Rest Before Recovering, 2 s) counts from the last parry, shove or blow that spent any,
+whichever came last. The gadget's top row shows it (it shows whenever any of the three is on).
+
+**Two switches, costs, two penalties** (Gameplay > Parry, Bash and Headbutt, a new section **Shove and Strike
+Stamina**, under Parry Stamina):
+
+| Setting | Default | Menu |
+|---|---|---|
+| `vr_shove_stamina` | 1 | Shove Stamina |
+| `vr_shove_stamina_cost` | 15 | One-Handed Shove Cost (0-100, extends) |
+| `vr_shove_stamina_cost_2h` | 20 | Two-Handed Shove Cost (0-100, extends) |
+| `vr_strike_stamina` | 1 | Strike Stamina |
+| `vr_strike_stamina_punch` | 4 | Punch Cost (0-100, extends) |
+| `vr_strike_stamina_cost` | 8 | Weapon Strike Cost (0-100, extends) |
+| `vr_strike_stamina_cost_2h` | 6 | Two-Handed Strike Cost (0-100, extends) |
+| `vr_stamina_exhausted_damage` | 0.5 | Exhausted Damage (0.1-1: 1 is no penalty) |
+| `vr_stamina_exhausted_push` | 0.5 | Exhausted Knockback (0.1-1: 1 is no penalty) |
+
+Rest Before Recovering (`vr_parry_stamina_delay`) and Recovery Rate (`vr_parry_stamina_regen`) are the existing ones;
+their help now says "parrying, shoving or striking". New settings take their defaults in every config: no migration.
+
+**The rules:**
+
+- **Depletion is proportional.** An effort costing C with S left (less than C) pays S, and its damage (a shove's also
+  its knockback) is multiplied by `P + (1 - P) x S / C`, P being the penalty (0.5): with nothing left, half; with half
+  its cost left, three quarters. No cliff at a threshold: the last blow before empty is only a little weaker, and the
+  readout says by how much. Stamina never goes below 0.
+- **What counts is unchanged.** The stamina is taken after the melee has decided a blow landed or a shove found a
+  target (`VR_Melee_Strike`, `VR_Bash`), and only multiplies its damage (`VRMeleeDmg`, the gib blow) and a shove's
+  or bash's damage, knockback and stagger (`VR_Bash_Hit`). No detection code reads it.
+- **What costs:**
+  - A **blow** that lands on something that takes damage (a monster, the dummy, a breakable, a gib or head, a
+    corpse), once a motion: a swing through two monsters pays once, the second hit at the first one's multiplier. A
+    blow on a wall, a swing through the air, a whoosh: nothing (a wall hit in play is often a hand brushing it).
+  - A **punch** 4 (the torch fist too); a **weapon** in one hand 8 (sword, axe, Mjolnir, a gun; their pommel, handle
+    end or butt); in **two hands** 6.
+  - A **shove or bash** that lands: 15 with one hand, 20 with two. A push at the air costs nothing (it hasn't landed:
+    the push may still reach something). Counter shoves and bashes pay too; the counter's and the exhaustion's
+    multipliers multiply.
+  - Not counted: headbutts, a held gib struck with the other hand, a gib nudged by a fist (the carry code's), the
+    unarmed parry (it never was).
+- **The penalty**: Exhausted Damage for every melee damage above (blows, shoves, bashes, gib blows); Exhausted
+  Knockback for a shove's or bash's throw and the stagger it gives (the time before the monster may attack again),
+  which scaled with the damage before.
+- **Parry stamina with it.** The pool is one: blows and shoves leave less for parries, and a weapon parry with nothing
+  left knocks the weapon away, as a parry emptying it always did. With Parry Stamina off and these on, the pool works
+  the same without the knock (the drop chance is then used for parries, as before).
+- **Low and the warning.** The gadget blinks (low) when one more of the dearest thing that spends stamina would empty
+  it: a one-handed parry (30) with Parry Stamina on, else a one-handed shove (15) or a weapon blow (8). An effort that
+  takes stamina below that plays the short breath (`player/gasp2`, Tiring Warning's volume) once; a blow has its own
+  buzz in the hand already, so no throb.
+- **Two-handed attacks cost less**, as two-handed parries do (your 10 against 30): the two arms share the work and it
+  is the grip that swings a weapon best. A **two-handed shove costs more** than a one-handed one, but less than the
+  one-handed's share of what it does: 1.33x the cost for 1.43x the knockback and 1.67x the damage. Both hands stay the
+  better shove.
+- **No per-weapon costs.** The system has the classes (fist, blade, axe and Mjolnir, gun), but the weapons' damage
+  already tells them apart (a fist 10, a gun 12, a sword or an axe 20, Mjolnir 25), and in the headset your arm swings
+  every weapon alike. Fists cost half: they are the quickest and weakest blow, and a flurry of punches is how you fight
+  unarmed. Four more sliders for a sword costing 8 and an axe 10 wouldn't be felt, and would be four more to learn.
+
+**Why these numbers.** They are sized against your parry (30 of 100, 2 s rest, 25 a second back):
+- A **normal exchange** doesn't touch the penalty: a parry and three blows (30 + 24) leave 46. It comes back 2 s after,
+  in full in 4 s.
+- A **long flurry** does: twelve one-handed weapon blows in a row (25 punches) empty you, about the ten blows a sword
+  needs for an ogre plus a margin. Keep hitting without a 2 s pause and the blows land at half.
+- **Shoves** are the strong crowd control (a push of 316 u/s and a 1 s stagger): five two-handed shoves in a row
+  empty you, and the sixth pushes half as far (158 u/s) and staggers for 0.5 s.
+- **Half** as the penalty: enough to feel and to read on the dummy (the damage halves), not so much that you're
+  helpless while you wait for the rest.
+
+**The readout and the trace.** The dummy's readout adds "exhausted x0.50" to a blow, and "exhausted (damage x0.50,
+knockback x0.50)" to a shove or bash. `developer 1`: "stamina: 60 of 100 left (a shove, two hands, -20)", ": low",
+": none left", ": short, paid 4.0", "stamina: the blow deals x0.75", "stamina: the shove deals x0.50, knocks back
+x0.50", "bash hit: monster_army, 4.0 damage, knocked back at 158 u/s, staggered 0.50 s", and "coming back (2.00 s
+after the last parry, shove or blow)".
+
+### Tests (mock headset; your OLD hand settings, set and printed in each log)
+
+`vr_gunangle 39.5`, `vr_gunyaw 4`, `vr_offhandpitch 40.25`, `vr_offhandyaw -4`, every `vr_handcal_*` 0,
+`vr_handcal_off_mirror 0`. The motions are `motion_synth.py`'s (`--settings-from` those, `--distance 0.95`), played with
+`vr_mock_play` in front of the dummy, one after another, each ending in a slow return to its start (`combat3/ret.py`).
+
+- **Shoves, then punches** (`stam_shove.log`, `gadget_drain.png`, the screen's top row after each): two-handed shoves
+  1.5 s apart: 80, 60, 40, 20 (low), 0, each 8 damage and 316 u/s; the sixth "short, paid 0.0", 4 damage, 158 u/s,
+  0.5 s stagger, readout "exhausted (damage x0.50, knockback x0.50)". Punches right after: 3.6 and 3.9 ("exhausted
+  x0.50"). No stamina came back while the shoves and punches went on (1.5 s apart); it did 2.00 s after the last
+  punch, and was full 5.09 s after it.
+- **The dummy's attacks, parries and slashes** (`stam_dummy.log`, `vr_dummy_attacks 1`, the sword in one hand held
+  across between slashes): parry 70, the counter slash 62 (x1.20 counter), slashes 54, 46; parry 16 (low), slashes
+  8, 0 ("none left"), then 17.3, 10.1, 9.9 at "exhausted x0.50"; the next blow parried with nothing left knocks the
+  sword out ("Exhausted: the blow knocks the weapon out of your hand!"). Rested 5.99 s after that parry.
+- **Partial payment** (`stam_slash.log`, one-handed slashes): ... 12, 4, then "short, paid 4.0": 14.9 instead of 19.9
+  (x0.75), then 9.9 (x0.50).
+- **Knockback on a monster** (`stam_grunt.log`, a pool of 20): a grunt shoved with both hands at 316 u/s, staggered
+  1 s; two grunts shoved right after, 158 u/s each, 0.5 s.
+- **Costs**: a two-handed slash "-6", a one-handed bash "-15", a two-handed bash "-20", a punch "-4".
+
+**Your archived takes** (all 471, `vr_motion_eval`, your old hand settings, printed): the same verdicts, events,
+reasons and hand errors as before the change in every run, and the dummy's damage per take compared from the log:
+
+| Run | Pass | Differences from before | Dummy hits, total damage |
+|---|---|---|---|
+| Before (this branch's base) | 431 / 471 | - | 312, 5021.4 |
+| After, shove and strike stamina off | 431 / 471 | none | 312, 5021.4 (every hit identical) |
+| After, on (the defaults) | 431 / 471 | none | 312, 5021.4 (every hit identical) |
+| After, on, forced: a pool of 20 and a 6 s rest | 431 / 471 | only damage figures, in 4 takes (the same events, times, verdicts; the figures masked, identical) | 312, 4977.1: 11 hits exhausted, e.g. a shove 4.8 to 3.2, a slash flurry 11.2, 13.1, 11.5 to 8.4, 6.5, 5.7 then about 5 |
+
+With the defaults no take gets near empty (each take starts rested and is a few motions, far under 100), so their
+damage is unchanged too; the forced run shows what exhaustion changes there: the damage only. The menu: `menu.png`,
+`menu_crop.png`.
+
+### Not verified
+
+- In the headset: how the costs feel in a real fight, the breath's timing, and whether the gadget's blink reads while
+  you fight (you liked the parry's).
+- Every weapon's blow goes through `VRMeleeDmg` and scales; only fists and the sword were
+  tried here, not the axe, Mjolnir or a gun.
+- Throws at gibs in other maps, and at heads (the same code: `vr_gib`, destroyable).
+
+### In the headset
+
+- [ ] The firing range, DUMMY ATTACKS on: parry, then shove and strike without a pause. The gadget's cells drain with
+      each; the readout says "exhausted" and the numbers halve once they're gone. Stop for 2 s: they come back.
+- [ ] Is it too much, or too little? The costs, the two penalties and the switches are in Parry, Bash and Headbutt >
+      Shove and Strike Stamina.
+- [ ] Throw the axe, a sword, a box and a gib at a gib on the floor: it bursts (a gib needs two).
+
+## Defaults, second pass (2026-09-28 afternoon)
+
+Your notes (14:00-14:46): the authored models' parallax and bumps and the hands' and weapons' shadows look good, make
+your tweaks the defaults; torch brightness raised a lot, give its slider room for it and make it the default; more
+offsets and settings; the flashlight's finger poses; climbing on by default. Branch `agent/defaults4`; scripts, dumps,
+logs and screenshots in the scratchpad's `defaults4/`.
+
+**Source:** a copy of your `quakevr/ironwail.cfg` at 14:50 (config version 16, `vr_wofs_version` 20), loaded by this
+build and read back from the game (`writeconfig`, after a map, so that the weapon migration has run), as in the first
+pass. Against a first start of the build before this change it differed in 27 `vr_wofs_*` and 40 other settings.
+
+### Weapon hotspots (`vr_weapons.inc`, `vr_wofs_version` 21)
+
+- **27 values in 3 weapons** (26 changes and one spelling: the nailgun's Two-Handed `0.0` is now `0`, as in your config):
+  - shotgun: its cup (hotspot 2) moved, from (6.03, -0.36, -2.52) turned (21.2, -31.1, -63.4) to (-3.5, -1.7, -5.6)
+    turned (-6, -8.65, -6): 6 values;
+  - super shotgun: a new cup (hotspot 2, at (-8.4, -2.1, -2.9), overlap 0.7) and a new grip (hotspot 3, at (-4.99,
+    -1.52, -0.13) turned (0.09, 19.35, 50.73)): 12 values;
+  - nailgun: a new cup (hotspot 2, at (-7.1, -2.6, -6.1) turned (-2, -3.73, -2), overlap 0.75): 8 values, and the
+    spelling.
+- **The table** takes your exact strings: 7 lines changed in place, 20 added at its end. The super nailgun and the
+  lava nailgun have no values of their own and inherit as before.
+- **Migration 21:** a config below it has slots 1..3 reset to the new defaults once. Checked: a version-20 config with
+  its own super shotgun cup X (5), no nailgun cup and the old shotgun cup takes the new ones, and keeps its super
+  nailgun value (slot 4). Yours is reset to your own values: nothing changes.
+
+### Other settings (`vr_defaults.cfg`, `vr_savedefaults`: 155 settings, were 144)
+
+24 of your settings, and 5 arm settings back to the compiled defaults (below): 29 changes.
+
+| Setting | Was | Now |
+|---|---|---|
+| Torch Light Brightness, `vr_torch_light_scale` | 2 | 10 |
+| Graphics: Parallax Depth: Authored Models (`vr_parallax_authored`), Detail Distance (`vr_detail_distance`) | 1, 144 | 1.5, 256 |
+| Flashlight, low grip: `vr_flashlight_low_x`, `_z` | -0.5, -2 | 0.5, -0.5 |
+| Flashlight, low grip fingers: `_low_overlap`, `_low_curl_thumb` | 0.3, 0.97 | 0.45, 0.4 |
+| `_low_bias_thumb`, `_index`, `_ring`, `_pinky` | 0, 0, 0, 0 | -0.06, 0.02, -0.02, -0.36 |
+| `_low_thumb_x`, `_low_thumb_z` | 0, 0 | 0.5, -0.25 |
+| Flashlight, overhead grip: `vr_flashlight_high_x` | 0 | -1.5 |
+| Holsters: `vr_hip_offset_x` | -3.11 | -7 |
+| `vr_upper_holster_offset_x`, `_y` | -4.25, 7 | -8, 7.5 |
+| `vr_upper_holster_pitch`, `_yaw`, `_roll` | 30, 40, -70 | 40, 20, -60 |
+| Climbing: `vr_climb_hand_up` (the hand on a hold, display only) | 1 | -10.5 |
+| Swimming: `vr_swim_glide`, `vr_swim_palm_dir` | 0.7, 0 | 0.6, 0.8 |
+| Counter Window Glow, `vr_counter_glow` | 0 | 1 |
+
+- **The flashlight's finger poses** are its own settings per grip (`vr_flashlight_low_*`, `vr_flashlight_high_*`; it
+  has no weapon slot), so they ship in `vr_defaults.cfg`, not in the table.
+- **Parallax, bumps and shadows:** of these you changed only Parallax Depth: Authored Models (1.5) and Detail Distance
+  (256) since the first pass; the rest (`vr_normalmap_*`, `vr_parallax_*`, `vr_shadow_self` 2 and the other shadow
+  settings) already were the shipped defaults.
+- **Counter Window Glow on:** it was turned off for you (config version 14: you'd rather play without it), and your
+  config has it on again, so it ships on. Its migration 14 now gives an old config 1 either way. Say if that was a test
+  and it should stay off.
+- **Climbing** was already on by default (`vr_defaults.cfg` since round 15; "still off by default" in "Climbing with
+  both hands" above was wrong). The menu drops "(Experimental)": Locomotion > **Climbing**.
+- **Existing configs** keep their saved values for these, as in the first pass (a config saves every setting): they
+  reach a first start, and yours already has them. No config migration is added.
+
+### Arms are the player's (your decision)
+
+"Arm and elbow settings should not be defaults, players should tweak those themselves." The first pass's arm settings
+are gone from `vr_defaults.cfg`, back to the compiled defaults: `vr_body_arm_length` 0.86 -> 1, `vr_body_shoulder_reach`
+0.1 -> 0.08, `vr_body_elbow_out`, `_back`, `_hand` 1, 0, 0 -> 0.35, 0.25, 0.4. `vr_savedefaults` now leaves out all of
+Body > Arms' shape settings (Arm Length, Arm Stretch, Shoulder Reach, Elbow Out, Elbow Back, Elbow From Hand, Forearm
+Twist, Wrist Limits; the body tweaks were left out already), so they are never baked again. The pauldrons' settings
+still ship. Your config keeps your arms (0.95, 0.1, 1, 0, 0).
+
+### Torch brightness
+
+- **The setting** is Graphics > Torch Light Brightness (`vr_torch_light_scale`): the warm flickering light of wall
+  torches, flames, candles and lanterns. The flashlight's brightness (`vr_flashlight_brightness` 1) is unchanged, so
+  its beam, glare and shadows are as before.
+- **The slider** goes 0..16 in steps of 0.25 (was 0..3 in steps of 0.05, going on to 15 past its end): 10 sits at 62%.
+- **How it looks at 10** (e1m2, the two wall torches by a doorway, mock headset; `defaults4/torch1.png`: 10, 2 and 0,
+  from across the room and at arm's length):
+  - from across the room: a warm pool round each torch on the wall and floor. The picture's mean brightness is 17
+    (9.7 at 2, 7.9 with no torch light); 1.9% of its pixels reach full red, none full white;
+  - at arm's length: the wall round the flame turns a strong orange-yellow; 10% of the pixels reach full red (0.3% at
+    2), still none white; the bricks' relief stays, a little flattened just above the flame. The flame model itself
+    looks paler, yellow-white rather than orange.
+  - Nothing looks broken, so there is no counterpart change. If the wall right by a torch looks too hot in the headset,
+    the mild fix is to keep the torch's own flame out of its light, or to ease the colour towards saturation rather
+    than clip red first. Say if you want either.
+  - With Quake's falloff (`vr_dlight_falloff 0`) the brightness only stretches the reach, up to 2x: above 2 it changes
+    nothing there.
+
+### Checks (mock headset)
+
+The runs used a clean game folder (`defaults4/freshbase`: no configs in `id1`, `hipnotic` or `rogue`); the
+worktree's baseline config was moved aside for the first starts and put back.
+
+- **A first start against yours** (both after a map): all 6432 `vr_wofs_*` identical, the 13 hand calibration settings
+  identical. The 20 other differences are personal or the desktop's: the console, menu, status bar and crosshair scale,
+  the menu background, mouse sensitivity, the window's antialiasing (2), your arms (5) and body tweaks (2), height, the
+  motion recorder (2), the OpenXR runtime, and `vr_finger_grip_bias` spelled `0` in yours and `0.0` in the defaults.
+- **Your config through this build** against the build before: every setting identical but `vr_wofs_version` (21).
+- **`vr_dumpview`**, your config (its arms, body tweaks and height set to a first start's) against a first start, in
+  the firing range: 13 weapons in the main hand, the same in the off hand, and the shotgun, super shotgun and lightning
+  gun in both hands: 29 dumps, 2144 lines, 3 differ (a hand model's yaw -180 against 180, and a hand angle by 0.0001
+  degree). The flashlight in the off hand, e1m1, two poses: the lamp, the hand and its fingers identical (the gadget on
+  the wrist differs by 0.001).
+
+### In the headset
+
+- [ ] A first start (move your config away): the shotgun's cup, the super shotgun's cup and grip and the nailgun's cup
+  are where you set them; the flashlight sits in the hand as in yours.
+- [ ] The torches at 10 on a first start, close to a wall torch: too hot or right?
+- [ ] Body > Arms on a first start: the compiled arms (Arm Length 1).
