@@ -141,6 +141,14 @@ context and screenshot, ready to paste or to point me at.
 ## What to try
 
 - **New in this round** (details in `docs/vr-port/ROUND21.md`; each section ends with an "In the headset" list):
+  - **Stamina on the gadget; the glow** (ROUND21.md, "Stamina on the gadget; the glow"): with Parry Stamina on, the
+    bar over the weapon is gone; the wrist gadget's top row shows STAMINA and ten cells instead. In the firing range,
+    turn on DUMMY ATTACKS and parry: each one-handed parry takes three cells; the cells blink when one more would
+    knock the sword away; EXHAUSTED (and the screen's frame) blinks when none is left; a sweep runs along the empty
+    cells while it comes back. Each parry turns the label into COUNTER over a bar that runs out with the window.
+    Gameplay > Parry, Bash and Headbutt > Stamina on the Gadget turns it off (also HUD and Menus > Screens > Stamina and
+    Counters). **Counter Window Glow** (Counter-Attacks; now off as shipped, and your saved "on" is turned off once):
+    turn it on to try it: the weapon glows gold at its edges and sheds embers until the window closes.
   - **Dynamic wounds, burns and wetness** (Gore page > Wounds on Models; ROUND21.md "Dynamic wounds, burns and
     wetness"): shoot a grunt a few times, blow up an ogre, shove a monster into lava or slime, let a grunt shoot you,
     wade in water: blood where each blow landed, scorches, char with embers, wet and drying; a health pack washes

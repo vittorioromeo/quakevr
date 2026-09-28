@@ -29,6 +29,7 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | Dummy attacks | a DUMMY ATTACKS button beside the firing range's training dummy: it winds up (a sound, a glow, the rifle raised) and strikes you every 2.5 s as a knight would, for parry practice (parry, stamina, counters as in a fight); off at every map load; replays turn it off, and a take recorded with it on replays its blows at the same moments; your 471 archived takes evaluate identically |
 | Melee fixes | a punch holding the torch lands (it never did); the free palm with the torch hand pushing is a two-handed shove, the torch hand alone no shove; axe, Mjolnir, sword and gun blows strike walls (10 of 24 test chops before, 23 now); gibs on the floor burst when punched or chopped; your 471 takes replay identically |
 | Dynamic wounds | blood, burns and wetness painted into each monster's, corpse's and your own skin where the blow lands (chunky, on the skin's texels, Quake's reds), drying, cooling, healing; your body and hands no longer use the wound skins; 16 MB, about 2 µs of GPU a hit |
+| Stamina on the gadget; the glow | the stamina bar over the weapon is gone: parry stamina shows in the gadget screen's top row (ten cells; blinking when low; EXHAUSTED; a sweep while it recovers) with COUNTER while a counter's window is open; the counter glow never showed (1 cm sparks inside the blade, at a lagging pose): now a gold rim glow and embers drawn by the client, off as shipped |
 
 Found on the way: fteqcc stores 0 when `a || b` is assigned into an entity field (rewritten; no other code has that
 shape); a parried blow's hand knock, timed by `cl.time`, came back after a level change (reset now).
@@ -4252,12 +4253,12 @@ menu under Gameplay > Parry, Bash and Headbutt, as two new sections.
 | `vr_parry_stamina_delay` | 2 s | Rest Before Recovering (0-6 s, extends) |
 | `vr_parry_stamina_regen` | 25 /s | Recovery Rate (1-100, extends) |
 | `vr_parry_stamina_warn` | 1 | Tiring Warning (0-1) |
-| `vr_parry_stamina_show` | 1 | Stamina Bar |
+| `vr_parry_stamina_show` | 1 | Stamina Bar (retired: "Stamina on the gadget; the glow") |
 | `vr_counter` | 1 | Counter-Attacks |
 | `vr_counter_window` | 1.5 s | Counter Window (0.25-4 s, extends) |
 | `vr_counter_damage` | 1.5 | Counter Damage (1-3x, extends) |
 | `vr_counter_sound` | 1 | Counter Sounds (0-1) |
-| `vr_counter_glow` | 1 | Counter Glow |
+| `vr_counter_glow` | 1 (0 since "Stamina on the gadget; the glow") | Counter Glow (now Counter Window Glow) |
 | `vr_counter_haptic` | 1 | Counter Pulses (0-1) |
 
 **Tracing.** With `developer 1`, the console shows each step:
@@ -6818,3 +6819,127 @@ scratchpad's `handcoll/`.
 - [ ] Take the foregrip, cup a pistol, carry a box in both hands, holster at the hips, chest and shoulders, pass the
       torch between your hands: none should be hindered.
 - [ ] If it holds too long, lower Pass Through At; if a hand pops through too soon, raise it. Tell me which.
+
+## Stamina on the gadget; the glow
+
+Your note from the firing range: the stamina bar isn't great; show stamina on the wrist gadget instead, as an option.
+And the glow doesn't work at all: find out why and fix it so you can try it, though you'd probably rather play
+without it. Branch `agent/stamina`; pictures in the scratchpad's `stamina/`.
+
+### The bar is gone
+
+The bar that rose from the weapon at each parry (Quake's slider glyphs through `floattext`) is removed: its QC
+(`VR_Stamina_Bar` and its call in `VR_Stamina_Parry`, whose unused position argument went too), its menu toggle, and
+its cvar. `vr_parry_stamina_show` stays registered but unsaved and unused (`CVAR_NONE`, as `vr_carry_reach` was
+retired), so your config loads silently and the next save drops it. Before and after, the same script and frames
+(`bar_before_after.png`): the green bar over the sword, then nothing.
+
+### Stamina on the gadget
+
+**Setting:** Gameplay > Parry, Bash and Headbutt > **Stamina on the Gadget** (`vr_gadget_stamina`, on), also
+HUD and Menus > Screens > Stamina and Counters. **On by default**, because it only shows anything when Parry Stamina
+is on (or a counter's window is open), and with the bar gone it is the only thing that shows how much you have left.
+Off, the screen is exactly as before.
+
+**Where:** the screen's top row, where RANGER STATUS was. It is the one row nothing else needs (the title), the first
+thing the eye meets on the screen, and wide enough for a real gauge: the label and ten cells across the whole width.
+The screen is one colour (its phosphor), so everything is told by brightness, in the screen's own vocabulary: lit
+cells, outlined empty ones, and blinking for warnings, as its red numbers already blink.
+
+| State | What the row shows |
+|---|---|
+| Rested | STAMINA, ten lit cells |
+| After parries | lit cells for what's left (30 of 100 is three cells; a cell being filled is lit in part), the rest outlined |
+| Low (one more one-handed parry knocks the weapon away) | the lit cells blink (lit 0.5 s of every 0.8, dimmed the rest) |
+| Exhausted (none left) | all outlined, EXHAUSTED blinks over them, and the screen's whole frame blinks bright, to be caught out of the corner of the eye |
+| Resting before it comes back | still (nothing moves) |
+| Coming back | a bright sweep runs along the empty cells every 0.7 s while the cells fill |
+| Counter's window open | the label turns to COUNTER, lit in reverse, and the rule under the row becomes a thick bar that runs out with the window |
+
+- **Without Parry Stamina**, the row is the title as before, except while a counter's window is open (Counter-Attacks
+  is on as shipped): then COUNTER and its bar show in the title's place.
+- **The other modes:** the FPS counter (Basic or Detailed) floats under the gadget and the hologram grows out of the
+  screen; neither covers the top row, and the row doesn't move anything else on the screen. Level and Stats is the
+  bottom rows. The weapons' ammo screens are untouched (a sword has none, which is why the gadget is the right place).
+- **Either wrist, hidden:** the row is part of the screen's image, so it goes wherever the gadget is drawn. With the
+  gadget off (HUD mode not the gadget), there is no screen and no stamina, as asked.
+
+**How it gets there:** QC works out the state each frame (`VR_Melee_Hud`, after the stamina and counter frames, in
+`vr_melee.qc`) into one player field, `.vr_melee_hud`: the stamina left in percent (rounded up, so 0 only when
+none is left), + 128 with parry stamina on, + 256 low, + 512 coming back, + 1024 x the window's share left in 63rds.
+The engine sends it as a stat (`STAT_QVR_MELEE`, `vr_server.cpp`), `vr_meleehud.cpp` unpacks it, and the gadget's
+`layout()` draws the row (`meleeRow`). Low and exhausted are the server's judgement (its costs), not guessed by the
+client.
+
+### The glow: why it never showed
+
+The Counter Glow (on as shipped) did run: the QC spawned `particle2(..., QVR_PARTICLE_PRESET_LAVASPIKE, 1)` every
+0.03 s for each hand, anywhere along the hand's melee line, and a debug print confirmed the particles were sent for
+both hands, at the right places. You couldn't see them because:
+
+1. **They were inside the weapon.** The melee line is the weapon's centre line (the grip to the muzzle or tip), so
+   every ember started inside the blade, the handle or the fist, and the depth test hid it.
+2. **They were tiny and didn't move.** The lava spike preset is the lava nails' sparkle: about 1 cm (scale 0.17),
+   half a second, 2 units a second. It never got out of the mesh it started in.
+3. **At the server's hand pose.** Even the few at an edge were placed where the hand was a server frame ago; the
+   client draws the weapon from the latest pose, so in real play (the hands always moving) they were left behind.
+
+The mock showed the same: glow on and glow off gave the same pictures, apart from the parry's own sparks. So it
+wasn't a default, a shader path or the later model shader changes: it could never have been seen.
+
+### The glow, fixed (off as shipped)
+
+**Counter Window Glow** (Counter-Attacks, `vr_counter_glow`), renamed from Counter Glow so it says which glow. It is
+now drawn by the client, from the window's share left (the same stat), on what the hands hold as drawn this frame:
+
+- **A gold glow round the weapon's edges**, the force grab's glow in gold: the alias shader already lights an
+  entity's rim by its glow value; a negative value now means the counter's gold (a small change in
+  `alias_fragment_shader`). It flares as the window opens, follows it down, and fades out in 0.2 s when it closes.
+- **Golden embers off its surface:** about 40 a second from each hand's weapon at first, fewer as the window closes,
+  each from a random vertex of the drawn model, leaving the surface and rising (`particles::counterEmber`: gold, 1-2 cm,
+  0.4-0.75 s).
+- A bare fist glows too (less, 0.6), with embers off the knuckles; a hand steadying the other's weapon, carrying or
+  climbing doesn't.
+
+**Off by default**, as you'd rather play without it. Config version 14 turns a saved `vr_counter_glow 1` (the old
+default, which every config saved) off once, so yours will be off too; turn it on to try it.
+
+Pictures (`glow_closeup.png`, from in front; `glow_eye.png`, from your eyes): the same parry with the glow off and
+on, before, 0.07, 0.35, 0.8 and 1.3 s after, and after the window closed. On, the sword glows gold along its edges
+and sheds embers, dimming, and is itself again once the window closes; off, nothing.
+
+### Tests (mock headset; scratchpad `stamina/gen.py`)
+
+Firing range, the sword across in one hand, the dummy's attacks every 2.5 s (no randomness), Parry Stamina on with
+Rest Before Recovering at 3 s (so that stamina doesn't come back between the blows), your OLD hand settings
+(`vr_gunangle 39.5`, `vr_gunyaw 4`, every `vr_handcal_*` 0):
+
+- the log: 70, 40, 10 (low), 0 ("none, the weapon is knocked away"), "coming back (3.00 s after the last parry)",
+  "rested, 100 (7.00 s after the last parry)";
+- `screen_rows.png`: the screen's top row at each state, from the new `vr_gadget_screen_dump` (the screen's image as
+  drawn, before the phosphor tint and glow): rested; 70 with COUNTER and its bar; low, both blink phases; EXHAUSTED,
+  both phases (the frame bright in one); the sweep; filling; rested. `screen_full.png`: the whole screen;
+- `gadget_closeup.png`: the same ten moments on the gadget, from a camera over the wrist; `gadget_eye.png`: from your
+  eyes, the wrist raised (at the mock's 960 x 540 the row reads as a bright strip along the screen's edge, its length
+  the stamina);
+- `bar_before_after.png`, `glow_closeup.png`, `glow_eye.png` as above; `menu.png`: the two pages' new entries and their help.
+
+A test command: `vr_gadget_screen_dump [name]` writes the gadget screen's image to `screenshots/<name>.png`.
+
+### Not verified
+
+- In the headset: how readable the row is at a glance, at the real resolution and distance, and whether the blinks
+  are enough out of the corner of the eye; the glow's look in a real fight (the pictures are the mock's).
+- Removing the old QC embers also removed their `random()` calls, so a replay that draws other random numbers after a
+  counter's window (the drop chance with Parry Stamina off) may draw different ones. The melee canary eval is skipped
+  this round (your takes are archived), so this wasn't compared.
+
+### In the headset
+
+- [ ] Parry Stamina on, the firing range, DUMMY ATTACKS: parry and glance at the wrist: three cells go each one-handed
+      parry (some come back between the dummy's blows, 2.5 s apart); COUNTER and its bar right after each parry.
+- [ ] Keep parrying: the cells blink before the last one; EXHAUSTED and the frame blink when the sword flies. Stop:
+      after the rest, the sweep and the cells filling.
+- [ ] Is it readable without lifting the wrist to your face? If not, say what you'd want bigger.
+- [ ] Counter Window Glow on (Counter-Attacks): the sword glows gold with embers after a parry, gone once the window
+      closes or the counter lands. Keep it or leave it off.
