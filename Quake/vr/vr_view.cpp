@@ -31,6 +31,7 @@
 #include "vr_sightalign.hpp"
 #include "vr_profile.hpp"
 #include "vr_weapons.hpp"
+#include "vr_wounds.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -2113,7 +2114,7 @@ bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
         }
     }
     ve.zeroBlend = 0.f;
-    ve.ent.skinnum = damageLevel();
+    ve.ent.skinnum = wounds::replacesSkins() ? 0 : damageLevel(); // wounds painted instead (vr_wounds.cpp)
     ve.visible = !hide;
     for(int finger = FingerBase + 1; finger < FingerCount; finger++)
     {
@@ -3439,7 +3440,7 @@ void showPlayerState(view::ViewEntity& ve, const hands::State& s)
 {
     if(vr_body_state.value)
     {
-        ve.ent.skinnum = armorWorn() * 4 + damageLevel();
+        ve.ent.skinnum = armorWorn() * 4 + (wounds::replacesSkins() ? 0 : damageLevel()); // wounds painted instead (vr_wounds.cpp)
     }
     else
     {
@@ -4354,6 +4355,9 @@ extern "C" void VR_SetupViewEntities()
 
     // Spent casings thrown out of the weapons (vr_shells.cpp).
     shells::frame(entities.weapon);
+
+    // Wounds painted on the models (vr_wounds.cpp), the body and the hands posed.
+    wounds::frame();
 }
 
 namespace qvr::view
@@ -4516,6 +4520,15 @@ void modelReload_f()
     if(body)
     {
         bodyblood::clear(); // the wounds painted on the old mesh
+    }
+}
+
+void woundTargets(entity_t* out[3])
+{
+    out[0] = entities.body.visible && entities.body.ent.model ? &entities.body.ent : nullptr;
+    for(int hand = 0; hand < 2; hand++)
+    {
+        out[1 + hand] = rigHands[hand].drawn && entities.hand[hand][FingerBase].ent.model ? &entities.hand[hand][FingerBase].ent : nullptr;
     }
 }
 

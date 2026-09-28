@@ -26,6 +26,7 @@
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
 #include "vr_worldtext.hpp"
+#include "vr_wounds.hpp"
 
 #include <algorithm>
 #include <cstring>
@@ -588,6 +589,7 @@ extern "C" void VR_OnClientClearState()
     handpose::reset();
     modelcollide::reset();
     shells::clear();
+    wounds::clear();
     view::resetClientState();
     hands::resetClientState();
 }
@@ -648,6 +650,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_WORLDTEXT_SCALE: worldtext::clientParse(subcmd); break;
         case QVR_SVC_FLOATTEXT: worldtext::clientParseFloatText(); break;
         case QVR_SVC_EJECT: shells::parseEject(); break;
+        case QVR_SVC_WOUND: wounds::parseEvent(); break;
         default: Host_Error("svc_quakevr: unknown command %d", subcmd);
     }
 

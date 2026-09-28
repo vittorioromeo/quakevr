@@ -1019,6 +1019,25 @@ void endView(hands::State& s, const entity_s* const weapon[2], const bool mirror
     }
 }
 
+bool drawnTriangles(const entity_t& e, int num, std::vector<glm::vec3>& out)
+{
+    out.clear();
+    Posed* p = const_cast<Posed*>(posed(num, e));
+    if(!p || !p->model->alias)
+    {
+        return false;
+    }
+    const std::vector<glm::vec3>& v = vertsOf(*p);
+    out.reserve(p->model->tris.size() * 3);
+    for(const auto& t : p->model->tris)
+    {
+        out.push_back(v[t[0]]);
+        out.push_back(v[t[1]]);
+        out.push_back(v[t[2]]);
+    }
+    return true;
+}
+
 glm::vec3 drawnOffset(int hand)
 {
     return hand == 0 || hand == 1 ? drawn[hand] : glm::vec3{0.f};

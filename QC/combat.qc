@@ -1042,6 +1042,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
 
     // VR: gore: blood sprayed onto the walls, floor and ceiling behind the hit (vr_gore, vr_carry.qc).
     VR_Gore_Hit(targ, inflictor, take);
+    VR_Wound_Hit(targ, inflictor, attacker, take); // VR: painted on its model (vr_wounds.qc)
 
     // do the damage
     targ.health = targ.health - take;
