@@ -61,6 +61,20 @@ int stateFrame = -1;
            glm::angleAxis(glm::radians(-pitch), glm::vec3{1.f, 0.f, 0.f});
 }
 
+// The throw's frame on the controller (vr_throw.cpp: the wrist flick's lever to the held object's centre): the
+// controller turned by the pitch and yaw the hands had before the calibration (Gun Angle 39.5 and Gun Yaw 4, the off
+// hand's 40.25 and -4: the defaults the throws were tuned with, until 2026-09-28), whatever the calibration now. The
+// calibration makes the drawn hand match the real one; the throws, the author's feel of them, go with the controller's
+// own motion, which the calibration doesn't change (ROUND21.md, "Climbing: sliding along the wall; throw angle after
+// calibration"). vr_throw_pitch tilts the result.
+[[nodiscard]] glm::quat throwFrame(const glm::quat& q, int hand)
+{
+    const float pitch = hand == HAND_MAIN ? 39.5f : 40.25f;
+    const float yaw = hand == HAND_MAIN ? 4.f : -4.f;
+    return q * glm::angleAxis(glm::radians(yaw), glm::vec3{0.f, 1.f, 0.f}) *
+           glm::angleAxis(glm::radians(-pitch), glm::vec3{1.f, 0.f, 0.f});
+}
+
 // The rest of the hand calibration (hands::calibration), on a hand turned by withHandOffsets (`pos`, `ori`: tracking
 // space) whose controller's grip pose is (`gripPos`, `gripOri`): the roll about where the hand points, through the grip,
 // then the move along the grip's axes. Nothing is touched at 0 (the same numbers, bit for bit, as before it).
@@ -78,10 +92,9 @@ void calibrate(const Calibration& c, const glm::vec3& gripPos, const glm::quat& 
     }
 }
 
-// Each hand's calibrated point off its tracked one, and its grip's (tracking space, metres): their velocities are the
-// tracked ones' plus the turn's (update, updateVelocities).
+// Each hand's calibrated point off its tracked one (tracking space, metres): its velocity is the tracked one's plus the
+// turn's (update, updateVelocities). Not the throws': they go with the controller's grip (updateVelocities).
 glm::vec3 calibratedOffset[2]{glm::vec3{0.f}, glm::vec3{0.f}};
-glm::vec3 calibratedGripOffset[2]{glm::vec3{0.f}, glm::vec3{0.f}};
 
 // Rotation of the play space around the vertical axis: accumulated snap/smooth turning, and
 // re-based whenever the server sets the view angle (spawning, teleporters).
@@ -362,15 +375,17 @@ void updateVelocities(const TrackingState* t)
 
         previous.hands[h] = local;
         // On the runtime's clock when it has one: the release is timed on it too. Throws go with
-        // the palm, where the object is held, not the controller point further out.
+        // the palm, where the object is held, not the controller point further out; and with the
+        // controller alone, whatever the hand calibration (see throwFrame).
         const double time = t && t->time >= 0.0 ? t->time : realtime;
-        const glm::vec3& gripOff = calibratedGripOffset[h];
-        const glm::vec3 throwVel = t && t->hands[h].velocityValid && t->hands[h].gripVelocityValid
-                                       ? fromTracking(gripOff == glm::vec3{0.f} ? t->hands[h].gripVelocity
-                                                                               : t->hands[h].gripVelocity +
-                                                                                     glm::cross(t->hands[h].angularVelocity, gripOff))
-                                       : state.vel[h];
-        throwing::sample(h, time, state.pos[h], throwVel, state.angVel[h], forward(state.rot[h]));
+        glm::vec3 throwVel = state.vel[h];
+        glm::vec3 throwForward = forward(state.rot[h]);
+        if(t && t->hands[h].velocityValid)
+        {
+            throwVel = fromTracking(t->hands[h].gripVelocityValid ? t->hands[h].gripVelocity : t->hands[h].linearVelocity);
+            throwForward = forward(anglesFromTracking(throwFrame(t->hands[h].orientation, h), turnYaw));
+        }
+        throwing::sample(h, time, state.pos[h], throwVel, state.angVel[h], throwForward);
     }
 
     previous.head = head;
@@ -534,7 +549,6 @@ void update()
             const glm::quat unrolled = handOri;
             calibrate(cal, gripPos, gripOri, handPos, handOri);
             calibratedOffset[h] = handPos - t.hands[h].position;
-            calibratedGripOffset[h] = cal.move != glm::vec3{0.f} ? gripOri * trackingFromQuake(cal.move * 0.01f) : glm::vec3{0.f};
             state.pos[h] = toWorld(handPos);
             state.rot[h] = anglesFromTracking(handOri, turnYaw);
             state.calibratedPos[h] = state.pos[h];

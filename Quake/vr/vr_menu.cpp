@@ -1156,6 +1156,8 @@ void hologramTestMessage()
             .help("How far back from that moment the throw's direction is averaged."),
         slider("Lever Arm", vr_throw_lever_arm, 0.f, 0.3f, 0.01f, "%.2f m").extend()
             .help("From the palm to the held object's centre: wrist flicks add speed through it."),
+        slider("Release Pitch", vr_throw_pitch, -15.f, 15.f, 0.5f, "%+.1f deg").extend()
+            .help("Tilts every throw up (or down, below 0). 0: as throws were tuned; the hand calibration doesn't change them."),
         toggle("Analog Release", vr_throw_release)
             .help("A throw lets go as the grip starts to open, not only once it is released."),
         slider("Max Speed Gain", vr_throw_gain_max, 1.f, 3.f, 0.05f, "%.2fx").extend()
