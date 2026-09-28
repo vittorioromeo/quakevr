@@ -4,10 +4,12 @@
 #include "vr_body.hpp"
 #include "vr_bodycal.hpp"
 #include "vr_engine.hpp"
+#include "vr_weapons.hpp"
 
 #include <cstring>
 #include <map>
 #include <string>
+#include <utility>
 
 namespace qvr
 {
@@ -52,7 +54,21 @@ const DefaultChange defaultChanges[] = {
     {13, &vr_shove_speed, "1.8"},         // the author's shoves go 3.2-4.8 m/s, his hands waved at the dummy 2.2 (round 21)
     {14, &vr_counter_glow, "1"},          // off: the author would rather play without it (round 21, "Stamina on the gadget; the glow")
 };
-constexpr int configVersion = 15;
+constexpr int configVersion = 16;
+
+// Two settings' values the same (as numbers when both are).
+[[nodiscard]] bool sameValue(const char* a, const char* b)
+{
+    char* endA;
+    char* endB;
+    const double x = strtod(a, &endA);
+    const double y = strtod(b, &endB);
+    if(endA != a && !*endA && endB != b && !*endB)
+    {
+        return fabs(x - y) < 1e-6;
+    }
+    return !strcmp(a, b);
+}
 
 // Right after the saved config is executed (Cmd_Exec_f queues it). "vr_migrate_config new": there was no saved config
 // (a first start): the settings are this version's, nothing to change.
@@ -62,6 +78,7 @@ void migrateConfig_f()
     if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "new"))
     {
         Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
+        weapons::markCurrent(); // and the weapons' settings are the shipped ones (no cups or grips of a config to move)
         return;
     }
     const int from = static_cast<int>(vr_cfg_version.value);
@@ -104,6 +121,47 @@ void migrateConfig_f()
     if(from < 15)
     {
         body::migrateHolsters();
+    }
+    // 16: the author's hand calibration ships with his weapon offsets, which were set over it (round 21, "Defaults: the
+    // author's weapon offsets and settings"; the weapons take his offsets: vr_wofs_version 20). A config that never
+    // calibrated its hands (each value the old default, or the new one) takes all of it, or its guns would sit off its
+    // hands; one that did keeps its own. A config saved before the calibration existed (13) has no vr_handcal_*: its
+    // hands were at 0, not at the new defaults it has now.
+    if(from < 16)
+    {
+        const std::pair<cvar_t*, const char*> angles[] = {
+            {&vr_gunangle, "39.5"}, {&vr_gunyaw, "4"}, {&vr_offhandpitch, "40.25"}, {&vr_offhandyaw, "-4"}};
+        cvar_t* const moves[] = {&vr_handcal_x, &vr_handcal_y, &vr_handcal_z, &vr_handcal_roll, &vr_handcal_off_mirror,
+            &vr_handcal_off_x, &vr_handcal_off_y, &vr_handcal_off_z, &vr_handcal_off_roll};
+        if(from < 13)
+        {
+            for(cvar_t* var : moves)
+            {
+                Cvar_SetQuick(var, "0");
+            }
+        }
+        bool untouched = true;
+        for(const auto& [var, before] : angles)
+        {
+            untouched = untouched && (sameValue(var->string, before) || sameValue(var->string, var->default_string));
+        }
+        for(const cvar_t* var : moves)
+        {
+            untouched = untouched && (sameValue(var->string, "0") || sameValue(var->string, var->default_string));
+        }
+        if(untouched)
+        {
+            for(const auto& [var, before] : angles)
+            {
+                Cvar_SetQuick(var, var->default_string);
+            }
+            for(cvar_t* var : moves)
+            {
+                Cvar_SetQuick(var, var->default_string);
+            }
+            Con_DPrintf("VR: the hand calibration: the new defaults (vr_gunangle %s, vr_handcal_x %s...)\n", vr_gunangle.string,
+                vr_handcal_x.string);
+        }
     }
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
 }
@@ -150,24 +208,11 @@ const CompiledDefault compiledDefaults[] = {
 #undef QVR_CVAR
 };
 
-[[nodiscard]] bool sameValue(const char* a, const char* b)
-{
-    char* endA;
-    char* endB;
-    const double x = strtod(a, &endA);
-    const double y = strtod(b, &endB);
-    if(endA != a && !*endA && endB != b && !*endB)
-    {
-        return fabs(x - y) < 1e-6;
-    }
-    return !strcmp(a, b);
-}
-
 // Per-player or bookkeeping settings, never shipped.
 [[nodiscard]] bool personal(const cvar_t* var)
 {
     return var == &vr_cfg_version || var == &vr_bindings_version || var == &vr_wofs_version || var == &vr_height_calibration
-        || var == &vr_xr_runtime || var == &vr_xr_runtime_json || var == &vr_note_device
+        || var == &vr_xr_runtime || var == &vr_xr_runtime_json || var == &vr_note_device || var == &vr_dominant_eye
         || !std::strncmp(var->name, "vr_motion_", 10) // the motion recorder's (a tool's settings)
         || !std::strncmp(var->name, "vr_bodycal_", 11) || !std::strncmp(var->name, "vr_body_tweak_", 14); // one's body
 }

@@ -95,8 +95,11 @@ namespace
 // hotspots: a config's own grips, or a weapon it moved or scaled, are turned into hotspots where they were:
 // takeHotspotMigration). 16: the alternates inherit (InheritFrom). 17: a hotspot allows two-handed use. 18: none reset
 // (round 21, third pass: a cup hotspot is the helping hand's palm: a config's cups are moved to where their hands were
-// drawn, by the view: cupMigrationPending).
-constexpr int settingsVersion = 19;
+// drawn, by the view: cupMigrationPending). 19: slots 0..3, 7 and 17 (the author's poses after the posing mode). 20: slots
+// 0..3, 5..10 and 17..19 (the author's offsets, hotspots, two-handed aim and Hand and Weapon Together, 2026-09-28, set
+// over his hand calibration, which ships with them: vr_cvars.cpp, config version 16). A first start (no saved config)
+// takes this version as it is: its settings are these defaults (markCurrent).
+constexpr int settingsVersion = 20;
 
 // Slots whose hotspots the view is to derive from the config's two-handed grip keys (round 21).
 bool hotspotMigration[numSlots]{};
@@ -110,6 +113,9 @@ void resetSlot(int slot)
         cvar_t& var = cvarAt(slot, static_cast<Key>(key));
         Cvar_SetQuick(&var, var.default_string);
     }
+    // The defaults are in today's form: nothing of the config's left to turn into hotspots or cups.
+    hotspotMigration[slot] = false;
+    cupMigration[slot] = false;
 }
 
 // The configs are read before anything asks for a slot.
@@ -254,6 +260,13 @@ void migrate()
             resetSlot(slot);
         }
     }
+    if(vr_wofs_version.value < 20) // the author's offsets and hotspots, 2026-09-28
+    {
+        for(const int slot : {0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 17, 18, 19})
+        {
+            resetSlot(slot);
+        }
+    }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }
 
@@ -309,6 +322,11 @@ void registerCvars()
 cvar_t* cvar(int slot, Key key)
 {
     return slot >= 0 && slot < numSlots ? &cvarAt(slot, key) : nullptr;
+}
+
+void markCurrent()
+{
+    Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }
 
 void resetSlotToDefaults(int slot)
