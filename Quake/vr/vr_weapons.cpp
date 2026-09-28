@@ -516,6 +516,23 @@ glm::vec3 shotAngles(const glm::vec3& aimRot, int slot, bool mirrored)
     return hands::anglesFromVectors(glm::normalize(toWorld(localFwd)), glm::normalize(toWorld(localUp)));
 }
 
+Key holsteredKey(HolsterKind kind, int field)
+{
+    static_assert(static_cast<int>(Key::ShoulderHolsterRoll) ==
+                  static_cast<int>(Key::HipHolsterX) + holsterKinds * holsteredFields - 1);
+    return static_cast<Key>(static_cast<int>(Key::HipHolsterX) + holsteredFields * static_cast<int>(kind) + field);
+}
+
+HolsteredPose holsteredPose(int slot, HolsterKind kind)
+{
+    if(slot < 0)
+    {
+        return {};
+    }
+    return {vec(slot, holsteredKey(kind, 0), holsteredKey(kind, 1), holsteredKey(kind, 2)),
+        vec(slot, holsteredKey(kind, 3), holsteredKey(kind, 4), holsteredKey(kind, 5))};
+}
+
 void printSlot(int slot)
 {
     if(slot < 0 || slot >= numSlots)

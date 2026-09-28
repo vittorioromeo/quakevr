@@ -246,6 +246,29 @@ QVR_WEAPON_KEY(Hotspot4ThumbAcross, "hs4_thumb_across")
 // (Show Controller Laser's red, the posing mode's) lined up with the sights. weapons::shotAngles.
 QVR_WEAPON_KEY(ShotPitch, "shot_pitch")
 QVR_WEAPON_KEY(ShotYaw, "shot_yaw")
+// The weapon as it sits in a holster (the author: "tweak the positions per weapon"), per kind of holster (the hips, the
+// chest, the back: the weapon lies differently on each), on top of the holster's own place and turn: moved (units: X off
+// the body, Y outwards, Z up) and turned about its grip (degrees: pitch tips its top off the body, yaw turns it
+// outwards, roll tips its top outwards) in the holster's frame; Y, yaw and roll mirrored for the left holsters, as the
+// holsters' own sliders. Drawn only: where the hand reaches for the holster stays. weapons::holsteredPose.
+QVR_WEAPON_KEY(HipHolsterX, "hol_hip_x")
+QVR_WEAPON_KEY(HipHolsterY, "hol_hip_y")
+QVR_WEAPON_KEY(HipHolsterZ, "hol_hip_z")
+QVR_WEAPON_KEY(HipHolsterPitch, "hol_hip_pitch")
+QVR_WEAPON_KEY(HipHolsterYaw, "hol_hip_yaw")
+QVR_WEAPON_KEY(HipHolsterRoll, "hol_hip_roll")
+QVR_WEAPON_KEY(UpperHolsterX, "hol_upper_x")
+QVR_WEAPON_KEY(UpperHolsterY, "hol_upper_y")
+QVR_WEAPON_KEY(UpperHolsterZ, "hol_upper_z")
+QVR_WEAPON_KEY(UpperHolsterPitch, "hol_upper_pitch")
+QVR_WEAPON_KEY(UpperHolsterYaw, "hol_upper_yaw")
+QVR_WEAPON_KEY(UpperHolsterRoll, "hol_upper_roll")
+QVR_WEAPON_KEY(ShoulderHolsterX, "hol_shoulder_x")
+QVR_WEAPON_KEY(ShoulderHolsterY, "hol_shoulder_y")
+QVR_WEAPON_KEY(ShoulderHolsterZ, "hol_shoulder_z")
+QVR_WEAPON_KEY(ShoulderHolsterPitch, "hol_shoulder_pitch")
+QVR_WEAPON_KEY(ShoulderHolsterYaw, "hol_shoulder_yaw")
+QVR_WEAPON_KEY(ShoulderHolsterRoll, "hol_shoulder_roll")
 #endif
 
 #ifdef QVR_WEAPON_DEFAULT

@@ -7450,3 +7450,117 @@ new corner for the leniency: a thin wall (4 units, 96 high) on the main floor wi
 - [ ] Grab Leniency 10: reach a little short of rungs and ledges. Too eager (holds you didn't mean) or still too strict?
 - [ ] A far grab (Leniency 30, the hand 30 cm short): the drawn hand glides on; you don't move until you pull.
 - [ ] The hand's light on a hold in a dark place (it is lit like the top it grips).
+
+## Per-weapon holstered pose
+
+Your note (firing range): "some weapons, when they are in the holsters, they have a not very natural or pleasant
+position, so if I could tweak the positions per weapon, that would be nice." Branch `agent/holsterwpn`; scripts, logs and
+images in the scratchpad's `holsterwpn/`.
+
+### Where
+
+Weapon Offsets (hold the weapon, open its page) > **Holstered**, above This Weapon:
+- **Holster:** Hip, Upper (Chest) or Shoulder (Back): which holsters' pose the six sliders below edit.
+- **Preview in Holster** (on): while any setting of this section is chosen, the weapon you hold is drawn in **both**
+  holsters of that kind, in place of what they hold. You are holding the weapon to edit it, so without this you could
+  never see it holstered while tuning. Move the cursor off the section and the holsters show what they really hold.
+- **Holstered X (off body), Y (outwards), Z (up):** units, -10..10 on the bar, on to -50..50.
+- **Holstered Pitch, Yaw, Roll:** degrees, -90..90 on the bar, on to -180..180, 1-degree steps.
+- **Holstered Back to 0:** this kind's six back to 0.
+
+Every change shows at once, in the holsters and on the body preview (`vr_body_debug 2`).
+
+### The design: per kind of holster
+
+There are three sets, one each for the hips, the chest and the back: 18 keys per weapon,
+`vr_wofs_hol_{hip,upper,shoulder}_{x,y,z,pitch,yaw,roll}_NN`. The page shows six sliders and a Hip / Upper / Shoulder
+choice, as the Hotspot choice does for the four hotspots.
+
+**Why not one set for all three:** each kind of holster carries the gun differently.
+- On the hips and chest it hangs muzzle down along a plate, its top towards your middle, tipped out 10 and 25 degrees.
+- On the back its top faces away from you.
+
+So one "Roll +20" would cant the gun sideways on the hip but turn it about another axis on the back. A long gun that
+clears the thigh on the back can also need moving on the hip. A single set would only fit one kind, and tuning the
+others would undo it.
+
+The left and right holsters of a kind share one set, mirrored, as the Hotspots page's holster sliders are: 3 sets, not 6.
+
+### What the numbers mean
+
+The pose is in the holster's own frame, after the holster's place and turn (Hotspots: Hip X, Hip Pitch...). If you turn
+a holster later, the weapon keeps its pose in it.
+- **X** off the body (negative: into it), **Y** outwards (away from your middle), **Z** up.
+- **Pitch** tips the gun's top off the body, **Yaw** turns it outwards, **Roll** tips its top outwards (a hanging gun's
+  muzzle goes the other way). These are the Hotspots page's holster sliders' axes and order (yaw, pitch, roll).
+- The gun turns about **its grip**: the model's origin, which the weapon's Offset puts in the hand. A turn stays where
+  it hangs rather than swinging it around the holster.
+- **Mirrored:** the left holsters' frame is the right ones' mirror image. So Y, Yaw and Roll mirror, and X, Z and Pitch
+  don't. `vr_dumpview` confirms it: the two hips' rocket launchers sit at x 540.777 and 547.223, the same 3.223 units
+  from the body's middle (544), with the same height and depth. Their yaw is -90 on both (mirrored about the body's
+  facing yaw 90, which leaves -90 as it is) and their roll is -152 and +152.
+
+**Only the drawn gun moves.** The holster's model and the point your hand reaches for (the insert sphere, Threshold)
+stay where the Hotspots settings put them. Drawing and holstering are unchanged.
+
+**Inherit From:** the keys are ordinary per-weapon keys. A weapon inheriting another's settings uses that weapon's
+holstered pose unless it sets its own, and its page edits the inherited ones. Print Changes to Console and Reset This
+Weapon include them: both go over every key in the table.
+
+**Defaults:** 0 everywhere. At 0 the new step is skipped entirely (not computed as a turn by 0), so every weapon sits
+exactly as before. There is no migration and `vr_wofs_version` is unchanged: a config without the keys reads 0.
+`vr_weapon_holster` (the Holster choice) isn't saved. `vr_weapon_holster_preview` is.
+
+**Code:**
+- `vr_weapons.inc`: the key definitions only, no value rows.
+- `weapons::holsteredKey`, `holsteredPose`.
+- `vr_view.cpp`: `turnHolster` is split into `holsterFrame` and `holsterRotation` (the same arithmetic) so that the
+  weapon's pose (`poseHolstered`) uses the turned frame.
+- `menu::holsterPreview`.
+- `menu_vr <page> <label>` now also takes the start of a row's label (`menu_vr 22 "Holstered X"`), for scripts.
+
+### Checks (mock headset)
+
+The rocket launcher (`progs/v_rock2.mdl`, `_07`) is in both hips and the nailgun (`_04`) in both chest holsters. A new
+game's shotgun and axe were drawn and dropped first. Views: the body preview facing you (`vr_body_debug 2`) and from the
+side (`3`) seen close (`vr_mock_camera 0 1.2 -0.4 4 0`), and the eyes looking down (62 degrees).
+
+- **Default 0 is unchanged:** the old build (vr-cleanup aefa5ab3) against the new one, twice each, with the dump printing
+  4 decimals.
+  - Every holstered gun, holster model and button is identical to 4 decimals, in position and angles.
+  - The only lines that differ are the pauldrons and the gadget (the arms' easing). They differ as much between two runs
+    of the same build.
+  - The images aren't byte-identical, not even between two runs of one build: particles, the arms' easing, and the
+    lighting off by ones.
+  - The pixels that differ are scattered one-level lighting noise all over the lit surfaces, the walls included. There
+    is no shape of a moved gun.
+- **Tuned** (`hol_tuned.png`: top row all 0, bottom row tuned):
+  - The rocket launcher at the hips: X +1, Z -4, Pitch +15, Roll -20. It hangs lower, off the thigh, and canted with
+    its muzzle outwards. The two sides are mirror images on the preview facing you.
+  - The nailgun on the chest: X +1.5, Y +2, Yaw +35, Roll -25. It turns outwards off the chest, both sides mirrored
+    (the numbers above).
+- **The preview** (`hol_preview.png`; the menu is open, and the mock draws it over the view, so the body preview is
+  kept on the left):
+  1. No menu: the axe and shotgun at the hips.
+  2. Holstered X chosen, Hip: the rocket launcher you hold is in both hips.
+  3. The hip values set while the page is open: it moves at once.
+  4. Holster: Upper: it moves to the chest, and the hips show the axe and shotgun again.
+  5. The cursor on Weight: no preview.
+
+  `hol_menu.png` shows the section.
+- **Drawing and holstering with a tuned pose:**
+  - The hand at the right hip, grip: the rocket launcher is in the hand, and the right hip is empty.
+  - Back at the hip, let go: it is holstered again, at exactly the tuned pose (the same dump lines as before the draw).
+- **Not checked end to end:**
+  - Print Changes to Console and Reset This Weapon. The mock's buttons don't press the menu's actions. Both loop over
+    every key in the same table the new keys are in.
+  - The shoulder holsters: same code path, with the back's frame (`out` behind you).
+
+### In the headset
+
+- [ ] Hold the rocket launcher, open Weapon Offsets, scroll to Holstered. Leave the cursor on Holstered Roll and look
+      down: the launcher you hold should be in both hip holsters. Move the slider: both should turn as mirror images.
+- [ ] Tune a weapon that sits badly, on the hips, then pick Upper and Shoulder and tune those. Close the menu, holster
+      it and draw it: it should sit as tuned, and reaching for the holster shouldn't change.
+- [ ] If an axis feels backwards, say which one and which way. Print Changes to Console gives me your values to make
+      them the defaults.

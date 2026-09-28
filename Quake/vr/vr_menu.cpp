@@ -1446,6 +1446,27 @@ void weaponOffsetsPrint()
     weapons::printSlot(weaponOffsetsSlot);
 }
 
+// The kind of holster whose Holstered pose the page edits (vr_weapon_holster: 1 hips, 2 chest, 3 back), as the page was
+// built: a change rebuilds it.
+int weaponOffsetsHolster = -1;
+
+[[nodiscard]] weapons::HolsterKind editedHolster()
+{
+    return static_cast<weapons::HolsterKind>(CLAMP(1, static_cast<int>(vr_weapon_holster.value), weapons::holsterKinds) - 1);
+}
+
+// Holstered: the edited kind's six back to 0 (their defaults).
+void weaponOffsetsHolsteredReset()
+{
+    for(int f = 0; f < weapons::holsteredFields; f++)
+    {
+        if(cvar_t* var = weapons::cvar(weaponOffsetsSlot, weapons::holsteredKey(editedHolster(), f)))
+        {
+            Cvar_SetQuick(var, var->default_string);
+        }
+    }
+}
+
 // The hotspot being edited (vr_weapon_hotspot, 1..4) and its type, as the page was built: a change rebuilds it.
 int weaponOffsetsHotspot = -1;
 int weaponOffsetsHotspotType = -1;
@@ -1945,6 +1966,39 @@ std::vector<Item> pageWeaponOffsets()
             s("Screen Scale", Key::WpnTextScale, 0.05f, 3.f, 0.05f, "%.2f").extend(0.01f, 10.f),
         });
     }
+    if(!fist)
+    {
+        // The weapon in a holster (weapons::holsteredPose), per kind of holster: the page's weapon drawn in both holsters
+        // of that kind while one of these is chosen (view: setupHolsters, menu::holsterPreview).
+        const weapons::HolsterKind kind = editedHolster();
+        weaponOffsetsHolster = static_cast<int>(kind);
+        const auto hs = [&](const char* label, int field, float min, float max, float step, const char* format) {
+            return slider(label, weapons::cvar(slot, weapons::holsteredKey(kind, field)), min, max, step, format);
+        };
+        const char* moveHelp = "Moves this weapon in the holster (units): X off your body (negative: into it), Y outwards, "
+                               "away from your middle, Z up. The left holster mirrors the right. Only how it is drawn: "
+                               "where you reach for the holster doesn't change.";
+        const char* turnHelp = "Turns this weapon in the holster about its grip, on top of the holster's own turn (Hotspots): "
+                               "Pitch tips its top off your body, Yaw turns it outwards, Roll tips its top outwards (a "
+                               "hanging gun's muzzle goes the other way). The left holster mirrors the right.";
+        list.insert(list.end(), {
+            header("Holstered"),
+            cycle("Holster", vr_weapon_holster, {{1.f, "Hip"}, {2.f, "Upper (Chest)"}, {3.f, "Shoulder (Back)"}})
+                .help("The holsters whose pose of this weapon the sliders below edit: a weapon lies differently on the hips, "
+                      "the chest and the back, so each has its own."),
+            toggle("Preview in Holster", vr_weapon_holster_preview)
+                .help("While a setting of this section is chosen, this weapon is drawn in both holsters of that kind (in place "
+                      "of what they hold): look down at them, or at the body preview, as you tune it."),
+            hs("Holstered X (off body)", 0, -10.f, 10.f, 0.1f, "%+.1f").extend().help(moveHelp),
+            hs("Holstered Y (outwards)", 1, -10.f, 10.f, 0.1f, "%+.1f").extend().help(moveHelp),
+            hs("Holstered Z (up)", 2, -10.f, 10.f, 0.1f, "%+.1f").extend().help(moveHelp),
+            hs("Holstered Pitch", 3, -90.f, 90.f, 1.f, "%+.0f deg").extend(-180.f, 180.f).help(turnHelp),
+            hs("Holstered Yaw", 4, -90.f, 90.f, 1.f, "%+.0f deg").extend(-180.f, 180.f).help(turnHelp),
+            hs("Holstered Roll", 5, -90.f, 90.f, 1.f, "%+.0f deg").extend(-180.f, 180.f).help(turnHelp),
+            action("Holstered Back to 0", weaponOffsetsHolsteredReset)
+                .help("This weapon's pose in these holsters back to 0: as the holster alone places it."),
+        });
+    }
     list.insert(list.end(), {
         header("This Weapon"),
         s("Weight", Key::Weight, 0.f, 1.f, 0.05f, "%.2f").help("How much the weapon lags the hand."),
@@ -1975,6 +2029,7 @@ int scrolls[pageCount]{};
         (editedHotspot() != weaponOffsetsHotspot ||
             static_cast<int>(weapons::hotspot(weaponOffsetsSlot, editedHotspot()).type) != weaponOffsetsHotspotType ||
             weapons::inheritsFrom(weaponOffsetsHeldSlot) != weaponOffsetsInherit ||
+            (weaponOffsetsHolster >= 0 && static_cast<int>(editedHolster()) != weaponOffsetsHolster) ||
             (weaponOffsetsManual >= 0 && (weapons::value(weaponOffsetsSlot, weapons::Key::FingerManual) >= 0.5f ? 1 : 0) != weaponOffsetsManual) ||
             (weaponOffsetsPreviewOwn >= 0 && (vr_show_controller_off_own.value != 0.f ? 1 : 0) != weaponOffsetsPreviewOwn) ||
             (weaponOffsetsHotspotManual >= 0 &&
@@ -2590,15 +2645,46 @@ void qvr::menu::command_f()
                 openPage(target);
             }
             // menu_vr <page> <row>: the cursor on that row (counted from 0, headers and lines of text included), if it
-            // can rest there (scripts, screenshots).
+            // can rest there (scripts, screenshots); or on the first setting whose label starts with <row>'s text
+            // (menu_vr 23 "Holstered X").
             const auto& list = items(page);
-            if(const int row = Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : -1; row >= 0 && row < static_cast<int>(list.size()) &&
-                selectable(list[row]))
+            int row = Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : -1;
+            if(Cmd_Argc() > 2 && (Cmd_Argv(2)[0] < '0' || Cmd_Argv(2)[0] > '9'))
+            {
+                for(int i = 0; i < static_cast<int>(list.size()); i++)
+                {
+                    if(list[i].label && selectable(list[i]) && !q_strncasecmp(list[i].label, Cmd_Argv(2), strlen(Cmd_Argv(2))))
+                    {
+                        row = i;
+                        break;
+                    }
+                }
+            }
+            if(row >= 0 && row < static_cast<int>(list.size()) && selectable(list[row]))
             {
                 cursors[page] = row;
             }
         }
     }
+}
+
+bool qvr::menu::holsterPreview(int& hand, int& kind)
+{
+    if(m_state != m_vr || pages[page].build != pageWeaponOffsets || vr_weapon_holster_preview.value == 0.f ||
+        weaponOffsetsSlot < 0 || weaponOffsetsSlot == weapons::fistSlot() || weaponOffsetsHolster < 0 ||
+        weapons::heldSlot(weaponOffsetsHand) != weaponOffsetsHeldSlot)
+    {
+        return false; // not on the page, off, the empty hand, or the hand holds another weapon now
+    }
+    const cvar_t* chosen = selectedSetting();
+    bool on = chosen && (chosen == &vr_weapon_holster || chosen == &vr_weapon_holster_preview);
+    for(int f = 0; chosen && !on && f < weapons::holsteredFields; f++)
+    {
+        on = chosen == weapons::cvar(weaponOffsetsSlot, weapons::holsteredKey(editedHolster(), f));
+    }
+    hand = weaponOffsetsHand;
+    kind = weaponOffsetsHolster;
+    return on;
 }
 
 int qvr::menu::currentPage()
