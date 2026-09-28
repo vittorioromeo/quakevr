@@ -10639,6 +10639,8 @@ New holds (all where the hand is at the ledge by the rule's own numbers):
 - In the headset: grabbing a moving plat or train, the ride, and the let-go when carried into something.
 - The build's time on the biggest custom maps (the mission packs' largest: hip2m3 in the table).
 - Hipnotic's rotating brushes: their collision is `func_movewall` boxes, which translate; there is no rotating solid.
+- Loading a saved game while hanging (the tests write no saves): every hold is forgotten when a map or a save loads
+  (`climb::reset`), and holds keep entity numbers and a ledge-map generation, never pointers; read, not run.
 
 ### In the headset
 
