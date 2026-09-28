@@ -222,7 +222,7 @@ static void R_InitBModelInstance (bmodel_gpu_instance_t *inst, entity_t *ent)
 	inst->alpha = ent->alpha == ENTALPHA_DEFAULT ? -1.f : ENTALPHA_DECODE (ent->alpha);
 	memset (&inst->padding, 0, sizeof(inst->padding));
 	inst->padding[0] = ent == &cl_entities[0] ? 0.f : VR_EntityGlow (ent); // QVR: the shader's glow
-	inst->padding[1] = VR_ParallaxDepth (ent, mat, NULL); // QVR: its parallax depth in units (vr_parallax)
+	inst->padding[1] = VR_ParallaxDepth (ent, mat, NULL, 1); // QVR: its parallax depth in units (vr_parallax)
 	inst->padding[2] = ent == &cl_entities[0] ? 0.f : VR_BrushAOSelf (ent); // QVR: its own dynamic occlusion group (vr/vr_ao.cpp)
 }
 

@@ -459,14 +459,17 @@ typedef struct gpuframedata_s {
 // The world's (NORMALMAP_HEIGHTS or'ed in) carry the height parallax mapping walks in alpha (vr_parallax).
 // NORMALMAP_FILE: from an authored file (*_norm, or a *_bump's heights): a real shape, drawn at its own strength on
 // models (vr_normalmap_authored). NORMALMAP_SKIN: made from a model skin's colours (TexMgr_SkinToNormals: edges,
-// materials and larger forms, not brightness as height). NORMALMAP_TYPE: the first three.
-enum { NORMALMAP_NONE, NORMALMAP_SHADING, NORMALMAP_AUTHORED, NORMALMAP_HEIGHTS = 4, NORMALMAP_FILE = 8, NORMALMAP_SKIN = 16 };
+// materials and larger forms, not brightness as height). NORMALMAP_TYPE: the first three. NORMALMAP_FLAT (set on
+// loading): an authored map with NORMALMAP_HEIGHTS whose alpha is all 255, no heights (no parallax on it).
+enum { NORMALMAP_NONE, NORMALMAP_SHADING, NORMALMAP_AUTHORED, NORMALMAP_HEIGHTS = 4, NORMALMAP_FILE = 8, NORMALMAP_SKIN = 16,
+	NORMALMAP_FLAT = 32 };
 #define NORMALMAP_TYPE(kind) ((kind) & 3)
 struct gltexture_s *TexMgr_LoadNormalMap (struct gltexture_s *base, const char *name, int width, int height, enum srcformat format,
 	byte *data, const char *source_file, src_offset_t source_offset, int kind, int worldwidth);
 struct gltexture_s *TexMgr_ShareNormalMap (struct gltexture_s *base, const char *name, int kind); // QVR: an authored file's texture already made for another skin
 struct gltexture_s *TexMgr_NormalMap (struct gltexture_s *glt); // its normal map, or a flat one
 qboolean TexMgr_NormalMapAuthored (struct gltexture_s *glt); // QVR: whether its normal map is an authored file's (NORMALMAP_FILE)
+int TexMgr_NormalMapParallax (struct gltexture_s *glt); // QVR: its normal map's heights: 0 none, 1 made ones, 2 an authored file's alpha
 qboolean TexMgr_IndexedSmooth (void); // Quake's own textures filtered smoothly (only then do they get heights)
 void TexMgr_SetHeightMask (const byte *mask, int width, int height); // a skin's islands for the heights made next (NULL: none)
 

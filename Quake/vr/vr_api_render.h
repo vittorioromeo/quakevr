@@ -98,7 +98,7 @@ int VR_TextureSmoothing (void);							// TexMgr_ApplySettings: 1 replacement tex
 int VR_NormalMaps (void);								// Mod_LoadTextures, skins: nonzero to make normal maps (vr_normalmaps)
 int VR_AlphaMipCoverage (void);							// TexMgr_LoadImage32: nonzero to keep alpha-tested textures' coverage in their mips (vr_alpha_coverage)
 int VR_AlphaToCoverage (void);							// alpha-tested draws (r_world.c, r_alias.c): nonzero for alpha to coverage (vr_alpha_coverage, with MSAA)
-float VR_ParallaxDepth (const struct entity_s *e, const float matrix[16], const float modelscale[3]); // instance: its parallax depth in units (0 off); matrix the drawn one, modelscale an alias model's (NULL: a brush model)
+float VR_ParallaxDepth (const struct entity_s *e, const float matrix[16], const float modelscale[3], int heights); // instance: its parallax depth in units (0 off); matrix the drawn one, modelscale an alias model's (NULL: a brush model); heights: its skin's normal map's (TexMgr_NormalMapParallax: 0 none, 1 made, 2 authored)
 int VR_ModelLightParity (void);							// R_SetupAliasLighting: models as bright as the floor under them
 float VR_ModelBumps (const struct entity_s *e, int authored);	// instance: how much the skin's bumps shade the model's own light (0 none; authored: its normal map is a file's)
 float VR_ModelNormalMapScale (int authored);				// instance: how much its normal map bends the normal (vr_normalmap_strength, or vr_normalmap_authored)

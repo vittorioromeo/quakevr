@@ -1492,10 +1492,15 @@ extern "C" int VR_NormalMaps(void)
 // boxes (maps/b_*.bsp) vr_parallax_items and models vr_parallax_models, both in their own units, so scaled with
 // the size they are drawn at (the boxes are drawn a quarter size: the world's depth would be most of the box);
 // other brush entities (doors, lifts) the world's, scaled likewise. The scale is the drawn matrix's (the entity's,
-// the networked one and the held weapons' own), without an alias model's vertex scale (modelscale).
-extern "C" float VR_ParallaxDepth(const entity_t* e, const float matrix[16], const float modelscale[3])
+// the networked one and the held weapons' own), without an alias model's vertex scale (modelscale). A model whose
+// skin has an authored normal map with heights (heights 2: a baked map's alpha, bake_normals.py) is carved as deep as
+// it was baked (AUTHORED_HEIGHT_DEPTH units at alpha 0) times vr_parallax_authored; one without heights (0: a map
+// without alpha) isn't carved at all.
+extern "C" float VR_ParallaxDepth(const entity_t* e, const float matrix[16], const float modelscale[3], int heights)
 {
-    if(vr_parallax.value == 0.f || vr_normalmaps.value == 0.f)
+    // bake_normals.py's AUTHORED_DEPTH: model units under the surface an authored map's alpha 0 lies
+    constexpr float AUTHORED_HEIGHT_DEPTH = 0.4f;
+    if(vr_parallax.value == 0.f || vr_normalmaps.value == 0.f || heights == 0)
     {
         return 0.f;
     }
@@ -1515,7 +1520,8 @@ extern "C" float VR_ParallaxDepth(const entity_t* e, const float matrix[16], con
     float depth = world;
     if(modelscale)
     {
-        depth = std::clamp(vr_parallax_models.value, 0.f, 4.f);
+        depth = heights == 2 ? AUTHORED_HEIGHT_DEPTH * std::clamp(vr_parallax_authored.value, 0.f, 4.f)
+                             : std::clamp(vr_parallax_models.value, 0.f, 4.f);
     }
     else if(e->model && !q_strncasecmp(e->model->name, "maps/b_", 7))
     {

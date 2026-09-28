@@ -1804,6 +1804,39 @@ static void TexMgr_SkinToNormals (byte *data, int width, int height, float scale
 
 /*
 ================
+TexMgr_AuthoredHeights -- QVR: an authored normal map's heights (its alpha: 255 the surface, lower deeper; DarkPlaces'
+convention and bake_normals.py's) as parallax mapping walks them (vr_parallax_authored): none if its alpha is all
+255 (a map without alpha, or flat: marked NORMALMAP_FLAT, so no rays are walked on it); else, on a skin with islands
+(TexMgr_SetHeightMask), up to the top over HEIGHT_RIM texels at their edges as the made heights are, so that the rays
+stop at a seam instead of reading the skin's other parts past it
+================
+*/
+static void TexMgr_AuthoredHeights (gltexture_t *glt, byte *data)
+{
+	int x, y, i, n = glt->width * glt->height;
+
+	normalmap_kind[glt - gltextures_base] &= ~NORMALMAP_FLAT;
+	for (i = 0; i < n && data[i * 4 + 3] == 255; i++)
+		;
+	if (i == n)
+	{
+		normalmap_kind[glt - gltextures_base] |= NORMALMAP_FLAT;
+		return;
+	}
+	if (!heightmask)
+		return;
+	for (y = 0; y < (int) glt->height; y++)
+		for (x = 0; x < (int) glt->width; x++)
+		{
+			int mx = x * heightmask_width / glt->width, my = y * heightmask_height / glt->height;
+			float d = heightmask[my * heightmask_width + mx] * (glt->width / (float) heightmask_width); // in these texels
+			byte *a = &data[(y * glt->width + x) * 4 + 3];
+			*a = (byte) (255 - (int) ((255 - *a) * CLAMP (0.f, (d - 0.5f) / HEIGHT_RIM, 1.f) + 0.5f));
+		}
+}
+
+/*
+================
 TexMgr_SetHeightMask -- QVR: a skin's islands, for the heights of the normal maps made next (until set to NULL):
 per texel of a width x height skin, how many texels it lies inside the triangles (0 outside, HEIGHT_RIM + 1 or more
 well inside); the heights rise to the top at their edges (TexMgr_ShadingToHeights). A normal map reloaded later
@@ -1938,6 +1971,8 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	// QVR: the world's normal maps (NORMALMAP_HEIGHTS) carry the heights parallax mapping walks (vr_parallax) in alpha:
 	// made ones from the shading, authored ones their own alpha (DarkPlaces' convention; 255, flat, if they have none)
 	heights = (normalmap_kind[glt - gltextures_base] & NORMALMAP_HEIGHTS) != 0;
+	if (heights && normalmap == NORMALMAP_AUTHORED) // QVR: an authored map's heights (its alpha, as baked)
+		TexMgr_AuthoredHeights (glt, (byte *) data);
 	if (normalmap == NORMALMAP_SHADING) // QVR
 	{
 		float texelsperunit = glt->width / (float) q_max (1, (int)normalmap_worldwidth[glt - gltextures_base]);
@@ -2303,7 +2338,7 @@ gltexture_t *TexMgr_ShareNormalMap (gltexture_t *base, const char *name, int kin
 		return NULL;
 	q_snprintf (nmname, sizeof (nmname), "%s_vrnorm", name);
 	glt = TexMgr_FindTexture (base->owner, nmname);
-	if (!glt || normalmap_kind[glt - gltextures_base] != (byte) kind)
+	if (!glt || (normalmap_kind[glt - gltextures_base] & ~NORMALMAP_FLAT) != (byte) kind)
 		return NULL;
 	normalmap_of[base - gltextures_base] = glt;
 	return glt;
@@ -2341,6 +2376,22 @@ qboolean TexMgr_NormalMapAuthored (gltexture_t *glt)
 {
 	gltexture_t *nm = glt && gltextures_base ? normalmap_of[glt - gltextures_base] : NULL;
 	return nm && (normalmap_kind[nm - gltextures_base] & NORMALMAP_FILE) != 0;
+}
+
+/*
+================
+TexMgr_NormalMapParallax -- QVR: what heights a texture's normal map carries for parallax mapping: 0 none (no normal
+map, none kept, or an authored file without alpha: flat), 1 made ones (from the shading; vr_parallax_models on models),
+2 an authored file's own alpha (a baked map's relief; vr_parallax_authored)
+================
+*/
+int TexMgr_NormalMapParallax (gltexture_t *glt)
+{
+	gltexture_t *nm = glt && gltextures_base ? normalmap_of[glt - gltextures_base] : NULL;
+	int kind = nm ? normalmap_kind[nm - gltextures_base] : NORMALMAP_NONE;
+	if (!(kind & NORMALMAP_HEIGHTS) || (kind & NORMALMAP_FLAT))
+		return 0;
+	return (kind & NORMALMAP_FILE) && NORMALMAP_TYPE (kind) == NORMALMAP_AUTHORED ? 2 : 1;
 }
 
 /*
