@@ -232,20 +232,47 @@ void update(const FrameState& frame, const hands::State& s)
 
 glm::mat3 mirrorMap(const Fov& fov, float aspect, const HiddenArea* hidden)
 {
-    // The widest crop of the window's shape about the eye's forward axis, narrowed by the zoom.
-    float tx = std::min(std::tan(fov.right), -std::tan(fov.left));
-    float ty = std::min(std::tan(fov.up), -std::tan(fov.down));
-    if(tx / ty > aspect)
+    // The widest crop of the window's shape about the eye's forward axis: within the image and, with a hidden area,
+    // within what the lenses show (made again only when the eye's field of view, the hidden area or the window's shape
+    // change); narrowed by the zoom.
+    static struct
     {
-        tx = ty * aspect;
-    }
-    else
+        Fov fov;
+        float aspect = 0.f;
+        const HiddenArea* hidden = nullptr;
+        std::size_t count = 0;
+        float tx = 0.f, ty = 0.f;
+    } widest;
+    const std::size_t count = hidden ? hidden->indices.size() : 0;
+    if(widest.aspect != aspect || widest.hidden != hidden || widest.count != count || widest.fov.left != fov.left ||
+        widest.fov.right != fov.right || widest.fov.up != fov.up || widest.fov.down != fov.down)
     {
-        ty = tx / aspect;
+        float tx = std::min(std::tan(fov.right), -std::tan(fov.left));
+        float ty = std::min(std::tan(fov.up), -std::tan(fov.down));
+        if(tx / ty > aspect)
+        {
+            tx = ty * aspect;
+        }
+        else
+        {
+            ty = tx / aspect;
+        }
+        if(!fits(mapFor(glm::mat3{1.f}, fov, tx, ty), fov, hidden))
+        {
+            float lo = 0.2f, hi = 1.f;
+            for(int i = 0; i < 16; i++)
+            {
+                const float mid = 0.5f * (lo + hi);
+                (fits(mapFor(glm::mat3{1.f}, fov, tx * mid, ty * mid), fov, hidden) ? lo : hi) = mid;
+            }
+            tx *= lo;
+            ty *= lo;
+        }
+        widest = {fov, aspect, hidden, count, tx, ty};
     }
     const float zoom = std::clamp(vr_window_zoom.value, 1.f, 2.f);
-    tx /= zoom;
-    ty /= zoom;
+    const float tx = widest.tx / zoom;
+    const float ty = widest.ty / zoom;
 
     const glm::quat target = leveled(filter.q2);
     const glm::mat3 eyeT = glm::transpose(glm::mat3_cast(filter.head));
