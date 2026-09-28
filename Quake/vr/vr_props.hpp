@@ -1,13 +1,14 @@
 // vr_props.hpp -- per-prop settings (vr_props.inc): what each kind of thing a hand carries weighs and how it is held,
 // keyed by the model it is drawn with (a box's "maps/b_explob.bsp", a gib's "progs/gib1.mdl"). Stored as the weapons'
 // are (cvars vr_prop_<key>_NN, archived; vr_props_version for changes to the shipped defaults) and edited on the
-// Held Object Offsets page (vr_menu_props.inc). See docs/vr-port/ROUND21.md, "Weight: spring model, stamina, held
-// object offsets; explosive boxes".
+// Held Object Offsets and Held Object Weights pages (vr_menu_props.inc). See docs/vr-port/ROUND21.md, "Weight: spring
+// model, stamina, held object offsets; explosive boxes" and "Spring only; Weapon Weights and Held Object Weights".
 //
 // Who reads what:
-// - the hands' weight (vr_weight.cpp, client): Mass, Inertia, Com* of what each hand holds;
+// - the hands' weight (vr_weight.cpp, client): Mass, Inertia, Com* and the Spring* multipliers of what each hand holds;
 // - Box3D (vr_box3d.cpp, server): a Mass set here is the body's mass (its density scaled to it);
-// - QC (the propvalue and propgrip builtins, vr_carry.qc): Throw, GripMode and Grip*, TwoHands, ForceGrab;
+// - QC (the propvalue and propgrip builtins, vr_carry.qc, vr_melee.qc): Throw, GripMode and Grip*, TwoHands, ForceGrab,
+//   Tip* and Butt*, MeleeDamage and ThrowDamage;
 // - the view's grasp (vr_view.cpp, client): the Finger* keys and Overlap.
 
 #pragma once
@@ -41,12 +42,22 @@ void registerCvars();
 
 // The model's slot, a free one given to it if it has none (-1: the table is full). The menu edits a prop through it.
 [[nodiscard]] int claimSlot(const char* model);
-void resetSlotToDefaults(int slot);
+// Each menu page resets and prints its own (Part): Held Object Weights the weight's keys (weightKey), Held Object Offsets
+// the others.
+enum class Part
+{
+    All,
+    Offsets,
+    Weights,
+};
+[[nodiscard]] bool weightKey(Key key); // Mass, Inertia, Com*, Throw, the spring's multipliers, the damage multipliers
+void resetSlotToDefaults(int slot, Part part = Part::All);
 // A config saved before `slot` was given a shipped prop: the slot takes its shipped settings (a model the menu had put
 // there moves to a free slot with its settings). vr_cfg_version's migrations (vr_cvars.cpp).
 void takeShippedSlot(int slot);
 inline constexpr int wallTorchSlot = 16; // progs/vrtorch.mdl (vr_props.inc; vr_cfg_version 25)
-void printSlot(int slot); // the settings that differ from the defaults, as vr_props.inc lines
+inline constexpr int fleshSlotsFirst = 33, fleshSlotsLast = 47; // gibs and heads (vr_props.inc; vr_cfg_version 27)
+void printSlot(int slot, Part part = Part::All); // the settings that differ from the defaults, as vr_props.inc lines
 
 // Densities (kg/m^3) of what things are made of, by their model (a brush model: an ammo or health box, a crate; a
 // weapon; armour; a backpack; flesh: gibs and heads). Box3D's (vr_box3d.cpp) for its props, and the estimate below.

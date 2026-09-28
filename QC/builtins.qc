@@ -171,6 +171,13 @@ float(entity e, string key) propvalue = #0;
 // A prop held the same way every time (its "grip" 1): its turn in the hand set (and its angles now); returns its origin's
 // place in the hand (forward, right, up: .carry_offset). lefthand: the left hand's (mirrored).
 vector(entity e, vector handangles, float lefthand) propgrip = #0;
+// Weapon Offsets and Weapon Weights (vr_weapons.inc) of the weapon drawn with `model` (WeaponIdToModel), by the key its
+// cvars have: "w_mass" (kg), "w_meleedmg", "w_throwdmg" (its damage multipliers)... (0: no such weapon or key).
+float(string model, string key) weaponvalue = #0;
+// Weight and damage (vr_weight_damage_*): a melee blow's or a throw's damage multiplier for a thing of `mass` kg (1 for
+// no mass). Heavy leniency (vr_weight_lenient*): the factor on its strikes' and throws' speed thresholds (1: not heavy).
+float(float mass) weightdamage = #0;
+float(float mass) weightleniency = #0;
 vector(entity e, vector angles, vector point) modelpoint = #0; // where a point of e's model (its axes: x forward, y left, z up) is from its origin, turned by angles as drawn
 // A hand's push on a rigid body: the point `at` gets at least `vel`'s speed along it (an impulse there: a tall box pushed
 // high tips over). FALSE if Box3D doesn't move it.

@@ -6,13 +6,9 @@
 // pushing the hand back so the barrel does not go through walls. Hands stay within 50 units of
 // the torso.
 //
-// Weight (vr_wpn_pos_weight, vr_wpn_dir_weight): each frame a hand moves (turns) only part of
-// the way to the tracked pose, by a factor from the weapon's weight (lighter is quicker; a
-// two-handed grip helps). The old engine corrected the lag for the player's movement and
-// turning; here the smoothing happens in the body's frame (relative to the player and turned
-// with the play space), which amounts to the same. That is the Speed Limit weight model; the Spring one
-// (vr_weight_model 1, vr_weight.cpp) replaces both after the two-handed aim. Both: heavier when tired
-// (vr_weight_stamina), and a carried prop weighs its mass (vr_weight_props).
+// Weight: what a hand holds follows it through a spring (vr_weight.cpp), after the two-handed aim (weightDirections).
+// The old engine's weight (each frame a hand moved and turned only part of the way to the tracked pose, the Speed
+// Limit) is gone (round 21, "Spring only").
 
 #include "vr_handpose.hpp"
 #include "vr_engine.hpp"
@@ -21,8 +17,6 @@
 #include "vr_cvars.hpp"
 #include "vr_protocol.hpp"
 #include "vr_trace.hpp"
-#include "vr_twohand.hpp"
-#include "vr_weapons.hpp"
 #include "vr_weight.hpp"
 
 #include <algorithm>
@@ -33,16 +27,10 @@ namespace qvr::handpose
 namespace
 {
 
-using weapons::Key;
-
 struct HandMemory
 {
     bool valid{false};
-    glm::vec3 local{0.f};       // position in the body's frame
-    glm::vec3 localAngles{0.f}; // angles with the play-space yaw taken out
     glm::vec3 lastPos{0.f};     // world position last frame (the muzzle was placed from it)
-    glm::vec3 target{0.f};      // this frame's position in the body's frame before the weight (vr_debug_weight)
-    bool anglesValid{false};
     bool climbing{false};       // holding a ledge or a rung (vr_climb.cpp),
     glm::vec3 climbStop{0.f};   // and the wall's stop when it took hold, kept
 };
@@ -51,37 +39,7 @@ HandMemory memory[2];
 bool colliding[2]{false, false};
 double lastTime = -1.0;
 float frameDt = 0.f;
-bool newFrame = false; // the hands may be recomputed within a frame: weight advances once
-
-// 0..1 per 1/100 s: how quickly a hand follows, from the weight of the weapon it holds (in
-// `slot`; old engine's VR_GetWeaponWeightFactorImpl).
-[[nodiscard]] float followFactor(
-    int hand, int slot, float offset, float mult, float twoHOffset, float twoHMult, Key twoHKey)
-{
-    if(slot < 0)
-    {
-        return 1.f;
-    }
-
-    const float initial = 1.f - weapons::value(slot, Key::Weight);
-    const float withOffset = initial + offset;
-    const float single = withOffset * mult;
-    const float twoHanded = (withOffset + twoHOffset) * twoHMult * weapons::value(slot, twoHKey);
-    return std::clamp(glm::mix(single, twoHanded, twohand::transition(hand)), 0.f, 1.f);
-}
-
-// The blend towards the tracked pose this frame, with the weapon's own multiplier `multKey`: that
-// part of the way per 1/100 s, compounded over the frame, so a weapon lags its hand the same at any
-// frame rate (the factor times the frame time went all the way at 45 fps, and lagged more the
-// higher the frame rate: melee felt different at each).
-// Round 21 (weight): tired, the lag's time grows with the stamina's multiplier; a carried prop's is from its mass
-// (weight::speedLimitStep; unchanged otherwise).
-[[nodiscard]] float blend(int hand, float factor, int slot, Key multKey, bool direction)
-{
-    const float perWeaponMult = slot >= 0 ? weapons::value(slot, multKey) : 1.f;
-    const float perStep = weight::speedLimitStep(hand, std::clamp(factor * perWeaponMult, 0.f, 1.f), direction);
-    return perStep >= 1.f ? 1.f : 1.f - std::pow(1.f - perStep, frameDt * 100.f);
-}
+bool newFrame = false; // the hands may be recomputed within a frame: the weight's spring advances once
 
 // Sweeps a small box from `from` to `to`. When it hits, `pos` stops along the axes the hit plane
 // faces, `back` short of where the box stopped (the other axes are kept), and it returns true.
@@ -115,10 +73,10 @@ bool stopAtWall(glm::vec3& pos, const glm::vec3 from, const glm::vec3 to, const 
 
 } // namespace
 
-void resolvePositions(hands::State& s, float turnYaw)
+void resolvePositions(hands::State& s, float /* turnYaw */)
 {
     // On the real clock, every frame: cl.time moves in steps with the server's messages (72 Hz, or
-    // 48 and 72 by turns at 144 fps), so the weight's smoothing moved the hands in uneven jerks that
+    // 48 and 72 by turns at 144 fps), so a weight stepped on it moved the hands in uneven jerks that
     // the server's melee read as a wrist speeding up and slowing down (up to half again at 144 fps).
     frameDt = lastTime >= 0.0 ? static_cast<float>(std::clamp(realtime - lastTime, 0.0, 0.1)) : 0.f;
     newFrame = realtime != lastTime;
@@ -167,25 +125,6 @@ void resolvePositions(hands::State& s, float turnYaw)
             pos = s.pos[h] + m.climbStop;
         }
 
-        // Weight, in the body's frame (from the floor below the head: the body sliding back under a
-        // lean is not the hand's motion).
-        const glm::vec3 base = s.playerOrigin + s.lean;
-        const glm::vec3 local = hands::rotateYaw(pos - base, -turnYaw);
-        m.target = local;
-        const bool speedLimit = vr_wpn_pos_weight.value && !weight::springModel();
-        if(speedLimit && m.valid && newFrame)
-        {
-            const int slot = weapons::heldSlot(h);
-            const float factor = followFactor(h, slot, vr_wpn_pos_weight_offset.value, vr_wpn_pos_weight_mult.value,
-                vr_wpn_pos_weight_2h_help_offset.value, vr_wpn_pos_weight_2h_help_mult.value, Key::Weight2HPosMult);
-            m.local = glm::mix(m.local, local, blend(h, factor, slot, Key::WeightPosMult, false));
-        }
-        else if(!m.valid || !speedLimit)
-        {
-            m.local = local;
-        }
-        pos = base + hands::rotateYaw(m.local, turnYaw);
-
         // Not too far from the body.
         constexpr float maxReach = 50.f;
         if(glm::distance(pos, torso) > maxReach)
@@ -201,56 +140,12 @@ void resolvePositions(hands::State& s, float turnYaw)
 
 void weightDirections(hands::State& s, float turnYaw)
 {
+    // What each hand holds follows it through its spring (vr_weight.cpp); the muzzle placed from where it has the hand
+    // (the walls' test next frame).
+    weight::spring(s, turnYaw, frameDt, newFrame);
     for(int h = 0; h < HAND_COUNT; h++)
     {
-        HandMemory& m = memory[h];
-        glm::vec3 target = s.rot[h];
-        target.y -= turnYaw;
-
-        if(!vr_wpn_dir_weight.value || !m.anglesValid || weight::springModel())
-        {
-            m.localAngles = target;
-            m.anglesValid = true;
-            continue;
-        }
-        if(newFrame)
-        {
-            const int slot = weapons::heldSlot(h);
-            const float factor = followFactor(h, slot, vr_wpn_dir_weight_offset.value, vr_wpn_dir_weight_mult.value,
-                vr_wpn_dir_weight_2h_help_offset.value, vr_wpn_dir_weight_2h_help_mult.value, Key::Weight2HDirMult);
-            const float t = blend(h, factor, slot, Key::WeightDirMult, true);
-
-            // Slerp the forward and up directions (angles do not interpolate well).
-            glm::vec3 oldFwd, oldRight, oldUp, newFwd, newRight, newUp;
-            hands::angleVectors(m.localAngles, oldFwd, oldRight, oldUp);
-            hands::angleVectors(target, newFwd, newRight, newUp);
-            const glm::quat from = glm::quatLookAt(oldFwd, oldUp);
-            const glm::quat to = glm::quatLookAt(newFwd, newUp);
-            const glm::quat q = glm::slerp(from, to, t);
-
-            const glm::vec3 fwd = q * glm::vec3{0.f, 0.f, -1.f};
-            const glm::vec3 up = q * glm::vec3{0.f, 1.f, 0.f};
-            m.localAngles = hands::anglesFromVectors(fwd, up);
-        }
-
-        glm::vec3 angles = m.localAngles;
-        angles.y += turnYaw;
-        s.rot[h] = angles;
-        if(newFrame && vr_debug_weight.value)
-        {
-            weight::traceSpeedLimit(h, m.target, m.local, target, m.localAngles, frameDt);
-        }
-    }
-
-    // The Spring model: what each hand holds follows it through its spring (vr_weight.cpp); the muzzle placed from
-    // where it has the hand (the walls' test next frame).
-    weight::spring(s, turnYaw, frameDt, newFrame);
-    if(weight::springModel())
-    {
-        for(int h = 0; h < HAND_COUNT; h++)
-        {
-            memory[h].lastPos = s.pos[h];
-        }
+        memory[h].lastPos = s.pos[h];
     }
 }
 

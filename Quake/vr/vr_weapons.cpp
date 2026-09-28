@@ -35,6 +35,15 @@ constexpr const char* keyEnumNames[numKeys] = {
 std::array<std::string, numSlots * numKeys> names;
 std::array<cvar_t, numSlots * numKeys> cvars{};
 
+constexpr const char* retiredKeyNames[] = {
+#define QVR_WEAPON_RETIRED(k) k,
+#include "vr_weapons.inc"
+#undef QVR_WEAPON_RETIRED
+};
+constexpr int numRetired = static_cast<int>(sizeof(retiredKeyNames) / sizeof(retiredKeyNames[0]));
+std::array<std::string, numSlots * numRetired> retiredNames;
+std::array<cvar_t, numSlots * numRetired> retiredCvars{};
+
 [[nodiscard]] cvar_t& cvarAt(int slot, Key key)
 {
     return cvars[slot * numKeys + static_cast<int>(key)];
@@ -313,6 +322,16 @@ void registerCvars()
         }
     }
 
+    // The weapon's multipliers of the spring's and the damage's global settings: 1 (as the global ones are).
+    for(int slot = 0; slot < numSlots; slot++)
+    {
+        for(const Key key : {Key::SpringStiffness, Key::SpringDamping, Key::SpringStrength, Key::SpringSag, Key::SpringSwing,
+                Key::SpringTwoHanded, Key::SpringSnap, Key::MeleeDamage, Key::ThrowDamage})
+        {
+            cvarAt(slot, key).string = "1";
+        }
+    }
+
 #define QVR_WEAPON_DEFAULT(slot, key, value) cvarAt(slot, Key::key).string = value;
 #include "vr_weapons.inc"
 #undef QVR_WEAPON_DEFAULT
@@ -320,6 +339,20 @@ void registerCvars()
     for(cvar_t& var : cvars)
     {
         Cvar_RegisterVariable(&var);
+    }
+
+    // Retired keys (vr_weapons.inc): registered so that a config setting them loads silently; not saved, read by nothing.
+    for(int slot = 0; slot < numSlots; slot++)
+    {
+        for(int key = 0; key < numRetired; key++)
+        {
+            retiredNames[slot * numRetired + key] = va("vr_wofs_%s_%02d", retiredKeyNames[key], slot + 1);
+            cvar_t& var = retiredCvars[slot * numRetired + key];
+            var.name = retiredNames[slot * numRetired + key].c_str();
+            var.string = "0";
+            var.flags = CVAR_NONE;
+            Cvar_RegisterVariable(&var);
+        }
     }
 
     for(int slot = 0; slot < numSlots; slot++)
@@ -338,11 +371,58 @@ void markCurrent()
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }
 
-void resetSlotToDefaults(int slot)
+bool weightKey(Key key)
 {
-    if(slot >= 0 && slot < numSlots)
+    switch(key)
+    {
+        case Key::Mass:
+        case Key::Balance:
+        case Key::Span:
+        case Key::SpringStiffness:
+        case Key::SpringDamping:
+        case Key::SpringStrength:
+        case Key::SpringSag:
+        case Key::SpringSwing:
+        case Key::SpringTwoHanded:
+        case Key::SpringSnap:
+        case Key::MeleeDamage:
+        case Key::ThrowDamage: return true;
+        default: return false;
+    }
+}
+
+namespace
+{
+[[nodiscard]] bool inPart(Key key, Part part)
+{
+    return part == Part::All || (part == Part::Weights) == weightKey(key);
+}
+} // namespace
+
+void resetSlotToDefaults(int slot, Part part)
+{
+    if(slot < 0 || slot >= numSlots)
+    {
+        return;
+    }
+    if(part == Part::All)
     {
         resetSlot(slot);
+        return;
+    }
+    for(int key = 0; key < numKeys; key++)
+    {
+        if(inPart(static_cast<Key>(key), part))
+        {
+            cvar_t& var = cvarAt(slot, static_cast<Key>(key));
+            Cvar_SetQuick(&var, var.default_string);
+        }
+    }
+    if(part == Part::Offsets)
+    {
+        // The defaults are in today's form: nothing of the config's left to turn into hotspots or cups (resetSlot).
+        hotspotMigration[slot] = false;
+        cupMigration[slot] = false;
     }
 }
 
@@ -478,8 +558,6 @@ bool retired(Key key)
         case Key::TwoHFixedMainHandOffsetX:
         case Key::TwoHFixedMainHandOffsetY:
         case Key::TwoHFixedMainHandOffsetZ:
-        case Key::WeightHandVelMult:
-        case Key::WeightHandThrowVelMult:
         case Key::FingersX:
         case Key::FingersY:
         case Key::FingersZ:
@@ -542,7 +620,7 @@ HolsteredPose holsteredPose(int slot, HolsterKind kind)
         vec(slot, holsteredKey(kind, 3), holsteredKey(kind, 4), holsteredKey(kind, 5))};
 }
 
-void printSlot(int slot)
+void printSlot(int slot, Part part)
 {
     if(slot < 0 || slot >= numSlots)
     {
@@ -553,7 +631,7 @@ void printSlot(int slot)
     for(int key = 0; key < numKeys; key++)
     {
         const cvar_t& var = cvarAt(slot, static_cast<Key>(key));
-        if(!retired(static_cast<Key>(key)) && strcmp(var.string, var.default_string))
+        if(!retired(static_cast<Key>(key)) && inPart(static_cast<Key>(key), part) && strcmp(var.string, var.default_string))
         {
             Con_Printf("QVR_WEAPON_DEFAULT(%d, %s, \"%s\") // was %s\n", slot, keyEnumNames[key], var.string,
                 var.default_string);
@@ -586,6 +664,35 @@ int slotForModel(const qmodel_t* model)
 
     slotCache.emplace(model, found);
     return found;
+}
+
+int slotForName(const char* name)
+{
+    if(!name || !name[0])
+    {
+        return -1;
+    }
+    migrate();
+    for(int slot = 0; slot < numSlots; slot++)
+    {
+        if(!strcmp(cvarAt(slot, Key::ID).string, name))
+        {
+            return slot;
+        }
+    }
+    return -1;
+}
+
+Key keyByName(const char* name)
+{
+    for(int key = 0; key < numKeys; key++)
+    {
+        if(!strcmp(keyNames[key], name))
+        {
+            return static_cast<Key>(key);
+        }
+    }
+    return Key::Count;
 }
 
 qmodel_t* heldModel(int hand)

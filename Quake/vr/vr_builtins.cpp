@@ -15,6 +15,8 @@
 #include "vr_server.hpp"
 #include "vr_worldtext.hpp"
 #include "vr_view.hpp"
+#include "vr_weapons.hpp"
+#include "vr_weight.hpp"
 
 #include <vector>
 
@@ -414,6 +416,29 @@ void PF_propvalue()
     G_FLOAT(OFS_RETURN) = out;
 }
 
+// float(string model, string key) weaponvalue: a setting of the weapon drawn with `model` ("progs/v_rock2.mdl"; Weapon
+// Offsets and Weapon Weights, vr_weapons.inc, as its cvars name it: "w_mass" kg, "w_meleedmg", "w_throwdmg"...), what
+// it inherits followed (0: no such weapon or key).
+void PF_weaponvalue()
+{
+    const int slot = weapons::slotForName(G_STRING(OFS_PARM0));
+    const weapons::Key key = weapons::keyByName(G_STRING(OFS_PARM1));
+    G_FLOAT(OFS_RETURN) = slot >= 0 && key != weapons::Key::Count ? weapons::value(slot, key) : 0.f;
+}
+
+// float(float mass) weightdamage: the damage multiplier of a melee blow or a throw by a thing of `mass` kg (weight and
+// damage, vr_weight_damage_*; 1 for no mass). float(float mass) weightleniency: the factor on the speed thresholds of
+// its strikes and throws (heavy leniency, vr_weight_lenient*; 1 for anything up to vr_weight_lenient_from).
+void PF_weightdamage()
+{
+    G_FLOAT(OFS_RETURN) = weight::damageMultiplier(G_FLOAT(OFS_PARM0));
+}
+
+void PF_weightleniency()
+{
+    G_FLOAT(OFS_RETURN) = weight::leniency(G_FLOAT(OFS_PARM0));
+}
+
 // vector(entity e, vector handangles, float lefthand) propgrip: a prop held the same way every time (Grip Mode 1): from
 // now on it turns with the hand as its Grip Pitch, Yaw and Roll say (its angles set now), and its origin's place in
 // the hand is returned (forward, right, up, as .carry_offset: Grip X, Y (left) and Z; the left hand's mirrored).
@@ -561,6 +586,9 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"physicsblast", PF_physicsblast},
     {"propvalue", PF_propvalue},
     {"propgrip", PF_propgrip},
+    {"weaponvalue", PF_weaponvalue},
+    {"weightdamage", PF_weightdamage},
+    {"weightleniency", PF_weightleniency},
     {"modelpoint", PF_modelpoint},
     {"physicspush", PF_physicspush},
     {"tracebox", PF_tracebox},

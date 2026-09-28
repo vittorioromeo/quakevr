@@ -230,6 +230,37 @@ void(float xHand, entity xBox) VR_Carry_Regrip =
     xBox.carry_trigger = VRGetFireButtonPressed(xHand);
 };
 
+// Weight (round 21, "Spring only; Weapon Weights and Held Object Weights; weight and damage"): a thrown thing's mass: a
+// thrown weapon's (Weapon Weights: Mass) or a prop's (Held Object Weights).
+float(entity e) VR_Thrown_Mass =
+{
+    if(e.classname == "thrown_weapon")
+    {
+        return weaponvalue(e.model, "w_mass");
+    }
+    return propvalue(e, "mass");
+};
+
+// Heavy leniency: the factor on its throw's speed thresholds (weightleniency: 1 but for things heavier than every
+// weapon, which can't be thrown as fast).
+float(entity e) VR_Thrown_Lenient =
+{
+    return weightleniency(VR_Thrown_Mass(e));
+};
+
+// Its damage hitting something at `xSpeed` units/s: its base (GetThrownWeaponBaseDamage) times its speed over the
+// throw's full-damage speed (.throwdmgspeed; that times `xLenient` for a heavy thing, as its thresholds are), its own
+// Throw Damage x times the weight's curve (weightdamage), and vr_weapon_throw_damage_mult.
+float(entity e, float xSpeed, float xLenient) VR_Thrown_Damage =
+{
+    float dmgSpeed = e.throwdmgspeed;
+    if(!dmgSpeed) dmgSpeed = 700;
+    float mass = VR_Thrown_Mass(e);
+    float own = e.classname == "thrown_weapon" ? weaponvalue(e.model, "w_throwdmg") : propvalue(e, "throw_dmg");
+    return (xSpeed / (dmgSpeed * max(0.01, xLenient))) * GetThrownWeaponBaseDamage(e) * own * weightdamage(mass) *
+           cvar_hget(cvarh_vr_weapon_throw_damage_mult);
+};
+
 // Let go: it keeps the hand's throw (the same estimate thrown weapons use).
 void(float xHand, entity xBox) VR_Carry_Release =
 {
@@ -250,12 +281,16 @@ void(float xHand, entity xBox) VR_Carry_Release =
         xBox.gravity = cvar_hget(cvarh_vr_throw_gravity) * m2u / cvar_hget(cvarh_sv_gravity);
     }
 
-    // Thrown hard it is a missile: it hurts what bleeds (forcegrabbable_touch), not the thrower.
-    if(vlen(v) > 250)
+    // Thrown hard it is a missile: it hurts what bleeds (forcegrabbable_touch; an explosive box: VR_Explobox_Impact), not
+    // the thrower. A heavy thing, which can't be thrown as fast, sooner (VR_Thrown_Lenient).
+    if(vlen(v) > 250 * VR_Thrown_Lenient(xBox))
     {
         xBox.throwhit = QVR_THROWHIT_NEVER_HIT;
         xBox.throwdmgspeed = 700 * m2u / 120;
-        SetThrownWeaponDealDamage(xBox, TRUE);
+        if(xBox.takedamage == DAMAGE_NO)
+        {
+            SetThrownWeaponDealDamage(xBox, TRUE); // (.health: not of a thing with health of its own, an explosive box)
+        }
         SetThrownWeaponBaseDamage(xBox, cvar_hget(xBox.vr_gib ? cvarh_vr_gib_throw_damage : cvarh_vr_carry_throw_damage));
         xBox.owner = self;
     }

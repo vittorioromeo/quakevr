@@ -291,6 +291,23 @@ void() barrel_explode =
 // vr_explobox_impact m/s, dropped from a height). 0: fixed in place, as id's.
 void(float xSpeed) VR_Explobox_Impact =
 {
+    // Thrown (VR_Carry_Release: a heavy box is a missile at a lower speed) into something that bleeds: it hits it as any
+    // thrown thing does (VR_Thrown_Damage). Its first hit ends the throw.
+    if(self.throwhit == QVR_THROWHIT_NEVER_HIT && self.owner.classname == "player")
+    {
+        self.throwhit = QVR_THROWHIT_HIT;
+        if(other != world && other.takedamage && other != self.owner)
+        {
+            float speed = max(vlen(self.velocity), xSpeed * VRMetersToUnits());
+            float dmg = VR_Thrown_Damage(self, speed, VR_Thrown_Lenient(self));
+            dprint("explobox: thrown into "); dprint(other.classname); dprint(" at "); dprint(ftos(speed));
+            dprint(" u/s: "); dprint(ftos(dmg)); dprint("\n");
+            sound(self, CHAN_AUTO, "fisthit.wav", 1, ATTN_NORM);
+            spawn_touchblood(dmg);
+            T_Damage(other, self, self.owner, dmg);
+        }
+    }
+
     float threshold = cvar_hget(cvarh_vr_explobox_impact);
     if(threshold <= 0 || xSpeed < threshold || self.takedamage == DAMAGE_NO || self.health <= 0)
     {

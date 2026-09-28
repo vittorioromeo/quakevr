@@ -348,26 +348,24 @@ void resetHandMoves()
         slider("2H Stock Factor", "vr_2h_virtual_stock_factor", 0.f, 1.f, 0.05f, "%.2f").help("How much the virtual stock matters in the final angle calculation for two-handed aiming. Decrease if you want your hands to matter more."),
         toggle("2H Hand-Off", "vr_2h_handoff").help("Letting go with the hand holding a two-handed weapon leaves it in the other hand: a sword changes hands; a gun hangs from its foregrip, unusable, until a hand takes its handle."),
         header("Weight"),
-        cycle("Weight Model", vr_weight_model, {{0.f, "Speed Limit (current)"}, {1.f, "Spring"}})
-            .help("Speed Limit: a weapon trails your hand by its Weight (Weapon Offsets), turning and moving alike. Spring: "
-                  "what you hold follows your hand through a spring, by its mass, balance and length: heavy things lag, "
-                  "overshoot a little and settle, long ones turn slowly, and they droop a little at arm's length. Two hands "
-                  "hold it much steadier. Both: the drawn hand stays on it, and the aim and melee follow it."),
-        toggle("Carried Props Have Weight", vr_weight_props)
-            .help("Boxes, gibs, backpacks and the explosive boxes you carry weigh their mass (Held Object Offsets), with "
-                  "either model. Off: they follow your hand at once, as before."),
-        open("Held Object Offsets (Held Prop)", pageIndex(pageHeldObjectOffsets)),
+        info([]() -> const char* {
+            return "What you hold follows your hand through a spring: heavy things lag, overshoot a little and settle.";
+        }).help("By its mass, balance and length (Weapon Weights, Held Object Weights): long ones turn slowly, and they "
+                "droop a little at arm's length. Two hands hold it much steadier. The drawn hand stays on it, and the aim "
+                "and melee follow it. Each weapon and prop multiplies the Spring settings below with its own."),
+        open("Weapon Weights (Held Weapon)", pageIndex(pageWeaponWeights)),
+        open("Held Object Weights (Held Prop)", pageIndex(pageHeldObjectWeights)),
         infoLine(weightReadout, 1),
         infoLine(weightReadout, 0),
         header("Tired Arms"),
         toggle("Heavier When Tired", vr_weight_stamina)
-            .help("As your stamina (Parry Stamina) runs low, what you hold gets heavier, with either model."),
+            .help("As your stamina (Parry Stamina) runs low, what you hold gets heavier."),
         slider("From Stamina", vr_weight_stamina_from, 0.1f, 1.f, 0.05f, "%.2f")
             .help("Above this share of your stamina the weight is unchanged; below it, it grows smoothly to the most at none."),
         slider("Most Weight", vr_weight_stamina_max, 1.f, 4.f, 0.1f, "%.1fx").extend(1.f, 10.f).help("Times the weight with no stamina left."),
         slider("Curve", vr_weight_stamina_curve, 0.5f, 4.f, 0.1f, "%.1f").extend(0.1f, 10.f)
             .help("How it grows from the threshold to none: 1 in a straight line; 2 (the default) gently at first, then faster."),
-        header("Spring Model"),
+        header("Spring"),
         slider("Stiffness", vr_weight_spring_stiffness, 0.25f, 4.f, 0.05f, "%.2fx").extend(0.05f, 20.f)
             .help("How firmly your arm pulls what it holds to your hand: higher lags less."),
         slider("Damping", vr_weight_spring_damping, 0.2f, 2.f, 0.05f, "%.2f").extend(0.f, 5.f)
@@ -383,17 +381,26 @@ void resetHandMoves()
             .help("Times the stiffness and strength with both hands on it (4: twice as quick)."),
         slider("Snap Back Beyond", vr_weight_spring_snap, 10.f, 100.f, 5.f, "%.0f cm").extend(1.f, 1000.f)
             .help("Left further behind than this (or three times as many degrees), it is put back in your hand at once."),
-        header("Speed Limit Model"),
-        toggle("Weighted Weapon Move", "vr_wpn_pos_weight").help("Enable weight simulation for weapon movement."),
-        slider("W. Weapon Move Off.", "vr_wpn_pos_weight_offset", 0.05f, 1.f, 0.05f, "%.2f").extend(),
-        slider("W. Weapon Move Mult", "vr_wpn_pos_weight_mult", -5.f, 5.f, 0.1f, "%.1f").extend(),
-        slider("W. Move 2H Help Off.", "vr_wpn_pos_weight_2h_help_offset", 0.05f, 1.f, 0.05f, "%.2f").extend(),
-        slider("W. Move 2H Help Mult", "vr_wpn_pos_weight_2h_help_mult", -5.f, 5.f, 0.1f, "%.1f").extend(),
-        toggle("Weighted Weapon Turn", "vr_wpn_dir_weight").help("Enable weight simulation for weapon turning."),
-        slider("W. Weapon Turn Off.", "vr_wpn_dir_weight_offset", 0.05f, 1.f, 0.05f, "%.2f").extend(),
-        slider("W. Weapon Turn Mult", "vr_wpn_dir_weight_mult", -5.f, 5.f, 0.1f, "%.1f").extend(),
-        slider("W. Turn 2H Help Off.", "vr_wpn_dir_weight_2h_help_offset", 0.05f, 1.f, 0.05f, "%.2f").extend(),
-        slider("W. Turn 2H Help Mult", "vr_wpn_dir_weight_2h_help_mult", -5.f, 5.f, 0.1f, "%.1f").extend(),
+        header("Weight and Damage"),
+        slider("Weight Damage Exponent", vr_weight_damage_exp, 0.f, 1.f, 0.05f, "%.2f").extend(0.f, 3.f)
+            .help("How much the mass of what you strike with or throw changes the damage: 0 none; 0.4 gently (twice as "
+                  "heavy: 1.3 times the damage); 1 in proportion. Weapons and props also have their own multipliers."),
+        slider("Heavier Than", vr_weight_damage_heavy, 1.f, 30.f, 0.5f, "%.1f kg").extend(0.1f, 500.f)
+            .help("Things heavier than this deal more damage (8 kg: every weapon deals its own; an explosive box more)."),
+        slider("Lighter Than", vr_weight_damage_light, 0.1f, 10.f, 0.1f, "%.1f kg").extend(0.01f, 500.f)
+            .help("Things lighter than this deal less damage (a torch, a flashlight, a small gib). The same as Heavier "
+                  "Than: one reference mass, everything heavier more and lighter less."),
+        slider("Least Damage", vr_weight_damage_min, 0.1f, 1.f, 0.05f, "%.2fx").extend(0.f, 1.f)
+            .help("The weight never takes more than this off the damage."),
+        slider("Most Damage", vr_weight_damage_max, 1.f, 5.f, 0.1f, "%.1fx").extend(1.f, 20.f)
+            .help("The weight never adds more than this to the damage."),
+        slider("Heavy Leniency", vr_weight_lenient, 0.f, 2.f, 0.05f, "%.2f").extend(0.f, 5.f)
+            .help("Heavy things can't be swung or thrown fast: their strikes and throws count at lower speeds. 0: off; "
+                  "0.75: four times as heavy as Starts At, 0.35 of the speed."),
+        slider("Starts At", vr_weight_lenient_from, 1.f, 40.f, 0.5f, "%.1f kg").extend(0.1f, 500.f)
+            .help("Things up to this heavy (10 kg: every weapon) strike and hit when thrown at the usual speeds."),
+        slider("Least Speed Factor", vr_weight_lenient_min, 0.05f, 1.f, 0.05f, "%.2fx")
+            .help("The lowest share of the usual speeds a heavy thing's strikes and throws need."),
     };
 }
 

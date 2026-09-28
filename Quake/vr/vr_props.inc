@@ -1,5 +1,6 @@
-// vr_props.inc -- per-prop settings: what a thing a hand carries weighs and how it is held (Held Object Offsets; see
-// vr_props.hpp and docs/vr-port/ROUND21.md, "Weight: spring model, stamina, held object offsets; explosive boxes").
+// vr_props.inc -- per-prop settings: what a thing a hand carries weighs and how it is held (Held Object Offsets and
+// Held Object Weights; see vr_props.hpp and docs/vr-port/ROUND21.md, "Weight: spring model, stamina, held object
+// offsets; explosive boxes").
 //   QVR_PROP_KEY(Enum, "key", "default"): cvars vr_prop_<key>_01 .. vr_prop_<key>_48, every slot's default
 //   QVR_PROP_DEFAULT(slot, Enum, "value"): a slot's own defaults (its ID, the model it is for, first)
 // A slot is a kind of prop, by the model it is drawn with (its ID: "progs/gib1.mdl", "maps/b_explob.bsp"). A model
@@ -37,6 +38,17 @@ QVR_PROP_KEY(TipZ, "tip_z", "0")             // a line from its butt (below) thr
 QVR_PROP_KEY(ButtX, "butt_x", "0")           // melee: its other end (a pommel strike's), units in its model's axes
 QVR_PROP_KEY(ButtY, "butt_y", "0")
 QVR_PROP_KEY(ButtZ, "butt_z", "0")
+// Round 21, "Spring only; Weapon Weights and Held Object Weights; weight and damage" (Held Object Weights): its own
+// multipliers of the spring's global settings (Aiming: Spring, vr_weight_spring_*) and of its melee and thrown damage.
+QVR_PROP_KEY(SpringStiffness, "stiffness", "1")
+QVR_PROP_KEY(SpringDamping, "damping", "1")
+QVR_PROP_KEY(SpringStrength, "strength", "1")
+QVR_PROP_KEY(SpringSag, "sag", "1")
+QVR_PROP_KEY(SpringSwing, "swing", "1")
+QVR_PROP_KEY(SpringTwoHanded, "help_2h", "1")
+QVR_PROP_KEY(SpringSnap, "snap", "1")
+QVR_PROP_KEY(MeleeDamage, "melee_dmg", "1")
+QVR_PROP_KEY(ThrowDamage, "throw_dmg", "1")
 #endif
 
 #ifdef QVR_PROP_DEFAULT
@@ -70,4 +82,39 @@ QVR_PROP_DEFAULT(16, GripX, "10")
 QVR_PROP_DEFAULT(16, GripZ, "-3")
 QVR_PROP_DEFAULT(16, TipX, "2.3")
 QVR_PROP_DEFAULT(16, ButtX, "-14")
+// Gibs and heads (round 21, "Spring only; Weapon Weights and Held Object Weights; weight and damage"): Box3D's estimate
+// from their drawn hulls at flesh's density made them 18 to 405 kg (a gib2 292, a grunt's head 73), so they lagged in the
+// hand like explosive boxes, left it at a fifth of its speed, and would strike and hit thrown several times harder by the
+// weight's damage curve. Their masses as things of their kind weigh: the Mass is also their Box3D mass. (Slots 34..48,
+// from the table's end: vr_cfg_version 27 gives them to configs saved before; props::fleshSlots.)
+QVR_PROP_DEFAULT(33, ID, "progs/gib1.mdl")
+QVR_PROP_DEFAULT(33, Mass, "0.8")
+QVR_PROP_DEFAULT(34, ID, "progs/gib2.mdl")
+QVR_PROP_DEFAULT(34, Mass, "2.5")
+QVR_PROP_DEFAULT(35, ID, "progs/gib3.mdl")
+QVR_PROP_DEFAULT(35, Mass, "2")
+QVR_PROP_DEFAULT(36, ID, "progs/h_player.mdl")
+QVR_PROP_DEFAULT(36, Mass, "5")
+QVR_PROP_DEFAULT(37, ID, "progs/h_guard.mdl")
+QVR_PROP_DEFAULT(37, Mass, "5")
+QVR_PROP_DEFAULT(38, ID, "progs/h_dog.mdl")
+QVR_PROP_DEFAULT(38, Mass, "3")
+QVR_PROP_DEFAULT(39, ID, "progs/h_mega.mdl")
+QVR_PROP_DEFAULT(39, Mass, "5")
+QVR_PROP_DEFAULT(40, ID, "progs/h_knight.mdl")
+QVR_PROP_DEFAULT(40, Mass, "5")
+QVR_PROP_DEFAULT(41, ID, "progs/h_hellkn.mdl")
+QVR_PROP_DEFAULT(41, Mass, "6")
+QVR_PROP_DEFAULT(42, ID, "progs/h_ogre.mdl")
+QVR_PROP_DEFAULT(42, Mass, "9")
+QVR_PROP_DEFAULT(43, ID, "progs/h_wizard.mdl")
+QVR_PROP_DEFAULT(43, Mass, "3")
+QVR_PROP_DEFAULT(44, ID, "progs/h_zombie.mdl")
+QVR_PROP_DEFAULT(44, Mass, "4")
+QVR_PROP_DEFAULT(45, ID, "progs/h_shal.mdl")
+QVR_PROP_DEFAULT(45, Mass, "6")
+QVR_PROP_DEFAULT(46, ID, "progs/h_shams.mdl")
+QVR_PROP_DEFAULT(46, Mass, "15")
+QVR_PROP_DEFAULT(47, ID, "progs/h_demon.mdl")
+QVR_PROP_DEFAULT(47, Mass, "12")
 #endif

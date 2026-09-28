@@ -55,7 +55,7 @@ const DefaultChange defaultChanges[] = {
     {13, &vr_shove_speed, "1.8"},         // the author's shoves go 3.2-4.8 m/s, his hands waved at the dummy 2.2 (round 21)
     {14, &vr_counter_glow, "1"},          // off: the author would rather play without it (round 21, "Stamina on the gadget; the glow")
 };
-constexpr int configVersion = 25;
+constexpr int configVersion = 27;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
@@ -169,6 +169,15 @@ void migrateConfig_f()
     if(from < 25)
     {
         props::takeShippedSlot(props::wallTorchSlot);
+    }
+    // 27: the gibs and heads have shipped Held Object Weights (round 21, "Spring only; Weapon Weights and Held Object
+    // Weights; weight and damage": their masses) in slots that configs saved empty.
+    if(from < 27)
+    {
+        for(int slot = props::fleshSlotsFirst; slot <= props::fleshSlotsLast; slot++)
+        {
+            props::takeShippedSlot(slot);
+        }
     }
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
 }
