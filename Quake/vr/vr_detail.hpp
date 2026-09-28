@@ -18,6 +18,9 @@ namespace qvr::detail
 // VR_Init: the vr_detail_reload command.
 void init();
 
+// A map's load (VR_NewMap): detail.cfg read for it and the images' array made, as VR_DetailView would in the first frame.
+void prepare();
+
 // The game directory changed (VR_OnGameDirChanged): Mod_ResetAll reuses the models' slots for other models, and the
 // files are another game's; detail.cfg, its images and the textures' details read again on the next map.
 void onGameDirChanged();

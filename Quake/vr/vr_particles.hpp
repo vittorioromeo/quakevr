@@ -58,6 +58,9 @@ bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count)
 // (and copies every live particle) in the middle of a fight.
 void init();
 
+// A map's load (VR_NewMap): the particles' atlas made (its textures read, 20-30 ms), not at the first particle.
+void prepare();
+
 // Removes them all (a new map, a disconnect).
 void clear();
 

@@ -21,6 +21,9 @@ void parseEject();
 // into the casings), throws out what is due, moves the casings and adds them to the scene.
 void frame(const view::ViewEntity (&weapons)[2]);
 
+// A map's load (VR_NewMap): the casings' model and sounds loaded, not at the first shot.
+void prepare();
+
 // Removes them all (a new map, a disconnect).
 void clear();
 

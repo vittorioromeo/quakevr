@@ -67,6 +67,13 @@ bool place(Mark mark, const glm::vec3& where, const glm::vec3& normal, float siz
 // The static world along `from` -> `to` (as the decals see it): where, its normal, how far along.
 [[nodiscard]] bool trace(const glm::vec3& from, const glm::vec3& to, glm::vec3& where, glm::vec3& normal, float& fraction);
 
+// Start-up (VR_Init): the atlas's texels begun on a worker thread (0.4 s of the CPU: made at the first mark's draw,
+// it was the first shot's hitch).
+void init();
+
+// A map's load (VR_NewMap): the atlas on the GPU, so that the first mark draws at once.
+void prepare();
+
 // Drawn in each eye (VR_DrawSceneOpaque).
 void draw();
 

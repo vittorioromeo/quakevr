@@ -142,6 +142,10 @@ void graspDump_f();
 // while it is loaded; a missing one remembered until the next map.
 [[nodiscard]] qmodel_t* viewModel(const char* name);
 
+// A map's load (VR_NewMap), in VR: the view's own models loaded (the hands' rig, the body and its pauldrons, the leg
+// holsters, the wrist gadget), not in the first frame drawn (0.3 s the first time: the body's 0.2).
+void prepareModels();
+
 // Forgets every cache keyed by a model (the view models, clip sizes, the jointed hand's check, the grasp shapes): for
 // a game directory change, which reuses the models' slots.
 void resetCaches();

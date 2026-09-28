@@ -78,4 +78,8 @@ void addRipple(const glm::vec3& at, float strength);
 // desktop window's view of it (vr_stereo.cpp): the time, the wobble, the blur (both 0: not under water).
 [[nodiscard]] glm::vec3 viewWobble();
 
+// A map's load (VR_NewMap, after its lightmaps and vertices): the liquids' volume (caustics, wetness) and wave mesh
+// built for it, 20-100 ms that the map's first frame took.
+void prepare();
+
 } // namespace qvr::water

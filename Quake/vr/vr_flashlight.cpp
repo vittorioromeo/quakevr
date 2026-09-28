@@ -1636,6 +1636,12 @@ void init()
     Cmd_AddCommand("vr_flashlight_toggle", toggle_f);
 }
 
+void prepare()
+{
+    (void)view::viewModel(modelName);
+    (void)shape();
+}
+
 void setupView(const hands::State& s, view::ViewEntity& ve)
 {
     static int lastFrame = -1;

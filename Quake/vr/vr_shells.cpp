@@ -68,6 +68,10 @@ constexpr Weapon weaponTable[] = {
 // The casings' models (the QC's `kind`).
 constexpr const char* kindModels[] = {"progs/vr_shell.mdl"};
 
+// Their sounds: on a hard surface, into a liquid.
+constexpr const char* tinkSounds[] = {"vr/shell_tink1.wav", "vr/shell_tink2.wav", "vr/shell_tink3.wav"};
+constexpr const char* plipSounds[] = {"vr/shell_plip1.wav", "vr/shell_plip2.wav", "vr/shell_plip3.wav"};
+
 // Quake's weapons are drawn about a quarter bigger than the real ones (the shotgun is 1.25 m
 // long): the shells are too, to match them.
 constexpr float modelScale = 1.25f;
@@ -388,8 +392,7 @@ void tink(Shell& s, float impact)
     s.tinks++;
     s.nextTink = cl.time + 0.06;
 
-    static const char* const names[] = {"vr/shell_tink1.wav", "vr/shell_tink2.wav", "vr/shell_tink3.wav"};
-    sfx_t* sfx = S_PrecacheSound(names[std::uniform_int_distribution<int>{0, 2}(rng)]);
+    sfx_t* sfx = S_PrecacheSound(tinkSounds[std::uniform_int_distribution<int>{0, 2}(rng)]);
     if(!sfx)
     {
         return;
@@ -443,8 +446,7 @@ void enterLiquid(Shell& s, glm::vec3 dry, glm::vec3 wet)
         int k = std::uniform_int_distribution<int>{0, 1}(rng);
         k += last >= 0 && k >= last ? 1 : 0; // never the one played last
         last = k;
-        static const char* const names[] = {"vr/shell_plip1.wav", "vr/shell_plip2.wav", "vr/shell_plip3.wav"};
-        if(sfx_t* sfx = S_PrecacheSound(names[k]))
+        if(sfx_t* sfx = S_PrecacheSound(plipSounds[k]))
         {
             sounds++;
             vec3_t org{surface.x, surface.y, surface.z};
@@ -743,6 +745,22 @@ void frame(const view::ViewEntity (&weapons)[2])
             }
         }
         addToScene(s, models[s.kind], life);
+    }
+}
+
+void prepare()
+{
+    for(const char* name : kindModels)
+    {
+        (void)Mod_ForName(name, false);
+    }
+    for(const char* name : tinkSounds)
+    {
+        (void)S_PrecacheSound(name);
+    }
+    for(const char* name : plipSounds)
+    {
+        (void)S_PrecacheSound(name);
     }
 }
 
