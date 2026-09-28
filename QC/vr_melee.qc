@@ -85,6 +85,8 @@ float VR_BASH_COOLDOWN = 0.8;     // s after a bash lands before the next
 float VR_BASH_BAT_SPEED = 750;    // u/s a two-handed bash at vr_bash_speed bats a projectile away at (VR_Bash_Deflect)
 float VR_BASH_BAT_MIN = 0.7;      // times that for a slow push,
 float VR_BASH_BAT_MAX = 1.8;      // and a hard one (push speed over vr_bash_speed, clamped)
+float VR_BASH_FACE_MIN = 0.25;    // a bash's point moving less than this share across the blade (pushed along it, a
+                                  // thrust): what it meets goes the push's way, not off the face (VR_Bash_Direction)
 float VR_STANCE_REPORT = 0.2;     // s a stance is held before it is reported (developer: "melee event: stance")
 
 // ----------------------------------------------------------------------------
@@ -199,6 +201,11 @@ float VR_MKIND_PUNCH = 3;  // a fist (any way: jab, hook, uppercut, overhead)
 .vector vr_bashdef_vel;   // the push's velocity (world, u/s; VR_Bash_DeflectStart), what it bats goes that way
 .float vr_bashdef_both;   // pushed with both hands
 .float vr_bashdef_armed;  // a bash (a weapon's guard), not a shove
+.float vr_bashdef_gren;   // an unarmed shove: it pushes away only a grenade (VR_Grenade_Is; a palm can't bat a spike)
+.vector vr_bashdef_mvn;   // the main hand's weapon line's near and far ends' velocities in the push (world, u/s):
+.vector vr_bashdef_mvf;   // where a bash meets a projectile on the blade, it goes the way that point moves
+.vector vr_bashdef_ovn;   // (VR_Bash_Direction); and the off hand's
+.vector vr_bashdef_ovf;
 .float vr_push_start;     // on a player: when the push going on began (VR_Bash: its frames in a row)
 .float vr_bash_paid;      // the push (its vr_push_start) whose stamina was paid (VR_Bash_Pay): once a push, batting or landing,
 .float vr_bash_paid_dmg;  // and what it left (vr_bash_exhaust_dmg and _push)
@@ -2018,13 +2025,67 @@ void(float xBoth, float xArmed) VR_Bash_Pay =
     self.vr_bash_paid_push = vr_bash_exhaust_push;
 };
 
+// The way a bash sends a projectile it meets (ROUND21.md, "Catching versus deflecting; returned grenades; sword bash
+// direction"). Met by a weapon's line (`xHand`'s, `xT` along it from its near end): off the blade's face, the way the
+// blade's point moves across the blade (its velocity in the push, vr_bashdef_mvn/_mvf, mixed along the rigid line)
+// with its share along the blade taken off (it slides along a blade, which can't push it that way). The point: two
+// hands on one weapon, the blade's middle (between the grip and the far end), so neither hand's push pulls it aside;
+// one hand, where it met the blade. So a blade held level and square in front of the torso sends it straight ahead,
+// whichever hand pushes harder, and tilting the blade turns it (20 degrees, 20 degrees). A palm, a fist, the line
+// between the hands, or a push along the blade (a thrust: less than VR_BASH_FACE_MIN across it): the push's way
+// `xPush`, as before. `xForward`: the facing.
+vector(float xHand, float xT, vector xPush, vector xForward) VR_Bash_Direction =
+{
+    vector pushDir = normalize(xPush);
+    if(vlen(xPush) < 1)
+    {
+        pushDir = xForward;
+    }
+    if(xHand < 0)
+    {
+        return pushDir;
+    }
+    entity b = VR_Blow(xHand);
+    if(b.mh_thing == VR_MTHING_FIST || b.mh_thing == VR_MTHING_NONE || vlen(b.mh_far - b.mh_near) < 1)
+    {
+        return pushDir;
+    }
+    vector axis = normalize(b.mh_far - b.mh_near);
+    vector vn = xHand == cVR_OffHand ? self.vr_bashdef_ovn : self.vr_bashdef_mvn;
+    vector vf = xHand == cVR_OffHand ? self.vr_bashdef_ovf : self.vr_bashdef_mvf;
+    float t = xT;
+    float two = VRGet2HAiming(self) && VRIsHandEmpty(self, VRGetOtherHand(xHand));
+    if(two)
+    {
+        float grip = vlen(b.mh_grip - b.mh_near) / vlen(b.mh_far - b.mh_near);
+        t = grip + (1 - grip) * 0.5;
+    }
+    vector v = vn + (vf - vn) * t;
+    if(vlen(v) < 1)
+    {
+        v = xPush;
+    }
+    vector across = v - axis * (v * axis);
+    if(vlen(across) < VR_BASH_FACE_MIN * vlen(v) || across * xForward <= 0)
+    {
+        dprint(sprintf("deflect: the point %.2f along the blade %v moves %v, along it: the push's way\n", t, axis, v));
+        return pushDir;
+    }
+    vector dir = normalize(across);
+    dprint(sprintf("deflect: off the blade %v (%s), its point %.2f along moving %v: sent %v, %.1f deg from the push %v\n", axis,
+        two ? "two hands: its middle" : "where it met", t, v, dir, VRAngleBetween(dir, pushDir), pushDir));
+    return dir;
+};
+
 // Batting with a bash (vr_deflect; round 20, ROUND21.md "Deflection by blows and bashes"): for vr_bash_deflect_window
 // seconds from the push, a monster's projectile whose path this frame (from a little behind it to where it will be at
 // the frame's end) comes within vr_bash_deflect_radius of the guard -- each hand's weapon line, each empty hand, and
 // the line between the hands while they are together -- and is ahead of the facing `xForward`, is sent the way the
 // hands push (vr_bashdef_vel), as fast as the bash is strong: VR_BASH_BAT_SPEED times the push's speed over
 // vr_bash_speed (VR_BASH_BAT_MIN .. VR_BASH_BAT_MAX), one hand's VR_BASH_ONE_PUSH of it, short of stamina its
-// Exhausted Knockback (the push's stamina, VR_Bash_Pay). Then the aim assist (VR_Deflect_Assist, vr_juice.qc).
+// Exhausted Knockback (the push's stamina, VR_Bash_Pay). Met by a weapon's line, off the blade's face
+// (VR_Bash_Direction). Then the aim assist (VR_Deflect_Assist, vr_juice.qc). An unarmed shove (vr_bashdef_gren) pushes
+// only grenades.
 void(vector xForward) VR_Bash_Deflect =
 {
     float radius = max(0, cvar_hget(cvarh_vr_bash_deflect_radius));
@@ -2053,14 +2114,30 @@ void(vector xForward) VR_Bash_Deflect =
     entity e = findradius((mh + oh) * 0.5, 200);
     while(e)
     {
-        if(VR_Deflect_IsProjectile(e) && time >= e.vr_deflect_time + 0.3 && (e.origin - head) * xForward > -8)
+        if(VR_Deflect_IsProjectile(e) && time >= e.vr_deflect_time + 0.3 && (e.origin - head) * xForward > -8 &&
+           (!self.vr_bashdef_gren || VR_Grenade_Is(e)))
         {
             vector from = e.origin - e.velocity * max(dt, VR_BAT_LATE * 2);
             vector to = e.origin + e.velocity * dt;
-            float near = min(VR_SegmentDistance(from, to, ma, mb), VR_SegmentDistance(from, to, oa, ob));
+            // (Where it met: a hand's line, how far along it; -1 the line between the hands.)
+            float near = VR_SegmentDistance(from, to, ma, mb);
+            float onHand = cVR_MainHand;
+            float onT = vr_seg_t;
+            float nearOff = VR_SegmentDistance(from, to, oa, ob);
+            if(nearOff < near)
+            {
+                near = nearOff;
+                onHand = cVR_OffHand;
+                onT = vr_seg_t;
+            }
             if(together)
             {
-                near = min(near, VR_SegmentDistance(from, to, mh, oh));
+                float nearBoth = VR_SegmentDistance(from, to, mh, oh);
+                if(nearBoth < near)
+                {
+                    near = nearBoth;
+                    onHand = -1;
+                }
             }
             if(near < radius + e.maxs_x)
             {
@@ -2079,13 +2156,9 @@ void(vector xForward) VR_Bash_Deflect =
                 {
                     batSpeed = batSpeed * vr_bash_exhaust_push;
                 }
-                vector pushDir = normalize(pushVel);
-                if(vlen(pushVel) < 1)
-                {
-                    pushDir = xForward;
-                }
                 dprint(sprintf("deflect: the push %v (%.0f u/s, x%.2f the bash speed), %s\n", pushVel, vlen(pushVel),
                     strength, self.vr_bashdef_both ? "two hands" : "one hand"));
+                vector pushDir = VR_Bash_Direction(onHand, onT, pushVel, xForward);
                 VR_Deflect_Send(e, pushDir * batSpeed, self.vr_bashdef_hand, "bash");
             }
         }
@@ -2095,7 +2168,8 @@ void(vector xForward) VR_Bash_Deflect =
 
 // Starts a bash's batting (vr_deflect), with `xHand` (-1: both), unless it is going on already; the push's velocity
 // `xPushVel` (play space, m/s) is kept while it goes on (what it bats goes that way).
-void(float xHand, vector xForward, vector xPushVel, float xBoth, float xArmed) VR_Bash_DeflectStart =
+void(float xHand, vector xForward, vector xPushVel, float xBoth, float xArmed, float xGrenadesOnly)
+    VR_Bash_DeflectStart =
 {
     if(!cvar_hget(cvarh_vr_deflect))
     {
@@ -2107,6 +2181,7 @@ void(float xHand, vector xForward, vector xPushVel, float xBoth, float xArmed) V
         self.vr_bashdef_hand = xHand;
         self.vr_bashdef_both = xBoth;
         self.vr_bashdef_armed = xArmed;
+        self.vr_bashdef_gren = xGrenadesOnly;
         self.vr_bashdef_until = time + max(0, cvar_hget(cvarh_vr_bash_deflect_window));
         VR_Bash_Deflect(xForward);
     }
@@ -2276,15 +2351,22 @@ void() VR_Bash =
         ob.mh_hit_touch = time;
     }
 
-    // Batting: a bash, or a shove while a hand holds a weapon; what it bats goes the way the hands push.
-    if(armed || !VRIsHandEmpty(self, cVR_MainHand) || !VRIsHandEmpty(self, cVR_OffHand))
+    // Batting: a bash, or a shove while a hand holds a weapon; what it bats goes the way the hands push (off a blade's
+    // face: VR_Bash_Direction, from the weapon lines' motion in the push). An unarmed shove pushes a grenade away (a
+    // palm can't bat a spike).
     {
         vector pushVel = VR_Bash_PushVel(b);
         if(both && ob.mh_stance)
         {
             pushVel = (pushVel + VR_Bash_PushVel(ob)) * 0.5;
         }
-        VR_Bash_DeflectStart(both ? -1 : readyHand, fwd, pushVel, both, armed);
+        float m2u = VRMetersToUnits();
+        self.vr_bashdef_mvn = VR_Blow_ToWorld(bm.mh_vnear) * m2u;
+        self.vr_bashdef_mvf = VR_Blow_ToWorld(bm.mh_vfar) * m2u;
+        self.vr_bashdef_ovn = VR_Blow_ToWorld(bo.mh_vnear) * m2u;
+        self.vr_bashdef_ovf = VR_Blow_ToWorld(bo.mh_vfar) * m2u;
+        float weapon = armed || !VRIsHandEmpty(self, cVR_MainHand) || !VRIsHandEmpty(self, cVR_OffHand);
+        VR_Bash_DeflectStart(both ? -1 : readyHand, fwd, pushVel, both, armed, !weapon);
     }
 
     if(time < self.vr_bash_time)

@@ -900,6 +900,22 @@ Drive batting and bashes with `vr_mock_play` in real time (`host_maxfps 90`, not
 game's clock apart from the play's): the scratchpad's `projectiles/gen.py B|P|W|A` (swings, one-handed bashes,
 two-handed parry bashes, the aim assist; round 20's poses, so it sets and prints the old hand settings),
 `gren.py fly|place|force|hold|regrab|show`, and `ledge.sh above|below <aim 0|1>` (vrclimb's platform and trench).
+Catching versus deflecting, returned grenades, bash direction (ROUND21.md, "Catching versus deflecting; returned
+grenades; sword bash direction"): the scratchpad's `projfix/t.py C|W|D` prints the console script and writes the play.
+- `C`: an empty main hand (`vr_weapon_grip_mode 1; impulse 150`) meets `impulse 246` grenades (`vr_test_projectile
+  4`, aimed 16 units ahead of the face and 10 down; the hand at `0.02 1.33 -0.66`): held out still, reaching, open or
+  closing, punching, shoving; the open palm is `160 -90 0` (Gun Angle 70).
+- `W`: two- and one-handed bashes against a spike (old hand settings). Round 20's poses draw the blade a few degrees off
+  the pose asked for, so compare the logged blade axis with the direction sent.
+- `D`: throw back vs the launcher, `CASE=gl` for the launcher (`impulse 9; impulse 158`, the grip held, `+attack`),
+  `EXTRA="vr_grenade_return_full 0"` or `EXTRA="impulse 255"` (Quad), with `vr_debug_shots 1` for `damage: ...`.
+- `developer 1` prints:
+  - `grenade: <what> caught in flight by hand <h> (the palm's reach, <d> units off | the palm's grip, <s> s after it met
+    it | touched)`;
+  - `grenade: <what> stopped by the open palm of hand <h> at <u/s> (facing it <cos>)`;
+  - `drops from the open hand`;
+  - `thrown back | batted back by a <how>: goes off as your launcher's`;
+  - `deflect: off the blade <axis> (two hands: its middle | where it met), its point <t> along moving <v>: sent <dir>`.
 Stamina for shoves and strikes (ROUND21.md): `setpos 221.2 -656.7 41 0 180 0` (the dummy 0.95 m ahead), the takes
 from `motion_synth.py <palm_shove_2h | punch_straight | slash_horizontal_rtl> --distance 0.95 --mock` played with
 `vr_mock_play` one after another (an empty main hand: `vr_weapon_grip_mode 1; impulse 150`; a fist: `+grabright;
