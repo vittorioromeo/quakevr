@@ -141,6 +141,11 @@ context and screenshot, ready to paste or to point me at.
 ## What to try
 
 - **New in this round** (details in `docs/vr-port/ROUND21.md`; each section ends with an "In the headset" list):
+  - **Performance fixes (review, 2026-09-28)** (ROUND21.md, same title): the spectator camera has a **Frame Rate**
+    (60 fps by default: as often as a 60 fps recording takes), a **Resolution Scale** of 0.75 by default and an
+    **Anti-Aliasing** choice (Recording page); climbing's mantle and lenient grab, the props' settings and two caches
+    are cheaper or fixed with the same results; no GPU-sampling thread runs unless you profile (Debug > Memory Log: GPU
+    keeps it on for the Memory Log).
   - **Profiling: where the time goes** (ROUND21.md, same title): VR Settings > Advanced VR Options > Debug >
     Profiling. Profiler Panel (In Front) shows each system's milliseconds a frame with a bar against the budget; CSV
     Capture writes a row a second while on; the Hitch Log names what took a slow frame's time. See "Profiling" below.
@@ -647,7 +652,11 @@ SteamVR (or Virtual Desktop) is restarted too, it is them. The Memory Log (`vr_m
 minute in `quakevr/profile/memstats_<date>.csv`) also times each frame whatever `vr_profile` is: our CPU work
 (`busy_ms`) and the eyes' GPU time (`gpu_eyes_ms`) next to the runtime's waits (`xr_waitframe_ms`, `xr_submit_ms`,
 `gpu_submit_ms`) and missed refreshes (`slow_frames`), with counts of what there is to draw (corpses, thrown weapons,
-decals, lights, particles). Note the time when it feels slower and send that file (ROUND16.md, "Slowdown").
+decals, lights, particles). Note the time when it feels slower and send that file (ROUND16.md, "Slowdown"). Its GPU
+columns (clocks, slowdowns, each program's use of the GPU: `gpu_*`, `gpu3d_*`, `gpu_programs`) come from a sampling
+thread that runs only while profiling (`vr_profile`, the Profiler Panel or its CSV Capture) or with
+`vr_memstats_log_gpu 1` (Debug > Memory Log: GPU); otherwise they are empty. With `developer 1` the console says when
+that thread starts and stops (`gpustats: sampling thread started`).
 
 ## If something goes wrong
 
@@ -679,7 +688,12 @@ sensors (0..1); a fifth argument sets the index finger's touch on the trigger.
 Profiler (ROUND21.md, "Profiling: where the time goes"): `vr_profile_csv 1` collects (a row a second) without the
 panel; `vr_profile_report [s]` prints the table; the hitch log prints `vr_profile: hitch` lines. The panel is UI, so
 `vr_eyeshot` misses it: to see it in a screenshot, `vr_window_view 2; vr_spectator_fov 50; vr_spectator_scale 2;
-vr_profile_overlay 2` (the spectator camera, narrow, frames the panel in the 960 x 540 window). Timings need
+vr_spectator_rate 1; vr_profile_overlay 2` (the spectator camera, narrow, frames the panel in the 960 x 540 window).
+The spectator camera's own settings: `vr_spectator_rate` (1 every frame, 2 or 3 every 2nd or 3rd, more than 3 at most
+that many images a second; the window pass shows the last image between: `window view` outside `spectator` in the
+profile) and `vr_spectator_aa` (1 the window's MSAA, `vid_fsaa`; 0 none). Its timings need a real window size: the
+kit's run.sh opens 960 x 540 (`vid_width` and `vid_restart` don't change it); the scratchpad's `spectator/runwh.sh
+-W 1920 -H 1080` does. Timings need
 `run.sh --exclusive`; the mock's frame cap (`host_maxfps` 250) sleeps in 15.6 ms steps in an exclusive run (Windows'
 timer), which the report shows as "frame cap" (idle), not work.
 
@@ -721,7 +735,9 @@ down and why, the search's time) and takes nothing; `python Misc/quakevr/climb/c
 sweep (ledge, rungs, a wall, stairs, the thin wall with a ledge behind it at vrclimb's `setpos -270 -260 24 0 180 0`,
 at leniencies 0 to 30 cm) and `climb_leniency.py table qconsole.log` tabulates it. `climb_plays.py pressL<d>|pressR<d>`
 grips d units in front of the ledge or rung 56 and pulls (a real lenient grab; `vr_climb_debug 3` also prints the
-search's time and the drawn hand's ease), `ledgehang|runghang` hang still for screenshots (`vr_mock_camera` for the
+search's time, its traces and the drawn hand's ease; `vr_climb_try` ends with the lenient search's trace count, and the
+table's last lines give the searches' median and worst times and traces; `vr_climb_debug 4` prints each mantle search's
+traces and time, `climbcost` lines, or "no room (searched ... s ago)" while a search that found no room holds), `ledgehang|runghang` hang still for screenshots (`vr_mock_camera` for the
 side view, `vr_mock_fingers main 1 1 1` for a gripping hand).
 Climbing, hand orientation, staying attached, small ledges (ROUND21.md, the section of that name): `climb_plays.py`
 `ledgeodd|rungodd` hang with the controllers turned oddly (the hand should face the hold whatever they do; Hold Rotation
@@ -787,7 +803,8 @@ box before the main hand (no `carry: taken`, and the box drops). Carrying across
 `save c1; wait10; load c1; wait60; screenshot`; the box should still be in the hand(s).
 Held weapons against models (round 21): `vr_debug_model_collide 1` prints each hand's push, `2` draws the rays;
 `vr_model_collide_bench [n] [list]` times the test, `vr_model_collide_bench probe` lists the model triangles a ray along
-the view goes in and out by. `impulse 241` puts a monster (`vr_test_spawn`: the firing range dispenser's numbers) or a
+the view goes in and out by. `vr_test_remove <n>` removes entity n as QC's `remove()` would (a slot to reuse; ROUND21.md, "Performance fixes
+(review, 2026-09-28)"). `impulse 241` puts a monster (`vr_test_spawn`: the firing range dispenser's numbers) or a
 box (100 health, 101 shells, 102 an explosive box, 103 a small one) `vr_test_spawn_dist` units ahead
 (`vr_test_spawn_dead 1`: a corpse);
 `vr_mock_camera <x> <y> <z> <pitch> <yaw>` draws the mock eyes from elsewhere in the tracking space (a spectator's view of
