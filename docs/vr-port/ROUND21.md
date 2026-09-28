@@ -8281,6 +8281,151 @@ ball at 400 then homing at 250, the grenade and flesh lobbed at you); vrfiringra
       (they shouldn't, unless it reaches your body)?
 - [ ] Stand on a ledge above an ogre and below one: its grenades should now come at you.
 
+## Catching versus deflecting; returned grenades; sword bash direction
+
+Your notes (vrfiringrange, 2026-09-28): an ogre's grenade was mostly knocked away when you held your hand out to catch
+it and closed your fist, rather than caught (knock it away only when you punch, push or bash); grenades you threw back
+seemed to hit softer than your launcher's; and a level two-handed sword parry bash sent spikes off to the right, towards
+the main hand, instead of straight ahead. Branch `agent/projfix`; scripts and logs in the scratchpad's `projfix/`
+(`t.py C|W|D`).
+
+### Why an open hand knocked grenades away
+
+- **It was a batting swing.** An empty hand batted at 0.6 times Melee Speed (Batting Swing Speed: 2.4 m/s at the
+  knuckles), slower than a punch. A hand reaching out to catch easily goes that fast. Before: a reach at 2.6 m/s with
+  the grip closing as the grenade arrived gave "ogre_grenade by a swing ... out (-9,-466,113)". Its fist was also
+  taken as a 5-unit blade along the hand, so the "face" it met was sideways and the grenade went on past the fist,
+  into you (it then hit the dummy behind you). A punch did the same.
+- **A closed fist let it through.** A hand takes a thing it touches only if the grip was pressed in the last 0.2 s. A
+  fist closed earlier, held out still, didn't catch it: "hits player".
+- **Closing the hand as it arrived was too late.** On first touch, an open hand nudged the grenade: along the hand's
+  motion it moved at least as fast as the hand, which turned it round. A still hand let it fly on into you. Nothing
+  let the grip close just after contact.
+- **Not the hands' physics spheres.** The Box3D hand spheres (`vr_box3d_hand_push`) meet only solid props
+  (`.vr_rigid` 2, the explosive boxes). A grenade is `.vr_rigid` 1, so they never touch it. That stays as it is.
+
+### Catching and deflecting now
+
+- **Deflecting needs an attack.** An empty hand (a fist, an open hand, a box in the fist) bats only at a punch's speed
+  (Melee Speed, 4 m/s; `VR_BAT_FIST`). A weapon keeps Batting Swing Speed. A punch or a slap now sends a projectile
+  off the fist as a ball, back the way the fist moves: a 5.5 m/s punch gives out (-26,581,163), towards the thrower.
+- **Pushes deflect grenades.** A shove with both hands empty now pushes a grenade away as a bash does (`VR_Grenade_Is`;
+  a palm still can't bat a spike). A bash and an armed shove bat as before.
+- **A hand in a push doesn't also swing.** While a hand is in a push (or its batting window), its batting swing is off,
+  so the bash's rule decides where the projectile goes.
+- **Catching** (`VR_Grenade_CatchCheck`, every frame before the batting): an empty hand that isn't striking (not a
+  punch-speed motion, not in a push or its batting) catches a grenade in flight (over 150 u/s) whose path this frame
+  (swept, from a frame back to half a frame ahead) passes within **Catch Radius** (`vr_grenade_catch_radius`, 15 cm)
+  of the palm (1.5 units out from the hand, the way the palm faces), plus the grenade's size:
+  - **Grip held or closing:** it's caught (a fist held out still, or a reach with the hand closing).
+  - **Open palm facing it** (not the back of the hand): the palm **stops** it and holds it there for **Catch Window**
+    (`vr_grenade_catch_window`, 0.15 s) so the grip can close. Close in time and it's caught. Otherwise it drops from
+    the hand with the hand's motion, its fuse still the ogre's.
+  - The same rules apply when the engine reports the hand touching it (`VR_Grenade_HandTouch`, in
+    `VR_Carry_Handtouch`). A grenade in flight is never nudged, by a hand or by a gun poking it. Lying or rolling
+    (slower than 150 u/s), it is taken and nudged as before.
+  - **Not caught again for 0.2 s after a throw** (`VR_GREN_CATCH_AGE`): the hand it leaves, or your launcher's muzzle,
+    doesn't take it back.
+  - **Only grenades.** The ogres' (and, with Catch Grenades on "and yours", your own) can be caught. Spikes, lasers and
+    the rest can't: they fly on and hurt.
+  - Force grab is unchanged.
+- **A fast open-palm reach is a shove.** A palm facing ahead, the arm extending, at Shove Speed (2.4 m/s) or faster,
+  pushes the grenade away. To catch, close the hand as you reach, or reach more slowly.
+
+### Returned grenades hit like yours
+
+- **Measured before** (an ogre 220 units ahead, the grenade put in the hand and thrown back on the same arc):
+  "damage: monster_ogre 17.5 by ogre_grenade". The ogre's explosion is `T_RadiusDamage` 40 over 80 units. Your launcher
+  fired at the same ogre: 104.9 (120 over 160 units).
+- **Now**, with **Returned Grenades Hit Like Yours** (`vr_grenade_return_full`, on; Carrying page, Grenades): an
+  ogre's grenade you throw back (let go of at 150 u/s or more) or bat back (a swing, a bash or a shove) goes off as
+  your launcher's (`GrenadeExplode`, `GrenadeTouch`: 120 over 160, the attacker you). The same throw: 97.3 (the rest is
+  the distance). With a Quad the same throw killed the ogre (200 health) outright, as a launcher grenade would. Off:
+  17.5, as before.
+- **Kept:**
+  - In the ogre's flight, the grenade keeps the ogre's blast.
+  - Going off in your hand, it is the ogre's own blast, even if you had thrown it back once (`vr_gren_boom0`).
+  - Dropped from the hand, it keeps the ogre's blast.
+  - A multi-grenade keeps rogue's rule: your launcher's grenade on what it hits, its cluster on its fuse.
+  - Your own launcher grenade (Catch Grenades on "and yours") is the launcher's already.
+- The log: "grenade: ogre_grenade thrown back: goes off as your launcher's (120 damage, 160 units round), not its
+  thrower's (40, 80)".
+
+### Bash direction off the blade's face
+
+**Before:** a bash sent the projectile along the push: the weapon line's two ends' velocities averaged, for two hands
+the main hand's weapon line alone. A level blade pushed with the main hand a little ahead of the other sent it off to
+that side.
+
+**Now** (`VR_Bash_Direction`, vr_melee.qc): met by a weapon's line, the projectile goes off the blade's face. Take the
+velocity of the blade's point in the push (the line's end velocities kept from the push frames, mixed along the rigid
+line), minus its share along the blade: a blade can't push along itself, the projectile slides.
+
+- **Two hands on one weapon:** the point is the blade's middle (between the grip and the far end), so neither hand's
+  push pulls it aside.
+- **One hand:** the point is where it met the blade.
+- **So:** a level blade held square in front of you sends it straight ahead, whichever hand pushes harder, and
+  tilting the blade turns it by the tilt.
+- **The push's way, as before:** a palm, a fist, the line between the hands, and a push along the blade (a thrust:
+  less than a quarter of its motion across the blade).
+- The speed is unchanged (the push's strength), and the aim assist still applies afterwards.
+- The log: "deflect: off the blade <axis> (two hands: its middle), its point 0.62 along moving <v>: sent <dir>, <deg>
+  from the push".
+
+Tests (the old hand settings, set and printed: `vr_gunangle 39.5`, `vr_gunyaw 4`, every `vr_handcal_*` 0,
+`vr_handcal_off_mirror 0`; round 20's sword poses; a knight's spike from ahead at 600 u/s). The r20 pose helper draws
+the blade 2-8 degrees off the pose asked for, so the table gives the drawn blade's measured turn. Angles are from
+straight ahead; + is right.
+
+| Case | Drawn blade (turn from square) | Push | Before (along the push) | Now |
+|---|---|---|---|---|
+| 2H, pushed straight ahead (W1b) | 2.1 (left end back) | 0.0 | 0.0 | -2.1 |
+| 2H, pushed ahead and right (W2b) | 1.8 | +18.5 | +18.5 | -1.8 |
+| 2H, pushed ahead and right (W2) | 1.6 | +14 to +16 | +16.3 | -1.6 |
+| 2H tilted, left end ahead (W3b) | 20.7 | -0.1 | about 0 | +20.6 |
+| 2H tilted, left end back (W4b) | 17.0 | -3.3 | -3.3 | -17.0 |
+| 2H tilted (W3, W4) | 11.8, 27.4 | about 0 | +0.4, -1.5 | +11.8, -27.3 |
+| 1H across, pushed ahead and right (W5) | 2.4 | +31 | +31 | -1.7 |
+
+With two hands the projectile now leaves square to the drawn blade, within 0.1 degree of its turn. W5's blade was also
+tilted 7.5 degrees up, which is why the numbers differ there. A one-handed guard held upright keeps the push's sideways
+way: an upright blade's face turns only with the push.
+
+### Tests (mock headset)
+
+`t.py C`: current hand defaults (Gun Angle 70), an empty main hand (`vr_weapon_grip_mode 1; impulse 150`), `impulse
+246` with `vr_test_projectile 4` (an ogre's grenade lobbed at 630 u/s at a point 16 units ahead of the face, 10 down),
+`god`.
+
+| Case | Before | Now |
+|---|---|---|
+| C1 open palm held out still, no grip | "hits player" | stopped by the palm (facing it 0.95); "drops from the open hand 1 (no grip in 0.16 s)"; goes off at your feet as the ogre's |
+| C2 fist held out still, grip closed 1 s before | "hits player" | "caught in flight by hand 1 (the palm's reach, 2.0 units off)"; fuse 2.01 -> 2.50 s |
+| C3 reach at 2.6 m/s, grip closing 0.05 s before it arrives | batted: "by a swing ... out (-9,-466,113)" (into you) | caught (the palm's reach) |
+| C4c open palm reaching at 1.6 m/s, grip 0.08 s after it arrives | (not run) | stopped, then "caught ... (the palm's grip, 0.09 s after it met it)" |
+| C4b open palm still, grip 0.3 s after | "hits player" | stopped, dropped after 0.16 s |
+| C4 open palm reaching at 2.6 m/s (a shove) | batted by a swing | pushed away by the shove: out (-46,684,68) |
+| C5 punch at 5.5 m/s | batted, out (-22,-450,120): into you | batted, out (-26,581,163): at the thrower |
+| C6 a knight's spike at the C3 reach | batted by a swing | not caught nor batted: flies on into you |
+| C7 two open palms shoving at 3 m/s | batted by a swing | pushed away: out (0,1125,0) |
+
+- `t.py D` (an ogre 220 units ahead, `vr_debug_shots 1`): thrown back 17.5 before, 97.3 now, 17.5 with the option off;
+  a Quad kills it; the launcher 104.9.
+- **Melee detection unchanged:** the 46 canary takes (archived, replayed with the old hand settings above, set and
+  printed) give the same verdicts and events on this branch and on its base (008b67dc) built side by side: 42 pass, 0
+  differ.
+- **No config migration:** only new settings; no default changed.
+
+### Check in the headset
+
+- [ ] Hold your hand out to an ogre's grenade and close it as the grenade arrives: you should catch it. With the hand
+      open, it should stop in your palm; close within 0.15 s to keep it, otherwise it drops. If catching feels
+      stingy, raise Catch Radius or Catch Window.
+- [ ] Punch it, or push it with open palms: it should fly off, and not be caught.
+- [ ] Throw one back at an ogre: it should hit as hard as your launcher's grenade.
+- [ ] Hold the sword level in both hands in front of you and bash a spike: it should go straight ahead. Tilt the blade
+      and it should follow the tilt.
+
 ## Weight: spring model, stamina, held object offsets; explosive boxes
 
 Your requests: weapons heavier as stamina runs low (unchanged above 50%, smoothly heavier below); a Boneworks-like

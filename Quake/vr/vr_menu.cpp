@@ -1261,6 +1261,15 @@ void hologramTestMessage()
         toggle("Fuse Resets Every Catch", vr_grenade_fuse_regrab)
             .help("Off: the fuse is set once, as you catch the monster's throw; dropped and caught again, it keeps running. On: "
                   "every catch sets it again."),
+        slider("Catch Radius", vr_grenade_catch_radius, 5.f, 30.f, 1.f, "%.0f cm")
+            .help("How near your palm a grenade in flight must pass for an empty hand to catch it: grip held, or closing as it "
+                  "arrives. A punch, a shove or a bash knocks it away instead."),
+        slider("Catch Window", vr_grenade_catch_window, 0.f, 0.4f, 0.01f, "%.2f s")
+            .help("A grenade that flies into your open palm stays there this long for your grip to close on it; then it drops "
+                  "from the hand. 0: only a grip already closing catches."),
+        toggle("Returned Grenades Hit Like Yours", vr_grenade_return_full)
+            .help("A grenade you throw or bat back (an ogre's or your own) goes off as your grenade launcher's: its damage and "
+                  "radius, credited to you, with your Quad. Off: an ogre's keeps its own, weaker blast."),
         header("Gibs and Corpses"),
         cycle("Gibs and Heads", vr_grab_gibs, {{0.f, "Left alone"}, {1.f, "Grab by hand"}, {2.f, "Hand and force grab"}})
             .help("Pick up and throw gibs and heads, by reaching for them (or force-grabbing them too)."),

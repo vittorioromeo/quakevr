@@ -677,6 +677,11 @@ void() VR_Carry_Handtouch =
     }
 
     float hand = VRGetTouchingHand(other);
+    // A live grenade in flight is caught or stopped by an open palm, never nudged (vr_grenade.qc).
+    if(!forcegrabCatching && VR_Grenade_HandTouch(other, hand))
+    {
+        return;
+    }
     // A force grab's catch (VR_Forcegrab_Catch) has checked the grip already: its window
     // (vr_forcegrab_catch_early) is longer than a touch's.
     if((forcegrabCatching || VR_Carry_GripPressed(other, hand)) && VRIsHandEmpty(other, hand) && !VR_Carry_IsHolding(other, hand) &&
@@ -700,6 +705,10 @@ void() VR_Carry_Weapontouch =
     if(!cvar_hget(cvarh_vr_carry) || other.classname != "player")
     {
         return;
+    }
+    if(VR_Grenade_InFlight(self))
+    {
+        return; // (a live grenade in flight: batted by a swing fast enough, VR_Deflect, not nudged)
     }
     VR_Carry_Nudge(other, VRGetTouchingHand(other), self);
 };
