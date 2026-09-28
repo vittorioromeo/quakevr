@@ -266,6 +266,7 @@ using PageBuilder = std::vector<Item> (*)();
 
 #include "vr_menu_props.inc"
 #include "vr_menu_pages.inc"
+#include "vr_menu_recording.inc"
 
 // ----------------------------------------------------------------------------
 // Pages of the port's own tweaks
@@ -1469,6 +1470,7 @@ const Page pages[] = {
     {nullptr, "Models and Effects", "Graphics - Models and Effects", pageGraphicsModels},
     {nullptr, "Particles", "Particles", pageParticleSettings},
     {nullptr, "Transparency", "Transparency", pageTransparencyOptions},
+    {nullptr, "Recording", "Recording", pageRecording},
 
     // Opened from others (not listed: added last, so the listed pages keep their numbers for menu_vr <n>).
     {nullptr, nullptr, "Held Object Offsets", pageHeldObjectOffsets},

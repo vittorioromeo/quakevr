@@ -433,6 +433,7 @@ void resetHandMoves()
 [[nodiscard]] std::vector<Item> pageGraphicsPost();
 [[nodiscard]] std::vector<Item> pageGraphicsModels();
 [[nodiscard]] std::vector<Item> pageTransparencyOptions();
+[[nodiscard]] std::vector<Item> pageRecording(); // vr_menu_recording.inc
 
 // Old Quake VR settings: "Graphical Settings", in pages: this one, the preset and the image, and links
 // to the others.
@@ -458,6 +459,7 @@ void resetHandMoves()
         open("Models and Effects", pageIndex(pageGraphicsModels)),
         open("Particles", pageIndex(pageParticleSettings)),
         open("Transparency", pageIndex(pageTransparencyOptions)),
+        open("Recording (Window View)", pageIndex(pageRecording)),
         header("Performance"),
         cycle("Performance Profile", "vr_profile", {{0.f, "Off"}, {1.f, "Record"}, {2.f, "Record and show"}})
             .help("Record CPU and GPU time per effect into quakevr/profile/ every 5 seconds (and show the top costs over the wrist). Not kept after a restart."),

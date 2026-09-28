@@ -5,6 +5,7 @@
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
 #include "vr_profile.hpp"
+#include "vr_stereo.hpp"
 #include "vr_water.hpp"
 
 #include <glm/gtc/type_ptr.hpp>
@@ -161,29 +162,41 @@ struct Copy
     int width = 0, height = 0;
     GLint format = 0;
 };
-Copy copy;
+// One for the eyes, one for the window's spectator camera (vr_window.cpp): each keeps its size.
+Copy copies[2];
 
-// The scene colour texture's format (asked of GL only for another texture or another size of vid).
+[[nodiscard]] int viewSlot()
+{
+    return stereo::isSpectator() ? 1 : 0;
+}
+
+// The scene colour texture's format (asked of GL only for another texture or another size of vid), for each slot.
 GLint sceneFormat(GLuint color, int samples)
 {
-    static GLuint sized = 0;
-    static int sizedSamples = 0, sizedW = 0, sizedH = 0;
-    static GLint format = 0;
-    if(color != sized || samples != sizedSamples || vid.width != sizedW || vid.height != sizedH)
+    struct Sized
+    {
+        GLuint color = 0;
+        int samples = 0, w = 0, h = 0;
+        GLint format = 0;
+    };
+    static Sized sizedFor[2];
+    Sized& z = sizedFor[viewSlot()];
+    if(color != z.color || samples != z.samples || vid.width != z.w || vid.height != z.h)
     {
         const GLenum target = samples > 1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
         GL_BindNative(GL_TEXTURE0, target, color);
-        glGetTexLevelParameteriv(target, 0, GL_TEXTURE_INTERNAL_FORMAT, &format);
-        sized = color;
-        sizedSamples = samples;
-        sizedW = vid.width;
-        sizedH = vid.height;
+        glGetTexLevelParameteriv(target, 0, GL_TEXTURE_INTERNAL_FORMAT, &z.format);
+        z.color = color;
+        z.samples = samples;
+        z.w = vid.width;
+        z.h = vid.height;
     }
-    return format;
+    return z.format;
 }
 
 bool ensureCopy(int width, int height, GLint format)
 {
+    Copy& copy = copies[viewSlot()];
     if(copy.texture && copy.width == width && copy.height == height && copy.format == format)
     {
         return true;
@@ -552,6 +565,7 @@ void draw()
     {
         return;
     }
+    const Copy& copy = copies[viewSlot()];
     {
         QVR_GPU_PROFILE("copy");
         GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, sceneFbo);

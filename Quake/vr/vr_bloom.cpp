@@ -5,6 +5,7 @@
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
 #include "vr_profile.hpp"
+#include "vr_stereo.hpp"
 
 #include <algorithm>
 
@@ -25,9 +26,14 @@ struct Target
 // a thirty-second; up[2..0] back up to a quarter, each the level below it spread out plus its own
 // down level; mean: how much of the view glows, one texel.
 constexpr int levels = 4;
-Target down[levels];
-Target up[levels - 1];
-Target mean;
+// One for the eyes, one for the window's spectator camera (vr_window.cpp): each keeps its size.
+struct Chain
+{
+    Target down[levels];
+    Target up[levels - 1];
+    Target mean;
+};
+Chain chains[2];
 GLuint brightProgram = 0;
 GLuint downProgram = 0;
 GLuint upProgram = 0;
@@ -221,6 +227,10 @@ void apply(GLuint sceneTex, int width, int height)
     {
         return;
     }
+    Chain& chain = chains[stereo::isSpectator() ? 1 : 0];
+    Target* const down = chain.down;
+    Target* const up = chain.up;
+    Target& mean = chain.mean;
     for(int l = 0; l < levels; l++)
     {
         const int w = std::max(1, width >> (2 + l));
@@ -277,15 +287,18 @@ bool result(unsigned& texture)
 
 void shutdown()
 {
-    for(Target& t : down)
+    for(Chain& chain : chains)
     {
-        destroy(t);
+        for(Target& t : chain.down)
+        {
+            destroy(t);
+        }
+        for(Target& t : chain.up)
+        {
+            destroy(t);
+        }
+        destroy(chain.mean);
     }
-    for(Target& t : up)
-    {
-        destroy(t);
-    }
-    destroy(mean);
     for(GLuint* p : {&brightProgram, &downProgram, &upProgram, &meanProgram})
     {
         if(*p)

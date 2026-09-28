@@ -234,8 +234,10 @@ struct Distances
     GLuint fbo = 0;
     int width = 0, height = 0;
 };
-Distances distances[2];
+// Two for the eyes, two for the window's spectator camera (vr_window.cpp): each pair keeps its size.
+Distances distances[4];
 int distancesIndex = 0;
+int distancesTurn[2] = {0, 0};
 int distancesFrame = -1; // r_framecount the current one is for (one a view: each eye)
 
 // This view's distances from the depth texture `source` (made now if not yet: then `restore` puts back the framebuffer
@@ -272,13 +274,18 @@ GLuint makeDistances(GLuint source, bool multisampled, void (*restore)())
     // for another texture (a query a view cost a quarter of a millisecond of CPU), or another size of vid: GL
     // reuses a deleted texture's name, so framebuffers made anew at another size (vr_render_scale, the window) can
     // come back under the same name.
-    static GLuint sizedSource = 0;
-    static GLint sourceWidth = 0, sourceHeight = 0;
-    static int sizedVidWidth = 0, sizedVidHeight = 0;
-    if(source != sizedSource || vid.width != sizedVidWidth || vid.height != sizedVidHeight)
+    // (One for the eyes' size, one for the spectator camera's.)
+    const int slot = stereo::isSpectator() ? 1 : 0;
+    static GLuint sizedSourceFor[2] = {0, 0};
+    static GLint sourceWidthFor[2] = {0, 0}, sourceHeightFor[2] = {0, 0};
+    static int sizedVidWidthFor[2] = {0, 0}, sizedVidHeightFor[2] = {0, 0};
+    GLuint& sizedSource = sizedSourceFor[slot];
+    GLint& sourceWidth = sourceWidthFor[slot];
+    GLint& sourceHeight = sourceHeightFor[slot];
+    if(source != sizedSource || vid.width != sizedVidWidthFor[slot] || vid.height != sizedVidHeightFor[slot])
     {
-        sizedVidWidth = vid.width;
-        sizedVidHeight = vid.height;
+        sizedVidWidthFor[slot] = vid.width;
+        sizedVidHeightFor[slot] = vid.height;
         GL_BindNative(GL_TEXTURE0, sourceTarget, source);
         glGetTexLevelParameteriv(sourceTarget, 0, GL_TEXTURE_WIDTH, &sourceWidth);
         glGetTexLevelParameteriv(sourceTarget, 0, GL_TEXTURE_HEIGHT, &sourceHeight);
@@ -290,7 +297,8 @@ GLuint makeDistances(GLuint source, bool multisampled, void (*restore)())
     }
     const int width = (sourceWidth + 1) / 2, height = (sourceHeight + 1) / 2;
 
-    distancesIndex ^= 1;
+    distancesTurn[slot] ^= 1;
+    distancesIndex = slot * 2 + distancesTurn[slot];
     Distances& target = distances[distancesIndex];
     if(!target.texture || width != target.width || height != target.height)
     {
@@ -1608,12 +1616,20 @@ extern "C" unsigned VR_WaterSceneDepth(int translucent)
 // GL_PostProcess (its program in use): under water, the wobble and blur (gl_shaders.h), reading the scene smoothly
 // on unit 6. Only the scene is in it: the HUD, the menu, the lasers and the wrist's log are drawn over the eye's
 // image after it (vr_stereo.cpp), the wrist gadget and the rest of the world wobble.
-extern "C" void VR_PostProcessWater(void)
+glm::vec3 qvr::water::viewWobble()
 {
-    const bool on = water::viewLiquid && stereo::isRenderingEye();
+    const bool on = water::viewLiquid != 0;
     const float wobble = on ? std::clamp(vr_water_wobble.value, 0.f, 3.f) * 0.004f : 0.f;
     const float blur = on ? std::clamp(vr_water_underwater.value, 0.f, 2.f) * 0.0008f : 0.f;
-    GL_Uniform4fFunc(2, static_cast<float>(cl.time), wobble, blur, 0.f);
+    return {static_cast<float>(cl.time), wobble, blur};
+}
+
+extern "C" void VR_PostProcessWater(void)
+{
+    const glm::vec3 w = stereo::isRenderingEye() ? water::viewWobble() : glm::vec3{static_cast<float>(cl.time), 0.f, 0.f};
+    const float wobble = w.y;
+    const float blur = w.z;
+    GL_Uniform4fFunc(2, w.x, wobble, blur, 0.f);
     if(wobble + blur <= 0.f)
     {
         return;

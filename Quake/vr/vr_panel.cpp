@@ -19,6 +19,7 @@
 #include "vr_menuui.hpp"
 #include "vr_panel.hpp"
 #include "vr_profile.hpp"
+#include "vr_window.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -353,11 +354,18 @@ extern "C" void VR_End2D()
     gfx::endCanvas();
     gadget::renderScreen(); // shown in the eyes next frame, as the canvas
 
-    glm::mat4 toNdc{1.f};
-    toNdc[0][0] = 2.f;
-    toNdc[1][1] = 2.f;
-    toNdc[3] = glm::vec4{-1.f, -1.f, 0.f, 1.f};
-    drawCanvas(toNdc);
+    // Not over the smoothed mirror or the spectator camera (vr_window.cpp), for recording: the window shows the HUD and
+    // the menus as the headset does, in the world; the console still, while it is down.
+    const window::View view = window::view();
+    const bool recording = stereoThisFrame && (view == window::View::Smoothed || view == window::View::Spectator);
+    if(!recording || key_dest == key_console || con_forcedup)
+    {
+        glm::mat4 toNdc{1.f};
+        toNdc[0][0] = 2.f;
+        toNdc[1][1] = 2.f;
+        toNdc[3] = glm::vec4{-1.f, -1.f, 0.f, 1.f};
+        drawCanvas(toNdc);
+    }
 
     if(!stereoThisFrame)
     {

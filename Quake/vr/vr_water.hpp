@@ -74,4 +74,8 @@ void addRipple(const glm::vec3& at, float strength);
 // flat), for things lying on it or going into it. eye: this view's (they fade out far from it).
 [[nodiscard]] float surfaceRise(const glm::vec3& p, int contents, const glm::vec3& eye);
 
+// The last view's underwater wobble and blur, as the eyes' post-processing does them (VR_PostProcessWater), for the
+// desktop window's view of it (vr_stereo.cpp): the time, the wobble, the blur (both 0: not under water).
+[[nodiscard]] glm::vec3 viewWobble();
+
 } // namespace qvr::water

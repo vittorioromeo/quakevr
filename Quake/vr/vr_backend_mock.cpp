@@ -477,6 +477,28 @@ public:
             tracking.head.position = mockHandPos[mockHead];
         }
         tracking.head.orientation = mockHeadOrientation;
+        if(vr_mock_shake.value != 0.f || vr_mock_shake_turn.value != 0.f)
+        {
+            // A shaky head (vr_mock_shake): quick small turns (a few incommensurate sines on each axis) and a small
+            // wobble of the position (4 mm a degree), over a slow turn (vr_mock_shake_turn). Driven by realtime, which
+            // vr_fixed_frames steps by 1/72 s a frame: the same poses every run.
+            const float t = static_cast<float>(realtime);
+            const float a = glm::radians(vr_mock_shake.value);
+            const auto wave = [t](float f1, float f2, float f3, float phase) {
+                return 0.5f * std::sin(6.2831853f * f1 * t + phase) +
+                       0.3f * std::sin(6.2831853f * f2 * t + 2.1f * phase + 1.f) +
+                       0.2f * std::sin(6.2831853f * f3 * t + 3.7f * phase + 2.f);
+            };
+            const float yaw = glm::radians(vr_mock_shake_turn.value) * t + a * wave(5.3f, 8.9f, 12.7f, 0.3f);
+            const float pitch = a * wave(6.1f, 9.7f, 13.1f, 1.7f);
+            const float roll = a * wave(4.9f, 7.3f, 11.3f, 2.9f);
+            tracking.head.orientation = glm::angleAxis(yaw, glm::vec3{0.f, 1.f, 0.f}) * mockHeadOrientation *
+                                        glm::angleAxis(-pitch, glm::vec3{1.f, 0.f, 0.f}) *
+                                        glm::angleAxis(roll, glm::vec3{0.f, 0.f, -1.f});
+            const float m = 0.004f * vr_mock_shake.value;
+            tracking.head.position += m * glm::vec3{wave(5.7f, 9.1f, 12.1f, 0.9f), wave(6.7f, 8.3f, 11.9f, 2.3f),
+                                              wave(4.3f, 7.9f, 10.9f, 1.1f)};
+        }
         if(vr_mock_swing.value > 0.f)
         {
             swing(tracking.hands[HAND_MAIN], realtime, vr_mock_swing.value);

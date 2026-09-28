@@ -86,6 +86,18 @@ QVR_CVAR(vr_debug_box3d, "0", CVAR_NONE)             // 1: bodies made, woken an
 
 // Desktop mirror of the headset view: 0 off, 1 left eye, 2 both eyes side by side.
 QVR_CVAR(vr_mirror, "1", CVAR_ARCHIVE)
+// Recording (vr_window.cpp; ROUND21.md, "Recording: smoothed mirror and spectator camera"): what the window shows
+// (vr_mirror 0 still turns it off). 0 the left eye as it is (vr_mirror 2: both eyes); 1 the smoothed mirror: the
+// left eye's image turned to a steadied head orientation and cropped to the window; 2 the spectator camera: the
+// scene rendered a third time for the window, from the head, steadied, with its own field of view.
+QVR_CVAR(vr_window_view, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_window_smooth, "0.15", CVAR_ARCHIVE)      // seconds: the steadied orientation's lag (0 none .. 0.5); both modes
+QVR_CVAR(vr_window_level, "0", CVAR_ARCHIVE)          // 0 .. 1: how much of the head's roll is taken out (1: the horizon level); both modes
+QVR_CVAR(vr_window_zoom, "1.2", CVAR_ARCHIVE)         // smoothed mirror: 1 the widest crop of the eye's image .. 2 (the margin the steadying turns in)
+QVR_CVAR(vr_spectator_fov, "90", CVAR_ARCHIVE)        // spectator camera: horizontal field of view, degrees (40 .. 130)
+QVR_CVAR(vr_spectator_scale, "1", CVAR_ARCHIVE)       // spectator camera: its resolution, times the window's (0.25 .. 2)
+QVR_CVAR(vr_spectator_pos_smooth, "0.05", CVAR_ARCHIVE) // spectator camera: seconds, the steadied position's lag (0 none .. 0.3)
+QVR_CVAR(vr_window_log, "0", CVAR_NONE)               // 1: print the head's and the window camera's angles every frame (tests)
 
 // Near clipping plane in the headset, in units (the desktop's is up to 4).
 QVR_CVAR(vr_nearclip, "1", CVAR_ARCHIVE)
@@ -102,6 +114,10 @@ QVR_CVAR(vr_visibility_mask, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_mock_hidden_area, "0", CVAR_NONE)
 // Mock backend: its eye images' size (square, 256..2048; read when the images are made, before the first frame in VR).
 QVR_CVAR(vr_mock_eye_size, "1024", CVAR_NONE)
+// Mock backend: a shaky head (recording tests): small quick turns of this many degrees (pitch, yaw and roll, sums of
+// sines at 5 to 13 Hz) over a slow turn of vr_mock_shake_turn degrees a second, both from the head's vr_mock_look.
+QVR_CVAR(vr_mock_shake, "0", CVAR_NONE)
+QVR_CVAR(vr_mock_shake_turn, "0", CVAR_NONE)
 // Upscaling and foveated rendering (round 20; vr_upscale.cpp, vr_foveated.cpp, docs/vr-port/ROUND20.md).
 QVR_CVAR(vr_upscale, "1", CVAR_ARCHIVE)                // below vr_render_scale 1, the upscale to the headset's size: 0 bilinear, 1 AMD FSR 1 (EASU + RCAS), 2 NVIDIA Image Scaling
 QVR_CVAR(vr_upscale_sharpness, "0.5", CVAR_ARCHIVE)    // ... its sharpening, 0 none .. 1 most (FSR: RCAS 2 stops below its most at 0.1, its most at 1; NIS: its slider)

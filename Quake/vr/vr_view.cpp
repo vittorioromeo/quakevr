@@ -23,6 +23,7 @@
 #include "vr_render.hpp"
 #include "vr_shells.hpp"
 #include "vr_stereo.hpp"
+#include "vr_window.hpp"
 #include "vr_text3d.hpp"
 #include "vr_trace.hpp"
 #include "vr_twohand.hpp"
@@ -3945,6 +3946,19 @@ extern "C" int VR_HideViewModel()
 // Moves the view to the eye being rendered (see vr_stereo.cpp).
 static void applyEyeView(const hands::State& s)
 {
+    if(stereo::isSpectator())
+    {
+        // The desktop window's spectator camera (vr_window.cpp): its projection is its own too (VR_OverrideProjection).
+        const window::Camera& c = window::spectatorCamera();
+        for(int i = 0; i < 3; i++)
+        {
+            r_refdef.vieworg[i] = c.origin[i];
+            r_refdef.viewangles[i] = c.angles[i];
+        }
+        r_refdef.fov_x = glm::degrees(2.f * std::atan(c.tanX));
+        r_refdef.fov_y = glm::degrees(2.f * std::atan(c.tanY));
+        return;
+    }
     const int eye = stereo::eye();
     for(int i = 0; i < 3; i++)
     {
