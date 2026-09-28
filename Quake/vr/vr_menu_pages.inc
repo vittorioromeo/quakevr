@@ -46,32 +46,43 @@
     };
 }
 
-// Old Quake VR settings: "Locomotion Settings".
+// Old Quake VR settings: "Locomotion Settings" (climbing on its own page; the swimming toggle on Swimming).
 [[nodiscard]] std::vector<Item> pageLocomotionSettings()
 {
     return {
         cycle("Movement Mode", "vr_movement_mode", {{1.f, "Follow Head"}, {0.f, "Follow Off Hand"}}).help("Movement options for smooth locomotion."),
         slider("Deadzone", "vr_deadzone", 0.f, 50.f, 5.f, "%.0f%%").help("Controller thumbstick deadzone."),
-        toggle("Enable Joystick Turn", "vr_enable_joystick_turn").help("Allows turning using the controller. Keep enabled unless you want to force yourself to turn in real life."),
-        slider("Turn", "vr_snap_turn", 0.f, 90.f, 5.f, "%.0f").extend(),
-        slider("Turn Speed", "vr_turn_speed", 0.f, 10.f, 0.25f, "%.1f").extend().help("How quickly you turn with the joystick."),
-        toggle("Teleportation", "vr_teleport_enabled").help("Enables or disables teleportation. A controller binding is required to use teleportation."),
-        slider("Teleport Range", "vr_teleport_range", 100.f, 800.f, 10.f, "%.0f").extend(100.f, 3000.f).help("How far you can teleport."),
-        slider("Lean", "vr_lean_radius", 0.f, 14.f, 1.f, "%.0f units").extend().help("How far your head may lean off the middle of your body's box before the body follows: get your face near walls and over railings. 0: the body always under the head."),
-        slider("Lean Recentre", "vr_lean_recenter", 0.f, 2.f, 0.1f, "%.1f m/s").extend().help("How fast the body slides back under your head when it can (not into walls, not over ledges), at least; with Lean Detection, faster the further off it is, and not while you lean. 0: never."),
-        slider("Lean Detection", "vr_lean_detect", 0.f, 2.f, 0.1f, "%.1fx").help("Tells a lean from walking in the room. Leaning (your head lower and tilted the way you lean, your hands left by your hips), your feet and hips stay where you stand and your back tilts; walking, the body follows your head. 0: off, the body always slides back under your head; higher: more readily a lean."),
-        toggle("Roomscale Jump", "vr_roomscale_jump").help("Jumping in the room jumps in the game."),
-        slider("Jump Threshold", "vr_roomscale_jump_threshold", 0.3f, 2.f, 0.05f, "%.2f m/s").extend()
-            .help("How fast the head must rise above the standing height."),
-        slider("Roomscale Move Mult.", "vr_roomscale_move_mult", 0.25f, 5.f, 0.25f, "%.1f").extend().help("Real movement to in-game movement. Increase to cover more ground, e.g. with teleportation or little room."),
         slider("Movement Speed", "cl_forwardspeed", 100.f, 400.f, 25.f, "%.0f").extend().help("Walking speed (running is this times the running multiplier)."),
         cycle("Default Speed", "cl_alwaysrun", {{1.f, "Run"}, {0.f, "Walk"}}).help("The speed button switches to the other."),
         slider("Running Mult.", "cl_movespeedkey", 1.f, 3.f, 0.05f, "%.2f").extend().help("How much faster running is than walking."),
-        toggle("Swimming", "vr_swim").help("In water the stick slows and strokes of your hands move you (more on the Swimming page)."),
+        header("Turning"),
+        toggle("Enable Joystick Turn", "vr_enable_joystick_turn").help("Allows turning using the controller. Keep enabled unless you want to force yourself to turn in real life."),
+        slider("Turn", "vr_snap_turn", 0.f, 90.f, 5.f, "%.0f").extend(),
+        slider("Turn Speed", "vr_turn_speed", 0.f, 10.f, 0.25f, "%.1f").extend().help("How quickly you turn with the joystick."),
+        header("Teleport"),
+        toggle("Teleportation", "vr_teleport_enabled").help("Enables or disables teleportation. A controller binding is required to use teleportation."),
+        slider("Teleport Range", "vr_teleport_range", 100.f, 800.f, 10.f, "%.0f").extend(100.f, 3000.f).help("How far you can teleport."),
+        header("Leaning"),
+        slider("Lean", "vr_lean_radius", 0.f, 14.f, 1.f, "%.0f units").extend().help("How far your head may lean off the middle of your body's box before the body follows: get your face near walls and over railings. 0: the body always under the head."),
+        slider("Lean Recentre", "vr_lean_recenter", 0.f, 2.f, 0.1f, "%.1f m/s").extend().help("How fast the body slides back under your head when it can (not into walls, not over ledges), at least; with Lean Detection, faster the further off it is, and not while you lean. 0: never."),
+        slider("Lean Detection", "vr_lean_detect", 0.f, 2.f, 0.1f, "%.1fx").help("Tells a lean from walking in the room. Leaning (your head lower and tilted the way you lean, your hands left by your hips), your feet and hips stay where you stand and your back tilts; walking, the body follows your head. 0: off, the body always slides back under your head; higher: more readily a lean."),
+        header("Room Scale"),
+        slider("Roomscale Move Mult.", "vr_roomscale_move_mult", 0.25f, 5.f, 0.25f, "%.1f").extend().help("Real movement to in-game movement. Increase to cover more ground, e.g. with teleportation or little room."),
+        toggle("Roomscale Jump", "vr_roomscale_jump").help("Jumping in the room jumps in the game."),
+        slider("Jump Threshold", "vr_roomscale_jump_threshold", 0.3f, 2.f, 0.05f, "%.2f m/s").extend()
+            .help("How fast the head must rise above the standing height."),
+    };
+}
+
+// Split from Locomotion: climbing ledges and rungs.
+[[nodiscard]] std::vector<Item> pageClimbing()
+{
+    return {
         toggle("Climbing", "vr_climb").help("Grip a ledge or a rung with either empty hand, or both, to hang from it; pull to climb hand over hand, shimmy along a ledge, pull up onto it. Edges only, not flat walls."),
         slider("Lowest Ledge", "vr_climb_min_height", 0.f, 64.f, 2.f, "%.0f units").extend().help("How far above your feet a ledge must be to grab it."),
         slider("Ledge Fling", "vr_climb_fling", 0.f, 2.f, 0.1f, "%.1f").extend().help("How much letting go of a ledge flings you with your hands' motion."),
         slider("Grab Leniency", "vr_climb_leniency", 0.f, 30.f, 1.f, "%.0f cm").extend().help("A grip that just misses a ledge or a rung takes the nearest one within this distance of your hand (not through walls, behind you or below your reach). 0: only where your hand is."),
+        header("Hand on a Hold (Looks Only)"),
         slider("Hand on Hold: Towards You", "vr_climb_hand_out", -10.f, 10.f, 0.5f, "%.1f cm").extend().help("Where your hand is drawn on a ledge or a rung: back from the lip, towards you (negative: deeper). Looks only; the climbing is the same."),
         slider("Hand on Hold: Up", "vr_climb_hand_up", -10.f, 10.f, 0.5f, "%.1f cm").extend().help("Where your hand is drawn on a hold: up (negative: down). Looks only."),
         slider("Hand on Hold: Sideways", "vr_climb_hand_side", -10.f, 10.f, 0.5f, "%.1f cm").extend().help("Where your hand is drawn on a hold: along the edge, outwards (negative: towards the other hand). Looks only."),
@@ -207,6 +218,8 @@ void resetHandMoves()
     const char* rollHelp = "Turns the whole hand, and what it holds, about where it points, through the controller's grip "
                            "(the handle's middle): the right side down. Doesn't change where it aims.";
     std::vector<Item> list{
+        open("Fingers and Collisions", pageIndex(pageFingersCollisions))
+            .help("The jointed hand's fingers fitting what it holds, and hands and weapons stopping at walls, weapons and models."),
         header("Hand Calibration"),
         info([]() -> const char* { return "1. Hold the controller as you always do."; }),
         info([]() -> const char* { return "2. Show Controller on, and look at it."; }),
@@ -263,6 +276,14 @@ void resetHandMoves()
         slider("Gun Z Offset", "vr_gun_z_offset", -30.f, 30.f, 0.25f, "%.1f").extend(-150.f, 150.f).help("Z offset for guns/hands. Affects aiming."),
         slider("Finger Grip Bias", "vr_finger_grip_bias", 0.f, 1.f, 0.05f, "%.2f"),
         toggle("Auto close thumb", "vr_finger_auto_close_thumb"),
+    });
+    return list;
+}
+
+// Split from Hand/Gun Calibration: the jointed hand's fingers, and hands and weapons against models.
+[[nodiscard]] std::vector<Item> pageFingersCollisions()
+{
+    return {
         header("Fingers"),
         toggle("Jointed Hand", "vr_hand_rig")
             .help("The hand as one model with three joints a finger and an opposable thumb: the fingers curl smoothly and "
@@ -307,8 +328,7 @@ void resetHandMoves()
         slider("Model Push Limit", "vr_model_collide_max", 5.f, 50.f, 1.f, "%.0f cm").extend(1.f, 100.f)
             .help("How far the weapon or hand is held out of a model. Pushed deeper, it is held out less and less, and at "
                   "twice this it lets go and passes through (a monster walking into you)."),
-    });
-    return list;
+    };
 }
 
 // Old Quake VR settings: "Player Calibration".
@@ -320,7 +340,7 @@ void resetHandMoves()
     };
 }
 
-// Old Quake VR settings: "Melee Settings".
+// Old Quake VR settings: "Melee Settings" (its parry settings are on Parry and Bash); and the headbutt.
 [[nodiscard]] std::vector<Item> pageMeleeSettings()
 {
     return {
@@ -329,17 +349,15 @@ void resetHandMoves()
         slider("Damage Multiplier", "vr_melee_dmg_multiplier", 0.25f, 15.f, 0.25f, "%.1f").extend().help("Damage multiplier for melee attacks."),
         slider("Range Multiplier", "vr_melee_range_multiplier", 0.25f, 15.f, 0.25f, "%.1f").extend().help("Range multiplier for melee attacks."),
         cycle("Melee Bloodlust", "vr_melee_bloodlust", {{0.f, "On"}, {1.f, "Off"}}).help("When enabled, restores the player's health when performing melee attacks on enemies."),
-        toggle("Parry", "vr_parry").help("Hold a weapon (sword, axe or gun, one hand or two) level across in front of you to block monsters' melee blows."),
-        slider("Parry Damage Reduction", "vr_parry_reduction", 0.f, 1.f, 0.05f, "%.2f").help("Share of a parried blow's damage taken away."),
-        slider("Parry Drop Chance", "vr_parry_drop_chance", 0.f, 1.f, 0.05f, "%.2f").help("Chance a one-handed parry knocks the weapon out of your hand (two hands: never). Not used with Parry Stamina on (Parry, Bash and Headbutt), which replaces it."),
-        slider("Parry Angle", "vr_parry_angle", 15.f, 80.f, 5.f, "%.0f deg").extend().help("How far the weapon may be tilted off level (up or down) and still parry."),
-        slider("Parry Reach", "vr_parry_reach", 0.5f, 2.5f, 0.1f, "%.1f m").extend().help("How far in front of you a held weapon still parries."),
-        slider("Parry Arm Knock", "vr_parry_wobble", 0.f, 2.f, 0.1f, "%.1f").extend().help("How much a parried blow knocks your hand and arm."),
         slider("Melee Bloodlust Mult.", "vr_melee_bloodlust_mult", 0.05f, 5.f, 0.05f, "%.2f").extend().help("Multiplier for melee bloodlust health restoration."),
+        header("Headbutt"),
+        toggle("Headbutt", vr_headbutt).help("Lunge your head at something to headbutt it."),
+        slider("Headbutt Speed", vr_headbutt_speed, 0.4f, 3.f, 0.05f, "%.2f m/s").extend().help("How fast the head must lunge (towards where you look)."),
+        slider("Headbutt Damage", vr_headbutt_damage, 5.f, 100.f, 1.f, "%.0f").extend(),
     };
 }
 
-// Old Quake VR settings: "Aiming Settings".
+// Old Quake VR settings: "Aiming Settings"; and how weight feels (its damage on Weight and Damage).
 [[nodiscard]] std::vector<Item> pageAimingSettings()
 {
     return {
@@ -356,6 +374,7 @@ void resetHandMoves()
                 "Spring settings below with its own."),
         open("Weapon Weights (Held Weapon)", pageIndex(pageWeaponWeights)),
         open("Held Object Weights (Held Prop)", pageIndex(pageHeldObjectWeights)),
+        open("Weight and Damage", pageIndex(pageWeightDamage)).help("How the weight of what you strike with or throw changes its damage."),
         infoLine(weightReadout, 1),
         infoLine(weightReadout, 0),
         header("Tired Arms"),
@@ -382,7 +401,13 @@ void resetHandMoves()
             .help("Times the stiffness and strength with both hands on it (4: twice as quick)."),
         slider("Snap Back Beyond", vr_weight_spring_snap, 10.f, 100.f, 5.f, "%.0f cm").extend(1.f, 1000.f)
             .help("Left further behind than this (or three times as many degrees), it is put back in your hand at once."),
-        header("Weight and Damage"),
+    };
+}
+
+// Split from Aiming: the weight of what you strike with or throw, and its damage.
+[[nodiscard]] std::vector<Item> pageWeightDamage()
+{
+    return {
         slider("Weight Damage Exponent", vr_weight_damage_exp, 0.f, 1.f, 0.05f, "%.2f").extend(0.f, 3.f)
             .help("How much the mass of what you strike with or throw changes the damage: 0 none; 0.4 gently (twice as "
                   "heavy: 1.3 times the damage); 1 in proportion. Weapons and props also have their own multipliers."),
@@ -406,7 +431,7 @@ void resetHandMoves()
 }
 
 // Old Quake VR settings: "Immersion Settings" (its weapons' ammo screens and map boards are on the
-// Screens page now, its force grab settings on Force Grab).
+// Screens page now, its force grab settings on Force Grab, its weapon drops on World).
 [[nodiscard]] std::vector<Item> pageImmersionSettings()
 {
     return {
@@ -426,11 +451,6 @@ void resetHandMoves()
         toggle("Shell Casings", "vr_shells").help("The shotgun throws out a spent shell each shot, the super shotgun its two as you reload (a flick reload flings them). They bounce, roll and lie on the floor."),
         slider("Shell Casing Life", "vr_shells_life", 5.f, 120.f, 5.f, "%.0f s").extend().help("How long spent shells lie on the floor before fading out."),
         slider("Shell Casing Sound", "vr_shells_sound", 0.f, 1.f, 0.1f, "%.1f").help("Volume of their tink as they land (0 off)."),
-        header("Weapon Drops"),
-        cycle("Enemy Weapon Drops", "vr_enemy_drops", {{0.f, "When Eligible"}, {1.f, "Always"}, {2.f, "Disabled"}}).help("Controls random enemy weapon drops. 'Eligible' means that the player has obtained a weapon before through a level weapon pickup."),
-        slider("Enemy Drops Chance", "vr_enemy_drops_chance_mult", 0.05f, 5.f, 0.05f, "%.2f").extend().help("Multiplier for enemy weapon drops."),
-        cycle("Ammo Box Weapon Drops", "vr_ammobox_drops", {{0.f, "When Eligible"}, {1.f, "Always"}, {2.f, "Disabled"}}).help("Controls random ammo box weapon drops. 'Eligible' means that the player has obtained a weapon before through a level weapon pickup."),
-        slider("Ammo Box Drops Chance", "vr_ammobox_drops_chance_mult", 0.05f, 5.f, 0.05f, "%.2f").extend().help("Multiplier for ammo box weapon drops."),
     };
 }
 
@@ -443,7 +463,7 @@ void resetHandMoves()
 [[nodiscard]] std::vector<Item> pageTransparencyOptions();
 
 // Old Quake VR settings: "Graphical Settings", in pages: this one, the preset and the image, and links
-// to the others.
+// to the others (Memory Log is on Debug).
 [[nodiscard]] std::vector<Item> pageGraphics()
 {
     return {
@@ -469,8 +489,6 @@ void resetHandMoves()
         header("Performance"),
         cycle("Performance Profile", "vr_profile", {{0.f, "Off"}, {1.f, "Record"}, {2.f, "Record and show"}})
             .help("Record CPU and GPU time per effect into quakevr/profile/ every 5 seconds (and show the top costs over the wrist). Not kept after a restart."),
-        cycle("Memory Log", "vr_memstats_log", {{0.f, "Off"}, {30.f, "Every 30 s"}, {60.f, "Every minute"}, {300.f, "Every 5 minutes"}})
-            .help("Write memory use and the frame rate to quakevr/profile/memstats_<date>.csv, and after each map load."),
         cycle("FPS Counter on the Gadget", "vr_gadget_fps", {{0.f, "Off"}, {1.f, "Basic"}, {2.f, "Detailed"}})
             .help("Under the wrist gadget: the frame rate and the CPU's and GPU's milliseconds a frame (our work, the eyes' drawing; not the runtime's waits). Basic: one line, averaged over half a second. Detailed: now, the last quarter second's average, the last 5 seconds' least and most, the frames that missed a refresh (Late), and graphs of the last 3 seconds against the frame budget (the dotted line); figures over the budget are highlighted."),
     };
@@ -670,15 +688,17 @@ void resetHandMoves()
     };
 }
 
-// Old Quake VR settings: "Hotspot Settings".
+// Old Quake VR settings: "Hotspot Settings" (the hip holsters on Hip Holsters).
 [[nodiscard]] std::vector<Item> pageHotspotSettings()
 {
     return {
+        header("Virtual Stock"),
         toggle("Show Virtual Stock", "vr_show_virtual_stock"),
         slider("Shoulder X", "vr_shoulder_offset_x", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
         slider("Shoulder Y", "vr_shoulder_offset_y", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
         slider("Shoulder Z", "vr_shoulder_offset_z", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
         slider("Virtual Stock Thresh.", "vr_virtual_stock_thresh", 0.f, 30.f, 0.1f, "%.1f").extend(0.f, 100.f),
+        header("Shoulder Holsters"),
         toggle("Show Shoulder Holst.", "vr_show_shoulder_holsters"),
         slider("Shoulder X", "vr_shoulder_holster_offset_x", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
         slider("Shoulder Y", "vr_shoulder_holster_offset_y", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
@@ -687,15 +707,7 @@ void resetHandMoves()
         slider("Shoulder Pitch", "vr_shoulder_holster_pitch", -180.f, 180.f, 5.f, "%.0f deg").help("Tips the holster's top away from your body (negative: towards it), the gun in it too."),
         slider("Shoulder Yaw", "vr_shoulder_holster_yaw", -180.f, 180.f, 5.f, "%.0f deg").help("Turns the holster's face outwards (negative: inwards), mirrored for the left one."),
         slider("Shoulder Roll", "vr_shoulder_holster_roll", -180.f, 180.f, 5.f, "%.0f deg").help("Tips the holster's top outwards (negative: inwards; a hanging gun's muzzle goes the other way), mirrored for the left one."),
-        toggle("Show Hip Holsters", "vr_show_hip_holsters"),
-        slider("Hip X", "vr_hip_offset_x", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f)
-            .help("Forward (negative: back), units. With the body drawn, the default (-3.5) is on the belly; further back, the holsters go round your hips to your back."),
-        slider("Hip Y", "vr_hip_offset_y", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
-        slider("Hip Z", "vr_hip_offset_z", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
-        slider("Hip Threshold", "vr_hip_holster_thresh", 0.f, 30.f, 0.1f, "%.1f").extend(0.f, 100.f),
-        slider("Hip Pitch", "vr_hip_holster_pitch", -180.f, 180.f, 5.f, "%.0f deg").help("Tips the holster's top away from your body (negative: towards it), the gun in it too."),
-        slider("Hip Yaw", "vr_hip_holster_yaw", -180.f, 180.f, 5.f, "%.0f deg").help("Turns the holster's face outwards (negative: inwards), mirrored for the left one."),
-        slider("Hip Roll", "vr_hip_holster_roll", -180.f, 180.f, 5.f, "%.0f deg").help("Tips the holster's top outwards (negative: inwards; a hanging gun's muzzle goes the other way), mirrored for the left one."),
+        header("Upper Holsters"),
         toggle("Show Upper Holsters", "vr_show_upper_holsters"),
         slider("Upper X", "vr_upper_holster_offset_x", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f)
             .help("Forward (negative: back), units. With the body drawn, the default (-4.25) is on the chest; further back, the holsters go round your ribs to your back."),
@@ -705,6 +717,23 @@ void resetHandMoves()
         slider("Upper Pitch", "vr_upper_holster_pitch", -180.f, 180.f, 5.f, "%.0f deg").help("Tips the holster's top away from your body (negative: towards it), the gun in it too."),
         slider("Upper Yaw", "vr_upper_holster_yaw", -180.f, 180.f, 5.f, "%.0f deg").help("Turns the holster's face outwards (negative: inwards), mirrored for the left one."),
         slider("Upper Roll", "vr_upper_holster_roll", -180.f, 180.f, 5.f, "%.0f deg").help("Tips the holster's top outwards (negative: inwards; a hanging gun's muzzle goes the other way), mirrored for the left one."),
+    };
+}
+
+// Split from Hotspots: the hip holsters and their slots' models.
+[[nodiscard]] std::vector<Item> pageHipHolsters()
+{
+    return {
+        toggle("Show Hip Holsters", "vr_show_hip_holsters"),
+        slider("Hip X", "vr_hip_offset_x", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f)
+            .help("Forward (negative: back), units. With the body drawn, the default (-3.5) is on the belly; further back, the holsters go round your hips to your back."),
+        slider("Hip Y", "vr_hip_offset_y", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
+        slider("Hip Z", "vr_hip_offset_z", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
+        slider("Hip Threshold", "vr_hip_holster_thresh", 0.f, 30.f, 0.1f, "%.1f").extend(0.f, 100.f),
+        slider("Hip Pitch", "vr_hip_holster_pitch", -180.f, 180.f, 5.f, "%.0f deg").help("Tips the holster's top away from your body (negative: towards it), the gun in it too."),
+        slider("Hip Yaw", "vr_hip_holster_yaw", -180.f, 180.f, 5.f, "%.0f deg").help("Turns the holster's face outwards (negative: inwards), mirrored for the left one."),
+        slider("Hip Roll", "vr_hip_holster_roll", -180.f, 180.f, 5.f, "%.0f deg").help("Tips the holster's top outwards (negative: inwards; a hanging gun's muzzle goes the other way), mirrored for the left one."),
+        header("Holster Slots"),
         toggle("Show Holster Slots", "vr_leg_holster_model_enabled"),
         slider("Holster Slot Scale", "vr_leg_holster_model_scale", 0.1f, 2.f, 0.05f, "%.2f").extend(0.02f, 5.f),
         slider("Holster Slot X", "vr_leg_holster_model_x_offset", -100.f, 100.f, 0.5f, "%.1f").extend(-400.f, 400.f),
