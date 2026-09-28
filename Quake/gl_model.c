@@ -603,13 +603,19 @@ static void Mod_LoadNormalMap (gltexture_t *glt, const char *image, const char *
 	for (n = 0; n < 2; n++)
 	for (i = 0; (n ? shared : image) && i < (int) countof (authored); i++)
 	{
+		double t0 = Sys_DoubleTime (); // QVR
 		mark = Hunk_LowMark ();
 		q_snprintf (filename, sizeof (filename), "%s%s", n ? shared : image, authored[i].suffix);
+		if (TexMgr_ShareNormalMap (glt, filename, authored[i].kind | NORMALMAP_FILE | heights)) // QVR: made for another skin
+		{
+			Hunk_FreeToLowMark (mark);
+			return;
+		}
 		img = Image_LoadImage (filename, &fwidth, &fheight, &fmt);
 		if (img)
 		{
 			TexMgr_LoadNormalMap (glt, filename, fwidth, fheight, fmt, img, filename, 0, authored[i].kind | NORMALMAP_FILE | heights, worldwidth);
-			Con_DPrintf ("normal map %s (%d x %d)" "\n", filename, fwidth, fheight);
+			Con_DPrintf ("normal map %s (%d x %d, %.1f ms)" "\n", filename, fwidth, fheight, (Sys_DoubleTime () - t0) * 1000.0); // QVR: what it cost
 		}
 		Hunk_FreeToLowMark (mark);
 		if (img)

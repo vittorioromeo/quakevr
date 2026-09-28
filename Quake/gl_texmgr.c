@@ -2247,13 +2247,8 @@ gltexture_t *TexMgr_LoadNormalMap (gltexture_t *base, const char *name, int widt
 		return NULL;
 
 	q_snprintf (nmname, sizeof (nmname), "%s_vrnorm", name ? name : base->name);
-	// QVR: an authored file serves every skin of its model that uses it (the hand's 4, the body's 16): one texture
-	if (name && (kind & NORMALMAP_FILE) && (glt = TexMgr_FindTexture (base->owner, nmname)) != NULL &&
-		normalmap_kind[glt - gltextures_base] == (byte) kind)
-	{
-		normalmap_of[base - gltextures_base] = glt;
+	if (name && (kind & NORMALMAP_FILE) && (glt = TexMgr_ShareNormalMap (base, name, kind)) != NULL)
 		return glt;
-	}
 	glt = TexMgr_NewTexture ();
 	glt->owner = base->owner;
 	glt->target = GL_TEXTURE_2D;
@@ -2288,6 +2283,28 @@ gltexture_t *TexMgr_LoadNormalMap (gltexture_t *base, const char *name, int widt
 	}
 	Hunk_FreeToLowMark (mark);
 
+	normalmap_of[base - gltextures_base] = glt;
+	return glt;
+}
+
+/*
+================
+TexMgr_ShareNormalMap -- QVR: an authored file (`name`: progs/hand_rig_00_00_norm) serves every skin of its model that
+uses it (the hand's 4, the body's 16, a model's skins) with one texture: `base` gets the one already made from it, if
+any (then the file needn't even be read again)
+================
+*/
+gltexture_t *TexMgr_ShareNormalMap (gltexture_t *base, const char *name, int kind)
+{
+	char		nmname[64];
+	gltexture_t	*glt;
+
+	if (!base || !name)
+		return NULL;
+	q_snprintf (nmname, sizeof (nmname), "%s_vrnorm", name);
+	glt = TexMgr_FindTexture (base->owner, nmname);
+	if (!glt || normalmap_kind[glt - gltextures_base] != (byte) kind)
+		return NULL;
 	normalmap_of[base - gltextures_base] = glt;
 	return glt;
 }
