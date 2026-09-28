@@ -143,6 +143,8 @@ extern	const char	*gl_version;
 	x(GLboolean,	UnmapBuffer, (GLenum target))\
 	x(void*,		MapBufferRange, (GLenum target, GLintptr offset, GLsizeiptr length, GLbitfield access))\
 	x(void,			FlushMappedBufferRange, (GLenum target, GLintptr offset, GLsizeiptr length))\
+	x(void,			BlendEquation, (GLenum mode))\
+	x(void,			FramebufferTextureLayer, (GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer))\
 	x(GLsync,		FenceSync, (GLenum condition, GLbitfield flags))\
 	x(void,			DeleteSync, (GLsync sync))\
 	x(GLenum,		ClientWaitSync, (GLsync sync, GLbitfield flags, GLuint64 timeout))\
@@ -455,10 +457,16 @@ typedef struct gpuframedata_s {
 // QVR: normal maps for world textures and model skins (gl_texmgr.c; vr_normalmaps): made from the texture's shading
 // (NORMALMAP_SHADING: its luminance as height, or a *_bump height map's), or an authored *_norm map (NORMALMAP_AUTHORED).
 // The world's (NORMALMAP_HEIGHTS or'ed in) carry the height parallax mapping walks in alpha (vr_parallax).
-enum { NORMALMAP_NONE, NORMALMAP_SHADING, NORMALMAP_AUTHORED, NORMALMAP_HEIGHTS = 4 };
+// NORMALMAP_FILE: from an authored file (*_norm, or a *_bump's heights): a real shape, drawn at its own strength on
+// models (vr_normalmap_authored). NORMALMAP_SKIN: made from a model skin's colours (TexMgr_SkinToNormals: edges,
+// materials and larger forms, not brightness as height). NORMALMAP_TYPE: the first three.
+enum { NORMALMAP_NONE, NORMALMAP_SHADING, NORMALMAP_AUTHORED, NORMALMAP_HEIGHTS = 4, NORMALMAP_FILE = 8, NORMALMAP_SKIN = 16 };
+#define NORMALMAP_TYPE(kind) ((kind) & 3)
 struct gltexture_s *TexMgr_LoadNormalMap (struct gltexture_s *base, const char *name, int width, int height, enum srcformat format,
 	byte *data, const char *source_file, src_offset_t source_offset, int kind, int worldwidth);
+struct gltexture_s *TexMgr_ShareNormalMap (struct gltexture_s *base, const char *name, int kind); // QVR: an authored file's texture already made for another skin
 struct gltexture_s *TexMgr_NormalMap (struct gltexture_s *glt); // its normal map, or a flat one
+qboolean TexMgr_NormalMapAuthored (struct gltexture_s *glt); // QVR: whether its normal map is an authored file's (NORMALMAP_FILE)
 qboolean TexMgr_IndexedSmooth (void); // Quake's own textures filtered smoothly (only then do they get heights)
 void TexMgr_SetHeightMask (const byte *mask, int width, int height); // a skin's islands for the heights made next (NULL: none)
 
@@ -495,6 +503,7 @@ void R_DrawBrushModels_SkyCubemap (entity_t **ents, int count);
 void R_DrawBrushModels_SkyStencil (entity_t **ents, int count);
 void R_DrawAliasModels (entity_t **ents, int count);
 void R_DrawAliasModelsDepth (entity_t **ents, int count); // QVR: depth only (the shadow maps' casters)
+qboolean R_PaintAliasWounds (entity_t *e, int numsplats, const float *splats); // QVR: into its wound mask (vr/vr_wounds.cpp)
 void R_DrawSpriteModels (entity_t **ents, int count);
 qboolean R_SoftSpritesPending (void); // QVR: sprites left for R_DrawSpriteModelsSoft (VR_SoftSprites)
 void R_DrawSpriteModelsSoft (GLuint distances); // QVR: them, soft, after the translucent pass (vr/vr_particles.cpp)
@@ -581,6 +590,7 @@ typedef struct glprogs_s {
 	GLuint		skyboxside[2];		// [dither]
 	GLuint		alias[2][3][2][3];	// [OIT][mode:standard/dithered/noperspective][alpha test][poseverttype]
 	GLuint		alias_depth[3];		// QVR: [poseverttype] the shadow maps' casters: depth only (no fragment shader)
+	GLuint		woundpaint[3];		// QVR: [poseverttype] a model drawn into its wound mask (vr/vr_wounds.cpp)
 	GLuint		sprites[2];			// [dither]
 	GLuint		particles[2][2];	// [OIT][dither]
 	GLuint		debug3d;

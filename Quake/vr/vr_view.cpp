@@ -32,6 +32,7 @@
 #include "vr_bodycal.hpp"
 #include "vr_profile.hpp"
 #include "vr_weapons.hpp"
+#include "vr_wounds.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -2114,7 +2115,7 @@ bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
         }
     }
     ve.zeroBlend = 0.f;
-    ve.ent.skinnum = damageLevel();
+    ve.ent.skinnum = wounds::replacesSkins() ? 0 : damageLevel(); // wounds painted instead (vr_wounds.cpp)
     ve.visible = !hide;
     for(int finger = FingerBase + 1; finger < FingerCount; finger++)
     {
@@ -2962,6 +2963,50 @@ struct HolsterPose
     return {at, glm::vec3{0.f}, at, aliasAngles(muzzle, -fwd)};
 }
 
+// Each pair's turn (the Hotspots menu, vr_*_holster_pitch/yaw/roll): degrees, {pitch, yaw, roll}.
+[[nodiscard]] glm::vec3 holsterTurn(int h)
+{
+    switch(h)
+    {
+        case LeftHip:
+        case RightHip: return {vr_hip_holster_pitch.value, vr_hip_holster_yaw.value, vr_hip_holster_roll.value};
+        case LeftUpper:
+        case RightUpper: return {vr_upper_holster_pitch.value, vr_upper_holster_yaw.value, vr_upper_holster_roll.value};
+        default: return {vr_shoulder_holster_pitch.value, vr_shoulder_holster_yaw.value, vr_shoulder_holster_roll.value};
+    }
+}
+
+// Turns a holster and the gun in it by `turn` about `pivot` (the holster's position: where the hand reaches for it
+// stays), in the body's frame there: `out` away from the body, `up`, and `outwards` (the body's right for the right
+// holsters, its left for the left ones, so that the pairs mirror as their offsets' Y does). Pitch tips the top towards
+// `out`, yaw turns `out` towards `outwards`, roll tips the top towards `outwards`: yaw then pitch then roll, as Quake's
+// angles. The left holster's frame is the right one's mirror image, so yaw and roll mirror and pitch does not.
+void turnHolster(HolsterPose& pose, const glm::vec3& pivot, const glm::vec3& out, const glm::vec3& up,
+    const glm::vec3& outwards, const glm::vec3& turn)
+{
+    if(turn == glm::vec3{0.f})
+    {
+        return; // exactly as before
+    }
+
+    const glm::vec3 o = glm::normalize(out);
+    const glm::vec3 u = glm::normalize(up - o * glm::dot(up, o));
+    const glm::vec3 side = glm::normalize(outwards - o * glm::dot(outwards, o) - u * glm::dot(outwards, u));
+    const glm::quat q = glm::angleAxis(glm::radians(turn.y), glm::cross(o, side)) *
+                        glm::angleAxis(glm::radians(turn.x), glm::cross(u, o)) *
+                        glm::angleAxis(glm::radians(turn.z), glm::cross(u, side));
+
+    const auto turnAngles = [&](const glm::vec3& drawn) {
+        glm::vec3 f, r, t;
+        hands::angleVectors({-drawn.x, drawn.y, drawn.z}, f, r, t); // alias models' pitch is the other way
+        return aliasAngles(q * f, q * t);
+    };
+    pose.slotPos = pivot + q * (pose.slotPos - pivot);
+    pose.weaponPos = pivot + q * (pose.weaponPos - pivot);
+    pose.slotAngles = turnAngles(pose.slotAngles);
+    pose.weaponAngles = turnAngles(pose.weaponAngles);
+}
+
 // A gun not in a hand (holstered, lying in the world) carries its button and ammo screen as a held one does
 // (vr_weapon_screen_idle), so that they do not pop up as it is taken: `button` placed (or hidden), the screen queued
 // when `queueText` (once a frame). `clip`: its clip if known (a holstered gun's), else -1.
@@ -3030,6 +3075,14 @@ void setupHolsters(const hands::State& s, bool queueTexts)
 
         // The shoulders' guns (round 20): drawn too, on the back; a gun let go there was nowhere to be seen.
         HolsterPose pose = shoulder ? holsterOnBack(pos, yaw, mirrored) : HolsterPose{pos, slotAngles[h], pos, angles[h]};
+        // The body's frame at the holster, for its turn (turnHolster): off the body, the body's yaw (the shoulders'
+        // out is behind, down the back).
+        glm::vec3 bodyFwd, bodyRight, bodyUp;
+        hands::angleVectors({0.f, yaw, 0.f}, bodyFwd, bodyRight, bodyUp);
+        glm::vec3 pivot = pos;
+        glm::vec3 out = shoulder ? -bodyFwd : bodyFwd;
+        glm::vec3 up = bodyUp;
+        glm::vec3 outwards = mirrored ? -bodyRight : bodyRight;
         if(body::HolsterPlate plate = plates[static_cast<std::size_t>(bodyHolster[h])]; !shoulder && plate.out != glm::vec3{0.f})
         {
             glm::vec3 at = pos;
@@ -3045,9 +3098,14 @@ void setupHolsters(const hands::State& s, bool queueTexts)
                 at = centre + turn * (pos - root);
                 plate.out = turn * plate.out;
                 plate.up = turn * plate.up;
+                outwards = turn * outwards;
             }
             pose = holsterOnBody(at, plate, mirrored, h == LeftUpper || h == RightUpper, slotModel);
+            pivot = at;
+            out = plate.out;
+            up = plate.up;
         }
+        turnHolster(pose, pivot, out, up, outwards, holsterTurn(h));
 
         const int stat = static_cast<int>(bodyHolster[h]);
         qmodel_t* model = precachedModel(cl.stats[STAT_QVR_HOLSTERWEAPONMODEL0 + stat]);
@@ -3415,7 +3473,7 @@ void showPlayerState(view::ViewEntity& ve, const hands::State& s)
 {
     if(vr_body_state.value)
     {
-        ve.ent.skinnum = armorWorn() * 4 + damageLevel();
+        ve.ent.skinnum = armorWorn() * 4 + (wounds::replacesSkins() ? 0 : damageLevel()); // wounds painted instead (vr_wounds.cpp)
     }
     else
     {
@@ -4336,6 +4394,9 @@ extern "C" void VR_SetupViewEntities()
 
     // Spent casings thrown out of the weapons (vr_shells.cpp).
     shells::frame(entities.weapon);
+
+    // Wounds painted on the models (vr_wounds.cpp), the body and the hands posed.
+    wounds::frame();
 }
 
 namespace qvr::view
@@ -4498,6 +4559,15 @@ void modelReload_f()
     if(body)
     {
         bodyblood::clear(); // the wounds painted on the old mesh
+    }
+}
+
+void woundTargets(entity_t* out[3])
+{
+    out[0] = entities.body.visible && entities.body.ent.model ? &entities.body.ent : nullptr;
+    for(int hand = 0; hand < 2; hand++)
+    {
+        out[1 + hand] = rigHands[hand].drawn && entities.hand[hand][FingerBase].ent.model ? &entities.hand[hand][FingerBase].ent : nullptr;
     }
 }
 

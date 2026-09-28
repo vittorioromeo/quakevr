@@ -959,3 +959,25 @@
 "worldtext_halign" "1"
 "worldtext_scale" "0.75"
 }
+{
+"classname" "func_wall"
+"model" "maps/vr_panel_north.bsp"
+"origin" "240 -770 17.0788"
+}
+{
+"classname" "func_button"
+"model" "maps/vr_button_north.bsp"
+"origin" "240 -770 57.0788"
+"angle" "270"
+"lip" "4"
+"sounds" "1"
+"speed" "50"
+"wait" "1"
+"target" "dummyattacks"
+}
+{
+"classname" "vr_dummy_attack_toggle"
+"origin" "240 -762 38"
+"angle" "90"
+"targetname" "dummyattacks"
+}

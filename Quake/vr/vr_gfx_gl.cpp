@@ -335,6 +335,61 @@ void main()
 GLuint particleProgram = 0;
 bool particleProgramFailed = false;
 
+// The tube (TubeRing, drawTube): six vertices a quad, `Sides` quads round each pair of consecutive rings, read from the
+// frame's records (no vertex attributes), lit per vertex.
+constexpr const char* tubeVertexShader = R"(#version 430
+layout(location = 0) uniform mat4 MVP;
+layout(location = 5) uniform vec3 Eye;
+layout(location = 6) uniform vec3 Albedo;
+layout(location = 7) uniform vec3 Key;
+layout(location = 8) uniform int Sides;
+struct Ring
+{
+    vec4 mid;
+    vec4 across;
+    vec4 along;
+    vec4 ambient;
+    vec4 lamp;
+    vec4 lampDir;
+};
+layout(std430, binding = 0) readonly buffer Rings
+{
+    Ring rings[];
+};
+out vec2 uv;
+out vec4 color;
+out float soft;
+out float viewDepth;
+// The six corners (two triangles) of a quad: (ring, side) steps.
+const ivec2 corners[6] = ivec2[6](ivec2(0, 0), ivec2(1, 0), ivec2(1, 1), ivec2(0, 0), ivec2(1, 1), ivec2(0, 1));
+void main()
+{
+    int quad = gl_VertexID / 6;
+    ivec2 c = corners[gl_VertexID % 6];
+    Ring g = rings[quad / Sides + c.x];
+    float th = 6.2831853 * float(quad % Sides + c.y) / float(Sides);
+    vec3 other = cross(g.along.xyz, g.across.xyz);
+    vec3 n = cos(th) * g.across.xyz + sin(th) * other;
+    vec3 pos = g.mid.xyz + n * g.mid.w;
+    vec3 hv = normalize(Key + normalize(Eye - pos));
+    vec3 light = g.ambient.rgb * (1.0 + 0.4 * dot(n, Key)) + g.lamp.rgb * (0.2 + 0.8 * max(dot(n, g.lampDir.xyz), 0.0));
+    float x = max(dot(n, hv), 0.0);
+    x *= x; // to the 16th
+    x *= x;
+    x *= x;
+    x *= x;
+    float sheen = 0.45 * x * dot(g.ambient.rgb + g.lamp.rgb, vec3(0.3333));
+    color = vec4(clamp(Albedo * light + vec3(sheen), 0.0, 1.0), 1.0);
+    uv = vec2(0.0);
+    soft = 0.0;
+    gl_Position = MVP * vec4(pos, 1.0);
+    viewDepth = gl_Position.w;
+}
+)";
+
+GLuint tubeProgram = 0;
+bool tubeProgramFailed = false;
+
 // The program for a shade; blended: a blend other than Opaque, writing no depth (zero fragments discarded). 0 if it
 // does not build.
 GLuint programFor(Shade shade, bool blended)
@@ -620,6 +675,60 @@ void drawParticles(const ParticleBatch& batch, bool pull, const State& state, Te
         GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, 0, savedBuffer, savedOffset, savedSize);
     }
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // what GLS_BLEND_ALPHA expects
+}
+
+TubeBatch uploadTube(std::span<const TubeRing> rings)
+{
+    if(rings.size() < 2)
+    {
+        return {};
+    }
+    GLuint buf = 0;
+    GLbyte* ofs = nullptr;
+    GL_Upload(GL_SHADER_STORAGE_BUFFER, rings.data(), rings.size_bytes(), &buf, &ofs);
+    return {buf, reinterpret_cast<std::size_t>(ofs), rings.size()};
+}
+
+void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const glm::vec3& key)
+{
+    if(batch.count < 2 || !batch.buffer || sides < 3)
+    {
+        return;
+    }
+    if(!tubeProgram && !tubeProgramFailed)
+    {
+        const std::string fragment = "#version 430\n#define MODE " + std::to_string(static_cast<int>(Shade::Color)) +
+                                     "\n#define BLENDED 0\n" + fragmentShader;
+        tubeProgram = glProgram(tubeVertexShader, fragment.c_str(), "vr tube");
+        tubeProgramFailed = !tubeProgram;
+    }
+    if(!tubeProgram)
+    {
+        return;
+    }
+    GL_UseProgram(tubeProgram);
+    GL_SetState(GLS_CULL_NONE | GLS_ATTRIBS(0) | GLS_BLEND_OPAQUE);
+    const glm::mat4 mvp = sceneViewProjection();
+    glm::vec3 eye, right, up;
+    sceneCamera(eye, right, up);
+    GL_UniformMatrix4fvFunc(0, 1, GL_FALSE, &mvp[0][0]);
+    GL_Uniform1iFunc(4, 0);
+    GL_Uniform3fFunc(5, eye.x, eye.y, eye.z);
+    GL_Uniform3fFunc(6, albedo.x, albedo.y, albedo.z);
+    GL_Uniform3fFunc(7, key.x, key.y, key.z);
+    GL_Uniform1iFunc(8, sides);
+    // Binding 0 borrowed (the scene's lights, R_UploadFrameData): put back for what the view draws after.
+    GLuint savedBuffer = 0;
+    GLintptr savedOffset = 0;
+    GLsizeiptr savedSize = 0;
+    const bool saved = GL_GetShaderStorageRange(0, &savedBuffer, &savedOffset, &savedSize);
+    GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, 0, batch.buffer, static_cast<GLintptr>(batch.offset),
+        static_cast<GLsizeiptr>(batch.count * sizeof(TubeRing)));
+    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>((batch.count - 1) * sides * 6));
+    if(saved && savedBuffer)
+    {
+        GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, 0, savedBuffer, savedOffset, savedSize);
+    }
 }
 
 glm::mat4 sceneViewProjection()

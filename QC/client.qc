@@ -2640,15 +2640,23 @@ void(float xHand, float xInMelee, float* xOutMeleeAttackFinished, float* xOutInM
             VRSetMeleeHitSoundPlayed(xHand, FALSE);
         }
 
-        VR_SetHitKind(QVR_HITKIND_MELEE, xHand, '0 0 0', '0 0 0');
-        vr_melee_blunt = b.mh_kind == VR_MKIND_POMMEL; // its own sound (VR_Melee_HitSound)
-        if(!DoXHandMelee(xHand, WID_FIST, "", W_FistMelee))
-            if(!DoXHandMelee(xHand, WID_AXE, "", W_FireAxe))
-                if(!DoXHandMelee(xHand, WID_MJOLNIR, "", HIP_FireMjolnir))
-                if(!DoXHandMelee(xHand, WID_SWORD, "", W_SwordMelee))
-                    DoXHandMeleeImpl(xHand, "", W_GunMelee);
-        vr_melee_blunt = FALSE;
-        VR_ClearHitKind();
+        if(b.mh_c_ent.vr_gib)
+        {
+            // A loose gib or head (vr_melee.qc sweeps them since round 21's melee fixes): it bursts as a held one does.
+            VR_Gib_Blow(xHand, b.mh_c_ent, b.mh_speed, b.mh_c_pos, b.mh_c_dir);
+        }
+        else
+        {
+            VR_SetHitKind(QVR_HITKIND_MELEE, xHand, '0 0 0', '0 0 0');
+            vr_melee_blunt = b.mh_kind == VR_MKIND_POMMEL; // its own sound (VR_Melee_HitSound)
+            if(!DoXHandMelee(xHand, WID_FIST, "", W_FistMelee))
+                if(!DoXHandMelee(xHand, WID_AXE, "", W_FireAxe))
+                    if(!DoXHandMelee(xHand, WID_MJOLNIR, "", HIP_FireMjolnir))
+                    if(!DoXHandMelee(xHand, WID_SWORD, "", W_SwordMelee))
+                        DoXHandMeleeImpl(xHand, "", W_GunMelee);
+            vr_melee_blunt = FALSE;
+            VR_ClearHitKind();
+        }
 
         *xOutMeleeAttackFinished = time + 0.1;
         *xOutInMelee = time + 0.02;

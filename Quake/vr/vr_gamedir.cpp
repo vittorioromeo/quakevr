@@ -21,6 +21,7 @@
 #include "vr_sightalign.hpp"
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
+#include "vr_wounds.hpp"
 
 #include <cstring>
 
@@ -193,6 +194,7 @@ extern "C" void VR_OnGameDirChanged()
     qvr::modellight::onGameDirChanged();
     qvr::gfx::onGameDirChanged();
     qvr::bodyblood::clear();
+    qvr::wounds::clear();
     qvr::view::resetCaches(); // the view models (the missing ones too), clip sizes, the jointed hand's check, grasp shapes
     qvr::weapons::resetCaches();
     qvr::sightalign::resetCaches(); // the sight lines (a mod's own guns)

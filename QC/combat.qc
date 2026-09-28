@@ -657,7 +657,8 @@ void(entity e, vector xDir, float xSpeed) VR_Shove_Start =
 // Landed after a drop of `xDrop` units (self is the slide).
 void(entity m, float xDrop) VR_Shove_Landed =
 {
-    float contents = pointcontents(m.origin);
+    // At its feet (its origin, the middle of its box, is above shallow slime: e1m1's burned nothing).
+    float contents = pointcontents(m.origin + '0 0 1' * (m.mins_z + 1));
     float dmg = 0;
     if(contents == CONTENT_LAVA)
     {
@@ -1041,6 +1042,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
 
     // VR: gore: blood sprayed onto the walls, floor and ceiling behind the hit (vr_gore, vr_carry.qc).
     VR_Gore_Hit(targ, inflictor, take);
+    VR_Wound_Hit(targ, inflictor, attacker, take); // VR: painted on its model (vr_wounds.qc)
 
     // do the damage
     targ.health = targ.health - take;
@@ -1126,13 +1128,16 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
 float(entity p, float hand, float twoHanded, vector at) VR_Stamina_Parry;
 void(entity p, float hand) VR_Counter_Open;
 
+// The firing range's training dummy while its own blow is dealt (vr_dummy.qc, vr_dummy_attacks): only then.
+.float vr_dummy_striking;
+
 // Monsters that strike in melee (a blow comes from the monster itself, up close).
 float(entity e) VR_Parry_MeleeMonster =
 {
     string c = e.classname;
     return c == "monster_knight" || c == "monster_hell_knight" || c == "monster_ogre" || c == "monster_demon1" ||
            c == "monster_dog" || c == "monster_shambler" || c == "monster_fish" || c == "monster_gremlin" ||
-           c == "monster_mummy";
+           c == "monster_mummy" || e.vr_dummy_striking;
 };
 
 // Whether `p`'s `hand` holds a weapon with the hand's forward across `toAttacker` (horizontal, unit):
@@ -1359,8 +1364,13 @@ float(entity p, float hand, vector xForward) VR_Parry_Guard =
     return VR_Parry_Blocks(p, hand, xForward);
 };
 
+// How the last blow through VR_Parry was met: 0 not parried, 1 with a weapon, 2 with crossed arms (read by the
+// training dummy after its own blow: vr_dummy.qc).
+float vr_parried;
+
 float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
 {
+    vr_parried = 0;
     if(inflictor != attacker || !(attacker.flags & FL_MONSTER) || damage <= 0 || !cvar_hget(cvarh_vr_parry) ||
        targ.classname != "player" || !VRHandsTracked(targ) || !VR_Parry_MeleeMonster(attacker))
     {
@@ -1419,6 +1429,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         VR_Push(targ, to * -1, 200 * cvar_hget(cvarh_vr_parry_push_player), 40 * cvar_hget(cvarh_vr_parry_push_player));
         dprint("parry: "); dprint(attacker.classname); dprint(" with crossed arms\n");
         VR_Motion_Event("parry", "arms", -1, damage, VRGetHandPos(cVR_MainHand), attacker, "");
+        vr_parried = 2;
         VR_Counter_Open(targ, -1);
         damage = damage * (1 - min(1, max(0, cvar_hget(cvarh_vr_parry_unarmed_reduction))));
     }
@@ -1462,6 +1473,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         dprint("parry: "); dprint(attacker.classname); dprint(" with hand "); dprint(ftos(hand));
         dprint(twoHanded ? " (two hands)\n" : "\n");
         VR_Motion_Event("parry", VR_Motion_HandSub(hand), hand, damage, vr_parry_at, attacker, twoHanded ? "two hands" : "");
+        vr_parried = 1;
 
         // What the parry costs: with parry stamina on, the parry that empties it knocks the weapon away (one hand or
         // two); else, held in one hand, the drop chance may.

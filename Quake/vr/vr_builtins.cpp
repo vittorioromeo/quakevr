@@ -236,6 +236,39 @@ void PF_WriteVec3()
 // ----------------------------------------------------------------------------
 // Effects and the player's hands
 
+// A wound on a model (vr_wounds.cpp): void(entity e, vector org, vector dir, float kind, float amount, float extra)
+// woundevent. `e` hit at `org` going `dir` (unit), QVR_WOUND_* `kind`, `amount` (damage, 0..255), `extra` (pellets;
+// a liquid's: its surface's height is org_z). Unreliable, to every client, as particles.
+void PF_woundevent()
+{
+    const int num = NUM_FOR_EDICT(G_EDICT(OFS_PARM0));
+    const float* org = G_VECTOR(OFS_PARM1);
+    const float* dir = G_VECTOR(OFS_PARM2);
+    const int kind = static_cast<int>(G_FLOAT(OFS_PARM3));
+    const int amount = static_cast<int>(G_FLOAT(OFS_PARM4) + 0.5f);
+    const int extra = static_cast<int>(G_FLOAT(OFS_PARM5));
+
+    if(sv.state != ss_active || sv.datagram.cursize > MAX_DATAGRAM - 32)
+    {
+        return;
+    }
+
+    MSG_WriteByte(&sv.datagram, protocol::svc_quakevr);
+    MSG_WriteByte(&sv.datagram, protocol::QVR_SVC_WOUND);
+    MSG_WriteShort(&sv.datagram, num);
+    for(int i = 0; i < 3; i++)
+    {
+        MSG_WriteCoord(&sv.datagram, org[i], sv.protocolflags);
+    }
+    for(int i = 0; i < 3; i++)
+    {
+        MSG_WriteChar(&sv.datagram, CLAMP(-127, static_cast<int>(dir[i] * 127.f), 127));
+    }
+    MSG_WriteByte(&sv.datagram, CLAMP(0, kind, 255));
+    MSG_WriteByte(&sv.datagram, CLAMP(0, amount, 255));
+    MSG_WriteByte(&sv.datagram, CLAMP(0, extra, 255));
+}
+
 // particle2(origin, direction, preset, count): unreliable, like vanilla particle().
 void PF_particle2()
 {
@@ -450,6 +483,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"worldtext_hsetscale", PF_worldtext_hsetscale},
     {"WriteVec3", PF_WriteVec3},
     {"particle2", PF_particle2},
+    {"woundevent", PF_woundevent},
     {"haptic", PF_haptic},
     {"handimpact", PF_handimpact},
     {"carryangles", PF_carryangles},

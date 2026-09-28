@@ -68,7 +68,8 @@ typedef struct aliasinstance_s {
 	float		glow[4]; // QVR: the force grab glow (vr/vr_fgfx.cpp)
 	float		ambient[6][4]; // QVR: the light around it, +X -X +Y -Y +Z -Z (vr/vr_ambient.cpp)
 	float		surface[4]; // QVR: rim light, reflections' strength and blur (vr/vr_envmap.cpp)
-	float		ao[4]; // QVR: dynamic ambient occlusion: its own group, its per-vertex occlusion's strength (vr/vr_ao.cpp)
+	float		ao[4]; // QVR: dynamic ambient occlusion: its own group, its per-vertex occlusion's strength (vr/vr_ao.cpp); z the normal map's strength
+	float		wound[4]; // QVR: its wound mask (vr/vr_wounds.cpp): layer + 1 (0 none), its size in texels, the time
 } aliasinstance_t;
 
 struct ibuf_s {
@@ -424,6 +425,7 @@ void R_FlushAliasInstances (qboolean showtris)
 	GL_BindBuffer (GL_ELEMENT_ARRAY_BUFFER, model->meshindexesvbo);
 	GL_BindBuffersRange (GL_SHADER_STORAGE_BUFFER, 1, 2, buffers, offsets, sizes);
 	GL_BindNative (GL_TEXTURE14, GL_TEXTURE_CUBE_MAP, VR_EnvCubeTexture ()); // QVR: the reflections' cube map (EnvCube)
+	GL_BindNative (GL_TEXTURE13, GL_TEXTURE_2D_ARRAY, VR_WoundTexture ()); // QVR: the wound masks (WoundMasks)
 
 	if (poseverttype == PV_IQM)
 	{
@@ -624,6 +626,7 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 	float		model_matrix[16];
 	aliasinstance_t	*instance;
 	int			totalverts;
+	qboolean	authored; // QVR: its skin's normal map is an authored file's
 
 	//
 	// setup pose/lerp data -- do it first so we don't miss updates due to culling
@@ -745,13 +748,144 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 	VR_AliasAmbient (e, model_matrix, paliashdr, mode == ALIAS_STANDARD && !r_fullbright_cheatsafe && !r_lightmap_cheatsafe, &instance->ambient[0][0]); // QVR: directional ambient (vr_model_ambient_dir)
 	VR_AliasMorph (e, paliashdr, &instance->ambient[0][0]); // QVR: a gun morphing into its other ammo's model (vr/vr_render.cpp)
 	instance->glow[0] = VR_EntityGlow (e); // QVR
-	instance->glow[1] = (VR_ModelLightParity () ? 1.f : -1.f) * (1.f + VR_ModelBumps (e)); // QVR: the shader's shading on a par with the world (+), its bumps (vr_normalmap_models)
+	authored = TexMgr_NormalMapAuthored (paliashdr->gltextures[e->skinnum >= 0 && e->skinnum < paliashdr->numskins ? e->skinnum : 0][0]); // QVR
+	instance->glow[1] = (VR_ModelLightParity () ? 1.f : -1.f) * (1.f + VR_ModelBumps (e, authored)); // QVR: the shader's shading on a par with the world (+), its bumps (vr_normalmap_models)
 	instance->glow[2] = VR_EntityFullbrightBoost (e); // QVR: the held weapons' sights glow (vr_weapon_glow)
 	instance->glow[3] = mode == ALIAS_STANDARD ? VR_ParallaxDepth (e, model_matrix, paliashdr->scale) : 0.f; // QVR: its parallax depth in units
 	memset (instance->surface, 0, sizeof (instance->surface)); // QVR: rim light and reflections (vr_rim_light, vr_weapon_reflections)
 	if (mode == ALIAS_STANDARD && !r_fullbright_cheatsafe && !r_lightmap_cheatsafe) // QVR
 		VR_AliasSurface (e, instance->surface); // QVR
 	VR_AliasAO (e, instance->ao); // QVR: dynamic ambient occlusion (vr/vr_ao.cpp)
+	instance->ao[2] = VR_ModelNormalMapScale (authored); // QVR: how much its normal map bends the normal (authored ones their own strength)
+	if (mode == ALIAS_STANDARD) // QVR: wounds painted on it (vr/vr_wounds.cpp)
+		VR_AliasWound (e, instance->wound);
+	else
+		memset (instance->wound, 0, sizeof (instance->wound));
+}
+
+/*
+=================
+R_PaintAliasWounds -- QVR
+
+Wounds painted on models (vr/vr_wounds.cpp): `e` as it is drawn this frame (its pose, its lerp, its place; a posed
+skeleton's bones), drawn into the bound framebuffer (its wound mask's layer; the viewport: its region) laid out by its
+skin's coordinates, with `numsplats` splats (five vec4 each: gl_shaders.h's wound_paint_fragment_shader). The caller
+sets the blending (the most of what is there and what is painted). Its first surface only (the one its mask is for).
+Its triangles, then their edges as lines: a texel a triangle's edge crosses without covering its middle is painted too
+(the skin is read there at the edges of its islands).
+=================
+*/
+qboolean R_PaintAliasWounds (entity_t *e, int numsplats, const float *splats)
+{
+	aliashdr_t	*hdr, *surf;
+	lerpdata_t	lerpdata;
+	float		model_matrix[16];
+	int			totalverts, numbones;
+	const float	*bones;
+	GLuint		buf, bonebuf;
+	GLbyte		*ofs, *boneofs;
+	GLuint		buffers[2];
+	GLintptr	offsets[2];
+	GLsizeiptr	sizes[2];
+	struct
+	{
+		float	matviewproj[16];
+		vec3_t	eyepos;
+		float	_pad;
+		vec4_t	fog;
+		float	dither;
+		float	_padding[3];
+		aliasinstance_t inst;
+	} data;
+
+	if (!e->model || e->model->type != mod_alias || numsplats <= 0)
+		return false;
+	hdr = (aliashdr_t *) Mod_Extradata (e->model);
+	if (!hdr || hdr->poseverttype > PV_MD3)
+		return false;
+
+	R_SetupAliasFrame (e, hdr, &lerpdata);
+	R_SetupEntityTransform (e, &lerpdata);
+	if (lerpdata.pose1 == lerpdata.pose2)
+		lerpdata.blend = 0.f;
+	R_EntityMatrix (model_matrix, lerpdata.origin, lerpdata.angles, e->scale);
+	VR_AliasPreTransform (e, model_matrix);
+	ApplyTranslation (model_matrix, hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]);
+	ApplyScale (model_matrix, hdr->scale[0], hdr->scale[1], hdr->scale[2]);
+	VR_AliasPostTransform (e, model_matrix);
+
+	for (surf = hdr, totalverts = 0; surf; surf = Mod_NextSurface (surf))
+		totalverts += surf->numverts_vbo;
+
+	memset (&data, 0, sizeof (data));
+	data.matviewproj[0] = data.matviewproj[5] = data.matviewproj[10] = data.matviewproj[15] = 1.f; // unused: the skin's layout
+	MatrixTranspose4x3 (model_matrix, data.inst.worldmatrix);
+	data.inst.alpha = 1.f;
+	data.inst.pose1 = lerpdata.pose1;
+	data.inst.pose2 = lerpdata.pose2;
+	data.inst.blend = lerpdata.blend;
+	if (hdr->poseverttype == PV_IQM)
+	{
+		data.inst.pose1 *= hdr->numbones;
+		data.inst.pose2 *= hdr->numbones;
+	}
+	else
+	{
+		data.inst.pose1 *= totalverts;
+		data.inst.pose2 *= totalverts;
+	}
+	data.inst.padding = VR_AliasZeroBlend (e, hdr, totalverts);
+
+	GL_UseProgram (glprogs.woundpaint[hdr->poseverttype]);
+	GL_SetState (GLS_BLEND_OPAQUE | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS (hdr->poseverttype == PV_IQM ? 5 : 1));
+	GL_Upload (GL_SHADER_STORAGE_BUFFER, &data, sizeof (data), &buf, &ofs);
+
+	buffers[0] = buf;
+	offsets[0] = (GLintptr) ofs;
+	sizes[0] = sizeof (data);
+	numbones = hdr->poseverttype == PV_IQM ? VR_AliasBonePoses (e, &bones) : 0;
+	if (numbones)
+	{
+		GL_Upload (GL_SHADER_STORAGE_BUFFER, bones, sizeof (bonepose_t) * numbones, &bonebuf, &boneofs);
+		buffers[1] = bonebuf; offsets[1] = (GLintptr) boneofs; sizes[1] = sizeof (bonepose_t) * numbones;
+	}
+	else if (hdr->poseverttype == PV_IQM)
+	{
+		buffers[1] = e->model->meshvbo; offsets[1] = hdr->vboposeofs; sizes[1] = sizeof (bonepose_t) * hdr->numbones * hdr->numposes;
+	}
+	else if (hdr->poseverttype == PV_MD3)
+	{
+		buffers[1] = e->model->meshvbo; offsets[1] = hdr->vbovertofs; sizes[1] = sizeof (md3pose_t) * totalverts * hdr->numposes;
+	}
+	else
+	{
+		buffers[1] = e->model->meshvbo; offsets[1] = hdr->vbovertofs; sizes[1] = sizeof (meshxyz_t) * totalverts * hdr->numposes;
+	}
+
+	GL_BindBuffer (GL_ARRAY_BUFFER, e->model->meshvbo);
+	GL_BindBuffer (GL_ELEMENT_ARRAY_BUFFER, e->model->meshindexesvbo);
+	GL_BindBuffersRange (GL_SHADER_STORAGE_BUFFER, 1, 2, buffers, offsets, sizes);
+	if (hdr->poseverttype == PV_IQM)
+	{
+		GL_VertexAttribPointerFunc (0, 3, GL_FLOAT, GL_FALSE, sizeof (iqmvert_t), (void*)(hdr->vbovertofs + offsetof (iqmvert_t, xyz)));
+		GL_VertexAttribPointerFunc (1, 4, GL_BYTE, GL_TRUE, sizeof (iqmvert_t), (void*)(hdr->vbovertofs + offsetof (iqmvert_t, norm)));
+		GL_VertexAttribPointerFunc (2, 2, GL_FLOAT, GL_FALSE, sizeof (iqmvert_t), (void*)(hdr->vbovertofs + offsetof (iqmvert_t, st)));
+		GL_VertexAttribPointerFunc (3, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof (iqmvert_t), (void*)(hdr->vbovertofs + offsetof (iqmvert_t, weight)));
+		GL_VertexAttribIPointerFunc (4, 4, GL_UNSIGNED_BYTE, sizeof (iqmvert_t), (void*)(hdr->vbovertofs + offsetof (iqmvert_t, idx)));
+	}
+	else
+	{
+		GL_VertexAttribPointerFunc (0, 2, GL_FLOAT, GL_FALSE, sizeof (meshst_t), (void*)hdr->vbostofs);
+	}
+
+	GL_Uniform1iFunc (0, numsplats);
+	GL_Uniform4fvFunc (1, numsplats * 5, splats);
+
+	GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, 1);
+	glPolygonMode (GL_FRONT_AND_BACK, GL_LINE);
+	GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, 1);
+	glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
+	return true;
 }
 
 /*

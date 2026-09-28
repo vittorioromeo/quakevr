@@ -142,11 +142,27 @@ context and screenshot, ready to paste or to point me at.
 ## What to try
 
 - **New in this round** (details in `docs/vr-port/ROUND21.md`; each section ends with an "In the headset" list):
+  - **Dynamic wounds, burns and wetness** (Gore page > Wounds on Models; ROUND21.md "Dynamic wounds, burns and
+    wetness"): shoot a grunt a few times, blow up an ogre, shove a monster into lava or slime, let a grunt shoot you,
+    wade in water: blood where each blow landed, scorches, char with embers, wet and drying; a health pack washes
+    your blood off. Your body and hands no longer use the wound skins (Dynamic Wounds off: as before).
+  - **Enemies Hurt by Liquids** (Gameplay > Damage, on; ROUND21.md, "Enemies hurt by liquids; holster orientation"):
+    shove a monster into slime or lava: it burns as you would (lava fast, with smoke; slime slowly). Fish, bosses and
+    Hephaestus are immune; zombies burn up in lava.
+  - **Holster orientation** (Hotspots: Shoulder / Hip / Upper Pitch, Yaw, Roll): turn each pair of holsters and the
+    guns in them; the left mirrors the right. Draw and holster as before.
   - **Items as physics pickups** (ROUND21.md, "Items as physics pickups; sinking; spinning shapes"): grip a hanging
     weapon (it is yours at once) or knock it with an open hand (it falls); grip or force-grab a key, the biosuit or a
     rune and let go of it at a hip or shoulder holster to take it (a key you have knocks and drops); powerups as
     before. Carrying and Gibs > Armour and Pickups > Weapons and Keys turns it off. In the firing range the weapons on
     the tables should lie on them, none cut by the table top; Show Physics Shapes: hanging items' outlines turn with them.
+  - **Dummy attacks, for parry practice** (ROUND21.md, "Dummy attacks (firing range)"): in the firing range, press
+    DUMMY ATTACKS (the panel south of the training dummy). Stand in front of it: every 2.5 s or so it winds up (a
+    sound, a glow, the rifle raised) and strikes you as a knight would. Parry it: the parry, parry stamina and
+    counters work as in a fight, and your counter's readout shows on the dummy. Off at every map load. Settings:
+    Gameplay > Parry, Bash and Headbutt > Training Dummy Attacks (time between blows, randomness, wind-up, reach,
+    damage). Your motion takes are unaffected: replays turn it off. A take recorded with it on says so, and its
+    replays have the dummy strike at the same moments.
   - **After the posing test** (ROUND21.md, "After the posing test"): hold a gun into a monster's head and fire (a
     headshot now); while posing, the hand passes through the weapon (the solved grip shows for 1.5 s after A/X);
     Weapon Offsets > Tuning Aids: Show Controller is drawn in your palm as a Quest 3 controller, **Controller Preview**
@@ -160,6 +176,11 @@ context and screenshot, ready to paste or to point me at.
   - **Melee, redesigned:** swings in any direction (backswings too), stabs with the tip, pommel/butt strikes with
     the near end, parry bash = hold the stance ~0.5 s then push; palm shoves (both palms harder). Melee Speed was
     reset once to 4 m/s. Tell which of your motions still misread, and record more takes of them.
+  - **Melee fixes** (ROUND21.md, "Melee fixes: flashlight, axe on walls, gibs"): punch with the torch in your fist
+    (both grips: as hard as a gripped fist); shove with the free palm while the torch hand pushes along (a two-handed
+    shove); the torch hand pushed alone, palm first, does nothing. Chop a wall with the axe, Mjolnir, a sword or a
+    gun, sideways, diagonally and from overhead: the wall's thunk and buzz. Punch or chop a gib lying on the floor:
+    it bursts.
   - **Motion recorder:** Advanced VR Options > Motion Recorder; keep adding takes, especially of what misreads.
   - **Review Takes** (under Motion Recorder): the takes that fail the evaluation or are suspect (To Review). In the
     firing range, pick one: Play Ghost replays it in front of the dummy (translucent weapons, their lines, the tip's
@@ -600,7 +621,11 @@ After the posing test (ROUND21.md): `vr_debug_shots 1` with `developer 1` prints
 what its pellets hit, headshots) and each damage you deal; a monster at the muzzle: `impulse 150 + weapon id` (with
 `vr_weapon_grip_mode 1`, `impulse 9` for ammo a frame before), `vr_mock_hand main 0.08 1.05 -1.2 40 0 0`, then
 `vr_test_spawn 0; vr_test_spawn_dist 44; impulse 241` puts a grunt's head round the muzzle in vrfiringrange.
-`vr_pose_solve 1` solves the posing hand live (as before). `vr_wofs_shot_pitch_NN` / `_shot_yaw_NN` turn a
+`vr_pose_solve 1` solves the posing hand live (as before).
+Dummy attacks (round 21): `vr_dummy_attacks 1` in vrfiringrange (as the button); with `developer 1` each wind-up, blow
+and miss is printed with its time; `vr_dummy_attack_jitter 0` makes the blows regular (the first 1.6 s after it's
+turned on, then every `vr_dummy_attack_period`). Note: `setpos` turns noclip on, and in noclip a blow's knockback
+(any push) is lost: `setpos ...; noclip` turns it off again. `vr_wofs_shot_pitch_NN` / `_shot_yaw_NN` turn a
 weapon's shots; `vr_show_controller_x/y/z/pitch/yaw/roll` (and `_off_own`, `_off_*`) move the controller
 preview; `vr_dumpview` prints each grip and its distance from the tracked pose (10.2 cm with
 `vr_controller_legacy_pose 1`).
@@ -652,6 +677,26 @@ Grab reach from the fist (ROUND21.md): `vr_debug_carry 2` prints each grab test 
 Tuning the body: `vr_show_hip_holsters 1`, `vr_show_upper_holsters 1`, `vr_show_shoulder_holsters 1` and
 `vr_show_virtual_stock 1` mark where the holsters and the virtual stock's shoulders are (green while a hand is
 there); move them with the `vr_*_offset_*` cvars.
+Holsters with guns in them (mock; ROUND21.md, "Holster orientation"): `vr_weapon_grip_mode 1`, then per holster
+`impulse 154; vr_mock_hand main 0.20 0.95 0.0 0 0 0; wait40; vr_mock_button main grip 1; wait10; vr_mock_button main
+grip 0` (the right hip; the right shoulder is `0.1 1.75 0.12`). A new game starts with the shotgun and the axe on the
+hips. To draw: `+grabright; vr_mock_button main grip 1` at the holster. Turn them with
+`vr_{hip,upper,shoulder}_holster_{pitch,yaw,roll}`. `vr_body_debug 2` or `3` shows the hip and chest holsters on the
+preview; `vr_mock_camera 0.7 1.9 0.8 20 40` shows the back.
+Wounds (ROUND21.md, "Dynamic wounds, burns and wetness"): `vr_wounds_test <entity|self|ahead|all> <kind> [amount]
+[right] [up] [extra]` paints a wound as the server's event would (1 shot, 2 nail, 3 melee, 4 blast, 5 burn, 6 zap,
+7 lava, 8 slime, 9 liquid; a liquid's `up` is its surface over the feet); `ahead` is the model nearest the view's
+line (a grunt from `vr_test_spawn 0; vr_test_spawn_dist 70; impulse 241` in `vrfiringrange`), `all` every model
+(the stress test). `vr_wounds_dump` writes each mask to `quakevr/wounds/mask_<layer>_<model>.png` (delete them
+after), `vr_wounds_info` lists the pool, `vr_wounds_debug 1` prints each event and where it landed (2: also the
+player's capsules). `give h 30` then `give h 100` checks the heal fade. `vr_physics_blast` from the console loses the
+wound events (they go out in the next server frame's datagram, cleared first): test explosions with
+`vr_wounds_test ahead 4 <damage>`. Screenshots comparable run to run: `host_framerate 0.0111; vr_particle_seed 7;
+vr_body_blood 0; vr_body_blood_floor 0` (the wrist gadget's readout still changes).
+Liquids (ROUND21.md, "Enemies hurt by liquids"): `vr_debug_shots 1; developer 1` logs each burn (`liquid: ... health`);
+with `vr_enemy_liquid_damage 0` it logs a "not burnt" line each second instead. Run `god; notarget` first, then:
+- a grunt in e1m1's slime: `setpos 200 2820 -60; wait5; vr_test_spawn 0; vr_test_spawn_dist 64; impulse 241`;
+- a grunt in e1m7's lava: `setpos -50 48 20 0 0 0; vr_test_spawn_dist 200; impulse 241`.
 
 Flashlight tuning (ROUND21.md, "Flashlight tuning"): `vr_show_flashlight_zones 1` draws the reach zones (the head's
 balls, each gun's capsule; green in reach) and the held torch's middle; `vr_flashlight_head_zone_*` and
@@ -666,4 +711,22 @@ wrist in the mock without moving it, turn the controller about the wrist: the sc
 such `vr_mock_hand` poses (flexion, deviation, twist about the forearm's own axes, from a straight wrist found by
 `straight.py`). `vr_gadget_fps 2` with `host_maxfps 45` or a `timerefresh` checks the Detailed counter's LATE and spikes
 (the mock doesn't tell a refresh: 90 Hz is assumed, and it paces at about 64 Hz, so every frame is late there).
+Melee fixes (ROUND21.md, "Melee fixes: flashlight, axe on walls, gibs"): the tests' motions come from
+`Misc/quakevr/motion_synth.py` (`--settings-from <ironwail.cfg>` writes them for a config's hand calibration, `--mock`
+also writes a `vr_mock_play` script, `--name` the file's name). A weapon into a wall: `chop_horizontal`,
+`chop_diagonal`, `chop_overhead` with `--weapon axe|mjolnir|sword|shotgun`, played with `setpos 100 106 48 0 90 0;
+wait20; vr_motion_play <take> noplace yaw 90` in the firing range (its north wall 22 units ahead of the player's
+origin; `noplace` keeps the player there and `yaw 90` turns the take to face the wall: without it a synthetic take
+faces yaw 0). The flashlight (a take can't carry it, and playback's first press would send it home): take it first
+(`vr_mock_fingers off 0 0; vr_mock_hand off -0.066 1.05 -0.072 -80 0 0; wait40; vr_mock_button off grip 1; wait20`;
+`vr_mock_button off secondary 1`, then 0, flips the grip), then `setpos 221.2 -656.7 41 0 180 0` (the dummy 0.95 m
+ahead) and `vr_mock_play <punch_straight_off | palm_shove_2h_torch | palm_shove_torch_only>.mock`; for the gripped-fist
+comparison `+graboff; vr_mock_fingers off 1 1; vr_mock_button off grip 1` instead. A gib on the floor: `setpos 316 -556
+56 0 180 0`, `vr_mock_hand off -0.05 0.45 -0.45 0 0 0; +graboff; vr_mock_button off grip 1; impulse 245` (a destroyable
+gib in the off hand; `impulse 252`'s test gibs don't take damage), `-graboff; vr_mock_button off grip 0; wait120` (it
+lies 0.45 m ahead), then the main hand (`+grabright; vr_mock_button main grip 1`, or the axe: `vr_weapon_grip_mode 1;
+impulse 9; impulse 152` first) and `vr_mock_play punch_down_gib.mock` or `chop_down_gib.mock` (`--weapon axe`).
+`developer 1` prints `melee event: ... a wall` / `a gib`, `gib: struck by a blow`, `flashlight: taken`; `developer 2`
+also `melee debug: going down at ... onto a surface facing ...: strikes|passes` (the wall rule for points going down).
+Note that `setpos` turns noclip on (QuakeSpasm's), which these tests don't mind.
 Align Sights to My Aim (ROUND21.md): `vr_sight_align [start [main|off] | apply | cancel | undo]` runs the Weapon Offsets page's capture (the mock hand must be lowered, then raised and held 0.4 s, for each capture; `vr_sight_align_captures`), `vr_sight_check [main|off] [size]` prints the sight line against the dominant eye (`vr_dominant_eye`), where the sights and the laser land in that eye's image, and the laser against the line; `vr_sight_lines` lists every weapon's line; `vr_show_sight_line 1` draws them. Higher eye images: `vr_mock_eye_size 2048; vr_restart`, then `vr_eyeshot 1`.

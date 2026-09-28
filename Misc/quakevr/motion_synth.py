@@ -144,6 +144,29 @@ def track_dir(d):
 HAND_OFFSETS = {"main": (39.5, 4.0), "off": (40.25, -4.0)}  # (pitch, yaw) as shipped
 
 
+# The settings a take is written for (--settings; configure): name=value pairs written into its header's settings
+# line, which playback sets (another hand calibration: vr_gunangle, vr_handcal_*...). Empty: the shipped ones (the
+# header's hand angles line). The hands' pitch and yaw are taken from them (HAND_OFFSETS); their move and roll
+# (vr_handcal_*) move the game's hand on its controller as they do in the game (the take is the controller's).
+# SWORD_BLADE is measured at the shipped settings: the sword presets are for those.
+SETTINGS = {}
+
+
+def configure(settings):
+    """Writes the takes for `settings` ({name: value}, e.g. the author's hand calibration)."""
+    SETTINGS.clear()
+    SETTINGS.update(settings)
+
+    def g(key, default):
+        return float(settings.get(key, default))
+    main = (g("vr_gunangle", 39.5), g("vr_gunyaw", 4.0))
+    HAND_OFFSETS["main"] = main
+    if g("vr_handcal_off_mirror", 0.0) != 0.0:
+        HAND_OFFSETS["off"] = (main[0], -main[1])  # vr_hands.cpp calibration(): the main hand's, mirrored
+    else:
+        HAND_OFFSETS["off"] = (g("vr_offhandpitch", 40.25), g("vr_offhandyaw", -4.0))
+
+
 def hand_offset(hand):
     pitch, yaw = HAND_OFFSETS[hand]
     return qmul(qaxis((0, 1, 0), yaw), qaxis((1, 0, 0), -pitch))
@@ -203,6 +226,7 @@ class Take:
         self.grips = {"main": main_weapon != "fist", "off": off_weapon != "fist"}
         self.t = 0.0
         self.phase = "pre"
+        self.fists = set()  # empty hands whose grip is a fist of their own (a punch, the flashlight), not a helping grip
 
     def set(self, hand, pos, quat):
         self.pose[hand] = (tuple(pos), quat)
@@ -277,7 +301,7 @@ class Take:
                 row.update({"%s_buttons" % p: str(2 if g else 0), "%s_grip" % p: "1" if g else "0", "%s_trigger" % p: "0",
                             "%s_thumb" % p: "1", "%s_stick_x" % p: "0", "%s_stick_y" % p: "0",
                             "%s_wid" % p: str(self.weapons[hand]), "%s_wflags" % p: "0",
-                            "%s_helping" % p: "1" if (hand == "off" and g and self.weapons["off"] == 0) else "0"})
+                            "%s_helping" % p: "1" if (hand == "off" and g and self.weapons["off"] == 0 and hand not in self.fists) else "0"})
             if self.target:
                 row.update({"mon_class": "vr_dummy", "mon_x_u": "%.3f" % (self.target[0] * m2u),
                             "mon_y_u": "%.3f" % (self.target[1] * m2u), "mon_z_u": "0"})
@@ -296,7 +320,13 @@ class Take:
             f.write("# date: %s\n# source: synthetic (Misc/quakevr/motion_synth.py)\n" % time.strftime("%Y-%m-%d %H:%M:%S"))
             f.write("# map: vrfiringrange\n# vr_world_scale: %g\n# units per metre: %.4f\n" % (self.world_scale, m2u))
             f.write("# vr_height_calibration: %g\n" % self.eye_height)
-            f.write("# hand angles: vr_gunangle 39.5 vr_gunyaw 4 vr_offhandpitch 40.25 vr_offhandyaw -4\n")
+            (mp, my), (op, oy) = HAND_OFFSETS["main"], HAND_OFFSETS["off"]
+            f.write("# hand angles: vr_gunangle %g vr_gunyaw %g vr_offhandpitch %g vr_offhandyaw %g\n" % (mp, my, op, oy))
+            if SETTINGS:
+                # With a settings line playback sets only it (not the lines above): the scale and height too.
+                full = {"vr_world_scale": "%g" % self.world_scale, "vr_height_calibration": "%g" % self.eye_height}
+                full.update(SETTINGS)
+                f.write("# settings: %s\n" % " ".join("%s=%s" % kv for kv in full.items()))
             f.write("# target: %s\n" % ("vr_dummy %.2f m ahead, %.2f m left" % self.target if self.target else "none"))
             f.write("# rows: %d\n" % len(rows))
             f.write(",".join(columns) + "\n")
@@ -334,6 +364,155 @@ def sword_swing(take, p0, p1, p2, b0, b1, b2, duration, two_handed):
     take.hold(0.3, phase="tail")
 
 
+# Where a held weapon's far end (its muzzle point: an axe's head, a sword's tip) lies in the game hand's frame (forward,
+# left, up; metres at vr_world_scale 1.25), measured in the mock headset (developer 3's "melee trace") with the
+# author's weapon offsets: weapon_pose points it along a swing's axis.
+WEAPON_FAR = {"axe": (0.155, -0.012, 0.209), "mjolnir": (0.159, -0.0025, 0.205), "sword": (0.153, 0.003, 0.875),
+              "shotgun": (0.45, -0.037, 0.003)}
+
+
+def weapon_pose(hand, weapon, axis, right):
+    """A controller orientation for `weapon` in `hand` whose far end points along `axis`, the game hand's right towards
+    `right` as near as it can (player frame)."""
+    f, l, u = WEAPON_FAR[weapon]
+    game = orient((-l, u, -f), track_dir(axis), (1, 0, 0), track_dir(right))
+    return qmul(game, qconj(hand_offset(hand)))
+
+
+def weapon_swing(take, hand, weapon, path, axes, duration):
+    """`weapon` swung by `hand` through `path` (the hand, a Bezier) with its far end along `axes` (start, middle, end),
+    the back of the hand facing motion x axis (as sword_swing)."""
+    last = {"right": (0.0, 0.0, -1.0)}
+
+    def pose(s):
+        h = bezier(path[0], path[1], path[2], s)
+        ax = norm(lerp(axes[0], axes[1], s * 2)) if s < 0.5 else norm(lerp(axes[1], axes[2], s * 2 - 1))
+        m = sub(bezier(path[0], path[1], path[2], min(1.0, s + 0.01)), bezier(path[0], path[1], path[2], max(0.0, s - 0.01)))
+        r = cross(m, ax)
+        if dot(r, r) > 1e-8:
+            last["right"] = norm(r)
+        return {hand: (h, weapon_pose(hand, weapon, ax, last["right"]))}
+    take.start(pose(0.0))
+    take.hold(0.4)
+    take.move(duration, pose, phase="rec")
+    take.hold(0.4)
+    take.hold(0.3, phase="tail")
+
+
+def straight(take, hands, duration):
+    """Each hand of `hands` ({hand: (from, to, quat)}) moved in a line."""
+    take.start({h: (a, q) for h, (a, b, q) in hands.items()})
+    take.hold(0.4)
+    take.move(duration, lambda s: {h: (lerp(a, b, s), q) for h, (a, b, q) in hands.items()}, phase="rec")
+    take.hold(0.4)
+    take.hold(0.3, phase="tail")
+
+
+def fist_pose(hand, forward=(1, 0, 0)):
+    """A fist punching along `forward`, its thumb up (or ahead, punching straight down)."""
+    d = norm(forward)
+    up = norm(cross(cross(d, (0, 0, 1)), d)) if abs(d[2]) < 0.99 else (1, 0, 0)
+    return hand_pose(hand, d, up)
+
+
+def palm_pose(hand):
+    """An open palm facing ahead, fingers up (the main hand's thumb to the left, the off hand's to the right)."""
+    return hand_pose(hand, (0, 0, 1), (0, 1, 0) if hand == "main" else (0, -1, 0))
+
+
+def euler(q):
+    """vr_mock_hand's angles (pitch up, yaw left, roll) of a tracking-space orientation (vr_backend_mock.cpp
+    mockRotation: yaw about +y, then pitch about +x, then roll)."""
+    w, x, y, z = q
+    pitch = math.degrees(math.asin(max(-1.0, min(1.0, -2 * (y * z - w * x)))))
+    yaw = math.degrees(math.atan2(2 * (x * z + w * y), 1 - 2 * (x * x + y * y)))
+    roll = math.degrees(math.atan2(2 * (x * y + w * z), 1 - 2 * (x * x + z * z)))
+    return pitch, yaw, roll
+
+
+def write_mock(take, path, lead=0.3):
+    """The take as a vr_mock_play script (the head standing at the eye height; the controls are left to the mock):
+    for tests whose state a take can't carry (the flashlight in a hand)."""
+    with open(path, "w", newline="\n") as f:
+        for (t, phase, pose, grips) in take.frames:
+            f.write("%.4f head 0 %.4f 0\n" % (t + lead, take.eye_height))
+            for hand, (pos, q) in sorted(pose.items()):
+                p = track(pos)
+                e = euler(q)
+                f.write("%.4f %s %.4f %.4f %.4f %.3f %.3f %.3f\n" % (t + lead, hand, p[0], p[1], p[2], e[0], e[1], e[2]))
+
+
+def settings_from_cfg(path):
+    """The hand settings of a config (an ironwail.cfg): what the takes are written for (configure)."""
+    keys = ("vr_gunangle", "vr_gunyaw", "vr_offhandpitch", "vr_offhandyaw", "vr_controller_legacy_pose")
+    out = {}
+    for line in open(path, encoding="utf-8", errors="replace"):
+        k, _, v = line.strip().partition(" ")
+        if k in keys or k.startswith("vr_handcal_"):
+            out[k] = v.strip().strip('"')
+    return out
+
+
+# The melee fixes' tests (ROUND21.md, "Melee fixes: flashlight, axe on walls, gibs"): a weapon chopped into a wall
+# (--weapon; vr_motion_play <take> noplace yaw <heading>, standing in front of one), a fist and a weapon struck down at a
+# gib on the floor (0.45 m ahead, 3-5 cm left), and the flashlight's punch and shoves (--mock: vr_mock_play, the torch
+# taken in the mock first: a take can't carry it).
+CHOPS = {
+    "horizontal": (((0.2, -0.45, -0.35), (0.62, -0.05, -0.35), (0.3, 0.4, -0.35)), ((0.2, -1, 0.1), (1, 0, 0.1), (0.2, 1, 0.1))),
+    "diagonal": (((0.15, -0.35, 0.05), (0.62, -0.05, -0.3), (0.35, 0.3, -0.7)), ((-0.3, -0.5, 0.8), (1, 0.2, 0), (0.4, 0.5, -0.8))),
+    "overhead": (((0.1, -0.15, 0.15), (0.62, -0.12, -0.25), (0.4, -0.1, -0.7)), ((-0.3, 0, 1), (1, 0, 0.1), (0.5, 0, -0.9))),
+}
+CHOP_REACH = {"axe": 0.62, "mjolnir": 0.62, "sword": 0.3, "shotgun": 0.5}  # the hand's farthest (m)
+
+
+def fix_preset(name, args):
+    eye = args.eye_height
+    common = dict(rate=args.rate, world_scale=args.world_scale, eye_height=eye)
+    if name.startswith("chop_") and name[len("chop_"):] in CHOPS:
+        path, axes = CHOPS[name[len("chop_"):]]
+        path = tuple((CHOP_REACH[args.weapon] if i == 1 else p[0], p[1], eye + p[2]) for i, p in enumerate(path))
+        take = Take("slash_" + name[len("chop_"):] + "_" + args.weapon, main_weapon=args.weapon, target=None,
+                    note="synthetic: into a wall", **common)
+        weapon_swing(take, "main", args.weapon, path, axes, args.duration)
+        return take
+    if name == "punch_down_gib":
+        take = Take("punch_overhead", target=None, note="synthetic: a gib on the floor", **common)
+        take.grip("main", True)
+        a, m, b = (0.2, -0.1, eye - 0.45), (0.4, 0.0, 0.5), (0.45, 0.02, 0.06)
+        q = fist_pose("main", sub(b, a))
+        take.start({"main": (a, q)})
+        take.hold(0.4)
+        take.move(args.duration, lambda s: {"main": (bezier(a, m, b, s), q)}, phase="rec")
+        take.hold(0.4)
+        take.hold(0.3, phase="tail")
+        return take
+    if name == "chop_down_gib":
+        take = Take("slash_overhead_" + args.weapon, main_weapon=args.weapon, target=None,
+                    note="synthetic: a gib on the floor", **common)
+        weapon_swing(take, "main", args.weapon, ((0.15, -0.1, eye), (0.35, 0.0, 0.9), (0.25, 0.03, 0.25)),
+                     ((-0.2, 0, 1), (1, 0, 0.1), (0.5, 0.05, -0.85)), args.duration)
+        return take
+    rest = {"main": ((0.2, -0.25, eye - 0.6), (0.2, -0.25, eye - 0.6), fist_pose("main"))}
+    if name == "punch_straight_off":
+        take = Take("punch_straight", target=(0.95, 0.1), note="synthetic: the off hand's fist (the flashlight: --mock)",
+                    **common)
+        take.grip("off", True)
+        take.fists = {"off"}
+        straight(take, dict(rest, off=((0.12, 0.15, eye - 0.25), (0.6, 0.12, eye - 0.2), fist_pose("off"))), args.duration)
+        return take
+    if name in ("palm_shove_2h_torch", "palm_shove_torch_only"):
+        both = name == "palm_shove_2h_torch"
+        take = Take("palm_shove_2h" if both else "no_hit", target=(0.9, 0.0 if both else 0.1),
+                    note="synthetic: the off hand holding the flashlight (--mock)", **common)
+        take.grip("off", True)
+        take.fists = {"off"}
+        hands = {"off": ((0.15, 0.15, eye - 0.3), (0.5, 0.15, eye - 0.3), fist_pose("off") if both else palm_pose("off"))}
+        hands["main"] = ((0.15, -0.15, eye - 0.3), (0.5, -0.15, eye - 0.3), palm_pose("main")) if both else rest["main"]
+        straight(take, hands, args.duration)
+        return take
+    return None
+
+
 def preset(name, args):
     two = args.two_handed
     ws, eye = args.world_scale, args.eye_height
@@ -363,6 +542,7 @@ def preset(name, args):
     if name in ("punch_straight", "no_hit_slow_punch"):
         slow = name.startswith("no_hit")
         take = Take(name, rate=args.rate, world_scale=ws, eye_height=eye, target=(d, 0.0), note="synthetic")
+        take.grip("main", True)  # a closed fist (an open hand doesn't punch)
         fist = hand_pose("main", (1, 0, 0), (0, 0, 1))
         a, b = (0.12, -0.15, eye - 0.25), (0.6, -0.1, eye - 0.2)
         take.start({"main": (a, fist)})
@@ -395,12 +575,20 @@ def preset(name, args):
                   ease=False, phase="rec")
         take.hold(0.3, phase="tail")
         return take
+    take = fix_preset(name, args)
+    if take:
+        return take
     raise SystemExit("no preset %r (--list)" % name)
 
 
+FIX_PRESETS = ["chop_horizontal", "chop_diagonal", "chop_overhead", "punch_down_gib", "chop_down_gib",
+               "punch_straight_off", "palm_shove_2h_torch", "palm_shove_torch_only"]
 PRESETS = ["slash_overhead", "slash_horizontal_rtl", "slash_horizontal_ltr", "slash_diagonal_down_left", "stab",
            "punch_straight", "palm_shove_1h", "palm_shove_2h", "no_hit_slow_punch", "no_hit_wave"]
-DEFAULT_DURATION = {"stab": 0.15, "punch_straight": 0.15, "palm_shove_1h": 0.15, "palm_shove_2h": 0.15}
+DEFAULT_DURATION = {"stab": 0.15, "punch_straight": 0.15, "palm_shove_1h": 0.15, "palm_shove_2h": 0.15,
+                    "chop_horizontal": 0.22, "chop_diagonal": 0.22, "chop_overhead": 0.22, "punch_down_gib": 0.16,
+                    "chop_down_gib": 0.22, "punch_straight_off": 0.15, "palm_shove_2h_torch": 0.15,
+                    "palm_shove_torch_only": 0.15}
 
 
 def main():
@@ -414,10 +602,17 @@ def main():
     ap.add_argument("--world-scale", type=float, default=1.25)
     ap.add_argument("--eye-height", type=float, default=1.646)
     ap.add_argument("--two-handed", action="store_true", help="the sword's with the off hand on the grip")
+    ap.add_argument("--weapon", default="axe", choices=sorted(WEAPON_FAR), help="the chop presets' weapon")
+    ap.add_argument("--settings-from", help="write the takes for this config's hand settings (vr_gunangle, "
+                    "vr_handcal_*...: an ironwail.cfg)")
+    ap.add_argument("--mock", action="store_true", help="also a vr_mock_play script of each (<take>.mock)")
+    ap.add_argument("--name", help="the file's name (no extension; default: the label and the time)")
     args = ap.parse_args()
     if args.list or not args.preset:
-        print("\n".join(PRESETS))
+        print("\n".join(PRESETS + FIX_PRESETS))
         return
+    if args.settings_from:
+        configure(settings_from_cfg(args.settings_from))
     names = PRESETS if args.preset == "all" else [args.preset]
     for name in names:
         a = argparse.Namespace(**vars(args))
@@ -429,8 +624,12 @@ def main():
         while os.path.exists(path):
             path = os.path.join(args.out, "%s_%s-%d.csv" % (take.label, stamp, n))
             n += 1
+        if args.name:
+            path = os.path.join(args.out, args.name + (("_" + name) if len(names) > 1 else "") + ".csv")
         take.write(path)
         print(path)
+        if args.mock:
+            write_mock(take, path[:-4] + ".mock")
 
 
 if __name__ == "__main__":

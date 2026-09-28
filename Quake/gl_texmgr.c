@@ -1512,6 +1512,298 @@ static void TexMgr_ShadingToHeights (const float *lum, float *h, int width, int 
 
 /*
 ================
+TexMgr_SkinToNormals -- QVR: a model skin's colours made a normal map (NORMALMAP_SKIN; round 21). Brightness taken
+for height (TexMgr_ShadingToNormals) made every speck of an 8-bit skin's dithering a bump and every change of paint a
+ramp, and showed little: instead
+- edges: the brightness's slope at the finest scale (a 1 2 1 blur) where it is coherent (a line or an edge, by the
+  structure tensor), not speckle, and over the skin's own noise level (its median slope);
+- forms: the slopes of the brightness blurred over about 1.4, 3.5 and 5.5 texels, so that plate edges, folds and
+  muscles read as broad shapes;
+- paint: at every scale, a slope where the colour changes more than the brightness (blood on skin, a band of another
+  hue) counts less (by the brightness's share of the whole change);
+- materials, from the colour: metal (greys and blue-greys) keeps crisp edges and little form, flesh (warm, moderately
+  saturated) broad forms and soft edges, blood (saturated red) almost nothing, the rest (cloth, leather) between;
+- the tilt is compressed (tanh), so that strong edges make bevels of up to about 45 degrees, not walls.
+Within a skin's islands (TexMgr_SetHeightMask) every blur is normalised by the islands' coverage, so that nothing
+outside an island (the background, another part) reaches in across a seam. `scale`: the tilt from a slope of 1 in
+brightness a texel, then scaled to the skin's own relief (SKIN_P90). With `heights`, alpha is
+TexMgr_ShadingToHeights' (as before).
+================
+*/
+#define SKIN_FINE			1.2f	// the edges' weight
+#define SKIN_FORMS			3		// the blurred scales for the forms
+#define SKIN_COLOR			0.6f	// how much a change of colour counts against one of brightness (paint, not shape)
+#define SKIN_BEVEL			1.2f	// the tilt the compression tends to (tanh)
+#define SKIN_DEPTH			14.f		// the tilt of a slope of 1 in brightness a texel (at vr_normalmap_strength 1), before SKIN_P90
+#define SKIN_P90			0.85f	// a skin's 90th percentile of tilt (before the compression): its relief relative to its own
+
+static float TexMgr_Smoothstep (float a, float b, float x)
+{
+	float t = CLAMP (0.f, (x - a) / (b - a), 1.f);
+	return t * t * (3.f - 2.f * t);
+}
+
+// A box blur of radius r across and down (clamped at the edges), in place; `n` channels interleaved (at most 4).
+// Running sums: across along each row, down with a sum per column (row by row, in memory order).
+static void TexMgr_BoxBlur (float *a, int n, int w, int h, int r, float *tmp)
+{
+	int		x, y, c, i, stride = w * n, mark = Hunk_LowMark ();
+	float	inv = 1.f / (2 * r + 1), sum[4];
+	float	*copy = (float *) Hunk_AllocNoFill (w * h * n * sizeof (float)), *sums = (float *) Hunk_AllocNoFill (stride * sizeof (float));
+
+	(void) tmp;
+	for (y = 0; y < h; y++)
+	{
+		float *row = a + y * stride, *out = copy + y * stride;
+		for (c = 0; c < n; c++)
+			for (sum[c] = 0.f, i = -r; i <= r; i++)
+				sum[c] += row[CLAMP (0, i, w - 1) * n + c];
+		for (x = 0; x < w; x++)
+		{
+			const float *add = row + q_min (x + r + 1, w - 1) * n, *sub = row + q_max (x - r, 0) * n;
+			for (c = 0; c < n; c++)
+			{
+				out[x * n + c] = sum[c] * inv;
+				sum[c] += add[c] - sub[c];
+			}
+		}
+	}
+	memset (sums, 0, stride * sizeof (float));
+	for (i = -r; i <= r; i++)
+	{
+		const float *row = copy + CLAMP (0, i, h - 1) * stride;
+		for (x = 0; x < stride; x++)
+			sums[x] += row[x];
+	}
+	for (y = 0; y < h; y++)
+	{
+		const float *add = copy + q_min (y + r + 1, h - 1) * stride, *sub = copy + q_max (y - r, 0) * stride;
+		float *out = a + y * stride;
+		for (x = 0; x < stride; x++)
+		{
+			out[x] = sums[x] * inv;
+			sums[x] += add[x] - sub[x];
+		}
+	}
+	Hunk_FreeToLowMark (mark);
+}
+
+// `out` (3 channels): `in` blurred over the islands only (a convolution normalised by `wgt`, the islands' coverage):
+// three box passes of radius r (a Gaussian of sigma sqrt(r (r + 1))), or with r 0 a 1 2 1 pass (sigma 0.7).
+static void TexMgr_BlurIslands (float *out, const float *in, const float *wgt, int w, int h, int r, float *tmp)
+{
+	int		i, pass, count = w * h, mark = Hunk_LowMark ();
+	float	*acc = (float *) Hunk_AllocNoFill (count * 4 * sizeof (float));
+
+	for (i = 0; i < count; i++)
+	{
+		acc[i*4+0] = in[i*3+0] * wgt[i];
+		acc[i*4+1] = in[i*3+1] * wgt[i];
+		acc[i*4+2] = in[i*3+2] * wgt[i];
+		acc[i*4+3] = wgt[i];
+	}
+	if (r <= 0)
+	{
+		float *copy = (float *) Hunk_AllocNoFill (count * 4 * sizeof (float));
+		int x, y, c;
+		for (pass = 0; pass < 2; pass++)
+		{
+			memcpy (copy, acc, count * 4 * sizeof (float));
+			for (y = 0; y < h; y++)
+				for (x = 0; x < w; x++)
+				{
+					int m = y * w + x;
+					int a = pass ? CLAMP (0, y - 1, h - 1) * w + x : y * w + CLAMP (0, x - 1, w - 1);
+					int b = pass ? CLAMP (0, y + 1, h - 1) * w + x : y * w + CLAMP (0, x + 1, w - 1);
+					for (c = 0; c < 4; c++)
+						acc[m * 4 + c] = 0.25f * copy[a * 4 + c] + 0.5f * copy[m * 4 + c] + 0.25f * copy[b * 4 + c];
+				}
+		}
+	}
+	else
+		for (pass = 0; pass < 3; pass++)
+			TexMgr_BoxBlur (acc, 4, w, h, r, tmp);
+	for (i = 0; i < count; i++)
+	{
+		float k = 1.f / q_max (acc[i*4+3], 1e-6f);
+		out[i*3+0] = acc[i*4+0] * k;
+		out[i*3+1] = acc[i*4+1] * k;
+		out[i*3+2] = acc[i*4+2] * k;
+	}
+	Hunk_FreeToLowMark (mark);
+}
+
+// The slopes of the three channels of `img` at x, y (central differences, clamped at the edges), per texel.
+static void TexMgr_Slopes (const float *img, int w, int h, int x, int y, float d[6])
+{
+	const float *l = img + (y * w + q_max (x - 1, 0)) * 3, *r = img + (y * w + q_min (x + 1, w - 1)) * 3;
+	const float *u = img + (q_max (y - 1, 0) * w + x) * 3, *b = img + (q_min (y + 1, h - 1) * w + x) * 3;
+	int c;
+	for (c = 0; c < 3; c++)
+	{
+		d[c * 2 + 0] = 0.5f * (r[c] - l[c]);
+		d[c * 2 + 1] = 0.5f * (b[c] - u[c]);
+	}
+}
+
+static void TexMgr_SkinToNormals (byte *data, int width, int height, float scale, qboolean heights, float texelsperunit)
+{
+	static const int	radius[SKIN_FORMS] = {1, 3, 5};			// sigma 1.4, 3.5, 5.5 texels (of the model's skin)
+	static const float	formweight[SKIN_FORMS] = {0.8f, 0.9f, 0.7f};
+	int		i, x, y, s, mark, count = width * height, hist[256], seen, below;
+	float	*col, *blurred, *wgt, *gx, *gy, *jt, *tmp, *lum, *h = NULL, *fine, *forms;
+	float	noise, d[6];
+	double	start = Sys_DoubleTime (), tformed, theights, tfine;
+
+	if (width < 3 || height < 3)
+		return;
+	mark = Hunk_LowMark ();
+	col = (float *) Hunk_AllocNoFill (count * 3 * sizeof (float));
+	blurred = (float *) Hunk_AllocNoFill (count * 3 * sizeof (float));
+	jt = (float *) Hunk_AllocNoFill (count * 3 * sizeof (float));
+	wgt = (float *) Hunk_AllocNoFill (count * sizeof (float));
+	gx = (float *) Hunk_Alloc (count * sizeof (float));
+	gy = (float *) Hunk_Alloc (count * sizeof (float));
+	fine = (float *) Hunk_AllocNoFill (count * sizeof (float));
+	forms = (float *) Hunk_AllocNoFill (count * sizeof (float));
+	lum = (float *) Hunk_AllocNoFill (count * sizeof (float));
+	tmp = (float *) Hunk_AllocNoFill (q_max (width, height) * sizeof (float));
+
+	// brightness and two colour differences; the islands' coverage; the materials' weights for edges and forms
+	for (i = 0; i < count; i++)
+	{
+		float r = data[i*4+0] * (1.f / 255.f), g = data[i*4+1] * (1.f / 255.f), b = data[i*4+2] * (1.f / 255.f);
+		float mx = q_max (r, q_max (g, b)), mn = q_min (r, q_min (g, b)), sat = (mx - mn) / q_max (mx, 1e-3f);
+		float grey, metal, blood, flesh, other;
+		int	tx = i % width, ty = i / width;
+
+		col[i*3+0] = lum[i] = r * 0.299f + g * 0.587f + b * 0.114f;
+		col[i*3+1] = r - g;
+		col[i*3+2] = (r + g) * 0.5f - b;
+		wgt[i] = !heightmask || heightmask[(ty * heightmask_height / height) * heightmask_width + tx * heightmask_width / width] ? 1.f : 1e-3f;
+
+		grey = r > b + 0.02f ? 1.f - TexMgr_Smoothstep (0.06f, 0.14f, sat) : 1.f - TexMgr_Smoothstep (0.22f, 0.4f, sat);
+		metal = grey * TexMgr_Smoothstep (0.03f, 0.12f, mx);
+		blood = r > g ? TexMgr_Smoothstep (0.5f, 0.75f, sat) * TexMgr_Smoothstep (0.08f, 0.25f, r - q_max (g, b)) : 0.f;
+		flesh = r >= g && g >= b * 0.9f ? (1.f - metal) * (1.f - blood) * TexMgr_Smoothstep (0.12f, 0.25f, sat) *
+			(1.f - TexMgr_Smoothstep (0.5f, 0.7f, sat)) * TexMgr_Smoothstep (0.25f, 0.45f, mx) : 0.f;
+		other = CLAMP (0.f, 1.f - metal - blood - flesh, 1.f);
+		fine[i] = metal * 1.f + flesh * 0.35f + blood * 0.15f + other * 0.7f;
+		forms[i] = metal * 0.5f + flesh * 1.f + blood * 0.3f + other * 0.7f;
+	}
+
+	// edges: the slopes of the 1 2 1 blur, kept where coherent (the structure tensor, over about 1.4 texels) and
+	// over the noise (the median slope within the islands)
+	TexMgr_BlurIslands (blurred, col, wgt, width, height, 0, tmp);
+	memset (hist, 0, sizeof (hist));
+	for (y = 0, seen = 0; y < height; y++)
+		for (x = 0; x < width; x++)
+		{
+			i = y * width + x;
+			TexMgr_Slopes (blurred, width, height, x, y, d);
+			jt[i*3+0] = d[0] * d[0];
+			jt[i*3+1] = d[1] * d[1];
+			jt[i*3+2] = d[0] * d[1];
+			if (wgt[i] >= 1.f)
+			{
+				hist[CLAMP (0, (int)(sqrtf (d[0] * d[0] + d[1] * d[1]) * 1024.f), 255)]++;
+				seen++;
+			}
+		}
+	for (s = 0; s < 3; s++)
+		TexMgr_BoxBlur (jt, 3, width, height, 1, tmp);
+	for (i = 0, below = 0; i < 255 && below + hist[i] < seen / 2; i++)
+		below += hist[i];
+	noise = (i + 0.5f) / 1024.f;
+	for (y = 0; y < height; y++)
+		for (x = 0; x < width; x++)
+		{
+			float gl, gc, jxx, jyy, jxy, tr, coh, keep;
+			i = y * width + x;
+			TexMgr_Slopes (blurred, width, height, x, y, d);
+			gl = d[0] * d[0] + d[1] * d[1];
+			gc = d[2] * d[2] + d[3] * d[3] + d[4] * d[4] + d[5] * d[5];
+			jxx = jt[i*3+0]; jyy = jt[i*3+1]; jxy = jt[i*3+2];
+			tr = jxx + jyy;
+			coh = tr > 1e-12f ? ((jxx - jyy) * (jxx - jyy) + 4.f * jxy * jxy) / (tr * tr) : 0.f; // ((l1 - l2) / (l1 + l2))^2
+			keep = TexMgr_Smoothstep (noise * 0.8f, noise * 2.5f, sqrtf (gl)) * (0.35f + 0.65f * coh) *
+				gl / (gl + SKIN_COLOR * gc + 1e-9f) * fine[i] * SKIN_FINE;
+			gx[i] += d[0] * keep;
+			gy[i] += d[1] * keep;
+		}
+
+	tfine = Sys_DoubleTime ();
+	// forms: the slopes of broader blurs (a blurred step's slope falls as 1 / sigma: made up for by its square root)
+	for (s = 0; s < SKIN_FORMS; s++)
+	{
+		int r = radius[s] * q_max (1, (int)(texelsperunit + 0.5f)); // an image finer than the skin: as wide on the model
+		float k = formweight[s] * sqrtf (sqrtf (r * (r + 1.f)));
+		TexMgr_BlurIslands (blurred, col, wgt, width, height, r, tmp);
+		for (y = 0; y < height; y++)
+			for (x = 0; x < width; x++)
+			{
+				float gl, gc;
+				i = y * width + x;
+				TexMgr_Slopes (blurred, width, height, x, y, d);
+				gl = d[0] * d[0] + d[1] * d[1];
+				gc = d[2] * d[2] + d[3] * d[3] + d[4] * d[4] + d[5] * d[5];
+				gl = k * forms[i] * gl / (gl + SKIN_COLOR * gc + 1e-9f);
+				gx[i] += d[0] * gl;
+				gy[i] += d[1] * gl;
+			}
+	}
+
+	tformed = Sys_DoubleTime ();
+	if (heights)
+	{
+		if (heightmask)
+			TexMgr_DilateIslands (lum, width, height);
+		h = (float *) Hunk_AllocNoFill (count * sizeof (float));
+		TexMgr_ShadingToHeights (lum, h, width, height, texelsperunit);
+	}
+	theights = Sys_DoubleTime ();
+	// relative to the skin's own relief: its 90th percentile of tilt made SKIN_P90 (within a factor of 3 either way),
+	// so that a dark or a soft skin gets as much shape as a contrasty one
+	{
+		int tilts[256] = {0}, all = 0, p90;
+		float k;
+		for (i = 0; i < count; i++)
+			if (wgt[i] >= 1.f)
+			{
+				tilts[CLAMP (0, (int)(sqrtf (gx[i] * gx[i] + gy[i] * gy[i]) * scale * 64.f), 255)]++;
+				all++;
+			}
+		for (p90 = 0, below = 0; p90 < 255 && below + tilts[p90] < all * 9 / 10; p90++)
+			below += tilts[p90];
+		k = CLAMP (1.f / 3.f, SKIN_P90 / ((p90 + 0.5f) / 64.f), 3.f);
+		Con_DPrintf ("skin normal map %d x %d: relief 90%% %.2f times %.2f (noise %.4f)\n", width, height, (p90 + 0.5f) / 64.f, k, noise);
+		scale *= k;
+	}
+	for (i = 0; i < count; i++)
+	{
+		float n[2], t, len;
+		byte *out = data + i * 4;
+		n[0] = -gx[i] * scale;
+		n[1] = gy[i] * scale; // green up: against the rows
+		t = sqrtf (n[0] * n[0] + n[1] * n[1]);
+		if (t > 1e-6f)
+		{
+			float c = tanhf (t / SKIN_BEVEL) * SKIN_BEVEL / t;
+			n[0] *= c;
+			n[1] *= c;
+		}
+		len = 1.f / sqrtf (n[0] * n[0] + n[1] * n[1] + 1.f);
+		out[0] = (byte) CLAMP (0, (int)((n[0] * len * 0.5f + 0.5f) * 255.f + 0.5f), 255);
+		out[1] = (byte) CLAMP (0, (int)((n[1] * len * 0.5f + 0.5f) * 255.f + 0.5f), 255);
+		out[2] = (byte) CLAMP (0, (int)((len * 0.5f + 0.5f) * 255.f + 0.5f), 255);
+		out[3] = h ? (byte) CLAMP (0, (int)(h[i] * 255.f + 0.5f), 255) : 255;
+	}
+	Hunk_FreeToLowMark (mark);
+	Con_DPrintf ("skin normal map %d x %d made in %.1f ms (fine %.1f forms %.1f heights %.1f)" "\n", width, height, (Sys_DoubleTime () - start) * 1000.0, (tfine-start)*1000.0, (tformed-tfine)*1000.0, (theights-tformed)*1000.0);
+}
+
+/*
+================
 TexMgr_SetHeightMask -- QVR: a skin's islands, for the heights of the normal maps made next (until set to NULL):
 per texel of a width x height skin, how many texels it lies inside the triangles (0 outside, HEIGHT_RIM + 1 or more
 well inside); the heights rise to the top at their edges (TexMgr_ShadingToHeights). A normal map reloaded later
@@ -1588,7 +1880,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	int	miplevel, mipwidth, mipheight, picmip;
 	glformat_t internalformat;
 	qboolean compress;
-	int normalmap = normalmap_kind[glt - gltextures_base] & ~NORMALMAP_HEIGHTS; // QVR
+	int normalmap = NORMALMAP_TYPE (normalmap_kind[glt - gltextures_base]); // QVR
 	qboolean heights; // QVR
 	byte *coveragemip = NULL; // QVR: an alpha-tested texture's mip with its coverage kept (vr_alpha_coverage)
 	float coverage = 0.f;
@@ -1649,7 +1941,10 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	if (normalmap == NORMALMAP_SHADING) // QVR
 	{
 		float texelsperunit = glt->width / (float) q_max (1, (int)normalmap_worldwidth[glt - gltextures_base]);
-		TexMgr_ShadingToNormals ((byte *)data, glt->width, glt->height, NORMALMAP_DEPTH * texelsperunit, heights, texelsperunit);
+		if (normalmap_kind[glt - gltextures_base] & NORMALMAP_SKIN) // a skin's colours (not a *_bump's heights)
+			TexMgr_SkinToNormals ((byte *)data, glt->width, glt->height, SKIN_DEPTH * texelsperunit, heights, texelsperunit);
+		else
+			TexMgr_ShadingToNormals ((byte *)data, glt->width, glt->height, NORMALMAP_DEPTH * texelsperunit, heights, texelsperunit);
 	}
 
 	// upload
@@ -1948,10 +2243,12 @@ gltexture_t *TexMgr_LoadNormalMap (gltexture_t *base, const char *name, int widt
 	gltexture_t	*glt;
 	int			mark;
 
-	if (isDedicated || !base || !data || (kind & ~NORMALMAP_HEIGHTS) == NORMALMAP_NONE || format == SRC_LIGHTMAP)
+	if (isDedicated || !base || !data || NORMALMAP_TYPE (kind) == NORMALMAP_NONE || format == SRC_LIGHTMAP)
 		return NULL;
 
 	q_snprintf (nmname, sizeof (nmname), "%s_vrnorm", name ? name : base->name);
+	if (name && (kind & NORMALMAP_FILE) && (glt = TexMgr_ShareNormalMap (base, name, kind)) != NULL)
+		return glt;
 	glt = TexMgr_NewTexture ();
 	glt->owner = base->owner;
 	glt->target = GL_TEXTURE_2D;
@@ -1992,6 +2289,28 @@ gltexture_t *TexMgr_LoadNormalMap (gltexture_t *base, const char *name, int widt
 
 /*
 ================
+TexMgr_ShareNormalMap -- QVR: an authored file (`name`: progs/hand_rig_00_00_norm) serves every skin of its model that
+uses it (the hand's 4, the body's 16, a model's skins) with one texture: `base` gets the one already made from it, if
+any (then the file needn't even be read again)
+================
+*/
+gltexture_t *TexMgr_ShareNormalMap (gltexture_t *base, const char *name, int kind)
+{
+	char		nmname[64];
+	gltexture_t	*glt;
+
+	if (!base || !name)
+		return NULL;
+	q_snprintf (nmname, sizeof (nmname), "%s_vrnorm", name);
+	glt = TexMgr_FindTexture (base->owner, nmname);
+	if (!glt || normalmap_kind[glt - gltextures_base] != (byte) kind)
+		return NULL;
+	normalmap_of[base - gltextures_base] = glt;
+	return glt;
+}
+
+/*
+================
 TexMgr_IndexedSmooth -- QVR: whether Quake's own (8-bit) textures are drawn smooth (vr_texture_smooth 2, or a linear
 gl_texturemode). Only then do they get heights for parallax mapping: drawn sharp, its shifts bend their texels.
 ================
@@ -2010,6 +2329,18 @@ gltexture_t *TexMgr_NormalMap (gltexture_t *glt)
 {
 	gltexture_t *nm = glt && gltextures_base ? normalmap_of[glt - gltextures_base] : NULL;
 	return nm ? nm : flatnormaltexture;
+}
+
+/*
+================
+TexMgr_NormalMapAuthored -- QVR: whether a texture's normal map is an authored file's (a *_norm, or a *_bump's
+heights): a real shape, drawn at its own strength on models (vr_normalmap_authored)
+================
+*/
+qboolean TexMgr_NormalMapAuthored (gltexture_t *glt)
+{
+	gltexture_t *nm = glt && gltextures_base ? normalmap_of[glt - gltextures_base] : NULL;
+	return nm && (normalmap_kind[nm - gltextures_base] & NORMALMAP_FILE) != 0;
 }
 
 /*

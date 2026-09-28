@@ -88,6 +88,8 @@ void VR_DlightShadow (int index, struct gpulight_s *out);	// R_PushDlights, per 
 float VR_SpotCone (const struct gpulight_s *l, const float point[3]); // how much of a light its cone lets reach a point (1: a point light)
 void VR_PushMapLights (void);							// R_PushDlights, after the dynamic lights
 int VR_AliasBonePoses (const struct entity_s *e, const float **matrices); // bone count of an IK-posed skeletal entity (0: none), its 3x4 skinning matrices
+void VR_AliasWound (const struct entity_s *e, float out[4]);	// instance: its wound mask (vr_wounds.cpp): layer + 1 (0 none), size in texels, time
+unsigned VR_WoundTexture (void);							// the wound masks' texture array (0: none; vr_wounds.cpp)
 
 // The DarkPlaces look (vr_lighting.cpp; docs/vr-port/LIGHTING.md, round 10).
 float VR_PostProcessBloom (void);								// GL_PostProcess: an eye's glow bound to texture unit 2, and how much of it to add (0: none)
@@ -98,7 +100,8 @@ int VR_AlphaMipCoverage (void);							// TexMgr_LoadImage32: nonzero to keep alp
 int VR_AlphaToCoverage (void);							// alpha-tested draws (r_world.c, r_alias.c): nonzero for alpha to coverage (vr_alpha_coverage, with MSAA)
 float VR_ParallaxDepth (const struct entity_s *e, const float matrix[16], const float modelscale[3]); // instance: its parallax depth in units (0 off); matrix the drawn one, modelscale an alias model's (NULL: a brush model)
 int VR_ModelLightParity (void);							// R_SetupAliasLighting: models as bright as the floor under them
-float VR_ModelBumps (const struct entity_s *e);				// instance: how much the skin's bumps shade the model's own light (0 none)
+float VR_ModelBumps (const struct entity_s *e, int authored);	// instance: how much the skin's bumps shade the model's own light (0 none; authored: its normal map is a file's)
+float VR_ModelNormalMapScale (int authored);				// instance: how much its normal map bends the normal (vr_normalmap_strength, or vr_normalmap_authored)
 float VR_ViewModelMinLight (void);						// R_SetupAliasLighting: least light on the hands and weapons (Quake's 24)
 
 #ifdef __cplusplus

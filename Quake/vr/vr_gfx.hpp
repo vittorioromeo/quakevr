@@ -121,6 +121,30 @@ struct ParticleBatch
 // Draws them in the scene view (sceneViewProjection, sceneCamera); `pull`: moved towards the eye by their pull.
 void drawParticles(const ParticleBatch& batch, bool pull, const State& state, Texture texture);
 
+// A lit tube made on the GPU from one record a ring (the flashlight's coiled cord, vr_coil.cpp): `sides` vertices round
+// each ring, consecutive rings joined; opaque, depth-tested and written, in the scene view. Each vertex is lit as the
+// cord's CPU shading was: the ring's ambient light shaded by the normal against `key` (0.6 .. 1.4), its lamps' light by
+// its angle to where it comes from, and a sheen towards the eye (each eye's own); times `albedo`.
+struct TubeRing
+{
+    glm::vec4 mid;     // xyz the ring's middle, w the tube's radius
+    glm::vec4 across;  // xyz a unit axis across the ring (the other: along x across)
+    glm::vec4 along;   // xyz the tube's unit direction there
+    glm::vec4 ambient; // rgb the world's light (1: Quake's full light)
+    glm::vec4 lamp;    // rgb the dynamic lights' light reaching it
+    glm::vec4 lampDir; // xyz the unit direction it comes from
+};
+static_assert(sizeof(TubeRing) == 96);
+struct TubeBatch
+{
+    unsigned buffer{0};
+    std::size_t offset{0};
+    std::size_t count{0}; // rings
+};
+// Into the frame's upload buffer, valid until the frame ends (drawn from it in both eyes).
+[[nodiscard]] TubeBatch uploadTube(std::span<const TubeRing> rings);
+void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const glm::vec3& key);
+
 // The scene view's world-to-clip transform, while the scene (or an eye) is rendered.
 [[nodiscard]] glm::mat4 sceneViewProjection();
 

@@ -395,3 +395,43 @@ file and redo your edits, or keep yours and pass `--keep-edited`.
 | `the bones must be the body's 29, unrenamed` | Rename them back. |
 | `N vertices are weighted to no bone (selected now...)` | Give them weights. |
 | `the other builds were left as they are` (a warning) | You changed the topology or the UVs: edit the other builds on their own. |
+
+## 8. Normal maps
+
+Every model here has a baked normal map beside it in `quakevr/progs`: the relief the game lights, which the mesh is
+too coarse to carry. `Misc/quakevr/bake_normals.py` bakes them from the model files (ROUND21.md, "Baked normal maps").
+
+| Model | Its map |
+|---|---|
+| A weapon, the gadget, the flashlight... | `<model>.mdl_0_norm.png` (all its skins) |
+| The body, all three builds | `vrbody_00_00_norm.png` (the clothes: skins 00-03), `vrbody_04_00_norm.png` (the armoured torso: 04-15) |
+
+**What they carry:** the edges rounded, faceted tubes made round, the seams, rivets and stitches painted into the skins
+raised or grooved, wood grained; on the generated models what their generators paint on each material (the
+flashlight's knurling, fins and ribs, the strap's webbing and stitching, the gadget's parting line); on the body its
+clothes (quilting, belt, laces, straps, buckles, plates, folds) and its muscles.
+
+**You see them in Blender:** Import shows the map on the model (a Normal Map node into the material's Normal). Blender
+draws it in its own tangent frame, a little different from the game's, so judge the look in the game.
+
+**After you edit a model, it's one step:** Export bakes its map again (Bake Normal Map, ticked in the export's
+options), from the model you just wrote: the bevels and seams follow your new shape. Or press **Bake Normal Map** in
+the Quake VR panel (it bakes from the model file as last exported). Then `vr_model_reload` in the game (the maps load
+with the model).
+
+**Your own detail:**
+
+- **Paint over a map:** open the PNG in Blender's image editor (or any editor), paint, save. The bake then leaves it
+  alone: Export and Bake Normal Map say it was edited and don't overwrite it (tick **Overwrite Edited Map** to bake it
+  again), and so does `bake_normals.py` (`--force` overwrites it, `--keep-edited` bakes the others).
+- **Bake from a high poly:** model or sculpt it over the imported model (in the same place), select it, then the model
+  (active), and press Bake Normal Map. Cycles bakes the high poly's shape; the model's own relief (seams, stitches...)
+  is laid on it unless you untick **Add Details**. The map is written in the game's own tangent frame (not Blender's,
+  which differs by a few degrees on a hard-edged low poly). A map baked from a high poly counts as edited: the script
+  leaves it alone.
+- **Paint it yourself from scratch:** a tangent-space map, green up the image (OpenGL / Blender), linear (not sRGB),
+  PNG or TGA, the skin's aspect ratio at 2-4 times its size. Name it as in the table.
+
+**Where the skin's texels are shared** (every face of a generated model's material maps to that material's tile; a
+weapon's left and right often share texels; the body's arms and legs do), the map carries only what suits every face
+drawing those texels: a tile's relief shows on each face made from it.

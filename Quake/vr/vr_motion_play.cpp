@@ -108,6 +108,7 @@ struct Take
     bool hasTicks{false};
     bool hasPlayYaw{false};
     bool hasWeapons{false};
+    bool dummyAttacks{false}; // recorded with the training dummy striking back (the header's "dummy attacks: on")
     std::vector<Frame> frames;
     size_t firstRec{0};
 };
@@ -357,6 +358,7 @@ struct Take
     take.category = h("category");
     take.detail = h("detail");
     take.map = h("map");
+    take.dummyAttacks = h("dummy attacks").rfind("on", 0) == 0;
     if(take.label.empty())
     {
         take.label = take.name.substr(0, take.name.rfind('.'));
@@ -842,6 +844,49 @@ void equip(edict_t* player)
     }
 }
 
+// A take recorded with the training dummy's attacks on (QC vr_dummy.qc): its target does each of the take's
+// "strike" events (a wind-up, a blow and its damage, a miss; QC VR_Dummy_Replay) in the server frame that plays the
+// event's frame, after the player's, as when it was recorded. The dummy's own attacks (vr_dummy_attacks) are off
+// meanwhile (startPlayback): the same blows at the same moments, whatever its timer would do.
+size_t strikeNext = 0; // the next frame whose strikes are to be done
+int strikesDone = 0;
+
+void doStrikes(size_t upTo)
+{
+    for(; strikeNext <= upTo && strikeNext < take.frames.size(); strikeNext++)
+    {
+        for(const Event& e : take.frames[strikeNext].events)
+        {
+            const float what = e.kind != "strike" ? 0.f
+                               : e.sub == "windup" ? 1.f
+                               : e.sub == "blow"   ? 2.f
+                               : e.sub == "miss"   ? 3.f
+                                                   : 0.f;
+            if(what == 0.f)
+            {
+                continue;
+            }
+            const func_t fn = progs::bindings().Dummy_Replay;
+            edict_t* target = targetEnt > 0 && targetEnt < qcvm->num_edicts ? EDICT_NUM(targetEnt) : nullptr;
+            if(!fn || !target || target->free || strcmp(PR_GetString(target->v.classname), "vr_dummy") != 0)
+            {
+                if(report.warnings.find("dummy's strikes") == std::string::npos)
+                {
+                    report.warnings += "the take's dummy's strikes aren't done again: its target isn't the training dummy; ";
+                }
+                continue;
+            }
+            pr_global_struct->time = qcvm->time;
+            pr_global_struct->self = EDICT_TO_PROG(target);
+            pr_global_struct->other = EDICT_TO_PROG(qcvm->edicts);
+            G_FLOAT(OFS_PARM0) = what;
+            G_FLOAT(OFS_PARM1) = e.value;
+            PR_ExecuteProgram(fn);
+            strikesDone++;
+        }
+    }
+}
+
 // The controls of the first frame during the setup: none, then the grips in turn, then all.
 [[nodiscard]] InputState setupInput()
 {
@@ -943,7 +988,7 @@ struct Match
     for(size_t i = 0; i < events.size(); i++)
     {
         const Event& e = events[i];
-        if(hitsAndPushes && !isHit(e) && e.kind != "push" && e.kind != "parry" && e.kind != "deflect")
+        if(hitsAndPushes && !isHit(e) && e.kind != "push" && e.kind != "parry" && e.kind != "deflect" && e.kind != "strike")
         {
             continue;
         }
@@ -1019,6 +1064,10 @@ void finish()
             Con_Printf("  hands vs the take, relative to the dummy: main max %.3f rms %.3f, off max %.3f rms %.3f units\n",
                 report.errMax[HAND_MAIN], std::sqrt(report.errSum[HAND_MAIN] / report.errCount), report.errMax[HAND_OFF],
                 std::sqrt(report.errSum[HAND_OFF] / report.errCount));
+        }
+        if(take.dummyAttacks)
+        {
+            Con_Printf("  the training dummy struck back in the take: %d of its strike events done again\n", strikesDone);
         }
         if(!report.warnings.empty())
         {
@@ -1113,6 +1162,14 @@ void stopPlayback(const char* why)
         report.wid[h] = take.frames[take.firstRec].wid[h];
     }
     applySettings(take, opts.recorded);
+    // The training dummy's attacks off (put back afterwards): in a replay it strikes only as the take has it.
+    if(vr_dummy_attacks.value != 0.f)
+    {
+        savedSettings.emplace_back(&vr_dummy_attacks, vr_dummy_attacks.string);
+        Cvar_SetQuick(&vr_dummy_attacks, "0");
+    }
+    strikeNext = 0;
+    strikesDone = 0;
     state = State::Setup;
     setupTime = 0.0;
     postElapsed = 0.0;
@@ -1230,6 +1287,11 @@ bool playWantsSamples()
     return state != State::Idle;
 }
 
+bool playDummyAttacks()
+{
+    return state != State::Idle && take.dummyAttacks;
+}
+
 double hostFrameTime(double time)
 {
     double dt = time;
@@ -1266,6 +1328,29 @@ double hostFrameTime(double time)
 
 int serverFrameOverride(double& frametime)
 {
+    // (Before this host frame's server frame: the dummy's strikes in the take's frame it plays.)
+    if(state == State::Play && take.dummyAttacks && sv.active)
+    {
+        qcvm_t* const old = qcvm;
+        if(old != &sv.qcvm)
+        {
+            if(old)
+            {
+                PR_SwitchQCVM(nullptr);
+            }
+            PR_SwitchQCVM(&sv.qcvm);
+        }
+        doStrikes(cur);
+        if(old != &sv.qcvm)
+        {
+            PR_SwitchQCVM(nullptr);
+            if(old)
+            {
+                PR_SwitchQCVM(old);
+            }
+        }
+    }
+
     if(state == State::Setup || state == State::Post || (state == State::Idle && fixedLoading))
     {
         frametime = setupDt;

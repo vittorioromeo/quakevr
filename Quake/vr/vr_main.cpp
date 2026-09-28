@@ -36,6 +36,7 @@
 #include "vr_particles.hpp"
 #include "vr_shells.hpp"
 #include "vr_worldtext.hpp"
+#include "vr_wounds.hpp"
 
 #include <chrono>
 #include <cstdarg>
@@ -948,6 +949,9 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_hand_rig_info", handrig::info_f);
     Cmd_AddCommand("vr_model_reload", view::modelReload_f);
     Cmd_AddCommand("vr_model_collide_bench", modelcollide::bench_f);
+    Cmd_AddCommand("vr_wounds_test", wounds::test_f);
+    Cmd_AddCommand("vr_wounds_info", wounds::info_f);
+    Cmd_AddCommand("vr_wounds_dump", wounds::dump_f);
     Cmd_AddCommand("vr_hotspots_legacy", view::hotspotsLegacy_f);
     Cmd_AddCommand("vr_hotspots_check", view::hotspotsCheck_f);
     Cmd_AddCommand("vr_weapon_hotspot_here", view::hotspotHere_f);
