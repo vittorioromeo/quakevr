@@ -480,9 +480,16 @@ public:
         if(vr_mock_shake.value != 0.f || vr_mock_shake_turn.value != 0.f)
         {
             // A shaky head (vr_mock_shake): quick small turns (a few incommensurate sines on each axis) and a small
-            // wobble of the position (4 mm a degree), over a slow turn (vr_mock_shake_turn). Driven by realtime, which
-            // vr_fixed_frames steps by 1/72 s a frame: the same poses every run.
-            const float t = static_cast<float>(realtime);
+            // wobble of the position (4 mm a degree), over a slow turn (vr_mock_shake_turn), from when it starts. Driven
+            // by realtime, which vr_fixed_frames steps by 1/72 s a frame: the same poses every run.
+            static double shakeStart = -1.0;
+            static int shakeFrame = -10;
+            if(host_framecount > shakeFrame + 1)
+            {
+                shakeStart = realtime; // the shake's time from when it starts
+            }
+            shakeFrame = host_framecount;
+            const float t = static_cast<float>(realtime - shakeStart);
             const float a = glm::radians(vr_mock_shake.value);
             const auto wave = [t](float f1, float f2, float f3, float phase) {
                 return 0.5f * std::sin(6.2831853f * f1 * t + phase) +

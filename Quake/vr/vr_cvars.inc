@@ -115,7 +115,7 @@ QVR_CVAR(vr_mock_hidden_area, "0", CVAR_NONE)
 // Mock backend: its eye images' size (square, 256..2048; read when the images are made, before the first frame in VR).
 QVR_CVAR(vr_mock_eye_size, "1024", CVAR_NONE)
 // Mock backend: a shaky head (recording tests): small quick turns of this many degrees (pitch, yaw and roll, sums of
-// sines at 5 to 13 Hz) over a slow turn of vr_mock_shake_turn degrees a second, both from the head's vr_mock_look.
+// sines at 5 to 13 Hz) over a slow turn of vr_mock_shake_turn degrees a second (from when it starts), both from the head's vr_mock_look.
 QVR_CVAR(vr_mock_shake, "0", CVAR_NONE)
 QVR_CVAR(vr_mock_shake_turn, "0", CVAR_NONE)
 // Upscaling and foveated rendering (round 20; vr_upscale.cpp, vr_foveated.cpp, docs/vr-port/ROUND20.md).
