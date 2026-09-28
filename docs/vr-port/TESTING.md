@@ -625,7 +625,19 @@ sweep (ledge, rungs, a wall, stairs, the thin wall with a ledge behind it at vrc
 at leniencies 0 to 30 cm) and `climb_leniency.py table qconsole.log` tabulates it. `climb_plays.py pressL<d>|pressR<d>`
 grips d units in front of the ledge or rung 56 and pulls (a real lenient grab; `vr_climb_debug 3` also prints the
 search's time and the drawn hand's ease), `ledgehang|runghang` hang still for screenshots (`vr_mock_camera` for the
-side view, `vr_mock_fingers main 0 1 1` for a gripping hand).
+side view, `vr_mock_fingers main 1 1 1` for a gripping hand).
+Climbing, hand orientation, staying attached, small ledges (ROUND21.md, the section of that name): `climb_plays.py`
+`ledgeodd|rungodd` hang with the controllers turned oddly (the hand should face the hold whatever they do; Hold Rotation
+Blend 1 is the old look), `push` (the ledge, `setpos 78 176 24 0 0 0`: both hands drawn in and pushed out three times,
+then out past an arm's reach, then the off hand alone), `overtop` (the mantle's motion: at the ledge, at vrclimb's
+narrow wall `setpos -218 -280 24 0 0 0`, which it should mantle onto, and at the ledge with no room on top `setpos -138
+-280 24 0 0 0`, which it should hang on to), `ladderlean` (the ladder with the head leant in, as a player's is: the old
+plays reach about 1 m from the shoulder, past a default arm, so run them with `vr_body_arm_length 2` to compare the
+climbing with older logs). These lean the mock head in 0.28 m first (a `head` keyframe). `vr_climb_debug 2` adds a
+`climbreach` line a frame (each hold's distance from its shoulder / how far it may be, "passive" for a hand that
+doesn't pull, the owed motion, "noroom"), and at a grab its distance and the reach; `vr_climb_debug 3` the server's
+estimated shoulders (`climbshoulder`) and the drawn arm's (`climbarm`, with the hold's distance from it). The mock
+side camera for these: `vr_mock_camera 1.1 1.5 -0.45 5 90`.
 
 Fitted hands (round 21): `impulse 252` puts a gib or a head (nine kinds in turn) in the empty off hand; `impulse 253`
 prints the held weapons' hotspots through the QC query; `vr_show_weapon_hotspots 1` marks them; `vr_hotspots_check`

@@ -7970,3 +7970,140 @@ The sweeps outwards vary with the frame timing. At 0, a backhand and a sweep wit
   reads under 0, tell me the pose (your grip may hold the palm at an angle).
 - [ ] Does anything else feel different with Push Along Palm at 0.8? It should not.
 - [ ] Air Supply 1.5: e1m1's water, or a longer underwater passage, like e1m4's. Is 18 s right, or do you want 2?
+
+## Climbing: hand orientation, staying attached, small ledges
+
+Your notes (vrclimb, 28 September, 14:10): the hand on a hold still turns with the controller, which bends the wrist
+oddly. Holding a ledge and pushing with the arms, the hands come off the arms and the body ends up far from them. This
+also happens on small ledges, in particular when you do the motion of climbing on top where you can't. And small
+ledges can't be climbed onto. Locomotion, under Climbing: **Hold Rotation Blend**, **Hand on Hold: Pitch / Yaw / Roll**.
+
+### The hand faces its hold (looks only)
+
+A hand on a hold is turned as the hold has it: facing the ledge, its knuckles towards it and tilted up over the lip,
+the fingers curled over it. On a rung it's the same: vrclimb's rungs are 30 cm deep beams, and the fist hooks their
+lip. The hand's frame comes from the hold's way out (the normal of the face, which the server sends) and the world's
+up. The off hand's frame is the mirror image (it uses the left hand's model), so the sliders' yaw and roll are mirrored
+too.
+
+- `vr_climb_hand_pitch` (**60** degrees): at 0 the palm is down on the top, the knuckles pointing into the ledge; at 90
+  the palm is flat against the face under the lip, the knuckles up. With your hand offsets (Up -10.5 cm, Towards You
+  10 cm, which put the palm's middle just in front of the face, under the lip), 60 wraps the fist round the lip. I
+  tried 0, 35 and 85: 0 punches the face, 35 splays the fingers on the top, 85 lays the fist flat on the face.
+- `vr_climb_hand_yaw` (**10**): the knuckles turn a little towards the other hand, as hanging hands do.
+  `vr_climb_hand_roll` (0).
+- `vr_climb_hand_turn_blend` (**0.15**): 0 is the hold's turn, 1 the controller's (the old look). 0.15 keeps a little
+  of your wrist's turn. With odd controller turns, 0, 0.15 and 0.25 look alike; 1 is what you saw.
+- The turn eases on and off along with the hand's place (0.06 s, longer for a lenient grab's far hold), and glides from
+  hold to hold. The palm's middle stays on the hold however the hand is turned, because the palm is placed from the
+  turned hand. The arm IK follows the drawn hand, and its wrist limits swing the elbow as before.
+- It changes the display only: the four scripted climbs log the same `climb*` lines byte for byte with the defaults
+  and with blend 1, pitch 0, yaw 0.
+
+### Why the hands came off, and the fix
+
+The body moves by the pull: the holding hands' motion relative to it, the other way. The pull had two faults:
+
+1. **Nothing kept the body within an arm's reach of the holds.** The only limit was 48 units (1.8 m) horizontally from
+   each hold, and it only stopped the body going further. Whenever the body lagged the hands, the holds ended up
+   further away than the arms. Pushing then moved the body back as far as the hands went, from wherever it was.
+2. **A pull the body couldn't make was simply dropped.** Drawing the hands in to the chest pulls the body into the face
+   under the ledge. It can't move, and nothing remembered that pull. Pushing the hands out again then pushed the body
+   back the whole way. In the mock it went 45 cm back from the face at each push and 65 cm when pushing further, with
+   the holds 1.20 m from the shoulders. The drawn arm reaches 0.82 m, so the hands floated off it, as in your
+   screenshot. The motion of climbing on top where you can't mantle is exactly this: you pull down and in (into the
+   face), then push out over the top (so the body goes back).
+   A third, smaller cause: on the client, the tracked hand is stopped at walls (by a trace from the chest to it). That
+   stop came and went as the body moved along the face, and each change acted as a pull of its own. On the ladder's
+   first rung it made a 2.3-unit jump.
+
+The fix is in `Quake/vr/vr_climb.cpp` (see "Staying within reach" at the top of the file):
+
+- **Within reach.** The server estimates each shoulder from the head. The neck's pivot is 8 cm behind and under the
+  eyes, and the shoulder 15 cm under that and 19 cm out, as the arm IK poses the default body; Body Calibration's
+  shoulders move it. In the push test, the estimate was within 1 unit (4 cm) of the drawn shoulder joint (median), and
+  2.8 units at most. A hold may be at most the arm's reach from its shoulder. The reach is the upper arm and forearm
+  (Body Calibration's measurements if you have them, else the default body's times Arm Length, with the tweaks), plus
+  the wrist to the palm's middle (8 cm), Shoulder Reach and 5 cm. After each move, the body is brought back within
+  reach of each hold that pulls, by the least that does. A hold taken further away (a stretched reach, a lenient hold)
+  may stay that far until the body comes closer, so a grab never pops.
+- **Kept within reach, or let go?** Kept: the body stops where the arms are straight, as a real body hangs from
+  straight arms. Letting go would drop you whenever you push off. The exception is a hand that isn't pulling (it moves
+  less than a quarter of the pull). It doesn't hold the body back: when the other hand pulls the body past its reach,
+  it lets go, with a buzz. So hand over hand, the lower hand is torn off as the upper one pulls you past it, rather than
+  anchoring you. A hold that the body couldn't be kept near (because it was blocked) also lets go.
+- **Owed motion.** A pull into the face that the body couldn't make is now owed, and a later pull away from the face
+  makes it up first. Draw your hands in against the wall and push out: the body leaves the wall only once your hands
+  are back where the arms met it. Only that direction is owed. A hand raised while standing, or a pull past the highest
+  hold, owes nothing, so the next pull has no dead zone. Owed motion never moves the body by itself.
+- **The wall stop** stays as it was when the hand took hold, for as long as it holds (`vr_handpose.cpp`). The pull is
+  the controller's own motion.
+- Both hands and one hand work the same way.
+
+### Small ledges
+
+The mantle looked for a spot 22 to 38 units in from the lip. On a narrow top (a wall 4 units thick), the box at that
+spot hangs past the top and stands on nothing, so there was no mantle. A 6-unit wall only "worked" because the box,
+22 units in, touched its far edge: it stood on the corner. Now `findMantle`:
+
+- after those spots, tries a narrow top (at least 3 units deep, measured from the lip in) from over its middle
+  outwards, as long as the box's middle is over it. The box stands on the top, not on its edge. A rung against a wall
+  is no place to stand, so the ladder's top rung isn't mantled onto; the tower's top is, as before.
+- needs the top under a point 3 units in from the box's sides for every spot, not just under its very edge.
+- lets the body rise straight up, else from 2 or 4 units further out. This covers a body pressed against a face under
+  a trim on its lip: in e1m1 the body is now a couple of units nearer the face, and couldn't rise straight up past the
+  ledge's lip.
+- when there's no room on top (a ceiling, a top too thin), just hangs on. The holding hands feel a soft buzz as the pull
+  over the top starts. The push over the top doesn't push you back, because the pull in was owed; at most it
+  straightens the arms.
+
+Lowest Ledge, the mantle's thresholds (pulled 8 units, the head 8 above the ledge) and the rest are unchanged.
+
+vrclimb has two new pieces next to the leniency corner, recompiled the "Full" way: a narrow wall (4 thick, top 48;
+`setpos -218 -280 24 0 0 0`) and a ledge with no room on top (top 48, with a slab 40 above it; `setpos -138 -280 24 0 0
+0`). The rest of the map is unchanged.
+
+### Verified (mock headset, `vr_fixed_frames 1`; `climb3/` in the scratchpad)
+
+- **Push** (`push`): both hands on the ledge are drawn in and pushed 16 cm past where they took hold, three times; then
+  pushed 31 cm past; then the off hand does it alone. Drawn in, the body is against the face at x 80.
+  - Before: the body went back to 68.3 at each push and to 62.9 when pushing further (45 and 65 cm), and to 66.8
+    one-handed. The holds were 1.20 m from the shoulders.
+  - Now: the body goes back to 76.1 (15 cm, the hands' push past the grab) and 74.6 (21 cm, the arms straight), and to
+    78.5 one-handed. The holds are at most 0.76 m from the estimated shoulders (the reach), 0.72 m from the drawn ones.
+  - `push_ba.png`: before, the hands float on the ledge away from the arms, as in your screenshot; after, they're on
+    the arms.
+- **No room on top** (`overtop` at the slab ledge): before, the body was pushed back 10.5 units (40 cm), with the holds
+  1.00 m away (`noroom_ba.png` shows the hands off the arms, as in your third screenshot). Now it logs "no room to
+  mantle", buzzes, and goes back at most 3 units (11 cm) from the face, with the holds 0.74 m away.
+- **Narrow wall** (`overtop`): before, no mantle; the body was pushed back 40 cm, then fell. Now it mantles onto the
+  wall's middle (x -198) and stands on it (`narrow_ba.png`). At the ledge, the mantle is the same as before.
+- **The old climbs.** Their mock hands reach about 1 m from the shoulder (1.03 m on the ladder), further than any arm.
+  The body's box also keeps the head 61 cm from a wall unless you lean in.
+  - With long arms (`vr_body_arm_length 2`, so the reach never binds), the ledge hang and shimmy, the mantle and e1m1 log
+    the same body position every frame as before. The ladder climbs up to 2.2 units (8 cm) higher, because the wall
+    stop's jump on the first rung is gone, and mantles onto the same spot (118, -3, 305).
+  - With a default arm they hit the reach, as they should: the ladder's lower hands are torn off, and it falls two
+    rungs from the top (from rung 236); the shimmy covers less ledge (to y 207, not 228); the mantle and e1m1 still
+    mantle.
+  - `ladderlean` is the ladder with the head leant in 28 cm, as at a wall. It climbs to the top with a default arm,
+    before and after, with the same mantle; the positions differ by 1.25 units (median), from the wall stop. The lower
+    hands are torn off 0.1 s before the play lets go of them.
+- **Hand turn** (`ledgeodd`, `rungodd`: the controllers at pitch 10, yaw ±50, roll ±70, and at 110, ∓40, ∓60):
+  `odd_ledge.png` and `odd_rung.png` show before (blend 1), 0, 0.15 and 0.25, from the eyes and the side. Before, the
+  fist punches the face sideways; after, it hooks the lip.
+- Not rerun: the grab-leniency sweep, since the grab is unchanged.
+
+### Check in the headset
+
+- [ ] The hand on a ledge and on a rung: does it hook the lip naturally? If not, move Pitch/Yaw/Roll (and Hold Rotation
+      Blend) and tell me the numbers.
+- [ ] Hold a ledge and push away with straight arms: you should move back until the arms are straight, no further, with
+      the hands staying on the arms. Pull in against the wall and push again: you should leave the wall only once your
+      arms are back where they met it.
+- [ ] Climb hand over hand without letting go with the lower hand: it should let go by itself (with a buzz) as you pull
+      past it. Tell me if it lets go too early (a stretched reach, a shimmy).
+- [ ] The narrow wall and the no-room ledge in vrclimb: you should get onto the first; on the second, you should feel
+      the buzz and not be pushed back.
+- [ ] Body Calibration: the reach follows your measured arms. If holds let go at full stretch, tell me (the reach is
+      the arm plus 5 cm and Shoulder Reach).
