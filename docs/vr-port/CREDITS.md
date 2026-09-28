@@ -21,7 +21,8 @@ articles, talks and other engines' source are credited with where they came from
 | **NVIDIA Image Scaling SDK** v1.0.3 (`NIS_Scaler.h`, `NIS_Config.h`; [NVIDIAGameWorks/NVIDIAImageScaling](https://github.com/NVIDIAGameWorks/NVIDIAImageScaling)) | NVIDIA Corporation & affiliates | MIT | `Quake/vr/external/nis` (unchanged; the scaler's GLSL compute path and the config/coefficients, in `vr_upscale.cpp`) |
 | **Box3D** 0.1.0 (alpha; commit `5643cd81`, [erincatto/box3d](https://github.com/erincatto/box3d)): rigid-body physics, the successor to Box2D | Erin Catto | MIT | `Quake/vr/external/box3d` (unchanged library sources and headers; used by `vr_box3d.cpp`, `vr_physics_engine 1`, single-threaded) |
 | **FTEQCC** (QuakeC compiler) | the FTE team | GPL-2.0 | used to build `progs.dat` |
-| **ericw-tools** 2.0.0-alpha11 (`light`, used by `relight_maps.py` and `relight_quakevr_maps.py`; [release](https://github.com/ericwa/ericw-tools/releases/tag/2.0.0-alpha11)) | Eric Wasylishen, Kevin Shanahan (Tyrann), David Walton (Spike) and contributors | GPL-3.0 | run on the player's machine; not bundled (the committed `quakevr/maps` are its output) |
+| **ericw-tools** 2.0.0-alpha11 (`light`, used by `relight_maps.py` and `relight_quakevr_maps.py`; `qbsp`, `vis` and `light` for `vrexample` and the TrenchBroom profiles; [release](https://github.com/ericwa/ericw-tools/releases/tag/2.0.0-alpha11)) | Eric Wasylishen, Kevin Shanahan (Tyrann), David Walton (Spike) and contributors | GPL-3.0 | run on the player's machine; not bundled (the committed `quakevr/maps` are its output) |
+| **TrenchBroom** 2026.2's `Quake.fgd` and Quake game configuration ([TrenchBroom](https://github.com/TrenchBroom/TrenchBroom); the FGD by autolycus, CZG and later authors) | the TrenchBroom authors | GPL-3.0 | `Misc/trenchbroom/vendor/Quake.fgd` (unchanged), the base of `Misc/trenchbroom/QuakeVR/GameConfig.cfg` and `quakevr.fgd` (docs/vr-port/MAPPING.md) |
 
 ## Quake VR (the original port)
 

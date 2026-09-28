@@ -1,0 +1,20 @@
+// Game: Quake VR
+// Format: Standard
+{
+"classname" "worldspawn"
+"wad" "quakevr/wads/quakevr_dev.wad"
+"_tb_mod" "hipnotic;rogue;quakevr"
+{
+( -256 -256 -16 ) ( -256 -255 -16 ) ( -256 -256 -15 ) qvr_floor 0 0 0 1 1
+( -256 -256 -16 ) ( -256 -256 -15 ) ( -255 -256 -16 ) qvr_floor 0 0 0 1 1
+( -256 -256 -16 ) ( -255 -256 -16 ) ( -256 -255 -16 ) qvr_floor 0 0 0 1 1
+( 256 256 0 ) ( 256 257 0 ) ( 257 256 0 ) qvr_floor 0 0 0 1 1
+( 256 256 0 ) ( 257 256 0 ) ( 256 256 1 ) qvr_floor 0 0 0 1 1
+( 256 256 0 ) ( 256 256 1 ) ( 256 257 0 ) qvr_floor 0 0 0 1 1
+}
+}
+{
+"classname" "info_player_start"
+"origin" "0 0 24"
+"angle" "0"
+}
