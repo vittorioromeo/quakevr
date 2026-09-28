@@ -9797,3 +9797,188 @@ Every page is at most three levels below VR Settings, and every one but Weapon O
       away (Body and Display, Headset)?
 - [ ] Advanced VR Options: can you find things by the groups? Any name that doesn't say what's in it?
 - [ ] Weapon Offsets: keep it one page, or split it?
+
+## Recording: smoothed mirror and spectator camera
+
+You tried the OpenXR-Layer-OBSMirror API layer to record footage; it cannot capture this game (below). The desktop
+window is the way: it now has two views made for recording, beside the old one. **VR Settings > Body and Display >
+Recording (Window View)** (also Advanced VR Options > Graphics > Recording; page 65):
+
+- **Window View** (`vr_window_view`):
+  - **Left Eye (raw)** (0, the default: nothing changes unless you pick another): the left eye's image as it is, shaking
+    with your head (`vr_mirror 2` still shows both eyes).
+  - **Smoothed Mirror** (1): the same left-eye image, turned to follow a steadied head and cropped to the window. Free.
+  - **Spectator Camera** (2, "Recording Mode"): the game drawn a third time, for the window only, from your head,
+    steadied, with its own field of view and resolution. Sharpest and widest; it costs about one more eye's drawing.
+- **Desktop Mirror** (`vr_mirror`) Off still turns the window's view off in every mode.
+- **Steadying** (both new modes): **Smoothing** (`vr_window_smooth`, 0.15 s: the view's lag behind your head; 0.1-0.2
+  takes the shake out and keeps turns lively, more glides like a camera operator), **Level Horizon**
+  (`vr_window_level`, 0: how much of your head's sideways tilt is taken out; 1 keeps the horizon level).
+- **Smoothed Mirror: Zoom** (`vr_window_zoom`, 1.2x): 1 is the widest crop of the window's shape that the lenses show;
+  more crops closer and leaves the margin the steadied view turns in.
+- **Spectator Camera:** **Field of View** (`vr_spectator_fov`, 90 degrees across; the height follows the window's
+  shape), **Resolution Scale** (`vr_spectator_scale`, 1: the window's own resolution; 0.5-0.75 cost less; 2
+  supersamples), **Position Smoothing** (`vr_spectator_pos_smooth`, 0.05 s: your head's small movements; walking,
+  turning and teleporting are never smoothed).
+
+The headset's image is the same in all three (below: compared).
+
+### OBS setup
+
+- **Source:** a **Window Capture** of the game's window (`[ironwail.exe]`), Capture Method **Windows 10 (1903 and
+  up)** (Windows Graphics Capture: it captures an OpenGL window; BitBlt can show black), Capture Cursor off. (A Game
+  Capture of the same window, which hooks its OpenGL swap, should work too; not tried.)
+- **Window size = the video's size.** The window's shape is the recording's shape: the mirror crops and the spectator
+  camera frames for it. Recommended: **1920 x 1080** (launch with `-window -width 1920 -height 1080`, or Options >
+  Video), OBS canvas and output 1920 x 1080 at 60 fps. For 1440p video, 2560 x 1440. A full-screen 3440 x 1440 window
+  records 21:9 and costs the spectator camera 2.4 times the pixels of 1080p (timings below).
+- **Settings for a clip:** Spectator Camera, Resolution Scale 1 (0.75 if the headset starts missing frames),
+  Smoothing 0.15-0.25, Level Horizon 0.5-1. Smoothed Mirror when the GPU has nothing to spare.
+- The window shows what the headset shows: the HUD on your hand or the wrist gadget, the menus on their panel, the
+  lasers. The desktop's own flat overlay (its status bar, its copy of the menus) is not drawn over the two new views,
+  so it doesn't end up in the video; the console still is while it is down.
+- The window refreshes at the headset's rate (72-120 Hz); OBS takes 60 of those a second.
+
+**Why the OBSMirror layer doesn't work:** OpenXR-Layer-OBSMirror is an OpenXR API layer: it sits between the game and
+the runtime, and at each `xrEndFrame` copies the eye images the game submits into a shared texture that its OBS plugin
+reads. It does that with Direct3D 11 or 12 only (its readme: D3D11 and D3D12 apps). This game renders with
+OpenGL (Ironwail; the session is made with `XR_KHR_opengl_enable`), so the layer has no device or swapchain it
+understands: it captures nothing. Moving the engine to Direct3D, or adding D3D interop just for that layer, is far out of
+proportion when the window can show a better view for free.
+
+### How it works (vr_window.cpp, vr_stereo.cpp)
+
+- **The steadied head:** two first-order low-passes in a row on the head's orientation (and, for the spectator, its
+  position), each with half of Smoothing's time constant: the same lag as one, but a steeper fall above it (a shake at
+  10 Hz is cut to a twentieth at 0.15 s; one low-pass leaves a tenth), and a velocity with no corners. Their factors come
+  from each frame's time (`1 - exp(-dt / tau)`), so the result is the same at 72 or 120 Hz. They run in **tracking
+  space**, and the view is put in the world by the eye's own world turn: a snap or smooth turn, a teleport, walking and
+  the body following you carry the view exactly as they carry the eyes (measured below: a snap turn moves it in the same
+  frame); only your head's own motion is steadied. A jump of the tracking (a recentre: over 15 degrees or 30 cm in a
+  frame) or a pause (a load) starts them afresh. Level Horizon takes that much of the roll out of the result.
+- **Smoothed mirror:** the eye's image is a pinhole view, and a pure turn of a pinhole view is a homography: each window
+  pixel maps exactly into the eye's image (a 3x3 matrix, the window shader's only change). The window shows a crop of
+  its shape centred on the eye's forward axis, the widest that fits the image and what the lenses show (the runtime's
+  hidden area, `vr_visibility_mask`), narrowed by Zoom. Each frame the steadied view is checked against the image (the
+  crop's corners and the middles of its sides, against the edges and the hidden area): if it would show past them, it
+  is pulled back towards the eye's orientation just far enough (a binary search), and the filters with it, so a turn
+  faster than the margin allows follows your head at the margin's edge and settles as soon as you stop, never showing
+  black. Read with **Catmull-Rom** (nine bilinear reads): sharp at any sub-pixel offset, so a slowly turning view doesn't
+  pulse between sharp and soft as a bilinear read does. (Left Eye (raw) keeps its old nearest read.)
+- **Spectator camera:** after both eyes are drawn and **submitted** (`xrEndFrame`: the headset gets its images before
+  any of this), the scene is drawn once more as a third "eye" from the head's centre (between the eyes), the steadied
+  orientation, a symmetric projection of the chosen field of view and the window's shape, into its own set of
+  framebuffers (the window's size times Resolution Scale). What is reused: the view's entities (hands, weapons, body,
+  thrown things: set up once for both eyes, as the second eye reuses them), the shadow maps and the weapons'
+  reflections (once a frame), particles and decals (built once a frame). What is per view, as for each eye: the
+  frustum and PVS marking, the lights' clustering, the scene, the glow. No hidden area, foveation or upscale. Then the
+  window shader reads it as the mirror does: its glow, the tone curve and the grade as the eyes' post-process does
+  them (the desktop's gamma after), Catmull-Rom below or at the window's size, bilinear above it (Resolution Scale 2).
+  Under water the eyes' wobble and blur are applied in the window too (both new modes).
+- **The UI in the spectator view:** everything the headset shows in the world is drawn where it is, as the eyes draw
+  it over their scene: the menu's panel, the HUD panel and status bar on the hand, the wrist gadget, the lasers, the
+  crosshair, world text. Parts anchored to the head (the HUD in front of the head) are drawn where the headset shows
+  them: they follow your real head, so in the steadied view they move a little with its shake while the world stays
+  steady. That is true to what you see; pinning them to the steadied view instead would show them where they are not.
+- **Caches sized to the view** keep one for the spectator (the glow's chain, the heat haze's scene copy, the liquids'
+  scene distances and their size queries): with one set, the eyes and the spectator would re-make them every frame.
+- **The window's 2D layer** (the desktop's status bar and menus) is left out over the two new views, the console
+  excepted.
+
+### Checks (mock headset; scratchpad `spectator/`)
+
+**Jitter.** The mock gains a shaky head: `vr_mock_shake <degrees>` (small quick turns: three sines at 5-13 Hz on each
+axis, and 4 mm a degree of position wobble) and `vr_mock_shake_turn <degrees a second>` (a slow turn under it), timed
+from when it starts (with `vr_fixed_frames 1` the same poses every run); `vr_window_log 1` prints the head's and the
+window camera's world angles each frame. E1M1, guns in both hands, shake 1.5 degrees, a 12 degrees/s turn, 72 frames
+each (after 24 to settle):
+
+| Frame-to-frame change, std (degrees) | pitch | yaw | roll |
+|---|---|---|---|
+| Head (= Left Eye (raw)) | 0.43 | 0.40-0.42 | 0.37 |
+| Smoothed Mirror | 0.034 | 0.037 | 0.041 |
+| Spectator Camera | 0.033 | 0.037 | 0.043 |
+
+About 11 times steadier; the turn itself goes through (mean yaw 0.164-0.166 degrees a frame against the head's
+0.174-0.178). The window's frames themselves (24 consecutive screenshots a mode, frame-to-frame shift by phase
+correlation, 960 x 540):
+
+| Image shift, std (pixels) | with the turn: x | y | shake only: x | y |
+|---|---|---|---|---|
+| Left Eye (raw) | 3.51 | 4.34 | 3.46 | 4.21 |
+| Smoothed Mirror | 0.45 | 0.34 | 0.32 | 0.31 |
+| Spectator Camera | 0.37 | 0.28 | 0.27 | 0.23 |
+
+`shake_average.png`: the average of the 24 frames of each mode (shake only): the raw one a blur, the other two sharp.
+
+- **Level Horizon 1**, shake 3 degrees (the head's roll 1.3 degrees std, -2.9..3.0): the view's roll 0.000 in both
+  modes.
+- **The margin:** shake 6 degrees with Zoom 1.05: the steadied view was pulled back in 52 of 60 frames (down to a
+  quarter of its steadying); no black at the window's edges. With the mock's hidden area (`vr_mock_hidden_area 1`) at
+  Zoom 1: Left Eye (raw) shows the black round corners, the Smoothed Mirror's widest crop stays inside them
+  (`hidden.png`).
+- **Geometry:** with a still head the Smoothed Mirror is the raw view zoomed 1.2x about its centre, feature for feature
+  (`zoomcheck.png`: the raw crop scaled up over the mirror; the mirror is sharper).
+- **A snap turn** (45) moves both views in the same frame as the head (yaw 90.5 -> 45.0; 45.2 -> 0.0).
+- **Under slime** (e1m1's pool): the fog, caustics and colour in all three (`underwater.png`).
+- **Screenshots** at 1920 x 1080, eyes 2048, guns in both hands: `modes1080.png` (Left Eye, Smoothed Mirror,
+  Spectator 1, Spectator 0.5; full size in `final/`), the Recording page in each mode (`menu.png`).
+- **The headset's image unchanged:** eye images (`vr_eyeshot 1`) of the same frame of the shaky scripted run with each
+  Window View: bit-identical, both eyes, in 5 of 6 runs; the sixth (a Smoothed Mirror run) had 5 pixels 1 level off in a
+  gun's ammo screen, and its repeat was identical: a run-to-run flicker, not the mode. Against the build before this work
+  (1e57927b; no shake there, a scripted look instead) the runs aren't deterministic even base against base (up to 55,000
+  pixels, 9 levels, the hand's status bar and the guns); new against base was within that (8,335 pixels, 1 level). The
+  Left Eye (raw) window, new against base: 408 pixels 1 level off (the same noise).
+- **Menus:** `menu_vr dump` before (vr-cleanup) and after, `menu_coverage.py`: 802 options before, 809 after, none lost,
+  the 7 new ones on Recording only (`vr_mirror` on Body and Display and Recording).
+
+**Timings** (`vr_profile`, exclusive runs, 900 frames a configuration after 150; mock eyes 2048 x 2048 each, High
+preset, E1M1 with guns in both hands and the head shaking; ms a frame):
+
+| Window 1920 x 1080 | GPU frame | GPU eyes | its own GPU | CPU busy |
+|---|---|---|---|---|
+| Left Eye (raw) | 0.85 | 0.76 | mirror 0.03 | 0.87 |
+| Smoothed Mirror | 0.87 | 0.78 | mirror 0.05 | 0.88 |
+| Spectator, scale 1 | 1.14 | 0.73 | spectator 0.35 (window pass 0.04) | 0.88 |
+| Spectator, scale 0.5 | 1.04 | 0.73 | spectator 0.24 | 0.89 |
+
+| Window 3440 x 1440 | GPU frame | GPU eyes | its own GPU | CPU busy |
+|---|---|---|---|---|
+| Left Eye (raw) | 0.90 | 0.81 | mirror 0.06 | 0.87 |
+| Smoothed Mirror | 0.93 | 0.86 | mirror 0.10 | 0.87 |
+| Spectator, scale 1 | 1.40 | 0.73 | spectator 0.60 (window pass 0.09) | 0.90 |
+| Spectator, scale 0.75 | 1.23 | 0.73 | spectator 0.44 | 0.89 |
+| Spectator, scale 0.5 | 1.12 | 0.73 | spectator 0.33 | 0.90 |
+
+- The mirror's time is inside the left eye's scope, after its image is released: the eyes without it are the same in
+  both mirror modes (0.73-0.76 ms). The smoothed mirror costs 0.02 ms more than the raw one at 1080p, 0.04 at 3440 x
+  1440 (Catmull-Rom); its CPU (the fit and the clamp, with the mock's hidden area too) rounds to 0.00 ms.
+- In Spectator mode the eyes cost less (0.73): nothing is drawn for the mirror in the left eye.
+- The spectator camera's CPU is 0.03 ms (the entities, shadow maps and reflections are the eyes'); the host frame was
+  0.1 ms longer. Its GPU is about an eye's per pixel: 0.35 ms at 1080p, 0.60 at 3440 x 1440; scale 0.5 saves a third
+  (fixed costs: the view's setup, the glow, the window pass).
+- This mock scene is light (a fast GPU, eyes 0.4 ms each); in a heavy scene expect the spectator camera to cost about
+  what one eye costs times (window pixels x scale^2) / (eye pixels): at 1080p and scale 1 about half an eye on a Quest 3.
+  It runs after `xrEndFrame`, so it adds to the GPU's frame but never delays the images the headset already has.
+
+### Not verified
+
+- A real headset and runtime (the mock's eyes are symmetric, 92 degrees, square): real asymmetric eyes, real hidden
+  meshes, canted displays; recording with OBS itself (Windows Graphics Capture of the window).
+- The spectator camera in a heavy scene on a headset: the GPU margin at 90-120 Hz.
+
+### Follow-ups (not done: they would complicate this)
+
+- A third-person over-the-shoulder camera, or a tripod camera left where you stand at a key press: the head is not drawn
+  (no model for it), and the body and hands are posed for a view from the eyes; they need a visible head, and the
+  view entities culled for another place.
+- A recording resolution apart from the window's (a fixed 1920 x 1080 while the window is small), and the underwater
+  wobble in the Left Eye (raw) view.
+
+### In the headset
+
+- [ ] Recording (Window View) > Spectator Camera, record 30 s with OBS (Window Capture, Windows 10 method, a 1920 x
+      1080 window): does it look like the headset, steady? Anything missing or doubled?
+- [ ] Smoothing and Level Horizon: which values look best on video?
+- [ ] Smoothed Mirror: does Zoom 1.2 leave enough margin for your head, or do quick turns show it catching up?
+- [ ] Does the headset hold its frame rate with the spectator camera on (Performance Profile, `vr_profile 1`)?

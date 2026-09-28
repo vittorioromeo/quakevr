@@ -141,6 +141,12 @@ context and screenshot, ready to paste or to point me at.
 ## What to try
 
 - **New in this round** (details in `docs/vr-port/ROUND21.md`; each section ends with an "In the headset" list):
+  - **Recording: smoothed mirror and spectator camera** (ROUND21.md, same title): VR Settings > Body and Display >
+    Recording (Window View). **Smoothed Mirror** steadies the window's left-eye view (free); **Spectator Camera**
+    draws the game a third time for the window, from your head, steadied, 90 degrees wide (about one more eye's cost at
+    1080p). Record the window with OBS (Window Capture, "Windows 10 (1903 and up)", the window sized to the video,
+    1920 x 1080); the OBSMirror layer can't capture this OpenGL game. Try Smoothing, Level Horizon, and the spectator's
+    Resolution Scale while watching the headset's frame rate.
   - **Grappling hook: rope, reel on demand, props and monsters** (ROUND21.md, same title): the hook bites and the rope
     just holds you at its length (swing on it, walk closer; nothing pulls). Hold that hand's **B** (right) or **Y**
     (left) with the trigger to reel in; let go and the rope keeps its length. Walls and ceilings, heavy props (100 kg
@@ -636,7 +642,11 @@ is the most useful thing to send me along with a description. In particular:
 
 `vr_backend mock; vr_enabled 1` runs everything with a pretend headset. `vr_mock_button <main|off> <trigger|grip|primary|secondary|stickclick|menu> <0|1>`,
 `vr_mock_stick <main|off> <x> <y>` `vr_mock_hand <main|off|head> <x> <y> <z> [<pitch> <yaw> <roll>]` and `vr_mock_look <pitch> <yaw>` drive it; `vr_mock_swing <period>`
-swings the main hand for throwing tests. `vr_particle_seed <n>` (not 0) makes the particles the same in every run (their random numbers restart from it at each map), for comparing images. `vr_mock_fingers <main|off> <trigger> <grip> [<thumb>]` sets the finger
+swings the main hand for throwing tests. `vr_mock_shake <degrees>` shakes the head (quick small turns at 5-13 Hz and
+4 mm a degree of position wobble) and `vr_mock_shake_turn <degrees/s>` turns it slowly under that, timed from when the
+shake starts (the same poses every run with `vr_fixed_frames 1`); `vr_window_log 1` prints the head's and the window
+camera's angles each frame (Smoothed Mirror, Spectator Camera: ROUND21.md, "Recording"). The window's `screenshot` is
+the window's view; `vr_eyeshot 1` the eyes'. `vr_particle_seed <n>` (not 0) makes the particles the same in every run (their random numbers restart from it at each map), for comparing images. `vr_mock_fingers <main|off> <trigger> <grip> [<thumb>]` sets the finger
 sensors (0..1); a fifth argument sets the index finger's touch on the trigger.
 
 Menus (ROUND21.md, "Menu: scroll memory and shortcuts"): `menu_vr pos` prints the menu shown and, on a VR page, its
@@ -644,7 +654,7 @@ selected row (with the header above it), its scroll and the page Back goes to. `
 and place in the tree. `menu_vr dump` prints every page reached from VR Settings and its rows (MDPAGE/MDROW lines);
 `python Misc/quakevr/menu_coverage.py before.log after.log` compares two dumps (every setting and action still on a
 page, the tree, pages over 30 rows; ROUND21.md, "Menus reorganized"). Page numbers: 13 Grappling Hook, 23 Weapon
-Offsets, 41 Held Object Offsets, 42 Weapon Weights, 43 Held Object Weights, 44 and on the pages added then. `vr_mock_laser back|advanced|levels`
+Offsets, 41 Held Object Offsets, 42 Weapon Weights, 43 Held Object Weights, 44 and on the pages added then, 65 Recording. `vr_mock_laser back|advanced|levels`
 (or `<x> <y>` in menu coordinates; `off`) puts the main hand's laser on a corner button or a spot, whatever the hand's
 pose; then `vr_mock_button main trigger 1` / `0` clicks. `vr_mock_button off stickclick 1` / `0` gives the corner
 buttons the selection, `vr_mock_stick off 0 -1` (then `0 0`) moves down, `vr_mock_button main primary` presses;
