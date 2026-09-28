@@ -579,13 +579,16 @@ Mod_LoadTextures
 =================
 Mod_LoadNormalMap -- QVR: the normal map dynamic lights light a world texture or a skin with (vr_normalmaps): an
 authored <image>_norm, or a <image>_bump height map, beside a replacement image; else one made from the texture's
-own shading (`data`, as loaded). `worldwidth` is the texture's width in the world. `heights` (NORMALMAP_HEIGHTS, the
-world's) keeps the heights parallax mapping walks in its alpha (an authored _norm's own alpha, 255 if it has none).
+own shading (`data`, as loaded). `shared`: another image whose authored maps serve if `image` has none (a model's
+skin 0: all its skins lie on the same texture coordinates). `worldwidth` is the texture's width in the world. `flags`: NORMALMAP_HEIGHTS keeps
+the heights parallax mapping walks in its alpha (an authored _norm's own alpha, 255 if it has none); NORMALMAP_SKIN
+makes it from a model skin's colours (TexMgr_SkinToNormals). Authored ones are marked NORMALMAP_FILE.
 =================
 */
-static void Mod_LoadNormalMap (gltexture_t *glt, const char *image, byte *data, enum srcformat format, int worldwidth,
-	int heights)
+static void Mod_LoadNormalMap (gltexture_t *glt, const char *image, const char *shared, byte *data, enum srcformat format,
+	int worldwidth, int flags)
 {
+	int heights = flags & NORMALMAP_HEIGHTS, n;
 	static const struct { const char *suffix; int kind; } authored[] = {
 		{"_norm", NORMALMAP_AUTHORED},
 		{"_bump", NORMALMAP_SHADING},
@@ -597,19 +600,23 @@ static void Mod_LoadNormalMap (gltexture_t *glt, const char *image, byte *data, 
 
 	if (!glt || !data || !VR_NormalMaps () || TexMgr_NormalMap (glt) != TexMgr_NormalMap (NULL))
 		return;
-	for (i = 0; image && i < (int) countof (authored); i++)
+	for (n = 0; n < 2; n++)
+	for (i = 0; (n ? shared : image) && i < (int) countof (authored); i++)
 	{
 		mark = Hunk_LowMark ();
-		q_snprintf (filename, sizeof (filename), "%s%s", image, authored[i].suffix);
+		q_snprintf (filename, sizeof (filename), "%s%s", n ? shared : image, authored[i].suffix);
 		img = Image_LoadImage (filename, &fwidth, &fheight, &fmt);
 		if (img)
-			TexMgr_LoadNormalMap (glt, filename, fwidth, fheight, fmt, img, filename, 0, authored[i].kind | heights, worldwidth);
+		{
+			TexMgr_LoadNormalMap (glt, filename, fwidth, fheight, fmt, img, filename, 0, authored[i].kind | NORMALMAP_FILE | heights, worldwidth);
+			Con_DPrintf ("normal map %s (%d x %d)" "\n", filename, fwidth, fheight);
+		}
 		Hunk_FreeToLowMark (mark);
 		if (img)
 			return;
 	}
 	TexMgr_LoadNormalMap (glt, NULL, glt->source_width, glt->source_height, format, data, glt->source_file,
-		glt->source_offset, NORMALMAP_SHADING | heights, worldwidth);
+		glt->source_offset, NORMALMAP_SHADING | (flags & (NORMALMAP_HEIGHTS | NORMALMAP_SKIN)), worldwidth);
 }
 
 static void Mod_LoadTextures (lump_t *l)
@@ -778,7 +785,7 @@ static void Mod_LoadTextures (lump_t *l)
 					}
 					tx->gltexture = TexMgr_LoadImage (loadmodel, filename, fwidth, fheight,
 						fmt, data, filename, 0, TEXPREF_MIPMAP | extraflags );
-					Mod_LoadNormalMap (tx->gltexture, filename, pristine ? pristine : data, fmt, tx->width, NORMALMAP_HEIGHTS); // QVR
+					Mod_LoadNormalMap (tx->gltexture, filename, NULL, pristine ? pristine : data, fmt, tx->width, NORMALMAP_HEIGHTS); // QVR
 
 					//now try to load glow/luma image from the same place
 					Hunk_FreeToLowMark (mark);
@@ -821,7 +828,7 @@ static void Mod_LoadTextures (lump_t *l)
 					}
 					// QVR: heights only if drawn smooth (the shifts would bend its texels), but for the ammo and
 					// health boxes (the expansions' have no replacement textures), whose depth is a texel or two
-					Mod_LoadNormalMap (tx->gltexture, NULL, (byte *)(tx+1), SRC_INDEXED, tx->width,
+					Mod_LoadNormalMap (tx->gltexture, NULL, NULL, (byte *)(tx+1), SRC_INDEXED, tx->width,
 						TexMgr_IndexedSmooth () || !q_strncasecmp (loadmodel->name, "maps/b_", 7) ? NORMALMAP_HEIGHTS : 0);
 				}
 				Hunk_FreeToLowMark (mark);
@@ -3146,28 +3153,103 @@ static void Mod_FloodFillSkin( byte *skin, int skinwidth, int skinheight )
 
 /*
 ===============
+Mod_SkinIslands -- QVR: a skin's islands (the texels its triangles cover) for its normal map's heights and bumps
+(TexMgr_SetHeightMask), on the hunk: per texel of a w x h skin, how many texels it lies inside (0 outside). `corners`:
+each triangle's three corners in texels (x, y), `numtris` of them. A texel within 0.7 of a texel of a triangle is in.
+===============
+*/
+static byte *Mod_SkinIslands (const float *corners, int numtris, int w, int h)
+{
+	int		i, j, k, x, y;
+	byte	*mask = (byte *) Hunk_Alloc (w * h);
+
+	for (i = 0; i < numtris; i++)
+	{
+		const float *p = corners + i * 6;
+		float	area, xmin = FLT_MAX, xmax = -FLT_MAX, ymin = FLT_MAX, ymax = -FLT_MAX;
+		for (j = 0; j < 3; j++)
+		{
+			xmin = q_min (xmin, p[j*2]); xmax = q_max (xmax, p[j*2]);
+			ymin = q_min (ymin, p[j*2+1]); ymax = q_max (ymax, p[j*2+1]);
+		}
+		area = (p[2] - p[0]) * (p[5] - p[1]) - (p[3] - p[1]) * (p[4] - p[0]);
+		for (y = CLAMP (0, (int) floorf (ymin - 1.f), h - 1); y <= CLAMP (0, (int) ceilf (ymax + 1.f), h - 1); y++)
+			for (x = CLAMP (0, (int) floorf (xmin - 1.f), w - 1); x <= CLAMP (0, (int) ceilf (xmax + 1.f), w - 1); x++)
+			{
+				float c[2] = {x + 0.5f, y + 0.5f};
+				qboolean inside = true;
+				for (j = 0; j < 3 && inside; j++)
+				{
+					const float *a = p + j * 2, *b = p + ((j + 1) % 3) * 2;
+					float ex = b[0] - a[0], ey = b[1] - a[1], len = sqrtf (ex * ex + ey * ey);
+					float e = (ex * (c[1] - a[1]) - ey * (c[0] - a[0])) * (area < 0.f ? -1.f : 1.f);
+					inside = len <= 0.f || e >= -0.7f * len;
+				}
+				if (inside)
+					mask[y * w + x] = 255;
+			}
+	}
+	// how far inside, in texels (0 outside; the skin's edges are outside)
+	for (k = 0; k < 3; k++)
+	{
+		for (y = 0; y < h; y++)
+			for (x = 0; x < w; x++)
+			{
+				int d = mask[y * w + x], dx, dy;
+				if (!d)
+					continue;
+				for (dy = -1; dy <= 1; dy++)
+					for (dx = -1; dx <= 1; dx++)
+					{
+						int nx = x + dx, ny = y + dy;
+						int n = nx < 0 || ny < 0 || nx >= w || ny >= h ? 0 : mask[ny * w + nx];
+						d = q_min (d, n + 1);
+					}
+				mask[y * w + x] = (byte) d;
+			}
+	}
+	return mask;
+}
+
+/*
+===============
 Mod_SkinNormalMapLater, Mod_LoadSkinNormalMaps -- QVR: a model's skins get their normal maps (vr_normalmaps), with
 heights for parallax mapping (vr_parallax_models), once its triangles are loaded: the heights rise to the top at the
 edges of the skin's islands (the parts its triangles cover; TexMgr_SetHeightMask), so that the rays stop at a seam
-instead of reading another part of the skin (the rest of the skin or another part of the model).
+instead of reading another part of the skin (the rest of the skin or another part of the model); the bumps are made
+within the islands (TexMgr_SkinToNormals). `name`: the skin's external name (progs/ogre.mdl_0), where an authored
+normal map is looked for (Mod_LoadNormalMap: its _norm, or its _bump), for Quake's 8-bit skin as for a full-colour
+replacement. `data`: the skin's pixels, 8-bit (in the model's file) or a replacement's RGBA (malloc'ed: freed here).
 ===============
 */
-static struct { gltexture_t *glt; byte *data; } skinnormalmaps[MAX_SKINS * 4];
+static struct
+{
+	gltexture_t		*glt;
+	byte			*data;
+	enum srcformat	format;
+	qboolean		owned;
+	char			name[MAX_QPATH];
+} skinnormalmaps[MAX_SKINS * 4];
 static int numskinnormalmaps;
 
-static void Mod_SkinNormalMapLater (gltexture_t *glt, byte *data)
+static void Mod_SkinNormalMapLater (gltexture_t *glt, byte *data, enum srcformat format, qboolean owned, const char *name)
 {
 	if (glt && numskinnormalmaps < (int) countof (skinnormalmaps))
 	{
 		skinnormalmaps[numskinnormalmaps].glt = glt;
 		skinnormalmaps[numskinnormalmaps].data = data;
+		skinnormalmaps[numskinnormalmaps].format = format;
+		skinnormalmaps[numskinnormalmaps].owned = owned;
+		q_strlcpy (skinnormalmaps[numskinnormalmaps].name, name, sizeof (skinnormalmaps[0].name));
 		numskinnormalmaps++;
 	}
+	else if (owned)
+		free (data);
 }
 
 static void Mod_LoadSkinNormalMaps (const stvert_t *verts, const dtriangle_t *tris)
 {
-	int		i, j, k, x, y, w = pheader->skinwidth, h = pheader->skinheight, mark;
+	int		i, j, n, w = pheader->skinwidth, h = pheader->skinheight, mark;
 	byte	*mask = NULL;
 
 	if (!numskinnormalmaps)
@@ -3175,11 +3257,10 @@ static void Mod_LoadSkinNormalMaps (const stvert_t *verts, const dtriangle_t *tr
 	mark = Hunk_LowMark ();
 	if (w > 0 && h > 0)
 	{
-		// the islands: the texels within 0.7 of a texel of a triangle (the back's seam vertices half a skin right)
-		mask = (byte *) Hunk_Alloc (w * h);
-		for (i = 0; i < pheader->numtris; i++)
+		// the triangles' corners on the skin (the back's seam vertices half a skin right)
+		float *corners = (float *) Hunk_AllocNoFill (q_max (pheader->numtris, 1) * 6 * sizeof (float));
+		for (i = 0, n = 0; i < pheader->numtris; i++)
 		{
-			float	p[3][2], area, xmin = FLT_MAX, xmax = -FLT_MAX, ymin = FLT_MAX, ymax = -FLT_MAX;
 			for (j = 0; j < 3; j++)
 				if (tris[i].vertindex[j] < 0 || tris[i].vertindex[j] >= pheader->numverts)
 					break;
@@ -3188,54 +3269,109 @@ static void Mod_LoadSkinNormalMaps (const stvert_t *verts, const dtriangle_t *tr
 			for (j = 0; j < 3; j++)
 			{
 				const stvert_t *v = &verts[tris[i].vertindex[j]];
-				p[j][0] = (float) v->s + (!tris[i].facesfront && v->onseam ? w / 2 : 0);
-				p[j][1] = (float) v->t;
-				xmin = q_min (xmin, p[j][0]); xmax = q_max (xmax, p[j][0]);
-				ymin = q_min (ymin, p[j][1]); ymax = q_max (ymax, p[j][1]);
+				corners[n * 6 + j * 2 + 0] = (float) v->s + (!tris[i].facesfront && v->onseam ? w / 2 : 0);
+				corners[n * 6 + j * 2 + 1] = (float) v->t;
 			}
-			area = (p[1][0] - p[0][0]) * (p[2][1] - p[0][1]) - (p[1][1] - p[0][1]) * (p[2][0] - p[0][0]);
-			for (y = CLAMP (0, (int) floorf (ymin - 1.f), h - 1); y <= CLAMP (0, (int) ceilf (ymax + 1.f), h - 1); y++)
-				for (x = CLAMP (0, (int) floorf (xmin - 1.f), w - 1); x <= CLAMP (0, (int) ceilf (xmax + 1.f), w - 1); x++)
-				{
-					float c[2] = {x + 0.5f, y + 0.5f};
-					qboolean inside = true;
-					for (j = 0; j < 3 && inside; j++)
-					{
-						const float *a = p[j], *b = p[(j + 1) % 3];
-						float ex = b[0] - a[0], ey = b[1] - a[1], len = sqrtf (ex * ex + ey * ey);
-						float e = (ex * (c[1] - a[1]) - ey * (c[0] - a[0])) * (area < 0.f ? -1.f : 1.f);
-						inside = len <= 0.f || e >= -0.7f * len;
-					}
-					if (inside)
-						mask[y * w + x] = 255;
-				}
+			n++;
 		}
-		// how far inside, in texels (0 outside; the skin's edges are outside)
-		for (k = 0; k < 3; k++)
-		{
-			for (y = 0; y < h; y++)
-				for (x = 0; x < w; x++)
-				{
-					int d = mask[y * w + x], dx, dy;
-					if (!d)
-						continue;
-					for (dy = -1; dy <= 1; dy++)
-						for (dx = -1; dx <= 1; dx++)
-						{
-							int nx = x + dx, ny = y + dy;
-							int n = nx < 0 || ny < 0 || nx >= w || ny >= h ? 0 : mask[ny * w + nx];
-							d = q_min (d, n + 1);
-						}
-					mask[y * w + x] = (byte) d;
-				}
-		}
+		mask = Mod_SkinIslands (corners, n, w, h);
 	}
 	TexMgr_SetHeightMask (mask, w, h);
 	for (i = 0; i < numskinnormalmaps; i++)
-		Mod_LoadNormalMap (skinnormalmaps[i].glt, NULL, skinnormalmaps[i].data, SRC_INDEXED, w, NORMALMAP_HEIGHTS);
+	{
+		char shared[MAX_QPATH];
+		q_snprintf (shared, sizeof (shared), "%s_0", loadmodel->name); // skin 0's (every skin has the same coordinates)
+		Mod_LoadNormalMap (skinnormalmaps[i].glt, skinnormalmaps[i].name, strcmp (shared, skinnormalmaps[i].name) ? shared : NULL,
+			skinnormalmaps[i].data, skinnormalmaps[i].format, w, NORMALMAP_HEIGHTS | NORMALMAP_SKIN);
+		if (skinnormalmaps[i].owned)
+			free (skinnormalmaps[i].data);
+	}
 	TexMgr_SetHeightMask (NULL, 0, 0);
 	numskinnormalmaps = 0;
 	Hunk_FreeToLowMark (mark);
+}
+
+/*
+===============
+Mod_LoadExternalSkin -- QVR: a full-colour replacement for an alias model's skin (DarkPlaces' names, as model packs
+ship them: `name` is progs/ogre.mdl_0, a group's frames progs/ogre.mdl_0_1), and its fullbrights (name_glow, or
+name_luma); else the 8-bit skin's own fullbrights stay (`*fb` untouched). The pixels, malloc'ed, go to the normal map
+made once the triangles are known (Mod_SkinNormalMapLater). NULL if there is none.
+===============
+*/
+static gltexture_t *Mod_LoadExternalSkin (const char *name, unsigned texflags, gltexture_t **fb)
+{
+	int				mark = Hunk_LowMark (), fwidth, fheight, i;
+	enum srcformat	fmt;
+	byte			*data, *copy;
+	gltexture_t		*glt, *glow;
+	size_t			size;
+	char			fbname[MAX_QPATH];
+
+	if (isDedicated)
+		return NULL;
+	data = Image_LoadImage (name, &fwidth, &fheight, &fmt);
+	if (!data || fwidth < 1 || fheight < 1)
+	{
+		Hunk_FreeToLowMark (mark);
+		return NULL;
+	}
+	size = (size_t) fwidth * fheight * (fmt == SRC_INDEXED ? 1 : 4);
+	copy = (byte *) malloc (size);
+	if (copy)
+		memcpy (copy, data, size);
+	glt = TexMgr_LoadImage (loadmodel, name, fwidth, fheight, fmt, data, name, 0,
+		(texflags & TEXPREF_ALPHA) | TEXPREF_MIPMAP | (fmt == SRC_INDEXED ? 0 : TEXPREF_NOBRIGHT));
+	Hunk_FreeToLowMark (mark);
+	for (i = 0, glow = NULL; i < 2 && !glow; i++)
+	{
+		int gw, gh;
+		enum srcformat gfmt;
+		q_snprintf (fbname, sizeof (fbname), "%s%s", name, i ? "_luma" : "_glow");
+		data = Image_LoadImage (fbname, &gw, &gh, &gfmt);
+		if (data)
+			glow = TexMgr_LoadImage (loadmodel, fbname, gw, gh, gfmt, data, fbname, 0, TEXPREF_MIPMAP);
+		Hunk_FreeToLowMark (mark);
+	}
+	if (glow)
+		*fb = glow;
+	if (copy)
+		Mod_SkinNormalMapLater (glt, copy, fmt, true, name);
+	Con_DPrintf ("%s: external skin %s (%d x %d)%s\n", loadmodel->name, name, fwidth, fheight, glow ? " with fullbrights" : "");
+	return glt;
+}
+
+/*
+===============
+Mod_ExternalSkin -- QVR: skin i (frame j of a group; -1 a single skin) of the alias model being loaded, just loaded
+from its 8-bit pixels: replaced by an external full-colour one if there is one (Mod_LoadExternalSkin; the 8-bit
+skin's fullbrights kept unless it brings its own), and its normal map queued (Mod_SkinNormalMapLater) by that name.
+===============
+*/
+static void Mod_ExternalSkin (gltexture_t **skin, gltexture_t **fb, const char *name, unsigned texflags, byte *texels,
+	int size, src_offset_t offset, int i, int j)
+{
+	gltexture_t	*ext, *extfb = NULL;
+	char		fbname[MAX_QPATH];
+
+	ext = Mod_LoadExternalSkin (name, texflags, &extfb);
+	if (!ext)
+	{
+		Mod_SkinNormalMapLater (*skin, texels, SRC_INDEXED, false, name);
+		return;
+	}
+	if (!extfb && !*fb && Mod_CheckFullbrights (texels, size)) // an ALPHABRIGHT skin: its fullbrights as their own texture
+	{
+		if (j < 0)
+			q_snprintf (fbname, sizeof (fbname), "%s:frame%i_glow", loadmodel->name, i);
+		else
+			q_snprintf (fbname, sizeof (fbname), "%s:frame%i_%i_glow", loadmodel->name, i, j);
+		extfb = TexMgr_LoadImage (loadmodel, fbname, pheader->skinwidth, pheader->skinheight, SRC_INDEXED, texels,
+			loadmodel->name, offset, (texflags & ~TEXPREF_ALPHA) | TEXPREF_FULLBRIGHT);
+	}
+	*skin = ext;
+	if (extfb)
+		*fb = extfb;
 }
 
 /*
@@ -3302,10 +3438,13 @@ static void *Mod_LoadAllSkins (int numskins, daliasskintype_t *pskintype)
 				pheader->fbtextures[i][0] = NULL;
 			}
 
+			// QVR: a full-colour replacement (progs/ogre.mdl_0), or the normal map once the triangles are known
+			q_snprintf (name, sizeof(name), "%s_%i", loadmodel->name, i);
+			Mod_ExternalSkin (&pheader->gltextures[i][0], &pheader->fbtextures[i][0], name, texflags, (byte *)(pskintype+1), size, offset, i, -1);
+
 			pheader->gltextures[i][3] = pheader->gltextures[i][2] = pheader->gltextures[i][1] = pheader->gltextures[i][0];
 			pheader->fbtextures[i][3] = pheader->fbtextures[i][2] = pheader->fbtextures[i][1] = pheader->fbtextures[i][0];
 			//johnfitz
-			Mod_SkinNormalMapLater (pheader->gltextures[i][0], (byte *)(pskintype+1)); // QVR: once the triangles are known
 
 			pskintype = (daliasskintype_t *)((byte *)(pskintype+1) + size);
 		}
@@ -3354,7 +3493,8 @@ static void *Mod_LoadAllSkins (int numskins, daliasskintype_t *pskintype)
 					pheader->fbtextures[i][j&3] = NULL;
 				}
 				//johnfitz
-				Mod_SkinNormalMapLater (pheader->gltextures[i][j&3], (byte *)(pskintype)); // QVR
+				q_snprintf (name, sizeof(name), "%s_%i_%i", loadmodel->name, i, j); // QVR: progs/ogre.mdl_0_1
+				Mod_ExternalSkin (&pheader->gltextures[i][j&3], &pheader->fbtextures[i][j&3], name, texflags, (byte *)(pskintype), size, offset, i, j);
 
 				pskintype = (daliasskintype_t *)((byte *)(pskintype) + size);
 			}
@@ -4527,6 +4667,41 @@ error:
 	return false;
 }
 
+/*
+===============
+Mod_MD5SkinNormalMap -- QVR: an MD5 mesh's skin (`name`: progs/hand_rig_00_00; the jointed hands, the body) gets its
+normal map as an alias model's does (Mod_LoadSkinNormalMaps): an authored name_norm or name_bump (or `shared`'s, the
+first skin's: progs/hand_rig_00_00), else one made from its colours within its islands (from the mesh's texture
+coordinates).
+===============
+*/
+static void Mod_MD5SkinNormalMap (aliashdr_t *surf, gltexture_t *glt, const char *name, const char *shared, byte *data,
+	enum srcformat fmt, int w, int h)
+{
+	int				i, j, mark;
+	const iqmvert_t	*verts = (const iqmvert_t *)((byte *) surf + surf->vertexes);
+	const unsigned short *indexes = (const unsigned short *)((byte *) surf + surf->indexes);
+	float			*corners;
+	char			first[MAX_QPATH];
+
+	if (!glt || !data || w < 1 || h < 1 || !VR_NormalMaps ())
+		return;
+	q_strlcpy (first, shared, sizeof (first)); // (a va () buffer)
+	mark = Hunk_LowMark ();
+	corners = (float *) Hunk_AllocNoFill (q_max (surf->numtris, 1) * 6 * sizeof (float));
+	for (i = 0; i < surf->numtris; i++)
+		for (j = 0; j < 3; j++)
+		{
+			const iqmvert_t *v = &verts[indexes[i * 3 + j]];
+			corners[i * 6 + j * 2 + 0] = v->st[0] * w;
+			corners[i * 6 + j * 2 + 1] = v->st[1] * h;
+		}
+	TexMgr_SetHeightMask (Mod_SkinIslands (corners, surf->numtris, w, h), w, h);
+	Mod_LoadNormalMap (glt, name, strcmp (name, first) ? first : NULL, data, fmt, w, NORMALMAP_HEIGHTS | NORMALMAP_SKIN);
+	TexMgr_SetHeightMask (NULL, 0, 0);
+	Hunk_FreeToLowMark (mark);
+}
+
 static void Mod_LoadMD5Skins (qmodel_t *mod, aliashdr_t *surf, const char *shader)
 {
 	char texname[MAX_QPATH];
@@ -4567,6 +4742,8 @@ static void Mod_LoadMD5Skins (qmodel_t *mod, aliashdr_t *surf, const char *shade
 						surf->fbtextures[surf->numskins][f] = TexMgr_LoadImage(mod, texname, surf->skinwidth, surf->skinheight, SRC_RGBA, NULL, texname, 0, TEXPREF_MIPMAP);
 					}
 				}
+
+				Mod_MD5SkinNormalMap (surf, surf->gltextures[surf->numskins][f], texname, va ("progs/%s_00_00", shader), data, fmt, fwidth, fheight); // QVR
 
 				//now try to load glow/luma image from the same place
 				Hunk_FreeToLowMark (mark);

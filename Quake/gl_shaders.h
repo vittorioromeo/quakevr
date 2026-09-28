@@ -603,10 +603,10 @@ QVR_TONE_GLSL
 "	return pow(max(dot(n, h), 0.0), SpecLobe.x) * SpecLobe.y * LightTweak.z; // QVR: SpecLobe (SpecularAA)\n"\
 "}\n"\
 "\n"\
-"// The normal n bent by a normal map (tangent space, green up; LightTweak.w deepens it), in the frame the texture\n"\
+"// The normal n bent by a normal map (tangent space, green up; `strength` deepens it: LightTweak.w, or a model's own), in the frame the texture\n"\
 "// lies in on the surface: a cotangent frame from the derivatives of the position and texture coordinates, exact on\n"\
 "// the world's flat faces, the same in both eyes. The derivatives come from the caller (taken before any discard).\n"\
-"vec3 BumpedNormal(sampler2D tex, vec2 uv, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy, vec3 n)\n"\
+"vec3 BumpedNormalK(sampler2D tex, vec2 uv, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy, vec3 n, float strength)\n"\
 "{\n"\
 "	vec3 dp2perp = cross(dpdy, n);\n"\
 "	vec3 dp1perp = cross(n, dpdx);\n"\
@@ -620,10 +620,14 @@ QVR_TONE_GLSL
 "	{\n"\
 "		vec2 size = vec2(textureSize(tex, 0)), ex = duvdx * size, ey = duvdy * size;\n"\
 "		float len = length(s.xyz * 2.0 - 1.0), minified = clamp(0.5 * log2(max(max(dot(ex, ex), dot(ey, ey)), 1e-8)), 0.0, 1.0);\n"\
-"		BumpSpread = max(1.0 - len - 0.004, 0.0) / max(len, 0.1) * LightTweak.w * LightTweak.w * minified; // 0.004: 8 bits' rounding; not magnified (a blend of two texels is a slope)\n"\
+"		BumpSpread = max(1.0 - len - 0.004, 0.0) / max(len, 0.1) * strength * strength * minified; // 0.004: 8 bits' rounding; not magnified (a blend of two texels is a slope)\n"\
 "	}\n"\
-"	m *= LightTweak.w;\n"\
+"	m *= strength;\n"\
 "	return normalize((t * m.x - b * m.y) * k + n * z);\n"\
+"}\n"\
+"vec3 BumpedNormal(sampler2D tex, vec2 uv, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy, vec3 n)\n"\
+"{\n"\
+"	return BumpedNormalK(tex, uv, duvdx, duvdy, dpdx, dpdy, n, LightTweak.w);\n"\
 "}\n"\
 "\n"\
 "// The baked light on the bumps (vr_normalmap_baked: LightTweak.y): a light from a guessed direction, towards where\n"\
@@ -2211,7 +2215,7 @@ NOISE_FUNCTIONS
 "	vec4	Glow; // QVR: x the force grab glow (vr/vr_fgfx.cpp), y 1 + the bumps' strength on its own light (vr_normalmap_models), negative unless shaded on a par with the world (vr_model_light_parity), z the fullbright boost (vr/vr_emissive.cpp), w parallax mapping's depth in units\n"\
 "	vec4	Ambient[6]; // QVR: the light around it (vr/vr_ambient.cpp): xyz +X -X +Y -Y +Z -Z over the model's own, [0].w how much it applies, [1].w how much of the directional shading stays\n"\
 "	vec4	Surface; // QVR: rim light and reflections (vr/vr_envmap.cpp): x the rim light's strength, y the reflections', z the cube's mip level they read\n"\
-"	vec4	AO; // QVR: dynamic ambient occlusion (vr/vr_ao.cpp): x its own group (0 none), y how much of its baked per-vertex occlusion applies\n"\
+"	vec4	AO; // QVR: dynamic ambient occlusion (vr/vr_ao.cpp): x its own group (0 none), y how much of its baked per-vertex occlusion applies; z its normal map's strength\n"\
 "};\n"\
 "\n"\
 "layout(std430, binding=1) restrict readonly buffer InstanceBuffer\n"\
@@ -2653,7 +2657,8 @@ OIT_OUTPUT (out_fragcolor)
 "#endif\n"
 "	// QVR: the normal bent by the skin's normal map (vr_normalmaps), for the model's own light and the dynamic lights\n"
 "	vec3 n = normalize(in_nor);\n"
-"	vec3 bumped = LightTweak.w > 0. && (in_bumplight.w > 0. || NumLights > 0u || instances[in_instance].Ambient[0].w > 0.) ? BumpedNormal(NormalTex, uv, duvdx, duvdy, dpdx, dpdy, n) : n;\n"
+"	float bumpk = instances[in_instance].AO.z; // QVR: its normal map's strength: a made one's LightTweak.w, an authored one's own (vr_normalmap_authored)\n"
+"	vec3 bumped = bumpk > 0. && (in_bumplight.w > 0. || NumLights > 0u || instances[in_instance].Ambient[0].w > 0.) ? BumpedNormalK(NormalTex, uv, duvdx, duvdy, dpdx, dpdy, n, bumpk) : n;\n"
 "#if ALPHATEST\n"
 "	SpecularAA(0.0); // QVR: the normal map's spread only (no derivatives after the discard)\n"
 "#else\n"

@@ -1498,8 +1498,9 @@ extern "C" int VR_ModelLightParity(void)
 
 // How much a model's skin bumps shade its own light (the alias shader's ModelBumpShade), from the light's direction
 // (vr_modellight): vr_normalmap_models times the world's vr_normalmap_baked; the held weapons and hands, a hand's
-// width from the eyes, VIEWMODEL_BUMPS of it (their 8-bit skins' bumps turn to noise that close).
-extern "C" float VR_ModelBumps(const entity_t* e)
+// width from the eyes, VIEWMODEL_BUMPS of it (their 8-bit skins' made bumps turn to noise that close), unless their
+// normal map is authored (`authored`: a real shape, as strong close up as far away).
+extern "C" float VR_ModelBumps(const entity_t* e, int authored)
 {
     constexpr float VIEWMODEL_BUMPS = 0.5f;
     if(vr_normalmaps.value == 0.f)
@@ -1507,7 +1508,19 @@ extern "C" float VR_ModelBumps(const entity_t* e)
         return 0.f;
     }
     const float k = std::clamp(vr_normalmap_models.value, 0.f, 2.f) * std::clamp(vr_normalmap_baked.value, 0.f, 2.f);
-    return e == &cl.viewent || VR_IsViewEntity(e) ? k * VIEWMODEL_BUMPS : k;
+    return !authored && (e == &cl.viewent || VR_IsViewEntity(e)) ? k * VIEWMODEL_BUMPS : k;
+}
+
+// How much a model's normal map bends its normal (the alias shader's BumpedNormalK): a made one's vr_normalmap_strength
+// (the world's LightTweak.w), an authored one's vr_normalmap_authored (its own shape, 1 as drawn); 0 without normal
+// maps.
+extern "C" float VR_ModelNormalMapScale(int authored)
+{
+    if(vr_normalmaps.value == 0.f)
+    {
+        return 0.f;
+    }
+    return authored ? std::clamp(vr_normalmap_authored.value, 0.f, 2.f) : std::clamp(vr_normalmap_strength.value, 0.f, 8.f);
 }
 
 extern "C" float VR_ViewModelMinLight(void)

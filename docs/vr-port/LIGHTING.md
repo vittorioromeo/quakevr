@@ -261,6 +261,9 @@ textures are filtered smoothly; and `r_shadow_gloss 2` gives dynamic lights a fa
     averages out over a skin, so the model is as bright as before), less on the side facing away. Held weapons and
     hands get half (`VR_ModelBumps`). The instance's `Glow.y` carries it (sign: `vr_model_light_parity`). Skins'
     luminance is grown out of their islands first (`TexMgr_DilateIslands`), so seams make no ridges.
+  - **Model skins, round 21** (see "Model skins' normal maps" below): skins' maps are no longer made from
+    brightness (`TexMgr_SkinToNormals`: edges, forms, paint and materials); a skin can bring an authored map
+    (`progs/ogre.mdl_0_norm`), and MD5 meshes (the jointed hands, the body) get normal maps too.
 - **Bloom by colour** (`vr_bloom_white` 0.5, `vr_bloom_color` 1.5, times `vr_bloom`): the bright pass weighs a pixel
   by its saturation, so red buttons and blue panels glow more, white lamps and flashes less.
 
@@ -320,6 +323,47 @@ at most 256² per texture, and a look for `_norm`/`_bump` images beside each rep
 maps on e1m1 with QRP before round 11, less since (at most 2 texels a unit).
 
 Not done: DarkPlaces' quad-damage explosion colour (the client can't tell).
+
+### Model skins' normal maps (round 21)
+
+The author: enabling bumps on models barely did anything. Measured (mock eyes 2048², before/after composites in
+ROUND21.md "Model bump maps"): with the flat normals (`vr_normalmap_strength 0`) and the round-14 maps the grunt, ogre
+and shambler were nearly the same under the flashlight and the muzzle flash, and only a little different under a light
+from the side. Two reasons: the maps were weak and noisy where it matters (brightness as height: dithering specks as
+bumps, paint changes as ramps, dark skins shallow), and lights near the eyes (a torch on the head, a muzzle flash)
+light a surface almost straight on, where a tilt of θ only dims it by 1 − cos θ (4% for 17°).
+
+- **Made maps** (`TexMgr_SkinToNormals`, `NORMALMAP_SKIN`; the world's are unchanged): from the skin's colours,
+  - *edges*: the brightness's slope after a 1 2 1 blur, kept where it is coherent (a line or an edge by the structure
+    tensor over about 1.4 texels: plate edges, seams, creases) and over the skin's own noise (its median slope), so
+    dithering makes nothing;
+  - *forms*: the slopes of the brightness blurred over about 1.4, 3.5 and 5.5 texels, so muscles, folds and plates read
+    as broad shapes;
+  - *paint*: at every scale a slope counts by the brightness's share of the whole change (the brightness against two
+    colour differences, `SKIN_COLOR`): blood on skin or a band of another hue is not a step;
+  - *materials*, from the colour (as `MetalMask`): metal (greys, blue-greys) crisp edges and little form, flesh (warm,
+    moderately saturated) broad forms and soft edges, blood (saturated red) almost nothing, the rest between;
+  - *relief relative to the skin's own*: its 90th percentile of tilt made 0.85 (within a factor of 3), then a tanh
+    compression towards 1.2 (bevels up to about 50°, not walls);
+  - every blur is normalised by the islands' coverage (`TexMgr_BlurIslands`), so nothing outside an island reaches in
+    across a seam (the heights still come from the dilated brightness, as before).
+  `developer 1` prints each skin's relief and noise. Cost: a few box blurs per skin at load (about 3 ms for 256²).
+- **Authored maps** (`Mod_LoadNormalMap`): an alias skin looks for `progs/<model>.mdl_<skin>_norm` (DarkPlaces'
+  names; a group's frames `_<skin>_<frame>`), then `_bump` (a height map: white high), then skin 0's (all skins share
+  the texture coordinates); an MD5 mesh's skin `progs/<shader>_<ss>_<ff>_norm` / `_bump`, then
+  `progs/<shader>_00_00_*`. Any of Ironwail's image formats (tga, png, jpg, pcx, lmp). They work under Quake's 8-bit
+  skin as under a full-colour replacement. They are marked `NORMALMAP_FILE`; the alias instance's `AO.z` carries the
+  map's strength (`VR_ModelNormalMapScale`): a made map's `vr_normalmap_strength`, an authored one's
+  `vr_normalmap_authored` (1: as authored; Graphics > "Authored Model Bumps"), and authored maps are not halved on
+  held weapons and hands (`VR_ModelBumps`). `BumpedNormalK` is `BumpedNormal` with the strength passed in.
+- **External full-colour skins** (`Mod_LoadExternalSkin`): `progs/<model>.mdl_<skin>` (DarkPlaces' names, as model
+  packs ship them) replaces the 8-bit skin, mipmapped, with `_glow` or `_luma` as its fullbrights (else the 8-bit
+  skin's own). Player colours still use the 8-bit skin. Its normal map is made from it (or authored) once the
+  triangles are known.
+- **MD5 meshes** (`Mod_MD5SkinNormalMap`): the jointed hands (`progs/hand_rig.md5mesh`, drawn by the alias shader with
+  its bones) and the body (`vrbody.md5mesh`) had no normal maps at all; they now get one per skin, from their own
+  texture coordinates' islands, with the same lighting as any alias model (own light and `vr_modellight`, dynamic
+  lights, the flashlight, muzzle flashes; held-hand half for made maps).
 
 ## The chest flashlight
 

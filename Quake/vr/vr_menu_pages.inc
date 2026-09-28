@@ -497,6 +497,7 @@ void resetHandMoves()
         slider("Bumps in Map Light", "vr_normalmap_baked", 0.f, 2.f, 0.1f, "%.1f").extend().help("How much the bumps shade the map's own light, lit from where it seems to come from (0: only dynamic lights show them)."),
         toggle("Real Light Directions", "vr_deluxemap").help("Relit maps know where their light comes from at every point (.lux): the bumps are lit from there and the lamps glint off them. Off: guessed from where the light gets brighter (always so on maps without it)."),
         slider("Bumps on Models", "vr_normalmap_models", 0.f, 2.f, 0.1f, "%.1f").extend().help("How much the bumps shade models' own light (monsters, pickups, weapons; held ones half), lit from the map's lights (times Bumps in Map Light; 0: only dynamic lights show them)."),
+        slider("Authored Model Bumps", "vr_normalmap_authored", 0.f, 2.f, 0.1f, "%.1f").extend().help("How deep models' authored normal maps are (a skin's _norm or _bump file: a model pack's, or our own models'); 1 as made. Held ones too."),
         header("Parallax"),
         toggle("Parallax", "vr_parallax").help("Walls and floors look carved: their dark parts sink in and shift as you move your head (needs Bump Maps)."),
         slider("Parallax Depth", "vr_parallax_depth", 0.5f, 6.f, 0.25f, "%.2f").extend().help("How deep the darkest parts of the textures sink, in Quake units."),
