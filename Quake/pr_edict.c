@@ -1159,6 +1159,61 @@ const char *ED_ParseGlobals (const char *data)
 	return data;
 }
 
+/*
+=============
+ED_CheckEntityReference (QVR)
+
+Whether the entity reference at `val` (a prog edict offset) is a whole edict below `num_edicts`; if not, it is
+reset to the world with a developer warning naming `what` and `name`.
+=============
+*/
+static void ED_CheckEntityReference (int *val, int num_edicts, const char *what, const char *name)
+{
+	if (*val >= 0 && *val % qcvm->edict_size == 0 && *val / qcvm->edict_size < num_edicts)
+		return;
+	Con_DWarning ("%s \"%s\" refers to entity %i, past the %i loaded: the world instead\n", what, name,
+		*val / qcvm->edict_size, num_edicts);
+	*val = 0;
+}
+
+/*
+=============
+ED_CheckLoadedReferences (QVR)
+
+After a saved game's edicts are parsed (Host_Loadgame_f): every entity field and entity global must refer to one of
+its `num_edicts` edicts. A reference past them (a save written with an edict missing, or edited) would be a
+Host_Error ("NUM_FOR_EDICT: bad pointer") the first time the progs used it; it is reset to the world instead.
+References to free edicts are left alone, as in any Quake: the progs check them.
+=============
+*/
+void ED_CheckLoadedReferences (int num_edicts)
+{
+	int		i, e;
+	ddef_t	*d;
+	edict_t	*ed;
+	char	what[32];
+
+	for (i = 0; i < qcvm->progs->numglobaldefs; i++)
+	{
+		d = &qcvm->globaldefs[i];
+		if ((d->type & ~DEF_SAVEGLOBAL) == ev_entity)
+			ED_CheckEntityReference ((int *)qcvm->globals + d->ofs, num_edicts, "global", PR_GetString (d->s_name));
+	}
+
+	for (e = 0; e < num_edicts; e++)
+	{
+		ed = EDICT_NUM (e);
+		for (i = 0; i < qcvm->progs->numfielddefs; i++)
+		{
+			d = &qcvm->fielddefs[i];
+			if ((d->type & ~DEF_SAVEGLOBAL) != ev_entity)
+				continue;
+			q_snprintf (what, sizeof (what), "entity %i's", e);
+			ED_CheckEntityReference ((int *)&ed->v + d->ofs, num_edicts, what, PR_GetString (d->s_name));
+		}
+	}
+}
+
 //============================================================================
 
 
@@ -1284,7 +1339,14 @@ static qboolean ED_ParseEpair (void *base, ddef_t *key, const char *s, qboolean 
 		break;
 
 	case ev_entity:
-		*(int *)d = EDICT_TO_PROG(EDICT_NUM(atoi (s)));
+		// QVR: a reference outside the edicts (a damaged or foreign save) is the world, not a Host_Error
+		i = atoi (s);
+		if (i < 0 || i >= qcvm->max_edicts)
+		{
+			Con_DWarning ("\"%s\" refers to entity %i, out of range: the world instead\n", PR_GetString (key->s_name), i);
+			i = 0;
+		}
+		*(int *)d = EDICT_TO_PROG(EDICT_NUM(i));
 		break;
 
 	case ev_field:
@@ -2314,6 +2376,24 @@ int NUM_FOR_EDICT(edict_t *e)
 	if (b < 0 || b >= qcvm->num_edicts)
 		Host_Error ("NUM_FOR_EDICT: bad pointer");
 	return b;
+}
+
+/*
+QVR: NUM_FOR_EDICT without the Host_Error, for code that may be handed an edict outside the live ones (hooks run while
+a saved game's edicts are parsed, state kept across a load): the number of an edict of the current VM's array below
+`qcvm->num_edicts`, or -1.
+*/
+int NUM_FOR_EDICT_CHECKED (const edict_t *e)
+{
+	ptrdiff_t b;
+
+	if (!qcvm || !qcvm->edicts || !e)
+		return -1;
+	b = (const byte *)e - (const byte *)qcvm->edicts;
+	if (b < 0 || b % qcvm->edict_size != 0)
+		return -1;
+	b /= qcvm->edict_size;
+	return b < qcvm->num_edicts ? (int)b : -1;
 }
 
 int SAVE_NUM_FOR_EDICT (savedata_t *save, edict_t *e)

@@ -697,7 +697,8 @@ void onEdictFree(edict_t* ed)
     {
         return;
     }
-    const int num = NUM_FOR_EDICT(ed);
+    // Checked: ED_Free runs for any edict, one a saved game's parse frees among them.
+    const int num = NUM_FOR_EDICT_CHECKED(ed);
     if(num <= 0 || num >= static_cast<int>(woundsSent.size()) || !woundsSent[static_cast<std::size_t>(num)])
     {
         return;

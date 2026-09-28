@@ -2672,6 +2672,10 @@ static void Host_Loadgame_f (void)
 			{
 				memset (ent, 0, qcvm->edict_size);
 				ent->baseline.scale = ENTSCALE_DEFAULT;
+				// QVR: the edict being parsed is a live one from here on, for the code its parse and link run (ED_Free
+				// of a free one: VR_OnEdictFree): past the map's own edicts, it was outside num_edicts until the end
+				// of the load (a free edict past them was a Host_Error, "NUM_FOR_EDICT: bad pointer")
+				qcvm->num_edicts = entnum + 1;
 			}
 			data = ED_ParseEdict (data, ent);
 
@@ -2690,6 +2694,7 @@ static void Host_Loadgame_f (void)
 		ED_ClearEdict (EDICT_NUM (i));
 
 	qcvm->num_edicts = entnum;
+	ED_CheckLoadedReferences (entnum); // QVR: a reference past the loaded edicts is the world (a dev warning)
 	qcvm->time = time;
 	sv.autosave.time = time;
 

@@ -341,6 +341,7 @@ const char *ED_ParseEdict (const char *data, edict_t *ent);
 
 void ED_WriteGlobals (savedata_t *save);
 const char *ED_ParseGlobals (const char *data);
+void ED_CheckLoadedReferences (int num_edicts); // QVR
 
 void ED_LoadFromFile (const char *data);
 
@@ -350,6 +351,7 @@ void ED_LoadFromFile (const char *data);
 */
 edict_t *EDICT_NUM(int);
 int NUM_FOR_EDICT(edict_t*);
+int NUM_FOR_EDICT_CHECKED (const edict_t *e); // QVR: -1 instead of a Host_Error
 int SAVE_NUM_FOR_EDICT (savedata_t *save, edict_t *e);
 
 #define	NEXT_EDICT(e)		((edict_t *)( (byte *)e + qcvm->edict_size))
