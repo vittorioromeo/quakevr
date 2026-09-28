@@ -17,13 +17,16 @@ import collections
 import sys
 
 
+FIELDS = {'MDPAGE': 6, 'MDROW': 7, 'MDLINKS': 4}  # the bars in each kind of line
+
+
 def load(path):
     lines = []
     for raw in open(path, encoding='utf-8', errors='replace'):
         raw = raw.rstrip('\r\n')
         if raw.startswith('MD'):
             lines.append(raw)
-        elif lines and raw and not raw.startswith('exit='):
+        elif lines and raw and lines[-1].count('|') < FIELDS.get(lines[-1].split('|')[0], 0):
             lines[-1] += raw  # a line the console wrapped (the space kept at the end of the first part)
     pages, rows, links = {}, [], {}
     for line in lines:

@@ -9718,7 +9718,7 @@ VR Settings (30)                         Tuning: links; Comfort; Weapons; More
    │                          Immersion (16) [21], Hotspots (24) [25], Hip Holsters (14) [63]
    ├─ Display: HUD and Menus (6) [48]: Wrist Gadget, Screens, Colours, Status Bar, Crosshair, Menu [26-31]
    │         Graphics (20) [32]: Lights, Shadows, Surfaces, Liquids, Post-processing, Models and Effects,
-   │                          Particles, Transparency [33-40]
+   │                          Particles, Transparency [33-40] (Recording (11) [65], with agent/spectator)
    └─ Playtesting: Motion Recorder (11) [6], Review Takes (10) [7] (> Take [8]), Debug (6) [64]
 ```
 
@@ -9765,6 +9765,11 @@ Every page is at most three levels below VR Settings, and every one but Weapon O
 - **Scroll memory:** by title and label, as before; nothing to do for the new pages. A saved record of a renamed page,
   or of a row that moved to another page, is ignored (the page opens at its top) and dropped at the next config write.
 - **The shortcuts** are unchanged: Advanced VR opens Advanced VR Options (Back: VR Settings), Levels the level list.
+- **Recording** (the spectator agent's page, the desktop window's view): under Graphics, where that agent linked it,
+  and linked from Body and Display after Desktop Mirror. Its number is 65, after the others: added where that branch
+  put it (41), it would have moved Held Object Offsets and the weight pages. Not on this branch until vr-cleanup has it:
+  the merge is ready on `agent/menusplit-recording` (this branch with `agent/spectator` merged, the conflict in the
+  page table resolved; coverage 809 options, none lost, the 7 new ones Recording's).
 
 ### Checks (mock headset; scratchpad `menusplit/`)
 
