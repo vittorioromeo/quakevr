@@ -151,6 +151,10 @@ void menuButton(int hand, bool now, bool before)
 // page that scrolls until it is let go back to the middle.
 bool mainStickScrolls = false;
 
+// Each hand's upper face button (B/Y) held, as a key the game got (not taken by the posing mode, a voice note or the
+// flashlight): the grappling hook reels while it is (secondaryHeld, sent to the QC with the move).
+bool secondaryDown[HAND_COUNT] = {};
+
 InputState previous;
 glm::vec2 moveAxes{0.f};
 bool snapTurnArmed = true;
@@ -329,6 +333,10 @@ void update(const InputState& tracked)
                 // A trigger pointing at the menu is its mouse button.
                 const int key = b.button == &HandInput::trigger ? menuui::triggerKey(h, now, b.key[h]) : b.key[h];
                 keyEvent(key, now);
+                if(b.button == &HandInput::secondary)
+                {
+                    secondaryDown[h] = now;
+                }
                 if(now && key_dest == key_menu && !vr_disablehaptics.value)
                 {
                     // A click under the finger, as the old engine gave in menus.
@@ -399,6 +407,11 @@ void update(const InputState& tracked)
         playbackCommands.clear();
     }
     runHaptics();
+}
+
+bool secondaryHeld(int hand)
+{
+    return hand >= 0 && hand < HAND_COUNT && secondaryDown[hand] && key_dest == key_game;
 }
 
 } // namespace qvr::input

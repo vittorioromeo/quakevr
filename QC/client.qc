@@ -1626,6 +1626,8 @@ void() PlayerPreThink =
     RuneApplyElder(self); // regeneration rune
 
     // Track the grapple
+    VR_Grapple_Rearm(cVR_OffHand);
+    VR_Grapple_Rearm(cVR_MainHand);
     if(self.hook_out2)
     {
         GrappleService(cVR_OffHand);

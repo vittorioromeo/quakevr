@@ -15,7 +15,6 @@ subs.qc
 vr_ammoutil.qc
 vr_cvars.qc
 vr_gameutil.qc
-vr_grapple.qc
 vr_itemutil.qc
 vr_macros.qc
 vr_scaleutil.qc
@@ -27,6 +26,8 @@ vr_juice.qc
 vr_grenade.qc
 vr_debris.qc
 vr_walltorch.qc
+// The grapple after vr_carry.qc and vr_walltorch.qc: it reads their fields.
+vr_grapple.qc
 
 buttons.qc
 client.qc

@@ -19,6 +19,8 @@
 #   torch_pull.wav, torch_out.wav, torch_light.wav, torch_hit.wav  wall torches (QC vr_walltorch.qc): pulled out of
 #                 its holder (a wooden scrape and a knock), its fire going out (a puff and a hiss), fire catching (a
 #                 whoosh and crackles), a burning torch's blow (a burst of flame)
+#   grapple_reel.wav, grapple_taut.wav  the grappling hook (QC vr_grapple.qc): the reel winding in (a ratchet's clicks
+#                 over a whirr, played back to back while it reels) and the rope snapping taut (a low twang, a chink)
 #   pommel1..3.wav  a pommel, a hilt or a gun's butt striking (QC vr_melee.qc VR_Melee_HitSound): a blunt knock,
 #                 short and dry, apart from the blades' cuts and the punches; three, a little apart in pitch
 #   rock1..3.wav, brick1..3.wav  a rock's thud and a brick's clack (QC vr_debris.qc): landing, knocked, thrown into
@@ -619,6 +621,65 @@ def torch_hit():
     return finish(out, 0.8)
 
 
+# ---- Grappling hook (QC vr_grapple.qc; docs/vr-port/ROUND21.md, "Grappling hook: rope, reel on demand...") -------------
+
+
+def grapple_reel():
+    """The grapple's reel winding the rope in (played again every 0.25 s while it reels, a little slower with a heavy
+    load): a ratchet's pawl clicking over its teeth (a hard click and a short steel ring, 28 a second, each a little
+    apart in pitch), over the drum's low whirr and the chain's faint rattle. 0.25 s: its clicks run on from one to the
+    next."""
+    rng = random.Random(411)
+    n = int(RATE * 0.25)
+    click_lp, rattle_lp, rattle_hp = OnePole(4200), OnePole(5000), OnePole(1800)
+    table = ((2350, 0.7, 0.006), (3900, 0.45, 0.004), (5600, 0.25, 0.003), (1250, 0.3, 0.01))
+    rate = 28.0
+    clicks = [(k / rate + rng.uniform(-0.002, 0.002), rng.uniform(0.94, 1.06), rng.uniform(0.7, 1.0)) for k in range(7)]
+    phase = 0.0
+    out = []
+    for i in range(n):
+        t = i / RATE
+        noise = rng.uniform(-1, 1)
+        c = 0.0
+        for at, pitch, amp in clicks:
+            tc = t - at
+            if 0 <= tc < 0.03:
+                c += amp * (partials(tc, pitch, table) * min(1.0, tc / 0.0002) + (noise - click_lp(noise)) * math.exp(-tc / 0.001))
+        phase += 2 * math.pi * (95 + 8 * math.sin(2 * math.pi * 7 * t)) / RATE
+        whirr = (math.sin(phase) + 0.35 * math.sin(2 * phase + 0.7)) * 0.18
+        r = rattle_lp(noise)
+        r -= rattle_hp(r)
+        rattle = r * (0.5 + 0.5 * math.sin(2 * math.pi * rate * t)) * 0.35
+        out.append(math.tanh((c * 1.2 + whirr + rattle) * 1.3))
+    # No fade at the ends (played back to back); only the first and last millisecond eased.
+    peak = max(abs(v) for v in out) or 1.0
+    e = int(RATE * 0.001)
+    return [v * 0.8 / peak * min(1.0, (i + 1) / e, (n - i) / e) for i, v in enumerate(out)]
+
+
+def grapple_taut():
+    """The grapple's rope snapping taut (a fall caught, a swing's end, a load taking the strain): a low twang of the
+    rope (a short sagging tone), the hook's metal chinking and a dull creak."""
+    rng = random.Random(433)
+    n = int(RATE * 0.35)
+    table = ((780, 0.5, 0.03), (1330, 0.35, 0.02), (2210, 0.2, 0.012))
+    creak_lp, creak_hp = OnePole(900), OnePole(250)
+    phase = [0.0]
+    tw = 0.0
+    out = []
+    for i in range(n):
+        t = i / RATE
+        noise = rng.uniform(-1, 1)
+        tw += 2 * math.pi * (70 + 50 * math.exp(-t / 0.05)) / RATE
+        twang = (math.sin(tw) + 0.4 * math.sin(3 * tw)) * math.exp(-t / 0.12) * min(1.0, t / 0.003)
+        chink = partials(t, 1.0, table) * min(1.0, t / 0.0003)
+        c = creak_lp(noise)
+        c -= creak_hp(c)
+        creak = c * (0.6 + 0.4 * math.sin(2 * math.pi * 31 * t)) * math.exp(-t / 0.08) * 1.5
+        out.append(math.tanh((twang * 1.1 + chink * 0.6 + creak + thud(t, phase, 50, 60, 0.06) * 0.6) * 1.4))
+    return finish(out, 0.85)
+
+
 def read_wav(path):
     """A 16-bit mono WAV's samples, -1..1."""
     with open(path, "rb") as f:
@@ -680,6 +741,8 @@ def main():
         "torch_out.wav": torch_out,
         "torch_light.wav": torch_light,
         "torch_hit.wav": torch_hit,
+        "grapple_reel.wav": grapple_reel,
+        "grapple_taut.wav": grapple_taut,
     }
     only = sys.argv[2:]  # optional: just these
     for name, make in sounds.items():
