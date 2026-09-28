@@ -660,6 +660,9 @@ AUTHORED_DEPTH = 0.4
 # the finer relief, so that on average the surface stays where the mesh is and the paint never slides further than
 # the relief itself is deep.
 HEIGHT_BROAD = 0.35
+# Deeper relief is compressed towards this (model units; d -> cap * tanh(d / cap)): parallax walks leather and skin a
+# few millimetres deep, not the centimetres a rim's height over a sunk base would shift them at grazing angles.
+HEIGHT_CAP = 0.12
 
 
 def texel_size(raster):
@@ -683,8 +686,9 @@ def owners(raster):
 def finish_heights(raster, h, supersample=2, depth=AUTHORED_DEPTH, broad=HEIGHT_BROAD):
     """The map's alpha (h, w) 0..1 from each entry's height h (model units, up out of the surface): the owners' mean
     per pixel, box-filtered down by `supersample`, its broad forms (over `broad` units) taken out, then the top of
-    the relief (its 95th percentile: the few highest parts, a strap's or a rim's top, stay at the surface) at 1 and `depth` units under it at 0; 1 outside the islands (the engine raises the
-    islands' rims to the top too, TexMgr_SetHeightMask). None when there is no relief."""
+    the relief (its 95th percentile: the few highest parts, a strap's or a rim's top, stay at the surface) at 1 and
+    `depth` units under it at 0, deeper relief compressed towards HEIGHT_CAP; 1 outside the islands (the engine raises
+    the islands' rims to the top too, TexMgr_SetHeightMask). None when there is no relief."""
     npx = raster.w * raster.h
     w = owners(raster)
     acc = np.zeros(npx)
@@ -703,7 +707,8 @@ def finish_heights(raster, h, supersample=2, depth=AUTHORED_DEPTH, broad=HEIGHT_
         px = float(np.median(texel_size(raster))) / (raster.scale / f)  # model units per map pixel
         img = img - blur(img, broad / max(px, 1e-9), cov)
     top = np.percentile(img[cov], 95.0)
-    a = np.clip(1.0 - (top - img) / depth, 0.0, 1.0)
+    d = np.maximum(top - img, 0.0)
+    a = np.clip(1.0 - HEIGHT_CAP * np.tanh(d / HEIGHT_CAP) / depth, 0.0, 1.0)
     a[~cov] = 1.0
     if np.all(a[cov] >= 254.5 / 255.0):
         return None

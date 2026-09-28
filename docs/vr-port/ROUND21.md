@@ -7082,3 +7082,146 @@ replaced by a line saying so.
       are what you add to the measurement. Calibrate again: your tweaks stay; Reset Tweaks clears them.
 - [ ] Hotspots > Hip X and Upper X: go negative. The holsters go round your hips and ribs to your back; reach back for
       a gun and put it back there.
+
+## Authored bumps on the body; parallax for authored models
+
+His note (firing range): the new bump maps look good, but they seem to be only on the hands; he wanted them on the
+bracers and the body too, parallax working with them from the same data, and a separate parallax slider for the
+authored models.
+
+### Why the body and the bracers showed no bumps
+
+I reproduced it with his settings (`ironwail.cfg`: athletic build, body mode 3, no armour, so skin 0; skin 8 was
+checked with `give a 150`). Each candidate cause:
+
+- **The map is found and drawn.** Every skin and build has its map: skin 0's for skins 0-3, skin 4's for 4-15
+  (`Mod_MD5SharedNormalMap`). The GPU-skinned body is drawn by the same alias shader as the hands, at the authored
+  strength. With `vr_normalmap_authored` set to 0, 1 and 2, the body changes in every view. A body without wounds
+  has no wound mask, so the wounds' fill (`flatten`) does nothing to it.
+- **The real cause was the map's content.** It was baked from `make_vrbody.py`'s own paint (the generator's texels),
+  not from the skins he repainted (24fa2de6):
+  - **Vest:** the map had 18 padded channels running down it, where he painted padded bands running across.
+  - **Missing relief:** his painted arm muscles and veins, the folds of the vest and trousers, and the bracers'
+    leather had none.
+  - **Arms:** only broad forms (a muscle about 10 cm across), which read as shading, not bumps.
+  - **Bracers:** rims 4.6 mm high, straps 3 mm and stitches 1 mm, under dark paint. In the first-person view the left
+    bracer is mostly under the gadget and its strap.
+
+  So the relief either ignored his paint or contradicted it. In his config the two first-person images (map at
+  strength 1 against 0) differed by 0.1-0.6 levels on average.
+  - **Worse than before:** the load-time map it replaced follows his paint, so it showed more relief (see
+    `body_front_torch.png` below).
+  - **The hands:** their map grooves his painted creases, which is why they were the only part that looked bumped.
+- **Parallax:** the baked maps had no alpha. The engine reads an authored map's alpha as its heights (255 means
+  flat), so model parallax walked a flat height field and nothing moved.
+
+### What changed
+
+- **The body's relief follows his paint** (`normalbody.py`, both body maps):
+  - **Vest:** padded bands across, between his stitched rows. The channels are gone.
+  - **His painted shading becomes forms**, at a strength per block:
+    - arms: muscles and veins;
+    - vest and trousers: folds;
+    - boots and bracers: leather.
+  - **Details from his paint:** his dark lines become grooves (`painted_lines`) and his small bright spots become
+    rivets (`painted_dots`).
+  - **Two skins:** the clothes map is baked from skin 0 and the armour map from skin 4 (a TGA reader, numpy only). His
+    skins are read, never written.
+- **Bracers, stronger:**
+  - rolled rims 8 mm high at both ends, with stitch rows inside them 2 mm deep;
+  - straps 6 mm high, slightly crowned, with stitched edges;
+  - raised buckle frames, each with a hollow and a prong;
+  - a rivet on each side of each buckle.
+- **Heights in alpha, for every baked map** (`normalbake.finish_heights`). The alpha is the relief the normals are
+  bent by:
+  - **Broad relief left out:** anything broader than 0.35 units stays in the normals only.
+  - **The surface:** alpha 255 sits at the relief's 95th percentile, so on average the surface stays where the mesh
+    is.
+  - **Depth:** alpha 0 is 0.4 model units below the surface (`AUTHORED_DEPTH`). Deeper relief is compressed towards
+    0.12 units (`HEIGHT_CAP`).
+  - **Outside the islands:** alpha is 255.
+  - **Units per recipe:**
+    - hands and body: their own heights in units;
+    - generated models and view models: their heights in texels, times each face's texel size.
+  - **Only the alpha changed on the others:** every map except the two body maps keeps its RGB byte for byte and
+    only gains alpha.
+  - **The bake is reproducible:** baking again gives the same bytes.
+  - **Format:** this changes the format in "Baked normal maps" (no alpha before). An authored map's alpha is now its
+    heights, 255 the surface.
+- **Engine:**
+  - **Which heights a map has** (`TexMgr_NormalMapParallax`): none, made or authored.
+  - **Authored depth:** an authored map with heights is carved to its baked depth times `vr_parallax_authored`
+    (`VR_ParallaxDepth`, `AUTHORED_HEIGHT_DEPTH` 0.4). This is independent of `vr_parallax_models`, which still
+    applies to the made heights of id's skins.
+  - **Maps without heights:** a map whose alpha is all 255 is marked `NORMALMAP_FLAT` and walks no rays.
+  - **Seams:** authored heights rise to the top at the skin's island edges, as made heights do
+    (`TexMgr_AuthoredHeights`).
+  - **Shader:** authored heights are real and have steep edges, so the shader walks them with all of
+    `vr_parallax_steps` instead of half. It also fades them out sooner at grazing angles: from 37 to 60 degrees off the
+    triangle, instead of 50 to 70.
+- **Menu:** Graphics > "Parallax Depth: Authored Models" (`vr_parallax_authored`, from 0 to 2). It needs Parallax on.
+- **Default 1 (as baked), chosen by eye.** I looked at the hands, body, bracers, gadget, flashlight, shotgun and
+  rocket launcher close up in the eye view at 0, 1 and 2:
+  - **At 1:** buckles and rims stand out from the leather, stitches sink, and the knuckles' creases and the
+    flashlight's knurling deepen, with no swimming.
+  - **At 2:** the worst view, the bracer's cuff seen end-on beside the gadget, smears the buckle's paint. At 1 it
+    only shifts a little.
+  - **Why not off, as round 14 decided for 8-bit skins:** round 14 turned model parallax off because the heights
+    were guessed from the paint. These heights are the real shape, so they belong on.
+- **His config:** `vr_parallax 1` (already on in his config) is enough; his `vr_parallax_models 0.25` still applies
+  to the monsters.
+
+### Evidence
+
+The composites are in the scratchpad, `bumpbody/composites/`, all `-Base qbase` with his look settings:
+
+- **Body and bracer sheets:** four columns: the load-time map, the previous baked map, the new map with parallax
+  off, and the new map with parallax on.
+  - `body_front_torch`, `body_front_maplight`: the Body Preview from the front, in the head torch and in the map's
+    light.
+  - `body_side_torch`: from the side. The torch lights it from the side.
+  - `bracer_torch`, `bracer_maplight`, `bracer_torch_zoom`: a raised forearm, close.
+  - `fp_forearm_torch`, `fp_forearm_sidelight`, `fp_lookdown`: in the eye view.
+- **Parallax sheets:** three columns, `vr_parallax_authored` at 0, 1 and 2.
+  - `hands_p012`;
+  - `gadget_top_p012`, `gadget_wrist_p012` (the worst case, above);
+  - `flashlight_p012`;
+  - `shotgun_p012`, `rocket_p012`.
+- **Swimming:** `swim_bracer_3frames`, `swim_hand_3frames`, `swim_shotgun_3frames`. Parallax on, the view or the
+  hand moving 3 mm and half a degree a frame. The relief holds still: no shearing and no sparkle.
+- **Seen:**
+  - **Arms:** now show his muscles and veins, where the previous map gave smooth arms.
+  - **Vest:** its padded bands read across it.
+  - **Bracers:** stitched strap edges, rims, buckles and rivets, where before there were flat bands.
+  - **Against the load-time map:** as much relief as it had, and cleaner (no blotches from the paint's colours).
+
+**Cost** (exclusive runs, mock 2048², e1m1, both arms, bracers, hands, gadget and shotgun in the head torch, two runs
+of 6000 frames each way):
+
+| | Left eye | Right eye | Both eyes |
+|---|---|---|---|
+| Alias pass, `vr_parallax_authored 0` | 0.045 ms | 0.049 ms | |
+| Alias pass, `vr_parallax_authored 1` | 0.052 ms | 0.055 ms | |
+| Eyes' GPU time, 0 → 1 | | | 0.83 → 0.85 ms a frame |
+
+Memory: none. Every model normal map was already RGBA8 on the GPU.
+
+### Not verified
+
+- **In the headset:** at 2064 × 2208 and in motion, beyond the 3 frames of slow motion in the mock.
+- **The Blender add-ons:** Export and Bake Normal Map call the same `normalmaps.bake` and now write RGBA. I did not
+  run them in Blender this time, and I didn't check that an imported map's alpha leaves the material alone.
+- **A model pack's `_norm` with alpha** (DarkPlaces' convention) is now carved by `vr_parallax_authored` at 0.4 of
+  its units. DarkPlaces scales its offset mapping differently, so a pack may want another depth.
+- **The first-person bracer's length:** in the eye view the forearm reads as bare almost to the wrist, and the bracer
+  as a short cuff, partly under the gadget. I didn't look into it (another agent owns the arms).
+- **A map reloaded by `vid_restart`** gets no island rims, as with made maps.
+
+### In the headset
+
+- [ ] Look at your forearms in the torch and near a muzzle flash: the bracers' rims, stitched straps, buckles and
+      rivets; the arms' muscles and veins?
+- [ ] Look down at the vest, and at Body Preview: padded bands across, following your paint?
+- [ ] Graphics > Parallax Depth: Authored Models at 0, 1 and 2, turning a bracer, a hand and the shotgun close to
+      your eyes: does the relief sink and stand without swimming, and is 1 right?
+- [ ] The gadget on your wrist, looked at from the hand along the forearm: does the bracer's buckle smear?

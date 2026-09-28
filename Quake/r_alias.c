@@ -751,7 +751,13 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 	authored = TexMgr_NormalMapAuthored (paliashdr->gltextures[e->skinnum >= 0 && e->skinnum < paliashdr->numskins ? e->skinnum : 0][0]); // QVR
 	instance->glow[1] = (VR_ModelLightParity () ? 1.f : -1.f) * (1.f + VR_ModelBumps (e, authored)); // QVR: the shader's shading on a par with the world (+), its bumps (vr_normalmap_models)
 	instance->glow[2] = VR_EntityFullbrightBoost (e); // QVR: the held weapons' sights glow (vr_weapon_glow)
-	instance->glow[3] = mode == ALIAS_STANDARD ? VR_ParallaxDepth (e, model_matrix, paliashdr->scale, TexMgr_NormalMapParallax (paliashdr->gltextures[e->skinnum >= 0 && e->skinnum < paliashdr->numskins ? e->skinnum : 0][0])) : 0.f; // QVR: its parallax depth in units (an authored map's heights: vr_parallax_authored)
+	if (mode == ALIAS_STANDARD) // QVR: its parallax depth in units; an authored map's heights (vr_parallax_authored) negative: the shader walks them in all the world's steps
+	{
+		int heights = TexMgr_NormalMapParallax (paliashdr->gltextures[e->skinnum >= 0 && e->skinnum < paliashdr->numskins ? e->skinnum : 0][0]);
+		instance->glow[3] = VR_ParallaxDepth (e, model_matrix, paliashdr->scale, heights) * (heights == 2 ? -1.f : 1.f);
+	}
+	else
+		instance->glow[3] = 0.f;
 	memset (instance->surface, 0, sizeof (instance->surface)); // QVR: rim light and reflections (vr_rim_light, vr_weapon_reflections)
 	if (mode == ALIAS_STANDARD && !r_fullbright_cheatsafe && !r_lightmap_cheatsafe) // QVR
 		VR_AliasSurface (e, instance->surface); // QVR

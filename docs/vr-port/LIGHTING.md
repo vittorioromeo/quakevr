@@ -281,6 +281,7 @@ textures are filtered smoothly; and `r_shadow_gloss 2` gives dynamic lights a fa
 | `vr_normalmap_baked` | 1 | (not in presets; nothing without `vr_normalmaps`) |
 | `vr_parallax` (see Parallax below) | 1 (0 on Low) | 0 |
 | `vr_parallax_depth`, `vr_parallax_distance`, `vr_parallax_steps`, `vr_parallax_items`, `vr_parallax_models` | 3, 512, 16, 1.5, 0 (0.75 before round 14) | (not in presets) |
+| `vr_parallax_authored` (round 21: models with authored maps carrying heights) | 1 (as baked) | (not in presets) |
 | `vr_bloom_white`, `vr_bloom_color` | 0.5, 1.5 | (bloom off) |
 | `vr_flash_scale`, `vr_explosion_light_scale` | 1, 1 (were 1.8, 1.5; a config holding those takes 1) | 1, 1 |
 | `vr_projectile_lights`, `vr_weapon_screen_light`, `vr_weapon_glow` | 1, 1, 1 | 0, 0, 0 |
@@ -534,6 +535,23 @@ with its own dial.
   when drawn sharp), and luminance isn't the skins' shape: it looked like the skin swimming. The bumps on the models'
   own light give them relief instead. When on, it now fades out from 50 to 70 degrees off the triangle (a model's
   sides are grazing all round). See ROUND14.md, "Model bumps and parallax".
+- **Round 21: authored heights** (ROUND21.md, "Authored bumps on the body; parallax for authored models"). A model
+  whose skin has an authored normal map with heights in its alpha (Quake VR's own: the hands, the body, the gadget,
+  the flashlight, the weapons, baked by `bake_normals.py`; a model pack's `_norm` with alpha) is carved by those
+  heights, not guessed ones: `TexMgr_NormalMapParallax` says which heights a skin's map has (none, made, authored);
+  `VR_ParallaxDepth` gives an authored one `AUTHORED_HEIGHT_DEPTH` (0.4 model units at alpha 0, the baker's
+  `AUTHORED_DEPTH`) times `vr_parallax_authored` (Graphics > "Parallax Depth: Authored Models", 1 as baked, 0 off),
+  independent of `vr_parallax_models`, which keeps the made heights of id's skins. A map whose alpha is all 255 (no
+  alpha, or flat) is marked `NORMALMAP_FLAT` on loading and walks no rays at all. Authored heights get the same rim
+  at the skin's island edges as made ones (`TexMgr_AuthoredHeights`, from `TexMgr_SetHeightMask`). The bake keeps
+  relief broader than 0.35 units (a muscle, a whole padded band) in the normals only, and the surface (alpha 255) at
+  the 95th percentile of the relief, so on average the skin stays where the mesh is, and compresses deeper relief
+  towards 0.12 units (`HEIGHT_CAP`: a rim's height over a sunk base would otherwise slide the paint by centimetres at
+  grazing angles). Authored heights are real and steep (a strap's edge), so the alias shader walks them with the
+  world's steps (`vr_parallax_steps`, not half; the instance's depth is sent negative to say so) and fades them out
+  sooner at grazing angles (from 37 to 60 degrees off the triangle, instead of 50 to 70). Cost (mock 2048², e1m1,
+  both arms, bracers, hands, the gadget and the shotgun in the head torch, exclusive, two runs each, 6000 frames):
+  the alias pass 0.045 / 0.049 → 0.052 / 0.055 ms (left / right eye), the eyes 0.83 → 0.85 ms a frame.
 
 ## Deluxemaps: the baked light's real direction (round 17)
 
