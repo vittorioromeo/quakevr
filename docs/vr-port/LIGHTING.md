@@ -352,12 +352,18 @@ light a surface almost straight on, where a tilt of θ only dims it by 1 − cos
   blurs), 0.5 s for e1m1's 118 skins; none per frame.
 - **Authored maps** (`Mod_LoadNormalMap`): an alias skin looks for `progs/<model>.mdl_<skin>_norm` (DarkPlaces'
   names; a group's frames `_<skin>_<frame>`), then `_bump` (a height map: white high), then skin 0's (all skins share
-  the texture coordinates); an MD5 mesh's skin `progs/<shader>_<ss>_<ff>_norm` / `_bump`, then
-  `progs/<shader>_00_00_*`. Any of Ironwail's image formats (tga, png, jpg, pcx, lmp). They work under Quake's 8-bit
+  the texture coordinates); an MD5 mesh's skin `progs/<shader>_<ss>_<ff>_norm` / `_bump`, then the nearest earlier
+  skin's that has one (`Mod_MD5SharedNormalMap`: the body's armour skins 04-15 take `vrbody_04_00_norm`), then
+  `progs/<shader>_00_00_*`. One file serves all the skins that use it with one texture (`TexMgr_LoadNormalMap` finds
+  it by name among the model's). Any of Ironwail's image formats (tga, png, jpg, pcx, lmp). They work under Quake's 8-bit
   skin as under a full-colour replacement. They are marked `NORMALMAP_FILE`; the alias instance's `AO.z` carries the
   map's strength (`VR_ModelNormalMapScale`): a made map's `vr_normalmap_strength`, an authored one's
   `vr_normalmap_authored` (1: as authored; Graphics > "Authored Model Bumps"), and authored maps are not halved on
-  held weapons and hands (`VR_ModelBumps`). `BumpedNormalK` is `BumpedNormal` with the strength passed in.
+  held weapons and hands (`VR_ModelBumps`). `BumpedNormalK` is `BumpedNormal` with the strength passed in, and
+  (round 21, "Baked normal maps") a frame whose two axes are each of unit length, as a baker's tangent frame has them:
+  the world's keeps them scaled together (the longer one unit), which on a 512 x 178 skin made a slope along its long
+  side a third as steep. Quake VR's own models ship baked maps (`Misc/quakevr/bake_normals.py`), written in exactly
+  this frame.
 - **External full-colour skins** (`Mod_LoadExternalSkin`): `progs/<model>.mdl_<skin>` (DarkPlaces' names, as model
   packs ship them) replaces the 8-bit skin, mipmapped, with `_glow` or `_luma` as its fullbrights (else the 8-bit
   skin's own). Player colours still use the 8-bit skin. Its normal map is made from it (or authored) once the

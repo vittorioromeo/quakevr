@@ -606,13 +606,21 @@ QVR_TONE_GLSL
 "// The normal n bent by a normal map (tangent space, green up; `strength` deepens it: LightTweak.w, or a model's own), in the frame the texture\n"\
 "// lies in on the surface: a cotangent frame from the derivatives of the position and texture coordinates, exact on\n"\
 "// the world's flat faces, the same in both eyes. The derivatives come from the caller (taken before any discard).\n"\
-"vec3 BumpedNormalK(sampler2D tex, vec2 uv, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy, vec3 n, float strength)\n"\
+"// QVR: `axes` (models) makes t and b each of unit length, as a baker's tangent frame has them (Blender's): model\n"\
+"// skins are rarely square (512 x 178), and scaled together, a slope along the long side came out a third as steep.\n"\
+"vec3 BumpedNormalFrame(sampler2D tex, vec2 uv, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy, vec3 n, float strength, bool axes)\n"\
 "{\n"\
 "	vec3 dp2perp = cross(dpdy, n);\n"\
 "	vec3 dp1perp = cross(n, dpdx);\n"\
 "	vec3 t = dp2perp * duvdx.x + dp1perp * duvdy.x;\n"\
 "	vec3 b = dp2perp * duvdx.y + dp1perp * duvdy.y;\n"\
 "	float k = inversesqrt(max(max(dot(t, t), dot(b, b)), 1e-24));\n"\
+"	if (axes)\n"\
+"	{\n"\
+"		t *= inversesqrt(max(dot(t, t), 1e-24));\n"\
+"		b *= inversesqrt(max(dot(b, b), 1e-24));\n"\
+"		k = 1.0;\n"\
+"	}\n"\
 "	vec4 s = textureGrad(tex, uv, duvdx, duvdy);\n"\
 "	vec2 m = s.xy * 2.0 - 1.0; // x and y (RG8): z makes it unit length\n"\
 "	float z = sqrt(max(1.0 - dot(m, m), 0.0025));\n"\
@@ -625,9 +633,13 @@ QVR_TONE_GLSL
 "	m *= strength;\n"\
 "	return normalize((t * m.x - b * m.y) * k + n * z);\n"\
 "}\n"\
+"vec3 BumpedNormalK(sampler2D tex, vec2 uv, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy, vec3 n, float strength)\n"\
+"{\n"\
+"	return BumpedNormalFrame(tex, uv, duvdx, duvdy, dpdx, dpdy, n, strength, true);\n"\
+"}\n"\
 "vec3 BumpedNormal(sampler2D tex, vec2 uv, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy, vec3 n)\n"\
 "{\n"\
-"	return BumpedNormalK(tex, uv, duvdx, duvdy, dpdx, dpdy, n, LightTweak.w);\n"\
+"	return BumpedNormalFrame(tex, uv, duvdx, duvdy, dpdx, dpdy, n, LightTweak.w, false);\n"\
 "}\n"\
 "\n"\
 "// The baked light on the bumps (vr_normalmap_baked: LightTweak.y): a light from a guessed direction, towards where\n"\

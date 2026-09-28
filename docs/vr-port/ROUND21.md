@@ -5845,3 +5845,160 @@ Exclusive runs, mock headset, the e1m1 start, the torch on and pointed at the he
       it stay on, with no jump?
 - [ ] The cord stretched, slack, swinging, behind the gun and your hand: springy enough? Too thick or too thin? Try
       Plain too.
+## Baked normal maps
+
+The author, after the model bump maps: give our own models real shape detail baked from geometry, not guesses from
+paint. "Never compromise on quality."
+
+**What ships** (`quakevr/progs`, 30 maps, 5.5 MB of PNG; tangent space, green up the image, linear 8-bit RGB, blue a
+real z, no alpha):
+
+| Model | Map | Size | What it carries |
+|---|---|---|---|
+| The jointed hand (all 4 skins) | `hand_rig_00_00_norm.png` | 1024² (2× the skin) | knuckles over the joints, the extensor tendons and two veins on the back, the nails (plate, fold), the pads of the palm, the fingers and the thumb's ball, knuckle bulges; the creases, wrinkles and nail folds painted into the skin as grooves |
+| The body, all three builds, skins 00-03 | `vrbody_00_00_norm.png` | 1024² (4×) | muscles of the bare arms (deltoid, biceps, triceps, the elbow, the forearm); the quilted vest (padded channels, stitched rows), laced front, side seams, yoke, rolled collar; the belt with its buckle, loops and stitched edges; the trousers' stitched seams and folds; the ridged, riveted thigh plates; the boots' straps, buckles, turned-down tops, welts, laces; the bracers' rims, stitches and buckled straps; the face's nose, brows, eye sockets |
+| The body, skins 04-15 (the armours) | `vrbody_04_00_norm.png` | 1024² | the same, the torso as the five overlapping lames of the armour, rolled edges, rivets, the front closure, the side straps |
+| Flashlight, wrist gadget and strap, shell, holster, pauldrons | `<model>.mdl_0_norm.png` | 4× | rounded edges, faceted tubes made round; the flashlight's knurled tube, finned head, ribbed cap, crowned grip rings, stippled rubber; the gadget's parting line; the strap's webbing and stitched edges; the shell's ribs and primer; the holster's stitching and leather; the pauldrons' quilting and rivets |
+| The 20 view models `v_*.mdl` | `<model>.mdl_0_norm.png` | 2× (4× under 256 wide) | rounded edges, faceted tubes made round, the painted panel lines grooved, painted rivets raised, wood grained along its painted streaks (the axe: its handle; its head's blood is no wood) |
+
+- The lean and brawny bodies draw their skins with the same texture coordinates as the athletic one (checked on
+  every bake), so one map serves the three builds; `vr_body_build` and runtime segment scaling don't need their own.
+- The engine names: an alias model's skins read `progs/<model>.mdl_0_norm` (skin 0's serves all); a body skin without
+  its own map now takes the nearest earlier skin's (`Mod_MD5SharedNormalMap`), so skin 04's serves the 12 armoured
+  skins.
+
+**How it bakes** (`Misc/quakevr/bake_normals.py`; the code is in the models' add-on so its button runs the same:
+`quakevr_models/normalmaps.py`, `normalbake.py`, and the recipes `normaldetail.py`, `normalbody.py`,
+`normaltiles.py`; numpy only, about 110 s for all 30 maps):
+
+- **In the engine's own frame.** `normalbake.Raster` rasterises every triangle into the map's texels (2× supersampled,
+  then box-filtered) and builds, per texel, the frame the shader builds from the screen derivatives: t along which u
+  grows, b along which v grows, both perpendicular to the interpolated normal (the file's: anorms for an .mdl, the
+  engine's own welded area-weighted normals for an MD5), mirrored islands included. The wanted normal is encoded in
+  that frame exactly (0.01° on decoding), whatever the UVs' shear or stretch.
+- **Shapes from the mesh:** each face's normal as the facets stand for it (averaged with the faces round each corner
+  within 35°: a 12-sided tube is round, a box stays a box), and each hard crease (the faces' normals split) rounded
+  over about 1.6-1.8 skin texels, turning half way to the other face (at most 32°) at the edge.
+- **The hand's forms from its rig:** the joints are the rings of vertices at them (where the author's edit put them),
+  each finger's axis and dorsal side from them; knuckles, tendons, veins, pads, nails are heights in space round those
+  (the same on both sides of a UV seam, so no seam shows), bent into the normal by their surface gradient. The skin's
+  painted creases (dark lines at least a few texels long, stronger the longer) become grooves: the relief follows his
+  paint, the mesh and the skin are never changed.
+- **The body from its generator:** `make_vrbody.py` paints each block texel by texel (`vest_texel`, `armor_texel`,
+  `arm_texel`...); `normalbody.py` raises the same places (the same `around(bu, ...)` bands, rows and dashes) in Quake
+  units through each texel's own surface scale.
+- **The generated models' tiles:** every face of one of their materials maps onto that material's tile, so a tile's
+  relief is on every face drawn from it; `normaltiles.py` raises what each generator paints on its tiles (the
+  flashlight's knurling where `paint()` cuts it, its fins, ribs...), in texels, the same slope on every face. Their
+  dithered paint is left out (speckle is no shape).
+- **The view models' paint:** dark seams become V grooves, small bright spots rivets, wood its grain (the paint's
+  streaks drawn out along their own direction, clean of the dither).
+- **Shared texels:** a texel drawn by several triangles (a weapon's two sides, the body's left and right limbs, a tile's
+  faces) takes each triangle's normal; the owners are the triangles drawing it at the least magnification (within 2×:
+  a cap's fan or a screw's side squeezed onto a whole tile has no say); where the owners disagree by more than 6°
+  their mean fades to flat by 14°.
+- **Margins:** 8 texels round every island (mean of the covered neighbours, ring by ring).
+
+**Engine** (small):
+
+- `BumpedNormalK` (models only) normalises its frame's two axes each, as bakers do (Blender's MikkTSpace): scaled
+  together (the longer one unit), a slope along a 512 × 178 skin's long side came out a third as steep. The world's
+  `BumpedNormal` is unchanged. The made maps of non-square skins now read as made (in texels, both ways alike).
+- `Mod_MD5SharedNormalMap`: a body skin without a map takes the nearest earlier skin's; the skin's own name is passed
+  (it was its `_luma`'s for 32-bit skins).
+- `TexMgr_ShareNormalMap`: an authored file serves every skin of its model with one texture, and isn't even read
+  again (the hand's 4 skins, the body's 16, a model's skins).
+- `developer 1` prints each authored map's load time beside its name.
+
+**In Blender** (MODELS_IN_BLENDER.md and HANDS_IN_BLENDER.md, "Normal maps"):
+
+- Import shows the map on the model (a Normal Map node into the material's Normal).
+- After an edit it's one step: Export bakes the map again from the file it just wrote (on by default), or **Bake
+  Normal Map** in the Quake VR panels. Then `vr_model_reload` / `vr_hand_reload` (both re-read the map: checked by
+  swapping the file under a running game).
+- **A high poly of his own:** select it, then the model, Bake Normal Map: Cycles bakes its normals in the model's
+  object space, a layer at a time where the model's triangles share texels, and they are written in the engine's frame;
+  the recipe's relief is laid on it unless Add Details is off.
+- **The guard:** the maps are registered in `generated.json` (`genguard.py`). A map painted or baked from a high poly
+  since is left alone by the script (`--keep-edited`, `--force`) and by the add-ons (Overwrite Edited Map). The script
+  bakes everything before writing anything, so a failure leaves the maps as they were.
+
+**Verification** (composites in the scratchpad, `bakenorm/composites/`; the shots in `bakenorm/shots/`):
+
+- **Frame and handedness:**
+  - `frame_domes_hand.png`: domes in texel space (tests the engine's decoding) and in 3D through the baker's frame
+    (tests the encoding), lit from the left: convex everywhere, continuous across the fingers' and palm's seams.
+  - `frame_domes_mirrored_shotgun.png`: the same on the shotgun, whose two sides are mirrored halves of its skin: both
+    sides convex, lit the same way. `frame_domes_mirrored_body.png`: the arms, which share their texels.
+  - Against Blender's own baker (Cycles, the low poly subdivided as a high poly, tangent and object space; the
+    engine's reading of Blender's tangent map against Blender's object-space truth, texels drawn by one triangle):
+
+    | | Engine before (axes scaled together) | Engine now (each unit) | This baker |
+    |---|---|---|---|
+    | Hand (512² skin): median / 95% / 99% error | 0.72° / 4.9° / 12.7° | 0.39° / 3.2° / 9.7° | 0.00° / 0.01° / 0.02° |
+    | Nailgun (512 × 178): median / 95% | 3.37° / 39.7° | 1.83° / 36.1° | 0.00° / 0.01° |
+    | Rocket launcher (512 × 194): median / 95% | 3.31° / 15.8° | 1.49° / 14.5° | 0.00° / 0.01° |
+
+    Blender's tangent maps now read about right on smooth, square-textured meshes; on the hard-edged, faceted view
+    models MikkTSpace's smoothed tangents differ from the per-pixel frame by tens of degrees at the creases, which is
+    why the add-on bakes a high poly in object space and encodes it here.
+- **Load-time maps against baked** (mock eyes 1536², e1m1; left load-time, right baked; `*_qbase.png`, and
+  `-Base qrp` in `*_qrp.png`):
+  - `hands_*`: both hands, the left's back and the right's palm, then the other way round; each in the map's light,
+    the head torch (head-on) and the head torch seen from the side.
+  - `body_*`: the body preview from the front in the map's light and the head torch, from its side, from behind with a
+    light behind it.
+  - `gadget_*`: the gadget on the wrist from above (map light, torch) and from the side. `flash_*`: the flashlight in
+    the fist, a light from the side, from above.
+  - `w154_*` shotgun, `w156_*` nailgun, `w160_*` rocket launcher, `w152_*` axe: in the eye view (map light, head
+    torch), from the side (head torch, map light, a light from the side), and the muzzle flash.
+  - Seen: the hands' knuckle wrinkles, tendons and finger creases read cleanly where the load-time maps give blotches
+    of the painted highlights; the vest's quilting, the thigh plates' ridges, the straps and buckles read as shapes;
+    the flashlight's head and the view models' barrels and bands are round instead of faceted, their edges catch the
+    light, their painted panels are grooved; head-on light shows little relief (as it must: 1 − cos θ).
+- **Seams:** `seams_moving_light.png`: the hands under a light moving past in three places: no line at the fingers'
+  and the palm's seams (the heights are in space, the frame is the engine's).
+- **Grain:** `grain_3_frames.png` (the shotgun from the side, moving) and `grain_flashlight_3_frames.png` (the
+  flashlight's finned head and ribbed cap, turning a degree a frame): the relief holds still, no sparkle; the frame
+  differences are the motion's (1.1-1.8 levels, as the load-time maps').
+- **Round trip in Blender** (headless, both add-ons, a copy of the files): import shows the maps (a model, the hand,
+  the body's armour skin); export re-bakes the same bytes as the script for an unchanged model; after a mesh edit the
+  export bakes a different map, and the script bakes the same one from the edited file; the hand's Bake Normal Map
+  gives the script's bytes; a high poly (the shotgun subdivided) bakes in 13 s.
+- **Guard:** painting over `v_axe.mdl_0_norm.png` then baking: refused, nothing written; `--keep-edited` baked the
+  others and kept the painted one; `--force` baked it again.
+
+**Cost** (e1m1, mock, exclusive runs):
+
+| | Load-time maps | Baked maps |
+|---|---|---|
+| Managed textures | 487, 218 normal maps, 56.2 MB | 461, 192 normal maps, 100.8 MB |
+| Normal maps' load time | 115 made, 494 ms | 60 made (monsters, items) 220 ms + 29 authored files 102 ms = 322 ms |
+| Per frame | | two more `inversesqrt` per model pixel with a normal map |
+
+- The 29 authored maps are 56 MB (RGBA8 with mips, as every model normal map is uploaded, the z for the specular
+  anti-aliasing): the hand's 1024² 5.3 MB, the body's two 10.7 MB, the generated models' 4.1 MB, 19 view models
+  36.1 MB (every weapon is precached, the mission packs' too). They replace 55 made maps. RG8 would halve it, at the
+  cost of the sheen's anti-aliasing from the maps.
+
+### Not verified
+
+- **In the headset:** whether the relief reads at arm's length at 2064 × 2208, in motion; the grain check was 3
+  frames of slow motion in the mock.
+- **The world's frame** (`BumpedNormal`) still scales its axes together: a non-square world texture's slopes along
+  its long side are weaker than across it. Not changed here (the world's look would change).
+- **A high poly in the game:** the add-on's Cycles path was tested headless (it bakes, it differs from the recipe's),
+  not looked at in the game.
+- **The view models' hands:** the remaster-style skins paint a gloved hand over half of each skin; where those faces
+  are drawn, they get only their bevels and painted lines.
+- **Shared texels:** where a weapon's two copies of a texel disagree (one next to a crease, the other not), the bevel
+  fades out there (23-38% of the bevelled texels on the nailgun and shotgun).
+
+### In the headset
+
+- [ ] Your hands in the torch and in a muzzle flash: knuckles, tendons, nails and creases, no blotches, no seam lines
+      where the fingers meet the palm?
+- [ ] Look down at your body (and Body Preview): quilting, belt, straps, the thigh plates; with armour, the lames?
+- [ ] The flashlight in your fist and the gadget on your wrist, close: round head and tube, knurling, fins?
+- [ ] The shotgun, nailgun, rocket launcher and axe turned in the torch: rounded edges, panel lines, no sparkle?
+- [ ] Graphics > Authored Model Bumps: 0 flattens them, 2 doubles them: is 1 right?

@@ -462,6 +462,7 @@ enum { NORMALMAP_NONE, NORMALMAP_SHADING, NORMALMAP_AUTHORED, NORMALMAP_HEIGHTS 
 #define NORMALMAP_TYPE(kind) ((kind) & 3)
 struct gltexture_s *TexMgr_LoadNormalMap (struct gltexture_s *base, const char *name, int width, int height, enum srcformat format,
 	byte *data, const char *source_file, src_offset_t source_offset, int kind, int worldwidth);
+struct gltexture_s *TexMgr_ShareNormalMap (struct gltexture_s *base, const char *name, int kind); // QVR: an authored file's texture already made for another skin
 struct gltexture_s *TexMgr_NormalMap (struct gltexture_s *glt); // its normal map, or a flat one
 qboolean TexMgr_NormalMapAuthored (struct gltexture_s *glt); // QVR: whether its normal map is an authored file's (NORMALMAP_FILE)
 qboolean TexMgr_IndexedSmooth (void); // Quake's own textures filtered smoothly (only then do they get heights)
