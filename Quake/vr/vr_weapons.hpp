@@ -21,6 +21,10 @@ void registerCvars();
 
 // Slot whose vr_wofs_id_NN names `model`, or -1.
 [[nodiscard]] int slotForModel(const qmodel_t* model);
+// The slot whose ID is the model named `name` (-1: none), and a key by its name in the cvars ("w_mass"; Key::Count:
+// none): the QC's weaponvalue builtin (vr_builtins.cpp).
+[[nodiscard]] int slotForName(const char* name);
+[[nodiscard]] Key keyByName(const char* name);
 
 // The slot holding progs/hand.mdl: the empty hand, whose settings also place and scale the
 // hand and finger models.
@@ -35,14 +39,22 @@ void registerCvars();
 // A first start (no saved config): its settings are the defaults, of this version (no migration to run on them).
 void markCurrent();
 
-// For the Weapon Offsets menu page: a slot's cvar for a key, its settings back to their defaults, and
-// its settings printed as vr_weapons.inc lines (to make them the shipped defaults).
+// For the Weapon Offsets and Weapon Weights menu pages: a slot's cvar for a key, its settings back to their defaults,
+// and its settings printed as vr_weapons.inc lines (to make them the shipped defaults). Each page resets and prints its
+// own (Part): Weapon Weights the weight's keys (weightKey), Weapon Offsets the others.
+enum class Part
+{
+    All,
+    Offsets,
+    Weights,
+};
+[[nodiscard]] bool weightKey(Key key); // Mass, Balance, Length (Span), the spring's multipliers, the damage multipliers
 [[nodiscard]] cvar_t* cvar(int slot, Key key);
-void resetSlotToDefaults(int slot);
+void resetSlotToDefaults(int slot, Part part = Part::All);
 
 // Forgets the models' slots found (a game directory change reuses their slots).
 void resetCaches();
-void printSlot(int slot);
+void printSlot(int slot, Part part = Part::All);
 [[nodiscard]] glm::vec3 vec(int slot, Key x, Key y, Key z);
 
 // Extra transform of an alias model, in the model's own space: Ironwail's

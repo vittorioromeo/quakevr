@@ -2,8 +2,8 @@
 // (vr_debris.cpp) finds their places at the foot of walls by what the textures are made of; here they are spawned, at
 // the first server frame of a new map (after the map's own entities, so theirs keep their numbers; before the
 // baselines, so a piece lying still costs the network next to nothing), and made carried props like the gibs:
-// gripped, force grabbed, punched with (a rock in the fist: Held Object Offsets' Blunt, vr_melee.qc) and thrown
-// (vr_carry.qc: they hurt what they hit by their speed and mass), Box3D rigid bodies (vr_box3d.cpp) asleep until
+// gripped, force grabbed, punched with (a rock in the fist: Box Punch Damage, its Melee Damage x and its mass, vr_melee.qc)
+// and thrown (vr_carry.qc: they hurt what they hit by their speed, their Throw Damage x and their mass), Box3D rigid bodies (vr_box3d.cpp) asleep until
 // touched. A saved game keeps them as they are (ordinary entities); a new map places its own.
 
 .float vr_debris;       // 1 a rock, 2 a brick
@@ -64,7 +64,7 @@ void(float xSpeed) VR_Debris_Impact =
 };
 
 // Touching what it hits: thrown hard, it hurts it as a thrown box does (forcegrabbable_touch; its base damage is set
-// at the throw from its Blunt and mass: VR_Carry_Release).
+// at the throw, its Throw Damage x and mass at the hit: VR_Carry_Release, VR_Thrown_Damage).
 void() VR_Debris_Touch =
 {
     forcegrabbable_touch();

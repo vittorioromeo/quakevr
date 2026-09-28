@@ -165,7 +165,7 @@ context and screenshot, ready to paste or to point me at.
   - **Rocks and bricks** (ROUND21.md, same title): loose rocks on natural ground (grass, dirt, rock) and at the foot of
     rock and stone walls, bricks at the foot of brick walls, placed at map load where the textures say, more in
     corners, the same places every load (e1m2, e2m2, e4m2, e1m1's outdoor ground). Pick one up, punch with it (a rock
-    or a brick hits harder the heavier it is: Held Object Offsets' Blunt), throw it (it hurts what it hits), force grab
+    or a brick hits harder the heavier it is: Held Object Weights' Melee Damage and the weight's curve), throw it (it hurts what it hits), force grab
     it (a whole brick is a club, held by its end); they knock and clack as they land. Carrying and Gibs > Rocks and Bricks: on/off, Rocks, Bricks, Chance, In
     Corners, In the Dark, Most Together, Most in a Map, Most in an Area, Spacing, Size Variation, Layout. Single player.
     Also fixed: a punch holding a box hit 2.25x, not Box Punch Damage's 1.5x.
@@ -513,9 +513,11 @@ context and screenshot, ready to paste or to point me at.
   - **Melee:** any swing faster than `vr_melee_speed` (3 m/s) hits once, whatever its direction; damage grows
     with speed, and punches (knuckles first) do 25% more (`vr_melee_punch_mult`). Tell me if weak swings still
     hit, or real punches don't.
-  - **Advanced VR Options** (bottom of VR Settings): your old Quake VR settings pages (everything that still
-    exists, with the old ranges and help), plus Body, Throwing and Physics, and Force Grab pages.
-    `menu_vr <n>` opens a page directly.
+  - **Advanced VR Options** (bottom of VR Settings): every settings page, in groups: Game (Play, Combat, Movement,
+    Carrying and Throwing, World, Gore), Body and Weapons (Body, Flashlight, Weapons), Display (HUD and Menus,
+    Graphics), Playtesting (Motion Recorder, Review Takes, Debug); a group of many pages is a page of links. At most
+    three levels below VR Settings (ROUND21.md, "Menus reorganized"). `menu_vr <n>` opens a page directly (through
+    the pages above it, so Back goes up the tree); `menu_vr list` prints the numbers and where each page is.
   - **Posture:** VR Settings > Torso Offset and Legs Offset move the torso and the feet back (or forward)
     separately.
   - **Wrist gadget:** now over the back of the forearm, and it reads like a watch: raise your forearm across your
@@ -568,7 +570,9 @@ context and screenshot, ready to paste or to point me at.
 - **HUD:** the status bar is on the off hand (Options > VR Settings > Status Bar for the main hand); centre
   prints and messages float in front of you. Each weapon shows its ammo (and clip) on the weapon itself.
 - **Crosshair:** Options > VR Settings > Crosshair: a dot, a laser or a soft laser from each muzzle.
-- **VR Settings:** Options > VR Settings (or `menu_vr`) has the comfort, body, weapon and display settings;
+- **VR Settings:** Options > VR Settings (or `menu_vr`) has the tuning pages (Weapon Offsets and Weights, Held
+  Object Offsets and Weights, Hand/Gun and Body Calibration), the comfort and weapon settings, and Body and Display
+  and Headset pages;
   the sticks move and change, A selects, B goes back. "Set Height Now" calibrates the height while standing.
   The buttons at the top left of every menu: Back to game, Advanced VR, Levels (the laser; or a stick's click).
 
@@ -636,7 +640,11 @@ swings the main hand for throwing tests. `vr_particle_seed <n>` (not 0) makes th
 sensors (0..1); a fifth argument sets the index finger's touch on the trigger.
 
 Menus (ROUND21.md, "Menu: scroll memory and shortcuts"): `menu_vr pos` prints the menu shown and, on a VR page, its
-selected row (with the header above it), its scroll and the page Back goes to. `vr_mock_laser back|advanced|levels`
+selected row (with the header above it), its scroll and the page Back goes to. `menu_vr list`: every page's number
+and place in the tree. `menu_vr dump` prints every page reached from VR Settings and its rows (MDPAGE/MDROW lines);
+`python Misc/quakevr/menu_coverage.py before.log after.log` compares two dumps (every setting and action still on a
+page, the tree, pages over 30 rows; ROUND21.md, "Menus reorganized"). Page numbers: 13 Grappling Hook, 23 Weapon
+Offsets, 41 Held Object Offsets, 42 Weapon Weights, 43 Held Object Weights, 44 and on the pages added then. `vr_mock_laser back|advanced|levels`
 (or `<x> <y>` in menu coordinates; `off`) puts the main hand's laser on a corner button or a spot, whatever the hand's
 pose; then `vr_mock_button main trigger 1` / `0` clicks. `vr_mock_button off stickclick 1` / `0` gives the corner
 buttons the selection, `vr_mock_stick off 0 -1` (then `0 0`) moves down, `vr_mock_button main primary` presses;
@@ -849,7 +857,7 @@ grip 1`) and letting go of it in front. Holster a test gun with the grip held: `
 impulse 160` in front, then at the holster `-grabright; vr_mock_button main grip 0`. The main hand doesn't reach the left
 chest holster (`-0.12 1.3 -0.15` gives the two-handed grab): holster there with the off hand (`impulse 176`, `+grableft`,
 `vr_mock_button off grip`); the right chest holster is `vr_mock_hand main 0.12 1.3 -0.15`. The preview: hold the gun,
-`menu_vr 22 "Holstered X"` (menu_vr's row may now be a label's start), `vr_weapon_holster 1..3` picks the kind. The mock
+`menu_vr 23 "Holstered X"` (menu_vr's row may now be a label's start), `vr_weapon_holster 1..3` picks the kind. The mock
 draws the menu over the whole view: `scr_menubgalpha 0` and the camera off to a side (`vr_mock_camera 0.6 1.2 -0.4 4 0`
 with `vr_body_debug 2`) leave the body preview visible on the left. `vr_dumpview` lists each holstered gun's place.
 Runs aren't pixel-identical (particles, the arms' easing, lighting by ones): compare the holstered guns' lines of
@@ -947,8 +955,8 @@ a gib: `impulse 245` in the off hand); `developer 1` prints `gib: hit by thrown_
 Weight (ROUND21.md, "Weight: spring model, stamina, held object offsets; explosive boxes"): `vr_weight_test [csv]`
 runs the spring alone (shotgun, rocket launcher, a 40 kg box; one and two hands; stamina 100/50/25/0; 45/72/90/144 fps)
 and prints lag, overshoot, settling, sag, jitter and the snap (`csv`: every frame into `weight_test.csv`).
-`vr_debug_weight 1` writes each holding hand's target and drawn pose, a line a frame, to `weight_trace.txt` (both
-models; 2: printed too); `vr_debug_weight_stamina <0..1>` sets the stamina the weight sees (-1: the game's). A swing:
+`vr_debug_weight 1` writes each holding hand's target and drawn pose, a line a frame, to `weight_trace.txt` (2:
+printed too); `vr_debug_weight_stamina <0..1>` sets the stamina the weight sees (-1: the game's). A swing:
 `vr_fixed_frames 1`, `impulse 160` with `vr_weapon_grip_mode 1; impulse 9`, a `vr_mock_play` of the main hand (and the
 off hand on the foregrip at `0.09 1.37 -0.83 70 0 0` with `+graboff; vr_mock_button off grip 1` for two hands); the
 scratchpad's `weight/trace_stats.py` and `plot_swings.py` read the trace. The canary takes with the old hand settings:
@@ -958,7 +966,22 @@ dummy); a push: the main hand from `0 1.7 -0.3 70 0 0` to `0 1.7 -1.9` in 1 s; s
 trigger button didn't fire here after `setpos`). `vr_physics_list` with `vr_debug_box3d 1` prints each prop's mass
 (and whether Held Object Offsets set it) and throw share; `vr_physics_forcegrab <what>` whether the force grab may take
 each; `developer 1` prints `explobox: hit at <m/s>` and `explobox: blows up at <where>`. The Held Object Offsets page is
-`menu_vr 40` (its last page).
+`menu_vr 41`.
+Spring only; Weapon Weights and Held Object Weights; weight and damage (ROUND21.md): the pages are `menu_vr 42` (Weapon
+Weights) and `menu_vr 43` (Held Object Weights; `menu_vr <page> <row>` scrolls). `vr_weight_table` prints every weapon's
+and prop's mass, its damage multipliers (the curve, times its own Melee and Throw Damage x) and its speed factor (heavy
+leniency), then the level's other things with their mass as the game has it (Box3D's). `vr_weight_test` takes each
+thing's own spring multipliers (`vr_wofs_w_stiff_07 2` changes the rocket launcher's rows, `vr_prop_damping_01 0.5` the
+box's). A slow heavy club: `vr_weapon_grip_mode 1; impulse 9; impulse 152` (the axe), `vr_wofs_w_mass_01 20` **after**
+the map has loaded (a test base's old `vr_wofs_version` resets the slots at the first lookup), a grunt at
+`vr_test_spawn 0; vr_test_spawn_dist 24; impulse 241` from `setpos 300 -440 45 0 180 0; noclip`, and a `vr_mock_play` of
+the main hand from `0.35 1.35 -0.30 70 35 0` to `-0.25 1.35 -0.45 70 -35 0` in 0.3 s (eased); `vr_weight_lenient 0`
+for the old thresholds. A slow throw of the explosive box: `vr_physics_spawn misc_explobox 150 200; vr_rigid_place
+misc_explobox main 0 3 0; +grabright; vr_mock_button main grip 1`, a grunt at `vr_test_spawn_dist 70`, and the hand from
+`0.15 1.25 -0.25` to `0.15 1.45 -0.75` in 0.12 s, then `button main grip 0` and `-grabright`; `developer 1;
+vr_debug_shots 1; vr_debug_box3d 1` print `box3d: ... misc_explobox hit ... monster_army at <m/s>`, `explobox: thrown
+into monster_army at <u/s>: <damage>` and the damage. The scratchpad's `weights2/plays.py` writes the plays,
+`mkswing.sh` / `mkbox.sh` the scripts, `go.sh` runs one; `oldeval.sh` replays the canary takes with the old hand settings.
 Wall torches (ROUND21.md, "Wall torches you can take"): e1m2's torches are edicts 52 (1706 -206 316: pull it by hand
 from `setpos 1714 -190 312 0 243 0; noclip` with the main hand at `0.0 0.8 -0.6 70 0 0`, `+grabright; vr_mock_button
 main grip 1`, then the hand back 10 cm), 53 (2134 -34 316: force grab it from `setpos 2047 -84 312 0 30 0; noclip` with a

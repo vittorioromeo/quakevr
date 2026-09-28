@@ -133,6 +133,7 @@ float VR_MKIND_PUNCH = 3;  // a fist (any way: jab, hook, uppercut, overhead)
 .vector mh_vgrip;
 .vector mh_vfar;
 .float mh_fast;        // the part's fastest (m/s): the far end, or the grip if faster
+.float mh_lenient;     // heavy leniency: its speed thresholds' factor, from what the hand holds (VR_Weight_Leniency)
 .float mh_whooshed;    // a whoosh played for this motion (until it slows)
 .entity mh_hit_ent;    // the last thing struck (world: none, or a bash or a held gib spent the motion),
 .vector mh_hit_dir;    // the struck part's way then (play space),
@@ -245,6 +246,44 @@ entity(float xHand) VR_Blow =
 float() VR_Melee_MinSpeed =
 {
     return max(0.5, cvar_hget(cvarh_vr_melee_speed));
+};
+
+// Weight (round 21, "Spring only; Weapon Weights and Held Object Weights; weight and damage"): what `xHand` of `p` holds
+// as the weight sees it: a carried prop (Held Object Weights, propvalue) or its weapon (Weapon Weights, weaponvalue; the
+// empty hand's has no mass).
+float(entity p, float xHand) VR_Weight_HeldMass =
+{
+    entity c = VR_Carry_Held(p, xHand);
+    if(c != world)
+    {
+        return propvalue(c, "mass");
+    }
+    return weaponvalue(WeaponIdToModel(VRGetEntWeapon(p, xHand), VRGetEntWeaponFlags(p, xHand)), "w_mass");
+};
+
+// Its melee damage multiplier: its own (Melee Damage x) times the weight's curve (weightdamage: heavy things more).
+float(entity p, float xHand) VR_Weight_MeleeMult =
+{
+    entity c = VR_Carry_Held(p, xHand);
+    if(c != world)
+    {
+        return propvalue(c, "melee_dmg") * weightdamage(propvalue(c, "mass"));
+    }
+    string model = WeaponIdToModel(VRGetEntWeapon(p, xHand), VRGetEntWeaponFlags(p, xHand));
+    return weaponvalue(model, "w_meleedmg") * weightdamage(weaponvalue(model, "w_mass"));
+};
+
+// Heavy leniency: the factor on its strikes' speed thresholds (weightleniency: 1 but for things heavier than every
+// weapon, which can't be swung as fast).
+float(entity p, float xHand) VR_Weight_Leniency =
+{
+    return weightleniency(VR_Weight_HeldMass(p, xHand));
+};
+
+// The least speed of a strike by what blow `b`'s hand holds (m/s): lower for a heavy thing.
+float(entity b) VR_Melee_MinSpeedOf =
+{
+    return VR_Melee_MinSpeed() * (b.mh_lenient > 0 ? b.mh_lenient : 1);
 };
 
 // What `xHand` of `p` holds, as a striking thing.
@@ -595,6 +634,7 @@ float(float xHand, entity b) VR_Melee_Track =
     {
         b.mh_n = 0;
         b.mh_thing = thing;
+        b.mh_lenient = VR_Weight_Leniency(self, xHand);
         b.mh_vnear = b.mh_vgrip = b.mh_vfar = '0 0 0';
         b.mh_fast = 0;
         b.mh_time = now;
@@ -646,6 +686,7 @@ float(float xHand, entity b) VR_Melee_Track =
     b.mh_time = now;
     b.mh_thing = thing;
     b.mh_wid = wid;
+    b.mh_lenient = VR_Weight_Leniency(self, xHand);
     b.mh_fast = max(vlen(b.mh_vfar), vlen(b.mh_vgrip));
     if(same)
     {
@@ -819,7 +860,7 @@ float(entity b) VR_Melee_WristSpeed =
 // only turned.
 float(entity b) VR_Melee_WristMoved =
 {
-    float need = cvar_hget(cvarh_vr_melee_wrist_speed);
+    float need = cvar_hget(cvarh_vr_melee_wrist_speed) * (b.mh_lenient > 0 ? b.mh_lenient : 1);
     if(b.mh_thing == VR_MTHING_FIST)
     {
         need = need * VR_MELEE_WRIST_PUNCH;
@@ -831,7 +872,7 @@ float(entity b) VR_Melee_WristMoved =
 // mh_strength, mh_part and mh_way. FALSE: nothing (too slow, or no blow).
 float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
 {
-    float minSpeed = VR_Melee_MinSpeed();
+    float minSpeed = VR_Melee_MinSpeedOf(b);
     float f = vr_mpt_f[xI];
     vector vp = VR_Melee_PointVel(b, f);
     vector axis = normalize(b.mh_rfar - b.mh_rgrip);
@@ -901,15 +942,6 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
             weight = VR_MELEE_POMMEL_AXE;
         }
     }
-    // A club heavy for its size strikes harder (Held Object Offsets' Blunt: a whole brick; a wall torch has none).
-    if(b.mh_thing == VR_MTHING_CLUB)
-    {
-        float blunt = VR_Carry_BluntMult(VR_Carry_Held(self, xHand));
-        if(blunt > 0)
-        {
-            weight = weight * blunt;
-        }
-    }
     if(cvar("developer") >= 2)
     {
         dprint(sprintf("melee debug: hand %g %s at %s: grip %.1f far %.1f", xHand, VR_Melee_KindName(kind, b.mh_thing),
@@ -959,7 +991,7 @@ void(float xHand, entity b) VR_Melee_Rearm =
     {
         return;
     }
-    float rearm = b.mh_fast < VR_Melee_MinSpeed() * VR_MELEE_REARM_SLOW;
+    float rearm = b.mh_fast < VR_Melee_MinSpeedOf(b) * VR_MELEE_REARM_SLOW;
     if(!rearm && time - b.mh_hit_touch > VR_MELEE_REARM_OUT)
     {
         if(time - b.mh_hit_time > VR_MELEE_REARM_TIME)
@@ -1348,7 +1380,7 @@ string(float xKind, float xThing) VR_Melee_Category =
 // The least speed of a blow by `xHand`'s far end moving along `xVel` (a punch's by its way; a weapon's swing).
 float(float xHand, entity b, vector xVel) VR_Melee_SwingNeed =
 {
-    float minSpeed = VR_Melee_MinSpeed();
+    float minSpeed = VR_Melee_MinSpeedOf(b);
     if(b.mh_thing != VR_MTHING_FIST)
     {
         return minSpeed * VR_MELEE_ARM;
@@ -1362,7 +1394,7 @@ float(float xHand, entity b, vector xVel) VR_Melee_SwingNeed =
 // come from some way off (and a fist closed). The motion recorder's "stroke".
 void(float xHand, entity b) VR_Melee_Whoosh =
 {
-    float minSpeed = VR_Melee_MinSpeed();
+    float minSpeed = VR_Melee_MinSpeedOf(b);
     if(b.mh_fast < minSpeed * VR_MELEE_REARM_SLOW)
     {
         b.mh_whooshed = FALSE;

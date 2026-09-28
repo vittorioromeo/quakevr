@@ -118,7 +118,9 @@ float() VRMeleeDmgQuadMult =
 // Melee: a part of what a hand holds swept into something at vr_melee_speed or more (vr_melee.qc; PlayerVRMeleeImpl
 // in client.qc), in any direction. The damage is the weapon's base times the blow's strength (VR_Melee_Decide: the
 // striking part's speed and the kind of blow; 1 at twice vr_melee_speed, at most VR_MELEE_STRONGEST), a counter's
-// after a parry (VR_Blow_Counter; vr_counter_damage), and short of stamina less (VR_Blow_Exhaust; vr_strike_stamina).
+// after a parry (VR_Blow_Counter; vr_counter_damage), short of stamina less (VR_Blow_Exhaust; vr_strike_stamina), and
+// what the hand holds: its own Melee Damage x times the weight's curve (VR_Weight_MeleeMult: Weapon Weights, Held Object
+// Weights; vr_weight_damage_*).
 
 float(float xHand, float xBase) VRMeleeDmg =
 {
@@ -128,7 +130,7 @@ float(float xHand, float xBase) VRMeleeDmg =
     }
 
     return xBase * VR_Blow_Strength(xHand) * VR_Blow_Counter(xHand) * VR_Blow_Exhaust(xHand) *
-           cvar_hget(cvarh_vr_melee_dmg_multiplier) * VRMeleeDmgQuadMult();
+           VR_Weight_MeleeMult(self, xHand) * cvar_hget(cvarh_vr_melee_dmg_multiplier) * VRMeleeDmgQuadMult();
 }
 
 float(float v) VRMeleeRange =
@@ -4071,8 +4073,10 @@ void() forcegrabbable_touch =
     // Too slow to hurt what bleeds (come to rest against it, or pushed slowly into it; a rigid
     // body's landing never touches the world, so it can still be "thrown"): no blow, no sound, no
     // blood, and the throw is over.
+    // (A heavy thing's lower: it can't be thrown as fast. VR_Thrown_Lenient.)
+    float lenient = VR_Thrown_Lenient(self);
     if(self.throwhit == QVR_THROWHIT_NEVER_HIT && other.takedamage &&
-       vlen(self.velocity) < cvar_hget(cvarh_vr_throw_hit_min_speed))
+       vlen(self.velocity) < cvar_hget(cvarh_vr_throw_hit_min_speed) * lenient)
     {
         self.solid = SOLID_NOT_BUT_TOUCHABLE;
         self.throwhit = QVR_THROWHIT_HIT;
@@ -4080,11 +4084,7 @@ void() forcegrabbable_touch =
 
     if(self.throwhit == QVR_THROWHIT_NEVER_HIT)
     {
-        float dmgSpeed = self.throwdmgspeed;
-        if(!dmgSpeed) dmgSpeed = 700;
-
-        float finalDmg = ((vlen(self.velocity) / dmgSpeed) * GetThrownWeaponBaseDamage(self)) *
-                   cvar_hget(cvarh_vr_weapon_throw_damage_mult);
+        float finalDmg = VR_Thrown_Damage(self, vlen(self.velocity), lenient);
 
         // hit something that bleeds
         if(GetThrownWeaponDealDamage(self) && other.takedamage)

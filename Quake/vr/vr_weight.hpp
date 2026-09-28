@@ -1,20 +1,21 @@
 // vr_weight.hpp -- how heavy what the hands hold feels (docs/vr-port/ROUND21.md, "Weight: spring model, stamina, held
-// object offsets; explosive boxes"). Two models (vr_weight_model):
+// object offsets; explosive boxes" and "Spring only; Weapon Weights and Held Object Weights; weight and damage").
 //
-// - Speed Limit (0, the old one, vr_handpose.cpp): each frame a hand moves and turns only part of the way to where it is
-//   tracked, by a factor from the weapon's Weight. Kept as it was for weapons; a carried prop (vr_weight_props) trails
-//   the hand by a time from its mass, as a weapon of that mass does.
-// - Spring (1, here): what a hand holds is a rigid body pulled to the tracked hand by a damped spring on its place and
-//   on its turn, with its mass, its centre of mass off the grip and its inertia about the grip (a weapon's Mass, Balance
-//   and Length; a prop's from its model and Held Object Offsets). The arm's stiffness is the same for everything, so a
-//   heavier thing is slower to follow (it lags, overshoots a little and settles), a longer one slower to turn; the arm's
-//   force and the wrist's torque are limited, so a heavy thing can't be swung as fast as the hand goes. Gravity makes it
-//   droop a little (more at arm's length), a hand's acceleration swings its centre of mass. Two hands on it are much
-//   stiffer and stronger. The drawn hand stays on it: the whole hand moves (what it holds, the aim, the melee's points,
-//   the arm's IK), as with the Speed Limit.
+// What a hand holds (a weapon, a carried prop, the flashlight) is a rigid body pulled to the tracked hand by a damped
+// spring on its place and on its turn, with its mass, its centre of mass off the grip and its inertia about the grip (a
+// weapon's Mass, Balance and Length, Weapon Weights; a prop's from its model and Held Object Weights). The arm's
+// stiffness is the same for everything, so a heavier thing is slower to follow (it lags, overshoots a little and
+// settles), a longer one slower to turn; the arm's force and the wrist's torque are limited, so a heavy thing can't be
+// swung as fast as the hand goes. Gravity makes it droop a little (more at arm's length), a hand's acceleration swings
+// its centre of mass. Two hands on it are much stiffer and stronger. The drawn hand stays on it: the whole hand moves
+// (what it holds, the aim, the melee's points, the arm's IK). Each setting of the spring (Aiming: Spring) is multiplied
+// by the thing's own (Weapon Weights, Held Object Weights: 1 by default).
 //
-// Both: tired, things weigh more (vr_weight_stamina): below vr_weight_stamina_from of the parry stamina the weight grows
+// Tired, things weigh more (vr_weight_stamina): below vr_weight_stamina_from of the parry stamina the weight grows
 // smoothly to vr_weight_stamina_max times at none.
+//
+// The mass also changes the melee's and the throws' damage (damageMultiplier) and, for heavy things, lowers their speed
+// thresholds (leniency): the QC reads both (weightdamage, weightleniency builtins).
 
 #pragma once
 
@@ -23,28 +24,22 @@
 namespace qvr::weight
 {
 
-[[nodiscard]] bool springModel(); // vr_weight_model 1
-
 // The stamina's weight multiplier (1 at or above the threshold, vr_weight_stamina_max with none left), eased over
 // a quarter of a second (the stamina is sent in whole percent).
 [[nodiscard]] float staminaMultiplier();
 // The multiplier for a stamina left of `left` (0..1), as the settings are: the curve itself.
 [[nodiscard]] float staminaCurve(float left);
 
-// Speed Limit: the part of the way a hand follows each 1/100 s (`perStep`, from the weapon's Weight), heavier with the
-// stamina's multiplier (the lag's time constant times it); a hand carrying a prop (vr_weight_props): from its mass
-// (`direction`: its turn). Returned unchanged for a weapon with the stamina's multiplier at 1.
-[[nodiscard]] float speedLimitStep(int hand, float perStep, bool direction);
-
-// Spring: after the two-handed aim (vr_handpose.cpp), each hand holding something with a mass moved and turned to
+// After the two-handed aim (vr_handpose.cpp), each hand holding something with a mass moved and turned to
 // where its spring has it (in the body's frame: walking and turning are not the hand's motion). `dt`: the frame's real
 // time; `newFrame`: false when the hands are worked out again within a frame (the spring advances once a frame).
 void spring(hands::State& s, float turnYaw, float dt, bool newFrame);
 
-// vr_debug_weight with the Speed Limit: its target and drawn pose of `hand` (the body's frame: units, angles with the play
-// space's turn out), traced as the Spring's are.
-void traceSpeedLimit(int hand, const glm::vec3& target, const glm::vec3& drawn, const glm::vec3& targetAngles,
-    const glm::vec3& drawnAngles, float dt);
+// The spring's multipliers of the global settings for one thing (Weapon Weights, Held Object Weights).
+struct Tuning
+{
+    float stiffness{1.f}, damping{1.f}, strength{1.f}, sag{1.f}, swing{1.f}, twoHanded{1.f}, snap{1.f};
+};
 
 // What a hand holds, as the weight sees it (the menu's readout, the trace).
 struct Load
@@ -58,6 +53,7 @@ struct Load
     float twoHanded{0.f};      // 0..1: a two-handed grip (a weapon's transition; a prop in both hands: 1)
     glm::vec3 com{0.f};        // metres from the grip, in the hand's frame (forward, left, up)
     glm::vec3 inertia{0.f};    // kg m^2 about the grip, the hand's axes (forward: roll; left: pitch; up: yaw)
+    Tuning tune;
 };
 [[nodiscard]] Load load(int hand);
 
@@ -71,6 +67,13 @@ struct Offset
 [[nodiscard]] Offset offset(int hand);
 
 void reset();
+
+// Weight and damage: a melee blow's or a throw's damage multiplier for a thing of `mass` kg (vr_weight_damage_*: 1 between
+// the light and heavy masses and for no mass; more for heavier, less for lighter, sublinear, clamped).
+[[nodiscard]] float damageMultiplier(float mass);
+// Heavy leniency: the factor on the speed thresholds of a melee strike and a throw's hit for a thing of `mass` kg
+// (vr_weight_lenient*: 1 up to vr_weight_lenient_from, lower for heavier things, at least vr_weight_lenient_min).
+[[nodiscard]] float leniency(float mass);
 
 // vr_weight_test: the spring offline (vr_weight.cpp).
 void registerCommands();

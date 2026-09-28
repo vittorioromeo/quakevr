@@ -244,21 +244,21 @@ QVR_CVAR(vr_shoulder_offset_x, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_shoulder_offset_y, "1.75", CVAR_ARCHIVE)
 QVR_CVAR(vr_shoulder_offset_z, "16.0", CVAR_ARCHIVE)
 QVR_CVAR(vr_2h_virtual_stock_factor, "0.5", CVAR_ARCHIVE)
-QVR_CVAR(vr_wpn_pos_weight, "1", CVAR_ARCHIVE)
-QVR_CVAR(vr_wpn_pos_weight_offset, "0.0", CVAR_ARCHIVE)
-QVR_CVAR(vr_wpn_pos_weight_mult, "1.0", CVAR_ARCHIVE)
-QVR_CVAR(vr_wpn_pos_weight_2h_help_offset, "0.3", CVAR_ARCHIVE)
-QVR_CVAR(vr_wpn_pos_weight_2h_help_mult, "1.0", CVAR_ARCHIVE)
-QVR_CVAR(vr_wpn_dir_weight, "1", CVAR_ARCHIVE)
-QVR_CVAR(vr_wpn_dir_weight_offset, "0.05", CVAR_ARCHIVE)
-QVR_CVAR(vr_wpn_dir_weight_mult, "1.0", CVAR_ARCHIVE)
-QVR_CVAR(vr_wpn_dir_weight_2h_help_offset, "0.3", CVAR_ARCHIVE)
-QVR_CVAR(vr_wpn_dir_weight_2h_help_mult, "1.0", CVAR_ARCHIVE)
-// Weight (vr_weight.cpp; ROUND21.md, "Weight: spring model, stamina, held object offsets; explosive boxes"). The model:
-// 0 Speed Limit (the weighted weapon move and turn above: a heavier weapon trails its hand), 1 Spring (what a hand holds
-// follows it through a damped spring on its place and its turn, with its mass, inertia and sag; the arm's strength limited).
-QVR_CVAR(vr_weight_model, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_weight_props, "1", CVAR_ARCHIVE)             // carried props (boxes, gibs, items) weigh their mass too (0: weightless in the hand, as before)
+// Weight (vr_weight.cpp; ROUND21.md, "Weight: spring model, stamina, held object offsets; explosive boxes" and "Spring
+// only; Weapon Weights and Held Object Weights; weight and damage"): what a hand holds (a weapon, a carried prop, the
+// flashlight) follows it through a damped spring, by its mass, balance and length. The Spring is the only model.
+QVR_CVAR(vr_wpn_pos_weight, "1", CVAR_NONE) // retired (round 21, "Spring only": the Speed Limit weight model is gone): kept so saved configs load silently
+QVR_CVAR(vr_wpn_pos_weight_offset, "0.0", CVAR_NONE) // retired (round 21, "Spring only": the Speed Limit weight model is gone): kept so saved configs load silently
+QVR_CVAR(vr_wpn_pos_weight_mult, "1.0", CVAR_NONE) // retired (round 21, "Spring only": the Speed Limit weight model is gone): kept so saved configs load silently
+QVR_CVAR(vr_wpn_pos_weight_2h_help_offset, "0.3", CVAR_NONE) // retired (round 21, "Spring only": the Speed Limit weight model is gone): kept so saved configs load silently
+QVR_CVAR(vr_wpn_pos_weight_2h_help_mult, "1.0", CVAR_NONE) // retired (round 21, "Spring only": the Speed Limit weight model is gone): kept so saved configs load silently
+QVR_CVAR(vr_wpn_dir_weight, "1", CVAR_NONE) // retired (round 21, "Spring only": the Speed Limit weight model is gone): kept so saved configs load silently
+QVR_CVAR(vr_wpn_dir_weight_offset, "0.05", CVAR_NONE) // retired (round 21, "Spring only": the Speed Limit weight model is gone): kept so saved configs load silently
+QVR_CVAR(vr_wpn_dir_weight_mult, "1.0", CVAR_NONE) // retired (round 21, "Spring only": the Speed Limit weight model is gone): kept so saved configs load silently
+QVR_CVAR(vr_wpn_dir_weight_2h_help_offset, "0.3", CVAR_NONE) // retired (round 21, "Spring only": the Speed Limit weight model is gone): kept so saved configs load silently
+QVR_CVAR(vr_wpn_dir_weight_2h_help_mult, "1.0", CVAR_NONE) // retired (round 21, "Spring only": the Speed Limit weight model is gone): kept so saved configs load silently
+QVR_CVAR(vr_weight_model, "1", CVAR_NONE) // retired (round 21, "Spring only": the Speed Limit weight model is gone): kept so saved configs load silently
+QVR_CVAR(vr_weight_props, "1", CVAR_NONE) // retired (round 21, "Spring only": carried props always weigh their mass; Held Object Weights tunes each): kept so saved configs load silently
 QVR_CVAR(vr_weight_spring_stiffness, "1", CVAR_ARCHIVE)  // Spring: times the arm's and wrist's stiffness (2: 41% quicker)
 QVR_CVAR(vr_weight_spring_damping, "1", CVAR_ARCHIVE)    // Spring: the damping ratio (1 critical: settles without swinging back; less: overshoots)
 QVR_CVAR(vr_weight_spring_strength, "1", CVAR_ARCHIVE)   // Spring: times the arm's force and the wrist's torque (0: unlimited)
@@ -271,6 +271,20 @@ QVR_CVAR(vr_weight_stamina_from, "0.5", CVAR_ARCHIVE)    // the stamina left (0.
 QVR_CVAR(vr_weight_stamina_max, "2", CVAR_ARCHIVE)       // times the weight with none left
 QVR_CVAR(vr_weight_stamina_curve, "2", CVAR_ARCHIVE)     // the curve's exponent from the threshold to none (1 straight; 2 gentle at first)
 QVR_CVAR(vr_weight_throw_mass, "12", CVAR_ARCHIVE)       // kg: props up to this heavy are thrown with the hand's whole speed, heavier ones slower (Throw: Held Object Offsets)
+// Weight and damage (round 21, "Spring only; Weapon Weights and Held Object Weights; weight and damage"): a melee blow's
+// and a throw's damage times (mass / vr_weight_damage_heavy)^vr_weight_damage_exp for things heavier than it,
+// (mass / vr_weight_damage_light)^exp for lighter ones, 1 between (every weapon), within vr_weight_damage_min..max; the
+// empty hand (no mass) 1. Set both masses to one to have a single reference.
+QVR_CVAR(vr_weight_damage_exp, "0.4", CVAR_ARCHIVE)      // the curve's exponent (0: mass changes no damage; 1: in proportion)
+QVR_CVAR(vr_weight_damage_heavy, "8", CVAR_ARCHIVE)      // kg: heavier things deal more damage
+QVR_CVAR(vr_weight_damage_light, "1.5", CVAR_ARCHIVE)    // kg: lighter things deal less damage
+QVR_CVAR(vr_weight_damage_min, "0.5", CVAR_ARCHIVE)      // the least multiplier
+QVR_CVAR(vr_weight_damage_max, "2.5", CVAR_ARCHIVE)      // the most multiplier
+// Heavy leniency: things heavier than vr_weight_lenient_from kg strike and hit when thrown at lower speeds: every speed
+// threshold of a melee strike and of a throw's hit times (from / mass)^vr_weight_lenient, at least vr_weight_lenient_min.
+QVR_CVAR(vr_weight_lenient, "0.75", CVAR_ARCHIVE)        // the exponent (0: off)
+QVR_CVAR(vr_weight_lenient_from, "10", CVAR_ARCHIVE)     // kg: lighter things (every weapon) keep the thresholds
+QVR_CVAR(vr_weight_lenient_min, "0.25", CVAR_ARCHIVE)    // the least factor
 QVR_CVAR(vr_debug_weight_stamina, "-1", CVAR_NONE)       // tests: the stamina the weight takes as left (0..1) instead of the game's (-1: the game's)
 QVR_CVAR(vr_debug_weight, "0", CVAR_NONE)                // 1: each hand's target and drawn pose, a line a frame in weight_trace.txt; 2: and printed
 QVR_CVAR(vr_props_version, "26", CVAR_ARCHIVE)           // the held object settings' changes the config has taken (vr_props.cpp)

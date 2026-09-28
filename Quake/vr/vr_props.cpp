@@ -44,6 +44,15 @@ constexpr int settingsVersion = 26;
 std::array<std::string, numSlots * numKeys> names;
 std::array<cvar_t, numSlots * numKeys> cvars{};
 
+constexpr const char* retiredKeyNames[] = {
+#define QVR_PROP_RETIRED(k) k,
+#include "vr_props.inc"
+#undef QVR_PROP_RETIRED
+};
+constexpr int numRetired = static_cast<int>(sizeof(retiredKeyNames) / sizeof(retiredKeyNames[0]));
+std::array<std::string, numSlots * numRetired> retiredNames;
+std::array<cvar_t, numSlots * numRetired> retiredCvars{};
+
 [[nodiscard]] cvar_t& cvarAt(int slot, Key key)
 {
     return cvars[slot * numKeys + static_cast<int>(key)];
@@ -81,7 +90,7 @@ void migrate()
     const int from = static_cast<int>(vr_props_version.value);
     // 26: the rocks and bricks lying about (vr_debris.cpp) have slots 17-25 (vr_prop_*_18 to _26), which a config saved before has empty:
     // they take their defaults. A slot the config gave another model (Held Object Offsets) keeps it; that piece then
-    // has the defaults of any prop (its mass still estimated, but no Blunt: it hits as a box).
+    // has the defaults of any prop (its mass still estimated, and it hits as a box).
     if(from < 26)
     {
         for(int slot = 17; slot <= 25; slot++)
@@ -127,6 +136,21 @@ void registerCvars()
     for(int slot = 0; slot < numSlots; slot++)
     {
         Cvar_SetCallback(&cvarAt(slot, Key::ID), onIdChanged);
+    }
+
+    // Retired keys (vr_props.inc): registered so that a config setting them loads silently; not saved, read by nothing.
+    for(int slot = 0; slot < numSlots; slot++)
+    {
+        for(int key = 0; key < numRetired; key++)
+        {
+            std::string& name = retiredNames[slot * numRetired + key];
+            name = std::string("vr_prop_") + retiredKeyNames[key] + (slot + 1 < 10 ? "_0" : "_") + std::to_string(slot + 1);
+            cvar_t& var = retiredCvars[slot * numRetired + key];
+            var.name = name.c_str();
+            var.string = "0";
+            var.flags = CVAR_NONE;
+            Cvar_RegisterVariable(&var);
+        }
     }
 }
 
@@ -252,7 +276,39 @@ void takeShippedSlot(int slot)
     slotCache.clear();
 }
 
-void resetSlotToDefaults(int slot)
+bool weightKey(Key key)
+{
+    switch(key)
+    {
+        case Key::Mass:
+        case Key::Inertia:
+        case Key::ComX:
+        case Key::ComY:
+        case Key::ComZ:
+        case Key::Throw:
+        case Key::SpringStiffness:
+        case Key::SpringDamping:
+        case Key::SpringStrength:
+        case Key::SpringSag:
+        case Key::SpringSwing:
+        case Key::SpringTwoHanded:
+        case Key::SpringSnap:
+        case Key::MeleeDamage:
+        case Key::ThrowDamage: return true;
+        default: return false;
+    }
+}
+
+namespace
+{
+// (The ID is in both: the model a slot is for.)
+[[nodiscard]] bool inPart(Key key, Part part)
+{
+    return part == Part::All || key == Key::ID || (part == Part::Weights) == weightKey(key);
+}
+} // namespace
+
+void resetSlotToDefaults(int slot, Part part)
 {
     if(slot < 0 || slot >= numSlots)
     {
@@ -260,14 +316,28 @@ void resetSlotToDefaults(int slot)
     }
     // A slot the menu gave a model keeps it (its defaults are a free slot's: every key at the key's default).
     const std::string id = cvarAt(slot, Key::ID).string;
-    resetSlot(slot);
+    if(part == Part::All)
+    {
+        resetSlot(slot);
+    }
+    else
+    {
+        for(int key = 0; key < numKeys; key++)
+        {
+            if(static_cast<Key>(key) != Key::ID && inPart(static_cast<Key>(key), part))
+            {
+                cvar_t& var = cvarAt(slot, static_cast<Key>(key));
+                Cvar_SetQuick(&var, var.default_string);
+            }
+        }
+    }
     if(freeId(cvarAt(slot, Key::ID).string))
     {
         Cvar_SetQuick(&cvarAt(slot, Key::ID), id.c_str());
     }
 }
 
-void printSlot(int slot)
+void printSlot(int slot, Part part)
 {
     if(slot < 0 || slot >= numSlots)
     {
@@ -278,7 +348,7 @@ void printSlot(int slot)
     for(int key = 0; key < numKeys; key++)
     {
         const cvar_t& var = cvarAt(slot, static_cast<Key>(key));
-        if(strcmp(var.string, var.default_string) != 0)
+        if(inPart(static_cast<Key>(key), part) && strcmp(var.string, var.default_string) != 0)
         {
             Con_Printf("QVR_PROP_DEFAULT(%d, %s, \"%s\") // was %s\n", slot, keyEnumNames[key], var.string, var.default_string);
         }
