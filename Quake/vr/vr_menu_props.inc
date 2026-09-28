@@ -118,6 +118,10 @@ std::vector<Item> pageHeldObjectOffsets()
             s("Throw", Key::Throw, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 10.f)
                 .help("How much of your hand's throw it keeps. 0: from its mass (all of it up to 12 kg, less beyond: "
                       "vr_weight_throw_mass)."),
+            s("Blunt", Key::Blunt, 0.f, 3.f, 0.05f, "%.2f").extend(0.f, 10.f)
+                .help("How hard it hits, punched with or thrown: this times the square root of its mass (kg) times a "
+                      "punch's damage (held) or Thrown Box Damage (thrown). A rock of 1 kg at 1.5: 1.5 times; a brick of "
+                      "2 kg: 2.1 times. 0: as a box (Box Punch Damage, Thrown Box Damage)."),
             header("Grip"),
             cycle("Grip", props::cvar(slot, Key::GripMode), {{0.f, "Where taken"}, {1.f, "Always the same"}})
                 .help("Where taken: it stays in the hand as you took it. Always the same: it is held as below, whichever "

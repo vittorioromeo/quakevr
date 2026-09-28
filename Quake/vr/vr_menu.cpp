@@ -7,6 +7,8 @@
 // it is selected, a click picks it, and a slider is set where it is clicked and dragged. Sliders of
 // placements, angles, scales and distances (extend()) go on past their bar's ends with left and right
 // (the bar showing its end, the value the real one); values set further off in the console stay.
+// Each page is shown again where it was left (its selected row, found by its label when the page is
+// built anew, on the same line of the view), across restarts too (vr_menu_positions).
 
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
@@ -30,7 +32,9 @@
 #include "vr_props.hpp"
 #include "vr_weight.hpp"
 
+#include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -1244,6 +1248,31 @@ void hologramTestMessage()
         toggle("Taken Torch Casts Shadows", vr_walltorch_shadows)
             .help("A taken torch's light casts shadows (your hands and body, what is round you), whatever Graphics' Torch "
                   "Light Shadows says. Its brightness is the wall torch's: Graphics' Torch Light Brightness."),
+        header("Rocks and Bricks"),
+        toggle("Rocks and Bricks", vr_debris)
+            .help("Rocks lie on natural ground and at the foot of rock and stone walls, bricks at the foot of brick walls, "
+                  "by what the textures are: pick them up, force grab them, punch with them, throw them. The same "
+                  "places at every load. Single player. Next map."),
+        toggle("Rocks", vr_debris_rocks).help("Rocks on grass, dirt and rock, and by rock and stone walls. Next map."),
+        toggle("Bricks", vr_debris_bricks).help("Bricks at the foot of brick walls. Next map."),
+        slider("Chance", vr_debris_chance, 0.f, 1.f, 0.01f, "%.2f").extend()
+            .help("How likely a place at a wall's foot (one every 16 units along it) gets a piece or a few, before the "
+                  "limits below. Next map."),
+        slider("In Corners", vr_debris_corner, 1.f, 5.f, 0.25f, "%.2fx").extend(0.f, 20.f)
+            .help("Times the chance in a corner. Next map."),
+        slider("In the Dark", vr_debris_dark, 0.f, 1.f, 0.05f, "%.2fx")
+            .help("Times the chance where the floor is dark (where you would not see them). Next map."),
+        slider("Most Together", vr_debris_cluster, 1.f, 6.f, 1.f, "%.0f").help("Most pieces lying together at one place. Next map."),
+        slider("Most in a Map", vr_debris_max, 0.f, 400.f, 10.f, "%.0f").extend(0.f, 2000.f)
+            .help("Fewer if the map has few entities to spare (vr_debris_edicts_left). Next map."),
+        slider("Most in an Area", vr_debris_area_max, 1.f, 30.f, 1.f, "%.0f").extend(1.f, 200.f)
+            .help("Most pieces in a square of vr_debris_area_size units (384: about 12 m). Next map."),
+        slider("Spacing", vr_debris_spacing, 0.f, 256.f, 8.f, "%.0f units").extend(0.f, 2048.f)
+            .help("Between places with pieces (32 units is about a metre). Next map."),
+        slider("Size Variation", vr_debris_size, 0.f, 0.4f, 0.01f, "+-%.2f")
+            .help("How much bigger or smaller a piece may be (bricks 40% of it). Next map."),
+        slider("Layout", vr_debris_seed, 0.f, 50.f, 1.f, "%.0f").extend(0.f, 100000.f)
+            .help("Another number, another layout: each is the same at every load. Next map."),
         header("Armour and Pickups"),
         cycle("Armour", vr_armor_wear, {{0.f, "Touch takes it"}, {1.f, "Wear by hand"}})
             .help("Wear by hand: grip the armour to carry it and let go of it over your chest to put it on (only if it is better "
@@ -2103,6 +2132,125 @@ int parentPage[pageCount]{};
 int cursors[pageCount]{};
 int scrolls[pageCount]{};
 
+// Where a page was left: its selected row, found again by its label when the page is built anew (its
+// rows changed: another weapon's offsets, a choice showing more settings or fewer) and at the next
+// start (vr_menu_positions), and the line of the view it was on (the scroll).
+struct RowAnchor
+{
+    bool valid{false};
+    std::string section; // the header above it ("": none)
+    std::string label;
+    int index{0}; // where it was: of the rows alike, the nearest is taken
+    int line{0};  // its line in the view (the cursor less the scroll)
+};
+
+[[nodiscard]] const char* rowLabel(const Item& item)
+{
+    return item.label ? item.label : "";
+}
+
+[[nodiscard]] const char* rowSection(const std::vector<Item>& list, int i)
+{
+    for(; i >= 0; i--)
+    {
+        if(list[i].kind == Item::Header)
+        {
+            return rowLabel(list[i]);
+        }
+    }
+    return "";
+}
+
+[[nodiscard]] RowAnchor anchorOf(const std::vector<Item>& list, int cursor, int scroll)
+{
+    if(cursor < 0 || cursor >= static_cast<int>(list.size()) || !selectable(list[cursor]))
+    {
+        return {};
+    }
+    return {true, rowSection(list, cursor), rowLabel(list[cursor]), cursor, cursor - scroll};
+}
+
+// The row `a` was on in `list` (-1: gone): of the settings with its label, one under the same header
+// before others, then the nearest to where it was.
+[[nodiscard]] int findRow(const std::vector<Item>& list, const RowAnchor& a)
+{
+    int best = -1;
+    int bestCost = 0;
+    for(int i = 0; i < static_cast<int>(list.size()); i++)
+    {
+        if(!selectable(list[i]) || a.label != rowLabel(list[i]))
+        {
+            continue;
+        }
+        const int cost = std::abs(i - a.index) + (a.section == rowSection(list, i) ? 0 : 1 << 20);
+        if(best < 0 || cost < bestCost)
+        {
+            best = i;
+            bestCost = cost;
+        }
+    }
+    return best;
+}
+
+// vr_menu_positions: the pages' anchors as the last start left them ("title|section|label|index|line",
+// separated by ';', the most recently shown first), read at the menu's first use, each used as its
+// page is first built; and written with the config (VR_MenuSavePositions): the pages shown since,
+// then those left from before.
+RowAnchor savedAnchors[pageCount];
+int savedRank[pageCount]{}; // its place in the cvar
+
+RowAnchor leftAnchors[pageCount]; // each page's position as last shown (invalid: at the top)
+int visits[pageCount]{};          // when each page was last shown (a count; 0: not since the start)
+int visitCount = 0;
+int builds[pageCount]{};          // how many times each page's list was built (its rows may have changed)
+
+void loadPositions()
+{
+    // Read again while no page has been shown, should the cvar change (the config executed after a
+    // write, the console).
+    static std::string parsed;
+    static bool loaded = false;
+    if(loaded && (visitCount > 0 || parsed == vr_menu_positions.string))
+    {
+        return;
+    }
+    loaded = true;
+    parsed = vr_menu_positions.string;
+    for(int p = 0; p < pageCount; p++)
+    {
+        savedAnchors[p] = {};
+    }
+
+    int rank = 0;
+    const std::string& text = parsed;
+    for(size_t start = 0; start < text.size();)
+    {
+        size_t end = text.find(';', start);
+        end = end == std::string::npos ? text.size() : end;
+        std::vector<std::string> fields;
+        for(size_t f = start; f <= end;)
+        {
+            const size_t bar = std::min(text.find('|', f), end);
+            fields.push_back(text.substr(f, bar - f));
+            f = bar + 1;
+        }
+        start = end + 1;
+        if(fields.size() != 5)
+        {
+            continue;
+        }
+        for(int p = 0; p < pageCount; p++)
+        {
+            if(!savedAnchors[p].valid && fields[0] == pages[p].title)
+            {
+                savedAnchors[p] = {true, fields[1], fields[2], Q_atoi(fields[3].c_str()), Q_atoi(fields[4].c_str())};
+                savedRank[p] = rank++;
+                break;
+            }
+        }
+    }
+}
+
 // Built on first use (cvars looked up by name exist by then); items without their cvar dropped.
 [[nodiscard]] const std::vector<Item>& items(int page)
 {
@@ -2134,54 +2282,58 @@ int scrolls[pageCount]{};
     if(pages[page].build == pageBodyArms && armsPageCalibrated >= 0 && armsPageCalibrated != (bodycal::calibrated() ? 1 : 0))
     {
         done[page] = false; // calibrated (Apply) or not (Undo): Arm Length shown or not
-        built[page].clear();
     }
     if(pages[page].build == pageBodyCalibration &&
         (bodycalVersion != bodycal::version() || bodycalSeated != (vr_bodycal_seated.value != 0.f ? 1 : 0)))
     {
         done[page] = false; // Body Calibration: its phase, its result or its poses changed
-        built[page].clear();
     }
     if(pages[page].build == pageHeldObjectOffsets && heldObjectStale)
     {
         heldObjectStale = false;
         done[page] = false;
-        built[page].clear();
     }
     if(pages[page].build == pageWeaponOffsets && weaponOffsetsStale)
     {
         weaponOffsetsStale = false;
         done[page] = false;
-        built[page].clear();
     }
     if(pages[page].build == pageFlashlight &&
         ((flashlightPageManual[0] >= 0 && (vr_flashlight_low_fingers.value >= 0.5f ? 1 : 0) != flashlightPageManual[0]) ||
             (flashlightPageManual[1] >= 0 && (vr_flashlight_high_fingers.value >= 0.5f ? 1 : 0) != flashlightPageManual[1])))
     {
         done[page] = false; // a grip's Fingers choice: its curls or its overlap shown
-        built[page].clear();
     }
     if(pages[page].build == pageHandGunCalibration && handCalPageOwn >= 0 &&
         (vr_handcal_off_mirror.value == 0.f ? 1 : 0) != handCalPageOwn)
     {
         done[page] = false; // the off hand's own sliders shown or not
-        built[page].clear();
     }
     if(pages[page].build == pageMotionRecorder && motionPageCategory != static_cast<int>(vr_motion_category.value))
     {
         done[page] = false; // the Detail choice is the category's
-        built[page].clear();
     }
     if((pages[page].build == pageReviewTakes && reviewListGeneration != motion::review::generation()) ||
         (pages[page].build == pageReviewTake && (reviewTakeGeneration != motion::review::generation() ||
                                                     reviewRelabelCategory != static_cast<int>(vr_motion_relabel_category.value))))
     {
         done[page] = false; // the list, or the take picked, changed
-        built[page].clear();
     }
+    // (A check above: done[page] = false, and the page is built anew here, its selected row kept.)
     if(!done[page])
     {
+        // The row selected: in the list about to be replaced; on the first build, where the last start
+        // left the page (vr_menu_positions).
+        loadPositions();
+        RowAnchor anchor = anchorOf(built[page], cursors[page], scrolls[page]);
+        if(built[page].empty())
+        {
+            anchor = savedAnchors[page];
+            savedAnchors[page] = {};
+        }
+        built[page].clear();
         done[page] = true;
+        builds[page]++;
         for(Item& item : pages[page].build())
         {
             if(item.kind == Item::Header || item.kind == Item::Action || item.kind == Item::Info || item.cvar)
@@ -2189,9 +2341,15 @@ int scrolls[pageCount]{};
                 built[page].push_back(std::move(item));
             }
         }
-        // (Built again with fewer rows: the cursor kept on one.)
+        // The same row again, on the same line of the view; gone, the cursor kept where it was (on a
+        // setting).
         const int n = static_cast<int>(built[page].size());
         int& cursor = cursors[page];
+        if(const int row = anchor.valid ? findRow(built[page], anchor) : -1; row >= 0)
+        {
+            cursor = row;
+            scrolls[page] = q_max(row - anchor.line, 0);
+        }
         cursor = CLAMP(0, cursor, q_max(n - 1, 0));
         for(int i = cursor; n > 0 && !selectable(built[page][cursor]) && i >= 0; i--)
         {
@@ -2236,7 +2394,8 @@ struct Layout
 {
     const int height = menuui::menuHeight();
     const int top = (200 - height) / 2;
-    return {top, top + 36, top + height - 36, top + height};
+    const int listTop = q_max(top + 36, static_cast<int>(std::ceil(menuui::toolbarBottom())) + 2); // below the corner's buttons
+    return {top, listTop, top + height - 36, top + height};
 }
 
 [[nodiscard]] bool hasHelp(const std::vector<Item>& list)
@@ -2281,21 +2440,36 @@ void moveCursor(const std::vector<Item>& list, int dir)
     cursor = i;
 }
 
-// Shows `target`, with its cursor on a setting.
+[[nodiscard]] int lastSelectable(const std::vector<Item>& list)
+{
+    for(int i = static_cast<int>(list.size()) - 1; i >= 0; i--)
+    {
+        if(selectable(list[i]))
+        {
+            return i;
+        }
+    }
+    return 0;
+}
+
+// The page's position to keep (vr_menu_positions): none while it is at its top (as it opens anyway).
+void noteLeft(int p, const std::vector<Item>& list)
+{
+    leftAnchors[p] = cursors[p] == firstSelectable(list) && scrolls[p] == 0 ? RowAnchor{} : anchorOf(list, cursors[p], scrolls[p]);
+}
+
+// Shows `target`, with its cursor on a setting: where it was left (pages built anew as they are
+// shown, for what the hand holds now, keep the same row by its label).
 void showPage(int target)
 {
     page = target;
     if(pages[page].build == pageHeldObjectOffsets)
     {
         heldObjectStale = true; // what is in the hand now
-        cursors[page] = 0;
-        scrolls[page] = 0;
     }
     if(pages[page].build == pageWeaponOffsets)
     {
         weaponOffsetsStale = true; // the weapon in hand now
-        cursors[page] = 0;
-        scrolls[page] = 0;
     }
     if(pages[page].build == pageReviewTakes)
     {
@@ -2306,6 +2480,8 @@ void showPage(int target)
     {
         cursors[page] = firstSelectable(list);
     }
+    noteLeft(page, list);
+    visits[page] = ++visitCount;
 }
 
 void openPage(int target)
@@ -2733,6 +2909,27 @@ void qvr::menu::command_f()
         }
         return;
     }
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "pos"))
+    {
+        const char* corner = menuui::toolbarFocused() ? ", corner buttons selected" : "";
+        if(key_dest != key_menu || m_state != m_vr)
+        {
+            const char* name = key_dest != key_menu      ? "closed"
+                               : m_state == m_maps         ? "levels"
+                               : m_state == m_singleplayer ? "single player"
+                               : m_state == m_options      ? "options"
+                               : m_state == m_main         ? "main"
+                                                           : "other";
+            Con_Printf("menu_vr pos: menu %d (%s)%s\n", static_cast<int>(m_state), name, corner);
+            return;
+        }
+        const auto& list = items(page);
+        const int cursor = cursors[page];
+        Con_Printf("menu_vr pos: page %d \"%s\" (back to %d), row %d \"%s\" under \"%s\", scroll %d of %d rows%s\n", page,
+            pages[page].title, page == PageMain ? -1 : parentPage[page], cursor, rowLabel(list[cursor]), rowSection(list, cursor),
+            scrolls[page], static_cast<int>(list.size()), corner);
+        return;
+    }
     VR_Menu_Open();
     if(Cmd_Argc() > 1)
     {
@@ -2804,6 +3001,34 @@ const cvar_t* qvr::menu::selectedSetting()
     return cursor >= 0 && cursor < static_cast<int>(list.size()) ? list[cursor].cvar : nullptr;
 }
 
+void qvr::menu::jumpToAdvanced()
+{
+    if(m_state == m_vr && page == PageAdvanced)
+    {
+        S_LocalSound("misc/menu1.wav");
+        return;
+    }
+    if(m_state == m_vr)
+    {
+        S_LocalSound("misc/menu2.wav");
+    }
+    else
+    {
+        VR_Menu_Open(); // (its sound as it is drawn)
+    }
+    parentPage[PageAdvanced] = PageMain;
+    showPage(PageAdvanced);
+}
+
+void qvr::menu::selectEnd(int dir)
+{
+    if(m_state == m_vr)
+    {
+        const auto& list = items(page);
+        cursors[page] = dir > 0 ? firstSelectable(list) : lastSelectable(list);
+    }
+}
+
 void qvr::menu::reopen(int target)
 {
     VR_Menu_Open();
@@ -2829,6 +3054,60 @@ bool qvr::menu::scroll(int rows)
     scrolls[page] = CLAMP(0, scrolls[page] + rows, n - visible);
     keepCursorVisible();
     return true;
+}
+
+extern "C" void VR_MenuSavePositions()
+{
+    loadPositions();
+    std::string text;
+    const auto add = [&text](int p, const RowAnchor& a) {
+        if(!a.valid)
+        {
+            return;
+        }
+        const std::string record = std::string{pages[p].title} + '|' + a.section + '|' + a.label + '|' + std::to_string(a.index) +
+                                   '|' + std::to_string(a.line);
+        if(record.find_first_of(";\"") != std::string::npos || std::count(record.begin(), record.end(), '|') != 4 ||
+            text.size() + record.size() + 1 > 1000)
+        {
+            return; // a label the format cannot hold; or past what a config line's token holds
+        }
+        text += text.empty() ? "" : ";";
+        text += record;
+    };
+
+    // The pages shown since the start, the most recent first; then those kept from before.
+    std::vector<int> order;
+    for(int p = 0; p < pageCount; p++)
+    {
+        if(visits[p] > 0)
+        {
+            order.push_back(p);
+        }
+    }
+    std::sort(order.begin(), order.end(), [](int a, int b) { return visits[a] > visits[b]; });
+    for(const int p : order)
+    {
+        add(p, leftAnchors[p]);
+    }
+    order.clear();
+    for(int p = 0; p < pageCount; p++)
+    {
+        if(visits[p] == 0 && savedAnchors[p].valid)
+        {
+            order.push_back(p);
+        }
+    }
+    std::sort(order.begin(), order.end(), [](int a, int b) { return savedRank[a] < savedRank[b]; });
+    for(const int p : order)
+    {
+        add(p, savedAnchors[p]);
+    }
+
+    if(text != vr_menu_positions.string)
+    {
+        Cvar_SetQuick(&vr_menu_positions, text.c_str());
+    }
 }
 
 extern "C" void VR_Menu_Draw()
@@ -2861,9 +3140,22 @@ extern "C" void VR_Menu_Draw()
     }
     scroll = CLAMP(0, scroll, q_max(n - rows, 0));
 
+    // Where the page is, to keep (on a change only: no strings built every frame).
+    static int notedPage = -1, notedCursor = -1, notedScroll = -1, notedBuild = -1;
+    if(page != notedPage || cursor != notedCursor || scroll != notedScroll || builds[page] != notedBuild)
+    {
+        notedPage = page;
+        notedCursor = cursor;
+        notedScroll = scroll;
+        notedBuild = builds[page];
+        noteLeft(page, list);
+    }
+
+    // While the sticks' selection is on the corner's buttons, no row is selected (nor its help shown).
+    const bool rowSelected = !menuui::toolbarFocused();
     for(int i = scroll; i < n && i < scroll + rows; i++)
     {
-        drawItem(list[i], l.listTop + (i - scroll) * 8, i == cursor);
+        drawItem(list[i], l.listTop + (i - scroll) * 8, rowSelected && i == cursor);
     }
 
     if(int y, height; scrollbar(n, rows, y, height))
@@ -2872,7 +3164,7 @@ extern "C" void VR_Menu_Draw()
         M_DrawTextBox(scrollbarX - 4, l.listTop + y - 4, 0, height - 1);
     }
 
-    if(cursor < n)
+    if(cursor < n && rowSelected)
     {
         const Item& item = list[cursor];
         const char* help = item.cvar == &vr_render_scale ? renderScaleHelp() : item.helpArg ? item.helpArg(item.arg) : item.helpText;
@@ -2918,14 +3210,32 @@ extern "C" void VR_Menu_Key(int key, int repeat)
             }
             break;
 
+        // Up from the first setting, or down from the last: the corner's buttons (in the VR style), before
+        // round to the other end; a held stick stops at the end first, a new push goes on.
         case K_UPARROW:
         case K_MWHEELUP:
+            if(key == K_UPARROW && menuui::active() && cursor == firstSelectable(list))
+            {
+                if(!repeat)
+                {
+                    menuui::focusToolbar(-1);
+                }
+                break;
+            }
             S_LocalSound("misc/menu1.wav");
             moveCursor(list, -1);
             break;
 
         case K_DOWNARROW:
         case K_MWHEELDOWN:
+            if(key == K_DOWNARROW && menuui::active() && cursor == lastSelectable(list))
+            {
+                if(!repeat)
+                {
+                    menuui::focusToolbar(1);
+                }
+                break;
+            }
             S_LocalSound("misc/menu1.wav");
             moveCursor(list, 1);
             break;

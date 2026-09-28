@@ -52,6 +52,10 @@ void printSlot(int slot); // the settings that differ from the defaults, as vr_p
 // weapon; armour; a backpack; flesh: gibs and heads). Box3D's (vr_box3d.cpp) for its props, and the estimate below.
 [[nodiscard]] float density(const qmodel_t* model, bool weaponLike);
 
+// Stone's density (kg/m^3) for the rocks and bricks lying about (vr_debris.cpp: progs/vr_rock*.mdl, vr_brick*.mdl), 0 for
+// anything else. Their mass is left estimated (no Mass setting): a bigger piece weighs more.
+[[nodiscard]] float stoneDensity(const qmodel_t* model);
+
 // A model's mass (kg) estimated from its drawn box (units, its size) and what it is made of, when neither Box3D (a
 // listen server's body) nor a Mass setting says: its box's volume less what a box has round a rounded shape.
 [[nodiscard]] float estimateMass(const qmodel_t* model, const glm::vec3& boxSize);

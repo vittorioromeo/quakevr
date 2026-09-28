@@ -26,7 +26,8 @@ HAND = "hand"
 BODY = "body"
 BODY_BUILDS = ("vrbody.md5mesh", "vrbody_lean.md5mesh", "vrbody_brawny.md5mesh")
 GENERATED = ("vrflashlight.mdl", "vrgadget.mdl", "vrgadget_strap.mdl", "vr_shell.mdl", "legholster.mdl",
-             "vrpauldron.mdl", "vrpauldron_arm.mdl")
+             "vrpauldron.mdl", "vrpauldron_arm.mdl") + tuple("vr_rock%d.mdl" % k for k in range(1, 6)) + \
+            tuple("vr_brick%d.mdl" % k for k in range(1, 5))  # make_debris.py's rocks and bricks
 HAND_SCALE = 2   # the hand's skin is 512 x 512: its map 1024 x 1024
 BODY_SCALE = 4   # the body's is 256 x 256: 1024 x 1024
 

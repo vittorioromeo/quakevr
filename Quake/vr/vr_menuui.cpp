@@ -25,6 +25,9 @@
 //   togglemenu) returns to that page, its selection and scroll as they were (vr_menu_remember).
 //   Only that way of closing it is remembered: Escape from the main menu, or a menu closing
 //   because a game started or loaded, opens the main menu next time, as Quake does.
+// - Under it, "Advanced VR" and "Levels" jump to the Advanced VR Options and to the level list from
+//   any menu. The laser clicks the three; the sticks reach them too: a stick's click on any menu, or
+//   up from a VR page's first setting (down from its last), then up and down, A to press, B back.
 // - The main hand's stick scrolls a page with a scrollbar (the VR pages, and Ironwail's lists: the
 //   options, maps, mods, key bindings), a row at a time at a rate growing with the push, the
 //   selection kept where it is while it stays in view. It never changes a setting: its left and
@@ -269,9 +272,31 @@ Highlight drawnHighlight, seenHighlight;
     return true;
 }
 
+// vr_mock_laser (tests): the main hand's laser on a spot of the menu (menu coordinates), whatever
+// the hand's pose.
+struct MockLaser
+{
+    bool on{false};
+    glm::vec2 spot{0.f};
+};
+MockLaser mockLaser;
+
 [[nodiscard]] Hit intersect(const hands::State& s, int hand)
 {
     Hit hit;
+    if(mockLaser.on && hand == HAND_MAIN)
+    {
+        glm::vec3 corner, xAxis, yAxis;
+        if(!panel::menuQuad(s, corner, xAxis, yAxis))
+        {
+            return hit;
+        }
+        drawtransform_t t;
+        Draw_GetCanvasTransform(CANVAS_MENU, &t);
+        const glm::vec2 uv{(mockLaser.spot.x * t.scale[0] + t.offset[0] + 1.f) * 0.5f,
+            (mockLaser.spot.y * t.scale[1] + t.offset[1] + 1.f) * 0.5f};
+        return {true, corner + xAxis * uv.x + yAxis * uv.y, uv};
+    }
     glm::vec3 corner, xAxis, yAxis, origin, dir;
     if(!pointerRay(s, hand, origin, dir) || !panel::menuQuad(s, corner, xAxis, yAxis))
     {
@@ -346,22 +371,115 @@ void appendStrip(std::vector<gfx::Vertex>& v, const glm::vec3& a, const glm::vec
 }
 
 // ----------------------------------------------------------------------------
-// Back to game
+// The corner's buttons: Back to game, Advanced VR, Levels
 // ----------------------------------------------------------------------------
 
-// The button as last drawn: for which menu, and where (menu coordinates, y down).
-struct BackButton
+// A column at the panel's top left, over every menu: "Back to game" (closes the menu, which reopens
+// where it was), "Advanced VR" (the Advanced VR Options page) and "Levels" (Ironwail's level list),
+// from any page. The laser clicks them; the sticks reach them too (focus): a click of either stick
+// on any menu, or on a VR page up from its first setting (down from its last).
+enum Tool
 {
-    int menu{m_none};
-    float x0{0.f}, y0{0.f}, x1{0.f}, y1{0.f};
-    bool hovered{false}; // by the laser
+    ToolBack,
+    ToolAdvanced,
+    ToolLevels,
+    ToolCount
 };
-BackButton backButton;
 
-[[nodiscard]] bool overBackButton(float x, float y)
+constexpr const char* toolLabels[ToolCount]{"Back to game", "Advanced VR", "Levels"};
+
+// Where the column goes: across, menu pixels; up and down, from the canvas's top in true pixels
+// (menu pixels as wide as they are across: `k` menu rows' pixels each, the canvas's row spacing).
+struct ToolbarLayout
 {
-    const BackButton& b = backButton;
-    return b.menu == m_state && x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1;
+    static constexpr float corner = 4.f; // true pixels from the panel's edges
+    static constexpr float half = 7.f;   // half a button's height
+    static constexpr float gap = 2.f;    // between two buttons
+    static constexpr float icon = 9.f;   // an icon's width
+
+    float left{0.f}, top{0.f}; // the canvas's corner
+    float k{1.f};
+    float x0{0.f}, x1{0.f};
+    bool labels{false};
+
+    // A button's middle (menu y).
+    [[nodiscard]] float yc(int tool) const { return top + (corner + half + tool * (2.f * half + gap)) / k; }
+
+    // The last button's bottom edge (menu y).
+    [[nodiscard]] float bottom() const { return yc(ToolCount - 1) + half / k; }
+
+    // What a click on `tool` takes: as far as the panel's edges, split halfway between buttons.
+    [[nodiscard]] bool hit(int tool, float x, float y) const
+    {
+        const float y0 = tool == 0 ? top : yc(tool) - (half + gap * 0.5f) / k;
+        const float y1 = yc(tool) + (half + (tool == ToolCount - 1 ? 2.f : gap * 0.5f)) / k;
+        return x >= left && x <= x1 + 2.f && y >= y0 && y <= y1;
+    }
+};
+
+// From the menu canvas's transform (as the menus lay out, and whether or not it is the one set).
+[[nodiscard]] ToolbarLayout toolbarLayout()
+{
+    drawtransform_t t;
+    Draw_GetCanvasTransform(CANVAS_MENU, &t);
+    float right, bottom;
+    ToolbarLayout l;
+    Draw_GetTransformBounds(&t, &l.left, &l.top, &right, &bottom);
+    l.k = std::fmax(1.f, -t.scale[1] * vid.guiheight / (t.scale[0] * vid.guiwidth)); // as Painter's
+
+    // All as wide as the widest label, their right edges a character left of Quake's plaque (x 16): on
+    // a wide panel near the menu rather than out at its corner. Where the labels do not fit, only
+    // the icons, in the corner.
+    float widest = 0.f;
+    for(const char* label : toolLabels)
+    {
+        widest = std::fmax(widest, 8.f * static_cast<float>(strlen(label)));
+    }
+    const float width = 4.f + ToolbarLayout::icon + 4.f + widest + 5.f;
+    l.x1 = 16.f - 8.f;
+    l.x0 = l.x1 - width;
+    l.labels = l.x0 >= l.left + ToolbarLayout::corner;
+    if(!l.labels)
+    {
+        l.x0 = l.left + ToolbarLayout::corner;
+        l.x1 = l.x0 + 4.f + ToolbarLayout::icon + 4.f;
+    }
+    return l;
+}
+
+struct Toolbar
+{
+    int menu{m_none};  // the menu it was last drawn over (m_none: not drawn)
+    int hovered{-1};   // the button under the laser
+    int focused{-1};   // the button the sticks selected (-1: the menu has the selection)
+    int focusMenu{m_none};
+    glm::vec2 focusMouse{0.f}; // the laser's spot when they did: moving it on gives the selection back
+};
+Toolbar toolbar;
+
+// The button at a spot of the menu (-1: none).
+[[nodiscard]] int toolAt(float x, float y)
+{
+    if(toolbar.menu != m_state)
+    {
+        return -1;
+    }
+    const ToolbarLayout l = toolbarLayout();
+    for(int t = 0; t < ToolCount; t++)
+    {
+        if(l.hit(t, x, y))
+        {
+            return t;
+        }
+    }
+    return -1;
+}
+
+void focusTool(int tool)
+{
+    toolbar.focused = tool;
+    toolbar.focusMenu = m_state;
+    toolbar.focusMouse = {m_mousex, m_mousey};
 }
 
 // The page "Back to game" left (m_none: none), to open again.
@@ -463,13 +581,68 @@ void update(const hands::State& s)
     }
     seenHighlight = drawnHighlight;
 
-    // The "Back to game" button lights up under the laser, with a tick.
-    const bool hovered = on && hits[pointingHand].valid && overBackButton(m_mousex, m_mousey);
-    if(hovered && !backButton.hovered)
+    // The corner's buttons light up under the laser, with a tick.
+    const int hovered = on && hits[pointingHand].valid ? toolAt(m_mousex, m_mousey) : -1;
+    if(hovered >= 0 && hovered != toolbar.hovered)
     {
         haptic(pointingHand, 0.01f, 0.15f);
     }
-    backButton.hovered = hovered;
+    toolbar.hovered = hovered;
+
+    // The sticks' selection on them lasts while the menu stays and the laser is not moved on (a
+    // hand's tremor aside).
+    if(toolbar.focused >= 0 &&
+        (!active() || m_state != toolbar.focusMenu || M_WaitingForKeyBinding() ||
+            (on && hits[pointingHand].valid && glm::distance(glm::vec2{m_mousex, m_mousey}, toolbar.focusMouse) > 12.f)))
+    {
+        toolbar.focused = -1;
+    }
+}
+
+void mockLaser_f()
+{
+    if(Cmd_Argc() == 2 && !q_strcasecmp(Cmd_Argv(1), "off"))
+    {
+        mockLaser.on = false;
+        return;
+    }
+    if(Cmd_Argc() == 2)
+    {
+        for(int t = 0; t < ToolCount; t++)
+        {
+            static constexpr const char* names[ToolCount]{"back", "advanced", "levels"};
+            if(!q_strcasecmp(Cmd_Argv(1), names[t]))
+            {
+                const ToolbarLayout l = toolbarLayout();
+                mockLaser = {true, {(l.x0 + l.x1) * 0.5f, l.yc(t)}};
+                pointingHand = HAND_MAIN;
+                return;
+            }
+        }
+    }
+    if(Cmd_Argc() == 3)
+    {
+        mockLaser = {true, {Q_atof(Cmd_Argv(1)), Q_atof(Cmd_Argv(2))}};
+        pointingHand = HAND_MAIN;
+        return;
+    }
+    Con_Printf("vr_mock_laser <x> <y> | back | advanced | levels | off: the main hand's laser on that spot of the menu\n");
+}
+
+float toolbarBottom()
+{
+    return active() ? toolbarLayout().bottom() : -1e9f;
+}
+
+bool toolbarFocused()
+{
+    return active() && toolbar.focused >= 0 && toolbar.focusMenu == m_state;
+}
+
+void focusToolbar(int dir)
+{
+    focusTool(dir > 0 ? ToolBack : ToolLevels);
+    S_LocalSound("misc/menu1.wav");
 }
 
 void backToGame(int hand)
@@ -495,6 +668,30 @@ void backToGame(int hand)
     key_dest = key_game;
     m_state = m_none;
     haptic(hand, 0.04f, 0.4f);
+}
+
+// A corner button pressed (`hand` its pulse). The jumps go where the menus' own links go, so Back
+// from there walks up the menus as always (Advanced VR Options: to the VR Settings; the levels: to
+// Single Player), never round in a loop; the page left keeps its selection and scroll for when it is
+// shown again.
+void useTool(int tool, int hand)
+{
+    toolbar.focused = -1;
+    switch(tool)
+    {
+        case ToolBack: backToGame(hand); break;
+        case ToolAdvanced: menu::jumpToAdvanced(); break;
+        case ToolLevels:
+            if(m_state == m_maps)
+            {
+                S_LocalSound("misc/menu1.wav");
+                break;
+            }
+            Cmd_TokenizeString("menu_maps"); // (it looks at its command's arguments)
+            M_Menu_Maps_f();
+            break;
+        default: break;
+    }
 }
 
 bool scrollStick(float y)
@@ -722,12 +919,17 @@ extern "C" int VR_MenuDrawTextBox(int x, int y, int width, int lines)
 }
 
 // The arrow cursor's row, across the menu: from the arrow (or the menu's left, where the row's
-// label is), as far to the other side of the menu's middle.
-extern "C" void VR_MenuDrawHighlight(int cx, int cy)
+// label is), as far to the other side of the menu's middle. Nonzero: the menu's cursor is not drawn
+// at all (the sticks' selection is on the corner's buttons).
+extern "C" int VR_MenuDrawHighlight(int cx, int cy)
 {
     if(!styled())
     {
-        return;
+        return 0;
+    }
+    if(menuui::toolbarFocused())
+    {
+        return 1;
     }
 
     drawnHighlight = {m_state, cy};
@@ -738,70 +940,190 @@ extern "C" void VR_MenuDrawHighlight(int cx, int cy)
     const float yc = cy + 4.f;
     p.rounded(left, right, yc, 5.5f, 2.f, colors::highlight);
     p.rect(left, left + 1.5f, yc, 4.5f, colors::highlightEdge);
+    return 0;
 }
 
-// "Back to game": a button at the panel's top left, over every menu (not while a key is being
-// bound). Its label shows where it fits left of Quake's plaque (x 16), else only the arrow.
 // The vertical Quake plaque on the options pages: with the VR style's taller panel the rows reach
-// down past it, so it is left out (the "Back to game" button stands by the title instead).
+// down past it, so it is left out (the corner's buttons stand by the title instead).
 extern "C" int VR_MenuHidesPlaque()
 {
     return qvr::menuui::active();
 }
 
+// The menus that lay out from the canvas's bounds (Ironwail's lists: levels, mods, options, key
+// bindings) start below the corner's buttons.
+extern "C" void VR_MenuBounds(int* top, int* height)
+{
+    const float bottom = menuui::toolbarBottom();
+    const int below = static_cast<int>(std::ceil(bottom)) + 4;
+    if(below <= *top)
+    {
+        return;
+    }
+    const int end = *top + *height;
+    *top = below;
+    *height = q_max(end - below, 0) & ~7;
+}
+
+namespace
+{
+
+// A button's icon, `x` its left, `yc` its middle: Back to game's arrow, Advanced VR's sliders, the
+// levels' flag.
+void drawToolIcon(const Painter& p, int tool, float x, float yc, const glm::vec4& ink)
+{
+    const float w = ToolbarLayout::icon;
+    switch(tool)
+    {
+        case ToolBack:
+            p.arrowHead(x, 5.f, yc, 4.5f, ink);
+            p.rect(x + 4.f, x + w, yc, 1.25f, ink);
+            break;
+        case ToolAdvanced:
+            // Three sliders, their knobs set apart.
+            for(int i = 0; i < 3; i++)
+            {
+                const float y = yc + (i - 1) * 3.5f / p.k;
+                const float knob = x + (i == 0 ? 2.5f : i == 1 ? 6.5f : 4.f);
+                p.rect(x, x + w, y, 0.6f, ink);
+                p.rect(knob - 1.f, knob + 1.f, y, 1.5f, ink);
+            }
+            break;
+        case ToolLevels:
+            // A flag on its pole.
+            p.band(x + 1.f, x + 2.4f, yc, -4.5f, 4.5f, ink);
+            p.arrowHeadRight(x + w, w - 2.4f, yc - 2.f / p.k, 2.6f, ink);
+            break;
+        default: break;
+    }
+}
+
+} // namespace
+
+// The corner's buttons (over every menu, not while a key is being bound): their labels where they fit
+// left of Quake's plaque (x 16), else only their icons.
 extern "C" void VR_MenuDrawOverlay()
 {
-    backButton.menu = m_none;
+    toolbar.menu = m_none;
     if(!styled() || M_WaitingForKeyBinding())
     {
         return;
     }
 
     const Painter p;
-    const bool hot = backButton.hovered;
-    constexpr const char* label = "Back to game";
-    constexpr float corner = 4.f; // true pixels from the panel's edges
-    constexpr float half = 8.f;   // half its height
-    constexpr float arrow = 9.f;
-    const float labelWidth = 8.f * static_cast<float>(strlen(label));
-
-    // No further out than where it ends a character left of the plaque: on a wide panel, near
-    // the menu rather than out at the panel's corner.
-    const float x0 = std::fmax(glcanvas.left + corner, 16.f - 8.f - (4.f + arrow + 4.f + labelWidth + 5.f));
-    const bool withLabel = x0 + 4.f + arrow + 4.f + labelWidth + 5.f <= 16.f;
-    const float x1 = x0 + (withLabel ? 4.f + arrow + 4.f + labelWidth + 5.f : 4.f + arrow + 4.f);
-    const float yc = glcanvas.top + (corner + half) / p.k;
-
-    p.rounded(x0, x1, yc, half, 3.f, hot ? colors::highlightEdge : colors::boxBorder);
-    p.rounded(x0 + 1.f, x1 - 1.f, yc, half - 1.f, 2.f, hot ? colors::buttonHover : colors::boxFill);
-
-    // A left arrow.
-    const glm::vec4& ink = hot ? colors::thumb : colors::fill;
-    const float ax = x0 + 4.f;
-    p.arrowHead(ax, 5.f, yc, 4.5f, ink);
-    p.rect(ax + 4.f, ax + arrow, yc, 1.25f, ink);
-
-    if(withLabel)
+    const ToolbarLayout l = toolbarLayout();
+    for(int t = 0; t < ToolCount; t++)
     {
-        float x = ax + arrow + 4.f;
-        for(const char* c = label; *c; c++, x += 8.f)
+        const bool hot = toolbar.hovered == t || (menuui::toolbarFocused() && toolbar.focused == t);
+        const float yc = l.yc(t);
+        p.rounded(l.x0, l.x1, yc, ToolbarLayout::half, 3.f, hot ? colors::highlightEdge : colors::boxBorder);
+        p.rounded(l.x0 + 1.f, l.x1 - 1.f, yc, ToolbarLayout::half - 1.f, 2.f, hot ? colors::buttonHover : colors::boxFill);
+
+        const glm::vec4& ink = hot ? colors::thumb : colors::fill;
+        const float ix = l.x0 + 4.f;
+        drawToolIcon(p, t, ix, yc, ink);
+
+        if(l.labels)
         {
-            Draw_CharacterEx(x, yc - 4.f, 8.f, 8.f, hot ? *c : (*c | 128));
+            float x = ix + ToolbarLayout::icon + 4.f;
+            for(const char* c = toolLabels[t]; *c; c++, x += 8.f)
+            {
+                Draw_CharacterEx(x, yc - 4.f, 8.f, 8.f, hot ? *c : (*c | 128));
+            }
         }
     }
-
-    // It takes the clicks as far as the panel's corner, and a little round it.
-    backButton = {m_state, glcanvas.left, glcanvas.top, x1 + 2.f, yc + (half + 2.f) / p.k, hot};
+    toolbar.menu = m_state;
 }
 
-extern "C" int VR_MenuClick()
+// The corner's buttons take the laser's clicks on them, and the sticks' keys while they have the
+// selection: up and down move it (off the column's ends back to the menu: on a VR page, round to its
+// other end), A or Enter presses, B gives it back; a click of either stick takes it (or gives it back).
+extern "C" int VR_MenuKey(int key, int repeat)
 {
-    if(!menuui::active() || !overBackButton(m_mousex, m_mousey))
+    if(!menuui::active() || M_WaitingForKeyBinding())
     {
+        toolbar.focused = -1;
         return 0;
     }
-    menuui::backToGame(pointingHand);
-    return 1;
+
+    if(key == K_MOUSE1)
+    {
+        const int t = toolAt(m_mousex, m_mousey);
+        if(t < 0)
+        {
+            toolbar.focused = -1;
+            return 0;
+        }
+        menuui::useTool(t, pointingHand);
+        return 1;
+    }
+
+    if(key == K_LTHUMB || key == K_RTHUMB)
+    {
+        if(repeat)
+        {
+            return 1;
+        }
+        if(menuui::toolbarFocused())
+        {
+            toolbar.focused = -1;
+        }
+        else
+        {
+            focusTool(ToolBack);
+        }
+        S_LocalSound("misc/menu1.wav");
+        return 1;
+    }
+
+    if(!menuui::toolbarFocused())
+    {
+        toolbar.focused = -1;
+        return 0;
+    }
+
+    switch(key)
+    {
+        case K_UPARROW:
+        case K_DOWNARROW:
+        {
+            const int dir = key == K_DOWNARROW ? 1 : -1;
+            const int next = toolbar.focused + dir;
+            if(next >= 0 && next < ToolCount)
+            {
+                toolbar.focused = next;
+            }
+            else if(repeat)
+            {
+                return 1; // a held stick stops at the column's end: a new push leaves it
+            }
+            else
+            {
+                toolbar.focused = -1;
+                if(m_state == m_vr)
+                {
+                    menu::selectEnd(dir); // on round the page: its first setting below, its last above
+                }
+            }
+            S_LocalSound("misc/menu1.wav");
+            return 1;
+        }
+        case K_ENTER:
+        case K_KP_ENTER:
+        case K_ABUTTON: menuui::useTool(toolbar.focused, HAND_MAIN); return 1;
+        case K_ESCAPE:
+        case K_BBUTTON:
+        case K_MOUSE2:
+        case K_MOUSE4:
+            toolbar.focused = -1;
+            S_LocalSound("misc/menu1.wav");
+            return 1;
+        case K_LEFTARROW:
+        case K_RIGHTARROW: return 1; // nothing to change here (and nothing under it changed)
+        default:
+            toolbar.focused = -1; // another key: the menu's again
+            return 0;
+    }
 }
 
 // Opening the menu: the page "Back to game" left, over the main menu (where pages that go back
