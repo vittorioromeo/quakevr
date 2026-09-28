@@ -672,7 +672,7 @@ void wound(const Target& t, const Event& ev)
     // A blow at a point: where it meets the model (its triangles), else (the player's jointed body and hands) as it
     // goes, over what faces it within its radius of its line.
     // The player's own are seen close: smaller wounds; the hands' smaller still (a hand is a few units across).
-    const float own = !t.view ? 1.f : std::strncmp(t.ent->model->name, "progs/hand", 10) == 0 ? 0.5f : 0.75f;
+    const float own = !t.view ? 1.f : std::strncmp(t.ent->model->name, "progs/hand", 10) == 0 ? 0.65f : 0.75f;
     const auto blow = [&](const glm::vec3& org, const glm::vec3& way, int kind, const glm::vec4& what, float scale) {
         WoundSize ws = woundSize(kind, ev.amount);
         ws.run *= own;
@@ -698,7 +698,8 @@ void wound(const Target& t, const Event& ev)
             {
                 return;
             }
-            splats.push_back(woundSplat(at, r, n, way, ws.stretch, r * 0.9f + 1.f, -0.25f, ws.run, what));
+            // (the capsules are round, the body flatter: reach in to its surface under the point, facing it)
+            splats.push_back(woundSplat(at, r, n, way, ws.stretch, r * 0.9f + 6.f, 0.f, ws.run, what));
         }
         if(vr_wounds_debug.value)
         {
@@ -715,7 +716,7 @@ void wound(const Target& t, const Event& ev)
         glm::vec3 side = glm::cross(way, glm::vec3{0.f, 0.f, 1.f});
         side = glm::length(side) > 0.1f ? glm::normalize(side) : glm::vec3{1.f, 0.f, 0.f};
         const glm::vec3 up = glm::normalize(glm::cross(side, way));
-        return org + side * rnd(-7.f, 7.f) + up * rnd(-10.f, 12.f);
+        return org + side * rnd(-7.f, 7.f) + up * rnd(-6.f, 20.f); // the box's middle is the pelvis: more on the chest
     };
 
     switch(ev.kind)
@@ -735,10 +736,10 @@ void wound(const Target& t, const Event& ev)
         case KindBurn:
         {
             const bool zap = ev.kind == KindZap;
-            const float r = (zap ? 3.f : 4.f) + std::min(static_cast<float>(ev.amount), 60.f) * 0.08f;
+            const float r = ((zap ? 3.f : 4.f) + std::min(static_cast<float>(ev.amount), 60.f) * 0.08f) * own;
             const glm::vec3 org = spread(ev.org, dir);
-            glm::vec3 at = org + t.shift, n = -dir;
-            if(mesh && !strike(surf, org, dir, at, n))
+            glm::vec3 at, n;
+            if(mesh ? !strike(surf, org, dir, at, n) : !(t.capsules && strikeCapsules(*t.capsules, org + t.shift, dir, at, n)))
             {
                 break;
             }
