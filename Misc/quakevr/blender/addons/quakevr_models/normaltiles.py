@@ -125,6 +125,8 @@ MODELS = {
     "vrpauldron_arm.mdl": {"paint": True, "grain": 0.3, "bevel": 1.6, "scale": 4},
 }
 VIEW_MODEL = {"paint": True, "grain": 0.55, "bevel": 1.8, "scale": 2}
+# The axe's head is painted with streaks of dried blood in the wood's own browns: only its handle is wood.
+MODELS["v_axe.mdl"] = dict(VIEW_MODEL, wood_rects=[(440, 0, 512, 130)])
 
 
 def recipe(name):
@@ -168,14 +170,14 @@ def painted_dots(rgb, cov, lo=0.25, hi=0.6, most=3.5):
     ids = lab[ys, xs]
     order = np.argsort(ids, kind="stable")
     ids, ys, xs = ids[order], ys[order], xs[order]
-    starts = np.flatnonzero(np.r_[True, ids[1:] != ids[:-1]])
+    starts = np.flatnonzero(np.r_[True, ids[1:] != ids[:-1]]) if len(ids) else np.zeros(0, np.int64)
     for a, b in zip(starts, np.r_[starts[1:], len(ids)]):
         ext = max(xs[a:b].max() - xs[a:b].min(), ys[a:b].max() - ys[a:b].min()) + 1
         keep[ids[a]] = 1.0 if ext <= most else 0.0
     return np.where(lab >= 0, v * keep[np.maximum(lab, 0)], 0.0)
 
 
-def paint_heights(low, skin, grain_depth, scale):
+def paint_heights(low, skin, grain_depth, scale, wood_rects=None):
     """A painted skin's heights (texels) at `scale`: its seams grooved, its rivets and stitches raised, its wood and
     leather grained."""
     rgb = skin.astype(np.float64)
@@ -183,6 +185,11 @@ def paint_heights(low, skin, grain_depth, scale):
     lines = nb.blur(nb.painted_lines(rgb, cov, lo=0.12, hi=0.4, min_len=6.0, full_len=16.0), 0.5, cov)
     dots = nb.blur(painted_dots(rgb, cov), 0.6, cov)
     wood = nd.wood_mask(rgb, cov)
+    if wood_rects:  # the recipe knows where the wood is
+        m = np.zeros(wood.shape)
+        for s0, t0, s1, t1 in wood_rects:
+            m[t0:t1, s0:s1] = 1.0
+        wood *= m
     h = -0.8 * lines * (1 - 0.6 * wood) + 0.9 * dots + nd.grain(rgb, cov, wood, grain_depth)
     h = nb.dilate(np.dstack([h] * 3), cov, 6)[0][..., 0]
     # up to the map's size (bilinear), where the tiles' heights are made
@@ -209,7 +216,7 @@ def bake(low, skin, rec=None, supersample=2, base=None, details=True):
         if rec.get("tiles"):
             h += tile_heights(low, rec["tiles"](), hs)
         if rec.get("paint"):
-            h += paint_heights(low, skin, rec.get("grain", 0.5), hs)
+            h += paint_heights(low, skin, rec.get("grain", 0.5), hs, rec.get("wood_rects"))
         detail = nb.tangent_uv(r, nb.sampler(h, hs), d=0.5 / hs)
     img, _ = nb.finish(r, nw, detail, supersample=supersample)
     return img

@@ -390,17 +390,59 @@ def hsv(rgb):
 def wood_mask(rgb, cov):
     """Wood (and leather): warm browns, saturated enough, not bright yellow or red (brass, glows)."""
     h, s, v = hsv(rgb.astype(np.float64))
-    m = smooth((s - 0.28) / 0.12) * smooth((h - 12) / 6) * smooth((42 - h) / 6) * smooth((v - 0.06) / 0.05)
+    m = smooth((s - 0.28) / 0.12) * smooth((h - 18) / 5) * smooth((42 - h) / 6) * smooth((v - 0.06) / 0.05)
     return nb.blur(m, 1.2, cov) * cov
 
 
 def grain(rgb, cov, wood, strength=0.55):
-    """The painted grain of wooden parts (the skin's fine streaks) as heights, in texels."""
-    lum = rgb[..., 0] * 0.3 + rgb[..., 1] * 0.59 + rgb[..., 2] * 0.11
-    lum = lum / 255.0
+    """The wooden and leather parts' relief, in texels, from how their paint runs: where it streaks one way (a stock, a
+    handle) its streaks drawn out along that way, cleaned of the dither (the grain); where it runs every way at once,
+    finely (the checkered patches painted on the grips), a diamond checkering cut into it."""
+    lum = (rgb[..., 0] * 0.3 + rgb[..., 1] * 0.59 + rgb[..., 2] * 0.11) / 255.0
     hp = nb.blur(lum, 0.7, cov) - nb.blur(lum, 2.5, cov)
-    sd = np.sqrt(nb.blur(hp * hp, 4.0, cov)) + 0.01
-    return np.clip(hp / sd, -2, 2) * 0.5 * strength * wood
+    # the structure tensor: which way the paint streaks, and how clearly
+    L = nb.blur(lum, 0.8, cov)
+    Lp = np.pad(L, 1, mode="edge")
+    gx = (Lp[1:-1, 2:] - Lp[1:-1, :-2]) * 0.5
+    gy = (Lp[2:, 1:-1] - Lp[:-2, 1:-1]) * 0.5
+    jxx, jxy, jyy = (nb.blur(a, 3.0, cov) for a in (gx * gx, gx * gy, gy * gy))
+    tr = jxx + jyy
+    coh = np.sqrt((jxx - jyy) ** 2 + 4 * jxy ** 2) / np.maximum(tr, 1e-9)
+    ang = 0.5 * np.arctan2(2 * jxy, jxx - jyy)  # across the streaks
+    dx, dy = -np.sin(ang), np.cos(ang)  # along them
+    # the high-passed paint averaged along the streaks (line integral convolution, 9 texels)
+    h, w = hp.shape
+    ys, xs = np.mgrid[0:h, 0:w].astype(np.float64)
+    acc = np.zeros_like(hp)
+    for k in range(-4, 5):
+        uv = np.stack([xs + 0.5 + k * dx, ys + 0.5 + k * dy], -1).reshape(-1, 2)
+        acc += nb.sampler(hp)(uv).reshape(h, w)
+    streak = acc / 9.0
+    sd = np.sqrt(nb.blur(streak * streak, 4.0, cov)) + 0.004
+    streaks = np.clip(streak / sd, -2, 2) * 0.5
+    # checkering where the paint is busy but runs no way (low coherence, high fine energy)
+    energy = np.sqrt(nb.blur(hp * hp, 3.0, cov)) / np.maximum(nb.blur(lum, 3.0, cov), 0.04)
+    busy = np.clip((energy - 0.05) / 0.03, 0, 1) * np.clip((0.6 - coh) / 0.15, 0, 1)
+    busy = nb.blur(busy * wood, 2.0, cov)
+    busy = np.clip((busy - 0.35) / 0.3, 0, 1)
+    # only whole patches: a checkered grip is painted as a block, busy all over (blood and scuffs are blotches)
+    lab = nb.labels(busy > 0.5)
+    keep = np.zeros(lab.max() + 2)
+    ys_, xs_ = np.nonzero(lab >= 0)
+    ids = lab[ys_, xs_]
+    order = np.argsort(ids, kind="stable")
+    ids, ys_, xs_ = ids[order], ys_[order], xs_[order]
+    starts = np.flatnonzero(np.r_[True, ids[1:] != ids[:-1]]) if len(ids) else np.zeros(0, np.int64)
+    for a, b in zip(starts, np.r_[starts[1:], len(ids)]):
+        area = b - a
+        box = (np.ptp(xs_[a:b]) + 1) * (np.ptp(ys_[a:b]) + 1)
+        keep[ids[a]] = 1.0 if area >= 80 and area >= 0.7 * box else 0.0
+    busy = nb.blur(np.where(lab >= 0, keep[np.maximum(lab, 0)], 0.0), 0.7, cov) * cov
+    d1 = np.abs(((xs + ys) / 3.0) % 1.0 - 0.5)
+    d2 = np.abs(((xs - ys) / 3.0) % 1.0 - 0.5)
+    checker = -1.0 * np.clip(1.0 - np.minimum(d1, d2) * 3.0 / 0.9, 0, 1) + 0.3
+    along = np.clip((coh - 0.25) / 0.25, 0, 1)
+    return (streaks * along * (1 - busy) + checker * busy) * strength * wood
 
 
 def weapon_heights(low, skin, lines_depth=0.8, grain_depth=0.55):

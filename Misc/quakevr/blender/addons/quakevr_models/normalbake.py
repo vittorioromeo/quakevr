@@ -573,7 +573,7 @@ def painted_lines(rgb, mask, sigmas=(0.8, 1.4), lo=0.1, hi=0.35, min_len=8.0, fu
     ids = lab[ys, xs]
     order = np.argsort(ids, kind="stable")
     ids, ys, xs = ids[order], ys[order], xs[order]
-    starts = np.flatnonzero(np.r_[True, ids[1:] != ids[:-1]])
+    starts = np.flatnonzero(np.r_[True, ids[1:] != ids[:-1]]) if len(ids) else np.zeros(0, np.int64)
     ends = np.r_[starts[1:], len(ids)]
     for a, b in zip(starts, ends):
         ext = math.hypot(xs[a:b].max() - xs[a:b].min(), ys[a:b].max() - ys[a:b].min())

@@ -74,15 +74,15 @@ def main():
     paths = [p for t in targets for p in normalmaps.outputs(progs, t)]
     guard = genguard.Guard("bake_normals.py", paths)
     import normalbake
+    maps = {}  # all baked before any is written: a failure half way leaves the maps as they were
     for t in targets:
         t0 = time.time()
-        maps = normalmaps.bake(progs, t)
-        for path, rgb in maps.items():
-            if path in guard.kept:
-                continue
+        maps.update(normalmaps.bake(progs, t))
+        print("%s: baked in %.1f s" % (t, time.time() - t0))
+    for path, rgb in maps.items():
+        if path not in guard.kept:
             normalbake.write_png(path, rgb)
-            print("%s: %d x %d -> %s" % (t, rgb.shape[1], rgb.shape[0], os.path.relpath(path, ROOT)))
-        print("  %.1f s" % (time.time() - t0))
+            print("  %d x %d -> %s" % (rgb.shape[1], rgb.shape[0], os.path.relpath(path, ROOT)))
     guard.finish()
 
 
