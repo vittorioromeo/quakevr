@@ -591,6 +591,10 @@ your body; the hands stay with the head), `vr_mock_camera` alone puts them back.
 Leaning (round 21): `vr_mock_hand head <x> <y> <z> <pitch> <yaw> <roll>` and `vr_mock_play` head keyframes with angles
 turn the head too (pitch up, roll as the hands'); `vr_debug_lean 1` writes `lean_trace.txt` (the game directory): the
 head, the box, the lean, the pelvis, the feet and the lean's hold and cues, every frame.
+Arm IK (ROUND21.md, "Arm IK with calibrated hands"): `vr_debug_arm 1` prints each drawn arm once (shoulder, elbow,
+wrist, the elbow's swing, the wrist's flexion, deviation, twist and strain against the solved forearm and the pole's;
+`armT` lines in tracking-space metres from the head, for `vr_mock_hand`); `vr_debug_arm 2` writes it every frame to
+`arm_trace.txt`, e.g. while `vr_motion_eval` replays takes.
 
 After the posing test (ROUND21.md): `vr_debug_shots 1` with `developer 1` prints each hitscan shot (start, direction,
 what its pellets hit, headshots) and each damage you deal; a monster at the muzzle: `impulse 150 + weapon id` (with
