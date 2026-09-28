@@ -129,6 +129,9 @@ void VR_ClientPreMove (struct edict_s *ent);			// SV_Physics_Client: hand and we
 int VR_ClientTeleport (struct edict_s *ent);			// SV_Physics_Client: 1 teleported, -1 freed
 void VR_ClimbPreThink (struct edict_s *ent);			// SV_Physics_Client, before PlayerPreThink: ledge holds taken and let go (vr_climb.cpp)
 int VR_ClientClimb (struct edict_s *ent);				// SV_Physics_Client, before the move: 1 hung or mantled instead, -1 freed
+int VR_ClimbHangsFrom (struct edict_s *check, struct edict_s *pusher);	// SV_PushMove: nonzero for a player hanging from (or mantling onto) the pusher: it rides it
+int VR_ClimbCarryBlocked (struct edict_s *check, struct edict_s *pusher, const float *from, const float *move); // SV_PushMove: its ride stopped short: nonzero blocks the pusher (vr_climb_mover_crush), else it lets go
+void VR_ClimbCarried (struct edict_s *pusher, const float *move);	// SV_PushMove, moved: the holds on it moved with it
 void VR_ClientRoomscaleMove (struct edict_s *ent);		// SV_Physics_Client, after the move
 void VR_BeforePlayerPostThink (struct edict_s *ent);	// SV_Physics_Client, before PlayerPostThink
 void VR_AfterPlayerPostThink (struct edict_s *ent);	// and after it

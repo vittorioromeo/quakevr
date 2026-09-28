@@ -16,8 +16,8 @@ namespace qvr::climb
 
 void init(); // registers vr_climb_probe
 
-// Server: every hold let go (a new map, a loaded game: VR_OnSpawnServerBeforeLoad). A hold's brush model is an entity
-// number of the old world, and a loaded game's time may be within the second the time check allows.
+// Server: every player's holds and mantle forgotten (a map loaded, a saved game loaded: their entity numbers and ledge
+// maps are another world's).
 void reset();
 
 // Server: the player's holds as stats (STAT_QVR_CLIMB*), for the drawn hands.

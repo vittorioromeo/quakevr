@@ -77,6 +77,25 @@ spawn functions but are not entities (`//! internal` in `entities.fgd`, with the
 | `vr_dummy` | a training dummy (a grunt) that cannot be hurt and shows every hit's damage | `angle` |
 | `weapon_shotgun` | the shotgun as a pickup (id's Quake has none) | |
 
+**Climbing (what counts as a ledge).** With Climbing on, a hand takes hold of a ledge (ROUND21.md, "Ledge map"; the
+engine finds them when the map loads, `vr_debug_ledges 1` shows them):
+- the lip of a walkable top (a drawn face at most about 45 degrees from flat; not sky, not a liquid's surface) with open
+  space beyond it and under it, room over it for a hand (8 units), and a **drop of at least 32 units** within 16 units
+  out from the lip. A trim or a step under the lip is passed over on the way out (a moulding, the next rung down); a
+  wall within 16 units at hand height (2 over the top) means no drop.
+- so: ledges, window sills over a drop, beams, rungs (a rung against a wall: its front and its ends), a wall's top.
+  Not: floors, stairs (their treads come every 8 to 16 units down), the edge of a step, a sill over a floor within 32.
+- clip brushes don't count (they aren't in the hands' collision); `func_illusionary` doesn't either (not solid); sky
+  and liquid tops don't.
+- brush entities (`func_plat`, `func_train`, `func_door`, `func_wall`...) have their own ledges, which move with them:
+  a hand holds on and rides it. A ledge on one only counts where the world (or another brush entity) doesn't fill its
+  drop now: a plat level with the floor is no ledge. Rotating brushes don't rotate their ledges (Quake's collision
+  doesn't rotate brush models; the mission packs' rotating things collide through `func_movewall` boxes, which move).
+- the mantle needs the player's box (32 by 32, 56 tall) to fit on the top: a top at least 3 units deep with the box's
+  middle over it, and room above.
+- Lowest Ledge (`vr_climb_min_height`, 30 units over the feet) is the player's setting: ledges lower than that aren't
+  taken.
+
 **What Quake VR changed in id's entities** (all in their help):
 - `func_button`: pressed by a hand or a weapon (vertical ones also by stepping on them); a label (`worldtext`,
   `worldtext_halign`, `worldtext_scale`, drawn on its face); `buttonEffect` 3 runs its `targetname` as a console

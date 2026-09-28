@@ -6,7 +6,9 @@
 #                                           leniently (the hold's top, and how far it is from the hand), - none, and
 #                                           -(...) none, with the holds seen but turned down: l too low (Lowest Ledge),
 #                                           b lower under the hand than a hold may be, f too far, h behind the head,
-#                                           w through a wall
+#                                           w through a wall, c covered or not reached (another solid over it, a fence
+#                                           before it), x hidden (another ledge taken there instead); since the ledge
+#                                           map (ROUND21.md, "Ledge map") the counts are of ledges, not of points
 import re
 import sys
 
@@ -63,9 +65,10 @@ def table(log):
             ms.append((float(t.group(1)), int(re.search(r"(\d+) points", r).group(1)), int(t.group(2) or 0)))
         if r.startswith("none"):
             c = "-"
-            rej = re.search(r"turned down: (\d+) low, (\d+) below, (\d+) far, (\d+) behind, (\d+) through", r)
-            if rej and any(int(x) for x in rej.groups()):
-                c = "-(" + ",".join(k + x for k, x in zip("lbfhw", rej.groups()) if int(x)) + ")"
+            rej = re.search(r"turned down: (\d+) low, (\d+) below, (\d+) far, (\d+) behind, (\d+) through a wall"
+                            r"(?:, (\d+) covered, (\d+) hidden)?", r)
+            if rej and any(int(x or 0) for x in rej.groups()):
+                c = "-(" + ",".join(k + x for k, x in zip("lbfhwcx", rej.groups()) if int(x or 0)) + ")"
         else:
             top = float(re.search(r"top (\S+)", r).group(1))
             cm = float(re.search(r"\(([\d.]+) cm\)", r).group(1))

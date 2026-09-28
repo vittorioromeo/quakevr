@@ -5,6 +5,7 @@
 #include "vr_box3d.hpp"
 #include "vr_climb.hpp"
 #include "vr_debris.hpp"
+#include "vr_ledges.hpp"
 #include "vr_cvars.hpp"
 #include "vr_physics.hpp"
 #include "vr_server.hpp"
@@ -233,6 +234,8 @@ extern "C" void VR_OnSpawnServerAfterLoad()
 {
     qvr::server::onSpawnServerAfterLoad();
     qvr::debris::afterLoad();
+    qvr::ledges::afterLoad(); // climbing's ledge map (with Climbing on)
+    qvr::climb::reset();
     callSpawnServerEntryPoint(sv_bindings.OnSpawnServerAfterLoad);
     loadingSaveGame = false;
 }
@@ -317,6 +320,7 @@ extern "C" void VR_OnLoadGame()
     rebindLoadedModels();
 
     qvr::walltorch::restoreAfterLoad(); // the map's wall torches a save made before they were entities lacks
+    qvr::climb::reset();                // (holds on the loaded game's entities: none)
 
     callEntryPoint(sv_bindings.OnLoadGame);
 }
