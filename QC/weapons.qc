@@ -117,8 +117,8 @@ float() VRMeleeDmgQuadMult =
 
 // Melee: a part of what a hand holds swept into something at vr_melee_speed or more (vr_melee.qc; PlayerVRMeleeImpl
 // in client.qc), in any direction. The damage is the weapon's base times the blow's strength (VR_Melee_Decide: the
-// striking part's speed and the kind of blow; 1 at twice vr_melee_speed, at most VR_MELEE_STRONGEST), and a counter's
-// after a parry (VR_Blow_Counter; vr_counter_damage).
+// striking part's speed and the kind of blow; 1 at twice vr_melee_speed, at most VR_MELEE_STRONGEST), a counter's
+// after a parry (VR_Blow_Counter; vr_counter_damage), and short of stamina less (VR_Blow_Exhaust; vr_strike_stamina).
 
 float(float xHand, float xBase) VRMeleeDmg =
 {
@@ -127,7 +127,8 @@ float(float xHand, float xBase) VRMeleeDmg =
         return 20;
     }
 
-    return xBase * VR_Blow_Strength(xHand) * VR_Blow_Counter(xHand) * cvar_hget(cvarh_vr_melee_dmg_multiplier) * VRMeleeDmgQuadMult();
+    return xBase * VR_Blow_Strength(xHand) * VR_Blow_Counter(xHand) * VR_Blow_Exhaust(xHand) *
+           cvar_hget(cvarh_vr_melee_dmg_multiplier) * VRMeleeDmgQuadMult();
 }
 
 float(float v) VRMeleeRange =
