@@ -7333,3 +7333,120 @@ calibration describes a hand holding a Quest-style controller, not a body, so it
 
 - [ ] A first start (move your config away): each gun sits in your hand as in yours, one- and two-handed.
 - [ ] Hand Calibration > Reset Moves and Rolls: the hands go back to the shipped calibration, not to 0.
+
+## Climbing: hand placement and grab leniency
+
+Your notes (vrclimb, 28 September): the climbing works well; the hand on a hold is drawn a bit too deep into the ledge
+(you want it closer to you, with sliders that move it without changing the climbing), and you want a slider for the
+grab's leniency: less precise, the grip finding the closest climbable spot. Locomotion, under Climbing: **Grab
+Leniency**, **Hand on Hold: Towards You / Up / Sideways**.
+
+### The hand on its hold (looks only)
+
+`vr_climb_hand_out` (10 cm), `vr_climb_hand_up` (1 cm), `vr_climb_hand_side` (0 cm), -10 to 10. The server now sends
+each hold's way out (towards the drop; a byte of yaw per hand in `STAT_QVR_CLIMB`), and the client moves the drawn
+palm from the hold by these: towards you along it, up, and along the edge outwards (the main hand to the right, the
+off hand to the left; swapped left-handed). The hold itself (2 units in from the lip, 1 above the top), the pull, the
+limits and the mantle don't read them.
+
+- **Why 10 and 1.** The palm's middle was drawn 7.6 cm in from the lip, the fingers on the top beyond it. Seen from the
+  side, with your real hand pulled down 25 cm (hanging), the drawn hand, held on its hold, came apart from the wrist,
+  which stopped at the lip. Tried 0, 5, 8, 11 and 10 up 1: at 10 up 1 the palm's middle is 2.4 cm in front of the lip
+  and 1 cm higher, the heel of the palm in front of the edge, the fingers over the lip onto the top, and the wrist
+  meets the hand. The arm follows the drawn hand (10 cm less to reach): it looks natural in every view.
+- **Its light.** A model's light is sampled under its origin. Moved off the top, the hand's sample fell to the floor
+  below the ledge and the hand went dark at the lip. A hand on a hold is now lit from where it would be without the
+  offset (`VR_AliasLightOrigin`, r_alias.c; the view entity's `lightShift`), so as bright as before.
+- **The glide.** The drawn hand eases onto its hold in 0.06 s as before when it is within 12 cm of it, and slower the
+  further it is (2 m/s, at most 0.2 s): a lenient grab's hold 30 cm away takes 0.16 s, no pop.
+
+### Grab Leniency
+
+`vr_climb_leniency`, 0 to 30 cm, **10** by default. How precise it was: a hold was taken only where the hand is: over
+the top (up to 10 units above it, or sunk up to 12), or against the face under the lip (up to 12 under it, and up to 6
+units in front of it along the line from your body). In front of a rung that came to about 2 units (8 cm): looking for
+the lip from higher up started inside the next rung up (they are 20 apart). In front of the ledge 4 units; past a
+rung's end, nothing.
+
+Now a grip that takes no hold where the hand is looks round it: the same rule tried from 26 points (towards a cube's
+faces, edges and corners) on shells round the hand, at most 2 units apart, out to the leniency (10 cm: 2 shells, 52
+points). Of the holds that finds:
+
+- **The nearest wins**: the hold (where the palm's middle goes) nearest the hand; a hold the hand moves towards (faster
+  than 0.3 m/s; a still hand: the way from your head to it) counts as up to 30% nearer.
+- **In sight**: a line from the hand (from your head, for a hand inside a wall) to just over the lip must be clear.
+  No grabbing through a wall.
+- **Not behind you, not below**: not on the far side of your head from the hand; no lower under the hand than the rule
+  itself reaches (10 units: the leniency never reaches down); not under Lowest Ledge; at most the leniency plus 30 cm
+  (8 units) from the hand (no snapping onto a step 70 cm off).
+- **Along the edge**: the hold is where the hand is along the edge, as always (past a ledge's end, where the point that
+  found it is).
+- **Kept**: what counts as a hold (a top with a 32-unit drop and room for the hand: not floors, walls or stairs), the
+  holster priority, holding things, the regrab delay. A hold where the hand is always wins, so every grab that worked
+  takes the same hold as before; at 0 it is the old rule. Only for the points round the hand, a rung above no longer
+  hides the rung below (the top is looked for from the point itself when looking from higher starts in something).
+- **No pop**: taking a hold never moves the body; you move by the hands' motion since the grab (as before), not by where
+  the hold is. A 30 cm snap then a 25 cm pull lifts you 25 cm, like a grab where the hand is.
+
+One fix for every grab: **the way out** (towards the drop). The edge is looked for along a way from the hand towards
+your body, then squared to the face under it, but only if that face was within 60 degrees of the way. A hand reaching
+to the side (a rung with your body off to one side) kept the slanting way: the hold shifted along the edge, and the
+way out (the mantle's direction, now also the hand's offset) pointed along the rung. Now the face's normal is used
+whatever the angle. It changes no hold taken; the scripted climbs are identical.
+
+### Verified (mock headset; `climbtune/` in the scratchpad)
+
+- **Fixed frames.** `vr_fixed_frames 1` (new, for tests): every frame is 1/72 s of game time with a server frame, so a
+  scripted climb logs the same numbers every run (the ladder twice: identical).
+- **The climbing is bit-identical.** The four scripted climbs (hand over hand up the rungs and over the top: 22
+  hand-offs, the mantle at 305; the ledge hang, the 8-hand-over shimmy and the fall; the mantle; e1m1's ledge and its
+  mantle) logged the same `climbtrace` and `climb:` lines, byte for byte, on the base build (e6a2895d plus the fixed
+  frames) and on this build with: the new defaults; the defaults and Sideways 3 cm; 6/2/2 cm; Leniency 0 and 15; every
+  new setting at 0. So the hand-offs are as before (`climb_trace.py`: 0.00 mm off the pull).
+  Once in 12 runs of e1m1 (every new setting at 0), the mantle didn't start in the frame it should: the frames before
+  it were identical, and the same run again mantled. Something else in e1m1 (a monster near the spot on top?) blocks
+  `findMantle`'s box now and then; it isn't these settings. Not looked into further.
+- **The sweep** (`climb_leniency.py`; E: taken where the hand is, L: leniently; the hold's distance from the hand):
+
+  | Hand | 0 (old) | 5 | **10** | 15 | 20 | 30 |
+  |---|---|---|---|---|---|---|
+  | in front of the ledge, 1 under the lip, 4 units out | E 26 cm | E | E | E | E | E |
+  | 6 units out | none | L 32 cm | L 32 | L 32 | L 32 | L 32 |
+  | 8 units out | none | none | **L 40** | L 40 | L 40 | L 40 |
+  | 10 / 12 units out | none | none | none | none | L 47 / none | L 47 / L 54 |
+  | over the lip, 10 / 12 units above the top | none | L 34 / none | L 34 / none | same | same | same |
+  | in front of rung 56, 2 under its top, at its face | E 14 cm | E | E | E | E | E |
+  | 2 / 6 / 8 units out | none | L 19 / 32 / none | L 19 / 32 / **40** | same | same | same |
+  | 10 / 12 units out | none | none | none | none | L 47 / none | L 47 / L 54 |
+  | past the rung's end by 0 / 2 / 4 / 6 units | none | L 8 cm / none | L 8 / **13** / none | same | + L 21 at 4 | + L 31 at 6 |
+  | in front of the rung, your body 60 units to its side, 2 / 4 / 6 / 8 out | none | L 19 / none | L 19 / **26** / none | same | + L 32 at 6 | + L 40 at 8 |
+  | between rungs 56 and 76, 2 units in front, 4 / 6 above 56 | none | L 19 / 24 | L 19 / 24 | same | same | same |
+  | 8 units in front, 10 above rung 56 (holds 51 and 57 cm off) | none | none | none | none | none | still: 76; moving up: 76; down: 56 |
+  | a wall without a ledge (8 points) | none | none | none | none | none | none |
+  | stairs, steps 1 to 3 at the nosings (12 points) | none | none | none | none (step 0, 70 cm off, turned down) | none | none |
+  | a thin wall with a ledge 6 units behind it (8 points) | none | none | none | none | none (seen through the wall, turned down) | none (the same) |
+
+  Under the lip the rule already reaches 12 units (46 cm); the leniency adds 14 units under it only at 30 cm.
+- **Real grips** (`climb_plays.py pressL<d>|pressR<d>`: the main hand d units in front, grip, pull down 25 cm). The
+  ledge at 2 units: taken at 0 (where the hand is). At 6 units: nothing at 0; at 10 and 15, a lenient hold 33 cm from
+  the hand (the search: 52 points, 0.04 ms), the drawn hand easing on in 0.16 s. At 10 units: nothing at 15, taken at 30 (0.2 s). The rung the same (6 units
+  at 10 and 15, 10 units at 30). Every time, the body rose 6.56 units (25 cm) with the pull, smoothly from the grab's frame on
+  (0.114 units a frame, 0.00 mm off the hands' pull): the snap's distance doesn't move you.
+- **Time**: the search runs only on a grip that took no hold (with Climbing on): median 0.03 ms at 10 cm; the worst,
+  at the stairs (every point over a tread looks all round for a drop), 1.75 ms at 10 cm and 3.1 ms at 30 cm.
+- **Screenshots** (`climb_hands_before_after.png`, `climb_hands_zoom.png`): both hands on the ledge and on rung 56,
+  hanging (pulled up 25 cm), from the eyes and from the side, before (the offsets at 0: as the old build) and after.
+
+### Test tools
+
+`vr_climb_try <x y z>`, `vr_fixed_frames`, `climb_leniency.py`, the hang and press plays (TESTING.md). vrclimb has a
+new corner for the leniency: a thin wall (4 units, 96 high) on the main floor with a ledge 6 units behind it
+(`setpos -270 -260 24 0 180 0`), recompiled the "Full" way; the rest is unchanged (the climbs above identical).
+
+### Check in the headset
+
+- [ ] The hand on a ledge and on a rung: the palm just before the lip, the fingers over it. If not, move the Hand on
+  Hold sliders and tell me the numbers; I'll make them the defaults.
+- [ ] Grab Leniency 10: reach a little short of rungs and ledges. Too eager (holds you didn't mean) or still too strict?
+- [ ] A far grab (Leniency 30, the hand 30 cm short): the drawn hand glides on; you don't move until you pull.
+- [ ] The hand's light on a hold in a dark place (it is lit like the top it grips).

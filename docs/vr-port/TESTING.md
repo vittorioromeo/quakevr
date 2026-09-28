@@ -590,6 +590,16 @@ wall (`setpos 71 0 24 0 0 0; noclip`, the second toggling setpos's noclip off) a
 plays (hand over hand to the top, a two-hand hang and a shimmy with a fall, a mantle, and e1m1 from `setpos 250 2350
 40`). With `vr_climb 1; vr_climb_debug 2`, `climb_trace.py qconsole.log` prints the body's move against the hands'
 pull every frame and at every hand-off. `vr_climb_probe [yaw]` lists the holds ahead.
+Climbing, hand placement and grab leniency (ROUND21.md, "Climbing: hand placement and grab leniency"):
+`vr_fixed_frames 1` makes every frame 1/72 s of game time with a server frame, so a scripted climb logs the same
+numbers every run (compare two settings' `climbtrace` lines with `diff`). `vr_climb_try <x> <y> <z> [off|main] [<vx>
+<vy> <vz>]` prints what a grip at that world point would take (exact or lenient, the hold, its distance, the holds turned
+down and why, the search's time) and takes nothing; `python Misc/quakevr/climb/climb_leniency.py script` writes the
+sweep (ledge, rungs, a wall, stairs, the thin wall with a ledge behind it at vrclimb's `setpos -270 -260 24 0 180 0`,
+at leniencies 0 to 30 cm) and `climb_leniency.py table qconsole.log` tabulates it. `climb_plays.py pressL<d>|pressR<d>`
+grips d units in front of the ledge or rung 56 and pulls (a real lenient grab; `vr_climb_debug 3` also prints the
+search's time and the drawn hand's ease), `ledgehang|runghang` hang still for screenshots (`vr_mock_camera` for the
+side view, `vr_mock_fingers main 0 1 1` for a gripping hand).
 
 Fitted hands (round 21): `impulse 252` puts a gib or a head (nine kinds in turn) in the empty off hand; `impulse 253`
 prints the held weapons' hotspots through the QC query; `vr_show_weapon_hotspots 1` marks them; `vr_hotspots_check`
