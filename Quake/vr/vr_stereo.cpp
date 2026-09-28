@@ -21,6 +21,7 @@
 #include "vr_hands.hpp"
 #include "vr_lines.hpp"
 #include "vr_main.hpp"
+#include "vr_meleehud.hpp"
 #include "vr_panel.hpp"
 #include "vr_profile.hpp"
 #include "vr_stereo.hpp"
@@ -356,6 +357,7 @@ extern "C" int VR_RenderView()
 
     crosshair::queue(hands::current());
     fgfx::queue(hands::current());
+    meleehud::queue(hands::current()); // the counter glow (vr_counter_glow)
     body::queueDebug(hands::current());
     envmap::update(); // the weapons' reflections: a face of the cube, once for both eyes (vr_envmap.cpp)
 

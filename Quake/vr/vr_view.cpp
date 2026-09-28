@@ -3798,6 +3798,39 @@ bool weaponMount(int hand, WeaponMount& out)
     return true;
 }
 
+const ViewEntity* heldWeapon(int hand)
+{
+    if(hand < 0 || hand > 1)
+    {
+        return nullptr;
+    }
+    const ViewEntity& ve = entities.weapon[hand];
+    const bool weapon = ve.visible && ve.ent.model && ve.ent.model->type == mod_alias &&
+                        weapons::slotForModel(ve.ent.model) >= 0 && !isHandModel(ve.ent.model);
+    return weapon ? &ve : nullptr;
+}
+
+int handOf(const entity_t* e, bool& weapon)
+{
+    for(int hand = 0; hand < 2; hand++)
+    {
+        if(e == &entities.weapon[hand].ent || e == &entities.weaponMorph[hand].ent)
+        {
+            weapon = true;
+            return hand;
+        }
+        for(const ViewEntity& ve : entities.hand[hand])
+        {
+            if(e == &ve.ent)
+            {
+                weapon = false;
+                return hand;
+            }
+        }
+    }
+    return -1;
+}
+
 bool weaponFrame(const hands::State& s, int hand, WeaponFrame& out)
 {
     const ViewEntity& ve = entities.weapon[hand];

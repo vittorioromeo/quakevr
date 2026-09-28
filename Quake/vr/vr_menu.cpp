@@ -508,8 +508,8 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Recovery Rate", vr_parry_stamina_regen, 1.f, 100.f, 1.f, "%.0f /s").extend().help("Stamina a second it then comes back at."),
         slider("Tiring Warning", vr_parry_stamina_warn, 0.f, 1.f, 0.1f, "%.1f")
             .help("A breath and a throb in the hand when one more one-handed parry would knock the weapon away; a gasp and a long buzz when it does: their volume and strength (0 off)."),
-        toggle("Stamina Bar", vr_parry_stamina_show)
-            .help("Each parry shows the stamina left: a bar rising from the weapon, green, then amber, then red once one more one-handed parry would knock the weapon away."),
+        toggle("Stamina on the Gadget", vr_gadget_stamina)
+            .help("The wrist gadget's top row shows your stamina: ten cells, blinking when one more one-handed parry would knock the weapon away, EXHAUSTED when none is left, a sweep while it comes back. While a counter's window is open it reads COUNTER over a bar running out."),
         header("Counter-Attacks"),
         toggle("Counter-Attacks", vr_counter)
             .help("After a parry (a weapon's or crossed arms), your next melee attack in the window is a counter and hits harder: a blow with either hand, a bash or a shove. One a parry."),
@@ -517,7 +517,8 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Counter Damage", vr_counter_damage, 1.f, 3.f, 0.05f, "%.2fx").extend().help("A counter's damage (a bash's or a shove's knockback too)."),
         slider("Counter Sounds", vr_counter_sound, 0.f, 1.f, 0.1f, "%.1f")
             .help("Volume of a blade's shing as the window opens and of the heavy strike as a counter lands (0 off)."),
-        toggle("Counter Glow", vr_counter_glow).help("While the window is open, what your hands hold sheds golden embers, fewer as it closes."),
+        toggle("Counter Window Glow", vr_counter_glow)
+            .help("While the counter's window is open, what your hands hold (a bare fist too) glows gold round its edges and sheds golden embers, fading as the window closes. Off as shipped."),
         slider("Counter Pulses", vr_counter_haptic, 0.f, 1.f, 0.1f, "%.1f")
             .help("Strength of the soft pulses in both hands while the window is open, fading as it closes (0 off)."),
         header("Training Dummy Attacks"),
@@ -975,6 +976,8 @@ void hologramTestMessage()
     return {
         header("Wrist Gadget"),
         toggle("Level and Stats", vr_gadget_show_level),
+        toggle("Stamina and Counters", vr_gadget_stamina)
+            .help("The top row shows your parry stamina (with Parry Stamina on) and COUNTER while a counter-attack's window is open."),
         slider("Screen Light", vr_gadget_light, 0.f, 3.f, 0.1f, "%.1fx").extend()
             .help("The screen casts a light in its colour the way it faces, and a faint one on your hand (0 off)."),
         slider("CRT Look", vr_gadget_crt, 0.f, 2.f, 0.1f, "%.1fx").extend()

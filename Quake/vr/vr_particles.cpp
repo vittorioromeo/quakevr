@@ -1684,6 +1684,32 @@ void lavaNailTrail(const glm::vec3& from, const glm::vec3& to)
     });
 }
 
+void counterEmber(const glm::vec3& org, const glm::vec3& vel, float bright)
+{
+    if(bright <= 0.f || !enabled())
+    {
+        return;
+    }
+
+    // Gold, a little hotter than the lava nails' embers and bigger (they must read on a blade at arm's length), rising
+    // off the surface and dimming as they go.
+    make(1.f, [&](Particle& p, int) {
+        p.cell = CellSpark;
+        p.additive = true;
+        p.color = glm::vec4{1.f, rnd(0.68f, 0.86f), rnd(0.22f, 0.36f), std::min(1.f, bright)};
+        p.die = cl.time + rnd(0.4f, 0.75f);
+        p.scale = rnd(0.34f, 0.56f);
+        p.type = Custom;
+        p.fade = -1.5f;
+        p.grow = -0.35f;
+        p.drag = 1.8f;
+        p.spin = rnd(-6.f, 6.f);
+        p.acc = gravity(-0.02f);
+        p.org = org;
+        p.vel = vel;
+    });
+}
+
 void shellTrail(const glm::vec3& from, const glm::vec3& to, float strength)
 {
     if(strength <= 0.f || !vr_particles.value || !ensureAtlas())

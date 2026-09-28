@@ -78,7 +78,8 @@ enum Stat : int
     STAT_QVR_CLIMB,     // the holding hands (vr_climb.cpp): bit 0 off, 1 main; bits 2-7, 8-13 their holds' serials
     STAT_QVR_CLIMBOFFX, // each hand's hold, in eighths of a unit: the drawn hand is put on it
     STAT_QVR_CLIMBMAINX = STAT_QVR_CLIMBOFFX + 3,
-    STAT_QVR_END = STAT_QVR_CLIMBMAINX + 3
+    STAT_QVR_MELEE = STAT_QVR_CLIMBMAINX + 3, // parry stamina and the counter's window (QC .vr_melee_hud; vr_meleehud.cpp)
+    STAT_QVR_END
 };
 
 inline constexpr int numHolsters = 6;
