@@ -58,9 +58,9 @@ def table(log):
         if not m or site is None:
             continue
         r = m.group(4)
-        t = re.search(r"([\d.]+) ms", r)
+        t = re.search(r"([\d.]+) ms(?:, (\d+) traces)?", r)
         if t:
-            ms.append((float(t.group(1)), int(re.search(r"(\d+) points", r).group(1))))
+            ms.append((float(t.group(1)), int(re.search(r"(\d+) points", r).group(1)), int(t.group(2) or 0)))
         if r.startswith("none"):
             c = "-"
             rej = re.search(r"turned down: (\d+) low, (\d+) below, (\d+) far, (\d+) behind, (\d+) through", r)
@@ -81,10 +81,12 @@ def table(log):
             row = [cells[k * len(pts) + j] if k * len(pts) + j < len(cells) else "?" for k in range(len(LENIENCIES))]
             label = "hand %g %g %g" % p[:3] + (" v %g %g %g" % p[3:] if len(p) > 3 else "")
             print(f"  {label:<32}" + "".join(f"{c:>11}" for c in row))
-    for n in sorted({p for _, p in ms}):
-        times = sorted(t for t, q in ms if q == n)
+    for n in sorted({p for _, p, _ in ms}):
+        times = sorted(t for t, q, _ in ms if q == n)
+        traces = sorted(c for _, q, c in ms if q == n)
         if n:
-            print(f"lenient search, {n} points: median {times[len(times) // 2]:.3f} ms, max {times[-1]:.3f} ms")
+            print(f"lenient search, {n} points: median {times[len(times) // 2]:.3f} ms, max {times[-1]:.3f} ms; "
+                  f"traces median {traces[len(traces) // 2]}, max {traces[-1]}")
 
 
 if __name__ == "__main__":

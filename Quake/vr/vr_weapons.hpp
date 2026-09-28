@@ -52,8 +52,11 @@ enum class Part
 [[nodiscard]] cvar_t* cvar(int slot, Key key);
 void resetSlotToDefaults(int slot, Part part = Part::All);
 
-// Forgets the models' slots found (a game directory change reuses their slots).
+// Forgets the models' slots found (a game directory change reuses their slots; a model reload, a new map).
 void resetCaches();
+// Counts the changes to any weapon setting (vr_wofs_*) and resetCaches: what was made from them (Box3D's weapons'
+// drawn boxes) is looked at again only when it changed.
+[[nodiscard]] unsigned settingsGeneration();
 void printSlot(int slot, Part part = Part::All);
 [[nodiscard]] glm::vec3 vec(int slot, Key x, Key y, Key z);
 

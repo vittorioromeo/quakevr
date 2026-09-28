@@ -34,6 +34,7 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | Swimming: air supply, strokes against the palm | Air Supply (1.5: 18 s under water before drowning instead of 12; 1 to 4). Stroke Against Palm (0.25): a stroke led by the back of the hand (a backhand, a hand turned round to reposition) pushes a quarter as much; palm-first strokes unchanged. The old Palm Matters counted either side of the hand alike. Swimming 6 s with brisk backhand recoveries: +2 units before, +261 to +319 now |
 | Menu: scroll memory and shortcuts | every VR page reopens on the row and scroll it was left at (Weapon Offsets too, for any weapon; across restarts: `vr_menu_positions`); Advanced VR and Levels buttons under Back to Game on every menu (laser, or a stick click) |
 | Profiling: where the time goes | the frame split into the game's systems (Box3D, QuakeC, Quake physics, the world's drawing, shadow maps, waiting for the headset...), adding up to the frame time: a panel in the headset with bars (Debug > Profiling), `vr_profile_report`, a CSV row a second, a hitch log naming what took a slow frame's time; off it costs nothing measurable. Found with it: the foveated rendering's setup waited for the driver every eye (0.2-0.4 ms of the CPU a frame, fixed) |
+| Performance fixes (review, 2026-09-28) | the spectator camera's Frame Rate (60 fps by default), Resolution Scale (0.75 by default) and Anti-Aliasing; the climbing's mantle and lenient-grab searches 5-20 times fewer traces, the props' settings found once per model (Box3D's sync 2-3 times cheaper), with the same holds, mantles and physics; wounds on a reused entity slot and the ropes' slack forgotten when their entity ends; the AO bake worker joined at quit; no GPU-sampling thread unless profiling |
 | First-hit hitch | the first shot or blow that left a mark froze the game for 0.43-0.44 s: the decals' atlas (blood, chips, scorches, the gore's marks) was drawn on the CPU at the first mark's draw. It is now drawn on a worker thread from start-up and put on the GPU as the map loads; the other first-use work (the view's own models, 0.3 s the first time; the liquids, 20-100 ms each map; the particles' atlas; the detail textures; the torch; the casings' sounds) is done in the load too. Wound painting no longer waits for the driver (glGet), and the memory log counts the GL objects as each map loads (was 12-13 ms in a frame of play) |
 
 Found on the way: fteqcc stores 0 when `a || b` is assigned into an entity field (rewritten; no other code has that
@@ -10205,6 +10206,178 @@ not saved.
   it follows after 30 degrees. Over the Wrist: raise the gadget's hand.
 - Play a fight: Box3D, QuakeC and the drawing move; "xr wait frame" (spare time) shrinks.
 - CSV Capture on, play a minute, off: the file is in `quakevr/profile/`. Hitches show in the console as they happen.
+
+## Performance fixes (review, 2026-09-28)
+
+The review's findings, fixed: the climbing searches, the props' settings lookups, two caches, two threads, and the
+spectator camera's cost. Nothing plays differently except the spectator camera's new settings (and its new defaults);
+the climbing, the physics and the grabs were checked to give the very same results (below).
+
+### Climbing: the mantle's search
+
+Pulled over a top with no room on it, the climb searched for a mantle spot every server frame, per hand: ~15 spots in
+from the lip and ~55 more over a narrow top, each with up to 3 box sweeps up, a sweep over, and the top's depth (up to
+40 traces) measured again for each. Now (`vr_climb.cpp`, `findMantle`):
+
+- The sweep up is made once per side along the edge (the spots in from the lip share it); when no side is clear, the
+  search stops (the narrow top's spots need it too).
+- The top's depth is measured once per hold (kept in the grip, for the hold's place and top).
+- A search that found no room holds for 0.15 s while the body stays within 1 unit and the hold where it was (a new
+  grip, or either moving, searches again).
+- The spots are tried in the same order as before (straight in from the hold first) and the first that fits is taken:
+  the same spot.
+
+| vrclimb, `vr_climb_debug 4` | before | after |
+|---|---|---|
+| No-room ledge (`overtop` at `setpos -138 -280 24`), a hand a frame | 170 traces, 0.0148 ms | 8.5 traces, 0.0005 ms (40 searches of 72, 300 held) |
+| Ladder (`ladder`, the search runs between rungs), a hand a frame | 59 traces, 0.0040 ms | 5.2 traces, 0.0004 ms (307 searches of 30, 1496 held) |
+
+vrclimb is a tiny map (a trace there costs under 0.1 microsecond); the review's 0.5-2 ms would be a big map's traces,
+so the trace counts are what carries over: 20 and 11 times fewer.
+
+### Climbing: the lenient grab's search
+
+A missed grip looked round the hand: 26 directions on each shell, up to 2 `findLedge` calls each (the second for the
+hold where the point is). Now (`findLenient`, `findLedgeAt`, `findDrop`):
+
+- Nothing solid near the hand (the world's hull tested as a box against its planes, brush models by their boxes): no
+  search. A point whose lines down (at it, and `edgeSlack` further from the body) meet nothing: skipped.
+- The second `findLedge` is the first one's result, its hold moved along the edge (it made the same traces).
+- The drop from a top is found once per place and top in a search (other points reach the same one), and where the
+  world's contents say every probe surely finds none (floor, steps), without its traces.
+- The holds are scored and chosen as before (the nearest, favouring the reach): the same holds. (Stopping at the first
+  valid hold nearest-first, as the review suggested, would not be: a point on a far shell can find a nearer hold.)
+
+| The sweep (`climb_leniency.py`, 345 searches) | before | after |
+|---|---|---|
+| All | 637,012 traces, 75.6 ms | 126,371 traces, 17.8 ms |
+| Worst (the stairs, 104 points) | 17,606 traces, 3.06 ms | 1,202 traces, 0.37 ms |
+| Stairs, average | 7,834 traces, 1.09 ms | 525 traces, 0.14 ms |
+| Ledge in front of the lip, average | 591 traces, 0.030 ms | 114 traces, 0.014 ms |
+| Thin wall with a ledge behind, average | 449 traces, 0.034 ms | 441 traces, 0.045 ms |
+
+Beside walls, where nothing can be skipped, the box tests cost a few microseconds more on vrclimb (its traces are
+nearly free); on a real map a trace costs more and the saving is larger.
+
+**The same results:** all 504 `vr_climb_try` lines of the sweep (the hold, top, way out, distance, and the holds turned
+down and why) are identical before and after; and 13 scripted climbs under `vr_fixed_frames 1` log identical `climb*`
+lines (every frame's body, reach, hands and events; `climbcost` lines left out): mantle (536 lines), overtop at the
+ledge, the narrow wall and the no-room ledge (754, 754, 1456), ladder with long arms (8029), ladderlean (7731), shimmy
+close and far (6121, 6105), ledge (7016), push (4201), e1m1 (3281), and the lenient presses pressL6 and pressR10 (898
+each), after the merge with vr-cleanup too (there e1m1's run needed `wait1100` instead of 1000 to reach the log's end: the merged build takes a few more frames to load the map; the lines are the same).
+
+### Props: settings found once per model
+
+Every prop, held object and fixture (awake or asleep, 340 bodies on e4m2 with more debris) re-derived its drawn box and
+Mass each server frame: `props::valueFor` hashed the model's name (and ran `atof` on the defaults), and
+`weapons::modelTransform` compared the name with the leg holster's and the hand parts' and looked up its slot. Now:
+
+- Box3D's slot keeps what the box and Mass were last found at (the settings' count, the entity's box and solidity) and
+  looks again only when one changes: a count of every `vr_wofs_*` and `vr_prop_*` cvar's change (their callbacks) and
+  of the model reloads, the world scale, the gun model scale, the gun offset, the leg holster's, and Quake VR's
+  protocol (checked once a frame). The model, frame and scale fields are compared every frame as before.
+- `props::slotForModel(const qmodel_t*)` finds a model's slot once (forgotten at each map, an ID's change and a
+  model reload); `weapons::modelTransform` is kept per model (made again when a setting it reads changes); the
+  defaults' numbers are parsed once.
+
+| e4m2, 340 bodies (`vr_debris_max 300; vr_debris_chance 0.4; vr_debris_area_max 24`), `vr_profile`, a server frame | before | after |
+|---|---|---|
+| box3d sync | 0.047-0.065 ms | 0.021 ms |
+| box3d | 0.073-0.089 ms | 0.042-0.046 ms |
+| server | 0.30-0.35 ms | 0.28-0.30 ms |
+
+**The same results:** `vr_physics_hash` with `host_framerate` 1/72 is identical in the 14 scenes of "Simplification:
+Box3D only" and more (the stack, drop, throw, pyramid, pile, blasted grunt, slope, lift, e1m1 gib, the knights'
+swords, the debris map blasted), and in a scene that changes the settings mid-way (a sword's scale, a head's Mass, the
+gun model scale: the bodies are made again at the same frames, the four hashes the same).
+
+### Wounds on a reused entity slot
+
+Masks are kept by `cl_entities` slot and freed when the model changes. The case the review feared is mostly covered
+already: an entity missing from a server update has its model cleared by the client (`CL_RelinkEntities`), which frees
+its mask, and the server reuses a freed entity only after 0.5 s (so the client always sees it gone). Except in a map's
+first 2 seconds of game time, when Quake reuses a slot at once: a wounded entity removed and a new one with the same
+model put in its slot in the same frame kept the wounds. The cleanest signal is the server's: an entity that was sent
+a wound and is removed (`ED_Free`) is sent to the clients (`QVR_SVC_WOUNDCLEAR`, reliable, 4 bytes, once), and they
+free its mask. Test (`vr_test_remove <n>`, new): a grunt in e1m1's slime (wet, 12 paints), removed; a new grunt spawned
+in its slot on dry floor 1.4 s later is clean (0 masks), and the log shows `wounds: received clear on 176` (by then the
+mask was already free: the client's absence path had freed it, as it would have before). In the map's first second the clear arrives the same way; I could not
+make Quake put the new grunt in that very slot in the same frame (its free list gave it another), so that case is
+covered by the signal, not shown.
+
+### Grappling hook ropes' slack
+
+`ropeSlack` (beam key to the rope's slack) was never cleared, so a rope fired again after letting go started easing
+from the last rope's slack. Now an entry is forgotten when its beam ends (`VR_ForgetEndedRopes`, before the beams are
+drawn) and all at each sign-on. Test: `vr_grapple_debug 2` prints `rope 262145's beam ended (its slack 0.488
+forgotten)` when the slack rope of e1m1's corridor is let go.
+
+### Threads
+
+- **The AO bake worker** (`vr_ao.cpp`) was detached and never joined: quitting during a map's bakes left it (and its
+  pose threads) running while the game's statics and the C runtime went away. It is joinable now: `VR_Shutdown` (from
+  `Host_Shutdown`, VR or not) sets a stop flag, which the worker and its pose threads check at every vertex and pose,
+  and joins it. Quitting 2 frames into e1m1 (its bakes under way): `vr_ao: the bake worker stopped in 0.3 ms`, exit 0,
+  three times out of three. (The build before also exited 0 in three tries: the crash was a risk, not reproduced.)
+- **The GPU sampler** (`vr_gpustats.cpp`: PDH's `GPU Engine(*)` wildcard query and NVML, a sample a second) started
+  with the Memory Log (on by default, a row a minute) and never stopped. It runs now only while profiling
+  (`vr_profile`, the Profiler Panel or its CSV Capture) or with **Memory Log: GPU** (`vr_memstats_log_gpu 1`, Debug
+  page, off by default); otherwise the Memory Log's GPU columns are empty. It is stopped and joined when profiling
+  ends and at shutdown, woken at once (it slept in 100 ms steps before). e1m1, the game's threads: 15 in play before,
+  14 now; 15 while profiling; after `vr_profile 0`, 15 (before: 16). With `developer 1` the console says when it
+  starts and stops.
+
+### Spectator camera: frame rate, resolution, anti-aliasing
+
+Recording page, Spectator Camera:
+
+- **Frame Rate** (`vr_spectator_rate`): Every Frame (1), Every 2nd Frame (2), Every 3rd Frame (3), **60 fps** (60,
+  the default: at most 60 images a second, the time over carried to the next, half a millisecond early counts as on
+  time). Between images the window shows the last one again (the window pass alone, 0.02-0.04 ms). The steadied
+  head is updated every frame as before, so each image is drawn from where the camera is at its time; a window resize,
+  a changed scale or anti-aliasing, or coming back to the view draws at once.
+- **Resolution Scale** (`vr_spectator_scale`): now 0.75 by default (config migration 34 moves a config's untouched 1).
+- **Anti-Aliasing** (`vr_spectator_aa`): Window's MSAA (1, the default: `vid_fsaa`, as the eyes and as before) or Off
+  (its own targets made without multisampling: `VR_SceneSamples`).
+
+Timings (`vr_profile`, exclusive, window 1920 x 1080 with `spectator/runwh.sh`, eyes 2048 square, High preset,
+`vid_fsaa 4`, e1m1 with guns in both hands and the head shaking; 900 frames a configuration after 150, the GPU's ms;
+the mock ran at 64-67 frames a second; of two runs each, the one with the eyes' time lowest, 1.07-1.20 ms: the GPU's
+clocks move the rest by up to a third):
+
+| Spectator camera | an image | a frame, every frame | a frame at 90 Hz, 60 fps | at 120 Hz, 60 fps |
+|---|---|---|---|---|
+| Scale 1, MSAA 4x (before) | 0.43 | 0.43 | | |
+| Scale 1, off | 0.40 | 0.40 | | |
+| Scale 0.75, MSAA 4x (the new default) | 0.33 | 0.33 | 0.24 | 0.19 |
+| Scale 0.75, off | 0.30 | 0.30 | 0.21 | 0.17 |
+| Scale 0.5, MSAA 4x | 0.29 | 0.29 | 0.20 | 0.16 |
+| Scale 0.75, MSAA, every 2nd frame | 0.34 | 0.17 (measured) | | |
+| Scale 0.75, MSAA, every 3rd frame | 0.34 | 0.11 (measured) | | |
+
+The 60 fps columns are an image's cost times the share of frames drawn (2 in 3, 1 in 2) plus the window pass on the
+others; the cap itself was measured at 66 frames a second (0.91 images a frame: 60 a second) and at 83 (0.73: 60.6).
+This mock scene is light (an eye 0.55 ms): the camera's fixed costs (the view's setup, the glow, the UI, the window
+pass) are much of it, so the scale saves less here than it will in a heavy scene, where the pixels dominate (0.75 draws
+56% of them).
+
+Why these defaults:
+
+- **60 fps:** what a recording keeps (OBS records at 60); drawing more images than that is wasted. At 90 Hz it saves a
+  third of the camera's cost, at 120 Hz half, with nothing lost in a 60 fps video. Every Frame stays for recording at
+  more than 60 fps.
+- **Scale 0.75:** 56% of the pixels, drawn up to the window with the same sharp filter as before; a video encoder
+  softens more than that. 1 is a click away for a still or a high-bitrate capture.
+- **Window's MSAA:** it costs the camera about a tenth (0.03 ms here), aliasing crawls visibly in a video, and it
+  follows your own anti-aliasing (with `vid_fsaa 0`, as your config has, it costs nothing). Off is there for a slow
+  GPU.
+
+### In the headset
+
+- [ ] Spectator Camera at 60 fps, 0.75, Window's MSAA: record a minute with OBS at 60 fps. Does the video look as
+      smooth and sharp as before? If it looks soft, try Resolution Scale 1; if it stutters, Every Frame, and tell me.
+- [ ] Climb a ledge with no room on top and pull: the buzz as before; then a ledge you can mantle: the same mantle.
+- [ ] Miss a ledge by a hand's width: the grab still takes it, as before.
 
 ## First-hit hitch
 

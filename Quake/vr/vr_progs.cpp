@@ -8,6 +8,7 @@
 #include "vr_physics.hpp"
 #include "vr_server.hpp"
 #include "vr_walltorch.hpp"
+#include "vr_props.hpp"
 
 #include <cstring>
 #include <vector>
@@ -163,11 +164,39 @@ extern "C" void VR_OnSpawnServerBeforeLoad()
     qvr::physics::resetRigidBodies();
     qvr::box3d::reset();
     qvr::debris::reset();
+    qvr::props::resetModelCache(); // (the models' names may be others' now)
     qvr::physics::precacheWaterSounds();
     resetBuiltinState();
     // The training dummy's attacks (parry practice; QC vr_dummy.qc) are off at every map load, a saved game's too.
     Cvar_SetQuick(&qvr::vr_dummy_attacks, "0");
     callSpawnServerEntryPoint(sv_bindings.OnSpawnServerBeforeLoad);
+}
+
+extern "C" void VR_OnEdictFree(edict_t* ed)
+{
+    qvr::progs::onEdictFree(ed);
+}
+
+void qvr::progs::testRemove_f()
+{
+    if(!sv.active || Cmd_Argc() < 2)
+    {
+        Con_Printf("vr_test_remove <entity number>: removes it, as QC's remove() (a server)\n");
+        return;
+    }
+    const int num = Q_atoi(Cmd_Argv(1));
+    qcvm_t* oldvm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldvm);
+    if(num > svs.maxclients && num < qcvm->num_edicts && !EDICT_NUM(num)->free)
+    {
+        Con_Printf("vr_test_remove: entity %d (%s) removed\n", num, PR_GetString(EDICT_NUM(num)->v.classname));
+        ED_Free(EDICT_NUM(num));
+    }
+    else
+    {
+        Con_Printf("vr_test_remove: no entity %d to remove\n", num);
+    }
+    PR_PopQCVM(oldvm);
 }
 
 extern "C" void VR_OnSpawnServerAfterLoad()

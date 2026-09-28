@@ -26,6 +26,8 @@ namespace qvr::wounds
 
 // QVR_SVC_WOUND: a wound (vr_client.cpp's dispatch).
 void parseEvent();
+// QVR_SVC_WOUNDCLEAR: the entity's wounds forgotten (removed on the server: the next one in its slot starts clean).
+void parseClear();
 
 // Once a frame, after the view's entities are set up (VR_SetupViewEntities: the body and the hands posed): the wounds
 // received painted, drying, cooling and healing, the drips.

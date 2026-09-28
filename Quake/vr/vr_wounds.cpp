@@ -34,6 +34,7 @@ constexpr float healRate = 0.08f;      // of the blood a step while healing (all
 // The server's kinds (QC/vr_wounds.qc QVR_WOUND_*).
 enum Kind : int
 {
+    KindClear = -1, // QVR_SVC_WOUNDCLEAR: the entity was removed
     KindShot = 1,
     KindNail = 2,
     KindMelee = 3,
@@ -815,6 +816,22 @@ void wound(const Target& t, const Event& ev)
 
 void apply(const Event& ev)
 {
+    if(ev.kind == KindClear)
+    {
+        // Removed on the server: its mask freed (a new entity in the slot, with the same model, starts clean).
+        if(ev.num > 0 && ev.num < cl_max_edicts)
+        {
+            if(const auto it = maskOf.find(&cl_entities[ev.num]); it != maskOf.end() && !masks[static_cast<std::size_t>(it->second)].view)
+            {
+                if(vr_wounds_debug.value)
+                {
+                    Con_Printf("wounds: entity %d removed, its mask freed\n", ev.num);
+                }
+                freeMask(it->second);
+            }
+        }
+        return;
+    }
     if(vr_wounds_debug.value)
     {
         Con_Printf("wounds: event kind %d on entity %d%s, amount %d, extra %d, at %.1f %.1f %.1f going %.2f %.2f %.2f\n", ev.kind,
@@ -1105,6 +1122,21 @@ void parseEvent()
     if(vr_wounds_debug.value >= 2)
     {
         Con_Printf("wounds: received kind %d on %d\n", ev.kind, ev.num);
+    }
+    if(enabled() && events.size() < 512)
+    {
+        events.push_back(ev);
+    }
+}
+
+void parseClear()
+{
+    Event ev;
+    ev.num = MSG_ReadShort();
+    ev.kind = KindClear;
+    if(vr_wounds_debug.value >= 2)
+    {
+        Con_Printf("wounds: received clear on %d\n", ev.num);
     }
     if(enabled() && events.size() < 512)
     {

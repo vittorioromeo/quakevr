@@ -112,5 +112,9 @@ void bindBuiltins();
 
 // Clears per-map builtin state (world text, ...) when a new server spawns.
 void resetBuiltinState();
+// ED_Free (VR_OnEdictFree): a wounded entity's removal sent to the clients (QVR_SVC_WOUNDCLEAR).
+void onEdictFree(edict_t* ed);
+// vr_test_remove <entity number>: the entity removed, as QC's remove() (tests: its slot reused).
+void testRemove_f();
 
 } // namespace qvr::progs

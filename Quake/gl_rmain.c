@@ -245,7 +245,7 @@ void GL_CreateFrameBuffers (void)
 	);
 
 	/* scene framebuffer (color + depth + stencil, potentially multisampled) */
-	framebufs.scene.samples = Q_nextPow2 ((int) q_max (1.f, vid_fsaa.value));
+	framebufs.scene.samples = VR_SceneSamples (Q_nextPow2 ((int) q_max (1.f, vid_fsaa.value))); // QVR
 	framebufs.scene.samples = CLAMP (1, framebufs.scene.samples, framebufs.max_samples);
 
 	framebufs.scene.color_tex = GL_CreateFBOAttachment (color_format, framebufs.scene.samples, GL_NEAREST, "scene colors");

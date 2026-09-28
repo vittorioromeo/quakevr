@@ -69,6 +69,7 @@ void VR_AliasPosesLoaded (const char *name, void *aliashdr, const stvert_t *stve
 // Server QuakeC (pr_edict.c, pr_cmds.c, sv_main.c, host_cmd.c).
 void VR_OnProgsLoaded (void);			// end of PR_LoadProgs, with the loaded qcvm current
 void VR_OnSpawnServerBeforeLoad (void);	// SV_SpawnServer, before ED_LoadFromFile
+void VR_OnEdictFree (edict_t *ed);	// ED_Free (any VM's)
 void VR_OnSpawnServerAfterLoad (void);	// SV_SpawnServer, after serverinfo is sent
 void VR_OnBeginLoadGame (void);			// Host_Loadgame_f, before SV_SpawnServer
 void VR_OnLoadGame (void);				// Host_Loadgame_f, after globals and edicts are restored
@@ -110,6 +111,7 @@ void VR_RelinkHeld (void);								// end of CL_RelinkEntities: the local player'
 float VR_BeamScale (struct qmodel_s *model);				// CL_UpdateTEnts: scale of a beam's segments
 int VR_UpdateBeam (int ent, float *start, float *end);	// CL_UpdateTEnts: moves the player's own beams with the gun; nonzero: a rope (no random roll)
 int VR_RopeCurve (int ent, const float *start, const float *end, float (*points)[3], int maxpoints); // CL_UpdateTEnts: a rope's points (2: straight; more: a slack rope hanging)
+void VR_ForgetEndedRopes (void); // CL_UpdateTEnts, before the beams: the ropes whose beams ended forgotten
 void VR_BeamLights (int index, struct qmodel_s *model, const float *start, const float *end); // CL_UpdateTEnts: a lightning beam lights the room along its length (vr_beam_lights)
 void VR_WallTorchFlames (void);							// CL_ReadFromServer, after the temp entities: the taken wall torches' flames (vr_walltorch.cpp)
 unsigned char *VR_DerivedModelFile (const char *name, unsigned int *path_id); // Mod_LoadModel: a model made from another's file (a taken torch's flame), or NULL
