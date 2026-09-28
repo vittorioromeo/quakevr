@@ -348,6 +348,8 @@ void resetHandMoves()
         slider("Punch Damage Mult.", "vr_melee_punch_mult", 1.f, 3.f, 0.05f, "%.2f").extend().help("Damage of every punch: straight, hook, uppercut or overhead alike."),
         slider("Damage Multiplier", "vr_melee_dmg_multiplier", 0.25f, 15.f, 0.25f, "%.1f").extend().help("Damage multiplier for melee attacks."),
         slider("Range Multiplier", "vr_melee_range_multiplier", 0.25f, 15.f, 0.25f, "%.1f").extend().help("Range multiplier for melee attacks."),
+        slider("Quad: Extra Melee Damage", "vr_quad_melee_damage", 1.f, 4.f, 0.05f, "x%.2f").extend().help("With Quad Damage, melee does this much more on top of the x4 every weapon gets. 1: like any weapon (x4 in all); the old Quake VR had 2.75 (x11 in all)."),
+        slider("Quad: Extra Melee Reach", "vr_quad_melee_range", 1.f, 1.5f, 0.01f, "x%.2f").extend().help("With Quad Damage, melee reaches this much further. 1: the same reach as without Quad; the old Quake VR had 1.23."),
         cycle("Melee Bloodlust", "vr_melee_bloodlust", {{0.f, "On"}, {1.f, "Off"}}).help("When enabled, restores the player's health when performing melee attacks on enemies."),
         slider("Melee Bloodlust Mult.", "vr_melee_bloodlust_mult", 0.05f, 5.f, 0.05f, "%.2f").extend().help("Multiplier for melee bloodlust health restoration."),
         header("Headbutt"),

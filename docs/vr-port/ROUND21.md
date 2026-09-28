@@ -9982,3 +9982,14 @@ preset, E1M1 with guns in both hands and the head shaking; ms a frame):
 - [ ] Smoothing and Level Horizon: which values look best on video?
 - [ ] Smoothed Mirror: does Zoom 1.2 leave enough margin for your head, or do quick turns show it catching up?
 - [ ] Does the headset hold its frame rate with the spectator camera on (Performance Profile, `vr_profile 1`)?
+
+## Quad Damage on melee
+
+Melee under Quad got x2.75 on top of the x4 that `T_Damage` gives every damage under Quad (x11 in all), and 1.23x
+reach (1.35 against 1.10), carried over from Quake VR v0.0.3 (`VRMeleeDmgQuadMult`, `VRMeleeRange` in `weapons.qc`).
+Both are now settings, at 1 by default as the author decided, so melee under Quad is like any weapon (x4, same reach):
+
+| Setting | Menu (Combat > Melee) | Default | Old behaviour |
+|---|---|---|---|
+| `vr_quad_melee_damage` | Quad: Extra Melee Damage | 1 | 2.75 |
+| `vr_quad_melee_range` | Quad: Extra Melee Reach | 1 | 1.23 |

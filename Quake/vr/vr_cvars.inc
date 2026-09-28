@@ -208,6 +208,10 @@ QVR_CVAR(vr_menu_remember, "1", CVAR_ARCHIVE)          // opening the menu after
 QVR_CVAR(vr_menu_positions, "", CVAR_ARCHIVE)          // where each VR Settings page was left, for the next start (vr_menu.cpp, written with the config): "title|section|row|index|line;..."
 QVR_CVAR(vr_melee_dmg_multiplier, "1.0", CVAR_ARCHIVE)
 QVR_CVAR(vr_melee_range_multiplier, "1.0", CVAR_ARCHIVE)
+// Quad Damage on melee, on top of the x4 every damage gets while Quad lasts (T_Damage): extra damage and extra reach.
+// Quake VR v0.0.3 had x2.75 damage (11x in all) and 1.35/1.10 reach; 1 = melee is like any other weapon under Quad.
+QVR_CVAR(vr_quad_melee_damage, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_quad_melee_range, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_body_interactions, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_notes, "1", CVAR_ARCHIVE)                  // voice notes: off hand at the mouth, hold Y to talk (vr_voicenotes.cpp)
 QVR_CVAR(vr_note_device, "Virtual Desktop", CVAR_ARCHIVE) // the microphone: part of its name (none such, or empty: the default; vr_note_devices lists them)

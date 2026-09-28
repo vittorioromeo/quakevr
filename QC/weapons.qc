@@ -105,11 +105,12 @@ void(float xHand, float xAid, float xValue) delAmmoOrClipAndUpdateCounter =
     }
 }
 
+// Quad Damage's extra for melee (vr_quad_melee_damage), on top of the x4 T_Damage gives every damage under Quad.
 float() VRMeleeDmgQuadMult =
 {
     if(self.super_damage_finished > time)
     {
-        return 2.75;
+        return cvar_hget(cvarh_vr_quad_melee_damage);
     }
 
     return 1;
@@ -137,13 +138,10 @@ float(float v) VRMeleeRange =
 {
     float mult;
 
+    mult = 1.10;
     if(self.super_damage_finished > time)
     {
-        mult = 1.35;
-    }
-    else
-    {
-        mult = 1.10;
+        mult = mult * cvar_hget(cvarh_vr_quad_melee_range); // Quad's extra reach (vr_quad_melee_range)
     }
 
     if(!VRHandsTracked(self) || !self.ishuman)

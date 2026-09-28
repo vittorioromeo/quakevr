@@ -71,6 +71,8 @@ float cvarh_vr_melee_bloodlust;
 float cvarh_vr_melee_bloodlust_mult;
 float cvarh_vr_melee_dmg_multiplier;
 float cvarh_vr_melee_range_multiplier;
+float cvarh_vr_quad_melee_damage;
+float cvarh_vr_quad_melee_range;
 float cvarh_vr_melee_speed;
 float cvarh_vr_melee_punch_mult;
 float cvarh_vr_melee_wrist_speed;
@@ -296,6 +298,8 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_melee_bloodlust_mult);
     VR_CVAR_HMAKE(vr_melee_dmg_multiplier);
     VR_CVAR_HMAKE(vr_melee_range_multiplier);
+    VR_CVAR_HMAKE(vr_quad_melee_damage);
+    VR_CVAR_HMAKE(vr_quad_melee_range);
     VR_CVAR_HMAKE(vr_melee_speed);
     VR_CVAR_HMAKE(vr_melee_punch_mult);
     VR_CVAR_HMAKE(vr_melee_wrist_speed);
