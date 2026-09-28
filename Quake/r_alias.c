@@ -68,7 +68,7 @@ typedef struct aliasinstance_s {
 	float		glow[4]; // QVR: the force grab glow (vr/vr_fgfx.cpp)
 	float		ambient[6][4]; // QVR: the light around it, +X -X +Y -Y +Z -Z (vr/vr_ambient.cpp)
 	float		surface[4]; // QVR: rim light, reflections' strength and blur (vr/vr_envmap.cpp)
-	float		ao[4]; // QVR: dynamic ambient occlusion: its own group, its per-vertex occlusion's strength (vr/vr_ao.cpp)
+	float		ao[4]; // QVR: dynamic ambient occlusion: its own group, its per-vertex occlusion's strength (vr/vr_ao.cpp); z the normal map's strength
 } aliasinstance_t;
 
 struct ibuf_s {
@@ -624,6 +624,7 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 	float		model_matrix[16];
 	aliasinstance_t	*instance;
 	int			totalverts;
+	qboolean	authored; // QVR: its skin's normal map is an authored file's
 
 	//
 	// setup pose/lerp data -- do it first so we don't miss updates due to culling
@@ -745,13 +746,15 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 	VR_AliasAmbient (e, model_matrix, paliashdr, mode == ALIAS_STANDARD && !r_fullbright_cheatsafe && !r_lightmap_cheatsafe, &instance->ambient[0][0]); // QVR: directional ambient (vr_model_ambient_dir)
 	VR_AliasMorph (e, paliashdr, &instance->ambient[0][0]); // QVR: a gun morphing into its other ammo's model (vr/vr_render.cpp)
 	instance->glow[0] = VR_EntityGlow (e); // QVR
-	instance->glow[1] = (VR_ModelLightParity () ? 1.f : -1.f) * (1.f + VR_ModelBumps (e)); // QVR: the shader's shading on a par with the world (+), its bumps (vr_normalmap_models)
+	authored = TexMgr_NormalMapAuthored (paliashdr->gltextures[e->skinnum >= 0 && e->skinnum < paliashdr->numskins ? e->skinnum : 0][0]); // QVR
+	instance->glow[1] = (VR_ModelLightParity () ? 1.f : -1.f) * (1.f + VR_ModelBumps (e, authored)); // QVR: the shader's shading on a par with the world (+), its bumps (vr_normalmap_models)
 	instance->glow[2] = VR_EntityFullbrightBoost (e); // QVR: the held weapons' sights glow (vr_weapon_glow)
 	instance->glow[3] = mode == ALIAS_STANDARD ? VR_ParallaxDepth (e, model_matrix, paliashdr->scale) : 0.f; // QVR: its parallax depth in units
 	memset (instance->surface, 0, sizeof (instance->surface)); // QVR: rim light and reflections (vr_rim_light, vr_weapon_reflections)
 	if (mode == ALIAS_STANDARD && !r_fullbright_cheatsafe && !r_lightmap_cheatsafe) // QVR
 		VR_AliasSurface (e, instance->surface); // QVR
 	VR_AliasAO (e, instance->ao); // QVR: dynamic ambient occlusion (vr/vr_ao.cpp)
+	instance->ao[2] = VR_ModelNormalMapScale (authored); // QVR: how much its normal map bends the normal (authored ones their own strength)
 }
 
 /*

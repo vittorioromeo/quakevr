@@ -59,6 +59,25 @@ articles, talks and other engines' source are credited with where they came from
   **Lunaran**, and a Death Knight converted from the Quake remaster to **MachineGames / Nightdive Studios**
   (**Chillo** remade many others; **Seven** made fixes). *To confirm:* which of these made Quake VR's two models.
 
+### Model packs evaluated (round 21, ROUND21.md "Model bump maps")
+
+Nothing of these is shipped or used by default; they are listed as the evaluation's record.
+
+- **Quake Reforged, "Quake Monster Pack" (the Bestiary), high version** by Alfader and Nergal
+  ([quakeone.com/reforged](https://quakeone.com/reforged)). Downloaded once for evaluation from its official page:
+  `QR_QuakeBestiary_2048.7z`, <https://quakeone.com/reforged/Bestiary/files/QR_QuakeBestiary_2048.7z>,
+  207,728,813 bytes (SHA-256 `1b34eb462f01674f6b28f1244cbe61fb05fa2fda5d2b7ce3d8e87e9c500cfd3e`), kept outside the
+  repository (`C:\OHWorkspace\downloads\reforged_bestiary\`). Licence (the project's FAQ): free to use in any
+  project if the credits name the project and its URL; "delivered ... under the GPL license", modifications to be
+  reported to the authors; "the terms of license may change". Not redistributed here. Verdict: not used (its skins
+  are repaints in another palette and self-lit through their `_luma`, and they fit id's original models, not Quake
+  VR's). How to try it anyway: ROUND21.md.
+- **Authentic Model Improvements / Authentic Models for Quake** (NightFright and contributors;
+  [github.com/NightFright2k19/quake_authmdl](https://github.com/NightFright2k19/quake_authmdl)): faithful, 8-bit, no
+  normal maps; Quake VR's monster models already appear to come from it (above).
+- **QRP (Quake Retexturing Project) item textures** (qrp.quakeone.com): hi-res skins for id's original weapon and item
+  models, no model normal maps found; not downloaded.
+
 ### Water sounds (`quakevr/sound/vr/`)
 
 Recordings from [Freesound](https://freesound.org), all released under
