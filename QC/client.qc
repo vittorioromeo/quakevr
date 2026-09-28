@@ -933,7 +933,7 @@ void() PutClientInServer =
     self.show_hostile = 0;
     self.max_health = 100;
     self.flags = FL_CLIENT;
-    self.air_finished = time + 12;
+    self.air_finished = time + VR_AirSupply();
     self.dmg = 2;           // initial water damage
     self.super_damage_finished = 0;
     self.radsuit_finished = 0;
@@ -1351,9 +1351,9 @@ void() WaterMove =
     {
         if(self.air_finished < time)
             sound(self, CHAN_VOICE, "player/gasp2.wav", 1, ATTN_NORM);
-        else if(self.air_finished < time + 9)
+        else if(self.air_finished < time + VR_AirSupply() * 0.75) // (a quarter of the breath used: id's 3 of 12 s)
             sound(self, CHAN_VOICE, "player/gasp1.wav", 1, ATTN_NORM);
-        self.air_finished = time + 12;
+        self.air_finished = time + VR_AirSupply();
         self.dmg = 2;
     }
     else if(self.air_finished < time)
@@ -1766,7 +1766,7 @@ void() CheckPowerups =
 // suit
     if(self.radsuit_finished)
     {
-        self.air_finished = time + 12;        // don't drown
+        self.air_finished = time + VR_AirSupply();        // don't drown
 
 // sound and screen flash when items starts to run out
         if(self.radsuit_finished < time + 3)
@@ -1798,7 +1798,7 @@ void() CheckPowerups =
 // wetsuit
     if(self.wetsuit_finished)
     {
-    self.air_finished = time + 12;        // don't drown
+    self.air_finished = time + VR_AirSupply();        // don't drown
 
     // sound and screen flash when items starts to run out
     if(self.wetsuit_finished < time + 3)
