@@ -703,6 +703,7 @@ MemLog memLog;
 
 void writeMemLogRow(const char* reason)
 {
+    QVR_PROFILE("memory log"); // (counting the GL objects: about 12 ms, the profiler's hitch log shows)
     const double seconds = realtime - memLog.lastTime;
     const int frames = host_framecount - memLog.lastFrames;
     memLog.lastTime = realtime;
@@ -802,8 +803,10 @@ void writeMemLogRow(const char* reason)
 void memLogFrame()
 {
     // The GPU's figures (clocks, slowdowns, each program's use of its engines: gpustats' sampling thread) only while
-    // profiling (vr_profile) or asked for (vr_memstats_log_gpu): no thread otherwise.
-    if(vr_memstats_log.value > 0.f && (vr_profile.value > 0.f || vr_memstats_log_gpu.value > 0.f))
+    // profiling (vr_profile, the profiler's panel or its CSV capture) or asked for (vr_memstats_log_gpu): no thread
+    // otherwise.
+    const bool profiling = vr_profile.value != 0.f || vr_profile_overlay.value != 0.f || vr_profile_csv.value != 0.f;
+    if(vr_memstats_log.value > 0.f && (profiling || vr_memstats_log_gpu.value > 0.f))
     {
         gpustats::start();
     }
@@ -1026,6 +1029,7 @@ extern "C" void VR_BeginFrame()
     profile::begin("xr wait", false); // the runtime's pacing (xrWaitFrame) and the tracking
     const bool began = !state->backend || state->backend->beginFrame(state->tracking, state->frame);
     profile::end();
+    QVR_PROFILE("vr frame setup"); // the rest: the recorder, the texts queued anew, the input
     if(!began)
     {
         Con_Warning("VR: %s session lost\n", state->backend->name());
@@ -1045,7 +1049,7 @@ extern "C" void VR_BeginFrame()
     sightalign::frame(); // Align Sights to My Aim: its countdown, text and state
     bodycal::frame();    // Body Calibration: its steps, text, ghost and preview
     memLogFrame();
-    profile::overlay();  // vr_profile 2
+    profile::overlay();  // the profiler's panel (vr_profile_overlay)
     throwing::filterGrips(state->tracking); // the analog grip's release, before it becomes a key
     input::update(state->tracking.input); // releases held keys when VR is off
 

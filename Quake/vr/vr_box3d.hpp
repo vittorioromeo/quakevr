@@ -35,4 +35,7 @@ void blast(const glm::vec3& at, float damage);
 // points (red: pressed in; pink: apart). The local server's (a listen server: nothing on a client of another).
 void debugDraw();
 
+// The profiler's counts: Box3D's bodies, those awake, the contacts the solver works on (0 without a world).
+void profileCounts(int& bodies, int& awake, int& contacts);
+
 } // namespace qvr::box3d

@@ -34,6 +34,8 @@ struct Queued
     float scale;
     bool screen;
     bool overlay{false}; // over the eye's image, not depth tested (queueOverlay)
+    std::vector<OverlayBar> bars; // queueOverlay's
+    float backing{0.55f};
 };
 
 // This frame's texts: the first queuedCount of `queued`, whose elements (and their strings' buffers) are kept for the
@@ -396,7 +398,17 @@ void layoutOverlay(const Queued& q)
     const float pad = charSize * 0.4f;
     const glm::vec3 l = -right * (width * 0.5f + pad), rr = right * (width * 0.5f + pad);
     const glm::vec3 b = q.pos - up * (height * 0.5f + pad), t = q.pos + up * (height * 0.5f + pad);
-    quad(b + l, b + rr, t + rr, t + l, glm::vec4{0.f, 0.f, 0.f, 0.55f}, backings);
+    quad(b + l, b + rr, t + rr, t + l, glm::vec4{0.f, 0.f, 0.f, q.backing}, backings);
+    for(const OverlayBar& bar : q.bars)
+    {
+        // A cell's middle 70%, from the bar's column: the track (dim), then the bar.
+        const glm::vec3 top = topLeft + vInc * (static_cast<float>(bar.line) + 0.15f) + hInc * bar.column;
+        const glm::vec3 down = vInc * 0.7f;
+        const glm::vec3 track = hInc * bar.track, fill = hInc * std::min(bar.cells, bar.track + 1.f);
+        quad(top + down, top + track + down, top + track, top, glm::vec4{bar.color.r, bar.color.g, bar.color.b, 0.12f},
+            backings);
+        quad(top + down, top + fill + down, top + fill, top, bar.color, backings);
+    }
     for(size_t i = 0; i < textLines.size(); i++)
     {
         const std::string_view line = textLines[i];
@@ -724,10 +736,12 @@ void queue(std::string_view text, const glm::vec3& pos, const glm::vec3& angles,
     q.scale = scale;
     q.screen = screen;
     q.overlay = false;
+    q.bars.clear();
     builtFrame = -1;
 }
 
-void queueOverlay(std::string_view text, const glm::vec3& pos, const glm::vec3& angles, float scale)
+void queueOverlay(std::string_view text, const glm::vec3& pos, const glm::vec3& angles, float scale,
+    std::span<const OverlayBar> bars, float backing)
 {
     Queued& q = nextQueued();
     q.text.assign(text);
@@ -737,6 +751,8 @@ void queueOverlay(std::string_view text, const glm::vec3& pos, const glm::vec3& 
     q.scale = scale;
     q.screen = false;
     q.overlay = true;
+    q.bars.assign(bars.begin(), bars.end());
+    q.backing = backing;
     builtFrame = -1;
 }
 

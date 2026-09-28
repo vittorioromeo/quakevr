@@ -1416,7 +1416,24 @@ void hologramTestMessage()
             .help("Write memory use and the frame rate to quakevr/profile/memstats_<date>.csv, and after each map load."),
         toggle("Memory Log: GPU", vr_memstats_log_gpu)
             .help("Also sample the GPU for the Memory Log (its clocks, slowdowns, and each program's use of it: SteamVR, "
-                  "Virtual Desktop), on a thread of its own. Off: only while the Performance Profile records."),
+                  "Virtual Desktop), on a thread of its own. Off: only while profiling (Performance Profile, the Profiler Panel or its CSV Capture)."),
+
+        header("Profiling"),
+        cycle("Profiler Panel", vr_profile_overlay, {{0.f, "Off"}, {1.f, "Over the Wrist"}, {2.f, "In Front"}})
+            .help("Where each frame's time goes: the game's systems (Box3D, QuakeC, the world's drawing, waiting for the "
+                  "headset...), the last second's average and worst in ms, with a bar against the frame's budget; the CPU's, "
+                  "then the GPU's. Showing it runs the profiler."),
+        cycle("CSV Capture", vr_profile_csv, {{0.f, "Off"}, {1.f, "Recording"}})
+            .help("While on, a row a second (each system's time, a column each) into quakevr/profile/systems_<date>_<time>.csv, "
+                  "for a spreadsheet: turn it on, play what feels slow, turn it off."),
+        cycle("Hitch Log", vr_profile_hitch, {{0.f, "Off"}, {1.5f, "Over 1.5 Frames"}, {2.f, "Over 2 Frames"}, {3.f, "Over 3 Frames"}})
+            .help("While the profiler runs (the panel, a capture), frames that take this long go to the console and "
+                  "quakevr/profile/hitches_<date>_<time>.csv, with what took their time."),
+        cycle("Detail", vr_profile_detail, {{1.f, "Systems"}, {2.f, "Every Trace and Builtin"}})
+            .help("Every Trace and Builtin also times each collision trace and each QuakeC builtin call apart: dearer, to "
+                  "split QuakeC's time."),
+        action("Print Report", [] { Cbuf_AddText("vr_profile_report\n"); })
+            .help("vr_profile_report: the last 5 seconds' table in the console (in qconsole.log with -condebug)."),
     };
 }
 
@@ -1712,7 +1729,7 @@ std::vector<Item> pageAdvanced()
         header("Playtesting"),
         open("Motion Recorder", pageIndex(pageMotionRecorder)),
         open("Review Takes", pageIndex(pageReviewTakes)),
-        open("Debug", pageIndex(pageDebug)).help("Voice notes, physics shapes, hand bones and the memory log."),
+        open("Debug", pageIndex(pageDebug)).help("Voice notes, physics shapes, hand bones, the memory log and the profiler."),
     };
 }
 

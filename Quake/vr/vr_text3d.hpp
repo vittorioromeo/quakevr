@@ -12,6 +12,8 @@
 
 #include <glm/glm.hpp>
 
+#include <span>
+
 #include <string_view>
 
 namespace qvr::text3d
@@ -31,9 +33,23 @@ enum class Align : int
 void queue(std::string_view text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale,
     bool screen = false);
 
+// A filled bar in an overlay text (the profiler's panel): on line `line` (0 the first), from character `column`, `cells`
+// characters long (fractions too), over a dim track `track` characters long.
+struct OverlayBar
+{
+    int line;
+    float column;
+    float cells;
+    float track;
+    glm::vec4 color;
+};
+
 // Queued likewise, but drawn over the eye's image with the wrist log (drawOverlay: not depth tested,
 // white on a dark backing), centred: a notice that nothing in the scene may hide (the motion recorder's).
-void queueOverlay(std::string_view text, const glm::vec3& pos, const glm::vec3& angles, float scale);
+// Each line is centred: lines of one length line up as a table. `bars` are drawn over the backing (of opacity
+// `backing`), under the text.
+void queueOverlay(std::string_view text, const glm::vec3& pos, const glm::vec3& angles, float scale,
+    std::span<const OverlayBar> bars = {}, float backing = 0.55f);
 
 // Once per frame, after the eyes (and the flat view) are drawn.
 void clear();

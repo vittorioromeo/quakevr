@@ -42,6 +42,7 @@ trace_t hullTrace(qmodel_t* model, const glm::vec3& origin, const glm::vec3& sta
     vec3_t b{end.x - origin.x, end.y - origin.y, end.z - origin.z};
     VectorCopy(b, tr.endpos);
     hull_t* hull = &model->hulls[hullIndex];
+    ++vr_profcounts.hullchecks;
     SV_RecursiveHullCheck(hull, hull->firstclipnode, 0.f, 1.f, a, b, &tr);
     for(int i = 0; i < 3; i++)
     {

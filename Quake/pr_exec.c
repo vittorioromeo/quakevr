@@ -392,7 +392,24 @@ The interpretation main loop
 #define OPB ((eval_t *)&qcvm->globals[(unsigned short)st->b])
 #define OPC ((eval_t *)&qcvm->globals[(unsigned short)st->c])
 
+static void PR_ExecuteProgramRun (func_t fnum);
+
+// QVR: the profiler's "quakec" scope round the outermost call (vr_profile_report); with profiling off, one test.
 void PR_ExecuteProgram (func_t fnum)
+{
+	if (vr_profile_on && !vr_profile_inqc)
+	{
+		vr_profile_inqc = 1;
+		VR_ProfileBegin ("quakec");
+		PR_ExecuteProgramRun (fnum);
+		VR_ProfileEnd ();
+		vr_profile_inqc = 0; // (a Host_Error jumping out leaves it set: VR_ProfileFrame clears it)
+		return;
+	}
+	PR_ExecuteProgramRun (fnum);
+}
+
+static void PR_ExecuteProgramRun (func_t fnum)
 {
 	eval_t		*ptr;
 	dstatement_t	*st;
@@ -653,7 +670,17 @@ void PR_ExecuteProgram (func_t fnum)
 			if (i >= qcvm->numbuiltins)
 				PR_RunError("Bad builtin call number %d", i);
 			PR_CheckBuiltinExtension (newf);
-			qcvm->builtins[i]();
+			if (vr_profile_fine) // QVR: vr_profile_detail 2 times each builtin call (QuakeC it calls is timed apart)
+			{
+				int inqc = vr_profile_inqc;
+				vr_profile_inqc = 0;
+				VR_ProfileBegin ("qc builtin");
+				qcvm->builtins[i]();
+				VR_ProfileEnd ();
+				vr_profile_inqc = inqc;
+			}
+			else
+				qcvm->builtins[i]();
 			break;
 		}
 		// Normal function

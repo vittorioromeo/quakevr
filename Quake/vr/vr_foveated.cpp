@@ -3,6 +3,7 @@
 #include "vr_foveated.hpp"
 #include "vr_cvars.hpp"
 #include "vr_gfx.hpp"
+#include "vr_profile.hpp"
 #include "vr_upscale.hpp"
 
 #include <algorithm>
@@ -270,6 +271,7 @@ void beginScene(int eye, int width, int height)
     {
         return;
     }
+    QVR_PROFILE("foveation");
     const RateImage& img = rateImage(eye, width, height);
     bindShadingRateImage(img.texture);
     shadingRateImagePalette(0, 0, static_cast<GLsizei>(std::size(palette)), palette);
@@ -290,9 +292,13 @@ void beginScene(int eye, int width, int height)
         GL_BindFramebufferFunc = watchedBindFramebuffer;
     }
     active = true;
-    GLint bound = 0;
-    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &bound);
-    setEnabled(bound != 0 && (static_cast<GLuint>(bound) == sceneFbos[0] || static_cast<GLuint>(bound) == sceneFbos[1]));
+    // What is bound: R_SetupGL's target, as R_RenderScene has just bound it (VR_DrawHiddenArea, after R_Clear). Not read
+    // back: a glGet waits for the driver's thread, 0.2-0.4 ms of the CPU an eye (the profiler's "foveation").
+    GLuint color = 0, depth = 0;
+    int samples = 1;
+    int viewport[4]{};
+    const GLuint bound = R_SceneTarget(&color, &depth, &samples, viewport);
+    setEnabled(bound != 0 && (bound == sceneFbos[0] || bound == sceneFbos[1]));
 }
 
 void endScene()

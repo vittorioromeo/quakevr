@@ -35,6 +35,23 @@ void VR_ProfileBegin (const char *name);	// a CPU scope
 void VR_ProfileBeginGPU (const char *name);	// a CPU and GPU scope (the main thread, with the GL context)
 void VR_ProfileEnd (void);					// ends the innermost scope
 
+// Latched at each frame's start: whether the profiler collects this frame (vr_profile, the panel or the CSV capture),
+// and whether it also times every trace and builtin call (vr_profile_detail 2). The hot paths (each QuakeC call, each
+// trace) test these before calling in: with profiling off they cost a load and a branch.
+extern int vr_profile_on;
+extern int vr_profile_fine;
+extern int vr_profile_inqc; // inside a timed PR_ExecuteProgram (only the outermost call is a "quakec" scope)
+
+// Counts, added to always (a plain increment), taken and cleared at each frame's start (vr_profile_report).
+typedef struct
+{
+	int traces;		// SV_Move calls
+	int hullchecks;	// hull traces (SV_ClipMoveToEntity, the VR code's own traces against the world)
+	int drawcalls;	// OpenGL draw calls (glDraw*, one per multi-draw)
+	int aliasdrawn;	// alias models drawn: instances, in every view (the shadow maps draw theirs apart, uncounted)
+} vr_profcounts_t;
+extern vr_profcounts_t vr_profcounts;
+
 #ifdef __cplusplus
 }
 #endif
