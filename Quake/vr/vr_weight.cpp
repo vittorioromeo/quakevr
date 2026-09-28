@@ -112,7 +112,7 @@ double easedAt = -1.0;
 // The prop's mass: its setting, else Box3D's (a listen server: the server's entity of the same number), else estimated.
 [[nodiscard]] float propMass(int hand, int ent, const qmodel_t* model, const glm::vec3& boxSize)
 {
-    const float setting = props::valueFor(model->name, props::Key::Mass);
+    const float setting = props::valueFor(model, props::Key::Mass);
     if(setting > 0.f)
     {
         return setting;
@@ -198,7 +198,7 @@ void rodLoad(Load& l, float mass, float balance, float length, float radius)
         glm::vec3 lo, hi;
         if(held::drawnBox(ent, lo, hi))
         {
-            const int slot = props::slotForModel(model->name);
+            const int slot = props::slotForModel(model);
             const glm::vec3 size = hi - lo;
             const float mass = propMass(h, ent, model, size);
             const glm::vec3 com = (lo + hi) * 0.5f +
@@ -620,7 +620,7 @@ void table_f()
             continue;
         }
         const float mass = box3d::propMass(e);
-        const int slot = props::slotForModel(model->name);
+        const int slot = props::slotForModel(model);
         if(mass > 0.f && weapons::slotForName(model->name) < 0 && (slot < 0 || props::value(slot, props::Key::Mass) <= 0.f))
         {
             seen.push_back(model->name);

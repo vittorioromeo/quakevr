@@ -54,17 +54,39 @@ std::array<cvar_t, numSlots * numRetired> retiredCvars{};
 std::unordered_map<const qmodel_t*, int> slotCache;
 int fistCache = -2;
 
+// Counts the changes to the settings (settingsGeneration).
+unsigned generation = 1;
+
+// Model -> its drawn transform (modelTransform), with what it was made from besides the model.
+struct TransformMemo
+{
+    unsigned generation{0};
+    float inputs[7]{};
+    ModelTransform t;
+};
+std::unordered_map<const qmodel_t*, TransformMemo> transformCache;
+
 void onIdChanged(cvar_t* /* var */)
 {
     slotCache.clear();
     fistCache = -2;
+    transformCache.clear();
+    generation++;
 }
+
+// Any setting's change: what was made from the settings is looked at again (an ID's: the slots found again too).
+void onChanged(cvar_t* var);
 
 } // namespace
 
 void resetCaches()
 {
     onIdChanged(nullptr);
+}
+
+unsigned settingsGeneration()
+{
+    return generation;
 }
 
 namespace
@@ -339,6 +361,7 @@ void registerCvars()
     for(cvar_t& var : cvars)
     {
         Cvar_RegisterVariable(&var);
+        Cvar_SetCallback(&var, onChanged);
     }
 
     // Retired keys (vr_weapons.inc): registered so that a config setting them loads silently; not saved, read by nothing.
@@ -355,10 +378,6 @@ void registerCvars()
         }
     }
 
-    for(int slot = 0; slot < numSlots; slot++)
-    {
-        Cvar_SetCallback(&cvarAt(slot, Key::ID), onIdChanged);
-    }
 }
 
 cvar_t* cvar(int slot, Key key)
@@ -805,18 +824,22 @@ float offsetScale()
     return (vr_world_scale.value / 1.25f) * (vr_gunmodelscale.value / 0.7f);
 }
 
-ModelTransform modelTransform(const qmodel_t* model)
+namespace
+{
+
+void onChanged(cvar_t* var)
+{
+    generation++;
+    const std::ptrdiff_t index = var - cvars.data();
+    if(index >= 0 && index < static_cast<std::ptrdiff_t>(cvars.size()) && index % numKeys == static_cast<int>(Key::ID))
+    {
+        onIdChanged(var);
+    }
+}
+
+[[nodiscard]] ModelTransform makeModelTransform(const qmodel_t* model)
 {
     ModelTransform t;
-    // Quake VR's protocol: the client's, or the local server's. The server's physics shapes (vr_box3d.cpp's hulls,
-    // vr_rigid.cpp's boxes, vr_held.cpp's drawn surfaces) are made from these too, and a map's first frames run before
-    // the client has connected (cl.protocolflags then still the last map's, or none): its thrown weapons' hulls were
-    // made at the models' own size, three times the drawn guns', and kept.
-    const bool quakevr = (cl.protocolflags & PRFL_QUAKEVR) || (sv.active && (sv.protocolflags & PRFL_QUAKEVR));
-    if(!model || model->type != mod_alias || !quakevr)
-    {
-        return t;
-    }
 
     t.k = modelScale();
 
@@ -840,6 +863,35 @@ ModelTransform modelTransform(const qmodel_t* model)
     t.scale = glm::vec3{value(slot, Key::Scale)};
     t.offset = vec(slot, Key::OffsetX, Key::OffsetY, Key::OffsetZ) +
                glm::vec3{0.f, 0.f, vr_gunmodely.value};
+    return t;
+}
+
+} // namespace
+
+ModelTransform modelTransform(const qmodel_t* model)
+{
+    // Quake VR's protocol: the client's, or the local server's. The server's physics shapes (vr_box3d.cpp's hulls,
+    // vr_rigid.cpp's boxes, vr_held.cpp's drawn surfaces) are made from these too, and a map's first frames run before
+    // the client has connected (cl.protocolflags then still the last map's, or none): its thrown weapons' hulls were
+    // made at the models' own size, three times the drawn guns', and kept.
+    const bool quakevr = (cl.protocolflags & PRFL_QUAKEVR) || (sv.active && (sv.protocolflags & PRFL_QUAKEVR));
+    if(!model || model->type != mod_alias || !quakevr)
+    {
+        return ModelTransform{};
+    }
+    // Made once per model (the name's slot, its settings), again when a setting it is made from changes.
+    const float inputs[7] = {vr_world_scale.value, vr_gunmodelscale.value, vr_gunmodely.value, vr_leg_holster_model_scale.value,
+        vr_leg_holster_model_x_offset.value, vr_leg_holster_model_y_offset.value, vr_leg_holster_model_z_offset.value};
+    if(const auto it = transformCache.find(model); it != transformCache.end() && it->second.generation == generation &&
+                                                   memcmp(it->second.inputs, inputs, sizeof(inputs)) == 0)
+    {
+        return it->second.t;
+    }
+    const ModelTransform t = makeModelTransform(model); // (may find the slots again: the cache emptied)
+    TransformMemo& memo = transformCache[model];
+    memo.generation = generation;
+    memcpy(memo.inputs, inputs, sizeof(inputs));
+    memo.t = t;
     return t;
 }
 

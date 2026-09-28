@@ -587,6 +587,11 @@ extern "C" void VR_WriteDemoState(sizebuf_t* msg)
     }
 }
 
+namespace
+{
+void forgetRopes(); // (the ropes' slack, below)
+} // namespace
+
 extern "C" void VR_OnClientClearState()
 {
     entityData.clear();
@@ -603,6 +608,7 @@ extern "C" void VR_OnClientClearState()
     selfcollide::reset();
     shells::clear();
     wounds::clear();
+    forgetRopes();
     view::resetClientState();
     hands::resetClientState();
 }
@@ -664,6 +670,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_FLOATTEXT: worldtext::clientParseFloatText(); break;
         case QVR_SVC_EJECT: shells::parseEject(); break;
         case QVR_SVC_WOUND: wounds::parseEvent(); break;
+        case QVR_SVC_WOUNDCLEAR: wounds::parseClear(); break;
         default: Host_Error("svc_quakevr: unknown command %d", subcmd);
     }
 
@@ -682,6 +689,11 @@ struct RopeSlack
     double time{0.0};
 };
 std::unordered_map<int, RopeSlack> ropeSlack;
+
+void forgetRopes()
+{
+    ropeSlack.clear();
+}
 
 } // namespace
 
@@ -911,6 +923,25 @@ extern "C" int VR_UpdateBeam(int ent, float* start, float* end)
 // its length the server says hangs (VR_ParseBeamEntity); the curve is the parabola of that length over the line
 // between its ends, sagging down across the line (a rope hanging straight down stays straight), and lying on the
 // floor where it would go through it.
+extern "C" void VR_ForgetEndedRopes()
+{
+    // A rope whose beam ended (the hook let go, or its hand's other rope): its next one starts from its own slack.
+    for(auto it = ropeSlack.begin(); it != ropeSlack.end();)
+    {
+        bool live = false;
+        for(int i = 0; i < MAX_BEAMS && !live; i++)
+        {
+            const beam_t& b = cl_beams[i];
+            live = b.entity == it->first && b.model && b.starttime <= cl.time && b.endtime >= cl.time;
+        }
+        if(!live && vr_grapple_debug.value >= 2)
+        {
+            Con_Printf("grapple: rope %d's beam ended (its slack %.3f forgotten)\n", it->first, static_cast<double>(it->second.shown));
+        }
+        it = live ? std::next(it) : ropeSlack.erase(it);
+    }
+}
+
 extern "C" int VR_RopeCurve(int ent, const float* start, const float* end, float (*points)[3], int maxPoints)
 {
     const glm::vec3 a{start[0], start[1], start[2]};

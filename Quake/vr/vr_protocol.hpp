@@ -40,6 +40,7 @@ enum SvcQuakeVr : int
     QVR_SVC_FLOATTEXT = 12,       // [coord3 org][byte3 colour][byte scale * 32][string]: a text rising from a point and fading
     QVR_SVC_EJECT = 13,           // [byte hand][byte kind][byte count][byte flags][byte delay * 100]: spent casings out of a weapon (vr_shells.cpp)
     QVR_SVC_WOUND = 14,           // [short entity][coord3 org][char3 dir*127][byte kind][byte amount][byte extra]: a wound on a model (vr_wounds.cpp)
+    QVR_SVC_WOUNDCLEAR = 15,      // [short entity]: an entity sent wounds was removed: its slot's next entity starts clean (reliable)
 };
 
 // Client -> server: clc_move VR block button bits.

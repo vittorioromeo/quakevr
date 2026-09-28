@@ -387,6 +387,8 @@ void CL_UpdateTEnts (void)
 
 	srand ((int) (cl.time * 1000)); //johnfitz -- freeze beams when paused
 
+	VR_ForgetEndedRopes (); // QVR
+
 // update lightning
 	for (i=0, b=cl_beams ; i< MAX_BEAMS ; i++, b++)
 	{

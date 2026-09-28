@@ -58,12 +58,32 @@ std::array<cvar_t, numSlots * numRetired> retiredCvars{};
     return cvars[slot * numKeys + static_cast<int>(key)];
 }
 
-// Model name -> slot (-1: none), found again whenever a vr_prop_id_NN changes: Box3D asks for every prop's each frame.
+// Model name -> slot (-1: none), and model -> slot, found again whenever a vr_prop_id_NN changes.
 std::unordered_map<std::string, int> slotCache;
+std::unordered_map<const qmodel_t*, int> modelSlotCache;
 
-void onIdChanged(cvar_t* /* var */)
+// The keys' defaults as numbers (value() of no slot).
+float keyDefaultValues[numKeys];
+
+// Counts the changes to the settings (settingsGeneration).
+unsigned generation = 1;
+
+void clearSlotCaches()
 {
     slotCache.clear();
+    modelSlotCache.clear();
+    generation++;
+}
+
+// Any setting's change: what was made from the settings is looked at again; an ID's: the slots are found again.
+void onChanged(cvar_t* var)
+{
+    generation++;
+    const std::ptrdiff_t index = var - cvars.data();
+    if(index >= 0 && index < static_cast<std::ptrdiff_t>(cvars.size()) && index % numKeys == static_cast<int>(Key::ID))
+    {
+        clearSlotCaches();
+    }
 }
 
 [[nodiscard]] bool freeId(const char* id)
@@ -132,10 +152,11 @@ void registerCvars()
     for(cvar_t& var : cvars)
     {
         Cvar_RegisterVariable(&var);
+        Cvar_SetCallback(&var, onChanged);
     }
-    for(int slot = 0; slot < numSlots; slot++)
+    for(int key = 0; key < numKeys; key++)
     {
-        Cvar_SetCallback(&cvarAt(slot, Key::ID), onIdChanged);
+        keyDefaultValues[key] = static_cast<float>(atof(keyDefaults[key]));
     }
 
     // Retired keys (vr_props.inc): registered so that a config setting them loads silently; not saved, read by nothing.
@@ -180,16 +201,47 @@ int slotForModel(const char* model)
     return found;
 }
 
+int slotForModel(const qmodel_t* model)
+{
+    if(!model)
+    {
+        return -1;
+    }
+    migrate();
+    if(const auto it = modelSlotCache.find(model); it != modelSlotCache.end())
+    {
+        return it->second;
+    }
+    const int found = slotForModel(model->name);
+    modelSlotCache.emplace(model, found);
+    return found;
+}
+
+void resetModelCache()
+{
+    clearSlotCaches();
+}
+
+unsigned settingsGeneration()
+{
+    return generation;
+}
+
 float value(int slot, Key key)
 {
     if(slot < 0 || slot >= numSlots)
     {
-        return static_cast<float>(atof(keyDefaults[static_cast<int>(key)]));
+        return keyDefaultValues[static_cast<int>(key)];
     }
     return cvarAt(slot, key).value;
 }
 
 float valueFor(const char* model, Key key)
+{
+    return value(slotForModel(model), key);
+}
+
+float valueFor(const qmodel_t* model, Key key)
 {
     return value(slotForModel(model), key);
 }
@@ -273,7 +325,7 @@ void takeShippedSlot(int slot)
         cvar_t& var = cvarAt(slot, static_cast<Key>(key));
         Cvar_SetQuick(&var, var.default_string);
     }
-    slotCache.clear();
+    clearSlotCaches();
 }
 
 bool weightKey(Key key)

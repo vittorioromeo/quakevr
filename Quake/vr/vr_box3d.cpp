@@ -40,6 +40,7 @@
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
 #include "vr_props.hpp"
+#include "vr_weapons.hpp"
 #include "vr_units.hpp"
 
 #include <box3d/box3d.h>
@@ -262,7 +263,7 @@ constexpr float grenadeRestitution = 0.45f; // (Quake's bounce: 0.5; a steel bal
 // A Mass set for the prop's model (Held Object Offsets, vr_props.inc), kg; 0: none (its volume times its density).
 [[nodiscard]] float massSetting(const qmodel_t* model)
 {
-    return model ? std::max(props::valueFor(model->name, props::Key::Mass), 0.f) : 0.f;
+    return model ? std::max(props::valueFor(model, props::Key::Mass), 0.f) : 0.f;
 }
 
 // Soft things (backpacks, gibs, heads) land with a thud: no bounce, and their tumble dies away fast on the ground (a
@@ -300,6 +301,12 @@ struct Slot // what one edict is in the world (by its number)
     bool brush{false};    // angles as a brush model's
     bool spins{false};    // a fixture drawn spinning (an EF_ROTATE model: the map's pickups): its shape turns with it
     const b3HullData* hull{nullptr}; // actors: the hull at rest (actorHull), nullptr for Quake's box
+
+    // Props, held and fixtures: the settings (shapeGeneration) and the entity's box its drawn box and Mass were last
+    // found the same at (stale): looked at again only when one of them changes.
+    unsigned checkedGeneration{0};
+    glm::vec3 checkedMins{0.f}, checkedMaxs{0.f};
+    bool checkedSolid{false};
 };
 
 // The hulls made for models, by what they were made from (and the world's scale).
@@ -1052,8 +1059,37 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
     return std::max(vr_box3d_player_radius.value, 1.f) * 0.01f; // metres
 }
 
+// What a prop's drawn box and Mass are made from besides its entity (localBox, massSetting): the weapon and prop
+// settings (their changes counted), the scales and offsets every weapon's drawing follows, Quake VR's protocol. Its
+// count goes up whenever any of them changes (updateShapeGeneration, once a frame).
+struct ShapeInputs
+{
+    unsigned weapons{0}, props{0};
+    bool quakevr{false};
+    float scales[7]{};
+    bool operator==(const ShapeInputs& o) const
+    {
+        return weapons == o.weapons && props == o.props && quakevr == o.quakevr && !memcmp(scales, o.scales, sizeof(scales));
+    }
+};
+ShapeInputs shapeInputs;
+unsigned shapeGeneration = 1;
+
+void updateShapeGeneration()
+{
+    const ShapeInputs now{weapons::settingsGeneration(), props::settingsGeneration(),
+        (cl.protocolflags & PRFL_QUAKEVR) || (sv.active && (sv.protocolflags & PRFL_QUAKEVR)),
+        {vr_world_scale.value, vr_gunmodelscale.value, vr_gunmodely.value, vr_leg_holster_model_scale.value,
+            vr_leg_holster_model_x_offset.value, vr_leg_holster_model_y_offset.value, vr_leg_holster_model_z_offset.value}};
+    if(!(now == shapeInputs))
+    {
+        shapeInputs = now;
+        shapeGeneration++;
+    }
+}
+
 // Whether the body made for `s` no longer fits the entity (its model, frame, scale or box changed).
-[[nodiscard]] bool stale(edict_t* ent, const Slot& s)
+[[nodiscard]] bool stale(edict_t* ent, Slot& s)
 {
     switch(s.kind)
     {
@@ -1061,17 +1097,36 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
     case Kind::Held:
     case Kind::Fixture:
     {
-        if(s.model != modelOf(ent) || s.frame != static_cast<int>(ent->v.frame) || s.scale != scaleFields(ent) ||
-            s.massSetting != massSetting(modelOf(ent)))
+        qmodel_t* model = modelOf(ent);
+        if(s.model != model || s.frame != static_cast<int>(ent->v.frame) || s.scale != scaleFields(ent))
         {
             return true;
         }
-        // The drawn box: a weapon's is also its settings' (weapons::modelTransform: the world scale, the gun model
-        // scale, each weapon's own), which can change while it lies there.
+        // The drawn box and the Mass: made from the settings (a weapon's box: weapons::modelTransform, the world
+        // scale, the gun model scale, each weapon's own), which can change while it lies there, and the entity's box
+        // and solidity (a model drawn as its box).
+        const glm::vec3 mins = vec(ent->v.mins), maxs = vec(ent->v.maxs);
+        const bool solid = isSolidProp(ent);
+        if(s.checkedGeneration == shapeGeneration && s.checkedMins == mins && s.checkedMaxs == maxs && s.checkedSolid == solid)
+        {
+            return false;
+        }
+        if(s.massSetting != massSetting(model))
+        {
+            return true;
+        }
         glm::vec3 lo, hi;
-        localBox(ent, modelOf(ent), lo, hi);
-        return glm::any(glm::greaterThan(glm::abs(lo - s.mins), glm::vec3{0.01f})) ||
-               glm::any(glm::greaterThan(glm::abs(hi - s.maxs), glm::vec3{0.01f}));
+        localBox(ent, model, lo, hi);
+        if(glm::any(glm::greaterThan(glm::abs(lo - s.mins), glm::vec3{0.01f})) ||
+            glm::any(glm::greaterThan(glm::abs(hi - s.maxs), glm::vec3{0.01f})))
+        {
+            return true;
+        }
+        s.checkedGeneration = shapeGeneration;
+        s.checkedMins = mins;
+        s.checkedMaxs = maxs;
+        s.checkedSolid = solid;
+        return false;
     }
     case Kind::Mover: return s.model != modelOf(ent);
     case Kind::Actor: return s.model != modelOf(ent) || s.mins != vec(ent->v.mins) || s.maxs != vec(ent->v.maxs);
@@ -1534,6 +1589,7 @@ void syncEntities(float dt)
         }
     }
 
+    updateShapeGeneration();
     for(int num = 1; num < qcvm->num_edicts; num++)
     {
         edict_t* ent = EDICT_NUM(num);
@@ -2321,7 +2377,7 @@ void list_f()
             const float mass = qvr::box3d::propMass(e);
             Con_Printf("    %s: %.1f kg%s, thrown x%.2f\n", model ? model->name : "no model", mass,
                 model && massSetting(model) > 0.f ? " (Held Object Offsets)" : "",
-                qvr::props::throwScale(model ? qvr::props::slotForModel(model->name) : -1, mass));
+                qvr::props::throwScale(model ? qvr::props::slotForModel(model) : -1, mass));
             Con_Printf("    movetype %d, solid %d, rigid %d, flags %d\n", static_cast<int>(e->v.movetype), static_cast<int>(e->v.solid),
                 isRigid(e) ? 1 : 0, static_cast<int>(e->v.flags));
         }

@@ -2507,7 +2507,7 @@ void setupHand(const hands::State& s, int hand)
         // Its fingers and overlap (Held Object Offsets, vr_props.inc; the flashlight's are its own page's).
         if(const qmodel_t* model = cl_entities[ent].model)
         {
-            const int slot = props::slotForModel(model->name);
+            const int slot = props::slotForModel(model);
             using props::Key;
             held.overlap = props::value(slot, Key::Overlap);
             const float curl[handrig::FingerCount]{props::value(slot, Key::FingerCurlThumb), props::value(slot, Key::FingerCurlIndex),

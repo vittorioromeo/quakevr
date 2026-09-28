@@ -23,6 +23,7 @@
 #include "vr_sightalign.hpp"
 #include "vr_bodycal.hpp"
 #include "vr_profile.hpp"
+#include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_server.hpp"
 #include "vr_view.hpp"
@@ -960,6 +961,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_wounds_test", wounds::test_f);
     Cmd_AddCommand("vr_wounds_info", wounds::info_f);
     Cmd_AddCommand("vr_wounds_dump", wounds::dump_f);
+    Cmd_AddCommand("vr_test_remove", progs::testRemove_f);
     Cmd_AddCommand("vr_hotspots_legacy", view::hotspotsLegacy_f);
     Cmd_AddCommand("vr_hotspots_check", view::hotspotsCheck_f);
     Cmd_AddCommand("vr_weapon_hotspot_here", view::hotspotHere_f);

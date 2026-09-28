@@ -243,6 +243,9 @@ void PF_WriteVec3()
 // A wound on a model (vr_wounds.cpp): void(entity e, vector org, vector dir, float kind, float amount, float extra)
 // woundevent. `e` hit at `org` going `dir` (unit), QVR_WOUND_* `kind`, `amount` (damage, 0..255), `extra` (pellets;
 // a liquid's: its surface's height is org_z). Unreliable, to every client, as particles.
+// The entities sent a wound this map: their removal is sent (onEdictFree).
+std::vector<std::uint8_t> woundsSent;
+
 void PF_woundevent()
 {
     const int num = NUM_FOR_EDICT(G_EDICT(OFS_PARM0));
@@ -271,6 +274,11 @@ void PF_woundevent()
     MSG_WriteByte(&sv.datagram, CLAMP(0, kind, 255));
     MSG_WriteByte(&sv.datagram, CLAMP(0, amount, 255));
     MSG_WriteByte(&sv.datagram, CLAMP(0, extra, 255));
+    if(num >= static_cast<int>(woundsSent.size()))
+    {
+        woundsSent.resize(static_cast<std::size_t>(num) + 1, 0);
+    }
+    woundsSent[static_cast<std::size_t>(num)] = 1;
 }
 
 // particle2(origin, direction, preset, count): unreliable, like vanilla particle().
@@ -395,7 +403,7 @@ void PF_propvalue()
     const char* name = G_STRING(OFS_PARM1);
     const int index = static_cast<int>(e->v.modelindex);
     const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
-    const int slot = model ? props::slotForModel(model->name) : -1;
+    const int slot = model ? props::slotForModel(model) : -1;
     const props::Key key = props::keyByName(name);
     float out = 0.f;
     if(key == props::Key::Mass)
@@ -450,7 +458,7 @@ void PF_propgrip()
     const bool left = G_FLOAT(OFS_PARM2) != 0.f;
     const int index = static_cast<int>(e->v.modelindex);
     const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
-    const int slot = model ? props::slotForModel(model->name) : -1;
+    const int slot = model ? props::slotForModel(model) : -1;
     using props::Key;
     glm::vec3 place{props::value(slot, Key::GripX), props::value(slot, Key::GripY), props::value(slot, Key::GripZ)};
     glm::vec3 turn{props::value(slot, Key::GripPitch), props::value(slot, Key::GripYaw), props::value(slot, Key::GripRoll)};
@@ -681,9 +689,33 @@ void bindBuiltins()
     }
 }
 
+void onEdictFree(edict_t* ed)
+{
+    // A wounded entity removed: the clients free its mask, else the next entity put in its slot (edicts are reused),
+    // with the same model (a monster from the same spawner, a gib), would show its wounds. Reliable: once, at its end.
+    if(qcvm != &sv.qcvm || !sv.active)
+    {
+        return;
+    }
+    const int num = NUM_FOR_EDICT(ed);
+    if(num <= 0 || num >= static_cast<int>(woundsSent.size()) || !woundsSent[static_cast<std::size_t>(num)])
+    {
+        return;
+    }
+    woundsSent[static_cast<std::size_t>(num)] = 0;
+    if(sv.reliable_datagram.cursize + 4 > sv.reliable_datagram.maxsize)
+    {
+        return;
+    }
+    MSG_WriteByte(&sv.reliable_datagram, protocol::svc_quakevr);
+    MSG_WriteByte(&sv.reliable_datagram, protocol::QVR_SVC_WOUNDCLEAR);
+    MSG_WriteShort(&sv.reliable_datagram, num);
+}
+
 void resetBuiltinState()
 {
     cvarHandles.clear();
+    woundsSent.clear();
     worldtext::serverReset();
 }
 

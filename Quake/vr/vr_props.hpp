@@ -32,10 +32,17 @@ void registerCvars();
 
 // The slot of the model named `model` (-1: none; its keys are then their defaults).
 [[nodiscard]] int slotForModel(const char* model);
+// The same for a model, found once per model (by its pointer: resetModelCache at each map and model reload).
+[[nodiscard]] int slotForModel(const qmodel_t* model);
+void resetModelCache();
+// Counts the changes to any prop setting (vr_prop_*): what was made from them (Box3D's props' mass) is looked at again
+// only when it changed.
+[[nodiscard]] unsigned settingsGeneration();
 
 // A key of a slot (slot -1: the key's default).
 [[nodiscard]] float value(int slot, Key key);
 [[nodiscard]] float valueFor(const char* model, Key key);
+[[nodiscard]] float valueFor(const qmodel_t* model, Key key);
 [[nodiscard]] cvar_t* cvar(int slot, Key key);
 [[nodiscard]] const char* keyName(Key key); // as in its cvar and propvalue's argument ("mass")
 [[nodiscard]] Key keyByName(const char* name); // Key::Count if none
