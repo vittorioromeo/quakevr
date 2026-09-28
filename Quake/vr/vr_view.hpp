@@ -53,6 +53,19 @@ struct WeaponMount
 };
 [[nodiscard]] bool weaponMount(int hand, WeaponMount& out);
 
+// Body Calibration (vr_bodycal.cpp): the empty hand as drawn on the calibrated controller (Hand Calibration's place,
+// with the fist's own offsets), whatever the hand holds: its wrist (world) and axes (towards the fingers, the thumb's
+// side, the back of the hand). Without the jointed hand, the hand as drawn (jointed false).
+struct EmptyHand
+{
+    glm::vec3 wrist{0.f};
+    glm::vec3 forward{1.f, 0.f, 0.f};
+    glm::vec3 up{0.f, 0.f, 1.f};
+    glm::vec3 back{0.f, 1.f, 0.f};
+    bool jointed{false};
+};
+[[nodiscard]] bool emptyHandPose(const hands::State& s, int hand, EmptyHand& out);
+
 // Align Sights to My Aim (vr_sightalign.cpp): the weapon drawn in `hand` this frame: its model, the world transform of
 // its model space (as its frames' vertices: view::modelPoint), and the middle of the fist round its grip (the drawn
 // hand's grip channel; its palm without the jointed hand). False when the hand holds no weapon.

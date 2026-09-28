@@ -6384,3 +6384,204 @@ the ledge from the side and from the eyes, and one hand on the ledge over the tr
   moved off the hold.
 - A shoulder holster with a weapon, reached past while standing at a ledge: tell me if the grip should take the
   ledge or the weapon.
+## Body calibration
+
+Your notes: the wrist bent steeply where yours doesn't, and after tuning, the drawn elbow still locked straight before
+yours did; a longer arm helped the elbow but gave odd hands; maybe only the forearm should be longer. You asked for a
+calibration that has you take poses and measures each part. Branch `agent/bodycal`; scripts, logs and composites are
+in the scratchpad's `bodycal/` (`final/` for the results).
+
+### Why the elbow locked early, and what Arm Stretch did
+
+- **One length for both bones.** The arm was the model's upper arm (29 cm) and forearm (26 cm) times your body scale
+  (eye height / 1.646: 0.944 for you), times Arm Length: 27.4 + 24.5 = **51.9 cm** from the shoulder joint to the drawn
+  wrist. Arm Length scaled both bones alike.
+- **The elbow is straight whenever the wrist is that far from the shoulder.** Past it, Arm Stretch (1.2) grew both bones
+  up to 1.2 times (62 cm), still straight; then the shoulder reached 8 cm towards the hand.
+- **Your takes reach further than 51.9 cm.** Your drawn wrists (the takes replayed with their own hand settings) were
+  beyond it in over 10% of the frames; each direction's 99th percentile is 55-65 cm. So a real arm still bent 10-20
+  degrees was drawn straight and stretched. A longer Arm Length fixed the reach but lengthened the upper arm too. That
+  moved the elbow, and with it the forearm's direction and the wrist's bend, away from yours.
+- **The shoulders** sat where the model put them, never measured: 23 cm below the eyes, 7.9 cm behind them (with your
+  Torso Offset and Shoulders Back), 38 cm apart between the joints.
+
+### What changed
+
+- **Separate lengths:** `vr_body_upper_arm` and `vr_body_forearm`, in real centimetres.
+  - They go from the shoulder joint to the elbow, and from the elbow to the drawn hand's wrist. 0 is the old behaviour.
+  - Each drawn bone stretches to its own length, so the drawn elbow is where the measured one is.
+  - Arms and Pauldrons shows them as sliders.
+- **Calibrated arms** (both set):
+  - Past their reach, the shoulder reaches first (Shoulder Reach, 8 cm), and only then does the arm stretch.
+  - **Arm Stretch after calibration** is a last resort, for hands past your measured reach plus the shoulder's
+    (tracking glitches, a lunge). It no longer hides a short arm.
+  - The shoulders rise continuously with the arm's lift, from the hand 0.6 of the arm below the shoulder to straight
+    up, as a real shoulder does. Before, they rose only once the hand was above the shoulder. The calibration measures
+    how far (Shoulders Up, Shoulders Forward).
+- The wrist gadget and the blood's elbow use the solved forearm's own length.
+- **Uncalibrated arms are exactly as before.**
+
+### Body Calibration (VR menu > Body > Body Calibration, or Arms and Pauldrons)
+
+- **Position:** Standing or Seated. Seated, the height is left alone; the arms and shoulders are measured the same.
+- **Start Calibration** closes the menu. In front of you are the step's text, and a mirrored stick figure 1.7 m ahead
+  showing the pose (moving, for the moves). After three beeps and a high one:
+  1. **Stand Tall** (arms straight down): your eye height, and your shoulders' height over the straight arms.
+  2. **T-Pose:** the reach to the sides.
+  3. **Arms Forward** (shoulders relaxed): the reach forward, and how far the shoulders come forward.
+  4. **Arms Up:** the reach up, and how far the shoulders rise.
+  - These four are captured with a click when you hold still for half a second: the head within 1.5 cm, each wrist
+    within 2 cm.
+  - A pose that isn't the step's (an arm not out to the side, say) isn't taken. After 6 s the text says what's off.
+  5. **Arm Circles** (8 s): big slow circles with straight arms. Your wrists on the sphere round your shoulders.
+  6. **Elbows Still** (8 s): elbows at your sides, forearms waved up, down, in and out. Your wrists on the sphere round
+     each elbow give the forearm's length and where the elbow is, and so the upper arm's.
+  7. **Wrists** (6 s): forearms still, wrists bent every way. The point your hand turns about (your real wrist) is
+     checked against the drawn hand's wrist: a check of Hand Calibration.
+  - A move that didn't cover enough records up to 6 s longer ("bigger circles").
+  - The menu button stops; Continue takes the rest. About two minutes in all.
+- **The fit** takes all the samples at once and uses the body's own arm model: the same function places the shoulders
+  in the game.
+  - It is least squares (Levenberg-Marquardt), then Tukey's biweight four times, dropping the moves' outliers.
+  - It measures where the shoulders sit on the chest (Shoulders Back, Up, Width), the reach and its split into upper
+    arm and forearm, and the shoulders' rise and swing.
+  - The chest is the body standing upright under your head, whatever the head does, so seated or standing give the
+    same numbers.
+- **The page with the result:**
+  - Each value, now and new: eye height; upper arm, forearm, reach; shoulders below the eyes, behind them, apart; rise
+    and swing.
+  - Also each arm's reach, how far the drawn wrists are from your real ones, and the fit's error.
+  - Each pose has a row with its error in cm (good, fair, or REDO). Clicking it takes that pose again and fits again.
+  - **Showing: New Measurements / Current Settings** switches between the two while the page is open. It changes your
+    body and the one in front of you (Body in Front: facing you, or from the side). Bend and straighten your arms to
+    compare.
+  - **Apply** sets them (and the height, standing). **Undo** puts back the exact values from before; they are kept in
+    the config (`vr_bodycal_undo`). **Cancel** changes nothing.
+  - **A fit whose poses disagree** (more than 2.5 cm rms, or a move to redo) isn't offered to Apply.
+- **Each session is saved** to `quakevr/bodycal/<date>.txt`: every frame, the settings, the result.
+  `vr_bodycal_refit <file>` fits it again: send me one if the result looks wrong.
+
+### Tests (mock headset; the scratchpad's `bodycal/`)
+
+**Synthetic people through the whole calibration.**
+- **The people:** each is a skeleton with known shoulders, upper arm and forearm.
+- **The runs:** the skeleton's poses become head and controller poses on the calibration's timeline: a take, played
+  with `vr_motion_play ... watch` while the calibration runs.
+  - The controllers are placed so that the mock's hand calibration draws the wrists at the skeleton's.
+  - The take goes through the real capture, stillness check, fit and page.
+- **Noise:** 2 mm on the wrists, the head swaying, the chest's estimate off by 3 mm.
+- **Imperfect poses:** each arm up to 8 degrees off the pose, the elbow bent up to 8 degrees, uneven circles, the
+  elbows drifting in the Elbows step.
+- **Shoulders that move:** either as the game's model does (exact), or with a real shoulder rhythm unlike it. That one
+  rises with the arm's lift (up to 5 cm) and comes forward (up to 3.5 cm).
+
+| Person (truth: upper arm, forearm) | Shoulders | Upper arm | Forearm | Reach | Shoulder joint | Wrist check | Poses |
+|---|---|---|---|---|---|---|---|
+| Your size (30.5, 24.5) | game model | +0.0 | -0.1 | -0.1 | 0.6 cm | 0.0 cm | all good |
+| Short forearm (33, 21.5) | game model | -0.1 | +0.1 | 0.0 | 0.2 cm | 0.0 | all good |
+| Long forearm (30, 29) | game model | +0.5 | -0.5 | 0.0 | 0.1 cm | 0.1 | all good |
+| Your size | real rhythm | +0.9 | +0.1 | +1.0 | 1.5 cm | 0.0 | all good |
+| Short forearm | real rhythm | +1.5 | -0.3 | +1.1 | 2.0 cm | 0.0 | all good |
+| Long forearm | real rhythm | +1.3 | -0.2 | +1.1 | 1.7 cm | 0.0 | all good |
+| Your size, seated | real rhythm | +1.5 | -0.6 | +0.9 | 2.2 cm | 0.0 | all good |
+| Your size, hand calibration off 1.5 cm | real rhythm | +1.1 | -0.3 | +0.8 | 1.4 cm | **1.5 cm** | all good |
+
+- **Shoulders that move as the model does:** every length within 0.5 cm, the shoulders within 0.6 cm.
+- **A real rhythm, unlike the model:**
+  - The forearm is still within 0.6 cm.
+  - The upper arm comes out 1-1.5 cm long, and the shoulder about 1 cm low and 1 cm narrow.
+  - The game's shoulder can't move as that one does, so the fit trades one against the other to match the reach in
+    every pose. It is the arm the game can draw best, not a flaw of the capture.
+  - None of the variants I tried (a yaw per pose, heavier weights, fewer poses) got the resting shoulder under 1.2 cm.
+- **The wrist check** found the 1.5 cm hand calibration error exactly, and 0.0-0.1 cm otherwise.
+- **Seated:** the same numbers within 1 cm, the height untouched.
+
+**Natural arms, drawn by the game** (`natmock.py`, the your-size person, real rhythm).
+- **The poses:** seven natural ones (relaxed, guard, aim, punch, reaching up, hand at the chest, across).
+- **The setup:** the controllers are where those poses put its hands, the drawn hand in line with its forearm.
+- **The comparison:** the game's arm (`vr_debug_arm 1`) against the true one.
+
+| | Elbow off | Elbow bend off | Drawn forearm off the real one (the wrist's false bend) |
+|---|---|---|---|
+| Your settings (Torso Offset 0.07, Shoulders Back -0.04, default arms) | 4.9 cm (max 8.4) | 12.3 deg | 11.0 deg (max 19.7) |
+| Defaults | 3.8 cm (max 7.8) | 6.6 deg | 8.7 deg (max 18.4) |
+| **Calibrated** | **2.5 cm** (max 7.1) | **2.4 deg** | **5.9 deg** (max 16.7) |
+
+- **The elbow straightening** (the arm forward, bent 0 to 60 degrees):
+  - Your settings drew it straight up to a 30 degree bend: an aim bent 25 degrees was drawn straight.
+  - Calibrated, it is drawn straight only below about 20 degrees.
+  - With shoulders that move as the model does, the drawn bend follows the real one within 2 degrees all the way
+    (`nat_gamecal.txt`).
+- **The wrist:** its false bend is the drawn forearm's error, so the steep wrist of your first note was mostly this.
+  - What is left (the guard's 16.7 degrees) is the elbow's direction: the pole (Elbow Out, Back, From Hand). No length
+    changes that.
+  - A fist at the shoulder or the face is still drawn with the elbow 20-30 cm off (31 before): the pole again.
+
+**Your takes** (46, two per category, 36,384 arm frames).
+- **Replayed with their own settings,** as recorded before you calibrated your hands: Gun Angle 39.5, Gun Yaw 4, Off
+  Hand 40.25 / -4, no hand calibration, and your body settings of the time. Your new hand calibration isn't used.
+- **They don't give your bone lengths**, only how far your wrists went. So the calibration here is a plausible one:
+  - a reach of **54.6 cm**: the median, over directions, of each direction's 99th percentile of the right arm's reach;
+  - split as the calibration splits an average arm: upper arm 30.6, forearm 24.0;
+  - the shoulders' rise 20, swing 15.
+- **The envelope as a sphere:** fitting it directly failed (6.8 cm rms: lunges and shoulder shrugs). The page refused
+  to Apply it, so that check works.
+
+| | Before (51.9 cm, stretch 1.2) | Calibrated (54.6 cm) |
+|---|---|---|
+| Elbow drawn straight while the wrist is inside the calibrated reach | 2.1% of all frames | **0.0%** |
+| ... with the wrist 52-54 cm from the shoulder | **73.9%** of those frames | **0.0%** |
+| Elbow drawn straight at all | 4.2% | 1.8% |
+| Wrist bent past a real wrist's range | 19.1% | 15.4% |
+| Wrist deviation, mean | -7.2 deg (radial) | -0.9 deg |
+| Wrist strain > 0 | 25.6% (mean 0.37) | 26.2% (mean 0.66) |
+| Elbow swing > 10 deg | 16.6% | 17.5% |
+
+- **Wrist strain went up** with the hands within 30 cm of the shoulder (0.24 to 1.12). There the longer upper arm folds
+  the elbow harder, and the pole puts the forearm across the wrist.
+- **Elsewhere it fell:** from 1.06 to 0.78 at 50-54 cm, and from 0.59 to 0.41 at 46-50 cm.
+
+**Composites** (`final/takes_front_side.png`, `final/takes_eyes.png`):
+- **The frames:** four of your takes (guard, aim, the punch extending, relaxed), from the front, the side and your
+  eyes, before and calibrated.
+- **What differs:** in the calibrated punch the elbow is still bent where the old arm had straightened. Otherwise they
+  barely differ: the new lengths move the elbow a few centimetres.
+
+**Align Sights to My Aim** now uses the shared stillness window and countdown (`vr_still.hpp`) instead of its own. Its
+nailgun test run gave the same log, digit for digit, before merging
+the round's latest vr-cleanup; after it, 0.0042 degrees and 0.059 mm (0.0041 and 0.057 before).
+
+### Settings and commands
+
+| | |
+|---|---|
+| `vr_body_upper_arm`, `vr_body_forearm` | real cm (0: the model's times Arm Length). Saved. |
+| `vr_bodycal_seated` | the page's Position. Saved. |
+| `vr_bodycal_preview` | Body in Front: 0 off, 1 facing you, 2 from the side. Saved. |
+| `vr_bodycal_undo` | the settings from before the last Apply. Saved. |
+| `vr_bodycal [standing or seated]` | starts it. `vr_bodycal_step <1..7>`: one pose again. |
+| `vr_bodycal_apply`, `_cancel`, `_undo`, `_print` | the page's buttons; `_print`: every number, each pose's grade. |
+| `vr_bodycal_refit <file>` | fits a saved session again. |
+| `vr_bodycal_debug` | each empty hand's wrist, from the head and in the chest's frame. |
+
+### Not verified
+
+- **Your real arm.** The synthetic people are my models of an arm and a shoulder, and the takes give only your wrists.
+  Only you can tell whether the calibrated elbow is where yours is.
+- **The menu page in the headset:** its layout, the figure's size and distance, and where the text sits during the
+  T-pose. In the mock, the capture, the fit and the page's numbers were driven by the commands.
+- **The drawn wrist:** the calibration measures to the empty hand's wrist on its controller (your Hand Calibration).
+  Holding a gun, the drawn hand may sit elsewhere (Weapon Offsets).
+- **The elbow's direction** (Elbow Out, Back, From Hand) isn't measured. It causes the rest of the wrist's false bend
+  in a guard, and with a fist at the face.
+- **Melee:** not re-run; it doesn't read the arms.
+
+### In the headset
+
+- [ ] VR menu > Body > Body Calibration, Standing, Start. Follow the text and the figure; hold each pose until the
+      click. About two minutes.
+- [ ] Read the page: are the poses good? Redo any marked REDO.
+- [ ] With Showing: New Measurements, straighten an arm slowly in front of you: the drawn elbow should lock when yours
+      does. Switch to Current Settings and compare. Then aim, guard and punch: does the wrist look like yours?
+- [ ] Apply. If it's worse, Undo. Either way, tell me, and keep the session file (`quakevr/bodycal/`).
+- [ ] "Drawn wrists ... off": above 2 cm, your Hand Calibration's wrist isn't your real one.

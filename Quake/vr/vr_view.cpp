@@ -30,6 +30,7 @@
 #include "vr_modelcollide.hpp"
 #include "vr_posing.hpp"
 #include "vr_sightalign.hpp"
+#include "vr_bodycal.hpp"
 #include "vr_profile.hpp"
 #include "vr_weapons.hpp"
 #include "vr_wounds.hpp"
@@ -3225,6 +3226,38 @@ void setupWorldWeapons(const hands::State& s, bool queueTexts)
     return hp;
 }
 
+// Body Calibration (vr_bodycal.cpp): the empty hand on the calibrated controller (vr_view.hpp).
+bool emptyHandImpl(const hands::State& s, int hand, view::EmptyHand& out)
+{
+    if(!s.valid || hand < 0 || hand > 1)
+    {
+        return false;
+    }
+    if(!handrig::usable(viewModel(handrig::modelName)))
+    {
+        const avatar::HandPose hp = drawnHand(s, hand); // (the hand as drawn)
+        out = {hp.wrist, hp.forward, hp.up, hp.back, false};
+        return true;
+    }
+    // As previewGripMove places it: the fist's own Hand and Weapon Together offset and angles, whatever the hand holds.
+    const bool mirrored = hand == HAND_OFF;
+    const int fist = weapons::fistSlot();
+    glm::vec3 pos = s.calibratedPos[hand], rot = s.calibratedRot[hand];
+    glm::mat3 turn{1.f};
+    hands::wholeOffset(fist, hand, pos, rot, turn);
+    const glm::vec3 handRot = basisAngles(anglesBasis(rot) * anglesBasis(weaponAngleOffsets(fist, mirrored)));
+    const glm::mat4 m = rigPlacement(hand, pos, handRot, mirrored, nullptr);
+    const glm::vec3 w = vec3Of(handrig::data::wrist);
+    const auto at = [&](const glm::vec3& p) { return glm::vec3{m * glm::vec4{p, 1.f}}; };
+    out.wrist = at(w);
+    // (drawnHand's axes: +x towards the fingers, +z the index finger's side, +y the palm's.)
+    out.forward = glm::normalize(at(w + glm::vec3{1.f, 0.f, 0.f}) - out.wrist);
+    out.up = glm::normalize(at(w + glm::vec3{0.f, 0.f, 1.f}) - out.wrist);
+    out.back = glm::normalize(at(w + glm::vec3{0.f, -1.f, 0.f}) - out.wrist);
+    out.jointed = true;
+    return true;
+}
+
 // The build of the body drawn this frame (0 lean, 1 athletic, 2 brawny; the wrist gadget's straps fit its bracer).
 int drawnBuild = 1;
 
@@ -3670,6 +3703,11 @@ void setupButton(int hand)
 
 namespace qvr::view
 {
+
+bool emptyHandPose(const hands::State& s, int hand, EmptyHand& out)
+{
+    return emptyHandImpl(s, hand, out);
+}
 
 const ViewEntity* find(const entity_t* e)
 {
@@ -4279,6 +4317,7 @@ extern "C" void VR_SetupViewEntities()
     {
         sightalign::viewFrame(s); // Align Sights to My Aim: its samples, Show Sight Line
     }
+    bodycal::viewFrame(s); // Body Calibration: its samples
     held::drawCarryProbes();
     if(vr_debug_physics_shapes.value)
     {
