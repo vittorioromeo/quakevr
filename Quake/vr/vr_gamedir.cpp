@@ -18,6 +18,7 @@
 #include "vr_modellight.hpp"
 #include "vr_avatar.hpp"
 #include "vr_flashlight.hpp"
+#include "vr_sightalign.hpp"
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
 
@@ -194,6 +195,7 @@ extern "C" void VR_OnGameDirChanged()
     qvr::bodyblood::clear();
     qvr::view::resetCaches(); // the view models (the missing ones too), clip sizes, the jointed hand's check, grasp shapes
     qvr::weapons::resetCaches();
+    qvr::sightalign::resetCaches(); // the sight lines (a mod's own guns)
     qvr::avatar::reset();
     qvr::flashlight::onGameDirChanged();
     Con_DPrintf("VR: game directory changed: model and game file caches emptied\n");

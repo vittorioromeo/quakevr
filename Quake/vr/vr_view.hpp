@@ -53,6 +53,17 @@ struct WeaponMount
 };
 [[nodiscard]] bool weaponMount(int hand, WeaponMount& out);
 
+// Align Sights to My Aim (vr_sightalign.cpp): the weapon drawn in `hand` this frame: its model, the world transform of
+// its model space (as its frames' vertices: view::modelPoint), and the middle of the fist round its grip (the drawn
+// hand's grip channel; its palm without the jointed hand). False when the hand holds no weapon.
+struct WeaponFrame
+{
+    const qmodel_t* model{nullptr};
+    glm::mat4 modelToWorld{1.f};
+    glm::vec3 fist{0.f};
+    bool fistFromRig{false};
+};
+[[nodiscard]] bool weaponFrame(const hands::State& s, int hand, WeaponFrame& out);
 // Whether models `a` and `b` are the same gun (one is the other's other ammo's: its button switched it).
 [[nodiscard]] bool sameGun(const qmodel_t* a, const qmodel_t* b);
 
