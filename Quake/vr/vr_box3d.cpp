@@ -235,6 +235,10 @@ constexpr float grenadeRestitution = 0.45f; // (Quake's bounce: 0.5; a steel bal
     {
         return 2000.f; // an iron shell full of explosive
     }
+    if(const float stone = props::stoneDensity(model); stone > 0.f)
+    {
+        return stone; // the rocks and bricks lying about (vr_debris.cpp)
+    }
     if(isWeaponLike(ent))
     {
         return 700.f; // guns and blades (their hulls are partly air), keys
@@ -256,7 +260,8 @@ constexpr float grenadeRestitution = 0.45f; // (Quake's bounce: 0.5; a steel bal
 // rigid hull of a backpack lands on an edge and tumbles down a gentle slope like a crate).
 [[nodiscard]] bool isSoft(edict_t* ent, const qmodel_t* model)
 {
-    return model->type == mod_alias && !isWeaponLike(ent) && !strstr(model->name, "armor") && !isGrenade(model);
+    return model->type == mod_alias && !isWeaponLike(ent) && !strstr(model->name, "armor") && !isGrenade(model) &&
+        props::stoneDensity(model) <= 0.f; // (rocks and bricks are hard)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

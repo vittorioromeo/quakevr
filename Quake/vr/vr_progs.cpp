@@ -3,6 +3,7 @@
 #include "vr_progs.hpp"
 #include "vr_engine.hpp"
 #include "vr_box3d.hpp"
+#include "vr_debris.hpp"
 #include "vr_cvars.hpp"
 #include "vr_physics.hpp"
 #include "vr_server.hpp"
@@ -160,6 +161,7 @@ extern "C" void VR_OnSpawnServerBeforeLoad()
     qvr::server::resetClients();
     qvr::physics::resetRigidBodies();
     qvr::box3d::reset();
+    qvr::debris::reset();
     qvr::physics::precacheWaterSounds();
     resetBuiltinState();
     // The training dummy's attacks (parry practice; QC vr_dummy.qc) are off at every map load, a saved game's too.
@@ -170,6 +172,7 @@ extern "C" void VR_OnSpawnServerBeforeLoad()
 extern "C" void VR_OnSpawnServerAfterLoad()
 {
     qvr::server::onSpawnServerAfterLoad();
+    qvr::debris::afterLoad();
     callSpawnServerEntryPoint(sv_bindings.OnSpawnServerAfterLoad);
     loadingSaveGame = false;
 }

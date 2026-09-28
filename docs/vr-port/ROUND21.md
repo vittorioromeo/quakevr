@@ -8374,8 +8374,9 @@ fingers at once, the grip from the next grab. Settings (`vr_props.inc`, cvars `v
 
 Print Changes to Console prints `QVR_PROP_DEFAULT(...)` lines for the shipped table; Reset This Prop puts the
 defaults back (keeping the model). The page takes a free slot (48) for a model that has none: until you change a
-value, a slot with only its model set changes nothing. `vr_props_version` (1) is the table's migration counter, as
-`vr_wofs_version` is the weapons' (a config's slots are reset to changed defaults once; nothing to migrate yet).
+value, a slot with only its model set changes nothing. `vr_props_version` (1; 26 since "Rocks and bricks") is the
+table's migration counter, as `vr_wofs_version` is the weapons' (a config's slots are reset to changed defaults once;
+nothing to migrate yet).
 Shipped entries: the explosive boxes (40 and 25 kg, never force grabbed), the flashlight (0.4 kg: its grip and
 fingers are its own page's), the ogres' grenades (1.2 kg; their Box3D mass was 5.2 kg from 2000 kg/m³, so they knock
 boxes a little less now). Everything else is estimated.
@@ -8488,3 +8489,207 @@ mass of the map's box 60 kg.
 - [ ] Parry until you're out of stamina: do weapons get heavier as it goes below half?
 - [ ] Carry a health box and an explosive box (Held Object Offsets: try its Mass and Fingers); push an explosive box
       over from high up, stack two, drop one from a ledge, shoot one lying down.
+
+## Rocks and bricks
+
+Your request: throwable, force-grabbable rocks and bricks lying about the maps where the textures say (rocks on
+grass, rock and natural floors, bricks by brick walls), near corners and edges, usable as makeshift melee and throwing
+weapons, sized for a hand, each a little different (size, turn, tint, shape), with limits and a chance to tune; all
+placed at map load if that costs no noticeable frame time. Branch `agent/debris`; scripts, logs and pictures in the
+scratchpad's `debris/`.
+
+### The pieces (`Misc/quakevr/make_debris.py`, guarded; normal maps by `bake_normals.py`)
+
+Our own models, generated (no id asset), convex so that Box3D's hull (the drawn model's convex hull) is exactly what
+is drawn: a stone rests on its drawn facets.
+
+| Model | Size (cm) | Mass (kg, at its size) | Shape |
+|---|---|---|---|
+| `vr_rock1..5.mdl` | 9 x 8 x 6 to 14 x 9 x 6 | 0.93, 0.55, 1.12, 1.05, 0.71 | a box cut by a dozen random planes (a fractured stone, flat facets), a flat base to rest on; 76-88 triangles |
+| `vr_brick1.mdl` | 19 x 9 x 6 | 1.9 | a whole brick, its twelve edges unevenly worn, its corners knocked |
+| `vr_brick2.mdl` | 19 x 9 x 6 | 1.8 | the same, a corner and an edge chipped off |
+| `vr_brick3.mdl` | 9.5 x 9 x 6 | 0.9 | a half brick, a rough broken end |
+| `vr_brick4.mdl` | 13 x 9 x 6 | 1.3 | a broken piece, a jagged end and a chip |
+
+- **Skins:** 128 x 128, every facet its own island (a shelf-packed atlas at one texel density, 3-5 texels a cm),
+  painted from 3D value noise at each texel's point on the model, so the pattern runs on over the facets' edges:
+  mottling, grain, pits, worn lighter edges, a darker underside; strata on two rocks. Six skins each, in Quake's
+  palette: rocks grey, beige, brown, mossy (grey, olive moss on the upper facets), red-brown, dark; bricks red, brown,
+  yellow, blue-grey, sooty, pale, with darker fired patches, mortar left on their beds and ends, and fresher, lighter
+  clay on the breaks.
+- **Normal maps** (`vr_rock1.mdl_0_norm.png`...; one per model serves its six skins), the generated models' way
+  (`normaltiles.py`): the facets' creases rounded (1 texel for rocks, 1.4 for the bricks' worn edges) and a new "stone"
+  recipe, the skin's fine shading as relief (dark: a pit or a pore; light: a knob; 1.2 and 0.9 texels deep).
+- **Scale:** modelled at `vr_world_scale` 1 (as the shell); each piece is scaled by the world scale times its own size.
+- **Physics:** stone's density (`props::stoneDensity`: rock 2600 kg/m³, brick 1900), so a bigger piece is heavier;
+  hard (they bounce a little, `vr_throw_restitution`; gibs and backpacks are "soft").
+
+### Where they go (`Quake/vr/vr_debris.cpp`)
+
+At map load, after the map's own entities and before the baselines (QC `vr_debris.qc`, at the first server frame):
+
+1. **Spots:** along the bottom edge of every wall face of the world (faces steeper than 53° from the floor), every 16
+   units, where a floor meets it (a floor within 1.5 units of the edge's height, just out from the wall).
+2. **Materials** by the texture's name (lowercased; an animation's `+0` or a fence's `{` dropped: QRP's replacements,
+   which keep id's names, give the same), the first rule that matches:
+
+   | Material | Names | What lies there (weight) |
+   |---|---|---|
+   | none | `sky*`, `trigger`, `clip`, `skip`, `hint`, `origin`, liquids (`*...`) | nothing |
+   | brick | `*brick*` (wbrick1_5, bricka2_*), `city2_*`, `city1_4` | bricks at the wall's foot (1); on a brick floor (0.25) |
+   | fieldstone | `wall14*`, `church1_2`, `city6_7`, `city6_8`, `*cobble*`, `*rubble*` | rocks at the wall's foot (0.8) |
+   | natural | `*grass*`, `*ground*`, `wgrnd*`, `*dirt*`, `*mud*`, `*sand*`, `*gravel*`, `*moss*`, `*cliff*`, `*earth*`, `wswamp1*`, `rock<digits>` (rock1_2, rock4_1; not rock0sid or rockettop, which are machines) | rocks on the floor (1) and at the wall's foot (1) |
+   | masonry | `wswamp2*`, `wiz1_*`, `*stone*`, `city3_*`, `city4_*`, `city5_*`, `afloor*`, `wall9*`, `church*`, `column*`, `arch*`, `altar*`, `*marble*` | a few rocks at the wall's foot (0.25) |
+   | wood, metal | `*wood*`, `crate*`, `*metal*`, `*met*`, `*tech*`, `*comp*`, `*cop*`, `*plat*`, `*light*`, `*door*`, `*exit*`, `*switch*`, `*button*`, `twall*`, `uwall*`, `sfloor*`, `slip*` | nothing |
+   | other | the rest | nothing |
+
+   A spot's rock weight is the larger of its floor's and its wall's, its brick weight likewise; where both are there,
+   the kind is drawn by their weights.
+3. **The roll:** each spot, in a random order (the limits then favour no part of the map), gets pieces with
+   Chance x its weight x In Corners (2.5, when a wall stands beside the spot along its own wall: a room's corner, a
+   pillar, a ledge's end) x In the Dark (0.3 where the floor's lightmap is under 8, rising to 1 at 40: the foot of a
+   wall is often the darkest part of a room, and a piece nobody sees is a wasted entity).
+4. **A piece's place:** out from the wall by its own extent that way and 0.3-1.5 units more; the others of a cluster
+   (up to Most Together, 3: a second one 30% of the time, 50% in a corner; a third 10%, 25%) beside it along the wall.
+5. **Checks** (a piece failing one is not placed; if a spot's first fails, the spot is dropped): a floor of the world
+   itself under it (not a door, a lift or any brush entity), no steeper than 25°, flat under its footprint's corners
+   (within 1 unit: not over an edge or a step), no liquid at the floor or above the piece, room round it along eight
+   directions, open for 40 units above (not under a stair or a low ledge), and clear of entities' boxes grown by a
+   margin: doors, lifts, trains, buttons and whatever moves (48 units, plus up to their own size where they move;
+   lifts 256 down), teleporters, changelevels, starts and teleport destinations (64), other triggers (24), items,
+   weapons, monsters, path corners, explosive boxes and torches and flames (40; the static ones are recorded as the
+   map spawns, `VR_OnMakeStatic`, since they leave no entity), anything else with a model or a solid (24). Then
+   Spacing (56 units) from another spot's pieces, Most in an Area (8 in a 384-unit square), Most in a Map (160), and
+   never so many that fewer than `vr_debris_edicts_left` (2048) entities stay free.
+6. **Variety:** the model (rocks alike; bricks: whole 30%, chipped 25%, half 25%, broken 20%), the size (Size
+   Variation, 15% either way, a little more along one axis than another; bricks 40% of it: they are made to a size),
+   the turn (rocks any way; bricks half along the wall ±20°, a fifth lying on their side), resting on their lowest
+   corner along the floor's normal, and the **skin by the colour of what it lies by** (the texture's average colour,
+   from the BSP's own pixels, against each skin's, read from the model file; hue counts more than lightness): a brick
+   takes its wall's closely (wbrick1_5: brown and sooty; city2_1: sooty and red; city2_5: blue-grey), a rock loosely
+   (a grey stone on brown earth is no surprise).
+7. **Deterministic:** a seed from the map's name (and Layout, `vr_debris_seed`), the BSP's faces in order: the same
+   pieces at every load. e1m2's layout is b9a02a5f when loaded, when returned to from e1m1 and after `restart`, its 73
+   pieces' places and turns identical; under QRP the same layouts (e1m1 168120a8, e1m2 b9a02a5f, e2m2 ee286406).
+
+**None:** with Rocks and Bricks off; in multiplayer (a remote client's packets are 1400 bytes: 150 pieces in sight
+would not fit); in the maps of `vr_debris_exclude` (vrfiringrange, vrclimb, vrexample: the firing range's entity
+numbering, which the motion recorder relies on, stays as it is); in a map whose worldspawn has `"_vr_debris" "0"`
+(another number scales the chance; MAPPING.md). Tested with an `.ent` override of e1m1: `0` gives none ("its
+worldspawn's _vr_debris is 0"), `2` 35 pieces (18 by default).
+
+**What id's maps get** (the defaults): start 99, e1m1 18 (rocks on ground1_*), e1m2 73 (71 bricks), e1m3 66, e1m4 84,
+e1m5 88, e1m6 0, e1m7 0, e2m1 4, e2m2 102, e2m3 83, e2m4 91, e2m5 17, e2m6 114, e3m1 3, e3m2 to e3m6 0 (metal), e4m1
+0, e4m2 134, e4m3 140, e4m4 160, e4m5 54, e4m6 78, e4m7 160, end 4. Placing them takes 4-24 ms.
+
+### All at map load: the numbers (`--exclusive`, e2m2's densest spot, 3600 frames each; `perf.sh`)
+
+They are spawned at the first server frame, before `SV_CreateBaseline`: a piece lying still sends the client what any
+still entity does (its update bits and the networked scale, 12 bytes, only while in sight), and asleep in Box3D it is
+not simulated at all. No think, no per-frame QC.
+
+| Pieces in e2m2 | 0 | 50 | 150 | 300 |
+|---|---|---|---|---|
+| Entities | 184 | 234 | 334 | 484 |
+| Server spawn, map cached (ms) | 58.7 | 85.5 | 89.4 | 85.0 |
+| Server frame (ms) | 0.204 | 0.228 | 0.284 | 0.364 |
+| of it Box3D (ms; sync / step) | 0.036 (0.016 / 0.016) | 0.048 (0.028 / 0.016) | 0.064 (0.044 / 0.020) | 0.100 (0.072 / 0.020) |
+| Client frame CPU (ms, host at 250 fps) | 0.849 | 0.862 | 0.921 | 0.962 |
+| Alias models' draw, left eye, CPU (ms) | 0.036 | 0.037 | 0.042 | 0.047 |
+
+Placing adds about 27 ms to the server's spawn whatever the count (reading the nine models' skins and bounds, the
+faces, the traces; a map's first load, 920 ms, is the same with or without); the frame gets 0.16 ms more server time
+per server frame at 300 pieces (1.2% of a core at 72 Hz) and 0.11 ms more on the client's frame. None of it is
+noticeable, so everything is placed at load and nothing pops in. (The defaults give at most 160.)
+
+### Using them
+
+- **Carried** as the gibs are (`VR_Carry_Setup`): gripped (the fist touching it; the fingers fitted to its shape; held
+  where gripped), one hand only (Held Object Offsets: Two Hands 0), thrown, nudged; nothing to take at a holster.
+  **Force grabbed** (`FL_FORCEGRABBABLE`; Force Grab -1): "force grab: vr_rock flies 60.5 units in 0.4 s", caught.
+- **Punching while holding one** (`VR_Carry_PunchMult`; `vr_melee.qc`): the punch's strength (the blow's speed, the
+  punch's own multiplier) times `1 + Blunt x the square root of its mass` (Held Object Offsets' new **Blunt** key, 0.8
+  for rocks and bricks): a 0.35 kg rock 1.47, 1 kg 1.8, a whole brick (1.9 kg) 2.1; a box stays at Box Punch Damage
+  (1.5). The rest is a punch's: a closed fist, its stamina (4), its batting of projectiles, its exhaustion; a rock or
+  a brick knocks with its own sound instead of the punch's.
+- **Thrown hard** (over 250 u/s, as boxes): it hurts what it hits (monsters, and gibs as thrown things now do) by its
+  speed, `Thrown Box Damage (8) x (1 + Blunt x √mass)` per 5.8 m/s: a 1 kg rock at 12 m/s about 30.
+- **Sounds** (`make_sounds.py`: `vr/rock1..3.wav`, a dense stone's thud with a tick and a scatter of grit;
+  `vr/brick1..3.wav`, fired clay's brighter, hollower clack): Box3D's hits (`.vr_impact`: landing, knocked, thrown
+  into a wall or a monster; not the player's hands or body) above 1.5 m/s, louder the harder, at most every 0.1 s.
+- **Held Object Offsets entries** (`vr_props.inc`, slots 20-28, apart from the other agents'): Blunt 0.8, Two Hands 0;
+  Mass left estimated (each piece's size differs). `vr_props_version` 26 gives a config saved before its empty slots'
+  new defaults (a slot a config gave another model keeps it; that piece then hits as a box).
+
+**A bug found on the way:** a punch holding a box hit 2.25 times as hard, not the 1.5 of Box Punch Damage: the
+multiplier was in the blow's strength (`VR_Melee_Decide`) and again in `W_FistMelee`. It now counts once
+(`W_FistMelee` applies it only for untracked hands, whose blows have no strength).
+
+### Tests (mock headset; the scratchpad's `debris/`)
+
+The synthetic motions' hand settings were set and printed in each run (`vr_gunangle 39.5`, `vr_gunyaw 4`,
+`vr_offhandpitch 40.25`, `vr_offhandyaw -4`, every `vr_handcal_*` 0: `motion_synth.py`'s).
+
+| Test | Result |
+|---|---|
+| A rock in the hand (`hold_vr_rock.png`), a brick (`hold_vr_brick.png`) | gripped at the hand, the fingers round it; the brick held by its end |
+| Punching a grunt holding a rock (0.37 kg; `punch_straight` reaching 0.78 m) | "punch ... 6.8 m/s, x1.48", 14.8 damage (a bare fist: the same without the x1.49) |
+| The same holding a brick (e1m2, 0.71 kg) | "5.1 m/s, x1.25" (heavier, slower), 12.5 damage |
+| Throwing the rock at a grunt 72 units away (an overhand throw, `throw.mock`) | 465 u/s, base 11.9, 22.0 damage (legs), "vr_rock knocks at 11.2 m/s"; another throw's head hit, 54.2, killed |
+| Throwing the brick | 465 u/s, base 13.4, 24.8 damage (legs), knocks at 10.9 and 5.8 m/s |
+| Force grab (the off hand, as `items/t2.sh`) | flies 60.5 units in 0.4 s, caught (`forcegrab.png`) |
+| `vr_physics_forcegrab props` | every rock "may be force grabbed"; the explosive box still "never" |
+| At load | every piece's body made asleep ("a prop body, asleep"); no knocks at load |
+| Determinism, QRP, the worldspawn key | above |
+| Placement | `ev_<map>_qbase_sheet.png` for e1m1, e1m2, e1m3, e2m2 and e4m2: a wide view and three close-ups, then the same in `r_fullbright` (the foot of a wall is dark) |
+
+### Settings (Carrying and Gibs > Rocks and Bricks; all from the next map)
+
+| Setting | Cvar | Default |
+|---|---|---|
+| Rocks and Bricks | `vr_debris` | 1 |
+| Rocks / Bricks | `vr_debris_rocks` / `vr_debris_bricks` | 1 / 1 |
+| Chance (a spot every 16 units) | `vr_debris_chance` | 0.1 |
+| In Corners | `vr_debris_corner` | 2.5x |
+| In the Dark | `vr_debris_dark` | 0.3x |
+| Most Together | `vr_debris_cluster` | 3 |
+| Most in a Map | `vr_debris_max` | 160 |
+| Most in an Area (a square of `vr_debris_area_size`, 384) | `vr_debris_area_max` | 8 |
+| Spacing | `vr_debris_spacing` | 56 units |
+| Size Variation | `vr_debris_size` | 0.15 |
+| Layout | `vr_debris_seed` | 0 |
+| (console) maps without them | `vr_debris_exclude` | "vrfiringrange vrclimb vrexample" |
+| (console) entities left free | `vr_debris_edicts_left` | 2048 |
+| (Held Object Offsets) Blunt | `vr_prop_blunt_NN` | 0; 0.8 for the rocks and bricks |
+| (console) `vr_debug_debris` | | 1: a line per map (pieces, spots, rejections by reason, time, the layout's hash, the spawn time); 2: also each piece and the way out of its wall; 3: also each spot an entity turned away, and which |
+
+`vr_debris_list [lit]` lists the pieces in the map now (model, skin, place, turn, resting, the light there; `lit`:
+brightest first).
+
+### Files
+
+`Quake/vr/vr_debris.cpp`, `.hpp` (the planner, `vr_debris_list`); `QC/vr_debris.qc` (spawning, sounds); `vr_carry.qc`
+(`VR_Carry_PunchMult`, the throw's damage), `vr_melee.qc`, `weapons.qc` (`W_FistMelee`), `world.qc` (precache,
+StartFrame), `builtins.qc` and `vr_builtins.cpp` (`debrisplan`, `debrismodel`, `debrisput`); `pr_cmds.c` (the
+`VR_OnMakeStatic` hook); `vr_props.*` (Blunt, stone densities, the entries, migration 26); `vr_box3d.cpp` (densities,
+hardness); `vr_menu.cpp`, `vr_menu_props.inc`, `vr_cvars.inc`; `Misc/quakevr/make_debris.py`, `make_sounds.py`,
+`normaltiles.py` and `normalmaps.py` (the stone recipe); `entities.fgd` (`_vr_debris`); `MAPPING.md`.
+
+### Not verified, limitations
+
+- In the headset: how they look at real scale (small at the foot of Quake's big walls: a 13 cm stone is 4 texels of a
+  floor), how they sit in the hand, the sounds (generated; not listened to here).
+- **Saved games:** not tried (the tests may not write saves). The pieces are ordinary entities with ordinary fields,
+  their models always precached, and a saved game's own pieces replace a new placing; a game saved before has none.
+- The melee canary (`eval.sh`) skips while your takes are archived; blows change only when a hand carries something.
+- Changing `vr_world_scale` during a map leaves the pieces at the old scale until the next map (the shells follow it).
+- Multiplayer and deathmatch: none.
+- Only the world's own faces are read: a brush entity's brick wall (a `func_wall`) sheds nothing.
+- The torches agent's removable torches: pieces keep 40 units from any `light_torch*` or `light_flame*`, static or not.
+
+### In the headset
+
+- [ ] e1m2 and e2m2: bricks at the foot of brick walls, rocks by rock walls and on the ground; e1m1's outdoor ground.
+      Too many or too few (Chance, In Corners, Most in an Area)? Do their colours sit with the walls?
+- [ ] Pick one up: does it sit in the hand? Punch a grunt with it, throw it at one, force grab one.
+- [ ] Reload the map: the same pieces in the same places.

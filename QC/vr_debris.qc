@@ -1,0 +1,115 @@
+// vr_debris.qc -- rocks and bricks lying about the maps (docs/vr-port/ROUND21.md, "Rocks and bricks"). The engine
+// (vr_debris.cpp) finds their places at the foot of walls by what the textures are made of; here they are spawned, at
+// the first server frame of a new map (after the map's own entities, so theirs keep their numbers; before the
+// baselines, so a piece lying still costs the network next to nothing), and made carried props like the gibs:
+// gripped, force grabbed, punched with (a rock in the fist: Held Object Offsets' Blunt, vr_melee.qc) and thrown
+// (vr_carry.qc: they hurt what they hit by their speed and mass), Box3D rigid bodies (vr_box3d.cpp) asleep until
+// touched. A saved game keeps them as they are (ordinary entities); a new map places its own.
+
+.float vr_debris;       // 1 a rock, 2 a brick
+.float vr_debris_sound; // when it last sounded a hit
+
+float vr_debris_done;   // placed in this map (a saved game's are in it already)
+
+// The models, in vr_debris.cpp's order; always precached (a saved game may hold pieces whatever the settings now).
+void() VR_Debris_Precache =
+{
+    vr_debris_done = FALSE;
+    precache_model("progs/vr_rock1.mdl");
+    precache_model("progs/vr_rock2.mdl");
+    precache_model("progs/vr_rock3.mdl");
+    precache_model("progs/vr_rock4.mdl");
+    precache_model("progs/vr_rock5.mdl");
+    precache_model("progs/vr_brick1.mdl");
+    precache_model("progs/vr_brick2.mdl");
+    precache_model("progs/vr_brick3.mdl");
+    precache_model("progs/vr_brick4.mdl");
+    precache_sound("vr/rock1.wav"); // a stone's thud (Misc/quakevr/make_sounds.py)
+    precache_sound("vr/rock2.wav");
+    precache_sound("vr/rock3.wav");
+    precache_sound("vr/brick1.wav"); // a brick's clack
+    precache_sound("vr/brick2.wav");
+    precache_sound("vr/brick3.wav");
+};
+
+// A piece's knock (a rock's thud, a brick's clack), one of three at random.
+string(entity e) VR_Debris_Sound =
+{
+    float k = floor(random() * 3);
+    if(e.vr_debris == 2)
+    {
+        return k < 1 ? "vr/brick1.wav" : (k < 2 ? "vr/brick2.wav" : "vr/brick3.wav");
+    }
+    return k < 1 ? "vr/rock1.wav" : (k < 2 ? "vr/rock2.wav" : "vr/rock3.wav");
+};
+
+// Whether `e` is a rock or a brick.
+float(entity e) VR_Debris_Is =
+{
+    return e.vr_debris > 0;
+};
+
+// Box3D's hardest hit of a frame (vr_box3d.cpp callShocks: on the level, a prop, a monster; not a player's body or
+// hands): its knock, louder the harder, at most every 0.1 s (a stone rolling to rest knocks a few times, not a rattle).
+void(float xSpeed) VR_Debris_Impact =
+{
+    if(xSpeed < 1.5 || time < self.vr_debris_sound + 0.1)
+    {
+        return;
+    }
+    self.vr_debris_sound = time;
+    float vol = min(1, 0.12 + (xSpeed - 1.5) / 6);
+    sound(self, CHAN_AUTO, VR_Debris_Sound(self), vol, xSpeed > 5 ? ATTN_NORM : ATTN_IDLE);
+    dprint(sprintf("debris: %s knocks at %.1f m/s (volume %.2f)\n", self.classname, xSpeed, vol));
+};
+
+// Touching what it hits: thrown hard, it hurts it as a thrown box does (forcegrabbable_touch; its base damage is set
+// at the throw from its Blunt and mass: VR_Carry_Release).
+void() VR_Debris_Touch =
+{
+    forcegrabbable_touch();
+};
+
+void(entity e, float kind) VR_Debris_Setup =
+{
+    e.classname = kind == 2 ? "vr_brick" : "vr_rock";
+    e.vr_debris = kind;
+    e.movetype = MOVETYPE_TOSS;
+    e.solid = SOLID_NOT_BUT_TOUCHABLE;
+    e.flags = e.flags | FL_FORCEGRABBABLE | FL_EASYHANDTOUCH;
+    e.touch = VR_Debris_Touch;
+    e.handtouch = SUB_Null; // nothing to take (VR_Carry_Setup keeps it as carry_use)
+    e.throwhit = QVR_THROWHIT_HIT;
+    e.owner = world;
+    SetThrownWeaponDealDamage(e, FALSE);
+    SetThrownWeaponDisappearOnHit(e, FALSE);
+    VR_Carry_Setup(e); // carried, nudged, thrown; a rigid body (vr_rigid 1)
+    e.vr_impact = VR_Debris_Impact;
+};
+
+// Every server frame (StartFrame): at the first of a new map, the pieces.
+void() VR_Debris_Frame =
+{
+    if(vr_debris_done)
+    {
+        return;
+    }
+    vr_debris_done = TRUE;
+    if(spawnServerFromSaveFile)
+    {
+        return; // a saved game: its entities replace these
+    }
+    float n = debrisplan();
+    for(float i = 0; i < n; i++)
+    {
+        entity e = spawn();
+        setmodel(e, debrismodel(i));
+        float kind = debrisput(e, i); // its skin, size, turn, place and box
+        if(!kind)
+        {
+            remove(e);
+            continue;
+        }
+        VR_Debris_Setup(e, kind);
+    }
+};

@@ -1215,6 +1215,31 @@ void hologramTestMessage()
         slider("Blow Up On Impact", vr_explobox_impact, 0.f, 30.f, 1.f, "%.0f m/s").extend(0.f, 100.f)
             .help("A box hitting something this hard blows up: dropped from about 85 units or more (tipped over, its "
                   "top lands at 11 m/s). 0: never."),
+        header("Rocks and Bricks"),
+        toggle("Rocks and Bricks", vr_debris)
+            .help("Rocks lie on natural ground and at the foot of rock and stone walls, bricks at the foot of brick walls, "
+                  "by what the textures are: pick them up, force grab them, punch with them, throw them. The same "
+                  "places at every load. Single player. Next map."),
+        toggle("Rocks", vr_debris_rocks).help("Rocks on grass, dirt and rock, and by rock and stone walls. Next map."),
+        toggle("Bricks", vr_debris_bricks).help("Bricks at the foot of brick walls. Next map."),
+        slider("Chance", vr_debris_chance, 0.f, 1.f, 0.01f, "%.2f").extend()
+            .help("How likely a place at a wall's foot (one every 16 units along it) gets a piece or a few, before the "
+                  "limits below. Next map."),
+        slider("In Corners", vr_debris_corner, 1.f, 5.f, 0.25f, "%.2fx").extend(0.f, 20.f)
+            .help("Times the chance in a corner. Next map."),
+        slider("In the Dark", vr_debris_dark, 0.f, 1.f, 0.05f, "%.2fx")
+            .help("Times the chance where the floor is dark (where you would not see them). Next map."),
+        slider("Most Together", vr_debris_cluster, 1.f, 6.f, 1.f, "%.0f").help("Most pieces lying together at one place. Next map."),
+        slider("Most in a Map", vr_debris_max, 0.f, 400.f, 10.f, "%.0f").extend(0.f, 2000.f)
+            .help("Fewer if the map has few entities to spare (vr_debris_edicts_left). Next map."),
+        slider("Most in an Area", vr_debris_area_max, 1.f, 30.f, 1.f, "%.0f").extend(1.f, 200.f)
+            .help("Most pieces in a square of vr_debris_area_size units (384: about 12 m). Next map."),
+        slider("Spacing", vr_debris_spacing, 0.f, 256.f, 8.f, "%.0f units").extend(0.f, 2048.f)
+            .help("Between places with pieces (32 units is about a metre). Next map."),
+        slider("Size Variation", vr_debris_size, 0.f, 0.4f, 0.01f, "+-%.2f")
+            .help("How much bigger or smaller a piece may be (bricks 40% of it). Next map."),
+        slider("Layout", vr_debris_seed, 0.f, 50.f, 1.f, "%.0f").extend(0.f, 100000.f)
+            .help("Another number, another layout: each is the same at every load. Next map."),
         header("Armour and Pickups"),
         cycle("Armour", vr_armor_wear, {{0.f, "Touch takes it"}, {1.f, "Wear by hand"}})
             .help("Wear by hand: grip the armour to carry it and let go of it over your chest to put it on (only if it is better "

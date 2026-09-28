@@ -31,6 +31,9 @@ QVR_PROP_KEY(FingerThumbAcross, "fgr_thumb_across", "0")
 QVR_PROP_KEY(Overlap, "overlap", "-1")       // cm the fitted fingers and palm may sink into it; -1: Fit Overlap: Things
 QVR_PROP_KEY(TwoHands, "two_hands", "1")     // 1: the other hand may hold it too (vr_carry_two_hands); 0: one hand only
 QVR_PROP_KEY(ForceGrab, "forcegrab", "-1")   // -1: as the game has it; 0: never force grabbed
+QVR_PROP_KEY(Blunt, "blunt", "0")            // how hard it hits, held (a punch holding it) or thrown: times the square root
+                                             // of its mass (kg), over a fist's punch and Thrown Box Damage; 0: as a box
+                                             // (Box Punch Damage, Thrown Box Damage) (QC vr_melee.qc, vr_carry.qc)
 #endif
 
 #ifdef QVR_PROP_DEFAULT
@@ -51,4 +54,35 @@ QVR_PROP_DEFAULT(3, ID, "progs/grenade.mdl")
 QVR_PROP_DEFAULT(3, Mass, "1.2")
 QVR_PROP_DEFAULT(4, ID, "progs/mervup.mdl")
 QVR_PROP_DEFAULT(4, Mass, "1.2")
+// The rocks and bricks lying about (vr_debris.cpp, QC vr_debris.qc; slots 20-28, apart from the others'): their Mass is
+// left estimated, stone's density times their size (vr_props.cpp stoneDensity: a rock 0.3 to 1.7 kg, a whole brick
+// about 1.9), since each piece is sized apart. Blunt 0.8: a punch holding one hits 1 + 0.8 x the square root of its
+// mass times as hard (a 1 kg rock 1.8, a brick 2.1; a box 1.5), and thrown it hurts as much more than a box. One hand.
+QVR_PROP_DEFAULT(20, ID, "progs/vr_rock1.mdl")
+QVR_PROP_DEFAULT(20, Blunt, "0.8")
+QVR_PROP_DEFAULT(20, TwoHands, "0")
+QVR_PROP_DEFAULT(21, ID, "progs/vr_rock2.mdl")
+QVR_PROP_DEFAULT(21, Blunt, "0.8")
+QVR_PROP_DEFAULT(21, TwoHands, "0")
+QVR_PROP_DEFAULT(22, ID, "progs/vr_rock3.mdl")
+QVR_PROP_DEFAULT(22, Blunt, "0.8")
+QVR_PROP_DEFAULT(22, TwoHands, "0")
+QVR_PROP_DEFAULT(23, ID, "progs/vr_rock4.mdl")
+QVR_PROP_DEFAULT(23, Blunt, "0.8")
+QVR_PROP_DEFAULT(23, TwoHands, "0")
+QVR_PROP_DEFAULT(24, ID, "progs/vr_rock5.mdl")
+QVR_PROP_DEFAULT(24, Blunt, "0.8")
+QVR_PROP_DEFAULT(24, TwoHands, "0")
+QVR_PROP_DEFAULT(25, ID, "progs/vr_brick1.mdl")
+QVR_PROP_DEFAULT(25, Blunt, "0.8")
+QVR_PROP_DEFAULT(25, TwoHands, "0")
+QVR_PROP_DEFAULT(26, ID, "progs/vr_brick2.mdl")
+QVR_PROP_DEFAULT(26, Blunt, "0.8")
+QVR_PROP_DEFAULT(26, TwoHands, "0")
+QVR_PROP_DEFAULT(27, ID, "progs/vr_brick3.mdl")
+QVR_PROP_DEFAULT(27, Blunt, "0.8")
+QVR_PROP_DEFAULT(27, TwoHands, "0")
+QVR_PROP_DEFAULT(28, ID, "progs/vr_brick4.mdl")
+QVR_PROP_DEFAULT(28, Blunt, "0.8")
+QVR_PROP_DEFAULT(28, TwoHands, "0")
 #endif

@@ -6,6 +6,7 @@
 #include "vr_progs.hpp"
 #include "vr_box3d.hpp"
 #include "vr_carry2h.hpp"
+#include "vr_debris.hpp"
 #include "vr_held.hpp"
 #include "vr_motion.hpp"
 #include "vr_engine.hpp"
@@ -529,6 +530,25 @@ void PF_weaponhotspotinfo()
     G_FLOAT(OFS_RETURN) = what == 0 ? static_cast<float>(h.type) : what == 1 ? h.bias : h.share;
 }
 
+// Rocks and bricks lying about (vr_debris.cpp, QC vr_debris.qc). float() debrisplan: places them (after the map's
+// entities), how many; string(float i) debrismodel: piece i's model (to set); float(entity e, float i) debrisput: puts
+// piece i on e (its model set): its skin, size, turn, place resting on the floor and box; its kind (1 a rock, 2 a
+// brick; 0 none).
+void PF_debrisplan()
+{
+    G_FLOAT(OFS_RETURN) = static_cast<float>(debris::plan());
+}
+
+void PF_debrismodel()
+{
+    G_INT(OFS_RETURN) = PR_SetEngineString(debris::modelOf(static_cast<int>(G_FLOAT(OFS_PARM0))));
+}
+
+void PF_debrisput()
+{
+    G_FLOAT(OFS_RETURN) = static_cast<float>(debris::put(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1))));
+}
+
 struct VrBuiltin
 {
     const char* name;
@@ -544,6 +564,9 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"physicsblast", PF_physicsblast},
     {"propvalue", PF_propvalue},
     {"propgrip", PF_propgrip},
+    {"debrisplan", PF_debrisplan},
+    {"debrismodel", PF_debrismodel},
+    {"debrisput", PF_debrisput},
     {"physicspush", PF_physicspush},
     {"tracebox", PF_tracebox},
     {"cvar_hmake", PF_cvar_hmake},

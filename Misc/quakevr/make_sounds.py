@@ -18,6 +18,8 @@
 #                 crackling fizz), and its ticks, faster and faster until it goes off
 #   pommel1..3.wav  a pommel, a hilt or a gun's butt striking (QC vr_melee.qc VR_Melee_HitSound): a blunt knock,
 #                 short and dry, apart from the blades' cuts and the punches; three, a little apart in pitch
+#   rock1..3.wav, brick1..3.wav  a rock's thud and a brick's clack (QC vr_debris.qc): landing, knocked, thrown into
+#                 something or struck with; three each, a little apart in pitch
 #
 # The water sounds in the same folder (splash_small*, splash_big*, splash_out*, plip*, slosh*, stroke*) are not
 # made here: they are recordings (docs/vr-port/CREDITS.md), kept in the repository as they are.
@@ -410,6 +412,45 @@ def pommel(pitch, seed):
     return finish(out, 0.92)
 
 
+# ---- Rocks and bricks (QC vr_debris.qc; docs/vr-port/ROUND21.md, "Rocks and bricks"): a piece landing, knocked,
+# thrown into something, or struck with. Stone is dense and dead: a sharp tick of grit, a low knock whose few modes die
+# in a few tens of ms, a short scatter of grit after. Fired clay rings a little: a brighter, hollower clack, its modes
+# higher and longer, less low end.
+
+
+def stone_knock(pitch, seed, brick):
+    rng = random.Random(seed)
+    n = int(RATE * (0.32 if brick else 0.28))
+    click_hp = OnePole(2600 if brick else 1800)
+    grit_lp, grit_hp = OnePole(5200), OnePole(900)
+    body_lp = OnePole(420 if brick else 260)
+    phase = [0.0]
+    if brick:
+        table = ((780, 0.8, 0.028), (1330, 0.75, 0.022), (2110, 0.5, 0.016), (3050, 0.3, 0.01), (470, 0.4, 0.02))
+    else:
+        table = ((210, 0.9, 0.022), (390, 0.8, 0.016), (640, 0.5, 0.011), (1120, 0.3, 0.007), (1900, 0.15, 0.004))
+    table = tuple((f * rng.uniform(0.95, 1.05), a, d) for f, a, d in table)
+    # A few grains of grit scattering after the knock.
+    grains = [(rng.uniform(0.012, 0.09), rng.uniform(0.15, 0.5)) for _ in range(rng.randint(4, 7))]
+    out = []
+    for i in range(n):
+        t = i / RATE
+        noise = rng.uniform(-1, 1)
+        click = (noise - click_hp(noise)) * math.exp(-t / (0.0009 if brick else 0.0012))
+        knock = partials(t, pitch, table) * min(1.0, t / 0.0003)
+        body = body_lp(noise) * math.exp(-t / (0.02 if brick else 0.035))
+        g = grit_lp(noise)
+        g -= grit_hp(g)
+        grit = 0.0
+        for at, level in grains:
+            if t >= at:
+                grit += level * math.exp(-(t - at) / 0.004)
+        s = click * 0.7 + knock * (1.3 if brick else 1.5) + body * (0.5 if brick else 0.9) + g * grit * 0.8 + \
+            thud(t, phase, (70 if brick else 52) * pitch, 60 * pitch, 0.03 if brick else 0.045) * (0.25 if brick else 0.55)
+        out.append(math.tanh(s * 1.4))
+    return finish(out, 0.9)
+
+
 # ---- Caught grenades (QC vr_grenade.qc; docs/vr-port/ROUND21.md, "Deflection by blows and bashes; catching grenades;
 # ogre aim"): a caught grenade is lit (its fuse set again) and ticks until it goes off.
 
@@ -537,6 +578,12 @@ def main():
         name = "pommel%d.wav" % (k + 1)
         write_wav(os.path.join(out, name), pommel(pitch, 131 + k))
         print(name + " -> " + os.path.normpath(out))
+    # Rocks and bricks (QC vr_debris.qc): three knocks each, a little apart in pitch, picked at random.
+    for kind, brick, seed in (("rock", False, 231), ("brick", True, 331)):
+        for k, pitch in enumerate((1.0, 0.9, 1.11)):
+            name = "%s%d.wav" % (kind, k + 1)
+            write_wav(os.path.join(out, name), stone_knock(pitch, seed + k, brick))
+            print(name + " -> " + os.path.normpath(out))
     # And dropping into water (vr_shells.cpp): the recordings' plips higher, from the folder they are in.
     for k, (plip, factor) in enumerate((("plip1.wav", 1.5), ("plip3.wav", 1.4), ("plip4.wav", 1.65))):
         name = "shell_plip%d.wav" % (k + 1)

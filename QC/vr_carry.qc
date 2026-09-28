@@ -94,6 +94,26 @@ void(entity xBox) VR_Carry_Forget =
     xBox.carry_2h = FALSE;
 };
 
+// How much harder a punch holding what `xHand` of `xPlayer` carries hits: a rock or a brick by its mass (Held Object
+// Offsets' Blunt: 1 + Blunt x the square root of its mass in kg; vr_debris.qc), anything else Box Punch Damage
+// (vr_carry_melee_mult); 1 with nothing held. VR_Melee_Decide puts it in the blow's strength; W_FistMelee only for
+// untracked hands (whose blows have none).
+float(entity xPlayer, float xHand) VR_Carry_PunchMult =
+{
+    entity box = VR_Carry_Held(xPlayer, xHand);
+    if(box == world)
+    {
+        return 1;
+    }
+    float blunt = propvalue(box, "blunt");
+    if(blunt > 0)
+    {
+        float m = propvalue(box, "mass");
+        return 1 + blunt * sqrt(max(m, 0));
+    }
+    return cvar_hget(cvarh_vr_carry_melee_mult);
+};
+
 // ----------------------------------------------------------------------------
 // Nudging
 
@@ -244,7 +264,16 @@ void(float xHand, entity xBox) VR_Carry_Release =
         xBox.throwhit = QVR_THROWHIT_NEVER_HIT;
         xBox.throwdmgspeed = 700 * m2u / 120;
         SetThrownWeaponDealDamage(xBox, TRUE);
-        SetThrownWeaponBaseDamage(xBox, cvar_hget(xBox.vr_gib ? cvarh_vr_gib_throw_damage : cvarh_vr_carry_throw_damage));
+        // A rock or a brick by its mass (Held Object Offsets' Blunt, as its punch: VR_Carry_PunchMult), a gib or a box as set.
+        float blunt = propvalue(xBox, "blunt");
+        float base = cvar_hget(xBox.vr_gib ? cvarh_vr_gib_throw_damage : cvarh_vr_carry_throw_damage);
+        if(blunt > 0)
+        {
+            base = cvar_hget(cvarh_vr_carry_throw_damage) * (1 + blunt * sqrt(max(propvalue(xBox, "mass"), 0)));
+            dprint(sprintf("carry: thrown %s, %.2f kg, base damage %.1f (at %.0f u/s)\n", xBox.classname,
+                propvalue(xBox, "mass"), base, xBox.throwdmgspeed));
+        }
+        SetThrownWeaponBaseDamage(xBox, base);
         xBox.owner = self;
     }
     else

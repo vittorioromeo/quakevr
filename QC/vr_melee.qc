@@ -798,7 +798,7 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
         weight = cvar_hget(cvarh_vr_melee_punch_mult);
         if(VR_Carry_IsHolding(self, xHand))
         {
-            weight = weight * cvar_hget(cvarh_vr_carry_melee_mult); // a box in hand is an improvised weapon
+            weight = weight * VR_Carry_PunchMult(self, xHand); // a box, a rock, a brick in hand: an improvised weapon
         }
     }
     else if(xKind == VR_MPT_EDGE)
