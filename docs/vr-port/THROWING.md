@@ -1,6 +1,10 @@
 # Throwing in Quake VR: current state, state of the art, recommendation
 
 Research written 2026-09-24 against commit `a7d92887`. Implemented the same day: algorithm 3, analog release, frozen estimate, backdated spawn, gain and weight (QC), the monster hit box, the optional aim assist, and rigid-body flight (`vr_rigid.cpp`), which goes beyond this report. Not done: the history CSV dump, and XrTime-based lookups of past poses.
+**2026-09-28:** the samples are now the controller's own, whatever the hand calibration: the grip's velocity and a
+lever along a fixed frame on the controller (Gun Angle 39.5, Gun Yaw 4), and `vr_throw_pitch` tilts the result. See
+ROUND21.md, "Climbing: sliding along the wall; throw angle after calibration".
+
 Conversions used below: `m2u = vr_world_scale / 0.0381` = 32.8 units/m at the default 1.25. Quake `sv_gravity 800`
 is 24.4 m/s² at that scale, about 2.5 g.
 

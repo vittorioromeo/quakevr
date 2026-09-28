@@ -651,6 +651,22 @@ climbing with older logs). These lean the mock head in 0.28 m first (a `head` ke
 doesn't pull, the owed motion, "noroom"), and at a grab its distance and the reach; `vr_climb_debug 3` the server's
 estimated shoulders (`climbshoulder`) and the drawn arm's (`climbarm`, with the hold's distance from it). The mock
 side camera for these: `vr_mock_camera 1.1 1.5 -0.45 5 90`.
+Climbing, sliding along the wall (ROUND21.md, "Climbing: sliding along the wall; throw angle after calibration"):
+`climb_plays.py shimmy[e1m1]<close|far>[_<drift cm>[_<wobble cm>]]` hangs from the ledge (vrclimb `setpos 78 176 24 0 0
+0`; e1m1 `setpos 250 2350 40 0 0 0` with `nomonsters 1`, as a grunt walks into the hanging body), with the body drawn in
+against the face (`close`) or pushed 12 cm off it (`far`), and shimmies 4 strokes each way (e1m1: 2), the hands
+drifting in towards the chest and wobbling by that much over each 33 cm stroke; an `echo STROKE` / `STROKEEND` brackets
+each push. `python Misc/quakevr/climb/shimmy_stats.py <log>` prints each stroke's move along the ledge against the
+pull (it should be 8.67 units, 100%), in/out, and the frames stuck.
+Throwing, the release angle (the same section): `python Misc/quakevr/throw_plays.py [--gunangle 70] [--out throws.txt]`
+writes a `vr_mock_play` file of four main-hand throws (an overarm throw with a wrist flick, an underarm lob, a straight
+push, an overarm throw with a still wrist), each announced by `echo THROW <name> <meant elevation>` and let go with
+`-grabmain` at its release; play it with `vr_debug_throw 2; vr_mock_grip_velocity 1` (the grip's velocity, as a Touch
+controller in the headset reports it) and read each `throw main:` line's direction (elevation `atan2(z, hypot(x, y))`).
+Print the hand settings in the same script (`vr_gunangle; vr_gunyaw; vr_handcal_x; ...`): the throws must not change
+with them. `python Misc/quakevr/throw_calibration.py <takes folder>` models the release estimate of the code before the
+fix on recorded takes (the old and the new hand settings, each term alone) and prints the elevation and speed changes
+per take and per kind.
 
 Fitted hands (round 21): `impulse 252` puts a gib or a head (nine kinds in turn) in the empty off hand; `impulse 253`
 prints the held weapons' hotspots through the QC query; `vr_show_weapon_hotspots 1` marks them; `vr_hotspots_check`

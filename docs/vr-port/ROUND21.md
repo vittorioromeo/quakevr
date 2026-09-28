@@ -8662,3 +8662,167 @@ The only real cost is the held torch's shadow map (about 0.1 ms of CPU here): Ta
 - [ ] Hit a grunt a few times: does he catch fire, do burns show? After 5 blows, does the fire die in your hand?
 - [ ] Drop one: it dies in 6 s; pick one up while it dies: it burns up again. Light a dead one in a wall torch.
 - [ ] Held Object Offsets with the torch in hand: Grip X/Z and the fingers; Print Changes to Console for me.
+
+## Climbing: sliding along the wall; throw angle after calibration
+
+Your notes (28 September): in vrclimb, shimmying along a ledge often sticks, as if the body caught on the wall; it goes
+better with the body pushed back and the hands out, but should be easy either way. In vrstart, since you recalibrated
+your hands, throws go into the ground more than you mean; you want the old feel back, or a way to tune the release
+angle. Both fixed. Throwing: **Release Pitch** (`vr_throw_pitch`, degrees, 0 by default).
+
+### Shimmying pressed against the wall
+
+**Your theory is right.** While you hang, the body moves by the hands' pull. `moveBody` (`vr_climb.cpp`) took the move
+whole, else up then across, else across then up. It had no slide. Pressed against the face under the ledge, any part of
+the pull that went into the face stopped the whole trace in its first frame, so the sideways part was lost with it.
+Real hands never push sideways only: drawn in close, they drift towards the chest and wobble in and out. Two centimetres
+of drift over a 33 cm stroke (0.4 units a frame into the wall, beside 8.7 sideways) kept the body in place almost the
+whole stroke. Pushed back off the face, the same pull only moved the body towards the wall, so it slid, until the drift
+brought it to the face. That is why pushing back and reaching out helped.
+
+**The fix.** Where the move is blocked, the box also slides along what it meets: Quake's clip against up to 4 planes,
+along the crease of two. The nearest of the candidates to where the pull would take the body wins (the whole move, the
+slide, up then across, across then up). The part into the face is still owed, as before ("Owed motion"), so pushing out
+again doesn't send you back. The wall memory, the reach and the mantle are unchanged. Walls square to the pull or at an
+angle slide the same way.
+
+**Measured** (`vr_fixed_frames 1`, mock, the head leant in 28 cm; `climb_plays.py shimmy…`, `shimmy_stats.py`). Four
+strokes each way on vrclimb's long ledge, two each way on e1m1's (`nomonsters 1`: with monsters on, a grunt walked into
+the body and blocked it; that was the grunt, not the wall). Each stroke is 33 cm (8.67 units) of both hands.
+
+| Play (the hands' drift in / wobble over a stroke) | Body | Before: along the ledge, per stroke (units) | After |
+|---|---|---|---|
+| vrclimb, straight sideways | against the face | 8.67 every stroke (100%) | 8.67 (100%) |
+| vrclimb, straight sideways | 12 cm off it | 8.56, then 8.67 (99.8%) | the same |
+| vrclimb, 2 cm in | against | 0.45, 0, 0, 0, 1.31, 0, 0, 0 (**2.5%**) | 8.67 every stroke (100%) |
+| vrclimb, 2 cm in, 1 cm wobble | against | 4.82 to 4.99 (56%) | 8.67 (100%) |
+| vrclimb, 2 cm in, 1 cm wobble | off | 8.67 (100%) | 8.67 (100%) |
+| vrclimb, 5 cm in | against | 0.10, 0.07, 0 … (2.1%) | 8.67 (100%) |
+| vrclimb, 5 cm in | off | 8.67 ×3, then 4.61, 1.31, 0.07, 0, 0 as it reached the face (46%) | 8.67 (100%) |
+| e1m1, straight sideways | against | 8.67 (100%) | 8.67 (100%) |
+| e1m1, 2 cm in, 1 cm wobble | against | 4.92, 4.82, 4.82, 4.82 (56%) | 8.67 (100%) |
+| e1m1, 2 cm in, 1 cm wobble | off | 8.50, then 8.67 (99.5%) | the same |
+| e1m1, 5 cm in | against | 0.10, 0.07, 1.34, 0.03 (4.5%) | 8.67 (100%) |
+
+Against the face or off it, the body now goes the same 33 cm a stroke. In every "after" play, it never did less than
+half the pull's sideways part in a frame. The one short stroke (the first, off the face: 8.50 and 8.56) is the reach
+holding the body back while the arms straighten, and it was there before. Plot: `shimmy_plot.svg` in the scratchpad's
+`handfix/` (the body along the ledge, before and after, against the hands' summed pull).
+
+**The earlier climbs** (`runset.sh`, before against after):
+
+- **Identical, byte for byte:** the `climbtrace` and `climb:` lines of the mantle, e1m1, push, overtop (ledge, narrow
+  wall, no-room ledge) and ladderlean.
+- **The ladder:** the same holds, tear-offs and mantle; it logs "no room" 11 times, not 13. The body now drifts 0.5
+  units sideways: kept within reach of a hold 3 units to its side, it can slide there along the wall. It mantles at y
+  -3.5, not -3.0.
+- **The old ledge play** (hands 1 m out, no lean) stuck the same way in its shimmy: 0.17 of 0.17 units lost a frame. It
+  now gets to y 219.6, not 207.0, out over the trench, and falls into it (z -184), as that play was written to do.
+  Before the reach limit, it got to 228.
+- The hand-offs still don't move the body. `climb_trace.py`: the worst frame is 6.1 mm off the hands' pull (against
+  the face), where it was 6.6 mm before.
+
+### Throw angle after the hand calibration
+
+**How a throw leaves the hand** (`vr_throw.cpp`, `releasePeak`). Every frame, each hand stores a sample: its
+velocity, its spin, and "forward". At the release, the throw takes:
+
+- the peak of the speed within 0.12 s before the release;
+- the mean velocity within 17 ms of that peak;
+- the direction from the 40 ms before the peak;
+- above 6 rad/s of spin, `0.7 × ω × (0.1 m × forward)`: a wrist flick's speed at the held object's centre.
+
+The QC only scales the result (gain, weight). There is no aim bias, and Aim Assist is off by default. It already exists
+(Throwing page: Aim Assist, Assist Cone, Assist Strength, for thrown weapons), so nothing new was needed there.
+
+**The cause.** Two terms came from the calibrated hand, not the controller.
+
+1. **The sample's velocity.** In the headset it's the palm's (the grip's) tracked velocity, as it should be. But the
+   calibration's move added the wrist's turn through it: `ω × (grip × move)`. With your move (X -4, Y 0.58, Z -2.5 cm
+   along the grip) that is a point about 4.7 cm below and behind the grip. In a forward swing (the hand turning over,
+   10 to 20 rad/s) that point moves backwards: 0.5 to 0.9 m/s less forward speed, with the up-down speed kept. A throw
+   aimed below level (most overarm throws, at the peak of their speed) goes steeper down and slower.
+2. **The lever along "forward".** That was the drawn hand's forward, so Gun Angle 39.5 to 70 turned the wrist flick's
+   lever 30.5 degrees down with it. In a forward flick, `ω × lever` turned down by the same angle, adding downward
+   speed and taking away forward speed.
+
+**Your motions, in numbers** (`Misc/quakevr/throw_calibration.py` on the 216 archived takes, pre_calibration_2026-09-28,
+that reach 2 m/s). There are no throw takes (474 files, all melee), so these are your fastest moments, the ones a throw
+would be. It is the old code's estimate at the palm's peak, with your old settings (Gun Angle 39.5, Gun Yaw 4, every
+`vr_handcal_*` 0, mirror 0) against your new ones (70, 0, X -4, Y 0.58, Z -2.5, mirror 1), from the same recorded
+controller motion:
+
+| Motion | Elevation, new minus old (median) | Speed, new / old | The move alone | Gun Angle alone |
+|---|---|---|---|---|
+| punch_overhead (the overarm throw's motion) | **-6.6°** (-4.6 to -6.9) | ×0.86 | -5.3° | -0.5° |
+| slash_overhead | **-3.5°** | ×0.82 | -3.8° | +1.3° |
+| hilt_pommel (a downward strike) | -8.4° | ×1.01 | -5.0° | -3.5° |
+| gun_strike_butt | -6.2° | ×0.97 | -4.2° | -1.4° |
+| stab one hand / two hands | -2.3° / -3.6° | ×0.97 / ×1.05 | -2.0 / -2.4° | -0.6 / -0.8° |
+| sideways slashes | +6 to +10° | ×0.86 to ×1.09 | +2 to +5° | +3 to +6° |
+| all 216 | +0.8° (-6.6 to +10.0, 10% to 90%) | ×1.00 | | |
+
+For example, punch_overhead 02-20-11: old -25.5° at 10.21 m/s, new -32.3° at 8.61 m/s. The downward, overarm motions
+(what a throw is) went 3.5 to 7 degrees lower and up to 20% slower, mostly from the move. The sideways ones went up. How
+much depends on how the wrist turns at the release. The throws depended on the calibration, which they shouldn't.
+
+**The fix: throws go with the controller, whatever the calibration** (`vr_hands.cpp`, `throwFrame`).
+
+- **The velocity** is the controller's own: the grip's tracked velocity (Touch and Index with Legacy Pose, the default),
+  or the tracked pose's for other controllers. Nothing of the calibration is added.
+- **The lever** is along a fixed frame on the controller: its turn by the angles the throws were tuned with (Gun Angle
+  39.5, Gun Yaw 4; the off hand 40.25, -4). Your old calibration and every earlier throw used them.
+- **Where the object starts** is still the drawn hand plus the lever (it leaves from where you see it).
+
+So, with any calibration, a throw is the old calibration's throw, to the digit. The formula, per sample `s` (tracking
+space turned to Quake's):
+
+    v_s = v_grip(s)                                  (the controller's palm; no calibration term)
+    f_s = forward(q_controller(s) · R_yaw(4°) · R_pitch(-39.5°))      (off hand: -4°, -40.25°)
+    peak  = argmax |v_s| over [t_release - 0.12 s, t_release + 0.01 s]
+    v     = mean(v_s, |t - t_peak| ≤ 17 ms), its length at least the fitted peak speed
+    v     = |v| · normalize(Σ v_s, t_peak - 40 ms ≤ t ≤ t_peak)
+    ω     = mean(ω_s, |t - t_peak| ≤ 34 ms)
+    v    += 0.7 · ω × (0.1 m · f_peak)                if |ω| > 6 rad/s
+    v     = v tilted up by vr_throw_pitch degrees about the level line square to it (speed kept; not past vertical)
+
+The QC then scales `v` as before (gain, weight, Throw Speed). The two-handed estimate uses the same samples and gets the
+same tilt.
+
+**Release Pitch** (Throwing page, `vr_throw_pitch`, -15 to +15 degrees, **0**). It tilts every throw's direction up or
+down and keeps its speed. At 0, throws are as they were before the calibration, which you liked, so 0 is the default and
+there's nothing to migrate. If they still feel low, try +2 or +3.
+
+**Tested** (mock, `vr_fixed_frames 1`, `Misc/quakevr/throw_plays.py`: an overarm throw with a wrist flick, an underarm
+lob, a straight push, an overarm throw with a still wrist). Each is played as the same controller motion (written for a
+controller pitched 70 on the hand), with `vr_mock_grip_velocity 1` so the throw uses the palm's velocity as in the
+headset. The elevation and speed at the release (`vr_debug_throw`), with the effective settings printed in each log
+(`handfix/T_*.log`):
+
+| Code, calibration | overhand | lob | flat | overhand, still wrist |
+|---|---|---|---|---|
+| old code, old calibration (the feel you liked) | -0.4°, 4.30 m/s | +23.4°, 4.83 | +5.0°, 4.97 | +13.9°, 6.28 |
+| old code, new calibration | +12.2°, 5.44 | +28.5°, 6.03 | +5.0°, 4.97 | **+9.7°, 5.45** |
+| old code, Gun Angle 70 only | +7.3°, 3.17 | +25.6°, 5.34 | +5.0°, 4.97 | +13.3°, 5.88 |
+| old code, move only | +19.2°, 5.79 | +26.9°, 5.51 | +5.0°, 4.97 | +10.6°, 5.85 |
+| **new code, new calibration** | -0.4°, 4.30 | +23.4°, 4.83 | +5.0°, 4.97 | +13.9°, 6.28 |
+| new code, old calibration | the same | | | |
+| new code, Release Pitch +5 / -5 | +4.7 / -5.3° | +28.5 / +18.4° | +10.0 / 0.0° | +19.0 / +9.0° |
+
+- The straight push (no turn) is the same in every row. Only the turn's terms depended on the calibration.
+- The synthetic throws went both ways (the still-wrist throw went 4.2° lower and 13% slower, the flicks higher). Your
+  recorded overarm motions, above, went lower.
+- With the fix, every throw is the old calibration's, to the printed digit.
+- Plot: `throwcal_plot.svg` (your takes by kind: both terms, Gun Angle alone, the move alone).
+- Melee isn't touched: `state.vel`, the hands' velocity for blows, still includes the calibration, since a blow lands
+  with the drawn hand. `eval.sh` skips while the takes are archived.
+
+**Mock:** `vr_mock_grip_velocity` (0 by default, so other tests' numbers don't move): 1 reports the grip's velocity as
+the OpenXR backend does for a Touch controller. Use it for throw tests.
+
+### Check in the headset
+
+- [ ] Shimmy along vrclimb's ledge and an e1m1 ledge with your body close to the wall, hands in: it should slide as
+      easily as with your arms out.
+- [ ] Throw boxes and weapons in vrstart as before: they should go where they used to (before the recalibration). If
+      they're still low (or high), move Release Pitch and tell me the number.
