@@ -260,6 +260,19 @@ QVR_CVAR(vr_upper_holster_offset_x, "-4.25", CVAR_ARCHIVE)
 QVR_CVAR(vr_upper_holster_offset_y, "7", CVAR_ARCHIVE)
 QVR_CVAR(vr_upper_holster_offset_z, "8.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_upper_holster_thresh, "6.5", CVAR_ARCHIVE)
+// Each pair of holsters turned (the Hotspots menu), degrees, with the gun in it, about the holster's position (where
+// the hand reaches for it), in the body's frame there (vr_view.cpp turnHolster), mirrored for the left one as the
+// offsets' Y is: pitch tips its top away from the body, yaw turns its face outwards, roll tips its top outwards (a
+// hanging gun's muzzle in). 0 0 0: as before.
+QVR_CVAR(vr_hip_holster_pitch, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_hip_holster_yaw, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_hip_holster_roll, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_upper_holster_pitch, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_upper_holster_yaw, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_upper_holster_roll, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_shoulder_holster_pitch, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_shoulder_holster_yaw, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_shoulder_holster_roll, "0", CVAR_ARCHIVE)
 // The player's body (vr_avatar.cpp): 0 none, 2 torso and arms, 3 torso, arms and legs: the skinned
 // progs/vrbody model, posed by IK from the head and hands (1, the old floating torso, is now 2).
 QVR_CVAR(vr_body_mode, "2", CVAR_ARCHIVE)
@@ -688,6 +701,7 @@ QVR_CVAR(vr_parry_push_player, "1", CVAR_ARCHIVE)        // and you
 QVR_CVAR(vr_push, "0.5", CVAR_ARCHIVE)                    // knockback: all of it (the others scale this)
 QVR_CVAR(vr_hit_push, "1", CVAR_ARCHIVE)                 // heavy weapon hits shove monsters
 QVR_CVAR(vr_kill_push, "1", CVAR_ARCHIVE)                // killing blows throw the bodies
+QVR_CVAR(vr_enemy_liquid_damage, "1", CVAR_ARCHIVE)      // monsters in slime and lava burn as the player does (QC vr_liquids.qc)
 QVR_CVAR(vr_explosion_rumble, "1", CVAR_ARCHIVE)         // explosions near you rumble in your hands
 QVR_CVAR(vr_heartbeat, "1", CVAR_ARCHIVE)                // a heartbeat in your hands when your health is low
 QVR_CVAR(vr_deflect, "1", CVAR_ARCHIVE)                  // melee swings bat monsters' projectiles back

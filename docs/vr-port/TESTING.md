@@ -142,6 +142,11 @@ context and screenshot, ready to paste or to point me at.
 ## What to try
 
 - **New in this round** (details in `docs/vr-port/ROUND21.md`; each section ends with an "In the headset" list):
+  - **Enemies Hurt by Liquids** (Gameplay > Damage, on; ROUND21.md, "Enemies hurt by liquids; holster orientation"):
+    shove a monster into slime or lava: it burns as you would (lava fast, with smoke; slime slowly). Fish, bosses and
+    Hephaestus are immune; zombies burn up in lava.
+  - **Holster orientation** (Hotspots: Shoulder / Hip / Upper Pitch, Yaw, Roll): turn each pair of holsters and the
+    guns in them; the left mirrors the right. Draw and holster as before.
   - **Items as physics pickups** (ROUND21.md, "Items as physics pickups; sinking; spinning shapes"): grip a hanging
     weapon (it is yours at once) or knock it with an open hand (it falls); grip or force-grab a key, the biosuit or a
     rune and let go of it at a hip or shoulder holster to take it (a key you have knocks and drops); powerups as
@@ -652,6 +657,16 @@ Grab reach from the fist (ROUND21.md): `vr_debug_carry 2` prints each grab test 
 Tuning the body: `vr_show_hip_holsters 1`, `vr_show_upper_holsters 1`, `vr_show_shoulder_holsters 1` and
 `vr_show_virtual_stock 1` mark where the holsters and the virtual stock's shoulders are (green while a hand is
 there); move them with the `vr_*_offset_*` cvars.
+Holsters with guns in them (mock; ROUND21.md, "Holster orientation"): `vr_weapon_grip_mode 1`, then per holster
+`impulse 154; vr_mock_hand main 0.20 0.95 0.0 0 0 0; wait40; vr_mock_button main grip 1; wait10; vr_mock_button main
+grip 0` (the right hip; the right shoulder is `0.1 1.75 0.12`). A new game starts with the shotgun and the axe on the
+hips. To draw: `+grabright; vr_mock_button main grip 1` at the holster. Turn them with
+`vr_{hip,upper,shoulder}_holster_{pitch,yaw,roll}`. `vr_body_debug 2` or `3` shows the hip and chest holsters on the
+preview; `vr_mock_camera 0.7 1.9 0.8 20 40` shows the back.
+Liquids (ROUND21.md, "Enemies hurt by liquids"): `vr_debug_shots 1; developer 1` logs each burn (`liquid: ... health`);
+with `vr_enemy_liquid_damage 0` it logs a "not burnt" line each second instead. Run `god; notarget` first, then:
+- a grunt in e1m1's slime: `setpos 200 2820 -60; wait5; vr_test_spawn 0; vr_test_spawn_dist 64; impulse 241`;
+- a grunt in e1m7's lava: `setpos -50 48 20 0 0 0; vr_test_spawn_dist 200; impulse 241`.
 
 Flashlight tuning (ROUND21.md, "Flashlight tuning"): `vr_show_flashlight_zones 1` draws the reach zones (the head's
 balls, each gun's capsule; green in reach) and the held torch's middle; `vr_flashlight_head_zone_*` and

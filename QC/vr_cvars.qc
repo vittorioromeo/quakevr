@@ -156,6 +156,7 @@ float cvarh_vr_parry_push_enemy;
 float cvarh_vr_parry_push_player;
 float cvarh_vr_hit_push;
 float cvarh_vr_kill_push;
+float cvarh_vr_enemy_liquid_damage;
 float cvarh_vr_push;
 float cvarh_vr_explosion_rumble;
 float cvarh_vr_heartbeat;
@@ -336,6 +337,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_parry_push_player);
     VR_CVAR_HMAKE(vr_hit_push);
     VR_CVAR_HMAKE(vr_kill_push);
+    VR_CVAR_HMAKE(vr_enemy_liquid_damage);
     VR_CVAR_HMAKE(vr_push);
     VR_CVAR_HMAKE(vr_explosion_rumble);
     VR_CVAR_HMAKE(vr_heartbeat);
