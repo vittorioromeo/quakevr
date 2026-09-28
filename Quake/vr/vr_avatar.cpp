@@ -227,10 +227,10 @@ struct Body
 // vr_lean_detect): the back tilts towards the lean about the hips, which stay over the feet, as far as
 // the head has gone down for it (a tilt swings the head down on an arc); the hips shift the rest of the
 // way (a lean with the head kept high: the legs slant).
-void solveTorso(const hands::State& s, Body& b)
+void solveTorso(const hands::State& s, Body& b, float scale = 0.f)
 {
     const Bind& bd = bind();
-    b.m2w = units::metresToUnits() * units::bodyScale();
+    b.m2w = units::metresToUnits() * (scale > 0.f ? scale : units::bodyScale());
     b.floorZ = s.head.z - s.headHeight * units::metresToUnits();
 
     glm::vec3 right, up;
@@ -502,6 +502,47 @@ void traceArm(const Body& b, int side, const glm::vec3& shoulder, const glm::vec
     }
 }
 
+// The arms' lengths in world units: the upper arm (the shoulder joint to the elbow) and the forearm (the elbow to the
+// drawn hand's wrist). Calibrated (Body Calibration: vr_body_upper_arm and vr_body_forearm, real centimetres), or the
+// model's proportions times vr_body_arm_length.
+struct ArmLengths
+{
+    float upper{0.f}, fore{0.f};
+    bool calibrated{false};
+};
+[[nodiscard]] ArmLengths armLengths(float m2w)
+{
+    const float length = CLAMP(0.5f, vr_body_arm_length.value, 2.f);
+    const float cm = units::metresToUnits() * 0.01f;
+    ArmLengths r;
+    r.upper = vr_body_upper_arm.value > 0.f ? CLAMP(10.f, vr_body_upper_arm.value, 60.f) * cm
+                                            : boneLength(UpperArmL, ForearmL) * m2w * length;
+    r.fore = vr_body_forearm.value > 0.f ? CLAMP(10.f, vr_body_forearm.value, 60.f) * cm
+                                         : boneLength(ForearmL, HandL) * m2w * length;
+    r.calibrated = vr_body_upper_arm.value > 0.f && vr_body_forearm.value > 0.f;
+    return r;
+}
+
+// The clavicle's turn about the base of the neck for a wrist `reach` from the shoulder at rest (the clavicle along
+// `lateral`, the chest's up and forward; the arm `armLen` long): it rises by up to `upDegrees` as the hand goes up, and
+// swings forward by up to `forwardDegrees` as the hand reaches far forward (from half the arm's length in front of the
+// shoulder to 0.9 of it). The model's shoulders rise from the hand level with the shoulder to 0.6 of the arm above it;
+// calibrated ones (Body Calibration), continuously from the hand 0.6 of the arm below the shoulder (the arm about 37
+// degrees below level) to straight up, as a real shoulder rises through the arm's whole lift (the clavicle's elevation
+// with the humerus's, after Ludewig et al. 2009): the calibration's fit measures its amount with this same model.
+[[nodiscard]] glm::mat3 clavicleTurn(const glm::vec3& reach, const glm::vec3& lateral, const glm::vec3& cUp, const glm::vec3& cFwd,
+    float armLen, float upDegrees, float forwardDegrees, bool calibrated)
+{
+    const float from = calibrated ? -0.6f : 0.f;
+    const float to = calibrated ? 1.f : 0.6f;
+    const float raiseAmount = CLAMP(0.f, (glm::dot(reach, cUp) / armLen - from) / (to - from), 1.f);
+    const float swingAmount = CLAMP(0.f, (glm::dot(reach, cFwd) / armLen - 0.5f) / 0.4f, 1.f);
+    const glm::quat raise = glm::angleAxis(glm::radians(upDegrees * raiseAmount), safeNormalize(glm::cross(lateral, cUp), cFwd));
+    const glm::quat swing =
+        glm::angleAxis(glm::radians(forwardDegrees * swingAmount), safeNormalize(glm::cross(lateral, cFwd), cUp));
+    return glm::mat3_cast(raise * swing);
+}
+
 void solveArm(Body& b, int side, const HandPose& handPose)
 {
     const Bind& bd = bind();
@@ -528,16 +569,13 @@ void solveArm(Body& b, int side, const HandPose& handPose)
             (-cFwd * vr_body_shoulders_back.value + cUp * vr_body_shoulders_up.value + lateral * vr_body_shoulders_out.value) *
                 b.m2w;
 
-    const float armLen = (boneLength(upper, fore) + boneLength(fore, hand)) * b.m2w;
+    const ArmLengths lengths = armLengths(b.m2w);
+    const float armLen =
+        lengths.calibrated ? lengths.upper + lengths.fore : (boneLength(upper, fore) + boneLength(fore, hand)) * b.m2w;
     const glm::vec3 restShoulder = c.pos + rest * (localOffset(upper) * b.m2w);
-    const glm::vec3 reach = wrist - restShoulder;
-    const float raiseAmount = CLAMP(0.f, glm::dot(reach, cUp) / (0.6f * armLen), 1.f);
-    const float swingAmount = CLAMP(0.f, (glm::dot(reach, cFwd) / armLen - 0.5f) / 0.4f, 1.f);
-    const glm::quat raise = glm::angleAxis(glm::radians(vr_body_shoulder_up.value * raiseAmount),
-        safeNormalize(glm::cross(lateral, cUp), cFwd));
-    const glm::quat swing = glm::angleAxis(glm::radians(vr_body_shoulder_forward.value * swingAmount),
-        safeNormalize(glm::cross(lateral, cFwd), cUp));
-    c.rot = glm::mat3_cast(raise * swing) * rest;
+    c.rot = clavicleTurn(wrist - restShoulder, lateral, cUp, cFwd, armLen, vr_body_shoulder_up.value,
+                vr_body_shoulder_forward.value, lengths.calibrated) *
+            rest;
 
     // The arm: the elbow points down, somewhat out and back, and away from the thumb (turning the palm up brings the
     // elbow in). It may stretch a little to reach.
@@ -545,21 +583,32 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     u = Bone{};
     u.pos = childPos(b, upper);
 
-    // Arms of vr_body_arm_length times the model's proportions, stretching up to
-    // vr_body_arm_stretch; beyond that, the shoulder reaches out by up to
-    // vr_body_shoulder_reach metres. Only past all of it does the hand leave the arm.
-    const float length = CLAMP(0.5f, vr_body_arm_length.value, 2.f);
-    float a = boneLength(upper, fore) * b.m2w * length;
-    float l = boneLength(fore, hand) * b.m2w * length;
+    // The model's arms (vr_body_arm_length times its proportions) stretch up to vr_body_arm_stretch, then the shoulder
+    // reaches out by up to vr_body_shoulder_reach metres. Calibrated arms (Body Calibration) are the player's own
+    // length: past it the shoulder reaches first, as a real one does, and only then does the arm stretch. Only past all
+    // of it does the hand leave the arm.
+    float a = lengths.upper;
+    float l = lengths.fore;
     float d = glm::distance(wrist, u.pos);
-    const float stretch = CLAMP(1.f, d / (a + l), std::max(1.f, vr_body_arm_stretch.value));
+    const float maxStretch = std::max(1.f, vr_body_arm_stretch.value);
+    const auto reachOut = [&] {
+        if(const float excess = d - (a + l); excess > 0.f)
+        {
+            const float reach = std::min(excess, std::max(0.f, vr_body_shoulder_reach.value) * b.m2w);
+            u.pos += (wrist - u.pos) / d * reach;
+            d -= reach;
+        }
+    };
+    if(lengths.calibrated)
+    {
+        reachOut();
+    }
+    const float stretch = CLAMP(1.f, d / (a + l), maxStretch);
     a *= stretch;
     l *= stretch;
-    if(const float excess = d - (a + l); excess > 0.f)
+    if(!lengths.calibrated)
     {
-        const float reach = std::min(excess, std::max(0.f, vr_body_shoulder_reach.value) * b.m2w);
-        u.pos += (wrist - u.pos) / d * reach;
-        d -= reach;
+        reachOut();
     }
 
     // The hand turns the elbow by its roll about the forearm only (vr_body_elbow_hand): the side of the thumb across
@@ -607,7 +656,7 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     }
 
     u.rot = basis(elbow - u.pos, bend);
-    u.stretch = stretch * length;
+    u.stretch = a / (boneLength(upper, fore) * b.m2w); // (the drawn upper arm and forearm each their own length)
 
     // The forearm turns with the hand's roll: none of it at the elbow, all of it at the wrist, spread along it by
     // its twist joints (vr_body_forearm_twist: the share at its middle; 0.5 turns it evenly). The hand's turn from
@@ -635,7 +684,7 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     f = Bone{};
     f.pos = elbow;
     f.rot = untwisted;
-    f.stretch = stretch * length;
+    f.stretch = l / (boneLength(fore, hand) * b.m2w);
 
     const float share = CLAMP(0.f, vr_body_forearm_twist.value, 1.f);
     for(int k = 0; k < twistJoints; k++)
@@ -1296,6 +1345,45 @@ hands::State standing(const hands::State& s)
     out.lean = glm::vec3{0.f};
     out.standingHeight = out.headHeight;
     return out;
+}
+
+void armBones(float& upper, float& fore)
+{
+    upper = boneLength(UpperArmL, ForearmL);
+    fore = boneLength(ForearmL, HandL);
+}
+
+Frame uprightChest(const hands::State& s, float yaw, float eyeHeight)
+{
+    hands::State u = s;
+    const float rise = (eyeHeight - s.headHeight) * units::metresToUnits();
+    u.head.z += rise;
+    u.headHeight = eyeHeight;
+    u.standingHeight = eyeHeight;
+    u.bodyYaw = yaw;
+    u.crouchRatio = 0.f;
+    u.playerOrigin += glm::vec3{s.lean.x, s.lean.y, 0.f};
+    u.lean = glm::vec3{0.f};
+    Body b;
+    solveTorso(u, b, eyeHeight / units::modelEyeHeight);
+    return {b.bones[Chest].pos - glm::vec3{0.f, 0.f, rise}, b.bones[Chest].rot};
+}
+
+glm::vec3 shoulderInChest(int side, const glm::vec3& wrist, const ShoulderModel& m)
+{
+    const Bind& bd = bind();
+    const int clav = side == 0 ? ClavicleL : ClavicleR;
+    // The chest bone's axes (up the spine, right, forward) to forward, left, up.
+    const auto flu = [](const glm::vec3& v) { return glm::vec3{v.z, -v.y, v.x}; };
+    const glm::mat3 restLocal = glm::transpose(bd.rot[Chest]) * bd.rot[clav];
+    const glm::vec3 lateral = flu(restLocal[0]);
+    const glm::vec3 up{0.f, 0.f, 1.f}, fwd{1.f, 0.f, 0.f};
+    const glm::vec3 offset = -fwd * m.offset.x + up * m.offset.y + lateral * m.offset.z;
+    const glm::vec3 pivot = (flu(localOffset(clav)) + offset) * m.scale;
+    const glm::vec3 toShoulder = flu(restLocal * localOffset(clav + 1)) * m.scale;
+    const glm::mat3 turn = clavicleTurn(wrist - (pivot + toShoulder), lateral, up, fwd, m.armLength, m.upDegrees,
+        m.forwardDegrees, m.calibrated);
+    return pivot + turn * toShoulder;
 }
 
 Follower::Follower(const hands::State& s) : now(torso(s)), ref(torso(standing(s)))

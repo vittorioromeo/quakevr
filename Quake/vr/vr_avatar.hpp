@@ -36,6 +36,27 @@ struct Torso
 // `s` standing upright under the same head position, looking straight ahead at the body's yaw.
 [[nodiscard]] hands::State standing(const hands::State& s);
 
+// The model's upper arm and forearm (metres of the model, before the body's scale).
+void armBones(float& upper, float& fore);
+
+// Body Calibration (vr_bodycal.cpp): the chest as the body stands upright under a head (its eyes where `s` has them,
+// turned as it has them), facing `yaw`, `eyeHeight` metres tall (the crouch and the lean left out: a seated player's
+// chest is upright too). Its axes as Frame's: up the spine, the body's right, forward.
+[[nodiscard]] Frame uprightChest(const hands::State& s, float yaw, float eyeHeight);
+
+// The arm model the calibration fits, as the arms are solved (the clavicle's turn about the base of the neck), in the
+// chest's frame (forward, left, up; real metres from the chest joint).
+struct ShoulderModel
+{
+    float scale{1.f};      // the body's scale (eye height / the models')
+    glm::vec3 offset{0.f}; // vr_body_shoulders_back, _up, _out (metres of the model)
+    float armLength{0.55f}; // the upper arm and forearm (real metres)
+    float upDegrees{25.f};  // vr_body_shoulder_up
+    float forwardDegrees{20.f}; // vr_body_shoulder_forward
+    bool calibrated{true};      // the calibrated arms' continuous rise
+};
+// The shoulder joint of `side` (0 the body's left, 1 its right) with the drawn wrist at `wrist` (the chest's frame).
+[[nodiscard]] glm::vec3 shoulderInChest(int side, const glm::vec3& wrist, const ShoulderModel& m);
 enum class Part
 {
     Pelvis,

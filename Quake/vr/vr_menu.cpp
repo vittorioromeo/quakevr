@@ -22,6 +22,7 @@
 #include "vr_hands.hpp"
 #include "vr_posing.hpp"
 #include "vr_sightalign.hpp"
+#include "vr_bodycal.hpp"
 #include "vr_view.hpp"
 #include "vr_units.hpp"
 
@@ -580,13 +581,24 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
     };
 }
 
+[[nodiscard]] std::vector<Item> pageBodyCalibration();
+
 // Split from Body: the arms' reach and bend, and the pauldrons over the shoulders.
 [[nodiscard]] std::vector<Item> pageBodyArms()
 {
     return {
-        slider("Arm Length", vr_body_arm_length, 0.7f, 1.4f, 0.01f, "%.2f").extend(0.5f, 2.f),
+        open("Body Calibration", pageIndex(pageBodyCalibration)),
+        slider("Upper Arm", vr_body_upper_arm, 0.f, 45.f, 0.5f, "%.1f cm").extend(0.f, 60.f)
+            .help("From the shoulder joint to the elbow, real centimetres (Body Calibration measures it). 0: the model's "
+                  "proportions, times Arm Length."),
+        slider("Forearm", vr_body_forearm, 0.f, 40.f, 0.5f, "%.1f cm").extend(0.f, 60.f)
+            .help("From the elbow to the drawn hand's wrist, real centimetres (Body Calibration measures it). 0: the "
+                  "model's proportions, times Arm Length."),
+        slider("Arm Length", vr_body_arm_length, 0.7f, 1.4f, 0.01f, "%.2f").extend(0.5f, 2.f)
+            .help("The model's arms, times this (only while Upper Arm and Forearm are 0)."),
         slider("Arm Stretch", vr_body_arm_stretch, 1.f, 1.5f, 0.05f, "%.2f").extend(1.f, 3.f)
-            .help("How far arms may stretch to reach the hands (1: not at all)."),
+            .help("How far arms may stretch to reach the hands (1: not at all). Calibrated arms (Upper Arm and Forearm "
+                  "set) are your own length: the shoulder reaches out first, and they stretch only past that."),
         slider("Shoulder Reach", vr_body_shoulder_reach, 0.f, 0.25f, 0.01f, "%.2f m").extend(0.f, 0.6f)
             .help("How far the shoulders may move out beyond that."),
         slider("Forearm Twist", vr_body_forearm_twist, 0.f, 1.f, 0.05f, "%.2f")
@@ -612,6 +624,114 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Pauldron Up", vr_body_pauldron_up, -0.08f, 0.08f, 0.005f, "%.3f m").extend(-0.3f, 0.3f),
         slider("Pauldron Out", vr_body_pauldron_out, -0.08f, 0.08f, 0.005f, "%.3f m").extend(-0.3f, 0.3f),
     };
+}
+
+// Body Calibration (vr_bodycal.cpp): start or continue it, the result to Apply or Cancel, each pose to take again.
+int bodycalVersion = -1;
+int bodycalSeated = -1;
+
+void bodycalStart()
+{
+    bodycal::start(qvr::menu::currentPage());
+}
+
+void bodycalRestart()
+{
+    bodycal::restart(qvr::menu::currentPage());
+}
+
+void bodycalApply()
+{
+    bodycal::apply();
+}
+
+void bodycalCancel()
+{
+    bodycal::cancel();
+}
+
+void bodycalUndo()
+{
+    bodycal::undo();
+}
+
+void bodycalSwitch()
+{
+    bodycal::switchShown();
+}
+
+const char* bodycalLine(int i)
+{
+    const char* line = bodycal::statusLine(i);
+    return line ? line : "";
+}
+
+void bodycalRedo(int step)
+{
+    bodycal::redo(step, qvr::menu::currentPage());
+}
+
+const char* bodycalIntro(int i)
+{
+    static const char* const lines[] = {"Measures your shoulders and arms from", "a few poses and moves, so that the drawn",
+        "arm bends and straightens with yours."};
+    return lines[i];
+}
+
+[[nodiscard]] std::vector<Item> pageBodyCalibration()
+{
+    bodycalVersion = bodycal::version();
+    bodycalSeated = vr_bodycal_seated.value != 0.f ? 1 : 0;
+    std::vector<Item> list{infoLine(bodycalIntro, 0), infoLine(bodycalIntro, 1), infoLine(bodycalIntro, 2),
+        cycle("Position", vr_bodycal_seated, {{0.f, "Standing"}, {1.f, "Seated"}})
+            .help("Seated, the height stays as it is (set it standing: Set Height Now); the arms and shoulders are measured "
+                  "the same.")};
+    if(bodycal::phase() == bodycal::Phase::Result)
+    {
+        list.insert(list.end(), {
+            action("Apply", bodycalApply)
+                .help("Sets the measurements: your arms' lengths, where your shoulders are and how they rise and swing, and "
+                      "(standing) your height. Undo puts the settings back."),
+            action("Cancel", bodycalCancel).help("Nothing changes."),
+            action(bodycal::showingNew() ? "Showing: New Measurements" : "Showing: Current Settings", bodycalSwitch)
+                .help("Your body (and the one in front of you) with the new measurements, or with the settings as they are: "
+                      "bend and straighten your arms to compare."),
+            cycle("Body in Front", vr_bodycal_preview, {{0.f, "Off"}, {1.f, "Facing You"}, {2.f, "From the Side"}})
+                .help("Your body in front of you while this page shows a result, moving as you do."),
+        });
+    }
+    else
+    {
+        list.push_back(action(bodycal::partial() ? "Continue Calibration" : "Start Calibration", bodycalStart)
+                           .help("Stand (or sit) with room to stretch your arms. Follow the text in front of you and the "
+                                 "figure ahead: after three beeps and a high one, take the pose and hold still until the "
+                                 "click; the moves record for a few seconds. About two minutes. The menu button stops "
+                                 "(Continue takes the rest)."));
+        if(bodycal::partial())
+        {
+            list.push_back(action("Start Over", bodycalRestart).help("All the poses again."));
+        }
+        if(bodycal::canUndo())
+        {
+            list.push_back(action("Undo", bodycalUndo).help("Puts back the settings from before the last Apply, exactly."));
+        }
+    }
+    for(int i = 0; bodycal::statusLine(i); i++)
+    {
+        list.push_back(infoLine(bodycalLine, i));
+    }
+    if(bodycal::phase() == bodycal::Phase::Result || bodycal::partial())
+    {
+        list.push_back(header("Poses"));
+        for(int i = 0; i < bodycal::stepCount(); i++)
+        {
+            if(bodycal::stepUsed(i))
+            {
+                list.push_back(row(bodycal::stepRow, bodycal::stepHelp, bodycalRedo, i, -1));
+            }
+        }
+    }
+    return list;
 }
 
 // Whether each grip's fingers are set by hand (vr_flashlight_low_fingers, _high_fingers), as the Flashlight page was built:
@@ -1072,6 +1192,7 @@ const Page pages[] = {
 
     {"Body and Movement", "Body", "Body", pageBody},
     {nullptr, "Arms and Pauldrons", "Body - Arms and Pauldrons", pageBodyArms},
+    {nullptr, "Body Calibration", "Body Calibration", pageBodyCalibration},
     {nullptr, "Flashlight", "Flashlight", pageFlashlight},
     {nullptr, "Player Calibration", "Player Calibration", pagePlayerCalibration},
     {nullptr, "Locomotion", "Locomotion", pageLocomotionSettings},
@@ -1119,6 +1240,7 @@ std::vector<Item> pageMain()
         toggle("Left Handed", vr_lefthanded),
         slider("Height", vr_height_calibration, 1.f, 2.2f, 0.01f, "%.2f m").extend(0.5f, 3.f),
         action("Set Height Now", calibrateHeight),
+        open("Body Calibration", pageIndex(pageBodyCalibration)),
         slider("World Scale", vr_world_scale, 0.5f, 2.f, 0.05f, "%.2f").extend(0.25f, 4.f),
         slider("Floor Offset", vr_floor_offset, -50.f, 30.f, 1.f, "%.0f").extend(-400.f, 400.f),
         toggle("Chest Flashlight", vr_flashlight).help("A torch on your belt (off hand side): trigger at it with an open hand switches it; grip takes it. B or Y clips it on a gun or on your head."),
@@ -1777,6 +1899,12 @@ int scrolls[pageCount]{};
     {
         weaponOffsetsStale = true; // Align Sights to My Aim: its phase or its result changed
         weaponOffsetsSightFocus = true;
+    }
+    if(pages[page].build == pageBodyCalibration &&
+        (bodycalVersion != bodycal::version() || bodycalSeated != (vr_bodycal_seated.value != 0.f ? 1 : 0)))
+    {
+        done[page] = false; // Body Calibration: its phase, its result or its poses changed
+        built[page].clear();
     }
     if(pages[page].build == pageWeaponOffsets && weaponOffsetsStale)
     {

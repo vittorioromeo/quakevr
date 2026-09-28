@@ -395,8 +395,10 @@ void update(const hands::State& s, const avatar::HandPose* const drawnHands[2], 
         {
             l.forearm = true;
             l.armWrist = wrist;
-            l.elbow = wrist - safeNormalize(direction, glm::vec3{0.f, 0.f, 1.f}) *
-                                  (forearmLength * m2w * std::max(0.5f, vr_body_arm_length.value));
+            avatar::ForearmFrame fa;
+            const float along = avatar::forearmFrame(hand, 0.f, fa) ? fa.length // (as solved: calibrated arms their own)
+                                                                    : forearmLength * m2w * std::max(0.5f, vr_body_arm_length.value);
+            l.elbow = wrist - safeNormalize(direction, glm::vec3{0.f, 0.f, 1.f}) * along;
         }
         if(const avatar::HandPose* hp = drawnHands[hand])
         {

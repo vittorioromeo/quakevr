@@ -1,6 +1,7 @@
 // vr_sightalign.cpp -- see vr_sightalign.hpp.
 
 #include "vr_sightalign.hpp"
+#include "vr_still.hpp"
 #include "vr_cvars.hpp"
 #include "vr_hands.hpp"
 #include "vr_lines.hpp"
@@ -511,7 +512,6 @@ enum class Step
     WaitStill
 };
 
-constexpr double countdownSeconds = 3.0;
 constexpr double stillSeconds = 0.4;
 constexpr float stillCm = 1.0f;     // the eye (in the controller's frame) and the hand, round their average
 constexpr float stillDegrees = 1.0f; // the hand's aim
@@ -559,9 +559,14 @@ struct State
     int slot{-1};
     double started{0.0};
     double lastEvent{0.0};
-    int beeps{0};
+    still::Countdown countdown;
     int wanted{4};
-    std::vector<Sample> window;
+    // The last moments' samples (vr_still.hpp), the channels as Sample's: eye, hand, hand's aim, rear, front (checked),
+    // then fist, sight in hand, gaze, grip (averaged).
+    still::Window window{{{still::Window::Kind::Point}, {still::Window::Kind::Point}, {still::Window::Kind::Direction, 0.f},
+        {still::Window::Kind::Point}, {still::Window::Kind::Point}, {still::Window::Kind::Averaged},
+        {still::Window::Kind::AveragedDirection}, {still::Window::Kind::AveragedDirection}, {still::Window::Kind::Averaged}}};
+    bool lastGripValid{false};
     std::vector<Capture> captures;
     glm::vec3 refPos{0.f}, refFwd{1.f, 0.f, 0.f};
     bool refSet{false};
@@ -627,69 +632,33 @@ glm::vec4 lastDev{0.f}; // the last window's largest moves (eye, hand: units; ha
 // The window's average, if the last stillSeconds were still.
 [[nodiscard]] bool stillMean(double now, Sample& mean)
 {
-    if(st.window.empty() || now - st.window.front().time < stillSeconds - 1e-3)
-    {
-        return false;
-    }
-    Sample m;
-    m.sightInHand = glm::vec3{0.f};
-    m.gaze = glm::vec3{0.f};
-    int n = 0;
-    for(const Sample& s : st.window)
-    {
-        if(now - s.time <= stillSeconds + 1e-3)
-        {
-            m.eye += s.eye;
-            m.rear += s.rear;
-            m.front += s.front;
-            m.fist += s.fist;
-            m.sightInHand += s.sightInHand;
-            m.gaze += s.gaze;
-            m.grip += s.grip;
-            m.gripValid = s.gripValid;
-            m.handPos += s.handPos;
-            m.handFwd += s.handFwd;
-            n++;
-        }
-    }
-    if(n < 3)
-    {
-        return false;
-    }
-    const float k = 1.f / static_cast<float>(n);
-    m.eye *= k;
-    m.rear *= k;
-    m.front *= k;
-    m.fist *= k;
-    m.handPos *= k;
-    m.handFwd = glm::normalize(m.handFwd);
-    m.sightInHand = glm::normalize(m.sightInHand);
-    m.gaze = glm::normalize(m.gaze);
-    m.grip *= k;
     const float tol = cmToUnits(stillCm);
     const float settled = cmToUnits(stillWeaponCm);
-    lastDev = glm::vec4{0.f};
-    for(const Sample& s : st.window)
+    st.window.tolerance(0, tol);
+    st.window.tolerance(1, tol);
+    st.window.tolerance(2, stillDegrees);
+    st.window.tolerance(3, settled);
+    st.window.tolerance(4, settled);
+    std::vector<glm::vec3> m;
+    const bool ok = st.window.still(now, stillSeconds, m);
+    const std::vector<float>& d = st.window.deviations();
+    lastDev = glm::vec4{d[0], d[1], d[2], std::fmax(d[3], d[4])};
+    if(!ok)
     {
-        if(now - s.time <= stillSeconds + 1e-3)
-        {
-            lastDev = glm::max(lastDev, glm::vec4{glm::distance(s.eye, m.eye), glm::distance(s.handPos, m.handPos),
-                                            degreesBetween(s.handFwd, m.handFwd),
-                                            std::fmax(glm::distance(s.rear, m.rear), glm::distance(s.front, m.front))});
-        }
+        return false;
     }
-    for(const Sample& s : st.window)
-    {
-        if(now - s.time <= stillSeconds + 1e-3 &&
-            (glm::distance(s.eye, m.eye) > tol || glm::distance(s.handPos, m.handPos) > tol ||
-                degreesBetween(s.handFwd, m.handFwd) > stillDegrees || glm::distance(s.rear, m.rear) > settled ||
-                glm::distance(s.front, m.front) > settled))
-        {
-            return false;
-        }
-    }
-    m.time = now;
-    mean = m;
+    mean = Sample{};
+    mean.time = now;
+    mean.eye = m[0];
+    mean.handPos = m[1];
+    mean.handFwd = m[2];
+    mean.rear = m[3];
+    mean.front = m[4];
+    mean.fist = m[5];
+    mean.sightInHand = m[6];
+    mean.gaze = m[7];
+    mean.grip = m[8];
+    mean.gripValid = st.lastGripValid;
     return true;
 }
 
@@ -1166,6 +1135,7 @@ bool start(int hand, int returnPage)
     st.model = p.model;
     st.slot = p.slot;
     st.started = st.lastEvent = realtime;
+    st.countdown.start(realtime);
     st.wanted = CLAMP(3, static_cast<int>(vr_sight_align_captures.value), 5);
     if(hasResult && !applied)
     {
@@ -1318,15 +1288,8 @@ void frame()
     const double now = realtime;
     if(st.step == Step::Countdown)
     {
-        const int due = static_cast<int>((now - st.started) / 1.0) + 1;
-        while(st.beeps < std::min(due, 3))
+        if(st.countdown.update(now)) // (the go beep: raise it)
         {
-            sound("misc/menu1.wav");
-            st.beeps++;
-        }
-        if(now - st.started >= countdownSeconds)
-        {
-            sound("misc/menu2.wav"); // go: raise it
             st.step = Step::WaitRaise;
             st.refSet = false;
             st.lastEvent = now;
@@ -1356,7 +1319,7 @@ void frame()
     std::string text = va("%c%c%c%c%c%c%c%c%c%c%c%c%c %s", 'A' | 0x80, 'L' | 0x80, 'I' | 0x80, 'G' | 0x80, 'N' | 0x80, ' ' | 0x80,
         'S' | 0x80, 'I' | 0x80, 'G' | 0x80, 'H' | 0x80, 'T' | 0x80, 'S' | 0x80, ':' | 0x80, modelBase(st.model).c_str());
     text += va("\n%d of %d taken\n", static_cast<int>(st.captures.size()), st.wanted);
-    text += st.step == Step::Countdown   ? va("close your eyes, lower the gun: %d", std::max(1, 3 - st.beeps + 1))
+    text += st.step == Step::Countdown   ? va("close your eyes, lower the gun: %d", st.countdown.remaining(now))
             : st.step == Step::WaitRaise ? std::string(st.captures.empty() ? "raise it as you would your own, hold still"
                                                                            : "lower it, then raise it again")
                                          : std::string("hold still...");
@@ -1428,15 +1391,14 @@ void viewFrame(const hands::State& s)
     smp.sightInHand = glm::normalize(glm::transpose(p.handBasis) * (p.front - p.rear));
     smp.handPos = p.cPos;
     smp.handFwd = p.cBasis[0];
-    if(!st.window.empty() && st.window.back().time == now)
+    if(!st.window.empty() && st.window.lastTime() == now)
     {
         return; // the second eye's pass
     }
-    st.window.push_back(smp);
-    while(!st.window.empty() && now - st.window.front().time > stillSeconds + 0.25)
-    {
-        st.window.erase(st.window.begin());
-    }
+    const glm::vec3 channels[] = {smp.eye, smp.handPos, smp.handFwd, smp.rear, smp.front, smp.fist, smp.sightInHand, smp.gaze,
+        smp.grip};
+    st.window.add(now, channels, stillSeconds + 0.25);
+    st.lastGripValid = smp.gripValid;
 
     if(st.step == Step::WaitRaise)
     {

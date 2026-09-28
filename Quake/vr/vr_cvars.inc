@@ -387,6 +387,17 @@ QVR_CVAR(vr_shells_life, "20", CVAR_ARCHIVE)          // seconds they lie on the
 QVR_CVAR(vr_shells_sound, "1", CVAR_ARCHIVE)          // volume of their tink as they land (0 off)
 QVR_CVAR(vr_body_arm_length, "1", CVAR_ARCHIVE)      // arm length, relative to the proportions of vr_height_calibration
 QVR_CVAR(vr_body_arm_stretch, "1.2", CVAR_ARCHIVE)    // how far arms may stretch to reach the hands (1: not at all)
+// Body Calibration (vr_bodycal.cpp) measures these: real centimetres from the shoulder joint to the elbow and from the
+// elbow to the drawn hand's wrist (0: the model's proportions, times vr_body_arm_length). Set, the shoulders rise from
+// lower down (continuously, as a real one does), they reach towards a hand before the arm stretches, and
+// vr_body_arm_stretch only makes up what the shoulders' reach can't.
+QVR_CVAR(vr_body_upper_arm, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_body_forearm, "0", CVAR_ARCHIVE)
+// Body Calibration's page: taken seated (the height left as it is); the body shown in front with the result (0 not, 1
+// facing you, 2 from its left); the settings from before the last Apply ("name value;...", for Undo).
+QVR_CVAR(vr_bodycal_seated, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_bodycal_preview, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_bodycal_undo, "", CVAR_ARCHIVE)
 QVR_CVAR(vr_body_shoulder_reach, "0.08", CVAR_ARCHIVE) // metres the shoulders may reach out beyond that
 QVR_CVAR(vr_body_forearm_twist, "0.5", CVAR_ARCHIVE)  // share of the wrist's roll the middle of the forearm follows (none at the elbow, all at the wrist)
 QVR_CVAR(vr_body_wrist_limits, "1", CVAR_ARCHIVE)   // the elbow swings round to keep the wrist within a real one's bend and roll, times this (0: never)
