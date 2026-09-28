@@ -163,6 +163,10 @@ context and screenshot, ready to paste or to point me at.
     Hephaestus are immune; zombies burn up in lava.
   - **Holster orientation** (Hotspots: Shoulder / Hip / Upper Pitch, Yaw, Roll): turn each pair of holsters and the
     guns in them; the left mirrors the right. Draw and holster as before.
+  - **Per-weapon holstered pose** (Weapon Offsets > Holstered; ROUND21.md, "Per-weapon holstered pose"): hold a
+    weapon, open its page, pick Hip, Upper (Chest) or Shoulder (Back) and move and turn it with the six sliders: while a
+    Holstered setting is chosen, the weapon you hold is drawn in both holsters of that kind, so look down (or at the body
+    preview) as you tune. Each kind of holster has its own pose; the left mirrors the right. Draw and holster as before.
   - **Items as physics pickups** (ROUND21.md, "Items as physics pickups; sinking; spinning shapes"): grip a hanging
     weapon (it is yours at once) or knock it with an open hand (it falls); grip or force-grab a key, the biosuit or a
     rune and let go of it at a hip or shoulder holster to take it (a key you have knocks and drops); powerups as
@@ -760,6 +764,18 @@ grip 0` (the right hip; the right shoulder is `0.1 1.75 0.12`). A new game start
 hips. To draw: `+grabright; vr_mock_button main grip 1` at the holster. Turn them with
 `vr_{hip,upper,shoulder}_holster_{pitch,yaw,roll}`. `vr_body_debug 2` or `3` shows the hip and chest holsters on the
 preview; `vr_mock_camera 0.7 1.9 0.8 20 40` shows the back.
+Per-weapon holstered pose (ROUND21.md, "Per-weapon holstered pose"): `vr_wofs_hol_{hip,upper,shoulder}_{x,y,z,pitch,yaw,roll}_NN`
+(the rocket launcher is `_07`, `progs/v_rock2.mdl`; the nailgun `_04`). A new game's hips are full (the shotgun and the
+axe): empty one first by drawing its gun (`vr_weapon_grip_mode 0`, the hand at the hip, `+grabright; vr_mock_button main
+grip 1`) and letting go of it in front. Holster a test gun with the grip held: `+grabright; vr_mock_button main grip 1;
+impulse 160` in front, then at the holster `-grabright; vr_mock_button main grip 0`. The main hand doesn't reach the left
+chest holster (`-0.12 1.3 -0.15` gives the two-handed grab): holster there with the off hand (`impulse 176`, `+grableft`,
+`vr_mock_button off grip`); the right chest holster is `vr_mock_hand main 0.12 1.3 -0.15`. The preview: hold the gun,
+`menu_vr 22 "Holstered X"` (menu_vr's row may now be a label's start), `vr_weapon_holster 1..3` picks the kind. The mock
+draws the menu over the whole view: `scr_menubgalpha 0` and the camera off to a side (`vr_mock_camera 0.6 1.2 -0.4 4 0`
+with `vr_body_debug 2`) leave the body preview visible on the left. `vr_dumpview` lists each holstered gun's place.
+Runs aren't pixel-identical (particles, the arms' easing, lighting by ones): compare the holstered guns' lines of
+`vr_dumpview`.
 Wounds (ROUND21.md, "Dynamic wounds, burns and wetness"): `vr_wounds_test <entity|self|ahead|all> <kind> [amount]
 [right] [up] [extra]` paints a wound as the server's event would (1 shot, 2 nail, 3 melee, 4 blast, 5 burn, 6 zap,
 7 lava, 8 slime, 9 liquid; a liquid's `up` is its surface over the feet); `ahead` is the model nearest the view's
