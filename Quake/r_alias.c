@@ -241,8 +241,10 @@ void R_SetupAliasLighting (entity_t	*e)
 	// if the initial trace is completely black, try again from above
 	// this helps with models whose origin is slightly below ground level
 	// (e.g. some of the candles in the DOTM start map)
-	if (!R_LightPoint (e->origin, 0.f, &e->lightcache))
-		R_LightPoint (e->origin, e->model->maxs[2] * 0.5f, &e->lightcache);
+	vec3_t		lightorg;
+	VR_AliasLightOrigin (e, lightorg); // QVR: the origin, or a climbing hand's as if not moved for looks
+	if (!R_LightPoint (lightorg, 0.f, &e->lightcache))
+		R_LightPoint (lightorg, e->model->maxs[2] * 0.5f, &e->lightcache);
 
 	//add dlights
 	for (i=0; i<r_framedata.numlights && !VR_ModelDlightsPerPixel (); i++) // QVR: or the shader does, per pixel

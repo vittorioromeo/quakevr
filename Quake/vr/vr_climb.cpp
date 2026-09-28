@@ -8,7 +8,17 @@
 // one, does nothing), with no weapon, carried object, locked force grab or flashlight in that hand, and not at a
 // holster that holds a weapon while standing (the grip draws it; an empty holster, or any while hanging, gives way to
 // the hold). The hold is on the edge's line: the hand's place along the edge, on the top, `holdInset` units behind the
-// edge; the hand is drawn there (its palm's middle) while it holds, whatever the tracked hand does.
+// edge; the hand is drawn there (its palm's middle, moved by vr_climb_hand_out/up/side: display only) while it holds,
+// whatever the tracked hand does.
+//
+// Leniency (vr_climb_leniency, cm). A grip that takes no hold where the hand is (above) looks round it: the same rule
+// tried from points on shells round the hand, up to that far from it. Of the holds found, the one taken is the nearest
+// to the hand (a hold the hand moves or reaches towards counts as up to `reachFavour` nearer), not behind the head
+// (on the far side from the hand), not lower under the hand than the rule itself reaches (`surfaceBelow`), at most
+// the leniency plus `lenientReach` from the hand, and in sight of the hand (a line from the hand, or from the head for
+// a hand in a wall, to just over the lip). The hold's place along the edge is the hand's own, as at a hold. A hold
+// taken where the hand is always wins: leniency only adds holds where there were none. Nothing moves the body when a
+// hold is taken (the pull is the hands' motion since); the drawn hand eases onto it (slower the further it is).
 //
 // Hanging. While a hand holds, the player hangs: no gravity, no stick, no room-scale walk. Each hand holds on to its
 // hold: the body moves by the hands' pull, what the holding hands moved relative to the body since the last frame,
@@ -82,6 +92,10 @@ constexpr float mantleTime = 0.3f;    // seconds the mantle takes
 constexpr float flingMax = 200.f;     // units / second the release flings at most,
 constexpr float flingMaxUp = 150.f;   // and upwards
 constexpr float statScale = 8.f;      // hold coordinates in the stats: eighths of a unit
+constexpr float lenientStep = 2.f;    // units at most between the lenient search's shells round the hand
+constexpr float reachFavour = 0.3f;   // a hold the hand moves (or reaches) towards counts as this much nearer
+constexpr float movingHand = 0.3f;    // m/s: a hand this fast reaches the way it moves (slower: from the head)
+constexpr float lenientReach = edgeSlack + holdInset; // a lenient hold is at most the leniency plus this from the hand
 
 [[nodiscard]] glm::vec3 vec(const float* v)
 {
@@ -136,10 +150,15 @@ struct Ledge
 }
 
 // Whether the hand at `hand` is at a hold (see the top of the file); `along`: where the hand is along the edge (the
-// hand itself, when `hand` is a point looked from further on).
-[[nodiscard]] std::optional<Ledge> findLedgeAt(edict_t* player, const glm::vec3& hand, const glm::vec3& along)
+// hand itself, when `hand` is a point looked from further on). `lenient` (the leniency's points): a top looked for from
+// above the point that starts in something (the next rung up) is looked for from the point itself.
+[[nodiscard]] std::optional<Ledge> findLedgeAt(edict_t* player, const glm::vec3& hand, const glm::vec3& along, bool lenient)
 {
-    const trace_t down = traceLine(hand + glm::vec3{0.f, 0.f, surfaceAbove}, hand - glm::vec3{0.f, 0.f, surfaceBelow}, player);
+    trace_t down = traceLine(hand + glm::vec3{0.f, 0.f, surfaceAbove}, hand - glm::vec3{0.f, 0.f, surfaceBelow}, player);
+    if(lenient && down.startsolid && !traceLine(hand, hand, player).startsolid)
+    {
+        down = traceLine(hand, hand - glm::vec3{0.f, 0.f, surfaceBelow}, player);
+    }
     if(down.startsolid || down.allsolid || down.fraction >= 1.f || down.plane.normal[2] < 0.7f)
     {
         return std::nullopt;
@@ -187,8 +206,10 @@ struct Ledge
                 const float mid = 0.5f * (lo + hi);
                 (overTop(player, onTop + dir * mid, ledge.top) ? lo : hi) = mid;
             }
-            // The edge's line: the face under it, met from the drop (its normal is the way out, square to the edge);
-            // the hold is where the hand is along it. A face too slanted to tell: the way the drop was found.
+            // The edge's line: the face under it, met from the drop (its normal is the way out, square to the edge),
+            // however slanting the way the drop was found (a hand reaching aside: the out was that way, and the hold
+            // shifted along the edge); the hold is where the hand is along it. A face too slanted to tell (a slope):
+            // the way the drop was found.
             ledge.out = dir;
             glm::vec3 edge = onTop + dir * lo;
             const glm::vec3 below{edge.x, edge.y, ledge.top - 1.f};
@@ -196,7 +217,7 @@ struct Ledge
             if(face.fraction < 1.f && !face.startsolid && std::abs(face.plane.normal[2]) < 0.3f)
             {
                 const glm::vec3 n = glm::normalize(glm::vec3{face.plane.normal[0], face.plane.normal[1], 0.f});
-                if(glm::dot(n, dir) > 0.5f)
+                if(glm::dot(n, dir) > 0.f)
                 {
                     ledge.out = n;
                     const glm::vec3 from{along.x, along.y, onTop.z};
@@ -214,9 +235,9 @@ struct Ledge
 
 // A hand hovering just in front of the edge (there is nothing to stop it) counts: the ledge is
 // also looked for `edgeSlack` units further from the body.
-[[nodiscard]] std::optional<Ledge> findLedge(edict_t* player, const glm::vec3& hand)
+[[nodiscard]] std::optional<Ledge> findLedge(edict_t* player, const glm::vec3& hand, const glm::vec3& along, bool lenient = false)
 {
-    if(std::optional<Ledge> ledge = findLedgeAt(player, hand, hand))
+    if(std::optional<Ledge> ledge = findLedgeAt(player, hand, along, lenient))
     {
         return ledge;
     }
@@ -239,12 +260,130 @@ struct Ledge
         {
             continue;
         }
-        if(std::optional<Ledge> ledge = findLedgeAt(player, further, hand); ledge && ledge->top <= hand.z + surfaceAbove)
+        if(std::optional<Ledge> ledge = findLedgeAt(player, further, along, lenient); ledge && ledge->top <= hand.z + surfaceAbove)
         {
             return ledge;
         }
     }
     return std::nullopt;
+}
+
+[[nodiscard]] std::optional<Ledge> findLedge(edict_t* player, const glm::vec3& hand)
+{
+    return findLedge(player, hand, hand);
+}
+
+// The 26 ways from a cube's middle to its faces, edges and corners (the lenient search's points on each shell).
+[[nodiscard]] const std::vector<glm::vec3>& shellDirections()
+{
+    static const std::vector<glm::vec3> dirs = [] {
+        std::vector<glm::vec3> d;
+        for(int x = -1; x <= 1; x++)
+        {
+            for(int y = -1; y <= 1; y++)
+            {
+                for(int z = -1; z <= 1; z++)
+                {
+                    if(x || y || z)
+                    {
+                        d.push_back(glm::normalize(glm::vec3{static_cast<float>(x), static_cast<float>(y), static_cast<float>(z)}));
+                    }
+                }
+            }
+        }
+        return d;
+    }();
+    return dirs;
+}
+
+// What the lenient search tried and turned down (vr_climb_try).
+struct LenientStats
+{
+    int points{0}, found{0}, low{0}, below{0}, tooFar{0}, behind{0}, unseen{0};
+};
+
+// Leniency (see the top of the file): the nearest hold the hand at `hand` would take from a point up to `radius` units
+// from it. `vel`: the hand's velocity (m/s); `headPos`: the head.
+[[nodiscard]] std::optional<Ledge> findLenient(edict_t* player, const glm::vec3& hand, const glm::vec3& vel,
+    const glm::vec3& headPos, float radius, LenientStats* stats = nullptr)
+{
+    LenientStats st;
+    const float feet = player->v.origin[2] + player->v.mins[2];
+    glm::vec3 reach = glm::length(vel) > movingHand ? vel : hand - headPos;
+    reach = glm::length(reach) > 1e-3f ? glm::normalize(reach) : glm::vec3{0.f};
+    const glm::vec2 side{hand.x - headPos.x, hand.y - headPos.y}; // the hand's side of the head
+    const bool handInWall = traceLine(hand, hand, player).startsolid;
+    const glm::vec3 sight = handInWall ? headPos : hand;
+
+    std::optional<Ledge> best;
+    float bestScore = 0.f;
+    const int shells = std::max(1, static_cast<int>(std::ceil(radius / lenientStep - 1e-3f)));
+    for(int k = 1; k <= shells; k++)
+    {
+        const float r = radius * static_cast<float>(k) / static_cast<float>(shells);
+        for(const glm::vec3& dir : shellDirections())
+        {
+            const glm::vec3 p = hand + dir * r;
+            st.points++;
+            // The hold where the hand is along the edge; where that is off the ledge (past its end), where the point is.
+            std::optional<Ledge> l = findLedge(player, p, hand, true);
+            if(l && !overTop(player, l->hold, l->top))
+            {
+                l = findLedge(player, p, p, true);
+            }
+            if(!l)
+            {
+                continue;
+            }
+            st.found++;
+            if(l->top < feet + vr_climb_min_height.value)
+            {
+                st.low++;
+                continue; // too low for a hold (Lowest Ledge)
+            }
+            if(l->top < hand.z - surfaceBelow)
+            {
+                st.below++;
+                continue; // lower under the hand than a hold may be
+            }
+            const glm::vec3 d = l->hold - hand;
+            const float dist = glm::length(d);
+            if(dist > radius + lenientReach)
+            {
+                st.tooFar++;
+                continue; // further than a hold taken where the hand is, just short of it, plus the leniency
+            }
+            const glm::vec2 fromHead{l->hold.x - headPos.x, l->hold.y - headPos.y};
+            if(glm::length(side) >= 4.f && glm::dot(fromHead, side) < 0.f)
+            {
+                st.behind++;
+                continue; // behind the head, from the hand
+            }
+            const glm::vec3 lip = glm::vec3{l->hold.x, l->hold.y, l->top + 1.f} + l->out * (holdInset + 1.f);
+            const trace_t seen = traceLine(sight, lip, player);
+            if(seen.fraction < 1.f || seen.startsolid)
+            {
+                st.unseen++;
+                continue; // through a wall
+            }
+            const float score = dist * (1.f - reachFavour * (dist > 1e-3f ? glm::dot(d / dist, reach) : 0.f));
+            if(!best || score < bestScore)
+            {
+                best = l;
+                bestScore = score;
+            }
+        }
+    }
+    if(stats)
+    {
+        *stats = st;
+    }
+    return best;
+}
+
+[[nodiscard]] float leniencyUnits()
+{
+    return std::max(0.f, vr_climb_leniency.value) * 0.01f * units::metresToUnits();
 }
 
 struct Grip
@@ -583,22 +722,34 @@ extern "C" void VR_ClimbPreThink(edict_t* ent)
         }
 
         const glm::vec3 hand = move->hands[h].pos;
-        const std::optional<Ledge> ledge = findLedge(ent, hand);
+        std::optional<Ledge> ledge = findLedge(ent, hand);
+        const float feet = ent->v.origin[2] + ent->v.mins[2];
+        if(ledge && ledge->top < feet + vr_climb_min_height.value)
+        {
+            if(debug())
+            {
+                Con_Printf("climb: hold at %.1f too low (feet %.1f)\n", ledge->top, feet);
+            }
+            ledge.reset();
+        }
+        const char* how = "";
+        if(const float radius = leniencyUnits(); !ledge && radius > 0.f)
+        {
+            // Missed: the nearest hold round the hand (leniency).
+            const double t0 = Sys_DoubleTime();
+            LenientStats st;
+            ledge = findLenient(ent, hand, move->hands[h].throwVel, move->headPos, radius, &st);
+            if(debug() && vr_climb_debug.value >= 3.f)
+            {
+                Con_Printf("climb: lenient search: %d points in %.3f ms\n", st.points, (Sys_DoubleTime() - t0) * 1000.0);
+            }
+            how = ledge ? ", lenient" : "";
+        }
         if(!ledge)
         {
             if(debug())
             {
                 Con_Printf("climb: %s hand at (%.1f %.1f %.1f): no hold\n", handName(h), hand.x, hand.y, hand.z);
-            }
-            continue;
-        }
-
-        const float feet = ent->v.origin[2] + ent->v.mins[2];
-        if(ledge->top < feet + vr_climb_min_height.value)
-        {
-            if(debug())
-            {
-                Con_Printf("climb: hold at %.1f too low (feet %.1f)\n", ledge->top, feet);
             }
             continue;
         }
@@ -615,9 +766,9 @@ extern "C" void VR_ClimbPreThink(edict_t* ent)
         server::sendHaptic(ent, h, 0.f, 0.06f, 80.f, 0.6f);
         if(debug())
         {
-            Con_Printf("climb: %s hand holds at %.1f (out %.2f %.2f; hand %.1f %.1f %.1f, hold %.1f %.1f %.1f) from (%.1f %.1f %.1f)%s\n",
+            Con_Printf("climb: %s hand holds at %.1f (out %.2f %.2f; hand %.1f %.1f %.1f, hold %.1f %.1f %.1f) from (%.1f %.1f %.1f)%s%s\n",
                 handName(h), ledge->top, ledge->out.x, ledge->out.y, hand.x, hand.y, hand.z, ledge->hold.x, ledge->hold.y,
-                ledge->hold.z, ent->v.origin[0], ent->v.origin[1], ent->v.origin[2], hanging ? ", both hands" : "");
+                ledge->hold.z, ent->v.origin[0], ent->v.origin[1], ent->v.origin[2], hanging ? ", both hands" : "", how);
         }
     }
 
@@ -875,6 +1026,57 @@ void probe(edict_t* ent, float yaw)
     }
 }
 
+// vr_climb_try <x> <y> <z> [off|main] [<vx> <vy> <vz>]: what a grip of the main (or off) hand at that point would take,
+// with the current settings, the head as it is and the hand's motion as it is (or that velocity, m/s): the leniency's
+// tests. Takes nothing.
+void try_f()
+{
+    if(Cmd_Argc() < 4 || !sv.active || svs.maxclients < 1 || !svs.clients[0].active || !svs.clients[0].edict)
+    {
+        Con_Printf("vr_climb_try <x> <y> <z> [off|main] [<vx> <vy> <vz>]\n");
+        return;
+    }
+    qcvm_t* oldvm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldvm);
+    edict_t* ent = svs.clients[0].edict;
+    const VrMove* move = server::clientMove(ent);
+    const int h = Cmd_Argc() > 4 && !q_strcasecmp(Cmd_Argv(4), "off") ? 0 : 1;
+    const glm::vec3 hand{Q_atof(Cmd_Argv(1)), Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3))};
+    const glm::vec3 head = move ? move->headPos : vec(ent->v.origin) + vec(ent->v.view_ofs);
+    const glm::vec3 vel = Cmd_Argc() > 7 ? glm::vec3{Q_atof(Cmd_Argv(5)), Q_atof(Cmd_Argv(6)), Q_atof(Cmd_Argv(7))}
+                          : move ? move->hands[h].throwVel : glm::vec3{0.f};
+    const float feet = ent->v.origin[2] + ent->v.mins[2];
+    std::optional<Ledge> l = findLedge(ent, hand);
+    const char* how = "exact";
+    if(l && l->top < feet + vr_climb_min_height.value)
+    {
+        l.reset();
+    }
+    LenientStats st;
+    double ms = 0.0;
+    if(!l && leniencyUnits() > 0.f)
+    {
+        const double t0 = Sys_DoubleTime();
+        l = findLenient(ent, hand, vel, head, leniencyUnits(), &st);
+        ms = (Sys_DoubleTime() - t0) * 1000.0;
+        how = "lenient";
+    }
+    if(l)
+    {
+        Con_Printf("climbtry %.2f %.2f %.2f %s: %s hold %.2f %.2f %.2f top %.1f out %.2f %.2f, %.2f units from the hand (%.1f cm)",
+            hand.x, hand.y, hand.z, handName(h), how, l->hold.x, l->hold.y, l->hold.z, l->top, l->out.x, l->out.y,
+            glm::distance(l->hold, hand), glm::distance(l->hold, hand) / units::metresToUnits() * 100.f);
+    }
+    else
+    {
+        Con_Printf("climbtry %.2f %.2f %.2f %s: none (leniency %.1f cm)", hand.x, hand.y, hand.z, handName(h),
+            vr_climb_leniency.value);
+    }
+    Con_Printf("; %d points, %d holds seen, turned down: %d low, %d below, %d far, %d behind, %d through a wall; %.3f ms\n",
+        st.points, st.found, st.low, st.below, st.tooFar, st.behind, st.unseen, ms);
+    PR_PopQCVM(oldvm);
+}
+
 void probe_f()
 {
     if(!sv.active || svs.maxclients < 1 || !svs.clients[0].active || !svs.clients[0].edict)
@@ -895,6 +1097,8 @@ struct Pin
     int serial{-1};        // the hold's (a new hold: glide from where the hand is drawn)
     glm::vec3 from{0.f}, to{0.f};
     float along{1.f};      // from `from` to `to`
+    float inTime{0.06f};   // seconds this hold's ease takes (longer for a hold further from the hand)
+    glm::vec3 offset{0.f}; // the looks' offset on the hold (vr_climb_hand_*)
     double last{-1.0};
     [[nodiscard]] glm::vec3 hold() const
     {
@@ -903,14 +1107,36 @@ struct Pin
 };
 Pin pins[2];
 
-constexpr float pinInTime = 0.06f;  // seconds the drawn hand takes to settle on its hold (or glide to a new one)
+constexpr float pinInTime = 0.06f;  // seconds the drawn hand takes to settle on its hold (or glide to a new one),
+constexpr float pinInMax = 0.2f;    // at most, for a hold further than
+constexpr float pinInSpeed = 2.f;   // m/s allows (a lenient grab's far hold: no pop)
 constexpr float pinOutTime = 0.12f; // and to go back to the tracked hand after letting go
+constexpr float yawSteps = 256.f;   // the holds' ways out in the stats: a byte of yaw each
+
+// The time the drawn hand takes to ease `dist` units.
+[[nodiscard]] float easeTime(float dist)
+{
+    return CLAMP(pinInTime, dist / (pinInSpeed * units::metresToUnits()), pinInMax);
+}
+
+// The drawn hand's place on a hold (see the top of the file: vr_climb_hand_*, cm), from the hold's way out (towards the
+// drop, horizontal): towards the player, up, and along the edge outwards (away from the other hand).
+[[nodiscard]] glm::vec3 handOffset(const glm::vec3& out, int hand)
+{
+    const float cm = 0.01f * units::metresToUnits();
+    const bool right = (hand == 1) == (vr_lefthanded.value == 0.f);
+    const glm::vec3 rightward{-out.y, out.x, 0.f}; // facing the ledge (looking along -out), to the right
+    return (out * vr_climb_hand_out.value + glm::vec3{0.f, 0.f, vr_climb_hand_up.value} +
+               rightward * (right ? vr_climb_hand_side.value : -vr_climb_hand_side.value)) *
+           cm;
+}
 
 } // namespace
 
 void qvr::climb::init()
 {
     Cmd_AddCommand("vr_climb_probe", probe_f);
+    Cmd_AddCommand("vr_climb_try", try_f);
 }
 
 void qvr::climb::calcStats(edict_t* ent, int* statsi)
@@ -924,7 +1150,9 @@ void qvr::climb::calcStats(edict_t* ent, int* statsi)
         glm::vec3 hold{0.f};
         if(c && c->grips[h].active)
         {
-            bits |= (1 << h) | ((c->grips[h].serial & 63) << (2 + 6 * h));
+            const glm::vec3& out = c->grips[h].ledge.out;
+            const int yaw = static_cast<int>(std::lround(std::atan2(out.y, out.x) / glm::two_pi<float>() * yawSteps)) & 255;
+            bits |= (1 << h) | ((c->grips[h].serial & 63) << (2 + 6 * h)) | (yaw << (14 + 8 * h));
             hold = holdNow(c->grips[h]);
         }
         for(int i = 0; i < 3; i++)
@@ -935,9 +1163,10 @@ void qvr::climb::calcStats(edict_t* ent, int* statsi)
     statsi[STAT_QVR_CLIMB] = bits;
 }
 
-void qvr::climb::drawnHand(const hands::State& s, int hand, glm::vec3& pos)
+void qvr::climb::drawnHand(const hands::State& s, int hand, glm::vec3& pos, glm::vec3& lightShift)
 {
     using namespace protocol;
+    lightShift = glm::vec3{0.f};
     if(hand < 0 || hand > 1)
     {
         return;
@@ -949,24 +1178,35 @@ void qvr::climb::drawnHand(const hands::State& s, int hand, glm::vec3& pos)
     if(bits & (1 << hand))
     {
         const int first = hand ? STAT_QVR_CLIMBMAINX : STAT_QVR_CLIMBOFFX;
+        const float yaw = static_cast<float>((bits >> (14 + 8 * hand)) & 255) / yawSteps * glm::two_pi<float>();
+        pin.offset = handOffset(glm::vec3{std::cos(yaw), std::sin(yaw), 0.f}, hand);
         const glm::vec3 hold = glm::vec3{static_cast<float>(cl.stats[first]), static_cast<float>(cl.stats[first + 1]),
                                    static_cast<float>(cl.stats[first + 2])} /
-                               statScale;
+                                   statScale +
+                               pin.offset;
         const int serial = (bits >> (2 + 6 * hand)) & 63;
         if(pin.weight <= 0.f)
         {
             pin.from = pin.to = hold;
             pin.along = 1.f;
+            const float dist = glm::distance(hold, hands::palmPoint(s, hand));
+            pin.inTime = easeTime(dist);
+            if(vr_climb_debug.value >= 3.f)
+            {
+                Con_Printf("climb: drawn %s hand eases onto its hold in %.3f s (%.1f cm)\n", handName(hand), pin.inTime,
+                    dist / units::metresToUnits() * 100.f);
+            }
         }
         else if(serial != pin.serial)
         {
             pin.from = pin.hold(); // taken again before the hand was back: on to the new hold
             pin.along = 0.f;
+            pin.inTime = easeTime(glm::distance(hold, pin.from));
         }
         pin.to = hold; // (a hold on a moving brush model moves)
         pin.serial = serial;
-        pin.along = std::min(1.f, pin.along + dt / pinInTime);
-        pin.weight = std::min(1.f, pin.weight + dt / pinInTime);
+        pin.along = std::min(1.f, pin.along + dt / pin.inTime);
+        pin.weight = std::min(1.f, pin.weight + dt / pin.inTime);
     }
     else
     {
@@ -981,4 +1221,5 @@ void qvr::climb::drawnHand(const hands::State& s, int hand, glm::vec3& pos)
     const glm::vec3 pinned = pin.hold() - (hands::palmPoint(s, hand) - s.pos[hand]);
     const float w = pin.weight * pin.weight * (3.f - 2.f * pin.weight);
     pos = glm::mix(pos, pinned, w);
+    lightShift = -w * pin.offset;
 }

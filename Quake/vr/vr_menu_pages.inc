@@ -71,6 +71,10 @@
         toggle("Climbing (Experimental)", "vr_climb").help("Grip a ledge or a rung with either empty hand, or both, to hang from it; pull to climb hand over hand, shimmy along a ledge, pull up onto it. Edges only, not flat walls."),
         slider("Lowest Ledge", "vr_climb_min_height", 0.f, 64.f, 2.f, "%.0f units").extend().help("How far above your feet a ledge must be to grab it."),
         slider("Ledge Fling", "vr_climb_fling", 0.f, 2.f, 0.1f, "%.1f").extend().help("How much letting go of a ledge flings you with your hands' motion."),
+        slider("Grab Leniency", "vr_climb_leniency", 0.f, 30.f, 1.f, "%.0f cm").extend().help("A grip that just misses a ledge or a rung takes the nearest one within this distance of your hand (not through walls, behind you or below your reach). 0: only where your hand is."),
+        slider("Hand on Hold: Towards You", "vr_climb_hand_out", -10.f, 10.f, 0.5f, "%.1f cm").extend().help("Where your hand is drawn on a ledge or a rung: back from the lip, towards you (negative: deeper). Looks only; the climbing is the same."),
+        slider("Hand on Hold: Up", "vr_climb_hand_up", -10.f, 10.f, 0.5f, "%.1f cm").extend().help("Where your hand is drawn on a hold: up (negative: down). Looks only."),
+        slider("Hand on Hold: Sideways", "vr_climb_hand_side", -10.f, 10.f, 0.5f, "%.1f cm").extend().help("Where your hand is drawn on a hold: along the edge, outwards (negative: towards the other hand). Looks only."),
     };
 }
 

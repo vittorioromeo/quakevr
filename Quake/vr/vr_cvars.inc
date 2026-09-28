@@ -594,6 +594,10 @@ QVR_CVAR(vr_headshot_sound, "0.5", CVAR_ARCHIVE)      // volume of the tick on a
 QVR_CVAR(vr_climb, "0", CVAR_ARCHIVE)                 // experimental: either empty hand gripping a ledge or rung hangs from it; hand over hand, shimmy, mantle (vr_climb.cpp)
 QVR_CVAR(vr_climb_min_height, "30", CVAR_ARCHIVE)     // units above the feet a ledge must be to take hold of
 QVR_CVAR(vr_climb_fling, "1", CVAR_ARCHIVE)           // how much letting go flings you with the hands' motion (capped; 0 none)
+QVR_CVAR(vr_climb_leniency, "10", CVAR_ARCHIVE)      // cm: a grip that misses a hold takes the nearest one this close to where it would have (0: exact)
+QVR_CVAR(vr_climb_hand_out, "10", CVAR_ARCHIVE)      // cm: the drawn hand on its hold moved towards you (off the lip; negative: deeper), display only
+QVR_CVAR(vr_climb_hand_up, "1", CVAR_ARCHIVE)        // cm: and up (negative: down), display only
+QVR_CVAR(vr_climb_hand_side, "0", CVAR_ARCHIVE)      // cm: and along the edge, outwards (the main hand right, the off hand left), display only
 QVR_CVAR(vr_climb_debug, "0", CVAR_NONE)              // print holds, releases and mantles (2: and a "climbtrace" line every frame: the body, the hands, the pull)
 QVR_CVAR(vr_swim, "1", CVAR_ARCHIVE)                  // VR swimming: the stick slows in water, strokes of the hands move you
 QVR_CVAR(vr_swim_shallow_speed, "0.85", CVAR_ARCHIVE) // the stick's speed with the feet in water,

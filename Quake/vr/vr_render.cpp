@@ -280,6 +280,15 @@ extern "C" void VR_AliasMorph(const entity_t* e, const void* aliashdr, float amb
     ambient[5 * 4 + 3] = hdr->scale[2];
 }
 
+extern "C" void VR_AliasLightOrigin(const entity_t* e, float origin[3])
+{
+    const view::ViewEntity* ve = view::find(e);
+    for(int i = 0; i < 3; i++)
+    {
+        origin[i] = e->origin[i] + (ve ? ve->lightShift[i] : 0.f);
+    }
+}
+
 extern "C" void VR_AliasLightModifier(const entity_t* e, float lightcolor[3])
 {
     const view::ViewEntity* ve = view::find(e);

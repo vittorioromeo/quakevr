@@ -22,6 +22,7 @@ struct ViewEntity
     float morph{0.f};      // a gun morphing into its other ammo's model: + coming in, - going out (VR_AliasMorph)
     bool lightMultiply{false};
     glm::vec3 lightMod{1.f};
+    glm::vec3 lightShift{0.f}; // the light sampled this far from the origin (a climbing hand: vr_climb.cpp drawnHand)
     glm::vec3 scale{1.f};  // the model's scale per axis, exact (entity_t's is a byte, in sixteenths; vr_render.cpp)
     const qmodel_t* lastModel{nullptr};
 };

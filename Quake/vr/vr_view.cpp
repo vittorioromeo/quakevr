@@ -2326,7 +2326,12 @@ void setupHand(const hands::State& s, int hand)
     // A prop held in both hands (vr_held.cpp): the hand is drawn on its grip on it, as if its controller were there.
     glm::vec3 controllerPos = s.pos[hand], controllerRot = s.rot[hand];
     held::drawnHand(hand, controllerPos, controllerRot);
-    climb::drawnHand(s, hand, controllerPos); // a hand holding a ledge or a rung: drawn on it (vr_climb.cpp)
+    glm::vec3 lightShift{0.f}; // a hand holding a ledge or a rung: drawn on it (vr_climb.cpp), lit as without the looks' offset
+    climb::drawnHand(s, hand, controllerPos, lightShift);
+    for(view::ViewEntity& ve : entities.hand[hand])
+    {
+        ve.lightShift = lightShift;
+    }
 
     // The hand turned from the controller by the fist's angle offsets, rigidly (round 21, second pass: added as Euler
     // angles, the hand slid round what it held as the wrist turned, and its grasp was solved again and again).
