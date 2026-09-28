@@ -502,9 +502,16 @@ public:
 
         // The mock stands for Quest controllers: with vr_controller_legacy_pose its hands are the raw poses the real
         // backend makes of a Touch controller's grip pose, whose grip lies where it would (the Show Controller preview).
+        // With vr_mock_grip_velocity, the grip's velocity too, as the OpenXR backend reports it (toLegacyPose): the raw
+        // point's, less the turn's swing of the raw point about the grip.
         for(int h = 0; h < HAND_COUNT; h++)
         {
+            Pose& hand = tracking.hands[h];
             tracking.gripInHand[h] = vr_controller_legacy_pose.value ? legacyGripInRaw(true, h == HAND_MAIN ? 1 : 0) : GripInRaw{};
+            hand.gripVelocityValid = vr_mock_grip_velocity.value != 0.f && vr_controller_legacy_pose.value != 0.f;
+            hand.gripVelocity = hand.gripVelocityValid
+                                    ? hand.linearVelocity - glm::cross(hand.angularVelocity, -(hand.orientation * tracking.gripInHand[h].offset))
+                                    : glm::vec3{0.f};
         }
 
         // The head likewise (a lunge scripted with vr_mock_hand head).

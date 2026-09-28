@@ -436,6 +436,11 @@ std::vector<Item> pageHeldObjectWeights()
                       "Aiming: Weight and Damage)."),
             s("Throw Damage", Key::ThrowDamage, 0.f, 4.f, 0.05f, "%.2fx").extend(0.f, 20.f)
                 .help("Times its damage thrown, on top of the weight's."),
+            s("Blunt", Key::Blunt, 0.f, 3.f, 0.05f, "%.2f").extend(0.f, 10.f)
+                .help("How hard it hits, punched with or thrown: this times the square root of its mass (kg) times a "
+                      "punch's damage (held) or Thrown Box Damage (thrown). A rock of 1 kg at 1.5: 1.5 times; a brick of "
+                      "2 kg: 2.1 times. 0: as a box (Box Punch Damage, Thrown Box Damage). Set, the weight's curve "
+                      "(Aiming: Weight and Damage) leaves it alone: its mass is in its damage already."),
         });
     }
     list.insert(list.end(), {
@@ -467,19 +472,15 @@ std::vector<Item> pageHeldObjectWeights()
     return false;
 }
 
-// showPage (vr_menu.cpp): shown afresh, a weight page takes what is in the hand now, its cursor at the top. False: not
-// one of them.
-bool weightPageShown(PageBuilder build)
+// showPage (vr_menu.cpp): shown afresh, a weight page takes what is in the hand now.
+void weightPageShown(PageBuilder build)
 {
     if(build == pageHeldObjectOffsets || build == pageHeldObjectWeights)
     {
         heldObjectStale = true;
-        return true;
     }
     if(build == pageWeaponWeights)
     {
         weaponWeightsStale = true;
-        return true;
     }
-    return false;
 }

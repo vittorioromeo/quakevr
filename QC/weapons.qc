@@ -1294,10 +1294,12 @@ void(float xHand) W_FistMelee =
         return;
     }
 
-    // A box in hand is an improvised weapon (vr_carry.qc).
-    if(VR_Carry_IsHolding(self, xHand))
+    // A box, a rock or a brick in hand is an improvised weapon (vr_carry.qc VR_Carry_PunchMult). Tracked hands have it in
+    // their blow's strength already (VR_Melee_Decide), which VRMeleeDmg multiplies by: not twice.
+    entity held = VR_Carry_Held(self, xHand);
+    if(held != world && (!VRHandsTracked(self) || !self.ishuman))
     {
-        xdmg = xdmg * cvar_hget(cvarh_vr_carry_melee_mult);
+        xdmg = xdmg * VR_Carry_PunchMult(self, xHand);
     }
 
     // (A straight punch's vr_melee_punch_mult is in the blow's strength: VR_Blow_Weight.)
@@ -1310,7 +1312,7 @@ void(float xHand) W_FistMelee =
 
     if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
     {
-        sound(self, VRGetGunChannel(xHand), "fisthit.wav", 1.0, ATTN_NORM);
+        sound(self, VRGetGunChannel(xHand), VR_Debris_Is(held) ? VR_Debris_Sound(held) : "fisthit.wav", 1.0, ATTN_NORM);
         playedsound = TRUE;
     }
 

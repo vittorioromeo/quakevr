@@ -252,7 +252,8 @@ void M_DrawCharacter (int cx, int line, int num)
 
 void M_DrawArrowCursor (int cx, int cy)
 {
-	VR_MenuDrawHighlight (cx, cy); // QVR
+	if (VR_MenuDrawHighlight (cx, cy)) // QVR: none while the corner's buttons have the selection
+		return;
 	M_DrawCharacter (cx, cy, 12+((int)(realtime*4)&1));
 }
 
@@ -7242,6 +7243,7 @@ static void M_UpdateBounds (void)
 	m_width &= ~15;
 	m_left = left + (width - m_width) / 2;
 	m_top = top + (height - m_height) / 2;
+	VR_MenuBounds (&m_top, &m_height); // QVR: below the corner's buttons
 }
 
 void M_Draw (void)
@@ -7384,8 +7386,6 @@ void M_Keydown (int key, qboolean repeat)
 {
 	if (!bind_grab && !ui_mouse.value && M_IsMouseKey (key))
 		return;
-	if (key == K_MOUSE1 && !bind_grab && VR_MenuClick ()) // QVR: the "Back to game" button
-		return;
 
 	m_lastkey = key;
 	if (!bind_grab)
@@ -7418,6 +7418,9 @@ void M_Keydown (int key, qboolean repeat)
 			return;
 		}
 	}
+
+	if (!bind_grab && VR_MenuKey (key, repeat)) // QVR: the corner's buttons (Back to game, Advanced VR, Levels)
+		return;
 
 	switch (M_GetBaseState (m_state))
 	{

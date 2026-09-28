@@ -11,8 +11,10 @@
 // samples timed on the runtime's clock, so neither the network rate nor the time the release
 // takes to arrive moves the window. The held object's centre sits vr_throw_lever_arm metres along
 // the hand: a clear wrist flick (above vr_throw_ang_threshold) adds some of its spin's velocity
-// there. The release itself (filterGrips) comes from the analog grip easing off during a throw,
-// earlier than the runtime's grip button.
+// there. The samples are the controller's own (its grip's velocity, the lever along a fixed frame on
+// it: hands::throwFrame), so the hand calibration doesn't change a throw; vr_throw_pitch tilts it.
+// The release itself (filterGrips) comes from the analog grip easing off during a throw, earlier
+// than the runtime's grip button.
 
 #include "vr_throw.hpp"
 #include "vr_cvars.hpp"
@@ -124,6 +126,22 @@ constexpr double peakFit = 0.03;
     return static_cast<float>(std::clamp(top, 0.8 * bestSpeed, 1.2 * bestSpeed));
 }
 
+// vr_throw_pitch: `vel` tilted up (down if negative) by that many degrees, about the level line square to it, its speed
+// kept; not past straight up or down, and a throw with no level part (straight up or down) is left as it is.
+[[nodiscard]] glm::vec3 pitched(const glm::vec3& vel)
+{
+    const float level = glm::length(glm::vec2{vel.x, vel.y});
+    if(vr_throw_pitch.value == 0.f || level < 1e-4f)
+    {
+        return vel;
+    }
+    const float most = glm::radians(89.9f);
+    const float up = CLAMP(-most, std::atan2(vel.z, level) + glm::radians(vr_throw_pitch.value), most);
+    const float speed = glm::length(vel);
+    const glm::vec2 way = glm::vec2{vel.x, vel.y} / level;
+    return glm::vec3{way * (speed * std::cos(up)), speed * std::sin(up)};
+}
+
 // The peak of the controller's speed around the release.
 // `lever`: metres along the hand's forward to the held object's centre (vr_throw_lever_arm): a clear wrist flick adds
 // its spin's velocity there (none for two hands: their samples are the object's own).
@@ -208,7 +226,7 @@ constexpr double peakFit = 0.03;
         vel += glm::cross(angVel, lever) * vr_throw_ang_factor.value;
     }
 
-    return {vel, angVel, peak.pos + lever * units::metresToUnits(), peak.time};
+    return {pitched(vel), angVel, peak.pos + lever * units::metresToUnits(), peak.time};
 }
 
 // Grip state per hand, for the release detection.

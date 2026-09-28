@@ -289,19 +289,28 @@ void() barrel_explode =
 // carried by hand (heavy: Held Object Offsets, vr_props.inc: 40 kg, the small one 25; thrown only a little way), never
 // force grabbed. It still blows up when damaged, and when it hits something hard enough (VR_Explobox_Impact:
 // vr_explobox_impact m/s, dropped from a height). 0: fixed in place, as id's.
+float VR_THROWN_BOX_TIME = 2; // s: how long a thrown explosive box may hurt what it meets (its flight, a landing's slide)
+
 void(float xSpeed) VR_Explobox_Impact =
 {
     // Thrown (VR_Carry_Release: a heavy box is a missile at a lower speed) into something that bleeds: it hits it as any
-    // thrown thing does (VR_Thrown_Damage). Its first hit ends the throw.
+    // thrown thing does (VR_Thrown_Damage), once. Landing and sliding on the floor, or against a wall, it goes on (a rigid
+    // body's landing ends no throw, as forcegrabbable_touch has it); come down below the throw's least speed, or longer
+    // than VR_THROWN_BOX_TIME since it left the hand, its throw is over.
     if(self.throwhit == QVR_THROWHIT_NEVER_HIT && self.owner.classname == "player")
     {
-        self.throwhit = QVR_THROWHIT_HIT;
-        if(other != world && other.takedamage && other != self.owner)
+        float lenient = VR_Thrown_Lenient(self);
+        float speed = max(vlen(self.velocity), xSpeed * VRMetersToUnits());
+        if(time - self.carry_thrown > VR_THROWN_BOX_TIME || speed < cvar_hget(cvarh_vr_throw_hit_min_speed) * lenient)
         {
-            float speed = max(vlen(self.velocity), xSpeed * VRMetersToUnits());
-            float dmg = VR_Thrown_Damage(self, speed, VR_Thrown_Lenient(self));
-            dprint("explobox: thrown into "); dprint(other.classname); dprint(" at "); dprint(ftos(speed));
-            dprint(" u/s: "); dprint(ftos(dmg)); dprint("\n");
+            self.throwhit = QVR_THROWHIT_HIT;
+        }
+        else if(other != world && other.takedamage && other != self.owner)
+        {
+            self.throwhit = QVR_THROWHIT_HIT;
+            float dmg = VR_Thrown_Damage(self, speed, lenient);
+            dprint(sprintf("explobox: thrown into %s at %.1f u/s (%.1f m/s against it): %.1f\n", other.classname, speed,
+                xSpeed, dmg));
             sound(self, CHAN_AUTO, "fisthit.wav", 1, ATTN_NORM);
             spawn_touchblood(dmg);
             T_Damage(other, self, self.owner, dmg);

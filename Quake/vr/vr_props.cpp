@@ -37,8 +37,9 @@ constexpr const char* keyDefaults[numKeys] = {
 };
 
 // Configs archive every slot, so a slot whose shipped defaults change keeps a config's old values: vr_props_version
-// says which changes a config has seen (as vr_wofs_version for the weapons). 1: the table's first version.
-constexpr int settingsVersion = 1;
+// says which changes a config has seen (as vr_wofs_version for the weapons). 1: the table's first version; 26: the rocks
+// and bricks' slots (the round's agents number their changes apart).
+constexpr int settingsVersion = 26;
 
 std::array<std::string, numSlots * numKeys> names;
 std::array<cvar_t, numSlots * numKeys> cvars{};
@@ -77,7 +78,25 @@ void migrate()
     {
         return;
     }
-    // (Nothing yet: version 1 is the first.)
+    const int from = static_cast<int>(vr_props_version.value);
+    // 26: the rocks and bricks lying about (vr_debris.cpp) have slots 17-25 (vr_prop_*_18 to _26), which a config saved before has empty:
+    // they take their defaults. A slot the config gave another model (Held Object Offsets) keeps it; that piece then
+    // has the defaults of any prop (its mass still estimated, but no Blunt: it hits as a box).
+    if(from < 26)
+    {
+        for(int slot = 17; slot <= 25; slot++)
+        {
+            if(freeId(cvarAt(slot, Key::ID).string))
+            {
+                resetSlot(slot);
+            }
+            else if(strcmp(cvarAt(slot, Key::ID).string, cvarAt(slot, Key::ID).default_string) != 0)
+            {
+                Con_Printf("Held Object Offsets: slot %d is %s's in this config; %s keeps the defaults\n", slot + 1,
+                    cvarAt(slot, Key::ID).string, cvarAt(slot, Key::ID).default_string);
+            }
+        }
+    }
     Cvar_SetValueQuick(&vr_props_version, settingsVersion);
 }
 
@@ -251,7 +270,8 @@ bool weightKey(Key key)
         case Key::SpringTwoHanded:
         case Key::SpringSnap:
         case Key::MeleeDamage:
-        case Key::ThrowDamage: return true;
+        case Key::ThrowDamage:
+        case Key::Blunt: return true;
         default: return false;
     }
 }
@@ -312,6 +332,23 @@ void printSlot(int slot, Part part)
     }
 }
 
+float stoneDensity(const qmodel_t* model)
+{
+    if(!model || model->type != mod_alias)
+    {
+        return 0.f;
+    }
+    if(!strncmp(model->name, "progs/vr_rock", 13))
+    {
+        return 2600.f; // granite, sandstone: 2300-2700
+    }
+    if(!strncmp(model->name, "progs/vr_brick", 14))
+    {
+        return 1900.f; // fired clay brick: 1800-2000 (a whole one, 19 x 9 x 6 cm: 1.9 kg)
+    }
+    return 0.f;
+}
+
 float density(const qmodel_t* model, bool weaponLike)
 {
     if(!model)
@@ -321,6 +358,10 @@ float density(const qmodel_t* model, bool weaponLike)
     if(model->type == mod_brush)
     {
         return 400.f; // ammo and health boxes (full of shells, nails, cells, medkits), crates
+    }
+    if(const float stone = stoneDensity(model); stone > 0.f)
+    {
+        return stone;
     }
     if(weaponLike || !strncmp(model->name, "progs/g_", 8) || !strncmp(model->name, "progs/w_", 8) ||
         strstr(model->name, "key") || !strncmp(model->name, "progs/v_", 8))
