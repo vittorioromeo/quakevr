@@ -1,0 +1,707 @@
+// entities.fgd -- the hand-written part of Quake VR's entity definitions (TrenchBroom FGD syntax).
+//
+// Misc/trenchbroom/fgdgen.py merges this file into what it reads from the QuakeC and from TrenchBroom's Quake.fgd,
+// and writes Misc/trenchbroom/QuakeVR/quakevr.fgd. A class here is merged into the generated one: its base,
+// color, size and model replace the generated ones, its description replaces the generated help, its properties
+// replace those of the same name, its spawnflags replace the bits it lists. See docs/vr-port/MAPPING.md.
+//
+// Help text: plain text, real line breaks, no double quotes (write 'like this').
+
+// QC functions that look like spawn functions but are not map entities.
+//! internal item_unspawn             Honey: an item waiting to be triggered in (PlaceItem calls it)
+//! internal monster_SPAWNFLAG_REMOVE_CORPSE  Honey: removes a corpse (monster_check_remove_corpse calls it)
+//! internal monster_add_to_counter   Honey: counts a monster (every monster's spawn function calls it)
+//! internal random_pick_type         Rogue: item_random_powerup's pick (it calls it)
+//! internal trigger_reactivate       id leftover: never used, sets nothing up
+//! internal monster_spikemine        Hipnotic leftover: an unfinished copy of the fiend (trap_spike_mine is the mine)
+
+// Entities with no spawn function: the compilers' and the editor's.
+//! editor func_group
+//! editor func_detail
+//! editor func_detail_illusionary
+//! editor func_detail_wall
+//! editor func_detail_fence
+//! editor func_illusionary_visblocker
+//! editor misc_external_map
+
+// No preview: the model is not shipped with Quake VR (TrenchBroom would report it missing).
+//! nomodel misc_tree   progs/tree1.mdl is Honey's
+
+// ------------------------------------------------------------------------------------------------------------------
+// The glossary: the keys that spawn functions read (self.<field>), added to an entity that reads one and has no
+// definition of it. Their meaning varies a little between entities: the entity's help says how it uses them.
+// ------------------------------------------------------------------------------------------------------------------
+
+@BaseClass = _Fields
+[
+	targetname(target_source) : "Name" : : "The name that other entities' target and killtarget use to trigger this one."
+	target(target_destination) : "Target" : : "The entities (by targetname) it triggers."
+	killtarget(target_destination) : "Kill target" : : "The entities (by targetname) it removes when it fires."
+	message(string) : "Message" : : "Text shown to the player. \n makes a new line."
+	speed(float) : "Speed" : : "Speed (units per second) or rate: see the help for this entity."
+	dmg(integer) : "Damage" : : "Damage it deals (a mover: to what blocks it)."
+	wait(float) : "Wait" : : "Seconds to wait (before it returns, resets or repeats). -1: never."
+	delay(float) : "Delay" : : "Seconds before it acts after it is triggered."
+	volume(float) : "Volume" : : "Sound volume, 0 to 1."
+	noise(string) : "Sound" : : "A sound, relative to sound/ (for example misc/secret.wav)."
+	noise1(string) : "Sound 1" : : "A sound, relative to sound/."
+	noise2(string) : "Sound 2" : : "A sound, relative to sound/."
+	noise3(string) : "Sound 3" : : "A sound, relative to sound/."
+	sounds(integer) : "Sounds" : : "Which set of sounds: see the help for this entity."
+	count(integer) : "Count" : : "A count: see the help for this entity."
+	cnt(integer) : "Count (cnt)" : : "A count: see the help for this entity."
+	lip(integer) : "Lip" : : "Units of the brush left showing at the end of its move."
+	health(integer) : "Health" : : "If set, it must be shot (this much damage) instead of touched."
+	distance(float) : "Distance" : : "A distance (units) or an angle (degrees): see the help for this entity."
+	duration(float) : "Duration" : : "Seconds it lasts."
+	height(float) : "Height" : : "Units: see the help for this entity."
+	mangle(string) : "Angles (pitch yaw roll)" : : "Pitch, yaw and roll in degrees."
+	waitmin(float) : "Minimum wait" : : "Seconds: the shortest random wait."
+	weapon(integer) : "Weapon / kind" : : "A number: see the help for this entity."
+	gravity(float) : "Gravity" : : "Gravity factor (1 normal)."
+	color(integer) : "Colour" : : "A palette index (0 to 255)."
+	effects(integer) : "Effects" : : "Engine effects bits (1 particles, 4 bright light, 8 dim light)."
+	spawnfunction(string) : "Spawn function" : : "The classname (spawn function) of what it makes."
+	spawnclassname(string) : "Spawned classname" : : "The classname given to what it makes."
+	spawnmulti(integer) : "Spawn several" : : "1: it can make more than one."
+	pos2(string) : "Travel (x y z)" : : "A vector, in units: see the help for this entity."
+	currentammo(integer) : "Damage (currentammo)" : : "Damage per contact or per shot: see the help for this entity."
+	frags(float) : "Time (frags)" : : "Seconds: see the help for this entity."
+	impulse(integer) : "Sound channel (impulse)" : : "0 to 7 (0: automatic)."
+	nextthink(float) : "Start delay (nextthink)" : : "Seconds after the level starts before it first acts (to stagger several)."
+]
+
+// ------------------------------------------------------------------------------------------------------------------
+// Base classes (Quake.fgd's, with what Quake VR's QuakeC adds)
+// ------------------------------------------------------------------------------------------------------------------
+
+@BaseClass = Item
+[
+	spawnflags(flags) =
+	[
+		2048 : "Teleport fog when it appears" : 0 : "With Appears when triggered: it arrives with a teleport flash. (The same bit as Not in Deathmatch.)"
+		16384 : "Appears when triggered" : 0 : "Invisible and not there until its targetname is triggered (Honey's trigger spawn)."
+	]
+]
+
+@BaseClass = Monster
+[
+	spawnflags(flags) =
+	[
+		2048 : "Teleport fog when it spawns" : 0 : "With Spawns when triggered: it arrives with a teleport flash. (The same bit as Not in Deathmatch.)"
+		4096 : "Remove corpse" : 0 : "Its corpse is removed after it dies."
+		8192 : "Spawns angry" : 0 : "With Spawns when triggered: it attacks whoever triggered it at once."
+		16384 : "Spawns when triggered" : 0 : "Not there until its targetname is triggered: then it appears (Honey's trigger spawn). Counted from the start."
+		32768 : "Spawns several" : 0 : "With Spawns when triggered: each trigger makes another one, cnt times (cnt 0 or -1: no limit)."
+		65536 : "Silent wake-up" : 0 : "It does not make its sight sound when it wakes up."
+		131072 : "Sees by its box" : 0 : "It sees the player by its whole box, not only its eyes (for monsters behind low walls)."
+	]
+	cnt(integer) : "Copies (Spawns several)" : : "With Spawns several: how many it makes, one per trigger (0 or -1: no limit)."
+]
+
+@BaseClass = VRWeaponId
+[
+	weapon(choices) : "Weapon" : 4 : "Which weapon (Quake VR's weapon ids, WID_* in QC/vr_defs.qc)." =
+	[
+		1 : "Grappling hook"
+		2 : "Axe"
+		3 : "Mjolnir (Scourge of Armagon)"
+		4 : "Shotgun"
+		5 : "Super shotgun"
+		6 : "Nailgun"
+		7 : "Super nailgun"
+		8 : "Grenade launcher"
+		9 : "Proximity gun (Scourge of Armagon)"
+		10 : "Rocket launcher"
+		11 : "Thunderbolt"
+		12 : "Laser cannon (Scourge of Armagon)"
+		13 : "Sword (a knight's)"
+	]
+	weaponflags(choices) : "Variant" : 0 : "The weapon's variant: its alternative ammunition (Dissolution of Eternity's), or the hell knight's sword." =
+	[
+		0 : "Standard"
+		1 : "Alternative: lava nailguns, multi grenade and rocket launchers, plasma gun, the hell knight's sword"
+	]
+]
+
+@BaseClass = VRWorldText
+[
+	worldtext(string) : "Text" : : "The text. \n starts a new line; $ starts a new page (the banner turns its pages by itself)."
+	worldtext_halign(choices) : "Alignment" : 0 : "How the lines are aligned." =
+	[
+		0 : "Left"
+		1 : "Centre"
+		2 : "Right"
+	]
+	worldtext_scale(float) : "Scale" : 1 : "Letter size: 8 units per letter times this (1: 8 units, about 24 cm at the default world scale)."
+]
+
+// ------------------------------------------------------------------------------------------------------------------
+// World
+// ------------------------------------------------------------------------------------------------------------------
+
+@SolidClass = worldspawn : "World entity
+
+The map's settings. Quake VR loads a map's own lighting (.lit and .lux beside the .bsp, from ericw-tools' light) and
+its light grid (BSPX, light -lightgrid), and draws liquids see-through when the map was vised for it (ericw-tools' vis
+does by default)."
+[
+	message(string) : "Level name" : : "Shown when the level starts and in the scoreboard."
+	worldtype(choices) : "Theme" : 0 : "Sets the keys' models and the doors' sounds." =
+	[
+		0 : "Medieval"
+		1 : "Metal (runic)"
+		2 : "Base"
+	]
+	sounds(integer) : "CD track" : 0 : "The music track to play."
+	light(integer) : "Minimum light (light)" : : "The ambient (minimum) light level of the whole map, for ericw-tools' light."
+	_minlight_color(color1) : "Minimum light colour" : : "The colour of the minimum light (R G B, 0 to 1)."
+	_sunlight(integer) : "Sun brightness" : : "ericw-tools: a sun: the brightness of the direct light from sky faces."
+	_sun_mangle(string) : "Sun direction (yaw pitch roll)" : : "ericw-tools: where the sun shines from (for example 200 -40 0)."
+	_sunlight_color(color1) : "Sun colour" : : "ericw-tools: the sun's colour (R G B, 0 to 1)."
+	_sunlight_penumbra(float) : "Sun penumbra" : : "ericw-tools: degrees of soft shadow edge."
+	_sunlight2(integer) : "Sky dome brightness" : : "ericw-tools: soft light from the whole sky (a dome of suns)."
+	_sunlight2_color(color1) : "Sky dome colour" : : "ericw-tools: the sky dome's colour."
+	_dirt(choices) : "Ambient occlusion" : 0 : "ericw-tools: dark corners (dirtmapping); light -dirt turns it on for the whole map." =
+	[
+		0 : "Default (light's -dirt)"
+		1 : "On"
+		-1 : "Off"
+	]
+	_dirtscale(float) : "Ambient occlusion strength" : : "ericw-tools: 1 by default; Quake VR's maps use 1 to 1.5."
+	_dirtdepth(float) : "Ambient occlusion depth" : : "ericw-tools: units (128 by default; Quake VR's maps use 96)."
+	_bounce(integer) : "Bounced light" : : "ericw-tools: 1 for bounced (indirect) light."
+	_anglescale(float) : "Angle scale" : : "ericw-tools: how much a surface's angle to a light dims it (0.5 by default)."
+	wateralpha(float) : "Water opacity" : : "0 to 1: how opaque water is (needs a map vised for see-through liquids)."
+	lavaalpha(float) : "Lava opacity" : : "0 to 1."
+	slimealpha(float) : "Slime opacity" : : "0 to 1."
+	telealpha(float) : "Teleporter opacity" : : "0 to 1."
+	sky(string) : "Skybox" : : "A skybox's name (gfx/env/<name>up.tga...), in place of the sky texture."
+	fog(string) : "Fog" : : "Density, then R G B (0 to 1): for example 0.02 0.3 0.3 0.35."
+]
+
+// ------------------------------------------------------------------------------------------------------------------
+// Player starts and markers
+// ------------------------------------------------------------------------------------------------------------------
+
+@PointClass = info_player_start : "Player 1 start
+
+Where the player starts. The origin is the player's centre, 24 units above the floor (TrenchBroom's box sits on
+the floor). In VR the player's real height and room-scale steps are added: keep 128 units of headroom and about
+48 units free round it."
+[
+	angle(integer) : "Facing (yaw)" : 0 : "The direction the player faces at the start, in degrees."
+]
+
+@PointClass base(Angle, Targetname) = info_endcam : "Honey: end camera
+
+Honey's ending: shortly after the level starts it plays the ending cutscene (the players fly free, the music
+stops), fires its targets, and wait seconds later ends the game. Honey's own maps only."
+[
+	wait(float) : "Seconds before the end" : 180
+]
+
+// ------------------------------------------------------------------------------------------------------------------
+// Weapons
+// ------------------------------------------------------------------------------------------------------------------
+
+@PointClass base(Weapon) = weapon_shotgun : "Shotgun (Quake VR)
+
+The single-barrelled shotgun as a pickup (id's Quake has none: the player starts with it). In Quake VR the map's
+weapons float at torso height (vr_item_float_height, 26 units above the floor): the player takes one with a hand
+(grip), which makes it the weapon in that hand. Place it on the floor: it rises by itself."
+[]
+
+@PointClass base(Weapon) = weapon_supershotgun : "Super shotgun
+
+Floats at torso height in VR (vr_item_float_height); taken by a hand's grip." []
+@PointClass base(Weapon) = weapon_nailgun : "Nailgun
+
+Floats at torso height in VR (vr_item_float_height); taken by a hand's grip." []
+@PointClass base(Weapon) = weapon_supernailgun : "Super nailgun (Perforator)
+
+Floats at torso height in VR (vr_item_float_height); taken by a hand's grip." []
+@PointClass base(Weapon) = weapon_grenadelauncher : "Grenade launcher
+
+Floats at torso height in VR (vr_item_float_height); taken by a hand's grip." []
+@PointClass base(Weapon) = weapon_rocketlauncher : "Rocket launcher
+
+Floats at torso height in VR (vr_item_float_height); taken by a hand's grip." []
+@PointClass base(Weapon) = weapon_lightning : "Thunderbolt
+
+Floats at torso height in VR (vr_item_float_height); taken by a hand's grip." []
+
+@PointClass base(Weapon) = weapon_mjolnir : "Mjolnir (Scourge of Armagon)
+
+The hammer: a melee weapon that also calls down lightning, using cells. Floats at torso height in VR; taken by a
+hand's grip. Its sounds come from the Scourge of Armagon's files (hipnotic)." []
+@PointClass base(Weapon) = weapon_laser_gun : "Laser cannon (Scourge of Armagon)
+
+Fires bouncing laser bolts, using cells. Floats at torso height in VR; taken by a hand's grip. Its sounds come
+from the Scourge of Armagon's files (hipnotic)." []
+@PointClass base(Weapon) = weapon_proximity_gun : "Proximity gun (Scourge of Armagon)
+
+Fires proximity mines, using rockets. Floats at torso height in VR; taken by a hand's grip. Its sounds come from
+the Scourge of Armagon's files (hipnotic)." []
+
+// ------------------------------------------------------------------------------------------------------------------
+// Items
+// ------------------------------------------------------------------------------------------------------------------
+
+@PointClass base(Ammo) = item_shells : "Shells
+
+In Quake VR ammunition boxes are physics objects: a hand nudges them, grips and carries them (they stay where they
+are dropped or thrown), a force grab pulls them. The player takes the ammo by letting go of the box at a holster
+(vr_carry_take), or by walking over it. With vr_ammobox_drops, a box may also hold a weapon." []
+@PointClass base(Ammo) = item_spikes : "Nails
+
+A physics object in VR: carried by hand, taken at a holster or by walking over it." []
+@PointClass base(Ammo) = item_rockets : "Rockets
+
+A physics object in VR: carried by hand, taken at a holster or by walking over it." []
+@PointClass base(Ammo) = item_cells : "Cells
+
+A physics object in VR: carried by hand, taken at a holster or by walking over it." []
+@PointClass base(Ammo) model({{ (spawnflags & 1) == 1 -> "maps/b_lnail1.bsp", "maps/b_lnail0.bsp" }}) = item_lava_spikes : "Lava nails (Dissolution of Eternity)
+
+Ammunition for the lava nailguns (a nailgun or super nailgun with the Alternative variant). A physics object in
+VR, as the other boxes." []
+@PointClass base(Ammo) model({{ (spawnflags & 1) == 1 -> "maps/b_mrock1.bsp", "maps/b_mrock0.bsp" }}) = item_multi_rockets : "Multi rockets (Dissolution of Eternity)
+
+Ammunition for the multi grenade and multi rocket launchers. A physics object in VR, as the other boxes." []
+@PointClass base(Ammo) model({{ (spawnflags & 1) == 1 -> "maps/b_plas1.bsp", "maps/b_plas0.bsp" }}) = item_plasma : "Plasma (Dissolution of Eternity)
+
+Ammunition for the plasma gun (a thunderbolt with the Alternative variant). A physics object in VR, as the other
+boxes." []
+
+@PointClass = item_health : "Health
+
+A health box (25), a rotten one (15) or a megahealth (100, over the maximum, wearing off). In Quake VR health boxes
+are physics objects: carried by hand, taken at a holster or by walking over them." []
+
+@PointClass size(-16 -16 0, 16 16 56) base(Item, Appearflags) model({ "path": "progs/armor.mdl", "skin": 2 }) = item_armorinv : "Red armour (lower-case alias)
+
+The same as item_armorInv (the QuakeC accepts both spellings). Prefer item_armorInv." []
+
+@PointClass = item_armor1 : "Green armour (100)
+
+In Quake VR armour is worn by hand (vr_armor_wear): the player carries it and lets go of it over the torso. It
+floats at torso height until taken." []
+@PointClass = item_armor2 : "Yellow armour (150)
+
+Worn by hand in VR: carried and let go of over the torso." []
+@PointClass = item_armorInv : "Red armour (200)
+
+Worn by hand in VR: carried and let go of over the torso." []
+
+@PointClass size(-16 -16 -24, 16 16 32) model({ "path": "progs/timemach.mdl" }) = item_time_machine : "Time machine (Dissolution of Eternity)
+
+The time machine of the last level (r2m8): destroyed when the time core is taken. Its origin is at its top: the
+model hangs 144 units below it." []
+@PointClass model({ "path": "progs/timecore.mdl" }) = item_time_core : "Time core (Dissolution of Eternity)
+
+The core of the time machine: taking it destroys the machine (item_time_machine)." []
+
+// ------------------------------------------------------------------------------------------------------------------
+// Monsters
+// ------------------------------------------------------------------------------------------------------------------
+
+@PointClass = monster_army : "Grunt (soldier)
+
+30 health; a shotgun. Drops a backpack of shells." []
+@PointClass = monster_dog : "Rottweiler
+
+25 health; runs and leaps to bite." []
+@PointClass = monster_ogre : "Ogre
+
+200 health; a chainsaw up close, grenades at range. Drops a backpack of rockets." []
+@PointClass = monster_knight : "Knight
+
+75 health; a sword. Quake VR: it may drop its sword when it dies (vr_sword_drop), a weapon the player can take." []
+@PointClass = monster_hell_knight : "Death knight (hell knight)
+
+250 health; a sword and a spray of flames. Quake VR: it may drop its sword when it dies (vr_sword_drop)." []
+@PointClass = monster_wizard : "Scrag (wizard)
+
+80 health; flies and spits acid." []
+@PointClass = monster_demon1 : "Fiend
+
+300 health; leaps and claws." []
+@PointClass = monster_shambler : "Shambler
+
+600 health, half damage from explosions; claws and lightning." []
+@PointClass = monster_boss : "Chthon
+
+The boss of episode 1 (e1m7): throws lava balls. It cannot be hurt by weapons: event_lightning (fired twice by
+buttons) kills it. It rises when its targetname is triggered." []
+@PointClass = monster_enforcer : "Enforcer
+
+80 health; a laser gun. Drops a backpack of cells." []
+@PointClass = monster_shalrath : "Vore (shalrath)
+
+400 health; throws homing spikes." []
+@PointClass = monster_tarbaby : "Spawn (tarbaby)
+
+80 health; bounces, and explodes when it dies." []
+@PointClass = monster_fish : "Rotfish
+
+25 health; swims (place it in water)." []
+@PointClass = monster_oldone : "Shub-Niggurath
+
+The final boss (end.bsp): killed only by telefragging it (a teleporter onto its origin)." []
+
+@PointClass = monster_armagon : "Armagon (Scourge of Armagon)
+
+The Scourge of Armagon's final boss (3000 health): rockets and lasers. Models and sounds from hipnotic." []
+@PointClass = monster_decoy : "Decoy player (Scourge of Armagon)
+
+A fake player that monsters see and chase: used in the Scourge of Armagon's cutscenes (see effect_finale)." []
+@PointClass = monster_gremlin : "Gremlin (Scourge of Armagon)
+
+Steals the player's weapon and uses it; splits in two when fed. Models and sounds from hipnotic." []
+@PointClass = monster_scourge : "Centroid (scourge; Scourge of Armagon)
+
+A mechanical scorpion: nails and a stinger. Models and sounds from hipnotic." []
+@PointClass = monster_dragon : "Dragon (Dissolution of Eternity)
+
+Flies along dragon_corner paths (target the first one): fireballs. Models and sounds from rogue." []
+@PointClass = monster_eel : "Electric eel (Dissolution of Eternity)
+
+Swims (place it in water) and shocks. Models and sounds from rogue." []
+@PointClass = monster_lava_man : "Hephaestus (lava man; Dissolution of Eternity)
+
+A boss that rises from lava and throws lava balls. Models and sounds from rogue." []
+@PointClass = monster_wrath : "Wrath (Dissolution of Eternity)
+
+A floating caster of homing balls. Models and sounds from rogue." []
+
+// ------------------------------------------------------------------------------------------------------------------
+// Lights (ericw-tools' keys)
+// ------------------------------------------------------------------------------------------------------------------
+
+@BaseClass = Light
+[
+	_color(color1) : "Colour" : : "ericw-tools: R G B, 0 to 1 (for example 1 0.8 0.6); needs light -lit (.lit output)."
+	_deviance(float) : "Area light radius" : : "ericw-tools: units: the light is spread over a ball this size (soft shadows); see _samples."
+	_samples(integer) : "Area light samples" : : "ericw-tools: points for _deviance (16 by default)."
+	_softangle(float) : "Spotlight soft edge" : : "ericw-tools: degrees of a spotlight's soft edge."
+	angle(float) : "Spotlight cone" : : "Degrees: the spotlight's cone (with mangle or a target)."
+	_dirt(choices) : "Ambient occlusion" : 0 : "ericw-tools: -1 keeps this light out of the dirtmapping." =
+	[
+		0 : "Default"
+		1 : "On"
+		-1 : "Off"
+	]
+	_anglescale(float) : "Angle scale" : : "ericw-tools: 0 lights every surface the same whatever its angle, 1 only those facing it."
+	_surface(string) : "Surface light texture" : : "ericw-tools: this light is copied onto every face with this texture (a glowing texture)."
+	_surface_offset(float) : "Surface light offset" : : "ericw-tools: units in front of the face (2 by default)."
+]
+
+// ------------------------------------------------------------------------------------------------------------------
+// Brush entities
+// ------------------------------------------------------------------------------------------------------------------
+
+@SolidClass base(Appearflags, Target, Targetname, VRWorldText) = func_button : "Button
+
+Moves in its angle's direction when pressed, fires its targets, waits, then comes back. In Quake VR the player
+presses it with a hand or a weapon (a button facing down or up: also by stepping on it). With health set it must be
+shot instead.
+
+Quake VR: a button can carry a label (worldtext, on its face, above its middle), and buttonEffect 3 makes it run a
+console command (its targetname, for example map vrfiringrange)."
+[
+	angle(integer) : "Direction" : 0 : "The direction it moves when pressed (-1 up, -2 down)."
+	speed(integer) : "Speed" : 40
+	wait(float) : "Wait" : 1 : "Seconds before it comes back (-1 never)."
+	lip(integer) : "Lip" : 4
+	health(integer) : "Health (shootable)" : : "If set, it is pressed by shooting it."
+	sounds(choices) : "Sound" : 0 =
+	[
+		0 : "Steam metal"
+		1 : "Wooden clunk"
+		2 : "Metallic click"
+		3 : "In-out"
+	]
+	buttonEffect(choices) : "Effect (Quake VR)" : 0 : "What else it does when pressed." =
+	[
+		0 : "None"
+		1 : "Test (prints a message)"
+		2 : "Tutorial (prints a message)"
+		3 : "Console command: runs its targetname"
+	]
+	items(integer) : "Only damaged by (Honey)" : : "Honey: weapon bits: only these weapons' damage presses it (shootable buttons)."
+	spawnflags(flags) =
+	[
+		2 : "Starts disabled (Honey)" : 0 : "Pushed in and dead until a trigger_buttontoggle enables it."
+	]
+]
+
+@SolidClass base(Appearflags, Targetname) = func_breakablewallwithrubble : "Breakable wall with rubble (Scourge of Armagon, unfinished)
+
+A leftover of the Scourge of Armagon: a wall that breaks into rubble models when damaged. Prefer func_breakawaywall." []
+
+@SolidClass base(Appearflags, Targetname) = func_pump : "Honey: pump
+
+A pump piston: when triggered it moves pos2 (times 1.2) and back at speed, hurting what blocks it (dmg), with
+noise1 and noise2 at the ends. Its default sounds are Honey's (honey/ting1.wav, honey/ting4.wav): set noise1 and
+noise2 to sounds you have, or it is silent."
+[
+	pos2(string) : "Travel (x y z)" : "0 0 20"
+	speed(float) : "Speed" : "12.75"
+	dmg(integer) : "Damage when blocked" : 5
+]
+
+@SolidClass base(Appearflags, Targetname) = func_slide : "Honey: slide
+
+A brush that, when triggered, slides by movedir (128 0 0 by default) at speed, cnt times, pausing wait seconds
+between moves. Used in Honey's end sequence." []
+@SolidClass base(Appearflags, Targetname) = func_slide_repeating : "Honey: repeating slide
+
+A brush that slides back and forth between pos1 and pos1 + movedir forever, once triggered. Used in Honey's end
+sequence." []
+
+// ------------------------------------------------------------------------------------------------------------------
+// Quake VR
+// ------------------------------------------------------------------------------------------------------------------
+
+@PointClass base(Appearflags, Angle, VRWorldText) size(-8 -8 -8, 8 8 8) color(255 200 40) = func_worldtext_banner : "Text banner (Quake VR)
+
+A floating text board, drawn as a small screen (vr_worldtext_crt). Its origin is the middle of the text; the text
+stands upright, facing along angle (it turns round for a reader behind it). Letters are 8 units times
+worldtext_scale.
+
+Lines: \n. Pages: $ (for example Welcome!$Grab the axe): the board shows one page at a time and turns to the next
+after speed seconds per letter of the page. A point entity, despite its name."
+[
+	worldtext(string) : "Text" : "Hello from Quake VR" : "The text. \n starts a new line, $ a new page."
+	speed(float) : "Page time (s per letter)" : "0.085" : "With pages: seconds per letter before it turns to the next page. Needed with $ pages."
+	angle(integer) : "Facing (yaw)" : 0 : "The direction the text faces."
+]
+
+@PointClass base(Appearflags, VRWeaponId) size(-8 -8 -8, 8 8 8) color(255 140 0) model({{
+	weapon == "1" -> "progs/v_grpple.mdl",
+	weapon == "2" -> "progs/v_axe.mdl",
+	weapon == "3" -> "progs/v_hammer.mdl",
+	weapon == "4" -> "progs/v_shot.mdl",
+	weapon == "5" -> "progs/v_shot2.mdl",
+	weapon == "6" && (weaponflags & 1) == 1 -> "progs/v_lava.mdl",
+	weapon == "6" -> "progs/v_nail.mdl",
+	weapon == "7" && (weaponflags & 1) == 1 -> "progs/v_lava2.mdl",
+	weapon == "7" -> "progs/v_nail2.mdl",
+	weapon == "8" && (weaponflags & 1) == 1 -> "progs/v_multi.mdl",
+	weapon == "8" -> "progs/v_rock.mdl",
+	weapon == "9" -> "progs/v_prox.mdl",
+	weapon == "10" && (weaponflags & 1) == 1 -> "progs/v_multi2.mdl",
+	weapon == "10" -> "progs/v_rock2.mdl",
+	weapon == "11" && (weaponflags & 1) == 1 -> "progs/v_plasma.mdl",
+	weapon == "11" -> "progs/v_light.mdl",
+	weapon == "12" -> "progs/v_laserg.mdl",
+	weapon == "13" && (weaponflags & 1) == 1 -> "progs/v_hksword.mdl",
+	weapon == "13" -> "progs/v_ksword.mdl",
+	"progs/v_shot.mdl"
+}}) = func_weapon_grabbable : "Weapon lying about (Quake VR)
+
+A weapon as a physics object: it drops from its origin, tumbles and settles on its shape. The player grips it with
+a hand (it becomes that hand's weapon), holsters it, throws it, or pulls it with a force grab. Unlike the weapon_*
+pickups it gives no ammunition, and it can be any Quake VR weapon: the grappling hook, the axe, a knight's sword.
+A point entity, despite its name."
+[]
+
+@PointClass base(Appearflags, Targetname) size(-8 -8 -8, 8 8 8) color(255 140 0) model({{
+	weapon == "1" -> "progs/v_grpple.mdl",
+	weapon == "2" -> "progs/v_axe.mdl",
+	weapon == "3" -> "progs/v_hammer.mdl",
+	weapon == "5" -> "progs/v_shot2.mdl",
+	weapon == "6" -> "progs/v_nail.mdl",
+	weapon == "7" -> "progs/v_nail2.mdl",
+	weapon == "8" -> "progs/v_rock.mdl",
+	weapon == "9" -> "progs/v_prox.mdl",
+	weapon == "10" -> "progs/v_rock2.mdl",
+	weapon == "11" -> "progs/v_light.mdl",
+	weapon == "12" -> "progs/v_laserg.mdl",
+	weapon == "13" -> "progs/v_ksword.mdl",
+	"progs/v_shot.mdl"
+}}) = func_weapon_dispenser : "Weapon dispenser (Quake VR)
+
+When triggered (a button's target), it throws out a new weapon at its origin, spinning, as a physics object (see
+func_weapon_grabbable). Only the standard variant. A point entity, despite its name."
+[
+	weapon(choices) : "Weapon" : 4 =
+	[
+		1 : "Grappling hook"
+		2 : "Axe"
+		3 : "Mjolnir (Scourge of Armagon)"
+		4 : "Shotgun"
+		5 : "Super shotgun"
+		6 : "Nailgun"
+		7 : "Super nailgun"
+		8 : "Grenade launcher"
+		9 : "Proximity gun (Scourge of Armagon)"
+		10 : "Rocket launcher"
+		11 : "Thunderbolt"
+		12 : "Laser cannon (Scourge of Armagon)"
+		13 : "Sword (a knight's)"
+	]
+]
+
+@PointClass base(Appearflags, Targetname, Angle) size(-16 -16 -24, 16 16 40) color(220 60 40) model({{
+	weapon == "1" -> "progs/ogre.mdl",
+	weapon == "2" -> "progs/zombie.mdl",
+	weapon == "3" -> "progs/shambler.mdl",
+	weapon == "4" -> "progs/wizard.mdl",
+	weapon == "5" -> "progs/knight.mdl",
+	weapon == "6" -> "progs/hknight.mdl",
+	weapon == "7" -> "progs/dog.mdl",
+	weapon == "8" -> "progs/enforcer.mdl",
+	weapon == "9" -> "progs/demon.mdl",
+	weapon == "10" -> "progs/shalrath.mdl",
+	weapon == "11" -> "progs/tarbaby.mdl",
+	weapon == "12" -> "progs/grem.mdl",
+	weapon == "13" -> "progs/scor.mdl",
+	weapon == "14" -> "progs/mummy.mdl",
+	weapon == "15" -> "progs/sword.mdl",
+	weapon == "16" -> "progs/wrath.mdl",
+	weapon == "17" -> "progs/s_wrath.mdl",
+	"progs/soldier.mdl"
+}}) = func_enemy_dispenser : "Monster dispenser (Quake VR)
+
+When triggered (a button's target), it spawns a monster at its origin, facing angle, as vrfiringrange's monster
+buttons do. A monster whose game is not installed (the registered pak1, hipnotic, rogue) is not spawned: the
+player is told what is missing. A point entity, despite its name."
+[
+	weapon(choices) : "Monster" : 0 =
+	[
+		0 : "Grunt"
+		1 : "Ogre"
+		2 : "Zombie"
+		3 : "Shambler"
+		4 : "Scrag"
+		5 : "Knight"
+		6 : "Hell knight"
+		7 : "Rottweiler"
+		8 : "Enforcer"
+		9 : "Fiend"
+		10 : "Vore"
+		11 : "Spawn"
+		12 : "Gremlin (Scourge of Armagon)"
+		13 : "Centroid (Scourge of Armagon)"
+		14 : "Mummy (Dissolution of Eternity)"
+		15 : "Phantom swordsman (Dissolution of Eternity)"
+		16 : "Wrath (Dissolution of Eternity)"
+		17 : "Overlord (Dissolution of Eternity)"
+	]
+]
+
+@PointClass base(Appearflags) size(-8 -8 -8, 8 8 8) color(160 160 160) = func_particle_emitter : "Smoke emitter (Quake VR)
+
+Puffs Quake VR's big smoke particles from its origin, ten times a second, for ever. A point entity, despite its
+name." []
+
+@PointClass base(Appearflags, Angle) = vr_dummy : "Training dummy (Quake VR)" []
+
+// ------------------------------------------------------------------------------------------------------------------
+// Other entities with no help in the QuakeC
+// ------------------------------------------------------------------------------------------------------------------
+
+@SolidClass base(Appearflags, Target, Targetname) = trigger_babyhop : "Honey: spawn bouncer
+
+A spawn (monster_tarbaby) touching it has its vertical speed reversed: it bounces back." []
+@SolidClass base(Appearflags, Target, Targetname) = trigger_babyboost : "Honey: spawn booster
+
+A spawn (monster_tarbaby) touching it jumps with this speed next time."
+[
+	speed(float) : "Jump speed" : 500
+]
+@PointClass base(Appearflags, Targetname, Target) size(-8 -8 -8, 8 8 8) = trigger_buttontoggle : "Honey: button enabler
+
+When triggered, enables or disables (toggles) the buttons named by its target: a disabled button is pushed in and
+dead. Tick Buttons start disabled here if they do (their own Starts disabled flag)."
+[
+	spawnflags(flags) =
+	[
+		2 : "Buttons start disabled" : 0
+	]
+]
+@PointClass base(Appearflags, Targetname) size(-8 -8 -8, 8 8 8) = target_setskill : "Honey: set skill
+
+When triggered, sets the skill to its message (0 easy, 1 normal, 2 hard, 3 nightmare), as trigger_setskill does
+when touched."
+[
+	message(choices) : "Skill" : "1" =
+	[
+		"0" : "Easy"
+		"1" : "Normal"
+		"2" : "Hard"
+		"3" : "Nightmare"
+	]
+]
+@PointClass base(Appearflags, Targetname) size(-10 -10 -8, 10 10 8) color(76 25 153) = ambient_machine : "Honey: machine sound
+
+A machine's hum, from Honey's files (honey/machine.wav: without Honey installed, it is silent), started when
+triggered."
+[
+	volume(float) : "Volume" : "0.7"
+	delay(float) : "Attenuation" : 1 : "1 normal, 2 idle, 3 static."
+]
+@PointClass base(Appearflags) size(-10 -10 -8, 10 10 8) color(76 25 153) = ambient_teleport : "Teleporter hum
+
+The teleporter's ambient hum (ambience/hum1.wav), always on." []
+@PointClass base(Appearflags, Targetname) size(-10 -10 -8, 10 10 8) color(76 25 153) = endcam_muzak : "Honey: end music
+
+Plays Honey's ending music (honey/muzak4.wav), at once or when triggered. Needs Honey's files." []
+@PointClass base(Appearflags) size(-16 -16 0, 16 16 128) = misc_tree : "Honey: tree
+
+A static tree model (progs/tree1.mdl, from Quoth via Honey). Quake VR does not ship this model: the map fails to
+load unless Honey's files are installed." []
+@PointClass = trap_spike_mine : "Spike mine (Scourge of Armagon)
+
+A floating mine that drifts towards the player and explodes. Models from hipnotic." []
+
+// Compiler entities (ericw-tools' qbsp) that Quake.fgd lacks.
+@SolidClass = func_detail_fence : "Detail with see-through texels (ericw-tools)
+
+A func_detail for fences and grates: brushes with a { texture (a masked texture: palette index 255 is see-through),
+which do not block vis." []
+@SolidClass = func_illusionary_visblocker : "Walk-through brush that blocks vis (ericw-tools)
+
+Like func_illusionary (the player walks through it), but it blocks visibility like a wall: for curtains of liquid
+or fake walls between areas." []
+@PointClass size(-8 -8 -8, 8 8 8) = misc_external_map : "Prefab from another .map (ericw-tools)
+
+qbsp imports the worldspawn brushes of _external_map, turns them by _external_map_angles, moves them to its
+origin, and makes them an entity of class _external_map_classname (func_detail by default is common)."
+[
+	_external_map(string) : "Map file" : : "The .map to import (relative to this map's folder)."
+	_external_map_classname(string) : "Classname" : "func_detail" : "The class the imported brushes become (worldspawn merges them into the world)."
+	_external_map_angles(string) : "Angles (pitch yaw roll)" : "0 0 0"
+	_external_map_scale(string) : "Scale" : "1"
+]
+
+// Point entities whose QUAKED comment has no text.
+@PointClass = ambient_suck_wind : "Wind sound
+
+Ambient wind (ambience/suck1.wav), always on." []
+@PointClass = ambient_drone : "Engine or machinery drone
+
+Ambient drone (ambience/drone6.wav), always on." []
+@PointClass = ambient_flouro_buzz : "Fluorescent light buzz
+
+Ambient buzz (ambience/buzz1.wav), always on." []
+@PointClass = ambient_drip : "Dripping water
+
+Ambient drips (ambience/drip1.wav), always on." []
+@PointClass = ambient_comp_hum : "Computer hum
+
+Ambient computer sounds (ambience/comp1.wav), always on." []
+@PointClass = ambient_thunder : "Thunder
+
+Distant thunder at random intervals (ambience/thunder1.wav)." []
+@PointClass = ambient_light_buzz : "Light buzz
+
+Ambient buzz of a light (ambience/fl_hum1.wav), always on." []
+@PointClass = ambient_swamp1 : "Swamp (frogs)
+
+Ambient swamp (ambience/swamp1.wav), always on." []
+@PointClass = ambient_swamp2 : "Swamp (frogs, B)
+
+Ambient swamp (ambience/swamp2.wav), always on." []

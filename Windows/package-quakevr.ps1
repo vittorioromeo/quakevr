@@ -34,6 +34,11 @@ try {
     $qcResult = $LASTEXITCODE
     $ErrorActionPreference = "Stop"
     if ($qcResult -ne 0) { throw "QC compilation failed" }
+    # TrenchBroom's entity definitions must cover every spawn function (docs/vr-port/MAPPING.md).
+    if (Get-Command python -ErrorAction SilentlyContinue) {
+        & python (Join-Path $root "Misc\trenchbroom\fgdgen.py") --check
+        if ($LASTEXITCODE -ne 0) { throw "Misc\trenchbroom\quakevr.fgd is out of date with the QuakeC" }
+    }
 } finally {
     Pop-Location
 }
