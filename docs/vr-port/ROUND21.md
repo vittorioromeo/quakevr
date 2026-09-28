@@ -23,6 +23,7 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | Particles, long sessions | particles made into quads on the GPU from one record each, uploaded once a frame: at 4x and 8x their CPU a quarter of before (8x: 0.64 to 0.17 ms), GPU 15-45% less, the same images; long sessions: old maps' text boards freed (VRAM), collision caches per map, haptic delays bounded; a 35-minute soak shows no growth |
 | Body and weapon models | weapons: bands, bolt heads and ribs on the crudest spots (1.3-1.85x the triangles), edge wear in every skin, nothing tuned moved (anchors, hotspots, offsets and the hand fit identical); body: rounder limbs and torso, a belt, shaped feet (1240 -> 2186 triangles), 256x256 skins with a quilted vest, straps, laces, a face, armour lames |
 | Hand calibration | Hand/Gun Calibration > Hand Calibration: each hand moved (X/Y/Z cm, along the controller) and turned (Gun Angle and Gun Yaw as its pitch and yaw, plus a roll) on its controller; the off hand mirrored or its own; everything held and the server move with it (2 cm moves them 2.0000 cm, 10° turns them 10.000°); Show Controller and Match Controller Preview to line it up; nothing changes at 0 |
+| Dummy attacks | a DUMMY ATTACKS button beside the firing range's training dummy: it winds up (a sound, a glow, the rifle raised) and strikes you every 2.5 s as a knight would, for parry practice (parry, stamina, counters as in a fight); off at every map load; replays turn it off, and a take recorded with it on replays its blows at the same moments; your 471 archived takes evaluate identically |
 
 Found on the way: fteqcc stores 0 when `a || b` is assigned into an entity field (rewritten; no other code has that
 shape); a parried blow's hand knock, timed by `cl.time`, came back after a level change (reset now).
@@ -4304,3 +4305,143 @@ blows from `impulse 242`:
 - [ ] Parry, then slash within about a second: a heavier strike sound, and the embers stop. Wait 2 s after a parry,
       then slash: a normal hit.
 - [ ] Parry, then bash: the counter bash (1.5x now, was 1.3x).
+
+## Dummy attacks (firing range)
+
+Your request: a button in the firing range that makes the training dummy strike at you every few seconds, to
+practise parrying, without disturbing the melee recordings.
+
+### What it does
+
+- **The button** is beside the dummy, about 4 m to its south (on its right as it stands, on your left as you face it
+  from the usual spot). It is a panel like the second row's, facing north, with the label **DUMMY ATTACKS OFF / ON**.
+  Press it like the other buttons (a hand, a weapon or the body). While attacks are on, the button stays lit
+  (its pressed texture), and the gadget shows "Dummy attacks ON" / "OFF". The console says what the settings are.
+  `vr_dummy_attacks 1` / `0` in the console does the same; the label and the light follow.
+- **In attack mode**, the dummy strikes the nearest living player within reach, once every 2.5 s, give or take up
+  to 0.4 s at random:
+  - **The tell** (the wind-up, 0.6 s): a new sound (`vr/dummy_windup.wav`: two clacks of the rifle taken up, then a
+    rising, growling swell that breaks off just before the blow), a glow around the dummy (Quake's dim light), and
+    the rifle raised as it turns to face you and rears back 12°.
+  - **The blow**: it lunges (22° forward) with a sword's whoosh. The blow is dealt as a monster's melee blow, the
+    same call a knight's attack makes (`T_Damage` from the monster itself). So the parry (a weapon across, or crossed
+    arms), parry stamina, the counter's window, the knockback of an unparried blow, armour, god mode and death all
+    work exactly as in a fight. It does 10 damage (the `impulse 242` test blow's damage; a knight's does 0-9).
+    For this, the parry's list of monsters that strike in melee (`VR_Parry_MeleeMonster`) includes the dummy only
+    while its own blow is being dealt.
+  - **A parried blow** throws the dummy back (a lean), on top of the parry's own sparks, sound and haptics.
+  - **Reach**: 80 units (2.4 m at your world scale), from its origin to yours, measured as a knight's reach is (60
+    units). Further away it waits and turns back to its own facing. When you step in, the wind-up starts 0.5 s later
+    at the soonest. If you step out during the wind-up, it misses (the whoosh, no damage). An unparried blow's
+    knockback can push you out of reach; step back in.
+  - **Your hits** are reported as before (the console and the floating numbers). They don't interrupt its attack,
+    so a steady rhythm is kept. A counter's readout shows as before ("counter bash ... (x1.50)").
+  - Players with `notarget` are left alone, as monsters leave them.
+- **The button's state is not saved.** Attacks are off at every map load, a saved game's included (the engine turns
+  `vr_dummy_attacks` off as the server spawns). A wind-up under way when the game was saved stops after loading it.
+
+### Settings (Gameplay > Parry, Bash and Headbutt > Training Dummy Attacks)
+
+| Setting | Default | Menu |
+|---|---|---|
+| `vr_dummy_attacks` | 0 | (the button; not saved, off at every map load) |
+| `vr_dummy_attack_period` | 2.5 s | Time Between Blows (1-8 s, extends) |
+| `vr_dummy_attack_jitter` | 0.4 s | Randomness (0-2 s, extends): each blow up to this much sooner or later |
+| `vr_dummy_attack_windup` | 0.6 s | Wind-Up (0.1-2 s) |
+| `vr_dummy_attack_reach` | 80 units | Reach (16-150 units; 150 is where a parry and a monster blow's push stop) |
+| `vr_dummy_attack_damage` | 10 | Damage (0-50, extends) |
+
+**Tracing** (`developer 1`): "dummy: winds up, the blow in 0.60 s", "dummy: strikes player for 10, 42 units away:
+parried", "dummy: misses: nobody within reach", along with the parry's own lines ("parry: vr_dummy with hand 1",
+"stamina: 70 of 100 left", "counter: open for 1.50 s").
+
+### The motion recordings
+
+- **Off, it isn't there.** With attacks off, none of this code runs: the dummy's think is the same as before, it
+  draws no random numbers, and its angles are the same values. The eval shows this below.
+- **The button's entities are appended** at the end of `vrfiringrange.ent`, so no entity before them is renumbered.
+  The dummy is still entity 137, at the same place, and the player start is unchanged. That is what the takes'
+  `target: vr_dummy #137` and their placement rely on. The panel's nearest point is 104 units from the dummy's middle, and
+  71 units from anything any of the 471 takes did: where you stood, your head, your hands and the tips of your
+  weapons. I checked every row of every take.
+- **Replays turn it off.** `vr_motion_play` and `vr_motion_eval` set `vr_dummy_attacks` to 0 for the replay and put
+  it back afterwards. The eval's map loads turn it off too. So the dummy never strikes on its own timer during a
+  replay.
+- **Takes recorded with attacks on.** Arming or recording is never affected by the button unless you turn attacks on.
+  A take recorded with them on at any moment gets the header line `dummy attacks: on`. It also gets a `strike` event
+  for each wind-up, blow (its damage, and whether it was parried) and miss. Its replay reproduces them: the take's
+  dummy does each `strike` event in the server frame that plays that event's frame, after the player's, as it was
+  recorded (the engine calls QC `VR_Dummy_Replay`). So the parries, the stamina, the counter's window and the
+  knockback happen at the same moments as live.
+  - Why this matters: a counter bash recorded against a real blow is a `parrybash`. Replayed without the blows, it
+    would be a plain `bash` at a different damage (checked: 7.2 with the blows, 4.8 without).
+- **The eval's expectations** stay about your own events. `strike` events are listed in the eval's `events` column
+  (as are parries), but no expectation counts them: they are not hits, strokes, pushes or batting, so a `no_hit` take
+  recorded with attacks on still passes if you didn't hit. Best keep them off for every category but Parry Bash and
+  Other. The Motion Recorder section of MOTIONS.md says so.
+
+### Files
+
+- `QC/vr_dummy.qc`: "Attacks (parry practice)" (the wind-up, the blow, the replay's strikes) and "The firing range's
+  'dummy attacks' button" (`vr_dummy_attack_toggle`: the label, the light, the toggle).
+- `QC/combat.qc`: `VR_Parry_MeleeMonster` takes the dummy while it strikes; `vr_parried` tells the dummy how its blow
+  was met.
+- `quakevr/maps/vrfiringrange.ent`: three entities at the end (the panel, the button, the toggle with its label).
+- `quakevr/maps/vr_panel_north.bsp`, `vr_button_north.bsp`: the map's soldier button and panel turned to face north,
+  built by `Misc/quakevr/make_spawn_buttons.py`. They use Valve 220 texture axes turned with the brush, so their
+  textures lie exactly as on the map's own button. The two west-facing models are unchanged.
+- `quakevr/sound/vr/dummy_windup.wav`: `Misc/quakevr/make_sounds.py` (`dummy_windup`).
+- Engine: `vr_cvars.inc` (the settings), `vr_progs.cpp` (off at every server spawn; the `VR_Dummy_Replay` binding),
+  `vr_motion.cpp` (the header line), `vr_motion_play.cpp` (off during replays; the take's strikes done again),
+  `vr_menu.cpp` (the section).
+
+### Tests (mock headset; scratchpad `dummyatk/`, scripts `gen2.py`)
+
+- **The button** (`button.png`): OFF, pressed by the hand ("Dummy attacks ON" on the gadget, `vr_dummy_attacks` 1),
+  pressed again (OFF, 0). The label and the light follow; the light stays on while the button comes back out.
+- **The wind-up and a blow landing**, from your eyes (`seqfp.png`) and from the side (`seq2.png`): standing, then
+  the glow and the rifle raised, then the blow: the red flash, 100 to 90, pushed back 26 units (240 to 265.7).
+- **A parried blow** (`parry2.png`; the sword across in one hand, parry stamina on): "parry: vr_dummy with hand 1",
+  "stamina: 70 of 100 left", "counter: open for 1.50 s", the bar and the embers, "strikes player for 10: parried".
+  Then a bash 0.24 s after the second parry: "counter: bash on vr_dummy, x1.50", "Dummy: 7.2 damage - counter bash
+  with the Knight's Sword, one hand (x1.50), at the body".
+- **Reach** (jitter 0): 110 units away, nothing for 4 s. Stepping in, the wind-up starts 0.5 s later and the blow
+  lands. Stepping out during the next wind-up: "misses: nobody within reach". Turned off during a wind-up: no blow.
+  A map load turns it off (`vr_dummy_attacks` 0), and so does loading a game saved during a wind-up (no blow; the
+  label reads OFF, `load2.png`).
+- **A take recorded with attacks on** (`take_attacks.csv`: two parried blows and a counter bash) has
+  `# dummy attacks: on` and its `strike` events. Played back (`vr_motion_play ... recorded`) with attacks on
+  beforehand: the same events at the same times (strike/windup, parry, strike/blow, push, **parrybash 7.2**, ...),
+  hands within 0.014 units of the take's, "4 of its strike events done again". `vr_dummy_attacks` is 0 during the
+  replay and 1 again after it. `vr_motion_eval` on it: the same, "1 of 1 replays hit as their takes did live". The
+  same take with its header line removed replays a plain `bash 4.8`.
+- **Your takes** (the 471 archived in `motions/pre_calibration_2026-09-28`, copied), `vr_motion_eval` before (the
+  round's commit, 0d5c225b) and after (this change), with your old hand settings set and
+  printed (`vr_gunangle` 39.5, `vr_gunyaw` 4, `vr_offhandpitch` 40.25, `vr_offhandyaw` -4, every `vr_handcal_*` 0,
+  `vr_handcal_off_mirror` 0; printed again during a replay and after it, all the same: they are also the takes' own
+  `hand angles`, which playback applies). Before and after: 429 of 471 pass, 181 replays hit as live, and the
+  two tables are **identical in every column** (verdicts, reasons, events, recorded events, same hits, frames and
+  hands' error). Two earlier runs, without setting those values first (the same values from the config), were
+  identical too except `hand_error_u` in 4-5 takes. That column differs as much between two runs of the unchanged
+  build (4 takes), so it is run-to-run noise already there. The 5 takes rerun alone on the unchanged build gave the
+  new values.
+- **The menu** (`menu.png`): the Training Dummy Attacks section under Counter-Attacks.
+- QC: 0 warnings.
+
+### Not verified
+
+- In the headset: how readable the tell is (the glow and the raised rifle at 1.5 m, the sound's level against the
+  range's), and whether 0.6 s of wind-up and 2.5 s between blows feel right for practice. All are settings.
+- Coop: it strikes the nearest player; not tried with two.
+
+### In the headset
+
+- [ ] Firing range: press DUMMY ATTACKS (south of the dummy). The label reads ON and the button stays lit. Step in
+      front of the dummy: it turns to you. Within a second or so you hear the clacks and the swell, it glows and
+      raises its rifle, then lunges.
+- [ ] Take a blow without parrying: 10 damage, pushed back. Then hold a sword across: the parry's ring and sparks,
+      and it is thrown back.
+- [ ] Parry Stamina on: the bar drops with each parry; a fourth one-handed parry in a row knocks the sword away.
+- [ ] Parry, then bash or slash it within 1.5 s: the counter's readout on the dummy.
+- [ ] Step back beyond about 2.4 m: it stops and turns back. Step out during a wind-up: it misses.
+- [ ] Press the button again: OFF. Reload the map with it on: OFF.

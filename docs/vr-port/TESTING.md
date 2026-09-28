@@ -142,6 +142,13 @@ context and screenshot, ready to paste or to point me at.
 ## What to try
 
 - **New in this round** (details in `docs/vr-port/ROUND21.md`; each section ends with an "In the headset" list):
+  - **Dummy attacks, for parry practice** (ROUND21.md, "Dummy attacks (firing range)"): in the firing range, press
+    DUMMY ATTACKS (the panel south of the training dummy). Stand in front of it: every 2.5 s or so it winds up (a
+    sound, a glow, the rifle raised) and strikes you as a knight would. Parry it: the parry, parry stamina and
+    counters work as in a fight, and your counter's readout shows on the dummy. Off at every map load. Settings:
+    Gameplay > Parry, Bash and Headbutt > Training Dummy Attacks (time between blows, randomness, wind-up, reach,
+    damage). Your motion takes are unaffected: replays turn it off. A take recorded with it on says so, and its
+    replays have the dummy strike at the same moments.
   - **After the posing test** (ROUND21.md, "After the posing test"): hold a gun into a monster's head and fire (a
     headshot now); while posing, the hand passes through the weapon (the solved grip shows for 1.5 s after A/X);
     Weapon Offsets > Tuning Aids: Show Controller is drawn in your palm as a Quest 3 controller, **Controller Preview**
@@ -586,7 +593,11 @@ After the posing test (ROUND21.md): `vr_debug_shots 1` with `developer 1` prints
 what its pellets hit, headshots) and each damage you deal; a monster at the muzzle: `impulse 150 + weapon id` (with
 `vr_weapon_grip_mode 1`, `impulse 9` for ammo a frame before), `vr_mock_hand main 0.08 1.05 -1.2 40 0 0`, then
 `vr_test_spawn 0; vr_test_spawn_dist 44; impulse 241` puts a grunt's head round the muzzle in vrfiringrange.
-`vr_pose_solve 1` solves the posing hand live (as before). `vr_wofs_shot_pitch_NN` / `_shot_yaw_NN` turn a
+`vr_pose_solve 1` solves the posing hand live (as before).
+Dummy attacks (round 21): `vr_dummy_attacks 1` in vrfiringrange (as the button); with `developer 1` each wind-up, blow
+and miss is printed with its time; `vr_dummy_attack_jitter 0` makes the blows regular (the first 1.6 s after it's
+turned on, then every `vr_dummy_attack_period`). Note: `setpos` turns noclip on, and in noclip a blow's knockback
+(any push) is lost: `setpos ...; noclip` turns it off again. `vr_wofs_shot_pitch_NN` / `_shot_yaw_NN` turn a
 weapon's shots; `vr_show_controller_x/y/z/pitch/yaw/roll` (and `_off_own`, `_off_*`) move the controller
 preview; `vr_dumpview` prints each grip and its distance from the tracked pose (10.2 cm with
 `vr_controller_legacy_pose 1`).
