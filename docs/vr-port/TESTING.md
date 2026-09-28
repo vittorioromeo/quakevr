@@ -190,6 +190,12 @@ context and screenshot, ready to paste or to point me at.
     shove); the torch hand pushed alone, palm first, does nothing. Chop a wall with the axe, Mjolnir, a sword or a
     gun, sideways, diagonally and from overhead: the wall's thunk and buzz. Punch or chop a gib lying on the floor:
     it bursts.
+  - **Stamina for shoves and strikes; thrown damage on gibs** (ROUND21.md, that section): in the firing range, shove
+    and strike the dummy without pausing (DUMMY ATTACKS on to parry too) and watch the gadget's top row drain: a
+    two-handed shove takes 20 of 100, a one-handed one 15, a weapon's blow 8 (two-handed 6), a punch 4, a parry 30
+    as before. With nothing left, the dummy's readout says "exhausted" and the damage (and a shove's push) is half.
+    Stop for 2 s: it comes back. Gameplay > Parry, Bash and Headbutt > Shove and Strike Stamina has the switches and
+    costs. Throw the axe, a sword, a box or a gib at a gib lying on the floor: it bursts.
   - **Motion recorder:** Advanced VR Options > Motion Recorder; keep adding takes, especially of what misreads.
   - **Review Takes** (under Motion Recorder): the takes that fail the evaluation or are suspect (To Review). In the
     firing range, pick one: Play Ghost replays it in front of the dummy (translucent weapons, their lines, the tip's
@@ -774,4 +780,17 @@ impulse 9; impulse 152` first) and `vr_mock_play punch_down_gib.mock` or `chop_d
 `developer 1` prints `melee event: ... a wall` / `a gib`, `gib: struck by a blow`, `flashlight: taken`; `developer 2`
 also `melee debug: going down at ... onto a surface facing ...: strikes|passes` (the wall rule for points going down).
 Note that `setpos` turns noclip on (QuakeSpasm's), which these tests don't mind.
+Stamina for shoves and strikes (ROUND21.md): `setpos 221.2 -656.7 41 0 180 0` (the dummy 0.95 m ahead), the takes
+from `motion_synth.py <palm_shove_2h | punch_straight | slash_horizontal_rtl> --distance 0.95 --mock` played with
+`vr_mock_play` one after another (an empty main hand: `vr_weapon_grip_mode 1; impulse 150`; a fist: `+grabright;
+vr_mock_fingers main 1 1; vr_mock_button main grip 1`); end each take with a slow return to its first pose, or the
+jump back reads as a second blow. `developer 1` prints `stamina: 60 of 100 left (a shove, two hands, -20)`, `: short,
+paid 4.0` and `stamina: the blow deals x0.75`, `bash hit: <monster>, <damage>, knocked back at <u/s>, staggered <s>`;
+the dummy's readout adds `exhausted x0.50`. `vr_gadget_screen_dump <name>` saves the gadget screen. Dummy attacks
+need `notarget` off. Thrown things onto a floor gib: the gib as in "Melee fixes" but 0.9 m ahead, `vr_mock_look 65 0`,
+then the axe (`impulse 152`) or a sword (`impulse 163`) gripped at `vr_mock_hand main 0.1 1.7 -0.55 70 0 0` and a
+`vr_mock_play` that moves the hand to `0.05 1.1 -0.75` in 0.12 s and lets go of the grip there (a box: `give s 100`,
+`vr_test_spawn 101; impulse 241`, wait 2 s for it to become grabbable, `vr_rigid_place item_shells main` and grip;
+a gib: `impulse 245` in the off hand); `developer 1` prints `gib: hit by thrown_weapon for 69.2, 0 left`,
+`vr_debug_box3d 1` also `box3d: ... touch, at 0 and 293 u/s (11 and 146 after the step)` for two props meeting.
 Align Sights to My Aim (ROUND21.md): `vr_sight_align [start [main|off] | apply | cancel | undo]` runs the Weapon Offsets page's capture (the mock hand must be lowered, then raised and held 0.4 s, for each capture; `vr_sight_align_captures`), `vr_sight_check [main|off] [size]` prints the sight line against the dominant eye (`vr_dominant_eye`), where the sights and the laser land in that eye's image, and the laser against the line; `vr_sight_lines` lists every weapon's line; `vr_show_sight_line 1` draws them. Higher eye images: `vr_mock_eye_size 2048; vr_restart`, then `vr_eyeshot 1`.
