@@ -1,5 +1,6 @@
-# mdl_blender.py -- a Quake alias model (a weapon's v_*.mdl, the wrist gadget's vrgadget.mdl) in Blender and back,
-# keeping what the engine relies on (docs/vr-port/MODELS_IN_BLENDER.md):
+# mdl_blender.py -- a Quake alias model (a weapon's v_*.mdl, the wrist gadget's vrgadget.mdl, the flashlight's, any
+# other) in Blender and back, keeping what the engine relies on (docs/vr-port/MODELS_IN_BLENDER.md; checks.py: what
+# it takes from the flashlight and the other VR models):
 #
 # - The header's scale and origin (the weapon Scale pivots about the origin; the anchors and ports are in model space),
 #   the frames (count, names, groups), the skins (count, size, groups).
@@ -27,6 +28,7 @@ import bpy
 import bmesh
 import numpy as np
 
+from . import checks
 from . import mdl
 from . import qpal
 
@@ -908,6 +910,10 @@ def anchor_check(path, old, new, source=None):
     if mdl.is_gadget(base):
         l, m = mdl.gadget_report(old, new)
         return ["anchors (the wrist gadget's screen, vr_gadget.cpp):"] + ["  " + x for x in l], m, []
+    special = checks.report(old, new)  # the flashlight, the holster, the pauldrons, the shell... (checks.py)
+    if special is not None:
+        title, l, m = special
+        return ["%s:" % title] + ["  " + x for x in l], m, []
     lines = []
     anchors = mdl.weapon_anchors(root, base)
     l, m, renamed = mdl.anchor_report(old, new, anchors)
