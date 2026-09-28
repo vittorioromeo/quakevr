@@ -657,7 +657,8 @@ void(entity e, vector xDir, float xSpeed) VR_Shove_Start =
 // Landed after a drop of `xDrop` units (self is the slide).
 void(entity m, float xDrop) VR_Shove_Landed =
 {
-    float contents = pointcontents(m.origin);
+    // At its feet (its origin, the middle of its box, is above shallow slime: e1m1's burned nothing).
+    float contents = pointcontents(m.origin + '0 0 1' * (m.mins_z + 1));
     float dmg = 0;
     if(contents == CONTENT_LAVA)
     {
