@@ -566,7 +566,10 @@ void() GrappleAnchor =
         }
 
         sound(self, CHAN_WEAPON, "player/axhit1.wav", 1, ATTN_NORM);
-        T_Damage(other, self, self.owner, 10);
+        if(T_Damage(other, self, self.owner, 10))
+        {
+            VR_QuadSound(self.owner, "the hook bit");
+        }
     } else {
         sound(self, CHAN_WEAPON, "player/axhit2.wav", 1, ATTN_NORM);
 

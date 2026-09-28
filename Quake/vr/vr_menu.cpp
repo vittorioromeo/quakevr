@@ -607,12 +607,12 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
 {
     return {
         header("Batting Projectiles"),
-        toggle("Bat Back Projectiles", vr_deflect).help("Swing a weapon (or a fist) through a monster's spike, laser, spit or grenade to bat it away as a bat hits a ball: off the weapon's face and the way it swings, faster the harder you swing. A bash sends it the way you push."),
-        slider("Batting Reach", vr_deflect_radius, 4.f, 32.f, 1.f, "%.0f units").extend().help("How near the weapon's blade (or your fist) a projectile must pass to be batted back."),
+        toggle("Bat Back Projectiles", vr_deflect).help("Swing a weapon (a gun, a melee weapon, or a club: a wall torch, a brick) through a monster's spike, laser, spit or grenade to bat it away as a bat hits a ball: off the weapon's face and the way it swings, faster the harder you swing. A bash sends it the way you push. Empty hands never bat: they catch grenades."),
+        slider("Batting Reach", vr_deflect_radius, 4.f, 32.f, 1.f, "%.0f units").extend().help("How near the weapon's blade, barrel or club a projectile must pass to be batted back."),
         slider("Batting Swing Speed", vr_deflect_speed, 0.2f, 1.5f, 0.05f, "%.2fx").extend().help("How fast a batting swing must be, times Swing Speed (a hit needs 1x, and more for a swung weapon)."),
         slider("Batting Timing", vr_deflect_window, 0.f, 0.5f, 0.05f, "%.2f s").extend().help("How early you may swing: the weapon's path keeps batting this long after it passed."),
         slider("Bash Batting Reach", vr_bash_deflect_radius, 4.f, 48.f, 1.f, "%.0f units").extend()
-            .help("A bash (or a shove with a weapon in hand) bats back projectiles that pass this near the guard: the weapon and the hands."),
+            .help("A bash (a weapon or a club held across, pushed) bats back projectiles that pass this near the weapon. A shove with open hands bats nothing."),
         slider("Bash Batting Timing", vr_bash_deflect_window, 0.f, 1.f, 0.05f, "%.2f s").extend().help("How long a bash goes on batting after the push."),
         slider("Batting Bounce", vr_deflect_bounce, 0.f, 1.f, 0.05f, "%.2f")
             .help("How lively a batted projectile comes off the weapon: 0 dead (it takes only the swing's speed), 1 as a rubber ball (a ball off a bat is about 0.5). A swing across sends it off to the side; the weapon's face driven at the thrower sends it back, the harder the faster."),
@@ -621,7 +621,8 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         header("Grenades"),
         cycle("Catch Grenades", vr_grenade_catch, {{0.f, "Off"}, {1.f, "Ogres'"}, {2.f, "Ogres' and yours"}})
             .help("Grenades bounce and roll as physics objects, and you can catch them (by hand or force grab) and throw them "
-                  "back; thrown, they burst on a monster as an ogre's does on you. \"And yours\": your grenade launcher's too."),
+                  "back; thrown, they burst on a monster as an ogre's does on you. \"And yours\" (the default): your grenade "
+                  "launcher's too."),
         slider("Held Grenade Fuse", vr_grenade_held_fuse, 1.f, 5.f, 0.1f, "%.1f s")
             .help("A grenade you catch fizzes and ticks, and goes off this long after (it never shortens the fuse). Hold it too "
                   "long and it goes off in your hand."),
@@ -630,7 +631,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
                   "every catch sets it again."),
         slider("Catch Radius", vr_grenade_catch_radius, 5.f, 30.f, 1.f, "%.0f cm")
             .help("How near your palm a grenade in flight must pass for an empty hand to catch it: grip held, or closing as it "
-                  "arrives. A punch, a shove or a bash knocks it away instead."),
+                  "arrives. A punching or shoving hand doesn't catch it (nor bat it: only a weapon does)."),
         slider("Catch Window", vr_grenade_catch_window, 0.f, 0.4f, 0.01f, "%.2f s")
             .help("A grenade that flies into your open palm stays there this long for your grip to close on it; then it drops "
                   "from the hand. 0: only a grip already closing catches."),

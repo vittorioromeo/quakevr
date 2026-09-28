@@ -185,6 +185,8 @@ int VR_MenuHidesPlaque (void);							// M_DrawTransPic: the options pages' verti
 int VR_MenuKey (int key, int repeat);					// M_Keydown: nonzero if the buttons took the key (a click on one, the sticks' selection on them)
 void VR_MenuBounds (int *top, int *height);				// M_UpdateBounds: the menus laid out from the canvas's bounds start below the buttons
 void VR_MenuSavePositions (void);						// Host_WriteConfigurationToFile: each VR page's selection and scroll into vr_menu_positions
+void VR_ConfigMergeOthers (const char *path);			// Host_WriteConfigurationToFile, the game folder's config: another copy's changes in it kept (vr_cvars.cpp)
+void VR_ConfigWritten (const char *path);				// and after writing it
 int VR_MenuReopen (void);								// M_ToggleMenu_f, opening: nonzero if it reopened the page left
 int VR_MenuRunsGame (void);								// Host_ServerFrame: nonzero if a single player game runs on under the menu (live preview)
 
