@@ -47,13 +47,14 @@ struct SceneTargets
     glframebufs_t fb{};
     int width = 0;
     int height = 0;
-    float fsaa = 0.f;    // vid_fsaa they were made with
+    float fsaa = 0.f;    // the MSAA they were made with (vid_fsaa; the spectator camera's: vr_spectator_aa)
     unsigned format = 0; // their scene colour format (vr_tonemap: float)
 };
 SceneTargets eyeTargets;
 SceneTargets spectatorTargets;
-bool creatingSceneTargets = false; // VR_SceneColorFormat
+bool creatingSceneTargets = false; // VR_SceneColorFormat, VR_SceneSamples
 unsigned creatingFormat = 0;
+float creatingFsaa = 0.f;
 GLuint targetFbo = 0;
 
 // vr_render_scale: the eyes are rendered at the scaled size, post-processed into this texture of
@@ -95,14 +96,26 @@ void ensureResampleTarget(int width, int height)
     resampleHeight = height;
 }
 
-void ensureSceneTargets(SceneTargets& t, int width, int height)
+// The spectator camera's MSAA (vr_spectator_aa): the window's (vid_fsaa), or none.
+[[nodiscard]] float spectatorFsaa()
+{
+    return vr_spectator_aa.value > 0.f ? vid_fsaa.value : 0.f;
+}
+
+// Whether `t` is already made for this size, MSAA and format.
+[[nodiscard]] bool sceneTargetsFit(const SceneTargets& t, int width, int height, float fsaa)
+{
+    return t.width == width && t.height == height && t.fsaa == fsaa && t.format == tonemap::sceneFormat();
+}
+
+void ensureSceneTargets(SceneTargets& t, int width, int height, float fsaa)
 {
     const unsigned format = tonemap::sceneFormat();
-    if(t.width == width && t.height == height && t.fsaa == vid_fsaa.value && t.format == format)
+    if(sceneTargetsFit(t, width, height, fsaa))
     {
         return;
     }
-    t.fsaa = vid_fsaa.value;
+    t.fsaa = fsaa;
     t.format = format;
 
     const glframebufs_t windowFramebufs = framebufs;
@@ -119,6 +132,7 @@ void ensureSceneTargets(SceneTargets& t, int width, int height)
     vid.height = height;
     creatingSceneTargets = true;
     creatingFormat = format;
+    creatingFsaa = fsaa;
     GL_CreateFrameBuffers();
     creatingSceneTargets = false;
     t.fb = framebufs;
@@ -467,13 +481,72 @@ void drawHiddenArea()
 // vr_spectator_scale, as the eyes render it (the same entities, lights, shadow maps, particles, glow and UI: the
 // hands, weapons, body, flashlight, lasers, HUD panel and menu where they are in the world), then drawn into the
 // window. The window's state (framebufs, vid, the viewport) is the caller's to put back.
+// The spectator camera's pace (vr_spectator_rate): drawn every frame, every 2nd or 3rd, or at most so many times a
+// second; between, the window shows its last image again (the window pass alone). The steadied head it is drawn from
+// follows the head every frame (window::update), so each image is where the camera is at its time.
+struct SpectatorPace
+{
+    double lastFrame = -1.0; // realtime at the last VR frame that showed the spectator camera
+    double owed = 0.0;       // seconds since the last image, less the cap's period (at most one period)
+    int frames = 0;          // frames since the last image (every 2nd or 3rd)
+    bool shown = false;      // the targets hold an image of this window view (made since the view came back)
+};
+SpectatorPace spectatorPace;
+
+// Whether this frame draws the camera anew. `fits`: its targets are made for this frame's size and MSAA (else it
+// must, as they are made again).
+[[nodiscard]] bool spectatorDue(bool fits)
+{
+    SpectatorPace& p = spectatorPace;
+    const double now = realtime;
+    const bool continued = p.shown && fits && p.lastFrame >= 0.0 && now - p.lastFrame < 0.25;
+    const double dt = continued ? now - p.lastFrame : 0.0;
+    p.lastFrame = now;
+    const int rate = static_cast<int>(vr_spectator_rate.value);
+    if(!continued || rate <= 1)
+    {
+        p.owed = 0.0;
+        p.frames = 0;
+        return true;
+    }
+    if(rate <= 3)
+    {
+        if(++p.frames < rate)
+        {
+            return false;
+        }
+        p.frames = 0;
+        return true;
+    }
+    // A cap: an image once a period has passed (half a millisecond early is on time: a frame's jitter must not skip
+    // it), the time over kept for the next (at most a period: no burst after a hitch).
+    const double period = 1.0 / static_cast<double>(rate);
+    p.owed += dt;
+    if(p.owed < period - 0.0005)
+    {
+        return false;
+    }
+    p.owed = std::clamp(p.owed - period, 0.0, period);
+    return true;
+}
+
 void renderSpectator(GLuint windowTarget, int windowWidth, int windowHeight)
 {
-    QVR_GPU_PROFILE("spectator");
     const float scale = window::spectatorScale();
     const int width = std::max(16, static_cast<int>(std::lround(windowWidth * scale)));
     const int height = std::max(16, static_cast<int>(std::lround(windowHeight * scale)));
-    ensureSceneTargets(spectatorTargets, width, height);
+    const float fsaa = spectatorFsaa();
+    if(!spectatorDue(sceneTargetsFit(spectatorTargets, width, height, fsaa)))
+    {
+        // Its last image again.
+        QVR_GPU_PROFILE("window view");
+        drawToWindow(spectatorTargets, cropMap(0.f, 0.f, 1.f, 1.f), scale > 1.f ? Sampling::Bilinear : Sampling::CatmullRom,
+            windowTarget, 0, windowWidth, windowHeight);
+        return;
+    }
+    QVR_GPU_PROFILE("spectator");
+    ensureSceneTargets(spectatorTargets, width, height, fsaa);
+    spectatorPace.shown = true;
     const window::Camera& camera =
         window::spectator(static_cast<float>(windowWidth) / static_cast<float>(windowHeight));
 
@@ -553,7 +626,7 @@ extern "C" int VR_RenderView()
     const int height = scaledEyeSize(imageHeight, sizes.maxHeight);
     stereo::resampling = width != imageWidth || height != imageHeight || upscale::sharpenAtNative();
 
-    stereo::ensureSceneTargets(stereo::eyeTargets, width, height);
+    stereo::ensureSceneTargets(stereo::eyeTargets, width, height, vid_fsaa.value);
     if(stereo::resampling)
     {
         stereo::ensureResampleTarget(width, height);
@@ -669,6 +742,10 @@ extern "C" int VR_RenderView()
     {
         stereo::renderSpectator(windowTarget, windowWidth, windowHeight);
     }
+    else
+    {
+        stereo::spectatorPace.shown = false; // (drawn anew when it comes back)
+    }
 
     framebufs = windowFramebufs;
     vid.width = windowWidth;
@@ -702,6 +779,11 @@ extern "C" void VR_DrawHiddenArea()
 extern "C" unsigned VR_SceneColorFormat(unsigned format)
 {
     return stereo::creatingSceneTargets ? stereo::creatingFormat : format;
+}
+
+extern "C" int VR_SceneSamples(int samples)
+{
+    return stereo::creatingSceneTargets ? Q_nextPow2(static_cast<int>(q_max(1.f, stereo::creatingFsaa))) : samples;
 }
 
 extern "C" unsigned VR_PostProcessTarget()

@@ -1414,6 +1414,9 @@ void hologramTestMessage()
                   "sunk in) and the palm's fit (white: where the hand is, cyan: where the grip moved the palm)."),
         cycle("Memory Log", "vr_memstats_log", {{0.f, "Off"}, {30.f, "Every 30 s"}, {60.f, "Every minute"}, {300.f, "Every 5 minutes"}})
             .help("Write memory use and the frame rate to quakevr/profile/memstats_<date>.csv, and after each map load."),
+        toggle("Memory Log: GPU", vr_memstats_log_gpu)
+            .help("Also sample the GPU for the Memory Log (its clocks, slowdowns, and each program's use of it: SteamVR, "
+                  "Virtual Desktop), on a thread of its own. Off: only while the Performance Profile records."),
     };
 }
 

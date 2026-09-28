@@ -27,9 +27,20 @@
         header("Spectator Camera"),
         slider("Field of View", "vr_spectator_fov", 60.f, 120.f, 1.f, "%.0f deg").extend(40.f, 130.f)
             .help("The window's horizontal field of view (90 as a flat game; the vertical one follows the window's shape)."),
+        cycle("Frame Rate", "vr_spectator_rate", {{1.f, "Every Frame"}, {2.f, "Every 2nd Frame"}, {3.f, "Every 3rd Frame"},
+                                                 {60.f, "60 fps"}})
+            .help("How often the camera is drawn; the window shows its last image between. 60 fps (the default): as "
+                  "often as a 60 fps recording takes (OBS), a third of the cost saved at 90 Hz, half at 120 Hz. Every "
+                  "Frame: the headset's rate (smoother only if you record at more than 60 fps). Every 2nd or 3rd Frame: "
+                  "half or a third of the headset's rate (45 or 30 fps at 90 Hz), for a slower PC."),
         slider("Resolution Scale", "vr_spectator_scale", 0.5f, 2.f, 0.25f, "%.2fx").extend(0.25f, 2.f)
-            .help("Its resolution, times the window's: 1 sharp at the window's size; lower costs less (the pixels go "
-                  "with its square); 2 supersamples (four times the pixels)."),
+            .help("Its resolution, times the window's: 1 sharp at the window's size; 0.75 (the default) draws 56% of "
+                  "the pixels, drawn up to the window smoothly (a recording's compression softens more than that); lower "
+                  "costs less (the pixels go with its square); 2 supersamples (four times the pixels)."),
+        cycle("Anti-Aliasing", "vr_spectator_aa", {{0.f, "Off"}, {1.f, "Window's MSAA"}})
+            .help("Window's MSAA (the default): the window's multisampling (Anti-Aliasing, vid_fsaa), as the eyes: "
+                  "smooth edges, which a recording shows (4x costs the camera about a tenth more; nothing without "
+                  "vid_fsaa). Off: none, the cheapest."),
         slider("Position Smoothing", "vr_spectator_pos_smooth", 0.f, 0.3f, 0.01f, "%.2f s")
             .help("How much your head's small movements are smoothed out (its lag). Walking, turning and teleporting are "
                   "never smoothed."),

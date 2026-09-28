@@ -54,8 +54,9 @@ const DefaultChange defaultChanges[] = {
     {12, &vr_sight_hue, "30"},            // their own orange: they follow the player's hue now (vr_player_hue)
     {13, &vr_shove_speed, "1.8"},         // the author's shoves go 3.2-4.8 m/s, his hands waved at the dummy 2.2 (round 21)
     {14, &vr_counter_glow, "1"},          // off: the author would rather play without it (round 21, "Stamina on the gadget; the glow")
+    {34, &vr_spectator_scale, "1"},       // 0.75: the spectator camera's cost (ROUND21.md, "Performance fixes (review, 2026-09-28)")
 };
-constexpr int configVersion = 27;
+constexpr int configVersion = 34;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
