@@ -1,6 +1,5 @@
-// vr_box3d.hpp -- the rigid bodies in Box3D (vr_physics_engine 1): thrown weapons, boxes, backpacks, armour,
-// gibs and heads (the entities whose QC sets .vr_rigid), which then also collide with each other (stacks, piles).
-// vr_physics_engine 0 is Quake VR's own solver (vr_rigid.cpp), unchanged. See vr_box3d.cpp and
+// vr_box3d.hpp -- the rigid bodies in Box3D: thrown weapons, boxes, backpacks, armour, gibs and heads (the
+// entities whose QC sets .vr_rigid), which also collide with each other (stacks, piles). See vr_box3d.cpp and
 // docs/vr-port/ROUND21.md, "Box3D physics".
 
 #pragma once
@@ -10,16 +9,16 @@
 namespace qvr::box3d
 {
 
-// VR_RigidToss's dispatch (vr_rigid.cpp): with vr_physics_engine 1, a rigid body (`ent`, a .vr_rigid toss or
-// bounce entity, after its think) is Box3D's: true, and it moves with all the others at the end of the server
-// frame (VR_PhysicsFrameEnd). False with vr_physics_engine 0: vr_rigid.cpp moves it.
+// VR_RigidToss's dispatch (vr_rigid.cpp): a rigid body (`ent`, a .vr_rigid toss or bounce entity, after its
+// think) is Box3D's: true, and it moves with all the others at the end of the server frame (VR_PhysicsFrameEnd).
+// False only without a world to put it in (no .vr_rigid field, no map): Quake's toss moves it.
 [[nodiscard]] bool toss(edict_t* ent);
 
 // Forgets the world and everything made for it (a new server: its bodies are rebuilt from the entities).
 void reset();
 
 // An explosion of `damage` at `at` (T_RadiusDamage's, through the physicsblast builtin): the props within its reach
-// that it sees are thrown (Box3D only; vr_physics_engine 0 leaves them, as before).
+// that it sees are thrown.
 void blast(const glm::vec3& at, float damage);
 
 // vr_debug_physics_shapes: every body's shapes as wireframes in the world (this frame's lines), coloured by what it is

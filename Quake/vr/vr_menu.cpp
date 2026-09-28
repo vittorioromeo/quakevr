@@ -1066,9 +1066,6 @@ void hologramTestMessage()
         slider("Assist Cone", vr_throw_assist_cone, 2.f, 30.f, 1.f, "%.0f deg").extend(),
         slider("Assist Strength", vr_throw_assist_strength, 0.f, 1.f, 0.05f, "%.2f"),
         header("Physics"),
-        cycle("Physics Engine", vr_physics_engine, {{0.f, "Quake VR"}, {1.f, "Box3D"}})
-            .help("Quake VR: thrown and dropped things each on their own (they pass through each other). Box3D: they also "
-                  "collide with each other, so boxes stack and piles form. Switches at once."),
         slider("Bounciness", vr_throw_restitution, 0.f, 0.8f, 0.05f, "%.2f").extend(),
         slider("Friction", vr_throw_friction, 0.f, 1.5f, 0.05f, "%.2f").extend(),
         slider("Max Spin", vr_throw_spin_max, 0.f, 40.f, 1.f, "%.0f rad/s").extend(),

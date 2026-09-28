@@ -46,7 +46,6 @@ QVR_FIELD(ishuman)
 QVR_FIELD(think2)
 QVR_FIELD(vr_rigid)
 QVR_FIELD(vr_spin)
-QVR_FIELD(vr_rest)
 QVR_FIELD(nextthink2)
 QVR_FIELD(lastwatertime)
 

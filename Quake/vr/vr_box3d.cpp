@@ -1,10 +1,10 @@
-// vr_box3d.cpp -- the rigid bodies in Box3D (vr_physics_engine 1); see vr_box3d.hpp and docs/vr-port/ROUND21.md,
-// "Box3D physics".
+// vr_box3d.cpp -- the rigid bodies in Box3D, the only rigid-body physics; see vr_box3d.hpp and
+// docs/vr-port/ROUND21.md, "Box3D physics" and "Simplification: Box3D only".
 //
-// Quake VR's own solver (vr_rigid.cpp, vr_physics_engine 0) moves each rigid body on its own against the BSP and
-// the solid entities' boxes: bodies never meet, so nothing stacks. Here every body lives in one Box3D world (Erin
-// Catto's engine, Quake/vr/external/box3d), stepped once a server frame at the end of SV_Physics, after every
-// entity has thought and moved (VR_PhysicsFrameEnd):
+// Every body lives in one Box3D world (Erin Catto's engine, Quake/vr/external/box3d), stepped once a server frame
+// at the end of SV_Physics, after every entity has thought and moved (VR_PhysicsFrameEnd), so bodies also collide
+// with each other (stacks, piles). (Quake VR's own solver, before, moved each body on its own and nothing stacked;
+// it is kept on the branch archive/old-solver-stacking.)
 //
 // - The world: a static triangle mesh of the map's faces (the world model's, as drawn: sky and liquid faces left
 //   out; clip brushes have no faces and point traces ignore them too, as the old solver's corners did).
@@ -21,7 +21,7 @@
 //   (.vr_spin, rad/s) and sleep (FL_ONGROUND and its groundentity) are written back every frame. What QC changes
 //   (a throw, a nudge, a force grab's drop, a knock, a teleport, keepInWorld's put-back) is seen against what was
 //   written last and fed in, waking the body.
-// - The old solver's behaviours are kept: the monsters' hit box along a thrown thing's flight (vr_throw_hitbox),
+// - The old solver's behaviours were kept: the monsters' hit box along a thrown thing's flight (vr_throw_hitbox),
 //   touches of what props hit (QC's damage), water (lift by depth, drag, floating flat, the bob), the splashes (the
 //   water transition), vr_throw_restitution and vr_throw_friction as the materials, vr_throw_spin_drag.
 //
@@ -146,7 +146,7 @@ void localBox(edict_t* ent, qmodel_t* model, glm::vec3& lo, glm::vec3& hi)
     hi = centre + half;
 }
 
-// Water, as vr_rigid.cpp: things float (items, backpacks, thrown weapons: 60% under at rest); gibs sink, slowly.
+// Water, as the old solver's: things float (items, backpacks, thrown weapons: 60% under at rest); gibs sink, slowly.
 constexpr float floatDensity = 1.f / 0.6f; // relative to water's (the lift's scale)
 constexpr float sinkDensity = 0.5f;
 
@@ -579,8 +579,7 @@ struct MeshStats
     return mesh;
 }
 
-// The world's mesh is made once per map and kept while the map is (a saved game loaded, the engine switched off and
-// on, a restart: Box3D's world is made again, not the mesh).
+// The world's mesh is made once per map and kept while the map is (a saved game loaded, a restart: Box3D's world is made again, not the mesh).
 struct MeshCache
 {
     char name[MAX_QPATH]{};
@@ -1370,7 +1369,7 @@ void syncEntities(float dt)
 }
 
 // Monsters and other damageable things a thrown prop's thin shape would slip past, within the larger hit box
-// (vr_throw_hitbox) along its flight this frame (vr_rigid.cpp's touchNearby).
+// (vr_throw_hitbox) along its flight this frame (the old solver's touchNearby).
 void touchNearby(edict_t* ent, const glm::vec3& from, const glm::vec3& to)
 {
     const float half = vr_throw_hitbox.value;
@@ -1390,7 +1389,7 @@ void touchNearby(edict_t* ent, const glm::vec3& from, const glm::vec3& to)
     SV_Impact(ent, hit);
 }
 
-// Before the step, for each awake prop: the hit box along its flight, then the water (vr_rigid.cpp's waterStep,
+// Before the step, for each awake prop: the hit box along its flight, then the water (the old solver's waterStep,
 // once a frame: the lift by how deep it is, the drag, floating flat, the bob).
 void beforeStep(float dt)
 {
@@ -1561,7 +1560,6 @@ void writeProp(edict_t* ent, Slot& s)
     store(velocity, ent->v.velocity);
     VectorCopy(vec3_origin, ent->v.avelocity);
     setFieldVec(ent, f.vr_spin, spin);
-    setFieldFloat(ent, f.vr_rest, asleep ? 1.f : 0.f); // (vr_rigid.cpp's sleep timer: at rest, never negative)
     setFlag(ent, FL_ONGROUND, asleep);
     if(asleep)
     {
@@ -1805,7 +1803,6 @@ void loose_f()
         e->v.movetype = MOVETYPE_TOSS;
         e->v.solid = SOLID_NOT_BUT_TOUCHABLE;
         setFieldFloat(e, fields().vr_rigid, 1.f);
-        setFieldFloat(e, fields().vr_rest, 0.f);
         setFlag(e, FL_ONGROUND, false);
         SV_LinkEdict(e, false);
         Con_Printf("vr_physics_loose: %d %s\n", NUM_FOR_EDICT(e), PR_GetString(e->v.classname));
@@ -1823,7 +1820,6 @@ void placeStill(edict_t* e, const glm::vec3& at, float yaw)
     VectorCopy(vec3_origin, e->v.avelocity);
     setFieldVec(e, f.vr_spin, glm::vec3{0.f});
     setFlag(e, FL_ONGROUND, false);
-    setFieldFloat(e, f.vr_rest, 0.f);
     SV_LinkEdict(e, false);
 }
 
@@ -2000,7 +1996,7 @@ void list_f()
     }
     const VmScope vm;
     const std::vector<edict_t*> list = entitiesNamed(Cmd_Argc() > 1 ? Cmd_Argv(1) : "props");
-    Con_Printf("%d, engine %s:\n", static_cast<int>(list.size()), vr_physics_engine.value == 1 && world ? "Box3D" : "Quake VR");
+    Con_Printf("%d, %s:\n", static_cast<int>(list.size()), world ? "Box3D" : "no Box3D world");
     for(edict_t* e : list)
     {
         const int num = NUM_FOR_EDICT(e);
@@ -2113,7 +2109,7 @@ void sink_f()
             }
         }
         float hullLow = 1e9f;
-        if(world && vr_physics_engine.value == 1 && num < static_cast<int>(world->slots.size()) &&
+        if(world && num < static_cast<int>(world->slots.size()) &&
             B3_IS_NON_NULL(world->slots[num].body) && b3Body_IsValid(world->slots[num].body))
         {
             const b3BodyId body = world->slots[num].body;
@@ -2171,7 +2167,7 @@ void registerCommands()
 
 [[nodiscard]] bool wanted()
 {
-    return vr_physics_engine.value == 1.f && fields().vr_rigid >= 0 && sv.worldmodel;
+    return fields().vr_rigid >= 0 && sv.worldmodel; // (a mod without .vr_rigid has no rigid bodies)
 }
 
 } // namespace
@@ -2395,7 +2391,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
     registerCommands();
     if(!wanted())
     {
-        destroyWorld(); // vr_physics_engine 0: the entities hold every body's state, the old solver goes on from it
+        destroyWorld();
         return;
     }
     const float dt = static_cast<float>(host_frametime);

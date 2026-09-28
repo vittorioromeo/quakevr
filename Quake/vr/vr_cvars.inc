@@ -52,7 +52,7 @@ QVR_CVAR(vr_throw_assist_full, "4", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_assist_strength, "0.8", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_assist_range, "1200", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_assist_speed, "0.15", CVAR_ARCHIVE)
-// Thrown weapons and backpacks as rigid bodies (vr_rigid.cpp): bounciness and friction of
+// Thrown weapons and backpacks as rigid bodies (Box3D, vr_box3d.cpp): bounciness and friction of
 // their contacts, their spin at most, and how fast the air slows it.
 QVR_CVAR(vr_throw_restitution, "0.25", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_friction, "0.6", CVAR_ARCHIVE)
@@ -65,10 +65,9 @@ QVR_CVAR(vr_bindings_version, "0", CVAR_ARCHIVE)
 // Mock backend: swing the main hand in an overhand arc with this period, in seconds (0: still).
 QVR_CVAR(vr_mock_swing, "0", CVAR_NONE)
 
-// Rigid-body physics (docs/vr-port/ROUND21.md, "Box3D physics"): 0 Quake VR's own solver (vr_rigid.cpp), 1 Box3D
-// (vr_box3d.cpp: props also collide with each other, so they stack and pile). Switched live: the bodies are
-// rebuilt from the entities at the next server frame.
-QVR_CVAR(vr_physics_engine, "0", CVAR_ARCHIVE)
+// Rigid-body physics: Box3D (docs/vr-port/ROUND21.md, "Box3D physics"; vr_box3d.cpp: props also collide with each
+// other, so they stack and pile).
+QVR_CVAR(vr_physics_engine, "1", CVAR_NONE)          // retired (Box3D is the only choice: ROUND21.md, "Simplification: Box3D only"): kept so saved configs load silently
 QVR_CVAR(vr_box3d_substeps, "4", CVAR_ARCHIVE)       // Box3D's sub-steps a server frame (1..8)
 QVR_CVAR(vr_box3d_player_push, "1", CVAR_ARCHIVE)    // the players' bodies push props (a capsule each, one way)
 QVR_CVAR(vr_box3d_player_radius, "15", CVAR_ARCHIVE) // cm, that capsule's radius

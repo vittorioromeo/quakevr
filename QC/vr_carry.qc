@@ -68,7 +68,6 @@ void(entity xBox) VR_Carry_Loose =
     xBox.movetype = MOVETYPE_TOSS;
     xBox.solid = SOLID_NOT_BUT_TOUCHABLE;
     xBox.vr_rigid = 1;
-    xBox.vr_rest = 0;
     xBox.flags = xBox.flags - (xBox.flags & FL_ONGROUND);
     setorigin(xBox, xBox.origin);
 };
@@ -646,14 +645,13 @@ void() VR_Gib_Touch =
         }
     }
 
-    // Quake's bounce flings it from the body; from its first landing it is a rigid body (vr_rigid.cpp),
-    // which lies on the floor by its turned box. Quake's box does not turn with the model (and a
-    // gib's collides as a player-sized one), so gibs came to rest up to half their size sunk into
-    // the floor. vr_rest -1: settle even if Quake stops it this frame.
+    // Quake's bounce flings it from the body; from its first landing it is a rigid body (Box3D,
+    // vr_box3d.cpp), which lies on the floor by its drawn shape. Quake's box does not turn with the
+    // model (and a gib's collides as a player-sized one), so gibs came to rest up to half their size
+    // sunk into the floor.
     if(!self.vr_rigid && other.solid == SOLID_BSP)
     {
         self.vr_rigid = 1;
-        self.vr_rest = -1;
         self.vr_spin = VRThrowSpinCapped(self.avelocity * 0.0087); // half its tumble, in radians
         self.avelocity = '0 0 0';
     }
