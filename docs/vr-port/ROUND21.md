@@ -6291,3 +6291,96 @@ first mask costs nothing measurable.
 - [ ] Wade into water to the waist, come out, look down: wet, dripping, drying in half a minute?
 - [ ] Shove a monster into lava or slime (Enemies Hurt by Liquids on): char with embers?
 - [ ] Gore page: Dynamic Wounds off brings the wound skins back.
+
+## Climbing with both hands
+
+Your notes (e1m1): only the main hand seemed to climb, never both hands at once; you want to climb a ladder-like
+structure hand over hand (up, down, left, right), and to hang from a ledge and shimmy along it one hand at a time.
+Both work now: either empty hand takes hold on its own, both can hold together, and the hand-off between them
+never moves you. Locomotion > **Climbing (Experimental)** (`vr_climb`, still off by default; your config has it on).
+
+### Why it felt one-handed
+
+The old code let a second hand take hold only at a ledge at most 16 units (about half a metre) above the one held,
+by design ("shimmy, not climb"). Reaching up with the other hand to go higher was refused, so it looked as if the
+second hand (usually the off hand) couldn't climb. Also, a hand at a shoulder or upper holster could never take hold
+there, even with the holster empty. Nothing else differed between the hands: in the mock, both hands take hold the
+same way from the same places.
+
+### What changed (`Quake/vr/vr_climb.cpp`)
+
+- **Either hand, both hands.** Each hand takes and lets go of its own hold. There's no limit on where the second hand
+  holds: a rung above, one to the side, the same ledge further along.
+- **The pull.** While you hang, the body moves by what the holding hands moved relative to it since the last frame,
+  the other way (pull down and you rise). With two hands, each hand counts by how far it moved. So the hand doing
+  the pulling carries you, a hand held still isn't dragged back against it, and two hands pulling alike move you by
+  their average. The old code aimed the body at each hand's grab point, averaged. With the hands pulling unevenly,
+  letting go of one then moved the body to the other hand's point in one frame.
+- **No pop at the hand-off.** A hand taking hold or letting go changes only which hands pull, never where you are.
+  The limits (feet no higher than the highest hold; within 48 units of each hold, horizontally) now only stop you
+  from going further past them. So letting go of the upper hand can't drop you back under the lower hand's limit.
+- **Holds on the edge's line.** A hold is where your hand is along the edge, on the top, 2 units in from the lip.
+  The edge is found square to the face under it (a quarter-unit search, then the face's normal), not along whichever
+  of eight directions found the drop first. The **drawn hand stays on its hold** (its palm's middle) while it holds,
+  whatever the tracked hand does: it eases on in 0.06 s, glides to a new hold, and eases back 0.12 s after letting
+  go. The server sends the holds as stats (`STAT_QVR_CLIMB*`); it's drawing only (the aim and the moves use the
+  tracked hand). The arm follows the drawn hand.
+- **Rungs and trims.** On the way from a hold to the drop, a step down is passed over (a rung above another, a
+  ledge with a trim under its lip). The room needed above a hold is 8 units (was 16), so rungs 20 units apart are
+  holds. Stairs are still not holds (their treads never give the 32-unit drop within 16 units). A hand against
+  the face just under a lip (up to 12 units under it) takes the lip.
+- **Shimmying.** Hang from a ledge with one or both hands. Let go with the leading hand, reach along, take hold,
+  push both hands back the other way, bring the trailing hand over, and repeat. While one hand holds, you hang (no
+  gravity). Your body slides along the face under the ledge (the box traces as before).
+- **Mantle.** As before: pulled down 8 units and the head 8 above the ledge. Near a ledge's end, where the box
+  would stick out past it, the spot on top may now be up to 16 units along the edge. The e1m1 ledge below needed
+  it.
+- **Holding things.** A hand with a weapon, a carried object, a locked force grab, or (new) the flashlight can't
+  take hold. A holster that holds a weapon still wins over a hold while you stand (the grip draws it). An empty
+  holster, or any holster while you hang, gives way to the hold.
+- Kept as before: the grab delay after letting go of everything (0.4 s), Lowest Ledge, Ledge Fling (the release
+  flings you with the hands' motion, capped at 200 u/s, 150 up), moving holds (a hold on a moving brush now carries
+  you with it through the pull, as the aim point did), the QC's climbing bits (no melee from a holding hand).
+- **No option for the old behaviour.** Its one-hand limit and its aim-point motion were what you asked to lose, and
+  the new motion is the same as the old for one hand. `vr_climb_debug 2` prints a `climbtrace` line every frame (the
+  body, the pull, what the body did, each hand and its hold). `vr_climb_probe [yaw]` lists holds ahead.
+
+### The test map: `vrclimb`
+
+`quakevr/maps/vrclimb.map` (.bsp, .lit, .lux; generated by `Misc/quakevr/climb/make_vrclimb_map.py`, compiled the
+MAPPING.md "Full" way; ours, like vrexample). It has:
+
+- a rung wall: 12 rungs 8 deep, 4 thick and 192 wide, 20 units apart, up a 280-unit tower you can mantle onto;
+- a long ledge (48 high) running from the floor out over a 256-unit trench, with stairs out of the trench.
+
+### Verified (mock headset, scripted `vr_mock_play` motions, per-frame `climbtrace`)
+
+| Test | What happened |
+|---|---|
+| Off hand alone, then hand over hand up the rung wall (11 alternations; each new hand pulls while the other still holds, then that one lets go), then over the top | body from 24 to 305: 11 rungs (56 to 256), then the top edge and the mantle onto the tower |
+| Two-hand hang on the ledge: the off hand pulls twice as far as the main; the main lets go mid-pull and takes hold again while the off hand pushes up | hangs throughout; the body follows the weighted pull |
+| Shimmy 7 hand-overs left (out over the trench), 1 right | y 176 to 231, then back to 222 along the ledge, hanging the whole time |
+| Let go of both over the trench | falls to the trench floor (-208) |
+| Both hands on the long ledge, pull | mantled onto it |
+| e1m1 (the ledge at x 274, y 2330..2350, 64 high, near the nailgun and rocket launcher): both hands, 2 hand-overs to the right, pull | mantled onto it (the spot on top slid along the edge, near its end) |
+
+**No pop.** The hand-offs are 22 on the rungs, 36 on the ledge and 12 in e1m1. In each, the body's move in the
+frame a hand took hold or let go was what the hands still holding pulled it by: at most 0.001 units (0.04 mm) off,
+0.07 units (2.7 mm) at most in all. The pull is recomputed from the logged tracked hands, independently of the
+engine's own figure, and matches the body's move within 0.4 mm on every hanging frame (the log's rounding). The only
+frames where the body did less than the pull are those where it pressed against the face (2.8 mm at most a frame,
+against the wall). **Before**, the same ledge play: letting go of a hand while the hands pulled unevenly moved the
+body 1.36 units (52 mm) in one frame, then 39, 19, 15, 12 mm at the next ones.
+
+Composite (`climb_composite.png` in the scratchpad): hands on the rungs from a spectator camera (top), both hands on
+the ledge from the side and from the eyes, and one hand on the ledge over the trench (bottom).
+
+### Check in the headset
+
+- Climb a rung wall or a run of ledges hand over hand. The body should follow the pulling hand 1:1 and never jump
+  when the other hand lets go or takes hold.
+- Shimmy along a ledge both ways, and check that you don't fall while one hand holds.
+- The drawn hands should sit on the edge while they hold. Look at how the arm stretches when your real hand has
+  moved off the hold.
+- A shoulder holster with a weapon, reached past while standing at a ledge: tell me if the grip should take the
+  ledge or the weapon.

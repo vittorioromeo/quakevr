@@ -56,6 +56,7 @@ browser with help, key types, choices and a model preview.
 | `Misc/trenchbroom/install.ps1` | the installer |
 | `quakevr/wads/quakevr_dev.wad` | Quake VR's own textures for mapping |
 | `quakevr/maps/vrexample.map` (`.bsp`, `.lit`, `.lux`) | the example map and its compiled files |
+| `quakevr/maps/vrclimb.map` (`.bsp`, `.lit`, `.lux`) | the climbing test map (`Misc/quakevr/climb/make_vrclimb_map.py`) |
 
 ## The entities
 
