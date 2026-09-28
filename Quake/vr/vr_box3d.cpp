@@ -237,6 +237,7 @@ struct Slot // what one edict is in the world (by its number)
 
     // The entity as last written (props) or seen (kinematic ones): QC's changes are the differences.
     glm::vec3 origin{0.f}, angles{0.f}, velocity{0.f}, spin{0.f};
+    glm::vec3 arrival{0.f}; // props: the velocity this frame's step began with (0 asleep): what a touch after it sees
     float gravityScale{1.f};
     bool asleep{false};
     bool wet{false};      // floating: kept awake (it bobs)
@@ -1369,7 +1370,10 @@ void syncEntities(float dt)
 }
 
 // Monsters and other damageable things a thrown prop's thin shape would slip past, within the larger hit box
-// (vr_throw_hitbox) along its flight this frame (the old solver's touchNearby).
+// (vr_throw_hitbox) along its flight this frame (the old solver's touchNearby). While its throw lasts (QC's .throwhit
+// QVR_THROWHIT_NEVER_HIT, 0), also loose gibs and heads that take damage (MOVE_HITGIBS, as missiles meet them; not
+// held ones, which are SOLID_NOT): they are props, and Box3D reports two props meeting after the step, when the bounce
+// has already spent the thrown thing's speed, so the throw's hit was too slow to hurt (forcegrabbable_touch).
 void touchNearby(edict_t* ent, const glm::vec3& from, const glm::vec3& to)
 {
     const float half = vr_throw_hitbox.value;
@@ -1380,7 +1384,9 @@ void touchNearby(edict_t* ent, const glm::vec3& from, const glm::vec3& to)
     vec3_t start, end, mins{-half, -half, -half}, maxs{half, half, half};
     store(from, start);
     store(to, end);
-    const trace_t tr = SV_Move(start, mins, maxs, end, MOVE_NORMAL, ent);
+    const int throwhit = fields().throwhit;
+    const bool thrown = throwhit >= 0 && fieldFloat(ent, throwhit) == 0.f;
+    const trace_t tr = SV_Move(start, mins, maxs, end, thrown ? (MOVE_NORMAL | MOVE_HITGIBS) : MOVE_NORMAL, ent);
     edict_t* hit = tr.ent;
     if(!hit || hit == qcvm->edicts || hit->free || hit == PROG_TO_EDICT(ent->v.owner) || hit->v.takedamage == 0.f)
     {
@@ -1397,6 +1403,7 @@ void beforeStep(float dt)
     for(int num = 1; num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts; num++)
     {
         Slot& s = world->slots[num];
+        s.arrival = glm::vec3{0.f};
         if(s.kind != Kind::Prop || !b3Body_IsAwake(s.body))
         {
             continue;
@@ -1419,6 +1426,7 @@ void beforeStep(float dt)
                 vel = world->toU(b3Body_GetLinearVelocity(s.body));
             }
         }
+        s.arrival = vel;
 
         // Fast (a throw: more than a third of its thickness a step), its continuous collision takes in the other props
         // too: Box3D's is only against the world and kinematic bodies otherwise, and a box thrown at 15 m/s crosses a
@@ -2479,9 +2487,38 @@ extern "C" void VR_PhysicsFrameEnd(void)
         }
         edict_t* ea = EDICT_NUM(a);
         edict_t* eb = EDICT_NUM(b);
-        if(!ea->free && !eb->free)
+        if(ea->free || eb->free)
+        {
+            continue;
+        }
+        if(world->slots[a].kind != Kind::Prop || world->slots[b].kind != Kind::Prop)
         {
             SV_Impact(ea, eb);
+            continue;
+        }
+        // Two props (a thrown weapon, box or gib meeting a gib or a head lying about, what takes damage): they touch
+        // after the step, whose bounce has spent the thrown one's speed, so its hit was too slow to hurt
+        // (forcegrabbable_touch: vr_throw_hit_min_speed, the damage by speed). The touch sees the velocities they came
+        // with (the step's start), as a monster's (touchNearby, before the step) does; what the touch sets stays, else
+        // the step's are put back.
+        const glm::vec3 afterA = vec(ea->v.velocity), afterB = vec(eb->v.velocity);
+        const glm::vec3 beforeA = world->slots[a].arrival, beforeB = world->slots[b].arrival;
+        if(vr_debug_box3d.value)
+        {
+            Con_Printf("box3d: %d %s and %d %s touch, at %.0f and %.0f u/s (%.0f and %.0f after the step)\n", a,
+                PR_GetString(ea->v.classname), b, PR_GetString(eb->v.classname), glm::length(beforeA), glm::length(beforeB),
+                glm::length(afterA), glm::length(afterB));
+        }
+        store(beforeA, ea->v.velocity);
+        store(beforeB, eb->v.velocity);
+        SV_Impact(ea, eb);
+        if(!ea->free && vec(ea->v.velocity) == beforeA)
+        {
+            store(afterA, ea->v.velocity);
+        }
+        if(!eb->free && vec(eb->v.velocity) == beforeB)
+        {
+            store(afterB, eb->v.velocity);
         }
     }
 }
