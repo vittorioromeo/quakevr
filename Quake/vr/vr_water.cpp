@@ -1505,6 +1505,12 @@ void sceneDepthChanged()
     distancesFrame = -1;
 }
 
+void prepare()
+{
+    ensureVolume();
+    (void)ensureMesh();
+}
+
 unsigned opaqueSceneDistances()
 {
     // The depth the scene is drawn with (none: the window's own, not a texture): the liquids' when they made it.

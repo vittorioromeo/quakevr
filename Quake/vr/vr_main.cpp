@@ -42,6 +42,7 @@
 #include "vr_particles.hpp"
 #include "vr_shells.hpp"
 #include "vr_worldtext.hpp"
+#include "vr_water.hpp"
 #include "vr_wounds.hpp"
 
 #include <chrono>
@@ -694,39 +695,40 @@ struct MemLog
     int lastFrames{0};
     const void* lastWorld{nullptr};
     double worldSince{0.0};
-    double scanMs{0.0};  // the last GL object count's cost
-    int timerRows{0};
-    MemSample last;      // the last GL object counts (not scanned every row when that is slow)
 };
 
 MemLog memLog;
 
+// The GL objects counted as each map loads (VR_NewMap): every name tested with glIs* up to 4096 past the last one found,
+// some 25,000 calls that wait for the driver's thread, 12-13 ms: a dropped frame when a row did it in play. A count
+// that grows from one load to the next is a leak; the rows repeat the last load's.
+MemSample glCounted;
+
+void countGlForLog()
+{
+    if(vr_memstats_log.value <= 0.f)
+    {
+        return;
+    }
+    QVR_PROFILE("memory log");
+    glCounted = sampleMemory(true);
+}
+
 void writeMemLogRow(const char* reason)
 {
-    QVR_PROFILE("memory log"); // (counting the GL objects: about 12 ms, the profiler's hitch log shows)
     const double seconds = realtime - memLog.lastTime;
     const int frames = host_framecount - memLog.lastFrames;
     memLog.lastTime = realtime;
     memLog.lastFrames = host_framecount;
 
-    // Counting GL objects takes a few milliseconds (a hitch in the headset): on map rows, and on every
-    // 5th timer row once it has taken more than 2 ms.
-    const bool timer = !std::strcmp(reason, "timer");
-    const bool scan = !timer || memLog.scanMs < 2.0 || ++memLog.timerRows % 5 == 0;
-    MemSample m = sampleMemory(scan);
-    if(scan)
-    {
-        memLog.scanMs = m.scanMs;
-        memLog.last = m;
-    }
-    else
-    {
-        m.glTextures = memLog.last.glTextures;
-        m.buffers = memLog.last.buffers;
-        m.framebuffers = memLog.last.framebuffers;
-        m.queries = memLog.last.queries;
-        m.programs = memLog.last.programs;
-    }
+    QVR_PROFILE("memory log");
+    MemSample m = sampleMemory(false);
+    m.glTextures = glCounted.glTextures;
+    m.buffers = glCounted.buffers;
+    m.framebuffers = glCounted.framebuffers;
+    m.queries = glCounted.queries;
+    m.programs = glCounted.programs;
+    m.scanMs = glCounted.scanMs;
 
     const std::time_t now = std::time(nullptr);
     char clock[32];
@@ -756,14 +758,7 @@ void writeMemLogRow(const char* reason)
     column(c, "gl_queries", "%d", m.queries);
     column(c, "gl_programs", "%d", m.programs);
     column(c, "targets_made", "%d", gfx::targetsMade);
-    if(scan)
-    {
-        column(c, "gl_scan_ms", "%.2f", memLog.scanMs);
-    }
-    else
-    {
-        c.emplace_back("gl_scan_ms", "");
-    }
+    column(c, "gl_scan_ms", "%.2f", m.scanMs); // the count's time, at the map's load
     drainPhases();
     timingColumns(c, logReader);
     logReader = Readers{};
@@ -929,6 +924,31 @@ int scaledEyeSize(int image, int max)
 extern "C" void VR_NewMap()
 {
     ++qvr::worldGen;
+
+    // What the map's first frames, the first shot or the first hit made on first use, made now, in the load: the decals'
+    // atlas (0.4 s: the first mark's frame), the view's own models (0.3 s the first time), the liquids' volume and mesh
+    // (20-100 ms each map), the particles' atlas, the detail textures, the torch's shape, the casings' model and sounds.
+    QVR_PROFILE("vr prewarm");
+    std::string times; // developer 1: what each took
+    double total = 0.0;
+    const auto step = [&](const char* name, void (*prepare)()) {
+        QVR_PROFILE(name);
+        const double start = Sys_DoubleTime();
+        prepare();
+        const double ms = (Sys_DoubleTime() - start) * 1000.0;
+        total += ms;
+        times += va("%s%s %.1f", times.empty() ? "" : ", ", name, ms);
+    };
+    step("decal atlas", decals::prepare);
+    step("particle atlas", particles::prepare);
+    step("detail textures", detail::prepare);
+    step("liquids", water::prepare);
+    step("view models", view::prepareModels);
+    step("torch", flashlight::prepare);
+    step("casings", shells::prepare);
+    Con_DPrintf("vr prewarm: %.1f ms (%s)\n", total, times.c_str());
+
+    countGlForLog(); // the memory log's GL objects, in the load (12-13 ms)
 }
 
 extern "C" void VR_Init()
@@ -960,6 +980,7 @@ extern "C" void VR_Init()
     flashlight::init();
     detail::init();
     particles::init();
+    decals::init();
     client::init();
     server::init();
     Cmd_AddCommand("vr_dumpview", view::dumpView_f);

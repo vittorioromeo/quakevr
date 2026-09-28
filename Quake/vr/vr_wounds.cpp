@@ -91,8 +91,6 @@ std::uint32_t rng = 0x9e3779b9u;
 float lastPaintMs = 0.f;
 int paintsTotal = 0;
 bool painting = false;
-GLint savedFbo = 0;
-GLint savedViewport[4]{};
 bool chanOn[3]{true, true, true}; // vr_wounds, vr_wounds_burns, vr_wounds_wet as last seen
 
 [[nodiscard]] float rnd()
@@ -180,7 +178,9 @@ bool ensureTexture()
 }
 
 // ----------------------------------------------------------------------------
-// Drawing into the masks: begun once for a frame's paints (the eye's framebuffer and viewport kept, put back at end).
+// Drawing into the masks: begun once for a frame's paints, in the view's setup (VR_SetupViewEntities, before R_RenderView).
+// Nothing reads back what was bound (a glGet waits for the driver's thread): at the end the window's framebuffer is
+// bound, as after the shadow maps; R_RenderScene binds the scene's target and sets its viewport before it draws.
 
 void begin()
 {
@@ -189,8 +189,6 @@ void begin()
         return;
     }
     painting = true;
-    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &savedFbo);
-    glGetIntegerv(GL_VIEWPORT, savedViewport);
     GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, fbo);
 }
 
@@ -204,8 +202,7 @@ void end()
     GL_BlendEquationFunc(GL_FUNC_ADD);
     GL_SetState(GLS_BLEND_OPAQUE | GLS_CULL_BACK | GLS_ATTRIBS(0));
     glBlendFunc(GL_ONE, GL_ZERO); // what GLS_BLEND_OPAQUE sets (the cache believes it)
-    GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, static_cast<GLuint>(savedFbo));
-    glViewport(savedViewport[0], savedViewport[1], savedViewport[2], savedViewport[3]);
+    GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, 0);
 }
 
 void target(int layer, const Mask& m)

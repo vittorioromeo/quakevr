@@ -1548,6 +1548,14 @@ void init()
     pool.reserve(maxParticles);
 }
 
+void prepare()
+{
+    if(vr_particles.value)
+    {
+        (void)ensureAtlas();
+    }
+}
+
 void clear()
 {
     pool.clear();

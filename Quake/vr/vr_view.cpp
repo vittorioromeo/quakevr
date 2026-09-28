@@ -337,6 +337,35 @@ qmodel_t* view::viewModel(const char* name)
     return m;
 }
 
+void view::prepareModels()
+{
+    if(!vr_enabled.value) // (in VR, even before its session runs: the first map loads as it starts)
+    {
+        return;
+    }
+    // As the view setup asks for them (setupBody, setupPauldrons, setupHolsters, setupGadget, the hands, the buttons).
+    std::vector<const char*> names{handrig::modelName, "progs/vrgadget.mdl", "progs/vrgadget_strap.mdl", "progs/wpnbutton.mdl"};
+    if(vr_body_mode.value >= 1.f)
+    {
+        const int build = static_cast<int>(vr_body_build.value);
+        names.push_back(build <= 0 ? "progs/vrbody_lean.mdl" : build >= 2 ? "progs/vrbody_brawny.mdl" : "progs/vrbody.mdl");
+        names.push_back("progs/vrbody.mdl");
+        if(vr_body_pauldrons.value)
+        {
+            names.push_back("progs/vrpauldron.mdl");
+            names.push_back("progs/vrpauldron_arm.mdl");
+        }
+    }
+    if(vr_leg_holster_model_enabled.value)
+    {
+        names.push_back("progs/legholster.mdl");
+    }
+    for(const char* name : names)
+    {
+        (void)Mod_ForName(name, false);
+    }
+}
+
 namespace
 {
 

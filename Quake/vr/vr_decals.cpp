@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <future>
 #include <unordered_map>
 #include <vector>
 
@@ -97,7 +98,7 @@ int goreFrame = -1; // the host frame gore::frame last ran in
 
 // ---- The atlas ---------------------------------------------------------------------------------
 
-unsigned rngState = 12345u;
+thread_local unsigned rngState = 12345u; // (the atlas is made on a worker thread, and by vr_decal_atlas)
 [[nodiscard]] float frand()
 {
     rngState = rngState * 1664525u + 1013904223u;
@@ -589,9 +590,13 @@ void encode(glm::vec3 f, unsigned char* out)
     return rgba;
 }
 
+// The atlas's texels, made from start-up on a worker thread (decals::init): buildAtlas reads nothing but its arguments
+// and constants, and the random numbers are the thread's own.
+std::future<std::vector<unsigned char>> atlasTexels;
+
 void makeAtlas()
 {
-    const std::vector<unsigned char> rgba = buildAtlas();
+    const std::vector<unsigned char> rgba = atlasTexels.valid() ? atlasTexels.get() : buildAtlas();
     atlas = gfx::createTexture(atlasWidth, atlasHeight, rgba.data(), true);
 }
 
@@ -1276,6 +1281,22 @@ void atlas_f()
     {
         Con_Printf("Wrote %s/%s (%d x %d cells: blood, drops, scorches, chips, splatters, streaks, pools, splotches)\n",
             com_gamedir, name, cellsPerRow, cellRows);
+    }
+}
+
+void init()
+{
+    if(!atlasTexels.valid() && !atlas)
+    {
+        atlasTexels = std::async(std::launch::async, buildAtlas);
+    }
+}
+
+void prepare()
+{
+    if(!atlas && vr_decals.value)
+    {
+        makeAtlas();
     }
 }
 

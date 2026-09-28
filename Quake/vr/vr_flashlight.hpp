@@ -30,6 +30,9 @@ namespace qvr::flashlight
 
 void init();
 
+// A map's load (VR_NewMap): the torch's model loaded and its shape read from it, not in the map's first frame.
+void prepare();
+
 // Once per frame, as the view is set up: moves the lamp, places its model in `ve` and lights its
 // beam.
 void setupView(const hands::State& s, view::ViewEntity& ve);

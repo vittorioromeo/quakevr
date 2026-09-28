@@ -646,6 +646,19 @@ void init()
     Cmd_AddCommand("vr_detail_list", list_f);
 }
 
+void prepare()
+{
+    if(!cfgLoaded)
+    {
+        loadCfg();
+    }
+    checkWorld();
+    if(vr_detail.value != 0.f && !arrayTried)
+    {
+        buildArray();
+    }
+}
+
 } // namespace qvr::detail
 
 using namespace qvr;

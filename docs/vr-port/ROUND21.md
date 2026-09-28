@@ -35,6 +35,7 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | Menu: scroll memory and shortcuts | every VR page reopens on the row and scroll it was left at (Weapon Offsets too, for any weapon; across restarts: `vr_menu_positions`); Advanced VR and Levels buttons under Back to Game on every menu (laser, or a stick click) |
 | Profiling: where the time goes | the frame split into the game's systems (Box3D, QuakeC, Quake physics, the world's drawing, shadow maps, waiting for the headset...), adding up to the frame time: a panel in the headset with bars (Debug > Profiling), `vr_profile_report`, a CSV row a second, a hitch log naming what took a slow frame's time; off it costs nothing measurable. Found with it: the foveated rendering's setup waited for the driver every eye (0.2-0.4 ms of the CPU a frame, fixed) |
 | Performance fixes (review, 2026-09-28) | the spectator camera's Frame Rate (60 fps by default), Resolution Scale (0.75 by default) and Anti-Aliasing; the climbing's mantle and lenient-grab searches 5-20 times fewer traces, the props' settings found once per model (Box3D's sync 2-3 times cheaper), with the same holds, mantles and physics; wounds on a reused entity slot and the ropes' slack forgotten when their entity ends; the AO bake worker joined at quit; no GPU-sampling thread unless profiling |
+| First-hit hitch | the first shot or blow that left a mark froze the game for 0.43-0.44 s: the decals' atlas (blood, chips, scorches, the gore's marks) was drawn on the CPU at the first mark's draw. It is now drawn on a worker thread from start-up and put on the GPU as the map loads; the other first-use work (the view's own models, 0.3 s the first time; the liquids, 20-100 ms each map; the particles' atlas; the detail textures; the torch; the casings' sounds) is done in the load too. Wound painting no longer waits for the driver (glGet), and the memory log counts the GL objects as each map loads (was 12-13 ms in a frame of play) |
 
 Found on the way: fteqcc stores 0 when `a || b` is assigned into an entity field (rewritten; no other code has that
 shape); a parried blow's hand knock, timed by `cl.time`, came back after a level change (reset now).
@@ -10378,6 +10379,74 @@ Why these defaults:
 - [ ] Climb a ledge with no room on top and pull: the buzz as before; then a ledge you can mantle: the same mantle.
 - [ ] Miss a ledge by a hand's width: the grab still takes it, as before.
 
+## First-hit hitch
+
+Your note: the very first melee attack or first shot on a monster makes a lag spike of about half a second.
+
+**Cause.** The decals' atlas: 32 procedural cells of 256 x 256 (blood splats and drops, scorches, chips, the gore's
+sprays, runs, pools and splotches) drawn texel by texel on the CPU, 2048 x 1024, then uploaded with mipmaps. The
+header said "drawn once at start-up"; the code drew it at the first draw with a decal (`decals::draw`, `makeAtlas`).
+The first mark of a session is the first shot's blood or chip, or the first blow's blood: that frame took 0.43-0.44 s.
+Not sounds (every sound the game plays is loaded at the map's load; only the casings' three tinks were loaded as they
+first played, 0.3 ms each), nor shaders (all compiled at start-up; even with the driver's shader cache emptied the
+first hit costs no compile), nor the wound masks (their texture array is made in the first frame, not at the first
+wound).
+
+Found in the mock with the profiler's hitch log (`vr_profile 1`, "vr_profile: hitch" lines) and the first mark made by
+the shot: `vr_decals 0` until just before it (the firing range and e1m1 get a chip or two in their first seconds in the
+mock, from the mock's hands: there the atlas was drawn at the start). The scripts are in the scratchpad's `hitch/`
+(`F_shoot.txt`: his settings, the firing range, a grunt 150 units ahead, the shotgun; `G_melee.txt`: e1m1, the axe,
+a grunt 32 units ahead, a synthesized horizontal slash).
+
+| Frame | Before | After |
+|---|---|---|
+| first shot's blood on the floor (firing range, shotgun) | 440 ms (decals 439.0) | no frame over 16.7 ms (29 marks made) |
+| first melee blow's blood (e1m1, axe slash on a grunt) | 431 ms (decals 430.2) | no frame over 16.7 ms (11 marks made) |
+| first frame after the session's first map load | 390-450 ms (view entities 300: the hands' rig, the body, the pauldrons, the holster, the gadget, the torch loaded; e1m1: setup view 96 more, the liquids' volume) | 19-30 ms (an ordinary first frame) |
+| first frame after a later map load (e1m1 after the firing range) | 108 ms (the liquids' volume and wave mesh 87 + 10) | 17 ms |
+| a memory log row (`vr_memstats_log`, a row a minute) | 12-13 ms (on map rows and every 5th timer row) | 0.5-0.7 ms (the GL objects counted in the load) |
+
+**Fix.** Work that ran at first use now runs when the map loads (`VR_NewMap`, after its lightmaps), each step in the
+profiler as "vr prewarm/..." and printed with `developer 1` (`vr prewarm: 374.1 ms (decal atlas 0.8, particle atlas
+19.9, detail textures 14.2, liquids 34.0, view models 295.4, torch 7.3, casings 2.6)`):
+
+- **The decals' atlas** (`decals::init`, `decals::prepare`): its texels are drawn on a worker thread started at
+  start-up (`std::async`: the atlas code reads nothing but constants; its random numbers are now the thread's own); the
+  map's load uploads them (0.8-1.1 ms). If the map loads before the thread is done, the load waits for the rest. The
+  atlas is the same, texel for texel (same seeds per cell).
+- **The view's own models** (`view::prepareModels`, in VR): the hands' rig, the body's build (and `vrbody.mdl`, which
+  the view also asks for), the pauldrons, the leg holster, the wrist gadget and its strap, the weapon button: 294 ms
+  the first time (the body 200 of it), nothing after (they stay loaded).
+- **The liquids** (`water::prepare`): the caustics/wetness volume and the wave mesh, built for each map: 33 ms in the
+  firing range, 104 ms in e1m1. That time was in the map's first frame before; now it is in the load.
+- **The particles' atlas** (20 ms), **the detail textures** (14 ms), **the torch's model and shape** (7 ms), **the
+  casings' model and sounds** (3 ms): the first time.
+- **Wound painting** no longer reads the bound framebuffer and viewport back (`glGetIntegerv` waits for the driver's
+  thread: 21.5 ms once, in the first frame with the body's wounds): the painting runs in the view's setup, before
+  `R_RenderView`, and binds the window's framebuffer when it ends, as the shadow maps do; the scene binds its own target
+  and viewport before it draws. The wounds look the same (eye images before and after: same marks, the differences are
+  the pellets' random spread; e1m1's view identical).
+- **The memory log** counts the GL objects (`glIs*` on some 25,000 names, 12-14 ms) as each map loads, and its rows
+  repeat that count; `gl_scan_ms` is its time, in the load. Counting in slices over the frames was tried first and is
+  no better: each `glIs*` waits for the driver's thread, so a slice of 500 names took 1-8 ms, and once 58. A count
+  that grows from one load to the next is still a leak; the first map's count comes before the VR render targets and
+  the profiler's queries are made (587 textures, 5 framebuffers, 0 queries in e1m1 against 621, 26, 738 once it
+  runs), later loads' include them. `vr_memstats` still counts the live objects when asked.
+
+**Map load time.** Each load: 12-14 ms more for the memory log's count (with `vr_memstats_log` on, the default). The
+session's first map: 374 ms more in the load (was 390-450 ms in its first frame and 430-440 ms
+at the first mark); e1m1's load (the map spawn 525-575 ms, the client's 10 ms) gets its liquids' 104 ms, which its first
+frame had; the firing range's 33 ms. In all the work is the same or less (the atlas is off the main thread).
+
+**Checked.** A second and third map load in the same session (firing range, e1m1, firing range again): no first-frame
+hitch, prewarm 105 and 34 ms (the liquids only). `vid_restart` (a new window size) and then a shot: the marks draw
+(Ironwail keeps the GL context). The first shot and blow with his settings (`his_ironwail_2026-09-28_1450.cfg`),
+QRP textures, sound on.
+
+**Still there** (not first-hit): the map's second frame draws its map lights' shadow maps (16-22 ms, "shadows other"),
+and the body's model takes 200 ms to load (once a session, in the first load now).
+
+**Try in the headset:** start a map, walk to the first monster and shoot it or hit it: no pause at the first blood.
 ## Ledge map
 
 The review found that both climbing searches sampled space with traces: the mantle tried ~70 spots with sweeps, and a
