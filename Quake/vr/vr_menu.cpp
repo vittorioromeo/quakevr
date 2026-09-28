@@ -450,6 +450,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Damage to Enemies", vr_damage_to_enemies, 0.25f, 4.f, 0.05f, "%.2fx").extend().help("Damage you deal to monsters."),
         slider("Damage to You", vr_damage_to_player, 0.f, 4.f, 0.05f, "%.2fx").extend().help("Damage monsters, traps and falls deal to you."),
         slider("Self Damage", vr_damage_self, 0.f, 2.f, 0.05f, "%.2fx").extend().help("Damage your own rockets and grenades deal to you."),
+        toggle("Enemies Hurt by Liquids", vr_enemy_liquid_damage).help("Monsters in slime and lava burn as you do: shove them in. Fish, bosses and the lava dwellers are immune; zombies only burn in lava."),
         slider("Melee Damage", vr_melee_dmg_multiplier, 0.25f, 15.f, 0.25f, "%.2fx").extend(),
         header("Positional Damage"),
         toggle("Positional Damage", vr_positional_damage).help("Headshots, arm and leg shots on humanoid monsters."),
@@ -518,6 +519,17 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         toggle("Counter Glow", vr_counter_glow).help("While the window is open, what your hands hold sheds golden embers, fewer as it closes."),
         slider("Counter Pulses", vr_counter_haptic, 0.f, 1.f, 0.1f, "%.1f")
             .help("Strength of the soft pulses in both hands while the window is open, fading as it closes (0 off)."),
+        header("Training Dummy Attacks"),
+        slider("Time Between Blows", vr_dummy_attack_period, 1.f, 8.f, 0.1f, "%.1f s").extend()
+            .help("With the firing range's Dummy Attacks button on, the training dummy strikes at you this often, to practise parrying."),
+        slider("Randomness", vr_dummy_attack_jitter, 0.f, 2.f, 0.05f, "%.2f s").extend()
+            .help("How much sooner or later than that each blow may come, at random."),
+        slider("Wind-Up", vr_dummy_attack_windup, 0.1f, 2.f, 0.05f, "%.2f s")
+            .help("How long before each blow the dummy gives it away: a sound, a glow, the rifle raised as it rears back."),
+        slider("Reach", vr_dummy_attack_reach, 16.f, 150.f, 2.f, "%.0f units")
+            .help("How close you must be for it to strike (a knight's reach is 60). Further away it waits; step out of reach during the wind-up and it misses."),
+        slider("Damage", vr_dummy_attack_damage, 0.f, 50.f, 1.f, "%.0f").extend()
+            .help("A blow's damage, as a monster's: armour, the parry and god mode apply."),
         header("Batting Projectiles"),
         toggle("Bat Back Projectiles", vr_deflect).help("Swing a weapon (or a fist) through a monster's spike, laser, spit or grenade to send it back where your hand points (at the monster, when you point near it)."),
         slider("Batting Reach", vr_deflect_radius, 4.f, 32.f, 1.f, "%.0f units").extend().help("How near the weapon's blade (or your fist) a projectile must pass to be batted back."),
@@ -553,7 +565,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Swimming Kick Rate", vr_body_swim_kick_rate, 0.f, 4.f, 0.1f, "+%.1f /s").extend()
             .help("How many more kicks a second at full stick (treading water, about 0.7)."),
         toggle("Show Armour and Wounds", vr_body_state)
-            .help("The armour you wear plates your torso; your arms and hands get bloodier as you are hurt."),
+            .help("The armour you wear plates your torso; your arms and hands get bloodier as you are hurt (with Dynamic Wounds, on the Gore page: where you are hit)."),
         toggle("Wounds Drip Blood", vr_body_blood)
             .help("Blood drips from your wounded arms and hands, faster when badly hurt or just hit, and splashes on the floor."),
         toggle("Show Powerups", vr_body_powerups)
@@ -690,7 +702,7 @@ void flashlightFingers(std::vector<Item>& list, const FlashlightFingerCvars& c, 
         cycle("Beam Quality", vr_flashlight_beam_quality, {{0.f, "Low"}, {1.f, "Medium"}, {2.f, "High"}})
             .help("How closely the visible beam fades where walls cut it. Higher looks for them more often, costing more time each frame."),
         toggle("Casts Shadows", vr_flashlight_shadows).help("Its light casts shadows (takes one of the shadowed dynamic lights)."),
-        toggle("Cord", vr_flashlight_cord).help("The retracting cord from the clip on your belt to the torch while it is off the belt (off: none drawn)."),
+        cycle("Cord", vr_flashlight_cord, {{0.f, "Off"}, {1.f, "Coiled"}, {2.f, "Plain"}}).help("The retracting cord from the clip on your belt to the torch while it is off the belt: coiled like an old telephone's, springy, or a plain cable (off: none drawn)."),
         hueSlider("Beam Hue", vr_flashlight_hue).help("The beam's colour, with Beam Saturation (at 0 it is white): its light, the beam in the air and the lens. 40 warm, 200 cold blue; Player's: the Player Effects Hue."),
         slider("Beam Saturation", vr_flashlight_saturation, 0.f, 1.f, 0.05f, "%.2f").help("0 white (the default), 1 the Beam Hue in full."),
         header("On the Belt"),
@@ -786,6 +798,13 @@ void flashlightFingers(std::vector<Item>& list, const FlashlightFingerCvars& c, 
             .help("Blood dripping from splats on the ceiling and from gibs stuck there: how long and how much (0 none)."),
         slider("Gibs Stick", vr_gore_stick, 0.f, 30.f, 1.f, "%.0f s").extend()
             .help("Gibs flung into a ceiling or a wall may stick there about this long, dripping, then fall (0 never)."),
+        header("Wounds on Models"),
+        toggle("Dynamic Wounds", vr_wounds)
+            .help("Blood painted on monsters, corpses and you where the hits land, in the skins' own pixels. Your body and hands show your wounds this way instead of the wound skins, and healing washes them off."),
+        toggle("Burns", vr_wounds_burns).help("Explosions, fire, lightning, lava and slime char what they hit; fresh burns glow in their cracks for a moment."),
+        toggle("Wet from Liquids", vr_wounds_wet).help("Monsters and you get wet up to where water or slime came, drip, and dry in about 25 seconds."),
+        cycle("Models Kept", vr_wounds_pool, {{32.f, "32 (8 MB)"}, {64.f, "64 (16 MB)"}, {128.f, "128 (32 MB)"}})
+            .help("How many models keep their wounds at once: past it, the ones seen longest ago give theirs up."),
         header("Your Wounds"),
         slider("Arm Drip Rate", vr_body_blood, 0.f, 4.f, 0.25f, "%.2fx").extend()
             .help("How often blood drips from your wounded arms and hands (the body's wounds: Show Armour and Wounds; 0 none)."),

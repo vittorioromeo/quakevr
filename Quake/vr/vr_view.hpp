@@ -97,6 +97,10 @@ void hotspotsCheck_f();
 // Other Hand Is", for scripts; "vr_weapon_hotspot_here <n> 0" removes it.
 void hotspotHere_f();
 
+// Wounds painted on models (vr_wounds.cpp): the player's own drawn this frame, that take its wounds: the body, and
+// each jointed hand (null where not drawn).
+void woundTargets(entity_t* out[3]);
+
 // The jointed hand (vr_handrig.cpp): the skinning matrices of `e` if it is a drawn hand rig (their count, else 0).
 [[nodiscard]] int handBonePoses(const entity_t* e, const float** matrices);
 

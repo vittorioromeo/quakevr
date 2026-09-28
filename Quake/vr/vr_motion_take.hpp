@@ -128,6 +128,7 @@ struct Row
 
     std::shared_ptr<const ServerSample> sv;
     std::vector<Event> events;
+    bool dummyAttacks{false}; // the training dummy striking back (vr_dummy_attacks, or a replay of its strikes)
 };
 
 // What the header says about a take.

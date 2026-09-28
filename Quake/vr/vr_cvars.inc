@@ -260,6 +260,19 @@ QVR_CVAR(vr_upper_holster_offset_x, "-4.25", CVAR_ARCHIVE)
 QVR_CVAR(vr_upper_holster_offset_y, "7", CVAR_ARCHIVE)
 QVR_CVAR(vr_upper_holster_offset_z, "8.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_upper_holster_thresh, "6.5", CVAR_ARCHIVE)
+// Each pair of holsters turned (the Hotspots menu), degrees, with the gun in it, about the holster's position (where
+// the hand reaches for it), in the body's frame there (vr_view.cpp turnHolster), mirrored for the left one as the
+// offsets' Y is: pitch tips its top away from the body, yaw turns its face outwards, roll tips its top outwards (a
+// hanging gun's muzzle in). 0 0 0: as before.
+QVR_CVAR(vr_hip_holster_pitch, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_hip_holster_yaw, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_hip_holster_roll, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_upper_holster_pitch, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_upper_holster_yaw, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_upper_holster_roll, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_shoulder_holster_pitch, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_shoulder_holster_yaw, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_shoulder_holster_roll, "0", CVAR_ARCHIVE)
 // The player's body (vr_avatar.cpp): 0 none, 2 torso and arms, 3 torso, arms and legs: the skinned
 // progs/vrbody model, posed by IK from the head and hands (1, the old floating torso, is now 2).
 QVR_CVAR(vr_body_mode, "2", CVAR_ARCHIVE)
@@ -273,6 +286,11 @@ QVR_CVAR(vr_body_turn_step, "40", CVAR_ARCHIVE)       // degrees the body turns 
 QVR_CVAR(vr_body_state, "1", CVAR_ARCHIVE)            // the body shows the armour worn and, bloodier, the damage taken
 QVR_CVAR(vr_body_powerups, "1", CVAR_ARCHIVE)         // and the powerups: quad damage arcs, pentagram glow, ring translucency, biosuit tint
 QVR_CVAR(vr_body_blood, "1", CVAR_ARCHIVE)            // the wounded arms and hands drip blood (vr_body_state's wounds; above 1, more drops)
+QVR_CVAR(vr_wounds, "1", CVAR_ARCHIVE)                // blood painted on models where they are hit (vr_wounds.cpp); your body and hands take it instead of the wound skins
+QVR_CVAR(vr_wounds_burns, "1", CVAR_ARCHIVE)          // burns and char painted on models (explosions, fire, lightning, lava, slime), embers while fresh
+QVR_CVAR(vr_wounds_wet, "1", CVAR_ARCHIVE)            // models wet up to where water or slime came, drying (and dripping) in about 25 s
+QVR_CVAR(vr_wounds_pool, "64", CVAR_ARCHIVE)          // how many models keep their wounds at once (256 KB each; the least seen give theirs up)
+QVR_CVAR(vr_wounds_debug, "0", CVAR_NONE)             // 1: print each wound painted
 QVR_CVAR(vr_body_anchors, "1", CVAR_ARCHIVE)          // holsters, virtual stock and hand collisions follow the body's lean and crouch
 QVR_CVAR(vr_body_debug, "0", CVAR_NONE)               // 1 draw the skeleton; 2, 3 also show the body in front of you, facing you or from its left
 QVR_CVAR(vr_body_eye_forward, "0.08", CVAR_ARCHIVE)   // metres from the top of the neck to the eyes, forward and up
@@ -295,7 +313,7 @@ QVR_CVAR(vr_flashlight, "1", CVAR_ARCHIVE)            // 0: no flashlight
 QVR_CVAR(vr_flashlight_brightness, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_flashlight_range, "1000", CVAR_ARCHIVE)   // units the beam reaches
 QVR_CVAR(vr_flashlight_shadows, "1", CVAR_ARCHIVE)    // its spot light casts shadows (takes one of vr_shadow_dlights: one tile, not six faces)
-QVR_CVAR(vr_flashlight_cord, "1", CVAR_ARCHIVE)      // round 21: the retracting cord drawn from the belt clip to the torch while it is off the belt (0: none)
+QVR_CVAR(vr_flashlight_cord, "1", CVAR_ARCHIVE)      // the retracting cord from the belt clip to the torch while it is off the belt: 0 none, 1 coiled (vr_coil.cpp), 2 a plain cable
 QVR_CVAR(vr_flashlight_beam, "0.35", CVAR_ARCHIVE)    // how strong its soft cone of light in the air is, 0..1 (0: none)
 QVR_CVAR(vr_flashlight_beam_quality, "1", CVAR_ARCHIVE) // how closely the visible beam finds the walls that cut it: 0 low, 1 medium, 2 high (traces a frame, vr_flashlight.cpp)
 QVR_CVAR(vr_flashlight_tilt, "8", CVAR_ARCHIVE)       // degrees the stored lamp (hanging on the chest, lens down) leans its lens out from the body
@@ -432,7 +450,7 @@ QVR_CVAR(vr_shadow_muzzleflash, "0", CVAR_ARCHIVE)     // your own muzzle flashe
 QVR_CVAR(vr_shadow_maplights, "2", CVAR_ARCHIVE)       // map lights near you casting the shadows of monsters and you (0 off)
 QVR_CVAR(vr_shadow_maplight_size, "512", CVAR_ARCHIVE) // their face size, texels
 QVR_CVAR(vr_shadow_maplight_strength, "0.7", CVAR_ARCHIVE) // how much of their light those shadows take away
-QVR_CVAR(vr_shadow_self, "2", CVAR_ARCHIVE)            // map lights' shadows of you: 0 none, 1 your body, 2 body and hands
+QVR_CVAR(vr_shadow_self, "2", CVAR_ARCHIVE)            // your shadow from map lights and dynamic lights (the flashlight): 0 none, 1 your body, 2 body, hands, guns
 QVR_CVAR(vr_shadow_filter, "1", CVAR_ARCHIVE)          // shadow edge softening: 0 hard (1 tap), 1 (4 taps), 2 (9), 3 (16)
 QVR_CVAR(vr_shadow_bias, "1", CVAR_ARCHIVE)            // shadow acne vs. light leaking under objects
 QVR_CVAR(vr_shadow_distance, "1536", CVAR_ARCHIVE)     // lights farther than this from you cast no shadows
@@ -635,6 +653,12 @@ QVR_CVAR(vr_counter_damage, "1.5", CVAR_ARCHIVE)        // a counter's damage (a
 QVR_CVAR(vr_counter_sound, "1", CVAR_ARCHIVE)           // volume of the counter's sounds: a blade's shing as the window opens, a heavy strike as a counter lands
 QVR_CVAR(vr_counter_glow, "1", CVAR_ARCHIVE)            // while the window is open, what your hands hold sheds golden embers (fading as it closes)
 QVR_CVAR(vr_counter_haptic, "1", CVAR_ARCHIVE)          // strength of the soft pulses in the hands while the window is open (0: off)
+QVR_CVAR(vr_dummy_attacks, "0", CVAR_NONE)               // the training dummy strikes at you in melee now and then (parry practice; the firing range's button). Not saved: off at every map load, and while a motion take plays
+QVR_CVAR(vr_dummy_attack_period, "2.5", CVAR_ARCHIVE)    // s from one of the dummy's blows to the next (its wind-up included)
+QVR_CVAR(vr_dummy_attack_jitter, "0.4", CVAR_ARCHIVE)    // s the period varies by at random, either way
+QVR_CVAR(vr_dummy_attack_reach, "80", CVAR_ARCHIVE)      // units (origin to origin) within which it strikes; beyond, it waits (a knight's: 60)
+QVR_CVAR(vr_dummy_attack_damage, "10", CVAR_ARCHIVE)     // a blow's damage, before a parry (as a monster's blow: armour, god mode and the parry apply)
+QVR_CVAR(vr_dummy_attack_windup, "0.6", CVAR_ARCHIVE)    // s of wind-up (the tell: a sound, the rifle raised, a glow) before each blow
 QVR_CVAR(vr_leg_holster_model_enabled, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_leg_holster_model_scale, "0.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_leg_holster_model_x_offset, "1", CVAR_ARCHIVE)
@@ -688,6 +712,7 @@ QVR_CVAR(vr_parry_push_player, "1", CVAR_ARCHIVE)        // and you
 QVR_CVAR(vr_push, "0.5", CVAR_ARCHIVE)                    // knockback: all of it (the others scale this)
 QVR_CVAR(vr_hit_push, "1", CVAR_ARCHIVE)                 // heavy weapon hits shove monsters
 QVR_CVAR(vr_kill_push, "1", CVAR_ARCHIVE)                // killing blows throw the bodies
+QVR_CVAR(vr_enemy_liquid_damage, "1", CVAR_ARCHIVE)      // monsters in slime and lava burn as the player does (QC vr_liquids.qc)
 QVR_CVAR(vr_explosion_rumble, "1", CVAR_ARCHIVE)         // explosions near you rumble in your hands
 QVR_CVAR(vr_heartbeat, "1", CVAR_ARCHIVE)                // a heartbeat in your hands when your health is low
 QVR_CVAR(vr_deflect, "1", CVAR_ARCHIVE)                  // melee swings bat monsters' projectiles back

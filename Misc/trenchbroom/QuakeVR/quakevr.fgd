@@ -2480,6 +2480,11 @@ Pushes the player in the direction specified by angles.
 [
 ]
 
+@PointClass color(255 128 0) size(-8 -8 -8, 8 8 8) =
+	vr_dummy_attack_toggle : "Quake VR: the switch of the training dummies' attacks (vr_dummy_attacks: parry practice). Used by the button whose target it is, it turns them on or off, and it shows which on a label at its origin ('angle': the way the label faces, as a func_worldtext_banner's; 'worldtext_scale', 0.75 if not given). The button stays lit while they're on. Not saved: off at every map load."
+[
+]
+
 //
 // Other point entities
 //

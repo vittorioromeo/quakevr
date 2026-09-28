@@ -30,6 +30,7 @@ from . import checks
 from . import md5body
 from . import mdl
 from . import mdl_blender as MB
+from . import normal_blender as NB
 from . import qpal
 
 REPORT_TEXT = "Quake VR export report"
@@ -82,6 +83,7 @@ class QVR_OT_import_mdl(bpy.types.Operator, ImportHelper):
             if context.object is not None and context.object.mode != 'OBJECT':
                 bpy.ops.object.mode_set(mode='OBJECT')
             ob = MB.import_mdl(context, self.filepath)
+            NB.show(ob, NB.map_for(os.path.dirname(self.filepath), os.path.basename(self.filepath)))
         except (mdl.MdlError, OSError) as e:
             self.report({'ERROR'}, str(e))
             return {'CANCELLED'}
@@ -107,6 +109,10 @@ class QVR_OT_export_mdl(bpy.types.Operator, ExportHelper):
                               description="If deleted or changed triangles make an anchor index name another vertex, "
                                           "write the model anyway and print the new indices to set. Off: the export "
                                           "refuses")
+    bake_normals: BoolProperty(name="Bake Normal Map", default=True,
+                               description="Bake its normal map again from the exported model (<model>.mdl_0_norm.png"
+                                           ": its bevels, seams and tiles' relief; bake_normals.py). A map painted or "
+                                           "baked from a high poly since is left alone")
 
     def invoke(self, context, event):
         ob = active_model(context, MB.KIND)
@@ -125,6 +131,8 @@ class QVR_OT_export_mdl(bpy.types.Operator, ExportHelper):
             self.report({'ERROR'}, str(e))
             return {'CANCELLED'}
         write_report(["%s -> %s" % (ob.name, self.filepath)] + lines)
+        if self.bake_normals:
+            bake_after_export(self, context, ob, self.filepath)
         holes = [l for l in lines if "HOLES" in l]
         model = os.path.basename(ob.get("qvr_source") or self.filepath)  # the model it was read as
         special = model.lower() in checks.CHECKS
@@ -197,6 +205,9 @@ class QVR_OT_import_body(bpy.types.Operator, ImportHelper):
             if context.object is not None and context.object.mode != 'OBJECT':
                 bpy.ops.object.mode_set(mode='OBJECT')
             BB.import_body(context, self.filepath, int(self.skin))
+            ob = active_model(context, BB.KIND)
+            if ob is not None:
+                NB.show(ob, NB.map_for(os.path.dirname(self.filepath), "body", int(self.skin)))
         except (md5body.Md5Error, BB.BodyError, qpal.TgaError, OSError) as e:
             self.report({'ERROR'}, str(e))
             return {'CANCELLED'}
@@ -221,6 +232,10 @@ class QVR_OT_export_body(bpy.types.Operator, ExportHelper):
     quantize: BoolProperty(name="Quake's Palette", default=True,
                            description="Put every changed texel on Quake's palette (as the body's skins are painted). "
                                        "Off: full colour (the engine takes it; the Quake look doesn't)")
+    bake_normals: BoolProperty(name="Bake Normal Maps", default=True,
+                               description="Bake the body's normal maps again from the exported mesh (vrbody_00_00_norm"
+                                           ".png, vrbody_04_00_norm.png; bake_normals.py). A map painted or baked "
+                                           "from a high poly since is left alone")
 
     def invoke(self, context, event):
         ob = active_model(context, BB.KIND)
@@ -239,6 +254,8 @@ class QVR_OT_export_body(bpy.types.Operator, ExportHelper):
         except (BB.BodyError, md5body.Md5Error, qpal.TgaError, OSError, ValueError) as e:
             self.report({'ERROR'}, str(e))
             return {'CANCELLED'}
+        if self.bake_normals:
+            bake_after_export(self, context, ob, self.filepath)
         return {'FINISHED'}
 
 
@@ -336,6 +353,50 @@ class QVR_OT_reload_skin(bpy.types.Operator):
         return {'FINISHED'}
 
 
+def bake_after_export(op, context, ob, path):
+    """The normal maps baked again after an export (the export stands whatever happens here)."""
+    try:
+        done = NB.bake(context, ob, path, report=lambda m: op.report({'WARNING'}, m))
+    except (OSError, ValueError, mdl.MdlError) as e:
+        op.report({'WARNING'}, "normal map not baked: %s" % e)
+        return
+    if done:
+        op.report({'INFO'}, "normal map baked: %s" % ", ".join(os.path.basename(p) for p in done))
+
+
+class QVR_OT_bake_normal_map(bpy.types.Operator):
+    """Bake the model's normal map from its model file as last exported (export your edits first): its bevels, seams,
+    stitches and tiles' relief, as Misc/quakevr/bake_normals.py does. With other meshes selected too (the model
+    active), their shape is baked from them with Cycles (a high poly), the relief laid on it"""
+    bl_idname = "quakevr_models.bake_normal_map"
+    bl_label = "Bake Normal Map"
+    bl_options = {'REGISTER'}
+    details: BoolProperty(name="Add Details", default=True,
+                          description="Lay the model's relief (seams, stitches, knurling, tiles, muscles) on the shape")
+    overwrite: BoolProperty(name="Overwrite Edited Map", default=False,
+                            description="Replace a map painted or baked from a high poly since the last bake")
+
+    def execute(self, context):
+        ob = active_model(context)
+        path = ob.get("qvr_source") if ob is not None else None
+        if not path or not os.path.exists(path):
+            self.report({'ERROR'}, "no exported model to bake: import one (or export it first)")
+            return {'CANCELLED'}
+        highs = [o for o in context.selected_objects if o is not ob and o.type == 'MESH']
+        try:
+            done = NB.bake(context, ob, path, highs, self.details, self.overwrite,
+                           report=lambda m: self.report({'WARNING'}, m))
+        except (OSError, ValueError, RuntimeError, mdl.MdlError) as e:
+            self.report({'ERROR'}, str(e))
+            return {'CANCELLED'}
+        if not done:
+            return {'CANCELLED'}
+        NB.show(ob, done[0])
+        self.report({'INFO'}, "baked %s%s; in the game: vr_model_reload" % (
+            ", ".join(os.path.basename(p) for p in done), " from %d high poly object(s)" % len(highs) if highs else ""))
+        return {'FINISHED'}
+
+
 class QVR_PT_models(bpy.types.Panel):
     bl_label = "Quake VR Models"
     bl_space_type = 'VIEW_3D'
@@ -359,6 +420,9 @@ class QVR_PT_models(bpy.types.Panel):
         col.label(text="Skin")
         col.operator(QVR_OT_save_skin.bl_idname, icon='IMAGE_DATA')
         col.operator(QVR_OT_reload_skin.bl_idname, icon='FILE_REFRESH')
+        col.separator()
+        col.label(text="Normal map")
+        col.operator(QVR_OT_bake_normal_map.bl_idname, icon='NORMALS_FACE')
 
 
 def menu_import(self, context):
@@ -372,7 +436,8 @@ def menu_export(self, context):
 
 
 classes = (QVR_OT_import_mdl, QVR_OT_export_mdl, QVR_OT_carry_frames, QVR_OT_import_body, QVR_OT_export_body,
-           QVR_OT_apply_pose_body, QVR_OT_select_unweighted, QVR_OT_save_skin, QVR_OT_reload_skin, QVR_PT_models)
+           QVR_OT_apply_pose_body, QVR_OT_select_unweighted, QVR_OT_save_skin, QVR_OT_reload_skin,
+           QVR_OT_bake_normal_map, QVR_PT_models)
 
 
 def register():

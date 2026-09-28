@@ -603,13 +603,19 @@ static void Mod_LoadNormalMap (gltexture_t *glt, const char *image, const char *
 	for (n = 0; n < 2; n++)
 	for (i = 0; (n ? shared : image) && i < (int) countof (authored); i++)
 	{
+		double t0 = Sys_DoubleTime (); // QVR
 		mark = Hunk_LowMark ();
 		q_snprintf (filename, sizeof (filename), "%s%s", n ? shared : image, authored[i].suffix);
+		if (TexMgr_ShareNormalMap (glt, filename, authored[i].kind | NORMALMAP_FILE | heights)) // QVR: made for another skin
+		{
+			Hunk_FreeToLowMark (mark);
+			return;
+		}
 		img = Image_LoadImage (filename, &fwidth, &fheight, &fmt);
 		if (img)
 		{
 			TexMgr_LoadNormalMap (glt, filename, fwidth, fheight, fmt, img, filename, 0, authored[i].kind | NORMALMAP_FILE | heights, worldwidth);
-			Con_DPrintf ("normal map %s (%d x %d)" "\n", filename, fwidth, fheight);
+			Con_DPrintf ("normal map %s (%d x %d, %.1f ms)" "\n", filename, fwidth, fheight, (Sys_DoubleTime () - t0) * 1000.0); // QVR: what it cost
 		}
 		Hunk_FreeToLowMark (mark);
 		if (img)
@@ -4702,6 +4708,32 @@ static void Mod_MD5SkinNormalMap (aliashdr_t *surf, gltexture_t *glt, const char
 	Hunk_FreeToLowMark (mark);
 }
 
+/*
+===============
+Mod_MD5SharedNormalMap -- QVR: the skin whose authored normal map (progs/<shader>_NN_00_norm or _bump) skin `skin` uses
+if it has none of its own: the nearest one before it that has one (the body's: skin 0's for the clothes, skin 4's for
+all the armours' 12), else skin 0's name (its made map then).
+===============
+*/
+static void Mod_MD5SharedNormalMap (const char *shader, int skin, char *out, size_t size)
+{
+	static const char *const suffixes[] = {"_norm.png", "_norm.tga", "_bump.png", "_bump.tga"};
+	char	path[MAX_QPATH];
+	int		k, i;
+
+	for (k = skin; k >= 0; k--)
+		for (i = 0; i < (int) countof (suffixes); i++)
+		{
+			q_snprintf (path, sizeof (path), "progs/%s_%02d_00%s", shader, k, suffixes[i]);
+			if (COM_FileExists (path, NULL))
+			{
+				q_snprintf (out, size, "progs/%s_%02d_00", shader, k);
+				return;
+			}
+		}
+	q_snprintf (out, size, "progs/%s_00_00", shader);
+}
+
 static void Mod_LoadMD5Skins (qmodel_t *mod, aliashdr_t *surf, const char *shader)
 {
 	char texname[MAX_QPATH];
@@ -4743,7 +4775,12 @@ static void Mod_LoadMD5Skins (qmodel_t *mod, aliashdr_t *surf, const char *shade
 					}
 				}
 
-				Mod_MD5SkinNormalMap (surf, surf->gltextures[surf->numskins][f], texname, va ("progs/%s_00_00", shader), data, fmt, fwidth, fheight); // QVR
+				{ // QVR: the skin's own name (texname may have become its _glow or _luma's by now)
+					char skinname[MAX_QPATH], shared[MAX_QPATH];
+					q_snprintf (skinname, sizeof (skinname), "progs/%s_%02u_%02u", shader, surf->numskins, f);
+					Mod_MD5SharedNormalMap (shader, surf->numskins, shared, sizeof (shared));
+					Mod_MD5SkinNormalMap (surf, surf->gltextures[surf->numskins][f], skinname, shared, data, fmt, fwidth, fheight);
+				}
 
 				//now try to load glow/luma image from the same place
 				Hunk_FreeToLowMark (mark);

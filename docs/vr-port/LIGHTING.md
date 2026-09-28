@@ -67,7 +67,8 @@ renderer notes; Unity HDRP/URP docs; Ironwail issue #329; Hexenwail issues #78 a
     - doors, lifts and platforms (`glvert_t` positions from Ironwail's brush vertex buffer, one small depth-only
       shader);
     - monsters and items, through Ironwail's own alias renderer with the face's view-projection and frustum.
-  - The light's own entity (a rocket) and your hands and gun don't cast. Faces whose cone can't reach the view
+  - The light's own entity (a rocket) doesn't cast. Your body, hands and guns do (`vr_shadow_self`, since the
+    flashlight shadows in round 21), except from your own lights (muzzle flashes, powerup glows). Faces whose cone can't reach the view
     are skipped.
   - When the atlas is full, everything is halved and repacked, as in DarkPlaces.
 - **Map lights' shadows of moving things** (`vr_shadow_maplights`, 2). The light entities near you (reaching near
@@ -106,7 +107,7 @@ renderer notes; Unity HDRP/URP docs; Ironwail issue #329; Hexenwail issues #78 a
 | `vr_shadow_maplights` | 2 | map lights casting the shadows of moving things (0 off) |
 | `vr_shadow_maplight_size` | 512 | their face size |
 | `vr_shadow_maplight_strength` | 0.7 | how dark those shadows get |
-| `vr_shadow_self` | 2 | your shadow from map lights: 0 none, 1 body, 2 body and hands |
+| `vr_shadow_self` | 2 | your shadow from map lights and dynamic lights (the flashlight): 0 none, 1 body, 2 body, hands and guns |
 | `vr_shadow_filter` | 1 | 0 hard … 3 softest |
 | `vr_shadow_bias` | 1 | acne vs. peter-panning |
 | `vr_shadow_distance` | 1536 | lights farther away cast none |
@@ -351,12 +352,18 @@ light a surface almost straight on, where a tilt of θ only dims it by 1 − cos
   blurs), 0.5 s for e1m1's 118 skins; none per frame.
 - **Authored maps** (`Mod_LoadNormalMap`): an alias skin looks for `progs/<model>.mdl_<skin>_norm` (DarkPlaces'
   names; a group's frames `_<skin>_<frame>`), then `_bump` (a height map: white high), then skin 0's (all skins share
-  the texture coordinates); an MD5 mesh's skin `progs/<shader>_<ss>_<ff>_norm` / `_bump`, then
-  `progs/<shader>_00_00_*`. Any of Ironwail's image formats (tga, png, jpg, pcx, lmp). They work under Quake's 8-bit
+  the texture coordinates); an MD5 mesh's skin `progs/<shader>_<ss>_<ff>_norm` / `_bump`, then the nearest earlier
+  skin's that has one (`Mod_MD5SharedNormalMap`: the body's armour skins 04-15 take `vrbody_04_00_norm`), then
+  `progs/<shader>_00_00_*`. One file serves all the skins that use it with one texture (`TexMgr_LoadNormalMap` finds
+  it by name among the model's). Any of Ironwail's image formats (tga, png, jpg, pcx, lmp). They work under Quake's 8-bit
   skin as under a full-colour replacement. They are marked `NORMALMAP_FILE`; the alias instance's `AO.z` carries the
   map's strength (`VR_ModelNormalMapScale`): a made map's `vr_normalmap_strength`, an authored one's
   `vr_normalmap_authored` (1: as authored; Graphics > "Authored Model Bumps"), and authored maps are not halved on
-  held weapons and hands (`VR_ModelBumps`). `BumpedNormalK` is `BumpedNormal` with the strength passed in.
+  held weapons and hands (`VR_ModelBumps`). `BumpedNormalK` is `BumpedNormal` with the strength passed in, and
+  (round 21, "Baked normal maps") a frame whose two axes are each of unit length, as a baker's tangent frame has them:
+  the world's keeps them scaled together (the longer one unit), which on a 512 x 178 skin made a slope along its long
+  side a third as steep. Quake VR's own models ship baked maps (`Misc/quakevr/bake_normals.py`), written in exactly
+  this frame.
 - **External full-colour skins** (`Mod_LoadExternalSkin`): `progs/<model>.mdl_<skin>` (DarkPlaces' names, as model
   packs ship them) replaces the 8-bit skin, mipmapped, with `_glow` or `_luma` as its fullbrights (else the 8-bit
   skin's own). Player colours still use the 8-bit skin. Its normal map is made from it (or authored) once the
@@ -365,6 +372,12 @@ light a surface almost straight on, where a tilt of θ only dims it by 1 − cos
   its bones) and the body (`vrbody.md5mesh`) had no normal maps at all; they now get one per skin, from their own
   texture coordinates' islands, with the same lighting as any alias model (own light and `vr_modellight`, dynamic
   lights, the flashlight, muzzle flashes; held-hand half for made maps).
+- **Wounds painted on models** (round 21, ROUND21.md "Dynamic wounds, burns and wetness"; `WoundsAt`, `WoundSheen` in
+  the alias fragment shader): before the lighting, the skin's colour takes the wound mask's blood, char and wetness
+  (read at the skin's texel, ordered-dithered edges); blood (0.75) and water (0.5) pull the bumped normal back to the
+  smooth one (they fill the bumps), both add a sheen in the model's own light from its direction (blood a tight
+  one, water a broader one and a little at grazing angles); covered texels lose their fullbright; fresh burns add
+  unlit embers after the fullbrights. With no mask the image is as before (checked against the build before it).
 
 ## The chest flashlight
 
@@ -385,8 +398,8 @@ Now it is lit as games light torches, with no traces:
 - **Its shadow** (`vr_flashlight_shadows`, on by default): one square tile in the shadow atlas, a perspective
   projection round the cone (tangent of 22 degrees and 6% more), twice a cube face's size (1024 at Medium, at most
   2048): a third of a point light's texels at four times its angular resolution. Its casters are those within the
-  cone's bounding sphere (the world by the BSP, doors and lifts, monsters and items; not your own body, hands or
-  gun). The lamp is at your eye, so it always ranks first among the shadowed lights.
+  cone's bounding sphere (the world by the BSP, doors and lifts, monsters and items; since round 21 also your
+  hands, guns, body and the torch itself: `vr_shadow_self`, ROUND21.md "Flashlight shadows, cord and hand-over"). The lamp is at your eye, so it always ranks first among the shadowed lights.
 - A faint **spill** (a tenth, half the range, out to 45 degrees, unshadowed), as a torch's reflector gives round the
   hotspot, and a faint glow just in front of the lamp (half a metre).
 

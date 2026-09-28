@@ -14,6 +14,7 @@
 //! internal random_pick_type         Rogue: item_random_powerup's pick (it calls it)
 //! internal trigger_reactivate       id leftover: never used, sets nothing up
 //! internal monster_spikemine        Hipnotic leftover: an unfinished copy of the fiend (trap_spike_mine is the mine)
+//! internal vr_dummy_attack_toggle_show  a helper of vr_dummy_attack_toggle: shows its label, not a map entity
 
 // Entities with no spawn function: the compilers' and the editor's.
 //! editor func_group

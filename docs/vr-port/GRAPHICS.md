@@ -190,6 +190,11 @@ models) and keeps the classic pixel look; none of it needs new art.
   BSP, hull 0, client-side). Weighted by brightness there; `w` is how much they agree. Recomputed when the model
   moves 12 units or every 0.3 s, eased over time. The alias shader gets it per instance (`aliasinstance_t.lightdir`,
   `InstanceData.LightDir`) and mixes it with the fixed direction by `w`.
+- **Dynamic wounds, burns and wetness** (round 21, ROUND21.md; `vr_wounds`, `vr_wounds_burns`, `vr_wounds_wet`,
+  `vr_wounds_pool`; Gore page): blood, char and wetness painted into a per-model mask in the skin's layout where each
+  blow lands (a 256 x 256 layer of one RGBA8 texture array, 64 of them: 16 MB), shown on the skin's texel grid in
+  Quake's palette reds; drying, cooling and healing over time. About 2 µs of GPU a hit, 0.006 ms an eye for 32
+  masked models at 2048².
 - **Blob shadows for monsters and items** (#5, `vr_entity_shadows`): alias models in the scene except the player's,
   view entities, see-through ones and `r_noshadow_list` (flames, beams); sized from the model's bounds, pushed away
   from the model's light direction, fading with height. The traces are now client-side through the world and the

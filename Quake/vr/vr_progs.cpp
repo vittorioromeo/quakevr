@@ -3,6 +3,7 @@
 #include "vr_progs.hpp"
 #include "vr_engine.hpp"
 #include "vr_box3d.hpp"
+#include "vr_cvars.hpp"
 #include "vr_physics.hpp"
 #include "vr_server.hpp"
 
@@ -115,6 +116,7 @@ extern "C" void VR_OnProgsLoaded()
         b.OnLoadGame = findFunction("OnLoadGame");
         b.Motion_Sample = findFunction("VR_Motion_Sample");
         b.Motion_Equip = findFunction("VR_Motion_Equip");
+        b.Dummy_Replay = findFunction("VR_Dummy_Replay");
 
         const auto globalFloat = [](const char* name) -> float* {
             ddef_t* def = findGlobalDef(name);
@@ -160,6 +162,8 @@ extern "C" void VR_OnSpawnServerBeforeLoad()
     qvr::box3d::reset();
     qvr::physics::precacheWaterSounds();
     resetBuiltinState();
+    // The training dummy's attacks (parry practice; QC vr_dummy.qc) are off at every map load, a saved game's too.
+    Cvar_SetQuick(&qvr::vr_dummy_attacks, "0");
     callSpawnServerEntryPoint(sv_bindings.OnSpawnServerBeforeLoad);
 }
 

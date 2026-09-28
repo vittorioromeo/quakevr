@@ -514,6 +514,8 @@ void() StartFrame =
     teamplay = cvar_hget(cvarh_teamplay);
     skill = cvar_hget(cvarh_skill);
     VR_CVars_Frame();
+    VR_Liquids_Frame(); // VR: monsters in slime and lava burn (vr_liquids.qc)
+    VR_Wounds_Frame(); // VR: wet up to where the liquid comes (vr_wounds.qc)
     framecount = framecount + 1;
 };
 

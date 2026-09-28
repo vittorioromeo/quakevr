@@ -26,6 +26,9 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | Grab reach, two-handed detach, brushing fingers | a thing is taken only if the fist touches it (it was 8 cm from the fist's front, past the open fingertips), Grab Distance Bias; a prop held in both hands drops when both are pulled off it (one: the other keeps it); the free hand's fingers rest on or bend out of the weapon they brush |
 | Items as physics pickups | the map's weapons, keys, runes and suits hang spinning like the armour until grabbed, knocked or force-grabbed, then are Box3D props; a gripped weapon is yours at once, the rest are taken at a holster (Weapons and Keys, default on). Props no longer rest in the floor (the firing range's weapons: 2.8 units in on average, 19.9 at most; now 0.1 above); spinning pickups' physics shapes turn with the model |
 | Arm IK with calibrated hands | the wrist judged against a real, lopsided range (ulnar deviation, which his Gun Angle 70 adds, is natural), the elbow swinging only past it or for a roll; the pole takes the hand's roll only: his takes swing the elbow >30° in 2.6% of frames instead of 24.3%, the same motion gives elbows 4.1 cm apart under the two calibrations instead of 8.6; wrist bends turn the gadget 0-5° (was 7-35°) |
+| Dummy attacks | a DUMMY ATTACKS button beside the firing range's training dummy: it winds up (a sound, a glow, the rifle raised) and strikes you every 2.5 s as a knight would, for parry practice (parry, stamina, counters as in a fight); off at every map load; replays turn it off, and a take recorded with it on replays its blows at the same moments; your 471 archived takes evaluate identically |
+| Melee fixes | a punch holding the torch lands (it never did); the free palm with the torch hand pushing is a two-handed shove, the torch hand alone no shove; axe, Mjolnir, sword and gun blows strike walls (10 of 24 test chops before, 23 now); gibs on the floor burst when punched or chopped; your 471 takes replay identically |
+| Dynamic wounds | blood, burns and wetness painted into each monster's, corpse's and your own skin where the blow lands (chunky, on the skin's texels, Quake's reds), drying, cooling, healing; your body and hands no longer use the wound skins; 16 MB, about 2 µs of GPU a hit |
 
 Found on the way: fteqcc stores 0 when `a || b` is assigned into an entity field (rewritten; no other code has that
 shape); a parried blow's hand knock, timed by `cl.time`, came back after a level change (reset now).
@@ -5418,3 +5421,873 @@ pixels), e1m1 with a shambler and an ogre in the hand torch and the shotgun held
 - [ ] With a rocket or a lava ball passing the knight's plates and the grunt's arms: do the forms move with the light?
 - [ ] Your own hands in the torch light: knuckles and creases, and no grain?
 - [ ] Graphics > Authored Model Bumps: nothing should change until an authored map is installed (then 0 flattens it).
+
+## Enemies hurt by liquids; holster orientation
+
+Two voice notes of 2026-09-28. Branch `agent/misc22`; composites in the scratchpad's `misc22/`.
+
+### Enemies Hurt by Liquids (the e1m1 note)
+
+"I've pushed an enemy into Slime and it wasn't taking damage." In id's QuakeC only the player is hurt by liquids
+(`WaterMove`, client.qc); monsters never were. Ours had two partial exceptions. A shove's landing burned once
+(`VR_Shove_Landed`: 100 in lava, 30 in slime), but it tested the monster's origin, the middle of its box, which is above
+e1m1's shallow slime (40 units deep): so nothing. And hipnotic's gremlins die in lava.
+
+**Now:** Gameplay > Damage > **Enemies Hurt by Liquids** (`vr_enemy_liquid_damage`). It is **on** by default for
+three reasons: it is how the world should work, it makes the shove a tactic, and it changes nothing for monsters
+that stay out of slime and lava. The only map-placed monsters that stand in them are the immune ones below.
+
+A monster in slime or lava burns as you do, by how deep it is. Its waterlevel is measured as the engine measures
+yours (feet, waist, eyes):
+
+| Liquid | Damage | Per second at waterlevel 1 / 2 / 3 |
+|---|---|---|
+| Lava | 10 x waterlevel every 0.2 s | 50 / 100 / 150 |
+| Slime | 4 x waterlevel every second | 4 / 8 / 12 |
+| Water | none: no drowning (Quake's monsters never needed air; an ogre wading a deep pool should not die) | - |
+
+| Monster | Rule |
+|---|---|
+| Fish, eels (`FL_SWIM`) | immune: their liquid is their home, whatever it is |
+| Chthon, Shub-Niggurath, Armagon, the dragon, the lava lord (Hephaestus) | immune: bosses with scripted deaths; Chthon and Hephaestus live in lava |
+| The firing range's dummy | immune (it reports hits, vr_dummy.qc) |
+| Zombies | lava burns them up at once, which gibs them (nothing less than a hit their size kills a zombie); slime's small ticks are shrugged off like any small hit (`zombie_pain`) |
+| Everyone else (shamblers too) | burns |
+
+It is the liquid's damage, with no attacker, as the player's. So there is no quad, no Damage to Enemies multiplier,
+no hit push, no gore spray and no hit feedback.
+- The monster's own pain code runs: its pain sounds and flinches, at its own pace.
+- Its own death code runs: past its gib health it bursts, as usual.
+- Lava sizzles as the monster goes in (`player/inlava.wav`). While it burns it smokes and throws embers (the smoke
+  and the lava nails' sparkles, at the surface).
+- Slime hisses (`player/slimbrn2.wav`).
+- Corpses are left alone, so no gibs burst out of a pool later.
+- The shove's landing burn now tests the feet.
+
+The code is in `QC/vr_liquids.qc`, scanned from `StartFrame`. Each monster is checked every 0.1 s, and one in slime
+or lava at its liquid's pace.
+
+**Kill credit:** the shove and knockback code (`VR_Push`, the `vr_shove` slide) doesn't track who pushed, and nothing
+needs it:
+- the kill count counts every monster's death, whatever killed it;
+- monsters have no obituaries;
+- the shove's own hit already made the monster go for you.
+
+Passing the shover as the attacker would have brought quad and the Damage to Enemies multiplier into the liquid's
+damage. It would also have pushed the monster out of the pool with every tick. So the burn has no attacker, as the
+player's.
+
+**Checked** in the mock. `vr_debug_shots 1` with `developer 1` logs each burn with the monster's health.
+- e1m1's slime pool (`setpos 200 2820 -60`, a grunt put in it with `impulse 241`):
+  - on: waterlevel 2, 8 a second: 30, 22, 14, 6, dead at 4 s;
+  - off: 30 throughout (`vr_enemy_liquid_damage 0` logs "not burnt" once a second).
+- e1m7's lava (`setpos -50 48 20`, facing the lava; monsters 200 units ahead):
+  - a grunt (waterlevel 2): dead in 0.4 s;
+  - a zombie: gibbed on the first tick;
+  - an ogre: 200 -> 0 in 2 s;
+  - a shambler (waterlevel 1: the lava is 40 deep): 600 -> 0 in 12 s, with pain animations and smoke rising over it
+    (`liq_shambler.png`);
+  - off: a grunt at 30 throughout.
+- Not checked end to end: an actual shove into slime (the mock's hands can't shove on cue here). The shove only has to
+  put the monster there; the burn doesn't care how it got in.
+
+**In the headset:**
+- [ ] Shove a grunt or a dog off e1m1's walkway into the slime: it should flinch and die in a few seconds. An ogre
+  takes much longer: slime is slow, as it is for you. Push a knight into e1m7's lava: it should be gone at once,
+  smoking. Does it make the shove worth it? If slime feels too weak, say how much stronger.
+- [ ] Monsters walking through slime on their own now get hurt too (their AI doesn't avoid it): fine, or too easy?
+
+### Holster orientation (the start map note)
+
+"Sliders for each holster to change the orientation ... roll, yaw, and pitch, and everything for each holster pair."
+
+**Where:** Hotspots, under each pair's Threshold: **Shoulder / Hip / Upper Pitch, Yaw, Roll**.
+- Range -180..180 degrees, in 5-degree steps.
+- Cvars: `vr_shoulder_holster_pitch/yaw/roll`, `vr_hip_holster_*`, `vr_upper_holster_*`; archived, 0 by default.
+- The three pairs are all the holster slots there are: the hip holsters are the leg holsters (the Holster Slot
+  sliders' model), the upper ones are on the chest, and the shoulder ones are on the back.
+
+**What turns:** the holster model and the gun in it, together. They turn about the holster's position, which is where
+your hand reaches for it. That point stays put, so holstering and drawing work exactly as before.
+
+The turn is in the body's frame at the holster. The axes are "out" (off the body's surface), the body's up, and
+"outwards" (the body's right for the right holster, its left for the left one):
+- **Pitch** tips the holster's top away from the body (negative: towards it);
+- **Yaw** turns its face outwards (negative: inwards);
+- **Roll** tips its top outwards (negative: inwards). A hanging gun's muzzle swings the other way, a cross-draw cant.
+
+The order is yaw, then pitch, then roll, as Quake's angles.
+
+The left holster's frame is the right one's mirror image. So yaw and roll mirror between the two and pitch does not,
+as the offsets' Y mirrors and their X and Z don't.
+
+With the body drawn, the frame is the body's surface where the holster lies. That surface follows the lean, the
+crouch and, for the hips, the thighs, and the turn rides along with it.
+
+0 0 0 skips the turn entirely, so today's look is exact. `vr_savedefaults` keeps the new cvars (it writes every
+archived `vr_` cvar that differs from its default).
+
+**Insertion direction:** there is no insertion direction to follow. A gun goes into a holster when you let go of it
+within the holster's reach (a sphere, Threshold), whichever way it points, and a drawn gun is in your hand at once.
+So turning the holster changes only how the holstered gun is carried and shown.
+
+The only code change is in `vr_view.cpp` (`turnHolster`, `holsterTurn`). `vr_body.cpp` (holster positions) is
+untouched.
+
+**Checked** in the mock, with `r_fullbright 1` and `vr_body_mode 3`:
+- `hol_hip_mirror.png`: the body preview facing you (`vr_body_debug 2`), then from its left (`3`). The hips at 0,
+  pitch 30, yaw 45, roll 45 and roll -45 turn as mirror images. (The right hip holds the shotgun and the left the axe:
+  the starting holsters.)
+- `hol_upper.png`: the empty chest holsters' models at 0, pitch 30, yaw 45 and roll 45, mirrored.
+- `hol_shoulder.png`: a shotgun holstered at the right shoulder, seen from behind
+  (`vr_mock_camera 0.7 1.9 0.8 20 40`). At 0, pitch 30 (its top goes back), yaw 45, and roll 45 (its top goes
+  outwards).
+- `hol_eye.png`, the eyes looking down, with the hips at pitch 20, yaw 30, roll 40:
+  - the guns come into view;
+  - gripping at the right hip draws the shotgun;
+  - letting go there holsters it again, turned.
+
+**In the headset:**
+- [ ] Hotspots: turn a hip holster (try Roll first: a cant) and look down. The gun should follow the holster, and the
+  left one should mirror the right. Draw and holster: nothing about reaching should change.
+- [ ] Try the chest and shoulder pairs the same way. If a slider feels backwards, say which one and which way it
+  should go.
+
+## Dummy attacks (firing range)
+
+Your request: a button in the firing range that makes the training dummy strike at you every few seconds, to
+practise parrying, without disturbing the melee recordings.
+
+### What it does
+
+- **The button** is beside the dummy, about 4 m to its south (on its right as it stands, on your left as you face it
+  from the usual spot). It is a panel like the second row's, facing north, with the label **DUMMY ATTACKS OFF / ON**.
+  Press it like the other buttons (a hand, a weapon or the body). While attacks are on, the button stays lit
+  (its pressed texture), and the gadget shows "Dummy attacks ON" / "OFF". The console says what the settings are.
+  `vr_dummy_attacks 1` / `0` in the console does the same; the label and the light follow.
+- **In attack mode**, the dummy strikes the nearest living player within reach, once every 2.5 s, give or take up
+  to 0.4 s at random:
+  - **The tell** (the wind-up, 0.6 s): a new sound (`vr/dummy_windup.wav`: two clacks of the rifle taken up, then a
+    rising, growling swell that breaks off just before the blow), a glow around the dummy (Quake's dim light), and
+    the rifle raised as it turns to face you and rears back 12°.
+  - **The blow**: it lunges (22° forward) with a sword's whoosh. The blow is dealt as a monster's melee blow, the
+    same call a knight's attack makes (`T_Damage` from the monster itself). So the parry (a weapon across, or crossed
+    arms), parry stamina, the counter's window, the knockback of an unparried blow, armour, god mode and death all
+    work exactly as in a fight. It does 10 damage (the `impulse 242` test blow's damage; a knight's does 0-9).
+    For this, the parry's list of monsters that strike in melee (`VR_Parry_MeleeMonster`) includes the dummy only
+    while its own blow is being dealt.
+  - **A parried blow** throws the dummy back (a lean), on top of the parry's own sparks, sound and haptics.
+  - **Reach**: 80 units (2.4 m at your world scale), from its origin to yours, measured as a knight's reach is (60
+    units). Further away it waits and turns back to its own facing. When you step in, the wind-up starts 0.5 s later
+    at the soonest. If you step out during the wind-up, it misses (the whoosh, no damage). An unparried blow's
+    knockback can push you out of reach; step back in.
+  - **Your hits** are reported as before (the console and the floating numbers). They don't interrupt its attack,
+    so a steady rhythm is kept. A counter's readout shows as before ("counter bash ... (x1.50)").
+  - Players with `notarget` are left alone, as monsters leave them.
+- **The button's state is not saved.** Attacks are off at every map load, a saved game's included (the engine turns
+  `vr_dummy_attacks` off as the server spawns). A wind-up under way when the game was saved stops after loading it.
+
+### Settings (Gameplay > Parry, Bash and Headbutt > Training Dummy Attacks)
+
+| Setting | Default | Menu |
+|---|---|---|
+| `vr_dummy_attacks` | 0 | (the button; not saved, off at every map load) |
+| `vr_dummy_attack_period` | 2.5 s | Time Between Blows (1-8 s, extends) |
+| `vr_dummy_attack_jitter` | 0.4 s | Randomness (0-2 s, extends): each blow up to this much sooner or later |
+| `vr_dummy_attack_windup` | 0.6 s | Wind-Up (0.1-2 s) |
+| `vr_dummy_attack_reach` | 80 units | Reach (16-150 units; 150 is where a parry and a monster blow's push stop) |
+| `vr_dummy_attack_damage` | 10 | Damage (0-50, extends) |
+
+**Tracing** (`developer 1`): "dummy: winds up, the blow in 0.60 s", "dummy: strikes player for 10, 42 units away:
+parried", "dummy: misses: nobody within reach", along with the parry's own lines ("parry: vr_dummy with hand 1",
+"stamina: 70 of 100 left", "counter: open for 1.50 s").
+
+### The motion recordings
+
+- **Off, it isn't there.** With attacks off, none of this code runs: the dummy's think is the same as before, it
+  draws no random numbers, and its angles are the same values. The eval shows this below.
+- **The button's entities are appended** at the end of `vrfiringrange.ent`, so no entity before them is renumbered.
+  The dummy is still entity 137, at the same place, and the player start is unchanged. That is what the takes'
+  `target: vr_dummy #137` and their placement rely on. The panel's nearest point is 104 units from the dummy's middle, and
+  71 units from anything any of the 471 takes did: where you stood, your head, your hands and the tips of your
+  weapons. I checked every row of every take.
+- **Replays turn it off.** `vr_motion_play` and `vr_motion_eval` set `vr_dummy_attacks` to 0 for the replay and put
+  it back afterwards. The eval's map loads turn it off too. So the dummy never strikes on its own timer during a
+  replay.
+- **Takes recorded with attacks on.** Arming or recording is never affected by the button unless you turn attacks on.
+  A take recorded with them on at any moment gets the header line `dummy attacks: on`. It also gets a `strike` event
+  for each wind-up, blow (its damage, and whether it was parried) and miss. Its replay reproduces them: the take's
+  dummy does each `strike` event in the server frame that plays that event's frame, after the player's, as it was
+  recorded (the engine calls QC `VR_Dummy_Replay`). So the parries, the stamina, the counter's window and the
+  knockback happen at the same moments as live.
+  - Why this matters: a counter bash recorded against a real blow is a `parrybash`. Replayed without the blows, it
+    would be a plain `bash` at a different damage (checked: 7.2 with the blows, 4.8 without).
+- **The eval's expectations** stay about your own events. `strike` events are listed in the eval's `events` column
+  (as are parries), but no expectation counts them: they are not hits, strokes, pushes or batting, so a `no_hit` take
+  recorded with attacks on still passes if you didn't hit. Best keep them off for every category but Parry Bash and
+  Other. The Motion Recorder section of MOTIONS.md says so.
+
+### Files
+
+- `QC/vr_dummy.qc`: "Attacks (parry practice)" (the wind-up, the blow, the replay's strikes) and "The firing range's
+  'dummy attacks' button" (`vr_dummy_attack_toggle`: the label, the light, the toggle).
+- `QC/combat.qc`: `VR_Parry_MeleeMonster` takes the dummy while it strikes; `vr_parried` tells the dummy how its blow
+  was met.
+- `quakevr/maps/vrfiringrange.ent`: three entities at the end (the panel, the button, the toggle with its label).
+- `quakevr/maps/vr_panel_north.bsp`, `vr_button_north.bsp`: the map's soldier button and panel turned to face north,
+  built by `Misc/quakevr/make_spawn_buttons.py`. They use Valve 220 texture axes turned with the brush, so their
+  textures lie exactly as on the map's own button. The two west-facing models are unchanged.
+- `quakevr/sound/vr/dummy_windup.wav`: `Misc/quakevr/make_sounds.py` (`dummy_windup`).
+- Engine: `vr_cvars.inc` (the settings), `vr_progs.cpp` (off at every server spawn; the `VR_Dummy_Replay` binding),
+  `vr_motion.cpp` (the header line), `vr_motion_play.cpp` (off during replays; the take's strikes done again),
+  `vr_menu.cpp` (the section).
+
+### Tests (mock headset; scratchpad `dummyatk/`, scripts `gen2.py`)
+
+- **The button** (`button.png`): OFF, pressed by the hand ("Dummy attacks ON" on the gadget, `vr_dummy_attacks` 1),
+  pressed again (OFF, 0). The label and the light follow; the light stays on while the button comes back out.
+- **The wind-up and a blow landing**, from your eyes (`seqfp.png`) and from the side (`seq2.png`): standing, then
+  the glow and the rifle raised, then the blow: the red flash, 100 to 90, pushed back 26 units (240 to 265.7).
+- **A parried blow** (`parry2.png`; the sword across in one hand, parry stamina on): "parry: vr_dummy with hand 1",
+  "stamina: 70 of 100 left", "counter: open for 1.50 s", the bar and the embers, "strikes player for 10: parried".
+  Then a bash 0.24 s after the second parry: "counter: bash on vr_dummy, x1.50", "Dummy: 7.2 damage - counter bash
+  with the Knight's Sword, one hand (x1.50), at the body".
+- **Reach** (jitter 0): 110 units away, nothing for 4 s. Stepping in, the wind-up starts 0.5 s later and the blow
+  lands. Stepping out during the next wind-up: "misses: nobody within reach". Turned off during a wind-up: no blow.
+  A map load turns it off (`vr_dummy_attacks` 0), and so does loading a game saved during a wind-up (no blow; the
+  label reads OFF, `load2.png`).
+- **A take recorded with attacks on** (`take_attacks.csv`: two parried blows and a counter bash) has
+  `# dummy attacks: on` and its `strike` events. Played back (`vr_motion_play ... recorded`) with attacks on
+  beforehand: the same events at the same times (strike/windup, parry, strike/blow, push, **parrybash 7.2**, ...),
+  hands within 0.014 units of the take's, "4 of its strike events done again". `vr_dummy_attacks` is 0 during the
+  replay and 1 again after it. `vr_motion_eval` on it: the same, "1 of 1 replays hit as their takes did live". The
+  same take with its header line removed replays a plain `bash 4.8`.
+- **Your takes** (the 471 archived in `motions/pre_calibration_2026-09-28`, copied), `vr_motion_eval` before (the
+  round's commit, 0d5c225b) and after (this change), with your old hand settings set and
+  printed (`vr_gunangle` 39.5, `vr_gunyaw` 4, `vr_offhandpitch` 40.25, `vr_offhandyaw` -4, every `vr_handcal_*` 0,
+  `vr_handcal_off_mirror` 0; printed again during a replay and after it, all the same: they are also the takes' own
+  `hand angles`, which playback applies). Before and after: 429 of 471 pass, 181 replays hit as live, and the
+  two tables are **identical in every column** (verdicts, reasons, events, recorded events, same hits, frames and
+  hands' error). Two earlier runs, without setting those values first (the same values from the config), were
+  identical too except `hand_error_u` in 4-5 takes. That column differs as much between two runs of the unchanged
+  build (4 takes), so it is run-to-run noise already there. The 5 takes rerun alone on the unchanged build gave the
+  new values.
+- **The menu** (`menu.png`): the Training Dummy Attacks section under Counter-Attacks.
+- QC: 0 warnings.
+
+### Not verified
+
+- In the headset: how readable the tell is (the glow and the raised rifle at 1.5 m, the sound's level against the
+  range's), and whether 0.6 s of wind-up and 2.5 s between blows feel right for practice. All are settings.
+- Coop: it strikes the nearest player; not tried with two.
+
+### In the headset
+
+- [ ] Firing range: press DUMMY ATTACKS (south of the dummy). The label reads ON and the button stays lit. Step in
+      front of the dummy: it turns to you. Within a second or so you hear the clacks and the swell, it glows and
+      raises its rifle, then lunges.
+- [ ] Take a blow without parrying: 10 damage, pushed back. Then hold a sword across: the parry's ring and sparks,
+      and it is thrown back.
+- [ ] Parry Stamina on: the bar drops with each parry; a fourth one-handed parry in a row knocks the sword away.
+- [ ] Parry, then bash or slash it within 1.5 s: the counter's readout on the dummy.
+- [ ] Step back beyond about 2.4 m: it stops and turns back. Step out during a wind-up: it misses.
+- [ ] Press the button again: OFF. Reload the map with it on: OFF.
+## Flashlight shadows, cord and hand-over
+
+Your voice notes (e1m1):
+- the beam went through the gun in your hand, your hands and your body (props already blocked it);
+- passing the torch between hands reset it every time;
+- the cord was drawn on top of everything ("maybe like the old telephone cord with the spiral").
+
+### Your hands, guns and body in the torch's shadow
+
+- **Why props cast and these didn't.** The shadow pass takes its model casters from the entities drawn this frame.
+  Props are world entities. Your hands, guns, body, gadget, holstered weapons and the torch are VR view entities, and
+  dynamic lights skipped every view entity. Only map lights took them, by `vr_shadow_self`.
+- **Now** every dynamic light that isn't your own takes them too, by the same `vr_shadow_self`: the flashlight,
+  rockets, explosions, `vr_light_test`.
+  - 0: none; 1: the body; 2 (the default): the body, hands, guns and the rest.
+  - Your own lights (muzzle flashes, the quad and pentagram glows) still don't. They are keyed to you, and the light
+    sits inside your gun or body.
+- **Culling.** View entities are placed by the VR transforms (weapon offsets, posed arms), outside their model bounds.
+  They are tested against each light and each face with a wider sphere: twice the model's radius plus 60 cm. The
+  renderer's box cull isn't used for them, so no finger or barrel is dropped from the narrow torch tile.
+- **The torch itself** casts too, for other lights. It can't shadow its own beam:
+  - the light starts at the lens, and the torch lies behind it, beyond the projection's near plane (3.8 cm);
+  - in both grips the fingers wrap the tube behind the lens;
+  - on a gun, the barrel is 4.7-10 cm off the beam's axis and ends 1 cm past the lens. The spot on the wall is whole
+    (the composite's last row).
+- **First person.**
+  - The body model's head and neck are collapsed (IK.md), so the head casts nothing. With the torch held behind your
+    head, the shoulder's and the gun's shadows fall ahead, with no head.
+  - With Body: Off, only the hands, guns and gadget are drawn, so only they cast. The body settings are followed as
+    they are.
+- **Bias** at 5-50 cm: unchanged, and enough.
+  - The torch's tile is 1024 texels over ±24 degrees: 0.2 mm a texel at 20 cm.
+  - The normal offset (a texel, doubled at grazing angles) and the 0.2% depth scale are as before.
+  - The close-ups show no acne on the gun, hand or arm, and no gap at the shadows' roots.
+
+Composite `flashfx/shadows_before_after.png` (scratchpad; before on the left):
+- the torch at the other hand;
+- at the held shotgun, from behind and close;
+- first person, with the torch behind the head;
+- at the arm and body (the pauldron's and the arm's shadow on the wall behind);
+- clipped on the gun.
+
+### Passing it between hands
+
+Weapons pass at the hand switch spot: let go of one with the hands together and it goes into the other, gripping
+hand. The torch now passes the same ways:
+- The other hand grips the torch while the first hand holds it: it takes it, and the first hand's later release does
+  nothing.
+- You let go while the other hand is gripping the torch, or with the hands together (the hand switch spot, 19 cm): the
+  torch passes to it.
+- The other hand catches it within 0.4 s of a release: that is a hand-over too, not a take from the belt.
+
+In every case:
+- It stays switched as it was.
+- It takes the grip (low or overhead) whose beam is nearer where it shines now, as when taken off the head or a gun.
+- It eases from where it was onto the new grip over 0.12 s, the fitted hands' own blend. It doesn't go back to the
+  belt.
+- If the game already had the receiving hand's grip, that grip is released.
+- It doesn't pass while that hand holds anything (a prop too) or is at a holster.
+
+Logged in the mock (`flashfx/handover_after.log`, composite `flashfx/handover_before_after.png`). Before, none of
+these passed: the torch stayed in the first hand or flew to the belt.
+
+    flashlight: on
+    TEST 2 main grips at the torch
+    flashlight: passed to the main hand (on)
+    flashlight: low grip (from the other hand, nearer its beam)
+    TEST 4 main lets go with the off hand gripping at it
+    flashlight: passed to the off hand (on)
+    flashlight: low grip (from the other hand, nearer its beam)
+    TEST 5 off lets go, main catches
+    flashlight: passed to the main hand (on)
+
+### The cord: coiled, springy, depth-tested
+
+- **Drawn in the scene** (`VR_DrawSceneOpaque`), depth-tested and written. It is hidden behind the gun, your hands,
+  the axe on your hip and the world, as it should be. Before, it was a line in the debug overlay, drawn over
+  everything.
+- **A telephone cord** (`vr_coil.cpp`):
+  - 64 turns of 3.8 mm wire, 1.3 cm across, 24 cm long relaxed;
+  - the coil keeps its wire's length: stretched, its turns open out and it narrows;
+  - over its last 1.5 cm at each end it narrows to the bare wire, into the clip and the tail cap.
+- **Springy.** The line is 12 springs: 30 g, 1.5 N/m in all, three times stiffer squeezed, with gravity and damping.
+  - Stretched to the hand, it pulls nearly straight with a few centimetres of sag.
+  - Near the belt, it bows and droops.
+  - A quick move of the hand swings it, and it settles in about half a second.
+  - Your body's own movement (walking, turning, lifts) carries it along; a teleport restarts it.
+  - It leaves the clip downwards, where the torch hung, and goes into the tail cap along the torch.
+- **Lit** as the models are:
+  - the world's light, sampled at three points along it;
+  - the dynamic lights, their cones included, so the torch pointed at it lights it;
+  - a rubbery sheen, for each eye.
+- **Detail:**
+  - within 0.6 m of the eyes: 8 segments a turn, 6 sides;
+  - within 1.2 m: 6 and 5;
+  - beyond: 4 and 4.
+- **Setting:** Cord on the Flashlight page is now Off / Coiled / Plain (`vr_flashlight_cord` 0/1/2). Plain is the
+  same springy line, as a 4 mm cable.
+- **How it's drawn.** The first version built the whole mesh on the CPU. That took 0.15 ms of CPU a frame, and
+  uploading its 480 KB cost the GPU 0.07-0.09 ms. Now:
+  - the CPU makes only the rings (their middles, axes and light: 50 KB);
+  - `gfx::drawTube` builds the wire round them in the vertex shader.
+
+Composites (scratchpad):
+- `flashfx/cord_before_after.png`: first person with the gun over the cord, close up, behind the axe handle;
+- `flashfx/cfa_zoom.png`: the coil close up;
+- `flashfx/sw2zoom.png`: the swing, frame by frame.
+
+### Cost
+
+Exclusive runs, mock headset, the e1m1 start, the torch on and pointed at the held shotgun, the cord out:
+
+| | CPU ms | GPU ms |
+|---|---|---|
+| dynamic light shadows, with / without your casters (`vr_shadow_self` 2 / 0) | 0.011 / 0.003 | 0.008 / 0.001 |
+| the cord: its rings and their upload | 0.037-0.041 | – |
+| the cord's draw, each eye | 0.000 | 0.001 |
+| world+brush, each eye, cord on / off | – | 0.050 / 0.047 (noise) |
+
+- Between intervals of the same run, the frame's total CPU time moves by ±0.15 ms.
+- That comes from the scene's own CPU time, which changes with `vr_shadow_self` through the map lights'
+  self-shadows. Those were already there: 0.234 ms before this work, in the same scene.
+- No new option was needed. `vr_shadow_self` 0 turns off all your shadows, and Cord: Off turns off the cord.
+
+### Mock recipes
+
+- **The torch at the held shotgun,** in front of the wall behind the start:
+  - with `vr_weapon_grip_mode 1`: `vr_mock_look 25 180; impulse 154`;
+  - `vr_mock_hand main -0.1 1.35 0.4 0 180 0; vr_mock_hand off 0.25 1.45 0.0 -10 160 0`;
+  - for the other hand instead: `vr_mock_hand main -0.1 1.42 0.4 0 180 90; vr_mock_hand off 0.1 1.45 0.0 -5 170 0`;
+  - a spectator's view: `vr_mock_camera 0.25 1.9 -0.5 20 180`.
+- **Hand-over:**
+  - take the torch in the off hand (TESTING.md);
+  - `vr_mock_fingers main 0 0`;
+  - put the main hand at the torch: `vr_mock_hand main -0.06 1.3 -0.42 0 0 0`, with the off hand at `-0.12 1.3 -0.4`;
+  - wait, then `vr_mock_button main grip 1`.
+
+### Not verified
+
+- Only seen in the mock: not at the headset's resolution, and how springy the cord feels as you move is untested.
+- There is no clean image of the cord behind the world itself. The mock hands don't reach through walls, and the
+  spectator camera stays in the room. The cord uses the same depth test that hides it behind the gun and the axe.
+- With Body: Full, the belt torch shining down past your thigh wasn't looked at.
+
+### Check in the headset
+
+- [ ] The torch at your other hand, at the gun in it, at your forearm: do the shadows on the wall behind have the right
+      shapes, with no speckle or gap where they start?
+- [ ] The torch behind or beside your head: the shoulders' shadow ahead, and none of the head?
+- [ ] The torch clipped on each gun: is the spot whole, not cut by the barrel?
+- [ ] Rockets and explosions near you: your body's shadow from them. Right, or too much?
+- [ ] Hand-over: grab the lit torch with the other hand; let go with the other hand closed on it; toss it across. Does
+      it stay on, with no jump?
+- [ ] The cord stretched, slack, swinging, behind the gun and your hand: springy enough? Too thick or too thin? Try
+      Plain too.
+## Baked normal maps
+
+The author, after the model bump maps: give our own models real shape detail baked from geometry, not guesses from
+paint. "Never compromise on quality."
+
+**What ships** (`quakevr/progs`, 30 maps, 5.5 MB of PNG; tangent space, green up the image, linear 8-bit RGB, blue a
+real z, no alpha):
+
+| Model | Map | Size | What it carries |
+|---|---|---|---|
+| The jointed hand (all 4 skins) | `hand_rig_00_00_norm.png` | 1024² (2× the skin) | knuckles over the joints, the extensor tendons and two veins on the back, the nails (plate, fold), the pads of the palm, the fingers and the thumb's ball, knuckle bulges; the creases, wrinkles and nail folds painted into the skin as grooves |
+| The body, all three builds, skins 00-03 | `vrbody_00_00_norm.png` | 1024² (4×) | muscles of the bare arms (deltoid, biceps, triceps, the elbow, the forearm); the quilted vest (padded channels, stitched rows), laced front, side seams, yoke, rolled collar; the belt with its buckle, loops and stitched edges; the trousers' stitched seams and folds; the ridged, riveted thigh plates; the boots' straps, buckles, turned-down tops, welts, laces; the bracers' rims, stitches and buckled straps; the face's nose, brows, eye sockets |
+| The body, skins 04-15 (the armours) | `vrbody_04_00_norm.png` | 1024² | the same, the torso as the five overlapping lames of the armour, rolled edges, rivets, the front closure, the side straps |
+| Flashlight, wrist gadget and strap, shell, holster, pauldrons | `<model>.mdl_0_norm.png` | 4× | rounded edges, faceted tubes made round; the flashlight's knurled tube, finned head, ribbed cap, crowned grip rings, stippled rubber; the gadget's parting line; the strap's webbing and stitched edges; the shell's ribs and primer; the holster's stitching and leather; the pauldrons' quilting and rivets |
+| The 20 view models `v_*.mdl` | `<model>.mdl_0_norm.png` | 2× (4× under 256 wide) | rounded edges, faceted tubes made round, the painted panel lines grooved, painted rivets raised, wood grained along its painted streaks (the axe: its handle; its head's blood is no wood) |
+
+- The lean and brawny bodies draw their skins with the same texture coordinates as the athletic one (checked on
+  every bake), so one map serves the three builds; `vr_body_build` and runtime segment scaling don't need their own.
+- The engine names: an alias model's skins read `progs/<model>.mdl_0_norm` (skin 0's serves all); a body skin without
+  its own map now takes the nearest earlier skin's (`Mod_MD5SharedNormalMap`), so skin 04's serves the 12 armoured
+  skins.
+
+**How it bakes** (`Misc/quakevr/bake_normals.py`; the code is in the models' add-on so its button runs the same:
+`quakevr_models/normalmaps.py`, `normalbake.py`, and the recipes `normaldetail.py`, `normalbody.py`,
+`normaltiles.py`; numpy only, about 110 s for all 30 maps):
+
+- **In the engine's own frame.** `normalbake.Raster` rasterises every triangle into the map's texels (2× supersampled,
+  then box-filtered) and builds, per texel, the frame the shader builds from the screen derivatives: t along which u
+  grows, b along which v grows, both perpendicular to the interpolated normal (the file's: anorms for an .mdl, the
+  engine's own welded area-weighted normals for an MD5), mirrored islands included. The wanted normal is encoded in
+  that frame exactly (0.01° on decoding), whatever the UVs' shear or stretch.
+- **Shapes from the mesh:** each face's normal as the facets stand for it (averaged with the faces round each corner
+  within 35°: a 12-sided tube is round, a box stays a box), and each hard crease (the faces' normals split) rounded
+  over about 1.6-1.8 skin texels, turning half way to the other face (at most 32°) at the edge.
+- **The hand's forms from its rig:** the joints are the rings of vertices at them (where the author's edit put them),
+  each finger's axis and dorsal side from them; knuckles, tendons, veins, pads, nails are heights in space round those
+  (the same on both sides of a UV seam, so no seam shows), bent into the normal by their surface gradient. The skin's
+  painted creases (dark lines at least a few texels long, stronger the longer) become grooves: the relief follows his
+  paint, the mesh and the skin are never changed.
+- **The body from its generator:** `make_vrbody.py` paints each block texel by texel (`vest_texel`, `armor_texel`,
+  `arm_texel`...); `normalbody.py` raises the same places (the same `around(bu, ...)` bands, rows and dashes) in Quake
+  units through each texel's own surface scale.
+- **The generated models' tiles:** every face of one of their materials maps onto that material's tile, so a tile's
+  relief is on every face drawn from it; `normaltiles.py` raises what each generator paints on its tiles (the
+  flashlight's knurling where `paint()` cuts it, its fins, ribs...), in texels, the same slope on every face. Their
+  dithered paint is left out (speckle is no shape).
+- **The view models' paint:** dark seams become V grooves, small bright spots rivets, wood its grain (the paint's
+  streaks drawn out along their own direction, clean of the dither).
+- **Shared texels:** a texel drawn by several triangles (a weapon's two sides, the body's left and right limbs, a tile's
+  faces) takes each triangle's normal; the owners are the triangles drawing it at the least magnification (within 2×:
+  a cap's fan or a screw's side squeezed onto a whole tile has no say); where the owners disagree by more than 6°
+  their mean fades to flat by 14°.
+- **Margins:** 8 texels round every island (mean of the covered neighbours, ring by ring).
+
+**Engine** (small):
+
+- `BumpedNormalK` (models only) normalises its frame's two axes each, as bakers do (Blender's MikkTSpace): scaled
+  together (the longer one unit), a slope along a 512 × 178 skin's long side came out a third as steep. The world's
+  `BumpedNormal` is unchanged. The made maps of non-square skins now read as made (in texels, both ways alike).
+- `Mod_MD5SharedNormalMap`: a body skin without a map takes the nearest earlier skin's; the skin's own name is passed
+  (it was its `_luma`'s for 32-bit skins).
+- `TexMgr_ShareNormalMap`: an authored file serves every skin of its model with one texture, and isn't even read
+  again (the hand's 4 skins, the body's 16, a model's skins).
+- `developer 1` prints each authored map's load time beside its name.
+
+**In Blender** (MODELS_IN_BLENDER.md and HANDS_IN_BLENDER.md, "Normal maps"):
+
+- Import shows the map on the model (a Normal Map node into the material's Normal).
+- After an edit it's one step: Export bakes the map again from the file it just wrote (on by default), or **Bake
+  Normal Map** in the Quake VR panels. Then `vr_model_reload` / `vr_hand_reload` (both re-read the map: checked by
+  swapping the file under a running game).
+- **A high poly of his own:** select it, then the model, Bake Normal Map: Cycles bakes its normals in the model's
+  object space, a layer at a time where the model's triangles share texels, and they are written in the engine's frame;
+  the recipe's relief is laid on it unless Add Details is off.
+- **The guard:** the maps are registered in `generated.json` (`genguard.py`). A map painted or baked from a high poly
+  since is left alone by the script (`--keep-edited`, `--force`) and by the add-ons (Overwrite Edited Map). The script
+  bakes everything before writing anything, so a failure leaves the maps as they were.
+
+**Verification** (composites in the scratchpad, `bakenorm/composites/`; the shots in `bakenorm/shots/`):
+
+- **Frame and handedness:**
+  - `frame_domes_hand.png`: domes in texel space (tests the engine's decoding) and in 3D through the baker's frame
+    (tests the encoding), lit from the left: convex everywhere, continuous across the fingers' and palm's seams.
+  - `frame_domes_mirrored_shotgun.png`: the same on the shotgun, whose two sides are mirrored halves of its skin: both
+    sides convex, lit the same way. `frame_domes_mirrored_body.png`: the arms, which share their texels.
+  - Against Blender's own baker (Cycles, the low poly subdivided as a high poly, tangent and object space; the
+    engine's reading of Blender's tangent map against Blender's object-space truth, texels drawn by one triangle):
+
+    | | Engine before (axes scaled together) | Engine now (each unit) | This baker |
+    |---|---|---|---|
+    | Hand (512² skin): median / 95% / 99% error | 0.72° / 4.9° / 12.7° | 0.39° / 3.2° / 9.7° | 0.00° / 0.01° / 0.02° |
+    | Nailgun (512 × 178): median / 95% | 3.37° / 39.7° | 1.83° / 36.1° | 0.00° / 0.01° |
+    | Rocket launcher (512 × 194): median / 95% | 3.31° / 15.8° | 1.49° / 14.5° | 0.00° / 0.01° |
+
+    Blender's tangent maps now read about right on smooth, square-textured meshes; on the hard-edged, faceted view
+    models MikkTSpace's smoothed tangents differ from the per-pixel frame by tens of degrees at the creases, which is
+    why the add-on bakes a high poly in object space and encodes it here.
+- **Load-time maps against baked** (mock eyes 1536², e1m1; left load-time, right baked; `*_qbase.png`, and
+  `-Base qrp` in `*_qrp.png`):
+  - `hands_*`: both hands, the left's back and the right's palm, then the other way round; each in the map's light,
+    the head torch (head-on) and the head torch seen from the side.
+  - `body_*`: the body preview from the front in the map's light and the head torch, from its side, from behind with a
+    light behind it.
+  - `gadget_*`: the gadget on the wrist from above (map light, torch) and from the side. `flash_*`: the flashlight in
+    the fist, a light from the side, from above.
+  - `w154_*` shotgun, `w156_*` nailgun, `w160_*` rocket launcher, `w152_*` axe: in the eye view (map light, head
+    torch), from the side (head torch, map light, a light from the side), and the muzzle flash.
+  - Seen: the hands' knuckle wrinkles, tendons and finger creases read cleanly where the load-time maps give blotches
+    of the painted highlights; the vest's quilting, the thigh plates' ridges, the straps and buckles read as shapes;
+    the flashlight's head and the view models' barrels and bands are round instead of faceted, their edges catch the
+    light, their painted panels are grooved; head-on light shows little relief (as it must: 1 − cos θ).
+- **Seams:** `seams_moving_light.png`: the hands under a light moving past in three places: no line at the fingers'
+  and the palm's seams (the heights are in space, the frame is the engine's).
+- **Grain:** `grain_3_frames.png` (the shotgun from the side, moving) and `grain_flashlight_3_frames.png` (the
+  flashlight's finned head and ribbed cap, turning a degree a frame): the relief holds still, no sparkle; the frame
+  differences are the motion's (1.1-1.8 levels, as the load-time maps').
+- **Round trip in Blender** (headless, both add-ons, a copy of the files): import shows the maps (a model, the hand,
+  the body's armour skin); export re-bakes the same bytes as the script for an unchanged model; after a mesh edit the
+  export bakes a different map, and the script bakes the same one from the edited file; the hand's Bake Normal Map
+  gives the script's bytes; a high poly (the shotgun subdivided) bakes in 13 s.
+- **Guard:** painting over `v_axe.mdl_0_norm.png` then baking: refused, nothing written; `--keep-edited` baked the
+  others and kept the painted one; `--force` baked it again.
+
+**Cost** (e1m1, mock, exclusive runs):
+
+| | Load-time maps | Baked maps |
+|---|---|---|
+| Managed textures | 487, 218 normal maps, 56.2 MB | 461, 192 normal maps, 100.8 MB |
+| Normal maps' load time | 115 made, 494 ms | 60 made (monsters, items) 220 ms + 29 authored files 102 ms = 322 ms |
+| Per frame | | two more `inversesqrt` per model pixel with a normal map |
+
+- The 29 authored maps are 56 MB (RGBA8 with mips, as every model normal map is uploaded, the z for the specular
+  anti-aliasing): the hand's 1024² 5.3 MB, the body's two 10.7 MB, the generated models' 4.1 MB, 19 view models
+  36.1 MB (every weapon is precached, the mission packs' too). They replace 55 made maps. RG8 would halve it, at the
+  cost of the sheen's anti-aliasing from the maps.
+
+### Not verified
+
+- **In the headset:** whether the relief reads at arm's length at 2064 × 2208, in motion; the grain check was 3
+  frames of slow motion in the mock.
+- **The world's frame** (`BumpedNormal`) still scales its axes together: a non-square world texture's slopes along
+  its long side are weaker than across it. Not changed here (the world's look would change).
+- **A high poly in the game:** the add-on's Cycles path was tested headless (it bakes, it differs from the recipe's),
+  not looked at in the game.
+- **The view models' hands:** the remaster-style skins paint a gloved hand over half of each skin; where those faces
+  are drawn, they get only their bevels and painted lines.
+- **Shared texels:** where a weapon's two copies of a texel disagree (one next to a crease, the other not), the bevel
+  fades out there (23-38% of the bevelled texels on the nailgun and shotgun).
+
+### In the headset
+
+- [ ] Your hands in the torch and in a muzzle flash: knuckles, tendons, nails and creases, no blotches, no seam lines
+      where the fingers meet the palm?
+- [ ] Look down at your body (and Body Preview): quilting, belt, straps, the thigh plates; with armour, the lames?
+- [ ] The flashlight in your fist and the gadget on your wrist, close: round head and tube, knurling, fins?
+- [ ] The shotgun, nailgun, rocket launcher and axe turned in the torch: rounded edges, panel lines, no sparkle?
+- [ ] Graphics > Authored Model Bumps: 0 flattens them, 2 doubles them: is 1 right?
+## Melee fixes: flashlight, axe on walls, gibs
+
+Voice notes 2026-09-28: a punch with the flashlight in the fist doesn't register; a two-handed shove with the torch in
+one hand should count as long as the other hand is an empty palm facing the enemy; punches register on walls but axe
+blows don't (your theories: the axe pushed back by the wall stops the blow from registering, or the blow is detected
+elsewhere in the swing); gibs on the floor can't be struck, while a gib held in the other hand can. Four bug fixes in
+`QC/vr_melee.qc` (and `vr_carry.qc`, `client.qc`); no rule was retuned for the general classification, and your
+recorded takes replay exactly as before (below).
+
+### Why
+
+- **The punch with the torch.** The torch takes the grip's press (`vr_flashlight.cpp`, `button`): the game never sees
+  the grip, so the server saw an empty hand with its grip open. A punch needs a closed fist (the grip held), so a
+  punch holding the torch never landed, in either grip (low or overhead: the grip turns the torch in the fist, not
+  the hand). The same hand counted as an *open palm*: pushed palm first, the torch hand alone was a palm shove.
+- **The shove with the torch.** The torch fist has no palm facing ahead, so a push of both hands was the free palm's
+  alone: a one-handed shove (0.6 of the damage, 0.7 of the knockback). With the torch hand's palm turned ahead, the
+  torch hand counted as a second palm (the bug above). In the mock the free palm's shove did register (one-handed);
+  if in the headset it doesn't register at all, the free palm isn't passing the shove's own tests (facing ahead within
+  53 degrees, moving the way it faces, the arm extending): tell me.
+- **Weapons on walls.** Both your theories, checked in the mock:
+  - *Pushed back: yes, this is the main cause.* `vr_handpose.cpp` stops the hand at walls, and pushes it back so its
+    weapon's muzzle (the axe's head, a sword's tip, a gun's muzzle) stays a unit off the wall. The melee sweeps each
+    point from the last pose to this one against walls with exact lines, so the head never reached the wall: an axe
+    chopped at a wall 0.853 m ahead stopped its head at 0.834-0.854 m, and no contact was found. A fist's "knuckles"
+    point is 4 units ahead of the hand's point, so when the hand is stopped they are 3 units inside the wall. That
+    is why punches register.
+  - *Detected elsewhere: no, but a second rule threw the contact away.* No other point (the handle's end, the hand)
+    registered first: the handle's points strike nothing. But a point going down more steeply than 20 degrees
+    (`VR_MELEE_WALL_DOWN`, for a hand reaching down to a holster) never struck a wall, and a chop meets the wall going
+    down (the axe's head at -0.7 to -0.9, sine, in the diagonal and overhead chops). So a diagonal or overhead chop
+    whose head did cross the wall was ignored too.
+  - Weapons had world impact detection all along: the same sweep, and `W_FireAxe`'s "hit wall" thunk. The two causes
+    above defeated it. Swords, Mjolnir and gun swings had the same problem; butt and pommel strikes didn't (the near end
+    isn't held off walls).
+- **Gibs on the floor.** A loose gib or head is `SOLID_NOT_BUT_TOUCHABLE`: it can be picked up but never blocks. The
+  melee's sweep strikes monsters' boxes (`SOLID_SLIDEBOX`, `SOLID_BBOX`) and what its lines hit, and lines pass
+  touchables (only shots trace with `MOVE_HITGIBS`), so a blow went straight through. The only way to hit one was the
+  carry code's touch (`VR_Carry_Nudge` -> `VR_Gib_Struck`): the fist's palm and curled fingers on the gib's surface in the frame
+  of the touch, at `vr_melee_speed` (a weapon's poke, `vr_wpntouch`, traces past touchables too). An axe's head or a sword's blade
+  never reached it that way. A held gib has its own code (`VR_Gib_HeldFrameHand` sweeps the other hand's fist and
+  weapon through it every frame), which is why it works. Box3D isn't involved: the gib's solidity is the QC's, and
+  both physics engines failed the same way.
+
+### What changed
+
+- **The flashlight's hand is a closed fist** (`VR_Melee_HoldsTorch`, `VR_Melee_ClosedFist`: the engine's
+  `QVR_VRBITS0_*HAND_BUSY`, "the hand holds the flashlight"). It punches under the same rules and with the same damage
+  as a gripped fist. It is never an open palm, so it doesn't shove alone.
+- **A two-handed shove with the torch** (`VR_Bash_TorchPushing`): an open palm's shove while the torch hand pushes
+  along is a two-handed shove. "Pushes along" means the torch fist is going forward at the second hand's share of the
+  push speed, as a second palm must, and extending the arm as a shove's palm does (`VR_Bash_Extends`, factored out of
+  the palm's test).
+- **Walls** (`VR_Melee_Sweep`, `VR_Melee_WallTaken`):
+  - A striking point (the blade, a head, a muzzle, the fist) strikes a wall within its thickness past its sweep's end.
+    That thickness is the 3 units (x `vr_melee_range_multiplier`) that already widen monsters' boxes.
+  - The downward rule now keeps out only floors (a surface facing up, normal z 0.7 or more) and walls a point merely
+    grazes going down (less than 0.25, cosine, into the wall: 75 degrees off head-on). A chop down into a wall
+    strikes it.
+- **Loose gibs and heads** are swept as boxes, like monsters (not a gib held in your own hand: that one is still
+  `VR_Gib_HeldFrame`'s). A blow on one bursts it the way the held-gib strike does (`VR_Gib_Blow`:
+  `VR_Gib_StrikeDamage` at the blow's speed, 20 x speed/`vr_melee_speed`, at most 60). It doesn't deal the weapon's
+  blow damage, which is 8-12 and under a gib's 12 health.
+- The developer "melee event" line says "a gib" for these. `developer 2` prints the wall rule's decision for points
+  going down.
+
+### Tests (mock headset, your calibration: `vr_gunangle 70`, `vr_handcal_*`, and your weapon offsets)
+
+The motions are `Misc/quakevr/motion_synth.py`'s new presets, written for your config's hand settings
+(`--settings-from`). The recipes are in TESTING.md, "Melee fixes". Before is vr-cleanup `b981ef7e`'s QC; after is this
+branch.
+
+| Test | Before | After |
+|---|---|---|
+| Off-hand punch at the dummy, gripped fist (the control) | punch 5.6 m/s | the same |
+| The same punch holding the torch, low / overhead grip | nothing / nothing | punch (the same speed and strength as gripped) |
+| Free palm + torch fist pushed at the dummy (both grips) | one-handed shove (4.8 damage) | two-handed shove (8) |
+| The torch hand alone pushed palm first (both grips) | one-handed palm shove | nothing |
+| Both palms / one palm, no torch (controls) | two-handed / one-handed | the same |
+| Axe, Mjolnir, sword, shotgun: horizontal, diagonal and overhead chops into a wall, from 22 and 16 units | 10 of 24 hit the wall | 23 of 24 |
+| The same chops in the open (no wall) | nothing | nothing |
+| A gripped fist punched into the wall (22 / 16 units) | hits / nothing | the same |
+| A gib on the floor punched down, and chopped with the axe (Box3D, and the Quake VR solver) | nothing (4 of 4) | bursts (4 of 4) |
+
+- **The chops that still miss.** One of 24: the shotgun's horizontal swing from 16 units. Its muzzle meets the wall
+  while the hand is still speeding up (4.8 m/s, under the swing's 5), then slides along it. That is the rules'
+  verdict, the same before.
+- **Rebounds.** A wall contact now lands at the hand's speed as it arrived (5.2-13.8 m/s in these tests), because it
+  is caught within the points' thickness, before the wall stops the hand. A few swings register a second wall hit
+  on the rebound, as before: the wall pushes the hand back, and that motion can pass as a new blow.
+
+### Your recorded takes (the regression check)
+
+The 471 archived takes (`motions/pre_calibration_2026-09-28/`) were replayed with `vr_motion_eval` before and after,
+on the same build config. Both runs used your hand settings from before the calibration, set explicitly and printed in
+the log: `vr_gunangle 39.5`, `vr_gunyaw 4`, `vr_offhandpitch 40.25`, `vr_offhandyaw -4`, every `vr_handcal_*` at 0 and
+`vr_handcal_off_mirror 0` (playback also resets `vr_handcal_*` for takes that don't list them).
+
+Result: 429 of 471 pass, both before and after, with **no difference**: every verdict, event, reason and hand error
+is identical. The takes hold no flashlight, gib or wall contact.
+
+### The calibrated hand (checked)
+
+- **The points follow the calibration.** The punch's points ("the fist" at the hand's point, "the knuckles" 4 units
+  ahead) and the palm (the hand's right side) are in the hand's frame, which the calibration moves and turns. With
+  your calibration, the melee's hand point sat (+2.5, +/-0.6, -4.0) cm from the controller's pose: the drawn hand's
+  offset (`vr_dumpview`). The palm faces the same way as the drawn palm: the drawn empty hand is turned from the
+  hand's angles only by the fist slot's pitch (-7 degrees), about that same axis.
+- **Found, not changed: the knuckles point is ahead of the drawn fist.** `vr_dumpview` puts the drawn fist 0.9 to
+  16 cm *behind* the hand's point, and 3 to 12 cm below it. So "the fist" point is about 1 cm ahead of the fist's
+  front and 3 cm above its top, and "the knuckles" point is 12-13 cm ahead of the real knuckles, plus the 3-unit
+  (9 cm) thickness. A punch can register before the drawn knuckles reach the target. Moving the points onto the drawn
+  fist would change every punch, and the punch rules were fitted on your takes with these points. It is left for when
+  there are new takes to refit on.
+
+### Not verified
+
+- In the headset: all of it. The torch tests ran through `vr_mock_play` on the mock's real clock (their speeds vary a
+  little run to run). They can't be synthetic takes: playback's first press sends the torch home.
+- Only the off hand was tested holding the torch. The main hand's code path is the same one (a bit per hand).
+- Only straight walls in the firing range were tested. Also untested: brush entities (doors, lifts), and breakables
+  struck within the margin (they take the blow as before, now also from 3 units off).
+
+### In the headset
+
+- [ ] Punch the dummy with the torch in your fist, in both grips (B/Y flips it): does it land like a gripped punch?
+- [ ] Shove with the free palm while the torch hand pushes too: "shove with both hands"? The torch hand alone, palm
+      first: nothing?
+- [ ] Chop a wall with the axe sideways, diagonally and from overhead: the thunk and buzz each time? Also Mjolnir, a
+      sword and a gun swung into a wall.
+- [ ] Reach down to a hip holster beside a wall, and holster a gun near a wall: still no wall hit?
+- [ ] Punch and chop a gib lying on the floor: it bursts. A gib held in the other hand: as before.
+
+## Dynamic wounds, burns and wetness
+
+Your note: the body has sixteen skins (four armours times four wound levels); most games paint blood onto the
+textures where a hit lands; could we, for the player and for enemies, and reuse it for burns and wet clothes? Yes:
+every monster, corpse and player drawn with an alias model now gets its wounds painted into its own skin's layout
+where each blow lands, and burns, char and wetness the same way. The cost is a few microseconds per hit and next to
+nothing per frame; memory 16 MB.
+
+### What you see
+
+- **Wounds where the blow landed**, on the model's own texel grid, sharp-edged: a star of blood with a dark middle
+  (6 to 9 spikes of their own widths and lengths, a ragged edge), a few drops spattered round it, and often a run
+  dripping down the surface from it. Sizes by the blow: a pellet or bullet small, a nail larger, a blade or fist a
+  slash drawn out along the swing (2 to 2.6 times as long as wide). Each shotgun pellet lands on its own.
+- **Colours from Quake's palette**, as the monsters' own painted blood (id's skins use 47..87 red): palette 69 in the
+  middle, 71 round it, 74 at the tips, the runs and the drops, with a little of the skin's shading through them.
+  Blood shines a little (a tight highlight in the model's light) and fills the normal map's bumps.
+- **Burns**: an explosion scorches the side of a model that faced it, blotchy (holes of skin left between patches of
+  darkened, browned skin and, for strong blasts, near-black char), fully near the blast and fading a hand's width
+  on; lightning leaves a small char mark, a lava ball or a lava nail or a laser bolt a burn with a small wound. Fresh
+  burns glow: a few texels in the cracks of the deepest char flicker in Quake's fullbright oranges, cooling in 4 s.
+- **Lava** chars everything under its surface in patches, with embers; **slime** eats in (lighter patches of char)
+  and wets; **water** wets everything under its surface: darker and glossy (a broad sheen), the bumps half filled.
+  Wetness dries in about 25 s from the waterline down (the deeper, the longer: the mask's value grows with the
+  depth under the surface), with the shading's dither breaking the dry edge up; while wet, drops of water (greenish
+  from slime) fall from under the waterline (monsters: from their own triangles; you: from your hands).
+- **Blood and char stay** on monsters and on corpses. A monster's head flying off (the monster's own entity becomes
+  `progs/h_*.mdl`) gets a bloody neck and face when the monster had bled. Separate gibs are not painted: their skins
+  are raw meat already.
+- **You**: your body and your jointed hands take your wounds where the blow came from, instead of the wound skins;
+  the armour skins stay (your repaint, 24fa2de6, untouched; the wound skins are kept for Dynamic Wounds off). As your
+  health comes back, blood and char fade (health + h from health h0: (h / (100 - h0)) of them, all of it at 100, over
+  about a second); a respawn takes all of it off. Wetness dries as on monsters.
+- **A new map starts clean**, and so does a **loaded game** (the masks are the client's only, never saved).
+
+### How it works (`Quake/vr/vr_wounds.cpp`, `Quake/r_alias.c`, `Quake/gl_shaders.h`, `QC/vr_wounds.qc`)
+
+- **The masks**: one texture array, `vr_wounds_pool` layers (64) of 256 x 256 RGBA8 (16 MB): red blood, green char,
+  blue wetness, alpha heat. A model's mask takes the part of its layer of its skin's shape (the skin's own size when
+  smaller than 256, else its longer side 256: the mod's soldier 256 x 256, the ogre 256 x 128, a head 128 x 128). Given on a model's first wound; when all are taken, the one drawn longest ago goes (and,
+  between equals, the farthest), never the player's own three. A model with several meshes (several skins over one
+  layout; none of Quake's) gets none.
+- **Painting**: the model is drawn as it is this frame (its lerped pose, its place; the body's and hands' posed
+  bones), into its layer, laid out by its skin's coordinates (the alias vertex shader with `WOUNDPAINT`: position =
+  the texture coordinates), with the world position and normal for each texel; the paint shader
+  (`wound_paint_fragment_shader`) evaluates up to 16 splats a draw (star wounds, burns, blasts, liquids) at that
+  point and the mask keeps the most of it and what was there (blending by max). Distances are in the world, so a
+  wound goes across the skin's seams and islands as it goes across the model (Quake's front/back halves, the
+  onseam copies the loader already made). The triangles are then drawn again as lines (`glPolygonMode`): a texel an
+  island's edge crosses without covering its middle is painted too, so the shading's reads at the edges find paint.
+  A triangle folded to nothing (the posed body's hidden parts share texels) is skipped.
+- **Where a blow lands**: the server's point is on the monster's box, not its model. The client finds the model's
+  surface: the triangles as drawn (the weapons-against-models test's, `modelcollide::drawnTriangles`), the first
+  front face the blow's line goes into near the point, else the facing triangle nearest the line; the wound is
+  centred there, round the surface's normal. Your body and hands are skinned on the GPU (no triangles on the CPU):
+  capsules round them as posed (the torso and the legs round the pelvis, each forearm elbow to wrist, each hand) take
+  the blow, the first one along its line, and the same wound is painted on the body and both hands (a hit on a wrist
+  marks the bracer and the hand). The server's point on you is the box's middle (your pelvis): hits are spread over
+  the body, more on the chest.
+- **Shading** (`WoundsAt` in the alias fragment shader): the mask read at the skin's texel (or the mask's, on a skin
+  finer than twice it: QRP's), values shown through a 4 x 4 ordered dither over their edges: chunky marks on the
+  skin's own grid, fading by dither as they dry or heal. With no mask (the instance's `Wound.x` 0) the shader's
+  colour is the skin's, as before.
+- **Hit events**: a new `svc_quakevr` sub-command, `QVR_SVC_WOUND` (14: entity, point, direction, kind, amount,
+  extra; 17 bytes), written by a new QC builtin `woundevent` to `sv.datagram` (unreliable, as particles: a lost one
+  misses a mark). Sent by `VR_Wound_Hit` (`combat.qc`'s `T_DamageImpl`, beside the gore's hit: every hit that takes
+  health from a monster or a player; the kind from `vr_hitkind`, the inflictor and `IsExplosionDamage`), by
+  `VR_Wound_Pellet` (`TraceAttack`: each pellet), and four times a second by `VR_Wounds_Frame` (`StartFrame`) for
+  everyone standing in a liquid (the surface's height, `liquidentry`; monsters measured as `vr_liquids.qc` does).
+  Lava and slime char only when they hurt (their damage's event), so a monster in lava with Enemies Hurt by Liquids
+  off is neither burnt nor wet (lava wets nothing). No `random()` in the QC: the game plays the same with or without it.
+- **Demos and protocol**: recorded like any message; a demo recorded now needs this engine to play (the sub-command
+  is new, as round 21's other ones). Other mods' progs never send it. No protocol number change.
+- **Over time**: every 0.1 s (the game's time, so paused games wait) a subtract pass on each mask that is drying (1/255
+  a step), cooling or healing; nothing otherwise.
+
+### Settings (Gore page, "Wounds on Models")
+
+| Setting | Cvar | Default |
+|---|---|---|
+| Dynamic Wounds (blood; your body's and hands' instead of the wound skins) | `vr_wounds` | 1 |
+| Burns (explosions, fire, lightning, lava, slime; embers) | `vr_wounds_burns` | 1 |
+| Wet from Liquids (and drips) | `vr_wounds_wet` | 1 |
+| Models Kept (32 / 64 / 128: 8 / 16 / 32 MB) | `vr_wounds_pool` | 64 |
+
+Turning one off takes what it painted off every model; all three off frees the texture. Commands:
+`vr_wounds_test <entity | self | ahead | all> <kind> [amount] [right] [up] [extra]` (a wound as the server would
+send it: 1 shot, 2 nail, 3 melee, 4 blast, 5 burn, 6 zap, 7 lava, 8 slime, 9 liquid with `up` the surface over the
+feet), `vr_wounds_info`, `vr_wounds_dump` (every mask to `quakevr/wounds/*.png`), `vr_wounds_debug 1` (each event
+and where it landed; 2 also the player's capsules).
+
+### Decisions (and where the design changed)
+
+- **Alpha is heat, not dirt**: Quake has nothing that dirties a model, and fresh embers need to know which texels
+  burnt recently. Slime is a lighter, patchier char plus wetness rather than a green tint (no fifth channel).
+- **Healing also fades your char** (the design: burns persist). A burn that never healed on the player looked wrong
+  after a health pack; on monsters and corpses burns do persist.
+- **The masks are 256 x 256 layers in the skin's shape**, not the skin's own resolution: one texture array (one
+  binding for every instanced draw), and Quake's skins are about that size; a QRP skin reads the mask at its texels
+  (still Quake-sized marks).
+- **The player is mapped through capsules**, not by painting along the blow's line (the first version): along a
+  line, a forearm pointing at the attacker took the blood along its whole length.
+- **Options on the Gore page** (with the rest of the blood), not Graphics.
+
+### Costs (`run.sh --exclusive`, RTX 4090, mock eyes 2048², firing range, 12 monsters spawned ahead)
+
+| | GPU | CPU |
+|---|---|---|
+| Alias models per eye, 32 masked models (every model hit) vs Dynamic Wounds off | 0.073 vs 0.067 ms | same |
+| The wounds' frame work with nothing to paint (the scope `wounds`) | 0.001-0.003 ms | 0.001-0.003 ms |
+| Painting: 32 models hit every frame | 0.051 ms a frame (1.6 µs a paint) | 0.119 ms (3.7 µs a paint) |
+| A hit's frame (one to a few models) | under 0.01 ms | under 1 ms (never over the 1 ms log threshold) |
+| Memory | 16 MB (64 masks; 8 or 32) | |
+
+The one slow frame seen: 32 masks made in one frame (the stress test's first volley), 5 ms of CPU; a single blow's
+first mask costs nothing measurable.
+
+### Checked (mock headset; composites in the scratchpad's `wounds/final/`)
+
+1. A grunt hit by seven blows (shots, nails, a slash, off-centre): marks where each landed, the chest's run down the
+   belly; its mask on the skin shows marks going across the islands' edges (`1_grunt_before_after_mask.png`).
+2. An ogre: an explosion 40 units in front of it (scorch on the facing side, blotchy), lightning and a burn, then 5 s
+   later with the embers out (`2_ogre_blast_zap_burn_cooled.png`).
+3. A grunt in lava to the knees: charred patches with embers, cooling; a gibbed grunt's head mask with its bloody neck
+   (`3_lava_then_cooled_headgib_mask.png`).
+4. A grunt wet to the thighs, then 15, 30 and 45 s later: dry from the waterline down (`4_grunt_wet_drying.png`).
+5. Your body from ahead (health 30): clean, ten hits, then wet to the waist, then `give h 100` (the blood gone in about
+   a second), then dry (`5_body_hits_wet_heal_dry.png`); first person: hits and a burn on the hands
+   (`6_hands_firstperson.png`); a QRP grunt (`7_qrp_grunt.png`).
+6. **Real game paths**: a grunt's shotgun at you (each pellet an event on your body and hands), an ogre's chainsaw
+   and grenade at you (37 melee events, one blast), a melee blow into a grunt, a grunt standing in e1m1's slime (wet events four times a second, slime burns once a second with Enemies
+   Hurt by Liquids on), a gibbing.
+7. **Off is unchanged**: e1m1 (a corpse, your body at health 45 with its wound skin, your hands), fixed frame time,
+   against the build before (0a44b4d5): with the three options off the eye images match but for the wrist gadget's
+   live readout and 27 pixels 1/255 apart (`8_offcheck_base_off_diffx40_on.png`: before, off, the difference x40, on;
+   on, the body shows no wound skin at health 45: the wounds painted replace it).
+
+### Not verified
+
+- A real rocket or grenade on a monster (on you it is checked: an ogre's grenade; the path is the same
+  `T_RadiusDamage`; `vr_physics_blast` from the console loses its datagram: console commands run between server
+  frames).
+- Other players' `player.mdl` in multiplayer (painted as monsters are; not run).
+- The drips' look (spawned; not caught in a screenshot).
+- The headset: the look at 2064 x 2208 and in motion, the hands' wound size (0.65 of a body's), the blood's tone on
+  your dark vest.
+
+### In the headset
+
+- [ ] Shoot a grunt a few times, then an ogre with the rocket launcher: marks where you hit, across seams, Quake-like?
+- [ ] Let grunts shoot you, look at your hands, arms and chest; then take a health pack: the blood fades?
+- [ ] Wade into water to the waist, come out, look down: wet, dripping, drying in half a minute?
+- [ ] Shove a monster into lava or slime (Enemies Hurt by Liquids on): char with embers?
+- [ ] Gore page: Dynamic Wounds off brings the wound skins back.

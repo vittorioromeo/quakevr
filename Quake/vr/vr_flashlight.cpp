@@ -2,9 +2,11 @@
 
 #include "vr_flashlight.hpp"
 #include "vr_avatar.hpp"
+#include "vr_coil.hpp"
 #include "vr_body.hpp"
 #include "vr_cvars.hpp"
 #include "vr_gfx.hpp"
+#include "vr_held.hpp"
 #include "vr_hue.hpp"
 #include "vr_lighting.hpp"
 #include "vr_lines.hpp"
@@ -357,6 +359,8 @@ constexpr float reach = 0.09f;         // metres from the torch's axis (tail to 
 constexpr float returnOmega = 14.f;    // the cord's pull (critically damped; home in about 0.4 s)
 constexpr float maxThrow = 3.f;        // metres per second the lamp keeps of the hand's at a release
 constexpr float gunReach = 0.12f;      // metres from the other hand's weapon a hand holds it with both at (the intent gate)
+constexpr float handOverTime = 0.12f;  // seconds the torch eases onto the new hand's grip (the fitted hands' own blend)
+constexpr double catchWindow = 0.4;    // seconds after a release the other hand's catch is still a hand-over
 // Where the belt clip is from the pelvis joint (metres): its front, to the side, up.
 constexpr float beltFront = 0.11f;
 constexpr float beltSide = 0.09f;
@@ -440,6 +444,14 @@ struct State
 
     float beamLength{-1.f}; // the visible beam's length, eased towards where the beam lands (<0: none yet)
     double beamTime{0.0};
+
+    // Passed from hand to hand (handOver; the author's note: as a weapon is passed): where the torch was, relative to
+    // the new hand's grip, eased onto it over handOverTime from handOverAt; and the last release (letGo), so that the
+    // other hand catching it on its way home straight after is a hand-over too.
+    Pose handOverFrom;
+    double handOverAt{-10.0};
+    int releasedBy{-1};
+    double releasedAt{-10.0};
 };
 
 State st;
@@ -986,6 +998,17 @@ void noteIntent(const hands::State& s)
     return st.mode == Mode::OnHead ? handAtHeadTorch(s, hand) : handNear(s, hand);
 }
 
+// Whether `hand` can take the torch from the other hand holding it: empty, holding nothing in the game either, and at
+// the torch or with the hands together (the weapons' hand switch spot, vr_body.cpp).
+[[nodiscard]] bool canTakeOver(const hands::State& s, int hand)
+{
+    if(!handEmpty(hand) || held::heldEntity(hand) != 0 || !s.valid)
+    {
+        return false;
+    }
+    return handNear(s, hand) || glm::distance(s.pos[HAND_OFF], s.pos[HAND_MAIN]) < 5.f;
+}
+
 // Whether a hand is at the other hand's weapon, to hold it with both: within gunReach of its line from 30 cm behind
 // the hand (a two-handed sword's grip below it, its pommel) to the muzzle or the tip.
 [[nodiscard]] bool otherWeaponNear(const hands::State& s, int hand)
@@ -1102,14 +1125,18 @@ void chooseGrip(int hand)
 {
     bool overhead = true;
     const char* why = "from the belt";
-    if(st.mode == Mode::OnHead || st.mode == Mode::OnGun)
+    const bool passed = st.mode == Mode::Held ||
+                          (st.mode == Mode::Returning && st.releasedBy == 1 - hand && realtime - st.releasedAt < catchWindow);
+    if(st.mode == Mode::OnHead || st.mode == Mode::OnGun || passed)
     {
         const hands::State& s = hands::current();
         const glm::vec3 beam = st.pose.rot * glm::vec3{1.f, 0.f, 0.f};
         const float low = glm::dot(beam, handPoseTurned(s, hand, 0.f).rot * glm::vec3{1.f, 0.f, 0.f});
         const float high = glm::dot(beam, handPoseTurned(s, hand, 1.f).rot * glm::vec3{1.f, 0.f, 0.f});
         overhead = high > low;
-        why = st.mode == Mode::OnHead ? "off the head, nearer its beam" : "off the gun, nearer its beam";
+        why = passed                ? "from the other hand, nearer its beam"
+              : st.mode == Mode::OnHead ? "off the head, nearer its beam"
+                                        : "off the gun, nearer its beam";
     }
     st.overhead[hand] = overhead;
     st.flipAt[hand] = -10.0;
@@ -1125,11 +1152,33 @@ void take(int hand)
     haptic(hand, 0.05f, 0.45f);
 }
 
+// Into the other hand, from the hand holding it (or just let go of): switched as it was, in the grip nearer its beam
+// (chooseGrip), eased from where it was onto the new grip over handOverTime; no trip to the belt.
+void handOver(const hands::State& s, int hand)
+{
+    const Pose from = st.pose;
+    Con_DPrintf("flashlight: passed to the %s hand (%s)\n", hand == HAND_MAIN ? "main" : "off", st.on ? "on" : "off");
+    if(st.mode == Mode::Held)
+    {
+        haptic(st.holder, 0.03f, 0.3f);
+    }
+    chooseGrip(hand);
+    st.mode = Mode::Held;
+    st.holder = hand;
+    const Pose to = handPose(s, hand);
+    const glm::quat inv = glm::inverse(to.rot);
+    st.handOverFrom = {inv * (from.pos - to.pos), glm::normalize(inv * from.rot)};
+    st.handOverAt = realtime;
+    haptic(hand, 0.05f, 0.45f);
+}
+
 void letGo(const hands::State& s, const Pose& mount)
 {
     const int hand = st.holder;
     st.mode = Mode::Returning;
     st.holder = -1;
+    st.releasedBy = hand;
+    st.releasedAt = realtime;
     st.flightStart = realtime;
     st.flightOffset = st.pose.pos - mount.pos;
     st.flightRot = st.pose.rot;
@@ -1404,29 +1453,23 @@ void lightBeam(const Pose& p)
     shapeBeam(p, lens, dir, st.beamLength, warm * std::max(0.f, vr_flashlight_brightness.value));
 }
 
-// The retracting cord from the clip on the belt to the lamp's bottom, while it is off the belt:
-// taut, sagging a little when the lamp is close.
-void drawCord(const Pose& mount, const Pose& lamp)
+// The retracting cord from the clip on the belt to the lamp's tail, while it is off the belt (vr_flashlight_cord): a
+// coiled cord, as an old telephone's (vr_coil.cpp; 2: a plain cable), springy and sagging, swinging as the hand moves;
+// drawn lit in the opaque scene (drawOpaque), depth-tested. It leaves the clip where the torch hung (down along the
+// stored torch) and goes into the tail cap.
+coil::Cord cord;
+
+void updateCord(const Pose& mount, const Pose& lamp)
 {
-    const glm::vec3 a = modelPointAt(mount, shape().cap);
-    const glm::vec3 b = modelPointAt(lamp, shape().cap);
-    const float len = glm::distance(a, b);
-    if(len < 0.5f)
+    coil::Style style;
+    if(vr_flashlight_cord.value >= 2.f)
     {
-        return;
+        style.turns = 0;
+        style.wireRadius = 0.002f;
     }
-    const float m2u = units::metresToUnits();
-    const float sag = std::max(0.f, 0.06f * m2u - len * 0.08f);
-    const glm::vec4 color{0.07f, 0.07f, 0.06f, 1.f};
-    constexpr int segments = 8;
-    glm::vec3 prev = a;
-    for(int i = 1; i <= segments; i++)
-    {
-        const float t = static_cast<float>(i) / segments;
-        const glm::vec3 p = glm::mix(a, b, t) - glm::vec3{0.f, 0.f, sag * 4.f * t * (1.f - t)};
-        lines::line(prev, p, 0.004f * m2u, color, color);
-        prev = p;
-    }
+    style.albedo = glm::vec3{0.14f, 0.14f, 0.135f};
+    cord.update(modelPointAt(mount, shape().cap), glm::normalize(mount.rot * glm::vec3{1.f, 0.f, 0.f}),
+        modelPointAt(lamp, shape().cap), glm::normalize(lamp.rot * glm::vec3{-1.f, 0.f, 0.f}), style);
 }
 
 // vr_show_flashlight_zones (round 21, the author's tuning notes): the reach zones drawn, green while in reach. A ball as
@@ -1626,6 +1669,7 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
         st.nearGun = false;
         st.nearHead = false;
         st.hovered[0] = st.hovered[1] = false;
+        cord.hide();
         killLights();
         return;
     }
@@ -1651,6 +1695,14 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
     if(st.mode == Mode::Held)
     {
         p = handPose(s, st.holder);
+        if(const float k = static_cast<float>(realtime - st.handOverAt) / handOverTime; k < 1.f)
+        {
+            // Just passed over: from where it was in the other hand, onto this one's grip (relative to it, so it
+            // follows the hand as it eases in).
+            const float e = k <= 0.f ? 0.f : k * k * (3.f - 2.f * k);
+            p.pos += p.rot * (st.handOverFrom.pos * (1.f - e));
+            p.rot = glm::normalize(p.rot * glm::slerp(st.handOverFrom.rot, glm::quat{1.f, 0.f, 0.f, 0.f}, e));
+        }
 
         // Held near the gun in the other hand: a tap, the lamp lit up; B/Y clips it on.
         view::WeaponMount other;
@@ -1754,7 +1806,11 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
     }
     if(st.mode != Mode::Mounted && st.mode != Mode::OnHead && vr_flashlight_cord.value != 0.f) // (on the head, the cord runs behind the neck)
     {
-        drawCord(drawnMount, drawn);
+        updateCord(drawnMount, drawn);
+    }
+    else
+    {
+        cord.hide();
     }
 
     if(st.on)
@@ -1765,6 +1821,28 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
     {
         killLights();
     }
+}
+
+void drawOpaque()
+{
+    if(!cord.visible() || !enabled())
+    {
+        return;
+    }
+    // Its rings made once a frame, uploaded once and drawn in both eyes; the GPU makes the wire round them.
+    static gfx::TubeBatch batch;
+    static int sides = 0;
+    static int builtFrame = -1;
+    if(builtFrame != host_framecount)
+    {
+        builtFrame = host_framecount;
+        QVR_PROFILE("flashlight cord");
+        static std::vector<gfx::TubeRing> rings;
+        const hands::State& s = hands::current();
+        batch = cord.build(0.5f * (s.eyeOrigin[0] + s.eyeOrigin[1]), rings, sides) ? gfx::uploadTube(rings) : gfx::TubeBatch{};
+    }
+    QVR_GPU_PROFILE("flashlight cord draw");
+    gfx::drawTube(batch, sides, cord.albedo(), glm::normalize(glm::vec3{0.3f, 0.2f, 1.f}));
 }
 
 // The lens lit, in the beam's colour: a disc over it, bright in the middle, added onto the scene (the skin's own
@@ -1899,7 +1977,20 @@ bool button(int hand, Button b, bool pressed)
         if(grip && st.mode == Mode::Held && st.holder == hand)
         {
             const hands::State& s = hands::current();
-            letGo(s, mountPose(s));
+            // Let go with the other hand gripping at it (or with the hands together, as a weapon is passed at the
+            // hand switch spot): that hand keeps it. If the game saw that hand's grip, it must see it let go.
+            const int other = 1 - hand;
+            if(st.gripDown[other] && canTakeOver(s, other))
+            {
+                bool& otherGrip = st.swallowed[other][static_cast<int>(Button::Grip)];
+                st.tookGrip[other] = !otherGrip;
+                otherGrip = true;
+                handOver(s, other);
+            }
+            else
+            {
+                letGo(s, mountPose(s));
+            }
         }
         return true;
     }
@@ -1991,6 +2082,15 @@ bool button(int hand, Button b, bool pressed)
         swallowed = true;
         return true;
     }
+    // The other hand's grip at the torch in a hand: it takes it (the hand-over; the first hand's release then does
+    // nothing). Not while it is the game's (a holster there).
+    if(grip && st.mode == Mode::Held && st.holder == 1 - hand && canTakeOver(s, hand) && !gameGripWins(s, hand) &&
+        deliberate(hand, b))
+    {
+        handOver(s, hand);
+        swallowed = true;
+        return true;
+    }
     // (On a gun, a grip at the lamp is the game's: the foregrip is near. B/Y takes it off.) On the head, a grip at it
     // takes it off into the hand.
     if(grip && atLamp && st.mode != Mode::OnGun && handEmpty(hand) && deliberate(hand, b))
@@ -1998,6 +2098,13 @@ bool button(int hand, Button b, bool pressed)
         if(st.mode == Mode::OnHead)
         {
             clipOffHead(hands::current(), hand);
+            swallowed = true;
+            return true;
+        }
+        // Caught on its way home just after the other hand let it go: passed over, not taken afresh.
+        if(st.mode == Mode::Returning && st.releasedBy == 1 - hand && realtime - st.releasedAt < catchWindow)
+        {
+            handOver(s, hand);
             swallowed = true;
             return true;
         }

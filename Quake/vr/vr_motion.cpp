@@ -748,6 +748,12 @@ std::string takeHeader(const TakeInfo& info, const std::vector<Row>& rows)
     {
         line("target", "none");
     }
+    // The training dummy struck back (vr_dummy_attacks, at any moment of the take): its "strike" events, which a
+    // replay reproduces (vr_motion_play.cpp). Not written without.
+    if(std::any_of(rows.begin(), rows.end(), [](const Row& r) { return r.dummyAttacks; }))
+    {
+        line("dummy attacks", "on");
+    }
     line("melee settings", meleeSettings());
     line("settings", allSettings());
     line("weapon settings", weaponSettings());
@@ -791,6 +797,7 @@ bool writeTake(const std::string& path, const TakeInfo& info, const std::vector<
 std::string takeHeader(const TakeInfo& info, const std::vector<Row>& rows);
 bool writeTakeFile(const std::string& path, const std::string& header, const TakeInfo& info, float u2m,
     const std::vector<Row>& rows);
+bool playDummyAttacks(); // vr_motion_play.cpp: a replay reproducing the dummy's strikes
 
 namespace
 {
@@ -1148,6 +1155,7 @@ void pollSaves(bool wait)
     r.xrTime = rawTracking.time;
     r.tick = tick;
     r.svDt = svDt;
+    r.dummyAttacks = vr_dummy_attacks.value != 0.f || playDummyAttacks();
     r.origin = s.playerOrigin;
     r.lean = s.lean;
     r.head = s.head;

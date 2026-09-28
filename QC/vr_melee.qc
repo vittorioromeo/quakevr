@@ -56,7 +56,9 @@ float VR_MELEE_REARM_OUT = 0.1;    // s since the hand's parts last touched what
 float VR_MELEE_RADIUS = 3;         // units around a point's sweep that it strikes (times vr_melee_range_multiplier)
 float VR_MELEE_JUMP = 20;          // m/s: the grip moving faster than this jumped (a teleport, the play space re-based)
 float VR_MELEE_TIPJUMP = 60;       // m/s: likewise the far end (a weapon taken)
-float VR_MELEE_WALL_DOWN = -0.35;  // a point going down more steeply than this (sine) doesn't strike walls (reaching for a holster)
+float VR_MELEE_WALL_DOWN = -0.35;  // a point going down more steeply than this (sine) doesn't strike a floor (reaching for a holster),
+float VR_MELEE_FLOOR = 0.7;        // (a surface facing up: its normal's z at least this)
+float VR_MELEE_WALL_INTO = 0.25;   // and strikes a wall only going into it (cosine to its normal: a chop, not a reach grazing it)
 float VR_MELEE_POMMEL_SWORD = 0.6; // weights: a sword's pommel strike,
 float VR_MELEE_POMMEL_AXE = 0.5;   // an axe's or Mjolnir's handle's end,
 
@@ -142,6 +144,7 @@ float VR_MKIND_PUNCH = 3;  // a fist (any way: jab, hook, uppercut, overhead)
 .vector mh_c_pos;
 .vector mh_c_dir;
 .vector mh_c_normal;
+.float mh_c_gib;        // it is a loose gib or head (it bursts: gone by VR_Melee_Landed)
 // The stance and the push (VR_Bash).
 .float mh_stance;      // 0: none, 1: a weapon across, 2: an open palm facing ahead
 .float mh_stance_since;
@@ -423,11 +426,25 @@ vector(float xHand) VR_Melee_Palm =
     return palm;
 };
 
-// Whether `xHand` of `self` is an open hand: empty, the grip not held, not steadying the other's weapon, not carrying
-// or climbing.
+// Whether `xHand` of `p` holds the flashlight (the engine's QVR_VRBITS0_*HAND_BUSY). The torch is the client's: the
+// game sees an empty hand whose grip is not held (the torch takes the grip's press, vr_flashlight.cpp), but the hand is
+// a fist closed round the torch.
+float(entity p, float xHand) VR_Melee_HoldsTorch =
+{
+    return VRHasBit(p.vrbits0, xHand == cVR_MainHand ? QVR_VRBITS0_MAINHAND_BUSY : QVR_VRBITS0_OFFHAND_BUSY);
+};
+
+// Whether `xHand` of `self` is a closed fist: the grip held, or closed round the flashlight.
+float(float xHand) VR_Melee_ClosedFist =
+{
+    return VRIsEntHandGrabbingBit(self, xHand) || VR_Melee_HoldsTorch(self, xHand);
+};
+
+// Whether `xHand` of `self` is an open hand: empty, the grip not held, not holding the flashlight, not steadying the
+// other's weapon, not carrying or climbing.
 float(float xHand) VR_Melee_OpenHand =
 {
-    if(!VRIsHandEmpty(self, xHand) || VR_HandGrabUtil_IsHandGrabbing(self, xHand) || VR_Carry_IsHolding(self, xHand))
+    if(!VRIsHandEmpty(self, xHand) || VR_Melee_ClosedFist(xHand) || VR_Carry_IsHolding(self, xHand))
     {
         return FALSE;
     }
@@ -750,9 +767,10 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
 
     if(xKind == VR_MPT_FIST)
     {
-        // A punch is a closed fist (the grip held): an open hand only shoves (VR_Bash). (The author: every punch of his
-        // with the grip held; his open hands waved, flicked and patted at the dummy, some at 7-9 m/s, all "no hit".)
-        if(!VRIsEntHandGrabbingBit(self, xHand))
+        // A punch is a closed fist (the grip held, or the flashlight in it): an open hand only shoves (VR_Bash). (The
+        // author: every punch of his with the grip held; his open hands waved, flicked and patted at the dummy, some at
+        // 7-9 m/s, all "no hit".)
+        if(!VR_Melee_ClosedFist(xHand))
         {
             return FALSE;
         }
@@ -875,6 +893,25 @@ void(float xHand, entity b) VR_Melee_Rearm =
     }
 };
 
+// Whether a point swept from `xP0` to `xP1` strikes the wall (world, brush) it meets, whose normal is `xNormal`: not
+// going down steeply onto a floor (a hand reaching for a holster), nor down past a wall, grazing it; a blow chopped
+// down into a wall does.
+float(vector xP0, vector xP1, vector xNormal) VR_Melee_WallTaken =
+{
+    vector d = normalize(xP1 - xP0);
+    if(d_z >= VR_MELEE_WALL_DOWN)
+    {
+        return TRUE;
+    }
+    float taken = xNormal_z < VR_MELEE_FLOOR && d * xNormal <= -VR_MELEE_WALL_INTO;
+    if(cvar("developer") >= 2)
+    {
+        dprint(sprintf("melee debug: going down at %.2f onto a surface facing %v (into it %.2f): %s\n", d_z, xNormal,
+            -(d * xNormal), taken ? "strikes" : "passes"));
+    }
+    return taken;
+};
+
 // Sweeps the points of `xHand` from the last pose to this one (VR_Melee_Track) and decides the blow: the contact to
 // land on into mh_c_* and TRUE, or FALSE. Things that bleed first: of the points striking this frame, the blade's
 // (or head's, fist's) over the pommel's, then the earliest along the sweep. A wall only when nothing that
@@ -910,7 +947,10 @@ float(float xHand, entity b) VR_Melee_Sweep =
     float t;
     float striker;
 
-    // Walls and brush entities (a line each, exact against the BSP; it finds monsters too).
+    // Walls and brush entities (a line each, exact against the BSP; it finds monsters too). A striking point strikes a
+    // wall within `r` past its sweep, as it does a monster's box widened by `r`: the hand and what it holds are stopped
+    // short of walls (vr_handpose.cpp: the far end, a blade's tip or an axe's head, a unit off), so an axe swung into a
+    // wall never reached it, while a fist's knuckles, 4 units ahead of the stopped hand, went in.
     for(i = 0; i < n; ++i)
     {
         p0 = b.mh_pp[i];
@@ -919,12 +959,25 @@ float(float xHand, entity b) VR_Melee_Sweep =
         {
             continue;
         }
+        striker = vr_mpt_kind[i] == VR_MPT_EDGE || vr_mpt_kind[i] == VR_MPT_FIST;
         traceline(p0, p1, FALSE, self);
-        if(trace_startsolid || trace_fraction >= 1)
+        if(trace_fraction >= 1 && !trace_startsolid)
+        {
+            float past = FALSE;
+            if(striker)
+            {
+                traceline(p1, p1 + normalize(p1 - p0) * r, TRUE, self);
+                if(trace_fraction < 1 && !trace_startsolid)
+                {
+                    past = TRUE;
+                }
+            }
+            trace_fraction = past ? 1 : 2; // (a wall within reach past the sweep's end: there)
+        }
+        if(trace_startsolid || trace_fraction > 1)
         {
             continue;
         }
-        striker = vr_mpt_kind[i] == VR_MPT_EDGE || vr_mpt_kind[i] == VR_MPT_FIST;
         if(VR_Blow_Strikable(trace_ent))
         {
             if(trace_ent == b.mh_hit_ent)
@@ -950,7 +1003,7 @@ float(float xHand, entity b) VR_Melee_Sweep =
                 hiltAt = trace_endpos;
             }
         }
-        else if(trace_fraction < wallT && vr_mpt_kind[i] != VR_MPT_GRIP && p1_z - p0_z >= VR_MELEE_WALL_DOWN * vlen(p1 - p0))
+        else if(trace_fraction < wallT && vr_mpt_kind[i] != VR_MPT_GRIP && VR_Melee_WallTaken(p0, p1, trace_plane_normal))
         {
             wallT = trace_fraction;
             wallI = i;
@@ -960,14 +1013,17 @@ float(float xHand, entity b) VR_Melee_Sweep =
         }
     }
 
-    // Monsters' boxes, widened by the points' thickness (and not through a wall).
+    // Monsters' boxes, widened by the points' thickness (and not through a wall); and loose gibs and heads (on the
+    // floor, flying): not solid (SOLID_NOT_BUT_TOUCHABLE: the traces above pass them; only shots trace with
+    // MOVE_HITGIBS), struck as a monster's box, and burst (VR_Gib_Blow). A gib held in a hand is VR_Gib_HeldFrame's.
     vector mid = (b.mh_pp[0] + b.mh_cp[0] + b.mh_pp[n - 1] + b.mh_cp[n - 1]) * 0.25;
     float reach = max(max(vlen(b.mh_pp[0] - mid), vlen(b.mh_cp[0] - mid)),
                       max(vlen(b.mh_pp[n - 1] - mid), vlen(b.mh_cp[n - 1] - mid)));
     entity e = findradius(mid, reach + r + 96);
     while(e)
     {
-        if(VR_Blow_Strikable(e) && (e.solid == SOLID_SLIDEBOX || e.solid == SOLID_BBOX))
+        if(VR_Blow_Strikable(e) && (e.solid == SOLID_SLIDEBOX || e.solid == SOLID_BBOX ||
+                                    (e.solid == SOLID_NOT_BUT_TOUCHABLE && e.vr_gib && e.carry_player == world)))
         {
             vector lo = e.origin + e.mins;
             vector hi = e.origin + e.maxs;
@@ -1219,7 +1275,7 @@ void(float xHand, entity b) VR_Melee_Whoosh =
     {
         return;
     }
-    if(b.mh_thing == VR_MTHING_FIST && !VRIsEntHandGrabbingBit(self, xHand))
+    if(b.mh_thing == VR_MTHING_FIST && !VR_Melee_ClosedFist(xHand))
     {
         return; // an open hand: no blow
     }
@@ -1528,6 +1584,41 @@ vector(entity b) VR_Bash_PushVel =
     return (b.mh_vnear + b.mh_vfar) * 0.5;
 };
 
+// Whether `xHand`'s grip moving at `v` (play space) extends the arm: out from its shoulder (a hand waved down or round,
+// palm first, is no shove). `xFwd`: the facing (play space).
+float(float xHand, entity b, vector v, vector xFwd) VR_Bash_Extends =
+{
+    vector right = '0 0 0';
+    right_x = xFwd_y;
+    right_y = -xFwd_x;
+    float side = VR_SHOULDER_SIDE;
+    if((xHand == cVR_OffHand) != !!cvar("vr_lefthanded"))
+    {
+        side = -side;
+    }
+    vector out = b.mh_rgrip - (right * side - '0 0 1' * VR_SHOULDER_DOWN);
+    return v * normalize(out) >= vlen(v) * VR_BASH_PALM_RADIAL;
+};
+
+// Whether the flashlight's hand `xHand` pushes along with the other's open palm (a two-handed shove, the torch in one
+// fist): its grip going forward (play space `xFwd`) at `xSpeed` (m/s, a bash's: VR_Bash_Pushing's share for a shove
+// is taken here) or more, extending the arm as a shove's palm does. Alone it is no shove: no palm (VR_Bash_Stance).
+float(float xHand, entity b, vector xFwd, float xSpeed) VR_Bash_TorchPushing =
+{
+    if(!b.mh_fresh || !VR_Melee_HoldsTorch(self, xHand) || b.mh_thing != VR_MTHING_FIST)
+    {
+        return FALSE;
+    }
+    vector v = b.mh_vgrip;
+    if(!VR_Bash_Extends(xHand, b, v, xFwd))
+    {
+        return FALSE;
+    }
+    xSpeed = xSpeed * max(0.1, cvar_hget(cvarh_vr_shove_speed)) / max(0.1, cvar_hget(cvarh_vr_bash_speed));
+    float ahead = v * xFwd;
+    return ahead >= xSpeed && ahead >= vlen(v) * VR_BASH_AHEAD;
+};
+
 // Whether `xHand`'s stance is pushed as a bash is this frame, at `xSpeed` (m/s) or more: forward (play space
 // `xFwd`), as a whole (a weapon's two ends moving alike; a palm moving the way it faces).
 float(float xHand, entity b, vector xFwd, float xSpeed) VR_Bash_Pushing =
@@ -1541,17 +1632,7 @@ float(float xHand, entity b, vector xFwd, float xSpeed) VR_Bash_Pushing =
         {
             return FALSE;
         }
-        // The arm extending: out from its shoulder (a hand waved down or round, palm first, is no shove).
-        vector right = '0 0 0';
-        right_x = xFwd_y;
-        right_y = -xFwd_x;
-        float side = VR_SHOULDER_SIDE;
-        if((xHand == cVR_OffHand) != !!cvar("vr_lefthanded"))
-        {
-            side = -side;
-        }
-        vector out = b.mh_rgrip - (right * side - '0 0 1' * VR_SHOULDER_DOWN);
-        if(v * normalize(out) < vlen(v) * VR_BASH_PALM_RADIAL)
+        if(!VR_Bash_Extends(xHand, b, v, xFwd))
         {
             return FALSE;
         }
@@ -1839,6 +1920,10 @@ void() VR_Bash =
             both = TRUE; // the palm on the blade
         }
     }
+    else if(b.mh_stance == 2 && VR_Bash_TorchPushing(other, ob, pfwd, speed * VR_BASH_PAIR))
+    {
+        both = TRUE; // an open palm, the other hand pushing along with the flashlight in its fist
+    }
 
     // The motion recorder (vr_motion.qc): a push, whatever it meets; once a push (its frames in a row).
     if(time - self.vr_motion_pushseen > 0.15)
@@ -1991,6 +2076,11 @@ float(float xHand) VR_Melee_Strike =
         return FALSE; // a bash's push
     }
     float struck = VR_Melee_Sweep(xHand, b);
+    b.mh_c_gib = FALSE;
+    if(struck && b.mh_c_ent.vr_gib)
+    {
+        b.mh_c_gib = TRUE; // (not a && in a field: fteqcc stores 0)
+    }
     // In a counter's window after a parry, a blow on something alive is the counter (VRMeleeDmg).
     b.mh_counter = 0;
     if(struck && b.mh_c_ent.takedamage && b.mh_c_ent.health > 0 && VR_Counter_Ready())
@@ -2016,5 +2106,5 @@ void(float xHand) VR_Melee_Landed =
     string what = sprintf("%s, hand %g, %s (%s) with %s", VR_Melee_Category(b.mh_kind, b.mh_thing), xHand,
         VR_Melee_KindName(b.mh_kind, b.mh_thing), b.mh_way, b.mh_part);
     VR_Melee_Event(sprintf("%s, %.1f m/s, x%.2f, %s", what, b.mh_speed, b.mh_strength,
-        b.mh_c_ent.takedamage ? b.mh_c_ent.classname : "a wall"));
+        b.mh_c_gib ? "a gib" : (b.mh_c_ent.takedamage ? b.mh_c_ent.classname : "a wall")));
 };
