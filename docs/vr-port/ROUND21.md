@@ -10640,7 +10640,8 @@ New holds (all where the hand is at the ledge by the rule's own numbers):
 - The build's time on the biggest custom maps (the mission packs' largest: hip2m3 in the table).
 - Hipnotic's rotating brushes: their collision is `func_movewall` boxes, which translate; there is no rotating solid.
 - Loading a saved game while hanging (the tests write no saves): every hold is forgotten when a map or a save loads
-  (`climb::reset`), and holds keep entity numbers and a ledge-map generation, never pointers; read, not run.
+  (`climb::reset`), and holds keep entity numbers and a ledge-map generation, never pointers; read, not run. (Since
+  run: "Save/load crash (NUM_FOR_EDICT)", Verified: saved, loaded and died while hanging from the rung and the lift.)
 
 ### In the headset
 
@@ -10649,3 +10650,134 @@ New holds (all where the hand is at the ledge by the rule's own numbers):
       moves. The plat (`setpos -218 72 24 0 0 0`): hang from it while it goes down; you should let go when your feet
       reach the floor. With Mover Crush 1 it stops and goes back up instead (and hurts you a point).
 - [ ] `vr_debug_ledges 1` somewhere you climb: a lip that should be a ledge and isn't (or the reverse), tell me where.
+
+## Save/load crash (NUM_FOR_EDICT)
+
+You died in the firing range, and the autoload of the autosave stopped with `Host_Error: NUM_FOR_EDICT: bad pointer`.
+
+### Cause
+
+The grenades and the save were not the problem: `vrfiringrange.sav` is sound (201 edicts, every entity reference
+inside them). Loading **any** save with a free edict past the ones the map spawns crashed. In the firing range that
+means nearly every save: a grenade gone off, a weapon picked up, or even a save made right after the map loads, which
+has free slots at 198 and 199. Your older e1m1/e1m2 autosaves crashed too. The load's call stack, from a backtrace
+printed in `NUM_FOR_EDICT`'s error path:
+
+```
+qvr::progs::onEdictFree   vr_builtins.cpp   (NUM_FOR_EDICT: edict 200, num_edicts 193)
+ED_Free                   pr_edict.c
+ED_ParseEdict             pr_edict.c        (an empty edict in the save: freed)
+Host_Loadgame_f           host_cmd.c
+```
+
+- `Host_Loadgame_f` parses the saved edicts over the freshly spawned map's. It raises `num_edicts` to the save's count
+  only at the end.
+- An empty (free) edict in the save is freed with `ED_Free`. Its hook `VR_OnEdictFree` (added on 2026-09-28 with the
+  wounds' clear, commit 860a4ed0) took the edict's number with `NUM_FOR_EDICT`.
+- `NUM_FOR_EDICT` errors on an edict at or past `num_edicts`. The firing range spawns 193, and your save's edict 200 is
+  free.
+
+The build before that commit loads the same save. With the fix reverted, these all end in the same Host_Error:
+`sc_plain.sav` (saved 1 s after `map vrfiringrange`), your `vrfiringrange.sav`, your old `p2.sav` and your old
+`e1m2.sav`.
+
+### Fix
+
+- **The load:** `num_edicts` covers each edict as it is parsed. The code a parse runs (ED_Free, the link) now sees a
+  live edict.
+  - `NUM_FOR_EDICT_CHECKED` returns -1 instead of a Host_Error, for code that may be handed an edict outside the live
+    ones. The wounds' hook uses it.
+- **Bad references become the world, never a Host_Error** (`ED_CheckLoadedReferences`). This covers an entity field or
+  global that is:
+  - out of range in the file (before: `EDICT_NUM: bad number`);
+  - past the loaded edicts (before: a `NUM_FOR_EDICT` Host_Error the first time the progs used it).
+
+  Each is set to the world, with a developer warning naming the entity, the field and the number. References to free
+  edicts are left alone, as in any Quake: the progs check them.
+- **One world reset:** `VR_OnClearMemory` runs from `Host_ClearMemory`, before the hunk is freed (it holds the edicts,
+  `cl_entities` and the models). It runs two resets, so that nothing keeps an entity number or a pointer into freed
+  memory:
+  - the server's world reset (`resetServerWorld` in vr_progs.cpp). This is the list `VR_OnSpawnServerBeforeLoad` had,
+    now with climbing added. A subsystem that keeps entity state adds its reset there.
+  - the client's (`VR_OnClientClearState`).
+- **Forgotten when an entity is removed:** `VR_OnEdictFree` also forgets what the server keeps by entity number. The
+  next entity in the slot would otherwise have inherited it:
+  - the rigid bodies' last free place and turn in the hand;
+  - a two-handed hold.
+- **After a load** (`VR_OnLoadGame`): Box3D's bodies and the rigid bodies' state are built again from the loaded
+  edicts. SV_SpawnServer's two frames had made them for the map's own entities, numbers and all.
+- **Late-precached models are bound again:**
+  - The problem: some entities' models are precached late (a dispensed or test-spawned explosive box, a wall torch).
+    Such an entity came back from a save with a `.modelindex` that isn't in the loaded map's precache list, so it had
+    no model and no Box3D body. An explosive box on the grappling hook stood still after a load, and a carried box had
+    no collision.
+  - The fix: such an entity's model is found again by its name and precached if needed. With `developer 1` the log
+    says `load: entity N's model ...`.
+  - A saved index that names another precached model is left alone (the ring of shadows' eyes).
+
+### Audit: entity state kept across frames (Quake/vr)
+
+This lists the pointers (`edict_t*`, `entity_t*`) and entity numbers kept from one frame to the next: what forgets
+them, and how they are checked on use.
+
+| State | Holds | Forgotten | Checked on use | Was at risk |
+|---|---|---|---|---|
+| `onEdictFree`, the wounds sent (vr_builtins.cpp) | numbers | world reset | range | **the crash**: fixed |
+| climbing `climbers[]`, `Grip::entNum`/`entModel`, `mantleEnt` (vr_climb.cpp) | numbers | world reset; map or save load (ledgemap's `climb::reset`) | free, SOLID_BSP, model (the mantle: range only) | kept past a load within 1 s of the time: fixed (both agents) |
+| `Grip::ledge.ent` (vr_climb.cpp) | `edict_t*` | nulled once the hold takes its number (ledgemap) | never used | a dangling pointer: gone |
+| vrclimb's ledge maps (vr_ledges.cpp) | model names | world identity, generation | generation | no |
+| the `SV_PushMove` climbing hooks | the call's pointers | not kept | numbers compared | no |
+| Box3D slots, hands, shocks, impacts (vr_box3d.cpp) | numbers | world reset; after a load (new) | every frame, from the live edict (free, kind, model, box) | the spawn frames' bodies kept for the loaded entities: fixed |
+| rigid `freePlaces`, `carried` (vr_rigid.cpp) | numbers | world reset; after a load; when removed (new) | the caller's live edict | inherited by a reused slot: fixed |
+| two-handed `holds`, `watches` (vr_carry2h.cpp) | numbers | world reset; on release; when removed (new) | the caller's live edict | inherited by a reused slot: fixed |
+| the wounds' masks (vr_wounds.cpp) | `entity_t*` | client clear state; now also Host_ClearMemory | null checks | dangling between the hunk's free and the new serverinfo: fixed |
+| the drawn hands' `RigHand::held.ent` (vr_view.cpp) | `entity_t*` | rebuilt each frame; now also client clear state | null checks | a debug command could read a stale one: fixed |
+| the compat muzzle shift's `shift.ent` (vr_physics.cpp) | `edict_t*` | within one PostThink | identity, free | no |
+| swimming, water feel (vr_physics.cpp) | per client, no entities | time checks | | no |
+| the motion player's `targetEnt` (vr_motion_play.cpp) | number | each take | range, free, class | no |
+| `MassCache::ent` (vr_weight.cpp) | number | weight reset | range, model | no |
+| held objects (vr_held.cpp), `entityData`, rope slack (vr_client.cpp) | numbers | client clear state | range, model | no |
+| model collide, gore pools, decal gibs and holes, wall torches, emissive torches, nail trails | numbers, or pointers as keys | client clear state, world generation, each frame | range, model, freshness | no |
+| ambient and model light caches, AO owners (vr_ambient.cpp, vr_modellight.cpp, vr_ao.cpp) | `entity_t*` keys | world generation, each frame | never dereferenced (except the `vr_ao` show command, which reads the last frame's) | cosmetic only |
+| `fgfx` glows (vr_fgfx.cpp) | numbers | fade out | range | cosmetic (a glow on a new entity for a moment) |
+
+These keep no engine-side entity state; their state is in QC fields, saved with the entity:
+
+- grenade catching and fuses;
+- the grappling hook's target;
+- carried torches;
+- the stillness capture;
+- the motion recorder.
+
+### Verified (mock headset; saves only in this worktree's `quakevr/`)
+
+- **Your save:** `autosave/vrfiringrange.sav` loads:
+  - with and without your config;
+  - from the console, both at startup and after `map vrfiringrange`;
+  - through the autoload after dying (`sv_autoload 2`, your config). The log shows "Autoloading... Loading game from
+    autosave/vrfiringrange.sav" and no error.
+- **Older saves:** your `p2.sav` and `autosave/e1m2.sav` load.
+- **Each state:** saved, loaded, and died in then autoloaded. The script is `scratchpad/savecrash/sc.sh <name>
+  saveload|die <map> "<setup>"`. Climbing uses `sc_climb*_saveload|die.play`, with the save and the death timed in
+  the play.
+  - **A grenade held** (firing range, `vr_rigid_place ogre_grenade main` + grip): after the load it is still in the
+    hand, and it goes off there when its fuse ends.
+  - **A wall torch held** (e1m2's edict 52, pulled out by hand; the firing range has none): still held after the
+    load.
+  - **Hooked by the grappling hook:**
+    - on the wall, after reeling in;
+    - on an explosive box being reeled towards you: after the load it keeps coming as before. Before the model fix it
+      stood still.
+  - **Climbing:** hanging from vrclimb's rung (the world) and from the rising lift (a mover). After the load the holds
+    are taken again, at the lift's saved height.
+  - **Carrying** a health box and an explosive box: still held after the load (`mainhand_held` is in a save made after
+    it).
+- **Bad references:** a save edited with references past the edicts (`"enemy" "250"`, `"goalentity" "99999"`, the
+  global `other` 300) loads, with three developer warnings and the world in their place.
+- **The new clear-memory hook:** map changes, a changelevel and a disconnect show no errors, and the views look as
+  before.
+
+### In the headset
+
+- [ ] Die in the firing range (or anywhere with Autoload on) and let it load the last save: no error.
+- [ ] Load a save made while carrying a box or holding a torch: it should still be in your hand while you grip.
