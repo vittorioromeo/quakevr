@@ -27,6 +27,7 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | Items as physics pickups | the map's weapons, keys, runes and suits hang spinning like the armour until grabbed, knocked or force-grabbed, then are Box3D props; a gripped weapon is yours at once, the rest are taken at a holster (Weapons and Keys, default on). Props no longer rest in the floor (the firing range's weapons: 2.8 units in on average, 19.9 at most; now 0.1 above); spinning pickups' physics shapes turn with the model |
 | Arm IK with calibrated hands | the wrist judged against a real, lopsided range (ulnar deviation, which his Gun Angle 70 adds, is natural), the elbow swinging only past it or for a roll; the pole takes the hand's roll only: his takes swing the elbow >30° in 2.6% of frames instead of 24.3%, the same motion gives elbows 4.1 cm apart under the two calibrations instead of 8.6; wrist bends turn the gadget 0-5° (was 7-35°) |
 | Dummy attacks | a DUMMY ATTACKS button beside the firing range's training dummy: it winds up (a sound, a glow, the rifle raised) and strikes you every 2.5 s as a knight would, for parry practice (parry, stamina, counters as in a fight); off at every map load; replays turn it off, and a take recorded with it on replays its blows at the same moments; your 471 archived takes evaluate identically |
+| Dynamic wounds | blood, burns and wetness painted into each monster's, corpse's and your own skin where the blow lands (chunky, on the skin's texels, Quake's reds), drying, cooling, healing; your body and hands no longer use the wound skins; 16 MB, about 2 µs of GPU a hit |
 
 Found on the way: fteqcc stores 0 when `a || b` is assigned into an entity field (rewritten; no other code has that
 shape); a parried blow's hand knock, timed by `cl.time`, came back after a level change (reset now).
@@ -6002,3 +6003,157 @@ real z, no alpha):
 - [ ] The flashlight in your fist and the gadget on your wrist, close: round head and tube, knurling, fins?
 - [ ] The shotgun, nailgun, rocket launcher and axe turned in the torch: rounded edges, panel lines, no sparkle?
 - [ ] Graphics > Authored Model Bumps: 0 flattens them, 2 doubles them: is 1 right?
+
+## Dynamic wounds, burns and wetness
+
+Your note: the body has sixteen skins (four armours times four wound levels); most games paint blood onto the
+textures where a hit lands; could we, for the player and for enemies, and reuse it for burns and wet clothes? Yes:
+every monster, corpse and player drawn with an alias model now gets its wounds painted into its own skin's layout
+where each blow lands, and burns, char and wetness the same way. The cost is a few microseconds per hit and next to
+nothing per frame; memory 16 MB.
+
+### What you see
+
+- **Wounds where the blow landed**, on the model's own texel grid, sharp-edged: a star of blood with a dark middle
+  (6 to 9 spikes of their own widths and lengths, a ragged edge), a few drops spattered round it, and often a run
+  dripping down the surface from it. Sizes by the blow: a pellet or bullet small, a nail larger, a blade or fist a
+  slash drawn out along the swing (2 to 2.6 times as long as wide). Each shotgun pellet lands on its own.
+- **Colours from Quake's palette**, as the monsters' own painted blood (id's skins use 47..87 red): palette 69 in the
+  middle, 71 round it, 74 at the tips, the runs and the drops, with a little of the skin's shading through them.
+  Blood shines a little (a tight highlight in the model's light) and fills the normal map's bumps.
+- **Burns**: an explosion scorches the side of a model that faced it, blotchy (holes of skin left between patches of
+  darkened, browned skin and, for strong blasts, near-black char), fully near the blast and fading a hand's width
+  on; lightning leaves a small char mark, a lava ball or a lava nail or a laser bolt a burn with a small wound. Fresh
+  burns glow: a few texels in the cracks of the deepest char flicker in Quake's fullbright oranges, cooling in 4 s.
+- **Lava** chars everything under its surface in patches, with embers; **slime** eats in (lighter patches of char)
+  and wets; **water** wets everything under its surface: darker and glossy (a broad sheen), the bumps half filled.
+  Wetness dries in about 25 s from the waterline down (the deeper, the longer: the mask's value grows with the
+  depth under the surface), with the shading's dither breaking the dry edge up; while wet, drops of water (greenish
+  from slime) fall from under the waterline (monsters: from their own triangles; you: from your hands).
+- **Blood and char stay** on monsters and on corpses. A monster's head flying off (the monster's own entity becomes
+  `progs/h_*.mdl`) gets a bloody neck and face when the monster had bled. Separate gibs are not painted: their skins
+  are raw meat already.
+- **You**: your body and your jointed hands take your wounds where the blow came from, instead of the wound skins;
+  the armour skins stay (your repaint, 24fa2de6, untouched; the wound skins are kept for Dynamic Wounds off). As your
+  health comes back, blood and char fade (health + h from health h0: (h / (100 - h0)) of them, all of it at 100, over
+  about a second); a respawn takes all of it off. Wetness dries as on monsters.
+- **A new map starts clean**, and so does a **loaded game** (the masks are the client's only, never saved).
+
+### How it works (`Quake/vr/vr_wounds.cpp`, `Quake/r_alias.c`, `Quake/gl_shaders.h`, `QC/vr_wounds.qc`)
+
+- **The masks**: one texture array, `vr_wounds_pool` layers (64) of 256 x 256 RGBA8 (16 MB): red blood, green char,
+  blue wetness, alpha heat. A model's mask takes the part of its layer of its skin's shape (the skin's own size when
+  smaller than 256, else its longer side 256: the mod's soldier 256 x 256, the ogre 256 x 128, a head 128 x 128). Given on a model's first wound; when all are taken, the one drawn longest ago goes (and,
+  between equals, the farthest), never the player's own three. A model with several meshes (several skins over one
+  layout; none of Quake's) gets none.
+- **Painting**: the model is drawn as it is this frame (its lerped pose, its place; the body's and hands' posed
+  bones), into its layer, laid out by its skin's coordinates (the alias vertex shader with `WOUNDPAINT`: position =
+  the texture coordinates), with the world position and normal for each texel; the paint shader
+  (`wound_paint_fragment_shader`) evaluates up to 16 splats a draw (star wounds, burns, blasts, liquids) at that
+  point and the mask keeps the most of it and what was there (blending by max). Distances are in the world, so a
+  wound goes across the skin's seams and islands as it goes across the model (Quake's front/back halves, the
+  onseam copies the loader already made). The triangles are then drawn again as lines (`glPolygonMode`): a texel an
+  island's edge crosses without covering its middle is painted too, so the shading's reads at the edges find paint.
+  A triangle folded to nothing (the posed body's hidden parts share texels) is skipped.
+- **Where a blow lands**: the server's point is on the monster's box, not its model. The client finds the model's
+  surface: the triangles as drawn (the weapons-against-models test's, `modelcollide::drawnTriangles`), the first
+  front face the blow's line goes into near the point, else the facing triangle nearest the line; the wound is
+  centred there, round the surface's normal. Your body and hands are skinned on the GPU (no triangles on the CPU):
+  capsules round them as posed (the torso and the legs round the pelvis, each forearm elbow to wrist, each hand) take
+  the blow, the first one along its line, and the same wound is painted on the body and both hands (a hit on a wrist
+  marks the bracer and the hand). The server's point on you is the box's middle (your pelvis): hits are spread over
+  the body, more on the chest.
+- **Shading** (`WoundsAt` in the alias fragment shader): the mask read at the skin's texel (or the mask's, on a skin
+  finer than twice it: QRP's), values shown through a 4 x 4 ordered dither over their edges: chunky marks on the
+  skin's own grid, fading by dither as they dry or heal. With no mask (the instance's `Wound.x` 0) the shader's
+  colour is the skin's, as before.
+- **Hit events**: a new `svc_quakevr` sub-command, `QVR_SVC_WOUND` (14: entity, point, direction, kind, amount,
+  extra; 17 bytes), written by a new QC builtin `woundevent` to `sv.datagram` (unreliable, as particles: a lost one
+  misses a mark). Sent by `VR_Wound_Hit` (`combat.qc`'s `T_DamageImpl`, beside the gore's hit: every hit that takes
+  health from a monster or a player; the kind from `vr_hitkind`, the inflictor and `IsExplosionDamage`), by
+  `VR_Wound_Pellet` (`TraceAttack`: each pellet), and four times a second by `VR_Wounds_Frame` (`StartFrame`) for
+  everyone standing in a liquid (the surface's height, `liquidentry`; monsters measured as `vr_liquids.qc` does).
+  Lava and slime char only when they hurt (their damage's event), so a monster in lava with Enemies Hurt by Liquids
+  off is neither burnt nor wet (lava wets nothing). No `random()` in the QC: the game plays the same with or without it.
+- **Demos and protocol**: recorded like any message; a demo recorded now needs this engine to play (the sub-command
+  is new, as round 21's other ones). Other mods' progs never send it. No protocol number change.
+- **Over time**: every 0.1 s (the game's time, so paused games wait) a subtract pass on each mask that is drying (1/255
+  a step), cooling or healing; nothing otherwise.
+
+### Settings (Gore page, "Wounds on Models")
+
+| Setting | Cvar | Default |
+|---|---|---|
+| Dynamic Wounds (blood; your body's and hands' instead of the wound skins) | `vr_wounds` | 1 |
+| Burns (explosions, fire, lightning, lava, slime; embers) | `vr_wounds_burns` | 1 |
+| Wet from Liquids (and drips) | `vr_wounds_wet` | 1 |
+| Models Kept (32 / 64 / 128: 8 / 16 / 32 MB) | `vr_wounds_pool` | 64 |
+
+Turning one off takes what it painted off every model; all three off frees the texture. Commands:
+`vr_wounds_test <entity | self | ahead | all> <kind> [amount] [right] [up] [extra]` (a wound as the server would
+send it: 1 shot, 2 nail, 3 melee, 4 blast, 5 burn, 6 zap, 7 lava, 8 slime, 9 liquid with `up` the surface over the
+feet), `vr_wounds_info`, `vr_wounds_dump` (every mask to `quakevr/wounds/*.png`), `vr_wounds_debug 1` (each event
+and where it landed; 2 also the player's capsules).
+
+### Decisions (and where the design changed)
+
+- **Alpha is heat, not dirt**: Quake has nothing that dirties a model, and fresh embers need to know which texels
+  burnt recently. Slime is a lighter, patchier char plus wetness rather than a green tint (no fifth channel).
+- **Healing also fades your char** (the design: burns persist). A burn that never healed on the player looked wrong
+  after a health pack; on monsters and corpses burns do persist.
+- **The masks are 256 x 256 layers in the skin's shape**, not the skin's own resolution: one texture array (one
+  binding for every instanced draw), and Quake's skins are about that size; a QRP skin reads the mask at its texels
+  (still Quake-sized marks).
+- **The player is mapped through capsules**, not by painting along the blow's line (the first version): along a
+  line, a forearm pointing at the attacker took the blood along its whole length.
+- **Options on the Gore page** (with the rest of the blood), not Graphics.
+
+### Costs (`run.sh --exclusive`, RTX 4090, mock eyes 2048², firing range, 12 monsters spawned ahead)
+
+| | GPU | CPU |
+|---|---|---|
+| Alias models per eye, 32 masked models (every model hit) vs Dynamic Wounds off | 0.073 vs 0.067 ms | same |
+| The wounds' frame work with nothing to paint (the scope `wounds`) | 0.001-0.003 ms | 0.001-0.003 ms |
+| Painting: 32 models hit every frame | 0.051 ms a frame (1.6 µs a paint) | 0.119 ms (3.7 µs a paint) |
+| A hit's frame (one to a few models) | under 0.01 ms | under 1 ms (never over the 1 ms log threshold) |
+| Memory | 16 MB (64 masks; 8 or 32) | |
+
+The one slow frame seen: 32 masks made in one frame (the stress test's first volley), 5 ms of CPU; a single blow's
+first mask costs nothing measurable.
+
+### Checked (mock headset; composites in the scratchpad's `wounds/final/`)
+
+1. A grunt hit by seven blows (shots, nails, a slash, off-centre): marks where each landed, the chest's run down the
+   belly; its mask on the skin shows marks going across the islands' edges (`1_grunt_before_after_mask.png`).
+2. An ogre: an explosion 40 units in front of it (scorch on the facing side, blotchy), lightning and a burn, then 5 s
+   later with the embers out (`2_ogre_blast_zap_burn_cooled.png`).
+3. A grunt in lava to the knees: charred patches with embers, cooling; a gibbed grunt's head mask with its bloody neck
+   (`3_lava_then_cooled_headgib_mask.png`).
+4. A grunt wet to the thighs, then 15, 30 and 45 s later: dry from the waterline down (`4_grunt_wet_drying.png`).
+5. Your body from ahead (health 30): clean, ten hits, then wet to the waist, then `give h 100` (the blood gone in about
+   a second), then dry (`5_body_hits_wet_heal_dry.png`); first person: hits and a burn on the hands
+   (`6_hands_firstperson.png`); a QRP grunt (`7_qrp_grunt.png`).
+6. **Real game paths**: a grunt's shotgun at you (each pellet an event on your body and hands), a melee blow into a
+   grunt, a grunt standing in e1m1's slime (wet events four times a second, slime burns once a second with Enemies
+   Hurt by Liquids on), a gibbing.
+7. **Off is unchanged**: e1m1 (a corpse, your body at health 45 with its wound skin, your hands), fixed frame time,
+   against the build before (0a44b4d5): with the three options off the eye images match but for the wrist gadget's
+   live readout and 27 pixels 1/255 apart (`8_offcheck_base_off_diffx40_on.png`: before, off, the difference x40, on;
+   on, the body shows no wound skin at health 45: the wounds painted replace it).
+
+### Not verified
+
+- A real rocket or grenade on a monster (the QC's path is `T_RadiusDamage`'s own; checked with the test command,
+  and `vr_physics_blast` from the console loses its datagram: console commands run between server frames).
+- Other players' `player.mdl` in multiplayer (painted as monsters are; not run).
+- The drips' look (spawned; not caught in a screenshot).
+- The headset: the look at 2064 x 2208 and in motion, the hands' wound size (0.65 of a body's), the blood's tone on
+  your dark vest.
+
+### In the headset
+
+- [ ] Shoot a grunt a few times, then an ogre with the rocket launcher: marks where you hit, across seams, Quake-like?
+- [ ] Let grunts shoot you, look at your hands, arms and chest; then take a health pack: the blood fades?
+- [ ] Wade into water to the waist, come out, look down: wet, dripping, drying in half a minute?
+- [ ] Shove a monster into lava or slime (Enemies Hurt by Liquids on): char with embers?
+- [ ] Gore page: Dynamic Wounds off brings the wound skins back.

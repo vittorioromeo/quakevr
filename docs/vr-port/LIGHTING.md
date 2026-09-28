@@ -372,6 +372,12 @@ light a surface almost straight on, where a tilt of θ only dims it by 1 − cos
   its bones) and the body (`vrbody.md5mesh`) had no normal maps at all; they now get one per skin, from their own
   texture coordinates' islands, with the same lighting as any alias model (own light and `vr_modellight`, dynamic
   lights, the flashlight, muzzle flashes; held-hand half for made maps).
+- **Wounds painted on models** (round 21, ROUND21.md "Dynamic wounds, burns and wetness"; `WoundsAt`, `WoundSheen` in
+  the alias fragment shader): before the lighting, the skin's colour takes the wound mask's blood, char and wetness
+  (read at the skin's texel, ordered-dithered edges); blood (0.75) and water (0.5) pull the bumped normal back to the
+  smooth one (they fill the bumps), both add a sheen in the model's own light from its direction (blood a tight
+  one, water a broader one and a little at grazing angles); covered texels lose their fullbright; fresh burns add
+  unlit embers after the fullbrights. With no mask the image is as before (checked against the build before it).
 
 ## The chest flashlight
 
