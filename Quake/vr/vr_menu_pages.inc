@@ -68,7 +68,7 @@
         cycle("Default Speed", "cl_alwaysrun", {{1.f, "Run"}, {0.f, "Walk"}}).help("The speed button switches to the other."),
         slider("Running Mult.", "cl_movespeedkey", 1.f, 3.f, 0.05f, "%.2f").extend().help("How much faster running is than walking."),
         toggle("Swimming", "vr_swim").help("In water the stick slows and strokes of your hands move you (more on the Swimming page)."),
-        toggle("Ledge Grab (Experimental)", "vr_climb").help("Grip a ledge with an empty hand to hang from it; pull down to climb onto it. Only ledges, not walls."),
+        toggle("Climbing (Experimental)", "vr_climb").help("Grip a ledge or a rung with either empty hand, or both, to hang from it; pull to climb hand over hand, shimmy along a ledge, pull up onto it. Edges only, not flat walls."),
         slider("Lowest Ledge", "vr_climb_min_height", 0.f, 64.f, 2.f, "%.0f units").extend().help("How far above your feet a ledge must be to grab it."),
         slider("Ledge Fling", "vr_climb_fling", 0.f, 2.f, 0.1f, "%.1f").extend().help("How much letting go of a ledge flings you with your hands' motion."),
     };

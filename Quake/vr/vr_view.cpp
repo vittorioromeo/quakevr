@@ -5,6 +5,7 @@
 #include "vr_units.hpp"
 #include "vr_color.hpp"
 #include "vr_anchor.hpp"
+#include "vr_climb.hpp"
 #include "vr_avatar.hpp"
 #include "vr_gadget.hpp"
 #include "vr_flashlight.hpp"
@@ -2321,6 +2322,7 @@ void setupHand(const hands::State& s, int hand)
     // A prop held in both hands (vr_held.cpp): the hand is drawn on its grip on it, as if its controller were there.
     glm::vec3 controllerPos = s.pos[hand], controllerRot = s.rot[hand];
     held::drawnHand(hand, controllerPos, controllerRot);
+    climb::drawnHand(s, hand, controllerPos); // a hand holding a ledge or a rung: drawn on it (vr_climb.cpp)
 
     // The hand turned from the controller by the fist's angle offsets, rigidly (round 21, second pass: added as Euler
     // angles, the hand slid round what it held as the wrist turned, and its grasp was solved again and again).

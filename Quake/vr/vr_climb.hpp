@@ -1,12 +1,26 @@
-// vr_climb.hpp -- ledge grabbing and mantling (vr_climb, experimental; see vr_climb.cpp).
+// vr_climb.hpp -- climbing: holds taken with either hand or both (vr_climb, experimental; see vr_climb.cpp).
 //
 // The physics hooks are VR_ClimbPreThink and VR_ClientClimb (vr_api.h).
 
 #pragma once
 
+#include "vr_engine.hpp"
+
+namespace qvr::hands
+{
+struct State;
+}
+
 namespace qvr::climb
 {
 
 void init(); // registers vr_climb_probe
+
+// Server: the player's holds as stats (STAT_QVR_CLIMB*), for the drawn hands.
+void calcStats(edict_t* ent, int* statsi);
+
+// Client: the drawn `hand`'s place (its controller's, before the fist's offsets) put on its hold while it holds,
+// eased on and off.
+void drawnHand(const hands::State& s, int hand, glm::vec3& pos);
 
 } // namespace qvr::climb

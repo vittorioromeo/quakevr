@@ -215,6 +215,7 @@ extern "C" int VR_ActiveWeaponStat(edict_t* ent)
 
 extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
 {
+    climb::calcStats(client->edict, statsi); // any progs
     if(!bindings().isVrProgs)
     {
         return;

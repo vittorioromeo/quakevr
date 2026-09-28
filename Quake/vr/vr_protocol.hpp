@@ -74,7 +74,10 @@ enum Stat : int
     STAT_QVR_FGOFF,
     STAT_QVR_CARRYMAIN, // the entity each hand carries (vr_carry.qc), 0 none: drawn in the hand (vr_held.cpp)
     STAT_QVR_CARRYOFF,
-    STAT_QVR_END
+    STAT_QVR_CLIMB,     // the holding hands (vr_climb.cpp): bit 0 off, 1 main; bits 2-7, 8-13 their holds' serials
+    STAT_QVR_CLIMBOFFX, // each hand's hold, in eighths of a unit: the drawn hand is put on it
+    STAT_QVR_CLIMBMAINX = STAT_QVR_CLIMBOFFX + 3,
+    STAT_QVR_END = STAT_QVR_CLIMBMAINX + 3
 };
 
 inline constexpr int numHolsters = 6;
