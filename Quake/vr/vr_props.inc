@@ -49,9 +49,13 @@ QVR_PROP_KEY(SpringTwoHanded, "help_2h", "1")
 QVR_PROP_KEY(SpringSnap, "snap", "1")
 QVR_PROP_KEY(MeleeDamage, "melee_dmg", "1")
 QVR_PROP_KEY(ThrowDamage, "throw_dmg", "1")
-QVR_PROP_KEY(Blunt, "blunt", "0")            // how hard it hits, held (a punch holding it) or thrown: times the square root
-                                             // of its mass (kg), over a fist's punch and Thrown Box Damage; 0: as a box
-                                             // (Box Punch Damage, Thrown Box Damage) (QC vr_melee.qc, vr_carry.qc)
+#endif
+
+#ifdef QVR_PROP_RETIRED
+// Keys no longer used, kept registered (unsaved, read by nothing) so that configs holding them load silently: the rocks'
+// and bricks' Blunt (1 + Blunt x the square root of the mass), folded into the weight's damage curve and their Melee and
+// Throw Damage x (round 21, "Spring only; Weapon Weights and Held Object Weights; weight and damage").
+QVR_PROP_RETIRED("blunt")
 #endif
 
 #ifdef QVR_PROP_DEFAULT
@@ -122,25 +126,33 @@ QVR_PROP_DEFAULT(47, ID, "progs/h_demon.mdl")
 QVR_PROP_DEFAULT(47, Mass, "12")
 // The rocks and bricks lying about (vr_debris.cpp, QC vr_debris.qc; slots 17-25, vr_prop_*_18 to _26, after the torch's): their Mass is
 // left estimated, stone's density times their size (vr_props.cpp stoneDensity: a rock 0.3 to 1.7 kg, a whole brick
-// about 1.9), since each piece is sized apart. Blunt 0.8: a punch holding one hits 1 + 0.8 x the square root of its
-// mass times as hard (a 1 kg rock 1.8, a brick 2.1; a box 1.5), and thrown it hurts as much more than a box. One hand.
+// about 1.9), since each piece is sized apart. Their damage is the weight's (round 21, "Spring only; Weapon Weights and
+// Held Object Weights; weight and damage"): a punch holding one hits Box Punch Damage (1.5) x Melee Damage 1.4 x the
+// weight's curve by its mass (a 1 kg rock 1.79, a brick 2.1); the whole bricks (a tip: clubs, whose blows take no Box
+// Punch Damage) Melee Damage 2.1; thrown, Thrown Box Damage x 2.1 x the curve. One hand.
 QVR_PROP_DEFAULT(17, ID, "progs/vr_rock1.mdl")
-QVR_PROP_DEFAULT(17, Blunt, "0.8")
+QVR_PROP_DEFAULT(17, ThrowDamage, "2.1")
+QVR_PROP_DEFAULT(17, MeleeDamage, "1.4")
 QVR_PROP_DEFAULT(17, TwoHands, "0")
 QVR_PROP_DEFAULT(18, ID, "progs/vr_rock2.mdl")
-QVR_PROP_DEFAULT(18, Blunt, "0.8")
+QVR_PROP_DEFAULT(18, ThrowDamage, "2.1")
+QVR_PROP_DEFAULT(18, MeleeDamage, "1.4")
 QVR_PROP_DEFAULT(18, TwoHands, "0")
 QVR_PROP_DEFAULT(19, ID, "progs/vr_rock3.mdl")
-QVR_PROP_DEFAULT(19, Blunt, "0.8")
+QVR_PROP_DEFAULT(19, ThrowDamage, "2.1")
+QVR_PROP_DEFAULT(19, MeleeDamage, "1.4")
 QVR_PROP_DEFAULT(19, TwoHands, "0")
 QVR_PROP_DEFAULT(20, ID, "progs/vr_rock4.mdl")
-QVR_PROP_DEFAULT(20, Blunt, "0.8")
+QVR_PROP_DEFAULT(20, ThrowDamage, "2.1")
+QVR_PROP_DEFAULT(20, MeleeDamage, "1.4")
 QVR_PROP_DEFAULT(20, TwoHands, "0")
 QVR_PROP_DEFAULT(21, ID, "progs/vr_rock5.mdl")
-QVR_PROP_DEFAULT(21, Blunt, "0.8")
+QVR_PROP_DEFAULT(21, ThrowDamage, "2.1")
+QVR_PROP_DEFAULT(21, MeleeDamage, "1.4")
 QVR_PROP_DEFAULT(21, TwoHands, "0")
 QVR_PROP_DEFAULT(22, ID, "progs/vr_brick1.mdl")
-QVR_PROP_DEFAULT(22, Blunt, "0.8")
+QVR_PROP_DEFAULT(22, ThrowDamage, "2.1")
+QVR_PROP_DEFAULT(22, MeleeDamage, "2.1")
 QVR_PROP_DEFAULT(22, TwoHands, "0")
 QVR_PROP_DEFAULT(22, GripMode, "1")
 QVR_PROP_DEFAULT(22, GripX, "0.8")
@@ -148,7 +160,8 @@ QVR_PROP_DEFAULT(22, GripZ, "-1.6")
 QVR_PROP_DEFAULT(22, TipX, "2.4")
 QVR_PROP_DEFAULT(22, ButtX, "-2.4")
 QVR_PROP_DEFAULT(23, ID, "progs/vr_brick2.mdl")
-QVR_PROP_DEFAULT(23, Blunt, "0.8")
+QVR_PROP_DEFAULT(23, ThrowDamage, "2.1")
+QVR_PROP_DEFAULT(23, MeleeDamage, "2.1")
 QVR_PROP_DEFAULT(23, TwoHands, "0")
 QVR_PROP_DEFAULT(23, GripMode, "1")
 QVR_PROP_DEFAULT(23, GripX, "0.8")
@@ -156,10 +169,12 @@ QVR_PROP_DEFAULT(23, GripZ, "-1.6")
 QVR_PROP_DEFAULT(23, TipX, "2.4")
 QVR_PROP_DEFAULT(23, ButtX, "-2.4")
 QVR_PROP_DEFAULT(24, ID, "progs/vr_brick3.mdl")
-QVR_PROP_DEFAULT(24, Blunt, "0.8")
+QVR_PROP_DEFAULT(24, ThrowDamage, "2.1")
+QVR_PROP_DEFAULT(24, MeleeDamage, "1.4")
 QVR_PROP_DEFAULT(24, TwoHands, "0")
 QVR_PROP_DEFAULT(25, ID, "progs/vr_brick4.mdl")
-QVR_PROP_DEFAULT(25, Blunt, "0.8")
+QVR_PROP_DEFAULT(25, ThrowDamage, "2.1")
+QVR_PROP_DEFAULT(25, MeleeDamage, "2.1")
 QVR_PROP_DEFAULT(25, TwoHands, "0")
 QVR_PROP_DEFAULT(25, GripMode, "1")
 QVR_PROP_DEFAULT(25, GripX, "0")

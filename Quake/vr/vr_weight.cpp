@@ -585,6 +585,13 @@ void table_f()
         {
             continue;
         }
+        if(props::value(slot, props::Key::Mass) <= 0.f)
+        {
+            // Its mass estimated, thing by thing (the level's rows below).
+            Con_Printf("%-4s %-26s %6s | %6s %6.3f %6.3f | %7s\n", va("p%d", slot + 1), id, "est", "-",
+                props::value(slot, props::Key::MeleeDamage), props::value(slot, props::Key::ThrowDamage), "-");
+            continue;
+        }
         row(va("p%d", slot + 1), id, props::value(slot, props::Key::Mass), props::value(slot, props::Key::MeleeDamage),
             props::value(slot, props::Key::ThrowDamage));
     }

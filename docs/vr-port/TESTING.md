@@ -165,7 +165,7 @@ context and screenshot, ready to paste or to point me at.
   - **Rocks and bricks** (ROUND21.md, same title): loose rocks on natural ground (grass, dirt, rock) and at the foot of
     rock and stone walls, bricks at the foot of brick walls, placed at map load where the textures say, more in
     corners, the same places every load (e1m2, e2m2, e4m2, e1m1's outdoor ground). Pick one up, punch with it (a rock
-    or a brick hits harder the heavier it is: Held Object Offsets' Blunt), throw it (it hurts what it hits), force grab
+    or a brick hits harder the heavier it is: Held Object Weights' Melee Damage and the weight's curve), throw it (it hurts what it hits), force grab
     it (a whole brick is a club, held by its end); they knock and clack as they land. Carrying and Gibs > Rocks and Bricks: on/off, Rocks, Bricks, Chance, In
     Corners, In the Dark, Most Together, Most in a Map, Most in an Area, Spacing, Size Variation, Layout. Single player.
     Also fixed: a punch holding a box hit 2.25x, not Box Punch Damage's 1.5x.

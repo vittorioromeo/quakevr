@@ -8937,7 +8937,9 @@ noticeable, so everything is placed at load and nothing pops in. (The defaults g
   it** (the keys' default: a punch, stamina 4, a closed fist, the punch's batting). Either way the blow's strength is
   times `1 + Blunt x the square root of its mass` (Held Object Offsets' new **Blunt** key, 0.8 for rocks and bricks:
   a 0.35 kg rock 1.47, 1 kg 1.8, a whole brick 2.1; `VR_Carry_BluntMult`), the damage coming from the blow's speed as
-  every blow's. A box stays at Box Punch Damage (1.5), a torch at its own. They knock with their own sound, not the
+  every blow's. (Later: Blunt folded into the weight's damage curve and the rocks' and bricks' Melee and Throw Damage ×,
+  the same numbers within a few percent from 0.6 kg up: "Spring only; Weapon Weights and Held Object Weights; weight and
+  damage", below.) A box stays at Box Punch Damage (1.5), a torch at its own. They knock with their own sound, not the
   punch's. `modelpoint` (the club's line) now scales a point as the model is drawn (the pieces' size; the torch is
   unscaled).
 - **Thrown hard** (over 250 u/s, as boxes): it hurts what it hits (monsters, and gibs as thrown things now do) by its
@@ -8990,7 +8992,7 @@ The synthetic motions' hand settings were set and printed in each run (`vr_gunan
 | Layout | `vr_debris_seed` | 0 |
 | (console) maps without them | `vr_debris_exclude` | "vrfiringrange vrclimb vrexample" |
 | (console) entities left free | `vr_debris_edicts_left` | 2048 |
-| (Held Object Offsets) Blunt | `vr_prop_blunt_NN` | 0; 0.8 for the rocks and bricks |
+| (Held Object Offsets) Blunt | `vr_prop_blunt_NN` | retired (the weight's curve and Melee/Throw Damage ×: below) |
 | (console) `vr_debug_debris` | | 1: a line per map (pieces, spots, rejections by reason, time, the layout's hash, the spawn time); 2: also each piece and the way out of its wall; 3: also each spot an entity turned away, and which |
 
 `vr_debris_list [lit]` lists the pieces in the map now (model, skin, place, turn, resting, the light there; `lit`:
@@ -9478,7 +9480,10 @@ scripts, logs and pictures in the scratchpad's `weights2/`.
 - **Carried Props Have Weight** is gone: every carried thing weighs its mass, as every weapon does; a prop that should
   feel light gets its Mass (or its own Stiffness) on Held Object Weights. A switch for props alone made them inconsistent
   with the weapons, and the per-prop settings do it better.
-- **Heavier When Tired** stays (it multiplies the mass). `vr_throw_weight_influence` stays too: it is a thrown weapon's
+- **Heavier When Tired** stays (it multiplies the mass).
+- **The grappling hook** reads a prop's mass (`propvalue`), unchanged: props up to 8 kg come at its full speed, anything
+  from 100 kg anchors you. With the gibs' and heads' masses (below) they come to the gun; before, gib2, gib3 and the
+  ogre's and fiend's heads (106-476 kg) pulled you to them. `vr_throw_weight_influence` stays too: it is a thrown weapon's
   speed by weapon (`WeaponIdToThrowMult`), not the hands' weight model.
 
 ### Weapon Weights (a page; Weapon Offsets loses its weight rows)
@@ -9547,8 +9552,25 @@ its speed over the full-damage speed; every other factor is unchanged):
 **Props** (`vr_weight_table`): the explosive box 40 kg ×1.90, the small one 25 kg ×1.58, armour 42 kg (Box3D's) ×1.95,
 the biosuit 23 kg ×1.52, megahealth 11 kg ×1.14, a shambler's head 15 kg ×1.29, a fiend's 12 kg ×1.18, an ogre's 9 kg
 ×1.05; ammo and health boxes (2.8-8.5 kg), other heads (3-6 kg), gib2 and gib3 ×1.00; an ogre's grenade 1.2 kg ×0.92,
-the wall torch 0.9 kg ×0.82 (its blow 12 → 9.8 at strength 1), gib1 0.8 kg ×0.78, the flashlight 0.4 kg ×0.59. Rocks and
-bricks ×1 (their Blunt has their mass in it already).
+the wall torch 0.9 kg ×0.82 (its blow 12 → 9.8 at strength 1), gib1 0.8 kg ×0.78, the flashlight 0.4 kg ×0.59.
+
+**One formula for everything held or thrown** (the rocks and bricks' Blunt folded in): a punch with a thing in the fist
+is a fist's blow × Box Punch Damage (`vr_carry_melee_mult`, 1.5) × its Melee Damage × × curve(m); a club's blow (a thing
+with a Tip: the torch, a whole brick) its base × its Melee Damage × × curve(m); a throw Thrown Box Damage (8; a gib's 4) ×
+its Throw Damage × × curve(m) × speed / full-damage speed. The debris branch's Blunt (1 + 0.8 √m in place of Box Punch
+Damage, and on the club's and the throw's base) is retired (`vr_prop_blunt_NN` load silently); the rocks and bricks ship
+Melee Damage × 1.4 (the whole bricks, clubs: 2.1) and Throw Damage × 2.1, which give their numbers back from 0.6 kg up:
+
+| Rock or brick | Blunt: punch × / club × / thrown base | Now: punch × / club × / thrown base |
+|---|---|---|
+| 0.3 kg rock | 1.44 / - / 11.5 | 1.10 / - / 8.8 |
+| 0.6 kg rock | 1.62 / - / 13.0 | 1.46 / - / 11.6 |
+| 1.0 kg rock | 1.80 / - / 14.4 | 1.79 / - / 14.3 |
+| 1.55 kg rock | 2.00 / - / 16.0 | 2.10 / - / 16.8 |
+| 1.9 kg whole brick | 2.10 / 2.10 / 16.8 | 2.10 / 2.10 / 16.8 |
+
+(e1m1's pieces, `tbl5.txt`: rocks of 0.58, 0.74, 0.80, 1.25 and 1.55 kg.) The small pebbles hit less than with Blunt:
+the curve says a 0.3 kg stone is light; their Melee Damage × (or Lighter Than) tunes it.
 
 ### Heavy leniency (Aiming > Weight and Damage)
 
@@ -9636,12 +9658,6 @@ moves to a free slot with its settings; a head you had calibrated in another slo
 - In the headset: how the multipliers and the damage feel; a real arm's throw of the box.
 - Print Changes and Reset This Weapon/Prop on the new pages (read, not run: the menu's actions aren't console commands).
 - Multiplayer: the builtins read the local settings (as `propvalue` does).
-- **The rocks and bricks** (merged from vr-cleanup): their Blunt (1 + Blunt × √mass) is a mass-based damage of its own, so
-  a prop with a Blunt skips the curve (`VR_Weight_PropCurve`), keeping the damage their section gives; their Melee and
-  Throw Damage × still apply, and Blunt is now on Held Object Weights (Damage). Rocks and bricks weigh 0.3-1.9 kg: no
-  leniency. The config migration for their slots (26, announced by that branch) isn't in vr-cleanup yet; this one is 27,
-  so a config saved by this build skips a 26 added later: the coordinator's merge should run 26 for configs below 27 or
-  renumber.
 - Spotted, not changed: quad damage is ×2.75 on a melee blow (`VRMeleeDmgQuadMult`) and ×4 again in `T_DamageImpl`.
 
 ### To try

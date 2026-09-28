@@ -96,31 +96,13 @@ void(entity xBox) VR_Carry_Forget =
     xBox.carry_2h = FALSE;
 };
 
-// How much harder a blow with `xBox` in hand hits by its weight (Held Object Offsets' Blunt: 1 + Blunt x the square root
-// of its mass in kg: the rocks and bricks, vr_debris.qc); 0 for a prop without a Blunt (a box, a gib, a torch).
-float(entity xBox) VR_Carry_BluntMult =
-{
-    float blunt = xBox != world ? propvalue(xBox, "blunt") : 0;
-    if(blunt <= 0)
-    {
-        return 0;
-    }
-    return 1 + blunt * sqrt(max(propvalue(xBox, "mass"), 0));
-};
-
-// How much harder a punch holding what `xHand` of `xPlayer` carries hits: a rock or a brick by its mass
-// (VR_Carry_BluntMult), anything else Box Punch Damage (vr_carry_melee_mult); 1 with nothing held. A club's blows (a
-// prop with a melee tip: a wall torch, a whole brick) take the Blunt alone (VR_Melee_Decide). VR_Melee_Decide puts it
-// in the blow's strength; W_FistMelee only for untracked hands (whose blows have none).
+// How much harder a punch holding what `xHand` of `xPlayer` carries hits: Box Punch Damage (vr_carry_melee_mult), a box,
+// a rock, a brick, a gib alike (their own Melee Damage x and their mass make the rest: VRMeleeDmg's VR_Weight_MeleeMult);
+// 1 with nothing held. A club's blows (a prop with a melee tip: a wall torch, a whole brick) aren't punches: none.
+// VR_Melee_Decide puts it in the blow's strength; W_FistMelee only for untracked hands (whose blows have none).
 float(entity xPlayer, float xHand) VR_Carry_PunchMult =
 {
-    entity box = VR_Carry_Held(xPlayer, xHand);
-    if(box == world)
-    {
-        return 1;
-    }
-    float k = VR_Carry_BluntMult(box);
-    return k > 0 ? k : cvar_hget(cvarh_vr_carry_melee_mult);
+    return VR_Carry_Held(xPlayer, xHand) == world ? 1 : cvar_hget(cvarh_vr_carry_melee_mult);
 };
 
 // ----------------------------------------------------------------------------
@@ -275,17 +257,6 @@ float(entity e) VR_Thrown_Mass =
     return propvalue(e, "mass");
 };
 
-// The weight's damage curve for a prop (weightdamage by its mass): 1 for one with a Blunt (a rock, a brick), whose mass is
-// in its damage already (VR_Carry_BluntMult).
-float(entity c) VR_Weight_PropCurve =
-{
-    if(propvalue(c, "blunt") > 0)
-    {
-        return 1;
-    }
-    return weightdamage(propvalue(c, "mass"));
-};
-
 // Heavy leniency: the factor on its throw's speed thresholds (weightleniency: 1 but for things heavier than every
 // weapon, which can't be thrown as fast).
 float(entity e) VR_Thrown_Lenient =
@@ -295,14 +266,14 @@ float(entity e) VR_Thrown_Lenient =
 
 // Its damage hitting something at `xSpeed` units/s: its base (GetThrownWeaponBaseDamage) times its speed over the
 // throw's full-damage speed (.throwdmgspeed; that times `xLenient` for a heavy thing, as its thresholds are), its own
-// Throw Damage x times the weight's curve (weightdamage; VR_Weight_PropCurve), and vr_weapon_throw_damage_mult.
+// Throw Damage x times the weight's curve (weightdamage), and vr_weapon_throw_damage_mult.
 float(entity e, float xSpeed, float xLenient) VR_Thrown_Damage =
 {
     float dmgSpeed = e.throwdmgspeed;
     if(!dmgSpeed) dmgSpeed = 700;
     float weapon = e.classname == "thrown_weapon";
     float own = weapon ? weaponvalue(e.model, "w_throwdmg") : propvalue(e, "throw_dmg");
-    float curve = weapon ? weightdamage(weaponvalue(e.model, "w_mass")) : VR_Weight_PropCurve(e);
+    float curve = weightdamage(VR_Thrown_Mass(e));
     return (xSpeed / (dmgSpeed * max(0.01, xLenient))) * GetThrownWeaponBaseDamage(e) * own * curve *
            cvar_hget(cvarh_vr_weapon_throw_damage_mult);
 };
@@ -338,16 +309,9 @@ void(float xHand, entity xBox) VR_Carry_Release =
         {
             SetThrownWeaponDealDamage(xBox, TRUE); // (.health: not of a thing with health of its own, an explosive box)
         }
-        // A rock or a brick by its mass (Held Object Offsets' Blunt, as its punch: VR_Carry_PunchMult), a gib or a box as set.
-        float blunt = propvalue(xBox, "blunt");
-        float base = cvar_hget(xBox.vr_gib ? cvarh_vr_gib_throw_damage : cvarh_vr_carry_throw_damage);
-        if(blunt > 0)
-        {
-            base = cvar_hget(cvarh_vr_carry_throw_damage) * VR_Carry_BluntMult(xBox);
-            dprint(sprintf("carry: thrown %s, %.2f kg, base damage %.1f (at %.0f u/s)\n", xBox.classname,
-                propvalue(xBox, "mass"), base, xBox.throwdmgspeed));
-        }
-        SetThrownWeaponBaseDamage(xBox, base);
+        // A gib's or anything else's (a box, a rock, a brick); its own Throw Damage x and its mass make the rest
+        // (VR_Thrown_Damage).
+        SetThrownWeaponBaseDamage(xBox, cvar_hget(xBox.vr_gib ? cvarh_vr_gib_throw_damage : cvarh_vr_carry_throw_damage));
         xBox.owner = self;
     }
     else

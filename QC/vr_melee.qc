@@ -267,7 +267,7 @@ float(entity p, float xHand) VR_Weight_MeleeMult =
     entity c = VR_Carry_Held(p, xHand);
     if(c != world)
     {
-        return propvalue(c, "melee_dmg") * VR_Weight_PropCurve(c);
+        return propvalue(c, "melee_dmg") * weightdamage(propvalue(c, "mass"));
     }
     string model = WeaponIdToModel(VRGetEntWeapon(p, xHand), VRGetEntWeaponFlags(p, xHand));
     return weaponvalue(model, "w_meleedmg") * weightdamage(weaponvalue(model, "w_mass"));
@@ -940,15 +940,6 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
         else if(b.mh_thing == VR_MTHING_AXE || b.mh_thing == VR_MTHING_CLUB)
         {
             weight = VR_MELEE_POMMEL_AXE;
-        }
-    }
-    // A club heavy for its size strikes harder (Held Object Offsets' Blunt: a whole brick; a wall torch has none).
-    if(b.mh_thing == VR_MTHING_CLUB)
-    {
-        float blunt = VR_Carry_BluntMult(VR_Carry_Held(self, xHand));
-        if(blunt > 0)
-        {
-            weight = weight * blunt;
         }
     }
     if(cvar("developer") >= 2)
