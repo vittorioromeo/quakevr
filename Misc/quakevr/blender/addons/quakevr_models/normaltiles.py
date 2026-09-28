@@ -199,7 +199,7 @@ def paint_heights(low, skin, grain_depth, scale, wood_rects=None):
 
 
 def bake(low, skin, rec=None, supersample=2, base=None, details=True):
-    """An alias model's map, (h, w, 3) floats: `scale` (the recipe's) times its skin's size. `base(low, raster)`: the
+    """An alias model's map, (h, w, 3) floats, and its heights (alpha, or None): `scale` (the recipe's) times its skin's size. `base(low, raster)`: the
     shape's normals (a high poly's), else the facets' and creases' as above; `details`: the tiles' and the paint's."""
     rec = rec or recipe(low.name)
     scale = rec["scale"] * (2 if low.W < 256 and rec["scale"] < 4 else 1)  # a small skin: at least 4 times
@@ -218,5 +218,7 @@ def bake(low, skin, rec=None, supersample=2, base=None, details=True):
         if rec.get("paint"):
             h += paint_heights(low, skin, rec.get("grain", 0.5), hs, rec.get("wood_rects"))
         detail = nb.tangent_uv(r, nb.sampler(h, hs), d=0.5 / hs)
+        # the same heights for parallax mapping: texels up, in model units on each face
+        heights = nb.sampler(h, hs)(r.uv) * nb.texel_size(r)
     img, _ = nb.finish(r, nw, detail, supersample=supersample)
-    return img
+    return img, (nb.finish_heights(r, heights, supersample) if details else None)

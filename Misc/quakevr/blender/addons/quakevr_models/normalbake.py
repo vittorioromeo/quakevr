@@ -431,6 +431,37 @@ def read_png(path):
     return out.reshape(h, w, c)
 
 
+def read_tga(path):
+    """An uncompressed or RLE 24/32-bit TGA as (h, w, 3) uint8 RGB, rows top to bottom."""
+    with open(path, "rb") as f:
+        data = f.read()
+    idlen, cmap, kind = data[0], data[1], data[2]
+    w, h, bpp, desc = struct.unpack("<HHBB", data[12:18])
+    if cmap or kind not in (2, 10) or bpp not in (24, 32):
+        raise ValueError("%s: only true-colour TGAs are read" % path)
+    c = bpp // 8
+    pos = 18 + idlen
+    if kind == 2:
+        px = np.frombuffer(data, np.uint8, w * h * c, pos)
+    else:
+        out = bytearray()
+        while len(out) < w * h * c:
+            head = data[pos]
+            pos += 1
+            n = (head & 127) + 1
+            if head & 128:
+                out += data[pos:pos + c] * n
+                pos += c
+            else:
+                out += data[pos:pos + n * c]
+                pos += n * c
+        px = np.frombuffer(bytes(out[:w * h * c]), np.uint8)
+    img = px.reshape(h, w, c)[..., [2, 1, 0]]
+    if not desc & 32:  # stored bottom row first
+        img = img[::-1]
+    return np.ascontiguousarray(img)
+
+
 # ----------------------------------------------------------------------------
 # Heights to normals
 
@@ -616,6 +647,75 @@ def finish(raster, nworld, detail=None, margin=8, supersample=2, agree_deg=6.0, 
     cov = cov.reshape(raster.h // f, f, raster.w // f, f).any((1, 3))
     img, _ = dilate(img, cov, margin)
     return img, keep
+
+
+# ----------------------------------------------------------------------------
+# Heights for parallax mapping (the map's alpha): the same relief the normals were bent by
+
+
+# The engine's AUTHORED_HEIGHT_DEPTH (gl_texmgr.c / vr_lighting.cpp): an authored map's alpha 0 lies this many model
+# units under the surface (255 the surface itself); vr_parallax_authored 1 draws it so deep.
+AUTHORED_DEPTH = 0.4
+# Relief broader than this (model units: a muscle, a whole padded band) is left to the normals: parallax only carries
+# the finer relief, so that on average the surface stays where the mesh is and the paint never slides further than
+# the relief itself is deep.
+HEIGHT_BROAD = 0.35
+
+
+def texel_size(raster):
+    """Per entry, the model-space size of one skin texel on its triangle (the mean of its two sides)."""
+    low = raster.low
+    return np.maximum(0.5 * (np.linalg.norm(low.Pu[raster.tri], axis=1) + np.linalg.norm(low.Pv[raster.tri], axis=1)),
+                      1e-6)
+
+
+def owners(raster):
+    """Per entry, 1 where its triangle is one of its pixel's owners (resolve's rule: those drawing it at about the least
+    magnification), else 0."""
+    low = raster.low
+    dens = np.abs(low.uvdet) / np.maximum(2.0 * low.area, 1e-12)
+    d = dens[raster.tri]
+    least = np.full(raster.w * raster.h, np.inf)
+    np.minimum.at(least, raster.pix, d)
+    return (d <= least[raster.pix] * 2.0).astype(np.float64)
+
+
+def finish_heights(raster, h, supersample=2, depth=AUTHORED_DEPTH, broad=HEIGHT_BROAD):
+    """The map's alpha (h, w) 0..1 from each entry's height h (model units, up out of the surface): the owners' mean
+    per pixel, box-filtered down by `supersample`, its broad forms (over `broad` units) taken out, then the top of
+    the relief (its 95th percentile: the few highest parts, a strap's or a rim's top, stay at the surface) at 1 and `depth` units under it at 0; 1 outside the islands (the engine raises the
+    islands' rims to the top too, TexMgr_SetHeightMask). None when there is no relief."""
+    npx = raster.w * raster.h
+    w = owners(raster)
+    acc = np.zeros(npx)
+    cnt = np.zeros(npx)
+    np.add.at(acc, raster.pix, h * w)
+    np.add.at(cnt, raster.pix, w)
+    f = supersample
+    H, W = raster.h // f, raster.w // f
+    acc = acc.reshape(H, f, W, f).sum((1, 3))
+    cnt = cnt.reshape(H, f, W, f).sum((1, 3))
+    cov = cnt > 0
+    if not cov.any():
+        return None
+    img = np.where(cov, acc / np.maximum(cnt, 1e-12), 0.0)
+    if broad and broad > 0:
+        px = float(np.median(texel_size(raster))) / (raster.scale / f)  # model units per map pixel
+        img = img - blur(img, broad / max(px, 1e-9), cov)
+    top = np.percentile(img[cov], 95.0)
+    a = np.clip(1.0 - (top - img) / depth, 0.0, 1.0)
+    a[~cov] = 1.0
+    if np.all(a[cov] >= 254.5 / 255.0):
+        return None
+    return a
+
+
+def to_rgba8(tn, alpha):
+    """Tangent normals and their heights (alpha 0..1, or None: RGB only) as 8-bit RGB(A)."""
+    rgb = to_rgb8(tn)
+    if alpha is None:
+        return rgb
+    return np.dstack([rgb, np.clip(np.round(alpha * 255.0), 0, 255).astype(np.uint8)])
 
 
 def skin_rgb(model, index=0):

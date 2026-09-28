@@ -65,6 +65,12 @@ def hand_skin(progs):
     return pal[np.frombuffer(px, np.uint8)].reshape(h, w, 3)
 
 
+def body_skin(progs, index):
+    """The body's skin `index` (vrbody_NN_00.tga, as the author painted it) as RGB, or None."""
+    path = os.path.join(progs, "vrbody_%02d_00.tga" % index)
+    return nb.read_tga(path) if os.path.exists(path) else None
+
+
 def body_low(progs):
     """The athletic body, after checking the lean and brawny builds draw their skins with the same texture
     coordinates (one map serves all three)."""
@@ -78,7 +84,7 @@ def body_low(progs):
 
 
 def bake(progs, target, base=None, details=True):
-    """{output path: RGB (h, w, 3) uint8} for a target, from its model file as it is now. `base(low, raster)`: the
+    """{output path: RGB(A) (h, w, 3 or 4) uint8, alpha the heights parallax mapping walks} for a target, from its model file as it is now. `base(low, raster)`: the
     shape's normals at each entry (model space), a high poly's baked by Blender (normal_blender.py); by default the
     recipe's. `details`: the recipe's relief laid on that shape."""
     if target == HAND:
@@ -86,17 +92,19 @@ def bake(progs, target, base=None, details=True):
         low = nb.md5_low(os.path.join(progs, "hand_rig.md5mesh"), (skin.shape[1], skin.shape[0]))
         r = nb.Raster(low, HAND_SCALE * 2)
         n = base(low, r) if base else r.n
+        alpha = None
         if details:
-            grad, _ = normaldetail.hand_recipe(low, r, skin)
+            grad, heights = normaldetail.hand_recipe(low, r, skin)
             n = nb.bend(n, grad)
+            alpha = nb.finish_heights(r, heights, 2)
         img, _ = nb.finish(r, n, supersample=2)
-        return {outputs(progs, target)[0]: nb.to_rgb8(img)}
+        return {outputs(progs, target)[0]: nb.to_rgba8(img, alpha)}
     if target == BODY:
         low = body_low(progs)
         a, b = outputs(progs, target)
-        return {a: nb.to_rgb8(normalbody.bake(low, BODY_SCALE, False, base, details)),
-                b: nb.to_rgb8(normalbody.bake(low, BODY_SCALE, True, base, details))}
+        return {a: nb.to_rgba8(*normalbody.bake(low, BODY_SCALE, False, base, details, body_skin(progs, 0))),
+                b: nb.to_rgba8(*normalbody.bake(low, BODY_SCALE, True, base, details, body_skin(progs, 4)))}
     path = os.path.join(progs, target)
     low = nb.mdl_low(path)
-    img = normaltiles.bake(low, nb.skin_rgb(low.model), normaltiles.recipe(target), base=base, details=details)
-    return {outputs(progs, target)[0]: nb.to_rgb8(img)}
+    img, alpha = normaltiles.bake(low, nb.skin_rgb(low.model), normaltiles.recipe(target), base=base, details=details)
+    return {outputs(progs, target)[0]: nb.to_rgba8(img, alpha)}

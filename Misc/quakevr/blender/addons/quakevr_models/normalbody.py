@@ -114,12 +114,12 @@ def collar_h(bu, bv):
 
 
 def vest_h(bu, bv):
-    """The torso without armour (u 0 the front; v the trousers' top 0 to the collar 1): the belt, the quilted vest
-    (padded channels, stitched rows), the laced front, the side seams and the back's yoke, the rolled collar."""
+    """The torso without armour (u 0 the front; v the trousers' top 0 to the collar 1): the belt, the quilted vest as
+    the author painted it (24fa2de6: padded bands across the body between stitched rows, no channels down it), the
+    laced front, the side seams and the back's yoke, the rolled collar."""
     front = around(bu, 0.0)
-    ch = (bu * 18.0) % 1.0
-    quilt = 0.10 * np.sin(np.pi * ch) - 0.05 * ridge(np.minimum(ch, 1 - ch), 0.05)
     row = (bv - 0.2) % 0.1
+    quilt = 0.09 * np.sin(np.pi * row / 0.1) ** 0.7
     quilt -= 0.07 * ridge(np.minimum(row, 0.1 - row), 0.012) + 0.03 * ridge(row - 0.02, 0.008)
     lace_zone = smooth((0.022 - front) / 0.004)
     k = (bv * 45) % 1.0
@@ -193,13 +193,26 @@ def foot_h(bu, bv):
 
 
 def bracer_h(bu, bv):
-    """The bracers: rolled rims at both ends, stitched inside them, two buckled straps."""
-    h = 0.12 * (smooth((0.1 - bv) / 0.01) + smooth((bv - 0.9) / 0.01))
-    h += stitch_row(np.minimum(np.abs(bv - 0.12), np.abs(bv - 0.88)), bu, 1 / 48.0, 0.008, 0.03)
-    buck = smooth((0.045 - around(bu, 0.5)) / 0.006)
+    """The bracers (u round the forearm, 0.5 its top; v the elbow's end 0 to the wrist's 1), as the author painted them:
+    thick rolled rims at both ends, a stitched row inside each, two raised straps with stitched edges, each through a
+    buckle (a raised frame, its hollow, the prong) on top, a rivet either side of it; the leather between."""
+    h = 0.22 * (np.sqrt(np.clip(1 - ((bv - 0.045) / 0.06) ** 2, 0, 1)) + np.sqrt(np.clip(1 - ((bv - 0.955) / 0.06) ** 2, 0, 1)))
+    h -= 0.06 * (ridge(bv - 0.1, 0.012) + ridge(bv - 0.9, 0.012))  # the rims' edges tucked in
+    h += stitch_row(np.minimum(np.abs(bv - 0.12), np.abs(bv - 0.88)), bu, 1 / 48.0, 0.008, 0.05)
+    top = around(bu, 0.5)
     for sb in (0.38, 0.66):
-        s = band(bv, sb - 0.06, sb + 0.06, 0.008)
-        h += s * (0.08 + 0.07 * buck * (1 - band(bv, sb - 0.02, sb + 0.02, 0.005)))
+        s = band(bv, sb - 0.06, sb + 0.06, 0.005)
+        edge = np.minimum(np.abs(bv - (sb - 0.045)), np.abs(bv - (sb + 0.045)))
+        strap = 0.15 + 0.02 * np.cos(np.pi * np.clip((bv - sb) / 0.06, -1, 1))  # a little crowned
+        strap += stitch_row(edge, bu, 1 / 60.0, 0.005, 0.03)
+        frame = band(top, 0.0, 0.045, 0.004) * band(bv, sb - 0.075, sb + 0.075, 0.004)
+        hollow = band(top, 0.0, 0.028, 0.003) * band(bv, sb - 0.05, sb + 0.05, 0.003)
+        prong = ridge(top, 0.006) * band(bv, sb - 0.05, sb + 0.02, 0.004)
+        buckle = 0.12 * (frame - hollow) + 0.05 * prong
+        # the block is 64 texels round and 128 along: a rivet about 2.5 texels across
+        rivets = sum(0.09 * np.sqrt(np.clip(1 - ((around(bu, 0.5 + side * 0.1) * 64) ** 2 + ((bv - sb) * 128) ** 2) / 1.6,
+                                            0, 1)) for side in (-1, 1))
+        h += s * (strap - 0.15 * frame) + buckle + s * rivets
     return h
 
 
@@ -207,9 +220,43 @@ HEIGHTS = {"skin": arm_h, "head": head_h, "leather": vest_h, "cloth": cloth_h, "
            "bracer": bracer_h}
 
 
-def field(armor):
-    """The body's heights at texel coordinates: the clothes' (skins 0-3) or the armoured torso's (4-15)."""
+# How much of the author's painted shading becomes relief in each block (model units per unit of the band-passed
+# brightness): his muscles, folds and leather are painted as light and shade, so their shapes follow the paint.
+PAINT_FORMS = {"skin": 3.0, "head": 1.0, "leather": 1.6, "cloth": 2.0, "boots": 1.2, "shaft": 1.2, "bracer": 1.6}
+PAINT_LINES = 0.06   # a painted dark line (a seam, a stitch row, a crease): a groove this deep
+PAINT_DOTS = 0.05    # a painted round spot (a rivet, a stud): raised this much
+
+
+def paint_heights(low, skin):
+    """The author's painting of a body skin as heights (model units) on its texel grid: his painted shading's shapes
+    (brightness between about 1.5 and 6 texels across, per block), his dark lines grooved and his small bright spots
+    raised; spread past the islands' edges."""
+    try:
+        from . import normaltiles as nt
+    except ImportError:
+        import normaltiles as nt
+    rgb = skin.astype(np.float64)
+    cov = nb.coverage(low, 1)
+    lum = (rgb[..., 0] * 0.3 + rgb[..., 1] * 0.59 + rgb[..., 2] * 0.11) / 255.0
+    forms = nb.blur(lum, 1.5, cov) - nb.blur(lum, 6.0, cov)
+    H, W = lum.shape
+    ys, xs = np.mgrid[0:H, 0:W]
+    which, _, _ = block_of(np.stack([(xs.ravel() + 0.5) * BODY_SKIN / W, (ys.ravel() + 0.5) * BODY_SKIN / H], 1))
+    k = np.zeros(H * W)
+    for i, n in enumerate(BODY_BLOCKS):
+        k[which == i] = PAINT_FORMS[n]
+    k = nb.blur(k.reshape(H, W), 1.0)  # no step where two blocks meet
+    lines = nb.blur(nb.painted_lines(rgb, cov, lo=0.12, hi=0.4, min_len=6.0, full_len=16.0), 0.5, cov)
+    dots = nb.blur(nt.painted_dots(rgb, cov), 0.6, cov)
+    h = k * forms - PAINT_LINES * lines + PAINT_DOTS * dots
+    return nb.dilate(np.dstack([h] * 3), cov, 8)[0][..., 0]
+
+
+def field(armor, paint=None):
+    """The body's heights at texel coordinates: the clothes' (skins 0-3) or the armoured torso's (4-15), with the
+    author's painting's (`paint`: paint_heights) where given."""
     names = list(BODY_BLOCKS)
+    painted = nb.sampler(paint, paint.shape[1] / BODY_SKIN) if paint is not None else None
 
     def f(uv, ctx=None):
         which, bu, bv = block_of(uv)
@@ -218,17 +265,23 @@ def field(armor):
             m = which == i
             if m.any():
                 h[m] = (armor_h if armor and n == "leather" else HEIGHTS[n])(bu[m], bv[m])
+        if painted is not None:
+            h += painted(uv)
         return h
 
     return f
 
 
-def bake(low, scale, armor=False, base=None, details=True):
-    """The body's map (h, w, 3), `scale` times its skin's size; `base(low, raster)`: the shape's normals (a high
-    poly's), else the mesh's own."""
+def bake(low, scale, armor=False, base=None, details=True, skin=None):
+    """The body's map (h, w, 3), `scale` times its skin's size, and its heights for parallax mapping (alpha, or None);
+    `base(low, raster)`: the shape's normals (a high poly's), else the mesh's own; `skin`: the author's painted skin
+    (RGB) the relief follows."""
     r = nb.Raster(low, scale)
     n = base(low, r) if base else r.n
+    alpha = None
     if details:
-        n = nb.bend(n, nb.gradient_uv(r, field(armor), d=0.3))
+        f = field(armor, paint_heights(low, skin) if skin is not None else None)
+        n = nb.bend(n, nb.gradient_uv(r, f, d=0.3))
+        alpha = nb.finish_heights(r, f(r.uv), supersample=1)
     img, _ = nb.finish(r, n, supersample=1)
-    return img
+    return img, alpha
