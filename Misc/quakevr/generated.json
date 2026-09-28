@@ -409,6 +409,10 @@
   "sha256": "390d365c3f5a1e6336086d1b6223e345271d2f5868f89e6b8c74ef16001d89c8",
   "by": "bake_normals.py"
  },
+ "quakevr/progs/vrtorch.mdl": {
+  "sha256": "efb816d0ab23e75f335aa5ab7a7e3ea9394daac3cca843ae773add67c4b80e4b",
+  "by": "make_walltorch.py"
+ },
  "quakevr/sound/vr/flashlight_attach.wav": {
   "sha256": "ff0394963076f0d854dea8fff555eeae421f93017b1588ac528fb51064037b24",
   "by": "make_flashlight.py"

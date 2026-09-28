@@ -151,6 +151,9 @@ void() FireAmbient =
 Short wall torch
 Default light value is 300
 Default style is 0
+Quake VR: the player can take it off the wall (grip and pull, or force grab: vr_walltorch) and use it as a burning club
+that lights the room round them; its baked light stays on the wall. Place it where a hand can reach it (or leave it out
+of reach). Quiet: no crackle.
 */
 void() light_torch_small_walltorch =
 {
@@ -160,6 +163,12 @@ void() light_torch_small_walltorch =
     if(!(self.spawnflags & 1))
         FireAmbient();
 
+    // QVR: an entity (a static one can't be taken): vr_walltorch.qc.
+    if(cvar("vr_walltorch"))
+    {
+        VR_WallTorch_Setup();
+        return;
+    }
     makestatic(self);
 };
 

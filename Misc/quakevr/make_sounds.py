@@ -16,6 +16,9 @@
 #                 rising, growling swell, the tell before its blow
 #   grenade_fuse.wav, grenade_tick.wav  a caught grenade (QC vr_grenade.qc): lit (the lever's clink and a fuse's
 #                 crackling fizz), and its ticks, faster and faster until it goes off
+#   torch_pull.wav, torch_out.wav, torch_light.wav, torch_hit.wav  wall torches (QC vr_walltorch.qc): pulled out of
+#                 its holder (a wooden scrape and a knock), its fire going out (a puff and a hiss), fire catching (a
+#                 whoosh and crackles), a burning torch's blow (a burst of flame)
 #   pommel1..3.wav  a pommel, a hilt or a gun's butt striking (QC vr_melee.qc VR_Melee_HitSound): a blunt knock,
 #                 short and dry, apart from the blades' cuts and the punches; three, a little apart in pitch
 #
@@ -464,6 +467,117 @@ def grenade_tick():
     return finish(out, 0.8, 0.01)
 
 
+# ---- Wall torches (QC vr_walltorch.qc; docs/vr-port/ROUND21.md, "Wall torches you can take") ----------------------------
+
+
+def crackles(rng, rate, n, lp_cut=3500):
+    """Fire's crackle: sparse sharp pops (a click through a low-pass), `rate` a second, over `n` samples."""
+    lp = OnePole(lp_cut)
+    out = []
+    pop = 0.0
+    for _ in range(n):
+        if rng.random() < rate / RATE:
+            pop = rng.uniform(0.5, 1.0) * (1 if rng.random() < 0.5 else -1)
+        pop *= 0.9
+        out.append(lp(pop * rng.uniform(0.6, 1.0)))
+    return out
+
+
+def torch_pull():
+    """A wall torch pulled out of its iron holder: a dry wooden scrape (stick-slip: grains of band-passed noise at an
+    uneven 50-110 a second, speeding up as it slides), a faint squeak of the iron, and the knock of the stick coming
+    free."""
+    rng = random.Random(301)
+    n = int(RATE * 0.5)
+    free_at = 0.34
+    grain_lp, grain_hp = OnePole(2600), OnePole(420)
+    knock_table = ((230, 0.9, 0.05), (540, 0.6, 0.03), (910, 0.35, 0.015))
+    phase = [0.0]
+    grain_env = 0.0
+    next_grain = 0
+    out = []
+    for i in range(n):
+        t = i / RATE
+        noise = rng.uniform(-1, 1)
+        if t < free_at and i >= next_grain:
+            grain_env = rng.uniform(0.6, 1.0)
+            rate = 50 + 60 * (t / free_at)
+            next_grain = i + int(RATE / (rate * rng.uniform(0.7, 1.3)))
+        grain_env *= 0.994
+        g = grain_lp(noise)
+        g -= grain_hp(g)
+        scrape = g * grain_env * min(1.0, t / 0.02) * (1.0 if t < free_at else 0.0)
+        squeak = math.sin(2 * math.pi * (1750 + 300 * t) * t) * 0.06 * grain_env * (1.0 if t < free_at else 0.0)
+        tk = t - free_at
+        knock = 0.0
+        if tk >= 0:
+            knock = partials(tk, 1.0, knock_table) * min(1.0, tk / 0.0005) + thud(tk, phase, 70, 90, 0.04) * 0.5
+        out.append(math.tanh((scrape * 1.8 + squeak + knock * 1.2) * 1.3))
+    return finish(out, 0.85)
+
+
+def torch_out():
+    """A torch's fire going out: a soft low puff, then a hiss dying away over half a second, fluttering, with a few
+    last crackles."""
+    rng = random.Random(311)
+    n = int(RATE * 0.8)
+    hiss_lp, hiss_hp = OnePole(6000), OnePole(1800)
+    puff_lp = OnePole(300)
+    pops = crackles(rng, 25, n)
+    flutter = 1.0
+    out = []
+    for i in range(n):
+        t = i / RATE
+        noise = rng.uniform(-1, 1)
+        if i % 400 == 0:
+            flutter = 0.6 + 0.4 * rng.random()
+        hiss = hiss_lp(noise)
+        hiss -= hiss_hp(hiss)
+        hiss *= min(1.0, t / 0.03) * math.exp(-t / 0.22) * flutter
+        puff = puff_lp(noise) * math.exp(-t / 0.06) * 2.5
+        pop = pops[i] * math.exp(-t / 0.3) * 1.5
+        out.append(math.tanh((hiss * 0.9 + puff + pop) * 1.2))
+    return finish(out, 0.75)
+
+
+def torch_light():
+    """Fire catching (a torch lit again; a monster set alight): a whoosh rising through the flame's roar (band-passed
+    noise sweeping up), and crackles as it takes."""
+    rng = random.Random(321)
+    n = int(RATE * 0.7)
+    lp, hp = OnePole(400), OnePole(150)
+    pops = crackles(rng, 60, n)
+    out = []
+    for i in range(n):
+        t = i / RATE
+        noise = rng.uniform(-1, 1)
+        lp.a = 1.0 - math.exp(-2 * math.pi * (400 + 1800 * min(1.0, t / 0.25)) / RATE)
+        roar = lp(noise)
+        roar -= hp(roar)
+        env = min(1.0, t / 0.12) * (1.0 if t < 0.25 else math.exp(-(t - 0.25) / 0.15))
+        pop = pops[i] * min(1.0, t / 0.1) * math.exp(-t / 0.35)
+        out.append(math.tanh((roar * env * 2.2 + pop * 1.4) * 1.1))
+    return finish(out, 0.8)
+
+
+def torch_hit():
+    """A burning torch's head striking: a short burst of flame (a low whoomph of noise) and a shower of crackles."""
+    rng = random.Random(331)
+    n = int(RATE * 0.4)
+    lp, hp = OnePole(900), OnePole(120)
+    pops = crackles(rng, 140, n, 4500)
+    out = []
+    for i in range(n):
+        t = i / RATE
+        noise = rng.uniform(-1, 1)
+        burst = lp(noise)
+        burst -= hp(burst)
+        burst *= min(1.0, t / 0.01) * math.exp(-t / 0.08)
+        pop = pops[i] * math.exp(-t / 0.15)
+        out.append(math.tanh((burst * 2.4 + pop * 1.6) * 1.2))
+    return finish(out, 0.8)
+
+
 def read_wav(path):
     """A 16-bit mono WAV's samples, -1..1."""
     with open(path, "rb") as f:
@@ -521,6 +635,10 @@ def main():
         "dummy_windup.wav": dummy_windup,
         "grenade_fuse.wav": grenade_fuse,
         "grenade_tick.wav": grenade_tick,
+        "torch_pull.wav": torch_pull,
+        "torch_out.wav": torch_out,
+        "torch_light.wav": torch_light,
+        "torch_hit.wav": torch_hit,
     }
     only = sys.argv[2:]  # optional: just these
     for name, make in sounds.items():

@@ -149,6 +149,18 @@ std::vector<Item> pageHeldObjectOffsets()
             toggle("Two Hands", *props::cvar(slot, Key::TwoHands))
                 .help("The other hand may hold it too (Carrying and Gibs: Two-Handed Carrying)."),
             cycle("Force Grab", props::cvar(slot, Key::ForceGrab), {{-1.f, "As the game has it"}, {0.f, "Never"}}),
+            header("Melee"),
+            s("Tip X", Key::TipX, -40.f, 40.f, 0.5f, "%+.1f").extend(-200.f, 200.f)
+                .help("Its striking end (a torch's head), units along its model's axes. All three 0: it strikes as the "
+                      "fist holding it (a box in hand). Set: it is a club, striking along a line from its butt through "
+                      "your hand to here (a wall torch: its head, which also burns)."),
+            s("Tip Y", Key::TipY, -40.f, 40.f, 0.5f, "%+.1f").extend(-200.f, 200.f),
+            s("Tip Z", Key::TipZ, -40.f, 40.f, 0.5f, "%+.1f").extend(-200.f, 200.f),
+            s("Butt X", Key::ButtX, -40.f, 40.f, 0.5f, "%+.1f").extend(-200.f, 200.f)
+                .help("Its other end (a pommel strike's), units along its model's axes. All three 0: a quarter of the "
+                      "way from the hand to the tip, behind the hand."),
+            s("Butt Y", Key::ButtY, -40.f, 40.f, 0.5f, "%+.1f").extend(-200.f, 200.f),
+            s("Butt Z", Key::ButtZ, -40.f, 40.f, 0.5f, "%+.1f").extend(-200.f, 200.f),
         });
     }
     else

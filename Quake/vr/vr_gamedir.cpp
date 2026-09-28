@@ -14,6 +14,7 @@
 #include "vr_detail.hpp"
 #include "vr_emissive.hpp"
 #include "vr_engine.hpp"
+#include "vr_walltorch.hpp"
 #include "vr_gfx.hpp"
 #include "vr_modellight.hpp"
 #include "vr_avatar.hpp"
@@ -190,6 +191,7 @@ extern "C" void VR_OnGameDirChanged()
     qvr::anchor::onGameDirChanged();
     qvr::detail::onGameDirChanged();
     qvr::emissive::onGameDirChanged();
+    qvr::walltorch::onGameDirChanged();
     qvr::ambient::onGameDirChanged();
     qvr::modellight::onGameDirChanged();
     qvr::gfx::onGameDirChanged();

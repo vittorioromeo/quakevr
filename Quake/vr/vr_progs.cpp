@@ -6,6 +6,7 @@
 #include "vr_cvars.hpp"
 #include "vr_physics.hpp"
 #include "vr_server.hpp"
+#include "vr_walltorch.hpp"
 
 #include <cstring>
 #include <vector>
@@ -187,6 +188,8 @@ extern "C" void VR_OnLoadGame()
     // values (QC only rewrites them in SetNewParms/SetChangeParms), so they become the
     // single-player client's stored parms, like parm1..16 do from the savegame header.
     VR_StoreSpawnParms(0);
+
+    qvr::walltorch::restoreAfterLoad(); // the map's wall torches a save made before they were entities lacks
 
     callEntryPoint(sv_bindings.OnLoadGame);
 }

@@ -10,6 +10,7 @@
 #include "vr_profile.hpp"
 #include "vr_trace.hpp"
 #include "vr_view.hpp"
+#include "vr_walltorch.hpp"
 #include "vr_weapons.hpp"
 
 #include <algorithm>
@@ -298,6 +299,8 @@ struct TorchState
     float scale = 1.f;
     float weight = 0.f;
     int rank = -1; // among the chosen this frame, nearest first
+    float level = 1.f;  // a taken torch's fire left (vr_walltorch.cpp): its light dims with it
+    bool taken = false; // a taken wall torch: its light follows its flame
     bool chosen = false;
     bool lit = false;
     unsigned seed = 0;
@@ -519,7 +522,8 @@ extern "C" void VR_TorchLights(void)
     static std::vector<Candidate> candidates;
     candidates.clear();
     const float maxDist2 = torchLightDistance * torchLightDistance;
-    const auto consider = [&](int id, const entity_t& e, const TorchKind* kind) {
+    const auto consider = [&](int id, const entity_t& e, const TorchKind* kind, const glm::vec3* takenFire = nullptr,
+                              float takenLevel = 1.f) {
         const glm::vec3 org{e.origin[0], e.origin[1], e.origin[2]};
         const float d2 = glm::dot(org - eye, org - eye);
         if(d2 > maxDist2)
@@ -541,6 +545,16 @@ extern "C" void VR_TorchLights(void)
             st.seed = static_cast<unsigned>(static_cast<int>(org.x)) * 73856093u ^
                       static_cast<unsigned>(static_cast<int>(org.y)) * 19349663u ^
                       static_cast<unsigned>(static_cast<int>(org.z)) * 83492791u;
+        }
+        // A taken wall torch (the wall torch's kind: its colour and brightness): at its flame wherever it is, placed
+        // off the walls every frame as the wall torch's is once; as bright as its fire (its flicker's seed kept from
+        // its wall).
+        st.taken = takenFire != nullptr;
+        st.level = takenFire ? takenLevel : 1.f;
+        if(takenFire)
+        {
+            st.scale = 1.f;
+            st.pos = placeTorchLight(*takenFire);
         }
         candidates.push_back({id, std::sqrt(d2) * (st.chosen ? 0.8f : 1.f)}); // hysteresis
     };
@@ -574,13 +588,20 @@ extern "C" void VR_TorchLights(void)
         {
             const entity_t& e = cl_entities[i];
             const TorchKind* kind = e.model && i != cl.viewentity ? torchKind(e) : nullptr;
+            glm::vec3 takenFire{0.f};
+            float takenLevel = 0.f;
+            const bool taken = !kind && e.model && walltorch::fire(i, takenFire, takenLevel);
+            if(taken)
+            {
+                kind = &torchKinds[0]; // a wall torch taken off its wall, lit (vr_walltorch.cpp)
+            }
             if(kind && e.msgtime == cl.mtime[0])
             {
                 vec3_t o{e.origin[0], e.origin[1], e.origin[2]};
                 const std::ptrdiff_t leaf = Mod_PointInLeaf(o, cl.worldmodel) - cl.worldmodel->leafs - 1;
                 if(leaf < 0 || leafVisible(static_cast<int>(leaf), vis))
                 {
-                    consider(torchDynamicId + i, e, kind);
+                    consider(torchDynamicId + i, e, kind, taken ? &takenFire : nullptr, takenLevel);
                 }
             }
         }
@@ -649,15 +670,23 @@ extern "C" void VR_TorchLights(void)
         dl->origin[1] = p.y;
         dl->origin[2] = p.z;
         dl->die = static_cast<float>(cl.time + 0.1);
-        float radius = st.kind->radius * st.scale * (1.f + 0.05f * n) * (0.75f + 0.25f * st.weight);
-        glm::vec3 color = st.kind->color * (scale * k * st.weight);
+        // A taken torch's dying fire: dimmer and a little shorter.
+        float radius = st.kind->radius * st.scale * (1.f + 0.05f * n) * (0.75f + 0.25f * st.weight) * (0.6f + 0.4f * st.level);
+        glm::vec3 color = st.kind->color * (scale * k * st.weight * st.level);
         if(!darkplaces)
         {
             // Quake's falloff: the colour is at most 1 (setGlow), so the flicker and the scale
             // change the reach.
-            radius *= std::sqrt(std::clamp(scale * k * st.weight, 0.f, 2.f));
+            radius *= std::sqrt(std::clamp(scale * k * st.weight * st.level, 0.f, 2.f));
         }
-        setGlow(dl, color, radius, 0.f, st.chosen && st.rank < shadowed);
+        const bool takenShadow = st.taken && vr_walltorch_shadows.value != 0.f; // (vr_walltorch_shadows: whatever its rank)
+        setGlow(dl, color, radius, 0.f, (st.chosen && st.rank < shadowed) || takenShadow);
+        if(vr_debug_torch_lights.value != 0.f)
+        {
+            Con_Printf("torch light %d%s: at %.1f %.1f %.1f, radius %.1f, colour %.3f %.3f %.3f (fade %.2f, fire %.2f)%s\n", id,
+                st.taken ? " (taken)" : "", p.x, p.y, p.z, dl->radius, dl->color[0], dl->color[1], dl->color[2], st.weight,
+                st.level, (st.chosen && st.rank < shadowed) || takenShadow ? ", shadows" : "");
+        }
         st.lit = true;
     }
 }

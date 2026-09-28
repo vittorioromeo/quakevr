@@ -4,6 +4,7 @@
 #include "vr_body.hpp"
 #include "vr_bodycal.hpp"
 #include "vr_engine.hpp"
+#include "vr_props.hpp"
 #include "vr_weapons.hpp"
 
 #include <cstring>
@@ -54,7 +55,7 @@ const DefaultChange defaultChanges[] = {
     {13, &vr_shove_speed, "1.8"},         // the author's shoves go 3.2-4.8 m/s, his hands waved at the dummy 2.2 (round 21)
     {14, &vr_counter_glow, "1"},          // off: the author would rather play without it (round 21, "Stamina on the gadget; the glow")
 };
-constexpr int configVersion = 16;
+constexpr int configVersion = 25;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
@@ -162,6 +163,12 @@ void migrateConfig_f()
             Con_DPrintf("VR: the hand calibration: the new defaults (vr_gunangle %s, vr_handcal_x %s...)\n", vr_gunangle.string,
                 vr_handcal_x.string);
         }
+    }
+    // 25: the wall torch taken off its wall (round 21, "Wall torches you can take") has shipped Held Object Offsets in
+    // a slot that configs saved empty (every slot is archived).
+    if(from < 25)
+    {
+        props::takeShippedSlot(props::wallTorchSlot);
     }
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
 }

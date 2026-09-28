@@ -172,7 +172,9 @@ constexpr float sinkDensity = 0.5f;
 [[nodiscard]] float waterDensity(edict_t* ent)
 {
     const bool gib = hasFlag(ent, physics::FL_FORCEGRABBABLE) && !hasFlag(ent, FL_ITEM);
-    return gib ? sinkDensity : floatDensity;
+    const int index = static_cast<int>(ent->v.modelindex);
+    const bool wood = index > 0 && index < MAX_MODELS && sv.models[index] && !strcmp(sv.models[index]->name, "progs/vrtorch.mdl");
+    return gib && !wood ? sinkDensity : floatDensity; // (a taken wall torch is wood: it floats)
 }
 
 [[nodiscard]] bool wetAt(float x, float y, float z)

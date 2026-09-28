@@ -116,6 +116,11 @@ float(entity e) VR_Forcegrab_IsEligible =
     {
         return FALSE;
     }
+    // A wall torch: off its wall, or lying about (vr_walltorch.qc).
+    if(VR_WallTorch_IsTorch(e))
+    {
+        return VR_WallTorch_ForceGrabbable(e);
+    }
     float dropped = (e.flags & FL_FORCEGRABBABLE) || e.classname == "thrown_weapon";
     if((!dropped && (deathmatch || coop || e.handtouch != weapon_touch)) || e.solid == SOLID_NOT)
     {
@@ -393,6 +398,12 @@ void() VR_Forcegrab_FlightThink =
 
 void(entity e, float xHand) VR_Forcegrab_Launch =
 {
+    // A wall torch comes out of its holder as it goes (vr_walltorch.qc).
+    if(VR_WallTorch_OnWall(e))
+    {
+        dprint("walltorch: pulled out by a force grab\n");
+        VR_WallTorch_Take(e);
+    }
     vector start = VR_Forcegrab_Centre(e);
     vector handPos = VRGetHandPos(xHand);
     float dist = vlen(handPos - start);

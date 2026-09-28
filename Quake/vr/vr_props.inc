@@ -31,6 +31,12 @@ QVR_PROP_KEY(FingerThumbAcross, "fgr_thumb_across", "0")
 QVR_PROP_KEY(Overlap, "overlap", "-1")       // cm the fitted fingers and palm may sink into it; -1: Fit Overlap: Things
 QVR_PROP_KEY(TwoHands, "two_hands", "1")     // 1: the other hand may hold it too (vr_carry_two_hands); 0: one hand only
 QVR_PROP_KEY(ForceGrab, "forcegrab", "-1")   // -1: as the game has it; 0: never force grabbed
+QVR_PROP_KEY(TipX, "tip_x", "0")             // melee: its striking end (a torch's head), units in its model's axes; all
+QVR_PROP_KEY(TipY, "tip_y", "0")             // three 0: it strikes as the fist holding it (a box). Set, it is a club:
+QVR_PROP_KEY(TipZ, "tip_z", "0")             // a line from its butt (below) through the hand to here (vr_melee.qc)
+QVR_PROP_KEY(ButtX, "butt_x", "0")           // melee: its other end (a pommel strike's), units in its model's axes
+QVR_PROP_KEY(ButtY, "butt_y", "0")
+QVR_PROP_KEY(ButtZ, "butt_z", "0")
 #endif
 
 #ifdef QVR_PROP_DEFAULT
@@ -51,4 +57,17 @@ QVR_PROP_DEFAULT(3, ID, "progs/grenade.mdl")
 QVR_PROP_DEFAULT(3, Mass, "1.2")
 QVR_PROP_DEFAULT(4, ID, "progs/mervup.mdl")
 QVR_PROP_DEFAULT(4, Mass, "1.2")
+// A wall torch taken off its wall (vr_walltorch.qc; ROUND21.md, "Wall torches you can take"): a wooden stick along its
+// model's +x, its weight in its head; held by the handle like a sword, in one hand (the other may take another torch),
+// its head the melee's striking end. (Slot 17: apart from the next props' entries; vr_cfg_version 25 gives it to
+// configs saved before it.)
+QVR_PROP_DEFAULT(16, ID, "progs/vrtorch.mdl")
+QVR_PROP_DEFAULT(16, Mass, "0.9")
+QVR_PROP_DEFAULT(16, ComX, "4")
+QVR_PROP_DEFAULT(16, GripMode, "1")
+QVR_PROP_DEFAULT(16, TwoHands, "0")
+QVR_PROP_DEFAULT(16, GripX, "10")
+QVR_PROP_DEFAULT(16, GripZ, "-3")
+QVR_PROP_DEFAULT(16, TipX, "2.3")
+QVR_PROP_DEFAULT(16, ButtX, "-14")
 #endif

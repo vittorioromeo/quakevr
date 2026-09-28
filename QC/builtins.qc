@@ -171,6 +171,7 @@ float(entity e, string key) propvalue = #0;
 // A prop held the same way every time (its "grip" 1): its turn in the hand set (and its angles now); returns its origin's
 // place in the hand (forward, right, up: .carry_offset). lefthand: the left hand's (mirrored).
 vector(entity e, vector handangles, float lefthand) propgrip = #0;
+vector(entity e, vector angles, vector point) modelpoint = #0; // where a point of e's model (its axes: x forward, y left, z up) is from its origin, turned by angles as drawn
 // A hand's push on a rigid body: the point `at` gets at least `vel`'s speed along it (an impulse there: a tall box pushed
 // high tips over). FALSE if Box3D doesn't move it.
 float(entity e, vector at, vector vel) physicspush = #0;
