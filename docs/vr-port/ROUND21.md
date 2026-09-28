@@ -7082,3 +7082,112 @@ replaced by a line saying so.
       are what you add to the measurement. Calibrate again: your tweaks stay; Reset Tweaks clears them.
 - [ ] Hotspots > Hip X and Upper X: go negative. The holsters go round your hips and ribs to your back; reach back for
       a gun and put it back there.
+
+## Defaults: the author's weapon offsets and settings (2026-09-28)
+
+Your note (firing range, 11:59): make all your new weapon offsets and hotspots, one-handed and two-handed, the
+defaults, and the other settings you tweaked too. Branch `agent/defaults3`; scripts, dumps and logs in the scratchpad's
+`defaults3/`.
+
+**Source:** your `quakevr/ironwail.cfg` as it was at 12:00 (a copy; saved by the previous build, `vr_cfg_version` 13),
+loaded by this build so that its migrations ran (14: the counter glow off; 15: the hip holster's X kept in place, 0.5
+became -3.11; the body options re-based), and the values read back from the game (`writeconfig`), not from the file.
+
+### Weapon offsets and hotspots (`vr_weapons.inc`, `vr_wofs_version` 20)
+
+- **136 values in 13 weapons** (140 strings: 4 more are only spelled differently, `0.0` and `0`): the axe, shotgun,
+  super shotgun, nailgun, grenade and rocket launchers, lightning gun, Mjolnir, laser cannon, proximity gun, grappling
+  hook and both knights' swords. The super nailgun and the empty hand are unchanged; the other ammo's models (lava
+  nailguns, multi launchers, plasma gun) have no values of their own and inherit from their base, as before.
+  - placement (Offset, Pitch, Yaw, Roll): 38; hotspots: 54 (new ones on the axe (2) and Mjolnir (2); the shotgun's cup,
+    the rocket launcher's and the hook's grips moved; the swords' blade grip at 0.7 of the blade, was 0.75); overlap:
+    11; finger tweaks: 15; Hand and Weapon Together (the shotgun, from Align Sights): 6; two-handed: 6 (the shotgun's
+    two-handed aim offsets; Two-Handed "Allowed, No Stock" for the axe and Mjolnir, were Not Allowed, and the hook, was
+    Allowed); the shotgun's shot direction 2 and muzzle 2; the swords' weight 2.
+- **The table** takes your values as the exact strings your config has (`-39.453899`, `3.20`...), so a fresh config's
+  cvars are yours to the character: 68 lines changed in place, 72 added at its end (keys that were at the base value,
+  0, or 0.3 for the overlaps).
+- **Migration 20:** a config below it has those 13 slots reset to the new defaults once (as 13, 14 and 19 did). Yours
+  is reset to your own values, so nothing changes.
+
+**Found on the way, fixed:**
+- **A first start moved the shipped cups.** With no saved config `vr_wofs_version` is 0, so every weapon migration ran on
+  the shipped defaults; 18 took every cup hotspot for a config's old-style cup, and the view moved it the first time a
+  hand came near: in the base build the shotgun's cup went from (-3, -1, -3.4) to (-4.66, -1.98, -5.60), turned -18.5.
+  A first start now takes the current version (`weapons::markCurrent`, from `vr_migrate_config new`).
+- **A slot reset to its defaults kept its pending hotspot or cup migration** (a config older than 15 or 18 whose slot
+  a later migration resets would have had the new hotspots rebuilt from its old keys, or moved): `resetSlot` clears
+  both.
+- **`vr_bindings.cfg` set the old aim** (`vr_gunangle 39.5`, `vr_gunyaw 4`): `vr_checkbindings` runs it after a first
+  start's config, which would have put the old aim under the new offsets. Those lines are gone; the aim is in
+  `vr_defaults.cfg` with the rest of the hand calibration.
+
+### The hand calibration ships with them
+
+Your offsets were set over your hand calibration, and the calibration moves the hand and whatever it holds (a weapon is
+posed from the hand: "Hand calibration", What moves). So the offsets are relative to your hand on the controller, not
+to the controller: shipped without the calibration, every gun would sit off a new player's hand by the difference. The
+calibration describes a hand holding a Quest-style controller, not a body, so it ships:
+
+| Setting | Was | Now |
+|---|---|---|
+| `vr_gunangle`, `vr_gunyaw` | 39.5, 4 | 70, 0 |
+| `vr_handcal_x`, `_y`, `_z`, `_roll` | 0 | -4, 0.58, -2.5, 0 |
+| `vr_handcal_off_mirror` | 0 | 1 (the off hand mirrors the main hand) |
+| `vr_handcal_off_x`, `_y`, `_z` | 0 | -0.88, -1.15, 3.20 (kept; unused while mirrored) |
+| `vr_offhandpitch`, `vr_offhandyaw` | 40.25, -4 | unchanged (yours are the defaults) |
+
+- **Config migration 16:** a config that never calibrated its hands (each of these the old default, or already the new
+  one) takes the whole calibration, as its guns take your offsets; one that did keeps all of its own. A config from
+  before the calibration existed (below 13) has no `vr_handcal_*`: those count as 0, not as the new defaults they
+  would otherwise get. Checked: an old uncalibrated config (the kit's, version 10) and a version-15 one with all zeros
+  take the new values; the kit's with `vr_gunangle 45` keeps 45 and every `vr_handcal_*` 0; a version-15 one with
+  `vr_handcal_x 1` keeps it; yours is unchanged.
+- **Reset Moves and Rolls** (Hand Calibration) now goes back to the defaults, not to 0: at 0 the shipped offsets
+  would sit off the hand.
+- **For the mock tests:** a mock controller pose now aims 30.5 degrees lower than before (`vr_mock_hand ... 70 0 0` is
+  level), and the kit's baseline config is migrated to the new calibration like any uncalibrated one.
+
+### Other settings (`vr_defaults.cfg`, `vr_savedefaults`: 144 settings)
+
+| Setting | Was | Now |
+|---|---|---|
+| Gadget: `vr_gadget_x`, `_y`, `_z`, `_pitch` | -1.5, -3.75, -0.75, 35 | -2.5, -5, -1.25, 45 |
+| `vr_gadget_fps` | 1 (basic) | 2 (detailed) |
+| Holsters: `vr_hip_offset_x`, `_y` | -3.5, 7 | -3.11, 11.5 |
+| `vr_hip_holster_yaw`; `vr_upper_holster_pitch`, `_yaw`, `_roll` | 0; 0, 0, 0 | 40; 30, 40, -70 |
+| Arms: `vr_body_arm_length`, `vr_body_shoulder_reach` | 1, 0.08 | 0.86, 0.1 |
+| `vr_body_elbow_out`, `_back`, `_hand` | 0.35, 0.25, 0.4 | 1, 0, 0 |
+| `vr_body_pauldron_out` | 0 | 0.005 |
+| `vr_parry_stamina`, `vr_parry_stamina_cost_2h` | 0, 12 | 1, 10 |
+| `vr_counter_window`, `_damage`, `_sound` | 1.5, 1.5, 1 | 1, 1.2, 0.7 |
+| `vr_bash_sound` | 1 | 0.7 |
+| `vr_limbshot_mult` | 0.35 | 0.6 |
+| `vr_weapon_cycle_mode` | 1 | 0 (the compiled default: you set it back) |
+| `vr_wounds_pool` | 64 | 128 |
+
+- **Left out (yours only):** the arm tweaks `vr_body_tweak_shoulder_rise -5` and `_swing -20` (your old shoulders on the
+  default body), `vr_height_calibration`, `vr_bodycal_*` (seated included), the motion recorder's, the OpenXR runtime,
+  and the desktop's own settings (console and menu scale, mouse sensitivity, the window's antialiasing), which
+  `vr_savedefaults` doesn't write. `vr_dominant_eye` joins its exclusion list (yours is the default, right, anyway).
+- **Arm Length 0.86 and the elbows** are shipped: they are the uncalibrated default body's look (not measured; a
+  calibration replaces the arm length), not your measurements. Say if you'd rather keep them personal.
+
+### Checks (mock headset; `defaults3/`)
+
+- **A first start** (no config, in a clean game folder: see below) against yours: all 6432 `vr_wofs_*` identical, the
+  13 hand calibration settings identical; the 15 other differences are the personal and desktop ones above.
+- **Your config through this build** against the base build: every setting identical but `vr_cfg_version`.
+- **`vr_dumpview`**, your config (its personal settings set to a first start's) against a first start, in the firing
+  range: each of the 13 weapons in the main hand, then in the off hand, then the shotgun, super shotgun and lightning
+  gun held in both hands (two-handed aiming on): 29 dumps, 2144 lines, one differs (a hand angle, by 0.0001 degree).
+- **Smoke** (first start): e1m1 with the shotgun and nailgun, the super shotgun and axe, the super shotgun in both
+  hands; the firing range with the lightning gun and the grenade launcher in both hands, the axe: no errors
+  (`defaults3/smoke.png`). The melee eval is skipped (the takes are archived).
+- **The kit:** a run without `quakevr/ironwail.cfg` isn't a first start: the shared `qbase/rogue/ironwail.cfg` (27
+  September) is found instead. These checks used their own game folder without it (`defaults3/q.sh`).
+
+### In the headset
+
+- [ ] A first start (move your config away): each gun sits in your hand as in yours, one- and two-handed.
+- [ ] Hand Calibration > Reset Moves and Rolls: the hands go back to the shipped calibration, not to 0.
