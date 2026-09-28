@@ -38,12 +38,17 @@ B.append(box(96, 128, Z0, X1, Y1, 48, "qvr_wall", "qvr_floor"))
 for i in range(12):
     B.append(box(-400, 640, Z0, -112 - 24 * i, Y1, -176 + 16 * i, "qvr_wall", "qvr_floor"))
 
+# the grab-leniency corner (ROUND21.md, "Climbing: hand placement and grab leniency"): a thin wall (4 thick, 96 high)
+# facing the main floor, and a ledge (top 48) just behind it, its lip 6 units past the wall (not to be grabbed through it)
+B.append(box(-304, -320, 0, -300, -200, 96, "qvr_wall"))
+B.append(box(-420, -320, 0, -310, -200, 48, "qvr_wall", "qvr_floor"))
+
 ents = []
 ents.append('{\n"classname" "info_player_start"\n"origin" "64 0 24"\n"angle" "0"\n}')
 for (x, y, z, l) in [(0, 0, 440, 300), (0, 400, 440, 300), (-300, 400, 200, 250), (300, -200, 440, 250),
                      (24, -60, 70, 220), (24, 60, 170, 220), (24, -60, 250, 220), (300, 0, 330, 250),
                      (24, 180, 100, 220), (24, 380, 100, 220), (24, 580, 100, 220), (-200, 450, -100, 250),
-                     (-200, 0, 100, 250), (-60, -40, 60, 300), (-60, 40, 160, 300), (-60, -40, 260, 300), (-60, 220, 100, 300), (-60, 420, 100, 300)]:
+                     (-200, 0, 100, 250), (-60, -40, 60, 300), (-60, 40, 160, 300), (-60, -40, 260, 300), (-60, 220, 100, 300), (-60, 420, 100, 300), (-250, -260, 110, 250)]:
     ents.append(f'{{\n"classname" "light"\n"origin" "{x} {y} {z}"\n"light" "{l}"\n"_color" "1 0.95 0.85"\n}}')
 
 with open(out, "w", newline="\n") as f:

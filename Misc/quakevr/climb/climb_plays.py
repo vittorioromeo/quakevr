@@ -1,5 +1,7 @@
 # Mock-hand plays for the climbing tests (vr_mock_play files; docs/vr-port/TESTING.md, "Climbing"):
-# python climb_plays.py ladder|ledge|mantle|e1m1 writes <name>.txt here and prints how long it plays.
+# python climb_plays.py ladder|ledge|mantle|e1m1|ledgehang|runghang|pressL<d>|pressR<d> writes <name>.txt here and
+# prints how long it plays (the hangs: both hands on the ledge or rung 56, pulled up a little and held, for screenshots;
+# the presses: the main hand gripping d units in front of the ledge or rung 56 and pulling, for the grab leniency).
 import sys
 HI, LO, FWD = 1.943, 1.18, -0.72
 
@@ -116,9 +118,35 @@ def mantle(hy=1.638, fwd=-0.69):
     L += ["0.700 cmd +graboff", "0.750 cmd +grabmain", "2.600 cmd -graboff", "2.600 cmd -grabmain"]
     return L, 3.0
 
+def hang(y, fwd, pull=0.25, pitch=40):
+    # both hands onto the hold (setpos 78 176 24: the ledge, y 1.638; setpos 71 0 24: rung 56, y 1.943), then pulled
+    # down `pull` metres (not enough for a mantle) and held still
+    L = []
+    for h, x in (("off", -0.12), ("main", 0.12)):
+        L += [f"0.000 {h} {x} 1.2 -0.3 {pitch} 0 0", f"0.500 {h} {x} {y} {fwd} {pitch} 0 0", f"1.000 {h} {x} {y} {fwd} {pitch} 0 0",
+              f"2.000 {h} {x} {y - pull:.3f} {fwd} {pitch} 0 0", f"6.000 {h} {x} {y - pull:.3f} {fwd} {pitch} 0 0"]
+    return L + ["0.700 cmd +graboff", "0.750 cmd +grabmain"], 6.0
+
+def press(where, d, pull=0.25):
+    # the main hand d units in front of the ledge's face (setpos 78 176 24: x 96 - d, 1 under the lip) or rung 56's
+    # (setpos 71 0 24: x 88 - d, 2 under its top), grips, pulls down `pull` metres, lets go; the off hand stays down
+    x, y = (96 - d - 77.3, 1.676) if where == "L" else (88 - d - 70.3, 2.076)
+    fwd = -x / 26.25
+    L = ["0.000 off -0.35 1.2 -0.3 0 0 0", "4.000 off -0.35 1.2 -0.3 0 0 0", "0.000 main 0.35 1.2 -0.3 0 0 0",
+         f"0.500 main 0.12 {y} {fwd:.4f} 0 0 0", f"1.200 main 0.12 {y} {fwd:.4f} 0 0 0",
+         f"2.000 main 0.12 {y - pull:.3f} {fwd:.4f} 0 0 0", f"3.000 main 0.12 {y - pull:.3f} {fwd:.4f} 0 0 0",
+         "0.700 cmd +grabmain", "3.000 cmd -grabmain"]
+    return L, 4.0
+
 def main():
     import sys
-    L, t = {"ladder": lambda: ladder(11, True), "ledge": lambda: ledge(7, 1), "mantle": mantle, "e1m1": lambda: ledge(0, 2, 1.638, -0.76, "mantle")}[sys.argv[1]]()
+    if sys.argv[1].startswith("press"):
+        L, t = press(sys.argv[1][5], float(sys.argv[1][6:]))
+        write(sys.argv[1] + ".txt", L)
+        print(f"{sys.argv[1]}: {t:.2f} s")
+        return
+    L, t = {"ladder": lambda: ladder(11, True), "ledge": lambda: ledge(7, 1), "mantle": mantle, "e1m1": lambda: ledge(0, 2, 1.638, -0.76, "mantle"),
+            "ledgehang": lambda: hang(1.638, -0.69), "runghang": lambda: hang(1.943, -0.72)}[sys.argv[1]]()
     write(sys.argv[1] + ".txt", L)
     print(f"{sys.argv[1]}: {t:.2f} s")
 
