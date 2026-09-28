@@ -505,12 +505,30 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Two-Handed Parry Cost", vr_parry_stamina_cost_2h, 0.f, 100.f, 1.f, "%.0f").extend()
             .help("Stamina a parry with the weapon in both hands costs (12 of 100: the ninth in a row knocks it away)."),
         slider("Rest Before Recovering", vr_parry_stamina_delay, 0.f, 6.f, 0.25f, "%.2f s").extend()
-            .help("How long you must go without parrying before stamina starts coming back."),
+            .help("How long you must go without parrying, shoving or striking (those that cost stamina) before stamina starts coming back."),
         slider("Recovery Rate", vr_parry_stamina_regen, 1.f, 100.f, 1.f, "%.0f /s").extend().help("Stamina a second it then comes back at."),
         slider("Tiring Warning", vr_parry_stamina_warn, 0.f, 1.f, 0.1f, "%.1f")
             .help("A breath and a throb in the hand when one more one-handed parry would knock the weapon away; a gasp and a long buzz when it does: their volume and strength (0 off)."),
         toggle("Stamina on the Gadget", vr_gadget_stamina)
             .help("The wrist gadget's top row shows your stamina: ten cells, blinking when one more one-handed parry would knock the weapon away, EXHAUSTED when none is left, a sweep while it comes back. While a counter's window is open it reads COUNTER over a bar running out."),
+        header("Shove and Strike Stamina"),
+        toggle("Shove Stamina", vr_shove_stamina)
+            .help("Shoves and bashes that land cost stamina from the same pool as parries. Without enough left, they throw back less and hurt less (Exhausted Knockback, Exhausted Damage)."),
+        slider("One-Handed Shove Cost", vr_shove_stamina_cost, 0.f, 100.f, 1.f, "%.0f").extend()
+            .help("Stamina a shove or bash with one hand costs (15 of 100)."),
+        slider("Two-Handed Shove Cost", vr_shove_stamina_cost_2h, 0.f, 100.f, 1.f, "%.0f").extend()
+            .help("Stamina a shove or bash with both hands costs (20 of 100: it pushes further than a one-handed one)."),
+        toggle("Strike Stamina", vr_strike_stamina)
+            .help("Blows that land on something that takes damage cost stamina from the same pool, once a swing, however many things it goes through. Without enough left, they hurt less (Exhausted Damage). Blows on walls cost nothing."),
+        slider("Punch Cost", vr_strike_stamina_punch, 0.f, 100.f, 1.f, "%.0f").extend().help("Stamina a punch costs (4 of 100)."),
+        slider("Weapon Strike Cost", vr_strike_stamina_cost, 0.f, 100.f, 1.f, "%.0f").extend()
+            .help("Stamina a blow with a weapon held in one hand costs: a sword, an axe, Mjolnir, a gun, their pommel or butt too (8 of 100)."),
+        slider("Two-Handed Strike Cost", vr_strike_stamina_cost_2h, 0.f, 100.f, 1.f, "%.0f").extend()
+            .help("Stamina a blow with a weapon held in both hands costs (6 of 100: two arms share the work)."),
+        slider("Exhausted Damage", vr_stamina_exhausted_damage, 0.1f, 1.f, 0.05f, "%.2fx")
+            .help("Damage of a blow, shove or bash made with no stamina left for it (1: no penalty). With part of its cost left, in between."),
+        slider("Exhausted Knockback", vr_stamina_exhausted_push, 0.1f, 1.f, 0.05f, "%.2fx")
+            .help("How far a shove or bash made with no stamina left for it throws back and staggers (1: no penalty). With part of its cost left, in between."),
         header("Counter-Attacks"),
         toggle("Counter-Attacks", vr_counter)
             .help("After a parry (a weapon's or crossed arms), your next melee attack in the window is a counter and hits harder: a blow with either hand, a bash or a shove. One a parry."),

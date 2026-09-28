@@ -106,14 +106,18 @@ string(entity inflictor, entity attacker, float isVRMelee) VR_Dummy_Kind =
         string bash = sprintf("bash with the %s, %s",
                        WeaponIdToWeaponName(VRGetEntWeapon(attacker, vr_hithand >= 0 ? vr_hithand : cVR_MainHand)),
                        vr_bash_both ? "two hands" : "one hand");
-        return vr_bash_counter ? sprintf("counter %s (x%.2f)", bash, vr_bash_counter) : bash;
+        bash = vr_bash_counter ? sprintf("counter %s (x%.2f)", bash, vr_bash_counter) : bash;
+        return vr_bash_exhaust_dmg > 0 ? sprintf("%s, exhausted (damage x%.2f, knockback x%.2f)", bash, vr_bash_exhaust_dmg,
+            vr_bash_exhaust_push) : bash;
     }
 
     if(vr_hitkind == QVR_HITKIND_SHOVE)
     {
         vr_dummy_colour = orange;
         string shove = vr_hithand >= 0 ? sprintf("shove with the %s", VR_Dummy_HandName(vr_hithand)) : "shove with both hands";
-        return vr_bash_counter ? sprintf("counter %s (x%.2f)", shove, vr_bash_counter) : shove;
+        shove = vr_bash_counter ? sprintf("counter %s (x%.2f)", shove, vr_bash_counter) : shove;
+        return vr_bash_exhaust_dmg > 0 ? sprintf("%s, exhausted (damage x%.2f, knockback x%.2f)", shove, vr_bash_exhaust_dmg,
+            vr_bash_exhaust_push) : shove;
     }
 
     if(vr_hitkind == QVR_HITKIND_MELEE)
@@ -150,6 +154,10 @@ string(entity inflictor, entity attacker, float isVRMelee) VR_Dummy_Kind =
         if(b.mh_counter > 0)
         {
             what = sprintf("%s, counter x%.2f", what, b.mh_counter); // after a parry (vr_counter)
+        }
+        if(b.mh_exhaust > 0)
+        {
+            what = sprintf("%s, exhausted x%.2f", what, b.mh_exhaust); // short of stamina (vr_strike_stamina)
         }
         return what;
     }

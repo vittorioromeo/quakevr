@@ -140,6 +140,8 @@ float VR_MKIND_PUNCH = 3;  // a fist (any way: jab, hook, uppercut, overhead)
 .string mh_part;       // its name ("the tip")
 .string mh_way;        // how it moved, for the report ("overhead", "hook")
 .float mh_counter;     // a counter (VR_Counter_Use): its damage multiplier (0: not a counter)
+.float mh_exhaust;     // short of stamina for it (VR_Stamina_Strike): its damage multiplier (0: not short)
+.float mh_stam_paid;   // this motion's stamina was spent (once a motion, however many things it goes through)
 .entity mh_c_ent;      // where it lands, as a traceline's hit
 .vector mh_c_pos;
 .vector mh_c_dir;
@@ -188,6 +190,8 @@ float VR_MKIND_PUNCH = 3;  // a fist (any way: jab, hook, uppercut, overhead)
 .float vr_bashdef_hand;   // with that hand (-1: both)
 float vr_bash_counter;    // while a bash's hits are dealt: a counter's damage multiplier (0: not a counter; vr_dummy.qc)
 float vr_bash_both;       // and with two hands
+float vr_bash_exhaust_dmg;  // and short of stamina: its damage multiplier (0: not short),
+float vr_bash_exhaust_push; // and its knockback's and stagger's
 
 // The layout of the points (VR_Melee_Layout): their place along the line (the grip 0, the far end 1; the near
 // end negative), kind and name.
@@ -1175,6 +1179,13 @@ float(float xHand) VR_Blow_Counter =
     return c > 0 ? c : 1;
 };
 
+// And for want of stamina (VR_Stamina_Strike; VRMeleeDmg, VR_Gib_Blow): 1 for a blow paid in full.
+float(float xHand) VR_Blow_Exhaust =
+{
+    float c = VR_Blow(xHand).mh_exhaust;
+    return c > 0 ? c : 1;
+};
+
 string(float xKind, float xThing) VR_Melee_KindName =
 {
     if(xKind == VR_MKIND_STAB)
@@ -1322,13 +1333,23 @@ void(float xHand, entity b) VR_Melee_Whoosh =
 // drawn by the engine from the window's share left, vr_meleehud.cpp); a counter lands with a heavy strike over the
 // attack's own sound (vr_counter_sound).
 //
+// SHOVE AND STRIKE STAMINA (vr_shove_stamina, vr_strike_stamina; ROUND21.md, "Stamina for shoves and strikes; thrown
+// damage on gibs"): the same pool pays for shoves and bashes that land (vr_shove_stamina_cost, two hands _2h) and for
+// blows that land on something that takes damage (vr_strike_stamina_punch; a weapon's vr_strike_stamina_cost, in two
+// hands _2h), once a motion however many things it goes through. Blows on walls cost nothing. What they can't pay they
+// do weaker: with none left for it, a blow's, a shove's or a bash's damage is vr_stamina_exhausted_damage times as
+// much, a shove's or a bash's knockback and stagger vr_stamina_exhausted_push times; with part of its cost left, in
+// between (VR_Stamina_Mult). What counts as a blow or a shove is unchanged: only their damage and knockback scale.
+// The rest before stamina comes back (vr_parry_stamina_delay) counts from the last parry, shove or blow that spent
+// any. Each feature is its own switch; the pool is used when any of the three is on.
+//
 // With developer 1, "stamina:" and "counter:" lines trace both.
 
 float VR_COUNTER_PULSE_EVERY = 0.25; // s between the pulses in the hands
 float VR_COUNTER_PULSE_FIRST = 0.35; // s after the parry the first (the parry's own buzz lasts 0.3)
 
 .float vr_stamina_used;     // on a player: the stamina spent (0: rested; out of vr_parry_stamina_max),
-.float vr_stamina_time;     // when the last parry spent some,
+.float vr_stamina_time;     // when the last parry, shove or blow spent some,
 .float vr_stamina_said;     // its coming back was traced (developer)
 .float vr_counter_until;    // on a player: a counter may land until then (0: no window),
 .float vr_counter_since;    // the window opened then,
@@ -1338,6 +1359,36 @@ float VR_COUNTER_PULSE_FIRST = 0.35; // s after the parry the first (the parry's
 float() VR_Stamina_Max =
 {
     return max(1, cvar_hget(cvarh_vr_parry_stamina_max));
+};
+
+// Whether the pool is used: parries, shoves or blows spend it.
+float() VR_Stamina_On =
+{
+    if(cvar_hget(cvarh_vr_parry_stamina) || cvar_hget(cvarh_vr_shove_stamina) || cvar_hget(cvarh_vr_strike_stamina))
+    {
+        return TRUE;
+    }
+    return FALSE;
+};
+
+// Stamina left at or under which it is low (the gadget blinks): one more of the dearest of what spends it (a
+// one-handed parry, which knocks the weapon away; a one-handed shove; a one-handed weapon's blow) would empty it.
+float() VR_Stamina_LowAt =
+{
+    float at = 0;
+    if(cvar_hget(cvarh_vr_parry_stamina))
+    {
+        at = max(at, cvar_hget(cvarh_vr_parry_stamina_cost));
+    }
+    if(cvar_hget(cvarh_vr_shove_stamina))
+    {
+        at = max(at, cvar_hget(cvarh_vr_shove_stamina_cost));
+    }
+    if(cvar_hget(cvarh_vr_strike_stamina))
+    {
+        at = max(at, cvar_hget(cvarh_vr_strike_stamina_cost));
+    }
+    return at;
 };
 
 // Stamina left, 0 .. vr_parry_stamina_max.
@@ -1392,10 +1443,105 @@ float(entity p, float hand, float twoHanded) VR_Stamina_Parry =
     return knocked;
 };
 
-// Each frame (VR_Melee_Frame): stamina comes back once no parry has spent any for vr_parry_stamina_delay.
+// The multiplier of an effort that could pay `xShare` (0 .. 1) of its cost: 1 paid in full, `xPenalty` (a cvar: 1 no
+// penalty) with nothing, in between in proportion.
+float(float xShare, float xPenalty) VR_Stamina_Mult =
+{
+    float pen = min(1, max(0, xPenalty));
+    return pen + (1 - pen) * min(1, max(0, xShare));
+};
+
+// A shove's, a bash's or a blow's effort by `self` (`xWhat`, for the trace), costing `xCost`: spends what it can and
+// returns the share of the cost paid (1: all, 0: none was left). The rest counts from now. Tiring
+// (vr_parry_stamina_warn): the breath as it leaves stamina low (or empty) from above.
+float(float xCost, string xWhat) VR_Stamina_Effort =
+{
+    float cost = max(0, xCost);
+    float most = VR_Stamina_Max();
+    float before = VR_Stamina_Left(self);
+    float paid = min(before, cost);
+    float left = before - paid;
+    self.vr_stamina_used = most - left;
+    self.vr_stamina_time = time;
+    self.vr_stamina_said = FALSE;
+    float share = 1;
+    if(cost > 0)
+    {
+        share = paid / cost;
+    }
+
+    float lowAt = VR_Stamina_LowAt();
+    float wasLow = FALSE;
+    float isLow = FALSE;
+    if(before <= 0 || (lowAt > 0 && before <= lowAt))
+    {
+        wasLow = TRUE; // (not `x = a || b`: see the fteqcc notes)
+    }
+    if(left <= 0 || (lowAt > 0 && left <= lowAt))
+    {
+        isLow = TRUE;
+    }
+    float warn = min(1, max(0, cvar_hget(cvarh_vr_parry_stamina_warn)));
+    if(warn > 0 && isLow && !wasLow)
+    {
+        sound(self, CHAN_AUTO, "player/gasp2.wav", 0.8 * warn, ATTN_NORM); // (the hand feels the blow's own buzz)
+    }
+    string state = "";
+    if(share < 1)
+    {
+        state = sprintf(": short, paid %.1f", paid);
+    }
+    else if(left <= 0)
+    {
+        state = ": none left";
+    }
+    else if(isLow)
+    {
+        state = ": low";
+    }
+    dprint(sprintf("stamina: %g of %g left (%s, -%g)%s\n", rint(left), rint(most), xWhat, cost, state));
+    return share;
+};
+
+// A blow of `xHand` of `self` (VR_Melee_Strike) landing on something that takes damage: its motion's stamina (once a
+// motion), and the damage multiplier that leaves it (mh_exhaust; 0 when paid in full or not counted).
+void(float xHand, entity b) VR_Stamina_Strike =
+{
+    if(b.mh_stam_paid)
+    {
+        return; // (this motion paid as it struck the first thing)
+    }
+    b.mh_stam_paid = TRUE;
+    b.mh_exhaust = 0;
+    if(!cvar_hget(cvarh_vr_strike_stamina))
+    {
+        return;
+    }
+    float cost = cvar_hget(cvarh_vr_strike_stamina_cost);
+    string what = "a blow, one hand";
+    if(b.mh_thing == VR_MTHING_FIST)
+    {
+        cost = cvar_hget(cvarh_vr_strike_stamina_punch);
+        what = "a punch";
+    }
+    else if(VRGet2HAiming(self) && VRIsHandEmpty(self, VRGetOtherHand(xHand)))
+    {
+        cost = cvar_hget(cvarh_vr_strike_stamina_cost_2h);
+        what = "a blow, two hands";
+    }
+    float share = VR_Stamina_Effort(cost, what);
+    if(share < 1)
+    {
+        b.mh_exhaust = VR_Stamina_Mult(share, cvar_hget(cvarh_vr_stamina_exhausted_damage));
+        dprint(sprintf("stamina: the blow deals x%.2f\n", b.mh_exhaust));
+    }
+};
+
+// Each frame (VR_Melee_Frame): stamina comes back once no parry, shove or blow has spent any for
+// vr_parry_stamina_delay.
 void() VR_Stamina_Frame =
 {
-    if(!cvar_hget(cvarh_vr_parry_stamina))
+    if(!VR_Stamina_On())
     {
         self.vr_stamina_used = 0; // off: rested when turned on
         return;
@@ -1407,13 +1553,13 @@ void() VR_Stamina_Frame =
     if(!self.vr_stamina_said)
     {
         self.vr_stamina_said = TRUE;
-        dprint(sprintf("stamina: %g left, coming back (%.2f s after the last parry)\n", rint(VR_Stamina_Left(self)),
+        dprint(sprintf("stamina: %g left, coming back (%.2f s after the last parry, shove or blow)\n", rint(VR_Stamina_Left(self)),
             time - self.vr_stamina_time));
     }
     self.vr_stamina_used = max(0, self.vr_stamina_used - max(0, cvar_hget(cvarh_vr_parry_stamina_regen)) * frametime);
     if(self.vr_stamina_used <= 0)
     {
-        dprint(sprintf("stamina: rested, %g (%.2f s after the last parry)\n", rint(VR_Stamina_Max()),
+        dprint(sprintf("stamina: rested, %g (%.2f s after the last parry, shove or blow)\n", rint(VR_Stamina_Max()),
             time - self.vr_stamina_time));
     }
 };
@@ -1495,16 +1641,17 @@ void() VR_Counter_Frame =
 
 // Each frame (VR_Melee_Frame), after both: what the wrist gadget shows of them (vr_gadget_stamina) and the counter
 // glow (vr_counter_glow), for the engine (.vr_melee_hud, sent as STAT_QVR_MELEE; vr_meleehud.cpp): the stamina left in
-// percent, rounded up (0 only when none is), + 128 with parry stamina on, + 256 when low (one more one-handed parry
-// would knock the weapon away), + 512 while it comes back, + 1024 x the counter window's share left in 63rds (0: none
+// percent, rounded up (0 only when none is), + 128 with the pool on (parry, shove or strike stamina), + 256 when low
+// (VR_Stamina_LowAt; with parry stamina, one more one-handed parry would knock the weapon away), + 512 while it comes
+// back, + 1024 x the counter window's share left in 63rds (0: none
 // open). Integers under 2^16, exact in a float.
 void() VR_Melee_Hud =
 {
     float hud = 0;
-    if(cvar_hget(cvarh_vr_parry_stamina))
+    if(VR_Stamina_On())
     {
         float left = VR_Stamina_Left(self);
-        float oneCost = max(0, cvar_hget(cvarh_vr_parry_stamina_cost));
+        float oneCost = VR_Stamina_LowAt();
         hud = 128 + min(100, ceil(100 * left / VR_Stamina_Max()));
         if(left > 0 && oneCost > 0 && left <= oneCost)
         {
@@ -1696,17 +1843,27 @@ void(entity e, vector xAt, vector xForward, float xKind, float xHand, float xSca
 {
     float push = cvar_hget(cvarh_vr_bash_push) * xPush;
     float dmg = cvar_hget(cvarh_vr_bash_damage) * xScale;
+    float stagger = xScale;
+    if(vr_bash_exhaust_dmg > 0)
+    {
+        // Short of stamina (VR_Bash): weaker, thrown back less, staggered less long.
+        dmg = dmg * vr_bash_exhaust_dmg;
+        push = push * vr_bash_exhaust_push;
+        stagger = stagger * vr_bash_exhaust_push;
+    }
     VR_SetHitKind(xKind, xHand, xAt, xForward);
     T_Damage(e, self, self, dmg);
     VR_ClearHitKind();
     VR_Push(e, xForward, 520 * push, 140 * push);
+    dprint(sprintf("bash hit: %s, %.1f damage, knocked back at %.0f u/s, staggered %.2f s\n", e.classname, dmg,
+        vlen(e.velocity), stagger));
     if(e.health > 0 && e.th_pain)
     {
         entity oldSelf = self;
         self = e;
         e.pain_finished = 0;
         e.th_pain(oldSelf, dmg);
-        e.attack_finished = time + xScale;
+        e.attack_finished = time + stagger;
         self = oldSelf;
     }
     SpawnBloodSplash(e.origin + '0 0 16', 4);
@@ -1959,6 +2116,22 @@ void() VR_Bash =
         return; // a push at the air: nothing yet (the push may still reach something)
     }
 
+    // Stamina (vr_shove_stamina): a shove or a bash that lands spends it; short of it, it is weaker (VR_Bash_Hit).
+    vr_bash_exhaust_dmg = 0;
+    vr_bash_exhaust_push = 0;
+    if(cvar_hget(cvarh_vr_shove_stamina))
+    {
+        float share = VR_Stamina_Effort(cvar_hget(both ? cvarh_vr_shove_stamina_cost_2h : cvarh_vr_shove_stamina_cost),
+            sprintf("a %s, %s", armed ? "bash" : "shove", both ? "two hands" : "one hand"));
+        if(share < 1)
+        {
+            vr_bash_exhaust_dmg = VR_Stamina_Mult(share, cvar_hget(cvarh_vr_stamina_exhausted_damage));
+            vr_bash_exhaust_push = VR_Stamina_Mult(share, cvar_hget(cvarh_vr_stamina_exhausted_push));
+            dprint(sprintf("stamina: the %s deals x%.2f, knocks back x%.2f\n", armed ? "bash" : "shove",
+                vr_bash_exhaust_dmg, vr_bash_exhaust_push));
+        }
+    }
+
     // A bash or a shove in a counter's window after a parry (VR_Counter_Use): the counter, harder and further.
     float counter = 0;
     if(VR_Counter_Ready())
@@ -1992,6 +2165,8 @@ void() VR_Bash =
     }
     vr_bash_counter = FALSE;
     vr_bash_both = FALSE;
+    vr_bash_exhaust_dmg = 0;
+    vr_bash_exhaust_push = 0;
     self.vr_bash_time = time + VR_BASH_COOLDOWN;
 
     // Each its own sound (vr_bash_sound; round 18), apart from the blows'; 0: the old ones.
@@ -2074,6 +2249,17 @@ float(float xHand) VR_Melee_Strike =
     if(struck && b.mh_c_ent.vr_gib)
     {
         b.mh_c_gib = TRUE; // (not a && in a field: fteqcc stores 0)
+    }
+    // Stamina (vr_strike_stamina): once a motion, as it lands on the first thing that takes damage. A motion is new
+    // until it lands (VRGetMeleeHitSoundPlayed; re-armed by VR_Melee_Rearm).
+    if(!VRGetMeleeHitSoundPlayed(xHand))
+    {
+        b.mh_stam_paid = FALSE;
+        b.mh_exhaust = 0;
+    }
+    if(struck && b.mh_c_ent.takedamage)
+    {
+        VR_Stamina_Strike(xHand, b);
     }
     // In a counter's window after a parry, a blow on something alive is the counter (VRMeleeDmg).
     b.mh_counter = 0;
