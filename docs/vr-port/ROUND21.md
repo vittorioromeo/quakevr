@@ -9615,7 +9615,8 @@ moves to a free slot with its settings; a head you had calibrated in another slo
   (`vr_gunangle 39.5`, `vr_gunyaw 4`, every `vr_handcal_*` 0, `vr_handcal_off_mirror 0`; printed in `base.log` and
   `new2.log`): vr-cleanup 008b67dc with `vr_weight_model 1` (the spring, as the takes' weapons run now) against this
   branch with its defaults: every cell of every row identical (41 pass, 5 fail; `eval_base.csv`, `eval_new2.csv`,
-  `oldeval.sh`). The Speed Limit's results are no longer a baseline (the previous section: 18 of 46 differ between them).
+  `oldeval.sh`). After merging vr-cleanup (rocks and bricks, menus, throws, grenades, the grappling hook): the same
+  against vr-cleanup c736ad3a with the spring forced (`eval_base2.csv`, `eval_final2.csv`). The Speed Limit's results are no longer a baseline (the previous section: 18 of 46 differ between them).
 - **The multipliers** (`wtest.txt`, `vr_weight_test` at 72 fps): all 1, the previous section's numbers (the rocket
   launcher one-handed 7.98 cm / 27.97° lag, 0.59 cm sag); `vr_wofs_w_stiff_07 2; vr_wofs_w_sag_07 3`: its lag 6.77 cm, its
   sag 0.88 cm (three times the pull, twice as stiff), the shotgun's rows unchanged; `vr_prop_damping_01 0.5`: the box
@@ -9637,7 +9638,8 @@ moves to a free slot with its settings; a head you had calibrated in another slo
 - **Your config** (`C:\OHWorkspace\quakevr-iw\quakevr\ironwail.cfg`, executed in a run: `cfgload.log`): no error from this
   branch's settings (its `vr_wofs_weight_NN`, `vr_weight_model`, `vr_wpn_*_weight*` and `vr_weight_props` load silently);
   `vr_wofs_w_mass_07` 8.0, `w_com_07` 15, `w_len_07` 100, `w_mass_01` 2.0, `w_len_20` 110, and your `vr_weight_spring_*`.
-  `writeconfig` saves the new keys and none of the retired ones.
+  `writeconfig` saves the new keys and none of the retired ones. After the merge: not one unknown command (its
+  `vr_prop_blunt_NN` load silently; `vr_prop_melee_dmg_18` is the rocks' 1.4).
 - **The pages** (`menu_pages.png`): Weapon Weights with the rocket launcher (main hand); Held Object Weights and Held Object
   Offsets with the explosive box (off hand, found there while the main hand held the gun); the Aiming page's Weight,
   Tired Arms, Spring and Weight and Damage sections; Weapon Offsets.
