@@ -594,8 +594,8 @@ QVR_CVAR(vr_swim_flat_exp, "1", CVAR_ARCHIVE)         // how sharply the palm's 
 QVR_CVAR(vr_swim_speed_exp, "2", CVAR_ARCHIVE)        // push over hand speed: 1 linear, 2 as water's drag (fast strokes outweigh slow ones more), up to 3
 QVR_CVAR(vr_swim_palm_dir, "0", CVAR_ARCHIVE)         // 0: the push goes against the hand's motion; 1: along the palm's facing (sweeping palms-in pushes sideways)
 QVR_CVAR(vr_swim_debug, "0", CVAR_NONE)               // print each stroke: peak speed, power gate, reverse damping and the push it gave
-QVR_CVAR(vr_sword_drop, "1", CVAR_ARCHIVE)            // chance a knight or hell knight drops its sword, a melee weapon
-QVR_CVAR(vr_sword_damage_mult, "1.5", CVAR_ARCHIVE)   // its swing's damage over the axe's
+QVR_CVAR(vr_sword_drop, "1", CVAR_NONE)               // retired (knights and hell knights always drop their sword: ROUND21.md, "Simplification"): kept so saved configs load silently
+QVR_CVAR(vr_sword_damage_mult, "1.5", CVAR_ARCHIVE)   // a knight's sword: its swing's damage over the axe's
 QVR_CVAR(vr_wofs_version, "0", CVAR_ARCHIVE)          // the weapon settings changes the config has taken (vr_weapons.cpp)
 QVR_CVAR(vr_carry_take, "0", CVAR_ARCHIVE)            // taking a carried box: 0 let go of it at a holster, 1 the trigger, 2 either
 QVR_CVAR(vr_carry_local, "1", CVAR_ARCHIVE)           // what you carry is drawn in your hand as it moves this frame (0: where the server has it, a frame or a ping behind)

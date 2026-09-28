@@ -468,8 +468,9 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Parry Pushes You", vr_parry_push_player, 0.f, 3.f, 0.05f, "%.2fx").extend(),
         slider("Monsters' Blows Push You", vr_melee_push_player, 0.f, 3.f, 0.05f, "%.2fx").extend(),
         header("Knights' Swords"),
-        slider("Knights Drop Swords", vr_sword_drop, 0.f, 1.f, 0.05f, "%.2f").help("Chance a dying knight or hell knight drops its sword, a melee weapon you can pick up."),
-        slider("Sword Damage", vr_sword_damage_mult, 0.5f, 3.f, 0.05f, "%.2fx").extend().help("A sword swing's damage over the axe's (the hell knight's sword: 25% more)."),
+        slider("Sword Damage", vr_sword_damage_mult, 0.5f, 3.f, 0.05f, "%.2fx").extend()
+            .help("Knights and hell knights always drop their sword, a melee weapon you can pick up. A sword swing's damage "
+                  "over the axe's (the hell knight's sword: 25% more)."),
         header("Feel"),
         toggle("Explosion Rumble", vr_explosion_rumble).help("Explosions near you rumble in your hands."),
         toggle("Low Health Heartbeat", vr_heartbeat).help("A heartbeat in your hands when your health is low."),

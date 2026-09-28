@@ -1265,13 +1265,10 @@ void(float xHand) W_SwordMelee =
     particle2(org, trace_plane_normal * 60, QVR_PARTICLE_PRESET_SPARKS, 8);
 };
 
-// A knight drops its sword when it dies (vr_sword_drop): a weapon lying where its hand was.
+// A knight or hell knight always drops its sword when it dies (gibbed or not; a statue has none): a weapon lying
+// where its hand was.
 void(float xHellKnight) VR_DropKnightSword =
 {
-    if(random() >= cvar_hget(cvarh_vr_sword_drop))
-    {
-        return;
-    }
     makevectors(self.angles);
     vector at = self.origin + v_forward * 10 + v_right * 8 + '0 0 8';
     vector vel = v_forward * 60 + v_right * (crandom() * 40) + '0 0 120';
