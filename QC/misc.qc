@@ -254,13 +254,18 @@ void() barrel_explode =
 {
     self.takedamage = DAMAGE_NO;
     self.classname = "explo_box";
-    // did say self.owner
-    T_RadiusDamage(self, self, 160, world);
+    VR_Carry_Forget(self); // (blown up in a hand)
 
     // QVR r20: a rocket's explosion (TE_EXPLOSION: its light, particles, heat haze, scorch and sound)
     // at the box's middle. id's box only played the sound and threw particles at its corner (the
-    // brush model's origin), so it lit nothing.
+    // brush model's origin), so it lit nothing. QVR r21: its damage from the middle too (it was from the
+    // corner), wherever the box is now and however it lies (a physics prop: vr_explobox_physics; its box
+    // round it as it turned).
     self.origin = (self.absmin + self.absmax) * 0.5;
+    dprint("explobox: blows up at "); dprint(vtos(self.origin)); dprint("\n");
+    // did say self.owner
+    T_RadiusDamage(self, self, 160, world);
+
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_EXPLOSION);
     WriteVec3(MSG_BROADCAST, self.origin);
@@ -269,6 +274,40 @@ void() barrel_explode =
 };
 
 
+
+// QVR r21: an explosive box as a physics prop (vr_explobox_physics 1, the default): a Box3D rigid body, solid
+// (.vr_rigid 2: shots, players and monsters meet it where it lies, tipped or not), pushed and tipped over by the hands,
+// carried by hand (heavy: Held Object Offsets, vr_props.inc: 40 kg, the small one 25; thrown only a little way), never
+// force grabbed. It still blows up when damaged, and when it hits something hard enough (VR_Explobox_Impact:
+// vr_explobox_impact m/s, dropped from a height). 0: fixed in place, as id's.
+void(float xSpeed) VR_Explobox_Impact =
+{
+    float threshold = cvar_hget(cvarh_vr_explobox_impact);
+    if(threshold <= 0 || xSpeed < threshold || self.takedamage == DAMAGE_NO || self.health <= 0)
+    {
+        return;
+    }
+    // At the threshold, a whole box's health (20): it blows up; harder, more (a box already hurt goes sooner).
+    float r = xSpeed / threshold;
+    dprint("explobox: hit at "); dprint(ftos(xSpeed)); dprint(" m/s"); dprint("\n");
+    T_Damage(self, world, world, 20 * r * r);
+};
+
+void() VR_Explobox_Setup =
+{
+    if(!cvar("vr_explobox_physics"))
+    {
+        return;
+    }
+    self.handtouch = SUB_Null; // nothing to take (VR_Carry_Setup keeps it as carry_use)
+    VR_Carry_Setup(self);
+    self.movetype = MOVETYPE_TOSS;
+    self.vr_rigid = 2;
+    self.carry_solid = SOLID_BBOX;
+    self.carry_rigid = 2;
+    self.vr_impact = VR_Explobox_Impact;
+    self.velocity = '0 0 0';
+};
 
 /*QUAKED misc_explobox (0 .5 .8) (0 0 0) (32 32 64)
 TESTING THING
@@ -296,7 +335,9 @@ void() misc_explobox =
         dprint(vtos(self.origin));
         dprint("\n");
         remove(self);
+        return;
     }
+    VR_Explobox_Setup();
 };
 
 
@@ -328,7 +369,9 @@ void() misc_explobox2 =
         dprint(vtos(self.origin));
         dprint("\n");
         remove(self);
+        return;
     }
+    VR_Explobox_Setup();
 };
 
 //============================================================================

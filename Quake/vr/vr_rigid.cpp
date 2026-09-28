@@ -76,6 +76,14 @@ void anglesFromAxes(const glm::mat3& m, vec3_t out, bool brush)
 void localBox(edict_t* ent, glm::vec3& lo, glm::vec3& hi)
 {
     qmodel_t* model = modelOf(ent);
+    if(model && model->type == mod_brush && fields().vr_rigid >= 0 && fieldFloat(ent, fields().vr_rigid) >= 2.f)
+    {
+        // A solid prop (.vr_rigid 2, an explosive box): its Quake box follows its turn (vr_box3d.cpp solidBox); its
+        // model's own is the drawn one.
+        lo = glm::vec3{model->mins[0], model->mins[1], model->mins[2]};
+        hi = glm::vec3{model->maxs[0], model->maxs[1], model->maxs[2]};
+        return;
+    }
     if(!model || model->type != mod_alias)
     {
         lo = toGlm(ent->v.mins);
@@ -311,6 +319,13 @@ void carryAngles(edict_t* ent, const float* handAngles, bool grab, float* out)
         return;
     }
     anglesFromAxes(orthonormalize(hand * it->second), out, brush);
+}
+
+void setCarryTurn(edict_t* ent, const float* handAngles, const glm::mat3& turnInHand)
+{
+    const bool brush = brushModel(ent);
+    carried[NUM_FOR_EDICT(ent)] = turnInHand;
+    anglesFromAxes(orthonormalize(axesFromAngles(handAngles, true) * turnInHand), ent->v.angles, brush);
 }
 
 bool pointInModelBox(edict_t* ent, const glm::vec3& p, float margin)

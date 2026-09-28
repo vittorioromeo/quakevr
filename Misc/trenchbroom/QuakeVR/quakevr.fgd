@@ -2779,14 +2779,16 @@ Set the LT_TOGGLE checkbox if you want the lightning shooter to continuously fir
 @PointClass base(Appearflags) color(0 128 204) size(0 0 0, 32 32 64) model({ "path": ":maps/b_explob.bsp" }) =
 	misc_explobox : "Large exploding container
 
-TESTING THING"
+Blows up (160 damage round it) when shot or hit hard. In Quake VR it is a physics object (vr_explobox_physics): pushed
+and tipped over by hand, stacked, carried by hand (heavy, 40 kg: better with both hands; never force grabbed), and it
+blows up where it is when dropped from a height (vr_explobox_impact). Tall: 32 x 32 x 64."
 [
 ]
 
 @PointClass base(Appearflags) color(0 128 204) size(0 0 0, 32 32 32) model({ "path": ":maps/b_exbox2.bsp" }) =
 	misc_explobox2 : "Small exploding container
 
-Smaller exploding box, REGISTERED ONLY"
+As misc_explobox, 32 units a side (25 kg in the hand). Registered Quake only."
 [
 ]
 

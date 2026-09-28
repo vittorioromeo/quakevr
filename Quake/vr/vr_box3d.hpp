@@ -14,6 +14,14 @@ namespace qvr::box3d
 // False only without a world to put it in (no .vr_rigid field, no map): Quake's toss moves it.
 [[nodiscard]] bool toss(edict_t* ent);
 
+// A hand's push on the prop `ent` at `at` (world units): that point gets at least `velocity`'s speed along it (an impulse
+// there: pushed high, a tall box tips; pushed low, it slides). False if it is not a Box3D prop.
+bool push(edict_t* ent, const glm::vec3& at, const glm::vec3& velocity);
+
+// A prop's mass (kg): the Mass set for its model (Held Object Offsets), else what Box3D makes it (its hull's volume
+// times its density: vr_box3d.cpp). 0 without Box3D's world (no local server) or a model. Also for a prop in a hand.
+[[nodiscard]] float propMass(edict_t* ent);
+
 // Forgets the world and everything made for it (a new server: its bodies are rebuilt from the entities).
 void reset();
 

@@ -33,6 +33,7 @@
 #include "vr_sightalign.hpp"
 #include "vr_bodycal.hpp"
 #include "vr_profile.hpp"
+#include "vr_props.hpp"
 #include "vr_menu.hpp"
 #include "vr_weapons.hpp"
 #include "vr_wounds.hpp"
@@ -2502,6 +2503,16 @@ void setupHand(const hands::State& s, int hand)
     else if(const int ent = held::heldEntity(hand))
     {
         held = {&cl_entities[ent], false, -1};
+        // Its fingers and overlap (Held Object Offsets, vr_props.inc; the flashlight's are its own page's).
+        if(const qmodel_t* model = cl_entities[ent].model)
+        {
+            const int slot = props::slotForModel(model->name);
+            using props::Key;
+            held.overlap = props::value(slot, Key::Overlap);
+            const float curl[handrig::FingerCount]{props::value(slot, Key::FingerCurlThumb), props::value(slot, Key::FingerCurlIndex),
+                props::value(slot, Key::FingerCurlMiddle), props::value(slot, Key::FingerCurlRing), props::value(slot, Key::FingerCurlPinky)};
+            setManualFingers(held, props::value(slot, Key::FingerManual) >= 0.5f, curl, props::value(slot, Key::FingerThumbAcross));
+        }
     }
     else if(flashlight::holds(hand) && entities.flashlight.ent.model)
     {

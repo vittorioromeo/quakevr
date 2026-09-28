@@ -122,6 +122,12 @@ float(entity e) VR_Forcegrab_IsEligible =
         return FALSE;
     }
 
+    // Never force grabbed (Held Object Offsets: Force Grab 0; the explosive boxes).
+    if(!propvalue(e, "forcegrab"))
+    {
+        return FALSE;
+    }
+
     // Gibs and heads: by hand only, unless vr_grab_gibs 2.
     if(e.vr_gib && vr_grab_gibs_level < 2) // (vr_cvars.qc, once a frame)
     {

@@ -97,6 +97,7 @@ float cvarh_vr_bash_deflect_window;
 float cvarh_vr_sword_damage_mult;
 float cvarh_vr_carry_nudge;
 float cvarh_vr_carry_throw_mult;
+float cvarh_vr_explobox_impact;
 float cvarh_vr_carry_melee_mult;
 float cvarh_vr_carry_throw_damage;
 float cvarh_vr_gib_throw_damage;
@@ -290,6 +291,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_sword_damage_mult);
     VR_CVAR_HMAKE(vr_carry_nudge);
     VR_CVAR_HMAKE(vr_carry_throw_mult);
+    VR_CVAR_HMAKE(vr_explobox_impact);
     VR_CVAR_HMAKE(vr_carry_melee_mult);
     VR_CVAR_HMAKE(vr_carry_throw_damage);
     VR_CVAR_HMAKE(vr_gib_throw_damage);

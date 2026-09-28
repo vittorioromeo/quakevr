@@ -73,6 +73,8 @@ QVR_CVAR(vr_fixed_frames, "0", CVAR_NONE)
 QVR_CVAR(vr_physics_engine, "1", CVAR_NONE)          // retired (Box3D is the only choice: ROUND21.md, "Simplification: Box3D only"): kept so saved configs load silently
 QVR_CVAR(vr_box3d_substeps, "4", CVAR_ARCHIVE)       // Box3D's sub-steps a server frame (1..8)
 QVR_CVAR(vr_box3d_player_push, "1", CVAR_ARCHIVE)    // the players' bodies push props (a capsule each, one way)
+QVR_CVAR(vr_box3d_hand_push_speed, "3", CVAR_ARCHIVE) // m/s, the most a hand shoves a solid prop at (the rest of its move it passes into it, eased out)
+QVR_CVAR(vr_box3d_hand_push, "1", CVAR_ARCHIVE)      // the players' hands push solid props (an explosive box) as bodies: a sphere at each fist, one way (vr_box3d.cpp syncHands)
 QVR_CVAR(vr_box3d_player_radius, "15", CVAR_ARCHIVE) // cm, that capsule's radius
 QVR_CVAR(vr_box3d_player_push_speed, "2.5", CVAR_ARCHIVE) // m/s, the most a player's body shoves a prop at (the rest of its move it passes into it, eased out)
 QVR_CVAR(vr_box3d_mesh_junctions, "1", CVAR_NONE)  // the world mesh with its T-junctions joined (no bumps at the seams between faces); 0: the faces as the BSP has them
@@ -231,6 +233,29 @@ QVR_CVAR(vr_wpn_dir_weight_offset, "0.05", CVAR_ARCHIVE)
 QVR_CVAR(vr_wpn_dir_weight_mult, "1.0", CVAR_ARCHIVE)
 QVR_CVAR(vr_wpn_dir_weight_2h_help_offset, "0.3", CVAR_ARCHIVE)
 QVR_CVAR(vr_wpn_dir_weight_2h_help_mult, "1.0", CVAR_ARCHIVE)
+// Weight (vr_weight.cpp; ROUND21.md, "Weight: spring model, stamina, held object offsets; explosive boxes"). The model:
+// 0 Speed Limit (the weighted weapon move and turn above: a heavier weapon trails its hand), 1 Spring (what a hand holds
+// follows it through a damped spring on its place and its turn, with its mass, inertia and sag; the arm's strength limited).
+QVR_CVAR(vr_weight_model, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_weight_props, "1", CVAR_ARCHIVE)             // carried props (boxes, gibs, items) weigh their mass too (0: weightless in the hand, as before)
+QVR_CVAR(vr_weight_spring_stiffness, "1", CVAR_ARCHIVE)  // Spring: times the arm's and wrist's stiffness (2: 41% quicker)
+QVR_CVAR(vr_weight_spring_damping, "1", CVAR_ARCHIVE)    // Spring: the damping ratio (1 critical: settles without swinging back; less: overshoots)
+QVR_CVAR(vr_weight_spring_strength, "1", CVAR_ARCHIVE)   // Spring: times the arm's force and the wrist's torque (0: unlimited)
+QVR_CVAR(vr_weight_spring_sag, "1", CVAR_ARCHIVE)        // Spring: times the droop of heavy things under gravity (more at arm's length)
+QVR_CVAR(vr_weight_spring_inertia, "1", CVAR_ARCHIVE)    // Spring: times the swing a moving hand gives what it holds (its centre of mass trailing)
+QVR_CVAR(vr_weight_spring_2h, "4", CVAR_ARCHIVE)         // Spring: times the stiffness and strength with a two-handed grip
+QVR_CVAR(vr_weight_spring_snap, "60", CVAR_ARCHIVE)      // Spring: cm (or 3 times as many degrees) off the hand beyond which it is put back in it at once
+QVR_CVAR(vr_weight_stamina, "1", CVAR_ARCHIVE)           // tired, things weigh more: below vr_weight_stamina_from of the stamina (Parry Stamina) the weight grows
+QVR_CVAR(vr_weight_stamina_from, "0.5", CVAR_ARCHIVE)    // the stamina left (0..1) below which it starts
+QVR_CVAR(vr_weight_stamina_max, "2", CVAR_ARCHIVE)       // times the weight with none left
+QVR_CVAR(vr_weight_stamina_curve, "2", CVAR_ARCHIVE)     // the curve's exponent from the threshold to none (1 straight; 2 gentle at first)
+QVR_CVAR(vr_weight_throw_mass, "12", CVAR_ARCHIVE)       // kg: props up to this heavy are thrown with the hand's whole speed, heavier ones slower (Throw: Held Object Offsets)
+QVR_CVAR(vr_debug_weight_stamina, "-1", CVAR_NONE)       // tests: the stamina the weight takes as left (0..1) instead of the game's (-1: the game's)
+QVR_CVAR(vr_debug_weight, "0", CVAR_NONE)                // 1: each hand's target and drawn pose, a line a frame in weight_trace.txt; 2: and printed
+QVR_CVAR(vr_props_version, "1", CVAR_ARCHIVE)            // the held object settings' changes the config has taken (vr_props.cpp)
+// Explosive boxes (misc_explobox, misc_explobox2) as physics props.
+QVR_CVAR(vr_explobox_physics, "1", CVAR_ARCHIVE)         // 1: pushed, tipped, carried by hand (never force grabbed); 0: fixed in place (id's)
+QVR_CVAR(vr_explobox_impact, "14", CVAR_ARCHIVE)         // m/s: a box hitting something this hard is damaged, more the harder (0: never): dropped from 85 units or more (Quake's gravity); tipped over, its top lands at 11
 QVR_CVAR(vr_offhandpitch, "40.25", CVAR_ARCHIVE)
 QVR_CVAR(vr_offhandyaw, "-4", CVAR_ARCHIVE)
 // Hand calibration (Hand/Gun Calibration > Hand Calibration; hands::calibration): each hand's place on its controller,

@@ -33,6 +33,8 @@
 .float carry_2h;         // held in both hands (VR_Carry_TwoHandFrame)
 .float carry_2h_end;     // when it was last held in both hands (let go of by one or both)
 .void() carry_use;       // taking it: the box's own pickup (ammo_touch, health_touch)
+.float carry_solid;      // let go of, its .solid (0: SOLID_NOT_BUT_TOUCHABLE, a pickup's; an explosive box: SOLID_BBOX)
+.float carry_rigid;      // let go of, its .vr_rigid (0: 1; an explosive box: 2, a solid one)
 
 entity(entity xPlayer, float xHand) VR_Carry_Held =
 {
@@ -66,10 +68,30 @@ void(entity xBox) VR_Carry_Loose =
     xBox.carry_player = world;
     xBox.carry_2h = FALSE;
     xBox.movetype = MOVETYPE_TOSS;
-    xBox.solid = SOLID_NOT_BUT_TOUCHABLE;
-    xBox.vr_rigid = 1;
+    xBox.solid = xBox.carry_solid ? xBox.carry_solid : SOLID_NOT_BUT_TOUCHABLE;
+    xBox.vr_rigid = xBox.carry_rigid ? xBox.carry_rigid : 1;
     xBox.flags = xBox.flags - (xBox.flags & FL_ONGROUND);
     setorigin(xBox, xBox.origin);
+};
+
+// Whoever carries it lets go of it at once, in one hand or both (it blew up: barrel_explode).
+void(entity xBox) VR_Carry_Forget =
+{
+    entity p = xBox.carry_player;
+    if(p == world)
+    {
+        return;
+    }
+    if(p.mainhand_held == xBox)
+    {
+        p.mainhand_held = world;
+    }
+    if(p.offhand_held == xBox)
+    {
+        p.offhand_held = world;
+    }
+    xBox.carry_player = world;
+    xBox.carry_2h = FALSE;
 };
 
 // ----------------------------------------------------------------------------
@@ -96,6 +118,21 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Nudge =
     float speed = vlen(v);
     if(speed < 10)
     {
+        return;
+    }
+
+    // A solid prop (an explosive box) poked by a gun (or a hand without its body: vr_box3d_hand_push 0): pushed where the
+    // hand is, so pushed high it tips over, low it slides (Box3D).
+    if(xBox.vr_rigid == 2 && physicspush(xBox, VRGetEntHandPos(xPlayer, xHand), v))
+    {
+        xBox.carry_nudgetime = time + 0.05;
+        if(xPlayer.ishuman)
+        {
+            entity pushSelf = self;
+            self = xPlayer;
+            haptic(xHand, 0.0, 0.05, 60, 0.3);
+            self = pushSelf;
+        }
         return;
     }
 
@@ -142,6 +179,11 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
     xBox.carry_offset_y = d * v_right;
     xBox.carry_offset_z = d * v_up;
     carryangles(xBox, handRot, TRUE); // the engine keeps its turn in the hand from here
+    // Held the same way every time (Held Object Offsets: Grip Mode 1): its place and turn in the hand are its settings'.
+    if(propvalue(xBox, "grip") == 1)
+    {
+        xBox.carry_offset = propgrip(xBox, handRot, !rightHand);
+    }
     xBox.carry_trigger = VRGetEntFireButtonPressed(xPlayer, xHand);
 
     xBox.movetype = MOVETYPE_NONE;
@@ -184,6 +226,7 @@ void(float xHand, entity xBox) VR_Carry_Release =
     float m2u = VRMetersToUnits();
     vector throwVel = VRGetHandThrowVel(xHand);
     vector v = throwVel * m2u * VRThrowGain(vlen(throwVel)) * cvar_hget(cvarh_vr_carry_throw_mult);
+    v = v * propvalue(xBox, "throw"); // a heavy thing leaves the hand slower (Held Object Offsets: Throw, from its mass)
 
     VR_Carry_Loose(xBox);
     xBox.velocity = v;
@@ -349,12 +392,27 @@ void(float xHand) VR_Carry_HandFrame =
 // it is left behind (stuck).
 float(entity box, vector target) VR_Carry_Follow =
 {
-    traceline(box.origin, target, FALSE, self);
+    // A solid prop (an explosive box: a big brush model whose origin is a bottom corner, in the floor it stands on) by its
+    // middle, kept its smallest half-size off a wall (the others as before: by their origin).
+    vector from = box.origin;
+    vector mid = '0 0 0';
+    float clearance = max(1, box.maxs_x);
+    if(box.carry_rigid == 2)
+    {
+        mid = modelcentre(box) - box.origin;
+        from = box.origin + mid;
+        target = target + mid;
+        vector half = (box.maxs - box.mins) * 0.5;
+        clearance = max(1, min(half_x, min(half_y, half_z)));
+    }
+    traceline(from, target, FALSE, self);
     vector dest = trace_endpos;
     if(trace_fraction < 1)
     {
-        dest = dest + trace_plane_normal * max(1, box.maxs_x);
+        dest = dest + trace_plane_normal * clearance;
     }
+    dest = dest - mid;
+    target = target - mid;
     if(vlen(dest - target) > 32)
     {
         dprint("carry: stuck at "); dprint(vtos(dest)); dprint(", the hand wants "); dprint(vtos(target)); dprint("\n");
@@ -435,6 +493,11 @@ void(float xHand) VR_Carry_TrySecondHand =
     {
         dprint("carry: the other hand is not within reach\n");
         return;
+    }
+
+    if(!propvalue(box, "two_hands"))
+    {
+        return; // one hand only (Held Object Offsets: Two Hands)
     }
 
     dprint("carry: both hands\n");
@@ -610,6 +673,11 @@ void() VR_Carry_Handtouch =
         return;
     }
 
+    // A solid prop (an explosive box) is pushed by the hand's own body in the physics (vr_box3d_hand_push): no nudge.
+    if(self.vr_rigid == 2 && cvar("vr_box3d_hand_push"))
+    {
+        return;
+    }
     VR_Carry_Nudge(other, hand, self);
 };
 

@@ -10,6 +10,7 @@
 #include "vr_motion.hpp"
 #include "vr_engine.hpp"
 #include "vr_physics.hpp"
+#include "vr_props.hpp"
 #include "vr_protocol.hpp"
 #include "vr_server.hpp"
 #include "vr_worldtext.hpp"
@@ -382,6 +383,76 @@ void PF_physicsblast()
     box3d::blast(glm::vec3{p[0], p[1], p[2]}, G_FLOAT(OFS_PARM1));
 }
 
+// float(entity e, string key) propvalue: a setting of the prop `e` is (Held Object Offsets, vr_props.inc, by its
+// model): "mass" its mass in kg (the setting, else Box3D's), "throw" how much of the hand's throw it keeps (the
+// setting, else from its mass), any other key its value (its default for a model with no settings; 0 for no key).
+void PF_propvalue()
+{
+    edict_t* e = G_EDICT(OFS_PARM0);
+    const char* name = G_STRING(OFS_PARM1);
+    const int index = static_cast<int>(e->v.modelindex);
+    const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    const int slot = model ? props::slotForModel(model->name) : -1;
+    const props::Key key = props::keyByName(name);
+    float out = 0.f;
+    if(key == props::Key::Mass)
+    {
+        out = box3d::propMass(e);
+    }
+    else if(key == props::Key::Throw)
+    {
+        out = props::throwScale(slot, box3d::propMass(e));
+    }
+    else if(key != props::Key::Count && key != props::Key::ID)
+    {
+        out = props::value(slot, key);
+    }
+    else
+    {
+        Con_DPrintf("propvalue: no key \"%s\"\n", name);
+    }
+    G_FLOAT(OFS_RETURN) = out;
+}
+
+// vector(entity e, vector handangles, float lefthand) propgrip: a prop held the same way every time (Grip Mode 1): from
+// now on it turns with the hand as its Grip Pitch, Yaw and Roll say (its angles set now), and its origin's place in
+// the hand is returned (forward, right, up, as .carry_offset: Grip X, Y (left) and Z; the left hand's mirrored).
+void PF_propgrip()
+{
+    edict_t* e = G_EDICT(OFS_PARM0);
+    const float* handAngles = G_VECTOR(OFS_PARM1);
+    const bool left = G_FLOAT(OFS_PARM2) != 0.f;
+    const int index = static_cast<int>(e->v.modelindex);
+    const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    const int slot = model ? props::slotForModel(model->name) : -1;
+    using props::Key;
+    glm::vec3 place{props::value(slot, Key::GripX), props::value(slot, Key::GripY), props::value(slot, Key::GripZ)};
+    glm::vec3 turn{props::value(slot, Key::GripPitch), props::value(slot, Key::GripYaw), props::value(slot, Key::GripRoll)};
+    if(left)
+    {
+        place.y = -place.y;
+        turn.y = -turn.y;
+        turn.z = -turn.z;
+    }
+    const bool brush = model && model->type == mod_brush;
+    const float angles[3]{turn.x, turn.y, turn.z};
+    physics::setCarryTurn(e, handAngles, held::axesFromAngles(angles, brush));
+    float* out = G_VECTOR(OFS_RETURN);
+    out[0] = place.x;
+    out[1] = -place.y;
+    out[2] = place.z;
+}
+
+// A push of a hand on a prop (physicspush(e, at, velocity)): the point `at` of the rigid body `e` gets at least the
+// velocity's speed along it (Box3D: an impulse there, so a tall box pushed high tips over; vr_box3d.cpp). False if it is
+// not Box3D's.
+void PF_physicspush()
+{
+    const float* at = G_VECTOR(OFS_PARM1);
+    const float* v = G_VECTOR(OFS_PARM2);
+    G_FLOAT(OFS_RETURN) = box3d::push(G_EDICT(OFS_PARM0), glm::vec3{at[0], at[1], at[2]}, glm::vec3{v[0], v[1], v[2]}) ? 1.f : 0.f;
+}
+
 void PF_carryreach()
 {
     // The hand's place (the point given, OFS_PARM1) and angles are the `self` player's move's.
@@ -471,6 +542,9 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"modelbounds", PF_modelbounds},
     {"modelcentre", PF_modelcentre},
     {"physicsblast", PF_physicsblast},
+    {"propvalue", PF_propvalue},
+    {"propgrip", PF_propgrip},
+    {"physicspush", PF_physicspush},
     {"tracebox", PF_tracebox},
     {"cvar_hmake", PF_cvar_hmake},
     {"cvar_hget", PF_cvar_hget},

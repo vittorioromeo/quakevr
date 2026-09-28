@@ -269,3 +269,6 @@
 
 .float  vr_rigid; // MOVETYPE_TOSS/BOUNCE entities that spin, bounce and settle as rigid bodies
 .vector vr_spin;  // their angular velocity, radians per second, world axes
+                  // (.vr_rigid 2: a solid one, SOLID_BBOX, its box kept round its drawn shape as it turns: an explosive box)
+.void(float xSpeed) vr_impact; // a rigid body hitting something (the world, a prop, a monster) at xSpeed m/s (at least
+                               // 2): self the body, other what it hit (world for the level). Box3D's hits, after its step.

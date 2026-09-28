@@ -275,6 +275,16 @@ Ammunition for the multi grenade and multi rocket launchers. A physics object in
 Ammunition for the plasma gun (a thunderbolt with the Alternative variant). A physics object in VR, as the other
 boxes." []
 
+@PointClass = misc_explobox : "Large exploding container
+
+Blows up (160 damage round it) when shot or hit hard. In Quake VR it is a physics object (vr_explobox_physics): pushed
+and tipped over by hand, stacked, carried by hand (heavy, 40 kg: better with both hands; never force grabbed), and it
+blows up where it is when dropped from a height (vr_explobox_impact). Tall: 32 x 32 x 64." []
+
+@PointClass = misc_explobox2 : "Small exploding container
+
+As misc_explobox, 32 units a side (25 kg in the hand). Registered Quake only." []
+
 @PointClass = item_health : "Health
 
 A health box (25), a rotten one (15) or a megahealth (100, over the maximum, wearing off). In Quake VR health boxes

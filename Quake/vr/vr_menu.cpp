@@ -25,6 +25,10 @@
 #include "vr_bodycal.hpp"
 #include "vr_view.hpp"
 #include "vr_units.hpp"
+#include "vr_flashlight.hpp"
+#include "vr_held.hpp"
+#include "vr_props.hpp"
+#include "vr_weight.hpp"
 
 #include <cmath>
 #include <cstring>
@@ -256,6 +260,7 @@ using PageBuilder = std::vector<Item> (*)();
 // The index of the page `build` builds (pages[], below): what a link to it opens.
 [[nodiscard]] int pageIndex(PageBuilder build);
 
+#include "vr_menu_props.inc"
 #include "vr_menu_pages.inc"
 
 // ----------------------------------------------------------------------------
@@ -1193,6 +1198,15 @@ void hologramTestMessage()
         slider("Box Throw Speed", vr_carry_throw_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend(),
         slider("Box Punch Damage", vr_carry_melee_mult, 1.f, 3.f, 0.1f, "%.1fx").extend().help("Punching with a box in hand."),
         slider("Thrown Box Damage", vr_carry_throw_damage, 0.f, 50.f, 1.f, "%.0f").extend().help("Damage of a box thrown at about 6 m/s; more the faster."),
+        open("Held Object Offsets (Held Prop)", pageIndex(pageHeldObjectOffsets))
+            .help("The weight, grip and fingers of what a hand carries (Aiming: Weight for how weight feels)."),
+        header("Explosive Boxes"),
+        toggle("Physics Explosive Boxes", vr_explobox_physics)
+            .help("The explosive boxes can be pushed, tipped over, stacked and carried by hand (heavy; never force "
+                  "grabbed). Off: fixed in place, as in id's Quake. Next map."),
+        slider("Blow Up On Impact", vr_explobox_impact, 0.f, 30.f, 1.f, "%.0f m/s").extend(0.f, 100.f)
+            .help("A box hitting something this hard blows up: dropped from about 85 units or more (tipped over, its "
+                  "top lands at 11 m/s). 0: never."),
         header("Armour and Pickups"),
         cycle("Armour", vr_armor_wear, {{0.f, "Touch takes it"}, {1.f, "Wear by hand"}})
             .help("Wear by hand: grip the armour to carry it and let go of it over your chest to put it on (only if it is better "
@@ -1325,6 +1339,9 @@ const Page pages[] = {
     {nullptr, "Models and Effects", "Graphics - Models and Effects", pageGraphicsModels},
     {nullptr, "Particles", "Particles", pageParticleSettings},
     {nullptr, "Transparency", "Transparency", pageTransparencyOptions},
+
+    // Opened from others (not listed: added last, so the listed pages keep their numbers for menu_vr <n>).
+    {nullptr, nullptr, "Held Object Offsets", pageHeldObjectOffsets},
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -1356,6 +1373,7 @@ std::vector<Item> pageMain()
         cycle("Weapon Grip", vr_weapon_grip_mode, {{0.f, "Hold"}, {1.f, "Sticky"}}),
         cycle("Two-Handed", vr_2h_mode, {{0.f, "Off"}, {1.f, "Basic"}, {2.f, "Virtual stock"}}),
         open("Weapon Offsets (Held Weapon)", pageIndex(pageWeaponOffsets)),
+        open("Held Object Offsets (Held Prop)", pageIndex(pageHeldObjectOffsets)),
         toggle("Two-Handed Hand-Off", vr_2h_handoff).help("Letting go with the hand holding a two-handed weapon leaves it in the other hand: a sword changes hands; a gun hangs from its foregrip until a hand takes its handle."),
         slider("Throw Speed", vr_weapon_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend(),
         cycle("Throw Gravity", vr_throw_gravity, {{9.81f, "Real"}, {0.f, "Quake"}}),
@@ -2019,7 +2037,13 @@ std::vector<Item> pageWeaponOffsets()
     }
     list.insert(list.end(), {
         header("This Weapon"),
-        s("Weight", Key::Weight, 0.f, 1.f, 0.05f, "%.2f").help("How much the weapon lags the hand."),
+        s("Weight", Key::Weight, 0.f, 1.f, 0.05f, "%.2f").help("How much the weapon lags the hand (Aiming: Weight Model: Speed Limit)."),
+        s("Mass", Key::Mass, 0.f, 20.f, 0.1f, "%.1f kg").extend(0.f, 200.f)
+            .help("Its mass for the Spring weight model (Aiming: Weight Model). 0: none, as the empty hand."),
+        s("Balance", Key::Balance, -20.f, 60.f, 1.f, "%.0f cm").extend(-200.f, 200.f)
+            .help("Spring: its centre of mass ahead of the grip, along the aim (an axe's head far out)."),
+        s("Length", Key::Span, 10.f, 200.f, 5.f, "%.0f cm").extend(1.f, 500.f)
+            .help("Spring: its length, for how sluggishly it turns (a long one slower)."),
         action("Print Changes to Console", weaponOffsetsPrint)
             .help("Prints this weapon's settings that differ from the defaults, ready to be made the shipped defaults."),
         action("Reset This Weapon", weaponOffsetsReset).help("Every setting of this weapon back to its default."),
@@ -2069,6 +2093,12 @@ int scrolls[pageCount]{};
         (bodycalVersion != bodycal::version() || bodycalSeated != (vr_bodycal_seated.value != 0.f ? 1 : 0)))
     {
         done[page] = false; // Body Calibration: its phase, its result or its poses changed
+        built[page].clear();
+    }
+    if(pages[page].build == pageHeldObjectOffsets && heldObjectStale)
+    {
+        heldObjectStale = false;
+        done[page] = false;
         built[page].clear();
     }
     if(pages[page].build == pageWeaponOffsets && weaponOffsetsStale)
@@ -2208,6 +2238,12 @@ void moveCursor(const std::vector<Item>& list, int dir)
 void showPage(int target)
 {
     page = target;
+    if(pages[page].build == pageHeldObjectOffsets)
+    {
+        heldObjectStale = true; // what is in the hand now
+        cursors[page] = 0;
+        scrolls[page] = 0;
+    }
     if(pages[page].build == pageWeaponOffsets)
     {
         weaponOffsetsStale = true; // the weapon in hand now

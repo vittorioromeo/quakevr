@@ -343,6 +343,43 @@ void resetHandMoves()
         slider("2H Aiming Threshold", "vr_2h_angle_threshold", -1.f, 1.f, 0.05f, "%.2f").help("How far out of line the hands may be before two-handed aiming stops. Higher is stricter; -1 never stops."),
         slider("2H Stock Factor", "vr_2h_virtual_stock_factor", 0.f, 1.f, 0.05f, "%.2f").help("How much the virtual stock matters in the final angle calculation for two-handed aiming. Decrease if you want your hands to matter more."),
         toggle("2H Hand-Off", "vr_2h_handoff").help("Letting go with the hand holding a two-handed weapon leaves it in the other hand: a sword changes hands; a gun hangs from its foregrip, unusable, until a hand takes its handle."),
+        header("Weight"),
+        cycle("Weight Model", vr_weight_model, {{0.f, "Speed Limit (current)"}, {1.f, "Spring"}})
+            .help("Speed Limit: a weapon trails your hand by its Weight (Weapon Offsets), turning and moving alike. Spring: "
+                  "what you hold follows your hand through a spring, by its mass, balance and length: heavy things lag, "
+                  "overshoot a little and settle, long ones turn slowly, and they droop a little at arm's length. Two hands "
+                  "hold it much steadier. Both: the drawn hand stays on it, and the aim and melee follow it."),
+        toggle("Carried Props Have Weight", vr_weight_props)
+            .help("Boxes, gibs, backpacks and the explosive boxes you carry weigh their mass (Held Object Offsets), with "
+                  "either model. Off: they follow your hand at once, as before."),
+        open("Held Object Offsets (Held Prop)", pageIndex(pageHeldObjectOffsets)),
+        infoLine(weightReadout, 1),
+        infoLine(weightReadout, 0),
+        header("Tired Arms"),
+        toggle("Heavier When Tired", vr_weight_stamina)
+            .help("As your stamina (Parry Stamina) runs low, what you hold gets heavier, with either model."),
+        slider("From Stamina", vr_weight_stamina_from, 0.1f, 1.f, 0.05f, "%.2f")
+            .help("Above this share of your stamina the weight is unchanged; below it, it grows smoothly to the most at none."),
+        slider("Most Weight", vr_weight_stamina_max, 1.f, 4.f, 0.1f, "%.1fx").extend(1.f, 10.f).help("Times the weight with no stamina left."),
+        slider("Curve", vr_weight_stamina_curve, 0.5f, 4.f, 0.1f, "%.1f").extend(0.1f, 10.f)
+            .help("How it grows from the threshold to none: 1 in a straight line; 2 (the default) gently at first, then faster."),
+        header("Spring Model"),
+        slider("Stiffness", vr_weight_spring_stiffness, 0.25f, 4.f, 0.05f, "%.2fx").extend(0.05f, 20.f)
+            .help("How firmly your arm pulls what it holds to your hand: higher lags less."),
+        slider("Damping", vr_weight_spring_damping, 0.2f, 2.f, 0.05f, "%.2f").extend(0.f, 5.f)
+            .help("1: it settles without swinging back. Lower: it overshoots and wobbles; higher: it creeps in."),
+        slider("Arm Strength", vr_weight_spring_strength, 0.f, 4.f, 0.1f, "%.1fx").extend(0.f, 20.f)
+            .help("The most force and torque your arm and wrist give it: a heavy thing can't be swung as fast as your hand "
+                  "goes. 0: unlimited."),
+        slider("Sag", vr_weight_spring_sag, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("How much heavy things droop under their weight (more at arm's length)."),
+        slider("Swing", vr_weight_spring_inertia, 0.f, 2.f, 0.1f, "%.1fx").extend(0.f, 5.f)
+            .help("How much a moving hand swings what it holds about the grip (its weight trailing behind)."),
+        slider("Two-Handed Help", vr_weight_spring_2h, 1.f, 8.f, 0.5f, "%.1fx").extend(1.f, 20.f)
+            .help("Times the stiffness and strength with both hands on it (4: twice as quick)."),
+        slider("Snap Back Beyond", vr_weight_spring_snap, 10.f, 100.f, 5.f, "%.0f cm").extend(1.f, 1000.f)
+            .help("Left further behind than this (or three times as many degrees), it is put back in your hand at once."),
+        header("Speed Limit Model"),
         toggle("Weighted Weapon Move", "vr_wpn_pos_weight").help("Enable weight simulation for weapon movement."),
         slider("W. Weapon Move Off.", "vr_wpn_pos_weight_offset", 0.05f, 1.f, 0.05f, "%.2f").extend(),
         slider("W. Weapon Move Mult", "vr_wpn_pos_weight_mult", -5.f, 5.f, 0.1f, "%.1f").extend(),

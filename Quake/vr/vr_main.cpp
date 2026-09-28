@@ -33,6 +33,8 @@
 #include "vr_selfcollide.hpp"
 #include "vr_gpustats.hpp"
 #include "vr_gfx.hpp"
+#include "vr_props.hpp"
+#include "vr_weight.hpp"
 #include "vr_weapons.hpp"
 #include "vr_particles.hpp"
 #include "vr_shells.hpp"
@@ -920,6 +922,8 @@ extern "C" void VR_Init()
 
     registerCvars();
     weapons::registerCvars();
+    props::registerCvars();
+    weight::registerCommands();
     Cvar_SetCallback(&vr_enabled, onBackendSettingChanged);
     Cvar_SetCallback(&vr_backend, onBackendSettingChanged);
     Cvar_SetCallback(&vr_xr_runtime, onBackendSettingChanged);

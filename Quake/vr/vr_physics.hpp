@@ -23,6 +23,11 @@ inline constexpr int FL_FORCEGRABBABLE = 1 << 15;
 // At the grip (`grab`) its turn relative to the hand is kept, and its angles are unchanged.
 void carryAngles(edict_t* ent, const float* handAngles, bool grab, float* out);
 
+// QC's propgrip (a prop held the same way every time, vr_props.inc's Grip Mode 1): its turn in the hand from now on (its
+// model's axes in the hand's: forward, left, up), as carryAngles keeps it, and its angles now with the hand at
+// `handAngles`.
+void setCarryTurn(edict_t* ent, const float* handAngles, const glm::mat3& turnInHand);
+
 // Forgets rigid bodies' and held objects' state (a new server).
 void resetRigidBodies();
 

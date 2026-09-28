@@ -164,6 +164,16 @@ float(entity player, float hand, float index, float what) weaponhotspotinfo = #0
 vector(entity e, vector handpos, vector palm) carryfit = #0; // at the grip: how far to move it (the way the palm faces) to sit against the palm, not in the fist (vr_held_surface_fit)
 vector(entity e, entity player, float grab) carry2h = #0; // held in both hands: at the second grip (grab 1) the grips are kept; after, where it goes (its angles are set)
 void(vector at, float damage) physicsblast = #0; // an explosion throws the rigid bodies round it (Box3D's)
+// Held Object Offsets (vr_props.inc, by the prop's model): a setting ("mass": kg, the setting else Box3D's; "throw": the
+// share of the hand's throw it keeps; "grip", "two_hands", "forcegrab", ...: see vr_props.inc; its default for a model
+// with no settings).
+float(entity e, string key) propvalue = #0;
+// A prop held the same way every time (its "grip" 1): its turn in the hand set (and its angles now); returns its origin's
+// place in the hand (forward, right, up: .carry_offset). lefthand: the left hand's (mirrored).
+vector(entity e, vector handangles, float lefthand) propgrip = #0;
+// A hand's push on a rigid body: the point `at` gets at least `vel`'s speed along it (an impulse there: a tall box pushed
+// high tips over). FALSE if Box3D doesn't move it.
+float(entity e, vector at, vector vel) physicspush = #0;
 float(entity e, entity player) carry2hoff = #0; // held in both hands: which have been pulled off it (1 the off hand, 2 the main; vr_carry_two_hands_detach)
 float(entity e, vector point, float hand) carryreach = #0; // whether self's hand can take hold of it: its fist touches its drawn surface (vr_carry_grab_bias; point: the hand's, unused)
 void(vector ang) makeforward = #0; // sets v_forward

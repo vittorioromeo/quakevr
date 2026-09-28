@@ -36,6 +36,7 @@
 #include "vr_physics.hpp"
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
+#include "vr_props.hpp"
 #include "vr_units.hpp"
 
 #include <box3d/box3d.h>
@@ -64,6 +65,8 @@ constexpr uint64_t catPlayer = 8;
 constexpr uint64_t catProp = 16;
 constexpr uint64_t catHeld = 32;
 constexpr uint64_t catFixture = 64;
+constexpr uint64_t catHand = 128;  // the players' hands (vr_box3d_hand_push): only against solid props
+constexpr uint64_t catSolid = 256; // a solid prop's (.vr_rigid 2: an explosive box) shapes, as well as catProp
 constexpr uint64_t propMask = catWorld | catMover | catActor | catPlayer | catProp | catHeld | catFixture;
 
 enum class Kind : uint8_t
@@ -126,11 +129,24 @@ void setFlag(edict_t* ent, int flag, bool on)
     return val && val->_float ? val->_float : 1.f;
 }
 
+// A solid prop (.vr_rigid 2: an explosive box): SOLID_BBOX, so shots, players and monsters meet it, its Quake box kept
+// round its drawn shape as it turns (solidBox).
+[[nodiscard]] bool isSolidProp(edict_t* ent)
+{
+    const int ofs = fields().vr_rigid;
+    return ofs >= 0 && fieldFloat(ent, ofs) >= 2.f;
+}
+
 // The prop's box as drawn, in its axes from its origin (vr_rigid.cpp's localBox: the networked scale and offset,
 // the weapon scaling; never thinner than a unit).
 void localBox(edict_t* ent, qmodel_t* model, glm::vec3& lo, glm::vec3& hi)
 {
-    if(!model || model->type != mod_alias)
+    if(model && model->type == mod_brush && isSolidProp(ent))
+    {
+        lo = glm::vec3{model->mins[0], model->mins[1], model->mins[2]}; // (its Quake box follows its turn: solidBox)
+        hi = glm::vec3{model->maxs[0], model->maxs[1], model->maxs[2]};
+    }
+    else if(!model || model->type != mod_alias)
     {
         lo = vec(ent->v.mins);
         hi = vec(ent->v.maxs);
@@ -213,6 +229,12 @@ constexpr float sinkDensity = 0.5f;
     return 1000.f; // gibs and heads: flesh
 }
 
+// A Mass set for the prop's model (Held Object Offsets, vr_props.inc), kg; 0: none (its volume times its density).
+[[nodiscard]] float massSetting(const qmodel_t* model)
+{
+    return model ? std::max(props::valueFor(model->name, props::Key::Mass), 0.f) : 0.f;
+}
+
 // Soft things (backpacks, gibs, heads) land with a thud: no bounce, and their tumble dies away fast on the ground (a
 // rigid hull of a backpack lands on an edge and tumbles down a gentle slope like a crate).
 [[nodiscard]] bool isSoft(edict_t* ent, const qmodel_t* model)
@@ -239,6 +261,7 @@ struct Slot // what one edict is in the world (by its number)
     glm::vec3 origin{0.f}, angles{0.f}, velocity{0.f}, spin{0.f};
     glm::vec3 arrival{0.f}; // props: the velocity this frame's step began with (0 asleep): what a touch after it sees
     float gravityScale{1.f};
+    float massSetting{0.f}; // props: the Mass set for its model when it was made (vr_props.inc; 0: none)
     bool asleep{false};
     bool wet{false};      // floating: kept awake (it bobs)
     bool bullet{false};   // fast: continuous collision against other props too
@@ -257,6 +280,14 @@ struct PropHullKey
     auto operator<=>(const PropHullKey&) const = default;
 };
 
+// A prop's hardest hit in a frame, for its .vr_impact (an explosive box dropped or thrown).
+struct Shock
+{
+    int num{0};
+    int other{0}; // what it hit (0: the level)
+    float speed{0.f}; // m/s, the contact points' approach
+};
+
 struct World
 {
     b3WorldId id{};
@@ -267,7 +298,16 @@ struct World
     b3MeshData* mesh{nullptr}; // (meshCache's)
     b3ShapeId worldShape{b3_nullShapeId};
     std::vector<std::pair<int, int>> impacts; // the step's touches (kept: no allocation a frame)
+    std::vector<Shock> shocks; // props with a .vr_impact hitting something this frame (the hardest hit each)
     std::vector<Slot> slots; // by edict number
+    // The players' hands (by client, [0] off, [1] main): kinematic spheres at their fists that push solid props.
+    struct HandBody
+    {
+        b3BodyId body{b3_nullBodyId};
+        bool armed{false};
+        glm::vec3 at{0.f};
+    };
+    std::vector<std::array<HandBody, 2>> hands;
     std::map<PropHullKey, b3HullData*> propHulls;      // nullptr: no hull (a box instead)
     std::map<const qmodel_t*, std::vector<b3HullData*>> moverHulls;
     int steps{0};
@@ -890,16 +930,28 @@ constexpr float hullTolerance = 0.2f;
 void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, const glm::vec3& hi, b3BodyId body, bool held)
 {
     b3ShapeDef def = shapeDef(num, held ? catHeld : catProp, held ? catProp : propMask);
+    if(!held && isSolidProp(ent))
+    {
+        def.filter.categoryBits |= catSolid; // pushed and tipped by the hands' bodies
+        def.filter.maskBits |= catHand;
+    }
     def.density = densityOf(ent, model);
     def.baseMaterial.restitution = isSoft(ent, model) ? 0.f : CLAMP(0.f, vr_throw_restitution.value, 1.f);
     def.enableContactEvents = !held;
     def.enableHitEvents = !held;
-    if(b3HullData* hull = propHull(ent, model, lo, hi))
+    b3HullData* hull = propHull(ent, model, lo, hi);
+    const glm::vec3 half = (hi - lo) * 0.5f / world->m2u;
+    // A Mass set for its model: the density that gives it (Held Object Offsets).
+    if(const float mass = massSetting(model); mass > 0.f)
+    {
+        const float volume = hull ? hull->volume : 8.f * half.x * half.y * half.z;
+        def.density = mass / std::max(volume, 1e-6f);
+    }
+    if(hull)
     {
         b3CreateHullShape(body, &def, hull);
         return;
     }
-    const glm::vec3 half = (hi - lo) * 0.5f / world->m2u;
     const b3BoxHull box = b3MakeOffsetBoxHull(half.x, half.y, half.z, world->toM((lo + hi) * 0.5f));
     b3CreateHullShape(body, &def, &box.base);
 }
@@ -973,7 +1025,8 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
     case Kind::Held:
     case Kind::Fixture:
     {
-        if(s.model != modelOf(ent) || s.frame != static_cast<int>(ent->v.frame) || s.scale != scaleFields(ent))
+        if(s.model != modelOf(ent) || s.frame != static_cast<int>(ent->v.frame) || s.scale != scaleFields(ent) ||
+            s.massSetting != massSetting(modelOf(ent)))
         {
             return true;
         }
@@ -1100,6 +1153,7 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind)
     s.scale = scaleFields(ent);
     s.brush = model && model->type == mod_brush;
     s.spins = kind == Kind::Fixture && model && (model->flags & EF_ROTATE);
+    s.massSetting = massSetting(model);
     s.soft = model && isSoft(ent, model);
     s.origin = vec(ent->v.origin);
     s.angles = vec(ent->v.angles);
@@ -1253,6 +1307,114 @@ void follow(edict_t* ent, Slot& s, float dt)
     }
     s.origin = origin;
     s.angles = angles;
+}
+
+// The players' hands as kinematic spheres at their fists (vr_box3d_hand_push): a hand pushes a solid prop (an
+// explosive box) as it presses on it, where it presses (a tall box pushed high tips over, a stack pushed low slides),
+// continuously while it is in contact, Box3D's friction and contacts doing the rest. Only against solid props (ammo boxes
+// and the like are nudged by QC's touches, as before). A hand is not armed while it carries something, nor again until
+// its sphere is clear of every solid prop (a box let go of isn't shoved away by the hand inside it).
+void syncHands(float dt)
+{
+    const FieldOffsets& f = fields();
+    world->hands.resize(static_cast<size_t>(svs.maxclients) + 1);
+    const float radius = 0.045f; // m: a fist's
+    for(int i = 1; i <= svs.maxclients && i < qcvm->num_edicts; i++)
+    {
+        edict_t* player = EDICT_NUM(i);
+        const bool live = vr_box3d_hand_push.value && !player->free && svs.clients[i - 1].active && player->v.health > 0.f &&
+                          f.handpos >= 0 && fieldFloatOr(player, f.ishuman, 0.f) != 0.f;
+        for(int h = 0; h < 2; h++)
+        {
+            World::HandBody& hb = world->hands[static_cast<size_t>(i)][static_cast<size_t>(h)];
+            const int heldOfs = h ? f.mainhand_held : f.offhand_held;
+            const bool holding = heldOfs >= 0 && fieldInt(player, heldOfs) > 0;
+            // The fist's middle: a radius behind the hand's point (the front of the fist), along its angles.
+            const glm::vec3 point = fieldVec(player, h ? f.handpos : f.offhandpos);
+            const glm::vec3 angles = fieldVec(player, h ? f.handrot : f.offhandrot);
+            vec3_t in{angles.x, angles.y, angles.z}, fwd, right, up;
+            AngleVectors(in, fwd, right, up);
+            const glm::vec3 at = point - vec(fwd) * (radius * world->m2u);
+            if(!live || point == glm::vec3{0.f})
+            {
+                if(B3_IS_NON_NULL(hb.body))
+                {
+                    b3DestroyBody(hb.body);
+                    hb = World::HandBody{};
+                }
+                continue;
+            }
+            if(B3_IS_NULL(hb.body))
+            {
+                b3BodyDef def = b3DefaultBodyDef();
+                def.type = b3_kinematicBody;
+                def.position = world->toM(at);
+                def.userData = userOf(i);
+                hb.body = b3CreateBody(world->id, &def);
+                b3ShapeDef shape = shapeDef(i, catHand, catSolid);
+                const b3Sphere sphere{b3Vec3_zero, radius};
+                b3CreateSphereShape(hb.body, &shape, &sphere);
+                b3Body_Disable(hb.body);
+                hb.armed = false;
+                hb.at = at;
+            }
+            // Armed only when empty and clear of solid props (it would shove what it is in).
+            bool want = !holding;
+            if(want && !hb.armed)
+            {
+                const b3Vec3 zero = b3Vec3_zero;
+                const b3ShapeProxy proxy{&zero, 1, radius};
+                b3QueryFilter filter = b3DefaultQueryFilter();
+                filter.categoryBits = catHand;
+                filter.maskBits = catSolid;
+                bool overlaps = false;
+                b3World_OverlapShape(world->id, world->toM(at), &proxy, filter,
+                    [](b3ShapeId, void* context) {
+                        *static_cast<bool*>(context) = true;
+                        return false;
+                    },
+                    &overlaps);
+                want = !overlaps;
+            }
+            if(want != hb.armed)
+            {
+                hb.armed = want;
+                if(want)
+                {
+                    b3Body_Enable(hb.body);
+                    b3Body_SetTransform(hb.body, world->toM(at), b3Quat_identity);
+                    b3Body_SetLinearVelocity(hb.body, b3Vec3_zero);
+                    hb.at = at;
+                }
+                else
+                {
+                    b3Body_Disable(hb.body);
+                }
+            }
+            if(hb.armed)
+            {
+                // As a player's body: it shoves at most at vr_box3d_hand_push_speed, jumping the rest of its move (a
+                // weapon taken moves the hand at once, a punch goes faster than a heavy box should fly), and what it
+                // then overlaps is eased out of it.
+                const float distance = glm::distance(at, hb.at);
+                const float most = std::max(vr_box3d_hand_push_speed.value, 0.1f) * world->m2u * dt;
+                if(distance > 0.5f * world->m2u) // a jump
+                {
+                    b3Body_SetTransform(hb.body, world->toM(at), b3Quat_identity);
+                    b3Body_SetLinearVelocity(hb.body, b3Vec3_zero);
+                }
+                else
+                {
+                    if(distance > most)
+                    {
+                        b3Body_SetTransform(hb.body, world->toM(at - (at - hb.at) * (most / distance)), b3Quat_identity);
+                    }
+                    b3Body_SetTargetTransform(hb.body, b3WorldTransform{world->toM(at), b3Quat_identity}, dt, true);
+                }
+            }
+            hb.at = at;
+        }
+    }
 }
 
 // A prop: what QC did to it since the last frame goes in (a place, a velocity, a spin, a wake).
@@ -1536,6 +1698,24 @@ void beforeStep(float dt)
 }
 
 // A prop's state from its body into its entity (awake, or just fallen asleep).
+// A solid prop's Quake box (SOLID_BBOX: what shots, players and monsters meet) round its drawn box as it is turned now,
+// so a tipped explosive box is hit and walked into where it lies.
+void solidBox(edict_t* ent, const Slot& s)
+{
+    const glm::mat3 axes = held::axesFromAngles(ent->v.angles, s.brush);
+    glm::vec3 lo{1e9f}, hi{-1e9f};
+    for(int i = 0; i < 8; i++)
+    {
+        const glm::vec3 corner{(i & 1) ? s.maxs.x : s.mins.x, (i & 2) ? s.maxs.y : s.mins.y, (i & 4) ? s.maxs.z : s.mins.z};
+        const glm::vec3 p = axes * corner;
+        lo = glm::min(lo, p);
+        hi = glm::max(hi, p);
+    }
+    store(lo, ent->v.mins);
+    store(hi, ent->v.maxs);
+    store(hi - lo, ent->v.size);
+}
+
 void writeProp(edict_t* ent, Slot& s)
 {
     const FieldOffsets& f = fields();
@@ -1565,6 +1745,10 @@ void writeProp(edict_t* ent, Slot& s)
     const glm::vec3 was = vec(ent->v.origin);
     store(origin, ent->v.origin);
     held::anglesFromAxes(glm::mat3_cast(fromB3(xf.q)), ent->v.angles, s.brush);
+    if(static_cast<int>(ent->v.solid) == SOLID_BBOX)
+    {
+        solidBox(ent, s); // (a solid prop, an explosive box: Quake's box round it as it turned)
+    }
     store(velocity, ent->v.velocity);
     VectorCopy(vec3_origin, ent->v.avelocity);
     setFieldVec(ent, f.vr_spin, spin);
@@ -1634,6 +1818,72 @@ void touches(std::vector<std::pair<int, int>>& out)
             out.emplace_back(a, b);
         }
     }
+    // A prop that wants to know how hard it hits (.vr_impact): its hardest hit on anything (the level too).
+    const int impactField = fields().vr_impact;
+    if(impactField < 0)
+    {
+        return;
+    }
+    for(int i = 0; i < events.hitCount; i++)
+    {
+        const b3ContactHitEvent& e = events.hitEvents[i];
+        if(!b3Shape_IsValid(e.shapeIdA) || !b3Shape_IsValid(e.shapeIdB) || e.approachSpeed < 2.f)
+        {
+            continue;
+        }
+        for(int side = 0; side < 2; side++)
+        {
+            const int a = numOf(side ? e.shapeIdB : e.shapeIdA), b = numOf(side ? e.shapeIdA : e.shapeIdB);
+            // (Not against a player's body or hands: a shove or a bump doesn't break it.)
+            if(kindAt(a) != Kind::Prop || !fieldFunc(EDICT_NUM(a), impactField) || (b >= 1 && b <= svs.maxclients))
+            {
+                continue;
+            }
+            auto it = std::find_if(world->shocks.begin(), world->shocks.end(), [a](const Shock& s) { return s.num == a; });
+            if(it == world->shocks.end())
+            {
+                world->shocks.push_back({a, b, e.approachSpeed});
+            }
+            else if(e.approachSpeed > it->speed)
+            {
+                *it = {a, b, e.approachSpeed};
+            }
+        }
+    }
+}
+
+// The props' hardest hits this frame, to their .vr_impact (QC: an explosive box hit hard enough takes damage).
+void callShocks()
+{
+    const int impactField = fields().vr_impact;
+    for(const Shock& shock : world->shocks)
+    {
+        if(shock.num >= qcvm->num_edicts || shock.other >= qcvm->num_edicts)
+        {
+            continue;
+        }
+        edict_t* ent = EDICT_NUM(shock.num);
+        edict_t* other = EDICT_NUM(shock.other);
+        const func_t fn = ent->free || other->free ? 0 : fieldFunc(ent, impactField);
+        if(!fn || world->slots[shock.num].kind != Kind::Prop)
+        {
+            continue;
+        }
+        if(vr_debug_box3d.value)
+        {
+            Con_Printf("box3d: %d %s hit %d %s at %.1f m/s\n", shock.num, PR_GetString(ent->v.classname), shock.other,
+                PR_GetString(other->v.classname), shock.speed);
+        }
+        const int oldSelf = pr_global_struct->self, oldOther = pr_global_struct->other;
+        pr_global_struct->self = EDICT_TO_PROG(ent);
+        pr_global_struct->other = EDICT_TO_PROG(other);
+        pr_global_struct->time = qcvm->time;
+        G_FLOAT(OFS_PARM0) = shock.speed;
+        PR_ExecuteProgram(fn);
+        pr_global_struct->self = oldSelf;
+        pr_global_struct->other = oldOther;
+    }
+    world->shocks.clear();
 }
 
 void updateSettings()
@@ -2014,9 +2264,44 @@ void list_f()
             hasFlag(e, FL_ONGROUND) ? "asleep" : "awake", body, e->v.takedamage ? va(" health %.0f", e->v.health) : "");
         if(vr_debug_box3d.value)
         {
+            const qmodel_t* model = modelOf(e);
+            const float mass = qvr::box3d::propMass(e);
+            Con_Printf("    %s: %.1f kg%s, thrown x%.2f\n", model ? model->name : "no model", mass,
+                model && massSetting(model) > 0.f ? " (Held Object Offsets)" : "",
+                qvr::props::throwScale(model ? qvr::props::slotForModel(model->name) : -1, mass));
             Con_Printf("    movetype %d, solid %d, rigid %d, flags %d\n", static_cast<int>(e->v.movetype), static_cast<int>(e->v.solid),
                 isRigid(e) ? 1 : 0, static_cast<int>(e->v.flags));
         }
+    }
+}
+
+// vr_physics_forcegrab <number | classname | props>: whether the force grab may take each (QC's VR_Forcegrab_IsEligible,
+// as the first player's hands search), for tests: an explosive box never.
+void forcegrabCheck_f()
+{
+    if(!sv.active || Cmd_Argc() < 2)
+    {
+        Con_Printf("usage: vr_physics_forcegrab <number | classname | props>\n");
+        return;
+    }
+    const VmScope vm;
+    const func_t fn = qvr::progs::findFunction("VR_Forcegrab_IsEligible");
+    if(!fn)
+    {
+        Con_Printf("vr_physics_forcegrab: no VR_Forcegrab_IsEligible in the progs\n");
+        return;
+    }
+    for(edict_t* e : entitiesNamed(Cmd_Argv(1)))
+    {
+        const int oldSelf = pr_global_struct->self;
+        pr_global_struct->self = EDICT_TO_PROG(EDICT_NUM(1));
+        pr_global_struct->time = qcvm->time;
+        G_INT(OFS_PARM0) = EDICT_TO_PROG(e);
+        PR_ExecuteProgram(fn);
+        const bool eligible = G_FLOAT(OFS_RETURN) != 0.f;
+        pr_global_struct->self = oldSelf;
+        Con_Printf("vr_physics_forcegrab: %d %s: %s\n", NUM_FOR_EDICT(e), PR_GetString(e->v.classname),
+            eligible ? "may be force grabbed" : "never force grabbed");
     }
 }
 
@@ -2170,6 +2455,7 @@ void registerCommands()
         Cmd_AddCommand("vr_physics_blast", blast_f);
         Cmd_AddCommand("vr_physics_sink", sink_f);
         Cmd_AddCommand("vr_physics_spawn", spawn_f);
+        Cmd_AddCommand("vr_physics_forcegrab", forcegrabCheck_f);
     }
 }
 
@@ -2384,6 +2670,76 @@ void debugDraw()
 
 } // namespace qvr::box3d
 
+namespace qvr::box3d
+{
+
+bool push(edict_t* ent, const glm::vec3& at, const glm::vec3& velocity)
+{
+    const int num = NUM_FOR_EDICT(ent);
+    if(!world || num >= static_cast<int>(world->slots.size()) || world->slots[num].kind != Kind::Prop)
+    {
+        return false;
+    }
+    const b3BodyId body = world->slots[num].body;
+    const float speed = glm::length(velocity) / world->m2u; // m/s
+    if(speed < 1e-3f)
+    {
+        return true;
+    }
+    const glm::vec3 d = velocity / glm::length(velocity);
+    const b3Vec3 point = world->toM(at);
+    const b3Vec3 pv = b3Body_GetWorldPointVelocity(body, point);
+    const float along = pv.x * d.x + pv.y * d.y + pv.z * d.z;
+    if(along >= speed)
+    {
+        return true;
+    }
+    // The impulse along d at the point that gives it that speed there: over its mass and inertia as seen from the point.
+    const b3Pos c = b3Body_GetWorldCenter(body);
+    const glm::vec3 r{point.x - static_cast<float>(c.x), point.y - static_cast<float>(c.y), point.z - static_cast<float>(c.z)};
+    const glm::vec3 rd = glm::cross(r, d);
+    const b3Matrix3 inv = b3Body_GetWorldInverseRotationalInertia(body);
+    const b3Vec3 irdB = b3MulMV(inv, b3Vec3{rd.x, rd.y, rd.z});
+    const float k = b3Body_GetInverseMass(body) + glm::dot(rd, glm::vec3{irdB.x, irdB.y, irdB.z});
+    if(k <= 0.f)
+    {
+        return false;
+    }
+    const float j = (speed - along) / k;
+    b3Body_ApplyLinearImpulse(body, b3Vec3{d.x * j, d.y * j, d.z * j}, point, true);
+    world->slots[num].asleep = false;
+    if(vr_debug_box3d.value)
+    {
+        Con_Printf("box3d: %d pushed at %.1f %.1f %.1f to %.2f m/s along the push (%.2f before), %.1f N s\n", num, at.x, at.y, at.z,
+            speed, along, j);
+    }
+    return true;
+}
+
+float propMass(edict_t* ent)
+{
+    qmodel_t* model = ent && !ent->free ? modelOf(ent) : nullptr;
+    if(!model || (model->type != mod_alias && model->type != mod_brush))
+    {
+        return 0.f;
+    }
+    if(const float mass = massSetting(model); mass > 0.f)
+    {
+        return mass;
+    }
+    if(!world)
+    {
+        return 0.f;
+    }
+    glm::vec3 lo, hi;
+    localBox(ent, model, lo, hi);
+    const b3HullData* hull = propHull(ent, model, lo, hi);
+    const glm::vec3 size = (hi - lo) / world->m2u;
+    return (hull ? hull->volume : size.x * size.y * size.z) * densityOf(ent, model);
+}
+
+} // namespace qvr::box3d
+
 extern "C" int VR_PushSkips(edict_t* ent)
 {
     if(!world)
@@ -2424,6 +2780,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
     {
         QVR_PROFILE("box3d sync");
         syncEntities(dt);
+        syncHands(dt);
     }
     {
         QVR_PROFILE("box3d water and hits");
@@ -2434,6 +2791,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
     // Box3D's step, in pieces of at most 1/45 s (a slow server frame).
     std::vector<std::pair<int, int>>& impacts = world->impacts;
     impacts.clear();
+    world->shocks.clear();
     // (At most three: after a hitch (a level's load, a saved game, a slow frame; Quake's frame time is at most a tenth of
     // a second) the step catches up in pieces of up to 1/30 s rather than adding more steps to the slow frame.)
     const int pieces = CLAMP(1, static_cast<int>(std::ceil(dt * 45.f - 0.01f)), 3);
@@ -2521,4 +2879,5 @@ extern "C" void VR_PhysicsFrameEnd(void)
             store(afterB, eb->v.velocity);
         }
     }
+    callShocks();
 }

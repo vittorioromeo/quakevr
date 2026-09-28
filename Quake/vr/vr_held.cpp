@@ -231,21 +231,32 @@ void modelBox(const qmodel_t* model, const glm::vec3& scale, const glm::vec3& sc
     }
 }
 
+bool drawnBox(int num, glm::vec3& lo, glm::vec3& hi)
+{
+    const entity_t& e = cl_entities[num];
+    if(!e.model || (e.model->type != mod_alias && e.model->type != mod_brush))
+    {
+        return false;
+    }
+    const client::EntityVr* net = client::entityVr(num);
+    const glm::vec3 zero{0.f};
+    modelBox(e.model, net ? net->scale : zero, net ? net->scaleOrigin : zero, net ? net->offset : zero, lo, hi);
+    lo *= ENTSCALE_DECODE(e.scale); // and Ironwail's scale
+    hi *= ENTSCALE_DECODE(e.scale);
+    return true;
+}
+
 glm::vec3 drawnCentre(int num)
 {
     const entity_t& e = cl_entities[num];
     const glm::vec3 origin{e.origin[0], e.origin[1], e.origin[2]};
-    if(!e.model || (e.model->type != mod_alias && e.model->type != mod_brush))
+    glm::vec3 lo, hi;
+    if(!drawnBox(num, lo, hi))
     {
         return origin;
     }
-
-    const client::EntityVr* net = client::entityVr(num);
-    const glm::vec3 zero{0.f};
-    glm::vec3 lo, hi;
-    modelBox(e.model, net ? net->scale : zero, net ? net->scaleOrigin : zero, net ? net->offset : zero, lo, hi);
     const bool brush = e.model->type == mod_brush;
-    return origin + axesFromAngles(e.angles, brush) * ((lo + hi) * 0.5f * ENTSCALE_DECODE(e.scale)); // and Ironwail's scale
+    return origin + axesFromAngles(e.angles, brush) * ((lo + hi) * 0.5f);
 }
 
 bool drawnVertices(edict_t* ent, std::vector<glm::vec3>& out)
@@ -1169,6 +1180,35 @@ void trace(const hands::State& s)
 
 namespace qvr::held
 {
+
+int placeInHand(int hand, glm::vec3& origin, glm::mat3& axes, bool& bothHands, glm::vec3& otherHand)
+{
+    if(hand < 0 || hand > 1)
+    {
+        return 0;
+    }
+    const Held& hd = holding[hand];
+    if(!hd.ent || !valid(hd.ent, nullptr))
+    {
+        return 0;
+    }
+    bothHands = both.ent && hd.ent == both.ent && both.model;
+    if(bothHands)
+    {
+        const glm::mat3 r = glm::mat3_cast(both.hands[hand].rot);
+        origin = glm::transpose(r) * (both.object.pos - both.hands[hand].pos);
+        axes = glm::transpose(r) * glm::mat3_cast(both.object.rot);
+        otherHand = glm::transpose(r) * (both.hands[1 - hand].pos - both.hands[hand].pos);
+        return hd.ent;
+    }
+    if(!hd.placed || !hd.drawn)
+    {
+        return 0;
+    }
+    origin = hd.pos;
+    axes = hd.rot;
+    return hd.ent;
+}
 
 int heldEntity(int hand)
 {

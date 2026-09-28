@@ -48,6 +48,16 @@ void modelBox(const qmodel_t* model, const glm::vec3& scale, const glm::vec3& sc
 // Client side: the entity the local player's `hand` (0 off, 1 main) holds, drawn in that hand this frame (0: none).
 [[nodiscard]] int heldEntity(int hand);
 
+// Client side, for the weight (vr_weight.cpp): where the entity `hand` holds (heldEntity) sits in it, as drawn last
+// frame: its origin and axes in the hand's frame (held::axesFromAngles of the hand's angles: forward, left, up), and
+// whether both hands hold it (then `otherHand`: where the other hand holds it, in this hand's frame). The entity, or 0:
+// none, or not placed yet.
+[[nodiscard]] int placeInHand(int hand, glm::vec3& origin, glm::mat3& axes, bool& bothHands, glm::vec3& otherHand);
+
+// Client side: the box client entity `num` is drawn in (its model's, with the networked scale and offset), in its axes
+// relative to its origin. False: no alias or brush model.
+bool drawnBox(int num, glm::vec3& lo, glm::vec3& hi);
+
 // Client side: a prop held in both hands (vr_carry2h.hpp) is drawn from both, and each hand on its grip on it: `pos`
 // and `angles`, the controller's pose of `hand`, are moved there (vr_view.cpp draws the hand from them); let go of, a
 // hand eases back onto its controller. False (unchanged) otherwise.
