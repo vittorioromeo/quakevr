@@ -6,7 +6,8 @@
 namespace qvr::menu
 {
 
-// menu_vr [page]: the VR Settings, or one of its pages (1: Advanced VR Options).
+// menu_vr [page [row]]: the VR Settings, or one of its pages (1: Advanced VR Options); menu_vr list: the
+// pages; menu_vr pos: the menu shown, and on a VR page its selected row and scroll (tests).
 void command_f();
 
 // vr_handcal_match: Hand/Gun Calibration > Match Controller Preview.
@@ -16,6 +17,14 @@ void handCalMatch_f();
 // scroll and way back as they were left).
 [[nodiscard]] int currentPage();
 void reopen(int page);
+
+// "Advanced VR" (the corner's button): the Advanced VR Options from any menu, their selection and
+// scroll as they were left; Back from them goes to the VR Settings, as always.
+void jumpToAdvanced();
+
+// The sticks' selection back on the page shown from the corner's buttons: onto its first setting
+// (dir 1, going down) or its last (dir -1, going up).
+void selectEnd(int dir);
 
 // Scrolls the page shown by `rows` (the selection kept in view, moved only if it would leave it);
 // false, doing nothing, when the page fits (or a slider or the scrollbar is held). 0: only asks.

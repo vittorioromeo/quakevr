@@ -78,6 +78,7 @@ void VR_RestoreSpawnParms (int client);	// after parm1..16 are copied from a cli
 int VR_AllowLatePrecache (void);		// nonzero if precaches are allowed after map load
 int VR_LatePrecacheModel (const char *name); // precache index for setmodel, or -1 if not allowed
 int VR_DropToFloor (void);				// start of PF_droptofloor: nonzero if it handled the call
+void VR_OnMakeStatic (edict_t *ent);	// PF_makestatic, before the entity is freed (a static torch or flame: vr_debris.cpp)
 int VR_TossKeepsGround (struct edict_s *ent);	// SV_Physics_Toss, when on the ground: nonzero to stay
 int VR_RigidToss (struct edict_s *ent);		// SV_Physics_Toss, after thinking: nonzero if it moved the entity (.vr_rigid)
 void VR_PhysicsFrameEnd (void);				// end of SV_Physics's entity loop: Box3D's world steps (vr_box3d.cpp)
@@ -169,11 +170,14 @@ void VR_Menu_Mousemove (float cx, float cy);			// M_Mousemove, m_vr
 int VR_MenuDrawSlider (int x, int y, float range, float marker, const char *desc); // M_DrawSliderWithMarkers (marker < 0: none)
 int VR_MenuDrawCheckbox (int x, int y, int on);			// M_DrawCheckbox: a switch
 int VR_MenuDrawTextBox (int x, int y, int width, int lines); // M_DrawTextBox: a panel
-void VR_MenuDrawHighlight (int cx, int cy);				// M_DrawArrowCursor: the selected row's highlight
-// "Back to game" (vr_menuui.cpp): a button closing the menu from any page, which reopens there.
-void VR_MenuDrawOverlay (void);							// M_Draw, after the menu: the button
+int VR_MenuDrawHighlight (int cx, int cy);				// M_DrawArrowCursor: the selected row's highlight; nonzero: no cursor (the corner's buttons have the selection)
+// The corner's buttons (vr_menuui.cpp): "Back to game" closing the menu from any page, which reopens
+// there; "Advanced VR" and "Levels" jumping to those from any page.
+void VR_MenuDrawOverlay (void);							// M_Draw, after the menu: the buttons
 int VR_MenuHidesPlaque (void);							// M_DrawTransPic: the options pages' vertical Quake plaque left out (the VR menu style)
-int VR_MenuClick (void);								// M_Keydown, K_MOUSE1: nonzero if it clicked the button (the menu closed)
+int VR_MenuKey (int key, int repeat);					// M_Keydown: nonzero if the buttons took the key (a click on one, the sticks' selection on them)
+void VR_MenuBounds (int *top, int *height);				// M_UpdateBounds: the menus laid out from the canvas's bounds start below the buttons
+void VR_MenuSavePositions (void);						// Host_WriteConfigurationToFile: each VR page's selection and scroll into vr_menu_positions
 int VR_MenuReopen (void);								// M_ToggleMenu_f, opening: nonzero if it reopened the page left
 int VR_MenuRunsGame (void);								// Host_ServerFrame: nonzero if a single player game runs on under the menu (live preview)
 

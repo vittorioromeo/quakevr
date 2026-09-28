@@ -1681,6 +1681,8 @@ static void PF_makestatic (void)
 	if (bits & B_SCALE)
 		MSG_WriteByte (sv.signon, ent->scale);
 
+	VR_OnMakeStatic (ent); // QVR: where it stands (the rocks and bricks keep clear of torches and flames)
+
 // throw the entity away now
 	ED_Free (ent);
 }

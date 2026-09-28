@@ -6,6 +6,7 @@
 #include "vr_progs.hpp"
 #include "vr_box3d.hpp"
 #include "vr_carry2h.hpp"
+#include "vr_debris.hpp"
 #include "vr_held.hpp"
 #include "vr_motion.hpp"
 #include "vr_engine.hpp"
@@ -445,7 +446,8 @@ void PF_propgrip()
 
 // vector(entity e, vector angles, vector point) modelpoint: where the point `point` of `e`'s model (units in its model's
 // axes: x forward, y left, z up) is from its origin when it is turned by `angles` (as the renderer turns it: an alias
-// model's pitch is inverted). The melee's line of a carried club (a wall torch's head: vr_melee.qc).
+// model's pitch is inverted) and scaled as it is drawn. The melee's line of a carried club (a wall torch's head, a
+// brick's end: vr_melee.qc).
 void PF_modelpoint()
 {
     edict_t* e = G_EDICT(OFS_PARM0);
@@ -453,7 +455,12 @@ void PF_modelpoint()
     const float* p = G_VECTOR(OFS_PARM2);
     const int index = static_cast<int>(e->v.modelindex);
     const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
-    const glm::vec3 v = held::axesFromAngles(angles, model && model->type == mod_brush) * glm::vec3{p[0], p[1], p[2]};
+    // Scaled as it is drawn: the networked scale (an offset from 1) about its origin (a rock's or a brick's size,
+    // vr_debris.cpp); an unscaled model (a wall torch) as it is.
+    const FieldOffsets& f = fields();
+    const glm::vec3 scale = fieldVec(e, f.model_scale), about = fieldVec(e, f.model_scale_origin);
+    const glm::vec3 point = (glm::vec3{p[0], p[1], p[2]} - about) * (glm::vec3{1.f} + scale) + about;
+    const glm::vec3 v = held::axesFromAngles(angles, model && model->type == mod_brush) * point;
     float* out = G_VECTOR(OFS_RETURN);
     out[0] = v.x;
     out[1] = v.y;
@@ -546,6 +553,25 @@ void PF_weaponhotspotinfo()
     G_FLOAT(OFS_RETURN) = what == 0 ? static_cast<float>(h.type) : what == 1 ? h.bias : h.share;
 }
 
+// Rocks and bricks lying about (vr_debris.cpp, QC vr_debris.qc). float() debrisplan: places them (after the map's
+// entities), how many; string(float i) debrismodel: piece i's model (to set); float(entity e, float i) debrisput: puts
+// piece i on e (its model set): its skin, size, turn, place resting on the floor and box; its kind (1 a rock, 2 a
+// brick; 0 none).
+void PF_debrisplan()
+{
+    G_FLOAT(OFS_RETURN) = static_cast<float>(debris::plan());
+}
+
+void PF_debrismodel()
+{
+    G_INT(OFS_RETURN) = PR_SetEngineString(debris::modelOf(static_cast<int>(G_FLOAT(OFS_PARM0))));
+}
+
+void PF_debrisput()
+{
+    G_FLOAT(OFS_RETURN) = static_cast<float>(debris::put(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1))));
+}
+
 struct VrBuiltin
 {
     const char* name;
@@ -561,6 +587,9 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"physicsblast", PF_physicsblast},
     {"propvalue", PF_propvalue},
     {"propgrip", PF_propgrip},
+    {"debrisplan", PF_debrisplan},
+    {"debrismodel", PF_debrismodel},
+    {"debrisput", PF_debrisput},
     {"modelpoint", PF_modelpoint},
     {"physicspush", PF_physicspush},
     {"tracebox", PF_tracebox},

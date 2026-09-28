@@ -324,6 +324,7 @@ void Host_WriteConfigurationToFile (const char *name)
 		//VID_SyncCvars (); //johnfitz -- write actual current mode to config file, in case cvars were messed with
 
 		Key_WriteBindings (f);
+		VR_MenuSavePositions (); // QVR: the VR pages' selections and scrolls, into their cvar
 		Cvar_WriteVariables (f);
 
 		//johnfitz -- extra commands to preserve state

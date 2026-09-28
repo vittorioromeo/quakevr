@@ -267,6 +267,7 @@ void() worldspawn =
     precache_sound("knight/sword2.wav");
     precache_model("progs/v_ksword.mdl");
     precache_model("progs/v_hksword.mdl");
+    VR_Debris_Precache(); // VR: rocks and bricks lying about (vr_debris.qc)
 
     // setup precaches allways needed
     precache_sound("items/itembk2.wav");        // item respawn sound
@@ -518,6 +519,7 @@ void() StartFrame =
     VR_CVars_Frame();
     VR_Liquids_Frame(); // VR: monsters in slime and lava burn (vr_liquids.qc)
     VR_Wounds_Frame(); // VR: wet up to where the liquid comes (vr_wounds.qc)
+    VR_Debris_Frame(); // VR: at a new map's first frame, its rocks and bricks (vr_debris.qc)
     framecount = framecount + 1;
 };
 
