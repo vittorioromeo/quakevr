@@ -5418,3 +5418,159 @@ pixels), e1m1 with a shambler and an ogre in the hand torch and the shotgun held
 - [ ] With a rocket or a lava ball passing the knight's plates and the grunt's arms: do the forms move with the light?
 - [ ] Your own hands in the torch light: knuckles and creases, and no grain?
 - [ ] Graphics > Authored Model Bumps: nothing should change until an authored map is installed (then 0 flattens it).
+
+## Flashlight shadows, cord and hand-over
+
+Your voice notes (e1m1):
+- the beam went through the gun in your hand, your hands and your body (props already blocked it);
+- passing the torch between hands reset it every time;
+- the cord was drawn on top of everything ("maybe like the old telephone cord with the spiral").
+
+### Your hands, guns and body in the torch's shadow
+
+- **Why props cast and these didn't.** The shadow pass takes its model casters from the entities drawn this frame.
+  Props are world entities. Your hands, guns, body, gadget, holstered weapons and the torch are VR view entities, and
+  dynamic lights skipped every view entity. Only map lights took them, by `vr_shadow_self`.
+- **Now** every dynamic light that isn't your own takes them too, by the same `vr_shadow_self`: the flashlight,
+  rockets, explosions, `vr_light_test`.
+  - 0: none; 1: the body; 2 (the default): the body, hands, guns and the rest.
+  - Your own lights (muzzle flashes, the quad and pentagram glows) still don't. They are keyed to you, and the light
+    sits inside your gun or body.
+- **Culling.** View entities are placed by the VR transforms (weapon offsets, posed arms), outside their model bounds.
+  They are tested against each light and each face with a wider sphere: twice the model's radius plus 60 cm. The
+  renderer's box cull isn't used for them, so no finger or barrel is dropped from the narrow torch tile.
+- **The torch itself** casts too, for other lights. It can't shadow its own beam:
+  - the light starts at the lens, and the torch lies behind it, beyond the projection's near plane (3.8 cm);
+  - in both grips the fingers wrap the tube behind the lens;
+  - on a gun, the barrel is 4.7-10 cm off the beam's axis and ends 1 cm past the lens. The spot on the wall is whole
+    (the composite's last row).
+- **First person.**
+  - The body model's head and neck are collapsed (IK.md), so the head casts nothing. With the torch held behind your
+    head, the shoulder's and the gun's shadows fall ahead, with no head.
+  - With Body: Off, only the hands, guns and gadget are drawn, so only they cast. The body settings are followed as
+    they are.
+- **Bias** at 5-50 cm: unchanged, and enough.
+  - The torch's tile is 1024 texels over ±24 degrees: 0.2 mm a texel at 20 cm.
+  - The normal offset (a texel, doubled at grazing angles) and the 0.2% depth scale are as before.
+  - The close-ups show no acne on the gun, hand or arm, and no gap at the shadows' roots.
+
+Composite `flashfx/shadows_before_after.png` (scratchpad; before on the left):
+- the torch at the other hand;
+- at the held shotgun, from behind and close;
+- first person, with the torch behind the head;
+- at the arm and body (the pauldron's and the arm's shadow on the wall behind);
+- clipped on the gun.
+
+### Passing it between hands
+
+Weapons pass at the hand switch spot: let go of one with the hands together and it goes into the other, gripping
+hand. The torch now passes the same ways:
+- The other hand grips the torch while the first hand holds it: it takes it, and the first hand's later release does
+  nothing.
+- You let go while the other hand is gripping the torch, or with the hands together (the hand switch spot, 19 cm): the
+  torch passes to it.
+- The other hand catches it within 0.4 s of a release: that is a hand-over too, not a take from the belt.
+
+In every case:
+- It stays switched as it was.
+- It takes the grip (low or overhead) whose beam is nearer where it shines now, as when taken off the head or a gun.
+- It eases from where it was onto the new grip over 0.12 s, the fitted hands' own blend. It doesn't go back to the
+  belt.
+- If the game already had the receiving hand's grip, that grip is released.
+- It doesn't pass while that hand holds anything (a prop too) or is at a holster.
+
+Logged in the mock (`flashfx/handover_after.log`, composite `flashfx/handover_before_after.png`). Before, none of
+these passed: the torch stayed in the first hand or flew to the belt.
+
+    flashlight: on
+    TEST 2 main grips at the torch
+    flashlight: passed to the main hand (on)
+    flashlight: low grip (from the other hand, nearer its beam)
+    TEST 4 main lets go with the off hand gripping at it
+    flashlight: passed to the off hand (on)
+    flashlight: low grip (from the other hand, nearer its beam)
+    TEST 5 off lets go, main catches
+    flashlight: passed to the main hand (on)
+
+### The cord: coiled, springy, depth-tested
+
+- **Drawn in the scene** (`VR_DrawSceneOpaque`), depth-tested and written. It is hidden behind the gun, your hands,
+  the axe on your hip and the world, as it should be. Before, it was a line in the debug overlay, drawn over
+  everything.
+- **A telephone cord** (`vr_coil.cpp`):
+  - 64 turns of 3.8 mm wire, 1.3 cm across, 24 cm long relaxed;
+  - the coil keeps its wire's length: stretched, its turns open out and it narrows;
+  - over its last 1.5 cm at each end it narrows to the bare wire, into the clip and the tail cap.
+- **Springy.** The line is 12 springs: 30 g, 1.5 N/m in all, three times stiffer squeezed, with gravity and damping.
+  - Stretched to the hand, it pulls nearly straight with a few centimetres of sag.
+  - Near the belt, it bows and droops.
+  - A quick move of the hand swings it, and it settles in about half a second.
+  - Your body's own movement (walking, turning, lifts) carries it along; a teleport restarts it.
+  - It leaves the clip downwards, where the torch hung, and goes into the tail cap along the torch.
+- **Lit** as the models are:
+  - the world's light, sampled at three points along it;
+  - the dynamic lights, their cones included, so the torch pointed at it lights it;
+  - a rubbery sheen, for each eye.
+- **Detail:**
+  - within 0.6 m of the eyes: 8 segments a turn, 6 sides;
+  - within 1.2 m: 6 and 5;
+  - beyond: 4 and 4.
+- **Setting:** Cord on the Flashlight page is now Off / Coiled / Plain (`vr_flashlight_cord` 0/1/2). Plain is the
+  same springy line, as a 4 mm cable.
+- **How it's drawn.** The first version built the whole mesh on the CPU. That took 0.15 ms of CPU a frame, and
+  uploading its 480 KB cost the GPU 0.07-0.09 ms. Now:
+  - the CPU makes only the rings (their middles, axes and light: 50 KB);
+  - `gfx::drawTube` builds the wire round them in the vertex shader.
+
+Composites (scratchpad):
+- `flashfx/cord_before_after.png`: first person with the gun over the cord, close up, behind the axe handle;
+- `flashfx/cfa_zoom.png`: the coil close up;
+- `flashfx/sw2zoom.png`: the swing, frame by frame.
+
+### Cost
+
+Exclusive runs, mock headset, the e1m1 start, the torch on and pointed at the held shotgun, the cord out:
+
+| | CPU ms | GPU ms |
+|---|---|---|
+| dynamic light shadows, with / without your casters (`vr_shadow_self` 2 / 0) | 0.011 / 0.003 | 0.008 / 0.001 |
+| the cord: its rings and their upload | 0.037-0.041 | – |
+| the cord's draw, each eye | 0.000 | 0.001 |
+| world+brush, each eye, cord on / off | – | 0.050 / 0.047 (noise) |
+
+- Between intervals of the same run, the frame's total CPU time moves by ±0.15 ms.
+- That comes from the scene's own CPU time, which changes with `vr_shadow_self` through the map lights'
+  self-shadows. Those were already there: 0.234 ms before this work, in the same scene.
+- No new option was needed. `vr_shadow_self` 0 turns off all your shadows, and Cord: Off turns off the cord.
+
+### Mock recipes
+
+- **The torch at the held shotgun,** in front of the wall behind the start:
+  - with `vr_weapon_grip_mode 1`: `vr_mock_look 25 180; impulse 154`;
+  - `vr_mock_hand main -0.1 1.35 0.4 0 180 0; vr_mock_hand off 0.25 1.45 0.0 -10 160 0`;
+  - for the other hand instead: `vr_mock_hand main -0.1 1.42 0.4 0 180 90; vr_mock_hand off 0.1 1.45 0.0 -5 170 0`;
+  - a spectator's view: `vr_mock_camera 0.25 1.9 -0.5 20 180`.
+- **Hand-over:**
+  - take the torch in the off hand (TESTING.md);
+  - `vr_mock_fingers main 0 0`;
+  - put the main hand at the torch: `vr_mock_hand main -0.06 1.3 -0.42 0 0 0`, with the off hand at `-0.12 1.3 -0.4`;
+  - wait, then `vr_mock_button main grip 1`.
+
+### Not verified
+
+- Only seen in the mock: not at the headset's resolution, and how springy the cord feels as you move is untested.
+- There is no clean image of the cord behind the world itself. The mock hands don't reach through walls, and the
+  spectator camera stays in the room. The cord uses the same depth test that hides it behind the gun and the axe.
+- With Body: Full, the belt torch shining down past your thigh wasn't looked at.
+
+### Check in the headset
+
+- [ ] The torch at your other hand, at the gun in it, at your forearm: do the shadows on the wall behind have the right
+      shapes, with no speckle or gap where they start?
+- [ ] The torch behind or beside your head: the shoulders' shadow ahead, and none of the head?
+- [ ] The torch clipped on each gun: is the spot whole, not cut by the barrel?
+- [ ] Rockets and explosions near you: your body's shadow from them. Right, or too much?
+- [ ] Hand-over: grab the lit torch with the other hand; let go with the other hand closed on it; toss it across. Does
+      it stay on, with no jump?
+- [ ] The cord stretched, slack, swinging, behind the gun and your hand: springy enough? Too thick or too thin? Try
+      Plain too.
