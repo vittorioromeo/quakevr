@@ -582,8 +582,13 @@ QVR_CVAR(vr_shadow_bias, "1", CVAR_ARCHIVE)            // shadow acne vs. light 
 QVR_CVAR(vr_shadow_distance, "1536", CVAR_ARCHIVE)     // lights farther than this from you cast no shadows
 QVR_CVAR(vr_shadow_atlas, "4096", CVAR_ARCHIVE)        // shadow map atlas size (2048, 4096, 8192)
 QVR_CVAR(vr_shadow_stats, "0", CVAR_NONE)              // print what is shadowed and the GPU time, once a second
-QVR_CVAR(vr_profile, "0", CVAR_NONE)                   // profiler (vr_profile.cpp): 1 time the frame's scopes, CPU and GPU, into <gamedir>/profile/; 2 also show them over the wrist
+QVR_CVAR(vr_profile, "0", CVAR_NONE)                   // profiler (vr_profile.cpp): 1 time the frame's scopes, CPU and GPU, into <gamedir>/profile/; 2 also show the panel over the wrist
 QVR_CVAR(vr_profile_interval, "5", CVAR_NONE)          // seconds between its reports (0: only on vr_profile_dump)
+QVR_CVAR(vr_profile_overlay, "0", CVAR_NONE)           // the profiler's panel (vr_profile_systems.cpp): each system's ms a frame with a bar; 1 over the wrist gadget's hand, 2 floating in front
+QVR_CVAR(vr_profile_gpu, "4", CVAR_NONE)               // the profiler's GPU times: its GPU scopes' timer queries on one frame in this many (each stalls the GPU a little: 1 every frame, 4 a quarter of the cost; 0 none, the CPU's times alone)
+QVR_CVAR(vr_profile_detail, "1", CVAR_NONE)            // 2: the profiler also times every trace (SV_Move) and every QuakeC builtin call apart (dearer)
+QVR_CVAR(vr_profile_csv, "0", CVAR_NONE)               // 1: the profiler writes a row a second, a column per system, to <gamedir>/profile/systems_<date>_<time>.csv
+QVR_CVAR(vr_profile_hitch, "1.5", CVAR_NONE)           // while the profiler collects, frames over this many budgets (refresh periods) are logged with their breakdown (console, profile/hitches_*.csv); 0 off
 QVR_CVAR(vr_dlight_models, "1", CVAR_ARCHIVE)          // dynamic lights light models per pixel, by angle and shadowed (0: Quake's flat)
 QVR_CVAR(vr_dlight_angle, "1", CVAR_ARCHIVE)           // dynamic lights fall off with the angle they reach surfaces at (0: Quake's)
 QVR_CVAR(vr_dlight_uncapped, "1", CVAR_ARCHIVE)        // dynamic lights add fully to bright walls (Quake caps them)

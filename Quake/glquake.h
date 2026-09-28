@@ -713,4 +713,13 @@ void GL_PostProcess (void);
 float GL_WaterAlphaForTextureType (textype_t type);
 void R_UpdateLiquidAlpha (void); // QVR: the liquids' alphas from the settings, the map's vis and keys (gl_rmisc.c)
 
+// QVR: every draw call counted for the profiler (vr_profcounts.drawcalls, vr_profile_report): a plain increment.
+#include "vr/vr_profile.h"
+#define glDrawArrays(mode, first, count) (++vr_profcounts.drawcalls, glDrawArrays (mode, first, count))
+#define glDrawElements(mode, count, type, indices) (++vr_profcounts.drawcalls, glDrawElements (mode, count, type, indices))
+#define GL_DrawArraysInstancedFunc(mode, first, count, n) (++vr_profcounts.drawcalls, GL_DrawArraysInstancedFunc (mode, first, count, n))
+#define GL_DrawElementsInstancedFunc(mode, count, type, indices, n) (++vr_profcounts.drawcalls, GL_DrawElementsInstancedFunc (mode, count, type, indices, n))
+#define GL_DrawElementsIndirectFunc(mode, type, indirect) (++vr_profcounts.drawcalls, GL_DrawElementsIndirectFunc (mode, type, indirect))
+#define GL_MultiDrawElementsIndirectFunc(mode, type, indirect, n, stride) (++vr_profcounts.drawcalls, GL_MultiDrawElementsIndirectFunc (mode, type, indirect, n, stride))
+
 #endif	/* GLQUAKE_H */

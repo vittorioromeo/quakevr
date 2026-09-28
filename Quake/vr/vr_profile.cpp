@@ -8,12 +8,10 @@
 // round to a slot still pending is it read waiting (counted as a stall in the report).
 
 #include "vr_profile.hpp"
+#include "vr_profile_systems.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
-#include "vr_hands.hpp"
 #include "vr_main.hpp"
-#include "vr_text3d.hpp"
-#include "vr_units.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -27,6 +25,14 @@
 #include <unordered_map>
 #include <vector>
 
+extern "C"
+{
+int vr_profile_on = 0;
+int vr_profile_fine = 0;
+int vr_profile_inqc = 0;
+vr_profcounts_t vr_profcounts;
+}
+
 namespace qvr::profile
 {
 
@@ -39,8 +45,6 @@ namespace
 constexpr double hitchMs = 250.0;
 // GPU frames in flight before a slot is read waiting.
 constexpr int gpuSlots = 6;
-// Overlay refresh, seconds.
-constexpr double overlayPeriod = 0.5;
 
 [[nodiscard]] std::int64_t nowNs()
 {
@@ -54,6 +58,8 @@ struct Node
     int parent{-1};
     int depth{0};
     std::vector<int> children;
+    int system{0}; // vr_profile_systems.hpp: what its own time is
+    int view{0};
 
     // This frame.
     std::int64_t frameNs{0};
@@ -88,7 +94,7 @@ struct GpuRec
     int node;
     int begin;
     int end;
-    bool top; // not inside another GPU scope: adds to the frame's GPU time
+    int parent; // the GPU scope it is in (a node), or -1: its time adds to the frame's GPU time
 };
 
 struct GpuSlot
@@ -101,7 +107,7 @@ struct GpuSlot
 GpuSlot slots[gpuSlots];
 int slotIndex = 0; // this frame's
 int gpuDepth = 0;
-bool gpuOk = false;
+bool gpuOk = false; // the GL calls there, and vr_profile_gpu (latched at the frame's start)
 
 std::int64_t frameStart = 0;
 std::int64_t frameEnd = 0; // VR_ProfileFrameEnd, when called (else the next frame's start)
@@ -120,8 +126,7 @@ std::string captureMap;
 std::string lastContext;
 std::string mapName = "none";
 
-std::string overlayText;
-std::int64_t overlayUpdated = 0;
+bool recording = false; // the call tree's CSV (vr_profile), apart from the systems' (collecting: `active`)
 
 // ---- The always-on phases (vr_profile.hpp) ----
 
@@ -379,6 +384,7 @@ void endPhaseFrame(std::int64_t now, std::int64_t start, std::int64_t end)
     n.name = name;
     n.parent = parent;
     n.depth = nodes[parent].depth + 1;
+    systems::classify(name, nodes[parent].system, nodes[parent].view, n.system, n.view);
     nodes.push_back(n);
     const int index = static_cast<int>(nodes.size()) - 1;
     nodes[parent].children.push_back(index);
@@ -407,6 +413,35 @@ void resetInterval(std::int64_t now)
     intervalStart = now;
     intervalFrames = intervalGpuFrames = intervalHitches = intervalStalls = 0;
     periodSum = periodMax = 0.0;
+}
+
+// This frame's costliest scopes by their own time (less their child scopes'), with their paths: the hitch log's detail.
+[[nodiscard]] std::string frameTopScopes()
+{
+    std::vector<std::pair<std::int64_t, int>> self;
+    for(int i : cpuTouched)
+    {
+        std::int64_t ns = nodes[i].frameNs;
+        for(int c : nodes[i].children)
+        {
+            ns -= nodes[c].frameNs; // (0 for those not run this frame)
+        }
+        self.emplace_back(ns, i);
+    }
+    std::sort(self.begin(), self.end(), [](const auto& a, const auto& b) { return a.first > b.first; });
+    std::string out;
+    for(std::size_t k = 0; k < self.size() && k < 3; k++)
+    {
+        std::string p = nodes[self[k].second].name;
+        for(int n = nodes[self[k].second].parent; n > 0; n = nodes[n].parent)
+        {
+            p = std::string{nodes[n].name} + "/" + p;
+        }
+        char buf[32];
+        q_snprintf(buf, sizeof(buf), " %.1f", static_cast<double>(self[k].first) / 1e6);
+        out += (k ? ", " : "") + p + buf;
+    }
+    return out;
 }
 
 // Adds this frame's CPU times to the interval (or drops them, for a hitch).
@@ -467,11 +502,17 @@ bool resolve(GpuSlot& s, bool wait)
         GL_GetQueryObjectui64vFunc(s.queries[r.end], GL_QUERY_RESULT, &e);
         const double ms = e > b ? static_cast<double>(e - b) / 1e6 : 0.0;
         touchGpu(r.node, ms);
-        if(r.top)
+        systems::gpu(nodes[r.node].system, nodes[r.node].view, ms);
+        if(r.parent < 0)
         {
             touchGpu(0, ms);
         }
+        else
+        {
+            systems::gpu(nodes[r.parent].system, nodes[r.parent].view, -ms);
+        }
     }
+    systems::gpuFrameDone(s.used);
     for(int i : gpuTouched)
     {
         Node& n = nodes[i];
@@ -826,27 +867,6 @@ void startCapture(std::int64_t now)
     dropGpu();
 }
 
-void updateOverlay(std::int64_t now)
-{
-    if(now - overlayUpdated < static_cast<std::int64_t>(overlayPeriod * 1e9) || intervalFrames == 0)
-    {
-        return;
-    }
-    overlayUpdated = now;
-    const Stats frame = stats(0);
-    overlayText.clear();
-    appendf(overlayText, "CPU %.2f  GPU %.2f ms\neyes %.2f ms\n", cpuBusy(), frame.gpuAvg, gpuEyes());
-    for(const Top& t : top(true, 6))
-    {
-        appendf(overlayText, "%-16.16s %5.2f\n", t.name, t.ms);
-    }
-    appendf(overlayText, "CPU:\n");
-    for(const Top& t : top(false, 4))
-    {
-        appendf(overlayText, "%-16.16s %5.2f\n", t.name, t.ms);
-    }
-}
-
 void dump_f()
 {
     report(nowNs(), true);
@@ -909,8 +929,17 @@ void begin(const char* name, bool gpu)
     if(gpu && gpuOk)
     {
         GpuSlot& s = slots[slotIndex];
+        int gpuParent = -1;
+        for(auto it = stack.rbegin(); it != stack.rend(); ++it)
+        {
+            if(it->gpuRec >= 0)
+            {
+                gpuParent = it->node;
+                break;
+            }
+        }
         o.gpuRec = static_cast<int>(s.recs.size());
-        s.recs.push_back({o.node, query(s), -1, gpuDepth == 0});
+        s.recs.push_back({o.node, query(s), -1, gpuParent});
         ++gpuDepth;
     }
     stack.push_back(o);
@@ -928,8 +957,16 @@ void endScope()
     const Open o = stack.back();
     stack.pop_back();
     Node& n = nodes[o.node];
-    n.frameNs += nowNs() - o.start;
+    const std::int64_t ns = nowNs() - o.start;
+    n.frameNs += ns;
     ++n.frameCalls;
+    // Its own time to its system; its parent's (whose time holds it) less.
+    const Node& p = nodes[n.parent];
+    if(n.system != p.system || n.view != p.view)
+    {
+        systems::cpu(n.system, n.view, ns);
+        systems::cpu(p.system, p.view, -ns);
+    }
     if(!n.cpuTouched)
     {
         n.cpuTouched = true;
@@ -956,27 +993,16 @@ void init()
     nodes.clear();
     Node root;
     root.name = "frame";
+    root.system = systems::rootSystem();
+    root.view = systems::rootView();
     nodes.push_back(root);
     Cmd_AddCommand("vr_profile_dump", dump_f);
+    systems::init();
 }
 
 void overlay()
 {
-    if(!active || vr_profile.value < 2.f || overlayText.empty())
-    {
-        return;
-    }
-    const hands::State& s = hands::current();
-    if(!s.valid)
-    {
-        return;
-    }
-    // Over the wrist gadget's hand, facing the head.
-    const float m2u = units::metresToUnits();
-    const glm::vec3 at = s.pos[vr_gadget_hand.value != 0.f ? HAND_MAIN : HAND_OFF] + glm::vec3{0.f, 0.f, 0.16f * m2u};
-    const glm::vec3 d = at - s.head;
-    const float yaw = std::atan2(d.y, d.x) * 180.f / static_cast<float>(M_PI);
-    text3d::queue(overlayText, at, glm::vec3{0.f, yaw, 0.f}, text3d::Align::Centre, 0.03f);
+    systems::overlay();
 }
 
 } // namespace qvr::profile
@@ -992,6 +1018,14 @@ extern "C" void VR_ProfileFrame()
     }
     const std::int64_t now = nowNs();
     endPhaseFrame(now, frameStart, frameEnded ? frameEnd : now);
+    const vr_profcounts_t counts = vr_profcounts; // the frame's (counted whatever vr_profile is)
+    vr_profcounts = vr_profcounts_t{};
+    vr_profile_inqc = 0; // a Host_Error may have jumped out of a timed PR_ExecuteProgram
+
+    if(cl.mapname[0])
+    {
+        mapName = cl.mapname;
+    }
 
     if(active)
     {
@@ -1000,12 +1034,15 @@ extern "C" void VR_ProfileFrame()
             endScope();
         }
         Node& root = nodes[0];
-        root.frameNs = (frameEnded ? frameEnd : now) - frameStart;
+        const std::int64_t hostNs = (frameEnded ? frameEnd : now) - frameStart;
+        root.frameNs = hostNs;
         root.frameCalls = 1;
         root.cpuTouched = true;
         cpuTouched.push_back(0);
         const double period = static_cast<double>(now - frameStart) / 1e6;
         const bool hitch = period > hitchMs;
+        const double hitchAt = systems::hitchMs();
+        const std::string hitchScopes = hitchAt > 0.0 && static_cast<double>(hostNs) / 1e6 > hitchAt ? frameTopScopes() : "";
         foldCpu(!hitch);
         GpuSlot& s = slots[slotIndex];
         if(hitch)
@@ -1039,41 +1076,60 @@ extern "C" void VR_ProfileFrame()
         next.used = 0;
         next.recs.clear();
         gpuDepth = 0;
+
+        systems::frameEnd(now, now - frameStart, hostNs,
+            systems::Counts{counts.traces, counts.hullchecks, counts.drawcalls, counts.aliasdrawn}, hitchMs,
+            mapName.c_str(), hitchScopes);
     }
 
-    if(cl.mapname[0])
+    // Collecting: for the call tree's CSV (vr_profile), the panel or the systems' CSV. The call tree's capture starts
+    // with vr_profile, and anew at each map (a file each).
+    const bool record = vr_profile.value != 0.f;
+    const bool want = record || vr_profile_overlay.value != 0.f || vr_profile_csv.value != 0.f;
+    const bool longEnough = now - intervalStart > 500'000'000; // not just what followed a vr_profile_dump
+    if(recording && (!record || !want || mapName != captureMap))
     {
-        mapName = cl.mapname;
-    }
-
-    const bool want = vr_profile.value != 0.f;
-    if(want && (!active || mapName != captureMap))
-    {
-        if(active && captureMap != "none" && now - intervalStart > 500'000'000)
+        if(captureMap != "none" && longEnough)
         {
-            report(now, false); // the last map's
+            report(now, false); // the last map's, or the capture's end
         }
-        startCapture(now);
+        recording = false;
     }
-    else if(!want && active)
-    {
-        if(now - intervalStart > 500'000'000) // not just what followed a vr_profile_dump
-        {
-            report(now, false);
-        }
-        resetInterval(now);
-        dropGpu();
-    }
-    else if(active && vr_profile_interval.value > 0.f &&
+    else if(recording && vr_profile_interval.value > 0.f &&
              static_cast<double>(now - intervalStart) / 1e9 >= vr_profile_interval.value)
     {
         report(now, false);
     }
-    active = want;
-    gpuOk = GL_QueryCounterFunc && GL_GetQueryObjectui64vFunc && GL_GetQueryObjectivFunc && GL_GenQueriesFunc;
-    if(active && vr_profile.value >= 2.f)
+    if(want != active)
     {
-        updateOverlay(now);
+        if(want)
+        {
+            systems::start(now);
+        }
+        else
+        {
+            systems::stop();
+        }
+        resetInterval(now);
+        dropGpu();
+    }
+    if(record && want && !recording)
+    {
+        startCapture(now);
+        recording = true;
+    }
+    active = want;
+    vr_profile_on = want ? 1 : 0;
+    vr_profile_fine = want && vr_profile_detail.value >= 2.f ? 1 : 0;
+    // The GPU's times on one frame in vr_profile_gpu: each timer query stalls the GPU's pipeline a little (about 0.12 ms
+    // of the mock's eyes a frame for all the scopes' queries), so by default one frame in 4 is timed, and averaged.
+    static unsigned gpuFrameCount = 0;
+    const int gpuEvery = static_cast<int>(vr_profile_gpu.value);
+    gpuOk = GL_QueryCounterFunc && GL_GetQueryObjectui64vFunc && GL_GetQueryObjectivFunc && GL_GenQueriesFunc &&
+            gpuEvery >= 1 && gpuFrameCount++ % static_cast<unsigned>(gpuEvery) == 0;
+    if(active)
+    {
+        systems::profilerTime(nowNs() - now); // this frame's share of the profiler's own work (its files, its panel)
     }
     frameStart = now;
     frameEnded = false;

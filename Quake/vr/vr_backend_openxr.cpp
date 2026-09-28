@@ -251,11 +251,15 @@ public:
         profile::noteDisplayPeriod(static_cast<double>(frameState.predictedDisplayPeriod) * 1e-6);
 
         XrFrameBeginInfo beginInfo{XR_TYPE_FRAME_BEGIN_INFO};
-        if(!check(xrBeginFrame(session, &beginInfo), "xrBeginFrame"))
+        profile::begin("xrBeginFrame", false);
+        const XrResult begun = xrBeginFrame(session, &beginInfo);
+        profile::end();
+        if(!check(begun, "xrBeginFrame"))
         {
             return true;
         }
         frameBegun = true;
+        QVR_PROFILE("tracking"); // the actions' sync, the views, the controllers
 
         const XrActiveActionSet active{actionSet, XR_NULL_PATH};
         XrActionsSyncInfo syncInfo{XR_TYPE_ACTIONS_SYNC_INFO};

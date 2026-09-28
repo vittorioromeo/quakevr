@@ -846,6 +846,7 @@ trace_t SV_ClipMoveToEntity (edict_t *ent, vec3_t start, vec3_t mins, vec3_t max
 	VectorSubtract (end, offset, end_l);
 
 // trace a line through the apropriate clipping hull
+	++vr_profcounts.hullchecks; // QVR: profile
 	SV_RecursiveHullCheck (hull, hull->firstclipnode, 0, 1, start_l, end_l, &trace);
 
 // fix trace up by the offset
@@ -983,7 +984,22 @@ boxmaxs[0] = boxmaxs[1] = boxmaxs[2] = 9999;
 SV_Move
 ==================
 */
+static trace_t SV_MoveRun (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, edict_t *passedict);
+
+// QVR: counted for the profiler; with vr_profile_detail 2, each timed ("trace").
 trace_t SV_Move (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, edict_t *passedict)
+{
+	trace_t trace;
+	++vr_profcounts.traces;
+	if (!vr_profile_fine)
+		return SV_MoveRun (start, mins, maxs, end, type, passedict);
+	VR_ProfileBegin ("trace");
+	trace = SV_MoveRun (start, mins, maxs, end, type, passedict);
+	VR_ProfileEnd ();
+	return trace;
+}
+
+static trace_t SV_MoveRun (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, edict_t *passedict)
 {
 	moveclip_t	clip;
 	int			i;

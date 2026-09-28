@@ -5,7 +5,9 @@
 // waits for them). Scopes nest: the report is a call tree (the eyes' scopes apart), with each
 // scope's average and worst per-frame time over the interval, written every vr_profile_interval
 // seconds (or on vr_profile_dump) to <gamedir>/profile/profile_<map>_<date>_<time>.csv, with a
-// summary in the console. vr_profile 2 also shows the costliest scopes over the wrist gadget.
+// summary in the console. The time is also sorted into the game's systems (vr_profile_systems.hpp: vr_profile_report,
+// the panel vr_profile_overlay, a CSV row a second with vr_profile_csv, the hitch log); vr_profile 2 shows the panel
+// over the wrist gadget.
 // With vr_profile 0 a scope costs a lookup of its name: a few of them (the phases below) are always
 // timed, cheaply, for vr_memstats_log.
 
@@ -23,7 +25,7 @@ void begin(const char* name, bool gpu);
 void end();
 
 void init();    // commands (VR_Init)
-void overlay(); // vr_profile 2: queues the costliest scopes as world text (after text3d::clear)
+void overlay(); // the systems' panel (vr_profile_overlay, vr_profile 2), queued as text (after text3d::clear)
 
 // ---- Always on, whatever vr_profile is (vr_memstats_log, vr_memstats) ----
 // The scopes of these names add up their CPU time every frame (the same name summed, both eyes'

@@ -492,7 +492,7 @@ void resetHandMoves()
         open("Recording (Window View)", pageIndex(pageRecording)),
         header("Performance"),
         cycle("Performance Profile", "vr_profile", {{0.f, "Off"}, {1.f, "Record"}, {2.f, "Record and show"}})
-            .help("Record CPU and GPU time per effect into quakevr/profile/ every 5 seconds (and show the top costs over the wrist). Not kept after a restart."),
+            .help("Record CPU and GPU time per effect into quakevr/profile/ every 5 seconds (and show the profiler's panel over the wrist: Debug > Profiling has more). Not kept after a restart."),
         cycle("FPS Counter on the Gadget", "vr_gadget_fps", {{0.f, "Off"}, {1.f, "Basic"}, {2.f, "Detailed"}})
             .help("Under the wrist gadget: the frame rate and the CPU's and GPU's milliseconds a frame (our work, the eyes' drawing; not the runtime's waits). Basic: one line, averaged over half a second. Detailed: now, the last quarter second's average, the last 5 seconds' least and most, the frames that missed a refresh (Late), and graphs of the last 3 seconds against the frame budget (the dotted line); figures over the budget are highlighted."),
     };

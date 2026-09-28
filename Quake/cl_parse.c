@@ -284,7 +284,17 @@ void CL_KeepaliveMessage (void)
 CL_ParseServerInfo
 ==================
 */
+static void CL_ParseServerInfoRun (void);
+
+// QVR: a map's load, a scope of its own for the profiler (its hitch log).
 void CL_ParseServerInfo (void)
+{
+	VR_ProfileBegin ("map load");
+	CL_ParseServerInfoRun ();
+	VR_ProfileEnd ();
+}
+
+static void CL_ParseServerInfoRun (void)
 {
 	const char	*str;
 	int		i;

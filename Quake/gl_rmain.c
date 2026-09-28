@@ -1260,7 +1260,7 @@ void R_DrawEntitiesOnList (qboolean alphapass) //johnfitz -- added parameter
 	VR_ProfileBeginGPU ("alias"); // QVR: profile
 	R_DrawAliasModels  (entlist + ofs[2*mod_alias ], ofs[2*mod_alias +1] - ofs[2*mod_alias ]);
 	VR_ProfileEnd (); // QVR
-	VR_ProfileBeginGPU ("sprites"); // QVR: profile
+	VR_ProfileBeginGPU ("sprite models"); // QVR: profile
 	if (!alphapass)
 		R_DrawSpriteModels (entlist + cl_modtype_ofs[2*mod_sprite], cl_modtype_ofs[2*mod_sprite+2] - cl_modtype_ofs[2*mod_sprite]);
 	VR_ProfileEnd (); // QVR
@@ -2062,14 +2062,20 @@ R_RenderScene
 */
 void R_RenderScene (void)
 {
+	VR_ProfileBeginGPU ("scene setup"); // QVR: profile
 	R_SetupScene (); //johnfitz -- this does everything that should be done once per call to RenderScene
 
+	VR_ProfileBegin ("clear"); // QVR: profile
 	R_Clear ();
+	VR_ProfileEnd (); // QVR
 	VR_DrawHiddenArea (); // QVR: the lenses' hidden area, skipped by what follows
 
 	Fog_EnableGFog (); //johnfitz
+	VR_ProfileEnd (); // QVR
 
+	VR_ProfileBegin ("sound mix"); // QVR: profile
 	S_ExtraUpdate (); // don't let sound get messed up if going slow
+	VR_ProfileEnd (); // QVR
 
 	R_DrawEntitiesOnList (false); //johnfitz -- false means this is the pass for nonalpha entities
 
@@ -2103,11 +2109,15 @@ void R_RenderScene (void)
 	R_EndTranslucency ();
 	VR_ProfileEnd (); // QVR
 
+	VR_ProfileBeginGPU ("heat haze"); // QVR: profile
 	VR_DrawHeatHaze (); // QVR: the air shimmering over lava, round explosions and flames (vr/vr_haze.cpp)
+	VR_ProfileEnd (); // QVR
 
 	VR_DrawSceneTranslucent (); // QVR: particles
 
+	VR_ProfileBeginGPU ("view model"); // QVR: profile
 	R_DrawViewModel (); //johnfitz -- moved here from R_RenderView -- il8r -- moved for oit reasons
+	VR_ProfileEnd (); // QVR
 
 	R_ShowTris (); //johnfitz
 

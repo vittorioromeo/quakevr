@@ -1912,7 +1912,17 @@ This is called at the start of each level
 ================
 */
 extern float		scr_centertime_off;
+static void SV_SpawnServerRun (const char *server);
+
+// QVR: a map's load, a scope of its own for the profiler (its hitch log).
 void SV_SpawnServer (const char *server)
+{
+	VR_ProfileBegin ("map spawn");
+	SV_SpawnServerRun (server);
+	VR_ProfileEnd ();
+}
+
+static void SV_SpawnServerRun (const char *server)
 {
 	static char	dummy[8] = { 0,0,0,0,0,0,0,0 };
 	edict_t		*ent;

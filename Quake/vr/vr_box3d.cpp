@@ -2934,3 +2934,25 @@ extern "C" void VR_PhysicsFrameEnd(void)
     }
     callShocks();
 }
+
+namespace qvr::box3d
+{
+
+// The profiler's counts (vr_profile_report), read at a frame's end while it collects.
+void profileCounts(int& bodies, int& awake, int& contacts)
+{
+    bodies = awake = contacts = 0;
+    if(!world)
+    {
+        return;
+    }
+    const b3Counters c = b3World_GetCounters(world->id);
+    bodies = c.bodyCount;
+    awake = b3World_GetAwakeBodyCount(world->id);
+    for(const int n : c.colorCounts) // the solver's constraints: the touching contacts of awake bodies (and joints)
+    {
+        contacts += n;
+    }
+}
+
+} // namespace qvr::box3d

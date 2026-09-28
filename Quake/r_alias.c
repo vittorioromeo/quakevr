@@ -392,6 +392,7 @@ void R_FlushAliasInstances (qboolean showtris)
 
 	ibuf_size = sizeof (ibuf.global) + sizeof (ibuf.inst[0]) * ibuf.count;
 	GL_Upload (GL_SHADER_STORAGE_BUFFER, &ibuf.global, ibuf_size, &buf, &ofs);
+	vr_profcounts.aliasdrawn += ibuf.count; // QVR: profile
 
 	numvrbones = poseverttype == PV_IQM ? VR_AliasBonePoses (ibuf.ent, &vrbones) : 0; // QVR
 	if (numvrbones) // QVR

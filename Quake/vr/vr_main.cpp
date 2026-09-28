@@ -701,6 +701,7 @@ MemLog memLog;
 
 void writeMemLogRow(const char* reason)
 {
+    QVR_PROFILE("memory log"); // (counting the GL objects: about 12 ms, the profiler's hitch log shows)
     const double seconds = realtime - memLog.lastTime;
     const int frames = host_framecount - memLog.lastFrames;
     memLog.lastTime = realtime;
@@ -1012,6 +1013,7 @@ extern "C" void VR_BeginFrame()
     profile::begin("xr wait", false); // the runtime's pacing (xrWaitFrame) and the tracking
     const bool began = !state->backend || state->backend->beginFrame(state->tracking, state->frame);
     profile::end();
+    QVR_PROFILE("vr frame setup"); // the rest: the recorder, the texts queued anew, the input
     if(!began)
     {
         Con_Warning("VR: %s session lost\n", state->backend->name());
@@ -1031,7 +1033,7 @@ extern "C" void VR_BeginFrame()
     sightalign::frame(); // Align Sights to My Aim: its countdown, text and state
     bodycal::frame();    // Body Calibration: its steps, text, ghost and preview
     memLogFrame();
-    profile::overlay();  // vr_profile 2
+    profile::overlay();  // the profiler's panel (vr_profile_overlay)
     throwing::filterGrips(state->tracking); // the analog grip's release, before it becomes a key
     input::update(state->tracking.input); // releases held keys when VR is off
 

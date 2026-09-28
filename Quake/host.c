@@ -1237,12 +1237,14 @@ void _Host_Frame (double time)
 	AsyncQueue_Drain (&async_queue);
 
 // get new key events
+	VR_ProfileBegin ("input"); // QVR: profile
 	Key_UpdateForDest ();
 	IN_UpdateInputMode ();
 	Sys_SendKeyEvents ();
 
 // allow mice or other external controllers to add commands
 	IN_Commands ();
+	VR_ProfileEnd (); // QVR
 	VR_BeginFrame (); // QVR
 
 //check the stdin for commands (dedicated servers)
