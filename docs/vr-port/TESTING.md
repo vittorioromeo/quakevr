@@ -638,6 +638,14 @@ doing its poses is a take of raw tracking played alongside: `vr_motion_play <tak
 `vr_bodycal standing` in the same frame (the scratchpad's `bodycal/gentake.py` makes them); `vr_bodycal_print`
 prints the result. `vr_bodycal_refit <file>` fits a saved session (`quakevr/bodycal/`) again; `vr_bodycal_debug`
 prints the empty hands' wrists.
+Arms options and holster limits (ROUND21.md, "Arms options after body calibration; holster limits"): `cvarlist
+vr_bodycal_` and `cvarlist vr_body_tweak` show the measurements and the tweaks (typing `vr_bodycal_undo` runs Undo;
+list it instead). To test a config's migration, copy it over the worktree's `quakevr/ironwail.cfg` before the run (the
+kit puts the baseline back after); `developer 1` can't show it (the config runs first), the cvars can. `vr_debug_arm 1`
+in fixed `vr_mock_hand` poses compares arms between builds (the elbow's swing is eased over frames: 0.1 degrees between
+runs). A holster behind you: `vr_hip_offset_x -12` puts the right hip holster at `vr_mock_hand main 0.20 0.95 0.26`
+(-20: z 0.50); draw with `vr_weapon_grip_mode 0; +grabright; vr_mock_button main grip 1`, holster by going back there
+with `-grabright; vr_mock_button main grip 0` (grip mode 1 keeps the gun until the grip is pressed again). `vr_dumpview` lists the holstered guns' models.
 Body collisions (ROUND21.md, "Body collisions"): `vr_debug_body_collide 1` prints each contact's change (in, let
 go, clear: `body collide: t ... main weapon/other forearm: block -> pass (through 0.54, push 10.5 cm)`) and writes
 `body_collide_trace.txt` (the game directory): a line a frame while any is on, each hand's tracked place, its drawn

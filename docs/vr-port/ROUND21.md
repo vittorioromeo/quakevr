@@ -6943,3 +6943,142 @@ A test command: `vr_gadget_screen_dump [name]` writes the gadget screen's image 
 - [ ] Is it readable without lifting the wrist to your face? If not, say what you'd want bigger.
 - [ ] Counter Window Glow on (Counter-Attacks): the sword glows gold with embers after a parry, gone once the window
       closes or the counter lands. Keep it or leave it off.
+
+## Arms options after body calibration; holster limits
+
+Your notes (firing range): are the Arms and Pauldrons options applied on top of the calibration, or deprecated? Keep
+the useful ones and make them consistent. And: the upper and hip holsters' X stop at some point; you want to put them
+behind your hips and legs. Branch `agent/bodyopts`; scripts, logs and images in the scratchpad's `bodyopts/`.
+
+### What the options did after calibrating
+
+Apply wrote its measurements over the settings themselves: Upper Arm and Forearm (absolute cm), the Body page's
+Shoulders Back, Up and Width, and the Arms page's Shoulders Up and Shoulders Forward (degrees). So:
+- none of them was a tweak: after Apply they *were* the measurement, and moving one lost it;
+- your hand-tuned Shoulders Back (-0.04), Shoulders Up 20 and Forward 0 were overwritten, not kept;
+- Arm Length did nothing once both lengths were set, with nothing on the page saying so;
+- the two "Shoulders Up" (metres on the Body page, degrees on the Arms page) were different things with one name.
+
+Your saved config (`quakevr-iw/quakevr/ironwail.cfg`, 03:11) has not applied a calibration: it has no
+`vr_body_upper_arm` at all. Your five sessions in `quakevr/bodycal/` (10:32-10:36) are after it; whether you applied
+one isn't in the config. Both cases are migrated (below).
+
+### Now: measured, then your tweaks
+
+- **The measurements** have their own settings: `vr_bodycal_upper_arm`, `_forearm` (cm), `_shoulders_back`, `_up`,
+  `_out` (metres from the model's joints), `_shoulder_rise`, `_swing` (degrees). Only Apply (and Undo) writes them.
+  Calibrated = both lengths measured.
+- **The sliders are tweaks** on top (`vr_body_tweak_*`): the same units, 0 is "as measured". Uncalibrated, they go on
+  the default body: the model's arms times Arm Length, the shoulders 4 cm forward (round 21's shipped -0.04), rising 25
+  and swinging 20 degrees.
+- **Apply keeps your tweaks**, and the preview (Showing: New Measurements) shows them. The first Apply, from the default
+  body, sets them to 0: they were made for the default body, which the measurements replace. The page says which
+  ("Your tweaks stay on top" / "Apply sets your tweaks to 0"). Undo puts back measurements and tweaks exactly.
+- **The fit starts from the body as measured**, tweaks left out: what it measures doesn't depend on them (refitting a
+  session with and without tweaks: identical to the digit).
+
+| Option (page) | Before | Now | Why |
+|---|---|---|---|
+| Upper Arm, Forearm (Arms) | absolute cm, 0: model x Arm Length; Apply overwrote | **re-based**: tweak, `%+.1f cm`, 0 = measured (uncalibrated: the default arm) | a tweak on the measurement, in its unit |
+| Arm Length (Arms) | model's arms times this, silently unused once calibrated | **kept, shown only uncalibrated**; calibrated, a line says "not used (arms measured)" | the fallback for the uncalibrated; dead once measured |
+| Arm Stretch (Arms) | stretch before the shoulders reach; calibrated, after | **kept**, help says both | not measured; still acts (last resort when calibrated) |
+| Shoulder Reach (Arms) | metres the shoulder moves out | **kept** | not measured |
+| Shoulders Back, Up, Width (Body page) | absolute; Apply overwrote | **re-based and moved** to Arms > Shoulders: Shoulders Back / Higher / Wider, `%+.3f m`, 0 = measured | measured with the arms; "Up" was a name clash |
+| Shoulders Up, Forward, degrees (Arms) | absolute; Apply overwrote | **re-based**: Shoulder Rise / Swing, `%+.0f deg`, 0 = measured (uncalibrated: 25 / 20) | measured |
+| Reset Tweaks (Arms, new) | | the seven tweaks to 0 | back to the measurement in one step |
+| Forearm Twist, Wrist Limits, Elbow Out, Back, From Hand | | **kept**, under "Elbows and Wrists (not measured)"; elbow help added | not measured |
+| Pauldrons (all seven) | | **kept** | offsets from the shoulder joint, which follows the measurement |
+| Torso Offset, Legs Offset, Eyes Forward/Up, Crouch Tilt (Body) | | **kept** | not measured (the calibration reads the eyes and torso) |
+
+Nothing was removed: every option still acts somewhere, and the only one that is dead when calibrated (Arm Length) is
+replaced by a line saying so.
+
+### Migration: the same look
+
+- **Round 21's settings** (`vr_body_upper_arm`, `_forearm`, `_shoulders_back/_up/_out`, `_shoulder_up`, `_forward`)
+  are still registered but not saved. A config's are moved after it runs (`bodycal::migrate`, from
+  `vr_migrate_config`), and so are ones typed in the console (once a frame):
+  - a length set is measured; with both, the shoulders' values are measurements too (Apply wrote them), tweaks 0;
+  - otherwise each is a tweak on the default body: yours become Shoulders Back 0 (-0.04 - -0.04), Shoulder Rise -5
+    (20 - 25), Shoulder Swing -20 (0 - 20): the same shoulders.
+- **A saved Undo** in the old names becomes the new ones: Undo after the migration gives your pre-calibration body.
+- **Found on the way:** the Undo never survived a restart. `vr_bodycal_undo` is both the cvar and the Undo command,
+  and a command runs before a cvar is set: the config's line ran Undo (with nothing to undo) instead of setting it.
+  With an argument the command now sets the cvar.
+- `vr_bodycal_*` and `vr_body_tweak_*` are personal: `vr_savedefaults` leaves them out. `vr_defaults.cfg` loses
+  `vr_body_shoulders_back -0.04` (it is the default body's base now).
+
+### Holster limits
+
+- **The clamp:** with the body drawn, a hip or upper holster was pushed forward onto the body's front
+  (`vr_body.cpp`, `onTheBody`): any X behind the front was set to the front. For you: the hips stop at X 0.1 units
+  and the chest at 0.5; your -3.5 and -4.25 were already stopped there, so lowering them did nothing at all.
+- **The menu:** Hip X and Upper X already went past their bars (-50..50, extend to -200..200). No other clamp: no
+  maximum distance, the thigh follow and the holster's model resting on the body (within 4 units) don't block a place.
+- **Now:** X moves a holster on from its default's place on the front: forward, or back. Behind the front it goes
+  **round the body** (the torso's ring at the hips or chest, 1.5 units clear, straight out from the spine): round the
+  hips or ribs to the back, never into the body; past the back, on behind it. The purpose of the old push (not inside
+  the body, the default visible over the chest) is kept, without stopping the holster.
+- **The plate** (the holster's model and its gun) faces the body's surface where it is, the back too (it faced forward
+  for anything behind the spine). The orientation sliders (Pitch, Yaw, Roll) turn it from there as before.
+- **Your config:** your X are the defaults, so nothing moves. A config whose X was stopped keeps its place
+  (`vr_cfg_version` 15, `body::migrateHolsters`: the X that puts it where it was); a further forward one keeps its
+  distance from the front. Without the body (or its anchors) X is as before.
+- **Found on the way:** a first start (no saved config) saved `vr_cfg_version 0`, so the next start re-ran every
+  migration on the new player's settings (the melee speeds reset, for one). `cmd.c` now stamps the version when there
+  is no config to exec.
+
+### Checks (mock headset, your config; `bodyopts/`)
+
+- **Same arms:** `vr_debug_arm 1` in four poses (relaxed, reach, up with a T, far forward) and the body preview, before
+  (vr-cleanup) and after, with your config as saved and with it as Apply would have left it (your last session's
+  numbers written in the old names, and its Undo): every number identical, both builds merged with the round's
+  latest vr-cleanup (`m_before_*`, `m_after_*`). The one line that ever differed (an elbow swing 16.0 against 15.9
+  degrees) differs as much between two runs of the same build: that swing is eased over frames. The images differ only
+  in the lava's flicker.
+- **The migration:** your config gives `vr_body_tweak_shoulder_rise -5`, `_swing -20`, the rest 0, nothing measured;
+  the calibrated one gives the seven measurements and zero tweaks, and its Undo, run, gives your config's body back.
+- **Apply:** `vr_bodycal_refit` of your last session, Apply from your config: the page says "Apply sets your tweaks to
+  0", and they are. Then tweaks (Upper Arm +1.5, Rise +3), refit, Apply: the page says they stay, and they do; the
+  Undo string holds the measurements and tweaks from before.
+- **Every slider acts** (the right arm's shoulder and elbow, units, in three or four poses; `sliders.py`):
+
+| Slider | Uncalibrated | Calibrated |
+|---|---|---|
+| Upper Arm +4 cm | 6.7 5.1 3.9 | 4.9 5.1 1.5 |
+| Forearm +4 cm | 6.5 0 0.5 | 4.3 0 2.2 |
+| Arm Length 1.1 | 15.7 8.4 8.5 | 0.1 0 0 (not used, hidden) |
+| Arm Stretch 1 | 1.7 5.0 4.2 | 0.1 7.0 4.4 |
+| Shoulder Reach 0.2 | 0 10.0 3.9 | 0.1 10.0 7.4 |
+| Shoulders Back / Higher / Wider +0.04 | 4.0 each | 8.7 / 4.0 / 4.0 |
+| Shoulder Rise +15 | 0 0 4.7 (up only) | 1.1 1.3 3.9 |
+| Shoulder Swing +15 | 9.4 9.4 3.3 | 4.2 4.2 2.0 |
+| Wrist Limits 0 | 0 0 0.1 | 2.7 0 0.1 |
+| Elbow Out / Back / From Hand (Wrist Limits 0, a bent arm) | 5.0 / 3.0 / 4.7 | 12.5 / 2.3 / 11.6 |
+
+  (Uncalibrated, your arms (Arm Length 0.86) are straight in the reaching poses, so the elbow sliders act only with
+  the arm bent.) Forearm Twist and the pauldrons weren't touched and don't depend on the calibration.
+- **Holsters behind:** hip and upper X at -3.5, -8, -12 and -20 from the side (`side_x.png`): the hip holsters go
+  from the belly round the hip to behind the leg, and at -20 hang behind the back. At X -12 (hip and upper) and -20
+  (hip): the right hand at the holster behind you, grip: the gun is drawn and held in front; back there, let go: the
+  hand is empty, and at -20 the shotgun's model is in the right hip holster, about 12 units behind your head
+  (`hip_m12.png`, `upper_m12.png`, `hip_m20.png`, `vr_dumpview`). The upper holster at -12 took the hip's gun.
+- **The menu:** `menu_final_zoom.png` (Arms and Pauldrons calibrated, the Body page), `menu_uncal.png`.
+
+### Not verified
+
+- **Your real calibration:** your saved config hasn't applied one; the calibrated case is your last session's result
+  written as Apply writes it.
+- **Holsters in the headset:** reaching behind you for real, and how far behind is comfortable. The torso's ring is
+  the model's belly and chest (an ellipse), not the drawn mesh: a holster at the side of the hips may sit a little off
+  the drawn surface.
+- **A holster behind the back** (X past about -10 at the hips) hangs in the air behind you: nothing stops it there, as
+  you asked.
+
+### In the headset
+
+- [ ] VR menu > Body > Arms and Pauldrons: the lines at the top say whether you are calibrated and what was measured.
+- [ ] Calibrate and Apply (the first time sets the tweaks to 0), then tweak Upper Arm or Shoulder Rise: the numbers
+      are what you add to the measurement. Calibrate again: your tweaks stay; Reset Tweaks clears them.
+- [ ] Hotspots > Hip X and Upper X: go negative. The holsters go round your hips and ribs to your back; reach back for
+      a gun and put it back there.
