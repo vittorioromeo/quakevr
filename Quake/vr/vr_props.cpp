@@ -79,12 +79,12 @@ void migrate()
         return;
     }
     const int from = static_cast<int>(vr_props_version.value);
-    // 26: the rocks and bricks lying about (vr_debris.cpp) have slots 20-28, which a config saved before has empty:
+    // 26: the rocks and bricks lying about (vr_debris.cpp) have slots 17-25 (vr_prop_*_18 to _26), which a config saved before has empty:
     // they take their defaults. A slot the config gave another model (Held Object Offsets) keeps it; that piece then
     // has the defaults of any prop (its mass still estimated, but no Blunt: it hits as a box).
     if(from < 26)
     {
-        for(int slot = 20; slot <= 28; slot++)
+        for(int slot = 17; slot <= 25; slot++)
         {
             if(freeId(cvarAt(slot, Key::ID).string))
             {

@@ -8796,7 +8796,7 @@ noticeable, so everything is placed at load and nothing pops in. (The defaults g
 - **Sounds** (`make_sounds.py`: `vr/rock1..3.wav`, a dense stone's thud with a tick and a scatter of grit;
   `vr/brick1..3.wav`, fired clay's brighter, hollower clack): Box3D's hits (`.vr_impact`: landing, knocked, thrown
   into a wall or a monster; not the player's hands or body) above 1.5 m/s, louder the harder, at most every 0.1 s.
-- **Held Object Offsets entries** (`vr_props.inc`, slots 20-28, apart from the other agents'): Blunt 0.8, Two Hands 0;
+- **Held Object Offsets entries** (`vr_props.inc`, slots 17-25, `vr_prop_*_18` to `_26`, after the torch's): Blunt 0.8, Two Hands 0;
   the whole, chipped and broken bricks Grip Mode 1 (Grip X 0.8, Z -1.6; the broken one X 0), Tip X 2.4 and Butt X
   -2.4 (the broken one 1.6); Mass left estimated (each piece's size differs). `vr_props_version` 26 gives a config saved before its empty slots'
   new defaults (a slot a config gave another model keeps it; that piece then hits as a box).
