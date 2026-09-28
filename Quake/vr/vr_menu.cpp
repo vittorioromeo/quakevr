@@ -576,6 +576,18 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("Holsters, the virtual stock and hand collisions follow the body's lean and crouch."),
         slider("Hip Holsters Follow Legs", vr_holster_leg_follow, 0.f, 1.f, 0.05f, "%.2f")
             .help("Full body: the hip holsters move with the walking and kicking legs (0: fixed on the body, 1: all the way)."),
+        header("Body Collisions"),
+        toggle("Body Collisions", vr_body_collide)
+            .help("Your hands and the weapons in them stop at your other hand, your other arm, the wrist gadget and your "
+                  "body instead of passing through them. Push on and they pass through (Pass Through At). Drawn only: "
+                  "hits, shots, aim and grabs are still where your hands are."),
+        slider("Pass Through At", vr_body_collide_pass, 0.3f, 1.f, 0.05f, "%.2f").extend(0.05f, 1.f)
+            .help("How far through what stops it your hand or weapon must be pushed before it lets go and passes "
+                  "through: 0.7, seven tenths of the way (and held out at most 10.5 cm); 1, only once all the way through. It "
+                  "stops again once clear."),
+        toggle("Elbows Out of the Torso", vr_body_collide_elbows)
+            .help("With Body Collisions: an elbow that would go into your torso (a hand across your chest) swings out "
+                  "round the line from the shoulder to the wrist."),
         header("Placement"),
         slider("Torso Offset", vr_body_torso_back, -0.2f, 0.4f, 0.01f, "%.2f m").extend(-1.f, 1.f)
             .help("How far the torso sits behind your neck (negative: in front)."),
