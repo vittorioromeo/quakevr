@@ -4338,8 +4338,12 @@ qboolean reloadMatch(const char* name, void* ctx)
     {
         const char* base = strrchr(name, '/');
         base = base ? base + 1 : name;
-        yes = !q_strncasecmp(name, "progs/", 6) &&
-              (!q_strncasecmp(base, "v_", 2) || !q_strncasecmp(base, "vrbody", 6) || !q_strncasecmp(base, "vrgadget", 8));
+        // The models the Blender add-on edits (docs/vr-port/MODELS_IN_BLENDER.md).
+        static constexpr const char* prefixes[] = {"v_", "vrbody", "vrgadget", "vrflashlight", "vrpauldron", "legholster",
+            "vr_shell", "wpnbutton", "hand_base", "finger_"};
+        yes = !q_strncasecmp(name, "progs/", 6) && std::any_of(std::begin(prefixes), std::end(prefixes), [&](const char* p) {
+            return !q_strncasecmp(base, p, strlen(p));
+        });
     }
     else
     {
@@ -4379,6 +4383,7 @@ void modelReload_f()
     modelcollide::reset();
     weapons::resetCaches();
     avatar::reset();
+    flashlight::onModelsReloaded(std::find(m.done.begin(), m.done.end(), "progs/vrflashlight.mdl") != m.done.end());
     // Each model named, or (all of them) one line, and the body's check.
     const bool each = !m.names.empty();
     bool body = false;
