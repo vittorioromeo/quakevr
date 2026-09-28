@@ -67,7 +67,8 @@ renderer notes; Unity HDRP/URP docs; Ironwail issue #329; Hexenwail issues #78 a
     - doors, lifts and platforms (`glvert_t` positions from Ironwail's brush vertex buffer, one small depth-only
       shader);
     - monsters and items, through Ironwail's own alias renderer with the face's view-projection and frustum.
-  - The light's own entity (a rocket) and your hands and gun don't cast. Faces whose cone can't reach the view
+  - The light's own entity (a rocket) doesn't cast. Your body, hands and guns do (`vr_shadow_self`, since the
+    flashlight shadows in round 21), except from your own lights (muzzle flashes, powerup glows). Faces whose cone can't reach the view
     are skipped.
   - When the atlas is full, everything is halved and repacked, as in DarkPlaces.
 - **Map lights' shadows of moving things** (`vr_shadow_maplights`, 2). The light entities near you (reaching near
@@ -106,7 +107,7 @@ renderer notes; Unity HDRP/URP docs; Ironwail issue #329; Hexenwail issues #78 a
 | `vr_shadow_maplights` | 2 | map lights casting the shadows of moving things (0 off) |
 | `vr_shadow_maplight_size` | 512 | their face size |
 | `vr_shadow_maplight_strength` | 0.7 | how dark those shadows get |
-| `vr_shadow_self` | 2 | your shadow from map lights: 0 none, 1 body, 2 body and hands |
+| `vr_shadow_self` | 2 | your shadow from map lights and dynamic lights (the flashlight): 0 none, 1 body, 2 body, hands and guns |
 | `vr_shadow_filter` | 1 | 0 hard … 3 softest |
 | `vr_shadow_bias` | 1 | acne vs. peter-panning |
 | `vr_shadow_distance` | 1536 | lights farther away cast none |
@@ -385,8 +386,8 @@ Now it is lit as games light torches, with no traces:
 - **Its shadow** (`vr_flashlight_shadows`, on by default): one square tile in the shadow atlas, a perspective
   projection round the cone (tangent of 22 degrees and 6% more), twice a cube face's size (1024 at Medium, at most
   2048): a third of a point light's texels at four times its angular resolution. Its casters are those within the
-  cone's bounding sphere (the world by the BSP, doors and lifts, monsters and items; not your own body, hands or
-  gun). The lamp is at your eye, so it always ranks first among the shadowed lights.
+  cone's bounding sphere (the world by the BSP, doors and lifts, monsters and items; since round 21 also your
+  hands, guns, body and the torch itself: `vr_shadow_self`, ROUND21.md "Flashlight shadows, cord and hand-over"). The lamp is at your eye, so it always ranks first among the shadowed lights.
 - A faint **spill** (a tenth, half the range, out to 45 degrees, unshadowed), as a torch's reflector gives round the
   hotspot, and a faint glow just in front of the lamp (half a metre).
 

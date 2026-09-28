@@ -350,27 +350,42 @@ void collectBrushes(const glm::vec3& light, float radius, bool itemsOnly)
     }
 }
 
-// Models near the light: monsters, items, and (for map lights, vr_shadow_self) the player's own
-// body and hands. Not the light's own entity (a rocket), not see-through or shadowless ones.
-void collectAliases(const glm::vec3& light, float radius, int ownEntity, bool mapLight)
+// Models near the light: monsters, items, and (vr_shadow_self) the player's own body and hands: for map lights, and
+// for dynamic lights that are not the player's own (`self`: the flashlight, rockets, explosions; not your muzzle
+// flashes or powerup glows, which are inside or at the body). Not the light's own entity (a rocket), not see-through or
+// shadowless ones. The view entities are placed by the VR transforms (their offsets, the posed arms), which their
+// bounds don't include: they are tested with a wider sphere here and in each face (renderLight).
+float viewEntityReach(const entity_t* e)
+{
+    const glm::vec3 lo{e->model->mins[0], e->model->mins[1], e->model->mins[2]};
+    const glm::vec3 hi{e->model->maxs[0], e->model->maxs[1], e->model->maxs[2]};
+    return std::max(glm::length(lo), glm::length(hi)) * ENTSCALE_DECODE(e->scale) * 2.f + 16.f;
+}
+
+void collectAliases(const glm::vec3& light, float radius, int ownEntity, bool self)
 {
     aliasCasters.clear();
-    const int self = static_cast<int>(vr_shadow_self.value);
+    const int selfCasters = self ? static_cast<int>(vr_shadow_self.value) : 0;
     for(int i = 0; i < cl_numvisedicts; i++)
     {
         entity_t* e = cl_visedicts[i];
         if(!e->model || e->model->type != mod_alias || (e->model->flags & MOD_NOSHADOW) || e->alpha != ENTALPHA_DEFAULT ||
-            e == &cl_entities[ownEntity] || !touches(e, light, radius))
+            e == &cl_entities[ownEntity])
         {
             continue;
         }
         if(VR_IsViewEntity(e))
         {
             const bool body = strstr(e->model->name, "vrbody") != nullptr;
-            if(!mapLight || self <= 0 || (self == 1 && !body))
+            if(selfCasters <= 0 || (selfCasters == 1 && !body) ||
+                glm::distance(glm::vec3{e->origin[0], e->origin[1], e->origin[2]}, light) > radius + viewEntityReach(e))
             {
                 continue;
             }
+        }
+        else if(!touches(e, light, radius))
+        {
+            continue;
         }
         aliasCasters.push_back(e);
     }
@@ -392,6 +407,18 @@ void drawIndices(const glm::mat4& mvp, size_t first, size_t count)
     GL_UniformMatrix4fvFunc(0, 1, GL_FALSE, &mvp[0][0]);
     glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(count), GL_UNSIGNED_INT,
         reinterpret_cast<const void*>(first * sizeof(uint32_t)));
+}
+
+bool sphereInView(const mplane_t planes[4], const float c[3], float r)
+{
+    for(int p = 0; p < 4; p++)
+    {
+        if(DotProduct(planes[p].normal, c) - planes[p].dist < -r)
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 // Whether a view (a light's face) can hold any of the moving casters: the brush casters (not culled
@@ -417,9 +444,13 @@ bool viewHasCasters(const glm::vec3& light, const ShadowView& view, float size, 
         const glm::vec3 lo{e->model->mins[0], e->model->mins[1], e->model->mins[2]};
         const glm::vec3 hi{e->model->maxs[0], e->model->maxs[1], e->model->maxs[2]};
         float r = std::max(glm::length(lo), glm::length(hi)) * ENTSCALE_DECODE(e->scale);
-        if((i < posed.size() && posed[i]) || VR_IsViewEntity(e))
+        if(posed.size() > i && posed[i])
         {
             r = std::max(r * 2.f, 96.f);
+        }
+        else if(VR_IsViewEntity(e))
+        {
+            r = viewEntityReach(e);
         }
         const glm::vec3 c{e->origin[0], e->origin[1], e->origin[2]};
         bool inside = true;
@@ -520,12 +551,14 @@ void renderLight(DepthTarget& target, const glm::vec3& light, float radius, cons
             viewFrustum(light, view, size, frustum);
             // Only the casters in this face: the alias renderer's own cull (R_CullModelForEntity, after
             // it has set the model up) would leave out the rest.
+            // The view entities (the hands, the guns) by a wider sphere (viewEntityReach).
             faceCasters.clear();
             for(size_t i = 0; i < aliasCasters.size(); i++)
             {
-                if(posed[i] || !R_CullModelForEntity(aliasCasters[i]))
+                entity_t* e = aliasCasters[i];
+                if(posed[i] || (VR_IsViewEntity(e) ? sphereInView(frustum, e->origin, viewEntityReach(e)) : !R_CullModelForEntity(e)))
                 {
-                    faceCasters.push_back(aliasCasters[i]);
+                    faceCasters.push_back(e);
                 }
             }
             if(!faceCasters.empty())
@@ -1110,7 +1143,7 @@ extern "C" void VR_RenderShadowMaps(void)
         collectWorld(cl.worldmodel->nodes, center, reach);
         const size_t worldCount = indices.size();
         collectBrushes(center, reach, false);
-        collectAliases(center, reach, l.key > 0 && l.key < cl.num_entities ? l.key : 0, false);
+        collectAliases(center, reach, l.key > 0 && l.key < cl.num_entities ? l.key : 0, l.key != cl.viewentity);
         profile::end();
         renderLight(atlas, p, l.radius, views, numViews, slot.size, worldCount, true, true);
     }

@@ -316,9 +316,12 @@ void update(const InputState& tracked)
                                                                      : flashlight::Button::Secondary;
                     if(flashlight::button(h, fb, now))
                     {
-                        if(flashlight::tookGrip(h))
+                        for(int g = 0; g < 2; g++) // (either hand: a release can pass the torch to the other one)
                         {
-                            keyEvent(buttonKeys[1].key[h], false); // the grip's key
+                            if(flashlight::tookGrip(g))
+                            {
+                                keyEvent(buttonKeys[1].key[g], false); // the grip's key
+                            }
                         }
                         continue;
                     }
