@@ -18,6 +18,7 @@
 #include "vr_handrig.hpp"
 #include "vr_grasp.hpp"
 #include "vr_held.hpp"
+#include "vr_ledges.hpp"
 #include "vr_lines.hpp"
 #include "vr_protocol.hpp"
 #include "vr_render.hpp"
@@ -4487,6 +4488,7 @@ extern "C" void VR_SetupViewEntities()
     {
         box3d::debugDraw();
     }
+    ledges::debugDraw(); // vr_debug_ledges
     if(vr_debug_hand_bones.value)
     {
         drawHandBones();

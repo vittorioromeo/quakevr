@@ -1,6 +1,7 @@
 // vr_server.cpp -- server side of the Quake VR protocol extensions (see vr_protocol.hpp).
 
 #include "vr_climb.hpp"
+#include "vr_ledges.hpp"
 #include "vr_move.hpp"
 #include "vr_motion.hpp"
 #include "vr_engine.hpp"
@@ -528,6 +529,7 @@ void init()
 {
     Cmd_AddCommand("vr_dumpplayer", dumpPlayer_f);
     climb::init();
+    ledges::init();
 }
 
 // Everything precached while loading is in the serverinfo that clients receive.

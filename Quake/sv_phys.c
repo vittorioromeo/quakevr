@@ -439,6 +439,7 @@ void SV_PushMove (edict_t *pusher, float movetime)
 {
 	int			i, e;
 	edict_t		*check, *block;
+	qboolean	hanging; // QVR
 	vec4_t		mins, maxs, move;
 	vec3_t		entorig, pushorig;
 	float		solid_backup;
@@ -490,8 +491,9 @@ void SV_PushMove (edict_t *pusher, float movetime)
 			continue;
 
 	// if the entity is standing on the pusher, it will definately be moved
+		hanging = VR_ClimbHangsFrom (check, pusher); // QVR: or hanging from it (vr_climb)
 		if ( ! ( ((int)check->v.flags & FL_ONGROUND)
-		&& PROG_TO_EDICT(check->v.groundentity) == pusher) )
+		&& PROG_TO_EDICT(check->v.groundentity) == pusher) && !hanging )
 		{
 #ifdef USE_SSE2
 			__m128 check_absmin_vec = _mm_loadu_ps (check->v.absmin);
@@ -544,6 +546,8 @@ void SV_PushMove (edict_t *pusher, float movetime)
 
 	// if it is still inside the pusher, block
 		block = SV_TestEntityPosition (check);
+		if (!block && hanging && VR_ClimbCarryBlocked (check, pusher, entorig, move)) // QVR: carried into something
+			block = qcvm->edicts;
 		if (block)
 		{	// fail the move
 			if (check->v.mins[0] == check->v.maxs[0])
@@ -613,6 +617,7 @@ void SV_PushMove (edict_t *pusher, float movetime)
 		}
 	}
 
+	VR_ClimbCarried (pusher, move); // QVR: the holds on it moved with it
 	Hunk_FreeToLowMark (mark); //johnfitz
 
 }

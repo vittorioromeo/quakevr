@@ -70,6 +70,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
+#include "vr_ledges.hpp"
 #include "vr_move.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
@@ -77,6 +78,7 @@
 #include "vr_units.hpp"
 
 #include <algorithm>
+#include <functional>
 #include <cmath>
 #include <optional>
 #include <vector>
@@ -100,12 +102,8 @@ constexpr int HS_RIGHT_UPPER_HOLSTER = 9;
 
 constexpr float surfaceAbove = 12.f;  // the hold's top may be this far above the hand (the hand sunk into it),
 constexpr float surfaceBelow = 10.f;  // or this far below it
-constexpr float handRoom = 8.f;       // clear space above the top for the hand
-constexpr float edgeReach = 16.f;     // the drop must be this close to the hand
-constexpr float edgeSlack = 6.f;      // a hand this far short of the edge still takes hold
-constexpr float minDrop = 32.f;       // and this deep (a stair step is not a ledge)
-constexpr float holdInset = 2.f;      // the hold (the palm's middle) is this far behind the edge,
-constexpr float holdLift = 1.f;       // and this far above the top
+constexpr float edgeSlack = 6.f;      // a hand this far in front of the face under a lip (that faces the body) takes hold
+using ledges::holdInset;              // the hold (the palm's middle) is this far behind the lip (vr_ledges.hpp)
 constexpr float regrabDelay = 0.4f;   // seconds without new holds after letting go of everything or mantling
 constexpr float maxHangSpeed = 500.f; // units / second the body follows the hands at
 constexpr float maxHangReach = 48.f;  // the body stays this close (horizontally) to each hold
@@ -115,7 +113,6 @@ constexpr float mantleTime = 0.3f;    // seconds the mantle takes
 constexpr float flingMax = 200.f;     // units / second the release flings at most,
 constexpr float flingMaxUp = 150.f;   // and upwards
 constexpr float statScale = 8.f;      // hold coordinates in the stats: eighths of a unit
-constexpr float lenientStep = 2.f;    // units at most between the lenient search's shells round the hand
 constexpr float reachFavour = 0.3f;   // a hold the hand moves (or reaches) towards counts as this much nearer
 constexpr float movingHand = 0.3f;    // m/s: a hand this fast reaches the way it moves (slower: from the head)
 constexpr float lenientReach = edgeSlack + holdInset; // a lenient hold is at most the leniency plus this from the hand
@@ -176,465 +173,512 @@ int traceCount = 0;
 
 struct Ledge
 {
-    float top{0.f};             // the surface's height
+    float top{0.f};             // the surface's height (at the hold)
     glm::vec3 out{0.f};         // horizontal, from the ledge towards the drop
     glm::vec3 hold{0.f};        // where the hand holds: on the edge's line (see the top of the file)
     edict_t* ent{nullptr};      // the brush model it belongs to (nullptr: the world)
+    const ledges::Map* map{nullptr}; // its ledge in the ledge map: the model's map, the ledge,
+    int edge{-1};
+    float t{0.f};                    // and the hold's place along it
 };
 
-// Whether the point `p` (just above the top) is over the top at `top` (not past its edge).
-[[nodiscard]] bool overTop(edict_t* player, const glm::vec3& p, float top)
+// Where a hand (in the ledge's model's space) is from the place it takes a hold on ledge `e` from (see the top of the
+// file: over the top within reach of the drop, or in front of the face under the lip).
+struct Place
 {
-    const trace_t t = traceLine(p, p - glm::vec3{0.f, 0.f, 5.f}, player);
-    return t.fraction < 1.f && t.endpos[2] >= top - 3.f;
-}
-
-// The drop from a top at `onTop` (a point just above it, where the hand is), the first way found (see findLedgeAt):
-// whether there is room above for the hand, and the edge found (the way, how far, the face under it). A function of
-// the point and the top alone (the way towards the body: the point's), kept for the lenient search's other points.
-struct Drop
-{
-    bool found{false};
-    glm::vec3 dir{0.f}; // the way the drop was found
-    float lo{0.f};      // the edge, this far that way
-    bool face{false};   // the face under the edge, square to it: its normal (horizontal) and a point on it
-    glm::vec3 n{0.f}, faceEnd{0.f};
+    float dist{0.f};        // how far from it (0: in it)
+    bool over{false};       // over the top (else in front of the face)
+    float top{0.f};         // the top's height at the hold
+    float facing{0.f};      // how much the lip faces the body (1: straight at it)
+    float t{0.f};           // the hold's place along the ledge
+    glm::vec3 hold{0.f};    // the hold
+    float holdDist{0.f};    // from the hand
+    glm::vec3 nearest{0.f}; // the place's point nearest the hand
 };
 
-struct DropMemo
+// `toBody`: from the hand to the body, horizontal (unit, or zero).
+[[nodiscard]] Place placeOf(const ledges::Map& m, const ledges::Edge& e, const glm::vec3& hand, const glm::vec2& toBody)
 {
-    float x, y, top;
-    Drop drop;
+    Place p;
+    const float raw = glm::dot(hand - e.a, e.dir);
+    p.t = std::clamp(raw, 0.f, e.len);
+    const glm::vec3 lip = e.point(p.t);
+    const ledges::Sample& s = m.sampleAt(e, p.t);
+    const glm::vec2 out{e.out};
+    p.facing = glm::dot(out, toBody);
+    // In from the lip as far as the top goes and the drop is within reach; out in front of it when it faces the body.
+    const float in = std::max(0.f, std::min(s.depth, ledges::edgeReach - s.dropOut));
+    const float front = p.facing > 0.f ? edgeSlack : 0.f;
+    const float across = glm::dot(glm::vec2{hand} - glm::vec2{lip}, out);
+    const float across1 = std::clamp(across, -in, front);
+    const glm::vec3 overAt = lip + e.out * std::min(across1, 0.f);
+    const float surface = e.topAt(overAt); // the top under the hand (the lip's height in front of it)
+    const float up = hand.z - surface;
+    const float up1 = std::clamp(up, -surfaceAbove, surfaceBelow);
+    const float da = raw - p.t, ds = across - across1, dz = up - up1;
+    p.dist = std::sqrt(da * da + ds * ds + dz * dz);
+    p.over = across <= 0.f;
+    p.hold = lip - e.out * ledges::holdInset;
+    p.top = e.topAt(p.hold);
+    p.hold.z = p.top + ledges::holdLift;
+    p.holdDist = glm::distance(p.hold, hand);
+    p.nearest = lip + e.out * across1;
+    p.nearest.z = surface + up1;
+    return p;
+}
+
+// Of two ledges a hand is at (their places, from the same point), whether `a` is the one it takes: over the top before
+// in front of a face, the higher top (a rung above before the one below), the lip facing the body more (a rung's front,
+// not its end; the near side of a thin wall), the nearer hold.
+[[nodiscard]] bool takenBefore(const Place& a, const Place& b)
+{
+    if(a.over != b.over)
+    {
+        return a.over;
+    }
+    if(std::abs(a.top - b.top) > 0.01f)
+    {
+        return a.top > b.top;
+    }
+    if(std::abs(a.facing - b.facing) > 1e-3f)
+    {
+        return a.facing > b.facing;
+    }
+    return a.holdDist < b.holdDist;
+}
+
+// A ledge near the hand: its model (`ent`, nullptr the world; at `offset`: the world is its space plus that), and the
+// hand's place from it.
+struct Candidate
+{
+    const ledges::Map* map{nullptr};
+    int edge{-1};
+    edict_t* ent{nullptr};
+    glm::vec3 offset{0.f};
+    Place place;
+
+    [[nodiscard]] const ledges::Edge& ledge() const
+    {
+        return map->edges[static_cast<size_t>(edge)];
+    }
+    [[nodiscard]] Ledge toLedge() const
+    {
+        Ledge l;
+        l.top = place.top + offset.z;
+        l.out = ledge().out;
+        l.hold = place.hold + offset;
+        l.ent = ent;
+        l.map = map;
+        l.edge = edge;
+        l.t = place.t;
+        return l;
+    }
 };
 
-// The lenient search's drops (its points' tops, found again from other points: the same top at the same place), and
-// the brush models near its points' drops (see findDrop).
-std::vector<DropMemo>* dropMemo = nullptr;
-const std::vector<edict_t*>* dropEnts = nullptr;
-
-[[nodiscard]] bool worldSolidAt(const glm::vec3& p)
+[[nodiscard]] glm::vec2 towardsBody(edict_t* player, const glm::vec3& hand)
 {
-    hull_t* hull = &sv.worldmodel->hulls[0];
-    vec3_t v{p.x, p.y, p.z};
-    return SV_HullPointContents(hull, hull->firstclipnode, v) == CONTENTS_SOLID;
+    const glm::vec2 d{player->v.origin[0] - hand.x, player->v.origin[1] - hand.y};
+    return glm::length(d) >= 1.f ? glm::normalize(d) : glm::vec2{0.f};
 }
 
-// Whether the drop's probes from `onTop` (the ways `dirs`) surely find no drop, told from the world's contents at
-// them alone (the lenient search, where most points are over floor or steps). With no brush model there and `onTop`
-// in the open, a probe in the world's solid ends its way (the line to it meets the wall), and a probe in the open over
-// solid `minDrop` + 2 down is no drop (its line down meets something); any other probe: not sure (false: search).
-[[nodiscard]] bool surelyNoDrop(const glm::vec3& onTop, const glm::vec3 (&dirs)[8])
+// What the search tried and turned down (vr_climb_try).
+struct LenientStats
 {
-    if(!dropEnts)
-    {
-        return false;
-    }
-    const glm::vec3 mins = onTop - glm::vec3{edgeReach + 1.f, edgeReach + 1.f, minDrop + 3.f},
-                    maxs = onTop + glm::vec3{edgeReach + 1.f, edgeReach + 1.f, handRoom + 1.f};
-    for(const edict_t* e : *dropEnts)
-    {
-        if(mins.x <= e->v.absmax[0] && mins.y <= e->v.absmax[1] && mins.z <= e->v.absmax[2] && maxs.x >= e->v.absmin[0] &&
-            maxs.y >= e->v.absmin[1] && maxs.z >= e->v.absmin[2])
-        {
-            return false;
-        }
-    }
-    if(worldSolidAt(onTop))
-    {
-        return false;
-    }
-    for(const glm::vec3& dir : dirs)
-    {
-        for(float r = 4.f; r <= edgeReach; r += 4.f)
-        {
-            const glm::vec3 p = onTop + dir * r;
-            if(worldSolidAt(p))
-            {
-                break;
-            }
-            if(!worldSolidAt(p - glm::vec3{0.f, 0.f, minDrop + 2.f}))
-            {
-                return false;
-            }
-        }
-    }
-    return true;
-}
+    int points{0}, found{0}, low{0}, below{0}, tooFar{0}, behind{0}, unseen{0}, covered{0}, hidden{0};
+};
 
-[[nodiscard]] Drop findDrop(edict_t* player, const glm::vec3& onTop, float top)
+// The ledges the hand at `hand` is within `radius` of being at (see the top of the file), in the world and the brush
+// models round it (`movers`: those, SOLID_BSP, their boxes near).
+void gather(edict_t* player, const glm::vec3& hand, float radius, std::vector<Candidate>& out, std::vector<edict_t*>& movers,
+    LenientStats& st)
 {
-    if(dropMemo)
-    {
-        for(const DropMemo& m : *dropMemo)
+    const glm::vec2 toBody = towardsBody(player, hand);
+    const glm::vec3 reach{radius + ledges::edgeReach + 1.f};
+    const glm::vec3 lo = hand - reach, hi = hand + reach;
+    static std::vector<int> nearby;
+    const auto from = [&](const ledges::Map& m, edict_t* ent, const glm::vec3& offset) {
+        nearby.clear();
+        m.nearby(lo - offset, hi - offset, nearby);
+        for(const int i : nearby)
         {
-            if(m.x == onTop.x && m.y == onTop.y && m.top == top)
+            st.points++;
+            const Place p = placeOf(m, m.edges[static_cast<size_t>(i)], hand - offset, toBody);
+            if(p.dist <= radius + 1e-3f)
             {
-                return m.drop;
+                out.push_back(Candidate{&m, i, ent, offset, p});
             }
         }
-    }
-    Drop drop;
-    const auto remember = [&] {
-        if(dropMemo)
-        {
-            dropMemo->push_back(DropMemo{onTop.x, onTop.y, top, drop});
-        }
-        return drop;
     };
-    // The drop: in eight directions, the first towards the body. A step down on the way is passed over.
-    const glm::vec3 toBody = vec(player->v.origin) - onTop;
-    const float bodyYaw = std::atan2(toBody.y, toBody.x);
-    constexpr float turns[8] = {0.f, 1.f, -1.f, 2.f, -2.f, 3.f, -3.f, 4.f};
-    glm::vec3 dirs[8];
-    for(int i = 0; i < 8; i++)
+    if(const ledges::Map* world = ledges::of(sv.worldmodel))
     {
-        const float yaw = bodyYaw + turns[i] * glm::radians(45.f);
-        dirs[i] = glm::vec3{std::cos(yaw), std::sin(yaw), 0.f};
+        from(*world, nullptr, glm::vec3{0.f});
     }
-    if(surelyNoDrop(onTop, dirs))
+    static std::vector<edict_t*> list;
+    list.resize(static_cast<size_t>(std::max(1, qcvm->num_edicts)));
+    int count = 0;
+    vec3_t mins{lo.x, lo.y, lo.z}, maxs{hi.x, hi.y, hi.z};
+    SV_AreaEdicts(mins, maxs, list.data(), &count, static_cast<int>(list.size()));
+    for(int i = 0; i < count; i++)
     {
-        return remember();
-    }
-    if(traceLine(onTop, onTop + glm::vec3{0.f, 0.f, handRoom}, player).fraction < 1.f)
-    {
-        return remember(); // no room for the hand
-    }
-    for(const glm::vec3& dir : dirs)
-    {
-        float lastOnTop = 0.f; // the furthest probe still over the top
-        for(float r = 4.f; r <= edgeReach; r += 4.f)
-        {
-            const glm::vec3 p = onTop + dir * r;
-            if(traceLine(onTop, p, player).fraction < 1.f)
-            {
-                break; // a wall
-            }
-            const trace_t fall = traceLine(p, p - glm::vec3{0.f, 0.f, minDrop + 2.f}, player);
-            if(fall.fraction < 1.f)
-            {
-                if(fall.endpos[2] >= top - 3.f)
-                {
-                    lastOnTop = r; // still the top
-                }
-                continue; // the top, or a step down
-            }
-            // The edge, between the last probe over the top and the next: found to a quarter of a unit.
-            float lo = lastOnTop, hi = lastOnTop + 4.f;
-            for(int i = 0; i < 4; i++)
-            {
-                const float mid = 0.5f * (lo + hi);
-                (overTop(player, onTop + dir * mid, top) ? lo : hi) = mid;
-            }
-            drop.found = true;
-            drop.dir = dir;
-            drop.lo = lo;
-            // The face under the edge, met from the drop.
-            const glm::vec3 edge = onTop + dir * lo;
-            const glm::vec3 below{edge.x, edge.y, top - 1.f};
-            const trace_t face = traceLine(below + dir * 4.f, below - dir * 4.f, player);
-            if(face.fraction < 1.f && !face.startsolid && std::abs(face.plane.normal[2]) < 0.3f)
-            {
-                const glm::vec3 n = glm::normalize(glm::vec3{face.plane.normal[0], face.plane.normal[1], 0.f});
-                if(glm::dot(n, dir) > 0.f)
-                {
-                    drop.face = true;
-                    drop.n = n;
-                    drop.faceEnd = vec(face.endpos);
-                }
-            }
-            return remember();
-        }
-    }
-    return remember();
-}
-
-// Whether the hand at `hand` is at a hold (see the top of the file); `along`: where the hand is along the edge (the
-// hand itself, when `hand` is a point looked from further on). `lenient` (the leniency's points): a top looked for from
-// above the point that starts in something (the next rung up) is looked for from the point itself. `along2`/`hold2`
-// (the lenient search): the hold for another point along the edge too (the same ledge: `along` only moves the hold
-// along it).
-[[nodiscard]] std::optional<Ledge> findLedgeAt(edict_t* player, const glm::vec3& hand, const glm::vec3& along, bool lenient,
-    const glm::vec3* along2 = nullptr, glm::vec3* hold2 = nullptr)
-{
-    trace_t down = traceLine(hand + glm::vec3{0.f, 0.f, surfaceAbove}, hand - glm::vec3{0.f, 0.f, surfaceBelow}, player);
-    if(lenient && down.startsolid && !traceLine(hand, hand, player).startsolid)
-    {
-        down = traceLine(hand, hand - glm::vec3{0.f, 0.f, surfaceBelow}, player);
-    }
-    if(down.startsolid || down.allsolid || down.fraction >= 1.f || down.plane.normal[2] < 0.7f)
-    {
-        return std::nullopt;
-    }
-
-    Ledge ledge;
-    ledge.top = down.endpos[2];
-    ledge.ent = down.ent && down.ent != qcvm->edicts ? down.ent : nullptr;
-
-    const glm::vec3 onTop{hand.x, hand.y, ledge.top + 2.f};
-    const Drop drop = findDrop(player, onTop, ledge.top);
-    if(!drop.found)
-    {
-        return std::nullopt;
-    }
-    // The edge's line: the face under it, met from the drop (its normal is the way out, square to the edge),
-    // however slanting the way the drop was found (a hand reaching aside: the out was that way, and the hold
-    // shifted along the edge); the hold is where the hand is along it. A face too slanted to tell (a slope):
-    // the way the drop was found.
-    ledge.out = drop.face ? drop.n : drop.dir;
-    const auto holdAt = [&](const glm::vec3& at) {
-        glm::vec3 edge = onTop + drop.dir * drop.lo;
-        if(drop.face)
-        {
-            const glm::vec3 from{at.x, at.y, onTop.z};
-            edge = from + drop.n * glm::dot(drop.faceEnd - from, drop.n);
-        }
-        glm::vec3 hold = edge - ledge.out * holdInset;
-        hold.z = ledge.top + holdLift;
-        return hold;
-    };
-    ledge.hold = holdAt(along);
-    if(hold2)
-    {
-        *hold2 = holdAt(along2 ? *along2 : along);
-    }
-    return ledge;
-}
-
-// A hand hovering just in front of the edge (there is nothing to stop it) counts: the ledge is
-// also looked for `edgeSlack` units further from the body.
-[[nodiscard]] std::optional<Ledge> findLedge(edict_t* player, const glm::vec3& hand, const glm::vec3& along, bool lenient = false,
-    const glm::vec3* along2 = nullptr, glm::vec3* hold2 = nullptr)
-{
-    if(std::optional<Ledge> ledge = findLedgeAt(player, hand, along, lenient, along2, hold2))
-    {
-        return ledge;
-    }
-    glm::vec3 away = hand - vec(player->v.origin);
-    away.z = 0.f;
-    if(!(glm::length(away) >= 1.f))
-    {
-        return std::nullopt;
-    }
-    // Just under the lip, against the face under it: the lip is looked for from as high as a hold may be above a hand.
-    for(const float lift : {0.f, 0.5f * surfaceAbove, surfaceAbove})
-    {
-        const glm::vec3 raised = hand + glm::vec3{0.f, 0.f, lift};
-        if(lift > 0.f && traceLine(hand, raised, player).fraction < 1.f)
-        {
-            break;
-        }
-        const glm::vec3 further = raised + glm::normalize(away) * edgeSlack;
-        if(traceLine(raised, further, player).fraction < 1.f)
+        edict_t* e = list[static_cast<size_t>(i)];
+        const int index = static_cast<int>(e->v.modelindex);
+        if(e == player || e->free || static_cast<int>(e->v.solid) != SOLID_BSP || index <= 0 || index >= MAX_MODELS)
         {
             continue;
         }
-        if(std::optional<Ledge> ledge = findLedgeAt(player, further, along, lenient, along2, hold2); ledge && ledge->top <= hand.z + surfaceAbove)
+        movers.push_back(e);
+        if(const ledges::Map* m = ledges::of(sv.models[index]))
         {
-            return ledge;
+            from(*m, e, vec(e->v.origin));
         }
     }
-    return std::nullopt;
 }
 
-[[nodiscard]] std::optional<Ledge> findLedge(edict_t* player, const glm::vec3& hand)
+enum class Check
 {
-    return findLedge(player, hand, hand);
-}
-
-// The 26 ways from a cube's middle to its faces, edges and corners (the lenient search's points on each shell).
-[[nodiscard]] const std::vector<glm::vec3>& shellDirections()
-{
-    static const std::vector<glm::vec3> dirs = [] {
-        std::vector<glm::vec3> d;
-        for(int x = -1; x <= 1; x++)
-        {
-            for(int y = -1; y <= 1; y++)
-            {
-                for(int z = -1; z <= 1; z++)
-                {
-                    if(x || y || z)
-                    {
-                        d.push_back(glm::normalize(glm::vec3{static_cast<float>(x), static_cast<float>(y), static_cast<float>(z)}));
-                    }
-                }
-            }
-        }
-        return d;
-    }();
-    return dirs;
-}
-
-// Whether anything a hand's probe (traceLine) meets may be in the box `mins`..`maxs`: the world's solid (its point
-// hull, exactly: the box against its planes), or the box of a brush model among `ents`. False: every line inside it
-// is clear.
-[[nodiscard]] bool hullBoxSolid(const hull_t* hull, int num, vec3_t mins, vec3_t maxs)
-{
-    while(num >= 0)
-    {
-        const mclipnode_t* node = hull->clipnodes + num;
-        const int side = BoxOnPlaneSide(mins, maxs, hull->planes + node->planenum);
-        if(side == 3 && hullBoxSolid(hull, node->children[0], mins, maxs))
-        {
-            return true;
-        }
-        num = node->children[side == 1 ? 0 : 1];
-    }
-    return num == CONTENTS_SOLID;
-}
-
-[[nodiscard]] bool maySolid(const glm::vec3& mins, const glm::vec3& maxs, const std::vector<edict_t*>& ents)
-{
-    for(const edict_t* e : ents)
-    {
-        if(mins.x <= e->v.absmax[0] && mins.y <= e->v.absmax[1] && mins.z <= e->v.absmax[2] && maxs.x >= e->v.absmin[0] &&
-            maxs.y >= e->v.absmin[1] && maxs.z >= e->v.absmin[2])
-        {
-            return true;
-        }
-    }
-    const hull_t* hull = &sv.worldmodel->hulls[0];
-    vec3_t mi{mins.x, mins.y, mins.z}, ma{maxs.x, maxs.y, maxs.z};
-    return hullBoxSolid(hull, hull->firstclipnode, mi, ma);
-}
-
-// The brush models (what a hand's probe meets besides the world) whose boxes reach into `mins`..`maxs`.
-[[nodiscard]] std::vector<edict_t*> brushModelsIn(const glm::vec3& mins, const glm::vec3& maxs, const edict_t* pass)
-{
-    std::vector<edict_t*> ents;
-    for(int i = 1; i < qcvm->num_edicts; i++)
-    {
-        edict_t* e = EDICT_NUM(i);
-        if(!e->free && e != pass && static_cast<int>(e->v.solid) == SOLID_BSP && mins.x <= e->v.absmax[0] && mins.y <= e->v.absmax[1] &&
-            mins.z <= e->v.absmax[2] && maxs.x >= e->v.absmin[0] && maxs.y >= e->v.absmin[1] && maxs.z >= e->v.absmin[2])
-        {
-            ents.push_back(e);
-        }
-    }
-    return ents;
-}
-
-// What the lenient search tried and turned down (vr_climb_try).
-struct LenientStats
-{
-    int points{0}, found{0}, low{0}, below{0}, tooFar{0}, behind{0}, unseen{0};
+    ok,
+    covered,   // no room over the hold, or no drop now (another model's solid: a door, the world round a plat)
+    unreached, // the top not reached from where the hand takes it (another solid over it; a wall between the hand and
+               // the lip)
+    unseen,    // (a lenient hold) not in sight of the hand
 };
 
-// Leniency (see the top of the file): the nearest hold the hand at `hand` would take from a point up to `radius` units
-// from it. `vel`: the hand's velocity (m/s); `headPos`: the head.
-[[nodiscard]] std::optional<Ledge> findLenient(edict_t* player, const glm::vec3& hand, const glm::vec3& vel,
-    const glm::vec3& headPos, float radius, LenientStats* stats = nullptr)
+// The checks made when a hold is taken (see the top of the file), with every model's solid (the ledge map has its own
+// model's only):
+// - the room over the hold (anything over it now, or a piece of the lip narrower than the map's samples) and the drop
+//   (now: for the world's ledges, only where a brush model is near; the world's own was found when the map was made);
+// - from `at`, where the hand takes it (the hand; for a lenient hold, the point of the place nearest it): over the top,
+//   a line from `surfaceAbove` over it down to the top, clear (nothing else over the top there: the hand may be sunk
+//   into the ledge, or under a rung); in front of the face, a line up from it to just over the top, and from there in
+//   over the lip (a hand under the lip reaches up past it; no fence between it and the face);
+// - a lenient hold: in sight of the hand (a line from it, or from the head for a hand inside a wall, to just over the
+//   lip: no grabbing through a wall).
+[[nodiscard]] Check check(edict_t* player, const Candidate& c, const glm::vec3& at, bool lenient, const glm::vec3& hand,
+    const glm::vec3& headPos, const std::vector<edict_t*>& movers)
+{
+    const ledges::Edge& e = c.ledge();
+    const glm::vec3 up{0.f, 0.f, 1.f};
+    const glm::vec3 hold = c.place.hold + c.offset;
+    const float top = c.place.top + c.offset.z;
+    const auto clear = [&](const glm::vec3& a, const glm::vec3& b) {
+        const trace_t t = traceLine(a, b, player);
+        return t.fraction >= 1.f && !t.startsolid;
+    };
+    const glm::vec3 onTop{hold.x, hold.y, top + 2.f};
+    if(!clear(onTop, onTop + up * ledges::handRoom))
+    {
+        return Check::covered;
+    }
+    if(c.ent || !movers.empty())
+    {
+        const glm::vec3 lip = e.point(c.place.t) + c.offset;
+        const glm::vec3 column = lip + e.out * c.map->sampleAt(e, c.place.t).dropOut;
+        if(!clear(column + up * 2.f, glm::vec3{column.x, column.y, lip.z - ledges::minDrop}))
+        {
+            return Check::covered;
+        }
+    }
+    if(c.place.over)
+    {
+        const float surface = e.topAt(at - c.offset) + c.offset.z;
+        if(!clear(glm::vec3{at.x, at.y, std::max(at.z + surfaceAbove, surface + 0.5f)}, glm::vec3{at.x, at.y, surface + 0.25f}))
+        {
+            return Check::unreached;
+        }
+    }
+    else
+    {
+        const glm::vec3 lip = e.point(c.place.t) + c.offset;
+        const glm::vec3 over{at.x, at.y, std::max(at.z, lip.z + 1.f)};
+        const glm::vec3 in = glm::vec3{lip.x, lip.y, over.z} - e.out * 1.f;
+        if((over.z > at.z && !clear(at, over)) || !clear(over, in))
+        {
+            return Check::unreached;
+        }
+    }
+    if(lenient)
+    {
+        const bool handInWall = traceLine(hand, hand, player).startsolid;
+        const glm::vec3 lip = glm::vec3{hold.x, hold.y, top + 1.f} + e.out * (ledges::holdInset + 1.f);
+        if(!clear(handInWall ? headPos : hand, lip))
+        {
+            return Check::unseen;
+        }
+    }
+    return Check::ok;
+}
+
+// A candidate's place (placeOf) as a box in a ledge's frame: along the ledge from its end `a`, across it (out), and
+// up from its lip's height; the place's depth in is taken where the hand's hold is (it varies along a ledge only where
+// the top does).
+struct Frame
+{
+    glm::vec3 origin, along, out;
+
+    [[nodiscard]] glm::vec3 to(const glm::vec3& p) const
+    {
+        const glm::vec3 d = p - origin;
+        return {glm::dot(d, along), glm::dot(d, out), d.z};
+    }
+    [[nodiscard]] glm::vec3 from(const glm::vec3& q) const
+    {
+        return origin + along * q.x + out * q.y + glm::vec3{0.f, 0.f, q.z};
+    }
+};
+
+struct Box
+{
+    glm::vec3 lo, hi;
+};
+
+[[nodiscard]] Frame frameOf(const Candidate& c)
+{
+    const ledges::Edge& e = c.ledge();
+    return Frame{e.a + c.offset, e.dir, e.out};
+}
+
+[[nodiscard]] Box boxOf(const Candidate& c)
+{
+    const ledges::Edge& e = c.ledge();
+    const ledges::Sample& s = c.map->sampleAt(e, c.place.t);
+    const float in = std::max(0.f, std::min(s.depth, ledges::edgeReach - s.dropOut));
+    return Box{{0.f, -in, -surfaceAbove}, {e.len, c.place.facing > 0.f ? edgeSlack : 0.f, surfaceBelow}};
+}
+
+// Where, of candidate `c`'s place, the hand at `hand` would take `c`'s ledge (no other ledge taken before it there,
+// takenBefore), nearest the hand: the place less the others' places that come first, as boxes in `c`'s frame (those
+// square or parallel to it: rungs above and below, a rung's front and its ends, a thin wall's two sides; any other is
+// only checked at the point found). False: nowhere.
+[[nodiscard]] bool freePoint(const Candidate& c, const std::vector<Candidate>& all, const glm::vec3& hand, const glm::vec2& toBody,
+    glm::vec3& point)
+{
+    const ledges::Edge& e = c.ledge();
+    const Frame f = frameOf(c);
+    const auto placeAt = [&](const Candidate& k, const glm::vec3& world) {
+        return placeOf(*k.map, k.ledge(), world - k.offset, toBody);
+    };
+    // Whether another ledge is taken before `c` at `world` (in its place).
+    const auto takenFirst = [&](const Candidate& k, const glm::vec3& world) {
+        const Place other = placeAt(k, world);
+        return other.dist <= 1e-3f && takenBefore(other, placeAt(c, world));
+    };
+    struct Blocker
+    {
+        Box box;
+        const Candidate* k;
+    };
+    std::vector<Blocker> blockers;
+    const bool flat = std::abs(e.dir.z) < 1e-3f;
+    if(flat)
+    {
+        for(const Candidate& k : all)
+        {
+            const ledges::Edge& ke = k.ledge();
+            const float cosine = std::abs(glm::dot(ke.dir, e.dir));
+            if(&k == &c || std::abs(ke.dir.z) >= 1e-3f || (cosine > 1e-3f && cosine < 1.f - 1e-3f))
+            {
+                continue;
+            }
+            const Frame kf = frameOf(k);
+            const Box kb = boxOf(k);
+            Box b{glm::vec3{1e9f}, glm::vec3{-1e9f}};
+            for(int i = 0; i < 8; i++)
+            {
+                const glm::vec3 corner{(i & 1) ? kb.hi.x : kb.lo.x, (i & 2) ? kb.hi.y : kb.lo.y, (i & 4) ? kb.hi.z : kb.lo.z};
+                const glm::vec3 q = f.to(kf.from(corner));
+                b.lo = glm::min(b.lo, q);
+                b.hi = glm::max(b.hi, q);
+            }
+            blockers.push_back(Blocker{b, &k});
+        }
+    }
+    const glm::vec3 h = f.to(hand);
+    float best = 1e30f;
+    bool found = false;
+    // The nearest point of `box` not in a blocker that comes first there: split round the first such blocker met.
+    const std::function<void(const Box&, int)> search = [&](const Box& box, int depth) {
+        const glm::vec3 p = glm::clamp(h, box.lo, box.hi);
+        const float d = glm::distance(p, h);
+        if(d >= best)
+        {
+            return;
+        }
+        const glm::vec3 world = f.from(p);
+        for(const Blocker& b : blockers)
+        {
+            const bool inside = p.x > b.box.lo.x - 1e-3f && p.x < b.box.hi.x + 1e-3f && p.y > b.box.lo.y - 1e-3f &&
+                                p.y < b.box.hi.y + 1e-3f && p.z > b.box.lo.z - 1e-3f && p.z < b.box.hi.z + 1e-3f;
+            if(!inside || !takenFirst(*b.k, world))
+            {
+                continue;
+            }
+            if(depth >= 4)
+            {
+                return;
+            }
+            for(int axis = 0; axis < 3; axis++)
+            {
+                Box below = box, above = box;
+                below.hi[axis] = std::min(box.hi[axis], b.box.lo[axis] - 2e-3f);
+                above.lo[axis] = std::max(box.lo[axis], b.box.hi[axis] + 2e-3f);
+                if(below.lo[axis] <= below.hi[axis])
+                {
+                    search(below, depth + 1);
+                }
+                if(above.lo[axis] <= above.hi[axis])
+                {
+                    search(above, depth + 1);
+                }
+            }
+            return;
+        }
+        // Free of the boxes: checked against every other ledge's place itself.
+        for(const Candidate& k : all)
+        {
+            if(&k != &c && takenFirst(k, world))
+            {
+                return;
+            }
+        }
+        best = d;
+        point = world;
+        found = true;
+    };
+    if(flat)
+    {
+        search(boxOf(c), 0);
+    }
+    else
+    {
+        // (a sloping lip: its place's point nearest the hand)
+        const glm::vec3 world = c.place.nearest + c.offset;
+        found = std::none_of(all.begin(), all.end(), [&](const Candidate& k) { return &k != &c && takenFirst(k, world); });
+        point = world;
+    }
+    return found;
+}
+
+// The hold a grip of the hand at `hand` takes (see the top of the file): one the hand is at, else (leniency, `radius`
+// units) the nearest it is within `radius` of being at. `vel`: the hand's velocity (m/s); `headPos`: the head.
+// `lenient`: whether the hold is a lenient one.
+[[nodiscard]] std::optional<Ledge> findHold(edict_t* player, const glm::vec3& hand, const glm::vec3& vel,
+    const glm::vec3& headPos, float radius, bool& lenient, LenientStats* stats = nullptr)
 {
     LenientStats st;
+    lenient = false;
+    static std::vector<Candidate> found;
+    static std::vector<edict_t*> movers;
+    found.clear();
+    movers.clear();
+    gather(player, hand, radius, found, movers, st);
     const float feet = player->v.origin[2] + player->v.mins[2];
+    const float lowest = feet + vr_climb_min_height.value;
+    const auto finish = [&](const Candidate* c) -> std::optional<Ledge> {
+        if(stats)
+        {
+            *stats = st;
+        }
+        return c ? std::optional<Ledge>{c->toLedge()} : std::nullopt;
+    };
+
+    // At a hold: the one taken first (takenBefore) of those it is at, that passes the checks.
+    static std::vector<const Candidate*> order;
+    order.clear();
+    for(const Candidate& c : found)
+    {
+        if(c.place.dist <= 1e-3f)
+        {
+            order.push_back(&c);
+        }
+    }
+    std::sort(order.begin(), order.end(), [](const Candidate* a, const Candidate* b) { return takenBefore(a->place, b->place); });
+    for(const Candidate* c : order)
+    {
+        if(c->place.top + c->offset.z < lowest)
+        {
+            st.low++;
+            continue; // too low for a hold (Lowest Ledge)
+        }
+        if(check(player, *c, hand, false, hand, headPos, movers) == Check::ok)
+        {
+            return finish(c);
+        }
+    }
+    if(radius <= 0.f)
+    {
+        return finish(nullptr);
+    }
+
+    // Leniency: the nearest of the others (a hold the hand moves or reaches towards counts as up to `reachFavour`
+    // nearer).
     glm::vec3 reach = glm::length(vel) > movingHand ? vel : hand - headPos;
     reach = glm::length(reach) > 1e-3f ? glm::normalize(reach) : glm::vec3{0.f};
     const glm::vec2 side{hand.x - headPos.x, hand.y - headPos.y}; // the hand's side of the head
-    const bool handInWall = traceLine(hand, hand, player).startsolid;
-    const glm::vec3 sight = handInWall ? headPos : hand;
-
-    std::optional<Ledge> best;
-    float bestScore = 0.f;
-    const int shells = std::max(1, static_cast<int>(std::ceil(radius / lenientStep - 1e-3f)));
-    // A point finds a ledge only through a line down, near it, that meets something (findLedge): from `surfaceAbove`
-    // over it (from as far over as `surfaceAbove` more, `edgeSlack` further from the body) to `surfaceBelow` under it.
-    // Nothing solid there: nothing to find (a point, or the whole search). `probeSlack`: the traces' own margin.
-    constexpr float probeSlack = 1.f;
-    const glm::vec3 slack{edgeSlack + probeSlack, edgeSlack + probeSlack, 0.f};
-    const glm::vec3 lowest{0.f, 0.f, surfaceBelow + probeSlack}, highest{0.f, 0.f, 2.f * surfaceAbove + probeSlack};
-    const glm::vec3 all{radius, radius, radius};
-    const glm::vec3 allMins = hand - all - slack - lowest, allMaxs = hand + all + slack + highest;
-    // The brush models near (their boxes: those near the points' drops too, see findDrop).
-    const std::vector<edict_t*> ents =
-        brushModelsIn(allMins - glm::vec3{edgeReach + 2.f, edgeReach + 2.f, minDrop + 4.f},
-            allMaxs + glm::vec3{edgeReach + 2.f, edgeReach + 2.f, handRoom + 4.f}, player);
-    const bool anything = maySolid(allMins, allMaxs, ents);
-    static std::vector<DropMemo> drops;
-    drops.clear();
-    dropMemo = &drops;
-    dropEnts = &ents;
-    const glm::vec3 lineSlack{probeSlack, probeSlack, 0.f};
-    for(int k = 1; k <= shells; k++)
+    const glm::vec2 toBody = towardsBody(player, hand);
+    struct Scored
     {
-        const float r = radius * static_cast<float>(k) / static_cast<float>(shells);
-        for(const glm::vec3& dir : shellDirections())
+        float score;
+        Candidate c;
+        glm::vec3 at;
+    };
+    static std::vector<Scored> scored;
+    scored.clear();
+    for(const Candidate& c : found)
+    {
+        if(c.place.dist <= 1e-3f)
         {
-            const glm::vec3 p = hand + dir * r;
-            st.points++;
-            if(!anything)
-            {
-                continue;
-            }
-            // The lines down at the point (findLedgeAt) and `edgeSlack` further from the body (findLedge's retry).
-            glm::vec3 away = p - vec(player->v.origin);
-            away.z = 0.f;
-            bool reached = maySolid(p - lineSlack - lowest, p + lineSlack + glm::vec3{0.f, 0.f, surfaceAbove + probeSlack}, ents);
-            if(!reached && glm::length(away) >= 1.f)
-            {
-                const glm::vec3 further = p + glm::normalize(away) * edgeSlack;
-                reached = maySolid(further - lineSlack - lowest, further + lineSlack + highest, ents);
-            }
-            if(!reached)
-            {
-                continue;
-            }
-            // The hold where the hand is along the edge; where that is off the ledge (past its end), where the point is
-            // (the same ledge, the hold moved along it).
-            glm::vec3 holdAtPoint;
-            std::optional<Ledge> l = findLedge(player, p, hand, true, &p, &holdAtPoint);
-            if(l && !overTop(player, l->hold, l->top))
-            {
-                l->hold = holdAtPoint;
-            }
-            if(!l)
-            {
-                continue;
-            }
-            st.found++;
-            if(l->top < feet + vr_climb_min_height.value)
-            {
-                st.low++;
-                continue; // too low for a hold (Lowest Ledge)
-            }
-            if(l->top < hand.z - surfaceBelow)
-            {
-                st.below++;
-                continue; // lower under the hand than a hold may be
-            }
-            const glm::vec3 d = l->hold - hand;
-            const float dist = glm::length(d);
-            if(dist > radius + lenientReach)
-            {
-                st.tooFar++;
-                continue; // further than a hold taken where the hand is, just short of it, plus the leniency
-            }
-            const glm::vec2 fromHead{l->hold.x - headPos.x, l->hold.y - headPos.y};
-            if(glm::length(side) >= 4.f && glm::dot(fromHead, side) < 0.f)
-            {
-                st.behind++;
-                continue; // behind the head, from the hand
-            }
-            const glm::vec3 lip = glm::vec3{l->hold.x, l->hold.y, l->top + 1.f} + l->out * (holdInset + 1.f);
-            const trace_t seen = traceLine(sight, lip, player);
-            if(seen.fraction < 1.f || seen.startsolid)
-            {
-                st.unseen++;
-                continue; // through a wall
-            }
-            const float score = dist * (1.f - reachFavour * (dist > 1e-3f ? glm::dot(d / dist, reach) : 0.f));
-            if(!best || score < bestScore)
-            {
-                best = l;
-                bestScore = score;
-            }
+            continue; // (at it: turned down above)
+        }
+        st.found++;
+        // Where in its place the hand would take it (not where another ledge comes first: the near side of a thin
+        // wall, a rung's front at its end, the rung above), nearest the hand; the hold is there along the ledge.
+        glm::vec3 at;
+        if(!freePoint(c, found, hand, toBody, at) || glm::distance(at, hand) > radius + 1e-3f)
+        {
+            st.hidden++;
+            continue;
+        }
+        Candidate taken = c;
+        taken.place = placeOf(*c.map, c.ledge(), at - c.offset, toBody);
+        const Ledge l = taken.toLedge();
+        if(l.top < lowest)
+        {
+            st.low++;
+            continue; // too low for a hold (Lowest Ledge)
+        }
+        if(l.top < hand.z - surfaceBelow)
+        {
+            st.below++;
+            continue; // lower under the hand than a hold may be
+        }
+        const glm::vec3 d = l.hold - hand;
+        const float dist = glm::length(d);
+        if(dist > radius + lenientReach)
+        {
+            st.tooFar++;
+            continue; // further than a hold taken at it, just short of it, plus the leniency
+        }
+        const glm::vec2 fromHead{l.hold.x - headPos.x, l.hold.y - headPos.y};
+        if(glm::length(side) >= 4.f && glm::dot(fromHead, side) < 0.f)
+        {
+            st.behind++;
+            continue; // behind the head, from the hand
+        }
+        const float score = dist * (1.f - reachFavour * (dist > 1e-3f ? glm::dot(d / dist, reach) : 0.f));
+        scored.push_back(Scored{score, taken, at});
+    }
+    std::sort(scored.begin(), scored.end(), [](const Scored& a, const Scored& b) { return a.score < b.score; });
+    for(const Scored& sc : scored)
+    {
+        switch(check(player, sc.c, sc.at, true, hand, headPos, movers))
+        {
+        case Check::ok: lenient = true; return finish(&sc.c);
+        case Check::covered: st.covered++; break;
+        case Check::unreached: st.covered++; break;
+        case Check::unseen: st.unseen++; break;
         }
     }
-    dropMemo = nullptr;
-    dropEnts = nullptr;
-    if(stats)
-    {
-        *stats = st;
-    }
-    return best;
+    return finish(nullptr);
 }
 
 [[nodiscard]] float leniencyUnits()
@@ -656,13 +700,10 @@ struct Grip
     bool ownedLastFrame{false};
     int serial{0};             // counts the holds taken (the client tells a new hold from the last)
     float allowed{0.f};        // how far the hold may be from the shoulder (the reach, or further if taken further)
-    // The mantle's search (findMantle), kept for the hold: the top's depth from the lip (topDepth; for the hold and top
-    // it was measured at), and the last search that found no room (not searched again, the body hanging still, until
-    // `mantleRetry`).
-    bool depthKnown{false};
-    float depth{0.f};
-    glm::vec3 depthHold{0.f}, depthOut{0.f};
-    float depthTop{0.f};
+    int entModel{0};           // its model (a hold lets go if it changes)
+    int mapGeneration{-1};     // ledge.map's (ledges::generation: the map is gone if it changed)
+    // The mantle's search (findMantle), kept for the hold: the last search that found no room (not searched again, the
+    // body hanging still, until `mantleRetry`).
     bool missed{false};
     double missTime{0.0};
     glm::vec3 missOrigin{0.f}, missHold{0.f}, missMins{0.f}, missMaxs{0.f};
@@ -675,6 +716,9 @@ struct Climber
     bool mantling{false};
     double mantleStart{0.0};
     glm::vec3 mantleFrom{0.f}, mantleMid{0.f}, mantleTo{0.f};
+    int mantleEnt{0};           // the brush model mantled onto (0: the world): the way follows it,
+    glm::vec3 mantleBase{0.f};  // from where it was at the start
+    glm::vec3 mantleShift{0.f}; // (how far it has moved since)
     double noGrabUntil{0.0};
     double lastTime{-1.0};
     bool pressedLastFrame[2]{false, false};
@@ -773,6 +817,17 @@ Climber climbers[MAX_SCOREBOARD];
 }
 
 // Where grip `g`'s hold is now: it moves with its brush model.
+// Grip `g`'s brush model while it can be held (there, solid, the same model), else nullptr.
+[[nodiscard]] edict_t* holdEntity(const Grip& g)
+{
+    if(g.entNum <= 0 || g.entNum >= qcvm->num_edicts)
+    {
+        return nullptr;
+    }
+    edict_t* e = EDICT_NUM(g.entNum);
+    return !e->free && static_cast<int>(e->v.solid) == SOLID_BSP && static_cast<int>(e->v.modelindex) == g.entModel ? e : nullptr;
+}
+
 [[nodiscard]] glm::vec3 holdNow(const Grip& g)
 {
     if(g.entNum <= 0 || g.entNum >= qcvm->num_edicts)
@@ -821,38 +876,33 @@ void letGoAll(Climber& c)
                       m2u;
 }
 
-// How deep grip `g`'s ledge's top is from its lip in (along the way in), up to `most` units. Measured once for the
-// hold where it is (kept in the grip).
-[[nodiscard]] float topDepth(edict_t* ent, Grip& g, float most)
+// How deep grip `g`'s ledge's top is from its lip in, `side` units along it from the hold (the ledge map's, up to
+// ledges::maxDepth); negative: not known there (past the ledge's end).
+[[nodiscard]] float depthAt(const Grip& g, float side)
 {
-    const glm::vec3 hold = holdNow(g);
-    const float top = topNow(g);
-    if(g.depthKnown && g.depthHold == hold && g.depthTop == top && g.depthOut == g.ledge.out)
+    if(!g.ledge.map || g.ledge.edge < 0 || g.mapGeneration != ledges::generation())
     {
-        return g.depth;
+        return -1.f;
     }
-    const glm::vec3 lip = hold + g.ledge.out * holdInset;
-    float depth = 0.f;
-    for(float d = 0.5f; d <= most; d += 1.f)
+    const ledges::Edge& e = g.ledge.map->edges[static_cast<size_t>(g.ledge.edge)];
+    const glm::vec3 along{-g.ledge.out.y, g.ledge.out.x, 0.f};
+    const float t = g.ledge.t + side * glm::dot(along, e.dir);
+    if(t < -1e-3f || t > e.len + 1e-3f)
     {
-        if(!overTop(ent, lip - g.ledge.out * d, top))
-        {
-            break;
-        }
-        depth = d + 0.5f;
+        return -1.f;
     }
-    g.depthKnown = true;
-    g.depth = depth;
-    g.depthHold = hold;
-    g.depthTop = top;
-    g.depthOut = g.ledge.out;
-    return depth;
+    return g.ledge.map->sampleAt(e, std::clamp(t, 0.f, e.len)).depth;
 }
 
 // The mantle: a spot on top of grip `g`'s ledge where the box fits, over floor, reachable straight up (or up and
 // along the edge a little, or up from a little further out) and then over: straight in from the hold, else along the edge (near a ledge's end, where
 // the box would stick out past it). 22 to 38 units in from the lip; else (a narrow top: a wall's, a beam's) over the
 // top's middle, or further out, the box's middle over the top.
+//
+// The ledge map gives the top's depth from the lip (the narrow top's spots), and whether a spot's middle is over the
+// top: then the box stands on it (the floor and footing below need no traces), and one sweep over from the top of the
+// way up (shared by the spots on that side) is all it takes. Elsewhere (a spot past the ledge's end, or in further
+// than the top goes, where the box may still stand on its back part) the traces as before.
 [[nodiscard]] bool findMantle(edict_t* ent, Grip& g, glm::vec3& mid, glm::vec3& to)
 {
     const glm::vec3 origin = vec(ent->v.origin);
@@ -896,30 +946,36 @@ void letGoAll(Climber& c)
         mid = upMid[s];
         const float side = sides[s];
         to = glm::vec3{lip.x, lip.y, z} - g.ledge.out * in + along * side;
-        if(tracePlayer(ent, to, to).startsolid)
+        // Over the top (the ledge map): it stands there; the sweep over (below) finds anything in the way or in the
+        // spot.
+        if(const float depth = depthAt(g, side); !(depth >= 0.f && in <= depth - 0.5f))
         {
-            return false;
-        }
-        if(traceBox(to, vec(ent->v.mins), vec(ent->v.maxs), to - glm::vec3{0.f, 0.f, 8.f}, MOVE_NOMONSTERS, ent).fraction >= 1.f)
-        {
-            return false; // nothing to stand on
-        }
-        // and not just its very edge (a box touching the far side of a narrow wall's top stood on nothing): the top
-        // under a point `minFooting` in from the box's sides, at least (the box traces are the hull's whole size).
-        bool footing = false;
-        for(int i = -1; i <= 1 && !footing; i++)
-        {
-            for(int j = -1; j <= 1 && !footing; j++)
+            if(tracePlayer(ent, to, to).startsolid)
             {
-                const glm::vec3 p = to + glm::vec3{i * (ent->v.maxs[0] - minFooting), j * (ent->v.maxs[1] - minFooting),
-                                             ent->v.mins[2] + 0.5f};
-                const trace_t down = traceLine(p, p - glm::vec3{0.f, 0.f, 8.5f}, ent);
-                footing = !down.startsolid && down.fraction < 1.f;
+                return false;
             }
-        }
-        if(!footing)
-        {
-            return false;
+            if(traceBox(to, vec(ent->v.mins), vec(ent->v.maxs), to - glm::vec3{0.f, 0.f, 8.f}, MOVE_NOMONSTERS, ent).fraction >= 1.f)
+            {
+                return false; // nothing to stand on
+            }
+            // and not just its very edge (a box touching the far side of a narrow wall's top stood on nothing): the
+            // top under a point `minFooting` in from the box's sides, at least (the box traces are the hull's whole
+            // size).
+            bool footing = false;
+            for(int i = -1; i <= 1 && !footing; i++)
+            {
+                for(int j = -1; j <= 1 && !footing; j++)
+                {
+                    const glm::vec3 p = to + glm::vec3{i * (ent->v.maxs[0] - minFooting), j * (ent->v.maxs[1] - minFooting),
+                                                 ent->v.mins[2] + 0.5f};
+                    const trace_t down = traceLine(p, p - glm::vec3{0.f, 0.f, 8.5f}, ent);
+                    footing = !down.startsolid && down.fraction < 1.f;
+                }
+            }
+            if(!footing)
+            {
+                return false;
+            }
         }
         return tracePlayer(ent, mid, to).fraction >= 1.f;
     };
@@ -945,7 +1001,7 @@ void letGoAll(Climber& c)
     }
     // A narrow top (at least `minFooting` deep): from over its middle outwards, the box's middle still over it (not
     // standing on its edge over the drop: a rung against a wall is no place to stand).
-    const float depth = topDepth(ent, g, 40.f);
+    const float depth = std::max(0.f, depthAt(g, 0.f));
     if(depth < minFooting)
     {
         return false;
@@ -1118,7 +1174,7 @@ extern "C" void VR_ClimbPreThink(edict_t* ent)
                          ent->v.health > 0.f;
 
     // Moved by something else (a teleporter, a respawn, setorigin), disabled, dead, noclipping, the
-    // hold's brush model gone: let go, and fall as whatever moved the body has it.
+    // hold's brush model gone (freed, not solid, another model): let go, and fall as whatever moved the body has it.
     bool forced = !enabled;
     if((c.hanging() || c.mantling) && !(glm::distance(vec(ent->v.origin), c.lastOrigin) <= 2.f)) // (a NaN: let go too)
     {
@@ -1130,8 +1186,12 @@ extern "C" void VR_ClimbPreThink(edict_t* ent)
     }
     for(const Grip& g : c.grips)
     {
-        if(g.active && g.entNum > 0 && (g.entNum >= qcvm->num_edicts || EDICT_NUM(g.entNum)->free))
+        if(g.active && g.entNum > 0 && !holdEntity(g))
         {
+            if(debug())
+            {
+                Con_Printf("climb: the hold's brush model is gone, letting go\n");
+            }
             forced = true;
         }
     }
@@ -1183,31 +1243,17 @@ extern "C" void VR_ClimbPreThink(edict_t* ent)
         }
 
         const glm::vec3 hand = move->hands[h].pos;
-        std::optional<Ledge> ledge = findLedge(ent, hand);
-        const float feet = ent->v.origin[2] + ent->v.mins[2];
-        if(ledge && ledge->top < feet + vr_climb_min_height.value)
+        const double t0 = Sys_DoubleTime();
+        LenientStats st;
+        const int traces0 = traceCount;
+        bool lenient = false;
+        const std::optional<Ledge> ledge = findHold(ent, hand, move->hands[h].throwVel, move->headPos, leniencyUnits(), lenient, &st);
+        if(debug() && vr_climb_debug.value >= 3.f)
         {
-            if(debug())
-            {
-                Con_Printf("climb: hold at %.1f too low (feet %.1f)\n", ledge->top, feet);
-            }
-            ledge.reset();
+            Con_Printf("climb: hold search: %d ledges looked at, %d traces in %.4f ms\n", st.points, traceCount - traces0,
+                (Sys_DoubleTime() - t0) * 1000.0);
         }
-        const char* how = "";
-        if(const float radius = leniencyUnits(); !ledge && radius > 0.f)
-        {
-            // Missed: the nearest hold round the hand (leniency).
-            const double t0 = Sys_DoubleTime();
-            LenientStats st;
-            const int traces0 = traceCount;
-            ledge = findLenient(ent, hand, move->hands[h].throwVel, move->headPos, radius, &st);
-            if(debug() && vr_climb_debug.value >= 3.f)
-            {
-                Con_Printf("climb: lenient search: %d points, %d traces in %.3f ms\n", st.points, traceCount - traces0,
-                    (Sys_DoubleTime() - t0) * 1000.0);
-            }
-            how = ledge ? ", lenient" : "";
-        }
+        const char* how = lenient ? ", lenient" : "";
         if(!ledge)
         {
             if(debug())
@@ -1220,13 +1266,15 @@ extern "C" void VR_ClimbPreThink(edict_t* ent)
         g.active = true;
         g.owned = true;
         g.serial++;
-        g.depthKnown = false;
         g.missed = false;
         g.hold = g.lastHold = ledge->hold;
         g.relAtGrab = g.lastRel = handRel(ent, *move, h);
         g.ledge = *ledge;
         g.entNum = ledge->ent ? NUM_FOR_EDICT(ledge->ent) : 0;
         g.entOrigin = ledge->ent ? vec(ledge->ent->v.origin) : glm::vec3{0.f};
+        g.entModel = ledge->ent ? static_cast<int>(ledge->ent->v.modelindex) : 0;
+        g.ledge.ent = nullptr; // (kept as its number: entNum)
+        g.mapGeneration = ledges::generation();
         g.allowed = std::max(armReach(), glm::distance(ledge->hold, shoulderOf(*move, h)));
         if(!hanging)
         {
@@ -1321,13 +1369,24 @@ extern "C" int VR_ClientClimb(edict_t* ent)
     const double time = qcvm->time;
     if(c.mantling)
     {
+        // Onto a brush model: the way moves with it (the push carries the body too: VR_ClimbCarried).
+        edict_t* onto = c.mantleEnt > 0 && c.mantleEnt < qcvm->num_edicts ? EDICT_NUM(c.mantleEnt) : nullptr;
+        if(onto && !onto->free && static_cast<int>(onto->v.solid) == SOLID_BSP)
+        {
+            c.mantleShift = vec(onto->v.origin) - c.mantleBase;
+        }
+        else
+        {
+            onto = nullptr;
+        }
         const float up = glm::distance(c.mantleFrom, c.mantleMid);
         const float over = glm::distance(c.mantleMid, c.mantleTo);
         const float t = CLAMP(0.f, static_cast<float>((time - c.mantleStart) / mantleTime), 1.f);
         const float along = t * (up + over);
-        const glm::vec3 pos = along <= up && up > 0.f
+        const glm::vec3 pos = (along <= up && up > 0.f
                                   ? glm::mix(c.mantleFrom, c.mantleMid, along / up)
-                                  : glm::mix(c.mantleMid, c.mantleTo, over > 0.f ? (along - up) / over : 1.f);
+                                  : glm::mix(c.mantleMid, c.mantleTo, over > 0.f ? (along - up) / over : 1.f)) +
+                              c.mantleShift;
         setVec(ent->v.origin, pos);
         setVec(ent->v.velocity, glm::vec3{0.f});
         ent->v.flags = static_cast<float>(static_cast<int>(ent->v.flags) & ~FL_ONGROUND);
@@ -1336,6 +1395,10 @@ extern "C" int VR_ClientClimb(edict_t* ent)
             c.mantling = false;
             c.noGrabUntil = time + regrabDelay;
             ent->v.flags = static_cast<float>(static_cast<int>(ent->v.flags) | FL_ONGROUND);
+            if(onto)
+            {
+                ent->v.groundentity = EDICT_TO_PROG(onto); // standing on it: it carries the body from now on
+            }
             if(debug())
             {
                 Con_Printf("climb: mantled onto (%.1f %.1f %.1f)\n", pos.x, pos.y, pos.z);
@@ -1595,6 +1658,9 @@ extern "C" int VR_ClientClimb(edict_t* ent)
         c.mantleFrom = vec(ent->v.origin);
         c.mantleMid = mid;
         c.mantleTo = to;
+        c.mantleEnt = g.entNum;
+        c.mantleBase = c.mantleEnt > 0 ? vec(EDICT_NUM(c.mantleEnt)->v.origin) : glm::vec3{0.f};
+        c.mantleShift = glm::vec3{0.f};
         c.grips[0].active = c.grips[1].active = false;
         c.owed = glm::vec3{0.f};
         if(debug())
@@ -1629,35 +1695,146 @@ extern "C" int VR_ClientClimb(edict_t* ent)
     return 1;
 }
 
+// SV_PushMove: whether `check` (a player) hangs from the brush model `pusher` or mantles onto it: it rides it then, as
+// one standing on it does (carried in the same push, exactly: the holds keep their place on it).
+extern "C" int VR_ClimbHangsFrom(edict_t* check, edict_t* pusher)
+{
+    const Climber* c = climberOf(check);
+    if(!c)
+    {
+        return 0;
+    }
+    const int num = NUM_FOR_EDICT(pusher);
+    return (c->grips[0].active && c->grips[0].entNum == num) || (c->grips[1].active && c->grips[1].entNum == num) ||
+           (c->mantling && c->mantleEnt == num);
+}
+
+// SV_PushMove, after moving `check` (hanging from `pusher`, VR_ClimbHangsFrom) from `from` by `move`: whether the ride
+// stopped short (the body carried into something) blocks the pusher (vr_climb_mover_crush 1: Quake's rules, as anything
+// in its way: its blocked function, a door or plat going back, a train's damage). Else (0) the hands on it let go (the
+// body stays where the push got it, and falls), or the mantle onto it stops.
+extern "C" int VR_ClimbCarryBlocked(edict_t* check, edict_t* pusher, const float* from, const float* move)
+{
+    Climber* cp = climberOf(check);
+    if(!cp)
+    {
+        return 0;
+    }
+    Climber& c = *cp;
+    const glm::vec3 wanted = vec(from) + vec(move);
+    if(glm::distance(vec(check->v.origin), wanted) <= 0.05f)
+    {
+        return 0;
+    }
+    if(vr_climb_mover_crush.value != 0.f)
+    {
+        if(debug())
+        {
+            Con_Printf("climb: carried into something: the mover is blocked\n");
+        }
+        return 1;
+    }
+    const int num = NUM_FOR_EDICT(pusher);
+    for(int h = 0; h < 2; h++)
+    {
+        Grip& g = c.grips[h];
+        if(g.active && g.entNum == num)
+        {
+            g.active = false;
+            server::sendHaptic(check, h, 0.f, 0.08f, 60.f, 0.5f);
+        }
+    }
+    if(c.mantling && c.mantleEnt == num)
+    {
+        c.mantling = false;
+    }
+    if(debug())
+    {
+        Con_Printf("climb: carried into something at (%.1f %.1f %.1f): lets go\n", check->v.origin[0], check->v.origin[1],
+            check->v.origin[2]);
+    }
+    c.lastOrigin = vec(check->v.origin);
+    if(!c.hanging() && !c.mantling)
+    {
+        letGoAll(c);
+        c.noGrabUntil = qcvm->time + regrabDelay;
+    }
+    return 0;
+}
+
+// SV_PushMove, when `pusher` has moved by `move` with what rides it: the holds on it moved with it, and the bodies
+// hanging from it with them (VR_ClientClimb's carry is only what the holds moved otherwise: a model moved by the QC).
+extern "C" void VR_ClimbCarried(edict_t* pusher, const float* move)
+{
+    const int num = NUM_FOR_EDICT(pusher);
+    const int clients = std::min(svs.maxclients, static_cast<int>(MAX_SCOREBOARD));
+    for(int i = 0; i < clients; i++)
+    {
+        Climber& c = climbers[i];
+        bool rides = c.mantling && c.mantleEnt == num;
+        for(Grip& g : c.grips)
+        {
+            if(g.active && g.entNum == num)
+            {
+                g.lastHold += vec(move);
+                rides = true;
+            }
+        }
+        if(rides)
+        {
+            c.lastOrigin = vec(EDICT_NUM(i + 1)->v.origin);
+        }
+    }
+}
+
 namespace
 {
 
-// vr_climb_probe [yaw]: the holds in front of the player, or towards `yaw` (debugging: where a hand could take hold).
+// vr_climb_probe [yaw]: the ledges in front of the player, or towards `yaw` (debugging: where a hand could take hold),
+// from 16 to 64 units ahead, from 16 to 128 over the feet.
 void probe(edict_t* ent, float yaw)
 {
-    vec3_t fwd, right, up;
-    vec3_t yawOnly{0.f, yaw, 0.f};
-    AngleVectors(yawOnly, fwd, right, up);
     const glm::vec3 origin = vec(ent->v.origin);
     const float feet = origin.z + ent->v.mins[2];
+    const glm::vec3 fwd{std::cos(glm::radians(yaw)), std::sin(glm::radians(yaw)), 0.f};
+    const glm::vec3 a = origin + fwd * 16.f, b = origin + fwd * 64.f;
+    const glm::vec3 mins{std::min(a.x, b.x) - 24.f, std::min(a.y, b.y) - 24.f, feet + 16.f};
+    const glm::vec3 maxs{std::max(a.x, b.x) + 24.f, std::max(a.y, b.y) + 24.f, feet + 128.f};
     int found = 0;
-    for(float d = 16.f; d <= 64.f && found < 12; d += 4.f)
-    {
-        for(float z = feet + 16.f; z <= feet + 128.f && found < 12; z += 4.f)
+    const auto list = [&](const ledges::Map& m, const glm::vec3& offset, int entNum) {
+        std::vector<int> nearby;
+        m.nearby(mins - offset, maxs - offset, nearby);
+        for(const int i : nearby)
         {
-            const glm::vec3 p{origin.x + fwd[0] * d, origin.y + fwd[1] * d, z};
-            if(const std::optional<Ledge> l = findLedge(ent, p))
+            const ledges::Edge& e = m.edges[static_cast<size_t>(i)];
+            const glm::vec3 p = e.a + offset, q = e.point(e.len) + offset;
+            const ledges::Sample& s = m.sampleAt(e, 0.5f * e.len);
+            Con_Printf("ledge%s: (%.1f %.1f %.1f) to (%.1f %.1f %.1f), %.0f above the feet, out (%.2f %.2f), the drop %.1f out, "
+                       "the top %.1f deep (its middle)\n",
+                entNum ? va(" on entity %d", entNum) : "", p.x, p.y, p.z, q.x, q.y, q.z, p.z - feet, e.out.x, e.out.y,
+                s.dropOut, s.depth);
+            found++;
+        }
+    };
+    if(const ledges::Map* w = ledges::of(sv.worldmodel))
+    {
+        list(*w, glm::vec3{0.f}, 0);
+    }
+    for(int i = 1; i < qcvm->num_edicts; i++)
+    {
+        edict_t* e = EDICT_NUM(i);
+        const int index = static_cast<int>(e->v.modelindex);
+        if(!e->free && static_cast<int>(e->v.solid) == SOLID_BSP && index > 0 && index < MAX_MODELS)
+        {
+            if(const ledges::Map* m = ledges::of(sv.models[index]))
             {
-                Con_Printf("hold: hand (%.0f %.0f %.0f) top %.1f (%.0f above the feet) out (%.2f %.2f) at (%.1f %.1f %.1f)\n",
-                    p.x, p.y, p.z, l->top, l->top - feet, l->out.x, l->out.y, l->hold.x, l->hold.y, l->hold.z);
-                found++;
-                z = l->top + surfaceBelow; // the next hold up
+                list(*m, vec(e->v.origin), i);
             }
         }
     }
     if(!found)
     {
-        Con_Printf("no hold within 64 units ahead\n");
+        Con_Printf("no ledge within 64 units ahead\n");
     }
 }
 
@@ -1680,36 +1857,26 @@ void try_f()
     const glm::vec3 head = move ? move->headPos : vec(ent->v.origin) + vec(ent->v.view_ofs);
     const glm::vec3 vel = Cmd_Argc() > 7 ? glm::vec3{Q_atof(Cmd_Argv(5)), Q_atof(Cmd_Argv(6)), Q_atof(Cmd_Argv(7))}
                           : move ? move->hands[h].throwVel : glm::vec3{0.f};
-    const float feet = ent->v.origin[2] + ent->v.mins[2];
-    std::optional<Ledge> l = findLedge(ent, hand);
-    const char* how = "exact";
-    if(l && l->top < feet + vr_climb_min_height.value)
-    {
-        l.reset();
-    }
     LenientStats st;
-    double ms = 0.0;
+    bool lenient = false;
     const int traces0 = traceCount;
-    if(!l && leniencyUnits() > 0.f)
-    {
-        const double t0 = Sys_DoubleTime();
-        l = findLenient(ent, hand, vel, head, leniencyUnits(), &st);
-        ms = (Sys_DoubleTime() - t0) * 1000.0;
-        how = "lenient";
-    }
+    const double t0 = Sys_DoubleTime();
+    const std::optional<Ledge> l = findHold(ent, hand, vel, head, leniencyUnits(), lenient, &st);
+    const double ms = (Sys_DoubleTime() - t0) * 1000.0;
     if(l)
     {
         Con_Printf("climbtry %.2f %.2f %.2f %s: %s hold %.2f %.2f %.2f top %.1f out %.2f %.2f, %.2f units from the hand (%.1f cm)",
-            hand.x, hand.y, hand.z, handName(h), how, l->hold.x, l->hold.y, l->hold.z, l->top, l->out.x, l->out.y,
-            glm::distance(l->hold, hand), glm::distance(l->hold, hand) / units::metresToUnits() * 100.f);
+            hand.x, hand.y, hand.z, handName(h), lenient ? "lenient" : "exact", l->hold.x, l->hold.y, l->hold.z, l->top,
+            l->out.x, l->out.y, glm::distance(l->hold, hand), glm::distance(l->hold, hand) / units::metresToUnits() * 100.f);
     }
     else
     {
         Con_Printf("climbtry %.2f %.2f %.2f %s: none (leniency %.1f cm)", hand.x, hand.y, hand.z, handName(h),
             vr_climb_leniency.value);
     }
-    Con_Printf("; %d points, %d holds seen, turned down: %d low, %d below, %d far, %d behind, %d through a wall; %.3f ms, %d traces\n",
-        st.points, st.found, st.low, st.below, st.tooFar, st.behind, st.unseen, ms, traceCount - traces0);
+    Con_Printf("; %d points, %d holds seen, turned down: %d low, %d below, %d far, %d behind, %d through a wall, %d covered, "
+               "%d hidden; %.4f ms, %d traces\n",
+        st.points, st.found, st.low, st.below, st.tooFar, st.behind, st.unseen, st.covered, st.hidden, ms, traceCount - traces0);
     PR_PopQCVM(oldvm);
 }
 
@@ -1804,6 +1971,14 @@ constexpr float yawSteps = 256.f;   // the holds' ways out in the stats: a byte 
 }
 
 } // namespace
+
+void qvr::climb::reset()
+{
+    for(Climber& c : climbers)
+    {
+        c = Climber{};
+    }
+}
 
 void qvr::climb::init()
 {
