@@ -894,6 +894,15 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
             weight = VR_MELEE_POMMEL_AXE;
         }
     }
+    // A club heavy for its size strikes harder (Held Object Offsets' Blunt: a whole brick; a wall torch has none).
+    if(b.mh_thing == VR_MTHING_CLUB)
+    {
+        float blunt = VR_Carry_BluntMult(VR_Carry_Held(self, xHand));
+        if(blunt > 0)
+        {
+            weight = weight * blunt;
+        }
+    }
     if(cvar("developer") >= 2)
     {
         dprint(sprintf("melee debug: hand %g %s at %s: grip %.1f far %.1f", xHand, VR_Melee_KindName(kind, b.mh_thing),

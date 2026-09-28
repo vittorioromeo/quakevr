@@ -8781,18 +8781,24 @@ noticeable, so everything is placed at load and nothing pops in. (The defaults g
 - **Carried** as the gibs are (`VR_Carry_Setup`): gripped (the fist touching it; the fingers fitted to its shape; held
   where gripped), one hand only (Held Object Offsets: Two Hands 0), thrown, nudged; nothing to take at a holster.
   **Force grabbed** (`FL_FORCEGRABBABLE`; Force Grab -1): "force grab: vr_rock flies 60.5 units in 0.4 s", caught.
-- **Punching while holding one** (`VR_Carry_PunchMult`; `vr_melee.qc`): the punch's strength (the blow's speed, the
-  punch's own multiplier) times `1 + Blunt x the square root of its mass` (Held Object Offsets' new **Blunt** key, 0.8
-  for rocks and bricks): a 0.35 kg rock 1.47, 1 kg 1.8, a whole brick (1.9 kg) 2.1; a box stays at Box Punch Damage
-  (1.5). The rest is a punch's: a closed fist, its stamina (4), its batting of projectiles, its exhaustion; a rock or
-  a brick knocks with its own sound instead of the punch's.
+- **Striking with one**, through the wall torches' club keys (Held Object Offsets' Tip and Butt, `vr_melee.qc`'s
+  club): a **whole, chipped or broken brick is a club**, always held by one end (Grip: Always the same; the fingers
+  round its end), its far end the Tip, its near end the Butt, so it slashes, jabs and butts along its length as the
+  torch does (a weapon's blow: stamina 8); a **rock or a half brick** has no Tip and strikes **as the fist holding
+  it** (the keys' default: a punch, stamina 4, a closed fist, the punch's batting). Either way the blow's strength is
+  times `1 + Blunt x the square root of its mass` (Held Object Offsets' new **Blunt** key, 0.8 for rocks and bricks:
+  a 0.35 kg rock 1.47, 1 kg 1.8, a whole brick 2.1; `VR_Carry_BluntMult`), the damage coming from the blow's speed as
+  every blow's. A box stays at Box Punch Damage (1.5), a torch at its own. They knock with their own sound, not the
+  punch's. `modelpoint` (the club's line) now scales a point as the model is drawn (the pieces' size; the torch is
+  unscaled).
 - **Thrown hard** (over 250 u/s, as boxes): it hurts what it hits (monsters, and gibs as thrown things now do) by its
   speed, `Thrown Box Damage (8) x (1 + Blunt x √mass)` per 5.8 m/s: a 1 kg rock at 12 m/s about 30.
 - **Sounds** (`make_sounds.py`: `vr/rock1..3.wav`, a dense stone's thud with a tick and a scatter of grit;
   `vr/brick1..3.wav`, fired clay's brighter, hollower clack): Box3D's hits (`.vr_impact`: landing, knocked, thrown
   into a wall or a monster; not the player's hands or body) above 1.5 m/s, louder the harder, at most every 0.1 s.
 - **Held Object Offsets entries** (`vr_props.inc`, slots 20-28, apart from the other agents'): Blunt 0.8, Two Hands 0;
-  Mass left estimated (each piece's size differs). `vr_props_version` 26 gives a config saved before its empty slots'
+  the whole, chipped and broken bricks Grip Mode 1 (Grip X 0.8, Z -1.6; the broken one X 0), Tip X 2.4 and Butt X
+  -2.4 (the broken one 1.6); Mass left estimated (each piece's size differs). `vr_props_version` 26 gives a config saved before its empty slots'
   new defaults (a slot a config gave another model keeps it; that piece then hits as a box).
 
 **A bug found on the way:** a punch holding a box hit 2.25 times as hard, not the 1.5 of Box Punch Damage: the
@@ -8807,10 +8813,11 @@ The synthetic motions' hand settings were set and printed in each run (`vr_gunan
 | Test | Result |
 |---|---|
 | A rock in the hand (`hold_vr_rock.png`), a brick (`hold_vr_brick.png`) | gripped at the hand, the fingers round it; the brick held by its end |
-| Punching a grunt holding a rock (0.37 kg; `punch_straight` reaching 0.78 m) | "punch ... 6.8 m/s, x1.48", 14.8 damage (a bare fist: the same without the x1.49) |
-| The same holding a brick (e1m2, 0.71 kg) | "5.1 m/s, x1.25" (heavier, slower), 12.5 damage |
+| Punching a grunt holding a rock (0.37 kg; `punch_straight` reaching 0.78 m) | "punch ... 6.6 m/s, x1.44", 14.4 damage, stamina -4 (a bare fist: the same without the x1.49 of a 0.37 kg rock) |
+| The same holding a whole brick, a club (e1m2, 1.5 kg; `club_hit.png`) | "stab ... jab ... 5.8 m/s, x1.91", 19.1 damage, stamina -8 |
+| Its grip (`club_brick.png`: from the side, above, the front) | held by its end, the fingers over it, along the hand |
 | Throwing the rock at a grunt 72 units away (an overhand throw, `throw.mock`) | 465 u/s, base 11.9, 22.0 damage (legs), "vr_rock knocks at 11.2 m/s"; another throw's head hit, 54.2, killed |
-| Throwing the brick | 465 u/s, base 13.4, 24.8 damage (legs), knocks at 10.9 and 5.8 m/s |
+| Throwing a half brick (0.71 kg) / the whole brick (1.5 kg) | 465 u/s, base 13.4, 24.8 damage (legs); 472 u/s, base 15.8, 29.7 (killed); knocks at 6-11 m/s |
 | Force grab (the off hand, as `items/t2.sh`) | flies 60.5 units in 0.4 s, caught (`forcegrab.png`) |
 | `vr_physics_forcegrab props` | every rock "may be force grabbed"; the explosive box still "never" |
 | At load | every piece's body made asleep ("a prop body, asleep"); no knocks at load |
@@ -8843,11 +8850,12 @@ brightest first).
 ### Files
 
 `Quake/vr/vr_debris.cpp`, `.hpp` (the planner, `vr_debris_list`); `QC/vr_debris.qc` (spawning, sounds); `vr_carry.qc`
-(`VR_Carry_PunchMult`, the throw's damage), `vr_melee.qc`, `weapons.qc` (`W_FistMelee`), `world.qc` (precache,
+(`VR_Carry_BluntMult`, `VR_Carry_PunchMult`, the throw's damage), `vr_melee.qc` (Blunt on club blows), `weapons.qc` (`W_FistMelee`), `world.qc` (precache,
 StartFrame), `builtins.qc` and `vr_builtins.cpp` (`debrisplan`, `debrismodel`, `debrisput`); `pr_cmds.c` (the
 `VR_OnMakeStatic` hook); `vr_props.*` (Blunt, stone densities, the entries, migration 26); `vr_box3d.cpp` (densities,
 hardness); `vr_menu.cpp`, `vr_menu_props.inc`, `vr_cvars.inc`; `Misc/quakevr/make_debris.py`, `make_sounds.py`,
-`normaltiles.py` and `normalmaps.py` (the stone recipe); `entities.fgd` (`_vr_debris`); `MAPPING.md`.
+`normaltiles.py` and `normalmaps.py` (the stone recipe); `entities.fgd` (`_vr_debris`); `MAPPING.md`; `vr_builtins.cpp`'s
+`modelpoint` (scaled).
 
 ### Not verified, limitations
 
