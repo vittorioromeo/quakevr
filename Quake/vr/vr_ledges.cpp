@@ -723,17 +723,19 @@ void debugDraw()
             const Edge& e = m.edges[static_cast<size_t>(i)];
             const glm::vec3 a = e.a + offset, b = e.point(e.len) + offset;
             const glm::vec3 base = mover ? moverColour : lipColour;
-            lines::line(a, b, 0.35f, glm::vec4{base, 1.f}, glm::vec4{base, 1.f});
+            lines::glow(a, b, 0.8f, glm::vec4{base, 1.f}, glm::vec4{base, 1.f});
             // Every 8 units: the way out (a tick, yellow where the drop starts further out than 2 units: a trim, a rung
-            // below), and the top's depth in (grey, up to maxDepth).
+            // below), and the top's depth in (grey; a short stub for a top deeper than maxDepth).
             for(float t = 0.f; t <= e.len + 1e-3f; t += 8.f)
             {
                 const float at = std::min(t, e.len);
                 const Sample& s = m.sampleAt(e, at);
                 const glm::vec3 p = e.point(at) + offset;
                 const glm::vec3 tick = s.dropOut > 2.f ? trimColour : base;
-                lines::line(p, p + e.out * 3.f, 0.25f, glm::vec4{tick, 1.f}, glm::vec4{tick, 0.6f});
-                lines::line(p, p - e.out * s.depth, 0.12f, glm::vec4{0.8f, 0.8f, 0.8f, 0.7f}, glm::vec4{0.8f, 0.8f, 0.8f, 0.1f});
+                lines::glow(p, p + e.out * 4.f, 0.6f, glm::vec4{tick, 1.f}, glm::vec4{tick, 0.6f});
+                // (a top deeper than the map measures: a short stub)
+                const float depth = s.depth >= maxDepth ? 6.f : s.depth;
+                lines::line(p, p - e.out * depth, 0.3f, glm::vec4{0.85f, 0.85f, 0.85f, 0.8f}, glm::vec4{0.85f, 0.85f, 0.85f, 0.2f});
             }
         }
     };

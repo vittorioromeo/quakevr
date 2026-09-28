@@ -758,6 +758,24 @@ against the face (`close`) or pushed 12 cm off it (`far`), and shimmies 4 stroke
 drifting in towards the chest and wobbling by that much over each 33 cm stroke; an `echo STROKE` / `STROKEEND` brackets
 each push. `python Misc/quakevr/climb/shimmy_stats.py <log>` prints each stroke's move along the ledge against the
 pull (it should be 8.67 units, 100%), in/out, and the frames stuck.
+Climbing, the ledge map (ROUND21.md, "Ledge map"): `vr_debug_ledges 1` draws the ledges within 512 units (`vr_debug_ledges
+<n>`: n units): each lip a glowing line (green on the world, pink on a brush model: a plat, a train, a door), a tick out
+every 8 units (yellow where the drop starts more than 2 units out: past a trim, a rung below), and the top's depth in
+(grey; a short stub for a top deeper than 40 units). `vr_ledges` prints the map's ledges, samples, memory and build
+time (`vr_ledges rebuild` makes them again: the build time without the load's other work); with `developer 1` or
+`vr_climb_debug 1` the load prints the same line. `vr_climb_probe [yaw]` lists the ledges ahead (their ends, height
+over the feet, way out, where the drop starts, the top's depth). `vr_climb_try` prints the hold as before; its counts
+are now of ledges looked at ("points"), and it adds `covered` (no room over the hold, the drop gone, the top not
+reached from the hand: another solid over it, a fence before it) and `hidden` (another ledge is taken there instead:
+the near side of a thin wall, the rung above); its time is the whole query's. vrclimb's moving ledges (each started by
+a trigger where the player stands, facing +x, 18 units from its face): the lift (func_train, `setpos -318 88 24 0 0 0`,
+rising at 8 units a second as soon as you're there) and the plat (func_plat, `setpos -218 72 24 0 0 0`, lowered 40 at 24
+units a second 3 s after); `climb_plays.py lift` (take the lift's lip as it rises, ride it, pull over its top at 4 s: a
+mantle onto it moving), `liftride` (hang on; add `5.000 cmd vr_test_remove 10` to remove the lift, entity 10, under
+the hands), `plat` (take the plat's lip, pull up a little, hang on while it is lowered: the body is carried into the
+floor; with `vr_climb_mover_crush 1` the plat is blocked instead, hurts you 1 point and goes back up). With
+`vr_climb_debug 2` the `climbtrace` lines show the body carried with the hold exactly (`want`/`moved` 0 while the
+mover's push moves it).
 Throwing, the release angle (the same section): `python Misc/quakevr/throw_plays.py [--gunangle 70] [--out throws.txt]`
 writes a `vr_mock_play` file of four main-hand throws (an overarm throw with a wrist flick, an underarm lob, a straight
 push, an overarm throw with a still wrist), each announced by `echo THROW <name> <meant elevation>` and let go with

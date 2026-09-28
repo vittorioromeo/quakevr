@@ -1,5 +1,6 @@
 # Mock-hand plays for the climbing tests (vr_mock_play files; docs/vr-port/TESTING.md, "Climbing"):
 # python climb_plays.py ladder|ladderlean|ledge|mantle|e1m1|ledgehang|runghang|ledgeodd|rungodd|push|overtop|pressL<d>|pressR<d>|
+#   lift|liftride|plat|
 #   shimmy[e1m1]<close|far>[_<drift cm>[_<wobble cm>]]
 # writes <name>.txt here and prints how long it plays (the hangs: both hands on the ledge or rung 56, pulled up a little
 # and held, for screenshots, the odd ones with the controllers turned oddly; ladderlean: the ladder with the head leant
@@ -121,6 +122,23 @@ def mantle(hy=1.638, fwd=-0.69):
               f"2.000 {h} {x} {hy - 0.8} {fwd + 0.2} 0 0 0", f"3.000 {h} {x} {hy - 0.8} {fwd + 0.2} 0 0 0"]
     L += ["0.700 cmd +graboff", "0.750 cmd +grabmain", "2.600 cmd -graboff", "2.600 cmd -grabmain"]
     return L, 3.0
+
+def mover(kind, hy=1.638, fwd=-0.69):
+    # vrclimb's moving ledges (ROUND21.md, "Ledge map"): both hands take the lift's lip as it rises (grabbed moving), ride
+    # it, and pull over its top at 4 s (a mantle onto it, moving); "liftride": they hang on (the script may remove the
+    # lift: vr_test_remove); "plat": they take the plat's lip, pull up a little (not a mantle: under mantlePull) and
+    # hang on while it is lowered (carried down into the floor: let go, or blocked with vr_climb_mover_crush 1)
+    rest, lip = (1.2, -0.3), (hy, fwd)
+    keys = {"lift": [(0, rest), (0.5, lip), (4.0, lip), (5.0, (hy - 0.8, fwd + 0.2)), (12.0, (hy - 0.8, fwd + 0.2))],
+            "liftride": [(0, rest), (0.5, lip), (12.0, lip)],
+            "plat": [(0, rest), (0.5, lip), (1.2, lip), (2.0, (hy - 0.25, fwd + 0.07)), (8.0, (hy - 0.25, fwd + 0.07))]}[kind]
+    release = {"lift": 5.2, "liftride": 11.0, "plat": 7.5}[kind]
+    L = []
+    for h, x in (("off", -0.12), ("main", 0.12)):
+        L += [f"{t:.3f} {h} {x} {y:.3f} {z:.3f} 0 0 0" for t, (y, z) in keys]
+    L += ["0.700 cmd +graboff", "0.750 cmd +grabmain", f"{release:.3f} cmd -graboff", f"{release:.3f} cmd -grabmain"]
+    return L, keys[-1][0]
+
 
 def hang(y, fwd, pull=0.25, pitch=40, yaw=0, roll=0):
     # both hands onto the hold (setpos 78 176 24: the ledge, y 1.638; setpos 71 0 24: rung 56, y 1.943), then pulled
@@ -256,7 +274,8 @@ def main():
     L, t = {"ladder": lambda: ladder(11, True), "ledge": lambda: ledge(7, 1), "mantle": mantle, "e1m1": lambda: ledge(0, 2, 1.638, -0.76, "mantle"),
             "ledgehang": lambda: hang(1.638, -0.69), "runghang": lambda: hang(1.943, -0.72),
             "ledgeodd": lambda: hang(1.638, -0.69, 0.25, 10, 50, 70), "rungodd": lambda: hang(1.943, -0.72, 0.25, 110, -40, -60),
-            "push": push, "overtop": overtop, "ladderlean": lambda: (lambda L, t: (LEAN + L, t))(*ladder(11, True))}[sys.argv[1]]()
+            "push": push, "overtop": overtop, "lift": lambda: mover("lift"), "liftride": lambda: mover("liftride"),
+            "plat": lambda: mover("plat"), "ladderlean": lambda: (lambda L, t: (LEAN + L, t))(*ladder(11, True))}[sys.argv[1]]()
     write(sys.argv[1] + ".txt", L)
     print(f"{sys.argv[1]}: {t:.2f} s")
 

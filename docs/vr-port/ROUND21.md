@@ -10377,3 +10377,204 @@ Why these defaults:
       smooth and sharp as before? If it looks soft, try Resolution Scale 1; if it stutters, Every Frame, and tell me.
 - [ ] Climb a ledge with no room on top and pull: the buzz as before; then a ledge you can mantle: the same mantle.
 - [ ] Miss a ledge by a hand's width: the grab still takes it, as before.
+
+## Ledge map
+
+The review found that both climbing searches sampled space with traces: the mantle tried ~70 spots with sweeps, and a
+missed grip tried the grab rule from 26 directions on shells round the hand, each a `findLedge` (a trace down, then up
+to 8 directions × 4 probes with traces for the drop). You approved the structural fix: find every ledge once, from the
+BSP, and answer a grab with a nearest-ledge lookup. That is done (`Quake/vr/vr_ledges.cpp`, `vr_climb.cpp`), for the
+world and for brush entities, which now carry you exactly.
+
+### What a ledge is
+
+The rule is the one the grab used, made exact: the **lip of a walkable top** (a drawn face, normal z at least 0.7; not
+sky or a liquid's surface) with open space beyond it and under it (the top ends there: not a floor going on in the next
+face, not a wall rising from it), **room for a hand** over it (8 units, at the hold), and a **drop** beyond it: going
+out square to the lip at a hand's height over the top, within 16 units, a column from 2 over the top to 32 under it
+with nothing in it. Steps down on the way out are passed over (a trim under the lip, the next rung down); a wall on the
+way ends it. So floors, walls and stairs aren't ledges (the treads come every 8 to 16 units down); a rung, a beam or a
+thin wall's top is a ledge on each side that drops (vrclimb's rungs: their fronts and their ends; the back is against
+the tower). MAPPING.md now says this for mappers.
+
+### How it is built (once per map, per brush model)
+
+- **The pieces**: the edges of every walkable face of the model (the world, and each inline model `*1`, `*2`... in its
+  own space: plats, trains, doors, walls), those with open space just beyond them.
+- **Joined**: pieces on one line with the same way out are joined (the BSP splits faces, and one lip is often several
+  faces' edges split in different places: T-junctions don't matter here, the pieces are joined along the line).
+- **Tested along it**: the tests above every unit along each line, against the model's own hull 0 (what the hands'
+  probes collide with: clip brushes aren't in it). Every fourth sample first, then the ones between two that disagree
+  (a sample between two that agree is theirs: a feature narrower than a few units, a gap in a railing too narrow for a
+  hand, is left out; the checks when a hold is taken see what is there). Where a ledge starts or ends between samples,
+  the end is found to an eighth of a unit by halving.
+- **Stored per ledge**: its ends, the way out (square to the lip, horizontal), the top's normal, and per unit along it
+  how far out the drop starts and how deep the top is from the lip in (up to 40 units; a wall rising behind the top
+  ends it: a rung against a wall is 8 deep). A 64-unit grid lists the ledges in each cell.
+- **Cheap tests**: the drop's columns are traced only where three lines out from the lip (near the column's foot, its
+  middle, just under the top) are in the open, and the depth reads two lines in from the lip (the solid along each, in
+  one walk down the BSP) instead of 80 point tests.
+- **Kept** until the map changes (a new world model); a saved game of the same map keeps it. `vr_world_scale` doesn't
+  touch it (ledges are geometry, in map units; the leniency's centimetres are converted at the grab, as before). Made
+  at map load with Climbing on; otherwise the first time something asks (Climbing turned on in the middle of a map: one
+  build then, the times below).
+
+| Map (`vr_ledges rebuild`, `run.sh --exclusive`) | Models | Ledges | Lip (units) | Memory | Build |
+|---|---|---|---|---|---|
+| vrclimb | 5 | 93 | 7,896 | 87 KB | 1.3 ms |
+| e1m1 | 58 | 625 | 41,919 | 464 KB | 25.5 ms |
+| e2m2 | 52 | 660 | 41,447 | 516 KB | 31.0 ms |
+| e4m2 | 69 | 1,015 | 55,574 | 623 KB | 29.4 ms |
+| start | 55 | 1,188 | 76,896 | 900 KB | 41.3 ms |
+| r2m8 | 24 | 538 | 33,955 | 367 KB | 51.7 ms |
+| hip3m4 | 137 | 1,607 | 104,644 | 1.2 MB | 73.6 ms |
+| e4m7 | 113 | 1,162 | 82,494 | 976 KB | 111.1 ms |
+| hip2m3 (the biggest here) | 111 | 1,280 | 67,574 | 871 KB | 107.7 ms |
+
+(The median of three builds. The first version tested every unit with point tests and cost 0.34 s on e1m1 and 1.2 s
+on hip2m3; the cheap tests and the sampling above brought it to these. Models counts every inline model, triggers
+included: they have no walkable faces worth a ledge, and cost nothing.)
+
+### A grab
+
+- **At a ledge.** The hand is at a ledge when it is between 12 under its top (sunk into it, or under a rung) and 10 over
+  it, along the lip, and either over the top (in from the lip as far as the top goes and the drop is within 16: less
+  how far out the drop starts) or in front of the face, at most 6 units out, when the lip faces the body (the hand
+  between the body and the ledge). The same numbers as the rule before; what changed is that they are exact (the old
+  sampled rule missed a few cases, below).
+- **Which one.** Of the ledges the hand is at: over a top before in front of a face, the higher top (a rung above before
+  the one below), the lip facing the body more (a rung's front, not its end; the near side of a thin wall), the nearer
+  hold. This is what the old probe order (towards the body first, the first top down from over the hand) chose.
+- **Leniency.** A grip at no ledge takes the nearest ledge it is within the leniency of being at: the point of that
+  ledge's place nearest the hand, where that ledge would be the one taken (the place less the others' that come first
+  there, as boxes: the rung above hides the rung below only where it is taken instead). The hold is at that point's
+  place along the lip. The rest as before: the nearest (the reach favoured 30%), not behind the head, not lower under the
+  hand than the rule reaches, at most the leniency plus 8 units from the hand, in sight of the hand.
+- **The checks when it is taken** (the ledge map has each model's own solid only): room over the hold now (another
+  brush model, a door closed over it: no hold), the drop still there where a brush model is near (a plat level with the
+  floor, a door shut under the lip), and the top reached from where the hand is: over the top, a line from 12 over the
+  hand down to the top (the hand may be sunk into the ledge, not under something else); in front, a line up from the
+  hand to just over the top and in over the lip (no fence between). Two to three traces.
+- **Movers**: the brush entities round the hand come from the area nodes (`SV_AreaEdicts`), each with its ledge map; the
+  hand is put into the model's space (its origin), the answer back.
+
+### Holds on movers
+
+- A hold on a brush entity is kept as its **entity number**, its model and its place in the model's space (never a
+  pointer: a loaded game or a new map clears every hold, `climb::reset`); each frame it is where the model is now.
+  Quake's traces move a brush model's collision by its origin only (never its angles), so the holds do too; the
+  mission packs' rotating things collide through `func_movewall` boxes that move, which these follow. No rotating
+  solid exists to test (the design's rotating case: there is none in Quake's collision).
+- **Carried exactly.** A player hanging from a mover (or mantling onto it) rides it in `SV_PushMove`, as one standing on
+  it does, in the same push (`VR_ClimbHangsFrom`); the holds on it move with it (`VR_ClimbCarried`). Before, the body
+  followed one frame later by the hold's move, and the mover's push could meet the body on the way.
+- **Carried into something.** When the ride stops short (the body carried into the floor, a ceiling, a wall):
+  **Mover Crush** `vr_climb_mover_crush` 0 (the default): the hands on it let go, with a buzz, and you fall from where
+  the push got you. 1: Quake's rules: you hold on and block the mover like anything in its way (its blocked function:
+  a train hurts you, a door or plat goes back and hurts you 1). Letting go is the default: a hand doesn't stay on a
+  ledge that is crushing its body, and the hurt-and-bounce loop of Quake's rules isn't something a hand would allow.
+- A hold lets go when its entity is freed, stops being solid or changes model.
+- **Grabbing a moving ledge** uses where it is now. **A mantle onto a mover** follows it (its way in the mover's space)
+  and ends standing on it (its ground entity): Quake carries you from then on.
+
+### The mantle
+
+The spots and their order are the old ones (straight in from the hold 22, 30, 38 units, then along the edge by ±8,
+±16; then a narrow top's middle outwards). The ledge map gives the top's depth where the hold is (it was measured with
+up to 40 traces once per hold) and whether a spot's middle is over the top: then the box stands on it (the floor and
+footing traces below the box aren't needed), and one sweep over from the top of the way up (shared by a side's spots)
+confirms it. Elsewhere (a spot past the ledge's end, or in further than the top goes, where the box may stand on its
+back part) the old traces. A mantle onto a wide top now takes 2 traces (the way up, the way over); e1m1's, sliding along
+near the ledge's end, 10 (was 13); a search with no room on top 70 (the same: every spot's sweep meets the ceiling; the
+first search of each hold was 110 with the depth).
+
+### Cost of a query (`run.sh --exclusive`, `vr_climb_try`: the whole grab, before and after)
+
+| `vr_climb_try` | old: median / worst | old traces | new: median / worst | new traces |
+|---|---|---|---|---|
+| vrclimb sweep, taken at the hand (old 90, new 168) | 8.2 / 28.5 µs | 11 / 15 | 0.6 / 14.7 µs | 3 / 3 |
+| vrclimb sweep, lenient or none (old 414, new 336) | 35.9 / 413.7 µs | 282 / 1217 | 0.3 / 16.4 µs | 0 / 5 |
+| e1m1 by the nailgun ledge, taken at the hand (48, 60) | 21.7 / 70.9 µs | 11 / 13 | 1.0 / 5.0 µs | 2 / 3 |
+| e1m1, lenient or none (24, 12) | 114.5 / 535.7 µs | 80 / 668 | 0.6 / 9.7 µs | 0 / 5 |
+
+(A query that finds nothing near costs no trace. The worst new ones are the first query of a run, the cache cold.)
+
+| Mantle search (`vr_climb_debug 4`) | old traces | new traces |
+|---|---|---|
+| vrclimb, the mantle onto the ledge | 5 | 2 |
+| e1m1's mantle (the spot along the edge near its end) | 13 | 10 |
+| no room on top (overtop at the slab ledge), each search | 70 (the first per hold 110) | 70 |
+| between rungs (ladder), each search | 30 | 30 |
+
+### Verified (mock headset, `vr_fixed_frames 1`; the scratchpad's `ledgemap/climb/`)
+
+- **The leniency sweep** (`climb_leniency.py`, 504 `vr_climb_try` lines, old build a17b414e against this one;
+  `cmp_try.py`): no hold lost; no way out changed; 307 lines none in both; **24 new holds**; 57 lines exact where they
+  were lenient (the same hold); 11 holds moved by more than 0.1 unit, all at a rung's end (below); every other hold
+  within 0.03 unit (the old top was the trace's end, 1/32 unit over the surface: `DIST_EPSILON`; now exact). Holds
+  through walls stay refused (the thin wall with a ledge behind it: none at every leniency, "through a wall"); stairs
+  and the wall without a ledge: none.
+New holds (all where the hand is at the ledge by the rule's own numbers):
+  - A1, the hand 6 units in front of the ledge's face, leniency 0; A2, 12 under the lip at the face, leniencies 0 to
+    20; A3, 10 over the top, leniency 0; B2, the hand at the rung's end plane, leniency 0 (8 in all): the old rule's 6, 12
+    and 10 units were exclusive by a float boundary (a trace ending exactly on the plane found nothing); now they count.
+  - B1, 2, 4 and 6 units in front of rung 56; B3, 4 and 6 over rung 56 and 2 under rung 76, leniency 0 (6): the old rule
+    looked for the top from 12 over the hand, which started inside the rung above, and found nothing ("the rung above
+    hides the rung below"); the leniency section had worked round it for the points round the hand only.
+  - B4, the body 60 units to the rung's side (10): 2, 4, 6 units in front at leniency 0; 4 at 5 cm; 6 at 5 to 15 cm; 8 at
+    10 to 20 cm. The old slack in front (6 units) was measured along the line from the body through the hand, which from
+    the side runs along the rung: a hand 2 units in front of the face took nothing. It is now square to the face (the
+    face facing the body), wherever the body stands.
+  The 11 moved: B2, past the rung's end by 0 to 6 units, lenient: the old hold was where the shell point that found it
+  was along the rung, 0.18 to 1.87 units short of its end; now at the end, the nearest point.
+- **The 13 climb scripts** (mantle, overtop at the ledge, narrow wall and no-room ledge, ladder, ladderlean, shimmy
+  close and far, ledge, push, e1m1, pressL6, pressR10): the same holds, hand-offs, tear-offs, mantle spots (the same
+  spots to 0.1 unit), no-room buzzes and falls. Every logged number within 0.05 unit (2 mm) of the old, from the
+  holds' 1/32 unit (`cmpnum.py`): the body's position at most 0.05 off (ledge), 0.031 elsewhere. Two events moved by a
+  frame: the ladder's first "no room" (the head 8 over the ledge, reached one frame earlier with the ledge 1/32 lower)
+  and ladderlean's first tear-off (the hold 1/32 nearer: 22.0 from the shoulder, not 22.1, one frame earlier); a hand
+  that was let go of one frame earlier is then stopped at the wall a frame earlier (a free hand 2.56 units apart in that
+  frame). In ledge and e1m1, the "passive" mark on a hand whose pull is near zero flips on some frames (the two hands'
+  shares of a 0.001-unit pull); the body is the same.
+- **Movers** (vrclimb's lift and plat, above; `climb_plays.py lift|liftride|plat`):
+  - **Lift, grabbed rising** (`setpos -318 88 24 0 0 0`, `lift`): the hands took its lip at 47.9 and 48.3 (it rose 0.4
+    between the two grips), hung while it carried the body up, and the pull at 4 s mantled onto it moving: "mantle from
+    (-316 88 62) up to 102.4, onto (-278 91 102.4)", ending at (-278 91 104.9): 2.5 higher, the lift's rise in the
+    0.3 s. Then standing on it, it carried the body to the top (144, its top 120 plus 24) and back down, as Quake
+    carries anything standing on a lift. In the 266 hanging frames the body moved with the hold to 0.01 unit (the log's
+    rounding: 3 decimals for the body, 2 for the hold); the climb's own carry was 0 (the push moved it).
+  - **Plat lowered** (`setpos -218 72 24 0 0 0`, `plat`): the hands on its lip pulled the body up 6.6 units; 3 s after,
+    it went down, the body with it (19 frames, to 0.007 unit), until the feet reached the floor: "carried into something
+    at (-216.2 72 24): lets go".
+  - **Plat, Mover Crush 1**: the same, then "the mover is blocked (health 100)", the plat went back up with the body
+    hanging, came down again, blocked again (health 99): Quake's plat_crush.
+  - **Removed under the hands** (`liftride` and `vr_test_remove 10` at 5 s): "the hold's brush model is gone, letting go".
+  - The rest of vrclimb, recompiled the "Full" way with the lift and plat: the 13 scripts and the sweep log the same
+    lines, byte for byte, as before the recompile.
+- **Screenshots**: `ledges_debug.png` (vr_debug_ledges: vrclimb's lift and plat, the rung wall and long ledge; e1m1's
+  ledge by the nailgun, with a brush model's lip in pink).
+
+### Settings and commands
+
+| Menu | Cvar / command | Default | |
+|---|---|---|---|
+| (console) | `vr_climb_mover_crush` | 0 | a hold on a mover carried into something: 0 lets go, 1 blocks the mover (Quake's crush rules) |
+| (console) | `vr_debug_ledges` | 0 | the ledges drawn round you (1: 512 units; more: that many) |
+| (console) | `vr_ledges [rebuild]` | | the map's ledges, memory and build time |
+
+`vr_climb_probe` lists the ledges ahead; `vr_climb_try` reports as before, counting ledges, not points, and adds
+"covered" and "hidden". No config migration: the new settings are new.
+
+### Not verified
+
+- In the headset: grabbing a moving plat or train, the ride, and the let-go when carried into something.
+- The build's time on the biggest custom maps (the mission packs' largest: hip2m3 in the table).
+- Hipnotic's rotating brushes: their collision is `func_movewall` boxes, which translate; there is no rotating solid.
+
+### In the headset
+
+- [ ] Climb as before (rungs, ledges, the leniency): the holds should be where they were.
+- [ ] vrclimb's lift (`setpos -318 88 24 0 0 0`): take its lip as it rises and ride it; pull over its top while it
+      moves. The plat (`setpos -218 72 24 0 0 0`): hang from it while it goes down; you should let go when your feet
+      reach the floor. With Mover Crush 1 it stops and goes back up instead (and hurts you a point).
+- [ ] `vr_debug_ledges 1` somewhere you climb: a lip that should be a ledge and isn't (or the reverse), tell me where.

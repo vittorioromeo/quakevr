@@ -1,26 +1,49 @@
 // vr_climb.cpp -- climbing: holds taken with either hand or both, hand over hand, shimmying and mantling (vr_climb,
 // experimental; server side, and the drawn hands on their holds, client side).
 //
-// Holds. An empty hand can only take hold of an EDGE -- a walkable top surface (normal z > 0.7) just under the hand,
-// with room above it for the hand, and a drop of at least `minDrop` units within `edgeReach` of the hand (a ledge, a
-// rung, a beam; not open floor, a wall or a stair). A step down on the way to the drop is passed over (a rung above
-// another, a ledge with a trim under its lip). The grip must be pressed at the hold (a press elsewhere, dragged onto
+// Holds. An empty hand can only take hold of a LEDGE of the ledge map (vr_ledges.cpp, made once from the BSP for each
+// brush model: the lip of a walkable top with room over it for the hand and a drop of at least ledges::minDrop beyond
+// it, starting at most ledges::edgeReach out, steps down on the way passed over: a ledge, a rung, a beam, a trimmed
+// lip; not open floor, a wall or a stair). The hand is AT a ledge when it is between `surfaceAbove` under its top (sunk
+// into it, or under a rung) and `surfaceBelow` over it, along the lip, and either over the top, in from the lip no
+// further than the top goes and the drop is within edgeReach (edgeReach less how far out the drop starts), or in front
+// of the face under the lip, at most `edgeSlack` out, when the lip faces the body (the hand between the body and the
+// ledge). Of the ledges the hand is at, it takes (takenBefore) one it is over the top of before one it is in front of,
+// the higher top (a rung above before the one below), the lip facing the body more (a rung's front, not its end; the
+// near side of a thin wall), the nearer hold. The grip must be pressed at the hold (a press elsewhere, dragged onto
 // one, does nothing), with no weapon, carried object, locked force grab or flashlight in that hand, and not at a
 // holster that holds a weapon while standing (the grip draws it; an empty holster, or any while hanging, gives way to
-// the hold). The hold is on the edge's line: the hand's place along the edge, on the top, `holdInset` units behind the
-// edge; the hand is drawn there (its palm's middle, moved by vr_climb_hand_out/up/side: display only) while it holds,
+// the hold). The hold is on the lip's line: the hand's place along it, on the top, `holdInset` units in from the
+// lip; the hand is drawn there (its palm's middle, moved by vr_climb_hand_out/up/side: display only) while it holds,
 // whatever the tracked hand does, and turned to face the hold (the knuckles towards the ledge and tilted up over its
 // lip by vr_climb_hand_pitch/yaw/roll, mirrored for the off hand; vr_climb_hand_turn_blend of the way to the
 // controller's turn: display only).
 //
-// Leniency (vr_climb_leniency, cm). A grip that takes no hold where the hand is (above) looks round it: the same rule
-// tried from points on shells round the hand, up to that far from it. Of the holds found, the one taken is the nearest
-// to the hand (a hold the hand moves or reaches towards counts as up to `reachFavour` nearer), not behind the head
-// (on the far side from the hand), not lower under the hand than the rule itself reaches (`surfaceBelow`), at most
-// the leniency plus `lenientReach` from the hand, and in sight of the hand (a line from the hand, or from the head for
-// a hand in a wall, to just over the lip). The hold's place along the edge is the hand's own, as at a hold. A hold
-// taken where the hand is always wins: leniency only adds holds where there were none. Nothing moves the body when a
-// hold is taken (the pull is the hands' motion since); the drawn hand eases onto it (slower the further it is).
+// Checks when a hold is taken (check(): the ledge map has each model's own solid only): room for the hand over the
+// hold now (nothing else over it: a door, another brush), the drop still there where a brush model is near (a plat
+// level with the floor is no ledge), and the top reached from where the hand is: over the top, a line from
+// `surfaceAbove` over the hand down to the top is clear (the hand may be sunk into the ledge, not under something
+// else); in front of the face, a line up from the hand to just over the top and in over the lip is (no fence between).
+//
+// Leniency (vr_climb_leniency, cm). A grip at no ledge takes the nearest one it is within that far of being at: the
+// point of the place above nearest the hand, where that ledge would be the one taken (not where another comes first:
+// the place less the others' that come first, freePoint). The hold is at that point's place along the lip. Of those, the
+// one taken is the nearest to the hand (a hold the hand moves or reaches towards counts as up to `reachFavour` nearer),
+// not behind the head (on the far side from the hand), not lower under the hand than the rule itself reaches
+// (`surfaceBelow`), at most the leniency plus `lenientReach` from the hand, passes the checks above from that point,
+// and is in sight of the hand (a line from the hand, or from the head for a hand in a wall, to just over the lip). A
+// hold the hand is at always wins: leniency only adds holds where there were none. Nothing moves the body when a hold
+// is taken (the pull is the hands' motion since); the drawn hand eases onto it (slower the further it is).
+//
+// Holds on brush models (plats, trains, doors). The hold is kept as the model's entity number and its place in the
+// model's space; each frame it is where the model is now (Quake's traces move a brush model's collision with its
+// origin, never its angles, so the holds do too; the mission packs' rotating brushes collide as translating
+// func_movewall boxes). The player hanging from one rides it in SV_PushMove as one standing on it does, in the same push,
+// exactly (VR_ClimbHangsFrom, VR_ClimbCarried). A ride that the body can't make (carried into something) makes the
+// hands on it let go (vr_climb_mover_crush 0), or blocks the mover as anything in its way does (1: Quake's rules, its
+// blocked function: a train's damage, a door or plat going back; the hands hold on) (VR_ClimbCarryBlocked). A hold
+// lets go when its model is freed, stops being solid or changes model. A mantle onto one follows it (its way in the
+// model's space) and ends standing on it (its groundentity).
 //
 // Hanging. While a hand holds, the player hangs: no gravity, no stick, no room-scale walk. Each hand holds on to its
 // hold: the body moves by the hands' pull, what the holding hands moved relative to the body since the last frame,
@@ -28,7 +51,7 @@
 // moved: the hand that pulls carries the body, a hand held still is not dragged back against it, and two hands
 // pulling alike move it by their average. A hand taking hold or letting go changes only which hands pull, never where
 // the body is: hand over hand, up, down or sideways, with no jump at the hand-off. A hold on a moving brush model
-// carries the body with it. The body moves through the world by player-box traces (sliding along what blocks it), at
+// carries the body with it (above). The body moves through the world by player-box traces (sliding along what blocks it), at
 // most `maxHangSpeed` units a second, and neither rises with its feet above the highest hold nor strays more than
 // `maxHangReach` units (horizontally) from any hold; each limit only stops the body going further past it (letting
 // go of the higher hand never drops the body back under the lower one's limit).
@@ -49,7 +72,9 @@
 //
 // Mantle: once a hand has pulled down by `mantlePull` units since it took hold and the head is `mantleHead` units
 // above its ledge, and the player's box fits on top (with floor under it) and the way there (straight up, then over)
-// is clear, the body is carried there in `mantleTime` seconds, and stands. The spot is 22 to 38 units in from the lip;
+// is clear, the body is carried there in `mantleTime` seconds, and stands. The ledge map knows how deep the top is at
+// each place along the lip: a spot whose middle is over the top needs only the sweep over to it (and the sweep up,
+// shared by the spots on its side); elsewhere the traces below the box as before. The spot is 22 to 38 units in from the lip;
 // on a narrower top (a wall's, a beam's: at least `minFooting` deep), over its middle, or further out, as long as the
 // box's middle is over it (it stands on the top, not on its edge over the drop). With no room on top (a ceiling, a top
 // too thin), it hangs on, and the holding hands feel a soft buzz as the pull over the top starts; the push over the top
@@ -1730,7 +1755,8 @@ extern "C" int VR_ClimbCarryBlocked(edict_t* check, edict_t* pusher, const float
     {
         if(debug())
         {
-            Con_Printf("climb: carried into something: the mover is blocked\n");
+            Con_Printf("climb: carried into something at (%.1f %.1f %.1f): the mover is blocked (health %.0f)\n", check->v.origin[0],
+                check->v.origin[1], check->v.origin[2], check->v.health);
         }
         return 1;
     }

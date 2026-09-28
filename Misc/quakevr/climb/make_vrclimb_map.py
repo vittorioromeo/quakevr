@@ -50,14 +50,32 @@ B.append(box(-200, -330, 0, -196, -230, 48, "qvr_wall", "qvr_floor"))
 B.append(box(-120, -330, 0, -60, -230, 48, "qvr_wall", "qvr_floor"))
 B.append(box(-120, -330, 88, -60, -230, 104, "qvr_wall", "qvr_floor"))
 
+# ROUND21.md, "Ledge map": moving ledges, each started by a trigger where the player stands to test it (facing +x, its
+# face 18 units ahead, as the long ledge's is from `setpos 78 176 24`):
+# - a lift (func_train "lift1"): a block 40 high (x -300..-236, y 40..136) rising at 8 units a second to 80 up and back,
+#   waiting 1 s at the bottom and 2 at the top, started as soon as the player is at `setpos -318 88 24 0 0 0`;
+# - a plat (func_plat "plat1", x -200..-136, y 40..104, top 48): up at the start, lowered 40 at 24 units a second 3 s
+#   after the player is at `setpos -218 72 24 0 0 0` (then a plat as usual: it rises when stood on).
+BE = []  # brush entities: (keys, brushes)
+BE.append(({"classname": "func_train", "targetname": "lift1", "target": "lift1_a", "speed": "8"},
+           [box(-300, 40, 0, -236, 136, 40, "qvr_trim", "qvr_floor")]))
+BE.append(({"classname": "trigger_once", "target": "lift1"}, [box(-340, 60, 0, -306, 116, 64, "qvr_trim")]))
+BE.append(({"classname": "func_plat", "targetname": "plat1", "speed": "24", "height": "40"},
+           [box(-200, 40, 0, -136, 104, 48, "qvr_trim", "qvr_floor")]))
+BE.append(({"classname": "trigger_once", "target": "plat1", "delay": "3"}, [box(-240, 50, 0, -206, 94, 64, "qvr_trim")]))
+
 ents = []
 ents.append('{\n"classname" "info_player_start"\n"origin" "64 0 24"\n"angle" "0"\n}')
 for (x, y, z, l) in [(0, 0, 440, 300), (0, 400, 440, 300), (-300, 400, 200, 250), (300, -200, 440, 250),
                      (24, -60, 70, 220), (24, 60, 170, 220), (24, -60, 250, 220), (300, 0, 330, 250),
                      (24, 180, 100, 220), (24, 380, 100, 220), (24, 580, 100, 220), (-200, 450, -100, 250),
                      (-200, 0, 100, 250), (-60, -40, 60, 300), (-60, 40, 160, 300), (-60, -40, 260, 300), (-60, 220, 100, 300), (-60, 420, 100, 300), (-250, -260, 110, 250),
-                     (-230, -280, 110, 250), (-150, -280, 80, 250)]:
+                     (-230, -280, 110, 250), (-150, -280, 80, 250), (-280, 88, 170, 250), (-170, 72, 110, 250)]:
     ents.append(f'{{\n"classname" "light"\n"origin" "{x} {y} {z}"\n"light" "{l}"\n"_color" "1 0.95 0.85"\n}}')
+for (name, x, y, z, target, wait) in [("lift1_a", -300, 40, 0, "lift1_b", 1), ("lift1_b", -300, 40, 80, "lift1_a", 2)]:
+    ents.append(f'{{\n"classname" "path_corner"\n"targetname" "{name}"\n"target" "{target}"\n"origin" "{x} {y} {z}"\n"wait" "{wait}"\n}}')
+for keys, brushes in BE:
+    ents.append("{\n" + "".join(f'"{k}" "{v}"\n' for k, v in keys.items()) + "\n".join(brushes) + "\n}")
 
 with open(out, "w", newline="\n") as f:
     f.write('// Game: Quake VR\n// Format: Valve\n// entity 0\n{\n"classname" "worldspawn"\n"mapversion" "220"\n'
