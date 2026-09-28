@@ -245,6 +245,7 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
     stat(STAT_QVR_WEAPONCLIP2, f.weaponclip2);
     stat(STAT_QVR_WEAPONCLIPSIZE, f.weaponclipsize);
     stat(STAT_QVR_WEAPONCLIPSIZE2, f.weaponclipsize2);
+    stat(STAT_QVR_MELEE, f.vr_melee_hud);
 
     const int holsterWeapon[numHolsters] = {f.holsterweapon0, f.holsterweapon1,
         f.holsterweapon2, f.holsterweapon3, f.holsterweapon4, f.holsterweapon5};

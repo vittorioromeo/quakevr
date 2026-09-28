@@ -588,7 +588,6 @@ void(entity xItem) VR_PickupObj_Return =
     xItem.owner = world;
     xItem.movetype = xItem.vr_wear_floats ? MOVETYPE_NONE : MOVETYPE_TOSS;
     xItem.vr_rigid = !xItem.vr_wear_floats;
-    xItem.vr_rest = 0;
     xItem.flags = xItem.flags - (xItem.flags & FL_ONGROUND);
     xItem.rad_time = -999;
     setorigin(xItem, xItem.oldorigin);

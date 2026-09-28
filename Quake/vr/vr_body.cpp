@@ -284,6 +284,11 @@ void onTheThigh(const avatar::Follower& follow, Holster holster, glm::vec3& pos,
 
 } // namespace
 
+float holsterReach(Holster holster)
+{
+    return threshold(holster);
+}
+
 glm::vec3 holsterPosition(const hands::State& s, Holster holster)
 {
     if(!vr_body_anchors.value)

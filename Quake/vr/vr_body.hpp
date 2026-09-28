@@ -65,6 +65,9 @@ void updateHotspots(hands::State& s);
 // front then, it goes round the body now; each becomes the X that keeps the holster where it was (vr_migrate_config).
 void migrateHolsters();
 
+// How near a hand must be to a holster to be at it (world units: vr_*_holster_thresh).
+[[nodiscard]] float holsterReach(Holster holster);
+
 // The hotspot of a holster, for highlighting it when a hand hovers it.
 [[nodiscard]] Hotspot holsterHotspot(Holster holster);
 

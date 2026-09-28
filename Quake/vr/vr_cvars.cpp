@@ -50,8 +50,9 @@ const DefaultChange defaultChanges[] = {
     {11, &vr_bash_speed, "1.6"},          // a gentler push bashes (round 18: the guard is the parry's now)
     {12, &vr_sight_hue, "30"},            // their own orange: they follow the player's hue now (vr_player_hue)
     {13, &vr_shove_speed, "1.8"},         // the author's shoves go 3.2-4.8 m/s, his hands waved at the dummy 2.2 (round 21)
+    {14, &vr_counter_glow, "1"},          // off: the author would rather play without it (round 21, "Stamina on the gadget; the glow")
 };
-constexpr int configVersion = 14;
+constexpr int configVersion = 15;
 
 // Right after the saved config is executed (Cmd_Exec_f queues it). "vr_migrate_config new": there was no saved config
 // (a first start): the settings are this version's, nothing to change.
@@ -98,9 +99,9 @@ void migrateConfig_f()
             Cvar_SetQuick(var, var->default_string);
         }
     }
-    // 14: a hip or upper holster on the body goes on round it past its front, where it used to stop (round 21,
+    // 15: a hip or upper holster on the body goes on round it past its front, where it used to stop (round 21,
     // "Arms options after body calibration; holster limits"): an X that was stopped keeps its place.
-    if(from < 14)
+    if(from < 15)
     {
         body::migrateHolsters();
     }

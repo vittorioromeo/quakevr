@@ -29,6 +29,7 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | Dummy attacks | a DUMMY ATTACKS button beside the firing range's training dummy: it winds up (a sound, a glow, the rifle raised) and strikes you every 2.5 s as a knight would, for parry practice (parry, stamina, counters as in a fight); off at every map load; replays turn it off, and a take recorded with it on replays its blows at the same moments; your 471 archived takes evaluate identically |
 | Melee fixes | a punch holding the torch lands (it never did); the free palm with the torch hand pushing is a two-handed shove, the torch hand alone no shove; axe, Mjolnir, sword and gun blows strike walls (10 of 24 test chops before, 23 now); gibs on the floor burst when punched or chopped; your 471 takes replay identically |
 | Dynamic wounds | blood, burns and wetness painted into each monster's, corpse's and your own skin where the blow lands (chunky, on the skin's texels, Quake's reds), drying, cooling, healing; your body and hands no longer use the wound skins; 16 MB, about 2 µs of GPU a hit |
+| Stamina on the gadget; the glow | the stamina bar over the weapon is gone: parry stamina shows in the gadget screen's top row (ten cells; blinking when low; EXHAUSTED; a sweep while it recovers) with COUNTER while a counter's window is open; the counter glow never showed (1 cm sparks inside the blade, at a lagging pose): now a gold rim glow and embers drawn by the client, off as shipped |
 
 Found on the way: fteqcc stores 0 when `a || b` is assigned into an entity field (rewritten; no other code has that
 shape); a parried blow's hand knock, timed by `cl.time`, came back after a level change (reset now).
@@ -2595,6 +2596,9 @@ and moving all the existing rigid-body physics onto it; you test both and choose
 `Quake/vr/vr_box3d.cpp`; Box3D itself is vendored in `Quake/vr/external/box3d` (README with the upstream commit).
 Composites and traces are in the scratchpad's `box3d/`.
 
+(Since "Simplification: Box3D only, knights always drop swords", at the end, Box3D is the only engine: the switch
+below is gone and the old solver is on the branch `archive/old-solver-stacking`.)
+
 **The switch:** Throwing and Physics > **Physics Engine**: Quake VR (`vr_physics_engine 0`, the default, the old solver
 unchanged) or Box3D (`1`). It switches at once, live: at the next server frame the Box3D world is built and every
 body made from its entity (where it is, how it is turned and moving, asleep or not), or destroyed (the entities
@@ -2687,7 +2691,7 @@ two-handed carrying and its throw, holstering, armour, force grab.
 
 | Menu | Cvar | Default | |
 |---|---|---|---|
-| Throwing and Physics > Physics Engine | `vr_physics_engine` | 0 | 0 Quake VR's solver, 1 Box3D |
+| (retired) | `vr_physics_engine` | - | was 0 Quake VR's solver, 1 Box3D; Box3D only since "Simplification: Box3D only" (below) |
 | (console) | `vr_box3d_substeps` | 4 | Box3D's sub-steps a server frame (1..8) |
 | (console) | `vr_box3d_player_push` | 1 | players' bodies push props |
 | (console) | `vr_box3d_player_radius` | 15 | cm, that capsule's radius |
@@ -4249,12 +4253,12 @@ menu under Gameplay > Parry, Bash and Headbutt, as two new sections.
 | `vr_parry_stamina_delay` | 2 s | Rest Before Recovering (0-6 s, extends) |
 | `vr_parry_stamina_regen` | 25 /s | Recovery Rate (1-100, extends) |
 | `vr_parry_stamina_warn` | 1 | Tiring Warning (0-1) |
-| `vr_parry_stamina_show` | 1 | Stamina Bar |
+| `vr_parry_stamina_show` | 1 | Stamina Bar (retired: "Stamina on the gadget; the glow") |
 | `vr_counter` | 1 | Counter-Attacks |
 | `vr_counter_window` | 1.5 s | Counter Window (0.25-4 s, extends) |
 | `vr_counter_damage` | 1.5 | Counter Damage (1-3x, extends) |
 | `vr_counter_sound` | 1 | Counter Sounds (0-1) |
-| `vr_counter_glow` | 1 | Counter Glow |
+| `vr_counter_glow` | 1 (0 since "Stamina on the gadget; the glow") | Counter Glow (now Counter Window Glow) |
 | `vr_counter_haptic` | 1 | Counter Pulses (0-1) |
 
 **Tracing.** With `developer 1`, the console shows each step:
@@ -6585,3 +6589,357 @@ the round's latest vr-cleanup; after it, 0.0042 degrees and 0.059 mm (0.0041 and
       does. Switch to Current Settings and compare. Then aim, guard and punch: does the wrist look like yours?
 - [ ] Apply. If it's worse, Undo. Either way, tell me, and keep the session file (`quakevr/bodycal/`).
 - [ ] "Drawn wrists ... off": above 2 cm, your Hand Calibration's wrist isn't your real one.
+
+## Simplification: Box3D only, knights always drop swords
+
+Your voice notes (vrfiringrange, 2026-09-28): remove the too-niche options; knights always drop swords; Box3D is the only
+physics engine, the bespoke pre-Box3D solver goes (Quake's own physics stays). Branch `agent/simplify`.
+
+### What changed
+
+- **The old solver is gone.** `vr_rigid.cpp` was Quake VR's own rigid-body solver (`vr_physics_engine 0`: each body an
+  oriented box colliding by its corners with sequential impulses, split impulses, wedge escape, its own sleep, water
+  and hit box). All of that is removed: `rigidToss`, `Body`, contacts, `settle`, `unwedge`, `waterStep`, the rest and
+  water memos, and its `vr_debug_throw 3|4` prints. The code lives on in git: branch **`archive/old-solver-stacking`**
+  (also on origin), which has it with the stacking experiment.
+- **What stays in `vr_rigid.cpp`** (345 lines, was 1143) is what Box3D and the hands use: `VR_RigidToss` (keeps items
+  and rigid bodies in the world, the first water check, then hands a rigid body to Box3D), `localBox` (the drawn
+  model's box: `pointInModelBox`, `modelCentre`, `keepInWorld`), `carryAngles`, `vr_rigid_place`, the resets.
+- **The `.vr_rest` field** (the old solver's sleep timer) is gone from QC and the engine: only the old solver read it;
+  Box3D only wrote it. Old saved games still load (an unknown field is skipped quietly).
+- **Box3D** is unchanged except that nothing asks for the engine any more (`vr_physics_list` prints `N, Box3D:`).
+  Quake's own physics (`sv_phys.c`, `MOVETYPE_*`, QC's movetypes) is untouched; only a comment changed there.
+- **Knights and hell knights always drop their sword** when they die, gibbed or not. Kept: a statue knight
+  (spawnflags 2) drops none, as before: it has no sword to lose. The random draw is gone from `VR_DropKnightSword`.
+- **Menus:** Throwing and Physics > Physics starts at Bounciness (the Physics Engine cycle is gone); Gameplay >
+  Knights' Swords keeps only Sword Damage, its help now saying they always drop.
+- **Retired cvars:** `vr_physics_engine` and `vr_sword_drop` stay registered, do nothing, and are no longer archived
+  (the project's way, like `vr_carry_reach`): an old `ironwail.cfg` or a bind setting them loads without a word, and
+  the next saved config leaves them out. `vr_defaults.cfg` no longer sets `vr_physics_engine`.
+
+Lines: the code (engine and QC) is 875 lines shorter and 56 longer (comments and the retired cvars): **819 fewer**.
+The Release binary is 27 KB smaller, and none of the old solver's strings are in it (`wedged at`, `rigid %d: origin`,
+the contact prints; `vr_rigid.obj` has no `rigidToss`, `unwedge`, `waterStep`, `restMemo`).
+
+### How it was checked
+
+The same scenes before (vr-cleanup `d1e5bd2a`) and after, with `host_framerate` 1/72 so Box3D is deterministic;
+`vr_physics_list` and `vr_physics_hash` at the end, and the screenshots (scratchpad `simplify/`, `sc.sh`):
+
+| Scene | Before | After |
+|---|---|---|
+| a column of 5 health boxes (firing range) | hash `e92ce6db…` | identical |
+| a shells box dropped on a stack of 4 | `ad1129d0…` | identical |
+| a box thrown into a stack of 5 | `ba8208c2…` | identical |
+| a pyramid of 6 | `650d4f75…` | identical |
+| every prop piled, then a box thrown into the pile | `9474122c…` | identical |
+| a grunt gibbed by a blast (firing range) | `664fdecd…` | identical |
+| e1m1: a backpack and a loose armour on the ramp | `68a87764…` | identical |
+| e1m1: a health and a shells box riding the plat | `d91df523…` | identical |
+| e1m1: a grunt gibbed at the start | `d0bca7ed…` | identical |
+| a shotgun gripped and thrown (`play_throw_weak.txt`) | lands on its side, asleep | the same (see below) |
+| a shotgun thrown at a grunt (`play_throw.txt`) | kills it, lands asleep | the same |
+
+The screenshots differ only in particles and the signs' flicker (the props are where they were). The two throws come
+from recorded hand motions played by real time, so no two runs are the same, before or after: four runs of the
+build before and three after land the shotgun at 309 -688 on the same side (one run before tipped onto the other
+side), and the throw at the grunt kills it every time.
+
+**Swords:** a knight, a hell knight, a knight gibbed by a blast: each dropped its sword (before too, at
+`vr_sword_drop 1`). With `vr_sword_drop 0` set: before, two knights and a hell knight dropped none; after, all three
+dropped theirs. The knights' scenes' hashes differ from before only because the QC draws one random number fewer.
+
+**Old configs:** `exec` of a file with `vr_physics_engine "0"`, `vr_sword_drop "0.3"` and an unknown control cvar: only
+the control prints `Unknown command`; physics stays Box3D.
+
+### For you
+
+- [ ] Throwing and Physics: the Physics section starts at Bounciness. Throw, stack and carry as usual.
+- [ ] Kill a few knights and hell knights: each drops its sword.
+- [ ] Your own `ironwail.cfg` still has `vr_physics_engine` and `vr_sword_drop`: no console error at start; they drop
+      out of it the next time it is saved.
+## Body collisions
+
+Your note (e1m1): hands, arms, the body, the wrist gadget and held weapons all pass through each other. You asked for
+an option that stops the most glaring overlaps, not a physics body: a hand pushed into the arm should stop at it, and
+go through only once pushed fully through. Branch `agent/handcoll`; scripts, traces and composites are in the
+scratchpad's `handcoll/`.
+
+### What you see
+
+- **A hand, or the weapon in it, stops at the surface** of your other hand, your other arm (upper arm and forearm), the
+  wrist gadget on it, and your body: the torso, the neck and head, and the legs in the full body.
+- **The arm follows:** the arm's IK reaches the drawn hand, so the elbow and forearm move with it.
+- **Push on and it goes through.** It is held out until it is 70% of the way through (Pass Through At), or held out
+  10.5 cm. Then it lets go and slides through in about a tenth of a second. It stays let go until it is clear again:
+  no flicker at the threshold, and pulled back out it doesn't catch on the way.
+- **Two hands** pressed together each give way half.
+- **Elbows** swing out of the torso round the line from the shoulder to the wrist (a hand across the chest).
+- **Drawn only:** melee, shots, aim, grabs and holsters use the tracked hands as before (below).
+
+### How it works (`Quake/vr/vr_selfcollide.cpp`)
+
+- **Proxies** (capsules; a sphere is a capsule of no length):
+  - **Each hand:** the grasp's spheres of the jointed hand as it was drawn last frame (93), in the hand's frame. The
+    six old models: three spheres along the hand.
+  - **Each held weapon:** capsules fitted once per model and frame to its triangles (the grasp's shape, at the model's
+    per-axis scale).
+    - Along its length in 2 to 5 slabs. Each slab's cross-section (3rd to 97th percentile) is one capsule, or two or
+      three side by side where it is flat. The shotgun gets 6.
+    - A capsule whose middle is behind the hand is the stock.
+  - **The torso** (from the head, this frame, as the body is posed): two upright capsules for the chest (0.125 m
+    round, 0.058 m either side, times the build's torso) and two for the belly and hips, after make_vrbody.py's rings.
+  - **The neck and head** (the head isn't drawn in your eyes, but it's there): a capsule and a 9.5 cm sphere.
+  - **Each arm** as last posed: the upper arm, the forearm's thick half and its bracer. The shoulder and elbow ride
+    the chest's frame, the wrist its hand.
+  - **The legs** (full body): thighs and calves. **The gadget:** two capsules round its casing.
+  - The wound capsules ("Dynamic wounds") were too coarse to reuse (one round torso of 7.5 units).
+- **The test,** from the tracked hands (with the knocks and vr_model_collide's push in):
+  - A contact is a hand (or its weapon) against one part, or the two hands (or weapons) against each other.
+  - A new contact's way out is where the parts are deepest now: the way it came in (a millimetre in before it counts).
+  - The way is kept while the hand goes deeper, following the surface only within 35 degrees of it. So a hand pushed
+    through an arm isn't turned out of the far side half-way, nor slid round it.
+  - Each frame the share through is measured along it: 0 touching on the side it came in, 1 touching on the far
+    side, counting the whole hand or weapon.
+- **Letting go** (the contact passes until the shapes are apart again):
+  - past vr_body_collide_pass (0.7) of the way through;
+  - or when it would hold the hand out more than 0.7 × 15 cm: one contact alone (a hand round an arm, its fingers
+    already past it), or all of a hand's contacts together (pressed onto the gadget and the forearm under it, two
+    hands and their wrists pressed together).
+- **The push:** Gauss-Seidel over the contacts that hold, 4 rounds, each along its own way out; two hands share
+  theirs. Eased: out in 0.012 s, back in 0.03 s as the hand comes out, through in 0.07 s once let go.
+- **When:** `beginView`, after vr_model_collide's and before the weapons and hands are placed, moves `s.pos`;
+  `endView` records what was drawn and puts the tracked hands back.
+
+### Left alone: what is meant to touch
+
+- A hand against its own arm, weapon and gadget.
+- **Two-handed grips:**
+  - The pairs between the two sides fade out as the grip is taken (its transition).
+  - They also fade as an empty hand comes within 9 units of the other gun's grip or cup, gone at the 5.5 units the
+    grab takes it from, and while it is still there after letting go. A pistol's cup and the shotgun's foregrip are
+    reached and let go unhindered.
+  - The helping hand, drawn on the gun, isn't pushed.
+- **A prop in both hands**, a hand on a ledge and a gun carried by its foregrip: the hand is drawn on its grip, not
+  moved.
+- **The torch:** the pairs between the hands fade within 10 units of the torch in the other hand (the hand-over).
+- **Holsters:**
+  - The body against a weapon fades from 1.6 times a holster's reach to its reach.
+  - Against a hand, only deep in one (from its reach to half of it): the holsters stand out of the body, so a hand at
+    one is outside it.
+- **The stock** isn't tested against the torso and legs (a shouldered gun rests on the shoulder).
+- **The head:** no weapon is tested against it (aiming down the sights), nor a hand holding the torch or a gun.
+- **A free hand against the other hand's weapon** stays vr_hand_collide's (triangle exact, the fingers brushing it).
+- **Met while mostly eased out** (under half: coming to a grip or into a holster, a grip just let go), a contact
+  passes until clear rather than holding with part of its push. The pairs between the hands come back over a third of
+  a second after a grip or a hand-over. The helping arm swings back from the grip onto its controller meanwhile, and
+  its gadget used to knock the gun 8 cm aside for a few frames as the grip was let go.
+- **Align Sights to My Aim** turns it off while capturing.
+
+### Drawn only: what the game reads
+
+- `s.pos` is put back exactly after the view. The muzzles and two-handed grips have the push taken out, as
+  vr_model_collide does.
+- The muzzle flash and your beams start at the drawn muzzle (as with vr_model_collide).
+- **The grip hotspot** the other hand takes was chosen from the drawn hands (vr_view.cpp). It is now chosen as
+  tracked, so a push can't change which grip the game offers.
+- **Kept as they were:**
+  - the laser crosshair starts at the tracked muzzle;
+  - a helping hand's drawn pose is what a gun is then carried by (`twohand::recordHelp`), whatever pushed the gun.
+- **Checked** (`s8.py`: the shotgun held 3.8 cm out of the other arm, on against off):
+  - `vr_dumpview`'s hands, controllers, aims, muzzles and foregrip: identical;
+  - the melee's grip, far end and wrist as the server has them (`developer 3`): identical;
+  - the shot's start and direction (`vr_debug_shots 1`): identical.
+  - Only the drawn palms and the drawn gun differ.
+
+### Settings (VR menu > Body > Body Collisions)
+
+| | |
+|---|---|
+| Body Collisions (`vr_body_collide`) | 1: on (the default). 0: off, everything as before. |
+| Pass Through At (`vr_body_collide_pass`) | 0.7: the share of the way through that lets go (and held out at most this × 15 cm). 1: only once all the way through. |
+| Elbows Out of the Torso (`vr_body_collide_elbows`) | 1: on. |
+| `vr_debug_body_collide` | 1: each contact's change printed, a line a frame in `body_collide_trace.txt`; 2: and the proxies drawn. |
+| `vr_body_collide_bench [n] [list]` | times the solve as it is now; `list`: every capsule. |
+
+### Tests (mock headset; the scratchpad's `handcoll/`)
+
+- **The runs:** each scenario twice, off and on, the same scripted hand path in 1 cm steps.
+- **The shots** (`s*_*.png`): your eyes and two spectator cameras, before and after, at each stage.
+- **The traces:** `runs/*/on_trace.txt`. `offsets.png` plots each drawn offset over time, with the contacts' states.
+
+| Scenario | Held out (the drawn hand from the tracked one) | Let go | Seen |
+|---|---|---|---|
+| 1. Off hand up into the main forearm, then through | up to 10.2 cm | at the limit (the hand round the arm, 0.49 through) | stops under the forearm; slides through in 0.1 s |
+| 2. Main hand into the chest | up to 10.2 cm | at the limit | stays at the chest (side view) where it went in before |
+| 3. Shotgun swept through the off arm | up to 9.9 cm | all four contacts together, held out 10.5 cm between them | the gun stays beside the forearm where it went under it before |
+| 4. Main hand pressed onto the gadget | up to 10.1 cm (the tracked hand 12 cm down) | lifted first | rests on the gadget; before, the hand covered it |
+| 5. Two-handed shotgun grip | none | the off forearm crossing the barrel on the way to the foregrip, and the gadget as the grip was let go, pass | grip taken, gun swung, let go: the same on and off |
+| 6. Health box in both hands, to the chest and out | none | | the same on and off |
+| 7. Shotgun holstered over the right shoulder, drawn again | 1.5 cm (the hand by the chest) | | holstered and drawn as before |
+| 8. Palms pressed together, then through | up to 10.4 and 7.3 cm (each wrist in the other hand too) | both hands' contacts together at the limit | palms touch where they crossed before |
+| 9. Hand at the chest (elbows) | | | the elbow swung 4.4 cm out of the torso |
+
+- **Also checked:** a shouldered shotgun and one raised to the sights (no weapon contact; the hand 0.2 cm off the
+  chest for a moment), and the six old hand models (three spheres a hand).
+- **No flicker:** each contact goes in, holds, lets go and clears once in every run. A contact grazing at no depth
+  used to come and go (harmless, 0 push); it now counts only a millimetre in.
+
+### Cost (`run.sh --exclusive`, RTX 4090, the mock at 250 fps)
+
+- `vr_profile`, the `body collide` scope, per frame (5 s averages):
+  - hands apart: 4 µs;
+  - the shotgun held into the off arm: 17 µs;
+  - pressed onto the gadget: 15 µs.
+  - At most 0.26 ms in a window.
+- `vr_body_collide_bench` (medians): apart 2.4 µs; the shotgun in the arm 10.2 µs (7 contacts tested, 4 holding);
+  the gadget 12.0 µs.
+- The elbow's test runs only with an elbow in the torso.
+
+### Not verified
+
+- **In the headset:** how the sizes feel, the 10.5 cm limit, and whether sliding through in a tenth of a second reads
+  as "through" or as a pop.
+- **Your body** is the model's (the build's torso), not yours: a real chest thinner than the drawn one stops the drawn
+  hand in front of it (it doesn't go into the drawn chest).
+- **Props** (boxes, gibs, the torch) aren't proxies: a carried box still goes into the chest.
+- **Fast swipes** through thin things (the gadget, a wrist) within one frame aren't caught: each frame's pose is
+  tested, not the motion between.
+- **A pistol with a cup hotspot:** the hands don't collide within about 34 cm of the cup (the grab's reach and the
+  fade), so the cup is never blocked.
+- **Melee:** the archived takes weren't replayed; the melee reads none of it (`s8.py`).
+- **Not run in the mock with it on:** the torch's hand-over and climbing. They are excluded by the rules above.
+
+### In the headset
+
+- [ ] Push a hand into your other forearm, slowly: it should stop on it and your arm follow; push on and it slides
+      through. Pull back: no catch.
+- [ ] Tap and press the wrist gadget; clap; rub your hands.
+- [ ] Sweep a gun through your other arm; hold it against your chest; shoulder it and aim down the sights.
+- [ ] Take the foregrip, cup a pistol, carry a box in both hands, holster at the hips, chest and shoulders, pass the
+      torch between your hands: none should be hindered.
+- [ ] If it holds too long, lower Pass Through At; if a hand pops through too soon, raise it. Tell me which.
+
+## Stamina on the gadget; the glow
+
+Your note from the firing range: the stamina bar isn't great; show stamina on the wrist gadget instead, as an option.
+And the glow doesn't work at all: find out why and fix it so you can try it, though you'd probably rather play
+without it. Branch `agent/stamina`; pictures in the scratchpad's `stamina/`.
+
+### The bar is gone
+
+The bar that rose from the weapon at each parry (Quake's slider glyphs through `floattext`) is removed: its QC
+(`VR_Stamina_Bar` and its call in `VR_Stamina_Parry`, whose unused position argument went too), its menu toggle, and
+its cvar. `vr_parry_stamina_show` stays registered but unsaved and unused (`CVAR_NONE`, as `vr_carry_reach` was
+retired), so your config loads silently and the next save drops it. Before and after, the same script and frames
+(`bar_before_after.png`): the green bar over the sword, then nothing.
+
+### Stamina on the gadget
+
+**Setting:** Gameplay > Parry, Bash and Headbutt > **Stamina on the Gadget** (`vr_gadget_stamina`, on), also
+HUD and Menus > Screens > Stamina and Counters. **On by default**, because it only shows anything when Parry Stamina
+is on (or a counter's window is open), and with the bar gone it is the only thing that shows how much you have left.
+Off, the screen is exactly as before.
+
+**Where:** the screen's top row, where RANGER STATUS was. It is the one row nothing else needs (the title), the first
+thing the eye meets on the screen, and wide enough for a real gauge: the label and ten cells across the whole width.
+The screen is one colour (its phosphor), so everything is told by brightness, in the screen's own vocabulary: lit
+cells, outlined empty ones, and blinking for warnings, as its red numbers already blink.
+
+| State | What the row shows |
+|---|---|
+| Rested | STAMINA, ten lit cells |
+| After parries | lit cells for what's left (30 of 100 is three cells; a cell being filled is lit in part), the rest outlined |
+| Low (one more one-handed parry knocks the weapon away) | the lit cells blink (lit 0.5 s of every 0.8, dimmed the rest) |
+| Exhausted (none left) | all outlined, EXHAUSTED blinks over them, and the screen's whole frame blinks bright, to be caught out of the corner of the eye |
+| Resting before it comes back | still (nothing moves) |
+| Coming back | a bright sweep runs along the empty cells every 0.7 s while the cells fill |
+| Counter's window open | the label turns to COUNTER, lit in reverse, and the rule under the row becomes a thick bar that runs out with the window |
+
+- **Without Parry Stamina**, the row is the title as before, except while a counter's window is open (Counter-Attacks
+  is on as shipped): then COUNTER and its bar show in the title's place.
+- **The other modes:** the FPS counter (Basic or Detailed) floats under the gadget and the hologram grows out of the
+  screen; neither covers the top row, and the row doesn't move anything else on the screen. Level and Stats is the
+  bottom rows. The weapons' ammo screens are untouched (a sword has none, which is why the gadget is the right place).
+- **Either wrist, hidden:** the row is part of the screen's image, so it goes wherever the gadget is drawn. With the
+  gadget off (HUD mode not the gadget), there is no screen and no stamina, as asked.
+
+**How it gets there:** QC works out the state each frame (`VR_Melee_Hud`, after the stamina and counter frames, in
+`vr_melee.qc`) into one player field, `.vr_melee_hud`: the stamina left in percent (rounded up, so 0 only when
+none is left), + 128 with parry stamina on, + 256 low, + 512 coming back, + 1024 x the window's share left in 63rds.
+The engine sends it as a stat (`STAT_QVR_MELEE`, `vr_server.cpp`), `vr_meleehud.cpp` unpacks it, and the gadget's
+`layout()` draws the row (`meleeRow`). Low and exhausted are the server's judgement (its costs), not guessed by the
+client.
+
+### The glow: why it never showed
+
+The Counter Glow (on as shipped) did run: the QC spawned `particle2(..., QVR_PARTICLE_PRESET_LAVASPIKE, 1)` every
+0.03 s for each hand, anywhere along the hand's melee line, and a debug print confirmed the particles were sent for
+both hands, at the right places. You couldn't see them because:
+
+1. **They were inside the weapon.** The melee line is the weapon's centre line (the grip to the muzzle or tip), so
+   every ember started inside the blade, the handle or the fist, and the depth test hid it.
+2. **They were tiny and didn't move.** The lava spike preset is the lava nails' sparkle: about 1 cm (scale 0.17),
+   half a second, 2 units a second. It never got out of the mesh it started in.
+3. **At the server's hand pose.** Even the few at an edge were placed where the hand was a server frame ago; the
+   client draws the weapon from the latest pose, so in real play (the hands always moving) they were left behind.
+
+The mock showed the same: glow on and glow off gave the same pictures, apart from the parry's own sparks. So it
+wasn't a default, a shader path or the later model shader changes: it could never have been seen.
+
+### The glow, fixed (off as shipped)
+
+**Counter Window Glow** (Counter-Attacks, `vr_counter_glow`), renamed from Counter Glow so it says which glow. It is
+now drawn by the client, from the window's share left (the same stat), on what the hands hold as drawn this frame:
+
+- **A gold glow round the weapon's edges**, the force grab's glow in gold: the alias shader already lights an
+  entity's rim by its glow value; a negative value now means the counter's gold (a small change in
+  `alias_fragment_shader`). It flares as the window opens, follows it down, and fades out in 0.2 s when it closes.
+- **Golden embers off its surface:** about 40 a second from each hand's weapon at first, fewer as the window closes,
+  each from a random vertex of the drawn model, leaving the surface and rising (`particles::counterEmber`: gold, 1-2 cm,
+  0.4-0.75 s).
+- A bare fist glows too (less, 0.6), with embers off the knuckles; a hand steadying the other's weapon, carrying or
+  climbing doesn't.
+
+**Off by default**, as you'd rather play without it. Config version 14 turns a saved `vr_counter_glow 1` (the old
+default, which every config saved) off once, so yours will be off too; turn it on to try it.
+
+Pictures (`glow_closeup.png`, from in front; `glow_eye.png`, from your eyes): the same parry with the glow off and
+on, before, 0.07, 0.35, 0.8 and 1.3 s after, and after the window closed. On, the sword glows gold along its edges
+and sheds embers, dimming, and is itself again once the window closes; off, nothing.
+
+### Tests (mock headset; scratchpad `stamina/gen.py`)
+
+Firing range, the sword across in one hand, the dummy's attacks every 2.5 s (no randomness), Parry Stamina on with
+Rest Before Recovering at 3 s (so that stamina doesn't come back between the blows), your OLD hand settings
+(`vr_gunangle 39.5`, `vr_gunyaw 4`, every `vr_handcal_*` 0):
+
+- the log: 70, 40, 10 (low), 0 ("none, the weapon is knocked away"), "coming back (3.00 s after the last parry)",
+  "rested, 100 (7.00 s after the last parry)";
+- `screen_rows.png`: the screen's top row at each state, from the new `vr_gadget_screen_dump` (the screen's image as
+  drawn, before the phosphor tint and glow): rested; 70 with COUNTER and its bar; low, both blink phases; EXHAUSTED,
+  both phases (the frame bright in one); the sweep; filling; rested. `screen_full.png`: the whole screen;
+- `gadget_closeup.png`: the same ten moments on the gadget, from a camera over the wrist; `gadget_eye.png`: from your
+  eyes, the wrist raised (at the mock's 960 x 540 the row reads as a bright strip along the screen's edge, its length
+  the stamina);
+- `bar_before_after.png`, `glow_closeup.png`, `glow_eye.png` as above; `menu.png`: the two pages' new entries and their help.
+
+A test command: `vr_gadget_screen_dump [name]` writes the gadget screen's image to `screenshots/<name>.png`.
+
+### Not verified
+
+- In the headset: how readable the row is at a glance, at the real resolution and distance, and whether the blinks
+  are enough out of the corner of the eye; the glow's look in a real fight (the pictures are the mock's).
+- Removing the old QC embers also removed their `random()` calls, so a replay that draws other random numbers after a
+  counter's window (the drop chance with Parry Stamina off) may draw different ones. The melee canary eval is skipped
+  this round (your takes are archived), so this wasn't compared.
+
+### In the headset
+
+- [ ] Parry Stamina on, the firing range, DUMMY ATTACKS: parry and glance at the wrist: three cells go each one-handed
+      parry (some come back between the dummy's blows, 2.5 s apart); COUNTER and its bar right after each parry.
+- [ ] Keep parrying: the cells blink before the last one; EXHAUSTED and the frame blink when the sword flies. Stop:
+      after the rest, the sweep and the cells filling.
+- [ ] Is it readable without lifting the wrist to your face? If not, say what you'd want bigger.
+- [ ] Counter Window Glow on (Counter-Attacks): the sword glows gold with embers after a parry, gone once the window
+      closes or the counter lands. Keep it or leave it off.

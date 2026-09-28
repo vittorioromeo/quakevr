@@ -1311,19 +1311,19 @@ void(float xHand, entity b) VR_Melee_Whoosh =
 // vr_parry_stamina_regen a second once you haven't parried for vr_parry_stamina_delay. On, it replaces the drop
 // chance (vr_parry_drop_chance), which is not used. Crossed arms (the unarmed parry) cost nothing: there's no weapon
 // to lose. The warning (vr_parry_stamina_warn): a breath and a throb in the hand when one more one-handed parry would
-// knock the weapon away, a gasp and a long buzz when it is; the bar (vr_parry_stamina_show): what's left, rising from
-// the parrying weapon at each parry.
+// knock the weapon away, a gasp and a long buzz when it is. What's left shows on the wrist gadget (vr_gadget_stamina):
+// VR_Melee_Hud hands it and the counter's window to the engine (STAT_QVR_MELEE, vr_meleehud.cpp).
 //
 // COUNTER-ATTACKS (vr_counter): any parry (a weapon's or crossed arms) opens a window of vr_counter_window seconds in
 // which your next melee attack -- a blow with either hand, a bash or a shove -- is a counter: vr_counter_damage times
 // the damage (and a bash's or shove's knockback). One counter a parry. It is what the parry-bash was (a weapon bash
-// 1.3x within 1.5 s of a weapon's parry), for every attack. The window opens with a blade's shing, what the hands
-// hold sheds golden embers while it lasts (vr_counter_glow) and the hands feel soft pulses (vr_counter_haptic), both
-// fading as it closes; a counter lands with a heavy strike over the attack's own sound (vr_counter_sound).
+// 1.3x within 1.5 s of a weapon's parry), for every attack. The window opens with a blade's shing, the hands feel
+// soft pulses while it lasts (vr_counter_haptic), fading as it closes, and what they hold may glow gold (vr_counter_glow:
+// drawn by the engine from the window's share left, vr_meleehud.cpp); a counter lands with a heavy strike over the
+// attack's own sound (vr_counter_sound).
 //
 // With developer 1, "stamina:" and "counter:" lines trace both.
 
-float VR_COUNTER_GLOW_EVERY = 0.03;  // s between the embers (each hand)
 float VR_COUNTER_PULSE_EVERY = 0.25; // s between the pulses in the hands
 float VR_COUNTER_PULSE_FIRST = 0.35; // s after the parry the first (the parry's own buzz lasts 0.3)
 
@@ -1332,8 +1332,8 @@ float VR_COUNTER_PULSE_FIRST = 0.35; // s after the parry the first (the parry's
 .float vr_stamina_said;     // its coming back was traced (developer)
 .float vr_counter_until;    // on a player: a counter may land until then (0: no window),
 .float vr_counter_since;    // the window opened then,
-.float vr_counter_glow_at;  // the next embers,
-.float vr_counter_pulse_at; // and the next pulse
+.float vr_counter_pulse_at; // the next pulse
+.float vr_melee_hud;        // on a player: what the gadget shows of both (VR_Melee_Hud; the engine's STAT_QVR_MELEE)
 
 float() VR_Stamina_Max =
 {
@@ -1347,20 +1347,9 @@ float(entity p) VR_Stamina_Left =
     return min(most, max(0, most - p.vr_stamina_used));
 };
 
-// What's left as a bar of ten, filled (#) and empty (.).
-string(float xShare) VR_Stamina_Bar =
-{
-    float n = rint(10 * min(1, max(0, xShare)));
-    if(xShare > 0 && n < 1)
-    {
-        n = 1; // a little left shows
-    }
-    return sprintf("%s%s", substring("\x83\x83\x83\x83\x83\x83\x83\x83\x83\x83", 0, n), substring("\x81\x81\x81\x81\x81\x81\x81\x81\x81\x81", 0, 10 - n));
-};
-
-// A weapon's parry by `p`'s `hand` (VR_Parry; `at`: the weapon's middle) spends stamina, warns, shows what's
-// left: TRUE when it leaves none (the weapon is knocked away).
-float(entity p, float hand, float twoHanded, vector at) VR_Stamina_Parry =
+// A weapon's parry by `p`'s `hand` (VR_Parry) spends stamina and warns: TRUE when it leaves none (the weapon is
+// knocked away).
+float(entity p, float hand, float twoHanded) VR_Stamina_Parry =
 {
     float most = VR_Stamina_Max();
     float oneCost = max(0, cvar_hget(cvarh_vr_parry_stamina_cost));
@@ -1395,21 +1384,6 @@ float(entity p, float hand, float twoHanded, vector at) VR_Stamina_Parry =
         // Tiring: a breath, and a throb in the hand once the parry's buzz is over.
         sound(self, CHAN_AUTO, "player/gasp2.wav", 0.8 * warn, ATTN_NORM);
         haptic(hand, 0.32, 0.18, 30, 0.8 * warn);
-    }
-    if(cvar_hget(cvarh_vr_parry_stamina_show))
-    {
-        // Green while rested, amber, red once low.
-        float share = left / most;
-        vector colour = '0.45 1 0.4';
-        if(knocked || low)
-        {
-            colour = '1 0.3 0.25';
-        }
-        else if(share < 0.6)
-        {
-            colour = '1 0.75 0.2';
-        }
-        floattext(at, knocked ? "exhausted" : VR_Stamina_Bar(share), colour, 0.035);
     }
     self = oldSelf;
 
@@ -1454,7 +1428,6 @@ void(entity p, float hand) VR_Counter_Open =
     }
     p.vr_counter_since = time;
     p.vr_counter_until = time + window;
-    p.vr_counter_glow_at = time;
     p.vr_counter_pulse_at = time + VR_COUNTER_PULSE_FIRST;
     float volume = min(1, max(0, cvar_hget(cvarh_vr_counter_sound)));
     if(volume > 0)
@@ -1486,7 +1459,17 @@ float(string xWhat, entity xOn) VR_Counter_Use =
     return mult;
 };
 
-// Each frame (VR_Melee_Frame): while the window is open, the embers and the pulses, fading as it closes.
+// The share of `p`'s counter window left: 1 as it opens .. 0 (0: none open).
+float(entity p) VR_Counter_Left =
+{
+    if(p.vr_counter_until <= time)
+    {
+        return 0;
+    }
+    return min(1, (p.vr_counter_until - time) / max(0.01, p.vr_counter_until - p.vr_counter_since));
+};
+
+// Each frame (VR_Melee_Frame): while the window is open, the pulses, fading as it closes.
 void() VR_Counter_Frame =
 {
     if(self.vr_counter_until <= 0)
@@ -1499,22 +1482,7 @@ void() VR_Counter_Frame =
         dprint(sprintf("counter: closed unused (%.2f s after the parry)\n", time - self.vr_counter_since));
         return;
     }
-    float left = (self.vr_counter_until - time) / max(0.01, self.vr_counter_until - self.vr_counter_since);
-    float h;
-    if(cvar_hget(cvarh_vr_counter_glow) && time >= self.vr_counter_glow_at)
-    {
-        self.vr_counter_glow_at = time + VR_COUNTER_GLOW_EVERY;
-        for(h = 0; h < 2; ++h)
-        {
-            entity b = VR_Blow(h);
-            if(b.mh_n > 0 && b.mh_thing != VR_MTHING_NONE && random() < 0.3 + 0.7 * left)
-            {
-                // Anywhere along what the hand holds (a fist: its knuckles).
-                vector at = b.mh_near + (b.mh_far - b.mh_near) * random();
-                particle2(at, '0 0 0', QVR_PARTICLE_PRESET_LAVASPIKE, 1);
-            }
-        }
-    }
+    float left = VR_Counter_Left(self);
     float strength = min(1, max(0, cvar_hget(cvarh_vr_counter_haptic)));
     if(strength > 0 && time >= self.vr_counter_pulse_at)
     {
@@ -1523,6 +1491,31 @@ void() VR_Counter_Frame =
         haptic(cVR_MainHand, 0.0, 0.04, 160, amp);
         haptic(cVR_OffHand, 0.0, 0.04, 160, amp);
     }
+};
+
+// Each frame (VR_Melee_Frame), after both: what the wrist gadget shows of them (vr_gadget_stamina) and the counter
+// glow (vr_counter_glow), for the engine (.vr_melee_hud, sent as STAT_QVR_MELEE; vr_meleehud.cpp): the stamina left in
+// percent, rounded up (0 only when none is), + 128 with parry stamina on, + 256 when low (one more one-handed parry
+// would knock the weapon away), + 512 while it comes back, + 1024 x the counter window's share left in 63rds (0: none
+// open). Integers under 2^16, exact in a float.
+void() VR_Melee_Hud =
+{
+    float hud = 0;
+    if(cvar_hget(cvarh_vr_parry_stamina))
+    {
+        float left = VR_Stamina_Left(self);
+        float oneCost = max(0, cvar_hget(cvarh_vr_parry_stamina_cost));
+        hud = 128 + min(100, ceil(100 * left / VR_Stamina_Max()));
+        if(left > 0 && oneCost > 0 && left <= oneCost)
+        {
+            hud = hud + 256;
+        }
+        if(self.vr_stamina_used > 0 && time - self.vr_stamina_time >= max(0, cvar_hget(cvarh_vr_parry_stamina_delay)))
+        {
+            hud = hud + 512;
+        }
+    }
+    self.vr_melee_hud = hud + 1024 * ceil(63 * VR_Counter_Left(self));
 };
 
 // Tests (impulse 242, single player): the nearest monster that strikes in melee, within the parry's reach (150 units),
@@ -2058,6 +2051,7 @@ void() VR_Melee_Frame =
     }
     VR_Stamina_Frame();
     VR_Counter_Frame();
+    VR_Melee_Hud();
 };
 
 // The blow of `xHand` this frame, if any (PlayerVRMeleeImpl): FALSE, or TRUE with the contact in mh_c_*, the kind and

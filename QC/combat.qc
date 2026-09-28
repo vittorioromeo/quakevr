@@ -1125,7 +1125,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
 // two. Any parry opens a counter's window (vr_counter): the next melee attack hits harder.
 
 // Parry stamina and counter-attacks (vr_melee.qc).
-float(entity p, float hand, float twoHanded, vector at) VR_Stamina_Parry;
+float(entity p, float hand, float twoHanded) VR_Stamina_Parry;
 void(entity p, float hand) VR_Counter_Open;
 
 // The firing range's training dummy while its own blow is dealt (vr_dummy.qc, vr_dummy_attacks): only then.
@@ -1480,7 +1480,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         float knocked = FALSE;
         if(cvar_hget(cvarh_vr_parry_stamina))
         {
-            knocked = VR_Stamina_Parry(targ, hand, twoHanded, (vr_parry_butt + vr_parry_end) * 0.5);
+            knocked = VR_Stamina_Parry(targ, hand, twoHanded);
         }
         else if(!twoHanded)
         {

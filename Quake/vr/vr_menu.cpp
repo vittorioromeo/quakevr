@@ -468,8 +468,9 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Parry Pushes You", vr_parry_push_player, 0.f, 3.f, 0.05f, "%.2fx").extend(),
         slider("Monsters' Blows Push You", vr_melee_push_player, 0.f, 3.f, 0.05f, "%.2fx").extend(),
         header("Knights' Swords"),
-        slider("Knights Drop Swords", vr_sword_drop, 0.f, 1.f, 0.05f, "%.2f").help("Chance a dying knight or hell knight drops its sword, a melee weapon you can pick up."),
-        slider("Sword Damage", vr_sword_damage_mult, 0.5f, 3.f, 0.05f, "%.2fx").extend().help("A sword swing's damage over the axe's (the hell knight's sword: 25% more)."),
+        slider("Sword Damage", vr_sword_damage_mult, 0.5f, 3.f, 0.05f, "%.2fx").extend()
+            .help("Knights and hell knights always drop their sword, a melee weapon you can pick up. A sword swing's damage "
+                  "over the axe's (the hell knight's sword: 25% more)."),
         header("Feel"),
         toggle("Explosion Rumble", vr_explosion_rumble).help("Explosions near you rumble in your hands."),
         toggle("Low Health Heartbeat", vr_heartbeat).help("A heartbeat in your hands when your health is low."),
@@ -508,8 +509,8 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Recovery Rate", vr_parry_stamina_regen, 1.f, 100.f, 1.f, "%.0f /s").extend().help("Stamina a second it then comes back at."),
         slider("Tiring Warning", vr_parry_stamina_warn, 0.f, 1.f, 0.1f, "%.1f")
             .help("A breath and a throb in the hand when one more one-handed parry would knock the weapon away; a gasp and a long buzz when it does: their volume and strength (0 off)."),
-        toggle("Stamina Bar", vr_parry_stamina_show)
-            .help("Each parry shows the stamina left: a bar rising from the weapon, green, then amber, then red once one more one-handed parry would knock the weapon away."),
+        toggle("Stamina on the Gadget", vr_gadget_stamina)
+            .help("The wrist gadget's top row shows your stamina: ten cells, blinking when one more one-handed parry would knock the weapon away, EXHAUSTED when none is left, a sweep while it comes back. While a counter's window is open it reads COUNTER over a bar running out."),
         header("Counter-Attacks"),
         toggle("Counter-Attacks", vr_counter)
             .help("After a parry (a weapon's or crossed arms), your next melee attack in the window is a counter and hits harder: a blow with either hand, a bash or a shove. One a parry."),
@@ -517,7 +518,8 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Counter Damage", vr_counter_damage, 1.f, 3.f, 0.05f, "%.2fx").extend().help("A counter's damage (a bash's or a shove's knockback too)."),
         slider("Counter Sounds", vr_counter_sound, 0.f, 1.f, 0.1f, "%.1f")
             .help("Volume of a blade's shing as the window opens and of the heavy strike as a counter lands (0 off)."),
-        toggle("Counter Glow", vr_counter_glow).help("While the window is open, what your hands hold sheds golden embers, fewer as it closes."),
+        toggle("Counter Window Glow", vr_counter_glow)
+            .help("While the counter's window is open, what your hands hold (a bare fist too) glows gold round its edges and sheds golden embers, fading as the window closes. Off as shipped."),
         slider("Counter Pulses", vr_counter_haptic, 0.f, 1.f, 0.1f, "%.1f")
             .help("Strength of the soft pulses in both hands while the window is open, fading as it closes (0 off)."),
         header("Training Dummy Attacks"),
@@ -575,6 +577,18 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("Holsters, the virtual stock and hand collisions follow the body's lean and crouch."),
         slider("Hip Holsters Follow Legs", vr_holster_leg_follow, 0.f, 1.f, 0.05f, "%.2f")
             .help("Full body: the hip holsters move with the walking and kicking legs (0: fixed on the body, 1: all the way)."),
+        header("Body Collisions"),
+        toggle("Body Collisions", vr_body_collide)
+            .help("Your hands and the weapons in them stop at your other hand, your other arm, the wrist gadget and your "
+                  "body instead of passing through them. Push on and they pass through (Pass Through At). Drawn only: "
+                  "hits, shots, aim and grabs are still where your hands are."),
+        slider("Pass Through At", vr_body_collide_pass, 0.3f, 1.f, 0.05f, "%.2f").extend(0.05f, 1.f)
+            .help("How far through what stops it your hand or weapon must be pushed before it lets go and passes "
+                  "through: 0.7, seven tenths of the way (and held out at most 10.5 cm); 1, only once all the way through. It "
+                  "stops again once clear."),
+        toggle("Elbows Out of the Torso", vr_body_collide_elbows)
+            .help("With Body Collisions: an elbow that would go into your torso (a hand across your chest) swings out "
+                  "round the line from the shoulder to the wrist."),
         header("Placement"),
         slider("Torso Offset", vr_body_torso_back, -0.2f, 0.4f, 0.01f, "%.2f m").extend(-1.f, 1.f)
             .help("How far the torso sits behind your neck (negative: in front)."),
@@ -1027,6 +1041,8 @@ void hologramTestMessage()
     return {
         header("Wrist Gadget"),
         toggle("Level and Stats", vr_gadget_show_level),
+        toggle("Stamina and Counters", vr_gadget_stamina)
+            .help("The top row shows your parry stamina (with Parry Stamina on) and COUNTER while a counter-attack's window is open."),
         slider("Screen Light", vr_gadget_light, 0.f, 3.f, 0.1f, "%.1fx").extend()
             .help("The screen casts a light in its colour the way it faces, and a faint one on your hand (0 off)."),
         slider("CRT Look", vr_gadget_crt, 0.f, 2.f, 0.1f, "%.1fx").extend()
@@ -1118,9 +1134,6 @@ void hologramTestMessage()
         slider("Assist Cone", vr_throw_assist_cone, 2.f, 30.f, 1.f, "%.0f deg").extend(),
         slider("Assist Strength", vr_throw_assist_strength, 0.f, 1.f, 0.05f, "%.2f"),
         header("Physics"),
-        cycle("Physics Engine", vr_physics_engine, {{0.f, "Quake VR"}, {1.f, "Box3D"}})
-            .help("Quake VR: thrown and dropped things each on their own (they pass through each other). Box3D: they also "
-                  "collide with each other, so boxes stack and piles form. Switches at once."),
         slider("Bounciness", vr_throw_restitution, 0.f, 0.8f, 0.05f, "%.2f").extend(),
         slider("Friction", vr_throw_friction, 0.f, 1.5f, 0.05f, "%.2f").extend(),
         slider("Max Spin", vr_throw_spin_max, 0.f, 40.f, 1.f, "%.0f rad/s").extend(),

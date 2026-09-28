@@ -18,6 +18,7 @@
 #include "vr_cvars.hpp"
 #include "vr_lighting.hpp"
 #include "vr_main.hpp"
+#include "vr_meleehud.hpp"
 #include "vr_profile.hpp"
 #include "vr_text3d.hpp"
 
@@ -28,6 +29,9 @@
 #include <cstring>
 #include <string_view>
 #include <utility>
+#include <vector>
+
+extern "C" qboolean Image_WritePNG(const char* name, byte* data, int width, int height, int bpp, qboolean upsidedown); // image.c
 
 namespace qvr::gadget
 {
@@ -137,6 +141,100 @@ void number(float x, float y, int value, int digits, bool red, float scale)
     }
 }
 
+// A warning on the screen blinks as its red numbers do (number()): lit 0.5 s of every 0.8.
+[[nodiscard]] bool blinkOn()
+{
+    return std::fmod(realtime, 0.8) < 0.5;
+}
+
+// The top row with vr_gadget_stamina (docs/vr-port/ROUND21.md, "Stamina on the gadget; the glow"), in the screen's one
+// colour, so by brightness: "STAMINA" and ten cells, lit for what's left (the one being filled lit in part), empty
+// ones outlined. Low (one more one-handed parry knocks the weapon away): the lit cells blink. None left: "EXHAUSTED"
+// blinks over the empty cells, and the screen's frame with it (layout). Coming back: a bright sweep runs along the empty cells. While a counter's window is open,
+// the label is "COUNTER" lit in reverse and the rule under the row is a thick bar running out with the window; without
+// parry stamina that is all it shows, over the title. False when it shows nothing (the title then).
+bool meleeRow(const Palette& pal)
+{
+    const meleehud::State m = meleehud::state();
+    if(!vr_gadget_stamina.value || (!m.stamina && m.counter <= 0.f))
+    {
+        return false;
+    }
+
+    constexpr float left = 8.f, right = width - 8.f;
+    constexpr float cellsX = 72.f, cellW = 13.f, cellGap = 3.f, cellY = 5.f, cellH = 9.f;
+    constexpr int cells = 10;
+
+    // The label: STAMINA, or COUNTER in reverse while the window is open.
+    if(m.counter > 0.f)
+    {
+        fill(left - 2.f, 4.f, 7.f * 8.f + 4.f, 11.f, glm::vec3{pal.text});
+        gfx::draw2D::color(glm::vec4{pal.background, 1.f});
+        gfx::draw2D::text(left, 6.f, 8.f, "COUNTER");
+    }
+    else
+    {
+        gfx::draw2D::color(pal.text);
+        gfx::draw2D::text(left, 6.f, 8.f, "STAMINA");
+    }
+    gfx::draw2D::color(white);
+
+    if(m.stamina)
+    {
+        const float lit = m.left * cells; // cells' worth left
+        const bool dim = m.low && !blinkOn();
+        for(int i = 0; i < cells; i++)
+        {
+            const float x = cellsX + i * (cellW + cellGap);
+            const float share = std::clamp(lit - static_cast<float>(i), 0.f, 1.f);
+            // Its outline (an empty cell), then what's lit of it.
+            fill(x, cellY, cellW, 1.f, pal.line);
+            fill(x, cellY + cellH - 1.f, cellW, 1.f, pal.line);
+            fill(x, cellY, 1.f, cellH, pal.line);
+            fill(x + cellW - 1.f, cellY, 1.f, cellH, pal.line);
+            if(share > 0.f)
+            {
+                const float w = std::max(1.f, std::round(cellW * share));
+                fill(x, cellY, w, cellH, dim ? pal.line : glm::vec3{pal.text});
+            }
+        }
+        const float cellsEnd = cellsX + cells * (cellW + cellGap) - cellGap;
+        if(m.left <= 0.f)
+        {
+            if(blinkOn())
+            {
+                constexpr const char* word = "EXHAUSTED";
+                const float x = std::round((cellsX + cellsEnd) * 0.5f - 9.f * 4.f);
+                fill(x - 3.f, cellY - 1.f, 9.f * 8.f + 6.f, cellH + 2.f, pal.background);
+                fill(x - 3.f, cellY - 1.f, 9.f * 8.f + 6.f, 1.f, pal.line);
+                fill(x - 3.f, cellY + cellH, 9.f * 8.f + 6.f, 1.f, pal.line);
+                gfx::draw2D::color(pal.text);
+                gfx::draw2D::text(x, 6.f, 8.f, word);
+                gfx::draw2D::color(white);
+            }
+        }
+        else if(m.recovering)
+        {
+            // The sweep: from what's lit to the end, every 0.7 s.
+            const float from = cellsX + lit * (cellW + cellGap);
+            const float t = static_cast<float>(std::fmod(realtime, 0.7) / 0.7);
+            const float x = from + (cellsEnd - from) * t;
+            if(cellsEnd - from > 3.f)
+            {
+                fill(std::min(x, cellsEnd - 2.f), cellY + 1.f, 2.f, cellH - 2.f, glm::vec3{pal.text});
+            }
+        }
+    }
+
+    // The rule under the row; while the window is open, a thick bar running out with it (from the right).
+    fill(left, 16.f, right - left, 1.f, pal.line);
+    if(m.counter > 0.f)
+    {
+        fill(left, 16.f, std::max(2.f, std::round((right - left) * m.counter)), 2.f, glm::vec3{pal.text});
+    }
+    return true;
+}
+
 void layout()
 {
     const Palette pal = palette();
@@ -147,15 +245,23 @@ void layout()
     {
         fill(0.f, static_cast<float>(y), width, 1.f, pal.scanline);
     }
-    fill(0.f, 0.f, width, 2.f, pal.line);
-    fill(0.f, height - 2.f, width, 2.f, pal.line);
-    fill(0.f, 0.f, 2.f, height, pal.line);
-    fill(width - 2.f, 0.f, 2.f, height, pal.line);
+    // Exhausted (no parry stamina left, vr_gadget_stamina): the frame blinks bright, to be seen out of the corner of the eye.
+    const meleehud::State m = meleehud::state();
+    const bool alarm = vr_gadget_stamina.value && m.stamina && m.left <= 0.f && blinkOn();
+    const glm::vec3 frame = alarm ? glm::vec3{pal.text} : pal.line;
+    fill(0.f, 0.f, width, 2.f, frame);
+    fill(0.f, height - 2.f, width, 2.f, frame);
+    fill(0.f, 0.f, 2.f, height, frame);
+    fill(width - 2.f, 0.f, 2.f, height, frame);
 
-    gfx::draw2D::color(pal.text);
-    gfx::draw2D::text(8.f, 6.f, 8.f, "RANGER STATUS");
-    gfx::draw2D::color(white);
-    fill(8.f, 16.f, width - 16.f, 1.f, pal.line);
+    // The top row: the title, or parry stamina and the counter's window (vr_gadget_stamina).
+    if(!meleeRow(pal))
+    {
+        gfx::draw2D::color(pal.text);
+        gfx::draw2D::text(8.f, 6.f, 8.f, "RANGER STATUS");
+        gfx::draw2D::color(white);
+        fill(8.f, 16.f, width - 16.f, 1.f, pal.line);
+    }
 
     // Face and health, armour.
     const int health = cl.stats[STAT_HEALTH];
@@ -1464,6 +1570,7 @@ void drawFps()
 
 void messageTest_f();
 void gadgetInfo_f();
+void screenDump_f();
 
 // A centre print as a message (VR_GameCenterPrint, the test).
 void centrePrint(std::string_view text)
@@ -1627,6 +1734,7 @@ void renderScreen()
         registered = true;
         Cmd_AddCommand("vr_message_test", messageTest_f);
         Cmd_AddCommand("vr_gadget_info", gadgetInfo_f);
+        Cmd_AddCommand("vr_gadget_screen_dump", screenDump_f);
     }
 }
 
@@ -1848,6 +1956,39 @@ void gadgetInfo_f()
     const glm::mat3& a = current.axes;
     Con_Printf("gadget: origin %.3f %.3f %.3f right %.4f %.4f %.4f up %.4f %.4f %.4f out %.4f %.4f %.4f\n", o.x, o.y, o.z,
         a[0].x, a[0].y, a[0].z, a[1].x, a[1].y, a[1].z, a[2].x, a[2].y, a[2].z);
+}
+
+// vr_gadget_screen_dump [name]: the screen's image as drawn this frame (before the phosphor's tint, the CRT and the
+// glow), flat, to screenshots/<name>.png (default gadget_screen), for tests.
+void screenDump_f()
+{
+    if(!target.texture || !target.framebuffer)
+    {
+        Con_Printf("vr_gadget_screen_dump: no screen yet\n");
+        return;
+    }
+    const int w = target.width, h = target.height;
+    std::vector<byte> rgba(static_cast<std::size_t>(w) * h * 4);
+    std::vector<byte> rgb(static_cast<std::size_t>(w) * h * 3);
+    GLint previous = 0;
+    glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &previous);
+    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, target.framebuffer);
+    glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
+    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, static_cast<GLuint>(previous));
+    for(std::size_t p = 0; p < static_cast<std::size_t>(w) * h; p++)
+    {
+        for(std::size_t c = 0; c < 3; c++)
+        {
+            rgb[p * 3 + c] = rgba[p * 4 + c];
+        }
+    }
+    char name[MAX_OSPATH];
+    q_snprintf(name, sizeof(name), "screenshots/%s.png", Cmd_Argc() > 1 ? Cmd_Argv(1) : "gadget_screen");
+    Sys_mkdir(va("%s/screenshots", com_gamedir));
+    if(Image_WritePNG(name, rgb.data(), w, h, 24, false))
+    {
+        Con_Printf("vr_gadget_screen_dump: %s (%dx%d)\n", name, w, h);
+    }
 }
 
 } // namespace

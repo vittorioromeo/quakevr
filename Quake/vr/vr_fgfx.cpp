@@ -6,6 +6,7 @@
 #include "vr_held.hpp"
 #include "vr_hue.hpp"
 #include "vr_lines.hpp"
+#include "vr_meleehud.hpp"
 #include "vr_menu.hpp"
 #include "vr_particles.hpp"
 #include "vr_protocol.hpp"
@@ -253,7 +254,9 @@ glm::vec3 glowColor()
 
 extern "C" float VR_EntityGlow(const entity_t* e)
 {
-    return qvr::fgfx::entityGlow(e);
+    // The force grab's (in the player's hue, +), else the counter glow (gold, -: vr_meleehud.cpp).
+    const float g = qvr::fgfx::entityGlow(e);
+    return g > 0.f ? g : -qvr::meleehud::entityGlow(e);
 }
 
 extern "C" void VR_EntityGlowColor(float rgb[3])
