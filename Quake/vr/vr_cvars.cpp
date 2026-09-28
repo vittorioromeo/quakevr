@@ -214,7 +214,11 @@ const CompiledDefault compiledDefaults[] = {
     return var == &vr_cfg_version || var == &vr_bindings_version || var == &vr_wofs_version || var == &vr_height_calibration
         || var == &vr_xr_runtime || var == &vr_xr_runtime_json || var == &vr_note_device || var == &vr_dominant_eye
         || !std::strncmp(var->name, "vr_motion_", 10) // the motion recorder's (a tool's settings)
-        || !std::strncmp(var->name, "vr_bodycal_", 11) || !std::strncmp(var->name, "vr_body_tweak_", 14); // one's body
+        || !std::strncmp(var->name, "vr_bodycal_", 11) || !std::strncmp(var->name, "vr_body_tweak_", 14) // one's body
+        // and one's arms (Body > Arms, the player's to tweak: the author's decision, 2026-09-28; pauldrons ship)
+        || var == &vr_body_arm_length || var == &vr_body_arm_stretch || var == &vr_body_shoulder_reach
+        || var == &vr_body_forearm_twist || var == &vr_body_wrist_limits || var == &vr_body_elbow_out
+        || var == &vr_body_elbow_back || var == &vr_body_elbow_hand;
 }
 
 // "vr_savedefaults": writes the archived Quake VR settings that differ from the compiled-in
