@@ -221,6 +221,7 @@ void(vector st) ZombieFireGrenade =
     missile.velocity = normalize(self.enemy.origin - org);
     missile.velocity = missile.velocity * 600;
     missile.velocity_z = 200;
+    VR_Lob_Aim(missile, org); // QVR: at the enemy's height (vr_ogre_aim_height)
 
     missile.avelocity = '3000 1000 2000';
 

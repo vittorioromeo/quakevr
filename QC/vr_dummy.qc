@@ -193,6 +193,12 @@ string(entity inflictor, entity attacker, float isVRMelee) VR_Dummy_Kind =
         return sprintf("thrown weapon: %s, %.1f m/s", inflictor.netname, VR_Dummy_Speed(inflictor));
     }
 
+    if(inflictor.vr_grenade && inflictor.vr_gren_set && !inflictor.vr_deflect_time && (attacker.flags & FL_CLIENT))
+    {
+        vr_dummy_colour = '0.5 1 0.5';
+        return sprintf("caught and thrown %s", inflictor.classname); // (vr_grenade.qc; before a thrown box's)
+    }
+
     if(inflictor.vr_gib)
     {
         vr_dummy_colour = cyan;
@@ -201,7 +207,7 @@ string(entity inflictor, entity attacker, float isVRMelee) VR_Dummy_Kind =
         return sprintf("thrown %s, %.1f m/s", gib, VR_Dummy_Speed(inflictor));
     }
 
-    if(inflictor.carry_use)
+    if(inflictor.carry_use && !inflictor.vr_grenade)
     {
         vr_dummy_colour = cyan;
         return sprintf("thrown box (%s), %.1f m/s", inflictor.classname, VR_Dummy_Speed(inflictor));

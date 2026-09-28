@@ -82,7 +82,9 @@ float VR_BASH_PALM_RADIAL = 0.82; // cosine: a shove extends the arm: the palm m
 float VR_SHOULDER_DOWN = 0.28;    // m: a shoulder below the eyes,
 float VR_SHOULDER_SIDE = 0.2;     // and to the side
 float VR_BASH_COOLDOWN = 0.8;     // s after a bash lands before the next
-float VR_BASH_AIM = 45;           // degrees: a batted projectile's thrower this near the facing gets it back
+float VR_BASH_BAT_SPEED = 750;    // u/s a two-handed bash at vr_bash_speed bats a projectile away at (VR_Bash_Deflect)
+float VR_BASH_BAT_MIN = 0.7;      // times that for a slow push,
+float VR_BASH_BAT_MAX = 1.8;      // and a hard one (push speed over vr_bash_speed, clamped)
 float VR_STANCE_REPORT = 0.2;     // s a stance is held before it is reported (developer: "melee event: stance")
 
 // ----------------------------------------------------------------------------
@@ -180,6 +182,10 @@ float VR_MKIND_PUNCH = 3;  // a fist (any way: jab, hook, uppercut, overhead)
 .float bat_t[8];
 .float bat_i;
 .float bat_newest;
+.vector bat_va[8];    // the lines' ends' velocities (world, u/s)
+.vector bat_vb[8];
+.float bat_paid_time; // when a batting swing last paid its stamina (VR_Deflect_Pay),
+.float bat_exhaust;   // and what that left (as a blow's mh_exhaust: 0 paid in full)
 
 .float vr_bash_time;      // on a player: when the next bash may be
 .float vr_arms;           // on a player: arms crossed (the unarmed parry),
@@ -188,6 +194,13 @@ float VR_MKIND_PUNCH = 3;  // a fist (any way: jab, hook, uppercut, overhead)
 .entity vr_bash_next;     // and the next one found
 .float vr_bashdef_until;  // on a player: a bash's (or an armed shove's) batting goes on until then (VR_Bash_Deflect),
 .float vr_bashdef_hand;   // with that hand (-1: both)
+.vector vr_bashdef_vel;   // the push's velocity (world, u/s; VR_Bash_DeflectStart), what it bats goes that way
+.float vr_bashdef_both;   // pushed with both hands
+.float vr_bashdef_armed;  // a bash (a weapon's guard), not a shove
+.float vr_push_start;     // on a player: when the push going on began (VR_Bash: its frames in a row)
+.float vr_bash_paid;      // the push (its vr_push_start) whose stamina was paid (VR_Bash_Pay): once a push, batting or landing,
+.float vr_bash_paid_dmg;  // and what it left (vr_bash_exhaust_dmg and _push)
+.float vr_bash_paid_push;
 float vr_bash_counter;    // while a bash's hits are dealt: a counter's damage multiplier (0: not a counter; vr_dummy.qc)
 float vr_bash_both;       // and with two hands
 float vr_bash_exhaust_dmg;  // and short of stamina: its damage multiplier (0: not short),
@@ -1869,10 +1882,42 @@ void(entity e, vector xAt, vector xForward, float xKind, float xHand, float xSca
     SpawnBloodSplash(e.origin + '0 0 16', 4);
 };
 
-// Batting with a bash (vr_deflect; round 20): for vr_bash_deflect_window seconds from the push, a monster's
-// projectile whose path this frame (from a little behind it to where it will be at the frame's end) comes within
-// vr_bash_deflect_radius of the guard -- each hand's weapon line, each empty hand, and the line between the hands
-// while they are together -- is sent back ahead (at its thrower, within VR_BASH_AIM of the facing `xForward`).
+// A push's stamina (vr_shove_stamina), once a push (`xBoth`: two hands; `xArmed`: a bash), whether it lands or bats a
+// projectile first (VR_Bash_Deflect): the exhaustion's multipliers into vr_bash_exhaust_dmg and _push (0: paid in full).
+void(float xBoth, float xArmed) VR_Bash_Pay =
+{
+    if(self.vr_bash_paid == self.vr_push_start && self.vr_push_start > 0)
+    {
+        vr_bash_exhaust_dmg = self.vr_bash_paid_dmg;
+        vr_bash_exhaust_push = self.vr_bash_paid_push;
+        return;
+    }
+    vr_bash_exhaust_dmg = 0;
+    vr_bash_exhaust_push = 0;
+    if(cvar_hget(cvarh_vr_shove_stamina))
+    {
+        float share = VR_Stamina_Effort(cvar_hget(xBoth ? cvarh_vr_shove_stamina_cost_2h : cvarh_vr_shove_stamina_cost),
+            sprintf("a %s, %s", xArmed ? "bash" : "shove", xBoth ? "two hands" : "one hand"));
+        if(share < 1)
+        {
+            vr_bash_exhaust_dmg = VR_Stamina_Mult(share, cvar_hget(cvarh_vr_stamina_exhausted_damage));
+            vr_bash_exhaust_push = VR_Stamina_Mult(share, cvar_hget(cvarh_vr_stamina_exhausted_push));
+            dprint(sprintf("stamina: the %s deals x%.2f, knocks back x%.2f\n", xArmed ? "bash" : "shove",
+                vr_bash_exhaust_dmg, vr_bash_exhaust_push));
+        }
+    }
+    self.vr_bash_paid = self.vr_push_start;
+    self.vr_bash_paid_dmg = vr_bash_exhaust_dmg;
+    self.vr_bash_paid_push = vr_bash_exhaust_push;
+};
+
+// Batting with a bash (vr_deflect; round 20, ROUND21.md "Deflection by blows and bashes"): for vr_bash_deflect_window
+// seconds from the push, a monster's projectile whose path this frame (from a little behind it to where it will be at
+// the frame's end) comes within vr_bash_deflect_radius of the guard -- each hand's weapon line, each empty hand, and
+// the line between the hands while they are together -- and is ahead of the facing `xForward`, is sent the way the
+// hands push (vr_bashdef_vel), as fast as the bash is strong: VR_BASH_BAT_SPEED times the push's speed over
+// vr_bash_speed (VR_BASH_BAT_MIN .. VR_BASH_BAT_MAX), one hand's VR_BASH_ONE_PUSH of it, short of stamina its
+// Exhausted Knockback (the push's stamina, VR_Bash_Pay). Then the aim assist (VR_Deflect_Assist, vr_juice.qc).
 void(vector xForward) VR_Bash_Deflect =
 {
     float radius = max(0, cvar_hget(cvarh_vr_bash_deflect_radius));
@@ -1915,19 +1960,46 @@ void(vector xForward) VR_Bash_Deflect =
                 dprint(sprintf("deflect: %s of %s, %.0f units from the bash's guard, %.2f s into the push\n",
                     e.classname, e.owner.classname, near,
                     time - (self.vr_bashdef_until - max(0, cvar_hget(cvarh_vr_bash_deflect_window)))));
-                VR_Deflect_Send(e, xForward, self.vr_bashdef_hand, VR_BASH_AIM);
+                vector pushVel = self.vr_bashdef_vel;
+                float strength = vlen(pushVel) / (max(0.1, cvar_hget(cvarh_vr_bash_speed)) * VRMetersToUnits());
+                float batSpeed = VR_BASH_BAT_SPEED * min(VR_BASH_BAT_MAX, max(VR_BASH_BAT_MIN, strength));
+                if(!self.vr_bashdef_both)
+                {
+                    batSpeed = batSpeed * VR_BASH_ONE_PUSH;
+                }
+                VR_Bash_Pay(self.vr_bashdef_both, self.vr_bashdef_armed);
+                if(vr_bash_exhaust_push > 0)
+                {
+                    batSpeed = batSpeed * vr_bash_exhaust_push;
+                }
+                vector pushDir = normalize(pushVel);
+                if(vlen(pushVel) < 1)
+                {
+                    pushDir = xForward;
+                }
+                dprint(sprintf("deflect: the push %v (%.0f u/s, x%.2f the bash speed), %s\n", pushVel, vlen(pushVel),
+                    strength, self.vr_bashdef_both ? "two hands" : "one hand"));
+                VR_Deflect_Send(e, pushDir * batSpeed, self.vr_bashdef_hand, "bash");
             }
         }
         e = e.chain;
     }
 };
 
-// Starts a bash's batting (vr_deflect), with `xHand` (-1: both), unless it is going on already.
-void(float xHand, vector xForward) VR_Bash_DeflectStart =
+// Starts a bash's batting (vr_deflect), with `xHand` (-1: both), unless it is going on already; the push's velocity
+// `xPushVel` (play space, m/s) is kept while it goes on (what it bats goes that way).
+void(float xHand, vector xForward, vector xPushVel, float xBoth, float xArmed) VR_Bash_DeflectStart =
 {
-    if(time > self.vr_bashdef_until && cvar_hget(cvarh_vr_deflect))
+    if(!cvar_hget(cvarh_vr_deflect))
+    {
+        return;
+    }
+    self.vr_bashdef_vel = VR_Blow_ToWorld(xPushVel) * VRMetersToUnits();
+    if(time > self.vr_bashdef_until)
     {
         self.vr_bashdef_hand = xHand;
+        self.vr_bashdef_both = xBoth;
+        self.vr_bashdef_armed = xArmed;
         self.vr_bashdef_until = time + max(0, cvar_hget(cvarh_vr_bash_deflect_window));
         VR_Bash_Deflect(xForward);
     }
@@ -2078,6 +2150,7 @@ void() VR_Bash =
     // The motion recorder (vr_motion.qc): a push, whatever it meets; once a push (its frames in a row).
     if(time - self.vr_motion_pushseen > 0.15)
     {
+        self.vr_push_start = time;
         VR_Motion_Event("push", armed ? "bash" : "shove", both ? -1 : readyHand, 0, VRGetHandPos(readyHand), world,
                         both ? "two hands" : "one hand");
     }
@@ -2096,10 +2169,15 @@ void() VR_Bash =
         ob.mh_hit_touch = time;
     }
 
-    // Batting: a bash, or a shove while a hand holds a weapon.
+    // Batting: a bash, or a shove while a hand holds a weapon; what it bats goes the way the hands push.
     if(armed || !VRIsHandEmpty(self, cVR_MainHand) || !VRIsHandEmpty(self, cVR_OffHand))
     {
-        VR_Bash_DeflectStart(both ? -1 : readyHand, fwd);
+        vector pushVel = VR_Bash_PushVel(b);
+        if(both && ob.mh_stance)
+        {
+            pushVel = (pushVel + VR_Bash_PushVel(ob)) * 0.5;
+        }
+        VR_Bash_DeflectStart(both ? -1 : readyHand, fwd, pushVel, both, armed);
     }
 
     if(time < self.vr_bash_time)
@@ -2116,21 +2194,9 @@ void() VR_Bash =
         return; // a push at the air: nothing yet (the push may still reach something)
     }
 
-    // Stamina (vr_shove_stamina): a shove or a bash that lands spends it; short of it, it is weaker (VR_Bash_Hit).
-    vr_bash_exhaust_dmg = 0;
-    vr_bash_exhaust_push = 0;
-    if(cvar_hget(cvarh_vr_shove_stamina))
-    {
-        float share = VR_Stamina_Effort(cvar_hget(both ? cvarh_vr_shove_stamina_cost_2h : cvarh_vr_shove_stamina_cost),
-            sprintf("a %s, %s", armed ? "bash" : "shove", both ? "two hands" : "one hand"));
-        if(share < 1)
-        {
-            vr_bash_exhaust_dmg = VR_Stamina_Mult(share, cvar_hget(cvarh_vr_stamina_exhausted_damage));
-            vr_bash_exhaust_push = VR_Stamina_Mult(share, cvar_hget(cvarh_vr_stamina_exhausted_push));
-            dprint(sprintf("stamina: the %s deals x%.2f, knocks back x%.2f\n", armed ? "bash" : "shove",
-                vr_bash_exhaust_dmg, vr_bash_exhaust_push));
-        }
-    }
+    // Stamina (vr_shove_stamina): a shove or a bash that lands spends it (once a push: not again if it batted a
+    // projectile first); short of it, it is weaker (VR_Bash_Hit).
+    VR_Bash_Pay(both, armed);
 
     // A bash or a shove in a counter's window after a parry (VR_Counter_Use): the counter, harder and further.
     float counter = 0;
@@ -2256,6 +2322,11 @@ float(float xHand) VR_Melee_Strike =
     {
         b.mh_stam_paid = FALSE;
         b.mh_exhaust = 0;
+        if(time - b.bat_paid_time < VR_BAT_PAID_KEEP)
+        {
+            b.mh_stam_paid = TRUE; // (this swing paid as it batted a projectile: VR_Deflect_Pay)
+            b.mh_exhaust = b.bat_exhaust;
+        }
     }
     if(struck && b.mh_c_ent.takedamage)
     {

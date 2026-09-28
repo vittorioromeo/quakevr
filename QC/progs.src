@@ -24,6 +24,7 @@ vr_wpnforcegrab.qc
 vr_carry.qc
 vr_melee.qc
 vr_juice.qc
+vr_grenade.qc
 
 buttons.qc
 client.qc

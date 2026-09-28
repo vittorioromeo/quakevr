@@ -155,6 +155,7 @@ void() OgreFireGrenade =
         sound(self, CHAN_WEAPON, "weapons/grenade.wav", 1, ATTN_NORM);
         missile.velocity = missile.velocity * 600;
         missile.velocity_z = 200;
+        VR_Lob_Aim(missile, self.origin); // QVR: at the enemy's height (vr_ogre_aim_height)
     }
 
     missile.avelocity = '300 300 300';
@@ -170,6 +171,7 @@ void() OgreFireGrenade =
         setsize(missile, '0 0 0', '0 0 0');
         setorigin(missile, self.origin);
         missile.classname = "MultiGrenade";
+        VR_Grenade_Make(missile, MultiGrenadeExplode, 2.5, FALSE); // QVR: a physics object you can catch (vr_grenade_catch)
     }
     else
     {
@@ -179,6 +181,7 @@ void() OgreFireGrenade =
         setmodel(missile, "progs/grenade.mdl");
         setsize(missile, '0 0 0', '0 0 0');
         setorigin(missile, self.origin);
+        VR_Grenade_Make(missile, OgreGrenadeExplode, 2.5, FALSE); // QVR: a physics object you can catch (vr_grenade_catch)
     }
 };
 

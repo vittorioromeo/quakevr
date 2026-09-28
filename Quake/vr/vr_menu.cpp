@@ -471,6 +471,10 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Sword Damage", vr_sword_damage_mult, 0.5f, 3.f, 0.05f, "%.2fx").extend()
             .help("Knights and hell knights always drop their sword, a melee weapon you can pick up. A sword swing's damage "
                   "over the axe's (the hell knight's sword: 25% more)."),
+        header("Monsters"),
+        toggle("Ogres Aim Grenades Up and Down", vr_ogre_aim_height)
+            .help("Ogres (and zombies throwing flesh) lob at your height, on a ledge above them or a floor below, on an arc at "
+                  "their throw's own speed. Off: Quake's lob, which always flies as if you stood level with them."),
         header("Feel"),
         toggle("Explosion Rumble", vr_explosion_rumble).help("Explosions near you rumble in your hands."),
         toggle("Low Health Heartbeat", vr_heartbeat).help("A heartbeat in your hands when your health is low."),
@@ -552,13 +556,17 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Damage", vr_dummy_attack_damage, 0.f, 50.f, 1.f, "%.0f").extend()
             .help("A blow's damage, as a monster's: armour, the parry and god mode apply."),
         header("Batting Projectiles"),
-        toggle("Bat Back Projectiles", vr_deflect).help("Swing a weapon (or a fist) through a monster's spike, laser, spit or grenade to send it back where your hand points (at the monster, when you point near it)."),
+        toggle("Bat Back Projectiles", vr_deflect).help("Swing a weapon (or a fist) through a monster's spike, laser, spit or grenade to bat it away as a bat hits a ball: off the weapon's face and the way it swings, faster the harder you swing. A bash sends it the way you push."),
         slider("Batting Reach", vr_deflect_radius, 4.f, 32.f, 1.f, "%.0f units").extend().help("How near the weapon's blade (or your fist) a projectile must pass to be batted back."),
         slider("Batting Swing Speed", vr_deflect_speed, 0.2f, 1.5f, 0.05f, "%.2fx").extend().help("How fast a batting swing must be, times Swing Speed (a hit needs 1x, and more for a swung weapon)."),
         slider("Batting Timing", vr_deflect_window, 0.f, 0.5f, 0.05f, "%.2f s").extend().help("How early you may swing: the weapon's path keeps batting this long after it passed."),
         slider("Bash Batting Reach", vr_bash_deflect_radius, 4.f, 48.f, 1.f, "%.0f units").extend()
             .help("A bash (or a shove with a weapon in hand) bats back projectiles that pass this near the guard: the weapon and the hands."),
         slider("Bash Batting Timing", vr_bash_deflect_window, 0.f, 1.f, 0.05f, "%.2f s").extend().help("How long a bash goes on batting after the push."),
+        slider("Batting Bounce", vr_deflect_bounce, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How lively a batted projectile comes off the weapon: 0 dead (it takes only the swing's speed), 1 as a rubber ball (a ball off a bat is about 0.5). A swing across sends it off to the side; the weapon's face driven at the thrower sends it back, the harder the faster."),
+        slider("Batting Aim Assist", vr_deflect_aim_assist, 0.f, 1.f, 0.05f, "%.2f")
+            .help("A batted or bashed projectile going very near a monster (within a few degrees; its thrower a little more) bends this much of the way towards it. 0: only your swing aims."),
         header("Headbutt"),
         toggle("Headbutt", vr_headbutt).help("Lunge your head at something to headbutt it."),
         slider("Headbutt Speed", vr_headbutt_speed, 0.4f, 3.f, 0.05f, "%.2f m/s").extend().help("How fast the head must lunge (towards where you look)."),
@@ -1202,6 +1210,16 @@ void hologramTestMessage()
             .help("Objects: the map's weapons, keys, runes and suits hang spinning until you grab, knock or force-grab them, "
                   "then they are physics objects. A weapon you grip is yours at once; keys, runes and suits you carry to a "
                   "holster and let go of there. Powerups are as before. Next map."),
+        header("Grenades"),
+        cycle("Catch Grenades", vr_grenade_catch, {{0.f, "Off"}, {1.f, "Ogres'"}, {2.f, "Ogres' and yours"}})
+            .help("Grenades bounce and roll as physics objects, and you can catch them (by hand or force grab) and throw them "
+                  "back; thrown, they burst on a monster as an ogre's does on you. \"And yours\": your grenade launcher's too."),
+        slider("Held Grenade Fuse", vr_grenade_held_fuse, 1.f, 5.f, 0.1f, "%.1f s")
+            .help("A grenade you catch fizzes and ticks, and goes off this long after (it never shortens the fuse). Hold it too "
+                  "long and it goes off in your hand."),
+        toggle("Fuse Resets Every Catch", vr_grenade_fuse_regrab)
+            .help("Off: the fuse is set once, as you catch the monster's throw; dropped and caught again, it keeps running. On: "
+                  "every catch sets it again."),
         header("Gibs and Corpses"),
         cycle("Gibs and Heads", vr_grab_gibs, {{0.f, "Left alone"}, {1.f, "Grab by hand"}, {2.f, "Hand and force grab"}})
             .help("Pick up and throw gibs and heads, by reaching for them (or force-grabbing them too)."),

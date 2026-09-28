@@ -128,8 +128,8 @@ float(entity e) VR_Forcegrab_IsEligible =
         return FALSE;
     }
 
-    // Not while it still flies from a throw.
-    return !dropped || (e.flags & FL_ONGROUND) || vlen(e.velocity) < 300;
+    // Not while it still flies from a throw; but a live grenade in flight, to catch (vr_grenade.qc).
+    return !dropped || (e.flags & FL_ONGROUND) || vlen(e.velocity) < 300 || e.vr_grenade;
 }
 
 // The eligible object nearest to where the hand points, or world.

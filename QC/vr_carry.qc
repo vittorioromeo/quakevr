@@ -209,6 +209,7 @@ void(float xHand, entity xBox) VR_Carry_Release =
         xBox.owner = world;
     }
     VR_Gib_Released(xBox, vlen(v) > 250, xHand); // a gib or head thrown hard bursts on a wall
+    VR_Grenade_Released(xBox, xHand); // a live grenade is the player's (vr_grenade.qc)
 };
 
 // Take it: its own pickup, as if the carrying hand had touched it the old way.
