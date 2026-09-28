@@ -1,4 +1,4 @@
-# Editing the body, the weapons and the wrist gadget in Blender
+# Editing the body, the weapons, the gadget, the flashlight and the other models in Blender
 
 You can open these models in Blender, change their shape and their skins, save them, and see them in the game
 without a restart:
@@ -8,6 +8,7 @@ without a restart:
 | The body (torso, head, arms, legs), in three builds | `vrbody_lean`, `vrbody` (athletic), `vrbody_brawny`: each a `.md5mesh` and a `.md5anim`; 16 skins shared by the three, `vrbody_00_00.tga` .. `vrbody_15_00.tga` |
 | The weapons | `v_*.mdl` (`v_shot.mdl`, `v_nail2.mdl`, `v_axe.mdl`...) |
 | The wrist gadget | `vrgadget.mdl` (the casing) and `vrgadget_strap.mdl` (a strap) |
+| The flashlight, the holster, the pauldrons, the spent shell, the ammo button... | every other `.mdl`: see [the table](#the-flashlight-and-the-other-models) |
 
 The hand has its own add-on and guide: [HANDS_IN_BLENDER.md](HANDS_IN_BLENDER.md).
 
@@ -18,6 +19,8 @@ The rules, in short:
 - **The weapons and the gadget:** edit anything. The export keeps what the game hangs off the model: its anchors
   (where your hand, the muzzle, the ammo screen sit), its frames and its size grid. It tells you if an edit moves an
   anchor, and refuses an edit that would silently break one.
+- **The flashlight:** edit anything. The game reads its lens, its tail and its outline from the model as it loads it:
+  the beam and the light follow a lens you move or enlarge.
 
 ## 1. Install the add-on (once)
 
@@ -197,6 +200,43 @@ The strap (`vrgadget_strap.mdl`) is a band round the forearm: radius 1 is the br
 width. The game scales it to your build's bracer. Frame 1 is the band as a cone, blended in where the bracer narrows.
 The report gives its inner radius and width in each frame.
 
+### The flashlight and the other models
+
+Every `.mdl` in `quakevr/progs` imports and exports with the same steps (File > Import > Quake VR Model), byte for
+byte when you change nothing: id's monsters and items too. Some are placed by points written in the game's code; the
+export's report checks those, before and after, and a line starting with `CHECK` says exactly what to change.
+
+| Model | What the game takes from it | If you change it |
+|---|---|---|
+| `vrflashlight.mdl` the flashlight | **Read from the model** as it loads (`vr_flashlight.cpp`): the lens, its centre and radius (the beam, the lens's glow and the light start there, that wide), the tail (the belt clip holds it there, the cord goes in there), the switch (its clicks), its outline (how close it sits under or beside a gun, how far in front of the belt clip). Fixed: +x is the beam, +z the switch's side (towards the knuckles in the fist, away from the body elsewhere), the origin is the middle of the grip, where the fist holds it | Anything. The lens is **the part painted fullbright in skin 1** (the "on" skin; the game draws skin 0 and its own glow): keep the lens's faces mapped there, or paint where they are. Keep it facing +x, the switch on +z, the origin inside the grip. Thicker or thinner grip: the fingers wrap it by themselves (Fingers set to Manual on the Flashlight page: retune them) |
+| `legholster.mdl` the hip holsters | The weapon hangs at the origin (the loops go round it); the plate's back rests on the body, 2.95 from the origin along +y (`vr_view.cpp` `plateBack`); +x forward, +z up | The report gives the back's place: if it moves, it prints the new `plateBack` |
+| `vrpauldron.mdl`, `vrpauldron_arm.mdl` the pauldrons | The origin on the left shoulder joint (the right one is drawn mirrored); 5 skins: 0 leather, 1-3 the armour's colour, 4 steel (Pauldron Style) | Keep the origin and the 5 skins |
+| `vr_shell.mdl` the spent shotgun shell | Its axis along +x, the origin in its middle (it tumbles about it); the rim's radius 1.12 cm, how high a lying shell's middle is (`vr_shells.cpp` `shellRadius`) | The report prints the new `shellRadius` if the rim changed |
+| `wpnbutton.mdl` the ammo button on the guns | Drawn at the gun's button anchor; a fingertip within 2.7 units of its origin presses it | Keep it centred on the origin |
+| `hand_base.mdl`, `finger_*.mdl` the unrigged hand | Drawn only with `vr_hand_rig 0`; the rigged hand (`hand_rig`, the hand add-on) is built from them | After an edit run `make_hand_rig.py` (and `make_bloody_hands.py` for the blood skins 1-3 after a skin 0 edit): the report says so |
+| `knight.mdl`, `hknight.mdl` | The sword hidden as a knight dies, by its vertex numbers and the model's counts (`vr_monstermods.cpp` `knownSwords`); the dropped sword (`v_ksword.mdl`, `v_hksword.mdl`) is cut from them by `make_swords.py` | Keep the sword's vertices, or update `knownSwords` (the report says); moved the sword: run `make_swords.py` |
+| The weapons, the gadget | Section 2 | Section 2 |
+| id's other models (monsters, items, gibs...) | Their frames and skins only | Anything |
+
+Not editable here:
+
+- **The hand** (`hand_rig.*`): its own add-on, [HANDS_IN_BLENDER.md](HANDS_IN_BLENDER.md).
+- **The firing range's monster buttons** (`maps/vr_spawnpanel.bsp`, `vr_spawnbutton.bsp`): brush models, compiled by
+  `make_spawn_buttons.py` from brushes written in it (TrenchBroom's world, not Blender's).
+- **`s_bullet.spr`**: a sprite, not a model.
+- **`hand.mdl`** is never drawn (it names the fist's weapon slot), and **`openhand.mdl`** and **`vrtorso.mdl`** aren't
+  used at all: they import and export, but nothing shows the change.
+
+After exporting the flashlight, `vr_model_reload vrflashlight` prints what the game read:
+
+```
+vr_model_reload: progs/vrflashlight.mdl: lens at (2.475 0.000 0.301), radius 0.582; tail at x -1.365, switch at
+(0.842 0.000 0.400); 14.8 cm long, 4.8 cm thick at most
+```
+
+A model whose lens it can't find (nothing fullbright in skin 1) says `(NOT from the model: the default)` there, and
+the console warns: the beam then starts where the shipped torch's lens is.
+
 ## 3. The body
 
 ### Import
@@ -283,8 +323,9 @@ Open the console and type:
 vr_model_reload
 ```
 
-It reads the weapons, the body and the gadget again from their files, and prints what it read. `vr_model_reload
-v_shot` (or `vrbody`, `vrgadget`, or several names) reads only those. There's no restart and no map reload: a
+It reads the weapons, the body, the gadget, the flashlight, the pauldrons, the holster, the shell, the ammo button
+and the unrigged hand again from their files, and prints what it read. `vr_model_reload v_shot` (or `vrbody`,
+`vrgadget`, `vrflashlight`, any model's name, or several names) reads only those. There's no restart and no map reload: a
 map change doesn't read a model again.
 
 For the body, it also checks the skeleton. If the file isn't usable as the body (a bone missing), it says so, and the
@@ -312,6 +353,11 @@ The generators in `Misc/quakevr` make the shipped models:
 | `polish_weapons.py` (from `src_models/r21`), and the earlier `improve_weapons*.py`, `make_swords.py`, `recolor_shotgun_sight.py` | the weapons |
 | `make_gadget.py` | `vrgadget.mdl`, `vrgadget_strap.mdl` |
 | `make_hand_rig.py` | the hand |
+| `make_flashlight.py` | `vrflashlight.mdl` and its sounds |
+| `make_holster.py`, `make_pauldron.py`, `make_shell.py` | `legholster.mdl`; `vrpauldron.mdl`, `vrpauldron_arm.mdl`; `vr_shell.mdl` |
+| `make_bloody_hands.py` | the blood skins (1-3) of `hand_base.mdl` and `finger_*.mdl` |
+| `make_spawn_buttons.py` | `maps/vr_spawnpanel.bsp`, `maps/vr_spawnbutton.bsp` |
+| `make_detail.py`, `make_grades.py` | the detail textures (`textures/vr/detail_*.png`), the colour grades (`gfx/vr/grade_*.png`) |
 
 **They don't overwrite your edits.** `Misc/quakevr/generated.json` records what each generator last wrote. A
 generator whose output file has changed since then (you exported it from Blender) stops before writing anything and
@@ -326,6 +372,9 @@ them (git has the last committed ones).
 
 - `--keep-edited` writes everything else and leaves your edited files as they are.
 - `--force` overwrites them. Your edits are lost from the files, but not from your .blend: export again.
+
+`make_bloody_hands.py` only rewrites the blood skins: it stops only if you painted those (skins 1-3). Reshape the
+hand or repaint its skin 0, then run it: it paints the blood over your skin.
 
 A file checked out from git that differs from what the generator last wrote counts as edited too. `--force`, or the
 generator's own run, records it again.
