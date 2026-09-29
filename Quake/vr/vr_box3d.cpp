@@ -37,6 +37,7 @@
 #include "vr_cvars.hpp"
 #include "vr_held.hpp"
 #include "vr_lines.hpp"
+#include "vr_mem.hpp"
 #include "vr_physics.hpp"
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
@@ -61,6 +62,17 @@ using namespace qvr::progs;
 
 namespace
 {
+
+// The sync's buffers (the server's frame: the main thread; Box3D steps with one worker, the caller's).
+struct Box3dScratch
+{
+    std::vector<glm::vec3> propVerts;   // a prop's drawn vertices, its hull made (propHull)
+    std::vector<glm::vec3> actorVerts;  // an actor's (actorHull)
+    std::vector<glm::vec3> corners;     // a body's shapes' corners (floorDepth)
+    std::vector<uint8_t> carried;       // by edict: carried by a player (syncEntities)
+    auto members() { return std::tie(propVerts, actorVerts, corners, carried); }
+};
+mem::Scratch<Box3dScratch> scratch{"box3d"};
 
 // Collision categories: props collide with everything; the rest only with props.
 constexpr uint64_t catWorld = 1;
@@ -879,7 +891,7 @@ constexpr float hullTolerance = 0.2f;
         return it->second;
     }
     b3HullData* hull = nullptr;
-    thread_local std::vector<glm::vec3> vertices;
+    std::vector<glm::vec3>& vertices = scratch.propVerts;
     if(held::drawnVertices(ent, vertices) && vertices.size() >= 4)
     {
         std::vector<b3Vec3> points;
@@ -924,7 +936,7 @@ constexpr float hullTolerance = 0.2f;
         return it->second;
     }
     b3HullData* hull = nullptr;
-    thread_local std::vector<glm::vec3> vertices;
+    std::vector<glm::vec3>& vertices = scratch.actorVerts;
     const float frame = ent->v.frame;
     ent->v.frame = 0.f;
     const bool drawn = held::drawnVertices(ent, vertices);
@@ -1174,7 +1186,7 @@ void writeProp(edict_t* ent, Slot& s);
     const b3WorldTransform xf = b3Body_GetTransform(body);
     b3ShapeId shapes[4];
     const int n = b3Body_GetShapes(body, shapes, 4);
-    thread_local std::vector<glm::vec3> corners;
+    std::vector<glm::vec3>& corners = scratch.corners;
     corners.clear();
     float lo = 1e9f, hi = -1e9f;
     for(int i = 0; i < n; i++)
@@ -1567,7 +1579,7 @@ void feedProp(edict_t* ent, Slot& s)
 void syncEntities(float dt)
 {
     const FieldOffsets& f = fields();
-    thread_local std::vector<uint8_t> carried;
+    std::vector<uint8_t>& carried = scratch.carried;
     carried.assign(static_cast<size_t>(qcvm->num_edicts), 0);
     for(int i = 1; i <= svs.maxclients && i < qcvm->num_edicts; i++)
     {
@@ -2474,7 +2486,7 @@ void sink_f()
     }
     const VmScope vm;
     const std::vector<edict_t*> list = entitiesNamed(Cmd_Argc() > 1 ? Cmd_Argv(1) : "props");
-    thread_local std::vector<glm::vec3> vertices;
+    std::vector<glm::vec3> vertices; // (a debug command's: made each call)
     float worst = 0.f, total = 0.f;
     int counted = 0;
     for(edict_t* e : list)

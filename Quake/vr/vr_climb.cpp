@@ -96,6 +96,7 @@
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
 #include "vr_ledges.hpp"
+#include "vr_mem.hpp"
 #include "vr_move.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
@@ -308,6 +309,27 @@ struct Candidate
     return glm::length(d) >= 1.f ? glm::normalize(d) : glm::vec2{0.f};
 }
 
+// A lenient candidate (findHold): its score (the lower the nearer), and where the hand would take it.
+struct Scored
+{
+    float score;
+    Candidate c;
+    glm::vec3 at;
+};
+
+// The hold search's buffers (the server's frame: the main thread).
+struct ClimbScratch
+{
+    std::vector<int> nearby;             // the ledges of one model near the hand (gather)
+    std::vector<edict_t*> areaEdicts;    // the entities round the hand (gather)
+    std::vector<Candidate> found;        // the ledges near the hand (findHold)
+    std::vector<edict_t*> movers;        // the brush models round it (findHold)
+    std::vector<const Candidate*> order; // those the hand is at, the first taken first (findHold)
+    std::vector<Scored> scored;          // the lenient ones (findHold)
+    auto members() { return std::tie(nearby, areaEdicts, found, movers, order, scored); }
+};
+mem::Scratch<ClimbScratch> scratch{"climb"};
+
 // What the search tried and turned down (vr_climb_try).
 struct LenientStats
 {
@@ -322,7 +344,7 @@ void gather(edict_t* player, const glm::vec3& hand, float radius, std::vector<Ca
     const glm::vec2 toBody = towardsBody(player, hand);
     const glm::vec3 reach{radius + ledges::edgeReach + 1.f};
     const glm::vec3 lo = hand - reach, hi = hand + reach;
-    static std::vector<int> nearby;
+    std::vector<int>& nearby = scratch.nearby;
     const auto from = [&](const ledges::Map& m, edict_t* ent, const glm::vec3& offset) {
         nearby.clear();
         m.nearby(lo - offset, hi - offset, nearby);
@@ -340,7 +362,7 @@ void gather(edict_t* player, const glm::vec3& hand, float radius, std::vector<Ca
     {
         from(*world, nullptr, glm::vec3{0.f});
     }
-    static std::vector<edict_t*> list;
+    std::vector<edict_t*>& list = scratch.areaEdicts;
     list.resize(static_cast<size_t>(std::max(1, qcvm->num_edicts)));
     int count = 0;
     vec3_t mins{lo.x, lo.y, lo.z}, maxs{hi.x, hi.y, hi.z};
@@ -593,8 +615,8 @@ struct Box
 {
     LenientStats st;
     lenient = false;
-    static std::vector<Candidate> found;
-    static std::vector<edict_t*> movers;
+    std::vector<Candidate>& found = scratch.found;
+    std::vector<edict_t*>& movers = scratch.movers;
     found.clear();
     movers.clear();
     gather(player, hand, radius, found, movers, st);
@@ -609,7 +631,7 @@ struct Box
     };
 
     // At a hold: the one taken first (takenBefore) of those it is at, that passes the checks.
-    static std::vector<const Candidate*> order;
+    std::vector<const Candidate*>& order = scratch.order;
     order.clear();
     for(const Candidate& c : found)
     {
@@ -642,13 +664,7 @@ struct Box
     reach = glm::length(reach) > 1e-3f ? glm::normalize(reach) : glm::vec3{0.f};
     const glm::vec2 side{hand.x - headPos.x, hand.y - headPos.y}; // the hand's side of the head
     const glm::vec2 toBody = towardsBody(player, hand);
-    struct Scored
-    {
-        float score;
-        Candidate c;
-        glm::vec3 at;
-    };
-    static std::vector<Scored> scored;
+    std::vector<Scored>& scored = scratch.scored;
     scored.clear();
     for(const Candidate& c : found)
     {

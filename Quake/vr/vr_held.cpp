@@ -7,6 +7,7 @@
 #include "vr_grip.hpp"
 #include "vr_hands.hpp"
 #include "vr_lines.hpp"
+#include "vr_mem.hpp"
 #include "vr_profile.hpp"
 #include "vr_physics.hpp"
 #include "vr_progs.hpp"
@@ -191,6 +192,26 @@ float modelGap(const qmodel_t* model)
     return 0.f;
 }
 
+// The held things' shape tests' buffers (the server's frame and the client's view: the main thread). Each function its
+// own: drawnVertices runs inside others' tests (a hull being made).
+struct HeldScratch
+{
+    std::vector<Triangle> verticesTris;   // drawnVertices
+    std::vector<Triangle> distanceTris;   // surfaceDistance
+    std::vector<Triangle> fistTris;       // fistContact: the thing's triangles
+    std::vector<glm::vec4> fistLocal;     // the fist's spheres in the thing's axes
+    std::vector<float> nearest;           // each sphere's nearest distance
+    std::vector<glm::vec3> nearestAt;     // and point
+    std::vector<char> inside;             // and whether its middle is inside
+    std::vector<glm::vec4> grabSpheres;   // grabTouch: the fist's spheres in the world
+    std::vector<Triangle> fitTris;        // surfaceFit
+    auto members()
+    {
+        return std::tie(verticesTris, distanceTris, fistTris, fistLocal, nearest, nearestAt, inside, grabSpheres, fitTris);
+    }
+};
+mem::Scratch<HeldScratch> scratch{"held"};
+
 } // namespace
 
 namespace qvr::held
@@ -266,7 +287,7 @@ bool drawnVertices(edict_t* ent, std::vector<glm::vec3>& out)
     out.clear();
     const int index = static_cast<int>(ent->v.modelindex);
     const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
-    thread_local std::vector<Triangle> triangles;
+    std::vector<Triangle>& triangles = scratch.verticesTris;
     if(!model || !drawnTriangles(ent, model, triangles))
     {
         return false;
@@ -391,7 +412,7 @@ float bounds(const std::vector<glm::vec4>& spheres, glm::vec3& centre)
 
 float surfaceDistance(edict_t* ent, const glm::vec3& point, glm::vec3* nearest)
 {
-    thread_local std::vector<Triangle> triangles;
+    std::vector<Triangle>& triangles = scratch.distanceTris;
     glm::mat3 axes;
     glm::vec3 origin;
     if(!entityTriangles(ent, triangles, axes, origin))
@@ -444,7 +465,7 @@ bool fistContact(edict_t* ent, const std::vector<glm::vec4>& spheres, float reac
 {
     out = FistContact{};
     out.gap = std::numeric_limits<float>::max();
-    thread_local std::vector<Triangle> triangles;
+    std::vector<Triangle>& triangles = scratch.fistTris;
     glm::mat3 axes;
     glm::vec3 origin;
     if(spheres.empty() || !entityTriangles(ent, triangles, axes, origin))
@@ -453,7 +474,7 @@ bool fistContact(edict_t* ent, const std::vector<glm::vec4>& spheres, float reac
     }
 
     // The fist in the thing's axes, and a sphere round all of it.
-    thread_local std::vector<glm::vec4> local;
+    std::vector<glm::vec4>& local = scratch.fistLocal;
     local.clear();
     for(const glm::vec4& s : spheres)
     {
@@ -465,9 +486,9 @@ bool fistContact(edict_t* ent, const std::vector<glm::vec4>& spheres, float reac
     // Each sphere against the triangles near the fist (within twice its bounds and the reach: every triangle a sphere
     // near the surface is nearest to, and the nearest to any sphere sunk in). A sphere's middle is inside when its
     // nearest triangle faces away from it.
-    thread_local std::vector<float> nearest;
-    thread_local std::vector<glm::vec3> nearestAt;
-    thread_local std::vector<char> inside;
+    std::vector<float>& nearest = scratch.nearest;
+    std::vector<glm::vec3>& nearestAt = scratch.nearestAt;
+    std::vector<char>& inside = scratch.inside;
     nearest.assign(local.size(), std::numeric_limits<float>::max());
     nearestAt.assign(local.size(), glm::vec3{0.f});
     inside.assign(local.size(), 0);
@@ -560,7 +581,7 @@ bool grabTouch(edict_t* ent, edict_t* player, int hand, float slack)
         return distance < 0.f || distance <= legacyReach * m2u;
     }
 
-    thread_local std::vector<glm::vec4> spheres;
+    std::vector<glm::vec4>& spheres = scratch.grabSpheres;
     fistInWorld(hand, pos, angles, spheres);
     const float allowed = vr_carry_grab_bias.value * 0.01f * m2u + slack;
     // Nothing of it near (the fist's bounds farther than it may be from the box the thing is drawn in: not its entity
@@ -731,7 +752,7 @@ glm::vec3 surfaceFit(edict_t* ent, const glm::vec3& hand, const glm::vec3& palm)
     }
 
     // What it looks like: its drawn surface, or else its box.
-    thread_local std::vector<Triangle> triangles;
+    std::vector<Triangle>& triangles = scratch.fitTris;
     if(!drawnTriangles(ent, model, triangles))
     {
         glm::vec3 lo{ent->v.mins[0], ent->v.mins[1], ent->v.mins[2]};

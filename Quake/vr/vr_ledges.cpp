@@ -29,6 +29,7 @@
 #include "vr_ledges.hpp"
 #include "vr_cvars.hpp"
 #include "vr_lines.hpp"
+#include "vr_mem.hpp"
 
 #include <algorithm>
 #include <array>
@@ -43,6 +44,16 @@ namespace qvr::ledges
 
 namespace
 {
+
+// A ledge's tests' buffers (the ledge maps are made on the main thread).
+struct LedgeScratch
+{
+    std::vector<glm::vec2> rows[3];  // the open spans along three lines out from the lip (test: the drop)
+    std::vector<glm::vec2> under;    // the solid under the top, going in (test: the depth)
+    std::vector<glm::vec2> over;     // the open over it
+    auto members() { return std::tie(rows, under, over); }
+};
+mem::Scratch<LedgeScratch> scratch{"ledges"};
 
 [[nodiscard]] glm::vec3 vec(const float* v)
 {
@@ -177,7 +188,7 @@ struct Test
     // in the open (spans): a floor or a step below, the usual miss, needs no trace.
     const float top = lip.z;
     float dropOut = -1.f;
-    thread_local std::vector<glm::vec2> rows[3];
+    std::vector<glm::vec2> (&rows)[3] = scratch.rows;
     const float rowZ[3] = {top - minDrop + 0.5f, top - 0.5f * minDrop, top - 1.f};
     const glm::vec3 near0 = lip + o * 0.5f, far0 = lip + o * edgeReach;
     for(int k = 0; k < 3; k++)
@@ -219,7 +230,8 @@ struct Test
     const glm::vec3 inward = -o;
     const glm::vec3 from = lip + inward * 0.5f, to = lip + inward * (maxDepth + 0.5f);
     const auto onPlane = [&](const glm::vec3& p, float dz) { return glm::vec3{p.x, p.y, topHeight(lip, line.normal, p) + dz}; };
-    thread_local std::vector<glm::vec2> under, over;
+    std::vector<glm::vec2>& under = scratch.under;
+    std::vector<glm::vec2>& over = scratch.over;
     h.spans(onPlane(from, -0.5f), onPlane(to, -0.5f), under);
     h.spans(onPlane(from, 1.f), onPlane(to, 1.f), over);
     const auto inSpans = [](const std::vector<glm::vec2>& spans, float f) {

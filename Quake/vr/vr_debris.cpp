@@ -5,6 +5,7 @@
 
 #include "vr_cvars.hpp"
 #include "vr_held.hpp"
+#include "vr_mem.hpp"
 #include "vr_progs.hpp"
 
 #include <algorithm>
@@ -359,21 +360,32 @@ std::vector<Placement> placements;
     return SV_PointContents(v);
 }
 
+// The server map's textures' average colours, by texture: pointers into the hunk, so released with it at every map
+// change (the check it replaces, the world model's pointer, kept them across a reload of the same map, whose model
+// keeps its slot while its textures are made anew).
+struct DebrisCache
+{
+    std::unordered_map<const texture_t*, glm::vec3> textureLab;
+    auto members() { return std::tie(textureLab); }
+};
+mem::Cache<DebrisCache> cache{"debris", mem::MapChange | mem::GameDirChange};
+
+// The placement's buffers (the server's spawn: the main thread).
+struct DebrisScratch
+{
+    std::vector<glm::vec3> verts; // a piece's drawn vertices (put)
+    auto members() { return std::tie(verts); }
+};
+mem::Scratch<DebrisScratch> scratch{"debris"};
+
 // A texture's average colour (OKLab), from its pixels (the BSP's own: QRP's replacements keep their hue).
 [[nodiscard]] glm::vec3 textureLab(const texture_t* t)
 {
-    static std::unordered_map<const texture_t*, glm::vec3> cache;
-    static const qmodel_t* cacheMap = nullptr;
-    if(cacheMap != sv.worldmodel)
-    {
-        cache.clear();
-        cacheMap = sv.worldmodel;
-    }
     if(!t)
     {
         return glm::vec3{0.4f, 0.f, 0.f};
     }
-    if(auto it = cache.find(t); it != cache.end())
+    if(auto it = cache.textureLab.find(t); it != cache.textureLab.end())
     {
         return it->second;
     }
@@ -387,7 +399,7 @@ std::vector<Placement> placements;
         sum += paletteRgb(px[i]);
     }
     const glm::vec3 lab = okLab(count ? sum / static_cast<float>(count) : glm::vec3{80.f});
-    cache.emplace(t, lab);
+    cache.textureLab.emplace(t, lab);
     return lab;
 }
 
@@ -1213,7 +1225,7 @@ int put(edict_t* e, int i)
 
     // Resting on its lowest corner along the floor's normal; its box round it as it lies.
     const glm::mat3 drawn = held::axesFromAngles(e->v.angles, false);
-    thread_local std::vector<glm::vec3> verts;
+    std::vector<glm::vec3>& verts = scratch.verts;
     glm::vec3 lo{1e9f}, hi{-1e9f};
     float lowest = 0.f;
     if(held::drawnVertices(e, verts) && !verts.empty())

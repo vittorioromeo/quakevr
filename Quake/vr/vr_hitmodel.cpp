@@ -1172,18 +1172,28 @@ void stats_f()
 // vr_hitmodel_check: each monster's model as the hit test poses it against the model as the client draws it this frame
 // (vr_modelcollide.cpp's drawnTriangles: the renderer's lerp): the mean and the largest distance between the same
 // vertices. Accumulated over the calls since `vr_hitmodel_check reset`; printed each call with `vr_hitmodel_check print`.
+namespace
+{
+
+// vr_hitmodel_check's totals since its last `reset` (a debug command's own).
+struct CheckTotals
+{
+    double sum{0.}, worst{0.}, sumRaw{0.}, worstRaw{0.};
+    long long count{0}, calls{0};
+    std::string worstName;
+};
+CheckTotals checkTotals;
+
+} // namespace
+
 void check_f()
 {
-    static double sum = 0., worst = 0., sumRaw = 0., worstRaw = 0.;
-    static long long count = 0, calls = 0;
-    static std::string worstName;
     if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "reset"))
     {
-        sum = worst = sumRaw = worstRaw = 0.;
-        count = calls = 0;
-        worstName.clear();
+        checkTotals = CheckTotals{};
         return;
     }
+    auto& [sum, worst, sumRaw, worstRaw, count, calls, worstName] = checkTotals;
     if(!sv.active || cls.state != ca_connected)
     {
         Con_Printf("vr_hitmodel_check: no local game\n");
@@ -1192,7 +1202,7 @@ void check_f()
     qcvm_t* oldvm = nullptr;
     PR_PushQCVM(&sv.qcvm, &oldvm);
     calls++;
-    thread_local std::vector<glm::vec3> drawn;
+    std::vector<glm::vec3> drawn; // (a debug command's: made each call)
     for(int num = 1; num < qcvm->num_edicts && num < cl_max_edicts; num++)
     {
         edict_t* ent = EDICT_NUM(num);

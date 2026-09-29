@@ -9,6 +9,7 @@
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -42,19 +43,19 @@ std::string fileFor(const char* kind, const char* build, unsigned long long key,
     return dirFor(kind, build) + "/" + name;
 }
 
-// A kind's first write in a session: its other builds' folders removed (they are never read again).
+// The folders pruned this session (a kind's in a game directory, at a build): each game's own, by its path.
+std::vector<std::string> pruned;
+
+// A kind's first write in a session (in each game directory): its other builds' folders removed (they are never read
+// again).
 void prune(const char* kind, const char* build)
 {
-    static std::vector<std::string> done;
-    const std::string id = std::string{kind} + "/" + build;
-    for(const std::string& d : done)
+    const std::string id = dirFor(kind, build);
+    if(std::find(pruned.begin(), pruned.end(), id) != pruned.end())
     {
-        if(d == id)
-        {
-            return;
-        }
+        return;
     }
-    done.push_back(id);
+    pruned.push_back(id);
     std::error_code ec;
     const fs::path root = toPath(std::string{com_gamedir} + "/cache/" + kind);
     for(fs::directory_iterator it(root, ec), end; !ec && it != end; it.increment(ec))

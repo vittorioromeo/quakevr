@@ -8,7 +8,9 @@
 #include <array>
 #include <cmath>
 #include <cstring>
+#include <functional>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 
 namespace qvr::props
@@ -59,8 +61,14 @@ std::array<cvar_t, numSlots * numRetired> retiredCvars{};
     return cvars[slot * numKeys + static_cast<int>(key)];
 }
 
-// Model name -> slot (-1: none), and model -> slot, found again whenever a vr_prop_id_NN changes.
-std::unordered_map<std::string, int> slotCache;
+// Model name -> slot (-1: none), and model -> slot, found again whenever a vr_prop_id_NN changes. By name: looked up
+// by a model's name without making a std::string of it (a transparent hash).
+struct NameHash
+{
+    using is_transparent = void;
+    [[nodiscard]] std::size_t operator()(std::string_view s) const { return std::hash<std::string_view>{}(s); }
+};
+std::unordered_map<std::string, int, NameHash, std::equal_to<>> slotCache;
 std::unordered_map<const qmodel_t*, int> modelSlotCache;
 
 // The keys' defaults as numbers (value() of no slot).
@@ -269,9 +277,7 @@ int slotForModel(const char* model)
         return -1;
     }
     migrate();
-    thread_local std::string key;
-    key = model;
-    if(const auto it = slotCache.find(key); it != slotCache.end())
+    if(const auto it = slotCache.find(std::string_view{model}); it != slotCache.end())
     {
         return it->second;
     }
@@ -284,7 +290,7 @@ int slotForModel(const char* model)
             break;
         }
     }
-    slotCache.emplace(key, found);
+    slotCache.emplace(model, found);
     return found;
 }
 
