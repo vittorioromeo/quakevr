@@ -26,6 +26,18 @@ Empty hammer is silent when you squeeze the trigger
 Hitbox prototype: Debug > Tests > Hitbox Width 20, then walls, corners, stairs, slopes, doors, lifts, trains and climbing
 Tired arms at 15 kg feel right
 
+Grapple: hook stays in after releasing the trigger; back button detaches only; reel in with Y/B
+Grapple: front button (near the muzzle) reels in instantly; is it well placed? (sliders: vr_grapple_front_button_x/y/z)
+Grapple: shoot a stuck hook to free it
+Grapple: rope never goes through walls or floors, doesn't tangle, always reels in from the floor
+Grapple: hang the gun from the ceiling; it settles within a couple of seconds
+Grapple: walking with a loose hook or hooked prop; does it trail naturally? (Move Share 0.7)
+Grapple: flail spin is no longer overpowered (Load Drag, Load Max Speed)
+Grapple: taut rope with a stuck end stops you moving away (max length 1500)
+Grapple: loose hook points the right way; rope starts at the muzzle, in hand and dropped
+Grapple: hook only bites what you actually hit (armour, props)
+Grapple: slack rope looks right (Debug > Views > Show Grapple Rope shows the points)
+
 [Decide or give feedback]
 hudstyle 0 (Classic status bar) as the shipped default? Ironwail's default is 2 (Modern 2)
 Hitbox width: 20 or 16?
@@ -34,6 +46,8 @@ Held prop 32 units behind a wall: keep the drop, or never drop while held?
 Flung props Hurt Players: off by default OK?
 
 Ship vr_world_scale 1.2 and vr_floor_offset -22 as defaults, or keep them personal?
+
+Any explosion splash (monsters' too) detaches a hook in the world: OK?
 
 [Tune]
 Stamina costs: shove, strike, melee, parry, climbing
