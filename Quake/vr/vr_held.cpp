@@ -4,11 +4,13 @@
 #include "vr_carry2h.hpp"
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
+#include "vr_grip.hpp"
 #include "vr_hands.hpp"
 #include "vr_lines.hpp"
 #include "vr_profile.hpp"
 #include "vr_physics.hpp"
 #include "vr_progs.hpp"
+#include "vr_props.hpp"
 #include "vr_protocol.hpp"
 #include "vr_throw.hpp"
 #include "vr_units.hpp"
@@ -850,6 +852,7 @@ struct Held
     bool drawn{false};    // drawn in the hand last frame, at:
     glm::vec3 lastPos{0.f};
     glm::mat3 lastRot{1.f};
+    unsigned generation{0}; // props::settingsGeneration() its place is for
 };
 
 struct Easing
@@ -975,6 +978,28 @@ void holdFrame(int h, const hands::State& s, int bothEnt)
         hd.rot = glm::transpose(hand) * held::axesFromAngles(e.msg_angles[0], brush);
         hd.model = e.model;
         hd.placed = true;
+        hd.generation = props::settingsGeneration();
+    }
+    else if(hd.generation != props::settingsGeneration())
+    {
+        // Its Held Object Offsets changed while it is held (a slider, its Grip mode): placed again at once, where the
+        // server places it (a listen server: vr_grip.hpp); a remote server's place is taken again (for placeTime).
+        hd.generation = props::settingsGeneration();
+        grip::Place p;
+        if(grip::serverPlace(hd.ent, p))
+        {
+            hd.pos = p.pos;
+            hd.rot = p.rot;
+            if(developer.value || vr_debug_carry.value)
+            {
+                Con_Printf("held: %d placed again in the %s hand at %.2f %.2f %.2f (generation %u, frame %d)\n", hd.ent,
+                    h == 1 ? "main" : "off", hd.pos.x, hd.pos.y, hd.pos.z, hd.generation, host_framecount);
+            }
+        }
+        else
+        {
+            hd.since = cl.time;
+        }
     }
 
     hd.lastPos = s.pos[h] + hand * hd.pos;
