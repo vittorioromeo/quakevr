@@ -274,25 +274,29 @@ float(entity e) VR_Grapple_IsProp =
     return VR_Grapple_IsPlainPickup(e);
 };
 
-<<<<<<< HEAD
 // Whether a thing on the rope's end can be moved by it now: not held in a hand, not flying to one (a force grab).
 float(entity t) VR_Grapple_Movable =
 {
     return t.carry_player == world && t.fg_state == 0;
-=======
-// The player whose hook holds the prop `xProp` (bitten: GH_PROP), or world (vr_carry.qc VR_Prop_Flung: it never hurts
-// them, and its flung hits are theirs).
+};
+
+// The player whose hook holds the prop `xProp` (in it: GH_PROP), or world (vr_carry.qc VR_Prop_Flung: it never hurts
+// them, and its flung hits are theirs): whoever has the hook's gun now, or, the gun lying about, who fired it.
+float(entity h) VR_Grapple_FindGun;
 entity(entity xProp) VR_Grapple_PropHolder =
 {
     for(entity h = find(world, classname, "hook"); h != world; h = find(h, classname, "hook"))
     {
-        if(h.enemy == xProp && h.gh_kind == GH_PROP && h.owner != world)
+        if(h.enemy == xProp && h.gh_state == GS_BITTEN && h.gh_kind == GH_PROP)
         {
+            if(VR_Grapple_FindGun(h) && gg_player != world)
+            {
+                return gg_player;
+            }
             return h.owner;
         }
     }
     return world;
->>>>>>> vr-cleanup
 };
 
 // Where on `t` the point `xAt` is, for the hook to stay there (gh_ofs): a prop's model axes, a monster's or a player's
