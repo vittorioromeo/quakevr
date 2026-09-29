@@ -391,7 +391,7 @@ void(vector p1, vector p2, entity from, float damage) PlasmaDamage =
     // HONEY
     self.damage_weapon = IT_LIGHTNING;
 
-    traceline(p1, p2, FALSE, self);
+    traceline(p1, p2, MOVE_HITMODEL, self); // VR: monsters' models (vr_hit_precise)
     if(trace_ent.takedamage)
     {
         SpawnBloodSplash (trace_endpos, damage*5);
@@ -404,7 +404,7 @@ void(vector p1, vector p2, entity from, float damage) PlasmaDamage =
     }
     e1 = trace_ent;
 
-    traceline(p1 + f, p2 + f, FALSE, self);
+    traceline(p1 + f, p2 + f, MOVE_HITMODEL, self);
     if(trace_ent != e1 && trace_ent.takedamage)
     {
         SpawnBloodSplash (trace_endpos, damage*5);
@@ -412,7 +412,7 @@ void(vector p1, vector p2, entity from, float damage) PlasmaDamage =
     }
     e2 = trace_ent;
 
-    traceline(p1 - f, p2 - f, FALSE, self);
+    traceline(p1 - f, p2 - f, MOVE_HITMODEL, self);
     if(trace_ent != e1 && trace_ent != e2 && trace_ent.takedamage)
     {
         SpawnBloodSplash (trace_endpos, damage*5);

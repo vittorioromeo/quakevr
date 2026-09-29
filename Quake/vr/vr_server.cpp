@@ -1,5 +1,6 @@
 // vr_server.cpp -- server side of the Quake VR protocol extensions (see vr_protocol.hpp).
 
+#include "vr_hitmodel.hpp"
 #include "vr_climb.hpp"
 #include "vr_ledges.hpp"
 #include "vr_move.hpp"
@@ -371,6 +372,8 @@ extern "C" void VR_WriteClientSpawnState(sizebuf_t* msg)
 
 extern "C" void VR_ServerFrameEnd()
 {
+    qvr::hitmodel::serverFrame(); // precise hits: the client's lerp of the monsters' poses and steps, kept
+
     if(!vrProtocol())
     {
         return;

@@ -1082,7 +1082,7 @@ float(float xHand, entity b) VR_Melee_Sweep =
             continue;
         }
         striker = vr_mpt_kind[i] == VR_MPT_EDGE || vr_mpt_kind[i] == VR_MPT_FIST;
-        traceline(p0, p1, FALSE, self);
+        traceline(p0, p1, MOVE_HITMODEL_MELEE, self); // (a monster: its model, vr_hit_precise)
         if(trace_fraction >= 1 && !trace_startsolid)
         {
             float past = FALSE;
@@ -1138,6 +1138,9 @@ float(float xHand, entity b) VR_Melee_Sweep =
     // Monsters' boxes, widened by the points' thickness (and not through a wall); and loose gibs and heads (on the
     // floor, flying): not solid (SOLID_NOT_BUT_TOUCHABLE: the traces above pass them; only shots trace with
     // MOVE_HITGIBS), struck as a monster's box, and burst (VR_Gib_Blow). A gib held in a hand is VR_Gib_HeldFrame's.
+    // Precise hits (vr_hit_precise): a monster's (or corpse's) box, grown by VR_HITMODEL_REACH, is only the broad phase:
+    // a point strikes where its sweep meets the model as drawn, grown by its thickness and the melee tolerance
+    // (hitmodel_segment); through the box beside the model it misses.
     vector mid = (b.mh_pp[0] + b.mh_cp[0] + b.mh_pp[n - 1] + b.mh_cp[n - 1]) * 0.25;
     float reach = max(max(vlen(b.mh_pp[0] - mid), vlen(b.mh_cp[0] - mid)),
                       max(vlen(b.mh_pp[n - 1] - mid), vlen(b.mh_cp[n - 1] - mid)));
@@ -1150,14 +1153,28 @@ float(float xHand, entity b) VR_Melee_Sweep =
             vector lo = e.origin + e.mins;
             vector hi = e.origin + e.maxs;
             float armed = VR_Melee_Armed(xHand, b, e);
+            float precise = hitmodel_target(e);
+            float boxPad = r;
+            if(precise)
+            {
+                boxPad = r + VR_HITMODEL_REACH;
+            }
             for(i = 0; i < n; ++i)
             {
                 p0 = b.mh_pp[i];
                 p1 = b.mh_cp[i];
-                t = VR_SegmentBox(p0, p1, lo - '1 1 1' * r, hi + '1 1 1' * r);
+                t = VR_SegmentBox(p0, p1, lo - '1 1 1' * boxPad, hi + '1 1 1' * boxPad);
                 if(t < 0)
                 {
                     continue;
+                }
+                if(precise)
+                {
+                    t = hitmodel_segment(e, p0, p1, r, HITCLASS_MELEE);
+                    if(t < 0)
+                    {
+                        continue;
+                    }
                 }
                 if(!armed || vr_mpt_kind[i] == VR_MPT_GRIP)
                 {
@@ -1178,11 +1195,14 @@ float(float xHand, entity b) VR_Melee_Sweep =
                 {
                     continue;
                 }
-                // On the box itself.
+                // On the box itself (precise: where the sweep met the model).
                 vector at = p0 + (p1 - p0) * t;
-                at_x = min(hi_x, max(lo_x, at_x));
-                at_y = min(hi_y, max(lo_y, at_y));
-                at_z = min(hi_z, max(lo_z, at_z));
+                if(!precise)
+                {
+                    at_x = min(hi_x, max(lo_x, at_x));
+                    at_y = min(hi_y, max(lo_y, at_y));
+                    at_z = min(hi_z, max(lo_z, at_z));
+                }
                 traceline(hand, at, TRUE, self);
                 if(trace_fraction < 1)
                 {
@@ -1934,13 +1954,22 @@ float(float xHand, entity b, vector xForward) VR_Bash_Find =
     {
         if(e != self && e.takedamage && e.health > 0 && (e.flags & FL_MONSTER) && e.vr_bash_mark != time)
         {
-            vector lo = e.origin + e.mins - '1 1 1' * pad;
-            vector hi = e.origin + e.maxs + '1 1 1' * pad;
+            // Precise hits (vr_hit_precise): the box (grown by VR_HITMODEL_REACH) the broad phase, the model as drawn
+            // (grown by the pad and the melee tolerance) what is shoved.
+            float precise = hitmodel_target(e);
+            float boxPad = pad;
+            if(precise)
+            {
+                boxPad = pad + VR_HITMODEL_REACH;
+            }
+            vector lo = e.origin + e.mins - '1 1 1' * boxPad;
+            vector hi = e.origin + e.maxs + '1 1 1' * boxPad;
             float k;
             for(k = 0; k <= 3; ++k)
             {
                 vector off = xForward * (reach * k / 3);
-                if(VR_SegmentBox(a + off, c + off, lo, hi) >= 0)
+                if(VR_SegmentBox(a + off, c + off, lo, hi) >= 0 &&
+                   (!precise || hitmodel_segment(e, a + off, c + off, pad, HITCLASS_MELEE) >= 0))
                 {
                     e.vr_bash_mark = time;
                     e.vr_bash_next = vr_bash_victims;

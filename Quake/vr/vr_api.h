@@ -144,6 +144,12 @@ int VR_AllowWaterSplash (struct edict_s *ent);			// SV_CheckWaterTransition spla
 int VR_TouchLinks (struct edict_s *ent);				// start of SV_TouchLinks: nonzero if handled
 int VR_ExpandAbsBox (struct edict_s *ent);				// SV_LinkEdict: nonzero if it set the abs box
 float VR_MissileExtent (float fallback);				// SV_Move MOVE_MISSILE box extent
+// Precise hit detection (vr_hitmodel.cpp): monsters' models, not their boxes, for moves with MOVE_HITMODEL (world.h).
+float VR_HitModelTolerance (int type);				// SV_Move: the tolerance of the move's class; -1: not precise (the option off)
+int VR_HitModelTarget (struct edict_s *ent);			// SV_ClipToLinks: nonzero if its model is what is hit
+int VR_HitModelClip (struct edict_s *ent, const float *start, const float *mins, const float *maxs, const float *end, int type,
+	float tolerance, float maxfraction, trace_t *trace);	// nonzero: hit (trace filled); zero: the move goes through its box
+int VR_HitModelMoveFlags (struct edict_s *ent);		// SV_PushEntity: the flags a projectile's move adds
 
 // Client effects (r_part.c): Quake VR's particles in place of Quake's (nonzero if they took it).
 int VR_RunParticleEffect (const float *org, const float *dir, int color, int count);	// impacts, blood (svc_particle)

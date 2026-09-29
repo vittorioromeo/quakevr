@@ -8,6 +8,7 @@
 #include "vr_carry2h.hpp"
 #include "vr_debris.hpp"
 #include "vr_held.hpp"
+#include "vr_hitmodel.hpp"
 #include "vr_motion.hpp"
 #include "vr_engine.hpp"
 #include "vr_physics.hpp"
@@ -19,6 +20,7 @@
 #include "vr_weapons.hpp"
 #include "vr_weight.hpp"
 
+#include <algorithm>
 #include <vector>
 
 namespace qvr::progs
@@ -605,6 +607,48 @@ void PF_debrisput()
     G_FLOAT(OFS_RETURN) = static_cast<float>(debris::put(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1))));
 }
 
+// Precise hit detection (vr_hitmodel.cpp). hitmodel_target(e): whether e's model is what is hit (the option on, a
+// monster or corpse with a Quake model).
+void PF_hitmodel_target()
+{
+    G_FLOAT(OFS_RETURN) = hitmodel::target(G_EDICT(OFS_PARM0)) ? 1.f : 0.f;
+}
+
+// hitmodel_segment(e, a, b, radius, class): the segment a..b, a sphere of radius `radius` plus the class's tolerance
+// (0 guns, 1 grapple, 2 melee, 3 thrown), against e's model as drawn: where along it it first meets it (0: it starts
+// in it), -1 missed; -2: e's model is not tested (the option off, not a target): its box as before. The point on the
+// model: hitmodel_rest's (the last hit).
+void PF_hitmodel_segment()
+{
+    edict_t* e = G_EDICT(OFS_PARM0);
+    const float* a = G_VECTOR(OFS_PARM1);
+    const float* b = G_VECTOR(OFS_PARM2);
+    const float radius = std::max(0.f, G_FLOAT(OFS_PARM3));
+    const auto c = static_cast<hitmodel::Class>(std::clamp(static_cast<int>(G_FLOAT(OFS_PARM4)), 0, 3));
+    if(!hitmodel::target(e))
+    {
+        G_FLOAT(OFS_RETURN) = -2.f;
+        return;
+    }
+    hitmodel::Hit h;
+    const bool hit = hitmodel::segment(e, glm::vec3{a[0], a[1], a[2]}, glm::vec3{b[0], b[1], b[2]}, radius + hitmodel::tolerance(c), 1.f, c, h);
+    G_FLOAT(OFS_RETURN) = hit ? h.t : -1.f;
+}
+
+// hitmodel_rest(e, p): the point p on e's drawn model, as it is on the model standing (its stand frame), placed at its
+// origin and turned with its yaw (positional damage's head sphere and regions); p itself if e is no target.
+void PF_hitmodel_rest()
+{
+    edict_t* e = G_EDICT(OFS_PARM0);
+    const float* p = G_VECTOR(OFS_PARM1);
+    glm::vec3 out{p[0], p[1], p[2]};
+    hitmodel::restPoint(e, out, out);
+    float* r = G_VECTOR(OFS_RETURN);
+    r[0] = out.x;
+    r[1] = out.y;
+    r[2] = out.z;
+}
+
 struct VrBuiltin
 {
     const char* name;
@@ -656,6 +700,9 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"motionevent", PF_motionevent},
     {"motionpoint", PF_motionpoint},
     {"motionvalue", PF_motionvalue},
+    {"hitmodel_target", PF_hitmodel_target},
+    {"hitmodel_segment", PF_hitmodel_segment},
+    {"hitmodel_rest", PF_hitmodel_rest},
 };
 
 static_assert(firstVrBuiltin + std::size(vrBuiltins) < MAX_BUILTINS - 200,

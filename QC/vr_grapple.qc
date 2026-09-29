@@ -660,6 +660,7 @@ void (float xHand) W_FireGrapple =
     newmis.owner = self;        // newmis belongs to me
     setHook(xHand, newmis);            // This is my newmis
     newmis.classname = "hook";
+    newmis.vr_hitclass = HITCLASS_GRAPPLE; // hooks only on a monster's model (vr_hit_precise; vr_hit_tolerance_grapple)
     newmis.gh_kind = GH_FLYING;
 
     makevectors(VRGetWeaponFireRot(xHand));

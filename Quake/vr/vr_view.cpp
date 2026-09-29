@@ -1,5 +1,6 @@
 // vr_view.cpp -- see vr_view.hpp. Ported from the old engine's view.cpp (V_RenderView_*).
 
+#include "vr_hitmodel.hpp"
 #include "vr_view.hpp"
 #include "vr_engine.hpp"
 #include "vr_units.hpp"
@@ -4519,6 +4520,7 @@ extern "C" void VR_SetupViewEntities()
         box3d::debugDraw();
     }
     ledges::debugDraw(); // vr_debug_ledges
+    hitmodel::debugDraw(); // vr_debug_hits
     if(vr_debug_hand_bones.value)
     {
         drawHandBones();

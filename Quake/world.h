@@ -45,6 +45,10 @@ typedef struct
 #define	MOVE_NOMONSTERS	1
 #define	MOVE_MISSILE	2
 #define	MOVE_HITGIBS	256	// QVR, added to a type: also hit gibs and heads (touchable non-solids that take damage), as missiles do
+#define	MOVE_HITMODEL	512	// QVR, added to a type: monsters' models, not their boxes (vr_hit_precise; vr/vr_hitmodel.cpp)
+#define	MOVE_HITMODEL_CLASS_SHIFT	10	// QVR: and its class (the tolerance) in the two bits above: guns, grapple, melee, thrown
+#define	MOVE_HITMODEL_CLASS	(3 << MOVE_HITMODEL_CLASS_SHIFT)
+#define	MOVE_HITMODEL_REACH	64	// QVR: units a model is found out of its box (an ogre's chainsaw: 33; a walking monster drawn behind it)
 
 
 void SV_ClearWorld (void);

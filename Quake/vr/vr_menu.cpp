@@ -494,6 +494,18 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
 [[nodiscard]] std::vector<Item> pageDamage()
 {
     return {
+        header("Hit Detection"),
+        toggle("Precise Hit Detection", vr_hit_precise)
+            .help("Shots, projectiles, the grappling hook, melee blows and thrown things hit a monster's model as you see "
+                  "it, not the big box round it: aim at the body. Off: Quake's boxes."),
+        slider("Guns Tolerance", vr_hit_tolerance_guns, 0.f, 12.f, 0.5f, "%.1f units").extend()
+            .help("How much bigger than the model a monster is to shots and projectiles: a near miss still hits."),
+        slider("Grappling Hook Tolerance", vr_hit_tolerance_grapple, 0.f, 12.f, 0.5f, "%.1f units").extend()
+            .help("How much bigger than the model a monster is to the grappling hook."),
+        slider("Melee Tolerance", vr_hit_tolerance_melee, 0.f, 12.f, 0.5f, "%.1f units").extend()
+            .help("How much bigger than the model a monster is to your melee blows and shoves."),
+        slider("Thrown Tolerance", vr_hit_tolerance_thrown, 0.f, 12.f, 0.5f, "%.1f units").extend()
+            .help("How much bigger than the model a monster is to things you throw."),
         header("Damage"),
         slider("Damage to Enemies", vr_damage_to_enemies, 0.25f, 4.f, 0.05f, "%.2fx").extend().help("Damage you deal to monsters."),
         slider("Damage to You", vr_damage_to_player, 0.f, 4.f, 0.05f, "%.2fx").extend().help("Damage monsters, traps and falls deal to you."),
@@ -1409,6 +1421,10 @@ void hologramTestMessage()
         toggle("Show Physics Shapes", vr_debug_physics_shapes)
             .help("Draws the physics bodies (Box3D) as wireframes: props awake green, asleep blue, held yellow; doors purple, "
                   "monsters orange, you cyan, hanging pickups grey; red dots where they touch. And each hand's grab reach."),
+        cycle("Show Hits", vr_debug_hits, {{0.f, "Off"}, {1.f, "Hits"}, {2.f, "Hits and Misses"}})
+            .help("Precise hit detection: each hit on a monster's model drawn for a few seconds (the model as it was then, "
+                  "the triangle hit in green, the point on the model in red, where the grown model was met in yellow) and "
+                  "printed. Hits and Misses: also the shots that went through a monster's box beside its model (orange)."),
         toggle("Show Hand Bones", vr_debug_hand_bones)
             .help("Draws both hands' joints and bones, and what they grip: the finger spheres (green touching, yellow near, red "
                   "sunk in) and the palm's fit (white: where the hand is, cyan: where the grip moved the palm)."),
@@ -1740,7 +1756,7 @@ std::vector<Item> pageCombat()
         open("Parry and Bash", pageIndex(pageParryBash)).help("Parrying, bashing and shoving, counter-attacks, the training dummy's blows."),
         open("Stamina", pageIndex(pageStamina)).help("What parries, shoves and blows cost, and being exhausted."),
         open("Batting and Catching", pageIndex(pageBatting)).help("Batting projectiles back; catching and returning grenades."),
-        open("Damage and Knockback", pageIndex(pageDamage)).help("Damage to monsters and to you, headshots, knockback."),
+        open("Damage and Knockback", pageIndex(pageDamage)).help("Hit detection, damage to monsters and to you, headshots, knockback."),
     };
 }
 
