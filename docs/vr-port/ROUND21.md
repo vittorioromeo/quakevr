@@ -12704,3 +12704,15 @@ It looked for fires with `findradius`, which skips SOLID_NOT entities, and a tor
   nudge pushed what you reached for without the grip pressed, too). The palm's box is from the drawn hand at the
   defaults; a very different hand calibration may want it moved.
 - Another player's weapon (the capsule) and a weapon in the off hand (mirrored hull) were not run.
+
+## Defaults: the author's climbing values
+
+"I tweaked some of the values to make it even better, so make sure those are the default." His config's `vr_climb_*`
+against the shipped defaults (compiled, and `vr_defaults.cfg`): two differed, and are the defaults now.
+
+- `vr_climb_leniency` 10 -> 6 cm (a grip that misses a hold takes one only this close).
+- `vr_climb_hand_side` 0 -> 7.5 cm (the drawn hand on a hold moved outwards along the edge).
+
+The rest matched already (`vr_climb_hand_up` -10.5 was his from `vr_defaults.cfg`). `vr_cfg_version` 46 moves configs
+still holding the old values; a value the player changed stays (checked: a config at 34 with 10 and 0 comes out at 6
+and 7.5; one at 45 with leniency 8 keeps 8).
