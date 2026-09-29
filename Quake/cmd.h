@@ -40,7 +40,18 @@ The game starts with a Cbuf_AddText ("exec quake.rc\n"); Cbuf_Execute ();
 */
 
 void Cbuf_Init (void);
-extern qboolean config_not_loaded; // QVR: the saved config was too large to run: not written over (Host_WriteConfiguration)
+qboolean Cbuf_Reserve (int l); // QVR: room for l more bytes of commands (the buffer grows); false only out of memory
+
+// QVR: the command system's high-water marks (vr_limits)
+typedef struct
+{
+	int cbuf_peak;		// the command buffer's largest content, bytes
+	int longest_line;	// the longest command line run
+	int longest_token;	// the longest argument
+	int max_argc;		// the most arguments in a command
+} cmdlimits_t;
+extern cmdlimits_t cmd_limits;
+extern qboolean config_not_loaded; // QVR: the saved config could not be run: not written over (Host_WriteConfiguration)
 // allocates an initial text buffer that will grow as needed
 
 void Cbuf_AddTextLen (const char *text, int l);

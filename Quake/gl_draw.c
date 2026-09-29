@@ -140,6 +140,7 @@ typedef struct cachepic_s
 #define	MAX_CACHED_PICS		512	//Spike -- increased to avoid csqc issues.
 cachepic_t	menu_cachepics[MAX_CACHED_PICS];
 int			menu_numcachepics;
+int Draw_CachedPicsMax (void) { return MAX_CACHED_PICS; } // QVR (vr_limits)
 
 //  scrap allocation
 //  Allocate all the little status bar obejcts into a single texture

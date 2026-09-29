@@ -175,6 +175,16 @@ int Sys_rename (const char *oldname, const char *newname)
 	return _wrename (oldnamew, newnamew);
 }
 
+// QVR: newname replaced by oldname in one step (a crash or a full disk never leaves newname half written); 0 on success
+int Sys_ReplaceFile (const char *oldname, const char *newname)
+{
+	wchar_t	oldnamew[MAX_PATH];
+	wchar_t	newnamew[MAX_PATH];
+	UTF8ToWideString (oldname, oldnamew, countof (oldnamew));
+	UTF8ToWideString (newname, newnamew, countof (newnamew));
+	return MoveFileExW (oldnamew, newnamew, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) ? 0 : -1;
+}
+
 qfileofs_t Sys_filelength (FILE *f)
 {
 	qfileofs_t	pos, end;

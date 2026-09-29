@@ -53,6 +53,8 @@ static int	mod_decompressed_capacity;
 #define	MAX_MOD_KNOWN	4096 /*johnfitz -- was 512 */
 static qmodel_t	mod_known[MAX_MOD_KNOWN];
 static int		mod_numknown;
+int Mod_KnownCount (void) { return mod_numknown; } // QVR (vr_limits)
+int Mod_KnownMax (void) { return MAX_MOD_KNOWN; }
 
 texture_t	*r_notexture_mip; //johnfitz -- moved here from r_main.c
 texture_t	*r_notexture_mip2; //johnfitz -- used for non-lightmapped surfs with a missing texture

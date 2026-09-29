@@ -11687,3 +11687,149 @@ buffer's 256 KiB.
       poses.
 - [ ] Change a setting, close the menu, and stop the game from Visual Studio: the setting should still be there at the
       next start.
+
+## Hardcoded limits audit
+
+You asked (29 September, after the 256 KiB command buffer lost your config) to look for "similar hardcoded
+limitations (e.g. cvar limit, etc)". Every fixed limit the mod's growth could reach was checked: the cvars and
+commands, memory, precaches and entities, the network, saves, the progs and the VR code's own tables. Each one's usage
+was measured, and the risky ones were fixed.
+
+Branch `agent/limits`. The scripts, stress configs and logs are in the scratchpad's `limits/`.
+
+### What you get
+
+- **No more settings limits.** Any number of cvars, a command buffer that grows, and commands and values of any length.
+  Your 268 KB config (10,656 cvars) now runs in 20 ms. The zone's heap check alone made it 545 ms, and the old
+  buffer and cvar list added time that grew quadratically.
+- **Five crashes that a long session could reach are gone or pushed far off:** too many cvars, a full zone, too many
+  textures, too many sounds, and a map's long `"angle"` value.
+- **Silent losses now warn you**, once a session: `Limit reached: MAX_DLIGHTS: ...`. This covers a full light list, a
+  full temporary-entity list and a full network frame.
+- **Debug > Reports > Limits** (`vr_limits`) prints every limit's usage, peak and maximum. Rows at 80% or more are
+  highlighted.
+- **Menu positions:** every page now keeps its selection and scroll, not just the 12 or so most recent ones.
+- **The config is written safely:** it goes to a temporary file first, then replaces the old one in one step. A full
+  disk or a crash while writing keeps the old file.
+
+### The table
+
+"Used" is the most measured in the mock with your config: e4m7, e2m2 and hip2m3 with debris; e1m1 with 320 props
+thrown about; a fight with rockets and 80 blasts; and the stress tests below. "Risk" means how likely the limit is to
+be reached, and how bad that would be.
+
+| Limit | Value (was) | Used | Past it | Risk | Action |
+|---|---|---|---|---|---|
+| Cvars (`MAX_CVARS`) | none (16384) | 10,656 (your config); 60,656 (stress) | Sys_Error at start | **high**: 65% used, and it grows with each weapon and prop key | removed; the list and hash map grow |
+| Cvar registration | lazy sort (an insertion sort for each cvar) | 50,000 in 49 ms | slow (quadratic) | medium | sorted once, when the order is needed |
+| A cvar's default | any length (511) | - | cut silently | low | any length |
+| Command buffer | grows (256 KiB, then 4 MiB) | 268 KB (your config); 4.45 MB (stress) | the whole config not run, then defaults saved | **high**: the bug you hit | grows; the "too large" refusal now happens only when memory runs out |
+| Running the buffer | a read offset (a memmove per line) | 10,000 lines | slow (quadratic) | medium | offset |
+| A command line | any length (1023) | 431 (`vr_bodycal_undo`); 5,264 (stress) | cut silently: a long value lost its end and its closing quote | **high**: `vr_menu_positions` holds up to 7 KB | any length |
+| An argument (`com_token`) | any length (1023) | 412; 5,244 (stress) | cut silently | **high**: as above | own growing tokenizer (`Cmd_ParseToken`) |
+| Arguments per command (`MAX_ARGS`) | 1024 (80) | 4 | the rest dropped silently | low | raised; warned |
+| Command line | 4096 characters, 256 arguments (256, 50) | - | cut silently | medium: long `-basedir` paths | raised; warned |
+| `Cbuf_InsertText`'s copy | malloc (the zone) | - | zone Sys_Error | medium | malloc |
+| Console print (`MAXPRINTMSG`) | 4096 | - | the printout is cut (the value is kept) | low | kept; `vr_limits cvarlen <name>` gives a value's length |
+| Alias name | 31 characters | - | "Alias name is too long" | none | kept |
+| Config write | a temporary file, then an atomic replace (written in place) | 268 KB | a failed write left half a config | medium: it now saves at every menu close | `Sys_ReplaceFile` |
+| `vr_menu_positions` | uncapped (1000 characters) | 198 (yours); ~7 KB with every page | positions past ~12 pages forgotten silently | **high** | cap removed |
+| `vr_bodycal_undo` | one entry, a `std::string` | 430 | - | none | - |
+| Zone | 32 MiB (4 MiB) | 0.9 MB (your config); 13.8 MB (60,000 cvars) | Sys_Error | **high**: each cvar takes ~2 blocks | raised; the full heap check on every allocation now only in PARANOID builds |
+| Hunk | 384 MiB, grows in 8 doubling segments | 35-48 MiB (e4m7, e2m2, hip2m3) | Sys_Error (its int offsets overflow past ~2 GiB) | low | kept |
+| Path names (`MAX_QPATH`) | 64 | 28 (`progs/v_shot.mdl:frame0_glow`) | cut | none | kept |
+| Windows file paths | 260 wide characters | ~90 (your Steam path) | the file isn't found | low | kept (Windows' own `MAX_PATH`) |
+| Models precached (`MAX_MODELS`) | 4096 | 136-221 | Host_Error | low | kept (protocol 999 sends 16 bits) |
+| Sounds precached (`MAX_SOUNDS`) | 2048 | 184-241 | Host_Error | low | kept |
+| Sounds known (`MAX_SFX`) | 4096 (1024) | 193 on one map | Sys_Error | **medium**: never freed in a session, and the progs name ~400 | raised |
+| Models known (`MAX_MOD_KNOWN`) | 4096 | 145, then 244 after 3 maps (+~12 a map) | Sys_Error | low | kept |
+| Textures (`MAX_GLTEXTURES`) | 16384 (4096) | 494, then 588 after 3 maps (+20-70 a map) | Sys_Error | **medium**: skins stay loaded all session, with normal maps; ~70 maps would near 4096 | raised |
+| Menu pictures (`MAX_CACHED_PICS`) | 512 | 112 | Sys_Error | none | kept |
+| Edicts (`max_edicts`) | 16384 | 497-590 (320 props) | Host_Error | low; debris leaves 2048 free | kept |
+| Static entities | 4096 | 0-2 | Host_Error | none | kept |
+| Light styles | 64 | 14 | ignored | none | kept (protocol) |
+| Dynamic lights (`MAX_DLIGHTS`) | 64 | peak 7 | the first light taken over, silently | medium: Quake VR lights nails, beams, torches, lava and the flashlight | **warned** (kept: the renderer's light clusters hold 64 bits, `GL_RG32UI`) |
+| Temporary entities | 256 | peak 0 | not drawn, silently | low | **warned** |
+| Entities drawn (`MAX_VISEDICTS`) | 16384 | 405 | not drawn | none | kept |
+| Beams (`MAX_BEAMS`) | 32 | 0 | "Beam list overflow!" | low | kept |
+| Static sounds (`MAX_CHANNELS`) | 892 | 14 | printed, dropped | none | kept |
+| VR particles | 32768 | 9,295 (320 props) | not spawned | low | kept |
+| Datagram (`MAX_DATAGRAM`) | 64000 | 545 (e4m7); 16,498 (320 moving props) | the farther entities wait a frame ("Packet overflow!") | low locally; remote clients get 1400 | **counted and warned**; kept (protocol) |
+| Reliable message (`MAX_MSGLEN`) | 64000 | - | the client is dropped | low | kept (protocol) |
+| Signon buffers | 256 × 31500 | 1 | Host_Error | none | kept |
+| Stats (`MAX_CL_STATS`) | 256 | 113 (`STAT_QVR_*` up to 112) | fixed when built | none | kept |
+| A network string (`MSG_ReadString`) | 2047 | short | cut | low | kept (a `stuffcmd` or world text longer than it is cut) |
+| Loopback queue | 65535 | - | Sys_Error on a reliable overflow | low | kept (the world texts are all resent at spawn) |
+| Progs globals | 65535 (progs v6) | 15,175 (23%) | fteqcc error | none | kept |
+| Progs fields | none | 1,292 words (5.2 KB an edict) | - | none | - |
+| Progs statements / functions | none | 106,230 / 5,158 | - | none | - |
+| QC temp strings | 1024 buffers (256: a byte index) | - | overwritten after 256 | medium: a kept `ftos`/`strcat` result changes | all 1024 used |
+| QC stack | 1024 calls, 16384 locals | - | PR_RunError | none | kept |
+| VR builtins | #1000-1079 (static_assert) | 46 | build error | none | kept |
+| Saves: string values | 1023 characters | short | cut, silently; `"` and `\` not escaped | low today | kept (noted) |
+| An entity's `"angle"` | any (a `char[32]` and `strcpy`) | - | a stack overflow from a map | low, but a crash | fixed |
+| Prop slots (`vr_props.inc`) | 48 | 30 | a new prop keeps its defaults (printed) | medium | kept; in `vr_limits` |
+| Weapon slots | 32 | 20 | the defaults; the Weapon Offsets page falls back to the fist's slot | low | kept (noted) |
+| Decal atlas | 32 cells | 29 | written past the image | low, but out of bounds | static_assert |
+| World texts | 4096 | a few | PR_RunError | low | kept |
+| Wound events | 512 a frame | - | dropped (clears too) | low | kept (noted) |
+| Menu help text | 38 × 4 characters | 60 help strings are longer | cut on the page | low | kept (a layout matter) |
+| Voice note | 180 s | - | stopped and saved | low | kept |
+
+### How it works
+
+- **Cvars** (`Quake/cvar.c`):
+  - The list and the open-addressing hash map are `realloc`ed. The map is rehashed when it gets half full.
+  - A new cvar is appended. `Cvar_EnsureSorted` sorts the list (qsort) and relinks `next` the first time the name order
+    is needed: `cvarlist`, saving the config, `Cvar_FindVarAfter` and resets.
+- **Command buffer** (`Quake/cmd.c`):
+  - `Cbuf_Reserve` doubles the buffer (malloc) as needed.
+  - `Cbuf_Execute` runs the line at `cbuf_start` and moves that offset past it.
+  - `Cbuf_Compact` moves the rest down only before an insertion (`exec`, an alias).
+  - A line of up to 1023 characters still uses the stack buffer; a longer one is malloc'ed.
+  - `Cmd_ParseToken` follows `COM_Parse`'s rules (comments, quotes, the single-character tokens) into a growing buffer.
+    `COM_Parse` and `com_token` are unchanged for everything else (maps, saves).
+- **Zone** (`Quake/zone.c`):
+  - `Z_Usage` keeps the bytes in use and the peak.
+  - `Z_CheckHeap` walked every block at every `Z_Malloc`, and your config makes ~21,000 blocks. Measured with it back
+    on, `exec ironwail.cfg` took 545 ms; without it, 20 ms.
+- **Warnings:** `VR_LimitHit` (`vr_api.h`, `vr_limits.cpp`) counts each overflow that used to be silent, and prints
+  `Limit reached: ...` the first time in a session.
+- **Config write:** `Host_WriteConfigurationToFile` writes `ironwail.cfg.tmp`, checks `ferror` and `fclose`, then
+  `Sys_ReplaceFile` (`MoveFileExW` with `MOVEFILE_REPLACE_EXISTING`; `rename` elsewhere). On failure it prints
+  `Couldn't write ironwail.cfg (the disk full?): the file was kept as it was`.
+
+### What didn't change, and why
+
+- **Network limits (datagram, reliable message, light styles, stats, the 16-bit model and sound indices)** are fixed by
+  protocol 999 and by demos recorded with it, so they are kept. Locally, the datagram took 320 moving props at a
+  quarter of its size.
+- **Dynamic lights:** the light clusters store a 64-bit mask per cluster (`GL_RG32UI`). Going past 64 lights would
+  need `GL_RGBA32UI` and shader changes. The peak measured was 7, so it is warned instead.
+- **Gameplay:** nothing changes, apart from the menu positions kept and the QC temp strings lasting longer.
+
+### Tests
+
+The stress tests, in the mock with your config:
+- **50,000 more cvars** (`vr_limits stress 50000`, 60,656 in all): created in 49 ms.
+- **A 4.6 MB config setting all of them** (`limits_stress.cfg`): 38 ms. `cvarlist qvr_stress_4999` took 8 ms. One
+  lookup and set took 0.3 ms. The old code would have stopped at 16,384 cvars with a Sys_Error. With the old 2 MiB
+  buffer, this config printed `Cbuf_AddText: overflow` and none of it ran.
+- **Long values:**
+  - A 5,244-character `vr_menu_positions` and a 4,099-character value both came back whole (`vr_limits cvarlen`).
+  - A 5,599-character archived value (`vr_debris_exclude`) survived `writeconfig`, a reset and `exec`.
+  - The old code cut each of these at 1023 characters.
+- **320 props thrown about in e1m1** (`limits_props.cfg`): the datagram peaked at 16,498 of 64,000 bytes, 590 edicts,
+  405 entities drawn, no overflow.
+- **Maps:** e4m7, e2m2 and hip2m3 in one session with debris; with sound for the sounds known; and a fight in e1m1.
+  The figures are in the table.
+- **Build:** clean, with no new warnings.
+
+`vr_limits` subcommands for tests: `time` (the milliseconds since the last), `stress <n>` (n more cvars, not saved)
+and `cvarlen <name>` (a value's length and its end).
+
+### In the headset
+
+- [ ] Debug > Reports > **Limits** after a long session (several maps): no highlighted row, and no `Limit reached`
+      line in the console.
+- [ ] Open a few different VR pages, quit and restart: each page should open where you left it.

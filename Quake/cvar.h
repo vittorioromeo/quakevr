@@ -141,6 +141,7 @@ void	Cvar_WriteVariables (FILE *f);
 
 cvar_t	*Cvar_FindVar (const char *var_name);
 cvar_t	*Cvar_FindVarAfter (const char *prev_name, unsigned int with_flags);
+int	Cvar_Count (void); // QVR: the number of registered cvars (vr_limits)
 
 void	Cvar_LockVar (const char *var_name);
 void	Cvar_UnlockVar (const char *var_name);

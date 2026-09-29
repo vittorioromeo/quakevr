@@ -317,7 +317,11 @@ void Host_WriteConfigurationToFile (const char *name)
 		q_snprintf (fullname, sizeof (fullname), "%s/%s", com_gamedir, name);
 		if (mainconfig)
 			VR_ConfigMergeOthers (fullname);
-		f = Sys_fopen (fullname, "w");
+		// QVR: written to a temporary file, then put in place in one step: a full disk, a failed write or a crash while
+		// writing never leaves a half-written config (the settings lost at the next start, then saved so)
+		char tmpname[MAX_OSPATH + 8];
+		q_snprintf (tmpname, sizeof (tmpname), "%s.tmp", fullname);
+		f = Sys_fopen (tmpname, "w");
 		if (!f)
 		{
 			Con_Printf ("Couldn't write %s.\n", name);
@@ -335,7 +339,12 @@ void Host_WriteConfigurationToFile (const char *name)
 		if (in_mlook.state & 1) fprintf (f, "+mlook\n");
 		//johnfitz
 
-		fclose (f);
+		if (ferror (f) | fclose (f) || Sys_ReplaceFile (tmpname, fullname) != 0)
+		{
+			Con_Printf ("\x02" "Couldn't write %s (the disk full?): the file was kept as it was\n", name);
+			Sys_remove (tmpname);
+			return;
+		}
 		if (mainconfig)
 			VR_ConfigWritten (fullname);
 

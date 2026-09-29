@@ -122,6 +122,12 @@ int Sys_rename (const char *oldname, const char *newname)
 	return rename (oldname, newname);
 }
 
+// QVR: newname replaced by oldname in one step (rename is atomic); 0 on success
+int Sys_ReplaceFile (const char *oldname, const char *newname)
+{
+	return rename (oldname, newname);
+}
+
 qfileofs_t Sys_filelength (FILE *f)
 {
 	qfileofs_t	pos, end;

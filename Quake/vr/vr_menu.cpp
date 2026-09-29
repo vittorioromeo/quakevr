@@ -1633,6 +1633,8 @@ std::vector<Item> pageDebugReports()
         command("Sight Check", "vr_sight_check").help("vr_sight_check: the held weapon's sights against its aim."),
         command("Wrist Gadget", "vr_gadget_info").help("vr_gadget_info: the gadget's pose (once it has been drawn)."),
         header("Other"),
+        command("Limits", "vr_limits")
+            .help("vr_limits: every hardcoded limit's usage against its maximum (cvars, memory, models, edicts, lights...)."),
         command("Microphones", "vr_note_devices").help("vr_note_devices: the microphones Voice Notes can record from."),
         command("Detail Textures", "vr_detail_list").help("vr_detail_list: each texture's detail kind (long)."),
     };
@@ -3717,10 +3719,12 @@ extern "C" void VR_MenuSavePositions()
         }
         const std::string record = std::string{pages[p].title} + '|' + a.section + '|' + a.label + '|' + std::to_string(a.index) +
                                    '|' + std::to_string(a.line);
-        if(record.find_first_of(";\"") != std::string::npos || std::count(record.begin(), record.end(), '|') != 4 ||
-            text.size() + record.size() + 1 > 1000)
+        // A label the format cannot hold. (There was also a 1000-character cap, what a config line's token held then:
+        // only the ~12 most recent pages kept their position. A token and a command line now take any length (cmd.c),
+        // and each page adds one record: about 90 characters, 7 KB for every page.)
+        if(record.find_first_of(";\"") != std::string::npos || std::count(record.begin(), record.end(), '|') != 4)
         {
-            return; // a label the format cannot hold; or past what a config line's token holds
+            return;
         }
         text += text.empty() ? "" : ";";
         text += record;

@@ -388,6 +388,7 @@ dlight_t *CL_AllocDlight (int key)
 		}
 	}
 
+	VR_LimitHit (QVR_LIMIT_DLIGHTS); // QVR: counted and warned (was silent: the first light taken over)
 	dl = &cl_dlights[0];
 	memset (dl, 0, sizeof(*dl));
 	dl->key = key;

@@ -18,6 +18,17 @@ extern "C" {
 extern cvar_t sv_gravity;							// sv_phys.c
 extern cvar_t sv_maxvelocity;						// sv_phys.c
 int ED_FindFieldOffset (const char *name);			// pr_edict.c
+int S_KnownSfxCount (void);							// snd_dma.c (vr_limits)
+int S_KnownSfxMax (void);							// snd_dma.c
+int Mod_KnownCount (void);							// gl_model.c
+int Mod_KnownMax (void);							// gl_model.c
+int TexMgr_Count (void);							// gl_texmgr.c
+int TexMgr_Max (void);								// gl_texmgr.c
+int Draw_CachedPicsMax (void);						// gl_draw.c
+extern int menu_numcachepics;						// gl_draw.c
+int Cmd_AliasCount (void);							// cmd.c
+int Cmd_CommandCount (void);						// cmd.c
+extern int num_temp_entities;						// cl_tent.c
 extern qboolean scr_drawloading;					// gl_screen.c
 extern qboolean scr_drawdialog;						// gl_screen.c
 extern cvar_t crosshair;							// gl_screen.c

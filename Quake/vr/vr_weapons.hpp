@@ -18,6 +18,7 @@ enum class Key : int
 };
 
 void registerCvars();
+[[nodiscard]] int slotsUsed(); // the slots holding a model's settings (vr_limits)
 
 // Slot whose vr_wofs_id_NN names `model`, or -1.
 [[nodiscard]] int slotForModel(const qmodel_t* model);

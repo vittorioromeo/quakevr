@@ -29,6 +29,7 @@ enum class Key : int
 };
 
 void registerCvars();
+[[nodiscard]] int slotsUsed(); // the slots holding a model's settings (vr_limits)
 
 // The slot of the model named `model` (-1: none; its keys are then their defaults).
 [[nodiscard]] int slotForModel(const char* model);

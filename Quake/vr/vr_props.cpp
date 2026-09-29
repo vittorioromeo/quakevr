@@ -251,6 +251,17 @@ void registerCvars()
     }
 }
 
+int slotsUsed()
+{
+    int n = 0;
+    for(int slot = 0; slot < numSlots; slot++)
+    {
+        const char* id = cvarAt(slot, Key::ID).string;
+        n += id[0] && strcmp(id, "-1") != 0;
+    }
+    return n;
+}
+
 int slotForModel(const char* model)
 {
     if(!model || !model[0])

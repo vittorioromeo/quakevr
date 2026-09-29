@@ -44,6 +44,20 @@ constexpr int atlasWidth = cellSize * cellsPerRow;
 constexpr int atlasHeight = cellSize * cellRows;
 constexpr int firstCell[KindCount] = {0, 6, 8, 11, 16, 20, 23, 26};
 constexpr int cellCount[KindCount] = {6, 2, 3, 5, 4, 3, 3, 3};
+// Every kind has cells, contiguous, and they all fit in the atlas (buildAtlas writes each cell's texels; a cell past the
+// last row would write past the image).
+constexpr bool atlasCellsValid()
+{
+    for(int k = 0; k < KindCount; k++)
+    {
+        if(cellCount[k] < 1 || (k + 1 < KindCount && firstCell[k] + cellCount[k] != firstCell[k + 1]))
+        {
+            return false;
+        }
+    }
+    return firstCell[KindCount - 1] + cellCount[KindCount - 1] <= cellsPerRow * cellRows;
+}
+static_assert(atlasCellsValid(), "decal atlas: a kind without cells, cells not contiguous, or no room: add a row");
 
 // The chips are lit from the cell's +y (the decal's v, turned towards the light that reaches it),
 // this high above the surface.

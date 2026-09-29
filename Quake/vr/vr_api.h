@@ -199,6 +199,17 @@ void VR_ConfigWritten (const char *path);				// and after writing it
 int VR_MenuReopen (void);								// M_ToggleMenu_f, opening: nonzero if it reopened the page left
 int VR_MenuRunsGame (void);								// Host_ServerFrame: nonzero if a single player game runs on under the menu (live preview)
 
+// Hardcoded limits (vr_limits.cpp, the vr_limits command): a limit whose overflow used to be silent is counted, and warned
+// about once a session.
+enum
+{
+	QVR_LIMIT_TEMPENTS,	// CL_NewTempEntity: MAX_TEMP_ENTITIES full, the entity not drawn
+	QVR_LIMIT_DLIGHTS,	// CL_AllocDlight: MAX_DLIGHTS full, the first light taken over
+	QVR_LIMIT_PACKET,	// SV_WriteEntitiesToClient: the datagram full, the farther entities not sent this frame
+	QVR_LIMIT_COUNT
+};
+void VR_LimitHit (int limit);
+
 #ifdef __cplusplus
 }
 #endif
