@@ -35,6 +35,7 @@
 #include "vr_posing.hpp"
 #include "vr_sightalign.hpp"
 #include "vr_bodycal.hpp"
+#include "vr_drawblend.hpp"
 #include "vr_profile.hpp"
 #include "vr_props.hpp"
 #include "vr_menu.hpp"
@@ -1085,6 +1086,10 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
                             along < 5.f || along < std::cos(glm::radians(35.f)) * glm::length(toGrip);
         s.grip2HPalm[hand] = spot.type == weapons::HotspotType::Cup;
     }
+
+    // Just drawn from a holster: eased from its holstered pose into the hand (vr_drawblend.cpp; drawn only, the muzzle
+    // and the grips above are its real place).
+    drawblend::hand(s, hand, ve.ent, !floating && !carried && model && slot >= 0 && slot != weapons::fistSlot() && !isHandModel(model));
 
     // The empty hand's "weapon" is a hand model; hands are drawn separately.
     if(isHandModel(model))
@@ -3291,6 +3296,8 @@ void setupHolsters(const hands::State& s, bool queueTexts)
         view::ViewEntity& ve = entities.holster[h];
         place(ve, model, pose.weaponPos, pose.weaponAngles, 0, mirrored);
         highlight(ve, hover);
+        // Just holstered: eased from the hand into the holster (vr_drawblend.cpp).
+        drawblend::holster(s, stat, model ? &ve.ent : nullptr, !(preview && kind == static_cast<weapons::HolsterKind>(previewKind)));
 
         if(slotModel && !shoulder)
         {
@@ -4122,6 +4129,7 @@ HandImpact handImpacts[2];
 // map: the same start on every map.
 void view::resetClientState()
 {
+    drawblend::reset();
     for(HandImpact& h : handImpacts)
     {
         h = HandImpact{};

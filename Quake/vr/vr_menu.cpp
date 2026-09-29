@@ -1523,6 +1523,8 @@ std::vector<Item> pageDebugLogging()
         toggle("Wounds", vr_wounds_debug).help("Each wound painted on a model."),
         cycle("Grasp", vr_debug_grasp, {{0.f, "Off"}, {1.f, "Each Solve"}, {2.f, "Each Finger"}})
             .help("Each grasp solve of the jointed hands (and each finger's stops)."),
+        toggle("Holster Draw Blend", vr_debug_draw_blend)
+            .help("Each frame of a gun easing between a holster and a hand: the turn and the distance left."),
         cycle("Physics Bodies", vr_debug_box3d, {{0.f, "Off"}, {1.f, "Made and Slept"}, {2.f, "Every Awake Body"}})
             .help("Box3D bodies made, woken and put to sleep; or every awake body every frame (a lot)."),
         cycle("Rocks and Bricks Placement", vr_debug_debris, {{0.f, "Off"}, {1.f, "A Line a Map"}, {2.f, "Each Piece"}, {3.f, "Each Spot Rejected"}})
