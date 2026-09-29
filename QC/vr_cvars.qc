@@ -63,6 +63,7 @@ float cvarh_vr_grapple_haptics;
 float cvarh_vr_grapple_quick_speed;
 float cvarh_vr_grapple_drop_grace;
 float cvarh_vr_grapple_trigger_release;
+float cvarh_vr_grapple_rope_sim;
 float cvarh_vr_grapple_debug;
 float cvarh_vr_forcegrab_arc;
 float cvarh_vr_forcegrab_catch_radius;
@@ -303,6 +304,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_grapple_quick_speed);
     VR_CVAR_HMAKE(vr_grapple_drop_grace);
     VR_CVAR_HMAKE(vr_grapple_trigger_release);
+    VR_CVAR_HMAKE(vr_grapple_rope_sim);
     VR_CVAR_HMAKE(vr_grapple_debug);
     VR_CVAR_HMAKE(vr_forcegrab_arc);
     VR_CVAR_HMAKE(vr_forcegrab_catch_radius);

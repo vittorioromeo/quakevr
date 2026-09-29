@@ -353,6 +353,42 @@ vector(entity h) VR_Grapple_RopeEnd =
     return gg_player.origin;
 };
 
+// The rope's shape this frame (VR_Grapple_RopeShape): the taut path from the game's end (VR_Grapple_RopeEnd: your body,
+// or the gun) to the hook, along where the rope lies (vr_grapple_rope_sim: the engine's simulated rope, round a pillar,
+// over a box), else straight; its first corner from each end and its length beyond it. Nothing in the way: the corners
+// are the other ends, nothing beyond them.
+float gr_path;   // its length
+vector gr_pa;    // the first corner from the game's end
+float gr_ba;     // the path beyond it (to the hook)
+vector gr_pb;    // the first corner from the hook
+float gr_bb;     // the path beyond it (to the game's end)
+entity gr_sim;   // the hook whose rope was simulated last (its points sent with its beam)
+
+void(entity h) VR_Grapple_RopeShape =
+{
+    vector game = VR_Grapple_RopeEnd(h);
+    vector end = VR_Grapple_HookPoint(h);
+    gr_sim = world;
+    if(cvar_hget(cvarh_vr_grapple_rope_sim) && (h.gh_state == GS_BITTEN || h.gh_state == GS_LOOSE))
+    {
+        // Not in its way: the gun lying about, what the hook is in (a prop, a monster), the loose hook itself.
+        entity skipB = h.enemy;
+        gr_path = ropestep(h, gg_at, game, end, h.gh_len, gg_ent, skipB);
+        gr_pa = ropepivot(h, 0);
+        gr_pb = ropepivot(h, 1);
+        vector beyond = ropepivot(h, 2);
+        gr_ba = beyond_x;
+        gr_bb = beyond_y;
+        gr_sim = h;
+        return;
+    }
+    gr_path = vlen(end - game);
+    gr_pa = end;
+    gr_ba = 0;
+    gr_pb = game;
+    gr_bb = 0;
+};
+
 // ----------------------------------------------------------------------------
 // The gun and its tag
 // ----------------------------------------------------------------------------
@@ -651,6 +687,10 @@ void(entity h, vector hookPos, float xSlack) GrappleTrail =
     {
         owner = gg_player;
         hand = gg_hand;
+    }
+    if(gr_sim == h)
+    {
+        ropesend(h, owner, 2 + hand); // (drawn through the simulated rope's points)
     }
     float k = rint(min(1, max(0, xSlack)) * 125);
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
@@ -1229,10 +1269,11 @@ void(entity h, float xHand, float xSpeed) VR_Grapple_Taut =
     }
 };
 
-// The player (self) held by the rope: never farther from `xAt` than its length (put back on it, swept: a wall stops
+// The player (self) held by the rope: never farther from `xAt` (the rope's first corner from the body: the hook, nothing
+// in the way) than `xLen` (the rope's length less its path beyond that corner) (put back on it, swept: a wall stops
 // that, the rope then stalls), no speed away from it, and reeling (`xReeling`) `xReel` units/s towards it, no faster
-// (arriving, it slows down). Swinging is what's left: gravity along the rope's circle.
-void(entity h, float xHand, vector xAt, float xReel, float xReeling) VR_Grapple_HoldPlayer =
+// (arriving, it slows down). Swinging is what's left: gravity along the rope's circle (round the corner).
+void(entity h, float xHand, vector xAt, float xLen, float xReel, float xReeling) VR_Grapple_HoldPlayer =
 {
     vector toA = xAt - self.origin;
     float d = vlen(toA);
@@ -1244,7 +1285,7 @@ void(entity h, float xHand, vector xAt, float xReel, float xReeling) VR_Grapple_
             self.velocity = self.velocity - toA * ((closing - xReel) / d);
         }
     }
-    if(d <= h.gh_len || d < 1)
+    if(d <= xLen || d < 1)
     {
         h.gh_taut = FALSE;
         return;
@@ -1257,7 +1298,7 @@ void(entity h, float xHand, vector xAt, float xReel, float xReeling) VR_Grapple_
     }
     h.gh_taut = TRUE;
 
-    float excess = d - h.gh_len;
+    float excess = d - xLen;
     vector move = n * excess;
     tracebox(self.origin, self.mins, self.maxs, self.origin + move, FALSE, self);
     float moved = trace_fraction;
@@ -1577,7 +1618,7 @@ void(entity h, float xUnreeling, float xReeling) VR_Grapple_Payout =
 // Its clicks and buzz while A/X is held (`xUnreeling`) and it pays out; the log four times a second.
 void(entity h, float xHand, float xUnreeling) VR_Grapple_Unwind =
 {
-    float d = vlen(VR_Grapple_HookPoint(h) - VR_Grapple_RopeEnd(h));
+    float d = gr_path;
     float speed = h.gh_payout;
     float was = h.gh_len;
     float len = min(h.gh_len + speed * frametime, max(h.gh_len, d + GH_PAYOUT_SLACK));
@@ -1636,9 +1677,10 @@ void(entity h, float xHand, float xReeling) VR_Grapple_ServicePlain =
 {
     entity t = h.enemy;
     vector at = VR_Grapple_HookPoint(h);
-    vector toGun = gg_at - at;
+    vector toGun = gr_pb - at; // (the rope's first corner from it: the gun, nothing in the way)
     float d = vlen(toGun);
     vector n = toGun * (1 / max(0.5, d));
+    d = d + gr_bb;
     float shortest = GH_PROP_GAP + 0.5 * max(t.size_x, max(t.size_y, t.size_z));
     float want = 0;
     if(xReeling)
@@ -1684,7 +1726,7 @@ void(entity h, float xHand, float xReeling) VR_Grapple_ServiceProp =
     if(!VR_Grapple_Movable(t))
     {
         // Carried (by a hand), or flying to one: the rope pays out.
-        h.gh_len = min(GH_MAX_ROPE, max(h.gh_len, vlen(VR_Grapple_HookPoint(h) - gg_at)));
+        h.gh_len = min(GH_MAX_ROPE, max(h.gh_len, gr_path));
         return;
     }
     if(t.movetype == MOVETYPE_FLY && VR_Grapple_IsPlainPickup(t))
@@ -1693,14 +1735,14 @@ void(entity h, float xHand, float xReeling) VR_Grapple_ServiceProp =
         return;
     }
     vector at = VR_Grapple_HookPoint(h);
-    vector gun = gg_at;
-    vector toGun = gun - at;
+    vector toGun = gr_pb - at; // (the rope's first corner from it: the gun, nothing in the way)
     float d = vlen(toGun);
     if(d < 0.5)
     {
         return;
     }
     vector n = toGun * (1 / d);
+    d = d + gr_bb;
     // It comes right to the gun, hanging GH_PROP_GAP past half its size from the muzzle (to take with the other hand; a
     // big box stays further).
     float shortest = GH_PROP_GAP + 0.5 * max(t.size_x, max(t.size_y, t.size_z));
@@ -1768,13 +1810,14 @@ void(entity h, float xHand, float xReeling) VR_Grapple_ServiceProp =
 void(entity h, float xHand, float xReeling) VR_Grapple_ServiceMonster =
 {
     entity m = h.enemy;
-    vector toP = self.origin - VR_Grapple_HookPoint(h); // the rope: from the hook on it to your body
+    vector toP = gr_pb - VR_Grapple_HookPoint(h); // the rope: from the hook on it to your body (its first corner)
     float d = vlen(toP);
     if(d < 0.5)
     {
         return;
     }
     vector n = toP * (1 / d);
+    d = d + gr_bb;
     // It stops a step from you: the hook on it (its side facing you) your half-width and a little more from your middle,
     // beyond the rope's shortest.
     float apart = 24;
@@ -1845,8 +1888,13 @@ void(entity h, float xHand, float xReeling) VR_Grapple_ServiceMonster =
 // reeling pulls him in.
 void(entity h, float xHand, float xReeling) VR_Grapple_ServiceAnchor =
 {
-    vector at = VR_Grapple_HookPoint(h);
-    float d = vlen(at - self.origin);
+    vector at = gr_pa; // (the rope's first corner from you: the hook, nothing in the way)
+    float d = vlen(at - self.origin) + gr_ba;
+    if(VR_Grapple_Debug() >= 3)
+    {
+        dprint(sprintf("grapple: anchor: corner %v, %.1f away and %.1f beyond (path %.1f), rope %.1f, you at %v\n", at,
+            vlen(at - self.origin), gr_ba, gr_path, h.gh_len, self.origin));
+    }
     float speed = 0;
     if(xReeling)
     {
@@ -1859,7 +1907,7 @@ void(entity h, float xHand, float xReeling) VR_Grapple_ServiceAnchor =
         // Paying out: you go away from the hook (let down, swinging out) no faster than the rope comes off the drum.
         speed = -h.gh_payout;
     }
-    VR_Grapple_HoldPlayer(h, xHand, at, speed, xReeling);
+    VR_Grapple_HoldPlayer(h, xHand, at, h.gh_len - gr_ba, speed, xReeling);
     if(xReeling)
     {
         float moving = FALSE;
@@ -1913,8 +1961,8 @@ void(entity t, vector xAt, vector xDir, float xSpeed) VR_Grapple_PullAlong =
 // can move: the rope pays out (a hand carrying one end, and the other flying to a hand).
 void(entity h, entity a, vector xA, float xShareA, entity b, vector xB, float xShareB) VR_Grapple_HoldTwo =
 {
-    vector ab = xB - xA;
-    float d = vlen(ab);
+    // Along the rope (VR_Grapple_RopeShape: xA the game's end, xB the hook's): each end towards its first corner.
+    float d = gr_path;
     if(d < 0.5)
     {
         return;
@@ -1924,7 +1972,8 @@ void(entity h, entity a, vector xA, float xShareA, entity b, vector xB, float xS
         h.gh_len = min(GH_MAX_ROPE, max(h.gh_len, d));
         return;
     }
-    vector n = ab * (1 / d);
+    vector n = normalize(gr_pa - xA);
+    vector nb = normalize(gr_pb - xB);
     float over = d - h.gh_len - GH_HOLD_SLACK;
     if(over <= 0)
     {
@@ -1934,7 +1983,7 @@ void(entity h, entity a, vector xA, float xShareA, entity b, vector xB, float xS
         }
         return;
     }
-    float closing = a.velocity * n - b.velocity * n;
+    float closing = a.velocity * n + b.velocity * nb;
     if(!h.gh_taut && closing < -120)
     {
         sound(h, CHAN_AUTO, "vr/grapple_taut.wav", 0.35 + 0.65 * min(1, (-closing - 120) / 500), ATTN_NORM);
@@ -1952,7 +2001,7 @@ void(entity h, entity a, vector xA, float xShareA, entity b, vector xB, float xS
     }
     if(xShareB > 0)
     {
-        VR_Grapple_PullAlong(b, xB, '0 0 0' - n, b.velocity * ('0 0 0' - n) + deficit * xShareB);
+        VR_Grapple_PullAlong(b, xB, nb, b.velocity * nb + deficit * xShareB);
     }
 };
 
@@ -1986,6 +2035,7 @@ void(entity h) VR_Grapple_ServiceLying =
         GrappleTrail(h, h.origin, 0);
         return;
     }
+    VR_Grapple_RopeShape(h);
     if(h.gh_state == GS_BITTEN && h.gh_kind == GH_PROP && VR_Grapple_Movable(t))
     {
         float tm = max(0.05, h.gh_mass);
@@ -2003,7 +2053,7 @@ void(entity h) VR_Grapple_ServiceLying =
     float slack = 0;
     if(h.gh_len > 1)
     {
-        slack = max(0, h.gh_len - vlen(at - gg_at)) / h.gh_len;
+        slack = max(0, h.gh_len - gr_path) / h.gh_len;
     }
     GrappleTrail(h, at, slack);
     if(VR_Grapple_Debug() >= 2 && time >= h.gh_log_at)
@@ -2238,10 +2288,11 @@ void(entity h, float xHand) VR_Grapple_ServiceHeld =
         }
     }
     vector at = VR_Grapple_HookPoint(h);
+    VR_Grapple_RopeShape(h);
     if(gg_moved)
     {
         // The rope from the gun's new place: long enough to reach (never pulling anything at once).
-        h.gh_len = min(GH_MAX_ROPE, max(h.gh_len, vlen(at - VR_Grapple_RopeEnd(h))));
+        h.gh_len = min(GH_MAX_ROPE, max(h.gh_len, max(gr_path, vlen(at - VR_Grapple_RopeEnd(h)))));
     }
 
     // Rogue's pull: chosen, or for a player without tracked hands (flat screen, a bot: no B/Y to reel with).
@@ -2271,7 +2322,7 @@ void(entity h, float xHand) VR_Grapple_ServiceHeld =
         if(!VR_Grapple_Movable(h))
         {
             // Carried (by a hand) or flying to one: the rope pays out; reeled with it at the gun, it goes back in.
-            h.gh_len = min(GH_MAX_ROPE, max(h.gh_len, d));
+            h.gh_len = min(GH_MAX_ROPE, max(h.gh_len, gr_path));
         }
         else
         {
@@ -2340,11 +2391,11 @@ void(entity h, float xHand) VR_Grapple_ServiceHeld =
         dprint(sprintf("%s at %v moving %v\n", load.classname, loadAt, load.velocity));
     }
 
-    // Drawn slack: the rope's length less how far its ends are, as a share of it.
+    // Drawn slack: the rope's length less how far its ends are (along it), as a share of it.
     float slack = 0;
     if(h.gh_len > 1)
     {
-        slack = max(0, h.gh_len - vlen(at - VR_Grapple_RopeEnd(h))) / h.gh_len;
+        slack = max(0, h.gh_len - gr_path) / h.gh_len;
     }
     GrappleTrail(h, at - hookfwd * 6.5, slack);
 };
@@ -2525,6 +2576,8 @@ void() VR_Grapple_Report =
         }
         dprint(sprintf("grapple report: hook %g %s (%s), gun %s, ", h.gh_tag, VR_Grapple_StateName(h.gh_state),
             h.enemy == world ? "the world" : h.enemy == h ? "itself" : h.enemy.classname, where));
+        VR_Grapple_RopeShape(h);
+        dprint(sprintf("path %.1f, ", gr_path));
         dprint(sprintf("rope %.1f, gun to hook %.1f, hook at %v\n", h.gh_len, found ? vlen(at - gg_at) : -1, at));
         h = find(h, classname, "hook");
     }

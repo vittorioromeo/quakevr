@@ -12745,3 +12745,68 @@ change.)
 - vrclimb's floating platforms: grab the lip from close, from further out and from almost under it; pull in under it,
   extend your arms (you should come out from under it, still holding), push down (onto it). Tell me if 16 units of
   stretch (0.6 m) looks wrong on the drawn arms.
+
+## Grapple: a physical rope
+
+Your request (through the coordinator, 2026-09-29): the rope must not pass through the world or physics props; small
+invisible spheres along it, with settings for their spacing and precision, the rope drawn through them, and the rope's
+pull acting along where it lies. Branch `agent/hook`, after "Grappling hook: one persistent system".
+
+### How it works (`Quake/vr/vr_ropesim.cpp`, server side)
+
+- **A chain of points** between the gun (the muzzle, the holster, the gun lying about) and the hook, Rope Point
+  Spacing apart (12 units; a long rope's farther apart: 96 points at most). Each server frame: Verlet (gravity, a
+  little drag), then Rope Precision passes (8) holding each piece to its length, the ends fixed; then each inner point
+  is swept (a sphere of Rope Thickness, 1 unit) from where it was to where it went, against Box3D's shapes: the world's
+  mesh, doors and lifts, and the props, but not the rope's own ends (the gun lying about, what the hook is in). A point
+  that meets something stops against it, its speed into it gone and half its speed along it kept (it lies, slides and
+  drapes); a point a prop was moved into is put back on its top. The pieces themselves are not swept: a sharp edge can
+  cut a piece's corner by a little (a finer spacing, less).
+- **The taut path:** from the game's end (your body, as the rope has always held you, or the gun) along the chain to
+  the hook: the points a straight line can't skip become corners (a line of sight from the last corner to each point in
+  turn), then each corner slides towards the straight line between its neighbours as far as both lines stay clear, so
+  it rests against the edge it goes round (a sagging or lagging chain's point would be low or off the edge), and one the
+  straight line doesn't need goes (the rope came off it). Nothing in the way: one line of sight, and the path is the
+  straight line, as before.
+- **The game pulls along it** (`vr_grapple.qc` `VR_Grapple_RopeShape`, once a frame per hook): the rope's length is
+  measured along the path; you are held (and reeled) towards the first corner from your body, with the rope's length
+  less the path beyond that corner (swinging round a pillar is swinging round its edge); a prop or a monster is pulled
+  towards the first corner from its end; a gun lying about and its prop each towards theirs. With nothing in the way the
+  numbers are the same as the straight rope's.
+- **Drawn through the points:** the server sends each rope's points with its beam (`QVR_SVC_ROPE`: the owner's entity,
+  the beam id, the points); the client draws Rogue's chain along a Catmull-Rom curve through them, its first and last
+  points moved to the gun as drawn and the hook (eased over the next few). Points older than a tenth of a second (none sent: the hook flying or coming back), or
+  Physical Rope off: the old sagging parabola.
+- `vr_grapple_rope_dump` prints each rope's points, its taut path and corners, and how many inner points are inside the
+  world or a prop; `vr_grapple_rope_cast x y z x y z [radius]` sweeps the rope's sphere between two points.
+
+| Setting (Grappling Hook page) | Cvar | Default |
+|---|---|---|
+| Physical Rope | `vr_grapple_rope_sim` | 1 |
+| Rope Point Spacing | `vr_grapple_rope_spacing` | 12 units |
+| Rope Precision (passes a frame) | `vr_grapple_rope_iterations` | 8 |
+| Rope Thickness (half, units) | `vr_grapple_rope_radius` | 1 |
+
+### Checked (mock headset; `scratch/hook/run_all.sh`, `rope_pillar.txt`, `rope_prop.txt`, `cost*.txt`)
+
+- **Round a doorway's jamb** (e1m1's start, the corridor's right wall bitten at 576 -97, then a step right): the
+  straight line from you to the hook goes through the jamb; the chain goes round its edge, no point inside the world,
+  the taut path's corner at the jamb's inner face (about 552 -170, 85 units of path beyond it). Reeled in, you are
+  pulled to the corner and pressed against the jamb (not through it), the rope's length never under the path less 8.
+  Side by side (`onoff.png`): the physical rope ends at the doorway's edge; the old straight one goes into the wall.
+- **Over a prop** (a health box, full size, on the floor under a rope to the lower floor 500 units ahead): taut, the
+  path's corners are on the box's top (486.8 -219 66, 486.8 -208 59), no point inside it; slack (a step forward), the
+  chain lies on the floor and over the box.
+- **Cost** (exclusive runs, the profiler's 5 s report, default settings): the rope round the jamb (23 points, a
+  corner) 0.009 ms a frame at 250 fps (0.03 ms each server frame), worst 0.10; a 520-unit rope over the box (44 points)
+  0.009 ms, worst 0.12. Its drawing (`grapple rope`) as before, 0.007-0.010 ms.
+- The persistence checks all pass with the physical rope on (the rope's numbers are the straight rope's when nothing
+  is in the way).
+
+### Not verified
+
+- In the headset: how it looks and swings (Rogue's links along the curve), and whether 12 units and 8 passes are a good
+  balance. A monster or player in the way doesn't stop the rope (only the world and props do).
+- Multiplayer: each rope's points go to every client every server frame (up to 96 points: 1.2 KB with float
+  coordinates).
+- A prop pushed hard into the rope can leave a point inside it for a frame (put back on top next frame).

@@ -926,7 +926,12 @@ pickup's take; a thrown weapon into an empty hand). The off trigger in a script 
 (a mock button's binding runs after the script). `impulse 171` puts a grapple in the off hand. With
 `vr_weapon_grip_mode 0`, `+grabright; vr_mock_button main grip 1` before `impulse 151` keeps the gun, releasing the
 grip drops it. `developer 2` prints the other fingertip's distance from a weapon's button (placing buttons; the button
-sends its impulse at the front of the command buffer). The kit's `scratch/hook/run_all.sh` runs the 15 scenarios.
+sends its impulse at the front of the command buffer). The physical rope (ROUND21.md, "Grapple: a physical rope"):
+`vr_grapple_rope_dump` prints each rope's points, its taut path's corners and how many points are inside the world or a
+prop; `vr_grapple_rope_cast x y z x y z [radius]` sweeps its sphere between two points; `vr_grapple_debug 2` prints
+each rope's chain and path twice a second, 3 each frame the rope holds you round a corner (`anchor:`); the profiler's
+**grapple rope sim** is its cost. `vr_forcegrabbable_box_scale 1` before the map makes the health boxes full size (a
+prop to lay the rope over). The kit's `scratch/hook/run_all.sh` runs the 18 scenarios (`fresh`: all again).
 Leaning (round 21): `vr_mock_hand head <x> <y> <z> <pitch> <yaw> <roll>` and `vr_mock_play` head keyframes with angles
 turn the head too (pitch up, roll as the hands'); `vr_debug_lean 1` writes `lean_trace.txt` (the game directory): the
 head, the box, the lean, the pelvis, the feet and the lean's hold and cues, every frame.

@@ -15,6 +15,7 @@
 #include "vr_physics.hpp"
 #include "vr_props.hpp"
 #include "vr_protocol.hpp"
+#include "vr_ropesim.hpp"
 #include "vr_server.hpp"
 #include "vr_worldtext.hpp"
 #include "vr_view.hpp"
@@ -584,6 +585,40 @@ void PF_physicspush()
     G_FLOAT(OFS_RETURN) = box3d::push(G_EDICT(OFS_PARM0), glm::vec3{at[0], at[1], at[2]}, glm::vec3{v[0], v[1], v[2]}) ? 1.f : 0.f;
 }
 
+// The grappling hook's physical rope (vr_ropesim.cpp).
+// float ropestep(entity hook, vector gun, vector game, vector end, float length, entity skipA, entity skipB): steps it
+// (once a frame), the taut path's length.
+void PF_ropestep()
+{
+    const auto vec = [](int ofs) {
+        const float* v = G_VECTOR(ofs);
+        return glm::vec3{v[0], v[1], v[2]};
+    };
+    const int skipA = NUM_FOR_EDICT(G_EDICT(OFS_PARM5));
+    const int skipB = NUM_FOR_EDICT(G_EDICT(OFS_PARM6));
+    G_FLOAT(OFS_RETURN) =
+        ropesim::step(G_EDICT(OFS_PARM0), vec(OFS_PARM1), vec(OFS_PARM2), vec(OFS_PARM3), G_FLOAT(OFS_PARM4), skipA, skipB).path;
+}
+
+// vector ropepivot(entity hook, float which): the taut path's first corner from the game's end (0), from the hook (1), or
+// (2) its length beyond the first, beyond the second, and in all.
+void PF_ropepivot()
+{
+    const ropesim::Shape& s = ropesim::shape(G_EDICT(OFS_PARM0));
+    const int which = static_cast<int>(G_FLOAT(OFS_PARM1));
+    const glm::vec3 v = which == 0 ? s.pivotA : which == 1 ? s.pivotB : glm::vec3{s.beyondA, s.beyondB, s.path};
+    float* out = G_VECTOR(OFS_RETURN);
+    out[0] = v.x;
+    out[1] = v.y;
+    out[2] = v.z;
+}
+
+// void ropesend(entity hook, entity owner, float beamId): its points to the clients, for that beam.
+void PF_ropesend()
+{
+    ropesim::send(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1), static_cast<int>(G_FLOAT(OFS_PARM2)));
+}
+
 void PF_carryreach()
 {
     // The hand's place (the point given, OFS_PARM1) and angles are the `self` player's move's.
@@ -754,6 +789,9 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"debrisput", PF_debrisput},
     {"modelpoint", PF_modelpoint},
     {"physicspush", PF_physicspush},
+    {"ropestep", PF_ropestep},
+    {"ropepivot", PF_ropepivot},
+    {"ropesend", PF_ropesend},
     {"tracebox", PF_tracebox},
     {"cvar_hmake", PF_cvar_hmake},
     {"cvar_hget", PF_cvar_hget},
@@ -835,6 +873,7 @@ void onEdictFree(edict_t* ed)
     if(num > 0)
     {
         physics::forgetEntity(num);
+        ropesim::forget(num);
     }
     if(num <= 0 || num >= static_cast<int>(woundsSent.size()) || !woundsSent[static_cast<std::size_t>(num)])
     {

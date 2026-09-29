@@ -1813,6 +1813,17 @@ std::vector<Item> pageDebugTests()
             .help("The trigger let go waits this long before the hook comes off: dropping the gun, holstering it or "
                   "passing it to the other hand in that time (letting go of trigger and grip together) keeps the hook "
                   "in."),
+        toggle("Physical Rope", vr_grapple_rope_sim)
+            .help("The rope hangs, lies and wraps round the world and the props, never through them, and pulls along "
+                  "where it lies (round a pillar, over a box). Off: a straight line, drawn sagging."),
+        slider("Rope Point Spacing", vr_grapple_rope_spacing, 4.f, 48.f, 1.f, "%.0f").extend(2.f, 256.f)
+            .help("Units between the physical rope's points: finer follows edges more truly and costs more (a long "
+                  "rope's points are farther apart: 96 at most)."),
+        slider("Rope Precision", vr_grapple_rope_iterations, 1.f, 32.f, 1.f, "%.0f").extend(1.f, 64.f)
+            .help("Passes a frame holding the physical rope's pieces to their length: more is stiffer and truer, and "
+                  "costs more."),
+        slider("Rope Thickness", vr_grapple_rope_radius, 0.25f, 4.f, 0.25f, "%.2f").extend(0.1f, 8.f)
+            .help("Half the physical rope's thickness (units): how far it keeps from what it lies on."),
         slider("Quick Release Speed", vr_grapple_quick_speed, 300.f, 4000.f, 100.f, "%.0f u/s").extend(100.f, 10000.f)
             .help("How fast the hook flies back into the gun when you press the button on top of the gun with the "
                   "other hand's finger."),

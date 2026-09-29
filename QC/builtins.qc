@@ -201,6 +201,14 @@ vector(entity e, vector angles, vector point) modelpoint = #0; // where a point 
 // A hand's push on a rigid body: the point `at` gets at least `vel`'s speed along it (an impulse there: a tall box pushed
 // high tips over). FALSE if Box3D doesn't move it.
 float(entity e, vector at, vector vel) physicspush = #0;
+// The grappling hook's physical rope (engine vr_ropesim.cpp; vr_grapple.qc VR_Grapple_RopeShape): ropestep steps it (once
+// a frame; its chain from `gun` to `end`, falling, lying, never through the world or props but `skipA`, `skipB`) and
+// gives the taut path's length from `game` (the body, or the gun) to `end`; ropepivot its first corner from `game` (0),
+// from `end` (1), or '(beyond the first, beyond the second, the whole path)' (2); ropesend its points to the clients for
+// the beam of `owner` and `beamId` (drawn through them).
+float(entity hook, vector gun, vector game, vector end, float length, entity skipA, entity skipB) ropestep = #0;
+vector(entity hook, float which) ropepivot = #0;
+void(entity hook, entity owner, float beamId) ropesend = #0;
 float(entity e, entity player) carry2hoff = #0; // held in both hands: which have been pulled off it (1 the off hand, 2 the main; vr_carry_two_hands_detach)
 float(entity e, vector point, float hand) carryreach = #0; // whether self's hand can take hold of it: its fist touches its drawn surface (vr_carry_grab_bias; point: the hand's, unused)
 void(vector ang) makeforward = #0; // sets v_forward

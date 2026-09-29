@@ -47,6 +47,15 @@ struct RopeSlack
 };
 std::unordered_map<int, RopeSlack> slacks;
 
+// A rope's simulated points as last sent (beam key -> its points, and when): drawn through while they are fresh.
+struct RopeSim
+{
+    std::vector<glm::vec3> points;
+    double time{0.0}; // cl.time
+};
+std::unordered_map<int, RopeSim> sims;
+constexpr double simFresh = 0.1; // seconds a rope's points are drawn after they were sent (a few server frames)
+
 // A model's mesh as the rope draws it (its first pose's triangles, BentVertex each), and its skin.
 struct Mesh
 {
@@ -275,6 +284,48 @@ void ropePoints(RopeSlack& r, const glm::vec3& a, const glm::vec3& b, std::vecto
     }
 }
 
+// The simulated rope's points (`sim`) as a smooth curve from `a` to `b` (the beam's ends: the gun as drawn, the hook) into
+// `out`: its first and last points moved there (the next ones eased along), a Catmull-Rom curve through them, each piece
+// cut in pieces of about 2 units (6 at most).
+void simPoints(const std::vector<glm::vec3>& sim, const glm::vec3& a, const glm::vec3& b, std::vector<glm::vec3>& out,
+    float& length)
+{
+    std::vector<glm::vec3>& p = scratch.onLine;
+    p = sim;
+    const int n = static_cast<int>(p.size());
+    // The ends as drawn: the gun where the hand is now, not where the server last had it; its difference eased out over
+    // the first pieces (and the hook's over the last ones).
+    const glm::vec3 da = a - p.front();
+    const glm::vec3 db = b - p.back();
+    const int ease = std::min(4, n / 2);
+    for(int i = 0; i < ease; i++)
+    {
+        const float w = 1.f - static_cast<float>(i) / static_cast<float>(ease);
+        p[static_cast<std::size_t>(i)] += da * w;
+        p[static_cast<std::size_t>(n - 1 - i)] += db * w;
+    }
+    out.clear();
+    length = 0.f;
+    for(int i = 0; i + 1 < n; i++)
+    {
+        const glm::vec3& p0 = p[static_cast<std::size_t>(std::max(0, i - 1))];
+        const glm::vec3& p1 = p[static_cast<std::size_t>(i)];
+        const glm::vec3& p2 = p[static_cast<std::size_t>(i + 1)];
+        const glm::vec3& p3 = p[static_cast<std::size_t>(std::min(n - 1, i + 2))];
+        const float len = glm::distance(p1, p2);
+        length += len;
+        const int k = std::clamp(static_cast<int>(std::ceil(len / 2.f)), 1, 6);
+        for(int j = 0; j < k; j++)
+        {
+            const float t = static_cast<float>(j) / static_cast<float>(k);
+            const float t2 = t * t, t3 = t2 * t;
+            out.push_back(0.5f * (2.f * p1 + (p2 - p0) * t + (2.f * p0 - 5.f * p1 + 4.f * p2 - p3) * t2 +
+                                     (3.f * p1 - p0 - 3.f * p2 + p3) * t3));
+        }
+    }
+    out.push_back(p.back());
+}
+
 // The model's +y and +z at the rope's start, as the engine turns a beam's link along `forward` (pitch and yaw, no
 // roll): +y its left, +z its up.
 void startFrame(const glm::vec3& forward, glm::vec3& side, glm::vec3& up)
@@ -354,9 +405,27 @@ void setSlack(int key, float slack)
     slacks[key].target = slack;
 }
 
+void parsePoints()
+{
+    const int ent = MSG_ReadShort();
+    const int beamId = MSG_ReadByte();
+    const int count = MSG_ReadByte();
+    RopeSim& r = sims[ent | ((beamId + 1) << 16)]; // (VR_ParseBeamEntity's key)
+    r.points.resize(static_cast<std::size_t>(count));
+    for(int i = 0; i < count; i++)
+    {
+        for(int k = 0; k < 3; k++)
+        {
+            r.points[static_cast<std::size_t>(i)][k] = MSG_ReadCoord(cl.protocolflags);
+        }
+    }
+    r.time = cl.time;
+}
+
 void forget()
 {
     slacks.clear();
+    sims.clear();
     queued.clear();
     curve.clear();
 }
@@ -449,6 +518,10 @@ extern "C" void VR_ForgetEndedRopes()
         }
         it = live ? std::next(it) : slacks.erase(it);
     }
+    for(auto it = sims.begin(); it != sims.end();)
+    {
+        it = cl.time - it->second.time > 1.0 || it->second.time > cl.time ? sims.erase(it) : std::next(it);
+    }
 }
 
 extern "C" int VR_DrawRope(int ent, qmodel_t* model, const float* start, const float* end)
@@ -470,7 +543,16 @@ extern "C" int VR_DrawRope(int ent, qmodel_t* model, const float* start, const f
     const glm::vec3 b{end[0], end[1], end[2]};
     std::vector<glm::vec3>& pts = scratch.points;
     float length = 0.f, h = 0.f;
-    ropePoints(r, a, b, pts, length, h);
+    const auto sim = sims.find(ent);
+    if(sim != sims.end() && sim->second.points.size() >= 2 && cl.time - sim->second.time <= simFresh &&
+        sim->second.time <= cl.time)
+    {
+        simPoints(sim->second.points, a, b, pts, length); // (the server's simulated rope: vr_ropesim.cpp)
+    }
+    else
+    {
+        ropePoints(r, a, b, pts, length, h);
+    }
     Queued q;
     q.mesh = mesh;
     q.firstSample = static_cast<int>(curve.size());
