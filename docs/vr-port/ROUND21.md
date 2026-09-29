@@ -12995,3 +12995,74 @@ ground friction rather than at once. Tests: `vr_debug_stamina_speed 1` prints th
 (Debug > Tests: Print Run Speed, Quarter Stamina; the Stamina readout shows "run x0.88"). Headless on e1m1, the stick
 forward (`vr_debug_stamina_hold 1; vr_stamina_set <s>`): 1.00 -> 320, 0.50 -> 320, 0.25 -> 280 (x0.875), 0 -> 160;
 with the option off at 0, 320.
+## Flung props: settings, and never you
+
+Your note `vrfiringrange_2026-09-29_21-33-36` (settings for flung props' damage: least speed, multiplier, weight's
+curve; a way to never hurt players; props you batted away or flailed hit you where they shouldn't, and harder than
+expected).
+
+### Why you got hit
+
+A loose prop's hits come from the engine's hit box along its flight (`touchNearby`, `vr_box3d.cpp`: the prop's centre
+swept with a 12-unit box, `vr_throw_hitbox` 6). Started inside a body's box it reports that body (Quake's trace: start
+solid), whichever way the prop moves. A prop you bat sits at your hand, a few units from your own box (32 units wide),
+often in it once grown by the hit box: it touched you as it left. `VR_Prop_Flung` took their speed as the length of
+their relative velocity, direction ignored, so a prop batted away from you at 10 m/s hit you at 10 m/s. The let-go
+grace (0.5 s) only covered props let go of from a carrying hand, not batted ones nor ones the grapple let go of.
+Reproduced headless (the old speed, `impulse 232` below with `vr_test_fling_away 1`): 8.7 and 13.1 damage to you
+from a health box leaving you at 12 and 18 m/s.
+
+Fixed:
+- The speed is now how fast it goes into what it touches (`VR_Prop_Approach`, `vr_carry.qc`): along the line from its
+  centre to the nearest point of the other's box, from half the speed (a glancing blow: a flail sweeping past a grunt)
+  to all of it (head on); moving apart or along it, nothing. Also the prop's own speed (a player running into a box
+  lying still never hurts).
+- A prop on your grapple is let go of by you every frame it hangs there (`VR_Grapple_Service`,
+  `vr_grapple.qc`): once the hook lets go, a flail can't hit you in the first 0.5 s, and its hits are credited to you
+  for 10 s.
+- **Flung Props Hurt Players** off by default: monsters only.
+
+### Damage, more balanced
+
+It was the throw's formula: base x (speed / 5.8 m/s), divided by the heavy leniency (a 40 kg box's hit x2.8), times
+the weight curve (up to 2.5), unbounded in speed. A health box at 23 m/s: 23; an explosive box at 17 m/s: about 120.
+Now: base (Thrown Box Damage 8, a gib's 4, a weapon's own) x its Throw Damage x x **Damage** x (speed / Least Speed,
+at most **Most Speed Multiplier**) x (mass / **Reference Mass**)^**Weight Curve** (at most **Most Weight
+Multiplier**). The hand throw's own hit is unchanged.
+
+Settings (Carrying and Throwing > Throwing and Physics > Flung Props; a link on Carrying):
+
+| Setting | cvar | default |
+|---|---|---|
+| Flung Props Hurt | `vr_prop_impact_damage` | 1 |
+| Flung Props Hurt Players | `vr_prop_impact_players` | 0 (new) |
+| Least Speed | `vr_prop_impact_min_speed` | 8 m/s (was a fixed 250 u/s: 7.6 m/s at world scale 1.25, 6.3 at your 1.5); less over 10 kg |
+| Damage | `vr_prop_impact_mult` | 1x |
+| Most Speed Multiplier | `vr_prop_impact_speed_max` | 3x |
+| Weight Curve | `vr_prop_impact_weight_curve` | 0.5 |
+| Reference Mass | `vr_prop_impact_weight_ref` | 3 kg |
+| Most Weight Multiplier | `vr_prop_impact_weight_max` | 2.5x |
+| Least Mass | `vr_prop_impact_min_mass` | 1 kg (moved here from Carrying) |
+
+Test aid (Debug > Tests > Flung Props; `impulse 232`, `VR_Test_Fling`, `weapons.qc`): the loose prop nearest you sent
+at the nearest monster (`vr_test_fling_at 1`: at you) at `vr_test_fling_speed` m/s from 40 units off its box;
+`vr_test_fling_away 1` from inside its box's edge, away from it.
+
+Checks (mock, vrfiringrange, the firing range's dummy, `developer 1`; speed launched / at the hit):
+
+| Prop | 6 | 7.5 | 9 | 12 m/s | 18 m/s | 30 m/s |
+|---|---|---|---|---|---|---|
+| health box, 1.6 kg | - | - | - (arrives under 8) | 7.8 | 12.7 | 17.4 |
+| shells box, 1.3 kg | - | - | - | 7.0 | 11.4 | 15.5 |
+| explosive box, 40 kg | 10.0 | 13.5 | 17.2 | 24.8 | 27.0 | 60.0 |
+
+A supershotgun (5.2 kg) reeled past a grunt on the grapple (the hook's flail scenario): 13.4, by the player (was
+16.9). At you, health box at 12/18/30 m/s: nothing with Hurt Players off; 8.7/13.1/17.4 with it on; flying away from
+inside your box: nothing (the old speed: 8.7, 13.1).
+
+### Not verified
+
+- In the headset: batting near the body and flailing with Hurt Players on (should never hit you as it leaves); whether
+  the new numbers feel right (Damage and Reference Mass are the knobs).
+- A prop batted by a hand is not yet "let go" by that hand (no grace or credit for a batted prop that bounces back:
+  the engine's reach bodies don't tell QC whom they struck).

@@ -1390,6 +1390,29 @@ void hologramTestMessage()
         slider("Hitbox", vr_throw_hitbox, 1.f, 12.f, 0.5f, "%.1f").extend().help("Half-size of a thrown weapon's box against monsters."),
         slider("Hit Min Speed", vr_throw_hit_min_speed, 0.f, 600.f, 25.f, "%.0f").extend()
             .help("Units/s a thrown weapon, box or gib must go at to hurt a monster; slower (at rest against it, pushed into it) it does nothing."),
+        header("Flung Props"),
+        toggle("Flung Props Hurt", vr_prop_impact_damage)
+            .help("A prop you didn't throw (swung on the grapple's rope, batted, knocked flying) hurts the monster it flies "
+                  "into fast enough. Off: only what you throw by hand."),
+        toggle("Flung Props Hurt Players", vr_prop_impact_players)
+            .help("They hurt players too (never you as you let go of it, bat it or while your grapple holds it). Off: "
+                  "monsters only."),
+        slider("Least Speed", vr_prop_impact_min_speed, 2.f, 20.f, 0.5f, "%.1f m/s").extend(0.f, 50.f)
+            .help("How fast it must fly into what it hits to hurt it: less for things over 10 kg. The damage grows with "
+                  "the speed over it."),
+        slider("Damage", vr_prop_impact_mult, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("All their damage: the throw's (Thrown Box Damage, a gib's, a weapon's) at the least speed and the "
+                  "reference mass."),
+        slider("Most Speed Multiplier", vr_prop_impact_speed_max, 1.f, 6.f, 0.25f, "%.2fx").extend(0.f, 20.f)
+            .help("Faster hits hurt more, up to this many times the damage at the least speed."),
+        slider("Weight Curve", vr_prop_impact_weight_curve, 0.f, 1.5f, 0.05f, "%.2f").extend(0.f, 3.f)
+            .help("How much mass changes the damage: 0 not at all, 1 in proportion (twice the mass, twice the damage)."),
+        slider("Reference Mass", vr_prop_impact_weight_ref, 0.5f, 20.f, 0.5f, "%.1f kg").extend(0.1f, 100.f)
+            .help("A prop of this mass deals the damage as set; lighter ones less, heavier ones more."),
+        slider("Most Weight Multiplier", vr_prop_impact_weight_max, 1.f, 5.f, 0.1f, "%.1fx").extend(1.f, 20.f)
+            .help("The most a heavy prop multiplies the damage."),
+        slider("Least Mass", vr_prop_impact_min_mass, 0.f, 10.f, 0.1f, "%.1f kg").extend(0.f, 100.f)
+            .help("Lighter props never hurt when flung (thrown by hand, they still do)."),
     };
 }
 
@@ -1435,12 +1458,8 @@ void hologramTestMessage()
         slider("Box Throw Speed", vr_carry_throw_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend(),
         slider("Box Punch Damage", vr_carry_melee_mult, 1.f, 3.f, 0.1f, "%.1fx").extend().help("Punching with a box in hand."),
         slider("Thrown Box Damage", vr_carry_throw_damage, 0.f, 50.f, 1.f, "%.0f").extend().help("Damage of a box thrown at about 6 m/s; more the faster."),
-        toggle("Flung Props Hurt", vr_prop_impact_damage)
-            .help("Any prop flying fast enough to be a throw (swung on the grapple's rope, batted, knocked flying) hurts "
-                  "the monster or player it hits as a thrown one does. Never you as you let go of it, nor while your "
-                  "grapple holds it. Off: only what you throw by hand."),
-        slider("Flung Props' Least Mass", vr_prop_impact_min_mass, 0.f, 10.f, 0.1f, "%.1f kg").extend(0.f, 100.f)
-            .help("Lighter props never hurt when flung (thrown by hand, they still do)."),
+        open("Flung Props (Throwing and Physics)", pageIndex(pageThrowing))
+            .help("Whether props batted, knocked flying or swung on the grapple hurt monsters (and players), and how much."),
         open("Held Object Offsets (Held Prop)", pageIndex(pageHeldObjectOffsets))
             .help("The grip, fingers and melee points of what a hand carries."),
         open("Held Object Weights (Held Prop)", pageIndex(pageHeldObjectWeights))
@@ -1791,6 +1810,15 @@ std::vector<Item> pageDebugTests()
         slider("Distance", vr_test_spawn_dist, 32.f, 256.f, 8.f, "%.0f units").extend().help("How far ahead."),
         toggle("As a Corpse", vr_test_spawn_dead).help("A monster killed at once: a corpse, to test gibbing and carrying."),
         command("Put It There", "impulse 241").help("Puts the Thing ahead of you."),
+        header("Flung Props"),
+        slider("Fling Speed", vr_test_fling_speed, 1.f, 40.f, 1.f, "%.0f m/s").extend(),
+        cycle("Fling At", vr_test_fling_at, {{0.f, "Nearest Monster"}, {1.f, "You"}}),
+        toggle("Fling Away From It", vr_test_fling_away)
+            .help("The prop starts inside the edge of its box and flies away from it (a prop batted away from you): it "
+                  "must never hurt."),
+        command("Fling the Nearest Prop", "impulse 232")
+            .help("Sends the loose prop nearest you (put a box there first) at it, as if batted or knocked flying; "
+                  "developer 1 prints the hit (prop: flung ...)."),
         header("At You"),
         cycle("Projectile", vr_test_projectile,
             {{0.f, "Knight's Spike"}, {1.f, "Enforcer's Laser"}, {2.f, "Scrag's Spit"}, {3.f, "Vore's Ball"},

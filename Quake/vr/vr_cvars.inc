@@ -818,8 +818,19 @@ QVR_CVAR(vr_carry_throw_mult, "1", CVAR_ARCHIVE)      // how fast they leave the
 QVR_CVAR(vr_carry_melee_mult, "1.5", CVAR_ARCHIVE)    // punches with a box in hand hurt this much more
 QVR_CVAR(vr_carry_throw_damage, "8", CVAR_ARCHIVE)    // damage of a box thrown hard (at about 6 m/s; more the faster)
 QVR_CVAR(vr_gib_throw_damage, "4", CVAR_ARCHIVE)      // and of a gib or head
-QVR_CVAR(vr_prop_impact_damage, "1", CVAR_ARCHIVE)   // a prop never thrown (flung on the grapple, batted, knocked flying) hurts a monster or player as a thrown one
-QVR_CVAR(vr_prop_impact_min_mass, "1", CVAR_ARCHIVE) // kg: lighter props never hurt so (vr_carry.qc VR_Prop_Flung)
+// Flung props (vr_carry.qc VR_Prop_Flung): a prop never thrown (flung on the grapple, batted, knocked flying) that meets a
+// monster (or a player) fast enough hurts it: its throw's base damage (vr_carry_throw_damage, vr_gib_throw_damage, a
+// weapon's) times its Throw Damage x, vr_prop_impact_mult, its speed into it over vr_prop_impact_min_speed (at most
+// vr_prop_impact_speed_max) and (mass / vr_prop_impact_weight_ref)^vr_prop_impact_weight_curve (at most _weight_max).
+QVR_CVAR(vr_prop_impact_damage, "1", CVAR_ARCHIVE)        // on
+QVR_CVAR(vr_prop_impact_players, "0", CVAR_ARCHIVE)       // 1: players too (never the one who just let go of it), 0: monsters only
+QVR_CVAR(vr_prop_impact_min_mass, "1", CVAR_ARCHIVE)      // kg: lighter props never hurt so
+QVR_CVAR(vr_prop_impact_min_speed, "8", CVAR_ARCHIVE)     // m/s towards what it meets (less for things over 10 kg: heavy leniency)
+QVR_CVAR(vr_prop_impact_mult, "1", CVAR_ARCHIVE)          // the damage times this
+QVR_CVAR(vr_prop_impact_speed_max, "3", CVAR_ARCHIVE)     // the most its speed multiplies the damage (speed / least speed)
+QVR_CVAR(vr_prop_impact_weight_curve, "0.5", CVAR_ARCHIVE) // exponent of mass / reference (0: mass changes nothing; 1: in proportion)
+QVR_CVAR(vr_prop_impact_weight_ref, "3", CVAR_ARCHIVE)    // kg: the mass that deals the base damage (lighter less, heavier more)
+QVR_CVAR(vr_prop_impact_weight_max, "2.5", CVAR_ARCHIVE)  // the most mass multiplies the damage
 QVR_CVAR(vr_gib_destroy, "1", CVAR_ARCHIVE)           // gibs and heads can be destroyed (shot, blown up, struck, thrown hard): they burst in a mist of blood
 QVR_CVAR(vr_gib_health, "12", CVAR_ARCHIVE)           // the damage that destroys a gib (a head takes half as much again)
 QVR_CVAR(vr_gib_splat_speed, "250", CVAR_ARCHIVE)     // units/s a thrown gib or head must hit a wall or a monster at to burst
@@ -1024,6 +1035,9 @@ QVR_CVAR(vr_debug_model_collide, "0", CVAR_NONE)      // 1: print each hand's pu
 QVR_CVAR(vr_test_spawn, "0", CVAR_NONE)               // impulse 241 (tests): what it puts ahead of you: 0..17 the firing range's dispenser monsters (0 grunt, 1 ogre, 2 zombie, 3 shambler, ...), 100 a health box, 101 a shells box
 QVR_CVAR(vr_test_spawn_dist, "56", CVAR_NONE)         // and how far ahead (units)
 QVR_CVAR(vr_test_spawn_dead, "0", CVAR_NONE)          // 1: a monster killed at once (a corpse)
+QVR_CVAR(vr_test_fling_speed, "12", CVAR_NONE)        // impulse 232 (tests): the prop nearest you sent at the nearest monster at this many m/s (VR_Test_Fling)
+QVR_CVAR(vr_test_fling_at, "0", CVAR_NONE)            // and at: 0 the nearest monster, 1 you (from ahead)
+QVR_CVAR(vr_test_fling_away, "0", CVAR_NONE)          // 1: from inside the edge of its box, away from it (a prop batted away, still in your box)
 QVR_CVAR(vr_test_projectile, "0", CVAR_NONE)          // impulse 246 (tests): the projectile fired at you: 0 a knight's spike, 1 a laser, 2 a scrag's spit, 3 a vore's ball, 4 an ogre's grenade, 5 a zombie's flesh (6: impulse 240's ogre throws a multi-grenade)
 QVR_CVAR(vr_test_projectile_side, "0", CVAR_NONE)     // and from how many degrees to your left of ahead
 QVR_CVAR(vr_hand_collide, "4", CVAR_ARCHIVE)          // cm a free hand is held out of the weapon in the other hand (drawn only; deeper, it lets go and passes through; 0: never)

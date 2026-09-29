@@ -309,16 +309,19 @@ float(entity e, float xSpeed, float xLenient) VR_Thrown_Damage =
 
 float VR_THROW_MISSILE_SPEED = 250; // u/s (times VR_Thrown_Lenient): a thing let go of this fast is thrown, a missile
 
-// Flung (ROUND21.md, "Flung props hit as thrown ones"): a physics prop not in a throw (never thrown, or its throw over) that
-// meets a monster or a player fast enough hurts it as a thrown one does: swung on the grapple's rope as a flail, batted
-// by a hand, knocked flying, dropped from a height. self is the prop, other what it met (a touch, or an explosive
-// box's .vr_impact); `xSpeed` their speed into each other (units/s: never a resting contact, nor something pushed along
-// by what it meets), `xOwnSpeed` the prop's own (it flies: never a box a player runs into). The throw's thresholds (VR_THROW_MISSILE_SPEED, times
-// VR_Thrown_Lenient) and damage (VR_Thrown_Damage at its speed: the throw's base, full at about 6 m/s). Never:
-// carried, flying to a force grab, a gib or head still in its death's fling (Quake's bounce, before it first lands),
-// under vr_prop_impact_min_mass kg, more than once a VR_FLING_REHIT, nor to the player who let go of it just now
-// (VR_FLING_LETGO_GRACE) or whose grapple holds it (reeled in, it comes at the gun). The attacker is who holds it on
-// the rope, else who let go of it (within VR_FLING_CREDIT). TRUE if it hurt.
+// Flung (ROUND21.md, "Flung props hit as thrown ones"; "Flung props: settings, and never you"): a physics prop not in
+// a throw (never thrown, or its throw over) that meets a monster (or a player: vr_prop_impact_players) fast enough hurts
+// it: swung on the grapple's rope as a flail, batted by a hand, knocked flying, dropped from a height. self is the prop,
+// other what it met (a touch, or an explosive box's .vr_impact); `xSpeed` their speed towards each other (units/s,
+// VR_Prop_Approach: never a resting contact, something pushed along by what it meets, nor a prop leaving it, as a
+// batted one still in your box does), `xOwnSpeed` the prop's own towards it (it flies: never a box a player runs
+// into). Both over vr_prop_impact_min_speed m/s (times VR_Thrown_Lenient). Its damage: the throw's base (Thrown Box
+// Damage, a gib's, a weapon's own) times its Throw Damage x, vr_prop_impact_mult, the speed over the least one (at most
+// vr_prop_impact_speed_max) and the mass's curve (VR_Prop_ImpactWeight). Never: carried, flying to a force grab, a gib
+// or head still in its death's fling (Quake's bounce, before it first lands), under vr_prop_impact_min_mass kg, more
+// than once a VR_FLING_REHIT, nor to the player who let go of it just now (VR_FLING_LETGO_GRACE; the grapple's holder
+// lets go of it every frame it holds it) or whose grapple holds it (reeled in, it comes at the gun). The attacker is
+// who holds it on the rope, else who let go of it (within VR_FLING_CREDIT). TRUE if it hurt.
 float VR_FLING_REHIT = 0.5;       // s between a flung prop's hits
 float VR_FLING_LETGO_GRACE = 0.5; // s
 float VR_FLING_CREDIT = 10;       // s
@@ -326,10 +329,51 @@ float VR_FLING_CREDIT = 10;       // s
 entity(entity xProp) VR_Grapple_PropHolder; // (vr_grapple.qc)
 void(float damage) spawn_touchblood;
 
+// How fast (units/s) `xVel` takes the prop `xProp` into `xOther`: towards the nearest point of the other's box from the
+// prop's centre (its centre, the prop's inside it), the speed from half (a glancing blow: a flail sweeping past) to
+// all of it (head on). Moving apart (a prop batted away, still in your box) or along it: that negative, or 0.
+float(entity xProp, entity xOther, vector xVel) VR_Prop_Approach =
+{
+    vector c = 0.5 * (xProp.absmin + xProp.absmax);
+    vector n;
+    n_x = min(max(c_x, xOther.absmin_x), xOther.absmax_x);
+    n_y = min(max(c_y, xOther.absmin_y), xOther.absmax_y);
+    n_z = min(max(c_z, xOther.absmin_z), xOther.absmax_z);
+    vector d = n - c;
+    if(vlen(d) < 1)
+    {
+        d = 0.5 * (xOther.absmin + xOther.absmax) - c;
+    }
+    if(vlen(d) < 0.001)
+    {
+        return vlen(xVel);
+    }
+    float speed = vlen(xVel);
+    float towards = xVel * normalize(d);
+    if(towards <= 0 || speed <= 0)
+    {
+        return towards;
+    }
+    return speed * (0.5 + 0.5 * towards / speed);
+};
+
+// Mass's share of a flung prop's damage: (mass / vr_prop_impact_weight_ref)^vr_prop_impact_weight_curve, at most
+// vr_prop_impact_weight_max (1 with the curve 0).
+float(float xMass) VR_Prop_ImpactWeight =
+{
+    float k = max(0, cvar_hget(cvarh_vr_prop_impact_weight_curve));
+    if(k == 0 || xMass <= 0)
+    {
+        return 1;
+    }
+    float ref = max(0.01, cvar_hget(cvarh_vr_prop_impact_weight_ref));
+    return min(pow(xMass / ref, k), max(0.01, cvar_hget(cvarh_vr_prop_impact_weight_max)));
+};
+
 float(float xSpeed, float xOwnSpeed) VR_Prop_Flung =
 {
-    if(!cvar_hget(cvarh_vr_prop_impact_damage) || other == world || !other.takedamage ||
-       !(other.flags & FL_MONSTER || other.classname == "player") || other == self)
+    if(!cvar_hget(cvarh_vr_prop_impact_damage) || other == world || !other.takedamage || other == self ||
+       !(other.flags & FL_MONSTER || (other.classname == "player" && cvar_hget(cvarh_vr_prop_impact_players))))
     {
         return FALSE;
     }
@@ -341,8 +385,8 @@ float(float xSpeed, float xOwnSpeed) VR_Prop_Flung =
         return FALSE;
     }
     float mass = VR_Thrown_Mass(self);
-    float lenient = VR_Thrown_Lenient(self);
-    if(mass < cvar_hget(cvarh_vr_prop_impact_min_mass) || min(xSpeed, xOwnSpeed) < VR_THROW_MISSILE_SPEED * lenient)
+    float least = max(1, cvar_hget(cvarh_vr_prop_impact_min_speed) * VRMetersToUnits());
+    if(mass < cvar_hget(cvarh_vr_prop_impact_min_mass) || min(xSpeed, xOwnSpeed) < least * VR_Thrown_Lenient(self))
     {
         return FALSE;
     }
@@ -357,28 +401,27 @@ float(float xSpeed, float xOwnSpeed) VR_Prop_Flung =
         attacker = self.carry_letgo;
     }
 
-    // The throw's damage (VR_Carry_Release, a thrown weapon's own base: CreateThrownWeapon), not its state: the prop
-    // is not made a missile.
-    float base = GetThrownWeaponBaseDamage(self);
-    if(self.classname != "thrown_weapon" || !base)
+    // The throw's base damage (VR_Carry_Release, a thrown weapon's own: CreateThrownWeapon) and its Throw Damage x.
+    float weapon = self.classname == "thrown_weapon";
+    float base = weapon ? GetThrownWeaponBaseDamage(self) : 0;
+    if(!base)
     {
         base = cvar_hget(self.vr_gib ? cvarh_vr_gib_throw_damage : cvarh_vr_carry_throw_damage);
     }
-    float oldBase = GetThrownWeaponBaseDamage(self);
-    float oldSpeed = self.throwdmgspeed;
-    SetThrownWeaponBaseDamage(self, base);
-    self.throwdmgspeed = 700 * VRMetersToUnits() / 120;
-    float dmg = VR_Thrown_Damage(self, xSpeed, lenient);
-    SetThrownWeaponBaseDamage(self, oldBase);
-    self.throwdmgspeed = oldSpeed;
+    float own = weapon ? weaponvalue(self.model, "w_throwdmg") : propvalue(self, "throw_dmg");
+    float speedMult = min(xSpeed / least, max(0, cvar_hget(cvarh_vr_prop_impact_speed_max)));
+    float weightMult = VR_Prop_ImpactWeight(mass);
+    float dmg = base * own * cvar_hget(cvarh_vr_prop_impact_mult) * speedMult * weightMult;
     if(dmg <= 0)
     {
         return FALSE;
     }
 
     self.vr_fling_hit = time;
-    dprint(sprintf("prop: flung %s (%.1f kg) into %s at %.0f u/s (its own %.0f): %.1f damage, by %s\n", self.classname,
-        mass, other.classname, xSpeed, xOwnSpeed, dmg, attacker == world ? "nobody" : attacker.netname));
+    dprint(sprintf("prop: flung %s (%.1f kg) into %s at %.0f u/s (its own %.0f): %.1f damage", self.classname, mass,
+        other.classname, xSpeed, xOwnSpeed, dmg));
+    dprint(sprintf(" (base %.1f x%.2f, speed x%.2f, weight x%.2f), by %s\n", base, own, speedMult, weightMult,
+        attacker == world ? "nobody" : attacker.netname));
     sound(self, CHAN_AUTO, "fisthit.wav", 1, ATTN_NORM);
     spawn_touchblood(dmg);
     T_Damage(other, self, attacker, dmg);

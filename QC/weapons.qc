@@ -3666,6 +3666,10 @@ void() ImpulseCommands =
     {
         VR_Grapple_Report();
     }
+    if(self.impulse == 232 && !deathmatch && !coop) // QVR test: the nearest prop flung at a monster or you (VR_Test_Fling)
+    {
+        VR_Test_Fling();
+    }
     if(self.impulse == 233 && !deathmatch && !coop) // QVR test: you touch what the hooks are in (a pickup is taken)
     {
         VR_Grapple_TestTouch();
@@ -4346,6 +4350,80 @@ void() wpnthrow_think =
     self.nextthink = time + 0.02;
 }
 
+// Tests (impulse 232; Debug > Tests > Flung Props): the loose prop nearest you (a rigid body not carried) sent at
+// vr_test_fling_speed m/s at the nearest monster (vr_test_fling_at 1: at you), from 40 units off the side of its box
+// facing you, at its middle's height, not thrown by anyone (VR_Prop_Flung). vr_test_fling_away 1: from inside the edge
+// of its box, away from it (a batted prop leaving you, still in your box).
+void() VR_Test_Fling =
+{
+    entity p = self;
+    entity target = p;
+    float best;
+    entity e;
+    if(!cvar("vr_test_fling_at"))
+    {
+        target = world;
+        best = 100000;
+        for(e = nextent(world); e != world; e = nextent(e))
+        {
+            if(e.flags & FL_MONSTER && e.health > 0 && vlen(e.origin - p.origin) < best)
+            {
+                best = vlen(e.origin - p.origin);
+                target = e;
+            }
+        }
+    }
+    entity prop = world;
+    best = 512;
+    for(e = nextent(world); e != world; e = nextent(e))
+    {
+        if(e.vr_rigid && e.carry_player == world && (e.touch == forcegrabbable_touch || e.vr_impact) &&
+           vlen(e.origin - p.origin) < best)
+        {
+            best = vlen(e.origin - p.origin);
+            prop = e;
+        }
+    }
+    if(target == world || prop == world)
+    {
+        dprint("fling test: no monster or no prop\n");
+        return;
+    }
+    vector mid = 0.5 * (target.absmin + target.absmax);
+    vector dir;
+    if(target == p)
+    {
+        makevectors('0 1 0' * p.v_viewangle_y);
+        dir = -1 * v_forward; // (towards you from ahead)
+    }
+    else
+    {
+        dir = mid - p.origin;
+        dir_z = 0;
+        dir = normalize(dir);
+    }
+    float half = 0.5 * max(target.size_x, target.size_y);
+    float speed = cvar("vr_test_fling_speed") * VRMetersToUnits();
+    vector at = mid - dir * (half + 40);
+    vector vel = dir * speed;
+    if(cvar("vr_test_fling_away"))
+    {
+        at = mid - dir * (half - 4);
+        vel = -1 * vel;
+    }
+    prop.owner = world;
+    prop.throwhit = 0;
+    prop.carry_letgo = world;
+    prop.vr_fling_hit = 0;
+    prop.fg_state = 0;
+    prop.flags = prop.flags - (prop.flags & FL_ONGROUND);
+    setorigin(prop, at - 0.5 * (prop.mins + prop.maxs));
+    prop.velocity = vel;
+    dprint(sprintf("fling test: %s (%.1f kg) at %s, %.1f m/s (%.0f u/s)%s; its health %.0f\n", prop.classname,
+        VR_Thrown_Mass(prop), target.classname, cvar("vr_test_fling_speed"), speed,
+        cvar("vr_test_fling_away") ? ", away from it" : "", target.health));
+};
+
 void() forcegrabbable_touch =
 {
     if(self.owner != world && other == self.owner)
@@ -4355,8 +4433,9 @@ void() forcegrabbable_touch =
         return;    // trigger field, do nothing
 
     // Not thrown (or its throw over), but as fast into a monster or player as a throw: it hurts as one (VR_Prop_Flung:
-    // a flail on the grapple's rope, a batted or knocked prop; their speed into each other, never a resting contact).
-    VR_Prop_Flung(vlen(self.velocity - other.velocity), vlen(self.velocity));
+    // a flail on the grapple's rope, a batted or knocked prop; their speed towards each other, never a resting contact,
+    // nor one leaving it: a prop batted away still overlaps your box, and touchNearby's hit box meets you as it starts).
+    VR_Prop_Flung(VR_Prop_Approach(self, other, self.velocity - other.velocity), VR_Prop_Approach(self, other, self.velocity));
 
     // A thrown weapon's true-scale gravity lasted for its flight only; rigid ones keep it (the
     // engine bounces them: a sudden Quake gravity after the first touch looked wrong).
