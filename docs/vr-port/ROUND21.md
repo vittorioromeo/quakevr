@@ -11549,3 +11549,141 @@ Also: `menu_coverage.py` on a `menu_vr dump`: Batting and Catching 20 rows, Hip 
 - [ ] Try Arm Hand Grenades: When Let Go Of, and say which you prefer.
 - [ ] Look at the pouch in a mirror or with the body preview from its side, full and empty. Is id's grenade too big in
       the hand?
+
+## Holster draw blend; holster defaults; body calibration kept
+
+Your voice notes (29 September) covered three things:
+- a gun taken from a holster "is in a completely different pose": you asked for a quick, customisable transition that
+  turns the shortest way;
+- "I have painstakingly set holster offsets for all the weapons so please make sure you save them and they become the
+  defaults";
+- "ensure that body calibration gets saved after it being applied".
+
+Branch `agent/notes4`. The scripts, logs and screenshots are in the scratchpad's `notes4/`, and the screenshots are in
+`draw_mid.png`.
+
+### Draw and holster blend
+
+- **Settings** (Weapons > Immersion, under Weapons and Holsters): **Draw Blend Time** (`vr_weapon_draw_blend`, 0.3 s)
+  and **Holster Blend Time** (`vr_weapon_holster_blend`, 0.3 s). 0 means at once, as before.
+- **Drawing:** the gun starts exactly where it hung in the holster (its Holstered pose, with the holster's turn). It then
+  eases into the hand on a cubic ease-out: it covers most of the way in the first tenth of a second, then settles.
+- **Holstering** works the same way in reverse: the gun eases from where the hand held it into its holstered pose.
+- **The shortest rotation:**
+  - The start pose is kept relative to where the gun is going (the hand's gun, or the holster). So the gun follows the
+    hand (or the body) as it travels.
+  - The turn is a quaternion slerp from no turn to that offset. The quaternion's sign is flipped when w < 0.
+  - So the gun never turns more than 180 degrees, it turns straight to the target, and the angle left shrinks every
+    frame.
+- **Visual only (decided):** the aim, the muzzle, the shots, the two-handed grips and melee use the gun's real place in
+  the hand from the first frame, so you can fire at once. A blend lasts 0.3 s, and blocking the trigger for it would feel
+  like lag. A shot fired during the blend comes from the gun's final place in the hand.
+- **The hand stays on your controller (decided):** moving it to the holstered gun would make the hand jump away from
+  where you feel it. Its fingers close on the grip the usual way (Grip Blend, `vr_hand_fit_blend`, 0.12 s), so the gun
+  arrives into a closing hand.
+- **What blends:**
+  - A gun that appears in a hand at a holster that showed that gun within the last 0.25 s. The window is there because
+    the hand's and the holster's updates can arrive a frame apart.
+  - A gun that leaves a hand at a holster that then shows it. In Immersive mode, the holster's gun must have changed. In
+    Quick Slots mode, whose holsters never empty, the gun already there blends.
+- **What doesn't blend:** ammo morphs, passing a gun between hands, the grenade pouch (the grenade is a prop in the palm,
+  not a holstered weapon) and the Weapon Offsets preview.
+- **Mirroring:** a gun drawn from a left holster into the right hand keeps each side's model mirroring. Only its place
+  and turn blend.
+- **Log:** Debug > Logging > **Holster Draw Blend** (`vr_debug_draw_blend 1`) prints every frame of a blend: the turn and
+  distance left, the start, and the turn a slerp without the sign flip would have taken.
+- **Checked in the mock:** the shotgun drawn from the right hip, with the hand rolled from 0 to 190 degrees to vary the
+  difference. 1050 frames were logged (`notes4/sweep1.log`).
+  - In every blend the angle left falls monotonically to 0 at 0.3 s.
+  - The draws started 100, 132, 169, 178, 171, 165 and 152 degrees from the hand's pose.
+  - In three draws the raw quaternions were 191, 189 and 195 degrees apart (the long way). The gun turned 169, 171 and
+    165 degrees (the short way).
+  - Holstering started 101 degrees and 4.8 units from the holster's pose, and behaved the same way.
+  - `draw_mid.png` shows the hip holster, the grab, then the gun turning into the hand. The pictures use a 3 s blend.
+
+### Your holstered poses are the defaults (`vr_weapons.inc`, `vr_wofs_version` 22)
+
+**Source:** the copy of your config from 02:22 (`his_ironwail_2026-09-29_0222.cfg`). This build loaded it and read the
+values back (`writeconfig` after a map), then compared them with a first start. All 7169 `vr_wofs_*` settings were
+compared, weapon offsets and hotspots included. **95 values differ**, and all are baked with your exact strings. Since
+the last bake you changed only these:
+
+| Weapon | Values |
+|---|---|
+| axe `_01` | fgr_bias_thumb -0.58 (was -0.4); hol_hip_roll -50, hol_hip_y 4, hol_hip_z -4, hol_upper_roll -50, hol_upper_y 4.4, hol_upper_z -0.5 |
+| shotgun `_02` | hol_hip_roll 15, hol_hip_x -0.5, hol_hip_y 1, hol_hip_z -1.1, hol_upper_roll 25, hol_upper_y 2.9, hol_upper_yaw 25 |
+| super shotgun `_03` | hol_hip_y 1.5, hol_hip_z -2.5, hol_upper_y 2, hol_upper_yaw 10, hol_upper_z -1 |
+| nailgun `_04` | hol_hip_y 2, hol_hip_z -2.5, hol_upper_pitch 15, hol_upper_x 1, hol_upper_y 1.3, hol_upper_yaw 20, hol_upper_z -0.8 |
+| super nailgun `_05` | hol_hip_x 1.6, hol_hip_z -3.2, hol_upper_pitch 30, hol_upper_roll 10, hol_upper_y 3.5, hol_upper_yaw 5, hol_upper_z -1 |
+| grenade launcher `_06` | hol_hip_x 1, hol_hip_y 1, hol_hip_yaw 10, hol_hip_z -1, hol_upper_pitch 15, hol_upper_roll 15, hol_upper_y 2.5, hol_upper_yaw 20, hol_upper_z -1 |
+| rocket launcher `_07` | hol_hip_x -0.5, hol_hip_z -1.5, hol_upper_roll 20, hol_upper_y 2.3, hol_upper_yaw 20, hol_upper_z -1.1 |
+| lightning gun `_08` | hol_hip_z -1.5, hol_upper_pitch 15, hol_upper_roll 20, hol_upper_x 0.5, hol_upper_y 2, hol_upper_yaw 30, hol_upper_z -1.5 |
+| Mjolnir `_09` | hol_hip_roll -70, hol_hip_y 4, hol_hip_z -2.5, hol_upper_roll -60, hol_upper_y 4, hol_upper_yaw 1, hol_upper_z 1 |
+| proximity gun `_11` | hol_hip_x 1, hol_hip_y 1, hol_hip_yaw 10, hol_hip_z -1, hol_upper_pitch 15, hol_upper_roll 15, hol_upper_y 2.5, hol_upper_yaw 20, hol_upper_z -1 |
+| grappling hook `_18` | hol_hip_y 1.8, hol_hip_z -3, hol_upper_y 1.8, hol_upper_z -3 |
+| swords `_19`, `_20` (each) | hol_hip_roll -50, hol_hip_x 0.5, hol_hip_y 5, hol_hip_z 1.5, hol_upper_pitch 15, hol_upper_roll -70, hol_upper_x -1.5, hol_upper_y 6, hol_upper_yaw 25, hol_upper_z -3.5 |
+
+- The shoulder (back) holsters stay at 0, because you left them there. The alternates (lava nailguns, multi launchers,
+  plasma gun) still have no values of their own.
+- **The table:** one line changed in place (the axe's thumb bias), and 94 lines were added in a block before the
+  weights.
+- **Migration 22 resets only those 95 keys**, not whole weapon slots as the earlier migrations did. A config's other
+  settings for the same weapons are kept.
+- **Checked:**
+  - Your config loads with every setting unchanged except `vr_wofs_version`, 21 -> 22 (all archived settings dumped and
+    compared).
+  - A first start equals your values for all 7168 `vr_wofs_*` keys.
+  - A version-21 config with its own `hand_x_05` of 7.77, an old `hol_upper_y_05` of 0 and its own `hol_shoulder_x_05`
+    of 2.5 ends with 7.77, 3.5 and 2.5: the two other settings are kept and the holster value takes the new default.
+
+### Body calibration: why it was lost, and the fix
+
+**The cause:** the config was written only when the game quit cleanly, and the session where you applied the 00:41
+calibration never quit.
+- That session started at 00:36. Its memory log stops at 01:16:26.
+- Nothing in the game folder was written between 00:30 and 01:50, and there is no crash dump.
+- So it was ended from outside, most likely by Stop Debugging in Visual Studio (its files were touched just before each
+  launch).
+- Apply had set the settings in memory only, so the 01:50 session read the older config.
+
+**Ruled out:**
+- Two copies running at once: the memory logs don't overlap.
+- A migration: none touches `vr_bodycal_*`.
+- The settings not being archived: they are.
+- The New Measurements preview: Apply turns it off first.
+- `vr_defaults.cfg`: it doesn't set them, and `vr_savedefaults` leaves them out.
+
+**A worse problem found on the way:** your config had grown to 267,927 bytes (the per-weapon settings), past the command
+buffer's 256 KiB.
+- At that size, `exec ironwail.cfg` runs none of the file ("Cbuf_AddText: overflow"). Every setting stays at its
+  default, and quitting then writes those defaults over your config.
+- Your next start would have lost all your settings.
+- Reproduced in the mock with a 271 KB config: every `vr_bodycal_*` came back as 0.
+
+**Now:**
+- **The command buffer is 4 MiB** (`Quake/cmd.c`; the coordinator's hotfix had made it 2 MiB).
+- **A config that is still too large is refused with a message** (`ironwail.cfg is too large to run ...`) and is **never
+  written over**. Quitting that session, and any other save in it, prints `Not writing ironwail.cfg: it was not loaded`.
+  Checked with a 5.4 MB config.
+- **Apply, Undo and Reset Tweaks save the config at once.**
+- **Any changed setting is saved when the menu or the console closes** (`configFrame`). It writes only if an archived
+  setting differs from what the file holds, and `developer 1` prints `config: N settings changed, saved`. So a game
+  ended without quitting keeps what you set in its menus. Changes from another running copy are merged as before.
+- **A previewed calibration is never saved:** the preview's values are removed before any config write, and the page
+  shows them again the next frame.
+- **Checked:**
+  - A mock run refit your 01:52 session and applied it. The config on disk had the new values within a second, while
+    the game was still running.
+  - The game was then killed, as a debugger stop would. A restart from that file had `vr_bodycal_upper_arm` 25.7 and
+    `vr_bodycal_forearm` 25.1 (the refit's values).
+  - Your own values (26.0, 24.9...) are in your config and backed up in `quakevr/bodycal/mybody_2026-09-29.cfg`. A start
+    from your 02:22 config keeps every setting.
+
+### In the headset
+
+- [ ] Draw each gun from a hip holster and a chest holster: it should turn smoothly into your hand, never the long way
+      round. Try Draw Blend Time 0.2 and 0.5 and say which you like. Then holster it and watch it settle.
+- [ ] Look at your guns in the holsters on a first start (or set `vr_wofs_version 21` and restart): you should see your
+      poses.
+- [ ] Change a setting, close the menu, and stop the game from Visual Studio: the setting should still be there at the
+      next start.

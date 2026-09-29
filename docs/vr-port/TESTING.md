@@ -236,6 +236,13 @@ context and screenshot, ready to paste or to point me at.
     Hephaestus are immune; zombies burn up in lava.
   - **Holster orientation** (Hotspots: Shoulder / Hip / Upper Pitch, Yaw, Roll): turn each pair of holsters and the
     guns in them; the left mirrors the right. Draw and holster as before.
+  - **Holster draw blend** (ROUND21.md, "Holster draw blend; holster defaults; body calibration kept"):
+    - A gun drawn from a holster turns smoothly into your hand, the shortest way, over Draw Blend Time. A gun you
+      holster settles into the holster over Holster Blend Time. Both are on Weapons > Immersion: 0.3 s each, 0 for at
+      once. The gun can fire at once.
+    - Your holstered poses are now everyone's defaults.
+    - Your settings are saved when the menu closes and when you Apply a body calibration. Before, a game stopped from
+      the debugger kept none of them.
   - **Per-weapon holstered pose** (Weapon Offsets > Holstered; ROUND21.md, "Per-weapon holstered pose"): hold a
     weapon, open its page, pick Hip, Upper (Chest) or Shoulder (Back) and move and turn it with the six sliders: while a
     Holstered setting is chosen, the weapon you hold is drawn in both holsters of that kind, so look down (or at the body
@@ -984,6 +991,17 @@ draws the menu over the whole view: `scr_menubgalpha 0` and the camera off to a 
 with `vr_body_debug 2`) leave the body preview visible on the left. `vr_dumpview` lists each holstered gun's place.
 Runs aren't pixel-identical (particles, the arms' easing, lighting by ones): compare the holstered guns' lines of
 `vr_dumpview`.
+Draw and holster blend (ROUND21.md, "Holster draw blend; holster defaults; body calibration kept"):
+- **The log:** `vr_debug_draw_blend 1` prints each frame of a blend: the turn and distance left, the start, and the turn
+  without the sign flip.
+- **Drawing:** draw the shotgun from the right hip with `vr_weapon_grip_mode 0; vr_mock_hand main 0.20 0.95 0.0 70 0
+  <roll>; wait30; +grabright; vr_mock_button main grip 1`. A roll near 180 gives a start near 180 degrees.
+- **Holstering:** put it back at the same place with `-grabright; vr_mock_button main grip 0`.
+- **Pictures:** use a slow blend (`vr_weapon_draw_blend 3`) and `vr_mock_camera 0.75 1.35 -0.55 25 140`.
+- **The config across a killed session** (scripts in the scratchpad's `notes4/`):
+  1. Run `vr_bodycal_refit bodycal/<session>.txt; vr_bodycal_apply` with no `quit`. The run times out and is killed.
+  2. While it runs, have a watcher copy `quakevr/ironwail.cfg`: the kit restores the baseline config after the run.
+  3. Start a second run from that copy.
 Wounds (ROUND21.md, "Dynamic wounds, burns and wetness"): `vr_wounds_test <entity|self|ahead|all> <kind> [amount]
 [right] [up] [extra]` paints a wound as the server's event would (1 shot, 2 nail, 3 melee, 4 blast, 5 burn, 6 zap,
 7 lava, 8 slime, 9 liquid; a liquid's `up` is its surface over the feet); `ahead` is the model nearest the view's
