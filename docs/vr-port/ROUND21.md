@@ -13509,3 +13509,58 @@ The eval set is now these takes (the kit's `canary.txt`, 52 of them, and `eval_b
 - Wiggle the axe or sword against it: nothing; a real cut still lands.
 - **Re-record** once the smaller player hitbox (`vr_hull_width`) lands: you'll stand closer, and the blows from close
   by (and the melee tolerance) need takes of their own.
+
+## Shots push props (2026-09-30)
+
+Your note (vrfiringrange, 00:36): shooting props did nothing. Now pellets, nails and the lightning beam push the loose
+props they hit or pass through: health and ammo boxes, explosive boxes, gibs, weapons and keys lying about, rocks and
+bricks. Explosions already pushed them (`physicsblast`); rockets and grenades are unchanged.
+
+### How
+
+- Each shot pushes where it goes in, through `physicspush` with a mass: a thing of the weapon's push (N s) divided by
+  the top speed (`vr_shot_push_speed`, 10 m/s) meeting the prop at that speed. A heavy prop takes about the whole push
+  (40 kg pushed 10 N s moves at 0.25 m/s); a light one flies off at most at the top speed. Hit high, a box tips over.
+- Hitscan (QC `FireBulletsImpl`, `LightningDamage`): the prop the trace hits (an explosive box, a gib) is pushed at the
+  hit point; otherwise the first prop along the trace is, found by a ray through Box3D's props (new builtin
+  `physicsshot`, engine `box3d::shot`), since Quake's traces pass through pickups (SOLID_TRIGGER).
+- Nails and lasers (`launch_spike`, the Scourge's too; the lava nails; enforcers' lasers): every frame their `think2`
+  casts that ray over the last frame's flight (`VR_ShotPush_Fly`), and their touch pushes what they meet. A nail pushes
+  one prop. The laser cannon's bolt pushes each prop it bounces off.
+- Monsters' shots push too (grunts' pellets share the player's code; scrags', knights' and enforcers' shots are nails; a
+  shambler's lightning by its damage).
+
+### Settings (Throwing and Physics page, "Shots Push Props")
+
+| Cvar | Default | What |
+|---|---|---|
+| `vr_shot_push` | 1 | times every push below; 0: off |
+| `vr_shot_push_pellet` | 6 N s | each shotgun / double shotgun pellet (6 / 14 a shot) |
+| `vr_shot_push_nail` | 12 N s | each nail (and monsters' nails and lasers) |
+| `vr_shot_push_supernail` | 24 N s | each super nailgun nail |
+| `vr_shot_push_lightning` | 6 N s | each bolt of the beam (10 a second) |
+| `vr_shot_push_speed` | 10 m/s | the fastest a shot makes a prop go |
+
+`vr_debug_shots 1` (Debug > Logs > Shots and Damage, with Developer Messages) prints each push; Debug > Tests > Thing
+has "Explosive Box (Never Blows Up)" (`vr_test_spawn 104`) to shoot at.
+
+### Measured (`Misc/quakevr/shotpush/shotpush_test.sh`, e1m1's start, 128 units ahead)
+
+| Weapon | Health box (1.6 kg) | Explosive box (40 kg) |
+|---|---|---|
+| Shotgun, one shot | 3.2 m | 1 cm (34 N s) |
+| Double shotgun, one shot | 0.1 m (one pellet hit; knocked away) | 3 cm (75 N s) |
+| Nailgun, 1 s | 0.5 m | 1 cm (151 N s) |
+| Super nailgun, 1 s | 0.3 m | 2 cm (271 N s) |
+| Lightning, 1 s | 0.3 m | 0.4 cm (71 N s) |
+
+The health box is knocked out of the line of fire after a hit or two. The explosive box barely moves: friction
+under Box3D's gravity stops 40 kg within a few centimetres. It blows up when shot anyway; the others (weapons, rocks,
+backpacks, gibs) sit in between.
+
+### In the headset
+
+- Shoot a health box, an ammo box, a weapon on the floor and a gib with each gun: they should jump away from the shot,
+  the shotgun hardest, the lightning beam in little shoves.
+- If it's too strong or weak, change Shot Push (all) or the weapon's slider; tell me the values and I'll make them the
+  defaults.

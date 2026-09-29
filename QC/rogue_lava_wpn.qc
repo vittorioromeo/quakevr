@@ -32,6 +32,7 @@ entity(vector org, vector dir) launch_lava_spike =
     setorigin(newmis, org);
 
     newmis.velocity = dir * 1750;
+    VR_ShotPush_Launch(newmis, QVR_SHOTPUSH_NAIL); // VR: pushes the prop it hits or flies through
 
     return newmis;
 };
@@ -52,6 +53,7 @@ void(float xHand) W_FireSuperLavaSpikes =
     VR_ShotPlace(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
     newmis.velocity += vrProjectileVelocity(xHand, 1.0);
     newmis.touch = superlavaspike_touch;
+    newmis.vr_shot_push_kind = QVR_SHOTPUSH_SUPERNAIL;
 
     setmodel(newmis, "progs/lspike.mdl");
     setsize(newmis, VEC_ORIGIN, VEC_ORIGIN);
@@ -114,6 +116,8 @@ void() lavaspike_touch =
         remove(self);
         return;
     }
+
+    VR_ShotPush_Touch(); // VR: the prop it hit (or flew through) pushed
 
     makeforward_mdl(self.angles);
     VR_TouchTrace(self.origin - v_forward * 8, self.origin + v_forward * 8);
@@ -181,6 +185,8 @@ void() superlavaspike_touch =
         remove(self);
         return;
     }
+
+    VR_ShotPush_Touch(); // VR: the prop it hit (or flew through) pushed
 
     makeforward_mdl(self.angles);
     VR_TouchTrace(self.origin - v_forward * 8, self.origin + v_forward * 8);

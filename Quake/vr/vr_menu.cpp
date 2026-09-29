@@ -1420,6 +1420,22 @@ void hologramTestMessage()
             .help("The most a heavy prop multiplies the damage."),
         slider("Least Mass", vr_prop_impact_min_mass, 0.f, 10.f, 0.1f, "%.1f kg").extend(0.f, 100.f)
             .help("Lighter props never hurt when flung (thrown by hand, they still do)."),
+        header("Shots Push Props"),
+        slider("Shot Push", vr_shot_push, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("Pellets, nails and the lightning beam push the boxes, gibs and weapons they hit or pass through (monsters' "
+                  "shots too): times every push below. 0: off. Explosions push things anyway."),
+        slider("Pellet Push", vr_shot_push_pellet, 0.f, 20.f, 0.5f, "%.1f N s").extend(0.f, 100.f)
+            .help("Each shotgun and double shotgun pellet (6 and 14 a shot). A heavy box takes about the whole push: 40 kg "
+                  "pushed 10 N s moves at a quarter metre a second."),
+        slider("Nail Push", vr_shot_push_nail, 0.f, 40.f, 1.f, "%.0f N s").extend(0.f, 200.f)
+            .help("Each nail of the nailgun (and scrags', knights' and enforcers' shots)."),
+        slider("Super Nail Push", vr_shot_push_supernail, 0.f, 60.f, 1.f, "%.0f N s").extend(0.f, 200.f)
+            .help("Each nail of the super nailgun."),
+        slider("Lightning Push", vr_shot_push_lightning, 0.f, 20.f, 0.5f, "%.1f N s").extend(0.f, 100.f)
+            .help("Each bolt of the lightning beam, 10 a second (a shambler's by its damage)."),
+        slider("Shot Push Top Speed", vr_shot_push_speed, 1.f, 40.f, 1.f, "%.0f m/s").extend(0.1f, 100.f)
+            .help("The fastest a shot makes what it hits go: light things (a gib, a small gun) fly off at most this fast, "
+                  "heavy ones take the push."),
     };
 }
 
@@ -1786,8 +1802,8 @@ std::vector<Item> pageDebugLogging()
                   "others (melee events, grenades, deflections). Verbose: every frame's melee detail too."),
         header("Logs"),
         toggle("Shots and Damage", vr_debug_shots)
-            .help("Each hitscan shot (where it starts, its direction, what its pellets hit, headshots) and each damage you deal "
-                  "(and when Quad's sound plays). Needs Developer Messages."),
+            .help("Each hitscan shot (where it starts, its direction, what its pellets hit, headshots), each damage you deal "
+                  "(and when Quad's sound plays) and each prop a shot pushes. Needs Developer Messages."),
         cycle("Throws", vr_debug_throw, {{0.f, "Off"}, {1.f, "Each Throw"}, {2.f, "And Its Timing"}})
             .help("Each throw's speed estimate from the hand's motion (and the release's timing)."),
         cycle("Climbing", vr_climb_debug, {{0.f, "Off"}, {1.f, "Holds"}, {2.f, "Every Frame"}, {3.f, "And Shoulders"}})
@@ -1946,7 +1962,7 @@ std::vector<Item> pageDebugTests()
              {6.f, "Hell Knight"}, {7.f, "Dog"}, {8.f, "Enforcer"}, {9.f, "Fiend"}, {10.f, "Vore"}, {11.f, "Spawn"},
              {12.f, "Gremlin"}, {13.f, "Centroid"}, {14.f, "Mummy"}, {15.f, "Phantom Swordsman"}, {16.f, "Wrath"},
              {17.f, "Overlord"}, {100.f, "Health Box"}, {101.f, "Shells Box"}, {102.f, "Explosive Box"},
-             {103.f, "Small Explosive Box"}})
+             {103.f, "Small Explosive Box"}, {104.f, "Explosive Box (Never Blows Up)"}})
             .help("What Put It There puts ahead of you, facing you. The mission packs' monsters need their game installed."),
         slider("Distance", vr_test_spawn_dist, 32.f, 256.f, 8.f, "%.0f units").extend().help("How far ahead."),
         toggle("As a Corpse", vr_test_spawn_dead).help("A monster killed at once: a corpse, to test gibbing and carrying."),

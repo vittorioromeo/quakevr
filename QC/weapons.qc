@@ -385,6 +385,7 @@ void() HIP_LaserTouch =
     spot2 = self.origin + (16*oldvel);
     VR_TouchTrace(spot1, spot2);  // see through other monsters
     self.origin = trace_endpos;
+    VR_ShotPush_Laser(other, self.origin, oldvel); // VR: a prop it hits pushed (vr_shot_push)
 
     org = self.origin;
 
@@ -1574,6 +1575,108 @@ BULLETS
 TraceAttack
 ================
 */
+// VR: shots push the loose props they hit (vr_shot_push; ROUND21.md, "Shots push props"). A Box3D prop a shot's trace
+// meets (an explosive box, a gib) or passes through (a health box, a weapon lying about: traces and nails go through the
+// pickups) is pushed where the shot goes in, as a thing of the kind's push (N s) over vr_shot_push_speed (kg) meeting it
+// at that speed (physicspush's mass): a heavy box takes about the push's momentum and barely moves, a light thing flies at
+// most that fast. Hit high, a box tips over. Explosions push props already (physicsblast).
+float QVR_SHOTPUSH_PELLET = 1;
+float QVR_SHOTPUSH_NAIL = 2;
+float QVR_SHOTPUSH_SUPERNAIL = 3;
+float QVR_SHOTPUSH_LIGHTNING = 4;
+
+.float vr_shot_push_kind; // a nail's or laser's (VR_ShotPush_Launch): what it pushes with; 0: nothing (it has pushed)
+.vector vr_shot_from;     // and where it was when it last looked for the props it flew through
+
+// The kind's push (N s), times the global multiplier.
+float(float xKind) VR_ShotPush_Momentum =
+{
+    float push = cvar_hget(cvarh_vr_shot_push);
+    if(xKind == QVR_SHOTPUSH_PELLET)    { return push * cvar_hget(cvarh_vr_shot_push_pellet); }
+    if(xKind == QVR_SHOTPUSH_NAIL)      { return push * cvar_hget(cvarh_vr_shot_push_nail); }
+    if(xKind == QVR_SHOTPUSH_SUPERNAIL) { return push * cvar_hget(cvarh_vr_shot_push_supernail); }
+    if(xKind == QVR_SHOTPUSH_LIGHTNING) { return push * cvar_hget(cvarh_vr_shot_push_lightning); }
+    return 0;
+};
+
+// A shot from `xFrom` along `xDir` that stopped at `xAt` on `xHit` (world: a wall, or nothing): `xHit` pushed there if it
+// is a prop, else the first prop it passed through on the way. `xScale`: times the kind's push. What it pushed, or world.
+// The trace globals are kept.
+entity(entity xHit, vector xFrom, vector xAt, vector xDir, float xKind, float xScale) VR_ShotPush =
+{
+    float momentum = VR_ShotPush_Momentum(xKind) * xScale;
+    float speed = cvar_hget(cvarh_vr_shot_push_speed);
+    if(momentum <= 0 || speed <= 0 || xDir == '0 0 0')
+    {
+        return world;
+    }
+    vector vel = normalize(xDir) * (speed * VRMetersToUnits());
+    float mass = momentum / speed;
+    entity pushed = world;
+    if(xHit != world && physicspush(xHit, xAt, vel, mass))
+    {
+        pushed = xHit;
+    }
+    else
+    {
+        pushed = physicsshot(xFrom, xAt, vel, mass);
+    }
+    // vr_debug_shots: each push (and each lightning bolt's end, pushing or not).
+    if((pushed != world || xKind == QVR_SHOTPUSH_LIGHTNING) && cvar_hget(cvarh_vr_debug_shots))
+    {
+        dprint(sprintf("shot push: kind %d, %.1f N s, from %v to %v: %s\n", xKind, momentum, xFrom, xAt,
+            pushed == world ? "nothing" : pushed.classname));
+    }
+    return pushed;
+};
+
+// A flying nail or laser looks for the props it flew through since the last frame (think2, every frame), until it has
+// pushed one.
+void() VR_ShotPush_Fly =
+{
+    if(!self.vr_shot_push_kind)
+    {
+        return;
+    }
+    if(VR_ShotPush(world, self.vr_shot_from, self.origin, self.velocity, self.vr_shot_push_kind, 1) != world)
+    {
+        self.vr_shot_push_kind = 0;
+        return;
+    }
+    self.vr_shot_from = self.origin;
+    self.nextthink2 = time;
+};
+
+// A nail or laser just launched pushes as `xKind` (its touch calls VR_ShotPush_Touch).
+void(entity xShot, float xKind) VR_ShotPush_Launch =
+{
+    xShot.vr_shot_push_kind = xKind;
+    xShot.vr_shot_from = xShot.origin;
+    xShot.think2 = VR_ShotPush_Fly;
+    xShot.nextthink2 = time;
+};
+
+// The laser cannon's bolt meeting `xHit` at `xAt` going along `xDir` (it bounces: each prop it meets pushed as a nail).
+void(entity xHit, vector xAt, vector xDir) VR_ShotPush_Laser =
+{
+    VR_ShotPush(xHit, xAt, xAt, xDir, QVR_SHOTPUSH_NAIL, 1);
+};
+
+// Its touch (self: the nail, other: what it met): that pushed, or a prop it flew through since the last frame.
+void() VR_ShotPush_Touch =
+{
+    if(self.vr_shot_push_kind)
+    {
+        if(VR_ShotPush(other, self.vr_shot_from, self.origin, self.velocity, self.vr_shot_push_kind, 1) == world &&
+           cvar_hget(cvarh_vr_debug_shots))
+        {
+            dprint(sprintf("shot push: kind %d met %s at %v: nothing pushed\n", self.vr_shot_push_kind, other.classname,
+                self.origin));
+        }
+        self.vr_shot_push_kind = 0;
+    }
+};
+
 void(float damage, vector dir) TraceAttack =
 {
     vector vel, org;
@@ -1650,6 +1753,7 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
             trace_endpos = src;
             trace_plane_normal = -direction;
         }
+        VR_ShotPush(trace_ent, src, trace_endpos, direction, QVR_SHOTPUSH_PELLET, 1); // the prop it hits or goes through
         VR_Gib_TraceHeld(src, src + direction*xRange);               // and one held in the other hand
         VR_WaterShotSplash(src, trace_endpos);                        // a splash where it goes into water
         if(debugShots)
@@ -1932,6 +2036,8 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
     self.damage_weapon = IT_LIGHTNING;
 
     traceline(p1, p2, MOVE_HITGIBS | MOVE_HITMODEL, self); // VR: gibs and heads too (vr_gib_destroy), monsters' models (vr_hit_precise),
+    // VR: the prop the beam hits or goes through, pushed (a player's bolt: 30; a shambler's by its damage).
+    VR_ShotPush(trace_ent, p1, trace_endpos, p2 - p1, QVR_SHOTPUSH_LIGHTNING, damage / 30);
     VR_Gib_TraceHeld(p1, p2);              // and one held in the other hand
 //JIM
     if(trace_ent.takedamage && !trace_ent.wetsuit_finished)
@@ -2350,6 +2456,7 @@ entity(vector org, vector dir) launch_spike =
     setorigin(newmis, org);
 
     newmis.velocity = dir * 1750;
+    VR_ShotPush_Launch(newmis, QVR_SHOTPUSH_NAIL); // VR: pushes the prop it hits or flies through
     return newmis;
 };
 
@@ -2368,6 +2475,7 @@ void(float xHand) W_FireSuperSpikes =
     newmis = launch_spike(VRGetMuzzlePos(xHand), dir);
     VR_ShotPlace(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
     newmis.touch = superspike_touch;
+    newmis.vr_shot_push_kind = QVR_SHOTPUSH_SUPERNAIL;
     setmodel(newmis, "progs/s_spike.mdl");
     setsize(newmis, VEC_ORIGIN, VEC_ORIGIN);
 
@@ -2455,6 +2563,8 @@ void() spike_touch =
         return;
     }
 
+    VR_ShotPush_Touch(); // VR: the prop it hit (or flew through) pushed
+
     makeforward_mdl(self.angles);
     VR_TouchTrace(self.origin - v_forward * 8, self.origin + v_forward * 8);
 
@@ -2511,6 +2621,8 @@ void() superspike_touch =
         remove(self);
         return;
     }
+
+    VR_ShotPush_Touch(); // VR: the prop it hit (or flew through) pushed
 
     makeforward_mdl(self.angles);
     VR_TouchTrace(self.origin - v_forward * 8, self.origin + v_forward * 8);
@@ -3711,6 +3823,7 @@ void() ImpulseCommands =
             if(spawnKind == 100)      { item_health(); }
             else if(spawnKind == 102) { misc_explobox(); }  // 40 kg (grappling hook tests)
             else if(spawnKind == 103) { misc_explobox2(); } // 25 kg
+            else if(spawnKind == 104) { misc_explobox(); self.takedamage = DAMAGE_NO; } // one that never blows up (shot pushes)
             else                      { item_shells(); }
             spawned = self;
         }

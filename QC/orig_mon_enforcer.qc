@@ -56,6 +56,7 @@ void() Laser_Touch =
     if(!(self.spawnflags & SPAWNFLAG_SILENT))
         sound(self, CHAN_WEAPON, "enforcer/enfstop.wav", 1, ATTN_STATIC);
     org = self.origin - 8*normalize(self.velocity);
+    VR_ShotPush_Touch(); // VR: the prop it hit (or flew through) pushed
 
     if(other.health)
     {
@@ -107,6 +108,7 @@ entity(vector org, vector vec) LaunchLaser =
     newmis.nextthink = time + 5;
     newmis.think = SUB_Remove;
     newmis.touch = Laser_Touch;
+    VR_ShotPush_Launch(newmis, QVR_SHOTPUSH_NAIL); // VR: pushes the prop it hits or flies through
 
     return newmis;
 };
