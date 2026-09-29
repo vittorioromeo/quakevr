@@ -1053,6 +1053,8 @@ static void Memory_InitZone (memzone_t *zone, int size)
 
 // set the entire zone to one free block
 
+	zone->size = size; // QVR: was never set (Z_Print and vr_limits showed a size of 0)
+
 	zone->blocklist.next = zone->blocklist.prev = block =
 		(memblock_t *)( (byte *)zone + sizeof(memzone_t) );
 	zone->blocklist.tag = 1;	// in use block
