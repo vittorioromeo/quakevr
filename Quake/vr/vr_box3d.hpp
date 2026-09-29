@@ -20,6 +20,11 @@ namespace qvr::box3d
 // Box3D prop.
 bool push(edict_t* ent, const glm::vec3& at, const glm::vec3& velocity, float pusherMass = 0.f);
 
+// A shot from `start` to `end` (world units): the first loose prop it passes through pushed (push) where it goes in, with
+// `velocity` and `pusherMass` (a pellet, a nail: Quake's traces pass through the pickups lying about, SOLID_TRIGGER).
+// That prop's edict number, 0 if none.
+int shot(const glm::vec3& start, const glm::vec3& end, const glm::vec3& velocity, float pusherMass);
+
 // The prop `ent`'s motion slowed where it is now (its body's, so that a push after it this frame adds to it; QC's
 // .velocity written would override both at the next step): its velocity relative to `relativeTo` kept by `keep` (0 ..
 // 1) and no faster than `maxSpeed` (0: any), then `add` added; its spin kept by `keepSpin`. False if it is not a Box3D

@@ -607,6 +607,18 @@ void PF_physicspush()
         box3d::push(G_EDICT(OFS_PARM0), glm::vec3{at[0], at[1], at[2]}, glm::vec3{v[0], v[1], v[2]}, mass) ? 1.f : 0.f;
 }
 
+// entity physicsshot(vector start, vector end, vector vel, float mass): a shot's push (box3d::shot): the first loose prop
+// between `start` and `end` pushed where the shot goes in, as physicspush. That prop, or world if none.
+void PF_physicsshot()
+{
+    const float* a = G_VECTOR(OFS_PARM0);
+    const float* b = G_VECTOR(OFS_PARM1);
+    const float* v = G_VECTOR(OFS_PARM2);
+    const int num = box3d::shot(glm::vec3{a[0], a[1], a[2]}, glm::vec3{b[0], b[1], b[2]}, glm::vec3{v[0], v[1], v[2]},
+        G_FLOAT(OFS_PARM3));
+    G_INT(OFS_RETURN) = EDICT_TO_PROG(EDICT_NUM(num));
+}
+
 // float physicsdamp(entity e, vector relativeTo, float keep, float keepSpin, float maxSpeed, vector add): the Box3D prop's
 // velocity relative to `relativeTo` kept by `keep`, no faster than `maxSpeed` (0: any), `add` added; its spin kept by
 // `keepSpin` (box3d::damp: on its body, so a physicspush after it this frame adds to it). False if it is not Box3D's.
@@ -854,6 +866,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"debrisplace", PF_debrisplace},
     {"modelpoint", PF_modelpoint},
     {"physicspush", PF_physicspush},
+    {"physicsshot", PF_physicsshot},
     {"physicsdamp", PF_physicsdamp},
     {"ropestep", PF_ropestep},
     {"ropepivot", PF_ropepivot},

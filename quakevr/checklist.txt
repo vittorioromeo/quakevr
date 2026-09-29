@@ -31,6 +31,8 @@ Held prop against walls and floors: stops at the surface at any angle, never dro
 Club a monster with a held prop: no pass-through, never dropped
 Bat with the hammer and rocket launcher vs the shotgun: heavier ones hit harder (Carrying > Arm Behind Weapon)
 
+Shoot props with every gun (health/ammo boxes, dropped weapons, gibs): do they react well? Tune in Throwing and Physics > Shots Push Props (a shotgun blast sends a health box ~3 m)
+
 [Decide or give feedback]
 Hitbox: Movement > Player Hitbox, width 16 or 20; walk up to the firing-range panels (front and side), the prop table, explosive boxes; let monsters walk into you
 Hitbox: compare Method A (compiled hull, default) and B (brush sweep); does either snag?

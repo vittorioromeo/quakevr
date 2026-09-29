@@ -922,9 +922,9 @@ monster's box: the share that meets the model, each test's cost, how far the mod
 `vr_hitmodel_stats [reset]` the tests so far. The archived melee takes: the scratchpad's `hitbox/melee_replay.sh`.
 Held weapons against models (round 21): `vr_debug_model_collide 1` prints each hand's push, `2` draws the rays;
 `vr_model_collide_bench [n] [list]` times the test, `vr_model_collide_bench probe` lists the model triangles a ray along
-the view goes in and out by. `vr_test_remove <n>` removes entity n as QC's `remove()` would (a slot to reuse; ROUND21.md, "Performance fixes
+the view goes in and out by. Shots pushing props (ROUND21.md, "Shots push props"): `bash Misc/quakevr/shotpush/shotpush_test.sh <worktree> [sg ssg ng sng lg]` prints how far each weapon moves a health box and an explosive box; `vr_debug_shots 1` with `developer 1` prints each push. `vr_test_remove <n>` removes entity n as QC's `remove()` would (a slot to reuse; ROUND21.md, "Performance fixes
 (review, 2026-09-28)"). `impulse 241` puts a monster (`vr_test_spawn`: the firing range dispenser's numbers) or a
-box (100 health, 101 shells, 102 an explosive box, 103 a small one) `vr_test_spawn_dist` units ahead
+box (100 health, 101 shells, 102 an explosive box, 103 a small one, 104 an explosive box that never blows up) `vr_test_spawn_dist` units ahead
 (`vr_test_spawn_dead 1`: a corpse); `impulse 232` flings the loose prop nearest you at the nearest monster
 (`vr_test_fling_speed` m/s; `vr_test_fling_at 1` at you, `vr_test_fling_away 1` away from inside its box: ROUND21.md,
 "Flung props: settings, and never you");

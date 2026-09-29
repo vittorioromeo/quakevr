@@ -206,6 +206,9 @@ vector(entity e, vector angles, vector point) modelpoint = #0; // where a point 
 // high tips over). FALSE if Box3D doesn't move it. `mass` (kg, 0 or none: no limit): what pushes weighs that much, so the
 // point gets only the share of the two masses meeting (a hand's, a gun's: vr_box3d_hand_mass; its Mass and vr_box3d_weapon_arm_mass).
 float(entity e, vector at, vector vel, optional float mass) physicspush = #0;
+// A shot's push: the first loose prop between `start` and `end` (a health box, a gib, a weapon lying about: traces pass
+// through them) pushed as physicspush where the shot goes in. That prop, or world.
+entity(vector start, vector end, vector vel, float mass) physicsshot = #0;
 // The Box3D prop's velocity relative to `rel` kept by `keep` (0 .. 1), no faster than `maxSpeed` (0: any), `add` added; its
 // spin kept by `keepSpin`: on its body, so that a physicspush after it this frame adds to it (a .velocity written would
 // override both). FALSE if it is not Box3D's.

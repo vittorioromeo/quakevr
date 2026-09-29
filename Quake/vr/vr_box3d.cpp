@@ -3775,6 +3775,42 @@ bool push(edict_t* ent, const glm::vec3& at, const glm::vec3& velocity, float pu
     return true;
 }
 
+int shot(const glm::vec3& start, const glm::vec3& end, const glm::vec3& velocity, float pusherMass)
+{
+    const glm::vec3 delta = end - start;
+    if(!world || glm::dot(delta, delta) < 1e-6f)
+    {
+        return 0;
+    }
+    // The nearest loose prop's shape along it (props only: not the world, movers, monsters, players, hands or what a
+    // hand holds).
+    struct Hit
+    {
+        int num{0};
+        b3Vec3 point{};
+    } hit;
+    b3QueryFilter filter = b3DefaultQueryFilter();
+    filter.maskBits = catProp;
+    b3World_CastRay(world->id, world->toM(start), world->toM(delta), filter,
+        [](b3ShapeId shape, b3Pos point, b3Vec3, float fraction, uint64_t, int, int, void* context) -> float {
+            const int num = numOf(shape);
+            if(num <= 0 || num >= static_cast<int>(world->slots.size()) || world->slots[num].kind != Kind::Prop)
+            {
+                return -1.f;
+            }
+            auto& out = *static_cast<Hit*>(context);
+            out.num = num;
+            out.point = point;
+            return fraction;
+        },
+        &hit);
+    if(hit.num <= 0 || !push(EDICT_NUM(hit.num), world->toU(hit.point), velocity, pusherMass))
+    {
+        return 0;
+    }
+    return hit.num;
+}
+
 bool damp(edict_t* ent, const glm::vec3& relativeTo, float keep, float keepSpin, float maxSpeed, const glm::vec3& add)
 {
     const int num = NUM_FOR_EDICT(ent);
