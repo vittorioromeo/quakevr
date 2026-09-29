@@ -341,6 +341,17 @@ Shape::~Shape() = default;
 Shape::Shape(Shape&&) noexcept = default;
 Shape& Shape::operator=(Shape&&) noexcept = default;
 
+std::size_t heldBytes(const Shape& s)
+{
+    std::size_t n = s.tris.capacity() * sizeof(Triangle);
+    if(const Shape::Space* p = s.space.get())
+    {
+        n += sizeof(Shape::Space) + p->tris.capacity() * sizeof(Shape::Space::Tri) + p->first.capacity() * sizeof(std::uint32_t) +
+             p->items.capacity() * sizeof(std::uint16_t) + p->stamps.capacity() * sizeof(std::uint32_t);
+    }
+    return n;
+}
+
 namespace
 {
 

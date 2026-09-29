@@ -48,6 +48,9 @@ struct Shape
     Shape& operator=(Shape&&) noexcept;
 };
 
+// The heap memory a shape holds (its triangles and its space: vr_mem.hpp's counts).
+[[nodiscard]] std::size_t heldBytes(const Shape& s);
+
 // Forgets the shapes made (a game directory change reuses their models' slots).
 void reset();
 

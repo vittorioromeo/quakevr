@@ -31,6 +31,7 @@
 #include "vr_trace.hpp"
 #include "vr_twohand.hpp"
 #include "vr_main.hpp"
+#include "vr_mem.hpp"
 #include "vr_modelcollide.hpp"
 #include "vr_selfcollide.hpp"
 #include "vr_posing.hpp"
@@ -375,6 +376,28 @@ namespace
 {
 
 using view::viewModel;
+
+// The drawn hands' buffers, each frame (the main thread: the grasp solver runs there).
+struct ViewScratch
+{
+    std::vector<glm::vec3> restVerts, nowVerts;     // a held model's vertices at rest and as drawn (animationMotion)
+    std::vector<float> weight;                      // each vertex's weight by its distance (animationMotion)
+    grasp::Shape otherHand;                         // the other hand as a shape, for a cupped grasp
+    std::vector<grasp::Triangle> otherHandTris;     // its triangles
+    std::vector<glm::vec3> otherHandVerts;          // its vertices, posed
+    std::vector<glm::vec4> handSpheres;             // a hand's grasp spheres, posed (emptyHandSpheres)
+    std::vector<glm::vec4> fistSpheres;             // the closed empty hand's, in the hand (updateFist)
+    std::vector<glm::vec4> openSpheres;             // the open hand's (the palm's skin)
+    std::vector<glm::vec4> boneSpheres;             // vr_debug_hand_bones's
+    std::vector<glm::vec4> collideSpheres[2];       // vr_body_collide's hands (selfCollideDrawn: Drawn views them)
+    std::vector<glm::vec4> collideRig;              // and the rig's
+    auto members()
+    {
+        return std::tie(restVerts, nowVerts, weight, otherHand, otherHandTris, otherHandVerts, handSpheres, fistSpheres,
+            openSpheres, boneSpheres, collideSpheres, collideRig);
+    }
+};
+mem::Scratch<ViewScratch> scratch{"view hands"};
 
 void place(view::ViewEntity& ve, qmodel_t* model, const glm::vec3& origin, const glm::vec3& angles,
     int frame, bool mirrored)
@@ -724,7 +747,8 @@ glm::mat3 wholeTurn[2]{glm::mat3{1.f}, glm::mat3{1.f}};
 // hand drawn at a vertex of the weapon did before round 21. The identity where the model doesn't move.
 [[nodiscard]] glm::mat4 animationMotion(const view::ViewEntity& ve, const glm::vec3& at)
 {
-    static std::vector<glm::vec3> rest, now;
+    std::vector<glm::vec3>& rest = scratch.restVerts;
+    std::vector<glm::vec3>& now = scratch.nowVerts;
     if(!ve.ent.model || ve.ent.model->type != mod_alias || !anchor::posedVertices(ve.ent, ve.zeroBlend, rest, now))
     {
         return glm::mat4{1.f};
@@ -755,7 +779,7 @@ glm::mat3 wholeTurn[2]{glm::mat3{1.f}, glm::mat3{1.f}};
     }
     double total = 0.0;
     glm::dvec3 restMid{0.0}, nowMid{0.0};
-    static std::vector<float> weight;
+    std::vector<float>& weight = scratch.weight;
     weight.resize(rest.size());
     for(std::size_t i = 0; i < rest.size(); i++)
     {
@@ -1555,11 +1579,11 @@ void updateGrasp(int hand, const Held& held, const glm::mat4& rigMatrix, float r
     grasp::Solution solution;
     if(cup)
     {
-        static grasp::Shape otherShape;
-        static std::vector<grasp::Triangle> tris;
+        grasp::Shape& otherShape = scratch.otherHand;
+        std::vector<grasp::Triangle>& tris = scratch.otherHandTris;
         tris.clear();
         const auto at = [&](const glm::vec3& p) { return glm::vec3{otherInRig * glm::vec4{drawnInRig(otherHand, p), 1.f}}; };
-        static std::vector<glm::vec3> posed;
+        std::vector<glm::vec3>& posed = scratch.otherHandVerts;
         handrig::vertices(otherHand.posed, posed);
         for(const auto& tri : handrig::rig().triangles)
         {
@@ -1840,7 +1864,7 @@ bool emptyHandSpheres(const hands::State& s, int hand, bool fist, std::vector<gl
     const glm::mat4 rig = rigPlacement(hand, s.pos[hand], handRot, mirrored, nullptr);
     const float unit = glm::length(glm::vec3{rig[0]});
     const glm::mat3 toHand = glm::transpose(held::axesFromAngles(&s.rot[hand][0], true));
-    static std::vector<glm::vec4> spheres;
+    std::vector<glm::vec4>& spheres = scratch.handSpheres;
     grasp::posedSpheres(pose, spheres);
     for(const glm::vec4& sp : spheres)
     {
@@ -1854,7 +1878,7 @@ bool emptyHandSpheres(const hands::State& s, int hand, bool fist, std::vector<gl
 // server's old test).
 void updateFist(const hands::State& s, int hand)
 {
-    static std::vector<glm::vec4> local;
+    std::vector<glm::vec4>& local = scratch.fistSpheres;
     emptyHandSpheres(s, hand, true, local);
     held::setFist(hand, local);
 }
@@ -1896,7 +1920,7 @@ void updateGripFrame(const hands::State& s, int hand)
         f.channelRadius = radius * glm::length(glm::vec3{rig[0]});
         // The palm's middle is inside the hand: out along its normal to its skin, where the open hand's spheres (the
         // grasp's) the normal passes through end, so that what rests on it rests on the skin, not in the palm.
-        static std::vector<glm::vec4> open;
+        std::vector<glm::vec4>& open = scratch.openSpheres;
         if(emptyHandSpheres(s, hand, false, open))
         {
             float skin = 0.f;
@@ -4392,7 +4416,7 @@ void drawControllerPreview(const hands::State& s, int hand)
 // palm faces (cyan), the grip channel (magenta: where a handle lies in the curled fingers).
 void drawHandBones()
 {
-    static std::vector<glm::vec4> spheres;
+    std::vector<glm::vec4>& spheres = scratch.boneSpheres;
     constexpr glm::vec4 fingerColour[handrig::FingerCount] = {
         {1.f, 0.25f, 0.25f, 1.f}, {1.f, 0.6f, 0.15f, 1.f}, {1.f, 1.f, 0.2f, 1.f}, {0.3f, 1.f, 0.3f, 1.f}, {0.3f, 0.6f, 1.f, 1.f}};
     const glm::vec4 white{1.f, 1.f, 1.f, 1.f}, cyan{0.2f, 1.f, 1.f, 1.f};
@@ -4515,8 +4539,8 @@ void drawTuningAids(const hands::State& s, bool lasers)
 // spheres; the six old models' as three spheres along the hand), and the weapon in it.
 static selfcollide::Drawn selfCollideDrawn(const hands::State& s)
 {
-    static std::vector<glm::vec4> spheres[2];
-    static std::vector<glm::vec4> rig;
+    std::vector<glm::vec4> (&spheres)[2] = scratch.collideSpheres;
+    std::vector<glm::vec4>& rig = scratch.collideRig;
     selfcollide::Drawn d;
     for(int hand = 0; hand < 2; hand++)
     {
@@ -4854,6 +4878,7 @@ void modelReload_f()
     weapons::resetCaches();
     avatar::reset();
     flashlight::onModelsReloaded(std::find(m.done.begin(), m.done.end(), "progs/vrflashlight.mdl") != m.done.end());
+    mem::on(mem::ModelReload); // the registered caches of models' data (vr_mem.hpp)
     // Each model named, or (all of them) one line, and the body's check.
     const bool each = !m.names.empty();
     bool body = false;
