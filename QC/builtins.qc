@@ -204,7 +204,7 @@ float(entity e) debrisplace = #0; // a piece the map placed (vr_debris_piece, it
 vector(entity e, vector angles, vector point) modelpoint = #0; // where a point of e's model (its axes: x forward, y left, z up) is from its origin, turned by angles as drawn
 // A hand's push on a rigid body: the point `at` gets at least `vel`'s speed along it (an impulse there: a tall box pushed
 // high tips over). FALSE if Box3D doesn't move it. `mass` (kg, 0 or none: no limit): what pushes weighs that much, so the
-// point gets only the share of the two masses meeting (a hand's, a gun's: vr_box3d_hand_mass, vr_box3d_weapon_mass).
+// point gets only the share of the two masses meeting (a hand's, a gun's: vr_box3d_hand_mass; its Mass and vr_box3d_weapon_arm_mass).
 float(entity e, vector at, vector vel, optional float mass) physicspush = #0;
 // The Box3D prop's velocity relative to `rel` kept by `keep` (0 .. 1), no faster than `maxSpeed` (0: any), `add` added; its
 // spin kept by `keepSpin`: on its body, so that a physicspush after it this frame adds to it (a .velocity written would

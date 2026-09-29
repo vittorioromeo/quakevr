@@ -702,6 +702,12 @@ void gather(const glm::vec3& lo, const glm::vec3& hi, Stats& stats)
     {
         return "vr_model_collide 0";
     }
+    // A prop held in one hand (a club): its drawn model, against the monsters (ROUND21.md, "Held props against weapons,
+    // monsters and walls").
+    if(s.valid && held::heldAlone(hand))
+    {
+        return vr_held_collide_monsters.value ? nullptr : "holding a thing (vr_held_collide_monsters 0)";
+    }
     if(!s.valid || !r.valid)
     {
         return "no weapon drawn";
@@ -743,12 +749,58 @@ void gather(const glm::vec3& lo, const glm::vec3& hi, Stats& stats)
     return !notTested(s, hand);
 }
 
+// The samples of the prop `num` held in a hand, in the world as drawn this frame: an alias model's vertices (as a
+// weapon's), a brush model's box (its corners and its faces' middles).
+std::vector<glm::vec3> propPoints;
+const std::vector<glm::vec3>* propSamples(int num)
+{
+    const entity_t& e = cl_entities[num];
+    propPoints.clear();
+    if(e.model->type == mod_alias)
+    {
+        const std::vector<glm::vec3>* raw = samplesOf(e.model, e.frame);
+        if(!raw)
+        {
+            return nullptr;
+        }
+        const glm::mat4 toWorld = grasp::shapeToWorld(e, false);
+        for(const glm::vec3& v : *raw)
+        {
+            propPoints.push_back(glm::vec3{toWorld * glm::vec4{v, 1.f}});
+        }
+        return &propPoints;
+    }
+    glm::vec3 lo, hi;
+    if(!held::drawnBox(num, lo, hi))
+    {
+        return nullptr;
+    }
+    const glm::mat3 axes = held::axesFromAngles(e.angles, e.model->type == mod_brush);
+    const glm::vec3 origin{e.origin[0], e.origin[1], e.origin[2]};
+    const glm::vec3 mid = (lo + hi) * 0.5f, half = (hi - lo) * 0.5f;
+    for(int i = 0; i < 8; i++)
+    {
+        const glm::vec3 c{(i & 1) ? 1.f : -1.f, (i & 2) ? 1.f : -1.f, (i & 4) ? 1.f : -1.f};
+        propPoints.push_back(origin + axes * (mid + c * half));
+    }
+    for(int i = 0; i < 3; i++)
+    {
+        glm::vec3 d{0.f};
+        d[i] = half[i];
+        propPoints.push_back(origin + axes * (mid + d));
+        propPoints.push_back(origin + axes * (mid - d));
+    }
+    return &propPoints;
+}
+
 // The push of `hand` out of the models near it, from its tracked pose.
 Result test(const hands::State& s, int hand)
 {
     Result result;
     const Recorded& r = recorded[hand];
-    const std::vector<glm::vec3>* samples = samplesOf(r.model, r.frame);
+    glm::vec3 propOffset{0.f};
+    const int prop = held::heldAlone(hand, &propOffset);
+    const std::vector<glm::vec3>* samples = prop ? propSamples(prop) : samplesOf(r.model, r.frame);
     if(!samples)
     {
         return result;
@@ -759,9 +811,10 @@ Result test(const hands::State& s, int hand)
         return result;
     }
 
-    // The rays: from the hand to the weapon's samples, and to the hand from behind it (towards the chest).
-    const glm::vec3 grip = s.pos[hand];
-    const glm::mat4 toWorld = handFrame(grip, s.visualRot[hand]) * r.toHand;
+    // The rays: from the hand to the weapon's samples, and to the hand from behind it (towards the chest). A held prop's
+    // samples are in the world already (drawn in the hand this frame, the hand with it: propOffset).
+    const glm::vec3 grip = s.pos[hand] + propOffset;
+    const glm::mat4 toWorld = prop ? glm::mat4{1.f} : handFrame(grip, s.visualRot[hand]) * r.toHand;
     glm::vec3 torso = s.playerOrigin;
     torso.z += vr_floor_offset.value + vr_gun_z_offset.value + 40.f;
     const float toTorso = glm::distance(torso, grip);
@@ -820,7 +873,7 @@ Result test(const hands::State& s, int hand)
             continue;
         }
         const Kind kind = kindOf(num, e, hosting);
-        if(kind == Kind::None || (kind == Kind::Object && mode < 2))
+        if(kind == Kind::None || (kind == Kind::Object && (mode < 2 || prop))) // (a held prop pushes things lying there)
         {
             continue;
         }
@@ -916,6 +969,7 @@ Result test(const hands::State& s, int hand)
 // The pushes, drawn.
 
 glm::vec3 drawn[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+glm::vec3 pressed[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // a weapon pressed against the prop in the other hand (held::drawnPush)
 Result last[2];
 int appliedFrame = -1;
 double lastTime = -1.0;
@@ -979,15 +1033,22 @@ void beginView(hands::State& s)
                     glm::length(res.given), glm::length(drawn[hand]), drawn[hand].x, drawn[hand].y, drawn[hand].z, st.entity,
                     st.models, st.triangles, st.rays, st.rounds, st.planes);
             }
-            if(vr_debug_model_collide.value >= 2.f && tested(s, hand))
+            if(vr_debug_model_collide.value >= 2.f && tested(s, hand) && !held::heldAlone(hand))
             {
                 drawDebug(s, hand, res);
+            }
+            pressed[hand] = held::drawnPush(hand);
+            if(vr_debug_model_collide.value >= 1.f && glm::length(pressed[hand]) > 0.f)
+            {
+                Con_Printf("model collide %s: pressed by the prop in the other hand %.2f (%.2f %.2f %.2f)\n",
+                    hand == HAND_MAIN ? "main" : "off", glm::length(pressed[hand]), pressed[hand].x, pressed[hand].y, pressed[hand].z);
             }
         }
     }
     for(int hand = 0; hand < 2; hand++)
     {
-        s.pos[hand] += drawn[hand];
+        s.pos[hand] += drawn[hand] + pressed[hand];
+        held::viewPush(hand, drawn[hand]); // (a prop held in it, moved with it)
     }
 }
 
@@ -1007,14 +1068,15 @@ void endView(hands::State& s, const entity_s* const weapon[2], const bool mirror
         }
 
         // What the game reads: as tracked.
-        s.pos[hand] -= drawn[hand];
+        const glm::vec3 moved = drawn[hand] + pressed[hand];
+        s.pos[hand] -= moved;
         if(s.muzzleValid[hand])
         {
-            s.muzzle[hand] -= drawn[hand];
+            s.muzzle[hand] -= moved;
         }
         if(s.grip2HValid[hand])
         {
-            s.grip2H[hand] -= drawn[hand];
+            s.grip2H[hand] -= moved;
         }
     }
 }
@@ -1040,14 +1102,14 @@ bool drawnTriangles(const entity_t& e, int num, std::vector<glm::vec3>& out)
 
 glm::vec3 drawnOffset(int hand)
 {
-    return hand == 0 || hand == 1 ? drawn[hand] : glm::vec3{0.f};
+    return hand == 0 || hand == 1 ? drawn[hand] + pressed[hand] : glm::vec3{0.f};
 }
 
 void reset()
 {
     for(int hand = 0; hand < 2; hand++)
     {
-        drawn[hand] = glm::vec3{0.f};
+        drawn[hand] = pressed[hand] = glm::vec3{0.f};
         recorded[hand] = Recorded{};
         last[hand] = Result{};
     }

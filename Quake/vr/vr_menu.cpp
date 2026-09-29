@@ -1452,12 +1452,24 @@ void hologramTestMessage()
         slider("Fit Gap", vr_held_fit_gap, -6.f, 3.f, 0.1f, "%.1f cm").extend()
             .help("Space left between your fingers and what they hold (negative: sunk in). Per model: vr_held_fit_gaps in the console."),
         toggle("Held Things Collide", vr_held_collide)
-            .help("Things you hold one in each hand bump into each other instead of passing through: each hand is drawn moved "
-                  "back with what it holds, a short buzz as they meet. Your real hands are never held back."),
+            .help("Things you hold one in each hand, or a thing in one hand and a weapon in the other, bump into each other "
+                  "instead of passing through: each hand is drawn moved back with what it holds, a short buzz as they meet. "
+                  "Your real hands are never held back."),
         slider("Collide Give", vr_held_collide_max, 0.f, 15.f, 0.5f, "%.1f cm")
             .extend(0.f, 40.f)
             .help("How far each hand is drawn moved back at most as you press them together. Pressed further, they overlap by "
                   "the rest."),
+        toggle("Held Things Stop at Walls", vr_held_collide_walls)
+            .help("A thing you hold in one hand stops at walls, floors and doors: it and your hand are drawn held out of them, "
+                  "a short buzz as it touches. Looks only: your real hand is never held back."),
+        slider("Wall Give", vr_held_collide_wall_max, 0.f, 80.f, 5.f, "%.0f cm")
+            .extend(0.f, 200.f)
+            .help("How far it and your hand are drawn held back at most as you push it into a wall. Pushed further, it goes "
+                  "in by the rest; pushed about a metre past, it drops."),
+        toggle("Held Things Stop at Monsters", vr_held_collide_monsters)
+            .help("A thing you hold in one hand and swing as a club stops at the monster's body, as weapons do (held out "
+                  "up to vr_model_collide_max, 20 cm), instead of passing through it. It still hits, and is never dropped for "
+                  "it."),
         toggle("Hands Push and Hold Things", vr_box3d_hand_props)
             .help("Your empty hands are solid to loose things: they push them, and what you let go of on an open palm turned "
                   "up stays there. Grenades pass through (your palm catches them)."),
@@ -1473,9 +1485,11 @@ void hologramTestMessage()
             .help("How heavy your hand is to what it knocks: a thing keeps hand / (hand + its weight) of the hand's speed, so "
                   "a flick barely moves a heavy box and still bats a grenade. Also each hand holding a prop, added to the "
                   "prop's own weight. 0: no limit (a hand knocks anything as if it weighed nothing)."),
-        slider("Weapon Push Mass", vr_box3d_weapon_mass, 0.f, 20.f, 0.5f, "%.1f kg")
+        slider("Arm Behind Weapon", vr_box3d_weapon_arm_mass, 0.f, 20.f, 0.5f, "%.1f kg")
             .extend(0.f, 100.f)
-            .help("As Hand Push Mass, for a weapon in your hand swung into things."),
+            .help("As Hand Push Mass, for a weapon in your hand swung into things: it knocks with its own weight (Weapon "
+                  "Weights: Mass) and this much of your arm, so a rocket launcher or the hammer bats harder than the axe "
+                  "or the shotgun."),
         slider("Push Force", vr_box3d_push_force, 0.f, 1000.f, 25.f, "%.0f N")
             .extend(0.f, 5000.f)
             .help("After a hand or weapon has hit a thing, pushing on into it shoves it with no more than this force: a heavy "
@@ -1758,8 +1772,8 @@ std::vector<Item> pageDebugViews()
                   "(yellow where the drop starts further out). Built even with climbing off."),
         cycle("Show Grab Test", vr_debug_carry, {{0.f, "Off"}, {1.f, "Drawn"}, {2.f, "Drawn and Logged"}, {3.f, "Also Far Fists"}})
             .help("For each hand near something to carry: the box it is drawn in and the fist tested (its spheres; the nearest "
-                  "bright). Logged: each grab and held prop's placing printed, carry_trace.txt written; also far fists: hands not near "
-                  "anything too."),
+                  "bright). Logged: each grab and held prop's placing printed, carry_trace.txt written, and held props meeting each "
+                  "other, a weapon or a wall; also far fists: hands not near anything too."),
         cycle("Show Body Skeleton", vr_body_debug, {{0.f, "Off"}, {1.f, "Skeleton"}, {2.f, "Body Facing You"}, {3.f, "Body From Its Left"}})
             .help("Draws the body's skeleton; or shows the body in front of you, facing you or seen from its left (to check "
                   "its pose and calibration without a mirror)."),
@@ -1767,7 +1781,7 @@ std::vector<Item> pageDebugViews()
             .help("The drawn hands and weapons stopping at each other and the body: each contact printed (and "
                   "body_collide_trace.txt); drawn: the capsules and the pushes."),
         cycle("Show Model Collisions", vr_debug_model_collide, {{0.f, "Off"}, {1.f, "Logged"}, {2.f, "Logged and Drawn"}})
-            .help("Held weapons stopping at the models' triangles: each hand's push printed; drawn: the rays (grey as tracked, "
+            .help("Held weapons and props stopping at the models' triangles: each hand's push printed; drawn: the rays (grey as tracked, "
                   "green or red as drawn) and the push (yellow)."),
         toggle("Show Foveation", vr_foveated_debug)
             .help("The shading rates of Foveated Rendering in the eyes and the mirror (yellow 2x2, red 4x4) and the upscaler's "

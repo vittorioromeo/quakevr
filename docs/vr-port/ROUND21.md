@@ -13640,3 +13640,64 @@ Quake's 32-wide box you can't reach that button's space, with the 16-wide one (`
 - The firing range buttons: press one, step into its space, wait: it should push you back a little.
 - Anywhere you get stuck: you should pop out to the nearest free spot. If you ever see a jump that feels wrong (through a
   wall, too far), Debug > Tests > Stuck Info right after says from what and how far.
+## Held props against weapons, monsters and walls; batting by weapon mass
+
+Your notes (2026-09-30 00:24, 00:27, 00:28, 00:55): a held prop passed through the weapon in the other hand, through
+monsters when swung as a club, and through walls; batting with the hammer or the rocket launcher should hit harder.
+Branch `agent/heldvis`, after "Held props meet" and "Pushes by mass".
+
+### A prop against the other hand's weapon (`vr_held.cpp`: `meetFrame`, `weaponBox`; `vr_modelcollide.cpp`)
+
+As two held props (the same give, `vr_held_collide_max` 5 cm each, the same buzz, `vr_held_collide`): the weapon's box is
+its model's first pose (as its Box3D body: `modelVertices`), placed from this frame's hand by where the view drew it in
+the hand (`view::drawnWeapon`). The prop and its hand are drawn moved back as before; the weapon's hand, its weapon, its
+fingers and its arm by the view (`modelcollide::beginView` adds `held::drawnPush` to the drawn hand with its own push,
+`endView` takes both back out of what the game reads; the muzzle flash follows through `drawnOffset`).
+
+### A prop against monsters (`vr_modelcollide.cpp`: `propSamples`, `test`; `vr_held.cpp`: `viewPush`)
+
+The weapons' test (the drawn triangles of the monsters, rays from the hand) now also takes a prop held in one hand: rays
+from the hand to its drawn model's samples (an alias model's vertices, as a weapon's; a brush model's box: corners and
+faces' middles). Monsters, corpses and other players only (not things lying round: the held prop pushes those in
+Box3D). The same give as the weapons (`vr_model_collide_max` 20 cm; deeper, less, none at twice as deep). The prop is
+drawn moved with the hand (`held::viewPush`). Looks only: the server still has it in the hand, the melee hits as before,
+and it is never dropped for it (`VR_Carry_Follow` passes monsters since last round). `vr_held_collide_monsters 0`: off.
+
+### A prop against walls (`vr_held.cpp`: `wallFrame`)
+
+After the meet: lines from the hand (the hand itself is kept out of walls: `handpose`) to the drawn box's 8 corners and
+6 faces' middles, through the level and its brush entities (`worldtrace::world`, the client's own data: no local
+server needed); each that meets a wall is a plane the point must go back out of; the push the least move out of all of
+them (Gauss-Seidel), three rounds at most. At most `vr_held_collide_wall_max` (40 cm; further, it goes in by the rest).
+Out at once, back over 40 ms, a short buzz in that hand as it touches. The hand is drawn with it. The server's drop is
+unchanged (`VR_Carry_Follow`: the hand 32 units, 1.2 m, past where the prop stops); since the hand itself stops at
+walls, only a large prop can get that deep. `vr_held_collide_walls 0`: off.
+
+### Batting by weapon mass (`vr_box3d.cpp`: `reachMass`, `heldWeaponMass`; `vr_carry.qc`: the nudge)
+
+A held weapon pushes with its own mass (Weapon Weights: Mass, already each weapon's for the spring) plus the arm behind
+it, `vr_box3d_weapon_arm_mass` (1 kg: the shotgun, 3 kg, bats as the old flat 4 kg did). The axe 3 kg in all, shotgun 4,
+super shotgun 4.5, nailgun 5, hammer 6, grenade launcher 6, lightning gun 7, super nailgun 8, rocket launcher 9 (another
+player's weapon too, by its model; QC's gun nudge of an explosive box the same). `vr_box3d_weapon_mass` is retired
+(kept so configs load). Menu: Carrying, Arm Behind Weapon (was Weapon Push Mass); per weapon: Weapon Weights, Mass.
+
+### Verified (mock headset, fast mode; the kit's `scratch/heldvis/`)
+
+- **Weapon** (`wmeet.sh`: the shotgun in the main hand, a gib in the off hand, the hands brought 4 cm apart): they meet
+  with the hands 14 units (54 cm) apart (the gib's box is 31 cm long across the hand); 12.8 cm deep at most, each drawn
+  moved back up to 4.4 cm (the weapon's hand by 0.05 ... 1.2 units through the view); apart again at 14.4 units.
+- **Floor** (`floor.sh`: a gib lowered below the floor): 8 cm deep, drawn held 8.8 cm up; not dropped.
+- **Wall** (`wall.sh` / a wall at 87 -1007 facing -109): pushed in 60 cm, the gib 12 cm deep, drawn held out 12.8 cm.
+- **Monster** (`mon.sh`: the gib club stabbed and swung through a shambler 10 times): held out of it on 322-444 frames,
+  the push up to 11.7 units (44 cm), given 6.6; never dropped; melee hits 3-6 a run with or without it (the shambler
+  moves; the same spread with `vr_held_collide_monsters 0`).
+- **Batting** (`flick.sh`: a weapon swung sideways at 5 m/s through a floating ogre grenade): the share it keeps,
+  shotgun / rocket launcher: 1.2 kg 0.77 / 0.88, 6 kg 0.40 / 0.60, 20 kg 0.17 / 0.31; from a steady swing the grenade's
+  speed after, 6 kg 89 / 174 u/s, 20 kg 37 / 90. (Swung from rest, the rocket launcher strikes slower, 99-117 u/s
+  against 148-158: its weight's spring lags; 6 kg 91 / 97 u/s.)
+
+### Not verified
+
+- In the headset: whether a weapon moved back 5 cm by a prop reads well; the boxes are the models' boxes (round things,
+  a gib, meet a little early: 54 cm between the hands for the gib and the shotgun). A prop held in both hands meets
+  nothing new (not part of it).
