@@ -40,9 +40,9 @@ constexpr const char* keyDefaults[numKeys] = {
 
 // Configs archive every slot, so a slot whose shipped defaults change keeps a config's old values: vr_props_version
 // says which changes a config has seen (as vr_wofs_version for the weapons). 1: the table's first version; 26: the rocks
-// and bricks' slots; 39: the bricks two-handed; 40: the grip modes; 44: the grenade's (the round's agents number their
-// changes apart).
-constexpr int settingsVersion = 44;
+// and bricks' slots; 39: the bricks two-handed; 40: the grip modes; 44: the grenade's; 45: the author's bricks and torch
+// (the round's agents number their changes apart).
+constexpr int settingsVersion = 45;
 
 std::array<std::string, numSlots * numKeys> names;
 std::array<cvar_t, numSlots * numKeys> cvars{};
@@ -208,6 +208,30 @@ void migrate()
                 Cvar_SetQuick(&cvarAt(grenadeSlot, key), cvarAt(grenadeSlot, key).default_string);
             }
             Con_DPrintf("Held Object Offsets: progs/grenade.mdl: In the Palm, one hand\n");
+        }
+    }
+    // 45: the author's Held Object Offsets (2026-09-29, NOTES.md start_2026-09-29_18-37-53 and 18-43-49): every brick In
+    // the Palm, as the rocks and the half brick were (the whole, chipped and broken bricks, slots 22, 23, 25, were fixed),
+    // and the wall torch (slot 16) in both hands too. A slot still its model's, holding the old default, takes the new one.
+    if(from < 45)
+    {
+        struct Change
+        {
+            int slot;
+            Key key;
+            const char* before;
+        };
+        constexpr Change changes[] = {{22, Key::GripMode, "1"}, {23, Key::GripMode, "1"}, {25, Key::GripMode, "1"},
+            {wallTorchSlot, Key::TwoHands, "0"}};
+        for(const Change& c : changes)
+        {
+            cvar_t& var = cvarAt(c.slot, c.key);
+            if(!strcmp(cvarAt(c.slot, Key::ID).string, cvarAt(c.slot, Key::ID).default_string) && atof(var.string) == atof(c.before))
+            {
+                Cvar_SetQuick(&var, var.default_string);
+                Con_DPrintf("Held Object Offsets: %s: %s %s (was %s)\n", cvarAt(c.slot, Key::ID).string, var.name, var.string,
+                    c.before);
+            }
         }
     }
     Cvar_SetValueQuick(&vr_props_version, settingsVersion);

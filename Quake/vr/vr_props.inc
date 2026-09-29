@@ -87,14 +87,13 @@ QVR_PROP_DEFAULT(4, ID, "progs/mervup.mdl")
 QVR_PROP_DEFAULT(4, Mass, "1.2")
 // A wall torch taken off its wall (vr_walltorch.qc; ROUND21.md, "Wall torches you can take"): a wooden stick along its
 // model's +x (the butt at -14, the handle to -7, the head to +1.8), its weight in its head; held by its handle through the
-// fist, flame up (Along the Handle: where it was taken along the handle, leaning as taken), in one hand (the other may take
-// another torch), its head the melee's striking end. (Slot 17: apart from the next props' entries; vr_cfg_version 25
-// gives it to configs saved before it; vr_props_version 40 its grip.)
+// fist, flame up (Along the Handle: where it was taken along the handle, leaning as taken), in either hand or both (the
+// author's choice, 2026-09-29: Two Hands on), its head the melee's striking end. (Slot 17: apart from the next props'
+// entries; vr_cfg_version 25 gives it to configs saved before it; vr_props_version 40 its grip, 45 its Two Hands.)
 QVR_PROP_DEFAULT(16, ID, "progs/vrtorch.mdl")
 QVR_PROP_DEFAULT(16, Mass, "0.9")
 QVR_PROP_DEFAULT(16, ComX, "4")
 QVR_PROP_DEFAULT(16, GripMode, "3")
-QVR_PROP_DEFAULT(16, TwoHands, "0")
 QVR_PROP_DEFAULT(16, HandleFrom, "-12.4")
 QVR_PROP_DEFAULT(16, HandleTo, "-8.2")
 QVR_PROP_DEFAULT(16, TipX, "2.3")
@@ -141,8 +140,10 @@ QVR_PROP_DEFAULT(47, Mass, "12")
 // weight's curve by its mass (a 1 kg rock 1.79, a brick 2.1); the whole bricks (a tip: clubs, whose blows take no Box
 // Punch Damage) Melee Damage 2.1; thrown, Thrown Box Damage x 2.1 x the curve. The rocks and the half brick one hand; the
 // whole, chipped and broken bricks (19 and 13 cm) both hands too (vr_props_version 39), then carried as a box, not a club.
-// Held (round 21, "Held props: grip modes, live offsets, palm grip, torch handle"): the rocks and the half brick In the
-// Palm (their middle in the palm's, the fingers round them), the whole bricks and the broken piece fixed (by an end).
+// Held (round 21, "Held props: grip modes, live offsets, palm grip, torch handle"): every rock and brick In the Palm (its
+// middle in the palm's, the fingers round it). The whole bricks and the broken piece were fixed (by an end) before the
+// author moved them In the Palm (2026-09-29; vr_props_version 45): their Grip X and Z, the fixed grip's, stay as the
+// offset he tried them with.
 QVR_PROP_DEFAULT(17, ID, "progs/vr_rock1.mdl")
 QVR_PROP_DEFAULT(17, ThrowDamage, "2.1")
 QVR_PROP_DEFAULT(17, MeleeDamage, "1.4")
@@ -172,7 +173,7 @@ QVR_PROP_DEFAULT(22, ID, "progs/vr_brick1.mdl")
 QVR_PROP_DEFAULT(22, ThrowDamage, "2.1")
 QVR_PROP_DEFAULT(22, MeleeDamage, "2.1")
 QVR_PROP_DEFAULT(22, TwoHands, "1")
-QVR_PROP_DEFAULT(22, GripMode, "1")
+QVR_PROP_DEFAULT(22, GripMode, "2")
 QVR_PROP_DEFAULT(22, GripX, "0.8")
 QVR_PROP_DEFAULT(22, GripZ, "-1.6")
 QVR_PROP_DEFAULT(22, TipX, "2.4")
@@ -181,7 +182,7 @@ QVR_PROP_DEFAULT(23, ID, "progs/vr_brick2.mdl")
 QVR_PROP_DEFAULT(23, ThrowDamage, "2.1")
 QVR_PROP_DEFAULT(23, MeleeDamage, "2.1")
 QVR_PROP_DEFAULT(23, TwoHands, "1")
-QVR_PROP_DEFAULT(23, GripMode, "1")
+QVR_PROP_DEFAULT(23, GripMode, "2")
 QVR_PROP_DEFAULT(23, GripX, "0.8")
 QVR_PROP_DEFAULT(23, GripZ, "-1.6")
 QVR_PROP_DEFAULT(23, TipX, "2.4")
@@ -195,7 +196,7 @@ QVR_PROP_DEFAULT(25, ID, "progs/vr_brick4.mdl")
 QVR_PROP_DEFAULT(25, ThrowDamage, "2.1")
 QVR_PROP_DEFAULT(25, MeleeDamage, "2.1")
 QVR_PROP_DEFAULT(25, TwoHands, "1")
-QVR_PROP_DEFAULT(25, GripMode, "1")
+QVR_PROP_DEFAULT(25, GripMode, "2")
 QVR_PROP_DEFAULT(25, GripX, "0")
 QVR_PROP_DEFAULT(25, GripZ, "-1.6")
 QVR_PROP_DEFAULT(25, TipX, "1.6")

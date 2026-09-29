@@ -12391,3 +12391,40 @@ allocations a frame are unchanged: the buffers keep their capacity as before. `V
 - In the headset: nothing here should look or feel different.
 - The sets are given back at every map change only; a map whose peak comes late (a big fight) grows them then, as
   before.
+
+## Defaults: the author's liquids, bricks, torch and holsters
+
+NOTES.md start_2026-09-29_18-37-53, 18-40-33, 18-43-49. His `ironwail.cfg` (18:57) compared with every archived
+setting's shipped default (`resetall; writeconfig` on this build): these differed, and are the defaults now.
+
+| Setting | Was | Now | Where |
+|---|---|---|---|
+| `r_wateralpha` | 0.6 | 0.4 | `vr_defaults.cfg` (and `default.cfg`'s own line removed) |
+| `r_lavaalpha` | 1 | 0.9 | `vr_defaults.cfg` |
+| `r_slimealpha` | 0 | 0.9 | `vr_defaults.cfg` |
+| `r_telealpha` | 0 | 0.9 | `vr_defaults.cfg` |
+| `vr_hip_offset_x` | -7 | -3.5 | `vr_defaults.cfg` line removed (the compiled-in default) |
+| `vr_upper_holster_offset_x` | -8 | -4.25 | `vr_defaults.cfg` line removed (the compiled-in default) |
+| `vr_prop_grip_23/24/26` (bricks 1, 2, 4) | 1 (fixed) | 2 (In the Palm) | `vr_props.inc` |
+| `vr_prop_two_hands_17` (wall torch) | 0 | 1 | `vr_props.inc` |
+
+Every rock and brick is In the Palm now (rocks 1-5 and brick 3 were already). The three bricks keep Grip X 0.8/0.8/0
+and Grip Z -1.6: the fixed grip's values, an offset on top In the Palm, as he tried them.
+
+**Why the liquids were lost.** Three causes, the first two fixed before this round's end: until 2026-09-28
+(`30c85651`) lava, slime and teleporter alpha were not archived and `quakevr.cfg` forced lava to 1, so his first tweaks
+were never written and nothing was there to promote; until 2026-09-29 01:48 (`2a1b1435`) a second copy of the game
+(TrenchBroom's) quitting last wrote its values over his. The third, fixed now: `default.cfg` set `r_wateralpha 0.6`
+after `exec vr_defaults.cfg`, so a first start and "Reset to defaults" had 0.6 whatever the shipped default said.
+And a new default never reaches a config that saved the old one: migrations below.
+
+**Migrations (version 45; the round's numbers are shared, 44 was the grenade's).** `vr_cfg_version` 45: each liquid
+alpha still at its old default takes the new one; a holster X still at -7 / -8 in a config saved from 15 on takes
+-3.5 / -4.25 (before 15, migration 15 moves it). `vr_props_version` 45: bricks 1, 2, 4 still Fixed (1) go In the Palm,
+the wall torch still one-handed (0) goes two-handed, in slots still their model's. Checked on the kit's baseline config
+(cfg 34, props 26), on a config with every old value set (cfg 41, props 44: all took the new ones), on one with its own
+values (kept), after `exec default.cfg`, and on his config (only the two version numbers changed).
+
+Not promoted: his `hudstyle 0` (Ironwail's 2; the flat HUD style, set since his first config, not a VR menu setting);
+personal and bookkeeping settings (`vr_bodycal_*`, `vr_height_calibration`, `vr_xr_runtime`, `vr_menu_positions`); the
+rest of the differences are `default.cfg`'s and `quakevr.cfg`'s own lines.
