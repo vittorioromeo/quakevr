@@ -1,5 +1,6 @@
 // vr_drawblend.cpp -- a gun drawn from a holster eases from its holstered pose into the hand, and one holstered eases
-// from the hand into the holster (ROUND21.md, "Holster draw blend; holster defaults; body calibration kept").
+// from the hand into the holster (ROUND21.md, "Holster draw blend; holster defaults; body calibration kept"). A weapon
+// caught from a force grab eases in the same way from where it flew (QVR_SVC_CATCHBLEND, vr_forcegrab_catch_blend).
 //
 // The server swaps the models at once (the hand's STAT_WEAPON / STAT_QVR_WEAPONMODEL2, the holster's
 // STAT_QVR_HOLSTERWEAPONMODEL*): the view sees a gun appear in a hand and, a frame either side, go from a holster (or
@@ -38,12 +39,17 @@ struct Pose
     glm::quat rot{1.f, 0.f, 0.f, 0.f};
 };
 
-// An alias entity's pose (its angles' pitch is the other way).
-[[nodiscard]] Pose poseOf(const entity_t& e)
+// An alias entity's pose, from its origin and angles (their pitch is the other way).
+[[nodiscard]] Pose poseOf(const float origin[3], const float angles[3])
 {
     glm::vec3 f, r, u;
-    hands::angleVectors({-e.angles[0], e.angles[1], e.angles[2]}, f, r, u);
-    return {{e.origin[0], e.origin[1], e.origin[2]}, glm::normalize(glm::quat_cast(glm::mat3{f, -r, u}))};
+    hands::angleVectors({-angles[0], angles[1], angles[2]}, f, r, u);
+    return {{origin[0], origin[1], origin[2]}, glm::normalize(glm::quat_cast(glm::mat3{f, -r, u}))};
+}
+
+[[nodiscard]] Pose poseOf(const entity_t& e)
+{
+    return poseOf(e.origin, e.angles);
 }
 
 void setPose(entity_t& e, const Pose& p)
@@ -74,8 +80,19 @@ struct Blend
     Pose offset;          // where it started, in the frame of where it is going
     float startAngle{0.f}; // degrees, the short way (for the log)
     float rawAngle{0.f};   // the turn a sign-blind slerp would have taken (over 180: the short way was chosen)
-    int from{-1};          // the holster (a draw) or the hand (holstering), for the log
+    int from{-1};          // the holster (a draw), the hand (holstering) or fromCatch, for the log
 };
+
+constexpr int fromCatch = -2; // a force grab's catch
+
+// A force grab's catch (QVR_SVC_CATCHBLEND), until the hand shows the gun (at most `pairing` apart).
+struct Catch
+{
+    bool on{false};
+    Pose from; // where the weapon was drawn, flying
+    double at{-1e9};
+};
+Catch catches[2];
 
 // Starts `b`: from `from` (a world pose) to `to` (this frame's), over `time` seconds.
 void start(Blend& b, const Pose& from, const Pose& to, float time, int source)
@@ -136,6 +153,7 @@ void logFrame(const char* what, const qmodel_t* model, const Blend& b, float k, 
 struct HandState
 {
     const qmodel_t* model{nullptr}; // the gun it held last frame (null: none)
+    double gainedAt{-1e9};          // when it last took one
     Pose drawn;                     // where it was drawn
     int hovered{-1};                // the holster it was last at, and when
     double hoveredAt{-1e9};
@@ -192,6 +210,10 @@ void hand(const hands::State& s, int hand, entity_t& e, bool gun)
     if(model != st.model && !sameGun(model, st.model)) // (a morph to the other ammo's model is the same gun)
     {
         st.blend.on = false;
+        if(model)
+        {
+            st.gainedAt = realtime;
+        }
         if(st.model)
         {
             // Let go of (holstered, thrown, passed): a holster that takes it at once eases it in from here.
@@ -213,13 +235,36 @@ void hand(const hands::State& s, int hand, entity_t& e, bool gun)
     }
     st.model = model;
 
+    // Caught from a force grab (the catch and the gun's stats come in the same update, either first): eased in from
+    // where the weapon flew.
+    Catch& c = catches[hand];
+    if(c.on && std::fabs(realtime - c.at) > pairing)
+    {
+        c.on = false;
+    }
+    if(c.on && model && !st.blend.on && realtime - st.gainedAt <= pairing)
+    {
+        if(const float time = vr_forcegrab_catch_blend.value; time > 0.f)
+        {
+            start(st.blend, c.from, poseOf(e), time, fromCatch);
+        }
+        c.on = false;
+    }
+
     if(const float k = remaining(st.blend); k > 0.f && model)
     {
         const Pose to = poseOf(e);
         const Pose drawn = blended(to, st.blend, k);
         setPose(e, drawn);
         char what[64];
-        q_snprintf(what, sizeof(what), "%s hand from holster %d", hand == HAND_MAIN ? "main" : "off", st.blend.from);
+        if(st.blend.from == fromCatch)
+        {
+            q_snprintf(what, sizeof(what), "%s hand from force grab", hand == HAND_MAIN ? "main" : "off");
+        }
+        else
+        {
+            q_snprintf(what, sizeof(what), "%s hand from holster %d", hand == HAND_MAIN ? "main" : "off", st.blend.from);
+        }
         logFrame(what, model, st.blend, k, drawn, to);
     }
     if(model)
@@ -271,8 +316,46 @@ void holster(const hands::State& s, int holster, entity_t* e, bool live)
     }
 }
 
+void parseCatch()
+{
+    const int hand = MSG_ReadByte();
+    const int ent = MSG_ReadShort();
+    float origin[3], angles[3];
+    for(float& v : origin)
+    {
+        v = MSG_ReadFloat();
+    }
+    for(float& v : angles)
+    {
+        v = MSG_ReadFloat();
+    }
+    if(hand != HAND_OFF && hand != HAND_MAIN)
+    {
+        return;
+    }
+
+    // Where this client drew it last (its interpolated pose; still there: its removal comes with this update), else
+    // where the server had it.
+    Catch& c = catches[hand];
+    const bool drawn = ent > 0 && ent < cl.num_entities && cl_entities[ent].model &&
+                       glm::distance(glm::vec3{cl_entities[ent].origin[0], cl_entities[ent].origin[1], cl_entities[ent].origin[2]},
+                           glm::vec3{origin[0], origin[1], origin[2]}) < 48.f;
+    c.from = drawn ? poseOf(cl_entities[ent]) : poseOf(origin, angles);
+    c.at = realtime;
+    c.on = true;
+    if(vr_debug_draw_blend.value)
+    {
+        Con_Printf("draw blend: %s hand caught entity %d (%s pose)\n", hand == HAND_MAIN ? "main" : "off", ent,
+            drawn ? "drawn" : "server");
+    }
+}
+
 void reset()
 {
+    for(Catch& c : catches)
+    {
+        c = Catch{};
+    }
     for(HandState& h : handStates)
     {
         h = HandState{};

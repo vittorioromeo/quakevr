@@ -307,7 +307,7 @@ QVR_CVAR(vr_weight_lenient_from, "10", CVAR_ARCHIVE)     // kg: lighter things (
 QVR_CVAR(vr_weight_lenient_min, "0.25", CVAR_ARCHIVE)    // the least factor
 QVR_CVAR(vr_debug_weight_stamina, "-1", CVAR_NONE)       // tests: the stamina the weight takes as left (0..1) instead of the game's (-1: the game's)
 QVR_CVAR(vr_debug_weight, "0", CVAR_NONE)                // 1: each hand's target and drawn pose, a line a frame in weight_trace.txt; 2: and printed
-QVR_CVAR(vr_props_version, "44", CVAR_ARCHIVE)           // the held object settings' changes the config has taken (vr_props.cpp)
+QVR_CVAR(vr_props_version, "45", CVAR_ARCHIVE)           // the held object settings' changes the config has taken (vr_props.cpp)
 // Explosive boxes (misc_explobox, misc_explobox2) as physics props.
 QVR_CVAR(vr_explobox_physics, "1", CVAR_ARCHIVE)         // 1: pushed, tipped, carried by hand (never force grabbed); 0: fixed in place (id's)
 QVR_CVAR(vr_explobox_impact, "14", CVAR_ARCHIVE)         // m/s: a box hitting something this hard is damaged, more the harder (0: never): dropped from 85 units or more (Quake's gravity); tipped over, its top lands at 11
@@ -721,6 +721,8 @@ QVR_CVAR(vr_climb, "0", CVAR_ARCHIVE)                 // on as shipped (vr_defau
 QVR_CVAR(vr_climb_min_height, "30", CVAR_ARCHIVE)     // units above the feet a ledge must be to take hold of
 QVR_CVAR(vr_climb_fling, "1", CVAR_ARCHIVE)           // how much letting go flings you with the hands' motion (capped; 0 none)
 QVR_CVAR(vr_climb_leniency, "10", CVAR_ARCHIVE)      // cm: a grip that misses a hold takes the nearest one this close to where it would have (0: exact)
+QVR_CVAR(vr_climb_slide, "1", CVAR_ARCHIVE)          // a holding hand the body can't follow along the ledge (past the arm's reach, a wall) slides along it, the drawn hand staying on the controller (0: it stays put, the two drift apart)
+QVR_CVAR(vr_climb_overhang_stretch, "16", CVAR_NONE) // units a hanging body's arms may stretch past their reach under an overhang (the box under a floating platform: pushing away takes it out from under; 0: no stretch)
 QVR_CVAR(vr_climb_hand_out, "10", CVAR_ARCHIVE)      // cm: the drawn hand on its hold moved towards you (off the lip; negative: deeper), display only
 QVR_CVAR(vr_climb_hand_up, "1", CVAR_ARCHIVE)        // cm: and up (negative: down), display only
 QVR_CVAR(vr_climb_hand_side, "0", CVAR_ARCHIVE)      // cm: and along the edge, outwards (the main hand right, the off hand left), display only
@@ -794,6 +796,8 @@ QVR_CVAR(vr_carry_throw_mult, "1", CVAR_ARCHIVE)      // how fast they leave the
 QVR_CVAR(vr_carry_melee_mult, "1.5", CVAR_ARCHIVE)    // punches with a box in hand hurt this much more
 QVR_CVAR(vr_carry_throw_damage, "8", CVAR_ARCHIVE)    // damage of a box thrown hard (at about 6 m/s; more the faster)
 QVR_CVAR(vr_gib_throw_damage, "4", CVAR_ARCHIVE)      // and of a gib or head
+QVR_CVAR(vr_prop_impact_damage, "1", CVAR_ARCHIVE)   // a prop never thrown (flung on the grapple, batted, knocked flying) hurts a monster or player as a thrown one
+QVR_CVAR(vr_prop_impact_min_mass, "1", CVAR_ARCHIVE) // kg: lighter props never hurt so (vr_carry.qc VR_Prop_Flung)
 QVR_CVAR(vr_gib_destroy, "1", CVAR_ARCHIVE)           // gibs and heads can be destroyed (shot, blown up, struck, thrown hard): they burst in a mist of blood
 QVR_CVAR(vr_gib_health, "12", CVAR_ARCHIVE)           // the damage that destroys a gib (a head takes half as much again)
 QVR_CVAR(vr_gib_splat_speed, "250", CVAR_ARCHIVE)     // units/s a thrown gib or head must hit a wall or a monster at to burst
@@ -875,6 +879,7 @@ QVR_CVAR(vr_forcegrab_arc, "0.15", CVAR_ARCHIVE)           // height of the arc,
 QVR_CVAR(vr_forcegrab_catch_radius, "14", CVAR_ARCHIVE)    // units from the hand it can be caught,
 QVR_CVAR(vr_forcegrab_catch_early, "0.35", CVAR_ARCHIVE)   // the grip pressed at most this early,
 QVR_CVAR(vr_forcegrab_catch_late, "0.15", CVAR_ARCHIVE)    // or this late
+QVR_CVAR(vr_forcegrab_catch_blend, "0.15", CVAR_ARCHIVE)   // seconds a caught weapon takes to ease from how it flew into the hand (0 at once; visual only)
 QVR_CVAR(vr_forcegrab_miss_speed, "0.2", CVAR_ARCHIVE)     // share of its speed a missed object keeps
 QVR_CVAR(vr_forcegrab_eligible_particles, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_forcegrab_eligible_haptics, "1", CVAR_ARCHIVE)

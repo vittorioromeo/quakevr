@@ -704,7 +704,12 @@ void CL_RelinkEntities (void)
 			VR_TuneDlight (QVR_DLIGHT_ROCKET, i, dl); // QVR
 		}
 		else if (ent->model->flags & EF_GRENADE)
-			CL_RocketTrail (ent, 1);
+		{
+			if (VR_GrenadeTrail (i)) // QVR: not a hand grenade with its pin in
+				CL_RocketTrail (ent, 1);
+			else
+				CL_ResetTrail (ent);
+		}
 		else if (ent->model->flags & EF_TRACER3)
 			CL_RocketTrail (ent, 6);
 		else

@@ -50,6 +50,12 @@ B.append(box(-200, -330, 0, -196, -230, 48, "qvr_wall", "qvr_floor"))
 B.append(box(-120, -330, 0, -60, -230, 48, "qvr_wall", "qvr_floor"))
 B.append(box(-120, -330, 88, -60, -230, 104, "qvr_wall", "qvr_floor"))
 
+# ROUND21.md, "Climbing: floating platforms": two platforms floating over the trench, nothing under them (the trench
+# floor 256 below), tops at 48: a thin slab (8 thick, x -300..-172) and a thicker one (16 thick, x -120..8), both
+# y 400..496. Hang from their south lips facing +y (`setpos -236 382 24 0 90 0; noclip`, the slab's lip 18 ahead)
+B.append(box(-300, 400, 40, -172, 496, 48, "qvr_trim", "qvr_floor"))
+B.append(box(-120, 400, 32, 8, 496, 48, "qvr_trim", "qvr_floor"))
+
 # ROUND21.md, "Ledge map": moving ledges, each started by a trigger where the player stands to test it (facing +x, its
 # face 18 units ahead, as the long ledge's is from `setpos 78 176 24`):
 # - a lift (func_train "lift1"): a block 40 high (x -300..-236, y 40..136) rising at 8 units a second to 80 up and back,
@@ -70,7 +76,8 @@ for (x, y, z, l) in [(0, 0, 440, 300), (0, 400, 440, 300), (-300, 400, 200, 250)
                      (24, -60, 70, 220), (24, 60, 170, 220), (24, -60, 250, 220), (300, 0, 330, 250),
                      (24, 180, 100, 220), (24, 380, 100, 220), (24, 580, 100, 220), (-200, 450, -100, 250),
                      (-200, 0, 100, 250), (-60, -40, 60, 300), (-60, 40, 160, 300), (-60, -40, 260, 300), (-60, 220, 100, 300), (-60, 420, 100, 300), (-250, -260, 110, 250),
-                     (-230, -280, 110, 250), (-150, -280, 80, 250), (-280, 88, 170, 250), (-170, 72, 110, 250)]:
+                     (-230, -280, 110, 250), (-150, -280, 80, 250), (-280, 88, 170, 250), (-170, 72, 110, 250),
+                     (-236, 360, 120, 250), (-56, 360, 120, 250)]:
     ents.append(f'{{\n"classname" "light"\n"origin" "{x} {y} {z}"\n"light" "{l}"\n"_color" "1 0.95 0.85"\n}}')
 for (name, x, y, z, target, wait) in [("lift1_a", -300, 40, 0, "lift1_b", 1), ("lift1_b", -300, 40, 80, "lift1_a", 2)]:
     ents.append(f'{{\n"classname" "path_corner"\n"targetname" "{name}"\n"target" "{target}"\n"origin" "{x} {y} {z}"\n"wait" "{wait}"\n}}')

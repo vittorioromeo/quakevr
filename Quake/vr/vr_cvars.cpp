@@ -56,8 +56,14 @@ const DefaultChange defaultChanges[] = {
     {14, &vr_counter_glow, "1"},          // off: the author would rather play without it (round 21, "Stamina on the gadget; the glow")
     {34, &vr_spectator_scale, "1"},       // 0.75: the spectator camera's cost (ROUND21.md, "Performance fixes (review, 2026-09-28)")
     {41, &vr_grenade_catch, "1"},         // 2: your own grenades too, the author's choice (ROUND21.md, "Debug menu; quad sound; grenade catch default; no empty-hand deflection")
+    // 45: the author's liquid transparency (NOTES.md start_2026-09-29_18-40-33; ROUND21.md, "Defaults: the author's
+    // liquids, bricks, torch and holsters"): water 0.4, lava, slime and teleporters 0.9 (vr_defaults.cfg).
+    {45, &r_wateralpha, "0.6"},
+    {45, &r_lavaalpha, "1"},
+    {45, &r_slimealpha, "0"},
+    {45, &r_telealpha, "0"},
 };
-constexpr int configVersion = 41;
+constexpr int configVersion = 45;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
@@ -203,6 +209,20 @@ void migrateConfig()
     if(from < 15)
     {
         body::migrateHolsters();
+    }
+    // 45: the hip and upper holsters' X shipped as -7 and -8 (vr_defaults.cfg, 2026-09-28), which the author's config
+    // holds as -3.5 and -4.25 since 15 moved it (the same place on the body): the compiled-in defaults, now shipped too. A
+    // config saved from 15 on that still has the old shipped value takes it (before 15, 15 has moved it above).
+    if(from >= 15 && from < 45)
+    {
+        for(const auto& [var, before] : {std::pair{&vr_hip_offset_x, "-7"}, std::pair{&vr_upper_holster_offset_x, "-8"}})
+        {
+            if(sameValue(var->string, before))
+            {
+                Con_DPrintf("VR: %s: new default %s (was %s)\n", var->name, var->default_string, before);
+                Cvar_SetQuick(var, var->default_string);
+            }
+        }
     }
     // 16: the author's hand calibration ships with his weapon offsets, which were set over it (round 21, "Defaults: the
     // author's weapon offsets and settings"; the weapons take his offsets: vr_wofs_version 20). A config that never

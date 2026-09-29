@@ -10,6 +10,7 @@
 #include "vr_menu.hpp"
 #include "vr_particles.hpp"
 #include "vr_protocol.hpp"
+#include "vr_weapons.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -48,10 +49,16 @@ double lastTime = -1.0;
     return ent > 0 && ent < cl.num_entities && cl_entities[ent].model;
 }
 
-// The middle of an entity as drawn: its model's box, turned with it, with the networked scale and
-// offset and the weapon scaling (dropped weapons and backpacks are drawn well off their origin).
+// Where the force grab takes an entity, as the QC's forcegrabpoint: a weapon by its handle (its origin:
+// weapons::heldAtOrigin), anything else by its middle as drawn (its model's box, turned with it, with the networked
+// scale and offset: dropped backpacks are drawn well off their origin).
 [[nodiscard]] glm::vec3 centre(int ent)
 {
+    const entity_t& e = cl_entities[ent];
+    if(weapons::heldAtOrigin(e.model))
+    {
+        return {e.origin[0], e.origin[1], e.origin[2]};
+    }
     return held::drawnCentre(ent);
 }
 

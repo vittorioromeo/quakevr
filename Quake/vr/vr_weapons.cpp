@@ -498,6 +498,15 @@ void markCurrent()
             }
         }
     }
+    if(vr_wofs_version.value < 23) // the grappling hook's quick release button (as migrate)
+    {
+        for(const Key key : {Key::WpnButtonAnchorVertex, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ,
+                 Key::WpnButtonPitch, Key::WpnButtonYaw, Key::WpnButtonRoll, Key::WpnButtonMode})
+        {
+            cvar_t& var = cvarAt(17, key);
+            Cvar_SetQuick(&var, var.default_string);
+        }
+    }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }
 
@@ -853,6 +862,16 @@ int fistSlot()
         }
     }
     return fistCache;
+}
+
+bool heldAtOrigin(const qmodel_t* model)
+{
+    if(!model || model->type != mod_alias)
+    {
+        return false;
+    }
+    const int slot = slotForModel(model);
+    return slot >= 0 && slot != fistSlot();
 }
 
 bool inheritable(Key key)

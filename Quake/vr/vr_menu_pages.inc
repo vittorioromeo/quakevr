@@ -82,6 +82,7 @@
         slider("Lowest Ledge", "vr_climb_min_height", 0.f, 64.f, 2.f, "%.0f units").extend().help("How far above your feet a ledge must be to grab it."),
         slider("Ledge Fling", "vr_climb_fling", 0.f, 2.f, 0.1f, "%.1f").extend().help("How much letting go of a ledge flings you with your hands' motion."),
         slider("Grab Leniency", "vr_climb_leniency", 0.f, 30.f, 1.f, "%.0f cm").extend().help("A grip that just misses a ledge or a rung takes the nearest one within this distance of your hand (not through walls, behind you or below your reach). 0: only where your hand is."),
+        toggle("Hands Slide Along Ledges", "vr_climb_slide").extend().help("When your body can't follow your hands along a ledge (past your arm's reach, against a wall), the hand slides along it and stays on your controller. Off: it stays where it took hold, and drifts away from your controller."),
         header("Climbing Stamina"),
         toggle("Climbing Stamina", "vr_climb_stamina").help("Hanging from a ledge or a rung tires you: it spends stamina from the pool parries, shoves and blows use (Stamina page), and none comes back while you hang. With none left your hands let go. Standing on something while you hold, pulling up onto a ledge and standing on it cost nothing."),
         slider("Hanging Cost, One Hand", "vr_climb_stamina_rate", 0.f, 30.f, 0.5f, "%.1f /s").extend().help("Stamina a second hanging from one hand costs (5 of 100: 20 s)."),
@@ -751,7 +752,7 @@ void resetHandMoves()
         slider("Holster Slot Y", "vr_leg_holster_model_y_offset", -100.f, 100.f, 0.5f, "%.1f").extend(-400.f, 400.f),
         slider("Holster Slot Z", "vr_leg_holster_model_z_offset", -100.f, 100.f, 0.5f, "%.1f").extend(-400.f, 400.f),
         header("Grenade Pouch"),
-        toggle("Show Grenade Pouch", "vr_show_grenade_pouch").help("A marker at the pouch the size of its reach, green while a hand is there. Hand grenades are on Batting and Catching."),
+        toggle("Show Grenade Pouch", "vr_show_grenade_pouch").help("A marker at the pouch the size of its reach, green while a hand is there. Hand grenades, and these sliders too, are on Batting and Catching."),
         slider("Pouch X", "vr_grenade_pouch_x", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f)
             .help("Forward (negative: back), units. With the body drawn, the default (-7) is on the belt at the small of your back; forward, it goes round your hips."),
         slider("Pouch Y", "vr_grenade_pouch_y", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f).help("To your right (negative: left), units."),

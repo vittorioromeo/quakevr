@@ -512,6 +512,29 @@ void sendHandImpact(edict_t* player, int hand, float strength, const float dir[3
     }
 }
 
+// A weapon a player's hand caught from a force grab, and where it was (vr_drawblend.cpp eases it into the hand).
+void sendCatchBlend(edict_t* player, int hand, int ent, const float origin[3], const float angles[3])
+{
+    sizebuf_t* msg = clientMessage(player);
+    if(!msg)
+    {
+        return;
+    }
+
+    MSG_WriteByte(msg, svc_quakevr);
+    MSG_WriteByte(msg, QVR_SVC_CATCHBLEND);
+    MSG_WriteByte(msg, hand);
+    MSG_WriteShort(msg, ent);
+    for(int i = 0; i < 3; i++)
+    {
+        MSG_WriteFloat(msg, origin[i]);
+    }
+    for(int i = 0; i < 3; i++)
+    {
+        MSG_WriteFloat(msg, angles[i]);
+    }
+}
+
 // Spent casings out of the weapon in a player's hand (vr_shells.cpp): only that player's client
 // draws them, from its own weapon model.
 void sendEject(edict_t* player, int hand, int kind, int count, int flags, float delay)

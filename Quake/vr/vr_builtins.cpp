@@ -69,6 +69,21 @@ void PF_modelcentre()
     out[2] = c.z;
 }
 
+// Where the force grab takes an entity, in the world (vector(entity e) forcegrabpoint): a weapon by its handle, its
+// origin (weapons::heldAtOrigin: it arrives in the hand as it is held), anything else by its drawn middle.
+void PF_forcegrabpoint()
+{
+    edict_t* e = G_EDICT(OFS_PARM0);
+    const int index = static_cast<int>(e->v.modelindex);
+    const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    const glm::vec3 c = weapons::heldAtOrigin(model) ? glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]}
+                                                    : physics::modelCentre(e);
+    float* out = G_VECTOR(OFS_RETURN);
+    out[0] = c.x;
+    out[1] = c.y;
+    out[2] = c.z;
+}
+
 // void(vector v1, vector mins, vector maxs, vector v2, float nomonsters, entity forent) tracebox:
 // traceline with a box (the engine's own collision, hulls and all); sets the trace_ globals.
 void PF_tracebox()
@@ -583,6 +598,14 @@ void PF_handimpact()
         G_VECTOR(OFS_PARM2));
 }
 
+// catchblend(hand, e, org, ang): the `self` player's `hand` has just caught `e` (a force grab), which was at `org`
+// turned `ang`: its client eases the weapon from there into the hand (vr_drawblend.cpp).
+void PF_catchblend()
+{
+    server::sendCatchBlend(PROG_TO_EDICT(pr_global_struct->self), static_cast<int>(G_FLOAT(OFS_PARM0)),
+        NUM_FOR_EDICT(G_EDICT(OFS_PARM1)), G_VECTOR(OFS_PARM2), G_VECTOR(OFS_PARM3));
+}
+
 // ejectcasings(hand, kind, count, delay, flags): spent casings out of the `self` player's weapon.
 void PF_ejectcasings()
 {
@@ -718,6 +741,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"weaponhotspotinfo", PF_weaponhotspotinfo},
     {"modelbounds", PF_modelbounds},
     {"modelcentre", PF_modelcentre},
+    {"forcegrabpoint", PF_forcegrabpoint},
+    {"catchblend", PF_catchblend},
     {"physicsblast", PF_physicsblast},
     {"propvalue", PF_propvalue},
     {"propgrip", PF_propgrip},

@@ -634,6 +634,8 @@ void() VR_Grenade_Think =
 // Hand grenades from the back pouch (vr_handgrenade; ROUND21.md, "Hand grenades from the back pouch")
 
 float VR_HGREN_MAX_ROCKETS = 100; // rockets a player carries (bound_other_ammo): one put back beyond it doesn't fit
+float VR_HGREN_SKIN_UNARMED = 1;  // progs/grenade.mdl's skin with the pin in: muted, its band unlit
+                                  // (make_grenade_skins.py); the engine gives it no smoke trail (VR_GrenadeTrail)
 
 // Whether the grenade `g` goes off on its fuse: any live grenade but a hand grenade whose pin is still in.
 float(entity g) VR_HandGrenade_Armed =
@@ -686,6 +688,7 @@ void(entity g, float xHand, string xHow) VR_HandGrenade_Arm =
 {
     float fuse = min(5, max(1, cvar_hget(cvarh_vr_handgrenade_fuse)));
     g.vr_hgren_armed = TRUE;
+    g.skin = 0; // the live grenade's look: its red band, and its smoke trail
     g.vr_gren_fuse = time + fuse;
     g.vr_gren_set = TRUE; // (the pin set it: a catch doesn't, unless Fuse Resets Every Catch)
     g.vr_gren_lit = TRUE;
@@ -728,6 +731,7 @@ void(float xHand) VR_HandGrenade_Take =
     VR_Grenade_Setup(g, GrenadeExplode, 0);
     g.vr_hgren = TRUE;
     g.vr_gren_fuse = 0; // (the pin: VR_HandGrenade_Arm)
+    g.skin = VR_HGREN_SKIN_UNARMED; // muted, no smoke trail, until it is armed
 
     p.ammo_rockets = p.ammo_rockets - 1;
     VR_HandGrenade_AmmoChanged(p);

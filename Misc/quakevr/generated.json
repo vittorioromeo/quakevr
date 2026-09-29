@@ -52,6 +52,11 @@
   "by": "make_bloody_hands.py",
   "part": "mdl skins after 0"
  },
+ "quakevr/progs/grenade.mdl": {
+  "sha256": "cbe240b6d197f743a5482064dc16f8e1ee433f41353f8006ff037e0825e340f1",
+  "by": "make_grenade_skins.py",
+  "part": "mdl skins after 0"
+ },
  "quakevr/progs/hand_base.mdl": {
   "sha256": "9e6b15ce822e83aa8c4b8075491f07045be5d870e4633b05eb6d11b8148883f7",
   "by": "make_bloody_hands.py",
