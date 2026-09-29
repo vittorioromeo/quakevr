@@ -141,6 +141,13 @@ context and screenshot, ready to paste or to point me at.
 ## What to try
 
 - **New in this round** (details in `docs/vr-port/ROUND21.md`; each section ends with an "In the headset" list):
+  - **Precise hit detection (models, not boxes)** (ROUND21.md, same title): shots, nails, rockets, grenades, the
+    grappling hook, melee blows and thrown things hit a monster (or a corpse, or the dummy) where its model is drawn,
+    grown by a few units, not anywhere in Quake's big box round it: shots past a grunt's head or through a shambler's
+    box corners fly on to the wall; the hook takes hold only on the body. Headshots and arm shots come from where the
+    model was hit. Combat > Damage and Knockback > Hit Detection: Precise Hit Detection (off: the boxes, as before) and
+    each class's tolerance (guns 4, hook 2, melee 6, thrown 2 units). Debug > Views > Show Hits draws each hit on the
+    model (and the misses through a box: Hits and Misses).
   - **Hand grenades from the back pouch** (ROUND21.md, same title): with rockets, reach behind the small of your back
     with an empty hand (either) and grip: a grenade from the pouch on your belt there (a tap as the hand arrives; the
     pouch lights up), in your palm. Pull the trigger to pull its pin (a ping, the fizz, sparks, ticks faster and
@@ -861,6 +868,16 @@ both hands every frame to `carry_trace.txt` (and prints the second hand's reach 
 Put the off hand out of the way first (`vr_mock_hand off -0.35 1.1 -0.2 0 0 0`): at its default pose it touches the
 box before the main hand (no `carry: taken`, and the box drops). Carrying across a save (round 21):
 `save c1; wait10; load c1; wait60; screenshot`; the box should still be in the hand(s).
+Precise hit detection (ROUND21.md, "Precise hit detection (models, not boxes)"): `vr_hit_precise 0|1`,
+`vr_hit_tolerance_guns|grapple|melee|thrown <units>`; `vr_debug_hits 1` draws and prints each hit (`hit model: ...`),
+`2` also the moves through a box that missed its model. Tests (single player, at the monster spawned last with `impulse
+241`): `impulse 238` prints `hittest` lines, boxes then models (rays through the box's
+corner columns and its middle, the hook's, melee segments, thrown boxes; 24 rays at the head and at the chest with their
+regions; `developer 2` adds each head ray's distance from the head sphere; removes the monster); `impulse 237` / `236` /
+`234` fire one nail / rocket / hook-class nail through the next corner column (then the middle; the target takes no
+damage), `impulse 235` says what it touched. `vr_hitmodel_bench [rays] [tolerance] [newest]` fires random rays at each
+monster's box: the share that meets the model, each test's cost, how far the model reaches out of its box;
+`vr_hitmodel_stats [reset]` the tests so far. The archived melee takes: the scratchpad's `hitbox/melee_replay.sh`.
 Held weapons against models (round 21): `vr_debug_model_collide 1` prints each hand's push, `2` draws the rays;
 `vr_model_collide_bench [n] [list]` times the test, `vr_model_collide_bench probe` lists the model triangles a ray along
 the view goes in and out by. `vr_test_remove <n>` removes entity n as QC's `remove()` would (a slot to reuse; ROUND21.md, "Performance fixes

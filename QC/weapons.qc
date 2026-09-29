@@ -222,6 +222,8 @@ float(entity xTarget) PositionalHead =
     return FALSE;
 };
 
+float VR_HEAD_MARGIN = 3.5; // units: the head spheres are fitted to the top vertices' middle; a head's surface lies up to 3.5 beyond (an ogre's back of the head)
+
 // Where a shot entering `xTarget` at `xEndpos` (a point on its box, from a trace) along
 // `xDirection` hits: 1 the head, 2 an extremity (far from its middle), 3 the legs, 0 the body; -1
 // when positional damage does not apply (vr_positional_damage 0, a target without a head).
@@ -249,6 +251,33 @@ float PositionalRegion(entity xTarget, vector xEndpos, vector xDirection) =
     facing_y = sin(yaw);
     facing_z = 0;
     vector head = xTarget.origin + facing * xHeadForward + '0 0 1' * xHeadUp;
+
+    // Precise hits (vr_hit_precise): the shot struck the model as drawn (at xEndpos, within its tolerance of it). Where
+    // that place is on the model standing (hitmodel_rest: the same place of the same triangle in its stand frame, at its
+    // origin, turned with its yaw) decides: in the head sphere (and VR_HEAD_MARGIN: the sphere is fitted to the head's
+    // middle), far out from its middle, below its origin. A monster crouched, in pain or lying dead keeps its head.
+    if(hitmodel_target(xTarget))
+    {
+        vector rest = hitmodel_rest(xTarget, xEndpos);
+        if(vlen(rest - head) < xHeadRadius + VR_HEAD_MARGIN)
+        {
+            return 1; // headshot
+        }
+        // Out to its sides (not forwards: a grunt's hands and gun are in front of its chest, a front shot's body).
+        vector restSide;
+        restSide_x = -facing_y;
+        restSide_y = facing_x;
+        restSide_z = 0;
+        if(fabs((rest - xTarget.origin) * restSide) > (xTarget.maxs_x - xTarget.mins_x) * 0.35)
+        {
+            return 2; // extremities
+        }
+        if(rest_z < xTarget.origin_z)
+        {
+            return 3; // legs
+        }
+        return 0; // standard
+    }
 
     // The ray's closest approach to the head, not behind where it entered.
     float t = max(0, (head - xEndpos) * d);
@@ -454,6 +483,17 @@ vector(float xHand, vector xFrom, vector xDir) VR_ShotBackPoint =
 .entity vr_shot_next;
 entity vr_shot_pending;
 
+// A missile's precise hits (MOVE_HITMODEL and its class, from .vr_hitclass; builtins.qc), for the traces that stand in
+// for its flight: the monsters' models, as its moves meet them.
+float(entity xMissile) VR_HitModelFlags =
+{
+    if(xMissile.vr_hitclass < 0)
+    {
+        return 0;
+    }
+    return MOVE_HITMODEL + 1024 * xMissile.vr_hitclass;
+};
+
 void(entity xMissile, float xHand) VR_ShotPlace =
 {
     vector at = xMissile.origin;
@@ -462,7 +502,7 @@ void(entity xMissile, float xHand) VR_ShotPlace =
     {
         return;
     }
-    traceline(from, at, FALSE, self);
+    traceline(from, at, VR_HitModelFlags(xMissile), self);
     if(trace_fraction < 1 || (trace_startsolid && trace_ent != world))
     {
         setorigin(xMissile, from);
@@ -491,7 +531,7 @@ void() VR_ShotImpacts =
         m.vr_shot_next = world;
         if(m.vr_shot_time == time && m.touch && m.solid != SOLID_NOT)
         {
-            traceline(m.origin, m.vr_shot_to, FALSE, player);
+            traceline(m.origin, m.vr_shot_to, VR_HitModelFlags(m), player);
             if((trace_fraction < 1 || trace_startsolid) && trace_ent != world && trace_ent.takedamage &&
                trace_ent.solid != SOLID_NOT)
             {
@@ -516,10 +556,10 @@ void() VR_ShotImpacts =
 // box it started in, not what was struck: traced again from the projectile itself.
 void(vector xFrom, vector xTo) VR_TouchTrace =
 {
-    traceline(xFrom, xTo, FALSE, self);
+    traceline(xFrom, xTo, VR_HitModelFlags(self), self);
     if(trace_startsolid && trace_ent != other && trace_ent != world)
     {
-        traceline(self.origin, xTo, FALSE, self);
+        traceline(self.origin, xTo, VR_HitModelFlags(self), self);
     }
 };
 
@@ -655,7 +695,7 @@ void(vector p1, vector p2, entity from, float damage) HIP_HammerDamage =
 
     e1 = e2 = world;
 
-    traceline(p1, p2, FALSE, self);
+    traceline(p1, p2, MOVE_HITMODEL, self);
 //JIM
     if(trace_ent.takedamage && !trace_ent.wetsuit_finished)
     {
@@ -669,7 +709,7 @@ void(vector p1, vector p2, entity from, float damage) HIP_HammerDamage =
     }
     e1 = trace_ent;
 
-    traceline(p1 + f, p2 + f, FALSE, self);
+    traceline(p1 + f, p2 + f, MOVE_HITMODEL, self);
 //JIM
     if(trace_ent != e1 && trace_ent.takedamage &&
         !trace_ent.wetsuit_finished)
@@ -679,7 +719,7 @@ void(vector p1, vector p2, entity from, float damage) HIP_HammerDamage =
     }
     e2 = trace_ent;
 
-    traceline(p1 - f, p2 - f, FALSE, self);
+    traceline(p1 - f, p2 - f, MOVE_HITMODEL, self);
 //JIM
     if(trace_ent != e1 && trace_ent != e2 && trace_ent.takedamage &&
         !trace_ent.wetsuit_finished)
@@ -942,7 +982,7 @@ float(float xHand, float xRange, float xMuzzleRange) VRDoMeleeAttackTracelineFor
 
     for(float anything = 0; anything < passes; ++anything)
     {
-        traceline(handPos - dir * 6, handPos + dir * range, FALSE, self);
+        traceline(handPos - dir * 6, handPos + dir * range, MOVE_HITMODEL_MELEE, self);
         if(VRMeleeTraceHit(handPos, anything))
         {
             v_forward = dir;
@@ -950,7 +990,7 @@ float(float xHand, float xRange, float xMuzzleRange) VRDoMeleeAttackTracelineFor
             return TRUE;
         }
 
-        traceline(muzzlePos - dir * 6, muzzlePos + dir * muzzleRange, FALSE, self);
+        traceline(muzzlePos - dir * 6, muzzlePos + dir * muzzleRange, MOVE_HITMODEL_MELEE, self);
         if(VRMeleeTraceHit(muzzlePos, anything))
         {
             v_forward = dir;
@@ -1603,7 +1643,7 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
     {
         direction = dir + crandom()*spread_x*v_right + crandom()*spread_y*v_up;
 
-        traceline(src, src + direction*xRange, MOVE_HITGIBS, self); // VR: gibs and heads too (vr_gib_destroy),
+        traceline(src, src + direction*xRange, MOVE_HITGIBS | MOVE_HITMODEL, self); // VR: gibs and heads too (vr_gib_destroy), monsters' models (vr_hit_precise),
         if(xStartHits && trace_startsolid && trace_ent != world && trace_ent.takedamage)
         {
             trace_fraction = 0; // started inside it: hit there
@@ -1891,7 +1931,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
     // HONEY
     self.damage_weapon = IT_LIGHTNING;
 
-    traceline(p1, p2, MOVE_HITGIBS, self); // VR: gibs and heads too (vr_gib_destroy),
+    traceline(p1, p2, MOVE_HITGIBS | MOVE_HITMODEL, self); // VR: gibs and heads too (vr_gib_destroy), monsters' models (vr_hit_precise),
     VR_Gib_TraceHeld(p1, p2);              // and one held in the other hand
 //JIM
     if(trace_ent.takedamage && !trace_ent.wetsuit_finished)
@@ -1909,7 +1949,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
     }
     e1 = trace_ent;
 
-    traceline(p1 + f, p2 + f, MOVE_HITGIBS, self);
+    traceline(p1 + f, p2 + f, MOVE_HITGIBS | MOVE_HITMODEL, self);
 //JIM
     if(trace_ent != e1 && trace_ent.takedamage &&
     !trace_ent.wetsuit_finished)
@@ -1921,7 +1961,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
     }
     e2 = trace_ent;
 
-    traceline(p1 - f, p2 - f, MOVE_HITGIBS, self);
+    traceline(p1 - f, p2 - f, MOVE_HITGIBS | MOVE_HITMODEL, self);
 //JIM
     if(trace_ent != e1 && trace_ent != e2 && trace_ent.takedamage &&
         !trace_ent.wetsuit_finished)
@@ -3204,6 +3244,225 @@ float vr_test_armor_kind;   // impulse 250: the next armour it drops (0 green, 1
 float vr_test_held_kind;    // impulse 252: the next gib or head it puts in the off hand (round 21)
 entity vr_test_armor_last;  // and the last it dropped (impulse 251)
 
+// QVR: precise hit detection's test (impulse 238; ROUND21 "Precise hit detection (models, not boxes)"): at the monster
+// (or corpse) spawned last, level from the player's side, each kind of test with Quake's boxes and then with its model:
+// rays through its box's corner columns (2 units in from its edges: the empty part), at its middle, a ring of 24 at its
+// head and 24 at its chest (their positional regions), and the same segments as melee blows (hitmodel_segment, 3 units
+// thick) and thrown things (tracebox, vr_throw_hitbox 6). "on" counts what met the target; "behind" what went on to
+// the world. Nothing is damaged.
+float(entity xTarget, vector xFrom, vector xTo, float xFlags) VR_Test_HitRay =
+{
+    traceline(xFrom, xTo, xFlags, self);
+    return trace_ent == xTarget;
+};
+
+void(entity t, float xPrecise) VR_Test_HitsMode =
+{
+    float saved = cvar("vr_hit_precise");
+    cvar_set("vr_hit_precise", ftos(xPrecise));
+    vector lo = t.origin + t.mins;
+    vector hi = t.origin + t.maxs;
+    vector c = (lo + hi) * 0.5;
+    vector dir = c - self.origin;
+    dir_z = 0;
+    dir = normalize(dir);
+    vector side;
+    side_x = -dir_y;
+    side_y = dir_x;
+    side_z = 0;
+    float halfw = (t.maxs_x - t.mins_x) * 0.5 - 2;
+    float halfh = (t.maxs_z - t.mins_z) * 0.5 - 2;
+    float gunFlags = MOVE_HITGIBS | MOVE_HITMODEL;
+    float onC = 0, behindC = 0, onB = 0, meleeC = 0, meleeB = 0, thrownC = 0, thrownB = 0, grappleC = 0, grappleB = 0;
+    float k;
+    vector at;
+    for(k = 0; k < 6; ++k)
+    {
+        float sx = 1, sz = 1;
+        if(k & 1) { sx = -1; }
+        if(k >= 4) { sz = 0; } else if(k >= 2) { sz = -0.5; } // (low: beside the legs, above the floor)
+        at = c + side * halfw * sx + '0 0 1' * halfh * sz;
+        if(VR_Test_HitRay(t, at - dir * 64, at + dir * 128, gunFlags)) { onC++; }
+        else if(trace_fraction < 1 && trace_ent == world) { behindC++; }
+        if(VR_Test_HitRay(t, at - dir * 64, at + dir * 128, MOVE_HITMODEL_GRAPPLE)) { grappleC++; }
+        float mt;
+        if(xPrecise && hitmodel_target(t)) { mt = hitmodel_segment(t, at - dir * 24, at + dir * 24, 3, HITCLASS_MELEE); }
+        else { mt = VR_SegmentBox(at - dir * 24, at + dir * 24, lo - '3 3 3', hi + '3 3 3'); }
+        if(mt >= 0) { meleeC++; }
+        tracebox(at - dir * 64, '-6 -6 -6', '6 6 6', at + dir * 128, MOVE_HITMODEL_THROWN, self);
+        if(trace_ent == t) { thrownC++; }
+    }
+    // Its middle (chest height: a third of the way down from the top) and its head.
+    float heads = 0, headOn = 0, chestOn = 0, chestHead = 0, chestLimb = 0, chestLegs = 0;
+    vector chest = c + '0 0 1' * halfh * 0.35;
+    if(VR_Test_HitRay(t, chest - dir * 64, chest + dir * 128, gunFlags)) { onB++; }
+    dprint(sprintf("hittest %s at %v size %v %v, solid %d;", t.classname, t.origin, t.mins, t.maxs, t.solid));
+    dprint(sprintf(" the middle ray from %v met %s (at %v) at %v", chest - dir * 64, trace_ent.classname, trace_ent.origin, trace_endpos));
+    dprint(sprintf(" (%f, startsolid %d, its solid %d)", trace_fraction, trace_startsolid, trace_ent.solid));
+    dprint("\n");
+    if(VR_Test_HitRay(t, chest - dir * 64, chest + dir * 128, MOVE_HITMODEL_GRAPPLE)) { grappleB++; }
+    float mb;
+    if(xPrecise && hitmodel_target(t)) { mb = hitmodel_segment(t, chest - dir * 24, chest + dir * 24, 3, HITCLASS_MELEE); }
+    else { mb = VR_SegmentBox(chest - dir * 24, chest + dir * 24, lo - '3 3 3', hi + '3 3 3'); }
+    if(mb >= 0) { meleeB++; }
+    tracebox(chest - dir * 64, '-6 -6 -6', '6 6 6', chest + dir * 128, MOVE_HITMODEL_THROWN, self);
+    if(trace_ent == t) { thrownB++; }
+    float hasHead = PositionalHead(t);
+    vector head = t.origin + '0 0 1' * xHeadUp;
+    float yaw = t.angles_y * (3.14159265 / 180);
+    head_x = head_x + cos(yaw) * xHeadForward;
+    head_y = head_y + sin(yaw) * xHeadForward;
+    for(k = 0; k < 24; ++k)
+    {
+        float a = k * (3.14159265 * 2 / 24);
+        vector r;
+        r_x = cos(a);
+        r_y = sin(a);
+        r_z = 0;
+        if(hasHead && VR_Test_HitRay(t, head - r * 64, head + r * 128, gunFlags))
+        {
+            headOn++;
+            if(PositionalRegion(t, trace_endpos, r) == 1) { heads++; }
+            if(xPrecise && cvar("developer") > 1)
+            {
+                dprint(sprintf("hittest head ray %d: the rest point %f from the head's middle (radius %f)\n", k,
+                    vlen(hitmodel_rest(t, trace_endpos) - head), xHeadRadius));
+            }
+        }
+        if(VR_Test_HitRay(t, chest - r * 64, chest + r * 128, gunFlags))
+        {
+            chestOn++;
+            float reg = PositionalRegion(t, trace_endpos, r);
+            if(reg == 1) { chestHead++; } else if(reg == 2) { chestLimb++; } else if(reg == 3) { chestLegs++; }
+        }
+    }
+    string mode = "boxes";
+    if(xPrecise) { mode = "model"; }
+    dprint(sprintf("hittest %s %s: corner rays %d/6 on it (%d on to the world), middle %d/1;", t.classname, mode, onC, behindC, onB));
+    dprint(sprintf(" grapple corners %d/6, middle %d/1; melee corners %d/6, middle %d/1;", grappleC, grappleB, meleeC, meleeB));
+    dprint(sprintf(" thrown corners %d/6, middle %d/1; head ring %d/24 on it (%d headshots);", thrownC, thrownB, headOn, heads));
+    dprint(sprintf(" chest ring %d/24 on it (%d head, %d limb, %d legs)\n", chestOn, chestHead, chestLimb, chestLegs));
+    cvar_set("vr_hit_precise", ftos(saved));
+};
+
+void() VR_Test_Hits =
+{
+    // The monster (or corpse) spawned last (impulse 241).
+    entity t = world;
+    entity e = nextent(world);
+    while(e)
+    {
+        if((e.flags & FL_MONSTER) && e != self)
+        {
+            t = e;
+        }
+        e = nextent(e);
+    }
+    if(t == world)
+    {
+        dprint("hittest: no monster\n");
+        return;
+    }
+    VR_Test_HitsMode(t, 0);
+    VR_Test_HitsMode(t, 1);
+    // Then removed, with anything else there (the next one is tested where it stood).
+    vector at = t.origin;
+    e = nextent(world);
+    while(e)
+    {
+        if((e.flags & FL_MONSTER) && e != self && vlen(e.origin - at) < 64)
+        {
+            remove(e);
+        }
+        e = nextent(e);
+    }
+};
+
+
+// Projectiles through the same corner columns and at the middle (impulse 237 a nail, 236 a rocket, 234 a nail with the
+// grappling hook's class, one at a time, each
+// through the next of the 6 columns, then the middle; 235 prints what the last touched): real missiles, as the engine
+// flies them (MOVE_MISSILE, with the precise hits of the option as it is set). The target takes no damage (no pain
+// poses, no shove), and is put back where it stood.
+entity vr_test_target;
+vector vr_test_home;
+float vr_test_shot;
+float vr_test_on;
+float vr_test_world;
+float vr_test_other;
+void() VR_Test_MissileTouch =
+{
+    if(other == vr_test_target) { vr_test_on++; }
+    else if(other == world) { vr_test_world++; }
+    else { vr_test_other++; }
+    if(self.classname == "spike") { spike_touch(); }
+    else { T_MissileTouch(); }
+};
+
+void(float xRockets) VR_Test_Missiles =
+{
+    entity t = world;
+    entity e = nextent(world);
+    while(e)
+    {
+        if((e.flags & FL_MONSTER) && e != self) { t = e; }
+        e = nextent(e);
+    }
+    if(t == world) { dprint("hittest: no monster\n"); return; }
+    if(t != vr_test_target)
+    {
+        vr_test_target = t;
+        vr_test_home = t.origin;
+        vr_test_shot = 0;
+    }
+    setorigin(t, vr_test_home);
+    t.velocity = '0 0 0';
+    t.takedamage = DAMAGE_NO; // (no pain, no shove: it stands as it was)
+    vr_test_on = vr_test_world = vr_test_other = 0;
+    vector lo = t.origin + t.mins;
+    vector hi = t.origin + t.maxs;
+    vector c = (lo + hi) * 0.5;
+    vector dir = c - self.origin;
+    dir_z = 0;
+    dir = normalize(dir);
+    vector side;
+    side_x = -dir_y;
+    side_y = dir_x;
+    side_z = 0;
+    float halfw = (t.maxs_x - t.mins_x) * 0.5 - 2;
+    float halfh = (t.maxs_z - t.mins_z) * 0.5 - 2;
+    float k = vr_test_shot;
+    vr_test_shot = (vr_test_shot + 1) % 7;
+    float sx = 1, sz = 1;
+    if(k & 1) { sx = -1; }
+    if(k >= 4) { sz = 0; } else if(k >= 2) { sz = -0.5; }
+    vector at = c + side * halfw * sx + '0 0 1' * halfh * sz;
+    if(k == 6) { at = c + '0 0 1' * halfh * 0.35; } // the middle (chest height)
+    entity m = launch_spike(at - dir * 64, dir); // (in front of the player's hands, which it would meet)
+    if(xRockets == 2)
+    {
+        m.vr_hitclass = HITCLASS_GRAPPLE; // the grappling hook's class (its tolerance): a hook's hit test
+    }
+    else if(xRockets)
+    {
+        m.classname = "missile";
+        setmodel(m, "progs/missile.mdl");
+        setsize(m, '0 0 0', '0 0 0');
+        m.velocity = dir * 1000;
+    }
+    m.touch = VR_Test_MissileTouch;
+    string kind = "nail";
+    if(xRockets == 2) { kind = "hook"; } else if(xRockets) { kind = "rocket"; }
+    dprint(sprintf("hittest %s: %s %d (precise %d):", t.classname, kind, k, cvar("vr_hit_precise")));
+};
+
+void() VR_Test_MissilesReport =
+{
+    string what = "nothing";
+    if(vr_test_on) { what = "it"; } else if(vr_test_world) { what = "the world"; } else if(vr_test_other) { what = "something else"; }
+    dprint(sprintf(" touched %s\n", what));
+};
+
 void() ImpulseCommands =
 {
     // Development and tests (single player): impulse 150 + a weapon id puts that weapon, loaded, in
@@ -3377,6 +3636,26 @@ void() ImpulseCommands =
         self.angles_y = player.v_angle_y + 180;
         monster_army();
         self = player;
+    }
+    if(self.impulse == 238 && !deathmatch && !coop) // QVR: precise hit detection's test (VR_Test_Hits)
+    {
+        VR_Test_Hits();
+    }
+    if(self.impulse == 237 && !deathmatch && !coop) // QVR: and with nails (VR_Test_Missiles),
+    {
+        VR_Test_Missiles(FALSE);
+    }
+    if(self.impulse == 236 && !deathmatch && !coop) // rockets,
+    {
+        VR_Test_Missiles(TRUE);
+    }
+    if(self.impulse == 234 && !deathmatch && !coop) // a nail with the grappling hook's class,
+    {
+        VR_Test_Missiles(2);
+    }
+    if(self.impulse == 235 && !deathmatch && !coop) // and what they touched
+    {
+        VR_Test_MissilesReport();
     }
     if(self.impulse == 241 && !deathmatch && !coop) // QVR: a monster or a box ahead, facing you (vr_test_spawn; weapons against models)
     {
@@ -4764,7 +5043,7 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponCl
         origin_z = origin_z - 0.5 * throwGravity * age * age;
         throwVelUnits_z = throwVelUnits_z - throwGravity * age;
 
-        traceline(from, origin, FALSE, ent);
+        traceline(from, origin, MOVE_HITMODEL_THROWN, ent);
         if(trace_fraction < 1 && trace_ent.takedamage && trace_ent != world)
         {
             origin = trace_endpos - normalize(origin - from) * 2; // a monster on the way: hit it next

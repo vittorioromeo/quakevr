@@ -412,12 +412,12 @@ trace_t SV_PushEntity (edict_t *ent, vec3_t push)
 	VectorAdd (ent->v.origin, push, end);
 
 	if (ent->v.movetype == MOVETYPE_FLYMISSILE)
-		trace = SV_Move (ent->v.origin, ent->v.mins, ent->v.maxs, end, MOVE_MISSILE, ent);
+		trace = SV_Move (ent->v.origin, ent->v.mins, ent->v.maxs, end, MOVE_MISSILE | VR_HitModelMoveFlags (ent), ent); // QVR: precise hits
 	else if (ent->v.solid == SOLID_TRIGGER || ent->v.solid == SOLID_NOT || ent->v.solid == SOLID_NOT_BUT_TOUCHABLE) // QVR
 	// only clip against bmodels
 		trace = SV_Move (ent->v.origin, ent->v.mins, ent->v.maxs, end, MOVE_NOMONSTERS, ent);
 	else
-		trace = SV_Move (ent->v.origin, ent->v.mins, ent->v.maxs, end, MOVE_NORMAL, ent);
+		trace = SV_Move (ent->v.origin, ent->v.mins, ent->v.maxs, end, MOVE_NORMAL | VR_HitModelMoveFlags (ent), ent); // QVR: a grenade's too
 
 	VectorCopy (trace.endpos, ent->v.origin);
 	SV_LinkEdict (ent, true);

@@ -201,6 +201,27 @@ void(vector ang) makeforward = #0; // sets v_forward
 vector(entity e, float max) modelbounds = #0; // the model's mins (max 0) or maxs, in model space
 vector(entity e) modelcentre = #0; // the middle of the drawn model (turned with it, scaled and offset as drawn), in the world
 void(vector v1, vector mins, vector maxs, vector v2, float nomonsters, entity forent) tracebox = #0; // traceline with a box
+// Precise hit detection (engine vr_hitmodel.cpp; the option vr_hit_precise): shots, missiles, the grappling hook, melee
+// blows and thrown things meet a monster's (or a corpse's) model as drawn, grown by their class's tolerance
+// (vr_hit_tolerance_*), not Quake's box round it. Added to a traceline's "nomonsters" (FALSE, MOVE_HITGIBS): monsters are
+// met at their models, the class in the two bits above (a missile's move has it from .vr_hitclass). With the option off,
+// ignored: the boxes, as before.
+float MOVE_HITMODEL = 512;          // a gun's shot (vr_hit_tolerance_guns)
+float MOVE_HITMODEL_GRAPPLE = 1536; // the grappling hook's (MOVE_HITMODEL + 1 * 1024)
+float MOVE_HITMODEL_MELEE = 2560;   // a melee blow's (+ 2 * 1024)
+float MOVE_HITMODEL_THROWN = 3584;  // a thrown thing's (+ 3 * 1024)
+float HITCLASS_GUNS = 0;
+float HITCLASS_GRAPPLE = 1;
+float HITCLASS_MELEE = 2;
+float HITCLASS_THROWN = 3;
+float VR_HITMODEL_REACH = 96; // units a model is found out of its box (an ogre's chainsaw reaches 33 out; a walking monster drawn behind it, a dog's step 64): the engine's MOVE_HITMODEL_REACH
+float(entity e) hitmodel_target = #0; // whether e's model is what is hit (the option on; a monster or corpse with a Quake model)
+// The segment a..b (a sphere of `radius` plus the class's tolerance) against e's model as drawn: where along it (0..1)
+// it first meets it (0: it starts in it), -1 missed; -2: e's model is not tested (the option off, not a target).
+float(entity e, vector a, vector b, float radius, float hitclass) hitmodel_segment = #0;
+// The point p on e's drawn model as it is on the model standing (its stand frame), at e's origin, turned with its yaw
+// (where positional damage's head sphere and regions are); p itself if e is no target.
+vector(entity e, vector p) hitmodel_rest = #0;
 
 float(string s) cvar_hmake = #0;
 float(float h) cvar_hget = #0;

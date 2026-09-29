@@ -107,6 +107,7 @@ QVR_FIELD(carry_offset) // a held prop's origin in the hand (vr_carry.qc), kept 
 QVR_FIELD(offhand_held)
 QVR_FIELD(carry_teleported) // until then what the hands carry follows them from the player (vr_carry.qc VR_Carry_FollowTeleported): set by the VR teleport
 QVR_FIELD(vr_melee_hud) // parry stamina and the counter's window, for the gadget and the counter glow (vr_melee.qc VR_Melee_Hud; vr_meleehud.cpp)
+QVR_FIELD(vr_hitclass) // precise hits (vr_hitmodel.cpp): a projectile's class for its tolerance (0 a gun's, 1 the grappling hook's; -1: boxes)
 QVR_FIELD(vr_stamina_used) // the stamina pool (vr_melee.qc): what is spent, when last, its coming back traced; climbing drains it (vr_climb.cpp)
 QVR_FIELD(vr_stamina_time)
 QVR_FIELD(vr_stamina_said)

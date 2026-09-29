@@ -44,6 +44,8 @@ typedef struct
 	int			type;
 	edict_t		*passedict;
 	qboolean	hitgibs;		// QVR: MOVE_HITGIBS, or a missile
+	float		hitmodel;		// QVR: MOVE_HITMODEL: its class's tolerance (-1: not precise, the boxes)
+	int			hittype;		// QVR: (its type, with the class)
 } moveclip_t;
 
 
@@ -916,9 +918,21 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 				continue;	// don't clip against owner
 		}
 
+		// QVR: precise hits (vr_hit_precise, vr/vr_hitmodel.cpp): a monster's box (grown by the
+		// tolerance) is only the broad phase; the move meets its model as drawn, or goes on through.
+		// A monster moving (knocked back) into a missile doesn't meet it with its box: the missile's
+		// own move meets its model.
+		if (clip->passedict && VR_HitModelMoveFlags (touch) && VR_HitModelTarget (clip->passedict))
+			continue;
+		if (clip->hitmodel >= 0 && VR_HitModelTarget (touch))
+		{
+			if (!VR_HitModelClip (touch, clip->start, clip->mins, clip->maxs, clip->end, clip->hittype,
+				clip->hitmodel, clip->trace.fraction, &trace))
+				continue;
+		}
 		// QVR: missiles meet monsters with a fatter box, but not a corpse (vr_corpse_gib, touchable):
 		// lying low, it would stop them well above it.
-		if (((int)touch->v.flags & FL_MONSTER) && touch->v.solid != SOLID_NOT_BUT_TOUCHABLE)
+		else if (((int)touch->v.flags & FL_MONSTER) && touch->v.solid != SOLID_NOT_BUT_TOUCHABLE)
 			trace = SV_ClipMoveToEntity (touch, clip->start, clip->mins2, clip->maxs2, clip->end);
 		else
 			trace = SV_ClipMoveToEntity (touch, clip->start, clip->mins, clip->maxs, clip->end);
@@ -1008,7 +1022,9 @@ static trace_t SV_MoveRun (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, i
 
 	// QVR: a flag on the type (a traceline's "nomonsters").
 	clip.hitgibs = (type & MOVE_HITGIBS) != 0;
-	type &= ~MOVE_HITGIBS;
+	clip.hitmodel = VR_HitModelTolerance (type); // QVR: and precise hits (MOVE_HITMODEL and its class)
+	clip.hittype = type;
+	type &= ~(MOVE_HITGIBS | MOVE_HITMODEL | MOVE_HITMODEL_CLASS);
 	if (type == MOVE_MISSILE)
 		clip.hitgibs = true;
 
@@ -1038,6 +1054,14 @@ static trace_t SV_MoveRun (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, i
 
 // create the bounding box of the entire move
 	SV_MoveBounds ( start, clip.mins2, clip.maxs2, end, clip.boxmins, clip.boxmaxs );
+	if (clip.hitmodel >= 0) // QVR: precise hits: the tolerance, and a model reaching out of its box (MOVE_HITMODEL_REACH)
+	{
+		for (i=0 ; i<3 ; i++)
+		{
+			clip.boxmins[i] -= clip.hitmodel + MOVE_HITMODEL_REACH;
+			clip.boxmaxs[i] += clip.hitmodel + MOVE_HITMODEL_REACH;
+		}
+	}
 
 // clip to entities
 	SV_ClipToLinks ( sv_areanodes, &clip );
