@@ -688,10 +688,11 @@ void registerCommands()
 
 float staminaShareFor(float left)
 {
-    if(!vr_weight_stamina.value)
-    {
-        return 0.f;
-    }
+    return vr_weight_stamina.value ? tiredShare(left) : 0.f;
+}
+
+float tiredShare(float left)
+{
     const float from = std::clamp(vr_weight_stamina_from.value, 0.01f, 1.f);
     if(left >= from)
     {

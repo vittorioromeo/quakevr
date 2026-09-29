@@ -64,8 +64,13 @@ const DefaultChange defaultChanges[] = {
     {45, &r_telealpha, "0"},
     {46, &vr_climb_leniency, "10"},       // 6: the author's (ROUND21.md, "Defaults: the author's climbing values")
     {46, &vr_climb_hand_side, "0"},       // 7.5: the author's, the drawn hand outwards along the edge
+    // 47: the author's tired arms, "more intense" (NOTES.md vrfiringrange_2026-09-29_21-26-37; ROUND21.md, "Defaults: the
+    // author's tired arms; the tired run").
+    {47, &vr_weight_stamina_max, "2"},    // 2.5
+    {47, &vr_weight_stamina_add, "0"},    // 15 kg
+    {47, &vr_weight_stamina_empty, "3"},  // 15 kg
 };
-constexpr int configVersion = 46;
+constexpr int configVersion = 47;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

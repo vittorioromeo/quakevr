@@ -329,6 +329,7 @@ void SV_AirMove (void)
 	vec3_t		wishvel, wishdir;
 	float		wishspeed;
 	float		fmove, smove;
+	float		maxspeed; // QVR
 
 	AngleVectors (VR_MoveAngles (sv_player, sv_player->v.angles), forward, right, up); // QVR
 
@@ -349,10 +350,13 @@ void SV_AirMove (void)
 
 	VectorCopy (wishvel, wishdir);
 	wishspeed = VectorNormalize(wishdir);
-	if (wishspeed > sv_maxspeed.value)
+	maxspeed = sv_maxspeed.value; // QVR: tired, slower (vr_stamina_speed)
+	if (sv_player->v.movetype != MOVETYPE_NOCLIP)
+		maxspeed *= VR_StaminaSpeedScale (sv_player);
+	if (wishspeed > maxspeed)
 	{
-		VectorScale (wishvel, sv_maxspeed.value/wishspeed, wishvel);
-		wishspeed = sv_maxspeed.value;
+		VectorScale (wishvel, maxspeed/wishspeed, wishvel);
+		wishspeed = maxspeed;
 	}
 
 	if ( sv_player->v.movetype == MOVETYPE_NOCLIP)

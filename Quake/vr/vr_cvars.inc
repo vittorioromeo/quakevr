@@ -291,10 +291,13 @@ QVR_CVAR(vr_weight_spring_2h, "4", CVAR_ARCHIVE)         // Spring: times the st
 QVR_CVAR(vr_weight_spring_snap, "60", CVAR_ARCHIVE)      // Spring: cm (or 3 times as many degrees) off the hand beyond which it is put back in it at once
 QVR_CVAR(vr_weight_stamina, "1", CVAR_ARCHIVE)           // tired, things weigh more: below vr_weight_stamina_from of the stamina (Parry Stamina) the weight grows
 QVR_CVAR(vr_weight_stamina_from, "0.5", CVAR_ARCHIVE)    // the stamina left (0..1) below which it starts
-QVR_CVAR(vr_weight_stamina_max, "2", CVAR_ARCHIVE)       // times the weight with none left
+QVR_CVAR(vr_weight_stamina_max, "2.5", CVAR_ARCHIVE)     // times the weight with none left
 QVR_CVAR(vr_weight_stamina_curve, "2", CVAR_ARCHIVE)     // the curve's exponent from the threshold to none (1 straight; 2 gentle at first)
-QVR_CVAR(vr_weight_stamina_add, "0", CVAR_ARCHIVE)       // kg added to what a hand holds with none left (on the same curve; with the times above)
-QVR_CVAR(vr_weight_stamina_empty, "3", CVAR_ARCHIVE)     // kg an empty hand weighs with none left (on the same curve): it follows its controller as if it held that (0: an empty hand never lags; not a hand on a hold or steadying a weapon)
+QVR_CVAR(vr_weight_stamina_add, "15", CVAR_ARCHIVE)      // kg added to what a hand holds with none left (on the same curve; with the times above)
+QVR_CVAR(vr_weight_stamina_empty, "15", CVAR_ARCHIVE)    // kg an empty hand weighs with none left (on the same curve): it follows its controller as if it held that (0: an empty hand never lags; not a hand on a hold or steadying a weapon)
+QVR_CVAR(vr_stamina_speed, "1", CVAR_ARCHIVE)           // tired, you run slower: the most walking speed (sv_maxspeed) drops on the weight's curve (vr_weight_stamina_from, _curve)
+QVR_CVAR(vr_stamina_speed_min, "0.5", CVAR_ARCHIVE)     // times the most speed with no stamina left (1: no slower)
+QVR_CVAR(vr_debug_stamina_speed, "0", CVAR_NONE)        // tests: 1 prints the stamina, the speed cap and the player's ground speed twice a second (a local game)
 QVR_CVAR(vr_weight_throw_mass, "12", CVAR_ARCHIVE)       // kg: props up to this heavy are thrown with the hand's whole speed, heavier ones slower (Throw: Held Object Offsets)
 // Weight and damage (round 21, "Spring only; Weapon Weights and Held Object Weights; weight and damage"): a melee blow's
 // and a throw's damage times (mass / vr_weight_damage_heavy)^vr_weight_damage_exp for things heavier than it,

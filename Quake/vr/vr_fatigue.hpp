@@ -7,7 +7,8 @@
 //   placed on the shaking weapon is moved back onto the steady one). While climbing only, as shipped
 //   (vr_fatigue_shake_always: whenever tired);
 // - the hands get heavy: the weight (vr_weight.cpp, "Tired, things weigh more") makes what they hold heavier, and an
-//   empty hand follows its controller as if it held vr_weight_stamina_empty kg.
+//   empty hand follows its controller as if it held vr_weight_stamina_empty kg;
+// - the legs slow (vr_stamina_speed): the most walking speed drops on the same curve, to vr_stamina_speed_min at none.
 // Tests: vr_stamina_set puts the game's stamina at a share, vr_debug_stamina_hold keeps it there (a local server);
 // vr_debug_fatigue prints the shake.
 
@@ -32,5 +33,10 @@ void serverFrame();
 
 // vr_stamina_set.
 void registerCommands();
+
+// The tired run (vr_stamina_speed): times the most walking speed for a stamina left of `left` (0..1), on the weight's
+// curve (weight::tiredShare): 1 from vr_weight_stamina_from up, vr_stamina_speed_min with none left. The server's
+// VR_StaminaSpeedScale takes each player's own stamina.
+[[nodiscard]] float speedScaleFor(float left);
 
 } // namespace qvr::fatigue
