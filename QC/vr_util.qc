@@ -219,6 +219,13 @@ inline float(entity e, float xHand) VRGetEntSecondaryPressed =
     return !!(e.vrbits0 & VR_IMPL_SELECT(xHand, QVR_VRBITS0_OFFHAND_SECONDARY, QVR_VRBITS0_MAINHAND_SECONDARY));
 }
 
+// The hand's lower face button held (A on the main hand, X on the off hand; its key, jump or reload, pressed as ever):
+// the grappling hook's unreel (vr_grapple.qc).
+inline float(entity e, float xHand) VRGetEntPrimaryPressed =
+{
+    return !!(e.vrbits0 & VR_IMPL_SELECT(xHand, QVR_VRBITS0_OFFHAND_PRIMARY, QVR_VRBITS0_MAINHAND_PRIMARY));
+}
+
 // The head (between the eyes): the client's, which leans away from the origin; the old eye point if
 // the client sends none.
 vector(entity e) VRGetHeadPos =
