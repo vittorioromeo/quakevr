@@ -2614,12 +2614,14 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
     }
     else if(xWeapon == WID_SHOTGUN)
     {
+        SuperDamageSound();
         player_shot1(xHand);
         W_FireShotgun(xHand);
         *xOutAttackFinished = time + RuneApplyHell(0.5, self);
     }
     else if(xWeapon == WID_SUPER_SHOTGUN)
     {
+        SuperDamageSound();
         player_shot1(xHand);
         W_FireSuperShotgun(xHand);
         *xOutAttackFinished = time + RuneApplyHell(0.7, self);
@@ -2638,6 +2640,7 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
     }
     else if(xWeapon == WID_GRENADE_LAUNCHER)
     {
+        SuperDamageSound();
         player_rocket1(xHand);
 
         if(xWeaponFlags & QVR_WPNFLAG_USE_SECONDARY_AMMO)
@@ -2653,6 +2656,7 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
     }
     else if(xWeapon == WID_ROCKET_LAUNCHER)
     {
+        SuperDamageSound();
         player_rocket1(xHand);
 
         if(xWeaponFlags & QVR_WPNFLAG_USE_SECONDARY_AMMO)
@@ -2708,6 +2712,7 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
 //MED
     else if(xWeapon == WID_PROXIMITY_GUN)
     {
+        SuperDamageSound();
         player_rocket1(xHand);
         W_FireProximityGrenade(xHand);
         *xOutAttackFinished = time + 0.6;
@@ -3713,10 +3718,8 @@ void(float xHand) W_WeaponFrameImpl =
     // check for attack
     if(VRGetFireButtonPressed(xHand) && !VR_Forcegrab_IsHandBusy(self, xHand))
     {
-        // TODO VR: (P2) what about when we don't have any weapon equipped? Or
-        // when we have axe equipped?
-        SuperDamageSound();
-
+        // Quad's sound: not here (the trigger), but where damage is dealt: each gun's shot, a blow landing
+        // (VR_QuadSound, combat.qc).
         if(xHand == cVR_OffHand)
         {
             W_OffHandAttack();
@@ -5251,16 +5254,10 @@ SuperDamageSound
 Plays sound if needed
 ========
 */
+// A gun's shot under Quad (VR_QuadSound, combat.qc).
 void() SuperDamageSound =
 {
-    if(self.super_damage_finished > time)
-    {
-        if(self.super_sound < time)
-        {
-            self.super_sound = time + 1;
-            sound(self, CHAN_BODY, "items/damage3.wav", 1, ATTN_NORM);
-        }
-    }
+    VR_QuadSound(self, "a shot");
 };
 
 

@@ -79,12 +79,12 @@ float(entity e) VR_Deflect_IsProjectile =
 };
 
 // Batting projectiles back (vr_deflect; docs/vr-port/ROUND15.md, ROUND21.md "Deflection by blows and bashes; catching
-// grenades; ogre aim"). A batting swing is a motion whose striking part (the far end of what the hand holds: a sword's
-// tip, a gun's muzzle, the knuckles) goes vr_deflect_speed times vr_melee_speed or faster: less than a blow, and every
-// blow; an empty hand's (a fist, an open hand) only as fast as a punch (VR_BAT_FIST: a hand reaching out to catch a
-// grenade is not a swing: VR_Grenade_CatchCheck; ROUND21.md "Catching versus deflecting; returned grenades; sword bash
-// direction"). A hand in a bash's push doesn't swing: its bash bats (VR_Bash_Deflect). Each frame of it, the held
-// thing's line (its near end to its far end: the pommel to the tip, the fist to the knuckles; vr_melee.qc) is kept
+// grenades; ogre aim"). Only an armed hand bats: a weapon or a club (VR_Melee_HoldsWeapon; an empty hand never does
+// since ROUND21.md "Debug menu; quad sound; grenade catch default; no empty-hand deflection": a projectile flies past
+// it or hits you, a grenade is caught). A batting swing is a motion whose striking part (the far end of what the hand holds:
+// a sword's tip, a gun's muzzle, a club's head) goes vr_deflect_speed times vr_melee_speed or faster: less than a
+// blow, and every blow. A hand in a bash's push doesn't swing: its bash bats (VR_Bash_Deflect). Each frame of it, the
+// held thing's line (its near end to its far end: the pommel to the tip, the grip to the muzzle; vr_melee.qc) is kept
 // with both ends' velocities, for vr_deflect_window seconds. An enemy projectile whose path this frame (from a little behind it, VR_BAT_LATE, to where it will be at the frame's end) comes within
 // vr_deflect_radius (plus its size) of any of those lines is batted: so a swing a little early still bats what flies
 // into where the weapon went, and the frame rate doesn't matter (the paths are swept).
@@ -104,10 +104,11 @@ float VR_BAT_MAX_SPEED = 1500;    // and at most
 float VR_BAT_PAID_KEEP = 0.4;     // s a batting swing's stamina covers the rest of the swing (a blow landing, more batting)
 float VR_BAT_ASSIST_THROWER = 12; // degrees: the aim assist's cone round the projectile's thrower,
 float VR_BAT_ASSIST_CONE = 6;     // and round any other monster ("only when very close")
-float VR_BAT_FIST = 1;            // an empty hand's batting speed, times vr_melee_speed: a punch's (a blow's least)
+float VR_BAT_FIST = 1;            // an empty hand's punch speed, times vr_melee_speed (a blow's least)
 
-// The speed (m/s) the far end of what `b`'s hand holds must reach to bat: vr_deflect_speed times vr_melee_speed; an
-// empty hand's (a fist, an open hand, a box in the fist), a punch's at least.
+// The speed (m/s) the far end of what `b`'s hand holds must reach to bat: vr_deflect_speed times vr_melee_speed. An
+// empty hand (a fist, an open hand, a box in the fist) never bats; for it this is a punch's speed, over which it
+// doesn't catch a grenade either (VR_Grenade_HandCatches: a punch isn't a catch).
 float(entity b) VR_Deflect_Need =
 {
     float share = max(0, cvar_hget(cvarh_vr_deflect_speed));
@@ -333,7 +334,12 @@ void(float xHand, entity b) VR_Deflect = // (b: VR_Blow(xHand))
         return;
     }
 
-    if(b.mh_fresh && b.mh_thing != VR_MTHING_NONE) // (a new pose: the line moved)
+    if(!VR_Melee_HoldsWeapon(b.mh_thing))
+    {
+        return; // an empty hand bats nothing (nor its lines from before it let go of its weapon)
+    }
+
+    if(b.mh_fresh) // (a new pose: the line moved)
     {
         if(vlen(b.mh_vfar) >= VR_Deflect_Need(b))
         {

@@ -55,8 +55,9 @@ const DefaultChange defaultChanges[] = {
     {13, &vr_shove_speed, "1.8"},         // the author's shoves go 3.2-4.8 m/s, his hands waved at the dummy 2.2 (round 21)
     {14, &vr_counter_glow, "1"},          // off: the author would rather play without it (round 21, "Stamina on the gadget; the glow")
     {34, &vr_spectator_scale, "1"},       // 0.75: the spectator camera's cost (ROUND21.md, "Performance fixes (review, 2026-09-28)")
+    {41, &vr_grenade_catch, "1"},         // 2: your own grenades too, the author's choice (ROUND21.md, "Debug menu; quad sound; grenade catch default; no empty-hand deflection")
 };
-constexpr int configVersion = 34;
+constexpr int configVersion = 41;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
@@ -72,9 +73,88 @@ constexpr int configVersion = 34;
     return !strcmp(a, b);
 }
 
-// Right after the saved config is executed (Cmd_Exec_f queues it). "vr_migrate_config new": there was no saved config
-// (a first start): the settings are this version's, nothing to change.
+// Two copies of the game on one config (ROUND21.md, "Debug menu; quad sound; grenade catch default; no empty-hand
+// deflection"): each writes every archived setting when it quits, as it has them, so the copy that quits last undid the
+// other's changes. The author's Catch Grenades went back to "Ogres'" that way: a copy started from TrenchBroom (vrwip,
+// 16:51) stayed open through his session in the headset (17:06), where he chose "Ogres' and yours", and quit after it.
+// Now a copy writing the config merges it, setting by setting: one changed in the file since this copy read it (by
+// another copy) and left alone here takes the file's value; one changed here is written as it is here (both changed:
+// this copy's, the last). Tracked from the load of the game folder's config (vr_migrate_config), and after each write.
+struct ConfigTrack
+{
+    bool on = false;
+    std::string gamedir;
+    std::map<std::string, std::string> file; // the archived settings in the config, as read or written
+    std::map<std::string, std::string> here; // this copy's values then
+};
+ConfigTrack configTrack;
+
+// The archived settings a config file sets (`name "value"` lines, as Cvar_WriteVariables writes them).
+[[nodiscard]] std::map<std::string, std::string> readConfigSettings(const char* path)
+{
+    std::map<std::string, std::string> settings;
+    FILE* f = fopen(path, "rb");
+    if(!f)
+    {
+        return settings;
+    }
+    std::string line;
+    for(int c = 0; c != EOF;)
+    {
+        c = fgetc(f);
+        if(c != '\n' && c != '\r' && c != EOF)
+        {
+            line += static_cast<char>(c);
+            continue;
+        }
+        const size_t space = line.find(' ');
+        const size_t open = space == std::string::npos ? space : line.find('"', space);
+        const size_t close = line.rfind('"');
+        if(open != std::string::npos && close > open && line.find_first_not_of(' ', space) == open)
+        {
+            const std::string name = line.substr(0, space);
+            const cvar_t* var = Cvar_FindVar(name.c_str());
+            if(var && (var->flags & CVAR_ARCHIVE))
+            {
+                settings[name] = line.substr(open + 1, close - open - 1);
+            }
+        }
+        line.clear();
+    }
+    fclose(f);
+    return settings;
+}
+
+[[nodiscard]] std::map<std::string, std::string> archivedSettings()
+{
+    std::map<std::string, std::string> settings;
+    for(const cvar_t* var = Cvar_FindVarAfter("", CVAR_ARCHIVE); var; var = Cvar_FindVarAfter(var->name, CVAR_ARCHIVE))
+    {
+        settings[var->name] = var->string;
+    }
+    return settings;
+}
+
+void trackConfig(const char* path)
+{
+    configTrack.on = true;
+    configTrack.gamedir = com_gamedir;
+    configTrack.file = readConfigSettings(path);
+    configTrack.here = archivedSettings();
+}
+
+void migrateConfig();
+
+// Right after the saved config is executed (Cmd_Exec_f queues it).
 void migrateConfig_f()
+{
+    migrateConfig();
+    trackConfig(va("%s/%s", com_gamedir, CONFIG_NAME));
+}
+
+// "vr_migrate_config new": there was no saved config (a first start): the settings are this version's, nothing to
+// change.
+void migrateConfig()
 {
     bodycal::migrate(); // round 21's arm settings, whatever the version (they are moved, not changed in place)
     if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "new"))
@@ -295,3 +375,42 @@ void registerCvars()
 }
 
 } // namespace qvr
+
+// Host_WriteConfigurationToFile, before the game folder's config is written over: the settings another copy of the
+// game changed in it since this copy read or wrote it, and this copy left alone, are taken (configTrack).
+extern "C" void VR_ConfigMergeOthers(const char* path)
+{
+    using namespace qvr;
+    if(!configTrack.on || configTrack.gamedir != com_gamedir)
+    {
+        return;
+    }
+    for(const auto& [name, value] : readConfigSettings(path))
+    {
+        const auto was = configTrack.file.find(name);
+        if(was != configTrack.file.end() && sameValue(was->second.c_str(), value.c_str()))
+        {
+            continue; // not changed in the file
+        }
+        cvar_t* var = Cvar_FindVar(name.c_str());
+        const auto here = configTrack.here.find(name);
+        if(!var || (var->flags & (CVAR_ROM | CVAR_LOCKED)) || here == configTrack.here.end()
+           || !sameValue(here->second.c_str(), var->string) || sameValue(var->string, value.c_str()))
+        {
+            continue; // changed here too (this copy's wins), or already the same
+        }
+        Con_Printf("%s \"%s\": from another copy of the game (this one left it at \"%s\")\n", name.c_str(), value.c_str(),
+            var->string);
+        Cvar_SetQuick(var, value.c_str());
+    }
+}
+
+// After it is written: what the file holds now is this copy's.
+extern "C" void VR_ConfigWritten(const char* path)
+{
+    using namespace qvr;
+    if(configTrack.on && configTrack.gamedir == com_gamedir)
+    {
+        trackConfig(path);
+    }
+}
