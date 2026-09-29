@@ -1218,6 +1218,9 @@ and how far each is drawn moved (`meet.sh`: a gib put in the main hand by `vr_ri
 grip, a head in the off hand by `impulse 252`); `vr_debug_carry 2`'s `carry_trace.txt` has each drawn hand off its
 controller. A held club never dropped on a monster: `mon.sh` (a gib made a club by `vr_prop_tip_x_34 4`, swung and
 stabbed through a shambler 20 times; `impulse 252` at the end prints nothing while the hand still holds it).
+The firing range's prop area (ROUND21.md, "Bricks in the palm; the grenade pouch's turn; the firing range's prop area"):
+every rock and brick on a table, three wall torches and both explosive boxes: `map vrfiringrange; setpos -476 -760 41 0 -90 0`
+stands at the table (`vr_debris_list` lists the pieces on it).
 Rocks and bricks (ROUND21.md): `vr_debug_debris 1` prints a line per map (pieces, spots, rejections by reason, the
 time, the layout's hash, the server's spawn time), `2` each piece (model, skin, place, turn, size, the way out of its
 wall); `vr_debris_list [lit]` lists the pieces in the map with the light where each lies. The scratchpad's

@@ -55,4 +55,9 @@ int plan();
 // on the ground. Its kind: 1 a rock, 2 a brick; 0 if there is no such piece.
 int put(edict_t* e, int i);
 
+// A piece placed by the map (QC vr_debris_piece; its model set, precached, one of the rocks' or bricks'; its skin and
+// "angle" set): sized as the pieces lying about, level, turned by its yaw, resting on the floor at its origin (its lowest
+// corner there), its box, on the ground. Its kind: 1 a rock, 2 a brick; 0 if its model is neither.
+int putPlaced(edict_t* e);
+
 } // namespace qvr::debris

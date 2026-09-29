@@ -142,8 +142,9 @@ QVR_PROP_DEFAULT(47, Mass, "12")
 // whole, chipped and broken bricks (19 and 13 cm) both hands too (vr_props_version 39), then carried as a box, not a club.
 // Held (round 21, "Held props: grip modes, live offsets, palm grip, torch handle"): every rock and brick In the Palm (its
 // middle in the palm's, the fingers round it). The whole bricks and the broken piece were fixed (by an end) before the
-// author moved them In the Palm (2026-09-29; vr_props_version 45): their Grip X and Z, the fixed grip's, stay as the
-// offset he tried them with.
+// author moved them In the Palm (2026-09-29; vr_props_version 45). Their Grip X and Z (the fixed grip's, kept as an
+// offset) went back to 0 when he found the palm needs none (NOTES.md start_2026-09-29_23-01-20; vr_props_version 48):
+// every rock and brick In the Palm at the default offsets.
 QVR_PROP_DEFAULT(17, ID, "progs/vr_rock1.mdl")
 QVR_PROP_DEFAULT(17, ThrowDamage, "2.1")
 QVR_PROP_DEFAULT(17, MeleeDamage, "1.4")
@@ -174,8 +175,6 @@ QVR_PROP_DEFAULT(22, ThrowDamage, "2.1")
 QVR_PROP_DEFAULT(22, MeleeDamage, "2.1")
 QVR_PROP_DEFAULT(22, TwoHands, "1")
 QVR_PROP_DEFAULT(22, GripMode, "2")
-QVR_PROP_DEFAULT(22, GripX, "0.8")
-QVR_PROP_DEFAULT(22, GripZ, "-1.6")
 QVR_PROP_DEFAULT(22, TipX, "2.4")
 QVR_PROP_DEFAULT(22, ButtX, "-2.4")
 QVR_PROP_DEFAULT(23, ID, "progs/vr_brick2.mdl")
@@ -183,8 +182,6 @@ QVR_PROP_DEFAULT(23, ThrowDamage, "2.1")
 QVR_PROP_DEFAULT(23, MeleeDamage, "2.1")
 QVR_PROP_DEFAULT(23, TwoHands, "1")
 QVR_PROP_DEFAULT(23, GripMode, "2")
-QVR_PROP_DEFAULT(23, GripX, "0.8")
-QVR_PROP_DEFAULT(23, GripZ, "-1.6")
 QVR_PROP_DEFAULT(23, TipX, "2.4")
 QVR_PROP_DEFAULT(23, ButtX, "-2.4")
 QVR_PROP_DEFAULT(24, ID, "progs/vr_brick3.mdl")
@@ -197,8 +194,6 @@ QVR_PROP_DEFAULT(25, ThrowDamage, "2.1")
 QVR_PROP_DEFAULT(25, MeleeDamage, "2.1")
 QVR_PROP_DEFAULT(25, TwoHands, "1")
 QVR_PROP_DEFAULT(25, GripMode, "2")
-QVR_PROP_DEFAULT(25, GripX, "0")
-QVR_PROP_DEFAULT(25, GripZ, "-1.6")
 QVR_PROP_DEFAULT(25, TipX, "1.6")
 QVR_PROP_DEFAULT(25, ButtX, "-1.6")
 #endif

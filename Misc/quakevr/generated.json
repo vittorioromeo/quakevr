@@ -19,6 +19,14 @@
   "sha256": "cdaac9d1a26b036a6b78e3b82538c54f7bac50dc18d961aaf06dc5a65f932c54",
   "by": "make_grades.py"
  },
+ "quakevr/maps/vr_proptable.bsp": {
+  "sha256": "a7c916cd9c3c5fe9925a7b5e295db9d184e67f592bcbe4be0f913a66fcf53e08",
+  "by": "make_prop_area.py"
+ },
+ "quakevr/maps/vr_propwall.bsp": {
+  "sha256": "1265a79335b005306f8adfa4a6b9893a9ea1b7ba262abd605b560ea2e31c587e",
+  "by": "make_prop_area.py"
+ },
  "quakevr/maps/vr_spawnbutton.bsp": {
   "sha256": "258abc77a48974d8b4d8e85413e43d3c913ee284a91650a7f1f7a0fed5cc84bb",
   "by": "make_spawn_buttons.py"

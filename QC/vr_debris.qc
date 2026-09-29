@@ -87,6 +87,32 @@ void(entity e, float kind) VR_Debris_Setup =
     e.vr_impact = VR_Debris_Impact;
 };
 
+/*QUAKED vr_debris_piece (0.6 0.5 0.4) (-6 -6 0) (6 6 8)
+Quake VR: one of the rocks or bricks that lie about the maps, placed by hand (the firing range's prop table): taken,
+thrown and swung as they are, and tuned in Held Object Offsets. "model": progs/vr_rock1.mdl to vr_rock5.mdl, or
+progs/vr_brick1.mdl (whole), vr_brick2.mdl (chipped), vr_brick3.mdl (a half), vr_brick4.mdl (a broken piece); the
+first rock if not given. "angle": its yaw; "skin": which of its skins. Its size is the pieces' (vr_world_scale); it
+rests on whatever is below its origin (within 128 units). Placed whatever Rocks and Bricks' options are.
+*/
+void() vr_debris_piece =
+{
+    if(self.model == "")
+    {
+        self.model = "progs/vr_rock1.mdl";
+    }
+    setmodel(self, self.model); // (precached: VR_Debris_Precache)
+    traceline(self.origin + '0 0 1', self.origin - '0 0 128', TRUE, self);
+    setorigin(self, trace_endpos);
+    float kind = debrisplace(self);
+    if(!kind)
+    {
+        dprint(sprintf("vr_debris_piece at %v: %s is not a rock or a brick\n", self.origin, self.model));
+        remove(self);
+        return;
+    }
+    VR_Debris_Setup(self, kind);
+};
+
 // Every server frame (StartFrame): at the first of a new map, the pieces.
 void() VR_Debris_Frame =
 {

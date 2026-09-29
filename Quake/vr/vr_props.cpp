@@ -41,8 +41,8 @@ constexpr const char* keyDefaults[numKeys] = {
 // Configs archive every slot, so a slot whose shipped defaults change keeps a config's old values: vr_props_version
 // says which changes a config has seen (as vr_wofs_version for the weapons). 1: the table's first version; 26: the rocks
 // and bricks' slots; 39: the bricks two-handed; 40: the grip modes; 44: the grenade's; 45: the author's bricks and torch
-// (the round's agents number their changes apart).
-constexpr int settingsVersion = 45;
+// (the round's agents number their changes apart); 48: the bricks' grip offsets back to 0.
+constexpr int settingsVersion = 48;
 
 std::array<std::string, numSlots * numKeys> names;
 std::array<cvar_t, numSlots * numKeys> cvars{};
@@ -231,6 +231,31 @@ void migrate()
                 Cvar_SetQuick(&var, var.default_string);
                 Con_DPrintf("Held Object Offsets: %s: %s %s (was %s)\n", cvarAt(c.slot, Key::ID).string, var.name, var.string,
                     c.before);
+            }
+        }
+    }
+    // 48: the whole, chipped and broken bricks (slots 22, 23, 25) In the Palm at the default offsets, 0 (2026-09-29,
+    // NOTES.md start_2026-09-29_23-01-20: the author reset them and they looked better). A slot still its model's whose
+    // Grip X or Z is the old default takes the new one.
+    if(from < 48)
+    {
+        struct Change
+        {
+            int slot;
+            Key key;
+            float before;
+        };
+        constexpr Change changes[] = {{22, Key::GripX, 0.8f}, {22, Key::GripZ, -1.6f}, {23, Key::GripX, 0.8f},
+            {23, Key::GripZ, -1.6f}, {25, Key::GripZ, -1.6f}};
+        for(const Change& c : changes)
+        {
+            cvar_t& var = cvarAt(c.slot, c.key);
+            if(!strcmp(cvarAt(c.slot, Key::ID).string, cvarAt(c.slot, Key::ID).default_string) &&
+                std::fabs(static_cast<float>(atof(var.string)) - c.before) < 1e-4f)
+            {
+                Cvar_SetQuick(&var, var.default_string);
+                Con_DPrintf("Held Object Offsets: %s: %s %s (was %g)\n", cvarAt(c.slot, Key::ID).string, var.name, var.string,
+                    static_cast<double>(c.before));
             }
         }
     }

@@ -69,8 +69,11 @@ const DefaultChange defaultChanges[] = {
     {47, &vr_weight_stamina_max, "2"},    // 2.5
     {47, &vr_weight_stamina_add, "0"},    // 15 kg
     {47, &vr_weight_stamina_empty, "3"},  // 15 kg
+    // 48: the author's turn of a grenade from the pouch (NOTES.md vrfiringrange_2026-09-29_22-58-53).
+    {48, &vr_grenade_pouch_hold_pitch, "0"}, // -180
+    {48, &vr_grenade_pouch_hold_yaw, "0"},   // 90
 };
-constexpr int configVersion = 47;
+constexpr int configVersion = 48;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

@@ -1203,6 +1203,50 @@ const char* modelOf(int i)
     return i >= 0 && i < static_cast<int>(placements.size()) ? models[placements[static_cast<size_t>(i)].model].name : "";
 }
 
+namespace
+{
+
+// Rests `e` (model `m`, its scale and angles set) on `floor`, up `n`: its lowest corner there (along n), its box round
+// it as it lies, on the ground and still.
+void restOn(edict_t* e, const glm::vec3& floor, const glm::vec3& n, const ModelInfo& m, const glm::vec3& scale)
+{
+    const glm::mat3 drawn = held::axesFromAngles(e->v.angles, false);
+    std::vector<glm::vec3>& verts = scratch.verts;
+    glm::vec3 lo{1e9f}, hi{-1e9f};
+    float lowest = 0.f;
+    if(held::drawnVertices(e, verts) && !verts.empty())
+    {
+        lowest = 1e9f;
+        for(const glm::vec3& v : verts)
+        {
+            const glm::vec3 w = drawn * v;
+            lowest = std::min(lowest, glm::dot(w, n));
+            lo = glm::min(lo, w);
+            hi = glm::max(hi, w);
+        }
+    }
+    else
+    {
+        lo = m.lo * scale;
+        hi = m.hi * scale;
+        lowest = lo.z;
+    }
+    const glm::vec3 origin = floor - n * lowest + n * 0.02f;
+    for(int k = 0; k < 3; k++)
+    {
+        e->v.origin[k] = origin[k];
+        e->v.mins[k] = lo[k];
+        e->v.maxs[k] = hi[k];
+        e->v.size[k] = hi[k] - lo[k];
+    }
+    e->v.flags = static_cast<float>(static_cast<int>(e->v.flags) | FL_ONGROUND);
+    e->v.groundentity = EDICT_TO_PROG(qcvm->edicts);
+    e->v.velocity[0] = e->v.velocity[1] = e->v.velocity[2] = 0.f;
+    SV_LinkEdict(e, false);
+}
+
+} // namespace
+
 int put(edict_t* e, int i)
 {
     if(i < 0 || i >= static_cast<int>(placements.size()))
@@ -1223,42 +1267,32 @@ int put(edict_t* e, int i)
     const glm::mat3 axes = p.onSide ? glm::mat3{fwd, n, glm::cross(fwd, n)} : glm::mat3{fwd, glm::cross(n, fwd), n};
     held::anglesFromAxes(axes, e->v.angles, false);
 
-    // Resting on its lowest corner along the floor's normal; its box round it as it lies.
-    const glm::mat3 drawn = held::axesFromAngles(e->v.angles, false);
-    std::vector<glm::vec3>& verts = scratch.verts;
-    glm::vec3 lo{1e9f}, hi{-1e9f};
-    float lowest = 0.f;
-    if(held::drawnVertices(e, verts) && !verts.empty())
-    {
-        lowest = 1e9f;
-        for(const glm::vec3& v : verts)
-        {
-            const glm::vec3 w = drawn * v;
-            lowest = std::min(lowest, glm::dot(w, n));
-            lo = glm::min(lo, w);
-            hi = glm::max(hi, w);
-        }
-    }
-    else
-    {
-        const ModelInfo& m = models[p.model];
-        lo = m.lo * p.scale;
-        hi = m.hi * p.scale;
-        lowest = lo.z;
-    }
-    const glm::vec3 origin = p.floor - n * lowest + n * 0.02f;
-    for(int k = 0; k < 3; k++)
-    {
-        e->v.origin[k] = origin[k];
-        e->v.mins[k] = lo[k];
-        e->v.maxs[k] = hi[k];
-        e->v.size[k] = hi[k] - lo[k];
-    }
-    e->v.flags = static_cast<float>(static_cast<int>(e->v.flags) | FL_ONGROUND);
-    e->v.groundentity = EDICT_TO_PROG(qcvm->edicts);
-    e->v.velocity[0] = e->v.velocity[1] = e->v.velocity[2] = 0.f;
-    SV_LinkEdict(e, false);
+    restOn(e, p.floor, n, models[p.model], p.scale);
     return models[p.model].kind;
+}
+
+int putPlaced(edict_t* e)
+{
+    const char* name = PR_GetString(e->v.model);
+    const auto m = std::find_if(std::begin(models), std::end(models), [&](const ModelInfo& info) { return !strcmp(info.name, name); });
+    if(m == std::end(models))
+    {
+        return 0;
+    }
+    if(!m->loaded)
+    {
+        loadModel(*m); // (its box, if its vertices can't be had)
+    }
+    // As big as the pieces lying about (pickScale's middle), level, turned by its "angle".
+    const glm::vec3 scale{std::clamp(vr_world_scale.value, 0.5f, 3.f)};
+    progs::setFieldVec(e, fields().model_scale, scale - glm::vec3{1.f});
+    e->v.frame = 0.f;
+    const float yaw = glm::radians(e->v.angles[1]);
+    const glm::vec3 up{0.f, 0.f, 1.f};
+    const glm::vec3 fwd{std::cos(yaw), std::sin(yaw), 0.f};
+    held::anglesFromAxes(glm::mat3{fwd, glm::cross(up, fwd), up}, e->v.angles, false);
+    restOn(e, glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]}, up, *m, scale);
+    return m->kind;
 }
 
 } // namespace qvr::debris

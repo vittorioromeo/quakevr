@@ -737,6 +737,13 @@ void PF_debrisput()
     G_FLOAT(OFS_RETURN) = static_cast<float>(debris::put(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1))));
 }
 
+// float(entity e) debrisplace: a piece the map placed (vr_debris_piece, its model set): sized, turned by its yaw and
+// resting on the floor at its origin, its box; its kind (1 a rock, 2 a brick; 0: not one of their models).
+void PF_debrisplace()
+{
+    G_FLOAT(OFS_RETURN) = static_cast<float>(debris::putPlaced(G_EDICT(OFS_PARM0)));
+}
+
 // Precise hit detection (vr_hitmodel.cpp). hitmodel_target(e): whether e's model is what is hit (the option on, a
 // monster or corpse with a Quake model).
 void PF_hitmodel_target()
@@ -802,6 +809,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"debrisplan", PF_debrisplan},
     {"debrismodel", PF_debrismodel},
     {"debrisput", PF_debrisput},
+    {"debrisplace", PF_debrisplace},
     {"modelpoint", PF_modelpoint},
     {"physicspush", PF_physicspush},
     {"ropestep", PF_ropestep},

@@ -981,3 +981,139 @@
 "angle" "90"
 "targetname" "dummyattacks"
 }
+{
+"classname" "func_wall"
+"model" "maps/vr_proptable.bsp"
+"origin" "-416 -800 17"
+"_proparea" "1"
+}
+{
+"classname" "func_wall"
+"model" "maps/vr_propwall.bsp"
+"origin" "-600 -760 17"
+"_proparea" "1"
+}
+{
+"classname" "vr_debris_piece"
+"model" "progs/vr_rock1.mdl"
+"origin" "-536 -800 55"
+"angle" "0"
+"_proparea" "1"
+}
+{
+"classname" "vr_debris_piece"
+"model" "progs/vr_rock2.mdl"
+"origin" "-506 -800 55"
+"angle" "40"
+"_proparea" "1"
+}
+{
+"classname" "vr_debris_piece"
+"model" "progs/vr_rock3.mdl"
+"origin" "-476 -800 55"
+"angle" "80"
+"_proparea" "1"
+}
+{
+"classname" "vr_debris_piece"
+"model" "progs/vr_rock4.mdl"
+"origin" "-446 -800 55"
+"angle" "120"
+"_proparea" "1"
+}
+{
+"classname" "vr_debris_piece"
+"model" "progs/vr_rock5.mdl"
+"origin" "-416 -800 55"
+"angle" "160"
+"_proparea" "1"
+}
+{
+"classname" "vr_debris_piece"
+"model" "progs/vr_brick1.mdl"
+"origin" "-380 -800 55"
+"angle" "90"
+"_proparea" "1"
+}
+{
+"classname" "vr_debris_piece"
+"model" "progs/vr_brick2.mdl"
+"origin" "-351 -800 55"
+"angle" "90"
+"_proparea" "1"
+}
+{
+"classname" "vr_debris_piece"
+"model" "progs/vr_brick3.mdl"
+"origin" "-322 -800 55"
+"angle" "90"
+"_proparea" "1"
+}
+{
+"classname" "vr_debris_piece"
+"model" "progs/vr_brick4.mdl"
+"origin" "-293 -800 55"
+"angle" "90"
+"_proparea" "1"
+}
+{
+"classname" "light_torch_small_walltorch"
+"origin" "-590 -728 75"
+"_proparea" "1"
+}
+{
+"classname" "light_torch_small_walltorch"
+"origin" "-590 -760 75"
+"_proparea" "1"
+}
+{
+"classname" "light_torch_small_walltorch"
+"origin" "-590 -792 75"
+"_proparea" "1"
+}
+{
+"classname" "misc_explobox"
+"origin" "-240 -808 17"
+"_proparea" "1"
+}
+{
+"classname" "misc_explobox2"
+"origin" "-240 -864 17"
+"_proparea" "1"
+}
+{
+"classname" "func_worldtext_banner"
+"origin" "-476 -779 33"
+"angle" "90"
+"worldtext" "rocks"
+"worldtext_halign" "1"
+"worldtext_scale" "0.2"
+"_proparea" "1"
+}
+{
+"classname" "func_worldtext_banner"
+"origin" "-336 -779 33"
+"angle" "90"
+"worldtext" "bricks"
+"worldtext_halign" "1"
+"worldtext_scale" "0.2"
+"_proparea" "1"
+}
+{
+"classname" "func_worldtext_banner"
+"origin" "-599 -760 103"
+"angle" "0"
+"worldtext" "torches"
+"worldtext_halign" "1"
+"worldtext_scale" "0.25"
+"_proparea" "1"
+}
+{
+"classname" "func_worldtext_banner"
+"origin" "-416 -752 89"
+"angle" "90"
+"worldtext" "props: tune them in Held Object Offsets"
+"worldtext_halign" "1"
+"worldtext_scale" "0.3"
+"_proparea" "1"
+}

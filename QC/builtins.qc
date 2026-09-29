@@ -200,6 +200,7 @@ float(float mass) weightleniency = #0;
 float() debrisplan = #0;
 string(float i) debrismodel = #0;
 float(entity e, float i) debrisput = #0;
+float(entity e) debrisplace = #0; // a piece the map placed (vr_debris_piece, its model set): sized, turned by its yaw, resting on the floor at its origin; its kind (0: not a rock or brick model)
 vector(entity e, vector angles, vector point) modelpoint = #0; // where a point of e's model (its axes: x forward, y left, z up) is from its origin, turned by angles as drawn
 // A hand's push on a rigid body: the point `at` gets at least `vel`'s speed along it (an impulse there: a tall box pushed
 // high tips over). FALSE if Box3D doesn't move it. `mass` (kg, 0 or none: no limit): what pushes weighs that much, so the

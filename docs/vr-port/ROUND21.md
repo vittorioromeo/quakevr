@@ -13200,3 +13200,38 @@ empty hammer 0 in 12 presses).
 - Pommel strikes and gun butt strikes land about 50 ms sooner. Tell me if close sword or axe cuts now read as pommel
   strikes (the dummy says "pommel"); Pommel Strike Wait 0.1 is the old behaviour.
 - Hold the hammer with no cells and squeeze the trigger: silence. An empty gun still clicks.
+
+## Bricks in the palm; the grenade pouch's turn; the firing range's prop area
+
+Voice notes start_2026-09-29_23-01-20 ("every brick should have in the palm grip method and it should have the default
+offsets"; "add a selection of props to the vrfiringrange map so that I could try them and tweak them") and
+vrfiringrange_2026-09-29_22-58-53 ("I've tweaked the orientation of the grenade [...] from the grenade pouch").
+
+- **Every rock and brick In the Palm at the default offsets.** The rocks and the half brick were already; the whole,
+  chipped and broken bricks (slots 22, 23, 25: `vr_prop_*_23`, `_24`, `_26`) had kept their old fixed grip's Grip X and
+  Z as an offset. They go to 0: `vr_prop_grip_x_23` 0.8 -> 0, `vr_prop_grip_z_23` -1.6 -> 0, `vr_prop_grip_x_24` 0.8 ->
+  0, `vr_prop_grip_z_24` -1.6 -> 0, `vr_prop_grip_z_26` -1.6 -> 0 (`vr_prop_grip_x_26` was 0). `vr_props_version` 48
+  (the cvar's default too, so a fresh config skips it) moves a config's value only if it is still the old default and
+  the slot still the brick's. His config also had Handle Tilt 0 on the two whole bricks (`vr_prop_handle_tilt_23|24`):
+  not promoted, a handle grip's setting that In the Palm doesn't read.
+- **The grenade pouch's turn**: his values become the defaults: `vr_grenade_pouch_hold_pitch` 0 -> -180,
+  `vr_grenade_pouch_hold_yaw` 0 -> 90 (roll stays 0). `vr_cfg_version` 48 moves a config still at 0.
+- Nothing else in his config is a prop or offset change: his weapon offsets are the shipped ones. Left as his own:
+  the body and height calibration, `vr_floor_offset` -22 (shipped -21), `vr_world_scale` 1.2 (shipped 1.25), the
+  display settings, and a Held Object Offsets slot he made for `maps/b_rock0.bsp` (the small rocket box) with every
+  value at its default (it does nothing yet).
+- **The firing range's prop area** (`Misc/quakevr/make_prop_area.py`): the platform's south-west corner, between the
+  first row of monster buttons and the weapon pads (about 10 m west of the start, 500 units from the training dummy).
+  A table (`maps/vr_proptable.bsp`, 296 x 40 units, 32 high) with the five rocks on its west half and the four bricks
+  on its east half, labelled; a wall against the west railing beside it (`maps/vr_propwall.bsp`) with three wall
+  torches at chest height; both explosive boxes past the table's east end; a board "props: tune them in Held Object
+  Offsets". vrfiringrange.bsp has no matching source any more (the 2021 .map in the old repository predates its
+  entity file), so as for the second row of monster buttons (`make_spawn_buttons.py`) the brushes are small external
+  brush models, compiled with ericw-tools 2.0.0-alpha11 (qbsp -nofill, light -extra4, quakevr_dev.wad's textures),
+  and the entities are appended at the end of `vrfiringrange.ent`, each with a `_proparea` key the script replaces on
+  a rerun: no entity before them is renumbered (the dummy is still entity 137).
+- **`vr_debris_piece`** (QC vr_debris.qc; FGD entry with a model preview): a rock or brick placed by the map ("model":
+  progs/vr_rock1-5.mdl, vr_brick1-4.mdl; "angle"; "skin"), set up as the pieces lying about (VR_Debris_Setup), placed
+  whatever the Rocks and Bricks options are. Its new builtin `debrisplace(e)` (vr_debris.cpp `putPlaced`, sharing
+  `put`'s resting code) sizes it as they are (vr_world_scale), levels it, turns it by its yaw and rests its lowest
+  corner on the floor below its origin.

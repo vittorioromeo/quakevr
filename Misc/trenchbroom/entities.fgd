@@ -717,3 +717,35 @@ Ambient swamp (ambience/swamp1.wav), always on." []
 @PointClass = ambient_swamp2 : "Swamp (frogs, B)
 
 Ambient swamp (ambience/swamp2.wav), always on." []
+
+@PointClass base(Appearflags) size(-6 -6 0, 6 6 8) color(153 128 102) model({{
+	model == "progs/vr_rock2.mdl" -> "progs/vr_rock2.mdl",
+	model == "progs/vr_rock3.mdl" -> "progs/vr_rock3.mdl",
+	model == "progs/vr_rock4.mdl" -> "progs/vr_rock4.mdl",
+	model == "progs/vr_rock5.mdl" -> "progs/vr_rock5.mdl",
+	model == "progs/vr_brick1.mdl" -> "progs/vr_brick1.mdl",
+	model == "progs/vr_brick2.mdl" -> "progs/vr_brick2.mdl",
+	model == "progs/vr_brick3.mdl" -> "progs/vr_brick3.mdl",
+	model == "progs/vr_brick4.mdl" -> "progs/vr_brick4.mdl",
+	"progs/vr_rock1.mdl"
+}}) = vr_debris_piece : "Rock or brick (Quake VR)
+
+One of the rocks or bricks that lie about the maps, placed by hand (the firing range's prop table): taken, thrown and
+swung as they are, and tuned in Held Object Offsets. It is as big as the pieces lying about (vr_world_scale) and rests
+on whatever is below its origin (within 128 units), whatever Rocks and Bricks' options are."
+[
+	model(choices) : "Model" : "progs/vr_rock1.mdl" : "Which rock or brick." =
+	[
+		"progs/vr_rock1.mdl" : "Rock 1"
+		"progs/vr_rock2.mdl" : "Rock 2"
+		"progs/vr_rock3.mdl" : "Rock 3"
+		"progs/vr_rock4.mdl" : "Rock 4"
+		"progs/vr_rock5.mdl" : "Rock 5"
+		"progs/vr_brick1.mdl" : "Brick (whole)"
+		"progs/vr_brick2.mdl" : "Brick (whole, chipped)"
+		"progs/vr_brick3.mdl" : "Brick (a half)"
+		"progs/vr_brick4.mdl" : "Brick (a broken piece)"
+	]
+	angle(integer) : "Yaw" : 0 : "Its turn about the vertical."
+	skin(integer) : "Skin" : 0 : "Which of its skins."
+]
