@@ -65,7 +65,7 @@ void VR_TimeInit (void);	// VR_Init: the commands
 void VR_TimeMark (const char *stage);	// a stage of the start-up or of a map's load just ended
 void VR_TimeLoadBegin (const char *what);	// SV_SpawnServer, CL_ParseServerInfo: a map's load starts
 void VR_TimeAdd (const char *what, double seconds);	// time spent in a kind of work (model loads, normal maps...), summed per stage group
-void VR_TimeFrameEnd (int signedon);
+void VR_TimeFrameEnd (int signedon, int idle);	// end of _Host_Frame: the first frame ends the start-up, the first signed on a load; idle (no server, not connected) ends a load that failed
 
 // The loose files' presence while the game starts and a map loads (vr_fscache.cpp; COM_FindFile, Sys_fopen).
 int VR_FileCacheHas (const char *path);	// 1 a file, 0 none, -1 not known (ask the file system)

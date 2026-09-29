@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "vr/vr_api_render.h" // QVR
+#include "vr/vr_api.h" // QVR: start-up timing
 #include "cfgfile.h"
 #include "bgmusic.h"
 #include "resource.h"
@@ -1327,7 +1328,11 @@ static void GL_Init (void)
 	}
 	//johnfitz
 
-	GL_CreateShaders ();
+	{
+		double t0 = Sys_DoubleTime (); // QVR: start-up timing (vr_startup_times)
+		GL_CreateShaders ();
+		VR_TimeAdd ("shaders compiled and linked (GL_CreateShaders)", Sys_DoubleTime () - t0);
+	}
 	GL_CreateFrameBuffers ();
 	GLLight_CreateResources ();
 	GLPalette_CreateResources ();

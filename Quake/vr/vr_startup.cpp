@@ -5,6 +5,7 @@
 
 #include "vr_engine.hpp"
 
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -194,9 +195,9 @@ extern "C" void VR_TimeAdd(const char* what, double seconds)
 
 extern "C" void VR_TimeLoadBegin(const char* what)
 {
-    if(load.open)
+    if(load.open && !strcmp(what, "client"))
     {
-        return; // (a server's load, then its own client's: one load)
+        return; // (a server's load, then its own client's: one load; a server's load always starts anew)
     }
     const double now = Sys_DoubleTime();
     if(startup.open)
@@ -210,9 +211,16 @@ extern "C" void VR_TimeLoadBegin(const char* what)
     VR_FileCacheEnable(1);
 }
 
-extern "C" void VR_TimeFrameEnd(int signedOn)
+extern "C" void VR_TimeFrameEnd(int signedOn, int idle)
 {
     const double now = Sys_DoubleTime();
+    if(load.open && idle)
+    {
+        load.open = false; // a load that failed (Host_Error): not timed; the file lookups ask the file system again
+        load.marks.clear();
+        load.sums.clear();
+        VR_FileCacheEnable(startup.open ? 1 : 0);
+    }
     if(load.open && signedOn)
     {
         mark(load, "first frame drawn", now);

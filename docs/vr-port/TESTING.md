@@ -734,6 +734,19 @@ shake starts (the same poses every run with `vr_fixed_frames 1`); `vr_window_log
 camera's angles each frame (Smoothed Mirror, Spectator Camera: ROUND21.md, "Recording"). The window's `screenshot` is
 the window's view; `vr_eyeshot 1` the eyes'. `vr_particle_seed <n>` (not 0) makes the particles the same in every run (their random numbers restart from it at each map), for comparing images. `vr_mock_fingers <main|off> <trigger> <grip> [<thumb>]` sets the finger
 sensors (0..1); a fifth argument sets the index finger's touch on the trigger.
+Fast test runs (ROUND21.md, "Faster tests and startup"): `vr_mock_fast 1` runs the mock headset's frames as fast as
+the machine makes them while the game's clock is fixed (`vr_fixed_frames 1`; `vr_motion_play` and `vr_motion_eval`
+not in watch mode): no frame cap, no vsync, every frame 1/72 s of game time as before, so the same frames, poses and
+numbers in less time (`wait600`: 6.7 s at `host_maxfps 90`, 1.7 s fast). Frames on the real clock (no
+`vr_fixed_frames`) keep their pace, and so does a take played in watch mode. The kit's `run.sh` sets it for every run
+(`-RealTime` leaves it off: a test that needs the wall clock with fixed frames, or measuring the frame cap). A `wait`
+waits for a server frame: on the real clock that is 1/72 s whatever the frame rate, so `wait600` is 8.3 s there;
+with `vr_fixed_frames 1` every frame is one. Sound (off in the kit) plays at the wall clock's pace, ahead of the game.
+`vr_walltime [label]` prints the wall clock and the process's CPU time since the last call; `vr_startup_times` the
+start-up's stages and the last map load's (with the work summed across them: model loads, image decoding, normal
+maps, uploads); `vr_normalmap_cache 2` makes the cached skin normal maps anyway and warns of any that differ.
+`quakevr/cache/` (the skin normal maps, `prefetch.txt`) is made again when removed: the first start after that is
+about 0.4 s slower. A timing that compares builds must run each one twice (the second run's caches are warm).
 Profiler (ROUND21.md, "Profiling: where the time goes"): `vr_profile_csv 1` collects (a row a second) without the
 panel; `vr_profile_report [s]` prints the table; the hitch log prints `vr_profile: hitch` lines. The panel is UI, so
 `vr_eyeshot` misses it: to see it in a screenshot, `vr_window_view 2; vr_spectator_fov 50; vr_spectator_scale 2;

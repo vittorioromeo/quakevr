@@ -1404,7 +1404,7 @@ void _Host_Frame (double time)
 	}
 
 	VR_HostFrameEnd (); // QVR: the motion recorder's row
-	VR_TimeFrameEnd (cls.signon == SIGNONS); // QVR: start-up and load timing
+	VR_TimeFrameEnd (cls.signon == SIGNONS, cls.state != ca_connected && !sv.active); // QVR: start-up and load timing
 	host_framecount++;
 	VR_ProfileFrameEnd (); // QVR
 }
@@ -1501,15 +1501,16 @@ void Host_Init (void)
 		M_Init ();
 		VR_TimeMark ("colormap, view, menu init"); // QVR
 		VID_Init ();
-		VR_TimeMark ("video (window, GL context)"); // QVR
+		VR_TimeMark ("video (window, GL context, the engine's shaders)"); // QVR
 		IN_Init ();
+		VR_TimeMark ("input (SDL game controllers)"); // QVR
 		TexMgr_Init (); //johnfitz
-		VR_TimeMark ("input, texture manager"); // QVR
+		VR_TimeMark ("texture manager"); // QVR
 		Draw_Init ();
 		VR_TimeMark ("draw init (conchars, pics)"); // QVR
 		SCR_Init ();
 		R_Init ();
-		VR_TimeMark ("screen, renderer init (shaders)"); // QVR
+		VR_TimeMark ("screen, renderer init"); // QVR
 		S_Init ();
 		VR_TimeMark ("sound init"); // QVR
 		CDAudio_Init ();

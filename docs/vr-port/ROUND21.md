@@ -37,6 +37,7 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | Performance fixes (review, 2026-09-28) | the spectator camera's Frame Rate (60 fps by default), Resolution Scale (0.75 by default) and Anti-Aliasing; the climbing's mantle and lenient-grab searches 5-20 times fewer traces, the props' settings found once per model (Box3D's sync 2-3 times cheaper), with the same holds, mantles and physics; wounds on a reused entity slot and the ropes' slack forgotten when their entity ends; the AO bake worker joined at quit; no GPU-sampling thread unless profiling |
 | First-hit hitch | the first shot or blow that left a mark froze the game for 0.43-0.44 s: the decals' atlas (blood, chips, scorches, the gore's marks) was drawn on the CPU at the first mark's draw. It is now drawn on a worker thread from start-up and put on the GPU as the map loads; the other first-use work (the view's own models, 0.3 s the first time; the liquids, 20-100 ms each map; the particles' atlas; the detail textures; the torch; the casings' sounds) is done in the load too. Wound painting no longer waits for the driver (glGet), and the memory log counts the GL objects as each map loads (was 12-13 ms in a frame of play) |
 | Grapple: unreel; rope drawn in one piece | the grapple hand's A (right) or X (left) held in the air lets the rope out (Unreel Speed, 300 u/s; on the ground it jumps as before): you are let down from a ceiling, a monster may walk away, a prop hanging at the gun is lowered; a reversed ratchet's ticks and a fine buzz while it runs out. The rope's links are bent along its curve on the GPU, so a short sagging rope is one smooth chain (it was straight links with holes); 0.02-0.04 ms of CPU a frame |
+| Faster tests and startup | start-up to e1m1's first frame 1.98 -> 0.95 s, to the hub's (vrstart) 1.66 -> 0.88 s; a first map load 1.58 -> 0.54 s (directory listings while loading instead of 3,500 failed file lookups; skin normal maps kept on disk; images decoded on worker threads while the window is made; the liquids' volume on threads; islands made once). The frame cap sleeps on a high-resolution timer (a 90 fps cap ran at 64). Test runs: `vr_mock_fast 1` runs fixed-step frames as fast as they come (`wait600` 9.3 -> 1.7 s), on in the kit by default; the same logs |
 
 Found on the way: fteqcc stores 0 when `a || b` is assigned into an entity field (rewritten; no other code has that
 shape); a parried blow's hand knock, timed by `cl.time`, came back after a level change (reset now).
@@ -12093,3 +12094,156 @@ blend runs a frame ahead at most); without the server's copy of the lerp (a fram
 - [ ] Melee: swing at monsters as you do; tell me if blows that look like hits miss (raise Melee Tolerance, and tell me
       the value that feels right).
 - [ ] Try the tolerances (Combat > Damage and Knockback > Hit Detection): Guns Tolerance 4 is my pick; 0 is exact.
+
+## Faster tests and startup
+
+Your request: a fast test mode for the mock headset, the frame cap's timer fixed, and why the game takes 2-3 s to
+start ("good for both players and agents").
+
+### Fast test mode
+
+`vr_mock_fast 1`: while the game's clock is fixed (`vr_fixed_frames 1`; a motion take played by `vr_motion_play` or
+`vr_motion_eval` not in watch mode), the mock headset's frames run as fast as the machine makes them: no frame cap
+(`Host_GetFrameInterval` 0 through `VR_Unpaced`), no vsync (swap interval 0 while it lasts, `vid_vsync` again after).
+Each frame is still 1/72 s of game time with a server frame, so the frames, the poses and every logged number are the
+same, only sooner. Frames on the real clock keep their pace: without `vr_fixed_frames`, a take in watch mode (paced to
+the wall clock on purpose), and the real headset (`VR_Unpaced` is the mock's only). The kit's `run.sh` sets it for
+every run (`-RealTime` leaves it off); older scripts don't change, as a run without fixed frames is paced as before.
+
+A `wait` waits for a server frame: on the real clock that is 1/72 s whatever the frame rate (`host_netinterval`), so a
+real-clock `wait600` is 8.3 s at any cap; with fixed frames every frame is a server frame.
+
+| `wait600`, fixed frames (e1m1) | Before | After |
+|---|---|---|
+| the kit's default (`host_maxfps 250` in its config) | 9.3 s (64 fps: the timer) | 1.67 s (`vr_mock_fast`, 358 fps) |
+| `-RealTime`, cap 250 | 9.3 s fresh; 3.6 s once the sleep estimate had learnt to spin | 2.41 s (249 fps) |
+| the 13 climbing plays (their play only, summed) | | 39.4 s fast, 56.7 s at cap 250 |
+| `vr_motion_eval`, 46 takes (it raised `host_maxfps` already) | 65 s | 59 s (the faster map loads) |
+
+**The same results:** the 13 climbing plays (`climb_plays.py` ladder, ladderlean, runghang, rungodd, ledge, mantle,
+ledgehang, ledgeodd, push, overtop, e1m1, lift, plat; `vr_fixed_frames 1; vr_climb_debug 2`): every `climb*` line
+identical fast and at the cap (5199 lines for the ladder), and the whole log but the ledge map's build time; the 15
+physics scenes of "Simplification" (with `vr_fixed_frames 1`): `vr_physics_hash` and `vr_physics_list` identical;
+46 melee takes (the canary set, archived, replayed with the old hand settings): the evaluation's table byte for byte
+identical fast, at the cap, and with the build before these changes.
+
+**Wall clock or frame time.** Every clock read in the VR module and the engine was checked. Gameplay reads the
+frame's clock: `realtime` (advanced by the frame's time: the fixed step with fixed frames), `cl.time`, `sv.time`,
+`host_frametime`; the haptics' queue (`runHaptics`), the stillness capture, body calibration, the grapple, climbing,
+the mock's motions (`vr_mock_play`, the shake) and the recorder all use them. The wall clock (`Sys_DoubleTime`,
+`std::chrono`) is read only to measure and print durations (climbing's search time at `vr_climb_debug 3`, the ledge
+map's, Box3D's, the debris', the wounds', the envmap's, the rope's, the hand rig's, the AO bakes', the profiler and its
+hitch log, `vr_motion_eval`'s total), for watch mode's pacing, and in the engine for network timeouts, a joystick's key
+repeat and the modal message's timeout. None needed changing. Sound mixes at the wall clock's pace (DMA), so in fast
+mode it runs ahead of the game (the kit runs silent). The AO bakes run on worker threads: a screenshot taken a fixed
+number of frames after a load can catch a model before or after its bake, in any mode.
+
+### The frame cap's timer
+
+The cap slept with `SDL_Delay (1)` until about 2 ms before the frame's end, then spun. SDL asks Windows for a 1 ms
+timer (`timeBeginPeriod`), but Windows 11 ignores that while the window is hidden or covered (a test run in the
+background; a player's desktop window behind other windows): each 1 ms sleep took 15.6 ms and a cap of 90 or 120 ran at
+64 fps. It now sleeps on a high-resolution waitable timer (`CREATE_WAITABLE_TIMER_HIGH_RESOLUTION`, Windows 10 1803
+and later: precise whatever the system timer), once, up to its learnt lateness (mean plus 1.5 deviations, 0.05-2 ms),
+then spins the rest; without such a timer (other systems) the old loop. With a headset the runtime paces the frames
+(`xrWaitFrame`) and the cap's wait is under a frame, so a player at the cap's default sees no change.
+
+| Mock, fixed frames, `wait600` after 600 frames of warm-up | Before | After |
+|---|---|---|
+| `host_maxfps 90` | 64 fps, 9.38 s, CPU 1.50 s | 89.9 fps, 6.68 s, CPU 0.92 s |
+| `host_maxfps 120` | 64 fps, 9.32 s, CPU 1.47 s | 119.9 fps, 5.00 s, CPU 0.97 s |
+| `host_maxfps 250` | 167 fps, 3.60 s, CPU 2.39 s (spinning) | 249 fps, 2.41 s, CPU 1.06 s |
+| unpaced (`vr_mock_fast`) | 1.83 s, CPU 1.16 s | 1.67 s, CPU 0.78 s |
+
+CPU is the whole process's (all threads) over the 600 frames: the frames' own work is about 0.78 s; waiting at the
+90 fps cap now costs 0.14 s over 6.7 s (about 2% of a core): no busy spinning.
+
+### Start-up and map loads
+
+`vr_startup_times` prints the start-up (process start to the first frame drawn: the loader, each `Host_Init` stage,
+the first frame's configs and the VR backend's start) and the last map load (the server's BSP, entities, first frames;
+the client's precaches; `R_NewMap`; each `VR_NewMap` step; the first frame drawn), with the work summed across the
+stages (model loads, image decoding, the normal maps, texture uploads, file lookups that found nothing); `developer 1`
+prints them as they end. Measured with the mock (the kit's `run.sh --exclusive`, the mean of two warm runs):
+
+| Stage | Before (ms) | After (ms) |
+|---|---|---|
+| before main (loader, DLLs, C runtime) | 9.8 | 9.0 |
+| filesystem, cvars, commands, console, progs, net, server init | 11.6 | 11.5 |
+| VR init (270 before the limits round: the cvars' linear search) | 3.5 | 12.5 (reads the images to decode ahead) |
+| video: the window, the GL context and the engine's shaders (115: `GL_CreateShaders`) | 282.1 | 276.1 |
+| input (SDL's game controllers, 45) and the texture manager | 47.7 | 47.2 |
+| draw, screen, renderer, sound, status bar, client, lists | 9.4 | 8.9 |
+| the first frame: the VR backend's start, the configs (quake.rc; 540 before the limits round) | 39.3 | 40.0 |
+| **e1m1's load** (below) | 1578.9 | 544.8 |
+| **process start to e1m1's first frame** (the kit's start) | **1982.6** | **949.9** |
+| process start to the hub's first frame (vrstart, as a player starts) | 1664.8 | 879.0 |
+| the same as the kit's, the first run with no cache (cache/ emptied) | | 1384.7 |
+
+| e1m1's load (the session's first) | Before (ms) | After (ms) |
+|---|---|---|
+| server: the BSP (its textures' external images, .lit and relit looked for) | 114.8 | 18.0 |
+| server: entities spawned (the monsters' and items' models) | 737.6 | 146.6 |
+| server: 2 frames (Box3D's world mesh 35, the ledge map 25) | 47.5 | 50.1 |
+| server: baseline, serverinfo, VR after load (the hit models) | 30.6 | 28.8 |
+| client: models precached | 150.7 | 116.7 |
+| lightmaps, brush model buffers | 5.0 | 5.0 |
+| VR_NewMap: particle atlas, detail textures, decal atlas | 29.4 | 21.5 |
+| VR_NewMap: liquids (the caustics' volume, the wave mesh) | 100.1 | 30.2 |
+| VR_NewMap: the view's models (hands, body, weapons, gadget, holster) | 283.4 | 55.9 |
+| VR_NewMap: torch, casings, the memory log's GL count | 19.9 | 14.4 |
+| the first frame drawn | 56.7 | 54.5 |
+| **total** | **1578.9** | **544.8** |
+| a second map (e1m2 after e1m1) | about 410 | about 210 |
+| of it: file lookups that found nothing (692) | 429 | 12 |
+| of it: images decoded (74: authored normal maps, the body's and hands' skins) | 139 | 24 |
+| of it: normal maps made from skins (60) | 222 | 14 (read from the cache) |
+| of it: skin islands (for the heights) | 60 + 100 (MD5) | 40 + 5 |
+
+What changed:
+
+- **File lookups while loading** (`vr_fscache.cpp`): a model's load looks for optional files that mostly don't exist:
+  its replacement skins in png, tga, jpg, pcx and lmp, its md5 and md3 replacements, its normal maps, in every game
+  folder. Each miss asked Windows (`GetFileAttributes`, about 0.12 ms): 3,500 misses, 0.43 s of the first load, and
+  most of the BSP's 115 ms. While the game starts and while a map loads, each folder looked in is listed once and a
+  lookup is answered from the listing. Any file written, renamed or removed and any folder made through the engine
+  forgets the listings; outside those windows every lookup asks the file system as before, so a map compiled in
+  TrenchBroom while the game runs is found.
+- **Skin normal maps on disk** (`vr_texcache.cpp`): the normal maps made from a model skin's colours
+  (`TexMgr_SkinToNormals`, 3-4 ms a skin) are kept in `quakevr/cache/normalmaps/<build>/`, a file per map (6 MB for
+  e1m1 and the view's models), keyed by a hash of all the making reads (the texels, their size, heights or not, the
+  texels per unit, the skin's triangles). `<build>` is `gl_texmgr.c`'s compile time, so a changed maker never reads an
+  old map; other builds' folders are removed at the first write. `vr_normalmap_cache 2` makes every map anyway and
+  compares: 72 of 72 identical. `vr_normalmap_cache 0` turns it off.
+- **Images decoded ahead** (`vr_imgprefetch.cpp`): the PNGs the last session's start-up and first load decoded
+  (`quakevr/cache/prefetch.txt`: the 40 authored normal maps, up to 1024 x 1024) are read as the game's lookup finds
+  them at `VR_Init` and decoded on worker threads while the window and the GL context are made (the main thread waits
+  on the driver then). `Image_LoadImage` takes one only if the file it opens holds exactly the same bytes (compared);
+  else it decodes as before. What isn't taken is freed at the end of the first load, where the workers are joined (or
+  at shutdown).
+- **The liquids' volume** (the caustics' 3D texture): up to 4 million points looked up in the BSP, now on worker
+  threads (joined before the upload; the same texels): 87 -> 20 ms, each e1m1 load.
+- **Skin islands** (the parts of a skin its triangles cover, for the heights at seams): the body's 16 skins and the
+  hands' 4 made them 20 times at 1024 x 1024; now once per surface. An alias model's are made only when a normal map is
+  made anew (not read from the cache, not an authored map without heights): `TexMgr_SetHeightMaskLazy`.
+- The first-use work moved into the load ("First-hit hitch") stays in the load: the view's models are loaded there as
+  before, only faster (283 -> 56 ms).
+
+**Images:** the eyes' screenshots (`vr_eyeshot 1`, `vr_fixed_frames 1`, `vr_particle_seed 7`) in e1m1 with the
+shotgun and the hands in view and in the hub, after the models' AO bakes had finished, are identical before and after,
+or differ by 1-2 levels in a handful of pixels as two runs of the same build do (the AO bakes' timing). Taken 150
+frames after the load, one differed by up to 29 levels on the shotgun's edge: its AO bake had not finished yet, as the
+load now ends sooner; the same shot later is identical.
+
+**The kit:** `run.sh` with `map e1m1; quit` takes 1.42 s (2.13 s before these changes, 2.7-2.9 s before the limits
+round's config and cvar fixes).
+
+**What's left** (not changed): the window and GL context (160 ms, the driver) and the shaders (115 ms); SDL's game controller init (45 ms: it
+could start after the first frame); Box3D's world mesh (35 ms) and the ledge map (25 ms) each load (a cache per BSP
+would save them); the first frame drawn (55 ms); the particles' atlas (18 ms); the islands of authored maps with
+heights (40 ms); the memory log's GL count (11 ms, `vr_memstats_log`). Tried and dropped: the engine's shaders kept as
+the driver's binaries (`glGetProgramBinary`): loading them took as long as compiling with the driver's own shader
+cache (106-116 ms for the 98 programs), and without that cache (a new driver) they are compiled anyway: 9.5 s once.
+The VR module's own programs compile as they are first used, within the load. A real headset adds
+the OpenXR runtime's session start, which the mock can't measure. Real cold starts (after a reboot, the files not in
+memory) couldn't be measured without clearing Windows' file cache.
