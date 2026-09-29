@@ -38,6 +38,7 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | First-hit hitch | the first shot or blow that left a mark froze the game for 0.43-0.44 s: the decals' atlas (blood, chips, scorches, the gore's marks) was drawn on the CPU at the first mark's draw. It is now drawn on a worker thread from start-up and put on the GPU as the map loads; the other first-use work (the view's own models, 0.3 s the first time; the liquids, 20-100 ms each map; the particles' atlas; the detail textures; the torch; the casings' sounds) is done in the load too. Wound painting no longer waits for the driver (glGet), and the memory log counts the GL objects as each map loads (was 12-13 ms in a frame of play) |
 | Grapple: unreel; rope drawn in one piece | the grapple hand's A (right) or X (left) held in the air lets the rope out (Unreel Speed, 300 u/s; on the ground it jumps as before): you are let down from a ceiling, a monster may walk away, a prop hanging at the gun is lowered; a reversed ratchet's ticks and a fine buzz while it runs out. The rope's links are bent along its curve on the GPU, so a short sagging rope is one smooth chain (it was straight links with holes); 0.02-0.04 ms of CPU a frame |
 | Faster tests and startup | start-up to e1m1's first frame 1.98 -> 0.95 s, to the hub's (vrstart) 1.66 -> 0.88 s; a first map load 1.58 -> 0.54 s (directory listings while loading instead of 3,500 failed file lookups; skin normal maps kept on disk; images decoded on worker threads while the window is made; the liquids' volume on threads; islands made once). The frame cap sleeps on a high-resolution timer (a 90 fps cap ran at 64). Test runs: `vr_mock_fast 1` runs fixed-step frames as fast as they come (`wait600` 9.3 -> 1.7 s), on in the kit by default; the same logs |
+| Engine state cleanup (`static std::`) and QuakeC loops | the C++ systems' 90 function-local `static std::` containers and 20 `thread_local` ones moved into each system's registered scratch set or cache (`vr_mem.hpp`): the same reuse, given back at each map change, caches emptied on their events, counted by `vr_memstats` and `vr_limits`; C++ allocations a frame in the profiler; the wounds' and liquids' QuakeC loops step through the monsters only (`findflags`): QuakeC instructions a frame 4,235 -> 2,410 (e1m1), 6,182 -> 3,806 (firing range), 6,530 -> 2,868 (e2m2); `edict <n>` past the edicts no longer ends the game; `vr_limits` shows the zone's size |
 
 Found on the way: fteqcc stores 0 when `a || b` is assigned into an entity field (rewritten; no other code has that
 shape); a parried blow's hand knock, timed by `cl.time`, came back after a level change (reset now).
@@ -12247,3 +12248,146 @@ cache (106-116 ms for the 98 programs), and without that cache (a new driver) th
 The VR module's own programs compile as they are first used, within the load. A real headset adds
 the OpenXR runtime's session start, which the mock can't measure. Real cold starts (after a reboot, the files not in
 memory) couldn't be measured without clearing Windows' file cache.
+
+## Engine state cleanup (`static std::`) and QuakeC loops
+
+Your question: the C++ used a lot of `static std::vector` (and strings, maps) inside functions for caching; is that a
+good idea? Not as it was: such a buffer is hidden (nothing lists it), never given back (a one-off peak stays for the
+session), never counted, never emptied when what it was made from goes away (the debris's texture colours were keyed
+by pointers into the hunk), and nothing says which thread may touch it. Every one now lives in its system's state,
+with the same reuse (no allocation once warm), given back or emptied on a named event, and counted.
+
+### How it works now (`Quake/vr/vr_mem.hpp`, `docs/vr-port/CODE_STYLE.md`)
+
+- **Scratch** (contents mean nothing between calls): each file's struct of containers, `mem::Scratch<ClimbScratch>
+  scratch{"climb"}`; the function takes a reference (`std::vector<int>& nearby = scratch.nearby;`) and clears it as
+  before. The sets are given back at every map change (`VR_OnClearMemory`): the first frames of a map grow them again.
+- **Caches** (results kept for a key): `mem::Cache` with the events that make them stale: `MapChange`,
+  `GameDirChange` (`VR_OnGameDirChanged`), `ModelReload` (`vr_model_reload`, `vr_hand_reload`), or `Never` (counted
+  only; its owner empties it). The existing explicit resets (`resetServerWorld`, `VR_OnClientClearState`, the game
+  directory's list) are kept.
+- `members()` lists a struct's members; a `static_assert` checks the list is complete (their sizes add up).
+- **Counted:** `vr_memstats` prints the scratch and cache totals and the six largest sets; `vr_limits` the totals
+  (firing range: 114 KiB of scratch in 23 sets, box3d 66, held 38, view hands 9; caches 1 KiB in 4).
+- **Threads:** every registered set is the main thread's. The workers already owned their data: the AO bake (its
+  job's copy, a mutex queue back; the ray directions are now a constant made before `main`), the decal atlas
+  (`std::async`: constant tables and a `thread_local` RNG, kept: the same helper runs on the main thread for
+  `vr_decal_atlas`), the image prefetch (items under its mutex), the liquids' volume (disjoint layers, the BSP only
+  read), the motion recorder's writes (captured by value, the rows shared read-only), the GPU stats sampler (under its
+  mutex). The 20 `thread_local` buffers in box3d, held, ledges, debris, props and hitmodel all ran on the main thread
+  (Box3D steps with one worker, the caller's): they are scratch sets like the rest.
+- **GL objects:** none of these held one (GL names are plain ids, freed by their systems; `vid_restart` keeps the GL
+  context, only the engine's framebuffers are made again), so no static destructor touches GL.
+- **Allocations a frame:** `vr_alloccount.cpp` counts the main thread's `operator new` calls; `vr_profile_report`'s
+  counts gain "allocations" (avg/max a frame), and the systems CSV a column.
+
+### Every site
+
+The 90 matches of `static (const)? std::` in `Quake/vr` (lines at e6a06735), and the 20 `thread_local` ones. Class: a
+scratch (readout: text returned by pointer, valid until the next call), b cache, c constant, d other state.
+
+| Site | Class | Now | Emptied |
+|---|---|---|---|
+| vr_ao.cpp:513 `owners`, 538 `order` | a | `AoScratch` "ao" | map change |
+| vr_ao.cpp:749 `dirs` | c | `rayDirs`, a namespace `const` made before `main` (read by the pose threads) | never |
+| vr_bodycal.cpp:2311 `buf`, 2700 `lines[4]` | a (readouts) | `BodycalReadouts` | map change |
+| vr_bodycal.cpp:2523 `list` (cvar pointers) | c | `constexpr splitList` | never |
+| vr_climb.cpp:325, 343, 596, 597, 612, 651 | a | `ClimbScratch` "climb" | map change |
+| vr_coil.cpp:181, 182, 210 (2), 249, 275 (2) | a | `CoilScratch` "coil" | map change |
+| vr_debris.cpp:365 `cache` (+ `cacheMap`) | b | `DebrisCache`, texture to colour (it was kept across a reload of the same map, whose textures are new) | map change, game change |
+| vr_decals.cpp:697 (2), 892 | a | `DecalScratch` "decals" | map change |
+| vr_emissive.cpp:522, 629 | a | `EmissiveScratch` "emissive" (`TorchCandidate` at file scope) | map change |
+| vr_envmap.cpp:71 `src` | c | `vertexShader()` returns it by value (made once, with the program) | - |
+| vr_flashlight.cpp:1848, 1872, 1911 | a | `FlashlightScratch`; the cord's `batch`, `sides`, `builtFrame` statics: `CordDraw` (d) | map change |
+| vr_gadget.cpp:865, 944, 975, 1054, 1829, 2041 (+ the `static Lines` at 675 and 1828, the `static NotifyLine`) | a | `GadgetScratch` "gadget" (`Lines`, `NotifyLine` counted by their own `heldBytes`) | map change |
+| vr_haze.cpp:453, 454, 483 | a | `HazeScratch` "haze" | map change |
+| vr_hitmodel.cpp:1179 `worstName` (+ its doubles) | d | `CheckTotals`, the debug command's (`reset` empties it); 1195's `thread_local drawn`: a local | the command |
+| vr_lighting.cpp:488, 506, 507 | a | `CasterScratch` "shadow casters" | map change |
+| vr_lighting.cpp:686, 787, 987 | a | `ShadowScratch` "shadow lights" (`Request` moved above it) | map change |
+| vr_menu.cpp:324, 331, 3421; vr_menu_props.inc:15, 82, 278, 291 | a (readouts) | `MenuReadouts` "menu readouts" | map change |
+| vr_menu.cpp:2296, 2322, 2323; vr_menu_props.inc:104 (2), 305, 389 | b | `PageTexts`: the built pages' items point into them, so they live with the pages | never (`Never`) |
+| vr_menu.cpp:2787 `parsed` (+ `loaded`) | d | `positionsParsed`, `positionsLoaded`, with the menu's state | - |
+| vr_menu.cpp:2833 `built[]` (+ `done[]`) | b | `MenuPages` "menu pages" (each page rebuilt by its own checks, as before) | never (`Never`) |
+| vr_menuui.cpp:783 | a | `MenuUiScratch` "menu laser" | map change |
+| vr_motion.cpp:46 `list`, 888 `pattern`; vr_motion_review.cpp:130 `pattern`, 990 `none` | c | left: `static const`, made once (thread-safe), never changed | never |
+| vr_motion.cpp:266 | - | not an object (a static member function returning `std::string`) | - |
+| vr_motion.cpp:1619; vr_motion_review.cpp:1644, 1664, 1683, 1703 | a (readouts) | `MotionReadouts`, `ReviewReadouts` | map change |
+| vr_panel.cpp:67 | a | `PanelScratch` "panel" | map change |
+| vr_particles.cpp:1909 | a | `LyingScratch` "particles" | map change |
+| vr_rope.cpp:185, 186, 258, 341, 342, 343, 436 | a | `RopeScratch` "rope" | map change |
+| vr_rope.cpp:334 `meshFirst` (+ `batch`, `curveBase`, `builtFrame`) | d | `RopeDraw`, the frame's upload | rebuilt each frame |
+| vr_rope.cpp `meshes` (file scope, by model) | b | `RopeMeshes` "rope meshes" | game change, model reload |
+| vr_texcache.cpp:48 `done` | d | `pruned`, by folder path: each game directory's old builds are pruned too (they were once a session) | - |
+| vr_view.cpp:727 (2), 758, 1559 (+ the `static grasp::Shape`), 1562, 1843, 1857, 1899, 4395, 4518 (2), 4519 | a | `ViewScratch` "view hands" (`grasp::Shape` counted by its `heldBytes`) | map change |
+| external/glm/gtx/io.hpp:59 | - | the library's; left | - |
+| `thread_local`: vr_box3d.cpp:882, 927, 1177, 1570 | a | `Box3dScratch` "box3d"; 2477 (`vr_physics_sink`'s): a local | map change |
+| `thread_local`: vr_held.cpp:269, 394, 447, 456, 468 (3), 563, 734 | a | `HeldScratch` "held" (one member per function: `drawnVertices` runs inside the others) | map change |
+| `thread_local`: vr_ledges.cpp:180, 222 (2); vr_debris.cpp:1216 | a | `LedgeScratch` "ledges", `DebrisScratch` "debris" | map change |
+| `thread_local`: vr_props.cpp:272 `key` | a | gone: the name-to-slot map is looked up by `string_view` (a transparent hash) | - |
+| `thread_local`: vr_decals.cpp:115 `rngState` | d | left: per thread by design (the atlas's worker, and `vr_decal_atlas` on the main thread) | - |
+
+Totals: 69 a (55 buffers, 14 readouts), 8 b, 7 c (and 1 external, 1 not an object), 4 d. Of the `thread_local` ones,
+16 went into a scratch set, 2 became locals, 1 is gone, 1 is left.
+
+### QuakeC loops
+
+- **`VR_Wounds_Frame`, `VR_Liquids_Frame`:** they walked every entity each frame (every piece of debris too) and called
+  `VR_Wound_Takes` on each. They now step through the monsters (and, for the wounds, the players) alone:
+  `findflags(start, flags, FL_MONSTER)`, DP's extension builtin, added as a named builtin (`vr_builtins.cpp`: the scan
+  in C). The cheap checks come first; `VR_Wound_Takes`'s flags test is the search itself, its dummy check comes after
+  the timer (the dummy's timer is set as the others', it takes nothing). The same entities in the same order: the same
+  events.
+- **`forcegrabbable_think_impl` / `forcegrabbable_item_think`: tried, measured, left as they were.** Nothing in them
+  decides what the force grab may take or its highlight (`VR_Forcegrab_IsEligible`, run where the hand looks), so the
+  force grab's timing never depended on them; they float things in water, steady thrown weapons, turn hanging
+  pickups' shapes and roll the sparkle. Thinking 10 times a second at rest (183 of the firing range's ~200 things were)
+  saved nothing: a resting thing's cost is its sparkle (`realorigin`, `particle2`, a message each), made as often
+  either way, and the at-rest test cost as much as the thinks it saved. Firing range: QuakeC 0.079-0.081 ms a frame
+  with it, 0.073-0.074 without (3,858-4,071 instructions, 3,816-3,837 without); e1m1 and e2m2 1-4% fewer instructions,
+  the same ms. It also changed the random numbers' sequence (the sparkle's roll), so gibs flew differently. Worth
+  doing instead: the sparkle of things at rest drawn by the client (no think, no message).
+
+### Before and after (`run.sh --exclusive -RealTime`, the mock at 250 fps, `vr_profile_report 5`)
+
+Scenes (the scratchpad's `statics/prof/prof.sh`): e1m1 at the start; the firing range with the dummy striking, six
+monsters fighting (god mode) and the super nailgun firing; e2m2 with dense debris (150 pieces).
+
+| Scene | CPU busy, ms a frame | QuakeC, ms | QuakeC instructions a frame | allocations a frame (avg/max) |
+|---|---|---|---|---|
+| e1m1 | 0.478 -> 0.452 | 0.071 -> 0.056 | 4,235 -> 2,410 | 1/45 -> 1/45 |
+| firing range | 0.620 -> 0.604 | 0.091 -> 0.074 | 6,182 -> 3,806 | 2/116 -> 2/95 |
+| e2m2, debris | 0.631 -> 0.589 | 0.103 -> 0.078 | 6,530 -> 2,868 | 1/67 -> 1/67 |
+
+The systems whose buffers moved (view setup, light setup, models, particles, decals, the gadget's and menus' ui) are
+the same within the runs' noise (vr view setup 0.108 / 0.150 / 0.113 ms before, 0.108 / 0.148 / 0.113 after), and the
+allocations a frame are unchanged: the buffers keep their capacity as before. `VR_Wounds_Frame` + `VR_Wound_Takes` +
+`VR_Liquids_Frame` were 45-61% of QuakeC's instructions; now 10% (e2m2) or out of the top six (the firing range).
+
+### Also fixed
+
+- `edict <n>` past the live edicts ended the game (`PR_SwitchQCVM: A qcvm was already active`): its early return left
+  the VM pushed. The number is checked before the push; it prints "Bad edict number 9999 (179 edicts)".
+- `vr_limits` showed the zone's maximum as 0: `Memory_InitZone` never set the zone's size. Now "917 / 32768".
+
+### Verified (mock headset, fast mode; the scratchpad's `statics/`)
+
+- **Build:** a full rebuild (`-t:Rebuild`), 0 warnings; QuakeC 0 warnings.
+- **Climbing:** the 13 plays (`climbset.sh`): 12 identical traces before and after. e1m1's diverges after 9.3 s from
+  run to run in either build (2 of 4 runs of the old build: a velocity kick at 9.31 s); every run of the new build and
+  the other runs of the old one are identical to the reference (788 lines).
+- **Physics:** the 15 "Box3D only" scenes (`phys/sc.sh`): the same `vr_physics_hash` in all.
+- **Save and load** (`save.sh`): the firing range after a blast (loaded twice), e1m1 after a blast then from e1m2, and
+  vrclimb hanging from a rung: the same hashes after each load.
+- **Melee canary:** the 46 archived takes with your OLD hand settings (`vr_gunangle 39.5`, `vr_gunyaw 4`, every
+  `vr_handcal_*` 0, `vr_handcal_off_mirror 0`, printed in the log), `vr_motion_eval` directly: 41 pass, the same
+  verdicts and events for all 46.
+- **Eyes** (`vr_eyeshot`, fixed frames, after the AO bakes): e1m1 and e2m2 identical; the firing range within the
+  noise of two runs of the same build (1-2 levels; two pixels by 11).
+- **Memory:** `vr_memstats` and `vr_limits` list the sets; after a map change they are given back and grow again with
+  the new map's first frames.
+
+### Not verified
+
+- In the headset: nothing here should look or feel different.
+- The sets are given back at every map change only; a map whose peak comes late (a big fight) grows them then, as
+  before.
