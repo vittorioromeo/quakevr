@@ -229,6 +229,7 @@ QVR_CVAR(vr_menu_spacing, "1.5", CVAR_ARCHIVE)         // with it, the rows' spa
 QVR_CVAR(vr_menu_height, "1.35", CVAR_ARCHIVE)         // with it, the menus' height over Quake's 200 pixels (1 to 2): the VR pages and Ironwail's lists show more rows (1.35: about 35 degrees up and down at the shipped distance, scale and spacing)
 QVR_CVAR(vr_menu_remember, "1", CVAR_ARCHIVE)          // opening the menu after "Back to game" (the panel's top-left button, or holding the menu button) returns to the page it closed on
 QVR_CVAR(vr_menu_positions, "", CVAR_ARCHIVE)          // where each VR Settings page was left, for the next start (vr_menu.cpp, written with the config): "title|section|row|index|line;..."
+QVR_CVAR(vr_checklist_hide_ticked, "0", CVAR_ARCHIVE)   // Checklist page (the menu's corner button): ticked items left out
 QVR_CVAR(vr_melee_dmg_multiplier, "1.0", CVAR_ARCHIVE)
 QVR_CVAR(vr_melee_range_multiplier, "1.0", CVAR_ARCHIVE)
 // Quad Damage on melee, on top of the x4 every damage gets while Quad lasts (T_Damage): extra damage and extra reach.

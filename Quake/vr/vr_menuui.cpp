@@ -34,6 +34,7 @@
 //   right do nothing in menus, only the off hand's stick (and the laser) change values
 //   (vr_input.cpp).
 
+#include "vr_checklist.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
@@ -372,22 +373,24 @@ void appendStrip(std::vector<gfx::Vertex>& v, const glm::vec3& a, const glm::vec
 }
 
 // ----------------------------------------------------------------------------
-// The corner's buttons: Back to game, Advanced VR, Levels
+// The corner's buttons: Back to game, Advanced VR, Levels, Checklist
 // ----------------------------------------------------------------------------
 
 // A column at the panel's top left, over every menu: "Back to game" (closes the menu, which reopens
-// where it was), "Advanced VR" (the Advanced VR Options page) and "Levels" (Ironwail's level list),
-// from any page. The laser clicks them; the sticks reach them too (focus): a click of either stick
+// where it was), "Advanced VR" (the Advanced VR Options page), "Levels" (Ironwail's level list) and
+// "Checklist" (the playtest checklist, its open items counted on it; vr_checklist.hpp), from any page. The laser clicks them; the sticks reach them too (focus): a click of either stick
 // on any menu, or on a VR page up from its first setting (down from its last).
 enum Tool
 {
     ToolBack,
     ToolAdvanced,
     ToolLevels,
+    ToolChecklist,
     ToolCount
 };
 
-constexpr const char* toolLabels[ToolCount]{"Back to game", "Advanced VR", "Levels"};
+// (The checklist's count after its label: "Checklist 99" at most, as wide as "Back to game".)
+constexpr const char* toolLabels[ToolCount]{"Back to game", "Advanced VR", "Levels", "Checklist 99"};
 
 // Where the column goes: across, menu pixels; up and down, from the canvas's top in true pixels
 // (menu pixels as wide as they are across: `k` menu rows' pixels each, the canvas's row spacing).
@@ -619,7 +622,7 @@ void mockLaser_f()
     {
         for(int t = 0; t < ToolCount; t++)
         {
-            static constexpr const char* names[ToolCount]{"back", "advanced", "levels"};
+            static constexpr const char* names[ToolCount]{"back", "advanced", "levels", "checklist"};
             if(!q_strcasecmp(Cmd_Argv(1), names[t]))
             {
                 const ToolbarLayout l = toolbarLayout();
@@ -635,7 +638,7 @@ void mockLaser_f()
         pointingHand = HAND_MAIN;
         return;
     }
-    Con_Printf("vr_mock_laser <x> <y> | back | advanced | levels | off: the main hand's laser on that spot of the menu\n");
+    Con_Printf("vr_mock_laser <x> <y> | back | advanced | levels | checklist | off: the main hand's laser on that spot of the menu\n");
 }
 
 float toolbarBottom()
@@ -650,7 +653,7 @@ bool toolbarFocused()
 
 void focusToolbar(int dir)
 {
-    focusTool(dir > 0 ? ToolBack : ToolLevels);
+    focusTool(dir > 0 ? ToolBack : ToolCount - 1);
     S_LocalSound("misc/menu1.wav");
 }
 
@@ -699,6 +702,7 @@ void useTool(int tool, int hand)
             Cmd_TokenizeString("menu_maps"); // (it looks at its command's arguments)
             M_Menu_Maps_f();
             break;
+        case ToolChecklist: menu::jumpToChecklist(); break;
         default: break;
     }
 }
@@ -978,7 +982,7 @@ namespace
 {
 
 // A button's icon, `x` its left, `yc` its middle: Back to game's arrow, Advanced VR's sliders, the
-// levels' flag.
+// levels' flag, the checklist's lines.
 void drawToolIcon(const Painter& p, int tool, float x, float yc, const glm::vec4& ink)
 {
     const float w = ToolbarLayout::icon;
@@ -1003,6 +1007,15 @@ void drawToolIcon(const Painter& p, int tool, float x, float yc, const glm::vec4
             p.band(x + 1.f, x + 2.4f, yc, -4.5f, 4.5f, ink);
             p.arrowHeadRight(x + w, w - 2.4f, yc - 2.f / p.k, 2.6f, ink);
             break;
+        case ToolChecklist:
+            // Three lines, each after a box.
+            for(int i = 0; i < 3; i++)
+            {
+                const float y = yc + (i - 1) * 3.5f / p.k;
+                p.rect(x, x + 2.f, y, 1.f, ink);
+                p.rect(x + 3.5f, x + w, y, 0.6f, ink);
+            }
+            break;
         default: break;
     }
 }
@@ -1021,6 +1034,17 @@ extern "C" void VR_MenuDrawOverlay()
 
     const Painter p;
     const ToolbarLayout l = toolbarLayout();
+    checklist::refresh(); // (the file looked at once a second)
+    char checklistLabel[16];
+    const int open = checklist::openCount();
+    if(open > 0)
+    {
+        q_snprintf(checklistLabel, sizeof(checklistLabel), "Checklist %d", q_min(open, 99));
+    }
+    else
+    {
+        q_strlcpy(checklistLabel, "Checklist", sizeof(checklistLabel));
+    }
     for(int t = 0; t < ToolCount; t++)
     {
         const bool hot = toolbar.hovered == t || (menuui::toolbarFocused() && toolbar.focused == t);
@@ -1035,7 +1059,7 @@ extern "C" void VR_MenuDrawOverlay()
         if(l.labels)
         {
             float x = ix + ToolbarLayout::icon + 4.f;
-            for(const char* c = toolLabels[t]; *c; c++, x += 8.f)
+            for(const char* c = t == ToolChecklist ? checklistLabel : toolLabels[t]; *c; c++, x += 8.f)
             {
                 Draw_CharacterEx(x, yc - 4.f, 8.f, 8.f, hot ? *c : (*c | 128));
             }

@@ -29,6 +29,7 @@ build/
 /quakevr/bodycal/
 /quakevr/eyeshots/
 /quakevr/envmap.tga
+/quakevr/checklist_ticks.txt
 !/quakevr/default.cfg
 !/quakevr/vr_bindings.cfg
 !/quakevr/vr_defaults.cfg

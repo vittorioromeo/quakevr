@@ -22,6 +22,10 @@ void reopen(int page);
 // scroll as they were left; Back from them goes to the VR Settings, as always.
 void jumpToAdvanced();
 
+// "Checklist" (the corner's button): the Checklist page (vr_checklist.hpp) from any menu, the list read again; Back
+// from it goes to the VR Settings.
+void jumpToChecklist();
+
 // The sticks' selection back on the page shown from the corner's buttons: onto its first setting
 // (dir 1, going down) or its last (dir -1, going up).
 void selectEnd(int dir);

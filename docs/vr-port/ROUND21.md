@@ -13235,3 +13235,24 @@ vrfiringrange_2026-09-29_22-58-53 ("I've tweaked the orientation of the grenade 
   whatever the Rocks and Bricks options are. Its new builtin `debrisplace(e)` (vr_debris.cpp `putPlaced`, sharing
   `put`'s resting code) sizes it as they are (vr_world_scale), levels it, turns it by its yaw and rests its lowest
   corner on the floor below its origin.
+## In-game checklist
+
+His request: a checklist in the menu, reached from the corner buttons, filled with everything he needs to test or give
+feedback on. Branch `agent/checklist`.
+
+- **Where**: a fourth corner button, "Checklist N" (N: the open items, up to 99), under Levels; also Debug > Checklist
+  (page 72, `menu_vr 72`). Back from it goes to VR Settings (from the corner) or Debug (from its link).
+- **The list** is `quakevr/checklist.txt`, read at runtime (vr_checklist.cpp): `[Section]` lines, one item a line, `#` or
+  `//` comments, blank lines ignored. The file's time is looked at once a second while the menu shows it, so an edit
+  shows up in a running game; the page's "Reload List" reads it at once. Characters outside ASCII draw as `?`.
+- **Ticks**: picking an item (trigger, A, or the laser anywhere on its lines) ticks or unticks it, saved at once to
+  `quakevr/checklist_ticks.txt` (in .gitignore), one ticked item's text a line. Keyed by the text, so items added,
+  moved between sections or removed leave the others' ticks alone; a reworded item starts unticked. Ticks of items no
+  longer listed stay in the file (an item put back keeps its tick).
+- **Drawing**: each item wraps at 36 characters under a `[ ]` / `[x]` box; its next lines go with it (the laser on
+  any of them selects the item, the VR style's highlight covers them all, the sticks step item by item). Ticked items
+  are drawn at 40% opacity. **Hide Ticked** (`vr_checklist_hide_ticked`, 0, archived) leaves them out.
+- **Menu code**: `Item` gained `dimArg` (a row drawn dimmed) and `partOf` (a row continuing the one that many rows up:
+  never selectable, selected and highlighted with its first). `rowAt` maps a continuation line to its item.
+- **Tests**: `vr_checklist` (CLSUM/CLITEM lines), `vr_checklist tick <n>`, `vr_checklist reload`;
+  `vr_mock_laser checklist` points at the corner button.
