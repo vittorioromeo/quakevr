@@ -845,6 +845,16 @@ int fistSlot()
     return fistCache;
 }
 
+bool heldAtOrigin(const qmodel_t* model)
+{
+    if(!model || model->type != mod_alias)
+    {
+        return false;
+    }
+    const int slot = slotForModel(model);
+    return slot >= 0 && slot != fistSlot();
+}
+
 bool inheritable(Key key)
 {
     switch(key)

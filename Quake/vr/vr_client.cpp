@@ -4,6 +4,7 @@
 #include "vr_client.hpp"
 #include "vr_held.hpp"
 #include "vr_decals.hpp"
+#include "vr_drawblend.hpp"
 #include "vr_engine.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_particles.hpp"
@@ -677,6 +678,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_EJECT: shells::parseEject(); break;
         case QVR_SVC_WOUND: wounds::parseEvent(); break;
         case QVR_SVC_WOUNDCLEAR: wounds::parseClear(); break;
+        case QVR_SVC_CATCHBLEND: drawblend::parseCatch(); break;
         default: Host_Error("svc_quakevr: unknown command %d", subcmd);
     }
 

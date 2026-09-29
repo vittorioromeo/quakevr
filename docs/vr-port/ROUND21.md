@@ -12391,3 +12391,47 @@ allocations a frame are unchanged: the buffers keep their capacity as before. `V
 - In the headset: nothing here should look or feel different.
 - The sets are given back at every map change only; a map whose peak comes late (a big fight) grows them then, as
   before.
+
+## Force grab: pulled by the handle, eased into the hand
+
+Your voice note (e1m1, 29 September): the force grab pulls a weapon by "the middle of the weapon", not the handle;
+and a caught weapon "teleports" into the hand. You asked for the grab point at the handle, from the weapon offsets, and
+a short (0.1-0.2 s) ease into the hand, as the holster draw blend does.
+
+Branch `agent/forcegrab`. The plays and logs are in the scratchpad's `fg/`.
+
+### What changed
+
+- **The handle:** a weapon's Weapon Offsets place its model so that the hand holds it at its origin, and a thrown or
+  dropped weapon (the same `v_` model, drawn with the same offsets) is drawn the same way. So its handle is its origin.
+  The new builtin `forcegrabpoint(e)` returns it for any model with Weapon Offsets of its own (not the hand's), and the
+  drawn middle (`modelcentre`) for anything else: backpacks, boxes, keys, rocks, torches, gibs and the level's `g_`
+  weapon pickups (their models have no offsets) are pulled as before.
+- **Used for:** the flight (the arc brings the grab point to the hand), the catch reach, where the caught object is put
+  in the hand, the launch distance, the sparkles and the beam and tendril (`vr_fgfx.cpp`, the same rule on the client).
+  What the hand points at is still chosen by the object's middle.
+- **The catch blend:** Force Grab > **Catch Blend Time** (`vr_forcegrab_catch_blend`, 0.15 s; 0: at once). The QC sends
+  where the weapon flew (`catchblend`, `QVR_SVC_CATCHBLEND`). The client takes the pose it last drew the weapon at, or
+  the server's if it had none, and eases the gun from there into the hand. It uses the holster draw blend's code
+  (`vr_drawblend.cpp`): the same cubic ease-out and the same shortest turn. Visual only: the gun fires at once. The
+  message and the gun's stats may come in either order, up to 0.25 s apart.
+- `developer 1` prints how far the grab point, the handle and the middle are from the hand at the catch, and on arrival
+  when it is not caught. `vr_debug_draw_blend 1` logs the blend's frames as `main hand from force grab`.
+
+### Measured (mock, e1m1)
+
+A super shotgun is dropped, then force grabbed from 81 units with the main hand (`fg.txt`), with the off hand
+(`fg_off.txt`), and without a catch (`fg_miss.txt`).
+
+| Play | Result |
+|---|---|
+| Not caught: where it arrives | the grab point and the handle are 0.2 units from the hand; the middle is 3.8 away. Before, the middle came to the hand, so the handle stopped 3.8 units off. |
+| Caught, main hand | caught 0.1 s early, 10.4 units off (inside the 14-unit catch radius); eased from the drawn pose: 10.8 units and 115 degrees, gone in 0.148 s (38 frames) |
+| Caught, off hand | the same: 10.2 units off, 166.5 degrees, 0.148 s |
+
+### Not verified
+
+- In the headset: does the weapon come handle first, and does the ease look right? The off hand's gun is drawn
+  mirrored, so an asymmetric gun may flip on the first frame of its ease.
+- The level's own weapon pickups (`g_` models) are still pulled by their middle. A caught one also eases in, but from
+  the `g_` model's pose, which is a different model.

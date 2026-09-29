@@ -1765,6 +1765,9 @@ std::vector<Item> pageDebugTests()
         slider("Catch Early", vr_forcegrab_catch_early, 0.05f, 1.f, 0.05f, "%.2f s").extend()
             .help("How long before it arrives the grip may close to catch it."),
         slider("Catch Late", vr_forcegrab_catch_late, 0.f, 0.5f, 0.05f, "%.2f s").extend(),
+        slider("Catch Blend Time", vr_forcegrab_catch_blend, 0.f, 0.5f, 0.05f, "%.2f s").extend()
+            .help("A caught weapon eases from how it flew into your hand over this time, as one drawn from a holster (0: at "
+                  "once). It fires at once: only its look eases."),
         toggle("Pointing Particles", vr_forcegrab_eligible_particles).help("Sparkles on the object an empty hand points at, that it can pull."),
         toggle("Pointing Haptics", vr_forcegrab_eligible_haptics).help("A tick in the hand when it points at a new object it can pull."),
         slider("Outline", "vr_forcegrab_outline", 0.f, 2.f, 0.1f, "%.1f").extend().help("The soft glow round the object a hand points at (0 off)."),

@@ -19,6 +19,10 @@ void hand(const hands::State& s, int hand, entity_t& e, bool gun);
 // While it is being holstered, `e` is moved to its drawn pose.
 void holster(const hands::State& s, int holster, entity_t* e, bool live);
 
+// QVR_SVC_CATCHBLEND: a hand caught a force grab's weapon (vr_wpnforcegrab.qc). The gun that appears in that hand eases
+// from where the weapon was drawn into the hand over vr_forcegrab_catch_blend seconds, as a draw from a holster does.
+void parseCatch();
+
 // A new map (the entities' poses are the old map's).
 void reset();
 

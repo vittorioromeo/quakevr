@@ -31,6 +31,11 @@ void registerCvars();
 // hand and finger models.
 [[nodiscard]] int fistSlot();
 
+// A weapon model with Weapon Offsets of its own (not the hand's): a hand holds it at its origin (the offsets bring its
+// handle there), and it is drawn the same way lying in the world, so its handle is its origin wherever it is (a thrown or
+// dropped weapon: the force grab pulls it by the handle).
+[[nodiscard]] bool heldAtOrigin(const qmodel_t* model);
+
 // The weapon model a hand holds (0 off hand, 1 main hand), from the VR stats, and its slot.
 [[nodiscard]] qmodel_t* heldModel(int hand);
 [[nodiscard]] int heldSlot(int hand);

@@ -100,11 +100,18 @@ void(entity xPlayer) VR_Forcegrab_Reset =
 // Targets
 // ----------------------------------------------------------------------------
 
-// Where an object is aimed at, pulled from and caught by: the middle of its model as drawn (a
-// dropped weapon or a backpack is drawn well off its box's middle).
+// Where an object is aimed at: the middle of its model as drawn (a dropped weapon or a backpack
+// is drawn well off its box's middle).
 vector(entity e) VR_Forcegrab_Centre =
 {
     return modelcentre(e);
+}
+
+// Where it is pulled by, flies to the hand by and is caught by: a weapon by its handle (where its
+// Weapon Offsets hold it in the hand), anything else by its middle.
+vector(entity e) VR_Forcegrab_GrabPoint =
+{
+    return forcegrabpoint(e);
 }
 
 float(entity e) VR_Forcegrab_IsEligible =
@@ -248,18 +255,36 @@ float(entity xPlayer, float xHand, float xArrive) VR_Forcegrab_CanCatch =
            xArrive - cvar_hget(cvarh_vr_forcegrab_catch_early);
 }
 
+// developer 1: how far its grab point, its handle (a weapon's origin) and its middle are from the hand.
+void(entity e, vector xHandPos) VR_Forcegrab_Distances =
+{
+    dprint("grab point ");
+    dprint(ftos(vlen(VR_Forcegrab_GrabPoint(e) - xHandPos)));
+    dprint(", handle ");
+    dprint(ftos(vlen(e.origin - xHandPos)));
+    dprint(", middle ");
+    dprint(ftos(vlen(VR_Forcegrab_Centre(e) - xHandPos)));
+    dprint(" from the hand\n");
+}
+
 void(entity e, entity xPlayer, float xHand) VR_Forcegrab_Catch =
 {
+    vector handPos = VRGetEntHandPos(xPlayer, xHand);
+    vector grabPoint = VR_Forcegrab_GrabPoint(e);
     dprint("force grab: caught ");
     dprint(e.classname);
     dprint(" at ");
     dprint(ftos(time - e.fg_arrive));
-    dprint(" s\n");
+    dprint(" s: ");
+    VR_Forcegrab_Distances(e, handPos);
+    // As it flew, for the client's ease into the hand (the handover removes a weapon).
+    vector flewAt = e.origin;
+    vector flewAngles = e.angles;
     VR_Forcegrab_Restore(e);
     e.velocity = '0 0 0';
     e.avelocity = '0 0 0';
     e.vr_spin = '0 0 0';
-    setorigin(e, VRGetEntHandPos(xPlayer, xHand) - (VR_Forcegrab_Centre(e) - e.origin));
+    setorigin(e, handPos - (grabPoint - e.origin));
 
     // Handed over as the hand touching it would, the grab taken as started.
     entity oldSelf = self;
@@ -281,6 +306,11 @@ void(entity e, entity xPlayer, float xHand) VR_Forcegrab_Catch =
     if(xPlayer.ishuman)
     {
         self = xPlayer;
+        // A weapon now in the hand eases into it from how it flew (vr_forcegrab_catch_blend).
+        if(!VRIsHandEmpty(xPlayer, xHand))
+        {
+            catchblend(xHand, e, flewAt, flewAngles);
+        }
         haptic(xHand, 0.0, 0.07, 90, 0.85);
         haptic(xHand, 0.06, 0.08, 70, 0.4);
         dprint("force grab: catch haptic, hand "); dprint(ftos(xHand)); dprint("\n");
@@ -354,9 +384,9 @@ void() VR_Forcegrab_FlightThink =
         return;
     }
 
-    vector centreOffset = VR_Forcegrab_Centre(self) - self.origin;
+    vector grabOffset = VR_Forcegrab_GrabPoint(self) - self.origin;
     vector handPos = VRGetEntHandPos(p, hand);
-    float reach = vlen(handPos - (self.origin + centreOffset));
+    float reach = vlen(handPos - (self.origin + grabOffset));
     float catchRadius = cvar_hget(cvarh_vr_forcegrab_catch_radius);
 
     if(self.fg_state == 1)
@@ -370,13 +400,15 @@ void() VR_Forcegrab_FlightThink =
         float remaining = self.fg_arrive - time;
         if(remaining <= 0.001)
         {
+            dprint("force grab: arrived, ");
+            VR_Forcegrab_Distances(self, handPos);
             VR_Forcegrab_Miss(self);
             return;
         }
 
-        // The arc that reaches the hand (where it is now) when due: recomputed every frame, it
-        // homes on a moving hand.
-        vector target = handPos - centreOffset;
+        // The arc that brings its grab point to the hand (where it is now) when due: recomputed
+        // every frame, it homes on a moving hand.
+        vector target = handPos - grabOffset;
         self.velocity = (target - self.origin) * (1 / remaining);
         self.velocity_z = self.velocity_z + 0.5 * self.fg_gravity * remaining;
         return;
@@ -404,7 +436,7 @@ void(entity e, float xHand) VR_Forcegrab_Launch =
         dprint("walltorch: pulled out by a force grab\n");
         VR_WallTorch_Take(e);
     }
-    vector start = VR_Forcegrab_Centre(e);
+    vector start = VR_Forcegrab_GrabPoint(e);
     vector handPos = VRGetHandPos(xHand);
     float dist = vlen(handPos - start);
     float flight = cvar_hget(cvarh_vr_forcegrab_time) + dist / max(1, cvar_hget(cvarh_vr_forcegrab_speed));
@@ -498,7 +530,7 @@ void(float xHand) VR_Forcegrab_HandFrame =
             return;
         }
 
-        particle2(VR_Forcegrab_Centre(target), '0 0 0', QVR_PARTICLE_PRESET_GUNFORCEGRAB, 1);
+        particle2(VR_Forcegrab_GrabPoint(target), '0 0 0', QVR_PARTICLE_PRESET_GUNFORCEGRAB, 1);
         return;
     }
 
@@ -531,7 +563,7 @@ void(float xHand) VR_Forcegrab_HandFrame =
     VR_Forcegrab_Set(xHand, best, FALSE);
     if(cvar_hget(cvarh_vr_forcegrab_eligible_particles) && random() < 0.12)
     {
-        particle2(VR_Forcegrab_Centre(best), '0 0 0', QVR_PARTICLE_PRESET_GUNFORCEGRAB, 1);
+        particle2(VR_Forcegrab_GrabPoint(best), '0 0 0', QVR_PARTICLE_PRESET_GUNFORCEGRAB, 1);
     }
 }
 
