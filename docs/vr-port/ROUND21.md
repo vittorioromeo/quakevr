@@ -10881,3 +10881,167 @@ config's prop lines (`vr_props_version` 26 to 40: the torch grip 3, rock2 grip 2
   torch's head as a jab) no longer lands: the upright torch crosses it sideways. The melee rules are untouched (frozen
   until your new takes); worth a look when you record torch blows.
 - The menu page shows the four modes and the new rows (`menu_vr dump`: Held Object Offsets has 36 rows).
+
+## Debug menu; quad sound; grenade catch default; no empty-hand deflection
+
+Your voice notes (29 September): "make sure `vr_debug_ledges` and similar debug flags or debug actions are accessible in
+the VR debug menu without having to use the console"; the Quad sound "should only play the attack sound if I'm actually
+swinging a sword, hitting an enemy, or performing an action that actually deals damage, not only if I'm pressing the
+trigger"; "I had changed the setting to support also grabbing my own grenades. I don't know why it was reverted, but I
+want that to be the default"; and "reflecting grenades should only be possible when you have a weapon in your hand". You
+chose all projectiles for the last one. Branch `agent/misc23`; scripts and logs in the scratchpad's `misc23/`.
+
+### The Debug pages
+
+Advanced VR Options > Debug (64) keeps Voice Notes and links six pages (66-71). Every page has 30 rows or fewer, and
+every row has a line of help:
+
+| Page | Rows | What is on it |
+|---|---|---|
+| **Views** | 9 | drawn in the world: Show Physics Shapes, Show Hand Bones (both were on Debug), **Show Ledges** (`vr_debug_ledges`: off, within 256, 512 or 1024 units), Show Grab Test (`vr_debug_carry`), Show Body Skeleton (`vr_body_debug`: the skeleton, or the body in front facing you or from its left), Show Body Collisions, Show Model Collisions (logged, or logged and drawn), Show Foveation, Show Entity Boxes (Ironwail's `r_showbboxes`, single player) |
+| **Logging** | 18 | Developer Messages (`developer`: some logs are the game's developer messages), then the logs: Shots and Damage (`vr_debug_shots`), Throws, Climbing, Swim Strokes, Grappling Hook, Wounds, Grasp, Physics Bodies, Rocks and Bricks Placement, Torch Lights, Arm IK, Bot Chatter; Trace Files: Grasp, Weight, Lean |
+| **Profiling and Memory** | 13 | the profiler's rows (were on Debug), GPU Timing (`vr_profile_gpu`), Report Interval (`vr_profile_interval`), Print Report, Dump Profile; Memory Log, Memory Log: GPU (were on Debug), Print Memory Now (`vr_memstats`) |
+| **Reports** | 27 | buttons printing once to the console and the wrist log: Headset (`vr_status`), Player, View, Body Calibration, Wrists and Grips; Physics Props, Props in Floors, Weights (`vr_weight_table`), Ledges Ahead (`vr_climb_probe`), Rocks and Bricks, Wounds, Decals and Gore, Model Lighting, Ambient Occlusion; Hand Rig, Grasp Spheres, Grip Frames, Hotspots Check, Sight Lines, Sight Check, Wrist Gadget; Microphones, Detail Textures |
+| **Tools** | 18 | Rebuild Ledge Map (`vr_ledges rebuild`), Reload Models (`vr_model_reload`), Reload Hand Model (`vr_hand_reload`), Reload Detail Textures; saved to files: Wound Masks, Decal Atlas, Hand Mesh, Gadget Screen, Reflection Map, Weight Test; test effects: Blood and Gore, Gore Burst, Test Light, Test Message, Eject a Casing |
+| **Tests** | 14 | Ahead of You: Thing (`vr_test_spawn`: 18 monsters, 4 boxes), Distance, As a Corpse, Put It There (impulse 241); At You: Projectile (`vr_test_projectile`), From the Left, Fire at Me (impulse 246), Make an Ogre Throw (impulse 240); Cheats: God Mode, Quad Damage, All Weapons |
+
+Screenshots (the scratchpad's `misc23/`): `debug_pages.png` (the seven pages), `views.png` (the world with Show
+Ledges, Show Physics Shapes and Show Entity Boxes on, and the ogre Put It There put ahead).
+
+**Decided:**
+- **Split by what you do with it:** look (Views), read as it happens (Logging), time (Profiling and Memory), ask once
+  (Reports), change or make (Tools), set up a test (Tests). Each is a list of one line per row, and the comment above
+  the Debug page says which page a new flag goes on, for the agents adding theirs (`vr_debug_hands`, the hitbox
+  debug...).
+- **A button is a console command** (`command("Label", "vr_something args")`), run next, ahead of anything waiting in
+  the command buffer. A command registered only once its part of the game runs (the gadget's, the physics') prints
+  "not available yet" instead of "unknown command".
+- **Where the output goes:** a report prints to the console, so it shows in the wrist log (`vr_notify_wrist`) and in
+  `qconsole.log`. Long ones (View, Detail Textures) are for the log file.
+- **Tests are in the headset:** the test impulses and their settings are what you test batting, catching and the
+  new monsters with. The cheats are there because those tests want them.
+- **Left in the console:** the mock headset (`vr_mock_*`), the automated tests' settings (`vr_fixed_frames`,
+  `vr_particle_seed`, `vr_debug_weight_stamina`, `vr_window_log`), and commands that need numbers typed or freeze the
+  game (`vr_test_remove <n>`, `vr_physics_blast/pile/pyramid/stack/loose <...>`, `vr_rigid_place`, `vr_climb_try`,
+  `vr_anchor_*`, the three `*_bench` benchmarks, `vr_particle_test <preset>`). Also `vr_physics_hash` (for the
+  determinism tests) and `vr_checkbindings` (not a debug tool: it rewrites your binds).
+- The weapon-tuning aids (Show Hotspots, Show Sight Line, Show Controller and its laser) stay on Weapon Offsets, where
+  they are used.
+
+**Coverage** (`menu_vr dump` before, on f03dacd0, and after the merge of vr-cleanup; `menu_coverage.py`, `coverage.txt`):
+730 options before, 806 after, **none lost**, none on more pages than before; 76 new (all on the Debug pages); 9 moved
+from Debug to its pages. 71 pages reached, at most 3 deep, none over 30 rows.
+
+**Checked by clicking** (the mock's A on a row): Headset printed `vr_status`, Rebuild Ledge Map `ledges: maps/vrfiringrange.bsp:
+... 410 ledges`, God Mode `godmode ON`, Microphones the device list, Put It There the ogre ahead (`views.png`).
+
+### Quad Damage's sound
+
+**Cause:** `W_WeaponFrameImpl` (weapons.qc) played it for any trigger press before `W_Attack`, whatever the hand held.
+With a sword, the fist, a prop, the grappling hook or an empty gun (the click), the trigger does no damage, and the
+sound played anyway, at most once a second.
+
+**Now:** `VR_QuadSound` (combat.qc) plays it, still at most once a second, when you deal damage:
+- a gun's shot: the shotguns, the grenade and rocket launchers, the proximity gun where they fire, the nailguns, the
+  lightning gun and the laser cannon at each shot, as before;
+- a blow landing on something that takes damage (`T_Damage_VRMelee`: a sword, the axe, Mjolnir, a gun's butt, a fist,
+  a club, the headbutt);
+- a bash or shove that hurts, and the grappling hook biting a monster.
+
+`vr_debug_shots 1` prints `quad sound: <why>`.
+
+| Case (`t.py Q`, Quad on) | Before | Now |
+|---|---|---|
+| Q1 sword held, trigger held 1.5 s, no swing | the sound (the trigger) | none |
+| Q2 a sword blow at a grunt | the sound (only if the trigger was pressed) | `quad sound: a blow landed` |
+| Q3 empty hand, trigger held | the sound | none |
+| Q4 the shotgun fired | the sound | `quad sound: a shot` |
+
+(The build before logs no sound, so its column is from the code: the trigger's branch ran for every weapon.)
+
+### Catch Grenades: "Ogres' and yours" by default
+
+`vr_grenade_catch` defaults to 2. A config holding the old default 1 moves to 2 once (config version 41; a config
+can't tell the default from a choice, so a deliberate "Ogres'" moves too). One that chose Off keeps it.
+
+**Why yours went back to "Ogres'":** two copies of the game were open on the same config, and the one that quit last
+wrote its own settings over yours. The game writes every setting to `ironwail.cfg` when it quits, as that copy has it.
+The memory log shows the sessions (`quakevr/profile/memstats_*.csv`, one file per start):
+- a copy started at 16:51 on `vrwip` (TrenchBroom's test map, `vrwip.map` saved 17:56) ran until at least 17:45;
+- your headset session started at 17:06, in the firing range, and quit between 17:44 and 17:45. At 17:27 you chose
+  "Ogres' and yours" in it ("I also enabled it for my own grenades").
+- The 16:51 copy had read the config before you changed it (Catch Grenades then the new setting's default, 1). It quit
+  last, after 17:45:05, and wrote 1.
+- The sessions after (17:51, 17:59, and tonight's from 00:36) started with 1. Your note at 00:51 found it reverted. You
+  set it again then (your config now has 2).
+Nothing in the game changed it: no migration touches it, it is archived, the menu writes 0, 1 or 2, and `vr_defaults.cfg`
+doesn't set it. The same would happen to any setting changed in one copy while another is open.
+
+**Fixed:** the game merges the config as it writes it (`VR_ConfigMergeOthers`, vr_cvars.cpp). When the game folder's
+config is loaded, the game remembers the file's settings and its own values. When it writes the config (quitting,
+`writeconfig`, the takes review), it compares:
+- a setting changed in the file since then (by another copy) and left alone in this copy takes the file's value, and
+  the console says `<cvar> "<value>": from another copy of the game (this one left it at "<value>")`;
+- a setting changed in this copy is written as this copy has it (if both changed it, the last to quit wins);
+- after the write, the file is this copy's again.
+Only settings merge, not key bindings. A copy started with `-noconfigwrite` (the takes review's second copy) writes
+nothing, as before.
+
+**Tested** (`m.sh`, `m.log`): a config saved by the previous version (`vr_cfg_version "34"`, `vr_grenade_catch "1"`):
+- **M0**, after loading: version 41, Catch Grenades 2. `writeconfig` then wrote 2 and version 41. With no other copy
+  there is nothing to merge, so the migration isn't undone.
+- **M1**, a shell script playing the other copy: this copy set `vr_melee_speed 2.9`, then the other copy's file got
+  `vr_grenade_catch "0"`, `vr_deflect "0"` and `vr_melee_speed "3.3"`. `writeconfig` printed the two lines "from another
+  copy", for Catch Grenades and Bat Back Projectiles. The file and the game then have 0, 0 and 2.9 (this copy's melee
+  speed).
+- **M2**, written again with nothing changed elsewhere: no merge.
+
+### Empty hands don't bat projectiles back
+
+**What counts as armed** (`VR_Melee_HoldsWeapon`, vr_melee.qc): a weapon (a sword, the axe or Mjolnir, any gun) or a
+**club**, a carried prop with a melee tip: the wall torch, a whole brick, a rock, or any prop you give a Tip in Held
+Object Offsets. They strike as weapons already, so they bat too. **Not armed:** an empty hand, a fist, an open palm,
+the flashlight, a box, a gib, anything without a tip, and a prop carried with both hands.
+
+**Now:**
+- **A swing** (`VR_Deflect`, vr_juice.qc) bats only with an armed hand. An empty hand's lines are no longer kept.
+- **A bash** (`VR_Bash_Deflect`, vr_melee.qc) bats only when the push is a bash, a weapon or club held across, and
+  only off the armed hands' lines. An empty hand, and the gap between the hands, no longer count. The line between the
+  hands still counts when both hold weapons.
+- **A shove with open palms** bats nothing, whatever the other hand holds. It used to push grenades away, and batted
+  everything if the other hand held a weapon.
+- **A projectile meeting an empty hand** flies on and hits you. A grenade is caught if the hand's grip is closed or
+  closing, as before: the catch is unchanged, force grab too.
+- The menu's help (Batting and Catching) says so.
+
+**Tested** (`t.py N`, current hand defaults, `god`; the projectiles from `impulse 246`):
+
+| Case | Before (f03dacd0) | Now |
+|---|---|---|
+| N1 empty hand, punch at 5.5 m/s at an ogre's grenade | batted by the swing, out at 605 u/s | not batted. The fist, closed, stops where the grenade arrives: caught (as a fist held out) |
+| N2 empty hand, punch at a knight's spike | flies on | flies on |
+| N3 two open palms shove at 3 m/s at an ogre's grenade | pushed away by the shove, 1125 u/s | not batted: hits you |
+| N4 two open palms shove at a spike | flies on (the shove pushed only grenades) | flies on |
+| N5 fist held out still | caught | caught |
+| N6 reach at 2.6 m/s, grip closing as it arrives | caught | caught |
+| N7 the shotgun thrust at 5.5 m/s at a spike | batted by the bash, 945 u/s | batted by the bash, 945 u/s |
+| N8 the shotgun thrust at an ogre's grenade | batted by the bash | batted by the bash |
+| N9 the shotgun held down, the off palm shoving at a spike | batted by the bash (the gun's line counted) | flies on |
+
+- **Armed bashes and swings unchanged:** projfix's `W` (two- and one-handed sword bashes and a sword swing at a spike;
+  old hand settings, set and printed). All 10 are batted before and after. With `vr_fixed_frames 1` every direction
+  and speed matches the base build to float noise (the same as between two runs of one build).
+- **Melee detection unchanged:** the 46 canary takes (from `motions/pre_calibration_2026-09-28/`, replayed with your
+  OLD hand settings, `vr_gunangle 39.5`, `vr_gunyaw 4`, every `vr_handcal_*` 0, `vr_handcal_off_mirror 0`, set and
+  printed): 41 pass on this branch and on its base, built side by side, **0 differ** in verdict or events. (The kit's
+  baseline file is older than the weight and damage changes: 22 takes differ from it in damage on both builds.)
+
+### In the headset
+
+- [ ] Debug > Views > Show Ledges: the lips round you, green. Are the pages' groups right, and is anything missing?
+- [ ] Debug > Tests: put an ogre ahead, make it throw, fire a spike at you.
+- [ ] With Quad, hold the sword and squeeze the trigger: silence. Hit something: the sound.
+- [ ] Catch Grenades says "Ogres' and yours". Change a setting with a TrenchBroom copy open, quit both (in either
+      order): it stays.
+- [ ] Punch or shove a spike or a grenade with empty hands: it isn't batted (a grenade is caught with the grip closed).
+      With a gun, a sword or a wall torch, swing or bash it: batted.
