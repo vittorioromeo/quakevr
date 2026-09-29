@@ -823,6 +823,7 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 				Con_Printf ("Packet overflow!\n");
 				dev_overflows.packetsize = realtime;
 			}
+			VR_LimitHit (QVR_LIMIT_PACKET); // QVR: counted (vr_limits)
 			goto stats;
 			//johnfitz
 		}

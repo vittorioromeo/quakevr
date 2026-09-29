@@ -91,5 +91,6 @@ void counterEmber(const glm::vec3& org, const glm::vec3& vel, float bright);
 
 // Live particles (vr_memstats).
 [[nodiscard]] int liveCount();
+[[nodiscard]] int capacity(); // the pool's size (vr_limits)
 
 } // namespace qvr::particles

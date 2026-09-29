@@ -12,6 +12,7 @@
 #include "vr_hands.hpp"
 #include "vr_input.hpp"
 #include "vr_lines.hpp"
+#include "vr_limits.hpp"
 #include "vr_text3d.hpp"
 #include "vr_twohand.hpp"
 #include "vr_cvars.hpp"
@@ -1001,6 +1002,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_weapon_hotspot_here", view::hotspotHere_f);
     anchor::registerCommands();
     Cmd_AddCommand("vr_decal_count", decals::count_f);
+    Cmd_AddCommand("vr_limits", limits::command_f);
     Cmd_AddCommand("vr_decal_atlas", decals::atlas_f);
     Cmd_AddCommand("vr_gore_test", gore::test_f);
     Cmd_AddCommand("vr_memstats", VR_MemStats_f);

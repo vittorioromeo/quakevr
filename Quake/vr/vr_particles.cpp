@@ -1849,6 +1849,11 @@ int liveCount()
     return static_cast<int>(pool.size());
 }
 
+int capacity()
+{
+    return static_cast<int>(maxParticles);
+}
+
 // ---- Soft particles (vr_soft_particles) -----------------------------------------------------
 // Where a particle meets a wall or a floor it fades out over the last `fade` units in front of the opaque scene (the
 // scene's distances, vr_water.hpp), instead of cutting a hard line through it. Small ones (drops, sparks, chips) over a
