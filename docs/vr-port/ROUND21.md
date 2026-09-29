@@ -11169,3 +11169,383 @@ the flashlight, a box, a gib, anything without a tip, and a prop carried with bo
       order): it stays.
 - [ ] Punch or shove a spike or a grenade with empty hands: it isn't batted (a grenade is caught with the grip closed).
       With a gun, a sword or a wall torch, swing or bash it: batted.
+
+## Hands: both work; props through teleporters; climbing stamina
+
+Your notes (29 September): in the firing range, only one hand could take a ledge, the left one first, then after a
+while only the right one; in start, a brick could be held in one hand only; a prop held through a teleporter fell on
+the other side; and hanging from a ledge should tire you, and drop you when you're exhausted.
+
+### Why one hand stopped working
+
+**The cause: a force grab's leftover.** When a hand force grabs something, the QC notes it in that hand's
+`.mainhand_fgpulled` / `.offhand_fgpulled`. The note is never cleared: it keeps naming the last thing that hand pulled,
+and the QC only reads it while the thing is still flying to the hand (`.fg_state` 1). Climbing's "is this hand empty"
+test (`vr_climb.cpp`) read it differently: the hand counted as busy for as long as the thing existed. So after you
+force grabbed a health box, a brick or a gib with a hand and put it down, that hand refused every ledge, silently,
+until the thing was taken into your pack or removed. Pull something with the other hand and the problem swapped
+hands. The firing range is full of boxes to pull.
+
+- **The fix:** the climbing test now uses the same rule as the QC and the gadget's force grab stat. The hand is busy
+  only while the thing flies to that hand.
+- **Found on the way:** two more asymmetries between the hands, both in the carrying code.
+  - **Both hands on one thing:** when both hands touched the same thing in the touch pass, only the off hand's touch
+    ran (`vr_physics.cpp` `handTouch`). So a main-hand grip on a box the off hand rested on (or held a gun against)
+    did nothing. Each hand now touches it.
+  - **Two-handed carry while moving:** a prop held in both hands lost a hand when you moved fast. The check that pulls
+    a hand off (`vr_carry2h.cpp` `detached`) compared the hands, already moved with the body this frame, with the prop
+    where the hands had put it before the body moved. In the mock, walking at full speed with a brick in both hands
+    pulled one hand off at once ("one hand pulled off it, held in the other"). The prop is now compared as moved with
+    the body, and walking keeps both hands on it (0.0 cm off its grips).
+- **Not the cause (checked):**
+  - the grab's press isn't eaten by another system;
+  - the hold delay expires after a load or a teleport (the climber is reset when the time jumps);
+  - the world reset forgets every hold;
+  - nothing flips the main and off hands.
+
+  A hand holding a weapon still can't take a ledge (by design). A holster that holds a weapon still wins over a ledge
+  while you stand (as before); `vr_debug_hands 1` shows both.
+
+**Bricks with both hands.** The whole, chipped and broken bricks may now be held in both hands (Held Object Offsets:
+Two Hands 1, slots 23, 24 and 26). The rocks and the half brick stay one-handed (9 to 14 cm, a fist's worth), and it
+is the same Held Object Offsets setting per model. Held in both hands, a brick is carried as a box is, not as a club
+(the club is a one-hand grip by its end). `vr_props_version` 39 gives an old config the new setting where the slot
+still had the old default (one hand). A slot the config gave another model keeps its own.
+
+**`vr_debug_hands 1`** (Debug > Logging > **Hands**) prints a line per hand whenever something about it changes (2: every frame): the grip, the
+weapon, what it carries (and "both hands"), the force grab's target, lock and pulled thing (with its state), the
+flashlight, the hotspot, and what climbing makes of it: `holding`, `free`, or why a grip takes nothing (`a weapon`,
+`a carried object`, `a force grab locked on`, `a force grab in flight`, `the flashlight`, `a holster wins`,
+`too soon`, `too tired`). `vr_climb_debug 1` gives the same reason when a grip is refused
+("climb: off hand grips: not empty: a force grab in flight").
+
+### Props through teleporters
+
+What the hands carry now comes along through a teleporter: boxes, rocks, bricks, gibs, a grenade, a wall torch
+(everything carried, in one hand or two). The flashlight was already client-side, drawn in the hand. Changing level
+still drops them.
+
+- `teleport_touch` (`triggers.qc`) moves what the player carries by the player's move (`VR_Carry_Teleported`,
+  `vr_carry.qc`).
+- For 0.3 s after, the thing follows the hands from the player (`VR_Carry_FollowTeleported`): it goes where the hand
+  wants it, stopped short only by a wall between it and your eyes, and never counts as stuck.
+  - Why that's needed: the hands catch up with the teleport a frame or two apart. The server's hands move with the
+    player at the next frame, and the play space turns to the destination's facing when the client takes the new
+    angle. Before, the carry drew a line from where the thing was to where the hand wanted it; that line crossed the
+    level, a wall cut it, and the thing was dropped as stuck.
+  - A hand not yet moved with the player leaves the thing where it is.
+  - Two hands: the pull-off check waits for those 0.3 s.
+- The VR teleport (locomotion) sets the same moment (`vr_physics.cpp`), so a box held across a VR teleport past a
+  wall isn't dropped either.
+- Box3D: a held prop's kinematic body follows its entity. A move over 64 units is a jump (placed there, no sweep, no
+  push on what's round it), so the teleported prop doesn't bat anything on the way.
+
+### Climbing stamina
+
+Hanging from a hold tires you, from the pool parries, shoves and blows use (Stamina page; one pool, 100 as shipped).
+
+- **The cost:** 5 a second hanging from one hand, 2 a second from both hands together (20 s one-handed, 50 s
+  two-handed from full). Two hands cost less in all, not just per hand: the arms share the weight.
+- **Free:** standing on something while you hold (a low ledge gripped from the floor: the body's box 2 units down
+  meets a floor), the mantle, and standing on the ledge after it.
+- **No recovery while you hang:** each hanging frame counts as spending, so the rest before stamina comes back
+  (Rest Before Recovering, 2 s) starts when you stop hanging.
+- **Getting low:** the tiring breath plays once, as for the other efforts. The low mark is the dearest effort's cost,
+  now including three seconds of a one-handed hang.
+- **At none:** both hands let go, with a gasp (`player/gasp1`, the exhausted parry's) and a long buzz in each hand,
+  and you fall. No fling: the hands give way.
+- **With Exhausted: Slip Time** above 0: at none, your arms can't pull you up any more. You sink (8 units a second)
+  until your arms are straight or your feet land, and the hands slip off after that long. Feet on something, you
+  stay.
+- **Starting a hang:** a hang needs at least a second of one-handed hanging left. Short of it, a grip takes nothing,
+  with a soft buzz ("too tired"). A hand joining the other on a hold is always let (two hands tire less).
+- **On the gadget:** while a hang drains it, the stamina row reads **HANGING** and a dark notch runs back through the
+  lit cells. EXHAUSTED and the recovery sweep are as before.
+
+The engine spends it (`vr_climb.cpp` "Climbing stamina": `.vr_stamina_used`, `.vr_stamina_time`, QC's fields). The
+QC's pool counts climbing as one of its users (`VR_Stamina_On`, `VR_Stamina_LowAt`), and the gadget's drain mark
+(`.vr_climb_drain`, `STAT_QVR_MELEE` + 65536).
+
+| Menu (Climbing page; the first three also on the Stamina page) | Cvar | Default |
+|---|---|---|
+| Climbing Stamina | `vr_climb_stamina` | 1 |
+| Hanging Cost, One Hand | `vr_climb_stamina_rate` | 5 /s |
+| Hanging Cost, Two Hands | `vr_climb_stamina_rate_2h` | 2 /s (both together) |
+| Exhausted: Slip Time | `vr_climb_stamina_slip` | 0 s (let go at once) |
+| Debug > Logging > Hands | `vr_debug_hands` | 0 |
+
+New settings take their defaults: no `vr_cfg_version` change (`vr_props_version` 39 is the bricks').
+
+**Decisions:**
+- "Drop at 0" is the default, with a slip as an option. Slipping keeps you hanging without pulling, so it reads as
+  exhaustion, not as a bug.
+- The drop's sound is the gasp an exhausted parry plays. The tiring breath (`gasp2`) is already the low warning a few
+  seconds before, so the two moments sound different.
+- The costs: a hang from a ledge lasts 20 s on one hand, 50 s on two. vrclimb's rung wall, climbed as the mock climbs
+  it (23 s, 2 s a rung), costs 75 of 100 and ends at the top with the tiring breath. A quicker climb costs less. A
+  climb is something to rest for after a fight. Tell me if it should cost less.
+
+### Verified (mock headset, `vr_fixed_frames 1`; the scratchpad's `climbhands/`)
+
+**The hand-state matrix** (`hands/`). In vrclimb, each action is followed by the check:
+- each hand alone takes the ledge;
+- a health box in each hand alone;
+- the box in both hands.
+
+| Action before the check | Before (f03dacd0) | After |
+|---|---|---|
+| none | both hands take the ledge; the box in each hand and in both | the same |
+| off hand force grabs the box, catches it, puts it down | **off hand refused the ledge** ("not empty"); the rest fine | both take it |
+| main hand force grabs, catches, puts down | **main hand refused the ledge** | both take it |
+| a gun given to the main hand, let go of | both take it | the same |
+| a gun given to the off hand, let go of | (not run) | both take it |
+| a gun kept in the main hand | (not run) | the main hand refused ("a weapon", by design); the off hand takes it |
+| saved and loaded (a save in the run's folder) | both take it | the same |
+| a two-handed hang, let go of | both take it | the same |
+
+The flashlight and a holster are what `vr_debug_hands` shows when a grip is refused; they refuse only while the
+flashlight is in that hand or the hand is at a holster holding a weapon, as before.
+
+**Teleporters** (`tele/`):
+- **Start's skill teleporter** (a 90-degree turn):
+  - **One hand, each hand:** a brick held in the main hand, then the off hand. Before: "carry: stuck at (556 1406 27),
+    the hand wants (556 1531 54)", and it fell. After: "teleported with the player, moved by (0 160 19)". Two seconds
+    later it is still carried (`carry_player` the player), 1.6 units under the hand (its grip), turned 90 degrees
+    with you.
+  - **Both hands on a brick:** before, a brick took one hand only (then dropped as above). After: held in both, 0.0 cm
+    off both grips after the teleport.
+- **e1m1's teleporter** (walked into facing +y; the destination faces +x): a health box, still held, 3.8 units
+  beside the hand as gripped.
+- **e1m2's teleporter** with the wall torch (pulled out, dropped, taken again): still held after.
+- **The flashlight** in the off hand: still held (client-side, as before).
+- **Walking at full speed** with a brick in both hands (before the carry2h fix, with bricks two-handed): "one hand
+  pulled off it, held in the other". After: both hands stay on it.
+
+**Climbing stamina** (`stamina/`; vrclimb's long ledge, the hands pulled down 30 cm to hang):
+- **Hang:** two hands for 10 s (2 a second: -0.028 a frame), then one hand (5 a second). The tiring breath at 29.9
+  left (low: the parry's 30 in the kit's config). "no stamina left, lets go" at 29 s (game time). Stamina comes back 2 s after,
+  full 6 s after.
+- **Standing:** both hands on the ledge with the feet on the floor for 10 s: nothing spent.
+- **Slip** (Slip Time 1.5, costs 20 a second):
+  - by the ledge: "slipping", the body sinks 8 units a second and stops with the feet on the floor; it stays.
+  - over the trench (the far shimmy): it sinks 10 units to straight arms, then "no stamina left, lets go" 1.5 s later,
+    and falls into the trench.
+- **Regrab** (costs 20 a second, one hand): after the drop, a grip before the rest was over: "too tired (0.0 stamina
+  left)". The same grip after the pool had filled again: holds.
+- **Off** (`vr_climb_stamina 0`): no spending; the hands hold until let go.
+- **The gadget** (`vr_gadget_screen_dump`: `gadget_rows.png`): HANGING with the notch while hanging; EXHAUSTED after
+  the drop; the recovery sweep after.
+- **The 13 climb scripts** (`climb/`, `cmp.sh`):
+  - With Climbing Stamina off: every `climb` line is the same as before, byte for byte, all 13.
+  - On: the same once the `climbstamina` lines are left out, except one line in the ladder and ladderlean: "stamina low
+    (29.9 left): the tiring breath" near the top.
+  - None ran out. What was left at the end: mantle 99, ledge 40, shimmy 48, push 65, e1m1 75, ladder 25, ladderlean
+    11.
+- **Held Object Offsets migration** (`vr_props_version` 26 to 39): the bricks' Two Hands 0 became 1 (slots 23, 24,
+  26). The half brick stayed 0. A slot given another model kept its 0.
+
+**Found, not fixed:** `edict <n>` in the console with a number past the live edicts ends the game ("Bad edict number",
+then `PR_SwitchQCVM: A qcvm was already active`). This was already so before this change.
+
+### Not verified
+
+- In the headset: all of it. The force grab's leftover is the exact case in the mock, not your session's log. The
+  firing range's boxes make it the likely one, but I couldn't see what you pulled.
+- A grenade held through a teleporter: no ogre in the test maps. It is carried the same way as the box and the torch.
+- The haptics and sounds of climbing stamina (the mock has neither): the log shows each moment they are sent.
+
+### In the headset
+
+- [ ] Force grab a box with one hand, put it down, then take a ledge with that hand: it should hold.
+- [ ] Hold a brick in both hands, walk and run: both hands should stay on it.
+- [ ] Carry a box (one hand, then both) and a brick through a teleporter (start's skill teleporters, e1m1's): it should
+      come with you, turned with you.
+- [ ] Hang from a ledge with both hands, then one: watch the gadget read HANGING and drain. You should hear the breath
+      when it gets low, then drop with a gasp and a buzz. Tell me if 5 and 2 a second feel right.
+- [ ] Try Exhausted: Slip Time 1.5: at none you shouldn't be able to pull up, and your hands should slip off after it.
+- [ ] `vr_debug_hands 1` if a hand ever refuses again: the last word of its line says why.
+
+## Hand grenades from the back pouch
+
+Your voice note (firing range, 2026-09-29): throwing grenades by hand would be fun; while you have grenade ammo
+(rockets), a spot on the body to grab one, the trigger to start its fuse, then throw it, one rocket used. The legs,
+the torso and the shoulders already have holsters; you chose a pouch at the small of the back. Branch `agent/handgren`;
+scripts, logs and pictures in the scratchpad's `handgren/` (`final/` the pictures, `logs/` the runs).
+
+### What you do
+
+- **Take one:** with rockets, reach behind the small of your back with an empty hand (either hand) and grip. A grenade
+  comes out of the pouch into your palm, with the leather's rustle and an iron clack, and a buzz in the hand. As the
+  hand arrives there is a light tap (as at a holster with a gun in it) and the pouch lights up, as a holster does.
+  With no rockets: a dull knock in the hand, nothing taken.
+- **Arm it:** pull the trigger while you hold it. The pin comes out with a ping, the lever's clink and the fuse's fizz
+  follow, sparks burst out of it, and it ticks faster and faster, felt in the hand (the caught grenades' cues). It
+  goes off 2.5 s later (**Hand Grenade Fuse**, id's launcher grenade's fuse).
+- **Throw it** as anything you carry (the throw is the carry's: your hand's release speed). It is the grenade
+  launcher's grenade: it goes off on its fuse, or at once on a monster it touches, for the launcher's damage (120 over
+  160 units), credited to you (kills, the dummy's readout), with your Quad. Held too long, it goes off in your hand.
+- **Changed your mind:** let go of it at the pouch before pulling the pin: it goes back in (the same sound, softer),
+  and so does the rocket.
+- **Let go of anywhere else unarmed**, it drops as a dud: it bounces and lies there, it hurts nothing. Take it again
+  (by hand or force grab) to arm it and throw it, or put it back in the pouch.
+- **Arm Hand Grenades: When Let Go Of** (the other choice): the trigger does nothing; the lever flies off as the grenade
+  leaves your hand, anywhere but at the pouch, so a grenade dropped at your feet is live. A grenade let go of at the
+  pouch goes back in unarmed either way.
+
+### Decisions
+
+- **The rocket leaves your ammo when you take the grenade**, not when you pull the pin; putting it back unarmed gives
+  it back. So an unarmed grenade still costs nothing (the reason the brief gave for paying at the pin), and:
+  - what the HUD and the guns' screens show is what is left in the pouch;
+  - the grenade launcher can't fire the rocket that the grenade in your hand stands for (with the cost at the pin, a
+    grenade taken with your last rocket could have been left with nothing to pay for its pin);
+  - two hands can take two grenades only with two rockets;
+  - a dud lying about is a rocket already out of the pouch: armed later, it costs nothing more; put in the pouch, it
+    is a rocket again (anyone's pouch in multiplayer, as ammo would be). Duds can't be made without rockets, so they
+    can't pile up past your ammo.
+  - At the pouch with 100 rockets (full), it doesn't fit: it drops as a dud, with the dull knock.
+- **Unarmed and let go of elsewhere: a dud** (not back to the pouch by itself): what you see is what happens; you can
+  pick it up and use it. The pin decides whether it is live.
+- **An armed grenade can't be put back:** the pin is out. Let go of at the pouch, it drops there, and goes off.
+- **Going off in your hand** is your own grenade's blast (T_RadiusDamage from you): Quake halves your own explosions on
+  you, and Self Damage scales them. From 100 health you are left with about 42 (a caught ogre grenade in the hand is
+  the ogre's, in full, as before).
+- **The grenade in the hand is id's grenade** (`progs/grenade.mdl`, the launcher's and the ogres'): the same entity as a
+  caught and returned grenade, the same size, the same physics. It is large for a hand grenade (about 18 units long);
+  a smaller model only for hand grenades would be a different thing to catch and throw back. Say if you want one.
+- **Held In the Palm** (the grips branch's Grip Mode 2, `vr_grip.cpp`): its middle over the fist's grip channel on the
+  palm, the fingers round it, one hand only. The grenade's Held Object Offsets slot (4) had Where Taken and two hands;
+  it has In the Palm and one hand now, for caught grenades too. A config saved before takes them if its slot still
+  had those defaults (`vr_props_version` 44).
+- **The pouch shows your ammo:** frame 0 full (two grenade heads stand out of it) with a rocket or more, frame 1 empty
+  (the heads gone, its front fallen in) with none. It is drawn whenever Hand Grenades is on, with or without the body
+  (without it, it faces straight back from where the hand reaches).
+- **Where the settings are:** the gameplay ones (on/off, the arming, the fuse) on Batting and Catching, under the
+  grenades' catching (Hand Grenades, a section of its own); the pouch's place, reach and turn on **Hip Holsters** (the
+  belt's page; Hotspots already has 24 rows and the menus keep pages to 30). No Debug page row: Show Grenade Pouch is a
+  tuning marker, as Show Hip Holsters is, on the pouch's own page.
+- **A weapon let go of at the pouch drops**, as anywhere that is not a holster (the pouch takes grenades only).
+- **Climbing:** a hand at the pouch while standing, with rockets, takes a grenade rather than a hold behind you;
+  hanging, the hold wins (as for the holsters).
+
+### How it works
+
+- **The hotspot** (`vr_body.cpp`): `body::pouchPosition` places the pouch as the hip holsters are placed: the old
+  placement (`vr_grenade_pouch_x/y/z` from the player's middle, moving back as you crouch), carried by the pelvis with
+  Body Anchors; with the body drawn, its default X (-7) sits on the back of the hips' ring (the belt at the small of
+  the back, 1.5 units out of the surface), and X moves it on from there, round the hips rather than into them (the
+  holsters' `outOfTheTorso`). `updateHotspots` makes it hotspot 11 (`HS_GRENADE_POUCH`, `QVR_HS_GRENADE_POUCH`), in
+  competition with the holsters by distance over reach (`vr_grenade_pouch_thresh`, 7 units). The hotspot goes to the
+  server in the move's existing hotspot byte: no new input or state bits.
+- **Drawn** (`vr_view.cpp` `setupPouch`): `progs/vrpouch.mdl` on the body's surface there (the plate of the ring, as the
+  holsters' `plateOnTheBody`), its back against the body, turned by Pouch Pitch, Yaw, Roll about where the hand
+  reaches (the holsters' `holsterFrame` / `turnHolster`: pitch tips its top off the back, yaw turns its face to your
+  right, roll tips its top to your right), in the body preview too (`vr_body_debug` 2 and 3); frame from `STAT_ROCKETS`;
+  lit while a hand is at it. `vr_dumpview` prints the pouch and each hand's distance and hotspot.
+- **The model** (`Misc/quakevr/make_pouch.py`, registered in `generated.json`; its normal map baked by
+  `bake_normals.py vrpouch.mdl`, listed in the add-on's `normalmaps.py`/`normaltiles.py`): a deep oiled-leather pouch,
+  open at the top, its front rounded out (a superellipse), a rolled rim, a strap over the top down to an iron buckle,
+  rivets, stitched gussets; two grenade heads (dark iron, id's red band) stand out of it. 1118 vertices, 572
+  triangles, a 256 x 128 skin in Quake's palette (no fullbright), two frames of the same mesh. 23 x 15 cm, 11 cm deep.
+  MODELS_IN_BLENDER.md lists it.
+- **The sounds** (`make_sounds.py`): `vr/grenade_pouch.wav` (the leather's rustle and flap, iron knocking on iron;
+  taken, and softer put back) and `vr/grenade_pin.wav` (the split pin's rasp, the ring's ping and rattle); the arming
+  then plays the caught grenades' `grenade_fuse.wav` (the lever's clink, the fizz) and its ticks.
+- **The game** (`QC/vr_grenade.qc`, "Hand grenades from the back pouch"): `VR_HandGrenade_HandFrame` (each hand, each
+  frame, from `W_Frame` before the weapons' hands): the tap as a hand arrives at the pouch; a grip pressed there by an
+  empty hand (no weapon, nothing carried, not the torch, not force-grabbing, not climbing), once a press, takes one
+  (`VR_HandGrenade_Take`): the launcher's grenade (`GrenadeExplode`, `GrenadeTouch`), made a live grenade
+  (`VR_Grenade_Setup`, split from `VR_Grenade_Make`: a Box3D prop, catchable, force-grabbable) with `.vr_hgren` set and
+  no fuse, and carried (`VR_Carry_Start`). While it is unarmed, its fuse doesn't run, it isn't lit and it goes off on
+  nothing (`VR_HandGrenade_Armed`); `VR_Carry_HandFrame` gives it the trigger (`VR_HandGrenade_Trigger`: the pin,
+  `VR_HandGrenade_Arm`) and its let go at the pouch (`VR_HandGrenade_LetGo`); `VR_Grenade_Released` arms it on the
+  release (When Let Go Of) or leaves a dud. From the pin on, it is any live grenade you hold or threw: caught again
+  (the fuse left as it is, unless Fuse Resets Every Catch), not batted by you (batting is for monsters' projectiles), going off on a
+  monster, its fuse, or in your hand.
+- **Found on the way:** a grenade let go of at a holster was put "into the pack" (`VR_Carry_Take`), which has nothing
+  to take for a grenade, and dropped dead at the holster: an overarm throw's wind-up passes the shoulder holsters, so
+  the first throws fell at your feet. Grenades are never put in the pack now (caught ogre grenades too).
+- **Level changes:** an unarmed grenade in a hand at the level's end goes back in the pouch (`SetChangeParms`), so its
+  rocket goes on with you; an armed one stays behind with the level.
+- **Saves:** everything is in QC fields (`.vr_hgren`, `.vr_hgren_armed`; the player's `.vr_pouch_at`,
+  `.vr_pouch_tried`, per hand) saved with the entities; the engine keeps no entity state for the pouch (it is computed
+  from the hands each frame). A grenade in the hand is a carried prop, which the save/load round already covers
+  (ROUND21, "Save/load crash").
+- **Multiplayer:** each client's pouch is its own hotspot, sent with its move; the grenade and the rockets are that
+  player's. Deathmatch takes one at once (no start delay). A player's dud can be taken by anyone.
+
+### Settings
+
+| | | |
+|---|---|---|
+| Hand Grenades | `vr_handgrenade` | 1; 0: no pouch (not drawn, no hotspot) |
+| Arm Hand Grenades | `vr_handgrenade_arm` | 0 Trigger pulls the pin; 1 When let go of |
+| Hand Grenade Fuse | `vr_handgrenade_fuse` | 2.5 s (1..5) from the pin (or the release) |
+| Show Grenade Pouch | `vr_show_grenade_pouch` | a marker the size of its reach, green while a hand is at it |
+| Pouch X, Y, Z | `vr_grenade_pouch_x/y/z` | -7, 0, 3 units: X forward (the default on the back), Y right, Z up (times the height calibration, as the holsters') |
+| Pouch Threshold | `vr_grenade_pouch_thresh` | 7 units |
+| Pouch Pitch, Yaw, Roll | `vr_grenade_pouch_pitch/yaw/roll` | 0 degrees |
+
+The grenade's grip: Held Object Offsets (hold one, open it): `progs/grenade.mdl` (slot 4), Grip In the Palm, Two
+Hands off.
+
+### Tests (mock headset; the scratchpad's `handgren/`: `runall.sh`, logs in `logs/`, pictures in `final/`)
+
+vrfiringrange from `setpos 190 -560 41 0 90 0`, 10 rockets, `notarget`, a grunt 300 units ahead (`impulse 241`), Gun
+Angle 70; the hands move by `vr_mock_play` files from `gen.py` (the pouch at `vr_mock_hand main|off 0 1.0 0.2`, 1.5
+units from its middle: `vr_dumpview` says hotspot 11; throws from `throw_plays.py`).
+
+| Case | Log |
+|---|---|
+| Main hand: take, pin, overarm throw at the grunt | taken, 9 rockets left; armed, 2.50 s; thrown at 306 u/s, first bounce 210 units ahead, "hits monster_army": 108.6 damage, dead |
+| Off hand: the same | taken by hand 0, 9 left; 305 u/s; hits the grunt: 107.6, dead |
+| Off hand: a gentle lob (119 u/s) | first bounce 80 units ahead; goes off on its fuse 126 units ahead |
+| Arm When Let Go Of | the trigger does nothing; "armed (the lever flies off as it leaves the hand)" at the release, 2.50 s; hits the grunt: 108.4 |
+| No rockets (`give r 0`) | "the pouch is empty"; nothing taken, nothing thrown |
+| Put back unarmed at the pouch | 9 -> 10 rockets; taken again: 9 |
+| Let go of unarmed in front | "let go of unarmed: a dud", bounces, lies at your feet |
+| The dud picked up off the floor, armed, thrown | no rocket taken; armed 2.50 s; hits the grunt: 109.5 |
+| The dud picked up, put in the pouch | 10 rockets; the next one taken leaves 9 |
+| Armed and held | "went off in player's hand": 100 -> 42 health (the dummy nearby took 66.6) |
+| Both hands | two grenades, 8 rockets left |
+| Hand Grenades off | nothing taken at the pouch |
+| A shambler, and with Quad (`impulse 255`) | 47.9 damage (shamblers take half from explosions), health 600 -> 552; with Quad 600 -> 408 (4 x 47.8) |
+| A level change holding an unarmed one (`changelevel vrfiringrange`) | "back in the pouch at the level's end"; the next one taken leaves 9 (of 10) |
+| A config saved at `vr_props_version` 40 with the grenade's slot Where Taken, two hands | "progs/grenade.mdl: In the Palm, one hand"; `vr_prop_grip_04` 2, `vr_prop_two_hands_04` 0 |
+| Before the holster fix: an overarm throw | "carry: into the pack", the grenade dropped at your feet (the wind-up passes the shoulder holster) |
+
+Pictures (`final/`):
+- `pouch_final.png`: from behind (`r_fullbright 1`): full; a hand at it (lit up); empty (`give r 0`: the heads gone, the
+  front flat); from the side; the body preview from its left (`vr_body_debug 3`: the pouch at the back); in the map's
+  light.
+- `hand_final.png`: from the eyes, the grenade in the right palm; the pin pulled (sparks); a close camera on the palm.
+- `palm2.png`: In the Palm from the front, the side and the palm's side.
+- `menu.png`: Batting and Catching's Hand Grenades, Hip Holsters' Grenade Pouch.
+
+Also: `menu_coverage.py` on a `menu_vr dump`: Batting and Catching 20 rows, Hip Holsters 23, no page over 30;
+`fgdgen.py --check` passes (no spawn function changed); QC 0 warnings.
+
+### Not verified
+
+- In the headset: reaching behind your back, the pouch's place for your body and arms (Pouch X, Z, Threshold), the
+  tap and the sounds (made, not heard: `grenade_pouch.wav`, `grenade_pin.wav`).
+- Catching your own thrown hand grenade in flight (the caught grenades' code, unchanged; not scripted).
+- Saving and loading with a grenade in the hand or a dud about: no saves were written (the tests don't write saves);
+  the state is in QC fields only (above).
+- Multiplayer (no second client in the mock).
+- Costs: not measured. A frame adds two torso solves for the pouch's place (the hotspots and the drawing) and one
+  572-triangle model.
+- The melee canary (`eval.sh`) skips while your takes are archived; no melee code changed.
+
+### In the headset
+
+- [ ] Reach behind the small of your back with either hand and grip: a grenade in your palm, the pouch's rustle and
+      clack, a buzz. If you have to hunt for it, Show Grenade Pouch (Hip Holsters) and move it (Pouch Z, X) or
+      raise Pouch Threshold.
+- [ ] Pull the trigger: ping, fizz, sparks, ticking. Throw it at a grunt: it should go off on him as a launcher
+      grenade. Hold one: it goes off in your hand.
+- [ ] Take one and put it back at the pouch: the rockets come back. Drop one in front of you: a dud; pick it up and
+      arm it.
+- [ ] Try Arm Hand Grenades: When Let Go Of, and say which you prefer.
+- [ ] Look at the pouch in a mirror or with the body preview from its side, full and empty. Is id's grenade too big in
+      the hand?

@@ -135,6 +135,7 @@ MODELS = {
     "vrgadget_strap.mdl": {"tiles": strap_tiles, "paint": False, "bevel": 1.2, "scale": 4},
     "vr_shell.mdl": {"tiles": shell_tiles, "paint": False, "bevel": 1.2, "scale": 4},
     "legholster.mdl": {"paint": True, "grain": 0.3, "bevel": 1.4, "scale": 4},
+    "vrpouch.mdl": {"paint": True, "grain": 0.3, "bevel": 1.4, "scale": 2},  # (make_pouch.py: its skin 256 x 128)
     "vrpauldron.mdl": {"paint": True, "grain": 0.3, "bevel": 1.6, "scale": 4},
     "vrpauldron_arm.mdl": {"paint": True, "grain": 0.3, "bevel": 1.6, "scale": 4},
 }

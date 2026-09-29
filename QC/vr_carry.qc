@@ -37,6 +37,8 @@
 .float carry_rigid;      // let go of, its .vr_rigid (0: 1; an explosive box: 2, a solid one)
 .float carry_thrown;     // when it was last thrown hard enough to hurt (VR_Carry_Release; an explosive box's throw lasts
                          // VR_THROWN_BOX_TIME: VR_Explobox_Impact)
+.float carry_teleported; // on a player: until then it has just been teleported (VR_Carry_Teleported; the engine's VR
+                         // teleport, vr_physics.cpp): what it carries follows its hands from where it is (VR_Carry_Follow)
 
 entity(entity xPlayer, float xHand) VR_Carry_Held =
 {
@@ -220,7 +222,7 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
             sound(self, CHAN_AUTO, "vr/pommel2.wav", 0.35, ATTN_NORM); // a wooden stick taken up: a soft knock
         }
     }
-    else
+    else if(!vr_carry_quiet)
     {
         sound(self, CHAN_AUTO, "knight/sword2.wav", 0.4, ATTN_NORM);
     }
@@ -378,6 +380,12 @@ void(float xHand) VR_Carry_HandFrame =
     float takeMode = cvar_hget(cvarh_vr_carry_take);
     if(!VR_HandGrabUtil_IsHandGrabbing(self, xHand))
     {
+        // An unarmed hand grenade let go of at the grenade pouch: back in it (vr_grenade.qc).
+        if(VR_HandGrenade_LetGo(xHand, box))
+        {
+            return;
+        }
+
         // Armour (vr_armor_wear, items.qc): let go of over the torso it is put on; else it drops.
         // Never into the pack.
         if(box.vr_wearable)
@@ -405,8 +413,10 @@ void(float xHand) VR_Carry_HandFrame =
         }
 
         // Let go at a holster: into the pack (if full up, it drops there). Not let go of by both hands
-        // (together, as a throw: the other hand at most vr_carry_two_hands_window before, and a frame).
-        if(takeMode != 1 && VR_Carry_AtHolster(xHand) && time - box.carry_2h_end > cvar_hget(cvarh_vr_carry_two_hands_window) + 0.05)
+        // (together, as a throw: the other hand at most vr_carry_two_hands_window before, and a frame). Never a grenade
+        // (nothing to take: it is thrown, as an overarm throw's wind-up passes the shoulder holsters).
+        if(takeMode != 1 && VR_Carry_AtHolster(xHand) && !VR_Grenade_Is(box) &&
+           time - box.carry_2h_end > cvar_hget(cvarh_vr_carry_two_hands_window) + 0.05)
         {
             dprint("carry: into the pack\n");
             VR_Carry_Take(xHand, box);
@@ -428,6 +438,10 @@ void(float xHand) VR_Carry_HandFrame =
     if(box.vr_wearable)
     {
         VR_Armor_HeldFrame(xHand, box); // over the torso: a haptic hint
+    }
+    else if(VR_HandGrenade_Trigger(xHand, box, trigger && !box.carry_trigger))
+    {
+        // (a hand grenade's trigger pulls its pin: vr_grenade.qc)
     }
     else if(takeMode != 0 && trigger && !box.carry_trigger && !box.vr_pickup_obj)
     {
@@ -456,6 +470,60 @@ void(float xHand) VR_Carry_HandFrame =
 
 // Moves the held `box` (self is the player) towards `target`, not through walls or monsters: FALSE if
 // it is left behind (stuck).
+// Teleported (a trigger_teleport, or the VR teleport), until self.carry_teleported: the hands move with the player a frame
+// or two apart (the player's move as the server next reads them, the play space's turn to the destination's facing when
+// the client takes it), so the line from where the held thing was to where the hand wants it can cross the level, or
+// a wall: that is no reason to drop it (VR_Carry_Follow). It goes where the hand wants it, stopped short by a wall
+// between it and the player's eyes; a hand still at the old place (not yet moved with the player: its target far from
+// the body) leaves it where it is. Never dropped. TRUE.
+float(entity box, vector target, vector mid, float clearance) VR_Carry_FollowTeleported =
+{
+    vector flat = target - self.origin;
+    flat_z = 0;
+    if(vlen(flat) > 64)
+    {
+        return TRUE; // (the hands not yet moved with the player)
+    }
+    traceline(self.origin + self.view_ofs, target + mid, TRUE, box); // (the walls: not the player's box, not the thing)
+    vector dest = trace_endpos;
+    if(trace_fraction < 1)
+    {
+        dest = dest + trace_plane_normal * clearance;
+    }
+    dest = dest - mid;
+    box.velocity = '0 0 0';
+    if(frametime > 0 && vlen(dest - box.origin) < 32)
+    {
+        box.velocity = (dest - box.origin) * (1 / frametime);
+    }
+    setorigin(box, dest);
+    return TRUE;
+};
+
+// The player `p` was teleported from `xFrom` (teleport_touch): what its hands carry, in one hand or both, comes along,
+// moved as it was (turned with the play space by its hands' next frames), and follows the hands from there for a moment
+// (VR_Carry_FollowTeleported). Level changes still drop it.
+void(entity p, vector xFrom) VR_Carry_Teleported =
+{
+    vector d = p.origin - xFrom;
+    entity a = p.mainhand_held;
+    entity b = p.offhand_held;
+    if(a == world && b == world)
+    {
+        return;
+    }
+    p.carry_teleported = time + 0.3;
+    if(a != world && a.carry_player == p)
+    {
+        setorigin(a, a.origin + d);
+    }
+    if(b != world && b != a && b.carry_player == p)
+    {
+        setorigin(b, b.origin + d);
+    }
+    dprint(sprintf("carry: teleported with the player, moved by %v\n", d));
+};
+
 float(entity box, vector target) VR_Carry_Follow =
 {
     // A solid prop (an explosive box: a big brush model whose origin is a bottom corner, in the floor it stands on) by its
@@ -470,6 +538,10 @@ float(entity box, vector target) VR_Carry_Follow =
         target = target + mid;
         vector half = (box.maxs - box.mins) * 0.5;
         clearance = max(1, min(half_x, min(half_y, half_z)));
+    }
+    if(time < self.carry_teleported)
+    {
+        return VR_Carry_FollowTeleported(box, target - mid, mid, clearance);
     }
     traceline(from, target, FALSE, self);
     vector dest = trace_endpos;
@@ -623,7 +695,13 @@ void() VR_Carry_TwoHandFrame =
     }
     // Pulled off it (carry2hoff: a hand further from its grip than the drift and a margin, its fist off the prop),
     // gripping or not: both, it drops with the motion it has (not a throw); one, it lets go of it as below.
-    float pulledOff = carry2hoff(box, self);
+    // (Not asked just after a teleport: the hands catch up with the player a frame or two apart,
+    // VR_Carry_FollowTeleported; asking would forget the grips.)
+    float pulledOff = 0;
+    if(time >= self.carry_teleported)
+    {
+        pulledOff = carry2hoff(box, self);
+    }
     if(pulledOff == 3)
     {
         dprint("carry: both hands pulled off it, dropped\n");

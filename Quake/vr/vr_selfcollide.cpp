@@ -531,7 +531,8 @@ void addCap(Caps& out, const glm::vec3& a, const glm::vec3& b, float r)
 
 // The body against a hand at a holster (its hotspot: the holsters stand out of the body, so only a hand deep in one is
 // eased out, from its reach to half of it) and a weapon going into one (from 1.6 times its reach to its reach).
-[[nodiscard]] float awayFromHolsters(const hands::State& s, int hand, const body::HolsterPositions& hp, bool weapon)
+[[nodiscard]] float awayFromHolsters(
+    const hands::State& s, int hand, const body::HolsterPositions& hp, const glm::vec3* pouch, bool weapon)
 {
     float ratio = 1e9f;
     for(int h = 0; h < body::HolsterCount; h++)
@@ -541,6 +542,10 @@ void addCap(Caps& out, const glm::vec3& a, const glm::vec3& b, float r)
         {
             ratio = std::min(ratio, glm::distance(s.pos[hand], hp[static_cast<std::size_t>(h)]) / reach);
         }
+    }
+    if(pouch && body::pouchReach() > 0.f) // the grenade pouch at the small of the back, as a holster
+    {
+        ratio = std::min(ratio, glm::distance(s.pos[hand], *pouch) / body::pouchReach());
     }
     return weapon ? smooth(1.f, 1.6f, ratio) : smooth(0.5f, 1.f, ratio);
 }
@@ -754,14 +759,19 @@ void solve(const hands::State& s, float dt, glm::vec3 out[2], Stats& stats)
     const bool brushes = vr_hand_collide.value > 0.f; // vr_view.cpp's pushOut takes a free hand against the other weapon
 
     body::HolsterPositions holsters{};
+    glm::vec3 pouch{0.f};
     bool holstersMade = false;
     const auto away = [&](int h, bool weapon) {
         if(!holstersMade)
         {
             holsters = body::holsterPositions(s);
+            if(body::pouchEnabled())
+            {
+                pouch = body::pouchPosition(s);
+            }
             holstersMade = true;
         }
-        return awayFromHolsters(s, h, holsters, weapon);
+        return awayFromHolsters(s, h, holsters, body::pouchEnabled() ? &pouch : nullptr, weapon);
     };
 
     // Each contact's shapes and weight.

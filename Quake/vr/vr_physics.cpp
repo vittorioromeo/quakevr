@@ -279,13 +279,20 @@ void handTouch(edict_t* ent, edict_t* target)
 
     // The entity's own box, not its abs box: Quake widens items' abs boxes by 15 units for walking
     // over them, which made a 6-unit ammo box grabbable from a hand's width away.
+    // Each hand on it touches it (round 21, "Hands: both work"): with both on it, only the off hand's touch ran, so the
+    // main hand's grip on a thing the off hand rested on (or held a gun against) did nothing.
     const bool offHit = handOn(target, ent, HAND_OFF);
     const bool mainHit = handOn(target, ent, HAND_MAIN);
 
-    if(offHit || mainHit)
+    if(offHit)
     {
-        setHandtouchParams(offHit ? HAND_OFF : HAND_MAIN, ent, target);
+        setHandtouchParams(HAND_OFF, ent, target);
         callField(target, ent, handtouch);
+    }
+    if(mainHit && !target->free && fieldFunc(target, f().handtouch) && solidOf(target) != SOLID_NOT)
+    {
+        setHandtouchParams(HAND_MAIN, ent, target);
+        callField(target, ent, fieldFunc(target, f().handtouch));
     }
 }
 
@@ -383,6 +390,12 @@ extern "C" int VR_ClientTeleport(edict_t* ent)
     }
 
     ent->v.teleport_time = static_cast<float>(qcvm->time) + 0.3f;
+    if(f().carry_teleported >= 0)
+    {
+        // What the hands carry follows them from the player for a moment (vr_carry.qc VR_Carry_FollowTeleported), not
+        // along a line from where it was, which a wall would cut (it was dropped as stuck).
+        fieldFloat(ent, f().carry_teleported) = static_cast<float>(qcvm->time) + 0.3f;
+    }
     for(int i = 0; i < 3; i++)
     {
         ent->v.origin[i] = ent->v.oldorigin[i] = target[i];

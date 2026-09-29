@@ -294,7 +294,7 @@ QVR_CVAR(vr_weight_lenient_from, "10", CVAR_ARCHIVE)     // kg: lighter things (
 QVR_CVAR(vr_weight_lenient_min, "0.25", CVAR_ARCHIVE)    // the least factor
 QVR_CVAR(vr_debug_weight_stamina, "-1", CVAR_NONE)       // tests: the stamina the weight takes as left (0..1) instead of the game's (-1: the game's)
 QVR_CVAR(vr_debug_weight, "0", CVAR_NONE)                // 1: each hand's target and drawn pose, a line a frame in weight_trace.txt; 2: and printed
-QVR_CVAR(vr_props_version, "40", CVAR_ARCHIVE)           // the held object settings' changes the config has taken (vr_props.cpp)
+QVR_CVAR(vr_props_version, "44", CVAR_ARCHIVE)           // the held object settings' changes the config has taken (vr_props.cpp)
 // Explosive boxes (misc_explobox, misc_explobox2) as physics props.
 QVR_CVAR(vr_explobox_physics, "1", CVAR_ARCHIVE)         // 1: pushed, tipped, carried by hand (never force grabbed); 0: fixed in place (id's)
 QVR_CVAR(vr_explobox_impact, "14", CVAR_ARCHIVE)         // m/s: a box hitting something this hard is damaged, more the harder (0: never): dropped from 85 units or more (Quake's gravity); tipped over, its top lands at 11
@@ -372,6 +372,17 @@ QVR_CVAR(vr_upper_holster_roll, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_shoulder_holster_pitch, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_shoulder_holster_yaw, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_shoulder_holster_roll, "0", CVAR_ARCHIVE)
+// The grenade pouch (vr_handgrenade; docs/vr-port/ROUND21.md, "Hand grenades from the back pouch"): on the belt at the
+// small of the back. X forward (negative: back), units: with the body drawn, the default (-7) is on the back and X moves
+// it from there (forward, it goes round the hips); Y to the right; Z up (times the height calibration, as the holsters').
+QVR_CVAR(vr_show_grenade_pouch, "0", CVAR_NONE)
+QVR_CVAR(vr_grenade_pouch_x, "-7", CVAR_ARCHIVE)
+QVR_CVAR(vr_grenade_pouch_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_grenade_pouch_z, "3", CVAR_ARCHIVE)
+QVR_CVAR(vr_grenade_pouch_thresh, "7", CVAR_ARCHIVE)  // units a hand must be within to be at it
+QVR_CVAR(vr_grenade_pouch_pitch, "0", CVAR_ARCHIVE)  // degrees: its top away from the back (the holsters' axes)
+QVR_CVAR(vr_grenade_pouch_yaw, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_grenade_pouch_roll, "0", CVAR_ARCHIVE)
 // The player's body (vr_avatar.cpp): 0 none, 2 torso and arms, 3 torso, arms and legs: the skinned
 // progs/vrbody model, posed by IK from the head and hands (1, the old floating torso, is now 2).
 QVR_CVAR(vr_body_mode, "2", CVAR_ARCHIVE)
@@ -705,6 +716,10 @@ QVR_CVAR(vr_climb_hand_yaw, "10", CVAR_ARCHIVE)      // degrees: and turned, the
 QVR_CVAR(vr_climb_hand_roll, "0", CVAR_ARCHIVE)      // degrees: and rolled about the knuckles' way, the thumb's side up (mirrored), display only
 QVR_CVAR(vr_climb_mover_crush, "0", CVAR_ARCHIVE)     // a hold on a moving brush (a plat, a train, a door) whose ride carries you into something: 0 the hand lets go (you fall); 1 you hold on and block it, as anything in its way (Quake's crush rules: it hurts you, a door or plat goes back)
 QVR_CVAR(vr_debug_ledges, "0", CVAR_NONE)             // the ledge map (vr_ledges.cpp) drawn round you: lips green (on brush models pink), a tick out every 8 units (yellow: the drop starts further out, past a trim or a rung below), the top's depth in (grey); 1: within 512 units, more: that many
+QVR_CVAR(vr_climb_stamina, "1", CVAR_ARCHIVE)         // hanging from a hold tires you: stamina from the parry/shove/strike pool (vr_parry_stamina_max) drains while a hand holds and your feet are on nothing, none comes back meanwhile, and at none the hands let go (vr_climb.cpp "Climbing stamina")
+QVR_CVAR(vr_climb_stamina_rate, "5", CVAR_ARCHIVE)    // with it: stamina a second hanging from one hand
+QVR_CVAR(vr_climb_stamina_rate_2h, "2", CVAR_ARCHIVE) // and from both hands (the two together: less than one hand, the arms share the weight)
+QVR_CVAR(vr_climb_stamina_slip, "0", CVAR_ARCHIVE)    // s: with none left, 0 the hands let go at once; more: they can't pull you up, you sink to straight arms and they slip off after this long
 QVR_CVAR(vr_climb_debug, "0", CVAR_NONE)              // print holds, releases and mantles (2: and "climbtrace" and "climbreach" lines every frame: the body, the hands, the pull, the holds' reach; 3: the shoulders, estimated and drawn)
 QVR_CVAR(vr_swim, "1", CVAR_ARCHIVE)                  // VR swimming: the stick slows in water, strokes of the hands move you
 QVR_CVAR(vr_swim_shallow_speed, "0.85", CVAR_ARCHIVE) // the stick's speed with the feet in water,
@@ -740,6 +755,7 @@ QVR_CVAR(vr_held_surface_fit, "1", CVAR_ARCHIVE)      // a gripped box, gib or b
 QVR_CVAR(vr_held_fit_gap, "0", CVAR_ARCHIVE)          // with it: cm between the curled fingers and what they hold (negative: sunk in)
 QVR_CVAR(vr_carry_reach, "8", CVAR_NONE)              // retired (grab reach from the fist: vr_carry_grab_bias): kept so saved configs load silently
 QVR_CVAR(vr_carry_grab_bias, "0", CVAR_ARCHIVE)       // cm: a hand takes a box, gib, backpack or armour if its fist (the palm and the curled fingers) is within this of the thing's drawn surface (negative: pressed that far into it; vr_held.cpp grabTouch)
+QVR_CVAR(vr_debug_hands, "0", CVAR_NONE)              // prints each hand's state when it changes (2: every frame): the grip, what it holds (weapon, carried object, force grab, flashlight), its climbing hold and why a grip takes none, the hotspot (vr_climb.cpp debugHands)
 QVR_CVAR(vr_debug_carry, "0", CVAR_NONE)              // draws, for each hand near a carriable thing, the grab test: the box the thing is drawn in, the fist tested (its spheres; the nearest bright) and the nearest point of its surface (green: it touches, in reach); 2: also carry_trace.txt, what is carried and both hands every frame, and each grab test printed; 3: and the fists not near
 QVR_CVAR(vr_debug_arm, "0", CVAR_NONE)                // prints each drawn arm's IK once (the shoulder, elbow and wrist in the body's axes, cm; the elbow's swing; the wrist's bend and twist against the forearm), then turns itself off; 2: every frame
 QVR_CVAR(vr_debug_lean, "0", CVAR_NONE)               // lean_trace.txt (the game directory): the head, the box, the lean, the pelvis and the feet every frame, and the lean's cues (vr_lean_detect)
@@ -900,6 +916,9 @@ QVR_CVAR(vr_grenade_fuse_regrab, "0", CVAR_ARCHIVE)      // 1: every catch sets 
 QVR_CVAR(vr_grenade_catch_radius, "15", CVAR_ARCHIVE)   // cm round the palm an empty hand, not striking, catches a grenade in flight in (grip held or closing; QC vr_grenade.qc)
 QVR_CVAR(vr_grenade_catch_window, "0.15", CVAR_ARCHIVE) // s an open palm holds a grenade that flies into it for the grip to close on it (else it drops from the hand)
 QVR_CVAR(vr_grenade_return_full, "1", CVAR_ARCHIVE)     // a grenade you throw or bat back goes off as your grenade launcher's (120 damage, 160 units round), not its thrower's (an ogre's 40)
+QVR_CVAR(vr_handgrenade, "1", CVAR_ARCHIVE)             // hand grenades: an empty hand gripping at the grenade pouch (the small of the back) takes one while you have rockets
+QVR_CVAR(vr_handgrenade_fuse, "2.5", CVAR_ARCHIVE)      // s from arming a hand grenade to its going off (the launcher's is 2.5)
+QVR_CVAR(vr_handgrenade_arm, "0", CVAR_ARCHIVE)         // 0: the trigger pulls the pin (let go of unarmed, it is a dud); 1: letting go arms it (the lever flies off)
 QVR_CVAR(vr_ogre_aim_height, "1", CVAR_ARCHIVE)          // ogres (and zombies) lob at your height: a ballistic arc at their throw's speed (0: Quake's flat lob)
 QVR_CVAR(vr_activestartpaknameidx, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_verbosebots, "0", CVAR_NONE)

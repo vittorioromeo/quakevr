@@ -30,6 +30,8 @@ void() SetChangeParms =
         return;
     }
 
+    VR_HandGrenade_LevelEnd(); // an unarmed hand grenade in a hand: its rocket goes on with you (vr_grenade.qc)
+
     VR_ItemUtil_EntDelItem(self, IID_KEY1);
     VR_ItemUtil_EntDelItem(self, IID_KEY2);
     VR_ItemUtil_EntDelItem(self, IID_INVISIBILITY);

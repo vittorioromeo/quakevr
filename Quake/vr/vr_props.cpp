@@ -38,8 +38,9 @@ constexpr const char* keyDefaults[numKeys] = {
 
 // Configs archive every slot, so a slot whose shipped defaults change keeps a config's old values: vr_props_version
 // says which changes a config has seen (as vr_wofs_version for the weapons). 1: the table's first version; 26: the rocks
-// and bricks' slots; 40: the grip modes (the round's agents number their changes apart).
-constexpr int settingsVersion = 40;
+// and bricks' slots; 39: the bricks two-handed; 40: the grip modes; 44: the grenade's (the round's agents number their
+// changes apart).
+constexpr int settingsVersion = 44;
 
 std::array<std::string, numSlots * numKeys> names;
 std::array<cvar_t, numSlots * numKeys> cvars{};
@@ -130,6 +131,21 @@ void migrate()
             }
         }
     }
+    // 39: the whole, chipped and broken bricks (slots 22, 23, 25) may be held in both hands (round 21, "Hands: both work;
+    // props through teleporters; climbing stamina"). A config that still has the old default (one hand) takes it; one
+    // whose slot is another model's keeps its own.
+    if(from < 39)
+    {
+        for(const int slot : {22, 23, 25})
+        {
+            cvar_t& id = cvarAt(slot, Key::ID);
+            cvar_t& two = cvarAt(slot, Key::TwoHands);
+            if(!strcmp(id.string, id.default_string) && !strcmp(two.string, "0"))
+            {
+                Cvar_SetQuick(&two, two.default_string);
+            }
+        }
+    }
     // 40: the grip modes (round 21, "Held props: grip modes, live offsets, palm grip, torch handle"). The wall torch is
     // held Along the Handle and the rocks and the half brick In the Palm: their grips take the new defaults (a config's
     // fixed grip for them was a way round the old ones). Grip X..Roll were read only by a fixed grip; they are an offset
@@ -168,6 +184,22 @@ void migrate()
                     Cvar_SetQuick(&cvarAt(slot, key), "0");
                 }
             }
+        }
+    }
+    // 44: the grenade (slot 4, progs/grenade.mdl: a hand grenade from the pouch, a caught one) is held In the Palm, in one
+    // hand (round 21, "Hand grenades from the back pouch"): its grip and Two Hands take the new defaults, if the slot is
+    // still the grenade's and they are still every prop's (Where Taken, two hands: a config's own choice is kept).
+    if(from < 44)
+    {
+        constexpr int grenadeSlot = 3;
+        if(!strcmp(cvarAt(grenadeSlot, Key::ID).string, cvarAt(grenadeSlot, Key::ID).default_string) &&
+            atof(cvarAt(grenadeSlot, Key::GripMode).string) == 0.0 && atof(cvarAt(grenadeSlot, Key::TwoHands).string) == 1.0)
+        {
+            for(const Key key : {Key::GripMode, Key::TwoHands})
+            {
+                Cvar_SetQuick(&cvarAt(grenadeSlot, key), cvarAt(grenadeSlot, key).default_string);
+            }
+            Con_DPrintf("Held Object Offsets: progs/grenade.mdl: In the Palm, one hand\n");
         }
     }
     Cvar_SetValueQuick(&vr_props_version, settingsVersion);

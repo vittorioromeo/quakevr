@@ -169,6 +169,7 @@ float QVR_HS_HAND_SWITCH            = 7;
 float QVR_HS_LEFT_UPPER_HOLSTER     = 8;
 float QVR_HS_RIGHT_UPPER_HOLSTER    = 9;
 float QVR_HS_CARRIED_GRIP           = 10; // the handle of the gun the other hand carries by its foregrip
+float QVR_HS_GRENADE_POUCH          = 11; // the grenade pouch at the small of the back (vr_handgrenade: vr_grenade.qc)
 
 //
 //

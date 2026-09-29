@@ -258,6 +258,8 @@ void() worldspawn =
     precache_sound("vr/counter.wav");      // and a counter landing
     precache_sound("vr/grenade_fuse.wav"); // a caught grenade lit (vr_grenade.qc),
     precache_sound("vr/grenade_tick.wav"); // and its ticks
+    precache_sound("vr/grenade_pouch.wav"); // a hand grenade taken from the pouch or put back (vr_grenade.qc),
+    precache_sound("vr/grenade_pin.wav"); // its pin pulled
     precache_sound("vr/pommel1.wav"); // pommel, hilt and butt strikes (VR_Melee_HitSound)
     precache_sound("vr/pommel2.wav");
     precache_sound("vr/pommel3.wav");

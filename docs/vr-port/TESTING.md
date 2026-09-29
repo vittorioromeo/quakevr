@@ -141,6 +141,22 @@ context and screenshot, ready to paste or to point me at.
 ## What to try
 
 - **New in this round** (details in `docs/vr-port/ROUND21.md`; each section ends with an "In the headset" list):
+  - **Hand grenades from the back pouch** (ROUND21.md, same title): with rockets, reach behind the small of your back
+    with an empty hand (either) and grip: a grenade from the pouch on your belt there (a tap as the hand arrives; the
+    pouch lights up), in your palm. Pull the trigger to pull its pin (a ping, the fizz, sparks, ticks faster and
+    faster): 2.5 s, then it goes off as the grenade launcher's (120 damage over 160 units, yours, with Quad), or on a
+    monster it hits. Throw it as anything you carry. Changed your mind? Let go of it at the pouch before pulling the
+    pin: it goes back in, and the rocket with it (a rocket leaves your ammo while a grenade is in your hand). Let go
+    of elsewhere unarmed, it is a dud at your feet: take it again to arm it or put it back. No rockets: a dull knock.
+    Batting and Catching > **Hand Grenades** (on/off, **Arm Hand Grenades**: the trigger, or when let go of; **Hand
+    Grenade Fuse**); the pouch's place and turn on Hip Holsters > **Grenade Pouch**.
+  - **Hands: both work; props through teleporters; climbing stamina** (ROUND21.md, same title): a hand that force
+    grabbed something and put it down could no longer take a ledge (fixed); a main-hand grip on a thing the off hand
+    touched did nothing, and a prop held in both hands lost a hand when you moved fast (both fixed). Bricks (whole,
+    chipped, broken) can be held in both hands. What you carry comes through teleporters. Hanging from a hold tires
+    you (Climbing page > Climbing Stamina; also on the Stamina page): 5 a second from one hand, 2 from both, nothing
+    with your feet on something; at none your hands let go (or, with Exhausted: Slip Time, slip off after sinking);
+    the gadget reads HANGING while it drains. `vr_debug_hands 1` (Debug > Logging > Hands) prints each hand's state when it changes.
   - **Performance fixes (review, 2026-09-28)** (ROUND21.md, same title): the spectator camera has a **Frame Rate**
     (60 fps by default: as often as a 60 fps recording takes), a **Resolution Scale** of 0.75 by default and an
     **Anti-Aliasing** choice (Recording page); climbing's mantle and lenient grab, the props' settings and two caches
@@ -1120,6 +1136,20 @@ is entity 274, rock5 245, the half brick 220, a whole brick 214, the wall torch 
 `vr_mock_hand main 0.15 1.2 -0.45 70 0 0`: `vr_mock_camera 0.35 1.15 -0.45 25 90` (outside), `-0.05 1.12 -0.45 25 -90`
 (the palm's side), `0.15 1.18 -0.68 30 180` (the front); `r_fullbright 1` lights them.
 
+Hand grenades from the back pouch (ROUND21.md, same title): the scratchpad's `handgren/` has the scripts and logs.
+`gen.py` writes the `vr_mock_play` files (from `throw_plays.py`'s `throws.txt`: `python Misc/quakevr/throw_plays.py
+--gunangle 70 --out throws.txt` first): a hand to the pouch at `vr_mock_hand main|off 0 1.0 0.2 0 0 0` (Gun Angle 70;
+`vr_dumpview` prints `grenade pouch at ..., main hand <d> units off (hotspot 11)`), `+grabmain`/`+graboff` there takes
+one, `+attack`/`+offhandattack` pulls the pin, the throw lets go with `-grabmain`/`-graboff`. `run1.sh <play> <png>
+["<console commands>"] ["<spawn>"]` runs one in vrfiringrange from `setpos 190 -560 41 0 90 0` with 10 rockets and a
+grunt 300 units ahead (`vr_test_spawn 0; vr_test_spawn_dist 300; impulse 241`); `runall.sh` runs them all into
+`logs/`. `developer 1` prints `grenade: hand grenade taken from the pouch by hand <h>, <n> rockets left`, `the pouch
+is empty`, `hand grenade armed (the pin pulled | the lever flies off ...)`, `a hand grenade let go of unarmed: a dud`,
+`hand grenade put back in the pouch`, `an unarmed hand grenade back in the pouch at the level's end`, and the grenades'
+own lines (`hits`, `goes off`, `went off in player's hand`); `vr_debug_shots 1` the damage. A dud rolls into the grate
+at the start's feet (`edict <n>` prints where): reach it at `vr_mock_hand main 0.03 -0.14 0` (the mock's floor is 7
+units over the map's there). The pouch from behind: `vr_mock_camera 0.25 1.15 0.95 8 15`; `give r 0` shows it empty.
+
 Debug menu; quad sound; grenade catch default; no empty-hand deflection (ROUND21.md, same title): the scratchpad's
 `misc23/` has the scripts and logs.
 - `t.py N|W|Q` prints the console script and writes the play (it uses `projfix/t.py`'s poses and `r20/gen.py`):
@@ -1138,3 +1168,19 @@ Debug menu; quad sound; grenade catch default; no empty-hand deflection (ROUND21
 - Menu buttons in a script: `menu_vr <page> <label prefix>` selects the row, then `vr_mock_button main primary 1`, a
   few frames, `0`. A button's command goes ahead of the script's waits (`Cbuf_InsertText`), so its output follows
   the click. The Debug pages are 64 and 66-71.
+Hands, teleporters and climbing stamina (ROUND21.md, "Hands: both work; props through teleporters; climbing stamina";
+the scratchpad's `climbhands/`): `vr_debug_hands 1` (2: every frame) prints each hand's state as `hands <time> <hand>:
+...` lines, ending with what climbing makes of a grip; `vr_climb_debug 1` says why a grip is refused. The hand-state
+matrix is `hands/gen.py` (writes the plays: an action, then both hands on vrclimb's ledge, a health box in each hand,
+then in both) and `hands/mrun.sh <suffix> <action...>` (actions `base fgoff fgmain wpnmain wpnoff wpnkeep save climb`;
+`summ.py` prints the verdicts). A force grab in the mock: point the hand at the thing, `+offhandattack` (off) or
+`+attack` (main), move the hand up 0.3 m in 0.1 s, then the grip (`hands/fg_off.txt`). Teleporters: `tele/tele.sh <tag>
+main|off|two|flash [start|e1m1] [edict] [what]` holds a thing (`vr_rigid_place new`: a brick in start) and walks
+through start's skill teleporter `*2` (`setpos 544 1376 24 0 0 0`, a 90-degree turn) or e1m1's `*20` (walked into from
+`setpos 1312 1030 -408 0 90 0`); `tele/torch.sh` takes e1m2's wall torch 52 through its teleporter `*1`; `walk.sh`
+walks with a brick in both hands. Two hands on a brick in start: the main hand at `0.20 1.30 -0.45 70 0 0` with
+`vr_rigid_place new main 0 0 0`, the off hand at `0.14 1.30 -0.56 70 0 0`. Climbing stamina: `stamina/st.sh <tag>
+<play> [cvars] [waits]` (plays `hang`, `stand`, `regrab`, `gadget`; `vr_climb_debug 1` prints `climbstamina` lines
+at every 10 spent, 2 every frame); `vr_gadget_screen_dump <name>` writes the gadget's screen. The 13 climb scripts:
+`climb/set.sh <suffix>` (`EXTRA="vr_climb_stamina 0"` adds cvars) and `climb/cmp.sh A B`. `edict <n>` with a number past
+the live edicts ends the game (`PR_SwitchQCVM: A qcvm was already active`): use numbers you have seen.
