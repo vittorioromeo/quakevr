@@ -149,6 +149,12 @@ void(vector o, vector d, float preset, float count) particle2 = #0; // start a p
 void(entity e, vector org, vector dir, float kind, float amount, float extra) woundevent = #0; // a wound painted on e's model by every client (vr_wounds.qc)
 void(float hand, float delay, float duration, float frequency, float amplitude) haptic = #0; // VR haptics function
 void(float hand, float strength, vector dir) handimpact = #0; // knock the `self` player's drawn hand (a parried blow)
+// The `self` player's `hand` has just caught `e` from a force grab, which flew at `org` turned `ang`: its client eases the
+// weapon now in the hand from there (vr_forcegrab_catch_blend; vr_drawblend.cpp).
+void(float hand, entity e, vector org, vector ang) catchblend = #0;
+// Where the force grab takes `e`: a weapon by its handle (its origin: its Weapon Offsets hold it there), anything else by
+// its drawn middle (modelcentre).
+vector(entity e) forcegrabpoint = #0;
 // Spent casings out of the weapon in the `self` player's `hand`, `delay` seconds from now: drawn by
 // that player's client from its weapon model's port (vr_shells.cpp; vr_shells). `kind`
 // QVR_CASING_*; `flags` QVR_EJECT_*.
