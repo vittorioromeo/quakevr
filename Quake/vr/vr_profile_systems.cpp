@@ -6,6 +6,7 @@
 // total and its worst frame.
 
 #include "vr_profile_systems.hpp"
+#include "vr_alloccount.hpp"
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -148,12 +149,13 @@ enum Count
     Box3dAwake,
     Box3dContacts,
     Edicts,
+    Allocations,
     CountCount
 };
 constexpr const char* countNames[CountCount] = {"traces", "hull traces", "draw calls", "alias models", "box3d bodies",
-    "box3d awake", "box3d contacts", "edicts"};
+    "box3d awake", "box3d contacts", "edicts", "allocations"};
 constexpr const char* countColumns[CountCount] = {"traces", "hull_traces", "draw_calls", "alias_models", "box3d_bodies",
-    "box3d_awake", "box3d_contacts", "edicts"};
+    "box3d_awake", "box3d_contacts", "edicts", "allocations"};
 
 [[nodiscard]] bool inList(const char* list, const char* name)
 {
@@ -178,6 +180,8 @@ constexpr const char* countColumns[CountCount] = {"traces", "hull_traces", "draw
 // ---- This frame ----
 
 std::int64_t frameCpu[SysCount]{};
+std::uint64_t allocationsBefore = 0; // the main thread's allocation count at the last frame collected's end
+int allocationsFrame = -1;           // and that frame's host_framecount
 std::int64_t frameViewCpu[ViewCount]{};
 double frameGpu[SysCount]{};
 double frameViewGpu[ViewCount]{};
@@ -979,9 +983,15 @@ void frameEnd(std::int64_t now, std::int64_t periodNs, std::int64_t hostNs, cons
     cpu(Other, Shared, hostNs);
     cpu(FrameCap, Shared, std::max<std::int64_t>(0, periodNs - hostNs));
 
-    int n[CountCount]{counts.traces, counts.hullChecks, counts.drawCalls, counts.aliasDrawn, 0, 0, 0, 0};
+    int n[CountCount]{counts.traces, counts.hullChecks, counts.drawCalls, counts.aliasDrawn, 0, 0, 0, 0, 0};
     box3d::profileCounts(n[Box3dBodies], n[Box3dAwake], n[Box3dContacts]);
     n[Edicts] = sv.active ? dev_stats.edicts : 0;
+    // The main thread's C++ allocations since the last frame's end (vr_alloccount.cpp); none counted for the first frame
+    // collected (its delta would span the frames before).
+    const std::uint64_t allocationsNow = alloccount::thisThread();
+    n[Allocations] = allocationsFrame == host_framecount - 1 ? static_cast<int>(allocationsNow - allocationsBefore) : 0;
+    allocationsBefore = allocationsNow;
+    allocationsFrame = host_framecount;
 
     const double period = static_cast<double>(periodNs) / 1e6;
     const double budget = budgetMs();
