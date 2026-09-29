@@ -42,6 +42,10 @@ Held prop: one hand, then both, pull one off and back (each hand); it stays on t
 Held prop: in both hands, open one; it slides onto the kept hand with no gap
 Force grab props while walking: no gap in the hand
 
+Melee: soft punches do nothing; real jabs, hooks and uppercuts land
+Melee: reloading or waving a gun near the dummy doesn't hit; pistol-whip and butt strikes do
+Melee: wiggling a sword or axe against the dummy doesn't hit; real cuts land
+
 [Decide or give feedback]
 hudstyle 0 (Classic status bar) as the shipped default? Ironwail's default is 2 (Modern 2)
 Hitbox width: 20 or 16?
