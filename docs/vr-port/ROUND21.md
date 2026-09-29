@@ -11053,8 +11053,8 @@ Ledges, Show Physics Shapes and Show Entity Boxes on, and the ogre Put It There 
   they are used.
 
 **Coverage** (`menu_vr dump` before, on f03dacd0, and after the merge of vr-cleanup; `menu_coverage.py`, `coverage.txt`):
-730 options before, 806 after, **none lost**, none on more pages than before; 76 new (all on the Debug pages); 9 moved
-from Debug to its pages. 71 pages reached, at most 3 deep, none over 30 rows.
+730 options before, 808 after, **none lost**, none on more pages than before; 78 new (76 on the Debug pages, and
+grapple2's two unreel settings on Grappling Hook); 9 moved from Debug to its pages. 71 pages reached, at most 3 deep, none over 30 rows.
 
 **Checked by clicking** (the mock's A on a row): Headset printed `vr_status`, Rebuild Ledge Map `ledges: maps/vrfiringrange.bsp:
 ... 410 ledges`, God Mode `godmode ON`, Microphones the device list, Put It There the ogre ahead (`views.png`).
