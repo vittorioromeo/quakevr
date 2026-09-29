@@ -135,34 +135,98 @@ player can get a few units further into a clip brush there than Quake allows. A 
 hull 1 stops a move sooner at a spot where the 32 box meets no brush, take hull 1's answer (a second trace, about 250
 ns, only while the player is 16 units or more from walls).
 
-## The prototype
+## In the game (round 2: everywhere, two methods, a settings page)
 
-`vr_hull_width` (Debug > Tests > Hitbox Width), default 0 (off: Quake's hull 1, nothing built). 8 to 32: the player's
-width against the map in units. Only the player's world clipping changes:
+Your note after trying 16: the new collision only worked against plain walls; the walls holding vrfiringrange's
+buttons still stopped you at 32 (from the side too), and you wanted it against props, monsters and players as well,
+with settings to play with.
 
-- A client's move with its own 32-wide box (and QuakeC traces from the player with a 32-wide box) meets SOLID_BSP
-  models (the world, doors, lifts, trains, buttons) with a box of that width, the height kept at hull 1's 56 from the
-  box's feet. Everything else is Quake's: the player's box against monsters, items, triggers and shots stays 32 wide,
-  and monsters, items and missiles use Quake's hulls.
-- Doors and lifts: pushing checks use the same narrow box (`SV_TestEntityPosition` goes through `SV_Move`).
-- The lean recentring (the body following the headset, `worldtrace::playerBoxFits`) uses the narrow box too.
-- 32 is the new collision at Quake's size (for comparing).
+**Why the button walls stayed at 32.** The first prototype narrowed only the brush models whose hull 0 is the world's
+(the world and its `*n` submodels: doors, lifts, func_walls built into the map). vrfiringrange's second row of monster
+panels and buttons, the "dummy attacks" button and the prop area's table and wall are *external* brush models
+(`maps/vr_spawnpanel.bsp`, `vr_spawnbutton.bsp`, `vr_panel_north.bsp`, `vr_button_north.bsp`, `vr_proptable.bsp`,
+`vr_propwall.bsp`: `make_spawn_buttons.py`, `make_prop_area.py`), each a separate .bsp with its own hull 0 and hull 1.
+The prototype had built brushes only from the world's hull 0, so for these `clipBSP` found no brushes and fell back
+to the model's own hull 1: Quake's 32 box, from every side. Id's ammo and health boxes (`maps/b_*.bsp`) are the same
+kind of model (they are triggers, so it did not show there; the explosive boxes are solid boxes, below).
 
-Files: `Quake/vr/vr_hull.cpp` and `.hpp` (the build, the sweep, the test aids), `Quake/world.c`
-(`SV_ClipMoveToEntityQVR`, `moveclip_t.bspbox`), `Quake/vr/vr_api.h`, `vr_cvars.inc`, `vr_menu.cpp` (Debug > Tests),
-`vr_trace.cpp` (lean), `vr_physics.cpp` and `vr_progs.cpp` (hooks).
+**Now every brush model** gets the narrow box: the world's submodels as before, and each external .bsp model the first
+time something meets it (its hull 0 walked into brushes the same way: a few brushes, well under a millisecond; its
+leaves get their own range in the brush tables). Func_wall, doors, plats, trains, buttons and rotating brush models all
+go through the same code (Quake doesn't turn brush models' collision, and neither does this).
 
-Test aids (also on Debug > Tests):
+**Against entities**, the player's box is narrowed too (`vr_hull_ent_width`, by default the same width), both ways:
 
-- `vr_hull_stats`: the map's brushes, clip brushes, memory, build time.
-- `vr_hull_bench [moves] [width]`: random moves from where Quake's player fits, each through hull 1, through the
-  brushes with the same 32 box, and with the narrow box: time per trace and where they disagree.
-- `vr_hull_probe`: which brush the player's narrow box is in, and by how much (for a "stuck" report).
-- `vr_hull_walktest <seconds> [seed]`: drives the player around the map at run speed in random directions, jumping now
-  and then, and puts them down somewhere random every few seconds (half the time next to a door, lift, train or
-  button). It counts frames where the box starts in solid (stuck), where the player's centre is inside a wall
-  (embedded), and where the player is outside the map; stuck in a monster is counted apart. Use with
-  `god; notarget`.
+- The player moving: its box against monsters, other players and other solid boxes (the explosive boxes, which are
+  SOLID_BBOX, and anything else solid that isn't a brush model) is the narrow one.
+- Them moving into the player: a monster's, another player's or a solid box's move (a body's move: a box, not a shot)
+  meets the player's box narrowed, so the gap is the same whichever of you moves. Doors, lifts and trains pushing the
+  player test the player's position with the narrow box already (`SV_TestEntityPosition` goes through `SV_Move`).
+- Loose Box3D props (rocks, bricks, weapons on the floor) never block the player in Quake's movement (they are
+  touchable, not solid); the player pushes them with a Box3D capsule of `vr_box3d_player_radius` (15 cm: about 8 units
+  wide, already narrower than any of these boxes). It is on the new page as Prop Push Radius; not tied to the width.
+- **Kept at Quake's 32 box**: what shots and melee hit on the player (hitscan traces are points, missiles use
+  MOVE_MISSILE, precise hits their own path; none are a body's move), and what the player touches (items, triggers:
+  the touch box is the player's own `absmin`/`absmax`). Why: the width is about where you can stand and walk; making
+  you harder to hit is a balance change of its own, and in VR your head leans out of the box anyway (the lean
+  recentring keeps the body under it). Picking items up with the wider box only makes pickups a little more generous.
+
+**The player inside a monster at 16** (the first prototype's random walk, an ogre in e1m2 and a shambler in e2m2): I
+could not reproduce it (random walks with fixed frames take other paths: 0 in 2 runs, e1m2 and e2m2, at 16 with the
+entities at 32, the old setup). The likely cause was the mismatch itself: 16 wide against walls but 32 against monsters, the player's
+box reached 8 units further than its world clipping, through thin geometry (grates, bars, thin trims under 8 units)
+into the space of a monster standing behind it. With the same width against both there is no such reach. Separately,
+the walk now closes the level's exits while it runs: in round 2's first runs it walked into e1m3's and e4m7's exits,
+and the intermission put the player at its camera spot, in a ceiling (433 "stuck" frames that were not collision).
+
+**Method A, the compiled hull** (`vr_hull_method 1`, the default now): the same brushes as B (hull 0's, with Quake 2's
+bevels, and the recovered clip brushes), each grown by the box (its planes moved out by the box's reach: with the
+bevels, exactly the brush's Minkowski sum with the box), then compiled into a BSP tree of Quake's own clipnodes and
+planes, as qbsp compiles hull 1: the grown brushes' faces are the splitting planes (qbsp3's choice: the plane most
+pieces lie on and that splits fewest, axial first); a leaf is solid where one grown brush fills it (every face of that
+brush already split on), empty where none reaches. It is traced by Quake's own `SV_RecursiveHullCheck`, as hull 1 is,
+in the box centre's space. Each brush model gets its own tree (external ones on first use); the world's is compiled
+with the map, and again when the width changes (a hitch of 30-170 ms, once). One build bug found and fixed on the way: a
+face lying on a splitting plane goes to both sides of the split, and on the side the piece is not on it made a flat
+"piece" that counted as filling its leaf (a solid leaf out in the open, found by the bench at 1% of moves): pieces
+reaching less than 0.01 units past the plane are dropped now.
+
+A and B agree on 99.99% of moves (the rest are grazing contacts, which Quake's hull traces have too: A at 32 wide against
+hull 1 disagree on 0.07%, mostly clip brushes). A is a little faster per trace (251 ns against B's 276, hull 1 238),
+costs about 90 ms more at load (mean; 170 at most, e2m2) and 165 KB (mean). I made A the default method since you
+expect it to be more robust for Quake 1: it is Quake's own trace, with its behaviour on edges, corners and
+`startsolid`, and the walks found nothing for either.
+
+**Settings**: **Movement > Player Hitbox** (and a link from Debug > Tests):
+
+| Setting | cvar | Default | What |
+|---|---|---|---|
+| Width Against Walls | `vr_hull_width` | 0 (Quake's 32) | 8, 12, 16, 20, 24, 28, 32: against the world and brush models |
+| Method | `vr_hull_method` | 1 (Compiled Hull) | 0 Brush Sweep (B), 1 Compiled Hull (A) |
+| Doors, Lifts and Walls Too | `vr_hull_brushmodels` | 1 | off: brush models other than the world meet Quake's box |
+| Width Against Them | `vr_hull_ent_width` | -1 (Same as Walls) | 0 Quake's 32, or 8-32: against monsters, players, solid boxes |
+| Monsters / Other Players / Solid Boxes | `vr_hull_monsters`, `vr_hull_players`, `vr_hull_boxes` | 1 | per category, both ways |
+| Prop Push Radius | `vr_box3d_player_radius` | 15 cm | the Box3D capsule that pushes loose props |
+
+Plus Hitbox Stats, Hitbox Approach and Random Walk (60 s) on the page, and Bench and Probe on Debug > Tests.
+
+Files: `Quake/vr/vr_hull.cpp` and `.hpp` (the brushes, both methods, the test aids), `Quake/world.c`
+(`SV_ClipMoveToEntityQVR`, `SV_ClipMoveToBoxEntityQVR`, `moveclip_t`'s narrow boxes), `Quake/vr/vr_api.h`,
+`vr_cvars.inc`, `vr_menu.cpp` (Movement > Player Hitbox), `vr_trace.cpp` (lean), `vr_physics.cpp` and `vr_progs.cpp`
+(hooks).
+
+Test aids (Debug > Tests; the approach and the walk also on the page):
+
+- `vr_hull_stats`: the map's brushes, clip brushes, brush models (external ones), the compiled hull, memory, times.
+- `vr_hull_bench [moves] [width]`: random moves through hull 1, B at 32 and at the width, and A at 32 and at the width
+  (each compiled fresh and timed): times per trace, build times, memory, and where they disagree.
+- `vr_hull_approach [classname [n]]`: how close the player's box gets, through `SV_Move` as play moves it: with no
+  argument, from where you stand in 8 directions to what the box meets; with a classname (`door`, `plat`, `func_wall`,
+  `monster_army`, `misc_explobox`, ...), round the n-th such entity from 8 directions, and for a monster also the
+  monster moved into the player. It prints the gap from the player's centre to the surface (Quake: 16; the width's
+  half: 8 at 16; 11.3 at 45 degrees, the box's corner).
+- `vr_hull_probe`: which brush the narrow box is in and by how much, and whether the compiled hull is solid there.
+- `vr_hull_walktest <seconds> [seed]`: the random walk (with `god; notarget`); the level's exits closed meanwhile.
 
 ## Numbers
 
@@ -245,18 +309,106 @@ wall, nothing outside the map.
 An earlier run (before the fix to Quake 2's fraction above) found the sloped-wall case in e4m3 at 20 wide. It also put
 the player inside a monster's box twice at 16 wide (an ogre in e1m2, a shambler in e2m2), never at 32. My guess, not
 checked: the player's box against entities stays 32 wide, so at 16 wide it reaches 8 units into walls, and through a
-thin wall or grate into a monster standing behind it. That is the case for decision 3 below.
+thin wall or grate into a monster standing behind it. Round 2 narrows the box against entities too (above).
+
+### Round 2: both methods at 16 wide, all 32 id1 maps
+
+`vr_hull_bench 20000 16`, one `--exclusive` run. "B build": the brushes (both methods need them). "A build": compiling
+the world's hull for the 16 box on top of that. "A32 vs hull1": the hull compiled for Quake's own box against qbsp's
+hull 1 (within a unit along the move). "A16 vs B16": the two methods at 16 (moves more than a unit apart, and moves
+whose start one calls solid and the other not).
+
+| map | B build ms | A build ms (16) | A nodes (16) / hulls 1-2 clipnodes | A KB | hull1 ns | B16 ns | A16 ns | A32 vs hull1 % | A16 vs B16 % (apart, startsolid) |
+|---|---|---|---|---|---|---|---|---|---|
+| start | 35.4 | 86.9 | 8726 / 5326 | 173 | 227 | 305 | 267 | 99.99 | 100.00 (1, 0) |
+| e1m1 | 45.4 | 81.6 | 8476 / 5408 | 173 | 259 | 337 | 274 | 99.99 | 99.98 (4, 0) |
+| e1m2 | 43.8 | 91.2 | 9076 / 8148 | 173 | 254 | 312 | 276 | 99.56 | 99.94 (11, 0) |
+| e1m3 | 44.5 | 114.5 | 11306 / 5858 | 189 | 274 | 343 | 272 | 100.00 | 99.98 (4, 0) |
+| e1m4 | 60.8 | 120.1 | 12410 / 6948 | 284 | 381 | 333 | 278 | 99.94 | 100.00 (1, 0) |
+| e1m5 | 37.5 | 79.7 | 7810 / 5303 | 142 | 294 | 217 | 223 | 99.72 | 99.97 (6, 0) |
+| e1m6 | 19.3 | 47.2 | 4474 / 4152 | 77 | 175 | 230 | 230 | 99.98 | 100.00 (0, 0) |
+| e1m7 | 9.0 | 17.5 | 1894 / 1907 | 37 | 139 | 141 | 155 | 99.99 | 100.00 (1, 0) |
+| e1m8 | 18.2 | 32.6 | 3589 / 3120 | 56 | 138 | 174 | 162 | 100.00 | 99.99 (2, 0) |
+| e2m1 | 66.1 | 117.0 | 11522 / 6117 | 173 | 261 | 337 | 276 | 100.00 | 100.00 (0, 0) |
+| e2m2 | 76.2 | 169.5 | 15401 / 6710 | 284 | 310 | 342 | 301 | 99.98 | 100.00 (0, 0) |
+| e2m3 | 71.1 | 135.5 | 13580 / 7260 | 260 | 207 | 312 | 265 | 99.99 | 100.00 (1, 0) |
+| e2m4 | 66.9 | 117.4 | 11249 / 7702 | 173 | 264 | 280 | 260 | 99.98 | 99.99 (2, 0) |
+| e2m5 | 43.4 | 90.0 | 9374 / 6687 | 173 | 192 | 227 | 228 | 99.98 | 99.98 (3, 0) |
+| e2m6 | 41.4 | 111.9 | 11309 / 6161 | 173 | 214 | 240 | 262 | 100.00 | 100.00 (0, 0) |
+| e2m7 | 54.7 | 126.5 | 12129 / 6113 | 189 | 298 | 321 | 288 | 99.94 | 99.97 (6, 0) |
+| e3m1 | 60.6 | 84.2 | 8528 / 6170 | 173 | 218 | 292 | 249 | 99.90 | 99.97 (6, 0) |
+| e3m2 | 23.5 | 43.6 | 4004 / 3988 | 77 | 191 | 206 | 223 | 100.00 | 100.00 (1, 0) |
+| e3m3 | 27.7 | 64.7 | 6757 / 3996 | 116 | 217 | 272 | 271 | 99.99 | 99.99 (2, 0) |
+| e3m4 | 54.0 | 91.0 | 9828 / 7472 | 163 | 211 | 275 | 265 | 100.00 | 100.00 (1, 0) |
+| e3m5 | 100.4 | 156.4 | 14799 / 8081 | 260 | 211 | 330 | 250 | 100.00 | 100.00 (1, 0) |
+| e3m6 | 47.3 | 110.1 | 10270 / 6462 | 189 | 185 | 225 | 221 | 99.50 | 99.95 (9, 0) |
+| e3m7 | 34.5 | 86.3 | 8301 / 3905 | 163 | 204 | 315 | 264 | 100.00 | 100.00 (0, 0) |
+| e4m1 | 48.6 | 92.4 | 9086 / 5656 | 173 | 444 | 303 | 241 | 99.97 | 100.00 (0, 0) |
+| e4m2 | 40.1 | 65.6 | 7704 / 6035 | 126 | 218 | 280 | 258 | 99.88 | 100.00 (1, 0) |
+| e4m3 | 45.5 | 77.0 | 7991 / 6168 | 126 | 257 | 346 | 270 | 99.99 | 99.98 (3, 0) |
+| e4m4 | 56.1 | 110.9 | 11371 / 7446 | 189 | 224 | 296 | 244 | 99.95 | 100.00 (1, 0) |
+| e4m5 | 38.8 | 74.1 | 8513 / 7561 | 173 | 204 | 244 | 266 | 100.00 | 99.99 (2, 0) |
+| e4m6 | 37.2 | 55.7 | 6398 / 5486 | 116 | 238 | 239 | 261 | 99.99 | 99.98 (4, 0) |
+| e4m7 | 87.0 | 133.1 | 13257 / 7640 | 260 | 377 | 342 | 293 | 99.69 | 100.00 (1, 0) |
+| e4m8 | 43.4 | 77.0 | 8320 / 6157 | 173 | 201 | 242 | 266 | 99.96 | 100.00 (1, 0) |
+| end | 11.2 | 26.8 | 2951 / 2038 | 63 | 123 | 166 | 169 | 100.00 | 100.00 (1, 0) |
+
+Mean over 32 maps: B build 46.5 ms, A build 90.2 ms, A 165 KB, hull1 238 ns, B16 276 ns, A16 251 ns, A32 254 ns; A32 vs hull1 99.93%, A16 vs B16 99.99%; max A build 169.5 ms
+
+### Round 2: how close the box gets (vr_hull_approach)
+
+The gap from the player's centre to the surface it stopped at, straight on (45 degrees: the box's corner, x1.41).
+Both methods gave the same numbers.
+
+| what | Quake (32) | 16 | 20 |
+|---|---|---|---|
+| e1m1's walls round the start (worldspawn) | 16 | 8.00 | 10.00 |
+| a door (e1m2, `*2`) | 16 | 8.00 | 10.00 |
+| a grunt (the player moving; e1m1, e1m2) | 16 | 8.00 | 10.00 |
+| a dog moved into the player (e1m1) | 16 | 8.00 | 10.00 |
+| vrfiringrange's monster panels (`vr_spawnpanel.bsp`), their side and front | 16 | 8.00 | 10.00 |
+| the "dummy attacks" panel (`vr_panel_north.bsp`) | 16 | 8.00 | 10.00 |
+| a monster button (`vr_spawnbutton.bsp`) | 16 | 8.00 | 10.00 |
+| an explosive box (`misc_explobox`, a solid box) | 16 | 8.00 | 10.00 |
+| an item (`item_shells`: a trigger) | touched at 16 | touched at 16 | touched at 16 |
+
+### Round 2: random walks at 16
+
+`vr_hull_walktest 90 11` with `god; notarget`, `vr_fixed_frames 1`, both methods, the entities at 16 too: 6481 frames
+and 12000-25000 units walked each, 16-20 hops (half of them next to doors, lifts, trains and buttons).
+
+| map | A: stuck / in monsters / embedded / outside | B: the same |
+|---|---|---|
+| e1m1 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| e1m2 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| e1m3 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| e2m2 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| e3m3 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| e4m3 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| e4m7 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+
+(e1m2 and e2m2 again with the entities at 32, the first prototype's setup: 0 as well.)
+
+### Round 2: the cost a frame
+
+e1m1, a 30 s random walk each, `vr_profile_detail 2`, `--exclusive`: the server's traces took 0.012 ms a frame with
+Quake's hull 1, 0.015 with B at 16 and 0.015 with A at 16 (29 traces and 66-73 hull traces a frame; physics 0.020 against
+0.021 ms). Neither method allocates while tracing; the builds do (at load, or when the width or method changes).
 
 ## What to decide
 
 1. **Width.** 20 is my suggestion to try first (10 units from walls instead of 16: 0.38 m instead of 0.61 m). 16 fits
-   through 16-unit gaps and puts you 0.3 m from walls.
+   through 16-unit gaps and puts you 0.3 m from walls. 8 and 12 are there to try; below 16 the box is narrower than
+   many of Quake's gaps (bars, grates, windows) were made to stop.
 2. **Height.** Kept at hull 1's 56. The same machinery can make it follow the headset (crouching under things), but
    QuakeC and the maps assume 56 in places (doorways, vents); a separate decision.
-3. **The player's box against monsters, items, triggers and shots.** The prototype keeps it 32 wide (only the map is
-   narrower), so monsters hit you as before and nothing gets easier. Shrinking it too would let you squeeze between
-   monsters and make you harder to hit.
+3. **The player's box against monsters and players** (round 2): narrowed by default, the same width both ways
+   (Width Against Them, per category). Shots, melee and item pickups keep Quake's 32 box; say if you want the hit box
+   narrowed too (harder to hit).
 4. **Clip brushes.** Accept the heuristic's residue, or add the hull 1 fallback (a second trace).
-5. **Monsters.** The same sweep works for any box. Monsters' movement and `SV_CheckBottom` would change (they'd fit
+5. **Monsters.** The same code works for any box. Monsters' movement and `SV_CheckBottom` would change (they'd fit
    through smaller gaps and stand closer to ledges), so it would be per class and opt-in.
-6. **On by default?** The load-time build (up to 100 ms on id's maps) could move to a worker thread before it is.
+6. **Method.** A (the compiled hull) is the default: Quake's own trace, a little faster, 90 ms more at load (170 at
+   most). B stays selectable for comparing.
+7. **On by default?** Width Against Walls is still 0 (Quake's box) by default. The load-time build (B's brushes and A's
+   hull: 137 ms on average, 257 at most on id's maps) could move to a worker thread before it is on by default.

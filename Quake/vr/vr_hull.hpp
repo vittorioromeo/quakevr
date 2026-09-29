@@ -5,9 +5,14 @@
 // a box of any size is then swept against them as Quake 2 does (the tree walked with the box's extent, each solid
 // leaf's brush clipped), with Quake's trace results (startsolid, allsolid, the 1/32 unit back-off).
 //
-// Only the player's own box (a client's move with a 32-wide box, the height kept at hull 1's 56) and only against
-// SOLID_BSP models (the world, doors, lifts, trains) is narrowed: its box against monsters, items, triggers and shots
-// stays Quake's. Off (vr_hull_width 0) nothing is built and every trace is Quake's.
+// Two ways of meeting the map with the narrow box (vr_hull_method): 0 that sweep; 1 a clipping hull compiled at load
+// for the width from the same brushes grown by the box (qbsp's way), traced by Quake's own SV_RecursiveHullCheck.
+//
+// Only the player's own box (a client's move with a 32-wide box, the height kept at hull 1's 56) is narrowed: against
+// the world and every brush model (its submodels, external .bsp models) with vr_hull_width, and against other entities'
+// boxes (monsters, players, solid boxes; both ways: a body moving into a player meets its narrower box too) with
+// vr_hull_ent_width. Shots, missiles and precise hits meet Quake's 32 box; items and triggers are touched with it.
+// Off (vr_hull_width 0, vr_hull_ent_width 0 or -1) nothing is built and every trace is Quake's.
 
 #pragma once
 
@@ -26,8 +31,17 @@ void afterLoad();
 // (mins and maxs are the move's).
 [[nodiscard]] bool moveBox(const edict_t* passedict, const float* mins, const float* maxs, float* boxMins, float* boxMaxs);
 
-// SV_ClipMoveToEntity for a SOLID_BSP entity with moveBox's box: false if its model has no brushes (another BSP
-// file's), and Quake's hull is used.
+// SV_Move: true if this move meets other entities' boxes with the narrower box (vr_hull_ent_width), filled in.
+[[nodiscard]] bool entBox(const edict_t* passedict, const float* mins, const float* maxs, float* boxMins, float* boxMaxs);
+
+// ... and whether it does against this entity (its category: vr_hull_players, vr_hull_monsters, vr_hull_boxes).
+[[nodiscard]] bool narrowsAgainst(const edict_t* other);
+
+// A player's box as a body moving into it (mover; null: none) meets it: true if narrowed, filled in.
+[[nodiscard]] bool touchBox(const edict_t* touch, const edict_t* mover, float* boxMins, float* boxMaxs);
+
+// SV_ClipMoveToEntity for a SOLID_BSP entity with moveBox's box (vr_hull_method's way): false if not a brush model, or
+// a brush model other than the world with vr_hull_brushmodels off: Quake's hull is used.
 [[nodiscard]] bool clipBSP(const edict_t* ent, const float* start, const float* boxMins, const float* boxMaxs,
     const float* end, trace_t& trace);
 

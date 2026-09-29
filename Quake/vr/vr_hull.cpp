@@ -9,8 +9,10 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <random>
 #include <tuple>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -49,13 +51,26 @@ struct Brush
     bool clip;
 };
 
+// A brush model's brushes: one of the world's submodels (its doors, lifts, func_walls), or an external .bsp's model
+// (maps/b_*.bsp, vrfiringrange's panels and tables), whose hull 0 has its own nodes: its leaves' entries in leafBrush
+// start at `base`.
+struct SubModel
+{
+    const mclipnode_t* clipnodes; // its hull 0's
+    int head;                     // its head node in them
+    std::uint32_t base;           // its hull 0's leaves in leafBrush: [base + node * 2 + side]
+    std::uint32_t firstBrush, numBrushes;
+};
+
 // The server map's solid space as brushes: pointers into the hunk (the world's hull 0), released at every map change.
 struct Brushes
 {
     const mclipnode_t* clipnodes = nullptr; // the hull 0 they were built from (the world's and its brush models')
     std::vector<Plane> planes;
     std::vector<Brush> brushes;
-    std::vector<int> leafBrush; // [node * 2 + side]: the brush of that child when it is a solid leaf, else -1
+    std::vector<int> leafBrush; // [base + node * 2 + side]: the brush of that child when it is a solid leaf, else -1
+    std::vector<SubModel> subs; // the world's submodels (0: the world), then external models as they are met
+    std::vector<int> modelSub;  // [modelindex]: its entry in subs; -1 none (not a brush model), -2 not looked up
     std::vector<int> clips;     // the world's recovered clip brushes
     std::vector<int> leafClipStart; // [node * 2 + side]: where the clip brushes whose box centres reach into that
     std::vector<int> leafClipList;  // leaf of the world's hull 0 (empty or solid) start in leafClipList (and end: +1)
@@ -70,7 +85,7 @@ struct Brushes
     int numnodes = 0;
     auto members()
     {
-        return std::tie(clipnodes, planes, brushes, leafBrush, clips, leafClipStart, leafClipList, clipStamp, stamp, hull1Clip, ms,
+        return std::tie(clipnodes, planes, brushes, leafBrush, subs, modelSub, clips, leafClipStart, leafClipList, clipStamp, stamp, hull1Clip, ms,
             clipMs, bevels, dropped, hull1Leaves, numnodes);
     }
 };
@@ -88,6 +103,7 @@ struct Face
     glm::dvec3 normal; // outward
     double dist;
     Winding w; // empty: the plane bounds the piece but its face was lost to the epsilon (the plane is kept)
+    int tag = -1; // method A's build (Tree): the face's plane in the tree's table while not yet split on, else -1
 };
 using Poly = std::vector<Face>;
 
@@ -191,12 +207,12 @@ void splitPoly(Poly&& p, const glm::dvec3& n, double d, Poly& front, Poly& back)
             back.push_back(f);
             continue;
         }
-        Face fb{f.normal, f.dist, {}};
+        Face fb{f.normal, f.dist, {}, f.tag};
         clipWinding(f.w, n, d, false, fb.w);
         clipWinding(f.w, n, d, true, tmp);
         if(!tmp.empty())
         {
-            front.push_back(Face{f.normal, f.dist, tmp});
+            front.push_back(Face{f.normal, f.dist, tmp, f.tag});
         }
         if(!fb.w.empty())
         {
@@ -405,6 +421,27 @@ void walk(const hull_t& hull, int num, Poly&& poly, OnSolid& onSolid)
 
 void recoverClips(Brushes& b, qmodel_t* world);
 
+// A model's brushes: hull 0's tree walked from its head node (numnodes: its hull 0's nodes; base: their leaves' place in
+// leafBrush). Its bounds and a margin: the world's outside is solid in hull 0, cut off here (no one gets there).
+void addSubModel(Brushes& b, const hull_t& hull0, int numnodes, std::uint32_t base, int head, const float* mins,
+    const float* maxs)
+{
+    const auto first = static_cast<std::uint32_t>(b.brushes.size());
+    if(head >= 0 && head < numnodes)
+    {
+        hull_t h = hull0;
+        h.firstclipnode = 0;
+        h.lastclipnode = numnodes - 1;
+        const glm::dvec3 margin{64.0};
+        const glm::dvec3 lo = glm::dvec3{mins[0], mins[1], mins[2]} - margin;
+        const glm::dvec3 hi = glm::dvec3{maxs[0], maxs[1], maxs[2]} + margin;
+        auto onSolid = [&b, base](int num, int side, const Poly& piece)
+        { b.leafBrush[base + static_cast<std::size_t>(num) * 2 + side] = emitBrush(b, piece); };
+        walk(h, head, boxPoly(lo, hi), onSolid);
+    }
+    b.subs.push_back(SubModel{hull0.clipnodes, head, base, first, static_cast<std::uint32_t>(b.brushes.size()) - first});
+}
+
 void build(qmodel_t* world)
 {
     const auto t0 = std::chrono::steady_clock::now();
@@ -422,24 +459,12 @@ void build(qmodel_t* world)
     b.dropped = 0;
     b.hull1Leaves = 0;
     b.leafBrush.assign(static_cast<std::size_t>(b.numnodes) * 2, -1);
-    hull_t h = hull0;
-    h.firstclipnode = 0;
-    h.lastclipnode = b.numnodes - 1;
+    b.subs.clear();
+    b.modelSub.assign(MAX_MODELS, -2);
     for(int i = 0; i < world->numsubmodels; ++i)
     {
         const dmodel_t& sub = world->submodels[i];
-        const int head = sub.headnode[0];
-        if(head < 0 || head >= b.numnodes)
-        {
-            continue;
-        }
-        // The model's bounds and a margin: the world's outside is solid in hull 0, cut off here (no one gets there).
-        const glm::dvec3 margin{64.0};
-        const glm::dvec3 mins = glm::dvec3{sub.mins[0], sub.mins[1], sub.mins[2]} - margin;
-        const glm::dvec3 maxs = glm::dvec3{sub.maxs[0], sub.maxs[1], sub.maxs[2]} + margin;
-        auto onSolid = [&b](int num, int side, const Poly& piece)
-        { b.leafBrush[static_cast<std::size_t>(num) * 2 + side] = emitBrush(b, piece); };
-        walk(h, head, boxPoly(mins, maxs), onSolid);
+        addSubModel(b, hull0, b.numnodes, 0, sub.headnode[0], sub.mins, sub.maxs);
     }
     const auto t1 = std::chrono::steady_clock::now();
     recoverClips(b, world);
@@ -487,6 +512,7 @@ struct Sweep
     bool getout = true; // false: the start brush holds the end too
     const Plane* hitPlane = nullptr;
     int brushTests = 0;
+    std::size_t base = 0; // the model's leaves in leafBrush (SubModel::base)
 };
 
 double support(const Plane& p, const glm::dvec3& ext)
@@ -641,7 +667,7 @@ void sweepChild(Sweep& s, int num, int side, double p1f, double p2f, const glm::
         return;
     }
     const std::size_t key = static_cast<std::size_t>(num) * 2 + side;
-    const int brush = s.b->leafBrush[key];
+    const int brush = s.b->leafBrush[s.base + key];
     if(brush >= 0)
     {
         clipToBrush(s, s.b->brushes[brush]);
@@ -666,7 +692,8 @@ bool boxInBrush(const Brushes& b, const Brush& br, const glm::dvec3& p, const gl
 }
 
 // Whether the box at p overlaps a brush of the tree (touching is not: Quake's "d >= 0 is in front").
-bool boxInTree(const Brushes& b, const hull_t& hull, int num, const glm::dvec3& p, const glm::dvec3& ext, bool clips)
+bool boxInTree(const Brushes& b, const hull_t& hull, int num, const glm::dvec3& p, const glm::dvec3& ext, bool clips,
+    std::size_t base)
 {
     const mclipnode_t& node = hull.clipnodes[num];
     const mplane_t& plane = hull.planes[node.planenum];
@@ -682,7 +709,7 @@ bool boxInTree(const Brushes& b, const hull_t& hull, int num, const glm::dvec3& 
         const int child = node.children[side];
         if(child >= 0)
         {
-            if(boxInTree(b, hull, child, p, ext, clips))
+            if(boxInTree(b, hull, child, p, ext, clips, base))
             {
                 return true;
             }
@@ -690,7 +717,7 @@ bool boxInTree(const Brushes& b, const hull_t& hull, int num, const glm::dvec3& 
         else
         {
             const std::size_t key = static_cast<std::size_t>(num) * 2 + side;
-            if(const int brush = b.leafBrush[key]; brush >= 0 && boxInBrush(b, b.brushes[brush], p, ext))
+            if(const int brush = b.leafBrush[base + key]; brush >= 0 && boxInBrush(b, b.brushes[brush], p, ext))
             {
                 return true;
             }
@@ -713,10 +740,10 @@ bool boxInTree(const Brushes& b, const hull_t& hull, int num, const glm::dvec3& 
 
 // ... or a clip brush (the world's: head 0).
 bool boxInSolid(const Brushes& b, const hull_t& hull, int head, const glm::dvec3& p, const glm::dvec3& ext,
-    bool clips = true)
+    bool clips = true, std::size_t base = 0)
 {
     ++b.stamp;
-    return boxInTree(b, hull, head, p, ext, clips && head == 0 && !b.leafClipStart.empty());
+    return boxInTree(b, hull, head, p, ext, clips && head == 0 && base == 0 && !b.leafClipStart.empty(), base);
 }
 
 // The leaves of the world's hull 0 a box reaches into (touching included): a clip brush's box centres.
@@ -918,7 +945,7 @@ struct Result
 
 // A box (mins..maxs about the point) from start to end through a model's brushes, in its own space; Quake's trace.
 Result boxTrace(const Brushes& b, const hull_t& hull0, int head, const glm::vec3& start, const glm::vec3& mins,
-    const glm::vec3& maxs, const glm::vec3& end)
+    const glm::vec3& maxs, const glm::vec3& end, std::size_t base = 0)
 {
     Result r{};
     trace_t& tr = r.trace;
@@ -929,23 +956,24 @@ Result boxTrace(const Brushes& b, const hull_t& hull0, int head, const glm::vec3
     Sweep s{&b, &hull0, glm::dvec3{start} + centre, glm::dvec3{end} + centre, (glm::dvec3{maxs} - glm::dvec3{mins}) * 0.5,
         glm::min(start, end) + mins - 1.f, glm::max(start, end) + maxs + 1.f, glm::min(start, end) + c - 1.f,
         glm::max(start, end) + c + 1.f};
+    s.base = base;
     if(head >= 0)
     {
         if(start == end)
         {
-            s.startsolid = boxInSolid(b, hull0, head, s.start, s.ext);
+            s.startsolid = boxInSolid(b, hull0, head, s.start, s.ext, true, base);
             s.getout = !s.startsolid;
         }
         else
         {
-            s.clips = head == 0 && !b.leafClipStart.empty();
+            s.clips = head == 0 && base == 0 && !b.leafClipStart.empty();
             ++b.stamp;
             sweepNode(s, head, 0.0, 1.0, s.start, s.end);
         }
     }
     r.brushTests = s.brushTests;
     // Quake's allsolid: the whole move in solid; its trace then keeps fraction 1 and the end (SV_RecursiveHullCheck).
-    const bool allsolid = s.startsolid && (!s.getout || boxInSolid(b, hull0, head, s.end, s.ext));
+    const bool allsolid = s.startsolid && (!s.getout || boxInSolid(b, hull0, head, s.end, s.ext, true, base));
     tr.startsolid = s.startsolid;
     tr.allsolid = allsolid;
     tr.inopen = !allsolid;
@@ -966,6 +994,367 @@ Result boxTrace(const Brushes& b, const hull_t& hull0, int head, const glm::vec3
     return r;
 }
 
+// ---------------------------------------------------------------------------------------------------------------
+// Method A (vr_hull_method 1): a clipping hull compiled for the box at load, as qbsp compiles hull 1. Each of a model's
+// brushes (hull 0's, with their bevels, and the world's recovered clip brushes) is grown by the box: its planes moved
+// out by the box's reach, which with Quake 2's bevels is exactly the brush's Minkowski sum with the box. A BSP tree is
+// compiled from the grown brushes, their faces the splitting planes: a leaf is solid where one grown brush holds all of
+// it (every face of that brush already split on, the leaf on its inside), empty where none reaches. Being Quake's own
+// clipnodes and planes, it is traced by SV_RecursiveHullCheck exactly as hull 1 is (in the box centre's space).
+
+struct Tree
+{
+    std::vector<mclipnode_t> nodes;
+    std::vector<mplane_t> planes;
+    std::vector<int> heads;                    // [sub]: its tree's root in nodes; -1 not built yet
+    const mclipnode_t* forClipnodes = nullptr; // the Brushes it was built from (their world's hull 0)
+    glm::vec3 ext{0.f};                        // the half size of the box it was built for
+    double ms = 0.0;                           // the builds so far
+    int solidLeaves = 0, emptyLeaves = 0;
+    auto members() { return std::tie(nodes, planes, heads, forClipnodes, ext, ms, solidLeaves, emptyLeaves); }
+};
+mem::Cache<Tree> tree{"hull tree", mem::MapChange};
+
+// A piece of a grown brush in a node of the tree being built.
+struct Frag
+{
+    Poly poly;
+    glm::dvec3 lo, hi;
+    int live = 0; // its faces (a winding left) on planes not yet split on: none, and it fills its node's space
+};
+
+class TreeBuilder
+{
+public:
+    explicit TreeBuilder(Tree& t) : t_(t)
+    {
+        for(std::size_t i = 0; i < t_.planes.size(); ++i)
+        {
+            index_.emplace(key(t_.planes[i].dist), static_cast<int>(i));
+        }
+    }
+
+    // The table's plane for n, d (either way round: the table's faces its larger axis positive, as qbsp's do).
+    int plane(glm::dvec3 n, double d)
+    {
+        for(int a = 0; a < 3; ++a)
+        {
+            if(std::abs(n[a]) > 1.0 - 1e-6)
+            {
+                const double s = n[a] > 0.0 ? 1.0 : -1.0;
+                n = glm::dvec3{0.0};
+                n[a] = s;
+            }
+        }
+        const glm::dvec3 a = glm::abs(n);
+        const int major = a.x >= a.y && a.x >= a.z ? 0 : (a.y >= a.z ? 1 : 2);
+        if(n[major] < 0.0)
+        {
+            n = -n;
+            d = -d;
+        }
+        const long long k = key(static_cast<float>(d));
+        for(long long kk = k - 1; kk <= k + 1; ++kk)
+        {
+            const auto [lo, hi] = index_.equal_range(kk);
+            for(auto it = lo; it != hi; ++it)
+            {
+                const mplane_t& p = t_.planes[static_cast<std::size_t>(it->second)];
+                // qbsp's epsilons (a normal's components, not their dot: far from the origin a small turn is far off)
+                if(std::abs(p.dist - d) < 0.01 && std::abs(p.normal[0] - n.x) < 1e-5 && std::abs(p.normal[1] - n.y) < 1e-5 &&
+                    std::abs(p.normal[2] - n.z) < 1e-5)
+                {
+                    return it->second;
+                }
+            }
+        }
+        mplane_t p{};
+        for(int i = 0; i < 3; ++i)
+        {
+            p.normal[i] = static_cast<float>(n[i]);
+            p.signbits = static_cast<byte>(p.signbits | (p.normal[i] < 0.f ? (1 << i) : 0));
+        }
+        p.dist = static_cast<float>(d);
+        p.type = static_cast<byte>(a.x > 1.0 - 1e-6 ? 0 : (a.y > 1.0 - 1e-6 ? 1 : (a.z > 1.0 - 1e-6 ? 2 : 3 + major)));
+        t_.planes.push_back(p);
+        const int i = static_cast<int>(t_.planes.size()) - 1;
+        index_.emplace(k, i);
+        return i;
+    }
+
+    // A brush grown by the box as a piece (false: nothing left of it).
+    bool grow(const Brushes& b, const Brush& br, const glm::dvec3& ext, Frag& out)
+    {
+        const glm::dvec3 pad = br.clip ? glm::dvec3{2.0} : ext + 2.0;
+        Poly p = boxPoly(glm::dvec3{br.mins} - pad, glm::dvec3{br.maxs} + pad), front, back;
+        for(std::uint32_t i = 0; i < br.count; ++i)
+        {
+            const Plane& q = b.planes[br.first + i];
+            const glm::dvec3 n0{q.normal};
+            const int tag = plane(n0, q.dist + support(q, ext));
+            glm::dvec3 n;
+            double d;
+            oriented(tag, n0, n, d);
+            splitPoly(std::move(p), n, d, front, back);
+            if(back.empty())
+            {
+                return false;
+            }
+            if(!front.empty())
+            {
+                back.back().tag = tag; // the cut's face
+            }
+            p = std::move(back);
+            back = Poly{};
+        }
+        for(Face& f : p)
+        {
+            if(f.tag < 0 && !f.w.empty()) // the starting box's (only if a brush had no axial bevel there)
+            {
+                f.tag = plane(f.normal, f.dist);
+            }
+        }
+        out.poly = std::move(p);
+        return finish(out, -1);
+    }
+
+    // The tree of the pieces; its root (a node, or a leaf's contents).
+    int build(std::vector<Frag>& frags)
+    {
+        if(frags.empty())
+        {
+            ++t_.emptyLeaves;
+            return CONTENTS_EMPTY;
+        }
+        for(const Frag& f : frags)
+        {
+            if(f.live == 0)
+            {
+                ++t_.solidLeaves;
+                return CONTENTS_SOLID;
+            }
+        }
+        const int split = choose(frags);
+        const mplane_t& mp = t_.planes[static_cast<std::size_t>(split)];
+        const glm::dvec3 n{mp.normal[0], mp.normal[1], mp.normal[2]};
+        const double d = mp.dist;
+        std::vector<Frag> sides[2];
+        Poly parts[2];
+        for(Frag& f : frags)
+        {
+            splitPoly(std::move(f.poly), n, d, parts[0], parts[1]);
+            for(int side = 0; side < 2; ++side)
+            {
+                if(parts[side].empty())
+                {
+                    continue;
+                }
+                Frag g;
+                g.poly = std::move(parts[side]);
+                parts[side] = Poly{};
+                if(finish(g, split, n, d, side ? -1.0 : 1.0))
+                {
+                    sides[side].push_back(std::move(g));
+                }
+            }
+        }
+        frags.clear();
+        frags.shrink_to_fit();
+        const int node = static_cast<int>(t_.nodes.size());
+        t_.nodes.push_back(mclipnode_t{split, {0, 0}});
+        const int front = build(sides[0]);
+        const int back = build(sides[1]);
+        t_.nodes[static_cast<std::size_t>(node)].children[0] = front;
+        t_.nodes[static_cast<std::size_t>(node)].children[1] = back;
+        return node;
+    }
+
+private:
+    static long long key(float d) { return static_cast<long long>(std::floor(d * 4.f)); }
+
+    // The table's plane i, facing the way n does.
+    void oriented(int i, const glm::dvec3& n, glm::dvec3& on, double& od) const
+    {
+        const mplane_t& p = t_.planes[static_cast<std::size_t>(i)];
+        on = glm::dvec3{p.normal[0], p.normal[1], p.normal[2]};
+        od = p.dist;
+        if(glm::dot(on, n) < 0.0)
+        {
+            on = -on;
+            od = -od;
+        }
+    }
+
+    // Its faces on the plane just split on (n, d; it is on the side `sign` points to) are done with; its bounds and
+    // live faces. False: a sliver, nothing of it further than the epsilon from that plane (a face lying on the plane
+    // goes to both sides of the split: the side the piece is not on gets the face alone, flat).
+    static bool finish(Frag& f, int split, const glm::dvec3& n = glm::dvec3{0.0}, double d = 0.0, double sign = 0.0)
+    {
+        f.lo = glm::dvec3{1e300};
+        f.hi = glm::dvec3{-1e300};
+        f.live = 0;
+        double reach = 0.0;
+        for(Face& face : f.poly)
+        {
+            if(face.tag == split)
+            {
+                face.tag = -1;
+            }
+            for(const glm::dvec3& v : face.w)
+            {
+                f.lo = glm::min(f.lo, v);
+                f.hi = glm::max(f.hi, v);
+                reach = std::max(reach, (glm::dot(n, v) - d) * sign);
+            }
+            f.live += face.tag >= 0 && !face.w.empty();
+        }
+        return f.lo.x <= f.hi.x && f.hi.x - f.lo.x >= 0.01 && f.hi.y - f.lo.y >= 0.01 && f.hi.z - f.lo.z >= 0.01 &&
+               (sign == 0.0 || reach >= 0.01);
+    }
+
+    // qbsp's choice (qbsp3's SelectSplitSide, on the pieces' bounds): the plane that most pieces lie on and that splits
+    // the fewest, balanced, axial first. Many pieces: a sample of the planes (the build's time).
+    int choose(const std::vector<Frag>& frags)
+    {
+        seen_.resize(t_.planes.size(), 0);
+        facing_.resize(t_.planes.size(), 0);
+        ++stamp_;
+        cands_.clear();
+        for(const Frag& f : frags)
+        {
+            for(const Face& face : f.poly)
+            {
+                if(face.tag < 0 || face.w.empty())
+                {
+                    continue;
+                }
+                const auto t = static_cast<std::size_t>(face.tag);
+                if(seen_[t] != stamp_)
+                {
+                    seen_[t] = stamp_;
+                    facing_[t] = 0;
+                    cands_.push_back(face.tag);
+                }
+                ++facing_[t];
+            }
+        }
+        std::stable_partition(cands_.begin(), cands_.end(),
+            [this](int c) { return t_.planes[static_cast<std::size_t>(c)].type < 3; });
+        const std::size_t step = std::max<std::size_t>(1, cands_.size() * frags.size() / chooseBudget);
+        int best = cands_.front();
+        long long bestValue = std::numeric_limits<long long>::min();
+        for(std::size_t ci = 0; ci < cands_.size(); ci += step)
+        {
+            const int c = cands_[ci];
+            const mplane_t& p = t_.planes[static_cast<std::size_t>(c)];
+            const glm::dvec3 n{p.normal[0], p.normal[1], p.normal[2]};
+            int front = 0, back = 0, splits = 0;
+            for(const Frag& f : frags)
+            {
+                double lo, hi;
+                if(p.type < 3)
+                {
+                    lo = f.lo[p.type] - p.dist;
+                    hi = f.hi[p.type] - p.dist;
+                }
+                else
+                {
+                    const glm::dvec3 centre = (f.lo + f.hi) * 0.5, half = (f.hi - f.lo) * 0.5;
+                    const double s = glm::dot(n, centre) - p.dist;
+                    const double r = std::abs(n.x) * half.x + std::abs(n.y) * half.y + std::abs(n.z) * half.z;
+                    lo = s - r;
+                    hi = s + r;
+                }
+                if(hi <= onEpsilon)
+                {
+                    ++back;
+                }
+                else if(lo >= -onEpsilon)
+                {
+                    ++front;
+                }
+                else
+                {
+                    ++splits;
+                }
+            }
+            const long long value = 5ll * facing_[static_cast<std::size_t>(c)] - 5ll * splits - std::abs(front - back) +
+                                    (p.type < 3 ? 5 : 0);
+            if(value > bestValue)
+            {
+                bestValue = value;
+                best = c;
+            }
+        }
+        return best;
+    }
+
+    static constexpr std::size_t chooseBudget = 40000; // planes x pieces weighed at a node, at most
+
+    Tree& t_;
+    std::unordered_multimap<long long, int> index_;
+    std::vector<std::size_t> seen_;
+    std::vector<int> facing_;
+    std::size_t stamp_ = 0;
+    std::vector<int> cands_;
+};
+
+// The tree of one model (sub), built into t (its root: a node; a lone leaf gets a node of its own).
+void buildTree(Tree& t, const Brushes& b, std::size_t sub)
+{
+    const auto t0 = std::chrono::steady_clock::now();
+    TreeBuilder tb{t};
+    const glm::dvec3 ext{t.ext};
+    std::vector<Frag> frags;
+    const SubModel& sm = b.subs[sub];
+    auto add = [&](const Brush& br)
+    {
+        Frag f;
+        if(tb.grow(b, br, ext, f))
+        {
+            frags.push_back(std::move(f));
+        }
+    };
+    for(std::uint32_t i = 0; i < sm.numBrushes; ++i)
+    {
+        add(b.brushes[sm.firstBrush + i]);
+    }
+    if(sub == 0)
+    {
+        for(const int c : b.clips)
+        {
+            add(b.brushes[static_cast<std::size_t>(c)]);
+        }
+    }
+    int root = tb.build(frags);
+    if(root < 0)
+    {
+        const int node = static_cast<int>(t.nodes.size());
+        t.nodes.push_back(mclipnode_t{tb.plane(glm::dvec3{0.0, 0.0, 1.0}, 0.0), {root, root}});
+        root = node;
+    }
+    t.heads[sub] = root;
+    t.ms += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+}
+
+// Quake's trace of a point (the box's centre) through a model's tree.
+trace_t treeTrace(const Tree& t, int head, const glm::vec3& start, const glm::vec3& end)
+{
+    trace_t tr;
+    memset(&tr, 0, sizeof(tr));
+    tr.fraction = 1.f;
+    tr.allsolid = true;
+    VectorCopy(end, tr.endpos);
+    hull_t h{};
+    h.clipnodes = const_cast<mclipnode_t*>(t.nodes.data());
+    h.planes = const_cast<mplane_t*>(t.planes.data());
+    h.firstclipnode = head;
+    h.lastclipnode = static_cast<int>(t.nodes.size()) - 1;
+    vec3_t a{start.x, start.y, start.z}, e{end.x, end.y, end.z};
+    SV_RecursiveHullCheck(&h, head, 0.f, 1.f, a, e, &tr);
+    return tr;
+}
+
 int clientNum(const edict_t* ent)
 {
     if(!ent || qcvm != &sv.qcvm || !qcvm->edicts || qcvm->edict_size <= 0)
@@ -980,6 +1369,118 @@ float hull1Height(const qmodel_t* world)
 {
     const float h = world ? world->hulls[1].clip_maxs[2] - world->hulls[1].clip_mins[2] : 0.f;
     return h > 0.f ? h : 56.f;
+}
+
+// A player's own box: a client's, 32 wide (not a point, nor a box QC traces with).
+bool isPlayerBox(const edict_t* ent, const float* mins, const float* maxs)
+{
+    const int num = clientNum(ent);
+    return num >= 1 && num <= svs.maxclients && maxs[0] - mins[0] == 32.f && maxs[1] - mins[1] == 32.f;
+}
+
+// The player's width against entities' boxes: 0 Quake's (off).
+float entWidthSetting()
+{
+    const float v = vr_hull_ent_width.value;
+    if(v < 0.f)
+    {
+        return vr_hull_width.value > 0.f ? widthSetting() : 0.f;
+    }
+    return v > 0.f ? std::clamp(v, minWidth, maxWidth) : 0.f;
+}
+
+// A box narrowed to the width about its centre, its height kept.
+void narrowBox(const float* mins, const float* maxs, float width, float* boxMins, float* boxMaxs)
+{
+    for(int i = 0; i < 2; ++i)
+    {
+        const float c = (mins[i] + maxs[i]) * 0.5f;
+        boxMins[i] = c - width * 0.5f;
+        boxMaxs[i] = c + width * 0.5f;
+    }
+    boxMins[2] = mins[2];
+    boxMaxs[2] = maxs[2];
+}
+
+// Whether the narrow entity width holds between a player and this entity (its category's setting): players, monsters,
+// other boxes (explosive boxes, solid items; anything moving without an entity).
+bool categoryOn(const edict_t* other)
+{
+    const int num = clientNum(other);
+    if(num >= 1 && num <= svs.maxclients)
+    {
+        return vr_hull_players.value != 0.f;
+    }
+    if(other && (static_cast<int>(other->v.flags) & FL_MONSTER))
+    {
+        return vr_hull_monsters.value != 0.f;
+    }
+    return vr_hull_boxes.value != 0.f;
+}
+
+// The model at a model index as one of b's: the world's submodels, or an external .bsp model's brushes built now (the
+// first time it is met). -1: not a brush model.
+int subOf(Brushes& b, int index)
+{
+    if(index < 0 || index >= static_cast<int>(b.modelSub.size()))
+    {
+        return -1;
+    }
+    int& known = b.modelSub[static_cast<std::size_t>(index)];
+    if(known != -2)
+    {
+        return known;
+    }
+    known = -1;
+    qmodel_t* m = sv.models[index];
+    if(!m || m->type != mod_brush || !m->hulls[0].clipnodes || m->numnodes <= 0)
+    {
+        return known;
+    }
+    const hull_t& h0 = m->hulls[0];
+    for(std::size_t i = 0; i < b.subs.size(); ++i)
+    {
+        if(b.subs[i].clipnodes == h0.clipnodes && b.subs[i].head == h0.firstclipnode)
+        {
+            return known = static_cast<int>(i);
+        }
+    }
+    if(h0.clipnodes == b.clipnodes)
+    {
+        return known; // the world's, but none of its submodels (not expected)
+    }
+    const auto base = static_cast<std::uint32_t>(b.leafBrush.size());
+    b.leafBrush.resize(b.leafBrush.size() + static_cast<std::size_t>(m->numnodes) * 2, -1);
+    addSubModel(b, h0, m->numnodes, base, h0.firstclipnode, m->mins, m->maxs);
+    Con_DPrintf("hull: %s: %u brushes\n", m->name, b.subs.back().numBrushes);
+    return known = static_cast<int>(b.subs.size()) - 1;
+}
+
+// Method A's hull of a model (sub) for the box of half size ext: compiled now if not yet (the world's with the map or
+// the setting; a new width compiles all again).
+const Tree& treeFor(const Brushes& b, std::size_t sub, const glm::vec3& ext)
+{
+    Tree& t = tree;
+    if(t.forClipnodes != b.clipnodes || t.ext != ext)
+    {
+        tree.release();
+        t.forClipnodes = b.clipnodes;
+        t.ext = ext;
+    }
+    if(t.heads.size() < b.subs.size())
+    {
+        t.heads.resize(b.subs.size(), -1);
+    }
+    if(t.heads[sub] < 0)
+    {
+        buildTree(t, b, sub);
+        if(sub == 0)
+        {
+            Con_DPrintf("hull: %s compiled for %gx%g: %d nodes, %d planes in %.1f ms\n", sv.worldmodel->name, ext.x * 2.f,
+                ext.z * 2.f, static_cast<int>(t.nodes.size()), static_cast<int>(t.planes.size()), t.ms);
+        }
+    }
+    return t;
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -1030,6 +1531,17 @@ void stats_f()
         static_cast<int>(b->clips.size()), static_cast<int>(b->planes.size()), b->bevels, b->dropped, bytes / 1024.0,
         b->ms, b->clipMs, vr_hull_width.value > 0.f ? widthSetting() : 0.f,
         vr_hull_width.value > 0.f ? "on" : "off: Quake's hull 1");
+    int external = 0;
+    for(std::size_t i = 0; i < b->subs.size(); ++i)
+    {
+        external += b->subs[i].clipnodes != b->clipnodes;
+    }
+    const Tree& t = tree;
+    Con_Printf("hull: %d brush models (%d external .bsp); method %s; compiled hull: %s%d nodes, %d planes, %d solid "
+               "and %d empty leaves, %.0f KB, built in %.1f ms\n",
+        static_cast<int>(b->subs.size()), external, vr_hull_method.value != 0.f ? "compiled hull" : "brush sweep",
+        t.forClipnodes == b->clipnodes ? "" : "(none yet) ", static_cast<int>(t.nodes.size()),
+        static_cast<int>(t.planes.size()), t.solidLeaves, t.emptyLeaves, tree.bytes() / 1024.0, t.ms);
 }
 
 // vr_hull_bench [traces] [width]: random moves from where Quake's player box fits (hull 1), each through hull 1,
@@ -1192,6 +1704,74 @@ void bench_f()
                "shorter %d (worst %.1f); brush startsolid %d; narrow stopped sooner %d\n",
         world->name, 100.0 * agree / n, stockShorter, stockMuch, worstStock, brushShorter, worstBrush, brushStartSolid,
         wider);
+
+    // Method A: the hulls compiled for the 32 box (against hull 1: how close qbsp's own is) and for the width (against
+    // the sweep: both methods should agree), each built fresh and timed.
+    auto compile = [&](Tree& t, const glm::vec3& mins, const glm::vec3& maxs)
+    {
+        t.ext = (maxs - mins) * 0.5f;
+        t.forClipnodes = b->clipnodes;
+        t.heads.assign(b->subs.size(), -1);
+        buildTree(t, *b, 0);
+    };
+    auto treeBytes = [](const Tree& t)
+    { return t.nodes.capacity() * sizeof(mclipnode_t) + t.planes.capacity() * sizeof(mplane_t); };
+    Tree a32, aw;
+    compile(a32, m32, M32);
+    compile(aw, mw, Mw);
+    std::vector<trace_t> tree32(n), treew(n);
+    Bench ba32, baw;
+    for(int pass = 0; pass < 2; ++pass)
+    {
+        for(int k = 0; k < 2; ++k)
+        {
+            const Tree& t = k ? aw : a32;
+            const glm::vec3 centre = k ? (mw + Mw) * 0.5f : (m32 + M32) * 0.5f;
+            std::vector<trace_t>& out = k ? treew : tree32;
+            const auto t0 = Clock::now();
+            for(int i = 0; i < n; ++i)
+            {
+                out[i] = treeTrace(t, t.heads[0], starts[i] + centre, ends[i] + centre);
+            }
+            (k ? baw : ba32).ns = std::chrono::duration<double, std::nano>(Clock::now() - t0).count() / n;
+        }
+    }
+    // Agreement within a unit along the move; startsolid differing.
+    auto compare = [&](const std::vector<trace_t>& x, const std::vector<trace_t>& y, int& same, int& xSooner, int& ySooner,
+                       int& solidDiff, const char* what)
+    {
+        same = xSooner = ySooner = solidDiff = 0;
+        int shown = 0;
+        for(int i = 0; i < n; ++i)
+        {
+            const float len = glm::distance(starts[i], ends[i]);
+            const float fx = x[i].allsolid ? 0.f : x[i].fraction, fy = y[i].allsolid ? 0.f : y[i].fraction;
+            solidDiff += (x[i].startsolid != 0) != (y[i].startsolid != 0);
+            const float gap = (fy - fx) * len;
+            if(std::abs(gap) <= 1.f)
+            {
+                ++same;
+                continue;
+            }
+            (gap > 0.f ? xSooner : ySooner)++;
+            if(std::abs(gap) >= 8.f && shown++ < 2)
+            {
+                Con_Printf("  %s: %.0f units apart from %.0f %.0f %.0f (%s sooner)\n", what, std::abs(gap), starts[i].x,
+                    starts[i].y, starts[i].z, gap > 0.f ? "first" : "second");
+            }
+        }
+    };
+    int s1, x1, y1, d1, s2, x2, y2, d2;
+    compare(tree32, stock, s1, x1, y1, d1, "hull32 vs hull1");
+    compare(treew, boxw, s2, x2, y2, d2, "hullw vs brushw");
+    Con_Printf("hullbench %s: method A: compiled 32 in %.1f ms (%d nodes, %d planes, %.0f KB; hull 1 has %d nodes), %g in "
+               "%.1f ms (%d nodes, %.0f KB); hull32 %.0f ns, hull%g %.0f ns\n",
+        world->name, a32.ms, static_cast<int>(a32.nodes.size()), static_cast<int>(a32.planes.size()),
+        treeBytes(a32) / 1024.0, world->hulls[1].lastclipnode - world->hulls[1].firstclipnode + 1, width, aw.ms,
+        static_cast<int>(aw.nodes.size()), treeBytes(aw) / 1024.0, ba32.ns, width, baw.ns);
+    Con_Printf("hullbench %s: method A: hull32 vs hull1 %.2f%% agree (hull32 sooner %d, hull1 sooner %d, startsolid "
+               "differs %d); hull%g vs brush%g %.2f%% agree (hull sooner %d, brush sooner %d, startsolid differs %d)\n",
+        world->name, 100.0 * s1 / n, x1, y1, d1, width, width, 100.0 * s2 / n, x2, y2, d2);
 }
 
 // The random walk: each server frame (VR_ClientPreMove) the first player is driven in a random direction at run
@@ -1374,6 +1954,156 @@ void probe_f()
     Con_Printf("vr_hull_probe at %.3f %.3f %.3f: %s\n", ent->v.origin[0], ent->v.origin[1], ent->v.origin[2],
         boxInSolid(*b, sv.worldmodel->hulls[0], 0, c, e) ? "in solid" : "free");
     probeTree(*b, sv.worldmodel->hulls[0], 0, c, e);
+    // Method A's compiled hull at the box's centre.
+    const Tree& t = treeFor(built, 0, glm::vec3{e});
+    hull_t h{};
+    h.clipnodes = const_cast<mclipnode_t*>(t.nodes.data());
+    h.planes = const_cast<mplane_t*>(t.planes.data());
+    h.firstclipnode = t.heads[0];
+    h.lastclipnode = static_cast<int>(t.nodes.size()) - 1;
+    vec3_t p{static_cast<float>(c.x), static_cast<float>(c.y), static_cast<float>(c.z)};
+    Con_Printf("  compiled hull: %s\n", SV_HullPointContents(&h, h.firstclipnode, p) == CONTENTS_SOLID ? "solid" : "empty");
+}
+
+// vr_hull_approach [classname [n]]: how close the first player's box gets to things, through SV_Move as play moves it.
+// No argument: from where the player stands, in 8 directions, to whatever the box meets first. With a classname: the
+// n-th such entity (0 first), approached from 8 directions round it on its floor; a monster's box also moved into the
+// player (the other way). Each: the gap from the player's centre to the surface it stopped at (Quake's 32 box: 16).
+float centreGap(edict_t* player, const glm::vec3& from, const glm::vec3& dir)
+{
+    vec3_t a{from.x, from.y, from.z}, b{from.x + dir.x * 64.f, from.y + dir.y * 64.f, from.z + dir.z * 64.f};
+    const trace_t tr = SV_Move(a, vec3_origin, vec3_origin, b, MOVE_NORMAL, player);
+    return tr.fraction < 1.f ? tr.fraction * 64.f : -1.f;
+}
+
+void approachRun();
+
+void approach_f()
+{
+    if(!sv.active)
+    {
+        return;
+    }
+    qcvm_t* oldvm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldvm); // a console command: no VM is current
+    approachRun();
+    PR_PopQCVM(oldvm);
+}
+
+void approachRun()
+{
+    if(!sv.active || svs.maxclients < 1)
+    {
+        Con_Printf("vr_hull_approach [classname [n]]: needs a map\n");
+        return;
+    }
+    edict_t* player = EDICT_NUM(1);
+    const glm::vec3 origin{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
+    if(Cmd_Argc() < 2)
+    {
+        for(int k = 0; k < 8; ++k)
+        {
+            const float a = static_cast<float>(k) * 0.785398163f;
+            const glm::vec3 dir{std::cos(a), std::sin(a), 0.f};
+            const glm::vec3 end = origin + dir * 256.f;
+            vec3_t s{origin.x, origin.y, origin.z}, e{end.x, end.y, end.z};
+            const trace_t tr = SV_Move(s, player->v.mins, player->v.maxs, e, MOVE_NORMAL, player);
+            if(tr.fraction >= 1.f)
+            {
+                continue;
+            }
+            const glm::vec3 stop{tr.endpos[0], tr.endpos[1], tr.endpos[2]};
+            Con_Printf("approach %d deg: %s, centre %.2f units from its surface\n", k * 45,
+                tr.ent ? PR_GetString(tr.ent->v.classname) : "?", centreGap(player, stop, dir));
+        }
+        return;
+    }
+    const char* name = Cmd_Argv(1);
+    int nth = Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : 0;
+    edict_t* target = nullptr;
+    for(int i = 1; i < qcvm->num_edicts && !target; ++i)
+    {
+        edict_t* e = EDICT_NUM(i);
+        if(!e->free && !strcmp(PR_GetString(e->v.classname), name) && nth-- == 0)
+        {
+            target = e;
+        }
+    }
+    if(!target)
+    {
+        Con_Printf("approach: no %s\n", name);
+        return;
+    }
+    const int solid = static_cast<int>(target->v.solid);
+    const glm::vec3 lo{target->v.absmin[0], target->v.absmin[1], target->v.absmin[2]};
+    const glm::vec3 hi{target->v.absmax[0], target->v.absmax[1], target->v.absmax[2]};
+    const glm::vec3 c = (lo + hi) * 0.5f;
+    if(solid == SOLID_TRIGGER || solid == SOLID_NOT || solid == SOLID_NOT_BUT_TOUCHABLE)
+    {
+        Con_Printf("approach %s at %.0f %.0f %.0f: not solid (solid %d): touched, not met; the player's touch box is Quake's (%.0f wide), "
+                   "so touched with its centre %.1f units from the %s's box\n",
+            name, c.x, c.y, c.z, solid, player->v.maxs[0] - player->v.mins[0], (player->v.maxs[0] - player->v.mins[0]) * 0.5f, name);
+        return;
+    }
+    const float reach = std::max(hi.x - lo.x, hi.y - lo.y) * 0.5f + 40.f;
+    int tried = 0, met = 0;
+    float gapLo = 1e9f, gapHi = -1e9f;
+    for(int k = 0; k < 8; ++k)
+    {
+        const float a = static_cast<float>(k) * 0.785398163f;
+        const glm::vec3 dir{-std::cos(a), -std::sin(a), 0.f}; // towards the entity
+        bool done = false;
+        for(float up = 1.f; up <= 25.f && !done; up += 8.f)
+        {
+            const glm::vec3 start{c.x - dir.x * reach, c.y - dir.y * reach, lo.z + 24.f + up};
+            vec3_t s{start.x, start.y, start.z}, e{c.x, c.y, start.z};
+            const trace_t fit = SV_Move(s, player->v.mins, player->v.maxs, s, MOVE_NORMAL, player);
+            if(fit.startsolid)
+            {
+                continue;
+            }
+            const trace_t tr = SV_Move(s, player->v.mins, player->v.maxs, e, MOVE_NORMAL, player);
+            done = true;
+            ++tried;
+            if(tr.ent != target)
+            {
+                Con_Printf("approach %s %d deg: stopped by %s first\n", name, k * 45,
+                    tr.ent ? PR_GetString(tr.ent->v.classname) : "nothing");
+                continue;
+            }
+            ++met;
+            const glm::vec3 stop{tr.endpos[0], tr.endpos[1], tr.endpos[2]};
+            const float gap = centreGap(player, stop, dir);
+            gapLo = std::min(gapLo, gap);
+            gapHi = std::max(gapHi, gap);
+            // A monster moved into the player standing there (a body's move: it meets the player's box as shown to it).
+            if((static_cast<int>(target->v.flags) & FL_MONSTER) && k == 0)
+            {
+                vec3_t was, back;
+                VectorCopy(player->v.origin, was);
+                VectorCopy(tr.endpos, player->v.origin);
+                player->v.origin[0] -= dir.x * 24.f;
+                player->v.origin[1] -= dir.y * 24.f;
+                SV_LinkEdict(player, false);
+                VectorCopy(target->v.origin, back);
+                vec3_t mend{player->v.origin[0], player->v.origin[1], target->v.origin[2]};
+                const trace_t mt = SV_Move(target->v.origin, target->v.mins, target->v.maxs, mend, MOVE_NORMAL, target);
+                const glm::vec3 pc{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
+                // The monster's box face from the player's centre, once moved.
+                VectorCopy(mt.endpos, target->v.origin);
+                SV_LinkEdict(target, false);
+                const float gap = centreGap(player, pc, dir);
+                Con_Printf("approach %s moved into the player: hit %s; player's centre %.2f units from its box\n", name,
+                    mt.ent ? PR_GetString(mt.ent->v.classname) : "nothing", gap);
+                VectorCopy(back, target->v.origin);
+                SV_LinkEdict(target, false);
+                VectorCopy(was, player->v.origin);
+                SV_LinkEdict(player, false);
+            }
+        }
+    }
+    Con_Printf("approach %s (%s at %.0f %.0f %.0f): %d directions tried, %d met it: centre %.2f to %.2f units from its surface\n", name,
+        PR_GetString(target->v.model), c.x, c.y, c.z, tried, met, met ? gapLo : 0.f, met ? gapHi : 0.f);
 }
 
 void walkTest_f()
@@ -1389,14 +2119,43 @@ void walkTest_f()
     w.until = sv.qcvm.time + Q_atof(Cmd_Argv(1));
     w.seed = Cmd_Argc() > 2 ? static_cast<std::uint32_t>(std::max(1, Q_atoi(Cmd_Argv(2)))) : 1u;
     w.nextHop = sv.qcvm.time + 4.0;
+    // The level's exits closed (not solid): walking into one would end the walk at the intermission, the player put
+    // at its camera spot (in a ceiling, often) and frozen there.
+    if(sv.active)
+    {
+        qcvm_t* oldvm = nullptr;
+        PR_PushQCVM(&sv.qcvm, &oldvm);
+        for(int i = svs.maxclients + 1; i < qcvm->num_edicts; ++i)
+        {
+            edict_t* e = EDICT_NUM(i);
+            if(!e->free && !strcmp(PR_GetString(e->v.classname), "trigger_changelevel"))
+            {
+                e->v.solid = SOLID_NOT;
+                SV_LinkEdict(e, false);
+            }
+        }
+        PR_PopQCVM(oldvm);
+    }
+}
+
+// The world's brushes, and with method A its hull for the player's box: built with the map or the setting (not at the
+// first move: a hitch in play).
+void prepare()
+{
+    if(vr_hull_width.value <= 0.f || !sv.worldmodel || !worldBrushes(sv.worldmodel))
+    {
+        return;
+    }
+    if(vr_hull_method.value != 0.f)
+    {
+        const float half = widthSetting() * 0.5f;
+        (void)treeFor(built, 0, glm::vec3{half, half, hull1Height(sv.worldmodel) * 0.5f});
+    }
 }
 
 void onWidthChanged(cvar_t*)
 {
-    if(vr_hull_width.value > 0.f && sv.active && sv.worldmodel)
-    {
-        (void)worldBrushes(sv.worldmodel);
-    }
+    prepare();
 }
 
 } // namespace
@@ -1407,31 +2166,21 @@ void init()
     Cmd_AddCommand("vr_hull_bench", bench_f);
     Cmd_AddCommand("vr_hull_walktest", walkTest_f);
     Cmd_AddCommand("vr_hull_probe", probe_f);
+    Cmd_AddCommand("vr_hull_approach", approach_f);
     Cvar_SetCallback(&vr_hull_width, onWidthChanged);
+    Cvar_SetCallback(&vr_hull_method, onWidthChanged);
 }
 
 void afterLoad()
 {
-    if(vr_hull_width.value > 0.f && sv.worldmodel)
-    {
-        (void)worldBrushes(sv.worldmodel);
-    }
+    prepare();
 }
 
 bool moveBox(const edict_t* passedict, const float* mins, const float* maxs, float* boxMins, float* boxMaxs)
 {
-    if(vr_hull_width.value <= 0.f || !sv.active || !sv.worldmodel)
+    if(vr_hull_width.value <= 0.f || !sv.active || !sv.worldmodel || !isPlayerBox(passedict, mins, maxs))
     {
         return false;
-    }
-    const int num = clientNum(passedict);
-    if(num < 1 || num > svs.maxclients)
-    {
-        return false;
-    }
-    if(maxs[0] - mins[0] != 32.f || maxs[1] - mins[1] != 32.f)
-    {
-        return false; // not the player's own box (a point, or a box QC traces with)
     }
     const float half = widthSetting() * 0.5f;
     const float cx = (mins[0] + maxs[0]) * 0.5f, cy = (mins[1] + maxs[1]) * 0.5f;
@@ -1444,27 +2193,69 @@ bool moveBox(const edict_t* passedict, const float* mins, const float* maxs, flo
     return true;
 }
 
-bool clipBSP(const edict_t* ent, const float* start, const float* boxMins, const float* boxMaxs, const float* end,
-    trace_t& trace)
+bool entBox(const edict_t* passedict, const float* mins, const float* maxs, float* boxMins, float* boxMaxs)
 {
-    const int index = static_cast<int>(ent->v.modelindex);
-    qmodel_t* model = index >= 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
-    if(!model || model->type != mod_brush)
+    const float width = entWidthSetting();
+    if(width <= 0.f || !sv.active || !isPlayerBox(passedict, mins, maxs))
     {
         return false;
     }
-    const Brushes* b = worldBrushes(sv.worldmodel);
-    if(!b || model->hulls[0].clipnodes != b->clipnodes)
+    narrowBox(mins, maxs, width, boxMins, boxMaxs);
+    return true;
+}
+
+bool narrowsAgainst(const edict_t* other)
+{
+    return categoryOn(other);
+}
+
+bool touchBox(const edict_t* touch, const edict_t* mover, float* boxMins, float* boxMaxs)
+{
+    const float width = entWidthSetting();
+    if(width <= 0.f || !sv.active || !isPlayerBox(touch, touch->v.mins, touch->v.maxs) || !categoryOn(mover))
+    {
+        return false;
+    }
+    narrowBox(touch->v.mins, touch->v.maxs, width, boxMins, boxMaxs);
+    return true;
+}
+
+bool clipBSP(const edict_t* ent, const float* start, const float* boxMins, const float* boxMaxs, const float* end,
+    trace_t& trace)
+{
+    if(ent != sv.qcvm.edicts && vr_hull_brushmodels.value == 0.f)
+    {
+        return false; // brush models meet Quake's hull 1 (the setting off)
+    }
+    const int index = static_cast<int>(ent->v.modelindex);
+    qmodel_t* model = index >= 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    if(!model || model->type != mod_brush || !worldBrushes(sv.worldmodel))
+    {
+        return false;
+    }
+    const int sub = subOf(built, index);
+    if(sub < 0)
     {
         return false;
     }
     const glm::vec3 origin{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
     const glm::vec3 s = glm::vec3{start[0], start[1], start[2]} - origin;
     const glm::vec3 e = glm::vec3{end[0], end[1], end[2]} - origin;
+    const glm::vec3 lo{boxMins[0], boxMins[1], boxMins[2]}, hi{boxMaxs[0], boxMaxs[1], boxMaxs[2]};
     ++vr_profcounts.hullchecks;
-    trace = boxTrace(*b, model->hulls[0], model->hulls[0].firstclipnode, s,
-        glm::vec3{boxMins[0], boxMins[1], boxMins[2]}, glm::vec3{boxMaxs[0], boxMaxs[1], boxMaxs[2]}, e)
-                .trace;
+    if(vr_hull_method.value != 0.f)
+    {
+        const glm::vec3 centre = (lo + hi) * 0.5f;
+        const Tree& t = treeFor(built, static_cast<std::size_t>(sub), (hi - lo) * 0.5f);
+        trace = treeTrace(t, t.heads[static_cast<std::size_t>(sub)], s + centre, e + centre);
+        for(int i = 0; i < 3; ++i)
+        {
+            trace.endpos[i] += origin[i] - centre[i];
+        }
+        return true;
+    }
+    const SubModel& sm = built.subs[static_cast<std::size_t>(sub)];
+    trace = boxTrace(built, model->hulls[0], sm.head, s, lo, hi, e, sm.base).trace;
     for(int i = 0; i < 3; ++i)
     {
         trace.endpos[i] += origin[i];
@@ -1484,9 +2275,18 @@ int playerBoxFits(qmodel_t* world, const glm::vec3& start, const glm::vec3& end)
         return -1;
     }
     const float half = widthSetting() * 0.5f;
-    const trace_t tr = boxTrace(*b, world->hulls[0], 0, start, glm::vec3{-half, -half, -24.f},
-        glm::vec3{half, half, -24.f + hull1Height(world)}, end)
-                           .trace;
+    const glm::vec3 lo{-half, -half, -24.f}, hi{half, half, -24.f + hull1Height(world)};
+    trace_t tr;
+    if(vr_hull_method.value != 0.f)
+    {
+        const glm::vec3 centre = (lo + hi) * 0.5f;
+        const Tree& t = treeFor(built, 0, (hi - lo) * 0.5f);
+        tr = treeTrace(t, t.heads[0], start + centre, end + centre);
+    }
+    else
+    {
+        tr = boxTrace(*b, world->hulls[0], 0, start, lo, hi, end).trace;
+    }
     return !tr.startsolid && !tr.allsolid && tr.fraction >= 1.f;
 }
 
@@ -1499,9 +2299,11 @@ void walkTestFrame(edict_t* ent)
     }
     if(sv.qcvm.time >= w.until)
     {
-        Con_Printf("hullwalk %s: width %g, %d frames, %.0f units walked, %d hops (%d near pushers, %d failed), stuck %d "
+        Con_Printf("hullwalk %s: width %g (%s), entities %g, %d frames, %.0f units walked, %d hops (%d near pushers, %d failed), stuck %d "
                    "(%d right after a hop), in monsters or items %d, embedded %d, outside %d\n",
-            sv.worldmodel->name, vr_hull_width.value > 0.f ? widthSetting() : 32.f, w.frames, w.travelled, w.hops,
+            sv.worldmodel->name, vr_hull_width.value > 0.f ? widthSetting() : 32.f,
+            vr_hull_width.value <= 0.f ? "Quake's hull 1" : (vr_hull_method.value != 0.f ? "compiled hull" : "brush sweep"), entWidthSetting() > 0.f ? entWidthSetting() : 32.f,
+            w.frames, w.travelled, w.hops,
             w.moverHops, w.hopFails, w.stuck, w.stuckAfterHop, w.stuckOther, w.embedded, w.outside);
         w.until = 0.0;
         return;
@@ -1513,6 +2315,7 @@ void walkTestFrame(edict_t* ent)
         w.travelled += glm::distance(o, w.last);
     }
     const bool afterHop = !w.lastValid;
+    const glm::vec3 prev = w.last;
     w.last = o;
     w.lastValid = true;
     edict_t* in = SV_TestEntityPosition(ent);
@@ -1544,8 +2347,8 @@ void walkTestFrame(edict_t* ent)
                     }
                 }
             }
-            Con_Printf("hullwalk: stuck at %.1f %.1f %.1f in %s (velocity %.0f %.0f %.0f)\n", o.x, o.y, o.z, what,
-                ent->v.velocity[0], ent->v.velocity[1], ent->v.velocity[2]);
+            Con_Printf("hullwalk: stuck at %.1f %.1f %.1f in %s (velocity %.0f %.0f %.0f; the frame before at %.1f %.1f %.1f, on %s)\n", o.x, o.y, o.z, what,
+                ent->v.velocity[0], ent->v.velocity[1], ent->v.velocity[2], prev.x, prev.y, prev.z, ent->v.groundentity ? PR_GetString(PROG_TO_EDICT(ent->v.groundentity)->v.classname) : "nothing");
         }
     }
     vec3_t v{o.x, o.y, o.z};
@@ -1604,4 +2407,19 @@ extern "C" int VR_HullClipBSP(edict_t* ent, const float* start, const float* box
     const float* end, trace_t* trace)
 {
     return qvr::hull::clipBSP(ent, start, boxmins, boxmaxs, end, *trace);
+}
+
+extern "C" int VR_HullEntBox(edict_t* passedict, const float* mins, const float* maxs, float* boxmins, float* boxmaxs)
+{
+    return qvr::hull::entBox(passedict, mins, maxs, boxmins, boxmaxs);
+}
+
+extern "C" int VR_HullNarrowsAgainst(edict_t* other)
+{
+    return qvr::hull::narrowsAgainst(other);
+}
+
+extern "C" int VR_HullTouchBox(edict_t* touch, edict_t* mover, float* boxmins, float* boxmaxs)
+{
+    return qvr::hull::touchBox(touch, mover, boxmins, boxmaxs);
 }

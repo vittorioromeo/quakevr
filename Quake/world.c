@@ -48,6 +48,9 @@ typedef struct
 	int			hittype;		// QVR: (its type, with the class)
 	qboolean	bspbox;			// QVR: the player's narrower box against BSP models (vr_hull_width; vr/vr_hull.cpp)
 	vec3_t		bspmins, bspmaxs;
+	qboolean	entbox;			// QVR: ... and against other entities' boxes (vr_hull_ent_width)
+	vec3_t		entmins, entmaxs;
+	qboolean	bodymove;		// QVR: a body's move (a box, not a shot): a player it meets shows it the narrower box
 } moveclip_t;
 
 
@@ -889,6 +892,53 @@ static trace_t SV_ClipMoveToEntityQVR (edict_t *ent, vec3_t start, vec3_t mins, 
 	return SV_ClipMoveToEntity (ent, start, mins, maxs, end);
 }
 
+/*
+==================
+SV_ClipMoveToBoxEntityQVR
+
+QVR: SV_ClipMoveToEntity for an entity's box (not SOLID_BSP), with the players' narrower boxes (vr_hull_ent_width;
+vr/vr_hull.cpp): the moving player's own box when it narrows against this entity, and the entity's when it is a
+player that a body (not a shot) moves into.
+==================
+*/
+static trace_t SV_ClipMoveToBoxEntityQVR (edict_t *touch, vec3_t mins, vec3_t maxs, const moveclip_t *clip)
+{
+	trace_t		trace;
+	vec3_t		tmins, tmaxs, hullmins, hullmaxs;
+	const float	*m = mins, *M = maxs;
+	hull_t		*hull;
+	vec3_t		start_l, end_l;
+	qboolean	narrowtouch;
+
+	if (clip->entbox && VR_HullNarrowsAgainst (touch))
+	{
+		m = clip->entmins;
+		M = clip->entmaxs;
+	}
+	narrowtouch = clip->bodymove && VR_HullTouchBox (touch, clip->passedict, tmins, tmaxs);
+	if (m == mins && !narrowtouch)
+		return SV_ClipMoveToEntity (touch, clip->start, mins, maxs, clip->end);
+
+	// SV_HullForEntity's box, with the narrower boxes
+	VectorSubtract (narrowtouch ? tmins : touch->v.mins, M, hullmins);
+	VectorSubtract (narrowtouch ? tmaxs : touch->v.maxs, m, hullmaxs);
+	hull = SV_HullForBox (hullmins, hullmaxs);
+
+	memset (&trace, 0, sizeof(trace_t));
+	trace.fraction = 1;
+	trace.allsolid = true;
+	VectorCopy (clip->end, trace.endpos);
+	VectorSubtract (clip->start, touch->v.origin, start_l);
+	VectorSubtract (clip->end, touch->v.origin, end_l);
+	++vr_profcounts.hullchecks;
+	SV_RecursiveHullCheck (hull, hull->firstclipnode, 0, 1, start_l, end_l, &trace);
+	if (trace.fraction != 1)
+		VectorAdd (trace.endpos, touch->v.origin, trace.endpos);
+	if (trace.fraction < 1 || trace.startsolid)
+		trace.ent = touch;
+	return trace;
+}
+
 //===========================================================================
 
 /*
@@ -960,7 +1010,9 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 		// QVR: missiles meet monsters with a fatter box, but not a corpse (vr_corpse_gib, touchable):
 		// lying low, it would stop them well above it.
 		else if (((int)touch->v.flags & FL_MONSTER) && touch->v.solid != SOLID_NOT_BUT_TOUCHABLE)
-			trace = SV_ClipMoveToEntity (touch, clip->start, clip->mins2, clip->maxs2, clip->end);
+			trace = SV_ClipMoveToBoxEntityQVR (touch, clip->mins2, clip->maxs2, clip); // QVR
+		else if (touch->v.solid != SOLID_BSP) // QVR
+			trace = SV_ClipMoveToBoxEntityQVR (touch, clip->mins, clip->maxs, clip);
 		else
 			trace = SV_ClipMoveToEntityQVR (touch, clip->start, clip->mins, clip->maxs, clip->end, clip); // QVR
 		if (trace.allsolid || trace.startsolid ||
@@ -1057,6 +1109,9 @@ static trace_t SV_MoveRun (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, i
 
 // clip to world
 	clip.bspbox = VR_HullMoveBox (passedict, mins, maxs, clip.bspmins, clip.bspmaxs); // QVR: the player's narrower box
+	clip.entbox = VR_HullEntBox (passedict, mins, maxs, clip.entmins, clip.entmaxs); // QVR: ... against entities
+	// QVR: a body moving (a box; not a shot, a missile or a precise hit's trace) meets players' narrower boxes
+	clip.bodymove = type != MOVE_MISSILE && !clip.hitgibs && clip.hitmodel < 0 && maxs[0] - mins[0] > 0 && maxs[2] - mins[2] > 0;
 	clip.trace = SV_ClipMoveToEntityQVR ( qcvm->edicts, start, mins, maxs, end, &clip ); // QVR
 
 	clip.start = start;
