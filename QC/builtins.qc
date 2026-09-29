@@ -207,6 +207,7 @@ vector(entity e, vector angles, vector point) modelpoint = #0; // where a point 
 // point gets only the share of the two masses meeting (a hand's, a gun's: vr_box3d_hand_mass, vr_box3d_weapon_mass).
 float(entity e, vector at, vector vel, optional float mass) physicspush = #0;
 // The Box3D prop's velocity relative to `rel` kept by `keep` (0 .. 1), no faster than `maxSpeed` (0: any), `add` added; its
+// spin kept by `keepSpin`: on its body, so that a physicspush after it this frame adds to it (a .velocity written would
 // override both). FALSE if it is not Box3D's.
 float(entity e, vector rel, float keep, float keepSpin, float maxSpeed, vector add) physicsdamp = #0;
 // The grappling hook's physical rope (engine vr_ropesim.cpp; vr_grapple.qc VR_Grapple_RopeShape): ropestep steps it (once
