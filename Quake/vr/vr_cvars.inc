@@ -794,6 +794,8 @@ QVR_CVAR(vr_carry_throw_mult, "1", CVAR_ARCHIVE)      // how fast they leave the
 QVR_CVAR(vr_carry_melee_mult, "1.5", CVAR_ARCHIVE)    // punches with a box in hand hurt this much more
 QVR_CVAR(vr_carry_throw_damage, "8", CVAR_ARCHIVE)    // damage of a box thrown hard (at about 6 m/s; more the faster)
 QVR_CVAR(vr_gib_throw_damage, "4", CVAR_ARCHIVE)      // and of a gib or head
+QVR_CVAR(vr_prop_impact_damage, "1", CVAR_ARCHIVE)   // a prop never thrown (flung on the grapple, batted, knocked flying) hurts a monster or player as a thrown one
+QVR_CVAR(vr_prop_impact_min_mass, "1", CVAR_ARCHIVE) // kg: lighter props never hurt so (vr_carry.qc VR_Prop_Flung)
 QVR_CVAR(vr_gib_destroy, "1", CVAR_ARCHIVE)           // gibs and heads can be destroyed (shot, blown up, struck, thrown hard): they burst in a mist of blood
 QVR_CVAR(vr_gib_health, "12", CVAR_ARCHIVE)           // the damage that destroys a gib (a head takes half as much again)
 QVR_CVAR(vr_gib_splat_speed, "250", CVAR_ARCHIVE)     // units/s a thrown gib or head must hit a wall or a monster at to burst

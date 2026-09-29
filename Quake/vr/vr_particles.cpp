@@ -15,6 +15,7 @@
 #include "vr_water.hpp"
 
 #include <algorithm>
+#include <bitset>
 #include <cstdint>
 #include <cstring>
 #include <limits>
@@ -2167,6 +2168,41 @@ extern "C" void VR_DrawSceneTranslucent()
         // Moved towards the eye only when the scene's distances are read (else not soft at all).
         gfx::drawParticles(batch, soft && distances, state, atlas);
     }
+}
+
+namespace
+{
+
+// The grenades' trails as last logged (VR_GrenadeTrail, developer 1: a line as one starts or stops), by entity.
+struct GrenadeTrailLog
+{
+    std::bitset<MAX_EDICTS> seen, smoking;
+};
+GrenadeTrailLog grenadeTrails;
+
+} // namespace
+
+// A grenade's smoke trail: not a hand grenade with its pin in (vr_grenade.qc: skin 1 of progs/grenade.mdl,
+// VR_HGREN_SKIN_UNARMED, muted by make_grenade_skins.py until its fuse is lit).
+extern "C" int VR_GrenadeTrail(int ent)
+{
+    if(ent <= 0 || ent >= cl.num_entities)
+    {
+        return 1;
+    }
+    const entity_t& e = cl_entities[ent];
+    constexpr int unarmedSkin = 1;
+    const bool smokes = !(e.model && e.skinnum == unarmedSkin && !strcmp(e.model->name, "progs/grenade.mdl"));
+    // developer 1: each grenade's trail as it starts or stops.
+    const auto n = static_cast<size_t>(ent);
+    if(developer.value && (!grenadeTrails.seen[n] || grenadeTrails.smoking[n] != smokes))
+    {
+        grenadeTrails.seen[n] = true;
+        grenadeTrails.smoking[n] = smokes;
+        Con_DPrintf("grenade %d (%s, skin %d): smoke trail %s\n", ent, e.model ? e.model->name : "?", e.skinnum,
+            smokes ? "on" : "off");
+    }
+    return smokes;
 }
 
 // Quake's own effects, when Quake VR's particles are on (as the old engine drew them).

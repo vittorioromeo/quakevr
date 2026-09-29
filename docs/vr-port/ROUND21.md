@@ -12391,3 +12391,56 @@ allocations a frame are unchanged: the buffers keep their capacity as before. `V
 - In the headset: nothing here should look or feel different.
 - The sets are given back at every map change only; a map whose peak comes late (a big fight) grows them then, as
   before.
+
+## Hand grenades: unarmed look; flung props hit as thrown ones
+
+Your notes (vrfiringrange 18-18-23, 18-50-03): a hand grenade smoked before its fuse was lit; it should look muted
+until armed, red-striped once armed; sliders for the pouch's place; and any fast, heavy enough physics prop (a prop on
+the grapple's rope swung as a flail) should hurt a monster or you as a thrown one does, not only what the hands throw.
+
+### Hand grenades: unarmed look
+
+- `progs/grenade.mdl` has a second skin (`Misc/quakevr/make_grenade_skins.py`, idempotent, genguard-guarded on the
+  skins after 0): the iron in the palette's grey ramp (a little lighter than the brown: dull steel), the red band a dull
+  brick red with no fullbright texels. A grenade from the pouch takes skin 1 (`VR_HGREN_SKIN_UNARMED`) until it is armed
+  (`VR_HandGrenade_Arm`: the pin, or let go with Arm Hand Grenades "When let go of"), then skin 0, the live one. The
+  ogres' and the launcher's grenades are unchanged.
+- No smoke until armed: the client's grenade trail (`cl_main.c`, `VR_GrenadeTrail` in `vr_particles.cpp`) is left out
+  for skin 1 of `progs/grenade.mdl`. The skin is networked and saved, so it needs no protocol change. `developer 1`
+  logs `grenade <n> (progs/grenade.mdl, skin <s>): smoke trail on|off` as each one starts or stops.
+- The pouch's place: Batting and Catching > Hand Grenades > **Grenade Pouch** now has Show Grenade Pouch and Pouch X, Y,
+  Z and Threshold (the same settings as Hip Holsters > Grenade Pouch, where the turn stays), and a link there.
+
+### Flung props hit as thrown ones
+
+`VR_Prop_Flung` (`vr_carry.qc`), from `forcegrabbable_touch` (weapons, pickups, backpacks, gibs, heads, debris, torches)
+and the explosive box's `.vr_impact`: a prop not in a throw that meets a monster or a player hurts it with the throw's
+own numbers: faster than a throw's missile speed (250 u/s, `VR_THROW_MISSILE_SPEED`, times the weight's leniency, as
+`VR_Carry_Release` has it), and `VR_Thrown_Damage` at that speed (the throw's base damage: Thrown Box Damage, a gib's,
+a weapon's own; full at about 6 m/s; the weight curve and Throw Damage x). Guards:
+- Their speed into each other and the prop's own speed must both be over it: a resting contact, a prop pushed along by
+  a body, or a player running into a box lying still never hurts. The explosive box's hit comes after the step (its
+  velocity is the bounce's): its share is the approach speed less the other's speed.
+- Never while carried (a swing in the hand is melee's), flying to a force grab, or a gib or head still in its death's
+  fling (before it first lands: a rocket's gibs don't hurt the monsters round it or you); never twice within 0.5 s.
+- Never to the player whose grapple holds it (`VR_Grapple_PropHolder`: reeled in, it comes at the gun), nor to the
+  player who let go of it in the last 0.5 s (`.carry_letgo`, set by `VR_Carry_Loose`). A thrown prop's thrower is
+  still spared by its `.owner` as before.
+- Credit: the grapple's holder, else whoever let go of it in the last 10 s, else nobody (a monster hurt so doesn't turn
+  on you).
+- Settings (Carrying > Carrying Boxes): **Flung Props Hurt** (`vr_prop_impact_damage` 1) and **Flung Props' Least
+  Mass** (`vr_prop_impact_min_mass` 1 kg: a small gib, a torch, the flashlight never hurt so; thrown by hand they still
+  do).
+
+Checks (mock, vrfiringrange, a grunt 200 units ahead, `developer 1` prints `prop: flung ...`): a health box (1.6 kg)
+at 600 u/s into it: 25.5 damage; at 150 u/s (no gravity) from the same spot: none, and 400 u/s from there: 16.7; one
+placed still against it: none; an explosive box (40 kg) at 450 u/s: 66 to 84 (it killed the grunt); a health box at
+600 u/s into the player: 25.4. A hand grenade from the pouch: `smoke trail off` held and dropped as a dud,
+`smoke trail on` from the pin.
+
+### Not verified
+
+- The grapple flail itself: the mock's hook didn't fire in my runs (the grapple is being reworked this round), so the
+  holder's immunity and credit are untested; the hit is the same path as the other flung hits.
+- In the headset: the unarmed grenade's grey (lighter than the live one's brown: `--saturation`, `GREY_GAIN`,
+  `GREY_LIFT` in the script if it should be darker); whether flung damage feels right (the throw's numbers were kept).

@@ -156,7 +156,7 @@ context and screenshot, ready to paste or to point me at.
     pin: it goes back in, and the rocket with it (a rocket leaves your ammo while a grenade is in your hand). Let go
     of elsewhere unarmed, it is a dud at your feet: take it again to arm it or put it back. No rockets: a dull knock.
     Batting and Catching > **Hand Grenades** (on/off, **Arm Hand Grenades**: the trigger, or when let go of; **Hand
-    Grenade Fuse**); the pouch's place and turn on Hip Holsters > **Grenade Pouch**.
+    Grenade Fuse**); the pouch's place under it (**Grenade Pouch**), and its turn on Hip Holsters > **Grenade Pouch**.
   - **Hands: both work; props through teleporters; climbing stamina** (ROUND21.md, same title): a hand that force
     grabbed something and put it down could no longer take a ledge (fixed); a main-hand grip on a thing the off hand
     touched did nothing, and a prop held in both hands lost a hand when you moved fast (both fixed). Bricks (whole,
@@ -1184,6 +1184,10 @@ is entity 274, rock5 245, the half brick 220, a whole brick 214, the wall torch 
 `vr_mock_hand main 0.15 1.2 -0.45 70 0 0`: `vr_mock_camera 0.35 1.15 -0.45 25 90` (outside), `-0.05 1.12 -0.45 25 -90`
 (the palm's side), `0.15 1.18 -0.68 30 180` (the front); `r_fullbright 1` lights them.
 
+Flung props (ROUND21.md, "Hand grenades: unarmed look; flung props hit as thrown ones"): from `setpos 300 -440 45 0 180 0`,
+a grunt at `vr_test_spawn 0; vr_test_spawn_dist 200; impulse 241`, `vr_physics_spawn item_health 40 40`, then
+`vr_rigid_place item_health 220 -440 50 0 0 0 -600 0 0` flings it at the grunt; `developer 1` prints `prop: flung ...`.
+An unarmed hand grenade's trail: `developer 1` prints `grenade <n> (progs/grenade.mdl, skin <s>): smoke trail on|off`.
 Hand grenades from the back pouch (ROUND21.md, same title): the scratchpad's `handgren/` has the scripts and logs.
 `gen.py` writes the `vr_mock_play` files (from `throw_plays.py`'s `throws.txt`: `python Misc/quakevr/throw_plays.py
 --gunangle 70 --out throws.txt` first): a hand to the pouch at `vr_mock_hand main|off 0 1.0 0.2 0 0 0` (Gun Angle 70;

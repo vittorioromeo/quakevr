@@ -126,6 +126,8 @@ float cvarh_vr_walltorch_burn_time;
 float cvarh_vr_walltorch_relight;
 float cvarh_vr_carry_melee_mult;
 float cvarh_vr_carry_throw_damage;
+float cvarh_vr_prop_impact_damage;
+float cvarh_vr_prop_impact_min_mass;
 float cvarh_vr_gib_throw_damage;
 float cvarh_vr_gib_destroy;
 float cvarh_vr_gib_health;
@@ -361,6 +363,8 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_walltorch_relight);
     VR_CVAR_HMAKE(vr_carry_melee_mult);
     VR_CVAR_HMAKE(vr_carry_throw_damage);
+    VR_CVAR_HMAKE(vr_prop_impact_damage);
+    VR_CVAR_HMAKE(vr_prop_impact_min_mass);
     VR_CVAR_HMAKE(vr_gib_throw_damage);
     VR_CVAR_HMAKE(vr_gib_destroy);
     VR_CVAR_HMAKE(vr_gib_health);

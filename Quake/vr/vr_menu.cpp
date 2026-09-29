@@ -725,7 +725,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         toggle("Hand Grenades", vr_handgrenade)
             .help("Reach behind the small of your back with an empty hand and grip: a grenade from your pouch, while you have "
                   "rockets (the grenade launcher's ammo; one leaves your ammo with each grenade). Throw it as anything you "
-                  "carry: it goes off as the launcher's grenade. The pouch's place is on Hip Holsters."),
+                  "carry: it goes off as the launcher's grenade. Where the pouch is: below."),
         cycle("Arm Hand Grenades", vr_handgrenade_arm, {{0.f, "Trigger pulls the pin"}, {1.f, "When let go of"}})
             .help("Trigger: press it while holding the grenade to pull the pin (it fizzes; the fuse runs); let go of unarmed, "
                   "it is a dud you can pick up again. When let go of: the lever flies off as it leaves your hand. Either "
@@ -733,6 +733,20 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Hand Grenade Fuse", vr_handgrenade_fuse, 1.f, 5.f, 0.1f, "%.1f s")
             .help("From the pin (or the throw) to the blast. The launcher's grenades take 2.5 s. Hold it too long and it goes "
                   "off in your hand."),
+        header("Grenade Pouch"),
+        toggle("Show Grenade Pouch", vr_show_grenade_pouch)
+            .help("A marker at the pouch the size of its reach, green while a hand is there: to place it."),
+        slider("Pouch X", vr_grenade_pouch_x, -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f)
+            .help("Forward (negative: back), units. With the body drawn, the default (-7) is on the belt at the small of "
+                  "your back; forward, it goes round your hips."),
+        slider("Pouch Y", vr_grenade_pouch_y, -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f)
+            .help("To your right (negative: left), units."),
+        slider("Pouch Z", vr_grenade_pouch_z, -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f)
+            .help("Up (negative: down), units: 0 is the hip holsters' height."),
+        slider("Pouch Threshold", vr_grenade_pouch_thresh, 0.f, 30.f, 0.1f, "%.1f").extend(0.f, 100.f)
+            .help("How near the pouch a hand must be to take a grenade from it (or put one back)."),
+        open("Pouch Turn (Hip Holsters)", pageIndex(pageHipHolsters))
+            .help("The same place, and how the pouch is turned, with the hip holsters."),
     };
 }
 
@@ -1389,6 +1403,12 @@ void hologramTestMessage()
         slider("Box Throw Speed", vr_carry_throw_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend(),
         slider("Box Punch Damage", vr_carry_melee_mult, 1.f, 3.f, 0.1f, "%.1fx").extend().help("Punching with a box in hand."),
         slider("Thrown Box Damage", vr_carry_throw_damage, 0.f, 50.f, 1.f, "%.0f").extend().help("Damage of a box thrown at about 6 m/s; more the faster."),
+        toggle("Flung Props Hurt", vr_prop_impact_damage)
+            .help("Any prop flying fast enough to be a throw (swung on the grapple's rope, batted, knocked flying) hurts "
+                  "the monster or player it hits as a thrown one does. Never you as you let go of it, nor while your "
+                  "grapple holds it. Off: only what you throw by hand."),
+        slider("Flung Props' Least Mass", vr_prop_impact_min_mass, 0.f, 10.f, 0.1f, "%.1f kg").extend(0.f, 100.f)
+            .help("Lighter props never hurt when flung (thrown by hand, they still do)."),
         open("Held Object Offsets (Held Prop)", pageIndex(pageHeldObjectOffsets))
             .help("The grip, fingers and melee points of what a hand carries."),
         open("Held Object Weights (Held Prop)", pageIndex(pageHeldObjectWeights))
