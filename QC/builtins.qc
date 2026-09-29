@@ -204,6 +204,10 @@ vector(entity e, vector angles, vector point) modelpoint = #0; // where a point 
 // A hand's push on a rigid body: the point `at` gets at least `vel`'s speed along it (an impulse there: a tall box pushed
 // high tips over). FALSE if Box3D doesn't move it.
 float(entity e, vector at, vector vel) physicspush = #0;
+// The Box3D prop's velocity relative to `rel` kept by `keep` (0 .. 1), no faster than `maxSpeed` (0: any), `add` added; its
+// spin kept by `keepSpin`: on its body, so that a physicspush after it this frame adds to it (a .velocity written would
+// override both). FALSE if it is not Box3D's.
+float(entity e, vector rel, float keep, float keepSpin, float maxSpeed, vector add) physicsdamp = #0;
 // The grappling hook's physical rope (engine vr_ropesim.cpp; vr_grapple.qc VR_Grapple_RopeShape): ropestep steps it (once
 // a frame; its chain from `gun` to `end`, falling, lying, never through the world or props but `skipA`, `skipB`) and
 // gives the taut path's length from `game` (the body, or the gun) to `end`; ropepivot its first corner from `game` (0),
@@ -236,6 +240,9 @@ float(entity e) hitmodel_target = #0; // whether e's model is what is hit (the o
 // The segment a..b (a sphere of `radius` plus the class's tolerance) against e's model as drawn: where along it (0..1)
 // it first meets it (0: it starts in it), -1 missed; -2: e's model is not tested (the option off, not a target).
 float(entity e, vector a, vector b, float radius, float hitclass) hitmodel_segment = #0;
+// The segment a..b, a sphere of `radius`, against any entity's Quake .mdl as drawn (a prop's, an item's: not only a
+// monster's): where along it it first meets it (0: it starts in it), -1 missed, -2 no such model (a brush model: its box).
+float(entity e, vector a, vector b, float radius) hitmodel_any = #0;
 // The point p on e's drawn model as it is on the model standing (its stand frame), at e's origin, turned with its yaw
 // (where positional damage's head sphere and regions are); p itself if e is no target.
 vector(entity e, vector p) hitmodel_rest = #0;

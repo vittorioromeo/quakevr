@@ -3521,6 +3521,41 @@ bool push(edict_t* ent, const glm::vec3& at, const glm::vec3& velocity)
     return true;
 }
 
+bool damp(edict_t* ent, const glm::vec3& relativeTo, float keep, float keepSpin, float maxSpeed, const glm::vec3& add)
+{
+    const int num = NUM_FOR_EDICT(ent);
+    if(!world || num >= static_cast<int>(world->slots.size()) || world->slots[num].kind != Kind::Prop)
+    {
+        return false;
+    }
+    const b3BodyId body = world->slots[num].body;
+    const b3Vec3 lv = b3Body_GetLinearVelocity(body);
+    const glm::vec3 v = glm::vec3{lv.x, lv.y, lv.z} * world->m2u; // units/s
+    glm::vec3 rel = (v - relativeTo) * std::clamp(keep, 0.f, 1.f);
+    const float speed = glm::length(rel);
+    if(maxSpeed > 0.f && speed > maxSpeed)
+    {
+        rel *= maxSpeed / speed;
+    }
+    const glm::vec3 out = relativeTo + rel + add;
+    if(glm::distance(out, v) > 1e-3f)
+    {
+        b3Body_SetLinearVelocity(body, world->toM(out));
+        if(glm::length(add) > 0.f)
+        {
+            b3Body_SetAwake(body, true);
+            world->slots[num].asleep = false;
+        }
+    }
+    const b3Vec3 w = b3Body_GetAngularVelocity(body);
+    const float ks = std::clamp(keepSpin, 0.f, 1.f);
+    if(ks < 1.f)
+    {
+        b3Body_SetAngularVelocity(body, b3Vec3{w.x * ks, w.y * ks, w.z * ks});
+    }
+    return true;
+}
+
 float propMass(edict_t* ent)
 {
     qmodel_t* model = ent && !ent->free ? modelOf(ent) : nullptr;

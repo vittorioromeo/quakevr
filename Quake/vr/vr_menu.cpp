@@ -1578,6 +1578,9 @@ void hologramTestMessage()
 std::vector<Item> pageDebugViews()
 {
     return {
+        toggle("Show Grapple Rope", vr_debug_rope)
+            .help("Each grappling hook rope: its drawn chain (points white, pieces green), the corners it wraps round "
+                  "(red) and its taut path (yellow), the ends (orange)."),
         toggle("Show Physics Shapes", vr_debug_physics_shapes)
             .help("Draws the physics bodies (Box3D) as wireframes: props awake green, asleep blue, held yellow; doors purple, "
                   "monsters orange, you cyan, hanging pickups grey; red dots where they touch. And each hand's grab reach."),
@@ -1794,6 +1797,14 @@ std::vector<Item> pageDebugTests()
             .help("Degrees to your left of ahead it comes from (negative: from the right)."),
         command("Fire at Me", "impulse 246").help("Fires the Projectile at you now."),
         command("Make an Ogre Throw", "impulse 240").help("The nearest ogre or zombie throws at you now."),
+        header("Grappling Hook"),
+        command("Report the Hooks", "impulse 239").help("Prints every hook: its state, what it is in, where its gun is, the "
+                                                         "rope's length and path (needs Developer Messages)."),
+        command("Print the Ropes", "vr_grapple_rope_dump; vr_grapple_rope_draw_dump")
+            .help("Prints each rope's corners (the server's) and its drawn chain: points inside the world, pieces through it."),
+        toggle("Load Stuck", vr_grapple_test_stuck)
+            .help("What hangs on the rope (a loose hook, a hooked prop) stays where it is, as if snagged: walk away and the "
+                  "rope should hold you back."),
         header("Stamina"),
         info([]() -> const char* { return staminaReadout(); }),
         command("Deplete Stamina", "vr_stamina_set 0").help("vr_stamina_set 0: no stamina left (tired arms: heavy hands; shaking while you hang). Hanging with none, your hands let go."),
@@ -1848,28 +1859,67 @@ std::vector<Item> pageDebugTests()
                   "until you hold B or Y (either hand's, when the other has no hook of its own out); A or X in the air "
                   "pays it out. The hook stays in when you drop the gun, holster it or pass it to the other hand. "
                   "Pulls at once: the mission pack's grapple, pulling you in as soon as it bites."),
-        cycle("Trigger Released", vr_grapple_trigger_release, {{0.f, "Hook Comes Loose"}, {1.f, "Hook Comes Back"}})
-            .help("Letting go of the trigger takes the hook off what it bit. Comes loose: it hangs on the rope, a "
-                  "physics object, until you reel it in (B or Y). Comes back: straight into the gun, as the quick "
-                  "release button on top of the gun does."),
+        cycle("Trigger Released", vr_grapple_trigger_release,
+            {{0.f, "Hook Stays In"}, {1.f, "Hook Comes Back"}, {2.f, "Hook Comes Loose"}})
+            .help("Stays in: letting go of the trigger does nothing; the back button on the gun (over the grip) detaches "
+                  "the hook, the front one (near the muzzle) reels it straight in. Comes back: letting go brings it "
+                  "straight into the gun. Comes loose: letting go takes it off, hanging on the rope until you reel it in "
+                  "(B or Y)."),
         slider("Drop Grace", vr_grapple_drop_grace, 0.f, 0.5f, 0.02f, "%.2f s").extend(0.f, 2.f)
-            .help("The trigger let go waits this long before the hook comes off: dropping the gun, holstering it or "
-                  "passing it to the other hand in that time (letting go of trigger and grip together) keeps the hook "
-                  "in."),
+            .help("Comes Back and Comes Loose: the trigger let go waits this long before the hook comes off: dropping the "
+                  "gun, holstering it or passing it to the other hand in that time (letting go of trigger and grip "
+                  "together) keeps the hook in."),
+        slider("Longest Rope", vr_grapple_max_length, 200.f, 3000.f, 50.f, "%.0f").extend(64.f, 10000.f)
+            .help("The rope is never longer (units): the hook flies no farther, the unreel pays out no more."),
+        toggle("Shoot the Hook Off", vr_grapple_shootable)
+            .help("A hook in a wall, a floor or a door comes off when you shoot it (any weapon): get it back when it is "
+                  "stuck or its gun is out of reach."),
+        toggle("Front Button", vr_grapple_front_button)
+            .help("The gun's second button, near the muzzle: press it with the other hand's finger and the hook comes "
+                  "straight back into the gun (through anything). The back button, over the grip, only detaches it."),
+        slider("Front Button Along", vr_grapple_front_button_x, -20.f, 30.f, 0.5f, "%.1f").extend()
+            .help("Where the front button is: from the back button along the gun, towards the muzzle (model units)."),
+        slider("Front Button Side", vr_grapple_front_button_y, -10.f, 10.f, 0.5f, "%.1f").extend(),
+        slider("Front Button Up", vr_grapple_front_button_z, -10.f, 10.f, 0.5f, "%.1f").extend(),
+        slider("Reel-In Button Speed", vr_grapple_quick_speed, 300.f, 4000.f, 100.f, "%.0f u/s").extend(100.f, 10000.f)
+            .help("How fast the hook flies back into the gun when you press the front button."),
+
+        header("Rope"),
         toggle("Physical Rope", vr_grapple_rope_sim)
-            .help("The rope hangs, lies and wraps round the world and the props, never through them, and pulls along "
-                  "where it lies (round a pillar, over a box). Off: a straight line, drawn sagging."),
+            .help("The rope wraps round the world and the props (a pillar's edge, a box's top), never through them, and "
+                  "pulls along where it lies; slack, it is drawn hanging from the corners it wraps and lying on the "
+                  "world. Off: a straight line, drawn sagging."),
         slider("Rope Point Spacing", vr_grapple_rope_spacing, 4.f, 48.f, 1.f, "%.0f").extend(2.f, 256.f)
-            .help("Units between the physical rope's points: finer follows edges more truly and costs more (a long "
-                  "rope's points are farther apart: 96 at most)."),
+            .help("Units between the points of the rope as drawn hanging (the physical rope): finer bends more smoothly "
+                  "and costs more (128 points at most)."),
         slider("Rope Precision", vr_grapple_rope_iterations, 1.f, 32.f, 1.f, "%.0f").extend(1.f, 64.f)
-            .help("Passes a frame holding the physical rope's pieces to their length: more is stiffer and truer, and "
-                  "costs more."),
+            .help("Passes a frame holding the drawn rope's pieces to their length: more is stiffer and truer, and costs "
+                  "more."),
         slider("Rope Thickness", vr_grapple_rope_radius, 0.25f, 4.f, 0.25f, "%.2f").extend(0.1f, 8.f)
-            .help("Half the physical rope's thickness (units): how far it keeps from what it lies on."),
-        slider("Quick Release Speed", vr_grapple_quick_speed, 300.f, 4000.f, 100.f, "%.0f u/s").extend(100.f, 10000.f)
-            .help("How fast the hook flies back into the gun when you press the button on top of the gun with the "
-                  "other hand's finger."),
+            .help("Half the rope's thickness (units): how far its corners keep from the edges it wraps round, and the "
+                  "drawn rope from what it lies on."),
+        slider("Rope Depth in the Gun", vr_grapple_rope_depth, 0.f, 8.f, 0.5f, "%.1f").extend(-1.f, 16.f)
+            .help("How far inside the muzzle the rope is drawn from (units), in the hand and with the gun lying about. "
+                  "-1: the old places."),
+
+        header("What Hangs on the Rope"),
+        slider("Walking Shared", vr_grapple_move_share, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How much of your walking (the thumbstick) the hook or a hooked prop hanging on the rope takes: it "
+                  "trails a little behind you instead of lagging far back and snapping forward. Lying on the floor, it "
+                  "is left alone. 0: none."),
+        slider("Air Drag", vr_grapple_load_drag, 0.f, 5.f, 0.1f, "%.1f").extend()
+            .help("How fast what swings on the rope slows down (a share of its speed a second, relative to you): a gun "
+                  "left hanging stops swinging, a flail can't wind up without end."),
+        slider("Hanging Air Drag", vr_grapple_hang_drag, 0.f, 10.f, 0.25f, "%.2f").extend()
+            .help("The same for what hangs on a rope no one holds (a gun left hanging from a ceiling, what hangs from a "
+                  "dropped gun): it stops swinging in a couple of seconds."),
+        slider("Top Speed", vr_grapple_load_max_speed, 0.f, 2000.f, 50.f, "%.0f u/s").extend(0.f, 10000.f)
+            .help("The fastest what hangs on the rope moves relative to you (no rope of death). 0: no limit."),
+        slider("Slack When Detached", vr_grapple_loose_slack, 0.f, 128.f, 4.f, "%.0f").extend(0.f, 1000.f)
+            .help("Units of slack the rope gets when the hook comes off: a loose hook lying there is not dragged by "
+                  "your next step."),
+
+        header("Reel"),
         slider("Reel Speed", vr_grapple_reel_speed, 100.f, 1000.f, 25.f, "%.0f u/s").extend(25.f, 2000.f)
             .help("How fast the reel pulls you in: to a wall or a ceiling, to a huge monster, to a prop too heavy to come."),
         slider("Shortest Rope", vr_grapple_min_length, 16.f, 128.f, 4.f, "%.0f").extend(0.f, 400.f)

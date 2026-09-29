@@ -4,6 +4,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
+#include "vr_lines.hpp"
 #include "vr_mem.hpp"
 #include "vr_profile.hpp"
 #include "vr_trace.hpp"
@@ -47,14 +48,44 @@ struct RopeSlack
 };
 std::unordered_map<int, RopeSlack> slacks;
 
-// A rope's simulated points as last sent (beam key -> its points, and when): drawn through while they are fresh.
-struct RopeSim
+// A rope's corners as last sent (beam key -> the corners the server's rope wraps round, vr_ropesim.cpp, and when): the
+// drawn chain is pinned at them. Not sent for a while: none (the server sends them when they change, and every quarter
+// of a second while there are any).
+struct RopeCorners
 {
-    std::vector<glm::vec3> points;
+    std::vector<glm::vec3> corners;
     double time{0.0}; // cl.time
 };
-std::unordered_map<int, RopeSim> sims;
-constexpr double simFresh = 0.1; // seconds a rope's points are drawn after they were sent (a few server frames)
+std::unordered_map<int, RopeCorners> cornerSets;
+constexpr double cornersFresh = 1.0; // seconds
+
+// A rope's slack as drawn (vr_grapple_rope_sim): a chain of points, Rope Point Spacing apart, pinned at the gun, the
+// corners and the hook, hanging between them (gravity, a little drag) and lying on the world: each point is traced
+// from where it was to where it goes (stopped on what it meets, sliding along it), and each piece is traced too (one
+// that goes through the world is pushed out of it). Beam key -> chain.
+struct Chain
+{
+    std::vector<glm::vec3> p;    // the points (the pins among them)
+    std::vector<glm::vec3> prev; // last frame's (Verlet)
+    std::vector<int> pins;       // each path point's (the gun, the corners, the hook) index in p
+    std::vector<glm::vec3> drawn; // the points drawn: p, a piece still through the world taken round what it meets
+    float lastDt{0.f};
+    double time{-1.0};           // realtime of its last step
+};
+std::unordered_map<int, Chain> chains;
+constexpr int chainMaxPoints = 128;
+constexpr float chainDrag = 1.5f;      // of a point's speed lost to the air, a second
+constexpr float chainSlide = 0.6f;     // of its speed along a surface a point keeps where it touches it
+constexpr float chainGravity = 800.f;  // units/s/s
+
+// vr_debug_rope: this frame's drawn ropes (their points, pins and path), drawn in the world by debugDraw.
+struct DebugRope
+{
+    std::vector<glm::vec3> points;
+    std::vector<glm::vec3> path;
+};
+std::vector<DebugRope> debugRopes;
+int debugFrame = -1;
 
 // A model's mesh as the rope draws it (its first pose's triangles, BentVertex each), and its skin.
 struct Mesh
@@ -89,7 +120,13 @@ struct RopeScratch
     std::vector<glm::vec4> data;           // the frame's upload: each mesh once, then the curves (drawOpaque)
     std::vector<const Mesh*> packed;       // each mesh once
     std::vector<int> packedFirst;          // and its first vec4
-    auto members() { return std::tie(onLine, lies, samples, points, data, packed, packedFirst); }
+    std::vector<glm::vec3> path;           // a rope's path: the gun, the corners, the hook (VR_DrawRope)
+    std::vector<glm::vec3> from;           // the chain's points before this step (stepChain)
+    std::vector<glm::vec3> resampled;      // (resample)
+    std::vector<float> lengths;            // each piece between two pins: its length and its points
+    std::vector<int> counts;
+    std::vector<char> pinned;              // each chain point: a pin
+    auto members() { return std::tie(onLine, lies, samples, points, data, packed, packedFirst, path, from, resampled, lengths, counts, pinned); }
 };
 mem::Scratch<RopeScratch> scratch{"rope"};
 
@@ -182,16 +219,21 @@ glm::vec3 worldLight(const glm::vec3& p)
     return out / 128.f;
 }
 
-// The rope from `a` to `b` as points into `out` (at least 2): straight (2) when taut, hanging when slack: the parabola
-// of its length over the line between its ends, sagging down across the line (a rope hanging straight down stays
-// straight), lying on the floor where it would go through it. `h`: how deep it hangs (0 straight).
-void ropePoints(RopeSlack& r, const glm::vec3& a, const glm::vec3& b, std::vector<glm::vec3>& out, float& length, float& h)
+// The slack shown eased towards the one sent (it comes in 125 steps): a sagging rope never jumps.
+void easeSlack(RopeSlack& r)
 {
-    out.clear();
-    out.push_back(a);
     const float dt = static_cast<float>(std::clamp(realtime - r.time, 0.0, 0.1));
     r.time = realtime;
     r.shown += (r.target - r.shown) * std::min(1.f, 10.f * dt);
+}
+
+// The rope from `a` to `b` as points into `out` (at least 2): straight (2) when taut, hanging when slack: the parabola
+// of its length over the line between its ends, sagging down across the line (a rope hanging straight down stays
+// straight), lying on the floor where it would go through it. `h`: how deep it hangs (0 straight).
+void ropePoints(const RopeSlack& r, const glm::vec3& a, const glm::vec3& b, std::vector<glm::vec3>& out, float& length, float& h)
+{
+    out.clear();
+    out.push_back(a);
     const float chord = glm::distance(a, b);
     length = chord;
     h = 0.f;
@@ -326,6 +368,271 @@ void simPoints(const std::vector<glm::vec3>& sim, const glm::vec3& a, const glm:
     out.push_back(p.back());
 }
 
+// The polyline `pts[0 .. count - 1]` as `n` + 1 points evenly along it (its ends kept), appended to `out`.
+void resample(const glm::vec3* pts, int count, int n, std::vector<glm::vec3>& out)
+{
+    float total = 0.f;
+    for(int i = 1; i < count; i++)
+    {
+        total += glm::distance(pts[i - 1], pts[i]);
+    }
+    out.push_back(pts[0]);
+    int seg = 1;
+    float segStart = 0.f;
+    for(int k = 1; k < n; k++)
+    {
+        const float want = total * static_cast<float>(k) / static_cast<float>(n);
+        while(seg + 1 < count && segStart + glm::distance(pts[seg - 1], pts[seg]) < want)
+        {
+            segStart += glm::distance(pts[seg - 1], pts[seg]);
+            seg++;
+        }
+        const float len = count > 1 ? glm::distance(pts[seg - 1], pts[seg]) : 0.f;
+        const float t = len > 1e-4f ? std::clamp((want - segStart) / len, 0.f, 1.f) : 0.f;
+        out.push_back(count > 1 ? glm::mix(pts[seg - 1], pts[seg], t) : pts[0]);
+    }
+    out.push_back(pts[count - 1]);
+}
+
+[[nodiscard]] bool pointInWorld(const glm::vec3& q)
+{
+    if(!cl.worldmodel)
+    {
+        return false;
+    }
+    vec3_t v{q.x, q.y, q.z};
+    return Mod_PointInLeaf(v, cl.worldmodel)->contents == CONTENTS_SOLID;
+}
+
+// The chain `ch` stepped for this frame along `path` (the gun, the corners, the hook), `slack` of its length hanging (0 ..
+// 1): the pieces between two pins share the slack by their lengths.
+void stepChain(Chain& ch, const std::vector<glm::vec3>& path, float slack)
+{
+    const int pieces = static_cast<int>(path.size()) - 1;
+    std::vector<float>& lengths = scratch.lengths;
+    std::vector<int>& counts = scratch.counts;
+    lengths.assign(static_cast<std::size_t>(pieces), 0.f);
+    counts.assign(static_cast<std::size_t>(pieces), 1);
+    float straight = 0.f;
+    for(int i = 0; i < pieces; i++)
+    {
+        straight += glm::distance(path[static_cast<std::size_t>(i)], path[static_cast<std::size_t>(i) + 1]);
+    }
+    const float total = straight / std::max(0.02f, 1.f - std::clamp(slack, 0.f, 1.f));
+    const float spacing =
+        std::max({2.f, vr_grapple_rope_spacing.value, total / static_cast<float>(chainMaxPoints - pieces - 1)});
+    for(int i = 0; i < pieces; i++)
+    {
+        const float d = glm::distance(path[static_cast<std::size_t>(i)], path[static_cast<std::size_t>(i) + 1]);
+        const float share = straight > 1e-3f ? d / straight : 1.f / static_cast<float>(pieces);
+        lengths[static_cast<std::size_t>(i)] = d + (total - straight) * share;
+        counts[static_cast<std::size_t>(i)] =
+            std::max(1, static_cast<int>(std::ceil(lengths[static_cast<std::size_t>(i)] / spacing)));
+    }
+
+    const double now = realtime;
+    bool rebuild = ch.p.empty() || ch.pins.size() != path.size() || ch.time < 0.0 || now - ch.time > 0.5 || now < ch.time;
+    for(std::size_t k = 0; k < ch.pins.size() && !rebuild; k++)
+    {
+        rebuild = glm::distance(ch.p[static_cast<std::size_t>(ch.pins[k])], path[k]) > 128.f; // (jumped: a new place)
+    }
+    const float dt = rebuild ? 1.f / 90.f : static_cast<float>(std::clamp(now - ch.time, 1.0 / 500.0, 1.0 / 20.0));
+    if(rebuild)
+    {
+        ch.p.clear();
+        ch.pins.clear();
+        for(int i = 0; i < pieces; i++)
+        {
+            ch.pins.push_back(static_cast<int>(ch.p.size()));
+            for(int j = 0; j < counts[static_cast<std::size_t>(i)]; j++)
+            {
+                ch.p.push_back(glm::mix(path[static_cast<std::size_t>(i)], path[static_cast<std::size_t>(i) + 1],
+                    static_cast<float>(j) / static_cast<float>(counts[static_cast<std::size_t>(i)])));
+            }
+        }
+        ch.pins.push_back(static_cast<int>(ch.p.size()));
+        ch.p.push_back(path.back());
+        ch.prev = ch.p;
+        ch.lastDt = dt;
+    }
+    else
+    {
+        // A piece's points as many as its length needs now (reeled in, paid out): the chain there resampled, its shape
+        // kept.
+        bool same = true;
+        for(int i = 0; i < pieces && same; i++)
+        {
+            same = ch.pins[static_cast<std::size_t>(i) + 1] - ch.pins[static_cast<std::size_t>(i)] ==
+                   counts[static_cast<std::size_t>(i)];
+        }
+        if(!same)
+        {
+            for(std::vector<glm::vec3>* v : {&ch.p, &ch.prev})
+            {
+                std::vector<glm::vec3>& out = scratch.resampled;
+                out.clear();
+                for(int i = 0; i < pieces; i++)
+                {
+                    const int a = ch.pins[static_cast<std::size_t>(i)], b = ch.pins[static_cast<std::size_t>(i) + 1];
+                    resample(v->data() + a, b - a + 1, counts[static_cast<std::size_t>(i)], out);
+                    out.pop_back(); // (the next piece's first)
+                }
+                out.push_back(v->back());
+                *v = out;
+            }
+            int at = 0;
+            for(int i = 0; i < pieces; i++)
+            {
+                ch.pins[static_cast<std::size_t>(i)] = at;
+                at += counts[static_cast<std::size_t>(i)];
+            }
+            ch.pins.back() = at;
+        }
+    }
+    std::vector<char>& pinned = scratch.pinned;
+    pinned.assign(ch.p.size(), 0);
+    for(std::size_t k = 0; k < ch.pins.size(); k++)
+    {
+        const std::size_t i = static_cast<std::size_t>(ch.pins[k]);
+        pinned[i] = 1;
+        ch.p[i] = ch.prev[i] = path[k];
+    }
+
+    // Verlet: the free points fall, a little slowed by the air.
+    std::vector<glm::vec3>& from = scratch.from;
+    from = ch.p;
+    const float keep = std::exp(-chainDrag * dt) * (ch.lastDt > 0.f ? dt / ch.lastDt : 1.f);
+    const glm::vec3 fall{0.f, 0.f, -chainGravity * dt * dt};
+    for(std::size_t i = 0; i < ch.p.size(); i++)
+    {
+        if(!pinned[i])
+        {
+            const glm::vec3 v = (ch.p[i] - ch.prev[i]) * keep;
+            ch.prev[i] = ch.p[i];
+            ch.p[i] += v + fall;
+        }
+    }
+
+    // The pieces' lengths (the pins fixed).
+    const int iterations = std::clamp(static_cast<int>(vr_grapple_rope_iterations.value), 1, 64);
+    for(int it = 0; it < iterations; it++)
+    {
+        for(int i = 0; i < pieces; i++)
+        {
+            const float rest = lengths[static_cast<std::size_t>(i)] / static_cast<float>(counts[static_cast<std::size_t>(i)]);
+            for(int j = ch.pins[static_cast<std::size_t>(i)]; j < ch.pins[static_cast<std::size_t>(i) + 1]; j++)
+            {
+                glm::vec3& a = ch.p[static_cast<std::size_t>(j)];
+                glm::vec3& b = ch.p[static_cast<std::size_t>(j) + 1];
+                const float wa = pinned[static_cast<std::size_t>(j)] ? 0.f : 1.f;
+                const float wb = pinned[static_cast<std::size_t>(j) + 1] ? 0.f : 1.f;
+                const glm::vec3 d = b - a;
+                const float len = glm::length(d);
+                if(len < 1e-5f || wa + wb <= 0.f)
+                {
+                    continue;
+                }
+                const glm::vec3 corr = d * ((len - rest) / (len * (wa + wb)));
+                a += corr * wa;
+                b -= corr * wb;
+            }
+        }
+    }
+
+    // The world: each free point traced from where it was (stopped on what it meets, the rest of its move slid along it;
+    // its speed into it gone, some of its speed along it kept), then each piece (one through the world: its free ends
+    // pushed out past where it met it).
+    const float rad = std::clamp(vr_grapple_rope_radius.value, 0.1f, 8.f);
+    for(std::size_t i = 0; i < ch.p.size(); i++)
+    {
+        if(pinned[i] || glm::distance(from[i], ch.p[i]) < 1e-4f)
+        {
+            continue;
+        }
+        const glm::vec3 was = from[i], to = ch.p[i];
+        const trace_t tr = worldtrace::world(was, to);
+        if(tr.startsolid || tr.allsolid || tr.fraction >= 1.f)
+        {
+            continue;
+        }
+        const glm::vec3 n = worldtrace::normal(tr);
+        const glm::vec3 at = worldtrace::endPos(tr) + n * rad;
+        glm::vec3 rest = to - at;
+        rest -= n * glm::dot(rest, n);
+        const trace_t tr2 = worldtrace::world(at, at + rest);
+        if(tr2.startsolid)
+        {
+            ch.p[i] = at;
+        }
+        else if(tr2.fraction < 1.f)
+        {
+            ch.p[i] = worldtrace::endPos(tr2) + worldtrace::normal(tr2) * rad;
+        }
+        else
+        {
+            ch.p[i] = at + rest;
+        }
+        glm::vec3 along = to - was;
+        along -= n * glm::dot(along, n);
+        ch.prev[i] = ch.p[i] - along * chainSlide;
+    }
+    for(std::size_t i = 0; i + 1 < ch.p.size(); i++)
+    {
+        if(pinned[i] && pinned[i + 1])
+        {
+            continue;
+        }
+        const trace_t tr = worldtrace::world(ch.p[i], ch.p[i + 1]);
+        if(tr.startsolid || tr.allsolid || tr.fraction >= 1.f)
+        {
+            continue;
+        }
+        const glm::vec3 n = worldtrace::normal(tr);
+        const glm::vec3 hit = worldtrace::endPos(tr);
+        for(const std::size_t j : {i, i + 1})
+        {
+            if(pinned[j])
+            {
+                continue;
+            }
+            const float under = glm::dot(hit - ch.p[j], n) + rad;
+            if(under > 0.f)
+            {
+                const glm::vec3 to = ch.p[j] + n * under;
+                if(worldtrace::world(ch.p[j], to).fraction >= 1.f)
+                {
+                    ch.p[j] = to;
+                    ch.prev[j] += n * under; // (no speed from it)
+                }
+            }
+        }
+    }
+
+    // As drawn: a piece still through the world goes round what it meets (a point off each side's first hit), so the rope
+    // is never drawn through it; the chain itself gets out over the next frames.
+    ch.drawn.clear();
+    ch.drawn.push_back(ch.p[0]);
+    for(std::size_t i = 0; i + 1 < ch.p.size(); i++)
+    {
+        if(!pinned[i] || !pinned[i + 1])
+        {
+            const trace_t there = worldtrace::world(ch.p[i], ch.p[i + 1]);
+            if(!there.startsolid && !there.allsolid && there.fraction < 1.f)
+            {
+                const trace_t back = worldtrace::world(ch.p[i + 1], ch.p[i]);
+                ch.drawn.push_back(worldtrace::endPos(there) + worldtrace::normal(there) * rad);
+                if(!back.startsolid && !back.allsolid && back.fraction < 1.f)
+                {
+                    ch.drawn.push_back(worldtrace::endPos(back) + worldtrace::normal(back) * rad);
+                }
+            }
+        }
+        ch.drawn.push_back(ch.p[i + 1]);
+    }
+    ch.lastDt = dt;
+    ch.time = now;
+}
+
 // The model's +y and +z at the rope's start, as the engine turns a beam's link along `forward` (pitch and yaw, no
 // roll): +y its left, +z its up.
 void startFrame(const glm::vec3& forward, glm::vec3& side, glm::vec3& up)
@@ -405,27 +712,99 @@ void setSlack(int key, float slack)
     slacks[key].target = slack;
 }
 
-void parsePoints()
+void parseCorners()
 {
     const int ent = MSG_ReadShort();
     const int beamId = MSG_ReadByte();
     const int count = MSG_ReadByte();
-    RopeSim& r = sims[ent | ((beamId + 1) << 16)]; // (VR_ParseBeamEntity's key)
-    r.points.resize(static_cast<std::size_t>(count));
+    RopeCorners& r = cornerSets[ent | ((beamId + 1) << 16)]; // (VR_ParseBeamEntity's key)
+    r.corners.resize(static_cast<std::size_t>(count));
+    glm::vec3 at{0.f};
     for(int i = 0; i < count; i++)
     {
         for(int k = 0; k < 3; k++)
         {
-            r.points[static_cast<std::size_t>(i)][k] = MSG_ReadCoord(cl.protocolflags);
+            at[k] = i == 0 ? MSG_ReadCoord(cl.protocolflags) : at[k] + static_cast<float>(MSG_ReadShort()) / 8.f;
         }
+        r.corners[static_cast<std::size_t>(i)] = at;
     }
     r.time = cl.time;
+}
+
+// vr_grapple_rope_draw_dump: each drawn rope's chain (tests): its points and corners, how many points are inside the
+// world and how many pieces go through it (none: it lies on it, round it).
+void drawDump_f()
+{
+    for(const auto& [key, ch] : chains)
+    {
+        int inside = 0, crossing = 0;
+        float lowest = 1e9f;
+        for(std::size_t i = 0; i < ch.drawn.size(); i++)
+        {
+            inside += pointInWorld(ch.drawn[i]) ? 1 : 0;
+            lowest = std::min(lowest, ch.drawn[i].z);
+            if(i + 1 < ch.drawn.size())
+            {
+                const trace_t tr = worldtrace::world(ch.drawn[i], ch.drawn[i + 1]);
+                if(tr.fraction < 0.999f || tr.startsolid)
+                {
+                    crossing++;
+                    Con_Printf("rope drawn %d: piece %d of %d through the world: %.1f %.1f %.1f .. %.1f %.1f %.1f (at %.2f%s)\n",
+                        key & 0xFFFF, static_cast<int>(i), static_cast<int>(ch.drawn.size()) - 1, static_cast<double>(ch.drawn[i].x),
+                        static_cast<double>(ch.drawn[i].y), static_cast<double>(ch.drawn[i].z), static_cast<double>(ch.drawn[i + 1].x),
+                        static_cast<double>(ch.drawn[i + 1].y), static_cast<double>(ch.drawn[i + 1].z), static_cast<double>(tr.fraction),
+                        tr.startsolid ? ", starting inside" : "");
+                }
+            }
+        }
+        float length = 0.f;
+        for(std::size_t i = 0; i + 1 < ch.drawn.size(); i++)
+        {
+            length += glm::distance(ch.drawn[i], ch.drawn[i + 1]);
+        }
+        Con_Printf("rope drawn %d: %d points, %d corners, length %.1f, lowest %.1f; %d points inside the world, %d pieces "
+                   "through it\n",
+            key & 0xFFFF, static_cast<int>(ch.drawn.size()), static_cast<int>(ch.pins.size()) - 2, static_cast<double>(length),
+            static_cast<double>(lowest), inside, crossing);
+    }
+}
+
+void debugDraw()
+{
+    if(!vr_debug_rope.value || debugFrame < host_framecount - 1)
+    {
+        return;
+    }
+    const glm::vec4 piece{0.2f, 1.f, 0.3f, 0.9f}, point{1.f, 1.f, 1.f, 1.f}, corner{1.f, 0.2f, 0.2f, 1.f},
+        end{1.f, 0.9f, 0.1f, 1.f}, taut{1.f, 0.9f, 0.1f, 0.5f};
+    for(const DebugRope& d : debugRopes)
+    {
+        for(std::size_t i = 0; i + 1 < d.points.size(); i++)
+        {
+            lines::line(d.points[i], d.points[i + 1], 0.12f, piece, piece);
+        }
+        for(const glm::vec3& q : d.points)
+        {
+            lines::point(q, 0.5f, point);
+        }
+        for(std::size_t i = 0; i < d.path.size(); i++)
+        {
+            if(i + 1 < d.path.size())
+            {
+                lines::line(d.path[i], d.path[i + 1], 0.06f, taut, taut);
+            }
+            lines::point(d.path[i], i == 0 || i + 1 == d.path.size() ? 1.2f : 1.6f,
+                i == 0 || i + 1 == d.path.size() ? end : corner);
+        }
+    }
 }
 
 void forget()
 {
     slacks.clear();
-    sims.clear();
+    cornerSets.clear();
+    chains.clear();
+    debugRopes.clear();
     queued.clear();
     curve.clear();
 }
@@ -518,9 +897,18 @@ extern "C" void VR_ForgetEndedRopes()
         }
         it = live ? std::next(it) : slacks.erase(it);
     }
-    for(auto it = sims.begin(); it != sims.end();)
+    for(auto it = cornerSets.begin(); it != cornerSets.end();)
     {
-        it = cl.time - it->second.time > 1.0 || it->second.time > cl.time ? sims.erase(it) : std::next(it);
+        it = cl.time - it->second.time > 2.0 || it->second.time > cl.time ? cornerSets.erase(it) : std::next(it);
+    }
+    for(auto it = chains.begin(); it != chains.end();)
+    {
+        it = slacks.count(it->first) ? std::next(it) : chains.erase(it); // (its beam ended)
+    }
+    if(debugFrame != host_framecount)
+    {
+        debugFrame = host_framecount;
+        debugRopes.clear();
     }
 }
 
@@ -537,17 +925,50 @@ extern "C" int VR_DrawRope(int ent, qmodel_t* model, const float* start, const f
         return 0;
     }
     QVR_PROFILE("grapple rope");
+    static bool registered = false;
+    if(!registered)
+    {
+        registered = true;
+        Cmd_AddCommand("vr_grapple_rope_draw_dump", rope::drawDump_f);
+    }
     const double t0 = Sys_DoubleTime();
     RopeSlack& r = it->second;
     const glm::vec3 a{start[0], start[1], start[2]};
     const glm::vec3 b{end[0], end[1], end[2]};
     std::vector<glm::vec3>& pts = scratch.points;
     float length = 0.f, h = 0.f;
-    const auto sim = sims.find(ent);
-    if(sim != sims.end() && sim->second.points.size() >= 2 && cl.time - sim->second.time <= simFresh &&
-        sim->second.time <= cl.time)
+    easeSlack(r);
+    if(vr_grapple_rope_sim.value)
     {
-        simPoints(sim->second.points, a, b, pts, length); // (the server's simulated rope: vr_ropesim.cpp)
+        // The server's rope (vr_ropesim.cpp): straight between the corners it wraps round; its slack hanging between
+        // them (the chain), or straight (vr_grapple_sag 0).
+        std::vector<glm::vec3>& path = scratch.path;
+        path.clear();
+        path.push_back(a);
+        const auto c = cornerSets.find(ent);
+        if(c != cornerSets.end() && cl.time - c->second.time <= cornersFresh && c->second.time <= cl.time)
+        {
+            path.insert(path.end(), c->second.corners.begin(), c->second.corners.end());
+        }
+        path.push_back(b);
+        if(vr_grapple_sag.value)
+        {
+            Chain& ch = chains[ent];
+            stepChain(ch, path, r.shown);
+            simPoints(ch.drawn, a, b, pts, length);
+            if(vr_debug_rope.value)
+            {
+                debugRopes.push_back({ch.drawn, path});
+            }
+        }
+        else
+        {
+            pts = path;
+            if(vr_debug_rope.value)
+            {
+                debugRopes.push_back({path, path});
+            }
+        }
     }
     else
     {

@@ -1590,7 +1590,7 @@ void(float damage, vector dir) TraceAttack =
 
     if(trace_ent.takedamage)
     {
-        if(AddMultiDamage(trace_ent, damage))
+        if(AddMultiDamage(trace_ent, damage) && trace_ent.classname != "hook") // (a grappling hook shot off: no blood)
         {
             SpawnBlood (org, vel*0.2, damage);
             bleed = TRUE;
@@ -3498,18 +3498,28 @@ void() ImpulseCommands =
         }
     }
 
-    // A weapon's button pressed (the other hand's fingertip on it): its secondary ammo; the grappling hook's quick
-    // release (vr_grapple.qc).
+    // A weapon's button pressed (the other hand's fingertip on it): its secondary ammo; the grappling hook's detach
+    // (vr_grapple.qc). 44/45: the grappling gun's front button, the reel-in.
     if(self.impulse == 42)
     {
-        if(VRGetWeapon(cVR_OffHand) == WID_GRAPPLE) VR_Grapple_QuickRelease(cVR_OffHand);
+        if(VRGetWeapon(cVR_OffHand) == WID_GRAPPLE) VR_Grapple_Detach(cVR_OffHand);
         else                                         ToggleSecondaryAmmo(cVR_OffHand);
     }
 
     if(self.impulse == 43)
     {
-        if(VRGetWeapon(cVR_MainHand) == WID_GRAPPLE) VR_Grapple_QuickRelease(cVR_MainHand);
+        if(VRGetWeapon(cVR_MainHand) == WID_GRAPPLE) VR_Grapple_Detach(cVR_MainHand);
         else                                          ToggleSecondaryAmmo(cVR_MainHand);
+    }
+
+    if(self.impulse == 44 && VRGetWeapon(cVR_OffHand) == WID_GRAPPLE)
+    {
+        VR_Grapple_QuickRelease(cVR_OffHand);
+    }
+
+    if(self.impulse == 45 && VRGetWeapon(cVR_MainHand) == WID_GRAPPLE)
+    {
+        VR_Grapple_QuickRelease(cVR_MainHand);
     }
 
     if(self.impulse >= 225 && self.impulse <= 226)

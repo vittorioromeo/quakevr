@@ -18,6 +18,12 @@ namespace qvr::box3d
 // there: pushed high, a tall box tips; pushed low, it slides). False if it is not a Box3D prop.
 bool push(edict_t* ent, const glm::vec3& at, const glm::vec3& velocity);
 
+// The prop `ent`'s motion slowed where it is now (its body's, so that a push after it this frame adds to it; QC's
+// .velocity written would override both at the next step): its velocity relative to `relativeTo` kept by `keep` (0 ..
+// 1) and no faster than `maxSpeed` (0: any), then `add` added; its spin kept by `keepSpin`. False if it is not a Box3D
+// prop. (The grappling hook's load: vr_grapple.qc VR_Grapple_LoadMotion.)
+bool damp(edict_t* ent, const glm::vec3& relativeTo, float keep, float keepSpin, float maxSpeed, const glm::vec3& add);
+
 // A prop's mass (kg): the Mass set for its model (Held Object Offsets), else what Box3D makes it (its hull's volume
 // times its density: vr_box3d.cpp). 0 without Box3D's world (no local server) or a model. Also for a prop in a hand.
 [[nodiscard]] float propMass(edict_t* ent);

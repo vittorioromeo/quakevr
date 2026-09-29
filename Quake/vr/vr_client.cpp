@@ -679,7 +679,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_WOUND: wounds::parseEvent(); break;
         case QVR_SVC_WOUNDCLEAR: wounds::parseClear(); break;
         case QVR_SVC_CATCHBLEND: drawblend::parseCatch(); break;
-        case QVR_SVC_ROPE: rope::parsePoints(); break;
+        case QVR_SVC_ROPE: rope::parseCorners(); break;
         default: Host_Error("svc_quakevr: unknown command %d", subcmd);
     }
 
@@ -844,15 +844,82 @@ extern "C" void VR_TuneDlight(int kind, int ent, void* dlight)
     }
 }
 
+// The rope of a grappling gun lying about (its hook's own beam: the server sends the gun's place as it has it): from the
+// muzzle of the gun as drawn, vr_grapple_rope_depth inside it. The gun: the grappling gun drawn nearest the beam's start.
+void thrownGunRopeStart(float* start)
+{
+    const glm::vec3 s{start[0], start[1], start[2]};
+    const entity_t* gun = nullptr;
+    float best = 96.f;
+    for(int i = 1; i < cl.num_entities; i++)
+    {
+        const entity_t& e = cl_entities[i];
+        if(!e.model || e.model->type != mod_alias || e.msgtime != cl.mtime[0] || strcmp(e.model->name, "progs/v_grpple.mdl"))
+        {
+            continue;
+        }
+        const float d = glm::distance(glm::vec3{e.origin[0], e.origin[1], e.origin[2]}, s);
+        if(d < best)
+        {
+            best = d;
+            gun = &e;
+        }
+    }
+    const int slot = gun ? weapons::slotForModel(gun->model) : -1;
+    if(slot < 0)
+    {
+        return;
+    }
+    const glm::vec3 handle{gun->origin[0], gun->origin[1], gun->origin[2]};
+    const glm::vec3 muzzle = view::entityAnchorPosition(*gun, false, 0.f,
+        static_cast<int>(weapons::value(slot, weapons::Key::MuzzleAnchorVertex)),
+        weapons::vec(slot, weapons::Key::MuzzleOffsetX, weapons::Key::MuzzleOffsetY, weapons::Key::MuzzleOffsetZ));
+    const glm::vec3 along = muzzle - handle;
+    const float len = glm::length(along);
+    const glm::vec3 at = len > 1e-3f ? muzzle - along * (std::max(0.f, vr_grapple_rope_depth.value) / len) : muzzle;
+    static glm::vec3 lastOut{0.f}; // (the start we put: the server's sent again only with its next beam)
+    const bool fromServer = glm::distance(s, lastOut) > 0.01f;
+    lastOut = at;
+    if(vr_grapple_debug.value >= 2 && developer.value && fromServer)
+    {
+        static double logAt = 0.0;
+        if(realtime >= logAt)
+        {
+            logAt = realtime + 0.5;
+            const glm::vec3 local = glm::transpose(held::axesFromAngles(gun->angles, false)) * (muzzle - handle);
+            Con_Printf("grapple: the gun lying about: its muzzle at %.2f %.2f %.2f on it (modelpoint's axes)\n",
+                static_cast<double>(local.x), static_cast<double>(local.y), static_cast<double>(local.z));
+            Con_Printf("grapple: the gun lying about: its rope from %.1f %.1f %.1f (the server's %.1f %.1f %.1f, %.1f away); the "
+                       "gun at %.1f %.1f %.1f, angles %.1f %.1f %.1f\n",
+                static_cast<double>(at.x), static_cast<double>(at.y), static_cast<double>(at.z), static_cast<double>(s.x),
+                static_cast<double>(s.y), static_cast<double>(s.z), static_cast<double>(glm::distance(at, s)),
+                static_cast<double>(handle.x), static_cast<double>(handle.y), static_cast<double>(handle.z),
+                static_cast<double>(gun->angles[0]), static_cast<double>(gun->angles[1]), static_cast<double>(gun->angles[2]));
+        }
+    }
+    start[0] = at.x;
+    start[1] = at.y;
+    start[2] = at.z;
+}
+
 // The player's own beams follow the gun as drawn, every frame, rather than where the server last
 // saw it (a few frames late, and stepping at the server's rate). Beam ids 0 and 1 (the off and
 // main hands' lightning) start at that hand's muzzle and aim along the hand, keeping their length;
-// 2 and 3 (the grappling hook's rope) start there and end at the hook, where it is drawn.
+// 2 and 3 (the grappling hook's rope) start vr_grapple_rope_depth inside it and end at the hook, where it is drawn. A
+// grappling gun lying about: its rope from its muzzle as drawn (thrownGunRopeStart).
 extern "C" int VR_UpdateBeam(int ent, float* start, float* end)
 {
     const int id = (ent >> 16) - 1;
-    if(!vrProtocol() || id < 0 || id > 3 || (ent & 0xFFFF) != cl.viewentity)
+    if(!vrProtocol() || id < 0 || id > 3)
     {
+        return 0;
+    }
+    if((ent & 0xFFFF) != cl.viewentity)
+    {
+        if(id == 2 && vr_grapple_rope_depth.value >= 0.f)
+        {
+            thrownGunRopeStart(start);
+        }
         return 0;
     }
 
@@ -869,9 +936,16 @@ extern "C" int VR_UpdateBeam(int ent, float* start, float* end)
             end[1] = e.y;
             end[2] = e.z;
         }
-        start[0] = muzzle.x;
-        start[1] = muzzle.y;
-        start[2] = muzzle.z;
+        glm::vec3 from = muzzle;
+        if(id >= 2)
+        {
+            // The rope: a little inside the barrel (it comes out of the gun, not off its end).
+            from -= hands::forward(weapons::shotAngles(s.rot[hand], weapons::heldSlot(hand), hand == HAND_OFF)) *
+                    std::max(0.f, vr_grapple_rope_depth.value);
+        }
+        start[0] = from.x;
+        start[1] = from.y;
+        start[2] = from.z;
     }
     if(id < 2)
     {
