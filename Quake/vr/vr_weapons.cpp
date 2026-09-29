@@ -11,6 +11,7 @@
 #include <cstring>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace qvr::weapons
 {
@@ -130,9 +131,10 @@ namespace
 // 0..3, 5..10 and 17..19 (the author's offsets, hotspots, two-handed aim and Hand and Weapon Together, 2026-09-28, set
 // over his hand calibration, which ships with them: vr_cvars.cpp, config version 16). 21: slots 1..3 (the author's
 // hotspots, second pass, 2026-09-28 afternoon: the shotgun's cup moved, a cup and a grip on the super shotgun, a cup on
-// the nailgun). A first start (no saved config) takes this version as it is: its settings are these defaults
+// the nailgun). 22: the author's holstered poses (2026-09-29: 94 hip and chest Holstered values in 13 weapons) and the
+// axe's thumb bias: only those keys are reset, each slot's other settings kept. A first start (no saved config) takes this version as it is: its settings are these defaults
 // (markCurrent).
-constexpr int settingsVersion = 21;
+constexpr int settingsVersion = 22;
 
 // Slots whose hotspots the view is to derive from the config's two-handed grip keys (round 21).
 bool hotspotMigration[numSlots]{};
@@ -307,6 +309,50 @@ void migrate()
             resetSlot(slot);
         }
     }
+    if(vr_wofs_version.value < 22) // the author's holstered poses, 2026-09-29: these keys only
+    {
+        struct Keys
+        {
+            int slot;
+            std::vector<Key> keys;
+        };
+        const Keys changed[] = {
+            {0, {Key::FingerThumbBias, Key::HipHolsterRoll, Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterRoll,
+                     Key::UpperHolsterY, Key::UpperHolsterZ}},
+            {1, {Key::HipHolsterRoll, Key::HipHolsterX, Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterRoll,
+                     Key::UpperHolsterY, Key::UpperHolsterYaw}},
+            {2, {Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterY, Key::UpperHolsterYaw, Key::UpperHolsterZ}},
+            {3, {Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterPitch, Key::UpperHolsterX, Key::UpperHolsterY,
+                     Key::UpperHolsterYaw, Key::UpperHolsterZ}},
+            {4, {Key::HipHolsterX, Key::HipHolsterZ, Key::UpperHolsterPitch, Key::UpperHolsterRoll, Key::UpperHolsterY,
+                     Key::UpperHolsterYaw, Key::UpperHolsterZ}},
+            {5, {Key::HipHolsterX, Key::HipHolsterY, Key::HipHolsterYaw, Key::HipHolsterZ, Key::UpperHolsterPitch,
+                     Key::UpperHolsterRoll, Key::UpperHolsterY, Key::UpperHolsterYaw, Key::UpperHolsterZ}},
+            {6, {Key::HipHolsterX, Key::HipHolsterZ, Key::UpperHolsterRoll, Key::UpperHolsterY, Key::UpperHolsterYaw,
+                     Key::UpperHolsterZ}},
+            {7, {Key::HipHolsterZ, Key::UpperHolsterPitch, Key::UpperHolsterRoll, Key::UpperHolsterX,
+                     Key::UpperHolsterY, Key::UpperHolsterYaw, Key::UpperHolsterZ}},
+            {8, {Key::HipHolsterRoll, Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterRoll, Key::UpperHolsterY,
+                     Key::UpperHolsterYaw, Key::UpperHolsterZ}},
+            {10, {Key::HipHolsterX, Key::HipHolsterY, Key::HipHolsterYaw, Key::HipHolsterZ, Key::UpperHolsterPitch,
+                     Key::UpperHolsterRoll, Key::UpperHolsterY, Key::UpperHolsterYaw, Key::UpperHolsterZ}},
+            {17, {Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterY, Key::UpperHolsterZ}},
+            {18, {Key::HipHolsterRoll, Key::HipHolsterX, Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterPitch,
+                     Key::UpperHolsterRoll, Key::UpperHolsterX, Key::UpperHolsterY, Key::UpperHolsterYaw,
+                     Key::UpperHolsterZ}},
+            {19, {Key::HipHolsterRoll, Key::HipHolsterX, Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterPitch,
+                     Key::UpperHolsterRoll, Key::UpperHolsterX, Key::UpperHolsterY, Key::UpperHolsterYaw,
+                     Key::UpperHolsterZ}},
+        };
+        for(const Keys& k : changed)
+        {
+            for(const Key key : k.keys)
+            {
+                cvar_t& var = cvarAt(k.slot, key);
+                Cvar_SetQuick(&var, var.default_string);
+            }
+        }
+    }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }
 
@@ -387,6 +433,50 @@ cvar_t* cvar(int slot, Key key)
 
 void markCurrent()
 {
+    if(vr_wofs_version.value < 22) // the author's holstered poses, 2026-09-29: these keys only
+    {
+        struct Keys
+        {
+            int slot;
+            std::vector<Key> keys;
+        };
+        const Keys changed[] = {
+            {0, {Key::FingerThumbBias, Key::HipHolsterRoll, Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterRoll,
+                     Key::UpperHolsterY, Key::UpperHolsterZ}},
+            {1, {Key::HipHolsterRoll, Key::HipHolsterX, Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterRoll,
+                     Key::UpperHolsterY, Key::UpperHolsterYaw}},
+            {2, {Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterY, Key::UpperHolsterYaw, Key::UpperHolsterZ}},
+            {3, {Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterPitch, Key::UpperHolsterX, Key::UpperHolsterY,
+                     Key::UpperHolsterYaw, Key::UpperHolsterZ}},
+            {4, {Key::HipHolsterX, Key::HipHolsterZ, Key::UpperHolsterPitch, Key::UpperHolsterRoll, Key::UpperHolsterY,
+                     Key::UpperHolsterYaw, Key::UpperHolsterZ}},
+            {5, {Key::HipHolsterX, Key::HipHolsterY, Key::HipHolsterYaw, Key::HipHolsterZ, Key::UpperHolsterPitch,
+                     Key::UpperHolsterRoll, Key::UpperHolsterY, Key::UpperHolsterYaw, Key::UpperHolsterZ}},
+            {6, {Key::HipHolsterX, Key::HipHolsterZ, Key::UpperHolsterRoll, Key::UpperHolsterY, Key::UpperHolsterYaw,
+                     Key::UpperHolsterZ}},
+            {7, {Key::HipHolsterZ, Key::UpperHolsterPitch, Key::UpperHolsterRoll, Key::UpperHolsterX,
+                     Key::UpperHolsterY, Key::UpperHolsterYaw, Key::UpperHolsterZ}},
+            {8, {Key::HipHolsterRoll, Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterRoll, Key::UpperHolsterY,
+                     Key::UpperHolsterYaw, Key::UpperHolsterZ}},
+            {10, {Key::HipHolsterX, Key::HipHolsterY, Key::HipHolsterYaw, Key::HipHolsterZ, Key::UpperHolsterPitch,
+                     Key::UpperHolsterRoll, Key::UpperHolsterY, Key::UpperHolsterYaw, Key::UpperHolsterZ}},
+            {17, {Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterY, Key::UpperHolsterZ}},
+            {18, {Key::HipHolsterRoll, Key::HipHolsterX, Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterPitch,
+                     Key::UpperHolsterRoll, Key::UpperHolsterX, Key::UpperHolsterY, Key::UpperHolsterYaw,
+                     Key::UpperHolsterZ}},
+            {19, {Key::HipHolsterRoll, Key::HipHolsterX, Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterPitch,
+                     Key::UpperHolsterRoll, Key::UpperHolsterX, Key::UpperHolsterY, Key::UpperHolsterYaw,
+                     Key::UpperHolsterZ}},
+        };
+        for(const Keys& k : changed)
+        {
+            for(const Key key : k.keys)
+            {
+                cvar_t& var = cvarAt(k.slot, key);
+                Cvar_SetQuick(&var, var.default_string);
+            }
+        }
+    }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }
 
