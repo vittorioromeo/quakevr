@@ -390,6 +390,74 @@ void main()
 GLuint tubeProgram = 0;
 bool tubeProgramFailed = false;
 
+// The bent mesh (BentDraw, drawBent): gl_VertexID's copy and mesh vertex; the curve's sample at its arc length by a
+// binary search (the samples' pos.w), interpolated, extrapolated along the end segments past the ends.
+constexpr const char* bentVertexShader = R"(#version 430
+layout(location = 0) uniform mat4 MVP;
+layout(location = 1) uniform vec3 Eye;
+layout(location = 2) uniform vec4 Counts; // the mesh's first vec4, its vertices, the curve's first vec4, its samples (whole)
+layout(location = 3) uniform vec2 Along;   // period, scale
+layout(std430, binding = 0) readonly buffer Data
+{
+    vec4 data[];
+};
+out vec2 uv;
+out vec3 fromEye;
+void main()
+{
+    ivec4 n = ivec4(Counts + 0.5);
+    int copy = gl_VertexID / n.y;
+    int k = n.x + 2 * (gl_VertexID % n.y);
+    vec4 mp = data[k];
+    float s = (float(copy) * Along.x + mp.x) * Along.y;
+    int lo = 0, hi = n.w - 1; // the segment lo .. lo + 1 holding s
+    while(hi - lo > 1)
+    {
+        int mid = (lo + hi) / 2;
+        if(data[n.z + 3 * mid].w <= s)
+            lo = mid;
+        else
+            hi = mid;
+    }
+    int a = n.z + 3 * lo, b = a + 3;
+    float t = (s - data[a].w) / max(data[b].w - data[a].w, 1e-4);
+    float tc = clamp(t, 0.0, 1.0);
+    vec3 side = normalize(mix(data[a + 1].xyz, data[b + 1].xyz, tc));
+    vec3 up = normalize(mix(data[a + 2].xyz, data[b + 2].xyz, tc));
+    vec3 pos = mix(data[a].xyz, data[b].xyz, t) + (side * mp.y + up * mp.z) * Along.y;
+    uv = data[k + 1].xy;
+    fromEye = pos - Eye;
+    gl_Position = MVP * vec4(pos, 1.0);
+}
+)";
+
+// As the alias models' (gl_shaders.h): an ALPHABRIGHT skin's lit texels (alpha 1) times the light, its fullbright ones
+// (alpha 0) as they are, a fullbright texture added; clamped to the scene's brightest (vr_tonemap), fogged.
+constexpr const char* bentFragmentShader = R"(#version 430
+layout(location = 4) uniform vec3 Light;
+layout(location = 5) uniform vec4 Fog; // rgb, density (the frame's)
+layout(location = 6) uniform float Tone;
+layout(location = 7) uniform int HasFullbright;
+layout(binding = 0) uniform sampler2D Skin;
+layout(binding = 1) uniform sampler2D Fullbright;
+in vec2 uv;
+in vec3 fromEye;
+out vec4 result;
+void main()
+{
+    vec4 c = texture(Skin, uv);
+    vec3 rgb = mix(c.rgb, c.rgb * Light, c.a);
+    if(HasFullbright != 0)
+        rgb += texture(Fullbright, uv).rgb;
+    rgb = clamp(rgb, vec3(0.0), vec3(Tone));
+    float fog = clamp(exp2(-abs(Fog.w) * dot(fromEye, fromEye)), 0.0, 1.0);
+    result = vec4(mix(Fog.rgb, rgb, fog), 1.0);
+}
+)";
+
+GLuint bentProgram = 0;
+bool bentProgramFailed = false;
+
 // The program for a shade; blended: a blend other than Opaque, writing no depth (zero fragments discarded). 0 if it
 // does not build.
 GLuint programFor(Shade shade, bool blended)
@@ -725,6 +793,66 @@ void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const 
     GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, 0, batch.buffer, static_cast<GLintptr>(batch.offset),
         static_cast<GLsizeiptr>(batch.count * sizeof(TubeRing)));
     glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>((batch.count - 1) * sides * 6));
+    if(saved && savedBuffer)
+    {
+        GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, 0, savedBuffer, savedOffset, savedSize);
+    }
+}
+
+BentBatch uploadBent(std::span<const glm::vec4> data)
+{
+    if(data.empty())
+    {
+        return {};
+    }
+    GLuint buf = 0;
+    GLbyte* ofs = nullptr;
+    GL_Upload(GL_SHADER_STORAGE_BUFFER, data.data(), data.size_bytes(), &buf, &ofs);
+    return {buf, reinterpret_cast<std::size_t>(ofs), data.size()};
+}
+
+void drawBent(const BentBatch& batch, const BentDraw& d)
+{
+    if(!batch.buffer || d.samples < 2 || d.meshVertices < 3 || d.copies < 1 || !d.skin)
+    {
+        return;
+    }
+    if(!bentProgram && !bentProgramFailed)
+    {
+        bentProgram = glProgram(bentVertexShader, bentFragmentShader, "vr bent mesh");
+        bentProgramFailed = !bentProgram;
+    }
+    if(!bentProgram)
+    {
+        return;
+    }
+    GL_UseProgram(bentProgram);
+    GL_SetState(GLS_CULL_BACK | GLS_ATTRIBS(0) | GLS_BLEND_OPAQUE);
+    const glm::mat4 mvp = sceneViewProjection();
+    glm::vec3 eye, right, up;
+    sceneCamera(eye, right, up);
+    GL_UniformMatrix4fvFunc(0, 1, GL_FALSE, &mvp[0][0]);
+    GL_Uniform3fFunc(1, eye.x, eye.y, eye.z);
+    GL_Uniform4fFunc(2, static_cast<float>(d.meshFirst), static_cast<float>(d.meshVertices), static_cast<float>(d.curveFirst),
+        static_cast<float>(d.samples));
+    GL_Uniform2fFunc(3, d.period, d.scale);
+    GL_Uniform3fFunc(4, d.light.x, d.light.y, d.light.z);
+    GL_Uniform4fvFunc(5, 1, r_framedata.fogdata);
+    GL_Uniform1fFunc(6, r_framedata.scenetone[0] > 0.f ? r_framedata.scenetone[0] : 1.f);
+    GL_Uniform1iFunc(7, d.fullbright ? 1 : 0);
+    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, d.skin);
+    if(d.fullbright)
+    {
+        GL_BindNative(GL_TEXTURE1, GL_TEXTURE_2D, d.fullbright);
+    }
+    // Binding 0 borrowed (the scene's lights, R_UploadFrameData): put back for what the view draws after.
+    GLuint savedBuffer = 0;
+    GLintptr savedOffset = 0;
+    GLsizeiptr savedSize = 0;
+    const bool saved = GL_GetShaderStorageRange(0, &savedBuffer, &savedOffset, &savedSize);
+    GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, 0, batch.buffer, static_cast<GLintptr>(batch.offset),
+        static_cast<GLsizeiptr>(batch.count * sizeof(glm::vec4)));
+    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(d.copies * d.meshVertices));
     if(saved && savedBuffer)
     {
         GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, 0, savedBuffer, savedOffset, savedSize);

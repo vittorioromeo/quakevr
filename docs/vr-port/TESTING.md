@@ -37,7 +37,7 @@ needs no rebinding.
 |---|---|---|---|
 | Trigger | `RTRIGGER` | `LTRIGGER` | `+attack` / `+offhandattack` |
 | Grip | `RSHOULDER` | `LSHOULDER` | `+grabmain` / `+graboff` |
-| A / X (primary) | `ABUTTON` | `XBUTTON` | `+jump` / `+reloadoff` |
+| A / X (primary) | `ABUTTON` | `XBUTTON` | `+jump` / `+reloadoff`; held in the air with the grappling hook in: its unreel (the key still pressed) |
 | B / Y (secondary) | `BBUTTON` | `YBUTTON` | `impulse 10` / `impulse 12` (next weapon); held with the grappling hook out: its reel, whatever it is bound to |
 | Stick click | `RTHUMB` | `LTHUMB` | `+reloadmain` / `+speed` |
 | Stick | turn; up/down are `DPAD_UP`/`DPAD_DOWN` (`+moveup`/`+movedown`: swim) | move | |
@@ -144,10 +144,10 @@ context and screenshot, ready to paste or to point me at.
   - **Performance fixes (review, 2026-09-28)** (ROUND21.md, same title): the spectator camera has a **Frame Rate**
     (60 fps by default: as often as a 60 fps recording takes), a **Resolution Scale** of 0.75 by default and an
     **Anti-Aliasing** choice (Recording page); climbing's mantle and lenient grab, the props' settings and two caches
-    are cheaper or fixed with the same results; no GPU-sampling thread runs unless you profile (Debug > Memory Log: GPU
-    keeps it on for the Memory Log).
+    are cheaper or fixed with the same results; no GPU-sampling thread runs unless you profile (Debug > Profiling and
+    Memory > Memory Log: GPU keeps it on for the Memory Log).
   - **Profiling: where the time goes** (ROUND21.md, same title): VR Settings > Advanced VR Options > Debug >
-    Profiling. Profiler Panel (In Front) shows each system's milliseconds a frame with a bar against the budget; CSV
+    Profiling and Memory. Profiler Panel (In Front) shows each system's milliseconds a frame with a bar against the budget; CSV
     Capture writes a row a second while on; the Hitch Log names what took a slow frame's time. See "Profiling" below.
     Also found with it: the foveated rendering's setup waited for the driver each eye (0.2-0.4 ms of the CPU a frame,
     fixed; the pictures are the same).
@@ -167,6 +167,11 @@ context and screenshot, ready to paste or to point me at.
     Advanced VR Options > Game > **Grappling Hook** (speeds, the classes' masses, stagger, stamina, haptics; Rope: Pulls
     at once for the mission pack's old pull). Test it: `impulse 9` gives it (`impulse 151`/`171` put it in the main /
     off hand).
+  - **Grapple: unreel; rope drawn in one piece** (ROUND21.md, same title): in the air, hold the grapple hand's **A**
+    (right) or **X** (left) to let the rope out (Unreel Speed, 300 u/s). Hanging, you are let down; a monster can walk
+    away; a prop hanging at the gun is lowered. On the ground A just jumps (Unreel Button Only When Airborne); a press
+    that jumped doesn't unreel until you press again. A short sagging rope is now one smooth chain, with no gaps
+    between straight links.
   - **Menu: scroll memory and shortcuts** (ROUND21.md, same title): every VR Settings page reopens where you left it
     (the selected row and the scroll), after Back to Game, after going back and coming again, and after a restart.
     Weapon Offsets keeps the same row for another weapon. Under Back to Game, top left on every menu: **Advanced VR**
@@ -534,6 +539,20 @@ context and screenshot, ready to paste or to point me at.
     Graphics), Playtesting (Motion Recorder, Review Takes, Debug); a group of many pages is a page of links. At most
     three levels below VR Settings (ROUND21.md, "Menus reorganized"). `menu_vr <n>` opens a page directly (through
     the pages above it, so Back goes up the tree); `menu_vr list` prints the numbers and where each page is.
+  - **Debug menu; quad sound; grenade catch default; no empty-hand deflection** (ROUND21.md, same title):
+    - Advanced VR Options > **Debug** has Voice Notes and six pages: Views (Show Ledges, physics shapes, hand bones, grab
+      test, skeleton, collisions, foveation, entity boxes), Logging (Developer Messages first: some logs need it),
+      Profiling and Memory, Reports (buttons printing `vr_status`, the weights, the ledges ahead... to the console and
+      the wrist log), Tools (rebuild the ledge map, reload models; debug images; test effects) and Tests (a monster or
+      box ahead, a projectile at you, an ogre's throw; god mode, Quad, all weapons). Every debug setting of the console
+      is there but the automated tests' (`vr_mock_*`, `vr_fixed_frames`, `vr_window_log`...).
+    - Quad Damage's sound plays when you hurt something (a blow landing, a bash) or fire a gun, not when you squeeze
+      the trigger holding a sword, a fist or a prop.
+    - Catch Grenades is "Ogres' and yours" by default (your config's "Ogres'" moves to it once). Two copies of the game
+      open at once (one from TrenchBroom) no longer undo each other's settings when they quit.
+    - Only a weapon in your hand bats projectiles back (a gun, a melee weapon, or a club: a wall torch, a brick, a
+      rock): swing or bash. Empty hands never do; a grenade meeting an empty hand is caught (grip closed or closing) or
+      flies on.
   - **Posture:** VR Settings > Torso Offset and Legs Offset move the torso and the feet back (or forward)
     separately.
   - **Wrist gadget:** now over the back of the forearm, and it reads like a watch: raise your forearm across your
@@ -598,7 +617,7 @@ hands, weapons and finger curls.
 ## Profiling (CPU and GPU time per effect)
 
 **Where the time goes, while you play** (ROUND21.md, "Profiling: where the time goes"): VR Settings > Advanced VR
-Options > Debug > Profiling.
+Options > Debug > Profiling and Memory.
 
 - **Profiler Panel**: *In Front* floats a table a metre ahead (it turns after you when you look 30 degrees away);
   *Over the Wrist* puts it above the wrist gadget's hand. Each line is one of the game's systems (Box3D, QuakeC, the
@@ -655,7 +674,7 @@ minute in `quakevr/profile/memstats_<date>.csv`) also times each frame whatever 
 decals, lights, particles). Note the time when it feels slower and send that file (ROUND16.md, "Slowdown"). Its GPU
 columns (clocks, slowdowns, each program's use of the GPU: `gpu_*`, `gpu3d_*`, `gpu_programs`) come from a sampling
 thread that runs only while profiling (`vr_profile`, the Profiler Panel or its CSV Capture) or with
-`vr_memstats_log_gpu 1` (Debug > Memory Log: GPU); otherwise they are empty. With `developer 1` the console says when
+`vr_memstats_log_gpu 1` (Debug > Profiling and Memory > Memory Log: GPU); otherwise they are empty. With `developer 1` the console says when
 that thread starts and stops (`gpustats: sampling thread started`).
 
 ## If something goes wrong
@@ -831,6 +850,14 @@ Grappling hook (round 21): `impulse 151` (main hand), `vr_mock_hand main 0.2 1.3
 up ahead, 160: straight up), `+attack` fires and holds, `vr_mock_button main secondary 1` / `0` reels; with
 `developer 1; vr_grapple_debug 1` (2: the rope's state too) the log has what it bit, its mass and class, and each
 reel's distance, rope and closing speed. The scratchpad's `grapple/run_all.sh` has the round's checks.
+Unreel: `vr_mock_button main primary 1` / `0` (A). In a script, add `+jump` / `-jump` with it for A's jump: a mock
+button's key binding runs only after the script's remaining commands. The log has `unreel on`, `unreels:` (rope,
+distance, paying out u/s, on ground), `unreel off (braked)` and `unreel button on the ground`.
+`vr_grapple_unreel_airborne 0` unreels standing. With `vr_grapple_debug 2` each rope drawn prints its chord, length,
+sag, samples, links and build time twice a second. The profiler's **grapple rope** system is its cost. For rope
+close-ups, bigger eye images: `vr_mock_eye_size 1440; vr_restart` before the map, `vr_eyeshot 1` before each
+`screenshot`. The scratchpad's `grapple2/` has `unreel.sh`, `unreel_prop.sh`, `ropeshots.sh`, `slackshots.sh`,
+`measure.sh` and `measure_long.sh`.
 Leaning (round 21): `vr_mock_hand head <x> <y> <z> <pitch> <yaw> <roll>` and `vr_mock_play` head keyframes with angles
 turn the head too (pitch up, roll as the hands'); `vr_debug_lean 1` writes `lean_trace.txt` (the game directory): the
 head, the box, the lean, the pelvis, the feet and the lean's hold and cues, every frame.
@@ -907,7 +934,7 @@ spawn function on the floor ahead of you (`vr_physics_spawn item_key1 25 -1` put
 `vr_physics_sink [what]` measures how far props' drawn models are in the floor (and their shapes against the drawn);
 with `vr_debug_box3d 1`, `vr_physics_list` prints movetype, solid, rigid and flags. The firing range has no deathmatch
 starts (`SelectSpawnPoint` loops for ever there): use dm3 for deathmatch tests.
-Debug views (Carrying and Gibs > Debug, also in the console): `vr_debug_physics_shapes 1` draws every Box3D body as a
+Debug views (Advanced VR Options > Debug > Views, also in the console): `vr_debug_physics_shapes 1` draws every Box3D body as a
 wireframe (props awake green, fast white, asleep blue, held yellow; doors and plats purple; monsters orange; players
 cyan, your own faint; hanging pickups grey), each prop's centre of mass, an awake prop's contact points (red pressed
 in, pink apart), and the hands' grab probes (as `vr_debug_carry`). `vr_debug_hand_bones 1` draws both jointed hands'
@@ -1092,3 +1119,22 @@ is entity 274, rock5 245, the half brick 220, a whole brick 214, the wall torch 
 <yaw> <roll>; +grabright; vr_mock_button main grip 1` (no wait in between: it falls). Close cameras on the main hand at
 `vr_mock_hand main 0.15 1.2 -0.45 70 0 0`: `vr_mock_camera 0.35 1.15 -0.45 25 90` (outside), `-0.05 1.12 -0.45 25 -90`
 (the palm's side), `0.15 1.18 -0.68 30 180` (the front); `r_fullbright 1` lights them.
+
+Debug menu; quad sound; grenade catch default; no empty-hand deflection (ROUND21.md, same title): the scratchpad's
+`misc23/` has the scripts and logs.
+- `t.py N|W|Q` prints the console script and writes the play (it uses `projfix/t.py`'s poses and `r20/gen.py`):
+  `N` empty hands (punch, two-palm shove, still fist, reach) and the shotgun (thrust, an off-hand shove beside it)
+  against `impulse 246` spikes and ogre grenades; `W` projfix's bashes with a sword (old hand settings, set and printed;
+  `EXTRA="vr_fixed_frames 1"` makes the numbers repeat to float noise, for A/B against a base build); `Q` Quad
+  (`impulse 255`): the sword held with `+attack` and no swing, a sword blow at a grunt, the fist with `+attack`, a
+  shotgun shot. `vr_debug_shots 1` (with `developer 1`) prints `quad sound: a shot | a blow landed | a bash or shove
+  hurt | the hook bit`.
+- `m.sh`: the config test. It writes a config as the previous version saved it (`vr_cfg_version "34"`,
+  `vr_grenade_catch "1"`), runs a script, and plays another copy of the game from the shell: on a marker in
+  `qconsole.log` it edits `vr_grenade_catch`, `vr_deflect` and `vr_melee_speed` in the file, while the game has set
+  `vr_melee_speed 2.9` itself; `writeconfig` then prints `<cvar> "<value>": from another copy of the game (this one left
+  it at "<value>")` for the first two and keeps 2.9. The markers carry the run's time (a previous run's log is still
+  there while the kit waits for a slot).
+- Menu buttons in a script: `menu_vr <page> <label prefix>` selects the row, then `vr_mock_button main primary 1`, a
+  few frames, `0`. A button's command goes ahead of the script's waits (`Cbuf_InsertText`), so its output follows
+  the click. The Debug pages are 64 and 66-71.

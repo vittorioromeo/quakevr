@@ -1544,9 +1544,34 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage =
     return r;
 };
 
+// Quad Damage's sound (items/damage3.wav, at most once a second) plays when you deal damage, not when you press a
+// trigger (ROUND21.md, "Debug menu; quad sound; grenade catch default; no empty-hand deflection"): a gun's shot
+// (SuperDamageSound in the guns' firing, as in id's game), a blow landing on something that takes it
+// (T_Damage_VRMelee: a weapon's, a fist's, a club's, the headbutt), a bash or shove that hurts, the grappling hook
+// biting. The trigger alone (a melee weapon, the fist, something held, the hook fired) is silent. vr_debug_shots
+// prints each, with what played it.
+void(entity xPlayer, string xWhy) VR_QuadSound =
+{
+    if(xPlayer.super_damage_finished <= time || xPlayer.super_sound >= time)
+    {
+        return;
+    }
+
+    xPlayer.super_sound = time + 1;
+    sound(xPlayer, CHAN_BODY, "items/damage3.wav", 1, ATTN_NORM);
+    if(cvar_hget(cvarh_vr_debug_shots))
+    {
+        dprint(sprintf("quad sound: %s\n", xWhy));
+    }
+};
+
 float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRMelee =
 {
     float r = T_DamageImpl(targ, inflictor, attacker, damage, 1);
+    if(r && damage > 0 && targ != attacker && (attacker.flags & FL_CLIENT))
+    {
+        VR_QuadSound(attacker, "a blow landed");
+    }
     if(cvar_hget(cvarh_vr_debug_shots) && (attacker.flags & FL_CLIENT) && targ != attacker)
     {
         dprint(sprintf("damage: %s %g by a melee blow, health %g\n", targ.classname, damage, targ.health));

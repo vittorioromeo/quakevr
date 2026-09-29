@@ -50,6 +50,8 @@ inline constexpr int QVR_BUTTON_OFFHANDBUSY = 1 << 2;   // the hand holds the fl
 inline constexpr int QVR_BUTTON_MAINHANDBUSY = 1 << 3;  // (-> QC QVR_VRBITS0_*HAND_BUSY)
 inline constexpr int QVR_BUTTON_OFFHANDSECONDARY = 1 << 4;  // the hand's upper face button (Y; B on the main hand) is held,
 inline constexpr int QVR_BUTTON_MAINHANDSECONDARY = 1 << 5; // in the game (-> QC QVR_VRBITS0_*HAND_SECONDARY: the grapple's reel)
+inline constexpr int QVR_BUTTON_OFFHANDPRIMARY = 1 << 6;  // the hand's lower face button (X; A on the main hand) is held,
+inline constexpr int QVR_BUTTON_MAINHANDPRIMARY = 1 << 7; // in the game (-> QC QVR_VRBITS0_*HAND_PRIMARY: the grapple's unreel)
 
 // VR stats (cl.stats / cl.statsf indices).
 enum Stat : int

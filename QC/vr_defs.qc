@@ -283,6 +283,8 @@ float QVR_VRBITS0_OFFHAND_BUSY             = VRUTIL_POWER_OF_TWO(17); // set by 
 float QVR_VRBITS0_MAINHAND_BUSY            = VRUTIL_POWER_OF_TWO(18);
 float QVR_VRBITS0_OFFHAND_SECONDARY        = VRUTIL_POWER_OF_TWO(19); // set by the engine: the hand's B/Y held (in the game): the grapple reels
 float QVR_VRBITS0_MAINHAND_SECONDARY       = VRUTIL_POWER_OF_TWO(20);
+float QVR_VRBITS0_OFFHAND_PRIMARY          = VRUTIL_POWER_OF_TWO(21); // set by the engine: the hand's A/X held (in the game): the grapple unreels (in the air)
+float QVR_VRBITS0_MAINHAND_PRIMARY         = VRUTIL_POWER_OF_TWO(22);
 
 //
 //

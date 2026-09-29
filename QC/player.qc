@@ -488,6 +488,7 @@ void(float xHand, float xLaserAtt, void(float) xLaserFn, float xFrame, float xSt
     VRSetWeaponFrame(xHand, xFrame);
     if(xStat >= 0)
     {
+        SuperDamageSound();
         HIP_FireLaser(xHand, xStat);
     }
 }

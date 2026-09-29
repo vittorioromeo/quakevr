@@ -80,9 +80,10 @@ struct Item
     // Cycle.
     std::vector<Choice> choices;
 
-    // Action: a function, or a page to open.
+    // Action: a function, or a page to open, or a console command (command()).
     void (*action)(){nullptr};
     int page{-1};
+    const char* command{nullptr};
 
     // Info: its text, asked for each time it is drawn.
     const char* (*info)(){nullptr};
@@ -216,6 +217,33 @@ void restartVr()
     return i;
 }
 
+// A console command run as typed (the Debug pages' buttons: reports, reloads, tests). A command registered only once
+// its system first runs (the wrist gadget's, the physics') says so instead of "unknown command".
+void runCommand(const char* text)
+{
+    char name[64];
+    size_t n = 0;
+    while(text[n] && text[n] != ' ' && n + 1 < sizeof(name))
+    {
+        name[n] = text[n];
+        n++;
+    }
+    name[n] = '\0';
+    if(!Cmd_Exists(name) && !Cvar_FindVar(name))
+    {
+        Con_Printf("%s: not available yet (its part of the game hasn't run in this session)\n", name);
+        return;
+    }
+    Cbuf_InsertText(va("%s\n", text)); // (next, ahead of what waits in the buffer: a test script's waits)
+}
+
+[[nodiscard]] Item command(const char* label, const char* text)
+{
+    Item i{Item::Action, label};
+    i.command = text;
+    return i;
+}
+
 [[nodiscard]] Item info(const char* (*text)())
 {
     Item i{Item::Info, ""};
@@ -274,6 +302,12 @@ using PageBuilder = std::vector<Item> (*)();
 [[nodiscard]] std::vector<Item> pageFlashlightMounts();
 [[nodiscard]] std::vector<Item> pageBodyDisplay();
 [[nodiscard]] std::vector<Item> pageHeadset();
+[[nodiscard]] std::vector<Item> pageDebugViews();
+[[nodiscard]] std::vector<Item> pageDebugLogging();
+[[nodiscard]] std::vector<Item> pageDebugProfiling();
+[[nodiscard]] std::vector<Item> pageDebugReports();
+[[nodiscard]] std::vector<Item> pageDebugTools();
+[[nodiscard]] std::vector<Item> pageDebugTests();
 
 #include "vr_menu_props.inc"
 #include "vr_menu_pages.inc"
@@ -607,12 +641,12 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
 {
     return {
         header("Batting Projectiles"),
-        toggle("Bat Back Projectiles", vr_deflect).help("Swing a weapon (or a fist) through a monster's spike, laser, spit or grenade to bat it away as a bat hits a ball: off the weapon's face and the way it swings, faster the harder you swing. A bash sends it the way you push."),
-        slider("Batting Reach", vr_deflect_radius, 4.f, 32.f, 1.f, "%.0f units").extend().help("How near the weapon's blade (or your fist) a projectile must pass to be batted back."),
+        toggle("Bat Back Projectiles", vr_deflect).help("Swing a weapon (a gun, a melee weapon, or a club: a wall torch, a brick) through a monster's spike, laser, spit or grenade to bat it away as a bat hits a ball: off the weapon's face and the way it swings, faster the harder you swing. A bash sends it the way you push. Empty hands never bat: they catch grenades."),
+        slider("Batting Reach", vr_deflect_radius, 4.f, 32.f, 1.f, "%.0f units").extend().help("How near the weapon's blade, barrel or club a projectile must pass to be batted back."),
         slider("Batting Swing Speed", vr_deflect_speed, 0.2f, 1.5f, 0.05f, "%.2fx").extend().help("How fast a batting swing must be, times Swing Speed (a hit needs 1x, and more for a swung weapon)."),
         slider("Batting Timing", vr_deflect_window, 0.f, 0.5f, 0.05f, "%.2f s").extend().help("How early you may swing: the weapon's path keeps batting this long after it passed."),
         slider("Bash Batting Reach", vr_bash_deflect_radius, 4.f, 48.f, 1.f, "%.0f units").extend()
-            .help("A bash (or a shove with a weapon in hand) bats back projectiles that pass this near the guard: the weapon and the hands."),
+            .help("A bash (a weapon or a club held across, pushed) bats back projectiles that pass this near the weapon. A shove with open hands bats nothing."),
         slider("Bash Batting Timing", vr_bash_deflect_window, 0.f, 1.f, 0.05f, "%.2f s").extend().help("How long a bash goes on batting after the push."),
         slider("Batting Bounce", vr_deflect_bounce, 0.f, 1.f, 0.05f, "%.2f")
             .help("How lively a batted projectile comes off the weapon: 0 dead (it takes only the swing's speed), 1 as a rubber ball (a ball off a bat is about 0.5). A swing across sends it off to the side; the weapon's face driven at the thrower sends it back, the harder the faster."),
@@ -621,7 +655,8 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         header("Grenades"),
         cycle("Catch Grenades", vr_grenade_catch, {{0.f, "Off"}, {1.f, "Ogres'"}, {2.f, "Ogres' and yours"}})
             .help("Grenades bounce and roll as physics objects, and you can catch them (by hand or force grab) and throw them "
-                  "back; thrown, they burst on a monster as an ogre's does on you. \"And yours\": your grenade launcher's too."),
+                  "back; thrown, they burst on a monster as an ogre's does on you. \"And yours\" (the default): your grenade "
+                  "launcher's too."),
         slider("Held Grenade Fuse", vr_grenade_held_fuse, 1.f, 5.f, 0.1f, "%.1f s")
             .help("A grenade you catch fizzes and ticks, and goes off this long after (it never shortens the fuse). Hold it too "
                   "long and it goes off in your hand."),
@@ -630,7 +665,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
                   "every catch sets it again."),
         slider("Catch Radius", vr_grenade_catch_radius, 5.f, 30.f, 1.f, "%.0f cm")
             .help("How near your palm a grenade in flight must pass for an empty hand to catch it: grip held, or closing as it "
-                  "arrives. A punch, a shove or a bash knocks it away instead."),
+                  "arrives. A punching or shoving hand doesn't catch it (nor bat it: only a weapon does)."),
         slider("Catch Window", vr_grenade_catch_window, 0.f, 0.4f, 0.01f, "%.2f s")
             .help("A grenade that flies into your open palm stays there this long for your grip to close on it; then it drops "
                   "from the hand. 0: only a grip already closing catches."),
@@ -1411,25 +1446,119 @@ void hologramTestMessage()
     };
 }
 
-// Playtesting and debugging aids, gathered from Gameplay, Carrying and Gibs and Graphics.
+// Debug: playtesting and debugging aids, every debug flag and one-shot debug command reachable without the console
+// (ROUND21.md, "Menus reorganized" gathered the first ones; "Debug menu; quad sound; grenade catch default; no
+// empty-hand deflection" the rest). A new debug setting goes on the part it belongs to, one line each:
+// - Views: drawn in the world (show_*, vr_debug_* that draw);
+// - Logging: printed to the console (and the wrist log), or written to a trace file every frame;
+// - Profiling and Memory: timings and memory;
+// - Reports: a command printing something once (command("Label", "vr_something")), what it prints in its help;
+// - Tools: a command rebuilding, reloading, writing a file or showing a test effect;
+// - Tests: what tests are done with in the headset (a monster ahead, a projectile at you, cheats).
+// Mock-headset commands (vr_mock_*) and the automated tests' settings (vr_fixed_frames, vr_particle_seed,
+// vr_debug_weight_stamina, vr_window_log...) stay in the console: they mean nothing in the headset.
 [[nodiscard]] std::vector<Item> pageDebug()
 {
     return {
         header("Playtesting"),
         toggle("Voice Notes", vr_notes).help("Raise your off hand to your mouth and hold Y to record a note, with a screenshot and where you are; they go to quakevr/notes."),
         header("Debug"),
+        open("Views", pageIndex(pageDebugViews))
+            .help("Drawn in the world: physics shapes, hand bones, ledges, grab tests, the skeleton, collisions, foveation, entity boxes."),
+        open("Logging", pageIndex(pageDebugLogging))
+            .help("Printed as it happens: shots and damage, throws, climbing, swimming, the hook, wounds, physics; trace files."),
+        open("Profiling and Memory", pageIndex(pageDebugProfiling))
+            .help("The profiler's panel, capture and hitch log; the memory log."),
+        open("Reports", pageIndex(pageDebugReports))
+            .help("Print once, to the console: the headset's state, the player, physics, weights, ledges, hands and weapons."),
+        open("Tools", pageIndex(pageDebugTools))
+            .help("Rebuild the ledge map, reload models, the hand or detail textures; save debug images; test effects."),
+        open("Tests", pageIndex(pageDebugTests))
+            .help("Put a monster or a box ahead of you, fire a projectile at you, make an ogre throw; god mode, Quad."),
+    };
+}
+
+// Drawn in the world.
+std::vector<Item> pageDebugViews()
+{
+    return {
         toggle("Show Physics Shapes", vr_debug_physics_shapes)
             .help("Draws the physics bodies (Box3D) as wireframes: props awake green, asleep blue, held yellow; doors purple, "
                   "monsters orange, you cyan, hanging pickups grey; red dots where they touch. And each hand's grab reach."),
         toggle("Show Hand Bones", vr_debug_hand_bones)
             .help("Draws both hands' joints and bones, and what they grip: the finger spheres (green touching, yellow near, red "
                   "sunk in) and the palm's fit (white: where the hand is, cyan: where the grip moved the palm)."),
-        cycle("Memory Log", "vr_memstats_log", {{0.f, "Off"}, {30.f, "Every 30 s"}, {60.f, "Every minute"}, {300.f, "Every 5 minutes"}})
-            .help("Write memory use and the frame rate to quakevr/profile/memstats_<date>.csv, and after each map load."),
-        toggle("Memory Log: GPU", vr_memstats_log_gpu)
-            .help("Also sample the GPU for the Memory Log (its clocks, slowdowns, and each program's use of it: SteamVR, "
-                  "Virtual Desktop), on a thread of its own. Off: only while profiling (Performance Profile, the Profiler Panel or its CSV Capture)."),
+        cycle("Show Ledges", vr_debug_ledges, {{0.f, "Off"}, {256.f, "Within 256 units"}, {1.f, "Within 512 units"}, {1024.f, "Within 1024 units"}})
+            .help("The ledge map round you, what climbing holds: lips green (on moving brushes pink), a tick out every 8 units "
+                  "(yellow where the drop starts further out). Built even with climbing off."),
+        cycle("Show Grab Test", vr_debug_carry, {{0.f, "Off"}, {1.f, "Drawn"}, {2.f, "Drawn and Logged"}, {3.f, "Also Far Fists"}})
+            .help("For each hand near something to carry: the box it is drawn in and the fist tested (its spheres; the nearest "
+                  "bright). Logged: each grab and held prop's placing printed, carry_trace.txt written; also far fists: hands not near "
+                  "anything too."),
+        cycle("Show Body Skeleton", vr_body_debug, {{0.f, "Off"}, {1.f, "Skeleton"}, {2.f, "Body Facing You"}, {3.f, "Body From Its Left"}})
+            .help("Draws the body's skeleton; or shows the body in front of you, facing you or seen from its left (to check "
+                  "its pose and calibration without a mirror)."),
+        cycle("Show Body Collisions", vr_debug_body_collide, {{0.f, "Off"}, {1.f, "Logged"}, {2.f, "Logged and Drawn"}})
+            .help("The drawn hands and weapons stopping at each other and the body: each contact printed (and "
+                  "body_collide_trace.txt); drawn: the capsules and the pushes."),
+        cycle("Show Model Collisions", vr_debug_model_collide, {{0.f, "Off"}, {1.f, "Logged"}, {2.f, "Logged and Drawn"}})
+            .help("Held weapons stopping at the models' triangles: each hand's push printed; drawn: the rays (grey as tracked, "
+                  "green or red as drawn) and the push (yellow)."),
+        toggle("Show Foveation", vr_foveated_debug)
+            .help("The shading rates of Foveated Rendering in the eyes and the mirror (yellow 2x2, red 4x4) and the upscaler's "
+                  "sharp circle (cyan)."),
+        toggle("Show Entity Boxes", "r_showbboxes")
+            .help("Every entity's bounding box, as the game collides with it (monsters, items, missiles, triggers), through "
+                  "walls. Single player only."),
+    };
+}
 
+// Printed as it happens (the console, and the wrist log), or a trace file written every frame.
+std::vector<Item> pageDebugLogging()
+{
+    return {
+        cycle("Developer Messages", "developer", {{0.f, "Off"}, {1.f, "On"}, {2.f, "Verbose"}})
+            .help("The game's developer messages: needed by Shots and Damage and the Grappling Hook's log below, and many "
+                  "others (melee events, grenades, deflections). Verbose: every frame's melee detail too."),
+        header("Logs"),
+        toggle("Shots and Damage", vr_debug_shots)
+            .help("Each hitscan shot (where it starts, its direction, what its pellets hit, headshots) and each damage you deal "
+                  "(and when Quad's sound plays). Needs Developer Messages."),
+        cycle("Throws", vr_debug_throw, {{0.f, "Off"}, {1.f, "Each Throw"}, {2.f, "And Its Timing"}})
+            .help("Each throw's speed estimate from the hand's motion (and the release's timing)."),
+        cycle("Climbing", vr_climb_debug, {{0.f, "Off"}, {1.f, "Holds"}, {2.f, "Every Frame"}, {3.f, "And Shoulders"}})
+            .help("Holds taken, released, mantles; every frame: the body, the hands, the pull, the holds' reach (a lot)."),
+        toggle("Swim Strokes", vr_swim_debug).help("Each stroke: its peak speed, the power gate, the reverse damping and the push it gave."),
+        cycle("Grappling Hook", vr_grapple_debug, {{0.f, "Off"}, {1.f, "Bites and Reels"}, {2.f, "And the Rope"}, {3.f, "Every Frame"}})
+            .help("What the hook bites and each reel (mass, class, speeds); the rope 4 times a second, or every frame. Needs "
+                  "Developer Messages."),
+        toggle("Wounds", vr_wounds_debug).help("Each wound painted on a model."),
+        cycle("Grasp", vr_debug_grasp, {{0.f, "Off"}, {1.f, "Each Solve"}, {2.f, "Each Finger"}})
+            .help("Each grasp solve of the jointed hands (and each finger's stops)."),
+        cycle("Physics Bodies", vr_debug_box3d, {{0.f, "Off"}, {1.f, "Made and Slept"}, {2.f, "Every Awake Body"}})
+            .help("Box3D bodies made, woken and put to sleep; or every awake body every frame (a lot)."),
+        cycle("Rocks and Bricks Placement", vr_debug_debris, {{0.f, "Off"}, {1.f, "A Line a Map"}, {2.f, "Each Piece"}, {3.f, "Each Spot Rejected"}})
+            .help("At the next map load: the pieces placed, the spots, the time; each piece; each spot rejected and why."),
+        toggle("Torch Lights", vr_debug_torch_lights)
+            .help("Every torch light lit, every frame: which (a wall torch, a taken one), where, its radius and colour, shadowed."),
+        cycle("Arm IK", vr_debug_arm, {{0.f, "Off"}, {1.f, "Print Once"}, {2.f, "Trace File"}})
+            .help("Each drawn arm's joints once (shoulder, elbow, wrist in the body's axes, the elbow's swing, the wrist's bend "
+                  "and twist); or arm_trace.txt every frame."),
+        toggle("Bot Chatter", vr_verbosebots).help("The bots' thoughts, with bots in the game."),
+        header("Trace Files (game folder)"),
+        cycle("Grasp Trace", vr_debug_grasp_trace, {{0.f, "Off"}, {1.f, "Main Hand"}, {2.f, "Off Hand"}, {3.f, "Both Hands"}})
+            .help("grasp_trace.txt: the drawn hand's joints every frame."),
+        cycle("Weight Trace", vr_debug_weight, {{0.f, "Off"}, {1.f, "File"}, {2.f, "File and Console"}})
+            .help("weight_trace.txt: each hand's target and drawn pose under the weight, every frame."),
+        toggle("Lean Trace", vr_debug_lean)
+            .help("lean_trace.txt: the head, the body's box, the lean, the pelvis and the feet every frame, and the lean's cues."),
+    };
+}
+
+// The profiler and the memory log (moved from the Debug page).
+std::vector<Item> pageDebugProfiling()
+{
+    return {
         header("Profiling"),
         cycle("Profiler Panel", vr_profile_overlay, {{0.f, "Off"}, {1.f, "Over the Wrist"}, {2.f, "In Front"}})
             .help("Where each frame's time goes: the game's systems (Box3D, QuakeC, the world's drawing, waiting for the "
@@ -1444,8 +1573,114 @@ void hologramTestMessage()
         cycle("Detail", vr_profile_detail, {{1.f, "Systems"}, {2.f, "Every Trace and Builtin"}})
             .help("Every Trace and Builtin also times each collision trace and each QuakeC builtin call apart: dearer, to "
                   "split QuakeC's time."),
-        action("Print Report", [] { Cbuf_AddText("vr_profile_report\n"); })
+        cycle("GPU Timing", vr_profile_gpu, {{0.f, "Off"}, {1.f, "Every Frame"}, {2.f, "One Frame in 2"}, {4.f, "One Frame in 4"}, {8.f, "One Frame in 8"}})
+            .help("How often the profiler times the GPU: each timed frame stalls it a little. Off: CPU times only."),
+        slider("Report Interval", vr_profile_interval, 0.f, 30.f, 1.f, "%.0f s")
+            .help("Performance Profile (Graphics): seconds between its reports in the console and its CSV. 0: only on Dump Profile."),
+        command("Print Report", "vr_profile_report")
             .help("vr_profile_report: the last 5 seconds' table in the console (in qconsole.log with -condebug)."),
+        command("Dump Profile", "vr_profile_dump")
+            .help("vr_profile_dump: Performance Profile's report now, in the console and its CSV (quakevr/profile/profile_<map>_...)."),
+        header("Memory"),
+        cycle("Memory Log", "vr_memstats_log", {{0.f, "Off"}, {30.f, "Every 30 s"}, {60.f, "Every minute"}, {300.f, "Every 5 minutes"}})
+            .help("Write memory use and the frame rate to quakevr/profile/memstats_<date>.csv, and after each map load."),
+        toggle("Memory Log: GPU", vr_memstats_log_gpu)
+            .help("Also sample the GPU for the Memory Log (its clocks, slowdowns, and each program's use of it: SteamVR, "
+                  "Virtual Desktop), on a thread of its own. Off: only while profiling (Performance Profile, the Profiler Panel or its CSV Capture)."),
+        command("Print Memory Now", "vr_memstats")
+            .help("vr_memstats: video and system memory, the textures and models loaded, the frame times since the last one."),
+    };
+}
+
+// Printed once, to the console (and the wrist log).
+std::vector<Item> pageDebugReports()
+{
+    return {
+        header("The Game"),
+        command("Headset", "vr_status").help("vr_status: the backend, the eyes' sizes, the hidden area, the head's and hands' poses."),
+        command("Player", "vr_dumpplayer").help("vr_dumpplayer: the player's VR fields in the game (hands, weapons, hotspots)."),
+        command("View", "vr_dumpview").help("vr_dumpview: the hands, grips, palms, fingers and every entity drawn in the view (long)."),
+        command("Body Calibration", "vr_bodycal_print").help("vr_bodycal_print: the body calibration's state and result."),
+        command("Wrists and Grips", "vr_bodycal_debug").help("vr_bodycal_debug: one line a hand, next frame: the wrist and the grip."),
+        header("World and Physics"),
+        command("Physics Props", "vr_physics_list").help("vr_physics_list: the props in the physics (more with Physics Bodies logged)."),
+        command("Props in Floors", "vr_physics_sink").help("vr_physics_sink: how far each prop sinks into the floor."),
+        command("Weights", "vr_weight_table").help("vr_weight_table: the weapons' and props' masses (the level's props too)."),
+        command("Ledges Ahead", "vr_climb_probe").help("vr_climb_probe: the ledges 16 to 64 units ahead of you, and why each holds or not."),
+        command("Rocks and Bricks", "vr_debris_list").help("vr_debris_list: the rocks and bricks placed in this map."),
+        command("Wounds", "vr_wounds_info").help("vr_wounds_info: the wound masks in use."),
+        command("Decals and Gore", "vr_decal_count").help("vr_decal_count: the decals and gore pieces in the world."),
+        command("Model Lighting", "vr_model_ambient_show").help("vr_model_ambient_show: the six nearest entities' ambient light."),
+        command("Ambient Occlusion", "vr_ao_show").help("vr_ao_show: the ambient occlusion's occluders and bake."),
+        header("Hands and Weapons"),
+        command("Hand Rig", "vr_hand_rig_info").help("vr_hand_rig_info: the hand's rig against the compiled one."),
+        command("Grasp Spheres", "vr_grasp_spheres").help("vr_grasp_spheres: the fingers' and the palm's contact spheres."),
+        command("Grip Frames", "vr_grip_frame")
+            .help("vr_grip_frame: each hand's grip frame (the palm and the grip channel) that held props are placed by."),
+        command("Hotspots Check", "vr_hotspots_check").help("vr_hotspots_check: each weapon's hotspots, checked against its model."),
+        command("Sight Lines", "vr_sight_lines").help("vr_sight_lines: every weapon's sight line (Align Sights)."),
+        command("Sight Check", "vr_sight_check").help("vr_sight_check: the held weapon's sights against its aim."),
+        command("Wrist Gadget", "vr_gadget_info").help("vr_gadget_info: the gadget's pose (once it has been drawn)."),
+        header("Other"),
+        command("Microphones", "vr_note_devices").help("vr_note_devices: the microphones Voice Notes can record from."),
+        command("Detail Textures", "vr_detail_list").help("vr_detail_list: each texture's detail kind (long)."),
+    };
+}
+
+// Rebuilds, reloads, debug images, test effects.
+std::vector<Item> pageDebugTools()
+{
+    return {
+        header("Rebuild and Reload"),
+        command("Rebuild Ledge Map", "vr_ledges rebuild").help("vr_ledges rebuild: the map's ledges found again (a moment), with their count."),
+        command("Reload Models", "vr_model_reload")
+            .help("vr_model_reload: every model read again from its file (edited in Blender), with the hands' and collisions' caches."),
+        command("Reload Hand Model", "vr_hand_reload").help("vr_hand_reload: the jointed hand (progs/hand_rig.md5mesh) read again."),
+        command("Reload Detail Textures", "vr_detail_reload").help("vr_detail_reload: the detail textures' settings read again, the textures rebuilt."),
+        header("Save to Files (game folder)"),
+        command("Wound Masks", "vr_wounds_dump").help("vr_wounds_dump: each model's wound mask, to wounds/mask_<n>_<model>.png."),
+        command("Decal Atlas", "vr_decal_atlas").help("vr_decal_atlas: the decals' atlas, to decal_atlas.png."),
+        command("Hand Mesh", "vr_grasp_dump").help("vr_grasp_dump: the main hand as drawn, to grasp_dump.obj (for Blender)."),
+        command("Gadget Screen", "vr_gadget_screen_dump").help("vr_gadget_screen_dump: the wrist gadget's screen, to screenshots/gadget_screen.png."),
+        command("Reflection Map", "vr_envmap_dump").help("vr_envmap_dump: the held weapon's reflection map, to envmap.tga (Weapon Reflections on)."),
+        command("Weight Test", "vr_weight_test csv").help("vr_weight_test: the weight's spring on test cases, a table in the console and weight_test.csv."),
+        header("Test Effects"),
+        command("Blood and Gore", "vr_gore_test").help("vr_gore_test: blood and gore 64 units ahead, as a 40 damage hit."),
+        command("Gore Burst", "vr_gore_test burst").help("vr_gore_test burst: a body bursting into gibs 64 units ahead."),
+        command("Test Light", "vr_light_test").help("vr_light_test: a white light 48 units ahead for 5 seconds."),
+        command("Test Message", "vr_message_test").help("vr_message_test: a message in the gadget's hologram (once the gadget has been drawn)."),
+        command("Eject a Casing", "vr_shells_eject").help("vr_shells_eject: a spent casing out of the held weapon's port."),
+    };
+}
+
+// What tests are done with in the headset (single player).
+std::vector<Item> pageDebugTests()
+{
+    return {
+        header("Ahead of You"),
+        cycle("Thing", vr_test_spawn,
+            {{0.f, "Grunt"}, {1.f, "Ogre"}, {2.f, "Zombie"}, {3.f, "Shambler"}, {4.f, "Scrag"}, {5.f, "Knight"},
+             {6.f, "Hell Knight"}, {7.f, "Dog"}, {8.f, "Enforcer"}, {9.f, "Fiend"}, {10.f, "Vore"}, {11.f, "Spawn"},
+             {12.f, "Gremlin"}, {13.f, "Centroid"}, {14.f, "Mummy"}, {15.f, "Phantom Swordsman"}, {16.f, "Wrath"},
+             {17.f, "Overlord"}, {100.f, "Health Box"}, {101.f, "Shells Box"}, {102.f, "Explosive Box"},
+             {103.f, "Small Explosive Box"}})
+            .help("What Put It There puts ahead of you, facing you. The mission packs' monsters need their game installed."),
+        slider("Distance", vr_test_spawn_dist, 32.f, 256.f, 8.f, "%.0f units").extend().help("How far ahead."),
+        toggle("As a Corpse", vr_test_spawn_dead).help("A monster killed at once: a corpse, to test gibbing and carrying."),
+        command("Put It There", "impulse 241").help("Puts the Thing ahead of you."),
+        header("At You"),
+        cycle("Projectile", vr_test_projectile,
+            {{0.f, "Knight's Spike"}, {1.f, "Enforcer's Laser"}, {2.f, "Scrag's Spit"}, {3.f, "Vore's Ball"},
+             {4.f, "Ogre's Grenade"}, {5.f, "Zombie's Flesh"}})
+            .help("What Fire at Me fires at your face from 300 units: to bat back with a weapon, or catch (a grenade)."),
+        slider("From the Left", vr_test_projectile_side, -90.f, 90.f, 15.f, "%.0f deg")
+            .help("Degrees to your left of ahead it comes from (negative: from the right)."),
+        command("Fire at Me", "impulse 246").help("Fires the Projectile at you now."),
+        command("Make an Ogre Throw", "impulse 240").help("The nearest ogre or zombie throws at you now."),
+        header("Cheats"),
+        command("God Mode", "god").help("god: takes no damage (again: takes damage)."),
+        command("Quad Damage", "impulse 255").help("Quad Damage for 30 seconds."),
+        command("All Weapons", "impulse 9").help("Every weapon and full ammo."),
     };
 }
 
@@ -1483,12 +1718,20 @@ void hologramTestMessage()
     return {
         cycle("Rope", vr_grapple_rope, {{1.f, "Holds"}, {0.f, "Pulls at once"}})
             .help("Holds: the hook bites and the rope holds you at its length (swing on it, walk closer), pulling nothing "
-                  "until you hold the hand's B or Y (Y on the left hand) with the trigger. Pulls at once: the mission pack's "
+                  "until you hold the hand's B or Y (Y on the left hand) with the trigger; A or X in the air pays it out. "
+                  "Pulls at once: the mission pack's "
                   "grapple, pulling you in as soon as it bites."),
         slider("Reel Speed", vr_grapple_reel_speed, 100.f, 1000.f, 25.f, "%.0f u/s").extend(25.f, 2000.f)
             .help("How fast the reel pulls you in: to a wall or a ceiling, to a huge monster, to a prop too heavy to come."),
         slider("Shortest Rope", vr_grapple_min_length, 16.f, 128.f, 4.f, "%.0f").extend(0.f, 400.f)
             .help("How short the reel takes the rope (units)."),
+        slider("Unreel Speed", vr_grapple_unreel_speed, 50.f, 800.f, 25.f, "%.0f u/s").extend(0.f, 2000.f)
+            .help("The hand's lower button (A on the right hand, X on the left) pays the rope out while held, this fast: "
+                  "you let yourself down from a ceiling, a monster or a prop can go farther. Let go and the rope keeps its "
+                  "length. 0: no unreel."),
+        toggle("Unreel Button Only When Airborne", vr_grapple_unreel_airborne)
+            .help("On: A or X unreels only in the air; on the ground it jumps (or reloads) as ever, and a press that "
+                  "jumped does not unreel until pressed again. Off: it unreels anywhere, its key still pressed too."),
 
         header("Props"),
         slider("Prop Reel Speed", vr_grapple_prop_speed, 100.f, 1500.f, 25.f, "%.0f u/s").extend(25.f, 3000.f)
@@ -1619,6 +1862,13 @@ const Page pages[] = {
     {"Hip Holsters", pageHipHolsters, pageWeaponsHub},                      // 63
     {"Debug", pageDebug, pageAdvanced},                                     // 64
     {"Recording", pageRecording, pageGraphics},                             // 65 (the desktop window's view)
+    // The Debug page's parts (ROUND21.md, "Debug menu; quad sound; grenade catch default; no empty-hand deflection").
+    {"Debug - Views", pageDebugViews, pageDebug},                           // 66
+    {"Debug - Logging", pageDebugLogging, pageDebug},                       // 67
+    {"Debug - Profiling and Memory", pageDebugProfiling, pageDebug},        // 68
+    {"Debug - Reports", pageDebugReports, pageDebug},                       // 69
+    {"Debug - Tools", pageDebugTools, pageDebug},                           // 70
+    {"Debug - Tests", pageDebugTests, pageDebug},                           // 71
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -1741,7 +1991,8 @@ std::vector<Item> pageAdvanced()
         header("Playtesting"),
         open("Motion Recorder", pageIndex(pageMotionRecorder)),
         open("Review Takes", pageIndex(pageReviewTakes)),
-        open("Debug", pageIndex(pageDebug)).help("Voice notes, physics shapes, hand bones, the memory log and the profiler."),
+        open("Debug", pageIndex(pageDebug))
+            .help("Voice notes; debug views, logs and reports; the profiler and memory log; reloads, dumps and tests."),
     };
 }
 
@@ -2919,7 +3170,12 @@ void change(const Item& item, int dir, bool repeat = false)
                 const int page = item.page;
                 void (*const action)() = item.action;
                 void (*const actionArg)(int) = item.actionArg;
+                const char* const command = item.command;
                 const int arg = item.arg;
+                if(command)
+                {
+                    runCommand(command);
+                }
                 if(actionArg)
                 {
                     actionArg(arg); // (`item` may be gone after this)

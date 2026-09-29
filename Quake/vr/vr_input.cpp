@@ -154,6 +154,8 @@ bool mainStickScrolls = false;
 // Each hand's upper face button (B/Y) held, as a key the game got (not taken by the posing mode, a voice note or the
 // flashlight): the grappling hook reels while it is (secondaryHeld, sent to the QC with the move).
 bool secondaryDown[HAND_COUNT] = {};
+// And the lower one (A/X): the hook unreels while it is (primaryHeld).
+bool primaryDown[HAND_COUNT] = {};
 
 InputState previous;
 glm::vec2 moveAxes{0.f};
@@ -337,6 +339,10 @@ void update(const InputState& tracked)
                 {
                     secondaryDown[h] = now;
                 }
+                else if(b.button == &HandInput::primary)
+                {
+                    primaryDown[h] = now;
+                }
                 if(now && key_dest == key_menu && !vr_disablehaptics.value)
                 {
                     // A click under the finger, as the old engine gave in menus.
@@ -412,6 +418,11 @@ void update(const InputState& tracked)
 bool secondaryHeld(int hand)
 {
     return hand >= 0 && hand < HAND_COUNT && secondaryDown[hand] && key_dest == key_game;
+}
+
+bool primaryHeld(int hand)
+{
+    return hand >= 0 && hand < HAND_COUNT && primaryDown[hand] && key_dest == key_game;
 }
 
 } // namespace qvr::input

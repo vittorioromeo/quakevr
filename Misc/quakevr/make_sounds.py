@@ -21,8 +21,9 @@
 #   torch_pull.wav, torch_out.wav, torch_light.wav, torch_hit.wav  wall torches (QC vr_walltorch.qc): pulled out of
 #                 its holder (a wooden scrape and a knock), its fire going out (a puff and a hiss), fire catching (a
 #                 whoosh and crackles), a burning torch's blow (a burst of flame)
-#   grapple_reel.wav, grapple_taut.wav  the grappling hook (QC vr_grapple.qc): the reel winding in (a ratchet's clicks
-#                 over a whirr, played back to back while it reels) and the rope snapping taut (a low twang, a chink)
+#   grapple_reel.wav, grapple_taut.wav, grapple_unreel.wav  the grappling hook (QC vr_grapple.qc): the reel winding in
+#                 (a ratchet's clicks over a whirr, played back to back while it reels), the rope snapping taut (a low
+#                 twang, a chink) and the unreel paying it out (the ratchet backwards: reversed clicks, lighter, quicker)
 #   pommel1..3.wav  a pommel, a hilt or a gun's butt striking (QC vr_melee.qc VR_Melee_HitSound): a blunt knock,
 #                 short and dry, apart from the blades' cuts and the punches; three, a little apart in pitch
 #   rock1..3.wav, brick1..3.wav  a rock's thud and a brick's clack (QC vr_debris.qc): landing, knocked, thrown into
@@ -720,6 +721,46 @@ def grapple_reel():
     return [v * 0.8 / peak * min(1.0, (i + 1) / e, (n - i) / e) for i, v in enumerate(out)]
 
 
+def grapple_unreel():
+    """The grapple's unreel paying the rope out (QC vr_grapple.qc VR_Grapple_Unwind; played again every 0.25 s while
+    the rope runs out): the reel's ratchet run backwards, its pawl freewheeling: each click reversed (the steel's ring
+    swelling into the snap), lighter, higher and quicker (38 a second), over a thinner whirr falling a little as the
+    drum spins up and the chain's lighter rattle. 0.25 s, its clicks running on from one to the next."""
+    rng = random.Random(419)
+    n = int(RATE * 0.25)
+    click_lp, rattle_lp, rattle_hp = OnePole(4200), OnePole(6500), OnePole(2600)
+    table = ((2750, 0.6, 0.005), (4500, 0.4, 0.0035), (6400, 0.2, 0.0025), (1500, 0.25, 0.008))
+    rate = 38.0
+    span = int(RATE * 0.018)  # a click's length, reversed
+    clicks = [(k / rate + rng.uniform(-0.0015, 0.0015), rng.uniform(0.95, 1.05), rng.uniform(0.55, 0.8)) for k in range(10)]
+    buf = [0.0] * (n + span)
+    for at, pitch, amp in clicks:
+        start = int(at * RATE)
+        forward = []
+        for j in range(span):
+            tc = j / RATE
+            noise = rng.uniform(-1, 1)
+            forward.append(amp * (partials(tc, pitch, table) * min(1.0, tc / 0.0002) +
+                                  (noise - click_lp(noise)) * math.exp(-tc / 0.0008)))
+        for j, v in enumerate(reversed(forward)):  # backwards: the ring swells into the snap
+            if 0 <= start + j < len(buf):
+                buf[start + j] += v
+    phase = 0.0
+    out = []
+    for i in range(n):
+        t = i / RATE
+        noise = rng.uniform(-1, 1)
+        phase += 2 * math.pi * (150 - 12 * t / 0.25 + 6 * math.sin(2 * math.pi * 9 * t)) / RATE
+        whirr = (math.sin(phase) + 0.3 * math.sin(2 * phase + 0.4)) * 0.13
+        r = rattle_lp(noise)
+        r -= rattle_hp(r)
+        rattle = r * (0.5 + 0.5 * math.sin(2 * math.pi * rate * t)) * 0.25
+        out.append(math.tanh((buf[i] * 1.1 + whirr + rattle) * 1.3))
+    peak = max(abs(v) for v in out) or 1.0
+    e = int(RATE * 0.001)
+    return [v * 0.7 / peak * min(1.0, (i + 1) / e, (n - i) / e) for i, v in enumerate(out)]
+
+
 def grapple_taut():
     """The grapple's rope snapping taut (a fall caught, a swing's end, a load taking the strain): a low twang of the
     rope (a short sagging tone), the hook's metal chinking and a dull creak."""
@@ -808,6 +849,7 @@ def main():
         "torch_hit.wav": torch_hit,
         "grapple_reel.wav": grapple_reel,
         "grapple_taut.wav": grapple_taut,
+        "grapple_unreel.wav": grapple_unreel,
     }
     only = sys.argv[2:]  # optional: just these
     for name, make in sounds.items():

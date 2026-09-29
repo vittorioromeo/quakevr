@@ -36,6 +36,7 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | Profiling: where the time goes | the frame split into the game's systems (Box3D, QuakeC, Quake physics, the world's drawing, shadow maps, waiting for the headset...), adding up to the frame time: a panel in the headset with bars (Debug > Profiling), `vr_profile_report`, a CSV row a second, a hitch log naming what took a slow frame's time; off it costs nothing measurable. Found with it: the foveated rendering's setup waited for the driver every eye (0.2-0.4 ms of the CPU a frame, fixed) |
 | Performance fixes (review, 2026-09-28) | the spectator camera's Frame Rate (60 fps by default), Resolution Scale (0.75 by default) and Anti-Aliasing; the climbing's mantle and lenient-grab searches 5-20 times fewer traces, the props' settings found once per model (Box3D's sync 2-3 times cheaper), with the same holds, mantles and physics; wounds on a reused entity slot and the ropes' slack forgotten when their entity ends; the AO bake worker joined at quit; no GPU-sampling thread unless profiling |
 | First-hit hitch | the first shot or blow that left a mark froze the game for 0.43-0.44 s: the decals' atlas (blood, chips, scorches, the gore's marks) was drawn on the CPU at the first mark's draw. It is now drawn on a worker thread from start-up and put on the GPU as the map loads; the other first-use work (the view's own models, 0.3 s the first time; the liquids, 20-100 ms each map; the particles' atlas; the detail textures; the torch; the casings' sounds) is done in the load too. Wound painting no longer waits for the driver (glGet), and the memory log counts the GL objects as each map loads (was 12-13 ms in a frame of play) |
+| Grapple: unreel; rope drawn in one piece | the grapple hand's A (right) or X (left) held in the air lets the rope out (Unreel Speed, 300 u/s; on the ground it jumps as before): you are let down from a ceiling, a monster may walk away, a prop hanging at the gun is lowered; a reversed ratchet's ticks and a fine buzz while it runs out. The rope's links are bent along its curve on the GPU, so a short sagging rope is one smooth chain (it was straight links with holes); 0.02-0.04 ms of CPU a frame |
 
 Found on the way: fteqcc stores 0 when `a || b` is assigned into an entity field (rewritten; no other code has that
 shape); a parried blow's hand knock, timed by `cl.time`, came back after a level change (reset now).
@@ -10881,3 +10882,290 @@ config's prop lines (`vr_props_version` 26 to 40: the torch grip 3, rock2 grip 2
   torch's head as a jab) no longer lands: the upright torch crosses it sideways. The melee rules are untouched (frozen
   until your new takes); worth a look when you record torch blows.
 - The menu page shows the four modes and the new rows (`menu_vr dump`: Held Object Offsets has 36 rows).
+
+## Grapple: unreel; rope drawn in one piece
+
+Your voice notes (vrfiringrange, 2026-09-29, 01:00-01:01; screenshots `vrfiringrange_2026-09-29_01-00-01`, `01-00-54`,
+`01-01-11`): let the rope out with the grapple hand's other face button (A on the right hand, X on the left), only in
+the air, since A jumps; and a short rope that sags is drawn as separate straight pieces with holes between them: draw
+it finer, so that it looks joined. Branch `agent/grapple2`; scripts, logs and pictures in the scratchpad's `grapple2/`.
+
+### What you do
+
+- **Unreel:** with the hook in, hold the grapple hand's **lower face button** (A on the right hand, X on the left: the
+  one under the reel's B or Y). In the air it pays the rope out at the Unreel Speed (300 u/s), up to the hook's reach
+  (2700 units). Let go and the rope keeps its new length: it brakes to a stop in about 0.1 s (about 18 units at full
+  speed) rather than stopping you dead.
+- **What it lets go:**
+  - Hanging from a ceiling or a wall, you are let down, no faster than the rope runs out. It is a controlled descent:
+    you fall freely only until you reach that speed.
+  - A monster or a prop on the rope can go farther: a monster walks away, a prop hanging under the gun is lowered to
+    the floor.
+  - Anything faster than the rope runs out is still held back to that speed.
+  - A reel pays out only what pulls on it. A load that stays where it is gets 4 units of slack and no more, so holding
+    the button never piles up rope.
+- **On the ground**, and swimming, the button is just its key: A jumps (X reloads) and nothing unreels. A press that
+  began on the ground, such as a jump, does not unreel once you are in the air either; let go and press again.
+  Holding B or Y as well: the reel wins.
+- **Feel:** the unreel has its own sound, `vr/grapple_unreel.wav` (the reel's ratchet backwards: each click reversed,
+  its ring swelling into the snap, lighter and quicker, 38 a second, over a thinner whirr). It plays while the rope
+  runs out. In the hand you feel a fine, quick tick every 35 ms at 200-260 Hz, stronger with a heavier load. Both
+  stop when nothing pulls, so you can feel whether rope is going out.
+- **The rope** is drawn in one piece along its curve. A short rope sagging deep is now a smooth, joined chain of the
+  same yellow crystals: before, it was straight links with gaps between them.
+
+| Setting (Grappling Hook page) | Cvar | Default | |
+|---|---|---|---|
+| Unreel Speed | `vr_grapple_unreel_speed` | 300 u/s | 0: no unreel |
+| Unreel Button Only When Airborne | `vr_grapple_unreel_airborne` | on | off: A/X unreels on the ground too, and its key (jump) still acts |
+
+These are new cvars with their defaults, so there is no config migration (42 is not used).
+
+### How it works
+
+- **The button** is sent the way the reel's B/Y is:
+  - The engine keeps each hand's lower face button held as the game gets it (`vr_input.cpp` `primaryHeld`: in the
+    game, not taken by the posing mode). Its key still goes through as before.
+  - It is sent with the move (`QVR_BUTTON_*HANDPRIMARY`, bits 6 and 7 of the button byte).
+  - The server puts it in `.vrbits0` bits 21 and 22 (`QVR_VRBITS0_*HAND_PRIMARY`, `VRGetEntPrimaryPressed`).
+- **The unreel** (`QC/vr_grapple.qc`):
+  - `VR_Grapple_UnreelButton` decides from the press, the ground (`FL_ONGROUND`), the water (`waterlevel` 2) and the
+    setting. A button already held when the hook is fired does not count.
+  - `VR_Grapple_Payout` sets the rope's pay-out speed: from a fifth to full in 0.15 s, like the reel; after release it
+    brakes at 2500 u/s².
+  - `VR_Grapple_Unwind` lengthens the rope, to no more than 4 units past the load's distance and the 2700-unit
+    maximum.
+  - Hanging, `VR_Grapple_HoldPlayer` gets the pay-out as a negative reel speed: your speed away from the hook is capped
+    at it.
+  - The rope snaps taut (twang, jolt) only when something outruns the pay-out.
+  - A prop hanging at the gun is no longer steadied while the rope pays out, so it is let down.
+- **The rope drawn** (`Quake/vr/vr_rope.cpp`, new; the slack code moved there from `vr_client.cpp`):
+  - The curve is the parabola as before, with its slack eased and lying on the floor where it would go through it. Its
+    sample count is chosen for its bend: the chord at most 0.05 units off the curve, at most 3° between samples, no
+    closer than 0.5 units, 8 to 160 pieces (it used to be 17, whatever the rope).
+  - Rogue's links (progs/beam.mdl, a quarter size, one every 30 model units as before) are laid end to end along the
+    curve's length. Each one is bent with the curve on the GPU (`gfx::drawBent`, `vr_gfx_gl.cpp`), so the chain is one
+    piece: no gaps, no straight pieces, however it curves.
+  - The shader looks up each vertex's place along the curve by a binary search of the samples' arc lengths. The model's
+    axes are carried along the curve with the least twist, from the engine's own frame for a beam's link (pitch and
+    yaw, no roll), so a taut rope looks exactly as before.
+  - The shading is the alias models': the skin's fullbright texels unlit (the chain is all fullbright), clamped to the
+    scene's brightest, and fogged.
+  - Every grappling rope is drawn this way, taut or slack, and so are other players' ropes (before, only your own
+    hung).
+  - If a replacement model is not an MDL, the rope is drawn as before (straight links).
+- **Floor traces** are bounded: at most 40 a rope, evenly spaced.
+  - Between two traced points that both lie on the floor, the points lie on the line between them (on a flat floor,
+    on it).
+  - Where the rope leaves the floor, every point is traced.
+  - Before this, the long rope below cost 150 traces a frame (0.100 ms); now it costs 0.036 ms.
+- **Profiler:** a new system, **grapple rope** (the curve, the upload and the GPU draw).
+
+### Checked (mock headset; `grapple2/*.log`, `*.png`)
+
+- **Ground, then ceiling** (`unreel.sh`; e1m1's tall room by the exit, ceiling 280 units up, hook at 165 2876 128):
+  - **On the ground:** A (with its `+jump`: in a mock script a button's binding runs only after the script) jumps
+    (z -150 -> -138), and the log shows `unreel button on the ground: its key (jump), no unreel`. The rope stays 286
+    for the whole jump with A held.
+  - **Reeled up:** 286 -> 40 in 1.12 s.
+  - **Hanging, A for 0.3 s:** the rope goes 40 -> 136 (the brake included), paying out up to 180-300 u/s. You drop from
+    z 88 to about 6.
+  - **Let go:** you hang still at 136.
+  - **A again:** 136 -> 282, 300 u/s at full speed, until you reach the floor (z -140). On the floor, pressing again
+    pays nothing out: nothing pulls.
+- **A weapon hanging at the gun** (`unreel_prop.sh`, Unreel Button Only When Airborne off, standing): it is reeled in
+  (rope 206 -> 14) and hangs 23 units under the gun. Holding A lowers it onto the floor (rope 14 -> 59, the weapon at
+  z 19, still).
+- **A grunt** reeled in (rope 236 -> 64), then you walk back (`+back`, about 330 u/s) holding A:
+  - the rope pays out at 300 u/s (64 -> 372) and the grunt mostly stays;
+  - then you walk back without A: the rope holds, and the grunt is dragged at 398 u/s.
+- **The rope, before and after** (`ropeshots.sh`: the firing range's func_wall bitten from 160 units, then walked up to
+  50 and 80 units of it). Left and right eye images are in `grapple2/before/` and `after/`; `cmp_0.png` to `cmp_3.png`
+  are side by side, `cmp_1_zoom.png` zoomed.
+  - Before: from the side, the bottom of the curve has a hole and a link sticking out straight.
+  - After: one smooth chain, the same crystals and the same brightness.
+  - From the eye, the rope drops from the gun and rises to the hook without a break.
+- **Long slack rope** (`slackshots.sh`; e1m1's corridor wall bitten 750 units off, then 550 closer): it still lies on
+  the floor and rises to the gun; taut, it is a straight line.
+
+### Cost (`measure.sh`, `measure_long.sh`: exclusive runs, the profiler's 5 s table, mock eyes)
+
+| | CPU a frame | GPU a frame |
+|---|---|---|
+| Short rope sagging (65 units, 130 samples, 9 links) | 0.018 ms (the curve 10-15 µs) | 0.001 ms |
+| Long rope on the floor (650 units, 150 samples, 87 links) | 0.036 ms (0.100 before the bounded traces) | 0.001 ms |
+| Taut rope (2 samples) | 2-5 µs | |
+| Before (Rogue's links as entities, the short rope) | +0.019 ms models, 30 more alias models | within noise |
+
+### In the headset
+
+- [ ] Hang from a ceiling and hold A (right hand) or X (left hand): you go down smoothly. Let go: you stop gently and
+  stay. Is 300 u/s a good speed? Does the ticking sound and feel right for letting rope out?
+- [ ] On the ground, A only jumps. Jump and keep A held: no unreel until you press again.
+- [ ] Reel a monster in, then hold A while backing away: it is not dragged. Reel a weapon to the gun, then hold A: it
+  is lowered.
+- [ ] A short rope sagging near you: one smooth chain, no holes? It should look the same as before when taut.
+
+## Debug menu; quad sound; grenade catch default; no empty-hand deflection
+
+Your voice notes (29 September): "make sure `vr_debug_ledges` and similar debug flags or debug actions are accessible in
+the VR debug menu without having to use the console"; the Quad sound "should only play the attack sound if I'm actually
+swinging a sword, hitting an enemy, or performing an action that actually deals damage, not only if I'm pressing the
+trigger"; "I had changed the setting to support also grabbing my own grenades. I don't know why it was reverted, but I
+want that to be the default"; and "reflecting grenades should only be possible when you have a weapon in your hand". You
+chose all projectiles for the last one. Branch `agent/misc23`; scripts and logs in the scratchpad's `misc23/`.
+
+### The Debug pages
+
+Advanced VR Options > Debug (64) keeps Voice Notes and links six pages (66-71). Every page has 30 rows or fewer, and
+every row has a line of help:
+
+| Page | Rows | What is on it |
+|---|---|---|
+| **Views** | 9 | drawn in the world: Show Physics Shapes, Show Hand Bones (both were on Debug), **Show Ledges** (`vr_debug_ledges`: off, within 256, 512 or 1024 units), Show Grab Test (`vr_debug_carry`), Show Body Skeleton (`vr_body_debug`: the skeleton, or the body in front facing you or from its left), Show Body Collisions, Show Model Collisions (logged, or logged and drawn), Show Foveation, Show Entity Boxes (Ironwail's `r_showbboxes`, single player) |
+| **Logging** | 18 | Developer Messages (`developer`: some logs are the game's developer messages), then the logs: Shots and Damage (`vr_debug_shots`), Throws, Climbing, Swim Strokes, Grappling Hook, Wounds, Grasp, Physics Bodies, Rocks and Bricks Placement, Torch Lights, Arm IK, Bot Chatter; Trace Files: Grasp, Weight, Lean |
+| **Profiling and Memory** | 13 | the profiler's rows (were on Debug), GPU Timing (`vr_profile_gpu`), Report Interval (`vr_profile_interval`), Print Report, Dump Profile; Memory Log, Memory Log: GPU (were on Debug), Print Memory Now (`vr_memstats`) |
+| **Reports** | 27 | buttons printing once to the console and the wrist log: Headset (`vr_status`), Player, View, Body Calibration, Wrists and Grips; Physics Props, Props in Floors, Weights (`vr_weight_table`), Ledges Ahead (`vr_climb_probe`), Rocks and Bricks, Wounds, Decals and Gore, Model Lighting, Ambient Occlusion; Hand Rig, Grasp Spheres, Grip Frames, Hotspots Check, Sight Lines, Sight Check, Wrist Gadget; Microphones, Detail Textures |
+| **Tools** | 18 | Rebuild Ledge Map (`vr_ledges rebuild`), Reload Models (`vr_model_reload`), Reload Hand Model (`vr_hand_reload`), Reload Detail Textures; saved to files: Wound Masks, Decal Atlas, Hand Mesh, Gadget Screen, Reflection Map, Weight Test; test effects: Blood and Gore, Gore Burst, Test Light, Test Message, Eject a Casing |
+| **Tests** | 14 | Ahead of You: Thing (`vr_test_spawn`: 18 monsters, 4 boxes), Distance, As a Corpse, Put It There (impulse 241); At You: Projectile (`vr_test_projectile`), From the Left, Fire at Me (impulse 246), Make an Ogre Throw (impulse 240); Cheats: God Mode, Quad Damage, All Weapons |
+
+Screenshots (the scratchpad's `misc23/`): `debug_pages.png` (the seven pages), `views.png` (the world with Show
+Ledges, Show Physics Shapes and Show Entity Boxes on, and the ogre Put It There put ahead).
+
+**Decided:**
+- **Split by what you do with it:** look (Views), read as it happens (Logging), time (Profiling and Memory), ask once
+  (Reports), change or make (Tools), set up a test (Tests). Each is a list of one line per row, and the comment above
+  the Debug page says which page a new flag goes on, for the agents adding theirs (`vr_debug_hands`, the hitbox
+  debug...).
+- **A button is a console command** (`command("Label", "vr_something args")`), run next, ahead of anything waiting in
+  the command buffer. A command registered only once its part of the game runs (the gadget's, the physics') prints
+  "not available yet" instead of "unknown command".
+- **Where the output goes:** a report prints to the console, so it shows in the wrist log (`vr_notify_wrist`) and in
+  `qconsole.log`. Long ones (View, Detail Textures) are for the log file.
+- **Tests are in the headset:** the test impulses and their settings are what you test batting, catching and the
+  new monsters with. The cheats are there because those tests want them.
+- **Left in the console:** the mock headset (`vr_mock_*`), the automated tests' settings (`vr_fixed_frames`,
+  `vr_particle_seed`, `vr_debug_weight_stamina`, `vr_window_log`), and commands that need numbers typed or freeze the
+  game (`vr_test_remove <n>`, `vr_physics_blast/pile/pyramid/stack/loose <...>`, `vr_rigid_place`, `vr_climb_try`,
+  `vr_anchor_*`, the three `*_bench` benchmarks, `vr_particle_test <preset>`). Also `vr_physics_hash` (for the
+  determinism tests) and `vr_checkbindings` (not a debug tool: it rewrites your binds).
+- The weapon-tuning aids (Show Hotspots, Show Sight Line, Show Controller and its laser) stay on Weapon Offsets, where
+  they are used.
+
+**Coverage** (`menu_vr dump` before, on f03dacd0, and after the merge of vr-cleanup; `menu_coverage.py`, `coverage.txt`):
+730 options before, 808 after, **none lost**, none on more pages than before; 78 new (76 on the Debug pages, and
+grapple2's two unreel settings on Grappling Hook); 9 moved from Debug to its pages. 71 pages reached, at most 3 deep, none over 30 rows.
+
+**Checked by clicking** (the mock's A on a row): Headset printed `vr_status`, Rebuild Ledge Map `ledges: maps/vrfiringrange.bsp:
+... 410 ledges`, God Mode `godmode ON`, Microphones the device list, Put It There the ogre ahead (`views.png`).
+
+### Quad Damage's sound
+
+**Cause:** `W_WeaponFrameImpl` (weapons.qc) played it for any trigger press before `W_Attack`, whatever the hand held.
+With a sword, the fist, a prop, the grappling hook or an empty gun (the click), the trigger does no damage, and the
+sound played anyway, at most once a second.
+
+**Now:** `VR_QuadSound` (combat.qc) plays it, still at most once a second, when you deal damage:
+- a gun's shot: the shotguns, the grenade and rocket launchers, the proximity gun where they fire, the nailguns, the
+  lightning gun and the laser cannon at each shot, as before;
+- a blow landing on something that takes damage (`T_Damage_VRMelee`: a sword, the axe, Mjolnir, a gun's butt, a fist,
+  a club, the headbutt);
+- a bash or shove that hurts, and the grappling hook biting a monster.
+
+`vr_debug_shots 1` prints `quad sound: <why>`.
+
+| Case (`t.py Q`, Quad on) | Before | Now |
+|---|---|---|
+| Q1 sword held, trigger held 1.5 s, no swing | the sound (the trigger) | none |
+| Q2 a sword blow at a grunt | the sound (only if the trigger was pressed) | `quad sound: a blow landed` |
+| Q3 empty hand, trigger held | the sound | none |
+| Q4 the shotgun fired | the sound | `quad sound: a shot` |
+
+(The build before logs no sound, so its column is from the code: the trigger's branch ran for every weapon.)
+
+### Catch Grenades: "Ogres' and yours" by default
+
+`vr_grenade_catch` defaults to 2. A config holding the old default 1 moves to 2 once (config version 41; a config
+can't tell the default from a choice, so a deliberate "Ogres'" moves too). One that chose Off keeps it.
+
+**Why yours went back to "Ogres'":** two copies of the game were open on the same config, and the one that quit last
+wrote its own settings over yours. The game writes every setting to `ironwail.cfg` when it quits, as that copy has it.
+The memory log shows the sessions (`quakevr/profile/memstats_*.csv`, one file per start):
+- a copy started at 16:51 on `vrwip` (TrenchBroom's test map, `vrwip.map` saved 17:56) ran until at least 17:45;
+- your headset session started at 17:06, in the firing range, and quit between 17:44 and 17:45. At 17:27 you chose
+  "Ogres' and yours" in it ("I also enabled it for my own grenades").
+- The 16:51 copy had read the config before you changed it (Catch Grenades then the new setting's default, 1). It quit
+  last, after 17:45:05, and wrote 1.
+- The sessions after (17:51, 17:59, and tonight's from 00:36) started with 1. Your note at 00:51 found it reverted. You
+  set it again then (your config now has 2).
+Nothing in the game changed it: no migration touches it, it is archived, the menu writes 0, 1 or 2, and `vr_defaults.cfg`
+doesn't set it. The same would happen to any setting changed in one copy while another is open.
+
+**Fixed:** the game merges the config as it writes it (`VR_ConfigMergeOthers`, vr_cvars.cpp). When the game folder's
+config is loaded, the game remembers the file's settings and its own values. When it writes the config (quitting,
+`writeconfig`, the takes review), it compares:
+- a setting changed in the file since then (by another copy) and left alone in this copy takes the file's value, and
+  the console says `<cvar> "<value>": from another copy of the game (this one left it at "<value>")`;
+- a setting changed in this copy is written as this copy has it (if both changed it, the last to quit wins);
+- after the write, the file is this copy's again.
+Only settings merge, not key bindings. A copy started with `-noconfigwrite` (the takes review's second copy) writes
+nothing, as before.
+
+**Tested** (`m.sh`, `m.log`): a config saved by the previous version (`vr_cfg_version "34"`, `vr_grenade_catch "1"`):
+- **M0**, after loading: version 41, Catch Grenades 2. `writeconfig` then wrote 2 and version 41. With no other copy
+  there is nothing to merge, so the migration isn't undone.
+- **M1**, a shell script playing the other copy: this copy set `vr_melee_speed 2.9`, then the other copy's file got
+  `vr_grenade_catch "0"`, `vr_deflect "0"` and `vr_melee_speed "3.3"`. `writeconfig` printed the two lines "from another
+  copy", for Catch Grenades and Bat Back Projectiles. The file and the game then have 0, 0 and 2.9 (this copy's melee
+  speed).
+- **M2**, written again with nothing changed elsewhere: no merge.
+
+### Empty hands don't bat projectiles back
+
+**What counts as armed** (`VR_Melee_HoldsWeapon`, vr_melee.qc): a weapon (a sword, the axe or Mjolnir, any gun) or a
+**club**, a carried prop with a melee tip: the wall torch, a whole brick, a rock, or any prop you give a Tip in Held
+Object Offsets. They strike as weapons already, so they bat too. **Not armed:** an empty hand, a fist, an open palm,
+the flashlight, a box, a gib, anything without a tip, and a prop carried with both hands.
+
+**Now:**
+- **A swing** (`VR_Deflect`, vr_juice.qc) bats only with an armed hand. An empty hand's lines are no longer kept.
+- **A bash** (`VR_Bash_Deflect`, vr_melee.qc) bats only when the push is a bash, a weapon or club held across, and
+  only off the armed hands' lines. An empty hand, and the gap between the hands, no longer count. The line between the
+  hands still counts when both hold weapons.
+- **A shove with open palms** bats nothing, whatever the other hand holds. It used to push grenades away, and batted
+  everything if the other hand held a weapon.
+- **A projectile meeting an empty hand** flies on and hits you. A grenade is caught if the hand's grip is closed or
+  closing, as before: the catch is unchanged, force grab too.
+- The menu's help (Batting and Catching) says so.
+
+**Tested** (`t.py N`, current hand defaults, `god`; the projectiles from `impulse 246`):
+
+| Case | Before (f03dacd0) | Now |
+|---|---|---|
+| N1 empty hand, punch at 5.5 m/s at an ogre's grenade | batted by the swing, out at 605 u/s | not batted. The fist, closed, stops where the grenade arrives: caught (as a fist held out) |
+| N2 empty hand, punch at a knight's spike | flies on | flies on |
+| N3 two open palms shove at 3 m/s at an ogre's grenade | pushed away by the shove, 1125 u/s | not batted: hits you |
+| N4 two open palms shove at a spike | flies on (the shove pushed only grenades) | flies on |
+| N5 fist held out still | caught | caught |
+| N6 reach at 2.6 m/s, grip closing as it arrives | caught | caught |
+| N7 the shotgun thrust at 5.5 m/s at a spike | batted by the bash, 945 u/s | batted by the bash, 945 u/s |
+| N8 the shotgun thrust at an ogre's grenade | batted by the bash | batted by the bash |
+| N9 the shotgun held down, the off palm shoving at a spike | batted by the bash (the gun's line counted) | flies on |
+
+- **Armed bashes and swings unchanged:** projfix's `W` (two- and one-handed sword bashes and a sword swing at a spike;
+  old hand settings, set and printed). All 10 are batted before and after. With `vr_fixed_frames 1` every direction
+  and speed matches the base build to float noise (the same as between two runs of one build).
+- **Melee detection unchanged:** the 46 canary takes (from `motions/pre_calibration_2026-09-28/`, replayed with your
+  OLD hand settings, `vr_gunangle 39.5`, `vr_gunyaw 4`, every `vr_handcal_*` 0, `vr_handcal_off_mirror 0`, set and
+  printed): 41 pass on this branch and on its base, built side by side, **0 differ** in verdict or events. (The kit's
+  baseline file is older than the weight and damage changes: 22 takes differ from it in damage on both builds.)
+
+### In the headset
+
+- [ ] Debug > Views > Show Ledges: the lips round you, green. Are the pages' groups right, and is anything missing?
+- [ ] Debug > Tests: put an ogre ahead, make it throw, fire a spike at you.
+- [ ] With Quad, hold the sword and squeeze the trigger: silence. Hit something: the sound.
+- [ ] Catch Grenades says "Ogres' and yours". Change a setting with a TrenchBroom copy open, quit both (in either
+      order): it stays.
+- [ ] Punch or shove a spike or a grenade with empty hands: it isn't batted (a grenade is caught with the grip closed).
+      With a gun, a sword or a wall torch, swing or bash it: batted.
