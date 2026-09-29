@@ -11,7 +11,10 @@
 # remove items freely; changing an item's wording un-ticks it.
 
 [Test in VR]
-Grenade pouch: sliders re-tested after your angles become the defaults
+Grenade pouch: the grenade's angle at the new defaults (pitch -180, yaw 90)
+Prop area (vrfiringrange, south-west corner): table height, tiny rocks easy to grab?
+Prop area: is the torch wall too bright?
+Checklist page: laser and sticks on multi-line items, dimming, icon
 Batting by weight: a weak flick barely moves a heavy box; light things still bat well (Carrying: Hand/Weapon Mass, Push Force)
 Held props in both hands meet, with up to 5 cm of give and a buzz (Held Things Collide, Collide Give)
 Held prop swung through monsters never drops
@@ -29,6 +32,8 @@ Hitbox width: 20 or 16?
 Hitbox: does your box against monsters, items and shots stay at 32?
 Held prop 32 units behind a wall: keep the drop, or never drop while held?
 Flung props Hurt Players: off by default OK?
+
+Ship vr_world_scale 1.2 and vr_floor_offset -22 as defaults, or keep them personal?
 
 [Tune]
 Stamina costs: shove, strike, melee, parry, climbing
