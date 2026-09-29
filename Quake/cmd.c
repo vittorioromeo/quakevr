@@ -63,6 +63,7 @@ Cmd_CfgMarker_f
 ===============
 */
 static qboolean in_cfg_exec = false;
+qboolean config_not_loaded = false; // QVR: the saved config was too large to run (Cmd_Exec_f)
 static void Cmd_CfgMarker_f (void)
 {
 	in_cfg_exec = false;
@@ -85,7 +86,9 @@ Cbuf_Init
 */
 void Cbuf_Init (void)
 {
-	SZ_Alloc (&cmd_text, 1<<18);		// space for commands and script files. spike -- was 8192, but modern configs can be _HUGE_, at least if they contain lots of comments/docs for things.
+	// QVR: 4 MiB (was 1<<18): Quake VR's saved config passed 256 KiB (the per-weapon settings), and a config larger than
+	// the buffer was not run at all ("Cbuf_AddText: overflow"): every setting at its default, then saved so at quit.
+	SZ_Alloc (&cmd_text, 1<<22);		// space for commands and script files. spike -- was 8192, but modern configs can be _HUGE_, at least if they contain lots of comments/docs for things.
 }
 
 
@@ -338,7 +341,17 @@ exec:
 		Cbuf_InsertText ("__cfgmarker");
 	}
 	if (!strcmp (path, CONFIG_NAME))
+	{
+		// QVR: a saved config too large for the command buffer is not run: then it is not written over at quit either
+		// (Host_WriteConfiguration), so the player's settings are kept in the file.
+		if (cmd_text.cursize + (int) strlen (f) + 64 >= cmd_text.maxsize)
+		{
+			Con_Printf ("\x02%s is too large to run (%d bytes, the command buffer holds %d): your settings were not "
+				"loaded, and it will not be saved over\n", path, (int) strlen (f), cmd_text.maxsize);
+			config_not_loaded = true;
+		}
 		Cbuf_InsertText ("\nvr_migrate_config\n"); // QVR: after the saved config, changed defaults reach it
+	}
 	Cbuf_InsertText (f);
 	if (f != default_cfg) {
 		Hunk_FreeToLowMark (mark);

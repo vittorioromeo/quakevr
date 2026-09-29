@@ -40,6 +40,7 @@ The game starts with a Cbuf_AddText ("exec quake.rc\n"); Cbuf_Execute ();
 */
 
 void Cbuf_Init (void);
+extern qboolean config_not_loaded; // QVR: the saved config was too large to run: not written over (Host_WriteConfiguration)
 // allocates an initial text buffer that will grow as needed
 
 void Cbuf_AddTextLen (const char *text, int l);

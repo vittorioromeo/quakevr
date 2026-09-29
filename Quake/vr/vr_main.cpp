@@ -1069,6 +1069,7 @@ extern "C" void VR_BeginFrame()
     posing::frame();     // the weapon posing mode's text, likewise
     sightalign::frame(); // Align Sights to My Aim: its countdown, text and state
     bodycal::frame();    // Body Calibration: its steps, text, ghost and preview
+    configFrame();       // the config saved as the menu closes, if a setting changed (the preview taken off above)
     memLogFrame();
     profile::overlay();  // the profiler's panel (vr_profile_overlay)
     throwing::filterGrips(state->tracking); // the analog grip's release, before it becomes a key

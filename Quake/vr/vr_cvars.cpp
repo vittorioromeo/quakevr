@@ -381,6 +381,7 @@ void registerCvars()
 extern "C" void VR_ConfigMergeOthers(const char* path)
 {
     using namespace qvr;
+    bodycal::endPreview(); // a previewed calibration is not what is set (the page shows it again the next frame)
     if(!configTrack.on || configTrack.gamedir != com_gamedir)
     {
         return;
@@ -414,3 +415,39 @@ extern "C" void VR_ConfigWritten(const char* path)
         trackConfig(path);
     }
 }
+
+namespace qvr
+{
+
+void saveConfigNow()
+{
+    // Not before the game folder's config is read (it would be written over with the defaults).
+    if(!configTrack.on || configTrack.gamedir != com_gamedir)
+    {
+        return;
+    }
+    int changed = 0;
+    for(const auto& [name, value] : archivedSettings())
+    {
+        const auto was = configTrack.here.find(name);
+        changed += was == configTrack.here.end() || !sameValue(was->second.c_str(), value.c_str()) ? 1 : 0;
+    }
+    if(changed > 0)
+    {
+        Con_DPrintf("config: %d setting%s changed, saved\n", changed, changed == 1 ? "" : "s");
+        Host_WriteConfiguration();
+    }
+}
+
+void configFrame()
+{
+    static bool wasOpen = false;
+    const bool open = key_dest == key_menu || key_dest == key_console;
+    if(wasOpen && !open)
+    {
+        saveConfigNow();
+    }
+    wasOpen = open;
+}
+
+} // namespace qvr

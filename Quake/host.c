@@ -426,6 +426,11 @@ void Host_WriteConfiguration (void)
 {
 	if (COM_CheckParm ("-noconfigwrite")) // QVR: a second copy of the game (the motion review's re-evaluation) leaves the config alone
 		return;
+	if (config_not_loaded) // QVR: the saved config could not be run (Cmd_Exec_f): writing this game's defaults would lose it
+	{
+		Con_Printf ("Not writing %s: it was not loaded\n", CONFIG_NAME);
+		return;
+	}
 	Host_WriteConfigurationToFile (CONFIG_NAME);
 }
 
