@@ -6,6 +6,7 @@
 #include "vr_hands.hpp"
 #include "vr_lines.hpp"
 #include "vr_main.hpp"
+#include "vr_mem.hpp"
 #include "vr_menu.hpp"
 #include "vr_menuui.hpp"
 #include "vr_still.hpp"
@@ -2033,6 +2034,15 @@ void debug_f()
     debugNext = true;
 }
 
+// The menu's texts, valid until the same function's next call (the menu draws them at once).
+struct BodycalReadouts
+{
+    std::string stepHelp;
+    std::string measured[4]; // measuredLine's
+    auto members() { return std::tie(stepHelp, measured); }
+};
+mem::Scratch<BodycalReadouts> readouts{"bodycal readouts"};
+
 } // namespace
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -2308,7 +2318,7 @@ const char* stepHelp(int i)
         return "";
     }
     const StepQuality& q = result.quality[i];
-    static std::string buf;
+    std::string& buf = readouts.stepHelp;
     buf = std::string(steps[i].help) + (q.note.empty() ? "" : std::string(" Last time: ") + q.note + ".") +
           " Takes this pose again; the others are kept.";
     return buf.c_str();
@@ -2518,18 +2528,19 @@ struct Split
     cvar_t* measured;
     cvar_t* tweak;
 };
+// (Addresses of the cvars: made at compile time.)
+constexpr std::array<Split, 7> splitList{{
+    {&vr_body_upper_arm, &vr_bodycal_upper_arm, &vr_body_tweak_upper_arm},
+    {&vr_body_forearm, &vr_bodycal_forearm, &vr_body_tweak_forearm},
+    {&vr_body_shoulders_back, &vr_bodycal_shoulders_back, &vr_body_tweak_shoulders_back},
+    {&vr_body_shoulders_up, &vr_bodycal_shoulders_up, &vr_body_tweak_shoulders_up},
+    {&vr_body_shoulders_out, &vr_bodycal_shoulders_out, &vr_body_tweak_shoulders_out},
+    {&vr_body_shoulder_up, &vr_bodycal_shoulder_rise, &vr_body_tweak_shoulder_rise},
+    {&vr_body_shoulder_forward, &vr_bodycal_shoulder_swing, &vr_body_tweak_shoulder_swing},
+}};
 [[nodiscard]] const std::array<Split, 7>& splits()
 {
-    static const std::array<Split, 7> list{{
-        {&vr_body_upper_arm, &vr_bodycal_upper_arm, &vr_body_tweak_upper_arm},
-        {&vr_body_forearm, &vr_bodycal_forearm, &vr_body_tweak_forearm},
-        {&vr_body_shoulders_back, &vr_bodycal_shoulders_back, &vr_body_tweak_shoulders_back},
-        {&vr_body_shoulders_up, &vr_bodycal_shoulders_up, &vr_body_tweak_shoulders_up},
-        {&vr_body_shoulders_out, &vr_bodycal_shoulders_out, &vr_body_tweak_shoulders_out},
-        {&vr_body_shoulder_up, &vr_bodycal_shoulder_rise, &vr_body_tweak_shoulder_rise},
-        {&vr_body_shoulder_forward, &vr_bodycal_shoulder_swing, &vr_body_tweak_shoulder_swing},
-    }};
-    return list;
+    return splitList;
 }
 
 // The default body's value of each (the shoulders'), under the tweak when uncalibrated.
@@ -2697,7 +2708,7 @@ void resetTweaks()
 
 const char* measuredLine(int i)
 {
-    static std::string lines[4];
+    std::string (&lines)[4] = readouts.measured;
     int n = 0;
     if(!calibrated())
     {

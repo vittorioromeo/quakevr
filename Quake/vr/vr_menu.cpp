@@ -15,6 +15,7 @@
 #include "vr_engine.hpp"
 #include "vr_gadget.hpp"
 #include "vr_main.hpp"
+#include "vr_mem.hpp"
 #include "vr_menu.hpp"
 #include "vr_menuui.hpp"
 #include "vr_motion.hpp"
@@ -309,6 +310,36 @@ using PageBuilder = std::vector<Item> (*)();
 [[nodiscard]] std::vector<Item> pageDebugTools();
 [[nodiscard]] std::vector<Item> pageDebugTests();
 
+// Texts the menu hands out by pointer (an Item holds const char*):
+// - readouts: an info line's or a help's text, valid until the same function's next call (the draw uses it at once);
+//   released at a map change like any scratch.
+struct MenuReadouts
+{
+    std::string motionNote, motionLastSaved, extendableHelp;
+    std::string weight[2];              // weightReadout, by hand
+    std::string weaponWeightsDamage[2]; // weaponWeightsDamageReadout, by line
+    std::string heldObjectMass;
+    std::string heldObjectDamage[2];    // by line
+    auto members() { return std::tie(motionNote, motionLastSaved, extendableHelp, weight, weaponWeightsDamage, heldObjectMass, heldObjectDamage); }
+};
+mem::Scratch<MenuReadouts> readouts{"menu readouts"};
+
+// - the pages' titles and choice names: the built pages' items point into them (a page writes its own only as it is
+//   built again, its old items replaced), so they are kept as long as the built pages (MenuPages): never released.
+struct PageTexts
+{
+    std::string weaponOffsetsTitle, weaponOffsetsInheritTitle;
+    std::vector<std::pair<float, std::string>> weaponOffsetsInheritNames; // the Inherit From choice's
+    std::string weaponWeightsTitle, weaponWeightsInheritTitle;
+    std::string heldObjectOffsetsTitle, heldObjectWeightsTitle;
+    auto members()
+    {
+        return std::tie(weaponOffsetsTitle, weaponOffsetsInheritTitle, weaponOffsetsInheritNames, weaponWeightsTitle,
+            weaponWeightsInheritTitle, heldObjectOffsetsTitle, heldObjectWeightsTitle);
+    }
+};
+mem::Cache<PageTexts> pageTexts{"menu texts", mem::Never};
+
 #include "vr_menu_props.inc"
 #include "vr_menu_pages.inc"
 #include "vr_menu_recording.inc"
@@ -321,14 +352,14 @@ using PageBuilder = std::vector<Item> (*)();
 // labelled with what it should be, for tuning the melee.
 [[nodiscard]] const char* motionNote()
 {
-    static std::string text;
+    std::string& text = readouts.motionNote;
     text = vr_motion_note.string[0] ? std::string{"note: "} + vr_motion_note.string : "no note (vr_motion_note)";
     return text.c_str();
 }
 
 [[nodiscard]] const char* motionLastSaved()
 {
-    static std::string text;
+    std::string& text = readouts.motionLastSaved;
     text = std::string{"last: "} + motion::lastSaved();
     return text.c_str();
 }
@@ -2293,7 +2324,7 @@ void weaponOffsetsHotspotRemove()
 std::vector<Item> pageWeaponOffsets()
 {
     using weapons::Key;
-    static std::string title;
+    std::string& title = pageTexts.weaponOffsetsTitle;
     int slot = vrActive() || cls.state == ca_connected ? weapons::heldSlot(weaponOffsetsHand) : -1;
     if(slot < 0 && cls.state == ca_connected)
     {
@@ -2319,8 +2350,8 @@ std::vector<Item> pageWeaponOffsets()
     const int heldSlot = slot;
     weaponOffsetsHeldSlot = heldSlot;
     weaponOffsetsInherit = weapons::inheritsFrom(heldSlot);
-    static std::string inheritTitle;
-    static std::vector<std::pair<float, std::string>> inheritNames;
+    std::string& inheritTitle = pageTexts.weaponOffsetsInheritTitle;
+    std::vector<std::pair<float, std::string>>& inheritNames = pageTexts.weaponOffsetsInheritNames;
     if(weaponOffsetsInherit >= 0)
     {
         slot = weaponOffsetsInherit;
@@ -2779,26 +2810,36 @@ RowAnchor leftAnchors[pageCount]; // each page's position as last shown (invalid
 int visits[pageCount]{};          // when each page was last shown (a count; 0: not since the start)
 int visitCount = 0;
 int builds[pageCount]{};          // how many times each page's list was built (its rows may have changed)
+std::string positionsParsed;      // vr_menu_positions as last read (loadPositions)
+bool positionsLoaded = false;
+
+// The pages' items, built on first use and again when a page's rows change (items()). Never released: the menu's
+// cursors and anchors are kept by row (and PageTexts with them).
+struct MenuPages
+{
+    std::vector<Item> built[pageCount];
+    bool done[pageCount]{};
+    auto members() { return std::tie(built, done); }
+};
+mem::Cache<MenuPages> menuPages{"menu pages", mem::Never};
 
 void loadPositions()
 {
     // Read again while no page has been shown, should the cvar change (the config executed after a
     // write, the console).
-    static std::string parsed;
-    static bool loaded = false;
-    if(loaded && (visitCount > 0 || parsed == vr_menu_positions.string))
+    if(positionsLoaded && (visitCount > 0 || positionsParsed == vr_menu_positions.string))
     {
         return;
     }
-    loaded = true;
-    parsed = vr_menu_positions.string;
+    positionsLoaded = true;
+    positionsParsed = vr_menu_positions.string;
     for(int p = 0; p < pageCount; p++)
     {
         savedAnchors[p] = {};
     }
 
     int rank = 0;
-    const std::string& text = parsed;
+    const std::string& text = positionsParsed;
     for(size_t start = 0; start < text.size();)
     {
         size_t end = text.find(';', start);
@@ -2830,8 +2871,8 @@ void loadPositions()
 // Built on first use (cvars looked up by name exist by then); items without their cvar dropped.
 [[nodiscard]] const std::vector<Item>& items(int page)
 {
-    static std::vector<Item> built[pageCount];
-    static bool done[pageCount]{};
+    std::vector<Item> (&built)[pageCount] = menuPages.built;
+    bool (&done)[pageCount] = menuPages.done;
     if(pages[page].build == pageWeaponOffsets && weaponOffsetsSlot >= 0 && editedHotspot() == weaponOffsetsHotspot &&
         weaponOffsetsHotspotType == static_cast<int>(weapons::HotspotType::None) &&
         weapons::hotspot(weaponOffsetsSlot, editedHotspot()).type != weapons::HotspotType::None)
@@ -3418,7 +3459,7 @@ void drawItem(const Item& item, int y, bool selected)
 // bar's ends and how far; that first while the value is on or past an end, where it matters.
 [[nodiscard]] const char* extendableHelp(const Item& item, const char* help)
 {
-    static std::string text;
+    std::string& text = readouts.extendableHelp;
     char lo[32], hi[32], hint[128];
     q_snprintf(lo, sizeof(lo), item.format, item.hardMin);
     q_snprintf(hi, sizeof(hi), item.format, item.hardMax);

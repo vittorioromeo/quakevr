@@ -18,6 +18,7 @@
 #include "vr_cvars.hpp"
 #include "vr_lighting.hpp"
 #include "vr_main.hpp"
+#include "vr_mem.hpp"
 #include "vr_meleehud.hpp"
 #include "vr_profile.hpp"
 #include "vr_text3d.hpp"
@@ -410,6 +411,8 @@ public:
     [[nodiscard]] const std::string& operator[](std::size_t i) const { return strings[i]; }
     [[nodiscard]] const std::string& back() const { return strings[count - 1]; }
 
+    friend std::size_t heldBytes(const Lines& l) { return mem::heldBytes(l.strings); } // (vr_mem.hpp)
+
 private:
     std::vector<std::string> strings;
     std::size_t count{0};
@@ -497,6 +500,27 @@ struct NotifyLine
     double seconds{0.0};
     bool game{false};
 };
+
+[[nodiscard]] std::size_t heldBytes(const NotifyLine& l) // (vr_mem.hpp)
+{
+    return mem::heldBytes(l.text);
+}
+
+// The hologram's and the wrist log's buffers, laid out again each frame (the main thread).
+struct GadgetScratch
+{
+    Lines messageLines;                               // a message's lines (makeMessage)
+    std::vector<bool> keep;                           // the queued messages shown (the hologram's queue)
+    std::string hologramKey;                          // the shown messages' text: its image's key
+    std::string hologramLine;                         // a line drawn into the image
+    std::vector<bool> used;                           // the image's blocks drawn this frame
+    Lines wrapped;                                    // the wrist log's lines (notifyLines: out.lines views them)
+    std::vector<std::pair<std::size_t, float>> picked; // those shown: wrapped's line, its alpha
+    NotifyLine notifyLine;                            // a console line read
+    std::string plain;                                // a line to check (VR_GameLineOnWrist)
+    auto members() { return std::tie(messageLines, keep, hologramKey, hologramLine, used, wrapped, picked, notifyLine, plain); }
+};
+mem::Scratch<GadgetScratch> scratch{"gadget"};
 
 // Whether a server print's line is the engine's own reply rather than the game's (the progs'): the
 // server's banner, a cheat's "godmode ON", setpos's and ping's figures, a server cvar changed, a pause.
@@ -672,7 +696,7 @@ constexpr double heldMax = 300.0;
 // `text` as a message: plain, its lines wrapped to holoColumns, the empty ones at its ends left out.
 void makeMessage(std::string_view text, HoloMessage& m)
 {
-    static Lines lines; // (scratch: the main thread's, one call at a time)
+    Lines& lines = scratch.messageLines;
     lines.clear();
     while(!text.empty())
     {
@@ -862,7 +886,7 @@ void collectMessages()
     std::erase_if(queue, [](const HoloMessage& m) { return !alive(m); });
 
     // The newest that fit: the waiting ones first, then the rest; one too long alone, its first lines.
-    static std::vector<bool> keep;
+    std::vector<bool>& keep = scratch.keep;
     keep.assign(queue.size(), false);
     int rows = 0, count = 0;
     for(const bool waiting : {true, false})
@@ -941,7 +965,7 @@ void renderHologram()
     {
         return; // the old image holds (its blocks are matched by their text)
     }
-    static std::string key; // (scratch kept between frames: its buffer)
+    std::string& key = scratch.hologramKey;
     key.clear();
     for(const HoloMessage& m : holoMessages)
     {
@@ -972,7 +996,7 @@ void renderHologram()
         for(int row = 0; row < m.rows; row++)
         {
             const size_t end = std::min(text.find('\n'), text.size());
-            static std::string line; // (scratch: a c_str for draw2D::text)
+            std::string& line = scratch.hologramLine; // (a c_str for draw2D::text)
             line.assign(text.substr(0, end));
             const float x = static_cast<float>(holoWidth - static_cast<int>(line.size()) * 8) * 0.5f;
             gfx::draw2D::text(x, static_cast<float>(y + holoPad + row * 8), 8.f, line.c_str());
@@ -1051,7 +1075,7 @@ void layoutHologram()
     const double life = hologramLife();
 
     // The blocks, newest first from the bottom up, each growing as it appears.
-    static std::vector<bool> used;
+    std::vector<bool>& used = scratch.used;
     used.assign(holoDrawn.size(), false);
     float y = 0.f, widest = 0.f, strongest = 0.f;
     double newest = -100.0;
@@ -1824,10 +1848,10 @@ bool log(Log& out)
 
     // Newest first, each console line's wrapped lines in reverse; turned round below. The game's
     // lines are the hologram's (vr_messages_hologram); the rest dimmer (vr_notify_wrist_alpha).
-    // The lines are kept here (out.lines views them) until the next call: nothing allocated from frame to frame.
-    static Lines wrapped;
-    static std::vector<std::pair<std::size_t, float>> picked; // wrapped's line, its alpha
-    static NotifyLine line;
+    // The lines are kept in the scratch (out.lines views them) until the next call: nothing allocated from frame to frame.
+    Lines& wrapped = scratch.wrapped;
+    std::vector<std::pair<std::size_t, float>>& picked = scratch.picked; // wrapped's line, its alpha
+    NotifyLine& line = scratch.notifyLine;
     wrapped.clear();
     picked.clear();
     const bool hologram = hologramOn();
@@ -2038,7 +2062,7 @@ extern "C" int VR_GameLineOnWrist(const char* text, int length)
     {
         return 0;
     }
-    static std::string plain; // (scratch kept between calls: its buffer; Con_DrawNotify's, one line at a time)
+    std::string& plain = scratch.plain; // (Con_DrawNotify's, one line at a time)
     plain.assign(text, static_cast<size_t>(std::max(length, 0)));
     for(char& c : plain)
     {

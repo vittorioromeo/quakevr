@@ -11,6 +11,7 @@
 #include "vr_hands.hpp"
 #include "vr_lines.hpp"
 #include "vr_main.hpp"
+#include "vr_mem.hpp"
 #include "vr_text3d.hpp"
 #include "vr_units.hpp"
 #include "vr_view.hpp"
@@ -1638,10 +1639,23 @@ void pick(int row)
     gen++;
 }
 
+namespace
+{
+
+// The menu's texts, valid until the same function's next call (the menu draws them at once).
+struct ReviewReadouts
+{
+    std::string summary, reviewed, eval, listTitle;
+    auto members() { return std::tie(summary, reviewed, eval, listTitle); }
+};
+mem::Scratch<ReviewReadouts> readouts{"review readouts"};
+
+} // namespace
+
 const char* summary()
 {
     ensure();
-    static std::string text;
+    std::string& text = readouts.summary;
     int total = 0, fail = 0, suspect = 0, reviewed = 0;
     for(const Take& t : takes)
     {
@@ -1661,7 +1675,7 @@ const char* summary()
 const char* reviewedLine()
 {
     ensure();
-    static std::string text;
+    std::string& text = readouts.reviewed;
     int kept = 0, relabelled = 0, discarded = 0;
     for(const Take& t : takes)
     {
@@ -1680,7 +1694,7 @@ const char* reviewedLine()
 const char* evalLine()
 {
     ensure();
-    static std::string text;
+    std::string& text = readouts.eval;
     if(jobRunning)
     {
         text = va("evaluating: %s (%.0f s)", jobProgress.c_str(), realtime - jobStart);
@@ -1700,7 +1714,7 @@ const char* listTitle()
 {
     ensure();
     static const char* const names[ShowCount] = {"To Review", "Failing", "Suspect", "Not Evaluated", "Reviewed", "All", "Discarded"};
-    static std::string text;
+    std::string& text = readouts.listTitle;
     const auto& list = categories();
     const int c = shownCategory;
     text = va("%s%s%s: %d", names[shownFilter], c >= 0 && c < static_cast<int>(list.size()) ? ", " : "",

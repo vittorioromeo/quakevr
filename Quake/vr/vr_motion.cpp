@@ -9,6 +9,7 @@
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
 #include "vr_main.hpp"
+#include "vr_mem.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_text3d.hpp"
@@ -1614,9 +1615,22 @@ void qcValue(const char* key, const float* value)
     }
 }
 
+namespace
+{
+
+// The menu's text, valid until the next call (the menu draws it at once).
+struct MotionReadouts
+{
+    std::string labelStatus;
+    auto members() { return std::tie(labelStatus); }
+};
+mem::Scratch<MotionReadouts> readouts{"motion readouts"};
+
+} // namespace
+
 const char* labelStatus()
 {
-    static std::string text;
+    std::string& text = readouts.labelStatus;
     const std::string label = chosenLabel();
     const std::string category = chosenCategory().choice.name;
     const int n = takeCount(label);

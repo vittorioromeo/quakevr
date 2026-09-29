@@ -12,7 +12,7 @@ void showPage(int target);
 // "Main: 8.0 kg x1.00, 1.2 cm 3.4 deg": what a hand holds as the weight sees it (the spring's offset from the hand).
 [[nodiscard]] const char* weightReadout(int hand)
 {
-    static std::string text[2];
+    std::string (&text)[2] = readouts.weight;
     const weight::Load l = weight::load(hand);
     const char* name = hand == 1 ? "Main" : "Off";
     if(!l.valid)
@@ -79,7 +79,7 @@ void weaponWeightsPrint()
 
 [[nodiscard]] const char* weaponWeightsDamageReadout(int line)
 {
-    static std::string text[2];
+    std::string (&text)[2] = readouts.weaponWeightsDamage;
     using weapons::Key;
     const int slot = weaponWeightsSlot;
     text[line] = damageReadout(weapons::value(slot, Key::Mass), weapons::value(slot, Key::MeleeDamage),
@@ -101,7 +101,8 @@ void weaponWeightsPrint()
 std::vector<Item> pageWeaponWeights()
 {
     using weapons::Key;
-    static std::string title, inheritTitle;
+    std::string& title = pageTexts.weaponWeightsTitle;
+    std::string& inheritTitle = pageTexts.weaponWeightsInheritTitle;
     // Opened with the chosen hand empty and a weapon in the other: that one.
     if(!weaponWeightsKeepHand)
     {
@@ -275,7 +276,7 @@ void heldObjectWeightsPrint()
 
 [[nodiscard]] const char* heldObjectMassReadout(int /* unused */)
 {
-    static std::string text;
+    std::string& text = readouts.heldObjectMass;
     const weight::Load l = weight::load(heldObjectHand);
     if(!l.valid || strcmp(l.model, heldObjectModel.c_str()) != 0)
     {
@@ -288,7 +289,7 @@ void heldObjectWeightsPrint()
 
 [[nodiscard]] const char* heldObjectDamageReadout(int line)
 {
-    static std::string text[2];
+    std::string (&text)[2] = readouts.heldObjectDamage;
     const weight::Load l = weight::load(heldObjectHand);
     if(!l.valid || strcmp(l.model, heldObjectModel.c_str()) != 0)
     {
@@ -302,7 +303,7 @@ void heldObjectWeightsPrint()
 std::vector<Item> pageHeldObjectOffsets()
 {
     using props::Key;
-    static std::string title;
+    std::string& title = pageTexts.heldObjectOffsetsTitle;
     std::vector<Item> list;
     if(!heldObjectBegin(list, title, heldObjectOtherHand))
     {
@@ -386,7 +387,7 @@ std::vector<Item> pageHeldObjectOffsets()
 std::vector<Item> pageHeldObjectWeights()
 {
     using props::Key;
-    static std::string title;
+    std::string& title = pageTexts.heldObjectWeightsTitle;
     std::vector<Item> list;
     if(!heldObjectBegin(list, title, heldObjectWeightsOtherHand))
     {
