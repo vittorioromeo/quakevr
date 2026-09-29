@@ -20,7 +20,7 @@
 //   with a mouse, and the trigger is the left mouse button there: it picks an item, sets a slider
 //   where it points and drags it, drags a list's scrollbar. The sticks, A and B work as
 //   before.
-// - "Back to game": a button at the panel's top left (or holding the menu button, vr_input.cpp)
+// - "Back to game": a button at the panel's top left (or the menu button, vr_input.cpp)
 //   closes the menu from whatever page it is on; opening it again (the menu button, Escape,
 //   togglemenu) returns to that page, its selection and scroll as they were (vr_menu_remember).
 //   Only that way of closing it is remembered: Escape from the main menu, or a menu closing

@@ -287,6 +287,12 @@ void registerCvars()
         Cvar_RegisterVariable(&var);
         Cvar_SetCallback(&var, onChanged);
     }
+    // The grenade pouch's turn in the hand (vr_grip.cpp) places a held grenade as these settings do: its changes count
+    // as theirs, so that the drawn grenade is placed again at once too (vr_held.cpp), not at its next take.
+    for(cvar_t* var : {&vr_grenade_pouch_hold_pitch, &vr_grenade_pouch_hold_yaw, &vr_grenade_pouch_hold_roll})
+    {
+        Cvar_SetCallback(var, [](cvar_t*) { generation++; });
+    }
     for(int key = 0; key < numKeys; key++)
     {
         keyDefaultValues[key] = static_cast<float>(atof(keyDefaults[key]));

@@ -1873,7 +1873,7 @@ std::vector<Item> pageDebugReports()
         command("Wrists and Grips", "vr_bodycal_debug").help("vr_bodycal_debug: one line a hand, next frame: the wrist and the grip."),
         header("World and Physics"),
         command("Physics Props", "vr_physics_list").help("vr_physics_list: the props in the physics (more with Physics Bodies logged)."),
-        command("Held Props", "vr_carry_check").help("vr_carry_check: each held prop drawn vs where the game has it in the hand, and the fist's gap to it (cm)."),
+        command("Held Props", "vr_carry_check").help("vr_carry_check: each held prop's place and axes in the hand, drawn vs where the game has it, and the fist's gap to it (cm)."),
         command("Props in Floors", "vr_physics_sink").help("vr_physics_sink: how far each prop sinks into the floor."),
         command("Weights", "vr_weight_table").help("vr_weight_table: the weapons' and props' masses (the level's props too)."),
         command("Ledges Ahead", "vr_climb_probe").help("vr_climb_probe: the ledges 16 to 64 units ahead of you, and why each holds or not."),

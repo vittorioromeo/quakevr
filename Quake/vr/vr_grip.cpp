@@ -514,6 +514,13 @@ glm::vec3 serverFromPouch(edict_t* e, const float* handAngles, const glm::vec3& 
     }
     Held& h = it->second;
     h.pouch = true;
+    // Taken at the same place in the hand every time (NOTES.md vrfiringrange_2026-09-30_00-09-12): its origin at the
+    // hand's, its axes the hand's (forward, left, up), whatever the hand's turn as it reached in. It was taken as it
+    // spawned, at the hand's angles, which a model turns with the pitch the other way (held::axesFromAngles): the hand's
+    // pitch and roll tipped it in the hand, so that it came out much the same way in the world, however the hand was.
+    // Now the grip (In the Palm) and vr_grenade_pouch_hold_* alone place it in the hand.
+    h.taken = {glm::vec3{0.f}, glm::mat3{1.f}};
+    h.kept = false;
     placeNow(h);
     physics::setCarryTurn(e, handAngles, h.now.rot);
     h.turnStale = false;

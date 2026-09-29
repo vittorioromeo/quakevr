@@ -401,7 +401,7 @@ context and screenshot, ready to paste or to point me at.
     strength); a bash needs a still, level guard first; waving does nothing.
   - **Render Scale fixed** (SteamVR's OpenGL path ignores swapchain resizes: the eyes are now rendered at the
     scale and resampled into fixed-size images).
-  - **Menus:** Back to game (top-left, or hold the menu button), reopen where you left, right stick scrolls;
+  - **Menus:** Back to game (top-left, or the menu button; B/Y go back a page), reopen where you left, right stick scrolls;
     live preview keeps the game running on settings pages.
   - **Water:** the HUD, menu and wrist log no longer wobble underwater; no halos round things over water.
   - **Swimming:** strokes judged whole, an intent threshold and stroke memory; a new Swimming page of knobs;
@@ -1266,7 +1266,9 @@ own lines (`hits`, `goes off`, `went off in player's hand`); `vr_debug_shots 1` 
 at the start's feet (`edict <n>` prints where): reach it at `vr_mock_hand main 0.03 -0.14 0` (the mock's floor is 7
 units over the map's there). The pouch from behind: `vr_mock_camera 0.25 1.15 0.95 8 15`; `give r 0` shows it empty.
 The grenade's turn from the pouch (`vr_grenade_pouch_hold_*`): `developer 1` prints `grip: from the pouch <n> ...
-its x ..., its z ...` at the take and `grip: placed again` as a slider moves. Carried pickups at the pouch:
+its x ..., its z ...` at the take and `grip: placed again` as a slider moves. `vr_carry_check` prints the drawn place and axes in the controller's
+frame (`drawn in the hand ...`): the same for any turn of the hand reaching in (round 21, "Menu button back to the game;
+...the pouch grenade's fixed turn"). Carried pickups at the pouch:
 `vr_rigid_place item_health main 0 3 0; +grabright; vr_mock_button main grip 1`, the hand to the pouch as above, then
 `vr_mock_button main grip 0; -grabright`: `carry: into the pack` and the pickup's message.
 

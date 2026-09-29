@@ -95,7 +95,8 @@ struct Prop
 // Held from where it is now (QC's carryangles at a regrip: the other hand let go of it, held in both): what it was taken
 // at becomes where it is (its offset taken off), so that its settings still move it.
 void serverKeep(edict_t* e, const float* handAngles, const glm::vec3& offset);
-// A hand grenade just taken from the pouch (QC's carrypouch, after carrygrip): turned in the hand on top of its grip by
+// A hand grenade just taken from the pouch (QC's carrypouch, after carrygrip): taken at a fixed place in the hand (its
+// origin and axes the hand's, however the hand was turned), then turned on top of its grip by
 // vr_grenade_pouch_hold_* (about its middle; mirrored for the left hand), placed again at once when they change, until a
 // regrip. Its turn set (its angles now) and its origin's place returned (`offset` if it isn't held).
 [[nodiscard]] glm::vec3 serverFromPouch(edict_t* e, const float* handAngles, const glm::vec3& offset);
