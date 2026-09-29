@@ -28,7 +28,7 @@ void Cmd_ForwardToServer (void);
 
 #define	MAX_ALIAS_NAME	32
 
-#define CMDLINE_LENGTH 256 //johnfitz -- mirrored in common.c
+#define CMDLINE_LENGTH 4096 //johnfitz -- mirrored in common.c (QVR: was 256: long -basedir paths cut the + commands)
 
 typedef struct cmdalias_s
 {
@@ -38,6 +38,16 @@ typedef struct cmdalias_s
 } cmdalias_t;
 
 cmdalias_t	*cmd_alias;
+
+// QVR: the aliases and commands defined (vr_limits)
+int Cmd_AliasCount (void)
+{
+	int n = 0;
+	const cmdalias_t *a;
+	for (a = cmd_alias; a; a = a->next)
+		n++;
+	return n;
+}
 
 qboolean	cmd_wait;
 
@@ -63,6 +73,7 @@ Cmd_CfgMarker_f
 ===============
 */
 static qboolean in_cfg_exec = false;
+qboolean config_not_loaded = false; // QVR: the saved config was too large to run (Cmd_Exec_f)
 static void Cmd_CfgMarker_f (void)
 {
 	in_cfg_exec = false;
@@ -78,6 +89,13 @@ static void Cmd_CfgMarker_f (void)
 
 sizebuf_t	cmd_text;
 
+// QVR: the command buffer grows as needed (Cbuf_Reserve). It was a fixed 256 KiB, then 4 MiB: Quake VR's saved config
+// passed 256 KiB (the per-weapon settings), and a config larger than the buffer was not run at all ("Cbuf_AddText:
+// overflow"), every setting at its default, then saved so at quit. Cbuf_Execute reads from cbuf_start instead of moving
+// the rest of the buffer down after every line (quadratic with a large config: 10,000 lines each moving ~130 KiB).
+static int	cbuf_start;
+cmdlimits_t	cmd_limits;
+
 /*
 ============
 Cbuf_Init
@@ -85,9 +103,65 @@ Cbuf_Init
 */
 void Cbuf_Init (void)
 {
-	SZ_Alloc (&cmd_text, 1<<18);		// space for commands and script files. spike -- was 8192, but modern configs can be _HUGE_, at least if they contain lots of comments/docs for things.
+	cmd_text.maxsize = 1<<20;
+	cmd_text.cursize = 0;
+	cmd_text.data = (byte *) malloc (cmd_text.maxsize);
+	if (!cmd_text.data)
+		Sys_Error ("Cbuf_Init: out of memory");
 }
 
+/*
+============
+Cbuf_Compact -- QVR
+
+The text Cbuf_Execute already ran removed from the front.
+============
+*/
+static void Cbuf_Compact (void)
+{
+	if (!cbuf_start)
+		return;
+	cmd_text.cursize -= cbuf_start;
+	memmove (cmd_text.data, cmd_text.data + cbuf_start, cmd_text.cursize);
+	cbuf_start = 0;
+}
+
+/*
+============
+Cbuf_Reserve -- QVR
+
+Room for l more bytes (and a terminator); false (and a message) only when the memory can't be had.
+============
+*/
+qboolean Cbuf_Reserve (int l)
+{
+	int newsize;
+	byte *newdata;
+
+	Cbuf_Compact ();
+	if (l < 0 || cmd_text.cursize + l >= cmd_text.maxsize)
+	{
+		if (l < 0 || l > (1 << 30) - cmd_text.cursize)
+		{
+			Con_Printf ("\x02" "Cbuf_AddText: overflow: %d more bytes of commands can't be held\n", l);
+			return false;
+		}
+		newsize = cmd_text.maxsize;
+		while (cmd_text.cursize + l >= newsize)
+			newsize *= 2;
+		newdata = (byte *) realloc (cmd_text.data, newsize);
+		if (!newdata)
+		{
+			Con_Printf ("\x02" "Cbuf_AddText: overflow: out of memory for %d bytes of commands\n", newsize);
+			return false;
+		}
+		cmd_text.data = newdata;
+		cmd_text.maxsize = newsize;
+	}
+	if (cmd_text.cursize + l > cmd_limits.cbuf_peak)
+		cmd_limits.cbuf_peak = cmd_text.cursize + l;
+	return true;
+}
 
 /*
 ============
@@ -98,25 +172,12 @@ Adds command text at the end of the buffer
 */
 void Cbuf_AddText (const char *text)
 {
-	int		l;
-
-	l = Q_strlen (text);
-
-	if (cmd_text.cursize + l >= cmd_text.maxsize)
-	{
-		Con_Printf ("Cbuf_AddText: overflow\n");
-		return;
-	}
-
-	SZ_Write (&cmd_text, text, Q_strlen (text));
+	Cbuf_AddTextLen (text, Q_strlen (text));
 }
 void Cbuf_AddTextLen (const char *text, int l)
 {
-	if (cmd_text.cursize + l >= cmd_text.maxsize)
-	{
-		Con_Printf ("Cbuf_AddText: overflow\n");
+	if (!Cbuf_Reserve (l))
 		return;
-	}
 
 	SZ_Write (&cmd_text, text, l);
 }
@@ -137,10 +198,16 @@ void Cbuf_InsertText (const char *text)
 	int		templen;
 
 // copy off any commands still remaining in the exec buffer
+	Cbuf_Compact ();
 	templen = cmd_text.cursize;
 	if (templen)
 	{
-		temp = (char *) Z_Malloc (templen);
+		temp = (char *) malloc (templen); // QVR: was Z_Malloc: a large remainder (a config) could exhaust the zone
+		if (!temp)
+		{
+			Con_Printf ("\x02" "Cbuf_InsertText: out of memory\n");
+			return;
+		}
 		Q_memcpy (temp, cmd_text.data, templen);
 		SZ_Clear (&cmd_text);
 	}
@@ -149,13 +216,14 @@ void Cbuf_InsertText (const char *text)
 
 // add the entire text of the file
 	Cbuf_AddText (text);
-	SZ_Write (&cmd_text, "\n", 1);
-// add the copied off data
-	if (templen)
+	if (Cbuf_Reserve (1 + templen))
 	{
-		SZ_Write (&cmd_text, temp, templen);
-		Z_Free (temp);
+		SZ_Write (&cmd_text, "\n", 1);
+// add the copied off data
+		if (templen)
+			SZ_Write (&cmd_text, temp, templen);
 	}
+	free (temp);
 }
 
 //Spike: for renderer/server isolation
@@ -173,23 +241,25 @@ Spike: reworked 'wait' for renderer/server rate independance
 */
 void Cbuf_Execute (void)
 {
-	int		i;
+	int		i, len;
 	char	*text;
-	char	line[1024];
+	char	stackline[1024];
+	char	*line;
 	int		quotes, comment;
 
-	while (cmd_text.cursize && !cmd_wait)
+	while (cmd_text.cursize > cbuf_start && !cmd_wait)
 	{
 // find a \n or ; line break
-		text = (char *)cmd_text.data;
+		text = (char *)cmd_text.data + cbuf_start;
+		len = cmd_text.cursize - cbuf_start;
 
 		quotes = 0;
 		comment = 0;
-		for (i=0 ; i< cmd_text.cursize ; i++)
+		for (i=0 ; i< len ; i++)
 		{
 			if (text[i] == '"')
 				quotes++;
-			if (text[i] == '/' && text[i + 1] == '/')
+			if (text[i] == '/' && i + 1 < len && text[i + 1] == '/')
 				comment = true;
 			if (!(quotes&1) && !comment && text[i] == ';')
 				break;	// don't break if inside a quoted string
@@ -197,33 +267,31 @@ void Cbuf_Execute (void)
 				break;
 		}
 
-		if (i > (int)sizeof(line) - 1)
-		{
-			memcpy (line, text, sizeof(line) - 1);
-			line[sizeof(line) - 1] = 0;
-		}
-		else
-		{
-			memcpy (line, text, i);
-			line[i] = 0;
-		}
+		// QVR: any length (was cut at 1023 characters, silently: a long cvar value lost its end)
+		line = i < (int) sizeof (stackline) ? stackline : (char *) malloc (i + 1);
+		if (!line)
+			Sys_Error ("Cbuf_Execute: out of memory for a %d-character command", i);
+		memcpy (line, text, i);
+		line[i] = 0;
+		if (i > cmd_limits.longest_line)
+			cmd_limits.longest_line = i;
 
-// delete the text from the command buffer and move remaining commands down
+// delete the text from the command buffer (QVR: by moving the read position; Cbuf_Compact before any insertion)
 // this is necessary because commands (exec, alias) can insert data at the
 // beginning of the text buffer
 
-		if (i == cmd_text.cursize)
-			cmd_text.cursize = 0;
+		if (i == len)
+			cmd_text.cursize = cbuf_start = 0;
 		else
-		{
-			i++;
-			cmd_text.cursize -= i;
-			memmove (text, text + i, cmd_text.cursize);
-		}
+			cbuf_start += i + 1;
 
 // execute the command line
 		Cmd_ExecuteString (line, src_command);
+		if (line != stackline)
+			free (line);
 	}
+	if (cbuf_start >= cmd_text.cursize)
+		cmd_text.cursize = cbuf_start = 0;
 }
 
 /*
@@ -338,7 +406,17 @@ exec:
 		Cbuf_InsertText ("__cfgmarker");
 	}
 	if (!strcmp (path, CONFIG_NAME))
+	{
+		// QVR: a saved config the command buffer could not hold (it grows: only out of memory) is not run: then it is not
+		// written over at quit either (Host_WriteConfiguration), so the player's settings are kept in the file.
+		if (!Cbuf_Reserve ((int) strlen (f) + 64))
+		{
+			Con_Printf ("\x02%s could not be run (%d bytes): your settings were not loaded, and it will not be saved "
+				"over\n", path, (int) strlen (f));
+			config_not_loaded = true;
+		}
 		Cbuf_InsertText ("\nvr_migrate_config\n"); // QVR: after the saved config, changed defaults reach it
+	}
 	Cbuf_InsertText (f);
 	if (f != default_cfg) {
 		Hunk_FreeToLowMark (mark);
@@ -513,7 +591,7 @@ void Cmd_Unaliasall_f (void)
 =============================================================================
 */
 
-#define	MAX_ARGS		80
+#define	MAX_ARGS		1024 // QVR: was 80 (more were dropped silently; now also a warning, Cmd_AddArg)
 
 static	int			cmd_argc;
 static	char		*cmd_argv[MAX_ARGS];
@@ -526,6 +604,15 @@ cmd_source_t	cmd_source;
 //static	cmd_function_t	*cmd_functions;		// possible commands to execute
 cmd_function_t	*cmd_functions;		// possible commands to execute
 //johnfitz
+
+int Cmd_CommandCount (void) // QVR (vr_limits)
+{
+	int n = 0;
+	const cmd_function_t *cmd;
+	for (cmd = cmd_functions; cmd; cmd = cmd->next)
+		n++;
+	return n;
+}
 
 /*
 ============
@@ -710,13 +797,123 @@ const char	*Cmd_Args (void)
 Cmd_AddArg
 ============
 */
+static qboolean cmd_args_warned;
+
 void Cmd_AddArg (const char *arg)
 {
 	if (cmd_argc < MAX_ARGS)
 	{
 		cmd_argv[cmd_argc] = Z_Strdup (arg);
 		cmd_argc++;
+		if (cmd_argc > cmd_limits.max_argc)
+			cmd_limits.max_argc = cmd_argc;
 	}
+	else if (!cmd_args_warned) // QVR: loud (the extra arguments were dropped silently)
+	{
+		Con_Printf ("\x02" "%s: more than %d arguments; the rest are ignored\n", cmd_argv[0], MAX_ARGS);
+		cmd_args_warned = true; // once per command (Cmd_TokenizeString)
+	}
+}
+
+/*
+============
+Cmd_ParseToken -- QVR
+
+COM_Parse's rules (whitespace, // and block comments, quoted strings, the single-character tokens), into a buffer
+that grows: an argument of any length. COM_Parse cut every token at 1023 characters (com_token), silently, so a long
+cvar value (vr_menu_positions, vr_bodycal_undo...) set from the config or the console lost its end.
+============
+*/
+static char		*cmd_token;
+static size_t	cmd_token_size;
+
+static void Cmd_TokenAppend (size_t *len, char c)
+{
+	if (*len + 1 >= cmd_token_size)
+	{
+		size_t newsize = cmd_token_size ? cmd_token_size * 2 : 1024;
+		char *newtoken = (char *) realloc (cmd_token, newsize);
+		if (!newtoken)
+			Sys_Error ("Cmd_ParseToken: out of memory for a %d-character argument", (int) *len);
+		cmd_token = newtoken;
+		cmd_token_size = newsize;
+	}
+	cmd_token[(*len)++] = c;
+	cmd_token[*len] = 0;
+}
+
+static const char *Cmd_ParseToken (const char *data)
+{
+	int		c;
+	size_t	len = 0;
+
+	Cmd_TokenAppend (&len, 0); // an empty token (and the buffer allocated)
+	len = 0;
+
+	if (!data)
+		return NULL;
+
+// skip whitespace
+skipwhite:
+	while ((c = *data) <= ' ')
+	{
+		if (c == 0)
+			return NULL;	// end of file
+		data++;
+	}
+
+// skip // comments
+	if (c == '/' && data[1] == '/')
+	{
+		while (*data && *data != '\n')
+			data++;
+		goto skipwhite;
+	}
+
+// skip /*..*/ comments
+	if (c == '/' && data[1] == '*')
+	{
+		data += 2;
+		while (*data && !(*data == '*' && data[1] == '/'))
+			data++;
+		if (*data)
+			data += 2;
+		goto skipwhite;
+	}
+
+// handle quoted strings specially
+	if (c == '\"')
+	{
+		data++;
+		while (1)
+		{
+			if ((c = *data) != 0)
+				++data;
+			if (c == '\"' || !c)
+				return data;
+			Cmd_TokenAppend (&len, (char) c);
+		}
+	}
+
+// parse single characters
+	if (c == '{' || c == '}'|| c == '('|| c == ')' || c == '\'' || c == ':')
+	{
+		Cmd_TokenAppend (&len, (char) c);
+		return data+1;
+	}
+
+// parse a regular word
+	do
+	{
+		Cmd_TokenAppend (&len, (char) c);
+		data++;
+		c = *data;
+		/* commented out the check for ':' so that ip:port works */
+		if (c == '{' || c == '}'|| c == '('|| c == ')' || c == '\''/* || c == ':' */)
+			break;
+	} while (c > 32);
+
+	return data;
 }
 
 /*
@@ -735,6 +932,7 @@ void Cmd_TokenizeString (const char *text)
 		Z_Free (cmd_argv[i]);
 
 	cmd_argc = 0;
+	cmd_args_warned = false;
 	cmd_args = NULL;
 
 	while (1)
@@ -757,11 +955,13 @@ void Cmd_TokenizeString (const char *text)
 		if (cmd_argc == 1)
 			 cmd_args = text;
 
-		text = COM_Parse (text);
+		text = Cmd_ParseToken (text); // QVR: was COM_Parse (an argument cut at 1023 characters)
 		if (!text)
 			return;
 
-		Cmd_AddArg (com_token);
+		if ((int) strlen (cmd_token) > cmd_limits.longest_token)
+			cmd_limits.longest_token = (int) strlen (cmd_token);
+		Cmd_AddArg (cmd_token);
 	}
 }
 

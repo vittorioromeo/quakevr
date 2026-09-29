@@ -2123,6 +2123,14 @@ void apply()
     S_LocalSound("misc/menu2.wav");
     Con_Printf("Body Calibration: applied (upper arm %.1f cm, forearm %.1f cm)\n", result.upper, result.fore);
     bump();
+    // Saved at once: the config was written only when the game quit, so a game ended otherwise (stopped from the
+    // debugger, killed) lost it (the author's calibration of 29 September, 00:41).
+    saveConfigNow();
+}
+
+void endPreview()
+{
+    setPreview(false);
 }
 
 void cancel()
@@ -2169,6 +2177,7 @@ void undo()
     applied = false;
     Con_Printf("Body Calibration: the settings from before it are back\n");
     bump();
+    saveConfigNow();
 }
 
 bool partial()
@@ -2683,6 +2692,7 @@ void resetTweaks()
     }
     Con_Printf("Body: the arm and shoulder tweaks are 0 (%s)\n", calibrated() ? "as measured" : "the default body");
     bump();
+    saveConfigNow();
 }
 
 const char* measuredLine(int i)

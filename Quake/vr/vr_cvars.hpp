@@ -19,4 +19,10 @@ extern cvar_t vr_backend;
 
 void registerCvars();
 
+// The game folder's config written now if an archived setting changed since it was last read or written (not in a copy
+// started with -noconfigwrite); configFrame: so, each time the menu closes. The config was written only when the game
+// quit, and a game ended otherwise (stopped from the debugger, killed) lost the session's settings.
+void saveConfigNow();
+void configFrame();
+
 } // namespace qvr

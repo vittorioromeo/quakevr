@@ -16,6 +16,8 @@
 #                 rising, growling swell, the tell before its blow
 #   grenade_fuse.wav, grenade_tick.wav  a caught grenade (QC vr_grenade.qc): lit (the lever's clink and a fuse's
 #                 crackling fizz), and its ticks, faster and faster until it goes off
+#   grenade_pouch.wav, grenade_pin.wav  hand grenades (QC vr_grenade.qc): one taken from the pouch or put back (the
+#                 leather's rustle and flap, iron knocking on iron), and its pin pulled (a rasp, then the ring's ping)
 #   torch_pull.wav, torch_out.wav, torch_light.wav, torch_hit.wav  wall torches (QC vr_walltorch.qc): pulled out of
 #                 its holder (a wooden scrape and a knock), its fire going out (a puff and a hiss), fire catching (a
 #                 whoosh and crackles), a burning torch's blow (a burst of flame)
@@ -511,6 +513,67 @@ def grenade_tick():
     return finish(out, 0.8, 0.01)
 
 
+# ---- Hand grenades (QC vr_grenade.qc; docs/vr-port/ROUND21.md, "Hand grenades from the back pouch"): one taken from
+# the pouch at the small of the back (or put back), and its pin pulled; the fuse is then grenade_fuse's.
+
+
+def grenade_pouch():
+    """A grenade taken out of the leather pouch (or put back): the leather's dry rustle and flap, and the grenade's
+    iron knocking against the other in it (a dull clack with a short ring)."""
+    rng = random.Random(241)
+    n = int(RATE * 0.38)
+    lp1, hp1 = OnePole(2200), OnePole(350)
+    lp2 = OnePole(900)
+    table = ((1180, 0.7, 0.03), (2630, 0.45, 0.018), (4010, 0.25, 0.01), (620, 0.5, 0.05))
+    phase = [0.0]
+    out = []
+    for i in range(n):
+        t = i / RATE
+        noise = rng.uniform(-1, 1)
+        # The rustle: band-passed noise in a few quick swells (the leather dragged over the rim), then the flap.
+        band = lp1(noise)
+        band -= hp1(band)
+        swell = sum(a * math.exp(-((t - c) / w) ** 2) for c, a, w in ((0.02, 0.6, 0.012), (0.07, 1.0, 0.02),
+                                                                      (0.13, 0.5, 0.015)))
+        flap = lp2(noise) * math.exp(-max(0.0, t - 0.2) / 0.025) * (1.0 if t >= 0.2 else 0.0) * 1.6
+        # The clack: iron on iron, 0.09 s in.
+        tc = t - 0.09
+        clack = 0.0
+        if tc >= 0:
+            clack = partials(tc, 1.0, table) * min(1.0, tc / 0.0004) + thud(tc, phase, 90.0, 120.0, 0.03) * 0.5
+        out.append(math.tanh(band * swell * 1.2 + flap + clack * 1.1))
+    return finish(out, 0.8)
+
+
+def grenade_pin():
+    """A grenade's pin pulled: the split pin scraping out of its hole (a thin metal rasp, rising), then the ring
+    swinging free with a bright ping and a little rattle."""
+    rng = random.Random(251)
+    n = int(RATE * 0.32)
+    rasp_hp = OnePole(3800)
+    rasp_lp = OnePole(9000)
+    table = ((3720, 0.8, 0.07), (5630, 0.5, 0.045), (7410, 0.3, 0.03), (2480, 0.35, 0.09))
+    out = []
+    for i in range(n):
+        t = i / RATE
+        noise = rng.uniform(-1, 1)
+        rasp = rasp_lp(noise)
+        rasp -= rasp_hp(rasp)
+        # Stick-slip: the rasp comes in grains, faster as it comes out (0 .. 0.07 s).
+        grains = 0.5 + 0.5 * math.sin(2 * math.pi * (180 + 900 * t) * t)
+        env = min(1.0, t / 0.01) * (1.0 if t < 0.06 else math.exp(-(t - 0.06) / 0.01))
+        ping = 0.0
+        tp = t - 0.065
+        if tp >= 0:
+            ping = partials(tp, 1.0, table) * min(1.0, tp / 0.0003)
+            for k, (at, a) in enumerate(((0.05, 0.35), (0.11, 0.2), (0.16, 0.1))):  # the ring's rattle
+                tr = tp - at
+                if tr >= 0:
+                    ping += a * partials(tr, 1.08 + 0.05 * k, table) * min(1.0, tr / 0.0003)
+        out.append(math.tanh(rasp * grains * env * 0.9 + ping * 1.2))
+    return finish(out, 0.8)
+
+
 # ---- Wall torches (QC vr_walltorch.qc; docs/vr-port/ROUND21.md, "Wall torches you can take") ----------------------------
 
 
@@ -778,6 +841,8 @@ def main():
         "dummy_windup.wav": dummy_windup,
         "grenade_fuse.wav": grenade_fuse,
         "grenade_tick.wav": grenade_tick,
+        "grenade_pouch.wav": grenade_pouch,
+        "grenade_pin.wav": grenade_pin,
         "torch_pull.wav": torch_pull,
         "torch_out.wav": torch_out,
         "torch_light.wav": torch_light,

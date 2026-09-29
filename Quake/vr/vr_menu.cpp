@@ -690,6 +690,18 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         toggle("Returned Grenades Hit Like Yours", vr_grenade_return_full)
             .help("A grenade you throw or bat back (an ogre's or your own) goes off as your grenade launcher's: its damage and "
                   "radius, credited to you, with your Quad. Off: an ogre's keeps its own, weaker blast."),
+        header("Hand Grenades"),
+        toggle("Hand Grenades", vr_handgrenade)
+            .help("Reach behind the small of your back with an empty hand and grip: a grenade from your pouch, while you have "
+                  "rockets (the grenade launcher's ammo; one leaves your ammo with each grenade). Throw it as anything you "
+                  "carry: it goes off as the launcher's grenade. The pouch's place is on Hip Holsters."),
+        cycle("Arm Hand Grenades", vr_handgrenade_arm, {{0.f, "Trigger pulls the pin"}, {1.f, "When let go of"}})
+            .help("Trigger: press it while holding the grenade to pull the pin (it fizzes; the fuse runs); let go of unarmed, "
+                  "it is a dud you can pick up again. When let go of: the lever flies off as it leaves your hand. Either "
+                  "way, let go of unarmed at the pouch, it goes back in."),
+        slider("Hand Grenade Fuse", vr_handgrenade_fuse, 1.f, 5.f, 0.1f, "%.1f s")
+            .help("From the pin (or the throw) to the blast. The launcher's grenades take 2.5 s. Hold it too long and it goes "
+                  "off in your hand."),
     };
 }
 
@@ -1548,6 +1560,8 @@ std::vector<Item> pageDebugLogging()
         toggle("Wounds", vr_wounds_debug).help("Each wound painted on a model."),
         cycle("Grasp", vr_debug_grasp, {{0.f, "Off"}, {1.f, "Each Solve"}, {2.f, "Each Finger"}})
             .help("Each grasp solve of the jointed hands (and each finger's stops)."),
+        toggle("Holster Draw Blend", vr_debug_draw_blend)
+            .help("Each frame of a gun easing between a holster and a hand: the turn and the distance left."),
         cycle("Physics Bodies", vr_debug_box3d, {{0.f, "Off"}, {1.f, "Made and Slept"}, {2.f, "Every Awake Body"}})
             .help("Box3D bodies made, woken and put to sleep; or every awake body every frame (a lot)."),
         cycle("Rocks and Bricks Placement", vr_debug_debris, {{0.f, "Off"}, {1.f, "A Line a Map"}, {2.f, "Each Piece"}, {3.f, "Each Spot Rejected"}})
@@ -1636,6 +1650,8 @@ std::vector<Item> pageDebugReports()
         command("Sight Check", "vr_sight_check").help("vr_sight_check: the held weapon's sights against its aim."),
         command("Wrist Gadget", "vr_gadget_info").help("vr_gadget_info: the gadget's pose (once it has been drawn)."),
         header("Other"),
+        command("Limits", "vr_limits")
+            .help("vr_limits: every hardcoded limit's usage against its maximum (cvars, memory, models, edicts, lights...)."),
         command("Microphones", "vr_note_devices").help("vr_note_devices: the microphones Voice Notes can record from."),
         command("Detail Textures", "vr_detail_list").help("vr_detail_list: each texture's detail kind (long)."),
     };
@@ -2016,7 +2032,7 @@ std::vector<Item> pageCombat()
         open("Melee", pageIndex(pageMeleeSettings)).help("Swings and punches, bloodlust, the headbutt."),
         open("Parry and Bash", pageIndex(pageParryBash)).help("Parrying, bashing and shoving, counter-attacks, the training dummy's blows."),
         open("Stamina", pageIndex(pageStamina)).help("What parries, shoves, blows and hanging from a hold cost, and being exhausted."),
-        open("Batting and Catching", pageIndex(pageBatting)).help("Batting projectiles back; catching and returning grenades."),
+        open("Batting and Catching", pageIndex(pageBatting)).help("Batting projectiles back; catching and returning grenades; hand grenades."),
         open("Damage and Knockback", pageIndex(pageDamage)).help("Hit detection, damage to monsters and to you, headshots, knockback."),
     };
 }
@@ -2060,7 +2076,7 @@ std::vector<Item> pageWeaponsHub()
         open("Immersion", pageIndex(pageImmersionSettings)).help("Holsters, reloading, throwing weapons, shell casings, haptics."),
         header("Holsters"),
         open("Hotspots", pageIndex(pageHotspotSettings)).help("The virtual stock, the shoulder and upper holsters."),
-        open("Hip Holsters", pageIndex(pageHipHolsters)),
+        open("Hip Holsters", pageIndex(pageHipHolsters)).help("The hip holsters and their slots' models; the grenade pouch at your back."),
     };
 }
 
@@ -3720,10 +3736,12 @@ extern "C" void VR_MenuSavePositions()
         }
         const std::string record = std::string{pages[p].title} + '|' + a.section + '|' + a.label + '|' + std::to_string(a.index) +
                                    '|' + std::to_string(a.line);
-        if(record.find_first_of(";\"") != std::string::npos || std::count(record.begin(), record.end(), '|') != 4 ||
-            text.size() + record.size() + 1 > 1000)
+        // A label the format cannot hold. (There was also a 1000-character cap, what a config line's token held then:
+        // only the ~12 most recent pages kept their position. A token and a command line now take any length (cmd.c),
+        // and each page adds one record: about 90 characters, 7 KB for every page.)
+        if(record.find_first_of(";\"") != std::string::npos || std::count(record.begin(), record.end(), '|') != 4)
         {
-            return; // a label the format cannot hold; or past what a config line's token holds
+            return;
         }
         text += text.empty() ? "" : ";";
         text += record;

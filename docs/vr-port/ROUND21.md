@@ -11364,3 +11364,472 @@ then `PR_SwitchQCVM: A qcvm was already active`). This was already so before thi
       when it gets low, then drop with a gasp and a buzz. Tell me if 5 and 2 a second feel right.
 - [ ] Try Exhausted: Slip Time 1.5: at none you shouldn't be able to pull up, and your hands should slip off after it.
 - [ ] `vr_debug_hands 1` if a hand ever refuses again: the last word of its line says why.
+
+## Hand grenades from the back pouch
+
+Your voice note (firing range, 2026-09-29): throwing grenades by hand would be fun; while you have grenade ammo
+(rockets), a spot on the body to grab one, the trigger to start its fuse, then throw it, one rocket used. The legs,
+the torso and the shoulders already have holsters; you chose a pouch at the small of the back. Branch `agent/handgren`;
+scripts, logs and pictures in the scratchpad's `handgren/` (`final/` the pictures, `logs/` the runs).
+
+### What you do
+
+- **Take one:** with rockets, reach behind the small of your back with an empty hand (either hand) and grip. A grenade
+  comes out of the pouch into your palm, with the leather's rustle and an iron clack, and a buzz in the hand. As the
+  hand arrives there is a light tap (as at a holster with a gun in it) and the pouch lights up, as a holster does.
+  With no rockets: a dull knock in the hand, nothing taken.
+- **Arm it:** pull the trigger while you hold it. The pin comes out with a ping, the lever's clink and the fuse's fizz
+  follow, sparks burst out of it, and it ticks faster and faster, felt in the hand (the caught grenades' cues). It
+  goes off 2.5 s later (**Hand Grenade Fuse**, id's launcher grenade's fuse).
+- **Throw it** as anything you carry (the throw is the carry's: your hand's release speed). It is the grenade
+  launcher's grenade: it goes off on its fuse, or at once on a monster it touches, for the launcher's damage (120 over
+  160 units), credited to you (kills, the dummy's readout), with your Quad. Held too long, it goes off in your hand.
+- **Changed your mind:** let go of it at the pouch before pulling the pin: it goes back in (the same sound, softer),
+  and so does the rocket.
+- **Let go of anywhere else unarmed**, it drops as a dud: it bounces and lies there, it hurts nothing. Take it again
+  (by hand or force grab) to arm it and throw it, or put it back in the pouch.
+- **Arm Hand Grenades: When Let Go Of** (the other choice): the trigger does nothing; the lever flies off as the grenade
+  leaves your hand, anywhere but at the pouch, so a grenade dropped at your feet is live. A grenade let go of at the
+  pouch goes back in unarmed either way.
+
+### Decisions
+
+- **The rocket leaves your ammo when you take the grenade**, not when you pull the pin; putting it back unarmed gives
+  it back. So an unarmed grenade still costs nothing (the reason the brief gave for paying at the pin), and:
+  - what the HUD and the guns' screens show is what is left in the pouch;
+  - the grenade launcher can't fire the rocket that the grenade in your hand stands for (with the cost at the pin, a
+    grenade taken with your last rocket could have been left with nothing to pay for its pin);
+  - two hands can take two grenades only with two rockets;
+  - a dud lying about is a rocket already out of the pouch: armed later, it costs nothing more; put in the pouch, it
+    is a rocket again (anyone's pouch in multiplayer, as ammo would be). Duds can't be made without rockets, so they
+    can't pile up past your ammo.
+  - At the pouch with 100 rockets (full), it doesn't fit: it drops as a dud, with the dull knock.
+- **Unarmed and let go of elsewhere: a dud** (not back to the pouch by itself): what you see is what happens; you can
+  pick it up and use it. The pin decides whether it is live.
+- **An armed grenade can't be put back:** the pin is out. Let go of at the pouch, it drops there, and goes off.
+- **Going off in your hand** is your own grenade's blast (T_RadiusDamage from you): Quake halves your own explosions on
+  you, and Self Damage scales them. From 100 health you are left with about 42 (a caught ogre grenade in the hand is
+  the ogre's, in full, as before).
+- **The grenade in the hand is id's grenade** (`progs/grenade.mdl`, the launcher's and the ogres'): the same entity as a
+  caught and returned grenade, the same size, the same physics. It is large for a hand grenade (about 18 units long);
+  a smaller model only for hand grenades would be a different thing to catch and throw back. Say if you want one.
+- **Held In the Palm** (the grips branch's Grip Mode 2, `vr_grip.cpp`): its middle over the fist's grip channel on the
+  palm, the fingers round it, one hand only. The grenade's Held Object Offsets slot (4) had Where Taken and two hands;
+  it has In the Palm and one hand now, for caught grenades too. A config saved before takes them if its slot still
+  had those defaults (`vr_props_version` 44).
+- **The pouch shows your ammo:** frame 0 full (two grenade heads stand out of it) with a rocket or more, frame 1 empty
+  (the heads gone, its front fallen in) with none. It is drawn whenever Hand Grenades is on, with or without the body
+  (without it, it faces straight back from where the hand reaches).
+- **Where the settings are:** the gameplay ones (on/off, the arming, the fuse) on Batting and Catching, under the
+  grenades' catching (Hand Grenades, a section of its own); the pouch's place, reach and turn on **Hip Holsters** (the
+  belt's page; Hotspots already has 24 rows and the menus keep pages to 30). No Debug page row: Show Grenade Pouch is a
+  tuning marker, as Show Hip Holsters is, on the pouch's own page.
+- **A weapon let go of at the pouch drops**, as anywhere that is not a holster (the pouch takes grenades only).
+- **Climbing:** a hand at the pouch while standing, with rockets, takes a grenade rather than a hold behind you;
+  hanging, the hold wins (as for the holsters).
+
+### How it works
+
+- **The hotspot** (`vr_body.cpp`): `body::pouchPosition` places the pouch as the hip holsters are placed: the old
+  placement (`vr_grenade_pouch_x/y/z` from the player's middle, moving back as you crouch), carried by the pelvis with
+  Body Anchors; with the body drawn, its default X (-7) sits on the back of the hips' ring (the belt at the small of
+  the back, 1.5 units out of the surface), and X moves it on from there, round the hips rather than into them (the
+  holsters' `outOfTheTorso`). `updateHotspots` makes it hotspot 11 (`HS_GRENADE_POUCH`, `QVR_HS_GRENADE_POUCH`), in
+  competition with the holsters by distance over reach (`vr_grenade_pouch_thresh`, 7 units). The hotspot goes to the
+  server in the move's existing hotspot byte: no new input or state bits.
+- **Drawn** (`vr_view.cpp` `setupPouch`): `progs/vrpouch.mdl` on the body's surface there (the plate of the ring, as the
+  holsters' `plateOnTheBody`), its back against the body, turned by Pouch Pitch, Yaw, Roll about where the hand
+  reaches (the holsters' `holsterFrame` / `turnHolster`: pitch tips its top off the back, yaw turns its face to your
+  right, roll tips its top to your right), in the body preview too (`vr_body_debug` 2 and 3); frame from `STAT_ROCKETS`;
+  lit while a hand is at it. `vr_dumpview` prints the pouch and each hand's distance and hotspot.
+- **The model** (`Misc/quakevr/make_pouch.py`, registered in `generated.json`; its normal map baked by
+  `bake_normals.py vrpouch.mdl`, listed in the add-on's `normalmaps.py`/`normaltiles.py`): a deep oiled-leather pouch,
+  open at the top, its front rounded out (a superellipse), a rolled rim, a strap over the top down to an iron buckle,
+  rivets, stitched gussets; two grenade heads (dark iron, id's red band) stand out of it. 1118 vertices, 572
+  triangles, a 256 x 128 skin in Quake's palette (no fullbright), two frames of the same mesh. 23 x 15 cm, 11 cm deep.
+  MODELS_IN_BLENDER.md lists it.
+- **The sounds** (`make_sounds.py`): `vr/grenade_pouch.wav` (the leather's rustle and flap, iron knocking on iron;
+  taken, and softer put back) and `vr/grenade_pin.wav` (the split pin's rasp, the ring's ping and rattle); the arming
+  then plays the caught grenades' `grenade_fuse.wav` (the lever's clink, the fizz) and its ticks.
+- **The game** (`QC/vr_grenade.qc`, "Hand grenades from the back pouch"): `VR_HandGrenade_HandFrame` (each hand, each
+  frame, from `W_Frame` before the weapons' hands): the tap as a hand arrives at the pouch; a grip pressed there by an
+  empty hand (no weapon, nothing carried, not the torch, not force-grabbing, not climbing), once a press, takes one
+  (`VR_HandGrenade_Take`): the launcher's grenade (`GrenadeExplode`, `GrenadeTouch`), made a live grenade
+  (`VR_Grenade_Setup`, split from `VR_Grenade_Make`: a Box3D prop, catchable, force-grabbable) with `.vr_hgren` set and
+  no fuse, and carried (`VR_Carry_Start`). While it is unarmed, its fuse doesn't run, it isn't lit and it goes off on
+  nothing (`VR_HandGrenade_Armed`); `VR_Carry_HandFrame` gives it the trigger (`VR_HandGrenade_Trigger`: the pin,
+  `VR_HandGrenade_Arm`) and its let go at the pouch (`VR_HandGrenade_LetGo`); `VR_Grenade_Released` arms it on the
+  release (When Let Go Of) or leaves a dud. From the pin on, it is any live grenade you hold or threw: caught again
+  (the fuse left as it is, unless Fuse Resets Every Catch), not batted by you (batting is for monsters' projectiles), going off on a
+  monster, its fuse, or in your hand.
+- **Found on the way:** a grenade let go of at a holster was put "into the pack" (`VR_Carry_Take`), which has nothing
+  to take for a grenade, and dropped dead at the holster: an overarm throw's wind-up passes the shoulder holsters, so
+  the first throws fell at your feet. Grenades are never put in the pack now (caught ogre grenades too).
+- **Level changes:** an unarmed grenade in a hand at the level's end goes back in the pouch (`SetChangeParms`), so its
+  rocket goes on with you; an armed one stays behind with the level.
+- **Saves:** everything is in QC fields (`.vr_hgren`, `.vr_hgren_armed`; the player's `.vr_pouch_at`,
+  `.vr_pouch_tried`, per hand) saved with the entities; the engine keeps no entity state for the pouch (it is computed
+  from the hands each frame). A grenade in the hand is a carried prop, which the save/load round already covers
+  (ROUND21, "Save/load crash").
+- **Multiplayer:** each client's pouch is its own hotspot, sent with its move; the grenade and the rockets are that
+  player's. Deathmatch takes one at once (no start delay). A player's dud can be taken by anyone.
+
+### Settings
+
+| | | |
+|---|---|---|
+| Hand Grenades | `vr_handgrenade` | 1; 0: no pouch (not drawn, no hotspot) |
+| Arm Hand Grenades | `vr_handgrenade_arm` | 0 Trigger pulls the pin; 1 When let go of |
+| Hand Grenade Fuse | `vr_handgrenade_fuse` | 2.5 s (1..5) from the pin (or the release) |
+| Show Grenade Pouch | `vr_show_grenade_pouch` | a marker the size of its reach, green while a hand is at it |
+| Pouch X, Y, Z | `vr_grenade_pouch_x/y/z` | -7, 0, 3 units: X forward (the default on the back), Y right, Z up (times the height calibration, as the holsters') |
+| Pouch Threshold | `vr_grenade_pouch_thresh` | 7 units |
+| Pouch Pitch, Yaw, Roll | `vr_grenade_pouch_pitch/yaw/roll` | 0 degrees |
+
+The grenade's grip: Held Object Offsets (hold one, open it): `progs/grenade.mdl` (slot 4), Grip In the Palm, Two
+Hands off.
+
+### Tests (mock headset; the scratchpad's `handgren/`: `runall.sh`, logs in `logs/`, pictures in `final/`)
+
+vrfiringrange from `setpos 190 -560 41 0 90 0`, 10 rockets, `notarget`, a grunt 300 units ahead (`impulse 241`), Gun
+Angle 70; the hands move by `vr_mock_play` files from `gen.py` (the pouch at `vr_mock_hand main|off 0 1.0 0.2`, 1.5
+units from its middle: `vr_dumpview` says hotspot 11; throws from `throw_plays.py`).
+
+| Case | Log |
+|---|---|
+| Main hand: take, pin, overarm throw at the grunt | taken, 9 rockets left; armed, 2.50 s; thrown at 306 u/s, first bounce 210 units ahead, "hits monster_army": 108.6 damage, dead |
+| Off hand: the same | taken by hand 0, 9 left; 305 u/s; hits the grunt: 107.6, dead |
+| Off hand: a gentle lob (119 u/s) | first bounce 80 units ahead; goes off on its fuse 126 units ahead |
+| Arm When Let Go Of | the trigger does nothing; "armed (the lever flies off as it leaves the hand)" at the release, 2.50 s; hits the grunt: 108.4 |
+| No rockets (`give r 0`) | "the pouch is empty"; nothing taken, nothing thrown |
+| Put back unarmed at the pouch | 9 -> 10 rockets; taken again: 9 |
+| Let go of unarmed in front | "let go of unarmed: a dud", bounces, lies at your feet |
+| The dud picked up off the floor, armed, thrown | no rocket taken; armed 2.50 s; hits the grunt: 109.5 |
+| The dud picked up, put in the pouch | 10 rockets; the next one taken leaves 9 |
+| Armed and held | "went off in player's hand": 100 -> 42 health (the dummy nearby took 66.6) |
+| Both hands | two grenades, 8 rockets left |
+| Hand Grenades off | nothing taken at the pouch |
+| A shambler, and with Quad (`impulse 255`) | 47.9 damage (shamblers take half from explosions), health 600 -> 552; with Quad 600 -> 408 (4 x 47.8) |
+| A level change holding an unarmed one (`changelevel vrfiringrange`) | "back in the pouch at the level's end"; the next one taken leaves 9 (of 10) |
+| A config saved at `vr_props_version` 40 with the grenade's slot Where Taken, two hands | "progs/grenade.mdl: In the Palm, one hand"; `vr_prop_grip_04` 2, `vr_prop_two_hands_04` 0 |
+| Before the holster fix: an overarm throw | "carry: into the pack", the grenade dropped at your feet (the wind-up passes the shoulder holster) |
+
+Pictures (`final/`):
+- `pouch_final.png`: from behind (`r_fullbright 1`): full; a hand at it (lit up); empty (`give r 0`: the heads gone, the
+  front flat); from the side; the body preview from its left (`vr_body_debug 3`: the pouch at the back); in the map's
+  light.
+- `hand_final.png`: from the eyes, the grenade in the right palm; the pin pulled (sparks); a close camera on the palm.
+- `palm2.png`: In the Palm from the front, the side and the palm's side.
+- `menu.png`: Batting and Catching's Hand Grenades, Hip Holsters' Grenade Pouch.
+
+Also: `menu_coverage.py` on a `menu_vr dump`: Batting and Catching 20 rows, Hip Holsters 23, no page over 30;
+`fgdgen.py --check` passes (no spawn function changed); QC 0 warnings.
+
+### Not verified
+
+- In the headset: reaching behind your back, the pouch's place for your body and arms (Pouch X, Z, Threshold), the
+  tap and the sounds (made, not heard: `grenade_pouch.wav`, `grenade_pin.wav`).
+- Catching your own thrown hand grenade in flight (the caught grenades' code, unchanged; not scripted).
+- Saving and loading with a grenade in the hand or a dud about: no saves were written (the tests don't write saves);
+  the state is in QC fields only (above).
+- Multiplayer (no second client in the mock).
+- Costs: not measured. A frame adds two torso solves for the pouch's place (the hotspots and the drawing) and one
+  572-triangle model.
+- The melee canary (`eval.sh`) skips while your takes are archived; no melee code changed.
+
+### In the headset
+
+- [ ] Reach behind the small of your back with either hand and grip: a grenade in your palm, the pouch's rustle and
+      clack, a buzz. If you have to hunt for it, Show Grenade Pouch (Hip Holsters) and move it (Pouch Z, X) or
+      raise Pouch Threshold.
+- [ ] Pull the trigger: ping, fizz, sparks, ticking. Throw it at a grunt: it should go off on him as a launcher
+      grenade. Hold one: it goes off in your hand.
+- [ ] Take one and put it back at the pouch: the rockets come back. Drop one in front of you: a dud; pick it up and
+      arm it.
+- [ ] Try Arm Hand Grenades: When Let Go Of, and say which you prefer.
+- [ ] Look at the pouch in a mirror or with the body preview from its side, full and empty. Is id's grenade too big in
+      the hand?
+
+## Holster draw blend; holster defaults; body calibration kept
+
+Your voice notes (29 September) covered three things:
+- a gun taken from a holster "is in a completely different pose": you asked for a quick, customisable transition that
+  turns the shortest way;
+- "I have painstakingly set holster offsets for all the weapons so please make sure you save them and they become the
+  defaults";
+- "ensure that body calibration gets saved after it being applied".
+
+Branch `agent/notes4`. The scripts, logs and screenshots are in the scratchpad's `notes4/`, and the screenshots are in
+`draw_mid.png`.
+
+### Draw and holster blend
+
+- **Settings** (Weapons > Immersion, under Weapons and Holsters): **Draw Blend Time** (`vr_weapon_draw_blend`, 0.3 s)
+  and **Holster Blend Time** (`vr_weapon_holster_blend`, 0.3 s). 0 means at once, as before.
+- **Drawing:** the gun starts exactly where it hung in the holster (its Holstered pose, with the holster's turn). It then
+  eases into the hand on a cubic ease-out: it covers most of the way in the first tenth of a second, then settles.
+- **Holstering** works the same way in reverse: the gun eases from where the hand held it into its holstered pose.
+- **The shortest rotation:**
+  - The start pose is kept relative to where the gun is going (the hand's gun, or the holster). So the gun follows the
+    hand (or the body) as it travels.
+  - The turn is a quaternion slerp from no turn to that offset. The quaternion's sign is flipped when w < 0.
+  - So the gun never turns more than 180 degrees, it turns straight to the target, and the angle left shrinks every
+    frame.
+- **Visual only (decided):** the aim, the muzzle, the shots, the two-handed grips and melee use the gun's real place in
+  the hand from the first frame, so you can fire at once. A blend lasts 0.3 s, and blocking the trigger for it would feel
+  like lag. A shot fired during the blend comes from the gun's final place in the hand.
+- **The hand stays on your controller (decided):** moving it to the holstered gun would make the hand jump away from
+  where you feel it. Its fingers close on the grip the usual way (Grip Blend, `vr_hand_fit_blend`, 0.12 s), so the gun
+  arrives into a closing hand.
+- **What blends:**
+  - A gun that appears in a hand at a holster that showed that gun within the last 0.25 s. The window is there because
+    the hand's and the holster's updates can arrive a frame apart.
+  - A gun that leaves a hand at a holster that then shows it. In Immersive mode, the holster's gun must have changed. In
+    Quick Slots mode, whose holsters never empty, the gun already there blends.
+- **What doesn't blend:** ammo morphs, passing a gun between hands, the grenade pouch (the grenade is a prop in the palm,
+  not a holstered weapon) and the Weapon Offsets preview.
+- **Mirroring:** a gun drawn from a left holster into the right hand keeps each side's model mirroring. Only its place
+  and turn blend.
+- **Log:** Debug > Logging > **Holster Draw Blend** (`vr_debug_draw_blend 1`) prints every frame of a blend: the turn and
+  distance left, the start, and the turn a slerp without the sign flip would have taken.
+- **Checked in the mock:** the shotgun drawn from the right hip, with the hand rolled from 0 to 190 degrees to vary the
+  difference. 1050 frames were logged (`notes4/sweep1.log`).
+  - In every blend the angle left falls monotonically to 0 at 0.3 s.
+  - The draws started 100, 132, 169, 178, 171, 165 and 152 degrees from the hand's pose.
+  - In three draws the raw quaternions were 191, 189 and 195 degrees apart (the long way). The gun turned 169, 171 and
+    165 degrees (the short way).
+  - Holstering started 101 degrees and 4.8 units from the holster's pose, and behaved the same way.
+  - `draw_mid.png` shows the hip holster, the grab, then the gun turning into the hand. The pictures use a 3 s blend.
+
+### Your holstered poses are the defaults (`vr_weapons.inc`, `vr_wofs_version` 22)
+
+**Source:** the copy of your config from 02:22 (`his_ironwail_2026-09-29_0222.cfg`). This build loaded it and read the
+values back (`writeconfig` after a map), then compared them with a first start. All 7169 `vr_wofs_*` settings were
+compared, weapon offsets and hotspots included. **95 values differ**, and all are baked with your exact strings. Since
+the last bake you changed only these:
+
+| Weapon | Values |
+|---|---|
+| axe `_01` | fgr_bias_thumb -0.58 (was -0.4); hol_hip_roll -50, hol_hip_y 4, hol_hip_z -4, hol_upper_roll -50, hol_upper_y 4.4, hol_upper_z -0.5 |
+| shotgun `_02` | hol_hip_roll 15, hol_hip_x -0.5, hol_hip_y 1, hol_hip_z -1.1, hol_upper_roll 25, hol_upper_y 2.9, hol_upper_yaw 25 |
+| super shotgun `_03` | hol_hip_y 1.5, hol_hip_z -2.5, hol_upper_y 2, hol_upper_yaw 10, hol_upper_z -1 |
+| nailgun `_04` | hol_hip_y 2, hol_hip_z -2.5, hol_upper_pitch 15, hol_upper_x 1, hol_upper_y 1.3, hol_upper_yaw 20, hol_upper_z -0.8 |
+| super nailgun `_05` | hol_hip_x 1.6, hol_hip_z -3.2, hol_upper_pitch 30, hol_upper_roll 10, hol_upper_y 3.5, hol_upper_yaw 5, hol_upper_z -1 |
+| grenade launcher `_06` | hol_hip_x 1, hol_hip_y 1, hol_hip_yaw 10, hol_hip_z -1, hol_upper_pitch 15, hol_upper_roll 15, hol_upper_y 2.5, hol_upper_yaw 20, hol_upper_z -1 |
+| rocket launcher `_07` | hol_hip_x -0.5, hol_hip_z -1.5, hol_upper_roll 20, hol_upper_y 2.3, hol_upper_yaw 20, hol_upper_z -1.1 |
+| lightning gun `_08` | hol_hip_z -1.5, hol_upper_pitch 15, hol_upper_roll 20, hol_upper_x 0.5, hol_upper_y 2, hol_upper_yaw 30, hol_upper_z -1.5 |
+| Mjolnir `_09` | hol_hip_roll -70, hol_hip_y 4, hol_hip_z -2.5, hol_upper_roll -60, hol_upper_y 4, hol_upper_yaw 1, hol_upper_z 1 |
+| proximity gun `_11` | hol_hip_x 1, hol_hip_y 1, hol_hip_yaw 10, hol_hip_z -1, hol_upper_pitch 15, hol_upper_roll 15, hol_upper_y 2.5, hol_upper_yaw 20, hol_upper_z -1 |
+| grappling hook `_18` | hol_hip_y 1.8, hol_hip_z -3, hol_upper_y 1.8, hol_upper_z -3 |
+| swords `_19`, `_20` (each) | hol_hip_roll -50, hol_hip_x 0.5, hol_hip_y 5, hol_hip_z 1.5, hol_upper_pitch 15, hol_upper_roll -70, hol_upper_x -1.5, hol_upper_y 6, hol_upper_yaw 25, hol_upper_z -3.5 |
+
+- The shoulder (back) holsters stay at 0, because you left them there. The alternates (lava nailguns, multi launchers,
+  plasma gun) still have no values of their own.
+- **The table:** one line changed in place (the axe's thumb bias), and 94 lines were added in a block before the
+  weights.
+- **Migration 22 resets only those 95 keys**, not whole weapon slots as the earlier migrations did. A config's other
+  settings for the same weapons are kept.
+- **Checked:**
+  - Your config loads with every setting unchanged except `vr_wofs_version`, 21 -> 22 (all archived settings dumped and
+    compared).
+  - A first start equals your values for all 7168 `vr_wofs_*` keys.
+  - A version-21 config with its own `hand_x_05` of 7.77, an old `hol_upper_y_05` of 0 and its own `hol_shoulder_x_05`
+    of 2.5 ends with 7.77, 3.5 and 2.5: the two other settings are kept and the holster value takes the new default.
+
+### Body calibration: why it was lost, and the fix
+
+**The cause:** the config was written only when the game quit cleanly, and the session where you applied the 00:41
+calibration never quit.
+- That session started at 00:36. Its memory log stops at 01:16:26.
+- Nothing in the game folder was written between 00:30 and 01:50, and there is no crash dump.
+- So it was ended from outside, most likely by Stop Debugging in Visual Studio (its files were touched just before each
+  launch).
+- Apply had set the settings in memory only, so the 01:50 session read the older config.
+
+**Ruled out:**
+- Two copies running at once: the memory logs don't overlap.
+- A migration: none touches `vr_bodycal_*`.
+- The settings not being archived: they are.
+- The New Measurements preview: Apply turns it off first.
+- `vr_defaults.cfg`: it doesn't set them, and `vr_savedefaults` leaves them out.
+
+**A worse problem found on the way:** your config had grown to 267,927 bytes (the per-weapon settings), past the command
+buffer's 256 KiB.
+- At that size, `exec ironwail.cfg` runs none of the file ("Cbuf_AddText: overflow"). Every setting stays at its
+  default, and quitting then writes those defaults over your config.
+- Your next start would have lost all your settings.
+- Reproduced in the mock with a 271 KB config: every `vr_bodycal_*` came back as 0.
+
+**Now:**
+- **The command buffer is 4 MiB** (`Quake/cmd.c`; the coordinator's hotfix had made it 2 MiB).
+- **A config that is still too large is refused with a message** (`ironwail.cfg is too large to run ...`) and is **never
+  written over**. Quitting that session, and any other save in it, prints `Not writing ironwail.cfg: it was not loaded`.
+  Checked with a 5.4 MB config.
+- **Apply, Undo and Reset Tweaks save the config at once.**
+- **Any changed setting is saved when the menu or the console closes** (`configFrame`). It writes only if an archived
+  setting differs from what the file holds, and `developer 1` prints `config: N settings changed, saved`. So a game
+  ended without quitting keeps what you set in its menus. Changes from another running copy are merged as before.
+- **A previewed calibration is never saved:** the preview's values are removed before any config write, and the page
+  shows them again the next frame.
+- **Checked:**
+  - A mock run refit your 01:52 session and applied it. The config on disk had the new values within a second, while
+    the game was still running.
+  - The game was then killed, as a debugger stop would. A restart from that file had `vr_bodycal_upper_arm` 25.7 and
+    `vr_bodycal_forearm` 25.1 (the refit's values).
+  - Your own values (26.0, 24.9...) are in your config and backed up in `quakevr/bodycal/mybody_2026-09-29.cfg`. A start
+    from your 02:22 config keeps every setting.
+
+### In the headset
+
+- [ ] Draw each gun from a hip holster and a chest holster: it should turn smoothly into your hand, never the long way
+      round. Try Draw Blend Time 0.2 and 0.5 and say which you like. Then holster it and watch it settle.
+- [ ] Look at your guns in the holsters on a first start (or set `vr_wofs_version 21` and restart): you should see your
+      poses.
+- [ ] Change a setting, close the menu, and stop the game from Visual Studio: the setting should still be there at the
+      next start.
+
+## Hardcoded limits audit
+
+You asked (29 September, after the 256 KiB command buffer lost your config) to look for "similar hardcoded
+limitations (e.g. cvar limit, etc)". Every fixed limit the mod's growth could reach was checked: the cvars and
+commands, memory, precaches and entities, the network, saves, the progs and the VR code's own tables. Each one's usage
+was measured, and the risky ones were fixed.
+
+Branch `agent/limits`. The scripts, stress configs and logs are in the scratchpad's `limits/`.
+
+### What you get
+
+- **No more settings limits.** Any number of cvars, a command buffer that grows, and commands and values of any length.
+  Your 268 KB config (10,656 cvars) now runs in 20 ms. The zone's heap check alone made it 545 ms, and the old
+  buffer and cvar list added time that grew quadratically.
+- **Five crashes that a long session could reach are gone or pushed far off:** too many cvars, a full zone, too many
+  textures, too many sounds, and a map's long `"angle"` value.
+- **Silent losses now warn you**, once a session: `Limit reached: MAX_DLIGHTS: ...`. This covers a full light list, a
+  full temporary-entity list and a full network frame.
+- **Debug > Reports > Limits** (`vr_limits`) prints every limit's usage, peak and maximum. Rows at 80% or more are
+  highlighted.
+- **Menu positions:** every page now keeps its selection and scroll, not just the 12 or so most recent ones.
+- **The config is written safely:** it goes to a temporary file first, then replaces the old one in one step. A full
+  disk or a crash while writing keeps the old file.
+
+### The table
+
+"Used" is the most measured in the mock with your config: e4m7, e2m2 and hip2m3 with debris; e1m1 with 320 props
+thrown about; a fight with rockets and 80 blasts; and the stress tests below. "Risk" means how likely the limit is to
+be reached, and how bad that would be.
+
+| Limit | Value (was) | Used | Past it | Risk | Action |
+|---|---|---|---|---|---|
+| Cvars (`MAX_CVARS`) | none (16384) | 10,656 (your config); 60,656 (stress) | Sys_Error at start | **high**: 65% used, and it grows with each weapon and prop key | removed; the list and hash map grow |
+| Cvar registration | lazy sort (an insertion sort for each cvar) | 50,000 in 49 ms | slow (quadratic) | medium | sorted once, when the order is needed |
+| A cvar's default | any length (511) | - | cut silently | low | any length |
+| Command buffer | grows (256 KiB, then 4 MiB) | 268 KB (your config); 4.45 MB (stress) | the whole config not run, then defaults saved | **high**: the bug you hit | grows; the "too large" refusal now happens only when memory runs out |
+| Running the buffer | a read offset (a memmove per line) | 10,000 lines | slow (quadratic) | medium | offset |
+| A command line | any length (1023) | 431 (`vr_bodycal_undo`); 5,264 (stress) | cut silently: a long value lost its end and its closing quote | **high**: `vr_menu_positions` holds up to 7 KB | any length |
+| An argument (`com_token`) | any length (1023) | 412; 5,244 (stress) | cut silently | **high**: as above | own growing tokenizer (`Cmd_ParseToken`) |
+| Arguments per command (`MAX_ARGS`) | 1024 (80) | 4 | the rest dropped silently | low | raised; warned |
+| Command line | 4096 characters, 256 arguments (256, 50) | - | cut silently | medium: long `-basedir` paths | raised; warned |
+| `Cbuf_InsertText`'s copy | malloc (the zone) | - | zone Sys_Error | medium | malloc |
+| Console print (`MAXPRINTMSG`) | 4096 | - | the printout is cut (the value is kept) | low | kept; `vr_limits cvarlen <name>` gives a value's length |
+| Alias name | 31 characters | - | "Alias name is too long" | none | kept |
+| Config write | a temporary file, then an atomic replace (written in place) | 268 KB | a failed write left half a config | medium: it now saves at every menu close | `Sys_ReplaceFile` |
+| `vr_menu_positions` | uncapped (1000 characters) | 198 (yours); ~7 KB with every page | positions past ~12 pages forgotten silently | **high** | cap removed |
+| `vr_bodycal_undo` | one entry, a `std::string` | 430 | - | none | - |
+| Zone | 32 MiB (4 MiB) | 0.9 MB (your config); 13.8 MB (60,000 cvars) | Sys_Error | **high**: each cvar takes ~2 blocks | raised; the full heap check on every allocation now only in PARANOID builds |
+| Hunk | 384 MiB, grows in 8 doubling segments | 35-48 MiB (e4m7, e2m2, hip2m3) | Sys_Error (its int offsets overflow past ~2 GiB) | low | kept |
+| Path names (`MAX_QPATH`) | 64 | 28 (`progs/v_shot.mdl:frame0_glow`) | cut | none | kept |
+| Windows file paths | 260 wide characters | ~90 (your Steam path) | the file isn't found | low | kept (Windows' own `MAX_PATH`) |
+| Models precached (`MAX_MODELS`) | 4096 | 136-221 | Host_Error | low | kept (protocol 999 sends 16 bits) |
+| Sounds precached (`MAX_SOUNDS`) | 2048 | 184-241 | Host_Error | low | kept |
+| Sounds known (`MAX_SFX`) | 4096 (1024) | 193 on one map | Sys_Error | **medium**: never freed in a session, and the progs name ~400 | raised |
+| Models known (`MAX_MOD_KNOWN`) | 4096 | 145, then 244 after 3 maps (+~12 a map) | Sys_Error | low | kept |
+| Textures (`MAX_GLTEXTURES`) | 16384 (4096) | 494, then 588 after 3 maps (+20-70 a map) | Sys_Error | **medium**: skins stay loaded all session, with normal maps; ~70 maps would near 4096 | raised |
+| Menu pictures (`MAX_CACHED_PICS`) | 512 | 112 | Sys_Error | none | kept |
+| Edicts (`max_edicts`) | 16384 | 497-590 (320 props) | Host_Error | low; debris leaves 2048 free | kept |
+| Static entities | 4096 | 0-2 | Host_Error | none | kept |
+| Light styles | 64 | 14 | ignored | none | kept (protocol) |
+| Dynamic lights (`MAX_DLIGHTS`) | 64 | peak 7 | the first light taken over, silently | medium: Quake VR lights nails, beams, torches, lava and the flashlight | **warned** (kept: the renderer's light clusters hold 64 bits, `GL_RG32UI`) |
+| Temporary entities | 256 | peak 0 | not drawn, silently | low | **warned** |
+| Entities drawn (`MAX_VISEDICTS`) | 16384 | 405 | not drawn | none | kept |
+| Beams (`MAX_BEAMS`) | 32 | 0 | "Beam list overflow!" | low | kept |
+| Static sounds (`MAX_CHANNELS`) | 892 | 14 | printed, dropped | none | kept |
+| VR particles | 32768 | 9,295 (320 props) | not spawned | low | kept |
+| Datagram (`MAX_DATAGRAM`) | 64000 | 545 (e4m7); 16,498 (320 moving props) | the farther entities wait a frame ("Packet overflow!") | low locally; remote clients get 1400 | **counted and warned**; kept (protocol) |
+| Reliable message (`MAX_MSGLEN`) | 64000 | - | the client is dropped | low | kept (protocol) |
+| Signon buffers | 256 × 31500 | 1 | Host_Error | none | kept |
+| Stats (`MAX_CL_STATS`) | 256 | 113 (`STAT_QVR_*` up to 112) | fixed when built | none | kept |
+| A network string (`MSG_ReadString`) | 2047 | short | cut | low | kept (a `stuffcmd` or world text longer than it is cut) |
+| Loopback queue | 65535 | - | Sys_Error on a reliable overflow | low | kept (the world texts are all resent at spawn) |
+| Progs globals | 65535 (progs v6) | 15,175 (23%) | fteqcc error | none | kept |
+| Progs fields | none | 1,292 words (5.2 KB an edict) | - | none | - |
+| Progs statements / functions | none | 106,230 / 5,158 | - | none | - |
+| QC temp strings | 1024 buffers (256: a byte index) | - | overwritten after 256 | medium: a kept `ftos`/`strcat` result changes | all 1024 used |
+| QC stack | 1024 calls, 16384 locals | - | PR_RunError | none | kept |
+| VR builtins | #1000-1079 (static_assert) | 46 | build error | none | kept |
+| Saves: string values | 1023 characters | short | cut, silently; `"` and `\` not escaped | low today | kept (noted) |
+| An entity's `"angle"` | any (a `char[32]` and `strcpy`) | - | a stack overflow from a map | low, but a crash | fixed |
+| Prop slots (`vr_props.inc`) | 48 | 30 | a new prop keeps its defaults (printed) | medium | kept; in `vr_limits` |
+| Weapon slots | 32 | 20 | the defaults; the Weapon Offsets page falls back to the fist's slot | low | kept (noted) |
+| Decal atlas | 32 cells | 29 | written past the image | low, but out of bounds | static_assert |
+| World texts | 4096 | a few | PR_RunError | low | kept |
+| Wound events | 512 a frame | - | dropped (clears too) | low | kept (noted) |
+| Menu help text | 38 × 4 characters | 60 help strings are longer | cut on the page | low | kept (a layout matter) |
+| Voice note | 180 s | - | stopped and saved | low | kept |
+
+### How it works
+
+- **Cvars** (`Quake/cvar.c`):
+  - The list and the open-addressing hash map are `realloc`ed. The map is rehashed when it gets half full.
+  - A new cvar is appended. `Cvar_EnsureSorted` sorts the list (qsort) and relinks `next` the first time the name order
+    is needed: `cvarlist`, saving the config, `Cvar_FindVarAfter` and resets.
+- **Command buffer** (`Quake/cmd.c`):
+  - `Cbuf_Reserve` doubles the buffer (malloc) as needed.
+  - `Cbuf_Execute` runs the line at `cbuf_start` and moves that offset past it.
+  - `Cbuf_Compact` moves the rest down only before an insertion (`exec`, an alias).
+  - A line of up to 1023 characters still uses the stack buffer; a longer one is malloc'ed.
+  - `Cmd_ParseToken` follows `COM_Parse`'s rules (comments, quotes, the single-character tokens) into a growing buffer.
+    `COM_Parse` and `com_token` are unchanged for everything else (maps, saves).
+- **Zone** (`Quake/zone.c`):
+  - `Z_Usage` keeps the bytes in use and the peak.
+  - `Z_CheckHeap` walked every block at every `Z_Malloc`, and your config makes ~21,000 blocks. Measured with it back
+    on, `exec ironwail.cfg` took 545 ms; without it, 20 ms.
+- **Warnings:** `VR_LimitHit` (`vr_api.h`, `vr_limits.cpp`) counts each overflow that used to be silent, and prints
+  `Limit reached: ...` the first time in a session.
+- **Config write:** `Host_WriteConfigurationToFile` writes `ironwail.cfg.tmp`, checks `ferror` and `fclose`, then
+  `Sys_ReplaceFile` (`MoveFileExW` with `MOVEFILE_REPLACE_EXISTING`; `rename` elsewhere). On failure it prints
+  `Couldn't write ironwail.cfg (the disk full?): the file was kept as it was`.
+
+### What didn't change, and why
+
+- **Network limits (datagram, reliable message, light styles, stats, the 16-bit model and sound indices)** are fixed by
+  protocol 999 and by demos recorded with it, so they are kept. Locally, the datagram took 320 moving props at a
+  quarter of its size.
+- **Dynamic lights:** the light clusters store a 64-bit mask per cluster (`GL_RG32UI`). Going past 64 lights would
+  need `GL_RGBA32UI` and shader changes. The peak measured was 7, so it is warned instead.
+- **Gameplay:** nothing changes, apart from the menu positions kept and the QC temp strings lasting longer.
+
+### Tests
+
+The stress tests, in the mock with your config:
+- **50,000 more cvars** (`vr_limits stress 50000`, 60,656 in all): created in 49 ms.
+- **A 4.6 MB config setting all of them** (`limits_stress.cfg`): 38 ms. `cvarlist qvr_stress_4999` took 8 ms. One
+  lookup and set took 0.3 ms. The old code would have stopped at 16,384 cvars with a Sys_Error. With the old 2 MiB
+  buffer, this config printed `Cbuf_AddText: overflow` and none of it ran.
+- **Long values:**
+  - A 5,244-character `vr_menu_positions` and a 4,099-character value both came back whole (`vr_limits cvarlen`).
+  - A 5,599-character archived value (`vr_debris_exclude`) survived `writeconfig`, a reset and `exec`.
+  - The old code cut each of these at 1023 characters.
+- **320 props thrown about in e1m1** (`limits_props.cfg`): the datagram peaked at 16,498 of 64,000 bytes, 590 edicts,
+  405 entities drawn, no overflow.
+- **Maps:** e4m7, e2m2 and hip2m3 in one session with debris; with sound for the sounds known; and a fight in e1m1.
+  The figures are in the table.
+- **Build:** clean, with no new warnings.
+
+`vr_limits` subcommands for tests: `time` (the milliseconds since the last), `stress <n>` (n more cvars, not saved)
+and `cvarlen <name>` (a value's length and its end).
+
+### In the headset
+
+- [ ] Debug > Reports > **Limits** after a long session (several maps): no highlighted row, and no `Limit reached`
+      line in the console.
+- [ ] Open a few different VR pages, quit and restart: each page should open where you left it.

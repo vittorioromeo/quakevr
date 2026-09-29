@@ -1467,9 +1467,9 @@ const char *ED_ParseEdict (const char *data, edict_t *ent)
 
 		if (anglehack)
 		{
-			char	temp[32];
-			strcpy (temp, com_token);
-			sprintf (com_token, "0 %s 0", temp);
+			char	temp[sizeof (com_token)]; // QVR: was [32] and a strcpy: a longer "angle" value (a map's) overflowed it
+			q_strlcpy (temp, com_token, sizeof (temp));
+			q_snprintf (com_token, sizeof (com_token), "0 %s 0", temp);
 		}
 
 		if (!ED_ParseEpair ((void *)&ent->v, key, com_token, qcvm != &sv.qcvm))

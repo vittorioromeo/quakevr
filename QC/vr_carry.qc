@@ -222,7 +222,7 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
             sound(self, CHAN_AUTO, "vr/pommel2.wav", 0.35, ATTN_NORM); // a wooden stick taken up: a soft knock
         }
     }
-    else
+    else if(!vr_carry_quiet)
     {
         sound(self, CHAN_AUTO, "knight/sword2.wav", 0.4, ATTN_NORM);
     }
@@ -380,6 +380,12 @@ void(float xHand) VR_Carry_HandFrame =
     float takeMode = cvar_hget(cvarh_vr_carry_take);
     if(!VR_HandGrabUtil_IsHandGrabbing(self, xHand))
     {
+        // An unarmed hand grenade let go of at the grenade pouch: back in it (vr_grenade.qc).
+        if(VR_HandGrenade_LetGo(xHand, box))
+        {
+            return;
+        }
+
         // Armour (vr_armor_wear, items.qc): let go of over the torso it is put on; else it drops.
         // Never into the pack.
         if(box.vr_wearable)
@@ -407,8 +413,10 @@ void(float xHand) VR_Carry_HandFrame =
         }
 
         // Let go at a holster: into the pack (if full up, it drops there). Not let go of by both hands
-        // (together, as a throw: the other hand at most vr_carry_two_hands_window before, and a frame).
-        if(takeMode != 1 && VR_Carry_AtHolster(xHand) && time - box.carry_2h_end > cvar_hget(cvarh_vr_carry_two_hands_window) + 0.05)
+        // (together, as a throw: the other hand at most vr_carry_two_hands_window before, and a frame). Never a grenade
+        // (nothing to take: it is thrown, as an overarm throw's wind-up passes the shoulder holsters).
+        if(takeMode != 1 && VR_Carry_AtHolster(xHand) && !VR_Grenade_Is(box) &&
+           time - box.carry_2h_end > cvar_hget(cvarh_vr_carry_two_hands_window) + 0.05)
         {
             dprint("carry: into the pack\n");
             VR_Carry_Take(xHand, box);
@@ -430,6 +438,10 @@ void(float xHand) VR_Carry_HandFrame =
     if(box.vr_wearable)
     {
         VR_Armor_HeldFrame(xHand, box); // over the torso: a haptic hint
+    }
+    else if(VR_HandGrenade_Trigger(xHand, box, trigger && !box.carry_trigger))
+    {
+        // (a hand grenade's trigger pulls its pin: vr_grenade.qc)
     }
     else if(takeMode != 0 && trigger && !box.carry_trigger && !box.vr_pickup_obj)
     {

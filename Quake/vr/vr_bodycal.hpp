@@ -99,4 +99,8 @@ void resetTweaks();
 // them too. After the saved config (vr_migrate_config) and once a frame.
 void migrate();
 
+// The preview's values taken off (the settings as they were), before the config is written: a previewed calibration
+// is never saved (vr_cvars.cpp VR_ConfigMergeOthers; the page puts the preview back the next frame).
+void endPreview();
+
 } // namespace qvr::bodycal

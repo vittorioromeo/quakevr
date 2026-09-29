@@ -13,6 +13,7 @@
 #include "vr_hands.hpp"
 #include "vr_input.hpp"
 #include "vr_lines.hpp"
+#include "vr_limits.hpp"
 #include "vr_text3d.hpp"
 #include "vr_twohand.hpp"
 #include "vr_cvars.hpp"
@@ -1004,6 +1005,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_weapon_hotspot_here", view::hotspotHere_f);
     anchor::registerCommands();
     Cmd_AddCommand("vr_decal_count", decals::count_f);
+    Cmd_AddCommand("vr_limits", limits::command_f);
     Cmd_AddCommand("vr_decal_atlas", decals::atlas_f);
     Cmd_AddCommand("vr_gore_test", gore::test_f);
     Cmd_AddCommand("vr_memstats", VR_MemStats_f);
@@ -1072,6 +1074,7 @@ extern "C" void VR_BeginFrame()
     posing::frame();     // the weapon posing mode's text, likewise
     sightalign::frame(); // Align Sights to My Aim: its countdown, text and state
     bodycal::frame();    // Body Calibration: its steps, text, ghost and preview
+    configFrame();       // the config saved as the menu closes, if a setting changed (the preview taken off above)
     memLogFrame();
     profile::overlay();  // the profiler's panel (vr_profile_overlay)
     throwing::filterGrips(state->tracking); // the analog grip's release, before it becomes a key

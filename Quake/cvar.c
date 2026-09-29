@@ -23,12 +23,22 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-#define MAX_CVARS	16384 // QVR: 4096 (the weapons' per-slot settings grew past it, round 21; and 8192 in its third pass)
-
+// QVR: no fixed cvar count (was MAX_CVARS: 4096, then 8192 and 16384 as the weapons' and props' per-slot settings grew,
+// round 21; overflowing it was a Sys_Error at start). The list and the hash map grow as needed; the list is sorted by
+// name lazily (Cvar_EnsureSorted: once after a batch of registrations, not an insertion sort per cvar, which was
+// quadratic with tens of thousands of cvars).
 static int			cvar_count;
-static cvar_t		*cvar_list[MAX_CVARS];
-static cvar_t		*cvar_hashmap[MAX_CVARS * 2];
+static int			cvar_capacity;
+static cvar_t		**cvar_list;
+static size_t		cvar_hash_capacity;
+static cvar_t		**cvar_hashmap;
+static qboolean		cvar_sorted = true;
 static char			cvar_null_string[] = "";
+
+int Cvar_Count (void)
+{
+	return cvar_count;
+}
 
 /*
 ============
@@ -37,7 +47,7 @@ Cvar_AddToHashMap
 */
 static void Cvar_AddToHashMap (cvar_t *var)
 {
-	size_t capacity = Q_COUNTOF (cvar_hashmap);
+	size_t capacity = cvar_hash_capacity;
 	size_t pos = COM_HashString (var->name) % capacity, end = pos;
 
 	do
@@ -55,6 +65,64 @@ static void Cvar_AddToHashMap (cvar_t *var)
 	while (pos != end);
 
 	Sys_Error ("Cvar_AddToHashMap failed");
+}
+
+/*
+============
+Cvar_Reserve -- QVR
+
+Room for one more cvar: the list grows, and the hash map stays at most half full.
+============
+*/
+static void Cvar_Reserve (void)
+{
+	int i;
+
+	if (cvar_count == cvar_capacity)
+	{
+		int newcap = cvar_capacity ? cvar_capacity * 2 : 16384;
+		cvar_t **newlist = (cvar_t **) realloc (cvar_list, newcap * sizeof (*newlist));
+		if (!newlist)
+			Sys_Error ("Cvar_RegisterVariable: out of memory for %d cvars", newcap);
+		cvar_list = newlist;
+		cvar_capacity = newcap;
+	}
+
+	if ((size_t) (cvar_count + 1) * 2 > cvar_hash_capacity)
+	{
+		size_t newcap = cvar_hash_capacity ? cvar_hash_capacity * 2 : 32768;
+		free (cvar_hashmap);
+		cvar_hashmap = (cvar_t **) calloc (newcap, sizeof (*cvar_hashmap));
+		if (!cvar_hashmap)
+			Sys_Error ("Cvar_RegisterVariable: out of memory for the hash map (%d cvars)", cvar_count + 1);
+		cvar_hash_capacity = newcap;
+		for (i = 0; i < cvar_count; i++)
+			Cvar_AddToHashMap (cvar_list[i]);
+	}
+}
+
+static int Cvar_CompareNames (const void *a, const void *b)
+{
+	return strcmp ((*(cvar_t *const *) a)->name, (*(cvar_t *const *) b)->name);
+}
+
+/*
+============
+Cvar_EnsureSorted -- QVR
+
+The list in name order, and each cvar's next the following one.
+============
+*/
+static void Cvar_EnsureSorted (void)
+{
+	int i;
+
+	if (cvar_sorted)
+		return;
+	qsort (cvar_list, cvar_count, sizeof (cvar_list[0]), Cvar_CompareNames);
+	for (i = 0; i < cvar_count; i++)
+		cvar_list[i]->next = i + 1 < cvar_count ? cvar_list[i + 1] : NULL;
+	cvar_sorted = true;
 }
 
 //==============================================================================
@@ -88,6 +156,7 @@ void Cvar_List_f (void)
 	}
 
 	count = 0;
+	Cvar_EnsureSorted ();
 	for (i = 0; i < cvar_count; i++)
 	{
 		cvar = cvar_list[i];
@@ -242,6 +311,7 @@ void Cvar_ResetAll_f (void)
 {
 	int i;
 
+	Cvar_EnsureSorted ();
 	for (i = 0; i < cvar_count; i++)
 		Cvar_Reset (cvar_list[i]->name);
 }
@@ -255,6 +325,7 @@ void Cvar_ResetCfg_f (void)
 {
 	int i;
 
+	Cvar_EnsureSorted ();
 	for (i = 0; i < cvar_count; i++)
 		if (cvar_list[i]->flags & CVAR_ARCHIVE)
 			Cvar_Reset (cvar_list[i]->name);
@@ -302,7 +373,7 @@ cvar_t *Cvar_FindVar (const char *var_name)
 	if (!cvar_count)
 		return NULL;
 
-	capacity = Q_COUNTOF (cvar_hashmap);
+	capacity = cvar_hash_capacity;
 	pos = COM_HashString (var_name) % capacity;
 	end = pos;
 
@@ -330,6 +401,7 @@ cvar_t *Cvar_FindVarAfter (const char *prev_name, unsigned int with_flags)
 	if (!cvar_count)
 		return NULL;
 
+	Cvar_EnsureSorted ();
 	if (*prev_name)
 	{
 		var = Cvar_FindVar (prev_name);
@@ -575,9 +647,8 @@ Adds a freestanding variable to the variable list.
 */
 void Cvar_RegisterVariable (cvar_t *variable)
 {
-	char	value[512];
+	char	*value;
 	qboolean	set_rom;
-	int			i;
 
 // first check to see if it has already been defined
 	if (Cvar_FindVar (variable->name))
@@ -593,29 +664,23 @@ void Cvar_RegisterVariable (cvar_t *variable)
 		return;
 	}
 
-	if (cvar_count == MAX_CVARS)
-		Sys_Error ("Cvar_RegisterVariable: overflow on %s", variable->name);
-
-// link the variable in
-	//johnfitz -- insert each entry in alphabetical order
-	for (i = 0; i < cvar_count; i++)
-		if (strcmp (variable->name, cvar_list[i]->name) < 0)
-			break;
-	if (i < cvar_count)
+// link the variable in (QVR: appended; sorted by name when the order is next needed, Cvar_EnsureSorted)
+	Cvar_Reserve ();
+	variable->next = NULL;
+	if (cvar_count > 0)
 	{
-		variable->next = cvar_list[i];
-		memmove (cvar_list + i + 1, cvar_list + i, (cvar_count - i) * sizeof (cvar_list[0]));
+		cvar_list[cvar_count - 1]->next = variable;
+		if (cvar_sorted && strcmp (cvar_list[cvar_count - 1]->name, variable->name) > 0)
+			cvar_sorted = false;
 	}
-	if (i > 0)
-		cvar_list[i - 1]->next = variable;
-	cvar_list[i] = variable;
-	cvar_count++;
-	//johnfitz
+	cvar_list[cvar_count++] = variable;
 	Cvar_AddToHashMap (variable);
 	variable->flags |= CVAR_REGISTERED;
 
-// copy the value off, because future sets will Z_Free it
-	q_strlcpy (value, variable->string, sizeof(value));
+// copy the value off, because future sets will Z_Free it (QVR: any length; was a 512-byte copy, a longer value cut)
+	value = strdup (variable->string ? variable->string : "");
+	if (!value)
+		Sys_Error ("Cvar_RegisterVariable: out of memory");
 	variable->string = NULL;
 	variable->default_string = NULL;
 
@@ -628,6 +693,7 @@ void Cvar_RegisterVariable (cvar_t *variable)
 	Cvar_SetQuick (variable, value);
 	if (set_rom)
 		variable->flags |= CVAR_ROM;
+	free (value);
 }
 
 /*
@@ -733,6 +799,7 @@ void Cvar_WriteVariables (FILE *f)
 {
 	int i;
 
+	Cvar_EnsureSorted ();
 	for (i = 0; i < cvar_count; i++)
 	{
 		cvar_t *var = cvar_list[i];

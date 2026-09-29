@@ -23,7 +23,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-#define	DYNAMIC_SIZE	(4 * 1024 * 1024) // ericw -- was 512KB (64-bit) / 384KB (32-bit)
+// QVR: 32 MiB (was 4): the zone holds every cvar's value and default (Quake VR has tens of thousands: the per-weapon and
+// per-prop settings) and every command's arguments; a full zone is a Sys_Error ("Z_Malloc: failed"). Usage: vr_limits.
+#define	DYNAMIC_SIZE	(32 * 1024 * 1024) // ericw -- was 512KB (64-bit) / 384KB (32-bit)
 
 #define	ZONEID	0x1d4a11
 #define MINFRAGMENT	64
@@ -63,6 +65,19 @@ all big things are allocated on the hunk.
 */
 
 static memzone_t	*mainzone;
+static int		zone_used, zone_peak; // QVR: bytes in use (headers included) and the most ever (vr_limits)
+
+/*
+========================
+Z_Usage -- QVR
+========================
+*/
+void Z_Usage (int *used, int *peak, int *size)
+{
+	*used = zone_used;
+	*peak = zone_peak;
+	*size = mainzone ? mainzone->size : 0;
+}
 
 
 /*
@@ -84,6 +99,7 @@ void Z_Free (void *ptr)
 		Sys_Error ("Z_Free: freed a freed pointer");
 
 	block->tag = 0;		// mark as free
+	zone_used -= block->size;
 
 	other = block->prev;
 	if (!other->tag)
@@ -155,6 +171,9 @@ static void *Z_TagMalloc (int size, int tag)
 	}
 
 	base->tag = tag;				// no longer a free block
+	zone_used += base->size;
+	if (zone_used > zone_peak)
+		zone_peak = zone_used;
 
 	mainzone->rover = base->next;	// next allocation will start looking here
 
@@ -198,7 +217,10 @@ void *Z_Malloc (int size)
 {
 	void	*buf;
 
-	Z_CheckHeap ();	// DEBUG
+#ifdef PARANOID
+	Z_CheckHeap ();	// DEBUG (QVR: PARANOID only, as Hunk_Check: it walked every block at every allocation, and the zone
+					// holds tens of thousands of blocks, the cvars' values)
+#endif
 	buf = Z_TagMalloc (size, 1);
 	if (!buf)
 		Sys_Error ("Z_Malloc: failed on allocation of %i bytes",size);
@@ -653,6 +675,23 @@ void *Hunk_AllocNoFill (int size)
 int	Hunk_LowMark (void)
 {
 	return hunk_low_used;
+}
+
+/*
+===================
+Hunk_Usage -- QVR (vr_limits)
+===================
+*/
+void Hunk_Usage (int *used, int *peak, int *size, int *segments, int *maxsegments)
+{
+	static int hunk_peak;
+	if (hunk_low_used > hunk_peak)
+		hunk_peak = hunk_low_used;
+	*used = hunk_low_used;
+	*peak = hunk_peak;
+	*size = Hunk_Size ();
+	*segments = hunk_numsegments;
+	*maxsegments = MAX_SEGMENTS;
 }
 
 void Hunk_FreeToLowMark (int mark)

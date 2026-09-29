@@ -64,9 +64,12 @@ int		s_rawend;
 portable_samplepair_t	s_rawsamples[MAX_RAW_SAMPLES];
 
 
-#define	MAX_SFX		1024
+// QVR: 4096 (was 1024; full: Sys_Error): the sounds known are never freed, and the progs alone name ~400
+#define	MAX_SFX		4096
 static sfx_t	*known_sfx = NULL;	// hunk allocated [MAX_SFX]
 static int	num_sfx;
+int S_KnownSfxCount (void) { return num_sfx; } // QVR (vr_limits)
+int S_KnownSfxMax (void) { return MAX_SFX; }
 
 static sfx_t	*ambient_sfx[NUM_AMBIENTS];
 

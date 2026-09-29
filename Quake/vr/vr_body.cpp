@@ -165,10 +165,9 @@ constexpr float SURFACE_CLEARANCE = 1.5f; // units the holster (a hand's reach t
 // there is an ellipse round the spine, whose normal the holster's plate faces: the belly's at the
 // hips, the chest's at the upper holsters, which sit above its widest, by the collarbones, where
 // it slopes back towards the neck.
-[[nodiscard]] HolsterPlate plateOnTheBody(const hands::State& standing, Holster holster, const glm::vec3& pos)
+[[nodiscard]] HolsterPlate plateOnTheRing(const hands::State& standing, bool hip, const glm::vec3& pos)
 {
     const auto [m2w, torsoScale, axis] = torsoShape();
-    const bool hip = holster == LeftHip || holster == RightHip;
     const float depth = (hip ? 0.115f : 0.13f * torsoScale) * m2w;
     const float width = (hip ? 0.17f : 0.19f * torsoScale) * m2w;
     const float slope = glm::radians(hip ? 0.f : 20.f);
@@ -187,6 +186,33 @@ constexpr float SURFACE_CLEARANCE = 1.5f; // units the holster (a hand's reach t
     const float e = std::sqrt((x / depth) * (x / depth) + (y / width) * (y / width));
     p.clearance = std::sqrt(x * x + y * y) * (1.f - 1.f / e); // along the ring's radius
     return p;
+}
+
+[[nodiscard]] HolsterPlate plateOnTheBody(const hands::State& standing, Holster holster, const glm::vec3& pos)
+{
+    return plateOnTheRing(standing, holster == LeftHip || holster == RightHip, pos);
+}
+
+// The grenade pouch (pouchPosition): the old placement's, as the hips' (moving back as you crouch), vr_grenade_pouch_x
+// behind the box's middle by default.
+constexpr float POUCH_X_DEFAULT = -7.f; // vr_cvars.inc: at it, the pouch on the body sits on the back
+
+[[nodiscard]] glm::vec3 legacyPouchPosition(const hands::State& s)
+{
+    return hands::bodyAnchor(s, {vr_grenade_pouch_x.value, vr_grenade_pouch_y.value, vr_grenade_pouch_z.value}) +
+           crouchAdjustment(s, -9.5f);
+}
+
+// On the drawn body: the default X on the back of the hips' ring (the belt at the small of the back), X moving it on
+// from there, round the hips (outOfTheTorso) rather than into them; in the standing body.
+[[nodiscard]] glm::vec3 pouchOnTheBody(const hands::State& standing, const glm::vec3& pos)
+{
+    const TorsoShape t = torsoShape();
+    glm::vec3 fwd, right, up;
+    hands::angleVectors({0.f, standing.bodyYaw, 0.f}, fwd, right, up);
+    const float now = glm::dot(pos - standing.head, fwd);
+    const float at = t.axis - torsoRing(t, true).x + (vr_grenade_pouch_x.value - POUCH_X_DEFAULT);
+    return outOfTheTorso(standing, true, pos + fwd * (at - now));
 }
 
 // With the full body's legs (vr_body_mode 3), the hip holsters ride the thighs, by
@@ -240,7 +266,7 @@ void onTheThigh(const avatar::Follower& follow, Holster holster, glm::vec3& pos,
     return now;
 }
 
-[[nodiscard]] Hotspot hotspot(const hands::State& s, int hand, const HolsterPositions& holsters)
+[[nodiscard]] Hotspot hotspot(const hands::State& s, int hand, const HolsterPositions& holsters, const glm::vec3* pouch)
 {
     const glm::vec3& pos = s.pos[hand];
 
@@ -260,6 +286,11 @@ void onTheThigh(const avatar::Follower& follow, Holster holster, glm::vec3& pos,
             bestRatio = ratio;
             best = h;
         }
+    }
+    // The grenade pouch (vr_handgrenade), the same way: at the small of the back, apart from every holster.
+    if(pouch && pouchReach() > 0.f && glm::distance(pos, *pouch) / pouchReach() < bestRatio)
+    {
+        return HS_GRENADE_POUCH;
     }
     if(best >= 0)
     {
@@ -322,6 +353,46 @@ HolsterPositions holsterPositions(const hands::State& s, HolsterPlates* plates)
         out[h] = followingHolsterPosition(follow, standing, static_cast<Holster>(h), plates ? &(*plates)[h] : nullptr);
     }
     return out;
+}
+
+bool pouchEnabled()
+{
+    return vr_handgrenade.value != 0.f;
+}
+
+float pouchReach()
+{
+    return vr_grenade_pouch_thresh.value;
+}
+
+glm::vec3 pouchPosition(const hands::State& s, HolsterPlate* plate)
+{
+    if(plate)
+    {
+        *plate = HolsterPlate{};
+    }
+    if(!vr_body_anchors.value)
+    {
+        return legacyPouchPosition(s);
+    }
+    const avatar::Follower follow{s};
+    const hands::State standing = avatar::standing(s);
+    glm::vec3 pos = legacyPouchPosition(standing);
+    if(vr_body_mode.value < 1.f)
+    {
+        return follow(avatar::Part::Pelvis, pos);
+    }
+    pos = pouchOnTheBody(standing, pos);
+    const glm::vec3 now = follow(avatar::Part::Pelvis, pos);
+    if(plate)
+    {
+        // The Follower moves points rigidly: directions follow as the difference of two.
+        const HolsterPlate p = plateOnTheRing(standing, true, pos);
+        plate->out = follow(avatar::Part::Pelvis, pos + p.out) - now;
+        plate->up = follow(avatar::Part::Pelvis, pos + p.up) - now;
+        plate->clearance = p.clearance;
+    }
+    return now;
 }
 
 glm::vec3 chestAnchor(const hands::State& s, const glm::vec3& offsets)
@@ -397,6 +468,13 @@ void queueDebug(const hands::State& s)
         lines::point(holsterPosition(s, holster), threshold(holster) * 2.f, color);
     }
 
+    if(vr_show_grenade_pouch.value && pouchEnabled())
+    {
+        const bool hovered = s.hotspot[HAND_OFF] == HS_GRENADE_POUCH || s.hotspot[HAND_MAIN] == HS_GRENADE_POUCH;
+        const glm::vec4 color = hovered ? glm::vec4{0.2f, 1.f, 0.2f, 0.35f} : glm::vec4{1.f, 0.9f, 0.2f, 0.25f};
+        lines::point(pouchPosition(s), pouchReach() * 2.f, color);
+    }
+
     if(vr_show_virtual_stock.value)
     {
         glm::vec3 shoulder{vr_shoulder_offset_x.value, vr_shoulder_offset_y.value, vr_shoulder_offset_z.value};
@@ -412,9 +490,11 @@ void queueDebug(const hands::State& s)
 void updateHotspots(hands::State& s)
 {
     const HolsterPositions holsters = holsterPositions(s);
+    const bool withPouch = pouchEnabled();
+    const glm::vec3 pouch = withPouch ? pouchPosition(s) : glm::vec3{0.f};
     for(int hand = 0; hand < HAND_COUNT; hand++)
     {
-        s.hotspot[hand] = hotspot(s, hand, holsters);
+        s.hotspot[hand] = hotspot(s, hand, holsters, withPouch ? &pouch : nullptr);
     }
 }
 

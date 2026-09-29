@@ -125,6 +125,7 @@ constexpr int busyButton[2] = {protocol::QVR_BUTTON_OFFHANDBUSY, protocol::QVR_B
 constexpr int HS_LEFT_SHOULDER_HOLSTER = 3;
 constexpr int HS_HAND_SWITCH = 7;
 constexpr int HS_RIGHT_UPPER_HOLSTER = 9;
+constexpr int HS_GRENADE_POUCH = 11;
 
 constexpr float surfaceAbove = 12.f;  // the hold's top may be this far above the hand (the hand sunk into it),
 constexpr float surfaceBelow = 10.f;  // or this far below it
@@ -844,6 +845,10 @@ Climber climbers[MAX_SCOREBOARD];
     if(hotspot < HS_LEFT_SHOULDER_HOLSTER || hotspot == HS_HAND_SWITCH)
     {
         return false;
+    }
+    if(hotspot == HS_GRENADE_POUCH)
+    {
+        return !hanging && ent->v.ammo_rockets >= 1.f; // a grenade to take (hanging: the next hold)
     }
     if(hotspot > HS_RIGHT_UPPER_HOLSTER)
     {

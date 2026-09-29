@@ -141,6 +141,15 @@ context and screenshot, ready to paste or to point me at.
 ## What to try
 
 - **New in this round** (details in `docs/vr-port/ROUND21.md`; each section ends with an "In the headset" list):
+  - **Hand grenades from the back pouch** (ROUND21.md, same title): with rockets, reach behind the small of your back
+    with an empty hand (either) and grip: a grenade from the pouch on your belt there (a tap as the hand arrives; the
+    pouch lights up), in your palm. Pull the trigger to pull its pin (a ping, the fizz, sparks, ticks faster and
+    faster): 2.5 s, then it goes off as the grenade launcher's (120 damage over 160 units, yours, with Quad), or on a
+    monster it hits. Throw it as anything you carry. Changed your mind? Let go of it at the pouch before pulling the
+    pin: it goes back in, and the rocket with it (a rocket leaves your ammo while a grenade is in your hand). Let go
+    of elsewhere unarmed, it is a dud at your feet: take it again to arm it or put it back. No rockets: a dull knock.
+    Batting and Catching > **Hand Grenades** (on/off, **Arm Hand Grenades**: the trigger, or when let go of; **Hand
+    Grenade Fuse**); the pouch's place and turn on Hip Holsters > **Grenade Pouch**.
   - **Hands: both work; props through teleporters; climbing stamina** (ROUND21.md, same title): a hand that force
     grabbed something and put it down could no longer take a ledge (fixed); a main-hand grip on a thing the off hand
     touched did nothing, and a prop held in both hands lost a hand when you moved fast (both fixed). Bricks (whole,
@@ -227,6 +236,13 @@ context and screenshot, ready to paste or to point me at.
     Hephaestus are immune; zombies burn up in lava.
   - **Holster orientation** (Hotspots: Shoulder / Hip / Upper Pitch, Yaw, Roll): turn each pair of holsters and the
     guns in them; the left mirrors the right. Draw and holster as before.
+  - **Holster draw blend** (ROUND21.md, "Holster draw blend; holster defaults; body calibration kept"):
+    - A gun drawn from a holster turns smoothly into your hand, the shortest way, over Draw Blend Time. A gun you
+      holster settles into the holster over Holster Blend Time. Both are on Weapons > Immersion: 0.3 s each, 0 for at
+      once. The gun can fire at once.
+    - Your holstered poses are now everyone's defaults.
+    - Your settings are saved when the menu closes and when you Apply a body calibration. Before, a game stopped from
+      the debugger kept none of them.
   - **Per-weapon holstered pose** (Weapon Offsets > Holstered; ROUND21.md, "Per-weapon holstered pose"): hold a
     weapon, open its page, pick Hip, Upper (Chest) or Shoulder (Back) and move and turn it with the six sliders: while a
     Holstered setting is chosen, the weapon you hold is drawn in both holsters of that kind, so look down (or at the body
@@ -975,6 +991,17 @@ draws the menu over the whole view: `scr_menubgalpha 0` and the camera off to a 
 with `vr_body_debug 2`) leave the body preview visible on the left. `vr_dumpview` lists each holstered gun's place.
 Runs aren't pixel-identical (particles, the arms' easing, lighting by ones): compare the holstered guns' lines of
 `vr_dumpview`.
+Draw and holster blend (ROUND21.md, "Holster draw blend; holster defaults; body calibration kept"):
+- **The log:** `vr_debug_draw_blend 1` prints each frame of a blend: the turn and distance left, the start, and the turn
+  without the sign flip.
+- **Drawing:** draw the shotgun from the right hip with `vr_weapon_grip_mode 0; vr_mock_hand main 0.20 0.95 0.0 70 0
+  <roll>; wait30; +grabright; vr_mock_button main grip 1`. A roll near 180 gives a start near 180 degrees.
+- **Holstering:** put it back at the same place with `-grabright; vr_mock_button main grip 0`.
+- **Pictures:** use a slow blend (`vr_weapon_draw_blend 3`) and `vr_mock_camera 0.75 1.35 -0.55 25 140`.
+- **The config across a killed session** (scripts in the scratchpad's `notes4/`):
+  1. Run `vr_bodycal_refit bodycal/<session>.txt; vr_bodycal_apply` with no `quit`. The run times out and is killed.
+  2. While it runs, have a watcher copy `quakevr/ironwail.cfg`: the kit restores the baseline config after the run.
+  3. Start a second run from that copy.
 Wounds (ROUND21.md, "Dynamic wounds, burns and wetness"): `vr_wounds_test <entity|self|ahead|all> <kind> [amount]
 [right] [up] [extra]` paints a wound as the server's event would (1 shot, 2 nail, 3 melee, 4 blast, 5 burn, 6 zap,
 7 lava, 8 slime, 9 liquid; a liquid's `up` is its surface over the feet); `ahead` is the model nearest the view's
@@ -1127,6 +1154,20 @@ is entity 274, rock5 245, the half brick 220, a whole brick 214, the wall torch 
 `vr_mock_hand main 0.15 1.2 -0.45 70 0 0`: `vr_mock_camera 0.35 1.15 -0.45 25 90` (outside), `-0.05 1.12 -0.45 25 -90`
 (the palm's side), `0.15 1.18 -0.68 30 180` (the front); `r_fullbright 1` lights them.
 
+Hand grenades from the back pouch (ROUND21.md, same title): the scratchpad's `handgren/` has the scripts and logs.
+`gen.py` writes the `vr_mock_play` files (from `throw_plays.py`'s `throws.txt`: `python Misc/quakevr/throw_plays.py
+--gunangle 70 --out throws.txt` first): a hand to the pouch at `vr_mock_hand main|off 0 1.0 0.2 0 0 0` (Gun Angle 70;
+`vr_dumpview` prints `grenade pouch at ..., main hand <d> units off (hotspot 11)`), `+grabmain`/`+graboff` there takes
+one, `+attack`/`+offhandattack` pulls the pin, the throw lets go with `-grabmain`/`-graboff`. `run1.sh <play> <png>
+["<console commands>"] ["<spawn>"]` runs one in vrfiringrange from `setpos 190 -560 41 0 90 0` with 10 rockets and a
+grunt 300 units ahead (`vr_test_spawn 0; vr_test_spawn_dist 300; impulse 241`); `runall.sh` runs them all into
+`logs/`. `developer 1` prints `grenade: hand grenade taken from the pouch by hand <h>, <n> rockets left`, `the pouch
+is empty`, `hand grenade armed (the pin pulled | the lever flies off ...)`, `a hand grenade let go of unarmed: a dud`,
+`hand grenade put back in the pouch`, `an unarmed hand grenade back in the pouch at the level's end`, and the grenades'
+own lines (`hits`, `goes off`, `went off in player's hand`); `vr_debug_shots 1` the damage. A dud rolls into the grate
+at the start's feet (`edict <n>` prints where): reach it at `vr_mock_hand main 0.03 -0.14 0` (the mock's floor is 7
+units over the map's there). The pouch from behind: `vr_mock_camera 0.25 1.15 0.95 8 15`; `give r 0` shows it empty.
+
 Debug menu; quad sound; grenade catch default; no empty-hand deflection (ROUND21.md, same title): the scratchpad's
 `misc23/` has the scripts and logs.
 - `t.py N|W|Q` prints the console script and writes the play (it uses `projfix/t.py`'s poses and `r20/gen.py`):
@@ -1161,3 +1202,11 @@ walks with a brick in both hands. Two hands on a brick in start: the main hand a
 at every 10 spent, 2 every frame); `vr_gadget_screen_dump <name>` writes the gadget's screen. The 13 climb scripts:
 `climb/set.sh <suffix>` (`EXTRA="vr_climb_stamina 0"` adds cvars) and `climb/cmp.sh A B`. `edict <n>` with a number past
 the live edicts ends the game (`PR_SwitchQCVM: A qcvm was already active`): use numbers you have seen.
+
+Hardcoded limits (ROUND21.md, "Hardcoded limits audit"): `vr_limits` (Debug > Reports > Limits) prints each limit's
+usage, peak and maximum, highlighted from 80%. Overflows that used to be silent (temp entities, dynamic lights, the
+datagram) print `Limit reached: ...` once a session. Stress tests: `vr_limits stress <n>` makes n more cvars
+(`qvr_stress_00000`..., not saved), `vr_limits time` prints the milliseconds since the last one (`vr_limits time; exec
+big.cfg; vr_limits time`), `vr_limits cvarlen <name>` gives a value's length (a print stops at 4095 characters). There
+is no `set` command: a config line sets only an existing cvar. `vr_physics_spawn item_shells <dist> <left>` 320 times
+in e1m1 moves 320 props (the datagram peaked at 16.5 KB of 64 KB).

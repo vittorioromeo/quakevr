@@ -36,6 +36,7 @@
 #include "vr_posing.hpp"
 #include "vr_sightalign.hpp"
 #include "vr_bodycal.hpp"
+#include "vr_drawblend.hpp"
 #include "vr_profile.hpp"
 #include "vr_props.hpp"
 #include "vr_menu.hpp"
@@ -222,6 +223,7 @@ struct Entities
     view::ViewEntity gadget;
     view::ViewEntity gadgetStrap[2]; // round the forearm under its lugs (the elbow's side, the wrist's)
     view::ViewEntity flashlight; // vr_flashlight.cpp
+    view::ViewEntity pouch;      // the grenade pouch at the small of the back (vr_handgrenade)
     view::ViewEntity button[2];
     view::ViewEntity ghost[2]; // the motion review's ghost of a take's weapons (view::setGhost)
 };
@@ -265,6 +267,7 @@ void forEachEntity(F&& f)
     f(entities.gadgetStrap[0]);
     f(entities.gadgetStrap[1]);
     f(entities.flashlight);
+    f(entities.pouch);
     for(view::ViewEntity& ve : entities.button)
     {
         f(ve);
@@ -1086,6 +1089,10 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
                             along < 5.f || along < std::cos(glm::radians(35.f)) * glm::length(toGrip);
         s.grip2HPalm[hand] = spot.type == weapons::HotspotType::Cup;
     }
+
+    // Just drawn from a holster: eased from its holstered pose into the hand (vr_drawblend.cpp; drawn only, the muzzle
+    // and the grips above are its real place).
+    drawblend::hand(s, hand, ve.ent, !floating && !carried && model && slot >= 0 && slot != weapons::fistSlot() && !isHandModel(model));
 
     // The empty hand's "weapon" is a hand model; hands are drawn separately.
     if(isHandModel(model))
@@ -3208,6 +3215,22 @@ void idleAttachments(const entity_t& e, bool mirrored, int slot, view::ViewEntit
     }
 }
 
+// The body's preview (vr_body_debug 2 and 3): in front of the player, turned to face them or seen from its left. Its turn,
+// and where a point of the body is drawn in it.
+[[nodiscard]] glm::mat3 bodyPreviewTurn()
+{
+    return glm::mat3_cast(
+        glm::angleAxis(glm::radians(vr_body_debug.value >= 3.f ? -90.f : 180.f), glm::vec3{0.f, 0.f, 1.f}));
+}
+
+[[nodiscard]] glm::vec3 bodyPreviewPoint(const hands::State& s, const glm::vec3& pos)
+{
+    const glm::vec3 root{s.head.x, s.head.y, 0.f};
+    const glm::vec3 centre =
+        root + hands::forward({0.f, s.bodyYaw, 0.f}) * (1.8f * units::metresToUnits() * units::bodyScale());
+    return centre + bodyPreviewTurn() * (pos - root);
+}
+
 void setupHolsters(const hands::State& s, bool queueTexts)
 {
     const float yaw = s.bodyYaw;
@@ -3252,14 +3275,9 @@ void setupHolsters(const hands::State& s, bool queueTexts)
             glm::vec3 at = pos;
             if(vr_body_debug.value >= 2.f)
             {
-                // The body's preview (vr_body_debug 2 and 3: in front of the player, turned)
-                // carries them too.
-                const glm::vec3 root{s.head.x, s.head.y, 0.f};
-                const glm::vec3 centre =
-                    root + hands::forward({0.f, yaw, 0.f}) * (1.8f * units::metresToUnits() * units::bodyScale());
-                const glm::mat3 turn = glm::mat3_cast(glm::angleAxis(
-                    glm::radians(vr_body_debug.value >= 3.f ? -90.f : 180.f), glm::vec3{0.f, 0.f, 1.f}));
-                at = centre + turn * (pos - root);
+                // The body's preview carries them too.
+                const glm::mat3 turn = bodyPreviewTurn();
+                at = bodyPreviewPoint(s, pos);
                 plate.out = turn * plate.out;
                 plate.up = turn * plate.up;
                 outwards = turn * outwards;
@@ -3292,6 +3310,8 @@ void setupHolsters(const hands::State& s, bool queueTexts)
         view::ViewEntity& ve = entities.holster[h];
         place(ve, model, pose.weaponPos, pose.weaponAngles, 0, mirrored);
         highlight(ve, hover);
+        // Just holstered: eased from the hand into the holster (vr_drawblend.cpp).
+        drawblend::holster(s, stat, model ? &ve.ent : nullptr, !(preview && kind == static_cast<weapons::HolsterKind>(previewKind)));
 
         if(slotModel && !shoulder)
         {
@@ -3313,6 +3333,45 @@ void setupHolsters(const hands::State& s, bool queueTexts)
             emissive::lavaGunLight(2 + h, lavaGlowPosition(ve.ent, mirrored, 0.f, slot), vr_lavagun_light_idle.value);
         }
     }
+}
+
+// The grenade pouch (vr_handgrenade; ROUND21.md, "Hand grenades from the back pouch"): vrpouch.mdl (make_pouch.py: +x out
+// of the body, +z up, its back against the body at the origin) on the belt at the small of the back, facing the body's
+// surface there (straight back without the body), turned by vr_grenade_pouch_pitch/yaw/roll about where the hand
+// reaches for it (the holsters' axes: out, up, and the body's right as "outwards"). Frame 0 full (you have rockets),
+// 1 empty (flat); lit up while a hand is at it, as a holster is.
+void setupPouch(const hands::State& s)
+{
+    view::ViewEntity& ve = entities.pouch;
+    qmodel_t* const model = body::pouchEnabled() ? viewModel("progs/vrpouch.mdl") : nullptr;
+    if(!model)
+    {
+        ve.visible = false;
+        return;
+    }
+    body::HolsterPlate plate;
+    const glm::vec3 pos = body::pouchPosition(s, &plate);
+    glm::vec3 fwd, right, up;
+    hands::angleVectors({0.f, s.bodyYaw, 0.f}, fwd, right, up);
+    glm::vec3 out = plate.out != glm::vec3{0.f} ? plate.out : -fwd;
+    glm::vec3 surfaceUp = plate.out != glm::vec3{0.f} ? plate.up : up;
+    glm::vec3 outwards = right;
+    glm::vec3 at = pos;
+    if(vr_body_debug.value >= 2.f)
+    {
+        const glm::mat3 turn = bodyPreviewTurn();
+        at = bodyPreviewPoint(s, pos);
+        out = turn * out;
+        surfaceUp = turn * surfaceUp;
+        outwards = turn * outwards;
+    }
+    HolsterFrame frame = holsterFrame(out, surfaceUp, outwards);
+    const float clearance = plate.out != glm::vec3{0.f} ? CLAMP(0.f, plate.clearance, 4.f) : 0.f;
+    HolsterPose pose{at - frame.out * clearance, aliasAngles(frame.out, frame.up), at, glm::vec3{0.f}};
+    turnHolster(pose, at, frame,
+        {vr_grenade_pouch_pitch.value, vr_grenade_pouch_yaw.value, vr_grenade_pouch_roll.value});
+    place(ve, model, pose.slotPos, pose.slotAngles, cl.stats[STAT_ROCKETS] >= 1 ? 0 : 1, false);
+    highlight(ve, s.hotspot[HAND_OFF] == body::HS_GRENADE_POUCH || s.hotspot[HAND_MAIN] == body::HS_GRENADE_POUCH);
 }
 
 // The weapons lying in the world (map pickups are the guns themselves in Quake VR: thrown weapons,
@@ -4123,6 +4182,7 @@ HandImpact handImpacts[2];
 // map: the same start on every map.
 void view::resetClientState()
 {
+    drawblend::reset();
     for(HandImpact& h : handImpacts)
     {
         h = HandImpact{};
@@ -4607,6 +4667,7 @@ extern "C" void VR_SetupViewEntities()
     setupPauldrons();
     setupGadget(s);
     flashlight::setupView(s, entities.flashlight);
+    setupPouch(s);
     dripBlood(s);
     setupButton(HAND_MAIN);
     setupButton(HAND_OFF);
@@ -5268,6 +5329,14 @@ void dumpView_f()
             Con_Printf(" %d/%.2f", p.frame, p.open);
         }
         Con_Printf(")\n");
+    }
+
+    if(body::pouchEnabled())
+    {
+        const glm::vec3 pouch = body::pouchPosition(s);
+        Con_Printf("grenade pouch at (%.2f %.2f %.2f), reach %.1f: main hand %.1f units off (hotspot %d), off hand %.1f (%d)\n",
+            pouch.x, pouch.y, pouch.z, body::pouchReach(), glm::distance(s.pos[HAND_MAIN], pouch), s.hotspot[HAND_MAIN],
+            glm::distance(s.pos[HAND_OFF], pouch), s.hotspot[HAND_OFF]);
     }
 
     int i = 0;
