@@ -316,6 +316,7 @@ using PageBuilder = std::vector<Item> (*)();
 [[nodiscard]] std::vector<Item> pageDebugReports();
 [[nodiscard]] std::vector<Item> pageDebugTools();
 [[nodiscard]] std::vector<Item> pageDebugTests();
+[[nodiscard]] std::vector<Item> pageHitbox();
 
 // Texts the menu hands out by pointer (an Item holds const char*):
 // - readouts: an info line's or a help's text, valid until the same function's next call (the draw uses it at once);
@@ -1987,14 +1988,11 @@ std::vector<Item> pageDebugTests()
         toggle("Hold Stamina", vr_debug_stamina_hold).help("Keeps your stamina where it is, or where the buttons above put it: nothing spends it and it doesn't come back (vr_debug_stamina_hold)."),
         toggle("Print Run Speed", vr_debug_stamina_speed).help("Prints your stamina, the most speed it lets you run at and your speed on the ground, twice a second (vr_debug_stamina_speed)."),
         header("Player Hitbox (Prototype)"),
-        cycle("Hitbox Width", vr_hull_width,
-            {{0.f, "Quake's (32)"}, {16.f, "16 units"}, {20.f, "20 units"}, {24.f, "24 units"}, {28.f, "28 units"},
-             {32.f, "32 (new collision)"}})
-            .help("How wide you are against walls, ledges, doors and lifts (docs/vr-port/HULLS.md). Quake's is 32 units "
-                  "(16 from each wall). Monsters, items and shots still meet Quake's box."),
-        command("Hitbox Stats", "vr_hull_stats").help("Prints the map's rebuilt brushes: count, memory, build time."),
-        command("Hitbox Bench", "vr_hull_bench").help("Times 20000 random moves (Quake's hull against the new "
-                                                      "collision) and prints where they disagree."),
+        open("Player Hitbox Settings", pageIndex(pageHitbox)).help("Movement > Player Hitbox: the widths and their toggles."),
+        command("Hitbox Stats", "vr_hull_stats").help("Prints the map's rebuilt brushes and compiled hull: counts, memory, build times."),
+        command("Hitbox Approach", "vr_hull_approach").help("Prints how close your box gets to what is round you, in 8 directions (from your centre to the surface it stops at; Quake's box: 16 units). vr_hull_approach <classname> [n] does it round an entity."),
+        command("Hitbox Bench", "vr_hull_bench").help("Times 20000 random moves (Quake's hull against the brush sweep "
+                                                      "and the compiled hull) and prints where they disagree."),
         command("Hitbox Probe", "vr_hull_probe")
             .help("Prints which of the map's brushes your box is in, and by how much (when you're stuck)."),
         command("Random Walk (60 s)", "god; notarget; vr_hull_walktest 60")
@@ -2152,6 +2150,47 @@ std::vector<Item> pageDebugTests()
     };
 }
 
+// Movement > Player Hitbox: how wide the player is against the map and against other boxes (vr_hull.cpp,
+// docs/vr-port/HULLS.md).
+std::vector<Item> pageHitbox()
+{
+    const std::vector<Choice> widths{{8.f, "8 units"}, {12.f, "12 units"}, {16.f, "16 units"}, {20.f, "20 units"},
+        {24.f, "24 units"}, {28.f, "28 units"}, {32.f, "32 (new collision)"}};
+    std::vector<Choice> world{{0.f, "Quake's (32)"}};
+    world.insert(world.end(), widths.begin(), widths.end());
+    std::vector<Choice> ents{{-1.f, "Same as Walls"}, {0.f, "Quake's (32)"}};
+    ents.insert(ents.end(), widths.begin(), widths.end());
+    return {
+        header("Walls and Brush Models"),
+        cycle("Width Against Walls", vr_hull_width, world)
+            .help("How wide you are against walls, floors, ledges, doors, lifts and other brush models. Quake's box is "
+                  "32 units (you stop 16 from each wall: 0.6 m); 16 stops you 8 away (0.3 m)."),
+        cycle("Method", vr_hull_method, {{0.f, "Brush Sweep"}, {1.f, "Compiled Hull"}})
+            .help("Brush Sweep: your box swept against the map's brushes (Quake 2's way). Compiled Hull: a clipping "
+                  "hull built for your width when the map loads (qbsp's way), traced like Quake's own. They should "
+                  "feel the same; this is for comparing them."),
+        toggle("Doors, Lifts and Walls Too", vr_hull_brushmodels)
+            .help("The width above against brush models as well (doors, lifts, trains, func_walls, the firing range's "
+                  "panels and tables). Off: only the world's walls; brush models meet Quake's box."),
+        header("Monsters, Players and Boxes"),
+        cycle("Width Against Them", vr_hull_ent_width, ents)
+            .help("How wide you are against monsters, other players and solid boxes, both ways (you walking into them, "
+                  "them walking into you). Shots, missiles and melee still hit Quake's 32 box; items are picked up with it."),
+        toggle("Monsters", vr_hull_monsters).help("That width between you and monsters."),
+        toggle("Other Players", vr_hull_players).help("That width between players."),
+        toggle("Solid Boxes", vr_hull_boxes).help("That width against explosive boxes and other solid boxes."),
+        slider("Prop Push Radius", vr_box3d_player_radius, 5.f, 40.f, 1.f, "%.0f cm")
+            .help("Loose props (rocks, bricks, weapons on the floor) are pushed by a capsule this wide round your body, "
+                  "not by your box (vr_box3d_player_radius)."),
+        header("Tests"),
+        command("Hitbox Stats", "vr_hull_stats").help("Prints the map's rebuilt brushes and compiled hull: counts, memory, build times."),
+        command("Hitbox Approach", "vr_hull_approach").help("Prints how close your box gets to what is round you, in 8 directions (from your centre to the surface it stops at; Quake's box: 16 units). vr_hull_approach <classname> [n] does it round an entity."),
+        command("Random Walk (60 s)", "god; notarget; vr_hull_walktest 60")
+            .help("Walks you around the map at random for 60 seconds (hopping somewhere new every few), then prints how "
+                  "often you got stuck, in a wall or in a monster."),
+    };
+}
+
 // ----------------------------------------------------------------------------
 // Pages
 // ----------------------------------------------------------------------------
@@ -2257,6 +2296,7 @@ const Page pages[] = {
     {"Debug - Tools", pageDebugTools, pageDebug},                           // 70
     {"Debug - Tests", pageDebugTests, pageDebug},                           // 71
     {"Checklist", pageChecklist, pageDebug},                                // 72 (also the corner's button)
+    {"Player Hitbox", pageHitbox, pageMovement},                            // 73
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -2402,6 +2442,7 @@ std::vector<Item> pageMovement()
         open("Climbing", pageIndex(pageClimbing)),
         open("Swimming", pageIndex(pageSwimSettings)),
         open("Grappling Hook", pageIndex(pageGrapple)),
+        open("Player Hitbox", pageIndex(pageHitbox)).help("How wide you are against walls, doors, monsters and players."),
     };
 }
 

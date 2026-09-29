@@ -176,6 +176,9 @@ float VR_MissileExtent (float fallback);				// SV_Move MOVE_MISSILE box extent
 int VR_HullMoveBox (struct edict_s *passedict, const float *mins, const float *maxs, float *boxmins, float *boxmaxs); // SV_Move: nonzero if its BSP clips use this box
 int VR_HullClipBSP (struct edict_s *ent, const float *start, const float *boxmins, const float *boxmaxs, const float *end,
 	trace_t *trace);								// SV_ClipMoveToEntity for SOLID_BSP: nonzero if it traced (else the hull)
+int VR_HullEntBox (struct edict_s *passedict, const float *mins, const float *maxs, float *boxmins, float *boxmaxs); // SV_Move: nonzero if the player's box meets other entities' boxes narrowed (vr_hull_ent_width)
+int VR_HullNarrowsAgainst (struct edict_s *other);	// ... and nonzero if it does so against this one (its category's setting)
+int VR_HullTouchBox (struct edict_s *touch, struct edict_s *mover, float *boxmins, float *boxmaxs); // a player's box, narrowed, as a body moving into it meets it: nonzero if narrowed
 // Precise hit detection (vr_hitmodel.cpp): monsters' models, not their boxes, for moves with MOVE_HITMODEL (world.h).
 float VR_HitModelTolerance (int type);				// SV_Move: the tolerance of the move's class; -1: not precise (the option off)
 int VR_HitModelTarget (struct edict_s *ent);			// SV_ClipToLinks: nonzero if its model is what is hit

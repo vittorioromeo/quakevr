@@ -13559,3 +13559,35 @@ Yaw 90 to 0 while it's held places it again at once (its x becomes -1 0 0), and 
 - In a menu, press the menu button: you should be back in the game at once. Press it again: the same page.
 - The HUD is Ironwail's modern one now. The classic status bar on your hand is gone with it; Options > HUD style
   brings it back.
+
+## A smaller player hitbox, round 2: everywhere, two methods, a settings page
+
+Your note after trying Hitbox Width 16: it only worked on plain walls (the walls holding vrfiringrange's buttons still
+stopped you at 32, from the side too); you wanted it against props, monsters and players, everywhere, with settings.
+The full write-up and the numbers are in [HULLS.md](HULLS.md) ("In the game (round 2)" and "Numbers").
+
+- **The button walls:** they are external brush models (`maps/vr_spawnpanel.bsp` and the others made by
+  `make_spawn_buttons.py` and `make_prop_area.py`), each with its own hull 0. The prototype had brushes only for the
+  world's own models, so these fell back to their hull 1: Quake's 32 box. Now every brush model gets the narrow box
+  (external ones are built the first time something meets them).
+- **Entities:** the player's box against monsters, other players and solid boxes (explosive boxes) is narrowed too,
+  both ways (a monster walking into you meets your narrow box). Shots, melee and item pickups keep Quake's 32 box.
+  Loose props were never solid to you; they are pushed by the Box3D capsule (Prop Push Radius, 15 cm).
+- **Method A** (the compiled hull, now the default method): a clipping hull compiled at load for the width, traced by
+  Quake's own hull code, as you asked; **B** (the brush sweep) stays selectable. They agree on 99.99% of moves; A is a
+  little faster per trace (251 ns against 276; hull 1 238) and costs about 90 ms more at load and 165 KB.
+- **Widths** 8, 12, 16, 20, 24, 28 and 32 for both.
+- **Settings:** Movement > Player Hitbox: Width Against Walls (`vr_hull_width`, still 0 by default), Method
+  (`vr_hull_method`), Doors, Lifts and Walls Too (`vr_hull_brushmodels`), Width Against Them (`vr_hull_ent_width`: Same
+  as Walls), Monsters, Other Players, Solid Boxes (`vr_hull_monsters`, `vr_hull_players`, `vr_hull_boxes`), Prop Push
+  Radius; Hitbox Stats, Hitbox Approach (`vr_hull_approach`: how close your box gets, round you or an entity) and
+  Random Walk.
+- **Tests:** at 16 your centre stops 8 units from a wall, a door, the firing range's panels and buttons (front and
+  side), an explosive box and a grunt, and a dog walking into you stops 8 from you (10 at 20; Quake 16). Random walks on
+  e1m1, e1m2, e1m3, e2m2, e3m3, e4m3 and e4m7 at 16, both methods: nothing stuck, in a monster, in a wall or outside.
+  Traces cost 0.015 ms a frame against Quake's 0.012.
+
+To try in the headset: Movement > Player Hitbox, Width Against Walls 16 or 20. Walk up to vrfiringrange's button
+panels from the front and the side, the prop table and the explosive boxes; walk into a grunt and let monsters walk
+into you; doors, lifts, stairs, ledges, climbing. Switch Method between Compiled Hull and Brush Sweep: they should feel
+the same; say if one snags where the other doesn't. Changing the width or method rebuilds (a short hitch).
