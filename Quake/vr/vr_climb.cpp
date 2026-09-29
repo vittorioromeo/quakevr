@@ -2453,14 +2453,14 @@ void qvr::climb::calcStats(edict_t* ent, int* statsi)
     statsi[STAT_QVR_CLIMB] = bits;
 }
 
-void qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& handTurn, glm::vec3& pos, glm::vec3& rot,
+float qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& handTurn, glm::vec3& pos, glm::vec3& rot,
     glm::vec3& lightShift)
 {
     using namespace protocol;
     lightShift = glm::vec3{0.f};
     if(hand < 0 || hand > 1)
     {
-        return;
+        return 0.f;
     }
     Pin& pin = pins[hand];
     const float dt = pin.last >= 0.0 ? static_cast<float>(CLAMP(0.0, realtime - pin.last, 0.1)) : 0.f;
@@ -2510,7 +2510,7 @@ void qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& han
     }
     if(pin.weight <= 0.f)
     {
-        return;
+        return 0.f;
     }
     const float w = pin.weight * pin.weight * (3.f - 2.f * pin.weight);
 
@@ -2539,4 +2539,5 @@ void qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& han
         }
     }
     lightShift = -w * pin.offset;
+    return w;
 }

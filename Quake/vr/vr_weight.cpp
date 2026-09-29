@@ -22,11 +22,13 @@
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_fatigue.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_held.hpp"
 #include "vr_meleehud.hpp"
 #include "vr_profile.hpp"
 #include "vr_props.hpp"
+#include "vr_protocol.hpp"
 #include "vr_twohand.hpp"
 #include "vr_units.hpp"
 #include "vr_weapons.hpp"
@@ -55,6 +57,7 @@ constexpr float fastest = 120.f;        // rad/s: the quickest a spring follows 
 constexpr float substep = 0.001f;       // s, at most
 constexpr float jumpSpeed = 20.f;       // m/s: a hand's target moving faster jumped (put back in the hand at once)
 constexpr const char* flashlightModel = "progs/vrflashlight.mdl";
+constexpr const char* emptyHandModel = "empty hand";
 
 struct Body
 {
@@ -81,7 +84,7 @@ struct MassCache
 };
 MassCache massCache[2];
 
-float easedMult = 1.f;
+float easedShare = 0.f; // staminaShare's, eased
 double easedAt = -1.0;
 
 [[nodiscard]] glm::quat quatFromAngles(const glm::vec3& angles)
@@ -173,6 +176,13 @@ double easedAt = -1.0;
         props::value(slot, Key::SpringSnap)};
 }
 
+// The stamina's part of a hand's load (an empty hand's is in its mass).
+void withStamina(Load& l)
+{
+    l.staminaMult = l.empty ? 1.f : staminaMultiplier();
+    l.staminaAdd = l.empty ? 0.f : std::max(vr_weight_stamina_add.value, 0.f) * staminaShare();
+}
+
 // A rod along the hand's forward: `length` metres, its centre of mass `balance` ahead of the grip, `radius` round it.
 void rodLoad(Load& l, float mass, float balance, float length, float radius)
 {
@@ -180,6 +190,24 @@ void rodLoad(Load& l, float mass, float balance, float length, float radius)
     l.com = {balance, 0.f, 0.f};
     const float across = mass * (length * length / 12.f + balance * balance);
     l.inertia = {mass * radius * radius, across, across};
+}
+
+// Tired, an empty hand weighs vr_weight_stamina_empty kg at none (on the stamina's curve): a fist. Not a hand holding a
+// ledge or a rung (the climb pulls by the controller) nor one steadying the other's weapon (it stays on its grip).
+[[nodiscard]] Load emptyHandLoad(int h)
+{
+    Load l;
+    const float mass = std::max(vr_weight_stamina_empty.value, 0.f) * staminaShare();
+    const bool climbing = (cl.protocolflags & PRFL_QUAKEVR) && (cl.stats[protocol::STAT_QVR_CLIMB] & (1 << h)) != 0;
+    if(mass <= 0.01f || climbing || twohand::helping(h))
+    {
+        return l;
+    }
+    l.valid = true;
+    l.empty = true;
+    l.model = emptyHandModel;
+    rodLoad(l, mass, 0.04f, 0.12f, 0.04f);
+    return l;
 }
 
 // What hand `h` holds. With the hands (`s`), a two-handed hold's pivot: between the two grips (a box held by its sides,
@@ -242,7 +270,7 @@ void rodLoad(Load& l, float mass, float balance, float length, float radius)
     const int slot = weapons::heldSlot(h);
     if(slot < 0 || slot == weapons::fistSlot())
     {
-        return l;
+        return emptyHandLoad(h);
     }
     const float mass = weapons::value(slot, weapons::Key::Mass);
     if(mass <= 0.01f)
@@ -396,6 +424,7 @@ struct TestCase
     float twoHanded;             // (a rod: its foregrip 35 cm ahead; a box: the other hand on its far side)
     float stamina; // left, 0..1
     Tuning tune;   // its own multipliers (Weapon Weights, Held Object Weights)
+    bool empty{false}; // an empty hand: its mass is the stamina's (vr_weight_stamina_empty)
 };
 
 void test_f()
@@ -425,12 +454,21 @@ void test_f()
         {"box 2H", box, 0.6f, 0.f, 1.f, 1.f, boxTune},
     };
     const float rates[] = {45.f, 72.f, 90.f, 144.f};
+    const float empty = std::max(vr_weight_stamina_empty.value, 0.f);
+    const TestCase emptyCases[] = {
+        {"empty 100%", empty * staminaShareFor(1.f), 0.04f, 0.12f, 0.f, 1.f, Tuning{}, true},
+        {"empty 50%", empty * staminaShareFor(0.5f), 0.04f, 0.12f, 0.f, 0.5f, Tuning{}, true},
+        {"empty 25%", empty * staminaShareFor(0.25f), 0.04f, 0.12f, 0.f, 0.25f, Tuning{}, true},
+        {"empty 5%", empty * staminaShareFor(0.05f), 0.04f, 0.12f, 0.f, 0.05f, Tuning{}, true},
+    };
     Con_Printf("vr_weight_test: stiffness %.2f damping %.2f strength %.2f sag %.2f swing %.2f 2h %.1f\n",
         vr_weight_spring_stiffness.value, vr_weight_spring_damping.value, vr_weight_spring_strength.value,
         vr_weight_spring_sag.value, vr_weight_spring_inertia.value, vr_weight_spring_2h.value);
     Con_Printf("%-14s %4s %5s | %6s %6s | %6s %6s | %6s | %6s %6s | %6s %5s\n", "case", "fps", "kg", "lag cm", "lagdeg", "overcm",
         "overdg", "settle", "sag cm", "sagdeg", "jitter", "snap");
-    for(const TestCase& tc : cases)
+    std::vector<TestCase> all(std::begin(cases), std::end(cases));
+    all.insert(all.end(), std::begin(emptyCases), std::end(emptyCases));
+    for(const TestCase& tc : all)
     {
         for(const float fps : rates)
         {
@@ -438,7 +476,7 @@ void test_f()
             l.valid = true;
             if(tc.length > 0.f)
             {
-                rodLoad(l, tc.mass, tc.balance, tc.length, 0.06f);
+                rodLoad(l, std::max(tc.mass, 0.01f), tc.balance, tc.length, tc.empty ? 0.04f : 0.06f);
                 if(tc.twoHanded > 0.f)
                 {
                     // Turning about between the handle and a foregrip 35 cm ahead.
@@ -460,7 +498,10 @@ void test_f()
             }
             l.twoHanded = tc.twoHanded;
             l.tune = tc.tune;
-            const float m = tc.mass * staminaCurve(tc.stamina);
+            const float m = std::max(tc.empty ? tc.mass
+                                              : tc.mass * staminaCurve(tc.stamina) +
+                                                    std::max(vr_weight_stamina_add.value, 0.f) * staminaShareFor(tc.stamina),
+                0.01f);
             const float sag = sagShare * std::max(vr_weight_spring_sag.value * tc.tune.sag, 0.f); // at arm's length
             const float dt = 1.f / fps;
             const glm::vec3 start{0.55f, -0.25f, 1.25f};
@@ -645,45 +686,57 @@ void registerCommands()
     Cmd_AddCommand("vr_weight_table", table_f);
 }
 
-float staminaCurve(float left)
+float staminaShareFor(float left)
 {
     if(!vr_weight_stamina.value)
     {
-        return 1.f;
+        return 0.f;
     }
     const float from = std::clamp(vr_weight_stamina_from.value, 0.01f, 1.f);
     if(left >= from)
     {
-        return 1.f;
+        return 0.f;
     }
     const float u = std::clamp((from - left) / from, 0.f, 1.f);
-    const float most = std::max(vr_weight_stamina_max.value, 1.f);
-    return 1.f + (most - 1.f) * std::pow(u, std::max(vr_weight_stamina_curve.value, 0.1f));
+    return std::pow(u, std::max(vr_weight_stamina_curve.value, 0.1f));
+}
+
+float staminaCurve(float left)
+{
+    return 1.f + (std::max(vr_weight_stamina_max.value, 1.f) - 1.f) * staminaShareFor(left);
+}
+
+float staminaShare()
+{
+    if(easedAt == realtime)
+    {
+        return easedShare;
+    }
+    const float target = staminaShareFor(fatigue::staminaLeft());
+    const float dt = easedAt >= 0.0 ? static_cast<float>(std::clamp(realtime - easedAt, 0.0, 0.25)) : 1.f;
+    easedAt = realtime;
+    easedShare = target + (easedShare - target) * std::exp(-dt / 0.25f);
+    if(std::fabs(easedShare - target) < 1e-4f)
+    {
+        easedShare = target; // (settled exactly: unchanged at 0)
+    }
+    return easedShare;
 }
 
 float staminaMultiplier()
 {
-    if(easedAt == realtime)
-    {
-        return easedMult;
-    }
-    const meleehud::State st = meleehud::state();
-    const float left = vr_debug_weight_stamina.value >= 0.f ? std::min(vr_debug_weight_stamina.value, 1.f) : st.stamina ? st.left : 1.f;
-    const float target = staminaCurve(left);
-    const float dt = easedAt >= 0.0 ? static_cast<float>(std::clamp(realtime - easedAt, 0.0, 0.25)) : 1.f;
-    easedAt = realtime;
-    easedMult = target + (easedMult - target) * std::exp(-dt / 0.25f);
-    if(std::fabs(easedMult - target) < 1e-4f)
-    {
-        easedMult = target; // (settled exactly: unchanged at 1)
-    }
-    return easedMult;
+    return 1.f + (std::max(vr_weight_stamina_max.value, 1.f) - 1.f) * staminaShare();
+}
+
+float effectiveMass(const Load& l)
+{
+    return l.empty ? l.mass : l.mass * l.staminaMult + l.staminaAdd;
 }
 
 Load load(int hand)
 {
     Load l = hand == 0 || hand == 1 ? computeLoad(hand, nullptr) : Load{};
-    l.staminaMult = staminaMultiplier();
+    withStamina(l);
     return l;
 }
 
@@ -703,7 +756,7 @@ void spring(hands::State& s, float turnYaw, float dt, bool newFrame)
         const glm::vec3 xt = hands::rotateYaw(s.pos[h] - base, -turnYaw) / m2u;
         const glm::quat qt = quatFromAngles(s.rot[h] - glm::vec3{0.f, turnYaw, 0.f});
         Load l = computeLoad(h, &s);
-        l.staminaMult = staminaMultiplier();
+        withStamina(l);
         if(!l.valid)
         {
             b.active = false;
@@ -740,7 +793,7 @@ void spring(hands::State& s, float turnYaw, float dt, bool newFrame)
             }
             else
             {
-                const float m = std::max(l.mass * l.staminaMult, 0.01f);
+                const float m = std::max(effectiveMass(l), 0.01f);
                 const float sag = sagShare * std::max(vr_weight_spring_sag.value * l.tune.sag, 0.f) *
                                   (0.35f + 0.65f * std::pow(extension(s, h, b.x, base, turnYaw), 2.f));
                 step(b, l, m, b.xt, xt, b.qt, qt, dt, sag);
@@ -797,7 +850,7 @@ void reset()
     {
         c = MassCache{};
     }
-    easedMult = 1.f;
+    easedShare = 0.f;
     easedAt = -1.0;
 }
 

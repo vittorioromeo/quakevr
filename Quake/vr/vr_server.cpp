@@ -1,5 +1,6 @@
 // vr_server.cpp -- server side of the Quake VR protocol extensions (see vr_protocol.hpp).
 
+#include "vr_fatigue.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_climb.hpp"
 #include "vr_ledges.hpp"
@@ -393,6 +394,7 @@ extern "C" void VR_ServerFrameEnd()
     broadcastNewPrecaches(sv.sound_precache, broadcastSoundCount, QVR_SVC_PRECACHE_SOUND);
 
     qvr::motion::serverFrame(); // the motion recorder's sample of this server frame
+    qvr::fatigue::serverFrame(); // vr_debug_stamina_hold
 }
 
 namespace qvr::server

@@ -41,6 +41,7 @@
 #include "vr_gpustats.hpp"
 #include "vr_gfx.hpp"
 #include "vr_props.hpp"
+#include "vr_fatigue.hpp"
 #include "vr_weight.hpp"
 #include "vr_weapons.hpp"
 #include "vr_particles.hpp"
@@ -974,6 +975,7 @@ extern "C" void VR_Init()
     weapons::registerCvars();
     props::registerCvars();
     weight::registerCommands();
+    fatigue::registerCommands();
     Cvar_SetCallback(&vr_enabled, onBackendSettingChanged);
     Cvar_SetCallback(&vr_backend, onBackendSettingChanged);
     Cvar_SetCallback(&vr_xr_runtime, onBackendSettingChanged);

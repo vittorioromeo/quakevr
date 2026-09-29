@@ -12,7 +12,9 @@
 // by the thing's own (Weapon Weights, Held Object Weights: 1 by default).
 //
 // Tired, things weigh more (vr_weight_stamina): below vr_weight_stamina_from of the parry stamina the weight grows
-// smoothly to vr_weight_stamina_max times at none.
+// smoothly to vr_weight_stamina_max times, and vr_weight_stamina_add kg more, at none; an empty hand weighs up to
+// vr_weight_stamina_empty kg (a fist: it lags its controller as a held thing does; not on a hold or steadying a weapon).
+// See vr_fatigue.hpp for the tired arms' shake.
 //
 // The mass also changes the melee's and the throws' damage (damageMultiplier) and, for heavy things, lowers their speed
 // thresholds (leniency): the QC reads both (weightdamage, weightleniency builtins).
@@ -29,6 +31,9 @@ namespace qvr::weight
 [[nodiscard]] float staminaMultiplier();
 // The multiplier for a stamina left of `left` (0..1), as the settings are: the curve itself.
 [[nodiscard]] float staminaCurve(float left);
+// The curve's share, 0 (at or above the threshold, or off) .. 1 (none left): for a stamina left of `left`, and now (eased).
+[[nodiscard]] float staminaShareFor(float left);
+[[nodiscard]] float staminaShare();
 
 // After the two-handed aim (vr_handpose.cpp), each hand holding something with a mass moved and turned to
 // where its spring has it (in the body's frame: walking and turning are not the hand's motion). `dt`: the frame's real
@@ -50,12 +55,16 @@ struct Load
     const char* model{""};
     float mass{0.f};           // kg, before the stamina
     float staminaMult{1.f};
+    float staminaAdd{0.f};     // kg
+    bool empty{false};         // an empty hand, tired (its mass is the stamina's: vr_weight_stamina_empty)
     float twoHanded{0.f};      // 0..1: a two-handed grip (a weapon's transition; a prop in both hands: 1)
     glm::vec3 com{0.f};        // metres from the grip, in the hand's frame (forward, left, up)
     glm::vec3 inertia{0.f};    // kg m^2 about the grip, the hand's axes (forward: roll; left: pitch; up: yaw)
     Tuning tune;
 };
 [[nodiscard]] Load load(int hand);
+// The mass the spring moves: with the stamina's.
+[[nodiscard]] float effectiveMass(const Load& l);
 
 // The spring's state of a hand last frame: how far the held thing was off the tracked hand (cm, degrees).
 struct Offset

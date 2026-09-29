@@ -31,6 +31,7 @@
 #include "vr_flashlight.hpp"
 #include "vr_held.hpp"
 #include "vr_props.hpp"
+#include "vr_fatigue.hpp"
 #include "vr_weight.hpp"
 
 #include <algorithm>
@@ -682,6 +683,13 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("Stamina a second hanging from one hand costs (5 of 100: 20 s)."),
         slider("Hanging Cost, Two Hands", vr_climb_stamina_rate_2h, 0.f, 30.f, 0.5f, "%.1f /s").extend()
             .help("Stamina a second hanging from both hands costs, the two together (2 of 100: 50 s)."),
+        header("Tired Arms"),
+        slider("Shake From Stamina", vr_fatigue_shake_from, 0.f, 1.f, 0.05f, "%.2f").help("Below this share of your stamina your arms shake while you hang, more the less is left. 0: never. Looks only: your aim and shots stay steady."),
+        slider("Shake Distance", vr_fatigue_shake, 0.f, 2.f, 0.1f, "%.1f cm").extend(0.f, 10.f).help("How far your drawn hands, arms and what they hold shake at most, with no stamina left. 0: no moving shake."),
+        slider("Shake Turn", vr_fatigue_shake_angle, 0.f, 5.f, 0.25f, "%.2f deg").extend(0.f, 20.f).help("How far they turn as they shake at most, with no stamina left. 0: no turning shake."),
+        slider("Shake Speed", vr_fatigue_shake_speed, 0.25f, 2.f, 0.05f, "%.2fx").extend(0.05f, 5.f).help("How quick the tremor is (1: 5 to 13 shakes a second)."),
+        toggle("Shake Whenever Tired", vr_fatigue_shake_always).help("Off: your arms shake only while you hang from a ledge or a rung. On: whenever your stamina is low (after parries, shoves and blows too)."),
+        open("Heavy When Tired (Aiming)", pageIndex(pageAimingSettings)).help("Tired hands get heavy too (what they hold, and an empty hand): Tired Arms, on the Aiming page."),
     };
 }
 
@@ -1745,6 +1753,15 @@ std::vector<Item> pageDebugTools()
     };
 }
 
+// "Stamina 0.40: heavy x1.35, empty hand 0.8 kg, shake 0.21": the tired arms now (Tests page).
+[[nodiscard]] const char* staminaReadout()
+{
+    static char text[96];
+    q_snprintf(text, sizeof(text), "Stamina %.2f: heavy x%.2f, empty hand %.1f kg, shake %.2f", fatigue::staminaLeft(),
+        weight::staminaMultiplier(), std::max(vr_weight_stamina_empty.value, 0.f) * weight::staminaShare(), fatigue::shakeLevel());
+    return text;
+}
+
 // What tests are done with in the headset (single player).
 std::vector<Item> pageDebugTests()
 {
@@ -1769,6 +1786,13 @@ std::vector<Item> pageDebugTests()
             .help("Degrees to your left of ahead it comes from (negative: from the right)."),
         command("Fire at Me", "impulse 246").help("Fires the Projectile at you now."),
         command("Make an Ogre Throw", "impulse 240").help("The nearest ogre or zombie throws at you now."),
+        header("Stamina"),
+        info([]() -> const char* { return staminaReadout(); }),
+        command("Deplete Stamina", "vr_stamina_set 0").help("vr_stamina_set 0: no stamina left (tired arms: heavy hands; shaking while you hang). Hanging with none, your hands let go."),
+        command("Nearly Empty", "vr_stamina_set 0.1").help("vr_stamina_set 0.1: a tenth of your stamina left, enough to hang a moment."),
+        command("Half Stamina", "vr_stamina_set 0.5").help("vr_stamina_set 0.5: half your stamina left."),
+        command("Restore Stamina", "vr_stamina_set 1").help("vr_stamina_set 1: rested."),
+        toggle("Hold Stamina", vr_debug_stamina_hold).help("Keeps your stamina where it is, or where the buttons above put it: nothing spends it and it doesn't come back (vr_debug_stamina_hold)."),
         header("Cheats"),
         command("God Mode", "god").help("god: takes no damage (again: takes damage)."),
         command("Quad Damage", "impulse 255").help("Quad Damage for 30 seconds."),

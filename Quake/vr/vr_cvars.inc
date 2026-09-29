@@ -293,6 +293,8 @@ QVR_CVAR(vr_weight_stamina, "1", CVAR_ARCHIVE)           // tired, things weigh 
 QVR_CVAR(vr_weight_stamina_from, "0.5", CVAR_ARCHIVE)    // the stamina left (0..1) below which it starts
 QVR_CVAR(vr_weight_stamina_max, "2", CVAR_ARCHIVE)       // times the weight with none left
 QVR_CVAR(vr_weight_stamina_curve, "2", CVAR_ARCHIVE)     // the curve's exponent from the threshold to none (1 straight; 2 gentle at first)
+QVR_CVAR(vr_weight_stamina_add, "0", CVAR_ARCHIVE)       // kg added to what a hand holds with none left (on the same curve; with the times above)
+QVR_CVAR(vr_weight_stamina_empty, "3", CVAR_ARCHIVE)     // kg an empty hand weighs with none left (on the same curve): it follows its controller as if it held that (0: an empty hand never lags; not a hand on a hold or steadying a weapon)
 QVR_CVAR(vr_weight_throw_mass, "12", CVAR_ARCHIVE)       // kg: props up to this heavy are thrown with the hand's whole speed, heavier ones slower (Throw: Held Object Offsets)
 // Weight and damage (round 21, "Spring only; Weapon Weights and Held Object Weights; weight and damage"): a melee blow's
 // and a throw's damage times (mass / vr_weight_damage_heavy)^vr_weight_damage_exp for things heavier than it,
@@ -309,6 +311,8 @@ QVR_CVAR(vr_weight_lenient, "0.75", CVAR_ARCHIVE)        // the exponent (0: off
 QVR_CVAR(vr_weight_lenient_from, "10", CVAR_ARCHIVE)     // kg: lighter things (every weapon) keep the thresholds
 QVR_CVAR(vr_weight_lenient_min, "0.25", CVAR_ARCHIVE)    // the least factor
 QVR_CVAR(vr_debug_weight_stamina, "-1", CVAR_NONE)       // tests: the stamina the weight takes as left (0..1) instead of the game's (-1: the game's)
+QVR_CVAR(vr_debug_stamina_hold, "0", CVAR_NONE)          // tests: 1 keeps the game's stamina where it is, or where vr_stamina_set put it (a local game; vr_fatigue.cpp)
+QVR_CVAR(vr_debug_fatigue, "0", CVAR_NONE)               // 1: the tired arms' shake printed four times a second; 2: and each frame the aim, the muzzle and the drawn weapon ("fatigueaim")
 QVR_CVAR(vr_debug_weight, "0", CVAR_NONE)                // 1: each hand's target and drawn pose, a line a frame in weight_trace.txt; 2: and printed
 QVR_CVAR(vr_props_version, "45", CVAR_ARCHIVE)           // the held object settings' changes the config has taken (vr_props.cpp)
 // Explosive boxes (misc_explobox, misc_explobox2) as physics props.
@@ -739,6 +743,13 @@ QVR_CVAR(vr_climb_stamina, "1", CVAR_ARCHIVE)         // hanging from a hold tir
 QVR_CVAR(vr_climb_stamina_rate, "5", CVAR_ARCHIVE)    // with it: stamina a second hanging from one hand
 QVR_CVAR(vr_climb_stamina_rate_2h, "2", CVAR_ARCHIVE) // and from both hands (the two together: less than one hand, the arms share the weight)
 QVR_CVAR(vr_climb_stamina_slip, "0", CVAR_ARCHIVE)    // s: with none left, 0 the hands let go at once; more: they can't pull you up, you sink to straight arms and they slip off after this long
+// Tired arms shake (vr_fatigue.cpp; ROUND21.md, "Tired arms: shaking and heavy hands"): looks only, the drawn hands, arms and
+// what they hold; the game's hands, the aim and the shots stay steady.
+QVR_CVAR(vr_fatigue_shake, "0.6", CVAR_ARCHIVE)       // cm the drawn hands shake by at most with no stamina left (0: no moving shake)
+QVR_CVAR(vr_fatigue_shake_angle, "1.5", CVAR_ARCHIVE) // degrees they turn by at most with none left (0: no turning shake)
+QVR_CVAR(vr_fatigue_shake_from, "0.4", CVAR_ARCHIVE)  // the stamina left (0..1) below which they start to shake, more the less is left
+QVR_CVAR(vr_fatigue_shake_speed, "1", CVAR_ARCHIVE)   // times the tremor's quickness (5 to 13 Hz)
+QVR_CVAR(vr_fatigue_shake_always, "0", CVAR_ARCHIVE)  // 0: only while a hand holds a ledge or a rung; 1: whenever tired
 QVR_CVAR(vr_climb_debug, "0", CVAR_NONE)              // print holds, releases and mantles (2: and "climbtrace" and "climbreach" lines every frame: the body, the hands, the pull, the holds' reach; 3: the shoulders, estimated and drawn)
 QVR_CVAR(vr_swim, "1", CVAR_ARCHIVE)                  // VR swimming: the stick slows in water, strokes of the hands move you
 QVR_CVAR(vr_swim_shallow_speed, "0.85", CVAR_ARCHIVE) // the stick's speed with the feet in water,

@@ -15,6 +15,7 @@
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
 #include "vr_emissive.hpp"
+#include "vr_fatigue.hpp"
 #include "vr_hands.hpp"
 #include "vr_handrig.hpp"
 #include "vr_grasp.hpp"
@@ -2507,7 +2508,15 @@ void setupHand(const hands::State& s, int hand)
     glm::vec3 controllerPos = s.pos[hand], controllerRot = s.rot[hand];
     held::drawnHand(hand, controllerPos, controllerRot);
     glm::vec3 lightShift{0.f}; // a hand holding a ledge or a rung: drawn on it, facing it (vr_climb.cpp), lit as without the looks' offset
-    climb::drawnHand(s, hand, anglesBasis(weaponAngleOffsets(fist, mirrored)), controllerPos, controllerRot, lightShift);
+    const float onHold = climb::drawnHand(s, hand, anglesBasis(weaponAngleOffsets(fist, mirrored)), controllerPos, controllerRot, lightShift);
+    if(onHold > 0.f)
+    {
+        // Drawn on its hold, it shakes there too (tired arms: vr_fatigue.cpp; the shake is in s's hands).
+        glm::vec3 shakePos, shakeAngles;
+        fatigue::shake(hand, shakePos, shakeAngles);
+        controllerPos += shakePos * onHold;
+        controllerRot += shakeAngles * onHold;
+    }
     for(view::ViewEntity& ve : entities.hand[hand])
     {
         ve.lightShift = lightShift;
@@ -4666,14 +4675,15 @@ extern "C" void VR_SetupViewEntities()
     }
 
     // Parried blows knock the drawn hands (not the tracked ones the game uses): offset for the
-    // view's setup, restored after it.
-    glm::vec3 knockPos[2], knockAngles[2];
+    // view's setup, restored after it. Tired arms shake (vr_fatigue.cpp) the same way, looks only.
+    glm::vec3 knockPos[2], knockAngles[2], shakePos[2], shakeAngles[2];
     for(int hand = 0; hand < 2; hand++)
     {
         impactOffset(hand, knockPos[hand], knockAngles[hand]);
-        s.pos[hand] += knockPos[hand];
-        s.rot[hand] += knockAngles[hand];
-        s.visualRot[hand] += knockAngles[hand];
+        fatigue::shake(hand, shakePos[hand], shakeAngles[hand]);
+        s.pos[hand] += knockPos[hand] + shakePos[hand];
+        s.rot[hand] += knockAngles[hand] + shakeAngles[hand];
+        s.visualRot[hand] += knockAngles[hand] + shakeAngles[hand];
     }
 
     // Held out of the models they are pushed into (vr_model_collide): the weapons, hands and arms drawn moved (not while
@@ -4748,9 +4758,29 @@ extern "C" void VR_SetupViewEntities()
     }
     for(int hand = 0; hand < 2; hand++)
     {
-        s.pos[hand] -= knockPos[hand];
-        s.rot[hand] -= knockAngles[hand];
-        s.visualRot[hand] -= knockAngles[hand];
+        const glm::vec3 shakenPos = s.pos[hand], shakenRot = s.visualRot[hand];
+        s.pos[hand] -= knockPos[hand] + shakePos[hand];
+        s.rot[hand] -= knockAngles[hand] + shakeAngles[hand];
+        s.visualRot[hand] -= knockAngles[hand] + shakeAngles[hand];
+        if(s.muzzleValid[hand] && (shakePos[hand] != glm::vec3{0.f} || shakeAngles[hand] != glm::vec3{0.f}))
+        {
+            // The muzzle, placed on the shaking weapon, put back on the steady one (the shots and the aim don't shake).
+            const auto axes = [](const glm::vec3& angles) {
+                glm::vec3 f, r, u;
+                hands::angleVectors(angles, f, r, u);
+                return glm::mat3{f, r, u};
+            };
+            const glm::mat3 shaken = axes(shakenRot), steady = axes(s.visualRot[hand] + knockAngles[hand]);
+            s.muzzle[hand] = s.pos[hand] + knockPos[hand] + steady * (glm::transpose(shaken) * (s.muzzle[hand] - shakenPos));
+        }
+    }
+    if(vr_debug_fatigue.value >= 2)
+    {
+        // Tests: the aim and the muzzle the game uses against the drawn weapon (the shake moves only the latter).
+        const entity_t& we = entities.weapon[HAND_MAIN].ent;
+        Con_Printf("fatigueaim %.4f aim %.5f %.5f %.5f muzzle %.4f %.4f %.4f drawn %.4f %.4f %.4f ang %.4f %.4f %.4f\n", realtime,
+            cl.viewangles[0], cl.viewangles[1], cl.viewangles[2], s.muzzle[HAND_MAIN].x, s.muzzle[HAND_MAIN].y, s.muzzle[HAND_MAIN].z,
+            we.origin[0], we.origin[1], we.origin[2], we.angles[0], we.angles[1], we.angles[2]);
     }
     if(posingNow)
     {
