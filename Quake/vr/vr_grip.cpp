@@ -20,15 +20,16 @@ namespace
 HandFrame frames[2];
 
 // The default hand's frame (the right hand; the left mirrored), for a hand not measured: the jointed hand at the shipped
-// settings (vr_world_scale 1.25, vr_gunmodelscale 0.7, the shipped hand calibration), measured with vr_grip_frame.
+// settings (vr_world_scale 1.25, vr_gunmodelscale 0.7, the shipped hand calibration), measured with vr_grip_frame
+// (2026-09-29; the same at any hand pose: it is in the hand's frame).
 HandFrame defaultFrame(bool left)
 {
     HandFrame f;
-    f.palm = {-2.75f, 1.02f, -0.87f};
-    f.palmNormal = {0.26f, 0.94f, -0.21f};
-    f.channelPoint = {-1.12f, 1.42f, -1.19f};
-    f.channelDir = {0.42f, -0.14f, 0.9f};
-    f.channelRadius = 0.9f;
+    f.palm = {-3.54f, -0.05f, -2.08f};
+    f.palmNormal = {0.f, 1.f, 0.f};
+    f.channelPoint = {-1.17f, 0.03f, -1.98f};
+    f.channelDir = glm::normalize(glm::vec3{0.06f, 0.1f, 0.99f});
+    f.channelRadius = 0.28f;
     if(left)
     {
         f.palm.y = -f.palm.y;
