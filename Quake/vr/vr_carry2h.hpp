@@ -68,6 +68,16 @@ void toAngles(const glm::quat& q, float* out, bool brush);
 // (held::grabTouch, with a tolerance of detachTouch): pulled away, not sliding along its surface.
 [[nodiscard]] int detached(edict_t* ent, edict_t* player);
 
+// Server side (QC's carry2hkeep; detached for a hand pulled off): `ent`, held in both of `player`'s hands, is held by
+// `hand` (0 off, 1 main) alone from now on: moved onto that hand's grip (turned as it is) and its hold forgotten. The
+// drawn hand, eased back from its grip onto the controller, then still holds it where it did (round 21, "Held props:
+// no gap after two hands").
+void keep(edict_t* ent, edict_t* player, int hand);
+
+// The hold the server keeps for entity `num` (a listen server's client draws it with the same hold: vr_held.cpp).
+// False: none.
+[[nodiscard]] bool serverHold(int num, Hold& out);
+
 // Forgets the kept holds (a new server).
 void resetServer();
 

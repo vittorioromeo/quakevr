@@ -904,6 +904,14 @@ struct Held
     glm::vec3 lastPos{0.f};
     glm::mat3 lastRot{1.f};
     unsigned generation{0}; // props::settingsGeneration() its place is for
+    // Held in both hands until now (leaveBoth): drawn eased from where both had it (fromPos, fromRot: world) onto its
+    // place in this hand, as the hand eases off its grip onto the controller (handEaseTime).
+    double fromSince{-1.0};
+    bool fromStarted{false};
+    glm::vec3 fromPos{0.f};
+    glm::quat fromRot{1.f, 0.f, 0.f, 0.f};
+    glm::vec3 fromOffset{0.f};
+    glm::quat fromTurn{1.f, 0.f, 0.f, 0.f};
 };
 
 struct Easing
@@ -1038,6 +1046,57 @@ struct Box
            (!model || cl_entities[ent].model == model) && cl_entities[ent].model->type != mod_sprite;
 }
 
+// A listen server's edict `num` (nullptr: a remote server, or none there).
+[[nodiscard]] edict_t* serverEdict(int num)
+{
+    if(!sv.active || num <= 0 || num >= sv.qcvm.num_edicts)
+    {
+        return nullptr;
+    }
+    edict_t* ed = reinterpret_cast<edict_t*>(reinterpret_cast<byte*>(sv.qcvm.edicts) + num * sv.qcvm.edict_size);
+    return ed->free ? nullptr : ed;
+}
+
+// A listen server: where the server has entity `ent` (drawn with `model`) in the local player's hand `h`: its place
+// and turn in the server's hand (the move's, moved with the body: vr_server.cpp rebaseHands), both as the server's last
+// frame left them. Exact, whatever the hand and the body did since. Taken from where the server has it and this
+// frame's controller instead, a hand or a body on the move (the server runs at 72 Hz, the headset faster; the
+// player's origin is interpolated) left it that far off the hand for as long as it was held (a force grab caught on
+// the move; ROUND21.md, "Held props: no gap after two hands"). False: a remote server (or not there).
+[[nodiscard]] bool serverInHand(int ent, int h, const qmodel_t* model, glm::vec3& pos, glm::mat3& rot)
+{
+    using namespace progs;
+    const FieldOffsets& f = fields();
+    const int posField = h == 0 ? f.offhandpos : f.handpos;
+    const int rotField = h == 0 ? f.offhandrot : f.handrot;
+    edict_t* ed = serverEdict(ent);
+    edict_t* player = serverEdict(cl.viewentity);
+    if(!ed || !player || posField < 0 || rotField < 0)
+    {
+        return false;
+    }
+    const int index = static_cast<int>(ed->v.modelindex);
+    if(index <= 0 || index >= MAX_MODELS || sv.models[index] != model)
+    {
+        return false;
+    }
+    const glm::vec3 angles = fieldVec(player, rotField);
+    const glm::mat3 hand = held::axesFromAngles(&angles[0], true);
+    if(f.carry_offset >= 0)
+    {
+        // Its place in the hand as the server keeps it (QC's .carry_offset: forward, right, up), where it goes from the
+        // next frame on even if a wall held it short this one (VR_Carry_Follow), or a catch put it elsewhere.
+        const glm::vec3 o = fieldVec(ed, f.carry_offset);
+        pos = {o.x, -o.y, o.z};
+    }
+    else
+    {
+        pos = glm::transpose(hand) * (glm::vec3{ed->v.origin[0], ed->v.origin[1], ed->v.origin[2]} - fieldVec(player, posField));
+    }
+    rot = glm::transpose(hand) * held::axesFromAngles(ed->v.angles, model->type == mod_brush);
+    return true;
+}
+
 void reset()
 {
     for(int h = 0; h < 2; h++)
@@ -1099,9 +1158,13 @@ void holdFrame(int h, const hands::State& s, int bothEnt)
     }
     if(!hd.placed || cl.time - hd.since < placeTime)
     {
-        const glm::vec3 o{e.msg_origins[0][0], e.msg_origins[0][1], e.msg_origins[0][2]};
-        hd.pos = glm::transpose(hand) * (o - s.pos[h]);
-        hd.rot = glm::transpose(hand) * held::axesFromAngles(e.msg_angles[0], brush);
+        if(!serverInHand(hd.ent, h, e.model, hd.pos, hd.rot))
+        {
+            // A remote server: from where it has it, and this frame's controller.
+            const glm::vec3 o{e.msg_origins[0][0], e.msg_origins[0][1], e.msg_origins[0][2]};
+            hd.pos = glm::transpose(hand) * (o - s.pos[h]);
+            hd.rot = glm::transpose(hand) * held::axesFromAngles(e.msg_angles[0], brush);
+        }
         hd.model = e.model;
         hd.placed = true;
         hd.generation = props::settingsGeneration();
@@ -1135,6 +1198,28 @@ void holdFrame(int h, const hands::State& s, int bothEnt)
     const glm::mat3 drawnAxes = held::axesFromAngles(&shakenRot[0], true);
     hd.lastPos = s.pos[h] + shakePos + drawnAxes * hd.pos;
     hd.lastRot = drawnAxes * hd.rot;
+    if(hd.fromSince >= 0.0)
+    {
+        // Just let go of by the other hand: from where both had it onto its place in this one (leaveBoth).
+        const double t = cl.time - hd.fromSince;
+        if(!hd.fromStarted)
+        {
+            hd.fromStarted = true;
+            hd.fromOffset = hd.fromPos - hd.lastPos;
+            hd.fromTurn = glm::normalize(hd.fromRot * glm::inverse(glm::quat_cast(hd.lastRot)));
+        }
+        if(t < 0.0 || t >= handEaseTime || glm::length(hd.fromOffset) > 64.f)
+        {
+            hd.fromSince = -1.0;
+        }
+        else
+        {
+            float w = 1.f - static_cast<float>(t / handEaseTime);
+            w = w * w * (3.f - 2.f * w); // as the hand eases (drawnHand)
+            hd.lastPos += hd.fromOffset * w;
+            hd.lastRot = glm::mat3_cast(glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, hd.fromTurn, w)) * hd.lastRot;
+        }
+    }
     place(e, hd.lastPos, hd.lastRot);
     hd.drawn = true;
 }
@@ -1212,8 +1297,11 @@ void meetFrame()
     }
 }
 
-// Held in both hands no more (one let go, or both): each hand drawn on its grip eases back onto its controller, and
-// the hand still holding it holds it from where it is (as the server does), not from where it first took it.
+// Held in both hands no more (one let go, or both): each hand drawn on its grip eases back onto its controller. The
+// hand still holding it holds it where the server now has it, moved onto that hand's grip (carry2h::keep), not where
+// both had it: the hand held it as far off as it was off its grip (up to the drift; the drift and the detach pulled
+// off), and what hands and shots meet was there, not where it was drawn. Its place is taken again from the server
+// (placeTime) and it is drawn eased onto it from where both had it, with the hand.
 void leaveBoth()
 {
     for(int h = 0; h < 2; h++)
@@ -1223,12 +1311,17 @@ void leaveBoth()
         Held& hd = holding[h];
         if(hd.ent == both.ent && valid(hd.ent, both.model))
         {
+            // (Until the server's place is taken: on its grip in this hand, as carry2h::keep puts it.)
             const glm::mat3 hand = glm::mat3_cast(both.hands[h].rot);
-            hd.pos = glm::transpose(hand) * (both.object.pos - both.hands[h].pos);
+            hd.pos = glm::transpose(hand) * -(both.object.rot * both.hold.grip[h]);
             hd.rot = glm::transpose(hand) * glm::mat3_cast(both.object.rot);
             hd.model = both.model;
             hd.placed = true;
-            hd.since = cl.time - 2.0 * placeTime; // kept (not taken again from the server's place)
+            hd.since = cl.time;
+            hd.fromSince = cl.time;
+            hd.fromStarted = false;
+            hd.fromPos = both.object.pos;
+            hd.fromRot = both.object.rot;
         }
     }
     if(vr_debug_carry.value)
@@ -1273,7 +1366,13 @@ void bothFrame(const hands::State& s, int ent)
         both = Both{};
         both.ent = ent;
         both.model = e.model;
-        both.hold = carry2h::record(object, hands);
+        // A listen server: the server's own hold (its grips and turns in the hands as it took them when the second
+        // hand gripped), so that both place it alike. Recorded here, a frame or more later from hands that moved since,
+        // the grips differed from the server's by as much. A remote server: from where it is drawn now.
+        if(!serverEdict(ent) || !carry2h::serverHold(ent, both.hold))
+        {
+            both.hold = carry2h::record(object, hands);
+        }
         handEase[0] = handEase[1] = HandEase{};
         if(vr_debug_carry.value)
         {
@@ -1591,6 +1690,21 @@ void carryCheck()
         const float apart =
             glm::distance(glm::transpose(ctrl) * (drawnPos - s.pos[h]), glm::transpose(svHand) * (physPos - svHandPos)) / m2u * 100.f;
         const float turn = turnBetween(glm::transpose(ctrl) * drawnRot, glm::transpose(svHand) * physRot);
+        if(f.carry_offset >= 0 && vr_debug_carry.value)
+        {
+            const glm::vec3 o = fieldVec(ed, f.carry_offset);
+            const glm::vec3 want = svHandPos + svHand * glm::vec3{o.x, -o.y, o.z};
+            const Held& hd = holding[h];
+            glm::vec3 p{0.f};
+            glm::mat3 r{1.f};
+            const bool listen = serverInHand(ent, h, e.model, p, r);
+            Con_Printf("carry check: the physical %.2f cm off its hand's place for it (.carry_offset); drawn at %.2f cm from "
+                       "it in the hand (listen %d, placed %d, %.3f s ago); the player's speed %.2f; drawn %.2f cm off its place from the controller\n",
+                glm::distance(want, physPos) / m2u * 100.f, glm::distance(hd.pos, glm::vec3{o.x, -o.y, o.z}) / m2u * 100.f,
+                listen ? 1 : 0, hd.placed ? 1 : 0, cl.time - hd.since,
+                glm::length(glm::vec3{player->v.velocity[0], player->v.velocity[1], player->v.velocity[2]}),
+                glm::distance(drawnPos, s.pos[h] + ctrl * hd.pos) / m2u * 100.f);
+        }
 
         // The drawn fist against the drawn prop: moved with it onto the physical one, measured there.
         glm::vec3 pos = s.pos[h], angles = s.rot[h];

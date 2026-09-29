@@ -473,6 +473,13 @@ void PF_carry2hoff()
     G_FLOAT(OFS_RETURN) = static_cast<float>(carry2h::detached(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1)));
 }
 
+// carry2hkeep(entity e, entity player, float hand): `e`, held in both of `player`'s hands, is held by `hand` alone from
+// now on (the other let go): moved onto that hand's grip (vr_carry2h.cpp keep).
+void PF_carry2hkeep()
+{
+    carry2h::keep(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1), static_cast<int>(G_FLOAT(OFS_PARM2)));
+}
+
 // float(entity e, vector point, float hand) carryreach: whether the `self` player's `hand` can take hold of `e` (its fist
 // touches its drawn surface, as a hand touching it could), for a carried one (not solid).
 // physicsblast(at, damage): T_RadiusDamage's explosion throws the rigid bodies round it (vr_box3d.cpp; Box3D only).
@@ -830,6 +837,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"carry2h", PF_carry2h},
     {"carryreach", PF_carryreach},
     {"carry2hoff", PF_carry2hoff},
+    {"carry2hkeep", PF_carry2hkeep},
     {"floattext", PF_floattext},
     {"ejectcasings", PF_ejectcasings},
     {"findflags", PF_findflags},

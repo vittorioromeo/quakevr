@@ -13200,3 +13200,52 @@ empty hammer 0 in 12 presses).
 - Pommel strikes and gun butt strikes land about 50 ms sooner. Tell me if close sword or axe cuts now read as pommel
   strikes (the dummy says "pommel"); Pommel Strike Wait 0.1 is the old behaviour.
 - Hold the hammer with no cells and squeeze the trigger: silence. An empty gun still clicks.
+
+## Held props: no gap after two hands
+
+Your notes `vrfiringrange_2026-09-29_22-54-12`, `22-55-20` and `22-56-14`: a prop held Where Taken showed a gap from
+the hand after holding it in one hand, then both, then pulling one away, back and forth; worse, its physical body (what
+the hands and shots meet) was elsewhere, near the other hand. Sometimes too after a force grab.
+
+**Why** (`vr_held.cpp`, `vr_carry2h.cpp`):
+
+- **Pulled off.** A hand pulled off a prop held in both lets go; the server then moves the prop onto the other hand's
+  grip (`detached`). The client didn't: it kept the prop where both hands had it, in the middle of the grips, about
+  11 cm (the drift and the detach) off the hand that kept it, for as long as it held it. The next two-handed grip was
+  then recorded from that wrong place, so the gap and the desync outlived it.
+- **Let go** (the grip opened with one hand a few cm off its grip): the server left the prop where both had it; the
+  kept hand, eased back onto its controller, held it as far off its grip.
+- **Force grab (and any grab)**: the place in the hand was taken for 0.1 s from where the server had the prop and the
+  controller of this frame. The server runs at 72 Hz and the headset faster, and the player's origin is interpolated:
+  a hand or a body on the move at the end of those 0.1 s put the prop that far off the hand for as long as it was held
+  (1.4 to 2.4 cm in the mock, walking and swinging the hand; more at speed).
+
+**Fix:**
+
+- A hand left holding a prop alone after both (pulled off or let go) holds it on its grip on it: the server moves it
+  there (`carry2h::keep`, QC's new `carry2hkeep`), and the client takes its place again from the server and draws it
+  eased there, with the hand, over the hand's 0.15 s ease (no jump).
+- On a listen server the client takes a held prop's place in the hand from the server's own record (`.carry_offset`
+  and its turn in the server's hand: `serverInHand`), not from this frame's controller; and a prop taken in both hands
+  uses the server's own hold (the grips) rather than one recorded a frame later. A remote server works as before, plus
+  the retake after two hands.
+
+**Checked** (`Misc/quakevr/carry/grip_gap_test.py gripgap`; mock, real time): after each step, `vr_carry_check` (new;
+Debug > Reports > Held Props) prints for each held prop how far it is drawn in the hand from where the server has it in
+its hand, and the drawn fist's gap to the drawn prop.
+
+| Test | Before | After |
+|---|---|---|
+| Cycle x6 (one hand, both, each hand pulled off and back, each let go 5 cm out; hands at 1 cm a frame, turned) | 18 of 73 checks fail: 10.5 cm drawn off the physical, fist gap up to 6.9 cm | 73 pass: 0.00 cm, 0.0 deg; gap -3.6 to -2.3 cm (pressed in, as Where Taken sits) |
+| Force grab x6 (walking, the hand swinging at 2 m/s through the catch) | 4 of 4 caught fail: 1.4 to 2.4 cm | 5 of 5 caught pass: 0.00 cm |
+
+Not changed: a regrip with the other hand keeps the grip record of the first (`grip::serverKeep` doesn't learn the
+hand); it only matters for a Palm or Handle grip's offsets changed while held after a hand-over.
+
+**To test in VR:**
+
+- Hold a box, then in both hands, pull one hand away till it lets go; back, grip again; repeat many times, both hands.
+  The box should stay against the hand that keeps it, and grabbing it again works where it is drawn.
+- Hold it in both, move one hand a little and open the other: the box slides onto the hand that keeps it with the hand
+  (0.15 s), no gap after.
+- Force grab boxes while walking and moving the hand: no gap.
