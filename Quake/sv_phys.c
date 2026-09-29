@@ -702,6 +702,10 @@ void SV_CheckStuck (edict_t *ent)
 		return;
 	}
 
+	VectorCopy (org, ent->v.origin);	// QVR
+	if (VR_Unstick (ent))			// QVR: to the nearest free spot (vr_unstick)
+		return;						// QVR
+
 	for (z=0 ; z< 18 ; z++)
 		for (i=-1 ; i <= 1 ; i++)
 			for (j=-1 ; j <= 1 ; j++)

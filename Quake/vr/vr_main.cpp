@@ -2,6 +2,7 @@
 
 #include "vr_hitmodel.hpp"
 #include "vr_hull.hpp"
+#include "vr_unstick.hpp"
 #include "vr_engine.hpp"
 #include "vr_imgprefetch.hpp"
 #include "vr_anchor.hpp"
@@ -1001,6 +1002,7 @@ extern "C" void VR_Init()
     flashlight::init();
     detail::init();
     hull::init();
+    unstick::init();
     particles::init();
     decals::init();
     client::init();

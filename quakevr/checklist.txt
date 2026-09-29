@@ -25,6 +25,8 @@ Close sword or axe cuts: does "pommel" show up wrongly? (Melee > Pommel Strike W
 Empty hammer is silent when you squeeze the trigger
 Hitbox prototype: Debug > Tests > Hitbox Width 20, then walls, corners, stairs, slopes, doors, lifts, trains and climbing
 Tired arms at 15 kg feel right
+Firing range buttons: press one, step into its space, wait: it pushes you back a little, never traps you
+Stuck anywhere (wall, door, lift)? You should pop out to the nearest free spot (Debug > Tests > Stuck Info says where)
 
 Grapple: hook stays in after releasing the trigger; back button detaches only; reel in with Y/B
 Grapple: front button (near the muzzle) reels in instantly; is it well placed? (sliders: vr_grapple_front_button_x/y/z)

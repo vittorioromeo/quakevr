@@ -784,6 +784,10 @@ rebuild, and a running game reads it again within a second. Ticks live in `quake
 by each item's exact text: rewording an item un-ticks it, moving or removing others does not. `vr_checklist` prints the
 list (CLSUM/CLITEM lines), `vr_checklist tick <n>` ticks or unticks item n, `vr_checklist reload` reads the file now;
 the page is `menu_vr 72` (Debug > Checklist).
+Stuck (ROUND21.md, "Never stuck"): `vr_stuck_info` prints the player's server position (2 decimals), what its box is
+in, the movers near it and how often `vr_unstick` freed it; `vr_stuck_test <x> <y> <z>` puts the player there as if it
+had walked there (so Quake's return to the last free spot can't free it). `setpos` with angles turns noclip on: follow
+it with `noclip`. The kit's `scratch/unstick/` has the checks (`button_ab.txt`, `door.txt`, `net_u0.txt`/`net_u1.txt`).
 Climbing (ROUND21.md, "Climbing with both hands"): the mock's grip button does not press the grab. Script
 `+graboff`/`-graboff` and `+grabmain`/`-grabmain` (in a `vr_mock_play` file: `<t> cmd +graboff`). Map `vrclimb` has a rung
 wall (`setpos 71 0 24 0 0 0; noclip`, the second toggling setpos's noclip off) and a long ledge over a trench

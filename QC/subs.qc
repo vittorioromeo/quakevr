@@ -89,11 +89,12 @@ float        len, traveltime;
 // divide by speed to get time to reach dest
     traveltime = len / tspeed;
 
+    // VR: a short move (a button's few units) still moves, over the same 0.1 s, so that the engine pushes
+    // whoever stands in its way (SV_PushMove) or the mover stops (.blocked). Quake set it at its end after
+    // 0.1 s instead, into whoever stood there: a returning button trapped the player.
     if(traveltime < 0.1)
     {
-        self.velocity = '0 0 0';
-        self.nextthink = self.ltime + 0.1;
-        return;
+        traveltime = 0.1;
     }
 
 // set nextthink to trigger a think when dest is reached
