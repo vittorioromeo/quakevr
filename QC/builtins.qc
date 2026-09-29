@@ -214,7 +214,7 @@ float HITCLASS_GUNS = 0;
 float HITCLASS_GRAPPLE = 1;
 float HITCLASS_MELEE = 2;
 float HITCLASS_THROWN = 3;
-float VR_HITMODEL_REACH = 64; // units a model is found out of its box (an ogre's chainsaw reaches 33 out; a walking monster drawn behind it): the engine's MOVE_HITMODEL_REACH
+float VR_HITMODEL_REACH = 96; // units a model is found out of its box (an ogre's chainsaw reaches 33 out; a walking monster drawn behind it, a dog's step 64): the engine's MOVE_HITMODEL_REACH
 float(entity e) hitmodel_target = #0; // whether e's model is what is hit (the option on; a monster or corpse with a Quake model)
 // The segment a..b (a sphere of `radius` plus the class's tolerance) against e's model as drawn: where along it (0..1)
 // it first meets it (0: it starts in it), -1 missed; -2: e's model is not tested (the option off, not a target).

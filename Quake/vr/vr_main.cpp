@@ -995,6 +995,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_model_collide_bench", modelcollide::bench_f);
     Cmd_AddCommand("vr_hitmodel_bench", hitmodel::bench_f);
     Cmd_AddCommand("vr_hitmodel_stats", hitmodel::stats_f);
+    Cmd_AddCommand("vr_hitmodel_check", hitmodel::check_f);
     Cmd_AddCommand("vr_body_collide_bench", selfcollide::bench_f);
     Cmd_AddCommand("vr_wounds_test", wounds::test_f);
     Cmd_AddCommand("vr_wounds_info", wounds::info_f);

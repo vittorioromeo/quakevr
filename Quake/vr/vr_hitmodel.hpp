@@ -82,5 +82,6 @@ void debugDraw();    // vr_debug_hits (the view, each frame)
 
 void stats_f();      // vr_hitmodel_stats
 void bench_f();      // vr_hitmodel_bench [rays]
+void check_f();      // vr_hitmodel_check [reset|print]
 
 } // namespace qvr::hitmodel

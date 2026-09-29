@@ -48,7 +48,7 @@ typedef struct
 #define	MOVE_HITMODEL	512	// QVR, added to a type: monsters' models, not their boxes (vr_hit_precise; vr/vr_hitmodel.cpp)
 #define	MOVE_HITMODEL_CLASS_SHIFT	10	// QVR: and its class (the tolerance) in the two bits above: guns, grapple, melee, thrown
 #define	MOVE_HITMODEL_CLASS	(3 << MOVE_HITMODEL_CLASS_SHIFT)
-#define	MOVE_HITMODEL_REACH	64	// QVR: units a model is found out of its box (an ogre's chainsaw: 33; a walking monster drawn behind it)
+#define	MOVE_HITMODEL_REACH	96	// QVR: units a model is found out of its box (an ogre's chainsaw: 33; a walking monster drawn behind it: a dog's step, 64)
 
 
 void SV_ClearWorld (void);

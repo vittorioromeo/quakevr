@@ -6,6 +6,7 @@
 #include "vr_cvars.hpp"
 #include "vr_held.hpp"
 #include "vr_lines.hpp"
+#include "vr_modelcollide.hpp"
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
 
@@ -28,7 +29,6 @@ namespace
 using Clock = std::chrono::steady_clock;
 
 constexpr int leafSize = 4;
-constexpr float stepLagMax = 32.f; // units: a walking monster drawn this far behind its box at most (else no lerp)
 
 // ----------------------------------------------------------------------------
 // A model's triangles in a hierarchy, and each pose's bounds of its nodes.
@@ -348,6 +348,8 @@ struct Drawn
     glm::vec3 L{1.f}, l{0.f};
 };
 
+bool checkNoLerp = false; // (vr_hitmodel_check: the model at its frame and origin, for comparison)
+
 bool drawnOf(edict_t* ent, Drawn& d)
 {
     const int index = static_cast<int>(ent->v.modelindex);
@@ -362,7 +364,7 @@ bool drawnOf(edict_t* ent, Drawn& d)
     d.pose1 = d.pose2 = poseAt(d.hdr, ent->v.frame, now, nullptr);
     d.blend = 0.f;
     const int num = NUM_FOR_EDICT(ent);
-    if(num >= 0 && num < static_cast<int>(tracks.size()))
+    if(num >= 0 && num < static_cast<int>(tracks.size()) && !checkNoLerp)
     {
         const Track& t = tracks[static_cast<std::size_t>(num)];
         if(t.model == modelOf(ent) && t.seen >= now - 0.25 && t.seen >= ent->freetime)
@@ -1046,9 +1048,8 @@ void serverFrame()
             }
             if(origin != t.origin || angles != t.angles)
             {
-                const bool jump = glm::length(origin - t.origin) > stepLagMax;
-                t.prevOrigin = jump ? origin : t.origin;
-                t.prevAngles = jump ? angles : t.angles;
+                t.prevOrigin = t.origin; // (the client lerps a step of any length: a dog's 64-unit bound, a 70-degree turn)
+                t.prevAngles = t.angles;
                 t.origin = origin;
                 t.angles = angles;
                 t.moveStart = now;
@@ -1075,6 +1076,12 @@ void afterLoad()
             stats.builds++;
             stats.buildMs += m->buildMs;
         }
+    }
+    // The models this map doesn't use are forgotten (the memory is this map's models').
+    for(auto it = meshes.begin(); it != meshes.end();)
+    {
+        const bool used = std::any_of(byIndex.begin(), byIndex.end(), [&](const Mesh* m) { return m == &it->second; });
+        it = used ? std::next(it) : meshes.erase(it);
     }
     const double ms = std::chrono::duration<double, std::milli>(Clock::now() - t0).count();
     Con_DPrintf("hit models: %d made (%d triangles) in %.1f ms\n", built, tris, ms);
@@ -1146,9 +1153,98 @@ void stats_f()
             static_cast<double>(stats.nodes) / static_cast<double>(stats.narrow), static_cast<double>(stats.tris) / static_cast<double>(stats.narrow));
     }
     Con_Printf("  %lld hierarchies made at map loads, %.1f ms in all\n", stats.builds, stats.buildMs);
+    std::size_t bytes = 0, count = 0;
+    for(const auto& [name, m] : meshes)
+    {
+        if(m.valid)
+        {
+            count++;
+            bytes += m.bounds.size() * sizeof(Bounds) + m.tris.size() * sizeof(m.tris[0]) + m.nodes.size() * sizeof(Node);
+        }
+    }
+    Con_Printf("  %zu models' hierarchies kept: %.2f MB\n", count, static_cast<double>(bytes) / (1024. * 1024.));
     if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "reset"))
     {
         stats = Stats{};
+    }
+}
+
+// vr_hitmodel_check: each monster's model as the hit test poses it against the model as the client draws it this frame
+// (vr_modelcollide.cpp's drawnTriangles: the renderer's lerp): the mean and the largest distance between the same
+// vertices. Accumulated over the calls since `vr_hitmodel_check reset`; printed each call with `vr_hitmodel_check print`.
+void check_f()
+{
+    static double sum = 0., worst = 0., sumRaw = 0., worstRaw = 0.;
+    static long long count = 0, calls = 0;
+    static std::string worstName;
+    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "reset"))
+    {
+        sum = worst = sumRaw = worstRaw = 0.;
+        count = calls = 0;
+        worstName.clear();
+        return;
+    }
+    if(!sv.active || cls.state != ca_connected)
+    {
+        Con_Printf("vr_hitmodel_check: no local game\n");
+        return;
+    }
+    qcvm_t* oldvm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldvm);
+    calls++;
+    thread_local std::vector<glm::vec3> drawn;
+    for(int num = 1; num < qcvm->num_edicts && num < cl_max_edicts; num++)
+    {
+        edict_t* ent = EDICT_NUM(num);
+        const entity_t& e = cl_entities[num];
+        Drawn d;
+        if(!target(ent) || e.model != modelOf(ent) || !drawnOf(ent, d) || !modelcollide::drawnTriangles(e, num, drawn))
+        {
+            continue;
+        }
+        const auto* base = reinterpret_cast<const byte*>(d.hdr);
+        const auto* mesh = reinterpret_cast<const aliasmesh_t*>(base + d.hdr->meshdesc);
+        const auto* indexes = reinterpret_cast<const unsigned short*>(base + d.hdr->indexes);
+        const Verts vs = vertsOf(d);
+        Drawn raw; // without the lerp: its frame, at its origin
+        checkNoLerp = true;
+        drawnOf(ent, raw);
+        checkNoLerp = false;
+        const Verts rs = vertsOf(raw);
+        for(std::size_t i = 0; i < drawn.size() && static_cast<int>(i) < d.hdr->numindexes; i++)
+        {
+            const float distRaw = glm::length(rs.at(raw, mesh[indexes[i]].vertindex, 0.f) - drawn[i]);
+            sumRaw += distRaw;
+            worstRaw = std::max(worstRaw, static_cast<double>(distRaw));
+            const float dist = glm::length(vs.at(d, mesh[indexes[i]].vertindex, 0.f) - drawn[i]);
+            sum += dist;
+            count++;
+            if(dist > worst)
+            {
+                worst = dist;
+                const glm::vec3 cl3{e.origin[0], e.origin[1], e.origin[2]};
+                worstName = va("%s, frame %d, poses %d-%d at %.2f, origin %.1f %.1f %.1f, the hit test's %.1f %.1f %.1f, the client entity's %.1f %.1f %.1f, movetype %d, flags %d",
+                    PR_GetString(ent->v.classname), static_cast<int>(ent->v.frame), d.pose1, d.pose2, d.blend, ent->v.origin[0],
+                    ent->v.origin[1], ent->v.origin[2], d.origin.x, d.origin.y, d.origin.z, cl3.x, cl3.y, cl3.z,
+                    static_cast<int>(ent->v.movetype), static_cast<int>(ent->v.flags));
+                const Track& tr = tracks[static_cast<std::size_t>(num)];
+                worstName += va("; client poses %d-%d, lerp from %.3f (flags %d), cl.time %.3f; server time %.3f, the track's poses %d-%d from %.3f for %.3f, seen %.3f",
+                    e.previouspose, e.currentpose, e.lerpstart, e.lerpflags, cl.time, qcvm->time, tr.prevPose, tr.pose, tr.poseStart,
+                    tr.poseDur, tr.seen);
+                worstName += va("; angles %.1f %.1f, the hit test's %.1f %.1f, the client's %.1f %.1f (current %.1f, previous %.1f, move lerp from %.3f); the client's origins %.1f %.1f -> %.1f %.1f; the track's %.1f %.1f -> %.1f %.1f from %.3f",
+                    ent->v.angles[0], ent->v.angles[1], d.angles.x, d.angles.y, e.angles[0], e.angles[1], e.currentangles[1], e.previousangles[1],
+                    e.movelerpstart, e.previousorigin[0], e.previousorigin[1], e.currentorigin[0], e.currentorigin[1], tr.prevOrigin.x,
+                    tr.prevOrigin.y, tr.origin.x, tr.origin.y, tr.moveStart);
+            }
+        }
+    }
+    PR_PopQCVM(oldvm);
+    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "print"))
+    {
+        Con_Printf("vr_hitmodel_check: %lld calls, %lld vertices: the hit model %.2f units from the drawn one on average, "
+                   "%.2f at worst (%s); without the lerp %.2f, %.2f at worst\n", calls, count,
+            count ? sum / static_cast<double>(count) : 0., worst, worstName.c_str(), count ? sumRaw / static_cast<double>(count) : 0.,
+            worstRaw);
     }
 }
 
