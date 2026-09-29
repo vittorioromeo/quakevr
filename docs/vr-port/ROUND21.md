@@ -12949,3 +12949,26 @@ pull acting along where it lies. Branch `agent/hook`, after "Grappling hook: one
 - Multiplayer: each rope's points go to every client every server frame (up to 96 points: 1.2 KB with float
   coordinates).
 - A prop pushed hard into the rope can leave a point inside it for a frame (put back on top next frame).
+
+## Grenade turn from the pouch; the pouch takes carried pickups
+
+Voice notes vrfiringrange_2026-09-29_22-02-00 ("a slider to control the orientation in which the grenades spawn when I
+grab them off of my back pouch") and 22-03-12 ("the back pouch should also be a viable place to collect it").
+
+- **Grenade In Hand Pitch/Yaw/Roll** (`vr_grenade_pouch_hold_pitch|yaw|roll`, 0, archived; Batting and Catching >
+  Grenade Pouch and Hip Holsters > Grenade Pouch): a grenade taken from the pouch is turned in the hand on top of its
+  grip (progs/grenade.mdl's In the Palm, and its Held Object Offsets), about its middle, in the hand's frame (pitch up,
+  yaw left, roll right; mirrored for the left hand). Only grenades from the pouch: a caught one is placed as before.
+  QC's new builtin `carrypouch(e, handangles, offset)` (after `carrygrip` in VR_HandGrenade_Take) marks the held prop
+  (vr_grip.cpp `serverFromPouch`); `placeNow` applies the turn, and a change of the cvars places a held one again at
+  once (as the props' sliders do), until a regrip (`serverKeep` drops it: held where it is). Why not the take's angles:
+  In the Palm keeps only the turn about the palm's normal, so a yaw or roll there would be undone.
+- **The pouch takes carried pickups**: `VR_Carry_AtHolster` (vr_carry.qc) is also true at `QVR_HS_GRENADE_POUCH`, so a
+  carried health box, ammo box, key, rune, suit or horn let go of there is taken as at a holster (full up: it drops).
+  Grenades still never go into the pack (an unarmed hand grenade goes back in the pouch first; a weapon let go of
+  there still drops).
+- Tests (mock): health box and shells box let go of at the pouch (hotspot 11, 3.1 units off): `carry: into the pack`,
+  `You receive 100 health`. The grenade: its x axis (hand frame) -0.77 0 0.64 at 0; pitch 45 -> -1.00 0 -0.09 (45
+  degrees about the palm's normal), yaw 30 -> -0.86 -0.50 -0.09, roll 60 -> -0.39 -0.87 -0.31, live while held; taken
+  again at those: placed so at once; the left hand mirrored (-0.86 +0.50 -0.09).
+- In the headset: find the pitch that feels right for throwing, and promote it to the default.

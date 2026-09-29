@@ -403,6 +403,11 @@ QVR_CVAR(vr_grenade_pouch_thresh, "7", CVAR_ARCHIVE)  // units a hand must be wi
 QVR_CVAR(vr_grenade_pouch_pitch, "0", CVAR_ARCHIVE)  // degrees: its top away from the back (the holsters' axes)
 QVR_CVAR(vr_grenade_pouch_yaw, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_grenade_pouch_roll, "0", CVAR_ARCHIVE)
+// A hand grenade's turn in the hand as it is taken from the pouch (vr_grip.cpp serverFromPouch): on top of its grip
+// (Held Object Offsets), about its middle, in the hand's frame (pitch up, yaw left, roll right; mirrored for the left hand).
+QVR_CVAR(vr_grenade_pouch_hold_pitch, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_grenade_pouch_hold_yaw, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_grenade_pouch_hold_roll, "0", CVAR_ARCHIVE)
 // The player's body (vr_avatar.cpp): 0 none, 2 torso and arms, 3 torso, arms and legs: the skinned
 // progs/vrbody model, posed by IK from the head and hands (1, the old floating torso, is now 2).
 QVR_CVAR(vr_body_mode, "2", CVAR_ARCHIVE)

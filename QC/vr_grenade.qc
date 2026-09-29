@@ -738,6 +738,8 @@ void(float xHand) VR_HandGrenade_Take =
     vr_carry_quiet = TRUE; // (the pouch's own sound)
     VR_Carry_Start(p, xHand, g);
     vr_carry_quiet = FALSE;
+    // Its turn in the hand as it comes out (vr_grenade_pouch_hold_*), on top of its grip (vr_grip.cpp serverFromPouch).
+    g.carry_offset = carrypouch(g, VRGetEntHandRot(p, xHand), g.carry_offset);
     sound(p, CHAN_AUTO, "vr/grenade_pouch.wav", 0.9, ATTN_NORM);
     VR_HandGrenade_Haptic(p, xHand, 0.1, 90, 0.8);
     dprint(sprintf("grenade: hand grenade taken from the pouch by hand %g, %g rockets left\n", xHand, p.ammo_rockets));

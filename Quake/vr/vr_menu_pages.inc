@@ -769,6 +769,9 @@ void resetHandMoves()
         slider("Pouch Pitch", "vr_grenade_pouch_pitch", -180.f, 180.f, 5.f, "%.0f deg").help("Tips the pouch's top away from your back (negative: towards it)."),
         slider("Pouch Yaw", "vr_grenade_pouch_yaw", -180.f, 180.f, 5.f, "%.0f deg").help("Turns the pouch's face to your right (negative: left)."),
         slider("Pouch Roll", "vr_grenade_pouch_roll", -180.f, 180.f, 5.f, "%.0f deg").help("Tips the pouch's top to your right (negative: left)."),
+        slider("Grenade In Hand Pitch", "vr_grenade_pouch_hold_pitch", -180.f, 180.f, 5.f, "%.0f deg").help("A grenade taken from the pouch: its front tipped up in your hand (negative: down), about its middle."),
+        slider("Grenade In Hand Yaw", "vr_grenade_pouch_hold_yaw", -180.f, 180.f, 5.f, "%.0f deg").help("A grenade taken from the pouch: its front turned left in your hand (negative: right), mirrored for the left hand."),
+        slider("Grenade In Hand Roll", "vr_grenade_pouch_hold_roll", -180.f, 180.f, 5.f, "%.0f deg").help("A grenade taken from the pouch: rolled right in your hand (negative: left), mirrored for the left hand."),
     };
 }
 

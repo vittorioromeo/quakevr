@@ -297,9 +297,30 @@ struct Held
     bool turnStale{false};    // placed again by the client (serverPlace): its turn to be set at the next frame
     Place now;
     glm::vec3 lastOffset{0.f}; // .carry_offset as last given to QC (forward, right, up)
+    bool pouch{false};         // a hand grenade taken from the pouch (serverFromPouch): turned by vr_grenade_pouch_hold_*
+    glm::vec3 pouchTurn{0.f};  // the turn it was placed with (pitch, yaw, roll; mirrored for the left hand)
 };
 
 std::unordered_map<int, Held> heldProps;
+
+// The grenade pouch's turn in the hand (vr_grenade_pouch_hold_*: pitch up, yaw left, roll right, degrees), mirrored for
+// the left hand as the grip's offsets are.
+[[nodiscard]] glm::vec3 pouchTurnNow(bool left)
+{
+    glm::vec3 t{vr_grenade_pouch_hold_pitch.value, vr_grenade_pouch_hold_yaw.value, vr_grenade_pouch_hold_roll.value};
+    if(left)
+    {
+        t.y = -t.y;
+        t.z = -t.z;
+    }
+    return t;
+}
+
+// Whether `h` is to be placed again: its prop's settings changed, or (from the pouch) the pouch's turn in the hand.
+[[nodiscard]] bool stale(const Held& h)
+{
+    return h.generation != props::settingsGeneration() || (h.pouch && h.pouchTurn != pouchTurnNow(h.left));
+}
 
 [[nodiscard]] const qmodel_t* modelOf(edict_t* e)
 {
@@ -337,6 +358,15 @@ void placeNow(Held& h)
     {
         h.kept = false;
         h.now = place(h.prop, h.frame, h.left, h.taken);
+        if(h.pouch)
+        {
+            // From the pouch: turned on top of all that, about its middle (vr_grenade_pouch_hold_*).
+            h.pouchTurn = pouchTurnNow(h.left);
+            const float angles[3]{-h.pouchTurn.x, h.pouchTurn.y, h.pouchTurn.z};
+            const glm::mat3 m = held::axesFromAngles(angles, true);
+            const glm::vec3 mid = h.now.pos + h.now.rot * (middleOf(h.prop) + settingsOf(h.prop.slot, h.left).com);
+            h.now = {mid + m * (h.now.pos - mid), orthonormal(m * h.now.rot)};
+        }
     }
     h.generation = props::settingsGeneration();
 }
@@ -413,7 +443,7 @@ glm::vec3 serverFrame(edict_t* e, const float* handAngles, const glm::vec3& offs
         return offset;
     }
     Held& h = it->second;
-    if(h.generation != props::settingsGeneration())
+    if(stale(h))
     {
         placeNow(h);
         h.turnStale = true;
@@ -441,6 +471,7 @@ void serverKeep(edict_t* e, const float* handAngles, const glm::vec3& offset)
         return;
     }
     Held& h = it->second;
+    h.pouch = false; // (regripped: held where it is, the pouch's turn in it)
     const Settings s = settingsOf(h.prop.slot, h.left);
     const Place current{{offset.x, -offset.y, offset.z},
         glm::transpose(held::axesFromAngles(handAngles, true)) * held::axesFromAngles(e->v.angles, h.prop.brush)};
@@ -473,6 +504,24 @@ void serverKeep(edict_t* e, const float* handAngles, const glm::vec3& offset)
     logPlace("kept", num, h);
 }
 
+glm::vec3 serverFromPouch(edict_t* e, const float* handAngles, const glm::vec3& offset)
+{
+    const int num = NUM_FOR_EDICT(e);
+    const auto it = heldProps.find(num);
+    if(it == heldProps.end() || it->second.model != modelOf(e))
+    {
+        return offset;
+    }
+    Held& h = it->second;
+    h.pouch = true;
+    placeNow(h);
+    physics::setCarryTurn(e, handAngles, h.now.rot);
+    h.turnStale = false;
+    h.lastOffset = toFRU(h.now.pos);
+    logPlace("from the pouch", num, h);
+    return h.lastOffset;
+}
+
 void forget(int num)
 {
     heldProps.erase(num);
@@ -495,7 +544,7 @@ bool serverPlace(int num, Place& out)
         return false;
     }
     Held& h = it->second;
-    if(h.generation != props::settingsGeneration())
+    if(stale(h))
     {
         placeNow(h);
         h.turnStale = true;

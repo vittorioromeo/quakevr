@@ -753,6 +753,14 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("Up (negative: down), units: 0 is the hip holsters' height."),
         slider("Pouch Threshold", vr_grenade_pouch_thresh, 0.f, 30.f, 0.1f, "%.1f").extend(0.f, 100.f)
             .help("How near the pouch a hand must be to take a grenade from it (or put one back)."),
+        slider("Grenade In Hand Pitch", vr_grenade_pouch_hold_pitch, -180.f, 180.f, 5.f, "%.0f deg")
+            .help("A grenade taken from the pouch: its front tipped up in your hand (negative: down), about its middle. "
+                  "Moves one you hold now too."),
+        slider("Grenade In Hand Yaw", vr_grenade_pouch_hold_yaw, -180.f, 180.f, 5.f, "%.0f deg")
+            .help("A grenade taken from the pouch: its front turned left in your hand (negative: right), mirrored for the "
+                  "left hand."),
+        slider("Grenade In Hand Roll", vr_grenade_pouch_hold_roll, -180.f, 180.f, 5.f, "%.0f deg")
+            .help("A grenade taken from the pouch: rolled right in your hand (negative: left), mirrored for the left hand."),
         open("Pouch Turn (Hip Holsters)", pageIndex(pageHipHolsters))
             .help("The same place, and how the pouch is turned, with the hip holsters."),
     };

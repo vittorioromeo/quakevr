@@ -455,10 +455,13 @@ void(float xHand, entity xBox) VR_Carry_Take =
     }
 };
 
-// Whether `xHand` of `self` is at a holster (a hip, a shoulder, or an upper one).
+// Whether `xHand` of `self` is at a holster (a hip, a shoulder, or an upper one), or at the grenade pouch at the small
+// of the back (vr_handgrenade: the engine sets that hotspot only then): a place to put what is carried away (health,
+// ammo, a power-up). Never a grenade (VR_Carry_HandFrame; an unarmed hand grenade goes back in the pouch first).
 float(float xHand) VR_Carry_AtHolster =
 {
-    return isHolsterHotspot(xHand == cVR_OffHand ? self.offhand_hotspot : self.mainhand_hotspot);
+    float hotspot = xHand == cVR_OffHand ? self.offhand_hotspot : self.mainhand_hotspot;
+    return isHolsterHotspot(hotspot) || hotspot == QVR_HS_GRENADE_POUCH;
 };
 
 // Every player frame, for each hand (self is the player).

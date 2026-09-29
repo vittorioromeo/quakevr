@@ -184,6 +184,9 @@ vector(entity e, vector handangles, float lefthand) propgrip = #0;
 // and its place in the hand returned (`offset` is .carry_offset; placed again at once when its settings change).
 vector(entity e, entity player, float hand, float lefthand, vector handangles, vector offset) carrygrip = #0;
 vector(entity e, vector handangles, vector offset) carryplace = #0;
+// A hand grenade just taken from the grenade pouch (after carrygrip; `offset` its .carry_offset): turned in the hand by
+// vr_grenade_pouch_hold_* (its angles now), its origin's place in the hand returned (.carry_offset).
+vector(entity e, vector handangles, vector offset) carrypouch = #0;
 // Weapon Offsets and Weapon Weights (vr_weapons.inc) of the weapon drawn with `model` (WeaponIdToModel), by the key its
 // cvars have: "w_mass" (kg), "w_meleedmg", "w_throwdmg" (its damage multipliers)... (0: no such weapon or key).
 float(string model, string key) weaponvalue = #0;

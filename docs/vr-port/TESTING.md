@@ -157,6 +157,9 @@ context and screenshot, ready to paste or to point me at.
     of elsewhere unarmed, it is a dud at your feet: take it again to arm it or put it back. No rockets: a dull knock.
     Batting and Catching > **Hand Grenades** (on/off, **Arm Hand Grenades**: the trigger, or when let go of; **Hand
     Grenade Fuse**); the pouch's place under it (**Grenade Pouch**), and its turn on Hip Holsters > **Grenade Pouch**.
+    Under it too, **Grenade In Hand Pitch/Yaw/Roll**: how a grenade from the pouch is turned in your palm (a held one
+    turns as you drag them). A health box, ammo box or power-up you carry, let go of at the pouch, is taken as at a
+    holster.
   - **Hands: both work; props through teleporters; climbing stamina** (ROUND21.md, same title): a hand that force
     grabbed something and put it down could no longer take a ledge (fixed); a main-hand grip on a thing the off hand
     touched did nothing, and a prop held in both hands lost a hand when you moved fast (both fixed). Bricks (whole,
@@ -1237,6 +1240,10 @@ is empty`, `hand grenade armed (the pin pulled | the lever flies off ...)`, `a h
 own lines (`hits`, `goes off`, `went off in player's hand`); `vr_debug_shots 1` the damage. A dud rolls into the grate
 at the start's feet (`edict <n>` prints where): reach it at `vr_mock_hand main 0.03 -0.14 0` (the mock's floor is 7
 units over the map's there). The pouch from behind: `vr_mock_camera 0.25 1.15 0.95 8 15`; `give r 0` shows it empty.
+The grenade's turn from the pouch (`vr_grenade_pouch_hold_*`): `developer 1` prints `grip: from the pouch <n> ...
+its x ..., its z ...` at the take and `grip: placed again` as a slider moves. Carried pickups at the pouch:
+`vr_rigid_place item_health main 0 3 0; +grabright; vr_mock_button main grip 1`, the hand to the pouch as above, then
+`vr_mock_button main grip 0; -grabright`: `carry: into the pack` and the pickup's message.
 
 Debug menu; quad sound; grenade catch default; no empty-hand deflection (ROUND21.md, same title): the scratchpad's
 `misc23/` has the scripts and logs.
