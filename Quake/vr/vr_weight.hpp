@@ -33,6 +33,9 @@ namespace qvr::weight
 [[nodiscard]] float staminaCurve(float left);
 // The curve's share, 0 (at or above the threshold, or off) .. 1 (none left): for a stamina left of `left`, and now (eased).
 [[nodiscard]] float staminaShareFor(float left);
+// The curve itself (vr_weight_stamina_from, vr_weight_stamina_curve), on or off: 0 at or above the threshold .. 1 with
+// none left. The tired run takes it too (vr_stamina_speed, vr_fatigue.cpp).
+[[nodiscard]] float tiredShare(float left);
 [[nodiscard]] float staminaShare();
 
 // After the two-handed aim (vr_handpose.cpp), each hand holding something with a mass moved and turned to

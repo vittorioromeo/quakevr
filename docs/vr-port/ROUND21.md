@@ -12972,3 +12972,26 @@ grab them off of my back pouch") and 22-03-12 ("the back pouch should also be a 
   degrees about the palm's normal), yaw 30 -> -0.86 -0.50 -0.09, roll 60 -> -0.39 -0.87 -0.31, live while held; taken
   again at those: placed so at once; the left hand mirrored (-0.86 +0.50 -0.09).
 - In the headset: find the pitch that feels right for throwing, and promote it to the default.
+## Defaults: the author's tired arms; the tired run
+
+"I want them to be more intense ... make those the defaults" (NOTES.md vrfiringrange_2026-09-29_21-26-37). His
+config's weight and stamina settings against the shipped ones (compiled, and `vr_defaults.cfg`): three differed, and
+are the defaults now (`vr_cfg_version` 47 moves configs still holding the old values; a value the player changed stays):
+
+- `vr_weight_stamina_max` 2 -> 2.5 (times what a hand holds weighs with no stamina left).
+- `vr_weight_stamina_add` 0 -> 15 kg (added to what a hand holds with none left).
+- `vr_weight_stamina_empty` 3 -> 15 kg (an empty hand with none left).
+
+The rest matched already (his parry stamina values are `vr_defaults.cfg`'s; `vr_fatigue_*` are the shipped ones).
+Aiming > Tired Arms' Extra Weight and Empty Hand Weight sliders go to 20 kg now (50 extended). Checked: the test
+baseline config (version 34, max 2) comes out at 2.5; one at 46 with max 3 keeps 3 and takes 15 and 15.
+
+**The tired run** (`vr_stamina_speed` 1, `vr_stamina_speed_min` 0.5; Stamina > Tired Legs): low on stamina, the most
+speed the stick moves you at (`sv_maxspeed`, SV_AirMove) is times `1 - (1 - min) * share`, the share the weight's own
+curve (`weight::tiredShare`: `vr_weight_stamina_from` 0.5, `vr_weight_stamina_curve` 2), whether or not the weight's
+toggle is on. Each player's own stamina, on the server (`.vr_melee_hud`'s pool bit, `.vr_stamina_used`); noclip and
+swimming are left alone. Only the cap: slower walking (under the cap) is unchanged, and the speed drops through the
+ground friction rather than at once. Tests: `vr_debug_stamina_speed 1` prints the stamina, the cap and the ground speed
+(Debug > Tests: Print Run Speed, Quarter Stamina; the Stamina readout shows "run x0.88"). Headless on e1m1, the stick
+forward (`vr_debug_stamina_hold 1; vr_stamina_set <s>`): 1.00 -> 320, 0.50 -> 320, 0.25 -> 280 (x0.875), 0 -> 160;
+with the option off at 0, 320.

@@ -689,6 +689,11 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Shake Turn", vr_fatigue_shake_angle, 0.f, 5.f, 0.25f, "%.2f deg").extend(0.f, 20.f).help("How far they turn as they shake at most, with no stamina left. 0: no turning shake."),
         slider("Shake Speed", vr_fatigue_shake_speed, 0.25f, 2.f, 0.05f, "%.2fx").extend(0.05f, 5.f).help("How quick the tremor is (1: 5 to 13 shakes a second)."),
         toggle("Shake Whenever Tired", vr_fatigue_shake_always).help("Off: your arms shake only while you hang from a ledge or a rung. On: whenever your stamina is low (after parries, shoves and blows too)."),
+        header("Tired Legs"),
+        toggle("Slower When Tired", vr_stamina_speed)
+            .help("As your stamina runs low, you can't run as fast: full speed from half your stamina (From Stamina, on the Aiming page's Tired Arms) down to Slowest Run with none left, on the same curve as the weight."),
+        slider("Slowest Run", vr_stamina_speed_min, 0.1f, 1.f, 0.05f, "%.2fx")
+            .help("Times your most running speed with no stamina left (0.5: half; 1: never slower)."),
         open("Heavy When Tired (Aiming)", pageIndex(pageAimingSettings)).help("Tired hands get heavy too (what they hold, and an empty hand): Tired Arms, on the Aiming page."),
     };
 }
@@ -1761,12 +1766,13 @@ std::vector<Item> pageDebugTools()
     };
 }
 
-// "Stamina 0.40: heavy x1.35, empty hand 0.8 kg, shake 0.21": the tired arms now (Tests page).
+// "Stamina 0.40: heavy x1.35, empty hand 0.8 kg, shake 0.21, run x0.98": the tired arms and legs now (Tests page).
 [[nodiscard]] const char* staminaReadout()
 {
     static char text[96];
-    q_snprintf(text, sizeof(text), "Stamina %.2f: heavy x%.2f, empty hand %.1f kg, shake %.2f", fatigue::staminaLeft(),
-        weight::staminaMultiplier(), std::max(vr_weight_stamina_empty.value, 0.f) * weight::staminaShare(), fatigue::shakeLevel());
+    q_snprintf(text, sizeof(text), "Stamina %.2f: heavy x%.2f, empty hand %.1f kg, shake %.2f, run x%.2f",
+        fatigue::staminaLeft(), weight::staminaMultiplier(), std::max(vr_weight_stamina_empty.value, 0.f) * weight::staminaShare(),
+        fatigue::shakeLevel(), fatigue::speedScaleFor(fatigue::staminaLeft()));
     return text;
 }
 
@@ -1799,8 +1805,10 @@ std::vector<Item> pageDebugTests()
         command("Deplete Stamina", "vr_stamina_set 0").help("vr_stamina_set 0: no stamina left (tired arms: heavy hands; shaking while you hang). Hanging with none, your hands let go."),
         command("Nearly Empty", "vr_stamina_set 0.1").help("vr_stamina_set 0.1: a tenth of your stamina left, enough to hang a moment."),
         command("Half Stamina", "vr_stamina_set 0.5").help("vr_stamina_set 0.5: half your stamina left."),
+        command("Quarter Stamina", "vr_stamina_set 0.25").help("vr_stamina_set 0.25: a quarter of your stamina left (the run a little slower: Slower When Tired)."),
         command("Restore Stamina", "vr_stamina_set 1").help("vr_stamina_set 1: rested."),
         toggle("Hold Stamina", vr_debug_stamina_hold).help("Keeps your stamina where it is, or where the buttons above put it: nothing spends it and it doesn't come back (vr_debug_stamina_hold)."),
+        toggle("Print Run Speed", vr_debug_stamina_speed).help("Prints your stamina, the most speed it lets you run at and your speed on the ground, twice a second (vr_debug_stamina_speed)."),
         header("Cheats"),
         command("God Mode", "god").help("god: takes no damage (again: takes damage)."),
         command("Quad Damage", "impulse 255").help("Quad Damage for 30 seconds."),

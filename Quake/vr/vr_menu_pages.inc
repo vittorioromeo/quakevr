@@ -396,9 +396,9 @@ void resetHandMoves()
         slider("Most Weight", vr_weight_stamina_max, 1.f, 4.f, 0.1f, "%.1fx").extend(1.f, 10.f).help("Times the weight with no stamina left."),
         slider("Curve", vr_weight_stamina_curve, 0.5f, 4.f, 0.1f, "%.1f").extend(0.1f, 10.f)
             .help("How it grows from the threshold to none: 1 in a straight line; 2 (the default) gently at first, then faster."),
-        slider("Extra Weight", vr_weight_stamina_add, 0.f, 5.f, 0.25f, "%.2f kg").extend(0.f, 30.f)
+        slider("Extra Weight", vr_weight_stamina_add, 0.f, 20.f, 0.5f, "%.1f kg").extend(0.f, 50.f)
             .help("Kilograms added to what you hold with no stamina left (on the same curve), on top of Most Weight's times: light things get heavy too. 0: only the times."),
-        slider("Empty Hand Weight", vr_weight_stamina_empty, 0.f, 8.f, 0.25f, "%.2f kg").extend(0.f, 30.f)
+        slider("Empty Hand Weight", vr_weight_stamina_empty, 0.f, 20.f, 0.5f, "%.1f kg").extend(0.f, 50.f)
             .help("Tired, an empty hand follows your controller as if it held this much with no stamina left (on the same curve): it lags and droops a little. Not a hand holding a ledge or steadying a weapon. 0: an empty hand never gets heavy."),
         open("Tired Arms Shake (Stamina)", pageIndex(pageStamina)).help("Low on stamina, your arms shake too (looks only): on the Stamina page."),
         header("Spring"),

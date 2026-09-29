@@ -7,6 +7,7 @@
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_units.hpp"
+#include "vr_weight.hpp"
 
 #include <glm/gtc/constants.hpp>
 
@@ -26,6 +27,7 @@ constexpr float growth = 1.5f;   // the shake's curve from the threshold to none
 float level = 0.f;
 double levelAt = -1.0;
 double printedAt = -1.0;
+double speedPrintedAt = -1.0; // vr_debug_stamina_speed
 float heldAt = -1.f; // vr_debug_stamina_hold: the share the game's stamina is kept at (-1: not yet taken)
 
 [[nodiscard]] bool climbing()
@@ -196,4 +198,41 @@ void registerCommands()
     Cmd_AddCommand("vr_stamina_set", set_f);
 }
 
+float speedScaleFor(float left)
+{
+    if(!vr_stamina_speed.value)
+    {
+        return 1.f;
+    }
+    const float least = std::clamp(vr_stamina_speed_min.value, 0.05f, 1.f);
+    return 1.f - (1.f - least) * weight::tiredShare(left);
+}
+
 } // namespace qvr::fatigue
+
+extern "C" cvar_t sv_maxspeed; // sv_user.c
+
+// SV_AirMove (walking, and in the air): tired, the most speed the stick moves you at (sv_maxspeed) times this. This
+// player's own stamina, as the progs sent it last frame (.vr_melee_hud: the pool on; .vr_stamina_used: what is spent).
+// 1 without the VR progs, with the pool off, or rested above vr_weight_stamina_from.
+extern "C" float VR_StaminaSpeedScale(edict_t* ent)
+{
+    using namespace qvr;
+    using namespace qvr::progs;
+    if(!ent || !bindings().isVrProgs)
+    {
+        return 1.f;
+    }
+    const FieldOffsets& f = fields();
+    const bool on = (static_cast<int>(fieldFloatOr(ent, f.vr_melee_hud, 0.f)) & 128) != 0;
+    const float most = std::max(1.f, vr_parry_stamina_max.value);
+    const float left = on ? std::clamp(1.f - fieldFloatOr(ent, f.vr_stamina_used, 0.f) / most, 0.f, 1.f) : 1.f;
+    const float scale = fatigue::speedScaleFor(left);
+    if(vr_debug_stamina_speed.value && (realtime - fatigue::speedPrintedAt >= 0.5 || realtime < fatigue::speedPrintedAt))
+    {
+        fatigue::speedPrintedAt = realtime;
+        Con_Printf("stamina speed: stamina %.2f cap %.0f (x%.3f) ground speed %.1f\n", left, sv_maxspeed.value * scale, scale,
+            std::hypot(ent->v.velocity[0], ent->v.velocity[1]));
+    }
+    return scale;
+}
