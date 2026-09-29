@@ -1202,3 +1202,11 @@ walks with a brick in both hands. Two hands on a brick in start: the main hand a
 at every 10 spent, 2 every frame); `vr_gadget_screen_dump <name>` writes the gadget's screen. The 13 climb scripts:
 `climb/set.sh <suffix>` (`EXTRA="vr_climb_stamina 0"` adds cvars) and `climb/cmp.sh A B`. `edict <n>` with a number past
 the live edicts ends the game (`PR_SwitchQCVM: A qcvm was already active`): use numbers you have seen.
+
+Hardcoded limits (ROUND21.md, "Hardcoded limits audit"): `vr_limits` (Debug > Reports > Limits) prints each limit's
+usage, peak and maximum, highlighted from 80%. Overflows that used to be silent (temp entities, dynamic lights, the
+datagram) print `Limit reached: ...` once a session. Stress tests: `vr_limits stress <n>` makes n more cvars
+(`qvr_stress_00000`..., not saved), `vr_limits time` prints the milliseconds since the last one (`vr_limits time; exec
+big.cfg; vr_limits time`), `vr_limits cvarlen <name>` gives a value's length (a print stops at 4095 characters). There
+is no `set` command: a config line sets only an existing cvar. `vr_physics_spawn item_shells <dist> <left>` 320 times
+in e1m1 moves 320 props (the datagram peaked at 16.5 KB of 64 KB).
