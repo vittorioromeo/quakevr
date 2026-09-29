@@ -1,6 +1,6 @@
 # Mock-hand plays for the climbing tests (vr_mock_play files; docs/vr-port/TESTING.md, "Climbing"):
 # python climb_plays.py ladder|ladderlean|ledge|mantle|e1m1|ledgehang|runghang|ledgeodd|rungodd|push|overtop|pressL<d>|pressR<d>|
-#   lift|liftride|plat|
+#   lift|liftride|plat|float_<dist>_<below>[_<sink cm>]|overreach<hands>_<metres>|
 #   shimmy[e1m1]<close|far>[_<drift cm>[_<wobble cm>]]
 # writes <name>.txt here and prints how long it plays (the hangs: both hands on the ledge or rung 56, pulled up a little
 # and held, for screenshots, the odd ones with the controllers turned oddly; ladderlean: the ladder with the head leant
@@ -254,8 +254,76 @@ def shimmy(close, drift=0.0, wobble=0.0, n=4, hy=1.638, fwd=-0.69, right_first=F
     cmd("-graboff"); cmd("-grabmain"); hold(1.0)
     return L, t[0]
 
+def floatpush(dist, below, sink=0.0):
+    # ROUND21.md, "Climbing: floating platforms": vrclimb's floating platforms (nothing under them), from a start
+    # placed in noclip (setpos ... 0 90 0, with no `noclip` after it: this play turns it off as the hands take hold)
+    # with the lip `dist` units ahead of the body (negative: the body that far under the platform) and the feet `below`
+    # units under its top: both hands take the lip, are raised `sink` metres and drawn in to the chest (the body drops
+    # and swings in under the platform, as far as it goes), then pushed out as far as the arms go, level (the body away
+    # from the platform, still holding), then pushed down (the mantle onto it). "echo FLOAT <phase>" and a `viewpos`
+    # mark each phase's end.
+    L = list(LEAN)
+    hy = (below - 5) / 26.25
+    fwd = -(max(dist, 2.0) + 0.1) / 26.25
+    up = hy + sink
+    for h, x in (("off", -0.12), ("main", 0.12)):
+        L += [f"0.000 {h} {x * 2} 1.1 -0.2 70 0 0", f"0.500 {h} {x} {hy:.3f} {fwd:.3f} 70 0 0",
+              f"1.000 {h} {x} {hy:.3f} {fwd:.3f} 70 0 0",
+              f"1.800 {h} {x} {up:.3f} -0.20 70 0 0", f"2.000 {h} {x} {up:.3f} -0.20 70 0 0",
+              f"3.200 {h} {x} {up:.3f} -1.00 70 0 0", f"3.400 {h} {x} {up:.3f} -1.00 70 0 0",
+              f"4.600 {h} {x} 0.95 -1.00 70 0 0", f"5.600 {h} {x} 0.95 -1.00 70 0 0", f"6.200 {h} {x * 2} 1.1 -0.2 70 0 0"]
+    L += ["0.550 cmd noclip", "0.600 cmd +graboff", "0.650 cmd +grabmain", "2.000 cmd echo FLOAT in", "2.000 cmd viewpos",
+          "3.400 cmd echo FLOAT out", "3.400 cmd viewpos", "5.600 cmd echo FLOAT down", "5.600 cmd viewpos",
+          "5.600 cmd -graboff", "5.600 cmd -grabmain"]
+    return L, 6.2
+
+def overreach(hands, metres, hy=1.638, fwd=-0.69):
+    # ROUND21.md, "Climbing: the hands in sync past the reach": the long ledge (setpos 78 176 24 0 0 0; noclip), pulled
+    # up 0.2 m with `hands` (1: the main hand alone, 2: both, 3: both, the main hand alone sweeping), then the hands swept
+    # `metres` to the right along the lip
+    # (the body goes left, past what it may: the arm's reach, 48 units from the hold), back to where they were, the
+    # same to the left and back; "echo REACH <phase>" at each phase's end (vr_climb_debug 2's "sync" in `climbreach`: the
+    # tracked hands' drift from the drawn ones)
+    L = list(LEAN); t = [0.0]
+    use = ("main",) if hands == 1 else ("off", "main")
+    sweep = ("main",) if hands == 3 else use
+    pos = {"off": [-0.25, 1.1, -0.2], "main": [0.25, 1.1, -0.2]}
+    def key(h, x, y, z):
+        pos[h] = [x, y, z]; L.append(f"{t[0]:.3f} {h} {x:.4f} {y:.4f} {z:.4f} 70 0 0")
+    def move(dx, dy, dt, hs):
+        for h in pos: key(h, *pos[h])
+        t[0] += dt
+        for h in hs: key(h, pos[h][0] + dx, pos[h][1] + dy, pos[h][2])
+    def cmd(c): L.append(f"{t[0]:.3f} cmd {c}")
+    for h in use: key(h, -0.12 if h == "off" else 0.12, hy, fwd)
+    t[0] = 0.7
+    for h in use: key(h, *pos[h])
+    if "off" in use: cmd("+graboff")
+    t[0] = 0.75; cmd("+grabmain")
+    move(0, -0.2, 0.6, use); cmd("echo REACH hang")
+    for sign in (1, -1):
+        move(sign * metres, 0, 1.5, sweep); cmd(f"echo REACH {'right' if sign > 0 else 'left'}")
+        move(-sign * metres, 0, 1.5, sweep); cmd("echo REACH back")
+    t[0] += 0.3; cmd("-graboff"); cmd("-grabmain"); t[0] += 0.3
+    return L, t[0]
+
 def main():
     import sys
+    if sys.argv[1].startswith("overreach"):
+        # overreach<hands>_<metres>, e.g. overreach1_0.8
+        p = sys.argv[1][9:].split("_")
+        L, t = overreach(int(p[0]), float(p[1]))
+        write(sys.argv[1] + ".txt", L)
+        print(f"{sys.argv[1]}: {t:.2f} s")
+        return
+    if sys.argv[1].startswith("float"):
+        # float_<dist>_<below>[_<sink cm>], e.g. float_18_48_50 (the long ledge's start, the body sunk 0.5 m and drawn in
+        # under the slab), float_-8_65 (starting under the slab)
+        p = sys.argv[1].split("_")
+        L, t = floatpush(float(p[1]), float(p[2]), float(p[3]) / 100 if len(p) > 3 else 0.0)
+        write(sys.argv[1] + ".txt", L)
+        print(f"{sys.argv[1]}: {t:.2f} s")
+        return
     if sys.argv[1].startswith("shimmy"):
         # shimmy[e1m1]<close|far>[_<drift cm>[_<wobble cm>]], e.g. shimmyclose_2_1 (vrclimb's ledge: 4 strokes left,
         # 4 right), shimmye1m1close_2_1 (e1m1's ledge, setpos 250 2350 40: 2 strokes right, 2 left)
