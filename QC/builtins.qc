@@ -202,8 +202,9 @@ string(float i) debrismodel = #0;
 float(entity e, float i) debrisput = #0;
 vector(entity e, vector angles, vector point) modelpoint = #0; // where a point of e's model (its axes: x forward, y left, z up) is from its origin, turned by angles as drawn
 // A hand's push on a rigid body: the point `at` gets at least `vel`'s speed along it (an impulse there: a tall box pushed
-// high tips over). FALSE if Box3D doesn't move it.
-float(entity e, vector at, vector vel) physicspush = #0;
+// high tips over). FALSE if Box3D doesn't move it. `mass` (kg, 0 or none: no limit): what pushes weighs that much, so the
+// point gets only the share of the two masses meeting (a hand's, a gun's: vr_box3d_hand_mass, vr_box3d_weapon_mass).
+float(entity e, vector at, vector vel, optional float mass) physicspush = #0;
 // The grappling hook's physical rope (engine vr_ropesim.cpp; vr_grapple.qc VR_Grapple_RopeShape): ropestep steps it (once
 // a frame; its chain from `gun` to `end`, falling, lying, never through the world or props but `skipA`, `skipB`) and
 // gives the taut path's length from `game` (the body, or the gun) to `end`; ropepivot its first corner from `game` (0),

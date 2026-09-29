@@ -1204,6 +1204,16 @@ u/s after`); `2` each frame's move and each contact. A palm turned up: the main 
 with the axe (`vr_weapon_grip_mode 1; impulse 9; impulse 152`) at `vr_mock_hand main 0.1 1.3 -0.45 70 0 0`, `vr_deflect
 0`, and a `vr_mock_play` moving the hand to `0.6 1.3 -0.45` (the kit's `scratch/heldphys/bat.sh`, `speeds.sh`). The
 two-handed grip: `vr_dumpview` prints each hand's `two-handed <0..1>, helping <0|1>, empty <0|1>` (`grip.sh`).
+Pushes by mass (ROUND21.md): `vr_debug_box3d 1` also prints each prop a hand's body pushed (`199 ogre_grenade (40.0 kg)
+hit by 4.0 kg: 189 u/s gained, x0.09: 17 u/s`; `shoved` for the steps after, capped by `vr_box3d_push_force`), the swing's
+strike's share (`(x0.77 by mass)`) and a QC poke's (`that push by 3.0 kg against its 40.0 kg`). The same grenade
+made heavy: `vr_prop_mass_04 40` before `vr_test_projectile 4` (the kit's `scratch/heldphys2/flick.sh <kg>`); an
+explosive box ahead: `vr_test_spawn 102; vr_test_spawn_dist 34; impulse 241` punched with `poke.txt` (`box.sh`).
+Held props meeting: `vr_debug_carry 1` prints `held: 199 and 198 meet` / `apart` and, each frame they touch, how deep
+and how far each is drawn moved (`meet.sh`: a gib put in the main hand by `vr_rigid_place new main 0 0 0` and the
+grip, a head in the off hand by `impulse 252`); `vr_debug_carry 2`'s `carry_trace.txt` has each drawn hand off its
+controller. A held club never dropped on a monster: `mon.sh` (a gib made a club by `vr_prop_tip_x_34 4`, swung and
+stabbed through a shambler 20 times; `impulse 252` at the end prints nothing while the hand still holds it).
 Rocks and bricks (ROUND21.md): `vr_debug_debris 1` prints a line per map (pieces, spots, rejections by reason, the
 time, the layout's hash, the server's spawn time), `2` each piece (model, skin, place, turn, size, the way out of its
 wall); `vr_debris_list [lit]` lists the pieces in the map with the light where each lies. The scratchpad's

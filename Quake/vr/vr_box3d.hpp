@@ -15,8 +15,10 @@ namespace qvr::box3d
 [[nodiscard]] bool toss(edict_t* ent);
 
 // A hand's push on the prop `ent` at `at` (world units): that point gets at least `velocity`'s speed along it (an impulse
-// there: pushed high, a tall box tips; pushed low, it slides). False if it is not a Box3D prop.
-bool push(edict_t* ent, const glm::vec3& at, const glm::vec3& velocity);
+// there: pushed high, a tall box tips; pushed low, it slides). `pusherMass` (kg, 0: none): what pushes has that mass, so
+// the point gets only the share of two masses meeting (a light hand barely moves a heavy box). False if it is not a
+// Box3D prop.
+bool push(edict_t* ent, const glm::vec3& at, const glm::vec3& velocity, float pusherMass = 0.f);
 
 // A prop's mass (kg): the Mass set for its model (Held Object Offsets), else what Box3D makes it (its hull's volume
 // times its density: vr_box3d.cpp). 0 without Box3D's world (no local server) or a model. Also for a prop in a hand.

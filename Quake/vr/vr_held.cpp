@@ -8,6 +8,7 @@
 #include "vr_grip.hpp"
 #include "vr_hands.hpp"
 #include "vr_lines.hpp"
+#include "vr_main.hpp"
 #include "vr_mem.hpp"
 #include "vr_profile.hpp"
 #include "vr_physics.hpp"
@@ -957,6 +958,77 @@ BothRelease bothRelease[2];
 // The most a drawn hand turns off its controller to stay on its grip (a hand's own twist the other doesn't share).
 constexpr float mostHandTurn = glm::radians(40.f);
 
+// Props held one in each hand meet (ROUND21.md, "Held props meet"): their drawn boxes are kept apart, each hand and what
+// it holds drawn moved back along the way they meet by half how deep they would be, at most vr_held_collide_max (the
+// looks only: the server has them in the hands, the throw is the hands'). Eased in and out, a buzz as they meet.
+struct Meet
+{
+    glm::vec3 offset[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // each hand's, drawn now (units)
+    double last{-1.0};                                  // cl.time of the last frame
+    bool touching{false};
+};
+Meet meet;
+constexpr double meetEaseTime = 0.04; // s: the offsets follow the push this fast (and back when apart)
+
+struct Box
+{
+    glm::vec3 centre;
+    glm::mat3 axes; // columns: its unit axes
+    glm::vec3 half;
+};
+
+// How deep two boxes overlap along the axis they are least deep on (separating axes: each's 3 faces and the 9 edge
+// pairs), with that axis from `a` to `b` in `normal`; 0 apart.
+[[nodiscard]] float overlap(const Box& a, const Box& b, glm::vec3& normal)
+{
+    const glm::vec3 d = b.centre - a.centre;
+    float least = std::numeric_limits<float>::max();
+    const auto test = [&](glm::vec3 axis) {
+        const float len = glm::length(axis);
+        if(len < 1e-4f)
+        {
+            return true; // (parallel edges: the faces' axes decide)
+        }
+        axis /= len;
+        float ra = 0.f, rb = 0.f;
+        for(int i = 0; i < 3; i++)
+        {
+            ra += a.half[i] * std::fabs(glm::dot(a.axes[i], axis));
+            rb += b.half[i] * std::fabs(glm::dot(b.axes[i], axis));
+        }
+        const float along = glm::dot(d, axis);
+        const float depth = ra + rb - std::fabs(along);
+        if(depth <= 0.f)
+        {
+            return false;
+        }
+        if(depth < least)
+        {
+            least = depth;
+            normal = along < 0.f ? -axis : axis;
+        }
+        return true;
+    };
+    for(int i = 0; i < 3; i++)
+    {
+        if(!test(a.axes[i]) || !test(b.axes[i]))
+        {
+            return 0.f;
+        }
+    }
+    for(int i = 0; i < 3; i++)
+    {
+        for(int j = 0; j < 3; j++)
+        {
+            if(!test(glm::cross(a.axes[i], b.axes[j])))
+            {
+                return 0.f;
+            }
+        }
+    }
+    return least == std::numeric_limits<float>::max() ? 0.f : least;
+}
+
 [[nodiscard]] bool valid(int ent, const qmodel_t* model)
 {
     return ent > 0 && ent < cl.num_entities && cl_entities[ent].model &&
@@ -973,6 +1045,7 @@ void reset()
         bothRelease[h] = BothRelease{};
     }
     both = Both{};
+    meet = Meet{};
 }
 
 [[nodiscard]] carry2h::Frame controller(const hands::State& s, int h)
@@ -1061,6 +1134,79 @@ void holdFrame(int h, const hands::State& s, int bothEnt)
     hd.lastRot = drawnAxes * hd.rot;
     place(e, hd.lastPos, hd.lastRot);
     hd.drawn = true;
+}
+
+// After both hands' holdFrame: props held one in each hand kept apart (Meet).
+void meetFrame()
+{
+    const double dt = meet.last < 0.0 ? 0.0 : std::clamp(cl.time - meet.last, 0.0, 0.1);
+    meet.last = cl.time;
+    glm::vec3 want[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    float depth = 0.f;
+    Held& a = holding[0];
+    Held& b = holding[1];
+    if(vr_held_collide.value && a.drawn && b.drawn && a.ent != b.ent)
+    {
+        glm::vec3 loA, hiA, loB, hiB;
+        if(held::drawnBox(a.ent, loA, hiA) && held::drawnBox(b.ent, loB, hiB))
+        {
+            // Where the hands have them: each drawn moved back along the way they are least deep by half of it, at most
+            // vr_held_collide_max (deeper, they overlap by the rest).
+            const Box boxA{a.lastPos + a.lastRot * ((loA + hiA) * 0.5f), a.lastRot, (hiA - loA) * 0.5f};
+            const Box boxB{b.lastPos + b.lastRot * ((loB + hiB) * 0.5f), b.lastRot, (hiB - loB) * 0.5f};
+            glm::vec3 n{0.f};
+            depth = overlap(boxA, boxB, n);
+            if(depth > 0.f)
+            {
+                const float most = std::max(vr_held_collide_max.value, 0.f) * units::metresToUnits() / 100.f;
+                const float each = std::min(depth * 0.5f, most);
+                want[0] = -n * each;
+                want[1] = n * each;
+            }
+        }
+    }
+
+    // A buzz in both hands as they meet.
+    const bool touching = depth > 0.f;
+    if(touching && !meet.touching && !vr_disablehaptics.value)
+    {
+        if(Backend* be = backend())
+        {
+            be->haptic(0, 0.04f, 120.f, 0.35f);
+            be->haptic(1, 0.04f, 120.f, 0.35f);
+        }
+    }
+    if(touching != meet.touching && vr_debug_carry.value)
+    {
+        Con_Printf("held: %d and %d %s\n", a.ent, b.ent, touching ? "meet" : "apart");
+    }
+    meet.touching = touching;
+
+    const float w = dt > 0.0 ? static_cast<float>(std::min(1.0, dt / meetEaseTime)) : 1.f;
+    for(int h = 0; h < 2; h++)
+    {
+        Held& hd = holding[h];
+        meet.offset[h] += (want[h] - meet.offset[h]) * w;
+        if(!hd.drawn)
+        {
+            meet.offset[h] = glm::vec3{0.f};
+            continue;
+        }
+        if(glm::length(meet.offset[h]) < 0.01f)
+        {
+            meet.offset[h] = glm::vec3{0.f};
+            continue;
+        }
+        hd.lastPos += meet.offset[h];
+        place(cl_entities[hd.ent], hd.lastPos, hd.lastRot);
+    }
+    if(vr_debug_carry.value && touching)
+    {
+        Con_Printf("held: %d and %d meet %.1f cm deep (%.1f cm apart); drawn moved apart by %.1f and %.1f cm\n", a.ent,
+            b.ent, depth / units::metresToUnits() * 100.f,
+            glm::distance(a.lastPos - meet.offset[0], b.lastPos - meet.offset[1]) / units::metresToUnits() * 100.f, glm::length(meet.offset[0]) / units::metresToUnits() * 100.f,
+            glm::length(meet.offset[1]) / units::metresToUnits() * 100.f);
+    }
 }
 
 // Held in both hands no more (one let go, or both): each hand drawn on its grip eases back onto its controller, and
@@ -1316,6 +1462,12 @@ bool drawnHand(int hand, glm::vec3& pos, glm::vec3& angles)
         carry2h::toAngles(both.drawn[hand].rot, &angles[0], true);
         return true;
     }
+    // Moved back with what it holds, pressed against what the other holds (meetFrame).
+    if(holding[hand].drawn && meet.offset[hand] != glm::vec3{0.f})
+    {
+        pos += meet.offset[hand];
+        return true;
+    }
     const HandEase& he = handEase[hand];
     const double t = cl.time - he.since;
     if(he.since < 0.0 || t < 0.0 || t >= handEaseTime)
@@ -1402,6 +1554,7 @@ extern "C" void VR_RelinkHeld(void)
         {
             holdFrame(h, s, bothEnt);
         }
+        meetFrame();
         bothFrame(s, bothEnt);
         for(Easing& ea : easing)
         {

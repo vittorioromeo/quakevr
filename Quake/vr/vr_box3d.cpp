@@ -24,6 +24,8 @@
 //   weapons as bodies"): an empty hand's open hand or fist (vr_box3d_hand_props; not grenades, which the palm catches),
 //   a held weapon's drawn hull (vr_box3d_weapon_push: a grenade is batted). What was inside one as it was made (let go
 //   of, thrown, a weapon taken) passes through it until clear; what is heavier than vr_box3d_hand_hold_mass slips off.
+//   They push by mass (pushShare, limitPushes: vr_box3d_hand_mass, vr_box3d_weapon_mass, vr_box3d_push_force), as do
+//   the fists' spheres and the carried props: a flick barely moves a heavy prop.
 // - Box3D is authoritative for props: their origin, angles, velocity (.velocity, the centre of mass's), spin
 //   (.vr_spin, rad/s) and sleep (FL_ONGROUND and its groundentity) are written back every frame. What QC changes
 //   (a throw, a nudge, a force grab's drop, a knock, a teleport, keepInWorld's put-back) is seen against what was
@@ -322,6 +324,7 @@ struct Slot // what one edict is in the world (by its number)
     bool brush{false};    // angles as a brush model's
     bool spins{false};    // a fixture drawn spinning (an EF_ROTATE model: the map's pickups): its shape turns with it
     double born{0.0};     // the server's time its body was made (a prop: thrown, let go of, launched)
+    int pushedStep{-100}; // props: the last step a hand's body pushed it (limitPushes: a hit, then a shove)
     const b3HullData* hull{nullptr}; // actors: the hull at rest (actorHull), nullptr for Quake's box
 
     // Props, held and fixtures: the settings (shapeGeneration) and the entity's box its drawn box and Mass were last
@@ -348,6 +351,13 @@ struct Shock
     float speed{0.f}; // m/s, the contact points' approach
 };
 
+// A prop near a hand's body before a step, and its motion then (notePushed, limitPushes).
+struct Pushed
+{
+    int num{0};
+    glm::vec3 velocity{0.f}, spin{0.f}; // m/s, rad/s
+};
+
 struct World
 {
     b3WorldId id{};
@@ -359,6 +369,7 @@ struct World
     b3ShapeId worldShape{b3_nullShapeId};
     std::vector<std::pair<int, int>> impacts; // the step's touches (kept: no allocation a frame)
     std::vector<Shock> shocks; // props with a .vr_impact hitting something this frame (the hardest hit each)
+    std::vector<Pushed> pushed; // the props near the hands' bodies before this step (kept: no allocation a frame)
     std::vector<Slot> slots; // by edict number
     // The players' hands (by client, [0] off, [1] main): kinematic spheres at their fists that push solid props; and
     // their reach bodies (syncReach): the empty hand's, or the held weapon's.
@@ -1866,6 +1877,40 @@ struct ReachPose
     glm::quat rot;
 };
 
+// Pushes by mass (ROUND21.md, "Pushes by mass"): the hands, their weapons and what they carry are kinematic bodies (of
+// no give), which knock whatever they meet as if it weighed nothing: a flick of the wrist sent a 40 kg box across the
+// room. Each is given a mass instead, what an arm puts behind it: an empty hand's vr_box3d_hand_mass, a held weapon's
+// vr_box3d_weapon_mass, a carried prop's own and each hand's holding it. A prop of mass `m` struck by `pusher` kg keeps
+// pusher / (pusher + m) of the velocity the kinematic body gave it (the share of two masses meeting: a 0.4 kg grenade
+// most of it, a 40 kg box a tenth). 1: no limit (the setting 0).
+[[nodiscard]] float pushShare(float pusher, float m)
+{
+    return pusher > 0.f && m > 0.f ? pusher / (pusher + m) : 1.f;
+}
+
+// How much of the velocity `gain` (m/s) a hand's body of `pusher` kg gives the prop `s` of `m` kg in this step it keeps:
+// the first push a hit (pushShare), the steps after (pushed in the step before, or struck by a swing this frame: the body
+// kinematic goes on at the hand's speed, which a real arm would not) a shove: no more than the arm's force
+// (vr_box3d_push_force) gives its mass in the step, so that a heavy prop moves as far as it is pushed and stops, and a
+// light one is carried along. Notes the push (Slot::pushedStep).
+[[nodiscard]] float pushKeep(Slot& s, float pusher, float m, float gain, float dt)
+{
+    const bool shove = s.pushedStep >= world->steps - 1;
+    s.pushedStep = world->steps;
+    float keep = pushShare(pusher, m);
+    if(shove && pusher > 0.f && m > 0.f && gain > 0.f && vr_box3d_push_force.value > 0.f)
+    {
+        keep = std::min(keep, vr_box3d_push_force.value * dt / (m * gain));
+    }
+    return keep;
+}
+
+[[nodiscard]] float reachMass(const World::HandBody& hb)
+{
+    const bool weapon = hb.key.what == World::ReachKey::Weapon || hb.key.what == World::ReachKey::Capsule;
+    return std::max(weapon ? vr_box3d_weapon_mass.value : vr_box3d_hand_mass.value, 0.f);
+}
+
 // A fast move of the reach body of `hb` over a step `dt` (a swing): Box3D collides once a step, at its start, so a
 // kinematic body moving further in a step than a thin thing is across jumps over it (an axe swung at 10 m/s moves 11 cm
 // a frame; a grenade is a few cm across). Its shape is swept from `from` to `to` in pieces moving no point of it more than
@@ -2008,15 +2053,17 @@ void sweepReach(const World::HandBody& hb, int player, const ReachPose& from, co
                 continue;
             }
             const float restitution = b3Shape_GetRestitution(propShape[0]);
-            const glm::vec3 now = was + normal * (closing * (1.f + restitution));
+            const float gain = closing * (1.f + restitution);
+            const float share = pushKeep(world->slots[num], reachMass(hb), b3Body_GetMass(prop), gain, dt); // (by mass)
+            const glm::vec3 now = was + normal * (gain * share);
             b3Body_SetLinearVelocity(prop, b3v(now));
             b3Body_SetAwake(prop, true);
             if(vr_debug_box3d.value)
             {
                 Con_Printf("box3d: a reach body's swing (%.1f cm and %.1f degrees this frame, piece %d of %d) strikes %d %s "
-                           "at %.0f u/s: %.0f u/s after (%.0f %.0f %.0f)\n",
+                           "at %.0f u/s (x%.2f by mass): %.0f u/s after (%.0f %.0f %.0f)\n",
                     most * 100.f, glm::degrees(angle), k, pieces, num, PR_GetString(EDICT_NUM(num)->v.classname),
-                    closing * world->m2u, glm::length(now) * world->m2u, now.x * world->m2u, now.y * world->m2u,
+                    closing * world->m2u, share, glm::length(now) * world->m2u, now.x * world->m2u, now.y * world->m2u,
                     now.z * world->m2u);
             }
         }
@@ -2664,6 +2711,194 @@ bool preSolve(b3ShapeId a, b3ShapeId b, b3Pos point, b3Vec3 normal, void*)
     const float most = vr_box3d_hand_hold_mass.value;
     const float up = n.z;
     return most <= 0.f || up < 0.5f || b3Body_GetMass(b3Shape_GetBody(other)) <= most;
+}
+
+// Pushes by mass (pushShare): the mass behind a hand's body `shape` (kg), 0 for none (a kinematic body's full push: not
+// a hand's, or the setting 0). A carried prop: its own mass and each hand's holding it.
+[[nodiscard]] float pusherMass(b3ShapeId shape)
+{
+    const uint64_t category = b3Shape_GetFilter(shape).categoryBits;
+    const float hand = std::max(vr_box3d_hand_mass.value, 0.f);
+    if(category & catReach)
+    {
+        const World::HandBody* hb = reachOf(b3Shape_GetBody(shape), numOf(shape));
+        return hb ? reachMass(*hb) : 0.f;
+    }
+    if(category & catHand)
+    {
+        return hand;
+    }
+    if((category & catHeld) && hand > 0.f)
+    {
+        const int num = numOf(shape);
+        int hands = 0;
+        for(const auto& player : world->hands)
+        {
+            for(const World::HandBody& hb : player)
+            {
+                hands += hb.held == num ? 1 : 0;
+            }
+        }
+        return hand * static_cast<float>(std::max(hands, 1)) + qvr::box3d::propMass(EDICT_NUM(num));
+    }
+    return 0.f;
+}
+
+// Before a step: the props near the hands' bodies (the reach bodies, the fists, the carried props) and their motion.
+void notePushed(float dt)
+{
+    world->pushed.clear();
+    if(vr_box3d_hand_mass.value <= 0.f && vr_box3d_weapon_mass.value <= 0.f)
+    {
+        return;
+    }
+    const auto gather = [dt](b3BodyId body) {
+        if(B3_IS_NULL(body) || !b3Body_IsValid(body))
+        {
+            return;
+        }
+        // Its box, grown by how far it goes this step (and 5 cm).
+        b3AABB box = b3Body_ComputeAABB(body);
+        const glm::vec3 lo = glmv(box.lowerBound), hi = glmv(box.upperBound);
+        const float reach = 0.05f + (glm::length(glmv(b3Body_GetLinearVelocity(body))) +
+                                        glm::length(glmv(b3Body_GetAngularVelocity(body))) * 0.5f * glm::length(hi - lo)) *
+                                        dt;
+        box.lowerBound = b3v(lo - glm::vec3{reach});
+        box.upperBound = b3v(hi + glm::vec3{reach});
+        b3QueryFilter filter = b3DefaultQueryFilter();
+        filter.maskBits = catProp;
+        b3World_OverlapAABB(world->id, box, filter,
+            [](b3ShapeId shape, void*) {
+                const int num = numOf(shape);
+                if(num <= 0 || num >= static_cast<int>(world->slots.size()) || world->slots[num].kind != Kind::Prop)
+                {
+                    return true;
+                }
+                auto& out = world->pushed;
+                if(std::none_of(out.begin(), out.end(), [num](const Pushed& p) { return p.num == num; }))
+                {
+                    const b3BodyId prop = world->slots[num].body;
+                    out.push_back({num, glmv(b3Body_GetLinearVelocity(prop)), glmv(b3Body_GetAngularVelocity(prop))});
+                }
+                return true;
+            },
+            nullptr);
+    };
+    for(const auto& player : world->hands)
+    {
+        for(const World::HandBody& hb : player)
+        {
+            gather(hb.reach);
+            gather(hb.body);
+        }
+    }
+    for(const Slot& s : world->slots)
+    {
+        if(s.kind == Kind::Held)
+        {
+            gather(s.body);
+        }
+    }
+}
+
+// After a step: what a hand's body pushed (a contact that pushed, the body moving into it at 0.3 m/s or more) keeps
+// only pushShare of the velocity (and of the spin) the step gave it, if away from the body: the masses of all the
+// hands' bodies pushing it together against its own; pushed on, as a shove (pushKeep). A hand held still holds things up
+// and stops them at full strength.
+void limitPushes(float dt)
+{
+    std::array<b3ContactData, 16> contacts;
+    for(const Pushed& p : world->pushed)
+    {
+        const Slot& s = world->slots[static_cast<size_t>(p.num)];
+        if(s.kind != Kind::Prop || !b3Body_IsValid(s.body))
+        {
+            continue;
+        }
+        const float m = b3Body_GetMass(s.body);
+        const int count = b3Body_GetContactData(s.body, contacts.data(), static_cast<int>(contacts.size()));
+        float pusher = 0.f, strongest = 0.f;
+        bool full = false;
+        glm::vec3 normal{0.f};
+        std::array<b3BodyId, 8> counted;
+        size_t countedN = 0;
+        for(int c = 0; c < count && !full; c++)
+        {
+            const b3ContactData& cd = contacts[static_cast<size_t>(c)];
+            const bool propA = B3_ID_EQUALS(b3Shape_GetBody(cd.shapeIdA), s.body);
+            const b3ShapeId other = propA ? cd.shapeIdB : cd.shapeIdA;
+            if((b3Shape_GetFilter(other).categoryBits & (catReach | catHand | catHeld)) == 0)
+            {
+                continue;
+            }
+            const b3BodyId body = b3Shape_GetBody(other);
+            for(int i = 0; i < cd.manifoldCount; i++)
+            {
+                const b3Manifold& mf = cd.manifolds[i];
+                float impulse = 0.f;
+                glm::vec3 at{0.f};
+                for(int k = 0; k < mf.pointCount; k++)
+                {
+                    const b3ManifoldPoint& mp = mf.points[k];
+                    impulse += mp.totalNormalImpulse;
+                    at += glmv(propA ? mp.anchorA : mp.anchorB);
+                }
+                if(impulse <= 0.f || mf.pointCount == 0)
+                {
+                    continue;
+                }
+                // The normal from the body to the prop (Box3D's points from A to B), and the body's motion into it there.
+                const glm::vec3 n = propA ? -glmv(mf.normal) : glmv(mf.normal);
+                const glm::vec3 point = glmv(b3Body_GetWorldCenter(s.body)) + at / static_cast<float>(mf.pointCount);
+                if(glm::dot(glmv(b3Body_GetWorldPointVelocity(body, b3v(point))), n) < 0.3f)
+                {
+                    continue;
+                }
+                const float mass = pusherMass(other);
+                if(mass <= 0.f)
+                {
+                    full = true;
+                    break;
+                }
+                if(std::none_of(counted.begin(), counted.begin() + static_cast<std::ptrdiff_t>(countedN),
+                       [body](b3BodyId b) { return B3_ID_EQUALS(b, body); }))
+                {
+                    pusher += mass;
+                    if(countedN < counted.size())
+                    {
+                        counted[countedN++] = body;
+                    }
+                }
+                if(impulse > strongest)
+                {
+                    strongest = impulse;
+                    normal = n;
+                }
+            }
+        }
+        if(full || pusher <= 0.f)
+        {
+            continue;
+        }
+        Slot& pushed = world->slots[static_cast<size_t>(p.num)];
+        const bool shove = pushed.pushedStep >= world->steps - 1;
+        const glm::vec3 v = glmv(b3Body_GetLinearVelocity(s.body)), w = glmv(b3Body_GetAngularVelocity(s.body));
+        const float gained = glm::dot(v - p.velocity, normal);
+        const float keep = pushKeep(pushed, pusher, m, glm::length(v - p.velocity), dt);
+        if(gained <= 0.f || keep >= 1.f)
+        {
+            continue;
+        }
+        const glm::vec3 now = p.velocity + (v - p.velocity) * keep;
+        b3Body_SetLinearVelocity(s.body, b3v(now));
+        b3Body_SetAngularVelocity(s.body, b3v(p.spin + (w - p.spin) * keep));
+        if(vr_debug_box3d.value)
+        {
+            Con_Printf("box3d: %d %s (%.1f kg) %s by %.1f kg: %.0f u/s gained, x%.2f: %.0f u/s\n", p.num,
+                PR_GetString(EDICT_NUM(p.num)->v.classname), m, shove ? "shoved" : "hit", pusher, gained * world->m2u, keep,
+                glm::length(now) * world->m2u);
+        }
+    }
 }
 
 void updateSettings()
@@ -3478,7 +3713,7 @@ void debugDraw()
 namespace qvr::box3d
 {
 
-bool push(edict_t* ent, const glm::vec3& at, const glm::vec3& velocity)
+bool push(edict_t* ent, const glm::vec3& at, const glm::vec3& velocity, float pusherMass)
 {
     const int num = NUM_FOR_EDICT(ent);
     if(!world || num >= static_cast<int>(world->slots.size()) || world->slots[num].kind != Kind::Prop)
@@ -3510,13 +3745,18 @@ bool push(edict_t* ent, const glm::vec3& at, const glm::vec3& velocity)
     {
         return false;
     }
-    const float j = (speed - along) / k;
+    // (A pusher of a mass: the impulse of the two meeting, the pusher's inverse mass added.)
+    const float j = (speed - along) / (k + (pusherMass > 0.f ? 1.f / pusherMass : 0.f));
     b3Body_ApplyLinearImpulse(body, b3Vec3{d.x * j, d.y * j, d.z * j}, point, true);
     world->slots[num].asleep = false;
     if(vr_debug_box3d.value)
     {
         Con_Printf("box3d: %d pushed at %.1f %.1f %.1f to %.2f m/s along the push (%.2f before), %.1f N s\n", num, at.x, at.y, at.z,
             speed, along, j);
+        if(pusherMass > 0.f)
+        {
+            Con_Printf("box3d: (that push by %.1f kg against its %.1f kg)\n", pusherMass, b3Body_GetMass(body));
+        }
     }
     return true;
 }
@@ -3686,7 +3926,9 @@ extern "C" void VR_PhysicsFrameEnd(void)
         QVR_PROFILE("box3d step");
         for(int i = 0; i < pieces; i++)
         {
+            notePushed(dt / static_cast<float>(pieces));
             b3World_Step(world->id, dt / static_cast<float>(pieces), substeps);
+            limitPushes(dt / static_cast<float>(pieces));
             world->steps++;
             touches(impacts);
         }
