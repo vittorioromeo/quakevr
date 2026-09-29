@@ -311,6 +311,26 @@ void PF_particle2()
     MSG_WriteShort(&sv.datagram, count);
 }
 
+// entity findflags(entity start, .float field, float flags): the next entity after `start` (in edict order, free ones
+// skipped) whose `field` has any of `flags` set; world when there is none (DP's extension). The frame's loops over the
+// monsters (VR_Liquids_Frame, VR_Wounds_Frame) step through them alone, instead of every entity in the VM.
+void PF_findflags()
+{
+    const int from = NUM_FOR_EDICT(G_EDICT(OFS_PARM0));
+    const int field = G_INT(OFS_PARM1);
+    const int flags = static_cast<int>(G_FLOAT(OFS_PARM2));
+    for(int i = from + 1; i < qcvm->num_edicts; i++)
+    {
+        edict_t* e = EDICT_NUM(i);
+        if(!e->free && (static_cast<int>(E_FLOAT(e, field)) & flags))
+        {
+            G_INT(OFS_RETURN) = EDICT_TO_PROG(e);
+            return;
+        }
+    }
+    G_INT(OFS_RETURN) = EDICT_TO_PROG(qcvm->edicts);
+}
+
 // vector liquidentry(vector start, vector end): where the segment first goes into water, slime or
 // lava from the open (or out of it: a shot from under water), on the surface; `start` itself if it
 // crosses none. Leaves the trace globals alone (a shot's trace is still being used).
@@ -733,6 +753,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"carry2hoff", PF_carry2hoff},
     {"floattext", PF_floattext},
     {"ejectcasings", PF_ejectcasings},
+    {"findflags", PF_findflags},
     {"liquidentry", PF_liquidentry},
     {"watersplash", PF_watersplash},
     {"fileexists", PF_fileexists},
