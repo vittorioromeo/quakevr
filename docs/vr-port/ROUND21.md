@@ -12391,3 +12391,123 @@ allocations a frame are unchanged: the buffers keep their capacity as before. `V
 - In the headset: nothing here should look or feel different.
 - The sets are given back at every map change only; a map whose peak comes late (a big fight) grows them then, as
   before.
+
+## Grappling hook: one persistent system
+
+Your voice notes (vrfiringrange, 2026-09-29 18:47-18:56): the grapple must not be lost when you drop the gun, holster
+it or pass it between hands; letting go of the trigger unhooks without bringing the hook back (the hook then hangs on
+the rope, a physics object, until you reel it in); a hooked prop stays linked to the dropped gun by the rope; a hooked
+pickup that is taken, or a hooked weapon you take into your hand, lets the hook go loose; a quick release button on top
+of the gun; the reel and unreel buttons symmetric on both controllers; and all of it working with two hooks at once.
+Branch `agent/hook`; scripts and logs in the kit's `scratch/hook/` (`run_all.sh`).
+
+### The design
+
+- **The hook is its own entity; the gun is found every frame.** A gun whose hook is out carries a tag in its weapon
+  flags (bits 8 and up: `VR_Grapple_TagOf`), and the hook has the same tag. Weapon flags already travel with every move
+  of a weapon (hand to hand, holster and back, dropped and thrown as a `thrown_weapon`, picked up, the level parms), so
+  nothing has to follow the gun: each frame `VR_Grapple_FindGun` looks where the gun was last frame, and only if it is
+  not there searches every player's hands and holsters and the thrown weapons. A gun whose tag no hook has is ready to
+  fire. The tags count up to 65535 (a new level strips them: its hooks stayed behind). Two guns, two tags, two hooks:
+  nothing is per hand any more.
+- **The hook's states:** flying (the rope pays out behind it), in (what it bit: the world, a door, a monster, a
+  player, a prop), loose (a Box3D prop on the rope's end: it falls, bounces, can be carried), coming back (the quick
+  release: it flies straight to the gun through anything and goes back in). Loose and coming back are new; before, the
+  hook was removed when the trigger was let go, when it missed, or when what it bit went.
+- **Who services it:** the player whose hand or holster has the gun, in the player's frame (the rope may hold the
+  player, before the move: as before); a gun lying about (or gone), from `StartFrame` (`VR_Grapple_WorldFrame`). Once
+  a frame either way.
+- **The rope is a constraint between the gun's end and the hook's end**, whatever they are:
+  - gun in a hand: as before (the muzzle; the reel and unreel; a prop comes to the gun, a monster to you, you to what
+    stays);
+  - gun in a holster: the same, from the holster (the hip, the chest, the back; the QC's estimate), with no buttons:
+    the rope still holds you (walk away and it catches you), a monster, a prop;
+  - gun lying about: the rope holds the gun and the hook's end together (`VR_Grapple_HoldTwo`): the gun hangs from what
+    stays (swinging), a monster drags it, it and a prop (or the loose hook) pull on each other by their masses; a
+    carried end (a hand holding the prop or the hook) doesn't move, the other does; nothing movable: the rope pays out;
+  - a gun that moves (dropped, taken, holstered, passed) keeps the rope as long as it was, or as long as it has to be
+    to reach: it never yanks anything when it moves.
+- **The trigger** fires a ready gun, nothing else. Let go (it was held with the gun in that hand), the hook comes off
+  after Drop Grace (0.12 s), unless by then the trigger is pulled again, the gun leaves the hand, the hand's grip is let
+  go too (grip mode 0: you are dropping it), or the other hand, empty, grips it (a pass: the gun stays in the first
+  hand as a two-handed hold until the hands part). A trigger let go in flight takes the hook off once it bites.
+  Trigger Released: the hook comes loose (default), or comes back as the quick release.
+- **Loose, and home:** the reel (B/Y) winds a loose hook in as a light prop (Prop Reel Speed); at the gun (12 units
+  past its half size, plus 8) it goes back in and the gun is ready (a click, a tick in the hand). A loose hook caught
+  on something within 96 units of the gun while you reel (a step's edge) is yanked free after 0.4 s and flies the
+  rest of the way. Farther off, a caught hook stalls the reel (walk, or the quick release).
+- **What it bit going away:** taken (a health or ammo box, a pickup, a weapon into your hand: their entity or model
+  goes), dead, gone: the hook comes loose where it was, with what it was in's speed. A prop carried in a hand, or flying
+  to one (a force grab), keeps the hook: the rope then pulls on the other end (carry the hooked box away and the
+  dropped gun follows).
+- **The quick release:** the weapon button (as the rocket launcher's and the lightning gun's), on top of the gun at the
+  back, over the grip (anchor vertex 75; `vr_wofs_wpnbtn_*_18`, weapon settings version 23 resets only those keys).
+  The other hand's fingertip on it sends impulse 43 (42 for the off hand's gun); with a grappling gun there it is the
+  quick release (Quick Release Speed, 1800 u/s) instead of the secondary ammo. The engine now inserts the impulse at
+  the front of the command buffer (it ran after the rest of a mock script; a real game's buffer is empty then).
+- **The buttons, symmetric:** a hand whose own gun has no hook out drives the other hand's: with one grapple, both B
+  and Y reel it and both A and X unreel it (in the air); with a grapple in each hand, each hand drives its own. While a
+  hand's buttons drive a hook, its B/Y cycles no weapon.
+- **The hook goes home by itself** only when its holder dies or is teleported, or its gun is nowhere for 0.5 s (cycled
+  away, gone with the level). A player without tracked hands and Rogue's grapple (`vr_grapple_rope 0`) get it back at
+  once when it comes off (they have no reel).
+
+| Setting (Advanced VR Options > Movement > Grappling Hook) | Cvar | Default |
+|---|---|---|
+| Trigger Released: Hook Comes Loose / Hook Comes Back | `vr_grapple_trigger_release` | 0 |
+| Drop Grace | `vr_grapple_drop_grace` | 0.12 s |
+| Quick Release Speed | `vr_grapple_quick_speed` | 1800 u/s |
+
+Tests: `impulse 239` prints every hook (state, what it is in, where its gun is, rope, distance) and your hands;
+`impulse 233` makes you take what the hooks are in (a pickup's own take; a thrown weapon into an empty hand, as a force
+grab's catch); `developer 2` prints how far the other fingertip is from a weapon's button when it is near.
+
+### Verified (mock headset; `scratch/hook/run_all.sh`: 15 scenarios, 44 checks, all pass)
+
+- **Fire, bite, let go, reel home** (`t1`, e1m1's ceiling): the trigger let go 1.5 s after the bite: loose; B reels it
+  (the ramp, then 338 u/s closing) and it goes back in; the gun fires again (hook 2).
+- **Pass, symmetric reel, holster, draw** (`t3`): the far wall bitten (rope 1120); passed to the off hand with the main
+  trigger let go: it stays in; the main hand's B reels the off hand's hook (1120 -> 755); holstered on the left
+  shoulder: still in, and walking back the rope holds you (taut at 318 u/s, 759 away on a 755 rope); drawn again: in;
+  the off trigger let go: loose; Y reels it home (yanked free 28 units off, on a step).
+- **Dropped while hanging** (`t4`): reeled up to the ceiling (rope 40), the gun dropped: you fall, the gun hangs by the
+  rope (its muzzle 48-50 units from the hook, z 115, swaying 20 units over 1.5 s). **Taken again** (`t4b`): the hand
+  grips the hanging gun: "in the main hand now (hook in)", the rope 120 (long enough to reach: no yank).
+- **A prop and the dropped gun linked** (`t5b`): a health box reeled to the gun, the gun dropped: both fall together;
+  a blast between them throws them 60 units: they fly together, 43, 38, 38, 26, 17 units apart on a 15 rope (plus its
+  8 of slack). **Taken** (`t5c`, with the gun lying about): "You receive 25 health", the hook comes loose on the floor.
+- **A hooked weapon taken** (`t6b`): "You got the Double-barrelled Shotgun", the hook comes loose.
+- **Unreel with the other hand, quick release, drop grace** (`t7`): hanging from the ceiling, the off hand's X pays the
+  main hand's rope out (40 -> 124); impulse 43: coming back, home 3 frames later; fired again, trigger let go and the
+  gun dropped 5 frames later: the hook stays in, the gun hangs.
+- **Two hooks** (`t8`): a grapple in each hand, the ceiling and the far wall bitten; B reels only the main hand's (164
+  -> 40, the other's 1120 untouched); the off trigger let go: only hook 2 comes loose; Y reels hook 2 home, then B hook 1.
+  (`t8b`): gun A's hook in the far wall, gun A dropped; gun B's hook bites gun A (a thrown weapon, 1.7 kg) and reels it
+  in (gun A's own rope holding it back); gun A taken into the main hand: hook B comes loose, hook A stays in, now in the
+  main hand.
+- **Let go in flight** (`t9`): it comes off when it bites; loose, a Box3D body ("hook: a prop body"), asleep on the floor.
+- **Missed** (`t12`, the firing range's sky, straight up): loose after 1.8 s at 2779 units, falls, the reel brings it
+  down; after `changelevel e1m1` the gun is ready (its tag stripped) and fires hook 1.
+- **Death** (`t13`): back in the gun at once. **Rogue's grapple / Hook Comes Back** (`t14`): the trigger let go brings
+  it straight back.
+- **The button pressed by the finger** (`t15x`): the off hand's fingertip 0.7 units from the button: quick release, home.
+- The weapon settings' migration: a version 21 config gets the button (mode 1, anchor 75); the other keys untouched.
+- QuakeC 0 warnings; the engine builds; the FGD check passes. The melee canary is skipped (no current takes).
+
+### Not verified
+
+- In the headset: all of it. The button's place (the model's top at the back; tune it with Weapon Offsets' button
+  keys), the loose hook's feel as a prop, whether 0.12 s of Drop Grace is enough when you open your hand, and whether a
+  pass keeps the hook the way you pass (the gun stays in the first hand until the hands part).
+- The holsters' rope ends are estimates (the QC doesn't know where the client draws the holsters); the rope from a
+  holster or a gun lying about is drawn from the server's positions (a frame late, not the drawn gun).
+- Multiplayer and saves with hooks out (the hook is an ordinary entity; the tag is in the saved weapon flags).
+
+### In the headset
+
+- [ ] Hook a ceiling, reel up a little, drop the gun: it stays hanging and swinging. Grab it again and swing.
+- [ ] Hook a platform or an enemy, pass the gun to the other hand: it stays hooked. Holster it: still hooked.
+- [ ] Let go of the trigger: the hook hangs loose; B or Y (either hand) reels it back into the gun.
+- [ ] Hook a health box, drop the gun, carry the box away: the gun follows. Take the box: the hook comes loose.
+- [ ] Press the button on top of the gun with the other hand's finger: the hook flies back.
+- [ ] One grapple: X and A both unreel it in the air, B and Y both reel.

@@ -342,14 +342,15 @@ void() DecodeLevelParms =
     // ------------------------------------------------------------------------
     // Weapon flags:
     // (A gun carried by its foregrip is held normally in a new level: the client's pose is gone.)
-    self.weaponflags = parm23 - (parm23 & QVR_WPNFLAG_FOREGRIP_CARRIED);
-    self.weaponflags2 = parm24 - (parm24 & QVR_WPNFLAG_FOREGRIP_CARRIED);
-    self.holsterweaponflags0 = parm25;
-    self.holsterweaponflags1 = parm26;
-    self.holsterweaponflags2 = parm27;
-    self.holsterweaponflags3 = parm28;
-    self.holsterweaponflags4 = parm29;
-    self.holsterweaponflags5 = parm30;
+    // (Nor a grappling hook's tag: its hook stayed in the last level.)
+    self.weaponflags = VR_Grapple_StripTag(parm23 - (parm23 & QVR_WPNFLAG_FOREGRIP_CARRIED));
+    self.weaponflags2 = VR_Grapple_StripTag(parm24 - (parm24 & QVR_WPNFLAG_FOREGRIP_CARRIED));
+    self.holsterweaponflags0 = VR_Grapple_StripTag(parm25);
+    self.holsterweaponflags1 = VR_Grapple_StripTag(parm26);
+    self.holsterweaponflags2 = VR_Grapple_StripTag(parm27);
+    self.holsterweaponflags3 = VR_Grapple_StripTag(parm28);
+    self.holsterweaponflags4 = VR_Grapple_StripTag(parm29);
+    self.holsterweaponflags5 = VR_Grapple_StripTag(parm30);
 };
 
 /*
@@ -1021,12 +1022,6 @@ void() PutClientInServer =
         spawn_tfog(self.origin + v_forward*20);
     }
 
-    // ROGUE
-    //Grapple stuff
-    self.on_hook = FALSE;
-    self.hook_out = FALSE;
-    self.on_hook2 = FALSE;
-    self.hook_out2 = FALSE;
 
     self.handpos = self.origin;
     self.offhandpos = self.origin;
@@ -1627,18 +1622,8 @@ void() PlayerPreThink =
     // ROGUE
     RuneApplyElder(self); // regeneration rune
 
-    // Track the grapple
-    VR_Grapple_Rearm(cVR_OffHand);
-    VR_Grapple_Rearm(cVR_MainHand);
-    if(self.hook_out2)
-    {
-        GrappleService(cVR_OffHand);
-    }
-
-    if(self.hook_out)
-    {
-        GrappleService(cVR_MainHand);
-    }
+    // The grappling hooks of the guns in the hands and the holsters (vr_grapple.qc)
+    VR_Grapple_PlayerFrame();
 };
 
 /*

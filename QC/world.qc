@@ -522,6 +522,7 @@ void() StartFrame =
     VR_Liquids_Frame(); // VR: monsters in slime and lava burn (vr_liquids.qc)
     VR_Wounds_Frame(); // VR: wet up to where the liquid comes (vr_wounds.qc)
     VR_Debris_Frame(); // VR: at a new map's first frame, its rocks and bricks (vr_debris.qc)
+    VR_Grapple_WorldFrame(); // VR: the grappling hooks whose guns lie about (vr_grapple.qc)
     framecount = framecount + 1;
 };
 

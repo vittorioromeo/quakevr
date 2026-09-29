@@ -1779,9 +1779,20 @@ std::vector<Item> pageDebugTests()
     return {
         cycle("Rope", vr_grapple_rope, {{1.f, "Holds"}, {0.f, "Pulls at once"}})
             .help("Holds: the hook bites and the rope holds you at its length (swing on it, walk closer), pulling nothing "
-                  "until you hold the hand's B or Y (Y on the left hand) with the trigger; A or X in the air pays it out. "
-                  "Pulls at once: the mission pack's "
-                  "grapple, pulling you in as soon as it bites."),
+                  "until you hold B or Y (either hand's, when the other has no hook of its own out); A or X in the air "
+                  "pays it out. The hook stays in when you drop the gun, holster it or pass it to the other hand. "
+                  "Pulls at once: the mission pack's grapple, pulling you in as soon as it bites."),
+        cycle("Trigger Released", vr_grapple_trigger_release, {{0.f, "Hook Comes Loose"}, {1.f, "Hook Comes Back"}})
+            .help("Letting go of the trigger takes the hook off what it bit. Comes loose: it hangs on the rope, a "
+                  "physics object, until you reel it in (B or Y). Comes back: straight into the gun, as the quick "
+                  "release button on top of the gun does."),
+        slider("Drop Grace", vr_grapple_drop_grace, 0.f, 0.5f, 0.02f, "%.2f s").extend(0.f, 2.f)
+            .help("The trigger let go waits this long before the hook comes off: dropping the gun, holstering it or "
+                  "passing it to the other hand in that time (letting go of trigger and grip together) keeps the hook "
+                  "in."),
+        slider("Quick Release Speed", vr_grapple_quick_speed, 300.f, 4000.f, 100.f, "%.0f u/s").extend(100.f, 10000.f)
+            .help("How fast the hook flies back into the gun when you press the button on top of the gun with the "
+                  "other hand's finger."),
         slider("Reel Speed", vr_grapple_reel_speed, 100.f, 1000.f, 25.f, "%.0f u/s").extend(25.f, 2000.f)
             .help("How fast the reel pulls you in: to a wall or a ceiling, to a huge monster, to a prop too heavy to come."),
         slider("Shortest Rope", vr_grapple_min_length, 16.f, 128.f, 4.f, "%.0f").extend(0.f, 400.f)

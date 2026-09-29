@@ -911,6 +911,13 @@ sag, samples, links and build time twice a second. The profiler's **grapple rope
 close-ups, bigger eye images: `vr_mock_eye_size 1440; vr_restart` before the map, `vr_eyeshot 1` before each
 `screenshot`. The scratchpad's `grapple2/` has `unreel.sh`, `unreel_prop.sh`, `ropeshots.sh`, `slackshots.sh`,
 `measure.sh` and `measure_long.sh`.
+Grapple persistence (ROUND21.md, "Grappling hook: one persistent system"): `impulse 239` prints every hook (its state,
+what it is in, where its gun is, the rope) and your hands' places; `impulse 233` takes what the hooks are in (a
+pickup's take; a thrown weapon into an empty hand). The off trigger in a script is `+offhandattack` / `-offhandattack`
+(a mock button's binding runs after the script). `impulse 171` puts a grapple in the off hand. With
+`vr_weapon_grip_mode 0`, `+grabright; vr_mock_button main grip 1` before `impulse 151` keeps the gun, releasing the
+grip drops it. `developer 2` prints the other fingertip's distance from a weapon's button (placing buttons; the button
+sends its impulse at the front of the command buffer). The kit's `scratch/hook/run_all.sh` runs the 15 scenarios.
 Leaning (round 21): `vr_mock_hand head <x> <y> <z> <pitch> <yaw> <roll>` and `vr_mock_play` head keyframes with angles
 turn the head too (pitch up, roll as the hands'); `vr_debug_lean 1` writes `lean_trace.txt` (the game directory): the
 head, the box, the lean, the pelvis, the feet and the lean's hold and cues, every frame.
