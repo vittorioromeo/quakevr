@@ -24,7 +24,10 @@ Grenade pouch: the grenade now comes out the same way in the hand whatever its a
 HUD: back to Ironwail's style; the status bar drawn on your hand is gone (Options > HUD style: Classic brings it back)
 
 [Decide or give feedback]
-Hitbox width: pick one once the full version (every surface and entity, method A vs B) ships
+Hitbox: Movement > Player Hitbox, width 16 or 20; walk up to the firing-range panels (front and side), the prop table, explosive boxes; let monsters walk into you
+Hitbox: compare Method A (compiled hull, default) and B (brush sweep); does either snag?
+Hitbox: pick the width, and should it become the default?
+Hitbox: should the box that shots and melee hit on you shrink too? (now still 32)
 
 [Tune]
 Stamina costs: shove, strike, melee, parry, climbing
