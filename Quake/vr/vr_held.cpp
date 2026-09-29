@@ -4,6 +4,7 @@
 #include "vr_carry2h.hpp"
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
+#include "vr_fatigue.hpp"
 #include "vr_grip.hpp"
 #include "vr_hands.hpp"
 #include "vr_lines.hpp"
@@ -1023,8 +1024,13 @@ void holdFrame(int h, const hands::State& s, int bothEnt)
         }
     }
 
-    hd.lastPos = s.pos[h] + hand * hd.pos;
-    hd.lastRot = hand * hd.rot;
+    // Drawn in the drawn hand: tired arms shake it (looks only: vr_fatigue.cpp), as the hand drawn round it.
+    glm::vec3 shakePos, shakeAngles;
+    fatigue::shake(h, shakePos, shakeAngles);
+    const glm::vec3 shakenRot = s.rot[h] + shakeAngles;
+    const glm::mat3 drawnAxes = held::axesFromAngles(&shakenRot[0], true);
+    hd.lastPos = s.pos[h] + shakePos + drawnAxes * hd.pos;
+    hd.lastRot = drawnAxes * hd.rot;
     place(e, hd.lastPos, hd.lastRot);
     hd.drawn = true;
 }

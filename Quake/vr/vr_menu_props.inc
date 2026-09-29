@@ -21,7 +21,15 @@ void showPage(int target);
         return text[hand].c_str();
     }
     const weight::Offset o = weight::offset(hand);
-    text[hand] = va("%s: %.1f kg x%.2f%s", name, l.mass, l.staminaMult, l.twoHanded > 0.5f ? " 2H" : "");
+    if(l.empty)
+    {
+        text[hand] = va("%s: empty, tired: %.1f kg", name, l.mass);
+    }
+    else
+    {
+        text[hand] = va("%s: %.1f kg x%.2f%s%s", name, l.mass, l.staminaMult, l.staminaAdd > 0.05f ? va(" +%.1f kg", l.staminaAdd) : "",
+            l.twoHanded > 0.5f ? " 2H" : "");
+    }
     if(o.active)
     {
         text[hand] += va(", %.1f cm %.1f deg", o.distance, o.angle);

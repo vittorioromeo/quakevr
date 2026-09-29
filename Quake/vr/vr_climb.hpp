@@ -27,8 +27,8 @@ void calcStats(edict_t* ent, int* statsi);
 // turn `handTurn` is: the drawn hand's axes in the controller's) put on its hold while it holds, eased on and off (moved
 // by vr_climb_hand_*, turned to face the hold by vr_climb_hand_turn_blend and vr_climb_hand_pitch/_yaw/_roll).
 // `lightShift`: where its light is to be sampled from its place (the place without vr_climb_hand_*: the looks' offset
-// doesn't light it differently).
-void drawnHand(const hands::State& s, int hand, const glm::mat3& handTurn, glm::vec3& pos, glm::vec3& rot,
+// doesn't light it differently). Returns how far it is on its hold, 0 (the controller's) .. 1.
+float drawnHand(const hands::State& s, int hand, const glm::mat3& handTurn, glm::vec3& pos, glm::vec3& rot,
     glm::vec3& lightShift);
 
 } // namespace qvr::climb

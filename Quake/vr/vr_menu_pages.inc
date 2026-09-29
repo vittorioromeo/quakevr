@@ -74,6 +74,8 @@
     };
 }
 
+[[nodiscard]] std::vector<Item> pageStamina();
+
 // Split from Locomotion: climbing ledges and rungs.
 [[nodiscard]] std::vector<Item> pageClimbing()
 {
@@ -88,6 +90,7 @@
         slider("Hanging Cost, One Hand", "vr_climb_stamina_rate", 0.f, 30.f, 0.5f, "%.1f /s").extend().help("Stamina a second hanging from one hand costs (5 of 100: 20 s)."),
         slider("Hanging Cost, Two Hands", "vr_climb_stamina_rate_2h", 0.f, 30.f, 0.5f, "%.1f /s").extend().help("Stamina a second hanging from both hands costs, the two together (2 of 100: 50 s): the arms share your weight."),
         slider("Exhausted: Slip Time", "vr_climb_stamina_slip", 0.f, 5.f, 0.25f, "%.2f s").extend().help("With no stamina left: 0, your hands let go at once. More: they can't pull you up any more, you sink until your arms are straight, and they slip off after this long."),
+        open("Tired Arms (Stamina)", pageIndex(pageStamina)).help("Low on stamina, your arms shake while you hang (looks only) and your hands get heavy: on the Stamina page."),
         header("Hand on a Hold (Looks Only)"),
         slider("Hand on Hold: Towards You", "vr_climb_hand_out", -10.f, 10.f, 0.5f, "%.1f cm").extend().help("Where your hand is drawn on a ledge or a rung: back from the lip, towards you (negative: deeper). Looks only; the climbing is the same."),
         slider("Hand on Hold: Up", "vr_climb_hand_up", -10.f, 10.f, 0.5f, "%.1f cm").extend().help("Where your hand is drawn on a hold: up (negative: down). Looks only."),
@@ -393,6 +396,11 @@ void resetHandMoves()
         slider("Most Weight", vr_weight_stamina_max, 1.f, 4.f, 0.1f, "%.1fx").extend(1.f, 10.f).help("Times the weight with no stamina left."),
         slider("Curve", vr_weight_stamina_curve, 0.5f, 4.f, 0.1f, "%.1f").extend(0.1f, 10.f)
             .help("How it grows from the threshold to none: 1 in a straight line; 2 (the default) gently at first, then faster."),
+        slider("Extra Weight", vr_weight_stamina_add, 0.f, 5.f, 0.25f, "%.2f kg").extend(0.f, 30.f)
+            .help("Kilograms added to what you hold with no stamina left (on the same curve), on top of Most Weight's times: light things get heavy too. 0: only the times."),
+        slider("Empty Hand Weight", vr_weight_stamina_empty, 0.f, 8.f, 0.25f, "%.2f kg").extend(0.f, 30.f)
+            .help("Tired, an empty hand follows your controller as if it held this much with no stamina left (on the same curve): it lags and droops a little. Not a hand holding a ledge or steadying a weapon. 0: an empty hand never gets heavy."),
+        open("Tired Arms Shake (Stamina)", pageIndex(pageStamina)).help("Low on stamina, your arms shake too (looks only): on the Stamina page."),
         header("Spring"),
         slider("Stiffness", vr_weight_spring_stiffness, 0.25f, 4.f, 0.05f, "%.2fx").extend(0.05f, 20.f)
             .help("How firmly your arm pulls what it holds to your hand: higher lags less."),

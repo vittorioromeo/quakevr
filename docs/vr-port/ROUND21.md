@@ -12622,3 +12622,49 @@ change.)
 - vrclimb's floating platforms: grab the lip from close, from further out and from almost under it; pull in under it,
   extend your arms (you should come out from under it, still holding), push down (onto it). Tell me if 16 units of
   stretch (0.6 m) looks wrong on the drawn arms.
+
+## Tired arms: shaking and heavy hands
+
+His words: low on stamina while climbing, the arms and hands should shake a bit (looks only), more as it runs out;
+and low on stamina the hands should get heavier, an empty hand too, as if it held something heavy.
+
+### What I did
+
+- **Shake** (`vr_fatigue.cpp`): below `vr_fatigue_shake_from` (0.4) of the stamina the drawn hands, the arms, the
+  weapons, the flashlight and a prop in one hand tremble: three sines of 5 to 13 Hz per axis and hand, in bouts, their
+  size ((from - left) / from)^1.5 of `vr_fatigue_shake` (0.6 cm) and `vr_fatigue_shake_angle` (1.5 deg), eased over
+  0.3 s. Only while a hand holds a ledge or a rung (`vr_fatigue_shake_always 0`); 1: whenever tired. It is applied as a
+  parry's knock is (vr_view.cpp: the hands moved for the view's setup, put back after it); the muzzle, placed on the
+  shaking weapon, is moved back onto the steady one, so the shots and the aim don't shake. A hand drawn on its hold
+  (climb::drawnHand now returns how far it is on it) shakes there too. A prop held in both hands does not shake (the
+  hands are drawn on its grips).
+- **Heavy hands** (vr_weight.cpp): the stamina's curve is now a share (0 at the threshold, 1 at none): the weight's
+  times (as before, `vr_weight_stamina_max`), plus `vr_weight_stamina_add` kg (0) on what a hand holds, and an empty
+  hand weighs `vr_weight_stamina_empty` kg (3) at none: a fist on the same spring. Not a hand on a hold (the climb pulls
+  by the controller) nor one steadying the other's weapon. At or above the threshold (0.5) nothing changes.
+- **Menus**: Stamina, "Tired Arms": the shake's settings. Aiming, "Tired Arms": Extra Weight, Empty Hand Weight. Links
+  both ways; Climbing links to the Stamina page. Debug, Tests, "Stamina": a readout, Deplete, Nearly Empty (0.1), Half,
+  Restore (`vr_stamina_set <0..1>`), Hold Stamina (`vr_debug_stamina_hold`: nothing spends it, none comes back).
+- `vr_debug_fatigue 1` prints the shake; 2 also prints each frame's aim, muzzle and drawn main weapon (`fatigueaim`).
+  `vr_weight_test` has empty-hand cases.
+
+### Verified (mock headset, fixed frames)
+
+- Shake (`vr_fatigue_shake_always 1`, stamina held): at 1.0 and 0.5 none; at 0.25 level 0.23, the main hand off by
+  0.05-0.11 cm and 0.13-0.23 deg; at 0.05 level 0.81, 0.12-0.25 cm and 0.3-0.7 deg. On vrclimb's rung at 0.2 with the
+  default (climbing only): level 0.35, "climbing".
+- Aim and shots: hands still, stamina 0.05, 2 s, shake on against off: the aim didn't move (range 0 deg; the same as
+  with it off), the muzzle moved 0.004 units at most (float rounding of the transform back), the drawn weapon 0.30 units
+  and 2.4 deg. After a shot, the server's view angles, hand and muzzle fields were the same with it on and off.
+- Lag (`vr_weight_test`, 90 fps, 60 cm swing in 0.2 s): empty hand 100%/50%: no spring (0.48 cm is the test's 0.01 kg
+  floor); 25%: 0.75 kg, 1.10 cm; 5%: 2.4 kg, 2.58 cm (a shotgun one-handed at full: 2.87 cm). Rocket one-handed: 7.9 cm
+  at 100%/50%, 12.2 at 25%, 23.1 at 0%. With Extra Weight 2 kg: 16 -> 18 kg at none.
+- In game (off hand, empty, moved 35 cm in 0.2 s): full and half stamina no lag; 0.25: at most 0.9 cm; 0.05: at most
+  1.6 cm (with the droop).
+
+### In the headset
+
+- Hang from a ledge with Deplete / Nearly Empty (Debug, Tests; Hold Stamina on): do the arms shake enough, too much?
+  Shake Distance, Turn and Speed on the Stamina page.
+- Tired (Nearly Empty, held), swing an empty hand and a weapon: do they feel heavier, and is the empty hand's lag a
+  nuisance for punching or grabbing? Empty Hand Weight 0 turns it off.
