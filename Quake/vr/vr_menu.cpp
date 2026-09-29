@@ -1481,7 +1481,8 @@ std::vector<Item> pageDebugViews()
                   "(yellow where the drop starts further out). Built even with climbing off."),
         cycle("Show Grab Test", vr_debug_carry, {{0.f, "Off"}, {1.f, "Drawn"}, {2.f, "Drawn and Logged"}, {3.f, "Also Far Fists"}})
             .help("For each hand near something to carry: the box it is drawn in and the fist tested (its spheres; the nearest "
-                  "bright). Logged: each grab printed and carry_trace.txt written; also far fists: hands not near anything too."),
+                  "bright). Logged: each grab and held prop's placing printed, carry_trace.txt written; also far fists: hands not near "
+                  "anything too."),
         cycle("Show Body Skeleton", vr_body_debug, {{0.f, "Off"}, {1.f, "Skeleton"}, {2.f, "Body Facing You"}, {3.f, "Body From Its Left"}})
             .help("Draws the body's skeleton; or shows the body in front of you, facing you or seen from its left (to check "
                   "its pose and calibration without a mirror)."),
@@ -1602,6 +1603,8 @@ std::vector<Item> pageDebugReports()
         header("Hands and Weapons"),
         command("Hand Rig", "vr_hand_rig_info").help("vr_hand_rig_info: the hand's rig against the compiled one."),
         command("Grasp Spheres", "vr_grasp_spheres").help("vr_grasp_spheres: the fingers' and the palm's contact spheres."),
+        command("Grip Frames", "vr_grip_frame")
+            .help("vr_grip_frame: each hand's grip frame (the palm and the grip channel) that held props are placed by."),
         command("Hotspots Check", "vr_hotspots_check").help("vr_hotspots_check: each weapon's hotspots, checked against its model."),
         command("Sight Lines", "vr_sight_lines").help("vr_sight_lines: every weapon's sight line (Align Sights)."),
         command("Sight Check", "vr_sight_check").help("vr_sight_check: the held weapon's sights against its aim."),
