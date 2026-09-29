@@ -544,7 +544,7 @@ def preset(name, args):
         take = Take(name, rate=args.rate, world_scale=ws, eye_height=eye, target=(d, 0.0), note="synthetic")
         take.grip("main", True)  # a closed fist (an open hand doesn't punch)
         fist = hand_pose("main", (1, 0, 0), (0, 0, 1))
-        a, b = (0.12, -0.15, eye - 0.25), (0.6, -0.1, eye - 0.2)
+        a, b = (0.12, -0.15, eye - 0.25), (0.9, -0.1, eye - 0.2)  # 0.9 m: into the dummy's model (0.6 stopped short of it)
         take.start({"main": (a, fist)})
         take.hold(0.4)
         take.move(0.8 if slow else T, lambda s: {"main": (lerp(a, b, s), fist)}, phase="rec")
