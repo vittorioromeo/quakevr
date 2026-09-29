@@ -12949,3 +12949,73 @@ pull acting along where it lies. Branch `agent/hook`, after "Grappling hook: one
 - Multiplayer: each rope's points go to every client every server frame (up to 96 points: 1.2 KB with float
   coordinates).
 - A prop pushed hard into the rope can leave a point inside it for a frame (put back on top next frame).
+
+## Pushes by mass; held props meet; a held club never dropped
+
+Your notes (2026-09-29 22:04, 22:00 and 21:20): a flick of the wrist with a weapon sent a 40 kg prop across the room;
+props held one in each hand passed through each other; a prop swung into a monster as a club was sometimes dropped
+though still gripped. Branch `agent/heldphys2`, after "Hands and weapons as bodies".
+
+### Pushes by mass (`vr_box3d.cpp`: `pushShare`, `pushKeep`, `notePushed`, `limitPushes`)
+
+The hands' bodies (the reach bodies, the fists' spheres) and what they carry are kinematic: to Box3D they have no mass,
+so whatever they meet gets their full speed, whatever it weighs. Each now has a mass, what an arm puts behind it:
+`vr_box3d_hand_mass` 3 kg (an empty hand, a fist), `vr_box3d_weapon_mass` 4 kg (a held weapon), and a carried prop its
+own mass plus the hand mass for each hand holding it.
+
+- **A hit.** A prop of mass m struck by a pusher of mass M keeps M / (M + m) of the velocity the kinematic body gave it
+  (two masses meeting): a 1.2 kg grenade 0.77 of it from a weapon, a 6 kg one 0.4, a 40 kg box 0.09. Before each Box3D
+  step the props near the hands' bodies have their motion noted; after it, a prop touching one of them (a contact that
+  pushed, the body moving into it at 0.3 m/s or more) keeps only that share of what the step added (and of its spin).
+  The swing's sweep (`sweepReach`), which strikes what a fast swing would jump over, gives the same share.
+- **A shove.** Kinematic, the body goes on at the hand's speed through the prop in the frames after (a real arm would
+  be slowed): pushed again in the next step, a prop gains no more than `vr_box3d_push_force` (200 N) gives its mass in
+  the step. A heavy box moves as far as you push it and stops; a light thing is carried along as before.
+- A hand held still (moving into the prop slower than 0.3 m/s) holds things up and stops them at full strength: what
+  rests on a palm or a gun is unchanged.
+- QC's poke of a solid prop (an explosive box poked by a gun, `VR_Carry_Nudge`: `physicspush`) takes the hand's or the
+  weapon's mass too (an optional fourth argument; the grapple's pushes don't).
+- Each setting 0: no limit (the old behaviour). Menu: Carrying, after Heaviest Thing Held Up (Hand Push Mass,
+  Weapon Push Mass, Push Force).
+
+### Held props meet (`vr_held.cpp`: `meetFrame`, `overlap`)
+
+Client side, looks only: the drawn boxes of the props held one in each hand (a separating-axis test of the two boxes as
+drawn this frame) are kept apart: each hand and what it holds is drawn moved back along the way they meet by half how
+deep they are, at most `vr_held_collide_max` (5 cm each; pressed further, they overlap by the rest), eased in and out
+over 40 ms, with a short buzz in both hands as they meet. The real hands are never held back (your controllers stay
+where they are), so the hands never feel unresponsive; the throw is the hands' as before. I chose this over a physical
+push (the server's held bodies are kinematic, positioned from the hands; making them push each other would either drag
+the prop off the hand or need the hand itself to lag) because what is jarring is seeing them pass through, and a few
+centimetres of drawn give reads as contact. The server keeps them in the hands (other players see them where the hands
+are; the difference is at most 5 cm). `vr_held_collide 0`: off. Menu: Carrying, after Fit Gap (Held Things Collide, Collide Give).
+A prop held in both hands, and a weapon against a prop, are not part of it.
+
+### A held club never dropped (`vr_carry.qc`: `VR_Carry_Follow`)
+
+A carried prop follows the hand along a trace from where it was, and was dropped if it ended up more than 32 units
+short of the hand ("stuck behind something"). The trace stopped at monsters: swung or stabbed into one, the prop stopped
+at the monster's box while the hand went on, and once the hand was 32 units past, it was dropped (thrown, at the hand's
+speed). The trace now stops only at the level and its brush entities (walls, doors): a held prop passes through
+monsters, players and solid props (it is not solid; the melee hit is `vr_melee.qc`'s). Still dropped when the hand goes
+more than 32 units behind a wall (as before).
+
+### Verified (mock headset, fast mode; the kit's `scratch/heldphys2/`)
+
+- **Flick** (`flick.sh <kg>`: the axe swung sideways at 5 m/s through a floating ogre grenade, its Mass set; `vr_deflect
+  0`): the speed after, 1.2 kg 203 u/s, 6 kg 153, 40 kg 34; with `vr_box3d_weapon_mass 0` 264 u/s whatever the mass (the
+  old behaviour).
+- **Box** (`box.sh`: an explosive box, 40 kg, punched by the empty hand at 6 m/s): 16-29 u/s, tipping slowly; with
+  `vr_box3d_hand_mass 0` 103-123 u/s, knocked over.
+- **Meet** (`meet.sh`: a gib in the main hand, a head in the off hand, brought together and pressed): they meet with the
+  props' origins 40 cm apart; each drawn moved back 0.5, 1.6 ... 5.0 cm as they press on (15 cm deep at most), back to 0
+  when pulled apart; the drawn hands 1.64 u (5 cm) off their controllers while pressed (`carry_trace.txt`).
+- **Club** (`mon.sh`: a gib made a club, swung sideways and stabbed through a shambler 20 times): before, `carry: stuck
+  at ...` and `carry: thrown at 656 u/s` at the first deep stab; now no drop, the hand still holding it at the end;
+  melee hits on the shambler throughout.
+- The palm (`palm.sh`): a gib let go of on the palm still rests there (77.6). `eval.sh`: no current melee takes.
+
+### Not verified
+
+- In the headset: how the masses feel (a weak flick against a heavy box, batting light things, shoving), and whether 5
+  cm of give reads as the props touching. The boxes are the drawn models' boxes: round things meet a little early.

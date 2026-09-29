@@ -1407,6 +1407,13 @@ void hologramTestMessage()
             .help("A box, backpack or gib you grip sits against your curled fingers, by its drawn shape. Off: it stays where you gripped it."),
         slider("Fit Gap", vr_held_fit_gap, -6.f, 3.f, 0.1f, "%.1f cm").extend()
             .help("Space left between your fingers and what they hold (negative: sunk in). Per model: vr_held_fit_gaps in the console."),
+        toggle("Held Things Collide", vr_held_collide)
+            .help("Things you hold one in each hand bump into each other instead of passing through: each hand is drawn moved "
+                  "back with what it holds, a short buzz as they meet. Your real hands are never held back."),
+        slider("Collide Give", vr_held_collide_max, 0.f, 15.f, 0.5f, "%.1f cm")
+            .extend(0.f, 40.f)
+            .help("How far each hand is drawn moved back at most as you press them together. Pressed further, they overlap by "
+                  "the rest."),
         toggle("Hands Push and Hold Things", vr_box3d_hand_props)
             .help("Your empty hands are solid to loose things: they push them, and what you let go of on an open palm turned "
                   "up stays there. Grenades pass through (your palm catches them)."),
@@ -1417,6 +1424,18 @@ void hologramTestMessage()
             .extend()
             .help("An open hand or a weapon holds up nothing heavier: a heavier thing slips through (it is still pushed). 0: no "
                   "limit."),
+        slider("Hand Push Mass", vr_box3d_hand_mass, 0.f, 20.f, 0.5f, "%.1f kg")
+            .extend(0.f, 100.f)
+            .help("How heavy your hand is to what it knocks: a thing keeps hand / (hand + its weight) of the hand's speed, so "
+                  "a flick barely moves a heavy box and still bats a grenade. Also each hand holding a prop, added to the "
+                  "prop's own weight. 0: no limit (a hand knocks anything as if it weighed nothing)."),
+        slider("Weapon Push Mass", vr_box3d_weapon_mass, 0.f, 20.f, 0.5f, "%.1f kg")
+            .extend(0.f, 100.f)
+            .help("As Hand Push Mass, for a weapon in your hand swung into things."),
+        slider("Push Force", vr_box3d_push_force, 0.f, 1000.f, 25.f, "%.0f N")
+            .extend(0.f, 5000.f)
+            .help("After a hand or weapon has hit a thing, pushing on into it shoves it with no more than this force: a heavy "
+                  "box moves as far as you push it and stops, a light one is carried along. 0: no limit."),
         slider("Push Strength", vr_carry_nudge, 0.f, 2.f, 0.1f, "%.1fx").extend()
             .help("How hard a touch knocks a thing loose, or pushes what the hands' and weapons' bodies don't (both off)."),
         slider("Box Throw Speed", vr_carry_throw_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend(),

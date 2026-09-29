@@ -165,8 +165,10 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Nudge =
     }
 
     // A solid prop (an explosive box) poked by a gun (or a hand without its body: vr_box3d_hand_push 0): pushed where the
-    // hand is, so pushed high it tips over, low it slides (Box3D).
-    if(xBox.vr_rigid == 2 && physicspush(xBox, VRGetEntHandPos(xPlayer, xHand), v))
+    // hand is, so pushed high it tips over, low it slides (Box3D); by the hand's or the gun's mass, so a flick barely moves
+    // a heavy box (ROUND21.md, "Pushes by mass").
+    float pushMass = cvar(VRIsHandWeaponless(xPlayer, xHand) ? "vr_box3d_hand_mass" : "vr_box3d_weapon_mass");
+    if(xBox.vr_rigid == 2 && physicspush(xBox, VRGetEntHandPos(xPlayer, xHand), v, pushMass))
     {
         xBox.carry_nudgetime = time + 0.05;
         if(xPlayer.ishuman)
@@ -563,7 +565,7 @@ void(float xHand) VR_Carry_HandFrame =
     box.carry_trigger = trigger;
 
     // Follow the hand, turning with it (its angles set; its place in the hand the grip's: moved at once by a change to its
-    // Held Object Offsets); not through walls or monsters.
+    // Held Object Offsets); not through walls (monsters: VR_Carry_Follow).
     vector handRot = VRGetHandRot(xHand);
     box.carry_offset = carryplace(box, handRot, box.carry_offset);
     makevectors(handRot);
@@ -576,7 +578,7 @@ void(float xHand) VR_Carry_HandFrame =
     }
 };
 
-// Moves the held `box` (self is the player) towards `target`, not through walls or monsters: FALSE if
+// Moves the held `box` (self is the player) towards `target`, not through walls (through monsters): FALSE if
 // it is left behind (stuck).
 // Teleported (a trigger_teleport, or the VR teleport), until self.carry_teleported: the hands move with the player a frame
 // or two apart (the player's move as the server next reads them, the play space's turn to the destination's facing when
@@ -651,7 +653,10 @@ float(entity box, vector target) VR_Carry_Follow =
     {
         return VR_Carry_FollowTeleported(box, target - mid, mid, clearance);
     }
-    traceline(from, target, FALSE, self);
+    // Not stopped by monsters (nor players, nor solid props: only the level and its brush entities): a prop swung into a
+    // monster as a club (its melee hit, vr_melee.qc) stopped at the monster's box while the hand went on, and was dropped
+    // once the hand was 32 units past it (the author's note, 2026-09-29 21:20). It passes through them (it is not solid).
+    traceline(from, target, TRUE, self);
     vector dest = trace_endpos;
     if(trace_fraction < 1)
     {
@@ -873,7 +878,7 @@ void() VR_Carry_TwoHandFrame =
     }
     box.carry_trigger = trigger;
 
-    // Follow both hands, turning with them; not through walls or monsters.
+    // Follow both hands, turning with them; not through walls.
     if(!VR_Carry_Follow(box, carry2h(box, self, FALSE)))
     {
         VR_Carry_EndTwoHands(box);
