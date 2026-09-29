@@ -39,6 +39,7 @@
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
 #include "vr_handpose.hpp"
+#include "vr_held.hpp"
 #include "vr_protocol.hpp"
 #include "vr_weapons.hpp"
 
@@ -224,7 +225,8 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     helpingPos += hands::redirect(off, originalRots[holding]);
 
     const glm::vec3 blade = bladeDirection(slot, holding, originalRots[holding]);
-    const bool canGrab = client::grabbing(helping) && weaponId(helping) == widFist;
+    // (An empty hand: no weapon, and not carrying a box either: held::handEmpty.)
+    const bool canGrab = client::grabbing(helping) && held::handEmpty(helping);
 
     // The grips (round 18). The grip point below the holding hand (GRIP_FOREGRIP): the blade along the
     // line from the helping hand through the holding hand. Unlike a gun's, it holds when the blade
@@ -380,7 +382,7 @@ void applyHand(hands::State& s, const glm::vec3 (&originalRots)[2], int holding,
         !s.muzzleValid[holding] || handDist <= glm::distance(holdingPos, s.muzzle[holding]) + 7.5f;
 
     const bool canGrab = client::grabbing(helping) && wpnMode != WPN_2H_FORBIDDEN &&
-                         weaponId(helping) == widFist && beforeMuzzle && !handpose::gunColliding(holding);
+                         held::handEmpty(helping) && beforeMuzzle && !handpose::gunColliding(holding);
     // A cup (a two-handed pistol grip) is held wherever the hands point: it doesn't aim.
     const bool cup = fixedMode && s.grip2HCup[holding];
     const bool goodDot =
@@ -582,7 +584,7 @@ void updateHotspots(hands::State& s)
     for(int hand = 0; hand < 2; hand++)
     {
         const int other = 1 - hand;
-        if(weaponId(hand) == widFist && carrying(other) && handleValid[other] &&
+        if(held::handEmpty(hand) && carrying(other) && handleValid[other] &&
             glm::distance(s.pos[hand], handle[other]) < carriedGripRadius)
         {
             s.hotspot[hand] = body::HS_CARRIED_GRIP;

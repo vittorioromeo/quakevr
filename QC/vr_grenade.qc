@@ -351,7 +351,7 @@ float(float xHand, entity b) VR_Grenade_HandCatches =
     {
         return FALSE;
     }
-    if(VR_Melee_Thing(self, xHand) != VR_MTHING_FIST || !VRIsHandEmpty(self, xHand) || VR_Carry_IsHolding(self, xHand) ||
+    if(VR_Melee_Thing(self, xHand) != VR_MTHING_FIST || !VRIsHandEmpty(self, xHand) ||
        VR_Melee_HoldsTorch(self, xHand) || VR_Forcegrab_IsHandBusy(self, xHand))
     {
         return FALSE;
@@ -418,7 +418,7 @@ float() VR_Grenade_TrapTick =
 {
     entity p = self.vr_gren_trap;
     float h = self.vr_gren_trap_hand;
-    float lost = p.health <= 0 || !VRIsHandEmpty(p, h) || VR_Carry_IsHolding(p, h);
+    float lost = p.health <= 0 || !VRIsHandEmpty(p, h);
     if(!lost && VR_HandGrabUtil_IsHandGrabbing(p, h))
     {
         VR_Grenade_Take(p, h, self, sprintf("the palm's grip, %.2f s after it met it", time - self.vr_gren_trap_time));
@@ -830,7 +830,7 @@ void(float xHand) VR_HandGrenade_HandFrame =
     }
     float climbing = VRHasBit(self.vrbits0, xHand == cVR_MainHand ? QVR_VRBITS0_MAINHAND_CLIMBING :
                                                                     QVR_VRBITS0_OFFHAND_CLIMBING);
-    float emptyHand = VRIsHandEmpty(self, xHand) && !VR_Carry_IsHolding(self, xHand) &&
+    float emptyHand = VRIsHandEmpty(self, xHand) &&
                       !VR_Melee_HoldsTorch(self, xHand) && !VR_Forcegrab_IsHandBusy(self, xHand) && !climbing;
     if(!was)
     {

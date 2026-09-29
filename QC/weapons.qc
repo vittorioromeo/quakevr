@@ -3710,14 +3710,14 @@ void() ImpulseCommands =
             }
             gib = find(gib, classname, "");
         }
-        if(newest != world && VRIsHandEmpty(self, cVR_OffHand) && !VR_Carry_IsHolding(self, cVR_OffHand))
+        if(newest != world && VRIsHandEmpty(self, cVR_OffHand))
         {
             setorigin(newest, VRGetHandPos(cVR_OffHand));
             VR_Carry_Start(self, cVR_OffHand, newest);
         }
     }
     // QVR: a gib or a head in the empty off hand, each in turn (fitted hands tests, round 21).
-    if(self.impulse == 252 && !deathmatch && !coop && VRIsHandEmpty(self, cVR_OffHand) && !VR_Carry_IsHolding(self, cVR_OffHand))
+    if(self.impulse == 252 && !deathmatch && !coop && VRIsHandEmpty(self, cVR_OffHand))
     {
         string testModel = "progs/gib1.mdl";
         if(vr_test_held_kind == 1) testModel = "progs/h_player.mdl";
@@ -4454,7 +4454,7 @@ float(entity ent, float xHand) wpnthrow_handtouch_ent_hand =
 {
     entity entPlayer = ent.handtouch_ent;
 
-    if(!VRIsHandEmpty(entPlayer, xHand) || VR_Carry_IsHolding(entPlayer, xHand))
+    if(!VRIsHandEmpty(entPlayer, xHand))
     {
         return FALSE;
     }
@@ -4997,7 +4997,7 @@ float() getWeaponThrowMode =
 
 void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponClip) DropWeaponInHand =
 {
-    if(VRIsHandEmpty(ent, xHand))
+    if(VRIsHandWeaponless(ent, xHand))
     {
         return;
     }
@@ -5208,7 +5208,7 @@ float(entity ent, float xHand, float xWeapon) VRWeaponLetGo =
         ent.stickyweaponoff = xWeapon;
     }
 
-    if(VRIsHandEmpty(ent, xHand) || xWeapon != lastWeapon)
+    if(VRIsHandWeaponless(ent, xHand) || xWeapon != lastWeapon)
     {
         // A new weapon (or none): start over.
         ent.stickyarmed &= ~bit;
@@ -5245,8 +5245,7 @@ float(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponC
        (xWeaponFlags & QVR_WPNFLAG_FOREGRIP_CARRIED) ||
        !(VRGet2HAiming(ent) || time - ent.last_2h_time < 0.1) ||
        !VR_HandGrabUtil_IsHandGrabbing(ent, other) ||
-       !VRIsHandEmpty(ent, other) ||
-       VR_Carry_IsHolding(ent, other))
+       !VRIsHandEmpty(ent, other))
     {
         return FALSE;
     }
@@ -5306,6 +5305,8 @@ void(entity ent, float xHand,
     float handGrabbing = VR_HandGrabUtil_IsHandGrabbing(ent, xHand);
     float handPrevGrabbing = VR_HandGrabUtil_IsHandPrevGrabbing(ent, xHand);
     float otherHandGrabbing = VR_HandGrabUtil_IsHandGrabbing(ent, VRGetOtherHand(xHand));
+    // (No weapon: the weapon's branches below. Empty: nothing carried either, what may take a weapon.)
+    float handWeaponless = VRIsHandWeaponless(ent, xHand);
     float handEmpty = VRIsHandEmpty(ent, xHand);
     float otherHandEmpty = VRIsHandEmpty(ent, VRGetOtherHand(xHand));
     float triggerPressed = VRGetEntFireButtonPressed(ent, xHand);
@@ -5318,7 +5319,7 @@ void(entity ent, float xHand,
         return;
     }
 
-    float carried = !handEmpty && (xWeaponFlags & QVR_WPNFLAG_FOREGRIP_CARRIED);
+    float carried = !handWeaponless && (xWeaponFlags & QVR_WPNFLAG_FOREGRIP_CARRIED);
 
     if(VRIsEntHandReloadingBit(ent, xHand) && !carried)
     {
@@ -5331,7 +5332,7 @@ void(entity ent, float xHand,
     }
 
     // Holding a weapon, but not grabbing the controller.
-    if(!handEmpty && letGo && time >= xAttackFinished)
+    if(!handWeaponless && letGo && time >= xAttackFinished)
     {
         VRWeaponLetGoDone(ent, xHand);
 
@@ -5400,7 +5401,7 @@ void(entity ent, float xHand,
         }
     }
     // Holding a weapon and hovering an holster. Possible intention to holster or reload.
-    else if(!handEmpty && !letGo) // holding it: gripping, or (vr_weapon_grip_mode 1) not let go of
+    else if(!handWeaponless && !letGo) // holding it: gripping, or (vr_weapon_grip_mode 1) not let go of
     {
         if(isHolsterHotspot(xHotspot))
         {
@@ -5439,7 +5440,7 @@ void(entity ent, float xHand,
         }
     }
     // Not holding a weapon (nor carrying a box) and started grabbing the controller.
-    else if(handEmpty && startedHandGrabbing && !VR_Carry_IsHolding(ent, xHand))
+    else if(handEmpty && startedHandGrabbing)
     {
         // The handle of the gun the other hand carries by its foregrip: take it.
         if(xHotspot == QVR_HS_CARRIED_GRIP)

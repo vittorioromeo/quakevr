@@ -282,6 +282,34 @@ glm::vec3 drawnCentre(int num)
     return origin + axesFromAngles(e.angles, brush) * ((lo + hi) * 0.5f);
 }
 
+bool modelVertices(const qmodel_t* model, bool mirrored, std::vector<glm::vec3>& out)
+{
+    out.clear();
+    if(!model || model->type != mod_alias)
+    {
+        return false;
+    }
+    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(model)));
+    if(hdr->poseverttype != aliashdr_t::PV_QUAKE1 || !hdr->vertexes || hdr->numframes <= 0 || hdr->numverts <= 0)
+    {
+        return false;
+    }
+    const DrawnTransform xf{model, glm::vec3{0.f}, glm::vec3{0.f}, glm::vec3{0.f}};
+    const auto* verts = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes) +
+                        hdr->frames[0].firstpose * hdr->numverts;
+    out.reserve(static_cast<size_t>(hdr->numverts));
+    for(int i = 0; i < hdr->numverts; i++)
+    {
+        glm::vec3 p = xf.stored(glm::vec3{verts[i].v[0], verts[i].v[1], verts[i].v[2]});
+        if(mirrored)
+        {
+            p.y = -p.y;
+        }
+        out.push_back(p);
+    }
+    return true;
+}
+
 bool drawnVertices(edict_t* ent, std::vector<glm::vec3>& out)
 {
     out.clear();
@@ -1260,6 +1288,14 @@ int heldEntity(int hand)
 {
     const Held& hd = holding[hand];
     return hd.drawn && valid(hd.ent, hd.model) ? hd.ent : 0;
+}
+
+bool handEmpty(int hand)
+{
+    using namespace protocol;
+    const bool main = hand == 1;
+    return cl.stats[main ? STAT_QVR_WEAPON : STAT_QVR_WEAPON2] == 0 && // QC's WID_FIST
+           cl.stats[main ? STAT_QVR_CARRYMAIN : STAT_QVR_CARRYOFF] == 0;
 }
 
 bool drawnHand(int hand, glm::vec3& pos, glm::vec3& angles)

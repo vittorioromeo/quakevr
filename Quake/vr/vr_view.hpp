@@ -105,6 +105,19 @@ struct WeaponHotspot
 };
 [[nodiscard]] WeaponHotspot weaponHotspot(int hand, int index);
 
+// The weapon in `hand` as drawn last (the local player's): its model, whether mirrored (the off hand's), and its
+// entity's place and turn relative to the hand's pose (hands::State pos and rot: held::axesFromAngles' forward, left,
+// up) -- rigid; the model's vertices go in it as the view draws them (mirrored, then weapons::ModelTransform). For the
+// held weapons' bodies in Box3D (vr_box3d.cpp: they push props). `when`: realtime it was drawn; model nullptr: none.
+struct DrawnWeapon
+{
+    const qmodel_t* model{nullptr};
+    bool mirrored{false};
+    glm::mat4 inHand{1.f};
+    double when{-1.0};
+};
+[[nodiscard]] const DrawnWeapon& drawnWeapon(int hand);
+
 // vr_hotspots_legacy [print]: the slots' hotspots worked out from their round-20 two-handed grip keys (their defaults),
 // printed as vr_weapons.inc lines (round 21's migration of the shipped defaults).
 void hotspotsLegacy_f();

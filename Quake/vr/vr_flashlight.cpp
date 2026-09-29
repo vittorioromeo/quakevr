@@ -959,11 +959,17 @@ void noteIntent(const hands::State& s)
     return opened;
 }
 
-// Whether a hand holds nothing (the "fist" or no weapon at all).
-[[nodiscard]] bool handEmpty(int hand)
+// Whether a hand holds no weapon (the "fist" or no weapon at all); it may carry a box.
+[[nodiscard]] bool weaponless(int hand)
 {
     const int slot = weapons::heldSlot(hand);
     return slot < 0 || slot == weapons::fistSlot();
+}
+
+// Whether a hand holds nothing: no weapon, and carrying nothing (held::handEmpty's box, gib or torch either).
+[[nodiscard]] bool handEmpty(int hand)
+{
+    return weaponless(hand) && held::handEmpty(hand);
 }
 
 // Whether a hand is at the lamp: near its axis, anywhere from the tail to the lens (a long torch is taken by its
@@ -1054,7 +1060,7 @@ void noteIntent(const hands::State& s)
             // with a margin): a gun held at the ready no longer keeps the other hand from the belt's torch (round 21,
             // flashlight tuning: the grip there did nothing at all).
             const int other = 1 - hand;
-            if(handEmpty(other))
+            if(weaponless(other))
             {
                 return false;
             }
@@ -1066,7 +1072,7 @@ void noteIntent(const hands::State& s)
             return glm::distance(from, s.grip2H[other]) - s.grip2HBias[other] < 8.f;
         }
         case body::HS_HAND_SWITCH:
-        case body::HS_CARRIED_GRIP: return !handEmpty(1 - hand); // (with nothing in the other hand, nothing to take)
+        case body::HS_CARRIED_GRIP: return !weaponless(1 - hand); // (with nothing in the other hand, nothing to take)
         case body::HS_LEFT_SHOULDER_HOLSTER: holster = body::LeftShoulder; break;
         case body::HS_RIGHT_SHOULDER_HOLSTER: holster = body::RightShoulder; break;
         case body::HS_LEFT_HIP_HOLSTER: holster = body::LeftHip; break;

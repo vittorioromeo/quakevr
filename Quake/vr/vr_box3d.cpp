@@ -20,6 +20,10 @@
 //   kinematic, following the hand, so they push other props. Solid props (.vr_rigid 2: the explosive boxes) stay
 //   SOLID_BBOX, their Quake box kept round them as they turn (solidBox), and report their hard hits (.vr_impact).
 // - The players' hands are kinematic spheres at their fists that push solid props (syncHands, vr_box3d_hand_push).
+// - And kinematic bodies at full speed that push the other props and hold them up (syncReach, ROUND21.md, "Hands and
+//   weapons as bodies"): an empty hand's open hand or fist (vr_box3d_hand_props; not grenades, which the palm catches),
+//   a held weapon's drawn hull (vr_box3d_weapon_push: a grenade is batted). What was inside one as it was made (let go
+//   of, thrown, a weapon taken) passes through it until clear; what is heavier than vr_box3d_hand_hold_mass slips off.
 // - Box3D is authoritative for props: their origin, angles, velocity (.velocity, the centre of mass's), spin
 //   (.vr_spin, rad/s) and sleep (FL_ONGROUND and its groundentity) are written back every frame. What QC changes
 //   (a throw, a nudge, a force grab's drop, a knock, a teleport, keepInWorld's put-back) is seen against what was
@@ -44,6 +48,7 @@
 #include "vr_props.hpp"
 #include "vr_weapons.hpp"
 #include "vr_units.hpp"
+#include "vr_view.hpp"
 
 #include <box3d/box3d.h>
 
@@ -84,6 +89,9 @@ constexpr uint64_t catHeld = 32;
 constexpr uint64_t catFixture = 64;
 constexpr uint64_t catHand = 128;  // the players' hands (vr_box3d_hand_push): only against solid props
 constexpr uint64_t catSolid = 256; // a solid prop's (.vr_rigid 2: an explosive box) shapes, as well as catProp
+constexpr uint64_t catReachHand = 512;    // an empty hand's body (vr_box3d_hand_props): the loose props but grenades
+constexpr uint64_t catReachWeapon = 1024; // a held weapon's body (vr_box3d_weapon_push): the loose props
+constexpr uint64_t catReach = catReachHand | catReachWeapon;
 constexpr uint64_t propMask = catWorld | catMover | catActor | catPlayer | catProp | catHeld | catFixture;
 
 enum class Kind : uint8_t
@@ -313,6 +321,7 @@ struct Slot // what one edict is in the world (by its number)
     bool soft{false};     // isSoft
     bool brush{false};    // angles as a brush model's
     bool spins{false};    // a fixture drawn spinning (an EF_ROTATE model: the map's pickups): its shape turns with it
+    double born{0.0};     // the server's time its body was made (a prop: thrown, let go of, launched)
     const b3HullData* hull{nullptr}; // actors: the hull at rest (actorHull), nullptr for Quake's box
 
     // Props, held and fixtures: the settings (shapeGeneration) and the entity's box its drawn box and Mass were last
@@ -351,12 +360,35 @@ struct World
     std::vector<std::pair<int, int>> impacts; // the step's touches (kept: no allocation a frame)
     std::vector<Shock> shocks; // props with a .vr_impact hitting something this frame (the hardest hit each)
     std::vector<Slot> slots; // by edict number
-    // The players' hands (by client, [0] off, [1] main): kinematic spheres at their fists that push solid props.
+    // The players' hands (by client, [0] off, [1] main): kinematic spheres at their fists that push solid props; and
+    // their reach bodies (syncReach): the empty hand's, or the held weapon's.
+    struct ReachKey
+    {
+        enum What : uint8_t
+        {
+            None,
+            Open,    // an open hand: its box (the palm, the fingers)
+            Fist,    // a fist (the grip held)
+            Weapon,  // the held weapon's drawn hull (view::drawnWeapon)
+            Capsule, // a held weapon not drawn here (another player's): the hand to its muzzle
+        };
+        What what{None};
+        const qmodel_t* model{nullptr};
+        bool mirrored{false};
+        unsigned generation{0};
+        float scale{0.f};
+        glm::vec3 muzzle{0.f}; // (Capsule) in the hand's frame
+        bool operator==(const ReachKey&) const = default;
+    };
     struct HandBody
     {
         b3BodyId body{b3_nullBodyId};
         bool armed{false};
         glm::vec3 at{0.f};
+        b3BodyId reach{b3_nullBodyId};
+        ReachKey key{};
+        std::vector<int> ignore; // props the reach body passes through until clear of them (inside it as it was made)
+        int held{0};             // the prop the hand carried last frame (0: none)
     };
     std::vector<std::array<HandBody, 2>> hands;
     std::map<PropHullKey, b3HullData*> propHulls;      // nullptr: no hull (a box instead)
@@ -986,6 +1018,10 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
         def.filter.categoryBits |= catSolid; // pushed and tipped by the hands' bodies
         def.filter.maskBits |= catHand;
     }
+    else if(!held)
+    {
+        def.filter.maskBits |= catReach; // pushed and held up by the empty hands and the held weapons (syncReach)
+    }
     def.density = densityOf(ent, model);
     def.baseMaterial.restitution = isSoft(ent, model) ? 0.f : CLAMP(0.f, vr_throw_restitution.value, 1.f);
     def.enableContactEvents = !held;
@@ -1261,6 +1297,7 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind)
     s.soft = model && isSoft(ent, model);
     s.origin = vec(ent->v.origin);
     s.angles = vec(ent->v.angles);
+    s.born = qcvm->time;
 
     b3BodyDef def = b3DefaultBodyDef();
     def.userData = userOf(num);
@@ -1518,6 +1555,563 @@ void syncHands(float dt)
                 }
             }
             hb.at = at;
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// The reach bodies (ROUND21.md, "Hands and weapons as bodies"): each hand's own body besides the sphere above, following
+// the hand at full speed as a carried prop does. Empty (vr_box3d_hand_props), the open hand (a box: the palm and the
+// fingers) or the fist; holding a weapon (vr_box3d_weapon_push), the weapon's drawn hull (the local player's, as the
+// view draws it: view::drawnWeapon; another player's, a capsule from the hand to the muzzle). They push the loose props
+// (not solid ones: the sphere and the guns' nudge push those, as before) and hold them up: a thing let go of on an open
+// palm stays there, one balances on a gun. Kinematic, not dynamic: the drawn hand is where the player's real hand is,
+// whatever it meets (a body jointed to it would lag behind it, stop where it presses, and push back on nothing the
+// player feels), and it bats a grenade away as hard as it swings.
+
+// The empty hand's boxes (the drawn hand at the defaults, vr_dumpview's open hand and fist): cm from the hand's point
+// in the main hand's frame (forward, left, up; the off hand's mirrored). The open hand's top is its palm (its middle is
+// 0.8 cm right of the point): what rests there lies on the palm, not in the relaxed fingers' curl. It reaches 2 cm past
+// the hand's upper edge (the index finger's side, -0.3 cm): a thing let go of from the fist is held at the hand's point,
+// at that edge, and would roll off the palm turned up (the thumb and index hold it there).
+struct HandBox
+{
+    glm::vec3 lo, hi;
+};
+constexpr HandBox openHandBox{{-15.5f, -4.4f, -12.f}, {5.5f, -0.8f, 2.f}};
+constexpr HandBox fistBox{{-16.f, -4.3f, -12.1f}, {-0.9f, 3.2f, -3.1f}};
+constexpr float reachSink = 0.01f;     // m: sunk no deeper in a new reach body, a prop rests on it; deeper, passes through
+constexpr float reachCapsule = 0.015f; // m: another player's weapon's radius
+
+// The hand whose reach body `body` is (of client `player`), or nullptr.
+[[nodiscard]] World::HandBody* reachOf(b3BodyId body, int player)
+{
+    if(player < 1 || player >= static_cast<int>(world->hands.size()))
+    {
+        return nullptr;
+    }
+    for(World::HandBody& hb : world->hands[static_cast<size_t>(player)])
+    {
+        if(B3_IS_NON_NULL(hb.reach) && B3_ID_EQUALS(hb.reach, body))
+        {
+            return &hb;
+        }
+    }
+    return nullptr;
+}
+
+// What hand `h` of client `i` is now (`last`: what it was), and for a drawn weapon its entity in the hand's frame.
+[[nodiscard]] World::ReachKey reachKey(edict_t* player, int i, int h, const World::ReachKey& last, const glm::vec3& point,
+    const glm::vec3& angles, glm::mat4& inHand)
+{
+    using Key = World::ReachKey;
+    const FieldOffsets& f = fields();
+    Key key;
+    const int heldOfs = h ? f.mainhand_held : f.offhand_held;
+    if(heldOfs >= 0 && fieldInt(player, heldOfs) > 0)
+    {
+        return key; // (what it carries is a body of its own: Kind::Held)
+    }
+    const float weapon = h ? player->v.weapon : fieldFloatOr(player, f.weapon2, 0.f);
+    if(weapon == 0.f) // QC's WID_FIST
+    {
+        if(!vr_box3d_hand_props.value)
+        {
+            return key;
+        }
+        const int bits = static_cast<int>(fieldFloatOr(player, f.vrbits0, 0.f));
+        key.what = (bits & (h ? 8 : 2)) ? Key::Fist : Key::Open; // (QC's QVR_VRBITS0_*HAND_GRABBING)
+        key.scale = weapons::offsetScale();
+        return key;
+    }
+    if(!vr_box3d_weapon_push.value)
+    {
+        return key;
+    }
+    const int modelOfs = f.weaponmodel2;
+    const char* name = h ? PR_GetString(player->v.weaponmodel)
+                         : (modelOfs >= 0 ? PR_GetString(fieldInt(player, modelOfs)) : "");
+    if(i == 1 && cls.state == ca_connected) // the local player: the weapon as drawn
+    {
+        const view::DrawnWeapon& d = view::drawnWeapon(h);
+        if(!d.model || realtime - d.when > 0.5 || strcmp(d.model->name, name) != 0)
+        {
+            return key; // (not drawn yet)
+        }
+        key.what = Key::Weapon;
+        key.model = d.model;
+        key.mirrored = d.mirrored;
+        key.generation = shapeGeneration;
+        inHand = d.inHand;
+        return key;
+    }
+    const int muzzleOfs = h ? f.muzzlepos : f.offmuzzlepos;
+    const glm::vec3 muzzle = muzzleOfs >= 0 ? fieldVec(player, muzzleOfs) : point;
+    if(glm::distance(muzzle, point) < 1.f)
+    {
+        return key;
+    }
+    key.what = Key::Capsule;
+    key.muzzle = glm::transpose(held::axesFromAngles(&angles[0], true)) * (muzzle - point);
+    if(last.what == Key::Capsule && glm::distance(last.muzzle, key.muzzle) < 2.f)
+    {
+        key.muzzle = last.muzzle; // (the same capsule: it follows the gun's muzzle within 2 units)
+    }
+    return key;
+}
+
+// What the new reach body of `hb` has sunk in it deeper than reachSink: passed through until clear of it (a thing thrown
+// from the hand, a weapon let go of, a gun taken where props lie). What is only touching it rests on it, and so does
+// what the empty hand let go of this frame without throwing it (`letGo`: slower than 1 m/s; not a weapon): it is eased
+// out of the hand, onto the palm turned up.
+void ignoreInside(World::HandBody& hb, uint64_t category, int letGo)
+{
+    hb.ignore.clear();
+    std::array<b3ShapeId, 4> shapes;
+    const int count = b3Body_GetShapes(hb.reach, shapes.data(), static_cast<int>(shapes.size()));
+    const b3WorldTransform xf = b3Body_GetTransform(hb.reach);
+    std::array<b3Vec3, B3_MAX_SHAPE_CAST_POINTS> points;
+    for(int i = 0; i < count; i++)
+    {
+        int n = 0;
+        float radius = 0.f;
+        if(b3Shape_GetType(shapes[i]) == b3_hullShape)
+        {
+            const b3HullData* hull = b3Shape_GetHull(shapes[i]);
+            const b3Vec3* p = b3GetHullPoints(hull);
+            const b3Vec3 c = hull->center;
+            n = std::min(hull->vertexCount, static_cast<int>(points.size()));
+            for(int k = 0; k < n; k++)
+            {
+                // Each corner in by the sink along each axis (not past the middle).
+                b3Vec3 q = p[k];
+                q.x = q.x > c.x ? std::max(c.x, q.x - reachSink) : std::min(c.x, q.x + reachSink);
+                q.y = q.y > c.y ? std::max(c.y, q.y - reachSink) : std::min(c.y, q.y + reachSink);
+                q.z = q.z > c.z ? std::max(c.z, q.z - reachSink) : std::min(c.z, q.z + reachSink);
+                points[static_cast<size_t>(k)] = b3RotateVector(xf.q, q);
+            }
+        }
+        else if(b3Shape_GetType(shapes[i]) == b3_capsuleShape)
+        {
+            const b3Capsule c = b3Shape_GetCapsule(shapes[i]);
+            points[0] = b3RotateVector(xf.q, c.center1);
+            points[1] = b3RotateVector(xf.q, c.center2);
+            n = 2;
+            radius = std::max(0.f, c.radius - reachSink);
+        }
+        if(n == 0)
+        {
+            continue;
+        }
+        const b3ShapeProxy proxy{points.data(), n, radius};
+        b3QueryFilter filter = b3DefaultQueryFilter();
+        filter.categoryBits = category;
+        filter.maskBits = catProp;
+        struct Context
+        {
+            std::vector<int>& ignore;
+            int placed; // (let go of onto the hand)
+        } context{hb.ignore, 0};
+        if(letGo > 0 && letGo < static_cast<int>(world->slots.size()) && world->slots[letGo].kind == Kind::Prop &&
+            !isWeaponLike(EDICT_NUM(letGo)) && b3Length(b3Body_GetLinearVelocity(world->slots[letGo].body)) < 1.f)
+        {
+            context.placed = letGo;
+        }
+        b3World_OverlapShape(world->id, xf.p, &proxy, filter,
+            [](b3ShapeId shape, void* raw) {
+                auto& c = *static_cast<Context*>(raw);
+                const int num = numOf(shape);
+                if(num > 0 && num != c.placed && num < static_cast<int>(world->slots.size()) &&
+                    world->slots[num].kind == Kind::Prop &&
+                    std::find(c.ignore.begin(), c.ignore.end(), num) == c.ignore.end())
+                {
+                    c.ignore.push_back(num);
+                }
+                return true;
+            },
+            &context);
+    }
+    if(vr_debug_box3d.value && !hb.ignore.empty())
+    {
+        Con_Printf("box3d: a reach body made with %d props sunk in it: it passes through them until clear\n",
+            static_cast<int>(hb.ignore.size()));
+    }
+}
+
+// The reach body of `hb` made again for `key` at `pos`, `rot` (none for None); `letGo`: what the hand let go of.
+void makeReach(
+    World::HandBody& hb, int i, int h, const World::ReachKey& key, const glm::vec3& pos, const glm::quat& rot, int letGo)
+{
+    using Key = World::ReachKey;
+    if(B3_IS_NON_NULL(hb.reach))
+    {
+        b3DestroyBody(hb.reach);
+        hb.reach = b3_nullBodyId;
+    }
+    hb.ignore.clear();
+    if(key.what == Key::None)
+    {
+        return;
+    }
+    b3BodyDef def = b3DefaultBodyDef();
+    def.type = b3_kinematicBody;
+    def.position = world->toM(pos);
+    def.rotation = toB3(rot);
+    def.userData = userOf(i);
+    hb.reach = b3CreateBody(world->id, &def);
+    const bool weapon = key.what == Key::Weapon || key.what == Key::Capsule;
+    const uint64_t category = weapon ? catReachWeapon : catReachHand;
+    b3ShapeDef shape = shapeDef(i, category, catProp);
+    shape.enableCustomFiltering = true; // (shouldCollide: reachMeets)
+    shape.enablePreSolveEvents = true;  // (preSolve)
+    switch(key.what)
+    {
+    case Key::Open:
+    case Key::Fist:
+    {
+        const HandBox& b = key.what == Key::Open ? openHandBox : fistBox;
+        glm::vec3 lo = b.lo, hi = b.hi;
+        if(h == 0) // the off hand: mirrored
+        {
+            lo.y = -b.hi.y;
+            hi.y = -b.lo.y;
+        }
+        const float cm = 0.01f * key.scale; // metres
+        const glm::vec3 half = (hi - lo) * 0.5f * cm, centre = (lo + hi) * 0.5f * cm;
+        const b3BoxHull box = b3MakeOffsetBoxHull(half.x, half.y, half.z, b3v(centre));
+        b3CreateHullShape(hb.reach, &shape, &box.base);
+        break;
+    }
+    case Key::Weapon:
+    {
+        std::vector<glm::vec3>& vertices = scratch.propVerts;
+        if(held::modelVertices(key.model, key.mirrored, vertices) && vertices.size() >= 4)
+        {
+            std::vector<b3Vec3> points;
+            points.reserve(vertices.size());
+            for(const glm::vec3& v : vertices)
+            {
+                points.push_back(world->toM(v));
+            }
+            if(b3HullData* hull = fittedHull(points, 32))
+            {
+                b3CreateHullShape(hb.reach, &shape, hull); // (the world keeps its own copy)
+                if(vr_debug_box3d.value)
+                {
+                    Con_Printf("box3d: %s hand's weapon %s: a hull of %d vertices\n", h ? "main" : "off", key.model->name,
+                        hull->vertexCount);
+                }
+                b3DestroyHull(hull);
+            }
+        }
+        break;
+    }
+    case Key::Capsule:
+    {
+        const b3Capsule capsule{b3Vec3_zero, world->toM(key.muzzle), reachCapsule};
+        b3CreateCapsuleShape(hb.reach, &shape, &capsule);
+        break;
+    }
+    default: break;
+    }
+    if(vr_debug_box3d.value)
+    {
+        static const char* const names[] = {"none", "open hand", "fist", "weapon", "capsule"};
+        const glm::vec3 palm = glm::mat3_cast(rot) * glm::vec3{0.f, h ? 1.f : -1.f, 0.f};
+        const b3AABB box = b3Body_ComputeAABB(hb.reach);
+        const glm::vec3 lo = world->toU(box.lowerBound), hi = world->toU(box.upperBound);
+        Con_Printf("box3d: %s hand's reach body: %s at %.1f %.1f %.1f (%.1f %.1f %.1f to %.1f %.1f %.1f), the palm facing "
+                   "%.2f %.2f %.2f\n",
+            h ? "main" : "off", names[key.what], pos.x, pos.y, pos.z, lo.x, lo.y, lo.z, hi.x, hi.y, hi.z, palm.x, palm.y,
+            palm.z);
+    }
+    ignoreInside(hb, category, weapon ? 0 : letGo);
+}
+
+// Whether the reach body of `hb` (of client `player`) passes through prop `num` now: what it passes through until clear
+// (sunk in it as it was made: its ignore list), an empty hand a grenade (reachMeets), a prop flying to a hand (a force
+// grab's pull: .fg_state 1), the player's own grenade in its first quarter second (leaving the launcher's muzzle,
+// inside the gun).
+[[nodiscard]] bool reachSkips(const World::HandBody& hb, int player, int num)
+{
+    if(std::find(hb.ignore.begin(), hb.ignore.end(), num) != hb.ignore.end())
+    {
+        return true;
+    }
+    if(num <= svs.maxclients || num >= qcvm->num_edicts || num >= static_cast<int>(world->slots.size()))
+    {
+        return false;
+    }
+    const Slot& s = world->slots[num];
+    if(s.kind != Kind::Prop)
+    {
+        return false;
+    }
+    const bool grenade = isGrenade(s.model);
+    if(grenade && hb.key.what != World::ReachKey::Weapon && hb.key.what != World::ReachKey::Capsule)
+    {
+        return true;
+    }
+    edict_t* e = EDICT_NUM(num);
+    if(const int fg = fields().fg_state; fg >= 0 && fieldFloat(e, fg) == 1.f)
+    {
+        return true;
+    }
+    return grenade && e->v.owner == EDICT_TO_PROG(EDICT_NUM(player)) && qcvm->time - s.born < 0.25;
+}
+
+struct ReachPose
+{
+    glm::vec3 pos; // units
+    glm::quat rot;
+};
+
+// A fast move of the reach body of `hb` over a step `dt` (a swing): Box3D collides once a step, at its start, so a
+// kinematic body moving further in a step than a thin thing is across jumps over it (an axe swung at 10 m/s moves 11 cm
+// a frame; a grenade is a few cm across). Its shape is swept from `from` to `to` in pieces moving no point of it more than
+// 1.5 cm (Box3D's contacts reach 2 cm ahead); each prop it meets there that it doesn't touch at `from` is struck as the
+// step would have: where the body's surface first meets it, its velocity along the surface's normal (the prop's centre
+// from its nearest point) made the body's point's there and more by the prop's restitution, as off anything a
+// kinematic body (of no give) hits. It then leaves ahead of the body, which goes on through where it was.
+void sweepReach(const World::HandBody& hb, int player, const ReachPose& from, const ReachPose& to, float dt)
+{
+    constexpr float piece = 0.015f; // m
+    std::array<b3ShapeId, 1> shapes;
+    if(b3Body_GetShapes(hb.reach, shapes.data(), 1) < 1)
+    {
+        return;
+    }
+    // The shape's points (its frame, m) and radius.
+    std::array<b3Vec3, 64> local;
+    int count = 0;
+    float radius = 0.f;
+    if(b3Shape_GetType(shapes[0]) == b3_hullShape)
+    {
+        const b3HullData* hull = b3Shape_GetHull(shapes[0]);
+        count = std::min(hull->vertexCount, static_cast<int>(local.size()));
+        std::copy_n(b3GetHullPoints(hull), count, local.begin());
+    }
+    else if(b3Shape_GetType(shapes[0]) == b3_capsuleShape)
+    {
+        const b3Capsule c = b3Shape_GetCapsule(shapes[0]);
+        local[0] = c.center1;
+        local[1] = c.center2;
+        count = 2;
+        radius = c.radius;
+    }
+    if(count == 0)
+    {
+        return;
+    }
+    const glm::vec3 p0 = glmv(world->toM(from.pos)), p1 = glmv(world->toM(to.pos));
+    float most = 0.f;
+    for(int i = 0; i < count; i++)
+    {
+        const glm::vec3 v = glmv(local[static_cast<size_t>(i)]);
+        most = std::max(most, glm::distance(p0 + from.rot * v, p1 + to.rot * v));
+    }
+    const int pieces = std::min(static_cast<int>(std::ceil(most / piece)), 24);
+    if(pieces <= 1 || dt <= 0.f)
+    {
+        return;
+    }
+    const auto poseAt = [&](int k) {
+        const float t = static_cast<float>(k) / static_cast<float>(pieces);
+        return ReachPose{glm::mix(from.pos, to.pos, t), glm::slerp(from.rot, to.rot, t)};
+    };
+    // What it meets over the points of two poses (their convex hull: the swept piece), relative to the second's place.
+    std::vector<int> found;
+    const uint64_t category = b3Shape_GetFilter(shapes[0]).categoryBits;
+    const auto meets = [&](const ReachPose& a, const ReachPose& b) {
+        std::array<b3Vec3, 128> points;
+        const glm::vec3 origin = glmv(world->toM(b.pos)), shift = glmv(world->toM(a.pos)) - origin;
+        for(int i = 0; i < count; i++)
+        {
+            const glm::vec3 v = glmv(local[static_cast<size_t>(i)]);
+            points[static_cast<size_t>(i)] = b3v(b.rot * v);
+            points[static_cast<size_t>(count + i)] = b3v(shift + a.rot * v);
+        }
+        const b3ShapeProxy proxy{points.data(), 2 * count, radius};
+        b3QueryFilter filter = b3DefaultQueryFilter();
+        filter.categoryBits = category;
+        filter.maskBits = catProp;
+        found.clear();
+        b3World_OverlapShape(world->id, b3v(origin), &proxy, filter,
+            [](b3ShapeId shape, void* context) {
+                auto& out = *static_cast<std::vector<int>*>(context);
+                const int num = numOf(shape);
+                if(std::find(out.begin(), out.end(), num) == out.end())
+                {
+                    out.push_back(num);
+                }
+                return true;
+            },
+            &found);
+    };
+    meets(from, from);
+    std::vector<int> struck = found; // (touching it at the start: Box3D's contact)
+
+    // The body's motion over the step: its origin's velocity, and its spin (m/s, rad/s).
+    const glm::vec3 linear = (p1 - p0) / dt;
+    glm::quat turn = to.rot * glm::inverse(from.rot);
+    if(turn.w < 0.f)
+    {
+        turn = -turn;
+    }
+    const float angle = 2.f * std::acos(std::min(turn.w, 1.f));
+    const float sine = std::sqrt(std::max(0.f, 1.f - turn.w * turn.w));
+    const glm::vec3 spin = sine > 1e-6f ? glm::vec3{turn.x, turn.y, turn.z} / sine * (angle / dt) : glm::vec3{0.f};
+    const glm::quat rot0 = from.rot;
+    for(int k = 1; k <= pieces; k++)
+    {
+        const ReachPose a = poseAt(k - 1);
+        meets(a, poseAt(k));
+        for(const int num : found)
+        {
+            if(num <= svs.maxclients || num >= static_cast<int>(world->slots.size()) ||
+                world->slots[num].kind != Kind::Prop ||
+                std::find(struck.begin(), struck.end(), num) != struck.end() || reachSkips(hb, player, num))
+            {
+                continue;
+            }
+            struck.push_back(num);
+            const b3BodyId prop = world->slots[num].body;
+            std::array<b3ShapeId, 1> propShape;
+            if(b3Body_GetShapes(prop, propShape.data(), 1) < 1)
+            {
+                continue;
+            }
+            // Where the body's surface is nearest the prop's centre with the body at `a` (asked of the shape where it is
+            // now, `from`: the centre taken into its frame there and back).
+            const glm::vec3 pa = glmv(world->toM(a.pos));
+            const glm::vec3 centre = glmv(b3Body_GetWorldCenter(prop));
+            const glm::vec3 inBody = glm::inverse(a.rot) * (centre - pa);
+            const glm::vec3 target0 = p0 + rot0 * inBody;
+            const glm::vec3 near0 = glmv(b3Shape_GetClosestPoint(shapes[0], b3v(target0)));
+            const glm::quat back = a.rot * glm::inverse(rot0);
+            const glm::vec3 at = pa + back * (near0 - p0);
+            const glm::vec3 point = linear + glm::cross(spin, at - pa);
+            const glm::vec3 was = glmv(b3Body_GetLinearVelocity(prop));
+            glm::vec3 normal = back * (target0 - near0);
+            if(glm::length(normal) < 1e-4f) // (its centre inside the body: along the body's motion there)
+            {
+                normal = point - was;
+            }
+            if(glm::length(normal) < 1e-6f)
+            {
+                continue;
+            }
+            normal = glm::normalize(normal);
+            const float closing = glm::dot(point - was, normal);
+            if(closing <= 0.f)
+            {
+                continue;
+            }
+            const float restitution = b3Shape_GetRestitution(propShape[0]);
+            const glm::vec3 now = was + normal * (closing * (1.f + restitution));
+            b3Body_SetLinearVelocity(prop, b3v(now));
+            b3Body_SetAwake(prop, true);
+            if(vr_debug_box3d.value)
+            {
+                Con_Printf("box3d: a reach body's swing (%.1f cm and %.1f degrees this frame, piece %d of %d) strikes %d %s "
+                           "at %.0f u/s: %.0f u/s after (%.0f %.0f %.0f)\n",
+                    most * 100.f, glm::degrees(angle), k, pieces, num, PR_GetString(EDICT_NUM(num)->v.classname),
+                    closing * world->m2u, glm::length(now) * world->m2u, now.x * world->m2u, now.y * world->m2u,
+                    now.z * world->m2u);
+            }
+        }
+    }
+}
+
+void syncReach(float dt)
+{
+    QVR_PROFILE("box3d reach");
+    using Key = World::ReachKey;
+    const FieldOffsets& f = fields();
+    world->hands.resize(static_cast<size_t>(svs.maxclients) + 1);
+    for(int i = 1; i <= svs.maxclients && i < qcvm->num_edicts; i++)
+    {
+        edict_t* player = EDICT_NUM(i);
+        const bool live = !player->free && svs.clients[i - 1].active && player->v.health > 0.f && f.handpos >= 0 &&
+                          fieldFloatOr(player, f.ishuman, 0.f) != 0.f;
+        for(int h = 0; h < 2; h++)
+        {
+            World::HandBody& hb = world->hands[static_cast<size_t>(i)][static_cast<size_t>(h)];
+            const glm::vec3 point = live ? fieldVec(player, h ? f.handpos : f.offhandpos) : glm::vec3{0.f};
+            const glm::vec3 angles = live ? fieldVec(player, h ? f.handrot : f.offhandrot) : glm::vec3{0.f};
+            glm::mat4 inHand{1.f};
+            const Key key = live && point != glm::vec3{0.f} ? reachKey(player, i, h, hb.key, point, angles, inHand) : Key{};
+
+            // Its frame: the hand's (forward, left, up), or the drawn weapon's entity.
+            glm::mat4 frame{held::axesFromAngles(&angles[0], true)};
+            frame[3] = glm::vec4{point, 1.f};
+            if(key.what == Key::Weapon)
+            {
+                frame = frame * inHand;
+            }
+            const glm::vec3 pos{frame[3]};
+            const glm::quat rot = glm::normalize(glm::quat_cast(glm::mat3{frame}));
+            // What it carries (to know what it lets go of).
+            const int heldOfs = h ? f.mainhand_held : f.offhand_held;
+            const int held = live && heldOfs >= 0 && fieldInt(player, heldOfs) > 0
+                                 ? NUM_FOR_EDICT(PROG_TO_EDICT(fieldInt(player, heldOfs)))
+                                 : 0;
+            const int letGo = held == 0 ? hb.held : 0;
+            hb.held = held;
+            if(!(key == hb.key))
+            {
+                makeReach(hb, i, h, key, pos, rot, letGo);
+                hb.key = key;
+                continue;
+            }
+            if(B3_IS_NULL(hb.reach))
+            {
+                continue;
+            }
+
+            // What it passes through, until clear of it.
+            if(!hb.ignore.empty())
+            {
+                const b3AABB mine = b3Body_ComputeAABB(hb.reach);
+                std::erase_if(hb.ignore, [&](int num) {
+                    if(num >= static_cast<int>(world->slots.size()) || world->slots[num].kind != Kind::Prop)
+                    {
+                        return true;
+                    }
+                    const b3AABB theirs = b3Body_ComputeAABB(world->slots[num].body);
+                    return mine.upperBound.x < theirs.lowerBound.x || theirs.upperBound.x < mine.lowerBound.x ||
+                           mine.upperBound.y < theirs.lowerBound.y || theirs.upperBound.y < mine.lowerBound.y ||
+                           mine.upperBound.z < theirs.lowerBound.z || theirs.upperBound.z < mine.lowerBound.z;
+                });
+            }
+
+            // As a carried prop's body: the velocity that gets it where the hand is by the end of the step, or there at
+            // once for a jump (a teleport).
+            const b3WorldTransform now = b3Body_GetTransform(hb.reach);
+            const glm::vec3 at = world->toU(now.p);
+            const bool moved = glm::distance(at, pos) > 0.01f || std::fabs(glm::dot(fromB3(now.q), rot)) < 0.999999f;
+            if(!moved && !b3Body_IsAwake(hb.reach))
+            {
+                continue;
+            }
+            if(glm::distance(at, pos) > 0.5f * world->m2u)
+            {
+                b3Body_SetTransform(hb.reach, world->toM(pos), toB3(rot));
+                b3Body_SetLinearVelocity(hb.reach, b3Vec3_zero);
+                b3Body_SetAngularVelocity(hb.reach, b3Vec3_zero);
+            }
+            else
+            {
+                b3Body_SetTargetTransform(hb.reach, b3WorldTransform{world->toM(pos), toB3(rot)}, dt, true);
+                if(vr_debug_box3d.value >= 2.f)
+                {
+                    Con_Printf("box3d: %s reach body at %.1f %.1f %.1f, the hand's at %.1f %.1f %.1f: %.0f u/s\n",
+                        h ? "main" : "off", at.x, at.y, at.z, pos.x, pos.y, pos.z,
+                        glm::length(world->toU(b3Body_GetLinearVelocity(hb.reach))));
+                }
+                // A swing that would jump over what it meets strikes it (sweepReach).
+                sweepReach(hb, i, ReachPose{at, fromB3(now.q)}, ReachPose{pos, rot}, dt);
+            }
         }
     }
 }
@@ -1998,8 +2592,26 @@ void callShocks()
 // Box3D's custom filter, for the shapes that ask for it (a live grenade's, addPropShapes): a grenade doesn't meet
 // its thrower's body (its .owner: the ogre it leaves, or the player who threw it back), as Quake's missiles don't.
 // Asked when two shapes' boxes first overlap: a grenade thrown back at the ogre that threw it meets it.
+// Whether a reach body's shape meets prop `other`'s (asked by shouldCollide, once as their boxes begin to overlap): an
+// empty hand no grenade (an open palm catches it, a fist knocks it away: vr_grenade.qc).
+[[nodiscard]] bool reachMeets(b3ShapeId reach, b3ShapeId other)
+{
+    const int num = numOf(other);
+    if(num <= svs.maxclients || num >= static_cast<int>(world->slots.size()))
+    {
+        return true;
+    }
+    const Slot& s = world->slots[num];
+    return !(s.kind == Kind::Prop && (b3Shape_GetFilter(reach).categoryBits & catReachHand) && isGrenade(s.model));
+}
+
 bool shouldCollide(b3ShapeId a, b3ShapeId b, void*)
 {
+    const bool aReach = (b3Shape_GetFilter(a).categoryBits & catReach) != 0;
+    if(aReach || (b3Shape_GetFilter(b).categoryBits & catReach) != 0)
+    {
+        return reachMeets(aReach ? a : b, aReach ? b : a);
+    }
     const int na = numOf(a), nb = numOf(b);
     if(na <= 0 || nb <= 0 || na >= qcvm->num_edicts || nb >= qcvm->num_edicts)
     {
@@ -2008,6 +2620,50 @@ bool shouldCollide(b3ShapeId a, b3ShapeId b, void*)
     const edict_t* ea = EDICT_NUM(na);
     const edict_t* eb = EDICT_NUM(nb);
     return ea->v.owner != EDICT_TO_PROG(eb) && eb->v.owner != EDICT_TO_PROG(ea);
+}
+
+// Box3D's pre-solve, for the reach bodies' contacts (their shapes ask for it), each step: none with what the body skips
+// (reachSkips), nor holding up what is heavier than vr_box3d_hand_hold_mass (the prop on top: the normal from the reach
+// body within 60 degrees of up); pushed from the side or below, it still is.
+bool preSolve(b3ShapeId a, b3ShapeId b, b3Pos point, b3Vec3 normal, void*)
+{
+    const bool aReach = (b3Shape_GetFilter(a).categoryBits & catReach) != 0;
+    const b3ShapeId reach = aReach ? a : b, other = aReach ? b : a;
+    if((b3Shape_GetFilter(reach).categoryBits & catReach) == 0)
+    {
+        return true;
+    }
+    const World::HandBody* hb = reachOf(b3Shape_GetBody(reach), numOf(reach));
+    if(hb && reachSkips(*hb, numOf(reach), numOf(other)))
+    {
+        return false;
+    }
+    // The normal turned to point from the body to the prop (towards the prop's centre: Box3D's contacts and its
+    // continuous collision give it either way round).
+    const b3BodyId reachBody = b3Shape_GetBody(reach), propBody = b3Shape_GetBody(other);
+    const glm::vec3 at = glmv(point);
+    glm::vec3 n = glmv(normal);
+    if(glm::dot(n, glmv(b3Body_GetWorldCenter(propBody)) - at) < 0.f)
+    {
+        n = -n;
+    }
+    // Moving apart faster than 0.5 m/s (a prop just struck, flying off ahead of the body: sweepReach): no contact, which
+    // Box3D's continuous collision would otherwise make of the body it leaves (stopping the prop there).
+    const glm::vec3 relative =
+        glmv(b3Body_GetWorldPointVelocity(propBody, point)) - glmv(b3Body_GetWorldPointVelocity(reachBody, point));
+    const float apart = glm::dot(relative, n);
+    if(vr_debug_box3d.value >= 2.f)
+    {
+        Con_Printf("box3d: reach contact with %d: normal %.2f %.2f %.2f, apart at %.2f m/s\n", numOf(other), n.x, n.y, n.z,
+            apart);
+    }
+    if(apart > 0.5f)
+    {
+        return false;
+    }
+    const float most = vr_box3d_hand_hold_mass.value;
+    const float up = n.z;
+    return most <= 0.f || up < 0.5f || b3Body_GetMass(b3Shape_GetBody(other)) <= most;
 }
 
 void updateSettings()
@@ -2118,6 +2774,7 @@ void buildWorld()
     def.capacity.contactCount = 4096;
     world->id = b3CreateWorld(&def);
     b3World_SetCustomFilterCallback(world->id, shouldCollide, nullptr);
+    b3World_SetPreSolveCallback(world->id, preSolve, nullptr);
 
     world->mesh = cachedWorldMesh(sv.worldmodel, world->m2u);
     if(world->mesh)
@@ -2791,6 +3448,29 @@ void debugDraw()
             }
         }
     }
+    // The hands' and weapons' reach bodies (syncReach): white-blue.
+    const glm::vec4 reachColour{0.6f, 0.85f, 1.f, 0.7f};
+    for(const auto& both : world->hands)
+    {
+        for(const World::HandBody& hb : both)
+        {
+            if(B3_IS_NULL(hb.reach) || !b3Body_IsValid(hb.reach))
+            {
+                continue;
+            }
+            const b3WorldTransform xf = b3Body_GetTransform(hb.reach);
+            const int count = b3Body_GetShapes(hb.reach, shapes.data(), static_cast<int>(shapes.size()));
+            for(int i = 0; i < count; i++)
+            {
+                switch(b3Shape_GetType(shapes[i]))
+                {
+                case b3_hullShape: drawHull(b3Shape_GetHull(shapes[i]), xf, reachColour, width); break;
+                case b3_capsuleShape: drawCapsule(b3Shape_GetCapsule(shapes[i]), xf, reachColour, width); break;
+                default: break;
+                }
+            }
+        }
+    }
 }
 
 } // namespace qvr::box3d
@@ -2906,6 +3586,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
         QVR_PROFILE("box3d sync");
         syncEntities(dt);
         syncHands(dt);
+        syncReach(dt);
     }
     {
         QVR_PROFILE("box3d water and hits");

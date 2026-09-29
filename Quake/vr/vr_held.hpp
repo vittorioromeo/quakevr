@@ -48,6 +48,11 @@ void modelBox(const qmodel_t* model, const glm::vec3& scale, const glm::vec3& sc
 // Client side: the entity the local player's `hand` (0 off, 1 main) holds, drawn in that hand this frame (0: none).
 [[nodiscard]] int heldEntity(int hand);
 
+// Client side: whether the local player's `hand` (0 off, 1 main) is empty, as QC's VRIsHandEmpty: no weapon (the fist)
+// and carrying nothing (STAT_QVR_CARRYMAIN, STAT_QVR_CARRYOFF: a box, a gib, a torch). What may grip a weapon's
+// two-handed hotspots, take the carried gun's handle or the flashlight.
+[[nodiscard]] bool handEmpty(int hand);
+
 // Client side, for the weight (vr_weight.cpp): where the entity `hand` holds (heldEntity) sits in it, as drawn last
 // frame: its origin and axes in the hand's frame (held::axesFromAngles of the hand's angles: forward, left, up), and
 // whether both hands hold it (then `otherHand`: where the other hand holds it, in this hand's frame). The entity, or 0:
@@ -79,6 +84,10 @@ bool bothHandsThrow(int hand, double at, bool release, throwing::Estimate& out);
 // the brush model's faces), in its axes relative to its origin, three a triangle; false if it has none (the rigid
 // bodies' convex hulls, vr_box3d.cpp).
 [[nodiscard]] bool drawnVertices(edict_t* ent, std::vector<glm::vec3>& out);
+
+// The vertices of alias model `model`'s first pose as the view draws a weapon with it (weapons::ModelTransform), in its
+// entity's axes; `mirrored` (the off hand's): its y negated. False if it has none (a held weapon's hull, vr_box3d.cpp).
+[[nodiscard]] bool modelVertices(const qmodel_t* model, bool mirrored, std::vector<glm::vec3>& out);
 
 // Grab reach from the fist (ROUND21.md, "Grab reach from the fist; two-handed detach; brushing fingers"): a hand takes
 // hold of a box, backpack, gib, head or armour only if its fist touches the thing's drawn surface: the empty hand
