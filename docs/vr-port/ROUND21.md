@@ -13135,3 +13135,18 @@ more than 32 units behind a wall (as before).
 
 - In the headset: how the masses feel (a weak flick against a heavy box, batting light things, shoving), and whether 5
   cm of give reads as the props touching. The boxes are the drawn models' boxes: round things meet a little early.
+## A smaller player hitbox (research and prototype)
+
+Your notes `vrclimb_2026-09-29_20-06-59` and `20-07-38` (Quake's 32-wide player box keeps you 0.6 m from walls; can
+it be smaller on unmodified maps?). The full write-up, with the candidates' pros and cons, the numbers and what to
+decide, is [HULLS.md](HULLS.md).
+
+In short: at a map's load the world's and its brush models' solid space is rebuilt from the drawing BSP (hull 0) as
+convex brushes with Quake 2's bevels, clip brushes are recovered from hull 1, and the player's box is swept against
+them Quake 2 style, at any width. It is a prototype behind **Debug > Tests > Hitbox Width** (`vr_hull_width`, 0: off,
+Quake's hull 1). Only the player's clipping against the map, doors and lifts is narrower; against monsters, items,
+triggers and shots the box stays Quake's.
+
+To try in the headset: Hitbox Width 20 (or 16), then walk up to walls, into corners, along ledges, up stairs and
+slopes, through doors, onto lifts and trains, and climb. Anything that snags, lets you into a wall, or drops you
+through a floor: a voice note with where you were.

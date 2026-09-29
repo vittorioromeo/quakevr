@@ -1,6 +1,7 @@
 // vr_main.cpp -- Quake VR module lifetime, core cvars and per-frame update.
 
 #include "vr_hitmodel.hpp"
+#include "vr_hull.hpp"
 #include "vr_engine.hpp"
 #include "vr_imgprefetch.hpp"
 #include "vr_anchor.hpp"
@@ -996,6 +997,7 @@ extern "C" void VR_Init()
     motion::init();
     flashlight::init();
     detail::init();
+    hull::init();
     particles::init();
     decals::init();
     client::init();

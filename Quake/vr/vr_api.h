@@ -172,6 +172,10 @@ int VR_AllowWaterSplash (struct edict_s *ent);			// SV_CheckWaterTransition spla
 int VR_TouchLinks (struct edict_s *ent);				// start of SV_TouchLinks: nonzero if handled
 int VR_ExpandAbsBox (struct edict_s *ent);				// SV_LinkEdict: nonzero if it set the abs box
 float VR_MissileExtent (float fallback);				// SV_Move MOVE_MISSILE box extent
+// A player narrower than hull 1 against BSP models (vr_hull_width; vr_hull.cpp, docs/vr-port/HULLS.md).
+int VR_HullMoveBox (struct edict_s *passedict, const float *mins, const float *maxs, float *boxmins, float *boxmaxs); // SV_Move: nonzero if its BSP clips use this box
+int VR_HullClipBSP (struct edict_s *ent, const float *start, const float *boxmins, const float *boxmaxs, const float *end,
+	trace_t *trace);								// SV_ClipMoveToEntity for SOLID_BSP: nonzero if it traced (else the hull)
 // Precise hit detection (vr_hitmodel.cpp): monsters' models, not their boxes, for moves with MOVE_HITMODEL (world.h).
 float VR_HitModelTolerance (int type);				// SV_Move: the tolerance of the move's class; -1: not precise (the option off)
 int VR_HitModelTarget (struct edict_s *ent);			// SV_ClipToLinks: nonzero if its model is what is hit

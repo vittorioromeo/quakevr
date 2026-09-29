@@ -46,6 +46,8 @@ typedef struct
 	qboolean	hitgibs;		// QVR: MOVE_HITGIBS, or a missile
 	float		hitmodel;		// QVR: MOVE_HITMODEL: its class's tolerance (-1: not precise, the boxes)
 	int			hittype;		// QVR: (its type, with the class)
+	qboolean	bspbox;			// QVR: the player's narrower box against BSP models (vr_hull_width; vr/vr_hull.cpp)
+	vec3_t		bspmins, bspmaxs;
 } moveclip_t;
 
 
@@ -862,6 +864,31 @@ trace_t SV_ClipMoveToEntity (edict_t *ent, vec3_t start, vec3_t mins, vec3_t max
 	return trace;
 }
 
+/*
+==================
+SV_ClipMoveToEntityQVR
+
+QVR: SV_ClipMoveToEntity, but a BSP model met by the move's narrower box (vr_hull_width; vr/vr_hull.cpp) is
+traced against the brushes rebuilt from its hull 0.
+==================
+*/
+static trace_t SV_ClipMoveToEntityQVR (edict_t *ent, vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, const moveclip_t *clip)
+{
+	trace_t		trace;
+
+	if (clip->bspbox && ent->v.solid == SOLID_BSP)
+	{
+		memset (&trace, 0, sizeof(trace_t));
+		if (VR_HullClipBSP (ent, start, clip->bspmins, clip->bspmaxs, end, &trace))
+		{
+			if (trace.fraction < 1 || trace.startsolid)
+				trace.ent = ent;
+			return trace;
+		}
+	}
+	return SV_ClipMoveToEntity (ent, start, mins, maxs, end);
+}
+
 //===========================================================================
 
 /*
@@ -935,7 +962,7 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 		else if (((int)touch->v.flags & FL_MONSTER) && touch->v.solid != SOLID_NOT_BUT_TOUCHABLE)
 			trace = SV_ClipMoveToEntity (touch, clip->start, clip->mins2, clip->maxs2, clip->end);
 		else
-			trace = SV_ClipMoveToEntity (touch, clip->start, clip->mins, clip->maxs, clip->end);
+			trace = SV_ClipMoveToEntityQVR (touch, clip->start, clip->mins, clip->maxs, clip->end, clip); // QVR
 		if (trace.allsolid || trace.startsolid ||
 		trace.fraction < clip->trace.fraction)
 		{
@@ -1029,7 +1056,8 @@ static trace_t SV_MoveRun (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, i
 		clip.hitgibs = true;
 
 // clip to world
-	clip.trace = SV_ClipMoveToEntity ( qcvm->edicts, start, mins, maxs, end );
+	clip.bspbox = VR_HullMoveBox (passedict, mins, maxs, clip.bspmins, clip.bspmaxs); // QVR: the player's narrower box
+	clip.trace = SV_ClipMoveToEntityQVR ( qcvm->edicts, start, mins, maxs, end, &clip ); // QVR
 
 	clip.start = start;
 	clip.end = end;
