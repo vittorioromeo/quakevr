@@ -19,6 +19,10 @@ Melee: soft punches do nothing; real jabs, hooks and uppercuts land
 Melee: reloading or waving a gun near the dummy doesn't hit; pistol-whip and butt strikes do
 Melee: wiggling a sword or axe against the dummy doesn't hit; real cuts land
 
+Menu button: in a menu it returns straight to the game; pressing it again reopens the last page
+Grenade pouch: the grenade now comes out the same way in the hand whatever its angle; retune the Grenade In Hand sliders while holding one (live), then tell me the values
+HUD: back to Ironwail's style; the status bar drawn on your hand is gone (Options > HUD style: Classic brings it back)
+
 [Decide or give feedback]
 Hitbox width: pick one once the full version (every surface and entity, method A vs B) ships
 
