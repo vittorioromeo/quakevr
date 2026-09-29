@@ -24,7 +24,7 @@
 //   weapons as bodies"): an empty hand's open hand or fist (vr_box3d_hand_props; not grenades, which the palm catches),
 //   a held weapon's drawn hull (vr_box3d_weapon_push: a grenade is batted). What was inside one as it was made (let go
 //   of, thrown, a weapon taken) passes through it until clear; what is heavier than vr_box3d_hand_hold_mass slips off.
-//   They push by mass (pushShare, limitPushes: vr_box3d_hand_mass, vr_box3d_weapon_mass, vr_box3d_push_force), as do
+//   They push by mass (pushShare, limitPushes: vr_box3d_hand_mass, vr_box3d_weapon_arm_mass and each weapon's Mass, vr_box3d_push_force), as do
 //   the fists' spheres and the carried props: a flick barely moves a heavy prop.
 // - Box3D is authoritative for props: their origin, angles, velocity (.velocity, the centre of mass's), spin
 //   (.vr_spin, rad/s) and sleep (FL_ONGROUND and its groundentity) are written back every frame. What QC changes
@@ -400,6 +400,7 @@ struct World
         ReachKey key{};
         std::vector<int> ignore; // props the reach body passes through until clear of them (inside it as it was made)
         int held{0};             // the prop the hand carried last frame (0: none)
+        float weaponMass{0.f};   // the held weapon's own mass (kg: Weapon Weights' Mass; 0: none, or not a weapon)
     };
     std::vector<std::array<HandBody, 2>> hands;
     std::map<PropHullKey, b3HullData*> propHulls;      // nullptr: no hull (a box instead)
@@ -1611,6 +1612,16 @@ constexpr float reachCapsule = 0.015f; // m: another player's weapon's radius
     return nullptr;
 }
 
+// The weapon `player`'s hand `h` holds: its own mass (kg, Weapon Weights: Mass; 0: none, or not a weapon).
+[[nodiscard]] float heldWeaponMass(edict_t* player, int h)
+{
+    const FieldOffsets& f = fields();
+    const char* name = h ? PR_GetString(player->v.weaponmodel)
+                         : (f.weaponmodel2 >= 0 ? PR_GetString(fieldInt(player, f.weaponmodel2)) : "");
+    const int slot = name && *name ? weapons::slotForName(name) : -1;
+    return slot >= 0 ? std::max(weapons::value(slot, weapons::Key::Mass), 0.f) : 0.f;
+}
+
 // What hand `h` of client `i` is now (`last`: what it was), and for a drawn weapon its entity in the hand's frame.
 [[nodiscard]] World::ReachKey reachKey(edict_t* player, int i, int h, const World::ReachKey& last, const glm::vec3& point,
     const glm::vec3& angles, glm::mat4& inHand)
@@ -1880,7 +1891,7 @@ struct ReachPose
 // Pushes by mass (ROUND21.md, "Pushes by mass"): the hands, their weapons and what they carry are kinematic bodies (of
 // no give), which knock whatever they meet as if it weighed nothing: a flick of the wrist sent a 40 kg box across the
 // room. Each is given a mass instead, what an arm puts behind it: an empty hand's vr_box3d_hand_mass, a held weapon's
-// vr_box3d_weapon_mass, a carried prop's own and each hand's holding it. A prop of mass `m` struck by `pusher` kg keeps
+// own (Weapon Weights: Mass) and vr_box3d_weapon_arm_mass, a carried prop's own and each hand's holding it. A prop of mass `m` struck by `pusher` kg keeps
 // pusher / (pusher + m) of the velocity the kinematic body gave it (the share of two masses meeting: a 0.4 kg grenade
 // most of it, a 40 kg box a tenth). 1: no limit (the setting 0).
 [[nodiscard]] float pushShare(float pusher, float m)
@@ -1905,10 +1916,12 @@ struct ReachPose
     return keep;
 }
 
+// A hand's body's mass: an empty hand's vr_box3d_hand_mass; a weapon's its own (Weapon Weights: Mass) and the arm's
+// behind it (vr_box3d_weapon_arm_mass), so the heavy ones (the rocket launcher, the hammer) bat harder than the light.
 [[nodiscard]] float reachMass(const World::HandBody& hb)
 {
     const bool weapon = hb.key.what == World::ReachKey::Weapon || hb.key.what == World::ReachKey::Capsule;
-    return std::max(weapon ? vr_box3d_weapon_mass.value : vr_box3d_hand_mass.value, 0.f);
+    return weapon ? std::max(vr_box3d_weapon_arm_mass.value, 0.f) + hb.weaponMass : std::max(vr_box3d_hand_mass.value, 0.f);
 }
 
 // A fast move of the reach body of `hb` over a step `dt` (a swing): Box3D collides once a step, at its start, so a
@@ -2088,6 +2101,7 @@ void syncReach(float dt)
             const glm::vec3 angles = live ? fieldVec(player, h ? f.handrot : f.offhandrot) : glm::vec3{0.f};
             glm::mat4 inHand{1.f};
             const Key key = live && point != glm::vec3{0.f} ? reachKey(player, i, h, hb.key, point, angles, inHand) : Key{};
+            hb.weaponMass = key.what == Key::Weapon || key.what == Key::Capsule ? heldWeaponMass(player, h) : 0.f;
 
             // Its frame: the hand's (forward, left, up), or the drawn weapon's entity.
             glm::mat4 frame{held::axesFromAngles(&angles[0], true)};
@@ -2748,7 +2762,7 @@ bool preSolve(b3ShapeId a, b3ShapeId b, b3Pos point, b3Vec3 normal, void*)
 void notePushed(float dt)
 {
     world->pushed.clear();
-    if(vr_box3d_hand_mass.value <= 0.f && vr_box3d_weapon_mass.value <= 0.f)
+    if(vr_box3d_hand_mass.value <= 0.f && vr_box3d_weapon_arm_mass.value <= 0.f)
     {
         return;
     }

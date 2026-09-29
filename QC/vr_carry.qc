@@ -167,7 +167,12 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Nudge =
     // A solid prop (an explosive box) poked by a gun (or a hand without its body: vr_box3d_hand_push 0): pushed where the
     // hand is, so pushed high it tips over, low it slides (Box3D); by the hand's or the gun's mass, so a flick barely moves
     // a heavy box (ROUND21.md, "Pushes by mass").
-    float pushMass = cvar(VRIsHandWeaponless(xPlayer, xHand) ? "vr_box3d_hand_mass" : "vr_box3d_weapon_mass");
+    float pushMass = cvar("vr_box3d_hand_mass");
+    if(!VRIsHandWeaponless(xPlayer, xHand))
+    {
+        pushMass = max(0, cvar("vr_box3d_weapon_arm_mass")) +
+                   weaponvalue(WeaponIdToModel(VRGetEntWeapon(xPlayer, xHand), VRGetEntWeaponFlags(xPlayer, xHand)), "w_mass");
+    }
     if(xBox.vr_rigid == 2 && physicspush(xBox, VRGetEntHandPos(xPlayer, xHand), v, pushMass))
     {
         xBox.carry_nudgetime = time + 0.05;

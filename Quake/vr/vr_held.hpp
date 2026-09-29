@@ -68,6 +68,19 @@ bool drawnBox(int num, glm::vec3& lo, glm::vec3& hi);
 // hand eases back onto its controller. False (unchanged) otherwise.
 bool drawnHand(int hand, glm::vec3& pos, glm::vec3& angles);
 
+// Client side (ROUND21.md, "Held props against weapons, monsters and walls"): the entity the local player's `hand` holds
+// in it alone (not in both hands), drawn there this frame (0: none), and how far it and the hand are drawn moved off
+// the hand's place by meeting the other hand's prop or weapon, and the walls (`drawnOffset`, units).
+[[nodiscard]] int heldAlone(int hand, glm::vec3* drawnOffset = nullptr);
+
+// Client side: how far the weapon in `hand` is drawn moved back, pressed against the prop in the other hand (units;
+// the view moves the hand by it, with vr_model_collide's push: modelcollide::beginView).
+[[nodiscard]] glm::vec3 drawnPush(int hand);
+
+// Client side, the view (modelcollide::beginView): the prop `hand` holds alone drawn moved by `push` from where the hand
+// has it this frame, with the hand (held out of a monster: vr_model_collide).
+void viewPush(int hand, const glm::vec3& push);
+
 // Client side: the throw estimate of `hand` (tracking clock `at`) holding a prop in both hands: the prop's own motion
 // from both hands (throwing::estimateBothAt). `release`: the hand lets go now, of a prop held in both, or held in both
 // until the other let go at most vr_carry_two_hands_window before (a two-handed throw); else the estimate as if let

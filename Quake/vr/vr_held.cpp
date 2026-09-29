@@ -16,7 +16,9 @@
 #include "vr_props.hpp"
 #include "vr_protocol.hpp"
 #include "vr_throw.hpp"
+#include "vr_trace.hpp"
 #include "vr_units.hpp"
+#include "vr_view.hpp"
 #include "vr_weapons.hpp"
 
 #include <algorithm>
@@ -968,14 +970,34 @@ constexpr float mostHandTurn = glm::radians(40.f);
 
 // Props held one in each hand meet (ROUND21.md, "Held props meet"): their drawn boxes are kept apart, each hand and what
 // it holds drawn moved back along the way they meet by half how deep they would be, at most vr_held_collide_max (the
-// looks only: the server has them in the hands, the throw is the hands'). Eased in and out, a buzz as they meet.
+// looks only: the server has them in the hands, the throw is the hands'). Eased in and out, a buzz as they meet. So do a
+// prop in one hand and the weapon in the other (the weapon's drawn box; its hand drawn moved back by the view:
+// modelcollide::beginView, drawnPush), and a prop and the walls (wallFrame; ROUND21.md, "Held props against weapons,
+// monsters and walls").
 struct Meet
 {
     glm::vec3 offset[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // each hand's, drawn now (units)
     double last{-1.0};                                  // cl.time of the last frame
     bool touching{false};
+    bool weapon{false};                                 // a prop against the other hand's weapon (not two props)
+    glm::vec3 wall[2]{glm::vec3{0.f}, glm::vec3{0.f}};  // each hand's prop held out of the walls, drawn now (units)
+    bool wallTouching[2]{false, false};
+    glm::vec3 viewPush[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // and out of the monsters (the view's: viewPush)
 };
 Meet meet;
+
+// A held weapon's box: its model's first pose (as its body in Box3D: held::modelVertices), by model and mirrored (the
+// off hand's), in its entity's axes; each hand's last.
+struct WeaponBox
+{
+    const qmodel_t* model{nullptr};
+    bool mirrored{false};
+    std::string name;
+    bool valid{false};
+    glm::vec3 lo{0.f}, hi{0.f};
+};
+WeaponBox weaponBoxes[2];
+double wallLast[2]{0.0, 0.0}; // cl.time of each hand's last wallFrame
 
 // The hands this frame's held things were drawn from (vr_carry_check: the hands move on before the next frame's check).
 hands::State drawnFrom;
@@ -1110,6 +1132,62 @@ void reset()
     meet = Meet{};
 }
 
+// The weapon drawn in hand `h` as a box in the world: where it is in the hand as drawn last frame (view::drawnWeapon),
+// placed from this frame's hand `s`. False: none (the fist, or not drawn lately).
+[[nodiscard]] bool weaponBox(const hands::State& s, int h, Box& out)
+{
+    const view::DrawnWeapon& d = view::drawnWeapon(h);
+    if(!d.model || d.when < 0.0 || realtime - d.when > 0.5 || !s.valid)
+    {
+        return false;
+    }
+    WeaponBox& wb = weaponBoxes[h];
+    if(wb.model != d.model || wb.mirrored != d.mirrored || wb.name != d.model->name)
+    {
+        wb.model = d.model;
+        wb.mirrored = d.mirrored;
+        wb.name = d.model->name;
+        std::vector<glm::vec3> vertices;
+        wb.valid = held::modelVertices(d.model, d.mirrored, vertices) && !vertices.empty();
+        wb.lo = glm::vec3{1e9f};
+        wb.hi = glm::vec3{-1e9f};
+        for(const glm::vec3& v : vertices)
+        {
+            wb.lo = glm::min(wb.lo, v);
+            wb.hi = glm::max(wb.hi, v);
+        }
+    }
+    if(!wb.valid)
+    {
+        return false;
+    }
+    glm::mat4 hand{held::axesFromAngles(&s.rot[h][0], true)};
+    hand[3] = glm::vec4{s.pos[h], 1.f};
+    const glm::mat4 m = hand * d.inHand;
+    const glm::vec3 half = (wb.hi - wb.lo) * 0.5f;
+    out.centre = glm::vec3{m * glm::vec4{(wb.lo + wb.hi) * 0.5f, 1.f}};
+    for(int i = 0; i < 3; i++)
+    {
+        const glm::vec3 axis{m[i]};
+        const float len = glm::length(axis);
+        out.axes[i] = len > 1e-6f ? axis / len : glm::vec3{0.f};
+        out.half[i] = half[i] * len;
+    }
+    return true;
+}
+
+// The drawn box of the prop `hd` holds, where the hand has it now.
+[[nodiscard]] bool propBox(const Held& hd, Box& out)
+{
+    glm::vec3 lo, hi;
+    if(!held::drawnBox(hd.ent, lo, hi))
+    {
+        return false;
+    }
+    out = Box{hd.lastPos + hd.lastRot * ((lo + hi) * 0.5f), hd.lastRot, (hi - lo) * 0.5f};
+    return true;
+}
+
 [[nodiscard]] carry2h::Frame controller(const hands::State& s, int h)
 {
     return {s.pos[h], carry2h::fromAngles(&s.rot[h][0], true)};
@@ -1224,8 +1302,8 @@ void holdFrame(int h, const hands::State& s, int bothEnt)
     hd.drawn = true;
 }
 
-// After both hands' holdFrame: props held one in each hand kept apart (Meet).
-void meetFrame()
+// After both hands' holdFrame: props held one in each hand kept apart, or a prop and the other hand's weapon (Meet).
+void meetFrame(const hands::State& s)
 {
     const double dt = meet.last < 0.0 ? 0.0 : std::clamp(cl.time - meet.last, 0.0, 0.1);
     meet.last = cl.time;
@@ -1233,24 +1311,29 @@ void meetFrame()
     float depth = 0.f;
     Held& a = holding[0];
     Held& b = holding[1];
-    if(vr_held_collide.value && a.drawn && b.drawn && a.ent != b.ent)
+    // A prop held in one hand (not in both), against the other hand's prop or its weapon.
+    const bool propA = a.drawn && a.ent != both.ent;
+    const bool propB = b.drawn && b.ent != both.ent;
+    Box boxA{}, boxB{};
+    bool haveA = false, haveB = false;
+    meet.weapon = !propA || !propB;
+    if(vr_held_collide.value && (propA || propB) && a.ent != b.ent)
     {
-        glm::vec3 loA, hiA, loB, hiB;
-        if(held::drawnBox(a.ent, loA, hiA) && held::drawnBox(b.ent, loB, hiB))
+        haveA = propA ? propBox(a, boxA) : !a.ent && weaponBox(s, 0, boxA);
+        haveB = propB ? propBox(b, boxB) : !b.ent && weaponBox(s, 1, boxB);
+    }
+    if(haveA && haveB)
+    {
+        // Where the hands have them: each drawn moved back along the way they are least deep by half of it, at most
+        // vr_held_collide_max (deeper, they overlap by the rest).
+        glm::vec3 n{0.f};
+        depth = overlap(boxA, boxB, n);
+        if(depth > 0.f)
         {
-            // Where the hands have them: each drawn moved back along the way they are least deep by half of it, at most
-            // vr_held_collide_max (deeper, they overlap by the rest).
-            const Box boxA{a.lastPos + a.lastRot * ((loA + hiA) * 0.5f), a.lastRot, (hiA - loA) * 0.5f};
-            const Box boxB{b.lastPos + b.lastRot * ((loB + hiB) * 0.5f), b.lastRot, (hiB - loB) * 0.5f};
-            glm::vec3 n{0.f};
-            depth = overlap(boxA, boxB, n);
-            if(depth > 0.f)
-            {
-                const float most = std::max(vr_held_collide_max.value, 0.f) * units::metresToUnits() / 100.f;
-                const float each = std::min(depth * 0.5f, most);
-                want[0] = -n * each;
-                want[1] = n * each;
-            }
+            const float most = std::max(vr_held_collide_max.value, 0.f) * units::metresToUnits() / 100.f;
+            const float each = std::min(depth * 0.5f, most);
+            want[0] = -n * each;
+            want[1] = n * each;
         }
     }
 
@@ -1266,7 +1349,9 @@ void meetFrame()
     }
     if(touching != meet.touching && vr_debug_carry.value)
     {
-        Con_Printf("held: %d and %d %s\n", a.ent, b.ent, touching ? "meet" : "apart");
+        Con_Printf("held: %d and %d %s%s (boxes' half sizes %.1f %.1f %.1f and %.1f %.1f %.1f units; the hands %.1f units apart)\n",
+            a.ent, b.ent, touching ? "meet" : "apart", meet.weapon ? " (a weapon)" : "", boxA.half.x, boxA.half.y,
+            boxA.half.z, boxB.half.x, boxB.half.y, boxB.half.z, glm::distance(s.pos[0], s.pos[1]));
     }
     meet.touching = touching;
 
@@ -1275,25 +1360,154 @@ void meetFrame()
     {
         Held& hd = holding[h];
         meet.offset[h] += (want[h] - meet.offset[h]) * w;
-        if(!hd.drawn)
-        {
-            meet.offset[h] = glm::vec3{0.f};
-            continue;
-        }
         if(glm::length(meet.offset[h]) < 0.01f)
         {
             meet.offset[h] = glm::vec3{0.f};
             continue;
+        }
+        if(!hd.drawn)
+        {
+            continue; // a weapon: its hand drawn moved by the view (drawnPush)
         }
         hd.lastPos += meet.offset[h];
         place(cl_entities[hd.ent], hd.lastPos, hd.lastRot);
     }
     if(vr_debug_carry.value && touching)
     {
-        Con_Printf("held: %d and %d meet %.1f cm deep (%.1f cm apart); drawn moved apart by %.1f and %.1f cm\n", a.ent,
-            b.ent, depth / units::metresToUnits() * 100.f,
-            glm::distance(a.lastPos - meet.offset[0], b.lastPos - meet.offset[1]) / units::metresToUnits() * 100.f, glm::length(meet.offset[0]) / units::metresToUnits() * 100.f,
+        Con_Printf("held: %d and %d%s meet %.1f cm deep (%.1f cm apart); drawn moved apart by %.1f and %.1f cm\n", a.ent,
+            b.ent, meet.weapon ? " (a weapon)" : "", depth / units::metresToUnits() * 100.f,
+            glm::distance(boxA.centre, boxB.centre) / units::metresToUnits() * 100.f, glm::length(meet.offset[0]) / units::metresToUnits() * 100.f,
             glm::length(meet.offset[1]) / units::metresToUnits() * 100.f);
+    }
+}
+
+// A prop held in one hand against the walls (and the level's brush entities: doors, lifts), after meetFrame: drawn held
+// out of them, the hand with it, as far as vr_held_collide_wall_max (deeper, it goes in by the rest; the server drops it
+// when the hand is 32 units past where it stops: VR_Carry_Follow). The test: lines from the hand (out of the walls:
+// handpose) to its drawn box's corners and faces' middles; each that meets a wall, a plane there the point must be moved
+// back out of; the push the least move out of them all (Gauss-Seidel), tested again from there (three rounds at most).
+// Looks only, as meetFrame. Out at once; back in over meetEaseTime; a buzz in the hand as it touches.
+void wallFrame(const hands::State& s)
+{
+    const float m2u = units::metresToUnits();
+    const float most = std::max(vr_held_collide_wall_max.value, 0.f) * m2u / 100.f;
+    constexpr float margin = 0.25f; // units off the wall
+    for(int h = 0; h < 2; h++)
+    {
+        Held& hd = holding[h];
+        glm::vec3 want{0.f};
+        float deepest = 0.f;
+        Box box;
+        if(vr_held_collide_walls.value && most > 0.f && hd.drawn && hd.ent != both.ent && s.valid && propBox(hd, box))
+        {
+            glm::vec3 points[14];
+            int n = 0;
+            for(int i = 0; i < 8; i++)
+            {
+                const glm::vec3 c{(i & 1) ? 1.f : -1.f, (i & 2) ? 1.f : -1.f, (i & 4) ? 1.f : -1.f};
+                points[n++] = box.centre + box.axes * (c * box.half);
+            }
+            for(int i = 0; i < 3; i++)
+            {
+                points[n++] = box.centre + box.axes[i] * box.half[i];
+                points[n++] = box.centre - box.axes[i] * box.half[i];
+            }
+            const glm::vec3 grip = s.pos[h] + meet.offset[h];
+            struct Plane
+            {
+                glm::vec3 n;
+                float c;
+            };
+            Plane planes[3 * 14];
+            int count = 0;
+            glm::vec3 p{0.f};
+            for(int round = 0; round < 3; round++)
+            {
+                bool found = false;
+                for(const glm::vec3& point : points)
+                {
+                    const glm::vec3 end = point + p;
+                    const trace_t tr = worldtrace::world(grip + p, end, true);
+                    if(tr.startsolid || tr.allsolid || tr.fraction >= 1.f)
+                    {
+                        continue;
+                    }
+                    const glm::vec3 wallN = worldtrace::normal(tr);
+                    const float depth = glm::dot(worldtrace::endPos(tr) - end, wallN); // behind the wall
+                    if(depth + margin <= 0.f || count >= 3 * 14)
+                    {
+                        continue;
+                    }
+                    deepest = std::max(deepest, depth);
+                    planes[count++] = Plane{wallN, depth + margin + glm::dot(p, wallN)};
+                    found = true;
+                }
+                if(!found)
+                {
+                    break;
+                }
+                for(int sweep = 0; sweep < 16; sweep++)
+                {
+                    float worst = 0.f;
+                    for(int i = 0; i < count; i++)
+                    {
+                        const float short_ = planes[i].c - glm::dot(p, planes[i].n);
+                        if(short_ > 0.f)
+                        {
+                            p += planes[i].n * short_;
+                            worst = std::max(worst, short_);
+                        }
+                    }
+                    if(worst < 0.01f)
+                    {
+                        break;
+                    }
+                }
+                if(glm::length(p) > 2.f * most)
+                {
+                    break;
+                }
+            }
+            want = glm::length(p) > most ? p * (most / glm::length(p)) : p;
+        }
+
+        // Out at once, back over meetEaseTime.
+        glm::vec3& wall = meet.wall[h];
+        if(glm::dot(want - wall, want) > 0.f)
+        {
+            wall = want;
+        }
+        else
+        {
+            const float w = static_cast<float>(std::min(1.0, std::max(cl.time - wallLast[h], 0.0) / meetEaseTime));
+            wall += (want - wall) * w;
+        }
+        wallLast[h] = cl.time;
+        if(glm::length(wall) < 0.01f || !hd.drawn)
+        {
+            wall = glm::vec3{0.f};
+        }
+
+        const bool touching = want != glm::vec3{0.f};
+        if(touching && !meet.wallTouching[h] && !vr_disablehaptics.value)
+        {
+            if(Backend* be = backend())
+            {
+                be->haptic(h, 0.03f, 90.f, 0.3f);
+            }
+        }
+        if(vr_debug_carry.value && (touching || meet.wallTouching[h]))
+        {
+            Con_Printf("held: %d in the %s hand %s a wall: %.1f cm deep; drawn moved back %.1f cm (%.2f %.2f %.2f)\n", hd.ent,
+                h == 1 ? "main" : "off", touching ? "against" : "off", deepest / m2u * 100.f, glm::length(wall) / m2u * 100.f,
+                wall.x, wall.y, wall.z);
+        }
+        meet.wallTouching[h] = touching;
+        if(wall != glm::vec3{0.f})
+        {
+            hd.lastPos += wall;
+            place(cl_entities[hd.ent], hd.lastPos, hd.lastRot);
+        }
     }
 }
 
@@ -1564,10 +1778,10 @@ bool drawnHand(int hand, glm::vec3& pos, glm::vec3& angles)
         carry2h::toAngles(both.drawn[hand].rot, &angles[0], true);
         return true;
     }
-    // Moved back with what it holds, pressed against what the other holds (meetFrame).
-    if(holding[hand].drawn && meet.offset[hand] != glm::vec3{0.f})
+    // Moved back with what it holds, pressed against what the other holds (meetFrame) or a wall (wallFrame).
+    if(holding[hand].drawn && (meet.offset[hand] != glm::vec3{0.f} || meet.wall[hand] != glm::vec3{0.f}))
     {
-        pos += meet.offset[hand];
+        pos += meet.offset[hand] + meet.wall[hand];
         return true;
     }
     const HandEase& he = handEase[hand];
@@ -1581,6 +1795,45 @@ bool drawnHand(int hand, glm::vec3& pos, glm::vec3& angles)
     pos += he.offset * w;
     carry2h::toAngles(glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, he.turn, w) * carry2h::fromAngles(&angles[0], true), &angles[0], true);
     return true;
+}
+
+int heldAlone(int hand, glm::vec3* drawnOffset)
+{
+    if(hand < 0 || hand > 1)
+    {
+        return 0;
+    }
+    const Held& hd = holding[hand];
+    if(!hd.drawn || hd.ent == both.ent || !valid(hd.ent, hd.model))
+    {
+        return 0;
+    }
+    if(drawnOffset)
+    {
+        *drawnOffset = meet.offset[hand] + meet.wall[hand];
+    }
+    return hd.ent;
+}
+
+glm::vec3 drawnPush(int hand)
+{
+    return (hand == 0 || hand == 1) && !holding[hand].drawn ? meet.offset[hand] : glm::vec3{0.f};
+}
+
+void viewPush(int hand, const glm::vec3& push)
+{
+    if(hand < 0 || hand > 1)
+    {
+        return;
+    }
+    Held& hd = holding[hand];
+    if(!hd.drawn || hd.ent == both.ent || !valid(hd.ent, hd.model))
+    {
+        meet.viewPush[hand] = glm::vec3{0.f};
+        return;
+    }
+    meet.viewPush[hand] = push;
+    place(cl_entities[hd.ent], hd.lastPos + push, hd.lastRot); // (again in a frame drawn twice: the same)
 }
 
 bool bothHandsThrow(int hand, double at, bool release, throwing::Estimate& out)
@@ -1771,7 +2024,8 @@ extern "C" void VR_RelinkHeld(void)
         {
             holdFrame(h, s, bothEnt);
         }
-        meetFrame();
+        meetFrame(s);
+        wallFrame(s);
         bothFrame(s, bothEnt);
         for(Easing& ea : easing)
         {
