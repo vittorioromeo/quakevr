@@ -328,6 +328,25 @@ void takeShippedSlot(int slot)
     clearSlotCaches();
 }
 
+void takeShippedKeys(int slot, std::initializer_list<Key> keys)
+{
+    if(slot < 0 || slot >= numSlots || strcmp(cvarAt(slot, Key::ID).string, cvarAt(slot, Key::ID).default_string) != 0)
+    {
+        return; // (another model in the slot: its settings are the config's)
+    }
+    for(const Key key : keys)
+    {
+        cvar_t& var = cvarAt(slot, key);
+        const char* before = keyDefaults[static_cast<int>(key)];
+        if(strtof(var.string, nullptr) == strtof(before, nullptr) && strcmp(var.string, var.default_string) != 0)
+        {
+            Con_DPrintf("Held Object Offsets: %s: %s (was %s)\n", var.name, var.default_string, var.string);
+            Cvar_SetQuick(&var, var.default_string);
+        }
+    }
+    clearSlotCaches();
+}
+
 bool weightKey(Key key)
 {
     switch(key)

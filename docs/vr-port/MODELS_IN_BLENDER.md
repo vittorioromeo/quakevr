@@ -210,6 +210,7 @@ export's report checks those, before and after, and a line starting with `CHECK`
 |---|---|---|
 | `vrflashlight.mdl` the flashlight | **Read from the model** as it loads (`vr_flashlight.cpp`): the lens, its centre and radius (the beam, the lens's glow and the light start there, that wide), the tail (the belt clip holds it there, the cord goes in there), the switch (its clicks), its outline (how close it sits under or beside a gun, how far in front of the belt clip). Fixed: +x is the beam, +z the switch's side (towards the knuckles in the fist, away from the body elsewhere), the origin is the middle of the grip, where the fist holds it | Anything. The lens is **the part painted fullbright in skin 1** (the "on" skin; the game draws skin 0 and its own glow): keep the lens's faces mapped there, or paint where they are. Keep it facing +x, the switch on +z, the origin inside the grip. Thicker or thinner grip: the fingers wrap it by themselves (Fingers set to Manual on the Flashlight page: retune them) |
 | `legholster.mdl` the hip holsters | The weapon hangs at the origin (the loops go round it); the plate's back rests on the body, 2.95 from the origin along +y (`vr_view.cpp` `plateBack`); +x forward, +z up | The report gives the back's place: if it moves, it prints the new `plateBack` |
+| `vrpouch.mdl` the grenade pouch | Its back against the body at x 0, the origin the middle of its back (where the body's surface is under the pouch); +x out of the body, +z up; frame 0 full, frame 1 empty (the engine picks it from your rockets: `vr_view.cpp` `setupPouch`) | Keep the origin on its back and both frames (the same vertices) |
 | `vrpauldron.mdl`, `vrpauldron_arm.mdl` the pauldrons | The origin on the left shoulder joint (the right one is drawn mirrored); 5 skins: 0 leather, 1-3 the armour's colour, 4 steel (Pauldron Style) | Keep the origin and the 5 skins |
 | `vr_shell.mdl` the spent shotgun shell | Its axis along +x, the origin in its middle (it tumbles about it); the rim's radius 1.12 cm, how high a lying shell's middle is (`vr_shells.cpp` `shellRadius`) | The report prints the new `shellRadius` if the rim changed |
 | `wpnbutton.mdl` the ammo button on the guns | Drawn at the gun's button anchor; a fingertip within 2.7 units of its origin presses it | Keep it centred on the origin |
@@ -354,7 +355,7 @@ The generators in `Misc/quakevr` make the shipped models:
 | `make_gadget.py` | `vrgadget.mdl`, `vrgadget_strap.mdl` |
 | `make_hand_rig.py` | the hand |
 | `make_flashlight.py` | `vrflashlight.mdl` and its sounds |
-| `make_holster.py`, `make_pauldron.py`, `make_shell.py` | `legholster.mdl`; `vrpauldron.mdl`, `vrpauldron_arm.mdl`; `vr_shell.mdl` |
+| `make_holster.py`, `make_pauldron.py`, `make_shell.py`, `make_pouch.py` | `legholster.mdl`; `vrpauldron.mdl`, `vrpauldron_arm.mdl`; `vr_shell.mdl`; `vrpouch.mdl` |
 | `make_bloody_hands.py` | the blood skins (1-3) of `hand_base.mdl` and `finger_*.mdl` |
 | `make_spawn_buttons.py` | `maps/vr_spawnpanel.bsp`, `maps/vr_spawnbutton.bsp` |
 | `make_detail.py`, `make_grades.py` | the detail textures (`textures/vr/detail_*.png`), the colour grades (`gfx/vr/grade_*.png`) |

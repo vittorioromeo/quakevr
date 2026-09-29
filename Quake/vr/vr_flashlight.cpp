@@ -1072,12 +1072,14 @@ void noteIntent(const hands::State& s)
         case body::HS_RIGHT_HIP_HOLSTER: holster = body::RightHip; break;
         case body::HS_LEFT_UPPER_HOLSTER: holster = body::LeftUpper; break;
         case body::HS_RIGHT_UPPER_HOLSTER: holster = body::RightUpper; break;
+        case body::HS_GRENADE_POUCH: holster = body::HolsterCount; break; // (the pouch: nearer than the torch, a grenade)
         default: return false;
     }
     const glm::vec3 a = modelPointAt(st.pose, shape().cap);
     const glm::vec3 ab = modelPointAt(st.pose, shape().lens) - a;
     const float t = std::clamp(glm::dot(s.pos[hand] - a, ab) / std::max(glm::dot(ab, ab), 1e-4f), 0.f, 1.f);
-    return glm::distance(s.pos[hand], body::holsterPosition(s, holster)) < glm::distance(s.pos[hand], a + ab * t);
+    const glm::vec3 spot = holster == body::HolsterCount ? body::pouchPosition(s) : body::holsterPosition(s, holster);
+    return glm::distance(s.pos[hand], spot) < glm::distance(s.pos[hand], a + ab * t);
 }
 
 // One of its sounds at a point of it (the switch's clicks at the switch, the clamp's at its middle): heard from the

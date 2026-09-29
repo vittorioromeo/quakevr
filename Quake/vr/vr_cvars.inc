@@ -372,6 +372,17 @@ QVR_CVAR(vr_upper_holster_roll, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_shoulder_holster_pitch, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_shoulder_holster_yaw, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_shoulder_holster_roll, "0", CVAR_ARCHIVE)
+// The grenade pouch (vr_handgrenade; docs/vr-port/ROUND21.md, "Hand grenades from the back pouch"): on the belt at the
+// small of the back. X forward (negative: back), units: with the body drawn, the default (-7) is on the back and X moves
+// it from there (forward, it goes round the hips); Y to the right; Z up (times the height calibration, as the holsters').
+QVR_CVAR(vr_show_grenade_pouch, "0", CVAR_NONE)
+QVR_CVAR(vr_grenade_pouch_x, "-7", CVAR_ARCHIVE)
+QVR_CVAR(vr_grenade_pouch_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_grenade_pouch_z, "3", CVAR_ARCHIVE)
+QVR_CVAR(vr_grenade_pouch_thresh, "7", CVAR_ARCHIVE)  // units a hand must be within to be at it
+QVR_CVAR(vr_grenade_pouch_pitch, "0", CVAR_ARCHIVE)  // degrees: its top away from the back (the holsters' axes)
+QVR_CVAR(vr_grenade_pouch_yaw, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_grenade_pouch_roll, "0", CVAR_ARCHIVE)
 // The player's body (vr_avatar.cpp): 0 none, 2 torso and arms, 3 torso, arms and legs: the skinned
 // progs/vrbody model, posed by IK from the head and hands (1, the old floating torso, is now 2).
 QVR_CVAR(vr_body_mode, "2", CVAR_ARCHIVE)
@@ -898,6 +909,9 @@ QVR_CVAR(vr_grenade_fuse_regrab, "0", CVAR_ARCHIVE)      // 1: every catch sets 
 QVR_CVAR(vr_grenade_catch_radius, "15", CVAR_ARCHIVE)   // cm round the palm an empty hand, not striking, catches a grenade in flight in (grip held or closing; QC vr_grenade.qc)
 QVR_CVAR(vr_grenade_catch_window, "0.15", CVAR_ARCHIVE) // s an open palm holds a grenade that flies into it for the grip to close on it (else it drops from the hand)
 QVR_CVAR(vr_grenade_return_full, "1", CVAR_ARCHIVE)     // a grenade you throw or bat back goes off as your grenade launcher's (120 damage, 160 units round), not its thrower's (an ogre's 40)
+QVR_CVAR(vr_handgrenade, "1", CVAR_ARCHIVE)             // hand grenades: an empty hand gripping at the grenade pouch (the small of the back) takes one while you have rockets
+QVR_CVAR(vr_handgrenade_fuse, "2.5", CVAR_ARCHIVE)      // s from arming a hand grenade to its going off (the launcher's is 2.5)
+QVR_CVAR(vr_handgrenade_arm, "0", CVAR_ARCHIVE)         // 0: the trigger pulls the pin (let go of unarmed, it is a dud); 1: letting go arms it (the lever flies off)
 QVR_CVAR(vr_ogre_aim_height, "1", CVAR_ARCHIVE)          // ogres (and zombies) lob at your height: a ballistic arc at their throw's speed (0: Quake's flat lob)
 QVR_CVAR(vr_activestartpaknameidx, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_verbosebots, "0", CVAR_NONE)

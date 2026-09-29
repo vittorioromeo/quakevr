@@ -743,6 +743,16 @@ void resetHandMoves()
         slider("Holster Slot X", "vr_leg_holster_model_x_offset", -100.f, 100.f, 0.5f, "%.1f").extend(-400.f, 400.f),
         slider("Holster Slot Y", "vr_leg_holster_model_y_offset", -100.f, 100.f, 0.5f, "%.1f").extend(-400.f, 400.f),
         slider("Holster Slot Z", "vr_leg_holster_model_z_offset", -100.f, 100.f, 0.5f, "%.1f").extend(-400.f, 400.f),
+        header("Grenade Pouch"),
+        toggle("Show Grenade Pouch", "vr_show_grenade_pouch").help("A marker at the pouch the size of its reach, green while a hand is there. Hand grenades are on Batting and Catching."),
+        slider("Pouch X", "vr_grenade_pouch_x", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f)
+            .help("Forward (negative: back), units. With the body drawn, the default (-7) is on the belt at the small of your back; forward, it goes round your hips."),
+        slider("Pouch Y", "vr_grenade_pouch_y", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f).help("To your right (negative: left), units."),
+        slider("Pouch Z", "vr_grenade_pouch_z", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f).help("Up (negative: down), units: 0 is the hip holsters' height."),
+        slider("Pouch Threshold", "vr_grenade_pouch_thresh", 0.f, 30.f, 0.1f, "%.1f").extend(0.f, 100.f).help("How near the pouch a hand must be to take a grenade from it (or put one back)."),
+        slider("Pouch Pitch", "vr_grenade_pouch_pitch", -180.f, 180.f, 5.f, "%.0f deg").help("Tips the pouch's top away from your back (negative: towards it)."),
+        slider("Pouch Yaw", "vr_grenade_pouch_yaw", -180.f, 180.f, 5.f, "%.0f deg").help("Turns the pouch's face to your right (negative: left)."),
+        slider("Pouch Roll", "vr_grenade_pouch_roll", -180.f, 180.f, 5.f, "%.0f deg").help("Tips the pouch's top to your right (negative: left)."),
     };
 }
 

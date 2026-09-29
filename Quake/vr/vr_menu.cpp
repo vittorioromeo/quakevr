@@ -637,6 +637,18 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         toggle("Returned Grenades Hit Like Yours", vr_grenade_return_full)
             .help("A grenade you throw or bat back (an ogre's or your own) goes off as your grenade launcher's: its damage and "
                   "radius, credited to you, with your Quad. Off: an ogre's keeps its own, weaker blast."),
+        header("Hand Grenades"),
+        toggle("Hand Grenades", vr_handgrenade)
+            .help("Reach behind the small of your back with an empty hand and grip: a grenade from your pouch, while you have "
+                  "rockets (the grenade launcher's ammo; one leaves your ammo with each grenade). Throw it as anything you "
+                  "carry: it goes off as the launcher's grenade. The pouch's place is on Hip Holsters."),
+        cycle("Arm Hand Grenades", vr_handgrenade_arm, {{0.f, "Trigger pulls the pin"}, {1.f, "When let go of"}})
+            .help("Trigger: press it while holding the grenade to pull the pin (it fizzes; the fuse runs); let go of unarmed, "
+                  "it is a dud you can pick up again. When let go of: the lever flies off as it leaves your hand. Either "
+                  "way, let go of unarmed at the pouch, it goes back in."),
+        slider("Hand Grenade Fuse", vr_handgrenade_fuse, 1.f, 5.f, 0.1f, "%.1f s")
+            .help("From the pin (or the throw) to the blast. The launcher's grenades take 2.5 s. Hold it too long and it goes "
+                  "off in your hand."),
     };
 }
 
@@ -1739,7 +1751,7 @@ std::vector<Item> pageCombat()
         open("Melee", pageIndex(pageMeleeSettings)).help("Swings and punches, bloodlust, the headbutt."),
         open("Parry and Bash", pageIndex(pageParryBash)).help("Parrying, bashing and shoving, counter-attacks, the training dummy's blows."),
         open("Stamina", pageIndex(pageStamina)).help("What parries, shoves and blows cost, and being exhausted."),
-        open("Batting and Catching", pageIndex(pageBatting)).help("Batting projectiles back; catching and returning grenades."),
+        open("Batting and Catching", pageIndex(pageBatting)).help("Batting projectiles back; catching and returning grenades; hand grenades."),
         open("Damage and Knockback", pageIndex(pageDamage)).help("Damage to monsters and to you, headshots, knockback."),
     };
 }
@@ -1783,7 +1795,7 @@ std::vector<Item> pageWeaponsHub()
         open("Immersion", pageIndex(pageImmersionSettings)).help("Holsters, reloading, throwing weapons, shell casings, haptics."),
         header("Holsters"),
         open("Hotspots", pageIndex(pageHotspotSettings)).help("The virtual stock, the shoulder and upper holsters."),
-        open("Hip Holsters", pageIndex(pageHipHolsters)),
+        open("Hip Holsters", pageIndex(pageHipHolsters)).help("The hip holsters and their slots' models; the grenade pouch at your back."),
     };
 }
 

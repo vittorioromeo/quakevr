@@ -481,6 +481,14 @@
   "sha256": "390d365c3f5a1e6336086d1b6223e345271d2f5868f89e6b8c74ef16001d89c8",
   "by": "bake_normals.py"
  },
+ "quakevr/progs/vrpouch.mdl": {
+  "sha256": "63a5b7dd042de01d883d6d5fc6c97774bd6d2654476000517b7f70755d8dc8cc",
+  "by": "make_pouch.py"
+ },
+ "quakevr/progs/vrpouch.mdl_0_norm.png": {
+  "sha256": "c604a5b7d8951a4b890e6fe8e622c9bc0f03985f0e0bf73a1ec4de3fe01efebb",
+  "by": "bake_normals.py"
+ },
  "quakevr/progs/vrtorch.mdl": {
   "sha256": "efb816d0ab23e75f335aa5ab7a7e3ea9394daac3cca843ae773add67c4b80e4b",
   "by": "make_walltorch.py"

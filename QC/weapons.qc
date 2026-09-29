@@ -5211,6 +5211,8 @@ void() W_Frame =
     VR_Carry_HandFrame(cVR_OffHand);
     VR_WallTorch_HandFrame(cVR_MainHand); // a torch gripped on its wall pulled out (vr_walltorch.qc)
     VR_WallTorch_HandFrame(cVR_OffHand);
+    VR_HandGrenade_HandFrame(cVR_MainHand); // a grenade taken from the pouch at the small of the back (vr_grenade.qc)
+    VR_HandGrenade_HandFrame(cVR_OffHand);
 
     UpdateHolsterHover(self);
 
