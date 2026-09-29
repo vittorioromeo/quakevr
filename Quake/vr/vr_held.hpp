@@ -132,4 +132,9 @@ void drawCarryProbes();
 // again from the carry stats and where the server has it), as the client's clock starts over.
 void resetClientState();
 
+// vr_carry_check (a local game): for each hand holding something, how far the prop is drawn from where the server has
+// it (its physical body: what hands and shots meet) and the gap between the drawn fist and the drawn prop, in cm
+// (negative: sunk in); the worst of them on a last line.
+void carryCheck_f();
+
 } // namespace qvr::held

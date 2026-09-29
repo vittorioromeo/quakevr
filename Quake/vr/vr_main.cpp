@@ -13,6 +13,7 @@
 #include "vr_throw.hpp"
 #include "vr_client.hpp"
 #include "vr_hands.hpp"
+#include "vr_held.hpp"
 #include "vr_input.hpp"
 #include "vr_lines.hpp"
 #include "vr_limits.hpp"
@@ -1003,6 +1004,7 @@ extern "C" void VR_Init()
     client::init();
     server::init();
     Cmd_AddCommand("vr_dumpview", view::dumpView_f);
+    Cmd_AddCommand("vr_carry_check", held::carryCheck_f);
     Cmd_AddCommand("vr_grasp_dump", view::graspDump_f);
     Cmd_AddCommand("vr_grasp_bench", view::graspBench_f);
     Cmd_AddCommand("vr_grasp_spheres", grasp::spheres_f);

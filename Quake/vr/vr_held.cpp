@@ -968,6 +968,9 @@ struct Meet
     bool touching{false};
 };
 Meet meet;
+
+// The hands this frame's held things were drawn from (vr_carry_check: the hands move on before the next frame's check).
+hands::State drawnFrom;
 constexpr double meetEaseTime = 0.04; // s: the offsets follow the push this fast (and back when apart)
 
 struct Box
@@ -1519,6 +1522,106 @@ void resetClientState()
     playerFrames = 0;
 }
 
+void carryCheck();
+
+void carryCheck_f()
+{
+    if(!sv.active || cls.state != ca_connected)
+    {
+        Con_Printf("vr_carry_check: needs a local game\n");
+        return;
+    }
+    qcvm_t* const old = qcvm;
+    if(old != &sv.qcvm)
+    {
+        if(old)
+        {
+            PR_SwitchQCVM(nullptr);
+        }
+        PR_SwitchQCVM(&sv.qcvm);
+    }
+    carryCheck();
+    if(old != &sv.qcvm)
+    {
+        PR_SwitchQCVM(nullptr);
+        if(old)
+        {
+            PR_SwitchQCVM(old);
+        }
+    }
+}
+
+void carryCheck()
+{
+    using namespace progs;
+    const FieldOffsets& f = fields();
+    const hands::State& s = drawnFrom;
+    const float m2u = units::metresToUnits();
+    const auto turnBetween = [](const glm::mat3& a, const glm::mat3& b) {
+        const float c = (glm::dot(a[0], b[0]) + glm::dot(a[1], b[1]) + glm::dot(a[2], b[2]) - 1.f) * 0.5f;
+        return glm::degrees(std::acos(glm::clamp(c, -1.f, 1.f)));
+    };
+    float worstApart = 0.f, worstTurn = 0.f, worstGap = -999.f, worstWorld = 0.f;
+    int count = 0;
+    edict_t* player = EDICT_NUM(1);
+    for(int h = 1; h >= 0; h--)
+    {
+        const int ent = cl.stats[h == 1 ? protocol::STAT_QVR_CARRYMAIN : protocol::STAT_QVR_CARRYOFF];
+        const int posField = h == 0 ? f.offhandpos : f.handpos;
+        const int rotField = h == 0 ? f.offhandrot : f.handrot;
+        if(!ent || ent >= sv.qcvm.num_edicts || !valid(ent, nullptr) || !s.valid || posField < 0 || rotField < 0)
+        {
+            continue;
+        }
+        edict_t* ed = EDICT_NUM(ent);
+        const entity_t& e = cl_entities[ent];
+        const bool brush = e.model->type == mod_brush;
+        const glm::vec3 drawnPos{e.origin[0], e.origin[1], e.origin[2]};
+        const glm::mat3 drawnRot = axesFromAngles(e.angles, brush);
+        const glm::vec3 physPos{ed->v.origin[0], ed->v.origin[1], ed->v.origin[2]};
+        const glm::mat3 physRot = axesFromAngles(ed->v.angles, brush);
+        const float world = glm::distance(drawnPos, physPos) / m2u * 100.f;
+
+        // Its place in the hand: drawn, from the controller; physical, from the server's hand (the move's). They differ
+        // by as much as the two hands do (the server's hand is moved with the body: vr_server.cpp rebaseHands).
+        const glm::vec3 svHandPos = fieldVec(player, posField);
+        const glm::vec3 svHandAngles = fieldVec(player, rotField);
+        const glm::mat3 ctrl = axesFromAngles(&s.rot[h][0], true);
+        const glm::mat3 svHand = axesFromAngles(&svHandAngles[0], true);
+        const float apart =
+            glm::distance(glm::transpose(ctrl) * (drawnPos - s.pos[h]), glm::transpose(svHand) * (physPos - svHandPos)) / m2u * 100.f;
+        const float turn = turnBetween(glm::transpose(ctrl) * drawnRot, glm::transpose(svHand) * physRot);
+
+        // The drawn fist against the drawn prop: moved with it onto the physical one, measured there.
+        glm::vec3 pos = s.pos[h], angles = s.rot[h];
+        drawnHand(h, pos, angles);
+        std::vector<glm::vec4> spheres;
+        fistInWorld(h, pos, angles, spheres);
+        const glm::mat3 toPhys = physRot * glm::transpose(drawnRot);
+        for(glm::vec4& sp : spheres)
+        {
+            sp = glm::vec4{physPos + toPhys * (glm::vec3{sp} - drawnPos), sp.w};
+        }
+        FistContact drawnGap, physGap;
+        const bool haveDrawn = fistContact(ed, spheres, 64.f * m2u, drawnGap);
+        // The server's hand against the physical prop.
+        fistInWorld(h, svHandPos, svHandAngles, spheres);
+        const bool havePhys = fistContact(ed, spheres, 64.f * m2u, physGap);
+        const float gap = haveDrawn ? drawnGap.gap / m2u * 100.f : 999.f;
+        Con_Printf("carry check: %s hand holds %d (%s%s): in the hand, drawn %.2f cm %.1f deg off the physical; fist gap drawn "
+                   "%.2f cm, physical %.2f cm; in the world %.2f cm apart (the controller %.2f cm off the server's hand)\n",
+            h == 1 ? "main" : "off", ent, e.model->name, both.ent == ent ? ", both hands" : "", apart, turn, gap,
+            havePhys ? physGap.gap / m2u * 100.f : 999.f, world, glm::distance(s.pos[h], svHandPos) / m2u * 100.f);
+        worstApart = std::fmax(worstApart, apart);
+        worstTurn = std::fmax(worstTurn, turn);
+        worstGap = std::fmax(worstGap, gap);
+        worstWorld = std::fmax(worstWorld, world);
+        count++;
+    }
+    Con_Printf("carry check: %d held; worst in the hand %.2f cm %.1f deg off the physical, fist gap %.2f cm, world %.2f cm\n",
+        count, worstApart, worstTurn, count ? worstGap : 0.f, worstWorld);
+}
+
 } // namespace qvr::held
 
 // End of CL_RelinkEntities: the local player's held objects are drawn in the hands drawn this
@@ -1561,6 +1664,7 @@ extern "C" void VR_RelinkHeld(void)
             easeFrame(ea);
         }
         trace(s);
+        drawnFrom = s;
     }
 
     // Held in both hands: its centre (as drawn: in the hands this frame, or where the server has it) from the middle
