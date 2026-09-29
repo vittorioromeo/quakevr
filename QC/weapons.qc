@@ -5053,7 +5053,8 @@ void(entity ent, float xHand,
         if(xHotspot == QVR_HS_NONE ||
            xHotspot == QVR_HS_OFFHAND_2H_GRAB ||
            xHotspot == QVR_HS_MAINHAND_2H_GRAB ||
-           xHotspot == QVR_HS_CARRIED_GRIP)
+           xHotspot == QVR_HS_CARRIED_GRIP ||
+           xHotspot == QVR_HS_GRENADE_POUCH) // (the grenade pouch holds grenades only: vr_grenade.qc)
         {
             // Held two-handed: the other hand keeps it (the hand-off). Otherwise it falls, or flies.
             if(!VRTryHandOff(ent, xHand, xWeapon, xWeaponFlags, xWeaponClip))
@@ -5165,7 +5166,8 @@ void(entity ent, float xHand,
         else if(xHotspot == QVR_HS_NONE ||
            xHotspot == QVR_HS_OFFHAND_2H_GRAB ||
            xHotspot == QVR_HS_MAINHAND_2H_GRAB ||
-           xHotspot == QVR_HS_HAND_SWITCH)
+           xHotspot == QVR_HS_HAND_SWITCH ||
+           xHotspot == QVR_HS_GRENADE_POUCH) // (a grenade from the pouch: VR_HandGrenade_HandFrame)
         {
             // Intentionally left empty.
         }

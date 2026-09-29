@@ -38,8 +38,8 @@ constexpr const char* keyDefaults[numKeys] = {
 
 // Configs archive every slot, so a slot whose shipped defaults change keeps a config's old values: vr_props_version
 // says which changes a config has seen (as vr_wofs_version for the weapons). 1: the table's first version; 26: the rocks
-// and bricks' slots; 40: the grip modes (the round's agents number their changes apart).
-constexpr int settingsVersion = 40;
+// and bricks' slots; 40: the grip modes; 44: the grenade's (the round's agents number their changes apart).
+constexpr int settingsVersion = 44;
 
 std::array<std::string, numSlots * numKeys> names;
 std::array<cvar_t, numSlots * numKeys> cvars{};
@@ -168,6 +168,22 @@ void migrate()
                     Cvar_SetQuick(&cvarAt(slot, key), "0");
                 }
             }
+        }
+    }
+    // 44: the grenade (slot 4, progs/grenade.mdl: a hand grenade from the pouch, a caught one) is held In the Palm, in one
+    // hand (round 21, "Hand grenades from the back pouch"): its grip and Two Hands take the new defaults, if the slot is
+    // still the grenade's and they are still every prop's (Where Taken, two hands: a config's own choice is kept).
+    if(from < 44)
+    {
+        constexpr int grenadeSlot = 3;
+        if(!strcmp(cvarAt(grenadeSlot, Key::ID).string, cvarAt(grenadeSlot, Key::ID).default_string) &&
+            atof(cvarAt(grenadeSlot, Key::GripMode).string) == 0.0 && atof(cvarAt(grenadeSlot, Key::TwoHands).string) == 1.0)
+        {
+            for(const Key key : {Key::GripMode, Key::TwoHands})
+            {
+                Cvar_SetQuick(&cvarAt(grenadeSlot, key), cvarAt(grenadeSlot, key).default_string);
+            }
+            Con_DPrintf("Held Object Offsets: progs/grenade.mdl: In the Palm, one hand\n");
         }
     }
     Cvar_SetValueQuick(&vr_props_version, settingsVersion);
@@ -368,25 +384,6 @@ void takeShippedSlot(int slot)
     {
         cvar_t& var = cvarAt(slot, static_cast<Key>(key));
         Cvar_SetQuick(&var, var.default_string);
-    }
-    clearSlotCaches();
-}
-
-void takeShippedKeys(int slot, std::initializer_list<Key> keys)
-{
-    if(slot < 0 || slot >= numSlots || strcmp(cvarAt(slot, Key::ID).string, cvarAt(slot, Key::ID).default_string) != 0)
-    {
-        return; // (another model in the slot: its settings are the config's)
-    }
-    for(const Key key : keys)
-    {
-        cvar_t& var = cvarAt(slot, key);
-        const char* before = keyDefaults[static_cast<int>(key)];
-        if(strtof(var.string, nullptr) == strtof(before, nullptr) && strcmp(var.string, var.default_string) != 0)
-        {
-            Con_DPrintf("Held Object Offsets: %s: %s (was %s)\n", var.name, var.default_string, var.string);
-            Cvar_SetQuick(&var, var.default_string);
-        }
     }
     clearSlotCaches();
 }

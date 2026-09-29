@@ -79,14 +79,9 @@ QVR_PROP_DEFAULT(2, Mass, "0.4")
 // whole speed. Also their mass in Box3D (5.2 kg from their hull at 2000 kg/m^3 before: they knock boxes less now).
 QVR_PROP_DEFAULT(3, ID, "progs/grenade.mdl")
 QVR_PROP_DEFAULT(3, Mass, "1.2")
-// Held the same way every time, in one hand (round 21, "Hand grenades from the back pouch": a grenade from the pouch,
-// or caught): upright in the fist, its middle in the palm, the fingers fitted round it. vr_cfg_version 44 gives these
-// to configs saved before (props::takeGrenadeGrip).
-QVR_PROP_DEFAULT(3, GripMode, "1")
-QVR_PROP_DEFAULT(3, GripX, "-4.4")
-QVR_PROP_DEFAULT(3, GripY, "3.3")
-QVR_PROP_DEFAULT(3, GripZ, "-2.6")
-QVR_PROP_DEFAULT(3, GripPitch, "-90")
+// In the palm, in one hand (round 21, "Hand grenades from the back pouch": a grenade from the pouch, or caught): its
+// middle over the fist's grip channel, the fingers round it. vr_props_version 44 gives these to configs saved before.
+QVR_PROP_DEFAULT(3, GripMode, "2")
 QVR_PROP_DEFAULT(3, TwoHands, "0")
 QVR_PROP_DEFAULT(4, ID, "progs/mervup.mdl")
 QVR_PROP_DEFAULT(4, Mass, "1.2")

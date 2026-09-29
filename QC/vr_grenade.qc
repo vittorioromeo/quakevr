@@ -537,8 +537,15 @@ void(entity xBox, float xHand) VR_Grenade_Released =
     xBox.owner = self;
     xBox.vr_gren_made = time; // (not caught again by the hand it leaves)
     SetThrownWeaponDealDamage(xBox, FALSE); // (it hurts by going off, not as a thrown box)
-    dprint(sprintf("grenade: let go of at %v (%.0f u/s), %.2f s left\n", xBox.velocity, vlen(xBox.velocity),
-        xBox.vr_gren_fuse - time));
+    if(VR_HandGrenade_Armed(xBox))
+    {
+        dprint(sprintf("grenade: let go of at %v (%.0f u/s), %.2f s left\n", xBox.velocity, vlen(xBox.velocity),
+            xBox.vr_gren_fuse - time));
+    }
+    else
+    {
+        dprint(sprintf("grenade: let go of at %v (%.0f u/s), unarmed\n", xBox.velocity, vlen(xBox.velocity)));
+    }
     if(vlen(xBox.velocity) >= VR_GREN_FLYING)
     {
         VR_Grenade_Return(xBox, "thrown back"); // (thrown; dropped, it keeps its thrower's blast)

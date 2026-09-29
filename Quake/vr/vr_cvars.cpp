@@ -56,7 +56,7 @@ const DefaultChange defaultChanges[] = {
     {14, &vr_counter_glow, "1"},          // off: the author would rather play without it (round 21, "Stamina on the gadget; the glow")
     {34, &vr_spectator_scale, "1"},       // 0.75: the spectator camera's cost (ROUND21.md, "Performance fixes (review, 2026-09-28)")
 };
-constexpr int configVersion = 44;
+constexpr int configVersion = 34;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
@@ -179,13 +179,6 @@ void migrateConfig_f()
         {
             props::takeShippedSlot(slot);
         }
-    }
-    // 44: the grenade is held the same way every time, in one hand (round 21, "Hand grenades from the back pouch"): its
-    // slot's grip keys, still every prop's defaults in a config saved before, take the shipped ones.
-    if(from < 44)
-    {
-        props::takeShippedKeys(props::grenadeSlot, {props::Key::GripMode, props::Key::GripX, props::Key::GripY,
-            props::Key::GripZ, props::Key::GripPitch, props::Key::TwoHands});
     }
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
 }

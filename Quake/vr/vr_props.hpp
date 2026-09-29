@@ -13,8 +13,6 @@
 
 #pragma once
 
-#include <initializer_list>
-
 #include "vr_engine.hpp"
 
 namespace qvr::props
@@ -65,10 +63,6 @@ void resetSlotToDefaults(int slot, Part part = Part::All);
 // there moves to a free slot with its settings). vr_cfg_version's migrations (vr_cvars.cpp).
 void takeShippedSlot(int slot);
 inline constexpr int wallTorchSlot = 16; // progs/vrtorch.mdl (vr_props.inc; vr_cfg_version 25)
-// A config saved before some of `slot`'s keys were given shipped values: each of `keys` still at the value every prop
-// has (the key's own default) takes the slot's, if the slot is still its shipped model's. vr_cfg_version's migrations.
-void takeShippedKeys(int slot, std::initializer_list<Key> keys);
-inline constexpr int grenadeSlot = 3; // progs/grenade.mdl: its grip (vr_props.inc; vr_cfg_version 44)
 inline constexpr int fleshSlotsFirst = 33, fleshSlotsLast = 47; // gibs and heads (vr_props.inc; vr_cfg_version 27)
 void printSlot(int slot, Part part = Part::All); // the settings that differ from the defaults, as vr_props.inc lines
 
