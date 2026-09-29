@@ -908,7 +908,9 @@ Held weapons against models (round 21): `vr_debug_model_collide 1` prints each h
 the view goes in and out by. `vr_test_remove <n>` removes entity n as QC's `remove()` would (a slot to reuse; ROUND21.md, "Performance fixes
 (review, 2026-09-28)"). `impulse 241` puts a monster (`vr_test_spawn`: the firing range dispenser's numbers) or a
 box (100 health, 101 shells, 102 an explosive box, 103 a small one) `vr_test_spawn_dist` units ahead
-(`vr_test_spawn_dead 1`: a corpse);
+(`vr_test_spawn_dead 1`: a corpse); `impulse 232` flings the loose prop nearest you at the nearest monster
+(`vr_test_fling_speed` m/s; `vr_test_fling_at 1` at you, `vr_test_fling_away 1` away from inside its box: ROUND21.md,
+"Flung props: settings, and never you");
 `vr_mock_camera <x> <y> <z> <pitch> <yaw>` draws the mock eyes from elsewhere in the tracking space (a spectator's view of
 your body; the hands stay with the head), `vr_mock_camera` alone puts them back.
 Grappling hook (round 21): `impulse 151` (main hand), `vr_mock_hand main 0.2 1.3 -0.3 70 0 0` aims level (105:

@@ -2434,6 +2434,14 @@ void(entity h) VR_Grapple_Service =
     if(found)
     {
         VR_Grapple_Commit(h);
+        // A prop on the hook (VR_Grapple_PropHolder's): its holder lets go of it every frame, so a flail the hook lets
+        // go of doesn't hit them as it leaves, and its hits are theirs a while (vr_carry.qc VR_Prop_Flung).
+        entity holder = gg_player != world ? gg_player : h.owner;
+        if(h.gh_state == GS_BITTEN && h.gh_kind == GH_PROP && h.enemy != world && holder.classname == "player")
+        {
+            h.enemy.carry_letgo = holder;
+            h.enemy.carry_letgo_time = time;
+        }
     }
     if(!found)
     {
