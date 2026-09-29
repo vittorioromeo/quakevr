@@ -450,7 +450,11 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 	switch (mod_type)
 	{
 	case IDPOLYHEADER:
-		Mod_LoadAliasModel (mod, buf);
+		{
+			double t0 = Sys_DoubleTime (); // QVR: load timing (vr_startup_times)
+			Mod_LoadAliasModel (mod, buf);
+			VR_TimeAdd ("alias models (.mdl) loaded", Sys_DoubleTime () - t0);
+		}
 		break;
 
 	case IDSPRITEHEADER:
@@ -3168,6 +3172,22 @@ Mod_SkinIslands -- QVR: a skin's islands (the texels its triangles cover) for it
 each triangle's three corners in texels (x, y), `numtris` of them. A texel within 0.7 of a texel of a triangle is in.
 ===============
 */
+static byte *Mod_SkinIslands (const float *corners, int numtris, int w, int h);
+
+// QVR: the same, malloc'd (TexMgr_SetHeightMaskLazy)
+static byte *Mod_SkinIslandsMalloc (const float *corners, int numtris, int w, int h)
+{
+	double	t0 = Sys_DoubleTime ();
+	int		mark = Hunk_LowMark ();
+	byte	*mask = (byte *) malloc ((size_t) w * h);
+	if (!mask)
+		Sys_Error ("Mod_SkinIslandsMalloc: out of memory");
+	memcpy (mask, Mod_SkinIslands (corners, numtris, w, h), (size_t) w * h);
+	Hunk_FreeToLowMark (mark);
+	VR_TimeAdd ("        islands", Sys_DoubleTime () - t0); // load timing (vr_startup_times)
+	return mask;
+}
+
 static byte *Mod_SkinIslands (const float *corners, int numtris, int w, int h)
 {
 	int		i, j, k, x, y;
@@ -3284,9 +3304,10 @@ static void Mod_LoadSkinNormalMaps (const stvert_t *verts, const dtriangle_t *tr
 			}
 			n++;
 		}
-		mask = Mod_SkinIslands (corners, n, w, h);
+		TexMgr_SetHeightMaskLazy (corners, n, w, h, Mod_SkinIslandsMalloc); // made only for a normal map made anew
 	}
-	TexMgr_SetHeightMask (mask, w, h);
+	else
+		TexMgr_SetHeightMask (mask, w, h);
 	for (i = 0; i < numskinnormalmaps; i++)
 	{
 		char shared[MAX_QPATH];
@@ -3714,7 +3735,12 @@ qboolean loadMd5Replacement(qmodel_t* mod, char	*path)
 		char* md5buffer = (char*)COM_LoadMallocFile (path, NULL);
 		if (md5buffer)
 		{
-			qboolean result = VR_ModelReplacementOk (mod->name, md5buffer) && Mod_LoadMD5MeshModel (mod, md5buffer); // QVR: the jointed hand's file checked first
+			double t0 = Sys_DoubleTime (); // QVR: load timing (vr_startup_times)
+			qboolean result = VR_ModelReplacementOk (mod->name, md5buffer); // QVR: the jointed hand's file checked first
+			double t1 = Sys_DoubleTime ();
+			result = result && Mod_LoadMD5MeshModel (mod, md5buffer);
+			VR_TimeAdd ("    md5: the VR check", t1 - t0);
+			VR_TimeAdd ("    md5: loaded", Sys_DoubleTime () - t1);
 			free (md5buffer);
 			return result;
 		}
@@ -3807,6 +3833,7 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 
 	if ((int)r_enhancedmodels.value == 1) 
 	{
+		double t0 = Sys_DoubleTime (); // QVR: load timing (vr_startup_times)
 		ModelLoader loaders[] = {
 			{ "md3", (ModelLoadFunc)loadMd3Replacement},
 			{ "md5", (ModelLoadFunc)loadMd5Replacement}
@@ -3834,9 +3861,11 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 			}
 
 			if (loaders[iter].load_func (mod, path)) {
+				VR_TimeAdd ("  their replacements (md5, md3) looked for and loaded", Sys_DoubleTime () - t0); // QVR
 				return;
 			}
 		}
+		VR_TimeAdd ("  their replacements (md5, md3) looked for and loaded", Sys_DoubleTime () - t0); // QVR
 	}
 
 //
@@ -3895,7 +3924,11 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 // load the skins
 //
 	pskintype = (daliasskintype_t *)&pinmodel[1];
-	pskintype = (daliasskintype_t *) Mod_LoadAllSkins (pheader->numskins, pskintype);
+	{
+		double t0 = Sys_DoubleTime (); // QVR: load timing (vr_startup_times)
+		pskintype = (daliasskintype_t *) Mod_LoadAllSkins (pheader->numskins, pskintype);
+		VR_TimeAdd ("  their skins (textures, normal maps)", Sys_DoubleTime () - t0);
+	}
 
 //
 // endian-swap base s and t vertices in place
@@ -3926,7 +3959,11 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 					LittleLong (pintriangles[i].vertindex[j]);
 		}
 	}
-	Mod_LoadSkinNormalMaps (pinstverts, pintriangles); // QVR: the skins' normal maps, their islands from these
+	{
+		double t0 = Sys_DoubleTime (); // QVR: load timing (vr_startup_times)
+		Mod_LoadSkinNormalMaps (pinstverts, pintriangles); // QVR: the skins' normal maps, their islands from these
+		VR_TimeAdd ("  their normal maps (authored files or made)", Sys_DoubleTime () - t0);
+	}
 
 //
 // load the frames
@@ -3946,7 +3983,11 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 
 	pheader->numposes = posenum;
 	pheader->poseverttype = PV_QUAKE1;
-	VR_AliasPosesLoaded (mod->name, pheader, stverts, triangles, poseverts); // QVR: knights' death frames without the sword
+	{
+		double t0 = Sys_DoubleTime (); // QVR: load timing (vr_startup_times)
+		VR_AliasPosesLoaded (mod->name, pheader, stverts, triangles, poseverts); // QVR: knights' death frames without the sword
+		VR_TimeAdd ("  their VR poses hook", Sys_DoubleTime () - t0);
+	}
 
 	mod->type = mod_alias;
 
@@ -3957,7 +3998,11 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 	//
 	// build the draw lists
 	//
-	GL_MakeAliasModelDisplayLists (mod, pheader);
+	{
+		double t0 = Sys_DoubleTime (); // QVR: load timing (vr_startup_times)
+		GL_MakeAliasModelDisplayLists (mod, pheader);
+		VR_TimeAdd ("  their draw lists", Sys_DoubleTime () - t0);
+	}
 
 //
 // move the complete, relocatable alias model to the cache
@@ -4690,6 +4735,10 @@ first skin's: progs/hand_rig_00_00), else one made from its colours within its i
 coordinates).
 ===============
 */
+static byte			*md5islands; // QVR: the islands of the surface whose skins load now (Mod_LoadMD5Skins): the same for
+static const aliashdr_t	*md5islands_surf; // all its skins of a size (the body's 16, 1024 x 1024: 5 ms each)
+static int				md5islands_w, md5islands_h;
+
 static void Mod_MD5SkinNormalMap (aliashdr_t *surf, gltexture_t *glt, const char *name, const char *shared, byte *data,
 	enum srcformat fmt, int w, int h)
 {
@@ -4703,15 +4752,26 @@ static void Mod_MD5SkinNormalMap (aliashdr_t *surf, gltexture_t *glt, const char
 		return;
 	q_strlcpy (first, shared, sizeof (first)); // (a va () buffer)
 	mark = Hunk_LowMark ();
-	corners = (float *) Hunk_AllocNoFill (q_max (surf->numtris, 1) * 6 * sizeof (float));
-	for (i = 0; i < surf->numtris; i++)
-		for (j = 0; j < 3; j++)
-		{
-			const iqmvert_t *v = &verts[indexes[i * 3 + j]];
-			corners[i * 6 + j * 2 + 0] = v->st[0] * w;
-			corners[i * 6 + j * 2 + 1] = v->st[1] * h;
-		}
-	TexMgr_SetHeightMask (Mod_SkinIslands (corners, surf->numtris, w, h), w, h);
+	if (!md5islands || md5islands_surf != surf || md5islands_w != w || md5islands_h != h)
+	{
+		free (md5islands);
+		corners = (float *) Hunk_AllocNoFill (q_max (surf->numtris, 1) * 6 * sizeof (float));
+		for (i = 0; i < surf->numtris; i++)
+			for (j = 0; j < 3; j++)
+			{
+				const iqmvert_t *v = &verts[indexes[i * 3 + j]];
+				corners[i * 6 + j * 2 + 0] = v->st[0] * w;
+				corners[i * 6 + j * 2 + 1] = v->st[1] * h;
+			}
+		md5islands = (byte *) malloc ((size_t) w * h);
+		if (!md5islands)
+			Sys_Error ("Mod_MD5SkinNormalMap: out of memory");
+		memcpy (md5islands, Mod_SkinIslands (corners, surf->numtris, w, h), (size_t) w * h);
+		md5islands_surf = surf;
+		md5islands_w = w;
+		md5islands_h = h;
+	}
+	TexMgr_SetHeightMask (md5islands, w, h);
 	Mod_LoadNormalMap (glt, name, strcmp (name, first) ? first : NULL, data, fmt, w, NORMALMAP_HEIGHTS | NORMALMAP_SKIN);
 	TexMgr_SetHeightMask (NULL, 0, 0);
 	Hunk_FreeToLowMark (mark);
@@ -4746,6 +4806,8 @@ static void Mod_MD5SharedNormalMap (const char *shader, int skin, char *out, siz
 static void Mod_LoadMD5Skins (qmodel_t *mod, aliashdr_t *surf, const char *shader)
 {
 	char texname[MAX_QPATH];
+
+	md5islands_surf = NULL; // QVR: (Mod_MD5SkinNormalMap) made anew for this surface
 
 	//MD5 violation: the skin is a single material. adding prefixes/postfixes here is the wrong thing to do.
 	//but we do so anyway, because rerelease compat.
@@ -4788,7 +4850,9 @@ static void Mod_LoadMD5Skins (qmodel_t *mod, aliashdr_t *surf, const char *shade
 					char skinname[MAX_QPATH], shared[MAX_QPATH];
 					q_snprintf (skinname, sizeof (skinname), "progs/%s_%02u_%02u", shader, surf->numskins, f);
 					Mod_MD5SharedNormalMap (shader, surf->numskins, shared, sizeof (shared));
+					double t0 = Sys_DoubleTime (); // QVR: load timing (vr_startup_times)
 					Mod_MD5SkinNormalMap (surf, surf->gltextures[surf->numskins][f], skinname, shared, data, fmt, fwidth, fheight);
+					VR_TimeAdd ("        md5: their normal maps", Sys_DoubleTime () - t0);
 				}
 
 				//now try to load glow/luma image from the same place
@@ -4817,6 +4881,9 @@ static void Mod_LoadMD5Skins (qmodel_t *mod, aliashdr_t *surf, const char *shade
 			surf->fbtextures[surf->numskins][2] = surf->fbtextures[surf->numskins][0];
 		}
 	}
+	free (md5islands); // QVR
+	md5islands = NULL;
+	md5islands_surf = NULL;
 	surf->skinwidth = surf->gltextures[0][0]?surf->gltextures[0][0]->width:1;
 	surf->skinheight = surf->gltextures[0][0]?surf->gltextures[0][0]->height:1;
 }
@@ -5027,8 +5094,10 @@ static qboolean Mod_LoadMD5MeshModel (qmodel_t *mod, const char *buffer)
 	// Load textures after parsing and validation to avoid having to free them on error
 	for (m = 0, s = shaders; m < nummeshes; m++, s += strlen (s) + 1)
 	{
+		double t0 = Sys_DoubleTime (); // QVR: load timing (vr_startup_times)
 		surf = (aliashdr_t*)((byte*)outhdr + m*hdrsize);
 		Mod_LoadMD5Skins (mod, surf, s); 
+		VR_TimeAdd ("      md5: skins and normal maps", Sys_DoubleTime () - t0);
 	}
 	VEC_FREE (shaders);
 

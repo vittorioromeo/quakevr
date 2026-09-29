@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.h"
+#include "vr/vr_api.h" // QVR: VR_FileCacheForget
 #include "steam.h"
 
 #ifndef MICROSOFT_WINDOWS_WINBASE_H_DEFINE_INTERLOCKED_CPLUSPLUS_OVERLOADS
@@ -100,6 +101,8 @@ static void WideStringToUTF8 (const wchar_t *src, char *dst, size_t maxbytes)
 
 FILE *Sys_fopen (const char *path, const char *mode)
 {
+	if (strpbrk (mode, "wa+"))
+		VR_FileCacheForget (); // QVR: the loading's listed directories (vr_fscache.cpp)
 	wchar_t	wpath[MAX_PATH];
 	wchar_t	wmode[8];
 	int		i;
@@ -161,6 +164,7 @@ qfileofs_t Sys_ftell (FILE *file)
 
 int Sys_remove (const char *path)
 {
+	VR_FileCacheForget (); // QVR: the loading's listed directories (vr_fscache.cpp)
 	wchar_t	wpath[MAX_PATH];
 	UTF8ToWideString (path, wpath, countof (wpath));
 	return _wremove (wpath);
@@ -168,6 +172,7 @@ int Sys_remove (const char *path)
 
 int Sys_rename (const char *oldname, const char *newname)
 {
+	VR_FileCacheForget (); // QVR: the loading's listed directories (vr_fscache.cpp)
 	wchar_t	oldnamew[MAX_PATH];
 	wchar_t	newnamew[MAX_PATH];
 	UTF8ToWideString (oldname, oldnamew, countof (oldnamew));
@@ -178,6 +183,7 @@ int Sys_rename (const char *oldname, const char *newname)
 // QVR: newname replaced by oldname in one step (a crash or a full disk never leaves newname half written); 0 on success
 int Sys_ReplaceFile (const char *oldname, const char *newname)
 {
+	VR_FileCacheForget (); // QVR: the loading's listed directories (vr_fscache.cpp)
 	wchar_t	oldnamew[MAX_PATH];
 	wchar_t	newnamew[MAX_PATH];
 	UTF8ToWideString (oldname, oldnamew, countof (oldnamew));
@@ -1029,6 +1035,7 @@ void Sys_Init (void)
 
 void Sys_mkdir (const char *path)
 {
+	VR_FileCacheForget (); // QVR: the loading's listed directories (vr_fscache.cpp)
 	wchar_t wpath[MAX_PATH];
 	BOOL result;
 	DWORD err;

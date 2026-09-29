@@ -1,6 +1,7 @@
 // vr_main.cpp -- Quake VR module lifetime, core cvars and per-frame update.
 
 #include "vr_engine.hpp"
+#include "vr_imgprefetch.hpp"
 #include "vr_anchor.hpp"
 #include "vr_decals.hpp"
 #include "vr_gore.hpp"
@@ -961,6 +962,7 @@ extern "C" void VR_Init()
     state = new State{};
 
     VR_TimeInit(); // vr_startup_times, vr_walltime
+    imgprefetch::start(); // the images the start-up and the first map load decode, decoded ahead (the file system is up)
     registerCvars();
     weapons::registerCvars();
     props::registerCvars();
@@ -1021,6 +1023,7 @@ extern "C" void VR_Init()
 
 extern "C" void VR_Shutdown()
 {
+    imgprefetch::shutdown(); // (the decoding workers joined)
     ao::shutdown(); // (the models' occlusion bakes, VR or not)
     gpustats::stop();
     if(!state)

@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "glquake.h"
 #include "vr/vr_api_render.h" // QVR
+#include "vr/vr_api.h" // QVR: load timing
 #include "vr/vr_sights.hpp" // QVR: the weapons' sights in the chosen colour
 
 typedef struct {
@@ -83,6 +84,11 @@ static gltexture_t	*flatnormaltexture;
 #define HEIGHT_RIM			2 // made heights of a skin with islands (TexMgr_SetHeightMask): texels over which they rise to the top at an island's edge
 static const byte	*heightmask; // TexMgr_SetHeightMask
 static int			heightmask_width, heightmask_height;
+static const float	*heightmask_corners; // TexMgr_SetHeightMaskLazy: made from these when first needed
+static int			heightmask_numtris;
+static byte			*(*heightmask_make) (const float *corners, int numtris, int w, int h);
+static byte			*heightmask_made; // (malloc'd)
+static void TexMgr_EnsureHeightMask (void);
 
 unsigned int d_8to24table_opaque[256];			//standard palette with alpha 255 for all colors
 unsigned int d_8to24table[256];					//standard palette, 255 is transparent
@@ -1827,6 +1833,7 @@ static void TexMgr_AuthoredHeights (gltexture_t *glt, byte *data)
 		normalmap_kind[glt - gltextures_base] |= NORMALMAP_FLAT;
 		return;
 	}
+	TexMgr_EnsureHeightMask (); // QVR: (only now: most authored maps are flat, TexMgr_SetHeightMaskLazy)
 	if (!heightmask)
 		return;
 	for (y = 0; y < (int) glt->height; y++)
@@ -1852,6 +1859,85 @@ void TexMgr_SetHeightMask (const byte *mask, int width, int height)
 	heightmask = mask && width > 0 && height > 0 ? mask : NULL;
 	heightmask_width = width;
 	heightmask_height = height;
+	heightmask_corners = NULL;
+	free (heightmask_made);
+	heightmask_made = NULL;
+}
+
+/*
+================
+TexMgr_SetHeightMaskLazy -- QVR: as TexMgr_SetHeightMask, the islands made by `make` (malloc'd) from the triangles'
+`corners` on the skin (`numtris` x 3 x (x, y) texels) only when a normal map is made (not read from the cache, nor
+shared: 0.8 ms a model, 60 ms of the first load). The corners must live until TexMgr_SetHeightMask (NULL, 0, 0).
+================
+*/
+void TexMgr_SetHeightMaskLazy (const float *corners, int numtris, int width, int height,
+	byte *(*make) (const float *corners, int numtris, int w, int h))
+{
+	TexMgr_SetHeightMask (NULL, 0, 0);
+	if (!corners || !make || width <= 0 || height <= 0)
+		return;
+	heightmask_corners = corners;
+	heightmask_numtris = numtris;
+	heightmask_make = make;
+	heightmask_width = width;
+	heightmask_height = height;
+}
+
+static void TexMgr_EnsureHeightMask (void)
+{
+	if (heightmask_corners && !heightmask_made)
+	{
+		heightmask_made = heightmask_make (heightmask_corners, heightmask_numtris, heightmask_width, heightmask_height);
+		heightmask = heightmask_made;
+	}
+}
+
+/*
+================
+TexMgr_NormalCacheBuild, TexMgr_SkinNormalsKey -- QVR: the normal maps made from skins kept on disk (vr_texcache.cpp).
+The build: this file's compile time (the maker's code and constants all compile here: a changed maker never reads an
+old map). The key: a hash (FNV-1a, 64 bits) of all that TexMgr_SkinToNormals reads: the texels, their size, the
+heights or not, the texels per unit, and the islands' mask.
+================
+*/
+static const char *TexMgr_NormalCacheBuild (void)
+{
+	static char build[24];
+	if (!build[0])
+	{
+		const char *stamp = __DATE__ " " __TIME__;
+		unsigned long long h = 14695981039346656037ULL;
+		for (; *stamp; stamp++)
+			h = (h ^ (byte) *stamp) * 1099511628211ULL;
+		q_snprintf (build, sizeof (build), "%016llx", h);
+	}
+	return build;
+}
+
+static unsigned long long TexMgr_Fnv (unsigned long long h, const void *p, size_t n)
+{
+	const byte *b = (const byte *) p;
+	size_t i;
+	for (i = 0; i < n; i++)
+		h = (h ^ b[i]) * 1099511628211ULL;
+	return h;
+}
+
+static unsigned long long TexMgr_SkinNormalsKey (const byte *data, int width, int height, qboolean heights, float texelsperunit)
+{
+	unsigned long long h = 14695981039346656037ULL;
+	const qboolean masked = heightmask || heightmask_corners;
+	int params[6] = {width, height, heights ? 1 : 0, masked ? heightmask_width : 0, masked ? heightmask_height : 0,
+		heightmask_corners ? heightmask_numtris : -1};
+	h = TexMgr_Fnv (h, params, sizeof (params));
+	h = TexMgr_Fnv (h, &texelsperunit, sizeof (texelsperunit));
+	h = TexMgr_Fnv (h, data, (size_t) width * height * 4);
+	if (heightmask_corners) // the islands are made from these (TexMgr_SetHeightMaskLazy)
+		h = TexMgr_Fnv (h, heightmask_corners, (size_t) heightmask_numtris * 6 * sizeof (float));
+	else if (heightmask)
+		h = TexMgr_Fnv (h, heightmask, (size_t) heightmask_width * heightmask_height);
+	return h;
 }
 
 /*
@@ -1912,7 +1998,14 @@ static void TexMgr_AlphaCoverageMip (const byte *in, byte *out, int count, float
 TexMgr_LoadImage32 -- handles 32bit source data
 ================
 */
+static void TexMgr_LoadImage32Run (gltexture_t *glt, unsigned *data);
 static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
+{
+	double t0 = Sys_DoubleTime (); // QVR: load timing (vr_startup_times)
+	TexMgr_LoadImage32Run (glt, data);
+	VR_TimeAdd ("textures processed and uploaded (all)", Sys_DoubleTime () - t0);
+}
+static void TexMgr_LoadImage32Run (gltexture_t *glt, unsigned *data)
 {
 	int	miplevel, mipwidth, mipheight, picmip;
 	glformat_t internalformat;
@@ -1980,10 +2073,34 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	if (normalmap == NORMALMAP_SHADING) // QVR
 	{
 		float texelsperunit = glt->width / (float) q_max (1, (int)normalmap_worldwidth[glt - gltextures_base]);
+		double t0 = Sys_DoubleTime (); // QVR: load timing (vr_startup_times)
 		if (normalmap_kind[glt - gltextures_base] & NORMALMAP_SKIN) // a skin's colours (not a *_bump's heights)
-			TexMgr_SkinToNormals ((byte *)data, glt->width, glt->height, SKIN_DEPTH * texelsperunit, heights, texelsperunit);
+		{
+			// Kept on disk (vr_texcache.cpp: 3-4 ms a skin; the world's textures' take a few hundredths of that)
+			int cache = VR_NormalCacheMode (), n = glt->width * glt->height * 4, hit = 0, cmark = Hunk_LowMark ();
+			unsigned long long key = cache ? TexMgr_SkinNormalsKey ((const byte *)data, glt->width, glt->height, heights, texelsperunit) : 0;
+			byte *cached = cache ? (byte *) Hunk_AllocNoFill (n) : NULL;
+			hit = cache && VR_NormalCacheLoad (TexMgr_NormalCacheBuild (), key, cached, glt->width, glt->height);
+			if (hit && cache == 1)
+				memcpy (data, cached, n);
+			else
+			{
+				TexMgr_EnsureHeightMask ();
+				TexMgr_SkinToNormals ((byte *)data, glt->width, glt->height, SKIN_DEPTH * texelsperunit, heights, texelsperunit);
+				if (hit) // vr_normalmap_cache 2: made anyway, and compared
+					VR_NormalCacheChecked (memcmp (data, cached, n) == 0, glt->name);
+				else if (cache)
+					VR_NormalCacheStore (TexMgr_NormalCacheBuild (), key, (const byte *)data, glt->width, glt->height);
+			}
+			Hunk_FreeToLowMark (cmark);
+			VR_TimeAdd (hit && cache == 1 ? "normal maps of skins read from the cache" : "normal maps made from skins", Sys_DoubleTime () - t0);
+		}
 		else
+		{
+			TexMgr_EnsureHeightMask ();
 			TexMgr_ShadingToNormals ((byte *)data, glt->width, glt->height, NORMALMAP_DEPTH * texelsperunit, heights, texelsperunit);
+			VR_TimeAdd ("normal maps made from textures", Sys_DoubleTime () - t0);
+		}
 	}
 
 	// upload

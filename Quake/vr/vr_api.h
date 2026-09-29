@@ -64,7 +64,24 @@ void VR_TimeStart (void);	// main, after Sys_Init: the process's start
 void VR_TimeInit (void);	// VR_Init: the commands
 void VR_TimeMark (const char *stage);	// a stage of the start-up or of a map's load just ended
 void VR_TimeLoadBegin (const char *what);	// SV_SpawnServer, CL_ParseServerInfo: a map's load starts
-void VR_TimeFrameEnd (int signedon);	// end of _Host_Frame: the first frame drawn ends the start-up, and a load once signed on
+void VR_TimeAdd (const char *what, double seconds);	// time spent in a kind of work (model loads, normal maps...), summed per stage group
+void VR_TimeFrameEnd (int signedon);
+
+// The loose files' presence while the game starts and a map loads (vr_fscache.cpp; COM_FindFile, Sys_fopen).
+int VR_FileCacheHas (const char *path);	// 1 a file, 0 none, -1 not known (ask the file system)
+void VR_FileCacheEnable (int on);	// VR_TimeStart, VR_TimeLoadBegin on; the first frame drawn off
+void VR_FileCacheForget (void);	// a file written, a directory made
+
+// Images decoded ahead on worker threads (vr_imgprefetch.cpp; image.c Image_LoadImage).
+unsigned char *VR_ImagePrefetchTake (const char *name, FILE *f, int length, int *width, int *height);
+void VR_ImagePrefetchNote (const char *name, double seconds);
+void VR_ImagePrefetchEnd (void);	// the first map load's end: the workers joined, the rest freed, the list written
+
+// The normal maps made from skins, kept on disk (vr_texcache.cpp; gl_texmgr.c TexMgr_LoadImage32).
+int VR_NormalCacheMode (void);	// vr_normalmap_cache: 0 off, 1 on, 2 check
+int VR_NormalCacheLoad (const char *build, unsigned long long key, unsigned char *rgba, int width, int height);
+void VR_NormalCacheStore (const char *build, unsigned long long key, const unsigned char *rgba, int width, int height);
+void VR_NormalCacheChecked (int same, const char *name);	// vr_normalmap_cache 2: a map made again against its file	// end of _Host_Frame: the first frame drawn ends the start-up, and a load once signed on
 
 // Filesystem (common.c).
 void VR_BeforeAddGameDirectory (const char *dir);	// start of COM_AddGameDirectory

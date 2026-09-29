@@ -35,6 +35,13 @@ struct Group
     double start = 0.0; // Sys_DoubleTime
     double last = 0.0;
     double nestedMs = 0.0; // map loads inside it (a start-up whose autoexec loads a map)
+    struct Sum
+    {
+        std::string what;
+        double ms;
+        int count;
+    };
+    std::vector<Sum> sums; // VR_TimeAdd: kinds of work, across the stages
     bool open = false;
 };
 
@@ -67,6 +74,14 @@ void print(const Group& g)
     for(const Mark& m : g.marks)
     {
         Con_Printf("  %-40s %8.1f ms  (at %.3f s)\n", m.name.c_str(), m.ms, m.at);
+    }
+    if(!g.sums.empty())
+    {
+        Con_Printf("  work across the stages (the lines indented under a line are part of it):\n");
+        for(const Group::Sum& w : g.sums)
+        {
+            Con_Printf("    %-50s %8.1f ms  (%d)\n", w.what.c_str(), w.ms, w.count);
+        }
     }
     if(!g.marks.empty())
     {
@@ -141,6 +156,7 @@ extern "C" void VR_TimeStart()
     startup.last = processStart;
     startup.open = true;
     mark(startup, "before main (loader, DLLs, C runtime)", now);
+    VR_FileCacheEnable(1);
 }
 
 extern "C" void VR_TimeInit()
@@ -155,6 +171,25 @@ extern "C" void VR_TimeMark(const char* stage)
     {
         mark(*g, stage, Sys_DoubleTime());
     }
+}
+
+extern "C" void VR_TimeAdd(const char* what, double seconds)
+{
+    Group* const g = current();
+    if(!g)
+    {
+        return;
+    }
+    for(Group::Sum& w : g->sums)
+    {
+        if(w.what == what)
+        {
+            w.ms += seconds * 1000.0;
+            w.count++;
+            return;
+        }
+    }
+    g->sums.push_back({what, seconds * 1000.0, 1});
 }
 
 extern "C" void VR_TimeLoadBegin(const char* what)
@@ -172,6 +207,7 @@ extern "C" void VR_TimeLoadBegin(const char* what)
     load.title = std::string("vr_startup_times: the last map load (") + what + "), to its first frame drawn";
     load.start = load.last = now;
     load.open = true;
+    VR_FileCacheEnable(1);
 }
 
 extern "C" void VR_TimeFrameEnd(int signedOn)
@@ -181,6 +217,8 @@ extern "C" void VR_TimeFrameEnd(int signedOn)
     {
         mark(load, "first frame drawn", now);
         load.open = false;
+        VR_ImagePrefetchEnd();
+        VR_FileCacheEnable(0);
         const double ms = (load.last - load.start) * 1000.0;
         loads.push_back(va("vr_startup_times: load %d: %.1f ms (%s)", static_cast<int>(loads.size()) + 1, ms,
             load.title.c_str() + load.title.find('(')));
@@ -199,6 +237,7 @@ extern "C" void VR_TimeFrameEnd(int signedOn)
     {
         mark(startup, "first frame drawn", now);
         startup.open = false;
+        VR_FileCacheEnable(0);
         if(developer.value)
         {
             print(startup);

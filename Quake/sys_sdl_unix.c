@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "arch_def.h"
 #include "quakedef.h"
+#include "vr/vr_api.h" // QVR: VR_FileCacheForget
 #include "steam.h"
 
 #include <sys/types.h>
@@ -74,6 +75,8 @@ static int findhandle (void)
 
 FILE *Sys_fopen (const char *path, const char *mode)
 {
+	if (strpbrk (mode, "wa+"))
+		VR_FileCacheForget (); // QVR: the loading's listed directories (vr_fscache.cpp)
 	if (strchr (mode, 'w'))
 	{
 		char dir[MAX_OSPATH];
@@ -114,17 +117,20 @@ qfileofs_t Sys_ftell (FILE *file)
 
 int Sys_remove (const char *path)
 {
+	VR_FileCacheForget (); // QVR: the loading's listed directories (vr_fscache.cpp)
 	return remove (path);
 }
 
 int Sys_rename (const char *oldname, const char *newname)
 {
+	VR_FileCacheForget (); // QVR: the loading's listed directories (vr_fscache.cpp)
 	return rename (oldname, newname);
 }
 
 // QVR: newname replaced by oldname in one step (rename is atomic); 0 on success
 int Sys_ReplaceFile (const char *oldname, const char *newname)
 {
+	VR_FileCacheForget (); // QVR: the loading's listed directories (vr_fscache.cpp)
 	return rename (oldname, newname);
 }
 
@@ -823,6 +829,7 @@ void Sys_Init (void)
 
 void Sys_mkdir (const char *path)
 {
+	VR_FileCacheForget (); // QVR: the loading's listed directories (vr_fscache.cpp)
 	int rc = mkdir (path, 0777);
 	if (rc != 0 && errno == EEXIST)
 	{

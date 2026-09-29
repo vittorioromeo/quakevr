@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //image.c -- image loading
 
 #include "quakedef.h"
+#include "vr/vr_api.h" // QVR: load timing
 
 static byte *Image_LoadPCX (FILE *f, int *width, int *height);
 static byte *Image_LoadLMP (FILE *f, int *width, int *height);
@@ -109,7 +110,27 @@ Image_LoadImage
 returns a pointer to hunk allocated RGBA data
 ============
 */
+static byte *Image_LoadImageRun (const char *name, int *width, int *height, enum srcformat *fmt);
+
+/*
+============
+Image_DecodeMemory -- QVR: an image file's bytes decoded (stb_image, RGBA; malloc'd, NULL if it can't): the worker
+threads' decoding ahead (vr_imgprefetch.cpp)
+============
+*/
+unsigned char *Image_DecodeMemory (const unsigned char *bytes, int length, int *width, int *height)
+{
+	return stbi_load_from_memory (bytes, length, width, height, NULL, 4);
+}
+
 byte *Image_LoadImage (const char *name, int *width, int *height, enum srcformat *fmt)
+{
+	double t0 = Sys_DoubleTime (); // QVR: load timing (vr_startup_times)
+	byte *data = Image_LoadImageRun (name, width, height, fmt);
+	VR_TimeAdd (data ? "image files found and decoded (png, tga, pcx, lmp)" : "image files looked for, none found", Sys_DoubleTime () - t0);
+	return data;
+}
+static byte *Image_LoadImageRun (const char *name, int *width, int *height, enum srcformat *fmt)
 {
 	static const char *const stbi_formats[] = {"png", "tga", "jpg", NULL};
 	FILE	*f;
@@ -122,7 +143,12 @@ byte *Image_LoadImage (const char *name, int *width, int *height, enum srcformat
 		COM_FOpenFile (loadfilename, &f, NULL);
 		if (f)
 		{
-			byte *data = stbi_load_from_file (f, width, height, NULL, 4);
+			double t0 = Sys_DoubleTime (); // QVR
+			byte *data = VR_ImagePrefetchTake (loadfilename, f, com_filesize, width, height); // QVR: decoded ahead (vr_imgprefetch.cpp)
+			if (!data)
+				data = stbi_load_from_file (f, width, height, NULL, 4);
+			if (data)
+				VR_ImagePrefetchNote (loadfilename, Sys_DoubleTime () - t0); // QVR: the next session's list
 			if (data)
 			{
 				int numbytes = (*width) * (*height) * 4;

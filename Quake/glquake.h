@@ -472,6 +472,8 @@ qboolean TexMgr_NormalMapAuthored (struct gltexture_s *glt); // QVR: whether its
 int TexMgr_NormalMapParallax (struct gltexture_s *glt); // QVR: its normal map's heights: 0 none, 1 made ones, 2 an authored file's alpha
 qboolean TexMgr_IndexedSmooth (void); // Quake's own textures filtered smoothly (only then do they get heights)
 void TexMgr_SetHeightMask (const byte *mask, int width, int height); // a skin's islands for the heights made next (NULL: none)
+void TexMgr_SetHeightMaskLazy (const float *corners, int numtris, int width, int height,
+	byte *(*make) (const float *corners, int numtris, int w, int h)); // the same, made from the triangles only if needed
 
 extern gpulightbuffer_t r_lightbuffer;
 extern gpuframedata_t r_framedata;

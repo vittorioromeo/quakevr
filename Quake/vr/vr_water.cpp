@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <cstring>
 #include <string>
+#include <thread>
 #include <unordered_map>
 #include <vector>
 
@@ -117,18 +118,35 @@ void buildVolume(qmodel_t* m)
 
     const int nx = dims[0], ny = dims[1], nz = dims[2];
     std::vector<unsigned char> texels(static_cast<std::size_t>(nx) * ny * nz);
-    for(int z = 0; z < nz; z++)
-    {
-        for(int y = 0; y < ny; y++)
+    // Up to 4M points in the BSP tree (80-90 ms for e1m1 on one thread): the layers shared out among threads, each
+    // writing its own (Mod_PointInLeaf only reads the model), all joined before the upload. The same texels.
+    const auto layers = [&](int z0, int z1) {
+        for(int z = z0; z < z1; z++)
         {
-            for(int x = 0; x < nx; x++)
+            for(int y = 0; y < ny; y++)
             {
-                vec3_t p = {volumeOrigin[0] + (x + 0.5f) * cell, volumeOrigin[1] + (y + 0.5f) * cell,
-                    volumeOrigin[2] + (z + 0.5f) * cell};
-                const std::ptrdiff_t li = Mod_PointInLeaf(p, m) - m->leafs;
-                texels[(static_cast<std::size_t>(z) * ny + y) * nx + x] =
-                    li >= 0 && li <= m->numleafs && wet[li] ? 255 : 0;
+                for(int x = 0; x < nx; x++)
+                {
+                    vec3_t p = {volumeOrigin[0] + (x + 0.5f) * cell, volumeOrigin[1] + (y + 0.5f) * cell,
+                        volumeOrigin[2] + (z + 0.5f) * cell};
+                    const std::ptrdiff_t li = Mod_PointInLeaf(p, m) - m->leafs;
+                    texels[(static_cast<std::size_t>(z) * ny + y) * nx + x] =
+                        li >= 0 && li <= m->numleafs && wet[li] ? 255 : 0;
+                }
             }
+        }
+    };
+    const int threads = std::clamp(static_cast<int>(std::thread::hardware_concurrency()) - 1, 1, std::min(8, nz));
+    {
+        std::vector<std::thread> workers;
+        for(int t = 1; t < threads; t++)
+        {
+            workers.emplace_back(layers, nz * t / threads, nz * (t + 1) / threads);
+        }
+        layers(0, nz / threads);
+        for(std::thread& w : workers)
+        {
+            w.join();
         }
     }
 
@@ -1507,8 +1525,12 @@ void sceneDepthChanged()
 
 void prepare()
 {
+    const double t0 = Sys_DoubleTime();
     ensureVolume();
+    const double t1 = Sys_DoubleTime();
     (void)ensureMesh();
+    VR_TimeAdd("liquids: the caustics' volume", t1 - t0); // load timing (vr_startup_times)
+    VR_TimeAdd("liquids: the wave mesh", Sys_DoubleTime() - t1);
 }
 
 unsigned opaqueSceneDistances()
