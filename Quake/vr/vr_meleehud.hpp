@@ -21,6 +21,7 @@ struct State
     bool low{false};        // one more one-handed parry would knock the weapon away
     bool recovering{false}; // it is coming back (no parry for vr_parry_stamina_delay)
     float counter{0.f};     // the counter window's share left, 1 as it opens .. 0 (0: none open)
+    bool draining{false};   // hanging from a hold spends it (vr_climb_stamina)
 };
 
 // As the server last sent it (all off in a game without the VR progs).

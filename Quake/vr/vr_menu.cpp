@@ -609,7 +609,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Two-Handed Parry Cost", vr_parry_stamina_cost_2h, 0.f, 100.f, 1.f, "%.0f").extend()
             .help("Stamina a parry with the weapon in both hands costs (12 of 100: the ninth in a row knocks it away)."),
         slider("Rest Before Recovering", vr_parry_stamina_delay, 0.f, 6.f, 0.25f, "%.2f s").extend()
-            .help("How long you must go without parrying, shoving or striking (those that cost stamina) before stamina starts coming back."),
+            .help("How long you must go without parrying, shoving, striking or hanging from a hold (those that cost stamina) before stamina starts coming back."),
         slider("Recovery Rate", vr_parry_stamina_regen, 1.f, 100.f, 1.f, "%.0f /s").extend().help("Stamina a second it then comes back at."),
         slider("Tiring Warning", vr_parry_stamina_warn, 0.f, 1.f, 0.1f, "%.1f")
             .help("A breath and a throb in the hand when one more one-handed parry would knock the weapon away; a gasp and a long buzz when it does: their volume and strength (0 off)."),
@@ -632,7 +632,13 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Exhausted Damage", vr_stamina_exhausted_damage, 0.1f, 1.f, 0.05f, "%.2fx")
             .help("Damage of a blow, shove or bash made with no stamina left for it (1: no penalty). With part of its cost left, in between."),
         slider("Exhausted Knockback", vr_stamina_exhausted_push, 0.1f, 1.f, 0.05f, "%.2fx")
-            .help("How far a shove or bash made with no stamina left for it throws back and staggers (1: no penalty). With part of its cost left, in between."),
+            .help("How far a shove or bash made with no stamina left for it throws back and staggers (1: no penalty). With part of its cost left, in between."),        header("Climbing Stamina"),
+        toggle("Climbing Stamina", vr_climb_stamina)
+            .help("Hanging from a ledge or a rung (Climbing) spends stamina from the same pool, and none comes back while you hang. With none left your hands let go. More on the Climbing page."),
+        slider("Hanging Cost, One Hand", vr_climb_stamina_rate, 0.f, 30.f, 0.5f, "%.1f /s").extend()
+            .help("Stamina a second hanging from one hand costs (5 of 100: 20 s)."),
+        slider("Hanging Cost, Two Hands", vr_climb_stamina_rate_2h, 0.f, 30.f, 0.5f, "%.1f /s").extend()
+            .help("Stamina a second hanging from both hands costs, the two together (2 of 100: 50 s)."),
     };
 }
 
@@ -1528,6 +1534,9 @@ std::vector<Item> pageDebugLogging()
             .help("Each throw's speed estimate from the hand's motion (and the release's timing)."),
         cycle("Climbing", vr_climb_debug, {{0.f, "Off"}, {1.f, "Holds"}, {2.f, "Every Frame"}, {3.f, "And Shoulders"}})
             .help("Holds taken, released, mantles; every frame: the body, the hands, the pull, the holds' reach (a lot)."),
+        cycle("Hands", vr_debug_hands, {{0.f, "Off"}, {1.f, "When They Change"}, {2.f, "Every Frame"}})
+            .help("Each hand's state: the grip, its weapon, what it carries, the force grab, the flashlight, the hotspot, and "
+                  "what climbing makes of a grip (holding, free, or why it takes nothing)."),
         toggle("Swim Strokes", vr_swim_debug).help("Each stroke: its peak speed, the power gate, the reverse damping and the push it gave."),
         cycle("Grappling Hook", vr_grapple_debug, {{0.f, "Off"}, {1.f, "Bites and Reels"}, {2.f, "And the Rope"}, {3.f, "Every Frame"}})
             .help("What the hook bites and each reel (mass, class, speeds); the rope 4 times a second, or every frame. Needs "
@@ -2001,7 +2010,7 @@ std::vector<Item> pageCombat()
     return {
         open("Melee", pageIndex(pageMeleeSettings)).help("Swings and punches, bloodlust, the headbutt."),
         open("Parry and Bash", pageIndex(pageParryBash)).help("Parrying, bashing and shoving, counter-attacks, the training dummy's blows."),
-        open("Stamina", pageIndex(pageStamina)).help("What parries, shoves and blows cost, and being exhausted."),
+        open("Stamina", pageIndex(pageStamina)).help("What parries, shoves, blows and hanging from a hold cost, and being exhausted."),
         open("Batting and Catching", pageIndex(pageBatting)).help("Batting projectiles back; catching and returning grenades; hand grenades."),
         open("Damage and Knockback", pageIndex(pageDamage)).help("Damage to monsters and to you, headshots, knockback."),
     };

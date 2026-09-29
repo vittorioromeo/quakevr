@@ -150,6 +150,13 @@ context and screenshot, ready to paste or to point me at.
     of elsewhere unarmed, it is a dud at your feet: take it again to arm it or put it back. No rockets: a dull knock.
     Batting and Catching > **Hand Grenades** (on/off, **Arm Hand Grenades**: the trigger, or when let go of; **Hand
     Grenade Fuse**); the pouch's place and turn on Hip Holsters > **Grenade Pouch**.
+  - **Hands: both work; props through teleporters; climbing stamina** (ROUND21.md, same title): a hand that force
+    grabbed something and put it down could no longer take a ledge (fixed); a main-hand grip on a thing the off hand
+    touched did nothing, and a prop held in both hands lost a hand when you moved fast (both fixed). Bricks (whole,
+    chipped, broken) can be held in both hands. What you carry comes through teleporters. Hanging from a hold tires
+    you (Climbing page > Climbing Stamina; also on the Stamina page): 5 a second from one hand, 2 from both, nothing
+    with your feet on something; at none your hands let go (or, with Exhausted: Slip Time, slip off after sinking);
+    the gadget reads HANGING while it drains. `vr_debug_hands 1` (Debug > Logging > Hands) prints each hand's state when it changes.
   - **Performance fixes (review, 2026-09-28)** (ROUND21.md, same title): the spectator camera has a **Frame Rate**
     (60 fps by default: as often as a 60 fps recording takes), a **Resolution Scale** of 0.75 by default and an
     **Anti-Aliasing** choice (Recording page); climbing's mantle and lenient grab, the props' settings and two caches
@@ -1161,3 +1168,19 @@ Debug menu; quad sound; grenade catch default; no empty-hand deflection (ROUND21
 - Menu buttons in a script: `menu_vr <page> <label prefix>` selects the row, then `vr_mock_button main primary 1`, a
   few frames, `0`. A button's command goes ahead of the script's waits (`Cbuf_InsertText`), so its output follows
   the click. The Debug pages are 64 and 66-71.
+Hands, teleporters and climbing stamina (ROUND21.md, "Hands: both work; props through teleporters; climbing stamina";
+the scratchpad's `climbhands/`): `vr_debug_hands 1` (2: every frame) prints each hand's state as `hands <time> <hand>:
+...` lines, ending with what climbing makes of a grip; `vr_climb_debug 1` says why a grip is refused. The hand-state
+matrix is `hands/gen.py` (writes the plays: an action, then both hands on vrclimb's ledge, a health box in each hand,
+then in both) and `hands/mrun.sh <suffix> <action...>` (actions `base fgoff fgmain wpnmain wpnoff wpnkeep save climb`;
+`summ.py` prints the verdicts). A force grab in the mock: point the hand at the thing, `+offhandattack` (off) or
+`+attack` (main), move the hand up 0.3 m in 0.1 s, then the grip (`hands/fg_off.txt`). Teleporters: `tele/tele.sh <tag>
+main|off|two|flash [start|e1m1] [edict] [what]` holds a thing (`vr_rigid_place new`: a brick in start) and walks
+through start's skill teleporter `*2` (`setpos 544 1376 24 0 0 0`, a 90-degree turn) or e1m1's `*20` (walked into from
+`setpos 1312 1030 -408 0 90 0`); `tele/torch.sh` takes e1m2's wall torch 52 through its teleporter `*1`; `walk.sh`
+walks with a brick in both hands. Two hands on a brick in start: the main hand at `0.20 1.30 -0.45 70 0 0` with
+`vr_rigid_place new main 0 0 0`, the off hand at `0.14 1.30 -0.56 70 0 0`. Climbing stamina: `stamina/st.sh <tag>
+<play> [cvars] [waits]` (plays `hang`, `stand`, `regrab`, `gadget`; `vr_climb_debug 1` prints `climbstamina` lines
+at every 10 spent, 2 every frame); `vr_gadget_screen_dump <name>` writes the gadget's screen. The 13 climb scripts:
+`climb/set.sh <suffix>` (`EXTRA="vr_climb_stamina 0"` adds cvars) and `climb/cmp.sh A B`. `edict <n>` with a number past
+the live edicts ends the game (`PR_SwitchQCVM: A qcvm was already active`): use numbers you have seen.

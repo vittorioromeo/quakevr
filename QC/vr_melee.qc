@@ -1478,6 +1478,7 @@ float VR_COUNTER_PULSE_FIRST = 0.35; // s after the parry the first (the parry's
 .float vr_stamina_used;     // on a player: the stamina spent (0: rested; out of vr_parry_stamina_max),
 .float vr_stamina_time;     // when the last parry, shove or blow spent some,
 .float vr_stamina_said;     // its coming back was traced (developer)
+.float vr_climb_drain;      // on a player: 1 while hanging from a hold spends it (the engine's vr_climb.cpp, "Climbing stamina")
 .float vr_counter_until;    // on a player: a counter may land until then (0: no window),
 .float vr_counter_since;    // the window opened then,
 .float vr_counter_pulse_at; // the next pulse
@@ -1488,14 +1489,24 @@ float() VR_Stamina_Max =
     return max(1, cvar_hget(cvarh_vr_parry_stamina_max));
 };
 
-// Whether the pool is used: parries, shoves or blows spend it.
+// Whether climbing spends it: hanging from a hold (the engine drains it: vr_climb.cpp, "Climbing stamina").
+float() VR_Stamina_Climbing =
+{
+    if(cvar_hget(cvarh_vr_climb) && cvar_hget(cvarh_vr_climb_stamina))
+    {
+        return TRUE;
+    }
+    return FALSE;
+};
+
+// Whether the pool is used: parries, shoves, blows or hanging from a hold spend it.
 float() VR_Stamina_On =
 {
     if(cvar_hget(cvarh_vr_parry_stamina) || cvar_hget(cvarh_vr_shove_stamina) || cvar_hget(cvarh_vr_strike_stamina))
     {
         return TRUE;
     }
-    return FALSE;
+    return VR_Stamina_Climbing();
 };
 
 // Stamina left at or under which it is low (the gadget blinks): one more of the dearest of what spends it (a
@@ -1514,6 +1525,10 @@ float() VR_Stamina_LowAt =
     if(cvar_hget(cvarh_vr_strike_stamina))
     {
         at = max(at, cvar_hget(cvarh_vr_strike_stamina_cost));
+    }
+    if(VR_Stamina_Climbing())
+    {
+        at = max(at, 3 * cvar_hget(cvarh_vr_climb_stamina_rate)); // three seconds' hanging from one hand
     }
     return at;
 };
@@ -1771,7 +1786,7 @@ void() VR_Counter_Frame =
 // percent, rounded up (0 only when none is), + 128 with the pool on (parry, shove or strike stamina), + 256 when low
 // (VR_Stamina_LowAt; with parry stamina, one more one-handed parry would knock the weapon away), + 512 while it comes
 // back, + 1024 x the counter window's share left in 63rds (0: none
-// open). Integers under 2^16, exact in a float.
+// open), + 65536 while hanging from a hold drains it (.vr_climb_drain). Integers under 2^17, exact in a float.
 void() VR_Melee_Hud =
 {
     float hud = 0;
@@ -1787,6 +1802,10 @@ void() VR_Melee_Hud =
         if(self.vr_stamina_used > 0 && time - self.vr_stamina_time >= max(0, cvar_hget(cvarh_vr_parry_stamina_delay)))
         {
             hud = hud + 512;
+        }
+        if(self.vr_climb_drain)
+        {
+            hud = hud + 65536; // hanging drains it
         }
     }
     self.vr_melee_hud = hud + 1024 * ceil(63 * VR_Counter_Left(self));

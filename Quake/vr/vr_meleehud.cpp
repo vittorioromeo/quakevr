@@ -102,6 +102,7 @@ State state()
     out.low = (bits & 256) != 0;
     out.recovering = (bits & 512) != 0;
     out.counter = static_cast<float>(std::clamp((bits >> 10) & 63, 0, 63)) / 63.f;
+    out.draining = out.stamina && (bits & 65536) != 0;
     return out;
 }
 

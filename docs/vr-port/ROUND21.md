@@ -11170,6 +11170,201 @@ the flashlight, a box, a gib, anything without a tip, and a prop carried with bo
 - [ ] Punch or shove a spike or a grenade with empty hands: it isn't batted (a grenade is caught with the grip closed).
       With a gun, a sword or a wall torch, swing or bash it: batted.
 
+## Hands: both work; props through teleporters; climbing stamina
+
+Your notes (29 September): in the firing range, only one hand could take a ledge, the left one first, then after a
+while only the right one; in start, a brick could be held in one hand only; a prop held through a teleporter fell on
+the other side; and hanging from a ledge should tire you, and drop you when you're exhausted.
+
+### Why one hand stopped working
+
+**The cause: a force grab's leftover.** When a hand force grabs something, the QC notes it in that hand's
+`.mainhand_fgpulled` / `.offhand_fgpulled`. The note is never cleared: it keeps naming the last thing that hand pulled,
+and the QC only reads it while the thing is still flying to the hand (`.fg_state` 1). Climbing's "is this hand empty"
+test (`vr_climb.cpp`) read it differently: the hand counted as busy for as long as the thing existed. So after you
+force grabbed a health box, a brick or a gib with a hand and put it down, that hand refused every ledge, silently,
+until the thing was taken into your pack or removed. Pull something with the other hand and the problem swapped
+hands. The firing range is full of boxes to pull.
+
+- **The fix:** the climbing test now uses the same rule as the QC and the gadget's force grab stat. The hand is busy
+  only while the thing flies to that hand.
+- **Found on the way:** two more asymmetries between the hands, both in the carrying code.
+  - **Both hands on one thing:** when both hands touched the same thing in the touch pass, only the off hand's touch
+    ran (`vr_physics.cpp` `handTouch`). So a main-hand grip on a box the off hand rested on (or held a gun against)
+    did nothing. Each hand now touches it.
+  - **Two-handed carry while moving:** a prop held in both hands lost a hand when you moved fast. The check that pulls
+    a hand off (`vr_carry2h.cpp` `detached`) compared the hands, already moved with the body this frame, with the prop
+    where the hands had put it before the body moved. In the mock, walking at full speed with a brick in both hands
+    pulled one hand off at once ("one hand pulled off it, held in the other"). The prop is now compared as moved with
+    the body, and walking keeps both hands on it (0.0 cm off its grips).
+- **Not the cause (checked):**
+  - the grab's press isn't eaten by another system;
+  - the hold delay expires after a load or a teleport (the climber is reset when the time jumps);
+  - the world reset forgets every hold;
+  - nothing flips the main and off hands.
+
+  A hand holding a weapon still can't take a ledge (by design). A holster that holds a weapon still wins over a ledge
+  while you stand (as before); `vr_debug_hands 1` shows both.
+
+**Bricks with both hands.** The whole, chipped and broken bricks may now be held in both hands (Held Object Offsets:
+Two Hands 1, slots 23, 24 and 26). The rocks and the half brick stay one-handed (9 to 14 cm, a fist's worth), and it
+is the same Held Object Offsets setting per model. Held in both hands, a brick is carried as a box is, not as a club
+(the club is a one-hand grip by its end). `vr_props_version` 39 gives an old config the new setting where the slot
+still had the old default (one hand). A slot the config gave another model keeps its own.
+
+**`vr_debug_hands 1`** (Debug > Logging > **Hands**) prints a line per hand whenever something about it changes (2: every frame): the grip, the
+weapon, what it carries (and "both hands"), the force grab's target, lock and pulled thing (with its state), the
+flashlight, the hotspot, and what climbing makes of it: `holding`, `free`, or why a grip takes nothing (`a weapon`,
+`a carried object`, `a force grab locked on`, `a force grab in flight`, `the flashlight`, `a holster wins`,
+`too soon`, `too tired`). `vr_climb_debug 1` gives the same reason when a grip is refused
+("climb: off hand grips: not empty: a force grab in flight").
+
+### Props through teleporters
+
+What the hands carry now comes along through a teleporter: boxes, rocks, bricks, gibs, a grenade, a wall torch
+(everything carried, in one hand or two). The flashlight was already client-side, drawn in the hand. Changing level
+still drops them.
+
+- `teleport_touch` (`triggers.qc`) moves what the player carries by the player's move (`VR_Carry_Teleported`,
+  `vr_carry.qc`).
+- For 0.3 s after, the thing follows the hands from the player (`VR_Carry_FollowTeleported`): it goes where the hand
+  wants it, stopped short only by a wall between it and your eyes, and never counts as stuck.
+  - Why that's needed: the hands catch up with the teleport a frame or two apart. The server's hands move with the
+    player at the next frame, and the play space turns to the destination's facing when the client takes the new
+    angle. Before, the carry drew a line from where the thing was to where the hand wanted it; that line crossed the
+    level, a wall cut it, and the thing was dropped as stuck.
+  - A hand not yet moved with the player leaves the thing where it is.
+  - Two hands: the pull-off check waits for those 0.3 s.
+- The VR teleport (locomotion) sets the same moment (`vr_physics.cpp`), so a box held across a VR teleport past a
+  wall isn't dropped either.
+- Box3D: a held prop's kinematic body follows its entity. A move over 64 units is a jump (placed there, no sweep, no
+  push on what's round it), so the teleported prop doesn't bat anything on the way.
+
+### Climbing stamina
+
+Hanging from a hold tires you, from the pool parries, shoves and blows use (Stamina page; one pool, 100 as shipped).
+
+- **The cost:** 5 a second hanging from one hand, 2 a second from both hands together (20 s one-handed, 50 s
+  two-handed from full). Two hands cost less in all, not just per hand: the arms share the weight.
+- **Free:** standing on something while you hold (a low ledge gripped from the floor: the body's box 2 units down
+  meets a floor), the mantle, and standing on the ledge after it.
+- **No recovery while you hang:** each hanging frame counts as spending, so the rest before stamina comes back
+  (Rest Before Recovering, 2 s) starts when you stop hanging.
+- **Getting low:** the tiring breath plays once, as for the other efforts. The low mark is the dearest effort's cost,
+  now including three seconds of a one-handed hang.
+- **At none:** both hands let go, with a gasp (`player/gasp1`, the exhausted parry's) and a long buzz in each hand,
+  and you fall. No fling: the hands give way.
+- **With Exhausted: Slip Time** above 0: at none, your arms can't pull you up any more. You sink (8 units a second)
+  until your arms are straight or your feet land, and the hands slip off after that long. Feet on something, you
+  stay.
+- **Starting a hang:** a hang needs at least a second of one-handed hanging left. Short of it, a grip takes nothing,
+  with a soft buzz ("too tired"). A hand joining the other on a hold is always let (two hands tire less).
+- **On the gadget:** while a hang drains it, the stamina row reads **HANGING** and a dark notch runs back through the
+  lit cells. EXHAUSTED and the recovery sweep are as before.
+
+The engine spends it (`vr_climb.cpp` "Climbing stamina": `.vr_stamina_used`, `.vr_stamina_time`, QC's fields). The
+QC's pool counts climbing as one of its users (`VR_Stamina_On`, `VR_Stamina_LowAt`), and the gadget's drain mark
+(`.vr_climb_drain`, `STAT_QVR_MELEE` + 65536).
+
+| Menu (Climbing page; the first three also on the Stamina page) | Cvar | Default |
+|---|---|---|
+| Climbing Stamina | `vr_climb_stamina` | 1 |
+| Hanging Cost, One Hand | `vr_climb_stamina_rate` | 5 /s |
+| Hanging Cost, Two Hands | `vr_climb_stamina_rate_2h` | 2 /s (both together) |
+| Exhausted: Slip Time | `vr_climb_stamina_slip` | 0 s (let go at once) |
+| Debug > Logging > Hands | `vr_debug_hands` | 0 |
+
+New settings take their defaults: no `vr_cfg_version` change (`vr_props_version` 39 is the bricks').
+
+**Decisions:**
+- "Drop at 0" is the default, with a slip as an option. Slipping keeps you hanging without pulling, so it reads as
+  exhaustion, not as a bug.
+- The drop's sound is the gasp an exhausted parry plays. The tiring breath (`gasp2`) is already the low warning a few
+  seconds before, so the two moments sound different.
+- The costs: a hang from a ledge lasts 20 s on one hand, 50 s on two. vrclimb's rung wall, climbed as the mock climbs
+  it (23 s, 2 s a rung), costs 75 of 100 and ends at the top with the tiring breath. A quicker climb costs less. A
+  climb is something to rest for after a fight. Tell me if it should cost less.
+
+### Verified (mock headset, `vr_fixed_frames 1`; the scratchpad's `climbhands/`)
+
+**The hand-state matrix** (`hands/`). In vrclimb, each action is followed by the check:
+- each hand alone takes the ledge;
+- a health box in each hand alone;
+- the box in both hands.
+
+| Action before the check | Before (f03dacd0) | After |
+|---|---|---|
+| none | both hands take the ledge; the box in each hand and in both | the same |
+| off hand force grabs the box, catches it, puts it down | **off hand refused the ledge** ("not empty"); the rest fine | both take it |
+| main hand force grabs, catches, puts down | **main hand refused the ledge** | both take it |
+| a gun given to the main hand, let go of | both take it | the same |
+| a gun given to the off hand, let go of | (not run) | both take it |
+| a gun kept in the main hand | (not run) | the main hand refused ("a weapon", by design); the off hand takes it |
+| saved and loaded (a save in the run's folder) | both take it | the same |
+| a two-handed hang, let go of | both take it | the same |
+
+The flashlight and a holster are what `vr_debug_hands` shows when a grip is refused; they refuse only while the
+flashlight is in that hand or the hand is at a holster holding a weapon, as before.
+
+**Teleporters** (`tele/`):
+- **Start's skill teleporter** (a 90-degree turn):
+  - **One hand, each hand:** a brick held in the main hand, then the off hand. Before: "carry: stuck at (556 1406 27),
+    the hand wants (556 1531 54)", and it fell. After: "teleported with the player, moved by (0 160 19)". Two seconds
+    later it is still carried (`carry_player` the player), 1.6 units under the hand (its grip), turned 90 degrees
+    with you.
+  - **Both hands on a brick:** before, a brick took one hand only (then dropped as above). After: held in both, 0.0 cm
+    off both grips after the teleport.
+- **e1m1's teleporter** (walked into facing +y; the destination faces +x): a health box, still held, 3.8 units
+  beside the hand as gripped.
+- **e1m2's teleporter** with the wall torch (pulled out, dropped, taken again): still held after.
+- **The flashlight** in the off hand: still held (client-side, as before).
+- **Walking at full speed** with a brick in both hands (before the carry2h fix, with bricks two-handed): "one hand
+  pulled off it, held in the other". After: both hands stay on it.
+
+**Climbing stamina** (`stamina/`; vrclimb's long ledge, the hands pulled down 30 cm to hang):
+- **Hang:** two hands for 10 s (2 a second: -0.028 a frame), then one hand (5 a second). The tiring breath at 29.9
+  left (low: the parry's 30 in the kit's config). "no stamina left, lets go" at 29 s (game time). Stamina comes back 2 s after,
+  full 6 s after.
+- **Standing:** both hands on the ledge with the feet on the floor for 10 s: nothing spent.
+- **Slip** (Slip Time 1.5, costs 20 a second):
+  - by the ledge: "slipping", the body sinks 8 units a second and stops with the feet on the floor; it stays.
+  - over the trench (the far shimmy): it sinks 10 units to straight arms, then "no stamina left, lets go" 1.5 s later,
+    and falls into the trench.
+- **Regrab** (costs 20 a second, one hand): after the drop, a grip before the rest was over: "too tired (0.0 stamina
+  left)". The same grip after the pool had filled again: holds.
+- **Off** (`vr_climb_stamina 0`): no spending; the hands hold until let go.
+- **The gadget** (`vr_gadget_screen_dump`: `gadget_rows.png`): HANGING with the notch while hanging; EXHAUSTED after
+  the drop; the recovery sweep after.
+- **The 13 climb scripts** (`climb/`, `cmp.sh`):
+  - With Climbing Stamina off: every `climb` line is the same as before, byte for byte, all 13.
+  - On: the same once the `climbstamina` lines are left out, except one line in the ladder and ladderlean: "stamina low
+    (29.9 left): the tiring breath" near the top.
+  - None ran out. What was left at the end: mantle 99, ledge 40, shimmy 48, push 65, e1m1 75, ladder 25, ladderlean
+    11.
+- **Held Object Offsets migration** (`vr_props_version` 26 to 39): the bricks' Two Hands 0 became 1 (slots 23, 24,
+  26). The half brick stayed 0. A slot given another model kept its 0.
+
+**Found, not fixed:** `edict <n>` in the console with a number past the live edicts ends the game ("Bad edict number",
+then `PR_SwitchQCVM: A qcvm was already active`). This was already so before this change.
+
+### Not verified
+
+- In the headset: all of it. The force grab's leftover is the exact case in the mock, not your session's log. The
+  firing range's boxes make it the likely one, but I couldn't see what you pulled.
+- A grenade held through a teleporter: no ogre in the test maps. It is carried the same way as the box and the torch.
+- The haptics and sounds of climbing stamina (the mock has neither): the log shows each moment they are sent.
+
+### In the headset
+
+- [ ] Force grab a box with one hand, put it down, then take a ledge with that hand: it should hold.
+- [ ] Hold a brick in both hands, walk and run: both hands should stay on it.
+- [ ] Carry a box (one hand, then both) and a brick through a teleporter (start's skill teleporters, e1m1's): it should
+      come with you, turned with you.
+- [ ] Hang from a ledge with both hands, then one: watch the gadget read HANGING and drain. You should hear the breath
+      when it gets low, then drop with a gasp and a buzz. Tell me if 5 and 2 a second feel right.
+- [ ] Try Exhausted: Slip Time 1.5: at none you shouldn't be able to pull up, and your hands should slip off after it.
+- [ ] `vr_debug_hands 1` if a hand ever refuses again: the last word of its line says why.
+
 ## Hand grenades from the back pouch
 
 Your voice note (firing range, 2026-09-29): throwing grenades by hand would be fun; while you have grenade ammo

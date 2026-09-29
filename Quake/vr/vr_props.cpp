@@ -38,7 +38,8 @@ constexpr const char* keyDefaults[numKeys] = {
 
 // Configs archive every slot, so a slot whose shipped defaults change keeps a config's old values: vr_props_version
 // says which changes a config has seen (as vr_wofs_version for the weapons). 1: the table's first version; 26: the rocks
-// and bricks' slots; 40: the grip modes; 44: the grenade's (the round's agents number their changes apart).
+// and bricks' slots; 39: the bricks two-handed; 40: the grip modes; 44: the grenade's (the round's agents number their
+// changes apart).
 constexpr int settingsVersion = 44;
 
 std::array<std::string, numSlots * numKeys> names;
@@ -127,6 +128,21 @@ void migrate()
             {
                 Con_Printf("Held Object Offsets: slot %d is %s's in this config; %s keeps the defaults\n", slot + 1,
                     cvarAt(slot, Key::ID).string, cvarAt(slot, Key::ID).default_string);
+            }
+        }
+    }
+    // 39: the whole, chipped and broken bricks (slots 22, 23, 25) may be held in both hands (round 21, "Hands: both work;
+    // props through teleporters; climbing stamina"). A config that still has the old default (one hand) takes it; one
+    // whose slot is another model's keeps its own.
+    if(from < 39)
+    {
+        for(const int slot : {22, 23, 25})
+        {
+            cvar_t& id = cvarAt(slot, Key::ID);
+            cvar_t& two = cvarAt(slot, Key::TwoHands);
+            if(!strcmp(id.string, id.default_string) && !strcmp(two.string, "0"))
+            {
+                Cvar_SetQuick(&two, two.default_string);
             }
         }
     }

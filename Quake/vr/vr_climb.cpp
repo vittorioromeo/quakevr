@@ -106,6 +106,7 @@
 #include <functional>
 #include <cmath>
 #include <optional>
+#include <string>
 #include <vector>
 
 using namespace qvr;
@@ -751,6 +752,13 @@ struct Climber
     glm::vec3 lastOrigin{0.f}; // where the climb put the body (moved otherwise: let go)
     glm::vec3 owed{0.f};       // the pull the body couldn't make (made up first by a pull the other way)
     bool noRoom{false};        // pulling over the top of a ledge with no room to mantle (felt once)
+    // Climbing stamina (see "Climbing stamina" below).
+    bool draining{false};      // this frame's hang spent stamina
+    bool slipping{false};      // none left, vr_climb_stamina_slip > 0: the hands slip off at slipStart + that
+    double slipStart{0.0};
+    bool wasLow{false};        // the pool was low (the gadget's blink) at the last hanging frame: the breath once as it gets low
+    double tiredAt{-1.0};      // a grip refused for want of stamina: its buzz (at most every 0.5 s)
+    std::string handsLine[2];  // vr_debug_hands: the lines last printed
     bool hanging() const
     {
         return grips[0].active || grips[1].active;
@@ -783,34 +791,50 @@ Climber climbers[MAX_SCOREBOARD];
     return v ? PROG_TO_EDICT(v) : nullptr;
 }
 
-// Nothing in the hand: no weapon, no carried object, no locked force grab, not the flashlight.
-[[nodiscard]] bool handEmpty(edict_t* ent, const VrMove* move, int h)
+// What keeps hand `h` from taking hold (nullptr: nothing, the hand is empty): a weapon, a carried object, a locked force
+// grab or one flying to it now, the flashlight.
+//
+// Round 21 ("Hands: both work"): a force grab's .*hand_fgpulled keeps naming the last thing that hand pulled after it
+// arrived (the QC reads it only with .fg_state 1: VR_Forcegrab_IsPulling), so it counts only while it flies to this
+// hand, as the stats' (vr_server.cpp). It used to count while the thing existed: a hand that had force grabbed a box, a
+// brick or a gib and put it down never took hold again, until the thing was taken or removed.
+[[nodiscard]] const char* handBusy(edict_t* ent, const VrMove* move, int h)
 {
     if(move && (move->buttons & busyButton[h]))
     {
-        return false; // the flashlight (client-side)
+        return "the flashlight"; // (client-side)
     }
     const FieldOffsets& f = fields();
     if(!bindings().isVrProgs)
     {
-        return h == 0; // another mod's progs: the main hand always holds its weapon
+        return h == 0 ? nullptr : "its weapon"; // another mod's progs: the main hand always holds its weapon
     }
     const float weapon = h == 1 ? ent->v.weapon : fieldFloatOr(ent, f.weapon2, 0.f);
     if(weapon != 0.f)
     {
-        return false;
+        return "a weapon";
     }
     const edict_t* held = entityField(ent, h == 1 ? f.mainhand_held : f.offhand_held);
     if(held && !held->free)
     {
-        return false;
+        return "a carried object";
     }
     if(fieldFloatOr(ent, h == 1 ? f.mainhand_fglocked : f.offhand_fglocked, 0.f) != 0.f)
     {
-        return false;
+        return "a force grab locked on";
     }
-    const edict_t* pulled = entityField(ent, h == 1 ? f.mainhand_fgpulled : f.offhand_fgpulled);
-    return !pulled || pulled->free;
+    edict_t* pulled = entityField(ent, h == 1 ? f.mainhand_fgpulled : f.offhand_fgpulled);
+    if(pulled && !pulled->free && fieldFloatOr(pulled, f.fg_state, 0.f) == 1.f && entityField(pulled, f.fg_player) == ent &&
+        fieldFloatOr(pulled, f.fg_hand, -1.f) == static_cast<float>(h))
+    {
+        return "a force grab in flight";
+    }
+    return nullptr;
+}
+
+[[nodiscard]] bool handEmpty(edict_t* ent, const VrMove* move, int h)
+{
+    return handBusy(ent, move, h) == nullptr;
 }
 
 // Whether the grip at `hotspot` is for a holster rather than a hold: one that holds a weapon (the grip draws it),
@@ -880,6 +904,7 @@ void letGoAll(Climber& c)
     c.mantling = false;
     c.owed = glm::vec3{0.f};
     c.noRoom = false;
+    c.slipping = false;
 }
 
 // The arm's reach (see the top of the file), units: the shoulder joint to the palm's middle.
@@ -1178,6 +1203,228 @@ void traceFrame(edict_t* ent, const Climber& c, const VrMove* move, const char* 
         ent->v.velocity[2], wanted.x, wanted.y, wanted.z, moved.x, moved.y, moved.z, hands[0], hands[1]);
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// Climbing stamina (vr_climb_stamina; ROUND21.md, "Hands: both work; props through teleporters; climbing stamina").
+// A hang spends the pool parries, shoves and blows spend (vr_melee.qc: .vr_stamina_used of vr_parry_stamina_max; the
+// rest before it comes back counts from .vr_stamina_time, the last spend): vr_climb_stamina_rate a second from one hand,
+// vr_climb_stamina_rate_2h from both (the two together, less: the arms share the weight). Only while the body hangs: a
+// hand holding with the feet on something (a low ledge gripped standing) spends nothing, nor do the mantle and standing
+// on a ledge. Spending every hanging frame keeps it from coming back while you hang. As it gets low (the gadget's blink:
+// the QC's VR_Stamina_LowAt, three seconds of a one-handed hang among the others) the tiring breath plays once; at none
+// the hands let go with a gasp and a long buzz in both, or, with vr_climb_stamina_slip, they can't pull you up any more,
+// you sink to straight arms, and they slip off that many seconds later. No hang starts with less left than a second's
+// hang from one hand.
+
+constexpr float slipSink = 8.f; // units a second an exhausted body sinks, slipping (to straight arms: the reach stops it)
+
+[[nodiscard]] bool staminaOn(edict_t* ent)
+{
+    const FieldOffsets& f = fields();
+    return ent && vr_climb_stamina.value != 0.f && bindings().isVrProgs && f.vr_stamina_used >= 0 && f.vr_stamina_time >= 0;
+}
+
+[[nodiscard]] float staminaMax()
+{
+    return std::max(1.f, vr_parry_stamina_max.value);
+}
+
+// 0 .. staminaMax (staminaOn only).
+[[nodiscard]] float staminaLeft(edict_t* ent)
+{
+    return std::clamp(staminaMax() - fieldFloat(ent, fields().vr_stamina_used), 0.f, staminaMax());
+}
+
+// Too tired to start a hang: less left than a second's hang from one hand (it would let go at once).
+[[nodiscard]] bool tooTired(edict_t* ent)
+{
+    return staminaOn(ent) && staminaLeft(ent) < std::max(0.001f, vr_climb_stamina_rate.value);
+}
+
+// Tiring Warning (vr_parry_stamina_warn): the breath's volume and the buzz's strength, as the parry's.
+[[nodiscard]] float staminaWarn()
+{
+    return std::clamp(vr_parry_stamina_warn.value, 0.f, 1.f);
+}
+
+// The pool low, as the gadget last showed it (VR_Melee_Hud's 256: one more of the dearest effort would empty it).
+[[nodiscard]] bool staminaLow(edict_t* ent)
+{
+    return (static_cast<int>(fieldFloatOr(ent, fields().vr_melee_hud, 0.f)) & 256) != 0;
+}
+
+void spendStamina(edict_t* ent, float amount)
+{
+    const FieldOffsets& f = fields();
+    float& used = fieldFloat(ent, f.vr_stamina_used);
+    used = std::min(staminaMax(), std::max(0.f, used) + std::max(0.f, amount));
+    fieldFloat(ent, f.vr_stamina_time) = static_cast<float>(qcvm->time); // (the rest counts from now: none comes back)
+    if(f.vr_stamina_said >= 0)
+    {
+        fieldFloat(ent, f.vr_stamina_said) = 0.f;
+    }
+}
+
+void staminaSound(edict_t* ent, const char* sample, float volume)
+{
+    if(volume > 0.f)
+    {
+        SV_StartSound(ent, 0, sample, static_cast<int>(std::lround(255.f * std::min(volume, 1.f))), 1.f); // (ATTN_NORM)
+    }
+}
+
+// The body stands on something (the box 2 units down meets a floor, a step, a brush model's top).
+[[nodiscard]] bool feetSupported(edict_t* ent)
+{
+    vec3_t end{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2] - 2.f};
+    const trace_t tr = SV_Move(ent->v.origin, ent->v.mins, ent->v.maxs, end, MOVE_NOMONSTERS, ent);
+    return !tr.startsolid && tr.fraction < 1.f && tr.plane.normal[2] >= 0.7f;
+}
+
+// Out of stamina: every hand lets go (no fling: they give way), a gasp and a long buzz.
+void exhaustedLetGo(edict_t* ent, Climber& c, double time)
+{
+    for(int h = 0; h < 2; h++)
+    {
+        if(c.grips[h].active)
+        {
+            server::sendHaptic(ent, h, 0.f, 0.5f, 30.f, staminaWarn());
+        }
+    }
+    staminaSound(ent, "player/gasp1.wav", staminaWarn());
+    letGoAll(c);
+    c.noGrabUntil = time + regrabDelay;
+    setVec(ent->v.velocity, glm::vec3{0.f});
+    if(debug())
+    {
+        Con_Printf("climb: no stamina left, lets go at (%.1f %.1f %.1f)\n", ent->v.origin[0], ent->v.origin[1],
+            ent->v.origin[2]);
+    }
+}
+
+// Each hanging frame, after the pull and the mantle's check: the hang's stamina (see above).
+void hangStamina(edict_t* ent, Climber& c, double time)
+{
+    c.draining = false;
+    if(!staminaOn(ent) || !c.hanging() || c.mantling)
+    {
+        c.slipping = false;
+        return;
+    }
+    const int hands = (c.grips[0].active ? 1 : 0) + (c.grips[1].active ? 1 : 0);
+    const bool standing = feetSupported(ent);
+    const float before = staminaLeft(ent);
+    if(!standing)
+    {
+        const float rate = std::max(0.f, hands > 1 ? vr_climb_stamina_rate_2h.value : vr_climb_stamina_rate.value);
+        spendStamina(ent, rate * static_cast<float>(host_frametime));
+        c.draining = rate > 0.f;
+        const bool low = staminaLow(ent);
+        if(low && !c.wasLow)
+        {
+            staminaSound(ent, "player/gasp2.wav", 0.8f * staminaWarn()); // tiring (the QC's breath: VR_Stamina_Effort)
+            if(debug())
+            {
+                Con_Printf("climb: stamina low (%.1f left): the tiring breath\n", staminaLeft(ent));
+            }
+        }
+        c.wasLow = low;
+        if(vr_climb_debug.value >= 2.f || (debug() && std::floor(before / 10.f) != std::floor(staminaLeft(ent) / 10.f)))
+        {
+            Con_Printf("climbstamina %.4f %d hand%s: %.2f of %.0f left (-%.3f)%s\n", time, hands, hands > 1 ? "s" : "",
+                staminaLeft(ent), staminaMax(), before - staminaLeft(ent), low ? " low" : "");
+        }
+    }
+    if(standing || staminaLeft(ent) > 0.f)
+    {
+        c.slipping = false;
+        return;
+    }
+    const float slip = std::max(0.f, vr_climb_stamina_slip.value);
+    if(slip <= 0.f)
+    {
+        exhaustedLetGo(ent, c, time);
+        return;
+    }
+    if(!c.slipping)
+    {
+        c.slipping = true;
+        c.slipStart = time;
+        for(int h = 0; h < 2; h++)
+        {
+            if(c.grips[h].active)
+            {
+                server::sendHaptic(ent, h, 0.f, 0.3f, 40.f, 0.6f * staminaWarn());
+            }
+        }
+        staminaSound(ent, "player/gasp2.wav", 0.8f * staminaWarn());
+        if(debug())
+        {
+            Con_Printf("climb: no stamina left, slipping (%.2f s)\n", slip);
+        }
+    }
+    else if(time - c.slipStart >= slip)
+    {
+        exhaustedLetGo(ent, c, time);
+    }
+}
+
+// vr_debug_hands: each hand's state, a line a hand when it changes (2: every frame).
+void debugHands(edict_t* ent, Climber& c, const VrMove* move, double time)
+{
+    if(vr_debug_hands.value <= 0.f)
+    {
+        return;
+    }
+    const FieldOffsets& f = fields();
+    const auto entName = [](edict_t* e) -> std::string {
+        if(!e)
+        {
+            return "none";
+        }
+        char buf[96];
+        q_snprintf(buf, sizeof(buf), "%d %s%s", NUM_FOR_EDICT(e), PR_GetString(e->v.classname), e->free ? " (freed)" : "");
+        return buf;
+    };
+    for(int h = 0; h < 2; h++)
+    {
+        edict_t* held = entityField(ent, h == 1 ? f.mainhand_held : f.offhand_held);
+        edict_t* otherHeld = entityField(ent, h == 1 ? f.offhand_held : f.mainhand_held);
+        edict_t* target = entityField(ent, h == 1 ? f.mainhand_fgtarget : f.offhand_fgtarget);
+        edict_t* pulled = entityField(ent, h == 1 ? f.mainhand_fgpulled : f.offhand_fgpulled);
+        const int hotspot = move ? move->hotspots[h] : 0;
+        const bool atHolster = move && holsterWins(ent, hotspot, c.grips[1 - h].active);
+        const char* busy = handBusy(ent, move, h);
+        char pulledState[48] = "";
+        if(pulled)
+        {
+            q_snprintf(pulledState, sizeof(pulledState), " (state %g, hand %g)", fieldFloatOr(pulled, f.fg_state, 0.f),
+                fieldFloatOr(pulled, f.fg_hand, -1.f));
+        }
+        const char* climb = c.grips[h].active                      ? "holding"
+                            : c.mantling                           ? "mantling"
+                            : busy                                 ? busy
+                            : atHolster                            ? "a holster wins"
+                            : time < c.noGrabUntil                 ? "too soon"
+                            : !c.hanging() && tooTired(ent) ? "too tired"
+                            : vr_climb.value == 0.f                ? "climbing off"
+                                                                   : "free";
+        char line[512];
+        q_snprintf(line, sizeof(line),
+            "grip %d | weapon %g | carry %s%s | force grab: target %s%s, pulled %s%s | flashlight %d | hotspot %d | "
+            "climb: %s",
+            move && (move->vrBits0 & grabBit[h]) ? 1 : 0,
+            h == 1 ? ent->v.weapon : fieldFloatOr(ent, f.weapon2, 0.f), entName(held).c_str(),
+            held && held == otherHeld ? " (both hands)" : "", entName(target).c_str(),
+            fieldFloatOr(ent, h == 1 ? f.mainhand_fglocked : f.offhand_fglocked, 0.f) != 0.f ? " locked" : "",
+            entName(pulled).c_str(), pulledState, move && (move->buttons & busyButton[h]) ? 1 : 0, hotspot, climb);
+        if(vr_debug_hands.value >= 2.f || c.handsLine[h] != line)
+        {
+            c.handsLine[h] = line;
+            Con_Printf("hands %.3f %s: %s\n", time, handName(h), line);
+        }
+    }
+}
+
 } // namespace
 
 // SV_Physics_Client, before PlayerPreThink: takes hold and lets go (per the grips of the latest move), and hides the
@@ -1196,6 +1443,11 @@ extern "C" void VR_ClimbPreThink(edict_t* ent)
         c = Climber{};
     }
     c.lastTime = time;
+    c.draining = false; // (VR_ClientClimb's hang says otherwise)
+    if(fields().vr_climb_drain >= 0)
+    {
+        fieldFloat(ent, fields().vr_climb_drain) = 0.f;
+    }
 
     server::rebaseHands(ent);
     const VrMove* move = server::clientMove(ent);
@@ -1262,12 +1514,29 @@ extern "C" void VR_ClimbPreThink(edict_t* ent)
         const bool hanging = c.grips[1 - h].active;
         const int hotspot = move->hotspots[h];
         const bool atHolster = holsterWins(ent, hotspot, hanging);
-        if(time < c.noGrabUntil || atHolster || !handEmpty(ent, move, h))
+        const char* busy = handBusy(ent, move, h);
+        if(time < c.noGrabUntil || atHolster || busy)
         {
             if(debug())
             {
-                Con_Printf("climb: %s hand grips: %s\n", handName(h),
-                    time < c.noGrabUntil ? "too soon" : atHolster ? "at a holster" : "not empty");
+                Con_Printf("climb: %s hand grips: %s%s\n", handName(h),
+                    time < c.noGrabUntil ? "too soon" : atHolster ? "at a holster" : "not empty: ",
+                    time < c.noGrabUntil || atHolster ? "" : busy);
+            }
+            continue;
+        }
+        if(!hanging && tooTired(ent))
+        {
+            // Too little stamina left to hang (parries, shoves, blows, the last hang): no new hang until more comes back
+            // (a hand joining the other on a hold is let: two hands tire less). A soft buzz says why; the gadget shows it.
+            if(!(time - c.tiredAt < 0.5))
+            {
+                c.tiredAt = time;
+                server::sendHaptic(ent, h, 0.f, 0.15f, 30.f, 0.4f * staminaWarn());
+            }
+            if(debug())
+            {
+                Con_Printf("climb: %s hand grips: too tired (%.1f stamina left)\n", handName(h), staminaLeft(ent));
             }
             continue;
         }
@@ -1326,6 +1595,11 @@ extern "C" void VR_ClimbPreThink(edict_t* ent)
         }
     }
 
+    if(!wasHanging && c.hanging() && staminaOn(ent))
+    {
+        c.wasLow = staminaLow(ent); // (the breath as the hang makes it low, not for a pool low already)
+    }
+
     // Let go of everything: fall, flung by the hands' release.
     if(wasHanging && !c.hanging() && !c.mantling)
     {
@@ -1379,6 +1653,7 @@ extern "C" void VR_ClimbPreThink(edict_t* ent)
         }
         fieldFloat(ent, vrbits) = static_cast<float>(bits);
     }
+    debugHands(ent, c, move, time);
 }
 
 // SV_Physics_Client, in place of the move: the body hangs from the hands, or mantles.
@@ -1490,6 +1765,11 @@ extern "C" int VR_ClientClimb(edict_t* ent)
             move3 += dir * used;
             c.owed -= dir * used;
         }
+    }
+    if(c.slipping)
+    {
+        // No stamina left, slipping: the arms can't pull the body up; it sinks (to straight arms: the reach below).
+        move3.z = std::min(move3.z, 0.f) - slipSink * static_cast<float>(host_frametime);
     }
     const glm::vec3 meant = carry + move3; // what the body would do unhindered
 
@@ -1645,7 +1925,7 @@ extern "C" int VR_ClientClimb(edict_t* ent)
         }
         const float pulledDown = g.relAtGrab.z - rel[h].z;
         const float headAbove = headZ + (ent->v.origin[2] - origin.z) - topNow(g);
-        if(pulledDown < mantlePull || headAbove < mantleHead)
+        if(pulledDown < mantlePull || headAbove < mantleHead || c.slipping)
         {
             continue;
         }
@@ -1722,6 +2002,11 @@ extern "C" int VR_ClientClimb(edict_t* ent)
         c.noRoom = noRoom;
     }
 
+    hangStamina(ent, c, time);
+    if(c.draining && fields().vr_climb_drain >= 0)
+    {
+        fieldFloat(ent, fields().vr_climb_drain) = 1.f;
+    }
     return 1;
 }
 
