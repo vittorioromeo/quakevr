@@ -3379,7 +3379,8 @@ void() VR_Test_Hits =
 };
 
 
-// Projectiles through the same corner columns and at the middle (impulse 237 a nail, 236 a rocket, one at a time, each
+// Projectiles through the same corner columns and at the middle (impulse 237 a nail, 236 a rocket, 234 a nail with the
+// grappling hook's class, one at a time, each
 // through the next of the 6 columns, then the middle; 235 prints what the last touched): real missiles, as the engine
 // flies them (MOVE_MISSILE, with the precise hits of the option as it is set). The target takes no damage (no pain
 // poses, no shove), and is put back where it stood.
@@ -3438,7 +3439,11 @@ void(float xRockets) VR_Test_Missiles =
     vector at = c + side * halfw * sx + '0 0 1' * halfh * sz;
     if(k == 6) { at = c + '0 0 1' * halfh * 0.35; } // the middle (chest height)
     entity m = launch_spike(at - dir * 64, dir); // (in front of the player's hands, which it would meet)
-    if(xRockets)
+    if(xRockets == 2)
+    {
+        m.vr_hitclass = HITCLASS_GRAPPLE; // the grappling hook's class (its tolerance): a hook's hit test
+    }
+    else if(xRockets)
     {
         m.classname = "missile";
         setmodel(m, "progs/missile.mdl");
@@ -3446,7 +3451,9 @@ void(float xRockets) VR_Test_Missiles =
         m.velocity = dir * 1000;
     }
     m.touch = VR_Test_MissileTouch;
-    dprint(sprintf("hittest %s: %s %d (precise %d):", t.classname, xRockets ? "rocket" : "nail", k, cvar("vr_hit_precise")));
+    string kind = "nail";
+    if(xRockets == 2) { kind = "hook"; } else if(xRockets) { kind = "rocket"; }
+    dprint(sprintf("hittest %s: %s %d (precise %d):", t.classname, kind, k, cvar("vr_hit_precise")));
 };
 
 void() VR_Test_MissilesReport =
@@ -3641,6 +3648,10 @@ void() ImpulseCommands =
     if(self.impulse == 236 && !deathmatch && !coop) // rockets,
     {
         VR_Test_Missiles(TRUE);
+    }
+    if(self.impulse == 234 && !deathmatch && !coop) // a nail with the grappling hook's class,
+    {
+        VR_Test_Missiles(2);
     }
     if(self.impulse == 235 && !deathmatch && !coop) // and what they touched
     {

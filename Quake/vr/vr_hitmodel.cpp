@@ -740,6 +740,34 @@ void record(edict_t* ent, const Drawn& d, const glm::vec3& a, const glm::vec3& b
     {
         return;
     }
+    if(!hit) // a miss shown only if it went through its box (grown by the radius): the shots the model stopped counting
+    {
+        const glm::vec3 lo = vec(ent->v.absmin) - glm::vec3{grow}, hi = vec(ent->v.absmax) + glm::vec3{grow};
+        const glm::vec3 dir = b - a;
+        float t0 = 0.f, t1 = 1.f;
+        for(int k = 0; k < 3; k++)
+        {
+            if(std::fabs(dir[k]) < 1e-9f)
+            {
+                if(a[k] < lo[k] || a[k] > hi[k])
+                {
+                    return;
+                }
+                continue;
+            }
+            float ta = (lo[k] - a[k]) / dir[k], tb = (hi[k] - a[k]) / dir[k];
+            if(ta > tb)
+            {
+                std::swap(ta, tb);
+            }
+            t0 = std::max(t0, ta);
+            t1 = std::min(t1, tb);
+            if(t0 > t1)
+            {
+                return;
+            }
+        }
+    }
     Event e;
     e.when = realtime;
     e.hit = hit != nullptr;
