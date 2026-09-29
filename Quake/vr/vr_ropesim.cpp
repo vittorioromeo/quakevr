@@ -418,6 +418,8 @@ void send(edict_t* hook, edict_t* owner, int beamId)
     {
         return;
     }
+    // TODO QVR: bandwidth. Every point is sent to every client each frame (up to ~1.2 KB per rope). Send only the ends
+    // and the wrap corners (the client simulates the slack), quantize the coordinates, and send only on change or to nearby clients.
     MSG_WriteByte(&sv.datagram, protocol::svc_quakevr);
     MSG_WriteByte(&sv.datagram, protocol::QVR_SVC_ROPE);
     MSG_WriteShort(&sv.datagram, NUM_FOR_EDICT(owner));
