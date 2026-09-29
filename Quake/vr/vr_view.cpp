@@ -693,6 +693,46 @@ Morph morphs[2];
     return r;
 }
 
+// The held weapons as drawn this frame, for their bodies in Box3D (view::drawnWeapon): the entity's rigid place and turn
+// (R_EntityMatrix's, as hotspotFrame) relative to the pose of the hand it was placed from (setupWeapon's: the drawn
+// hand, moved out of what it was pushed into, knocked back, lagging with the weapon's weight), so that the body follows
+// the tracked hand with the weapon where the hand holds it -- not held out of a prop it is swung into (vr_model_collide).
+// None for the fist or a non-alias model.
+view::DrawnWeapon drawnWeapons[2];
+
+void recordDrawnWeapon(const hands::State& s, int hand)
+{
+    const view::ViewEntity& ve = entities.weapon[hand];
+    view::DrawnWeapon& d = drawnWeapons[hand];
+    const int slot = weapons::slotForModel(ve.ent.model);
+    if(!s.valid || !ve.ent.model || ve.ent.model->type != mod_alias || slot < 0 || slot == weapons::fistSlot())
+    {
+        d = view::DrawnWeapon{};
+        return;
+    }
+    {
+        float m[16];
+        vec3_t origin, angles;
+        VectorCopy(ve.ent.origin, origin);
+        VectorCopy(ve.ent.angles, angles);
+        R_EntityMatrix(m, origin, angles, ENTSCALE_DEFAULT);
+        glm::mat4 entity;
+        for(int c = 0; c < 4; c++)
+        {
+            for(int row = 0; row < 4; row++)
+            {
+                entity[c][row] = m[c * 4 + row];
+            }
+        }
+        glm::mat4 handPose{held::axesFromAngles(&s.rot[hand][0], true)};
+        handPose[3] = glm::vec4{s.pos[hand], 1.f};
+        d.model = ve.ent.model;
+        d.mirrored = ve.mirrored;
+        d.inHand = glm::inverse(handPose) * entity;
+        d.when = realtime;
+    }
+}
+
 // A turn given as the hands' angles (hands::angleVectors: the columns forward, left, up), and back.
 [[nodiscard]] glm::mat3 anglesBasis(const glm::vec3& a)
 {
@@ -1018,6 +1058,10 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
     const glm::vec3 wt = carried ? weaponTurn(rot, slot, mirrored) : heldWeaponTurn(rot, hand, slot, mirrored);
 
     place(ve, model, held.pos, {-wt.x, wt.y, wt.z}, frame, mirrored);
+    if(!floating)
+    {
+        recordDrawnWeapon(s, hand); // (for its body in Box3D)
+    }
 
     // A config's own two-handed grips, once, as hotspots (round 21).
     if(model && slot >= 0 && weapons::takeHotspotMigration(slot))
@@ -4710,6 +4754,10 @@ extern "C" void VR_SetupViewEntities()
     }
     if(posingNow)
     {
+        drawnWeapons[0] = drawnWeapons[1] = view::DrawnWeapon{};
+    }
+    if(posingNow)
+    {
         // The game's hands as they were; no muzzle (nothing is aimed or fired while posing) and no two-handed grip.
         s = unposed;
         for(int hand = 0; hand < 2; hand++)
@@ -5104,6 +5152,11 @@ bool hotspotAt(int hand, const glm::vec3& p, glm::vec3& out)
     return true;
 }
 
+const DrawnWeapon& drawnWeapon(int hand)
+{
+    return drawnWeapons[hand == 0 ? 0 : 1];
+}
+
 WeaponHotspot weaponHotspot(int hand, int index)
 {
     if(hand < 0 || hand > 1 || index < 0 || index >= weapons::maxHotspots || !entities.weapon[hand].visible)
@@ -5335,6 +5388,8 @@ void dumpView_f()
             Con_Printf("%s weapon foregrip (%.1f %.1f %.1f)\n", h == HAND_MAIN ? "main" : "off", s.grip2H[h].x,
                 s.grip2H[h].y, s.grip2H[h].z);
         }
+        Con_Printf("%s hand: two-handed %.2f, helping %d, empty %d\n", h == HAND_MAIN ? "main" : "off", twohand::transition(h),
+            twohand::helping(h) ? 1 : 0, held::handEmpty(h) ? 1 : 0);
         if(s.muzzleValid[h])
         {
             Con_Printf("%s weapon muzzle (%.4f %.4f %.4f), %.1f units from the hand%s\n", h == HAND_MAIN ? "main" : "off",

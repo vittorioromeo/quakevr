@@ -574,7 +574,7 @@ void(float xHand) VR_Corpse_StrikeFrame =
         at = trace_endpos;
     }
     // What it holds, from the hand to its end.
-    else if(!VRIsHandEmpty(self, xHand))
+    else if(!VRIsHandWeaponless(self, xHand))
     {
         traceline(hand, VRGetMuzzlePos(xHand) + dir * 4, MOVE_HITGIBS, self);
         if(trace_ent.vr_corpse == 2)
@@ -591,11 +591,11 @@ void(float xHand) VR_Corpse_StrikeFrame =
     c.vr_corpse_struck = time;
 
     float dmg = VR_Gib_StrikeDamage(speed);
-    if(!VRIsHandEmpty(self, xHand))
+    if(!VRIsHandWeaponless(self, xHand))
     {
         dmg = dmg * 1.5;
     }
-    sound(self, CHAN_AUTO, VRIsHandEmpty(self, xHand) ? "fisthit.wav" : "player/axhit2.wav", 0.8, ATTN_NORM);
+    sound(self, CHAN_AUTO, VRIsHandWeaponless(self, xHand) ? "fisthit.wav" : "player/axhit2.wav", 0.8, ATTN_NORM);
     haptic(xHand, 0.0, 0.1, 60, 0.7);
     SpawnBlood(at, dir * 40, dmg);
 
@@ -1147,7 +1147,7 @@ float(entity e) VR_Parry_MeleeMonster =
 // a sword or axe held level across had its hand's forward pointing at the attacker, and never parried.
 float(entity p, float hand, vector toAttacker) VR_Parry_HandAcross =
 {
-    if(VRIsHandEmpty(p, hand))
+    if(VRIsHandWeaponless(p, hand))
     {
         return FALSE;
     }
@@ -1176,7 +1176,7 @@ vector vr_parry_from;
 // to the far end, as the melee lays it out (VR_Melee_Line, vr_melee.qc; a gun carried by its pump too).
 float(entity p, float hand) VR_Parry_WeaponLine =
 {
-    if(VRIsHandEmpty(p, hand))
+    if(VRIsHandWeaponless(p, hand))
     {
         return FALSE;
     }
@@ -1322,7 +1322,7 @@ void() VR_Parry_Probe =
 // between the hips and above the head (vr_parry_unarmed).
 float(entity p, vector toAttacker) VR_Parry_ArmsCrossed =
 {
-    if(!cvar_hget(cvarh_vr_parry_unarmed) || !VRIsHandEmpty(p, cVR_MainHand) || !VRIsHandEmpty(p, cVR_OffHand))
+    if(!cvar_hget(cvarh_vr_parry_unarmed) || !VRIsHandWeaponless(p, cVR_MainHand) || !VRIsHandWeaponless(p, cVR_OffHand))
     {
         return FALSE;
     }

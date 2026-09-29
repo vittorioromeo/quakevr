@@ -315,9 +315,22 @@ float*(entity e, float xHand) VRGetEntWeaponClipPtr =
     else                     return &e.weaponclip;
 }
 
-inline float(entity e, float xHand) VRIsHandEmpty =
+// Whether `xHand` holds no weapon (its weapon is the fist). It may still carry a box, a gib, a torch (vr_carry.qc):
+// for what is about weapons alone (a weapon to drop, its sound, its line); anything else asks VRIsHandEmpty.
+inline float(entity e, float xHand) VRIsHandWeaponless =
 {
     return VR_IMPL_SELECT(xHand, e.weapon2, e.weapon) == WID_FIST;
+}
+
+// Whether `xHand` is empty: no weapon, and carrying nothing (a box, a gib, a torch, a grenade: .mainhand_held,
+// .offhand_held). What may take something, grip a hotspot or steady the other hand's weapon.
+float(entity e, float xHand) VRIsHandEmpty =
+{
+    if(VR_IMPL_SELECT(xHand, e.weapon2, e.weapon) != WID_FIST)
+    {
+        return FALSE;
+    }
+    return (xHand == cVR_OffHand ? e.offhand_held : e.mainhand_held) == world;
 }
 
 // Whether `xHand` carries a gun by its foregrip (the hand-off).

@@ -463,7 +463,7 @@ void(entity e, float xHand) VR_Forcegrab_Launch =
 void(float xHand) VR_Forcegrab_HandFrame =
 {
     if(!cvar_hget(cvarh_vr_forcegrab_mode) || !self.ishuman || self.health <= 0 ||
-       !VRIsHandEmpty(self, xHand) || VR_Carry_IsHolding(self, xHand) ||
+       !VRIsHandEmpty(self, xHand) ||
        VRHasBit(self.vrbits0, xHand == cVR_MainHand ? QVR_VRBITS0_MAINHAND_BUSY : QVR_VRBITS0_OFFHAND_BUSY))
     {
         // (A hand holding the engine's flashlight is busy too.)

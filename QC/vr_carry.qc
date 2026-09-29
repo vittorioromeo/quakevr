@@ -24,8 +24,7 @@
 //   client sends both hands' throw estimate: the object's own motion). Let go of in both hands, it is
 //   never taken at a holster: only a one-handed carry is.
 
-.entity mainhand_held;   // the box each hand carries
-.entity offhand_held;
+// (.mainhand_held, .offhand_held: the box each hand carries, vr_fields.qc)
 .entity carry_player;    // on a box: who carries it
 .vector carry_offset;    // the box's origin in the hand's frame (forward, right, up)
 .float carry_trigger;    // the carrying hand's trigger last frame
@@ -110,6 +109,23 @@ float(entity xPlayer, float xHand) VR_Carry_PunchMult =
 // ----------------------------------------------------------------------------
 // Nudging
 
+// Whether the engine's own body of `xHand` pushes the loose `xBox` (vr_box3d.cpp's reach bodies, ROUND21.md, "Hands
+// and weapons as bodies"): an empty hand's (vr_box3d_hand_props: not a grenade, the palm catches it), a held weapon's
+// (vr_box3d_weapon_push). Not a solid prop (an explosive box: the fist's sphere, and the gun's push below), nor a
+// pickup not yet loose (the nudge knocks it loose).
+float(entity xPlayer, float xHand, entity xBox) VR_Carry_BodyPushes =
+{
+    if(xBox.vr_rigid != 1 || !xPlayer.ishuman || !VRHandsTracked(xPlayer))
+    {
+        return FALSE;
+    }
+    if(VRIsHandWeaponless(xPlayer, xHand))
+    {
+        return cvar("vr_box3d_hand_props") && xBox.model != "progs/grenade.mdl" && xBox.model != "progs/mervup.mdl";
+    }
+    return cvar("vr_box3d_weapon_push") != 0;
+};
+
 void(entity xPlayer, float xHand, entity xBox) VR_Carry_Nudge =
 {
     if(time < xBox.carry_nudgetime || xBox.carry_player != world)
@@ -125,6 +141,12 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Nudge =
         {
             return;
         }
+    }
+
+    // Pushed by the hand's or the weapon's own body instead (it would be pushed twice).
+    if(VR_Carry_BodyPushes(xPlayer, xHand, xBox))
+    {
+        return;
     }
 
     vector v = VRGetEntHandVel(xPlayer, xHand) * VRMetersToUnits() * cvar_hget(cvarh_vr_carry_nudge);
@@ -815,7 +837,7 @@ void() VR_Carry_Handtouch =
     }
     // A force grab's catch (VR_Forcegrab_Catch) has checked the grip already: its window
     // (vr_forcegrab_catch_early) is longer than a touch's.
-    if((forcegrabCatching || VR_Carry_GripPressed(other, hand)) && VRIsHandEmpty(other, hand) && !VR_Carry_IsHolding(other, hand) &&
+    if((forcegrabCatching || VR_Carry_GripPressed(other, hand)) && VRIsHandEmpty(other, hand) &&
        !VR_Forcegrab_IsHandBusy(other, hand))
     {
         VR_Carry_Start(other, hand, self);

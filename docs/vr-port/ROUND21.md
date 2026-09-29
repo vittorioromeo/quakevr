@@ -12391,3 +12391,86 @@ allocations a frame are unchanged: the buffers keep their capacity as before. `V
 - In the headset: nothing here should look or feel different.
 - The sets are given back at every map change only; a map whose peak comes late (a big fight) grows them then, as
   before.
+
+## Hands and weapons as bodies; the empty hand; torches lit in hand
+
+Voice notes vrfiringrange 18-18-23 (batting), 18-20-35, 18-22-49, 18-24-56 and start 18-42-02.
+
+### Held weapons and empty hands push props (`vr_box3d.cpp`: syncReach, sweepReach)
+
+- **Why nothing but the hand pushed:** the hands' Box3D bodies were a 4.5 cm sphere at each fist that met only solid props
+  (explosive boxes); every other prop was nudged by QC's touches: the hand's traces, and for a gun a thin trace from
+  the hand to its muzzle (1 unit across: an axe's head or a gun's side missed), and never a grenade in flight
+  (`VR_Carry_Weapontouch`). `VR_Deflect` bats only monsters' projectiles (`VR_Deflect_IsProjectile`: owner a monster),
+  so your own hand grenade, armed or a dud, could not be batted at all.
+- **Now each hand has a reach body** besides that sphere, following it at full speed as a carried prop's body does:
+  - empty (`vr_box3d_hand_props 1`): a box of the open hand (the palm, the fingers; the palm face 0.8 cm from the hand's
+    point, as `vr_dumpview` measures the drawn hand), or of the fist while the grip is held;
+  - holding a weapon (`vr_box3d_weapon_push 1`): the convex hull of the weapon's model as drawn (the local player's:
+    the view records the weapon's entity relative to the hand pose it was placed from, `view::drawnWeapon`; so the body
+    follows the tracked hand with the weapon where it is held, not held out of a prop by `vr_model_collide`); another
+    player's: a capsule from the hand to the muzzle.
+  They push the loose props (vr_rigid 1: boxes, gibs, heads, thrown weapons, torches, grenades) and hold them up. Not
+  solid props (explosive boxes: the sphere and the gun's push, as before), and the empty hand not grenades (the open
+  palm catches them, a fist knocks them away: `vr_grenade.qc`). QC's nudge is skipped for what they push
+  (`VR_Carry_BodyPushes`); it still knocks pickups loose and strikes gibs.
+- **Kinematic, as you suggested:** it goes where your real hand goes whatever it meets. A dynamic body jointed to the
+  hand would lag behind it, be stopped by what it presses on, and push back on nothing you feel; kinematic is also
+  how the carried props and the player's body already push.
+- **Fast swings:** Box3D collides once a step, at its start, so a kinematic body moving further in a step than a thin
+  thing is across jumps over it (an axe at 10 m/s moves 11 cm a frame; a grenade is 5 cm). The move is swept in pieces
+  of at most 1.5 cm; each prop met is struck as the step would have: its velocity along the surface's normal made the
+  body's point's there, plus its restitution (a grenade leaves at 1.45x the axe's speed where it hit). Box3D's own
+  contacts are dropped while a prop leaves faster than 0.5 m/s (its continuous collision stopped the batted grenade at
+  the axe it was leaving).
+- **What was inside a new body passes through it until clear** (a thing thrown from the hand, a weapon let go of, a gun
+  taken among props), except what the empty hand let go of slower than 1 m/s: it is eased out onto the palm.
+- **Weight:** `vr_box3d_hand_hold_mass` (20 kg): nothing heavier is held up (the contact's normal within 60 degrees of
+  up is dropped); it is still pushed from the side.
+- Menu (Carrying): Hands Push and Hold Things, Weapons Push Things, Heaviest Thing Held Up. `vr_debug_physics_shapes 1`
+  draws the reach bodies white-blue; `vr_debug_box3d 1` prints them as made and each strike, 2 each frame's move and
+  each contact.
+
+### Props rest on the open palm
+
+Why they fell through: the sphere met only solid props, sat at the front of the fist (not the palm), and was not armed
+again after a release until clear of what it had let go of. Now the open hand's box holds it. It reaches 2 cm past the
+hand's upper edge: a thing held in the fist is held at the hand's point, on that edge, and rolled off the palm turned up.
+
+### The two-handed grip with a prop in the other hand (`VRIsHandEmpty`, `held::handEmpty`)
+
+- QC's `VRIsHandEmpty` now means empty: no weapon and nothing carried (`.mainhand_held`, `.offhand_held`, moved to
+  `vr_fields.qc`). The callers that meant "no weapon" (the weapon's own branches in `DoHandImpl`, dropping a weapon,
+  the sticky grip, a blow's sound and damage, the parry's weapon line, "the other hand holds a weapon" in the melee)
+  use the new `VRIsHandWeaponless`; the `&& !VR_Carry_IsHolding` repeated at a dozen callers is gone. Also fixed by it:
+  a weapon switched into a hand carrying a box, the holster's buzz for a hand carrying one.
+- The client decides the grip (`vr_twohand.cpp`): it asked only whether the helping hand's weapon was the fist. It asks
+  `held::handEmpty` now (the weapon and the carry stats), as does the flashlight's `handEmpty`.
+
+### A lit torch lights one in the other hand (`VR_WallTorch_FireAt`)
+
+It looked for fires with `findradius`, which skips SOLID_NOT entities, and a torch in a hand is one
+(`VR_Carry_Start`): a held lit torch was never found. It goes through the torches by class now.
+
+### Verified (mock headset, fast mode; the kit's `scratch/heldphys/`)
+
+- **Batting** (`bat.sh`, `speeds.sh`: the axe swung sideways through a floating ogre grenade, `vr_deflect 0` so that
+  only the body acts): 5 to 30 m/s swings all strike it (182-996 u/s at the axe, 264-1445 u/s after; before the sweep
+  10, 20 and 30 m/s passed through); with `vr_box3d_weapon_push 0` it stays where it floats. A slow push (0.5 m/s)
+  carries it along at the hand's speed.
+- **Palm** (`palm.sh`: a test gib gripped in the off hand turned palm up, let go of): it rests on the palm (asleep at
+  77.6 after 3 s, the hand at 74.6); with `vr_box3d_hand_props 0`, or `vr_box3d_hand_hold_mass 0.5` (it is 0.8 kg), it
+  falls to the floor (35.5), as does a gib let go of with the palm down.
+- **Grip** (`grip.sh`: impulse 160's gun, the off hand gripping its foregrip): empty, "two-handed 1.00, helping 1"; with
+  a gib in the off hand "0.00, helping 0" (the old check, rebuilt for the test: "1.00, helping 1").
+- **Torch** (`torch.sh`, e1m2: torch 52 pulled out into the main hand; 53 let go of until it went out, taken again in
+  the off hand, held just above the other): "walltorch: lit again from a burning torch"; with `findradius` put back:
+  never.
+- `gun.sh`: a gib dropped on the shotgun held level hits it and slides off (it is 25 cm across; the barrel is round).
+
+### Not verified
+
+- In the headset: batting, balancing, and how it feels to reach for things now that the hand is solid (before, QC's
+  nudge pushed what you reached for without the grip pressed, too). The palm's box is from the drawn hand at the
+  defaults; a very different hand calibration may want it moved.
+- Another player's weapon (the capsule) and a weapon in the off hand (mirrored hull) were not run.

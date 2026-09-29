@@ -1162,7 +1162,19 @@ blow n of 5, dying at t, out at t, taken again, lit again) and `wall torch: its 
 `-Sound`); `vr_debug_shots 1` the blows and `by vr_torch_burn`; `vr_debug_torch_lights 1` every torch light (radius,
 colour, taken, shadowed). A monster to strike: `vr_test_spawn 0; vr_test_spawn_dist 34; impulse 241`; `god; notarget`
 and `gl_cshiftpercent 0` keep the screenshots clear of its shots. The scratchpad's `torches/go.sh <script> <out.png>`
-runs a multi-line script file.
+runs a multi-line script file. Two torches in hand: `vr_walltorch_pull 0` (the grip alone takes one), 52 by the main
+hand as above, then `vr_rigid_place 53 off 0 0 0; +graboff; vr_mock_button off grip 1` (taken from its wall at the off
+hand); let go of with `vr_walltorch_die_time 0.3` it goes out; taken again the same way and held at `0.2 1.3 -0.4 70 0 0`
+(the main at `0.2 1.2 -0.4`), `developer 1` prints `walltorch: lit again from a burning torch` (the kit's
+`scratch/heldphys/torch.sh`).
+Hands and weapons as bodies (ROUND21.md): `vr_debug_box3d 1` prints each reach body made (`main hand's reach body:
+weapon at ... (its box), the palm facing ...`) and each swing's strike (`... strikes 199 ogre_grenade at 235 u/s: 340
+u/s after`); `2` each frame's move and each contact. A palm turned up: the main hand `vr_mock_hand main 0.1 1.2 -0.45 0
+-153 -90`, the off hand `vr_mock_hand off -0.1 1.2 -0.45 0 -13 90` (Gun Angle 70). A floating grenade to bat:
+`vr_test_projectile 4; impulse 246; wait3; sv_gravity 0; vr_rigid_place ogre_grenade 296 -545 84` in the firing range
+with the axe (`vr_weapon_grip_mode 1; impulse 9; impulse 152`) at `vr_mock_hand main 0.1 1.3 -0.45 70 0 0`, `vr_deflect
+0`, and a `vr_mock_play` moving the hand to `0.6 1.3 -0.45` (the kit's `scratch/heldphys/bat.sh`, `speeds.sh`). The
+two-handed grip: `vr_dumpview` prints each hand's `two-handed <0..1>, helping <0|1>, empty <0|1>` (`grip.sh`).
 Rocks and bricks (ROUND21.md): `vr_debug_debris 1` prints a line per map (pieces, spots, rejections by reason, the
 time, the layout's hash, the server's spawn time), `2` each piece (model, skin, place, turn, size, the way out of its
 wall); `vr_debris_list [lit]` lists the pieces in the map with the light where each lies. The scratchpad's

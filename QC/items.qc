@@ -722,7 +722,7 @@ void() VR_PickupObj_WeaponTouch =
 {
     float hand = VRGetTouchingHand(other);
     if((forcegrabCatching || (VR_Carry_GripPressed(other, hand) && !VR_Forcegrab_IsHandBusy(other, hand))) &&
-       VRIsHandEmpty(other, hand) && !VR_Carry_IsHolding(other, hand))
+       VRIsHandEmpty(other, hand))
     {
         self.solid = SOLID_NOT_BUT_TOUCHABLE;
         self.carry_use();
@@ -971,8 +971,7 @@ void() weapon_touch =
     if(other.ishuman && !touchinghandIsBody)
     {
         if(!VR_HandGrabUtil_IsHandGrabbing(other, VRGetTouchingHand(other)) ||
-            VRGetEntWeapon(other, VRGetTouchingHand(other)) != WID_FIST ||
-            VR_Carry_IsHolding(other, VRGetTouchingHand(other)))
+            !VRIsHandEmpty(other, VRGetTouchingHand(other)))
         {
             return;
         }

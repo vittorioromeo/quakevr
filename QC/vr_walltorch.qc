@@ -212,7 +212,7 @@ void() VR_WallTorch_Handtouch =
         return;
     }
     float hand = VRGetTouchingHand(other);
-    if(!VR_Carry_GripPressed(other, hand) || !VRIsHandEmpty(other, hand) || VR_Carry_IsHolding(other, hand) ||
+    if(!VR_Carry_GripPressed(other, hand) || !VRIsHandEmpty(other, hand) ||
        VR_Forcegrab_IsHandBusy(other, hand) || VR_WallTorch_Gripped(other, hand) != world)
     {
         return;
@@ -241,7 +241,7 @@ void(float xHand) VR_WallTorch_HandFrame =
         return;
     }
     if(t.wt_state != 0 || t.wt_gripper != self || t.wt_grip_hand != xHand || self.health <= 0 ||
-       !VR_HandGrabUtil_IsHandGrabbing(self, xHand) || !VRIsHandEmpty(self, xHand) || VR_Carry_IsHolding(self, xHand))
+       !VR_HandGrabUtil_IsHandGrabbing(self, xHand) || !VRIsHandEmpty(self, xHand))
     {
         dprint("walltorch: let go of on its wall\n");
         if(t.wt_gripper == self && t.wt_grip_hand == xHand)
@@ -343,10 +343,12 @@ string(entity t, vector xHead) VR_WallTorch_FireAt =
     {
         return "lava";
     }
+    // Every torch by its class, not findradius: that skips SOLID_NOT entities, and a torch in a hand is one
+    // (VR_Carry_Start), so a lit torch held in the other hand never lit this one (only once it was let go of).
     entity e;
-    for(e = findradius(xHead, 40); e; e = e.chain)
+    for(e = find(world, classname, "light_torch_small_walltorch"); e; e = find(e, classname, "light_torch_small_walltorch"))
     {
-        if(e == t || !VR_WallTorch_IsTorch(e))
+        if(e == t || vlen(e.origin - xHead) > 64) // (a torch's head is well within it of its origin)
         {
             continue;
         }

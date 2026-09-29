@@ -311,7 +311,7 @@ float(entity p, float xHand) VR_Melee_Thing =
             return VR_MTHING_CLUB;
         }
         // The empty hand steadying the other's weapon swings with it: the weapon's hand strikes.
-        if(VRGet2HAiming(p) && !VRIsHandEmpty(p, VRGetOtherHand(xHand)))
+        if(VRGet2HAiming(p) && !VRIsHandWeaponless(p, VRGetOtherHand(xHand)))
         {
             return VR_MTHING_NONE;
         }
@@ -573,11 +573,11 @@ float(float xHand) VR_Melee_ClosedFist =
 // other's weapon, not carrying or climbing.
 float(float xHand) VR_Melee_OpenHand =
 {
-    if(!VRIsHandEmpty(self, xHand) || VR_Melee_ClosedFist(xHand) || VR_Carry_IsHolding(self, xHand))
+    if(!VRIsHandEmpty(self, xHand) || VR_Melee_ClosedFist(xHand))
     {
         return FALSE;
     }
-    if(VRGet2HAiming(self) && !VRIsHandEmpty(self, VRGetOtherHand(xHand)))
+    if(VRGet2HAiming(self) && !VRIsHandWeaponless(self, VRGetOtherHand(xHand)))
     {
         return FALSE; // steadying the other's weapon
     }
