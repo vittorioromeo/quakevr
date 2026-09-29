@@ -354,6 +354,7 @@ void resetHandMoves()
 {
     return {
         slider("Swing Speed", "vr_melee_speed", 1.f, 8.f, 0.25f, "%.2f m/s").extend().help("How fast the striking hand must move to hit: a punch, a pommel strike; a weapon's swing a quarter faster, a stab three quarters of it. Any part of the blade then hits. At this speed a hit is weak; twice it, a full hit; faster, harder still."),
+        slider("Pommel Strike Wait", "vr_melee_pommel_wait", 0.f, 0.2f, 0.01f, "%.2f s").extend().help("How long the touch of a pommel, a handle's end or a gun's butt waits for the blade or head to reach the same thing, so a cut from close by counts as a cut. Only pommel and butt strikes wait: punches and blades land at once. Lower: pommel strikes land sooner, but close cuts count as pommel strikes more often."),
         slider("Punch Damage Mult.", "vr_melee_punch_mult", 1.f, 3.f, 0.05f, "%.2f").extend().help("Damage of every punch: straight, hook, uppercut or overhead alike."),
         slider("Damage Multiplier", "vr_melee_dmg_multiplier", 0.25f, 15.f, 0.25f, "%.1f").extend().help("Damage multiplier for melee attacks."),
         slider("Range Multiplier", "vr_melee_range_multiplier", 0.25f, 15.f, 0.25f, "%.1f").extend().help("Range multiplier for melee attacks."),
