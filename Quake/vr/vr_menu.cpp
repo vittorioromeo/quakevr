@@ -2182,7 +2182,22 @@ std::vector<Item> pageHitbox()
         slider("Prop Push Radius", vr_box3d_player_radius, 5.f, 40.f, 1.f, "%.0f cm")
             .help("Loose props (rocks, bricks, weapons on the floor) are pushed by a capsule this wide round your body, "
                   "not by your box (vr_box3d_player_radius)."),
+        header("Standing on Props"),
+        toggle("Stand on Boxes", vr_box3d_player_stand)
+            .help("Explosive boxes and other solid props are ground: you stand still on them, walk and jump from them, "
+                  "and ride them as they move; your body doesn't shove the one under you (vr_box3d_player_stand)."),
+        slider("Your Weight on Them", vr_box3d_player_mass, 0.f, 150.f, 5.f, "%.0f kg")
+            .help("What you press the prop you stand on down with (a floating box sinks lower: at most half its own "
+                  "weight there). 0: none."),
+        slider("Jump Push", vr_box3d_player_jump_push, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The share of your jump's push the prop you jump from takes (1: all of it, your weight times your "
+                  "speed). 0: none."),
         header("Tests"),
+        command("Stand on a Box", "vr_physics_player onto misc_explobox")
+            .help("Puts you on top of the level's first explosive box (vr_physics_player onto <number | classname>)."),
+        command("Where You Stand", "vr_physics_player")
+            .help("Prints where you are, whether you are on the ground and on what (a prop's number), and what is under "
+                  "your feet."),
         command("Hitbox Stats", "vr_hull_stats").help("Prints the map's rebuilt brushes and compiled hull: counts, memory, build times."),
         command("Hitbox Approach", "vr_hull_approach").help("Prints how close your box gets to what is round you, in 8 directions (from your centre to the surface it stops at; Quake's box: 16 units). vr_hull_approach <classname> [n] does it round an entity."),
         command("Random Walk (60 s)", "god; notarget; vr_hull_walktest 60")

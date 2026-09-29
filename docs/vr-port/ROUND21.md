@@ -13591,3 +13591,77 @@ To try in the headset: Movement > Player Hitbox, Width Against Walls 16 or 20. W
 panels from the front and the side, the prop table and the explosive boxes; walk into a grunt and let monsters walk
 into you; doors, lifts, stairs, ledges, climbing. Switch Method between Compiled Hull and Brush Sweep: they should feel
 the same; say if one snags where the other doesn't. Changing the width or method rebuilds (a short hitch).
+
+## Standing on props: explosive boxes you can stand on, stack and jump from
+
+Your note (vrfiringrange, 00:25): on an explosive box you always slide, never stand still, and can't jump; you want to
+stack crates, jump on them and off them without everything collapsing, the world staying authoritative.
+
+**Why it slid.** Since explosive boxes became Box3D props they are `SOLID_BBOX` (their Quake box kept round them as
+they turn). Quake's `SV_FlyMove` makes only a `SOLID_BSP` floor ground (`FL_ONGROUND`): on anything else (a monster's
+head, now a box) you are "in the air" while standing on it, so there is no ground friction (the headset's roomscale
+steps and the stick keep you gliding) and QC's `PlayerJump` refuses (it needs `FL_ONGROUND`). On top of that, your
+Box3D capsule (the kinematic body that pushes loose props) touched the box you stood on, and a kinematic body's
+friction drags what it touches: walking on a box slid it under you.
+
+**How Source does it.** Source has the same split: the player is moved by its own movement code (`CGameMovement`),
+which traces against physics objects' collision models as solid, so they are ground like the world; VPhysics also has
+a shadow of the player (a player controller) driven to where the movement put him, which pushes props with a limited
+mass and speed. Standing on a physics object, the player takes the ground object's velocity at the contact point (he
+rides it), and the shadow's contact presses it with the player's weight. Its well-known troubles (props flung or
+jittering under players, "prop surfing") come from the shadow fighting what it stands on; Source limits what the
+shadow may push and never lets the player lift what he stands on.
+
+**The design here (Source's, trimmed).**
+
+- **Quake's movement stays the player's, the world first.** A solid Box3D prop is ground for a player like a brush
+  (`VR_StandsOn` in `SV_FlyMove`): `FL_ONGROUND`, `groundentity` the box. Friction, jumping, stairs and edges are
+  Quake's; every move is traced, so the world always wins. Only for players (monsters are unchanged), only solid props
+  (loose props stay non-solid, pushed by the capsule as before), never one being carried (it becomes a held body).
+- **The capsule leaves the ground alone.** A player's capsule no longer touches a solid prop with its lower
+  half-sphere or from above (Box3D pre-solve, `capsuleStandsOn`): nothing drags or shoves the box under you, or the one
+  you step off. A box coming at your body from the side or from above still meets it.
+- **Your weight** (`vr_box3d_player_mass`, 80 kg) presses down where you stand (clamped into the box's drawn shape, so
+  overhanging its edge doesn't tip a box standing on its own), each Box3D step, without waking it: a box or stack
+  asleep under you stays asleep and still. Landing on a prop wakes it once, so it feels the weight and settles back to
+  sleep. On a floating prop the weight is at most half the prop's and goes through its centre (the water lifts a prop
+  by its weight, at its centre, so your full weight on a 40 kg box sank it, and on its top capsized it).
+- **Riding:** after the step, you are carried across with the point you stand on (its turn too, but not your view:
+  comfort) and up or down with the top of the prop's Quake box (so a box tipping over lowers you with it rather than
+  dragging you down its side). The move is a trace of your box (the prop itself left out, as `SV_PushMove` leaves out
+  the pusher): walls stop it, and it never starts inside one; if the prop turned so that its box now holds you, you step
+  up out of it (18 units at most).
+- **Jumping off** pushes the prop down with a share of the jump (`vr_box3d_player_jump_push`, 0.25 of your mass times
+  your jump's speed: 157 N s on a 40 kg box, well under the explosive box's 14 m/s hit threshold).
+- **The hitbox:** everything goes through `SV_Move` with your own box, so the narrow player box (`vr_hull_width`,
+  `vr_hull_ent_width`, Solid Boxes) applies as it does everywhere; nothing in `vr_hull.cpp` changed.
+
+**Settings** (Movement > Player Hitbox, "Standing on Props"): Stand on Boxes (`vr_box3d_player_stand`, 1), Your Weight
+on Them (`vr_box3d_player_mass`, 80 kg), Jump Push (`vr_box3d_player_jump_push`, 0.25); Tests: Stand on a Box
+(`vr_physics_player onto misc_explobox`) and Where You Stand (`vr_physics_player`).
+
+**Tests** (mock headset, vrfiringrange; `vr_physics_player` before and after):
+
+| Test | Result |
+| --- | --- |
+| One box: stand 7.2 s | grounded on it, drift 0.00 units; the box asleep, not moved |
+| Jump off it, land back | up 41 units (as from the floor), grounded again; the box moved 0.1 |
+| A column of 3: stand 7.2 s | drift 0.02 units; the column woke on landing, settled asleep, moved 0.1 at most |
+| Jump twice on the column, then walk off | the top box moved 0.2; the column stands; you land on the floor |
+| Walk across one box and off (Quake's run) | off the edge; the box didn't move |
+| The same with Width Against Walls 16, Width Against Them same | the same numbers |
+| A box sent sliding at 250 u/s with you on it | you ride it: it slid 20.9 units, you 20.8, grounded throughout |
+| A box on sloped ground (it lies tilted) | stand 7.2 s: drift 0.02; jump off: it moved 0.3 |
+| A box sliding down the steep bank into the pool | you ride it until it tips, then fall off (into the pool) |
+| A floating box (the pool) | you stand on it upright for 6 s, riding its bob (your height over it constant), 1 unit of drift |
+
+The melee canary: no differences (44/52, as the baseline). e1m1 smoke: no errors.
+
+**Limitations.** A tipped box's Quake box is the upright box round it, so you stand on that box's flat top, a little
+above a tilted face (as walking into it already did). Your hands' spheres still push a solid box you stand on if you
+reach down and shove it. Monsters don't stand on props (Quake's rule for them is unchanged).
+
+**In the headset:** stand still on an explosive box (you should not drift), jump on and off it, stack two or three
+(carry them, or `vr_physics_stack`) and climb them, jump from the top, walk off an edge; push the box you stand on with
+a hand (you ride it); try Width Against Walls 16 too. Tell if the weight (80 kg) or the jump's push
+feels wrong.

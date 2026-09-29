@@ -111,6 +111,7 @@ int VR_TossKeepsGround (struct edict_s *ent);	// SV_Physics_Toss, when on the gr
 int VR_RigidToss (struct edict_s *ent);		// SV_Physics_Toss, after thinking: nonzero if it moved the entity (.vr_rigid)
 void VR_PhysicsFrameEnd (void);				// end of SV_Physics's entity loop: Box3D's world steps (vr_box3d.cpp)
 int VR_PushSkips (struct edict_s *ent);		// SV_PushMove: nonzero for an entity it must not move (a Box3D body: lifts carry it by contact)
+int VR_StandsOn (struct edict_s *ent, struct edict_s *ground);	// SV_FlyMove, a floor that isn't SOLID_BSP: nonzero if it is ground to ent (a player on a solid Box3D prop)
 
 // Protocol (cl_input.c, cl_parse.c, cl_tent.c, cl_main.c, cl_demo.c, sv_user.c, sv_main.c, host.c,
 // host_cmd.c).
