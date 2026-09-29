@@ -456,10 +456,12 @@ vector    org;
         return;
     }
 
+    vector teleportedFrom = other.origin; // QVR
     setorigin(other, t.origin);
     other.angles = t.mangle;
     if(other.classname == "player")
     {
+        VR_Carry_Teleported(other, teleportedFrom); // QVR: what the hands carry comes along (vr_carry.qc)
         other.fixangle = 1;        // turn this way immediately
         other.teleport_time = time + 0.7;
         if(other.flags & FL_ONGROUND)

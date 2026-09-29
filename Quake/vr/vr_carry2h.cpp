@@ -126,6 +126,11 @@ struct Watch
 {
     glm::vec3 onGrip[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     bool valid[2]{false, false};
+    // Where the body was when the thing was last placed from the hands (serverPlace): the hands (moved with the body
+    // before the carry's frame) are compared with it moved as far, so the body's own motion (walking, running, sliding
+    // out of a teleporter) never pulls a hand off it (round 21, "Hands: both work").
+    glm::vec3 placedBody{0.f};
+    bool placed{false};
 };
 std::unordered_map<int, Watch> watches;
 
@@ -168,6 +173,9 @@ glm::vec3 serverPlace(edict_t* ent, edict_t* player, bool grab)
     }
     const Frame object = solve(it->second, hands);
     toAngles(object.rot, ent->v.angles, brush);
+    Watch& w = watches[num];
+    w.placedBody = glm::vec3{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
+    w.placed = true;
     return object.pos;
 }
 
@@ -190,10 +198,12 @@ int detached(edict_t* ent, edict_t* player)
     const float drift = std::fmax(vr_carry_two_hands_drift.value, 0.f) * 0.01f * m2u;
     const float most = drift + std::fmax(vr_carry_two_hands_detach.value, 0.f) * 0.01f * m2u;
     const bool brush = brushModel(ent);
-    const Frame object{glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]}, fromAngles(ent->v.angles, brush)};
     const glm::vec3 body{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
-    const int pos[2] = {f.offhandpos, f.handpos};
     Watch& w = watches[num];
+    // (Moved with the body since it was placed: see Watch.)
+    const glm::vec3 carried = w.placed ? body - w.placedBody : glm::vec3{0.f};
+    const Frame object{glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]} + carried, fromAngles(ent->v.angles, brush)};
+    const int pos[2] = {f.offhandpos, f.handpos};
     glm::vec3 hand[2];
     bool left[2];
     float moved[2];
