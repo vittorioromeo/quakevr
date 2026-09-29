@@ -1096,3 +1096,12 @@ set as `motions/hc.txt`), a grunt from `vr_test_spawn 0; vr_test_spawn_dist 36; 
 (`setpos 340 1350 -200 0 180 0; noclip` in e1m1). A worldspawn's `_vr_debris` without editing a map: a
 `maps/<map>.ent` override (`external_ents`).
 Align Sights to My Aim (ROUND21.md): `vr_sight_align [start [main|off] | apply | cancel | undo]` runs the Weapon Offsets page's capture (the mock hand must be lowered, then raised and held 0.4 s, for each capture; `vr_sight_align_captures`), `vr_sight_check [main|off] [size]` prints the sight line against the dominant eye (`vr_dominant_eye`), where the sights and the laser land in that eye's image, and the laser against the line; `vr_sight_lines` lists every weapon's line; `vr_show_sight_line 1` draws them. Higher eye images: `vr_mock_eye_size 2048; vr_restart`, then `vr_eyeshot 1`.
+Held props' grips (ROUND21.md, "Held props: grip modes, live offsets, palm grip, torch handle"): `vr_grip_frame` prints
+each hand's grip frame (the palm, its normal, the grip channel); `developer 1` prints `grip: taken|placed again ...` (the
+mode, the place taken and held, the prop's axes in the hand, the settings generation and frame), `props: <cvar> <value>
+(generation, frame)` for each prop setting changed, and `held: <ent> placed again ...` from the client. In e1m2: rock3
+is entity 274, rock5 245, the half brick 220, a whole brick 214, the wall torch 53 (taken off its wall first:
+`torches/fg.play` from `setpos 2047 -84 312 0 30 0`). One in the palm: `vr_rigid_place 274 main -1.5 1.4 -2 <pitch>
+<yaw> <roll>; +grabright; vr_mock_button main grip 1` (no wait in between: it falls). Close cameras on the main hand at
+`vr_mock_hand main 0.15 1.2 -0.45 70 0 0`: `vr_mock_camera 0.35 1.15 -0.45 25 90` (outside), `-0.05 1.12 -0.45 25 -90`
+(the palm's side), `0.15 1.18 -0.68 30 180` (the front); `r_fullbright 1` lights them.

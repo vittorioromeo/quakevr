@@ -10783,6 +10783,106 @@ These keep no engine-side entity state; their state is in QC fields, saved with 
 - [ ] Die in the firing range (or anywhere with Autoload on) and let it load the last save: no error.
 - [ ] Load a save made while carrying a box or holding a torch: it should still be in your hand while you grip.
 
+## Held props: grip modes, live offsets, palm grip, torch handle
+
+Your notes (2026-09-29): the wall torch was always held pointing ahead like an arrow, whatever part of it you took, and
+dropping and taking it again changed nothing; the Held Object Offsets page seemed to have no way to turn it; a rock sat
+above the fist instead of in it; with Grip "Where taken" the sliders did nothing, and in "Always the same" they only
+applied from the next grab. Wanted: offsets on top of a Where Taken grip, live sliders in every mode, a grip that puts a
+small thing in the palm with the fingers round it, and a torch held by its handle, flame up. Branch `agent/grips`;
+scripts, logs and pictures in the scratchpad's `grips/`.
+
+### What was wrong
+
+- **The torch:** its grip was Fixed ("Always the same": Grip X 10, Z -3, no turn), and a fixed grip holds the model's
+  +x along the hand's forward: the stick pointed ahead through the fist, the same way every time. The rotation sliders
+  existed (Grip Pitch/Yaw/Roll) but did nothing until the torch was let go of and taken again, so moving one showed
+  nothing.
+- **The sliders:** Grip X..Roll were read once, at the grab, and only by a fixed grip; a Where Taken grip never read them.
+- **The rock:** Where Taken keeps the pose the rock had against the fist when the fist touched it (from above, the side,
+  a corner), so it sat anywhere round the fist (your screenshot: over the knuckles). Put in the palm (the first try,
+  below), its middle at the palm's middle was too near the wrist: the fingers closed in front of it without meeting it
+  (the grasp solve's five fingers all "free") and the palm sank into it.
+
+### Grip (Held Object Offsets; `vr_prop_grip_NN`)
+
+| Mode | How it holds | Offsets (X/Y/Z, Pitch/Yaw/Roll) | Default for |
+|---|---|---|---|
+| 0 Where taken | as it was when the fist took it (moved against the curled fingers, as before) | on top, turned about the palm | everything else (boxes, gibs, heads...) |
+| 1 Fixed | its model's origin at X/Y/Z, turned by Pitch/Yaw/Roll about it | they are the grip | whole bricks, the broken brick |
+| 2 In the palm | its middle (its box's middle plus its Centre of Mass) over the fist's grip channel, on the palm's skin; the face of it nearest the palm flat on the palm (the least turn; never its longest axis standing out of the palm); turned about the palm's normal as it was taken | on top, turned about its middle | the five rocks, the half brick |
+| 3 Along the handle | its long axis through the fist's grip channel, head towards the index finger (flame up) unless taken clearly the other way round (within 60 degrees of the little finger's side); leaning off the channel as taken, at most Handle Tilt (25 degrees); held at the point of the handle the fist was at, kept within Handle From..To; its roll about the handle as taken | on top, turned about the grip channel | the wall torch (Handle -12.4..-8.2 of its -14..-7 handle) |
+
+- **Taking it again changes the grip:** In the Palm and Along the Handle start from where the prop was when taken, so
+  a torch taken by its butt is held by its butt, leaning if it leant; taken upside down it is held upside down.
+- **Offsets:** moved in the hand's frame (x forward, y left, z up), turned pitch up, yaw left, roll right; the left
+  hand's mirrored (y, yaw, roll). The hand stays where it is (the fitted fingers wrap the prop where it now is).
+- **Fixed's Pitch is up for every model now** (a brush model's, a box's, was down).
+- **Live:** any change to a prop's settings (a slider, the Grip mode, Handle From/To/Tilt) places the prop in your hand
+  again at once: the server keeps, per held entity, what it placed it from (the place it was taken at, the hand's grip
+  frame, its shape) and places it again when `props::settingsGeneration()` changes (the performance fix's counter); the
+  client draws it from the server's place in the same frame (a listen server; a remote server's place is taken again as
+  at a grab, for 0.1 s). A mode change places it from where it was first taken, so switching back and forth returns to
+  the same grip. Also with the menu open (the server paused).
+- **Handle From / Handle To / Handle Tilt** (new keys `handle_from`, `handle_to`, `handle_tilt`): the part of its long
+  axis the fist may hold (model units from its origin; both 0: the butt's half, 12% to 45% of its length from the butt)
+  and how far it may lean off the fist's line.
+- **The hand's grip frame** (`grip::HandFrame`): the palm's middle moved out along its normal to the skin (through the
+  open hand's grasp spheres), its normal, and the grip channel (`grasp::gripChannel`: where a handle lies in the
+  half-closed fingers), measured every frame from the jointed hand as drawn (the fist's angle offsets included), in the
+  hand's frame. `vr_grip_frame` prints them (main hand: palm -3.54 -0.05 -2.08, normal +y, channel -1.17 0.03 -1.98 along
+  0.06 0.10 0.99; the same at any pose). Another player's, or a dedicated server's: those numbers (mirrored for the left).
+- **For the hand grenades (or anything held in the palm):** set its slot's Grip to 2 (`QVR_PROP_DEFAULT(slot, GripMode,
+  "2")`), or call `grip::palmPlace(prop, centre, frame, taken)` from C++.
+
+### How it works (`Quake/vr/vr_grip.cpp`)
+
+- QC's `VR_Carry_Start` still works out where the prop was taken (against the curled fingers: `carryfit`), then calls
+  `carrygrip(e, player, hand, lefthand, handangles, offset)`, which places it by its grip, keeps it (with the prop's drawn
+  vertices and box and the hand's grip frame) and returns `.carry_offset`. Each frame `carryplace(e, handangles, offset)`
+  sets its angles and returns its place (placed again if the settings changed). A regrip after a two-handed hold keeps
+  it where it is (`carryangles(..., TRUE)` calls `grip::serverKeep`: what it was taken at becomes where it is, its offset
+  taken off, so the sliders still move it from there). Something else setting `.carry_offset` (QC) wins: the kept place
+  is dropped. `propgrip` stays for other callers (its pitch up for every model too).
+- The client (`vr_held.cpp`) takes its held prop's place in the hand from the server's as before; when the settings
+  generation changes it asks `grip::serverPlace` (the same numbers, in the same frame).
+
+### Settings migration (`vr_props_version` 40)
+
+A config saved before: the wall torch's, the rocks' and the half brick's grips take the new defaults (your config had
+the torch fixed at X 9, Y 1 and the second rock fixed with Pitch -5: ways round the old grips); a Where Taken slot's
+Grip X..Roll (which did nothing) go back to 0; a fixed brush model's (`.bsp`) Pitch is negated. Tested with your
+config's prop lines (`vr_props_version` 26 to 40: the torch grip 3, rock2 grip 2 pitch 0; a fixed box's pitch 15 to -15).
+
+### Verification (mock headset, e1m2, `r_fullbright 1`; the scratchpad's `grips/`, `go.sh` runs a script file)
+
+- **The torch** (`torch_before.png`, `torch_after.png`; `gen_torch.sh`): pulled off the wall, then taken again by the
+  butt leaning forward, like an arrow (pointing ahead), and upside down. Before: the same arrow-like hold all four
+  times. After: upright through the fist, flame up, the fingers round the handle below the head; by the butt: held by
+  the butt, leaning 20 degrees as taken; like an arrow: brought up to 25 degrees off the fist's line (Handle Tilt);
+  upside down: held head down (its flame still rises). Logs: `grip: taken 53 progs/vrtorch.mdl (mode 3 ...)`.
+- **Rocks and the half brick In the Palm** (`palm_before.png`, `palm_after.png`; `gen_palm.sh`): rock3 (the biggest,
+  14 cm) from a level hand, a rolled hand and a hand pointing down, rock5, and the half brick level and rolled, each from
+  the side, the palm's side, the front and the eye. After: each in the palm, flat on it, the fingers round it (the
+  grasp's fingers all "met", stops 1.3 to 2.4; the palm moved 2.4 cm onto it). Before (Where Taken): wherever it was
+  touched. The off hand: rock5 in the left palm (`others.png`).
+- **The first try** put the stone's middle over the palm's middle: all five fingers "free" (closed in front of it) and
+  the palm sunk in it (`vr_debug_hand_bones`: red spheres); over the grip channel they wrap it.
+- **Live offsets** (`live.png`, `live.txt`): a health box Where Taken, then Z +3, Yaw 30, Roll 20 set while held (moved
+  and turned, the hand unmoved), back to 0 (back where it was), switched to Fixed (its origin at the hand), Fixed X 4
+  Pitch 30, back to Where Taken. Each change is placed in the frame it is made:
+  `props: vr_prop_grip_roll_31 20 (generation 24, frame 576)`, then
+  `held: 208 placed again in the main hand at -1.88 4.16 4.16 (generation 24, frame 576)`. With the menu open
+  (`menu.png`): `props: vr_prop_grip_roll_22 45 (generation 21, frame 685)`,
+  `held: 245 placed again in the off hand ... (generation 21, frame 685)`.
+- **Other props' fingers** (`others.png`): a whole brick (Fixed, unchanged), a gib and a health box (Where Taken): as
+  before.
+- **The torch still strikes and burns:** a downward chop (`chop.play`) hits a grunt (`melee event: ... with the head's
+  top`) and sets it burning. The torch round's horizontal sweep (`torches/swing1.play`, which hit with the arrow-held
+  torch's head as a jab) no longer lands: the upright torch crosses it sideways. The melee rules are untouched (frozen
+  until your new takes); worth a look when you record torch blows.
+- The menu page shows the four modes and the new rows (`menu_vr dump`: Held Object Offsets has 36 rows).
+
 ## Grapple: unreel; rope drawn in one piece
 
 Your voice notes (vrfiringrange, 2026-09-29, 01:00-01:01; screenshots `vrfiringrange_2026-09-29_01-00-01`, `01-00-54`,

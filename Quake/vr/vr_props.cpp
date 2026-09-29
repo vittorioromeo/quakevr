@@ -38,8 +38,8 @@ constexpr const char* keyDefaults[numKeys] = {
 
 // Configs archive every slot, so a slot whose shipped defaults change keeps a config's old values: vr_props_version
 // says which changes a config has seen (as vr_wofs_version for the weapons). 1: the table's first version; 26: the rocks
-// and bricks' slots (the round's agents number their changes apart).
-constexpr int settingsVersion = 26;
+// and bricks' slots; 40: the grip modes (the round's agents number their changes apart).
+constexpr int settingsVersion = 40;
 
 std::array<std::string, numSlots * numKeys> names;
 std::array<cvar_t, numSlots * numKeys> cvars{};
@@ -79,6 +79,10 @@ void clearSlotCaches()
 void onChanged(cvar_t* var)
 {
     generation++;
+    if((vr_debug_carry.value || developer.value) && host_initialized)
+    {
+        Con_Printf("props: %s %s (generation %u, frame %d)\n", var->name, var->string, generation, host_framecount);
+    }
     const std::ptrdiff_t index = var - cvars.data();
     if(index >= 0 && index < static_cast<std::ptrdiff_t>(cvars.size()) && index % numKeys == static_cast<int>(Key::ID))
     {
@@ -123,6 +127,46 @@ void migrate()
             {
                 Con_Printf("Held Object Offsets: slot %d is %s's in this config; %s keeps the defaults\n", slot + 1,
                     cvarAt(slot, Key::ID).string, cvarAt(slot, Key::ID).default_string);
+            }
+        }
+    }
+    // 40: the grip modes (round 21, "Held props: grip modes, live offsets, palm grip, torch handle"). The wall torch is
+    // held Along the Handle and the rocks and the half brick In the Palm: their grips take the new defaults (a config's
+    // fixed grip for them was a way round the old ones). Grip X..Roll were read only by a fixed grip; they are an offset
+    // in the other modes now, so a Where Taken slot's (which did nothing) go back to 0.
+    if(from < 40)
+    {
+        constexpr Key gripKeys[] = {Key::GripMode, Key::GripX, Key::GripY, Key::GripZ, Key::GripPitch, Key::GripYaw, Key::GripRoll,
+            Key::HandleFrom, Key::HandleTo, Key::HandleTilt};
+        for(int slot = 0; slot < numSlots; slot++)
+        {
+            const bool shipped = slot == wallTorchSlot || (slot >= 17 && slot <= 21) || slot == 24;
+            const bool own = !strcmp(cvarAt(slot, Key::ID).string, cvarAt(slot, Key::ID).default_string);
+            if(shipped && own)
+            {
+                for(const Key key : gripKeys)
+                {
+                    Cvar_SetQuick(&cvarAt(slot, key), cvarAt(slot, key).default_string);
+                }
+                Con_DPrintf("Held Object Offsets: %s: the new grip (mode %s)\n", cvarAt(slot, Key::ID).string,
+                    cvarAt(slot, Key::GripMode).string);
+            }
+            else if(atof(cvarAt(slot, Key::GripMode).string) == 1.0)
+            {
+                // A fixed grip's Pitch is up for every model now: a brush model's (a box: "maps/....bsp") was down.
+                const char* id = cvarAt(slot, Key::ID).string;
+                const std::size_t n = strlen(id);
+                if(n > 4 && !strcmp(id + n - 4, ".bsp") && atof(cvarAt(slot, Key::GripPitch).string) != 0.0)
+                {
+                    Cvar_SetValueQuick(&cvarAt(slot, Key::GripPitch), static_cast<float>(-atof(cvarAt(slot, Key::GripPitch).string)));
+                }
+            }
+            else if(atof(cvarAt(slot, Key::GripMode).string) == 0.0)
+            {
+                for(const Key key : {Key::GripX, Key::GripY, Key::GripZ, Key::GripPitch, Key::GripYaw, Key::GripRoll})
+                {
+                    Cvar_SetQuick(&cvarAt(slot, key), "0");
+                }
             }
         }
     }
