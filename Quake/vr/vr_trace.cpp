@@ -2,6 +2,7 @@
 
 #include "vr_trace.hpp"
 #include "vr_engine.hpp"
+#include "vr_hull.hpp"
 
 namespace qvr::worldtrace
 {
@@ -102,6 +103,10 @@ bool playerBoxFits(const glm::vec3& start, const glm::vec3& end)
     if(!cl.worldmodel)
     {
         return false;
+    }
+    if(const int narrow = hull::playerBoxFits(cl.worldmodel, start, end); narrow >= 0)
+    {
+        return narrow != 0; // the player's narrower box (vr_hull_width)
     }
     const trace_t tr = hullTrace(cl.worldmodel, glm::vec3{0.f}, start, end, 1);
     return !tr.startsolid && !tr.allsolid && tr.fraction >= 1.f;

@@ -1,6 +1,7 @@
 // vr_progs.cpp -- binds the Quake VR QuakeC entry points, globals and spawn parms.
 
 #include "vr_hitmodel.hpp"
+#include "vr_hull.hpp"
 #include "vr_progs.hpp"
 #include "vr_engine.hpp"
 #include "vr_box3d.hpp"
@@ -242,6 +243,7 @@ extern "C" void VR_OnSpawnServerAfterLoad()
     qvr::debris::afterLoad();
     qvr::ledges::afterLoad(); // climbing's ledge map (with Climbing on)
     qvr::hitmodel::afterLoad(); // precise hits: every precached model's triangle hierarchy (no first-hit hitch)
+    qvr::hull::afterLoad(); // the player's narrower box: the map as brushes (vr_hull_width)
     qvr::climb::reset();
     callSpawnServerEntryPoint(sv_bindings.OnSpawnServerAfterLoad);
     loadingSaveGame = false;

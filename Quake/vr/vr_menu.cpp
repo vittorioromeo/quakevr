@@ -1769,6 +1769,20 @@ std::vector<Item> pageDebugTests()
             .help("Degrees to your left of ahead it comes from (negative: from the right)."),
         command("Fire at Me", "impulse 246").help("Fires the Projectile at you now."),
         command("Make an Ogre Throw", "impulse 240").help("The nearest ogre or zombie throws at you now."),
+        header("Player Hitbox (Prototype)"),
+        cycle("Hitbox Width", vr_hull_width,
+            {{0.f, "Quake's (32)"}, {16.f, "16 units"}, {20.f, "20 units"}, {24.f, "24 units"}, {28.f, "28 units"},
+             {32.f, "32 (new collision)"}})
+            .help("How wide you are against walls, ledges, doors and lifts (docs/vr-port/HULLS.md). Quake's is 32 units "
+                  "(16 from each wall). Monsters, items and shots still meet Quake's box."),
+        command("Hitbox Stats", "vr_hull_stats").help("Prints the map's rebuilt brushes: count, memory, build time."),
+        command("Hitbox Bench", "vr_hull_bench").help("Times 20000 random moves (Quake's hull against the new "
+                                                      "collision) and prints where they disagree."),
+        command("Hitbox Probe", "vr_hull_probe")
+            .help("Prints which of the map's brushes your box is in, and by how much (when you're stuck)."),
+        command("Random Walk (60 s)", "god; notarget; vr_hull_walktest 60")
+            .help("Walks you around the map at random for 60 seconds (hopping somewhere new every few), then prints how "
+                  "often you got stuck or ended up in a wall."),
         header("Cheats"),
         command("God Mode", "god").help("god: takes no damage (again: takes damage)."),
         command("Quad Damage", "impulse 255").help("Quad Damage for 30 seconds."),

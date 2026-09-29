@@ -8,6 +8,7 @@
 #include "vr_engine.hpp"
 #include "vr_physics.hpp"
 #include "vr_held.hpp"
+#include "vr_hull.hpp"
 #include "vr_progs.hpp"
 #include "vr_move.hpp"
 #include "vr_server.hpp"
@@ -352,6 +353,7 @@ void waterFeedback(edict_t* ent); // "Water splashes and sounds" below
 extern "C" void VR_ClientPreMove(edict_t* ent)
 {
     QVR_PROFILE("vr hand touches");
+    hull::walkTestFrame(ent); // vr_hull_walktest: the random walk drives the player
     server::rebaseHands(ent);
     if(!active())
     {

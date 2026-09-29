@@ -12704,3 +12704,19 @@ It looked for fires with `findradius`, which skips SOLID_NOT entities, and a tor
   nudge pushed what you reached for without the grip pressed, too). The palm's box is from the drawn hand at the
   defaults; a very different hand calibration may want it moved.
 - Another player's weapon (the capsule) and a weapon in the off hand (mirrored hull) were not run.
+
+## A smaller player hitbox (research and prototype)
+
+Your notes `vrclimb_2026-09-29_20-06-59` and `20-07-38` (Quake's 32-wide player box keeps you 0.6 m from walls; can
+it be smaller on unmodified maps?). The full write-up, with the candidates' pros and cons, the numbers and what to
+decide, is [HULLS.md](HULLS.md).
+
+In short: at a map's load the world's and its brush models' solid space is rebuilt from the drawing BSP (hull 0) as
+convex brushes with Quake 2's bevels, clip brushes are recovered from hull 1, and the player's box is swept against
+them Quake 2 style, at any width. It is a prototype behind **Debug > Tests > Hitbox Width** (`vr_hull_width`, 0: off,
+Quake's hull 1). Only the player's clipping against the map, doors and lifts is narrower; against monsters, items,
+triggers and shots the box stays Quake's.
+
+To try in the headset: Hitbox Width 20 (or 16), then walk up to walls, into corners, along ledges, up stairs and
+slopes, through doors, onto lifts and trains, and climb. Anything that snags, lets you into a wall, or drops you
+through a floor: a voice note with where you were.
