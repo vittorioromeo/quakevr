@@ -51,6 +51,7 @@ void hostFrameEnd();
 // same frames at any speed), and whether its server frame runs (-1: as usual; 0: no; 1: yes, for
 // `frametime` seconds).
 [[nodiscard]] double hostFrameTime(double time);
+[[nodiscard]] bool gameClockFixed(); // hostFrameTime ignores the wall clock (vr_fixed_frames, a take's playback not in watch mode)
 [[nodiscard]] int serverFrameOverride(double& frametime);
 [[nodiscard]] bool playing();
 

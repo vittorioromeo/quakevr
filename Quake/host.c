@@ -795,6 +795,9 @@ Host_GetFrameInterval
 */
 double Host_GetFrameInterval (void)
 {
+	if (VR_Unpaced ()) // QVR: a test run's fixed-step frames, as fast as they come (vr_mock_fast)
+		return 0.0;
+
 	if (VR_IsActive () && !host_maxfps.value) // QVR: the runtime paces a headset
 		return 0.0;
 
@@ -1257,6 +1260,7 @@ void _Host_Frame (double time)
 	IN_Commands ();
 	VR_ProfileEnd (); // QVR
 	VR_BeginFrame (); // QVR
+	if (host_framecount == 0) VR_TimeMark ("first frame: input, VR backend start"); // QVR
 
 //check the stdin for commands (dedicated servers)
 	Host_GetConsoleCommands ();
@@ -1265,6 +1269,7 @@ void _Host_Frame (double time)
 	VR_ProfileBegin ("commands"); // QVR: profile
 	Cbuf_Execute ();
 	VR_ProfileEnd (); // QVR
+	if (host_framecount == 0) VR_TimeMark ("first frame: configs, autoexec"); // QVR
 
 	NET_Poll();
 
@@ -1390,6 +1395,7 @@ void _Host_Frame (double time)
 	}
 
 	VR_HostFrameEnd (); // QVR: the motion recorder's row
+	VR_TimeFrameEnd (cls.signon == SIGNONS); // QVR: start-up and load timing
 	host_framecount++;
 	VR_ProfileFrameEnd (); // QVR
 }
@@ -1455,8 +1461,10 @@ void Host_Init (void)
 	Cvar_Init (); //johnfitz
 	COM_Init ();
 	COM_InitFilesystem ();
+	VR_TimeMark ("filesystem (paks, game dirs)"); // QVR
 	Host_InitLocal ();
 	W_LoadWadFile (); //johnfitz -- filename is now hard-coded for honesty
+	VR_TimeMark ("cvars, commands, gfx.wad"); // QVR
 	if (cls.state != ca_dedicated)
 	{
 		Key_Init ();
@@ -1466,7 +1474,9 @@ void Host_Init (void)
 	Mod_Init ();
 	NET_Init ();
 	SV_Init ();
+	VR_TimeMark ("console, progs, models, net, server init"); // QVR
 	VR_Init (); // QVR
+	VR_TimeMark ("VR init (cvars, commands)"); // QVR
 
 	Con_Printf ("Exe: " __TIME__ " " __DATE__ " (%s %d-bit)\n", SDL_GetPlatform (), (int)sizeof(void*)*8);
 	Con_Printf ("%4.1f megabyte heap\n", host_parms->memsize/ (1024*1024.0));
@@ -1480,13 +1490,19 @@ void Host_Init (void)
 		V_Init ();
 		Chase_Init ();
 		M_Init ();
+		VR_TimeMark ("colormap, view, menu init"); // QVR
 		VID_Init ();
+		VR_TimeMark ("video (window, GL context)"); // QVR
 		IN_Init ();
 		TexMgr_Init (); //johnfitz
+		VR_TimeMark ("input, texture manager"); // QVR
 		Draw_Init ();
+		VR_TimeMark ("draw init (conchars, pics)"); // QVR
 		SCR_Init ();
 		R_Init ();
+		VR_TimeMark ("screen, renderer init (shaders)"); // QVR
 		S_Init ();
+		VR_TimeMark ("sound init"); // QVR
 		CDAudio_Init ();
 		BGM_Init();
 		Sbar_Init ();
@@ -1496,6 +1512,7 @@ void Host_Init (void)
 		SaveList_Init ();
 		SkyList_Init ();
 		M_CheckMods ();
+		VR_TimeMark ("audio, status bar, client, lists, mods"); // QVR
 	}
 
 	LOC_Init (); // for 2021 rerelease support.
@@ -1504,6 +1521,7 @@ void Host_Init (void)
 	host_hunklevel = Hunk_LowMark ();
 
 	host_initialized = true;
+	VR_TimeMark ("Host_Init end"); // QVR
 	Con_Printf ("\n========= Quake Initialized =========\n\n");
 
 	if (!COM_CheckParm ("-nomapchecks") && Sys_IsStartedFromMapEditor ())

@@ -921,6 +921,8 @@ int scaledEyeSize(int image, int max)
 
 } // namespace qvr
 
+static void applyUnpacedSwap(); // vr_mock_fast (below)
+
 extern "C" void VR_NewMap()
 {
     ++qvr::worldGen;
@@ -938,6 +940,7 @@ extern "C" void VR_NewMap()
         const double ms = (Sys_DoubleTime() - start) * 1000.0;
         total += ms;
         times += va("%s%s %.1f", times.empty() ? "" : ", ", name, ms);
+        VR_TimeMark(va("VR_NewMap: %s", name));
     };
     step("decal atlas", decals::prepare);
     step("particle atlas", particles::prepare);
@@ -949,12 +952,14 @@ extern "C" void VR_NewMap()
     Con_DPrintf("vr prewarm: %.1f ms (%s)\n", total, times.c_str());
 
     countGlForLog(); // the memory log's GL objects, in the load (12-13 ms)
+    VR_TimeMark("VR_NewMap: GL object count");
 }
 
 extern "C" void VR_Init()
 {
     state = new State{};
 
+    VR_TimeInit(); // vr_startup_times, vr_walltime
     registerCvars();
     weapons::registerCvars();
     props::registerCvars();
@@ -1047,6 +1052,8 @@ extern "C" void VR_BeginFrame()
         }
     }
 
+    applyUnpacedSwap();
+
     profile::begin("xr wait", false); // the runtime's pacing (xrWaitFrame) and the tracking
     const bool began = !state->backend || state->backend->beginFrame(state->tracking, state->frame);
     profile::end();
@@ -1082,6 +1089,24 @@ extern "C" void VR_BeginFrame()
 extern "C" int VR_IsActive()
 {
     return vrActive();
+}
+
+extern "C" int VR_Unpaced()
+{
+    const Backend* const be = backend();
+    return be && vr_mock_fast.value != 0.f && !strcmp(be->name(), "mock") && motion::gameClockFixed();
+}
+
+// vr_mock_fast: no vsync either while the frames run unpaced (the window's vid_vsync again after).
+static void applyUnpacedSwap()
+{
+    static bool off = false;
+    const bool unpaced = VR_Unpaced();
+    if(unpaced != off)
+    {
+        off = unpaced;
+        SDL_GL_SetSwapInterval(unpaced ? 0 : CLAMP(-4, static_cast<int>(Cvar_VariableValue("vid_vsync")), 4));
+    }
 }
 
 extern "C" int VR_ModalMessageFrame()

@@ -578,9 +578,11 @@ void R_NewMap (void)
 	VEC_CLEAR (r_pointfile);
 
 	GL_BuildLightmaps ();
+	VR_TimeMark ("R_NewMap: lightmaps"); // QVR
 	GL_DeleteBModelBuffers ();
 	GL_BuildBModelVertexBuffer ();
 	GL_BuildBModelMarkBuffers ();
+	VR_TimeMark ("R_NewMap: brush model buffers"); // QVR
 	//ericw -- no longer load alias models into a VBO here, it's done in Mod_LoadAliasModel
 
 	r_framecount = 0; //johnfitz -- paranoid?
@@ -589,6 +591,7 @@ void R_NewMap (void)
 	Sky_NewMap (); //johnfitz -- skybox in worldspawn
 	Fog_NewMap (); //johnfitz -- global fog in worldspawn
 	R_ParseWorldspawn (); //ericw -- wateralpha, lavaalpha, telealpha, slimealpha in worldspawn
+	VR_TimeMark ("R_NewMap: sky, fog, worldspawn"); // QVR
 	VR_NewMap (); // QVR: the VR modules' per-map data rebuilt
 
 	// Load pointfile if map has no vis data and either developer mode is on or the game was started from a map editing tool

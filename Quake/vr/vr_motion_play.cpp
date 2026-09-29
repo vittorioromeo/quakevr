@@ -1326,6 +1326,16 @@ double hostFrameTime(double time)
     return dt;
 }
 
+bool gameClockFixed()
+{
+    // hostFrameTime's cases that don't read the frame's wall-clock time (a take in watch mode waits for the wall clock).
+    if(state == State::Idle)
+    {
+        return fixedLoading || vr_fixed_frames.value != 0.f;
+    }
+    return !opts.watch; // (watch mode paces the setup and the end at the wall clock too)
+}
+
 int serverFrameOverride(double& frametime)
 {
     // (Before this host frame's server frame: the dummy's strikes in the take's frame it plays.)

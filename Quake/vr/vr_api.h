@@ -49,6 +49,8 @@ void VR_Shutdown (void);	// client shutdown, before video shutdown
 void VR_BeginFrame (void);	// once per host frame, after input events and before console commands
 int VR_IsActive (void);		// nonzero while vr_enabled is set and a backend session is running: the
 							// runtime paces frames (no frame cap, no sleeping when unfocused)
+int VR_Unpaced (void);		// nonzero while the mock headset runs frames unpaced (vr_mock_fast, the game's clock
+							// fixed): no frame cap
 int VR_ModalMessageFrame (void); // SCR_ModalMessage's loop: with a headset, a frame showing the
 							// dialog (the runtime paces it); zero without one (the loop sleeps)
 double VR_HostFrameTime (double time);	// start of _Host_Frame: the frame's time (a motion take's own while
@@ -56,6 +58,13 @@ double VR_HostFrameTime (double time);	// start of _Host_Frame: the frame's time
 int VR_ServerFrameOverride (double *frametime); // _Host_Frame: whether the server runs this frame: -1 as
 							// usual; 0 no; 1 yes, for *frametime seconds (a take's recorded server frames)
 void VR_HostFrameEnd (void);	// end of _Host_Frame, after the screen and the sound (the motion recorder's row)
+
+// Start-up and map-load timing (vr_startup.cpp: vr_startup_times, vr_walltime).
+void VR_TimeStart (void);	// main, after Sys_Init: the process's start
+void VR_TimeInit (void);	// VR_Init: the commands
+void VR_TimeMark (const char *stage);	// a stage of the start-up or of a map's load just ended
+void VR_TimeLoadBegin (const char *what);	// SV_SpawnServer, CL_ParseServerInfo: a map's load starts
+void VR_TimeFrameEnd (int signedon);	// end of _Host_Frame: the first frame drawn ends the start-up, and a load once signed on
 
 // Filesystem (common.c).
 void VR_BeforeAddGameDirectory (const char *dir);	// start of COM_AddGameDirectory

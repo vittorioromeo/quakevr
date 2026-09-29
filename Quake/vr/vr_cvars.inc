@@ -71,6 +71,10 @@ QVR_CVAR(vr_mock_grip_velocity, "0", CVAR_NONE)
 // Test runs: 1 makes every host frame 1/72 s of game time with a server frame (vr_motion_play.cpp hostFrameTime), so a
 // scripted run (vr_mock_play, "wait") logs the same numbers every time, whatever the machine's pace.
 QVR_CVAR(vr_fixed_frames, "0", CVAR_NONE)
+// Test runs: 1 runs the mock headset's frames as fast as the machine makes them while the game's clock doesn't follow the
+// wall clock (vr_fixed_frames 1, a motion take played back not in watch mode): no frame cap, no vsync (VR_Unpaced). The
+// same frames and the same numbers as at the frame cap's pace, in less time. Other runs keep their real-time pace.
+QVR_CVAR(vr_mock_fast, "0", CVAR_NONE)
 
 // Rigid-body physics: Box3D (docs/vr-port/ROUND21.md, "Box3D physics"; vr_box3d.cpp: props also collide with each
 // other, so they stack and pile).

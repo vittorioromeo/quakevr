@@ -303,6 +303,7 @@ static void CL_ParseServerInfoRun (void)
 	char	sound_precache[MAX_SOUNDS][MAX_QPATH];
 
 	Con_DPrintf ("Serverinfo packet received.\n");
+	VR_TimeLoadBegin ("client"); // QVR: load timing (vr_startup_times)
 
 // ericw -- bring up loading plaque for map changes within a demo.
 //          it will be hidden in CL_SignonReply.
@@ -426,17 +427,20 @@ static void CL_ParseServerInfoRun (void)
 	}
 
 	S_BeginPrecaching ();
+	VR_TimeMark ("client: models precached"); // QVR
 	for (i = 1; i < numsounds; i++)
 	{
 		cl.sound_precache[i] = S_PrecacheSound (sound_precache[i]);
 		CL_KeepaliveMessage ();
 	}
 	S_EndPrecaching ();
+	VR_TimeMark ("client: sounds precached"); // QVR
 
 // local state
 	cl_entities[0].model = cl.worldmodel = cl.model_precache[1];
 
 	R_NewMap ();
+	VR_TimeMark ("client: R_NewMap end"); // QVR
 
 	//johnfitz -- clear out string; we don't consider identical
 	//messages to be duplicates if the map has changed in between

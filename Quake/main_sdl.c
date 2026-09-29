@@ -49,6 +49,52 @@ static void Sys_InitSDL (void)
 	atexit(Sys_AtExit);
 }
 
+#ifdef _WIN32
+#include <windows.h> // QVR: the frame cap's high-resolution timer
+#ifndef CREATE_WAITABLE_TIMER_HIGH_RESOLUTION
+#define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x00000002
+#endif
+
+/*
+==================
+Sys_HiResSleep
+
+QVR: sleeps about `seconds` on a high-resolution waitable timer (Windows 10 1803 and later), which keeps
+its precision (tenths of a millisecond) whatever the system timer's resolution: SDL_Delay (Sleep) wakes
+at the system timer's ticks, and Windows 11 ignores a process's timeBeginPeriod (which SDL makes, 1 ms)
+while its window is hidden or covered (a headset player's desktop window, a test run in the background):
+then each 1 ms sleep took 15.6 ms and a 90 fps cap ran at 64. Returns false without such a timer.
+==================
+*/
+static qboolean Sys_HiResSleep (double seconds)
+{
+	static HANDLE timer = NULL;
+	static qboolean tried = false;
+	LARGE_INTEGER due;
+
+	if (!tried)
+	{
+		tried = true;
+		timer = CreateWaitableTimerExW (NULL, NULL, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
+	}
+	if (!timer)
+		return false;
+	due.QuadPart = -(LONGLONG) (seconds * 1e7); // relative, in 100 ns units
+	if (due.QuadPart >= 0)
+		return true;
+	if (!SetWaitableTimerEx (timer, &due, 0, NULL, NULL, NULL, 0))
+		return false;
+	WaitForSingleObject (timer, INFINITE);
+	return true;
+}
+#else
+static qboolean Sys_HiResSleep (double seconds)
+{
+	(void) seconds;
+	return false;
+}
+#endif
+
 /*
 ==================
 Sys_WaitUntil
@@ -60,13 +106,40 @@ static double Sys_WaitUntil (double endtime)
 	static double mean = 1e-3;
 	static double m2 = 0.0;
 	static double count = 1.0;
+	static double hr_estimate = 2e-4; // QVR: the high-resolution timer's lateness
+	static double hr_mean = 2e-4;
+	static double hr_m2 = 0.0;
+	static double hr_count = 1.0;
 
 	double now = Sys_DoubleTime ();
-	double before, observed, delta, stddev;
+	double before, observed, delta, stddev, asked;
+	const qboolean hires = Sys_HiResSleep (0.0); // QVR: the timer exists
 
 	endtime -= 1e-6; // allow finishing 1 microsecond earlier than requested
 
-	while (now + estimate < endtime)
+	// QVR: one sleep on the high-resolution timer up to its expected lateness before the end (learnt
+	// as below), then the short spin. Without that timer, the 1 ms sleeps of SDL_Delay.
+	while (hires && now + hr_estimate < endtime)
+	{
+		before = now;
+		asked = endtime - now - hr_estimate;
+		if (!Sys_HiResSleep (asked))
+			break;
+		now = Sys_DoubleTime ();
+
+		if (hr_count < 1e6)
+		{
+			++hr_count;
+			observed = q_max (0.0, now - before - asked);
+			delta = observed - hr_mean;
+			hr_mean += delta / hr_count;
+			hr_m2 += delta * (observed - hr_mean);
+			stddev = sqrt (hr_m2 / (hr_count - 1.0));
+			hr_estimate = CLAMP (5e-5, hr_mean + 1.5 * stddev, 2e-3);
+		}
+	}
+
+	while (!hires && now + estimate < endtime)
 	{
 		before = now;
 		SDL_Delay (1);
@@ -145,6 +218,7 @@ int main(int argc, char *argv[])
 	Sys_InitSDL ();
 
 	Sys_Init();
+	VR_TimeStart (); // QVR: start-up timing (vr_startup_times)
 
 	Sys_Printf("Initializing Ironwail v%s\n", IRONWAIL_VER_STRING);
 
@@ -162,6 +236,7 @@ int main(int argc, char *argv[])
 		Sys_Error ("Not enough memory free; check disk space\n");
 
 	Sys_Printf("Host_Init\n");
+	VR_TimeMark ("SDL, heap"); // QVR
 	Host_Init();
 
 	oldtime = Sys_DoubleTime();

@@ -1924,6 +1924,7 @@ void SV_SpawnServer (const char *server)
 
 static void SV_SpawnServerRun (const char *server)
 {
+	VR_TimeLoadBegin (server); // QVR: load timing (vr_startup_times)
 	static char	dummy[8] = { 0,0,0,0,0,0,0,0 };
 	edict_t		*ent;
 	int			i, signonsize;
@@ -1965,6 +1966,7 @@ static void SV_SpawnServerRun (const char *server)
 //
 	//memset (&sv, 0, sizeof(sv));
 	Host_ClearMemory ();
+	VR_TimeMark ("server: clear memory"); // QVR
 
 	q_strlcpy (sv.name, server, sizeof(sv.name));
 	if (developer.value || map_checks.value)
@@ -1983,6 +1985,7 @@ static void SV_SpawnServerRun (const char *server)
 	PR_SwitchQCVM(vm);
 // load progs to get entity field count
 	PR_LoadProgs ("progs.dat", true);
+	VR_TimeMark ("server: progs"); // QVR
 
 // allocate server memory
 	/* Host_ClearMemory() called above already cleared the whole sv structure */
@@ -2032,6 +2035,7 @@ static void SV_SpawnServerRun (const char *server)
 // clear world interaction links
 //
 	SV_ClearWorld ();
+	VR_TimeMark ("server: world model (BSP)"); // QVR
 
 	sv.sound_precache[0] = dummy;
 	sv.model_precache[0] = dummy;
@@ -2063,7 +2067,9 @@ static void SV_SpawnServerRun (const char *server)
 	pr_global_struct->serverflags = svs.serverflags;
 
 	VR_OnSpawnServerBeforeLoad (); // QVR
+	VR_TimeMark ("server: submodels, VR before load"); // QVR
 	ED_LoadFromFile (sv.worldmodel->entities);
+	VR_TimeMark ("server: entities spawned"); // QVR
 
 	sv.active = true;
 
@@ -2074,6 +2080,7 @@ static void SV_SpawnServerRun (const char *server)
 	host_frametime = 0.1;
 	SV_Physics ();
 	SV_Physics ();
+	VR_TimeMark ("server: 2 frames (Box3D world, ledges...)"); // QVR
 
 // create a baseline for more efficient communications
 	SV_CreateBaseline ();
@@ -2093,6 +2100,7 @@ static void SV_SpawnServerRun (const char *server)
 			SV_SendServerinfo (host_client);
 
 	VR_OnSpawnServerAfterLoad (); // QVR
+	VR_TimeMark ("server: baseline, serverinfo, VR after load"); // QVR
 
 	Con_DPrintf ("Server spawned.\n");
 
