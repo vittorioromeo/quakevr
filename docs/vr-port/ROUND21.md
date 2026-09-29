@@ -12462,7 +12462,7 @@ Tests: `impulse 239` prints every hook (state, what it is in, where its gun is, 
 `impulse 233` makes you take what the hooks are in (a pickup's own take; a thrown weapon into an empty hand, as a force
 grab's catch); `developer 2` prints how far the other fingertip is from a weapon's button when it is near.
 
-### Verified (mock headset; `scratch/hook/run_all.sh`: 15 scenarios, 44 checks, all pass)
+### Verified (mock headset; `scratch/hook/run_all.sh`: 16 scenarios, 46 checks, all pass after the merge)
 
 - **Fire, bite, let go, reel home** (`t1`, e1m1's ceiling): the trigger let go 1.5 s after the bite: loose; B reels it
   (the ramp, then 338 u/s closing) and it goes back in; the gun fires again (hook 2).
@@ -12491,6 +12491,10 @@ grab's catch); `developer 2` prints how far the other fingertip is from a weapon
 - **Death** (`t13`): back in the gun at once. **Rogue's grapple / Hook Comes Back** (`t14`): the trigger let go brings
   it straight back.
 - **The button pressed by the finger** (`t15x`): the off hand's fingertip 0.7 units from the button: quick release, home.
+- **A flail** (`flail`, after merging vr-cleanup's flung props: `VR_Grapple_PropHolder` now names the gun's holder, or
+  who fired it when the gun lies about): the firing range, a super shotgun hooked 180 units off, a grunt put between;
+  the reel pulls the gun through him: "prop: flung weapon_supershotgun (5.2 kg) into monster_army at 535-622 u/s:
+  22-26 damage, by player".
 - The weapon settings' migration: a version 21 config gets the button (mode 1, anchor 75); the other keys untouched.
 - QuakeC 0 warnings; the engine builds; the FGD check passes. The melee canary is skipped (no current takes).
 
