@@ -85,7 +85,7 @@ Cbuf_Init
 */
 void Cbuf_Init (void)
 {
-	SZ_Alloc (&cmd_text, 1<<18);		// space for commands and script files. spike -- was 8192, but modern configs can be _HUGE_, at least if they contain lots of comments/docs for things.
+	SZ_Alloc (&cmd_text, 1<<21);		// QVR: 2 MB (the author's config passed 256 KB, and an overflowing exec runs none of it). space for commands and script files. spike -- was 8192, but modern configs can be _HUGE_, at least if they contain lots of comments/docs for things.
 }
 
 
