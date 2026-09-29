@@ -1987,6 +1987,13 @@ std::vector<Item> pageDebugTests()
         command("Restore Stamina", "vr_stamina_set 1").help("vr_stamina_set 1: rested."),
         toggle("Hold Stamina", vr_debug_stamina_hold).help("Keeps your stamina where it is, or where the buttons above put it: nothing spends it and it doesn't come back (vr_debug_stamina_hold)."),
         toggle("Print Run Speed", vr_debug_stamina_speed).help("Prints your stamina, the most speed it lets you run at and your speed on the ground, twice a second (vr_debug_stamina_speed)."),
+        header("Stuck in Walls"),
+        toggle("Unstick", vr_unstick)
+            .help("Found inside a wall, a door, a button or a lift, you're moved to the nearest free spot (vr_unstick). "
+                  "Off: only Quake's small nudge up."),
+        command("Stuck Info", "vr_stuck_info")
+            .help("Prints where you are, what you're inside of, the doors, buttons and lifts near you, and how often "
+                  "you were freed."),
         header("Player Hitbox (Prototype)"),
         open("Player Hitbox Settings", pageIndex(pageHitbox)).help("Movement > Player Hitbox: the widths and their toggles."),
         command("Hitbox Stats", "vr_hull_stats").help("Prints the map's rebuilt brushes and compiled hull: counts, memory, build times."),

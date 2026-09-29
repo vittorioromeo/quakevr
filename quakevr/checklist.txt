@@ -23,6 +23,9 @@ Menu button: in a menu it returns straight to the game; pressing it again reopen
 Grenade pouch: the grenade now comes out the same way in the hand whatever its angle; retune the Grenade In Hand sliders while holding one (live), then tell me the values
 HUD: back to Ironwail's style; the status bar drawn on your hand is gone (Options > HUD style: Classic brings it back)
 
+Firing range buttons: press one, step into its space, wait: it pushes you back a little, never traps you
+Stuck anywhere (wall, door, lift)? You should pop out to the nearest free spot (Debug > Tests > Stuck Info says where)
+
 [Decide or give feedback]
 Hitbox: Movement > Player Hitbox, width 16 or 20; walk up to the firing-range panels (front and side), the prop table, explosive boxes; let monsters walk into you
 Hitbox: compare Method A (compiled hull, default) and B (brush sweep); does either snag?

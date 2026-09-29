@@ -160,6 +160,7 @@ int VR_ClimbHangsFrom (struct edict_s *check, struct edict_s *pusher);	// SV_Pus
 int VR_ClimbCarryBlocked (struct edict_s *check, struct edict_s *pusher, const float *from, const float *move); // SV_PushMove: its ride stopped short: nonzero blocks the pusher (vr_climb_mover_crush), else it lets go
 void VR_ClimbCarried (struct edict_s *pusher, const float *move);	// SV_PushMove, moved: the holds on it moved with it
 void VR_ClientRoomscaleMove (struct edict_s *ent);		// SV_Physics_Client, after the move
+int VR_Unstick (struct edict_s *ent);				// SV_CheckStuck, found in solid: nonzero if moved to the nearest free spot (vr_unstick; vr_unstick.cpp)
 void VR_BeforePlayerPostThink (struct edict_s *ent);	// SV_Physics_Client, before PlayerPostThink
 void VR_AfterPlayerPostThink (struct edict_s *ent);	// and after it
 float *VR_MoveAngles (struct edict_s *ent, float *fallback); // angles steering walk/swim moves

@@ -13591,3 +13591,52 @@ To try in the headset: Movement > Player Hitbox, Width Against Walls 16 or 20. W
 panels from the front and the side, the prop table and the explosive boxes; walk into a grunt and let monsters walk
 into you; doors, lifts, stairs, ledges, climbing. Switch Method between Compiled Hull and Brush Sweep: they should feel
 the same; say if one snags where the other doesn't. Changing the width or method rebuilds (a short hitch).
+## Never stuck: buttons that return into you, and a safety net
+
+His note (vrfiringrange, 2026-09-30 00:57): press a firing range button with the hand, step into the space it left, and
+when it comes back it overlaps you and you're stuck until you press it again; "solve this whenever it happens, no
+matter the situation", and for buttons push the player back or something less invasive. Branch `agent/unstick`.
+
+### Why the button trapped you
+
+The firing range's buttons travel 4 units at speed 50: 0.08 s. Quake's `SUB_CalcMove` (subs.qc) doesn't move a mover
+whose travel takes under 0.1 s: it waits 0.1 s and then sets it at its end (`setorigin` in `SUB_CalcMoveDone`), which
+pushes nothing. So the returning button appeared inside you; nothing could free you (Quake's `SV_CheckStuck` goes back
+to where you were, which was the same spot, then tries 17 units up), until pressing it again moved it away. Vanilla
+Quake does the same with any mover that short (a door with a small travel at a high speed, a train's short leg); with
+Quake's 32-wide box you can't reach that button's space, with the 16-wide one (`vr_hull_width 16`) you can.
+
+### What changed
+
+- **QC** (`subs.qc`, `SUB_CalcMove`): a move shorter than 0.1 s now moves, over those same 0.1 s (it arrives when it
+  used to appear), so the engine's pusher code (`SV_PushMove`) pushes whoever stands in its way, or the mover stops
+  when you can't be pushed (a button's `blocked` does nothing: it waits until you step away; a door reverses, as Quake's
+  doors always do). The returning button now pushes you back its 4 units. Movers that short also look smoother (they
+  slide instead of popping).
+- **Engine safety net** (`vr_unstick`, default 1, Debug > Tests > Stuck in Walls > Unstick; `Quake/vr/vr_unstick.cpp`,
+  hook in `SV_CheckStuck`): a player found inside the map or a brush model (a door, a button, a lift, a train) whose last
+  free spot doesn't free them either is moved to the nearest spot where the box fits: 26 directions (sideways first,
+  then up, down last), from 1/8 unit out to 48 units, the nearest first; a spot the centre would reach only through a
+  wall is skipped (not out through the far side). Free of monsters too if it can, else free of the map. A search that
+  finds nothing waits 0.25 s before the next. Inside a monster's box only (no map) stays Quake's. Works with any
+  progs (another mod's movers) and with any hitbox width (it tests with the same box the moves use).
+- **Debug**: `vr_stuck_info` (Debug > Tests > Stuck Info) prints your server position, what your box is in, the
+  movers near you and how often you were freed (the last move's length and from what); `vr_stuck_test <x> <y> <z>`
+  puts you somewhere as if you had walked there (your last free spot too), to test the net.
+
+### Checked (mock headset, `vr_hull_width 16` as in his config)
+
+- His case (vrfiringrange, walk into the button at -520 -352 so it presses, hands pulled back, wait for its return,
+  then walk back): before, the player stays at -547.97 inside the `func_button` and walking back moves nothing; after
+  (with `vr_unstick 0`, the QC fix alone) the button pushes the player to -543.97, free, and walking back works.
+- A door returning onto the player (e1m1's bridge, `*3`, lowered by its button, the player put in its way): carried
+  back up to the floor (24.03), never inside it.
+- The net (`vr_stuck_test`): at his reported spot (-548 -358 41: in the floor by 0.11 and in the button by 4) stuck with
+  `vr_unstick 0`, freed 6 units up and away with 1; in e1m1's bridge 24 units deep: freed 24 up; inside the first door
+  (240 576 60): freed 24 units out of its side; each time walking works after.
+
+### In the headset
+
+- The firing range buttons: press one, step into its space, wait: it should push you back a little.
+- Anywhere you get stuck: you should pop out to the nearest free spot. If you ever see a jump that feels wrong (through a
+  wall, too far), Debug > Tests > Stuck Info right after says from what and how far.
