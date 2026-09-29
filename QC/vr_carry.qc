@@ -39,6 +39,9 @@
                          // VR_THROWN_BOX_TIME: VR_Explobox_Impact)
 .float carry_teleported; // on a player: until then it has just been teleported (VR_Carry_Teleported; the engine's VR
                          // teleport, vr_physics.cpp): what it carries follows its hands from where it is (VR_Carry_Follow)
+.entity carry_letgo;     // the player who last let go of it (VR_Carry_Loose), and when: not hurt by it as it leaves the hand,
+.float carry_letgo_time; // and credited with its flung hits for a while (VR_Prop_Flung)
+.float vr_fling_hit;     // when it last hurt something flung (VR_Prop_Flung: one hit a VR_FLING_REHIT)
 
 entity(entity xPlayer, float xHand) VR_Carry_Held =
 {
@@ -69,6 +72,11 @@ float(entity xPlayer, float xHand) VR_Carry_IsHolding =
 // A box becomes a physics object again: a rigid body, touchable, no longer carried.
 void(entity xBox) VR_Carry_Loose =
 {
+    if(xBox.carry_player != world)
+    {
+        xBox.carry_letgo = xBox.carry_player;
+        xBox.carry_letgo_time = time;
+    }
     xBox.carry_player = world;
     xBox.carry_2h = FALSE;
     xBox.movetype = MOVETYPE_TOSS;
@@ -277,6 +285,84 @@ float(entity e, float xSpeed, float xLenient) VR_Thrown_Damage =
            cvar_hget(cvarh_vr_weapon_throw_damage_mult);
 };
 
+float VR_THROW_MISSILE_SPEED = 250; // u/s (times VR_Thrown_Lenient): a thing let go of this fast is thrown, a missile
+
+// Flung (ROUND21.md, "Flung props hit as thrown ones"): a physics prop not in a throw (never thrown, or its throw over) that
+// meets a monster or a player fast enough hurts it as a thrown one does: swung on the grapple's rope as a flail, batted
+// by a hand, knocked flying, dropped from a height. self is the prop, other what it met (a touch, or an explosive
+// box's .vr_impact); `xSpeed` their speed into each other (units/s: never a resting contact, nor something pushed along
+// by what it meets), `xOwnSpeed` the prop's own (it flies: never a box a player runs into). The throw's thresholds (VR_THROW_MISSILE_SPEED, times
+// VR_Thrown_Lenient) and damage (VR_Thrown_Damage at its speed: the throw's base, full at about 6 m/s). Never:
+// carried, flying to a force grab, a gib or head still in its death's fling (Quake's bounce, before it first lands),
+// under vr_prop_impact_min_mass kg, more than once a VR_FLING_REHIT, nor to the player who let go of it just now
+// (VR_FLING_LETGO_GRACE) or whose grapple holds it (reeled in, it comes at the gun). The attacker is who holds it on
+// the rope, else who let go of it (within VR_FLING_CREDIT). TRUE if it hurt.
+float VR_FLING_REHIT = 0.5;       // s between a flung prop's hits
+float VR_FLING_LETGO_GRACE = 0.5; // s
+float VR_FLING_CREDIT = 10;       // s
+
+entity(entity xProp) VR_Grapple_PropHolder; // (vr_grapple.qc)
+void(float damage) spawn_touchblood;
+
+float(float xSpeed, float xOwnSpeed) VR_Prop_Flung =
+{
+    if(!cvar_hget(cvarh_vr_prop_impact_damage) || other == world || !other.takedamage ||
+       !(other.flags & FL_MONSTER || other.classname == "player") || other == self)
+    {
+        return FALSE;
+    }
+    // In a throw (.throwhit QVR_THROWHIT_NEVER_HIT, 0, with a thrower: VR_Carry_Release, a thrown weapon's): its own hit.
+    // A prop never thrown may have .throwhit 0 too (an explosive box), but no .owner.
+    if((self.throwhit == QVR_THROWHIT_NEVER_HIT && self.owner != world) || self.carry_player != world || self.fg_state != 0 ||
+       (self.vr_gib && !self.vr_rigid) || time < self.vr_fling_hit + VR_FLING_REHIT)
+    {
+        return FALSE;
+    }
+    float mass = VR_Thrown_Mass(self);
+    float lenient = VR_Thrown_Lenient(self);
+    if(mass < cvar_hget(cvarh_vr_prop_impact_min_mass) || min(xSpeed, xOwnSpeed) < VR_THROW_MISSILE_SPEED * lenient)
+    {
+        return FALSE;
+    }
+    entity holder = VR_Grapple_PropHolder(self);
+    if(other == holder || (other == self.carry_letgo && time < self.carry_letgo_time + VR_FLING_LETGO_GRACE))
+    {
+        return FALSE;
+    }
+    entity attacker = holder;
+    if(attacker == world && self.carry_letgo != world && time < self.carry_letgo_time + VR_FLING_CREDIT)
+    {
+        attacker = self.carry_letgo;
+    }
+
+    // The throw's damage (VR_Carry_Release, a thrown weapon's own base: CreateThrownWeapon), not its state: the prop
+    // is not made a missile.
+    float base = GetThrownWeaponBaseDamage(self);
+    if(self.classname != "thrown_weapon" || !base)
+    {
+        base = cvar_hget(self.vr_gib ? cvarh_vr_gib_throw_damage : cvarh_vr_carry_throw_damage);
+    }
+    float oldBase = GetThrownWeaponBaseDamage(self);
+    float oldSpeed = self.throwdmgspeed;
+    SetThrownWeaponBaseDamage(self, base);
+    self.throwdmgspeed = 700 * VRMetersToUnits() / 120;
+    float dmg = VR_Thrown_Damage(self, xSpeed, lenient);
+    SetThrownWeaponBaseDamage(self, oldBase);
+    self.throwdmgspeed = oldSpeed;
+    if(dmg <= 0)
+    {
+        return FALSE;
+    }
+
+    self.vr_fling_hit = time;
+    dprint(sprintf("prop: flung %s (%.1f kg) into %s at %.0f u/s (its own %.0f): %.1f damage, by %s\n", self.classname,
+        mass, other.classname, xSpeed, xOwnSpeed, dmg, attacker == world ? "nobody" : attacker.netname));
+    sound(self, CHAN_AUTO, "fisthit.wav", 1, ATTN_NORM);
+    spawn_touchblood(dmg);
+    T_Damage(other, self, attacker, dmg);
+    return TRUE;
+};
+
 // Let go: it keeps the hand's throw (the same estimate thrown weapons use).
 void(float xHand, entity xBox) VR_Carry_Release =
 {
@@ -299,7 +385,7 @@ void(float xHand, entity xBox) VR_Carry_Release =
 
     // Thrown hard it is a missile: it hurts what bleeds (forcegrabbable_touch; an explosive box: VR_Explobox_Impact), not
     // the thrower. A heavy thing, which can't be thrown as fast, sooner (VR_Thrown_Lenient).
-    if(vlen(v) > 250 * VR_Thrown_Lenient(xBox))
+    if(vlen(v) > VR_THROW_MISSILE_SPEED * VR_Thrown_Lenient(xBox))
     {
         xBox.throwhit = QVR_THROWHIT_NEVER_HIT;
         xBox.throwdmgspeed = 700 * m2u / 120;

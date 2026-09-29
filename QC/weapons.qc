@@ -4341,6 +4341,10 @@ void() forcegrabbable_touch =
     if(other.solid == SOLID_TRIGGER)
         return;    // trigger field, do nothing
 
+    // Not thrown (or its throw over), but as fast into a monster or player as a throw: it hurts as one (VR_Prop_Flung:
+    // a flail on the grapple's rope, a batted or knocked prop; their speed into each other, never a resting contact).
+    VR_Prop_Flung(vlen(self.velocity - other.velocity), vlen(self.velocity));
+
     // A thrown weapon's true-scale gravity lasted for its flight only; rigid ones keep it (the
     // engine bounces them: a sudden Quake gravity after the first touch looked wrong).
     if(!self.vr_rigid)

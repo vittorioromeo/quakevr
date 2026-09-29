@@ -751,7 +751,7 @@ void resetHandMoves()
         slider("Holster Slot Y", "vr_leg_holster_model_y_offset", -100.f, 100.f, 0.5f, "%.1f").extend(-400.f, 400.f),
         slider("Holster Slot Z", "vr_leg_holster_model_z_offset", -100.f, 100.f, 0.5f, "%.1f").extend(-400.f, 400.f),
         header("Grenade Pouch"),
-        toggle("Show Grenade Pouch", "vr_show_grenade_pouch").help("A marker at the pouch the size of its reach, green while a hand is there. Hand grenades are on Batting and Catching."),
+        toggle("Show Grenade Pouch", "vr_show_grenade_pouch").help("A marker at the pouch the size of its reach, green while a hand is there. Hand grenades, and these sliders too, are on Batting and Catching."),
         slider("Pouch X", "vr_grenade_pouch_x", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f)
             .help("Forward (negative: back), units. With the body drawn, the default (-7) is on the belt at the small of your back; forward, it goes round your hips."),
         slider("Pouch Y", "vr_grenade_pouch_y", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f).help("To your right (negative: left), units."),

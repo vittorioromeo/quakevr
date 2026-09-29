@@ -297,6 +297,11 @@ void(float xSpeed) VR_Explobox_Impact =
     // thrown thing does (VR_Thrown_Damage), once. Landing and sliding on the floor, or against a wall, it goes on (a rigid
     // body's landing ends no throw, as forcegrabbable_touch has it); come down below the throw's least speed, or longer
     // than VR_THROWN_BOX_TIME since it left the hand, its throw is over.
+    // Not thrown, but flung into a monster or player as fast as a throw (VR_Prop_Flung: `xSpeed` is their speed into
+    // each other): it hurts as a thrown one. Its own share of that speed: not what it hit's (a player running into it;
+    // after the step its own velocity is the bounce's).
+    float approach = xSpeed * VRMetersToUnits();
+    VR_Prop_Flung(approach, approach - vlen(other.velocity));
     if(self.throwhit == QVR_THROWHIT_NEVER_HIT && self.owner.classname == "player")
     {
         float lenient = VR_Thrown_Lenient(self);
