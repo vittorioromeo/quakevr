@@ -10,6 +10,7 @@
 #include "vr_cvars.hpp"
 #include "vr_decals.hpp"
 #include "vr_engine.hpp"
+#include "vr_mem.hpp"
 #include "vr_particles.hpp"
 #include "vr_props.hpp"
 #include "vr_protocol.hpp"
@@ -142,6 +143,11 @@ void command_f()
         Hunk_Usage(&used, &peak, &size, &segments, &maxSegments);
         rowPeak("hunk, MiB", used >> 20, peak >> 20, size >> 20, "grows by segments (-heapsize <KiB> the first)");
         row("hunk segments", segments, maxSegments, "each twice the last; past the last: Sys_Error");
+        const mem::Totals held = mem::totals();
+        rowInfo("VR scratch, KiB", va("%9d in %d sets (given back at each map; vr_memstats: the largest)",
+                                       static_cast<int>(held.scratchBytes / 1024), held.scratchSets));
+        rowInfo("VR caches, KiB", va("%9d in %d sets (emptied on their events)", static_cast<int>(held.cacheBytes / 1024),
+                                      held.cacheSets));
     }
 
     Con_Printf("\x02" "Resources (for the whole session: never freed between maps)\n");

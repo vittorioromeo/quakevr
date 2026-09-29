@@ -8,6 +8,7 @@
 #include "vr_debris.hpp"
 #include "vr_ledges.hpp"
 #include "vr_cvars.hpp"
+#include "vr_mem.hpp"
 #include "vr_physics.hpp"
 #include "vr_server.hpp"
 #include "vr_walltorch.hpp"
@@ -194,6 +195,9 @@ extern "C" void VR_OnClearMemory()
     {
         VR_OnClientClearState();
     }
+    // The registered scratch buffers given back (a one-off peak not kept for the next map), and the caches of the old
+    // world's data (vr_mem.hpp).
+    qvr::mem::on(qvr::mem::MapChange);
 }
 
 extern "C" void VR_OnSpawnServerBeforeLoad()

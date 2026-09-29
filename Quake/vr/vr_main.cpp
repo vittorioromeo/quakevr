@@ -19,6 +19,7 @@
 #include "vr_twohand.hpp"
 #include "vr_cvars.hpp"
 #include "vr_main.hpp"
+#include "vr_mem.hpp"
 #include "vr_menu.hpp"
 #include "vr_menuui.hpp"
 #include "vr_motion.hpp"
@@ -660,6 +661,11 @@ void VR_MemStats_f()
         m.glTextures, m.glTextures - m.textures, m.buffers, m.framebuffers, m.queries, m.programs, m.scanMs);
     Con_Printf("  VR    render targets (re)made %d times so far (%s); ", gfx::targetsMade, gfx::targetsMadeByName().c_str());
     decals::count_f();
+    const mem::Totals held = mem::totals();
+    Con_Printf("  VR    scratch buffers %.1f KiB (%d sets), caches %.1f KiB (%d sets); the largest:\n",
+        static_cast<double>(held.scratchBytes) / 1024.0, held.scratchSets, static_cast<double>(held.cacheBytes) / 1024.0,
+        held.cacheSets);
+    mem::printLargest(6);
 
     // Per frame since the last vr_memstats: the phases' times and the counts, as the log's columns.
     drainPhases();

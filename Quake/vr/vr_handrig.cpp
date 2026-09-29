@@ -23,6 +23,7 @@
 //   controller, and an edited hand changes shape around them), the wrist (where the arm meets the hand).
 
 #include "vr_handrig.hpp"
+#include "vr_mem.hpp"
 
 #include <glm/gtc/constants.hpp>
 
@@ -1299,6 +1300,7 @@ void reload_f()
     Mod_ReloadAliasModel(model); // the engine reads the files again; VR_ModelReplacementOk puts the rig in use
     reloading = false;
     reset();
+    mem::on(mem::ModelReload); // the registered caches of models' data (vr_mem.hpp)
     if(!usable(model))
     {
         Con_Warning("vr_hand_reload: the engine didn't load %s as the jointed hand (Models: Enhanced off?); the six hand "
