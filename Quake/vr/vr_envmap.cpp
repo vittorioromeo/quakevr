@@ -66,10 +66,11 @@ const glm::vec3 faceUp[6] = {{0.f, -1.f, 0.f}, {0.f, -1.f, 0.f}, {0.f, 0.f, 1.f}
 
 // The world's own attributes (glvert_t: position, texture and lightmap coordinates, the lightmap's offset to its
 // other styles, the styles), and each face's colours from the colour buffer.
-const char* vertexShader()
+// (Made once, where the program is: returned by value, nothing kept.)
+[[nodiscard]] std::string vertexShader()
 {
-    static const std::string src = "#version 430\n"
-                                   "#define NSTYLES " + std::to_string(numStyles) + "\n" + R"(
+    return "#version 430\n"
+           "#define NSTYLES " + std::to_string(numStyles) + "\n" + R"(
 layout(location = 0) in vec3 in_pos;
 layout(location = 1) in vec4 in_uv;
 layout(location = 2) in float in_lmofs;
@@ -103,7 +104,6 @@ void main()
         out_styles.yzw = vec3(Style(in_styles.y), Style(in_styles.z), Style(in_styles.w));
 }
 )";
-    return src.c_str();
 }
 
 // The lightmap as the world shader reads it (its styles, the contrast), times the face's average colour, doubled
@@ -287,7 +287,7 @@ void buildWorld()
     {
         return !failed;
     }
-    program = gfx::glProgram(vertexShader(), fragmentShader, "vr envmap");
+    program = gfx::glProgram(vertexShader().c_str(), fragmentShader, "vr envmap");
     if(!program)
     {
         failed = true;

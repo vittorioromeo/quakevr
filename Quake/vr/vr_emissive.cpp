@@ -6,6 +6,7 @@
 #include "vr_cvars.hpp"
 #include "vr_hue.hpp"
 #include "vr_lighting.hpp"
+#include "vr_mem.hpp"
 #include "vr_particles.hpp"
 #include "vr_profile.hpp"
 #include "vr_trace.hpp"
@@ -375,6 +376,22 @@ void killTorchLight(int id, TorchState& st)
     }
 }
 
+// A torch that could light the room this frame: its id, and its score (the lower the likelier).
+struct TorchCandidate
+{
+    int id;
+    float score;
+};
+
+// The torch lights' choice, each frame (the main thread).
+struct EmissiveScratch
+{
+    std::vector<TorchCandidate> candidates;   // torches in the PVS, near enough
+    std::vector<std::pair<float, int>> fading; // those going out: their weight, their id
+    auto members() { return std::tie(candidates, fading); }
+};
+mem::Scratch<EmissiveScratch> scratch{"emissive"};
+
 } // namespace
 
 // Each frame a glowing projectile is relinked: its light where it is drawn, lasting until the next
@@ -514,12 +531,7 @@ extern "C" void VR_TorchLights(void)
                           : Mod_LeafPVS(const_cast<mleaf_t*>(eyeLeaf), cl.worldmodel);
 
     // The candidates: torches in the PVS, near enough.
-    struct Candidate
-    {
-        int id;
-        float score;
-    };
-    static std::vector<Candidate> candidates;
+    std::vector<TorchCandidate>& candidates = scratch.candidates;
     candidates.clear();
     const float maxDist2 = torchLightDistance * torchLightDistance;
     const auto consider = [&](int id, const entity_t& e, const TorchKind* kind, const glm::vec3* takenFire = nullptr,
@@ -608,7 +620,7 @@ extern "C" void VR_TorchLights(void)
     }
     const size_t chosenCount = std::min(candidates.size(), static_cast<size_t>(cap));
     std::partial_sort(candidates.begin(), candidates.begin() + static_cast<std::ptrdiff_t>(chosenCount),
-        candidates.end(), [](const Candidate& a, const Candidate& b) { return a.score < b.score; });
+        candidates.end(), [](const TorchCandidate& a, const TorchCandidate& b) { return a.score < b.score; });
 
     for(auto& [id, st] : torches)
     {
@@ -626,7 +638,7 @@ extern "C" void VR_TorchLights(void)
     // Of those fading out, the brightest few keep their light until they are out, the rest go out
     // now.
     const float step = dt / torchFadeTime;
-    static std::vector<std::pair<float, int>> fading;
+    std::vector<std::pair<float, int>>& fading = scratch.fading;
     fading.clear();
     for(auto& [id, st] : torches)
     {

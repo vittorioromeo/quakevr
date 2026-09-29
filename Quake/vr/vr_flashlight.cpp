@@ -11,6 +11,7 @@
 #include "vr_lighting.hpp"
 #include "vr_lines.hpp"
 #include "vr_main.hpp"
+#include "vr_mem.hpp"
 #include "vr_profile.hpp"
 #include "vr_trace.hpp"
 #include "vr_units.hpp"
@@ -1630,6 +1631,24 @@ void toggle_f()
     }
 }
 
+// The cord's rings, made once a frame (drawOpaque's first eye), uploaded once and drawn in both eyes.
+struct CordDraw
+{
+    gfx::TubeBatch batch; // in the frame's upload buffer
+    int sides{0};
+    int builtFrame{-1};
+};
+CordDraw cordDraw;
+
+// The draws' buffers (the main thread).
+struct FlashlightScratch
+{
+    std::vector<gfx::TubeRing> rings;     // the cord's (drawOpaque)
+    std::vector<gfx::Vertex> fan;         // the lens's disc (drawLens)
+    std::vector<gfx::Vertex> triangles;   // the beam's cones (drawTranslucent)
+    auto members() { return std::tie(rings, fan, triangles); }
+};
+mem::Scratch<FlashlightScratch> scratch{"flashlight"};
 
 } // namespace
 
@@ -1838,19 +1857,17 @@ void drawOpaque()
         return;
     }
     // Its rings made once a frame, uploaded once and drawn in both eyes; the GPU makes the wire round them.
-    static gfx::TubeBatch batch;
-    static int sides = 0;
-    static int builtFrame = -1;
-    if(builtFrame != host_framecount)
+    CordDraw& d = cordDraw;
+    if(d.builtFrame != host_framecount)
     {
-        builtFrame = host_framecount;
+        d.builtFrame = host_framecount;
         QVR_PROFILE("flashlight cord");
-        static std::vector<gfx::TubeRing> rings;
         const hands::State& s = hands::current();
-        batch = cord.build(0.5f * (s.eyeOrigin[0] + s.eyeOrigin[1]), rings, sides) ? gfx::uploadTube(rings) : gfx::TubeBatch{};
+        d.batch = cord.build(0.5f * (s.eyeOrigin[0] + s.eyeOrigin[1]), scratch.rings, d.sides) ? gfx::uploadTube(scratch.rings)
+                                                                                              : gfx::TubeBatch{};
     }
     QVR_GPU_PROFILE("flashlight cord draw");
-    gfx::drawTube(batch, sides, cord.albedo(), glm::normalize(glm::vec3{0.3f, 0.2f, 1.f}));
+    gfx::drawTube(d.batch, d.sides, cord.albedo(), glm::normalize(glm::vec3{0.3f, 0.2f, 1.f}));
 }
 
 // The lens lit, in the beam's colour: a disc over it, bright in the middle, added onto the scene (the skin's own
@@ -1869,7 +1886,7 @@ void drawLens()
     const float r = shape().lensRadius * units::worldScale();
     const glm::vec3 c = beamColor() * (0.6f + 0.4f * CLAMP(0.f, vr_flashlight_brightness.value, 2.f));
     constexpr int sides = 16;
-    static std::vector<gfx::Vertex> fan;
+    std::vector<gfx::Vertex>& fan = scratch.fan;
     fan.clear();
     for(int i = 0; i < sides; i++)
     {
@@ -1908,7 +1925,7 @@ void drawTranslucent()
     };
     const Shell shells[] = {{1.f, spread, 0.5f}, {coreSpread / spread, coreSpread, 1.f}};
 
-    static std::vector<gfx::Vertex> triangles;
+    std::vector<gfx::Vertex>& triangles = scratch.triangles;
     triangles.clear();
     gfx::Vertex grid[beamRings][beamSides];
     for(const Shell& shell : shells)

@@ -4,6 +4,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
+#include "vr_mem.hpp"
 #include "vr_profile.hpp"
 #include "vr_stereo.hpp"
 #include "vr_water.hpp"
@@ -385,6 +386,16 @@ struct Ellipsoid
     float ring = -1.f; // the shock ring's radius (0..1 of the radii), < 0 none
 };
 
+// A view's volumes, gathered each eye (the main thread).
+struct HazeScratch
+{
+    std::vector<GLint> lavaFirst;     // the lava layers drawn: their first vertex
+    std::vector<GLsizei> lavaCount;   // and their count
+    std::vector<Ellipsoid> ellipsoids; // the explosions and flames
+    auto members() { return std::tie(lavaFirst, lavaCount, ellipsoids); }
+};
+mem::Scratch<HazeScratch> scratch{"haze"};
+
 // ----------------------------------------------------------------------------
 // The part of the viewport the volumes cover: the union of their boxes' projections (all of it if one reaches
 // behind the eye), with a margin.
@@ -450,8 +461,8 @@ void draw()
 
     // Lava: the layers over the tops in this view's PVS and frustum; the eye in one: that pool's, from the eye.
     ensureLava();
-    static std::vector<GLint> lavaFirst;
-    static std::vector<GLsizei> lavaCount;
+    std::vector<GLint>& lavaFirst = scratch.lavaFirst;
+    std::vector<GLsizei>& lavaCount = scratch.lavaCount;
     lavaFirst.clear();
     lavaCount.clear();
     bool lavaInside = false;
@@ -480,7 +491,7 @@ void draw()
     }
 
     // Explosions, then the flames near the eye.
-    static std::vector<Ellipsoid> ellipsoids;
+    std::vector<Ellipsoid>& ellipsoids = scratch.ellipsoids;
     ellipsoids.clear();
     std::erase_if(bursts, [](const Burst& b) { return cl.time < b.start || cl.time > b.start + kBurstLife * b.size; });
     for(const Burst& b : bursts)

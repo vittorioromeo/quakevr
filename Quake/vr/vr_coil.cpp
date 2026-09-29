@@ -2,6 +2,7 @@
 
 #include "vr_coil.hpp"
 
+#include "vr_mem.hpp"
 #include "vr_units.hpp"
 
 #include <algorithm>
@@ -74,6 +75,20 @@ struct NearLight
     glm::vec3 color;
     float radius;
 };
+
+// Cord::build's buffers (drawn on the main thread; every cord in turn).
+struct CoilScratch
+{
+    std::vector<glm::vec3> line;     // the spline through the nodes, sampled finely
+    std::vector<float> along;        // its length at each sample
+    std::vector<glm::vec3> tangent;  // its frames
+    std::vector<glm::vec3> normal;
+    std::vector<NearLight> lights;   // the dynamic lights reaching it
+    std::vector<glm::vec3> mid;      // the rings' middles
+    std::vector<glm::vec3> radial;   // and axes
+    auto members() { return std::tie(line, along, tangent, normal, lights, mid, radial); }
+};
+mem::Scratch<CoilScratch> scratch{"coil"};
 
 } // namespace
 
@@ -178,8 +193,8 @@ bool Cord::build(const glm::vec3& eye, std::vector<gfx::TubeRing>& out, int& sid
 
     // The line: a Catmull-Rom spline through the nodes, sampled finely, with its length along it.
     constexpr int perSegment = 6;
-    static std::vector<glm::vec3> line;
-    static std::vector<float> along;
+    std::vector<glm::vec3>& line = scratch.line;
+    std::vector<float>& along = scratch.along;
     line.clear();
     along.clear();
     for(int i = 0; i < segments; i++)
@@ -207,7 +222,8 @@ bool Cord::build(const glm::vec3& eye, std::vector<gfx::TubeRing>& out, int& sid
     }
 
     // Frames carried along the line without twisting (parallel transport).
-    static std::vector<glm::vec3> tangent, normal;
+    std::vector<glm::vec3>& tangent = scratch.tangent;
+    std::vector<glm::vec3>& normal = scratch.normal;
     tangent.resize(line.size());
     normal.resize(line.size());
     for(size_t i = 0; i < line.size(); i++)
@@ -246,7 +262,7 @@ bool Cord::build(const glm::vec3& eye, std::vector<gfx::TubeRing>& out, int& sid
     // The light: the world's at three points along it, and the dynamic lights that reach it.
     const glm::vec3 lightAt[3] = {worldLight(line[line.size() / 6]), worldLight(line[line.size() / 2]),
         worldLight(line[line.size() * 5 / 6])};
-    static std::vector<NearLight> lights;
+    std::vector<NearLight>& lights = scratch.lights;
     lights.clear();
     glm::vec3 centre{0.f};
     for(const glm::vec3& p : pos_)
@@ -272,7 +288,8 @@ bool Cord::build(const glm::vec3& eye, std::vector<gfx::TubeRing>& out, int& sid
     // The rings: their middles on the helix, the wire's direction and an axis across it, and the light reaching them
     // (the dynamic lights' summed, from their mean direction by strength). The GPU makes the wire round them and
     // shades it (gfx::drawTube).
-    static std::vector<glm::vec3> mid, radial;
+    std::vector<glm::vec3>& mid = scratch.mid;
+    std::vector<glm::vec3>& radial = scratch.radial;
     mid.resize(rings + 1);
     radial.resize(rings + 1);
     out.resize(rings + 1);

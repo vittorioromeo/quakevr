@@ -4,6 +4,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
+#include "vr_mem.hpp"
 #include "vr_profile.hpp"
 #include "vr_trace.hpp"
 
@@ -54,7 +55,44 @@ struct Mesh
     gfx::Texture skin{0};
     gfx::Texture fullbright{0};
 };
-std::unordered_map<const qmodel_t*, Mesh> meshes;
+
+[[nodiscard]] std::size_t heldBytes(const Mesh& m) // (vr_mem.hpp)
+{
+    return mem::heldBytes(m.vertices);
+}
+
+// The ropes' models' meshes, by model (checked against its data on use; the models' slots are other models' after a
+// game change, their data made again by a model reload).
+struct RopeMeshes
+{
+    std::unordered_map<const qmodel_t*, Mesh> meshes;
+    auto members() { return std::tie(meshes); }
+};
+mem::Cache<RopeMeshes> cache{"rope meshes", mem::GameDirChange | mem::ModelReload};
+
+// The rope's curve worked out, and the frame's upload (the main thread).
+struct RopeScratch
+{
+    std::vector<glm::vec3> onLine;         // the points on the line (ropePoints)
+    std::vector<char> lies;                // whether each lies on the floor (traced points)
+    std::vector<glm::vec3> samples;        // the points kept as the curve's samples (addSamples)
+    std::vector<glm::vec3> points;         // a rope's points (VR_DrawRope)
+    std::vector<glm::vec4> data;           // the frame's upload: each mesh once, then the curves (drawOpaque)
+    std::vector<const Mesh*> packed;       // each mesh once
+    std::vector<int> packedFirst;          // and its first vec4
+    auto members() { return std::tie(onLine, lies, samples, points, data, packed, packedFirst); }
+};
+mem::Scratch<RopeScratch> scratch{"rope"};
+
+// The frame's ropes as uploaded (drawOpaque's first view), drawn from it in every view.
+struct RopeDraw
+{
+    gfx::BentBatch batch;
+    std::vector<int> meshFirst; // queued[i]'s mesh's first vec4
+    int curveBase{0};           // the curves' first vec4
+    int builtFrame{-1};
+};
+RopeDraw ropeDraw;
 
 // This frame's ropes (CL_UpdateTEnts puts them here; every view draws them).
 struct Queued
@@ -84,7 +122,7 @@ const Mesh* meshOf(qmodel_t* model)
     {
         return nullptr;
     }
-    Mesh& m = meshes[model];
+    Mesh& m = cache.meshes[model];
     if(m.hdr == hdr)
     {
         return &m;
@@ -182,8 +220,8 @@ void ropePoints(RopeSlack& r, const glm::vec3& a, const glm::vec3& b, std::vecto
     // rope's points are traced maxTraces at most, evenly (every k-th); between two traced ones that both lie on the
     // floor, the points lie on the line between them (a flat floor: on it); where one lies and the other hangs (where the
     // rope leaves the floor), every point between is traced.
-    static std::vector<glm::vec3> onLine;
-    static std::vector<char> lies; // on the floor (traced points)
+    std::vector<glm::vec3>& onLine = scratch.onLine;
+    std::vector<char>& lies = scratch.lies; // on the floor (traced points)
     onLine.assign(n + 1, a);
     lies.assign(n + 1, 0);
     for(int i = 1; i < n; i++)
@@ -255,7 +293,7 @@ void startFrame(const glm::vec3& forward, glm::vec3& side, glm::vec3& up)
 // the start's), appended to `curve`. The number of samples (points closer than a hundredth of a unit merged).
 int addSamples(const std::vector<glm::vec3>& pts, float& total)
 {
-    static std::vector<glm::vec3> p;
+    std::vector<glm::vec3>& p = scratch.samples;
     p.clear();
     for(const glm::vec3& q : pts)
     {
@@ -330,17 +368,14 @@ void drawOpaque()
         return;
     }
     // Made and uploaded once a frame (each mesh once, then the curves), drawn from it in every view.
-    static gfx::BentBatch batch;
-    static std::vector<int> meshFirst; // queued[i]'s mesh's first vec4
-    static int curveBase = 0;          // the curves' first vec4
-    static int builtFrame = -1;
+    auto& [batch, meshFirst, curveBase, builtFrame] = ropeDraw;
     if(builtFrame != host_framecount)
     {
         builtFrame = host_framecount;
         QVR_PROFILE("grapple rope upload");
-        static std::vector<glm::vec4> data;
-        static std::vector<const Mesh*> packed; // each mesh once
-        static std::vector<int> packedFirst;    // and its first vec4
+        std::vector<glm::vec4>& data = scratch.data;
+        std::vector<const Mesh*>& packed = scratch.packed;
+        std::vector<int>& packedFirst = scratch.packedFirst;
         data.clear();
         packed.clear();
         packedFirst.clear();
@@ -433,7 +468,7 @@ extern "C" int VR_DrawRope(int ent, qmodel_t* model, const float* start, const f
     RopeSlack& r = it->second;
     const glm::vec3 a{start[0], start[1], start[2]};
     const glm::vec3 b{end[0], end[1], end[2]};
-    static std::vector<glm::vec3> pts;
+    std::vector<glm::vec3>& pts = scratch.points;
     float length = 0.f, h = 0.f;
     ropePoints(r, a, b, pts, length, h);
     Queued q;

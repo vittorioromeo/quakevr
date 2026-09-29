@@ -6,6 +6,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
+#include "vr_mem.hpp"
 #include "vr_modellight.hpp"
 #include "vr_profile.hpp"
 #include "vr_stereo.hpp"
@@ -315,6 +316,16 @@ struct SlotCasters
 };
 std::vector<SlotCasters> slotCasters; // by map slot
 
+// A shadow map's draw's buffers (the main thread).
+struct CasterScratch
+{
+    std::vector<glm::mat4> brushModels;    // the brush casters' model matrices
+    std::vector<entity_t*> faceCasters;    // the skeletal casters, drawn in every face
+    std::vector<unsigned char> posed;      // whether each alias caster is posed by bones
+    auto members() { return std::tie(brushModels, faceCasters, posed); }
+};
+mem::Scratch<CasterScratch> casterScratch{"shadow casters"};
+
 bool touches(const entity_t* e, const glm::vec3& light, float radius)
 {
     const glm::vec3 lo{e->model->mins[0], e->model->mins[1], e->model->mins[2]};
@@ -485,7 +496,7 @@ void renderLight(DepthTarget& target, const glm::vec3& light, float radius, cons
     }
 
     // The brush casters' model matrices, the same for every face.
-    static std::vector<glm::mat4> brushModels;
+    std::vector<glm::mat4>& brushModels = casterScratch.brushModels;
     brushModels.clear();
     if(brushes)
     {
@@ -503,8 +514,8 @@ void renderLight(DepthTarget& target, const glm::vec3& light, float radius, cons
     }
     // Skeletal (IK-posed) casters: the alias renderer draws them unculled (their limbs reach past the
     // model's bounds); each face gets them all.
-    static std::vector<entity_t*> faceCasters;
-    static std::vector<unsigned char> posed;
+    std::vector<entity_t*>& faceCasters = casterScratch.faceCasters;
+    std::vector<unsigned char>& posed = casterScratch.posed;
     posed.resize(aliasCasters.size());
     for(size_t i = 0; aliases && i < aliasCasters.size(); i++)
     {
@@ -648,6 +659,25 @@ struct Candidate
     float score;
 };
 
+// A block to pack into the shadow atlas (see pack, "Atlas packing").
+struct Request
+{
+    float size;
+    glm::vec2* origin;
+    float* packedSize; // the face size it was packed at, if wanted
+    float columns = 3.f, rows = 2.f; // in faces: a point light's 3 x 2, a spot light's one tile
+};
+
+// The shadowed lights' choice and packing, each frame (the main thread).
+struct ShadowScratch
+{
+    std::vector<Candidate> dlightCandidates; // (selectDlights)
+    std::vector<Candidate> mapCandidates;    // the map lights near the viewer
+    std::vector<Request> requests;           // the faces packed into the atlas
+    auto members() { return std::tie(dlightCandidates, mapCandidates, requests); }
+};
+mem::Scratch<ShadowScratch> shadowScratch{"shadow lights"};
+
 [[nodiscard]] float pow2Floor(float v)
 {
     return std::exp2(std::floor(std::log2(std::max(v, 1.f))));
@@ -683,7 +713,7 @@ void selectDlights(const glm::vec3& eye)
 {
     const int maxShadowed = static_cast<int>(vr_shadow_dlights.value);
     const float maxSize = pow2Floor(std::clamp(vr_shadow_dlight_size.value, 64.f, 2048.f));
-    static std::vector<Candidate> candidates;
+    std::vector<Candidate>& candidates = shadowScratch.dlightCandidates;
     candidates.clear();
     for(int i = 0; i < MAX_DLIGHTS; i++)
     {
@@ -784,7 +814,7 @@ void selectMapLights(const glm::vec3& eye, float dt)
     // brightest there first; the ones already shown keep their place unless clearly beaten.
     const auto& lights = modellight::mapLights();
     const byte* vis = viewPVS();
-    static std::vector<Candidate> candidates;
+    std::vector<Candidate>& candidates = shadowScratch.mapCandidates;
     candidates.clear();
     for(int i = 0; i < static_cast<int>(lights.size()); i++)
     {
@@ -850,15 +880,7 @@ void selectMapLights(const glm::vec3& eye, float dt)
 }
 
 // ----------------------------------------------------------------------------
-// Atlas packing
-
-struct Request
-{
-    float size;
-    glm::vec2* origin;
-    float* packedSize; // the face size it was packed at, if wanted
-    float columns = 3.f, rows = 2.f; // in faces: a point light's 3 x 2, a spot light's one tile
-};
+// Atlas packing (the blocks: Request)
 
 // Rows of blocks (a point light's 3 x 2 faces, a spot light's one tile), tallest first; when they
 // do not fit, everything is halved and packed again (as DarkPlaces does), down to 32-texel faces.
@@ -984,7 +1006,7 @@ extern "C" void VR_RenderShadowMaps(void)
 
     // Pack this frame's faces.
     const int atlasSize = static_cast<int>(pow2Floor(std::clamp(vr_shadow_atlas.value, 1024.f, 8192.f)));
-    static std::vector<Request> requests;
+    std::vector<Request>& requests = shadowScratch.requests;
     requests.clear();
     for(DlightSlot& slot : dlightSlots)
     {

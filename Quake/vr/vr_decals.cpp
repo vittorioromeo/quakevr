@@ -5,6 +5,7 @@
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
 #include "vr_gore.hpp"
+#include "vr_mem.hpp"
 #include "vr_modellight.hpp"
 #include "vr_profile.hpp"
 #include "vr_ring.hpp"
@@ -71,6 +72,15 @@ struct Corner
     glm::vec3 pos;
     glm::vec2 uv;
 };
+
+// A mark's buffers, laid on the world (the main thread's; the atlas's worker has its own).
+struct DecalScratch
+{
+    std::vector<glm::vec3> poly, clipped; // a face's polygon cut to the mark (clipToWorld)
+    std::vector<Corner> tris;             // the mark's triangles (add)
+    auto members() { return std::tie(poly, clipped, tris); }
+};
+mem::Scratch<DecalScratch> scratch{"decals"};
 
 struct Decal
 {
@@ -694,7 +704,8 @@ void clipToWorld(const Decal& d, const glm::vec3& n, float depth, std::vector<Co
         glm::dot(d.centre, -V) + hv};
     const glm::vec3 sideNormal[4] = {U, -U, V, -V};
 
-    static std::vector<glm::vec3> poly, clipped; // (scratch, kept between marks: the main thread's alone)
+    std::vector<glm::vec3>& poly = scratch.poly;
+    std::vector<glm::vec3>& clipped = scratch.clipped;
     constexpr std::size_t maxCorners = 32 * 3; // over very broken ground, the rest is left out
     const mnode_t* stack[256];
     int top = 0;
@@ -889,7 +900,7 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
     d.growFrom = std::clamp(o.growFrom, 0.f, 1.f);
     d.fromStart = o.fromStart;
     d.darken = std::clamp(o.darken, 0.f, 0.9f);
-    static std::vector<Corner> tris; // (scratch: the main thread's alone)
+    std::vector<Corner>& tris = scratch.tris;
     clipToWorld(d, n, big ? std::clamp(halfV * 0.35f, 4.f, 12.f) : 3.f, tris);
     if(tris.empty())
     {

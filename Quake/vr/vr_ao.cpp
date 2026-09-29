@@ -6,6 +6,7 @@
 #include "vr_avatar.hpp"
 #include "vr_cvars.hpp"
 #include "vr_main.hpp"
+#include "vr_mem.hpp"
 #include "vr_profile.hpp"
 
 #include <algorithm>
@@ -75,6 +76,15 @@ struct Occluder
 
 std::vector<Occluder> candidates;
 std::vector<Occluder> chosen;
+
+// The choice's buffers, each frame (build: the main thread; the bake's worker has its own).
+struct AoScratch
+{
+    std::vector<const entity_t*> owners; // each candidate's entity
+    std::vector<int> order;              // the candidates in view, nearest first
+    auto members() { return std::tie(owners, order); }
+};
+mem::Scratch<AoScratch> scratch{"ao"};
 // The chosen occluders' models and their groups (a model's shapes share one: they don't darken the model itself), at
 // most MAX_OCCLUDERS, filled each frame: a flat array searched in order (build, and each model drawn in each eye).
 struct Group
@@ -510,7 +520,7 @@ void build()
     {
         return;
     }
-    static std::vector<const entity_t*> owners;
+    std::vector<const entity_t*>& owners = scratch.owners;
     owners.clear();
     for(int i = 0; i < cl_numvisedicts; i++)
     {
@@ -535,7 +545,7 @@ void build()
     vec3_t fwdv, rightv, upv;
     AngleVectors(r_refdef.viewangles, fwdv, rightv, upv);
     const glm::vec3 fwd{fwdv[0], fwdv[1], fwdv[2]};
-    static std::vector<int> order; // (kept between frames: build runs on the main thread, once a frame)
+    std::vector<int>& order = scratch.order;
     order.clear();
     for(int i = 0; i < static_cast<int>(candidates.size()); i++)
     {
@@ -724,6 +734,8 @@ std::array<glm::vec3, RAYS> rayDirections()
     }
     return d;
 }
+// Made before main and never changed: read by the bake's pose threads at once.
+const std::array<glm::vec3, RAYS> rayDirs = rayDirections();
 
 struct Tri
 {
@@ -746,7 +758,7 @@ struct PoseJob
 // stop within `reach` (a hit counts less the farther it is: 1 - t / reach).
 void bakePose(const PoseJob& job, int pose, std::vector<int>& cand)
 {
-    static const std::array<glm::vec3, RAYS> dirs = rayDirections();
+    const std::array<glm::vec3, RAYS>& dirs = rayDirs;
     const trivertx_t* tv = job.verts + static_cast<size_t>(pose) * job.numverts;
     const int nv = job.numverts;
     std::vector<glm::vec3> p(nv);

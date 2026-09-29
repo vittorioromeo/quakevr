@@ -39,6 +39,7 @@
 #include "vr_gfx.hpp"
 #include "vr_hue.hpp"
 #include "vr_main.hpp"
+#include "vr_mem.hpp"
 #include "vr_menu.hpp"
 #include "vr_menuui.hpp"
 #include "vr_panel.hpp"
@@ -541,6 +542,14 @@ void haptic(int hand, float seconds, float amplitude)
     return m_state == m_vr ? menu::scroll(rows) : M_ScrollList(rows) != 0;
 }
 
+// The laser's strips, each eye (the main thread).
+struct MenuUiScratch
+{
+    std::vector<gfx::Vertex> laser;
+    auto members() { return std::tie(laser); }
+};
+mem::Scratch<MenuUiScratch> scratch{"menu laser"};
+
 } // namespace
 
 namespace qvr::menuui
@@ -780,7 +789,7 @@ void drawInEye(const hands::State& s)
     const Hit hit = intersect(s, h);
     const glm::vec3 end = hit.valid ? hit.point : start + dir * 30.f;
 
-    static std::vector<gfx::Vertex> vertices;
+    std::vector<gfx::Vertex>& vertices = scratch.laser;
     vertices.clear();
     const float bright = mouseHeld[h] ? 1.f : 0.8f;
     // In the player's hue (vr_menu_laser_hue; 35 its old amber, the menus' own).

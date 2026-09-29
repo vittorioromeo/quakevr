@@ -16,6 +16,7 @@
 #include "vr_gfx.hpp"
 #include "vr_hands.hpp"
 #include "vr_main.hpp"
+#include "vr_mem.hpp"
 #include "vr_menuui.hpp"
 #include "vr_panel.hpp"
 #include "vr_profile.hpp"
@@ -36,6 +37,14 @@ constexpr glm::vec4 noMask{0.f, 0.f, 0.f, 0.f};
 
 gfx::Target canvas;
 bool drawingToCanvas = false;
+
+// The canvas's quads, each draw (the main thread).
+struct PanelScratch
+{
+    std::vector<gfx::Vertex> vertices;
+    auto members() { return std::tie(vertices); }
+};
+mem::Scratch<PanelScratch> scratch{"panel"};
 bool stereoThisFrame = false;
 
 // Panel placement, frozen when it appears: in front of the head, turning with the player.
@@ -64,7 +73,7 @@ void drawCanvas(const glm::mat4& mvp, const glm::vec4& uvRect = wholeCanvas, con
         return;
     }
 
-    static std::vector<gfx::Vertex> vertices;
+    std::vector<gfx::Vertex>& vertices = scratch.vertices;
     vertices.clear();
 
     const glm::vec2 uv0{uvRect.x, uvRect.y};

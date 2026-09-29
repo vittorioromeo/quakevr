@@ -8,6 +8,7 @@
 #include "vr_cvars.hpp"
 #include "vr_gfx.hpp"
 #include "vr_hue.hpp"
+#include "vr_mem.hpp"
 #include "vr_text3d.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_profile.hpp"
@@ -1901,12 +1902,25 @@ struct Softness
 std::vector<gfx::Vertex> lyingVertices;
 std::size_t lyingCount = 0; // this view's (lyingVertices only grows: no vertex constructed again for each view)
 
+namespace
+{
+
+// A particle's grid over the liquid, laid one at a time (the main thread).
+struct LyingScratch
+{
+    std::vector<gfx::Vertex> grid;
+    auto members() { return std::tie(grid); }
+};
+mem::Scratch<LyingScratch> lyingScratch{"particles"};
+
+} // namespace
+
 void lieOnLiquid(const Particle& p, const glm::vec3& r, const glm::vec3& u, const glm::vec4& uv, const glm::vec4& color, const glm::vec3& eye)
 {
     const int n = std::clamp(static_cast<int>(std::ceil(1.5f * p.scale / 10.f)), 1, 12);
     // (at least a unit: the grid's triangles are a little off the bilinear surface worked out here)
     const float lift = std::max(p.org.z - p.floor, 1.f);
-    static std::vector<gfx::Vertex> grid;
+    std::vector<gfx::Vertex>& grid = lyingScratch.grid;
     grid.resize(static_cast<std::size_t>((n + 1) * (n + 1)));
     for(int j = 0; j <= n; j++)
     {
