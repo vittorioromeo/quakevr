@@ -13435,3 +13435,77 @@ hand); it only matters for a Palm or Handle grip's offsets changed while held af
 - Hold it in both, move one hand a little and open the other: the box slides onto the hand that keeps it with the hand
   (0.15 s), no gap after.
 - Force grab boxes while walking and moving the hand: no gap.
+## Melee tuned on your new takes (2026-09-29)
+
+Your voice note (vrfiringrange, 29 September, 23:19): you recorded many new melee takes with your current calibration;
+"a lot of no hits that I expected to not actually hit were being registered as hits"; one or two takes may be
+outliers; the takes will need adding to or re-recording once the player's hitbox is smaller. Branch `agent/meleetune`.
+
+### What was wrong
+
+The 176 takes replayed (`vr_motion_eval`, each take with its own hand settings) with the thresholds as they were:
+160 pass. Of the 24 no-hit takes, 7 hit the dummy and 4 more whooshed:
+
+| No-hit take | Before | Why |
+|---|---|---|
+| `no_hit_reloading` (6) | 2 hit with the muzzle, 4 whooshed | the gun going down to the holster at 5.1-5.3 m/s (the grip), past a gun swing's least speed (5) |
+| `no_hit_weak` 07-45, 07-51 | 4 punches landed (6.4-8.1 damage) | fists at 4.3-6.2 m/s: 1.03-1.31 times a punch's least speed |
+| `no_hit_wiggling` 07-20, 07-25 (gun) | 3 and 3 muzzle hits | a gun waved at 5-6 m/s |
+| `no_hit_wiggling` 07-31 (axe) | a handle's-end strike, then two blows of the head | the grip going back the other way as fast as it went on, every 0.1-0.2 s |
+
+Every one of these was a real touch of the model, at a blow's speed as the thresholds had it: they weren't the hit
+tolerance's doing. **The melee hit tolerance** (`vr_hit_tolerance_melee`, pending since the hitbox work) stays at 6:
+
+| Melee tolerance | Pass (of 176, the new thresholds) | |
+|---|---|---|
+| 3 (the old thresholds) | 155 | loses 4 butt strikes and a pommel strike |
+| 4 | 164 | loses 3 butt strikes, a pommel strike, a straight punch |
+| **6 (the default)** | **168** | |
+| 9 | 165 | a weak punch and the axe wiggle hit again; 3 slashes land their pommel first |
+
+Your blows land at the edge of the model's reach: you can't stand closer than the player's box lets you. Look at the
+tolerance again once the smaller hitbox (`vr_hull_width`) is in and you have re-recorded.
+
+### What changed (QC `vr_melee.qc`, the model's numbers)
+
+- **A punch lands at 1.35 times its least speed** (`VR_MELEE_PUNCH_LAND`; 5.4 m/s level): your punches reach 1.42-4.1
+  times it, your weak ones 1.31 at most. Its damage still counts from the least speed: every punch hurts as before.
+- **A rising punch needs less extra speed** (`VR_MELEE_UP` 0.8 -> 0.5): your hooks rise a little, and one of them
+  (03-43, 6.5 m/s) was as slow as a weak punch by the old measure. Uppercuts and hooks deal a little more (8.8 -> 10.0
+  for the slowest uppercut).
+- **A gun's swing lands at 1.5 times a swing's least speed** (`VR_MELEE_GUN_LAND`; 7.5 m/s at the grip): your gun
+  swings go 9.7-11.7, the wiggles and reloads 5-6. **A gun's butt needs its grip at 1.3 times vr_melee_speed**
+  (`VR_MELEE_GUN_BUTT`; 5.2 m/s; a sword's pommel still 4): your butt strikes 5.7-9, a wiggled gun's butt 4.8. Some
+  butt-strike takes that used to land the barrel first now land the butt (more damage: the butt was the faster part).
+- **A weapon wiggled doesn't strike** (`VR_MELEE_WIGGLE_BACK` 0.6, `VR_MELEE_WIGGLE_TIME` 0.25 s): its grip went the
+  other way at 0.6 times its speed now or more, within 0.25 s. The axe wiggle: 0.75 and more; every cut, stab, pommel
+  and gun strike of yours: 0.46 at most. Not for fists (a punch pulled back and thrown again is a blow).
+- The whoosh follows the same rules (a gun's, a fist's at the landing speed; no whoosh for a wiggle).
+
+### Before and after (all 176 takes)
+
+| | Before | After |
+|---|---|---|
+| Blows that land as expected (122 takes) | 117 | 117 (none lost) |
+| Blows that land as the wrong kind | 5 | 5 (the same) |
+| No-hit takes clean (24) | 13 | 21 |
+| No-hit takes with a hit | 7 | **0** |
+| No-hit takes that only whoosh | 4 | 3 |
+| Parry poses (30) | 30 | 30 |
+
+Likely outliers (not tuned to): `gun_strike_butt` 06-35 and `slash_backswing_up_right` 12-26 (a one-handed bash
+before the blow: the stance was held and pushed); `slash_backswing_up_right` 12-39 (the tip driven along the blade:
+a stab); `slash_diagonal_down_right` 11-45 (the off hand's fist hit first); `slash_horizontal_ltr` 10-28 (the pommel
+first). The weak punches 07-45, 07-51 and the axe wiggle 07-31 still whoosh (the fist passes 5.6 m/s in the air), but
+none hits. `punch_hook` 03-43 is your slowest real punch and sits closest to the weak ones.
+
+The eval set is now these takes (the kit's `canary.txt`, 52 of them, and `eval_baseline.csv`); the synthetic
+`punch_straight` preset (`motion_synth.py`) reaches 0.9 m ahead now, into the dummy (0.6 stopped short of its model).
+
+### In the headset
+
+- Punch the dummy softly, then properly: the soft ones should do nothing, a real jab, hook or uppercut land.
+- Reload the guns and wave them near the dummy: no hits. Pistol-whip it and butt-strike it: hits.
+- Wiggle the axe or sword against it: nothing; a real cut still lands.
+- **Re-record** once the smaller player hitbox (`vr_hull_width`) lands: you'll stand closer, and the blows from close
+  by (and the melee tolerance) need takes of their own.

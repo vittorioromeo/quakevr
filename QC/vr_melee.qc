@@ -31,13 +31,25 @@ float VR_MELEE_ARM = 1.25;         // a weapon's swing: the grip's least speed, 
 float VR_MELEE_STAB_SPEED = 0.75;  // a stab's (jab's) least speed of the grip, times vr_melee_speed (a thrust needs less than a swing)
 float VR_MELEE_STAB_ALONG = 0.4;   // cosine: the far end moving within ~66 degrees of the line, outwards, is a stab (the author's
                                    // stabs 0.4-0.87 at the contact, his cuts at most 0.36)
-float VR_MELEE_UP = 0.8;           // a punch's least speed grows by this share for a blow going straight up (the author's
-                                   // uppercuts go 6-9 m/s, a fist wiggled upwards 4.5-5.5),
+float VR_MELEE_UP = 0.5;           // a punch's least speed grows by this share for a blow going straight up (the author's
+                                   // uppercuts go 8-10 m/s, a fist wiggled upwards 4.5-5.5; his hooks rise a little, 6.5-10),
 float VR_MELEE_DOWN = 1.5;         // and by this share for each unit (sine) of steepness downwards beyond VR_MELEE_DOWN_FROM
 float VR_MELEE_DOWN_FROM = 0.4;    // (a hammer blow falls easily: his overhead punches go 12 m/s, a hand waved down 6)
+float VR_MELEE_PUNCH_LAND = 1.35;  // a punch lands (and whooshes) only this far over its least speed; its strength still counts from
+                                   // the least speed (the author's takes of 2026-09-29: his punches 1.42-4.1 times it, his weak
+                                   // punches, which he wants to miss, 1.31 at most)
+float VR_MELEE_GUN_LAND = 1.5;     // likewise a gun's swing (its barrel, its muzzle): a gun is waved, aimed and reloaded all the time
+                                   // (his gun swings 9.7-11.7 m/s at the grip, 1.9 times a swing's least speed; his guns wiggled and
+                                   // swung down to reload hit the dummy at 5-6, 1.2 at most)
+float VR_MELEE_GUN_BUTT = 1.3;     // a gun's butt strike: its grip at least this times vr_melee_speed (a sword's pommel 1: the
+                                   // author's butt strikes drive the grip 5.7-9 m/s, a gun wiggled at the dummy 4.8)
 float VR_MELEE_RUN = 0.2;          // m the grip came towards where it goes now, within VR_MELEE_RUN_TIME: a blow, not a wave or a
                                    // wiggle (the author's punches come 0.22-0.8 m, his fists waved fast at the dummy 0.05-0.2)
 float VR_MELEE_RUN_TIME = 0.3;     // s looked back at most
+float VR_MELEE_WIGGLE_BACK = 0.6;  // a weapon whose grip went the other way at this share of its speed now or more,
+float VR_MELEE_WIGGLE_TIME = 0.25; // within this long (s), is wiggled, not swung (the author's axe wiggled at the dummy 0.75 and
+                                   // more, within 0.08-0.2 s; his cuts, stabs, pommel and gun strikes 0.46 at most). Not a fist's:
+                                   // a punch pulled back and thrown again is a blow (his punches 0.41 at most)
 float VR_MELEE_WRIST_BACK = 0.2;   // m behind the controller (along its own axis, the gun angle taken out) the hand turns about
                                    // when it wiggles (fitted on the author's wiggles with fists, sword, axe and gun: 17-24 cm)
 float VR_MELEE_WRIST_TIME = 0.12;  // s over which vr_melee_wrist_speed averages the wrist's travel (a wiggle's half-period)
@@ -880,6 +892,44 @@ float(entity b) VR_Melee_WristSpeed =
     return vlen(moved) / max(back, VR_MELEE_WRIST_TIME);
 };
 
+// Whether `b`'s weapon is wiggled, not swung: its grip went back the other way nearly as fast, a moment ago
+// (VR_MELEE_WIGGLE_*). Never a fist's.
+float(entity b) VR_Melee_Wiggled =
+{
+    float speed = vlen(b.mh_vgrip);
+    if(b.mh_thing == VR_MTHING_FIST || speed <= 0)
+    {
+        return FALSE;
+    }
+    vector now = b.mh_vgrip * (1 / speed);
+    float back = 0;
+    float k = b.mh_hi;
+    float n;
+    for(n = 0; n < 24; ++n)
+    {
+        float dt = b.mh_hdt[k];
+        if(dt <= 0)
+        {
+            break;
+        }
+        if(-(b.mh_hgrip[k] * now) >= VR_MELEE_WIGGLE_BACK * speed)
+        {
+            return TRUE;
+        }
+        back = back + dt;
+        if(back >= VR_MELEE_WIGGLE_TIME)
+        {
+            break;
+        }
+        k = k - 1;
+        if(k < 0)
+        {
+            k = 23;
+        }
+    }
+    return FALSE;
+};
+
 // Whether the hand itself moved as a blow's does (vr_melee_wrist_speed; a punch VR_MELEE_WRIST_PUNCH times that), not
 // only turned.
 float(entity b) VR_Melee_WristMoved =
@@ -905,6 +955,7 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
     float kind = VR_MKIND_SLASH;
     float speed = vgrip; // the arm's: the grip's speed
     float need = minSpeed;
+    float land = 1; // the share over `need` it lands at (VR_MELEE_PUNCH_LAND, VR_MELEE_GUN_LAND)
     float weight = 1;
     vector way = b.mh_vfar;
     b.mh_part = vr_mpt_name[xI];
@@ -924,6 +975,7 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
         way = b.mh_vgrip;
         // The blow's way: rising and steeply falling blows are thrown faster for the same effort.
         need = VR_Melee_SwingNeed(xHand, b, b.mh_vgrip);
+        land = VR_MELEE_PUNCH_LAND;
         weight = cvar_hget(cvarh_vr_melee_punch_mult);
         if(VR_Carry_IsHolding(self, xHand))
         {
@@ -942,6 +994,10 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
         else
         {
             need = minSpeed * VR_MELEE_ARM;
+            if(b.mh_thing == VR_MTHING_GUN)
+            {
+                land = VR_MELEE_GUN_LAND;
+            }
         }
     }
     else
@@ -953,7 +1009,7 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
         kind = VR_MKIND_POMMEL;
         way = vp;
         speed = sp;
-        if(vgrip < minSpeed)
+        if(vgrip < minSpeed * (b.mh_thing == VR_MTHING_GUN ? VR_MELEE_GUN_BUTT : 1))
         {
             return FALSE; // the arm drives it too (a sword waved round swings its guard fast)
         }
@@ -973,7 +1029,7 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
         dprint(sprintf(" along %.2f lead %.2f need %.1f run %.2f wrist %.2f\n", along, lead, need, VR_Melee_Run(b, TRUE),
             VR_Melee_WristSpeed(b)));
     }
-    if(speed < need)
+    if(speed < need * land)
     {
         return FALSE;
     }
@@ -984,6 +1040,11 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
     }
     // And the hand itself moved, not only turned in place (a wiggle flicks the grip and the tip fast).
     if(!VR_Melee_WristMoved(b))
+    {
+        return FALSE;
+    }
+    // Nor a weapon waved back and forth.
+    if(VR_Melee_Wiggled(b))
     {
         return FALSE;
     }
@@ -1434,6 +1495,22 @@ float(float xHand, entity b, vector xVel) VR_Melee_SwingNeed =
     return minSpeed * (1 + VR_MELEE_UP * max(0, vz) + VR_MELEE_DOWN * max(0, -vz - VR_MELEE_DOWN_FROM));
 };
 
+// The speed at which a blow by `xHand` along `xVel` lands (and whooshes): its least speed, more for a punch or a gun's swing
+// (VR_MELEE_PUNCH_LAND, VR_MELEE_GUN_LAND: too weak to count below).
+float(float xHand, entity b, vector xVel) VR_Melee_LandNeed =
+{
+    float need = VR_Melee_SwingNeed(xHand, b, xVel);
+    if(b.mh_thing == VR_MTHING_FIST)
+    {
+        return need * VR_MELEE_PUNCH_LAND;
+    }
+    if(b.mh_thing == VR_MTHING_GUN)
+    {
+        return need * VR_MELEE_GUN_LAND;
+    }
+    return need;
+};
+
 // The weapon's whoosh as `xHand`'s striking part gets going as a blow would (once a motion): as fast as a blow needs,
 // come from some way off (and a fist closed). The motion recorder's "stroke".
 void(float xHand, entity b) VR_Melee_Whoosh =
@@ -1444,7 +1521,7 @@ void(float xHand, entity b) VR_Melee_Whoosh =
         b.mh_whooshed = FALSE;
         return;
     }
-    if(b.mh_whooshed || b.mh_thing == VR_MTHING_NONE || vlen(b.mh_vgrip) < VR_Melee_SwingNeed(xHand, b, b.mh_vgrip))
+    if(b.mh_whooshed || b.mh_thing == VR_MTHING_NONE || vlen(b.mh_vgrip) < VR_Melee_LandNeed(xHand, b, b.mh_vgrip))
     {
         return;
     }
@@ -1452,7 +1529,7 @@ void(float xHand, entity b) VR_Melee_Whoosh =
     {
         return; // an open hand: no blow
     }
-    if(VR_Melee_Run(b, TRUE) < VR_MELEE_RUN || !VR_Melee_WristMoved(b))
+    if(VR_Melee_Run(b, TRUE) < VR_MELEE_RUN || !VR_Melee_WristMoved(b) || VR_Melee_Wiggled(b))
     {
         return;
     }
