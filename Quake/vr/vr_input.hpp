@@ -20,6 +20,9 @@ void roomscaleJump(const hands::State& s);
 // grappling hook's reel (QVR_BUTTON_*HANDSECONDARY). Not while a menu or the console is up, nor when the posing mode,
 // a voice note or the flashlight took the press.
 [[nodiscard]] bool secondaryHeld(int hand);
+// The same for the lower face button (A on the main hand, X on the off hand): the grappling hook's unreel
+// (QVR_BUTTON_*HANDPRIMARY). Its key (jump, reload) is pressed as ever.
+[[nodiscard]] bool primaryHeld(int hand);
 
 // svc_quakevr QVR_SVC_HAPTIC (vr_client.cpp dispatches it).
 void parseHaptic();

@@ -92,6 +92,7 @@ constexpr Def defs[] = {
     {"ui/hud/menu", Render, "ui|hud panel|2D|gadget hologram|gadget fps|gadget screen|lines|vr opaque (text3d)"},
     {"wound paint", Render, "wounds"},
     {"flashlight cord", Render, "flashlight cord|flashlight cord draw"},
+    {"grapple rope", Render, "grapple rope|grapple rope upload|grapple rope draw"}, // vr_rope.cpp: its curve (made with the temp entities), its links bent on the GPU
     {"mirror/spectator", Render, "mirror|spectator|window view"},
     {"render other", Render, "screen|3D|eye L|eye R|scene|scene setup|setup view|hidden area"},
     {"map loading", Misc, "map spawn|map load"},

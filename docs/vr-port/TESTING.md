@@ -37,7 +37,7 @@ needs no rebinding.
 |---|---|---|---|
 | Trigger | `RTRIGGER` | `LTRIGGER` | `+attack` / `+offhandattack` |
 | Grip | `RSHOULDER` | `LSHOULDER` | `+grabmain` / `+graboff` |
-| A / X (primary) | `ABUTTON` | `XBUTTON` | `+jump` / `+reloadoff` |
+| A / X (primary) | `ABUTTON` | `XBUTTON` | `+jump` / `+reloadoff`; held in the air with the grappling hook in: its unreel (the key still pressed) |
 | B / Y (secondary) | `BBUTTON` | `YBUTTON` | `impulse 10` / `impulse 12` (next weapon); held with the grappling hook out: its reel, whatever it is bound to |
 | Stick click | `RTHUMB` | `LTHUMB` | `+reloadmain` / `+speed` |
 | Stick | turn; up/down are `DPAD_UP`/`DPAD_DOWN` (`+moveup`/`+movedown`: swim) | move | |
@@ -167,6 +167,11 @@ context and screenshot, ready to paste or to point me at.
     Advanced VR Options > Game > **Grappling Hook** (speeds, the classes' masses, stagger, stamina, haptics; Rope: Pulls
     at once for the mission pack's old pull). Test it: `impulse 9` gives it (`impulse 151`/`171` put it in the main /
     off hand).
+  - **Grapple: unreel; rope drawn in one piece** (ROUND21.md, same title): in the air, hold the grapple hand's **A**
+    (right) or **X** (left) to let the rope out (Unreel Speed, 300 u/s). Hanging, you are let down; a monster can walk
+    away; a prop hanging at the gun is lowered. On the ground A just jumps (Unreel Button Only When Airborne); a press
+    that jumped doesn't unreel until you press again. A short sagging rope is now one smooth chain, with no gaps
+    between straight links.
   - **Menu: scroll memory and shortcuts** (ROUND21.md, same title): every VR Settings page reopens where you left it
     (the selected row and the scroll), after Back to Game, after going back and coming again, and after a restart.
     Weapon Offsets keeps the same row for another weapon. Under Back to Game, top left on every menu: **Advanced VR**
@@ -845,6 +850,14 @@ Grappling hook (round 21): `impulse 151` (main hand), `vr_mock_hand main 0.2 1.3
 up ahead, 160: straight up), `+attack` fires and holds, `vr_mock_button main secondary 1` / `0` reels; with
 `developer 1; vr_grapple_debug 1` (2: the rope's state too) the log has what it bit, its mass and class, and each
 reel's distance, rope and closing speed. The scratchpad's `grapple/run_all.sh` has the round's checks.
+Unreel: `vr_mock_button main primary 1` / `0` (A). In a script, add `+jump` / `-jump` with it for A's jump: a mock
+button's key binding runs only after the script's remaining commands. The log has `unreel on`, `unreels:` (rope,
+distance, paying out u/s, on ground), `unreel off (braked)` and `unreel button on the ground`.
+`vr_grapple_unreel_airborne 0` unreels standing. With `vr_grapple_debug 2` each rope drawn prints its chord, length,
+sag, samples, links and build time twice a second. The profiler's **grapple rope** system is its cost. For rope
+close-ups, bigger eye images: `vr_mock_eye_size 1440; vr_restart` before the map, `vr_eyeshot 1` before each
+`screenshot`. The scratchpad's `grapple2/` has `unreel.sh`, `unreel_prop.sh`, `ropeshots.sh`, `slackshots.sh`,
+`measure.sh` and `measure_long.sh`.
 Leaning (round 21): `vr_mock_hand head <x> <y> <z> <pitch> <yaw> <roll>` and `vr_mock_play` head keyframes with angles
 turn the head too (pitch up, roll as the hands'); `vr_debug_lean 1` writes `lean_trace.txt` (the game directory): the
 head, the box, the lean, the pelvis, the feet and the lean's hold and cues, every frame.

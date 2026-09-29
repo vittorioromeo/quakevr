@@ -36,6 +36,7 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | Profiling: where the time goes | the frame split into the game's systems (Box3D, QuakeC, Quake physics, the world's drawing, shadow maps, waiting for the headset...), adding up to the frame time: a panel in the headset with bars (Debug > Profiling), `vr_profile_report`, a CSV row a second, a hitch log naming what took a slow frame's time; off it costs nothing measurable. Found with it: the foveated rendering's setup waited for the driver every eye (0.2-0.4 ms of the CPU a frame, fixed) |
 | Performance fixes (review, 2026-09-28) | the spectator camera's Frame Rate (60 fps by default), Resolution Scale (0.75 by default) and Anti-Aliasing; the climbing's mantle and lenient-grab searches 5-20 times fewer traces, the props' settings found once per model (Box3D's sync 2-3 times cheaper), with the same holds, mantles and physics; wounds on a reused entity slot and the ropes' slack forgotten when their entity ends; the AO bake worker joined at quit; no GPU-sampling thread unless profiling |
 | First-hit hitch | the first shot or blow that left a mark froze the game for 0.43-0.44 s: the decals' atlas (blood, chips, scorches, the gore's marks) was drawn on the CPU at the first mark's draw. It is now drawn on a worker thread from start-up and put on the GPU as the map loads; the other first-use work (the view's own models, 0.3 s the first time; the liquids, 20-100 ms each map; the particles' atlas; the detail textures; the torch; the casings' sounds) is done in the load too. Wound painting no longer waits for the driver (glGet), and the memory log counts the GL objects as each map loads (was 12-13 ms in a frame of play) |
+| Grapple: unreel; rope drawn in one piece | the grapple hand's A (right) or X (left) held in the air lets the rope out (Unreel Speed, 300 u/s; on the ground it jumps as before): you are let down from a ceiling, a monster may walk away, a prop hanging at the gun is lowered; a reversed ratchet's ticks and a fine buzz while it runs out. The rope's links are bent along its curve on the GPU, so a short sagging rope is one smooth chain (it was straight links with holes); 0.02-0.04 ms of CPU a frame |
 
 Found on the way: fteqcc stores 0 when `a || b` is assigned into an entity field (rewritten; no other code has that
 shape); a parried blow's hand knock, timed by `cl.time`, came back after a level change (reset now).
@@ -10881,6 +10882,129 @@ config's prop lines (`vr_props_version` 26 to 40: the torch grip 3, rock2 grip 2
   torch's head as a jab) no longer lands: the upright torch crosses it sideways. The melee rules are untouched (frozen
   until your new takes); worth a look when you record torch blows.
 - The menu page shows the four modes and the new rows (`menu_vr dump`: Held Object Offsets has 36 rows).
+
+## Grapple: unreel; rope drawn in one piece
+
+Your voice notes (vrfiringrange, 2026-09-29, 01:00-01:01; screenshots `vrfiringrange_2026-09-29_01-00-01`, `01-00-54`,
+`01-01-11`): let the rope out with the grapple hand's other face button (A on the right hand, X on the left), only in
+the air, since A jumps; and a short rope that sags is drawn as separate straight pieces with holes between them: draw
+it finer, so that it looks joined. Branch `agent/grapple2`; scripts, logs and pictures in the scratchpad's `grapple2/`.
+
+### What you do
+
+- **Unreel:** with the hook in, hold the grapple hand's **lower face button** (A on the right hand, X on the left: the
+  one under the reel's B or Y). In the air it pays the rope out at the Unreel Speed (300 u/s), up to the hook's reach
+  (2700 units). Let go and the rope keeps its new length: it brakes to a stop in about 0.1 s (about 18 units at full
+  speed) rather than stopping you dead.
+- **What it lets go:**
+  - Hanging from a ceiling or a wall, you are let down, no faster than the rope runs out. It is a controlled descent:
+    you fall freely only until you reach that speed.
+  - A monster or a prop on the rope can go farther: a monster walks away, a prop hanging under the gun is lowered to
+    the floor.
+  - Anything faster than the rope runs out is still held back to that speed.
+  - A reel pays out only what pulls on it. A load that stays where it is gets 4 units of slack and no more, so holding
+    the button never piles up rope.
+- **On the ground**, and swimming, the button is just its key: A jumps (X reloads) and nothing unreels. A press that
+  began on the ground, such as a jump, does not unreel once you are in the air either; let go and press again.
+  Holding B or Y as well: the reel wins.
+- **Feel:** the unreel has its own sound, `vr/grapple_unreel.wav` (the reel's ratchet backwards: each click reversed,
+  its ring swelling into the snap, lighter and quicker, 38 a second, over a thinner whirr). It plays while the rope
+  runs out. In the hand you feel a fine, quick tick every 35 ms at 200-260 Hz, stronger with a heavier load. Both
+  stop when nothing pulls, so you can feel whether rope is going out.
+- **The rope** is drawn in one piece along its curve. A short rope sagging deep is now a smooth, joined chain of the
+  same yellow crystals: before, it was straight links with gaps between them.
+
+| Setting (Grappling Hook page) | Cvar | Default | |
+|---|---|---|---|
+| Unreel Speed | `vr_grapple_unreel_speed` | 300 u/s | 0: no unreel |
+| Unreel Button Only When Airborne | `vr_grapple_unreel_airborne` | on | off: A/X unreels on the ground too, and its key (jump) still acts |
+
+These are new cvars with their defaults, so there is no config migration (42 is not used).
+
+### How it works
+
+- **The button** is sent the way the reel's B/Y is:
+  - The engine keeps each hand's lower face button held as the game gets it (`vr_input.cpp` `primaryHeld`: in the
+    game, not taken by the posing mode). Its key still goes through as before.
+  - It is sent with the move (`QVR_BUTTON_*HANDPRIMARY`, bits 6 and 7 of the button byte).
+  - The server puts it in `.vrbits0` bits 21 and 22 (`QVR_VRBITS0_*HAND_PRIMARY`, `VRGetEntPrimaryPressed`).
+- **The unreel** (`QC/vr_grapple.qc`):
+  - `VR_Grapple_UnreelButton` decides from the press, the ground (`FL_ONGROUND`), the water (`waterlevel` 2) and the
+    setting. A button already held when the hook is fired does not count.
+  - `VR_Grapple_Payout` sets the rope's pay-out speed: from a fifth to full in 0.15 s, like the reel; after release it
+    brakes at 2500 u/s².
+  - `VR_Grapple_Unwind` lengthens the rope, to no more than 4 units past the load's distance and the 2700-unit
+    maximum.
+  - Hanging, `VR_Grapple_HoldPlayer` gets the pay-out as a negative reel speed: your speed away from the hook is capped
+    at it.
+  - The rope snaps taut (twang, jolt) only when something outruns the pay-out.
+  - A prop hanging at the gun is no longer steadied while the rope pays out, so it is let down.
+- **The rope drawn** (`Quake/vr/vr_rope.cpp`, new; the slack code moved there from `vr_client.cpp`):
+  - The curve is the parabola as before, with its slack eased and lying on the floor where it would go through it. Its
+    sample count is chosen for its bend: the chord at most 0.05 units off the curve, at most 3° between samples, no
+    closer than 0.5 units, 8 to 160 pieces (it used to be 17, whatever the rope).
+  - Rogue's links (progs/beam.mdl, a quarter size, one every 30 model units as before) are laid end to end along the
+    curve's length. Each one is bent with the curve on the GPU (`gfx::drawBent`, `vr_gfx_gl.cpp`), so the chain is one
+    piece: no gaps, no straight pieces, however it curves.
+  - The shader looks up each vertex's place along the curve by a binary search of the samples' arc lengths. The model's
+    axes are carried along the curve with the least twist, from the engine's own frame for a beam's link (pitch and
+    yaw, no roll), so a taut rope looks exactly as before.
+  - The shading is the alias models': the skin's fullbright texels unlit (the chain is all fullbright), clamped to the
+    scene's brightest, and fogged.
+  - Every grappling rope is drawn this way, taut or slack, and so are other players' ropes (before, only your own
+    hung).
+  - If a replacement model is not an MDL, the rope is drawn as before (straight links).
+- **Floor traces** are bounded: at most 40 a rope, evenly spaced.
+  - Between two traced points that both lie on the floor, the points lie on the line between them (on a flat floor,
+    on it).
+  - Where the rope leaves the floor, every point is traced.
+  - Before this, the long rope below cost 150 traces a frame (0.100 ms); now it costs 0.036 ms.
+- **Profiler:** a new system, **grapple rope** (the curve, the upload and the GPU draw).
+
+### Checked (mock headset; `grapple2/*.log`, `*.png`)
+
+- **Ground, then ceiling** (`unreel.sh`; e1m1's tall room by the exit, ceiling 280 units up, hook at 165 2876 128):
+  - **On the ground:** A (with its `+jump`: in a mock script a button's binding runs only after the script) jumps
+    (z -150 -> -138), and the log shows `unreel button on the ground: its key (jump), no unreel`. The rope stays 286
+    for the whole jump with A held.
+  - **Reeled up:** 286 -> 40 in 1.12 s.
+  - **Hanging, A for 0.3 s:** the rope goes 40 -> 136 (the brake included), paying out up to 180-300 u/s. You drop from
+    z 88 to about 6.
+  - **Let go:** you hang still at 136.
+  - **A again:** 136 -> 282, 300 u/s at full speed, until you reach the floor (z -140). On the floor, pressing again
+    pays nothing out: nothing pulls.
+- **A weapon hanging at the gun** (`unreel_prop.sh`, Unreel Button Only When Airborne off, standing): it is reeled in
+  (rope 206 -> 14) and hangs 23 units under the gun. Holding A lowers it onto the floor (rope 14 -> 59, the weapon at
+  z 19, still).
+- **A grunt** reeled in (rope 236 -> 64), then you walk back (`+back`, about 330 u/s) holding A:
+  - the rope pays out at 300 u/s (64 -> 372) and the grunt mostly stays;
+  - then you walk back without A: the rope holds, and the grunt is dragged at 398 u/s.
+- **The rope, before and after** (`ropeshots.sh`: the firing range's func_wall bitten from 160 units, then walked up to
+  50 and 80 units of it). Left and right eye images are in `grapple2/before/` and `after/`; `cmp_0.png` to `cmp_3.png`
+  are side by side, `cmp_1_zoom.png` zoomed.
+  - Before: from the side, the bottom of the curve has a hole and a link sticking out straight.
+  - After: one smooth chain, the same crystals and the same brightness.
+  - From the eye, the rope drops from the gun and rises to the hook without a break.
+- **Long slack rope** (`slackshots.sh`; e1m1's corridor wall bitten 750 units off, then 550 closer): it still lies on
+  the floor and rises to the gun; taut, it is a straight line.
+
+### Cost (`measure.sh`, `measure_long.sh`: exclusive runs, the profiler's 5 s table, mock eyes)
+
+| | CPU a frame | GPU a frame |
+|---|---|---|
+| Short rope sagging (65 units, 130 samples, 9 links) | 0.018 ms (the curve 10-15 µs) | 0.001 ms |
+| Long rope on the floor (650 units, 150 samples, 87 links) | 0.036 ms (0.100 before the bounded traces) | 0.001 ms |
+| Taut rope (2 samples) | 2-5 µs | |
+| Before (Rogue's links as entities, the short rope) | +0.019 ms models, 30 more alias models | within noise |
+
+### In the headset
+
+- [ ] Hang from a ceiling and hold A (right hand) or X (left hand): you go down smoothly. Let go: you stop gently and
+  stay. Is 300 u/s a good speed? Does the ticking sound and feel right for letting rope out?
+- [ ] On the ground, A only jumps. Jump and keep A held: no unreel until you press again.
+- [ ] Reel a monster in, then hold A while backing away: it is not dragged. Reel a weapon to the gun, then hold A: it
+  is lowered.
+- [ ] A short rope sagging near you: one smooth chain, no holes? It should look the same as before when taut.
 
 ## Debug menu; quad sound; grenade catch default; no empty-hand deflection
 

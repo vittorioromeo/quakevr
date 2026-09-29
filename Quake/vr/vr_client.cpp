@@ -19,6 +19,7 @@
 #include "vr_selfcollide.hpp"
 #include "vr_move.hpp"
 #include "vr_posing.hpp"
+#include "vr_rope.hpp"
 #include "vr_protocol.hpp"
 #include "vr_shells.hpp"
 #include "vr_teleport.hpp"
@@ -311,6 +312,15 @@ std::vector<MuzzleOffset> muzzleOffsets; // slot * 2 + mirrored
     {
         move.buttons |= QVR_BUTTON_MAINHANDSECONDARY;
     }
+    // The lower ones (A/X): the hook unreels while its hand's is, in the air (QC vr_grapple.qc).
+    if(input::primaryHeld(HAND_OFF))
+    {
+        move.buttons |= QVR_BUTTON_OFFHANDPRIMARY;
+    }
+    if(input::primaryHeld(HAND_MAIN))
+    {
+        move.buttons |= QVR_BUTTON_MAINHANDPRIMARY;
+    }
 
     // The weapon posing mode (vr_posing.cpp): the game sees the hands held still where they were when it began (with the
     // player, who may walk round the weapon), their buttons as they were, no two-handed aim, no teleport and no attack:
@@ -333,7 +343,8 @@ std::vector<MuzzleOffset> muzzleOffsets; // slot * 2 + mirrored
         }
         move.vrBits0 = static_cast<std::uint16_t>(unposed.vrBits0 & (VRBITS0_OFFHAND_GRABBING | VRBITS0_MAINHAND_GRABBING |
                                                                      VRBITS0_OFFHAND_RELOADING | VRBITS0_MAINHAND_RELOADING));
-        move.buttons &= ~(QVR_BUTTON_OFFHANDATTACK | QVR_BUTTON_OFFHANDSECONDARY | QVR_BUTTON_MAINHANDSECONDARY);
+        move.buttons &= ~(QVR_BUTTON_OFFHANDATTACK | QVR_BUTTON_OFFHANDSECONDARY | QVR_BUTTON_MAINHANDSECONDARY |
+                          QVR_BUTTON_OFFHANDPRIMARY | QVR_BUTTON_MAINHANDPRIMARY);
     }
     else
     {
@@ -587,11 +598,6 @@ extern "C" void VR_WriteDemoState(sizebuf_t* msg)
     }
 }
 
-namespace
-{
-void forgetRopes(); // (the ropes' slack, below)
-} // namespace
-
 extern "C" void VR_OnClientClearState()
 {
     entityData.clear();
@@ -608,7 +614,7 @@ extern "C" void VR_OnClientClearState()
     selfcollide::reset();
     shells::clear();
     wounds::clear();
-    forgetRopes();
+    rope::forget();
     view::resetClientState();
     hands::resetClientState();
 }
@@ -677,26 +683,6 @@ extern "C" int VR_ParseServerMessage(int cmd)
     return 1;
 }
 
-namespace
-{
-
-// The grappling hook ropes' slack (beam key -> the share of the rope's length that hangs), as sent and as drawn: eased
-// towards what the server sends (it comes in 125 steps) so that a sagging rope never jumps.
-struct RopeSlack
-{
-    float target{0.f};
-    float shown{0.f};
-    double time{0.0};
-};
-std::unordered_map<int, RopeSlack> ropeSlack;
-
-void forgetRopes()
-{
-    ropeSlack.clear();
-}
-
-} // namespace
-
 extern "C" int VR_ParseBeamEntity(int ent)
 {
     if(!vrProtocol())
@@ -726,7 +712,7 @@ extern "C" int VR_ParseBeamEntity(int ent)
     const int key = ent | ((beamId + 1) << 16);
     if(beamId == 2 || beamId == 3)
     {
-        ropeSlack[key].target = slack;
+        rope::setSlack(key, slack); // (vr_rope.cpp draws it)
     }
     return key;
 }
@@ -916,84 +902,4 @@ extern "C" int VR_UpdateBeam(int ent, float* start, float* end)
         }
     }
     return 1;
-}
-
-// A grappling hook's rope from `start` to `end` (as VR_UpdateBeam left them) as a line of points, into `points` (at
-// most `maxPoints`, at least 2): straight when taut, hanging when slack (vr_grapple_sag). Its slack is the share of
-// its length the server says hangs (VR_ParseBeamEntity); the curve is the parabola of that length over the line
-// between its ends, sagging down across the line (a rope hanging straight down stays straight), and lying on the
-// floor where it would go through it.
-extern "C" void VR_ForgetEndedRopes()
-{
-    // A rope whose beam ended (the hook let go, or its hand's other rope): its next one starts from its own slack.
-    for(auto it = ropeSlack.begin(); it != ropeSlack.end();)
-    {
-        bool live = false;
-        for(int i = 0; i < MAX_BEAMS && !live; i++)
-        {
-            const beam_t& b = cl_beams[i];
-            live = b.entity == it->first && b.model && b.starttime <= cl.time && b.endtime >= cl.time;
-        }
-        if(!live && vr_grapple_debug.value >= 2)
-        {
-            Con_Printf("grapple: rope %d's beam ended (its slack %.3f forgotten)\n", it->first, static_cast<double>(it->second.shown));
-        }
-        it = live ? std::next(it) : ropeSlack.erase(it);
-    }
-}
-
-extern "C" int VR_RopeCurve(int ent, const float* start, const float* end, float (*points)[3], int maxPoints)
-{
-    const glm::vec3 a{start[0], start[1], start[2]};
-    const glm::vec3 b{end[0], end[1], end[2]};
-    const auto put = [&](int i, const glm::vec3& p) {
-        points[i][0] = p.x;
-        points[i][1] = p.y;
-        points[i][2] = p.z;
-    };
-    put(0, a);
-    put(1, b);
-
-    const auto it = ropeSlack.find(ent);
-    if(it == ropeSlack.end() || maxPoints < 3)
-    {
-        return 2;
-    }
-    RopeSlack& r = it->second;
-    const float dt = static_cast<float>(std::clamp(realtime - r.time, 0.0, 0.1));
-    r.time = realtime;
-    r.shown += (r.target - r.shown) * std::min(1.f, 10.f * dt);
-    const float chord = glm::distance(a, b);
-    if(!vr_grapple_sag.value || r.shown < 0.002f || chord < 1.f)
-    {
-        return 2;
-    }
-
-    // A parabola of height h over a chord D is about D + 8 h^2 / (3 D) long; no deeper than half the rope (a V).
-    const float length = chord / std::max(0.02f, 1.f - r.shown);
-    const float h = std::min(0.5f * length, std::sqrt(3.f * chord * (length - chord) / 8.f));
-    const glm::vec3 along = (b - a) / chord;
-    const glm::vec3 down = glm::vec3{0.f, 0.f, -1.f} - along * -along.z; // gravity across the line
-    if(h * glm::length(down) < 0.5f)
-    {
-        return 2;
-    }
-
-    const int n = std::min(maxPoints, 17);
-    for(int i = 0; i < n; i++)
-    {
-        const float t = static_cast<float>(i) / static_cast<float>(n - 1);
-        const glm::vec3 onLine = a + (b - a) * t;
-        glm::vec3 p = onLine + down * (4.f * h * t * (1.f - t));
-        if(i > 0 && i < n - 1)
-        {
-            const trace_t tr = worldtrace::world(onLine, p, false);
-            if(tr.fraction < 1.f && !tr.startsolid)
-            {
-                p = worldtrace::endPos(tr) + glm::vec3{0.f, 0.f, 1.f};
-            }
-        }
-        put(i, p);
-    }
-    return n;
 }

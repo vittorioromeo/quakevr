@@ -1066,6 +1066,7 @@ void() W_Precache =
     precache_sound("weapons/chain1.wav");
     precache_sound("pendulum/hit.wav");
     precache_sound("vr/grapple_reel.wav"); // the reel winding in (vr_grapple.qc)
+    precache_sound("vr/grapple_unreel.wav"); // the unreel paying out (vr_grapple.qc)
     precache_sound("vr/grapple_taut.wav"); // the rope snapping taut
     precache_sound("lavagun/snail.wav");        // lava nail gun cooldown
 //--ZOID
