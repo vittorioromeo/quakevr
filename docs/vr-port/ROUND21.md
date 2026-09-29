@@ -12523,3 +12523,102 @@ placed still against it: none; an explosive box (40 kg) at 450 u/s: 66 to 84 (it
   holder's immunity and credit are untested; the hit is the same path as the other flung hits.
 - In the headset: the unarmed grenade's grey (lighter than the live one's brown: `--saturation`, `GREY_GAIN`,
   `GREY_LIFT` in the script if it should be darker); whether flung damage feels right (the throw's numbers were kept).
+## Climbing: the hands in sync past the reach; floating platforms
+
+Your notes `vrclimb_2026-09-29_18-30-44` (the drawn hands drift away from the controllers when you shimmy past what
+the body may do, and stay apart after you come back) and `vrfiringrange_2026-09-29_18-27-21` (hanging from a platform
+with nothing under it, the body gets stuck under it: extending the arms doesn't push you out, and you can't mantle).
+
+### The hands out of sync: what happened
+
+While you hang, the drawn hand sits on its hold, and the controller is wherever the body carries it. The body moves by
+the pull (the hands' motion, the other way), so the two stay together as long as the body follows the pull. Where it
+can't, the controller keeps going and the drawn hand doesn't. Sideways the limit is almost always the arm's reach, not
+the 48 units (the default arm reaches 23 units from the shoulder, 0.88 m): sweep the hands 1 m to the right on
+vrclimb's ledge and the body stops 0.5 m before the hands do. Coming back, the body moves at once, so the gap you made
+stays: 12.8 units (0.49 m) after one sweep, 15.3 after a sweep each way. The same happens to a hand held still while
+the other pulls you along (19.2 units, 0.73 m, after a 0.6 m pull).
+
+### What I chose: the hold slides along the ledge
+
+The hand's hold slides along its lip to keep the controller where it was from the hold when it took hold. Only
+along the lip, only as far as the lip goes (a pillar or the ledge's end stops it), and never further from the shoulder
+than the arm reaches. So:
+
+- Pulling normally: nothing changes (the body follows the pull, nothing to slide).
+- Past the reach: the controller still gets ahead of the drawn hand while it is past the reach (no arm can reach it:
+  a body whose hands ride with it can't catch up with them). Only by how far it is past the reach, and as you come
+  back the hold slides with the controller until they meet, so they are together again, not stuck apart. The body
+  ends up where the sweep left it along the ledge, as if the hand had slid.
+- A hand held still while the other pulls you along: it slides along the ledge with you (it used to stay put, the
+  drawn hand drifting away from the controller, and was torn off once out of reach). Hand over hand up a wall is
+  unchanged (the slide is only along the lip).
+
+Why this and not the others: holding the body back until the hands come back ("owed", as for the pull into the wall)
+would keep them apart the whole time you're past the limit and put a dead zone on the way back; letting the body be
+dragged towards the controller would slide it along the ledge for as long as you hold your arm out. The slide keeps
+them together everywhere a real arm could.
+
+Setting: **Hands Slide Along Ledges** (Climbing page, `vr_climb_slide`, on). Off is the old behaviour.
+
+Left as it was: the reach's own correction swings the body round the hold (up and in) when you pull sideways past it,
+and a push down past the highest hold doesn't lift the body. Both leave the controller a little lower or further in
+than the drawn hand: 1-3 units (3-8 cm) after a 0.5 m overreach. Tell me if you notice it.
+
+### Floating platforms: what happened
+
+The player's box stands 16 units (0.6 m) over the shoulders and 16 in front of the eyes, much more than a head and
+a chest. Hanging from a thin platform with the box under its lip, the box can only get out if the body moves out and
+down, and at arm's length the only way out round the hold is up, into the platform's underside. So pushing out, the
+reach pulled the body back in and up, the platform stopped it going up, and it slid back under: stuck 3 units under
+the lip (y 387 for a lip at 400), with no room above to mantle.
+
+Fix: when the way back within reach is blocked straight up, under a hold above the box, the arms stretch instead, up
+to `vr_climb_overhang_stretch` units past the reach (16, developer cvar; 0 is the old behaviour). Pushing away moves
+the body out from under the platform while you hold on. As the body comes closer again the reach shrinks back (as for
+a hold taken from further away), and pushing down mantles as anywhere else. On an ordinary wall nothing changes: the
+body is never under what it holds.
+
+### Test map
+
+vrclimb has two floating platforms over the trench, tops at 48, nothing under them for 256 units: a thin slab (8
+thick, x -300..-172) and a thicker one (16 thick, x -120..8), both y 400..496 (`make_vrclimb_map.py`, recompiled
+Full). Hang from their south lips: `setpos -236 382 24 0 90 0` (the slab), `setpos -56 382 24 0 90 0` (the other).
+
+### Verified (mock headset, fixed frames)
+
+Floating platforms, `climb_plays.py float_<dist>_<below>[_<sink cm>]`: grab the lip, raise or lower the hands (the body
+sinks and swings in under the platform, or pulls up), push out 0.8 m level, push down. 13 starts, each at 3 frame
+phases (39 runs): very close (the lip 17 ahead), further (26), almost underneath (the body 4, 8 and 12 under the lip,
+low enough to fit under it), each with and without a pull-up or a sink first, on both platforms.
+
+| | held on through the push out | body after the push out (box clear at y <= 384) | mantled |
+|---|---|---|---|
+| Before (stretch 0), the 4 under starts | 12 of 12 | y 387 (3 under), one at 412 | 0 of 12 |
+| After, the 4 under starts | 12 of 12 | y 381-383 | 12 of 12 |
+| Both, the other 9 starts | 27 of 27 | clear, or already on top | 27 of 27 |
+
+The under starts only get stuck with the body placed as it is after some earlier plays (the room-scale offset the mock
+head's lean leaves); from other starts the old build gets out too. Both kinds are in the set.
+
+Past the reach, `climb_plays.py overreach<hands>_<metres>` (the long ledge, `setpos 78 176 24 0 0 0; noclip`: the
+hands swept along the lip and back, each way), with `vr_climb_debug 2`'s new `sync` (the controllers' drift from the
+drawn hands since they took hold, in `climbreach`), units along the lip after coming back:
+
+| | slide off | slide on |
+|---|---|---|
+| main hand, 1 m each way | 12.7, then 15.3 | 0.00, 0.00 (12-14 while past the reach: how far past it) |
+| both hands, 1 m each way | 15.0, 15.5 | 0.00, 0.00 |
+| both hands, the main alone pulling 0.6 m: the still (off) hand | 19.2 while pulled along | 0.00 |
+
+The old plays `ledge`, `ladder` and `push`: the same log with the slide on and off. (They, and the `shimmy` plays,
+now mantle at their first pull: the hands grab 5-6 units over the top at today's defaults. That was so before this
+change.)
+
+### In the headset
+
+- Shimmy along a ledge past your reach, then come back: the drawn hands should be back on the controllers.
+- Hold one hand still and pull yourself along with the other: the still hand should slide along with you.
+- vrclimb's floating platforms: grab the lip from close, from further out and from almost under it; pull in under it,
+  extend your arms (you should come out from under it, still holding), push down (onto it). Tell me if 16 units of
+  stretch (0.6 m) looks wrong on the drawn arms.

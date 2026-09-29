@@ -70,6 +70,23 @@
 // it, as a real body would). Only that: a hand raised while standing on the floor, or pulled down past the highest
 // hold, owes nothing (the next pull moves the body at once). It never moves the body by itself (no pop).
 //
+// Under an overhang (a floating platform, a slab with nothing under its lip): the box stands far higher over the
+// shoulders and further in front of the eyes than a head and a chest, so a body hanging with its box under the
+// platform can't get out from under it within an arm's reach (out means up, round the hold, and up is into the
+// platform). When the way back within reach is blocked straight up, below a hold above the box, the arms stretch
+// instead, up to vr_climb_overhang_stretch units past the reach: pushing away moves the body out from under the
+// platform (still holding), and the reach comes back as the body comes closer (as a hold taken further does); pushing
+// down then mantles as anywhere else.
+//
+// The hands in sync along the ledge (vr_climb_slide): the drawn hand is on its hold, the tracked hand where the body
+// carries it; they stay together as long as the body follows the pull. Where it can't (the arm's reach, the 48 units,
+// a wall beside the body, the other hand pulling it along while this one is held still), the hold slides along its lip
+// to keep the tracked hand as far from it as when it took hold, within the lip's ends and no further from the shoulder
+// than the reach. Past the reach the tracked hand still gets ahead of the drawn one (no arm reaches it), but only by
+// how far it is past the reach: coming back, the hold slides with it until they meet, instead of the two staying apart.
+// Only along the lip: the reach's pull up and in (the body swung round the hold) and a pull down past the highest hold
+// still leave the tracked hand that much lower or further in than the drawn one.
+//
 // Mantle: once a hand has pulled down by `mantlePull` units since it took hold and the head is `mantleHead` units
 // above its ledge, and the player's box fits on top (with floor under it) and the way there (straight up, then over)
 // is clear, the body is carried there in `mantleTime` seconds, and stands. The ledge map knows how deep the top is at
@@ -736,6 +753,7 @@ struct Grip
     glm::vec3 lastHold{0.f};   // where the hold was last frame (it moves with its brush model)
     glm::vec3 relAtGrab{0.f};  // the hand relative to the body when it took hold
     glm::vec3 lastRel{0.f};    // and last frame
+    glm::vec3 grabOffset{0.f}; // the tracked hand from the hold when it took hold (vr_climb_debug 2's "sync")
     Ledge ledge;
     int entNum{0};             // the hold's brush model (0: the world), which may move
     glm::vec3 entOrigin{0.f};  // and where it was
@@ -963,6 +981,36 @@ void letGoAll(Climber& c)
         return -1.f;
     }
     return g.ledge.map->sampleAt(e, std::clamp(t, 0.f, e.len)).depth;
+}
+
+// The hands in sync (vr_climb_slide; see the top of the file): grip `g`'s hold slid along its lip towards where the
+// tracked hand `tracked` has it (the hand as far from the hold as when it took hold), as far as the lip goes and no
+// further from `shoulder` than `reach` (or than it is already).
+void slideHold(Grip& g, const glm::vec3& tracked, const glm::vec3& shoulder, float reach)
+{
+    if(!g.ledge.map || g.ledge.edge < 0 || g.mapGeneration != ledges::generation())
+    {
+        return;
+    }
+    const ledges::Edge& e = g.ledge.map->edges[static_cast<size_t>(g.ledge.edge)];
+    const glm::vec3 hold = holdNow(g);
+    float s = glm::dot(tracked - g.grabOffset - hold, e.dir);
+    s = std::clamp(g.ledge.t + s, 0.f, e.len) - g.ledge.t;
+    // |hold + e.dir * s - shoulder| <= max(reach, now): s between the roots of s^2 + 2 b s + c = 0 (c <= 0).
+    const glm::vec3 v = hold - shoulder;
+    const float b = glm::dot(v, e.dir);
+    const float c = glm::dot(v, v) - std::max(reach * reach, glm::dot(v, v));
+    const float root = std::sqrt(std::max(0.f, b * b - c));
+    s = std::clamp(s, -b - root, -b + root);
+    if(std::abs(s) < 1e-4f)
+    {
+        return;
+    }
+    const glm::vec3 d = e.dir * s;
+    g.hold += d;
+    g.ledge.hold += d;
+    g.ledge.top += d.z;
+    g.ledge.t += s;
 }
 
 // The mantle: a spot on top of grip `g`'s ledge where the box fits, over floor, reachable straight up (or up and
@@ -1584,6 +1632,7 @@ extern "C" void VR_ClimbPreThink(edict_t* ent)
         g.missed = false;
         g.hold = g.lastHold = ledge->hold;
         g.relAtGrab = g.lastRel = handRel(ent, *move, h);
+        g.grabOffset = hand - ledge->hold;
         g.ledge = *ledge;
         g.entNum = ledge->ent ? NUM_FOR_EDICT(ledge->ent) : 0;
         g.entOrigin = ledge->ent ? vec(ledge->ent->v.origin) : glm::vec3{0.f};
@@ -1674,6 +1723,27 @@ extern "C" void VR_ClimbPreThink(edict_t* ent)
 
 // SV_Physics_Client, in place of the move: the body hangs from the hands, or mantles.
 // 0: not climbing (move as usual); 1: moved; -1: the entity was freed by its think.
+// Whether the hanging body is under an overhang: a hold of a hand that pulls still further from its shoulder than it
+// may be (the body couldn't be kept within reach), above the box's top, and the box blocked straight up.
+[[nodiscard]] bool underOverhang(edict_t* ent, const Climber& c, const glm::vec3 (&shoulder)[2], const bool (&driving)[2])
+{
+    const glm::vec3 at = vec(ent->v.origin);
+    bool beyond = false;
+    for(int h = 0; h < 2; h++)
+    {
+        const Grip& g = c.grips[h];
+        const glm::vec3 hold = holdNow(g);
+        beyond = beyond || (driving[h] && hold.z > at.z + ent->v.maxs[2] &&
+                               glm::distance(hold, at + shoulder[h]) > g.allowed + 0.05f);
+    }
+    if(!beyond)
+    {
+        return false;
+    }
+    const trace_t up = tracePlayer(ent, at, at + glm::vec3{0.f, 0.f, 1.f});
+    return up.startsolid || up.fraction < 1.f;
+}
+
 extern "C" int VR_ClientClimb(edict_t* ent)
 {
     Climber* cp = climberOf(ent);
@@ -1835,26 +1905,54 @@ extern "C" int VR_ClientClimb(edict_t* ent)
         shoulder[h] = shoulderOf(*move, h) - origin;
         driving[h] = c.grips[h].active && (weights <= 1e-6f || weight[h] >= passiveShare * weights);
     }
-    glm::vec3 kept = vec(ent->v.origin);
-    for(int pass = 0; pass < 4; pass++)
+    const glm::vec3 pushed = vec(ent->v.origin);
+    const auto within = [&]
     {
-        for(int h = 0; h < 2; h++)
+        glm::vec3 kept = pushed;
+        for(int pass = 0; pass < 4; pass++)
         {
-            if(!driving[h])
+            for(int h = 0; h < 2; h++)
             {
-                continue;
-            }
-            const glm::vec3 toHold = holdNow(c.grips[h]) - (kept + shoulder[h]);
-            if(const float d = glm::length(toHold); d > c.grips[h].allowed + 0.01f)
-            {
-                kept += toHold / d * (d - c.grips[h].allowed);
+                if(!driving[h])
+                {
+                    continue;
+                }
+                const glm::vec3 toHold = holdNow(c.grips[h]) - (kept + shoulder[h]);
+                if(const float d = glm::length(toHold); d > c.grips[h].allowed + 0.01f)
+                {
+                    kept += toHold / d * (d - c.grips[h].allowed);
+                }
             }
         }
-    }
-    if(kept != vec(ent->v.origin))
+        return kept;
+    };
+    if(const glm::vec3 kept = within(); kept != pushed)
     {
         setVec(ent->v.origin, origin);
         moveBody(ent, kept);
+    }
+    // Under an overhang (see the top of the file): the way back within reach is up into what the box is under, below
+    // a hold over it. The arms stretch instead, up to vr_climb_overhang_stretch units past the reach (the box stands 0.6 m
+    // over the shoulders and in front of the eyes, a head and a chest about 0.25 and 0.15), so that pushing away moves
+    // the body out from under it.
+    if(vr_climb_overhang_stretch.value > 0.f && underOverhang(ent, c, shoulder, driving))
+    {
+        for(int h = 0; h < 2; h++)
+        {
+            Grip& g = c.grips[h];
+            if(driving[h])
+            {
+                const float d = glm::distance(holdNow(g), pushed + shoulder[h]);
+                g.allowed = std::max(g.allowed, std::min(d, armReach() + std::max(0.f, vr_climb_overhang_stretch.value)));
+            }
+        }
+        setVec(ent->v.origin, origin);
+        moveBody(ent, within());
+        if(vr_climb_debug.value >= 2.f)
+        {
+            Con_Printf("climbreach: under an overhang, the arms stretch to %.2f / %.2f\n", c.grips[0].allowed,
+                c.grips[1].allowed);
+        }
     }
     setVec(ent->v.velocity, glm::vec3{0.f});
     ent->v.flags = static_cast<float>(static_cast<int>(ent->v.flags) & ~FL_ONGROUND);
@@ -1882,6 +1980,10 @@ extern "C" int VR_ClientClimb(edict_t* ent)
     for(int h = 0; h < 2; h++)
     {
         Grip& g = c.grips[h];
+        if(g.active && vr_climb_slide.value != 0.f)
+        {
+            slideHold(g, vec(ent->v.origin) + rel[h], vec(ent->v.origin) + shoulder[h], g.allowed);
+        }
         g.lastRel = rel[h];
         g.lastHold = holdNow(g);
         if(!g.active)
@@ -1908,9 +2010,18 @@ extern "C" int VR_ClientClimb(edict_t* ent)
     traceFrame(ent, c, move, count > 1 ? "hang2" : "hang1", wanted, done);
     if(vr_climb_debug.value >= 2.f)
     {
-        Con_Printf("climbreach %.4f off %.2f/%.2f%s main %.2f/%.2f%s owed %.3f %.3f %.3f%s\n", qcvm->time, dist[0],
-            c.grips[0].allowed, driving[0] ? "" : " passive", dist[1], c.grips[1].allowed, driving[1] ? "" : " passive",
-            c.owed.x, c.owed.y, c.owed.z, c.noRoom ? " noroom" : "");
+        // "sync": how far each tracked hand has drifted from its drawn hand (on the hold) since it took hold.
+        glm::vec3 sync[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+        for(int h = 0; h < 2; h++)
+        {
+            const Grip& g = c.grips[h];
+            sync[h] = g.active ? vec(ent->v.origin) + rel[h] - holdNow(g) - g.grabOffset : glm::vec3{0.f};
+        }
+        Con_Printf("climbreach %.4f off %.2f/%.2f%s main %.2f/%.2f%s owed %.3f %.3f %.3f%s sync %.2f %.2f (%.2f %.2f %.2f / "
+                   "%.2f %.2f %.2f)\n",
+            qcvm->time, dist[0], c.grips[0].allowed, driving[0] ? "" : " passive", dist[1], c.grips[1].allowed,
+            driving[1] ? "" : " passive", c.owed.x, c.owed.y, c.owed.z, c.noRoom ? " noroom" : "", glm::length(sync[0]),
+            glm::length(sync[1]), sync[0].x, sync[0].y, sync[0].z, sync[1].x, sync[1].y, sync[1].z);
     }
     if(vr_climb_debug.value >= 3.f)
     {

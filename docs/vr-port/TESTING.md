@@ -838,6 +838,15 @@ the hands), `plat` (take the plat's lip, pull up a little, hang on while it is l
 floor; with `vr_climb_mover_crush 1` the plat is blocked instead, hurts you 1 point and goes back up). With
 `vr_climb_debug 2` the `climbtrace` lines show the body carried with the hold exactly (`want`/`moved` 0 while the
 mover's push moves it).
+Climbing, the hands in sync and floating platforms (ROUND21.md, "Climbing: the hands in sync past the reach; floating
+platforms"): `climb_plays.py overreach<hands>_<metres>` (the long ledge, `setpos 78 176 24 0 0 0; noclip`: 1 the main
+hand, 2 both, 3 both holding and the main alone sweeping; the hands swept along the lip and back each way, `echo REACH
+<phase>` at each end); `vr_climb_debug 2`'s `climbreach` lines end with `sync` (each controller's drift from its drawn
+hand since it took hold, and the vectors). `vr_climb_slide 0` for the old behaviour. `climb_plays.py
+float_<dist>_<below>[_<sink cm>]`: vrclimb's floating platforms (`setpos -236|-56 <400 - dist> <72 - below> 0 90 0`
+with no `noclip` after it: the play turns it off as it grabs), the lip `dist` ahead (negative: the body under the
+platform), grab, sink (or pull up, negative), push out 0.8 m, push down; `echo FLOAT <phase>`. Keep the box out of the
+platform at the start (under the thin slab: `below` at least 65). `vr_climb_overhang_stretch 0` for the old behaviour.
 Throwing, the release angle (the same section): `python Misc/quakevr/throw_plays.py [--gunangle 70] [--out throws.txt]`
 writes a `vr_mock_play` file of four main-hand throws (an overarm throw with a wrist flick, an underarm lob, a straight
 push, an overarm throw with a still wrist), each announced by `echo THROW <name> <meant elevation>` and let go with
