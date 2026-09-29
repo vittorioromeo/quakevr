@@ -150,7 +150,8 @@ void number(float x, float y, int value, int digits, bool red, float scale)
 // The top row with vr_gadget_stamina (docs/vr-port/ROUND21.md, "Stamina on the gadget; the glow"), in the screen's one
 // colour, so by brightness: "STAMINA" and ten cells, lit for what's left (the one being filled lit in part), empty
 // ones outlined. Low (one more one-handed parry knocks the weapon away): the lit cells blink. None left: "EXHAUSTED"
-// blinks over the empty cells, and the screen's frame with it (layout). Coming back: a bright sweep runs along the empty cells. While a counter's window is open,
+// blinks over the empty cells, and the screen's frame with it (layout). Coming back: a bright sweep runs along the empty cells.
+// Hanging from a hold spends it (vr_climb_stamina): "HANGING", and a dark notch runs back through the lit ones. While a counter's window is open,
 // the label is "COUNTER" lit in reverse and the rule under the row is a thick bar running out with the window; without
 // parry stamina that is all it shows, over the title. False when it shows nothing (the title then).
 bool meleeRow(const Palette& pal)
@@ -175,7 +176,7 @@ bool meleeRow(const Palette& pal)
     else
     {
         gfx::draw2D::color(pal.text);
-        gfx::draw2D::text(left, 6.f, 8.f, "STAMINA");
+        gfx::draw2D::text(left, 6.f, 8.f, m.draining ? "HANGING" : "STAMINA"); // (a hang drains it: vr_climb_stamina)
     }
     gfx::draw2D::color(white);
 
@@ -211,6 +212,17 @@ bool meleeRow(const Palette& pal)
                 gfx::draw2D::color(pal.text);
                 gfx::draw2D::text(x, 6.f, 8.f, word);
                 gfx::draw2D::color(white);
+            }
+        }
+        else if(m.draining)
+        {
+            // The drain: a dark notch running back through the lit cells, towards the start, every 0.7 s.
+            const float to = cellsX + lit * (cellW + cellGap);
+            const float t = static_cast<float>(std::fmod(realtime, 0.7) / 0.7);
+            const float x = to - (to - cellsX) * t;
+            if(to - cellsX > 3.f)
+            {
+                fill(std::max(x - 2.f, cellsX), cellY + 1.f, 2.f, cellH - 2.f, pal.background);
             }
         }
         else if(m.recovering)

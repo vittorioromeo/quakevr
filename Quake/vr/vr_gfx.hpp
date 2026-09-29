@@ -145,6 +145,49 @@ struct TubeBatch
 [[nodiscard]] TubeBatch uploadTube(std::span<const TubeRing> rings);
 void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const glm::vec3& key);
 
+// A model's mesh bent along a curve, copy after copy (the grappling hook's rope, vr_rope.cpp: Rogue's chain links laid
+// end to end along the hanging rope, each bent with it, so that it is drawn in one piece): made on the GPU from one
+// frame record (uploadBent: vec4s) holding the mesh, BentVertex each, and the curve, CurveSample each. Copy k's vertex
+// at model x lies (k x period + x) x scale along the curve (its arc length, found by a binary search of the samples';
+// before the first sample and past the last, along the ends' straight lines), across it at its y and z times scale
+// along the curve's side and up there (interpolated between the samples). Opaque, back faces culled (the model's
+// winding), depth-tested and written, in the scene view; shaded as an alias model's skin with its light (an
+// ALPHABRIGHT skin: its fullbright texels unlit), plus a fullbright texture if it has one, clamped to the scene's
+// brightest and fogged as the scene's models are.
+struct BentVertex
+{
+    glm::vec4 pos; // xyz the model's coordinates (units: its scale applied), w 0
+    glm::vec4 uv;  // xy the skin's texture coordinates
+};
+struct CurveSample
+{
+    glm::vec4 pos;  // xyz on the curve, w its arc length there (from the curve's start; increasing)
+    glm::vec4 side; // xyz the unit direction the model's +y goes there (its left, for a Quake model)
+    glm::vec4 up;   // xyz its +z
+};
+static_assert(sizeof(BentVertex) == 32 && sizeof(CurveSample) == 48);
+struct BentBatch
+{
+    unsigned buffer{0};
+    std::size_t offset{0};
+    std::size_t count{0}; // vec4s
+};
+[[nodiscard]] BentBatch uploadBent(std::span<const glm::vec4> data);
+struct BentDraw
+{
+    int meshFirst{0};    // the mesh's first vec4 in the batch
+    int meshVertices{0}; // its vertices (triangles: three each)
+    int curveFirst{0};   // the curve's first vec4
+    int samples{0};      // its samples (at least 2)
+    int copies{0};
+    float period{30.f}; // model units from one copy to the next
+    float scale{1.f};
+    Texture skin{0};
+    Texture fullbright{0}; // 0: none
+    glm::vec3 light{1.f};  // the light on its lit texels (1: Quake's full light)
+};
+void drawBent(const BentBatch& batch, const BentDraw& draw);
+
 // The scene view's world-to-clip transform, while the scene (or an eye) is rendered.
 [[nodiscard]] glm::mat4 sceneViewProjection();
 

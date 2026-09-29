@@ -111,8 +111,8 @@ int VR_SuppressModelRotate (int ent);					// CL_RelinkEntities: nonzero to keep 
 void VR_RelinkHeld (void);								// end of CL_RelinkEntities: the local player's held objects drawn in the hands (vr_held.cpp)
 float VR_BeamScale (struct qmodel_s *model);				// CL_UpdateTEnts: scale of a beam's segments
 int VR_UpdateBeam (int ent, float *start, float *end);	// CL_UpdateTEnts: moves the player's own beams with the gun; nonzero: a rope (no random roll)
-int VR_RopeCurve (int ent, const float *start, const float *end, float (*points)[3], int maxpoints); // CL_UpdateTEnts: a rope's points (2: straight; more: a slack rope hanging)
-void VR_ForgetEndedRopes (void); // CL_UpdateTEnts, before the beams: the ropes whose beams ended forgotten
+int VR_DrawRope (int ent, struct qmodel_s *model, const float *start, const float *end); // CL_UpdateTEnts: a grappling hook's rope, drawn in one piece along its curve (vr_rope.cpp); zero if the beam is not one (drawn as any beam)
+void VR_ForgetEndedRopes (void); // CL_UpdateTEnts, before the beams: the ropes whose beams ended forgotten, the frame's ropes put anew
 void VR_BeamLights (int index, struct qmodel_s *model, const float *start, const float *end); // CL_UpdateTEnts: a lightning beam lights the room along its length (vr_beam_lights)
 void VR_WallTorchFlames (void);							// CL_ReadFromServer, after the temp entities: the taken wall torches' flames (vr_walltorch.cpp)
 unsigned char *VR_DerivedModelFile (const char *name, unsigned int *path_id); // Mod_LoadModel: a model made from another's file (a taken torch's flame), or NULL
@@ -191,6 +191,8 @@ int VR_MenuHidesPlaque (void);							// M_DrawTransPic: the options pages' verti
 int VR_MenuKey (int key, int repeat);					// M_Keydown: nonzero if the buttons took the key (a click on one, the sticks' selection on them)
 void VR_MenuBounds (int *top, int *height);				// M_UpdateBounds: the menus laid out from the canvas's bounds start below the buttons
 void VR_MenuSavePositions (void);						// Host_WriteConfigurationToFile: each VR page's selection and scroll into vr_menu_positions
+void VR_ConfigMergeOthers (const char *path);			// Host_WriteConfigurationToFile, the game folder's config: another copy's changes in it kept (vr_cvars.cpp)
+void VR_ConfigWritten (const char *path);				// and after writing it
 int VR_MenuReopen (void);								// M_ToggleMenu_f, opening: nonzero if it reopened the page left
 int VR_MenuRunsGame (void);								// Host_ServerFrame: nonzero if a single player game runs on under the menu (live preview)
 

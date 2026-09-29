@@ -313,7 +313,10 @@ void Host_WriteConfigurationToFile (const char *name)
 	if (host_initialized && !isDedicated && !host_parms->errstate)
 	{
 		char fullname[MAX_OSPATH];
+		const qboolean mainconfig = !strcmp (name, CONFIG_NAME); // QVR: merged with another copy's changes
 		q_snprintf (fullname, sizeof (fullname), "%s/%s", com_gamedir, name);
+		if (mainconfig)
+			VR_ConfigMergeOthers (fullname);
 		f = Sys_fopen (fullname, "w");
 		if (!f)
 		{
@@ -333,6 +336,8 @@ void Host_WriteConfigurationToFile (const char *name)
 		//johnfitz
 
 		fclose (f);
+		if (mainconfig)
+			VR_ConfigWritten (fullname);
 
 		Con_SafePrintf ("Wrote ");
 		Con_LinkPrintf (fullname, "%s", name);

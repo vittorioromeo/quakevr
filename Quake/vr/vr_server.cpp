@@ -181,8 +181,11 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     // Bits 19 and 20 (QVR_VRBITS0_OFFHAND_SECONDARY, _MAINHAND_SECONDARY): the hand's B/Y held (the grapple's reel).
     const int secondary = ((move.buttons & QVR_BUTTON_OFFHANDSECONDARY) ? (1 << 19) : 0) |
                           ((move.buttons & QVR_BUTTON_MAINHANDSECONDARY) ? (1 << 20) : 0);
+    // Bits 21 and 22 (QVR_VRBITS0_OFFHAND_PRIMARY, _MAINHAND_PRIMARY): the hand's A/X held (the grapple's unreel).
+    const int primary = ((move.buttons & QVR_BUTTON_OFFHANDPRIMARY) ? (1 << 21) : 0) |
+                        ((move.buttons & QVR_BUTTON_MAINHANDPRIMARY) ? (1 << 22) : 0);
     setFieldFloat(ent, f.vrbits0,
-        static_cast<float>(withPreviousBits(bits.received, bits.previousFrame) | tracked | busy | secondary));
+        static_cast<float>(withPreviousBits(bits.received, bits.previousFrame) | tracked | busy | secondary | primary));
     setFieldVec(ent, f.teleport_target, move.teleportTarget);
     setFieldFloat(ent, f.offhand_hotspot, move.hotspots[0]);
     setFieldFloat(ent, f.mainhand_hotspot, move.hotspots[1]);

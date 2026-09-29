@@ -7,6 +7,7 @@
 #include "vr_box3d.hpp"
 #include "vr_carry2h.hpp"
 #include "vr_debris.hpp"
+#include "vr_grip.hpp"
 #include "vr_held.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_motion.hpp"
@@ -349,11 +350,47 @@ void PF_haptic()
         G_FLOAT(OFS_PARM1), G_FLOAT(OFS_PARM2), G_FLOAT(OFS_PARM3), G_FLOAT(OFS_PARM4));
 }
 
-// carryangles(e, handangles, grab): a held object's angles, turning with the hand (vr_rigid.cpp).
+// carryangles(e, handangles, grab): a held object's angles, turning with the hand (vr_rigid.cpp). At a grab (a regrip:
+// VR_Carry_Regrip) its place in the hand is kept as it is now (its .carry_offset set before), and its grip's settings
+// still move it from there (vr_grip.hpp).
 void PF_carryangles()
 {
-    physics::carryAngles(G_EDICT(OFS_PARM0), G_VECTOR(OFS_PARM1), static_cast<int>(G_FLOAT(OFS_PARM2)) != 0,
-        G_VECTOR(OFS_RETURN));
+    edict_t* e = G_EDICT(OFS_PARM0);
+    const bool grab = static_cast<int>(G_FLOAT(OFS_PARM2)) != 0;
+    physics::carryAngles(e, G_VECTOR(OFS_PARM1), grab, G_VECTOR(OFS_RETURN));
+    const FieldOffsets& f = fields();
+    if(grab && f.carry_offset >= 0)
+    {
+        grip::serverKeep(e, G_VECTOR(OFS_PARM1), fieldVec(e, f.carry_offset));
+    }
+}
+
+// vector(entity e, entity player, float hand, float lefthand, vector handangles, vector offset) carrygrip: as `player`'s
+// `hand` (cVR_MainHand or cVR_OffHand; lefthand: the left one) at `handangles` takes `e`, whose origin is at `offset` in
+// the hand (forward, right, up: where it was taken, as .carry_offset): its place in the hand by its Held Object Offsets'
+// grip (vr_grip.hpp): its turn with the hand kept (its angles set now) and its origin's place returned (.carry_offset).
+void PF_carrygrip()
+{
+    const float* o = G_VECTOR(OFS_PARM5);
+    const glm::vec3 v = grip::serverTake(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1), static_cast<int>(G_FLOAT(OFS_PARM2)),
+        G_FLOAT(OFS_PARM3) != 0.f, G_VECTOR(OFS_PARM4), glm::vec3{o[0], o[1], o[2]});
+    float* out = G_VECTOR(OFS_RETURN);
+    out[0] = v.x;
+    out[1] = v.y;
+    out[2] = v.z;
+}
+
+// vector(entity e, vector handangles, vector offset) carryplace: each frame `e` is held in one hand: its angles set
+// (turning with the hand) and its origin's place in the hand returned (.carry_offset, given as `offset`): placed again
+// at once when its Held Object Offsets changed (vr_grip.hpp).
+void PF_carryplace()
+{
+    const float* o = G_VECTOR(OFS_PARM2);
+    const glm::vec3 v = grip::serverFrame(G_EDICT(OFS_PARM0), G_VECTOR(OFS_PARM1), glm::vec3{o[0], o[1], o[2]});
+    float* out = G_VECTOR(OFS_RETURN);
+    out[0] = v.x;
+    out[1] = v.y;
+    out[2] = v.z;
 }
 
 // vector(entity e, vector handpos, vector palm) carryfit: how far to move an object a hand grips so
@@ -470,9 +507,9 @@ void PF_propgrip()
         turn.y = -turn.y;
         turn.z = -turn.z;
     }
-    const bool brush = model && model->type == mod_brush;
-    const float angles[3]{turn.x, turn.y, turn.z};
-    physics::setCarryTurn(e, handAngles, held::axesFromAngles(angles, brush));
+    // Pitch up for every model (vr_grip.cpp's fixed grip; carrygrip is what the carry uses now).
+    const float angles[3]{-turn.x, turn.y, turn.z};
+    physics::setCarryTurn(e, handAngles, held::axesFromAngles(angles, true));
     float* out = G_VECTOR(OFS_RETURN);
     out[0] = place.x;
     out[1] = -place.y;
@@ -688,6 +725,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"haptic", PF_haptic},
     {"handimpact", PF_handimpact},
     {"carryangles", PF_carryangles},
+    {"carrygrip", PF_carrygrip},
+    {"carryplace", PF_carryplace},
     {"carryfit", PF_carryfit},
     {"carry2h", PF_carry2h},
     {"carryreach", PF_carryreach},

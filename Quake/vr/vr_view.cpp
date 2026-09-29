@@ -18,6 +18,7 @@
 #include "vr_hands.hpp"
 #include "vr_handrig.hpp"
 #include "vr_grasp.hpp"
+#include "vr_grip.hpp"
 #include "vr_held.hpp"
 #include "vr_ledges.hpp"
 #include "vr_lines.hpp"
@@ -1849,6 +1850,76 @@ void updateFist(const hands::State& s, int hand)
     static std::vector<glm::vec4> local;
     emptyHandSpheres(s, hand, true, local);
     held::setFist(hand, local);
+}
+
+// Held props' grips (grip::setHandFrame): where the empty hand's palm and grip channel are in its frame (the move's place
+// and angles), every frame; not measured without the jointed hand (the default hand's are used).
+void gripFrame_f();
+
+void updateGripFrame(const hands::State& s, int hand)
+{
+    if(static bool registered = false; !registered) // a test command (no init hook here)
+    {
+        registered = true;
+        Cmd_AddCommand("vr_grip_frame", gripFrame_f);
+    }
+    grip::HandFrame f;
+    qmodel_t* const model = viewModel(handrig::modelName);
+    glm::vec3 cp, cd;
+    float radius = 0.f;
+    handrig::Pose pose;
+    if(s.valid && handrig::usable(model))
+    {
+        rigShifts(model, hand, pose);
+        f.measured = grasp::gripChannel(pose, cp, cd, radius);
+    }
+    if(f.measured)
+    {
+        const bool mirrored = hand == HAND_OFF;
+        const glm::vec3 handRot =
+            basisAngles(anglesBasis(s.rot[hand]) * anglesBasis(weaponAngleOffsets(weapons::fistSlot(), mirrored)));
+        const glm::mat4 rig = rigPlacement(hand, s.pos[hand], handRot, mirrored, nullptr);
+        const glm::mat3 toHand = glm::transpose(held::axesFromAngles(&s.rot[hand][0], true));
+        const auto point = [&](const glm::vec3& p) { return toHand * (glm::vec3{rig * glm::vec4{p, 1.f}} - s.pos[hand]); };
+        const auto dir = [&](const glm::vec3& d) { return glm::normalize(toHand * glm::vec3{rig * glm::vec4{d, 0.f}}); };
+        f.palm = point(grasp::palmCentre());
+        f.palmNormal = dir({0.f, 1.f, 0.f}); // the rig's palm faces +y (grasp::solve)
+        f.channelPoint = point(cp);
+        f.channelDir = dir(cd);
+        f.channelRadius = radius * glm::length(glm::vec3{rig[0]});
+        // The palm's middle is inside the hand: out along its normal to its skin, where the open hand's spheres (the
+        // grasp's) the normal passes through end, so that what rests on it rests on the skin, not in the palm.
+        static std::vector<glm::vec4> open;
+        if(emptyHandSpheres(s, hand, false, open))
+        {
+            float skin = 0.f;
+            for(const glm::vec4& sp : open)
+            {
+                const glm::vec3 d = glm::vec3{sp} - f.palm;
+                const float along = glm::dot(d, f.palmNormal);
+                const float across2 = glm::dot(d, d) - along * along;
+                if(across2 < sp.w * sp.w)
+                {
+                    skin = std::max(skin, along + std::sqrt(sp.w * sp.w - across2));
+                }
+            }
+            f.palm += f.palmNormal * skin;
+        }
+    }
+    grip::setHandFrame(hand, f);
+}
+
+// vr_grip_frame: the hands' grip frames (grip::HandFrame), for the default hand's (vr_grip.cpp defaultFrame).
+void gripFrame_f()
+{
+    for(int hand = 1; hand >= 0; hand--)
+    {
+        const grip::HandFrame f = grip::handFrame(hand, hand == HAND_OFF, true);
+        Con_Printf("grip frame %s%s: palm %.2f %.2f %.2f normal %.2f %.2f %.2f channel %.2f %.2f %.2f dir %.2f %.2f %.2f radius %.2f\n",
+            hand == HAND_MAIN ? "main" : "off", f.measured ? "" : " (not measured: the default)", f.palm.x, f.palm.y, f.palm.z,
+            f.palmNormal.x, f.palmNormal.y, f.palmNormal.z, f.channelPoint.x, f.channelPoint.y, f.channelPoint.z, f.channelDir.x,
+            f.channelDir.y, f.channelDir.z, f.channelRadius);
+    }
 }
 
 bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool mirrored, bool hide, const Held& held,
@@ -4507,6 +4578,7 @@ extern "C" void VR_SetupViewEntities()
     for(int hand = 0; hand < 2; hand++)
     {
         updateFist(s, hand);
+        updateGripFrame(s, hand);
     }
     drawTuningAids(s, !posingNow);
     if(!posingNow)

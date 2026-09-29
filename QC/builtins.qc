@@ -171,6 +171,13 @@ float(entity e, string key) propvalue = #0;
 // A prop held the same way every time (its "grip" 1): its turn in the hand set (and its angles now); returns its origin's
 // place in the hand (forward, right, up: .carry_offset). lefthand: the left hand's (mirrored).
 vector(entity e, vector handangles, float lefthand) propgrip = #0;
+// Held props' grips (vr_grip.hpp; Held Object Offsets' Grip: where taken, fixed, in the palm, along the handle, and the
+// offset on top). carrygrip: as `player`'s `hand` (lefthand: the left one) at `handangles` takes `e`, its origin at
+// `offset` in the hand (forward, right, up: where it was taken): its turn in the hand set (its angles now) and its origin's
+// place returned (.carry_offset). carryplace: each frame it is held in one hand, its angles set (turning with the hand)
+// and its place in the hand returned (`offset` is .carry_offset; placed again at once when its settings change).
+vector(entity e, entity player, float hand, float lefthand, vector handangles, vector offset) carrygrip = #0;
+vector(entity e, vector handangles, vector offset) carryplace = #0;
 // Weapon Offsets and Weapon Weights (vr_weapons.inc) of the weapon drawn with `model` (WeaponIdToModel), by the key its
 // cvars have: "w_mass" (kg), "w_meleedmg", "w_throwdmg" (its damage multipliers)... (0: no such weapon or key).
 float(string model, string key) weaponvalue = #0;
