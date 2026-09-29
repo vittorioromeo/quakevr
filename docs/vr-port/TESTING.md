@@ -141,6 +141,15 @@ context and screenshot, ready to paste or to point me at.
 ## What to try
 
 - **New in this round** (details in `docs/vr-port/ROUND21.md`; each section ends with an "In the headset" list):
+  - **Hand grenades from the back pouch** (ROUND21.md, same title): with rockets, reach behind the small of your back
+    with an empty hand (either) and grip: a grenade from the pouch on your belt there (a tap as the hand arrives; the
+    pouch lights up), in your palm. Pull the trigger to pull its pin (a ping, the fizz, sparks, ticks faster and
+    faster): 2.5 s, then it goes off as the grenade launcher's (120 damage over 160 units, yours, with Quad), or on a
+    monster it hits. Throw it as anything you carry. Changed your mind? Let go of it at the pouch before pulling the
+    pin: it goes back in, and the rocket with it (a rocket leaves your ammo while a grenade is in your hand). Let go
+    of elsewhere unarmed, it is a dud at your feet: take it again to arm it or put it back. No rockets: a dull knock.
+    Batting and Catching > **Hand Grenades** (on/off, **Arm Hand Grenades**: the trigger, or when let go of; **Hand
+    Grenade Fuse**); the pouch's place and turn on Hip Holsters > **Grenade Pouch**.
   - **Performance fixes (review, 2026-09-28)** (ROUND21.md, same title): the spectator camera has a **Frame Rate**
     (60 fps by default: as often as a 60 fps recording takes), a **Resolution Scale** of 0.75 by default and an
     **Anti-Aliasing** choice (Recording page); climbing's mantle and lenient grab, the props' settings and two caches
@@ -1119,6 +1128,20 @@ is entity 274, rock5 245, the half brick 220, a whole brick 214, the wall torch 
 <yaw> <roll>; +grabright; vr_mock_button main grip 1` (no wait in between: it falls). Close cameras on the main hand at
 `vr_mock_hand main 0.15 1.2 -0.45 70 0 0`: `vr_mock_camera 0.35 1.15 -0.45 25 90` (outside), `-0.05 1.12 -0.45 25 -90`
 (the palm's side), `0.15 1.18 -0.68 30 180` (the front); `r_fullbright 1` lights them.
+
+Hand grenades from the back pouch (ROUND21.md, same title): the scratchpad's `handgren/` has the scripts and logs.
+`gen.py` writes the `vr_mock_play` files (from `throw_plays.py`'s `throws.txt`: `python Misc/quakevr/throw_plays.py
+--gunangle 70 --out throws.txt` first): a hand to the pouch at `vr_mock_hand main|off 0 1.0 0.2 0 0 0` (Gun Angle 70;
+`vr_dumpview` prints `grenade pouch at ..., main hand <d> units off (hotspot 11)`), `+grabmain`/`+graboff` there takes
+one, `+attack`/`+offhandattack` pulls the pin, the throw lets go with `-grabmain`/`-graboff`. `run1.sh <play> <png>
+["<console commands>"] ["<spawn>"]` runs one in vrfiringrange from `setpos 190 -560 41 0 90 0` with 10 rockets and a
+grunt 300 units ahead (`vr_test_spawn 0; vr_test_spawn_dist 300; impulse 241`); `runall.sh` runs them all into
+`logs/`. `developer 1` prints `grenade: hand grenade taken from the pouch by hand <h>, <n> rockets left`, `the pouch
+is empty`, `hand grenade armed (the pin pulled | the lever flies off ...)`, `a hand grenade let go of unarmed: a dud`,
+`hand grenade put back in the pouch`, `an unarmed hand grenade back in the pouch at the level's end`, and the grenades'
+own lines (`hits`, `goes off`, `went off in player's hand`); `vr_debug_shots 1` the damage. A dud rolls into the grate
+at the start's feet (`edict <n>` prints where): reach it at `vr_mock_hand main 0.03 -0.14 0` (the mock's floor is 7
+units over the map's there). The pouch from behind: `vr_mock_camera 0.25 1.15 0.95 8 15`; `give r 0` shows it empty.
 
 Debug menu; quad sound; grenade catch default; no empty-hand deflection (ROUND21.md, same title): the scratchpad's
 `misc23/` has the scripts and logs.

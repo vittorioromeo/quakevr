@@ -11169,3 +11169,188 @@ the flashlight, a box, a gib, anything without a tip, and a prop carried with bo
       order): it stays.
 - [ ] Punch or shove a spike or a grenade with empty hands: it isn't batted (a grenade is caught with the grip closed).
       With a gun, a sword or a wall torch, swing or bash it: batted.
+
+## Hand grenades from the back pouch
+
+Your voice note (firing range, 2026-09-29): throwing grenades by hand would be fun; while you have grenade ammo
+(rockets), a spot on the body to grab one, the trigger to start its fuse, then throw it, one rocket used. The legs,
+the torso and the shoulders already have holsters; you chose a pouch at the small of the back. Branch `agent/handgren`;
+scripts, logs and pictures in the scratchpad's `handgren/` (`final/` the pictures, `logs/` the runs).
+
+### What you do
+
+- **Take one:** with rockets, reach behind the small of your back with an empty hand (either hand) and grip. A grenade
+  comes out of the pouch into your palm, with the leather's rustle and an iron clack, and a buzz in the hand. As the
+  hand arrives there is a light tap (as at a holster with a gun in it) and the pouch lights up, as a holster does.
+  With no rockets: a dull knock in the hand, nothing taken.
+- **Arm it:** pull the trigger while you hold it. The pin comes out with a ping, the lever's clink and the fuse's fizz
+  follow, sparks burst out of it, and it ticks faster and faster, felt in the hand (the caught grenades' cues). It
+  goes off 2.5 s later (**Hand Grenade Fuse**, id's launcher grenade's fuse).
+- **Throw it** as anything you carry (the throw is the carry's: your hand's release speed). It is the grenade
+  launcher's grenade: it goes off on its fuse, or at once on a monster it touches, for the launcher's damage (120 over
+  160 units), credited to you (kills, the dummy's readout), with your Quad. Held too long, it goes off in your hand.
+- **Changed your mind:** let go of it at the pouch before pulling the pin: it goes back in (the same sound, softer),
+  and so does the rocket.
+- **Let go of anywhere else unarmed**, it drops as a dud: it bounces and lies there, it hurts nothing. Take it again
+  (by hand or force grab) to arm it and throw it, or put it back in the pouch.
+- **Arm Hand Grenades: When Let Go Of** (the other choice): the trigger does nothing; the lever flies off as the grenade
+  leaves your hand, anywhere but at the pouch, so a grenade dropped at your feet is live. A grenade let go of at the
+  pouch goes back in unarmed either way.
+
+### Decisions
+
+- **The rocket leaves your ammo when you take the grenade**, not when you pull the pin; putting it back unarmed gives
+  it back. So an unarmed grenade still costs nothing (the reason the brief gave for paying at the pin), and:
+  - what the HUD and the guns' screens show is what is left in the pouch;
+  - the grenade launcher can't fire the rocket that the grenade in your hand stands for (with the cost at the pin, a
+    grenade taken with your last rocket could have been left with nothing to pay for its pin);
+  - two hands can take two grenades only with two rockets;
+  - a dud lying about is a rocket already out of the pouch: armed later, it costs nothing more; put in the pouch, it
+    is a rocket again (anyone's pouch in multiplayer, as ammo would be). Duds can't be made without rockets, so they
+    can't pile up past your ammo.
+  - At the pouch with 100 rockets (full), it doesn't fit: it drops as a dud, with the dull knock.
+- **Unarmed and let go of elsewhere: a dud** (not back to the pouch by itself): what you see is what happens; you can
+  pick it up and use it. The pin decides whether it is live.
+- **An armed grenade can't be put back:** the pin is out. Let go of at the pouch, it drops there, and goes off.
+- **Going off in your hand** is your own grenade's blast (T_RadiusDamage from you): Quake halves your own explosions on
+  you, and Self Damage scales them. From 100 health you are left with about 42 (a caught ogre grenade in the hand is
+  the ogre's, in full, as before).
+- **The grenade in the hand is id's grenade** (`progs/grenade.mdl`, the launcher's and the ogres'): the same entity as a
+  caught and returned grenade, the same size, the same physics. It is large for a hand grenade (about 18 units long);
+  a smaller model only for hand grenades would be a different thing to catch and throw back. Say if you want one.
+- **Held In the Palm** (the grips branch's Grip Mode 2, `vr_grip.cpp`): its middle over the fist's grip channel on the
+  palm, the fingers round it, one hand only. The grenade's Held Object Offsets slot (4) had Where Taken and two hands;
+  it has In the Palm and one hand now, for caught grenades too. A config saved before takes them if its slot still
+  had those defaults (`vr_props_version` 44).
+- **The pouch shows your ammo:** frame 0 full (two grenade heads stand out of it) with a rocket or more, frame 1 empty
+  (the heads gone, its front fallen in) with none. It is drawn whenever Hand Grenades is on, with or without the body
+  (without it, it faces straight back from where the hand reaches).
+- **Where the settings are:** the gameplay ones (on/off, the arming, the fuse) on Batting and Catching, under the
+  grenades' catching (Hand Grenades, a section of its own); the pouch's place, reach and turn on **Hip Holsters** (the
+  belt's page; Hotspots already has 24 rows and the menus keep pages to 30). No Debug page row: Show Grenade Pouch is a
+  tuning marker, as Show Hip Holsters is, on the pouch's own page.
+- **A weapon let go of at the pouch drops**, as anywhere that is not a holster (the pouch takes grenades only).
+- **Climbing:** a hand at the pouch while standing, with rockets, takes a grenade rather than a hold behind you;
+  hanging, the hold wins (as for the holsters).
+
+### How it works
+
+- **The hotspot** (`vr_body.cpp`): `body::pouchPosition` places the pouch as the hip holsters are placed: the old
+  placement (`vr_grenade_pouch_x/y/z` from the player's middle, moving back as you crouch), carried by the pelvis with
+  Body Anchors; with the body drawn, its default X (-7) sits on the back of the hips' ring (the belt at the small of
+  the back, 1.5 units out of the surface), and X moves it on from there, round the hips rather than into them (the
+  holsters' `outOfTheTorso`). `updateHotspots` makes it hotspot 11 (`HS_GRENADE_POUCH`, `QVR_HS_GRENADE_POUCH`), in
+  competition with the holsters by distance over reach (`vr_grenade_pouch_thresh`, 7 units). The hotspot goes to the
+  server in the move's existing hotspot byte: no new input or state bits.
+- **Drawn** (`vr_view.cpp` `setupPouch`): `progs/vrpouch.mdl` on the body's surface there (the plate of the ring, as the
+  holsters' `plateOnTheBody`), its back against the body, turned by Pouch Pitch, Yaw, Roll about where the hand
+  reaches (the holsters' `holsterFrame` / `turnHolster`: pitch tips its top off the back, yaw turns its face to your
+  right, roll tips its top to your right), in the body preview too (`vr_body_debug` 2 and 3); frame from `STAT_ROCKETS`;
+  lit while a hand is at it. `vr_dumpview` prints the pouch and each hand's distance and hotspot.
+- **The model** (`Misc/quakevr/make_pouch.py`, registered in `generated.json`; its normal map baked by
+  `bake_normals.py vrpouch.mdl`, listed in the add-on's `normalmaps.py`/`normaltiles.py`): a deep oiled-leather pouch,
+  open at the top, its front rounded out (a superellipse), a rolled rim, a strap over the top down to an iron buckle,
+  rivets, stitched gussets; two grenade heads (dark iron, id's red band) stand out of it. 1118 vertices, 572
+  triangles, a 256 x 128 skin in Quake's palette (no fullbright), two frames of the same mesh. 23 x 15 cm, 11 cm deep.
+  MODELS_IN_BLENDER.md lists it.
+- **The sounds** (`make_sounds.py`): `vr/grenade_pouch.wav` (the leather's rustle and flap, iron knocking on iron;
+  taken, and softer put back) and `vr/grenade_pin.wav` (the split pin's rasp, the ring's ping and rattle); the arming
+  then plays the caught grenades' `grenade_fuse.wav` (the lever's clink, the fizz) and its ticks.
+- **The game** (`QC/vr_grenade.qc`, "Hand grenades from the back pouch"): `VR_HandGrenade_HandFrame` (each hand, each
+  frame, from `W_Frame` before the weapons' hands): the tap as a hand arrives at the pouch; a grip pressed there by an
+  empty hand (no weapon, nothing carried, not the torch, not force-grabbing, not climbing), once a press, takes one
+  (`VR_HandGrenade_Take`): the launcher's grenade (`GrenadeExplode`, `GrenadeTouch`), made a live grenade
+  (`VR_Grenade_Setup`, split from `VR_Grenade_Make`: a Box3D prop, catchable, force-grabbable) with `.vr_hgren` set and
+  no fuse, and carried (`VR_Carry_Start`). While it is unarmed, its fuse doesn't run, it isn't lit and it goes off on
+  nothing (`VR_HandGrenade_Armed`); `VR_Carry_HandFrame` gives it the trigger (`VR_HandGrenade_Trigger`: the pin,
+  `VR_HandGrenade_Arm`) and its let go at the pouch (`VR_HandGrenade_LetGo`); `VR_Grenade_Released` arms it on the
+  release (When Let Go Of) or leaves a dud. From the pin on, it is any live grenade you hold or threw: caught again
+  (the fuse left as it is, unless Fuse Resets Every Catch), not batted by you (batting is for monsters' projectiles), going off on a
+  monster, its fuse, or in your hand.
+- **Found on the way:** a grenade let go of at a holster was put "into the pack" (`VR_Carry_Take`), which has nothing
+  to take for a grenade, and dropped dead at the holster: an overarm throw's wind-up passes the shoulder holsters, so
+  the first throws fell at your feet. Grenades are never put in the pack now (caught ogre grenades too).
+- **Level changes:** an unarmed grenade in a hand at the level's end goes back in the pouch (`SetChangeParms`), so its
+  rocket goes on with you; an armed one stays behind with the level.
+- **Saves:** everything is in QC fields (`.vr_hgren`, `.vr_hgren_armed`; the player's `.vr_pouch_at`,
+  `.vr_pouch_tried`, per hand) saved with the entities; the engine keeps no entity state for the pouch (it is computed
+  from the hands each frame). A grenade in the hand is a carried prop, which the save/load round already covers
+  (ROUND21, "Save/load crash").
+- **Multiplayer:** each client's pouch is its own hotspot, sent with its move; the grenade and the rockets are that
+  player's. Deathmatch takes one at once (no start delay). A player's dud can be taken by anyone.
+
+### Settings
+
+| | | |
+|---|---|---|
+| Hand Grenades | `vr_handgrenade` | 1; 0: no pouch (not drawn, no hotspot) |
+| Arm Hand Grenades | `vr_handgrenade_arm` | 0 Trigger pulls the pin; 1 When let go of |
+| Hand Grenade Fuse | `vr_handgrenade_fuse` | 2.5 s (1..5) from the pin (or the release) |
+| Show Grenade Pouch | `vr_show_grenade_pouch` | a marker the size of its reach, green while a hand is at it |
+| Pouch X, Y, Z | `vr_grenade_pouch_x/y/z` | -7, 0, 3 units: X forward (the default on the back), Y right, Z up (times the height calibration, as the holsters') |
+| Pouch Threshold | `vr_grenade_pouch_thresh` | 7 units |
+| Pouch Pitch, Yaw, Roll | `vr_grenade_pouch_pitch/yaw/roll` | 0 degrees |
+
+The grenade's grip: Held Object Offsets (hold one, open it): `progs/grenade.mdl` (slot 4), Grip In the Palm, Two
+Hands off.
+
+### Tests (mock headset; the scratchpad's `handgren/`: `runall.sh`, logs in `logs/`, pictures in `final/`)
+
+vrfiringrange from `setpos 190 -560 41 0 90 0`, 10 rockets, `notarget`, a grunt 300 units ahead (`impulse 241`), Gun
+Angle 70; the hands move by `vr_mock_play` files from `gen.py` (the pouch at `vr_mock_hand main|off 0 1.0 0.2`, 1.5
+units from its middle: `vr_dumpview` says hotspot 11; throws from `throw_plays.py`).
+
+| Case | Log |
+|---|---|
+| Main hand: take, pin, overarm throw at the grunt | taken, 9 rockets left; armed, 2.50 s; thrown at 306 u/s, first bounce 210 units ahead, "hits monster_army": 108.6 damage, dead |
+| Off hand: the same | taken by hand 0, 9 left; 305 u/s; hits the grunt: 107.6, dead |
+| Off hand: a gentle lob (119 u/s) | first bounce 80 units ahead; goes off on its fuse 126 units ahead |
+| Arm When Let Go Of | the trigger does nothing; "armed (the lever flies off as it leaves the hand)" at the release, 2.50 s; hits the grunt: 108.4 |
+| No rockets (`give r 0`) | "the pouch is empty"; nothing taken, nothing thrown |
+| Put back unarmed at the pouch | 9 -> 10 rockets; taken again: 9 |
+| Let go of unarmed in front | "let go of unarmed: a dud", bounces, lies at your feet |
+| The dud picked up off the floor, armed, thrown | no rocket taken; armed 2.50 s; hits the grunt: 109.5 |
+| The dud picked up, put in the pouch | 10 rockets; the next one taken leaves 9 |
+| Armed and held | "went off in player's hand": 100 -> 42 health (the dummy nearby took 66.6) |
+| Both hands | two grenades, 8 rockets left |
+| Hand Grenades off | nothing taken at the pouch |
+| A shambler, and with Quad (`impulse 255`) | 47.9 damage (shamblers take half from explosions), health 600 -> 552; with Quad 600 -> 408 (4 x 47.8) |
+| A level change holding an unarmed one (`changelevel vrfiringrange`) | "back in the pouch at the level's end"; the next one taken leaves 9 (of 10) |
+| A config saved at `vr_props_version` 40 with the grenade's slot Where Taken, two hands | "progs/grenade.mdl: In the Palm, one hand"; `vr_prop_grip_04` 2, `vr_prop_two_hands_04` 0 |
+| Before the holster fix: an overarm throw | "carry: into the pack", the grenade dropped at your feet (the wind-up passes the shoulder holster) |
+
+Pictures (`final/`):
+- `pouch_final.png`: from behind (`r_fullbright 1`): full; a hand at it (lit up); empty (`give r 0`: the heads gone, the
+  front flat); from the side; the body preview from its left (`vr_body_debug 3`: the pouch at the back); in the map's
+  light.
+- `hand_final.png`: from the eyes, the grenade in the right palm; the pin pulled (sparks); a close camera on the palm.
+- `palm2.png`: In the Palm from the front, the side and the palm's side.
+- `menu.png`: Batting and Catching's Hand Grenades, Hip Holsters' Grenade Pouch.
+
+Also: `menu_coverage.py` on a `menu_vr dump`: Batting and Catching 20 rows, Hip Holsters 23, no page over 30;
+`fgdgen.py --check` passes (no spawn function changed); QC 0 warnings.
+
+### Not verified
+
+- In the headset: reaching behind your back, the pouch's place for your body and arms (Pouch X, Z, Threshold), the
+  tap and the sounds (made, not heard: `grenade_pouch.wav`, `grenade_pin.wav`).
+- Catching your own thrown hand grenade in flight (the caught grenades' code, unchanged; not scripted).
+- Saving and loading with a grenade in the hand or a dud about: no saves were written (the tests don't write saves);
+  the state is in QC fields only (above).
+- Multiplayer (no second client in the mock).
+- Costs: not measured. A frame adds two torso solves for the pouch's place (the hotspots and the drawing) and one
+  572-triangle model.
+- The melee canary (`eval.sh`) skips while your takes are archived; no melee code changed.
+
+### In the headset
+
+- [ ] Reach behind the small of your back with either hand and grip: a grenade in your palm, the pouch's rustle and
+      clack, a buzz. If you have to hunt for it, Show Grenade Pouch (Hip Holsters) and move it (Pouch Z, X) or
+      raise Pouch Threshold.
+- [ ] Pull the trigger: ping, fizz, sparks, ticking. Throw it at a grunt: it should go off on him as a launcher
+      grenade. Hold one: it goes off in your hand.
+- [ ] Take one and put it back at the pouch: the rockets come back. Drop one in front of you: a dud; pick it up and
+      arm it.
+- [ ] Try Arm Hand Grenades: When Let Go Of, and say which you prefer.
+- [ ] Look at the pouch in a mirror or with the body preview from its side, full and empty. Is id's grenade too big in
+      the hand?
