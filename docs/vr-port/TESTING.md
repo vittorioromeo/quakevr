@@ -141,6 +141,10 @@ context and screenshot, ready to paste or to point me at.
 ## What to try
 
 - **New in this round** (details in `docs/vr-port/ROUND21.md`; each section ends with an "In the headset" list):
+  - **Punches land at once; the empty hammer is quiet** (ROUND21.md, same title): punch damage used to come 0.1-0.45 s
+    after the hit (a bug: every punch waited as a pommel strike does); now in the frame of contact. Pommel and butt
+    strikes wait 0.05 s for the blade (Melee Settings > Pommel Strike Wait; 0.1 before). Mjolnir with no cells no
+    longer clicks when you squeeze the trigger.
   - **Precise hit detection (models, not boxes)** (ROUND21.md, same title): shots, nails, rockets, grenades, the
     grappling hook, melee blows and thrown things hit a monster (or a corpse, or the dummy) where its model is drawn,
     grown by a few units, not anywhere in Quake's big box round it: shots past a grunt's head or through a shambler's

@@ -12,7 +12,8 @@
 // from which part hit and how it moved (VR_Melee_Decide): a stab or jab (the far end moving along the line, outwards), a
 // slash or chop or gun swing (the far end any other way), a pommel or butt strike (the near end), a punch (a closed
 // fist). Of a blade's points in the thing, the outermost strikes. The pommel's touch waits a moment for the blade
-// proper: a cut from close by is the blade's. The hilt, a handle, a gun's grip (where the hand is) strike nothing.
+// proper (vr_melee_pommel_wait): a cut from close by is the blade's. The hilt, a handle, a gun's grip (where the hand
+// is) strike nothing.
 //
 // THE PARRY STANCE is the held thing presented across (the parry's pose: VR_Parry_Blocks, combat.qc), or an open palm
 // facing ahead. A BASH is the stance, held VR_BASH_HELD, pushed forward (both its ends going ahead), a few centimetres:
@@ -42,9 +43,6 @@ float VR_MELEE_WRIST_BACK = 0.2;   // m behind the controller (along its own axi
 float VR_MELEE_WRIST_TIME = 0.12;  // s over which vr_melee_wrist_speed averages the wrist's travel (a wiggle's half-period)
 float VR_MELEE_WRIST_PUNCH = 2;    // a punch's wrist speed, times vr_melee_wrist_speed: a fist has no lever, the arm carries it (the
                                    // author's punches carry the wrist 3.5 m/s and more, his fists wiggled at the dummy 1.5 at most)
-float VR_MELEE_HILT_WAIT = 0.1;    // s the pommel's (the near end's) touch waits for the blade proper (VR_MELEE_BLADE_FROM out):
-                                   // a cut from close by is the blade's (the author's close chops draw the weapon back along
-                                   // its line, as a pommel strike does)
 float VR_MELEE_BLADE_FROM = 0.4;   // the blade proper: from this share of the way from the hand to the tip
 float VR_MELEE_GOOD = 2;           // times the least speed: a blow of strength 1
 float VR_MELEE_WEAKEST = 0.5;      // the strength at the least speed
@@ -118,6 +116,23 @@ float VR_MPT_GRIP = 1;  // the hilt, the guard, the hand on a handle or a gun's 
 float VR_MPT_NEAR = 2;  // the pommel, the handle's end, a gun's butt
 float VR_MPT_FIST = 3;  // the fist and the knuckles
 
+// How long the pommel's (the near end's) touch waits for the blade proper (VR_MELEE_BLADE_FROM out), s
+// (vr_melee_pommel_wait): a cut from close by is the blade's (the author's close chops draw the weapon back along its
+// line, as a pommel strike does). Only a pommel strike waits; a blade, a head and a fist land at once.
+float() VR_Melee_PommelWait =
+{
+    return max(0, cvar_hget(cvarh_vr_melee_pommel_wait));
+};
+
+// Whether a point of kind `xKind` strikes (the blade, a fist) rather than being the near end. (A function of the kind
+// read once: `vr_mpt_kind[i] == VR_MPT_EDGE || vr_mpt_kind[i] == VR_MPT_FIST`, two array reads by a variable index in
+// one expression, came out FALSE for a fist's points, so every punch went the pommel's way and waited
+// VR_Melee_PommelWait before it landed: the author's punches landing late, NOTES.md vrfiringrange_2026-09-29_21-57-10.)
+float(float xKind) VR_Melee_Strikes =
+{
+    return xKind == VR_MPT_EDGE || xKind == VR_MPT_FIST;
+};
+
 // The kinds of blows.
 float VR_MKIND_SLASH = 0;  // a swing's blade, an axe's head, a gun's barrel sweeping across
 float VR_MKIND_STAB = 1;   // driven along the line, the far end first
@@ -174,7 +189,7 @@ float VR_MKIND_PUNCH = 3;  // a fist (any way: jab, hook, uppercut, overhead)
 .float mh_push_last;   // the last frame it pushed
 .float mh_push_ok;     // the push began from a stance held VR_BASH_HELD (or a palm's)
 .float mh_push_stance; // and which (1 a weapon's, 2 a palm's)
-// The pommel's touch, waiting VR_MELEE_HILT_WAIT for the blade (VR_Melee_Sweep): the blow it would be.
+// The pommel's touch, waiting VR_Melee_PommelWait for the blade (VR_Melee_Sweep): the blow it would be.
 .entity mh_pend_ent;
 .float mh_pend_time;
 .vector mh_pend_pos;
@@ -1090,7 +1105,7 @@ float(float xHand, entity b) VR_Melee_Sweep =
         {
             continue;
         }
-        striker = vr_mpt_kind[i] == VR_MPT_EDGE || vr_mpt_kind[i] == VR_MPT_FIST;
+        striker = VR_Melee_Strikes(vr_mpt_kind[i]);
         traceline(p0, p1, MOVE_HITMODEL_MELEE, self); // (a monster: its model, vr_hit_precise)
         if(trace_fraction >= 1 && !trace_startsolid)
         {
@@ -1197,7 +1212,7 @@ float(float xHand, entity b) VR_Melee_Sweep =
                     }
                     continue;
                 }
-                striker = vr_mpt_kind[i] == VR_MPT_EDGE || vr_mpt_kind[i] == VR_MPT_FIST;
+                striker = VR_Melee_Strikes(vr_mpt_kind[i]);
                 // Of the striking points in it, the outermost (a blade strikes with its outer part, its root may have been
                 // in the thing for a while); of the near end's, the first along the sweep.
                 if((striker && i < edgeI) || (!striker && t >= hiltT))
@@ -1236,7 +1251,7 @@ float(float xHand, entity b) VR_Melee_Sweep =
         e = e.chain;
     }
 
-    // The striking part first. The pommel's touch waits VR_MELEE_HILT_WAIT for the blade proper to reach the
+    // The striking part first. The pommel's touch waits VR_Melee_PommelWait for the blade proper to reach the
     // same thing: then the blow is the blade's (a cut whose hands arrive first); else it lands as the pommel strike it
     // was.
     if(edgeI >= 0 && VR_Melee_Decide(xHand, b, edgeI, vr_mpt_kind[edgeI]))
@@ -1267,7 +1282,7 @@ float(float xHand, entity b) VR_Melee_Sweep =
         b.mh_pend_part = b.mh_part;
         b.mh_pend_way = b.mh_way;
     }
-    if(b.mh_pend_ent != world && time - b.mh_pend_time >= VR_MELEE_HILT_WAIT)
+    if(b.mh_pend_ent != world && time - b.mh_pend_time >= VR_Melee_PommelWait())
     {
         // The blade never came: the pommel strike.
         b.mh_c_ent = b.mh_pend_ent;

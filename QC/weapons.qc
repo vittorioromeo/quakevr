@@ -2616,12 +2616,25 @@ An attack impulse can be triggered now
 void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
      float* xOutWeapon, float* xOutAttackFinished) W_AttackImpl =
 {
-    if(!W_CheckNoAmmo(xHand))
+    // Mjolnir without its cells is still a hammer: no click, as the trigger closes the hand round its handle (the
+    // author holds it as a real hammer; NOTES.md vrfiringrange_2026-09-29_21-55-59). The motion's blows strike with
+    // it; without tracked hands it swings as the hammer (below, fewer than 30 cells).
+    float emptyHammer = xWeapon == WID_MJOLNIR && !W_CheckNoAmmo(xHand);
+    if(emptyHammer && VRHandsTracked(self) && self.ishuman)
+    {
+        return;
+    }
+
+    if(!emptyHammer && !W_CheckNoAmmo(xHand))
     {
         if(time > xAttackFinished)
         {
             sound(self, CHAN_AUTO, "gunclick.wav", 1, ATTN_NORM);
             *xOutAttackFinished = time + 0.5;
+            if(cvar_hget(cvarh_vr_debug_shots))
+            {
+                dprint(sprintf("empty click: hand %g, weapon %g\n", xHand, xWeapon));
+            }
         }
 
         return;

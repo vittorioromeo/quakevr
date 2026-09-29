@@ -12949,3 +12949,54 @@ pull acting along where it lies. Branch `agent/hook`, after "Grappling hook: one
 - Multiplayer: each rope's points go to every client every server frame (up to 96 points: 1.2 KB with float
   coordinates).
 - A prop pushed hard into the rope can leave a point inside it for a frame (put back on top next frame).
+
+## Melee: punches land at once; the empty hammer is quiet
+
+Your notes (NOTES.md vrfiringrange_2026-09-29_21-55-59 and 21-57-10): the hammer with no ammunition clicked at every
+trigger press, and punch damage seemed to come about half a second after the hit. Branch `agent/melee2`.
+
+### The punch delay: a bug, not a detection window
+
+- **The cause** (`VR_Melee_Sweep`, vr_melee.qc): each point of what the hand holds is either a striking point (a
+  blade, an axe's head, a gun's barrel, a fist) or the near end (a pommel, a handle's end, a gun's butt). The near
+  end's touch waits a moment for the blade to reach the same thing, so a cut from close by counts as a cut, not a
+  pommel strike. The test `vr_mpt_kind[i] == VR_MPT_EDGE || vr_mpt_kind[i] == VR_MPT_FIST` (a global array read twice
+  by a variable index in one expression) came out FALSE for the fist's points, as the compiler builds it. So every
+  punch went the pommel's way: it waited 0.1 s after contact, then landed on the next fresh hand pose. Blades were not
+  affected (their test is the first half). Now `VR_Melee_Strikes(kind)` reads the kind once. No other global array is
+  read twice in one line in the QC.
+- **Measured** (the archived takes, replayed with your old hand settings; the time from the first frame a point
+  touched the model to the frame the damage was dealt): punches 100-116 ms median before (one straight punch 448 ms,
+  as the touch fell between two fresh poses), 0 ms now: the damage comes in the frame of contact. Every punch take
+  lands with the same part and speed as before, 0.1-0.45 s earlier; no verdict changed.
+- **Synthetic punches** (motion_synth.py, 8 straight punches 0.8-0.9 m out at 0.12-0.35 s, and one high, one low):
+  contact to damage 133 ms before, 0 ms now. (The shipped `punch_straight` preset stops 0.6 m ahead of the head and
+  no longer reaches the dummy's model since precise hits; it isn't a test of anything now.)
+
+### Pommel Strike Wait (`vr_melee_pommel_wait`, 0.05 s; was a constant, 0.1)
+
+Melee Settings > Pommel Strike Wait. Only pommel and butt strikes wait now. The tradeoff, on the 304 archived blow
+takes (punches, pommel and butt strikes, swings, slashes, stabs, shoves, no-hits):
+
+| Wait | Pommel strikes: contact to damage (median) | Takes that pass | Changed |
+|---|---|---|---|
+| 0.1 s | 116 ms | 263 | - |
+| 0.05 s (new default) | 66 ms | 262 | 1 pommel strike now reads as one; 2 close slashes read as pommel strikes |
+| 0 | 0 ms | 245 | 6 pommel strikes gained; 24 slashes (sword and axe) read as pommel strikes |
+
+A slash read as a pommel strike does 0.5-0.6 of the damage. Raise the wait if close cuts feel weak.
+
+### The hammer's empty click
+
+`W_AttackImpl` (weapons.qc): Mjolnir with no cells (or an empty clip) no longer clicks: the trigger closes the hand
+round its handle and it is swung by motion as always. Without tracked hands it swings as the hammer (fewer than 30
+cells), as in the mission pack. Every other weapon still clicks. `vr_debug_shots 1` with `developer 1` prints
+"empty click: hand, weapon" at each click (tests: an empty nailgun clicked 15 times in 12 presses and a hold, the
+empty hammer 0 in 12 presses).
+
+### In the headset
+
+- Punch the dummy and a monster: the number, the sound and the flinch come with the hit now.
+- Pommel strikes and gun butt strikes land about 50 ms sooner. Tell me if close sword or axe cuts now read as pommel
+  strikes (the dummy says "pommel"); Pommel Strike Wait 0.1 is the old behaviour.
+- Hold the hammer with no cells and squeeze the trigger: silence. An empty gun still clicks.
