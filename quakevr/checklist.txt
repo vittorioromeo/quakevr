@@ -1,0 +1,37 @@
+# Quake VR playtest checklist: what to test in the headset or give feedback on.
+# Shown in the VR menu by the "Checklist" corner button (also Debug > Checklist); read at runtime, so edit this
+# file and the game picks it up (within a second, or "Reload List" on the page). No rebuild.
+#
+# Format:
+#   [Section name]      a header; the items under it are listed in that section
+#   one item per line   the whole line is the item (long ones wrap in the menu)
+#   # or //             at the start of a line: a comment; blank lines are ignored
+#
+# Ticks are kept in checklist_ticks.txt next to this file (not committed), by each item's exact text: add, move or
+# remove items freely; changing an item's wording un-ticks it.
+
+[Test in VR]
+Grenade pouch: sliders re-tested after your angles become the defaults
+Batting by weight: a weak flick barely moves a heavy box; light things still bat well (Carrying: Hand/Weapon Mass, Push Force)
+Held props in both hands meet, with up to 5 cm of give and a buzz (Held Things Collide, Collide Give)
+Held prop swung through monsters never drops
+Flung props: turn Hurt Players on, bat props close to your body and flail; nothing should hit you as it leaves
+Flung prop damage feels right (Throwing and Physics > Flung Props: Damage, Reference Mass)
+Punches land instantly on the dummy and on monsters
+Close sword or axe cuts: does "pommel" show up wrongly? (Melee > Pommel Strike Wait 0.05, 0.1 = old)
+Empty hammer is silent when you squeeze the trigger
+Hitbox prototype: Debug > Tests > Hitbox Width 20, then walls, corners, stairs, slopes, doors, lifts, trains and climbing
+Tired arms at 15 kg feel right
+
+[Decide or give feedback]
+hudstyle 0 (Classic status bar) as the shipped default? Ironwail's default is 2 (Modern 2)
+Hitbox width: 20 or 16?
+Hitbox: does your box against monsters, items and shots stay at 32?
+Held prop 32 units behind a wall: keep the drop, or never drop while held?
+Flung props Hurt Players: off by default OK?
+
+[Tune]
+Stamina costs: shove, strike, melee, parry, climbing
+
+[Record]
+Melee takes again once the smaller hitbox ships

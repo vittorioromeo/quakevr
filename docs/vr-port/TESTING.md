@@ -771,13 +771,19 @@ selected row (with the header above it), its scroll and the page Back goes to. `
 and place in the tree. `menu_vr dump` prints every page reached from VR Settings and its rows (MDPAGE/MDROW lines);
 `python Misc/quakevr/menu_coverage.py before.log after.log` compares two dumps (every setting and action still on a
 page, the tree, pages over 30 rows; ROUND21.md, "Menus reorganized"). Page numbers: 13 Grappling Hook, 23 Weapon
-Offsets, 41 Held Object Offsets, 42 Weapon Weights, 43 Held Object Weights, 44 and on the pages added then, 65 Recording. `vr_mock_laser back|advanced|levels`
+Offsets, 41 Held Object Offsets, 42 Weapon Weights, 43 Held Object Weights, 44 and on the pages added then, 65 Recording. `vr_mock_laser back|advanced|levels|checklist`
 (or `<x> <y>` in menu coordinates; `off`) puts the main hand's laser on a corner button or a spot, whatever the hand's
 pose; then `vr_mock_button main trigger 1` / `0` clicks. `vr_mock_button off stickclick 1` / `0` gives the corner
 buttons the selection, `vr_mock_stick off 0 -1` (then `0 0`) moves down, `vr_mock_button main primary` presses;
 `vr_mock_stick main 0 -1` scrolls a page. Back to Game: `vr_mock_button main menu 1; wait90; vr_mock_button main menu
 0`, reopened by `togglemenu`. Across a restart: `writeconfig <file>` writes `vr_menu_positions`; exec that line at the
 next start (the kit puts `ironwail.cfg` back after each run).
+Playtest checklist (ROUND21.md, "In-game checklist"): **to update what the author is asked to test, edit
+`quakevr/checklist.txt`** (`[Section]` lines, one item a line, `#` comments; the format is at its top) and commit it: no
+rebuild, and a running game reads it again within a second. Ticks live in `quakevr/checklist_ticks.txt` (ignored), keyed
+by each item's exact text: rewording an item un-ticks it, moving or removing others does not. `vr_checklist` prints the
+list (CLSUM/CLITEM lines), `vr_checklist tick <n>` ticks or unticks item n, `vr_checklist reload` reads the file now;
+the page is `menu_vr 72` (Debug > Checklist).
 Climbing (ROUND21.md, "Climbing with both hands"): the mock's grip button does not press the grab. Script
 `+graboff`/`-graboff` and `+grabmain`/`-grabmain` (in a `vr_mock_play` file: `<t> cmd +graboff`). Map `vrclimb` has a rung
 wall (`setpos 71 0 24 0 0 0; noclip`, the second toggling setpos's noclip off) and a long ledge over a trench

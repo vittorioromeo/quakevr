@@ -26,6 +26,7 @@
 #include "vr_posing.hpp"
 #include "vr_sightalign.hpp"
 #include "vr_bodycal.hpp"
+#include "vr_checklist.hpp"
 #include "vr_view.hpp"
 #include "vr_units.hpp"
 #include "vr_flashlight.hpp"
@@ -108,6 +109,11 @@ struct Item
     const char* (*helpArg)(int){nullptr};
     void (*actionArg)(int){nullptr};
     bool wide{false};
+
+    // A row drawn dimmed while dimArg(arg) (the Checklist's ticked items), and a row that goes on the one `partOf` rows
+    // above (a long text's next line: selected with it, never on its own).
+    bool (*dimArg)(int){nullptr};
+    int partOf{0};
 
     [[nodiscard]] Item help(const char* text) const
     {
@@ -279,7 +285,7 @@ void runCommand(const char* text)
 // Whether the cursor can rest on it.
 [[nodiscard]] bool selectable(const Item& item)
 {
-    return item.kind != Item::Header && item.kind != Item::Info;
+    return item.kind != Item::Header && item.kind != Item::Info && item.partOf == 0;
 }
 
 [[nodiscard]] Item open(const char* label, int page)
@@ -333,10 +339,11 @@ struct PageTexts
     std::vector<std::pair<float, std::string>> weaponOffsetsInheritNames; // the Inherit From choice's
     std::string weaponWeightsTitle, weaponWeightsInheritTitle;
     std::string heldObjectOffsetsTitle, heldObjectWeightsTitle;
+    std::vector<std::string> checklistSections; // the Checklist's headers
     auto members()
     {
         return std::tie(weaponOffsetsTitle, weaponOffsetsInheritTitle, weaponOffsetsInheritNames, weaponWeightsTitle,
-            weaponWeightsInheritTitle, heldObjectOffsetsTitle, heldObjectWeightsTitle);
+            weaponWeightsInheritTitle, heldObjectOffsetsTitle, heldObjectWeightsTitle, checklistSections);
     }
 };
 mem::Cache<PageTexts> pageTexts{"menu texts", mem::Never};
@@ -1596,10 +1603,121 @@ void hologramTestMessage()
 // - Tests: what tests are done with in the headset (a monster ahead, a projectile at you, cheats).
 // Mock-headset commands (vr_mock_*) and the automated tests' settings (vr_fixed_frames, vr_particle_seed,
 // vr_debug_weight_stamina, vr_window_log...) stay in the console: they mean nothing in the headset.
+// Checklist (vr_checklist.hpp; the corner's "Checklist" button, Debug > Checklist): what to test in the headset or give
+// feedback on, from quakevr/checklist.txt, each item ticked by picking it; its long texts on the lines under it.
+int checklistGeneration = -1; // the list's generation the page was built for
+int checklistHidden = -1;     // and Hide Ticked's
+
+[[nodiscard]] const char* checklistSummary()
+{
+    static char text[48];
+    if(!checklist::loaded())
+    {
+        return "No quakevr/checklist.txt";
+    }
+    q_snprintf(text, sizeof(text), "%d open of %d", checklist::openCount(), checklist::itemCount());
+    return text;
+}
+
+[[nodiscard]] const char* checklistEmpty()
+{
+    return checklist::itemCount() > 0 ? "All ticked." : "Nothing on the list.";
+}
+
+[[nodiscard]] const char* checklistLine(int arg)
+{
+    return checklist::line(arg >> 8, arg & 255);
+}
+
+[[nodiscard]] bool checklistDim(int arg)
+{
+    return checklist::ticked(arg >> 8);
+}
+
+[[nodiscard]] const char* checklistHelp(int arg)
+{
+    return checklist::ticked(arg >> 8) ? "Ticked. Pick it again to untick it." : "Pick it (the trigger, or A) once done to tick it.";
+}
+
+void checklistToggle(int arg)
+{
+    checklist::toggle(arg >> 8);
+}
+
+void checklistReload()
+{
+    checklist::refresh(true);
+}
+
+[[nodiscard]] std::vector<Item> pageChecklist()
+{
+    checklist::refresh();
+    checklistGeneration = checklist::generation();
+    checklistHidden = vr_checklist_hide_ticked.value != 0.f ? 1 : 0;
+
+    // The headers' names, one for each run of items under a section, where the items point (all copied before any is
+    // pointed at).
+    const int n = checklist::itemCount();
+    std::vector<std::string>& names = pageTexts.checklistSections;
+    names.clear();
+    for(int i = 0; i < n; i++)
+    {
+        if(i == 0 || checklist::sectionOf(i) != checklist::sectionOf(i - 1))
+        {
+            names.emplace_back(checklist::sectionName(checklist::sectionOf(i)));
+        }
+    }
+
+    std::vector<Item> items = {
+        info(checklistSummary),
+        toggle("Hide Ticked", vr_checklist_hide_ticked).help("Leaves the ticked items out of the list."),
+        action("Reload List", checklistReload)
+            .help("Reads quakevr/checklist.txt again (done by itself too when the file changes). Ticks are kept by each "
+                  "item's text, in quakevr/checklist_ticks.txt."),
+    };
+    int run = -1;
+    bool headerDue = false;
+    int shown = 0;
+    for(int i = 0; i < n && i < (1 << 20); i++)
+    {
+        if(i == 0 || checklist::sectionOf(i) != checklist::sectionOf(i - 1))
+        {
+            run++;
+            headerDue = !names[run].empty();
+        }
+        if(checklistHidden && checklist::ticked(i))
+        {
+            continue;
+        }
+        if(headerDue)
+        {
+            headerDue = false;
+            items.push_back(header(names[run].c_str()));
+        }
+        shown++;
+        const int lines = q_min(checklist::lineCount(i), 256);
+        for(int l = 0; l < lines; l++)
+        {
+            Item r = row(checklistLine, checklistHelp, checklistToggle, (i << 8) | l, -1);
+            r.dimArg = checklistDim;
+            r.partOf = l;
+            items.push_back(r);
+        }
+    }
+    if(shown == 0)
+    {
+        items.push_back(info(checklistEmpty));
+    }
+    return items;
+}
+
 [[nodiscard]] std::vector<Item> pageDebug()
 {
     return {
         header("Playtesting"),
+        open("Checklist", pageIndex(pageChecklist))
+            .help("What to test in the headset or give feedback on (quakevr/checklist.txt), ticked as you go. Also the "
+                  "menu's corner button."),
         toggle("Voice Notes", vr_notes).help("Raise your off hand to your mouth and hold Y to record a note, with a screenshot and where you are; they go to quakevr/notes."),
         header("Debug"),
         open("Views", pageIndex(pageDebugViews))
@@ -2087,6 +2205,7 @@ const Page pages[] = {
     {"Debug - Reports", pageDebugReports, pageDebug},                       // 69
     {"Debug - Tools", pageDebugTools, pageDebug},                           // 70
     {"Debug - Tests", pageDebugTests, pageDebug},                           // 71
+    {"Checklist", pageChecklist, pageDebug},                                // 72 (also the corner's button)
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -3062,6 +3181,14 @@ void loadPositions()
     {
         done[page] = false; // Body Calibration: its phase, its result or its poses changed
     }
+    if(pages[page].build == pageChecklist)
+    {
+        checklist::refresh(); // (the file looked at once a second)
+        if(checklistGeneration != checklist::generation() || checklistHidden != (vr_checklist_hide_ticked.value != 0.f ? 1 : 0))
+        {
+            done[page] = false; // an item ticked, Hide Ticked, or the file edited
+        }
+    }
     if(weightPageStale(pages[page].build))
     {
         done[page] = false;
@@ -3441,7 +3568,8 @@ void change(const Item& item, int dir, bool repeat = false)
     {
         return -1;
     }
-    return i;
+    // A long text's next line: its first, while shown.
+    return i - list[i].partOf >= scrolls[page] ? i - list[i].partOf : -1;
 }
 
 // A long list's scrollbar, right of the values (as far as the screen goes), as Ironwail's lists
@@ -3536,6 +3664,15 @@ void drawItem(const Item& item, int y, bool selected)
         // A row of a list: its text across the width, white while selected.
         char text[41];
         q_strlcpy(text, item.infoArg ? item.infoArg(item.arg) : item.label, sizeof(text));
+        const bool dim = item.dimArg && item.dimArg(item.arg);
+        if(selected && item.dimArg)
+        {
+            VR_MenuDrawHighlight(4, y); // (the Checklist's: each line of the item picked; the VR style's only)
+        }
+        if(dim)
+        {
+            GL_PushCanvasColor(1.f, 1.f, 1.f, 0.4f);
+        }
         if(selected)
         {
             M_PrintWhite(0, y, text);
@@ -3543,6 +3680,10 @@ void drawItem(const Item& item, int y, bool selected)
         else
         {
             M_Print(0, y, text);
+        }
+        if(dim)
+        {
+            GL_PopCanvasColor();
         }
         return;
     }
@@ -3887,6 +4028,27 @@ void qvr::menu::jumpToAdvanced()
     showPage(PageAdvanced);
 }
 
+void qvr::menu::jumpToChecklist()
+{
+    const int target = pageIndex(pageChecklist);
+    checklist::refresh(true);
+    if(m_state == m_vr && page == target)
+    {
+        S_LocalSound("misc/menu1.wav");
+        return;
+    }
+    if(m_state == m_vr)
+    {
+        S_LocalSound("misc/menu2.wav");
+    }
+    else
+    {
+        VR_Menu_Open(); // (its sound as it is drawn)
+    }
+    parentPage[target] = PageMain;
+    showPage(target);
+}
+
 void qvr::menu::selectEnd(int dir)
 {
     if(m_state == m_vr)
@@ -4024,7 +4186,7 @@ extern "C" void VR_Menu_Draw()
     const bool rowSelected = !menuui::toolbarFocused();
     for(int i = scroll; i < n && i < scroll + rows; i++)
     {
-        drawItem(list[i], l.listTop + (i - scroll) * 8, rowSelected && i == cursor);
+        drawItem(list[i], l.listTop + (i - scroll) * 8, rowSelected && i - list[i].partOf == cursor);
     }
 
     if(int y, height; scrollbar(n, rows, y, height))
