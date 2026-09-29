@@ -12750,3 +12750,14 @@ and low on stamina the hands should get heavier, an empty hand too, as if it hel
   Shake Distance, Turn and Speed on the Stamina page.
 - Tired (Nearly Empty, held), swing an empty hand and a weapon: do they feel heavier, and is the empty hand's lag a
   nuisance for punching or grabbing? Empty Hand Weight 0 turns it off.
+## Defaults: the author's climbing values
+
+"I tweaked some of the values to make it even better, so make sure those are the default." His config's `vr_climb_*`
+against the shipped defaults (compiled, and `vr_defaults.cfg`): two differed, and are the defaults now.
+
+- `vr_climb_leniency` 10 -> 6 cm (a grip that misses a hold takes one only this close).
+- `vr_climb_hand_side` 0 -> 7.5 cm (the drawn hand on a hold moved outwards along the edge).
+
+The rest matched already (`vr_climb_hand_up` -10.5 was his from `vr_defaults.cfg`). `vr_cfg_version` 46 moves configs
+still holding the old values; a value the player changed stays (checked: a config at 34 with 10 and 0 comes out at 6
+and 7.5; one at 45 with leniency 8 keeps 8).

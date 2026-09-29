@@ -62,8 +62,10 @@ const DefaultChange defaultChanges[] = {
     {45, &r_lavaalpha, "1"},
     {45, &r_slimealpha, "0"},
     {45, &r_telealpha, "0"},
+    {46, &vr_climb_leniency, "10"},       // 6: the author's (ROUND21.md, "Defaults: the author's climbing values")
+    {46, &vr_climb_hand_side, "0"},       // 7.5: the author's, the drawn hand outwards along the edge
 };
-constexpr int configVersion = 45;
+constexpr int configVersion = 46;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
