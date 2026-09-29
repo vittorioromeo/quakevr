@@ -72,8 +72,12 @@ const DefaultChange defaultChanges[] = {
     // 48: the author's turn of a grenade from the pouch (NOTES.md vrfiringrange_2026-09-29_22-58-53).
     {48, &vr_grenade_pouch_hold_pitch, "0"}, // -180
     {48, &vr_grenade_pouch_hold_yaw, "0"},   // 90
+    // 49: Ironwail's own HUD style (NOTES.md vrfiringrange_2026-09-30_00-53-14): vr_bindings.cfg set the classic status
+    // bar before; flung props hurt players too (vrfiringrange_2026-09-30_00-56-20).
+    {49, &scr_hudstyle, "0"},             // 2
+    {49, &vr_prop_impact_players, "0"},   // 1
 };
-constexpr int configVersion = 48;
+constexpr int configVersion = 49;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

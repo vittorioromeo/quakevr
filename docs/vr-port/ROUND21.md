@@ -13509,3 +13509,53 @@ The eval set is now these takes (the kit's `canary.txt`, 52 of them, and `eval_b
 - Wiggle the axe or sword against it: nothing; a real cut still lands.
 - **Re-record** once the smaller player hitbox (`vr_hull_width`) lands: you'll stand closer, and the blows from close
   by (and the melee tolerance) need takes of their own.
+
+## Menu button back to the game; Ironwail's HUD; flung props hurt players; the pouch grenade's fixed turn
+
+From NOTES.md vrfiringrange_2026-09-30_00-09-12, 00-21-35, 00-53-14 and 00-56-20.
+
+**The menu button** (`vr_input.cpp` menuButton): in a menu, pressing it goes straight back to the game from any page
+(`menuui::backToGame`, as the "Back to game" corner button), and pressing it in the game opens the menu again on that
+page (Reopen Where Left, `vr_menu_remember`). B and Y go back a page, as before. It used to be Escape when released
+(back a page) and back to the game only when held for half a second. Waiting for a key to bind, it is still Escape
+(which cancels the binding). Checked in the mock: Options open, then the menu button goes to the game, pressed again
+Options comes back, and B goes to the main menu.
+
+**HUD style**: Ironwail's default, `hudstyle 2` (the engine's own default, unchanged since upstream). `vr_bindings.cfg`
+set `hudstyle 0` (the classic status bar, the one drawn on a hand); that line is gone. Config version 49 moves a config
+still at 0 to 2. Nothing else in the shipped cfgs sets it.
+
+**Flung props hurt players**: `vr_prop_impact_players` defaults to 1 (was 0), and config version 49 moves a 0 to 1.
+
+**The grenade from the pouch** now comes out at the same turn in the hand every time. It spawned at the hand's angles,
+and its grip (`vr_grip.cpp` serverTake) took it as it was: its axes relative to the hand's. A model turns with its
+pitch the other way round from the hand's angles (`held::axesFromAngles`, the brush flag), so the hand's pitch and roll
+tipped it in the hand by about twice their size, and In the Palm then laid its face nearest the palm on the palm from
+there. The result: the grenade came out much the same way in the world whatever the hand's turn, so it felt absolute.
+`serverFromPouch` now takes it at a fixed place: its origin at the hand's and its axes the hand's. Only the grip
+(In the Palm) and Grenade In Hand Pitch/Yaw/Roll (`vr_grenade_pouch_hold_*`) place it. Those sliders also reach the
+grenade you're holding right away now: they count as Held Object Offsets changes (`props::settingsGeneration`). Before,
+the drawn grenade kept its old place until the next take, although the server had placed it again.
+
+The mock, from `setpos 190 -560 41 0 90 0` in vrfiringrange with `give r 10`: the main hand at the pouch
+(`vr_mock_hand main 0 1.0 0.2 <pitch> <yaw> <roll>`, `+grabmain`), then `vr_carry_check`. That now prints each held
+prop's drawn place and axes in the controller's frame as well. The grenade's place and axes in the hand at six turns
+of the hand (0 0 0, 60 0 0, -60 0 0, 0 0 90, 30 40 -60, -45 -90 45):
+
+| | at (cm, forward left up) | its x | its z |
+|---|---|---|---|
+| before | varied by up to 2.7 cm | 0 0.77 -0.64 / 0 -0.94 -0.34 / 0 0.17 0.98 / 0 -1 0 / ... | a different axis at each turn |
+| after, all six | -4.48 5.99 -7.77 | 0 -1 0 | 0 0 -1 |
+
+The off hand's result, at two turns, is mirrored and also fixed: -4.43 -5.99 -7.77, its x 0 1 0. Moving Grenade In Hand
+Yaw 90 to 0 while it's held places it again at once (its x becomes -1 0 0), and it stays there as the hand turns.
+
+### In the headset
+
+- Reach into the pouch with your hand turned different ways (palm up, palm down, knuckles forward): the grenade
+  should sit in your hand the same way every time. Your Grenade In Hand Pitch/Yaw/Roll (-180 / 90 / 0) were set
+  against the old behaviour, so the pose they give now is different. Hold a grenade and move the sliders (Hip
+  Holsters > Grenade Pouch): it turns in your hand as you drag them. Your new values can become the defaults.
+- In a menu, press the menu button: you should be back in the game at once. Press it again: the same page.
+- The HUD is Ironwail's modern one now. The classic status bar on your hand is gone with it; Options > HUD style
+  brings it back.

@@ -833,7 +833,7 @@ QVR_CVAR(vr_gib_throw_damage, "4", CVAR_ARCHIVE)      // and of a gib or head
 // weapon's) times its Throw Damage x, vr_prop_impact_mult, its speed into it over vr_prop_impact_min_speed (at most
 // vr_prop_impact_speed_max) and (mass / vr_prop_impact_weight_ref)^vr_prop_impact_weight_curve (at most _weight_max).
 QVR_CVAR(vr_prop_impact_damage, "1", CVAR_ARCHIVE)        // on
-QVR_CVAR(vr_prop_impact_players, "0", CVAR_ARCHIVE)       // 1: players too (never the one who just let go of it), 0: monsters only
+QVR_CVAR(vr_prop_impact_players, "1", CVAR_ARCHIVE)       // 1: players too (never the one who just let go of it), 0: monsters only
 QVR_CVAR(vr_prop_impact_min_mass, "1", CVAR_ARCHIVE)      // kg: lighter props never hurt so
 QVR_CVAR(vr_prop_impact_min_speed, "8", CVAR_ARCHIVE)     // m/s towards what it meets (less for things over 10 kg: heavy leniency)
 QVR_CVAR(vr_prop_impact_mult, "1", CVAR_ARCHIVE)          // the damage times this

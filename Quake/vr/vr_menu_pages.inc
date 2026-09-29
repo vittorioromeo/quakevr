@@ -17,7 +17,7 @@
         slider("Menu Height", "vr_menu_height", 1.f, 2.f, 0.05f, "%.2fx").extend().help("With the VR menu style: how tall the menus are, over Quake's: more rows at once. 1.35 reaches about 35 degrees up and down at the shipped distance, scale and spacing."),
         slider("Menu Background Opacity", "scr_menubgalpha", 0.f, 1.f, 0.05f, "%.2f").help("How dark the panel behind the menus is (0.7 as shipped; the desktop menus' too): lower it to see the game while you tune the graphics. Below about 0.5 the text gets a dark outline, to stay readable."),
         toggle("Live Preview", "ui_live_preview").help("Settings pages show their changes in the game as you make them, and in single player the game keeps running under them (paused while a monster is after you)."),
-        toggle("Reopen Where Left", "vr_menu_remember").help("After Back to Game (the button at the menu's top left, or holding the menu button), the menu opens again on the page you left."),
+        toggle("Reopen Where Left", "vr_menu_remember").help("After Back to Game (the button at the menu's top left, or the menu button), the menu opens again on the page you left."),
     };
 }
 

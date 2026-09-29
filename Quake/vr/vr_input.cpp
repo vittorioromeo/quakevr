@@ -9,7 +9,7 @@
 // The off hand's stick moves (analog, see VR_AdjustMove); the main hand's stick turns, and
 // pushed up or down it is DPAD UP/DOWN. In menus the off hand's stick is the DPAD; the main hand's
 // only scrolls a page with a scrollbar or is DPAD UP/DOWN (never left/right: it doesn't change
-// settings); the menu button held closes the menu from any page.
+// settings); the menu button closes the menu from any page.
 
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -99,19 +99,9 @@ StickKey stickKeys[] = {{K_DPAD_UP}, {K_DPAD_DOWN}, {K_DPAD_LEFT}, {K_DPAD_RIGHT
                                              : posing::Button::StickClick;
 }
 
-// The menu button is Escape: it opens and closes the menu and can never be unbound. In a menu,
-// held for half a second it goes back to the game at once, from any page (menuui::backToGame);
-// a shorter press is Escape as it is let go (back a page).
-constexpr double menuHoldTime = 0.5;
-
-struct MenuButton
-{
-    bool pending{false}; // pressed in a menu, not yet Escape or back to the game
-    double pressTime{0.0};
-};
-
-MenuButton menuButtons[HAND_COUNT];
-
+// The menu button is Escape: it opens and closes the menu and can never be unbound. In a menu it goes back to the game
+// at once, from any page (menuui::backToGame: the menu opens again on that page); B and Y go back a page (NOTES.md
+// vrfiringrange_2026-09-30_00-21-35). Waiting for a key to bind, it is Escape (the binding cancelled).
 void escape()
 {
     Key_Event(K_ESCAPE, true);
@@ -120,30 +110,17 @@ void escape()
 
 void menuButton(int hand, bool now, bool before)
 {
-    MenuButton& b = menuButtons[hand];
-    if(now && !before)
+    if(!now || before)
     {
-        if(key_dest == key_menu && m_state != m_none && !M_WaitingForKeyBinding())
-        {
-            b = {true, realtime};
-        }
-        else
-        {
-            escape();
-        }
+        return;
     }
-    else if(b.pending && now && realtime - b.pressTime >= menuHoldTime)
+    if(key_dest == key_menu && m_state != m_none && !M_WaitingForKeyBinding())
     {
-        b.pending = false;
         menuui::backToGame(hand);
     }
-    else if(b.pending && !now)
+    else
     {
-        b.pending = false;
-        if(key_dest == key_menu)
-        {
-            escape();
-        }
+        escape();
     }
 }
 

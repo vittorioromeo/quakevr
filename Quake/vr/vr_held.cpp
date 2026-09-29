@@ -1690,6 +1690,14 @@ void carryCheck()
         const float apart =
             glm::distance(glm::transpose(ctrl) * (drawnPos - s.pos[h]), glm::transpose(svHand) * (physPos - svHandPos)) / m2u * 100.f;
         const float turn = turnBetween(glm::transpose(ctrl) * drawnRot, glm::transpose(svHand) * physRot);
+        {
+            // As drawn, in the controller's frame (forward, left, up): the same every time for a grenade from the pouch.
+            const glm::mat3 r = glm::transpose(ctrl) * drawnRot;
+            const glm::vec3 at = glm::transpose(ctrl) * (drawnPos - s.pos[h]) / m2u * 100.f;
+            Con_Printf("carry check: %s hand: drawn in the hand (forward, left, up) at %.2f %.2f %.2f cm, its x %.3f %.3f %.3f, "
+                       "its z %.3f %.3f %.3f\n",
+                h == 1 ? "main" : "off", at.x, at.y, at.z, r[0].x, r[0].y, r[0].z, r[2].x, r[2].y, r[2].z);
+        }
         if(f.carry_offset >= 0 && vr_debug_carry.value)
         {
             const glm::vec3 o = fieldVec(ed, f.carry_offset);
