@@ -16,7 +16,7 @@ QVR_CVAR(vr_item_float_height, "26", CVAR_ARCHIVE)    // units above the floor t
 QVR_CVAR(vr_hit_precise, "1", CVAR_ARCHIVE)           // Combat > Hit Detection > Precise Hit Detection; 0: Quake's boxes, as before
 QVR_CVAR(vr_hit_tolerance_guns, "4", CVAR_ARCHIVE)    // units the model is grown by for shots and projectiles (nails, rockets, grenades, lasers...)
 QVR_CVAR(vr_hit_tolerance_grapple, "2", CVAR_ARCHIVE) // for the grappling hook
-QVR_CVAR(vr_hit_tolerance_melee, "4", CVAR_ARCHIVE)   // for melee blows (on top of the striking points' own thickness, 3 units)
+QVR_CVAR(vr_hit_tolerance_melee, "6", CVAR_ARCHIVE)   // for melee blows and shoves (on top of the striking points' own thickness, 3 units)
 QVR_CVAR(vr_hit_tolerance_thrown, "2", CVAR_ARCHIVE)  // for thrown things (on top of their hit box, vr_throw_hitbox: 6)
 QVR_CVAR(vr_debug_hits, "0", CVAR_NONE)               // Debug > Show Hits: each precise hit drawn (the model as drawn then, the triangle hit, the point on the model) and printed; 2: also the shots through a box that missed the model
 
