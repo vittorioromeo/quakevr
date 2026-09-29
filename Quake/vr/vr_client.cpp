@@ -679,6 +679,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_WOUND: wounds::parseEvent(); break;
         case QVR_SVC_WOUNDCLEAR: wounds::parseClear(); break;
         case QVR_SVC_CATCHBLEND: drawblend::parseCatch(); break;
+        case QVR_SVC_ROPE: rope::parsePoints(); break;
         default: Host_Error("svc_quakevr: unknown command %d", subcmd);
     }
 

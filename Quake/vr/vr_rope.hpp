@@ -16,6 +16,9 @@ namespace qvr::rope
 // share of its length that hangs).
 void setSlack(int key, float slack);
 
+// QVR_SVC_ROPE: a rope's simulated points (the server's, vr_ropesim.cpp), for its beam: drawn through them.
+void parsePoints();
+
 // At sign-on: every rope forgotten.
 void forget();
 

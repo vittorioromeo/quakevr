@@ -3543,6 +3543,86 @@ float propMass(edict_t* ent)
     return (hull ? hull->volume : size.x * size.y * size.z) * densityOf(ent, model);
 }
 
+namespace
+{
+
+// The rope's queries: what it can't pass through, less its ends.
+struct RopeQuery
+{
+    int skipA{0};
+    int skipB{0};
+    box3d::RopeHit* hit{nullptr};
+    bool any{false};
+};
+
+[[nodiscard]] b3QueryFilter ropeFilter()
+{
+    b3QueryFilter filter = b3DefaultQueryFilter();
+    filter.categoryBits = catProp;
+    filter.maskBits = catWorld | catMover | catProp | catFixture;
+    return filter;
+}
+
+} // namespace
+
+bool ropeCast(const glm::vec3& from, const glm::vec3& to, float radius, int skipA, int skipB, RopeHit& hit)
+{
+    hit = RopeHit{};
+    if(!world || glm::distance(from, to) < 1e-3f)
+    {
+        return false;
+    }
+    const b3Vec3 zero = b3Vec3_zero;
+    const b3ShapeProxy proxy{&zero, 1, radius / world->m2u};
+    RopeQuery q{skipA, skipB, &hit, false};
+    b3World_CastShape(world->id, world->toM(from), &proxy, world->toM(to - from), ropeFilter(),
+        [](b3ShapeId shape, b3Pos, b3Vec3 normal, float fraction, uint64_t, int, int, void* context) -> float {
+            RopeQuery& rq = *static_cast<RopeQuery*>(context);
+            const int num = numOf(shape);
+            if(num != 0 && (num == rq.skipA || num == rq.skipB))
+            {
+                return -1.f; // (not this one)
+            }
+            if(fraction < rq.hit->fraction)
+            {
+                rq.hit->fraction = fraction;
+                rq.hit->normal = glm::vec3{normal.x, normal.y, normal.z};
+                rq.any = true;
+            }
+            return fraction; // (the closest)
+        },
+        &q);
+    if(q.any)
+    {
+        hit.centre = from + (to - from) * hit.fraction;
+    }
+    return q.any;
+}
+
+bool ropeOverlaps(const glm::vec3& at, float radius, int skipA, int skipB)
+{
+    if(!world)
+    {
+        return false;
+    }
+    const b3Vec3 zero = b3Vec3_zero;
+    const b3ShapeProxy proxy{&zero, 1, radius / world->m2u};
+    RopeQuery q{skipA, skipB, nullptr, false};
+    b3World_OverlapShape(world->id, world->toM(at), &proxy, ropeFilter(),
+        [](b3ShapeId shape, void* context) {
+            RopeQuery& rq = *static_cast<RopeQuery*>(context);
+            const int num = numOf(shape);
+            if(num != 0 && (num == rq.skipA || num == rq.skipB))
+            {
+                return true; // (go on)
+            }
+            rq.any = true;
+            return false;
+        },
+        &q);
+    return q.any;
+}
+
 } // namespace qvr::box3d
 
 extern "C" int VR_PushSkips(edict_t* ent)

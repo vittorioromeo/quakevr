@@ -3967,9 +3967,16 @@ void pressWeaponButtons(const hands::State& s)
         const glm::vec3 buttonPos{button.ent.origin[0], button.ent.origin[1], button.ent.origin[2]};
 
         const bool hover = glm::distance(fingertip, buttonPos) < 2.7f;
+        if(developer.value >= 2 && glm::distance(fingertip, buttonPos) < 8.f) // (placing a button: how near the finger is)
+        {
+            Con_Printf("weapon button %d: the other fingertip %.1f from it (%.1f %.1f %.1f)\n", hand,
+                static_cast<double>(glm::distance(fingertip, buttonPos)), static_cast<double>(fingertip.x),
+                static_cast<double>(fingertip.y), static_cast<double>(fingertip.z));
+        }
         if(hover && !st.hover)
         {
-            Cbuf_AddText(hand == HAND_OFF ? "impulse 42\n" : "impulse 43\n");
+            // (Inserted: it runs next, before the rest of a mock script; a real game's buffer is empty then.)
+            Cbuf_InsertText(hand == HAND_OFF ? "impulse 42\n" : "impulse 43\n");
         }
         st.hover = hover;
     }

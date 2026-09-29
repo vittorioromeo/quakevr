@@ -68,6 +68,7 @@ constexpr Def defs[] = {
     {"traces", Server, "trace"},
     {"box3d", Server, "box3d|box3d sync|box3d hands|box3d water and hits|box3d step|box3d write|rigid bodies"},
     {"vr gameplay", Server, "climb|vr hand touches|vr swim|carry2h"},
+    {"grapple rope sim", Server, "grapple rope sim"}, // vr_ropesim.cpp: the physical rope's chain and its taut path
     {"server send", Server, "send"},
     {"server other", Server, "server"},
     {"net parse", Client, "parse"},

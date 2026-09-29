@@ -3498,14 +3498,18 @@ void() ImpulseCommands =
         }
     }
 
+    // A weapon's button pressed (the other hand's fingertip on it): its secondary ammo; the grappling hook's quick
+    // release (vr_grapple.qc).
     if(self.impulse == 42)
     {
-        ToggleSecondaryAmmo(cVR_OffHand);
+        if(VRGetWeapon(cVR_OffHand) == WID_GRAPPLE) VR_Grapple_QuickRelease(cVR_OffHand);
+        else                                         ToggleSecondaryAmmo(cVR_OffHand);
     }
 
     if(self.impulse == 43)
     {
-        ToggleSecondaryAmmo(cVR_MainHand);
+        if(VRGetWeapon(cVR_MainHand) == WID_GRAPPLE) VR_Grapple_QuickRelease(cVR_MainHand);
+        else                                          ToggleSecondaryAmmo(cVR_MainHand);
     }
 
     if(self.impulse >= 225 && self.impulse <= 226)
@@ -3539,8 +3543,9 @@ void() ImpulseCommands =
 
 
 
-    // The hand's B/Y also reels its grappling hook in (vr_grapple.qc): while the hook is out, it cycles nothing.
-    if(self.impulse == 10 && time >= self.attack_finished && !getHookOut(cVR_MainHand))
+    // The hand's B/Y also reels a grappling hook in (vr_grapple.qc: its own gun's, or the other hand's when its own has
+    // none out): while it drives one, it cycles nothing.
+    if(self.impulse == 10 && time >= self.attack_finished && !VR_Grapple_ButtonsBusy(cVR_MainHand))
     {
         if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
         {
@@ -3550,7 +3555,7 @@ void() ImpulseCommands =
         }
     }
 
-    if(self.impulse == 12 && time >= self.offhand_attack_finished && !getHookOut(cVR_OffHand))
+    if(self.impulse == 12 && time >= self.offhand_attack_finished && !VR_Grapple_ButtonsBusy(cVR_OffHand))
     {
         if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
         {
@@ -3656,6 +3661,14 @@ void() ImpulseCommands =
     if(self.impulse == 235 && !deathmatch && !coop) // and what they touched
     {
         VR_Test_MissilesReport();
+    }
+    if(self.impulse == 239) // QVR: every grappling hook's state, its gun's place and its rope (vr_grapple.qc)
+    {
+        VR_Grapple_Report();
+    }
+    if(self.impulse == 233 && !deathmatch && !coop) // QVR test: you touch what the hooks are in (a pickup is taken)
+    {
+        VR_Grapple_TestTouch();
     }
     if(self.impulse == 241 && !deathmatch && !coop) // QVR: a monster or a box ahead, facing you (vr_test_spawn; weapons against models)
     {

@@ -912,6 +912,13 @@ QVR_CVAR(vr_grapple_medium_speed, "160", CVAR_ARCHIVE)   // and a medium one
 QVR_CVAR(vr_grapple_stagger, "1", CVAR_ARCHIVE)          // small monsters reeled in are staggered (their pain, forced; again every second of reeling)
 QVR_CVAR(vr_grapple_stamina, "0", CVAR_ARCHIVE)          // stamina a second reeling a monster in costs (the parry/shove/strike pool); short of it, it comes slower. 0: free
 QVR_CVAR(vr_grapple_haptics, "1", CVAR_ARCHIVE)          // strength of the rope's haptics (the hook biting, the reel, the rope snapping taut); 0 none
+QVR_CVAR(vr_grapple_quick_speed, "1800", CVAR_ARCHIVE)   // units/s the quick release (the button on the gun) brings the hook back at
+QVR_CVAR(vr_grapple_drop_grace, "0.12", CVAR_ARCHIVE)    // seconds the trigger let go waits before the hook comes off: dropping or passing the gun by then keeps it in
+QVR_CVAR(vr_grapple_rope_sim, "1", CVAR_ARCHIVE)         // the rope is a physical thing (vr_ropesim.cpp): it hangs, lies and wraps round the world and the props, never through them, and pulls along where it lies; 0: a straight line (drawn sagging)
+QVR_CVAR(vr_grapple_rope_spacing, "12", CVAR_ARCHIVE)    // units between the simulated rope's points (finer: truer round edges, more work; a long rope's are farther apart: 96 points at most)
+QVR_CVAR(vr_grapple_rope_iterations, "8", CVAR_ARCHIVE)  // passes a frame holding its pieces to their length (more: stiffer, truer, more work)
+QVR_CVAR(vr_grapple_rope_radius, "1", CVAR_ARCHIVE)      // the simulated rope's thickness (units, half of it): how far from what it lies on
+QVR_CVAR(vr_grapple_trigger_release, "0", CVAR_ARCHIVE)  // the trigger let go: 0 the hook comes loose on its rope (reel it in with B/Y); 1 it comes straight back (as the quick release)
 QVR_CVAR(vr_grapple_sag, "1", CVAR_ARCHIVE)              // a slack rope is drawn hanging (0: always straight)
 QVR_CVAR(vr_grapple_debug, "0", CVAR_NONE)               // with developer 1: what the hook bites and each reel (mass, class, speeds); 2 also the rope four times a second; 3 every frame the rope holds you
 QVR_CVAR(vr_weapondrop_particles, "1", CVAR_ARCHIVE)

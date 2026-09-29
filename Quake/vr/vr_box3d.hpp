@@ -38,4 +38,19 @@ void debugDraw();
 // The profiler's counts: Box3D's bodies, those awake, the contacts the solver works on (0 without a world).
 void profileCounts(int& bodies, int& awake, int& contacts);
 
+// The grappling hook's rope (vr_ropesim.cpp) against what it can't pass through: the world's mesh, the doors and lifts,
+// the props (not the entities `skipA` and `skipB`, 0: none; the rope's ends). A sphere of `radius` cast from `from` to
+// `to`: its first hit (the fraction of the way, the sphere's centre there and the surface's normal); false if clear, and
+// without Box3D's world.
+struct RopeHit
+{
+    float fraction{1.f};
+    glm::vec3 centre{0.f};
+    glm::vec3 normal{0.f};
+};
+bool ropeCast(const glm::vec3& from, const glm::vec3& to, float radius, int skipA, int skipB, RopeHit& hit);
+
+// Whether a sphere there overlaps any of them.
+[[nodiscard]] bool ropeOverlaps(const glm::vec3& at, float radius, int skipA, int skipB);
+
 } // namespace qvr::box3d
