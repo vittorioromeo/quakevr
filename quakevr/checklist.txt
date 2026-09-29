@@ -38,6 +38,10 @@ Grapple: loose hook points the right way; rope starts at the muzzle, in hand and
 Grapple: hook only bites what you actually hit (armour, props)
 Grapple: slack rope looks right (Debug > Views > Show Grapple Rope shows the points)
 
+Held prop: one hand, then both, pull one off and back (each hand); it stays on the kept hand, regrab where drawn
+Held prop: in both hands, open one; it slides onto the kept hand with no gap
+Force grab props while walking: no gap in the hand
+
 [Decide or give feedback]
 hudstyle 0 (Classic status bar) as the shipped default? Ironwail's default is 2 (Modern 2)
 Hitbox width: 20 or 16?
