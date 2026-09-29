@@ -805,6 +805,8 @@ QVR_CVAR(vr_debug_hands, "0", CVAR_NONE)              // prints each hand's stat
 QVR_CVAR(vr_debug_carry, "0", CVAR_NONE)              // draws, for each hand near a carriable thing, the grab test: the box the thing is drawn in, the fist tested (its spheres; the nearest bright) and the nearest point of its surface (green: it touches, in reach); 2: also carry_trace.txt, what is carried and both hands every frame, and each grab test printed; 3: and the fists not near
 QVR_CVAR(vr_debug_arm, "0", CVAR_NONE)                // prints each drawn arm's IK once (the shoulder, elbow and wrist in the body's axes, cm; the elbow's swing; the wrist's bend and twist against the forearm), then turns itself off; 2: every frame
 QVR_CVAR(vr_debug_lean, "0", CVAR_NONE)               // lean_trace.txt (the game directory): the head, the box, the lean, the pelvis and the feet every frame, and the lean's cues (vr_lean_detect)
+QVR_CVAR(vr_grapple_test_stuck, "0", CVAR_NONE)        // Debug > Tests > Grappling Hook > Load Stuck: what hangs on the rope (a loose hook, a hooked prop) stays where it is, as if snagged (tests the rope holding you back)
+QVR_CVAR(vr_debug_rope, "0", CVAR_NONE)                // Debug > Views > Show Grapple Rope: each grappling hook rope's drawn chain (points white, pieces green), the corners it wraps round (red) and its taut path (yellow) (vr_rope.cpp)
 QVR_CVAR(vr_debug_physics_shapes, "0", CVAR_NONE)     // Debug > Views > Show Physics Shapes: Box3D's bodies drawn as wireframes (props awake green, asleep blue, held yellow, doors purple, monsters orange, players cyan, hanging pickups grey; contact points), and the hands' grab probes (as vr_debug_carry)
 QVR_CVAR(vr_debug_hand_bones, "0", CVAR_NONE)         // Debug > Views > Show Hand Bones: the jointed hands' joints and bones, the grasp's contact spheres (green touching, yellow near, red sunk in) and the palm's fit (where it was, where the grasp put it)
 QVR_CVAR(vr_carry_two_hands, "1", CVAR_ARCHIVE)       // a box, backpack, gib, head or armour carried in one hand can be gripped by the other too: held in both, it follows both hands (vr_carry2h.cpp)
@@ -945,7 +947,19 @@ QVR_CVAR(vr_grapple_rope_sim, "1", CVAR_ARCHIVE)         // the rope is a physic
 QVR_CVAR(vr_grapple_rope_spacing, "12", CVAR_ARCHIVE)    // units between the simulated rope's points (finer: truer round edges, more work; a long rope's are farther apart: 96 points at most)
 QVR_CVAR(vr_grapple_rope_iterations, "8", CVAR_ARCHIVE)  // passes a frame holding its pieces to their length (more: stiffer, truer, more work)
 QVR_CVAR(vr_grapple_rope_radius, "1", CVAR_ARCHIVE)      // the simulated rope's thickness (units, half of it): how far from what it lies on
-QVR_CVAR(vr_grapple_trigger_release, "0", CVAR_ARCHIVE)  // the trigger let go: 0 the hook comes loose on its rope (reel it in with B/Y); 1 it comes straight back (as the quick release)
+QVR_CVAR(vr_grapple_trigger_release, "0", CVAR_ARCHIVE)  // the trigger let go: 0 nothing (the hook stays in: the detach button on the gun takes it off); 1 it comes straight back (as the reel-in button); 2 it comes loose on its rope (reel it in with B/Y)
+QVR_CVAR(vr_grapple_max_length, "1500", CVAR_ARCHIVE)    // units: the longest the rope is (the hook flies no farther; the unreel pays out no more)
+QVR_CVAR(vr_grapple_loose_slack, "24", CVAR_ARCHIVE)     // units of slack the rope gets when the hook comes off (a loose hook lying there is not dragged by a step)
+QVR_CVAR(vr_grapple_move_share, "0.7", CVAR_ARCHIVE)     // the share of your walking (the thumbstick) a load hanging on the rope takes (the loose hook, a hooked prop): it trails a little rather than lagging far behind and snapping forward; 0: none
+QVR_CVAR(vr_grapple_load_drag, "1", CVAR_ARCHIVE)        // a second: how much of its speed a load on the rope loses to the air (its swing relative to you; a gun hanging on its own: all of it), so a swing dies down
+QVR_CVAR(vr_grapple_hang_drag, "3", CVAR_ARCHIVE)        // a second: how much of its speed what hangs on a rope with no one holding it loses (a gun left hanging from a ceiling: it stops swinging in a couple of seconds)
+QVR_CVAR(vr_grapple_load_max_speed, "700", CVAR_ARCHIVE) // units/s: the fastest a load on the rope moves relative to you (no rope of death); 0: no limit
+QVR_CVAR(vr_grapple_shootable, "1", CVAR_ARCHIVE)        // shooting a hook that is in the world or a door (any weapon) takes it off
+QVR_CVAR(vr_grapple_front_button, "1", CVAR_ARCHIVE)     // the grappling gun's front button (near the muzzle): the instant reel-in (the back one only detaches)
+QVR_CVAR(vr_grapple_front_button_x, "6", CVAR_ARCHIVE)   // its place: from the back button along the gun (model units; +x towards the muzzle)
+QVR_CVAR(vr_grapple_front_button_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_grapple_front_button_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_grapple_rope_depth, "2", CVAR_ARCHIVE)       // units inside the grappling gun's muzzle the rope is drawn from (in a hand, and a gun lying about); -1: the old places (the muzzle's end; a gun lying about: where the server has it)
 QVR_CVAR(vr_grapple_sag, "1", CVAR_ARCHIVE)              // a slack rope is drawn hanging (0: always straight)
 QVR_CVAR(vr_grapple_debug, "0", CVAR_NONE)               // with developer 1: what the hook bites and each reel (mass, class, speeds); 2 also the rope four times a second; 3 every frame the rope holds you
 QVR_CVAR(vr_weapondrop_particles, "1", CVAR_ARCHIVE)

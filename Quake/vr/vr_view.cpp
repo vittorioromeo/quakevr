@@ -1,6 +1,7 @@
 // vr_view.cpp -- see vr_view.hpp. Ported from the old engine's view.cpp (V_RenderView_*).
 
 #include "vr_hitmodel.hpp"
+#include "vr_rope.hpp"
 #include "vr_view.hpp"
 #include "vr_engine.hpp"
 #include "vr_units.hpp"
@@ -227,6 +228,7 @@ struct Entities
     view::ViewEntity flashlight; // vr_flashlight.cpp
     view::ViewEntity pouch;      // the grenade pouch at the small of the back (vr_handgrenade)
     view::ViewEntity button[2];
+    view::ViewEntity frontButton[2]; // the grappling gun's second button, near the muzzle (the reel-in)
     view::ViewEntity ghost[2]; // the motion review's ghost of a take's weapons (view::setGhost)
 };
 
@@ -271,6 +273,10 @@ void forEachEntity(F&& f)
     f(entities.flashlight);
     f(entities.pouch);
     for(view::ViewEntity& ve : entities.button)
+    {
+        f(ve);
+    }
+    for(view::ViewEntity& ve : entities.frontButton)
     {
         f(ve);
     }
@@ -3933,22 +3939,24 @@ void setupPauldrons()
 // Weapon buttons
 
 // Pressing a weapon's button with the other hand's fingertip toggles its secondary ammo (old
-// engine's VR_DoWpnButton, which sent keys bound to these impulses).
+// engine's VR_DoWpnButton, which sent keys bound to these impulses): impulse 42 (the off hand's weapon), 43 (the main
+// hand's); the grappling gun's is the detach. Its front button (near the muzzle): 44, 45, the reel-in.
 struct ButtonState
 {
     bool hover{false};
     double lastCheck{0.0}; // cl.time
 };
 ButtonState buttonStates[2];
+ButtonState frontButtonStates[2];
 
 void pressWeaponButtons(const hands::State& s)
 {
-    ButtonState (&states)[2] = buttonStates;
-
-    for(int hand = 0; hand < 2; hand++)
+    for(int k = 0; k < 4; k++)
     {
-        ButtonState& st = states[hand];
-        const view::ViewEntity& button = entities.button[hand];
+        const int hand = k & 1;
+        const bool front = k >= 2;
+        ButtonState& st = front ? frontButtonStates[hand] : buttonStates[hand];
+        const view::ViewEntity& button = front ? entities.frontButton[hand] : entities.button[hand];
         if(!button.visible)
         {
             st.hover = false;
@@ -3969,14 +3977,14 @@ void pressWeaponButtons(const hands::State& s)
         const bool hover = glm::distance(fingertip, buttonPos) < 2.7f;
         if(developer.value >= 2 && glm::distance(fingertip, buttonPos) < 8.f) // (placing a button: how near the finger is)
         {
-            Con_Printf("weapon button %d: the other fingertip %.1f from it (%.1f %.1f %.1f)\n", hand,
+            Con_Printf("weapon button %d%s: the other fingertip %.1f from it (%.1f %.1f %.1f)\n", hand, front ? " (front)" : "",
                 static_cast<double>(glm::distance(fingertip, buttonPos)), static_cast<double>(fingertip.x),
                 static_cast<double>(fingertip.y), static_cast<double>(fingertip.z));
         }
         if(hover && !st.hover)
         {
             // (Inserted: it runs next, before the rest of a mock script; a real game's buffer is empty then.)
-            Cbuf_InsertText(hand == HAND_OFF ? "impulse 42\n" : "impulse 43\n");
+            Cbuf_InsertText(front ? (hand == HAND_OFF ? "impulse 44\n" : "impulse 45\n") : (hand == HAND_OFF ? "impulse 42\n" : "impulse 43\n"));
         }
         st.hover = hover;
     }
@@ -4012,6 +4020,37 @@ void setupButton(int hand)
     angles.x = -angles.x; // alias models' pitch is the other way
 
     place(ve, viewModel("progs/wpnbutton.mdl"), pos, angles, 0, mirrored);
+}
+
+// The grappling gun's front button (vr_grapple_front_button): the back button's place moved along the gun
+// (vr_grapple_front_button_x/y/z, model units), turned as it is.
+void setupFrontButton(int hand)
+{
+    view::ViewEntity& ve = entities.frontButton[hand];
+    const view::ViewEntity& weapon = entities.weapon[hand];
+    const int slot = weapon.ent.model ? weapons::slotForModel(weapon.ent.model) : -1;
+    if(!vr_grapple_front_button.value || slot < 0 || strcmp(weapon.ent.model->name, "progs/v_grpple.mdl") ||
+        weapons::value(slot, Key::WpnButtonMode) == 0.f || !entities.button[hand].visible)
+    {
+        ve.visible = false;
+        return;
+    }
+    const twohand::HeldAs& held = drawnAs[hand];
+    const bool mirrored = held.mirrored;
+    const glm::vec3 pos = view::anchorPosition(weapon, static_cast<int>(weapons::value(slot, Key::WpnButtonAnchorVertex)),
+        weapons::vec(slot, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ) +
+            glm::vec3{vr_grapple_front_button_x.value, vr_grapple_front_button_y.value, vr_grapple_front_button_z.value});
+    const view::ViewEntity& back = entities.button[hand];
+    place(ve, viewModel("progs/wpnbutton.mdl"), pos, glm::vec3{back.ent.angles[0], back.ent.angles[1], back.ent.angles[2]}, 0,
+        mirrored);
+    static double logAt = 0.0;
+    if(vr_grapple_debug.value >= 3 && developer.value && realtime >= logAt)
+    {
+        logAt = realtime + 0.5;
+        Con_Printf("grapple: hand %d's gun: the back button at %.1f %.1f %.1f, the front one at %.1f %.1f %.1f\n", hand,
+            static_cast<double>(back.ent.origin[0]), static_cast<double>(back.ent.origin[1]), static_cast<double>(back.ent.origin[2]),
+            static_cast<double>(pos.x), static_cast<double>(pos.y), static_cast<double>(pos.z));
+    }
 }
 
 } // namespace
@@ -4738,6 +4777,7 @@ extern "C" void VR_SetupViewEntities()
     }
     ledges::debugDraw(); // vr_debug_ledges
     hitmodel::debugDraw(); // vr_debug_hits
+    rope::debugDraw();     // vr_debug_rope
     if(vr_debug_hand_bones.value)
     {
         drawHandBones();
@@ -4756,6 +4796,8 @@ extern "C" void VR_SetupViewEntities()
     dripBlood(s);
     setupButton(HAND_MAIN);
     setupButton(HAND_OFF);
+    setupFrontButton(HAND_MAIN);
+    setupFrontButton(HAND_OFF);
     if(!posingNow)
     {
         selfcollide::endView(s, selfCollideDrawn(s));

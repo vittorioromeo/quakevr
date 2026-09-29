@@ -600,6 +600,19 @@ void PF_physicspush()
         box3d::push(G_EDICT(OFS_PARM0), glm::vec3{at[0], at[1], at[2]}, glm::vec3{v[0], v[1], v[2]}, mass) ? 1.f : 0.f;
 }
 
+// float physicsdamp(entity e, vector relativeTo, float keep, float keepSpin, float maxSpeed, vector add): the Box3D prop's
+// velocity relative to `relativeTo` kept by `keep`, no faster than `maxSpeed` (0: any), `add` added; its spin kept by
+// `keepSpin` (box3d::damp: on its body, so a physicspush after it this frame adds to it). False if it is not Box3D's.
+void PF_physicsdamp()
+{
+    const float* rel = G_VECTOR(OFS_PARM1);
+    const float* add = G_VECTOR(OFS_PARM5);
+    G_FLOAT(OFS_RETURN) = box3d::damp(G_EDICT(OFS_PARM0), glm::vec3{rel[0], rel[1], rel[2]}, G_FLOAT(OFS_PARM2),
+                              G_FLOAT(OFS_PARM3), G_FLOAT(OFS_PARM4), glm::vec3{add[0], add[1], add[2]})
+                              ? 1.f
+                              : 0.f;
+}
+
 // The grappling hook's physical rope (vr_ropesim.cpp).
 // float ropestep(entity hook, vector gun, vector game, vector end, float length, entity skipA, entity skipB): steps it
 // (once a frame), the taut path's length.
@@ -772,6 +785,28 @@ void PF_hitmodel_segment()
     G_FLOAT(OFS_RETURN) = hit ? h.t : -1.f;
 }
 
+// hitmodel_any(e, a, b, radius): the segment a..b, a sphere of `radius`, against e's model as drawn, whatever e is (a
+// prop, an item: the grappling hook bites only what it touches): where along it it first meets it, -1 missed, -2 e has no
+// Quake .mdl (a brush model: its box is its shape; a weapon lying about, drawn by its Weapon Offsets: its box).
+void PF_hitmodel_any()
+{
+    edict_t* e = G_EDICT(OFS_PARM0);
+    const float* a = G_VECTOR(OFS_PARM1);
+    const float* b = G_VECTOR(OFS_PARM2);
+    const float radius = std::max(0.f, G_FLOAT(OFS_PARM3));
+    hitmodel::Hit h;
+    const int index = static_cast<int>(e->v.modelindex);
+    const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    if(!model || model->type != mod_alias || weapons::modelTransform(model).active)
+    {
+        G_FLOAT(OFS_RETURN) = -2.f; // (a weapon's own model lying about is drawn by its Weapon Offsets: its box, drawn so)
+        return;
+    }
+    const bool hit =
+        hitmodel::segment(e, glm::vec3{a[0], a[1], a[2]}, glm::vec3{b[0], b[1], b[2]}, radius, 1.f, hitmodel::Class::Grapple, h);
+    G_FLOAT(OFS_RETURN) = hit ? h.t : -1.f;
+}
+
 // hitmodel_rest(e, p): the point p on e's drawn model, as it is on the model standing (its stand frame), placed at its
 // origin and turned with its yaw (positional damage's head sphere and regions); p itself if e is no target.
 void PF_hitmodel_rest()
@@ -812,6 +847,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"debrisplace", PF_debrisplace},
     {"modelpoint", PF_modelpoint},
     {"physicspush", PF_physicspush},
+    {"physicsdamp", PF_physicsdamp},
     {"ropestep", PF_ropestep},
     {"ropepivot", PF_ropepivot},
     {"ropesend", PF_ropesend},
@@ -849,6 +885,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"motionvalue", PF_motionvalue},
     {"hitmodel_target", PF_hitmodel_target},
     {"hitmodel_segment", PF_hitmodel_segment},
+    {"hitmodel_any", PF_hitmodel_any},
     {"hitmodel_rest", PF_hitmodel_rest},
 };
 

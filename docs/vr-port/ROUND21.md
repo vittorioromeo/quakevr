@@ -13256,3 +13256,134 @@ feedback on. Branch `agent/checklist`.
   never selectable, selected and highlighted with its first). `rowAt` maps a continuation line to its item.
 - **Tests**: `vr_checklist` (CLSUM/CLITEM lines), `vr_checklist tick <n>`, `vr_checklist reload`;
   `vr_mock_laser checklist` points at the corner button.
+
+## Grapple round 2: controls, a rope that wraps, and what hangs on it
+
+The spec agreed with you (the kit's `scratch/hook2_spec.md`; NOTES.md vrfiringrange 2026-09-29 21:35-21:54 and 22:06).
+Branch `agent/hook2`; scripts, logs and check scripts in the kit's `scratch/hook2/` (`run_all.sh`).
+
+### Controls
+
+- **The hook stays in** when you let go of the trigger (Trigger Released: **Hook Stays In**, the new 0). The old
+  choices are 1 (comes back) and 2 (comes loose); Drop Grace applies only to them. A player without tracked hands and
+  Rogue's grapple still get it back when the trigger is let go (they have no buttons).
+- **The back button** (over the grip, impulse 42/43) only **detaches**: the hook hangs loose on its rope, with
+  `vr_grapple_loose_slack` (24 units) of slack. Reel it in with B/Y.
+- **The front button** (near the muzzle, impulse 44/45, `vr_view.cpp` setupFrontButton): the **instant reel-in**, the
+  old quick release (straight back through anything, Reel-In Button Speed). Placed from the back button along the gun
+  (Front Button Along/Side/Up, 6/0/0: 6 units short of the back button's 15 to the muzzle; the two are 6 units apart,
+  the finger's reach is 2.7).
+- **Shoot the hook off** (`vr_grapple_shootable` 1): a hook in the world or a door becomes a 4-unit box that takes damage
+  (its owner cleared: your own shots meet it); any damage (a bullet, a nail, a rocket's splash, an axe) detaches it. No
+  blood from it. Hooks in monsters and props are not (you shoot what they are in).
+
+### The rope: corners, not points (`vr_ropesim.cpp`)
+
+The server's rope is now straight pieces from the gun to the hook bent at the corners it wraps round. Each frame:
+corners something moved into go; a corner whose neighbours see each other goes (unwrap); a piece that no longer sees
+through gets a corner where it first touched (the piece's move over the frame searched, 10 halvings, the corner put off
+the surface by the rope's thickness; blocked already last frame: a point off what blocks it that sees both ends); each
+corner then slides towards its neighbours' line as far as both pieces stay clear. Every piece is a line cast, so no
+piece goes through the world or a prop, and nothing lying on the floor makes a corner (only a blocked straight line
+does): the old chain's points snagged on the floor and made corners the game then pulled along (the "messy" rope, and
+part of the hook following you).
+
+The slack is the client's (`vr_rope.cpp` stepChain): a chain of points, Rope Point Spacing apart (still the setting, 12),
+pinned at the drawn muzzle, the corners and the hook, falling and lying on the world. Each free point is traced from
+where it was to where it goes (stopped and slid along what it meets), each piece is traced (one through the world has
+its free ends pushed out), and a piece still through the world is drawn round what it meets. The client has no props,
+so a slack rope may be drawn through a prop; taut, it is pinned at the corners on it.
+
+**Debug** > Views > **Show Grapple Rope** (`vr_debug_rope`): the drawn chain (points white, pieces green), the corners
+(red), the taut path (yellow). Tests > Grappling Hook: Report the Hooks, Print the Ropes (`vr_grapple_rope_dump`,
+`vr_grapple_rope_draw_dump`), Load Stuck (`vr_grapple_test_stuck`: the load stays put, as if snagged).
+
+**Network** (`QVR_SVC_ROPE`): only the corners, the first as a coordinate and the rest as 2-byte offsets (eighths of a
+unit), sent when one moves more than a unit or their number changes, and every quarter second while there are any; the
+ends travel with the beam, as before. `vr_grapple_rope_netstats` prints the bytes. The TODO is gone.
+
+### What hangs on it
+
+- **A slack rope pulls nothing.** ServiceProp pulled the load at your speed along the rope whenever you went away from
+  it, slack or not: the loose hook on the floor followed you. Fixed (the pull only when the rope is taut).
+- **Walking shared** (`vr_grapple_move_share` 0.7): while a loose hook or a hooked prop hangs (nothing under it), it
+  gets that share of the change in your level velocity on the ground (the thumbstick): what it takes starting it gives
+  back stopping, so walking adds no energy. Lying on something it is left alone.
+- **Air drag and a top speed**: `vr_grapple_load_drag` (1/s, its speed relative to you, while it hangs),
+  `vr_grapple_load_max_speed` (700 u/s relative to you, always), `vr_grapple_hang_drag` (3/s, all of its speed and
+  spin, for what hangs on a rope no one holds: a dropped gun from a ceiling). Applied on the Box3D body (new builtin
+  `physicsdamp`): a `.velocity` written by QC overrides the rope's own push that frame, which is why the dropped gun fell
+  through its rope in my first try.
+- **The rope's longest** (`vr_grapple_max_length` 1500): the hook stops flying there (loose, "the rope's end"), the
+  unreel pays out no more.
+- **A load that doesn't come holds you back**: taut 24 units past its length and slack, you may go away from the rope's
+  first corner no faster than the load comes; closer and sideways, freely. Pulled 128 past it anyway (a lift, setpos):
+  the last resort, a loose hook's rope gives (or, at its longest, the hook flies home); a hook in something comes off. A
+  hook in the world already held you (HoldPlayer); it too comes off only past 128.
+- **Reeling in always works**: a loose hook stuck while reeled is yanked free (flies home) anywhere, not only within 96
+  units of the gun.
+- **The loose hook pulled by its tail** (5.5 units behind its middle, `GH_HOOK_TAIL`): the rope turns it prongs away
+  from the gun.
+- **The rope's start**: `vr_grapple_rope_depth` (2 units) inside the muzzle, in the hand; a gun lying about is drawn from
+  its drawn muzzle (the client finds the gun), and the server's rope end on it is 2 units inside that muzzle
+  (`GH_GUN_MUZZLE` '3 -0.4 0.4': it was '26 0 4', 23 units off the drawn gun, which is a third of the model's size).
+- **The hook bites only what it touches**: props' boxes padded 0.5 (3 before), then the prop's model as drawn (new
+  builtin `hitmodel_any`; a brush box and a weapon lying about, drawn by its Weapon Offsets, keep their box).
+
+| Setting (Grappling Hook page) | Cvar | Default |
+|---|---|---|
+| Trigger Released | `vr_grapple_trigger_release` | 0 Hook Stays In (1 comes back, 2 comes loose) |
+| Longest Rope | `vr_grapple_max_length` | 1500 |
+| Shoot the Hook Off | `vr_grapple_shootable` | 1 |
+| Front Button; Along, Side, Up | `vr_grapple_front_button`, `_x/_y/_z` | 1; 6, 0, 0 |
+| Rope Depth in the Gun | `vr_grapple_rope_depth` | 2 |
+| Walking Shared | `vr_grapple_move_share` | 0.7 |
+| Air Drag; Hanging Air Drag | `vr_grapple_load_drag`; `vr_grapple_hang_drag` | 1; 3 |
+| Top Speed | `vr_grapple_load_max_speed` | 700 u/s |
+| Slack When Detached | `vr_grapple_loose_slack` | 24 |
+
+### Checked (mock headset; the kit's `scratch/hook2/run_all.sh`: 32 scenarios, 78 checks, all pass)
+
+| Spec item | Scenario | Result |
+|---|---|---|
+| Controls 1, 2 | `t1`, `t9`, `t3`, `t8` | trigger let go: still in; back button: `in -> loose (the detach button)`; B reels it home |
+| Controls 3 | `c_front`, `t15f`, `t7` | front button (impulse and the other hand's fingertip, 0.4 units off it): straight back; a loose hook too |
+| Controls 4 | `c_shoot` | a traceline from your eyes meets the hook; the off hand's rocket at the wall: `shot off by player` |
+| Rope 1 | `p_drag`, `rope_pillar`, `rope_prop` | a loose hook dragged along e1m1's floor and round the doorway's jamb (7 dumps): 0 corners inside anything, 0 pieces blocked, 0 drawn points in the world, 0 drawn pieces through it; round the jamb 2 corners; the hand lowered behind a health box: corners on its far top edge, then along the ramp |
+| Rope 2 | `p_reel` | 4 reels (flat floor 340 away, over e1m1's ramp, round the jamb, one stuck: yanked free): 4 home |
+| Rope 3 | `p_settle` | a gun hanging from the ceiling (rope 60), blasted to 529 u/s: under 12 u/s 1.3 s later, still within 0.1 unit over the last second. Without the drag: 70-370 u/s for 9 s, 97 units in the last second (the rope's pull kept it going) |
+| Rope 4 | `p_taut`, `t12` | hooked in the floor 345 away, walking back: moved 0.9 units, sideways 196 (on the circle); a stuck loose hook (Load Stuck): held at 320 on a 286 rope, sideways 199; setpos far: the rope gives; the longest rope any hook had 1500.0 |
+| Rope 5 | `p_walk_hang`, `p_walk_old` | a health box hanging at the gun, walk forward and back: relative speed at most 123 u/s, trailing 19.5 units; without the share and the drag (as before) 296 u/s, 24.6 |
+| Rope 6 | `p_spin` | a hooked box blasted (you in noclip), top speed set to 300: reports at most 281 u/s relative to you; no top speed: 553 |
+| Bug 1 | `p_floor_still` | a loose hook on the floor, you walking 367 units round it within its slack: it moved 0.00 (before the fix: 10.6 on the first step) |
+| Bug 2 | `b2_prongs` | a loose hook hanging and reeled across the floor: its prongs point away from the gun in every report (0.46 .. 1.00) |
+| Bug 3 | `b3_muzzle` | a dropped gun: the server's rope end 23.2 units from the drawn muzzle before, now under 4 (2 inside it by design) |
+| Bug 4 | `b4_precise` | 1.7 units over a health box: bites the floor behind (the old 3-unit pad bit the box); an armour's box but not its model: misses; at the armour: bites it |
+
+The old scenarios, changed on purpose: the trigger no longer detaches (`t1`, `t3`, `t8`, `t9` press the back button;
+`t7`, `t15x` use the front one or check the detach); props are hit precisely (`t5b`, `t5c`, `t6b`, `t8b`, `flail` aim
+at the prop, not 2-3 units beside it); the rope's slack after a detach (`t8`: 1144); the dropped gun hangs by its muzzle,
+23 units higher than before (`t4`, `t4b`: reached higher); the rope wraps rather than lying over the box (`rope_prop`).
+
+**Bandwidth** (`vr_grapple_rope_netstats`, the same three plays): round the jamb 40170 bytes in 163 server frames before
+(246 a frame, every frame), now 228 bytes in 13 (the corners when they change and a refresh); the hanging gun 34740 (84
+a frame) -> 402; over the box 71082 (535 a frame) -> 12.
+
+**Cost** (exclusive, 248 fps, 5 s): the rope round the jamb, server 0.008 ms a frame, drawing 0.017 (0.007-0.010
+before: the chain is the client's now); slack round the jamb 0.013 and 0.020.
+
+### Not verified
+
+- In the headset: all of it. The front button's place (Weapon Offsets has no key for it: the Grappling Hook page's
+  sliders), whether 0.7 of your walking and the drags feel right, the slack rope's look (Show Grapple Rope).
+- The drawn chain has no props (the client has no collision for them): a slack rope may be drawn through a box.
+- Multiplayer: the corners go to every client (small now); a dropped gun's rope start is the drawn gun's on every client.
+- `GH_GUN_MUZZLE` is measured at the default Weapon Offsets and world scale.
+
+### In the headset
+
+- [ ] Fire, let go of the trigger: still in. Back button: loose. Front button: straight back.
+- [ ] Hook a wall, drop the gun where you can't reach it, shoot the hook: it comes off.
+- [ ] Drag a loose hook along the floor and round a doorway, reel it in: it comes every time.
+- [ ] Hang the gun from the ceiling and let go: it stops swinging in a couple of seconds.
+- [ ] Walk with a box hanging on the rope, stop: it trails a little, no snap. Spin it: no rope of death.
