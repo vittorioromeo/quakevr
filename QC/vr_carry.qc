@@ -894,6 +894,7 @@ void() VR_Carry_TwoHandFrame =
         box.carry_2h = FALSE;
         box.carry_2h_end = time;
         VR_Carry_SetHeld(self, letGo, world);
+        carry2hkeep(box, self, keep); // onto its grip in that hand (pulled off: carry2hoff has done it)
         VR_Carry_Regrip(keep, box);
         haptic(letGo, 0.0, 0.05, 60, 0.3);
         return;

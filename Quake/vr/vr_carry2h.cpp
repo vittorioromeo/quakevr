@@ -242,22 +242,47 @@ int detached(edict_t* ent, edict_t* player)
     const int off = (left[0] ? 1 : 0) | (left[1] ? 2 : 0);
     if(off == 1 || off == 2)
     {
-        // Held by the other alone: moved onto its grip there (else it would float off that hand, as far as the pull
-        // took the middle of the grips), turned as it is.
-        const int keep = off == 1 ? 1 : 0;
-        const glm::vec3 to = hand[keep] - object.rot * it->second.grip[keep];
+        keep(ent, player, off == 1 ? 1 : 0);
+    }
+    else if(off)
+    {
+        holds.erase(num);
+        watches.erase(num);
+    }
+    return off;
+}
+
+void keep(edict_t* ent, edict_t* player, int hand)
+{
+    using namespace progs;
+    const FieldOffsets& f = fields();
+    const int num = NUM_FOR_EDICT(ent);
+    const auto it = holds.find(num);
+    const int pos = hand == 0 ? f.offhandpos : f.handpos;
+    if(it != holds.end() && pos >= 0 && (hand == 0 || hand == 1))
+    {
+        // Moved onto its grip in that hand (else it would stay as far off it as the hand was off its grip: up to the
+        // drift, and the drift plus the detach pulled off), turned as it is. The client takes it there (vr_held.cpp).
+        const glm::vec3 to = fieldVec(player, pos) - fromAngles(ent->v.angles, brushModel(ent)) * it->second.grip[hand];
         for(int i = 0; i < 3; i++)
         {
             ent->v.origin[i] = to[i];
         }
         SV_LinkEdict(ent, false);
     }
-    if(off)
+    holds.erase(num);
+    watches.erase(num);
+}
+
+bool serverHold(int num, Hold& out)
+{
+    const auto it = holds.find(num);
+    if(it == holds.end())
     {
-        holds.erase(num);
-        watches.erase(num);
+        return false;
     }
-    return off;
+    out = it->second;
+    return true;
 }
 
 void resetServer()

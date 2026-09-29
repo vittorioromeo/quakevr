@@ -219,6 +219,7 @@ float(entity hook, vector gun, vector game, vector end, float length, entity ski
 vector(entity hook, float which) ropepivot = #0;
 void(entity hook, entity owner, float beamId) ropesend = #0;
 float(entity e, entity player) carry2hoff = #0; // held in both hands: which have been pulled off it (1 the off hand, 2 the main; vr_carry_two_hands_detach)
+void(entity e, entity player, float hand) carry2hkeep = #0; // held in both hands, now by `hand` alone: moved onto its grip there
 float(entity e, vector point, float hand) carryreach = #0; // whether self's hand can take hold of it: its fist touches its drawn surface (vr_carry_grab_bias; point: the hand's, unused)
 void(vector ang) makeforward = #0; // sets v_forward
 vector(entity e, float max) modelbounds = #0; // the model's mins (max 0) or maxs, in model space
