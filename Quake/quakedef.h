@@ -76,7 +76,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	MINIMUM_MEMORY	0x550000
 #define	MINIMUM_MEMORY_LEVELPAK	(MINIMUM_MEMORY + 0x100000)
 
-#define MAX_NUM_ARGVS	50
+#define MAX_NUM_ARGVS	256 // QVR: was 50 (the arguments after it were dropped silently)
 
 // up / down
 #define	PITCH		0

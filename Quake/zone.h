@@ -80,6 +80,7 @@ void Z_Free (void *ptr);
 void *Z_Malloc (int size);			// returns 0 filled memory
 void *Z_Realloc (void *ptr, int size);
 char *Z_Strdup (const char *s);
+void Z_Usage (int *used, int *peak, int *size); // QVR: the zone's bytes in use, most ever, and total (vr_limits)
 #ifdef __cplusplus
 }
 #endif
@@ -91,6 +92,7 @@ void *Hunk_AllocNameNoFill (int size, const char *name); // returns uninitialize
 char *Hunk_Strdup (const char *s, const char *name);
 
 int	Hunk_LowMark (void);
+void Hunk_Usage (int *used, int *peak, int *size, int *segments, int *maxsegments); // QVR (vr_limits)
 void Hunk_FreeToLowMark (int mark);
 
 void Hunk_Check (void);

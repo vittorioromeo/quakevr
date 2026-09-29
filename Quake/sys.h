@@ -91,6 +91,7 @@ int Sys_fseek (FILE *file, qfileofs_t ofs, int origin);
 qfileofs_t Sys_ftell (FILE *file);
 int Sys_remove (const char *path);
 int Sys_rename (const char *oldname, const char *newname);
+int Sys_ReplaceFile (const char *oldname, const char *newname); // QVR: an atomic replace (Host_WriteConfigurationToFile)
 
 typedef enum {
 	FA_DIRECTORY	= 1 << 0,

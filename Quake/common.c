@@ -58,7 +58,7 @@ THREAD_LOCAL char	com_token[1024];
 int			com_argc;
 const char	**com_argv;
 
-#define CMDLINE_LENGTH	256		/* johnfitz -- mirrored in cmd.c */
+#define CMDLINE_LENGTH	4096		/* johnfitz -- mirrored in cmd.c (QVR: was 256: long -basedir paths cut the + commands) */
 char	com_cmdline[CMDLINE_LENGTH];
 
 qboolean standard_quake = true, rogue, hipnotic, quake64, mg3;
@@ -1681,6 +1681,9 @@ void COM_InitArgv (int argc, char **argv)
 		com_cmdline[n-1] = 0; //johnfitz -- kill the trailing space
 
 	Con_Printf("Command line: %s\n", com_cmdline);
+	if (argc > MAX_NUM_ARGVS || n >= CMDLINE_LENGTH - 1) // QVR: loud (was silent)
+		Con_Printf ("\x02" "The command line is too long (%d arguments; up to %d arguments, %d characters): its end is ignored\n",
+			argc, MAX_NUM_ARGVS, CMDLINE_LENGTH - 1);
 
 	for (com_argc = 0; (com_argc < MAX_NUM_ARGVS) && (com_argc < argc); com_argc++)
 	{
