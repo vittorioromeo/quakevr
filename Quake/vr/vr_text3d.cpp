@@ -12,6 +12,7 @@
 #include "vr_flashlight.hpp"
 #include "vr_gadget.hpp"
 #include "vr_profile.hpp"
+#include "vr_rope.hpp"
 
 #include <algorithm>
 #include <array>
@@ -845,6 +846,7 @@ extern "C" void VR_DrawSceneOpaque()
 
     gadget::drawScreen(); // the wrist gadget's screen (vr_gadget.cpp)
     flashlight::drawOpaque(); // the flashlight's cord (vr_flashlight.cpp)
+    rope::drawOpaque(); // the grappling hook's ropes (vr_rope.cpp)
 
     if(!(cl.protocolflags & PRFL_QUAKEVR))
     {

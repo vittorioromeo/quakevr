@@ -36,6 +36,7 @@ motions, replayed in the engine, rather than against hand-made test motions.
 | Profiling: where the time goes | the frame split into the game's systems (Box3D, QuakeC, Quake physics, the world's drawing, shadow maps, waiting for the headset...), adding up to the frame time: a panel in the headset with bars (Debug > Profiling), `vr_profile_report`, a CSV row a second, a hitch log naming what took a slow frame's time; off it costs nothing measurable. Found with it: the foveated rendering's setup waited for the driver every eye (0.2-0.4 ms of the CPU a frame, fixed) |
 | Performance fixes (review, 2026-09-28) | the spectator camera's Frame Rate (60 fps by default), Resolution Scale (0.75 by default) and Anti-Aliasing; the climbing's mantle and lenient-grab searches 5-20 times fewer traces, the props' settings found once per model (Box3D's sync 2-3 times cheaper), with the same holds, mantles and physics; wounds on a reused entity slot and the ropes' slack forgotten when their entity ends; the AO bake worker joined at quit; no GPU-sampling thread unless profiling |
 | First-hit hitch | the first shot or blow that left a mark froze the game for 0.43-0.44 s: the decals' atlas (blood, chips, scorches, the gore's marks) was drawn on the CPU at the first mark's draw. It is now drawn on a worker thread from start-up and put on the GPU as the map loads; the other first-use work (the view's own models, 0.3 s the first time; the liquids, 20-100 ms each map; the particles' atlas; the detail textures; the torch; the casings' sounds) is done in the load too. Wound painting no longer waits for the driver (glGet), and the memory log counts the GL objects as each map loads (was 12-13 ms in a frame of play) |
+| Grapple: unreel; rope drawn in one piece | the grapple hand's A (right) or X (left) held in the air lets the rope out (Unreel Speed, 300 u/s; on the ground it jumps as before): you are let down from a ceiling, a monster may walk away, a prop hanging at the gun is lowered; a reversed ratchet's ticks and a fine buzz while it runs out. The rope's links are bent along its curve on the GPU, so a short sagging rope is one smooth chain (it was straight links with holes); 0.02-0.04 ms of CPU a frame |
 
 Found on the way: fteqcc stores 0 when `a || b` is assigned into an entity field (rewritten; no other code has that
 shape); a parried blow's hand knock, timed by `cl.time`, came back after a level change (reset now).
@@ -10781,6 +10782,229 @@ These keep no engine-side entity state; their state is in QC fields, saved with 
 
 - [ ] Die in the firing range (or anywhere with Autoload on) and let it load the last save: no error.
 - [ ] Load a save made while carrying a box or holding a torch: it should still be in your hand while you grip.
+
+## Held props: grip modes, live offsets, palm grip, torch handle
+
+Your notes (2026-09-29): the wall torch was always held pointing ahead like an arrow, whatever part of it you took, and
+dropping and taking it again changed nothing; the Held Object Offsets page seemed to have no way to turn it; a rock sat
+above the fist instead of in it; with Grip "Where taken" the sliders did nothing, and in "Always the same" they only
+applied from the next grab. Wanted: offsets on top of a Where Taken grip, live sliders in every mode, a grip that puts a
+small thing in the palm with the fingers round it, and a torch held by its handle, flame up. Branch `agent/grips`;
+scripts, logs and pictures in the scratchpad's `grips/`.
+
+### What was wrong
+
+- **The torch:** its grip was Fixed ("Always the same": Grip X 10, Z -3, no turn), and a fixed grip holds the model's
+  +x along the hand's forward: the stick pointed ahead through the fist, the same way every time. The rotation sliders
+  existed (Grip Pitch/Yaw/Roll) but did nothing until the torch was let go of and taken again, so moving one showed
+  nothing.
+- **The sliders:** Grip X..Roll were read once, at the grab, and only by a fixed grip; a Where Taken grip never read them.
+- **The rock:** Where Taken keeps the pose the rock had against the fist when the fist touched it (from above, the side,
+  a corner), so it sat anywhere round the fist (your screenshot: over the knuckles). Put in the palm (the first try,
+  below), its middle at the palm's middle was too near the wrist: the fingers closed in front of it without meeting it
+  (the grasp solve's five fingers all "free") and the palm sank into it.
+
+### Grip (Held Object Offsets; `vr_prop_grip_NN`)
+
+| Mode | How it holds | Offsets (X/Y/Z, Pitch/Yaw/Roll) | Default for |
+|---|---|---|---|
+| 0 Where taken | as it was when the fist took it (moved against the curled fingers, as before) | on top, turned about the palm | everything else (boxes, gibs, heads...) |
+| 1 Fixed | its model's origin at X/Y/Z, turned by Pitch/Yaw/Roll about it | they are the grip | whole bricks, the broken brick |
+| 2 In the palm | its middle (its box's middle plus its Centre of Mass) over the fist's grip channel, on the palm's skin; the face of it nearest the palm flat on the palm (the least turn; never its longest axis standing out of the palm); turned about the palm's normal as it was taken | on top, turned about its middle | the five rocks, the half brick |
+| 3 Along the handle | its long axis through the fist's grip channel, head towards the index finger (flame up) unless taken clearly the other way round (within 60 degrees of the little finger's side); leaning off the channel as taken, at most Handle Tilt (25 degrees); held at the point of the handle the fist was at, kept within Handle From..To; its roll about the handle as taken | on top, turned about the grip channel | the wall torch (Handle -12.4..-8.2 of its -14..-7 handle) |
+
+- **Taking it again changes the grip:** In the Palm and Along the Handle start from where the prop was when taken, so
+  a torch taken by its butt is held by its butt, leaning if it leant; taken upside down it is held upside down.
+- **Offsets:** moved in the hand's frame (x forward, y left, z up), turned pitch up, yaw left, roll right; the left
+  hand's mirrored (y, yaw, roll). The hand stays where it is (the fitted fingers wrap the prop where it now is).
+- **Fixed's Pitch is up for every model now** (a brush model's, a box's, was down).
+- **Live:** any change to a prop's settings (a slider, the Grip mode, Handle From/To/Tilt) places the prop in your hand
+  again at once: the server keeps, per held entity, what it placed it from (the place it was taken at, the hand's grip
+  frame, its shape) and places it again when `props::settingsGeneration()` changes (the performance fix's counter); the
+  client draws it from the server's place in the same frame (a listen server; a remote server's place is taken again as
+  at a grab, for 0.1 s). A mode change places it from where it was first taken, so switching back and forth returns to
+  the same grip. Also with the menu open (the server paused).
+- **Handle From / Handle To / Handle Tilt** (new keys `handle_from`, `handle_to`, `handle_tilt`): the part of its long
+  axis the fist may hold (model units from its origin; both 0: the butt's half, 12% to 45% of its length from the butt)
+  and how far it may lean off the fist's line.
+- **The hand's grip frame** (`grip::HandFrame`): the palm's middle moved out along its normal to the skin (through the
+  open hand's grasp spheres), its normal, and the grip channel (`grasp::gripChannel`: where a handle lies in the
+  half-closed fingers), measured every frame from the jointed hand as drawn (the fist's angle offsets included), in the
+  hand's frame. `vr_grip_frame` prints them (main hand: palm -3.54 -0.05 -2.08, normal +y, channel -1.17 0.03 -1.98 along
+  0.06 0.10 0.99; the same at any pose). Another player's, or a dedicated server's: those numbers (mirrored for the left).
+- **For the hand grenades (or anything held in the palm):** set its slot's Grip to 2 (`QVR_PROP_DEFAULT(slot, GripMode,
+  "2")`), or call `grip::palmPlace(prop, centre, frame, taken)` from C++.
+
+### How it works (`Quake/vr/vr_grip.cpp`)
+
+- QC's `VR_Carry_Start` still works out where the prop was taken (against the curled fingers: `carryfit`), then calls
+  `carrygrip(e, player, hand, lefthand, handangles, offset)`, which places it by its grip, keeps it (with the prop's drawn
+  vertices and box and the hand's grip frame) and returns `.carry_offset`. Each frame `carryplace(e, handangles, offset)`
+  sets its angles and returns its place (placed again if the settings changed). A regrip after a two-handed hold keeps
+  it where it is (`carryangles(..., TRUE)` calls `grip::serverKeep`: what it was taken at becomes where it is, its offset
+  taken off, so the sliders still move it from there). Something else setting `.carry_offset` (QC) wins: the kept place
+  is dropped. `propgrip` stays for other callers (its pitch up for every model too).
+- The client (`vr_held.cpp`) takes its held prop's place in the hand from the server's as before; when the settings
+  generation changes it asks `grip::serverPlace` (the same numbers, in the same frame).
+
+### Settings migration (`vr_props_version` 40)
+
+A config saved before: the wall torch's, the rocks' and the half brick's grips take the new defaults (your config had
+the torch fixed at X 9, Y 1 and the second rock fixed with Pitch -5: ways round the old grips); a Where Taken slot's
+Grip X..Roll (which did nothing) go back to 0; a fixed brush model's (`.bsp`) Pitch is negated. Tested with your
+config's prop lines (`vr_props_version` 26 to 40: the torch grip 3, rock2 grip 2 pitch 0; a fixed box's pitch 15 to -15).
+
+### Verification (mock headset, e1m2, `r_fullbright 1`; the scratchpad's `grips/`, `go.sh` runs a script file)
+
+- **The torch** (`torch_before.png`, `torch_after.png`; `gen_torch.sh`): pulled off the wall, then taken again by the
+  butt leaning forward, like an arrow (pointing ahead), and upside down. Before: the same arrow-like hold all four
+  times. After: upright through the fist, flame up, the fingers round the handle below the head; by the butt: held by
+  the butt, leaning 20 degrees as taken; like an arrow: brought up to 25 degrees off the fist's line (Handle Tilt);
+  upside down: held head down (its flame still rises). Logs: `grip: taken 53 progs/vrtorch.mdl (mode 3 ...)`.
+- **Rocks and the half brick In the Palm** (`palm_before.png`, `palm_after.png`; `gen_palm.sh`): rock3 (the biggest,
+  14 cm) from a level hand, a rolled hand and a hand pointing down, rock5, and the half brick level and rolled, each from
+  the side, the palm's side, the front and the eye. After: each in the palm, flat on it, the fingers round it (the
+  grasp's fingers all "met", stops 1.3 to 2.4; the palm moved 2.4 cm onto it). Before (Where Taken): wherever it was
+  touched. The off hand: rock5 in the left palm (`others.png`).
+- **The first try** put the stone's middle over the palm's middle: all five fingers "free" (closed in front of it) and
+  the palm sunk in it (`vr_debug_hand_bones`: red spheres); over the grip channel they wrap it.
+- **Live offsets** (`live.png`, `live.txt`): a health box Where Taken, then Z +3, Yaw 30, Roll 20 set while held (moved
+  and turned, the hand unmoved), back to 0 (back where it was), switched to Fixed (its origin at the hand), Fixed X 4
+  Pitch 30, back to Where Taken. Each change is placed in the frame it is made:
+  `props: vr_prop_grip_roll_31 20 (generation 24, frame 576)`, then
+  `held: 208 placed again in the main hand at -1.88 4.16 4.16 (generation 24, frame 576)`. With the menu open
+  (`menu.png`): `props: vr_prop_grip_roll_22 45 (generation 21, frame 685)`,
+  `held: 245 placed again in the off hand ... (generation 21, frame 685)`.
+- **Other props' fingers** (`others.png`): a whole brick (Fixed, unchanged), a gib and a health box (Where Taken): as
+  before.
+- **The torch still strikes and burns:** a downward chop (`chop.play`) hits a grunt (`melee event: ... with the head's
+  top`) and sets it burning. The torch round's horizontal sweep (`torches/swing1.play`, which hit with the arrow-held
+  torch's head as a jab) no longer lands: the upright torch crosses it sideways. The melee rules are untouched (frozen
+  until your new takes); worth a look when you record torch blows.
+- The menu page shows the four modes and the new rows (`menu_vr dump`: Held Object Offsets has 36 rows).
+
+## Grapple: unreel; rope drawn in one piece
+
+Your voice notes (vrfiringrange, 2026-09-29, 01:00-01:01; screenshots `vrfiringrange_2026-09-29_01-00-01`, `01-00-54`,
+`01-01-11`): let the rope out with the grapple hand's other face button (A on the right hand, X on the left), only in
+the air, since A jumps; and a short rope that sags is drawn as separate straight pieces with holes between them: draw
+it finer, so that it looks joined. Branch `agent/grapple2`; scripts, logs and pictures in the scratchpad's `grapple2/`.
+
+### What you do
+
+- **Unreel:** with the hook in, hold the grapple hand's **lower face button** (A on the right hand, X on the left: the
+  one under the reel's B or Y). In the air it pays the rope out at the Unreel Speed (300 u/s), up to the hook's reach
+  (2700 units). Let go and the rope keeps its new length: it brakes to a stop in about 0.1 s (about 18 units at full
+  speed) rather than stopping you dead.
+- **What it lets go:**
+  - Hanging from a ceiling or a wall, you are let down, no faster than the rope runs out. It is a controlled descent:
+    you fall freely only until you reach that speed.
+  - A monster or a prop on the rope can go farther: a monster walks away, a prop hanging under the gun is lowered to
+    the floor.
+  - Anything faster than the rope runs out is still held back to that speed.
+  - A reel pays out only what pulls on it. A load that stays where it is gets 4 units of slack and no more, so holding
+    the button never piles up rope.
+- **On the ground**, and swimming, the button is just its key: A jumps (X reloads) and nothing unreels. A press that
+  began on the ground, such as a jump, does not unreel once you are in the air either; let go and press again.
+  Holding B or Y as well: the reel wins.
+- **Feel:** the unreel has its own sound, `vr/grapple_unreel.wav` (the reel's ratchet backwards: each click reversed,
+  its ring swelling into the snap, lighter and quicker, 38 a second, over a thinner whirr). It plays while the rope
+  runs out. In the hand you feel a fine, quick tick every 35 ms at 200-260 Hz, stronger with a heavier load. Both
+  stop when nothing pulls, so you can feel whether rope is going out.
+- **The rope** is drawn in one piece along its curve. A short rope sagging deep is now a smooth, joined chain of the
+  same yellow crystals: before, it was straight links with gaps between them.
+
+| Setting (Grappling Hook page) | Cvar | Default | |
+|---|---|---|---|
+| Unreel Speed | `vr_grapple_unreel_speed` | 300 u/s | 0: no unreel |
+| Unreel Button Only When Airborne | `vr_grapple_unreel_airborne` | on | off: A/X unreels on the ground too, and its key (jump) still acts |
+
+These are new cvars with their defaults, so there is no config migration (42 is not used).
+
+### How it works
+
+- **The button** is sent the way the reel's B/Y is:
+  - The engine keeps each hand's lower face button held as the game gets it (`vr_input.cpp` `primaryHeld`: in the
+    game, not taken by the posing mode). Its key still goes through as before.
+  - It is sent with the move (`QVR_BUTTON_*HANDPRIMARY`, bits 6 and 7 of the button byte).
+  - The server puts it in `.vrbits0` bits 21 and 22 (`QVR_VRBITS0_*HAND_PRIMARY`, `VRGetEntPrimaryPressed`).
+- **The unreel** (`QC/vr_grapple.qc`):
+  - `VR_Grapple_UnreelButton` decides from the press, the ground (`FL_ONGROUND`), the water (`waterlevel` 2) and the
+    setting. A button already held when the hook is fired does not count.
+  - `VR_Grapple_Payout` sets the rope's pay-out speed: from a fifth to full in 0.15 s, like the reel; after release it
+    brakes at 2500 u/s².
+  - `VR_Grapple_Unwind` lengthens the rope, to no more than 4 units past the load's distance and the 2700-unit
+    maximum.
+  - Hanging, `VR_Grapple_HoldPlayer` gets the pay-out as a negative reel speed: your speed away from the hook is capped
+    at it.
+  - The rope snaps taut (twang, jolt) only when something outruns the pay-out.
+  - A prop hanging at the gun is no longer steadied while the rope pays out, so it is let down.
+- **The rope drawn** (`Quake/vr/vr_rope.cpp`, new; the slack code moved there from `vr_client.cpp`):
+  - The curve is the parabola as before, with its slack eased and lying on the floor where it would go through it. Its
+    sample count is chosen for its bend: the chord at most 0.05 units off the curve, at most 3° between samples, no
+    closer than 0.5 units, 8 to 160 pieces (it used to be 17, whatever the rope).
+  - Rogue's links (progs/beam.mdl, a quarter size, one every 30 model units as before) are laid end to end along the
+    curve's length. Each one is bent with the curve on the GPU (`gfx::drawBent`, `vr_gfx_gl.cpp`), so the chain is one
+    piece: no gaps, no straight pieces, however it curves.
+  - The shader looks up each vertex's place along the curve by a binary search of the samples' arc lengths. The model's
+    axes are carried along the curve with the least twist, from the engine's own frame for a beam's link (pitch and
+    yaw, no roll), so a taut rope looks exactly as before.
+  - The shading is the alias models': the skin's fullbright texels unlit (the chain is all fullbright), clamped to the
+    scene's brightest, and fogged.
+  - Every grappling rope is drawn this way, taut or slack, and so are other players' ropes (before, only your own
+    hung).
+  - If a replacement model is not an MDL, the rope is drawn as before (straight links).
+- **Floor traces** are bounded: at most 40 a rope, evenly spaced.
+  - Between two traced points that both lie on the floor, the points lie on the line between them (on a flat floor,
+    on it).
+  - Where the rope leaves the floor, every point is traced.
+  - Before this, the long rope below cost 150 traces a frame (0.100 ms); now it costs 0.036 ms.
+- **Profiler:** a new system, **grapple rope** (the curve, the upload and the GPU draw).
+
+### Checked (mock headset; `grapple2/*.log`, `*.png`)
+
+- **Ground, then ceiling** (`unreel.sh`; e1m1's tall room by the exit, ceiling 280 units up, hook at 165 2876 128):
+  - **On the ground:** A (with its `+jump`: in a mock script a button's binding runs only after the script) jumps
+    (z -150 -> -138), and the log shows `unreel button on the ground: its key (jump), no unreel`. The rope stays 286
+    for the whole jump with A held.
+  - **Reeled up:** 286 -> 40 in 1.12 s.
+  - **Hanging, A for 0.3 s:** the rope goes 40 -> 136 (the brake included), paying out up to 180-300 u/s. You drop from
+    z 88 to about 6.
+  - **Let go:** you hang still at 136.
+  - **A again:** 136 -> 282, 300 u/s at full speed, until you reach the floor (z -140). On the floor, pressing again
+    pays nothing out: nothing pulls.
+- **A weapon hanging at the gun** (`unreel_prop.sh`, Unreel Button Only When Airborne off, standing): it is reeled in
+  (rope 206 -> 14) and hangs 23 units under the gun. Holding A lowers it onto the floor (rope 14 -> 59, the weapon at
+  z 19, still).
+- **A grunt** reeled in (rope 236 -> 64), then you walk back (`+back`, about 330 u/s) holding A:
+  - the rope pays out at 300 u/s (64 -> 372) and the grunt mostly stays;
+  - then you walk back without A: the rope holds, and the grunt is dragged at 398 u/s.
+- **The rope, before and after** (`ropeshots.sh`: the firing range's func_wall bitten from 160 units, then walked up to
+  50 and 80 units of it). Left and right eye images are in `grapple2/before/` and `after/`; `cmp_0.png` to `cmp_3.png`
+  are side by side, `cmp_1_zoom.png` zoomed.
+  - Before: from the side, the bottom of the curve has a hole and a link sticking out straight.
+  - After: one smooth chain, the same crystals and the same brightness.
+  - From the eye, the rope drops from the gun and rises to the hook without a break.
+- **Long slack rope** (`slackshots.sh`; e1m1's corridor wall bitten 750 units off, then 550 closer): it still lies on
+  the floor and rises to the gun; taut, it is a straight line.
+
+### Cost (`measure.sh`, `measure_long.sh`: exclusive runs, the profiler's 5 s table, mock eyes)
+
+| | CPU a frame | GPU a frame |
+|---|---|---|
+| Short rope sagging (65 units, 130 samples, 9 links) | 0.018 ms (the curve 10-15 µs) | 0.001 ms |
+| Long rope on the floor (650 units, 150 samples, 87 links) | 0.036 ms (0.100 before the bounded traces) | 0.001 ms |
+| Taut rope (2 samples) | 2-5 µs | |
+| Before (Rogue's links as entities, the short rope) | +0.019 ms models, 30 more alias models | within noise |
+
+### In the headset
+
+- [ ] Hang from a ceiling and hold A (right hand) or X (left hand): you go down smoothly. Let go: you stop gently and
+  stay. Is 300 u/s a good speed? Does the ticking sound and feel right for letting rope out?
+- [ ] On the ground, A only jumps. Jump and keep A held: no unreel until you press again.
+- [ ] Reel a monster in, then hold A while backing away: it is not dragged. Reel a weapon to the gun, then hold A: it
+  is lowered.
+- [ ] A short rope sagging near you: one smooth chain, no holes? It should look the same as before when taut.
 
 ## Hands: both work; props through teleporters; climbing stamina
 

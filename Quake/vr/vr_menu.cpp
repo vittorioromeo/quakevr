@@ -1477,12 +1477,20 @@ void hologramTestMessage()
     return {
         cycle("Rope", vr_grapple_rope, {{1.f, "Holds"}, {0.f, "Pulls at once"}})
             .help("Holds: the hook bites and the rope holds you at its length (swing on it, walk closer), pulling nothing "
-                  "until you hold the hand's B or Y (Y on the left hand) with the trigger. Pulls at once: the mission pack's "
+                  "until you hold the hand's B or Y (Y on the left hand) with the trigger; A or X in the air pays it out. "
+                  "Pulls at once: the mission pack's "
                   "grapple, pulling you in as soon as it bites."),
         slider("Reel Speed", vr_grapple_reel_speed, 100.f, 1000.f, 25.f, "%.0f u/s").extend(25.f, 2000.f)
             .help("How fast the reel pulls you in: to a wall or a ceiling, to a huge monster, to a prop too heavy to come."),
         slider("Shortest Rope", vr_grapple_min_length, 16.f, 128.f, 4.f, "%.0f").extend(0.f, 400.f)
             .help("How short the reel takes the rope (units)."),
+        slider("Unreel Speed", vr_grapple_unreel_speed, 50.f, 800.f, 25.f, "%.0f u/s").extend(0.f, 2000.f)
+            .help("The hand's lower button (A on the right hand, X on the left) pays the rope out while held, this fast: "
+                  "you let yourself down from a ceiling, a monster or a prop can go farther. Let go and the rope keeps its "
+                  "length. 0: no unreel."),
+        toggle("Unreel Button Only When Airborne", vr_grapple_unreel_airborne)
+            .help("On: A or X unreels only in the air; on the ground it jumps (or reloads) as ever, and a press that "
+                  "jumped does not unreel until pressed again. Off: it unreels anywhere, its key still pressed too."),
 
         header("Props"),
         slider("Prop Reel Speed", vr_grapple_prop_speed, 100.f, 1500.f, 25.f, "%.0f u/s").extend(25.f, 3000.f)

@@ -57,6 +57,8 @@ float cvarh_vr_grapple_small_speed;
 float cvarh_vr_grapple_medium_speed;
 float cvarh_vr_grapple_stagger;
 float cvarh_vr_grapple_stamina;
+float cvarh_vr_grapple_unreel_speed;
+float cvarh_vr_grapple_unreel_airborne;
 float cvarh_vr_grapple_haptics;
 float cvarh_vr_grapple_debug;
 float cvarh_vr_forcegrab_arc;
@@ -287,6 +289,8 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_grapple_medium_speed);
     VR_CVAR_HMAKE(vr_grapple_stagger);
     VR_CVAR_HMAKE(vr_grapple_stamina);
+    VR_CVAR_HMAKE(vr_grapple_unreel_speed);
+    VR_CVAR_HMAKE(vr_grapple_unreel_airborne);
     VR_CVAR_HMAKE(vr_grapple_haptics);
     VR_CVAR_HMAKE(vr_grapple_debug);
     VR_CVAR_HMAKE(vr_forcegrab_arc);

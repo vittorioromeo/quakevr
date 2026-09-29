@@ -193,12 +193,9 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
     xBox.carry_offset_x = d * v_forward;
     xBox.carry_offset_y = d * v_right;
     xBox.carry_offset_z = d * v_up;
-    carryangles(xBox, handRot, TRUE); // the engine keeps its turn in the hand from here
-    // Held the same way every time (Held Object Offsets: Grip Mode 1): its place and turn in the hand are its settings'.
-    if(propvalue(xBox, "grip") == 1)
-    {
-        xBox.carry_offset = propgrip(xBox, handRot, !rightHand);
-    }
+    // Its place and turn in the hand by its Held Object Offsets' grip (where taken: as above; fixed; in the palm; along
+    // the handle; and the offset on top): the engine keeps them from here, and places it again when they change.
+    xBox.carry_offset = carrygrip(xBox, xPlayer, xHand, !rightHand, handRot, xBox.carry_offset);
     xBox.carry_trigger = VRGetEntFireButtonPressed(xPlayer, xHand);
     if(cvar("developer"))
     {
@@ -445,8 +442,10 @@ void(float xHand) VR_Carry_HandFrame =
     }
     box.carry_trigger = trigger;
 
-    // Follow the hand, turning with it; not through walls or monsters.
+    // Follow the hand, turning with it (its angles set; its place in the hand the grip's: moved at once by a change to its
+    // Held Object Offsets); not through walls or monsters.
     vector handRot = VRGetHandRot(xHand);
+    box.carry_offset = carryplace(box, handRot, box.carry_offset);
     makevectors(handRot);
     vector target = VRGetHandPos(xHand) + v_forward * box.carry_offset_x + v_right * box.carry_offset_y +
                     v_up * box.carry_offset_z;
@@ -455,7 +454,6 @@ void(float xHand) VR_Carry_HandFrame =
         VR_Carry_Release(xHand, box); // stuck behind something
         return;
     }
-    box.angles = carryangles(box, handRot, FALSE);
 };
 
 // Moves the held `box` (self is the player) towards `target`, not through walls or monsters: FALSE if

@@ -15,13 +15,14 @@ QVR_PROP_KEY(ComX, "com_x", "0")             // units off the middle of its draw
 QVR_PROP_KEY(ComY, "com_y", "0")             // centre of mass (a torch's head, a hammer's)
 QVR_PROP_KEY(ComZ, "com_z", "0")
 QVR_PROP_KEY(Throw, "throw", "0")            // times the hand's throw; 0: from the mass (vr_weight_throw_mass)
-QVR_PROP_KEY(GripMode, "grip", "0")          // 0: held where it is taken; 1: always the same way (Grip X..Roll)
-QVR_PROP_KEY(GripX, "grip_x", "0")           // with Grip Mode 1: the model's origin in the right hand's frame, units
-QVR_PROP_KEY(GripY, "grip_y", "0")           // (x forward, y left, z up; mirrored for the left hand)
-QVR_PROP_KEY(GripZ, "grip_z", "0")
-QVR_PROP_KEY(GripPitch, "grip_pitch", "0")   // and its turn there, degrees (as the model's angles off the hand's)
-QVR_PROP_KEY(GripYaw, "grip_yaw", "0")
-QVR_PROP_KEY(GripRoll, "grip_roll", "0")
+QVR_PROP_KEY(GripMode, "grip", "0")          // how it sits in the hand (vr_grip.hpp): 0 where taken; 1 fixed (Grip X..Roll);
+                                             // 2 in the palm (a rock); 3 along the handle (a torch)
+QVR_PROP_KEY(GripX, "grip_x", "0")           // Grip Mode 1: the model's origin in the right hand's frame, units (x forward,
+QVR_PROP_KEY(GripY, "grip_y", "0")           // y left, z up; mirrored for the left hand); the others: an offset on top,
+QVR_PROP_KEY(GripZ, "grip_z", "0")           // moved in the hand's frame
+QVR_PROP_KEY(GripPitch, "grip_pitch", "0")   // and its turn, degrees: Grip Mode 1 as the model's angles off the hand's; the
+QVR_PROP_KEY(GripYaw, "grip_yaw", "0")       // others: turned in the hand's frame (pitch up, yaw left, roll right) about
+QVR_PROP_KEY(GripRoll, "grip_roll", "0")     // where the hand holds it
 QVR_PROP_KEY(FingerManual, "fgr_manual", "0") // 0: the fingers wrap it (fitted); 1: each at its curl below
 QVR_PROP_KEY(FingerCurlThumb, "fgr_curl_thumb", "0.6")
 QVR_PROP_KEY(FingerCurlIndex, "fgr_curl_index", "0.6")
@@ -49,6 +50,10 @@ QVR_PROP_KEY(SpringTwoHanded, "help_2h", "1")
 QVR_PROP_KEY(SpringSnap, "snap", "1")
 QVR_PROP_KEY(MeleeDamage, "melee_dmg", "1")
 QVR_PROP_KEY(ThrowDamage, "throw_dmg", "1")
+// Round 21, "Held props: grip modes, live offsets, palm grip, torch handle": Grip Mode 3's handle.
+QVR_PROP_KEY(HandleFrom, "handle_from", "0") // where the fist may hold it along its long axis, units in its model's axes
+QVR_PROP_KEY(HandleTo, "handle_to", "0")     // from its origin; both 0: the butt's half, short of its end
+QVR_PROP_KEY(HandleTilt, "handle_tilt", "25") // degrees its handle may lean off the fist's grip channel, as taken
 #endif
 
 #ifdef QVR_PROP_RETIRED
@@ -77,16 +82,17 @@ QVR_PROP_DEFAULT(3, Mass, "1.2")
 QVR_PROP_DEFAULT(4, ID, "progs/mervup.mdl")
 QVR_PROP_DEFAULT(4, Mass, "1.2")
 // A wall torch taken off its wall (vr_walltorch.qc; ROUND21.md, "Wall torches you can take"): a wooden stick along its
-// model's +x, its weight in its head; held by the handle like a sword, in one hand (the other may take another torch),
-// its head the melee's striking end. (Slot 17: apart from the next props' entries; vr_cfg_version 25 gives it to
-// configs saved before it.)
+// model's +x (the butt at -14, the handle to -7, the head to +1.8), its weight in its head; held by its handle through the
+// fist, flame up (Along the Handle: where it was taken along the handle, leaning as taken), in one hand (the other may take
+// another torch), its head the melee's striking end. (Slot 17: apart from the next props' entries; vr_cfg_version 25
+// gives it to configs saved before it; vr_props_version 40 its grip.)
 QVR_PROP_DEFAULT(16, ID, "progs/vrtorch.mdl")
 QVR_PROP_DEFAULT(16, Mass, "0.9")
 QVR_PROP_DEFAULT(16, ComX, "4")
-QVR_PROP_DEFAULT(16, GripMode, "1")
+QVR_PROP_DEFAULT(16, GripMode, "3")
 QVR_PROP_DEFAULT(16, TwoHands, "0")
-QVR_PROP_DEFAULT(16, GripX, "10")
-QVR_PROP_DEFAULT(16, GripZ, "-3")
+QVR_PROP_DEFAULT(16, HandleFrom, "-12.4")
+QVR_PROP_DEFAULT(16, HandleTo, "-8.2")
 QVR_PROP_DEFAULT(16, TipX, "2.3")
 QVR_PROP_DEFAULT(16, ButtX, "-14")
 // Gibs and heads (round 21, "Spring only; Weapon Weights and Held Object Weights; weight and damage"): Box3D's estimate
@@ -131,26 +137,33 @@ QVR_PROP_DEFAULT(47, Mass, "12")
 // weight's curve by its mass (a 1 kg rock 1.79, a brick 2.1); the whole bricks (a tip: clubs, whose blows take no Box
 // Punch Damage) Melee Damage 2.1; thrown, Thrown Box Damage x 2.1 x the curve. The rocks and the half brick one hand; the
 // whole, chipped and broken bricks (19 and 13 cm) both hands too (vr_props_version 39), then carried as a box, not a club.
+// Held (round 21, "Held props: grip modes, live offsets, palm grip, torch handle"): the rocks and the half brick In the
+// Palm (their middle in the palm's, the fingers round them), the whole bricks and the broken piece fixed (by an end).
 QVR_PROP_DEFAULT(17, ID, "progs/vr_rock1.mdl")
 QVR_PROP_DEFAULT(17, ThrowDamage, "2.1")
 QVR_PROP_DEFAULT(17, MeleeDamage, "1.4")
 QVR_PROP_DEFAULT(17, TwoHands, "0")
+QVR_PROP_DEFAULT(17, GripMode, "2")
 QVR_PROP_DEFAULT(18, ID, "progs/vr_rock2.mdl")
 QVR_PROP_DEFAULT(18, ThrowDamage, "2.1")
 QVR_PROP_DEFAULT(18, MeleeDamage, "1.4")
 QVR_PROP_DEFAULT(18, TwoHands, "0")
+QVR_PROP_DEFAULT(18, GripMode, "2")
 QVR_PROP_DEFAULT(19, ID, "progs/vr_rock3.mdl")
 QVR_PROP_DEFAULT(19, ThrowDamage, "2.1")
 QVR_PROP_DEFAULT(19, MeleeDamage, "1.4")
 QVR_PROP_DEFAULT(19, TwoHands, "0")
+QVR_PROP_DEFAULT(19, GripMode, "2")
 QVR_PROP_DEFAULT(20, ID, "progs/vr_rock4.mdl")
 QVR_PROP_DEFAULT(20, ThrowDamage, "2.1")
 QVR_PROP_DEFAULT(20, MeleeDamage, "1.4")
 QVR_PROP_DEFAULT(20, TwoHands, "0")
+QVR_PROP_DEFAULT(20, GripMode, "2")
 QVR_PROP_DEFAULT(21, ID, "progs/vr_rock5.mdl")
 QVR_PROP_DEFAULT(21, ThrowDamage, "2.1")
 QVR_PROP_DEFAULT(21, MeleeDamage, "1.4")
 QVR_PROP_DEFAULT(21, TwoHands, "0")
+QVR_PROP_DEFAULT(21, GripMode, "2")
 QVR_PROP_DEFAULT(22, ID, "progs/vr_brick1.mdl")
 QVR_PROP_DEFAULT(22, ThrowDamage, "2.1")
 QVR_PROP_DEFAULT(22, MeleeDamage, "2.1")
@@ -173,6 +186,7 @@ QVR_PROP_DEFAULT(24, ID, "progs/vr_brick3.mdl")
 QVR_PROP_DEFAULT(24, ThrowDamage, "2.1")
 QVR_PROP_DEFAULT(24, MeleeDamage, "1.4")
 QVR_PROP_DEFAULT(24, TwoHands, "0")
+QVR_PROP_DEFAULT(24, GripMode, "2")
 QVR_PROP_DEFAULT(25, ID, "progs/vr_brick4.mdl")
 QVR_PROP_DEFAULT(25, ThrowDamage, "2.1")
 QVR_PROP_DEFAULT(25, MeleeDamage, "2.1")
