@@ -12,6 +12,7 @@
 #include "vr_box3d.hpp"
 #include "vr_carry2h.hpp"
 #include "vr_engine.hpp"
+#include "vr_grip.hpp"
 #include "vr_held.hpp"
 #include "vr_physics.hpp"
 #include "vr_profile.hpp"
@@ -355,6 +356,7 @@ void resetRigidBodies()
     freePlaces.clear();
     carried.clear();
     carry2h::resetServer();
+    grip::resetServer();
 }
 
 void forgetEntity(int num)
@@ -365,6 +367,7 @@ void forgetEntity(int num)
     }
     carried.erase(num);
     carry2h::forgetEntity(num);
+    grip::forget(num);
 }
 
 } // namespace qvr::physics

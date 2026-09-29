@@ -320,17 +320,28 @@ std::vector<Item> pageHeldObjectOffsets()
     list.insert(list.end(), {
         open("Held Object Weights", pageIndex(pageHeldObjectWeights)).help("Its mass, how it follows your hand and its damage."),
         header("Grip"),
-        cycle("Grip", props::cvar(slot, Key::GripMode), {{0.f, "Where taken"}, {1.f, "Always the same"}})
-            .help("Where taken: it stays in the hand as you took it. Always the same: it is held as below, whichever "
-                  "part you take (a torch by its handle). From the next grab."),
-        s("Grip X (forward)", Key::GripX, -40.f, 40.f, 0.5f, "%+.1f").extend(-200.f, 200.f)
-            .help("Always the same: its model's origin in your right hand, units (x forward, y left, z up; the left "
-                  "hand's mirrored)."),
-        s("Grip Y (left)", Key::GripY, -40.f, 40.f, 0.5f, "%+.1f").extend(-200.f, 200.f),
-        s("Grip Z (up)", Key::GripZ, -40.f, 40.f, 0.5f, "%+.1f").extend(-200.f, 200.f),
-        s("Grip Pitch", Key::GripPitch, -180.f, 180.f, 5.f, "%+.0f"),
-        s("Grip Yaw", Key::GripYaw, -180.f, 180.f, 5.f, "%+.0f"),
-        s("Grip Roll", Key::GripRoll, -180.f, 180.f, 5.f, "%+.0f"),
+        cycle("Grip", props::cvar(slot, Key::GripMode),
+            {{0.f, "Where taken"}, {1.f, "Fixed"}, {2.f, "In the palm"}, {3.f, "Along the handle"}})
+            .help("Where taken: as you took it. Fixed: always the same, as below. In the palm: its middle in your palm, "
+                  "the fingers round it (a rock). Along the handle: its handle through your fist where you took it (a "
+                  "torch). Changes the prop in your hand at once."),
+        s("X (forward)", Key::GripX, -40.f, 40.f, 0.5f, "%+.1f").extend(-200.f, 200.f)
+            .help("Fixed: its model's origin in your right hand, units (x forward, y left, z up; the left hand's "
+                  "mirrored). The other grips: moves it that far in your hand, the hand staying where it is. Live."),
+        s("Y (left)", Key::GripY, -40.f, 40.f, 0.5f, "%+.1f").extend(-200.f, 200.f),
+        s("Z (up)", Key::GripZ, -40.f, 40.f, 0.5f, "%+.1f").extend(-200.f, 200.f),
+        s("Pitch (up)", Key::GripPitch, -180.f, 180.f, 5.f, "%+.0f")
+            .help("Fixed: its model's angles off your hand's. The other grips: turns it in your hand about where you "
+                  "hold it (your palm; in the palm, its middle; a handle, your fist). Live."),
+        s("Yaw (left)", Key::GripYaw, -180.f, 180.f, 5.f, "%+.0f"),
+        s("Roll (right)", Key::GripRoll, -180.f, 180.f, 5.f, "%+.0f"),
+        s("Handle From", Key::HandleFrom, -40.f, 40.f, 0.2f, "%+.1f").extend(-200.f, 200.f)
+            .help("Along the handle: the part of it your fist may hold, units along its long axis from its model's "
+                  "origin. Both 0: its butt's half."),
+        s("Handle To", Key::HandleTo, -40.f, 40.f, 0.2f, "%+.1f").extend(-200.f, 200.f),
+        s("Handle Tilt", Key::HandleTilt, 0.f, 90.f, 5.f, "%.0f deg")
+            .help("Along the handle: how far it may lean off the line through your fist, as you took it (0: always "
+                  "straight through)."),
         header("Fingers"),
         cycle("Fingers", props::cvar(slot, Key::FingerManual), {{0.f, "Fitted"}, {1.f, "Manual"}})
             .help("Fitted: they wrap it. Manual: each at its curl below."),
