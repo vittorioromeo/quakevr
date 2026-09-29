@@ -11833,3 +11833,263 @@ and `cvarlen <name>` (a value's length and its end).
 - [ ] Debug > Reports > **Limits** after a long session (several maps): no highlighted row, and no `Limit reached`
       line in the console.
 - [ ] Open a few different VR pages, quit and restart: each page should open where you left it.
+
+## Precise hit detection (models, not boxes)
+
+Your voice note (vrfiringrange, 29 September, 01:01; screenshots `vrfiringrange_2026-09-29_01-01-11.png` and `-01-30`):
+the grappling hook took hold of the air beside a zombie, because it hit Quake's box round the monster, "which in Quake is
+very, very large"; use the model itself as the hitbox, for the hook and for all the guns, "so that the precision is
+greatly increased and you actually have to hit the model to deal damage", with a little tolerance (the model grown a
+bit) as an option, and the big box as the broad phase. You chose everything: hitscan, the hook, projectiles, melee and
+thrown things. Branch `agent/hitbox`; scripts, logs and images in the scratchpad's `hitbox/`.
+
+### What you get
+
+- A shot, a nail, a rocket, a grenade, a laser, a lava nail, plasma, the grappling hook, a melee blow, a shove and a
+  thrown thing hit a monster (or a corpse, or the training dummy) where its **model is drawn**, grown by a few units, not
+  anywhere in its box. What goes through the empty part of the box (beside a grunt's head, between the ogre's arm and
+  its body, the shambler's box corners) flies on to what is behind it: the wall, another monster.
+- Headshots, arm and leg shots come from the place the model was hit (below).
+- Combat > Damage and Knockback > **Hit Detection** (the page's first part):
+
+| Setting | Cvar | Default | |
+|---|---|---|---|
+| Precise Hit Detection | `vr_hit_precise` | On | Off: Quake's boxes, exactly as before |
+| Guns Tolerance | `vr_hit_tolerance_guns` | 4 units | shots and projectiles |
+| Grappling Hook Tolerance | `vr_hit_tolerance_grapple` | 2 units | |
+| Melee Tolerance | `vr_hit_tolerance_melee` | 6 units | on top of the striking points' own 3 units (9 in all) |
+| Thrown Tolerance | `vr_hit_tolerance_thrown` | 2 units | on top of the thrown hit box, `vr_throw_hitbox` 6 (8 in all) |
+
+- Debug > Views > **Show Hits** (`vr_debug_hits`): each hit drawn for 4 seconds: the model as it was drawn then (a cyan
+  wireframe), the triangle hit (green), the point on the model (red, with its normal), where the grown model was met
+  (yellow), the shot's line (white); and printed (`hit model: monster_army 199 (guns, grown 4.0): at ..., on the model
+  ...`). "Hits and Misses" also draws the shots that went through a box beside its model (orange). Debug > Reports >
+  **Hit Detection** (`vr_hitmodel_stats`): the tests so far and their cost.
+
+Which things: monsters and their corpses (`FL_MONSTER`), drawn with a Quake `.mdl`. The training dummy is one (a
+grunt's model): it answers as the monsters do, which is what it is for. **Players keep their boxes** (in multiplayer too:
+the VR body is drawn from the tracked headset and hands, and the player model is not what you see of another player), as
+do doors, props, gibs and heads, and a monster drawn with a replacement model without Quake's vertex animation (MD5,
+IQM). Monsters' missiles against you: your box, as before.
+
+### How it works (`Quake/vr/vr_hitmodel.cpp`)
+
+- **The model as you see it.** The server keeps the client's lerp (`r_alias.c` R_SetupAliasFrame and
+  R_SetupEntityTransform): each monster's pose (its frame's, a framegroup's by time), the blend from the previous pose
+  over 0.1 s (or the think interval the server sends, `U_LERPFINISH`), and a walking monster's (MOVETYPE_STEP) origin and
+  angles lerped the same way; `r_lerpmodels` and `r_lerpmove` are followed. It is placed as the renderer places it: its
+  origin, angles and scale, the networked `model_scale` about `model_scale_origin`, `model_offset`. Updated at the end of
+  each server frame (`VR_ServerFrameEnd`).
+- **The test.** What moves is a segment (a traceline, a missile's move this frame, a melee point's sweep from its last
+  place) swept by a sphere: the class's tolerance plus the moving thing's own size (the largest sphere in its box: 0 for
+  shots and missiles, 6 for the thrown hit box). The model is grown by that radius along its vertex normals (the .mdl's
+  own, blended with the pose: "grow the model a little") and the segment is tested against its triangles (Moller-Trumbore,
+  both faces). A segment that starts inside the grown model (its first crossing faces away, or it has none and a ray
+  onwards leaves the model) hits at its start: a muzzle pushed into a monster, a blade already in it.
+- **Fast.** Each model's triangles are sorted once into a bounding volume hierarchy (median splits of their centroids
+  averaged over all its poses, 4 triangles a leaf); each pose has its nodes' bounds, as bytes like the vertices (6 bytes
+  a node). A blend tests the union of both poses' bounds; the nearer child first; a vertex is posed once a test. Built at
+  map load for every precached alias model (e1m1: 66 models, 19861 triangles, **5.7 ms**; kept for the next maps while
+  the model stays loaded), so a first hit has no hitch.
+- **The broad phase is Quake's.** The engine's clip (`SV_ClipToLinks`) finds the monsters whose boxes the move's box
+  meets, grown by the tolerance and by 96 units (`MOVE_HITMODEL_REACH`: a model reaching out of its box: an ogre's
+  chainsaw, 33 units out of the ogre's box standing, a scrag's wings 38; a walking monster drawn behind its box by the
+  lerp: a dog's bound, 64 units in one step); the hierarchy's
+  root (the model's bounds as drawn) is the next test. So an arm reaching out of the box is hit too: the model is the
+  hitbox, the box only finds it.
+- **Who asks.** A move type flag, `MOVE_HITMODEL` (512) with its class in the two bits above (world.h):
+  - QC tracelines: `FireBullets` (shotguns, the monsters' hitscan too), `LightningDamage`, Mjolnir's `HIP_HammerDamage`,
+    `PlasmaDamage`, the melee sweep's and the old melee fallback's traces, a thrown weapon's first flight check
+    (`MOVE_HITMODEL`, `_GRAPPLE`, `_MELEE`, `_THROWN`: builtins.qc);
+  - missiles and grenades (MOVETYPE_FLYMISSILE, MOVETYPE_BOUNCE, solid): their moves in `SV_PushEntity`, their class
+    from `.vr_hitclass` (0 a gun's; the grappling hook sets 1; -1 keeps the box); and the traces standing in for their
+    flight (`VR_ShotPlace`, `VR_ShotImpacts`, `VR_TouchTrace`);
+  - thrown props (Box3D's hit box sweep, `touchNearby`);
+  - melee: `VR_Melee_Sweep`'s monster test and the bash (shove) test ask `hitmodel_segment(e, a, b, radius, class)` after
+    their box test (the box grown by 96 as the broad phase).
+  A monster knocked back into a missile no longer meets it with its box: the missile's own move meets its model.
+- **Where it was hit.** A traceline's `trace_endpos` is where it met the grown model (the usual trace point, so blood,
+  wounds and the hook's anchor sit on the surface); the point on the model itself is the same place (barycentric) on the
+  ungrown triangle. **Positional damage** (`PositionalRegion`) with a model hit takes that place on the model *standing*
+  (`hitmodel_rest`: the same triangle in its "stand" frame, at its origin, turned with its yaw) and asks: in the head
+  sphere (its radius and 3.5 units: the spheres are fitted to the top vertices' middle, and a head's surface lies up to
+  3.5 beyond, an ogre's back of the head 13.3 units from a 10-unit sphere's middle) - a headshot; out to its sides more
+  than 0.35 of its box's width - an arm; below its origin - the legs. A crouching, flinching or dead monster keeps its
+  head where its model has it. Sideways is measured across its facing, not forwards: a grunt's hands and gun are in front
+  of its chest, and a front shot there is the body, as before.
+- **Off** (`vr_hit_precise 0`): the flag is ignored (the engine strips it before anything reads the type), no QC path
+  changes (`hitmodel_target` is false), the lerp isn't kept: exactly the old behaviour (checked below).
+
+Engine hooks: `world.c` (SV_MoveRun, SV_ClipToLinks), `sv_phys.c` (SV_PushEntity), `vr_box3d.cpp` (touchNearby),
+`vr_server.cpp` (VR_ServerFrameEnd), `vr_progs.cpp` (the reset and the build at map load), `vr_view.cpp` (the debug
+view). QC builtins: `hitmodel_target`, `hitmodel_segment`, `hitmodel_rest`. Field `.vr_hitclass`.
+
+### Checked (mock headset; the scratchpad's `hitbox/`)
+
+**How much of the box is empty** (`vr_hitmodel_bench 1000 4 newest`: random rays from all round at random points in the
+box of the monster just spawned, standing; `battery6.txt`): the share of the rays that met the box that still meet the
+model grown by 4 units, and a test's cost:
+
+| Monster | Triangles | Box hits that meet the model | A test | Triangles tested | Model out of its box |
+|---|---|---|---|---|---|
+| Grunt | 810 | 80 % | 4.21 us | 74.5 | 4.8 units |
+| Ogre | 952 | 82 % | 2.45 us | 39.3 | 32.4 units |
+| Zombie | 674 | 75 % | 3.04 us | 49.7 | 3.2 units |
+| Shambler | 992 | 71 % | 2.43 us | 40.5 | 17.5 units |
+| Scrag | 606 | 87 % | 2.19 us | 30.4 | 37.9 units |
+| Knight | 697 | 82 % | 3.63 us | 55.7 | 16.8 units |
+| Hell knight | 996 | 91 % | 3.10 us | 57.4 | 30.9 units |
+| Dog | 1028 | 85 % | 4.08 us | 77.5 | 19.7 units |
+| Enforcer | 924 | 90 % | 2.88 us | 49.1 | 9.1 units |
+| Fiend | 1812 | 74 % | 3.63 us | 64.8 | 28.0 units |
+| Vore | 728 | 43 % | 1.39 us | 18.4 | 4.0 units |
+| Spawn | 256 | 66 % | 1.64 us | 27.2 | 17.2 units |
+| Gremlin | 245 | 80 % | 2.19 us | 38.5 | 6.1 units |
+| Centroid | 422 | 57 % | 1.83 us | 27.3 | 18.9 units |
+| Mummy | 347 | 61 % | 1.73 us | 26.5 | 2.9 units |
+| Phantom swordsman | 106 | 28 % | 0.67 us | 9.9 | 9.3 units |
+| Wrath | 420 | 74 % | 1.66 us | 27.0 | 27.0 units |
+| Overlord | 564 | 78 % | 1.96 us | 30.4 | 34.0 units |
+| Grunt (corpse) | 810 | 70 % | 3.81 us | 63.2 | 16.7 units |
+| Ogre (corpse) | 952 | 90 % | 2.81 us | 48.0 | 35.9 units |
+| Shambler (corpse) | 992 | 78 % | 2.86 us | 44.8 | 33.1 units |
+| Dog (corpse) | 1028 | 89 % | 4.16 us | 86.2 | 17.4 units |
+
+The tolerance (grunt, ogre, shambler, dog, knight; `tolerances.txt`): 0 units 63/64/67/65/54 %, 2: 70/75/68/74/72 %,
+**4: 79/83/70/85/81 %**, 6: 88/90/73/93/88 %, 8: 93/94/76/95/93 %. Four units keeps the look of "you have to hit the
+model" (a fifth of a grunt's box hits gone, the shambler's corners) without asking for pixel aim.
+
+**Rays through the box's corner columns** (impulse 238, `battery6.txt`: six level rays 2 units in from the box's side
+edges, near the top, a quarter up and at mid height, from the player's side, starting 64 units before the box's middle;
+the same at its chest; 24 rays at the head's middle from all round and 24 at the chest; with Quake's boxes, then the
+models; "->" is boxes -> models):
+
+| Monster | Corner rays on it (boxes -> model) | Hook | Melee | Thrown | Middle | Head ring: on it, headshots | Chest ring: arm hits |
+|---|---|---|---|---|---|---|---|
+| Grunt | 6 -> 3 of 6 | 6 -> 3 | 6 -> 5 | 6 -> 5 | 1 -> 1 | 24/24, 24 -> 24/24, 24 | 0 -> 8 |
+| Ogre | 6 -> 4 of 6 | 6 -> 3 | 6 -> 5 | 6 -> 5 | 1 -> 1 | 24/24, 24 -> 24/24, 21 | 0 -> 6 |
+| Zombie | 6 -> 5 of 6 | 6 -> 2 | 6 -> 6 | 6 -> 6 | 1 -> 1 | 24/24, 24 -> 24/24, 24 | 0 -> 2 |
+| Shambler | 6 -> 2 of 6 | 6 -> 1 | 6 -> 1 | 6 -> 2 | 1 -> 1 | 24/24, 24 -> 24/24, 15 | 0 -> 7 |
+| Scrag | 6 -> 4 of 6 | 6 -> 3 | 6 -> 5 | 6 -> 4 | 1 -> 1 | 24/24, 24 -> 24/24, 13 | 0 -> 14 |
+| Knight | 6 -> 3 of 6 | 6 -> 3 | 6 -> 6 | 6 -> 5 | 1 -> 1 | 24/24, 24 -> 24/24, 22 | 0 -> 8 |
+| Hell knight | 6 -> 6 of 6 | 6 -> 4 | 6 -> 6 | 6 -> 6 | 1 -> 1 | 24/24, 24 -> 24/24, 16 | 0 -> 10 |
+| Dog | 6 -> 4 of 6 | 6 -> 1 | 6 -> 4 | 6 -> 4 | 1 -> 1 | - | 0 -> 0 |
+| Enforcer | 6 -> 6 of 6 | 6 -> 4 | 6 -> 6 | 6 -> 6 | 1 -> 1 | 24/24, 24 -> 24/24, 13 | 0 -> 11 |
+| Fiend | 6 -> 4 of 6 | 6 -> 4 | 6 -> 4 | 6 -> 4 | 1 -> 1 | - | 0 -> 0 |
+| Vore | 6 -> 4 of 6 | 6 -> 4 | 6 -> 4 | 6 -> 4 | 1 -> 1 | 24/24, 24 -> 24/24, 18 | 0 -> 0 |
+| Spawn | 6 -> 4 of 6 | 6 -> 2 | 6 -> 4 | 6 -> 4 | 1 -> 0 | - | 0 -> 0 |
+| Gremlin | 6 -> 4 of 6 | 6 -> 4 | 6 -> 4 | 6 -> 4 | 1 -> 1 | 24/24, 24 -> 18/24, 18 | 0 -> 7 |
+| Centroid | 6 -> 2 of 6 | 6 -> 2 | 6 -> 2 | 6 -> 2 | 1 -> 1 | - | 0 -> 0 |
+| Mummy | 6 -> 1 of 6 | 6 -> 0 | 6 -> 6 | 6 -> 6 | 1 -> 1 | 24/24, 24 -> 24/24, 24 | 0 -> 0 |
+| Phantom swordsman | 6 -> 1 of 6 | 6 -> 0 | 6 -> 3 | 6 -> 3 | 1 -> 0 | - | 0 -> 0 |
+| Wrath | 6 -> 2 of 6 | 6 -> 0 | 6 -> 6 | 6 -> 6 | 1 -> 1 | - | 0 -> 0 |
+| Overlord | 6 -> 4 of 6 | 6 -> 0 | 6 -> 6 | 6 -> 6 | 1 -> 1 | - | 0 -> 0 |
+
+**Missiles** (impulse 237 a nail, 236 a rocket, one at a time, through the same six columns then the middle; 235 says
+what it touched; the target takes no damage so it stands in its pose; `missiles2.txt`):
+
+| Monster | Missile | Boxes: corners, middle | Models: corners, middle |
+|---|---|---|---|
+| Grunt | nail | HIT HIT HIT HIT HIT HIT; HIT | wall - HIT HIT wall HIT; HIT |
+| Grunt | rocket | HIT HIT HIT HIT HIT HIT; HIT | - other HIT HIT - HIT; HIT |
+| Grunt | hook | HIT HIT HIT HIT HIT HIT; HIT | other other HIT HIT wall HIT; HIT |
+| Ogre | nail | HIT HIT HIT HIT HIT HIT; HIT | wall wall HIT HIT HIT HIT; HIT |
+| Ogre | rocket | HIT HIT HIT HIT HIT HIT; HIT | - wall HIT - HIT -; HIT |
+| Ogre | hook | HIT HIT HIT HIT HIT HIT; HIT | wall wall wall wall wall wall; HIT |
+| Shambler | nail | HIT HIT HIT HIT HIT HIT; HIT | - wall HIT wall HIT HIT; HIT |
+| Shambler | rocket | HIT HIT HIT HIT HIT HIT; HIT | - wall wall wall HIT HIT; HIT |
+| Shambler | hook | HIT HIT HIT HIT HIT HIT; HIT | wall wall wall wall HIT wall; HIT |
+| Zombie | nail | HIT HIT HIT HIT HIT HIT; HIT | wall HIT HIT HIT wall HIT; HIT |
+| Zombie | rocket | HIT HIT HIT HIT HIT HIT; HIT | - other HIT HIT HIT HIT; HIT |
+| Zombie | hook | HIT HIT HIT HIT HIT HIT; HIT | other wall wall HIT HIT HIT; HIT |
+
+`-` flew on past it (nothing within 40 frames), `wall` struck the world behind it, `other` touched something else
+beyond it.
+
+**Headshots** keep registering: of the 24 rays at the head's middle from all round, the headshots: grunt 24, zombie 24,
+mummy 24, knight 22, ogre 21, vore 18, gremlin 18 (of 18 on it), hell knight 16, shambler 15, scrag 13, enforcer 13.
+The rays that aren't headshots hit something in front of the head from that side first: the enforcer's backpack, the
+scrag's wings, the hell knight's shoulder spikes, the shambler's hump (with the boxes every one was a headshot: the ray
+only had to pass near the head). Arm shots now come from hitting an arm: the chest ring from the sides hits the arms
+(grunt 8 of 24, ogre 6, shambler 7), where the boxes' rule found none.
+
+**The grappling hook** is a missile with its class (`.vr_hitclass` 1, 2 units): through the corner columns (impulse 234, the "hook" rows above) it takes hold of the zombie 3 times of 6 (its arms
+reach there), the grunt 3, the shambler 1, the ogre 0; at the middle always. In the mock with the real hook (the Grappling
+Hook in the main hand, fired at a zombie 150 units ahead; `hook_zombie.png`, Show Hits on):
+`hit model: monster_zombie 199 (grapple, grown 2.0): at 171.0 -557.1 54.9, on the model 169.3 -556.7 54.4`: it took
+hold at the zombie's side, 1.7 units off its surface, and reeled it in (the wireframe is where the zombie was when it
+was hit; it has been pulled since). `hits_ogre.png`: an ogre with the seven nails of impulse 237 (Hits and Misses): its
+model as the hit test posed it (cyan) over the drawn ogre, the triangles hit (green) and the points (red), the nails
+through its box beside it (orange).
+
+**Melee** (the archived takes, replayed with your OLD hand settings, set and printed: `vr_gunangle 39.5`, `vr_gunyaw 4`,
+every `vr_handcal_*` 0, `vr_handcal_off_mirror 0`; all 471, `melee_*.csv`):
+
+| | Pass (of 471) | Verdicts changed |
+|---|---|---|
+| The base (5b2bdfaf, built side by side) | 426 | |
+| This branch, option off | 426 | **none; 0 takes differ at all (verdicts and events)** |
+| Option on, melee tolerance 4 (7 in all) | 402 | 27 lost, 3 gained |
+| **Option on, melee tolerance 6 (the default: 9 in all)** | **416** | **13 lost, 3 gained** |
+
+The 13 lost at 6 (a blow the box took that doesn't reach the model): `gun_strike_butt` 02-31-23, -29, -31 (the off
+hand's butt strikes), `gun_strike_swing` 02-30-26, 02-30-49, `hilt_pommel` 04-05-36, 04-05-56, `punch_straight`
+02-18-22, -24, -27 (off-hand straights), `punch_uppercut` 02-19-49, `slash_backswing_up_left` 02-41-52,
+`stab_one_hand` 02-47-07 (now a slash first). Gained: `hilt_pommel` 02-44-06 and 02-44-20 (the pommel now lands first,
+as the take expects), `stab_two_hands` 02-47-43. The other changes are the same blows landing a little later and
+elsewhere (the blade reaches the model a frame after the box: damage and "the tip" / "the blade" differ).
+The 30 takes that changed at 4, replayed at larger melee tolerances: 8 loses 6 of them, 12 loses 2, 16 loses 1: most
+of these blows passed within 5 to 9 units of the dummy's model. The takes were recorded with your old calibration
+(archived for that reason), so I did not tune the tolerance on them; 6 is "a bit larger than the guns'" as you asked.
+On the final merge (base 6354e9b9) the 46 canary takes: base = off exactly (0 differ), on changes no verdict.
+
+**Thrown things** use the same test (tracebox with the thrown hit box and `MOVE_HITMODEL_THROWN`, impulse 238's "thrown"
+column): of the six corner columns a thrown thing still meets a grunt's 5 and an ogre's 5 (its 6-unit hit box and the
+2 units of tolerance reach 8 round the body: most of a slim box), a shambler's 2.
+
+**The option off** is the old behaviour: the archived takes give the same verdicts and events as the base (above: 0 of 471; 0 of 46 on the final merge); the
+tables' "boxes" rows (the same tests with the option off) hit every corner column as before; the engine strips the flag
+before any code reads the move type, and QC's precise paths are behind `hitmodel_target`, false with it off.
+
+**The model tested is the model drawn** (`vr_hitmodel_check`: each monster's vertices as the hit test poses them against
+the client's drawn ones, every 3 frames for 4 s, 6 monsters walking and attacking): 0.22 units apart on average (the
+blend runs a frame ahead at most); without the server's copy of the lerp (a frame's pose at the origin) 8.2. The worst,
+35 to 51 units, is a dog's bound: 64 units in one step, drawn over 0.1 s, a frame out.
+
+### Cost
+
+- **Map load:** every precached alias model's hierarchy, e1m1 66 models (19861 triangles) 5.7 ms; vrfiringrange (every
+  monster's model) 50 more in 12 ms, 37 kept from e1m1 (the same model loaded); the next e1m1 3 models, 0.4 ms. No
+  first-hit hitch.
+- **Memory:** e1m1 1.8 MB, vrfiringrange (every monster model) 5.8 MB: each pose's node bounds (6 bytes a node); only
+  the current map's models are kept.
+- **A test:** 0.6 to 4.2 us (the bench above, random rays through the box: 10 to 75 triangles tested); in the firefight
+  below 0.7 us for the engine's (missiles, shots), 1.3 us with melee's.
+- **A firefight** (`firefight.sh`, exclusive, `vr_fixed_frames 1`, 6 monsters attacking you, the super nailgun then the
+  super shotgun into them, every trace timed; the profiler's table, milliseconds a frame): server 0.213 off, 0.236 on;
+  of it traces 0.009 -> 0.022 and QC builtins 0.028 -> 0.044 (melee's segment tests with ogres at arm's length); 13257
+  model tests in the capture. About 0.02 ms a frame: 0.2 % of the 11.1 ms budget. The server's lerp copy (every monster
+  each server frame) is inside "server other" (under 0.01).
+
+### Limitations
+
+- A model reaching more than 96 units out of its box would not be found there (the most measured, as drawn: 38, a
+  scrag's wings; a shambler corpse 33).
+- Box3D's contact between a thrown prop and a monster (the monster's body is the convex hull of its standing model) still
+  touches: a prop bouncing off the hull between an ogre's arm and its body hurts it. The hit box sweep, which is what
+  hurts in flight, is precise.
+- The lerp kept by the server starts when the server changes the frame; the client starts drawing it when the update
+  arrives (a frame later): the hit pose leads the drawn one by one server frame at most.
+- The takes were recorded against the box with your old calibration; the melee tolerance wasn't tuned on them (they are
+  archived), only checked: record new takes and I can tune it.
+
+### In the headset
+
+- [ ] Grapple a zombie beside its head (where the voice note's screenshot shows the hook): it should fly past; on its
+      body it takes hold.
+- [ ] Shoot past a grunt's head, between an ogre's arm and its body, at a shambler's box corners: the shots should hit
+      the wall behind (Debug > Views > Show Hits: Hits and Misses draws them orange).
+- [ ] Headshots: aim at heads as before; tell me if they feel harder or easier. Arm shots now come from hitting an arm.
+- [ ] Melee: swing at monsters as you do; tell me if blows that look like hits miss (raise Melee Tolerance, and tell me
+      the value that feels right).
+- [ ] Try the tolerances (Combat > Damage and Knockback > Hit Detection): Guns Tolerance 4 is my pick; 0 is exact.

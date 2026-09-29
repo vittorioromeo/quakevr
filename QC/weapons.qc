@@ -3282,30 +3282,30 @@ void(entity t, float xPrecise) VR_Test_HitsMode =
         if(k & 1) { sx = -1; }
         if(k >= 4) { sz = 0; } else if(k >= 2) { sz = -0.5; } // (low: beside the legs, above the floor)
         at = c + side * halfw * sx + '0 0 1' * halfh * sz;
-        if(VR_Test_HitRay(t, at - dir * 128, at + dir * 128, gunFlags)) { onC++; }
+        if(VR_Test_HitRay(t, at - dir * 64, at + dir * 128, gunFlags)) { onC++; }
         else if(trace_fraction < 1 && trace_ent == world) { behindC++; }
-        if(VR_Test_HitRay(t, at - dir * 128, at + dir * 128, MOVE_HITMODEL_GRAPPLE)) { grappleC++; }
+        if(VR_Test_HitRay(t, at - dir * 64, at + dir * 128, MOVE_HITMODEL_GRAPPLE)) { grappleC++; }
         float mt;
         if(xPrecise && hitmodel_target(t)) { mt = hitmodel_segment(t, at - dir * 24, at + dir * 24, 3, HITCLASS_MELEE); }
         else { mt = VR_SegmentBox(at - dir * 24, at + dir * 24, lo - '3 3 3', hi + '3 3 3'); }
         if(mt >= 0) { meleeC++; }
-        tracebox(at - dir * 128, '-6 -6 -6', '6 6 6', at + dir * 128, MOVE_HITMODEL_THROWN, self);
+        tracebox(at - dir * 64, '-6 -6 -6', '6 6 6', at + dir * 128, MOVE_HITMODEL_THROWN, self);
         if(trace_ent == t) { thrownC++; }
     }
     // Its middle (chest height: a third of the way down from the top) and its head.
     float heads = 0, headOn = 0, chestOn = 0, chestHead = 0, chestLimb = 0, chestLegs = 0;
     vector chest = c + '0 0 1' * halfh * 0.35;
-    if(VR_Test_HitRay(t, chest - dir * 128, chest + dir * 128, gunFlags)) { onB++; }
+    if(VR_Test_HitRay(t, chest - dir * 64, chest + dir * 128, gunFlags)) { onB++; }
     dprint(sprintf("hittest %s at %v size %v %v, solid %d;", t.classname, t.origin, t.mins, t.maxs, t.solid));
-    dprint(sprintf(" the middle ray from %v met %s (at %v) at %v", chest - dir * 128, trace_ent.classname, trace_ent.origin, trace_endpos));
+    dprint(sprintf(" the middle ray from %v met %s (at %v) at %v", chest - dir * 64, trace_ent.classname, trace_ent.origin, trace_endpos));
     dprint(sprintf(" (%f, startsolid %d, its solid %d)", trace_fraction, trace_startsolid, trace_ent.solid));
     dprint("\n");
-    if(VR_Test_HitRay(t, chest - dir * 128, chest + dir * 128, MOVE_HITMODEL_GRAPPLE)) { grappleB++; }
+    if(VR_Test_HitRay(t, chest - dir * 64, chest + dir * 128, MOVE_HITMODEL_GRAPPLE)) { grappleB++; }
     float mb;
     if(xPrecise && hitmodel_target(t)) { mb = hitmodel_segment(t, chest - dir * 24, chest + dir * 24, 3, HITCLASS_MELEE); }
     else { mb = VR_SegmentBox(chest - dir * 24, chest + dir * 24, lo - '3 3 3', hi + '3 3 3'); }
     if(mb >= 0) { meleeB++; }
-    tracebox(chest - dir * 128, '-6 -6 -6', '6 6 6', chest + dir * 128, MOVE_HITMODEL_THROWN, self);
+    tracebox(chest - dir * 64, '-6 -6 -6', '6 6 6', chest + dir * 128, MOVE_HITMODEL_THROWN, self);
     if(trace_ent == t) { thrownB++; }
     float hasHead = PositionalHead(t);
     vector head = t.origin + '0 0 1' * xHeadUp;
@@ -3319,7 +3319,7 @@ void(entity t, float xPrecise) VR_Test_HitsMode =
         r_x = cos(a);
         r_y = sin(a);
         r_z = 0;
-        if(hasHead && VR_Test_HitRay(t, head - r * 128, head + r * 128, gunFlags))
+        if(hasHead && VR_Test_HitRay(t, head - r * 64, head + r * 128, gunFlags))
         {
             headOn++;
             if(PositionalRegion(t, trace_endpos, r) == 1) { heads++; }
@@ -3329,7 +3329,7 @@ void(entity t, float xPrecise) VR_Test_HitsMode =
                     vlen(hitmodel_rest(t, trace_endpos) - head), xHeadRadius));
             }
         }
-        if(VR_Test_HitRay(t, chest - r * 128, chest + r * 128, gunFlags))
+        if(VR_Test_HitRay(t, chest - r * 64, chest + r * 128, gunFlags))
         {
             chestOn++;
             float reg = PositionalRegion(t, trace_endpos, r);
