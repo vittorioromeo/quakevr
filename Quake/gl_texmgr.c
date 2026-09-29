@@ -57,8 +57,12 @@ GLint			gl_max_texture_size;
 static float	lodbias;
 softemu_t		softemu;
 
-#define	MAX_GLTEXTURES	4096
+// QVR: 16384 (was 4096; full: Sys_Error): models' skins stay loaded for the session, and Quake VR adds a normal map to
+// each world texture and skin (vr_limits: the count)
+#define	MAX_GLTEXTURES	16384
 static int numgltextures;
+int TexMgr_Count (void) { return numgltextures; } // QVR (vr_limits)
+int TexMgr_Max (void) { return MAX_GLTEXTURES; }
 static gltexture_t	*active_gltextures, *free_gltextures;
 gltexture_t		*notexture, *nulltexture, *whitetexture, *greytexture, *blacktexture;
 
