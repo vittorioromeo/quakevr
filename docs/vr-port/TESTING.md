@@ -990,6 +990,17 @@ doing its poses is a take of raw tracking played alongside: `vr_motion_play <tak
 `vr_bodycal standing` in the same frame (the scratchpad's `bodycal/gentake.py` makes them); `vr_bodycal_print`
 prints the result. `vr_bodycal_refit <file>` fits a saved session (`quakevr/bodycal/`) again; `vr_bodycal_debug`
 prints the empty hands' wrists.
+VR Calibration (ROUND21.md, "VR Calibration"): from the main menu, `togglemenu; wait30; vr_mock_stick main 0 1; wait10;
+vr_mock_stick main 0 0` puts the cursor on VR CALIBRATION, `vr_test_modal_answer 1` answers the next confirmation dialog
+by itself (0: no), then `vr_mock_button main primary 1` / `0`. `vr_setup_test_take <take>` plays a synthetic person's
+take (as above, a Windows path: `cygpath -m`) from the body step's first frame and stops it after. `vr_setup here` runs
+it in any map, `vr_setup_skip` goes on to the next step (Body Calibration stopped). A wall button: `setpos <x> <y> 24 0
+<yaw> 0` 26 units in front of its face, then `vr_mock_hand main 0.0 1.4 -0.85` (from `-0.4`) presses it. **A button's
+command (QC `localcmd`) is appended after everything left in the script**: to see its effect, end the script with
+`alias fin "<checks>;quit"; bind ABUTTON fin; toggleconsole; wait5; toggleconsole; wait5; vr_mock_button main primary
+1` (the two toggles put the keys back to the game: the A button's binding then runs after the buttons' commands).
+`vr_setup_option list` prints every setting and its choice. `vr_menu_path_check [maps/vrcalibration.map]` checks the
+boards' menu paths (any missing: `MENU PATH MISSING`).
 Arms options and holster limits (ROUND21.md, "Arms options after body calibration; holster limits"): `cvarlist
 vr_bodycal_` and `cvarlist vr_body_tweak` show the measurements and the tweaks (typing `vr_bodycal_undo` runs Undo;
 list it instead). To test a config's migration, copy it over the worktree's `quakevr/ironwail.cfg` before the run (the

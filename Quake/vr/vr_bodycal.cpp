@@ -2143,6 +2143,14 @@ void endPreview()
     setPreview(false);
 }
 
+void stop()
+{
+    if(ses.phase == Phase::Capturing)
+    {
+        stopCapture("stopped: Continue takes the rest");
+    }
+}
+
 void cancel()
 {
     if(ses.phase != Phase::Result)

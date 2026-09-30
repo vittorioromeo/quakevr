@@ -2,6 +2,7 @@
 
 #include "vr_worldtext.hpp"
 #include "vr_engine.hpp"
+#include "vr_menu.hpp"
 #include "vr_protocol.hpp"
 
 #include <cstring>
@@ -137,7 +138,9 @@ int serverMake()
 void serverSetText(int handle, const char* text)
 {
     WorldText& wt = serverText(handle);
-    wt.text = text;
+    // A board may name a VR Settings page ({menu:Locomotion}): its path from the main menu, as the menus are now (the
+    // calibration room's boards, vr_setup.hpp).
+    wt.text = std::strstr(text, "{menu:") ? menu::expandPaths(text, 34, nullptr) : std::string{text};
     if(sizebuf_t* msg = broadcast())
     {
         writeText(msg, handle, wt);

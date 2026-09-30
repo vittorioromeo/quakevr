@@ -31,6 +31,7 @@
 #include "vr_posing.hpp"
 #include "vr_sightalign.hpp"
 #include "vr_bodycal.hpp"
+#include "vr_setup.hpp"
 #include "vr_ao.hpp"
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
@@ -966,6 +967,8 @@ static struct
     float eyeYaw[2]{};
 } dialogTest;
 
+static double modalAnswerSince = 0.0; // vr_test_modal_answer: when the dialog it answers showed
+
 static void testDialog_f()
 {
     dialogTest = {};
@@ -1042,6 +1045,7 @@ extern "C" void VR_Init()
     posing::init();
     sightalign::init();
     bodycal::init();
+    setup::init();
     motion::init();
     flashlight::init();
     chainsaw::init();
@@ -1147,6 +1151,7 @@ extern "C" void VR_BeginFrame()
     posing::frame();     // the weapon posing mode's text, likewise
     sightalign::frame(); // Align Sights to My Aim: its countdown, text and state
     bodycal::frame();    // Body Calibration: its steps, text, ghost and preview
+    setup::frame();      // VR Calibration: its steps and text, the calibration room's value screens
     configFrame();       // the config saved as the menu closes, if a setting changed (the preview taken off above)
     memLogFrame();
     profile::overlay();  // the profiler's panel (vr_profile_overlay)
@@ -1216,6 +1221,22 @@ extern "C" int VR_ModalMessageFrame()
     // a frame for the profiler too: else its GPU timer queries piled up (64 more at a time) for as
     // long as the dialog was up.
     VR_ProfileFrame();
+    // vr_test_modal_answer: the dialog answered by itself once it has shown for half a second (tests).
+    if(vr_test_modal_answer.value >= 0.f)
+    {
+        if(modalAnswerSince <= 0.0)
+        {
+            modalAnswerSince = Sys_DoubleTime();
+        }
+        else if(Sys_DoubleTime() - modalAnswerSince >= 0.5)
+        {
+            const int key = vr_test_modal_answer.value != 0.f ? K_ABUTTON : K_BBUTTON;
+            Cvar_SetValueQuick(&vr_test_modal_answer, -1.f);
+            modalAnswerSince = 0.0;
+            Key_Event(key, true);
+            Key_Event(key, false);
+        }
+    }
     int shot = -1; // vr_test_dialog: this frame's eye images (0 the first, 1 the last)
     if(dialogTest.on)
     {
