@@ -3,7 +3,7 @@
 // build (its source file's compile time: changed code never reads an old file). Other builds' folders of a kind are
 // removed at its first write in a session. Files are written beside their place and renamed: another copy of the game
 // never reads half a file.
-// - normalmaps: the normal maps made from skins' colours (gl_texmgr.c: TexMgr_SkinToNormals, 3-4 ms a skin; 0.2 s of
+// - normalmaps: the normal maps made from skins' colours (vr_normalmaps.cpp: TexMgr_SkinToNormals, 3-4 ms a skin; 0.2 s of
 //   the first map load). vr_normalmap_cache: 1 on, 0 off, 2 check (made anyway and compared with the file).
 
 #include "vr_engine.hpp"

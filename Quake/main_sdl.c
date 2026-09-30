@@ -215,9 +215,7 @@ int main(int argc, char *argv[])
 
 	isDedicated = (COM_CheckParm("-dedicated") != 0);
 
-#ifdef _WIN32
-	PL_InstallCrashHandler (); // QVR: test runs report a crash's stack (qvr_crash.txt)
-#endif
+	VR_InstallCrashHandler (); // QVR: test runs report a crash's stack (qvr_crash.txt)
 
 	Sys_InitSDL ();
 

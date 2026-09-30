@@ -107,6 +107,16 @@ float VR_ModelBumps (const struct entity_s *e, int authored);	// instance: how m
 float VR_ModelNormalMapScale (int authored);				// instance: how much its normal map bends the normal (vr_normalmap_strength, or vr_normalmap_authored)
 float VR_ViewModelMinLight (void);						// R_SetupAliasLighting: least light on the hands and weapons (Quake's 24)
 
+// Normal maps and alpha-tested mipmaps, made as textures load (vr_normalmaps.cpp; gl_texmgr.c's TexMgr_LoadImage32).
+struct gltexture_s;
+void VR_NormalMapMipSize (int worldwidth, int *mipwidth, int *mipheight);	// a made one's size (NORMALMAP_SHADING): mipmapped down to at most this
+int VR_MakeNormalMap (struct gltexture_s *glt, unsigned char *data, int kind, int worldwidth); // its RGBA texels made from the shading, or an authored one's heights; returns the kind (NORMALMAP_FLAT)
+float VR_AlphaCoverage (const unsigned char *data, int count);	// an alpha-tested texture's share of texels that pass the test
+void VR_AlphaCoverageMip (const unsigned char *in, unsigned char *out, int count, float coverage); // a mip level with that coverage kept (vr_alpha_coverage)
+void VR_SetHeightMask (const unsigned char *mask, int width, int height); // a skin's islands for the heights made next (NULL: none)
+void VR_SetHeightMaskLazy (const float *corners, int numtris, int width, int height,
+	unsigned char *(*make) (const float *corners, int numtris, int w, int h)); // the same, made from the triangles only if needed
+
 #ifdef __cplusplus
 }
 #endif

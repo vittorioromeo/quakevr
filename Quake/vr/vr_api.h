@@ -64,6 +64,10 @@ int VR_ServerFrameOverride (double *frametime); // _Host_Frame: whether the serv
 							// usual; 0 no; 1 yes, for *frametime seconds (a take's recorded server frames)
 void VR_HostFrameEnd (void);	// end of _Host_Frame, after the screen and the sound (the motion recorder's row)
 
+// Automated test runs (QVR_NO_ERROR_DIALOG; vr_crash.cpp, Windows only).
+void VR_InstallCrashHandler (void);	// main, first: a crash writes qvr_crash.txt (the stack) and qvr_crash.dmp
+int VR_ErrorDialogSuppressed (const char *errorMsg);	// PL_ErrorDialog: nonzero if written to qvr_error.txt instead
+
 // Start-up and map-load timing (vr_startup.cpp: vr_startup_times, vr_walltime).
 void VR_TimeStart (void);	// main, after Sys_Init: the process's start
 void VR_TimeInit (void);	// VR_Init: the commands

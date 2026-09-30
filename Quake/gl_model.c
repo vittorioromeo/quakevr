@@ -3168,13 +3168,13 @@ static void Mod_FloodFillSkin( byte *skin, int skinwidth, int skinheight )
 /*
 ===============
 Mod_SkinIslands -- QVR: a skin's islands (the texels its triangles cover) for its normal map's heights and bumps
-(TexMgr_SetHeightMask), on the hunk: per texel of a w x h skin, how many texels it lies inside (0 outside). `corners`:
+(VR_SetHeightMask), on the hunk: per texel of a w x h skin, how many texels it lies inside (0 outside). `corners`:
 each triangle's three corners in texels (x, y), `numtris` of them. A texel within 0.7 of a texel of a triangle is in.
 ===============
 */
 static byte *Mod_SkinIslands (const float *corners, int numtris, int w, int h);
 
-// QVR: the same, malloc'd (TexMgr_SetHeightMaskLazy)
+// QVR: the same, malloc'd (VR_SetHeightMaskLazy)
 static byte *Mod_SkinIslandsMalloc (const float *corners, int numtris, int w, int h)
 {
 	double	t0 = Sys_DoubleTime ();
@@ -3245,7 +3245,7 @@ static byte *Mod_SkinIslands (const float *corners, int numtris, int w, int h)
 ===============
 Mod_SkinNormalMapLater, Mod_LoadSkinNormalMaps -- QVR: a model's skins get their normal maps (vr_normalmaps), with
 heights for parallax mapping (vr_parallax_models), once its triangles are loaded: the heights rise to the top at the
-edges of the skin's islands (the parts its triangles cover; TexMgr_SetHeightMask), so that the rays stop at a seam
+edges of the skin's islands (the parts its triangles cover; VR_SetHeightMask), so that the rays stop at a seam
 instead of reading another part of the skin (the rest of the skin or another part of the model); the bumps are made
 within the islands (TexMgr_SkinToNormals). `name`: the skin's external name (progs/ogre.mdl_0), where an authored
 normal map is looked for (Mod_LoadNormalMap: its _norm, or its _bump), for Quake's 8-bit skin as for a full-colour
@@ -3304,10 +3304,10 @@ static void Mod_LoadSkinNormalMaps (const stvert_t *verts, const dtriangle_t *tr
 			}
 			n++;
 		}
-		TexMgr_SetHeightMaskLazy (corners, n, w, h, Mod_SkinIslandsMalloc); // made only for a normal map made anew
+		VR_SetHeightMaskLazy (corners, n, w, h, Mod_SkinIslandsMalloc); // made only for a normal map made anew
 	}
 	else
-		TexMgr_SetHeightMask (mask, w, h);
+		VR_SetHeightMask (mask, w, h);
 	for (i = 0; i < numskinnormalmaps; i++)
 	{
 		char shared[MAX_QPATH];
@@ -3317,7 +3317,7 @@ static void Mod_LoadSkinNormalMaps (const stvert_t *verts, const dtriangle_t *tr
 		if (skinnormalmaps[i].owned)
 			free (skinnormalmaps[i].data);
 	}
-	TexMgr_SetHeightMask (NULL, 0, 0);
+	VR_SetHeightMask (NULL, 0, 0);
 	numskinnormalmaps = 0;
 	Hunk_FreeToLowMark (mark);
 }
@@ -4771,9 +4771,9 @@ static void Mod_MD5SkinNormalMap (aliashdr_t *surf, gltexture_t *glt, const char
 		md5islands_w = w;
 		md5islands_h = h;
 	}
-	TexMgr_SetHeightMask (md5islands, w, h);
+	VR_SetHeightMask (md5islands, w, h);
 	Mod_LoadNormalMap (glt, name, strcmp (name, first) ? first : NULL, data, fmt, w, NORMALMAP_HEIGHTS | NORMALMAP_SKIN);
-	TexMgr_SetHeightMask (NULL, 0, 0);
+	VR_SetHeightMask (NULL, 0, 0);
 	Hunk_FreeToLowMark (mark);
 }
 

@@ -711,7 +711,7 @@ void VR_MemStats_f()
     }
 }
 
-// vr_debug_crash [access|abort]: crashes the game on purpose, to test the crash report (pl_win.c, PL_InstallCrashHandler:
+// vr_debug_crash [access|abort]: crashes the game on purpose, to test the crash report (vr_crash.cpp, VR_InstallCrashHandler:
 // in a test run, qvr_crash.txt with the stack and qvr_crash.dmp): an access violation (the default) or abort().
 void VR_DebugCrash_f()
 {
