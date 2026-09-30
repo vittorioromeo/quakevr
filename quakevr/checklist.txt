@@ -35,7 +35,10 @@ HUD: with any HUD style, only the wrist gadget shows in the headset; the desktop
 Relight a dead torch in an e1m2 flame (brazier)
 Pouch grenade at your values (now the defaults)
 
+Throws: hard throws, wrist snaps and gentle tosses of weapons and boxes keep their direction and spin; a still open hand keeps things resting on the palm
+
 [Decide or give feedback]
+Throw grace also ignores your body capsule for 0.2 s (an overhead snap hit your own body): keep, or hands only? (Throwing and Physics > vr_box3d_throw_grace_body)
 Spectator and smoothed desktop views now show the flat HUD: OK, or a setting to hide it for clean recordings?
 
 [Tune]
