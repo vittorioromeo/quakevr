@@ -71,6 +71,8 @@ Grapple quick reel-in while the hook is still flying: it comes straight back
 
 First-time weapon grips: no 2-5 ms hitch (thread pool); Debug > Profiling and Memory > Threads > self-test passes
 
+Pain feedback: hits from each side knock the hands (size and time feel right? Combat > Damage and Knockback > When You're Hit); shots still land while knocked; the damage buzz feels as before at 1x
+
 [Decide or give feedback]
 Zancle outside its library needs either the whole engine on clang-cl + C++23, or MSVC support in Zancle (proposal 2 in ROUND21.md): which? (blocks the std -> Zancle migration)
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay? vr_melee_speed a server rule or personal?
