@@ -18,6 +18,7 @@
 
 #include "vr_handpose.hpp"
 #include "vr_engine.hpp"
+#include "vr_mem.hpp"
 #include "vr_avatar.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
@@ -106,10 +107,25 @@ constexpr float gunRestart = 48.f; // units: the slide starts where the hand is 
 // The weapon's points as offsets from the hand: the hand itself first, its muzzle, then its model's (or the line's).
 std::vector<glm::vec3> shape[HAND_COUNT];
 
+struct Plane
+{
+    glm::vec3 n;
+    float c; // the push `p` must have dot(p, n) >= c
+};
+
+// The weapon slide's buffers (the client's frame: the main thread).
+struct HandposeScratch
+{
+    std::vector<glm::vec3> model; // the weapon model's points (makeShape)
+    std::vector<Plane> planes;    // the rays' planes (gunDepenetrate)
+    auto members() { return std::tie(model, planes); }
+};
+mem::Scratch<HandposeScratch> scratch{"handpose"};
+
 void makeShape(int h, const glm::vec3& rot, const glm::vec3& muzzle)
 {
     std::vector<glm::vec3>& out = shape[h];
-    static std::vector<glm::vec3> model;
+    std::vector<glm::vec3>& model = scratch.model;
     out.clear();
     out.push_back(glm::vec3{0.f});
     out.push_back(muzzle);
@@ -123,12 +139,6 @@ void makeShape(int h, const glm::vec3& rot, const glm::vec3& muzzle)
         out.push_back(muzzle * (static_cast<float>(k) / static_cast<float>(gunLinePoints - 1)));
     }
 }
-
-struct Plane
-{
-    glm::vec3 n;
-    float c; // the push `p` must have dot(p, n) >= c
-};
 
 // The rays from the hand at `hand` to the weapon's points (`pts`) that go into a surface: each a plane there (the push
 // `p` so far: the part of the ray inside, moved by it, out of that surface by gunMargin) into `planes`. The deepest
@@ -159,7 +169,7 @@ float gunPlanes(const glm::vec3& hand, const std::vector<glm::vec3>& pts, const 
 // from there (three rounds at most: a corner, a curved wall).
 void gunDepenetrate(glm::vec3& hand, const std::vector<glm::vec3>& pts)
 {
-    static std::vector<Plane> planes;
+    std::vector<Plane>& planes = scratch.planes;
     planes.clear();
     glm::vec3 p{0.f};
     for(int round = 0; round < 3; round++)
