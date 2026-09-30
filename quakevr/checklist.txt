@@ -53,7 +53,10 @@ Gentler swings with heavy weapons land (Aiming > Weight and Damage)
 Wall torches: new model with the old wood texture; nothing changes when one comes off the wall; a sloppy grab works (Carrying > Wall Torches > Grab Reach 15 cm), not too eager near other things
 Grapple: quick reel-in round a pillar: the rope shortens with the hook
 
+With Wrenched Out off: a fast wrist snap-and-back with the laser cannon puts it back in the hand, never a full spin; slow heavy swings lag as before; the snap-back isn't a melee hit
+
 [Decide or give feedback]
+The shotgun lags up to ~176 degrees in a fast wiggle: too much for 3 kg? (weight spring settings)
 Wall torch stick is now lit by its torch light (was fullbright): keep, or fullbright?
 quakevr/progs/flame.mdl has no recorded origin (Authentic Model Improvements?): do you know where it's from, for CREDITS.md?
 Optimization follow-ups: solve weapon grips at map load (+30-60 ms load)? voice-note screenshot on a background thread? a Low graphics preset (render resolution, foveation, decal cap)?
