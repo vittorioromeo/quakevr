@@ -51,6 +51,7 @@
 #include "vr_fatigue.hpp"
 #include "vr_weight.hpp"
 #include "vr_weapons.hpp"
+#include "vr_painknock.hpp"
 #include "vr_particles.hpp"
 #include "vr_shells.hpp"
 #include "vr_worldtext.hpp"
@@ -1030,6 +1031,7 @@ extern "C" void VR_Init()
     props::registerCvars();
     weight::registerCommands();
     fatigue::registerCommands();
+    painknock::registerCommands();
     Cvar_SetCallback(&vr_enabled, onBackendSettingChanged);
     Cvar_SetCallback(&vr_backend, onBackendSettingChanged);
     Cvar_SetCallback(&vr_xr_runtime, onBackendSettingChanged);

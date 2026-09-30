@@ -630,6 +630,19 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Parry Pushes Enemy", vr_parry_push_enemy, 0.f, 3.f, 0.05f, "%.2fx").extend(),
         slider("Parry Pushes You", vr_parry_push_player, 0.f, 3.f, 0.05f, "%.2fx").extend(),
         slider("Monsters' Blows Push You", vr_melee_push_player, 0.f, 3.f, 0.05f, "%.2fx").extend(),
+        header("When You're Hit"),
+        toggle("Hits Knock Your Hands", vr_pain_knock)
+            .help("Being hit knocks your hands, arms and what they hold away from where the hit came from, more the "
+                  "hand on that side, and they ease back. Looks only: your aim and your shots don't move."),
+        slider("Knock per Damage", vr_pain_knock_strength, 0.f, 1.f, 0.05f, "%.2f cm").extend(0.f, 5.f)
+            .help("How far the hands are knocked for each point of damage (a grunt's shot: about 10)."),
+        slider("Largest Knock", vr_pain_knock_max, 0.f, 15.f, 0.5f, "%.1f cm").extend(0.f, 50.f)
+            .help("How far a hit knocks the hands at most (a rocket; hits in quick succession add up to no more)."),
+        slider("Knock Time", vr_pain_knock_time, 0.1f, 1.f, 0.05f, "%.2f s").extend(0.05f, 3.f)
+            .help("How long the knock takes, out and back."),
+        slider("Hit Buzz", vr_pain_haptics, 0.f, 2.f, 0.1f, "%.1fx").extend()
+            .help("How hard the controllers buzz when you're hit: more the harder the hit, and in the hand on the side it "
+                  "came from (0: none)."),
     };
 }
 
@@ -2138,6 +2151,17 @@ std::vector<Item> pageDebugTests()
             .help("Degrees to your left of ahead it comes from (negative: from the right)."),
         command("Fire at Me", "impulse 246").help("Fires the Projectile at you now."),
         command("Make an Ogre Throw", "impulse 240").help("The nearest ogre or zombie throws at you now."),
+        header("Getting Hit"),
+        command("Hit Me From the Left", "vr_pain_test 15 90")
+            .help("vr_pain_test 15 90: a 15 point hit from your left (no damage): the hands knocked right, the left one more; "
+                  "the controllers buzz (When You're Hit, Damage and Knockback)."),
+        command("Hit Me From the Right", "vr_pain_test 15 -90").help("vr_pain_test 15 -90: as above, from your right."),
+        command("Hit Me From Ahead", "vr_pain_test 15 0").help("vr_pain_test 15 0: from ahead: both hands knocked back."),
+        command("Rocket From Ahead", "vr_pain_test 80 0").help("vr_pain_test 80 0: a big hit: the Largest Knock."),
+        command("Fall", "vr_pain_test 10 none").help("vr_pain_test 10 none: a hit from no direction (a fall, lava): the hands drop."),
+        toggle("Print Hits", vr_debug_pain)
+            .help("Prints each hit (painhit: damage, side, knock, buzz) and the hands' knock each frame (painknock, cm along "
+                  "your body) (vr_debug_pain)."),
         header("Grappling Hook"),
         command("Report the Hooks", "impulse 239").help("Prints every hook: its state, what it is in, where its gun is, the "
                                                          "rope's length and path (needs Developer Messages)."),
@@ -2758,7 +2782,7 @@ std::vector<Item> pageCombat()
         open("Parry and Bash", pageIndex(pageParryBash)).help("Parrying, bashing and shoving, counter-attacks, the training dummy's blows."),
         open("Stamina", pageIndex(pageStamina)).help("What parries, shoves, blows and hanging from a hold cost, and being exhausted."),
         open("Batting and Catching", pageIndex(pageBatting)).help("Batting projectiles back; catching and returning grenades; hand grenades."),
-        open("Damage and Knockback", pageIndex(pageDamage)).help("Hit detection, damage to monsters and to you, headshots, knockback."),
+        open("Damage and Knockback", pageIndex(pageDamage)).help("Hit detection, damage to monsters and to you, headshots, knockback, hits knocking your hands."),
     };
 }
 

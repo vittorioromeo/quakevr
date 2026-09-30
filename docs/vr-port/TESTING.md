@@ -811,6 +811,11 @@ pull every frame and at every hand-off. `vr_climb_probe [yaw]` lists the holds a
 Stamina and tired arms (ROUND21.md, "Tired arms: shaking and heavy hands"): `vr_stamina_set <0..1>` puts the game's
 stamina there, `vr_debug_stamina_hold 1` keeps it; `vr_debug_fatigue 1|2` prints the shake (2: each frame's aim,
 muzzle and drawn weapon, `fatigueaim`); `vr_fatigue_shake_always 1` shakes off a hold too.
+Hits knocking the hands (ROUND21.md, "Pain feedback: hits knock the hands"): `vr_pain_test <damage> [degrees | none]`
+hits you from that far left of ahead (no damage; Debug > Getting Hit); `vr_debug_pain 1` prints each hit (`painhit`) and
+each frame's knock (`painknock`, cm along the body); with `vr_debug_fatigue 2` the muzzle stays put while the drawn
+weapon moves. A grunt on your left: `map e1m1; god; vr_test_spawn 0; vr_test_spawn_dist 150; impulse 241; wait2;
+setpos 480 -352 88 0 0 0`.
 Swimming (ROUND21.md, "Swimming: air supply; strokes against the palm"): `python Misc/quakevr/swim/swim_plays.py`
 writes `vr_mock_play` files: `strokes_main.txt` / `strokes_off.txt` (one stroke per case from rest: a palm-first pull,
 a backhand, back-first sweeps square and at 45 degrees, an edge-first slice, a palm-first sweep; each announced by an

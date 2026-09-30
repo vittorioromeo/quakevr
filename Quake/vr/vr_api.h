@@ -210,6 +210,7 @@ int VR_EntityTrail (int ent, int type);											// CL_RocketTrail: rockets, la
 
 // Client view (view.c): runs on the main thread, before the renderer.
 void VR_SetupViewEntities (void);						// V_RenderView, before R_RenderView
+void VR_OnDamage (int armor, int blood, const float *from);	// V_ParseDamage: a hit knocks the drawn hands, the controllers buzz (vr_painknock.cpp)
 
 // Console (console.c).
 int VR_NotifyOnWrist (void);							// Con_DrawNotify: nonzero to leave the notify lines to the wrist gadget's log

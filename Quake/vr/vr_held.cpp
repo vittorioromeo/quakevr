@@ -5,6 +5,7 @@
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
 #include "vr_fatigue.hpp"
+#include "vr_painknock.hpp"
 #include "vr_grip.hpp"
 #include "vr_hands.hpp"
 #include "vr_lines.hpp"
@@ -1275,9 +1276,13 @@ void holdFrame(int h, const hands::State& s, int bothEnt)
         }
     }
 
-    // Drawn in the drawn hand: tired arms shake it (looks only: vr_fatigue.cpp), as the hand drawn round it.
-    glm::vec3 shakePos, shakeAngles;
+    // Drawn in the drawn hand: tired arms shake it (looks only: vr_fatigue.cpp) and hits knock it (vr_painknock.cpp), as
+    // the hand drawn round it.
+    glm::vec3 shakePos, shakeAngles, painPos, painAngles;
     fatigue::shake(h, shakePos, shakeAngles);
+    painknock::offset(h, painPos, painAngles);
+    shakePos += painPos;
+    shakeAngles += painAngles;
     const glm::vec3 shakenRot = s.rot[h] + shakeAngles;
     const glm::mat3 drawnAxes = held::axesFromAngles(&shakenRot[0], true);
     hd.lastPos = s.pos[h] + shakePos + drawnAxes * hd.pos;

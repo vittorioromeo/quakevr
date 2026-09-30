@@ -393,6 +393,7 @@ QVR_CVAR(vr_debug_weight_drop, "0", CVAR_NONE)         // 1: prints each hand's 
 QVR_CVAR(vr_debug_weight_stamina, "-1", CVAR_NONE)      // tests: the stamina the weight takes as left (0..1) instead of the game's (-1: the game's)
 QVR_CVAR(vr_debug_stamina_hold, "0", CVAR_NONE)          // tests: 1 keeps the game's stamina where it is, or where vr_stamina_set put it (a local game; vr_fatigue.cpp)
 QVR_CVAR(vr_debug_fatigue, "0", CVAR_NONE)               // 1: the tired arms' shake printed four times a second; 2: and each frame the aim, the muzzle and the drawn weapon ("fatigueaim")
+QVR_CVAR(vr_debug_pain, "0", CVAR_NONE)                  // 1: each hit ("painhit": damage, side, knock, buzz) and the hands' knock each frame ("painknock", cm along the body)
 QVR_CVAR(vr_debug_weight, "0", CVAR_NONE)                // 1: each hand's target and drawn pose, a line a frame in weight_trace.txt; 2: and printed
 QVR_CVAR(vr_props_version, "48", CVAR_ARCHIVE)           // the held object settings' changes the config has taken (vr_props.cpp)
 // Explosive boxes (misc_explobox, misc_explobox2) as physics props.
@@ -842,6 +843,13 @@ QVR_CVAR(vr_fatigue_shake_angle, "1.5", CVAR_ARCHIVE) // degrees they turn by at
 QVR_CVAR(vr_fatigue_shake_from, "0.4", CVAR_ARCHIVE)  // the stamina left (0..1) below which they start to shake, more the less is left
 QVR_CVAR(vr_fatigue_shake_speed, "1", CVAR_ARCHIVE)   // times the tremor's quickness (5 to 13 Hz)
 QVR_CVAR(vr_fatigue_shake_always, "0", CVAR_ARCHIVE)  // 0: only while a hand holds a ledge or a rung; 1: whenever tired
+// Hits knock the hands (vr_painknock.cpp; ROUND21.md, "Pain feedback: hits knock the hands"): looks only, both drawn hands
+// pushed away from the hit, more the one on its side, and eased back; the aim and the shots stay steady.
+QVR_CVAR(vr_pain_knock, "1", CVAR_ARCHIVE)             // being hit knocks the drawn hands, arms and what they hold
+QVR_CVAR(vr_pain_knock_strength, "0.3", CVAR_ARCHIVE)  // cm the hands are pushed for each point of damage (armour's share too)
+QVR_CVAR(vr_pain_knock_max, "5", CVAR_ARCHIVE)         // cm at most (a rocket; hits in quick succession add up to no more)
+QVR_CVAR(vr_pain_knock_time, "0.35", CVAR_ARCHIVE)     // s the knock takes, out and back
+QVR_CVAR(vr_pain_haptics, "1", CVAR_ARCHIVE)           // strength of the buzz a hit gives each controller (more the harder and the nearer its side; 0: none)
 QVR_CVAR(vr_climb_debug, "0", CVAR_NONE)              // print holds, releases and mantles (2: and "climbtrace" and "climbreach" lines every frame: the body, the hands, the pull, the holds' reach; 3: the shoulders, estimated and drawn)
 QVR_CVAR(vr_swim, "1", CVAR_ARCHIVE)                  // VR swimming: the stick slows in water, strokes of the hands move you
 QVR_CVAR(vr_swim_shallow_speed, "0.85", CVAR_ARCHIVE) // the stick's speed with the feet in water,

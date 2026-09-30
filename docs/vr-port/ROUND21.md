@@ -15355,3 +15355,34 @@ locally; the rest are worked around in `vr_jobs.cpp` or the build.
   hitch the first time (now 0.3-0.8 ms: `vr_profile`'s `grasp solve`).
 - [ ] Load a few maps: the models' occlusion still appears a moment after (baked on the pool now), no hitch.
 - [ ] Debug > Profiling and Memory > Threads: Thread Pool Self-Test says 16 passed.
+
+## Pain feedback: hits knock the hands (2026-09-30)
+
+His words: "Implement pain feedback as suggested -- small visual knock on the hands/arms with tweakable parameters."
+
+- Each hit the client is told of (`svc_damage`, `V_ParseDamage`: the points taken, armour's share too, and the
+  inflictor's middle) pushes both drawn hands away from where it came from, level, and eases them back
+  (`vr_painknock.cpp`). Size: `vr_pain_knock_strength` cm a point (0.3), at most `vr_pain_knock_max` (5 cm: a grunt's
+  16-point volley is 4.8 cm, a rocket is capped); the hand on the hit's side takes all of it, the other 0.4 (0.7 each from
+  ahead or behind; the hand on a side is the one that is there, so crossed arms swap); the hands tip up 0.8 degrees a cm.
+  Out in 0.05 s, back by `vr_pain_knock_time` (0.35 s). Hits in quick succession add up, to no more than the cap. No
+  direction (falls, lava, slime, drowning: the world is the inflictor, its middle is sent): the hands drop.
+- Looks only, as the parry knock and the tired arms' shake (it joins the shake's offsets in `VR_SetupViewEntities`): the
+  drawn hands, arms, weapons and held props move, the game's hands, the muzzle and the aim don't (the muzzle placed on the
+  knocked weapon is put back on the steady one).
+- The buzz: the damage buzz QuakeC sent from `T_Damage` (combat.qc; the same curve: 0.35 + damage/40 of full, 0.12 +
+  damage/60 s, 30 Hz, 0.4..1 by side) is the client's now, with the knock's side weights and `vr_pain_haptics` (1x; 0:
+  none). It works on any server that sends `svc_damage` (id's progs too) and follows each player's own setting.
+- Settings: Combat > Damage and Knockback > When You're Hit (Hits Knock Your Hands, Knock per Damage, Largest Knock,
+  Knock Time, Hit Buzz). Debug > Getting Hit: test hits from the left, right, ahead, a rocket, a fall; Print Hits
+  (`vr_debug_pain`). No config migration: the settings are new (a saved config takes their defaults).
+- Tests (mock): a grunt on the left (e1m1) hits for 16: side -1, both hands knocked right, off (left) hand peak 4.78 cm
+  (4.80 expected), main 1.91 (1.92), last knocked frame 0.348 s after the hit; `vr_pain_test 15 90` with
+  `vr_debug_fatigue 2`: the muzzle moved at most 0.0001 units over 480 frames, the aim not at all, the drawn weapon 0.59
+  units and 1.43 degrees; strength 0 and the toggle off: no knock. Melee canary unchanged.
+
+### In the headset
+
+- [ ] Take hits from each side: the hands are knocked away from the hit, the near one more, and settle back; the shots
+  still go where you aim while knocked.
+- [ ] Tune When You're Hit (Knock per Damage, Largest Knock, Knock Time, Hit Buzz); Debug > Getting Hit repeats a hit.

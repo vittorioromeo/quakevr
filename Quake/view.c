@@ -296,6 +296,8 @@ void V_ParseDamage (void)
 	for (i=0 ; i<3 ; i++)
 		from[i] = MSG_ReadCoord (cl.protocolflags);
 
+	VR_OnDamage (armor, blood, from); // QVR
+
 	count = blood*0.5 + armor*0.5;
 	if (count < 10)
 		count = 10;
