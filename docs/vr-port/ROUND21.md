@@ -16738,3 +16738,33 @@ MAPPING.md, CREDITS.md.
       do they get out of your way, and burst into dust when hit? The crack and the dust.
 - [ ] Carry one; stand on one; push a stack over.
 - [ ] Crouch behind a crate with a grunt about: it shouldn't see you; pick the crate up: it should.
+
+## A crowbar on the crates (2026-10-01)
+
+"After the wooden crates agent has finished, the crowbar has a (customizable) low chance of spawning on top of
+randomly-spawned crates."
+
+**What.** Crates > What They Hold: **Crowbar on Crates** (`vr_crate_crowbar`, 0.05: the chance each crate placed about
+the map whose top is free, the top one of a stack, gets a crowbar lying on it) and **Most Crowbars** (`vr_crate_crowbar_max`,
+1 a map). Next map; only the planner's crates (not a map's own `vr_crate`), so none in multiplayer or the excluded maps.
+
+**How.** `vr_crates.cpp` `planCrowbars`, after the layout: its own random numbers (the map's name and `vr_crates_seed`, a
+separate stream), so the crates' layout is the same whatever the chance and the crowbars are the same each load. Each
+top rolls the chance in the plan's (random) order until the most; a yaw and a place (u, v: -1..1 of the room left). QC
+`VR_Crates_Frame` spawns the crowbar right after its crate (`VR_Crowbar_OnCrate`, `vr_crowbar.qc`: `VR_Crowbar_Spawn`,
+a thrown weapon at rest) and the engine lays it (`cratecrowbarput`, `crates::putCrowbar`): flat (roll 90: the hook's
+plane level), at the yaw or a quarter turn more if that overhangs less, its drawn box (`held::modelBox`, the weapon's
+scaling: about 21 x 4 units) within the top (90% of the room left), a quarter unit above it; Box3D settles it.
+
+**Tests** (mock, fixed frames). Default: e1m1 13 crates, 1 crowbar (crate 3, top z 80, rests at 262.6 219.3 80.6);
+e1m2 11 crates, 0; e2m1 7 crates, 0. At 1 with Most 64: e1m1 10 of its 10 tops, e1m2 9 of 9, e2m1 6 of 6 (stacks'
+tops included), every one within its top (0 units past an edge) and, 400 frames later, within 0.5 units of where it was
+laid (z 0.25 lower: resting on the top). The crates' layout is untouched (e1m1's hash aafafe9c at 0, 0.05 and 1). Picking one up: the test
+aid (impulse 216) fails for these as for a crowbar dropped on the floor (impulse 217): the floor pickup being fixed
+separately (cbfix); they are the same entity. Image: `crowbar_on_crate.png` (kit scratch).
+
+Debug: `vr_debug_crates 1` prints each crowbar's plan and how it was laid; Debug > Tests: **Go to a Crowbar on a Crate**
+(`vr_crates_goto crowbar [k]`: over the next one, or the k-th, looking down at it).
+
+- [ ] e1m1 with Crowbar on Crates at 1: crowbars lying flat on crate tops, none overhanging; take one by hand and by
+  force grab; knock a crate: the crowbar falls off; break it: the crowbar drops.

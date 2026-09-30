@@ -11,12 +11,17 @@
 // lie about (the oldest go to dust first); each fades away after vr_crate_piece_time. It may hold a small box of ammo for
 // a weapon you have (vr_crate_ammo) or a small health box (vr_crate_health_box).
 //
+// A crowbar may lie on a crate's top (vr_crate_crowbar, at most vr_crate_crowbar_max a map; the top of a stack): the
+// engine rolls which and where with the layout (deterministic), VR_Crowbar_OnCrate (vr_crowbar.qc) lays it there.
+//
 // Sight (vr_crate_sight): a monster doesn't see you behind a crate or an explosive box lying about (visible(), ai.qc:
 // VR_Crate_HidesFrom); carrying one, you are seen through it.
 
 float vr_crates_done;          // placed in this map (a saved game's are in it already)
 float vr_crate_piecesoundtime; // a piece's dust sounds once a frame (an explosion bursts many)
 float VR_THROWN_BOX_TIME = 2;  // s: how long a thrown solid prop (a crate, an explosive box) may hurt what it meets
+
+void(entity xCrate, float i) VR_Crowbar_OnCrate; // (vr_crowbar.qc)
 
 // The models (make_crates.py) and sounds (make_crate_sounds.py; the physics sounds' wood knocks); always precached (a
 // saved game may hold crates whatever the settings now), and what a crate may hold (the small ammo and health boxes).
@@ -574,5 +579,6 @@ void() VR_Crates_Frame =
             continue;
         }
         VR_Crate_Setup(e, kind);
+        VR_Crowbar_OnCrate(e, i); // (a stack's top comes after the crate under it)
     }
 };

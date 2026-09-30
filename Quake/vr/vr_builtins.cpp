@@ -825,6 +825,18 @@ void PF_crateput()
     G_FLOAT(OFS_RETURN) = static_cast<float>(crates::put(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1))));
 }
 
+// float(float i) cratecrowbar: whether the plan puts a crowbar on crate i (vr_crate_crowbar); float(entity e, float i)
+// cratecrowbarput: lays the crowbar `e` (a thrown weapon, its model set) on it (crates::putCrowbar).
+void PF_cratecrowbar()
+{
+    G_FLOAT(OFS_RETURN) = crates::hasCrowbar(static_cast<int>(G_FLOAT(OFS_PARM0))) ? 1.f : 0.f;
+}
+
+void PF_cratecrowbarput()
+{
+    G_FLOAT(OFS_RETURN) = crates::putCrowbar(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1))) ? 1.f : 0.f;
+}
+
 void PF_crateplace()
 {
     G_FLOAT(OFS_RETURN) = static_cast<float>(crates::putPlaced(G_EDICT(OFS_PARM0)));
@@ -946,6 +958,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"crateplan", PF_crateplan},
     {"cratemodel", PF_cratemodel},
     {"crateput", PF_crateput},
+    {"cratecrowbar", PF_cratecrowbar},
+    {"cratecrowbarput", PF_cratecrowbarput},
     {"crateplace", PF_crateplace},
     {"sightblocked", PF_sightblocked},
     {"modelpoint", PF_modelpoint},

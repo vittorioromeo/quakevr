@@ -1891,6 +1891,11 @@ void hologramTestMessage()
             .help("The chance a crate holds a small box of ammunition, for a weapon you have (or the shotgun)."),
         slider("Health Box", vr_crate_health_box, 0.f, 1.f, 0.05f, "%.2f")
             .help("The chance a crate holds a small health box (15)."),
+        slider("Crowbar on Crates", vr_crate_crowbar, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance a crate placed about the map (the top one of a stack) has a crowbar lying on it; the same "
+                  "crates each load. Next map."),
+        slider("Most Crowbars", vr_crate_crowbar_max, 0.f, 4.f, 1.f, "%.0f").extend(0.f, 64.f)
+            .help("Most crowbars lying on crates in a map. Next map."),
         header("Hiding"),
         toggle("Crates Hide You", vr_crate_sight)
             .help("Monsters can't see you through crates and explosive boxes lying about (crouch behind a small one). "
@@ -2377,6 +2382,8 @@ std::vector<Item> pageDebugTests()
         slider("Distance", vr_test_spawn_dist, 32.f, 256.f, 8.f, "%.0f units").extend().help("How far ahead."),
         toggle("As a Corpse", vr_test_spawn_dead).help("A monster killed at once: a corpse, to test gibbing and carrying."),
         command("Put It There", "impulse 241").help("Puts the Thing ahead of you."),
+        command("Go to a Crowbar on a Crate", "vr_crates_goto crowbar")
+            .help("vr_crates_goto crowbar: you in front of the next crate with a crowbar lying on it (Crates: Crowbar on Crates)."),
         command("Go to the Next Crate", "vr_crates_goto")
             .help("vr_crates_goto [n]: you in front of the next of the crates placed in this map (or crate n), to look at it."),
         header("Chainsaw"),

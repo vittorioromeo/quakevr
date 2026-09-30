@@ -164,6 +164,48 @@ struct Placement
 
 std::vector<Placement> placements;
 
+// A crowbar lying on a crate's top (vr_crate_crowbar): the crate (the top one of a stack), its yaw, where on the top
+// (-1 .. 1 of the room left along the top's forward and left: put fits it there by its drawn box).
+struct CrowbarOn
+{
+    int crate;
+    float yaw;
+    float u, v;
+};
+std::vector<CrowbarOn> crowbars;
+
+// Rolls the crowbars on the crates' tops (after the plan): each top (a crate with none on it) at vr_crate_crowbar's
+// chance, at most vr_crate_crowbar_max; a random way and place. Its own random numbers (from the map's name and
+// vr_crates_seed): the crates' layout is the same whatever the chance.
+void planCrowbars(uint64_t seed)
+{
+    crowbars.clear();
+    const float chance = vr_crate_crowbar.value;
+    const int most = static_cast<int>(std::max(vr_crate_crowbar_max.value, 0.f));
+    if(chance <= 0.f || most <= 0)
+    {
+        return;
+    }
+    Rng rng{seed ^ 0x6A09E667F3BCC909ull};
+    std::vector<bool> covered(placements.size(), false);
+    for(const Placement& p : placements)
+    {
+        if(p.below >= 0)
+        {
+            covered[static_cast<size_t>(p.below)] = true;
+        }
+    }
+    for(size_t i = 0; i < placements.size() && static_cast<int>(crowbars.size()) < most; i++)
+    {
+        if(covered[i] || rng.uniform() >= chance)
+        {
+            continue;
+        }
+        const float yaw = rng.range(0.f, 360.f), u = rng.range(-1.f, 1.f), v = rng.range(-1.f, 1.f);
+        crowbars.push_back({static_cast<int>(i), yaw, u, v});
+    }
+}
+
 // Rejection reasons, counted for vr_debug_crates.
 enum Reason
 {
@@ -416,14 +458,34 @@ void list_f()
     Con_Printf("crates: %d crates, %d pieces\n", n, pieces);
 }
 
-// "vr_crates_goto [i]": you in front of crate i of the last plan, or the next one (a test aid: setpos, 110 units out from
-// it, looking at it from a little above; Debug > Tests: Go to the Next Crate).
-int gotoNext = 0; // vr_crates_goto with no number: the next crate each time
+// "vr_crates_goto [i | crowbar [k]]": you in front of crate i of the last plan, or the next one (a test aid: setpos, 110
+// units out from it, looking at it from a little above; Debug > Tests: Go to the Next Crate); or over the next crate with
+// a crowbar on it, or the k-th (Go to a Crowbar on a Crate).
+int gotoNext = 0;    // vr_crates_goto with no number: the next crate each time
+int gotoCrowbar = 0; // vr_crates_goto crowbar: the next crate with a crowbar on it each time
 
 void goto_f()
 {
     const int count = static_cast<int>(placements.size());
-    const int i = Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : (count ? gotoNext++ % count : 0);
+    int i = Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : (count ? gotoNext++ % count : 0);
+    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "crowbar"))
+    {
+        if(crowbars.empty())
+        {
+            Con_Printf("vr_crates_goto crowbar: no crowbar on a crate in this map's plan\n");
+            return;
+        }
+        // Above it and 64 units out (setpos: noclip, floating), looking down at it.
+        const int k = Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : gotoCrowbar++;
+        const CrowbarOn& c = crowbars[static_cast<size_t>(std::max(k, 0)) % crowbars.size()];
+        const Placement& p = placements[static_cast<size_t>(c.crate)];
+        const glm::vec2 out = p.out;
+        const glm::vec2 at = glm::vec2{p.centre} + out * 64.f;
+        const float yaw = glm::degrees(std::atan2(-out.y, -out.x));
+        Con_Printf("vr_crates_goto crowbar: crate %d, looking at the crowbar at yaw %.0f, pitch 30\n", c.crate, yaw);
+        Cbuf_InsertText(va("setpos %.1f %.1f %.1f 30 %.1f 0\n", at.x, at.y, p.centre.z + p.o.hu + 15.f, yaw));
+        return;
+    }
     if(i < 0 || i >= static_cast<int>(placements.size()))
     {
         Con_Printf("vr_crates_goto <0..%d>: crate i of this map's plan\n", static_cast<int>(placements.size()) - 1);
@@ -440,7 +502,9 @@ void goto_f()
 void reset()
 {
     placements.clear();
+    crowbars.clear();
     gotoNext = 0;
+    gotoCrowbar = 0;
 }
 
 int plan()
@@ -452,6 +516,7 @@ int plan()
         Cmd_AddCommand("vr_crates_goto", goto_f);
     }
     placements.clear();
+    crowbars.clear();
     const float worldspawn = sv.worldmodel ? debris::worldspawnValue("_vr_crates") : 0.f;
     if(vr_crates.value == 0.f || !sv.active || !sv.worldmodel || svs.maxclients != 1 ||
         debris::inList(vr_crates_exclude.string, sv.name) || worldspawn <= 0.f)
@@ -467,7 +532,8 @@ int plan()
     }
     const double t0 = Sys_DoubleTime();
     Planner pl;
-    pl.rng.s = hashString(sv.name) ^ (static_cast<uint64_t>(static_cast<int64_t>(vr_crates_seed.value)) * 0xD1B54A32D192ED03ull);
+    const uint64_t seed = hashString(sv.name) ^ (static_cast<uint64_t>(static_cast<int64_t>(vr_crates_seed.value)) * 0xD1B54A32D192ED03ull);
+    pl.rng.s = seed;
     const float margin = std::max(vr_crates_margin.value, 0.f);
     debris::gatherObstacles(pl.obstacles, std::max(margin - 24.f, 0.f));
     // The player's start: well clear (where the map begins, and the way out of it).
@@ -667,6 +733,8 @@ int plan()
         }
     }
 
+    planCrowbars(seed);
+
     if(vr_debug_crates.value || developer.value)
     {
         uint64_t layout = 1469598103934665603ull;
@@ -684,9 +752,10 @@ int plan()
                 layout = (layout ^ static_cast<uint32_t>(v)) * 1099511628211ull;
             }
         }
-        Con_Printf("crates: %s: %d crates (%d large, %d stacked on another; %d in corners) from %d spots, %d rolled; limit %d; "
-                   "least clearance %.0f units; %.1f ms; layout %08x\n",
-            sv.name, static_cast<int>(placements.size()), large, stacks, corners, static_cast<int>(spots.size()), rolled, most,
+        Con_Printf("crates: %s: %d crates (%d large, %d stacked on another; %d in corners; %d crowbars on them) from %d spots, "
+                   "%d rolled; limit %d; least clearance %.0f units; %.1f ms; layout %08x\n",
+            sv.name, static_cast<int>(placements.size()), large, stacks, corners, static_cast<int>(crowbars.size()),
+            static_cast<int>(spots.size()), rolled, most,
             placements.empty() ? 0.f : leastClear, (Sys_DoubleTime() - t0) * 1000.0, static_cast<unsigned>(layout ^ (layout >> 32)));
         if(vr_debug_crates.value >= 1)
         {
@@ -699,6 +768,10 @@ int plan()
                 }
             }
             Con_Printf("crates: rolled spots rejected: %s (%d wall points had no floor)\n", why.empty() ? "none" : why.c_str(), noFloor);
+            for(const CrowbarOn& c : crowbars)
+            {
+                Con_Printf("crates: a crowbar on crate %d (yaw %.0f, place %.2f %.2f)\n", c.crate, c.yaw, c.u, c.v);
+            }
         }
         if(vr_debug_crates.value >= 2)
         {
@@ -714,6 +787,11 @@ int plan()
         }
     }
     return static_cast<int>(placements.size());
+}
+
+bool hasCrowbar(int i)
+{
+    return std::any_of(crowbars.begin(), crowbars.end(), [i](const CrowbarOn& c) { return c.crate == i; });
 }
 
 const char* modelOf(int i)
@@ -773,6 +851,77 @@ int put(edict_t* e, int i)
     const glm::vec3 up = p.centre + glm::vec3{0.f, 0.f, 0.02f};
     rest(e, p.o.axes, up, models[p.model].half * sizeOf(p.model));
     return p.model + 1;
+}
+
+bool putCrowbar(edict_t* e, int i)
+{
+    const auto it = std::find_if(crowbars.begin(), crowbars.end(), [i](const CrowbarOn& c) { return c.crate == i; });
+    const int index = static_cast<int>(e->v.modelindex);
+    const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    if(it == crowbars.end() || !model)
+    {
+        return false;
+    }
+    const CrowbarOn& c = *it;
+    const Placement& p = placements[static_cast<size_t>(c.crate)];
+    // Its box as drawn (the weapon's scaling), in its axes from its origin.
+    const progs::FieldOffsets& f = fields();
+    glm::vec3 lo, hi;
+    held::modelBox(model, progs::fieldVec(e, f.model_scale), progs::fieldVec(e, f.model_scale_origin), progs::fieldVec(e, f.model_offset),
+        lo, hi);
+    // Lying flat (rolled a quarter turn: the hook's plane level) at its yaw, or a quarter turn more if that overhangs the
+    // top less: its box's reach along the top's forward and left (from its origin), and below it.
+    struct Fit
+    {
+        float yaw, fLo, fHi, lLo, lHi, zLo, over;
+    };
+    Fit best{};
+    for(int k = 0; k < 2; k++)
+    {
+        const float yaw = std::fmod(c.yaw + 90.f * static_cast<float>(k), 360.f);
+        const float angles[3] = {0.f, yaw, 90.f};
+        const glm::mat3 axes = held::axesFromAngles(angles, false);
+        Fit fit{yaw, 1e9f, -1e9f, 1e9f, -1e9f, 1e9f, 0.f};
+        for(int n = 0; n < 8; n++)
+        {
+            const glm::vec3 w = axes * glm::vec3{(n & 1) ? hi.x : lo.x, (n & 2) ? hi.y : lo.y, (n & 4) ? hi.z : lo.z};
+            const float fw = glm::dot(w, p.o.fwd), lf = glm::dot(w, p.o.left);
+            fit.fLo = std::min(fit.fLo, fw);
+            fit.fHi = std::max(fit.fHi, fw);
+            fit.lLo = std::min(fit.lLo, lf);
+            fit.lHi = std::max(fit.lHi, lf);
+            fit.zLo = std::min(fit.zLo, w.z);
+        }
+        fit.over = std::max(0.f, (fit.fHi - fit.fLo) * 0.5f - p.o.hf) + std::max(0.f, (fit.lHi - fit.lLo) * 0.5f - p.o.hl);
+        if(k == 0 || fit.over < best.over - 0.01f)
+        {
+            best = fit;
+        }
+    }
+    // Somewhere on the top it stays within (the plan's u, v of the room left; none left: in the middle).
+    const float roomF = std::max(0.f, p.o.hf - (best.fHi - best.fLo) * 0.5f);
+    const float roomL = std::max(0.f, p.o.hl - (best.lHi - best.lLo) * 0.5f);
+    const float atF = c.u * roomF * 0.9f - (best.fLo + best.fHi) * 0.5f;
+    const float atL = c.v * roomL * 0.9f - (best.lLo + best.lHi) * 0.5f;
+    const float topZ = p.centre.z + p.o.hu;
+    const glm::vec3 origin = glm::vec3{p.centre.x, p.centre.y, topZ + 0.25f - best.zLo} + p.o.fwd * atF + p.o.left * atL;
+    for(int k = 0; k < 3; k++)
+    {
+        e->v.origin[k] = origin[k];
+        e->v.velocity[k] = 0.f;
+        e->v.avelocity[k] = 0.f;
+    }
+    e->v.angles[0] = 0.f;
+    e->v.angles[1] = best.yaw;
+    e->v.angles[2] = 90.f;
+    SV_LinkEdict(e, false);
+    if(vr_debug_crates.value)
+    {
+        Con_Printf("crates: a crowbar on crate %d: %.1f x %.1f units lying at yaw %.0f on its %.0f x %.0f top (z %.1f), %.1f units "
+                   "past its edges; origin (%.1f %.1f %.1f)\n", c.crate, best.fHi - best.fLo, best.lHi - best.lLo, best.yaw,
+            p.o.hf * 2.f, p.o.hl * 2.f, topZ, best.over, origin.x, origin.y, origin.z);
+    }
+    return true;
 }
 
 int putPlaced(edict_t* e)

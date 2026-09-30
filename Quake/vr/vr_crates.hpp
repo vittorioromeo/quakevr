@@ -30,6 +30,15 @@ void reset();
 // Plans the crates for the map now loaded (after its entities spawned, the crates' models precached); how many.
 int plan();
 
+// Whether the last plan puts a crowbar on crate `i` (vr_crate_crowbar, vr_crate_crowbar_max: tops only, the top one of a
+// stack; deterministic as the layout).
+[[nodiscard]] bool hasCrowbar(int i);
+
+// Lays `e` (a crowbar lying about: QC's thrown weapon, its model set) on crate `i`'s top as the plan says: flat (the hook's
+// plane level), at the plan's yaw (or a quarter turn more if that fits the top better), its drawn box within the top where
+// it can be, just above it (it settles by physics). False if the plan has no crowbar there.
+bool putCrowbar(edict_t* e, int i);
+
 // The model of crate `i` of the last plan ("" if none).
 [[nodiscard]] const char* modelOf(int i);
 

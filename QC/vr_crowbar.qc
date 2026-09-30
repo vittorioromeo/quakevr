@@ -41,6 +41,22 @@ entity(entity xFrom, vector xOrg, vector xAngles, vector xVel) VR_Crowbar_Spawn 
         WeaponIdToThrowDamage(WID_CROWBAR));
 };
 
+// A crowbar lying on crate `xCrate`, number `i` of the engine's plan, if the plan puts one there (vr_crate_crowbar; the
+// top of a stack): the engine lays it flat on the top at the plan's yaw and place (vr_crates.cpp putCrowbar), just above
+// it; it settles there by physics.
+void(entity xCrate, float i) VR_Crowbar_OnCrate =
+{
+    if(!cratecrowbar(i))
+    {
+        return;
+    }
+    entity c = VR_Crowbar_Spawn(xCrate, xCrate.origin, '0 0 90', '0 0 0');
+    if(!cratecrowbarput(c, i))
+    {
+        remove(c);
+    }
+};
+
 /*QUAKED weapon_crowbar (0 .5 .8) (-16 -16 0) (16 16 32)
 A crowbar lying ready to be picked up (Quake VR): a melee weapon, one hand or two. It falls from its origin and
 settles on the floor. "angle" or "angles": how it lies (none: any way).
