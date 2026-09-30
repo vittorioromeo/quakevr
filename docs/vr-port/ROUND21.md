@@ -15561,10 +15561,14 @@ speed. Branch `agent/gruntburst`.
   little less than a blast, farther a little more (the tighter spread).
 - **Burst Rifles** off (`vr_grunt_burst 0`): id's shotgun again (4 pellets, its sound): 21 shots, 334 lost in the same
   test. The dropped guns too (below).
-- Sound: `sound/vr/burst1..3.wav`, one at random a round (a rifle's crack, the blast, the bolt's clack, a short tail;
-  0.32 s so the next round overlaps its tail), made by `make_sounds.py`. No recording was downloaded: the permission
-  reached me only through the coordinator. If you would rather have a recorded shot, name one (CC0) and it replaces
-  these.
+- Sound: `sound/vr/burst1..3.wav`, one at random a round. Recorded since 2026-09-30 (the author: "feel free to
+  download free sounds to use"): an AK-47's two single shots from The Free Firearm Sound Library (CC0, OpenGameArt;
+  CREDITS.md), cut by `Misc/quakevr/make_burst_sounds.py` (the synthesis is gone from `make_sounds.py`). 0.5 s each:
+  heard downrange, the bullet's crack, the muzzle blast 17 ms later, the range's slap from ~0.1 s; the third is the
+  second 5% slower. Levels, against Quake's grunt shotgun (`soldier/sattck1.wav`, the same as `weapons/guncock.wav`):
+  a burst of three (0.1 s apart) over its loudest 0.3 s -8.0 dBFS RMS (the shotgun -8.0), its loudest 50 ms -5.7
+  (-6.0), a round's loudest 10 ms -3.9..-4.9 (-3.7), peaks -1.0 (0.0). The synthesised rounds were louder (a round's
+  loudest 50 ms -3.1; now -9.0..-9.4, their tails longer).
 
 ### The gun you pick up (`vr_enemyguns.qc`)
 
