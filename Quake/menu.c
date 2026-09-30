@@ -1156,7 +1156,7 @@ int m_main_mods;
 
 enum
 {
-	MAIN_VRCALIBRATION, // QVR: the first-time setup (vr_setup.hpp), a row of text above the menu's picture
+	MAIN_VRCALIBRATION, // QVR: the first-time setup (vr_setup.hpp), the first row
 	MAIN_SINGLEPLAYER,
 	MAIN_MULTIPLAYER,
 	MAIN_OPTIONS,
@@ -1168,6 +1168,18 @@ enum
 };
 
 int	m_main_cursor = MAIN_SINGLEPLAYER; // QVR: Single Player first, as before the VR Calibration row
+
+// QVR: the rows as text, in the lettering of Quake's picture of them (gfx/mainmenu.lmp), cut from id's menu pictures
+// (vr_bigfont.cpp), so that VR Calibration looks like the others.
+static const char *const m_main_labels[MAIN_ITEMS] =
+{
+	"VR Calibration", "Single Player", "Multiplayer", "Options", "Mods", "Help/Ordering", "Quit",
+};
+
+const char *M_Main_RowLabel (void) // QVR: menu_vr pos
+{
+	return m_main_labels[m_main_cursor];
+}
 
 void M_Menu_Main_f (void)
 {
@@ -1191,29 +1203,45 @@ void M_Menu_Main_f (void)
 
 void M_Main_Draw (void)
 {
-	int		cursor;
+	int		cursor, i, row;
 	qpic_t	*p;
+	qboolean text;
 
 	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp") );
 	p = Draw_CachePic ("gfx/ttl_main.lmp");
 	M_DrawPic ( (320-p->width)/2, 4, p);
 
-	// QVR: VR Calibration, the first row, in the letters of the mods' fallback row; the picture's rows below it.
-	M_PrintEx (74, 32 + 1, 16, "VR CALIBRATION");
+	// QVR: the rows as text in the picture's letters when the pictures give every one (a mod's own pictures may not):
+	// else the picture, with VR Calibration above it in the letters of the mods' fallback row.
+	text = true;
+	for (i = 0; i < MAIN_ITEMS; i++)
+		if ((i != MAIN_MODS || m_main_mods) && !VR_BigFont_CanDraw (m_main_labels[i]))
+			text = false;
 
-	p = Draw_CachePic ("gfx/mainmenu.lmp");
-	if (m_main_mods)
+	if (text)
 	{
-		int split = 60;
-		M_DrawSubpic (72, 52, p, 0, 0, p->width, split);
-		if (m_main_mods > 0)
-			M_DrawTransPic (72, 52 + split, Draw_CachePic ("gfx/menumods.lmp"));
-		else
-			M_PrintEx (74, 52 + split + 1, 16, "MODS");
-		M_DrawSubpic (72, 52 + split + 20, p, 0, split, p->width, p->height - split);
+		for (i = 0, row = 0; i < MAIN_ITEMS; i++)
+			if (i != MAIN_MODS || m_main_mods)
+				VR_BigFont_Draw (73, 32 + row++ * 20, m_main_labels[i]);
 	}
 	else
-		M_DrawTransPic (72, 52, Draw_CachePic ("gfx/mainmenu.lmp"));
+	{
+		M_PrintEx (74, 32 + 1, 16, "VR CALIBRATION");
+
+		p = Draw_CachePic ("gfx/mainmenu.lmp");
+		if (m_main_mods)
+		{
+			int split = 60;
+			M_DrawSubpic (72, 52, p, 0, 0, p->width, split);
+			if (m_main_mods > 0)
+				M_DrawTransPic (72, 52 + split, Draw_CachePic ("gfx/menumods.lmp"));
+			else
+				M_PrintEx (74, 52 + split + 1, 16, "MODS");
+			M_DrawSubpic (72, 52 + split + 20, p, 0, split, p->width, p->height - split);
+		}
+		else
+			M_DrawTransPic (72, 52, Draw_CachePic ("gfx/mainmenu.lmp"));
+	}
 
 	cursor = m_main_cursor;
 	if (!m_main_mods && cursor > MAIN_MODS)

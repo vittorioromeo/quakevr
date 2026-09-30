@@ -8,6 +8,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+#include <cmath>
 #include <cstdint>
 #include <memory>
 #include <vector>
@@ -34,6 +35,24 @@ struct Pose
     glm::vec3 gripVelocity{0.f};
     bool gripVelocityValid{false};
 };
+
+// The runtime's panel (Backend::acquirePanelImage): 1.6 m wide, 1.4 m in front of where the head faced when it
+// appeared, upright, at the head's height.
+constexpr float runtimePanelWidth = 1.6f;
+constexpr float runtimePanelDistance = 1.4f;
+
+[[nodiscard]] inline Pose placeRuntimePanel(const Pose& head)
+{
+    glm::vec3 fwd = head.orientation * glm::vec3{0.f, 0.f, -1.f}; // the head's forward, flattened
+    fwd.y = 0.f;
+    fwd = glm::dot(fwd, fwd) < 1e-6f ? glm::vec3{0.f, 0.f, -1.f} : glm::normalize(fwd);
+    Pose p;
+    p.position = head.position + fwd * runtimePanelDistance;
+    p.position.y = head.position.y;
+    p.orientation = glm::angleAxis(std::atan2(-fwd.x, -fwd.z), glm::vec3{0.f, 1.f, 0.f});
+    p.valid = true;
+    return p;
+}
 
 enum Hand : int
 {
@@ -205,6 +224,13 @@ public:
     }
     virtual void releasePanelImage()
     {
+    }
+
+    // Where that panel was shown with the last frame (tracking space: its centre, facing +z; `size` in metres), for
+    // the menus' laser pointer on it (vr_menuui.cpp); false while it is not shown.
+    [[nodiscard]] virtual bool runtimePanel(Pose& /* pose */, glm::vec2& /* size */) const
+    {
+        return false;
     }
 
     // Vibrates a controller.

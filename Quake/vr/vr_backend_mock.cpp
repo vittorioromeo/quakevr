@@ -454,6 +454,12 @@ public:
 
     [[nodiscard]] bool beginFrame(TrackingState& tracking, FrameState& frame) override
     {
+        if(frameBegun)
+        {
+            endFrame(false); // the previous frame was not rendered (as OpenXR's backend ends it)
+        }
+        frameBegun = true;
+
         glm::vec3 playVel[HAND_COUNT + 1], playAngVel[HAND_COUNT + 1];
         bool played[HAND_COUNT + 1]{};
         playFrame(realtime, playVel, playAngVel, played);
@@ -546,6 +552,7 @@ public:
         // The head likewise (a lunge scripted with vr_mock_hand head).
         tracking.head.linearVelocity = headMotion.update(tracking.head.position, realtime);
         tracking.head.velocityValid = true;
+        lastHead = tracking.head;
 
         frame.shouldRender = true;
         for(int eye = 0; eye < 2; eye++)
@@ -604,11 +611,41 @@ public:
     {
     }
 
-    void endFrame(bool /* rendered */) override
+    // The runtime's panel as a runtime shows it while the eyes are not rendered (menus before a map), placed as
+    // OpenXR's is: no image, but the menus' laser pointer meets it (tests of it with vr_mock_hand).
+    void endFrame(bool rendered) override
     {
+        frameBegun = false;
+        if(!rendered && lastHead.valid)
+        {
+            if(!panelShown && realtime - panelLastShown > 1.0)
+            {
+                panelPlaced = placeRuntimePanel(lastHead);
+            }
+            panelLastShown = realtime;
+        }
+        panelShown = !rendered && lastHead.valid;
+    }
+
+    [[nodiscard]] bool runtimePanel(Pose& pose, glm::vec2& size) const override
+    {
+        if(!panelShown)
+        {
+            return false;
+        }
+        const glm::vec2 canvas{static_cast<float>(glwidth), static_cast<float>(glheight)};
+        pose = panelPlaced;
+        size = {runtimePanelWidth, canvas.x > 0.f ? runtimePanelWidth * canvas.y / canvas.x : 0.f};
+        return true;
     }
 
 private:
+    bool frameBegun{false};
+    Pose lastHead;
+    Pose panelPlaced;
+    bool panelShown{false};
+    double panelLastShown{-10.0};
+
     gfx::Texture textures[2]{};
     int width_{0};
     int height_{0};

@@ -15,6 +15,8 @@ VR Calibration (main menu, first row): the room, then height, body and main hand
 VR Calibration seated: POSITION on the stand to Seated, START CALIBRATION: height taken seated, body without its first pose
 Calibration room: each wall button changes its value (the screen above it and the wrist message), kept at the next start
 Calibration room: light and board sizes OK? Swim in the pool, climb the rungs and blocks, take the things on the table
+Main menu: every row (VR Calibration too) in Quake's lettering, looking like the old picture? (off: Menu Settings > Main Menu Lettering)
+Main menu at start (before a map): the laser's dot follows your hand on the flat panel, trigger picks a row
 Flung prop damage feels right (Throwing and Physics > Flung Props: Damage, Reference Mass)
 
 

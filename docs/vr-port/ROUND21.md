@@ -15634,3 +15634,61 @@ stack with files and lines from lld's .pdb (`VR_DebugCrash_f vr_main.cpp:720`, `
 `build.sh`'s `" error "` grep shows; a linker warning (lld-link's `lld-link : warning :`) would not show: its grep
 could be `" error |warning C|: warning :"`. The machine needs Visual Studio's "C++ Clang tools for Windows" (installed
 here: clang 19.1.5).
+
+## The main menu in Quake's lettering; the laser on the menu before a map (2026-09-30)
+
+Your note (vrfiringrange_2026-09-30_16-28): the VR Calibration row's letters (the console font, twice the size) didn't
+match Single Player, Multiplayer, Options... (a picture, `gfx/mainmenu.lmp`); make every row text in the picture's
+font. Quake has no such font: the lettering exists only in its menu pictures.
+
+### What changed
+
+- **The rows are text** (`menu.c`, `M_Main_Draw`; `Quake/vr/vr_bigfont.cpp`): "VR Calibration", "Single Player",
+  "Multiplayer", "Options", "Mods" (when the Mods row shows, as before), "Help/Ordering", "Quit", drawn in a font whose
+  letters are cut from id's own pictures (`gfx/mainmenu.lmp`, `sp_menu.lmp`, `mp_menu.lmp`) in the player's pak when the
+  main menu is first drawn after the game directory is set. The layout, the spinning Quake cursor, the plaque, the
+  title, the keys, the mouse and the laser are the same (rows 20 pixels apart from y 32, text from x 73).
+- **No id pixels are shipped**: `Quake/vr/vr_bigfont_glyphs.inc` (written by `Misc/quakevr/make_bigfont.py` from Quake
+  1.06's `pak0.pak`) holds only where each letter is in those pictures and an FNV-1a hash of each piece. A piece whose
+  hash differs (a mod's own picture, another release's) leaves its letter out; a row with a letter missing makes the
+  menu draw the picture as before (VR Calibration above it in the console's letters).
+- **Letters the pictures lack** (V, R, C, b) are made from others: R is Player's r two rows taller, V Save's v two rows
+  taller (without a's leg that overlaps it), C Game's G without its spur (its top end mirrored at the bottom), b
+  Options' p with its bowl twice. "ay" is one glyph (the two overlap in both pictures). The originals' rows come out
+  as in the picture to a pixel or two (widths: Single Player 214 vs 219, Help/Ordering 236 vs 237).
+- `vr_menu_bigfont` (1; VR Settings > Advanced VR Options > Menu Settings > Main Menu Lettering): 0 draws the picture
+  as before. `vr_bigfont` (Debug > Reports > Main Menu Lettering): which pictures were read and which letters were
+  left out (none with id1).
+- Engine: `Draw_ReplacePic` / `Draw_PicBytes` (`gl_draw.c`): a pic of data made at run time that lasts across maps
+  and games (`Draw_MakePic`'s is on the hunk), filtered as the menu's pictures are.
+
+### The laser on the main menu
+
+The mock laser (and the real one) did not move the main menu's cursor **before a map** (or over a demo): the menus are
+then on the runtime's own flat panel (OpenXR's quad layer), not in the eyes, and the laser needed the hands' game
+state (a Quake VR game running). With a map loaded it did work (all seven rows).
+
+- `Backend::runtimePanel` (`vr_backend.hpp`): where the runtime's panel was shown with the last frame, in tracking
+  space; `placeRuntimePanel` is the placement both backends use (1.6 m wide, 1.4 m ahead of the head, upright).
+- `vr_menuui.cpp`: when the menu is not in the eyes, each hand's ray (the controller as tracked, aimed as a gun is)
+  meets that panel in tracking space; the spot moves the menus' mouse as in the eyes, the trigger clicks there. No
+  world to draw the beam in: a dot in the laser's hue marks the spot on the panel.
+- The mock backend shows a panel the same way while the eyes are not rendered (no image; for the laser), and ends a
+  frame that was not rendered at the next one, as OpenXR's does.
+- `menu_vr pos` on the main menu names the selected row.
+
+### Tests
+
+- `vr_bigfont` with id1: the three pictures read, 25 of 25 letters cut (texture 537 x 24).
+- Before/after (`vr_menu_bigfont 0` / `1`), the flat window and the left eye (`vr_eyeshot 3`, e1m1's start map): the
+  same layout, VR Calibration now in the others' letters.
+- Laser, mock (`vr_mock_laser 150 <42 + 20 * row>`, then `menu_vr pos`): every row, VR Calibration to Quit, before a map
+  (it did nothing there before) and in a map. The real ray (`vr_mock_hand main 0.15 1.45 -0.3 <pitch> 0 0`, pitch 62 to
+  94 in 1-2 degree steps, before a map): the selection walks Quit, Help/Ordering, Mods, Options, Multiplayer, Single
+  Player, VR Calibration. The trigger (`vr_mock_button main trigger 1`/`0`) on Options opens the options.
+- Sticks (before a map): the off hand's stick down steps Single Player > Help... > Quit > VR Calibration (wrapping), the
+  main hand's stick up the other way.
+- `vr_menu_path_check maps/vrcalibration.map`: 13 found, 0 missing.
+
+To remake the table (a letter moved or added): `python Misc/quakevr/make_bigfont.py --pak <id1/pak0.pak> --preview
+out.png` (the preview draws the rows with the pak's letters, 3x).

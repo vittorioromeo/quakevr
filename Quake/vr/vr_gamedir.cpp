@@ -9,6 +9,7 @@
 #include "vr_ambient.hpp"
 #include "vr_anchor.hpp"
 #include "vr_ao.hpp"
+#include "vr_bigfont.hpp"
 #include "vr_bodyblood.hpp"
 #include "vr_cvars.hpp"
 #include "vr_detail.hpp"
@@ -203,6 +204,7 @@ extern "C" void VR_OnGameDirChanged()
     qvr::sightalign::resetCaches(); // the sight lines (a mod's own guns)
     qvr::avatar::reset();
     qvr::flashlight::onGameDirChanged();
+    qvr::bigfont::onGameDirChanged();
     qvr::mem::on(qvr::mem::GameDirChange); // the registered caches that name it (vr_mem.hpp)
     Con_DPrintf("VR: game directory changed: model and game file caches emptied\n");
 }

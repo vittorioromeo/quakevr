@@ -235,7 +235,8 @@ struct Hit
 {
     bool valid{false};
     glm::vec3 point{0.f};
-    glm::vec2 uv{0.f}; // on the canvas, v up
+    glm::vec2 uv{0.f};           // on the canvas, v up
+    bool onRuntimePanel{false}; // on the runtime's own panel (the menus before a map): no world to draw the laser in
 };
 
 int pointingHand = HAND_MAIN;
@@ -283,24 +284,75 @@ struct MockLaser
 };
 MockLaser mockLaser;
 
+// The mock laser's spot on the canvas (v up).
+[[nodiscard]] glm::vec2 mockLaserUv()
+{
+    drawtransform_t t;
+    Draw_GetCanvasTransform(CANVAS_MENU, &t);
+    return {(mockLaser.spot.x * t.scale[0] + t.offset[0] + 1.f) * 0.5f, (mockLaser.spot.y * t.scale[1] + t.offset[1] + 1.f) * 0.5f};
+}
+
+// Where a hand points on the runtime's own panel, which shows the menus while the world is not drawn (before a map, over
+// a demo: Backend::runtimePanel), in tracking space: the controller as tracked, aimed as a gun is.
+// Where each hand's ray last met the runtime panel's plane (uv, even off it; menu_vr pos).
+glm::vec2 runtimePanelUv[HAND_COUNT]{};
+
+[[nodiscard]] Hit intersectRuntimePanel(int hand)
+{
+    Hit hit;
+    Backend* be = backend();
+    Pose panel;
+    glm::vec2 size{0.f};
+    if(!be || !be->runtimePanel(panel, size) || size.x <= 0.f || size.y <= 0.f)
+    {
+        return hit;
+    }
+    if(mockLaser.on && hand == HAND_MAIN)
+    {
+        return {true, glm::vec3{0.f}, mockLaserUv(), true};
+    }
+    const Pose& controller = tracking().hands[hand];
+    if(!controller.valid)
+    {
+        return hit;
+    }
+
+    const glm::vec3 dir = hands::aimedController(controller.orientation, hand) * glm::vec3{0.f, 0.f, -1.f};
+    const glm::vec3 normal = panel.orientation * glm::vec3{0.f, 0.f, 1.f};
+    const float along = glm::dot(dir, normal);
+    if(std::fabs(along) < 1e-6f)
+    {
+        return hit;
+    }
+    const float t = glm::dot(panel.position - controller.position, normal) / along;
+    if(t <= 0.f)
+    {
+        return hit;
+    }
+    const glm::vec3 local = glm::inverse(panel.orientation) * (controller.position + dir * t - panel.position);
+    const glm::vec2 uv{local.x / size.x + 0.5f, local.y / size.y + 0.5f};
+    runtimePanelUv[hand] = uv;
+    if(uv.x < 0.f || uv.x > 1.f || uv.y < 0.f || uv.y > 1.f)
+    {
+        return hit;
+    }
+    return {true, glm::vec3{0.f}, uv, true};
+}
+
 [[nodiscard]] Hit intersect(const hands::State& s, int hand)
 {
     Hit hit;
+    glm::vec3 corner, xAxis, yAxis, origin, dir;
+    if(!s.valid || !panel::menuQuad(s, corner, xAxis, yAxis))
+    {
+        return intersectRuntimePanel(hand); // (the menu is not in the eyes)
+    }
     if(mockLaser.on && hand == HAND_MAIN)
     {
-        glm::vec3 corner, xAxis, yAxis;
-        if(!panel::menuQuad(s, corner, xAxis, yAxis))
-        {
-            return hit;
-        }
-        drawtransform_t t;
-        Draw_GetCanvasTransform(CANVAS_MENU, &t);
-        const glm::vec2 uv{(mockLaser.spot.x * t.scale[0] + t.offset[0] + 1.f) * 0.5f,
-            (mockLaser.spot.y * t.scale[1] + t.offset[1] + 1.f) * 0.5f};
+        const glm::vec2 uv = mockLaserUv();
         return {true, corner + xAxis * uv.x + yAxis * uv.y, uv};
     }
-    glm::vec3 corner, xAxis, yAxis, origin, dir;
-    if(!pointerRay(s, hand, origin, dir) || !panel::menuQuad(s, corner, xAxis, yAxis))
+    if(!pointerRay(s, hand, origin, dir))
     {
         return hit;
     }
@@ -575,7 +627,7 @@ int menuHeight()
 
 void update(const hands::State& s)
 {
-    const bool on = active() && s.valid;
+    const bool on = active(); // (the laser meets the panel in the eyes, or the runtime's: intersect)
     for(int h = 0; h < HAND_COUNT; h++)
     {
         hits[h] = on ? intersect(s, h) : Hit{};
@@ -639,6 +691,19 @@ void mockLaser_f()
         return;
     }
     Con_Printf("vr_mock_laser <x> <y> | back | advanced | levels | checklist | off: the main hand's laser on that spot of the menu\n");
+}
+
+void printLaser()
+{
+    const Hit& h = hits[pointingHand];
+    Pose panel;
+    glm::vec2 size{0.f};
+    Backend* be = backend();
+    const bool runtime = be && be->runtimePanel(panel, size);
+    const glm::vec2 uv = h.valid ? h.uv : runtimePanelUv[pointingHand];
+    Con_Printf("menu_vr pos: laser (%s hand) %s, at %.3f %.3f of the panel%s\n", pointingHand == HAND_MAIN ? "main" : "off",
+        !h.valid ? "off the menu" : h.onRuntimePanel ? "on the runtime's panel" : "on the panel in the eyes", uv.x, uv.y,
+        runtime ? " (the runtime's panel shown)" : "");
 }
 
 float toolbarBottom()
@@ -1066,6 +1131,13 @@ extern "C" void VR_MenuDrawOverlay()
         }
     }
     toolbar.menu = m_state;
+
+    // On the runtime's panel (no world to draw the laser in), where the laser points: a dot in its hue.
+    if(const Hit& hit = hits[pointingHand]; hit.valid && hit.onRuntimePanel)
+    {
+        p.disc(m_mousex, m_mousey, 3.f, hue::color(vr_menu_laser_hue, 0.3f, 1.f, 1.f));
+        p.disc(m_mousex, m_mousey, 1.4f, {1.f, 1.f, 1.f, 1.f});
+    }
 }
 
 // The corner's buttons take the laser's clicks on them, and the sticks' keys while they have the
