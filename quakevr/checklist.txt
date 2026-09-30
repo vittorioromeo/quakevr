@@ -20,48 +20,17 @@ Stuck anywhere (wall, door, lift)? You should pop out to the nearest free spot (
 
 
 
-HUD: with any HUD style, only the wrist gadget shows in the headset; the desktop window shows the HUD
-Relight a dead torch in an e1m2 flame (brazier)
-Pouch grenade at your values (now the defaults)
 
-Throws: hard throws, wrist snaps and gentle tosses of weapons and boxes keep their direction and spin; a still open hand keeps things resting on the palm
 
-Melee speed 3 (your value): soft punches land
-A fast reload next to the dummy neither hits nor whooshes (both hands); gun butt strikes, downward swings and overhead chops still land
 
-Gun lowered onto a table at several angles: rests on it, slides along it, no snap back to the torso; pushed into a wall at an angle
-Held gib or brick pushed onto the prop table: rests on top
-A prop balanced on the open palm: the hand stays under it
-Empty hands now stop at walls by their drawn shape: check climbing and grabbing things off tables
 
-Hitbox defaults: width 16 and method A are now the defaults; grunts shooting from afar, knights/dogs/fiends reaching you feel fair? Try Width Shots Hit 20 and 28 (default 24)
 
-Flashlight: reach for it from different angles, through the torso, torso twisted, with a gun at the chest in the other hand: lit always means taken (near the lamp the hand now sinks into the torso like at a holster: OK?)
 
-Explosive boxes: jump off both, forward and sideways (no explosion); stand and walk on top
-Walk into boxes with full and half stick: they move by weight (Player Hitbox > shove 0.6)
-Topple the big box onto yourself against a wall and walk out
-Push a box held in both hands into walls, pillars, the floor and a door while turning it: never goes in
 
-Grapple: hold X standing with the hook in a wall: the rope pays out and sags (Debug > Logs > Controller Buttons logs every press)
-Grapple: take and drop one of two lying guns: no phantom rope
-Grapple: reel a loose hook in: it goes all the way (Reel Home 5)
 Grapple: reel a heavy box while walking away: you're slowed like towing
-Grapple: the front button reels in over about 0.5 s instead of teleporting
-Chainsaw: kill an ogre (Debug > Tests > Chainsaw to get one fast); it drops its saw and the corpse has none
-Chainsaw: pull the cord with the other hand (50% start chance per good pull); cut a monster with the trigger held; fuel runs down and it stalls when empty
-Chainsaw: size (82 cm), grips and weight feel right?
 
-Monster Hitbox (Movement > Monster Hitbox): turn Narrower Monsters on; ogres, grunts, knights walk closer to walls and corners; any stuck, clipping into walls or stepping off ledges?
 
 [Decide or give feedback]
-Narrower Monsters (monsters' own boxes against walls; +186 ms load) on by default? Round the enforcer's 28 down to 24 (one hull fewer)?
-Chainsaw: swinging it also counts as a gun-style melee blow: keep?
-Grapple: ground unreel slack 256: right amount?
-At speed 3, two 'weak punch' no-hit takes and one axe wiggle take now hit: drop those takes (invalidated), or keep them as known failures?
-Promote vr_melee_push 0.5, vr_melee_push_player 0.6 and vr_melee_bloodlust_mult 0.5 (your config) as defaults?
-Throw grace also ignores your body capsule for 0.2 s (an overhead snap hit your own body): keep, or hands only? (Throwing and Physics > vr_box3d_throw_grace_body)
-Spectator and smoothed desktop views now show the flat HUD: OK, or a setting to hide it for clean recordings?
 
 [Tune]
 Grapple: reel speeds and the other grapple values (you asked for a reminder)
