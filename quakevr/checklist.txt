@@ -98,6 +98,8 @@ Spatial audio (VR Settings > Sound): sounds circling your head; a monster behind
 
 Super shotgun: fore-end from the side and from below (hold it overhead), front of the trigger guard: no stretching, no hole; repaint darker and plainer: OK?
 
+Crowbar (vrfiringrange): fist on the tape (offsets), both two-handed grips incl. sliding up the bar, hook vs bar hits, parry, throwing it
+
 [Decide or give feedback]
 Left-handers: flashlight toggle stays on the left Y and the main weapon slot on the right controller: OK, or follow the off hand?
 Enemy guns: scale 0.4 OK? Should the player's enforcer rifle laser be faster than the enforcer's 600 u/s?
