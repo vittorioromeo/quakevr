@@ -1122,6 +1122,31 @@ extern "C" int VR_Unpaced()
     return be && vr_mock_fast.value != 0.f && !strcmp(be->name(), "mock") && motion::gameClockFixed();
 }
 
+// vr_mock_fast 2: unpaced frames aren't drawn at all (VR_HeadlessView instead): no GL, no wait for the GPU, which
+// parallel test runs share (vr_motion_eval's shards). Every such frame, not some: the same frames whatever the machine.
+extern "C" int VR_SkipScreen()
+{
+    return VR_Unpaced() && vr_mock_fast.value >= 2.f;
+}
+
+extern "C" int VR_SkipSwap()
+{
+    // vr_mock_fast: a present waits for the display's refresh (vsync off or not: the compositor's pace in a window),
+    // most of an unpaced frame. Present ten times a second: the window still shows the run.
+    static double lastPresent = 0.0;
+    if(!VR_Unpaced())
+    {
+        return 0;
+    }
+    const double now = Sys_DoubleTime();
+    if(now - lastPresent < 0.1)
+    {
+        return 1;
+    }
+    lastPresent = now;
+    return 0;
+}
+
 // vr_mock_fast: no vsync either while the frames run unpaced (the window's vid_vsync again after).
 static void applyUnpacedSwap()
 {

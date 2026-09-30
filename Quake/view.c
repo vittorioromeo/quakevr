@@ -918,11 +918,15 @@ the entity origin, so any view position inside that will be valid
 */
 extern vrect_t	scr_vrect;
 
-void V_RenderView (void)
-{
-	if (con_forcedup)
-		return;
+/*
+==================
+V_SetupView
 
+QVR: the view's refdef and the view entities, without drawing (V_RenderView; VR_HeadlessView's frames)
+==================
+*/
+void V_SetupView (void)
+{
 	if (cl.intermission)
 		V_CalcIntermissionRefdef ();
 	else if (!cl.paused /* && (cl.maxclients > 1 || key_dest == key_game) */)
@@ -931,6 +935,14 @@ void V_RenderView (void)
 	//johnfitz -- removed lcd code
 
 	VR_SetupViewEntities (); // QVR
+}
+
+void V_RenderView (void)
+{
+	if (con_forcedup)
+		return;
+
+	V_SetupView (); // QVR: split out
 
 	R_RenderView ();
 

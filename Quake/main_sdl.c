@@ -270,7 +270,7 @@ int main(int argc, char *argv[])
 			SDL_Delay(16);
 		}
 		/* If we're minimised, sleep a bit more */
-		if (VID_IsMinimized() && !VR_IsActive ()) // QVR
+		if (VID_IsMinimized() && !VR_IsActive () && !getenv ("QVR_TEST_BACKGROUND")) // QVR: a test run's hidden window draws too
 		{
 			scr_skipupdate = 1;
 			SDL_Delay(32);

@@ -762,6 +762,59 @@ extern "C" int VR_RenderView()
     return eyesRendered == 2;
 }
 
+// vr_mock_fast 2 (VR_SkipScreen): what VR_RenderView does that the game reads, without the GL: each eye's view set
+// up (V_SetupView: the refdef, and with the first eye the view entities, the weapons' and hands' poses: the melee's
+// samples), at the eyes' sizes. Not the drawing's queues (crosshair, HUD glow...) nor the window: nothing is drawn.
+extern "C" void VR_HeadlessView()
+{
+    Backend* be = backend();
+    const FrameState& frame = frameState();
+    if(!be || !frame.shouldRender || !be->frameActive() || cls.state != ca_connected || cls.signon != SIGNONS ||
+        !cl.worldmodel || con_forcedup || !hands::current().valid)
+    {
+        return;
+    }
+    int imageWidth = 0, imageHeight = 0;
+    be->eyeResolution(imageWidth, imageHeight);
+    if(imageWidth <= 0 || imageHeight <= 0)
+    {
+        return;
+    }
+    const EyeSizes sizes = be->eyeSizes();
+    const int width = scaledEyeSize(imageWidth, sizes.maxWidth);
+    const int height = scaledEyeSize(imageHeight, sizes.maxHeight);
+
+    const int windowWidth = vid.width, windowHeight = vid.height;
+    const int savedGlx = glx, savedGly = gly, savedGlwidth = glwidth, savedGlheight = glheight;
+    const vrect_t savedVrect = r_refdef.vrect;
+    const float savedFovX = r_refdef.fov_x, savedFovY = r_refdef.fov_y;
+    for(int eye = 0; eye < 2; eye++)
+    {
+        vid.width = width;
+        vid.height = height;
+        glx = gly = 0;
+        glwidth = width;
+        glheight = height;
+        r_refdef.vrect.x = r_refdef.vrect.y = 0;
+        r_refdef.vrect.width = width;
+        r_refdef.vrect.height = height;
+        stereo::renderingEye = true;
+        stereo::currentEye = eye;
+        stereo::firstEye = eye == 0;
+        V_SetupView();
+        stereo::renderingEye = false;
+    }
+    vid.width = windowWidth;
+    vid.height = windowHeight;
+    glx = savedGlx;
+    gly = savedGly;
+    glwidth = savedGlwidth;
+    glheight = savedGlheight;
+    r_refdef.vrect = savedVrect;
+    r_refdef.fov_x = savedFovX;
+    r_refdef.fov_y = savedFovY;
+}
+
 extern "C" int VR_RenderingEye()
 {
     return stereo::renderingEye;

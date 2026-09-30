@@ -513,7 +513,10 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, qboolean fu
 			Sys_Error ("Couldn't set fullscreen state mode");
 	}
 
-	if (getenv ("QVR_TEST_BACKGROUND")) // QVR: automated test runs open without taking the focus
+	if (getenv ("QVR_TEST_HIDDEN")) // QVR: automated test runs can stay hidden (never shown on the desktop)
+	{
+	}
+	else if (getenv ("QVR_TEST_BACKGROUND")) // QVR: automated test runs open without taking the focus
 	{
 		SDL_SetHint (SDL_HINT_WINDOW_NO_ACTIVATION_WHEN_SHOWN, "1");
 		SDL_ShowWindow (draw_context);
@@ -1393,7 +1396,7 @@ void GL_EndRendering (void)
 	GL_PostProcess ();
 	GL_ReleaseFrameResources ();
 
-	if (!scr_skipupdate)
+	if (!scr_skipupdate && !VR_SkipSwap ()) // QVR: unpaced test frames present only now and then
 	{
 		SDL_GL_SwapWindow(draw_context);
 	}

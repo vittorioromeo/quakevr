@@ -174,7 +174,9 @@ void end()
     {
         std::error_code ec;
         fs::create_directories(toPath(std::string{com_gamedir} + "/cache"), ec);
-        const std::string path = manifestPath(), tmp = path + ".tmp";
+        // (A temporary file of this copy's own: parallel test runs share the folder.)
+        const std::string path = manifestPath(),
+                          tmp = path + va(".%u.tmp", static_cast<unsigned>(Sys_DoubleTime() * 1e6) & 0xffffffu);
         {
             std::ofstream out(toPath(tmp), std::ios::trunc);
             for(const std::string& name : decoded)
