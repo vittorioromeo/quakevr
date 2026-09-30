@@ -11,10 +11,6 @@
 # remove items freely; changing an item's wording un-ticks it.
 
 [Test in VR]
-VR Calibration (main menu, first row): the room, then height, body and main hand as asked; the summary right
-VR Calibration seated: POSITION on the stand to Seated, START CALIBRATION: height taken seated, body without its first pose
-Calibration room: each wall button changes its value (the screen above it and the wrist message), kept at the next start
-Calibration room: light and board sizes OK? Swim in the pool, climb the rungs and blocks, take the things on the table
 Flung prop damage feels right (Throwing and Physics > Flung Props: Damage, Reference Mass)
 
 
@@ -37,39 +33,27 @@ Grapple: reel a heavy box while walking away: you're slowed like towing
 Motion Recorder > Record Button: try B and a grip; the prompt names the button; its normal action is off only while armed
 Held weapon pushed into a wall and a corner slides out as before (statics cleanup)
 
-New Game from the main menu with a map running: the world stays put during the confirmation dialog
-Laser cannon headshots play the headshot sound
 Spectator view has no flat HUD (Graphics > Recording to show it)
 Narrower Monsters (now on by default): monsters behave normally in real levels
 
 Chainsaw on the firing range (east of the explosive boxes): cut heads and gibs on the floor; swing with the engine off (engine sound keeps playing); your hotspots are where you left them
 
-Switch weapons back and forth, draw and holster: grips look exactly as before, no stutter on repeat switches
 
-Turn a held health/ammo/explosive box and a gib in each hand (also force-grabbed): nothing pushes the hand
-Press the empty hand into a prop held by the other hand: it stops on it (give 10 cm: firm enough?)
 Reach for an explosive box: pushed and grabbed only when the fist is on it
 
-Laser cannon one-handed: a snap drops it, smooth swings don't (Weapon Weights > Wrenched Out > Fastest Turn)
 Two-handed blows with the laser cannon and chainsaw keep the off-hand grip (Aiming > 2H Grip Stickiness; per hotspot: Stickiness)
 Gentler swings with heavy weapons land (Aiming > Weight and Damage)
 
-Wall torches: new model with the old wood texture; nothing changes when one comes off the wall; a sloppy grab works (Carrying > Wall Torches > Grab Reach 15 cm), not too eager near other things
 Grapple: quick reel-in round a pillar: the rope shortens with the hook
 
 With Wrenched Out off: a fast wrist snap-and-back with the laser cannon puts it back in the hand, never a full spin; slow heavy swings lag as before; the snap-back isn't a melee hit
 
-Walk into a box turned 45 degrees and one lined up with the grid: same distance as a wall
-Tip a box onto a slope or the other box: jump on, walk on, jump off, stand near its downhill edge (no explosion)
 
-Chainsaw: 2 hotspots now (both on the front handle's loop: top bar and left side); grip at each
-Chainsaw sounds (real recordings): slow vs hard pull, start into idle with no seam, revving, cutting, no clicks at loop points; stops when holstered or dead, comes back after loading a save
 
 Chainsaw held by the front handle only, trigger pulled: it idles (QC precedence fix)
 Grapple hooked, then the gun passed to the other hand or a holster and back: hook stays in, the new hand's trigger works
 Grapple quick reel-in while the hook is still flying: it comes straight back
 
-First-time weapon grips: no 2-5 ms hitch (thread pool); Debug > Profiling and Memory > Threads > self-test passes
 
 Pain feedback: hits from each side knock the hands (size and time feel right? Combat > Damage and Knockback > When You're Hit); shots still land while knocked; the damage buzz feels as before at 1x
 
@@ -78,9 +62,10 @@ Lightning gun in water: dip the muzzle in a pool and fire; fire waist deep (40 d
 Enemy guns: grunts drop a shotgun, enforcers a laser rifle (both death animations: corpse has no gun); grip and foregrip placement; fire until empty, shell/cell pickups don't refill; Combat > Enemy Weapons values
 Chainsaw model clean-up: new starter housing under the cord handle
 
+First session on the clang-cl build: plays as before (and a Debug build steps fine in Visual Studio)
+
 [Decide or give feedback]
 Enemy guns: scale 0.4 OK? Should the player's enforcer rifle laser be faster than the enforcer's 600 u/s?
-Lightning in water: also give Mjolnir the new shock (it still uses Quake's stock discharge)?
 Zancle outside its library needs either the whole engine on clang-cl + C++23, or MSVC support in Zancle (proposal 2 in ROUND21.md): which? (blocks the std -> Zancle migration)
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay? vr_melee_speed a server rule or personal?
 Chainsaw hotspots: both on the front loop (as now), or one on each handle?
@@ -88,7 +73,6 @@ On a tilted box steeper than ~30 degrees you slowly slide off (like the level's 
 The shotgun lags up to ~176 degrees in a fast wiggle: too much for 3 kg? (weight spring settings)
 Optimization follow-up: a Low graphics preset (render resolution, foveation, decal cap)?
 Function-local non-std statics (two text buffers, lastOut in vr_handpose): move them to the scratch/state pattern too?
-VR CALIBRATION is the first main-menu row (above Single Player, since New Game lives inside that picture menu): OK there?
 
 [Tune]
 Grapple: reel speeds and the other grapple values (you asked for a reminder)
