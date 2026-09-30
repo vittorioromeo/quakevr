@@ -18,18 +18,7 @@ Stuck anywhere (wall, door, lift)? You should pop out to the nearest free spot (
 
 
 
-Stand on props: stand still on an explosive box, jump on and off, climb a stack of 2-3 and jump from the top, walk off, shove the box you stand on (you ride it); also at hitbox width 16
-Stand on props: do 80 kg and the 0.25 jump push feel right? (Player Hitbox > Standing on Props)
 
-Grapple: X on the left controller unreels (on the ground too)
-Grapple: both buttons drawn on a dropped or holstered gun; move them with Grappling Hook > Buttons on the Gun
-Grapple: dropping the gun keeps the rope length
-Grapple: the held gun never flickers between loaded and empty while the hook is out
-Grapple: the rope enters the back of the hook straight; slack on the floor lies still
-Grapple: reel-in finishes with the rope fully in
-Grapple: smaller hook (Hook Size 0.6)
-Grapple: towing a heavy box slows you (40 kg: about 80 u/s); is the feel right? (Tow Light, Tow Speed)
-Grapple: the laser cannon can be hooked anywhere along it
 
 HUD: with any HUD style, only the wrist gadget shows in the headset; the desktop window shows the HUD
 Relight a dead torch in an e1m2 flame (brazier)
@@ -47,6 +36,7 @@ Throw grace also ignores your body capsule for 0.2 s (an overhead snap hit your 
 Spectator and smoothed desktop views now show the flat HUD: OK, or a setting to hide it for clean recordings?
 
 [Tune]
+Grapple: reel speeds and the other grapple values (you asked for a reminder)
 Stamina costs: shove, strike, melee, parry, climbing
 
 [Record]
