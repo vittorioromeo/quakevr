@@ -88,6 +88,8 @@ Grip the crowbar, a sword and the chainsaw by the bar or blade on the floor: tak
 
 Chainsaw out of fuel: the trigger clicks; cutting a zombie knocks it down (~0.4 s: too fast?) and keeps cutting gibs it on the ground
 
+Burst gun and enforcer rifle models (ribs, vents, sights, thin barrel; burst gun wire stock): look right in hand; shots leave from the new barrel tips; your offsets and weights are the defaults (stock may clip the sleeve one-handed?)
+
 [Decide or give feedback]
 Zancle outside its library needs either the whole engine on clang-cl + C++23, or MSVC support in Zancle (proposal 2 in ROUND21.md): which? (blocks the std -> Zancle migration)
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay? vr_melee_speed a server rule or personal?
