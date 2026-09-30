@@ -50,8 +50,7 @@ articles, talks and other engines' source are credited with where they came from
   colours.
 - **Synthesised sounds** (`make_sounds.py`, in `quakevr/sound/vr/`): made from sine partials and filtered noise by
   the script, with no recordings. They are the headshot tick, the shells' tinks, the shove, bash, parry-bash and
-  parry, and (round 21) the pommel, hilt and butt knocks `pommel1..3.wav` and the grunts' burst rifles' rounds
-  `burst1..3.wav`.
+  parry, and (round 21) the pommel, hilt and butt knocks `pommel1..3.wav`.
 - **The body's clothes and pauldrons** (`make_vrbody.py`, `make_pauldron.py`) follow the Quake ranger, id Software's
   `progs/player.mdl` and its skin: his vest, belt, camouflage trousers, thigh plates, boots and quilted pauldrons, in
   his skin's own palette colours. Nothing of the model itself is copied.
@@ -131,6 +130,23 @@ resampled to 22050 Hz 16-bit, faded; the loops crossfaded into themselves (0.12 
 | `saw_stall.wav` | out of fuel | 0982 | 35.40-37.90 |
 | `saw_run.wav` | the chain running free, flat out (a loop) | [0707](https://bigsoundbank.com/chainsaw-2-s0707.html): *Chainsaw #2* | 28.35-29.44 |
 | `saw_cut.wav` | cutting (a loop) | 0707 (cutting a log) | 43.00-45.82 |
+
+### Burst rifle sounds (`quakevr/sound/vr/burst1..3.wav`)
+
+The grunts' burst rifles' rounds (ROUND21.md, "The grunts' burst rifles"), from **The Free Firearm Sound Library** by
+Ben Jaszczak, Brian Nelson, Kevin Heras and Matthew Nanney
+([OpenGameArt](https://opengameart.org/content/the-free-firearm-sound-library)), released under
+[CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) (public domain: no attribution needed, credited here
+anyway). They replace the synthesised ones (2026-09-30). `Misc/quakevr/make_burst_sounds.py` cuts them from the
+downloaded library (not in the repository; the script's header has the link): mixed to mono, high-passed at 30 Hz,
+resampled to 22050 Hz 16-bit, faded, a burst of three brought to the loudness of Quake's shotgun blast, peaks rounded
+off under -1 dBFS.
+
+| Files | Source | Cut (s) |
+|---|---|---|
+| `burst1.wav` | `AK-47/C_31P.wav`: an AK-47's single shot, outdoors | 0.335-0.835 |
+| `burst2.wav` | the same take's second shot | 4.398-4.898 |
+| `burst3.wav` | the second shot, 5% slower | 4.398-4.923 |
 
 ### Physics sounds (`quakevr/sound/vr/phys/`)
 

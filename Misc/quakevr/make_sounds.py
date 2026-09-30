@@ -27,9 +27,7 @@
 #   (the ogres' chainsaw's saw_*.wav: recorded, cut by make_chainsaw_sounds.py)
 #   pommel1..3.wav  a pommel, a hilt or a gun's butt striking (QC vr_melee.qc VR_Melee_HitSound): a blunt knock,
 #                 short and dry, apart from the blades' cuts and the punches; three, a little apart in pitch
-#   burst1..3.wav  a round of the grunts' burst rifles (QC vr_enemyguns.qc, orig_mon_soldier.qc army_fire): a rifle's
-#                 shot, short enough for three in 0.16 s -- a supersonic crack, the muzzle blast's boom, the bolt's
-#                 clack and a short room tail; three, a little apart in pitch, picked at random
+#   (the grunts' burst rifles' burst1..3.wav: recorded, cut by make_burst_sounds.py)
 #   rock1..3.wav, brick1..3.wav  a rock's thud and a brick's clack (QC vr_debris.qc): landing, knocked, thrown into
 #                 something or struck with; three each, a little apart in pitch
 #
@@ -422,41 +420,6 @@ def pommel(pitch, seed):
         s = click * 0.6 + knock * 1.6 + crunch * 1.1 + thud(t, phase, 58 * pitch, 95 * pitch, 0.05) * 0.6 + body * 0.8
         out.append(math.tanh(s * 1.6))
     return finish(out, 0.92)
-
-
-# ---- The grunts' burst rifles (QC vr_enemyguns.qc, orig_mon_soldier.qc; docs/vr-port/ROUND21.md, "The grunts' burst
-# rifles"): a round. Not a shotgun's long roar: a short, hard rifle shot, so that a burst of three reads as three.
-
-
-def burst_shot(pitch, seed):
-    """A rifle round: a supersonic crack (a few ms of bright noise), the muzzle blast (band-limited noise, a boom falling
-    from 170 to 55 Hz), the bolt's clack (small steel partials a few ms in), a short room tail (dark noise and two faint
-    echoes); saturated for density. About 0.3 s: the next round's (0.08 s on) overlaps its tail."""
-    rng = random.Random(seed)
-    n = int(RATE * 0.32)
-    crack_hp = OnePole(3000)
-    blast_lp, blast_hp = OnePole(2600 * pitch), OnePole(250)
-    tail_lp = OnePole(900 * pitch)
-    phase = [0.0]
-    clack = ((2150, 0.5, 0.006), (3370, 0.35, 0.004), (5180, 0.2, 0.003))
-    blast = []
-    out = []
-    for i in range(n):
-        t = i / RATE
-        noise = rng.uniform(-1, 1)
-        crack = (noise - crack_hp(noise)) * math.exp(-t / 0.0025)
-        b = blast_lp(noise)
-        b -= blast_hp(b)
-        b *= math.exp(-t / 0.028) * min(1.0, t / 0.0006)
-        blast.append(b)
-        boom = thud(t, phase, 55 * pitch, 115 * pitch, 0.06)
-        tc = t - 0.012
-        bolt = partials(tc, pitch, clack) * min(1.0, tc / 0.0003) if tc > 0 else 0.0
-        tail = tail_lp(noise) * math.exp(-t / 0.09) * min(1.0, t / 0.01)
-        echo = sum(blast[i - d] * g for d, g in ((int(RATE * 0.031), 0.35), (int(RATE * 0.057), 0.2)) if i >= d)
-        s = crack * 0.9 + b * 1.5 + boom * 1.2 + bolt * 0.35 + tail * 0.5 + echo
-        out.append(math.tanh(s * 2.0))
-    return finish(out, 0.95, 0.05)
 
 
 # ---- Rocks and bricks (QC vr_debris.qc; docs/vr-port/ROUND21.md, "Rocks and bricks"): a piece landing, knocked,
@@ -904,11 +867,6 @@ def main():
     for k, pitch in enumerate((1.0, 0.89, 1.12)):
         name = "pommel%d.wav" % (k + 1)
         write_wav(os.path.join(out, name), pommel(pitch, 131 + k))
-        print(name + " -> " + os.path.normpath(out))
-    # The grunts' burst rifles' rounds (QC vr_enemyguns.qc): three, a little apart in pitch, picked at random.
-    for k, pitch in enumerate((1.0, 0.93, 1.07)):
-        name = "burst%d.wav" % (k + 1)
-        write_wav(os.path.join(out, name), burst_shot(pitch, 431 + k))
         print(name + " -> " + os.path.normpath(out))
     # Rocks and bricks (QC vr_debris.qc): three knocks each, a little apart in pitch, picked at random.
     for kind, brick, seed in (("rock", False, 231), ("brick", True, 331)):
