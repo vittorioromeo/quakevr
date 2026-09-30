@@ -20,6 +20,8 @@
 //   kinematic, following the hand, so they push other props. Solid props (.vr_rigid 2: the explosive boxes) stay
 //   SOLID_BBOX, their Quake box kept round them as they turn (solidBox), and report their hard hits (.vr_impact).
 // - The players' hands are kinematic spheres at their fists that push solid props (syncHands, vr_box3d_hand_push).
+// - Players stand on solid props (vr_box3d_player_stand, "Standing on props": capsuleStandsOn, beforeStanding,
+//   pressStanding, rideStanding): ground to Quake's movement, their weight pressing, carried as the prop moves.
 // - And kinematic bodies at full speed that push the other props and hold them up (syncReach, ROUND21.md, "Hands and
 //   weapons as bodies"): an empty hand's open hand or fist (vr_box3d_hand_props; not grenades, which the palm catches),
 //   a held weapon's drawn hull (vr_box3d_weapon_push: a grenade is batted). What was inside one as it was made (let go
@@ -403,6 +405,15 @@ struct World
         float weaponMass{0.f};   // the held weapon's own mass (kg: Weapon Weights' Mass; 0: none, or not a weapon)
     };
     std::vector<std::array<HandBody, 2>> hands;
+    // The players standing on solid props (by client; vr_box3d_player_stand, "Standing on props" below).
+    struct Stand
+    {
+        int ground{0};          // the prop stood on at the frame's end (0: none): this frame's, then the last's
+        glm::vec3 feet{0.f};    // the point stood on (units): under the player's origin, at its feet, in the prop's box
+        b3Vec3 local{};         // that point in the prop's body before this frame's step
+        float top{0.f};         // the top of the prop's Quake box then (units): what his box stands on
+    };
+    std::vector<Stand> stands;
     std::map<PropHullKey, b3HullData*> propHulls;      // nullptr: no hull (a box instead)
     std::map<const qmodel_t*, std::vector<b3HullData*>> moverHulls;
     int steps{0};
@@ -1388,7 +1399,8 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind)
         const float r = s.radius;
         const float bottom = s.mins.z / world->m2u + r, top = std::max(s.maxs.z / world->m2u - r, bottom + 0.01f);
         const b3Capsule capsule{b3Vec3{0.f, 0.f, bottom}, b3Vec3{0.f, 0.f, top}, r};
-        const b3ShapeDef def2 = shapeDef(num, catPlayer, catProp);
+        b3ShapeDef def2 = shapeDef(num, catPlayer, catProp);
+        def2.enablePreSolveEvents = true; // (preSolve: not what it stands on, standOn)
         b3CreateCapsuleShape(s.body, &def2, &capsule);
         break;
     }
@@ -2683,11 +2695,48 @@ bool shouldCollide(b3ShapeId a, b3ShapeId b, void*)
     return ea->v.owner != EDICT_TO_PROG(eb) && eb->v.owner != EDICT_TO_PROG(ea);
 }
 
+// Standing on props (vr_box3d_player_stand), as Source's players stand on its VPhysics objects: Quake's movement
+// is the player's (the world first: its traces are authoritative), and a solid prop (SOLID_BBOX: an explosive box) is
+// ground to it like a brush (VR_StandsOn: FL_ONGROUND, so the player has friction and can jump); the player's capsule
+// doesn't touch the prop under its feet (Box3D would have that kinematic body shove it, dragging it along by friction
+// as the player walks on it: the prop slid away under him); instead the player's weight presses where he stands
+// (vr_box3d_player_mass), the prop carries him as it moves (ride), and a jump pushes it away
+// (vr_box3d_player_jump_push).
+// See ROUND21.md, "Standing on props".
+//
+// Whether player capsule `player` stands on (or steps off) prop `other` at this contact: a solid prop met by the
+// capsule's lower half-sphere, or below it. No contact then (preSolve).
+[[nodiscard]] bool capsuleStandsOn(b3ShapeId player, b3ShapeId other, b3Pos point, b3Vec3 normal)
+{
+    const int num = numOf(other), client = numOf(player);
+    if(!vr_box3d_player_stand.value || num <= svs.maxclients || num >= static_cast<int>(world->slots.size()) ||
+       world->slots[num].kind != Kind::Prop || client < 1 || client > svs.maxclients ||
+       static_cast<int>(EDICT_NUM(num)->v.solid) != SOLID_BBOX)
+    {
+        return false;
+    }
+    const Slot& ps = world->slots[static_cast<size_t>(client)];
+    const b3BodyId body = b3Shape_GetBody(player);
+    const b3Vec3 centre = b3Body_GetPosition(body);
+    const float feet = centre.z + ps.mins.z / world->m2u; // m
+    glm::vec3 n = glmv(normal); // turned to point from the prop to the player
+    if(glm::dot(n, glmv(centre) - glmv(b3Body_GetWorldCenter(b3Shape_GetBody(other)))) < 0.f)
+    {
+        n = -n;
+    }
+    return point.z < feet + ps.radius || n.z > 0.5f;
+}
+
 // Box3D's pre-solve, for the reach bodies' contacts (their shapes ask for it), each step: none with what the body skips
 // (reachSkips), nor holding up what is heavier than vr_box3d_hand_hold_mass (the prop on top: the normal from the reach
 // body within 60 degrees of up); pushed from the side or below, it still is.
 bool preSolve(b3ShapeId a, b3ShapeId b, b3Pos point, b3Vec3 normal, void*)
 {
+    const bool aPlayer = (b3Shape_GetFilter(a).categoryBits & catPlayer) != 0;
+    if(aPlayer || (b3Shape_GetFilter(b).categoryBits & catPlayer) != 0)
+    {
+        return !capsuleStandsOn(aPlayer ? a : b, aPlayer ? b : a, point, normal);
+    }
     const bool aReach = (b3Shape_GetFilter(a).categoryBits & catReach) != 0;
     const b3ShapeId reach = aReach ? a : b, other = aReach ? b : a;
     if((b3Shape_GetFilter(reach).categoryBits & catReach) == 0)
@@ -3471,12 +3520,54 @@ void sink_f()
         counted ? total / static_cast<float>(counted) : 0.f, worst);
 }
 
+// vr_physics_player [onto <number | classname>]: the first player's origin, velocity and ground (FL_ONGROUND,
+// .groundentity) and what is under his feet, for tests of standing on props; with onto, first put on top of that
+// entity's box (the first of them), still, noclip off.
+void player_f()
+{
+    if(!sv.active || svs.maxclients < 1)
+    {
+        return;
+    }
+    const VmScope vm;
+    edict_t* p = EDICT_NUM(1);
+    if(Cmd_Argc() > 2 && !strcmp(Cmd_Argv(1), "onto"))
+    {
+        const std::vector<edict_t*> list = entitiesNamed(Cmd_Argv(2));
+        if(list.empty())
+        {
+            Con_Printf("vr_physics_player: no %s\n", Cmd_Argv(2));
+            return;
+        }
+        const edict_t* e = list.front();
+        p->v.origin[0] = (e->v.absmin[0] + e->v.absmax[0]) * 0.5f;
+        p->v.origin[1] = (e->v.absmin[1] + e->v.absmax[1]) * 0.5f;
+        p->v.origin[2] = e->v.absmax[2] - p->v.mins[2] + 1.f;
+        VectorCopy(vec3_origin, p->v.velocity);
+        p->v.movetype = MOVETYPE_WALK;
+        setFlag(p, FL_ONGROUND, false);
+        SV_LinkEdict(p, false);
+    }
+    edict_t* g = PROG_TO_EDICT(p->v.groundentity);
+    Con_Printf("vr_physics_player: %.2f s at %.2f %.2f %.2f vel %.1f %.1f %.1f %s on %d %s\n", qcvm->time, p->v.origin[0], p->v.origin[1],
+        p->v.origin[2], p->v.velocity[0], p->v.velocity[1], p->v.velocity[2],
+        (static_cast<int>(p->v.flags) & FL_ONGROUND) ? "grounded" : "in the air", NUM_FOR_EDICT(g),
+        g == qcvm->edicts ? "the world" : PR_GetString(g->v.classname));
+    // What is under the feet: the player's box moved 2 units down.
+    vec3_t down{p->v.origin[0], p->v.origin[1], p->v.origin[2] - 2.f};
+    const trace_t tr = SV_Move(p->v.origin, p->v.mins, p->v.maxs, down, MOVE_NORMAL, p);
+    Con_Printf("vr_physics_player: below: fraction %.3f%s%s normal z %.2f on %d, movetype %d\n", tr.fraction,
+        tr.startsolid ? " startsolid" : "", tr.allsolid ? " allsolid" : "", tr.plane.normal[2], tr.ent ? NUM_FOR_EDICT(tr.ent) : -1,
+        static_cast<int>(p->v.movetype));
+}
+
 void registerCommands()
 {
     static bool registered = false;
     if(!registered)
     {
         registered = true;
+        Cmd_AddCommand("vr_physics_player", player_f);
         Cmd_AddCommand("vr_physics_stack", stack_f);
         Cmd_AddCommand("vr_physics_pyramid", pyramid_f);
         Cmd_AddCommand("vr_physics_list", list_f);
@@ -3950,6 +4041,197 @@ bool ropeOverlaps(const glm::vec3& at, float radius, int skipA, int skipB)
 
 } // namespace qvr::box3d
 
+namespace
+{
+
+// Standing on props (vr_box3d_player_stand; see capsuleStandsOn), each frame after the players have moved.
+
+// The solid prop client `player` stands on now (FL_ONGROUND on a Box3D prop: VR_StandsOn made it ground), else 0.
+[[nodiscard]] int standingOn(edict_t* player)
+{
+    if(!(static_cast<int>(player->v.flags) & FL_ONGROUND) || static_cast<int>(player->v.movetype) != MOVETYPE_WALK ||
+       player->v.health <= 0.f)
+    {
+        return 0;
+    }
+    edict_t* ground = PROG_TO_EDICT(player->v.groundentity);
+    const int num = NUM_FOR_EDICT(ground);
+    return num > svs.maxclients && num < static_cast<int>(world->slots.size()) && !ground->free &&
+                   world->slots[num].kind == Kind::Prop && B3_IS_NON_NULL(world->slots[num].body)
+               ? num
+               : 0;
+}
+
+// The body of prop `num` if it still is one (null: not).
+[[nodiscard]] b3BodyId standBody(int num)
+{
+    if(num <= 0 || num >= static_cast<int>(world->slots.size()) || num >= qcvm->num_edicts || EDICT_NUM(num)->free ||
+       world->slots[num].kind != Kind::Prop)
+    {
+        return b3_nullBodyId;
+    }
+    return world->slots[num].body;
+}
+
+// Before the step: where each player stands (in the prop's body, to carry him after it), a prop just landed on woken
+// (to feel the weight), a jump's push on the prop jumped from.
+void beforeStanding()
+{
+    world->stands.resize(static_cast<size_t>(svs.maxclients) + 1);
+    const float mass = std::max(vr_box3d_player_mass.value, 0.f);
+    for(int i = 1; i <= svs.maxclients && i < qcvm->num_edicts; i++)
+    {
+        edict_t* player = EDICT_NUM(i);
+        World::Stand& st = world->stands[static_cast<size_t>(i)];
+        const bool live = vr_box3d_player_stand.value && !player->free && svs.clients[i - 1].active;
+        const int num = live ? standingOn(player) : 0;
+        if(!num)
+        {
+            // Off it with a jump (up at a jump's speed from standing on it last frame): the prop takes a share of the
+            // push, down where the feet were.
+            const b3BodyId was = standBody(st.ground);
+            if(live && B3_IS_NON_NULL(was) && player->v.velocity[2] > 100.f && vr_box3d_player_jump_push.value > 0.f &&
+               mass > 0.f)
+            {
+                const float impulse = mass * player->v.velocity[2] / world->m2u * vr_box3d_player_jump_push.value; // N s
+                b3Body_ApplyLinearImpulse(was, b3Vec3{0.f, 0.f, -impulse}, world->toM(st.feet), true);
+                if(vr_debug_box3d.value)
+                {
+                    Con_Printf("box3d: player %d jumps off %d, pushing it with %.0f N s\n", i, st.ground, impulse);
+                }
+            }
+            st.ground = 0;
+            continue;
+        }
+        const b3BodyId body = world->slots[num].body;
+        if(num != st.ground && mass > 0.f)
+        {
+            b3Body_SetAwake(body, true); // (landed on it: it feels the weight, then sleeps again once still)
+        }
+        if(vr_debug_box3d.value && num != st.ground)
+        {
+            Con_Printf("box3d: player %d stands on %d %s\n", i, num, PR_GetString(EDICT_NUM(num)->v.classname));
+        }
+        st.ground = num;
+        st.feet = glm::vec3{player->v.origin[0], player->v.origin[1], player->v.origin[2] + player->v.mins[2]};
+        // (In the prop's drawn box: his weight on its top even where his box overhangs its edge, which a prop standing
+        // on its own doesn't tip over from.)
+        const Slot& s = world->slots[num];
+        const glm::vec3 local =
+            glm::clamp(glmv(b3Body_GetLocalPoint(body, world->toM(st.feet))), s.mins / world->m2u, s.maxs / world->m2u);
+        st.local = b3v(local);
+        st.feet = world->toU(b3Body_GetWorldPoint(body, st.local));
+        st.top = EDICT_NUM(num)->v.absmax[2];
+        if(vr_debug_box3d.value >= 2.f)
+        {
+            Con_Printf("box3d: player %d on %d at %.2f %.2f %.2f in it (m)\n", i, num, local.x, local.y, local.z);
+        }
+    }
+}
+
+// Each piece of the step: the weight of each player standing on a prop (vr_box3d_player_mass) where he stands. Not
+// waking it: a prop asleep under him stays so (a stack at rest stays still). On a floating prop, at most half the
+// prop's own, through its centre: the water lifts a prop by its weight, not its volume, and at its centre (beforeStep),
+// so a player heavier than a box would sink it, and his weight on its top would capsize a tall one; so it floats nine
+// tenths under, upright.
+void pressStanding()
+{
+    const float mass = vr_box3d_player_mass.value;
+    if(mass <= 0.f)
+    {
+        return;
+    }
+    const float g = -b3World_GetGravity(world->id).z; // m/s^2
+    for(const World::Stand& st : world->stands)
+    {
+        const b3BodyId body = standBody(st.ground);
+        if(B3_IS_NON_NULL(body))
+        {
+            if(world->slots[st.ground].wet)
+            {
+                const float most = std::min(mass, 0.5f * b3Body_GetMass(body));
+                b3Body_ApplyForceToCenter(body, b3Vec3{0.f, 0.f, -most * g}, false);
+            }
+            else
+            {
+                b3Body_ApplyForce(body, b3Vec3{0.f, 0.f, -mass * g}, world->toM(st.feet), false);
+            }
+        }
+    }
+}
+
+// After the step: each player standing on a prop that moved is carried across with the point he stands on (its turn
+// too, but not his view: VR), and up or down with the top of the prop's Quake box, which his box stands on (solidBox:
+// round the prop as it turns, so a box tipping over lowers him with its box, not with the point, which goes down its
+// side). His box is traced there, the world (and every other entity) stopping it, never from inside a wall; if the prop
+// turned so that its box now holds him, he steps up out of it.
+void rideStanding()
+{
+    for(int i = 1; i < static_cast<int>(world->stands.size()) && i < qcvm->num_edicts; i++)
+    {
+        World::Stand& st = world->stands[static_cast<size_t>(i)];
+        const b3BodyId body = standBody(st.ground);
+        if(B3_IS_NULL(body))
+        {
+            continue;
+        }
+        edict_t* player = EDICT_NUM(i);
+        edict_t* ground = EDICT_NUM(st.ground);
+        const glm::vec3 to = world->toU(b3Body_GetWorldPoint(body, st.local));
+        const glm::vec3 move{to.x - st.feet.x, to.y - st.feet.y, ground->v.absmax[2] - st.top};
+        const float distance = glm::length(move);
+        if(distance < 0.01f || distance > 64.f)
+        {
+            continue;
+        }
+        const float solid = ground->v.solid;
+        ground->v.solid = SOLID_NOT; // (the prop has moved already: the player's box meets it where it is now)
+        vec3_t end;
+        for(int k = 0; k < 3; k++)
+        {
+            end[k] = player->v.origin[k] + move[k];
+        }
+        const trace_t tr = SV_Move(player->v.origin, player->v.mins, player->v.maxs, end, MOVE_NORMAL, player);
+        ground->v.solid = solid;
+        if(tr.allsolid || tr.startsolid)
+        {
+            continue;
+        }
+        VectorCopy(tr.endpos, player->v.origin);
+        const trace_t in = SV_Move(player->v.origin, player->v.mins, player->v.maxs, player->v.origin, MOVE_NORMAL, player);
+        if(in.startsolid && in.ent == ground)
+        {
+            vec3_t up;
+            VectorCopy(player->v.origin, up);
+            up[2] += 18.f; // (a step)
+            const trace_t down = SV_Move(up, player->v.mins, player->v.maxs, player->v.origin, MOVE_NORMAL, player);
+            if(!down.startsolid)
+            {
+                VectorCopy(down.endpos, player->v.origin);
+            }
+        }
+        SV_LinkEdict(player, true);
+        if(vr_debug_box3d.value >= 2.f)
+        {
+            Con_Printf("box3d: player %d carried %.2f %.2f %.2f by %d\n", i, move.x, move.y, move.z, st.ground);
+        }
+    }
+}
+
+} // namespace
+
+// SV_FlyMove: a solid prop is ground to a player (vr_box3d_player_stand) as a brush is.
+extern "C" int VR_StandsOn(edict_t* ent, edict_t* ground)
+{
+    if(!world || !vr_box3d_player_stand.value)
+    {
+        return 0;
+    }
+    const int num = NUM_FOR_EDICT(ent), g = NUM_FOR_EDICT(ground);
+    return num >= 1 && num <= svs.maxclients && g > svs.maxclients && g < static_cast<int>(world->slots.size()) &&
+           world->slots[g].kind == Kind::Prop && static_cast<int>(ground->v.solid) == SOLID_BBOX;
+}
+
 extern "C" int VR_PushSkips(edict_t* ent)
 {
     if(!world)
@@ -3996,6 +4278,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
     {
         QVR_PROFILE("box3d water and hits");
         beforeStep(dt);
+        beforeStanding();
     }
     const double t1 = Sys_DoubleTime();
 
@@ -4012,6 +4295,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
         for(int i = 0; i < pieces; i++)
         {
             notePushed(dt / static_cast<float>(pieces));
+            pressStanding();
             b3World_Step(world->id, dt / static_cast<float>(pieces), substeps);
             limitPushes(dt / static_cast<float>(pieces));
             world->steps++;
@@ -4047,6 +4331,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
             }
         }
     }
+    rideStanding();
 
     // Then what they touched, in the step's order, each pair once.
     for(size_t i = 0; i < impacts.size(); i++)

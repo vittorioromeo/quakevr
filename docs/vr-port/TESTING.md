@@ -1027,6 +1027,12 @@ Items as physics pickups (ROUND21.md): `vr_physics_spawn <classname> [<distance>
 spawn function on the floor ahead of you (`vr_physics_spawn item_key1 25 -1` puts a hanging key at the off hand's
 `vr_mock_hand off -0.05 0.85 -0.9 0 0 0` in the firing range); the left hip holster is `vr_mock_hand off -0.20 0.95 0.0 0
 0 0`; `developer 1` prints `pickup:` lines (an object at, taken as a weapon, taken at a holster, back at).
+Standing on props (ROUND21.md, "Standing on props"): `vr_physics_player` prints the first player's origin, velocity,
+ground (grounded or in the air, on what) and the trace under his feet; `vr_physics_player onto <number | classname>`
+first puts him on top of that entity's box (noclip off). A column of boxes: `vr_physics_spawn misc_explobox 60` (twice
+more at 100 and 140), `vr_physics_stack misc_explobox 3 240 -456 17.5`, `setpos 256 -440 240 0 180 0; noclip`; walk
+off with `+back`. With `vr_debug_box3d 1`: `player 1 stands on`, `jumps off ... N s`; 2: each frame carried. A floating
+box: `vr_physics_stack misc_explobox 1 -1150 380 -30` (the firing range's pool; no floor under it).
 `vr_physics_sink [what]` measures how far props' drawn models are in the floor (and their shapes against the drawn);
 with `vr_debug_box3d 1`, `vr_physics_list` prints movetype, solid, rigid and flags. The firing range has no deathmatch
 starts (`SelectSpawnPoint` loops for ever there): use dm3 for deathmatch tests.
