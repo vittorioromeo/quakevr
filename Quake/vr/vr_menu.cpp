@@ -1478,6 +1478,11 @@ void hologramTestMessage()
         slider("Friction", vr_throw_friction, 0.f, 1.5f, 0.05f, "%.2f").extend(),
         slider("Max Spin", vr_throw_spin_max, 0.f, 40.f, 1.f, "%.0f rad/s").extend(),
         slider("Spin Drag", vr_throw_spin_drag, 0.f, 2.f, 0.05f, "%.2f").extend(),
+        slider("Spin Alignment", vr_throw_spin_align, 0.f, 20.f, 0.5f, "%.1f").extend(0.f, 100.f)
+            .help("How fast a thrown thing's tumble settles into a clean spin end over end about its steadiest axis (an "
+                  "axe: in its blade's plane), as long, flat things do in the air. Most for long flat things (an axe, a "
+                  "sword), a tenth for long round ones (a gib), none for a box. Until it first touches anything. Each "
+                  "weapon's and prop's own Spin in the Air (Weapon Weights, Held Object Weights) multiplies it. 0: off."),
         slider("Hitbox", vr_throw_hitbox, 1.f, 12.f, 0.5f, "%.1f").extend().help("Half-size of a thrown weapon's box against monsters."),
         slider("Hit Min Speed", vr_throw_hit_min_speed, 0.f, 600.f, 25.f, "%.0f").extend()
             .help("Units/s a thrown weapon, box or gib must go at to hurt a monster; slower (at rest against it, pushed into it) it does nothing."),
@@ -1488,6 +1493,12 @@ void hologramTestMessage()
         slider("Bleeding", vr_axestick_bleed, 0.f, 20.f, 0.5f, "%.1f health/s").extend(0.f, 100.f)
             .help("Health a second a monster loses while an axe is stuck in it (your damage). It falls out when the "
                   "monster dies."),
+        slider("Blade Leniency", vr_axestick_leniency, 0.f, 2.f, 0.1f, "%.1f")
+            .help("How much of the axe's head counts as its blade. 0: the edge alone, square on (as before). 1: the edge "
+                  "met a little before the body meets the wall, its corners biting when it comes in slanting along its "
+                  "edge (Stick Angle + 25), a little more glancing allowed (Stick Incidence + 10), and turned up to 25 "
+                  "degrees about the edge to keep the handle out of the wall. 2: twice that (handle-first throws start to "
+                  "stick). A flat throw, the blade's side first, still bounces."),
         slider("Stick Speed", vr_axestick_speed, 1.f, 12.f, 0.5f, "%.1f m/s").extend(0.f, 30.f)
             .help("How fast the blade's edge must go into what it strikes; slower, it bounces off."),
         slider("Stick Angle", vr_axestick_angle, 10.f, 90.f, 5.f, "%.0f deg")
@@ -2001,6 +2012,10 @@ std::vector<Item> pageDebugLogging()
         toggle("Axe Sticks", vr_debug_axestick)
             .help("Each thrown axe's blade striking something: stuck (how fast, how deep, at what angles) or why it bounced; "
                   "its bleeding, its fall, its pull. Needs Developer Messages for the last."),
+        cycle("Spin in the Air", vr_debug_spin_align, {{0.f, "Off"}, {1.f, "Each Throw"}, {2.f, "Every Step"}})
+            .help("Each throw's spin as it leaves the hand (its inertia, how long and flat it is, how fast its spin "
+                  "settles: Spin Alignment) and how far off end over end it is when its flight ends; every step: each "
+                  "step of its flight."),
         cycle("Climbing", vr_climb_debug, {{0.f, "Off"}, {1.f, "Holds"}, {2.f, "Every Frame"}, {3.f, "And Shoulders"}})
             .help("Holds taken, released, mantles; every frame: the body, the hands, the pull, the holds' reach (a lot)."),
         cycle("Hands", vr_debug_hands, {{0.f, "Off"}, {1.f, "When They Change"}, {2.f, "Every Frame"}})
@@ -2250,10 +2265,17 @@ std::vector<Item> pageDebugTests()
             .help("Sends the loose prop nearest you (put a box there first) at it, as if batted or knocked flying; "
                   "developer 1 prints the hit (prop: flung ...)."),
         header("Thrown Axe"),
-        cycle("Axe Throw", vr_test_axe, {{0.f, "Blade First"}, {1.f, "Flat"}, {2.f, "Handle First"}, {3.f, "Spinning"}})
+        cycle("Axe Throw", vr_test_axe,
+            {{0.f, "Blade First"}, {1.f, "Flat"}, {2.f, "Handle First"}, {3.f, "Spinning"}, {4.f, "Overhand"},
+             {5.f, "Sidearm"}, {6.f, "Sloppy"}})
             .help("How Throw an Axe throws it: blade first (the edge upright), the blade's side first, the handle's end "
-                  "first, or blade first spinning end over end."),
+                  "first, blade first spinning end over end; or as a hand would, turned and spun a little differently "
+                  "each time: overhand (end over end), sidearm (the blade level, spun about the upright), sloppy (any "
+                  "way). The hand's throws aim up to meet what is ahead at eye level."),
         slider("Axe Speed", vr_test_axe_speed, 2.f, 20.f, 1.f, "%.0f m/s").extend(),
+        cycle("Throw Instead", vr_test_axe_what, {{0.f, "The Axe"}, {1.f, "A Gib"}, {2.f, "An Explosive Box"}})
+            .help("Throws a gib or an explosive box (one that never blows up) the same way instead of the axe: to "
+                  "compare their spin in the air (Debug: Spin in the Air)."),
         toggle("Axe Hurts", vr_test_axe_damage).help("Off: its blow does no damage (to watch a monster bleed)."),
         cycle("Axe At", vr_test_axe_at, {{0.f, "Ahead"}, {1.f, "Nearest Monster"}, {2.f, "Nearest Door"}, {3.f, "Nearest Prop"}})
             .help("What Throw an Axe throws at: ahead of you, or the nearest live monster, door or loose prop (you are "

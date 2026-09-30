@@ -36,6 +36,10 @@
 // - The old solver's behaviours were kept: the monsters' hit box along a thrown thing's flight (vr_throw_hitbox),
 //   touches of what props hit (QC's damage), water (lift by depth, drag, floating flat, the bob), the splashes (the
 //   water transition), vr_throw_restitution and vr_throw_friction as the materials, vr_throw_spin_drag.
+// - A throw's spin settles in the air (spinAlign, vr_throw_spin_align): Box3D integrates the gyroscopic torque
+//   (solver.c's b3IntegrateVelocitiesTask: implicit, one Newton step, always on), so a free body precesses and flips
+//   about its middle axis as a real one does, but nothing takes energy from a tumble, so it never settles on its
+//   steadiest axis as a thrown axe does. spinAlign does that, until the throw first touches anything.
 //
 // Single-threaded: the world has one worker and no task callbacks, which Box3D runs serially (each task inline:
 // b3DefaultAddTaskFcn in physics_world.c); no scheduler, no threads. Deterministic: the same calls in the same
@@ -344,6 +348,9 @@ struct Slot // what one edict is in the world (by its number)
     physsound::Material sound{physsound::Material::None}; // what its knocks and scrapes sound like (vr_physsound.cpp)
     double born{0.0};     // the server's time its body was made (a prop: thrown, let go of, launched)
     int pushedStep{-100}; // props: the last step a hand's body pushed it (limitPushes: a hit, then a shove)
+    bool flight{false};   // props: thrown by a hand and not yet touched anything (noteThrows; spinAlign)
+    bool flightLogged{false}; // (vr_debug_spin_align: its first step printed; the last step's spin and how far off)
+    float flightOff{0.f}, flightRate{0.f};
     const b3HullData* hull{nullptr}; // actors: the hull at rest (actorHull), nullptr for Quake's box
 
     // Props, held and fixtures: the settings (shapeGeneration) and the entity's box its drawn box and Mass were last
@@ -1438,6 +1445,8 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind, bool resized = false)
     qmodel_t* model = modelOf(ent);
     s.size = props::drawnSize(model);
     s.kind = kind;
+    s.flight = false;
+    s.flightLogged = false;
     s.model = model;
     s.hull = kind == Kind::Actor && model && model->type == mod_alias ? actorHull(ent, model) : nullptr;
     s.frame = static_cast<int>(ent->v.frame);
@@ -1675,11 +1684,6 @@ void noteThrows()
         }
         return true;
     });
-    if(grace <= 0.f && !debug)
-    {
-        world->made.clear();
-        return;
-    }
     const FieldOffsets& f = fields();
     for(const int num : world->made)
     {
@@ -1718,6 +1722,11 @@ void noteThrows()
             speed = throwSpeed(player, h, reach);
         }
         if(thrower == 0)
+        {
+            continue;
+        }
+        world->slots[num].flight = true; // (its spin aligns in the air: spinAlign)
+        if(grace <= 0.f && !debug)
         {
             continue;
         }
@@ -2664,6 +2673,159 @@ void touchNearby(edict_t* ent, const glm::vec3& from, const glm::vec3& to)
     SV_Impact(ent, hit);
 }
 
+// A symmetric 3x3's eigenvalues (ascending) and unit eigenvectors (the columns of `vectors`, in the same order): Jacobi's
+// rotations.
+void eigenSymmetric(const glm::mat3& m, glm::vec3& values, glm::mat3& vectors)
+{
+    float a[3][3];
+    float v[3][3] = {{1.f, 0.f, 0.f}, {0.f, 1.f, 0.f}, {0.f, 0.f, 1.f}};
+    for(int i = 0; i < 3; i++)
+    {
+        for(int j = 0; j < 3; j++)
+        {
+            a[i][j] = m[j][i];
+        }
+    }
+    for(int sweep = 0; sweep < 16; sweep++)
+    {
+        const float off = a[0][1] * a[0][1] + a[0][2] * a[0][2] + a[1][2] * a[1][2];
+        const float diag = a[0][0] * a[0][0] + a[1][1] * a[1][1] + a[2][2] * a[2][2];
+        if(off <= 1e-14f * diag)
+        {
+            break;
+        }
+        for(int p = 0; p < 2; p++)
+        {
+            for(int q = p + 1; q < 3; q++)
+            {
+                if(a[p][q] == 0.f)
+                {
+                    continue;
+                }
+                const float theta = (a[q][q] - a[p][p]) / (2.f * a[p][q]);
+                const float t = (theta >= 0.f ? 1.f : -1.f) / (std::abs(theta) + std::sqrt(theta * theta + 1.f));
+                const float c = 1.f / std::sqrt(t * t + 1.f), sn = t * c;
+                for(int k = 0; k < 3; k++) // a J: its columns p and q
+                {
+                    const float akp = a[k][p], akq = a[k][q];
+                    a[k][p] = c * akp - sn * akq;
+                    a[k][q] = sn * akp + c * akq;
+                }
+                for(int k = 0; k < 3; k++) // J^T a: its rows p and q
+                {
+                    const float apk = a[p][k], aqk = a[q][k];
+                    a[p][k] = c * apk - sn * aqk;
+                    a[q][k] = sn * apk + c * aqk;
+                }
+                for(int k = 0; k < 3; k++) // v J
+                {
+                    const float vkp = v[k][p], vkq = v[k][q];
+                    v[k][p] = c * vkp - sn * vkq;
+                    v[k][q] = sn * vkp + c * vkq;
+                }
+            }
+        }
+    }
+    int order[3]{0, 1, 2};
+    std::sort(std::begin(order), std::end(order), [&](int x, int y) { return a[x][x] < a[y][y]; });
+    for(int i = 0; i < 3; i++)
+    {
+        values[i] = a[order[i]][order[i]];
+        vectors[i] = glm::normalize(glm::vec3{v[0][order[i]], v[1][order[i]], v[2][order[i]]});
+    }
+}
+
+// Times Spin Alignment for this thing thrown: its weapon's (Weapon Weights) or its own (Held Object Weights).
+[[nodiscard]] float spinAlignOf(const qmodel_t* model)
+{
+    if(!model)
+    {
+        return 1.f;
+    }
+    if(const int slot = weapons::slotForModel(model); slot >= 0)
+    {
+        return std::max(weapons::value(slot, weapons::Key::SpinAlign), 0.f);
+    }
+    return std::max(props::valueFor(model, props::Key::SpinAlign), 0.f);
+}
+
+// A throw in the air (Slot::flight: from the hand until it first touches anything, so Box3D's contacts are left alone):
+// its spin turned towards end over end about its steadiest axis, as a thrown axe, knife or rod settles in the air.
+// Its body's inertia (its hull's) has three principal axes: a spin about the one it resists turning about the most (an
+// axe's: square to its blade's plane, end over end) is stable; about the middle one, unstable (the tennis racket's
+// flip, which Box3D's gyroscopic term reproduces); about the least (along the handle), stable only without losses. A
+// real throw loses a little to the air and to flexing and so settles on the first; here the spin about the other two
+// dies away at vr_throw_spin_align a second times how long it is ((1 - least / most inertia)^2: a box or a ball keeps
+// its tumble), and ten times faster for a flat one, whose steadiest axis stands out (a blade: an axe, a sword; a rod
+// or a gib, round, a tenth: any turn across its length will do, and the middle one's is kept). `end`: the flight is
+// over (the debug's last word).
+void spinAlign(edict_t* ent, Slot& s, float dt, bool end)
+{
+    const int debug = static_cast<int>(vr_debug_spin_align.value);
+    const float strength = std::max(vr_throw_spin_align.value, 0.f) * spinAlignOf(s.model);
+    if((strength <= 0.f && !debug) || dt <= 0.f)
+    {
+        return;
+    }
+    const b3Matrix3 li = b3Body_GetLocalRotationalInertia(s.body);
+    const glm::mat3 inertia{glmv(li.cx), glmv(li.cy), glmv(li.cz)};
+    glm::vec3 moments;
+    glm::mat3 axes;
+    eigenSymmetric(inertia, moments, axes);
+    if(moments.z <= 0.f)
+    {
+        return;
+    }
+    const float elong = 1.f - std::max(moments.x, 0.f) / moments.z;
+    const float distinct = (moments.z - moments.y) / moments.z;
+    const float flat = std::clamp((distinct - 0.02f) / 0.1f, 0.f, 1.f);
+    const float k = strength * elong * elong * (0.1f + 0.9f * flat);
+    const float middle = k * flat;
+    const glm::mat3 r = glm::mat3_cast(fromB3(b3Body_GetRotation(s.body)));
+    const glm::vec3 w = glmv(b3Body_GetAngularVelocity(s.body));
+    const float rate = glm::length(w);
+    const glm::vec3 local = glm::transpose(r) * w;
+    glm::vec3 c{glm::dot(local, axes[0]), glm::dot(local, axes[1]), glm::dot(local, axes[2])};
+    if(debug)
+    {
+        const float t = static_cast<float>(qcvm->time - s.born);
+        const float off = rate > 1e-4f ? glm::degrees(std::acos(std::clamp(std::abs(c.z) / rate, 0.f, 1.f))) : 0.f;
+        if(end)
+        {
+            // (Its spin now is the touch's: the flight's last step's.)
+            Con_Printf("spinalign: %d %s flight over at %.3f s: spin %.2f rad/s, %.1f deg off its steadiest axis\n",
+                NUM_FOR_EDICT(ent), PR_GetString(ent->v.classname), t, s.flightRate, s.flightOff);
+        }
+        else if(debug >= 2 || !s.flightLogged)
+        {
+            Con_Printf("spinalign: %d %s %.3f s: spin %.2f rad/s, %.1f deg off its steadiest axis (about it %.2f, the "
+                       "middle %.2f, the least %.2f); inertia %.3g %.3g %.3g, long %.2f, distinct %.2f, rates %.2f %.2f/s\n",
+                NUM_FOR_EDICT(ent), PR_GetString(ent->v.classname), t, rate, off, c.z, c.y, c.x, moments.x, moments.y,
+                moments.z, elong, distinct, k, middle);
+            s.flightLogged = true;
+        }
+        s.flightOff = off;
+        s.flightRate = rate;
+    }
+    if(end || k <= 0.f || rate < 1e-3f)
+    {
+        return;
+    }
+    // Its angular momentum's size is kept (what the air and flexing take is energy, not momentum): a spin moved onto
+    // the steadiest axis is slower by the ratio of the inertias (an axe spun about its handle ends turning end over end
+    // at a fifth of the rate).
+    const float momentum = glm::length(moments * c);
+    c.x *= std::exp(-k * dt);
+    c.y *= std::exp(-middle * dt);
+    const float left = glm::length(moments * c);
+    if(left < 1e-9f)
+    {
+        return;
+    }
+    c *= std::min(momentum / left, 1.5f);
+    b3Body_SetAngularVelocity(s.body, b3v(r * (axes[0] * c.x + axes[1] * c.y + axes[2] * c.z)));
+}
+
 // Before the step, for each awake prop: the hit box along its flight, then the water (the old solver's waterStep,
 // once a frame: the lift by how deep it is, the drag, floating flat, the bob).
 void beforeStep(float dt)
@@ -2716,16 +2878,26 @@ void beforeStep(float dt)
 
         // Rolling resistance (the old solver's): touching something, the spin dies away, fast once it is slow, so a
         // thing comes to rest instead of rocking or rolling on (Box3D's own is for spheres and capsules only).
+        bool touching = false;
         if(b3Body_GetContactCapacity(s.body) > 0)
         {
             std::array<b3ContactData, 8> contacts;
             if(b3Body_GetContactData(s.body, contacts.data(), static_cast<int>(contacts.size())) > 0)
             {
+                touching = true;
                 const bool slow = glm::length(vel) < 0.5f * world->m2u;
                 const b3Vec3 w = b3Body_GetAngularVelocity(s.body);
                 const float k = std::exp((slow || s.soft ? -6.f : -1.f) * (s.soft ? 2.f : 1.f) * dt);
                 b3Body_SetAngularVelocity(s.body, b3Vec3{w.x * k, w.y * k, w.z * k});
             }
+        }
+
+        // A throw's flight, until it first touches something (or the water): its spin turned towards end over end
+        // about its steadiest axis (spinAlign). Box3D's contacts stay as they are.
+        if(s.flight)
+        {
+            s.flight = !touching && !s.wet;
+            spinAlign(ent, s, dt, !s.flight);
         }
 
         const b3AABB box = b3Body_ComputeAABB(s.body);
@@ -4501,6 +4673,41 @@ int shot(const glm::vec3& start, const glm::vec3& end, const glm::vec3& velocity
         return 0;
     }
     return hit.num;
+}
+
+bool contactPoint(int num, glm::vec3& point)
+{
+    if(!world || num <= 0 || num >= static_cast<int>(world->slots.size()))
+    {
+        return false;
+    }
+    const Slot& s = world->slots[num];
+    if(s.kind != Kind::Prop || b3Body_GetContactCapacity(s.body) <= 0)
+    {
+        return false;
+    }
+    std::array<b3ContactData, 8> contacts;
+    const int count = b3Body_GetContactData(s.body, contacts.data(), static_cast<int>(contacts.size()));
+    const b3Vec3 centre = b3Body_GetWorldCenter(s.body);
+    float best = -1.f;
+    for(int i = 0; i < count; i++)
+    {
+        const b3ContactData& c = contacts[i];
+        const bool isA = B3_ID_EQUALS(b3Shape_GetBody(c.shapeIdA), s.body);
+        for(int m = 0; m < c.manifoldCount; m++)
+        {
+            for(int k = 0; k < c.manifolds[m].pointCount; k++)
+            {
+                const b3ManifoldPoint& mp = c.manifolds[m].points[k];
+                if(mp.totalNormalImpulse > best)
+                {
+                    best = mp.totalNormalImpulse;
+                    point = world->toU(b3Add(centre, isA ? mp.anchorA : mp.anchorB));
+                }
+            }
+        }
+    }
+    return best >= 0.f;
 }
 
 bool castProps(const glm::vec3& from, const glm::vec3& to, int skip, PropHit& hit)

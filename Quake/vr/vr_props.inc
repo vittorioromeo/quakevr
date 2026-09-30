@@ -57,6 +57,9 @@ QVR_PROP_KEY(HandleTilt, "handle_tilt", "25") // degrees its handle may lean off
 // Round 21, "Prop size": times its model's size, about its origin (0.05x steps): as drawn, its Box3D body and hull, its
 // drawn box (a solid prop's Quake box) and its lengths above (Centre of Mass, Tip, Butt, Handle, a Fixed grip's place).
 QVR_PROP_KEY(Size, "size", "1")
+// Round 21, "Thrown axes: blade leniency, spin in the air": times Throwing and Physics' Spin Alignment
+// (vr_throw_spin_align) for it thrown (0: its tumble as it left the hand).
+QVR_PROP_KEY(SpinAlign, "spin_align", "1")
 #endif
 
 #ifdef QVR_PROP_RETIRED

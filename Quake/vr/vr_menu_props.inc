@@ -198,6 +198,10 @@ std::vector<Item> pageWeaponWeights()
                   "above; Aiming: Weight and Damage)."),
         s("Throw Damage", Key::ThrowDamage, 0.f, 4.f, 0.05f, "%.2fx").extend(0.f, 20.f)
             .help("Times this weapon's damage thrown, on top of the weight's."),
+        header("Thrown"),
+        s("Spin in the Air", Key::SpinAlign, 0.f, 4.f, 0.05f, "%.2fx").extend(0.f, 20.f)
+            .help("Times Throwing and Physics: Spin Alignment for this weapon thrown: how fast its tumble settles into a "
+                  "clean spin end over end (an axe's, in its blade's plane). 0: it tumbles as it left your hand."),
         header("Wrenched Out (experimental, every weapon)"),
         infoLine(weaponWeightsDropReadout, 0),
         toggle("Heavy Weapons Wrenched Out", vr_weight_drop)
@@ -493,6 +497,13 @@ std::vector<Item> pageHeldObjectWeights()
                 .help("Times its damage thrown, on top of the weight's."),
         });
     }
+    list.insert(list.end(), {
+        header("Thrown"),
+        s("Spin in the Air", Key::SpinAlign, 0.f, 4.f, 0.05f, "%.2fx").extend(0.f, 20.f)
+            .help("Times Throwing and Physics: Spin Alignment for this prop thrown: how fast its tumble settles into a "
+                  "clean spin end over end about its steadiest axis (a long flat thing the most, a long round one a "
+                  "tenth as much, a box not at all). 0: it tumbles as it left your hand."),
+    });
     list.insert(list.end(), {
         header("This Prop"),
         open("Held Object Offsets", pageIndex(pageHeldObjectOffsets)).help("Its grip, fingers and melee points."),

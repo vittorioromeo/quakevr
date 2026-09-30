@@ -88,6 +88,10 @@ struct PropHit
 };
 bool castProps(const glm::vec3& from, const glm::vec3& to, int skip, PropHit& hit);
 
+// Where a prop (edict number `num`) touches something now, in world units: its touching point that pushed hardest.
+// False if none, it isn't a prop or without Box3D's world. (A thrown axe's first hit, for its debug: vr_axestick.cpp.)
+bool contactPoint(int num, glm::vec3& point);
+
 // Whether the loose prop `num` rests on hand `hand` ([0] off, [1] main) of client `player`: touches its reach body (the
 // open hand, the fist, the held weapon) or its sphere where the contact holds it up (its normal points up into it). For
 // the drawn hands (vr_modelcollide.cpp): a thing lying on the palm doesn't push the hand away.
