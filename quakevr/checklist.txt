@@ -31,7 +31,12 @@ Grapple: smaller hook (Hook Size 0.6)
 Grapple: towing a heavy box slows you (40 kg: about 80 u/s); is the feel right? (Tow Light, Tow Speed)
 Grapple: the laser cannon can be hooked anywhere along it
 
+HUD: with any HUD style, only the wrist gadget shows in the headset; the desktop window shows the HUD
+Relight a dead torch in an e1m2 flame (brazier)
+Pouch grenade at your values (now the defaults)
+
 [Decide or give feedback]
+Spectator and smoothed desktop views now show the flat HUD: OK, or a setting to hide it for clean recordings?
 
 [Tune]
 Stamina costs: shove, strike, melee, parry, climbing
