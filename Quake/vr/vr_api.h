@@ -64,6 +64,9 @@ int VR_ServerFrameOverride (double *frametime); // _Host_Frame: whether the serv
 							// usual; 0 no; 1 yes, for *frametime seconds (a take's recorded server frames)
 void VR_HostFrameEnd (void);	// end of _Host_Frame, after the screen and the sound (the motion recorder's row)
 
+// The frame cap (vr_sleep.cpp).
+int VR_HiResSleepUntil (double endtime, double *now); // Sys_WaitUntil: sleeps on a high-resolution timer until its lateness before endtime; 0 without one
+
 // The console (vr_cmdtoken.cpp).
 const char *VR_ParseToken (const char *data, const char **token); // Cmd_TokenizeString: COM_Parse for an argument of any length
 
