@@ -8,7 +8,7 @@ provide, what carries over as is, and what must be written again.
 
 | Layer | Files | What a port does |
 |---|---|---|
-| **Engine hooks** | `// QVR` lines in 36 engine and build files (about 270 lines) | Place the same calls in the other engine |
+| **Engine hooks** | `// QVR` hunks in 73 engine and build files (about 3100 lines; [IRONWAIL_DIFF.md](IRONWAIL_DIFF.md)) | Place the same calls in the other engine |
 | **C API, shared hooks** | `vr_api.h` | Unchanged: host, filesystem, QuakeC, protocol, server physics, client effects, view setup, menu |
 | **C API, renderer hooks** | `vr_api_render.h` | Re-place in the other renderer: stereo view, 2D canvas, entity transforms, alias extras |
 | **Engine symbols** | `vr_engine.hpp` | The only place engine headers are included from, and the list of engine symbols no header declares |
@@ -18,8 +18,9 @@ provide, what carries over as is, and what must be written again.
 | **OpenXR graphics binding** | `vr_backend_openxr.cpp` (WGL / `XR_KHR_opengl_enable`) | `XR_KHR_vulkan_enable2` |
 | **Everything else** | about 70 files: hands, body IK, throwing, two-handed aiming, holsters, weapons, particles, panel, gadget, menu, protocol, server, physics, rigid bodies, force-grab support, OpenXR session/input | Recompile |
 
-Every engine edit is marked `// QVR` (multi-line hunks on every line), so
-`git diff v0.8.2 HEAD -- Quake ':!Quake/vr'` or a search for `QVR` lists the whole engine side.
+Every engine edit is marked `// QVR` (a comment in each hunk), so
+`git diff v0.8.2 HEAD -- Quake ':!Quake/vr'` or a search for `QVR` lists the whole engine side ([IRONWAIL_DIFF.md](IRONWAIL_DIFF.md):
+the files, what each change is for, and what stays inline).
 
 ## Engine hooks
 

@@ -16114,3 +16114,13 @@ state (a Quake VR game running). With a map loaded it did work (all seven rows).
 
 To remake the table (a letter moved or added): `python Misc/quakevr/make_bigfont.py --pak <id1/pak0.pak> --preview
 out.png` (the preview draws the rows with the pak's letters, 3x).
+
+## The diff with Ironwail made smaller (2026-09-30)
+
+Ironwail's files changed: 79 files, +6817 -354 lines, 826 hunks before; 73 files, +3088 -320, 727 hunks after. The
+GLSL moved to `vr_glsl.h` (spliced into `gl_shaders.h` by name; the 36 shaders' text checked identical), the normal
+maps and model loading to `vr_normalmaps.cpp` and `vr_modelload.cpp`, the alias instance's data to one hook
+(`VR_AliasInstance`), the scene framebuffer helpers to `vr_gfx_gl.cpp`, the tokenizer, crash report and frame-cap sleep
+to their own files; `quakedef.h` includes the module's C headers once; the Makefiles' rules in `vr/vr.mk`, the toolset
+in `quakevr.toolset.props`. Every hunk marked `// QVR`. Hot paths (traces, draw loops) stay inline. The table, what
+stays and why, and the checks (eval identical, CPU busy 0.398 / 0.395 ms): [IRONWAIL_DIFF.md](IRONWAIL_DIFF.md).
