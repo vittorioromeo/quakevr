@@ -1055,6 +1055,12 @@ Items as physics pickups (ROUND21.md): `vr_physics_spawn <classname> [<distance>
 spawn function on the floor ahead of you (`vr_physics_spawn item_key1 25 -1` puts a hanging key at the off hand's
 `vr_mock_hand off -0.05 0.85 -0.9 0 0 0` in the firing range); the left hip holster is `vr_mock_hand off -0.20 0.95 0.0 0
 0 0`; `developer 1` prints `pickup:` lines (an object at, taken as a weapon, taken at a holster, back at).
+Standing on props 3 (ROUND21.md): `vr_physics_approach [n | classname]` how close your box stops from a solid prop's
+drawn face from 16 directions (your half-width, 8.03 with Width 16, at any turn; `vr_hull_approach` for walls);
+`vr_physics_player` on a prop adds `its drawn shape <x> units under your feet, its upright box's top <y>` (0.00 with
+`vr_box3d_player_shape 1`). Tilted boxes in vrfiringrange: the small box on the 15-degree bank, `vr_rigid_place
+misc_explobox2 500 210 36 0 0 0`; the big box leaning 35 degrees on the small one, `vr_rigid_place misc_explobox2 237 -456
+17.5 0 0 0; vr_rigid_place misc_explobox 180 -456 37 60 0 0` (jump onto it from `setpos 100 -440 60 0 0 0`, run 5 frames).
 Standing on props 2 (ROUND21.md): `vr_debug_box3d 1` prints `player 1 walks into <n> at <u/s>: shoved with <N s>`
 and `<n> in player 1's body: pushed out`; `vr_physics_inlevel [what]` how far props' boxes are inside the level (0 clear);
 `vr_debug_carry 2` prints `carry2h: <n> meets the level` as a box held in both hands is stopped. Two hands on the small
