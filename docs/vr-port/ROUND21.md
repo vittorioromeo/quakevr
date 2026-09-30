@@ -15355,3 +15355,56 @@ locally; the rest are worked around in `vr_jobs.cpp` or the build.
   hitch the first time (now 0.3-0.8 ms: `vr_profile`'s `grasp solve`).
 - [ ] Load a few maps: the models' occlusion still appears a moment after (baked on the pool now), no hitch.
 - [ ] Debug > Profiling and Memory > Threads: Thread Pool Self-Test says 16 passed.
+
+## Lightning gun in water (2026-09-30)
+
+His spec: fired with the hand or the body under water, the lightning gun shocks you (35-50) and both hands drop what
+they hold; the shock spreads through the water, fading with distance; fired into water from outside, the water is
+electrified each tick; a screen effect and arcs on the arms, hands and body like Quad's, arcs on the water's surface.
+
+**What it does** (QC `weapons.qc`, `VR_LGWater_*`, before `W_FireLightning`; on with `vr_lg_water 1`, off is Quake's
+discharge: every cell at once, 35 each, round you):
+
+- **The shock.** Fired with the body waist deep (`waterlevel > 1`, as Quake's discharge), or the hand or its muzzle in
+  water, slime or lava (`pointcontents` of `VRGetHandPos` and `VRGetMuzzlePos`): one cell is spent, you take
+  `vr_lg_water_self_damage` (40; a wetsuit keeps it off, as Quake's discharge: `discharged`), both hands drop what they
+  hold (a weapon falls as a prop through `DropWeaponInHand`, not handed to the other hand; what is carried is let go,
+  `VR_Carry_Dead`; the holsters keep theirs), and the lightning gun's loop stops (`player_run`). The shock spreads from the
+  muzzle: what can be hurt, in a liquid (a player by its `waterlevel`, anything else by the bottom or the middle of its
+  box), within `vr_lg_water_radius` (300) and not behind a wall (a line to its middle) takes `vr_lg_water_damage` (60) x
+  (1 - distance / radius) ^ `vr_lg_water_falloff` (1). Not you: you take the self damage.
+- **Electrified water.** A bolt from the open whose line goes into a liquid (`liquidentry`, the muzzle dry) hurts what is
+  in the liquid round the point it goes in, the same way with `vr_lg_water_tick_damage` (10 a bolt, ten bolts a second).
+  The connected body of water is approximated by the radius and the line of sight from that point. You too, if you
+  stand in that water.
+
+**Effects** (engine `vr_shock.cpp`; QC `watershock(kind, org, radius, duration)`, `QVR_SVC_SHOCK`): Quad's arcs over the
+hands and forearms moved there (`shock::armArcs`, `quadArcs` calls it, the same look). The shock (1.2 s, to the shocked
+player's client): a flickering blue flash over the view (Quake's colour shift, the pickup flash's), a few arcs in front of
+the eyes (`vr_lg_water_flash` scales both: 0 none), more and longer arcs over the hands and forearms, arcs round the
+body, and a burst of arcs out from the muzzle in the water with a blue light. Electrified water: jagged branching arcs
+over the surface from the point the beam goes in (with a bright halo added onto the scene, for distance), loose sparks
+further out, a flickering blue light; kept 0.3 s after the last bolt there.
+
+**Settings:** VR Settings > Advanced VR Options > Weapons > Lightning Gun in Water (page 75): on/off, Shock Damage to You, Shock
+Damage to Others, Reach, Falloff, Electrified Water Damage, Shock Flash, and two test buttons (`vr_shock_test 0|1`,
+also in Debug > Tools > Test Effects). New cvars only: no config migration (60 left free). Mjolnir (Hipnotic) keeps
+Quake's discharge under water.
+
+**Tests** (mock, `map vrfiringrange`, the pool's surface at z -4; `developer 1` prints `lgwater:` lines; LG in the main
+hand `impulse 161`, a shotgun in the off hand `impulse 174`, an ogre from `vr_test_spawn 1; impulse 241`):
+
+| case | result |
+|---|---|
+| hand in the water (`setpos 612 474 2; noclip`, waterlevel 1, hand at 0.25 m) | shock; ogre at 105 units takes 38.9 (60 x 0.65); you 100 -> 60; weapons 0 and 0 (both dropped) |
+| waist deep (`setpos 612 474 -30`) | shock (waterlevel 3); 100 -> 60; both hands empty |
+| from above (`setpos 612 474 90`, aiming down) | electrified at (669 472 -4) each bolt; ogre at 173 units takes 4.2 a bolt, 6 bolts in 0.5 s; weapons kept |
+| dry ground | no `lgwater` line; weapons kept (11, 4) |
+
+### In the headset
+
+- [ ] Stand at a pool's edge, dip the lightning gun's muzzle in and fire: a flash, arcs over your arms and body, both
+  guns fall; about 40 damage. The same waist deep.
+- [ ] A monster swimming near you when you do it takes damage (less the further away).
+- [ ] From above, fire into a pool: arcs crawl over the surface round where the beam goes in; a fish or a swimming
+  monster there takes damage while you keep firing. Is the flash comfortable (Shock Flash)?

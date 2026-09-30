@@ -2127,6 +2127,148 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
 };
 
 
+// VR: the lightning gun in water (vr_lg_water; ROUND21.md, "Lightning gun in water"). Quake's discharge (every cell at
+// once, 35 each, round you, with the body waist deep) is replaced. Fired with the body waist deep, or the hand or its
+// muzzle in a liquid, it shocks you (vr_lg_water_self_damage): both hands drop what they hold (a weapon falls as a prop,
+// a carried thing is let go; the holsters keep theirs), and the shock spreads through the water from the muzzle to what
+// is in it (vr_lg_water_damage, fading out to vr_lg_water_radius). Fired from the open into water, each bolt electrifies
+// the water round the point it goes in (vr_lg_water_tick_damage, fading out the same way). The engine draws them
+// (watershock(); vr_shock.cpp).
+
+float(float xContents) VR_LGWater_IsLiquid =
+{
+    return xContents <= CONTENT_WATER && xContents >= CONTENT_LAVA;
+};
+
+// Whether `e` is in a liquid: a player by its waterlevel (the feet in it), anything else by the bottom of its box or
+// its middle.
+float(entity e) VR_LGWater_InLiquid =
+{
+    if(e.flags & FL_CLIENT)
+    {
+        return e.waterlevel >= 1 && VR_LGWater_IsLiquid(e.watertype);
+    }
+    vector mid = (e.absmin + e.absmax) * 0.5;
+    if(VR_LGWater_IsLiquid(pointcontents(mid)))
+    {
+        return TRUE;
+    }
+    mid_z = e.absmin_z + 2;
+    return VR_LGWater_IsLiquid(pointcontents(mid));
+};
+
+// The shock through the water from `xAt`: what can be hurt, in a liquid, within `xRadius` of it (its middle) and not
+// behind a wall, takes `xDamage` at the middle fading out to nothing at the radius (vr_lg_water_falloff: the power of
+// the share of the radius left). Not `xSkip`. How many were hurt.
+float(vector xAt, float xDamage, float xRadius, entity xSkip) VR_LGWater_Spread =
+{
+    float falloff = max(0, cvar_hget(cvarh_vr_lg_water_falloff));
+    float hurt = 0;
+    discharged = 1; // a wetsuit keeps it off (T_DamageImpl)
+    entity head = findradius(xAt, xRadius);
+    while(head)
+    {
+        if(head != xSkip && head.takedamage && VR_LGWater_InLiquid(head))
+        {
+            vector mid = (head.absmin + head.absmax) * 0.5;
+            float share = 1 - min(1, vlen(mid - xAt) / xRadius);
+            float damage = xDamage;
+            if(falloff > 0)
+            {
+                damage = xDamage * pow(share, falloff);
+            }
+            traceline(xAt, mid, TRUE, world);
+            if(damage >= 1 && trace_fraction == 1)
+            {
+                dprint(sprintf("lgwater: %s takes %g at %g units\n", head.classname, damage, vlen(mid - xAt)));
+                particle2(mid, '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 6);
+                T_Damage(head, self, self, damage);
+                hurt = hurt + 1;
+            }
+        }
+        head = head.chain;
+    }
+    discharged = 0;
+    return hurt;
+};
+
+// Both hands let go: a weapon falls (not handed to the other hand), what they carry is let go of.
+void() VR_LGWater_DropAll =
+{
+    VR_Carry_Dead(); // what is carried, in one hand or both, drops with the motion it had
+    for(float hand = 0; hand < 2; ++hand)
+    {
+        if(!VRIsHandWeaponless(self, hand))
+        {
+            DropWeaponInHand(self, hand, VRGetEntWeapon(self, hand), VRGetEntWeaponFlags(self, hand),
+                VRGetEntWeaponClip(self, hand));
+        }
+        player_run(hand); // (the lightning gun's loop stops)
+    }
+};
+
+// Fired with the body waist deep or `xHand` (or its muzzle) in a liquid: the shock. FALSE if not (fire as usual).
+float(float xHand) VR_LGWater_Shock =
+{
+    vector muzzle = VRGetMuzzlePos(xHand);
+    float handIn = VR_LGWater_IsLiquid(pointcontents(VRGetHandPos(xHand))) || VR_LGWater_IsLiquid(pointcontents(muzzle));
+    float bodyIn = self.waterlevel > 1;
+    if(!handIn && !bodyIn)
+    {
+        return FALSE;
+    }
+
+    delAmmoOrClipAndUpdateCounter(xHand, AID_CELLS, 1); // the bolt that shorts out
+    self.damage_weapon = IT_LIGHTNING; // HONEY
+
+    float radius = max(1, cvar_hget(cvarh_vr_lg_water_radius));
+    dprint(sprintf("lgwater: shock (hand %g in %g, body %g, waterlevel %g)\n", xHand, handIn, bodyIn, self.waterlevel));
+    sound(self, CHAN_AUTO, "misc/power.wav", 1, ATTN_NORM);
+    sound(self, CHAN_BODY, "weapons/lhit.wav", 1, ATTN_NORM);
+    particle2(muzzle, '0 0 0', QVR_PARTICLE_PRESET_LIGHTNING, 60);
+    particle2(muzzle, '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 24);
+    watershock(QVR_SHOCK_SELF, muzzle, radius, 1.2);
+    watershock(QVR_SHOCK_BURST, muzzle, radius, 0.6);
+    haptic(cVR_MainHand, 0, 0.6, 120, 1);
+    haptic(cVR_OffHand, 0, 0.6, 120, 1);
+    self.punchangle_x = -6;
+
+    VR_LGWater_DropAll();
+    VR_LGWater_Spread(muzzle, cvar_hget(cvarh_vr_lg_water_damage), radius, self);
+
+    float selfDamage = cvar_hget(cvarh_vr_lg_water_self_damage);
+    float before = self.health;
+    discharged = 1;
+    T_Damage(self, self, self, selfDamage);
+    discharged = 0;
+    dprint(sprintf("lgwater: you take %g: health %g -> %g\n", selfDamage, before, self.health));
+    return TRUE;
+};
+
+// A bolt from the open: if it goes into a liquid between `xMuzzle` and `xEnd`, the water round that point is
+// electrified this bolt. Leaves the trace globals as they were.
+void(vector xMuzzle, vector xEnd) VR_LGWater_Beam =
+{
+    vector at = liquidentry(xMuzzle, xEnd);
+    if(at == xMuzzle)
+    {
+        return;
+    }
+
+    vector oldEnd = trace_endpos;
+    entity oldEnt = trace_ent;
+    float oldFraction = trace_fraction;
+
+    float radius = max(1, cvar_hget(cvarh_vr_lg_water_radius));
+    dprint(sprintf("lgwater: electrified at %v\n", at));
+    watershock(QVR_SHOCK_SURFACE, at, radius, 0.3);
+    VR_LGWater_Spread(at, cvar_hget(cvarh_vr_lg_water_tick_damage), radius, world);
+
+    trace_endpos = oldEnd;
+    trace_ent = oldEnt;
+    trace_fraction = oldFraction;
+};
+
 void(float xHand) W_FireLightning =
 {
     if(getCurrentAmmoOrClip(xHand) < 1)
@@ -2134,7 +2276,13 @@ void(float xHand) W_FireLightning =
         return;
     }
 
-    // explode if under water
+    // VR: in water, the shock (vr_lg_water).
+    if(cvar_hget(cvarh_vr_lg_water) && VR_LGWater_Shock(xHand))
+    {
+        return;
+    }
+
+    // explode if under water (Quake's, vr_lg_water 0)
     if(self.waterlevel > 1)
     {
         float cells = self.ammo_cells;
@@ -2168,6 +2316,10 @@ void(float xHand) W_FireLightning =
     makeforward(VRGetWeaponFireRot(xHand));
     vector from = VR_ShotBackPoint(xHand, org, v_forward);
     traceline(from, org + v_forward*600, TRUE, self);
+    if(cvar_hget(cvarh_vr_lg_water))
+    {
+        VR_LGWater_Beam(org, trace_endpos); // into water from the open: electrified
+    }
     particle2(trace_endpos, '0 0 0', QVR_PARTICLE_PRESET_LIGHTNING, 60);
     particle2(trace_endpos, '0 0 0', QVR_PARTICLE_PRESET_SMOKE, 1);
     particle2(trace_endpos, '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 12);

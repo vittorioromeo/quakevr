@@ -281,6 +281,17 @@ QVR_CVAR(vr_melee_range_multiplier, "1.0", CVAR_ARCHIVE)
 // Quake VR v0.0.3 had x2.75 damage (11x in all) and 1.35/1.10 reach; 1 = melee is like any other weapon under Quad.
 QVR_CVAR(vr_quad_melee_damage, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_quad_melee_range, "1", CVAR_ARCHIVE)
+// The lightning gun in water (QC weapons.qc VR_LGWater_*; vr_shock.cpp draws it). Fired with the body waist deep, or the
+// hand or muzzle in a liquid, it shocks you and both hands drop what they hold; the shock spreads through the water to
+// what is in it. Fired from the open into water, each bolt electrifies the water round where it goes in. Off: Quake's
+// discharge (every cell at once, round you).
+QVR_CVAR(vr_lg_water, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_lg_water_self_damage, "40", CVAR_ARCHIVE) // the shock's damage to you
+QVR_CVAR(vr_lg_water_damage, "60", CVAR_ARCHIVE)      // its damage to what else is in the water, at its middle (the muzzle)
+QVR_CVAR(vr_lg_water_radius, "300", CVAR_ARCHIVE)     // how far through the water it (and the electrified water) reaches, units
+QVR_CVAR(vr_lg_water_falloff, "1", CVAR_ARCHIVE)      // how it fades out to the radius: the power of the share of the radius left (1 evenly, 2 sooner, 0 not at all)
+QVR_CVAR(vr_lg_water_tick_damage, "10", CVAR_ARCHIVE) // each bolt into water from the open: damage at the point it goes in (fading out the same way)
+QVR_CVAR(vr_lg_water_flash, "1", CVAR_ARCHIVE)        // the shock's blue flash over the view and arcs in front of the eyes (0 none .. 1)
 QVR_CVAR(vr_body_interactions, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_notes, "1", CVAR_ARCHIVE)                  // voice notes: off hand at the mouth, hold Y to talk (vr_voicenotes.cpp)
 QVR_CVAR(vr_note_device, "Virtual Desktop", CVAR_ARCHIVE) // the microphone: part of its name (none such, or empty: the default; vr_note_devices lists them)

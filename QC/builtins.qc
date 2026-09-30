@@ -161,6 +161,13 @@ vector(entity e) forcegrabpoint = #0;
 void(float hand, float kind, float count, float delay, float flags) ejectcasings = #0;
 float QVR_CASING_SHOTGUNSHELL = 0;
 float QVR_EJECT_FLICK = 1; // a flick reload: flung by the spinning weapon
+// The lightning gun in water's effects (engine vr_shock.cpp): QVR_SHOCK_SELF the `self` player shocked (its client: a flash
+// over the view, arcs over the hands, arms and body, for `duration` s), QVR_SHOCK_SURFACE arcs on a liquid's surface round
+// `org` (every client), QVR_SHOCK_BURST arcs out from `org` in a liquid. `radius`: how far the shock reaches.
+void(float kind, vector org, float radius, float duration) watershock = #0;
+float QVR_SHOCK_SELF = 0;
+float QVR_SHOCK_SURFACE = 1;
+float QVR_SHOCK_BURST = 2;
 vector(entity e, vector handangles, float grab) carryangles = #0; // a held object's angles: at the grip (grab 1) its turn in the hand is kept; after, it turns with the hand
 // Round 21: hotspot `index` (0..3) of the weapon in `hand`: where (a grip's point, a blade grip's middle; '0 0 0' if
 // none), and its type (what 0: 0 none, 1 grip, 2 blade), bias (1, units) or a blade's share of the way from the hand
