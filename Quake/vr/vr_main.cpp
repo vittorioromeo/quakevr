@@ -1112,6 +1112,7 @@ extern "C" void VR_Shutdown()
         delete state;
         state = nullptr;
     }
+    voicenotes::finishWrites(); // the screenshots and notes still being saved (VR or not)
     jobs::shutdown(); // last: whatever the systems above left queued run, the workers joined
 }
 

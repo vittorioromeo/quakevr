@@ -69,6 +69,11 @@ void VR_TimeStart (void);	// main, after Sys_Init: the process's start
 void VR_TimeInit (void);	// VR_Init: the commands
 void VR_TimeMark (const char *stage);	// a stage of the start-up or of a map's load just ended
 void VR_TimeLoadBegin (const char *what);	// SV_SpawnServer, CL_ParseServerInfo: a map's load starts
+// Screenshots saved on the game's thread pool (vr/vr_voicenotes.cpp): SCR_ScreenShot_f hands a PNG's RGB rows (bottom
+// up, malloc'd: the job frees them) to be written as <game dir>/<name> (1: taken); a name being written is pending
+// (not free for the next screenshot); shutdown waits for them.
+int VR_ScreenshotWrite (const char *name, unsigned char *rgb, int width, int height);
+int VR_ScreenshotPending (const char *name);
 int VR_OnMainThread (void);	// whether this is the main thread (the console is only for it: a job on the game's thread pool prints nothing)
 void VR_TimeAdd (const char *what, double seconds);	// time spent in a kind of work (model loads, normal maps...), summed per stage group
 void VR_TimeFrameEnd (int signedon, int idle);	// end of _Host_Frame: the first frame ends the start-up, the first signed on a load; idle (no server, not connected) ends a load that failed

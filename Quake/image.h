@@ -35,6 +35,7 @@ byte* Image_CopyFlipped (const void *src, int width, int height, int bpp);
 
 qboolean Image_WriteTGA (const char *name, byte *data, int width, int height, int bpp, qboolean upsidedown);
 qboolean Image_WritePNG (const char *name, byte *data, int width, int height, int bpp, qboolean upsidedown);
+qboolean Image_WritePNGPath (const char *pathname, byte *data, int width, int height, int bpp, qboolean upsidedown); // QVR: a full path, any thread
 qboolean Image_WriteJPG (const char *name, byte *data, int width, int height, int bpp, int quality, qboolean upsidedown);
 
 #endif	/* GL_IMAGE_H */

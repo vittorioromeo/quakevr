@@ -30,5 +30,7 @@ void frame();
 [[nodiscard]] bool offhandButton(bool pressed);
 
 void shutdown();
+// Waits for the files still being saved on the pool (notes' sounds, screenshots) and reports them (VR_Shutdown).
+void finishWrites();
 
 } // namespace qvr::voicenotes

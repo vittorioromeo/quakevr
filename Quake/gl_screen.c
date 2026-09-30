@@ -1868,7 +1868,7 @@ static void SCR_ScreenShot_f (void)
 
 		q_snprintf (imagename, sizeof (imagename), "%s.%s", basename, ext);
 		q_snprintf (checkname, sizeof (checkname), "%s/%s", com_gamedir, imagename);
-		if (Sys_FileType (checkname) != FS_ENT_NONE) // base name already used, try appending an index
+		if (Sys_FileType (checkname) != FS_ENT_NONE || VR_ScreenshotPending (imagename)) // base name already used, try appending an index (QVR: or being written)
 		{
 		append_index:
 			// append underscore if basename ends with a digit
@@ -1883,7 +1883,7 @@ static void SCR_ScreenShot_f (void)
 			{
 				q_snprintf (imagename, sizeof (imagename), "%s%04i.%s", basename, i, ext);
 				q_snprintf (checkname, sizeof (checkname), "%s/%s", com_gamedir, imagename);
-				if (Sys_FileType (checkname) == FS_ENT_NONE)
+				if (Sys_FileType (checkname) == FS_ENT_NONE && !VR_ScreenshotPending (imagename)) // QVR: nor being written
 					break;	// file doesn't exist
 			}
 			if (i == 10000)
@@ -1894,6 +1894,16 @@ static void SCR_ScreenShot_f (void)
 			}
 		}
 
+		// QVR: a PNG is encoded and saved on the game's thread pool (most of a screenshot's time: a hitch in the
+		// headset, a voice note's): the job owns the buffer; it is saved under another name, renamed when complete
+		if (!q_strncasecmp (ext, "png", sizeof(ext)) && VR_ScreenshotWrite (imagename, buffer, glwidth, glheight))
+		{
+			UTF8_ToQuake (basename, sizeof (basename), imagename);
+			Con_SafePrintf ("Wrote ");
+			Con_LinkPrintf (va("%s/%s", com_gamedir, imagename), "%s", basename);
+			Con_SafePrintf ("\n");
+			return;
+		}
 		if (!q_strncasecmp (ext, "png", sizeof(ext)))
 			ok = Image_WritePNG (imagename, buffer, glwidth, glheight, 24, false);
 		else if (!q_strncasecmp (ext, "tga", sizeof(ext)))
