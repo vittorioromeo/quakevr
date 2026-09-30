@@ -44,6 +44,7 @@
 #include "vr_modelcollide.hpp"
 #include "vr_selfcollide.hpp"
 #include "vr_gpustats.hpp"
+#include "vr_jobs.hpp"
 #include "vr_gfx.hpp"
 #include "vr_props.hpp"
 #include "vr_fatigue.hpp"
@@ -1018,8 +1019,10 @@ extern "C" void VR_Init()
     state = new State{};
 
     VR_TimeInit(); // vr_startup_times, vr_walltime
+    jobs::start(); // the game's thread pool (vr_jobs.hpp), first: the systems below post to it
     imgprefetch::start(); // the images the start-up and the first map load decode, decoded ahead (the file system is up)
     registerCvars();
+    jobs::registerCommands();
     weapons::registerCvars();
     props::registerCvars();
     weight::registerCommands();
@@ -1090,20 +1093,19 @@ extern "C" void VR_Init()
 
 extern "C" void VR_Shutdown()
 {
-    imgprefetch::shutdown(); // (the decoding workers joined)
+    imgprefetch::shutdown(); // (the decoding tasks finished)
     ao::shutdown(); // (the models' occlusion bakes, VR or not)
     gpustats::stop();
-    if(!state)
+    if(state)
     {
-        return;
+        voicenotes::shutdown();
+        motion::shutdown();
+        gpustats::stop();
+        stopBackend();
+        delete state;
+        state = nullptr;
     }
-
-    voicenotes::shutdown();
-    motion::shutdown();
-    gpustats::stop();
-    stopBackend();
-    delete state;
-    state = nullptr;
+    jobs::shutdown(); // last: whatever the systems above left queued run, the workers joined
 }
 
 extern "C" void VR_BeginFrame()

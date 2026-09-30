@@ -6,13 +6,13 @@
 #include "vr_avatar.hpp"
 #include "vr_cvars.hpp"
 #include "vr_main.hpp"
+#include "vr_jobs.hpp"
 #include "vr_mem.hpp"
 #include "vr_profile.hpp"
 
 #include <algorithm>
 #include <array>
 #include <chrono>
-#include <condition_variable>
 #include <deque>
 #include <memory>
 #include <mutex>
@@ -23,7 +23,6 @@
 #include <string>
 #include <string_view>
 #include <atomic>
-#include <thread>
 #include <unordered_map>
 #include <vector>
 
@@ -872,9 +871,10 @@ void bakePose(const PoseJob& job, int pose, std::vector<int>& cand)
 namespace
 {
 
-// A model's occlusion is baked on a worker thread (with BAKE_THREADS of its own for the poses) from a copy of its
-// poses, so that loading a map is not held up (e1m1's 69 models took 0.86 s on 15 threads): until it is done the
-// model has none (its vertex buffer holds 255), then its vertex buffer is built again (integrateBakes, each frame).
+// A model's occlusion is baked on the game's threads (vr_jobs.hpp: one task bakes the queued models in turn, each one's
+// poses shared out among up to BAKE_THREADS threads) from a copy of its poses, so that loading a map is not held up
+// (e1m1's 69 models took 0.86 s on 15 threads): until it is done the model has none (its vertex buffer holds 255), then
+// its vertex buffer is built again (integrateBakes, each frame).
 constexpr int BAKE_THREADS = 4;
 
 struct BakeJob
@@ -894,18 +894,17 @@ struct BakeJob
 struct BakeQueue
 {
     std::mutex mutex;
-    std::condition_variable wake;
     std::deque<std::unique_ptr<BakeJob>> pending;
     std::vector<std::unique_ptr<BakeJob>> done;
     std::unordered_map<std::string, std::uint64_t, NameHash, std::equal_to<>> queued; // queued or being baked: name, hash
-    bool started{false};
-    std::thread worker;             // joined at shutdown (ao::shutdown), its pose threads with it
-    std::atomic<bool> stop{false};  // set at shutdown: the worker and its pose threads give up their bake
+    bool running{false};            // a task bakes the queued models (until none is left)
+    jobs::Future<void> runner;      // that task (the main thread's: waited for at shutdown, ao::shutdown)
+    std::atomic<bool> stop{false};  // set at shutdown: the bake under way gives up
 };
 
 BakeQueue& bakeQueue()
 {
-    static auto* q = new BakeQueue; // never destroyed (the worker is joined before the game exits: ao::shutdown)
+    static auto* q = new BakeQueue; // never destroyed (its task is finished before the game exits: ao::shutdown)
     return *q;
 }
 
@@ -926,13 +925,24 @@ std::uint64_t modelHash(const aliashdr_t* hdr)
     return h;
 }
 
-// The bakes run below the game's threads, so that one finishing after a map has loaded never takes a frame's time.
-void lowerPriority()
+// The bakes run below the game's threads, so that one finishing after a map has loaded never takes a frame's time: the
+// pool's thread lowered while it bakes, then put back.
+struct BelowNormal
 {
 #ifdef _WIN32
-    SetThreadPriority(GetCurrentThread(), -1); // THREAD_PRIORITY_BELOW_NORMAL
+    int was = GetThreadPriority(GetCurrentThread());
+    BelowNormal()
+    {
+        SetThreadPriority(GetCurrentThread(), -1); // THREAD_PRIORITY_BELOW_NORMAL
+    }
+    ~BelowNormal()
+    {
+        SetThreadPriority(GetCurrentThread(), was);
+    }
 #endif
-}
+    BelowNormal(const BelowNormal&) = delete;
+    BelowNormal& operator=(const BelowNormal&) = delete;
+};
 
 void runBake(BakeJob& job)
 {
@@ -971,55 +981,49 @@ void runBake(BakeJob& job)
     pj.out = job.vis.data();
     pj.stop = &bakeQueue().stop;
 
-    // The poses shared out between threads (they only read the copy and write their own poses).
+    // The poses shared out between threads, every `threads`th to each (they only read the copy and write their own poses).
     const int poses = job.numposes;
-    const int threads = std::clamp(std::min(static_cast<int>(std::thread::hardware_concurrency()) / 2, BAKE_THREADS), 1, poses);
-    const auto work = [&pj, poses, threads](int first) {
-        lowerPriority();
+    const int threads = std::clamp(std::min(jobs::hardwareThreads() / 2, BAKE_THREADS), 1, poses);
+    jobs::parallelFor(static_cast<std::size_t>(threads), 1, [&pj, poses, threads](std::size_t t0, std::size_t t1) {
+        const BelowNormal low;
         std::vector<int> cand;
-        for(int f = first; f < poses && !pj.stop->load(std::memory_order_relaxed); f += threads)
+        for(int first = static_cast<int>(t0); first < static_cast<int>(t1); first++)
         {
-            bakePose(pj, f, cand);
+            for(int f = first; f < poses && !pj.stop->load(std::memory_order_relaxed); f += threads)
+            {
+                bakePose(pj, f, cand);
+            }
         }
-    };
-    std::vector<std::thread> pool;
-    for(int t = 1; t < threads; t++)
-    {
-        pool.emplace_back(work, t);
-    }
-    work(0);
-    for(std::thread& t : pool)
-    {
-        t.join();
-    }
+    });
     job.seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
 }
 
-void bakeWorker()
+// The bake task: the queued models baked in turn, until none is left (or the game stops).
+void bakeQueued()
 {
     BakeQueue& q = bakeQueue();
+    const BelowNormal low;
     for(;;)
     {
         std::unique_ptr<BakeJob> job;
         {
-            std::unique_lock<std::mutex> lock(q.mutex);
-            q.wake.wait(lock, [&q] { return q.stop.load() || !q.pending.empty(); });
-            if(q.stop.load())
+            std::lock_guard<std::mutex> lock(q.mutex);
+            if(q.stop.load() || q.pending.empty())
             {
+                q.running = false;
                 return;
             }
             job = std::move(q.pending.front());
             q.pending.pop_front();
         }
         runBake(*job);
+        std::lock_guard<std::mutex> lock(q.mutex);
         if(q.stop.load())
         {
+            q.running = false;
             return; // (given up part way)
         }
-        {
-            std::lock_guard<std::mutex> lock(q.mutex);
-            q.done.push_back(std::move(job));
-        }
+        q.done.push_back(std::move(job));
     }
 }
 
@@ -1053,13 +1057,16 @@ void integrateBakes()
             slowestModel = job->name;
         }
         double mean = 0.0;
+        std::uint32_t texels = 2166136261u; // (FNV-1a: the same bake whatever threads made it)
         for(const unsigned char v : entry.vis)
         {
             mean += v;
+            texels = (texels ^ v) * 16777619u;
         }
         mean /= std::max<size_t>(entry.vis.size(), 1) * 255.0;
-        Con_DPrintf("vr_ao: %s: %d poses x %d vertices, %d triangles baked in %.1f ms, open %.2f on average\n",
-            job->name.c_str(), job->numposes, job->numverts, static_cast<int>(job->tris.size()), job->seconds * 1000.0, mean);
+        Con_DPrintf("vr_ao: %s: %d poses x %d vertices, %d triangles baked in %.1f ms, open %.2f on average (%08x)\n",
+            job->name.c_str(), job->numposes, job->numverts, static_cast<int>(job->tris.size()), job->seconds * 1000.0, mean,
+            texels);
         qmodel_t* m = job->model;
         if(m && m->type == mod_alias && job->name == m->name)
         {
@@ -1102,7 +1109,7 @@ extern "C" const unsigned char* VR_AliasVertexAO(qmodel_t* model, const void* al
     }
 
     BakeQueue& q = bakeQueue();
-    std::lock_guard<std::mutex> lock(q.mutex);
+    std::unique_lock<std::mutex> lock(q.mutex);
     if(const auto qi = q.queued.find(std::string_view{model->name}); qi != q.queued.end() && qi->second == h)
     {
         return nullptr; // on its way
@@ -1137,12 +1144,13 @@ extern "C" const unsigned char* VR_AliasVertexAO(qmodel_t* model, const void* al
     job->origin = {hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
     q.queued[model->name] = h;
     q.pending.push_back(std::move(job));
-    if(!q.started && !q.stop.load())
+    if(q.running || q.stop.load())
     {
-        q.started = true;
-        q.worker = std::thread(bakeWorker);
+        return nullptr; // (the task under way takes it next)
     }
-    q.wake.notify_one();
+    q.running = true;
+    lock.unlock();
+    q.runner = jobs::async(bakeQueued); // (the one before has returned: running was false)
     return nullptr;
 }
 
@@ -1193,8 +1201,8 @@ void show_f()
 
 void ao::shutdown()
 {
-    // The worker (and its pose threads) stopped and joined before the game's data and the process go away: a bake
-    // under way gives up at its next vertex.
+    // The bake task (and its poses' chunks) finished before the game's data and the process go away: a bake under way
+    // gives up at its next vertex.
     BakeQueue& q = bakeQueue();
     bool busy = false;
     {
@@ -1203,14 +1211,13 @@ void ao::shutdown()
         busy = !q.queued.empty();
         q.pending.clear();
     }
-    q.wake.notify_all();
-    if(q.worker.joinable())
+    if(q.runner.valid())
     {
         const double t0 = Sys_DoubleTime();
-        q.worker.join();
+        q.runner.wait();
         if(busy)
         {
-            Con_DPrintf("vr_ao: the bake worker stopped in %.1f ms\n", (Sys_DoubleTime() - t0) * 1000.0);
+            Con_DPrintf("vr_ao: the bake task stopped in %.1f ms\n", (Sys_DoubleTime() - t0) * 1000.0);
         }
     }
 }

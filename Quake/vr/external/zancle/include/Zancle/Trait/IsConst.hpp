@@ -1,0 +1,31 @@
+#pragma once
+// LICENSE AND COPYRIGHT (C) INFORMATION
+// https://github.com/vittorioromeo/Zancle/blob/master/license.md
+
+
+#if __has_builtin(__is_const)
+
+    ////////////////////////////////////////////////////////////
+    #define ZA_IS_CONST(...) __is_const(__VA_ARGS__)
+
+#else
+
+////////////////////////////////////////////////////////////
+// Headers
+////////////////////////////////////////////////////////////
+    #include <type_traits>
+
+
+    ////////////////////////////////////////////////////////////
+    #define ZA_IS_CONST(...) ::std::is_const_v<__VA_ARGS__>
+
+#endif
+
+
+namespace za
+{
+////////////////////////////////////////////////////////////
+template <typename T>
+inline constexpr bool isConst = ZA_IS_CONST(T);
+
+} // namespace za

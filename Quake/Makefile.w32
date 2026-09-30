@@ -294,6 +294,16 @@ OBJS += $(VROBJS)
 OBJDEPS += $(VROBJS:%.o=%.d)
 VR_CXXFLAGS = $(filter-out -std=%,$(CFLAGS)) -std=c++20 -I. -Ivr -Ivr/external
 
+# QVR: Zancle (vr/external/zancle/README.md), its concurrency module, and vr_jobs.cpp (the game's thread pool: the only
+# file that includes it): C++23, optimised and without Zancle's asserts (NDEBUG) in every build, DEBUG=1 too.
+ZANCLE_DIR = vr/external/zancle
+ZANCLEOBJS := $(patsubst %.cpp,%.o,$(wildcard $(ZANCLE_DIR)/src/Zancle/*/*.cpp))
+OBJS += $(ZANCLEOBJS)
+OBJDEPS += $(ZANCLEOBJS:%.o=%.d)
+ZANCLE_CXXFLAGS = $(filter-out -std=% -O%,$(CFLAGS)) -std=c++23 -O2 -DNDEBUG -DZA_STATIC -I$(ZANCLE_DIR)/include \
+	-I$(ZANCLE_DIR)/src -I$(ZANCLE_DIR)/extlibs/moodycamel -Ivr
+LIBS += -lsynchronization
+
 # ---------------------------
 # targets / rules
 # ---------------------------
@@ -317,6 +327,14 @@ vr/%.o:	vr/%.cpp $(MAKEFILE)
 	@echo "Compiling $<" && \
 	$(CXX) $(DFLAGS) -c $(VR_CXXFLAGS) $(SDL_CFLAGS) -MMD -MP -o $@ $<
 
+vr/vr_jobs.o:	vr/vr_jobs.cpp $(MAKEFILE)
+	@echo "Compiling $<" && \
+	$(CXX) -c $(ZANCLE_CXXFLAGS) -MMD -MP -o $@ $<
+
+$(ZANCLE_DIR)/%.o:	$(ZANCLE_DIR)/%.cpp $(MAKEFILE)
+	@echo "Compiling $<" && \
+	$(CXX) -c $(ZANCLE_CXXFLAGS) -MMD -MP -o $@ $<
+
 ironwail.exe:	$(OBJS) $(MAKEFILE)
 	@echo "Linking $@" && \
 	$(LINKER) $(OBJS) $(LDFLAGS) $(LIBS) $(SDL_LIBS) -o $@
@@ -327,7 +345,7 @@ debug:
 	$(error Use "make DEBUG=1")
 
 clean: $(MAKEFILE)
-	$(RM) *.o *.d *.res vr/*.o vr/*.d $(DEFAULT_TARGET)
+	$(RM) *.o *.d *.res vr/*.o vr/*.d $(ZANCLEOBJS) $(ZANCLEOBJS:%.o=%.d) $(DEFAULT_TARGET)
 
 #---------------------------------------------------------------
 # include dependencies (if not running 'clean' target)

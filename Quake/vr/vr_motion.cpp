@@ -8,6 +8,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
+#include "vr_jobs.hpp"
 #include "vr_main.hpp"
 #include "vr_mem.hpp"
 #include "vr_progs.hpp"
@@ -26,7 +27,6 @@
 #include <ctime>
 #include <deque>
 #include <filesystem>
-#include <future>
 #include <iterator>
 #include <map>
 #include <regex>
@@ -1040,7 +1040,7 @@ void stopTake()
 // A take being written in the background (a long take's file takes a few frames to format).
 struct PendingSave
 {
-    std::future<int> result; // 1 written in motions/, 2 in the game folder (fallback), 0 not at all
+    jobs::Future<int> result; // (the game's thread pool) 1 written in motions/, 2 in the game folder (fallback), 0 not at all
     std::string path;
     std::string fallback;
     TakeInfo info;
@@ -1134,7 +1134,7 @@ void finishTake()
     p.rows = shared;
     const std::string header = takeHeader(info, *shared);
     const float u2m = 1.f / units::metresToUnits();
-    p.result = std::async(std::launch::async, [path = p.path, fallback = p.fallback, header, info, u2m, shared]() {
+    p.result = jobs::async([path = p.path, fallback = p.fallback, header, info, u2m, shared]() {
         if(writeTakeFile(path, header, info, u2m, *shared))
         {
             return 1;
@@ -1149,7 +1149,7 @@ void pollSaves(bool wait)
 {
     for(auto it = pendingSaves.begin(); it != pendingSaves.end();)
     {
-        if(!wait && it->result.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+        if(!wait && !it->result.ready())
         {
             ++it;
             continue;

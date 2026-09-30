@@ -8,14 +8,15 @@
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
 #include "vr_stereo.hpp"
+#include "vr_jobs.hpp"
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <chrono>
 #include <string>
-#include <thread>
 #include <unordered_map>
 #include <vector>
 
@@ -118,8 +119,9 @@ void buildVolume(qmodel_t* m)
 
     const int nx = dims[0], ny = dims[1], nz = dims[2];
     std::vector<unsigned char> texels(static_cast<std::size_t>(nx) * ny * nz);
-    // Up to 4M points in the BSP tree (80-90 ms for e1m1 on one thread): the layers shared out among threads, each
-    // writing its own (Mod_PointInLeaf only reads the model), all joined before the upload. The same texels.
+    // Up to 4M points in the BSP tree (80-90 ms for e1m1 on one thread): the layers shared out among the game's threads
+    // (vr_jobs.hpp), each writing its own (Mod_PointInLeaf only reads the model), all done before the upload. The same
+    // texels.
     const auto layers = [&](int z0, int z1) {
         for(int z = z0; z < z1; z++)
         {
@@ -136,18 +138,15 @@ void buildVolume(qmodel_t* m)
             }
         }
     };
-    const int threads = std::clamp(static_cast<int>(std::thread::hardware_concurrency()) - 1, 1, std::min(8, nz));
+    const auto t0 = std::chrono::steady_clock::now();
+    jobs::parallelFor(static_cast<std::size_t>(nz), 1, [&](std::size_t z0, std::size_t z1) {
+        layers(static_cast<int>(z0), static_cast<int>(z1));
+    });
+    const double ms = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count() * 1e3;
+    std::uint32_t hash = 2166136261u; // (FNV-1a: the same texels whatever the threads, developer 1)
+    for(const unsigned char t : texels)
     {
-        std::vector<std::thread> workers;
-        for(int t = 1; t < threads; t++)
-        {
-            workers.emplace_back(layers, nz * t / threads, nz * (t + 1) / threads);
-        }
-        layers(0, nz / threads);
-        for(std::thread& w : workers)
-        {
-            w.join();
-        }
+        hash = (hash ^ t) * 16777619u;
     }
 
     if(!volumeTex)
@@ -166,8 +165,8 @@ void buildVolume(qmodel_t* m)
     const float border[4] = {0.f, 0.f, 0.f, 0.f};
     glTexParameterfv(GL_TEXTURE_3D, GL_TEXTURE_BORDER_COLOR, border);
     GL_ObjectLabelFunc(GL_TEXTURE, volumeTex, -1, "vr liquid volume");
-    Con_DPrintf("VR water: liquid volume %d x %d x %d, %g-unit cells from %g %g %g\n", nx, ny, nz, cell, volumeOrigin[0],
-        volumeOrigin[1], volumeOrigin[2]);
+    Con_DPrintf("VR water: liquid volume %d x %d x %d, %g-unit cells from %g %g %g (%.1f ms, %d workers; texels %08x)\n", nx,
+        ny, nz, cell, volumeOrigin[0], volumeOrigin[1], volumeOrigin[2], ms, jobs::workers(), hash);
 }
 
 void ensureVolume()

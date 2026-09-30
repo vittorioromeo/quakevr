@@ -1610,6 +1610,8 @@ void Host_Shutdown(void)
 		VR_Shutdown (); // QVR
 		VID_Shutdown();
 	}
+	else
+		VR_Shutdown (); // QVR: a dedicated server's worker threads joined too (the jobs pool, the image prefetch)
 
 	LOG_Close ();
 
