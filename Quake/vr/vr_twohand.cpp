@@ -43,8 +43,12 @@
 #include "vr_protocol.hpp"
 #include "vr_weapons.hpp"
 
-#include <algorithm>
-#include <cmath>
+#include "Zancle/Math/Acos.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
+
 
 namespace qvr::twohand
 {
@@ -152,7 +156,7 @@ float frameDt = 0.f; // advances once per client frame, however often the hands 
 
 void transition(float& var, bool on, float speed)
 {
-    var = std::clamp(var + frameDt * (on ? speed : -speed), 0.f, 1.f);
+    var = za::clamp(var + frameDt * (on ? speed : -speed), 0.f, 1.f);
 }
 
 // A held grip's stickiness: the global one (vr_2h_sticky*, this frame's) times its hotspot's own (Weapon Offsets:
@@ -170,8 +174,8 @@ void transition(float& var, bool on, float speed)
     {
         return -2.f;
     }
-    const float angle = std::acos(std::min(threshold, 1.f)) * stick;
-    return angle >= glm::pi<float>() ? -2.f : std::cos(angle);
+    const float angle = za::acos(za::min(threshold, 1.f)) * stick;
+    return angle >= glm::pi<float>() ? -2.f : za::cos(angle);
 }
 
 // vr_debug_2h_grip: why the helping hand let go of the weapon in `holding` (the check that failed, and its numbers).
@@ -206,7 +210,7 @@ void reportLetGo(int holding, const char* why, float value, float limit, float s
 
     const float pitch = glm::radians(weapons::value(slot, Key::TwoHPitch));
     const float yaw = glm::radians(weapons::value(slot, Key::TwoHYaw));
-    glm::vec3 d{std::cos(pitch) * std::cos(yaw), std::cos(pitch) * std::sin(yaw), std::sin(pitch)};
+    glm::vec3 d{za::cos(pitch) * za::cos(yaw), za::cos(pitch) * za::sin(yaw), za::sin(pitch)};
     if(mirrored)
     {
         d.y = -d.y;
@@ -244,7 +248,7 @@ void reportLetGo(int holding, const char* why, float value, float limit, float s
 {
     const glm::vec3 ab = b - a;
     const float len2 = glm::dot(ab, ab);
-    const float t = len2 > 0.f ? std::clamp(glm::dot(p - a, ab) / len2, 0.f, 1.f) : 0.f;
+    const float t = len2 > 0.f ? za::clamp(glm::dot(p - a, ab) / len2, 0.f, 1.f) : 0.f;
     return glm::distance(p, a + ab * t);
 }
 
@@ -543,16 +547,16 @@ void apply(hands::State& s)
         return;
     }
 
-    frameDt = lastTime >= 0.0 ? static_cast<float>(std::clamp(cl.time - lastTime, 0.0, 0.1)) : 0.f;
+    frameDt = lastTime >= 0.0 ? static_cast<float>(za::clamp(cl.time - lastTime, 0.0, 0.1)) : 0.f;
     lastTime = cl.time;
 
     // Sticky grips: the faster hand's speed (last frame's, m/s) makes a held grip stickier while it swings.
-    const float speed = std::max(glm::length(s.vel[HAND_OFF]), glm::length(s.vel[HAND_MAIN]));
-    const float from = std::max(vr_2h_sticky_fast_from.value, 0.f);
-    const float full = std::max(vr_2h_sticky_fast_full.value, from + 0.01f);
-    const float now = std::clamp((speed - from) / (full - from), 0.f, 1.f);
-    fastShare = std::max(now, fastShare - frameDt / std::max(vr_2h_sticky_fast_hold.value, 0.01f));
-    stickiness = std::max(vr_2h_sticky.value, 0.1f) * (1.f + std::max(vr_2h_sticky_fast.value, 0.f) * fastShare);
+    const float speed = za::max(glm::length(s.vel[HAND_OFF]), glm::length(s.vel[HAND_MAIN]));
+    const float from = za::max(vr_2h_sticky_fast_from.value, 0.f);
+    const float full = za::max(vr_2h_sticky_fast_full.value, from + 0.01f);
+    const float now = za::clamp((speed - from) / (full - from), 0.f, 1.f);
+    fastShare = za::max(now, fastShare - frameDt / za::max(vr_2h_sticky_fast_hold.value, 0.01f));
+    stickiness = za::max(vr_2h_sticky.value, 0.1f) * (1.f + za::max(vr_2h_sticky_fast.value, 0.f) * fastShare);
 
     const glm::vec3 originalRots[2]{s.rot[HAND_OFF], s.rot[HAND_MAIN]};
     helpingHand[HAND_OFF] = helpingHand[HAND_MAIN] = false;
@@ -619,13 +623,13 @@ bool bladeGripHand(const hands::State& s, int hand, const glm::vec3& holderPos, 
     {
         if(const weapons::Hotspot h = weapons::hotspot(slot, i); h.type == weapons::HotspotType::Blade)
         {
-            end = std::min(end, weapons::bladeTo(h));
+            end = za::min(end, weapons::bladeTo(h));
             break;
         }
     }
     const float hilt = glm::dot(holderPos - tip, d); // negative
     const float along =
-        std::clamp(glm::dot(pos - hands::redirect(o, rot) - tip, d), hilt * 0.75f, hilt * (1.f - std::max(0.26f, end)));
+        za::clamp(glm::dot(pos - hands::redirect(o, rot) - tip, d), hilt * 0.75f, hilt * (1.f - za::max(0.26f, end)));
     pos = tip + d * along + hands::redirect(o, rot);
     return true;
 }

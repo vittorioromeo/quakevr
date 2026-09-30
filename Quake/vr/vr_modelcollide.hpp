@@ -21,7 +21,8 @@
 
 #include "vr_hands.hpp"
 
-#include <vector>
+#include "Zancle/Container/Vector.hpp"
+
 
 struct entity_s;
 
@@ -47,12 +48,12 @@ void endView(hands::State& s, const entity_s* const weapon[2], const bool mirror
 // `out`; then those of the prop the hand holds alone (its model's, or its box's corners and faces' middles), as it sat
 // in the hand. False without either (none drawn, another model since, a jointed model). For the walls
 // (vr_handpose.cpp).
-bool weaponShape(int hand, const glm::vec3& rot, std::vector<glm::vec3>& out);
+bool weaponShape(int hand, const glm::vec3& rot, za::Vector<glm::vec3>& out);
 
 // The triangles of `e` (entity number `num`: its pose is cached by it) as drawn this frame, in the world, three corners
 // each (a Quake alias model's; not a jointed one): false (none) otherwise. For the wounds painted on models
 // (vr_wounds.cpp): where a hit meets the model's surface.
-bool drawnTriangles(const entity_s& e, int num, std::vector<glm::vec3>& out);
+bool drawnTriangles(const entity_s& e, int num, za::Vector<glm::vec3>& out);
 
 // A new map: nothing pushed, nothing recorded.
 void reset();

@@ -31,13 +31,25 @@
 #include "vr_jobs.hpp"
 #include "vr_lines.hpp"
 
-#include <algorithm>
-#include <array>
-#include <cmath>
-#include <cstring>
-#include <map>
-#include <memory>
-#include <string>
+#include "Zancle/Algorithm/AnyOf.hpp"
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Swap.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Atan2.hpp"
+#include "Zancle/Math/Ceil.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Lround.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/Vocabulary/UniquePtr.hpp"
+#include "vr_zancle.hpp"
+
+#include <string.h>
 
 namespace qvr::ledges
 {
@@ -48,9 +60,9 @@ namespace
 // A ledge's tests' buffers: each task's own (a map's lip lines are tested on the game's thread pool, build).
 struct LedgeScratch
 {
-    std::vector<glm::vec2> rows[3];  // the open spans along three lines out from the lip (test: the drop)
-    std::vector<glm::vec2> under;    // the solid under the top, going in (test: the depth)
-    std::vector<glm::vec2> over;     // the open over it
+    za::Vector<glm::vec2> rows[3];  // the open spans along three lines out from the lip (test: the drop)
+    za::Vector<glm::vec2> under;    // the solid under the top, going in (test: the depth)
+    za::Vector<glm::vec2> over;     // the open over it
 };
 
 [[nodiscard]] glm::vec3 vec(const float* v)
@@ -82,12 +94,12 @@ struct Hull
     }
 
     // The parts of the line from `a` to `b` in solid, as fractions of it (in order).
-    void spans(const glm::vec3& a, const glm::vec3& b, std::vector<glm::vec2>& out) const
+    void spans(const glm::vec3& a, const glm::vec3& b, za::Vector<glm::vec2>& out) const
     {
         out.clear();
         spansOf(hull->firstclipnode, 0.f, 1.f, a, b, out);
     }
-    void spansOf(int num, float f0, float f1, const glm::vec3& a, const glm::vec3& b, std::vector<glm::vec2>& out) const
+    void spansOf(int num, float f0, float f1, const glm::vec3& a, const glm::vec3& b, za::Vector<glm::vec2>& out) const
     {
         while(num >= 0)
         {
@@ -120,7 +132,7 @@ struct Hull
             }
             else
             {
-                out.emplace_back(f0, f1);
+                out.emplaceBack(f0, f1);
             }
         }
     }
@@ -186,7 +198,7 @@ struct Test
     // in the open (spans): a floor or a step below, the usual miss, needs no trace.
     const float top = lip.z;
     float dropOut = -1.f;
-    std::vector<glm::vec2> (&rows)[3] = scratch.rows;
+    za::Vector<glm::vec2> (&rows)[3] = scratch.rows;
     const float rowZ[3] = {top - minDrop + 0.5f, top - 0.5f * minDrop, top - 1.f};
     const glm::vec3 near0 = lip + o * 0.5f, far0 = lip + o * edgeReach;
     for(int k = 0; k < 3; k++)
@@ -196,8 +208,8 @@ struct Test
     for(float u = 0.5f; u <= edgeReach + 1e-3f; u = u < 1.f ? 1.f : u + 1.f)
     {
         const float f = (u - 0.5f) / (edgeReach - 0.5f);
-        const auto solidAt = [&](const std::vector<glm::vec2>& sp) {
-            return std::any_of(sp.begin(), sp.end(), [&](const glm::vec2& x) { return f >= x.x - 1e-4f && f <= x.y + 1e-4f; });
+        const auto solidAt = [&](const za::Vector<glm::vec2>& sp) {
+            return za::anyOf(sp.begin(), sp.end(), [&](const glm::vec2& x) { return f >= x.x - 1e-4f && f <= x.y + 1e-4f; });
         };
         if(solidAt(rows[0]) || solidAt(rows[1]) || solidAt(rows[2]))
         {
@@ -228,12 +240,12 @@ struct Test
     const glm::vec3 inward = -o;
     const glm::vec3 from = lip + inward * 0.5f, to = lip + inward * (maxDepth + 0.5f);
     const auto onPlane = [&](const glm::vec3& p, float dz) { return glm::vec3{p.x, p.y, topHeight(lip, line.normal, p) + dz}; };
-    std::vector<glm::vec2>& under = scratch.under;
-    std::vector<glm::vec2>& over = scratch.over;
+    za::Vector<glm::vec2>& under = scratch.under;
+    za::Vector<glm::vec2>& over = scratch.over;
     h.spans(onPlane(from, -0.5f), onPlane(to, -0.5f), under);
     h.spans(onPlane(from, 1.f), onPlane(to, 1.f), over);
-    const auto inSpans = [](const std::vector<glm::vec2>& spans, float f) {
-        return std::any_of(spans.begin(), spans.end(), [&](const glm::vec2& sp) { return f > sp.x && f < sp.y; });
+    const auto inSpans = [](const za::Vector<glm::vec2>& spans, float f) {
+        return za::anyOf(spans.begin(), spans.end(), [&](const glm::vec2& sp) { return f > sp.x && f < sp.y; });
     };
     float depth = 0.f;
     for(float d = 0.5f; d <= maxDepth; d += 1.f)
@@ -263,9 +275,9 @@ struct Test
 }
 
 // The lip pieces of the model's walkable faces.
-void findPieces(const qmodel_t* model, const Hull& h, std::vector<Piece>& pieces, int& faces)
+void findPieces(const qmodel_t* model, const Hull& h, za::Vector<Piece>& pieces, int& faces)
 {
-    std::vector<glm::vec3> poly;
+    za::Vector<glm::vec3> poly;
     for(int i = 0; i < model->nummodelsurfaces; i++)
     {
         const msurface_t& surf = model->surfaces[model->firstmodelsurface + i];
@@ -289,7 +301,7 @@ void findPieces(const qmodel_t* model, const Hull& h, std::vector<Piece>& pieces
         {
             const int e = model->surfedges[surf.firstedge + k];
             const int v = static_cast<int>(e >= 0 ? model->edges[e].v[0] : model->edges[-e].v[1]);
-            poly.push_back(vec(model->vertexes[v].position));
+            poly.pushBack(vec(model->vertexes[v].position));
             centre += poly.back();
         }
         centre /= static_cast<float>(poly.size());
@@ -315,20 +327,20 @@ void findPieces(const qmodel_t* model, const Hull& h, std::vector<Piece>& pieces
             {
                 continue;
             }
-            pieces.push_back(Piece{v0, v1, out, normal});
+            pieces.pushBack(Piece{v0, v1, out, normal});
         }
     }
 }
 
 // The pieces joined into lines (those on one line, the same way out, touching or overlapping).
-void joinPieces(const std::vector<Piece>& pieces, std::vector<Line>& lines)
+void joinPieces(const za::Vector<Piece>& pieces, za::Vector<Line>& lines)
 {
     struct Keyed
     {
-        std::array<int64_t, 4> key;
+        za::Array<int64_t, 4> key;
         Line line;
     };
-    std::vector<Keyed> keyed;
+    za::Vector<Keyed> keyed;
     keyed.reserve(pieces.size());
     for(const Piece& p : pieces)
     {
@@ -341,18 +353,18 @@ void joinPieces(const std::vector<Piece>& pieces, std::vector<Line>& lines)
         float za = p.v0.z, zb = p.v1.z;
         if(a > b)
         {
-            std::swap(a, b);
-            std::swap(za, zb);
+            za::genericSwap(a, b);
+            za::genericSwap(za, zb);
         }
         l.slope = b - a > 1e-4f ? (zb - za) / (b - a) : 0.f;
         l.z0 = za - l.slope * a;
         l.s0 = a;
         l.s1 = b;
-        const auto q = [](float v, float scale) { return static_cast<int64_t>(std::llround(v * scale)); };
-        keyed.push_back(Keyed{{q(std::atan2(p.out.y, p.out.x), 2000.f), q(l.offset, 8.f), q(l.z0, 8.f), q(l.slope, 1000.f)}, l});
+        const auto q = [](float v, float scale) { return static_cast<int64_t>(qza::llround(v * scale)); };
+        keyed.pushBack(Keyed{{q(za::atan2(p.out.y, p.out.x), 2000.f), q(l.offset, 8.f), q(l.z0, 8.f), q(l.slope, 1000.f)}, l});
     }
-    std::sort(keyed.begin(), keyed.end(), [](const Keyed& x, const Keyed& y) {
-        return x.key != y.key ? x.key < y.key : x.line.s0 < y.line.s0;
+    za::quickSort(keyed.begin(), keyed.end(), [](const Keyed& x, const Keyed& y) {
+        return x.key != y.key ? qza::lexicographicLess(x.key, y.key) : x.line.s0 < y.line.s0;
     });
     for(size_t i = 0; i < keyed.size();)
     {
@@ -363,20 +375,20 @@ void joinPieces(const std::vector<Piece>& pieces, std::vector<Line>& lines)
             const Line& next = keyed[j].line;
             if(next.s0 <= line.s1 + 0.05f)
             {
-                line.s1 = std::max(line.s1, next.s1);
+                line.s1 = za::max(line.s1, next.s1);
                 continue;
             }
-            lines.push_back(line);
+            lines.pushBack(line);
             line = next;
         }
-        lines.push_back(line);
+        lines.pushBack(line);
         i = j;
     }
 }
 
 // The ledges along a line: runs of samples that pass the tests.
 // A line's ledges: its edges (their first samples counted in `samples`) and their samples.
-void lineLedges(const Hull& h, const Line& line, std::vector<Edge>& edges, std::vector<Sample>& samples, LedgeScratch& scratch)
+void lineLedges(const Hull& h, const Line& line, za::Vector<Edge>& edges, za::Vector<Sample>& samples, LedgeScratch& scratch)
 {
     const float length = line.s1 - line.s0;
     if(length < 0.25f)
@@ -384,10 +396,10 @@ void lineLedges(const Hull& h, const Line& line, std::vector<Edge>& edges, std::
         return;
     }
     constexpr float endInset = 0.125f; // the tests just inside the lip's ends (not on a corner's planes)
-    const auto sAt = [&](float t) { return line.s0 + std::clamp(t, endInset, length - endInset); };
-    const int count = static_cast<int>(std::ceil(length / sampleStep - 1e-4f)) + 1;
-    std::vector<Test> tests(static_cast<size_t>(count));
-    std::vector<float> ts(static_cast<size_t>(count));
+    const auto sAt = [&](float t) { return line.s0 + za::clamp(t, endInset, length - endInset); };
+    const int count = static_cast<int>(za::ceil(length / sampleStep - 1e-4f)) + 1;
+    za::Vector<Test> tests(static_cast<size_t>(count));
+    za::Vector<float> ts(static_cast<size_t>(count));
     // Every fourth sample first, then those between: one between two that agree (the ledge or not, how far out the drop
     // starts, how deep the top is) is the same, else it is tested too. (A feature narrower than a few units along a lip,
     // between two samples that agree, is left out: a gap in a railing too narrow for a hand; the checks when a hold is
@@ -397,7 +409,7 @@ void lineLedges(const Hull& h, const Line& line, std::vector<Edge>& edges, std::
     };
     for(int i = 0; i < count; i++)
     {
-        ts[i] = std::min(static_cast<float>(i) * sampleStep, length);
+        ts[i] = za::min(static_cast<float>(i) * sampleStep, length);
         if(i % 4 == 0 || i == count - 1)
         {
             tests[i] = test(h, line, sAt(ts[i]), scratch);
@@ -407,7 +419,7 @@ void lineLedges(const Hull& h, const Line& line, std::vector<Edge>& edges, std::
     {
         for(int i = stride; i < count - 1; i += 2 * stride)
         {
-            const int lo = i - stride, hi = std::min(i + stride, count - 1);
+            const int lo = i - stride, hi = za::min(i + stride, count - 1);
             tests[i] = same(tests[lo], tests[hi]) ? tests[lo] : test(h, line, sAt(ts[i]), scratch);
         }
     }
@@ -420,7 +432,7 @@ void lineLedges(const Hull& h, const Line& line, std::vector<Edge>& edges, std::
         }
         return okT;
     };
-    const float stretch = std::sqrt(1.f + line.slope * line.slope); // a unit along s is this long along the lip
+    const float stretch = za::sqrt(1.f + line.slope * line.slope); // a unit along s is this long along the lip
     for(int i = 0; i < count;)
     {
         if(!tests[i].ok)
@@ -450,42 +462,42 @@ void lineLedges(const Hull& h, const Line& line, std::vector<Edge>& edges, std::
             e.spacing = sampleStep * stretch;
             for(int k = i; k <= j; k++)
             {
-                samples.push_back(tests[k].sample);
+                samples.pushBack(tests[k].sample);
             }
             e.mins = glm::min(e.a, b);
             e.maxs = glm::max(e.a, b);
-            edges.push_back(e);
+            edges.pushBack(e);
         }
         i = j + 1;
     }
 }
 
-[[nodiscard]] std::unique_ptr<Map> build(const qmodel_t* model)
+[[nodiscard]] za::UniquePtr<Map> build(const qmodel_t* model)
 {
-    auto map = std::make_unique<Map>();
+    auto map = za::makeUnique<Map>();
     const double t0 = Sys_DoubleTime();
     hull_t* hull = const_cast<hull_t*>(&model->hulls[0]);
     if(model->type == mod_brush && hull->clipnodes && hull->planes && model->surfaces)
     {
         const Hull h{hull};
-        std::vector<Piece> pieces;
+        za::Vector<Piece> pieces;
         findPieces(model, h, pieces, map->faces);
         map->pieces = static_cast<int>(pieces.size());
-        std::vector<Line> lines;
+        za::Vector<Line> lines;
         joinPieces(pieces, lines);
         map->lines = static_cast<int>(lines.size());
         // The lines tested on the pool, each into its own lists, joined in their order (the same map as on one thread).
         struct Out
         {
-            std::vector<Edge> edges;
-            std::vector<Sample> samples;
+            za::Vector<Edge> edges;
+            za::Vector<Sample> samples;
         };
-        std::vector<Out> outs(lines.size());
+        za::Vector<Out> outs(lines.size());
         jobs::parallelFor(lines.size(), 4,
-            [&](std::size_t begin, std::size_t end)
+            [&](za::SizeT begin, za::SizeT end)
             {
                 LedgeScratch scratch;
-                for(std::size_t i = begin; i < end; ++i)
+                for(za::SizeT i = begin; i < end; ++i)
                 {
                     lineLedges(h, lines[i], outs[i].edges, outs[i].samples, scratch);
                 }
@@ -496,9 +508,9 @@ void lineLedges(const Hull& h, const Line& line, std::vector<Edge>& edges, std::
             for(Edge e : o.edges)
             {
                 e.firstSample += base;
-                map->edges.push_back(e);
+                map->edges.pushBack(e);
             }
-            map->samples.insert(map->samples.end(), o.samples.begin(), o.samples.end());
+            map->samples.emplaceBackRange(o.samples.data(), o.samples.size());
         }
     }
     map->finish();
@@ -511,7 +523,7 @@ struct Cache
 {
     char world[MAX_QPATH]{};
     int vertexes{0}, surfaces{0};
-    std::map<std::string, std::unique_ptr<Map>> maps;
+    ankerl::unordered_dense::map<za::String, za::UniquePtr<Map>> maps;
 } cache;
 
 [[nodiscard]] bool cacheCurrent()
@@ -550,8 +562,10 @@ void printStats(const char* when)
     double ms = 0.0;
     float length = 0.f;
     const Map* world = nullptr;
-    for(const auto& [name, m] : cache.maps)
+    const auto maps = qza::sortedByKey(cache.maps); // (in the names' order, as a std::map had them: the sums and the hash)
+    for(const auto* entry : maps)
     {
+        const auto& [name, m] = *entry;
         edges += static_cast<int>(m->edges.size());
         samples += static_cast<int>(m->samples.size());
         bytes += m->bytes();
@@ -573,7 +587,7 @@ void printStats(const char* when)
             world->pieces, world->lines, static_cast<int>(world->edges.size()), world->ms);
     }
     // Their contents' hash (FNV-1a: the same on the pool and on one thread).
-    std::uint32_t hash = 2166136261u;
+    za::U32 hash = 2166136261u;
     const auto add = [&hash](const void* data, size_t size)
     {
         for(size_t i = 0; i < size; i++)
@@ -581,8 +595,9 @@ void printStats(const char* when)
             hash = (hash ^ static_cast<const unsigned char*>(data)[i]) * 16777619u;
         }
     };
-    for(const auto& [name, m] : cache.maps)
+    for(const auto* entry : maps)
     {
+        const auto& m = entry->second;
         add(m->edges.data(), m->edges.size() * sizeof(Edge));
         add(m->samples.data(), m->samples.size() * sizeof(Sample));
     }
@@ -612,7 +627,7 @@ void ledges_f()
 
 const Sample& Map::sampleAt(const Edge& e, float t) const
 {
-    const int i = std::clamp(static_cast<int>(std::lround((t - e.sampleStart) / e.spacing)), 0, e.samples - 1);
+    const int i = za::clamp(static_cast<int>(za::lround((t - e.sampleStart) / e.spacing)), 0, e.samples - 1);
     return samples[static_cast<size_t>(e.firstSample + i)];
 }
 
@@ -644,17 +659,18 @@ void Map::finish()
             {
                 for(int z = lo.z; z <= hi.z; z++)
                 {
-                    cells.emplace_back(keyOf(glm::ivec3{x, y, z}), static_cast<int>(i));
+                    cells.emplaceBack(keyOf(glm::ivec3{x, y, z}), static_cast<int>(i));
                 }
             }
         }
     }
-    std::sort(cells.begin(), cells.end());
-    seen.assign(edges.size(), 0u);
+    za::quickSort(cells.begin(), cells.end());
+    seen.clear();
+    seen.resize(edges.size(), 0u);
     stamp = 0;
 }
 
-void Map::nearby(const glm::vec3& mins, const glm::vec3& maxs, std::vector<int>& out) const
+void Map::nearby(const glm::vec3& mins, const glm::vec3& maxs, za::Vector<int>& out) const
 {
     if(edges.empty())
     {
@@ -662,7 +678,7 @@ void Map::nearby(const glm::vec3& mins, const glm::vec3& maxs, std::vector<int>&
     }
     if(++stamp == 0)
     {
-        std::fill(seen.begin(), seen.end(), 0u);
+        qza::fill(seen.begin(), seen.end(), 0u);
         stamp = 1;
     }
     const glm::ivec3 lo = cellOf(mins, cellSize), hi = cellOf(maxs, cellSize);
@@ -673,7 +689,7 @@ void Map::nearby(const glm::vec3& mins, const glm::vec3& maxs, std::vector<int>&
             for(int z = lo.z; z <= hi.z; z++)
             {
                 const uint64_t key = keyOf(glm::ivec3{x, y, z});
-                auto it = std::lower_bound(cells.begin(), cells.end(), std::make_pair(key, 0));
+                auto it = qza::lowerBound(cells.begin(), cells.end(), qza::makePair(key, 0));
                 for(; it != cells.end() && it->first == key; ++it)
                 {
                     const Edge& e = edges[static_cast<size_t>(it->second)];
@@ -683,7 +699,7 @@ void Map::nearby(const glm::vec3& mins, const glm::vec3& maxs, std::vector<int>&
                         continue;
                     }
                     seen[static_cast<size_t>(it->second)] = stamp;
-                    out.push_back(it->second);
+                    out.pushBack(it->second);
                 }
             }
         }
@@ -759,9 +775,9 @@ void debugDraw()
     qcvm_t* oldvm = nullptr;
     PR_PushQCVM(&sv.qcvm, &oldvm);
     const glm::vec3 eye = vec(r_refdef.vieworg);
-    const float range = std::max(64.f, vr_debug_ledges.value > 1.f ? vr_debug_ledges.value : 512.f);
+    const float range = za::max(64.f, vr_debug_ledges.value > 1.f ? vr_debug_ledges.value : 512.f);
     const glm::vec3 lipColour{0.2f, 1.f, 0.3f}, trimColour{1.f, 0.9f, 0.1f}, moverColour{1.f, 0.45f, 0.9f};
-    std::vector<int> nearby;
+    za::Vector<int> nearby;
     const auto drawMap = [&](const Map& m, const glm::vec3& offset, bool mover) {
         nearby.clear();
         m.nearby(eye - offset - glm::vec3{range}, eye - offset + glm::vec3{range}, nearby);
@@ -775,7 +791,7 @@ void debugDraw()
             // below), and the top's depth in (grey; a short stub for a top deeper than maxDepth).
             for(float t = 0.f; t <= e.len + 1e-3f; t += 8.f)
             {
-                const float at = std::min(t, e.len);
+                const float at = za::min(t, e.len);
                 const Sample& s = m.sampleAt(e, at);
                 const glm::vec3 p = e.point(at) + offset;
                 const glm::vec3 tick = s.dropOut > 2.f ? trimColour : base;

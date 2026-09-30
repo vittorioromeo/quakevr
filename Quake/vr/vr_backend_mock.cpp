@@ -28,7 +28,6 @@
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 
 #include <stdio.h>
-#include <vector> // TRANSITION
 
 namespace qvr
 {
@@ -391,7 +390,7 @@ bool weaponPoint(float fraction, float height, glm::vec3& out)
             bestDist = d;
         }
     }
-    std::vector<glm::vec3> verts; // TRANSITION (vr_held.hpp's)
+    za::Vector<glm::vec3> verts; // TRANSITION (vr_held.hpp's)
     const bool found = best && held::drawnVertices(best, verts) && !verts.empty();
     const char* name = found ? PR_GetString(best->v.netname) : "";
     if(found)

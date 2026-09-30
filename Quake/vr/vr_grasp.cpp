@@ -5,16 +5,26 @@
 #include "vr_render.hpp"
 #include "vr_api_render.h"
 
+#include "Zancle/Algorithm/Copy.hpp"
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Acos.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/Floor.hpp"
+#include "Zancle/Math/Fmax.hpp"
+#include "Zancle/Math/Fmin.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/Vocabulary/UniquePtr.hpp"
+#include "vr_zancle.hpp"
+
 #include <glm/gtc/matrix_transform.hpp>
 
-#include <algorithm>
-#include <array>
-#include <chrono>
-#include <cmath>
-#include <cstdint>
-#include <memory>
-#include <string>
-#include <unordered_map>
 
 namespace qvr::grasp
 {
@@ -48,10 +58,10 @@ struct Sphere
 
 struct Kinematics
 {
-    std::vector<Sphere> bone[handrig::FingerCount][handrig::jointsPerFinger + 1];
+    za::Vector<Sphere> bone[handrig::FingerCount][handrig::jointsPerFinger + 1];
     float rate[handrig::FingerCount][handrig::jointsPerFinger]{}; // radians a curl frame, at most
-    std::vector<Sphere> palm;
-    std::vector<Sphere> thenar; // the ball of the thumb
+    za::Vector<Sphere> palm;
+    za::Vector<Sphere> thenar; // the ball of the thumb
     glm::vec3 palmCentre{0.f};
 };
 
@@ -68,15 +78,15 @@ Kinematics buildKinematics()
     }
     for(const handrig::SegmentSphere& s : rig.segmentSpheres)
     {
-        k.bone[s.finger][s.bone].push_back({s.c, s.r});
+        k.bone[s.finger][s.bone].pushBack({s.c, s.r});
     }
     for(const handrig::Sphere& s : rig.palmSpheres)
     {
-        k.palm.push_back({s.c, s.r});
+        k.palm.pushBack({s.c, s.r});
     }
     for(const handrig::Sphere& s : rig.thenarSpheres)
     {
-        k.thenar.push_back({s.c, s.r});
+        k.thenar.pushBack({s.c, s.r});
     }
     k.palmCentre = vec(handrig::data::palmCentre);
     return k;
@@ -151,22 +161,22 @@ struct Shape::Space
         float plane;      // dot(normal, a)
         glm::vec3 lo, hi; // its box
     };
-    std::vector<Tri> tris;
+    za::Vector<Tri> tris;
     glm::mat4 rawToReal{1.f};
 
     float cell{0.f}; // the grid's (real units), for the hand's size it was made at
     glm::vec3 lo{0.f}, hi{0.f}; // the triangles' box
     int size[3]{1, 1, 1};
-    std::vector<std::uint32_t> first; // per cell, its first item; one more at the end
+    za::Vector<za::U32> first; // per cell, its first item; one more at the end
     // Per cell, its triangles (in their order): the index (the low 16 bits), and whether this cell is the triangle's
     // first on x, y, z (bits 16, 17, 18). A query looks at a triangle only in the first of its cells it covers, told by
     // those bits and the query's own first cells: no state kept between queries (they run on several threads at once,
     // vr_jobs.hpp), and a triangle's other cells skipped without reading it.
-    std::vector<std::uint32_t> items;
+    za::Vector<za::U32> items;
 
     [[nodiscard]] int cellOf(float v, int k) const
     {
-        return std::clamp(static_cast<int>((v - lo[k]) / cell), 0, size[k] - 1);
+        return za::clamp(static_cast<int>((v - lo[k]) / cell), 0, size[k] - 1);
     }
 
     void buildGrid(float cellSize)
@@ -179,11 +189,11 @@ struct Shape::Space
             lo = glm::min(lo, t.lo);
             hi = glm::max(hi, t.hi);
         }
-        std::size_t cells = 1;
+        za::SizeT cells = 1;
         for(int k = 0; k < 3; k++)
         {
-            size[k] = std::clamp(static_cast<int>((hi[k] - lo[k]) / cell) + 1, 1, 256);
-            cells *= static_cast<std::size_t>(size[k]);
+            size[k] = za::clamp(static_cast<int>((hi[k] - lo[k]) / cell) + 1, 1, 256);
+            cells *= static_cast<za::SizeT>(size[k]);
         }
         const auto each = [&](const Tri& t, auto&& f) {
             int from[3], to[3];
@@ -198,32 +208,33 @@ struct Shape::Space
                 {
                     for(int x = from[0]; x <= to[0]; x++)
                     {
-                        const std::uint32_t firsts = (x == from[0] ? 1u << 16 : 0u) | (y == from[1] ? 1u << 17 : 0u) |
+                        const za::U32 firsts = (x == from[0] ? 1u << 16 : 0u) | (y == from[1] ? 1u << 17 : 0u) |
                                                      (z == from[2] ? 1u << 18 : 0u);
-                        f((static_cast<std::size_t>(z) * static_cast<std::size_t>(size[1]) + static_cast<std::size_t>(y)) *
-                              static_cast<std::size_t>(size[0]) +
-                              static_cast<std::size_t>(x),
+                        f((static_cast<za::SizeT>(z) * static_cast<za::SizeT>(size[1]) + static_cast<za::SizeT>(y)) *
+                              static_cast<za::SizeT>(size[0]) +
+                              static_cast<za::SizeT>(x),
                             firsts);
                     }
                 }
             }
         };
-        std::vector<std::uint32_t> counts(cells, 0u);
+        za::Vector<za::U32> counts(cells, 0u);
         for(const Tri& t : tris)
         {
-            each(t, [&](std::size_t c, std::uint32_t) { counts[c]++; });
+            each(t, [&](za::SizeT c, za::U32) { counts[c]++; });
         }
-        first.assign(cells + 1, 0u);
-        for(std::size_t c = 0; c < cells; c++)
+        first.clear();
+        first.resize(cells + 1, 0u);
+        for(za::SizeT c = 0; c < cells; c++)
         {
             first[c + 1] = first[c] + counts[c];
         }
         items.resize(first[cells]);
-        std::fill(counts.begin(), counts.end(), 0u);
-        for(std::size_t i = 0; i < tris.size(); i++)
+        qza::fill(counts.begin(), counts.end(), 0u);
+        for(za::SizeT i = 0; i < tris.size(); i++)
         {
-            each(tris[i], [&](std::size_t c, std::uint32_t firsts) {
-                items[first[c] + counts[c]++] = static_cast<std::uint32_t>(i) | firsts;
+            each(tris[i], [&](za::SizeT c, za::U32 firsts) {
+                items[first[c] + counts[c]++] = static_cast<za::U32>(i) | firsts;
             });
         }
     }
@@ -237,38 +248,38 @@ struct Shape::Space
         const float boxDistance2 = glm::dot(away, away);
         if(boxDistance2 >= limit * limit)
         {
-            return std::sqrt(boxDistance2);
+            return za::sqrt(boxDistance2);
         }
         float best = limit;
         int from[3], to[3];
         for(int k = 0; k < 3; k++)
         {
-            from[k] = static_cast<int>(std::floor((p[k] - limit - lo[k]) / cell));
-            to[k] = static_cast<int>(std::floor((p[k] + limit - lo[k]) / cell));
+            from[k] = static_cast<int>(za::floor((p[k] - limit - lo[k]) / cell));
+            to[k] = static_cast<int>(za::floor((p[k] + limit - lo[k]) / cell));
             if(to[k] < 0 || from[k] >= size[k])
             {
                 return best;
             }
-            from[k] = std::max(from[k], 0);
-            to[k] = std::min(to[k], size[k] - 1);
+            from[k] = za::max(from[k], 0);
+            to[k] = za::min(to[k], size[k] - 1);
         }
         for(int z = from[2]; z <= to[2]; z++)
         {
             for(int y = from[1]; y <= to[1]; y++)
             {
-                const std::size_t row =
-                    (static_cast<std::size_t>(z) * static_cast<std::size_t>(size[1]) + static_cast<std::size_t>(y)) *
-                    static_cast<std::size_t>(size[0]);
+                const za::SizeT row =
+                    (static_cast<za::SizeT>(z) * static_cast<za::SizeT>(size[1]) + static_cast<za::SizeT>(y)) *
+                    static_cast<za::SizeT>(size[0]);
                 for(int x = from[0]; x <= to[0]; x++)
                 {
                     // A triangle is looked at in the first of its cells the query covers (the scan's order: z, y, x):
                     // on each axis, its own first cell or the query's.
-                    const std::uint32_t queryFirsts = (x == from[0] ? 1u << 16 : 0u) | (y == from[1] ? 1u << 17 : 0u) |
+                    const za::U32 queryFirsts = (x == from[0] ? 1u << 16 : 0u) | (y == from[1] ? 1u << 17 : 0u) |
                                                       (z == from[2] ? 1u << 18 : 0u);
-                    const std::size_t c = row + static_cast<std::size_t>(x);
-                    for(std::uint32_t i = first[c]; i < first[c + 1]; i++)
+                    const za::SizeT c = row + static_cast<za::SizeT>(x);
+                    for(za::U32 i = first[c]; i < first[c + 1]; i++)
                     {
-                        const std::uint32_t item = items[i];
+                        const za::U32 item = items[i];
                         if(((item | queryFirsts) & (7u << 16)) != (7u << 16))
                         {
                             continue;
@@ -276,7 +287,7 @@ struct Shape::Space
                         const Tri& t = tris[item & 0xffffu];
                         // Lower bounds of its distance: to its box, to its plane.
                         const glm::vec3 outside = glm::max(glm::max(t.lo - p, p - t.hi), glm::vec3{0.f});
-                        if(glm::dot(outside, outside) >= best * best || std::fabs(glm::dot(t.normal, p) - t.plane) >= best)
+                        if(glm::dot(outside, outside) >= best * best || za::fabs(glm::dot(t.normal, p) - t.plane) >= best)
                         {
                             continue;
                         }
@@ -317,7 +328,7 @@ struct Shape::Space
             const glm::vec3 e1 = t.b - t.a, e2 = t.c - t.a;
             const glm::vec3 pv = glm::cross(dir, e2);
             const float det = glm::dot(e1, pv);
-            if(std::fabs(det) < 1e-12f)
+            if(za::fabs(det) < 1e-12f)
             {
                 continue;
             }
@@ -351,13 +362,13 @@ Shape::~Shape() = default;
 Shape::Shape(Shape&&) noexcept = default;
 Shape& Shape::operator=(Shape&&) noexcept = default;
 
-std::size_t heldBytes(const Shape& s)
+za::SizeT heldBytes(const Shape& s)
 {
-    std::size_t n = s.tris.capacity() * sizeof(Triangle);
+    za::SizeT n = s.tris.capacity() * sizeof(Triangle);
     if(const Shape::Space* p = s.space.get())
     {
-        n += sizeof(Shape::Space) + p->tris.capacity() * sizeof(Shape::Space::Tri) + p->first.capacity() * sizeof(std::uint32_t) +
-             p->items.capacity() * sizeof(std::uint32_t);
+        n += sizeof(Shape::Space) + p->tris.capacity() * sizeof(Shape::Space::Tri) + p->first.capacity() * sizeof(za::U32) +
+             p->items.capacity() * sizeof(za::U32);
     }
     return n;
 }
@@ -389,7 +400,7 @@ struct Target
     float d = target.scale * target.space->nearest(glm::vec3{target.rigToReal * glm::vec4{p, 1.f}}, limit / target.scale);
     if(target.extra)
     {
-        d = std::fmin(d, target.extra->nearest(glm::vec3{target.extraToReal * glm::vec4{p, 1.f}}, limit) + target.allowance);
+        d = za::fmin(d, target.extra->nearest(glm::vec3{target.extraToReal * glm::vec4{p, 1.f}}, limit) + target.allowance);
     }
     return d;
 }
@@ -445,10 +456,10 @@ void probe(const Context& ctx, int finger, const float c[handrig::jointsPerFinge
                 lever += k.rate[finger][j] * glm::distance(p, pivot[j]);
             }
             const float clear = nearest(*ctx.target, p, r + searchReach) - r;
-            out.clear[b] = std::fmin(out.clear[b], clear);
+            out.clear[b] = za::fmin(out.clear[b], clear);
             if(lever > 1e-6f)
             {
-                out.advance = std::fmin(out.advance, std::fmax(clear, 0.f) / lever);
+                out.advance = za::fmin(out.advance, za::fmax(clear, 0.f) / lever);
             }
         }
     }
@@ -478,7 +489,7 @@ void solveFinger(const Context& ctx, int finger, bool settle, const FingerStop* 
     bool started = false;
     if(warm && warm->met && !warm->startsInside)
     {
-        std::copy(warm->stop, warm->stop + 3, c);
+        za::copy(warm->stop, warm->stop + 3, c);
         probe(ctx, finger, c, 0, p);
         if(clearFrom(p, 0))
         {
@@ -537,7 +548,7 @@ void solveFinger(const Context& ctx, int finger, bool settle, const FingerStop* 
         }
         if(free < maxCurl)
         {
-            float lo = free, hi = std::min(free + step, maxCurl);
+            float lo = free, hi = za::min(free + step, maxCurl);
             for(int h = 0; h < halvings; h++)
             {
                 const float mid = 0.5f * (lo + hi);
@@ -585,10 +596,10 @@ void solveFinger(const Context& ctx, int finger, bool settle, const FingerStop* 
             firstActive = touching;
             continue;
         }
-        const float step = std::fmax(p.advance, leastStep);
+        const float step = za::fmax(p.advance, leastStep);
         for(int j = firstActive; j < handrig::jointsPerFinger; j++)
         {
-            c[j] = std::fmin(c[j] + step, maxCurl);
+            c[j] = za::fmin(c[j] + step, maxCurl);
         }
     }
     for(int j = firstActive; j < handrig::jointsPerFinger; j++)
@@ -626,7 +637,7 @@ void solveFinger(const Context& ctx, int finger, bool settle, const FingerStop* 
                         probe(ctx, finger, t, j, p);
                         if(clearFrom(p, j))
                         {
-                            std::copy(t, t + 3, s);
+                            za::copy(t, t + 3, s);
                             better = true;
                         }
                     }
@@ -637,7 +648,7 @@ void solveFinger(const Context& ctx, int finger, bool settle, const FingerStop* 
                 }
             }
         }
-        std::copy(s, s + 3, out.stop);
+        za::copy(s, s + 3, out.stop);
     }
 }
 
@@ -704,7 +715,7 @@ void chooseThumb(const FingerStop (&tried)[thumbTurnCount], const Solution* prev
         }
         const ThumbTurn& t = thumbTurns[i];
         const FingerStop& st = tried[i];
-        const float value = score(st) - 0.003f * (t.opposition + std::fabs(t.swing));
+        const float value = score(st) - 0.003f * (t.opposition + za::fabs(t.swing));
         if(!st.startsInside && value > best)
         {
             best = value;
@@ -733,7 +744,7 @@ void chooseThumb(const FingerStop (&tried)[thumbTurnCount], const Solution* prev
     float least = 1e9f;
     const auto test = [&](const Sphere& sp) {
         const float r = sp.r - overlap;
-        least = std::fmin(least, nearest(target, sp.c, r + searchReach) - r);
+        least = za::fmin(least, nearest(target, sp.c, r + searchReach) - r);
     };
     for(const Sphere& sp : k.palm)
     {
@@ -795,7 +806,7 @@ glm::vec3 placeInside(const handrig::Pose& pose, const Target& target, const Set
         // Flush along the palm's normal: coming from as far back as it may, the last place clear before it meets the
         // grip (in quarter steps), if any within reach.
         Target t = target;
-        const float reach = std::sqrt(std::fmax(settings.palmLimit * settings.palmLimit - dx * dx - dz * dz, 0.f));
+        const float reach = za::sqrt(za::fmax(settings.palmLimit * settings.palmLimit - dx * dx - dz * dz, 0.f));
         bool wasClear = false;
         float clearY = 0.f;
         for(float dy = -reach; dy <= reach + 1e-4f; dy += 0.25f)
@@ -837,8 +848,8 @@ glm::vec3 placeInside(const handrig::Pose& pose, const Target& target, const Set
     constexpr float dxs[4] = {-1.f, 0.f, 1.f, 2.f};
     constexpr float dzs[5] = {-3.f, -2.f, -1.f, 0.f, 1.f};
     Place first[21];
-    jobs::parallelFor(21, 1, [&](std::size_t b, std::size_t e) {
-        for(std::size_t i = b; i < e; i++)
+    jobs::parallelFor(21, 1, [&](za::SizeT b, za::SizeT e) {
+        for(za::SizeT i = b; i < e; i++)
         {
             if(i == 0)
             {
@@ -863,8 +874,8 @@ glm::vec3 placeInside(const handrig::Pose& pose, const Target& target, const Set
     constexpr float offsets[8][2] = {{-0.5f, -0.5f}, {-0.5f, 0.f}, {-0.5f, 0.5f}, {0.f, -0.5f}, {0.f, 0.5f}, {0.5f, -0.5f},
         {0.5f, 0.f}, {0.5f, 0.5f}};
     Place second[8];
-    jobs::parallelFor(8, 1, [&](std::size_t b, std::size_t e) {
-        for(std::size_t i = b; i < e; i++)
+    jobs::parallelFor(8, 1, [&](za::SizeT b, za::SizeT e) {
+        for(za::SizeT i = b; i < e; i++)
         {
             consider(centre.x + offsets[i][0], centre.z + offsets[i][1], second[i]);
         }
@@ -884,18 +895,18 @@ struct ShapeKey
 };
 struct ShapeKeyHash
 {
-    std::size_t operator()(const ShapeKey& k) const
+    za::SizeT operator()(const ShapeKey& k) const
     {
-        return std::hash<const void*>{}(k.model) ^ (static_cast<std::size_t>(k.frame) * 2654435761u);
+        return ankerl::unordered_dense::hash<const void*>{}(k.model) ^ (static_cast<za::SizeT>(k.frame) * 2654435761u);
     }
 };
 struct CachedShape
 {
-    std::string name; // the model's (a slot reused by another model after a game change is built again)
+    za::String name; // the model's (a slot reused by another model after a game change is built again)
     Shape shape;
     bool valid{false};
 };
-std::unordered_map<ShapeKey, CachedShape, ShapeKeyHash> shapes;
+ankerl::unordered_dense::map<ShapeKey, za::UniquePtr<CachedShape>, ShapeKeyHash> shapes; // (pointers into it are kept)
 
 // ----------------------------------------------------------------------------
 // Afresh solves remembered (round 22, profiling). A solve with no solve before and nothing else in the way is a pure
@@ -908,7 +919,7 @@ std::unordered_map<ShapeKey, CachedShape, ShapeKeyHash> shapes;
 struct Remembered
 {
     const Shape* shape{nullptr};
-    std::size_t tris{0};
+    za::SizeT tris{0};
     unsigned rig{0}; // handrig::generation()
     glm::mat4 shapeToRig{1.f};
     Settings settings;
@@ -916,7 +927,7 @@ struct Remembered
     Solution solution;
 };
 constexpr int rememberedCount = 32; // a hand's weapons, grips and fits, both hands (no heap: a fixed table)
-std::array<Remembered, rememberedCount> remembered{};
+za::Array<Remembered, rememberedCount> remembered{};
 int rememberedNext = 0;
 int rememberedUsed = 0;
 
@@ -948,7 +959,7 @@ int rememberedUsed = 0;
 bool buildShape(const entity_t& e, int frame, Shape& out)
 {
     out.tris.clear();
-    out.space = std::make_unique<Shape::Space>();
+    out.space = za::makeUnique<Shape::Space>();
     const qmodel_t* model = e.model;
     if(model->type == mod_brush)
     {
@@ -962,7 +973,7 @@ bool buildShape(const entity_t& e, int frame, Shape& out)
             };
             for(int k = 2; k < surf.numedges; k++)
             {
-                out.tris.push_back({{vertex(0), vertex(k - 1), vertex(k)}});
+                out.tris.pushBack({{vertex(0), vertex(k - 1), vertex(k)}});
             }
         }
     }
@@ -986,7 +997,7 @@ bool buildShape(const entity_t& e, int frame, Shape& out)
                 const trivertx_t& v = verts[mesh[indexes[i + k]].vertindex];
                 t.p[k] = glm::vec3{v.v[0], v.v[1], v.v[2]};
             }
-            out.tris.push_back(t);
+            out.tris.pushBack(t);
         }
         // Raw vertices to the model's own units: its header's scale (per axis) and origin.
         glm::mat4& m = out.space->rawToReal;
@@ -1012,7 +1023,7 @@ bool buildShape(const entity_t& e, int frame, Shape& out)
         r.plane = glm::dot(r.normal, r.a);
         r.lo = glm::min(r.a, glm::min(r.b, r.c));
         r.hi = glm::max(r.a, glm::max(r.b, r.c));
-        out.space->tris.push_back(r);
+        out.space->tris.pushBack(r);
     }
     return !out.tris.empty();
 }
@@ -1027,17 +1038,17 @@ void reset()
 
 void forgetSolves()
 {
-    remembered.fill(Remembered{});
+    qza::fill(remembered, Remembered{});
     rememberedNext = 0;
     rememberedUsed = 0;
 }
 
-void makeShape(const std::vector<Triangle>& tris, Shape& out)
+void makeShape(const za::Vector<Triangle>& tris, Shape& out)
 {
     out.tris = tris;
     if(!out.space)
     {
-        out.space = std::make_unique<Shape::Space>();
+        out.space = za::makeUnique<Shape::Space>();
     }
     Shape::Space& space = *out.space;
     space.tris.clear();
@@ -1054,7 +1065,7 @@ void makeShape(const std::vector<Triangle>& tris, Shape& out)
         r.plane = glm::dot(r.normal, r.a);
         r.lo = glm::min(r.a, glm::min(r.b, r.c));
         r.hi = glm::max(r.a, glm::max(r.b, r.c));
-        space.tris.push_back(r);
+        space.tris.pushBack(r);
     }
 }
 
@@ -1087,7 +1098,7 @@ const Shape* shapeOf(const entity_t& e, int frame)
         return nullptr;
     }
     const int f = e.model->type == mod_alias ? (frame >= 0 ? frame : e.frame) : 0;
-    CachedShape& cached = shapes[ShapeKey{e.model, f}];
+    CachedShape& cached = qza::stableAt<CachedShape>(shapes, ShapeKey{e.model, f});
     if(cached.name != e.model->name)
     {
         if(!cached.name.empty())
@@ -1100,7 +1111,7 @@ const Shape* shapeOf(const entity_t& e, int frame)
     return cached.valid ? &cached.shape : nullptr;
 }
 
-bool worldTriangles(const entity_t& e, bool mirrored, int frame, std::vector<Triangle>& out)
+bool worldTriangles(const entity_t& e, bool mirrored, int frame, za::Vector<Triangle>& out)
 {
     out.clear();
     const Shape* shape = shapeOf(e, frame);
@@ -1111,7 +1122,7 @@ bool worldTriangles(const entity_t& e, bool mirrored, int frame, std::vector<Tri
     const glm::mat4 m = shapeToWorld(e, mirrored);
     for(const Triangle& t : shape->tris)
     {
-        out.push_back({{glm::vec3{m * glm::vec4{t.p[0], 1.f}}, glm::vec3{m * glm::vec4{t.p[1], 1.f}},
+        out.pushBack({{glm::vec3{m * glm::vec4{t.p[0], 1.f}}, glm::vec3{m * glm::vec4{t.p[1], 1.f}},
             glm::vec3{m * glm::vec4{t.p[2], 1.f}}}});
     }
     return !out.empty();
@@ -1125,17 +1136,17 @@ glm::vec3 palmCentre()
 void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shapeToRig, const Settings& settings,
     const Solution* previous, Solution& out, Shape* extra, const glm::mat4& extraToRig, float extraOverlap)
 {
-    const auto t0 = std::chrono::steady_clock::now();
+    const auto t0 = qza::nowNs();
     // Afresh with nothing else in the way: the same inputs as a solve remembered give its result (Remembered).
     const bool memo = !previous && !extra;
     if(memo)
     {
         for(int i = 0; i < rememberedUsed; i++)
         {
-            if(sameInputs(remembered[static_cast<std::size_t>(i)], start, shape, shapeToRig, settings))
+            if(sameInputs(remembered[static_cast<za::SizeT>(i)], start, shape, shapeToRig, settings))
             {
-                out = remembered[static_cast<std::size_t>(i)].solution;
-                out.seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+                out = remembered[static_cast<za::SizeT>(i)].solution;
+                out.seconds = qza::secondsSince(t0);
                 return;
             }
         }
@@ -1153,8 +1164,8 @@ void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shap
     // shape be stretched unevenly: distances are then understated, never overstated).
     const glm::mat4 realToRig = shapeToRig * glm::inverse(space.rawToReal);
     const glm::mat4 rigToReal = glm::inverse(realToRig);
-    const float scale = std::fmin(glm::length(glm::vec3{realToRig[0]}),
-        std::fmin(glm::length(glm::vec3{realToRig[1]}), glm::length(glm::vec3{realToRig[2]})));
+    const float scale = za::fmin(glm::length(glm::vec3{realToRig[0]}),
+        za::fmin(glm::length(glm::vec3{realToRig[1]}), glm::length(glm::vec3{realToRig[2]})));
     if(!(scale > 1e-6f))
     {
         return;
@@ -1174,7 +1185,7 @@ void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shap
         }
         target.extra = extra->space.get();
         target.extraBase = glm::inverse(extraToRig);
-        target.allowance = std::fmax(extraOverlap - settings.overlap, 0.f);
+        target.allowance = za::fmax(extraOverlap - settings.overlap, 0.f);
     }
     target.place(glm::quat{1.f, 0.f, 0.f, 0.f}, glm::vec3{0.f});
 
@@ -1215,11 +1226,11 @@ void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shap
         if(facing)
         {
             const glm::vec3 want = -n;
-            const float angle = std::acos(std::clamp(glm::dot(up, want), -1.f, 1.f));
+            const float angle = za::acos(za::clamp(glm::dot(up, want), -1.f, 1.f));
             if(angle > glm::radians(1.f))
             {
                 const glm::vec3 axis = glm::normalize(glm::cross(up, want));
-                out.palmTurn = glm::angleAxis(std::min(angle, glm::radians(settings.palmTurnLimit)), axis);
+                out.palmTurn = glm::angleAxis(za::min(angle, glm::radians(settings.palmTurnLimit)), axis);
             }
         }
     }
@@ -1241,7 +1252,7 @@ void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shap
                 {
                     break;
                 }
-                y = std::fmin(y + clear, settings.palmLimit);
+                y = za::fmin(y + clear, settings.palmLimit);
             }
             // Nothing met within reach: where it is (the palm doesn't go looking).
             out.palm = y < settings.palmLimit ? up * y : glm::vec3{0.f};
@@ -1280,8 +1291,8 @@ void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shap
     }
     FingerStop thumbs[thumbTurnCount];
     int jobProbes[thumbTurnCount + handrig::FingerCount - 1]{};
-    jobs::parallelFor(static_cast<std::size_t>(count), 1, [&](std::size_t b, std::size_t e) {
-        for(std::size_t j = b; j < e; j++)
+    jobs::parallelFor(static_cast<za::SizeT>(count), 1, [&](za::SizeT b, za::SizeT e) {
+        for(za::SizeT j = b; j < e; j++)
         {
             const int job = work[j];
             if(job < thumbTurnCount)
@@ -1307,25 +1318,25 @@ void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shap
         out.fingerProbes[f] += jobProbes[j];
     }
     out.probes = probes;
-    out.seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+    out.seconds = qza::secondsSince(t0);
     if(memo)
     {
-        Remembered& r = remembered[static_cast<std::size_t>(rememberedNext)];
+        Remembered& r = remembered[static_cast<za::SizeT>(rememberedNext)];
         r.shape = &shape;
         r.tris = shape.tris.size();
         r.rig = handrig::generation();
         r.shapeToRig = shapeToRig;
         r.settings = settings;
-        std::copy(start.shift, start.shift + handrig::FingerCount, r.shift);
+        za::copy(start.shift, start.shift + handrig::FingerCount, r.shift);
         r.solution = out;
         rememberedNext = (rememberedNext + 1) % rememberedCount;
-        rememberedUsed = std::min(rememberedUsed + 1, rememberedCount);
+        rememberedUsed = za::min(rememberedUsed + 1, rememberedCount);
     }
 }
 
 float pathCurl(float curl)
 {
-    const float c = std::fmin(std::fmax(curl, 0.f), 5.f);
+    const float c = za::fmin(za::fmax(curl, 0.f), 5.f);
     return c <= maxCurl ? c : 2.f * maxCurl - c;
 }
 
@@ -1340,10 +1351,10 @@ void curls(const FingerStop& stop, float curl, float engage, float out[handrig::
         }
         return;
     }
-    const float reach = path + std::fmin(std::fmax(engage, 0.f), 1.f) * (maxCurl - path);
+    const float reach = path + za::fmin(za::fmax(engage, 0.f), 1.f) * (maxCurl - path);
     for(int j = 0; j < handrig::jointsPerFinger; j++)
     {
-        out[j] = std::fmin(stop.stop[j], reach);
+        out[j] = za::fmin(stop.stop[j], reach);
     }
 }
 
@@ -1381,7 +1392,7 @@ bool gripChannel(const handrig::Pose& pose, glm::vec3& point, glm::vec3& dir, fl
         bool ok = true;
         for(int b = 1; b <= 3; b++)
         {
-            const std::vector<Sphere>& row = k.bone[f][b];
+            const za::Vector<Sphere>& row = k.bone[f][b];
             if(row.empty())
             {
                 ok = false;
@@ -1436,7 +1447,7 @@ bool gripChannel(const handrig::Pose& pose, glm::vec3& point, glm::vec3& dir, fl
     {
         dir = -dir;
     }
-    radius = std::fmax(radii / static_cast<float>(count), 0.f);
+    radius = za::fmax(radii / static_cast<float>(count), 0.f);
     return true;
 }
 
@@ -1506,7 +1517,7 @@ void fingerPoints(const handrig::Pose& pose, int finger, const float curls[handr
     {
         out[j] = seg[j](handrig::rig().pivot[finger][j]);
     }
-    const std::vector<Sphere>& row = k.bone[finger][handrig::jointsPerFinger];
+    const za::Vector<Sphere>& row = k.bone[finger][handrig::jointsPerFinger];
     out[3] = row.empty() ? out[2] : seg[handrig::jointsPerFinger](row.back().c + glm::normalize(row.back().c - row.front().c) * row.back().r);
 }
 
@@ -1517,12 +1528,12 @@ void fingertips(const handrig::Pose& pose, glm::vec3 out[handrig::FingerCount])
     {
         handrig::Rigid seg[handrig::jointsPerFinger + 1];
         handrig::fingerSegments(pose, f, pose.curl[f], seg);
-        const std::vector<Sphere>& row = k.bone[f][handrig::jointsPerFinger];
+        const za::Vector<Sphere>& row = k.bone[f][handrig::jointsPerFinger];
         out[f] = row.empty() ? seg[handrig::jointsPerFinger].t : seg[handrig::jointsPerFinger](row.back().c);
     }
 }
 
-void posedSpheres(const handrig::Pose& pose, std::vector<glm::vec4>& out)
+void posedSpheres(const handrig::Pose& pose, za::Vector<glm::vec4>& out)
 {
     const Kinematics& k = kinematics();
     out.clear();
@@ -1534,13 +1545,13 @@ void posedSpheres(const handrig::Pose& pose, std::vector<glm::vec4>& out)
         {
             for(const Sphere& s : k.bone[f][b])
             {
-                out.push_back(glm::vec4{seg[b](s.c), s.r});
+                out.pushBack(glm::vec4{seg[b](s.c), s.r});
             }
         }
     }
     for(const Sphere& s : k.palm)
     {
-        out.push_back(glm::vec4{s.c, s.r});
+        out.pushBack(glm::vec4{s.c, s.r});
     }
 }
 

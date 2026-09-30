@@ -11,7 +11,8 @@
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
 
-#include <vector>
+#include "Zancle/Container/Vector.hpp"
+
 
 namespace qvr::coil
 {
@@ -42,7 +43,7 @@ public:
 
     // Its rings for gfx::drawTube, lit, and the sides round them, seen from `eye` (the detail: fewer further away).
     // False: nothing to draw. Once a frame, for both eyes.
-    [[nodiscard]] bool build(const glm::vec3& eye, std::vector<gfx::TubeRing>& out, int& sides) const;
+    [[nodiscard]] bool build(const glm::vec3& eye, za::Vector<gfx::TubeRing>& out, int& sides) const;
 
     [[nodiscard]] const glm::vec3& albedo() const { return style_.albedo; }
 
@@ -55,7 +56,7 @@ private:
     Style style_;
     bool valid_{false};
     double time_{0.0};
-    std::vector<glm::vec3> pos_, vel_;
+    za::Vector<glm::vec3> pos_, vel_;
     glm::vec3 lastA_{0.f}, lastB_{0.f};
     mutable int rings_{0};
 };

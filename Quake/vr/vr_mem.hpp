@@ -30,6 +30,7 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Trait/DeclVal.hpp"
+#include "Zancle/Vocabulary/UniquePtr.hpp"
 
 // TRANSITION (removed when every file is on Zancle): the std containers' overloads.
 #include <array>
@@ -78,6 +79,8 @@ template <class K, class V, class H, class E>
 [[nodiscard]] za::SizeT heldBytes(const ankerl::unordered_dense::map<K, V, H, E>& m);
 template <class K, class H, class E>
 [[nodiscard]] za::SizeT heldBytes(const ankerl::unordered_dense::set<K, H, E>& s);
+template <class T>
+[[nodiscard]] za::SizeT heldBytes(const za::UniquePtr<T>& p);
 // TRANSITION
 [[nodiscard]] inline za::SizeT heldBytes(const std::string& s);
 template <class A, class B>
@@ -198,6 +201,12 @@ template <class T, za::SizeT N>
 za::SizeT heldBytes(const T (&a)[N])
 {
     return heldBytesOfElements(a);
+}
+
+template <class T>
+za::SizeT heldBytes(const za::UniquePtr<T>& p)
+{
+    return p ? sizeof(T) + heldBytes(*p) : 0;
 }
 
 // A dense map: its values' vector and its buckets.

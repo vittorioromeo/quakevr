@@ -16,8 +16,9 @@
 
 #include "vr_engine.hpp"
 
-#include <vector>
 #include "vr_throw.hpp"
+
+#include "Zancle/Container/Vector.hpp"
 
 namespace qvr::held
 {
@@ -96,7 +97,7 @@ bool bothHandsThrow(int hand, double at, bool release, throwing::Estimate& out);
 // Server side: the corners of `ent`'s drawn surface (as surfaceDistance measures it: the alias model's current frame,
 // the brush model's faces), in its axes relative to its origin, three a triangle; false if it has none (the rigid
 // bodies' convex hulls, vr_box3d.cpp).
-[[nodiscard]] bool drawnVertices(edict_t* ent, std::vector<glm::vec3>& out);
+[[nodiscard]] bool drawnVertices(edict_t* ent, za::Vector<glm::vec3>& out);
 
 // Server side: where the point `p` of `ent`'s model (in the model's own space: its bounds', an alias model's vertices
 // as scale * v + scale_origin) is drawn, in its axes relative to its origin (the weapon scaling, the networked scale and
@@ -105,7 +106,7 @@ bool bothHandsThrow(int hand, double at, bool release, throwing::Estimate& out);
 
 // The vertices of alias model `model`'s first pose as the view draws a weapon with it (weapons::ModelTransform), in its
 // entity's axes; `mirrored` (the off hand's): its y negated. False if it has none (a held weapon's hull, vr_box3d.cpp).
-[[nodiscard]] bool modelVertices(const qmodel_t* model, bool mirrored, std::vector<glm::vec3>& out);
+[[nodiscard]] bool modelVertices(const qmodel_t* model, bool mirrored, za::Vector<glm::vec3>& out);
 
 // Grab reach from the fist (ROUND21.md, "Grab reach from the fist; two-handed detach; brushing fingers"): a hand takes
 // hold of a box, backpack, gib, head or armour only if its fist touches the thing's drawn surface: the empty hand
@@ -116,13 +117,13 @@ bool bothHandsThrow(int hand, double at, bool release, throwing::Estimate& out);
 // Client side, every frame (vr_view.cpp): `hand`'s fist (0 off, 1 main) as spheres (xyz the middle, w the radius, world
 // units) in the hand's frame: relative to its place (the move's handpos) along the axes of its angles (handrot,
 // axesFromAngles(..., true): forward, left, up). Empty: not known (no jointed hand model: a dedicated server).
-void setFist(int hand, const std::vector<glm::vec4>& spheres);
+void setFist(int hand, const za::Vector<glm::vec4>& spheres);
 
 // The fist of `hand` (0 off, 1 main) at (`pos`, `angles`) in the world (empty if not known).
-void fistInWorld(int hand, const glm::vec3& pos, const glm::vec3& angles, std::vector<glm::vec4>& out);
+void fistInWorld(int hand, const glm::vec3& pos, const glm::vec3& angles, za::Vector<glm::vec4>& out);
 
 // The fist of `hand` (setFist's: the hand's frame, world units; empty: not known).
-[[nodiscard]] const std::vector<glm::vec4>& fist(int hand);
+[[nodiscard]] const za::Vector<glm::vec4>& fist(int hand);
 
 // What a fist found against a thing's drawn surface: the least gap (units) from a sphere of it to the surface (negative:
 // sunk in), that sphere's middle and the surface's nearest point to it.
@@ -136,7 +137,7 @@ struct FistContact
 // The gap between `spheres` (world) and `ent`'s drawn surface (its model as drawn: the networked scale and offset); a
 // sphere with its middle inside the thing is sunk in (its gap negative). False if it has no surface to measure or
 // nothing is within `reach` units of the fist's bounds (out.gap is then more than reach).
-bool fistContact(edict_t* ent, const std::vector<glm::vec4>& spheres, float reach, FistContact& out);
+bool fistContact(edict_t* ent, const za::Vector<glm::vec4>& spheres, float reach, FistContact& out);
 
 // Whether the world point `p` is within `margin` units of the box `ent`'s model is drawn in (turned with it).
 [[nodiscard]] bool nearDrawn(edict_t* ent, const glm::vec3& p, float margin);
@@ -149,7 +150,7 @@ bool fistContact(edict_t* ent, const std::vector<glm::vec4>& spheres, float reac
 
 // vr_debug_carry: what a hand's touch test found (the server's), and drawn by the view (lines, this frame).
 void noteCarryProbe(int hand, edict_t* ent, const glm::vec3& at, float distance, const glm::vec3& nearest, float reach,
-    const std::vector<glm::vec4>* fist = nullptr, int touching = -1);
+    const za::Vector<glm::vec4>* fist = nullptr, int touching = -1);
 void drawCarryProbes();
 
 // Client side, a new map or a loaded game (VR_OnClientClearState): what the hands held is forgotten (it is taken

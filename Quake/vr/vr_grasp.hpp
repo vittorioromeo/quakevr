@@ -19,8 +19,10 @@
 
 #include "vr_handrig.hpp"
 
-#include <memory>
-#include <vector>
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Vocabulary/UniquePtr.hpp"
+
 
 namespace qvr::grasp
 {
@@ -32,15 +34,15 @@ struct Triangle
 
 // The triangles `e` is drawn with, in world space: an alias model's pose (`frame`, or the entity's if < 0) as the
 // renderer places it (vr_render.cpp's transforms, mirrored or not), a brush model's faces. False if it has none.
-bool worldTriangles(const entity_t& e, bool mirrored, int frame, std::vector<Triangle>& out);
+bool worldTriangles(const entity_t& e, bool mirrored, int frame, za::Vector<Triangle>& out);
 
 // A held thing's shape: its model's triangles in the model's own coordinates (an alias model's raw vertices of one
 // pose, a brush model's), and what the solve queries them with (vr_grasp.cpp): made once per model and pose and kept.
 struct Shape
 {
     struct Space;
-    std::vector<Triangle> tris;
-    std::unique_ptr<Space> space;
+    za::Vector<Triangle> tris;
+    za::UniquePtr<Space> space{nullptr};
 
     Shape();
     ~Shape();
@@ -49,7 +51,7 @@ struct Shape
 };
 
 // The heap memory a shape holds (its triangles and its space: vr_mem.hpp's counts).
-[[nodiscard]] std::size_t heldBytes(const Shape& s);
+[[nodiscard]] za::SizeT heldBytes(const Shape& s);
 
 // Forgets the shapes made (a game directory change reuses their models' slots).
 void reset();
@@ -114,7 +116,7 @@ void solve(const handrig::Pose& pose, const Shape& shape, const glm::mat4& shape
 void forgetSolves();
 
 // A shape of triangles as they are given (their own coordinates: no model), for solve's `extra`.
-void makeShape(const std::vector<Triangle>& tris, Shape& out);
+void makeShape(const za::Vector<Triangle>& tris, Shape& out);
 
 // A finger's joint curls this frame: `curl` the controller's (0..5, vr_view.cpp's), `engage` how much it grips
 // (0..1: drawn to the stops past `curl`).
@@ -151,7 +153,7 @@ void fingerPoints(const handrig::Pose& pose, int finger, const float curls[handr
 void fingertips(const handrig::Pose& pose, glm::vec3 out[handrig::FingerCount]);
 
 // The spheres the hand at `pose` is tested as (rig space; w the radius): the fingers', the palm's.
-void posedSpheres(const handrig::Pose& pose, std::vector<glm::vec4>& out);
+void posedSpheres(const handrig::Pose& pose, za::Vector<glm::vec4>& out);
 
 // vr_grasp_spheres: prints the spheres the fingers and palm are tested as.
 void spheres_f();

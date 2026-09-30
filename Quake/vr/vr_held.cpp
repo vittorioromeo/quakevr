@@ -22,12 +22,16 @@
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
 
-#include <algorithm>
-#include <cmath>
-#include <limits>
-#include <string>
-#include <utility>
-#include <vector>
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Acos.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/FloatMax.hpp"
+#include "Zancle/Math/Fmax.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/String/String.hpp"
+#include "vr_zancle.hpp"
+
 
 using namespace qvr;
 
@@ -89,7 +93,7 @@ struct Triangle
 
 // The surface of the model `ent` is drawn with, as triangles in its axes relative to its origin: an
 // alias model's current frame (its first pose), a brush model's faces. False if it has none to give.
-bool drawnTriangles(edict_t* ent, const qmodel_t* model, std::vector<Triangle>& out)
+bool drawnTriangles(edict_t* ent, const qmodel_t* model, za::Vector<Triangle>& out)
 {
     using namespace progs;
     const FieldOffsets& f = fields();
@@ -108,7 +112,7 @@ bool drawnTriangles(edict_t* ent, const qmodel_t* model, std::vector<Triangle>& 
             };
             for(int k = 2; k < surf.numedges; k++)
             {
-                out.push_back({{vertex(0), vertex(k - 1), vertex(k)}});
+                out.pushBack({{vertex(0), vertex(k - 1), vertex(k)}});
             }
         }
         return !out.empty();
@@ -135,7 +139,7 @@ bool drawnTriangles(edict_t* ent, const qmodel_t* model, std::vector<Triangle>& 
     };
     for(int i = 0; i + 2 < hdr->numindexes; i += 3)
     {
-        out.push_back({{vertex(i), vertex(i + 1), vertex(i + 2)}});
+        out.pushBack({{vertex(i), vertex(i + 1), vertex(i + 2)}});
     }
     return !out.empty();
 }
@@ -203,15 +207,15 @@ float modelGap(const qmodel_t* model)
 // own: drawnVertices runs inside others' tests (a hull being made).
 struct HeldScratch
 {
-    std::vector<Triangle> verticesTris;   // drawnVertices
-    std::vector<Triangle> distanceTris;   // surfaceDistance
-    std::vector<Triangle> fistTris;       // fistContact: the thing's triangles
-    std::vector<glm::vec4> fistLocal;     // the fist's spheres in the thing's axes
-    std::vector<float> nearest;           // each sphere's nearest distance
-    std::vector<glm::vec3> nearestAt;     // and point
-    std::vector<char> inside;             // and whether its middle is inside
-    std::vector<glm::vec4> grabSpheres;   // grabTouch: the fist's spheres in the world
-    std::vector<Triangle> fitTris;        // surfaceFit
+    za::Vector<Triangle> verticesTris;   // drawnVertices
+    za::Vector<Triangle> distanceTris;   // surfaceDistance
+    za::Vector<Triangle> fistTris;       // fistContact: the thing's triangles
+    za::Vector<glm::vec4> fistLocal;     // the fist's spheres in the thing's axes
+    za::Vector<float> nearest;           // each sphere's nearest distance
+    za::Vector<glm::vec3> nearestAt;     // and point
+    za::Vector<char> inside;             // and whether its middle is inside
+    za::Vector<glm::vec4> grabSpheres;   // grabTouch: the fist's spheres in the world
+    za::Vector<Triangle> fitTris;        // surfaceFit
     auto members()
     {
         return qvr::mem::list(verticesTris, distanceTris, fistTris, fistLocal, nearest, nearestAt, inside, grabSpheres, fitTris);
@@ -289,7 +293,7 @@ glm::vec3 drawnCentre(int num)
     return origin + axesFromAngles(e.angles, brush) * ((lo + hi) * 0.5f);
 }
 
-bool modelVertices(const qmodel_t* model, bool mirrored, std::vector<glm::vec3>& out)
+bool modelVertices(const qmodel_t* model, bool mirrored, za::Vector<glm::vec3>& out)
 {
     out.clear();
     if(!model || model->type != mod_alias)
@@ -312,7 +316,7 @@ bool modelVertices(const qmodel_t* model, bool mirrored, std::vector<glm::vec3>&
         {
             p.y = -p.y;
         }
-        out.push_back(p);
+        out.pushBack(p);
     }
     return true;
 }
@@ -331,12 +335,12 @@ glm::vec3 drawnModelPoint(edict_t* ent, const glm::vec3& p)
     return xf.modelPoint(p);
 }
 
-bool drawnVertices(edict_t* ent, std::vector<glm::vec3>& out)
+bool drawnVertices(edict_t* ent, za::Vector<glm::vec3>& out)
 {
     out.clear();
     const int index = static_cast<int>(ent->v.modelindex);
     const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
-    std::vector<Triangle>& triangles = scratch.verticesTris;
+    za::Vector<Triangle>& triangles = scratch.verticesTris;
     if(!model || !drawnTriangles(ent, model, triangles))
     {
         return false;
@@ -344,7 +348,7 @@ bool drawnVertices(edict_t* ent, std::vector<glm::vec3>& out)
     out.reserve(triangles.size() * 3);
     for(const Triangle& t : triangles)
     {
-        out.insert(out.end(), t.p, t.p + 3);
+        out.emplaceBackRange(t.p, 3);
     }
     return true;
 }
@@ -394,7 +398,7 @@ namespace
 }
 
 // `ent`'s drawn triangles in its axes relative to its origin, and those axes and origin.
-bool entityTriangles(edict_t* ent, std::vector<Triangle>& out, glm::mat3& axes, glm::vec3& origin)
+bool entityTriangles(edict_t* ent, za::Vector<Triangle>& out, glm::mat3& axes, glm::vec3& origin)
 {
     const int index = static_cast<int>(ent->v.modelindex);
     const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
@@ -438,21 +442,21 @@ bool nearDrawnBox(edict_t* ent, const glm::vec3& p, float margin)
 }
 
 // The fists in their hands' frames (setFist).
-std::vector<glm::vec4> fists[2];
+za::Vector<glm::vec4> fists[2];
 
 // A sphere round all of `spheres`: its middle, and its radius.
-float bounds(const std::vector<glm::vec4>& spheres, glm::vec3& centre)
+float bounds(const za::Vector<glm::vec4>& spheres, glm::vec3& centre)
 {
     centre = glm::vec3{0.f};
     for(const glm::vec4& s : spheres)
     {
         centre += glm::vec3{s};
     }
-    centre /= static_cast<float>(std::max<size_t>(spheres.size(), 1));
+    centre /= static_cast<float>(za::max<size_t>(spheres.size(), 1));
     float bound = 0.f;
     for(const glm::vec4& s : spheres)
     {
-        bound = std::fmax(bound, glm::distance(glm::vec3{s}, centre) + s.w);
+        bound = za::fmax(bound, glm::distance(glm::vec3{s}, centre) + s.w);
     }
     return bound;
 }
@@ -466,7 +470,7 @@ bool nearDrawn(edict_t* ent, const glm::vec3& p, float margin)
 
 float surfaceDistance(edict_t* ent, const glm::vec3& point, glm::vec3* nearest)
 {
-    std::vector<Triangle>& triangles = scratch.distanceTris;
+    za::Vector<Triangle>& triangles = scratch.distanceTris;
     glm::mat3 axes;
     glm::vec3 origin;
     if(!entityTriangles(ent, triangles, axes, origin))
@@ -474,7 +478,7 @@ float surfaceDistance(edict_t* ent, const glm::vec3& point, glm::vec3* nearest)
         return -1.f;
     }
     const glm::vec3 p = glm::transpose(axes) * (point - origin);
-    float best = std::numeric_limits<float>::max();
+    float best = ZA_FLOAT_MAX;
     glm::vec3 at{0.f};
     for(const Triangle& t : triangles)
     {
@@ -493,7 +497,7 @@ float surfaceDistance(edict_t* ent, const glm::vec3& point, glm::vec3* nearest)
     return best;
 }
 
-void setFist(int hand, const std::vector<glm::vec4>& spheres)
+void setFist(int hand, const za::Vector<glm::vec4>& spheres)
 {
     if(hand >= 0 && hand < 2)
     {
@@ -501,13 +505,13 @@ void setFist(int hand, const std::vector<glm::vec4>& spheres)
     }
 }
 
-const std::vector<glm::vec4>& fist(int hand)
+const za::Vector<glm::vec4>& fist(int hand)
 {
-    static const std::vector<glm::vec4> none;
+    static const za::Vector<glm::vec4> none;
     return hand == 0 || hand == 1 ? fists[hand] : none;
 }
 
-void fistInWorld(int hand, const glm::vec3& pos, const glm::vec3& angles, std::vector<glm::vec4>& out)
+void fistInWorld(int hand, const glm::vec3& pos, const glm::vec3& angles, za::Vector<glm::vec4>& out)
 {
     out.clear();
     if(hand < 0 || hand > 1)
@@ -517,15 +521,15 @@ void fistInWorld(int hand, const glm::vec3& pos, const glm::vec3& angles, std::v
     const glm::mat3 axes = axesFromAngles(&angles[0], true);
     for(const glm::vec4& s : fists[hand])
     {
-        out.push_back(glm::vec4{pos + axes * glm::vec3{s}, s.w});
+        out.pushBack(glm::vec4{pos + axes * glm::vec3{s}, s.w});
     }
 }
 
-bool fistContact(edict_t* ent, const std::vector<glm::vec4>& spheres, float reach, FistContact& out)
+bool fistContact(edict_t* ent, const za::Vector<glm::vec4>& spheres, float reach, FistContact& out)
 {
     out = FistContact{};
-    out.gap = std::numeric_limits<float>::max();
-    std::vector<Triangle>& triangles = scratch.fistTris;
+    out.gap = ZA_FLOAT_MAX;
+    za::Vector<Triangle>& triangles = scratch.fistTris;
     glm::mat3 axes;
     glm::vec3 origin;
     if(spheres.empty() || !entityTriangles(ent, triangles, axes, origin))
@@ -534,11 +538,11 @@ bool fistContact(edict_t* ent, const std::vector<glm::vec4>& spheres, float reac
     }
 
     // The fist in the thing's axes, and a sphere round all of it.
-    std::vector<glm::vec4>& local = scratch.fistLocal;
+    za::Vector<glm::vec4>& local = scratch.fistLocal;
     local.clear();
     for(const glm::vec4& s : spheres)
     {
-        local.push_back(glm::vec4{glm::transpose(axes) * (glm::vec3{s} - origin), s.w});
+        local.pushBack(glm::vec4{glm::transpose(axes) * (glm::vec3{s} - origin), s.w});
     }
     glm::vec3 centre;
     const float bound = bounds(local, centre);
@@ -546,12 +550,15 @@ bool fistContact(edict_t* ent, const std::vector<glm::vec4>& spheres, float reac
     // Each sphere against the triangles near the fist (within twice its bounds and the reach: every triangle a sphere
     // near the surface is nearest to, and the nearest to any sphere sunk in). A sphere's middle is inside when its
     // nearest triangle faces away from it.
-    std::vector<float>& nearest = scratch.nearest;
-    std::vector<glm::vec3>& nearestAt = scratch.nearestAt;
-    std::vector<char>& inside = scratch.inside;
-    nearest.assign(local.size(), std::numeric_limits<float>::max());
-    nearestAt.assign(local.size(), glm::vec3{0.f});
-    inside.assign(local.size(), 0);
+    za::Vector<float>& nearest = scratch.nearest;
+    za::Vector<glm::vec3>& nearestAt = scratch.nearestAt;
+    za::Vector<char>& inside = scratch.inside;
+    nearest.clear();
+    nearest.resize(local.size(), ZA_FLOAT_MAX);
+    nearestAt.clear();
+    nearestAt.resize(local.size(), glm::vec3{0.f});
+    inside.clear();
+    inside.resize(local.size(), 0);
     // Which way the triangles are wound (a brush model's faces one way, an alias model's the other): the sign of the
     // volume they enclose.
     float volume = 0.f;
@@ -560,13 +567,13 @@ bool fistContact(edict_t* ent, const std::vector<glm::vec4>& spheres, float reac
         volume += glm::dot(t.p[0], glm::cross(t.p[1], t.p[2]));
     }
     const float outwards = volume < 0.f ? -1.f : 1.f;
-    const float keep = 2.f * bound + std::fmax(reach, 0.f);
+    const float keep = 2.f * bound + za::fmax(reach, 0.f);
     bool any = false;
     for(const Triangle& t : triangles)
     {
         const glm::vec3 mid = (t.p[0] + t.p[1] + t.p[2]) / 3.f;
         const float size =
-            std::fmax(glm::distance(mid, t.p[0]), std::fmax(glm::distance(mid, t.p[1]), glm::distance(mid, t.p[2])));
+            za::fmax(glm::distance(mid, t.p[0]), za::fmax(glm::distance(mid, t.p[1]), glm::distance(mid, t.p[2])));
         if(glm::distance(mid, centre) - size > keep)
         {
             continue;
@@ -592,7 +599,7 @@ bool fistContact(edict_t* ent, const std::vector<glm::vec4>& spheres, float reac
     }
     for(size_t i = 0; i < local.size(); i++)
     {
-        if(nearest[i] == std::numeric_limits<float>::max())
+        if(nearest[i] == ZA_FLOAT_MAX)
         {
             continue;
         }
@@ -641,7 +648,7 @@ bool grabTouch(edict_t* ent, edict_t* player, int hand, float slack)
         return distance < 0.f || distance <= legacyReach * m2u;
     }
 
-    std::vector<glm::vec4>& spheres = scratch.grabSpheres;
+    za::Vector<glm::vec4>& spheres = scratch.grabSpheres;
     fistInWorld(hand, pos, angles, spheres);
     const float allowed = vr_carry_grab_bias.value * 0.01f * m2u + slack;
     // Nothing of it near (the fist's bounds farther than it may be from the box the thing is drawn in: not its entity
@@ -649,7 +656,7 @@ bool grabTouch(edict_t* ent, edict_t* player, int hand, float slack)
     // triangles to test.
     glm::vec3 centre;
     const float bound = bounds(spheres, centre);
-    if(!nearDrawnBox(ent, centre, bound + std::fmax(allowed, 0.f)))
+    if(!nearDrawnBox(ent, centre, bound + za::fmax(allowed, 0.f)))
     {
         if(vr_debug_carry.value >= 3.f)
         {
@@ -659,7 +666,7 @@ bool grabTouch(edict_t* ent, edict_t* player, int hand, float slack)
         return false;
     }
     FistContact c;
-    const bool found = fistContact(ent, spheres, std::fmax(allowed, 0.f) + 1.f, c);
+    const bool found = fistContact(ent, spheres, za::fmax(allowed, 0.f) + 1.f, c);
     const bool touches = found && c.gap <= allowed;
     if(debug)
     {
@@ -685,7 +692,7 @@ struct CarryProbe
     glm::vec3 corners[8]{};
     glm::vec3 at{0.f}, nearest{0.f};
     float distance{0.f}, reach{0.f};
-    std::vector<glm::vec4> fist; // the fist tested (world), if it was
+    za::Vector<glm::vec4> fist; // the fist tested (world), if it was
     int touching{-1};            // its sphere that touches
 };
 CarryProbe carryProbes[2];
@@ -693,7 +700,7 @@ CarryProbe carryProbes[2];
 } // namespace
 
 void noteCarryProbe(int hand, edict_t* ent, const glm::vec3& at, float distance, const glm::vec3& nearest, float reach,
-    const std::vector<glm::vec4>* fist, int touching)
+    const za::Vector<glm::vec4>* fist, int touching)
 {
     if((!vr_debug_carry.value && !vr_debug_physics_shapes.value) || hand < 0 || hand > 1)
     {
@@ -763,7 +770,7 @@ void drawCarryProbes()
             lines::line(p.at, p.nearest, 0.2f, colour, colour);
             lines::point(p.nearest, 0.8f, colour);
         }
-        lines::point(p.at, 2.f * std::fmax(p.reach, 0.5f), glm::vec4{colour.r, colour.g, colour.b, 0.2f});
+        lines::point(p.at, 2.f * za::fmax(p.reach, 0.5f), glm::vec4{colour.r, colour.g, colour.b, 0.2f});
     }
 }
 
@@ -791,7 +798,7 @@ glm::vec3 surfaceFit(edict_t* ent, const glm::vec3& hand, const glm::vec3& palm)
         for(int i = 1; i <= svs.maxclients && glm::length(forward) == 0.f; i++)
         {
             edict_t* player = EDICT_NUM(i);
-            for(const auto& [pos, rot] : {std::pair{f.handpos, f.handrot}, std::pair{f.offhandpos, f.offhandrot}})
+            for(const auto& [pos, rot] : {qza::Pair{f.handpos, f.handrot}, qza::Pair{f.offhandpos, f.offhandrot}})
             {
                 if(pos >= 0 && rot >= 0 && fieldVec(player, pos) == hand)
                 {
@@ -804,15 +811,15 @@ glm::vec3 surfaceFit(edict_t* ent, const glm::vec3& hand, const glm::vec3& palm)
             }
         }
     }
-    if(glm::length(forward) == 0.f || std::fabs(glm::dot(forward, p)) > 0.1f) // not found: any upright pair across the palm
+    if(glm::length(forward) == 0.f || za::fabs(glm::dot(forward, p)) > 0.1f) // not found: any upright pair across the palm
     {
-        up = std::fabs(p.z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{1.f, 0.f, 0.f};
+        up = za::fabs(p.z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{1.f, 0.f, 0.f};
         forward = glm::normalize(glm::cross(p, up));
         up = glm::cross(forward, p);
     }
 
     // What it looks like: its drawn surface, or else its box.
-    std::vector<Triangle>& triangles = scratch.fitTris;
+    za::Vector<Triangle>& triangles = scratch.fitTris;
     if(!drawnTriangles(ent, model, triangles))
     {
         glm::vec3 lo{ent->v.mins[0], ent->v.mins[1], ent->v.mins[2]};
@@ -827,8 +834,8 @@ glm::vec3 surfaceFit(edict_t* ent, const glm::vec3& hand, const glm::vec3& palm)
         constexpr int faces[6][4] = {{0, 2, 6, 4}, {1, 5, 7, 3}, {0, 4, 5, 1}, {2, 3, 7, 6}, {0, 1, 3, 2}, {4, 6, 7, 5}};
         for(const auto& q : faces)
         {
-            triangles.push_back({{corner(q[0]), corner(q[1]), corner(q[2])}});
-            triangles.push_back({{corner(q[0]), corner(q[2]), corner(q[3])}});
+            triangles.pushBack({{corner(q[0]), corner(q[1]), corner(q[2])}});
+            triangles.pushBack({{corner(q[0]), corner(q[2]), corner(q[3])}});
         }
     }
 
@@ -852,7 +859,7 @@ glm::vec3 surfaceFit(edict_t* ent, const glm::vec3& hand, const glm::vec3& palm)
     const float m2u = units::metresToUnits();
     const float cm = 0.01f * units::perMetre * 1.25f * weapons::offsetScale(); // the hand's cm (as measured), in units
     const float gap = (vr_held_fit_gap.value + modelGap(model)) * 0.01f * m2u;
-    float move = -std::numeric_limits<float>::max();
+    float move = -ZA_FLOAT_MAX;
     for(int row = 0; row < fistRows; row++)
     {
         for(int column = 0; column < fistColumns; column++)
@@ -864,13 +871,13 @@ glm::vec3 surfaceFit(edict_t* ent, const glm::vec3& hand, const glm::vec3& palm)
             }
             const float x = (static_cast<float>(fistForward0 + column) + 0.5f) * cm;
             const float z = (static_cast<float>(fistUp0 - row) + 0.5f) * cm;
-            float nearest = std::numeric_limits<float>::max();
+            float nearest = ZA_FLOAT_MAX;
             for(const Triangle& t : triangles)
             {
                 // Where the line (x, z) crosses it: barycentric in the forward-up plane.
                 const glm::vec2 a{t.p[0].x, t.p[0].z}, b{t.p[1].x, t.p[1].z}, c{t.p[2].x, t.p[2].z};
                 const float det = (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
-                if(std::fabs(det) < 1e-6f)
+                if(za::fabs(det) < 1e-6f)
                 {
                     continue;
                 }
@@ -880,15 +887,15 @@ glm::vec3 surfaceFit(edict_t* ent, const glm::vec3& hand, const glm::vec3& palm)
                 {
                     continue;
                 }
-                nearest = std::min(nearest, t.p[0].y + u * (t.p[1].y - t.p[0].y) + v * (t.p[2].y - t.p[0].y));
+                nearest = za::min(nearest, t.p[0].y + u * (t.p[1].y - t.p[0].y) + v * (t.p[2].y - t.p[0].y));
             }
-            if(nearest != std::numeric_limits<float>::max())
+            if(nearest != ZA_FLOAT_MAX)
             {
-                move = std::max(move, surface * cm + gap - nearest);
+                move = za::max(move, surface * cm + gap - nearest);
             }
         }
     }
-    if(move == -std::numeric_limits<float>::max())
+    if(move == -ZA_FLOAT_MAX)
     {
         return glm::vec3{0.f}; // nothing of it over the fist: beside it
     }
@@ -1020,7 +1027,7 @@ struct WeaponBox
 {
     const qmodel_t* model{nullptr};
     bool mirrored{false};
-    std::string name;
+    za::String name;
     bool valid{false};
     glm::vec3 lo{0.f}, hi{0.f};
 };
@@ -1043,7 +1050,7 @@ struct Box
 [[nodiscard]] float overlap(const Box& a, const Box& b, glm::vec3& normal)
 {
     const glm::vec3 d = b.centre - a.centre;
-    float least = std::numeric_limits<float>::max();
+    float least = ZA_FLOAT_MAX;
     const auto test = [&](glm::vec3 axis) {
         const float len = glm::length(axis);
         if(len < 1e-4f)
@@ -1054,11 +1061,11 @@ struct Box
         float ra = 0.f, rb = 0.f;
         for(int i = 0; i < 3; i++)
         {
-            ra += a.half[i] * std::fabs(glm::dot(a.axes[i], axis));
-            rb += b.half[i] * std::fabs(glm::dot(b.axes[i], axis));
+            ra += a.half[i] * za::fabs(glm::dot(a.axes[i], axis));
+            rb += b.half[i] * za::fabs(glm::dot(b.axes[i], axis));
         }
         const float along = glm::dot(d, axis);
-        const float depth = ra + rb - std::fabs(along);
+        const float depth = ra + rb - za::fabs(along);
         if(depth <= 0.f)
         {
             return false;
@@ -1087,7 +1094,7 @@ struct Box
             }
         }
     }
-    return least == std::numeric_limits<float>::max() ? 0.f : least;
+    return least == ZA_FLOAT_MAX ? 0.f : least;
 }
 
 [[nodiscard]] bool valid(int ent, const qmodel_t* model)
@@ -1175,7 +1182,7 @@ void reset()
         wb.model = d.model;
         wb.mirrored = d.mirrored;
         wb.name = d.model->name;
-        std::vector<glm::vec3> vertices;
+        za::Vector<glm::vec3> vertices;
         wb.valid = held::modelVertices(d.model, d.mirrored, vertices) && !vertices.empty();
         wb.lo = glm::vec3{1e9f};
         wb.hi = glm::vec3{-1e9f};
@@ -1337,7 +1344,7 @@ void holdFrame(int h, const hands::State& s, int bothEnt)
 // After both hands' holdFrame: props held one in each hand kept apart, or a prop and the other hand's weapon (Meet).
 void meetFrame(const hands::State& s)
 {
-    const double dt = meet.last < 0.0 ? 0.0 : std::clamp(cl.time - meet.last, 0.0, 0.1);
+    const double dt = meet.last < 0.0 ? 0.0 : za::clamp(cl.time - meet.last, 0.0, 0.1);
     meet.last = cl.time;
     glm::vec3 want[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     float depth = 0.f;
@@ -1362,8 +1369,8 @@ void meetFrame(const hands::State& s)
         depth = overlap(boxA, boxB, n);
         if(depth > 0.f)
         {
-            const float most = std::max(vr_held_collide_max.value, 0.f) * units::metresToUnits() / 100.f;
-            const float each = std::min(depth * 0.5f, most);
+            const float most = za::max(vr_held_collide_max.value, 0.f) * units::metresToUnits() / 100.f;
+            const float each = za::min(depth * 0.5f, most);
             want[0] = -n * each;
             want[1] = n * each;
         }
@@ -1387,7 +1394,7 @@ void meetFrame(const hands::State& s)
     }
     meet.touching = touching;
 
-    const float w = dt > 0.0 ? static_cast<float>(std::min(1.0, dt / meetEaseTime)) : 1.f;
+    const float w = dt > 0.0 ? static_cast<float>(za::min(1.0, dt / meetEaseTime)) : 1.f;
     for(int h = 0; h < 2; h++)
     {
         Held& hd = holding[h];
@@ -1422,7 +1429,7 @@ void meetFrame(const hands::State& s)
 void wallFrame(const hands::State& s)
 {
     const float m2u = units::metresToUnits();
-    const float most = std::max(vr_held_collide_wall_max.value, 0.f) * m2u / 100.f;
+    const float most = za::max(vr_held_collide_wall_max.value, 0.f) * m2u / 100.f;
     constexpr float margin = 0.25f; // units off the wall
     for(int h = 0; h < 2; h++)
     {
@@ -1470,7 +1477,7 @@ void wallFrame(const hands::State& s)
                     {
                         continue;
                     }
-                    deepest = std::max(deepest, depth);
+                    deepest = za::max(deepest, depth);
                     planes[count++] = Plane{wallN, depth + margin + glm::dot(p, wallN)};
                     found = true;
                 }
@@ -1487,7 +1494,7 @@ void wallFrame(const hands::State& s)
                         if(short_ > 0.f)
                         {
                             p += planes[i].n * short_;
-                            worst = std::max(worst, short_);
+                            worst = za::max(worst, short_);
                         }
                     }
                     if(worst < 0.01f)
@@ -1511,7 +1518,7 @@ void wallFrame(const hands::State& s)
         }
         else
         {
-            const float w = static_cast<float>(std::min(1.0, std::max(cl.time - wallLast[h], 0.0) / meetEaseTime));
+            const float w = static_cast<float>(za::min(1.0, za::max(cl.time - wallLast[h], 0.0) / meetEaseTime));
             wall += (want - wall) * w;
         }
         wallLast[h] = cl.time;
@@ -1542,7 +1549,7 @@ void wallFrame(const hands::State& s)
                         at + glm::vec3{0.f, 0.f, 32.f}, at - glm::vec3{0.f, 0.f, 64.f}, true, true, holding[0].ent, holding[1].ent);
                     if(!tr.allsolid && tr.fraction < 1.f)
                     {
-                        lowest = std::min(lowest, at.z - tr.endpos[2]);
+                        lowest = za::min(lowest, at.z - tr.endpos[2]);
                     }
                 }
             }
@@ -1665,7 +1672,7 @@ void bothFrame(const hands::State& s, int ent)
     // Each hand on its grip, never further than vr_carry_two_hands_drift from its controller (pulled further apart,
     // it leaves the grip), nor turned more than mostHandTurn off it.
     const float m2u = units::metresToUnits();
-    const float drift = std::fmax(vr_carry_two_hands_drift.value, 0.f) * 0.01f * m2u;
+    const float drift = za::fmax(vr_carry_two_hands_drift.value, 0.f) * 0.01f * m2u;
     for(int h = 0; h < 2; h++)
     {
         const carry2h::Frame grip = carry2h::onGrip(both.hold, both.object, h);
@@ -1757,9 +1764,9 @@ void trace(const hands::State& s)
     }
     const entity_t& e = cl_entities[ent];
     const auto pose = [](const glm::vec3& p, const glm::quat& q) {
-        return std::string{va(" %.4f %.4f %.4f %.7f %.7f %.7f %.7f", p.x, p.y, p.z, q.w, q.x, q.y, q.z)};
+        return za::String{va(" %.4f %.4f %.4f %.7f %.7f %.7f %.7f", p.x, p.y, p.z, q.w, q.x, q.y, q.z)};
     };
-    std::string line = va("%.4f %d %d", cl.time, mode, ent);
+    za::String line = va("%.4f %d %d", cl.time, mode, ent);
     line += pose(glm::vec3{e.origin[0], e.origin[1], e.origin[2]}, carry2h::fromAngles(e.angles, e.model->type == mod_brush));
     for(int h = 1; h >= 0; h--)
     {
@@ -1769,7 +1776,7 @@ void trace(const hands::State& s)
         line += pose(pos, carry2h::fromAngles(&angles[0], true));
     }
     line += "\n";
-    fputs(line.c_str(), file);
+    fputs(line.cStr(), file);
     fflush(file);
 }
 
@@ -1900,7 +1907,7 @@ bool bothHandsThrow(int hand, double at, bool release, throwing::Estimate& out)
     const int ent = carried[hand];
     const bool inBoth = ent && carried[1 - hand] == ent;
     const BothRelease& other = bothRelease[1 - hand];
-    const double window = std::fmax(vr_carry_two_hands_window.value, 0.f);
+    const double window = za::fmax(vr_carry_two_hands_window.value, 0.f);
     const bool afterOther = release && ent && other.ent == ent && at - other.at >= -0.02 && at - other.at <= window;
     if(!inBoth && !afterOther)
     {
@@ -1966,7 +1973,7 @@ void carryCheck()
     const float m2u = units::metresToUnits();
     const auto turnBetween = [](const glm::mat3& a, const glm::mat3& b) {
         const float c = (glm::dot(a[0], b[0]) + glm::dot(a[1], b[1]) + glm::dot(a[2], b[2]) - 1.f) * 0.5f;
-        return glm::degrees(std::acos(glm::clamp(c, -1.f, 1.f)));
+        return glm::degrees(za::acos(glm::clamp(c, -1.f, 1.f)));
     };
     float worstApart = 0.f, worstTurn = 0.f, worstGap = -999.f, worstWorld = 0.f;
     int count = 0;
@@ -2025,7 +2032,7 @@ void carryCheck()
         // The drawn fist against the drawn prop: moved with it onto the physical one, measured there.
         glm::vec3 pos = s.pos[h], angles = s.rot[h];
         drawnHand(h, pos, angles);
-        std::vector<glm::vec4> spheres;
+        za::Vector<glm::vec4> spheres;
         fistInWorld(h, pos, angles, spheres);
         const glm::mat3 toPhys = physRot * glm::transpose(drawnRot);
         for(glm::vec4& sp : spheres)
@@ -2042,10 +2049,10 @@ void carryCheck()
                    "%.2f cm, physical %.2f cm; in the world %.2f cm apart (the controller %.2f cm off the server's hand)\n",
             h == 1 ? "main" : "off", ent, e.model->name, both.ent == ent ? ", both hands" : "", apart, turn, gap,
             havePhys ? physGap.gap / m2u * 100.f : 999.f, world, glm::distance(s.pos[h], svHandPos) / m2u * 100.f);
-        worstApart = std::fmax(worstApart, apart);
-        worstTurn = std::fmax(worstTurn, turn);
-        worstGap = std::fmax(worstGap, gap);
-        worstWorld = std::fmax(worstWorld, world);
+        worstApart = za::fmax(worstApart, apart);
+        worstTurn = za::fmax(worstTurn, turn);
+        worstGap = za::fmax(worstGap, gap);
+        worstWorld = za::fmax(worstWorld, world);
         count++;
     }
     Con_Printf("carry check: %d held; worst in the hand %.2f cm %.1f deg off the physical, fist gap %.2f cm, world %.2f cm\n",
@@ -2069,7 +2076,7 @@ extern "C" void VR_RelinkHeld(void)
     const hands::State& s = hands::current();
     const bool playerPlaced = cls.signon == SIGNONS && cl.viewentity > 0 && cl.viewentity < cl.num_entities &&
                               cl_entities[cl.viewentity].msgtime > 0.0;
-    playerFrames = playerPlaced ? std::min(playerFrames + 1, handsInWorld) : 0;
+    playerFrames = playerPlaced ? za::min(playerFrames + 1, handsInWorld) : 0;
     carried[0] = cl.stats[protocol::STAT_QVR_CARRYOFF];
     carried[1] = cl.stats[protocol::STAT_QVR_CARRYMAIN];
     const int bothEnt = carried[1] && carried[1] == carried[0] ? carried[1] : 0;

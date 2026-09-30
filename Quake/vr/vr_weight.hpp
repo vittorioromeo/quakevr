@@ -23,7 +23,8 @@
 
 #include "vr_hands.hpp"
 
-#include <cstdint>
+#include "Zancle/Base/IntTypes.hpp"
+
 
 namespace qvr::weight
 {
@@ -94,7 +95,7 @@ void reset();
 // stick and walking don't count). The move's bits (QC .handdrop, VR_HANDDROP_*: 1 the off hand, 2 the main hand), each
 // for a moment after it; the server drops the weapon. Also 4 (the off hand) and 8 (the main hand): the spring put what it
 // holds back in the hand at once, a moment ago (QC VR_HANDJUMP_*: the melee takes it for a jump, not a swing).
-[[nodiscard]] std::uint8_t dropBits();
+[[nodiscard]] za::U8 dropBits();
 // The limit of a weapon of `mass` kg held `twoHanded` (0..1): degrees a second (0: it never falls). The menu's readout.
 [[nodiscard]] float dropLimit(float mass, float twoHanded);
 

@@ -6,9 +6,16 @@
 #include "vr_physics.hpp"
 #include "vr_props.hpp"
 
-#include <algorithm>
-#include <cmath>
-#include <unordered_map>
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/Swap.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Math/Acos.hpp"
+#include "Zancle/Math/Atan2.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/Lround.hpp"
+#include "Zancle/Math/MinMax.hpp"
+
 
 using namespace qvr;
 
@@ -55,7 +62,7 @@ Settings settingsOf(int slot, bool left)
 {
     using props::Key;
     Settings s;
-    const int mode = static_cast<int>(std::lround(props::value(slot, Key::GripMode)));
+    const int mode = static_cast<int>(za::lround(props::value(slot, Key::GripMode)));
     s.mode = mode >= 0 && mode <= 3 ? static_cast<Mode>(mode) : Mode::WhereTaken;
     s.move = {props::value(slot, Key::GripX), props::value(slot, Key::GripY), props::value(slot, Key::GripZ)};
     if(s.mode == Mode::Fixed)
@@ -73,14 +80,14 @@ Settings settingsOf(int slot, bool left)
     s.tip = {props::scaledValue(slot, Key::TipX), props::scaledValue(slot, Key::TipY), props::scaledValue(slot, Key::TipZ)};
     s.handleFrom = props::scaledValue(slot, Key::HandleFrom);
     s.handleTo = props::scaledValue(slot, Key::HandleTo);
-    s.handleTilt = std::clamp(props::value(slot, Key::HandleTilt), 0.f, 90.f);
+    s.handleTilt = za::clamp(props::value(slot, Key::HandleTilt), 0.f, 90.f);
     return s;
 }
 
 // The least turn taking the unit vector `a` to the unit vector `b` (a half turn about any axis across them if opposite).
 glm::mat3 turnBetween(const glm::vec3& a, const glm::vec3& b)
 {
-    const float c = std::clamp(glm::dot(a, b), -1.f, 1.f);
+    const float c = za::clamp(glm::dot(a, b), -1.f, 1.f);
     glm::vec3 axis = glm::cross(a, b);
     const float s = glm::length(axis);
     if(s < 1e-6f)
@@ -89,9 +96,9 @@ glm::mat3 turnBetween(const glm::vec3& a, const glm::vec3& b)
         {
             return glm::mat3{1.f};
         }
-        axis = glm::cross(a, std::fabs(a.x) < 0.9f ? glm::vec3{1.f, 0.f, 0.f} : glm::vec3{0.f, 1.f, 0.f});
+        axis = glm::cross(a, za::fabs(a.x) < 0.9f ? glm::vec3{1.f, 0.f, 0.f} : glm::vec3{0.f, 1.f, 0.f});
     }
-    return glm::mat3_cast(glm::angleAxis(std::atan2(s, c), glm::normalize(axis)));
+    return glm::mat3_cast(glm::angleAxis(za::atan2(s, c), glm::normalize(axis)));
 }
 
 glm::mat3 orthonormal(const glm::mat3& m)
@@ -115,14 +122,14 @@ float reach(const Prop& prop, const glm::mat3& rot, const glm::vec3& centre, con
     {
         for(const glm::vec3& v : prop.vertices)
         {
-            most = std::max(most, glm::dot(v - centre, d));
+            most = za::max(most, glm::dot(v - centre, d));
         }
         return most;
     }
     for(int i = 0; i < 8; i++)
     {
         const glm::vec3 v{(i & 1) ? prop.hi.x : prop.lo.x, (i & 2) ? prop.hi.y : prop.lo.y, (i & 4) ? prop.hi.z : prop.lo.z};
-        most = std::max(most, glm::dot(v - centre, d));
+        most = za::max(most, glm::dot(v - centre, d));
     }
     return most;
 }
@@ -135,17 +142,17 @@ Place handlePlace(const Prop& prop, const Settings& s, const HandFrame& frame, c
     const glm::vec3 mid = middleOf(prop);
     // Its head: the end its weight is towards (a torch's), else its melee tip's, else +.
     float head = 1.f;
-    if(std::fabs(s.com[k]) > 1e-3f)
+    if(za::fabs(s.com[k]) > 1e-3f)
     {
         head = s.com[k] > 0.f ? 1.f : -1.f;
     }
-    else if(s.tip != glm::vec3{0.f} && std::fabs(s.tip[k] - mid[k]) > 1e-3f)
+    else if(s.tip != glm::vec3{0.f} && za::fabs(s.tip[k] - mid[k]) > 1e-3f)
     {
         head = s.tip[k] > mid[k] ? 1.f : -1.f;
     }
     // The handle: Handle From .. To along the long axis (its model's units from its origin); both 0: the butt's half,
     // short of its end (12% to 45% of its length from the butt).
-    float from = std::min(s.handleFrom, s.handleTo), to = std::max(s.handleFrom, s.handleTo);
+    float from = za::min(s.handleFrom, s.handleTo), to = za::max(s.handleFrom, s.handleTo);
     if(s.handleFrom == 0.f && s.handleTo == 0.f)
     {
         const float len = size[k];
@@ -154,7 +161,7 @@ Place handlePlace(const Prop& prop, const Settings& s, const HandFrame& frame, c
         to = butt + head * 0.45f * len;
         if(from > to)
         {
-            std::swap(from, to);
+            za::genericSwap(from, to);
         }
     }
 
@@ -163,7 +170,7 @@ Place handlePlace(const Prop& prop, const Settings& s, const HandFrame& frame, c
     const glm::vec3 cp = frame.channelPoint;
     const glm::vec3 local = glm::transpose(taken.rot) * (cp - taken.pos);
     glm::vec3 held = mid;
-    held[k] = std::clamp(local[k], from, to);
+    held[k] = za::clamp(local[k], from, to);
 
     // Its long axis along the channel: its head towards the index finger unless it was taken clearly the other way
     // round (within 60 degrees of the little finger's side), leaning off the channel as taken, at most Handle Tilt.
@@ -173,7 +180,7 @@ Place handlePlace(const Prop& prop, const Settings& s, const HandFrame& frame, c
     const glm::vec3 cd = glm::normalize(frame.channelDir);
     const glm::vec3 u = glm::dot(a0, cd) >= -0.5f ? cd : -cd;
     glm::vec3 a1 = a0;
-    const float lean = std::acos(std::clamp(glm::dot(a0, u), -1.f, 1.f));
+    const float lean = za::acos(za::clamp(glm::dot(a0, u), -1.f, 1.f));
     const float most = glm::radians(s.handleTilt);
     if(lean > most)
     {
@@ -221,7 +228,7 @@ Place palmPlace(const Prop& prop, const glm::vec3& centre, const HandFrame& fram
         {
             continue;
         }
-        const float d = std::fabs(glm::dot(glm::normalize(taken.rot[i]), n));
+        const float d = za::fabs(glm::dot(glm::normalize(taken.rot[i]), n));
         if(d > bestDot)
         {
             bestDot = d;
@@ -305,7 +312,7 @@ struct Held
     glm::vec3 pouchTurn{0.f};  // the turn it was placed with (pitch, yaw, roll; mirrored for the left hand)
 };
 
-std::unordered_map<int, Held> heldProps;
+ankerl::unordered_dense::map<int, Held> heldProps;
 
 // The grenade pouch's turn in the hand (vr_grenade_pouch_hold_*: pitch up, yaw left, roll right, degrees), mirrored for
 // the left hand as the grip's offsets are.
@@ -339,7 +346,7 @@ std::unordered_map<int, Held> heldProps;
 
 void placeNow(Held& h)
 {
-    const int mode = static_cast<int>(std::lround(props::value(h.prop.slot, props::Key::GripMode)));
+    const int mode = static_cast<int>(za::lround(props::value(h.prop.slot, props::Key::GripMode)));
     if(h.kept && mode == static_cast<int>(h.keptMode) && h.keptMode != Mode::Fixed)
     {
         // Held where a regrip left it: its offset on top of that, about the same pivot.
@@ -381,7 +388,7 @@ void logPlace(const char* what, int num, const Held& h)
     {
         return;
     }
-    const int mode = static_cast<int>(std::lround(props::value(h.prop.slot, props::Key::GripMode)));
+    const int mode = static_cast<int>(za::lround(props::value(h.prop.slot, props::Key::GripMode)));
     const glm::vec3 a = h.now.rot[0], u = h.now.rot[2];
     Con_Printf("grip: %s %d %s (mode %d, %s hand%s): taken at %.2f %.2f %.2f, held at %.2f %.2f %.2f, its x %.2f %.2f %.2f, "
                "its z %.2f %.2f %.2f (hand frame: forward, left, up; generation %u, frame %d)\n",
@@ -428,7 +435,7 @@ glm::vec3 serverTake(edict_t* e, edict_t* player, int hand, bool left, const flo
     h.lastOffset = toFRU(h.now.pos);
     logPlace("taken", num, h);
     const glm::vec3 out = h.lastOffset;
-    heldProps[num] = std::move(h);
+    heldProps[num] = ZA_MOVE(h);
     return out;
 }
 

@@ -10,7 +10,8 @@
 
 #include "vr_engine.hpp"
 
-#include <vector>
+#include "Zancle/Container/Vector.hpp"
+
 
 namespace qvr::anchor
 {
@@ -24,7 +25,7 @@ namespace qvr::anchor
 
 // Every vertex of the entity's model in the model's byte space (as posedVertex): at rest (the zero pose) and as drawn
 // this frame (blended towards the zero pose by `zeroBlend`). False for a model without Quake vertices.
-[[nodiscard]] bool posedVertices(const entity_t& ent, float zeroBlend, std::vector<glm::vec3>& rest, std::vector<glm::vec3>& now);
+[[nodiscard]] bool posedVertices(const entity_t& ent, float zeroBlend, za::Vector<glm::vec3>& rest, za::Vector<glm::vec3>& now);
 
 // Developer commands for making weapon settings (a model's anchor indices are not its file's vertex
 // indices): vr_anchor_info <model> <index> prints where an anchor index is, in the model's own

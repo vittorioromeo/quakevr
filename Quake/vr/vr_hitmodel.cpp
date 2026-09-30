@@ -12,23 +12,33 @@
 #include "vr_progs.hpp"
 #include "vr_props.hpp"
 
+#include "Zancle/Algorithm/AnyOf.hpp"
+#include "Zancle/Algorithm/Copy.hpp"
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Swap.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/Vocabulary/UniquePtr.hpp"
+#include "vr_zancle.hpp"
+
 #include <algorithm>
-#include <array>
-#include <chrono>
-#include <cmath>
-#include <cstdint>
-#include <numeric>
 #include <random>
-#include <string>
-#include <unordered_map>
-#include <vector>
 
 namespace qvr::hitmodel
 {
 namespace
 {
 
-using Clock = std::chrono::steady_clock;
 
 constexpr int leafSize = 4;
 
@@ -37,14 +47,14 @@ constexpr int leafSize = 4;
 
 struct Node
 {
-    std::uint32_t first{0}; // a leaf's first triangle; an inner node's right child
-    std::uint32_t count{0}; // a leaf's triangles; 0: an inner node (its left child is the next node)
-    std::uint32_t skip{0};  // the node after its subtree
+    za::U32 first{0}; // a leaf's first triangle; an inner node's right child
+    za::U32 count{0}; // a leaf's triangles; 0: an inner node (its left child is the next node)
+    za::U32 skip{0};  // the node after its subtree
 };
 
 struct Bounds
 {
-    std::uint8_t lo[3], hi[3];
+    za::U8 lo[3], hi[3];
 };
 
 struct Mesh
@@ -54,15 +64,15 @@ struct Mesh
     int numverts{0}, numposes{0};
     int restPose{0};     // the standing frame's first pose (a frame named stand*, else frame 0)
     float winding{1.f};  // -1: the triangles wind the other way round (their cross products point in)
-    std::vector<std::array<std::uint16_t, 3>> tris;
-    std::vector<Node> nodes;
-    std::vector<Bounds> bounds; // numposes * nodes.size()
+    za::Vector<za::Array<za::U16, 3>> tris;
+    za::Vector<Node> nodes;
+    za::Vector<Bounds> bounds; // numposes * nodes.size()
     double buildMs{0.};
 };
 
-std::unordered_map<std::string, Mesh> meshes;             // by model name, kept from map to map
-std::array<Mesh*, MAX_MODELS> byIndex{};                  // this map's, by model index
-std::array<const qmodel_t*, MAX_MODELS> byIndexModel{};  // (what byIndex was found for)
+ankerl::unordered_dense::map<za::String, za::UniquePtr<Mesh>> meshes; // by model name, kept from map to map (pointers kept)
+za::Array<Mesh*, MAX_MODELS> byIndex{};                  // this map's, by model index
+za::Array<const qmodel_t*, MAX_MODELS> byIndexModel{};  // (what byIndex was found for)
 
 [[nodiscard]] const aliashdr_t* quakeAlias(const qmodel_t* model)
 {
@@ -109,22 +119,22 @@ std::array<const qmodel_t*, MAX_MODELS> byIndexModel{};  // (what byIndex was fo
 
 void build(Mesh& m, const aliashdr_t* hdr)
 {
-    const auto t0 = Clock::now();
+    const auto t0 = qza::nowNs();
     m = Mesh{};
     m.hdr = hdr;
     m.numverts = hdr->numverts;
     m.numposes = hdr->numposes;
-    m.restPose = std::clamp(restPoseOf(hdr), 0, hdr->numposes - 1);
+    m.restPose = za::clamp(restPoseOf(hdr), 0, hdr->numposes - 1);
 
     const auto* base = reinterpret_cast<const byte*>(hdr);
     const auto* mesh = reinterpret_cast<const aliasmesh_t*>(base + hdr->meshdesc);
     const auto* indexes = reinterpret_cast<const unsigned short*>(base + hdr->indexes);
     for(int i = 0; i + 2 < hdr->numindexes; i += 3)
     {
-        const std::uint16_t a = mesh[indexes[i]].vertindex, b = mesh[indexes[i + 1]].vertindex, c = mesh[indexes[i + 2]].vertindex;
+        const za::U16 a = mesh[indexes[i]].vertindex, b = mesh[indexes[i + 1]].vertindex, c = mesh[indexes[i + 2]].vertindex;
         if(a != b && b != c && a != c && a < hdr->numverts && b < hdr->numverts && c < hdr->numverts)
         {
-            m.tris.push_back({a, b, c});
+            m.tris.pushBack({a, b, c});
         }
     }
     if(m.tris.empty() || m.tris.size() > 65535)
@@ -136,7 +146,7 @@ void build(Mesh& m, const aliashdr_t* hdr)
 
     // Which way the triangles wind: the signed volume they enclose at rest (outward normals give a positive one).
     {
-        const trivertx_t* v = poses + static_cast<std::size_t>(m.restPose) * m.numverts;
+        const trivertx_t* v = poses + static_cast<za::SizeT>(m.restPose) * m.numverts;
         double vol = 0.;
         for(const auto& t : m.tris)
         {
@@ -147,83 +157,84 @@ void build(Mesh& m, const aliashdr_t* hdr)
     }
 
     // The hierarchy, over the triangles' centroids averaged over all the poses (one layout serves every pose).
-    const std::size_t n = m.tris.size();
-    std::vector<glm::vec3> centroid(n, glm::vec3{0.f});
+    const za::SizeT n = m.tris.size();
+    za::Vector<glm::vec3> centroid(n, glm::vec3{0.f});
     for(int p = 0; p < m.numposes; p++)
     {
-        const trivertx_t* v = poses + static_cast<std::size_t>(p) * m.numverts;
-        for(std::size_t i = 0; i < n; i++)
+        const trivertx_t* v = poses + static_cast<za::SizeT>(p) * m.numverts;
+        for(za::SizeT i = 0; i < n; i++)
         {
             const auto& t = m.tris[i];
             centroid[i] += raw(v[t[0]]) + raw(v[t[1]]) + raw(v[t[2]]);
         }
     }
-    std::vector<std::uint32_t> order(n);
-    std::iota(order.begin(), order.end(), 0u);
+    za::Vector<za::U32> order(n);
+    qza::iota(order.begin(), order.end(), 0u);
     m.nodes.reserve(n / 2 + 1);
-    const auto split = [&](auto&& self, std::uint32_t lo, std::uint32_t hi) -> void {
-        const auto idx = static_cast<std::uint32_t>(m.nodes.size());
-        m.nodes.push_back({});
-        if(hi - lo <= static_cast<std::uint32_t>(leafSize))
+    const auto split = [&](auto&& self, za::U32 lo, za::U32 hi) -> void {
+        const auto idx = static_cast<za::U32>(m.nodes.size());
+        m.nodes.pushBack({});
+        if(hi - lo <= static_cast<za::U32>(leafSize))
         {
             m.nodes[idx].first = lo;
             m.nodes[idx].count = hi - lo;
             return;
         }
         glm::vec3 cmin{1e30f}, cmax{-1e30f};
-        for(std::uint32_t i = lo; i < hi; i++)
+        for(za::U32 i = lo; i < hi; i++)
         {
             cmin = glm::min(cmin, centroid[order[i]]);
             cmax = glm::max(cmax, centroid[order[i]]);
         }
         const glm::vec3 ext = cmax - cmin;
         const int axis = ext.x >= ext.y && ext.x >= ext.z ? 0 : ext.y >= ext.z ? 1 : 2;
-        const std::uint32_t mid = (lo + hi) / 2;
+        const za::U32 mid = (lo + hi) / 2;
+        // ZANCLE-TODO: no selection algorithm (std::nth_element: the tree as it was, so every hit is the same)
         std::nth_element(order.begin() + lo, order.begin() + mid, order.begin() + hi,
-            [&](std::uint32_t a, std::uint32_t b) { return centroid[a][axis] < centroid[b][axis]; });
+            [&](za::U32 a, za::U32 b) { return centroid[a][axis] < centroid[b][axis]; });
         self(self, lo, mid);
-        m.nodes[idx].first = static_cast<std::uint32_t>(m.nodes.size()); // the right child
+        m.nodes[idx].first = static_cast<za::U32>(m.nodes.size()); // the right child
         self(self, mid, hi);
     };
-    split(split, 0u, static_cast<std::uint32_t>(n));
-    const auto skips = [&](auto&& self, std::uint32_t idx, std::uint32_t skip) -> void {
+    split(split, 0u, static_cast<za::U32>(n));
+    const auto skips = [&](auto&& self, za::U32 idx, za::U32 skip) -> void {
         m.nodes[idx].skip = skip;
         if(m.nodes[idx].count == 0)
         {
-            const std::uint32_t right = m.nodes[idx].first;
+            const za::U32 right = m.nodes[idx].first;
             self(self, idx + 1, right);
             self(self, right, skip);
         }
     };
-    skips(skips, 0u, static_cast<std::uint32_t>(m.nodes.size()));
-    std::vector<std::array<std::uint16_t, 3>> sorted(n);
-    for(std::size_t i = 0; i < n; i++)
+    skips(skips, 0u, static_cast<za::U32>(m.nodes.size()));
+    za::Vector<za::Array<za::U16, 3>> sorted(n);
+    for(za::SizeT i = 0; i < n; i++)
     {
         sorted[i] = m.tris[order[i]];
     }
-    m.tris = std::move(sorted);
+    m.tris = ZA_MOVE(sorted);
 
     // Each pose's bounds of each node (children after their parent: from the last node back).
-    const std::size_t nn = m.nodes.size();
-    m.bounds.resize(nn * static_cast<std::size_t>(m.numposes));
+    const za::SizeT nn = m.nodes.size();
+    m.bounds.resize(nn * static_cast<za::SizeT>(m.numposes));
     for(int p = 0; p < m.numposes; p++)
     {
-        const trivertx_t* v = poses + static_cast<std::size_t>(p) * m.numverts;
-        Bounds* b = m.bounds.data() + nn * static_cast<std::size_t>(p);
-        for(std::size_t i = nn; i-- > 0;)
+        const trivertx_t* v = poses + static_cast<za::SizeT>(p) * m.numverts;
+        Bounds* b = m.bounds.data() + nn * static_cast<za::SizeT>(p);
+        for(za::SizeT i = nn; i-- > 0;)
         {
             const Node& nd = m.nodes[i];
-            std::uint8_t lo[3]{255, 255, 255}, hi[3]{0, 0, 0};
+            za::U8 lo[3]{255, 255, 255}, hi[3]{0, 0, 0};
             if(nd.count)
             {
-                for(std::uint32_t k = nd.first; k < nd.first + nd.count; k++)
+                for(za::U32 k = nd.first; k < nd.first + nd.count; k++)
                 {
-                    for(const std::uint16_t vi : m.tris[k])
+                    for(const za::U16 vi : m.tris[k])
                     {
                         for(int a = 0; a < 3; a++)
                         {
-                            lo[a] = std::min(lo[a], v[vi].v[a]);
-                            hi[a] = std::max(hi[a], v[vi].v[a]);
+                            lo[a] = za::min(lo[a], v[vi].v[a]);
+                            hi[a] = za::max(hi[a], v[vi].v[a]);
                         }
                     }
                 }
@@ -234,16 +245,16 @@ void build(Mesh& m, const aliashdr_t* hdr)
                 const Bounds& r = b[nd.first];
                 for(int a = 0; a < 3; a++)
                 {
-                    lo[a] = std::min(l.lo[a], r.lo[a]);
-                    hi[a] = std::max(l.hi[a], r.hi[a]);
+                    lo[a] = za::min(l.lo[a], r.lo[a]);
+                    hi[a] = za::max(l.hi[a], r.hi[a]);
                 }
             }
-            std::copy(lo, lo + 3, b[i].lo);
-            std::copy(hi, hi + 3, b[i].hi);
+            za::copy(lo, lo + 3, b[i].lo);
+            za::copy(hi, hi + 3, b[i].hi);
         }
     }
     m.valid = true;
-    m.buildMs = std::chrono::duration<double, std::milli>(Clock::now() - t0).count();
+    m.buildMs = qza::msSince(t0);
 }
 
 [[nodiscard]] const qmodel_t* modelOf(edict_t* ent)
@@ -268,7 +279,7 @@ const Mesh* meshOf(int index, const qmodel_t* model, const aliashdr_t*& hdr)
     Mesh* m = byIndexModel[index] == model ? byIndex[index] : nullptr;
     if(!m || m->hdr != hdr)
     {
-        m = &meshes[model->name];
+        m = &qza::stableAt<Mesh>(meshes, model->name);
         if(m->hdr != hdr || m->numverts != hdr->numverts || m->numposes != hdr->numposes)
         {
             build(*m, hdr);
@@ -294,7 +305,7 @@ struct Track
     double moveStart{0.};
     float moveDur{0.1f};
 };
-std::vector<Track> tracks;
+za::Vector<Track> tracks;
 
 [[nodiscard]] int poseAt(const aliashdr_t* hdr, float frameValue, double time, float* interval)
 {
@@ -317,7 +328,7 @@ std::vector<Track> tracks;
             *interval = hdr->frames[frame].interval;
         }
     }
-    return std::clamp(pose, 0, hdr->numposes - 1);
+    return za::clamp(pose, 0, hdr->numposes - 1);
 }
 
 [[nodiscard]] glm::vec3 vec(const float* v)
@@ -368,17 +379,17 @@ bool drawnOf(edict_t* ent, Drawn& d)
     const int num = NUM_FOR_EDICT(ent);
     if(num >= 0 && num < static_cast<int>(tracks.size()) && !checkNoLerp)
     {
-        const Track& t = tracks[static_cast<std::size_t>(num)];
+        const Track& t = tracks[static_cast<za::SizeT>(num)];
         if(t.model == modelOf(ent) && t.seen >= now - 0.25 && t.seen >= ent->freetime)
         {
             const qmodel_t* model = modelOf(ent);
             const bool lerpModels = r_lerpmodels.value && !((model->flags & MOD_NOLERP) && r_lerpmodels.value != 2);
             d.pose1 = t.prevPose;
             d.pose2 = t.pose;
-            d.blend = lerpModels ? std::clamp(static_cast<float>(now - t.poseStart) / std::max(t.poseDur, 1e-3f), 0.f, 1.f) : 1.f;
+            d.blend = lerpModels ? za::clamp(static_cast<float>(now - t.poseStart) / za::max(t.poseDur, 1e-3f), 0.f, 1.f) : 1.f;
             if(t.step && r_lerpmove.value)
             {
-                const float mb = std::clamp(static_cast<float>(now - t.moveStart) / std::max(t.moveDur, 1e-3f), 0.f, 1.f);
+                const float mb = za::clamp(static_cast<float>(now - t.moveStart) / za::max(t.moveDur, 1e-3f), 0.f, 1.f);
                 d.origin = t.prevOrigin + (t.origin - t.prevOrigin) * mb;
                 glm::vec3 da = t.angles - t.prevAngles;
                 for(int i = 0; i < 3; i++)
@@ -418,7 +429,7 @@ bool drawnOf(edict_t* ent, Drawn& d)
     d.l = es * (so * (glm::vec3{1.f} - ns) + ns * (ho + hs * off));
     d.R = held::axesFromAngles(&d.angles[0], false);
     d.A = d.R * glm::mat3{glm::vec3{d.L.x, 0.f, 0.f}, glm::vec3{0.f, d.L.y, 0.f}, glm::vec3{0.f, 0.f, d.L.z}};
-    if(std::fabs(glm::determinant(d.A)) < 1e-9f)
+    if(za::fabs(glm::determinant(d.A)) < 1e-9f)
     {
         return false;
     }
@@ -458,7 +469,7 @@ struct Verts
 [[nodiscard]] Verts vertsOf(const Drawn& d)
 {
     const trivertx_t* poses = posesOf(d.hdr);
-    return {poses + static_cast<std::size_t>(d.pose1) * d.mesh->numverts, poses + static_cast<std::size_t>(d.pose2) * d.mesh->numverts,
+    return {poses + static_cast<za::SizeT>(d.pose1) * d.mesh->numverts, poses + static_cast<za::SizeT>(d.pose2) * d.mesh->numverts,
         d.blend};
 }
 
@@ -483,7 +494,7 @@ Stats stats;
 struct Found
 {
     float t{2.f};
-    std::uint32_t tri{0};
+    za::U32 tri{0};
     float u{0.f}, v{0.f};
     bool front{true};
     glm::vec3 faceN{0.f, 0.f, 1.f};
@@ -492,20 +503,21 @@ struct Found
 // The drawn vertices a test uses, each made once (a vertex is shared by about six triangles).
 struct VertCache
 {
-    std::vector<std::uint32_t> stamp;
-    std::vector<glm::vec3> pos;
-    std::uint32_t now{0};
+    za::Vector<za::U32> stamp;
+    za::Vector<glm::vec3> pos;
+    za::U32 now{0};
 
     void begin(int numverts)
     {
-        if(stamp.size() < static_cast<std::size_t>(numverts))
+        if(stamp.size() < static_cast<za::SizeT>(numverts))
         {
-            stamp.assign(static_cast<std::size_t>(numverts), 0u);
-            pos.resize(static_cast<std::size_t>(numverts));
+            stamp.clear();
+            stamp.resize(static_cast<za::SizeT>(numverts), 0u);
+            pos.resize(static_cast<za::SizeT>(numverts));
         }
         if(++now == 0u)
         {
-            std::fill(stamp.begin(), stamp.end(), 0u);
+            qza::fill(stamp.begin(), stamp.end(), 0u);
             now = 1u;
         }
     }
@@ -518,7 +530,7 @@ bool firstCrossing(const Drawn& d, const glm::vec3& a, const glm::vec3& dir, flo
     const Mesh& m = *d.mesh;
     const Verts vs = vertsOf(d);
     vcache.begin(m.numverts);
-    const auto vert = [&](std::uint16_t vi) -> const glm::vec3& {
+    const auto vert = [&](za::U16 vi) -> const glm::vec3& {
         if(vcache.stamp[vi] != vcache.now)
         {
             vcache.stamp[vi] = vcache.now;
@@ -532,16 +544,16 @@ bool firstCrossing(const Drawn& d, const glm::vec3& a, const glm::vec3& dir, flo
     for(int i = 0; i < 3; i++)
     {
         e[i] = grow * glm::length(glm::vec3{d.Ainv[0][i], d.Ainv[1][i], d.Ainv[2][i]}) + 0.01f;
-        inv[i] = std::fabs(db[i]) < 1e-9f ? 0.f : 1.f / db[i];
+        inv[i] = za::fabs(db[i]) < 1e-9f ? 0.f : 1.f / db[i];
     }
-    const std::size_t nn = m.nodes.size();
-    const Bounds* b1 = m.bounds.data() + nn * static_cast<std::size_t>(d.pose1);
-    const Bounds* b2 = m.bounds.data() + nn * static_cast<std::size_t>(d.pose2);
+    const za::SizeT nn = m.nodes.size();
+    const Bounds* b1 = m.bounds.data() + nn * static_cast<za::SizeT>(d.pose1);
+    const Bounds* b2 = m.bounds.data() + nn * static_cast<za::SizeT>(d.pose2);
     const bool two = d.pose1 != d.pose2;
     float best = maxT;
     bool found = false;
     // Where the segment enters node i's bounds (grown), or a value past `best`.
-    const auto enter = [&](std::uint32_t i) {
+    const auto enter = [&](za::U32 i) {
         stats.nodes++;
         float t0 = 0.f, t1 = best;
         for(int k = 0; k < 3; k++)
@@ -549,8 +561,8 @@ bool firstCrossing(const Drawn& d, const glm::vec3& a, const glm::vec3& dir, flo
             float lo = b1[i].lo[k], hi = b1[i].hi[k];
             if(two)
             {
-                lo = std::min(lo, static_cast<float>(b2[i].lo[k]));
-                hi = std::max(hi, static_cast<float>(b2[i].hi[k]));
+                lo = za::min(lo, static_cast<float>(b2[i].lo[k]));
+                hi = za::max(hi, static_cast<float>(b2[i].hi[k]));
             }
             lo -= e[k];
             hi += e[k];
@@ -565,10 +577,10 @@ bool firstCrossing(const Drawn& d, const glm::vec3& a, const glm::vec3& dir, flo
             float ta = (lo - sb[k]) * inv[k], tb = (hi - sb[k]) * inv[k];
             if(ta > tb)
             {
-                std::swap(ta, tb);
+                za::genericSwap(ta, tb);
             }
-            t0 = std::max(t0, ta);
-            t1 = std::min(t1, tb);
+            t0 = za::max(t0, ta);
+            t1 = za::min(t1, tb);
             if(t0 > t1)
             {
                 return 1e30f;
@@ -578,10 +590,10 @@ bool firstCrossing(const Drawn& d, const glm::vec3& a, const glm::vec3& dir, flo
     };
     struct Entry
     {
-        std::uint32_t node;
+        za::U32 node;
         float t;
     };
-    std::array<Entry, 64> stack;
+    za::Array<Entry, 64> stack;
     int sp = 0;
     if(const float t = enter(0); t <= best)
     {
@@ -597,7 +609,7 @@ bool firstCrossing(const Drawn& d, const glm::vec3& a, const glm::vec3& dir, flo
         const Node& nd = m.nodes[top.node];
         if(nd.count == 0)
         {
-            const std::uint32_t l = top.node + 1, r = nd.first;
+            const za::U32 l = top.node + 1, r = nd.first;
             const float tl = enter(l), tr = enter(r);
             // The nearer one popped first.
             if(tl <= tr)
@@ -624,7 +636,7 @@ bool firstCrossing(const Drawn& d, const glm::vec3& a, const glm::vec3& dir, flo
             }
             continue;
         }
-        for(std::uint32_t k = nd.first; k < nd.first + nd.count; k++)
+        for(za::U32 k = nd.first; k < nd.first + nd.count; k++)
         {
             stats.tris++;
             const auto& t = m.tris[k];
@@ -632,7 +644,7 @@ bool firstCrossing(const Drawn& d, const glm::vec3& a, const glm::vec3& dir, flo
             const glm::vec3 e1 = vert(t[1]) - p0, e2 = vert(t[2]) - p0;
             const glm::vec3 pv = glm::cross(dir, e2);
             const float det = glm::dot(e1, pv);
-            if(std::fabs(det) < 1e-12f)
+            if(za::fabs(det) < 1e-12f)
             {
                 continue;
             }
@@ -671,9 +683,9 @@ bool firstCrossing(const Drawn& d, const glm::vec3& a, const glm::vec3& dir, flo
 bool inside(const Drawn& d, const glm::vec3& p, glm::vec3 dir, float grow)
 {
     const Mesh& m = *d.mesh;
-    const std::size_t nn = m.nodes.size();
-    const Bounds& r1 = m.bounds[nn * static_cast<std::size_t>(d.pose1)];
-    const Bounds& r2 = m.bounds[nn * static_cast<std::size_t>(d.pose2)];
+    const za::SizeT nn = m.nodes.size();
+    const Bounds& r1 = m.bounds[nn * static_cast<za::SizeT>(d.pose1)];
+    const Bounds& r2 = m.bounds[nn * static_cast<za::SizeT>(d.pose2)];
     const glm::vec3 lo = glm::min(glm::vec3{r1.lo[0], r1.lo[1], r1.lo[2]}, glm::vec3{r2.lo[0], r2.lo[1], r2.lo[2]});
     const glm::vec3 hi = glm::max(glm::vec3{r1.hi[0], r1.hi[1], r1.hi[2]}, glm::vec3{r2.hi[0], r2.hi[1], r2.hi[2]});
     // In its bounds at all (grown)?
@@ -701,7 +713,7 @@ struct Last
 {
     int num{-1};
     double time{-1.};
-    std::uint32_t tri{0};
+    za::U32 tri{0};
     float u{0.f}, v{0.f};
     glm::vec3 point{0.f}, surface{0.f};
 };
@@ -715,12 +727,12 @@ struct Event
     int num{0};
     glm::vec3 a{0.f}, b{0.f}; // the segment (to its hit)
     glm::vec3 point{0.f}, surface{0.f}, normal{0.f};
-    std::array<glm::vec3, 3> tri{};
+    za::Array<glm::vec3, 3> tri{};
     float grow{0.f};
-    std::vector<glm::vec3> wire; // the model as drawn then (3 a triangle)
+    za::Vector<glm::vec3> wire; // the model as drawn then (3 a triangle)
 };
-std::vector<Event> events; // the latest last
-constexpr std::size_t maxEvents = 12;
+za::Vector<Event> events; // the latest last
+constexpr za::SizeT maxEvents = 12;
 constexpr double eventLife = 4.;
 
 const char* className(Class c)
@@ -752,7 +764,7 @@ void record(edict_t* ent, const Drawn& d, const glm::vec3& a, const glm::vec3& b
         float t0 = 0.f, t1 = 1.f;
         for(int k = 0; k < 3; k++)
         {
-            if(std::fabs(dir[k]) < 1e-9f)
+            if(za::fabs(dir[k]) < 1e-9f)
             {
                 if(a[k] < lo[k] || a[k] > hi[k])
                 {
@@ -763,10 +775,10 @@ void record(edict_t* ent, const Drawn& d, const glm::vec3& a, const glm::vec3& b
             float ta = (lo[k] - a[k]) / dir[k], tb = (hi[k] - a[k]) / dir[k];
             if(ta > tb)
             {
-                std::swap(ta, tb);
+                za::genericSwap(ta, tb);
             }
-            t0 = std::max(t0, ta);
-            t1 = std::min(t1, tb);
+            t0 = za::max(t0, ta);
+            t1 = za::min(t1, tb);
             if(t0 > t1)
             {
                 return;
@@ -785,9 +797,9 @@ void record(edict_t* ent, const Drawn& d, const glm::vec3& a, const glm::vec3& b
     e.wire.reserve(d.mesh->tris.size() * 3);
     for(const auto& t : d.mesh->tris)
     {
-        for(const std::uint16_t vi : t)
+        for(const za::U16 vi : t)
         {
-            e.wire.push_back(vs.at(d, vi, 0.f));
+            e.wire.pushBack(vs.at(d, vi, 0.f));
         }
     }
     if(hit)
@@ -816,7 +828,7 @@ void record(edict_t* ent, const Drawn& d, const glm::vec3& a, const glm::vec3& b
     {
         Con_Printf("hit model: %s %d (%s, grown %.1f): through its box, the model missed\n", name, e.num, className(c), grow);
     }
-    events.push_back(std::move(e));
+    events.pushBack(ZA_MOVE(e));
 }
 
 } // namespace
@@ -840,10 +852,10 @@ float tolerance(Class c)
 {
     switch(c)
     {
-    case Class::Guns: return std::max(0.f, vr_hit_tolerance_guns.value);
-    case Class::Grapple: return std::max(0.f, vr_hit_tolerance_grapple.value);
-    case Class::Melee: return std::max(0.f, vr_hit_tolerance_melee.value);
-    case Class::Thrown: return std::max(0.f, vr_hit_tolerance_thrown.value);
+    case Class::Guns: return za::max(0.f, vr_hit_tolerance_guns.value);
+    case Class::Grapple: return za::max(0.f, vr_hit_tolerance_grapple.value);
+    case Class::Melee: return za::max(0.f, vr_hit_tolerance_melee.value);
+    case Class::Thrown: return za::max(0.f, vr_hit_tolerance_thrown.value);
     }
     return 0.f;
 }
@@ -855,11 +867,11 @@ bool segment(edict_t* ent, const glm::vec3& a, const glm::vec3& b, float radius,
     {
         return false;
     }
-    const auto t0 = Clock::now();
+    const auto t0 = qza::nowNs();
     stats.narrow++;
     const glm::vec3 dir = b - a;
     Found f;
-    const bool crossed = firstCrossing(d, a, dir, radius, std::min(maxT, 1.f), f);
+    const bool crossed = firstCrossing(d, a, dir, radius, za::min(maxT, 1.f), f);
     // Started inside: its first crossing is on the way out, or it has none and a ray onwards leaves the model.
     const bool in = crossed ? !f.front : inside(d, a, dir, radius);
     const bool hit = crossed || in;
@@ -897,7 +909,7 @@ bool segment(edict_t* ent, const glm::vec3& a, const glm::vec3& b, float radius,
     {
         stats.throughs++;
     }
-    stats.ns += std::chrono::duration<double, std::nano>(Clock::now() - t0).count();
+    stats.ns += qza::nsSince(t0);
     record(ent, d, a, b, radius, c, hit ? &out : nullptr, hit && !in ? &f : nullptr);
     return hit;
 }
@@ -912,9 +924,9 @@ bool clip(edict_t* ent, const glm::vec3& a, const glm::vec3& b, const glm::vec3&
     float moverRadius = 1e30f;
     for(int k = 0; k < 3; k++)
     {
-        moverRadius = std::min({moverRadius, -mins[k], maxs[k]});
+        moverRadius = qza::minOf(moverRadius, -mins[k], maxs[k]);
     }
-    moverRadius = std::max(0.f, moverRadius);
+    moverRadius = za::max(0.f, moverRadius);
     return segment(ent, a, b, tol + moverRadius, maxT, c, out);
 }
 
@@ -930,7 +942,7 @@ bool restPoint(edict_t* ent, const glm::vec3& p, glm::vec3& out)
         return false;
     }
     const Mesh& m = *d.mesh;
-    std::uint32_t tri = 0;
+    za::U32 tri = 0;
     float u = 0.f, v = 0.f;
     const int num = NUM_FOR_EDICT(ent);
     if(last.num == num && last.time == qcvm->time &&
@@ -945,7 +957,7 @@ bool restPoint(edict_t* ent, const glm::vec3& p, glm::vec3& out)
         // The drawn triangle nearest `p` (Ericson, Real-Time Collision Detection, 5.1.5), and where on it.
         const Verts vs = vertsOf(d);
         float best = 1e30f;
-        for(std::uint32_t k = 0; k < m.tris.size(); k++)
+        for(za::U32 k = 0; k < m.tris.size(); k++)
         {
             const auto& t = m.tris[k];
             const glm::vec3 a = vs.at(d, t[0], 0.f), b = vs.at(d, t[1], 0.f), c = vs.at(d, t[2], 0.f);
@@ -999,7 +1011,7 @@ bool restPoint(edict_t* ent, const glm::vec3& p, glm::vec3& out)
         }
     }
     // The same place on the standing pose, in its own space, placed at its origin and turned with its yaw.
-    const trivertx_t* rest = posesOf(d.hdr) + static_cast<std::size_t>(m.restPose) * m.numverts;
+    const trivertx_t* rest = posesOf(d.hdr) + static_cast<za::SizeT>(m.restPose) * m.numverts;
     const auto& t = m.tris[tri];
     const glm::vec3 r0 = raw(rest[t[0]]), r1 = raw(rest[t[1]]), r2 = raw(rest[t[2]]);
     const glm::vec3 local = d.L * (r0 + (r1 - r0) * u + (r2 - r0) * v) + d.l;
@@ -1011,12 +1023,12 @@ bool restPoint(edict_t* ent, const glm::vec3& p, glm::vec3& out)
 bool anchorFrame(edict_t* ent, int tri, float u, float v, glm::vec3& point, glm::mat3& axes)
 {
     Drawn d;
-    if(tri < 0 || !target(ent) || !drawnOf(ent, d) || static_cast<std::size_t>(tri) >= d.mesh->tris.size())
+    if(tri < 0 || !target(ent) || !drawnOf(ent, d) || static_cast<za::SizeT>(tri) >= d.mesh->tris.size())
     {
         return false;
     }
     const Verts vs = vertsOf(d);
-    const auto& t = d.mesh->tris[static_cast<std::size_t>(tri)];
+    const auto& t = d.mesh->tris[static_cast<za::SizeT>(tri)];
     const glm::vec3 p0 = vs.at(d, t[0], 0.f), p1 = vs.at(d, t[1], 0.f), p2 = vs.at(d, t[2], 0.f);
     point = p0 + (p1 - p0) * u + (p2 - p0) * v;
     const glm::vec3 e1 = p1 - p0, n = glm::cross(e1, p2 - p0) * d.mesh->winding;
@@ -1036,14 +1048,14 @@ void serverFrame()
         return;
     }
     const double now = qcvm->time;
-    if(tracks.size() < static_cast<std::size_t>(qcvm->max_edicts))
+    if(tracks.size() < static_cast<za::SizeT>(qcvm->max_edicts))
     {
-        tracks.resize(static_cast<std::size_t>(qcvm->max_edicts));
+        tracks.resize(static_cast<za::SizeT>(qcvm->max_edicts));
     }
     for(int num = 1; num < qcvm->num_edicts; num++)
     {
         edict_t* ent = EDICT_NUM(num);
-        Track& t = tracks[static_cast<std::size_t>(num)];
+        Track& t = tracks[static_cast<za::SizeT>(num)];
         const qmodel_t* model = isTarget(ent) ? modelOf(ent) : nullptr;
         const aliashdr_t* hdr = nullptr;
         if(!model || !meshOf(static_cast<int>(ent->v.modelindex), model, hdr))
@@ -1055,7 +1067,7 @@ void serverFrame()
         const int pose = poseAt(hdr, ent->v.frame, now, &interval);
         const glm::vec3 origin = vec(ent->v.origin), angles = vec(ent->v.angles);
         // The client's lerp time: a framegroup's interval; else the think's (U_LERPFINISH), or 0.1 s.
-        const float lerpTime = ent->sendinterval ? std::max(0.01f, static_cast<float>(ent->v.nextthink - ent->oldthinktime)) : 0.1f;
+        const float lerpTime = ent->sendinterval ? za::max(0.01f, static_cast<float>(ent->v.nextthink - ent->oldthinktime)) : 0.1f;
         if(t.model != model || t.seen < now - 0.25 || t.seen < ent->freetime)
         {
             t = Track{};
@@ -1090,32 +1102,32 @@ void serverFrame()
 
 void afterLoad()
 {
-    const auto t0 = Clock::now();
+    const auto t0 = qza::nowNs();
     int built = 0, tris = 0;
     // The meshes to make, made at once on the game's thread pool (each build writes only its own mesh), before the
     // walk below finds them made.
-    std::array<bool, MAX_MODELS> had{};
-    std::vector<std::pair<Mesh*, const aliashdr_t*>> todo;
+    za::Array<bool, MAX_MODELS> had{};
+    za::Vector<qza::Pair<Mesh*, const aliashdr_t*>> todo;
     for(int i = 1; i < MAX_MODELS && sv.model_precache[i]; i++)
     {
         const qmodel_t* model = sv.models[i];
         const aliashdr_t* hdr = model ? quakeAlias(model) : nullptr;
-        had[i] = hdr && meshes.count(model->name) && meshes[model->name].hdr == hdr;
+        had[i] = hdr && meshes.count(model->name) && meshes[model->name]->hdr == hdr;
         if(!hdr || (byIndexModel[i] == model && byIndex[i] && byIndex[i]->hdr == hdr))
         {
             continue; // (none, or the one meshOf keeps)
         }
-        Mesh& m = meshes[model->name];
+        Mesh& m = qza::stableAt<Mesh>(meshes, model->name);
         if((m.hdr != hdr || m.numverts != hdr->numverts || m.numposes != hdr->numposes) &&
-            std::none_of(todo.begin(), todo.end(), [&m](const auto& t) { return t.first == &m; }))
+            !za::anyOf(todo.begin(), todo.end(), [&m](const auto& t) { return t.first == &m; }))
         {
-            todo.emplace_back(&m, hdr);
+            todo.emplaceBack(&m, hdr);
         }
     }
     qvr::jobs::parallelFor(todo.size(), 1,
-        [&todo](std::size_t begin, std::size_t end)
+        [&todo](za::SizeT begin, za::SizeT end)
         {
-            for(std::size_t k = begin; k < end; k++)
+            for(za::SizeT k = begin; k < end; k++)
             {
                 build(*todo[k].first, todo[k].second);
             }
@@ -1135,15 +1147,15 @@ void afterLoad()
     // The models this map doesn't use are forgotten (the memory is this map's models').
     for(auto it = meshes.begin(); it != meshes.end();)
     {
-        const bool used = std::any_of(byIndex.begin(), byIndex.end(), [&](const Mesh* m) { return m == &it->second; });
-        it = used ? std::next(it) : meshes.erase(it);
+        const bool used = za::anyOf(byIndex.begin(), byIndex.end(), [&](const Mesh* m) { return m == it->second.get(); });
+        it = used ? (it + 1) : meshes.erase(it);
     }
-    const double ms = std::chrono::duration<double, std::milli>(Clock::now() - t0).count();
+    const double ms = qza::msSince(t0);
     // (the precached models' meshes' hash, FNV-1a: the same made on the pool or not)
-    std::uint32_t hash = 2166136261u;
-    const auto add = [&hash](const void* data, std::size_t size)
+    za::U32 hash = 2166136261u;
+    const auto add = [&hash](const void* data, za::SizeT size)
     {
-        for(std::size_t k = 0; k < size; k++)
+        for(za::SizeT k = 0; k < size; k++)
         {
             hash = (hash ^ static_cast<const unsigned char*>(data)[k]) * 16777619u;
         }
@@ -1164,8 +1176,8 @@ void afterLoad()
 
 void reset()
 {
-    byIndex.fill(nullptr);
-    byIndexModel.fill(nullptr);
+    qza::fill(byIndex, nullptr);
+    qza::fill(byIndexModel, nullptr);
     tracks.clear();
     last = Last{};
     events.clear();
@@ -1183,7 +1195,7 @@ void debugDraw()
         events.erase(events.begin());
     }
     // The latest event's model in full (its wireframe), the others' hits only.
-    for(std::size_t i = 0; i < events.size(); i++)
+    for(za::SizeT i = 0; i < events.size(); i++)
     {
         const Event& e = events[i];
         const float fade = static_cast<float>(1. - (now - e.when) / eventLife);
@@ -1191,7 +1203,7 @@ void debugDraw()
         if(latest)
         {
             const glm::vec4 wire{0.2f, 0.8f, 1.f, 0.35f * fade};
-            for(std::size_t k = 0; k + 2 < e.wire.size(); k += 3)
+            for(za::SizeT k = 0; k + 2 < e.wire.size(); k += 3)
             {
                 lines::line(e.wire[k], e.wire[k + 1], 0.12f, wire, wire);
                 lines::line(e.wire[k + 1], e.wire[k + 2], 0.12f, wire, wire);
@@ -1228,9 +1240,10 @@ void stats_f()
             static_cast<double>(stats.nodes) / static_cast<double>(stats.narrow), static_cast<double>(stats.tris) / static_cast<double>(stats.narrow));
     }
     Con_Printf("  %lld hierarchies made at map loads, %.1f ms in all\n", stats.builds, stats.buildMs);
-    std::size_t bytes = 0, count = 0;
-    for(const auto& [name, m] : meshes)
+    za::SizeT bytes = 0, count = 0;
+    for(const auto& [name, mp] : meshes)
     {
+        const Mesh& m = *mp;
         if(m.valid)
         {
             count++;
@@ -1255,7 +1268,7 @@ struct CheckTotals
 {
     double sum{0.}, worst{0.}, sumRaw{0.}, worstRaw{0.};
     long long count{0}, calls{0};
-    std::string worstName;
+    za::String worstName;
 };
 CheckTotals checkTotals;
 
@@ -1277,7 +1290,7 @@ void check_f()
     qcvm_t* oldvm = nullptr;
     PR_PushQCVM(&sv.qcvm, &oldvm);
     calls++;
-    std::vector<glm::vec3> drawn; // (a debug command's: made each call)
+    za::Vector<glm::vec3> drawn; // (a debug command's: made each call)
     for(int num = 1; num < qcvm->num_edicts && num < cl_max_edicts; num++)
     {
         edict_t* ent = EDICT_NUM(num);
@@ -1296,11 +1309,11 @@ void check_f()
         drawnOf(ent, raw);
         checkNoLerp = false;
         const Verts rs = vertsOf(raw);
-        for(std::size_t i = 0; i < drawn.size() && static_cast<int>(i) < d.hdr->numindexes; i++)
+        for(za::SizeT i = 0; i < drawn.size() && static_cast<int>(i) < d.hdr->numindexes; i++)
         {
             const float distRaw = glm::length(rs.at(raw, mesh[indexes[i]].vertindex, 0.f) - drawn[i]);
             sumRaw += distRaw;
-            worstRaw = std::max(worstRaw, static_cast<double>(distRaw));
+            worstRaw = za::max(worstRaw, static_cast<double>(distRaw));
             const float dist = glm::length(vs.at(d, mesh[indexes[i]].vertindex, 0.f) - drawn[i]);
             sum += dist;
             count++;
@@ -1312,7 +1325,7 @@ void check_f()
                     PR_GetString(ent->v.classname), static_cast<int>(ent->v.frame), d.pose1, d.pose2, d.blend, ent->v.origin[0],
                     ent->v.origin[1], ent->v.origin[2], d.origin.x, d.origin.y, d.origin.z, cl3.x, cl3.y, cl3.z,
                     static_cast<int>(ent->v.movetype), static_cast<int>(ent->v.flags));
-                const Track& tr = tracks[static_cast<std::size_t>(num)];
+                const Track& tr = tracks[static_cast<za::SizeT>(num)];
                 worstName += va("; client poses %d-%d, lerp from %.3f (flags %d), cl.time %.3f; server time %.3f, the track's poses %d-%d from %.3f for %.3f, seen %.3f",
                     e.previouspose, e.currentpose, e.lerpstart, e.lerpflags, cl.time, qcvm->time, tr.prevPose, tr.pose, tr.poseStart,
                     tr.poseDur, tr.seen);
@@ -1328,7 +1341,7 @@ void check_f()
     {
         Con_Printf("vr_hitmodel_check: %lld calls, %lld vertices: the hit model %.2f units from the drawn one on average, "
                    "%.2f at worst (%s); without the lerp %.2f, %.2f at worst\n", calls, count,
-            count ? sum / static_cast<double>(count) : 0., worst, worstName.c_str(), count ? sumRaw / static_cast<double>(count) : 0.,
+            count ? sum / static_cast<double>(count) : 0., worst, worstName.cStr(), count ? sumRaw / static_cast<double>(count) : 0.,
             worstRaw);
     }
 }
@@ -1342,7 +1355,7 @@ void bench_f()
         Con_Printf("vr_hitmodel_bench: no server\n");
         return;
     }
-    const int rays = Cmd_Argc() > 1 ? std::max(1, Q_atoi(Cmd_Argv(1))) : 2000;
+    const int rays = Cmd_Argc() > 1 ? za::max(1, Q_atoi(Cmd_Argv(1))) : 2000;
     const float tol = Cmd_Argc() > 2 ? Q_atof(Cmd_Argv(2)) : tolerance(Class::Guns);
     const bool newest = Cmd_Argc() > 3 && !strcmp(Cmd_Argv(3), "newest"); // only the monster spawned last
     qcvm_t* oldvm = nullptr;
@@ -1352,12 +1365,12 @@ void bench_f()
     {
         Cvar_SetQuick(&vr_hit_precise, "1");
     }
-    std::mt19937 rng{1234u};
+    std::mt19937 rng{1234u}; // ZANCLE-TODO: no random engines or distributions (the test's inputs kept)
     std::uniform_real_distribution<float> uni{0.f, 1.f};
     const float saveDebug = vr_debug_hits.value;
     vr_debug_hits.value = 0.f;
     Con_Printf("vr_hitmodel_bench: %d rays a monster, tolerance %.1f\n", rays, tol);
-    std::unordered_map<std::string, bool> seen;
+    ankerl::unordered_dense::map<za::String, bool> seen;
     int only = -1;
     for(int num = 1; newest && num < qcvm->num_edicts; num++)
     {
@@ -1370,7 +1383,7 @@ void bench_f()
         {
             continue;
         }
-        const std::string name = PR_GetString(ent->v.classname);
+        const za::String name = PR_GetString(ent->v.classname);
         if(seen[name + (static_cast<int>(ent->v.solid) == SOLID_NOT_BUT_TOUCHABLE ? " (corpse)" : "")])
         {
             continue;
@@ -1385,22 +1398,22 @@ void bench_f()
         vec3_t zero{0.f, 0.f, 0.f};
         for(int r = 0; r < rays; r++)
         {
-            const float z = uni(rng) * 2.f - 1.f, phi = uni(rng) * 6.2831853f, s = std::sqrt(std::max(0.f, 1.f - z * z));
-            const glm::vec3 from = c + glm::vec3{s * std::cos(phi), s * std::sin(phi), z} * reach;
+            const float z = uni(rng) * 2.f - 1.f, phi = uni(rng) * 6.2831853f, s = za::sqrt(za::max(0.f, 1.f - z * z));
+            const glm::vec3 from = c + glm::vec3{s * za::cos(phi), s * za::sin(phi), z} * reach;
             const glm::vec3 aim = lo + (hi - lo) * glm::vec3{uni(rng), uni(rng), uni(rng)};
             const glm::vec3 to = from + (aim - from) * 2.f;
             vec3_t a{from.x, from.y, from.z}, b{to.x, to.y, to.z};
-            auto t0 = Clock::now();
+            auto t0 = qza::nowNs();
             const trace_t tr = SV_ClipMoveToEntity(ent, a, zero, zero, b);
-            boxNs += std::chrono::duration<double, std::nano>(Clock::now() - t0).count();
+            boxNs += qza::nsSince(t0);
             if(tr.fraction < 1.f || tr.startsolid)
             {
                 boxHits++;
             }
-            t0 = Clock::now();
+            t0 = qza::nowNs();
             Hit h;
             const bool hit = clip(ent, from, to, glm::vec3{0.f}, glm::vec3{0.f}, tol, Class::Guns, 1.f, h);
-            modelNs += std::chrono::duration<double, std::nano>(Clock::now() - t0).count();
+            modelNs += qza::nsSince(t0);
             modelHits += hit;
         }
         const long long narrow = stats.narrow - before.narrow;
@@ -1414,17 +1427,17 @@ void bench_f()
             const glm::vec3 blo = vec(ent->v.origin) + vec(ent->v.mins), bhi = vec(ent->v.origin) + vec(ent->v.maxs);
             for(const int p : {d.pose1, d.pose2})
             {
-                const trivertx_t* v = posesOf(hdr) + static_cast<std::size_t>(p) * m->numverts;
+                const trivertx_t* v = posesOf(hdr) + static_cast<za::SizeT>(p) * m->numverts;
                 for(int k = 0; k < m->numverts; k++)
                 {
                     const glm::vec3 w = d.A * raw(v[k]) + d.b;
-                    overhang = std::max(overhang, glm::length(w - glm::clamp(w, blo, bhi)));
+                    overhang = za::max(overhang, glm::length(w - glm::clamp(w, blo, bhi)));
                 }
             }
         }
         Con_Printf("  %-22s %s: %4zu triangles, %3d poses (built in %.2f ms); box %d%%, model %d%% of the rays (%d%% of the box's); "
                    "box %.2f us, model %.2f us (%.1f nodes, %.1f triangles a test); the model reaches %.1f out of its box\n",
-            name.c_str(), static_cast<int>(ent->v.solid) == SOLID_NOT_BUT_TOUCHABLE ? "corpse" : "alive", m->tris.size(), m->numposes, m->buildMs,
+            name.cStr(), static_cast<int>(ent->v.solid) == SOLID_NOT_BUT_TOUCHABLE ? "corpse" : "alive", m->tris.size(), m->numposes, m->buildMs,
             boxHits * 100 / rays, modelHits * 100 / rays, boxHits ? modelHits * 100 / boxHits : 0, boxNs / 1000. / rays,
             modelNs / 1000. / rays, narrow ? static_cast<double>(stats.nodes - before.nodes) / narrow : 0.,
             narrow ? static_cast<double>(stats.tris - before.tris) / narrow : 0., overhang);

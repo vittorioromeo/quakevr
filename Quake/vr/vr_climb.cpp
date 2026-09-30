@@ -125,12 +125,22 @@
 #include "vr_server.hpp"
 #include "vr_units.hpp"
 
-#include <algorithm>
-#include <functional>
-#include <cmath>
-#include <optional>
-#include <string>
-#include <vector>
+#include "Zancle/Algorithm/AnyOf.hpp"
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Atan2.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Floor.hpp"
+#include "Zancle/Math/Lround.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/Vocabulary/Optional.hpp"
+#include "vr_zancle.hpp"
+
 
 using namespace qvr;
 using namespace qvr::progs;
@@ -242,8 +252,8 @@ struct Touch
 
 [[nodiscard]] Touch touch()
 {
-    const float t = std::max(0.f, vr_climb_touch.value) * 0.01f * units::metresToUnits();
-    return Touch{t, t, holdInset + t, std::max(0.f, vr_climb_over_top.value)};
+    const float t = za::max(0.f, vr_climb_touch.value) * 0.01f * units::metresToUnits();
+    return Touch{t, t, holdInset + t, za::max(0.f, vr_climb_over_top.value)};
 }
 
 // Where a hand (in the ledge's model's space) is from the place it takes a hold on ledge `e` from (see the top of the
@@ -265,23 +275,23 @@ struct Place
 {
     Place p;
     const float raw = glm::dot(hand - e.a, e.dir);
-    p.t = std::clamp(raw, 0.f, e.len);
+    p.t = za::clamp(raw, 0.f, e.len);
     const glm::vec3 lip = e.point(p.t);
     const ledges::Sample& s = m.sampleAt(e, p.t);
     const glm::vec2 out{e.out};
     p.facing = glm::dot(out, toBody);
     // In from the lip as far as the top goes and the drop is within reach; out in front of it when it faces the body.
     const Touch k = touch();
-    const float in = std::max(0.f, std::min(s.depth, k.in - s.dropOut));
+    const float in = za::max(0.f, za::min(s.depth, k.in - s.dropOut));
     const float front = p.facing > 0.f ? k.front : 0.f;
     const float across = glm::dot(glm::vec2{hand} - glm::vec2{lip}, out);
-    const float across1 = std::clamp(across, -in, front);
-    const glm::vec3 overAt = lip + e.out * std::min(across1, 0.f);
+    const float across1 = za::clamp(across, -in, front);
+    const glm::vec3 overAt = lip + e.out * za::min(across1, 0.f);
     const float surface = e.topAt(overAt); // the top under the hand (the lip's height in front of it)
     const float up = hand.z - surface;
-    const float up1 = std::clamp(up, -k.sink, k.over);
+    const float up1 = za::clamp(up, -k.sink, k.over);
     const float da = raw - p.t, ds = across - across1, dz = up - up1;
-    p.dist = std::sqrt(da * da + ds * ds + dz * dz);
+    p.dist = za::sqrt(da * da + ds * ds + dz * dz);
     p.over = across <= 0.f;
     p.hold = lip - e.out * ledges::holdInset;
     p.top = e.topAt(p.hold);
@@ -301,11 +311,11 @@ struct Place
     {
         return a.over;
     }
-    if(std::abs(a.top - b.top) > 0.01f)
+    if(qza::abs(a.top - b.top) > 0.01f)
     {
         return a.top > b.top;
     }
-    if(std::abs(a.facing - b.facing) > 1e-3f)
+    if(qza::abs(a.facing - b.facing) > 1e-3f)
     {
         return a.facing > b.facing;
     }
@@ -357,12 +367,12 @@ struct Scored
 // The hold search's buffers (the server's frame: the main thread).
 struct ClimbScratch
 {
-    std::vector<int> nearby;             // the ledges of one model near the hand (gather)
-    std::vector<edict_t*> areaEdicts;    // the entities round the hand (gather)
-    std::vector<Candidate> found;        // the ledges near the hand (findHold)
-    std::vector<edict_t*> movers;        // the brush models round it (findHold)
-    std::vector<const Candidate*> order; // those the hand is at, the first taken first (findHold)
-    std::vector<Scored> scored;          // the lenient ones (findHold)
+    za::Vector<int> nearby;             // the ledges of one model near the hand (gather)
+    za::Vector<edict_t*> areaEdicts;    // the entities round the hand (gather)
+    za::Vector<Candidate> found;        // the ledges near the hand (findHold)
+    za::Vector<edict_t*> movers;        // the brush models round it (findHold)
+    za::Vector<const Candidate*> order; // those the hand is at, the first taken first (findHold)
+    za::Vector<Scored> scored;          // the lenient ones (findHold)
     auto members() { return qvr::mem::list(nearby, areaEdicts, found, movers, order, scored); }
 };
 mem::Scratch<ClimbScratch> scratch{"climb"};
@@ -375,14 +385,14 @@ struct LenientStats
 
 // The ledges the hand at `hand` is within `radius` of being at (see the top of the file), in the world and the brush
 // models round it (`movers`: those, SOLID_BSP, their boxes near).
-void gather(edict_t* player, const glm::vec3& hand, float radius, std::vector<Candidate>& out, std::vector<edict_t*>& movers,
+void gather(edict_t* player, const glm::vec3& hand, float radius, za::Vector<Candidate>& out, za::Vector<edict_t*>& movers,
     LenientStats& st)
 {
     const glm::vec2 toBody = towardsBody(player, hand);
     const Touch k = touch();
-    const glm::vec3 reach{radius + std::max(k.in, k.sink) + 1.f}; // the furthest a hand at a ledge is from its lip
+    const glm::vec3 reach{radius + za::max(k.in, k.sink) + 1.f}; // the furthest a hand at a ledge is from its lip
     const glm::vec3 lo = hand - reach, hi = hand + reach;
-    std::vector<int>& nearby = scratch.nearby;
+    za::Vector<int>& nearby = scratch.nearby;
     const auto from = [&](const ledges::Map& m, edict_t* ent, const glm::vec3& offset) {
         nearby.clear();
         m.nearby(lo - offset, hi - offset, nearby);
@@ -392,7 +402,7 @@ void gather(edict_t* player, const glm::vec3& hand, float radius, std::vector<Ca
             const Place p = placeOf(m, m.edges[static_cast<size_t>(i)], hand - offset, toBody);
             if(p.dist <= radius + 1e-3f)
             {
-                out.push_back(Candidate{&m, i, ent, offset, p});
+                out.pushBack(Candidate{&m, i, ent, offset, p});
             }
         }
     };
@@ -400,8 +410,8 @@ void gather(edict_t* player, const glm::vec3& hand, float radius, std::vector<Ca
     {
         from(*world, nullptr, glm::vec3{0.f});
     }
-    std::vector<edict_t*>& list = scratch.areaEdicts;
-    list.resize(static_cast<size_t>(std::max(1, qcvm->num_edicts)));
+    za::Vector<edict_t*>& list = scratch.areaEdicts;
+    list.resize(static_cast<size_t>(za::max(1, qcvm->num_edicts)));
     int count = 0;
     vec3_t mins{lo.x, lo.y, lo.z}, maxs{hi.x, hi.y, hi.z};
     SV_AreaEdicts(mins, maxs, list.data(), &count, static_cast<int>(list.size()));
@@ -413,7 +423,7 @@ void gather(edict_t* player, const glm::vec3& hand, float radius, std::vector<Ca
         {
             continue;
         }
-        movers.push_back(e);
+        movers.pushBack(e);
         if(const ledges::Map* m = ledges::of(sv.models[index]))
         {
             from(*m, e, vec(e->v.origin));
@@ -441,7 +451,7 @@ enum class Check
 // - a lenient hold: in sight of the hand (a line from it, or from the head for a hand inside a wall, to just over the
 //   lip: no grabbing through a wall).
 [[nodiscard]] Check check(edict_t* player, const Candidate& c, const glm::vec3& at, bool lenient, const glm::vec3& hand,
-    const glm::vec3& headPos, const std::vector<edict_t*>& movers)
+    const glm::vec3& headPos, const za::Vector<edict_t*>& movers)
 {
     const ledges::Edge& e = c.ledge();
     const glm::vec3 up{0.f, 0.f, 1.f};
@@ -468,7 +478,7 @@ enum class Check
     if(c.place.over)
     {
         const float surface = e.topAt(at - c.offset) + c.offset.z;
-        if(!clear(glm::vec3{at.x, at.y, std::max(at.z + touch().sink, surface + 0.5f)}, glm::vec3{at.x, at.y, surface + 0.25f}))
+        if(!clear(glm::vec3{at.x, at.y, za::max(at.z + touch().sink, surface + 0.5f)}, glm::vec3{at.x, at.y, surface + 0.25f}))
         {
             return Check::unreached;
         }
@@ -476,7 +486,7 @@ enum class Check
     else
     {
         const glm::vec3 lip = e.point(c.place.t) + c.offset;
-        const glm::vec3 over{at.x, at.y, std::max(at.z, lip.z + 1.f)};
+        const glm::vec3 over{at.x, at.y, za::max(at.z, lip.z + 1.f)};
         const glm::vec3 in = glm::vec3{lip.x, lip.y, over.z} - e.out * 1.f;
         if((over.z > at.z && !clear(at, over)) || !clear(over, in))
         {
@@ -529,7 +539,7 @@ struct Box
     const ledges::Edge& e = c.ledge();
     const ledges::Sample& s = c.map->sampleAt(e, c.place.t);
     const Touch k = touch();
-    const float in = std::max(0.f, std::min(s.depth, k.in - s.dropOut));
+    const float in = za::max(0.f, za::min(s.depth, k.in - s.dropOut));
     return Box{{0.f, -in, -k.sink}, {e.len, c.place.facing > 0.f ? k.front : 0.f, k.over}};
 }
 
@@ -537,7 +547,7 @@ struct Box
 // takenBefore), nearest the hand: the place less the others' places that come first, as boxes in `c`'s frame (those
 // square or parallel to it: rungs above and below, a rung's front and its ends, a thin wall's two sides; any other is
 // only checked at the point found). False: nowhere.
-[[nodiscard]] bool freePoint(const Candidate& c, const std::vector<Candidate>& all, const glm::vec3& hand, const glm::vec2& toBody,
+[[nodiscard]] bool freePoint(const Candidate& c, const za::Vector<Candidate>& all, const glm::vec3& hand, const glm::vec2& toBody,
     glm::vec3& point)
 {
     const ledges::Edge& e = c.ledge();
@@ -555,15 +565,15 @@ struct Box
         Box box;
         const Candidate* k;
     };
-    std::vector<Blocker> blockers;
-    const bool flat = std::abs(e.dir.z) < 1e-3f;
+    za::Vector<Blocker> blockers;
+    const bool flat = qza::abs(e.dir.z) < 1e-3f;
     if(flat)
     {
         for(const Candidate& k : all)
         {
             const ledges::Edge& ke = k.ledge();
-            const float cosine = std::abs(glm::dot(ke.dir, e.dir));
-            if(&k == &c || std::abs(ke.dir.z) >= 1e-3f || (cosine > 1e-3f && cosine < 1.f - 1e-3f))
+            const float cosine = qza::abs(glm::dot(ke.dir, e.dir));
+            if(&k == &c || qza::abs(ke.dir.z) >= 1e-3f || (cosine > 1e-3f && cosine < 1.f - 1e-3f))
             {
                 continue;
             }
@@ -577,14 +587,14 @@ struct Box
                 b.lo = glm::min(b.lo, q);
                 b.hi = glm::max(b.hi, q);
             }
-            blockers.push_back(Blocker{b, &k});
+            blockers.pushBack(Blocker{b, &k});
         }
     }
     const glm::vec3 h = f.to(hand);
     float best = 1e30f;
     bool found = false;
     // The nearest point of `box` not in a blocker that comes first there: split round the first such blocker met.
-    const std::function<void(const Box&, int)> search = [&](const Box& box, int depth) {
+    const auto search = [&](this const auto& search, const Box& box, int depth) -> void {
         const glm::vec3 p = glm::clamp(h, box.lo, box.hi);
         const float d = glm::distance(p, h);
         if(d >= best)
@@ -607,8 +617,8 @@ struct Box
             for(int axis = 0; axis < 3; axis++)
             {
                 Box below = box, above = box;
-                below.hi[axis] = std::min(box.hi[axis], b.box.lo[axis] - 2e-3f);
-                above.lo[axis] = std::max(box.lo[axis], b.box.hi[axis] + 2e-3f);
+                below.hi[axis] = za::min(box.hi[axis], b.box.lo[axis] - 2e-3f);
+                above.lo[axis] = za::max(box.lo[axis], b.box.hi[axis] + 2e-3f);
                 if(below.lo[axis] <= below.hi[axis])
                 {
                     search(below, depth + 1);
@@ -640,7 +650,7 @@ struct Box
     {
         // (a sloping lip: its place's point nearest the hand)
         const glm::vec3 world = c.place.nearest + c.offset;
-        found = std::none_of(all.begin(), all.end(), [&](const Candidate& k) { return &k != &c && takenFirst(k, world); });
+        found = !za::anyOf(all.begin(), all.end(), [&](const Candidate& k) { return &k != &c && takenFirst(k, world); });
         point = world;
     }
     return found;
@@ -649,37 +659,37 @@ struct Box
 // The hold a grip of the hand at `hand` takes (see the top of the file): one the hand is at, else (leniency, `radius`
 // units) the nearest it is within `radius` of being at. `vel`: the hand's velocity (m/s); `headPos`: the head.
 // `lenient`: whether the hold is a lenient one.
-[[nodiscard]] std::optional<Ledge> findHold(edict_t* player, const glm::vec3& hand, const glm::vec3& vel,
+[[nodiscard]] za::Optional<Ledge> findHold(edict_t* player, const glm::vec3& hand, const glm::vec3& vel,
     const glm::vec3& headPos, float radius, bool& lenient, LenientStats* stats = nullptr)
 {
     LenientStats st;
     lenient = false;
-    std::vector<Candidate>& found = scratch.found;
-    std::vector<edict_t*>& movers = scratch.movers;
+    za::Vector<Candidate>& found = scratch.found;
+    za::Vector<edict_t*>& movers = scratch.movers;
     found.clear();
     movers.clear();
     gather(player, hand, radius, found, movers, st);
     const float feet = player->v.origin[2] + player->v.mins[2];
     const float lowest = feet + vr_climb_min_height.value;
-    const auto finish = [&](const Candidate* c) -> std::optional<Ledge> {
+    const auto finish = [&](const Candidate* c) -> za::Optional<Ledge> {
         if(stats)
         {
             *stats = st;
         }
-        return c ? std::optional<Ledge>{c->toLedge()} : std::nullopt;
+        return c ? za::Optional<Ledge>{c->toLedge()} : za::nullOpt;
     };
 
     // At a hold: the one taken first (takenBefore) of those it is at, that passes the checks.
-    std::vector<const Candidate*>& order = scratch.order;
+    za::Vector<const Candidate*>& order = scratch.order;
     order.clear();
     for(const Candidate& c : found)
     {
         if(c.place.dist <= 1e-3f)
         {
-            order.push_back(&c);
+            order.pushBack(&c);
         }
     }
-    std::sort(order.begin(), order.end(), [](const Candidate* a, const Candidate* b) { return takenBefore(a->place, b->place); });
+    za::quickSort(order.begin(), order.end(), [](const Candidate* a, const Candidate* b) { return takenBefore(a->place, b->place); });
     for(const Candidate* c : order)
     {
         if(c->place.top + c->offset.z < lowest)
@@ -706,8 +716,8 @@ struct Box
     // A lenient hold is at most the leniency plus this from the hand: the furthest the hold is from a hand at the ledge
     // (in over the top as far as it reaches, or in front of its face, and under the lip as far as touching reaches).
     const Touch k = touch();
-    const float lenientReach = std::hypot(std::max(k.in, holdInset + k.front), ledges::holdLift + k.sink) + 1e-3f;
-    std::vector<Scored>& scored = scratch.scored;
+    const float lenientReach = qza::hypot(za::max(k.in, holdInset + k.front), ledges::holdLift + k.sink) + 1e-3f;
+    za::Vector<Scored>& scored = scratch.scored;
     scored.clear();
     for(const Candidate& c : found)
     {
@@ -751,9 +761,9 @@ struct Box
             continue; // behind the head, from the hand
         }
         const float score = dist * (1.f - reachFavour * (dist > 1e-3f ? glm::dot(d / dist, reach) : 0.f));
-        scored.push_back(Scored{score, taken, at});
+        scored.pushBack(Scored{score, taken, at});
     }
-    std::sort(scored.begin(), scored.end(), [](const Scored& a, const Scored& b) { return a.score < b.score; });
+    za::quickSort(scored.begin(), scored.end(), [](const Scored& a, const Scored& b) { return a.score < b.score; });
     for(const Scored& sc : scored)
     {
         switch(check(player, sc.c, sc.at, true, hand, headPos, movers))
@@ -769,7 +779,7 @@ struct Box
 
 [[nodiscard]] float leniencyUnits()
 {
-    return std::max(0.f, vr_climb_leniency.value) * 0.01f * units::metresToUnits();
+    return za::max(0.f, vr_climb_leniency.value) * 0.01f * units::metresToUnits();
 }
 
 // The hold a grip of hand `h` takes (findHold): from the drawn hand, or from the controller's own point where the level
@@ -777,13 +787,13 @@ struct Box
 // rung's underside, its point a hand's height below it). A hold either point is at comes first (the drawn hand's
 // before the controller's), then the drawn hand's lenient one, then the controller's. `tracked`: found from the
 // controller's point.
-[[nodiscard]] std::optional<Ledge> gripHold(edict_t* ent, const VrMove& move, int h, bool& lenient, bool& tracked, LenientStats* st)
+[[nodiscard]] za::Optional<Ledge> gripHold(edict_t* ent, const VrMove& move, int h, bool& lenient, bool& tracked, LenientStats* st)
 {
     constexpr float maxHeldOut = 64.f; // units: a controller's point further from the drawn hand is not believed
     const VrHandMove& m = move.hands[h];
     const float radius = leniencyUnits();
     tracked = false;
-    std::optional<Ledge> drawn = findHold(ent, m.pos, m.throwVel, move.headPos, radius, lenient, st);
+    za::Optional<Ledge> drawn = findHold(ent, m.pos, m.throwVel, move.headPos, radius, lenient, st);
     const float heldOut = glm::distance(m.tracked, m.pos);
     if((drawn && !lenient) || heldOut < 0.25f || heldOut > maxHeldOut)
     {
@@ -791,7 +801,7 @@ struct Box
     }
     bool trackedLenient = false;
     LenientStats st2;
-    std::optional<Ledge> own = findHold(ent, m.tracked, m.throwVel, move.headPos, radius, trackedLenient, &st2);
+    za::Optional<Ledge> own = findHold(ent, m.tracked, m.throwVel, move.headPos, radius, trackedLenient, &st2);
     if(st)
     {
         st->points += st2.points;
@@ -851,7 +861,7 @@ struct Climber
     double slipStart{0.0};
     bool wasLow{false};        // the pool was low (the gadget's blink) at the last hanging frame: the breath once as it gets low
     double tiredAt{-1.0};      // a grip refused for want of stamina: its buzz (at most every 0.5 s)
-    std::string handsLine[2];  // vr_debug_hands: the lines last printed
+    za::String handsLine[2];  // vr_debug_hands: the lines last printed
     bool hanging() const
     {
         return grips[0].active || grips[1].active;
@@ -865,7 +875,7 @@ Climber climbers[MAX_SCOREBOARD];
 [[nodiscard]] Climber* climberOf(edict_t* ent)
 {
     const int client = NUM_FOR_EDICT(ent) - 1;
-    if(client < 0 || client >= std::min(svs.maxclients, static_cast<int>(MAX_SCOREBOARD)))
+    if(client < 0 || client >= za::min(svs.maxclients, static_cast<int>(MAX_SCOREBOARD)))
     {
         return nullptr;
     }
@@ -1004,7 +1014,7 @@ void letGoAll(Climber& c)
 [[nodiscard]] float armReach()
 {
     const float body = units::bodyScale();
-    return (bodycal::armLengthMetres() + (palmReach + reachSlack) * body + std::max(0.f, vr_body_shoulder_reach.value) * body) *
+    return (bodycal::armLengthMetres() + (palmReach + reachSlack) * body + za::max(0.f, vr_body_shoulder_reach.value) * body) *
            units::metresToUnits();
 }
 
@@ -1016,7 +1026,7 @@ void letGoAll(Climber& c)
     hands::angleVectors(glm::vec3{move.headAngles.x, move.headAngles.y, 0.f}, f, r, u);
     const glm::vec3 neck = move.headPos - (f * eyeToNeckFwd + u * eyeToNeckDown) * m2u;
     const float yaw = glm::radians(move.headAngles.y);
-    const glm::vec3 fwd{std::cos(yaw), std::sin(yaw), 0.f}, left{-std::sin(yaw), std::cos(yaw), 0.f};
+    const glm::vec3 fwd{za::cos(yaw), za::sin(yaw), 0.f}, left{-za::sin(yaw), za::cos(yaw), 0.f};
     const bool rightSide = h == 1; // (hand 1: the main hand, the right controller)
     const glm::vec3 shift = bodycal::shoulderShift(); // back, up, out
     return neck + (-fwd * shift.x + glm::vec3{0.f, 0.f, shift.y - neckToShoulderDown} +
@@ -1039,7 +1049,7 @@ void letGoAll(Climber& c)
     {
         return -1.f;
     }
-    return g.ledge.map->sampleAt(e, std::clamp(t, 0.f, e.len)).depth;
+    return g.ledge.map->sampleAt(e, za::clamp(t, 0.f, e.len)).depth;
 }
 
 // The hands in sync (vr_climb_slide; see the top of the file): grip `g`'s hold slid along its lip towards where the
@@ -1054,14 +1064,14 @@ void slideHold(Grip& g, const glm::vec3& tracked, const glm::vec3& shoulder, flo
     const ledges::Edge& e = g.ledge.map->edges[static_cast<size_t>(g.ledge.edge)];
     const glm::vec3 hold = holdNow(g);
     float s = glm::dot(tracked - g.grabOffset - hold, e.dir);
-    s = std::clamp(g.ledge.t + s, 0.f, e.len) - g.ledge.t;
+    s = za::clamp(g.ledge.t + s, 0.f, e.len) - g.ledge.t;
     // |hold + e.dir * s - shoulder| <= max(reach, now): s between the roots of s^2 + 2 b s + c = 0 (c <= 0).
     const glm::vec3 v = hold - shoulder;
     const float b = glm::dot(v, e.dir);
-    const float c = glm::dot(v, v) - std::max(reach * reach, glm::dot(v, v));
-    const float root = std::sqrt(std::max(0.f, b * b - c));
-    s = std::clamp(s, -b - root, -b + root);
-    if(std::abs(s) < 1e-4f)
+    const float c = glm::dot(v, v) - za::max(reach * reach, glm::dot(v, v));
+    const float root = za::sqrt(za::max(0.f, b * b - c));
+    s = za::clamp(s, -b - root, -b + root);
+    if(qza::abs(s) < 1e-4f)
     {
         return;
     }
@@ -1093,7 +1103,7 @@ void slideHold(Grip& g, const glm::vec3& tracked, const glm::vec3& shoulder, flo
     const glm::vec3 along{-g.ledge.out.y, g.ledge.out.x, 0.f};
     const glm::vec3 lip = hold + g.ledge.out * holdInset;
     constexpr float sides[] = {0.f, 8.f, -8.f, 16.f, -16.f};
-    constexpr int sideCount = static_cast<int>(std::size(sides));
+    constexpr int sideCount = static_cast<int>(za::getArraySize(sides));
     // Straight up to over the top, `side` along the edge; else from a little further out (a body pressed against the
     // face, under a trim on its lip). The same for every spot in from the lip: swept once a side.
     int upState[sideCount] = {}; // 0: not swept yet, 1: clear (to upMid), -1: blocked
@@ -1179,7 +1189,7 @@ void slideHold(Grip& g, const glm::vec3& tracked, const glm::vec3& shoulder, flo
     }
     // A narrow top (at least `minFooting` deep): from over its middle outwards, the box's middle still over it (not
     // standing on its edge over the drop: a rung against a wall is no place to stand).
-    const float depth = std::max(0.f, depthAt(g, 0.f));
+    const float depth = za::max(0.f, depthAt(g, 0.f));
     if(depth < minFooting)
     {
         return false;
@@ -1190,7 +1200,7 @@ void slideHold(Grip& g, const glm::vec3& tracked, const glm::vec3& shoulder, flo
         {
             continue;
         }
-        for(float in = std::min(0.5f * depth, 22.f); in >= 0.5f; in -= 2.f)
+        for(float in = za::min(0.5f * depth, 22.f); in >= 0.5f; in -= 2.f)
         {
             if(fits(s, in))
             {
@@ -1227,7 +1237,7 @@ void slideHold(Grip& g, const glm::vec3& tracked, const glm::vec3& shoulder, flo
         delta = glm::vec3{0.f};
         for(int i = 0; i < count; i++)
         {
-            glm::vec3 d = rest - planes[i] * std::min(0.f, glm::dot(rest, planes[i]));
+            glm::vec3 d = rest - planes[i] * za::min(0.f, glm::dot(rest, planes[i]));
             bool clear = true;
             for(int j = 0; j < count; j++)
             {
@@ -1348,25 +1358,25 @@ constexpr float slipSink = 8.f; // units a second an exhausted body sinks, slipp
 
 [[nodiscard]] float staminaMax()
 {
-    return std::max(1.f, vr_parry_stamina_max.value);
+    return za::max(1.f, vr_parry_stamina_max.value);
 }
 
 // 0 .. staminaMax (staminaOn only).
 [[nodiscard]] float staminaLeft(edict_t* ent)
 {
-    return std::clamp(staminaMax() - fieldFloat(ent, fields().vr_stamina_used), 0.f, staminaMax());
+    return za::clamp(staminaMax() - fieldFloat(ent, fields().vr_stamina_used), 0.f, staminaMax());
 }
 
 // Too tired to start a hang: less left than a second's hang from one hand (it would let go at once).
 [[nodiscard]] bool tooTired(edict_t* ent)
 {
-    return staminaOn(ent) && staminaLeft(ent) < std::max(0.001f, vr_climb_stamina_rate.value);
+    return staminaOn(ent) && staminaLeft(ent) < za::max(0.001f, vr_climb_stamina_rate.value);
 }
 
 // Tiring Warning (vr_parry_stamina_warn): the breath's volume and the buzz's strength, as the parry's.
 [[nodiscard]] float staminaWarn()
 {
-    return std::clamp(vr_parry_stamina_warn.value, 0.f, 1.f);
+    return za::clamp(vr_parry_stamina_warn.value, 0.f, 1.f);
 }
 
 // The pool low, as the gadget last showed it (VR_Melee_Hud's 256: one more of the dearest effort would empty it).
@@ -1379,7 +1389,7 @@ void spendStamina(edict_t* ent, float amount)
 {
     const FieldOffsets& f = fields();
     float& used = fieldFloat(ent, f.vr_stamina_used);
-    used = std::min(staminaMax(), std::max(0.f, used) + std::max(0.f, amount));
+    used = za::min(staminaMax(), za::max(0.f, used) + za::max(0.f, amount));
     fieldFloat(ent, f.vr_stamina_time) = static_cast<float>(qcvm->time); // (the rest counts from now: none comes back)
     if(f.vr_stamina_said >= 0)
     {
@@ -1391,7 +1401,7 @@ void staminaSound(edict_t* ent, const char* sample, float volume)
 {
     if(volume > 0.f)
     {
-        SV_StartSound(ent, 0, sample, static_cast<int>(std::lround(255.f * std::min(volume, 1.f))), 1.f); // (ATTN_NORM)
+        SV_StartSound(ent, 0, sample, static_cast<int>(za::lround(255.f * za::min(volume, 1.f))), 1.f); // (ATTN_NORM)
     }
 }
 
@@ -1438,7 +1448,7 @@ void hangStamina(edict_t* ent, Climber& c, double time)
     const float before = staminaLeft(ent);
     if(!standing)
     {
-        const float rate = std::max(0.f, hands > 1 ? vr_climb_stamina_rate_2h.value : vr_climb_stamina_rate.value);
+        const float rate = za::max(0.f, hands > 1 ? vr_climb_stamina_rate_2h.value : vr_climb_stamina_rate.value);
         spendStamina(ent, rate * static_cast<float>(host_frametime));
         c.draining = rate > 0.f;
         const bool low = staminaLow(ent);
@@ -1451,7 +1461,7 @@ void hangStamina(edict_t* ent, Climber& c, double time)
             }
         }
         c.wasLow = low;
-        if(vr_climb_debug.value >= 2.f || (debug() && std::floor(before / 10.f) != std::floor(staminaLeft(ent) / 10.f)))
+        if(vr_climb_debug.value >= 2.f || (debug() && za::floor(before / 10.f) != za::floor(staminaLeft(ent) / 10.f)))
         {
             Con_Printf("climbstamina %.4f %d hand%s: %.2f of %.0f left (-%.3f)%s\n", time, hands, hands > 1 ? "s" : "",
                 staminaLeft(ent), staminaMax(), before - staminaLeft(ent), low ? " low" : "");
@@ -1462,7 +1472,7 @@ void hangStamina(edict_t* ent, Climber& c, double time)
         c.slipping = false;
         return;
     }
-    const float slip = std::max(0.f, vr_climb_stamina_slip.value);
+    const float slip = za::max(0.f, vr_climb_stamina_slip.value);
     if(slip <= 0.f)
     {
         exhaustedLetGo(ent, c, time);
@@ -1499,7 +1509,7 @@ void debugHands(edict_t* ent, Climber& c, const VrMove* move, double time)
         return;
     }
     const FieldOffsets& f = fields();
-    const auto entName = [](edict_t* e) -> std::string {
+    const auto entName = [](edict_t* e) -> za::String {
         if(!e)
         {
             return "none";
@@ -1536,10 +1546,10 @@ void debugHands(edict_t* ent, Climber& c, const VrMove* move, double time)
             "grip %d | weapon %g | carry %s%s | force grab: target %s%s, pulled %s%s | flashlight %d | hotspot %d | "
             "climb: %s",
             move && (move->vrBits0 & grabBit[h]) ? 1 : 0,
-            h == 1 ? ent->v.weapon : fieldFloatOr(ent, f.weapon2, 0.f), entName(held).c_str(),
-            held && held == otherHeld ? " (both hands)" : "", entName(target).c_str(),
+            h == 1 ? ent->v.weapon : fieldFloatOr(ent, f.weapon2, 0.f), entName(held).cStr(),
+            held && held == otherHeld ? " (both hands)" : "", entName(target).cStr(),
             fieldFloatOr(ent, h == 1 ? f.mainhand_fglocked : f.offhand_fglocked, 0.f) != 0.f ? " locked" : "",
-            entName(pulled).c_str(), pulledState, move && (move->buttons & busyButton[h]) ? 1 : 0, hotspot, climb);
+            entName(pulled).cStr(), pulledState, move && (move->buttons & busyButton[h]) ? 1 : 0, hotspot, climb);
         if(vr_debug_hands.value >= 2.f || c.handsLine[h] != line)
         {
             c.handsLine[h] = line;
@@ -1570,7 +1580,7 @@ static void climbPreThink(edict_t* ent)
     }
     Climber& c = *cp;
     const double time = qcvm->time;
-    if(c.lastTime < 0.0 || std::abs(time - c.lastTime) > 1.0) // a new map, a loaded game
+    if(c.lastTime < 0.0 || qza::abs(time - c.lastTime) > 1.0) // a new map, a loaded game
     {
         c = Climber{};
     }
@@ -1678,7 +1688,7 @@ static void climbPreThink(edict_t* ent)
         LenientStats st;
         const int traces0 = traceCount;
         bool lenient = false, fromTracked = false;
-        const std::optional<Ledge> ledge = gripHold(ent, *move, h, lenient, fromTracked, &st);
+        const za::Optional<Ledge> ledge = gripHold(ent, *move, h, lenient, fromTracked, &st);
         if(debug() && vr_climb_debug.value >= 3.f)
         {
             Con_Printf("climb: hold search: %d ledges looked at, %d traces in %.4f ms\n", st.points, traceCount - traces0,
@@ -1711,7 +1721,7 @@ static void climbPreThink(edict_t* ent)
         g.entModel = ledge->ent ? static_cast<int>(ledge->ent->v.modelindex) : 0;
         g.ledge.ent = nullptr; // (kept as its number: entNum)
         g.mapGeneration = ledges::generation();
-        g.allowed = std::max(armReach(), glm::distance(ledge->hold, shoulderOf(*move, h)));
+        g.allowed = za::max(armReach(), glm::distance(ledge->hold, shoulderOf(*move, h)));
         if(!hanging)
         {
             c.owed = glm::vec3{0.f};
@@ -1753,8 +1763,8 @@ static void climbPreThink(edict_t* ent)
                     fling -= move->hands[h].throwVel / static_cast<float>(hands);
                 }
             }
-            fling *= units::metresToUnits() * std::max(0.f, vr_climb_fling.value);
-            fling.z = std::min(fling.z, flingMaxUp);
+            fling *= units::metresToUnits() * za::max(0.f, vr_climb_fling.value);
+            fling.z = za::min(fling.z, flingMaxUp);
             if(glm::length(fling) > flingMax)
             {
                 fling *= flingMax / glm::length(fling);
@@ -1898,14 +1908,14 @@ extern "C" int VR_ClientClimb(edict_t* ent)
         }
         const glm::vec3 moved = rel[h] - g.lastRel;
         const float w = glm::length(moved);
-        if(std::isfinite(w))
+        if(qza::isfinite(w))
         {
             pull += moved * w;
             weights += w;
             weight[h] = w;
         }
         carry += holdNow(g) - g.lastHold;
-        top = std::max(top, topNow(g));
+        top = za::max(top, topNow(g));
         count++;
     }
     carry /= static_cast<float>(count);
@@ -1920,7 +1930,7 @@ extern "C" int VR_ClientClimb(edict_t* ent)
         const glm::vec3 dir = c.owed / owed;
         if(const float s = glm::dot(move3, dir); s < 0.f)
         {
-            const float used = std::min(-s, owed);
+            const float used = za::min(-s, owed);
             move3 += dir * used;
             c.owed -= dir * used;
         }
@@ -1928,7 +1938,7 @@ extern "C" int VR_ClientClimb(edict_t* ent)
     if(c.slipping)
     {
         // No stamina left, slipping: the arms can't pull the body up; it sinks (to straight arms: the reach below).
-        move3.z = std::min(move3.z, 0.f) - slipSink * static_cast<float>(host_frametime);
+        move3.z = za::min(move3.z, 0.f) - slipSink * static_cast<float>(host_frametime);
     }
     const glm::vec3 meant = carry + move3; // what the body would do unhindered
 
@@ -1939,7 +1949,7 @@ extern "C" int VR_ClientClimb(edict_t* ent)
     const float highest = top - ent->v.mins[2] + 2.f;
     if(target.z > highest)
     {
-        target.z = std::max(highest, std::min(target.z, origin.z));
+        target.z = za::max(highest, za::min(target.z, origin.z));
     }
     for(int pass = 0; pass < 2; pass++)
     {
@@ -1951,7 +1961,7 @@ extern "C" int VR_ClientClimb(edict_t* ent)
             }
             const glm::vec3 hold = holdNow(g);
             glm::vec2 fromHold{target.x - hold.x, target.y - hold.y};
-            const float reach = std::max(maxHangReach, glm::length(glm::vec2{origin.x - hold.x, origin.y - hold.y}));
+            const float reach = za::max(maxHangReach, glm::length(glm::vec2{origin.x - hold.x, origin.y - hold.y}));
             if(glm::length(fromHold) > reach)
             {
                 fromHold *= reach / glm::length(fromHold);
@@ -2016,7 +2026,7 @@ extern "C" int VR_ClientClimb(edict_t* ent)
             if(driving[h])
             {
                 const float d = glm::distance(holdNow(g), pushed + shoulder[h]);
-                g.allowed = std::max(g.allowed, std::min(d, armReach() + std::max(0.f, vr_climb_overhang_stretch.value)));
+                g.allowed = za::max(g.allowed, za::min(d, armReach() + za::max(0.f, vr_climb_overhang_stretch.value)));
             }
         }
         setVec(ent->v.origin, origin);
@@ -2077,7 +2087,7 @@ extern "C" int VR_ClientClimb(edict_t* ent)
             }
             continue;
         }
-        g.allowed = std::max(armReach(), std::min(g.allowed, dist[h]));
+        g.allowed = za::max(armReach(), za::min(g.allowed, dist[h]));
     }
     SV_CheckWater(ent);
     traceFrame(ent, c, move, count > 1 ? "hang2" : "hang1", wanted, done);
@@ -2283,7 +2293,7 @@ extern "C" int VR_ClimbCarryBlocked(edict_t* check, edict_t* pusher, const float
 extern "C" void VR_ClimbCarried(edict_t* pusher, const float* move)
 {
     const int num = NUM_FOR_EDICT(pusher);
-    const int clients = std::min(svs.maxclients, static_cast<int>(MAX_SCOREBOARD));
+    const int clients = za::min(svs.maxclients, static_cast<int>(MAX_SCOREBOARD));
     for(int i = 0; i < clients; i++)
     {
         Climber& c = climbers[i];
@@ -2312,13 +2322,13 @@ void probe(edict_t* ent, float yaw)
 {
     const glm::vec3 origin = vec(ent->v.origin);
     const float feet = origin.z + ent->v.mins[2];
-    const glm::vec3 fwd{std::cos(glm::radians(yaw)), std::sin(glm::radians(yaw)), 0.f};
+    const glm::vec3 fwd{za::cos(glm::radians(yaw)), za::sin(glm::radians(yaw)), 0.f};
     const glm::vec3 a = origin + fwd * 16.f, b = origin + fwd * 64.f;
-    const glm::vec3 mins{std::min(a.x, b.x) - 24.f, std::min(a.y, b.y) - 24.f, feet + 16.f};
-    const glm::vec3 maxs{std::max(a.x, b.x) + 24.f, std::max(a.y, b.y) + 24.f, feet + 128.f};
+    const glm::vec3 mins{za::min(a.x, b.x) - 24.f, za::min(a.y, b.y) - 24.f, feet + 16.f};
+    const glm::vec3 maxs{za::max(a.x, b.x) + 24.f, za::max(a.y, b.y) + 24.f, feet + 128.f};
     int found = 0;
     const auto list = [&](const ledges::Map& m, const glm::vec3& offset, int entNum) {
-        std::vector<int> nearby;
+        za::Vector<int> nearby;
         m.nearby(mins - offset, maxs - offset, nearby);
         for(const int i : nearby)
         {
@@ -2377,7 +2387,7 @@ void try_f()
     bool lenient = false;
     const int traces0 = traceCount;
     const double t0 = Sys_DoubleTime();
-    const std::optional<Ledge> l = findHold(ent, hand, vel, head, leniencyUnits(), lenient, &st);
+    const za::Optional<Ledge> l = findHold(ent, hand, vel, head, leniencyUnits(), lenient, &st);
     const double ms = (Sys_DoubleTime() - t0) * 1000.0;
     if(l)
     {
@@ -2514,13 +2524,13 @@ void qvr::climb::calcStats(edict_t* ent, int* statsi)
         if(c && c->grips[h].active)
         {
             const glm::vec3& out = c->grips[h].ledge.out;
-            const int yaw = static_cast<int>(std::lround(std::atan2(out.y, out.x) / glm::two_pi<float>() * yawSteps)) & 255;
+            const int yaw = static_cast<int>(za::lround(za::atan2(out.y, out.x) / glm::two_pi<float>() * yawSteps)) & 255;
             bits |= (1 << h) | ((c->grips[h].serial & 63) << (2 + 6 * h)) | (yaw << (14 + 8 * h));
             hold = holdNow(c->grips[h]);
         }
         for(int i = 0; i < 3; i++)
         {
-            statsi[first + i] = static_cast<int>(std::lround(hold[i] * statScale));
+            statsi[first + i] = static_cast<int>(za::lround(hold[i] * statScale));
         }
     }
     statsi[STAT_QVR_CLIMB] = bits;
@@ -2543,7 +2553,7 @@ float qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& ha
     {
         const int first = hand ? STAT_QVR_CLIMBMAINX : STAT_QVR_CLIMBOFFX;
         const float yaw = static_cast<float>((bits >> (14 + 8 * hand)) & 255) / yawSteps * glm::two_pi<float>();
-        const glm::vec3 out{std::cos(yaw), std::sin(yaw), 0.f};
+        const glm::vec3 out{za::cos(yaw), za::sin(yaw), 0.f};
         pin.offset = handOffset(out, hand);
         const glm::vec3 hold = glm::vec3{static_cast<float>(cl.stats[first]), static_cast<float>(cl.stats[first + 1]),
                                    static_cast<float>(cl.stats[first + 2])} /
@@ -2573,13 +2583,13 @@ float qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& ha
         pin.to = hold; // (a hold on a moving brush model moves)
         pin.toOut = out;
         pin.serial = serial;
-        pin.along = std::min(1.f, pin.along + dt / pin.inTime);
-        pin.weight = std::min(1.f, pin.weight + dt / pin.inTime);
+        pin.along = za::min(1.f, pin.along + dt / pin.inTime);
+        pin.weight = za::min(1.f, pin.weight + dt / pin.inTime);
     }
     else
     {
-        pin.weight = std::max(0.f, pin.weight - dt / pinOutTime);
-        pin.along = std::min(1.f, pin.along + dt / pinInTime);
+        pin.weight = za::max(0.f, pin.weight - dt / pinOutTime);
+        pin.along = za::min(1.f, pin.along + dt / pinInTime);
     }
     if(pin.weight <= 0.f)
     {

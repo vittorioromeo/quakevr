@@ -12,14 +12,26 @@
 #include "vr_profile.hpp"
 #include "vr_view.hpp"
 
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Acos.hpp"
+#include "Zancle/Math/Asin.hpp"
+#include "Zancle/Math/Atan2.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Exp.hpp"
+#include "Zancle/Math/Fmod.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Remainder.hpp"
+#include "Zancle/Math/Round.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/String/String.hpp"
+#include "vr_zancle.hpp"
+
 #include <glm/gtc/constants.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-#include <array>
-#include <cmath>
-#include <cstring>
-#include <string>
-#include <vector>
+#include <string.h>
 
 namespace qvr::avatar
 {
@@ -105,7 +117,7 @@ constexpr glm::vec3 BACK{-1.f, 0.f, 0.f};
     glm::vec3 z = hint - x * glm::dot(hint, x);
     if(glm::length(z) < 1e-5f)
     {
-        z = glm::cross(x, std::abs(x.z) < 0.9f ? UP : FWD);
+        z = glm::cross(x, qza::abs(x.z) < 0.9f ? UP : FWD);
     }
     z = glm::normalize(z);
     return glm::mat3(x, glm::cross(z, x), z);
@@ -114,9 +126,9 @@ constexpr glm::vec3 BACK{-1.f, 0.f, 0.f};
 // The bind pose, in metres.
 struct Bind
 {
-    std::array<glm::vec3, JointCount> pos;
-    std::array<glm::mat3, JointCount> rot;
-    std::array<glm::vec3, JointCount> offset; // from the parent, in the parent's frame
+    za::Array<glm::vec3, JointCount> pos;
+    za::Array<glm::mat3, JointCount> rot;
+    za::Array<glm::vec3, JointCount> offset; // from the parent, in the parent's frame
     glm::vec3 toe[2];
 };
 
@@ -130,8 +142,8 @@ const Bind& bind()
         r.pos[Neck] = {-0.01f, 0.f, 1.47f};
         r.pos[Head] = {0.f, 0.f, 1.57f};
 
-        const float s30 = std::sin(glm::radians(30.f));
-        const float c30 = std::cos(glm::radians(30.f));
+        const float s30 = za::sin(glm::radians(30.f));
+        const float c30 = za::cos(glm::radians(30.f));
         for(int side = 0; side < 2; side++)
         {
             const float sy = side == 0 ? 1.f : -1.f;
@@ -209,7 +221,7 @@ struct Body
     float floorZ{0.f};
     glm::vec3 fwd{FWD};
     glm::vec3 left{0.f, 1.f, 0.f};
-    std::array<Bone, JointCount> bones{};
+    za::Array<Bone, JointCount> bones{};
 };
 
 // World position of `joint` from its posed parent.
@@ -244,7 +256,7 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f)
     const glm::vec3 top = s.head - (hf * vr_body_eye_forward.value + hu * vr_body_eye_up.value) * b.m2w;
 
     const float torsoLen = glm::distance(bd.pos[Pelvis], bd.pos[Head]) * b.m2w;
-    const float headDrop = std::max(0.f, b.floorZ + bd.pos[Head].z * b.m2w - top.z);
+    const float headDrop = za::max(0.f, b.floorZ + bd.pos[Head].z * b.m2w - top.z);
 
     // The lean's tilt: how far out it swings the top of the neck (at most as far as the head has gone down allows, and
     // a fifth of the lean always in the hips), and how much of the drop below the calibrated height that takes; the
@@ -255,33 +267,33 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f)
     if(leanLen > 0.01f)
     {
         // Down from where the player stands up straight (learnt: the calibrated height is only close to it).
-        const float leanDrop = std::max(0.f, s.standingHeight - s.headHeight) * units::metresToUnits();
-        const float h = std::min(leanDrop, torsoLen);
-        const float allowed = std::sqrt(std::max(0.f, torsoLen * torsoLen - (torsoLen - h) * (torsoLen - h)));
+        const float leanDrop = za::max(0.f, s.standingHeight - s.headHeight) * units::metresToUnits();
+        const float h = za::min(leanDrop, torsoLen);
+        const float allowed = za::sqrt(za::max(0.f, torsoLen * torsoLen - (torsoLen - h) * (torsoLen - h)));
         // Only as sure as it is a lean (vr_lean_detect): the body lagging the head as the player walks in the room
         // stays upright, the hips with the head, the feet catching up.
         const float sure = vr_lean_detect.value > 0.f ? s.leanHold : 1.f;
-        tiltReach = sure * std::min({leanLen * 0.8f, allowed, 0.7f * torsoLen});
+        tiltReach = sure * qza::minOf(leanLen * 0.8f, allowed, 0.7f * torsoLen);
     }
-    const float tiltDrop = torsoLen - std::sqrt(torsoLen * torsoLen - tiltReach * tiltReach);
+    const float tiltDrop = torsoLen - za::sqrt(torsoLen * torsoLen - tiltReach * tiltReach);
     const glm::vec3 top0 = top + UP * tiltDrop; // the neck as it would be without the tilt
 
     // How deep the crouch is: 0 standing, 1 with the pelvis at squatting height.
     const float standZ = b.floorZ + bd.pos[Pelvis].z * b.m2w;
     const float squatZ = b.floorZ + 0.3f * b.m2w;
-    const float drop = std::max(0.f, headDrop - tiltDrop);
-    const float crouch = standZ > squatZ ? std::min(1.f, drop / (standZ - squatZ)) : 0.f;
+    const float drop = za::max(0.f, headDrop - tiltDrop);
+    const float crouch = standZ > squatZ ? za::min(1.f, drop / (standZ - squatZ)) : 0.f;
     const float tilt = glm::radians(CLAMP(0.f, vr_body_crouch_tilt.value, 80.f)) * crouch;
-    float pelvisZ = std::max(top0.z - torsoLen * std::cos(tilt), squatZ);
-    pelvisZ = std::min(pelvisZ, top0.z - 0.3f * torsoLen); // lying down: keep the back from folding over
+    float pelvisZ = za::max(top0.z - torsoLen * za::cos(tilt), squatZ);
+    pelvisZ = za::min(pelvisZ, top0.z - 0.3f * torsoLen); // lying down: keep the back from folding over
     const float dz = top0.z - pelvisZ;
-    const float lean = dz < torsoLen ? std::sqrt(torsoLen * torsoLen - dz * dz) : 0.f;
+    const float lean = dz < torsoLen ? za::sqrt(torsoLen * torsoLen - dz * dz) : 0.f;
 
     // The torso sits vr_body_torso_back behind the neck (looking down shows the chest rather than
     // the top of the shoulders), the pelvis under it; the back leans forward from there.
     const glm::vec3 back = b.fwd * (vr_body_torso_back.value * b.m2w);
     const glm::vec3 pelvis0 = glm::vec3{top0.x, top0.y, pelvisZ} - back;
-    const glm::vec3 axis = safeNormalize(b.fwd * lean + UP * std::min(dz, torsoLen));
+    const glm::vec3 axis = safeNormalize(b.fwd * lean + UP * za::min(dz, torsoLen));
 
     // Tilted about the hips towards the lean, so that the neck comes to where it is: the hips end up over the feet
     // (less what the tilt could not reach).
@@ -289,7 +301,7 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f)
     if(tiltReach > 0.f)
     {
         const glm::vec3 spine = top0 - pelvis0;
-        const float angle = std::asin(std::min(1.f, tiltReach / std::max(glm::length(spine), 1e-3f)));
+        const float angle = za::asin(za::min(1.f, tiltReach / za::max(glm::length(spine), 1e-3f)));
         turn = glm::mat3_cast(glm::angleAxis(angle, safeNormalize(glm::cross(UP, leanOff / leanLen), b.left)));
     }
     const glm::vec3 pelvis = top - turn * (top0 - pelvis0);
@@ -331,10 +343,10 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f)
     const glm::vec3 toTarget = target - root;
     const float d = glm::length(toTarget);
     const glm::vec3 dir = d > 1e-4f ? toTarget / d : -UP;
-    const float reach = CLAMP(std::abs(a - b) + 1e-3f, d, a + b - 1e-4f);
+    const float reach = CLAMP(qza::abs(a - b) + 1e-3f, d, a + b - 1e-4f);
 
     const float cosA = CLAMP(-1.f, (a * a + reach * reach - b * b) / (2.f * a * reach), 1.f);
-    const float sinA = std::sqrt(std::max(0.f, 1.f - cosA * cosA));
+    const float sinA = za::sqrt(za::max(0.f, 1.f - cosA * cosA));
 
     bend = pole - dir * glm::dot(pole, dir);
     if(glm::length(bend) < 1e-3f)
@@ -361,11 +373,11 @@ struct WristTurn
 {
     const glm::mat3 untwisted = basis(foreDir, hint);
     const glm::quat turn = glm::normalize(glm::quat_cast(handRot * glm::transpose(untwisted)));
-    float twist = 2.f * std::atan2(glm::dot(glm::vec3{turn.x, turn.y, turn.z}, foreDir), turn.w);
-    twist -= glm::two_pi<float>() * std::round(twist / glm::two_pi<float>());
+    float twist = 2.f * za::atan2(glm::dot(glm::vec3{turn.x, turn.y, turn.z}, foreDir), turn.w);
+    twist -= glm::two_pi<float>() * za::round(twist / glm::two_pi<float>());
     const glm::vec3 h = glm::transpose(glm::mat3_cast(glm::angleAxis(twist, foreDir)) * untwisted) * handRot[0];
-    const float bend = std::acos(CLAMP(-1.f, h.x, 1.f));
-    const float across = std::sqrt(h.y * h.y + h.z * h.z);
+    const float bend = za::acos(CLAMP(-1.f, h.x, 1.f));
+    const float across = za::sqrt(h.y * h.y + h.z * h.z);
     // The rolled forearm's y (its z, the little finger's side, times its x) is the back of a right hand and the palm
     // of a left one (the hands mirror each other).
     const float toPalm = side == 0 ? 1.f : -1.f;
@@ -383,10 +395,10 @@ struct WristTurn
 {
     const float flexRange = t.flexion >= 0.f ? 85.f : 80.f;
     const float devRange = t.deviation >= 0.f ? 45.f : 30.f;
-    const float bend = std::sqrt(glm::pow(t.flexion / glm::radians(flexRange * limits), 2.f) +
+    const float bend = za::sqrt(glm::pow(t.flexion / glm::radians(flexRange * limits), 2.f) +
                                  glm::pow(t.deviation / glm::radians(devRange * limits), 2.f));
-    const float bendStrain = std::max(0.f, bend - 1.15f) / 0.3f;
-    const float twistStrain = std::max(0.f, std::abs(t.twist) - glm::radians(60.f * limits)) / glm::radians(25.f);
+    const float bendStrain = za::max(0.f, bend - 1.15f) / 0.3f;
+    const float twistStrain = za::max(0.f, qza::abs(t.twist) - glm::radians(60.f * limits)) / glm::radians(25.f);
     return bendStrain * bendStrain + twistStrain * twistStrain;
 }
 
@@ -419,7 +431,7 @@ struct WristTurn
             for(int i = -reach; i <= reach; i++)
             {
                 const float swivel = at + step * static_cast<float>(i);
-                if(i == 0 || std::abs(swivel) > most)
+                if(i == 0 || qza::abs(swivel) > most)
                 {
                     continue;
                 }
@@ -473,7 +485,7 @@ void traceArm(const Body& b, int side, const glm::vec3& shoulder, const glm::vec
     };
     const float limits = vr_body_wrist_limits.value > 0.f ? vr_body_wrist_limits.value : 1.f; // (0: as at 1)
     const WristTurn t = turnFrom(elbow, bend), t0 = turnFrom(poleElbow, poleBend);
-    const float angle = glm::degrees(std::acos(
+    const float angle = glm::degrees(za::acos(
         CLAMP(-1.f, glm::dot(glm::normalize(shoulder - elbow), safeNormalize(wrist - elbow, UP)), 1.f)));
     const glm::vec3 S = cm(shoulder), E = cm(elbow), E0 = cm(poleElbow), W = cm(wrist), hf = dir(handRot[0]),
                     hu = dir(-handRot[2]);
@@ -518,8 +530,8 @@ struct ArmLengths
     const float cm = units::metresToUnits() * 0.01f;
     ArmLengths r;
     const float mu = bodycal::measuredArmCm(0), mf = bodycal::measuredArmCm(1);
-    r.upper = std::max(5.f * cm, (mu > 0.f ? mu * cm : boneLength(UpperArmL, ForearmL) * m2w * length) + bodycal::armTweakCm(0) * cm);
-    r.fore = std::max(5.f * cm, (mf > 0.f ? mf * cm : boneLength(ForearmL, HandL) * m2w * length) + bodycal::armTweakCm(1) * cm);
+    r.upper = za::max(5.f * cm, (mu > 0.f ? mu * cm : boneLength(UpperArmL, ForearmL) * m2w * length) + bodycal::armTweakCm(0) * cm);
+    r.fore = za::max(5.f * cm, (mf > 0.f ? mf * cm : boneLength(ForearmL, HandL) * m2w * length) + bodycal::armTweakCm(1) * cm);
     r.calibrated = bodycal::calibrated();
     return r;
 }
@@ -590,11 +602,11 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     float a = lengths.upper;
     float l = lengths.fore;
     float d = glm::distance(wrist, u.pos);
-    const float maxStretch = std::max(1.f, vr_body_arm_stretch.value);
+    const float maxStretch = za::max(1.f, vr_body_arm_stretch.value);
     const auto reachOut = [&] {
         if(const float excess = d - (a + l); excess > 0.f)
         {
-            const float reach = std::min(excess, std::max(0.f, vr_body_shoulder_reach.value) * b.m2w);
+            const float reach = za::min(excess, za::max(0.f, vr_body_shoulder_reach.value) * b.m2w);
             u.pos += (wrist - u.pos) / d * reach;
             d -= reach;
         }
@@ -641,7 +653,7 @@ void solveArm(Body& b, int side, const HandPose& handPose)
         const double now = realtime;
         const double since = lastSwivelTime[side] >= 0.0 ? CLAMP(0.0, now - lastSwivelTime[side], 0.1) : -1.0;
         swivel = since < 0.0 ? best
-                             : glm::mix(lastSwivel[side], best, 1.f - std::exp(-static_cast<float>(since) / 0.05f));
+                             : glm::mix(lastSwivel[side], best, 1.f - za::exp(-static_cast<float>(since) / 0.05f));
         const glm::vec3 centre = u.pos + axis * glm::dot(elbow - u.pos, axis);
         const glm::quat q = glm::angleAxis(swivel, axis);
         elbow = centre + q * (elbow - centre);
@@ -661,8 +673,8 @@ void solveArm(Body& b, int side, const HandPose& handPose)
         const float want = selfcollide::elbowSwing(u.pos, elbow, wrist, 0.03f * b.m2w);
         const double now = realtime;
         const double since = lastOutTime[side] >= 0.0 ? CLAMP(0.0, now - lastOutTime[side], 0.1) : -1.0;
-        const float out = since < 0.0 ? want : glm::mix(lastOut[side], want, 1.f - std::exp(-static_cast<float>(since) / 0.05f));
-        lastOut[side] = std::abs(out) < 1e-4f ? 0.f : out;
+        const float out = since < 0.0 ? want : glm::mix(lastOut[side], want, 1.f - za::exp(-static_cast<float>(since) / 0.05f));
+        lastOut[side] = qza::abs(out) < 1e-4f ? 0.f : out;
         lastOutTime[side] = now;
         if(lastOut[side] != 0.f)
         {
@@ -691,14 +703,14 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     const glm::vec3 foreDir = safeNormalize(wrist - elbow, glm::normalize(elbow - u.pos));
     const glm::mat3 untwisted = basis(foreDir, bend);
     const glm::quat turn = glm::normalize(glm::quat_cast(handRot * glm::transpose(untwisted)));
-    float twist = 2.f * std::atan2(glm::dot(glm::vec3{turn.x, turn.y, turn.z}, foreDir), turn.w);
+    float twist = 2.f * za::atan2(glm::dot(glm::vec3{turn.x, turn.y, turn.z}, foreDir), turn.w);
     // Kept continuous past a half turn (the nearest to the last frame's, up to 1.25 turns either way): a hand
     // held upside down would otherwise flip the forearm's twist from one side to the other as it shakes.
     static float lastTwist[2]{0.f, 0.f};
-    twist -= glm::two_pi<float>() * std::round((twist - lastTwist[side]) / glm::two_pi<float>());
-    if(std::abs(twist) > glm::radians(225.f))
+    twist -= glm::two_pi<float>() * za::round((twist - lastTwist[side]) / glm::two_pi<float>());
+    if(qza::abs(twist) > glm::radians(225.f))
     {
-        twist -= glm::two_pi<float>() * std::round(twist / glm::two_pi<float>());
+        twist -= glm::two_pi<float>() * za::round(twist / glm::two_pi<float>());
     }
     lastTwist[side] = twist;
     const glm::quat roll = glm::angleAxis(twist, foreDir);
@@ -725,7 +737,7 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     // The wrist joint: all of the roll and half of the bend (the bisector of the forearm and the hand), stretched
     // across the bend by 1 / cos(half the bend), as a mitre joint's section is, so that the bent wrist keeps the
     // thickness of the arm on both sides of it.
-    const float bendAngle = 2.f * std::acos(CLAMP(-1.f, std::abs(wristSwing.w), 1.f));
+    const float bendAngle = 2.f * za::acos(CLAMP(-1.f, qza::abs(wristSwing.w), 1.f));
     const glm::quat halfWristSwing =
         glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, wristSwing.w < 0.f ? -wristSwing : wristSwing, 0.5f);
     Bone& w = b.bones[foreHelpers(side) + twistJoints];
@@ -737,7 +749,7 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     {
         const glm::vec3 across = glm::transpose(w.rot) * (handRot[0] - foreDir); // in the wrist joint's axes
         const glm::vec3 n = safeNormalize(across - glm::vec3{across.x, 0.f, 0.f}, glm::vec3{0.f, 0.f, 1.f});
-        const float mitre = 1.f / std::cos(std::min(bendAngle, glm::radians(120.f)) * 0.5f);
+        const float mitre = 1.f / za::cos(za::min(bendAngle, glm::radians(120.f)) * 0.5f);
         w.shape = glm::mat3{1.f} + (mitre - 1.f) * glm::outerProduct(n, n);
     }
 
@@ -854,17 +866,17 @@ void updateWater(const Body& b, const hands::State& s, float dt)
     hands::angleVectors(s.headAngles, f, r, u);
     const glm::vec3 wish = f * cl.cmd.forwardmove + r * cl.cmd.sidemove + UP * cl.cmd.upmove;
     const float len = glm::length(wish);
-    const float stick = std::min(1.f, len / std::max(1.f, cl_forwardspeed.value));
+    const float stick = za::min(1.f, len / za::max(1.f, cl_forwardspeed.value));
 
-    const float ease = 1.f - std::exp(-4.f * dt);
+    const float ease = 1.f - za::exp(-4.f * dt);
     water.swim += ((swimming ? 1.f : 0.f) - water.swim) * ease;
     water.wade += (wading - water.wade) * ease;
-    water.stick += (stick - water.stick) * (1.f - std::exp(-6.f * dt));
-    water.dir += ((len > 1.f ? wish / len * stick : glm::vec3{0.f}) - water.dir) * (1.f - std::exp(-5.f * dt));
+    water.stick += (stick - water.stick) * (1.f - za::exp(-6.f * dt));
+    water.dir += ((len > 1.f ? wish / len * stick : glm::vec3{0.f}) - water.dir) * (1.f - za::exp(-5.f * dt));
 
     // Treading water, about a kick in 1.4 seconds; at full stick, vr_body_swim_kick_rate more a second.
     const float rate = 0.7f + CLAMP(0.f, vr_body_swim_kick_rate.value, 5.f) * water.stick;
-    water.phase = std::fmod(water.phase + rate * dt * glm::two_pi<float>(), glm::two_pi<float>());
+    water.phase = za::fmod(water.phase + rate * dt * glm::two_pi<float>(), glm::two_pi<float>());
 }
 
 // The offset of a foot (side 0 left, 1 right) from where it stands, in world units. In the first
@@ -872,14 +884,14 @@ void updateWater(const Body& b, const hands::State& s, float dt)
 // stride behind at an even pace; in the second it swings forward again, lifted.
 [[nodiscard]] glm::vec3 gaitOffset(const Body& b, int side)
 {
-    const float u = std::fmod(gait.phase / glm::two_pi<float>() + (side == 0 ? 0.f : 0.5f), 1.f);
+    const float u = za::fmod(gait.phase / glm::two_pi<float>() + (side == 0 ? 0.f : 0.5f), 1.f);
     float along = 0.5f - 2.f * u;
     float lift = 0.f;
     if(u >= 0.5f)
     {
         const float s = (u - 0.5f) * 2.f;
         along = -0.5f + s * s * (3.f - 2.f * s);
-        lift = std::sin(glm::pi<float>() * s);
+        lift = za::sin(glm::pi<float>() * s);
     }
     return (gait.dir * (along * gait.stride * gait.amount) + UP * (lift * gait.lift * gait.amount + 0.18f * gait.air)) *
            b.m2w;
@@ -891,26 +903,26 @@ void updateGait(const Body& b, float dt)
     const float speed = glm::length(vel) / b.m2w; // metres per second, of the body
     const bool walking = cl.onground && speed > 0.3f && vr_body_walk.value;
 
-    const float ease = 1.f - std::exp(-8.f * dt);
+    const float ease = 1.f - za::exp(-8.f * dt);
     gait.amount += ((walking ? 1.f : 0.f) - gait.amount) * ease;
     gait.air += ((cl.onground ? 0.f : 1.f) - gait.air) * ease;
     if(walking)
     {
         gait.dir = glm::normalize(vel);
-        const float run = std::min(1.f, speed / RUN_SPEED);
-        const float sideways = std::abs(glm::dot(gait.dir, b.left));
-        const float backwards = std::max(0.f, -glm::dot(gait.dir, b.fwd));
+        const float run = za::min(1.f, speed / RUN_SPEED);
+        const float sideways = qza::abs(glm::dot(gait.dir, b.left));
+        const float backwards = za::max(0.f, -glm::dot(gait.dir, b.fwd));
         // Wading: shorter, higher steps, fewer of them.
         const float wade = water.wade * CLAMP(0.f, vr_body_wade.value, 2.f);
         gait.stride = CLAMP(0.45f, 0.45f + speed * 0.06f, 0.8f) * (1.f - 0.45f * sideways) * (1.f - 0.2f * backwards) *
-                      std::max(0.3f, 1.f - 0.2f * wade);
+                      za::max(0.3f, 1.f - 0.2f * wade);
         gait.lift = 0.07f + 0.07f * run + 0.1f * wade;
 
         // Steps per second: as many as it takes to cover the ground, up to the cap.
         const float cap =
-            CLAMP(0.5f, vr_body_step_rate.value, 6.f) * (0.7f + 0.3f * run) * std::max(0.3f, 1.f - 0.3f * wade);
-        const float rate = std::min(speed / gait.stride, cap);
-        gait.phase = std::fmod(gait.phase + rate * dt * glm::pi<float>(), glm::two_pi<float>());
+            CLAMP(0.5f, vr_body_step_rate.value, 6.f) * (0.7f + 0.3f * run) * za::max(0.3f, 1.f - 0.3f * wade);
+        const float rate = za::min(speed / gait.stride, cap);
+        gait.phase = za::fmod(gait.phase + rate * dt * glm::pi<float>(), glm::two_pi<float>());
     }
 }
 
@@ -935,7 +947,7 @@ struct Stance
 {
     bool valid{false};
     bool moving{false};     // walking or in the air
-    std::array<Foot, 2> feet{};
+    za::Array<Foot, 2> feet{};
     int follow{-1}; // the foot that squares up after the other's step
     float lastYaw{0.f};
     float yawRate{0.f}; // degrees per second the body turns, smoothed (snap turns left out)
@@ -950,13 +962,13 @@ constexpr float STEP_DISTANCE = 0.25f; // metres the body may move from the feet
 // Degrees from `from` to `to`, -180 .. 180.
 [[nodiscard]] float yawDelta(float to, float from)
 {
-    return std::remainder(to - from, 360.f);
+    return za::remainder(to - from, 360.f);
 }
 
 [[nodiscard]] glm::vec3 yawForward(float yaw)
 {
     const float r = glm::radians(yaw);
-    return {std::cos(r), std::sin(r), 0.f};
+    return {za::cos(r), za::sin(r), 0.f};
 }
 
 // Where the foot of `side` stands under the body: under where it stands, the head less its lean (the
@@ -971,16 +983,16 @@ constexpr float STEP_DISTANCE = 0.25f; // metres the body may move from the feet
 
 void updateStance(const Body& b, const glm::vec3& stand, float dt)
 {
-    const float bodyYaw = glm::degrees(std::atan2(b.fwd.y, b.fwd.x));
+    const float bodyYaw = glm::degrees(za::atan2(b.fwd.y, b.fwd.x));
     if(dt > 0.f)
     {
-        const float change = std::abs(yawDelta(bodyYaw, stance.lastYaw));
+        const float change = qza::abs(yawDelta(bodyYaw, stance.lastYaw));
         const float rate = change < 20.f ? change / dt : 0.f;
-        stance.yawRate += (rate - stance.yawRate) * (1.f - std::exp(-8.f * dt));
+        stance.yawRate += (rate - stance.yawRate) * (1.f - za::exp(-8.f * dt));
     }
     stance.lastYaw = bodyYaw;
 
-    std::array<glm::vec2, 2> home;
+    za::Array<glm::vec2, 2> home;
     for(int side = 0; side < 2; side++)
     {
         home[side] = homeOf(b, stand, side);
@@ -1008,7 +1020,7 @@ void updateStance(const Body& b, const glm::vec3& stand, float dt)
     // the body, their distance from where they belong shrinking).
     if(gait.amount > 0.02f || gait.air > 0.02f)
     {
-        const float keep = std::exp(-10.f * dt);
+        const float keep = za::exp(-10.f * dt);
         for(int side = 0; side < 2; side++)
         {
             Foot& f = stance.feet[side];
@@ -1031,13 +1043,13 @@ void updateStance(const Body& b, const glm::vec3& stand, float dt)
     // A planted foot left too far behind a turn pivots round after the body (the rest waits for
     // its step).
     const float turnLimit = CLAMP(10.f, vr_body_turn_step.value, 180.f);
-    const float maxLag = std::min(turnLimit + 25.f, 180.f);
+    const float maxLag = za::min(turnLimit + 25.f, 180.f);
     for(Foot& f : stance.feet)
     {
         const float lag = yawDelta(bodyYaw, f.yaw);
-        if(f.step < 0.f && std::abs(lag) > maxLag)
+        if(f.step < 0.f && qza::abs(lag) > maxLag)
         {
-            f.yaw = bodyYaw - std::copysign(maxLag, lag);
+            f.yaw = bodyYaw - qza::copysign(maxLag, lag);
         }
     }
 
@@ -1051,11 +1063,11 @@ void updateStance(const Body& b, const glm::vec3& stand, float dt)
         }
         // Quicker steps while turning quickly (a smooth turn), to keep up.
         const float quicken = CLAMP(1.f, 1.f + stance.yawRate / 200.f, 2.5f);
-        f.step = std::min(1.f, f.step + dt * quicken / STEP_TIME);
+        f.step = za::min(1.f, f.step + dt * quicken / STEP_TIME);
         const float e = f.step * f.step * (3.f - 2.f * f.step);
         f.pos = glm::mix(f.from, home[side], e);
         f.yaw = f.fromYaw + yawDelta(bodyYaw, f.fromYaw) * e;
-        f.lift = std::sin(glm::pi<float>() * f.step) * STEP_LIFT;
+        f.lift = za::sin(glm::pi<float>() * f.step) * STEP_LIFT;
         if(f.step >= 1.f)
         {
             f.step = -1.f;
@@ -1065,7 +1077,7 @@ void updateStance(const Body& b, const glm::vec3& stand, float dt)
         return;
     }
 
-    std::array<float, 2> turned, moved;
+    za::Array<float, 2> turned, moved;
     for(int side = 0; side < 2; side++)
     {
         turned[side] = yawDelta(bodyYaw, stance.feet[side].yaw);
@@ -1078,16 +1090,16 @@ void updateStance(const Body& b, const glm::vec3& stand, float dt)
         // Squaring up after the other foot's step, if there is anything to square.
         const int side = stance.follow;
         stance.follow = -1;
-        if(std::abs(turned[side]) > 5.f || moved[side] > 0.04f)
+        if(qza::abs(turned[side]) > 5.f || moved[side] > 0.04f)
         {
             stepping = side;
         }
     }
-    else if(std::max(std::abs(turned[0]), std::abs(turned[1])) > turnLimit)
+    else if(za::max(qza::abs(turned[0]), qza::abs(turned[1])) > turnLimit)
     {
         stepping = turned[0] + turned[1] > 0.f ? 0 : 1; // turned left: the left foot leads
     }
-    else if(std::max(moved[0], moved[1]) > STEP_DISTANCE)
+    else if(za::max(moved[0], moved[1]) > STEP_DISTANCE)
     {
         stepping = moved[0] > moved[1] ? 0 : 1;
     }
@@ -1110,17 +1122,17 @@ void updateStance(const Body& b, const glm::vec3& stand, float dt)
 {
     const glm::vec3 across{water.dir.x, water.dir.y, 0.f}; // the stick's share, sideways of the body's up
     const float len = glm::length(across);
-    const float backwards = len > 1e-3f ? std::max(0.f, -glm::dot(across, b.fwd) / len) : 0.f;
+    const float backwards = len > 1e-3f ? za::max(0.f, -glm::dot(across, b.fwd) / len) : 0.f;
     const glm::vec3 trail =
-        safeNormalize(-UP * (1.f + 0.5f * std::min(0.f, water.dir.z)) - across * (0.9f * (1.f - 0.5f * backwards)), -UP);
+        safeNormalize(-UP * (1.f + 0.5f * za::min(0.f, water.dir.z)) - across * (0.9f * (1.f - 0.5f * backwards)), -UP);
 
     const glm::vec3 kickDir = b.fwd + across * 0.8f;
     const glm::vec3 kickAxis = safeNormalize(kickDir - trail * glm::dot(kickDir, trail), b.fwd);
     const float amp = glm::radians(6.f + 16.f * water.stick) * CLAMP(0.f, vr_body_swim_kick.value, 2.f);
     const float phase = water.phase + (side == 0 ? 0.f : glm::pi<float>());
-    const float angle = amp * std::sin(phase);
-    const glm::vec3 dir = trail * std::cos(angle) + kickAxis * std::sin(angle);
-    const float bent = 0.97f - 0.08f * (0.5f + 0.5f * std::cos(phase)) - 0.08f * (1.f - water.stick);
+    const float angle = amp * za::sin(phase);
+    const glm::vec3 dir = trail * za::cos(angle) + kickAxis * za::sin(angle);
+    const float bent = 0.97f - 0.08f * (0.5f + 0.5f * za::cos(phase)) - 0.08f * (1.f - water.stick);
     return hip + dir * (reach * bent);
 }
 
@@ -1207,12 +1219,12 @@ void solveLeg(Body& b, const glm::vec3& stand, int side, bool shown, glm::mat3& 
 struct ModelInfo
 {
     const qmodel_t* model{nullptr};
-    std::string name; // the model's (its slot is reused by another after a game change)
+    za::String name; // the model's (its slot is reused by another after a game change)
     bool usable{false};
-    std::array<int, JointCount> boneOf{};
+    za::Array<int, JointCount> boneOf{};
 };
 
-std::vector<ModelInfo> infos;
+za::Vector<ModelInfo> infos;
 
 [[nodiscard]] const ModelInfo* infoOf(const qmodel_t* model)
 {
@@ -1231,7 +1243,7 @@ struct Posed
 {
     const entity_t* ent{nullptr};
     float scale{0.f};
-    std::array<float, JointCount * 12> skin{};
+    za::Array<float, JointCount * 12> skin{};
     glm::vec3 wrist[2]{glm::vec3{0.f}, glm::vec3{0.f}};   // per hand
     glm::vec3 forearm[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     Shoulder shoulders[2];                                // per side
@@ -1262,8 +1274,8 @@ ForearmTwist forearms[2];
 [[nodiscard]] float twistAbout(const glm::mat3& from, const glm::mat3& to, const glm::vec3& axis)
 {
     const glm::quat q = glm::normalize(glm::quat_cast(to * glm::transpose(from)));
-    float t = 2.f * std::atan2(glm::dot(glm::vec3{q.x, q.y, q.z}, axis), q.w);
-    return t - glm::two_pi<float>() * std::round(t / glm::two_pi<float>());
+    float t = 2.f * za::atan2(glm::dot(glm::vec3{q.x, q.y, q.z}, axis), q.w);
+    return t - glm::two_pi<float>() * za::round(t / glm::two_pi<float>());
 }
 
 // The arms' forearm frames from a solved body (its twist joints; neighbours are well under a half turn apart, so the
@@ -1450,7 +1462,7 @@ bool usable(qmodel_t* model)
     {
         infos.clear(); // not expected: a handful of models at most
     }
-    infos.emplace_back();
+    infos.emplaceBack();
     ModelInfo& info = infos.back();
     info.model = model;
     info.name = model ? model->name : "";
@@ -1582,7 +1594,7 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
     {
         return origin; // not checked (usable() first) or not usable
     }
-    const std::array<int, JointCount>& boneOf = modelInfo->boneOf;
+    const za::Array<int, JointCount>& boneOf = modelInfo->boneOf;
 
     for(int j = 0; j < JointCount; j++)
     {
@@ -1668,7 +1680,7 @@ bool forearmFrame(int hand, float along, ForearmFrame& out)
     {
         k++;
     }
-    const float t = (along - f.places[k - 1]) / std::max(f.places[k] - f.places[k - 1], 1e-4f);
+    const float t = (along - f.places[k - 1]) / za::max(f.places[k] - f.places[k - 1], 1e-4f);
     const float angle = glm::mix(f.angles[k - 1], f.angles[k], t);
     const glm::vec3 axis = f.untwisted[0];
     out.point = f.elbow + axis * (f.length * along);
@@ -1690,9 +1702,9 @@ void forearmGirth(int build, float along, float& hint, float& other)
         float at, u, v;
     };
     const Ring rings[] = {{0.13f, 0.049f * fm, 0.043f * fm},
-        {0.19f, std::max(0.041f * wm, 0.040f), std::max(0.033f * wm, 0.0335f)},
-        {0.225f, std::max(0.0385f * wm, 0.039f), std::max(0.030f * wm, 0.0325f)},
-        {0.26f, std::max(0.036f * wm, 0.037f), std::max(0.027f * wm, 0.0295f)}};
+        {0.19f, za::max(0.041f * wm, 0.040f), za::max(0.033f * wm, 0.0335f)},
+        {0.225f, za::max(0.0385f * wm, 0.039f), za::max(0.030f * wm, 0.0325f)},
+        {0.26f, za::max(0.036f * wm, 0.037f), za::max(0.027f * wm, 0.0295f)}};
     const float at = CLAMP(rings[0].at, along * 0.26f, rings[3].at);
     int k = 1;
     while(k < 3 && rings[k].at < at)

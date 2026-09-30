@@ -21,15 +21,15 @@ namespace qvr::files
 // The whole file as text: as a text-mode stream reads it (std::ifstream: on Windows CR LF read as LF).
 [[nodiscard]] bool readText(const char* path, za::String& out);
 
-// The text's lines as std::getline gives them: each up to a LF (not included), the last one without a LF when it is
-// not empty. f(za::StringView line).
+// The text's pieces as std::getline(stream, piece, delimiter) gives them: each up to the delimiter (not included), the
+// last one without it when it is not empty. f(za::StringView piece).
 template <typename F>
-void forLines(const za::StringView text, F&& f)
+void forPieces(const za::StringView text, const char delimiter, F&& f)
 {
     za::SizeT start = 0;
     while(start < text.size())
     {
-        za::SizeT end = text.find('\n', start);
+        za::SizeT end = text.find(delimiter, start);
         if(end == za::StringView::nPos)
         {
             end = text.size();
@@ -38,6 +38,42 @@ void forLines(const za::StringView text, F&& f)
         start = end + 1;
     }
 }
+
+// Its lines (std::getline's): forPieces with LF.
+template <typename F>
+void forLines(const za::StringView text, F&& f)
+{
+    forPieces(text, '\n', static_cast<F&&>(f));
+}
+
+// A text's words, read in turn as an std::istringstream's >> reads them (separated by the "C" locale's white space):
+// a word, or a number (the whole word read by strtof, strtod or strtol, as a stream's number is for the words the game
+// writes). Once a read fails (no word left, or not a number) every later one fails too, as a stream's.
+class Words
+{
+public:
+    explicit Words(za::StringView text) : text_{text} {}
+
+    bool next(za::StringView& word);
+    bool next(za::String& word);
+    bool next(float& value);
+    bool next(double& value);
+    bool next(int& value);
+
+    [[nodiscard]] explicit operator bool() const { return !failed_; }
+
+    // `>>` chains, as a stream's.
+    template <typename T>
+    Words& operator>>(T& value)
+    {
+        next(value);
+        return *this;
+    }
+
+private:
+    za::StringView text_;
+    bool failed_{false};
+};
 
 // Written whole, the file replaced (std::ofstream, std::ios::trunc; text: LF written as CR LF on Windows). False: it
 // could not be opened or written (a partly written file is left).

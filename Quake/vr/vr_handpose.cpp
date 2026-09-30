@@ -28,11 +28,15 @@
 #include "vr_units.hpp"
 #include "vr_weight.hpp"
 
-#include <algorithm>
-#include <chrono>
-#include <cmath>
-#include <optional>
-#include <vector>
+#include "Zancle/Base/PtrDiffT.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/Vocabulary/Optional.hpp"
+#include "vr_zancle.hpp"
+
 
 namespace qvr::handpose
 {
@@ -106,7 +110,7 @@ constexpr int gunLinePoints = 5;   // without them, points on the line from the 
 constexpr float gunRestart = 48.f; // units: the slide starts where the hand is when it was farther than this
 
 // The weapon's points as offsets from the hand: the hand itself first, its muzzle, then its model's (or the line's).
-std::vector<glm::vec3> shape[HAND_COUNT];
+za::Vector<glm::vec3> shape[HAND_COUNT];
 
 struct Plane
 {
@@ -117,37 +121,37 @@ struct Plane
 // The weapon slide's buffers (the client's frame: the main thread).
 struct HandposeScratch
 {
-    std::vector<glm::vec3> model; // the weapon model's points (makeShape)
-    std::vector<Plane> planes;    // the rays' planes (gunDepenetrate)
+    za::Vector<glm::vec3> model; // the weapon model's points (makeShape)
+    za::Vector<Plane> planes;    // the rays' planes (gunDepenetrate)
     auto members() { return qvr::mem::list(model, planes); }
 };
 mem::Scratch<HandposeScratch> scratch{"handpose"};
 
 void makeShape(int h, const glm::vec3& rot, const glm::vec3& muzzle)
 {
-    std::vector<glm::vec3>& out = shape[h];
-    std::vector<glm::vec3>& model = scratch.model;
+    za::Vector<glm::vec3>& out = shape[h];
+    za::Vector<glm::vec3>& model = scratch.model;
     out.clear();
-    out.push_back(glm::vec3{0.f});
-    out.push_back(muzzle);
+    out.pushBack(glm::vec3{0.f});
+    out.pushBack(muzzle);
     if(modelcollide::weaponShape(h, rot, model) && !model.empty())
     {
-        out.insert(out.end(), model.begin(), model.begin() + std::min<std::ptrdiff_t>(gunModelPoints, std::ssize(model)));
+        out.emplaceBackRange(model.data(), za::min<za::SizeT>(static_cast<za::SizeT>(gunModelPoints), model.size()));
         return;
     }
     for(int k = 1; k < gunLinePoints - 1; k++)
     {
-        out.push_back(muzzle * (static_cast<float>(k) / static_cast<float>(gunLinePoints - 1)));
+        out.pushBack(muzzle * (static_cast<float>(k) / static_cast<float>(gunLinePoints - 1)));
     }
 }
 
 // The rays from the hand at `hand` to the weapon's points (`pts`) that go into a surface: each a plane there (the push
 // `p` so far: the part of the ray inside, moved by it, out of that surface by gunMargin) into `planes`. The deepest
 // part inside (0: clear).
-float gunPlanes(const glm::vec3& hand, const std::vector<glm::vec3>& pts, const glm::vec3& p, std::vector<Plane>* planes)
+float gunPlanes(const glm::vec3& hand, const za::Vector<glm::vec3>& pts, const glm::vec3& p, za::Vector<Plane>* planes)
 {
     float deepest = 0.f;
-    for(std::size_t k = 1; k < pts.size(); k++)
+    for(za::SizeT k = 1; k < pts.size(); k++)
     {
         const glm::vec3 end = hand + p + pts[k];
         const auto tr = lineTrace(hand + p, end);
@@ -156,11 +160,11 @@ float gunPlanes(const glm::vec3& hand, const std::vector<glm::vec3>& pts, const 
             continue;
         }
         const glm::vec3 n = worldtrace::normal(*tr);
-        const float depth = std::max(glm::dot(worldtrace::endPos(*tr) - end, n), 0.f);
-        deepest = std::max(deepest, depth);
+        const float depth = za::max(glm::dot(worldtrace::endPos(*tr) - end, n), 0.f);
+        deepest = za::max(deepest, depth);
         if(planes)
         {
-            planes->push_back(Plane{n, depth + gunMargin + glm::dot(p, n)});
+            planes->pushBack(Plane{n, depth + gunMargin + glm::dot(p, n)});
         }
     }
     return deepest;
@@ -168,14 +172,14 @@ float gunPlanes(const glm::vec3& hand, const std::vector<glm::vec3>& pts, const 
 
 // The weapon moved out of what its rays go into: the least move out of all their planes (Gauss-Seidel), tested again
 // from there (three rounds at most: a corner, a curved wall).
-void gunDepenetrate(glm::vec3& hand, const std::vector<glm::vec3>& pts)
+void gunDepenetrate(glm::vec3& hand, const za::Vector<glm::vec3>& pts)
 {
-    std::vector<Plane>& planes = scratch.planes;
+    za::Vector<Plane>& planes = scratch.planes;
     planes.clear();
     glm::vec3 p{0.f};
     for(int round = 0; round < 3; round++)
     {
-        const std::size_t before = planes.size();
+        const za::SizeT before = planes.size();
         gunPlanes(hand, pts, p, &planes);
         if(planes.size() == before)
         {
@@ -189,7 +193,7 @@ void gunDepenetrate(glm::vec3& hand, const std::vector<glm::vec3>& pts)
                 if(const float short_ = plane.c - glm::dot(p, plane.n); short_ > 0.f)
                 {
                     p += plane.n * short_;
-                    worst = std::max(worst, short_);
+                    worst = za::max(worst, short_);
                 }
             }
             if(worst < 0.01f)
@@ -203,7 +207,7 @@ void gunDepenetrate(glm::vec3& hand, const std::vector<glm::vec3>& pts)
 
 // The weapon slid from `hand` towards `to`: its points swept along the move, stopped at the first surface any meets,
 // and the rest of the move along the surfaces met so far (along the crease of two), four times at most.
-[[nodiscard]] glm::vec3 gunSlide(glm::vec3 hand, const glm::vec3& to, const std::vector<glm::vec3>& pts)
+[[nodiscard]] glm::vec3 gunSlide(glm::vec3 hand, const glm::vec3& to, const za::Vector<glm::vec3>& pts)
 {
     glm::vec3 move = to - hand;
     glm::vec3 planes[3];
@@ -258,7 +262,7 @@ void gunDepenetrate(glm::vec3& hand, const std::vector<glm::vec3>& pts)
 // vr_gun_wall_max (further, the hand goes in by the rest, and the weapon rests where it was held until the hand comes
 // back or reaches it: through a thin table top it would slip under it); true if it moved it. It slides from where it
 // was last frame; held out of the walls there, even to a place that is clear (not through a thin wall to get there).
-bool gunOutOfWalls(HandMemory& m, glm::vec3& pos, const std::vector<glm::vec3>& pts)
+bool gunOutOfWalls(HandMemory& m, glm::vec3& pos, const za::Vector<glm::vec3>& pts)
 {
     const glm::vec3 target = pos;
     const bool fromLast = m.gunValid && glm::distance(m.gunPos, target) < gunRestart;
@@ -280,7 +284,7 @@ bool gunOutOfWalls(HandMemory& m, glm::vec3& pos, const std::vector<glm::vec3>& 
     }
     m.slid = true;
     m.gunPos = hand;
-    const float most = std::max(vr_gun_wall_max.value, 0.f) * units::metresToUnits() / 100.f;
+    const float most = za::max(vr_gun_wall_max.value, 0.f) * units::metresToUnits() / 100.f;
     glm::vec3 off = hand - target;
     if(const float len = glm::length(off); len > most)
     {
@@ -292,7 +296,7 @@ bool gunOutOfWalls(HandMemory& m, glm::vec3& pos, const std::vector<glm::vec3>& 
 
 // vr_debug_gun_wall: the hand where it is tracked and drawn, the weapon's depth in what it meets, and its lowest point
 // over the surface under it (below it: into it), and the test's time.
-void debugPrint(int h, const glm::vec3& tracked, const glm::vec3& drawn, const std::vector<glm::vec3>& pts, double us)
+void debugPrint(int h, const glm::vec3& tracked, const glm::vec3& drawn, const za::Vector<glm::vec3>& pts, double us)
 {
     const glm::vec3 d = drawn - tracked;
     float lowest = 1e9f;
@@ -301,12 +305,12 @@ void debugPrint(int h, const glm::vec3& tracked, const glm::vec3& drawn, const s
         const glm::vec3 at = drawn + o;
         if(const auto tr = lineTrace(at + glm::vec3{0.f, 0.f, 32.f}, at - glm::vec3{0.f, 0.f, 64.f}); tr && tr->fraction < 1.f)
         {
-            lowest = std::min(lowest, at.z - tr->endpos[2]);
+            lowest = za::min(lowest, at.z - tr->endpos[2]);
         }
     }
     Con_Printf("gunwall: %s hand moved %.2f (up %.2f, across %.2f) units; depth %.2f; lowest point %.2f over the surface "
                "below; %d points, %.0f us (hand %.1f %.1f %.1f)\n",
-        h == HAND_MAIN ? "main" : "off", glm::length(d), d.z, std::sqrt(d.x * d.x + d.y * d.y),
+        h == HAND_MAIN ? "main" : "off", glm::length(d), d.z, za::sqrt(d.x * d.x + d.y * d.y),
         gunPlanes(drawn, pts, glm::vec3{0.f}, nullptr), lowest, static_cast<int>(pts.size()), us, drawn.x, drawn.y, drawn.z);
 }
 
@@ -317,7 +321,7 @@ void resolvePositions(hands::State& s, float /* turnYaw */)
     // On the real clock, every frame: cl.time moves in steps with the server's messages (72 Hz, or
     // 48 and 72 by turns at 144 fps), so a weight stepped on it moved the hands in uneven jerks that
     // the server's melee read as a wrist speeding up and slowing down (up to half again at 144 fps).
-    frameDt = lastTime >= 0.0 ? static_cast<float>(std::clamp(realtime - lastTime, 0.0, 0.1)) : 0.f;
+    frameDt = lastTime >= 0.0 ? static_cast<float>(za::clamp(realtime - lastTime, 0.0, 0.1)) : 0.f;
     newFrame = realtime != lastTime;
     lastTime = realtime;
 
@@ -353,13 +357,12 @@ void resolvePositions(hands::State& s, float /* turnYaw */)
                 const glm::vec3 local{glm::dot(last, m.lastFwd), glm::dot(last, m.lastRight), glm::dot(last, m.lastUp)};
                 const glm::vec3 muzzleOffset = hands::redirect(local, s.rot[h]);
                 const glm::vec3 tracked = pos;
-                const auto t0 = std::chrono::steady_clock::now();
+                const auto t0 = qza::nowNs();
                 makeShape(h, s.rot[h], muzzleOffset);
                 colliding[h] = gunOutOfWalls(m, pos, shape[h]);
                 if(vr_debug_gun_wall.value >= 2.f || (vr_debug_gun_wall.value && m.slid))
                 {
-                    const std::chrono::duration<double, std::micro> us = std::chrono::steady_clock::now() - t0;
-                    debugPrint(h, tracked, pos, shape[h], us.count());
+                    debugPrint(h, tracked, pos, shape[h], qza::usSince(t0));
                 }
             }
             else

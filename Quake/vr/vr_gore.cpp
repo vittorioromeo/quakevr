@@ -8,10 +8,19 @@
 #include "vr_profile.hpp"
 #include "vr_ring.hpp"
 
-#include <algorithm>
-#include <cmath>
+#include "Zancle/Algorithm/Erase.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Exp.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/Floor.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+
 #include <random>
-#include <vector>
 
 namespace qvr::gore
 {
@@ -21,7 +30,7 @@ namespace
 using decals::Mark;
 using decals::MarkOptions;
 
-std::mt19937 rng{std::random_device{}()};
+std::mt19937 rng{std::random_device{}()}; // ZANCLE-TODO: no random engines or distributions
 
 [[nodiscard]] float rnd(float lo, float hi)
 {
@@ -32,29 +41,29 @@ std::mt19937 rng{std::random_device{}()};
 {
     const float z = rnd(-1.f, 1.f);
     const float a = rnd(0.f, 6.2831853f);
-    const float r = std::sqrt(std::max(0.f, 1.f - z * z));
-    return {r * std::cos(a), r * std::sin(a), z};
+    const float r = za::sqrt(za::max(0.f, 1.f - z * z));
+    return {r * za::cos(a), r * za::sin(a), z};
 }
 
 // A count from a rate: rounded at random, so fractions still come out right on average.
 [[nodiscard]] int stochastic(float n)
 {
-    return static_cast<int>(std::floor(n + rnd(0.f, 1.f)));
+    return static_cast<int>(za::floor(n + rnd(0.f, 1.f)));
 }
 
 [[nodiscard]] float sizeMult()
 {
-    return std::clamp(vr_gore_size.value, 0.25f, 4.f);
+    return za::clamp(vr_gore_size.value, 0.25f, 4.f);
 }
 
 [[nodiscard]] float dripMult()
 {
-    return std::clamp(vr_gore_drips.value, 0.f, 4.f);
+    return za::clamp(vr_gore_drips.value, 0.f, 4.f);
 }
 
 [[nodiscard]] float gravity()
 {
-    return std::max(100.f, sv_gravity.value);
+    return za::max(100.f, sv_gravity.value);
 }
 
 // The colour of a drop falling through `p`: blood, as lit as the place is (a particle takes no light
@@ -64,7 +73,7 @@ std::mt19937 rng{std::random_device{}()};
     static lightcache_t cache{};
     vec3_t v = {p.x, p.y, p.z};
     const float light = cl.worldmodel ? static_cast<float>(R_LightPoint(v, 0.f, &cache)) : 110.f; // 128: full light
-    const float k = std::clamp(std::max(light, 40.f) / 100.f, 0.4f, 1.4f);
+    const float k = za::clamp(za::max(light, 40.f) / 100.f, 0.4f, 1.4f);
     return glm::min(glm::vec3{0.42f, 0.02f, 0.015f} * k, glm::vec3{1.f});
 }
 
@@ -86,7 +95,7 @@ struct Ray
     bool big;           // a burst's (splotches head on)
 };
 
-constexpr std::size_t maxRays = 320;
+constexpr za::SizeT maxRays = 320;
 constexpr int raysPerFrame = 24;
 Ring<Ray> rays{maxRays}; // the oldest traced first; while it is full, new ones are left out
 
@@ -113,8 +122,8 @@ struct Source
     glm::vec3 color{0.4f, 0.02f, 0.015f};
 };
 
-std::vector<Source> sources;
-constexpr std::size_t maxSources = 48;
+za::Vector<Source> sources;
+constexpr za::SizeT maxSources = 48;
 
 struct Landing
 {
@@ -124,8 +133,8 @@ struct Landing
     float puddleGrow; // > 0: a puddle spreading over this long, not a drop's mark
 };
 
-std::vector<Landing> landings;
-constexpr std::size_t maxLandings = 192;
+za::Vector<Landing> landings;
+constexpr za::SizeT maxLandings = 192;
 
 // The drops' marks, at most so many a second (a steady drip would fill the decal budget).
 double markSecond = -1.0;
@@ -157,7 +166,7 @@ void addSource(int ent, const glm::vec3& pos, float seconds, float spread, float
     s.spread = spread;
     s.dropsLeft = drops;
     s.color = dropColor(pos);
-    sources.push_back(s);
+    sources.pushBack(s);
 }
 
 // A drop falls from `p`: one trace down for where it lands and when (it falls straight: real
@@ -170,21 +179,21 @@ bool fall(const glm::vec3& p, float dropSize, const glm::vec3& color, float mark
     {
         return false;
     }
-    const float h = std::max(0.f, p.z - where.z);
-    const float t = std::sqrt(2.f * h / gravity());
+    const float h = za::max(0.f, p.z - where.z);
+    const float t = za::sqrt(2.f * h / gravity());
     particles::bloodDrip(p, t, where.z, dropSize, color);
-    landings.push_back({cl.time + t, where, normal, color, markSize, puddleGrow});
+    landings.pushBack({cl.time + t, where, normal, color, markSize, puddleGrow});
     return true;
 }
 
 void drip(Source& s)
 {
     const float a = rnd(0.f, 6.2831853f);
-    const float r = s.spread * std::sqrt(rnd(0.f, 1.f));
-    const glm::vec3 p = s.pos + glm::vec3{std::cos(a) * r, std::sin(a) * r, 0.f};
+    const float r = s.spread * za::sqrt(rnd(0.f, 1.f));
+    const glm::vec3 p = s.pos + glm::vec3{za::cos(a) * r, za::sin(a) * r, 0.f};
     // The first few mark the floor (the first starts a puddle spreading while it drips), the
     // others splash on them.
-    const float puddle = !s.puddle ? std::clamp(static_cast<float>(s.until - cl.time), 4.f, 12.f) : 0.f;
+    const float puddle = !s.puddle ? za::clamp(static_cast<float>(s.until - cl.time), 4.f, 12.f) : 0.f;
     const float mark = s.puddle && s.marks < 5 && rnd(0.f, 1.f) < 0.7f ? rnd(2.5f, 4.5f) * sizeMult() : 0.f;
     if(fall(p, rnd(0.6f, 0.85f), s.color, mark, puddle))
     {
@@ -252,7 +261,7 @@ void cast(const Ray& r)
     const float delay = flight / 450.f;
     const float size = r.size * (0.8f + 0.4f * f);
     // Head on, a splat all round; glancing, a spray along the way it went.
-    const bool headOn = std::fabs(glm::dot(r.dir, n)) > 0.85f;
+    const bool headOn = za::fabs(glm::dot(r.dir, n)) > 0.85f;
     MarkOptions o;
     o.along = r.dir;
     o.delay = delay;
@@ -273,7 +282,7 @@ void cast(const Ray& r)
         const float seconds = rnd(2.5f, 6.f) * dripMult();
         addSource(0, where + n * 1.5f, seconds, size * 0.2f, rnd(0.25f, 0.5f), static_cast<int>(seconds * 4.f), delay);
     }
-    else if(std::fabs(n.z) < 0.35f && rnd(0.f, 1.f) < r.streakChance)
+    else if(za::fabs(n.z) < 0.35f && rnd(0.f, 1.f) < r.streakChance)
     {
         streak(where, n, size * rnd(0.3f, 0.5f), delay);
     }
@@ -290,8 +299,8 @@ struct PendingPool
     const qmodel_t* model;
 };
 
-std::vector<PendingPool> pending;
-constexpr std::size_t maxPending = 32;
+za::Vector<PendingPool> pending;
+constexpr za::SizeT maxPending = 32;
 
 void pool(const PendingPool& p)
 {
@@ -319,7 +328,7 @@ void pool(const PendingPool& p)
     o.darken = 0.35f;
     decals::place(Mark::Pool, where, n, p.size, o);
     const float a = rnd(0.f, 6.2831853f);
-    const glm::vec3 side = glm::vec3{std::cos(a), std::sin(a), 0.f} * (p.size * 0.25f);
+    const glm::vec3 side = glm::vec3{za::cos(a), za::sin(a), 0.f} * (p.size * 0.25f);
     o.delay = rnd(1.f, 2.5f);
     o.grow = rnd(14.f, 20.f);
     o.growFrom = 0.1f;
@@ -342,13 +351,13 @@ enum HitKind
 
 void hit(const glm::vec3& org, const glm::vec3& dir, int damage, int kind, int lvl)
 {
-    const float mult = std::clamp(vr_gore_spray.value, 0.f, 4.f);
+    const float mult = za::clamp(vr_gore_spray.value, 0.f, 4.f);
     if(mult <= 0.f || damage <= 0)
     {
         return;
     }
     const glm::vec3 d = glm::length(dir) > 0.1f ? glm::normalize(dir) : glm::vec3{0.f, 0.f, -1.f};
-    float n = lvl >= 2 ? std::min(10.f, 3.f + damage / 8.f) : std::min(3.f, 1.f + damage / 25.f);
+    float n = lvl >= 2 ? za::min(10.f, 3.f + damage / 8.f) : za::min(3.f, 1.f + damage / 25.f);
     if(kind == HitRadial)
     {
         n *= 1.5f;
@@ -359,8 +368,8 @@ void hit(const glm::vec3& org, const glm::vec3& dir, int damage, int kind, int l
         Con_Printf("gore: hit for %d (kind %d): %d lines of blood\n", damage, kind, count);
     }
     const float spread = kind == HitPellets ? 0.45f : kind == HitRadial ? 1.1f : kind == HitMelee ? 0.5f : 0.3f;
-    const float reach = std::min(96.f + damage * 1.5f, 200.f) * (lvl >= 2 ? 1.f : 0.8f);
-    const float size = std::clamp(28.f + damage * 1.2f, 28.f, 96.f) * sizeMult() * (lvl >= 2 ? 1.f : 0.7f);
+    const float reach = za::min(96.f + damage * 1.5f, 200.f) * (lvl >= 2 ? 1.f : 0.8f);
+    const float size = za::clamp(28.f + damage * 1.2f, 28.f, 96.f) * sizeMult() * (lvl >= 2 ? 1.f : 0.7f);
     for(int i = 0; i < count; i++)
     {
         // Behind the hit, spreading, falling a little.
@@ -372,8 +381,8 @@ void hit(const glm::vec3& org, const glm::vec3& dir, int damage, int kind, int l
 
 void burst(const glm::vec3& org, const glm::vec3& dir, float size, int lvl)
 {
-    const float scale = std::clamp(size, 0.7f, 2.f);
-    const float mult = std::clamp(vr_gore_spray.value, 0.f, 4.f);
+    const float scale = za::clamp(size, 0.7f, 2.f);
+    const float mult = za::clamp(vr_gore_spray.value, 0.f, 4.f);
     const int count = stochastic((lvl >= 2 ? 14.f : 5.f) * scale * mult);
     const glm::vec3 d = glm::length(dir) > 0.1f ? glm::normalize(dir) : glm::vec3{0.f};
     const float reach = lvl >= 2 ? 170.f : 120.f;
@@ -381,7 +390,7 @@ void burst(const glm::vec3& org, const glm::vec3& dir, float size, int lvl)
     // from a ceiling.
     if(glm::dot(d, d) > 0.f && mult > 0.f)
     {
-        queue({org, d, 64.f, rnd(56.f, 80.f) * std::sqrt(scale) * sizeMult() * (lvl >= 2 ? 1.f : 0.7f), 1.f,
+        queue({org, d, 64.f, rnd(56.f, 80.f) * za::sqrt(scale) * sizeMult() * (lvl >= 2 ? 1.f : 0.7f), 1.f,
             lvl >= 2 ? 1.f : 0.3f, true});
     }
     for(int i = 0; i < count; i++)
@@ -402,12 +411,12 @@ void burst(const glm::vec3& org, const glm::vec3& dir, float size, int lvl)
             r = onSphere();
             r.z *= 0.8f;
         }
-        const float s = rnd(32.f, 56.f) * std::sqrt(scale) * sizeMult() * (lvl >= 2 ? 1.f : 0.7f);
+        const float s = rnd(32.f, 56.f) * za::sqrt(scale) * sizeMult() * (lvl >= 2 ? 1.f : 0.7f);
         queue({org, glm::normalize(r), range * rnd(0.6f, 1.f), s, lvl >= 2 ? 1.f : 0.4f, lvl >= 2 ? 0.6f : 0.2f, (i % 3) == 0});
     }
 
     // A pool under it, spreading.
-    const float pools = std::clamp(vr_gore_pools.value, 0.f, 3.f);
+    const float pools = za::clamp(vr_gore_pools.value, 0.f, 3.f);
     glm::vec3 where, n;
     float f;
     if(pools > 0.f && decals::trace(org, org - glm::vec3{0.f, 0.f, 160.f}, where, n, f) && n.z > 0.7f &&
@@ -424,7 +433,7 @@ void burst(const glm::vec3& org, const glm::vec3& dir, float size, int lvl)
 
 void corpse(const glm::vec3& org, float radius, int lvl)
 {
-    const float mult = std::clamp(vr_gore_pools.value, 0.f, 3.f);
+    const float mult = za::clamp(vr_gore_pools.value, 0.f, 3.f);
     if(mult <= 0.f || pending.size() >= maxPending)
     {
         return;
@@ -434,16 +443,16 @@ void corpse(const glm::vec3& org, float radius, int lvl)
     for(int i = 1; i < cl.num_entities; i++)
     {
         const entity_t& e = cl_entities[i];
-        if(e.model && std::fabs(e.origin[0] - org.x) < 1.f && std::fabs(e.origin[1] - org.y) < 1.f &&
-            std::fabs(e.origin[2] - org.z) < 1.f)
+        if(e.model && za::fabs(e.origin[0] - org.x) < 1.f && za::fabs(e.origin[1] - org.y) < 1.f &&
+            za::fabs(e.origin[2] - org.z) < 1.f)
         {
             ent = i;
             break;
         }
     }
-    const float size = std::clamp(radius * 4.5f, 56.f, 160.f) * mult * sizeMult() * (lvl >= 2 ? 1.f : 0.6f);
+    const float size = za::clamp(radius * 4.5f, 56.f, 160.f) * mult * sizeMult() * (lvl >= 2 ? 1.f : 0.6f);
     // Once it has fallen.
-    pending.push_back({org, cl.time + 1.2, size, ent, ent ? cl_entities[ent].model : nullptr});
+    pending.pushBack({org, cl.time + 1.2, size, ent, ent ? cl_entities[ent].model : nullptr});
 }
 
 // ---- The player's wounds: drops round the feet ---------------------------------------------------
@@ -458,7 +467,7 @@ void playerBleed()
     const double dtd = playerTime < 0.0 ? 0.0 : cl.time - playerTime;
     playerTime = cl.time;
     const int health = cl.stats[STAT_HEALTH];
-    const float mult = std::clamp(vr_body_blood_floor.value, 0.f, 4.f);
+    const float mult = za::clamp(vr_body_blood_floor.value, 0.f, 4.f);
     if(dtd <= 0.0 || dtd > 0.25 || health <= 0 || cl.intermission || mult <= 0.f || cl.viewentity <= 0 ||
         cl.viewentity >= cl.num_entities)
     {
@@ -469,18 +478,18 @@ void playerBleed()
     const float dt = static_cast<float>(dtd);
     if(playerHealth > 0 && health < playerHealth)
     {
-        playerBurst = std::min(3.f, playerBurst + static_cast<float>(playerHealth - health) / 12.f);
+        playerBurst = za::min(3.f, playerBurst + static_cast<float>(playerHealth - health) / 12.f);
     }
     playerHealth = health;
-    playerBurst *= std::exp(-dt / 1.5f);
+    playerBurst *= za::exp(-dt / 1.5f);
 
     // As the wound skins (vr_view.cpp's damageLevel): from 75 health down.
     constexpr float rates[4] = {0.f, 0.5f, 1.1f, 2.2f};
     const int wounds = health > 75 ? 0 : health > 50 ? 1 : health > 25 ? 2 : 3;
     playerOwed += (rates[wounds] + playerBurst * 1.5f) * mult * dt;
-    const float amount = std::clamp(vr_body_blood_amount.value, 0.25f, 4.f);
-    const float markChance = std::clamp(vr_body_blood_marks.value, 0.f, 1.f);
-    const float markSize = std::clamp(vr_body_blood_mark_size.value, 0.25f, 4.f);
+    const float amount = za::clamp(vr_body_blood_amount.value, 0.25f, 4.f);
+    const float markChance = za::clamp(vr_body_blood_marks.value, 0.f, 1.f);
+    const float markSize = za::clamp(vr_body_blood_mark_size.value, 0.25f, 4.f);
     int n = 0;
     while(playerOwed >= 1.f && n++ < 4)
     {
@@ -489,18 +498,18 @@ void playerBleed()
         const entity_t& pl = cl_entities[cl.viewentity];
         const float a = rnd(0.f, 6.2831853f);
         const float r = rnd(4.f, 11.f);
-        const glm::vec3 p{pl.origin[0] + std::cos(a) * r, pl.origin[1] + std::sin(a) * r, pl.origin[2] + rnd(-6.f, 6.f)};
+        const glm::vec3 p{pl.origin[0] + za::cos(a) * r, pl.origin[1] + za::sin(a) * r, pl.origin[2] + rnd(-6.f, 6.f)};
         const bool mark = rnd(0.f, 1.f) < markChance;
-        fall(p, rnd(0.5f, 0.7f) * amount, dropColor(p), mark ? rnd(3.5f, 6.5f) * markSize * std::sqrt(amount) : 0.f, 0.f);
+        fall(p, rnd(0.5f, 0.7f) * amount, dropColor(p), mark ? rnd(3.5f, 6.5f) * markSize * za::sqrt(amount) : 0.f, 0.f);
     }
-    playerOwed = std::min(playerOwed, 2.f);
+    playerOwed = za::min(playerOwed, 2.f);
 }
 
 } // namespace
 
 int level()
 {
-    return std::clamp(static_cast<int>(vr_gore.value), 0, 2);
+    return za::clamp(static_cast<int>(vr_gore.value), 0, 2);
 }
 
 bool event(const glm::vec3& org, const glm::vec3& dir, int preset, int count)
@@ -531,7 +540,7 @@ bool gibImpact(const glm::vec3& where, const glm::vec3& normal, float strength, 
     {
         return false;
     }
-    const float size = std::clamp(24.f + strength * 0.05f, 24.f, 64.f) * sizeMult() * (lvl >= 2 ? 1.f : 0.7f);
+    const float size = za::clamp(24.f + strength * 0.05f, 24.f, 64.f) * sizeMult() * (lvl >= 2 ? 1.f : 0.7f);
     MarkOptions o;
     o.along = velocity;
     o.darken = 0.2f;
@@ -544,7 +553,7 @@ bool gibImpact(const glm::vec3& where, const glm::vec3& normal, float strength, 
         const float seconds = rnd(3.f, 6.f) * dripMult();
         addSource(0, where + normal * 1.5f, seconds, size * 0.2f, rnd(0.25f, 0.45f), static_cast<int>(seconds * 4.f));
     }
-    else if(std::fabs(normal.z) < 0.35f && lvl >= 2)
+    else if(za::fabs(normal.z) < 0.35f && lvl >= 2)
     {
         streak(where, normal, size * rnd(0.35f, 0.5f), 0.f);
     }
@@ -554,7 +563,7 @@ bool gibImpact(const glm::vec3& where, const glm::vec3& normal, float strength, 
 void gibRest(const glm::vec3& where, const glm::vec3& normal)
 {
     const int lvl = level();
-    const float pools = std::clamp(vr_gore_pools.value, 0.f, 3.f);
+    const float pools = za::clamp(vr_gore_pools.value, 0.f, 3.f);
     if(lvl <= 0 || pools <= 0.f || inLiquid(where + normal * 2.f))
     {
         return;
@@ -577,12 +586,12 @@ void gibHanging(int ent, const glm::vec3& org)
         if(s.ent == ent)
         {
             s.pos = org - glm::vec3{0.f, 0.f, 3.f};
-            s.until = std::max(s.until, cl.time + 0.25);
+            s.until = za::max(s.until, cl.time + 0.25);
             return;
         }
     }
     // It bleeds a while (dry after so many drops; hanging again later, it bleeds again).
-    addSource(ent, org - glm::vec3{0.f, 0.f, 3.f}, 0.25f, 2.f, rnd(0.25f, 0.45f) / std::max(0.25f, dripMult()),
+    addSource(ent, org - glm::vec3{0.f, 0.f, 3.f}, 0.25f, 2.f, rnd(0.25f, 0.45f) / za::max(0.25f, dripMult()),
         static_cast<int>(24.f * dripMult()));
 }
 
@@ -601,13 +610,13 @@ void frame()
     }
 
     // Pools whose corpse has fallen.
-    for(std::size_t i = 0; i < pending.size();)
+    for(za::SizeT i = 0; i < pending.size();)
     {
         if(cl.time >= pending[i].start || cl.time < pending[i].start - 5.0)
         {
             pool(pending[i]);
             pending[i] = pending.back();
-            pending.pop_back();
+            pending.popBack();
         }
         else
         {
@@ -636,7 +645,7 @@ void frame()
             s.next = cl.time; // a long frame (a load): not a burst of drops after it
         }
     }
-    std::erase_if(sources, [](const Source& s) { return cl.time >= s.until || s.dropsLeft <= 0 || cl.time < s.until - 60.0; });
+    za::vectorEraseIf(sources, [](const Source& s) { return cl.time >= s.until || s.dropsLeft <= 0 || cl.time < s.until - 60.0; });
 
     if(cl.worldmodel && level() > 0)
     {
@@ -644,7 +653,7 @@ void frame()
     }
 
     // Drops landing: a splash, a mark or a puddle.
-    for(std::size_t i = 0; i < landings.size();)
+    for(za::SizeT i = 0; i < landings.size();)
     {
         const Landing& l = landings[i];
         if(cl.time < l.time && cl.time > l.time - 10.0)
@@ -669,7 +678,7 @@ void frame()
             particles::bloodSpecks(l.where, l.normal, 3, l.color);
         }
         landings[i] = landings.back();
-        landings.pop_back();
+        landings.popBack();
     }
 }
 
@@ -687,18 +696,18 @@ void test_f()
     const glm::vec3 dir = glm::length(f) > 0.01f ? glm::normalize(f) : glm::vec3{1.f, 0.f, 0.f};
     const entity_t& pl = cl_entities[cl.viewentity];
     const glm::vec3 org = glm::vec3{pl.origin[0], pl.origin[1], pl.origin[2]} + dir * 64.f + glm::vec3{0.f, 0.f, 8.f};
-    const int lvl = std::max(1, level());
+    const int lvl = za::max(1, level());
     if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "burst"))
     {
         burst(org, dir, 2.f, lvl);
     }
     else if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "corpse"))
     {
-        pending.push_back({org, cl.time, std::clamp(16.f * 4.5f, 56.f, 160.f) * sizeMult(), 0, nullptr});
+        pending.pushBack({org, cl.time, za::clamp(16.f * 4.5f, 56.f, 160.f) * sizeMult(), 0, nullptr});
     }
     else
     {
-        hit(org, dir, Cmd_Argc() > 1 ? std::max(1, atoi(Cmd_Argv(1))) : 40, HitShot, lvl);
+        hit(org, dir, Cmd_Argc() > 1 ? za::max(1, atoi(Cmd_Argv(1))) : 40, HitShot, lvl);
     }
 }
 

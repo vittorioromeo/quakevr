@@ -5,14 +5,19 @@
 #include "vr_protocol.hpp"
 #include "vr_units.hpp"
 
-#include <algorithm>
-#include <array>
-#include <cmath>
-#include <cstring>
-#include <functional>
-#include <string>
-#include <string_view>
-#include <unordered_map>
+#include "Zancle/Base/PtrDiffT.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/String/StringView.hpp"
+#include "Zancle/String/ToString.hpp"
+
+#include <string.h>
 
 namespace qvr::props
 {
@@ -45,8 +50,8 @@ constexpr const char* keyDefaults[numKeys] = {
 // (the round's agents number their changes apart); 48: the bricks' grip offsets back to 0; 49: the crates' slots.
 constexpr int settingsVersion = 49;
 
-std::array<std::string, numSlots * numKeys> names;
-std::array<cvar_t, numSlots * numKeys> cvars{};
+za::Array<za::String, numSlots * numKeys> names;
+za::Array<cvar_t, numSlots * numKeys> cvars{};
 
 constexpr const char* retiredKeyNames[] = {
 #define QVR_PROP_RETIRED(k) k,
@@ -54,8 +59,8 @@ constexpr const char* retiredKeyNames[] = {
 #undef QVR_PROP_RETIRED
 };
 constexpr int numRetired = static_cast<int>(sizeof(retiredKeyNames) / sizeof(retiredKeyNames[0]));
-std::array<std::string, numSlots * numRetired> retiredNames;
-std::array<cvar_t, numSlots * numRetired> retiredCvars{};
+za::Array<za::String, numSlots * numRetired> retiredNames;
+za::Array<cvar_t, numSlots * numRetired> retiredCvars{};
 
 [[nodiscard]] cvar_t& cvarAt(int slot, Key key)
 {
@@ -63,14 +68,19 @@ std::array<cvar_t, numSlots * numRetired> retiredCvars{};
 }
 
 // Model name -> slot (-1: none), and model -> slot, found again whenever a vr_prop_id_NN changes. By name: looked up
-// by a model's name without making a std::string of it (a transparent hash).
+// by a model's name without making a za::String of it (a transparent hash).
 struct NameHash
 {
     using is_transparent = void;
-    [[nodiscard]] std::size_t operator()(std::string_view s) const { return std::hash<std::string_view>{}(s); }
+    [[nodiscard]] za::SizeT operator()(za::StringView s) const { return ankerl::unordered_dense::hash<za::StringView>{}(s); }
 };
-std::unordered_map<std::string, int, NameHash, std::equal_to<>> slotCache;
-std::unordered_map<const qmodel_t*, int> modelSlotCache;
+struct NameEqual
+{
+    using is_transparent = void;
+    [[nodiscard]] bool operator()(za::StringView a, za::StringView b) const { return a == b; }
+};
+ankerl::unordered_dense::map<za::String, int, NameHash, NameEqual> slotCache;
+ankerl::unordered_dense::map<const qmodel_t*, int> modelSlotCache;
 
 // The keys' defaults as numbers (value() of no slot).
 float keyDefaultValues[numKeys];
@@ -93,8 +103,8 @@ void onChanged(cvar_t* var)
     {
         Con_Printf("props: %s %s (generation %u, frame %d)\n", var->name, var->string, generation, host_framecount);
     }
-    const std::ptrdiff_t index = var - cvars.data();
-    if(index >= 0 && index < static_cast<std::ptrdiff_t>(cvars.size()) && index % numKeys == static_cast<int>(Key::ID))
+    const za::PtrDiffT index = var - cvars.data();
+    if(index >= 0 && index < static_cast<za::PtrDiffT>(cvars.size()) && index % numKeys == static_cast<int>(Key::ID))
     {
         clearSlotCaches();
     }
@@ -180,7 +190,7 @@ void migrate()
             {
                 // A fixed grip's Pitch is up for every model now: a brush model's (a box: "maps/....bsp") was down.
                 const char* id = cvarAt(slot, Key::ID).string;
-                const std::size_t n = strlen(id);
+                const za::SizeT n = strlen(id);
                 if(n > 4 && !strcmp(id + n - 4, ".bsp") && atof(cvarAt(slot, Key::GripPitch).string) != 0.0)
                 {
                     Cvar_SetValueQuick(&cvarAt(slot, Key::GripPitch), static_cast<float>(-atof(cvarAt(slot, Key::GripPitch).string)));
@@ -252,7 +262,7 @@ void migrate()
         {
             cvar_t& var = cvarAt(c.slot, c.key);
             if(!strcmp(cvarAt(c.slot, Key::ID).string, cvarAt(c.slot, Key::ID).default_string) &&
-                std::fabs(static_cast<float>(atof(var.string)) - c.before) < 1e-4f)
+                za::fabs(static_cast<float>(atof(var.string)) - c.before) < 1e-4f)
             {
                 Cvar_SetQuick(&var, var.default_string);
                 Con_DPrintf("Held Object Offsets: %s: %s %s (was %g)\n", cvarAt(c.slot, Key::ID).string, var.name, var.string,
@@ -289,9 +299,9 @@ void registerCvars()
     {
         for(int key = 0; key < numKeys; key++)
         {
-            names[slot * numKeys + key] = std::string("vr_prop_") + keyNames[key] + (slot + 1 < 10 ? "_0" : "_") + std::to_string(slot + 1);
+            names[slot * numKeys + key] = za::String("vr_prop_") + keyNames[key] + (slot + 1 < 10 ? "_0" : "_") + za::toString(slot + 1);
             cvar_t& var = cvars[slot * numKeys + key];
-            var.name = names[slot * numKeys + key].c_str();
+            var.name = names[slot * numKeys + key].cStr();
             var.string = keyDefaults[key];
             var.flags = CVAR_ARCHIVE;
         }
@@ -322,10 +332,10 @@ void registerCvars()
     {
         for(int key = 0; key < numRetired; key++)
         {
-            std::string& name = retiredNames[slot * numRetired + key];
-            name = std::string("vr_prop_") + retiredKeyNames[key] + (slot + 1 < 10 ? "_0" : "_") + std::to_string(slot + 1);
+            za::String& name = retiredNames[slot * numRetired + key];
+            name = za::String("vr_prop_") + retiredKeyNames[key] + (slot + 1 < 10 ? "_0" : "_") + za::toString(slot + 1);
             cvar_t& var = retiredCvars[slot * numRetired + key];
-            var.name = name.c_str();
+            var.name = name.cStr();
             var.string = "0";
             var.flags = CVAR_NONE;
             Cvar_RegisterVariable(&var);
@@ -351,7 +361,7 @@ int slotForModel(const char* model)
         return -1;
     }
     migrate();
-    if(const auto it = slotCache.find(std::string_view{model}); it != slotCache.end())
+    if(const auto it = slotCache.find(za::StringView{model}); it != slotCache.end())
     {
         return it->second;
     }
@@ -415,7 +425,7 @@ float valueFor(const qmodel_t* model, Key key)
 
 float size(int slot)
 {
-    return std::clamp(value(slot, Key::Size), 0.05f, 10.f);
+    return za::clamp(value(slot, Key::Size), 0.05f, 10.f);
 }
 
 float drawnSize(const qmodel_t* model)
@@ -575,7 +585,7 @@ void resetSlotToDefaults(int slot, Part part)
         return;
     }
     // A slot the menu gave a model keeps it (its defaults are a free slot's: every key at the key's default).
-    const std::string id = cvarAt(slot, Key::ID).string;
+    const za::String id = cvarAt(slot, Key::ID).string;
     if(part == Part::All)
     {
         resetSlot(slot);
@@ -593,7 +603,7 @@ void resetSlotToDefaults(int slot, Part part)
     }
     if(freeId(cvarAt(slot, Key::ID).string))
     {
-        Cvar_SetQuick(&cvarAt(slot, Key::ID), id.c_str());
+        Cvar_SetQuick(&cvarAt(slot, Key::ID), id.cStr());
     }
 }
 
@@ -664,7 +674,7 @@ float density(const qmodel_t* model, bool weaponLike)
 
 float estimateMass(const qmodel_t* model, const glm::vec3& boxSize)
 {
-    const float u2m = 1.f / std::max(units::metresToUnits(), 1.f);
+    const float u2m = 1.f / za::max(units::metresToUnits(), 1.f);
     const glm::vec3 m = glm::max(boxSize, glm::vec3{0.5f}) * u2m;
     // A brush model is its box; an alias model's hull fills about half of it (Box3D's hulls of the gibs and the
     // backpack: 45 to 60%).
@@ -678,8 +688,8 @@ float throwScale(int slot, float mass)
     {
         return own;
     }
-    const float free = std::max(vr_weight_throw_mass.value, 0.1f);
-    return mass > free ? std::sqrt(free / mass) : 1.f;
+    const float free = za::max(vr_weight_throw_mass.value, 0.1f);
+    return mass > free ? za::sqrt(free / mass) : 1.f;
 }
 
 } // namespace qvr::props

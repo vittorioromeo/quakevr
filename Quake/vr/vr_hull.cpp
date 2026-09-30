@@ -6,17 +6,27 @@
 #include "vr_jobs.hpp"
 #include "vr_mem.hpp"
 
-#include <algorithm>
-#include <chrono>
-#include <cmath>
-#include <cstdint>
-#include <cstring>
-#include <limits>
+#include "Zancle/Algorithm/Find.hpp"
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/PtrDiffT.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Swap.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Floor.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/Vocabulary/UniquePtr.hpp"
+#include "vr_zancle.hpp"
+
+#include <string.h>
 #include <random>
-#include <tuple>
-#include <unordered_map>
-#include <utility>
-#include <vector>
 
 namespace qvr::hull
 {
@@ -47,8 +57,8 @@ struct Plane
 
 struct Brush
 {
-    std::uint32_t first;
-    std::uint32_t count;
+    za::U32 first;
+    za::U32 count;
     glm::vec3 mins, maxs; // hull 0's: its bounds; a clip brush's: the bounds of the box centres it holds (32 box)
     bool clip;
 };
@@ -60,25 +70,25 @@ struct SubModel
 {
     const mclipnode_t* clipnodes; // its hull 0's
     int head;                     // its head node in them
-    std::uint32_t base;           // its hull 0's leaves in leafBrush: [base + node * 2 + side]
-    std::uint32_t firstBrush, numBrushes;
+    za::U32 base;           // its hull 0's leaves in leafBrush: [base + node * 2 + side]
+    za::U32 firstBrush, numBrushes;
 };
 
 // The server map's solid space as brushes: pointers into the hunk (the world's hull 0), released at every map change.
 struct Brushes
 {
     const mclipnode_t* clipnodes = nullptr; // the hull 0 they were built from (the world's and its brush models')
-    std::vector<Plane> planes;
-    std::vector<Brush> brushes;
-    std::vector<int> leafBrush; // [base + node * 2 + side]: the brush of that child when it is a solid leaf, else -1
-    std::vector<SubModel> subs; // the world's submodels (0: the world), then external models as they are met
-    std::vector<int> modelSub;  // [modelindex]: its entry in subs; -1 none (not a brush model), -2 not looked up
-    std::vector<int> clips;     // the world's recovered clip brushes
-    std::vector<int> leafClipStart; // [node * 2 + side]: where the clip brushes whose box centres reach into that
-    std::vector<int> leafClipList;  // leaf of the world's hull 0 (empty or solid) start in leafClipList (and end: +1)
-    mutable std::vector<std::size_t> clipStamp; // a clip brush's last test (one per sweep: it is in many leaves)
-    mutable std::size_t stamp = 0;
-    std::vector<int> hull1Clip; // [hull 1 node * 2 + side]: a solid leaf's clip brush, -1 not one, -2 not looked at
+    za::Vector<Plane> planes;
+    za::Vector<Brush> brushes;
+    za::Vector<int> leafBrush; // [base + node * 2 + side]: the brush of that child when it is a solid leaf, else -1
+    za::Vector<SubModel> subs; // the world's submodels (0: the world), then external models as they are met
+    za::Vector<int> modelSub;  // [modelindex]: its entry in subs; -1 none (not a brush model), -2 not looked up
+    za::Vector<int> clips;     // the world's recovered clip brushes
+    za::Vector<int> leafClipStart; // [node * 2 + side]: where the clip brushes whose box centres reach into that
+    za::Vector<int> leafClipList;  // leaf of the world's hull 0 (empty or solid) start in leafClipList (and end: +1)
+    mutable za::Vector<za::SizeT> clipStamp; // a clip brush's last test (one per sweep: it is in many leaves)
+    mutable za::SizeT stamp = 0;
+    za::Vector<int> hull1Clip; // [hull 1 node * 2 + side]: a solid leaf's clip brush, -1 not one, -2 not looked at
     double ms = 0.0;            // the build's time
     double clipMs = 0.0;        // of which the clip brushes'
     int bevels = 0;             // planes added as Quake 2's bevels (axial, edge)
@@ -98,7 +108,7 @@ mem::Cache<Brushes> built{"hull brushes", mem::MapChange};
 // split by each node's plane on the way down; at a solid (or sky: solid to Quake's clipping hulls) leaf what is
 // left is that leaf's brush.
 
-using Winding = std::vector<glm::dvec3>;
+using Winding = za::Vector<glm::dvec3>;
 
 struct Face
 {
@@ -107,7 +117,7 @@ struct Face
     Winding w; // empty: the plane bounds the piece but its face was lost to the epsilon (the plane is kept)
     int tag = -1; // method A's build (Tree): the face's plane in the tree's table while not yet split on, else -1
 };
-using Poly = std::vector<Face>;
+using Poly = za::Vector<Face>;
 
 Winding baseWinding(const glm::dvec3& n, double d)
 {
@@ -124,16 +134,16 @@ Winding baseWinding(const glm::dvec3& n, double d)
 void clipWinding(const Winding& in, const glm::dvec3& n, double d, bool keepFront, Winding& out)
 {
     out.clear();
-    const std::size_t count = in.size();
+    const za::SizeT count = in.size();
     if(count < 3)
     {
         return;
     }
     const double sign = keepFront ? 1.0 : -1.0;
-    std::vector<double> dists(count);
-    std::vector<int> sides(count);
+    za::Vector<double> dists(count);
+    za::Vector<int> sides(count);
     bool anyBack = false, anyFront = false;
-    for(std::size_t i = 0; i < count; ++i)
+    for(za::SizeT i = 0; i < count; ++i)
     {
         dists[i] = (glm::dot(n, in[i]) - d) * sign;
         sides[i] = dists[i] > onEpsilon ? 1 : (dists[i] < -onEpsilon ? -1 : 0);
@@ -149,19 +159,19 @@ void clipWinding(const Winding& in, const glm::dvec3& n, double d, bool keepFron
     {
         return;
     }
-    for(std::size_t i = 0; i < count; ++i)
+    for(za::SizeT i = 0; i < count; ++i)
     {
-        const std::size_t j = (i + 1) % count;
+        const za::SizeT j = (i + 1) % count;
         if(sides[i] >= 0)
         {
-            out.push_back(in[i]);
+            out.pushBack(in[i]);
         }
         if(sides[i] == 0 || sides[j] == 0 || sides[i] == sides[j])
         {
             continue;
         }
         const double t = dists[i] / (dists[i] - dists[j]);
-        out.push_back(in[i] + (in[j] - in[i]) * t);
+        out.pushBack(in[i] + (in[j] - in[i]) * t);
     }
     if(out.size() < 3)
     {
@@ -180,8 +190,8 @@ void splitPoly(Poly&& p, const glm::dvec3& n, double d, Poly& front, Poly& back)
         for(const glm::dvec3& v : f.w)
         {
             const double t = glm::dot(n, v) - d;
-            lo = std::min(lo, t);
-            hi = std::max(hi, t);
+            lo = za::min(lo, t);
+            hi = za::max(hi, t);
         }
     }
     if(lo > hi) // no points at all: nothing left
@@ -190,23 +200,23 @@ void splitPoly(Poly&& p, const glm::dvec3& n, double d, Poly& front, Poly& back)
     }
     if(lo >= -onEpsilon)
     {
-        front = std::move(p);
+        front = ZA_MOVE(p);
         return;
     }
     if(hi <= onEpsilon)
     {
-        back = std::move(p);
+        back = ZA_MOVE(p);
         return;
     }
     Winding cap = baseWinding(n, d), tmp;
     for(Face& f : p)
     {
         clipWinding(cap, f.normal, f.dist, false, tmp);
-        std::swap(cap, tmp);
+        za::genericSwap(cap, tmp);
         if(f.w.empty())
         {
-            front.push_back(f);
-            back.push_back(f);
+            front.pushBack(f);
+            back.pushBack(f);
             continue;
         }
         Face fb{f.normal, f.dist, {}, f.tag};
@@ -214,24 +224,24 @@ void splitPoly(Poly&& p, const glm::dvec3& n, double d, Poly& front, Poly& back)
         clipWinding(f.w, n, d, true, tmp);
         if(!tmp.empty())
         {
-            front.push_back(Face{f.normal, f.dist, tmp, f.tag});
+            front.pushBack(Face{f.normal, f.dist, tmp, f.tag});
         }
         if(!fb.w.empty())
         {
-            back.push_back(std::move(fb));
+            back.pushBack(ZA_MOVE(fb));
         }
         else if(tmp.empty())
         {
             // Lost to the epsilon on both sides (a sliver of a face): its plane still bounds both pieces. Dropped, a
             // piece could lose its only bound that way (found with a monster's 24-wide hull on e1m4: a piece reaching
             // to the bogus winding's end, its leaf solid out in the open).
-            front.push_back(Face{f.normal, f.dist, {}, f.tag});
-            back.push_back(Face{f.normal, f.dist, {}, f.tag});
+            front.pushBack(Face{f.normal, f.dist, {}, f.tag});
+            back.pushBack(Face{f.normal, f.dist, {}, f.tag});
         }
     }
     // The cap's plane bounds both pieces even when its face is lost to the epsilon.
-    front.push_back(Face{-n, -d, cap});
-    back.push_back(Face{n, d, std::move(cap)});
+    front.pushBack(Face{-n, -d, cap});
+    back.pushBack(Face{n, d, ZA_MOVE(cap)});
 }
 
 Poly boxPoly(const glm::dvec3& mins, const glm::dvec3& maxs)
@@ -243,7 +253,7 @@ Poly boxPoly(const glm::dvec3& mins, const glm::dvec3& maxs)
         {
             glm::dvec3 n{0.0};
             n[axis] = s ? 1.0 : -1.0;
-            p.push_back(Face{n, s ? maxs[axis] : -mins[axis], {}});
+            p.pushBack(Face{n, s ? maxs[axis] : -mins[axis], {}});
         }
     }
     Winding tmp;
@@ -255,19 +265,19 @@ Poly boxPoly(const glm::dvec3& mins, const glm::dvec3& maxs)
             if(&g != &f)
             {
                 clipWinding(f.w, g.normal, g.dist, false, tmp);
-                std::swap(f.w, tmp);
+                za::genericSwap(f.w, tmp);
             }
         }
     }
     return p;
 }
 
-bool hasPlane(const Brushes& b, std::size_t first, const glm::dvec3& n, double d)
+bool hasPlane(const Brushes& b, za::SizeT first, const glm::dvec3& n, double d)
 {
-    for(std::size_t i = first; i < b.planes.size(); ++i)
+    for(za::SizeT i = first; i < b.planes.size(); ++i)
     {
         const Plane& q = b.planes[i];
-        if(glm::dot(glm::dvec3{q.normal}, n) > 1.0 - 1e-6 && std::abs(q.dist - d) < 0.01)
+        if(glm::dot(glm::dvec3{q.normal}, n) > 1.0 - 1e-6 && qza::abs(q.dist - d) < 0.01)
         {
             return true;
         }
@@ -275,9 +285,9 @@ bool hasPlane(const Brushes& b, std::size_t first, const glm::dvec3& n, double d
     return false;
 }
 
-bool hasNormal(const Brushes& b, std::size_t first, const glm::dvec3& n)
+bool hasNormal(const Brushes& b, za::SizeT first, const glm::dvec3& n)
 {
-    for(std::size_t i = first; i < b.planes.size(); ++i)
+    for(za::SizeT i = first; i < b.planes.size(); ++i)
     {
         if(glm::dot(glm::dvec3{b.planes[i].normal}, n) > 1.0 - 1e-6)
         {
@@ -305,12 +315,12 @@ int emitBrush(Brushes& b, const Poly& p)
         ++b.dropped;
         return -1;
     }
-    const std::size_t first = b.planes.size();
+    const za::SizeT first = b.planes.size();
     for(const Face& f : p)
     {
         if(!hasPlane(b, first, f.normal, f.dist))
         {
-            b.planes.push_back(Plane{glm::vec3{f.normal}, static_cast<float>(f.dist), 1.f});
+            b.planes.pushBack(Plane{glm::vec3{f.normal}, static_cast<float>(f.dist), 1.f});
         }
     }
     // Axial bevels: the piece's bounds, where no face already faces that way.
@@ -322,7 +332,7 @@ int emitBrush(Brushes& b, const Poly& p)
             n[axis] = s ? 1.0 : -1.0;
             if(!hasNormal(b, first, n))
             {
-                b.planes.push_back(Plane{glm::vec3{n}, static_cast<float>(s ? hi[axis] : -lo[axis]), 1.f});
+                b.planes.pushBack(Plane{glm::vec3{n}, static_cast<float>(s ? hi[axis] : -lo[axis]), 1.f});
                 ++b.bevels;
             }
         }
@@ -330,8 +340,8 @@ int emitBrush(Brushes& b, const Poly& p)
     // Edge bevels: along each slanted edge, the planes through it square to an axis that have the whole piece behind.
     for(const Face& f : p)
     {
-        const std::size_t count = f.w.size();
-        for(std::size_t i = 0; i < count; ++i)
+        const za::SizeT count = f.w.size();
+        for(za::SizeT i = 0; i < count; ++i)
         {
             const glm::dvec3& a = f.w[i];
             glm::dvec3 e = f.w[(i + 1) % count] - a;
@@ -341,7 +351,7 @@ int emitBrush(Brushes& b, const Poly& p)
                 continue;
             }
             e /= len;
-            if(std::abs(e.x) > 0.9999 || std::abs(e.y) > 0.9999 || std::abs(e.z) > 0.9999)
+            if(qza::abs(e.x) > 0.9999 || qza::abs(e.y) > 0.9999 || qza::abs(e.z) > 0.9999)
             {
                 continue; // an axial edge: the axial bevels have it
             }
@@ -381,14 +391,14 @@ int emitBrush(Brushes& b, const Poly& p)
                     }
                     if(behind)
                     {
-                        b.planes.push_back(Plane{glm::vec3{n}, static_cast<float>(d), 1.f});
+                        b.planes.pushBack(Plane{glm::vec3{n}, static_cast<float>(d), 1.f});
                         ++b.bevels;
                     }
                 }
             }
         }
     }
-    b.brushes.push_back(Brush{static_cast<std::uint32_t>(first), static_cast<std::uint32_t>(b.planes.size() - first),
+    b.brushes.pushBack(Brush{static_cast<za::U32>(first), static_cast<za::U32>(b.planes.size() - first),
         glm::vec3{lo}, glm::vec3{hi}, false});
     return static_cast<int>(b.brushes.size()) - 1;
 }
@@ -409,7 +419,7 @@ void walk(const hull_t& hull, int num, Poly&& poly, OnSolid& onSolid)
     const mclipnode_t& node = hull.clipnodes[num];
     const mplane_t& plane = hull.planes[node.planenum];
     Poly parts[2];
-    splitPoly(std::move(poly), glm::dvec3{plane.normal[0], plane.normal[1], plane.normal[2]}, plane.dist, parts[0],
+    splitPoly(ZA_MOVE(poly), glm::dvec3{plane.normal[0], plane.normal[1], plane.normal[2]}, plane.dist, parts[0],
         parts[1]);
     for(int side = 0; side < 2; ++side)
     {
@@ -420,7 +430,7 @@ void walk(const hull_t& hull, int num, Poly&& poly, OnSolid& onSolid)
         }
         if(child >= 0)
         {
-            walk(hull, child, std::move(parts[side]), onSolid);
+            walk(hull, child, ZA_MOVE(parts[side]), onSolid);
         }
         else if(solidContents(child))
         {
@@ -442,7 +452,7 @@ struct WalkItem
     Poly poly;
 };
 
-void splitTop(const hull_t& hull, int num, Poly&& poly, int depth, std::vector<WalkItem>& items)
+void splitTop(const hull_t& hull, int num, Poly&& poly, int depth, za::Vector<WalkItem>& items)
 {
     if(num < hull.firstclipnode || num > hull.lastclipnode)
     {
@@ -450,13 +460,13 @@ void splitTop(const hull_t& hull, int num, Poly&& poly, int depth, std::vector<W
     }
     if(depth == 0)
     {
-        items.push_back(WalkItem{num, -1, std::move(poly)});
+        items.pushBack(WalkItem{num, -1, ZA_MOVE(poly)});
         return;
     }
     const mclipnode_t& node = hull.clipnodes[num];
     const mplane_t& plane = hull.planes[node.planenum];
     Poly parts[2];
-    splitPoly(std::move(poly), glm::dvec3{plane.normal[0], plane.normal[1], plane.normal[2]}, plane.dist, parts[0],
+    splitPoly(ZA_MOVE(poly), glm::dvec3{plane.normal[0], plane.normal[1], plane.normal[2]}, plane.dist, parts[0],
         parts[1]);
     for(int side = 0; side < 2; ++side)
     {
@@ -467,31 +477,31 @@ void splitTop(const hull_t& hull, int num, Poly&& poly, int depth, std::vector<W
         }
         if(child >= 0)
         {
-            splitTop(hull, child, std::move(parts[side]), depth - 1, items);
+            splitTop(hull, child, ZA_MOVE(parts[side]), depth - 1, items);
         }
         else if(solidContents(child))
         {
-            items.push_back(WalkItem{num, side, std::move(parts[side])});
+            items.pushBack(WalkItem{num, side, ZA_MOVE(parts[side])});
         }
     }
 }
 
 // Each item walked (items[i]'s pieces to onSolid(num, side, piece, outs[i])), on the pool.
 template <class Out, class OnSolid>
-void walkItems(const hull_t& hull, std::vector<WalkItem>& items, std::vector<Out>& outs, const OnSolid& onSolid)
+void walkItems(const hull_t& hull, za::Vector<WalkItem>& items, za::Vector<Out>& outs, const OnSolid& onSolid)
 {
     outs.clear();
     outs.resize(items.size());
     jobs::parallelFor(items.size(), 1,
-        [&](std::size_t begin, std::size_t end)
+        [&](za::SizeT begin, za::SizeT end)
         {
-            for(std::size_t i = begin; i < end; ++i)
+            for(za::SizeT i = begin; i < end; ++i)
             {
                 Out& out = outs[i];
                 auto on = [&](int num, int side, const Poly& piece) { onSolid(num, side, piece, out); };
                 if(items[i].side < 0)
                 {
-                    walk(hull, items[i].num, std::move(items[i].poly), on);
+                    walk(hull, items[i].num, ZA_MOVE(items[i].poly), on);
                 }
                 else
                 {
@@ -506,10 +516,10 @@ void recoverClips(Brushes& b, qmodel_t* world);
 
 // A model's brushes: hull 0's tree walked from its head node (numnodes: its hull 0's nodes; base: their leaves' place in
 // leafBrush). Its bounds and a margin: the world's outside is solid in hull 0, cut off here (no one gets there).
-void addSubModel(Brushes& b, const hull_t& hull0, int numnodes, std::uint32_t base, int head, const float* mins,
+void addSubModel(Brushes& b, const hull_t& hull0, int numnodes, za::U32 base, int head, const float* mins,
     const float* maxs)
 {
-    const auto first = static_cast<std::uint32_t>(b.brushes.size());
+    const auto first = static_cast<za::U32>(b.brushes.size());
     if(head >= 0 && head < numnodes)
     {
         hull_t h = hull0;
@@ -519,15 +529,15 @@ void addSubModel(Brushes& b, const hull_t& hull0, int numnodes, std::uint32_t ba
         const glm::dvec3 lo = glm::dvec3{mins[0], mins[1], mins[2]} - margin;
         const glm::dvec3 hi = glm::dvec3{maxs[0], maxs[1], maxs[2]} + margin;
         auto onSolid = [&b, base](int num, int side, const Poly& piece)
-        { b.leafBrush[base + static_cast<std::size_t>(num) * 2 + side] = emitBrush(b, piece); };
+        { b.leafBrush[base + static_cast<za::SizeT>(num) * 2 + side] = emitBrush(b, piece); };
         walk(h, head, boxPoly(lo, hi), onSolid);
     }
-    b.subs.push_back(SubModel{hull0.clipnodes, head, base, first, static_cast<std::uint32_t>(b.brushes.size()) - first});
+    b.subs.pushBack(SubModel{hull0.clipnodes, head, base, first, static_cast<za::U32>(b.brushes.size()) - first});
 }
 
 void build(qmodel_t* world)
 {
-    const auto t0 = std::chrono::steady_clock::now();
+    const auto t0 = qza::nowNs();
     Brushes& b = built;
     const hull_t& hull0 = world->hulls[0];
     b.clipnodes = hull0.clipnodes;
@@ -541,15 +551,17 @@ void build(qmodel_t* world)
     b.bevels = 0;
     b.dropped = 0;
     b.hull1Leaves = 0;
-    b.leafBrush.assign(static_cast<std::size_t>(b.numnodes) * 2, -1);
+    b.leafBrush.clear();
+    b.leafBrush.resize(static_cast<za::SizeT>(b.numnodes) * 2, -1);
     b.subs.clear();
-    b.modelSub.assign(MAX_MODELS, -2);
+    b.modelSub.clear();
+    b.modelSub.resize(MAX_MODELS, -2);
     // The world's models (addSubModel's walk for each), their walks shared out on the pool together.
     hull_t h = hull0;
     h.firstclipnode = 0;
     h.lastclipnode = b.numnodes - 1;
-    std::vector<WalkItem> items;
-    std::vector<std::size_t> subEnd(static_cast<std::size_t>(std::max(world->numsubmodels, 0)));
+    za::Vector<WalkItem> items;
+    za::Vector<za::SizeT> subEnd(static_cast<za::SizeT>(za::max(world->numsubmodels, 0)));
     for(int i = 0; i < world->numsubmodels; ++i)
     {
         const dmodel_t& sub = world->submodels[i];
@@ -562,31 +574,31 @@ void build(qmodel_t* world)
                     glm::dvec3{sub.maxs[0], sub.maxs[1], sub.maxs[2]} + margin),
                 walkSplitDepth, items);
         }
-        subEnd[static_cast<std::size_t>(i)] = items.size();
+        subEnd[static_cast<za::SizeT>(i)] = items.size();
     }
     struct Out
     {
         Brushes b; // the item's brushes and their planes, numbered from 0
-        std::vector<std::pair<std::size_t, int>> leaves; // (leaf key, its brush in b or -1)
+        za::Vector<qza::Pair<za::SizeT, int>> leaves; // (leaf key, its brush in b or -1)
     };
-    std::vector<Out> outs;
+    za::Vector<Out> outs;
     walkItems(h, items, outs,
         [](int num, int side, const Poly& piece, Out& out)
-        { out.leaves.emplace_back(static_cast<std::size_t>(num) * 2 + side, emitBrush(out.b, piece)); });
-    std::size_t item = 0;
+        { out.leaves.emplaceBack(static_cast<za::SizeT>(num) * 2 + side, emitBrush(out.b, piece)); });
+    za::SizeT item = 0;
     for(int i = 0; i < world->numsubmodels; ++i)
     {
-        const auto first = static_cast<std::uint32_t>(b.brushes.size());
-        for(; item < subEnd[static_cast<std::size_t>(i)]; ++item)
+        const auto first = static_cast<za::U32>(b.brushes.size());
+        for(; item < subEnd[static_cast<za::SizeT>(i)]; ++item)
         {
             Out& o = outs[item];
-            const auto planeBase = static_cast<std::uint32_t>(b.planes.size());
+            const auto planeBase = static_cast<za::U32>(b.planes.size());
             const auto brushBase = static_cast<int>(b.brushes.size());
-            b.planes.insert(b.planes.end(), o.b.planes.begin(), o.b.planes.end());
+            b.planes.emplaceBackRange(o.b.planes.data(), o.b.planes.size());
             for(Brush br : o.b.brushes)
             {
                 br.first += planeBase;
-                b.brushes.push_back(br);
+                b.brushes.pushBack(br);
             }
             for(const auto& [key, brush] : o.leaves)
             {
@@ -595,19 +607,19 @@ void build(qmodel_t* world)
             b.bevels += o.b.bevels;
             b.dropped += o.b.dropped;
         }
-        b.subs.push_back(SubModel{hull0.clipnodes, world->submodels[i].headnode[0], 0, first,
-            static_cast<std::uint32_t>(b.brushes.size()) - first});
+        b.subs.pushBack(SubModel{hull0.clipnodes, world->submodels[i].headnode[0], 0, first,
+            static_cast<za::U32>(b.brushes.size()) - first});
     }
-    const auto t1 = std::chrono::steady_clock::now();
+    const auto t1 = qza::nowNs();
     recoverClips(b, world);
-    const auto t2 = std::chrono::steady_clock::now();
-    b.clipMs = std::chrono::duration<double, std::milli>(t2 - t1).count();
-    b.ms = std::chrono::duration<double, std::milli>(t2 - t0).count();
+    const auto t2 = qza::nowNs();
+    b.clipMs = (static_cast<double>(t2 - t1) / 1e6);
+    b.ms = (static_cast<double>(t2 - t0) / 1e6);
 }
 
 float widthSetting()
 {
-    return std::clamp(vr_hull_width.value, minWidth, maxWidth);
+    return za::clamp(vr_hull_width.value, minWidth, maxWidth);
 }
 
 void settle();
@@ -647,12 +659,12 @@ struct Sweep
     bool getout = true; // false: the start brush holds the end too
     const Plane* hitPlane = nullptr;
     int brushTests = 0;
-    std::size_t base = 0; // the model's leaves in leafBrush (SubModel::base)
+    za::SizeT base = 0; // the model's leaves in leafBrush (SubModel::base)
 };
 
 double support(const Plane& p, const glm::dvec3& ext)
 {
-    return p.grows * (std::abs(p.normal.x * ext.x) + std::abs(p.normal.y * ext.y) + std::abs(p.normal.z * ext.z));
+    return p.grows * (qza::abs(p.normal.x * ext.x) + qza::abs(p.normal.y * ext.y) + qza::abs(p.normal.z * ext.z));
 }
 
 void clipToBrush(Sweep& s, const Brush& br)
@@ -668,7 +680,7 @@ void clipToBrush(Sweep& s, const Brush& br)
     double enter = -1.0, leave = 1.0;
     const Plane* clip = nullptr;
     bool startout = false, getout = false;
-    for(std::uint32_t i = 0; i < br.count; ++i)
+    for(za::U32 i = 0; i < br.count; ++i)
     {
         const Plane& p = s.b->planes[br.first + i];
         const glm::dvec3 n{p.normal};
@@ -688,7 +700,7 @@ void clipToBrush(Sweep& s, const Brush& br)
         {
             // Clamped at 0 (as Quake 3 does, not Quake 2): a box starting less than the epsilon off the face and
             // moving into it would otherwise get a large negative fraction, miss the brush, and end up inside it.
-            const double f = std::max(0.0, (d1 - distEpsilon) / (d1 - d2));
+            const double f = za::max(0.0, (d1 - distEpsilon) / (d1 - d2));
             if(f > enter)
             {
                 enter = f;
@@ -697,7 +709,7 @@ void clipToBrush(Sweep& s, const Brush& br)
         }
         else // leaving
         {
-            leave = std::min(leave, (d1 + distEpsilon) / (d1 - d2));
+            leave = za::min(leave, (d1 + distEpsilon) / (d1 - d2));
         }
     }
     if(!startout)
@@ -708,7 +720,7 @@ void clipToBrush(Sweep& s, const Brush& br)
     }
     if(enter < leave && enter > -1.0 && enter < s.fraction)
     {
-        s.fraction = std::max(enter, 0.0);
+        s.fraction = za::max(enter, 0.0);
         s.hitPlane = clip;
     }
 }
@@ -735,7 +747,7 @@ void sweepNode(Sweep& s, int num, double p1f, double p2f, const glm::dvec3& p1, 
         const glm::dvec3 n{plane.normal[0], plane.normal[1], plane.normal[2]};
         t1 = glm::dot(n, p1) - plane.dist;
         t2 = glm::dot(n, p2) - plane.dist;
-        offset = std::abs(s.ext.x * n.x) + std::abs(s.ext.y * n.y) + std::abs(s.ext.z * n.z);
+        offset = qza::abs(s.ext.x * n.x) + qza::abs(s.ext.y * n.y) + qza::abs(s.ext.z * n.z);
     }
     // Quake 3's unit of slop past the box's extent.
     if(t1 >= offset + 1.0 && t2 >= offset + 1.0)
@@ -770,8 +782,8 @@ void sweepNode(Sweep& s, int num, double p1f, double p2f, const glm::dvec3& p1, 
         frac = 1.0;
         frac2 = 0.0;
     }
-    frac = std::clamp(frac, 0.0, 1.0);
-    frac2 = std::clamp(frac2, 0.0, 1.0);
+    frac = za::clamp(frac, 0.0, 1.0);
+    frac2 = za::clamp(frac2, 0.0, 1.0);
     const double midf = p1f + (p2f - p1f) * frac;
     sweepChild(s, num, side, p1f, midf, p1, p1 + (p2 - p1) * frac);
     const double midf2 = p1f + (p2f - p1f) * frac2;
@@ -780,7 +792,7 @@ void sweepNode(Sweep& s, int num, double p1f, double p2f, const glm::dvec3& p1, 
 
 // The clip brushes reaching into a leaf, each once a sweep. Kept out of sweepChild: inlined there, the loop made
 // every sweep through the tree twice as slow (MSVC), clip brushes or not.
-QVR_NOINLINE void clipLeafClips(Sweep& s, std::size_t key)
+QVR_NOINLINE void clipLeafClips(Sweep& s, za::SizeT key)
 {
     for(int i = s.b->leafClipStart[key]; i < s.b->leafClipStart[key + 1]; ++i)
     {
@@ -801,7 +813,7 @@ void sweepChild(Sweep& s, int num, int side, double p1f, double p2f, const glm::
         sweepNode(s, child, p1f, p2f, p1, p2);
         return;
     }
-    const std::size_t key = static_cast<std::size_t>(num) * 2 + side;
+    const za::SizeT key = static_cast<za::SizeT>(num) * 2 + side;
     const int brush = s.b->leafBrush[s.base + key];
     if(brush >= 0)
     {
@@ -815,7 +827,7 @@ void sweepChild(Sweep& s, int num, int side, double p1f, double p2f, const glm::
 
 bool boxInBrush(const Brushes& b, const Brush& br, const glm::dvec3& p, const glm::dvec3& ext)
 {
-    for(std::uint32_t i = 0; i < br.count; ++i)
+    for(za::U32 i = 0; i < br.count; ++i)
     {
         const Plane& q = b.planes[br.first + i];
         if(glm::dot(p, glm::dvec3{q.normal}) - (q.dist + support(q, ext)) >= 0.0)
@@ -828,13 +840,13 @@ bool boxInBrush(const Brushes& b, const Brush& br, const glm::dvec3& p, const gl
 
 // Whether the box at p overlaps a brush of the tree (touching is not: Quake's "d >= 0 is in front").
 bool boxInTree(const Brushes& b, const hull_t& hull, int num, const glm::dvec3& p, const glm::dvec3& ext, bool clips,
-    std::size_t base)
+    za::SizeT base)
 {
     const mclipnode_t& node = hull.clipnodes[num];
     const mplane_t& plane = hull.planes[node.planenum];
     const glm::dvec3 n{plane.normal[0], plane.normal[1], plane.normal[2]};
     const double t = glm::dot(n, p) - plane.dist;
-    const double offset = std::abs(ext.x * n.x) + std::abs(ext.y * n.y) + std::abs(ext.z * n.z);
+    const double offset = qza::abs(ext.x * n.x) + qza::abs(ext.y * n.y) + qza::abs(ext.z * n.z);
     for(int side = 0; side < 2; ++side)
     {
         if(side == 0 ? t <= -offset - 1.0 : t >= offset + 1.0)
@@ -851,7 +863,7 @@ bool boxInTree(const Brushes& b, const hull_t& hull, int num, const glm::dvec3& 
         }
         else
         {
-            const std::size_t key = static_cast<std::size_t>(num) * 2 + side;
+            const za::SizeT key = static_cast<za::SizeT>(num) * 2 + side;
             if(const int brush = b.leafBrush[base + key]; brush >= 0 && boxInBrush(b, b.brushes[brush], p, ext))
             {
                 return true;
@@ -875,21 +887,21 @@ bool boxInTree(const Brushes& b, const hull_t& hull, int num, const glm::dvec3& 
 
 // ... or a clip brush (the world's: head 0).
 bool boxInSolid(const Brushes& b, const hull_t& hull, int head, const glm::dvec3& p, const glm::dvec3& ext,
-    bool clips = true, std::size_t base = 0)
+    bool clips = true, za::SizeT base = 0)
 {
     ++b.stamp;
     return boxInTree(b, hull, head, p, ext, clips && head == 0 && base == 0 && !b.leafClipStart.empty(), base);
 }
 
 // The leaves of the world's hull 0 a box reaches into (touching included): a clip brush's box centres.
-void leavesOfBox(const hull_t& hull, int num, const glm::dvec3& lo, const glm::dvec3& hi, std::vector<int>& out)
+void leavesOfBox(const hull_t& hull, int num, const glm::dvec3& lo, const glm::dvec3& hi, za::Vector<int>& out)
 {
     const mclipnode_t& node = hull.clipnodes[num];
     const mplane_t& plane = hull.planes[node.planenum];
     const glm::dvec3 n{plane.normal[0], plane.normal[1], plane.normal[2]};
     const glm::dvec3 centre = (lo + hi) * 0.5, half = (hi - lo) * 0.5;
     const double t = glm::dot(n, centre) - plane.dist;
-    const double reach = std::abs(n.x * half.x) + std::abs(n.y * half.y) + std::abs(n.z * half.z) + 1.0;
+    const double reach = qza::abs(n.x * half.x) + qza::abs(n.y * half.y) + qza::abs(n.z * half.z) + 1.0;
     for(int side = 0; side < 2; ++side)
     {
         if(side == 0 ? t < -reach : t >= reach)
@@ -903,7 +915,7 @@ void leavesOfBox(const hull_t& hull, int num, const glm::dvec3& lo, const glm::d
         }
         else
         {
-            out.push_back(num * 2 + side);
+            out.pushBack(num * 2 + side);
         }
     }
 }
@@ -928,22 +940,23 @@ void recoverClips(Brushes& b, qmodel_t* world)
     hull_t h0 = world->hulls[0];
     const glm::dvec3 e32{16.0, 16.0, 28.0};
     const glm::dvec3 lift{0.0, 0.0, 4.0}; // hull 1's point is 4 below the centre of Quake's box (-24..32)
-    b.hull1Clip.assign(static_cast<std::size_t>(world->numclipnodes) * 2, -2);
+    b.hull1Clip.clear();
+    b.hull1Clip.resize(static_cast<za::SizeT>(world->numclipnodes) * 2, -2);
     // Each walk item's (walkItems): its clip brushes and their planes, numbered from 0.
     struct Out
     {
-        std::vector<bool> open; // the piece's faces' (a buffer)
-        std::vector<Plane> planes;
-        std::vector<Brush> brushes;
-        std::vector<std::pair<std::size_t, bool>> leaves; // (hull 1 leaf key, a clip brush: its next in brushes)
+        za::Vector<bool> open; // the piece's faces' (a buffer)
+        za::Vector<Plane> planes;
+        za::Vector<Brush> brushes;
+        za::Vector<qza::Pair<za::SizeT, bool>> leaves; // (hull 1 leaf key, a clip brush: its next in brushes)
         int hull1Leaves = 0;
-        std::size_t tests = 0; // boxInSolid's (b.stamp's count)
+        za::SizeT tests = 0; // boxInSolid's (b.stamp's count)
     };
     // (b is only read here: its hull 0 brushes, complete)
     auto onSolid = [&b, &h1, &h0, &sub, head, lift, e32](int num1, int side1, const Poly& piece, Out& out)
     {
         ++out.hull1Leaves;
-        std::vector<bool>& open = out.open;
+        za::Vector<bool>& open = out.open;
         // Its faces that face the open (hull 1 empty just past their middle), its centre and bounds.
         open.clear();
         glm::dvec3 c{0.0}, lo{1e300}, hi{-1e300};
@@ -966,7 +979,7 @@ void recoverClips(Brushes& b, qmodel_t* world)
                 vec3_t q{static_cast<float>(fc.x), static_cast<float>(fc.y), static_cast<float>(fc.z)};
                 isOpen = SV_HullPointContents(&h1, head, q) != CONTENTS_SOLID;
             }
-            open.push_back(isOpen);
+            open.pushBack(isOpen);
         }
         if(!count)
         {
@@ -989,7 +1002,7 @@ void recoverClips(Brushes& b, qmodel_t* world)
             return !boxInTree(b, h0, 0, p + lift, e32, false, 0);
         };
         bool clip = false;
-        for(std::size_t fi = 0; fi < piece.size() && !clip; ++fi)
+        for(za::SizeT fi = 0; fi < piece.size() && !clip; ++fi)
         {
             const Face& f = piece[fi];
             if(!open[fi])
@@ -1004,7 +1017,7 @@ void recoverClips(Brushes& b, qmodel_t* world)
             fc /= static_cast<double>(f.w.size());
             const glm::dvec3 in = -f.normal;
             clip = roomAt(fc + in);
-            for(std::size_t i = 0; i < f.w.size() && !clip; ++i)
+            for(za::SizeT i = 0; i < f.w.size() && !clip; ++i)
             {
                 // Toward each corner and edge middle: at 45% and 85% of the way from the face's middle.
                 const glm::dvec3 mid = (f.w[i] + f.w[(i + 1) % f.w.size()]) * 0.5;
@@ -1015,7 +1028,7 @@ void recoverClips(Brushes& b, qmodel_t* world)
         clip = clip || roomAt(c);
         for(const Face& f : piece)
         {
-            for(std::size_t i = 0; i < f.w.size() && !clip; ++i)
+            for(za::SizeT i = 0; i < f.w.size() && !clip; ++i)
             {
                 clip = roomAt(c + (f.w[i] - c) * 0.9);
             }
@@ -1031,38 +1044,38 @@ void recoverClips(Brushes& b, qmodel_t* world)
             }
             clip = inside && roomAt(p);
         }
-        out.leaves.emplace_back(static_cast<std::size_t>(num1) * 2 + side1, clip);
+        out.leaves.emplaceBack(static_cast<za::SizeT>(num1) * 2 + side1, clip);
         if(!clip)
         {
             return;
         }
         // Kept in the box centre's space; the open faces shrink back with a narrower box.
-        const std::size_t first = out.planes.size();
-        for(std::size_t fi = 0; fi < piece.size(); ++fi)
+        const za::SizeT first = out.planes.size();
+        for(za::SizeT fi = 0; fi < piece.size(); ++fi)
         {
             const Face& f = piece[fi];
             const double dist = f.dist + glm::dot(f.normal, lift);
             const double reach =
-                std::abs(f.normal.x) * e32.x + std::abs(f.normal.y) * e32.y + std::abs(f.normal.z) * e32.z;
-            out.planes.push_back(
+                qza::abs(f.normal.x) * e32.x + qza::abs(f.normal.y) * e32.y + qza::abs(f.normal.z) * e32.z;
+            out.planes.pushBack(
                 Plane{glm::vec3{f.normal}, static_cast<float>(open[fi] ? dist - reach : dist), open[fi] ? 1.f : 0.f});
         }
-        out.brushes.push_back(Brush{static_cast<std::uint32_t>(first), static_cast<std::uint32_t>(out.planes.size() - first),
+        out.brushes.pushBack(Brush{static_cast<za::U32>(first), static_cast<za::U32>(out.planes.size() - first),
             glm::vec3{lo + lift}, glm::vec3{hi + lift}, true});
     };
     const glm::dvec3 margin{96.0};
-    std::vector<WalkItem> items;
+    za::Vector<WalkItem> items;
     splitTop(h1, head,
         boxPoly(glm::dvec3{sub.mins[0], sub.mins[1], sub.mins[2]} - margin,
             glm::dvec3{sub.maxs[0], sub.maxs[1], sub.maxs[2]} + margin),
         walkSplitDepth, items);
-    std::vector<Out> outs;
+    za::Vector<Out> outs;
     walkItems(h1, items, outs, onSolid);
     for(const Out& o : outs)
     {
         b.hull1Leaves += o.hull1Leaves;
         b.stamp += o.tests;
-        std::size_t next = 0;
+        za::SizeT next = 0;
         for(const auto& [key, clip] : o.leaves)
         {
             b.hull1Clip[key] = clip ? static_cast<int>(b.brushes.size()) : -1;
@@ -1072,38 +1085,40 @@ void recoverClips(Brushes& b, qmodel_t* world)
             }
             Brush br = o.brushes[next++];
             const auto from = o.planes.begin() + br.first;
-            br.first = static_cast<std::uint32_t>(b.planes.size());
-            b.planes.insert(b.planes.end(), from, from + br.count);
-            b.brushes.push_back(br);
-            b.clips.push_back(static_cast<int>(b.brushes.size()) - 1);
+            br.first = static_cast<za::U32>(b.planes.size());
+            b.planes.emplaceBackRange(from, br.count);
+            b.brushes.pushBack(br);
+            b.clips.pushBack(static_cast<int>(b.brushes.size()) - 1);
         }
     }
 
     // Each clip brush into the leaves its box centres reach (a sweep's centre passes through them).
-    std::vector<std::pair<int, int>> pairs; // (leaf key, clip brush)
-    std::vector<int> keys;
+    za::Vector<qza::Pair<int, int>> pairs; // (leaf key, clip brush)
+    za::Vector<int> keys;
     for(const int c : b.clips)
     {
         keys.clear();
         leavesOfBox(h0, 0, glm::dvec3{b.brushes[c].mins}, glm::dvec3{b.brushes[c].maxs}, keys);
         for(const int k : keys)
         {
-            pairs.emplace_back(k, c);
+            pairs.emplaceBack(k, c);
         }
     }
-    std::sort(pairs.begin(), pairs.end());
-    b.leafClipStart.assign(static_cast<std::size_t>(b.numnodes) * 2 + 1, 0);
+    za::quickSort(pairs.begin(), pairs.end());
+    b.leafClipStart.clear();
+    b.leafClipStart.resize(static_cast<za::SizeT>(b.numnodes) * 2 + 1, 0);
     b.leafClipList.resize(pairs.size());
-    for(std::size_t i = 0; i < pairs.size(); ++i)
+    for(za::SizeT i = 0; i < pairs.size(); ++i)
     {
         ++b.leafClipStart[pairs[i].first + 1];
         b.leafClipList[i] = pairs[i].second;
     }
-    for(std::size_t k = 1; k < b.leafClipStart.size(); ++k)
+    for(za::SizeT k = 1; k < b.leafClipStart.size(); ++k)
     {
         b.leafClipStart[k] += b.leafClipStart[k - 1];
     }
-    b.clipStamp.assign(b.brushes.size(), 0);
+    b.clipStamp.clear();
+    b.clipStamp.resize(b.brushes.size(), 0);
 }
 
 struct Result
@@ -1114,7 +1129,7 @@ struct Result
 
 // A box (mins..maxs about the point) from start to end through a model's brushes, in its own space; Quake's trace.
 Result boxTrace(const Brushes& b, const hull_t& hull0, int head, const glm::vec3& start, const glm::vec3& mins,
-    const glm::vec3& maxs, const glm::vec3& end, std::size_t base = 0)
+    const glm::vec3& maxs, const glm::vec3& end, za::SizeT base = 0)
 {
     Result r{};
     trace_t& tr = r.trace;
@@ -1173,9 +1188,9 @@ Result boxTrace(const Brushes& b, const hull_t& hull0, int head, const glm::vec3
 
 struct Tree
 {
-    std::vector<mclipnode_t> nodes;
-    std::vector<mplane_t> planes;
-    std::vector<int> heads;                    // [sub]: its tree's root in nodes; -1 not built yet
+    za::Vector<mclipnode_t> nodes;
+    za::Vector<mplane_t> planes;
+    za::Vector<int> heads;                    // [sub]: its tree's root in nodes; -1 not built yet
     const mclipnode_t* forClipnodes = nullptr; // the Brushes it was built from (their world's hull 0)
     glm::vec3 ext{0.f};                        // the half size of the box it was built for
     int redone = 0;                            // pieces of its builds on the pool done again on one thread (buildTree)
@@ -1186,7 +1201,7 @@ struct Tree
 mem::Cache<Tree> tree{"hull tree", mem::MapChange};
 
 // Its bytes, for a set holding trees (found by the set's heldBytes of a vector of them).
-std::size_t heldBytes(const Tree& t)
+za::SizeT heldBytes(const Tree& t)
 {
     return mem::heldBytes(t.nodes) + mem::heldBytes(t.planes) + mem::heldBytes(t.heads);
 }
@@ -1195,11 +1210,11 @@ std::size_t heldBytes(const Tree& t)
 // settings); the player's size shares the player's tree.
 struct MonsterTrees
 {
-    std::vector<Tree> trees;
+    za::Vector<Tree> trees;
     auto members() { return qvr::mem::list(trees); }
 };
 mem::Cache<MonsterTrees> monsterTrees{"hull monster trees", mem::MapChange};
-constexpr std::size_t maxMonsterTrees = 12; // more box sizes than this at once: all compiled again (not expected)
+constexpr za::SizeT maxMonsterTrees = 12; // more box sizes than this at once: all compiled again (not expected)
 
 // A piece of a grown brush in a node of the tree being built.
 struct Frag
@@ -1226,17 +1241,17 @@ public:
     explicit TreeBuilder(Tree& t)
         : planes_{&t.planes}, nodes_{&t.nodes}, solid_{&t.solidLeaves}, empty_{&t.emptyLeaves}, ext_{t.ext}
     {
-        for(std::size_t i = 0; i < planes_->size(); ++i)
+        for(za::SizeT i = 0; i < planes_->size(); ++i)
         {
-            index_[key((*planes_)[i].dist)].push_back(static_cast<int>(i));
+            index_[key((*planes_)[i].dist)].pushBack(static_cast<int>(i));
         }
     }
 
     // A builder on the pool over `base` (its table as it is now, only read: base does not change while this one works):
     // the planes it adds numbered after base's, its nodes from 0, its leaves counted in solid and empty, and every plane
     // it asks for logged.
-    TreeBuilder(const TreeBuilder& base, std::vector<mplane_t>& planes, std::vector<mclipnode_t>& nodes, int& solid,
-        int& empty, std::vector<PlaneAsk>& log)
+    TreeBuilder(const TreeBuilder& base, za::Vector<mplane_t>& planes, za::Vector<mclipnode_t>& nodes, int& solid,
+        int& empty, za::Vector<PlaneAsk>& log)
         : base_{&base}, baseCount_{base.count()}, planes_{&planes}, nodes_{&nodes}, solid_{&solid}, empty_{&empty},
           ext_{base.ext_}, log_{&log}
     {
@@ -1246,10 +1261,10 @@ public:
     TreeBuilder& operator=(const TreeBuilder&) = delete;
 
     // The table's planes (base's, then this one's).
-    [[nodiscard]] std::size_t count() const { return baseCount_ + planes_->size(); }
+    [[nodiscard]] za::SizeT count() const { return baseCount_ + planes_->size(); }
     [[nodiscard]] const mplane_t& planeAt(int i) const
     {
-        const auto u = static_cast<std::size_t>(i);
+        const auto u = static_cast<za::SizeT>(i);
         return u < baseCount_ ? base_->planeAt(i) : (*planes_)[u - baseCount_];
     }
 
@@ -1260,7 +1275,7 @@ public:
         const double askedD = d;
         for(int a = 0; a < 3; ++a)
         {
-            if(std::abs(n[a]) > 1.0 - 1e-6)
+            if(qza::abs(n[a]) > 1.0 - 1e-6)
             {
                 const double s = n[a] > 0.0 ? 1.0 : -1.0;
                 n = glm::dvec3{0.0};
@@ -1290,24 +1305,24 @@ public:
             }
             p.dist = static_cast<float>(d);
             p.type = static_cast<byte>(a.x > 1.0 - 1e-6 ? 0 : (a.y > 1.0 - 1e-6 ? 1 : (a.z > 1.0 - 1e-6 ? 2 : 3 + major)));
-            planes_->push_back(p);
+            planes_->pushBack(p);
             id = static_cast<int>(count()) - 1;
-            index_[k].push_back(id);
+            index_[k].pushBack(id);
         }
         if(log_)
         {
-            log_->push_back(PlaneAsk{askedN, askedD, id});
+            log_->pushBack(PlaneAsk{askedN, askedD, id});
         }
         return id;
     }
 
     // The planes added since the table had `to` let go (the last first; the tree's builder only).
-    void rollback(std::size_t to)
+    void rollback(za::SizeT to)
     {
         while(planes_->size() > to)
         {
-            index_[key(planes_->back().dist)].pop_back(); // (the plane added last is its key's last)
-            planes_->pop_back();
+            index_[key(planes_->back().dist)].popBack(); // (the plane added last is its key's last)
+            planes_->popBack();
         }
     }
 
@@ -1316,7 +1331,7 @@ public:
     {
         const glm::dvec3 pad = br.clip ? glm::dvec3{2.0} : ext + 2.0;
         Poly p = boxPoly(glm::dvec3{br.mins} - pad, glm::dvec3{br.maxs} + pad), front, back;
-        for(std::uint32_t i = 0; i < br.count; ++i)
+        for(za::U32 i = 0; i < br.count; ++i)
         {
             const Plane& q = b.planes[br.first + i];
             const glm::dvec3 n0{q.normal};
@@ -1324,7 +1339,7 @@ public:
             glm::dvec3 n;
             double d;
             oriented(tag, n0, n, d);
-            splitPoly(std::move(p), n, d, front, back);
+            splitPoly(ZA_MOVE(p), n, d, front, back);
             if(back.empty())
             {
                 return false;
@@ -1333,7 +1348,7 @@ public:
             {
                 back.back().tag = tag; // the cut's face
             }
-            p = std::move(back);
+            p = ZA_MOVE(back);
             back = Poly{};
         }
         for(Face& f : p)
@@ -1343,7 +1358,7 @@ public:
                 f.tag = plane(f.normal, f.dist);
             }
         }
-        out.poly = std::move(p);
+        out.poly = ZA_MOVE(p);
         out.brush = &br;
         return finish(out, -1) && bounded(out);
     }
@@ -1354,7 +1369,7 @@ public:
     int rebounded = 0; // pieces cut back to their brush's bounds (bounded)
 
     // The pieces' leaf: its contents (counted), or 0 when they need a node.
-    int leaf(const std::vector<Frag>& frags)
+    int leaf(const za::Vector<Frag>& frags)
     {
         if(frags.empty())
         {
@@ -1374,7 +1389,7 @@ public:
 
     // The pieces split by the plane chosen for their node (returned; n, d: it facing its way) into the front's and
     // the back's.
-    int split(std::vector<Frag>& frags, std::vector<Frag> (&sides)[2], glm::dvec3& n, double& d)
+    int split(za::Vector<Frag>& frags, za::Vector<Frag> (&sides)[2], glm::dvec3& n, double& d)
     {
         const int split = choose(frags);
         const mplane_t& mp = planeAt(split);
@@ -1383,7 +1398,7 @@ public:
         Poly parts[2];
         for(Frag& f : frags)
         {
-            splitPoly(std::move(f.poly), n, d, parts[0], parts[1]);
+            splitPoly(ZA_MOVE(f.poly), n, d, parts[0], parts[1]);
             for(int side = 0; side < 2; ++side)
             {
                 if(parts[side].empty())
@@ -1392,21 +1407,21 @@ public:
                 }
                 Frag g;
                 g.brush = f.brush;
-                g.poly = std::move(parts[side]);
+                g.poly = ZA_MOVE(parts[side]);
                 parts[side] = Poly{};
                 if(finish(g, split, n, d, side ? -1.0 : 1.0) && bounded(g))
                 {
-                    sides[side].push_back(std::move(g));
+                    sides[side].pushBack(ZA_MOVE(g));
                 }
             }
         }
         frags.clear();
-        frags.shrink_to_fit();
+        frags.shrinkToFit();
         return split;
     }
 
     // The tree of the pieces; its root (a node, or a leaf's contents). region: the node's space (only when watching).
-    int build(std::vector<Frag>& frags, Poly* region = nullptr)
+    int build(za::Vector<Frag>& frags, Poly* region = nullptr)
     {
         bool watched = false;
         if(watch && region)
@@ -1432,21 +1447,21 @@ public:
         {
             return contents;
         }
-        std::vector<Frag> sides[2];
+        za::Vector<Frag> sides[2];
         glm::dvec3 n;
         double d;
         const int split = this->split(frags, sides, n, d);
         Poly regions[2];
         if(watched)
         {
-            splitPoly(std::move(*region), n, d, regions[0], regions[1]);
+            splitPoly(ZA_MOVE(*region), n, d, regions[0], regions[1]);
         }
         const int node = static_cast<int>(nodes_->size());
-        nodes_->push_back(mclipnode_t{split, {0, 0}});
+        nodes_->pushBack(mclipnode_t{split, {0, 0}});
         const int front = build(sides[0], watched ? &regions[0] : nullptr);
         const int back = build(sides[1], watched ? &regions[1] : nullptr);
-        (*nodes_)[static_cast<std::size_t>(node)].children[0] = front;
-        (*nodes_)[static_cast<std::size_t>(node)].children[1] = back;
+        (*nodes_)[static_cast<za::SizeT>(node)].children[0] = front;
+        (*nodes_)[static_cast<za::SizeT>(node)].children[1] = back;
         return node;
     }
 
@@ -1457,10 +1472,10 @@ public:
         *empty_ += empty;
     }
 
-    [[nodiscard]] std::vector<mclipnode_t>& nodes() { return *nodes_; }
+    [[nodiscard]] za::Vector<mclipnode_t>& nodes() { return *nodes_; }
 
 private:
-    static long long key(float d) { return static_cast<long long>(std::floor(d * 4.f)); }
+    static long long key(float d) { return static_cast<long long>(za::floor(d * 4.f)); }
 
     // The first plane of the key's within qbsp's epsilons of n, d (in the order they were added: base's first), else -1.
     int find(long long kk, const glm::dvec3& n, double d) const
@@ -1481,8 +1496,8 @@ private:
         {
             const mplane_t& p = planeAt(id);
             // qbsp's epsilons (a normal's components, not their dot: far from the origin a small turn is far off)
-            if(std::abs(p.dist - d) < 0.01 && std::abs(p.normal[0] - n.x) < 1e-5 && std::abs(p.normal[1] - n.y) < 1e-5 &&
-                std::abs(p.normal[2] - n.z) < 1e-5)
+            if(qza::abs(p.dist - d) < 0.01 && qza::abs(p.normal[0] - n.x) < 1e-5 && qza::abs(p.normal[1] - n.y) < 1e-5 &&
+                qza::abs(p.normal[2] - n.z) < 1e-5)
             {
                 return id;
             }
@@ -1515,7 +1530,7 @@ private:
             Con_Printf("  brush %d %s %.2f %.2f %.2f .. %.2f %.2f %.2f, %u planes:\n",
                 static_cast<int>(&br - debugBrushes->brushes.data()), br.clip ? "(clip)" : "", br.mins.x, br.mins.y,
                 br.mins.z, br.maxs.x, br.maxs.y, br.maxs.z, br.count);
-            for(std::uint32_t i = 0; i < br.count; ++i)
+            for(za::U32 i = 0; i < br.count; ++i)
             {
                 const Plane& q = debugBrushes->planes[br.first + i];
                 Con_Printf("    plane %.4f %.4f %.4f d %.3f\n", q.normal.x, q.normal.y, q.normal.z, q.dist);
@@ -1552,7 +1567,7 @@ private:
                 double d;
                 oriented(tag, n0, n, d);
                 Poly front, back;
-                splitPoly(std::move(f.poly), n, d, front, back);
+                splitPoly(ZA_MOVE(f.poly), n, d, front, back);
                 if(back.empty())
                 {
                     return false;
@@ -1561,7 +1576,7 @@ private:
                 {
                     back.back().tag = tag;
                 }
-                f.poly = std::move(back);
+                f.poly = ZA_MOVE(back);
                 cut = true;
             }
         }
@@ -1601,7 +1616,7 @@ private:
             {
                 f.lo = glm::min(f.lo, v);
                 f.hi = glm::max(f.hi, v);
-                reach = std::max(reach, (glm::dot(n, v) - d) * sign);
+                reach = za::max(reach, (glm::dot(n, v) - d) * sign);
             }
             f.live += face.tag >= 0; // (a face lost to the epsilon too: its plane still bounds the piece)
         }
@@ -1611,7 +1626,7 @@ private:
 
     // qbsp's choice (qbsp3's SelectSplitSide, on the pieces' bounds): the plane that most pieces lie on and that splits
     // the fewest, balanced, axial first. Many pieces: a sample of the planes (the build's time).
-    int choose(const std::vector<Frag>& frags)
+    int choose(const za::Vector<Frag>& frags)
     {
         seen_.resize(count(), 0);
         facing_.resize(count(), 0);
@@ -1625,22 +1640,22 @@ private:
                 {
                     continue;
                 }
-                const auto t = static_cast<std::size_t>(face.tag);
+                const auto t = static_cast<za::SizeT>(face.tag);
                 if(seen_[t] != stamp_)
                 {
                     seen_[t] = stamp_;
                     facing_[t] = 0;
-                    cands_.push_back(face.tag);
+                    cands_.pushBack(face.tag);
                 }
                 ++facing_[t];
             }
         }
-        std::stable_partition(cands_.begin(), cands_.end(),
+        qza::stablePartition(cands_.begin(), cands_.end(),
             [this](int c) { return planeAt(c).type < 3; });
-        const std::size_t step = std::max<std::size_t>(1, cands_.size() * frags.size() / chooseBudget);
+        const za::SizeT step = za::max<za::SizeT>(1, cands_.size() * frags.size() / chooseBudget);
         int best = cands_.front();
-        long long bestValue = std::numeric_limits<long long>::min();
-        for(std::size_t ci = 0; ci < cands_.size(); ci += step)
+        long long bestValue = LLONG_MIN;
+        for(za::SizeT ci = 0; ci < cands_.size(); ci += step)
         {
             const int c = cands_[ci];
             const mplane_t& p = planeAt(c);
@@ -1658,7 +1673,7 @@ private:
                 {
                     const glm::dvec3 centre = (f.lo + f.hi) * 0.5, half = (f.hi - f.lo) * 0.5;
                     const double s = glm::dot(n, centre) - p.dist;
-                    const double r = std::abs(n.x) * half.x + std::abs(n.y) * half.y + std::abs(n.z) * half.z;
+                    const double r = qza::abs(n.x) * half.x + qza::abs(n.y) * half.y + qza::abs(n.z) * half.z;
                     lo = s - r;
                     hi = s + r;
                 }
@@ -1675,7 +1690,7 @@ private:
                     ++splits;
                 }
             }
-            const long long value = 5ll * facing_[static_cast<std::size_t>(c)] - 5ll * splits - std::abs(front - back) +
+            const long long value = 5ll * facing_[static_cast<za::SizeT>(c)] - 5ll * splits - qza::abs(front - back) +
                                     (p.type < 3 ? 5 : 0);
             if(value > bestValue)
             {
@@ -1686,21 +1701,21 @@ private:
         return best;
     }
 
-    static constexpr std::size_t chooseBudget = 40000; // planes x pieces weighed at a node, at most
+    static constexpr za::SizeT chooseBudget = 40000; // planes x pieces weighed at a node, at most
 
     const TreeBuilder* base_ = nullptr; // (a builder on the pool) the table it adds to
-    std::size_t baseCount_ = 0;         // base's planes
-    std::vector<mplane_t>* planes_;     // its planes (after base's)
-    std::vector<mclipnode_t>* nodes_;
+    za::SizeT baseCount_ = 0;         // base's planes
+    za::Vector<mplane_t>* planes_;     // its planes (after base's)
+    za::Vector<mclipnode_t>* nodes_;
     int* solid_;
     int* empty_;
     glm::vec3 ext_;                     // the box's half size
-    std::vector<PlaneAsk>* log_ = nullptr;
-    std::unordered_map<long long, std::vector<int>> index_; // its planes by key(dist), each key's in the order added
-    std::vector<std::size_t> seen_;
-    std::vector<int> facing_;
-    std::size_t stamp_ = 0;
-    std::vector<int> cands_;
+    za::Vector<PlaneAsk>* log_ = nullptr;
+    ankerl::unordered_dense::map<long long, za::Vector<int>> index_; // its planes by key(dist), each key's in the order added
+    za::Vector<za::SizeT> seen_;
+    za::Vector<int> facing_;
+    za::SizeT stamp_ = 0;
+    za::Vector<int> cands_;
 };
 
 // A tree's build shared out on the game's thread pool, the same tree as the build on one thread (buildTree's reference,
@@ -1717,31 +1732,31 @@ private:
 //   nearly the same plane) its planes are taken back out of the table and it is done again there, on the merging
 //   thread, as the build on one thread does it.
 constexpr int shareDepth = 10;         // the top's levels: up to 1024 subtrees
-constexpr std::size_t shareMin = 48;   // fewer pieces: a subtree of their own (not split further here)
+constexpr za::SizeT shareMin = 48;   // fewer pieces: a subtree of their own (not split further here)
 
 struct Unit
 {
     const Unit* parent = nullptr;    // the unit whose split made its pieces (none: the tree's own table is its base)
-    std::size_t baseCount = 0;       // the planes it saw (its base's)
-    std::vector<mplane_t> planes;    // those it added (numbered from baseCount)
-    std::vector<PlaneAsk> log;
-    std::vector<int> map;            // its planes' numbers in the tree's table (the merge)
+    za::SizeT baseCount = 0;       // the planes it saw (its base's)
+    za::Vector<mplane_t> planes;    // those it added (numbered from baseCount)
+    za::Vector<PlaneAsk> log;
+    za::Vector<int> map;            // its planes' numbers in the tree's table (the merge)
     int solid = 0, empty = 0, rebounded = 0;
     // A node's: a leaf (kind 0: root its contents), a split (kind 1: split, kids), a subtree (kind 2: root and nodes,
     // numbered from 0); input: its pieces (done again from them if the merge's check fails).
     int kind = 0;
     int root = 0;
     int split = 0;
-    std::unique_ptr<Unit> kids[2];
-    std::vector<mclipnode_t> nodes;
-    std::vector<Frag> input;
+    za::UniquePtr<Unit> kids[2]{nullptr, nullptr};
+    za::Vector<mclipnode_t> nodes;
+    za::Vector<Frag> input;
 };
 
 // The merge's state: which unit's plane each plane added to the tree's table since `start` is.
 struct Merge
 {
-    std::size_t start = 0;
-    std::vector<const Unit*> owner; // [plane - start]
+    za::SizeT start = 0;
+    za::Vector<const Unit*> owner; // [plane - start]
     int redone = 0;                 // units done again on the merging thread
 
     // A plane number of u's (or of the units above it) in the tree's table.
@@ -1749,9 +1764,9 @@ struct Merge
     {
         for(const Unit* x = &u; x; x = x->parent)
         {
-            if(static_cast<std::size_t>(id) >= x->baseCount)
+            if(static_cast<za::SizeT>(id) >= x->baseCount)
             {
-                return x->map[static_cast<std::size_t>(id) - x->baseCount];
+                return x->map[static_cast<za::SizeT>(id) - x->baseCount];
             }
         }
         return id;
@@ -1759,7 +1774,7 @@ struct Merge
 
     [[nodiscard]] bool mine(int id, const Unit& u) const
     {
-        const std::size_t i = static_cast<std::size_t>(id) - start;
+        const za::SizeT i = static_cast<za::SizeT>(id) - start;
         const Unit* o = i < owner.size() ? owner[i] : nullptr;
         for(const Unit* x = &u; x && o; x = x->parent)
         {
@@ -1771,10 +1786,10 @@ struct Merge
         return false;
     }
 
-    void own(std::size_t from, std::size_t to, const Unit& u)
+    void own(za::SizeT from, za::SizeT to, const Unit& u)
     {
-        owner.resize(std::max(owner.size(), to - start), nullptr);
-        for(std::size_t i = from; i < to; ++i)
+        owner.resize(za::max(owner.size(), to - start), nullptr);
+        for(za::SizeT i = from; i < to; ++i)
         {
             owner[i - start] = &u;
         }
@@ -1782,18 +1797,19 @@ struct Merge
 
     static bool same(const mplane_t& a, const mplane_t& b)
     {
-        return std::memcmp(a.normal, b.normal, sizeof(a.normal)) == 0 && std::memcmp(&a.dist, &b.dist, sizeof(a.dist)) == 0 &&
+        return ZA_MEMCMP(a.normal, b.normal, sizeof(a.normal)) == 0 && ZA_MEMCMP(&a.dist, &b.dist, sizeof(a.dist)) == 0 &&
                a.type == b.type && a.signbits == b.signbits;
     }
 
     // u's asks put to the tree's table (tb) in turn: whether every answer is the plane u had.
     bool adopt(TreeBuilder& tb, Unit& u)
     {
-        u.map.assign(u.planes.size(), -1);
+        u.map.clear();
+        u.map.resize(u.planes.size(), -1);
         for(const PlaneAsk& a : u.log)
         {
             const int got = tb.plane(a.n, a.d);
-            const auto id = static_cast<std::size_t>(a.id);
+            const auto id = static_cast<za::SizeT>(a.id);
             if(id < u.baseCount)
             {
                 if(got != (u.parent ? real(*u.parent, a.id) : a.id))
@@ -1812,26 +1828,26 @@ struct Merge
                 continue;
             }
             // One it added: the table's must be new to it (not one it or the units above it could see or had) and the same.
-            if(static_cast<std::size_t>(got) < start || mine(got, u) || !same(tb.planeAt(got), u.planes[id - u.baseCount]))
+            if(static_cast<za::SizeT>(got) < start || mine(got, u) || !same(tb.planeAt(got), u.planes[id - u.baseCount]))
             {
                 return false;
             }
             to = got;
-            own(static_cast<std::size_t>(got), static_cast<std::size_t>(got) + 1, u);
+            own(static_cast<za::SizeT>(got), static_cast<za::SizeT>(got) + 1, u);
         }
         return true;
     }
 
     // What u's asks added taken out again, before it is done on the merging thread.
-    void undo(TreeBuilder& tb, std::size_t to)
+    void undo(TreeBuilder& tb, za::SizeT to)
     {
         tb.rollback(to);
-        owner.resize(std::min(owner.size(), to - start));
+        owner.resize(za::min(owner.size(), to - start));
     }
 };
 
 // A unit of the tree's top (its pieces), over base; its sides' units at once below it.
-void speculate(Unit& u, const TreeBuilder& base, std::vector<Frag>&& frags, int depth)
+void speculate(Unit& u, const TreeBuilder& base, za::Vector<Frag>&& frags, int depth)
 {
     u.baseCount = base.count();
     TreeBuilder tb{base, u.planes, u.nodes, u.solid, u.empty, u.log};
@@ -1850,21 +1866,21 @@ void speculate(Unit& u, const TreeBuilder& base, std::vector<Frag>&& frags, int 
     {
         u.kind = 1;
         u.input = frags;
-        std::vector<Frag> sides[2];
+        za::Vector<Frag> sides[2];
         glm::dvec3 n;
         double d;
         u.split = tb.split(frags, sides, n, d);
         for(int side = 0; side < 2; ++side)
         {
-            u.kids[side] = std::make_unique<Unit>();
+            u.kids[side] = za::makeUnique<Unit>();
             u.kids[side]->parent = &u;
         }
         jobs::parallelFor(2, 1,
-            [&](std::size_t begin, std::size_t end)
+            [&](za::SizeT begin, za::SizeT end)
             {
-                for(std::size_t i = begin; i < end; ++i)
+                for(za::SizeT i = begin; i < end; ++i)
                 {
-                    speculate(*u.kids[i], tb, std::move(sides[i]), depth - 1);
+                    speculate(*u.kids[i], tb, ZA_MOVE(sides[i]), depth - 1);
                 }
             });
     }
@@ -1874,7 +1890,7 @@ void speculate(Unit& u, const TreeBuilder& base, std::vector<Frag>&& frags, int 
 // u's nodes into the tree (in the order the build on one thread makes them); its root.
 int emit(TreeBuilder& tb, Unit& u, Merge& m)
 {
-    const std::size_t saved = tb.count();
+    const za::SizeT saved = tb.count();
     if(!m.adopt(tb, u))
     {
         m.undo(tb, saved);
@@ -1885,7 +1901,7 @@ int emit(TreeBuilder& tb, Unit& u, Merge& m)
     }
     tb.addLeaves(u.solid, u.empty);
     tb.rebounded += u.rebounded;
-    std::vector<mclipnode_t>& nodes = tb.nodes();
+    za::Vector<mclipnode_t>& nodes = tb.nodes();
     if(u.kind == 0)
     {
         return u.root;
@@ -1900,43 +1916,43 @@ int emit(TreeBuilder& tb, Unit& u, Merge& m)
             {
                 c = c >= 0 ? c + offset : c;
             }
-            nodes.push_back(n);
+            nodes.pushBack(n);
         }
         return u.root >= 0 ? u.root + offset : u.root;
     }
     const int node = static_cast<int>(nodes.size());
-    nodes.push_back(mclipnode_t{m.real(u, u.split), {0, 0}});
+    nodes.pushBack(mclipnode_t{m.real(u, u.split), {0, 0}});
     const int front = emit(tb, *u.kids[0], m);
     const int back = emit(tb, *u.kids[1], m);
-    nodes[static_cast<std::size_t>(node)].children[0] = front;
-    nodes[static_cast<std::size_t>(node)].children[1] = back;
+    nodes[static_cast<za::SizeT>(node)].children[0] = front;
+    nodes[static_cast<za::SizeT>(node)].children[1] = back;
     return node;
 }
 
 // The tree of one model (sub), built into t (its root: a node; a lone leaf gets a node of its own). Only t is written:
 // trees for different boxes are built at once on the pool (report false there: the pieces cut back are returned, for
 // the main thread to print). On the pool (vr_jobs_parallel) unless watching (vr_hull_leafdebug).
-int buildTree(Tree& t, const Brushes& b, std::size_t sub, const glm::dvec3* watch = nullptr, bool report = true)
+int buildTree(Tree& t, const Brushes& b, za::SizeT sub, const glm::dvec3* watch = nullptr, bool report = true)
 {
-    const auto t0 = std::chrono::steady_clock::now();
+    const auto t0 = qza::nowNs();
     TreeBuilder tb{t};
     tb.watch = watch;
     tb.debugBrushes = &b;
     const glm::dvec3 ext{t.ext};
-    std::vector<const Brush*> list;
+    za::Vector<const Brush*> list;
     const SubModel& sm = b.subs[sub];
-    for(std::uint32_t i = 0; i < sm.numBrushes; ++i)
+    for(za::U32 i = 0; i < sm.numBrushes; ++i)
     {
-        list.push_back(&b.brushes[sm.firstBrush + i]);
+        list.pushBack(&b.brushes[sm.firstBrush + i]);
     }
     if(sub == 0)
     {
         for(const int c : b.clips)
         {
-            list.push_back(&b.brushes[static_cast<std::size_t>(c)]);
+            list.pushBack(&b.brushes[static_cast<za::SizeT>(c)]);
         }
     }
-    std::vector<Frag> frags;
+    za::Vector<Frag> frags;
     auto growAll = [&]
     {
         for(const Brush* br : list)
@@ -1944,7 +1960,7 @@ int buildTree(Tree& t, const Brushes& b, std::size_t sub, const glm::dvec3* watc
             Frag f;
             if(tb.grow(b, *br, ext, f))
             {
-                frags.push_back(std::move(f));
+                frags.pushBack(ZA_MOVE(f));
             }
         }
     };
@@ -1954,7 +1970,7 @@ int buildTree(Tree& t, const Brushes& b, std::size_t sub, const glm::dvec3* watc
         Merge m;
         growAll();
         Unit top;
-        speculate(top, tb, std::move(frags), shareDepth);
+        speculate(top, tb, ZA_MOVE(frags), shareDepth);
         m.start = tb.count();
         m.owner.clear();
         root = emit(tb, top, m);
@@ -1969,7 +1985,7 @@ int buildTree(Tree& t, const Brushes& b, std::size_t sub, const glm::dvec3* watc
     if(root < 0)
     {
         const int node = static_cast<int>(t.nodes.size());
-        t.nodes.push_back(mclipnode_t{tb.plane(glm::dvec3{0.0, 0.0, 1.0}, 0.0), {root, root}});
+        t.nodes.pushBack(mclipnode_t{tb.plane(glm::dvec3{0.0, 0.0, 1.0}, 0.0), {root, root}});
         root = node;
     }
     t.heads[sub] = root;
@@ -1978,7 +1994,7 @@ int buildTree(Tree& t, const Brushes& b, std::size_t sub, const glm::dvec3* watc
         Con_DPrintf("hull: %d pieces cut back to their brushes' bounds (%gx%g, model %d)\n", tb.rebounded, t.ext.x * 2.f,
             t.ext.z * 2.f, static_cast<int>(sub));
     }
-    t.ms += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    t.ms += qza::msSince(t0);
     return tb.rebounded;
 }
 
@@ -2006,7 +2022,7 @@ int clientNum(const edict_t* ent)
     {
         return -1;
     }
-    const std::ptrdiff_t bytes = reinterpret_cast<const byte*>(ent) - reinterpret_cast<const byte*>(qcvm->edicts);
+    const za::PtrDiffT bytes = reinterpret_cast<const byte*>(ent) - reinterpret_cast<const byte*>(qcvm->edicts);
     return static_cast<int>(bytes / qcvm->edict_size);
 }
 
@@ -2031,14 +2047,14 @@ float entWidthSetting()
     {
         return vr_hull_width.value > 0.f ? widthSetting() : 0.f;
     }
-    return v > 0.f ? std::clamp(v, minWidth, maxWidth) : 0.f;
+    return v > 0.f ? za::clamp(v, minWidth, maxWidth) : 0.f;
 }
 
 // The player's width that shots, missiles and splash traces hit (vr_hull_hit_width): 0 Quake's (off).
 float hitWidthSetting()
 {
     const float v = vr_hull_hit_width.value;
-    return v > 0.f && v < maxWidth ? std::clamp(v, minWidth, maxWidth) : 0.f;
+    return v > 0.f && v < maxWidth ? za::clamp(v, minWidth, maxWidth) : 0.f;
 }
 
 // A box narrowed to the width about its centre, its height kept.
@@ -2104,8 +2120,8 @@ constexpr float minMonsterWidth = 16.f;
 // Each edict's class (an index in monsterClasses, -1 none), for the classname it had when looked up.
 struct ClassCache
 {
-    std::vector<int> names;
-    std::vector<signed char> classes;
+    za::Vector<int> names;
+    za::Vector<signed char> classes;
     auto members() { return qvr::mem::list(names, classes); }
 };
 mem::Cache<ClassCache> classCache{"hull monster classes", mem::MapChange};
@@ -2118,7 +2134,7 @@ int monsterClassOf(const edict_t* ent)
         return -1;
     }
     ClassCache& c = classCache;
-    const auto i = static_cast<std::size_t>(num);
+    const auto i = static_cast<za::SizeT>(num);
     if(c.names.size() <= i)
     {
         c.names.resize(i + 1, -1);
@@ -2167,7 +2183,7 @@ float classWidth(int cls, float size, float quake)
     {
         return 0.f;
     }
-    const float c = std::max(w, minMonsterWidth);
+    const float c = za::max(w, minMonsterWidth);
     return c < quake ? c : 0.f;
 }
 
@@ -2225,7 +2241,7 @@ int subOf(Brushes& b, int index)
     {
         return -1;
     }
-    int& known = b.modelSub[static_cast<std::size_t>(index)];
+    int& known = b.modelSub[static_cast<za::SizeT>(index)];
     if(known != -2)
     {
         return known;
@@ -2237,7 +2253,7 @@ int subOf(Brushes& b, int index)
         return known;
     }
     const hull_t& h0 = m->hulls[0];
-    for(std::size_t i = 0; i < b.subs.size(); ++i)
+    for(za::SizeT i = 0; i < b.subs.size(); ++i)
     {
         if(b.subs[i].clipnodes == h0.clipnodes && b.subs[i].head == h0.firstclipnode)
         {
@@ -2248,8 +2264,8 @@ int subOf(Brushes& b, int index)
     {
         return known; // the world's, but none of its submodels (not expected)
     }
-    const auto base = static_cast<std::uint32_t>(b.leafBrush.size());
-    b.leafBrush.resize(b.leafBrush.size() + static_cast<std::size_t>(m->numnodes) * 2, -1);
+    const auto base = static_cast<za::U32>(b.leafBrush.size());
+    b.leafBrush.resize(b.leafBrush.size() + static_cast<za::SizeT>(m->numnodes) * 2, -1);
     addSubModel(b, h0, m->numnodes, base, h0.firstclipnode, m->mins, m->maxs);
     Con_DPrintf("hull: %s: %u brushes\n", m->name, b.subs.back().numBrushes);
     return known = static_cast<int>(b.subs.size()) - 1;
@@ -2273,7 +2289,7 @@ Tree& slotFor(const mclipnode_t* clipnodes, const glm::vec3& ext)
         p.ext = ext;
         return p;
     }
-    std::vector<Tree>& v = monsterTrees.trees;
+    za::Vector<Tree>& v = monsterTrees.trees;
     for(Tree& t : v)
     {
         if(t.forClipnodes == clipnodes && t.ext == ext)
@@ -2285,7 +2301,7 @@ Tree& slotFor(const mclipnode_t* clipnodes, const glm::vec3& ext)
     {
         v.clear();
     }
-    v.emplace_back();
+    v.emplaceBack();
     v.back().forClipnodes = clipnodes;
     v.back().ext = ext;
     return v.back();
@@ -2314,8 +2330,8 @@ Tree* findSlot(const mclipnode_t* clipnodes, const glm::vec3& ext)
 struct Pending
 {
     jobs::Future<void> brushes;         // build(): the map as brushes
-    std::vector<Tree*> trees;           // being compiled, each by its job below (after the brushes)
-    std::vector<jobs::Future<int>> run; // (their pieces cut back)
+    za::Vector<Tree*> trees;           // being compiled, each by its job below (after the brushes)
+    za::Vector<jobs::Future<int>> run; // (their pieces cut back)
     glm::vec3 playerExt{0.f};           // the player's tree's box, if it is one of them
     double posted = 0.0;                // when the builds were handed out (the load's report)
 };
@@ -2323,7 +2339,7 @@ Pending pending;
 
 // The trees for these boxes whose world model (sub 0) is not compiled yet: their slots taken (their order kept, each
 // once; the player's size is the player's tree); none being compiled already (pending).
-std::vector<Tree*> claimTrees(const mclipnode_t* clipnodes, const std::vector<glm::vec3>& exts)
+za::Vector<Tree*> claimTrees(const mclipnode_t* clipnodes, const za::Vector<glm::vec3>& exts)
 {
     for(const glm::vec3& ext : exts)
     {
@@ -2333,14 +2349,14 @@ std::vector<Tree*> claimTrees(const mclipnode_t* clipnodes, const std::vector<gl
         }
         (void)slotFor(clipnodes, ext);
     }
-    std::vector<Tree*> out; // (found after every slot is taken: a new one may move the others)
+    za::Vector<Tree*> out; // (found after every slot is taken: a new one may move the others)
     for(const glm::vec3& ext : exts)
     {
         Tree* t = findSlot(clipnodes, ext);
-        if(t && std::find(pending.trees.begin(), pending.trees.end(), t) == pending.trees.end() &&
-            (t->heads.empty() || t->heads[0] < 0) && std::find(out.begin(), out.end(), t) == out.end())
+        if(t && za::find(pending.trees.begin(), pending.trees.end(), t) == pending.trees.end() &&
+            (t->heads.empty() || t->heads[0] < 0) && za::find(out.begin(), out.end(), t) == out.end())
         {
-            out.push_back(t);
+            out.pushBack(t);
         }
     }
     return out;
@@ -2368,18 +2384,18 @@ void reportTree(const Tree& t, int rebounded)
 }
 
 // These trees compiled at once on the pool (the main thread one of them), reported in their order.
-void compileTrees(const std::vector<Tree*>& todo, const Brushes& b)
+void compileTrees(const za::Vector<Tree*>& todo, const Brushes& b)
 {
-    std::vector<int> rebounded(todo.size(), 0);
+    za::Vector<int> rebounded(todo.size(), 0);
     jobs::parallelFor(todo.size(), 1,
-        [&](std::size_t begin, std::size_t end)
+        [&](za::SizeT begin, za::SizeT end)
         {
-            for(std::size_t i = begin; i < end; ++i)
+            for(za::SizeT i = begin; i < end; ++i)
             {
                 rebounded[i] = compileWorldTree(*todo[i], b);
             }
         });
-    for(std::size_t i = 0; i < todo.size(); ++i)
+    for(za::SizeT i = 0; i < todo.size(); ++i)
     {
         reportTree(*todo[i], rebounded[i]);
     }
@@ -2388,8 +2404,8 @@ void compileTrees(const std::vector<Tree*>& todo, const Brushes& b)
 // A tree compiled on the pool once the brushes are built.
 void postTree(Tree* t)
 {
-    pending.trees.push_back(t);
-    pending.run.push_back(jobs::async(
+    pending.trees.pushBack(t);
+    pending.run.pushBack(jobs::async(
         [t]
         {
             pending.brushes.wait(); // (only waited on until settle: nothing else touches it meanwhile)
@@ -2404,14 +2420,14 @@ void settle()
         return;
     }
     const double t0 = Sys_DoubleTime();
-    std::vector<jobs::Future<int>> run = std::move(pending.run);
-    std::vector<Tree*> trees = std::move(pending.trees);
+    za::Vector<jobs::Future<int>> run = ZA_MOVE(pending.run);
+    za::Vector<Tree*> trees = ZA_MOVE(pending.trees);
     pending.run.clear();
     pending.trees.clear();
-    std::vector<int> rebounded;
+    za::Vector<int> rebounded;
     for(jobs::Future<int>& f : run)
     {
-        rebounded.push_back(f.get());
+        rebounded.pushBack(f.get());
     }
     pending.brushes.get();
     const double t1 = Sys_DoubleTime();
@@ -2419,13 +2435,13 @@ void settle()
     Con_DPrintf("hull: %s rebuilt as %d brushes in %.1f ms (on the pool; waited %.1f ms, %.1f ms after they began)\n",
         sv.worldmodel ? sv.worldmodel->name : "?", static_cast<int>(built.brushes.size()), built.ms, (t1 - t0) * 1000.0,
         (t1 - pending.posted) * 1000.0);
-    for(std::size_t i = 0; i < trees.size(); ++i)
+    for(za::SizeT i = 0; i < trees.size(); ++i)
     {
         reportTree(*trees[i], rebounded[i]);
     }
 }
 
-const Tree& treeFor(const Brushes& b, std::size_t sub, const glm::vec3& ext)
+const Tree& treeFor(const Brushes& b, za::SizeT sub, const glm::vec3& ext)
 {
     settle();
     Tree& t = slotFor(b.clipnodes, ext);
@@ -2477,19 +2493,19 @@ int hull0PointsInBox(const hull_t& hull0, const glm::vec3& p)
 // FNV-1a over the build's results (vr_hull_stats: the same on the pool and on one thread).
 struct Hash
 {
-    std::uint32_t h = 2166136261u;
+    za::U32 h = 2166136261u;
     template <class T>
     void add(const T& v)
     {
         const auto* p = reinterpret_cast<const unsigned char*>(&v);
-        for(std::size_t i = 0; i < sizeof(T); ++i)
+        for(za::SizeT i = 0; i < sizeof(T); ++i)
         {
             h = (h ^ p[i]) * 16777619u;
         }
     }
 };
 
-std::uint32_t hashOf(const Brushes& b)
+za::U32 hashOf(const Brushes& b)
 {
     Hash h;
     for(const Plane& q : b.planes)
@@ -2540,29 +2556,29 @@ std::uint32_t hashOf(const Brushes& b)
 
 // The world's tree (its models' trees, compiled when first met, follow in the same arrays): its nodes from the root,
 // with their numbers and planes.
-std::uint32_t hashOf(const Tree& t)
+za::U32 hashOf(const Tree& t)
 {
     Hash h;
     const int root = t.heads.empty() ? -1 : t.heads[0];
-    std::vector<int> stack{root};
+    za::Vector<int> stack{root};
     while(!stack.empty())
     {
         const int num = stack.back();
-        stack.pop_back();
+        stack.popBack();
         h.add(num);
         if(num < 0)
         {
             continue;
         }
-        const mclipnode_t& n = t.nodes[static_cast<std::size_t>(num)];
-        const mplane_t& p = t.planes[static_cast<std::size_t>(n.planenum)];
+        const mclipnode_t& n = t.nodes[static_cast<za::SizeT>(num)];
+        const mplane_t& p = t.planes[static_cast<za::SizeT>(n.planenum)];
         h.add(n.planenum);
         h.add(p.normal);
         h.add(p.dist);
         h.add(p.type);
         h.add(p.signbits);
-        stack.push_back(n.children[1]);
-        stack.push_back(n.children[0]);
+        stack.pushBack(n.children[1]);
+        stack.pushBack(n.children[0]);
     }
     return h.h;
 }
@@ -2579,7 +2595,7 @@ void stats_f()
     {
         return;
     }
-    const std::size_t bytes = built.bytes();
+    const za::SizeT bytes = built.bytes();
     Con_Printf("hull: %s: %d nodes (hulls 1-2: %d clipnodes), %d brushes (%d clip), %d planes (%d bevels), %d slivers "
                "dropped, %.0f KB, built in %.1f ms (clip brushes %.1f); width %g (%s)\n",
         sv.worldmodel->name, b->numnodes, sv.worldmodel->numclipnodes, static_cast<int>(b->brushes.size()),
@@ -2588,7 +2604,7 @@ void stats_f()
         vr_hull_width.value > 0.f ? "on" : "off: Quake's hull 1");
     Con_Printf("hull: hash brushes %08x (stamp %u)\n", hashOf(*b), static_cast<unsigned>(b->stamp));
     int external = 0;
-    for(std::size_t i = 0; i < b->subs.size(); ++i)
+    for(za::SizeT i = 0; i < b->subs.size(); ++i)
     {
         external += b->subs[i].clipnodes != b->clipnodes;
     }
@@ -2640,8 +2656,8 @@ void bench_f()
         Con_Printf("vr_hull_bench [traces] [width]: needs a map\n");
         return;
     }
-    const int count = Cmd_Argc() > 1 ? std::max(100, Q_atoi(Cmd_Argv(1))) : 20000;
-    const float width = Cmd_Argc() > 2 ? std::clamp(static_cast<float>(Q_atof(Cmd_Argv(2))), minWidth, maxWidth)
+    const int count = Cmd_Argc() > 1 ? za::max(100, Q_atoi(Cmd_Argv(1))) : 20000;
+    const float width = Cmd_Argc() > 2 ? za::clamp(static_cast<float>(Q_atof(Cmd_Argv(2))), minWidth, maxWidth)
                                        : (vr_hull_width.value > 0.f ? widthSetting() : 20.f);
     qmodel_t* world = sv.worldmodel;
     built.clipnodes = nullptr; // time a fresh build
@@ -2654,11 +2670,11 @@ void bench_f()
     const hull_t& hull0 = world->hulls[0];
     const glm::vec3 wmins{world->mins[0], world->mins[1], world->mins[2]};
     const glm::vec3 wmaxs{world->maxs[0], world->maxs[1], world->maxs[2]};
-    std::mt19937 rng{1234u};
+    std::mt19937 rng{1234u}; // ZANCLE-TODO: no random engines or distributions (the bench's inputs kept)
     std::uniform_real_distribution<float> u01{0.f, 1.f};
     auto randomPoint = [&] { return wmins + (wmaxs - wmins) * glm::vec3{u01(rng), u01(rng), u01(rng)}; };
 
-    std::vector<glm::vec3> starts, ends;
+    za::Vector<glm::vec3> starts, ends;
     int tries = 0;
     while(static_cast<int>(starts.size()) < count && tries < count * 200)
     {
@@ -2674,8 +2690,8 @@ void bench_f()
         {
             continue;
         }
-        starts.push_back(p);
-        ends.push_back(p + glm::normalize(dir) * (u01(rng) * 256.f));
+        starts.pushBack(p);
+        ends.pushBack(p + glm::normalize(dir) * (u01(rng) * 256.f));
     }
     const int n = static_cast<int>(starts.size());
     if(!n)
@@ -2685,13 +2701,12 @@ void bench_f()
     }
     const glm::vec3 m32{-16.f, -16.f, -24.f}, M32{16.f, 16.f, 32.f};
     const glm::vec3 mw{-width * 0.5f, -width * 0.5f, -24.f}, Mw{width * 0.5f, width * 0.5f, 32.f};
-    std::vector<trace_t> stock(n), box32(n), boxw(n);
-    using Clock = std::chrono::steady_clock;
+    za::Vector<trace_t> stock(n), box32(n), boxw(n);
     Bench bs, b32, bw;
     // Each set twice, the second timed (the first warms the caches).
     for(int pass = 0; pass < 2; ++pass)
     {
-        auto t0 = Clock::now();
+        auto t0 = qza::nowNs();
         for(int i = 0; i < n; ++i)
         {
             trace_t& tr = stock[i];
@@ -2702,24 +2717,24 @@ void bench_f()
             VectorCopy(e, tr.endpos);
             SV_RecursiveHullCheck(hull1, hull1->firstclipnode, 0.f, 1.f, a, e, &tr);
         }
-        bs.ns = std::chrono::duration<double, std::nano>(Clock::now() - t0).count() / n;
+        bs.ns = qza::nsSince(t0) / n;
         b32.brushTests = bw.brushTests = 0;
-        t0 = Clock::now();
+        t0 = qza::nowNs();
         for(int i = 0; i < n; ++i)
         {
             const Result r = boxTrace(*b, hull0, 0, starts[i], m32, M32, ends[i]);
             box32[i] = r.trace;
             b32.brushTests += r.brushTests;
         }
-        b32.ns = std::chrono::duration<double, std::nano>(Clock::now() - t0).count() / n;
-        t0 = Clock::now();
+        b32.ns = qza::nsSince(t0) / n;
+        t0 = qza::nowNs();
         for(int i = 0; i < n; ++i)
         {
             const Result r = boxTrace(*b, hull0, 0, starts[i], mw, Mw, ends[i]);
             boxw[i] = r.trace;
             bw.brushTests += r.brushTests;
         }
-        bw.ns = std::chrono::duration<double, std::nano>(Clock::now() - t0).count() / n;
+        bw.ns = qza::nsSince(t0) / n;
     }
 
     // Agreement of the two 32 boxes: more than a unit apart along the move. Hull 1 stopping much sooner (8 units or
@@ -2740,7 +2755,7 @@ void bench_f()
             }
         }
         const float gap = (fb - fs) * len;
-        if(std::abs(gap) <= 1.f)
+        if(qza::abs(gap) <= 1.f)
         {
             ++agree;
         }
@@ -2769,12 +2784,12 @@ void bench_f()
                     gap, stock[i].endpos[0], stock[i].endpos[1], stock[i].endpos[2], hull0PointsInBox(hull0, past), key,
                     cls, boxInSolid(*b, hull0, 0, glm::dvec3{past} + glm::dvec3{0.0, 0.0, 4.0}, glm::dvec3{16.0, 16.0, 28.0}, false) ? 1 : 0);
             }
-            worstStock = std::max(worstStock, gap);
+            worstStock = za::max(worstStock, gap);
         }
         else
         {
             ++brushShorter;
-            worstBrush = std::max(worstBrush, -gap);
+            worstBrush = za::max(worstBrush, -gap);
         }
         if(!boxw[i].startsolid && boxw[i].fraction + 1e-4f < fb)
         {
@@ -2797,7 +2812,8 @@ void bench_f()
     {
         t.ext = (maxs - mins) * 0.5f;
         t.forClipnodes = b->clipnodes;
-        t.heads.assign(b->subs.size(), -1);
+        t.heads.clear();
+        t.heads.resize(b->subs.size(), -1);
         buildTree(t, *b, 0);
     };
     auto treeBytes = [](const Tree& t)
@@ -2805,7 +2821,7 @@ void bench_f()
     Tree a32, aw;
     compile(a32, m32, M32);
     compile(aw, mw, Mw);
-    std::vector<trace_t> tree32(n), treew(n);
+    za::Vector<trace_t> tree32(n), treew(n);
     Bench ba32, baw;
     for(int pass = 0; pass < 2; ++pass)
     {
@@ -2813,17 +2829,17 @@ void bench_f()
         {
             const Tree& t = k ? aw : a32;
             const glm::vec3 centre = k ? (mw + Mw) * 0.5f : (m32 + M32) * 0.5f;
-            std::vector<trace_t>& out = k ? treew : tree32;
-            const auto t0 = Clock::now();
+            za::Vector<trace_t>& out = k ? treew : tree32;
+            const auto t0 = qza::nowNs();
             for(int i = 0; i < n; ++i)
             {
                 out[i] = treeTrace(t, t.heads[0], starts[i] + centre, ends[i] + centre);
             }
-            (k ? baw : ba32).ns = std::chrono::duration<double, std::nano>(Clock::now() - t0).count() / n;
+            (k ? baw : ba32).ns = qza::nsSince(t0) / n;
         }
     }
     // Agreement within a unit along the move; startsolid differing.
-    auto compare = [&](const std::vector<trace_t>& x, const std::vector<trace_t>& y, int& same, int& xSooner, int& ySooner,
+    auto compare = [&](const za::Vector<trace_t>& x, const za::Vector<trace_t>& y, int& same, int& xSooner, int& ySooner,
                        int& solidDiff, const char* what)
     {
         same = xSooner = ySooner = solidDiff = 0;
@@ -2834,15 +2850,15 @@ void bench_f()
             const float fx = x[i].allsolid ? 0.f : x[i].fraction, fy = y[i].allsolid ? 0.f : y[i].fraction;
             solidDiff += (x[i].startsolid != 0) != (y[i].startsolid != 0);
             const float gap = (fy - fx) * len;
-            if(std::abs(gap) <= 1.f)
+            if(qza::abs(gap) <= 1.f)
             {
                 ++same;
                 continue;
             }
             (gap > 0.f ? xSooner : ySooner)++;
-            if(std::abs(gap) >= 8.f && shown++ < 2)
+            if(qza::abs(gap) >= 8.f && shown++ < 2)
             {
-                Con_Printf("  %s: %.0f units apart from %.0f %.0f %.0f (%s sooner)\n", what, std::abs(gap), starts[i].x,
+                Con_Printf("  %s: %.0f units apart from %.0f %.0f %.0f (%s sooner)\n", what, qza::abs(gap), starts[i].x,
                     starts[i].y, starts[i].z, gap > 0.f ? "first" : "second");
             }
         }
@@ -2871,7 +2887,7 @@ struct WalkTest
     double nextJump = 0.0;
     double nextHop = 0.0;
     float yaw = 0.f;
-    std::uint32_t seed = 1;
+    za::U32 seed = 1;
     int frames = 0, stuck = 0, embedded = 0, outside = 0, hops = 0, hopFails = 0, stuckAfterHop = 0, moverHops = 0, stuckOther = 0;
     double travelled = 0.0;
     glm::vec3 last{0.f};
@@ -2879,7 +2895,7 @@ struct WalkTest
 };
 WalkTest walkTest;
 
-std::uint32_t nextRandom(std::uint32_t& s)
+za::U32 nextRandom(za::U32& s)
 {
     s ^= s << 13;
     s ^= s >> 17;
@@ -2887,7 +2903,7 @@ std::uint32_t nextRandom(std::uint32_t& s)
     return s;
 }
 
-float random01(std::uint32_t& s)
+float random01(za::U32& s)
 {
     return static_cast<float>(nextRandom(s) & 0xffffff) / 16777216.f;
 }
@@ -2980,13 +2996,13 @@ struct MonsterWalk
             given = 0, corners = 0;
         double moved = 0.0;
     };
-    std::vector<Mon> mons;
+    za::Vector<Mon> mons;
     Counts counts[monsterClassCount];
     double until = 0.0, nextStep = 0.0, started = 0.0;
-    std::uint32_t seed = 1;
+    za::U32 seed = 1;
     int mode = 0;
     edict_t* goal = nullptr;
-    std::string then; // a command run at the end (a test's next map)
+    za::String then; // a command run at the end (a test's next map)
 };
 MonsterWalk monsterWalk;
 
@@ -3002,7 +3018,7 @@ glm::vec3 monsterGoal(MonsterWalk& w, const edict_t* e)
     for(int attempt = 0; attempt < 24; ++attempt)
     {
         const float yaw = random01(w.seed) * 6.2831853f, d = 96.f + 288.f * random01(w.seed);
-        p = o + glm::vec3{std::cos(yaw) * d, std::sin(yaw) * d, flies ? (random01(w.seed) - 0.5f) * 96.f : 24.f};
+        p = o + glm::vec3{za::cos(yaw) * d, za::sin(yaw) * d, flies ? (random01(w.seed) - 0.5f) * 96.f : 24.f};
         vec3_t v{p.x, p.y, p.z};
         if(flies)
         {
@@ -3097,7 +3113,7 @@ void monsterWalkEnd(MonsterWalk& w)
     mem::release(w.mons);
     if(!w.then.empty())
     {
-        Cbuf_AddText(w.then.c_str());
+        Cbuf_AddText(w.then.cStr());
         Cbuf_AddText("\n");
     }
 }
@@ -3157,7 +3173,7 @@ void monsterWalkStep(MonsterWalk& w)
             continue;
         }
         const glm::vec2 across{o.x - m.goal.x, o.y - m.goal.y};
-        const bool there = glm::length(across) < 32.f && std::abs(o.z - m.goal.z) < 48.f;
+        const bool there = glm::length(across) < 32.f && qza::abs(o.z - m.goal.z) < 48.f;
         if(there || now >= m.goalUntil)
         {
             c.reached += there;
@@ -3220,7 +3236,7 @@ void monsterWalk_f()
     w.started = sv.qcvm.time;
     w.until = sv.qcvm.time + Q_atof(Cmd_Argv(1));
     w.nextStep = sv.qcvm.time;
-    w.seed = Cmd_Argc() > 2 ? static_cast<std::uint32_t>(std::max(1, Q_atoi(Cmd_Argv(2)))) : 1u;
+    w.seed = Cmd_Argc() > 2 ? static_cast<za::U32>(za::max(1, Q_atoi(Cmd_Argv(2)))) : 1u;
     w.mode = Cmd_Argc() > 3 ? Q_atoi(Cmd_Argv(3)) : 0;
     w.then.clear();
     for(int i = 4; i < Cmd_Argc(); ++i)
@@ -3254,7 +3270,7 @@ void monsterWalk_f()
             m.oldThink = e->v.think;
             e->v.nextthink = 0.f; // its AI stopped: the walk moves it
         }
-        w.mons.push_back(m);
+        w.mons.pushBack(m);
     }
     PR_PopQCVM(oldvm);
     Con_Printf("vr_mhull_walktest: %d monsters, %s\n", static_cast<int>(w.mons.size()), w.mode ? "patrol" : "random walk");
@@ -3268,7 +3284,7 @@ void probeTree(const Brushes& b, const hull_t& hull, int num, const glm::dvec3& 
     const mplane_t& plane = hull.planes[node.planenum];
     const glm::dvec3 n{plane.normal[0], plane.normal[1], plane.normal[2]};
     const double t = glm::dot(n, p) - plane.dist;
-    const double offset = std::abs(ext.x * n.x) + std::abs(ext.y * n.y) + std::abs(ext.z * n.z);
+    const double offset = qza::abs(ext.x * n.x) + qza::abs(ext.y * n.y) + qza::abs(ext.z * n.z);
     for(int side = 0; side < 2; ++side)
     {
         if(side == 0 ? t <= -offset - 1.0 : t >= offset + 1.0)
@@ -3281,7 +3297,7 @@ void probeTree(const Brushes& b, const hull_t& hull, int num, const glm::dvec3& 
             probeTree(b, hull, child, p, ext);
             continue;
         }
-        const std::size_t key = static_cast<std::size_t>(num) * 2 + side;
+        const za::SizeT key = static_cast<za::SizeT>(num) * 2 + side;
         auto report = [&](int index)
         {
             const Brush& br = b.brushes[index];
@@ -3291,7 +3307,7 @@ void probeTree(const Brushes& b, const hull_t& hull, int num, const glm::dvec3& 
             }
             double best = -1e300;
             int bestPlane = -1;
-            for(std::uint32_t i = 0; i < br.count; ++i)
+            for(za::U32 i = 0; i < br.count; ++i)
             {
                 const Plane& q = b.planes[br.first + i];
                 const double d = glm::dot(p, glm::dvec3{q.normal}) - (q.dist + support(q, ext));
@@ -3343,7 +3359,8 @@ void leafDebug_f()
                          (glm::dvec3{lo[0], lo[1], lo[2]} + glm::dvec3{hi[0], hi[1], hi[2]}) * 0.5;
     Tree t;
     t.ext = (glm::vec3{hi[0], hi[1], hi[2]} - glm::vec3{lo[0], lo[1], lo[2]}) * 0.5f;
-    t.heads.assign(b->subs.size(), -1);
+    t.heads.clear();
+    t.heads.resize(b->subs.size(), -1);
     buildTree(t, *b, 0, &c);
     Con_Printf("leaf debug at %.2f %.2f %.2f: %d nodes\n", c.x, c.y, c.z, static_cast<int>(t.nodes.size()));
 }
@@ -3427,12 +3444,12 @@ void hitTest_f()
     const float spread = Cmd_Argc() > 2 ? static_cast<float>(Q_atof(Cmd_Argv(2))) : 0.1f;
     edict_t* player = EDICT_NUM(1);
     const glm::vec3 target{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
-    std::uint32_t seed = 12345u;
+    za::U32 seed = 12345u;
     int shots = 0, hits = 0, dirs = 0;
     for(int k = 0; k < 8; ++k)
     {
         const float a = static_cast<float>(k) * 0.785398163f;
-        const glm::vec3 from = target + glm::vec3{std::cos(a), std::sin(a), 0.f} * dist;
+        const glm::vec3 from = target + glm::vec3{za::cos(a), za::sin(a), 0.f} * dist;
         vec3_t f{from.x, from.y, from.z}, t{target.x, target.y, target.z};
         const trace_t clear = SV_Move(f, vec3_origin, vec3_origin, t, MOVE_NOMONSTERS, nullptr);
         if(clear.fraction < 1.f || clear.startsolid || clear.allsolid)
@@ -3486,7 +3503,7 @@ void approachRun()
         for(int k = 0; k < 8; ++k)
         {
             const float a = static_cast<float>(k) * 0.785398163f;
-            const glm::vec3 dir{std::cos(a), std::sin(a), 0.f};
+            const glm::vec3 dir{za::cos(a), za::sin(a), 0.f};
             const glm::vec3 end = origin + dir * 256.f;
             vec3_t s{origin.x, origin.y, origin.z}, e{end.x, end.y, end.z};
             const trace_t tr = SV_Move(s, player->v.mins, player->v.maxs, e, MOVE_NORMAL, player);
@@ -3527,13 +3544,13 @@ void approachRun()
             name, c.x, c.y, c.z, solid, player->v.maxs[0] - player->v.mins[0], (player->v.maxs[0] - player->v.mins[0]) * 0.5f, name);
         return;
     }
-    const float reach = std::max(hi.x - lo.x, hi.y - lo.y) * 0.5f + 40.f;
+    const float reach = za::max(hi.x - lo.x, hi.y - lo.y) * 0.5f + 40.f;
     int tried = 0, met = 0;
     float gapLo = 1e9f, gapHi = -1e9f;
     for(int k = 0; k < 8; ++k)
     {
         const float a = static_cast<float>(k) * 0.785398163f;
-        const glm::vec3 dir{-std::cos(a), -std::sin(a), 0.f}; // towards the entity
+        const glm::vec3 dir{-za::cos(a), -za::sin(a), 0.f}; // towards the entity
         bool done = false;
         for(float up = 1.f; up <= 25.f && !done; up += 8.f)
         {
@@ -3556,8 +3573,8 @@ void approachRun()
             ++met;
             const glm::vec3 stop{tr.endpos[0], tr.endpos[1], tr.endpos[2]};
             const float gap = centreGap(player, stop, dir);
-            gapLo = std::min(gapLo, gap);
-            gapHi = std::max(gapHi, gap);
+            gapLo = za::min(gapLo, gap);
+            gapHi = za::max(gapHi, gap);
             // A monster moved into the player standing there (a body's move: it meets the player's box as shown to it).
             if((static_cast<int>(target->v.flags) & FL_MONSTER) && k == 0)
             {
@@ -3599,7 +3616,7 @@ void walkTest_f()
     }
     w = WalkTest{};
     w.until = sv.qcvm.time + Q_atof(Cmd_Argv(1));
-    w.seed = Cmd_Argc() > 2 ? static_cast<std::uint32_t>(std::max(1, Q_atoi(Cmd_Argv(2)))) : 1u;
+    w.seed = Cmd_Argc() > 2 ? static_cast<za::U32>(za::max(1, Q_atoi(Cmd_Argv(2)))) : 1u;
     w.nextHop = sv.qcvm.time + 4.0;
     // The level's exits closed (not solid): walking into one would end the walk at the intermission, the player put
     // at its camera spot (in a ceiling, often) and frozen there.
@@ -3635,23 +3652,23 @@ glm::vec3 playerExt(const qmodel_t* world)
 
 // The boxes the trees are wanted for: the player's (first, if on), then each size the level's monsters ask for
 // (vr_mhull), in their order (loading: while the server spawns them).
-std::vector<glm::vec3> wantedExts(bool loading)
+za::Vector<glm::vec3> wantedExts(bool loading)
 {
-    std::vector<glm::vec3> exts;
+    za::Vector<glm::vec3> exts;
     if(vr_hull_width.value > 0.f)
     {
-        exts.push_back(playerExt(sv.worldmodel));
+        exts.pushBack(playerExt(sv.worldmodel));
     }
     if(vr_mhull.value != 0.f && (sv.active || loading))
     {
         for(int i = svs.maxclients + 1; i < sv.qcvm.num_edicts; ++i)
         {
             const edict_t* e = reinterpret_cast<const edict_t*>(reinterpret_cast<const byte*>(sv.qcvm.edicts) +
-                static_cast<std::ptrdiff_t>(i) * sv.qcvm.edict_size);
+                static_cast<za::PtrDiffT>(i) * sv.qcvm.edict_size);
             float w = 0.f, h = 0.f;
             if(!e->free && monsterWidth(e, w, h, loading))
             {
-                exts.emplace_back(w * 0.5f, w * 0.5f, h * 0.5f);
+                exts.emplaceBack(w * 0.5f, w * 0.5f, h * 0.5f);
             }
         }
     }
@@ -3745,7 +3762,7 @@ void spawned()
     {
         return;
     }
-    const std::vector<glm::vec3> exts = wantedExts(true);
+    const za::Vector<glm::vec3> exts = wantedExts(true);
     if(vr_hull_width.value > 0.f && exts.front() != pending.playerExt)
     {
         settle(); // (the player's width changed while the map spawned: its tree is made again, not while it is made)
@@ -3877,15 +3894,15 @@ bool clipBSP(const edict_t* ent, const float* start, const float* boxMins, const
     if(vr_hull_method.value != 0.f)
     {
         const glm::vec3 centre = (lo + hi) * 0.5f;
-        const Tree& t = treeFor(built, static_cast<std::size_t>(sub), (hi - lo) * 0.5f);
-        trace = treeTrace(t, t.heads[static_cast<std::size_t>(sub)], s + centre, e + centre);
+        const Tree& t = treeFor(built, static_cast<za::SizeT>(sub), (hi - lo) * 0.5f);
+        trace = treeTrace(t, t.heads[static_cast<za::SizeT>(sub)], s + centre, e + centre);
         for(int i = 0; i < 3; ++i)
         {
             trace.endpos[i] += origin[i] - centre[i];
         }
         return true;
     }
-    const SubModel& sm = built.subs[static_cast<std::size_t>(sub)];
+    const SubModel& sm = built.subs[static_cast<za::SizeT>(sub)];
     trace = boxTrace(built, model->hulls[0], sm.head, s, lo, hi, e, sm.base).trace;
     for(int i = 0; i < 3; ++i)
     {
@@ -4021,8 +4038,8 @@ void walkTestFrame(edict_t* ent)
         w.nextTurn = sv.qcvm.time + 0.3 + 1.2 * random01(w.seed);
     }
     const float speed = 320.f;
-    ent->v.velocity[0] = std::cos(w.yaw) * speed;
-    ent->v.velocity[1] = std::sin(w.yaw) * speed;
+    ent->v.velocity[0] = za::cos(w.yaw) * speed;
+    ent->v.velocity[1] = za::sin(w.yaw) * speed;
     if(sv.qcvm.time >= w.nextJump && ((int)ent->v.flags & FL_ONGROUND))
     {
         ent->v.velocity[2] = 270.f;

@@ -28,7 +28,8 @@
 
 #include "vr_hands.hpp"
 
-#include <vector>
+#include "Zancle/Container/Vector.hpp"
+
 
 struct entity_s;
 
@@ -38,7 +39,7 @@ namespace qvr::selfcollide
 // What the view drew this frame (vr_view.cpp), for the next frame's proxies.
 struct Drawn
 {
-    const std::vector<glm::vec4>* hand[2]{nullptr, nullptr}; // each drawn hand's spheres (world: centre, radius)
+    const za::Vector<glm::vec4>* hand[2]{nullptr, nullptr}; // each drawn hand's spheres (world: centre, radius)
     const entity_s* weapon[2]{nullptr, nullptr};               // the weapon drawn in the hand (its model's shape)
     bool mirrored[2]{false, false};
 };

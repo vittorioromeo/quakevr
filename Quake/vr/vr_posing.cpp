@@ -15,10 +15,17 @@
 #include "vr_units.hpp"
 #include "vr_view.hpp"
 
-#include <cmath>
-#include <cstring>
-#include <string>
-#include <vector>
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/String/StringView.hpp"
+#include "Zancle/String/ToString.hpp"
+#include "vr_zancle.hpp"
+
+#include <string.h>
 
 namespace qvr::posing
 {
@@ -37,14 +44,14 @@ int sessionWorld = -1; // the map it was started on (worldGeneration): a new one
 struct Change
 {
     cvar_t* var;
-    std::string was;
+    za::String was;
 };
 struct Step
 {
-    std::vector<Change> changes;
-    std::string what;
+    za::Vector<Change> changes;
+    za::String what;
 };
-std::vector<Step> undoSteps;
+za::Vector<Step> undoSteps;
 
 // The last pose confirmed, for vr_pose_check.
 struct Posed
@@ -65,7 +72,7 @@ constexpr double solvedShowSeconds = 1.5;
 double solvedUntil = 0.0;
 
 // A line said on confirming, undoing, switching (shown a few seconds).
-std::string feedback;
+za::String feedback;
 double feedbackUntil = 0.0;
 
 // The buttons pressed while posing: their release is posing's too (not a stray key, a voice note's end, the torch's).
@@ -91,21 +98,21 @@ constexpr float turnSpeed = 120.f; // degrees a second, the stick all the way
 }
 
 // "v_shot2" for progs/v_shot2.mdl.
-[[nodiscard]] std::string shortName(const char* model)
+[[nodiscard]] za::String shortName(const char* model)
 {
     const char* base = strrchr(model, '/');
-    std::string s = base ? base + 1 : model;
-    if(const std::size_t dot = s.rfind('.'); dot != std::string::npos)
+    za::String s = base ? base + 1 : model;
+    if(const za::SizeT dot = s.rfind('.'); dot != za::StringView::nPos)
     {
         s.resize(dot);
     }
     return s;
 }
 
-[[nodiscard]] std::string slotName(int slot)
+[[nodiscard]] za::String slotName(int slot)
 {
     const cvar_t* id = weapons::cvar(slot, Key::ID);
-    return id ? shortName(id->string) : std::string{"?"};
+    return id ? shortName(id->string) : za::String{"?"};
 }
 
 // The confirm hand's buttons: A and B on the main hand, X and Y on the off hand.
@@ -126,11 +133,11 @@ void haptic(int hand, float seconds, float amplitude)
     }
 }
 
-void say(const std::string& text, double seconds = 4.0)
+void say(const za::String& text, double seconds = 4.0)
 {
     feedback = text;
     feedbackUntil = realtime + seconds;
-    Con_Printf("posing: %s\n", text.c_str());
+    Con_Printf("posing: %s\n", text.cStr());
 }
 
 // The slot a posed setting is written to: the weapon's own, or the one it inherits it from (the Weapon Offsets page
@@ -146,7 +153,7 @@ void write(Step& step, int slot, Key key, float value)
                 return;
             }
         }
-        step.changes.push_back({var, var->string});
+        step.changes.pushBack({var, var->string});
     };
     const int from = weapons::inheritsFrom(slot);
     const int target = from >= 0 && weapons::inheritable(key) ? from : slot;
@@ -228,7 +235,7 @@ void confirm()
             }
         }
         q_snprintf(buf, sizeof(buf), "set %s in the hand: offset %.2f %.2f %.2f, turn %.1f %.1f %.1f%s",
-            slotName(writtenSlot()).c_str(), c.offset.x, c.offset.y, c.offset.z, c.angles.x, c.angles.y, c.angles.z,
+            slotName(writtenSlot()).cStr(), c.offset.x, c.offset.y, c.offset.z, c.angles.x, c.angles.y, c.angles.z,
             reset ? " (tuning offsets 0)" : "");
     }
     else
@@ -263,18 +270,18 @@ void confirm()
         }
         if(h.type == HotspotType::Blade)
         {
-            q_snprintf(buf, sizeof(buf), "set %s hotspot %d: Blade at %.2f of the way to the tip", slotName(writtenSlot()).c_str(),
+            q_snprintf(buf, sizeof(buf), "set %s hotspot %d: Blade at %.2f of the way to the tip", slotName(writtenSlot()).cStr(),
                 i + 1, h.pos.x);
         }
         else
         {
             q_snprintf(buf, sizeof(buf), "set %s hotspot %d: %s at %.2f %.2f %.2f, hand %.0f %.0f %.0f%s",
-                slotName(writtenSlot()).c_str(), i + 1, typeName(h.type), h.pos.x, h.pos.y, h.pos.z, h.angles.x, h.angles.y,
+                slotName(writtenSlot()).cStr(), i + 1, typeName(h.type), h.pos.x, h.pos.y, h.pos.z, h.angles.x, h.angles.y,
                 h.angles.z, reset ? " (held hand offset 0)" : "");
         }
     }
     step.what = buf;
-    undoSteps.push_back(std::move(step));
+    undoSteps.pushBack(ZA_MOVE(step));
     lastPosed = {true, current.target, current.weaponHand, current.hotspot, c.rigInWeapon, c.palmInWeapon, c.rigWorld,
         c.palmFitted};
     solvedUntil = realtime + solvedShowSeconds; // the grip it gives, for a moment
@@ -291,11 +298,11 @@ void undo()
         say("nothing to undo");
         return;
     }
-    const Step step = std::move(undoSteps.back());
-    undoSteps.pop_back();
-    for(auto it = step.changes.rbegin(); it != step.changes.rend(); ++it)
+    const Step step = ZA_MOVE(undoSteps.back());
+    undoSteps.popBack();
+    for(za::SizeT k = step.changes.size(); k-- > 0;) // (the last first)
     {
-        Cvar_SetQuick(it->var, it->was.c_str());
+        Cvar_SetQuick(step.changes[k].var, step.changes[k].was.cStr());
     }
     lastPosed.valid = false;
     say("undone: " + step.what);
@@ -364,14 +371,14 @@ void resetTurn()
     current.modelOrigin = current.startOrigin;
 }
 
-[[nodiscard]] std::string targetLine()
+[[nodiscard]] za::String targetLine()
 {
     const int poser = posingHand();
     if(current.target == Target::Weapon)
     {
-        return std::string{"The weapon: pose your "} + handName(poser) + " hand on it";
+        return za::String{"The weapon: pose your "} + handName(poser) + " hand on it";
     }
-    return "Hotspot " + std::to_string(current.hotspot + 1) + " (" + typeName(current.type) + "): pose your " +
+    return "Hotspot " + za::toString(current.hotspot + 1) + " (" + typeName(current.type) + "): pose your " +
            handName(poser) + " hand";
 }
 
@@ -529,7 +536,7 @@ void solvedPalm(const Candidate& c)
     {
         for(int j = 0; j < 4; j++)
         {
-            if(std::fabs(c.rigInWeapon[i][j] - lastPosed.rigInWeapon[i][j]) > 1e-3f)
+            if(za::fabs(c.rigInWeapon[i][j] - lastPosed.rigInWeapon[i][j]) > 1e-3f)
             {
                 return; // moved since the set
             }
@@ -588,11 +595,11 @@ bool start(int slot, qmodel_t* model, int weaponHand, Target target, int hotspot
     latest = Candidate{};
     undoSteps.clear();
     feedback.clear();
-    std::memset(eaten, 0, sizeof(eaten));
+    ZA_MEMSET(eaten, 0, sizeof(eaten));
 
     const int from = weapons::inheritsFrom(slot);
-    Con_Printf("Posing %s%s: %s. Confirm with %s, undo with %s; the menu button leaves.\n", slotName(slot).c_str(),
-        from >= 0 ? (" (the settings of " + slotName(from) + ", which it inherits)").c_str() : "", targetLine().c_str(),
+    Con_Printf("Posing %s%s: %s. Confirm with %s, undo with %s; the menu button leaves.\n", slotName(slot).cStr(),
+        from >= 0 ? (" (the settings of " + slotName(from) + ", which it inherits)").cStr() : "", targetLine().cStr(),
         lowerButton(confirmHand()), upperButton(confirmHand()));
     S_LocalSound("misc/menu3.wav");
     return true;
@@ -674,7 +681,7 @@ void sticks(const glm::vec2& off, const glm::vec2& main)
     }
     const glm::vec2 stick = confirmHand() == HAND_MAIN ? main : off;
     const auto dz = [](float v) {
-        return std::fabs(v) < stickDeadzone ? 0.f : (v - std::copysign(stickDeadzone, v)) / (1.f - stickDeadzone);
+        return za::fabs(v) < stickDeadzone ? 0.f : (v - qza::copysign(stickDeadzone, v)) / (1.f - stickDeadzone);
     };
     const float dt = static_cast<float>(CLAMP(0.0, host_frametime, 0.1));
     turn(-dz(stick.x) * turnSpeed * dt, dz(stick.y) * turnSpeed * dt);
@@ -701,8 +708,8 @@ void frame()
 
     const int confirmer = confirmHand();
     const int from = weapons::inheritsFrom(current.slot);
-    std::string text = va("%c%c%c%c%c%c%c %s", 'P' | 0x80, 'O' | 0x80, 'S' | 0x80, 'I' | 0x80, 'N' | 0x80, 'G' | 0x80, ':' | 0x80,
-        slotName(current.slot).c_str());
+    za::String text = va("%c%c%c%c%c%c%c %s", 'P' | 0x80, 'O' | 0x80, 'S' | 0x80, 'I' | 0x80, 'N' | 0x80, 'G' | 0x80, ':' | 0x80,
+        slotName(current.slot).cStr());
     if(from >= 0)
     {
         text += " (sets " + slotName(from) + "'s)";

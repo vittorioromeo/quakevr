@@ -7,8 +7,10 @@
 #include "vr_engine.hpp"
 
 #include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Math/MinMax.hpp"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/stat.h>
 
 #ifdef _WIN32
@@ -225,6 +227,96 @@ za::I64 lastWriteTime(const char* path)
     return static_cast<za::I64>(st.st_mtim.tv_sec) * 1000000000 + st.st_mtim.tv_nsec;
 #endif
 #endif
+}
+
+namespace
+{
+
+[[nodiscard]] bool isSpace(const char c)
+{
+    return c == ' ' || c == '\t' || c == '\n' || c == '\v' || c == '\f' || c == '\r';
+}
+
+// The next word (the white space before it skipped), or false at the end (a stream's sentry failing).
+[[nodiscard]] bool nextWord(za::StringView& text, za::StringView& word)
+{
+    za::SizeT i = 0;
+    while(i < text.size() && isSpace(text[i]))
+    {
+        i++;
+    }
+    za::SizeT j = i;
+    while(j < text.size() && !isSpace(text[j]))
+    {
+        j++;
+    }
+    word = text.substrByPosLen(i, j - i);
+    text = text.substrByPosLen(j);
+    return !word.empty();
+}
+
+// A number from the whole word (0, and false, when it doesn't start with one: a stream's failed extraction).
+template <typename T, typename Parse>
+bool nextNumber(za::StringView& text, bool& failed, T& value, Parse&& parse)
+{
+    za::StringView word;
+    if(failed || !nextWord(text, word))
+    {
+        failed = true;
+        return false;
+    }
+    char buf[128];
+    const za::SizeT n = za::min<za::SizeT>(word.size(), sizeof(buf) - 1);
+    ZA_MEMCPY(buf, word.data(), n);
+    buf[n] = '\0';
+    char* end = buf;
+    const T v = parse(buf, &end);
+    if(end == buf)
+    {
+        value = T{0};
+        failed = true;
+        return false;
+    }
+    value = v;
+    return true;
+}
+
+} // namespace
+
+bool Words::next(za::StringView& word)
+{
+    if(failed_ || !nextWord(text_, word))
+    {
+        failed_ = true;
+        return false;
+    }
+    return true;
+}
+
+bool Words::next(za::String& word)
+{
+    za::StringView w;
+    if(!next(w))
+    {
+        return false;
+    }
+    word = w;
+    return true;
+}
+
+bool Words::next(float& value)
+{
+    return nextNumber(text_, failed_, value, [](const char* s, char** e) { return strtof(s, e); });
+}
+
+bool Words::next(double& value)
+{
+    return nextNumber(text_, failed_, value, [](const char* s, char** e) { return strtod(s, e); });
+}
+
+bool Words::next(int& value)
+{
+    return nextNumber(text_, failed_, value, [](const char* s, char** e) { return static_cast<int>(strtol(s, e, 10)); });
 }
 
 za::StringView fileName(za::StringView path)

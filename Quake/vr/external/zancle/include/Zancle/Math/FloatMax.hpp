@@ -1,0 +1,22 @@
+#pragma once
+// LICENSE AND COPYRIGHT (C) INFORMATION
+// https://github.com/vittorioromeo/Zancle/blob/master/license.md
+
+
+////////////////////////////////////////////////////////////
+// Headers
+////////////////////////////////////////////////////////////
+#ifndef __FLT_MAX__
+    #include <cfloat>
+#endif
+
+
+////////////////////////////////////////////////////////////
+/// \brief `FLT_MAX` macro, prefers the compiler builtin to avoid `<cfloat>`
+///
+////////////////////////////////////////////////////////////
+#ifdef __FLT_MAX__
+    #define ZA_FLOAT_MAX __FLT_MAX__
+#else
+    #define ZA_FLOAT_MAX FLT_MAX
+#endif
