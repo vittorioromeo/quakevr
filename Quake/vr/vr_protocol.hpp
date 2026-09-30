@@ -42,8 +42,9 @@ enum SvcQuakeVr : int
     QVR_SVC_WOUND = 14,           // [short entity][coord3 org][char3 dir*127][byte kind][byte amount][byte extra]: a wound on a model (vr_wounds.cpp)
     QVR_SVC_WOUNDCLEAR = 15,      // [short entity]: an entity sent wounds was removed: its slot's next entity starts clean (reliable)
     QVR_SVC_CATCHBLEND = 16,      // [byte hand][short entity][float3 origin][float3 angles]: a force grab's weapon caught by the hand, from there (vr_drawblend.cpp)
-    QVR_SVC_ROPE = 17,            // [short entity][byte beam id][byte count][coord3 first][short3 x (count - 1): eighths of a unit from the one before]: a grappling hook's rope's corners (none: straight), for the beam of that entity and id; sent when they change (vr_ropesim.cpp, vr_rope.cpp)
+    QVR_SVC_ROPE = 17,            // [short entity][byte beam id][byte count][coord3 first][short3 x (count - 1): eighths of a unit from the one before]: a grappling hook's rope's corners (none: straight), for the beam of that entity and id; sent when they change (vr_ropesim.cpp, vr_rope.cpp); count ropeEnded: that beam's rope ended (its hook's rope is another beam's now)
 };
+inline constexpr int ropeEnded = 255; // QVR_SVC_ROPE's count: the beam's rope ended (no corners follow)
 
 // Client -> server: clc_move VR block button bits.
 inline constexpr int QVR_BUTTON_OFFHANDATTACK = 1 << 0; // -> .button3

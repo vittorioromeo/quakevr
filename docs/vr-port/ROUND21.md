@@ -14094,3 +14094,71 @@ higher threshold to fix it. Wiggles he keeps as they are.
 - [ ] Soft punches land; a fist waved about doesn't.
 - [ ] Reload fast next to the dummy (gun from aim to the hip holster): no hit, no whoosh. With a gun and with each hand.
 - [ ] Gun strikes still land: the butt forward, a swing down and ahead, a chop from over the head.
+
+## Grapple round 4: X's slack, the phantom rope, reel-in, towing while reeling, the front button's reel (2026-09-30)
+
+NOTES.md vrfiringrange 2026-09-30 02:54-03:01 (the grapple ones). Branch `agent/grapple4`; scripts, logs and checks in the
+kit's `scratch/hook4/` (`run_all.sh`: rounds 2-3's scenarios and round 4's).
+
+### What changed
+
+- **X paid out nothing you could see** (02-54-54). The bindings and the input path are fine (the mock drives the same
+  path: `vr_input.cpp` -> `QVR_BUTTON_*PRIMARY` -> `VRGetEntPrimaryPressed`; the off hand's X unreels the main hand's
+  hook): on the ground the unreel paid the rope out only 4 units past the load's distance (`GH_PAYOUT_SLACK`: "what
+  pulls on it takes it out"), and standing, nothing pulls. Now a load that rests (you on the ground; a hooked prop lying
+  on something; a monster standing) gets up to `vr_grapple_unreel_slack` (256) of slack: the rope comes off the drum
+  with its clicks and buzz and lies there. Hanging, as before. Mock: X held 1.2 s standing, rope 1120 -> 1376 (it was
+  1120 -> 1124).
+- **Controller Buttons debug** (`vr_debug_buttons`, Debug > Logs): each button pressed and let go (hand, button, key,
+  binding, what took it: the posing mode, a voice note, the flashlight; "not in the game" when a menu has the keys), and
+  each hand's interaction profile as the runtime picked it (printed when it changes and when the setting is turned on).
+  VDXR can report `valve/index_controller` for Quest controllers ("Emulate Index controllers"): then the left X is the
+  Index left A (primary: unreel still works) and the left Y is bound to the menu.
+- **Button places** (02-55-58): the back button's Side 0.5 (`vr_wofs_wpnbtn_y_18`), the author's; the front one is
+  placed from it (its own values were already his). Config version 56: a config still at 0 takes 0.5.
+- **The phantom rope** (02-56-42). A hook's rope is a beam keyed by who draws it: the player's hand (id 2 + hand) while
+  its gun is held, the hook itself (id 2) while its gun lies about. When the key changed (the gun taken or dropped), the
+  old beam lived on its 0.2 s, and a lying gun's beam took its start from the nearest grappling gun drawn within 96
+  units, moving `cl_beams`' start in place: with its gun taken, it jumped to the other gun lying near and drew a rope
+  from it to this hook (mock: 54 frames of it; the take of one of two guns 8 units apart). Fixed three ways: the QC ends
+  the old beam when the key changes or the hook goes home (`ropeend`, `QVR_SVC_ROPE` with count 255: the client takes
+  the beam, its slack, corners and chain away at once); a lying gun whose place is nearer another rope's start is that
+  rope's; `CL_UpdateTEnts` moves copies of the beam's ends (the server's are kept: the end no longer creeps after the
+  hook). The server also sends a rope's corners at once to a new beam (they stayed with the old key: a stale set could
+  pin the new rope for a second).
+- **Reel-in goes further** (02-58-16): `vr_grapple_reel_home` (5 units; it was 9, fixed) is how close the loose hook's
+  tail comes to the rope's end at the muzzle before it goes in; the reel brakes it to 4 closer. Stopped within 4 of
+  there (against your hand) for 0.05 s, it goes in (it was yanked in after 0.1 s). Mock: home at 4.2-7.1 (was 8-9).
+- **Towing while reeling** (02-59-13): reeling a heavy prop while walking away dragged it at your speed plus the reel's
+  (the tow limit applied only on a taut rope without the reel). Now while the reel pulls it (it still comes) your speed
+  away is held back as on a taut rope. Towing without the reel is unchanged; reeling standing still too. Mock: 40 kg box,
+  B held and walking back: held back from 320 to 80 u/s (it was 320).
+- **The front button reels the hook in** (03-01-07): over `vr_grapple_quick_time` (0.5 s; a rope under 256 units in less:
+  the square root of its share), speeding up then slowing into the gun, never faster than `vr_grapple_quick_speed`
+  (1800) at its fastest (1100 units: 0.92 s), with the reel's clicks and buzz. 0: straight back at the quick speed.
+- Test aids: `impulse 231` (an empty hand takes the nearest grappling gun lying about); `vr_grapple_debug 4` (every rope
+  drawn, every frame: its beam, ends and corners; Debug > Grappling Hook "And Every Rope Drawn").
+
+| Setting | Cvar | Default |
+|---|---|---|
+| Reel > Unreel Slack | `vr_grapple_unreel_slack` | 256 |
+| Reel > Loose Hook Goes In At | `vr_grapple_reel_home` | 5 |
+| Reel-In Button Time | `vr_grapple_quick_time` | 0.5 s |
+| Debug > Controller Buttons | `vr_debug_buttons` | off |
+
+### Verified (mock; `scratch/hook4/run_all.sh`)
+
+105 checks pass, 3 fail, none from this round: `flail` fails at the base too; `p_drag` fails about a third of runs at the
+base (3 of 9: a 40-unit piece through the world in one draw dump); `p_taut` (and once `t6b`, `b4_precise`) failed once
+and passed when run again. New: `x_main` (X standing, rope 1120 -> 1376), `phantom` (`phantom.py`: 54 phantom frames
+before, 0 after), `p_tow_reel`, `q_front` (1103 units in 0.92 s: 795 left after 0.28 s, 242 after 0.6), `p_reel` (home
+under 8), `m_button` (0 -> 0.5; 1.25 kept). Melee eval: no differences from the baseline.
+
+### In the headset
+
+- [ ] Turn on Debug > Controller Buttons (and Developer Messages), press X: the console shows the press and your
+  controllers' profile. Standing with the hook in a wall, hold X: the rope pays out and sags.
+- [ ] Two guns lying about with their hooks out: take one, drop it: no rope from one gun to the other hook.
+- [ ] Reel a loose hook in: it comes closer to the muzzle before it goes in (Loose Hook Goes In At).
+- [ ] Hook the explosive box, hold B and walk away: as slow as dragging it.
+- [ ] Front button: the hook reels in over half a second (Reel-In Button Time).

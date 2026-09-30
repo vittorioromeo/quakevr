@@ -824,6 +824,7 @@ QVR_CVAR(vr_held_collide_monsters, "1", CVAR_ARCHIVE) // a prop held in one hand
 QVR_CVAR(vr_held_fit_gap, "0", CVAR_ARCHIVE)          // with it: cm between the curled fingers and what they hold (negative: sunk in)
 QVR_CVAR(vr_carry_reach, "8", CVAR_NONE)              // retired (grab reach from the fist: vr_carry_grab_bias): kept so saved configs load silently
 QVR_CVAR(vr_carry_grab_bias, "0", CVAR_ARCHIVE)       // cm: a hand takes a box, gib, backpack or armour if its fist (the palm and the curled fingers) is within this of the thing's drawn surface (negative: pressed that far into it; vr_held.cpp grabTouch)
+QVR_CVAR(vr_debug_buttons, "0", CVAR_NONE)            // prints each controller button press and release (the hand, the button, its key and binding, and what took it: the posing mode, a voice note, the flashlight...), and the interaction profile the runtime picked for each hand when it changes
 QVR_CVAR(vr_debug_hands, "0", CVAR_NONE)              // prints each hand's state when it changes (2: every frame): the grip, what it holds (weapon, carried object, force grab, flashlight), its climbing hold and why a grip takes none, the hotspot (vr_climb.cpp debugHands)
 QVR_CVAR(vr_debug_carry, "0", CVAR_NONE)              // draws, for each hand near a carriable thing, the grab test: the box the thing is drawn in, the fist tested (its spheres; the nearest bright) and the nearest point of its surface (green: it touches, in reach); 2: also carry_trace.txt, what is carried and both hands every frame, and each grab test printed; 3: and the fists not near
 QVR_CVAR(vr_debug_arm, "0", CVAR_NONE)                // prints each drawn arm's IK once (the shoulder, elbow and wrist in the body's axes, cm; the elbow's swing; the wrist's bend and twist against the forearm), then turns itself off; 2: every frame
@@ -964,7 +965,7 @@ QVR_CVAR(vr_grapple_medium_speed, "160", CVAR_ARCHIVE)   // and a medium one
 QVR_CVAR(vr_grapple_stagger, "1", CVAR_ARCHIVE)          // small monsters reeled in are staggered (their pain, forced; again every second of reeling)
 QVR_CVAR(vr_grapple_stamina, "0", CVAR_ARCHIVE)          // stamina a second reeling a monster in costs (the parry/shove/strike pool); short of it, it comes slower. 0: free
 QVR_CVAR(vr_grapple_haptics, "1", CVAR_ARCHIVE)          // strength of the rope's haptics (the hook biting, the reel, the rope snapping taut); 0 none
-QVR_CVAR(vr_grapple_quick_speed, "1800", CVAR_ARCHIVE)   // units/s the quick release (the button on the gun) brings the hook back at
+QVR_CVAR(vr_grapple_quick_speed, "1800", CVAR_ARCHIVE)   // units/s the quick release (the button on the gun) brings the hook back at, with vr_grapple_quick_time 0 (and the fastest it goes with it: a long rope takes longer)
 QVR_CVAR(vr_grapple_drop_grace, "0.12", CVAR_ARCHIVE)    // seconds the trigger let go waits before the hook comes off: dropping or passing the gun by then keeps it in
 QVR_CVAR(vr_grapple_rope_sim, "1", CVAR_ARCHIVE)         // the rope is a physical thing (vr_ropesim.cpp): it hangs, lies and wraps round the world and the props, never through them, and pulls along where it lies; 0: a straight line (drawn sagging)
 QVR_CVAR(vr_grapple_rope_spacing, "4", CVAR_ARCHIVE)     // units between the simulated rope's points (finer: truer round edges, more work; a long rope's are farther apart: 96 points at most)
@@ -988,7 +989,10 @@ QVR_CVAR(vr_grapple_rope_tail, "6", CVAR_ARCHIVE)        // units (times the hoo
 QVR_CVAR(vr_grapple_hook_scale, "0.6", CVAR_ARCHIVE)     // the size of the hook the grappling gun fires (its model; 1: Rogue's, too big for the gun), on the next shot
 QVR_CVAR(vr_grapple_tow_light, "10", CVAR_ARCHIVE)       // kg up to which a hooked prop dragged along on a taut rope doesn't slow you; heavier, you drag it slower in proportion (40 kg, an explosive box: a quarter as fast)
 QVR_CVAR(vr_grapple_tow_speed, "320", CVAR_ARCHIVE)      // units/s you can drag a light prop at on a taut rope (walking away from it); heavier, slower (vr_grapple_tow_light); 0: no limit (it comes at your speed)
-QVR_CVAR(vr_grapple_debug, "0", CVAR_NONE)               // with developer 1: what the hook bites and each reel (mass, class, speeds); 2 also the rope four times a second; 3 every frame the rope holds you
+QVR_CVAR(vr_grapple_debug, "0", CVAR_NONE)               // with developer 1: what the hook bites and each reel (mass, class, speeds); 2 also the rope four times a second; 3 every frame the rope holds you; 4 also every rope drawn, every frame (the client)
+QVR_CVAR(vr_grapple_unreel_slack, "256", CVAR_ARCHIVE)   // units of slack the unreel (A/X) pays out beyond the load's distance when nothing pulls on the rope (you or the load on the ground): the rope comes off the drum and lies there; hanging, the load takes it out as ever. 4: the old unreel (nothing seen on the ground)
+QVR_CVAR(vr_grapple_reel_home, "5", CVAR_ARCHIVE)        // units from the rope's end at the muzzle the loose hook's tail is reeled to before it goes back in (it was 9)
+QVR_CVAR(vr_grapple_quick_time, "0.5", CVAR_ARCHIVE)     // seconds the front button's reel-in takes (the hook reeled in, speeding up then slowing down; a short rope quicker); 0: straight back at vr_grapple_quick_speed
 QVR_CVAR(vr_weapondrop_particles, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_2h_spread_reduction, "0.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_2h_throw_velocity_mult, "1.0", CVAR_ARCHIVE)

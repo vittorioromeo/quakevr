@@ -1377,7 +1377,7 @@ QVR_WEAPON_DEFAULT(17, WpnButtonAnchorVertex, "75") // the grappling hook's quic
 QVR_WEAPON_DEFAULT(17, WpnButtonPitch, "0.0")
 QVR_WEAPON_DEFAULT(17, WpnButtonRoll, "0.0")
 QVR_WEAPON_DEFAULT(17, WpnButtonX, "0.0")
-QVR_WEAPON_DEFAULT(17, WpnButtonY, "0.0")
+QVR_WEAPON_DEFAULT(17, WpnButtonY, "0.5") // the author's (config version 56)
 QVR_WEAPON_DEFAULT(17, WpnButtonYaw, "0.0")
 QVR_WEAPON_DEFAULT(17, WpnButtonZ, "0.0")
 QVR_WEAPON_DEFAULT(17, WpnButtonMode, "1")

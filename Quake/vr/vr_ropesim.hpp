@@ -36,6 +36,12 @@ Shape step(edict_t* hook, const glm::vec3& gun, const glm::vec3& game, const glm
 // with beam id `beamId` (the rope drawn through them: vr_rope.cpp).
 void send(edict_t* hook, edict_t* owner, int beamId);
 
+// Tells the clients that the rope of `owner`'s beam `beamId` has ended (QVR_SVC_ROPE with ropeEnded corners): its hook's
+// rope is another beam's now (its gun taken, dropped, passed to the other hand). The client takes the old beam away at
+// once rather than drawing it for the 0.2 s a beam lasts (it was drawn from wherever its start went: the phantom rope
+// between two guns lying about, NOTES.md vrfiringrange_2026-09-30_02-56-42).
+void sendEnded(edict_t* owner, int beamId);
+
 // The entity `num` removed: its rope forgotten.
 void forget(int num);
 

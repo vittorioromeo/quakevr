@@ -845,8 +845,11 @@ extern "C" void VR_TuneDlight(int kind, int ent, void* dlight)
 }
 
 // The rope of a grappling gun lying about (its hook's own beam: the server sends the gun's place as it has it): from the
-// muzzle of the gun as drawn, vr_grapple_rope_depth inside it. The gun: the grappling gun drawn nearest the beam's start.
-void thrownGunRopeStart(float* start)
+// muzzle of the gun as drawn, vr_grapple_rope_depth inside it. The gun: the grappling gun drawn nearest the beam's start
+// (`key`: the beam's), unless another gun's rope starts nearer it: that gun is the other rope's. (A gun just taken or
+// gone, its rope still drawn a moment, went from the gun lying nearest: a phantom rope from another gun to this hook,
+// NOTES.md vrfiringrange_2026-09-30_02-56-42.)
+void thrownGunRopeStart(int key, float* start)
 {
     const glm::vec3 s{start[0], start[1], start[2]};
     const entity_t* gun = nullptr;
@@ -858,8 +861,21 @@ void thrownGunRopeStart(float* start)
         {
             continue;
         }
-        const float d = glm::distance(glm::vec3{e.origin[0], e.origin[1], e.origin[2]}, s);
-        if(d < best)
+        const glm::vec3 at{e.origin[0], e.origin[1], e.origin[2]};
+        const float d = glm::distance(at, s);
+        if(d >= best)
+        {
+            continue;
+        }
+        bool others = false;
+        for(int k = 0; k < MAX_BEAMS && !others; k++)
+        {
+            const beam_t& b = cl_beams[k];
+            others = b.entity != key && b.model && b.starttime <= cl.time && b.endtime >= cl.time &&
+                     (b.entity >> 16) - 1 == 2 && (b.entity & 0xFFFF) != cl.viewentity &&
+                     glm::distance(at, glm::vec3{b.start[0], b.start[1], b.start[2]}) < d;
+        }
+        if(!others)
         {
             best = d;
             gun = &e;
@@ -918,7 +934,7 @@ extern "C" int VR_UpdateBeam(int ent, float* start, float* end)
     {
         if(id == 2 && vr_grapple_rope_depth.value >= 0.f)
         {
-            thrownGunRopeStart(start);
+            thrownGunRopeStart(ent, start);
         }
         return 0;
     }

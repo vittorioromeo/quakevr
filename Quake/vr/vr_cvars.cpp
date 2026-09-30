@@ -94,7 +94,7 @@ const DefaultChange defaultChanges[] = {
     // 02-02-15; ROUND21.md, "Melee speed 3; reloads aren't blows").
     {53, &vr_melee_speed, "4"},
 };
-constexpr int configVersion = 53;
+constexpr int configVersion = 56;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
@@ -309,6 +309,18 @@ void migrateConfig()
         for(int slot = props::fleshSlotsFirst; slot <= props::fleshSlotsLast; slot++)
         {
             props::takeShippedSlot(slot);
+        }
+    }
+    // 56: the author's grappling gun buttons (NOTES.md vrfiringrange_2026-09-30_02-55-58): the back button half a unit to
+    // the side (vr_wofs_wpnbtn_y_18; the front one is placed from it, its own place unchanged). A weapon setting: a config
+    // still holding the old default takes the new one.
+    if(from < 56)
+    {
+        cvar_t* var = weapons::cvar(17, weapons::Key::WpnButtonY);
+        if(var && sameValue(var->string, "0"))
+        {
+            Con_DPrintf("VR: %s: new default %s (was 0)\n", var->name, var->default_string);
+            Cvar_SetQuick(var, var->default_string);
         }
     }
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));

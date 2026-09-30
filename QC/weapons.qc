@@ -3805,6 +3805,10 @@ void() ImpulseCommands =
     {
         VR_Test_Fling();
     }
+    if(self.impulse == 231 && !deathmatch && !coop) // QVR test: an empty hand takes the nearest grappling gun lying about
+    {
+        VR_Grapple_TestTake();
+    }
     if(self.impulse == 233 && !deathmatch && !coop) // QVR test: you touch what the hooks are in (a pickup is taken)
     {
         VR_Grapple_TestTouch();
