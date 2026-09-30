@@ -1988,6 +1988,7 @@ void() PlayerPostThink =
         self.jump_flag = self.velocity_z;
 
     CheckPowerups();
+    VR_Grapple_GunFrames(); // QVR: a grappling gun whose hook is out drawn empty (vr_grapple.qc)
 };
 
 

@@ -794,7 +794,8 @@ void PF_hitmodel_segment()
 
 // hitmodel_any(e, a, b, radius): the segment a..b, a sphere of `radius`, against e's model as drawn, whatever e is (a
 // prop, an item: the grappling hook bites only what it touches): where along it it first meets it, -1 missed, -2 e has no
-// Quake .mdl (a brush model: its box is its shape; a weapon lying about, drawn by its Weapon Offsets: its box).
+// Quake .mdl (a brush model: its box is its shape). A weapon lying about, drawn by its Weapon Offsets: its Box3D body
+// (-2 without one: its box).
 void PF_hitmodel_any()
 {
     edict_t* e = G_EDICT(OFS_PARM0);
@@ -804,9 +805,20 @@ void PF_hitmodel_any()
     hitmodel::Hit h;
     const int index = static_cast<int>(e->v.modelindex);
     const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
-    if(!model || model->type != mod_alias || weapons::modelTransform(model).active)
+    if(model && model->type == mod_alias && weapons::modelTransform(model).active)
     {
-        G_FLOAT(OFS_RETURN) = -2.f; // (a weapon's own model lying about is drawn by its Weapon Offsets: its box, drawn so)
+        // A weapon's own model lying about, drawn by its Weapon Offsets: its body in Box3D (its drawn shape; its box is
+        // a cube round its handle, which a long gun reaches well out of), else its box.
+        float fraction = 1.f;
+        bool body = false;
+        const bool hit = box3d::castAt(NUM_FOR_EDICT(e), glm::vec3{a[0], a[1], a[2]}, glm::vec3{b[0], b[1], b[2]}, radius,
+            fraction, body);
+        G_FLOAT(OFS_RETURN) = hit ? fraction : body ? -1.f : -2.f;
+        return;
+    }
+    if(!model || model->type != mod_alias)
+    {
+        G_FLOAT(OFS_RETURN) = -2.f; // (a brush model: its box)
         return;
     }
     const bool hit =

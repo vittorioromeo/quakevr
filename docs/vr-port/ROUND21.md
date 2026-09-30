@@ -13509,3 +13509,112 @@ The eval set is now these takes (the kit's `canary.txt`, 52 of them, and `eval_b
 - Wiggle the axe or sword against it: nothing; a real cut still lands.
 - **Re-record** once the smaller player hitbox (`vr_hull_width`) lands: you'll stand closer, and the blows from close
   by (and the melee tolerance) need takes of their own.
+
+## Grapple round 3: the unreel on X, both buttons, a rope that lies still
+
+NOTES.md vrfiringrange 2026-09-30 00:32-00:53 (the grapple ones). Branch `agent/grapple3`; scripts, logs and checks in the
+kit's `scratch/hook3/` (`run_all.sh`: round 2's scenarios and round 3's).
+
+### What changed
+
+- **X unreels on the ground** (`vr_grapple.qc` VR_Grapple_UnreelButton). The airborne-only rule was meant for A, which
+  jumps; it applied to X too, which reloads. Now a press unreels unless it jumped (FL_JUMPRELEASED cleared) or the jump
+  key is held on the ground or swimming. `vr_grapple_unreel_airborne` keeps its meaning for A.
+- **Both buttons on a gun not in a hand** (`vr_view.cpp` idleAttachments): a dropped or holstered grappling gun has its
+  front button too, 6 units from the back one as in the hand.
+- **Buttons on the Gun** (Grappling Hook page): Back Button Along/Side/Up (the grappling gun's Weapon Offsets button
+  place, `vr_wofs_wpnbtn_x/y/z_18`) and the front button's toggle and Along/Side/Up (`vr_grapple_front_button_x/y/z`,
+  from the back button; steps of 0.1 now).
+- **The rope keeps its length when the gun is dropped.** A hook in the world measures its rope from your body (it holds
+  you); dropped, from the gun, and the difference (27 units at arm's length in `t4`) was added as slack. The hand now
+  records how much farther the body is (`gh_body_extra`) and the drop takes it off. The same drop also never saw that the
+  gun had moved (VR_Grapple_Service's second FindGun cleared `gg_moved`): fixed.
+- **The gun drawn empty while the hook is out.** The frame was already forced in PlayerPreThink, but a pass to the other
+  hand (and anything calling player_run or W_SetCurrentAmmo later in the frame) set frame 0 (the hook in it) for a frame;
+  and player_grapple3/4 set the empty frame for a tenth of a second after the hook came home. Now forced again last in
+  PlayerPostThink (VR_Grapple_GunFrames), the think chain stops at once, and a holstered gun whose hook is out is drawn
+  empty too (a rope starting at it). `vr_grapple_debug` prints the drawn frame when it changes.
+- **The rope's end goes into the hook.** The drawn rope goes straight out of the hook's back `vr_grapple_rope_tail` (6
+  units at full size; Rope Straight Out of the Hook) before it bends, a pin of the drawn chain; and the links are spaced
+  so that the last one ends at the hook (they were laid from the gun at 7.5 units, the last one reaching up to a link
+  past the end, along the end's direction: across the hook when the rope came in sideways).
+- **Slack lying on the floor lies still** (`vr_rope.cpp` stepChain). A point lying on the floor sank by its fall each
+  frame, was traced only from where it was (a point, not the rope's thickness) and so went down through the thickness
+  until it crossed the floor, then was put back on top: the rope bounced by its thickness (4 at your setting) many times a
+  second. Now each free point is held its thickness over the floor (a short trace down), its speed into it gone and 40%
+  of its speed along it lost a frame; and the pieces only pull (a bunched rope no longer shoves its points up).
+- **Reel-in goes all the way.** The loose hook came home 23 units from the rope's end (15 short of the muzzle). It now
+  comes to the muzzle (its tail 2 units past its box's half) and goes in within 4 more: home at 8-9 units. Stopped short
+  against your body or hand (within 24 more), it flies the last bit in after 0.1 s ("stopped short at the gun").
+- **A smaller hook**: `vr_grapple_hook_scale` 0.6 (Hook Size), from the next shot; the rope's end on it follows.
+- **Heavy props drag slowly** (`vr_grapple_tow_light` 10 kg, `vr_grapple_tow_speed` 320 u/s; Props: Dragging). Walking
+  away from a hooked prop on a taut rope, on the ground: up to 10 kg as before; heavier, you're held back to 320 x 10 / its
+  mass (an explosive box, 40 kg: 80 u/s; the small one, 25 kg: 128), and the rope pulls it no faster than you go.
+- **The laser cannon hooked along its length.** A weapon lying about was bitten by its box, a cube round its handle
+  (WeaponIdToThrowBounds; the long barrel is outside it). The flight now tests a weapon lying about by its Box3D body (its
+  drawn shape; new `box3d::castAt`, used by `hitmodel_any`), without the box test first.
+- **Your tuned values are the defaults** (config version 49, a config still holding the old default takes the new one):
+
+| Setting | Cvar | Was | Now |
+|---|---|---|---|
+| Reel Speed | `vr_grapple_reel_speed` | 450 | 300 |
+| Prop Reel Speed | `vr_grapple_prop_speed` | 650 | 300 |
+| Rope Point Spacing | `vr_grapple_rope_spacing` | 12 | 4 |
+| Rope Precision | `vr_grapple_rope_iterations` | 8 | 32 |
+| Rope Thickness | `vr_grapple_rope_radius` | 1 | 4 |
+| Slack When Detached | `vr_grapple_loose_slack` | 24 | 8 |
+| Hanging Air Drag | `vr_grapple_hang_drag` | 3 | 1 |
+| Top Speed | `vr_grapple_load_max_speed` | 700 | 500 |
+
+New: Hook Size (`vr_grapple_hook_scale` 0.6), Rope Straight Out of the Hook (`vr_grapple_rope_tail` 6), Dragging: Light
+Up To (`vr_grapple_tow_light` 10 kg), Dragging Speed (`vr_grapple_tow_speed` 320 u/s), and the Buttons on the Gun rows.
+
+### Checked (mock headset; the kit's `scratch/hook3/run_all.sh`: 39 scenarios, 94 of 95 checks pass)
+
+The one failure, `flail` (a hooked shotgun flung into a grunt), fails on the branch's base too (a physics timing; the
+round-2 baseline run of the same scripts: 76 of 78, `flail` and `p_drag`).
+
+| Item | Scenario | Result |
+|---|---|---|
+| X unreels | `c_unreel_x` | the gun in the off hand, on the ground: `hand 0 unreel on`, the rope 1120 -> 1124 (paid out to the load's distance and 4, as ever); A still jumps |
+| Both buttons | `b_front` | a dropped gun: back and front buttons drawn, 6.0 units apart (as in the hand) |
+| Sliders | `m_menu` (menu_vr dump) | the Grappling Hook page: Back Button Along/Side/Up (`vr_wofs_wpnbtn_x/y/z_18`), Front Button Along/Side/Up |
+| Rope length on a drop | `t4` | hanging from the ceiling (rope 40 from your body, the gun 12.9 from the hook), dropped: rope 40 -> 12.2, the gun hangs at 22 (it fell to 48 before, the rope's 27 units of extra slack) |
+| The gun's frame | `c_unreel_x`, `t3` | a pass to the other hand: frame 2 at once (it showed 0, the hook in it, for a frame); holstered with the hook out: drawn empty; home: frame 0 at once |
+| Rope into the hook | `r_tail` | a hook in the floor, slack lying on it: the rope's last 3 units 0 degrees off the hook's length (80 without the tail) |
+| Slack lies still | `r_still` | 290 units of slack bunched on e1m1's floor, 6 s after walking: the most any point moves in a frame 0.07-0.36 units (the old code, the same scene: 5-7 units a frame, 480-640 u/s) |
+| Reel-in | `p_reel` | home 8.1-8.9 units from the rope's end (23 before); a stall against you at 17 units: in after 0.1 s |
+| Hook size | `t4` | `size 0.60` in the report |
+| Heavy props | `p_tow` | a 40 kg explosive box hooked, walking away: held back from 320 to 80 u/s, the box follows at ~56; with no limit (`vr_grapple_tow_speed 0`, as before) the box was flung at 470 u/s and up 300 units |
+| Laser cannon | `l_laser` | the firing range's laser cannons: bitten 27 units along the barrel from the handle (only the handle's cube before) |
+| Defaults, migration | console | a config at 48 with the old values: reel 450 -> 300, spacing 12 -> 4; a changed one (hang drag 2) kept |
+
+Changed on purpose: `t4` (the gun hangs higher: rope kept), `t4b` (so it's out of reach standing: the hand reaches with a
+jump), `t8` (slack 8: rope 1128), `t8b` (the gun dropped low, so it lands the same way every run, and the off hand aims at
+its body: the old aim bit the air over it, inside the handle's cube), `p_settle` (your hang drag 1: calm in 4.6 s, not
+1.3), `rope_prop` (your thickness 4: one corner on the box, farther out).
+
+**Cost at your settings** (exclusive, e1m1, 248 fps, 5 s; CPU ms a frame, the client's drawn chain and the server's
+rope): 550 units of rope, most of it slack bunched on the floor: 0.149 and 0.005 (the old 12/8/1: 0.063 and 0.007; 127
+points instead of 55); slack round the doorway's jamb: 0.071 and 0.011 (old: 0.024 and 0.013). GPU: under 0.05. So about
+0.1 ms a rope a frame more, 1% of a 90 Hz frame; two ropes, 2%.
+
+### Not verified
+
+- In the headset: all of it; the flicker as you saw it never showed in the mock (the frame stat was steady but for the
+  pass, now fixed): if it's still there, it's the client's (tell me when: a pass, a reload, hanging).
+- Dragging speed: 80 u/s for the 40 kg box is a guess from Prop Reel Speed's rule (light / mass).
+- A thrown weapon's own box is still the cube round its handle (weapons.qc's "TODO VR: (P1) fix laser cannon bounds"):
+  only the hook uses the body.
+
+### In the headset
+
+- [ ] Gun in the left hand, on the ground: hold X: the rope pays out. A on the right, in the air, as before.
+- [ ] Drop the gun (hook in): both buttons on it. Holster it: drawn without the hook.
+- [ ] Grappling Hook > Buttons on the Gun: move both buttons to your fingertip.
+- [ ] Hang from the ceiling, drop the gun: it stays at the same height (the rope doesn't grow).
+- [ ] Watch the gun in your hand while the hook is out, pass it to the other hand: never the loaded look.
+- [ ] Slack on the floor: still. The rope's end goes into the hook's back, never across it.
+- [ ] Reel a loose hook in: it goes right into the muzzle.
+- [ ] Hook an explosive box and walk away: slow, heavy.
+- [ ] Hook the laser cannon by its barrel.

@@ -116,13 +116,16 @@ float GH_TAG_UNIT   = 256;  // a gun's hook tag is its weapon flags' bits from 8
 float GH_TAG_MAX    = 65535;
 float GH_HOOK_MASS  = 2;    // kg: the loose hook
 float GH_HOOK_HALF  = 3;    // units: half the loose hook's box
-float GH_HOME       = 8;    // units past the loose hook's shortest (from the muzzle) where the reel takes it back in
+float GH_HOME       = 4;    // units past the loose hook's shortest (from the rope's end in the gun) where the reel takes it back in
+float GH_HOOK_GAP   = 2;    // units past half the loose hook's box it comes to, reeled (its tail at the muzzle: VR_Grapple_HookShortest)
 float GH_LOST_TIME  = 0.5;  // seconds a hook's gun may be nowhere (between two moves) before the hook goes
 float GH_RETRACT_TIME = 3;  // seconds at most the quick release takes (then it is back, wherever it was)
 float GH_YANK_TIME  = 0.4;  // seconds a loose hook caught while reeled stays stuck before the reel yanks it free
+float GH_NEAR_GUN   = 24;   // units past where the reel takes it in within which a stuck loose hook is yanked in at once (against your body)
 float GH_STUCK_OVER = 24;   // units past the rope's length (and its GH_HOLD_SLACK) a load that doesn't come holds you back
 float GH_SNAP_OVER  = 128;  // and past which the rope gives (the last resort: it pays out, or the hook comes off)
 float GH_HOOK_TAIL  = -5.5; // the loose hook's rope end on its model (its back: the rope pulls it tail first)
+float GH_HOOK_BACK  = 6.5;  // units behind a hook in something (or flying) its rope starts (its model's; times its scale)
 vector GH_GUN_MUZZLE = '3 -0.4 0.4'; // where a thrown gun's rope starts on it (modelpoint's axes): 2 units inside its muzzle as drawn
                                     // (5.1 -0.4 0.4 at the default Weapon Offsets; the client draws it from the muzzle it draws)
 
@@ -143,6 +146,7 @@ vector GH_GUN_MUZZLE = '3 -0.4 0.4'; // where a thrown gun's rope starts on it (
 .float gh_stamina_at;
 .float gh_stamina_mult;  // 1, or a quarter with no stamina left (vr_grapple_stamina)
 .float gh_log_at;
+.float gh_body_extra;     // a hook that holds you, its gun in your hand: how much farther your body (its rope's end) is than the gun
 .float gh_hurt_at;       // a hooked player's next point of damage (Rogue's)
 .float gh_unreel;        // unreeling since then (0: not)
 .float gh_payout;        // units/s the rope pays out at now: ramping up while A/X unreels, braking to 0 after
@@ -345,6 +349,29 @@ vector(entity h, entity t, vector xAt) VR_Grapple_Local =
         return '1 0 0' * (d * v_forward) + '0 1 0' * (d * v_right) + '0 0 1' * (d * v_up);
     }
     return d;
+};
+
+// The hook's size (vr_grapple_hook_scale, as it was fired: its .scale), which its rope's end on it follows.
+float(entity h) VR_Grapple_HookScale =
+{
+    if(h.scale > 0)
+    {
+        return h.scale;
+    }
+    return 1;
+};
+
+// The size a new hook is fired at (vr_grapple_hook_scale: the model is bigger than the gun it comes from).
+float() VR_Grapple_NewHookScale =
+{
+    return min(2, max(0.2, cvar_hget(cvarh_vr_grapple_hook_scale)));
+};
+
+// Units from the rope's end in the gun the loose hook's tail comes to, reeled (its box's half and a little: at the
+// muzzle), and goes in GH_HOME past it.
+float() VR_Grapple_HookShortest =
+{
+    return GH_HOOK_HALF + GH_HOOK_GAP;
 };
 
 // Where the hook is now, on what it bit (VR_Grapple_Local's inverse).
@@ -863,7 +890,7 @@ void(entity h, string xWhy) VR_Grapple_Loosen =
     VR_Grapple_SetState(h, GS_LOOSE, xWhy);
     h.enemy = h;
     h.gh_kind = GH_PROP;
-    h.gh_ofs = '1 0 0' * GH_HOOK_TAIL; // (the rope pulls it by its tail: it trails prongs last)
+    h.gh_ofs = '1 0 0' * GH_HOOK_TAIL * VR_Grapple_HookScale(h); // (the rope pulls it by its tail: it trails prongs last)
     h.gh_class = 0;
     h.gh_mass = GH_HOOK_MASS;
     h.gh_speed = cvar_hget(cvarh_vr_grapple_prop_speed);
@@ -1234,9 +1261,28 @@ float(entity h) VR_Grapple_FlightProps =
             // Its box first (a hair bigger), then its model as drawn (an item's box is much bigger than it): it bites only
             // what it touches. A brush model (a health box) is its box.
             float t = VR_SegmentBox(a, b, e.absmin - '0.5 0.5 0.5', e.absmax + '0.5 0.5 0.5');
+            float m = -3;
+            if(e.classname == "thrown_weapon")
+            {
+                // A weapon lying about: its body as drawn, first (its box is a cube round its handle, which a long gun,
+                // the laser cannon, reaches well out of).
+                m = hitmodel_any(e, a, b, 0.5);
+                if(VR_Grapple_Debug() >= 2 && m != -1)
+                {
+                    dprint(sprintf("grapple: flight past %s (weapon %g, at %v): its body %s\n", e.classname, e.weapon,
+                        e.origin, m == -2 ? "none (its box)" : m == -1 ? "missed" : sprintf("hit at %.2f", m)));
+                }
+                if(m != -2)
+                {
+                    t = m;
+                }
+            }
             if(t >= 0 && t < bestT)
             {
-                float m = hitmodel_any(e, a, b, 0.5);
+                if(m == -3)
+                {
+                    m = hitmodel_any(e, a, b, 0.5);
+                }
                 if(VR_Grapple_Debug() >= 2)
                 {
                     dprint(sprintf("grapple: flight through %s's box (%v .. %v, %s) at %.2f: its model %s\n",
@@ -1324,6 +1370,7 @@ void (float xHand) W_FireGrapple =
     newmis.frame = 1; // hook spread
 
     setmodel(newmis,"progs/hook.mdl");
+    newmis.scale = VR_Grapple_NewHookScale(); // (the rope's end on it follows: VR_Grapple_HookScale)
     setorigin(newmis, VRGetMuzzlePos(xHand) + v_forward * 6);
     setsize(newmis, '0 0 0' , '0 0 0 ');
 
@@ -1653,20 +1700,24 @@ void(entity h, float xHand, float xDist, float xSpeed, string xWho) VR_Grapple_L
 // ----------------------------------------------------------------------------
 
 // Whether the hook's A/X unreels this frame (self: the player; `xHeld`: the hook's hand's A/X or the other hand's that
-// drives it, VR_Grapple_UnreelHeld; `xReeling`: its B/Y reels, which wins): held, in
-// the air (not on the ground nor swimming, where it is the button's key: A jumps) unless vr_grapple_unreel_airborne is
-// 0, and pressed there (a press that jumped does not unreel once in the air: let go and press again).
+// drives it, VR_Grapple_UnreelHeld; `xReeling`: its B/Y reels, which wins): held, and not jumping (vr_grapple_unreel_airborne:
+// a button whose key jumps, A by default, unreels only in the air; not swimming up), and pressed so (a press that jumped
+// does not unreel once in the air: let go and press again). X (the reload, by default) unreels on the ground too.
 float(entity h, float xHand, float xHeld, float xReeling) VR_Grapple_UnreelButton =
 {
     float held = xHeld;
-    float grounded = FALSE;
+    float grounded = FALSE; // (jumping: the jump key's press jumped, or it is held on the ground or swimming)
     if(cvar_hget(cvarh_vr_grapple_unreel_airborne))
     {
-        if(self.flags & FL_ONGROUND)
+        if(!(self.flags & FL_JUMPRELEASED))
+        {
+            grounded = TRUE; // (PlayerJump cleared .button2 as it jumped)
+        }
+        else if(self.button2 && (self.flags & FL_ONGROUND))
         {
             grounded = TRUE;
         }
-        else if(self.waterlevel >= 2)
+        else if(self.button2 && self.waterlevel >= 2)
         {
             grounded = TRUE; // (A swims up)
         }
@@ -1686,6 +1737,10 @@ float(entity h, float xHand, float xHeld, float xReeling) VR_Grapple_UnreelButto
         {
             dprint(sprintf("grapple: hand %g unreel button on the ground: its key (jump), no unreel\n", xHand));
         }
+    }
+    else if(grounded)
+    {
+        h.gh_unreel_armed = FALSE; // (the jump key came a frame after the button: it jumped)
     }
     h.gh_unreel_held = held;
     if(!held || !h.gh_unreel_armed || grounded || xReeling || cvar_hget(cvarh_vr_grapple_unreel_speed) <= 0)
@@ -1969,6 +2024,43 @@ void(entity h, float xHand, float xReeling) VR_Grapple_ServicePlain =
     }
 };
 
+// The fastest you drag the prop `h` bit along on a taut rope, walking away from it (-1: no limit):
+// vr_grapple_tow_speed up to vr_grapple_tow_light kg, slower in proportion when heavier (an explosive box, 40 kg: a
+// quarter as fast).
+float(entity h) VR_Grapple_TowSpeed =
+{
+    float speed = cvar_hget(cvarh_vr_grapple_tow_speed);
+    float light = max(0.1, cvar_hget(cvarh_vr_grapple_tow_light));
+    if(speed <= 0 || h.gh_mass <= light)
+    {
+        return -1;
+    }
+    return speed * light / h.gh_mass;
+};
+
+// Dragging a heavy prop along (self: the player on the ground, walking away from it on a taut rope, `n` from it to
+// you): its weight holds you back to the speed it is dragged at (VR_Grapple_TowSpeed); the rope then pulls it no faster.
+void(entity h, float xHand, vector n) VR_Grapple_Tow =
+{
+    float tow = VR_Grapple_TowSpeed(h);
+    if(tow < 0 || !(self.flags & FL_ONGROUND))
+    {
+        return;
+    }
+    float away = self.velocity * n;
+    if(away <= tow)
+    {
+        return;
+    }
+    self.velocity = self.velocity - n * (away - tow);
+    if(VR_Grapple_Debug() >= 2 && time >= h.gh_log_at)
+    {
+        h.gh_log_at = time + 0.25;
+        dprint(sprintf("grapple: hand %g tows %s (%.1f kg): you held back from %.0f to %.0f u/s\n", xHand,
+            h.enemy.classname != string_null ? h.enemy.classname : h.enemy.model, h.gh_mass, away, tow));
+    }
+};
+
 void(entity h, float xHand, float xReeling) VR_Grapple_ServiceProp =
 {
     entity t = h.enemy;
@@ -1993,8 +2085,12 @@ void(entity h, float xHand, float xReeling) VR_Grapple_ServiceProp =
     vector n = toGun * (1 / d);
     d = d + gr_bb;
     // It comes right to the gun, hanging GH_PROP_GAP past half its size from the muzzle (to take with the other hand; a
-    // big box stays further).
+    // big box stays further). The loose hook comes to the muzzle itself (VR_Grapple_HookShortest), and goes in.
     float shortest = GH_PROP_GAP + 0.5 * max(t.size_x, max(t.size_y, t.size_z));
+    if(t == h)
+    {
+        shortest = VR_Grapple_HookShortest();
+    }
     float closing = (t.velocity - self.velocity) * n; // how fast it comes, the player's own motion aside
     float want = 0;
     float speed = 0;
@@ -2030,6 +2126,10 @@ void(entity h, float xHand, float xReeling) VR_Grapple_ServiceProp =
         return;
     }
     VR_Grapple_LoadMotion(h, t);
+    if(over > 0 && !xReeling)
+    {
+        VR_Grapple_Tow(h, xHand, n);
+    }
     closing = (t.velocity - self.velocity) * n;
     if(want > 0 && closing < want) // (a slack rope pulls nothing: going away from it doesn't drag it along)
     {
@@ -2301,6 +2401,14 @@ void(entity h) VR_Grapple_ServiceLying =
     }
     if(gg_moved)
     {
+        // Just dropped from a hand that it held you by (its rope measured from your body): the same rope, from the gun.
+        if(VR_Grapple_Debug() && h.gh_body_extra > 0)
+        {
+            dprint(sprintf("grapple: hook %g's rope from the gun now, not your body: %.1f -> %.1f\n", h.gh_tag, h.gh_len,
+                max(0, h.gh_len - h.gh_body_extra)));
+        }
+        h.gh_len = max(0, h.gh_len - h.gh_body_extra);
+        h.gh_body_extra = 0;
         h.gh_len = min(VR_Grapple_MaxLen(), max(h.gh_len, vlen(at - gg_at)));
     }
     if(h.gh_state == GS_FLYING && vlen(h.origin - gg_at) >= VR_Grapple_MaxLen())
@@ -2563,7 +2671,7 @@ void(entity h, float xHand) VR_Grapple_ServiceHeld =
         if(!VR_Grapple_FlightProps(h))
         {
             makevectors_mdl(h.angles);
-            GrappleTrail(h, h.origin - v_forward * 6.5, 0);
+            GrappleTrail(h, h.origin - v_forward * GH_HOOK_BACK * VR_Grapple_HookScale(h), 0);
             return;
         }
     }
@@ -2584,6 +2692,13 @@ void(entity h, float xHand) VR_Grapple_ServiceHeld =
     }
     vector at = VR_Grapple_HookPoint(h);
     VR_Grapple_RopeShape(h);
+    // (Its rope measured from your body: how much farther that is than the gun, so that the gun dropped keeps the rope's
+    // length: VR_Grapple_ServiceLying.)
+    h.gh_body_extra = 0;
+    if(gg_player != world && h.gh_kind != GH_PROP)
+    {
+        h.gh_body_extra = max(0, vlen(gr_pa - gg_player.origin) - vlen(gr_pa - gg_at));
+    }
     if(gg_moved)
     {
         // The rope from the gun's new place: long enough to reach (never pulling anything at once).
@@ -2600,7 +2715,7 @@ void(entity h, float xHand) VR_Grapple_ServiceHeld =
                 self.origin, self.velocity));
         }
         VR_Grapple_AutoPull(h, xHand);
-        GrappleTrail(h, at - hookfwd * 6.5, 0);
+        GrappleTrail(h, at - hookfwd * GH_HOOK_BACK * VR_Grapple_HookScale(h), 0);
         return;
     }
 
@@ -2613,7 +2728,7 @@ void(entity h, float xHand) VR_Grapple_ServiceHeld =
     if(h.gh_state == GS_LOOSE)
     {
         float d = vlen(at - gg_at);
-        float home = GH_PROP_GAP + GH_HOOK_HALF + GH_HOME;
+        float home = VR_Grapple_HookShortest() + GH_HOME;
         if(!VR_Grapple_Movable(h))
         {
             // Carried (by a hand) or flying to one: the rope pays out; reeled with it at the gun, it goes back in.
@@ -2625,6 +2740,10 @@ void(entity h, float xHand) VR_Grapple_ServiceHeld =
         }
         if(reeling && d <= home)
         {
+            if(VR_Grapple_Debug())
+            {
+                dprint(sprintf("grapple: hook %g reeled home %.1f units from the rope's end in the gun\n", h.gh_tag, d));
+            }
             VR_Grapple_Home(h, "reeled in");
             return;
         }
@@ -2636,10 +2755,28 @@ void(entity h, float xHand) VR_Grapple_ServiceHeld =
             {
                 h.gh_stall_at = time;
             }
-            if(time - h.gh_stall_at >= GH_YANK_TIME)
+            // (Stopped short at the gun, against your body or hand: flies the last bit in at once.)
+            float yankAfter = GH_YANK_TIME;
+            if(d <= home + GH_NEAR_GUN)
+            {
+                yankAfter = 0.1;
+            }
+            if(time - h.gh_stall_at >= yankAfter)
             {
                 h.gh_stall_at = 0;
-                VR_Grapple_Retract(h, "the reel yanks it free");
+                if(VR_Grapple_Debug())
+                {
+                    dprint(sprintf("grapple: hook %g stuck %.1f units from the rope's end in the gun (path %.1f)\n",
+                        h.gh_tag, d, gr_path));
+                }
+                if(yankAfter < GH_YANK_TIME)
+                {
+                    VR_Grapple_Retract(h, "stopped short at the gun");
+                }
+                else
+                {
+                    VR_Grapple_Retract(h, "the reel yanks it free");
+                }
                 h.gh_prev_d = 0;
                 GrappleTrail(h, h.origin, 0);
                 return;
@@ -2691,7 +2828,7 @@ void(entity h, float xHand) VR_Grapple_ServiceHeld =
     {
         slack = max(0, h.gh_len - gr_path) / h.gh_len;
     }
-    GrappleTrail(h, at - hookfwd * 6.5, slack);
+    GrappleTrail(h, at - hookfwd * GH_HOOK_BACK * VR_Grapple_HookScale(h), slack);
 };
 
 // ----------------------------------------------------------------------------
@@ -2707,6 +2844,7 @@ void(entity h) VR_Grapple_Service =
     }
     h.gh_served = time;
     float found = VR_Grapple_FindGun(h);
+    float moved = gg_moved;
     if(gg_moved && VR_Grapple_Debug())
     {
         string where = "nowhere";
@@ -2788,6 +2926,7 @@ void(entity h) VR_Grapple_Service =
         }
         if(VR_Grapple_FindGun(h))
         {
+            gg_moved = moved; // (the first FindGun above kept its place: this one's is where it was)
             VR_Grapple_ServiceLying(h);
         }
     }
@@ -2826,6 +2965,22 @@ void() VR_Grapple_PlayerFrame =
             }
         }
         s = VR_Grapple_NextHolster(s);
+    }
+};
+
+// Last in the player's frame (client.qc PlayerPostThink): a grappling gun in a hand whose hook is out is drawn empty
+// (frame 2; 0 is the hook in it), whatever set its frame since VR_Grapple_PlayerFrame (a pass from the other hand, the
+// reload's player_run, W_SetCurrentAmmo): it flashed full for a frame.
+void() VR_Grapple_GunFrames =
+{
+    float hand = cVR_OffHand;
+    while(hand <= cVR_MainHand)
+    {
+        if(VRGetWeapon(hand) == WID_GRAPPLE && getHookOut(hand) && VRGetWeaponFrame(hand) == 0)
+        {
+            VRSetWeaponFrame(hand, 2);
+        }
+        hand = hand + 1;
     }
 };
 
@@ -2880,7 +3035,8 @@ void() VR_Grapple_Report =
             h.enemy == world ? "the world" : h.enemy == h ? "itself" : h.enemy.classname, where));
         VR_Grapple_RopeShape(h);
         dprint(sprintf("path %.1f, ", gr_path));
-        dprint(sprintf("rope %.1f, gun to hook %.1f, hook at %v\n", h.gh_len, found ? vlen(at - gg_at) : -1, at));
+        dprint(sprintf("rope %.1f, gun to hook %.1f, hook at %v, size %.2f\n", h.gh_len, found ? vlen(at - gg_at) : -1, at,
+            VR_Grapple_HookScale(h)));
         // (tests: the hook's and the gun's motion; which way a hook's prongs point: 1 straight away from the gun, -1 at it)
         makevectors_mdl(h.angles);
         dprint(sprintf("grapple report: hook %g motion: time %.2f, hook moving %v (%.1f u/s), prongs away from the gun %.2f", h.gh_tag,

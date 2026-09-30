@@ -3874,6 +3874,42 @@ bool ropeCast(const glm::vec3& from, const glm::vec3& to, float radius, int skip
     return q.any;
 }
 
+bool castAt(int num, const glm::vec3& from, const glm::vec3& to, float radius, float& fraction, bool& hasBody)
+{
+    fraction = 1.f;
+    hasBody = world && num > 0 && num < static_cast<int>(world->slots.size()) &&
+              B3_IS_NON_NULL(world->slots[static_cast<std::size_t>(num)].body);
+    if(!hasBody || glm::distance(from, to) < 1e-3f)
+    {
+        return false;
+    }
+    struct Query
+    {
+        int num;
+        float fraction;
+        bool any;
+    } q{num, 1.f, false};
+    const b3Vec3 zero = b3Vec3_zero;
+    const b3ShapeProxy proxy{&zero, 1, std::max(radius, 0.01f) / world->m2u};
+    b3World_CastShape(world->id, world->toM(from), &proxy, world->toM(to - from), ropeFilter(),
+        [](b3ShapeId shape, b3Pos, b3Vec3, float f, uint64_t, int, int, void* context) -> float {
+            Query& cq = *static_cast<Query*>(context);
+            if(numOf(shape) != cq.num)
+            {
+                return -1.f; // (not this one)
+            }
+            if(f < cq.fraction)
+            {
+                cq.fraction = f;
+                cq.any = true;
+            }
+            return f;
+        },
+        &q);
+    fraction = q.fraction;
+    return q.any;
+}
+
 bool ropeOverlaps(const glm::vec3& at, float radius, int skipA, int skipB)
 {
     if(!world)

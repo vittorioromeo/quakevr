@@ -2039,6 +2039,13 @@ std::vector<Item> pageDebugTests()
     };
 }
 
+// The grappling gun's own Weapon Offsets setting (its button's place), for its page; none without its slot.
+[[nodiscard]] cvar_t* grappleButton(weapons::Key key)
+{
+    const int slot = weapons::slotForName("progs/v_grpple.mdl");
+    return slot >= 0 ? weapons::cvar(slot, key) : nullptr;
+}
+
 [[nodiscard]] std::vector<Item> pageGrapple()
 {
     return {
@@ -2062,15 +2069,28 @@ std::vector<Item> pageDebugTests()
         toggle("Shoot the Hook Off", vr_grapple_shootable)
             .help("A hook in a wall, a floor or a door comes off when you shoot it (any weapon): get it back when it is "
                   "stuck or its gun is out of reach."),
+        slider("Reel-In Button Speed", vr_grapple_quick_speed, 300.f, 4000.f, 100.f, "%.0f u/s").extend(100.f, 10000.f)
+            .help("How fast the hook flies back into the gun when you press the front button."),
+        slider("Hook Size", vr_grapple_hook_scale, 0.3f, 1.f, 0.05f, "%.2f").extend(0.2f, 2.f)
+            .help("The size of the hook the gun fires (1: the mission pack's, too big for the gun). From the next shot."),
+
+        header("Buttons on the Gun"),
+        slider("Back Button Along", grappleButton(weapons::Key::WpnButtonX), -20.f, 20.f, 0.1f, "%.1f").extend(-60.f, 60.f)
+            .help("Where the back button (the detach) is on the gun: towards the muzzle (model units; the grappling gun's "
+                  "Weapon Offsets button place). The front button moves with it."),
+        slider("Back Button Side", grappleButton(weapons::Key::WpnButtonY), -10.f, 10.f, 0.1f, "%.1f").extend(-40.f, 40.f)
+            .help("Towards the gun's left (model units)."),
+        slider("Back Button Up", grappleButton(weapons::Key::WpnButtonZ), -10.f, 10.f, 0.1f, "%.1f").extend(-40.f, 40.f)
+            .help("Up (model units)."),
         toggle("Front Button", vr_grapple_front_button)
             .help("The gun's second button, near the muzzle: press it with the other hand's finger and the hook comes "
                   "straight back into the gun (through anything). The back button, over the grip, only detaches it."),
-        slider("Front Button Along", vr_grapple_front_button_x, -20.f, 30.f, 0.5f, "%.1f").extend()
+        slider("Front Button Along", vr_grapple_front_button_x, -20.f, 30.f, 0.1f, "%.1f").extend()
             .help("Where the front button is: from the back button along the gun, towards the muzzle (model units)."),
-        slider("Front Button Side", vr_grapple_front_button_y, -10.f, 10.f, 0.5f, "%.1f").extend(),
-        slider("Front Button Up", vr_grapple_front_button_z, -10.f, 10.f, 0.5f, "%.1f").extend(),
-        slider("Reel-In Button Speed", vr_grapple_quick_speed, 300.f, 4000.f, 100.f, "%.0f u/s").extend(100.f, 10000.f)
-            .help("How fast the hook flies back into the gun when you press the front button."),
+        slider("Front Button Side", vr_grapple_front_button_y, -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("From the back button, towards the gun's left (model units)."),
+        slider("Front Button Up", vr_grapple_front_button_z, -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("From the back button, up (model units)."),
 
         header("Rope"),
         toggle("Physical Rope", vr_grapple_rope_sim)
@@ -2086,6 +2106,9 @@ std::vector<Item> pageDebugTests()
         slider("Rope Thickness", vr_grapple_rope_radius, 0.25f, 4.f, 0.25f, "%.2f").extend(0.1f, 8.f)
             .help("Half the rope's thickness (units): how far its corners keep from the edges it wraps round, and the "
                   "drawn rope from what it lies on."),
+        slider("Rope Straight Out of the Hook", vr_grapple_rope_tail, 0.f, 12.f, 0.5f, "%.1f").extend(0.f, 16.f)
+            .help("How far the drawn rope goes straight out of the hook's back before it bends (units, at the hook's full "
+                  "size): its last pieces point into the hook, not across it. 0: it bends right at the hook."),
         slider("Rope Depth in the Gun", vr_grapple_rope_depth, 0.f, 8.f, 0.5f, "%.1f").extend(-1.f, 16.f)
             .help("How far inside the muzzle the rope is drawn from (units), in the hand and with the gun lying about. "
                   "-1: the old places."),
@@ -2117,8 +2140,9 @@ std::vector<Item> pageDebugTests()
                   "you let yourself down from a ceiling, a monster or a prop can go farther. Let go and the rope keeps its "
                   "length. 0: no unreel."),
         toggle("Unreel Button Only When Airborne", vr_grapple_unreel_airborne)
-            .help("On: A or X unreels only in the air; on the ground it jumps (or reloads) as ever, and a press that "
-                  "jumped does not unreel until pressed again. Off: it unreels anywhere, its key still pressed too."),
+            .help("On: a button that jumps (A) unreels only in the air: on the ground it jumps as ever, and a press that "
+                  "jumped does not unreel until pressed again; X (the reload) unreels on the ground too. Off: either "
+                  "unreels anywhere, its key still pressed too."),
 
         header("Props"),
         slider("Prop Reel Speed", vr_grapple_prop_speed, 100.f, 1500.f, 25.f, "%.0f u/s").extend(25.f, 3000.f)
@@ -2129,6 +2153,12 @@ std::vector<Item> pageDebugTests()
                   "half as fast). Masses: Held Object Offsets."),
         slider("Too Heavy From", vr_grapple_prop_anchor, 10.f, 500.f, 5.f, "%.0f kg").extend(1.f, 10000.f)
             .help("A prop this heavy does not come: the reel pulls you to it, as to a wall."),
+        slider("Dragging: Light Up To", vr_grapple_tow_light, 1.f, 100.f, 1.f, "%.0f kg").extend(0.1f, 1000.f)
+            .help("Walking away from a hooked prop on a taut rope drags it along: up to this mass, at the Dragging Speed; "
+                  "heavier, its weight holds you back, in proportion (twice as heavy: half as fast; an explosive box is "
+                  "40 kg)."),
+        slider("Dragging Speed", vr_grapple_tow_speed, 0.f, 600.f, 10.f, "%.0f u/s").extend(0.f, 2000.f)
+            .help("The fastest you walk dragging a light prop on a taut rope. 0: no limit (it comes at your speed)."),
 
         header("Monsters"),
         slider("Small Up To", vr_grapple_small_mass, 20.f, 600.f, 10.f, "%.0f kg").extend(0.f, 10000.f)

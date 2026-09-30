@@ -286,14 +286,13 @@ void(float xHand) player_grapple2 =
 
 void(float xHand) player_grapple3 =
 {
-    setHandThinkWithArg(xHand, $axattd3, player_grapple3);
-    VRSetWeaponFrame(xHand, 2);
-
     if(!getHookOut(xHand))
     {
-        player_grapple5(xHand);
+        player_grapple5(xHand); // (QVR: the hook back in, drawn so at once: not empty for another tenth of a second)
         return;
     }
+    setHandThinkWithArg(xHand, $axattd3, player_grapple3);
+    VRSetWeaponFrame(xHand, 2);
 
     if(vlen(getHook(xHand).origin - self.origin) >= 50)
     {
@@ -307,14 +306,13 @@ void(float xHand) player_grapple3 =
 
 void(float xHand) player_grapple4 =
 {
-    setHandThinkWithArg(xHand, $deathc4, player_grapple4);
-    VRSetWeaponFrame(xHand, 2);
-
     if(!getHookOut(xHand))
     {
         player_grapple5(xHand);
         return;
     }
+    setHandThinkWithArg(xHand, $deathc4, player_grapple4);
+    VRSetWeaponFrame(xHand, 2);
 
     if(vlen(getHook(xHand).origin - self.origin) < 50 || !getOnHook(xHand))
     {
@@ -326,6 +324,7 @@ void(float xHand) player_grapple4 =
 void(float xHand) player_grapple5 =
 {
     setHandThinkWithArg(xHand, $axattd4, player_run);
+    VRSetWeaponFrame(xHand, 0); // (QVR: the hook in the gun)
 };
 
 //--ZOID

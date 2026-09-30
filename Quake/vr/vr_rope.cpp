@@ -70,6 +70,10 @@ struct Chain
     std::vector<int> pins;       // each path point's (the gun, the corners, the hook) index in p
     std::vector<glm::vec3> drawn; // the points drawn: p, a piece still through the world taken round what it meets
     float lastDt{0.f};
+    float fastest{0.f};          // the farthest a free point moved this step (units: vr_grapple_rope_draw_dump), which
+    int fastestAt{-1};
+    bool tail{false};            // its last pin is the hook's tail (hookTail), not a corner
+    float endAngle{-1.f};        // degrees between the drawn rope's last few units and the hook's length (-1: no hook)
     double time{-1.0};           // realtime of its last step
 };
 std::unordered_map<int, Chain> chains;
@@ -92,6 +96,7 @@ struct Mesh
 {
     const aliashdr_t* hdr{nullptr};
     std::vector<gfx::BentVertex> vertices;
+    float xMax{0.f}; // a link's far end (model units along the rope)
     gfx::Texture skin{0};
     gfx::Texture fullbright{0};
 };
@@ -147,6 +152,7 @@ struct Queued
     int firstSample;
     int samples;
     int copies;
+    float period; // model units from one link to the next (linkPeriod, less so that the last ends at the hook)
     float scale;
     glm::vec3 light;
 };
@@ -184,6 +190,7 @@ const Mesh* meshOf(qmodel_t* model)
     const float vs = 1.f / static_cast<float>(TexMgr_PadConditional(hdr->skinheight));
     m.vertices.clear();
     m.vertices.reserve(hdr->numindexes);
+    m.xMax = -1e9f;
     for(int i = 0; i < hdr->numindexes; i++)
     {
         const aliasmesh_t& d = desc[indexes[i]];
@@ -193,6 +200,7 @@ const Mesh* meshOf(qmodel_t* model)
             hdr->scale[2] * t.v[2] + hdr->scale_origin[2], 0.f};
         v.uv = {hs * (static_cast<float>(d.st[0]) + 0.5f), vs * (static_cast<float>(d.st[1]) + 0.5f), 0.f, 0.f};
         m.vertices.push_back(v);
+        m.xMax = std::max(m.xMax, v.pos.x);
     }
     return &m;
 }
@@ -405,10 +413,12 @@ void resample(const glm::vec3* pts, int count, int n, std::vector<glm::vec3>& ou
 }
 
 // The chain `ch` stepped for this frame along `path` (the gun, the corners, the hook), `slack` of its length hanging (0 ..
-// 1): the pieces between two pins share the slack by their lengths.
+// 1): the pieces between two pins share the slack by their lengths. Its last piece straight when `ch.tail` (out of the
+// hook's back: hookTail).
 void stepChain(Chain& ch, const std::vector<glm::vec3>& path, float slack)
 {
     const int pieces = static_cast<int>(path.size()) - 1;
+    const int straightPiece = ch.tail ? pieces - 1 : -1;
     std::vector<float>& lengths = scratch.lengths;
     std::vector<int>& counts = scratch.counts;
     lengths.assign(static_cast<std::size_t>(pieces), 0.f);
@@ -416,7 +426,7 @@ void stepChain(Chain& ch, const std::vector<glm::vec3>& path, float slack)
     float straight = 0.f;
     for(int i = 0; i < pieces; i++)
     {
-        straight += glm::distance(path[static_cast<std::size_t>(i)], path[static_cast<std::size_t>(i) + 1]);
+        straight += i == straightPiece ? 0.f : glm::distance(path[static_cast<std::size_t>(i)], path[static_cast<std::size_t>(i) + 1]);
     }
     const float total = straight / std::max(0.02f, 1.f - std::clamp(slack, 0.f, 1.f));
     const float spacing =
@@ -424,7 +434,13 @@ void stepChain(Chain& ch, const std::vector<glm::vec3>& path, float slack)
     for(int i = 0; i < pieces; i++)
     {
         const float d = glm::distance(path[static_cast<std::size_t>(i)], path[static_cast<std::size_t>(i) + 1]);
-        const float share = straight > 1e-3f ? d / straight : 1.f / static_cast<float>(pieces);
+        if(i == straightPiece)
+        {
+            lengths[static_cast<std::size_t>(i)] = d;
+            counts[static_cast<std::size_t>(i)] = 1;
+            continue;
+        }
+        const float share = straight > 1e-3f ? d / straight : 1.f / static_cast<float>(pieces - (straightPiece >= 0 ? 1 : 0));
         lengths[static_cast<std::size_t>(i)] = d + (total - straight) * share;
         counts[static_cast<std::size_t>(i)] =
             std::max(1, static_cast<int>(std::ceil(lengths[static_cast<std::size_t>(i)] / spacing)));
@@ -528,9 +544,9 @@ void stepChain(Chain& ch, const std::vector<glm::vec3>& path, float slack)
                 const float wb = pinned[static_cast<std::size_t>(j) + 1] ? 0.f : 1.f;
                 const glm::vec3 d = b - a;
                 const float len = glm::length(d);
-                if(len < 1e-5f || wa + wb <= 0.f)
+                if(len <= rest || wa + wb <= 0.f)
                 {
-                    continue;
+                    continue; // (a rope pulls, it doesn't push: bunched up, its slack lies still rather than shoving)
                 }
                 const glm::vec3 corr = d * ((len - rest) / (len * (wa + wb)));
                 a += corr * wa;
@@ -545,14 +561,49 @@ void stepChain(Chain& ch, const std::vector<glm::vec3>& path, float slack)
     const float rad = std::clamp(vr_grapple_rope_radius.value, 0.1f, 8.f);
     for(std::size_t i = 0; i < ch.p.size(); i++)
     {
-        if(pinned[i] || glm::distance(from[i], ch.p[i]) < 1e-4f)
+        if(pinned[i])
         {
+            continue;
+        }
+        // Lying on the floor: held its thickness over it, its speed into it gone and some of its speed along it lost.
+        // (A point moved only by the trace below sank through the thickness each frame and was put back on top: the
+        // slack on the floor bounced by the thickness, many times a second.)
+        const auto settle = [&] {
+            const trace_t down = worldtrace::world(ch.p[i], ch.p[i] - glm::vec3{0.f, 0.f, rad});
+            if(down.startsolid || down.allsolid || down.fraction >= 1.f)
+            {
+                return;
+            }
+            const glm::vec3 n = worldtrace::normal(down);
+            if(n.z < 0.3f)
+            {
+                return;
+            }
+            const glm::vec3 on = worldtrace::endPos(down) + n * rad;
+            const float up = glm::dot(on - ch.p[i], n);
+            if(up <= 0.f || worldtrace::world(ch.p[i], on).fraction < 1.f)
+            {
+                return;
+            }
+            glm::vec3 v = ch.p[i] - ch.prev[i];
+            v -= n * std::min(0.f, glm::dot(v, n));
+            v -= (v - n * glm::dot(v, n)) * (1.f - chainSlide);
+            ch.p[i] += n * up;
+            ch.prev[i] = ch.p[i] - v;
+        };
+        if(glm::distance(from[i], ch.p[i]) < 1e-4f)
+        {
+            settle();
             continue;
         }
         const glm::vec3 was = from[i], to = ch.p[i];
         const trace_t tr = worldtrace::world(was, to);
         if(tr.startsolid || tr.allsolid || tr.fraction >= 1.f)
         {
+            if(!tr.startsolid && !tr.allsolid)
+            {
+                settle();
+            }
             continue;
         }
         const glm::vec3 n = worldtrace::normal(tr);
@@ -575,6 +626,7 @@ void stepChain(Chain& ch, const std::vector<glm::vec3>& path, float slack)
         glm::vec3 along = to - was;
         along -= n * glm::dot(along, n);
         ch.prev[i] = ch.p[i] - along * chainSlide;
+        settle();
     }
     for(std::size_t i = 0; i + 1 < ch.p.size(); i++)
     {
@@ -628,6 +680,16 @@ void stepChain(Chain& ch, const std::vector<glm::vec3>& path, float slack)
             }
         }
         ch.drawn.push_back(ch.p[i + 1]);
+    }
+    ch.fastest = 0.f;
+    ch.fastestAt = -1;
+    for(std::size_t i = 0; i < ch.p.size() && !rebuild; i++)
+    {
+        if(!pinned[i] && glm::distance(ch.p[i], from[i]) > ch.fastest)
+        {
+            ch.fastest = glm::distance(ch.p[i], from[i]);
+            ch.fastestAt = static_cast<int>(i);
+        }
     }
     ch.lastDt = dt;
     ch.time = now;
@@ -763,9 +825,11 @@ void drawDump_f()
             length += glm::distance(ch.drawn[i], ch.drawn[i + 1]);
         }
         Con_Printf("rope drawn %d: %d points, %d corners, length %.1f, lowest %.1f; %d points inside the world, %d pieces "
-                   "through it\n",
-            key & 0xFFFF, static_cast<int>(ch.drawn.size()), static_cast<int>(ch.pins.size()) - 2, static_cast<double>(length),
-            static_cast<double>(lowest), inside, crossing);
+                   "through it; most a point moved %.2f units in %.1f ms (%d of %zu, at z %.1f); into the hook %.0f degrees off\n",
+            key & 0xFFFF, static_cast<int>(ch.drawn.size()), static_cast<int>(ch.pins.size()) - 2 - (ch.tail ? 1 : 0),
+            static_cast<double>(length), static_cast<double>(lowest), inside, crossing, static_cast<double>(ch.fastest),
+            1000.0 * static_cast<double>(ch.lastDt), ch.fastestAt, ch.p.size(), ch.fastestAt >= 0 ? static_cast<double>(ch.p[static_cast<std::size_t>(ch.fastestAt)].z) : 0.0,
+            static_cast<double>(ch.endAngle));
     }
 }
 
@@ -864,7 +928,7 @@ void drawOpaque()
         d.curveFirst = curveBase + 3 * q.firstSample;
         d.samples = q.samples;
         d.copies = q.copies;
-        d.period = linkPeriod;
+        d.period = q.period;
         d.scale = q.scale;
         d.skin = q.mesh->skin;
         d.fullbright = q.mesh->fullbright;
@@ -912,6 +976,46 @@ extern "C" void VR_ForgetEndedRopes()
     }
 }
 
+// The rope's end at the hook (`b`: its tail, where the server has the rope start on it) goes into the hook along its
+// length: the point `tailLength` (times its size) out of its back, clear of the world, into `out` (false: no hook there,
+// a Rogue grapple's rope). The hook is the nearest progs/hook.mdl within a few units.
+bool hookTail(const glm::vec3& b, glm::vec3& out, glm::vec3& dir)
+{
+    const float tailLength = std::clamp(vr_grapple_rope_tail.value, 0.f, 16.f);
+    const entity_t* best = nullptr;
+    float bestD = 12.f;
+    for(int i = 1; i < cl.num_entities; i++)
+    {
+        const entity_t& e = cl_entities[i];
+        if(!e.model || e.msgtime != cl.mtime[0] || strcmp(e.model->name, "progs/hook.mdl"))
+        {
+            continue;
+        }
+        const float d = glm::distance(glm::vec3{e.origin[0], e.origin[1], e.origin[2]}, b);
+        if(d < bestD)
+        {
+            bestD = d;
+            best = &e;
+        }
+    }
+    if(!best)
+    {
+        return false;
+    }
+    vec3_t angles{-best->angles[0], best->angles[1], best->angles[2]}, f, r, u; // (alias models' pitch is the other way)
+    AngleVectors(angles, f, r, u);
+    const float scale = best->scale ? static_cast<float>(best->scale) / static_cast<float>(ENTSCALE_DEFAULT) : 1.f;
+    dir = glm::vec3{f[0], f[1], f[2]};
+    const glm::vec3 back = b - dir * (tailLength * scale);
+    const trace_t tr = worldtrace::world(b, back);
+    if(tr.startsolid || tr.allsolid)
+    {
+        return false;
+    }
+    out = tr.fraction < 1.f ? glm::mix(b, back, std::max(0.f, tr.fraction - 0.1f)) : back;
+    return glm::distance(out, b) > 0.5f;
+}
+
 extern "C" int VR_DrawRope(int ent, qmodel_t* model, const float* start, const float* end)
 {
     const auto it = slacks.find(ent);
@@ -950,12 +1054,36 @@ extern "C" int VR_DrawRope(int ent, qmodel_t* model, const float* start, const f
         {
             path.insert(path.end(), c->second.corners.begin(), c->second.corners.end());
         }
+        // Into the hook along it, not across it (the last pieces hung from its tail any way, and the last link stuck out
+        // through its side).
+        glm::vec3 tail, dir{0.f};
+        const bool hasTail = hookTail(b, tail, dir) && glm::distance(path.back(), tail) > 1.f;
+        if(hasTail)
+        {
+            path.push_back(tail);
+        }
         path.push_back(b);
         if(vr_grapple_sag.value)
         {
             Chain& ch = chains[ent];
+            ch.tail = hasTail;
             stepChain(ch, path, r.shown);
             simPoints(ch.drawn, a, b, pts, length);
+            // (vr_grapple_rope_draw_dump: how far the rope's last 3 units turn from the hook's length.)
+            ch.endAngle = -1.f;
+            if(dir != glm::vec3{0.f} && pts.size() >= 2)
+            {
+                std::size_t k = pts.size() - 2;
+                while(k > 0 && glm::distance(pts[k], pts.back()) < 3.f)
+                {
+                    k--;
+                }
+                const glm::vec3 d = pts.back() - pts[k];
+                if(glm::length(d) > 0.1f)
+                {
+                    ch.endAngle = glm::degrees(std::acos(std::clamp(glm::dot(glm::normalize(d), dir), -1.f, 1.f)));
+                }
+            }
             if(vr_debug_rope.value)
             {
                 debugRopes.push_back({ch.drawn, path});
@@ -984,7 +1112,16 @@ extern "C" int VR_DrawRope(int ent, qmodel_t* model, const float* start, const f
         return 1; // (its ends together: nothing to draw)
     }
     q.scale = VR_BeamScale(model);
-    q.copies = std::max(1, static_cast<int>(std::ceil(total / (linkPeriod * q.scale))));
+    // The links from the gun, the last one ending at the hook (not past it, along the rope's end: it stuck out of the
+    // hook): a little closer together to fit.
+    const float along = total / q.scale; // model units
+    q.period = linkPeriod;
+    q.copies = 1;
+    if(along > mesh->xMax + 0.01f)
+    {
+        q.copies = 1 + static_cast<int>(std::ceil((along - mesh->xMax) / linkPeriod));
+        q.period = (along - mesh->xMax) / static_cast<float>(q.copies - 1);
+    }
     q.light = worldLight(pts[pts.size() / 2]);
     queued.push_back(q);
 
