@@ -38,7 +38,11 @@ Laser cannon headshots play the headshot sound
 Spectator view has no flat HUD (Graphics > Recording to show it)
 Narrower Monsters (now on by default): monsters behave normally in real levels
 
+Chainsaw on the firing range (east of the explosive boxes): cut heads and gibs on the floor; swing with the engine off (engine sound keeps playing); your hotspots are where you left them
+
 [Decide or give feedback]
+Chainsaw hotspot 2 is a grip at the model's origin (rear handle): intended?
+Chainsaw sounds: which candidates to download (see chat)
 Function-local non-std statics (two text buffers, lastOut in vr_handpose): move them to the scratch/state pattern too?
 
 [Tune]
