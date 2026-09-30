@@ -15680,7 +15680,7 @@ state (a Quake VR game running). With a map loaded it did work (all seven rows).
 ### Tests
 
 - `vr_bigfont` with id1: the three pictures read, 25 of 25 letters cut (texture 537 x 24).
-- Before/after (`vr_menu_bigfont 0` / `1`), the flat window and the left eye (`vr_eyeshot 3`, e1m1's start map): the
+- Before/after (`vr_menu_bigfont 0` / `1`), the flat window and the left eye (`vr_eyeshot 3`, in map start): the
   same layout, VR Calibration now in the others' letters.
 - Laser, mock (`vr_mock_laser 150 <42 + 20 * row>`, then `menu_vr pos`): every row, VR Calibration to Quit, before a map
   (it did nothing there before) and in a map. The real ray (`vr_mock_hand main 0.15 1.45 -0.3 <pitch> 0 0`, pitch 62 to
