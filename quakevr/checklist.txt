@@ -42,6 +42,10 @@ Chainsaw on the firing range (east of the explosive boxes): cut heads and gibs o
 
 Switch weapons back and forth, draw and holster: grips look exactly as before, no stutter on repeat switches
 
+Turn a held health/ammo/explosive box and a gib in each hand (also force-grabbed): nothing pushes the hand
+Press the empty hand into a prop held by the other hand: it stops on it (give 10 cm: firm enough?)
+Reach for an explosive box: pushed and grabbed only when the fist is on it
+
 [Decide or give feedback]
 Optimization follow-ups: solve weapon grips at map load (+30-60 ms load)? voice-note screenshot on a background thread? a Low graphics preset (render resolution, foveation, decal cap)?
 Chainsaw hotspot 2 is a grip at the model's origin (rear handle): intended?
