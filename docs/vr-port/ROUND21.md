@@ -13972,3 +13972,53 @@ points instead of 55); slack round the doorway's jamb: 0.071 and 0.011 (old: 0.0
 - [ ] Reel a loose hook in: it goes right into the muzzle.
 - [ ] Hook an explosive box and walk away: slow, heavy.
 - [ ] Hook the laser cannon by its barrel.
+
+## Player hitbox defaults: 16 wide, the compiled hull; shots hit a 24-wide box
+
+NOTES.md e1m1_2026-09-30_02-19-27, e1m3_2026-09-30_02-34-01 and 02-34-18. Branch `agent/hulldef`. Details in HULLS.md.
+
+### What changed
+
+- **Defaults** (`vr_cvars.inc`): `vr_hull_width` 16 (was 0, Quake's box), `vr_hull_method` 1 (the compiled hull, method A;
+  already the default). `vr_hull_ent_width` stays -1 (Same as Walls), so monsters, players and solid boxes meet 16 too.
+  Config 51 moves a config's `vr_hull_width "0"` to 16; a width the player chose stays.
+- **Width Shots Hit** (`vr_hull_hit_width`, 24; 0 Quake's 32; Movement > Player Hitbox): the box that shots and
+  missiles hit on a player. In `SV_ClipMoveToBoxEntityQVR` (world.c) any move that isn't a body's (hitscan traces,
+  missiles, grenades, gibs: `moveclip_t.bodymove` false) meets a player's box narrowed to it about its centre, its height
+  kept (`hull::hitBox`, `VR_HullHitBox`). Bodies moving into the player (monsters, a fiend's leap) keep the entity width.
+- **What monsters' AI uses** (unchanged, checked in the QC): melee blows (`ai_melee` 60 units, the dog's bite and the
+  ogre's chainsaw 100) go by the distance between origins; splash (`T_RadiusDamage`) by the distance to the box's centre,
+  and `CanDamage`'s traces are nomonsters; sight (`visible`) is nomonsters and `range` uses origins; pathing
+  (`SV_CloseEnough`) compares the player's `absmin`/`absmax`, which stay Quake's box. `CheckAttack`'s traceline (eye to
+  eye, must hit the player) ends at the box's centre line, inside any width. Grenades already go off only within the
+  body's capsule (`VR_Grenade_OnBody`, the hands catch the rest): at 24 a grenade passing 12-16 units from your centre
+  flies past instead of bouncing off an invisible box edge.
+- **`vr_hull_hittest [distance] [spread]`** (Player Hitbox page and Debug > Tests: Shots Hit Test): 200 grunt-like shots
+  from each open direction round you, fixed seed: how many hit at the current width.
+- **Motion replays** (`vr_motion_play.cpp`): `vr_hull_*` are placing settings now (a take replays with its own), and a
+  take recorded before them replays with Quake's box (width, entity width and hit width 0), as the hand calibration's
+  rule does. Without it, `slash_horizontal_rtl_2026-09-29_23-10-50` went PASS -> FAIL at 16 (the body stood closer to the
+  dummy and the pommel met it first).
+
+### Numbers
+
+- `vr_hull_hittest` on e1m1's start (1 open direction, 200 shots): at 150 units 200 / 197 / 168 hit at 32 / 24 / 16;
+  at 300 units 165 / 135 / 99; at 600 units 78 / 63 / 39.
+- Monsters left to attack a standing player (5000 health, skill 1, e1m1's start, `hit_test.sh`, 1500 frames; health lost
+  at Quake's 32 / at 24): grunt at 150 units (3000 frames) 496 / 512 (16: 480); grunt at 300: 268 / 240; ogre at 250:
+  648 / 582; knight at 150: 329 / 369; dog at 200: 337 / 311. Random, so equal within noise; every one hits at 24.
+- Ogre grenades (`ogre_test.sh`, notarget, 10 throws on command from 250 units): 10 of 10 direct hits at both widths,
+  357 / 349 lost. Stepping aside after the throw (`splash_test.sh`): 11 units, 10 direct hits at both; 13-14 units, none
+  at either (the grenade's own capsule rule), 3-16 lost from far splashes.
+- Random walks with the defaults (`walk_test.sh`, `god; notarget`, seed 7): e1m1, e1m3, e4m1 90 s each; e2m2, e3m3 60 s:
+  12000-21000 units, 11-18 hops each, stuck 0, in monsters 0, embedded 0, outside 0.
+- Melee eval: 48/56 canary, 168/176 full, the same as with the hull off; 35 (canary) and 99 (full) takes differ from the
+  kit's baseline with or without this change (damages about 0.75x the baseline's: a stale baseline or an earlier merge).
+
+### To test in VR
+
+- [ ] A fresh config and yours: Movement > Player Hitbox shows 16 / Compiled Hull / Width Shots Hit 24 units.
+- [ ] Walk up to walls, doors and monsters: 8 units away (0.3 m); nothing sticks.
+- [ ] Let grunts, enforcers and ogres shoot at you from afar: a few more misses than before, not many.
+- [ ] Let a knight, a dog and a fiend at you: they reach and hurt you as before.
+- [ ] Width Shots Hit: try 20 and 28 against a grunt at range.

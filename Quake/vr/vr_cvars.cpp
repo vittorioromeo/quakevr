@@ -86,8 +86,11 @@ const DefaultChange defaultChanges[] = {
     {50, &vr_grapple_loose_slack, "24"},       // 8
     {50, &vr_grapple_hang_drag, "3"},          // 1
     {50, &vr_grapple_load_max_speed, "700"},   // 500
+    // 51: the player's narrower box against walls, brush models and entities, the compiled hull's way (NOTES.md
+    // e1m1_2026-09-30_02-19-27, e1m3_2026-09-30_02-34-01; ROUND21.md, "Player hitbox defaults").
+    {51, &vr_hull_width, "0"},                 // 16
 };
-constexpr int configVersion = 50;
+constexpr int configVersion = 51;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

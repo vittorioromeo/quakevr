@@ -1389,6 +1389,13 @@ float entWidthSetting()
     return v > 0.f ? std::clamp(v, minWidth, maxWidth) : 0.f;
 }
 
+// The player's width that shots, missiles and splash traces hit (vr_hull_hit_width): 0 Quake's (off).
+float hitWidthSetting()
+{
+    const float v = vr_hull_hit_width.value;
+    return v > 0.f && v < maxWidth ? std::clamp(v, minWidth, maxWidth) : 0.f;
+}
+
 // A box narrowed to the width about its centre, its height kept.
 void narrowBox(const float* mins, const float* maxs, float width, float* boxMins, float* boxMaxs)
 {
@@ -1976,6 +1983,53 @@ float centreGap(edict_t* player, const glm::vec3& from, const glm::vec3& dir)
     return tr.fraction < 1.f ? tr.fraction * 64.f : -1.f;
 }
 
+// vr_hull_hittest [distance] [spread]: shots at the first player (hitscan traces, as a grunt's: aimed at its origin, spread
+// per axis like FireBullets') from 8 directions round it at that distance (300; 0.1), 200 each with a fixed seed: how many
+// hit it with the current Width Shots Hit (vr_hull_hit_width). Directions a wall blocks are left out.
+void hitTest_f()
+{
+    if(!sv.active || svs.maxclients < 1)
+    {
+        Con_Printf("vr_hull_hittest [distance] [spread]: needs a map\n");
+        return;
+    }
+    qcvm_t* oldvm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldvm);
+    const float dist = Cmd_Argc() > 1 ? static_cast<float>(Q_atof(Cmd_Argv(1))) : 300.f;
+    const float spread = Cmd_Argc() > 2 ? static_cast<float>(Q_atof(Cmd_Argv(2))) : 0.1f;
+    edict_t* player = EDICT_NUM(1);
+    const glm::vec3 target{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
+    std::uint32_t seed = 12345u;
+    int shots = 0, hits = 0, dirs = 0;
+    for(int k = 0; k < 8; ++k)
+    {
+        const float a = static_cast<float>(k) * 0.785398163f;
+        const glm::vec3 from = target + glm::vec3{std::cos(a), std::sin(a), 0.f} * dist;
+        vec3_t f{from.x, from.y, from.z}, t{target.x, target.y, target.z};
+        const trace_t clear = SV_Move(f, vec3_origin, vec3_origin, t, MOVE_NOMONSTERS, nullptr);
+        if(clear.fraction < 1.f || clear.startsolid || clear.allsolid)
+        {
+            continue; // a wall between, or outside the map
+        }
+        ++dirs;
+        const glm::vec3 aim = glm::normalize(target - from);
+        const glm::vec3 right = glm::normalize(glm::vec3{-aim.y, aim.x, 0.f}), up{0.f, 0.f, 1.f};
+        for(int i = 0; i < 200; ++i)
+        {
+            const float cr = (random01(seed) + random01(seed)) - 1.f, cu = (random01(seed) + random01(seed)) - 1.f;
+            const glm::vec3 end = from + (aim + right * (cr * spread) + up * (cu * spread)) * (dist * 2.f);
+            vec3_t e{end.x, end.y, end.z};
+            const trace_t tr = SV_Move(f, vec3_origin, vec3_origin, e, MOVE_NORMAL, nullptr);
+            ++shots;
+            hits += tr.ent == player ? 1 : 0;
+        }
+    }
+    const float w = hitWidthSetting();
+    Con_Printf("hullhit: width %g, distance %g, spread %g: %d of %d shots hit (%d directions)\n",
+        w > 0.f ? w : 32.f, dist, spread, hits, shots, dirs);
+    PR_PopQCVM(oldvm);
+}
+
 void approachRun();
 
 void approach_f()
@@ -2167,6 +2221,7 @@ void init()
     Cmd_AddCommand("vr_hull_walktest", walkTest_f);
     Cmd_AddCommand("vr_hull_probe", probe_f);
     Cmd_AddCommand("vr_hull_approach", approach_f);
+    Cmd_AddCommand("vr_hull_hittest", hitTest_f);
     Cvar_SetCallback(&vr_hull_width, onWidthChanged);
     Cvar_SetCallback(&vr_hull_method, onWidthChanged);
 }
@@ -2213,6 +2268,17 @@ bool touchBox(const edict_t* touch, const edict_t* mover, float* boxMins, float*
 {
     const float width = entWidthSetting();
     if(width <= 0.f || !sv.active || !isPlayerBox(touch, touch->v.mins, touch->v.maxs) || !categoryOn(mover))
+    {
+        return false;
+    }
+    narrowBox(touch->v.mins, touch->v.maxs, width, boxMins, boxMaxs);
+    return true;
+}
+
+bool hitBox(const edict_t* touch, float* boxMins, float* boxMaxs)
+{
+    const float width = hitWidthSetting();
+    if(width <= 0.f || !sv.active || !isPlayerBox(touch, touch->v.mins, touch->v.maxs))
     {
         return false;
     }
@@ -2422,4 +2488,9 @@ extern "C" int VR_HullNarrowsAgainst(edict_t* other)
 extern "C" int VR_HullTouchBox(edict_t* touch, edict_t* mover, float* boxmins, float* boxmaxs)
 {
     return qvr::hull::touchBox(touch, mover, boxmins, boxmaxs);
+}
+
+extern "C" int VR_HullHitBox(edict_t* touch, float* boxmins, float* boxmaxs)
+{
+    return qvr::hull::hitBox(touch, boxmins, boxmaxs);
 }

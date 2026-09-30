@@ -5,7 +5,8 @@ Your notes `vrclimb_2026-09-29_20-06-59` and `20-07-38`: Quake's player box is 3
 recompiling), with Quake's collision speed, smoothness and accuracy.
 
 This page lists the ways to do it, with their pros and cons, what I recommend, the prototype that is in the build
-(off by default), and the numbers.
+(on by default since round 21's "Player hitbox defaults": 16 wide, the compiled hull; shots hit a 24-wide box), and the
+numbers.
 
 ## Why Quake can't just use a smaller box
 
@@ -165,11 +166,16 @@ go through the same code (Quake doesn't turn brush models' collision, and neithe
 - Loose Box3D props (rocks, bricks, weapons on the floor) never block the player in Quake's movement (they are
   touchable, not solid); the player pushes them with a Box3D capsule of `vr_box3d_player_radius` (15 cm: about 8 units
   wide, already narrower than any of these boxes). It is on the new page as Prop Push Radius; not tied to the width.
-- **Kept at Quake's 32 box**: what shots and melee hit on the player (hitscan traces are points, missiles use
-  MOVE_MISSILE, precise hits their own path; none are a body's move), and what the player touches (items, triggers:
-  the touch box is the player's own `absmin`/`absmax`). Why: the width is about where you can stand and walk; making
-  you harder to hit is a balance change of its own, and in VR your head leans out of the box anyway (the lean
-  recentring keeps the body under it). Picking items up with the wider box only makes pickups a little more generous.
+- **What shots and missiles hit** on the player is its own width, `vr_hull_hit_width` (Width Shots Hit, 24 by default;
+  0 Quake's 32): any move that isn't a body's (hitscan traces, missiles, grenades, gibs: points and MOVE_MISSILE) meets
+  the player's box narrowed to it about its centre, its height kept (`hull::hitBox`, `SV_ClipMoveToBoxEntityQVR`).
+  The author's note (e1m3_2026-09-30_02-34-18): "still a bit of leniency for enemies to hit you". What doesn't use it:
+  monsters' melee (id's `ai_melee`, the dog's bite, the ogre's chainsaw, the fiend's claws: distances between origins,
+  60 or 100 units), splash damage (`T_RadiusDamage`: the distance to the box's centre, and `CanDamage`'s nomonsters
+  traces), monsters' sight (`visible`: nomonsters) and range checks (origins), and their pathing (`SV_CloseEnough`
+  compares the goal's `absmin`/`absmax`, which stay Quake's 32 box). `CheckAttack`'s traceline (a monster's eye to the
+  player's, which must hit the player) ends at the box's centre line, inside any width. A fiend's leap is a body's move
+  (the entity width). What the player touches (items, triggers: its own `absmin`/`absmax`) stays Quake's 32 box.
 
 **The player inside a monster at 16** (the first prototype's random walk, an ogre in e1m2 and a shambler in e2m2): I
 could not reproduce it (random walks with fixed frames take other paths: 0 in 2 runs, e1m2 and e2m2, at 16 with the
@@ -201,11 +207,12 @@ expect it to be more robust for Quake 1: it is Quake's own trace, with its behav
 
 | Setting | cvar | Default | What |
 |---|---|---|---|
-| Width Against Walls | `vr_hull_width` | 0 (Quake's 32) | 8, 12, 16, 20, 24, 28, 32: against the world and brush models |
+| Width Against Walls | `vr_hull_width` | 16 (0 before config 51) | 0 Quake's 32, 8, 12, 16, 20, 24, 28, 32: against the world and brush models |
 | Method | `vr_hull_method` | 1 (Compiled Hull) | 0 Brush Sweep (B), 1 Compiled Hull (A) |
 | Doors, Lifts and Walls Too | `vr_hull_brushmodels` | 1 | off: brush models other than the world meet Quake's box |
 | Width Against Them | `vr_hull_ent_width` | -1 (Same as Walls) | 0 Quake's 32, or 8-32: against monsters, players, solid boxes |
 | Monsters / Other Players / Solid Boxes | `vr_hull_monsters`, `vr_hull_players`, `vr_hull_boxes` | 1 | per category, both ways |
+| Width Shots Hit | `vr_hull_hit_width` | 24 | 0 Quake's 32, or 8-28: the box shots and missiles hit |
 | Prop Push Radius | `vr_box3d_player_radius` | 15 cm | the Box3D capsule that pushes loose props |
 
 Plus Hitbox Stats, Hitbox Approach and Random Walk (60 s) on the page, and Bench and Probe on Debug > Tests.
@@ -403,12 +410,13 @@ Quake's hull 1, 0.015 with B at 16 and 0.015 with A at 16 (29 traces and 66-73 h
 2. **Height.** Kept at hull 1's 56. The same machinery can make it follow the headset (crouching under things), but
    QuakeC and the maps assume 56 in places (doorways, vents); a separate decision.
 3. **The player's box against monsters and players** (round 2): narrowed by default, the same width both ways
-   (Width Against Them, per category). Shots, melee and item pickups keep Quake's 32 box; say if you want the hit box
-   narrowed too (harder to hit).
+   (Width Against Them, per category). Decided (round 21): shots and missiles hit a 24-wide box (Width Shots Hit);
+   melee and splash go by distance; item pickups keep Quake's 32 box.
 4. **Clip brushes.** Accept the heuristic's residue, or add the hull 1 fallback (a second trace).
 5. **Monsters.** The same code works for any box. Monsters' movement and `SV_CheckBottom` would change (they'd fit
    through smaller gaps and stand closer to ledges), so it would be per class and opt-in.
 6. **Method.** A (the compiled hull) is the default: Quake's own trace, a little faster, 90 ms more at load (170 at
    most). B stays selectable for comparing.
-7. **On by default?** Width Against Walls is still 0 (Quake's box) by default. The load-time build (B's brushes and A's
+7. **On by default?** Decided (round 21, NOTES.md e1m1_2026-09-30_02-19-27, e1m3_2026-09-30_02-34-01): 16 wide with
+   the compiled hull is the default (config 51 moves a config's old 0 to 16). The load-time build (B's brushes and A's
    hull: 137 ms on average, 257 at most on id's maps) could move to a worker thread before it is on by default.
