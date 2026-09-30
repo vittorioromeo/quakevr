@@ -14,6 +14,7 @@ hooks into the module and the engine changes the module needs. To list it:
 |---|---:|---:|---:|---:|
 | Before (vr-cleanup `852ff42c`) | 79 | 6817 | 354 | 826 |
 | After | 73 | 3088 | 320 | 727 |
+| With the spatial audio's hooks (`snd_dma.c`, `snd_mix.c`) | 74 | 3099 | 321 | 735 |
 
 Six headers are Ironwail's again (`cvar.h`, `gl_texmgr.h`, `platform.h`, `progs.h`, `view.h`, `zone.h`).
 
@@ -110,7 +111,8 @@ after; `models` 0.028 / 0.026 ms.
 | `Quake/cl_input.c` | +5 -2 | +4 -2 | 3 | more commands per frame |
 | `Quake/Makefile` | +27 -2 | +5 -1 | 3 | include vr/vr.mk; clean |
 | `.gitignore` | +30 -0 | +6 -0 | 1 | build and packaging output (the game folder: quakevr/.gitignore) |
-| `Quake/snd_dma.c` | +4 -1 | +4 -1 | 2 | 4096 known sounds, counted |
+| `Quake/snd_dma.c` | +4 -1 | +11 -2 | 7 | 4096 known sounds, counted; the spatial audio's hooks (vr_audio.cpp: the listener, the hands' and moving sounds, a new sound, the statics not combined, whole frames) |
+| `Quake/snd_mix.c` | 0 | +4 -0 | 3 | the spatial audio's voices painted, their channels skipped, vr_snd_capture |
 | `Quake/world.h` | +9 -0 | +5 -0 | 1 | MOVE_HITGIBS, MOVE_HITMODEL flags |
 | `Quake/gl_shaders.c` | +5 -0 | +5 -0 | 2 | the wound-painting programs |
 | `Quake/gl_model.h` | +5 -0 | +4 -0 | 4 | texture uvclamp, deluxemap samples, Mod_ReloadAliasModel |

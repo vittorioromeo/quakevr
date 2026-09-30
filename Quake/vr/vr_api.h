@@ -287,6 +287,18 @@ enum
 };
 void VR_LimitHit (int limit);
 
+// Spatial audio (vr_audio.cpp: Steam Audio's HRTF, occlusion and reverb, Doppler, the near field, the hands' sounds),
+// over Quake's mixer (snd_dma.c, snd_mix.c). Each does nothing with vr_snd_spatial 0, outside VR, or without phonon.dll,
+// except the listener (the head, in VR) and the hands' and moving sounds (VR_SndSpatialize).
+void VR_SndListener (float *origin, float *forward, float *right, float *up);	// S_Update: the listener (in VR, the head)
+int VR_SndSpatialize (channel_t *ch);				// start of SND_Spatialize: nonzero if it set the volumes (a hand's sound); moves a sound following its entity
+void VR_SndStarted (channel_t *ch);					// end of S_StartSound: a new sound on the channel
+int VR_SndKeepStatics (void);						// S_Update: nonzero: the static sounds of one sample not combined (each has its place)
+int VR_SndMixEnd (int paintedtime, int endtime);	// S_Update_: the mix-ahead's end, rounded down to whole frames of the voices
+void VR_SndPaint (portable_samplepair_t *buffer, int start, int end);	// S_PaintChannels, each chunk: the voices' mix added
+int VR_SndOwns (const channel_t *ch);				// S_PaintChannels: nonzero for a channel a voice renders (Quake skips it)
+void VR_SndCapture (const portable_samplepair_t *buffer, int count);	// S_PaintChannels, before the transfer: vr_snd_capture's recording
+
 #ifdef __cplusplus
 }
 #endif

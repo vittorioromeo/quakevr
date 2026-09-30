@@ -1,5 +1,6 @@
 // vr_main.cpp -- Quake VR module lifetime, core cvars and per-frame update.
 
+#include "vr_audio.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_box3d.hpp"
 #include "vr_hull.hpp"
@@ -1110,6 +1111,7 @@ extern "C" void VR_Init()
     Cvar_SetCallback(&vr_map_liquid_alpha, [](cvar_t*) { R_UpdateLiquidAlpha(); }); // gl_rmisc.c: the liquids' alphas again
     envmap::init(); // vr_envmap_dump
     profile::init();
+    audio::init(); // spatial audio's commands (vr_snd_info, vr_snd_test...); Steam Audio is loaded on first use
 
     state->restartRequested = true;
 }
@@ -1131,6 +1133,7 @@ extern "C" void VR_Shutdown()
         state = nullptr;
     }
     voicenotes::finishWrites(); // the screenshots and notes still being saved (VR or not)
+    audio::shutdown(); // (its simulations finished, Steam Audio's objects released, phonon.dll unloaded)
     jobs::shutdown(); // last: whatever the systems above left queued run, the workers joined
 }
 

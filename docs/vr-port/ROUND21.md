@@ -16226,3 +16226,120 @@ maps and model loading to `vr_normalmaps.cpp` and `vr_modelload.cpp`, the alias 
 to their own files; `quakedef.h` includes the module's C headers once; the Makefiles' rules in `vr/vr.mk`, the toolset
 in `quakevr.toolset.props`. Every hunk marked `// QVR`. Hot paths (traces, draw loops) stay inline. The table, what
 stays and why, and the checks (eval identical, CPU busy 0.398 / 0.395 ms): [IRONWAIL_DIFF.md](IRONWAIL_DIFF.md).
+
+## Spatial audio (Steam Audio) (2026-09-30)
+
+The author asked for all seven items, each optional and customisable: HRTF from the head's pose, occlusion and
+transmission through the map, the room's reverb, an underwater low-pass, the hands' sounds from the hands, Doppler, the
+near field. Quake's mixer (`snd_dma.c`, `snd_mix.c`) did left/right panning and a linear distance falloff only.
+
+### The library
+
+Valve's Steam Audio 4.8.1 (Apache-2.0), vendored in `Quake/vr/external/steamaudio` (its README: the headers and
+`phonon.dll` for Windows x64, 53 MB; the Linux `.so`, 40 MB, left out). Loaded at run time (`vr_steamaudio.cpp`:
+`SDL_LoadObject`, each function by name, typed from the header): nothing links it, and without the DLL (or with one
+that refuses the context) the game keeps Quake's panning; a dedicated server never loads it. The Windows build copies
+it next to `ironwail.exe` (`quakevr.props`). Steam Audio 4.8 has no near-field model of its own: ours (below).
+
+### How it sits on Quake's mixer (`vr_audio.cpp`)
+
+- **Quake still chooses.** Its channels, sounds, volumes and distance falloff are untouched; each paint call the loudest
+  `vr_snd_voices` (32) channels are each rendered by a *voice* instead of Quake's panning (a channel keeps its voice
+  unless another is half again louder). The rest, the ambient channels and the player's own voice, pain and pickup
+  sounds are painted by Quake as ever. The static sounds (torches) are no longer summed into one channel each while
+  it runs (each has its own place).
+- **Frames.** Steam Audio renders fixed frames (`vr_snd_frame`, 256 samples, 5.8 ms at 44.1 kHz): the mix-ahead's end is
+  rounded down to whole frames (`VR_SndMixEnd`: at most a frame less ahead; the rate and the 0.1 s mix-ahead as
+  before), a remainder is carried to the next call. A voice reads the channel's samples itself and keeps the channel's
+  `pos` and `end` as Quake's paint would have, so a channel can go back to Quake at any moment.
+- **Per voice:** Steam Audio's direct effect (occlusion and transmission as a 3-band EQ, the air's absorption), its
+  binaural effect (HRTF, bilinear) or Quake's panning (`vr_snd_hrtf 0`), the near field, and a send to the reverb.
+  The voices run on the game's thread pool (`jobs::parallelFor`, one voice a task, summed in voice order after: the
+  same result on any number of threads).
+- **Hooks** (`vr_api.h`, eight one-line `// QVR` calls in `snd_dma.c` and `snd_mix.c`; IRONWAIL_DIFF.md): the
+  listener, `SND_Spatialize`, a new sound, the statics' combining, the mix-ahead's end, the paint, the owned channels'
+  skip, the capture.
+
+### The features (VR Settings > Sound; `vr_snd_spatial` 1: in VR, 2: also on the desktop, 0: off)
+
+1. **HRTF** (`vr_snd_hrtf 1`). The listener in VR is the head (`hands::State`: between the eyes, its angles), not the
+   body's view: `VR_SndListener` replaces S_Update's origin and axes, so Quake's own panning, the ambient levels and the
+   underwater test use it too. `vr_snd_hrtf_gain 1.25`: the binaural voices measured 1.7-1.9 dB quieter than Quake's
+   panning in every direction. `vr_snd_hrtf_sofa`: a SOFA file of one's own.
+2. **Occlusion and transmission** (`vr_snd_occlusion 0.8`, `_samples 8`, `_radius 0.5` m, `vr_snd_air 1`). The scene is
+   the world's faces (skies and liquids left out; 13,429 triangles in e1m1, built on the pool in 8.8 ms at each map)
+   with a material by texture name (stone, wood, metal, grates; `vr_audiosim.cpp`), and each brush entity the client
+   sees (doors, lifts, trains) as an instance of its submodel, moved as it moves (`trackBrushEntities`). A pool task
+   simulates the voices' direct paths 30 times a second (volumetric occlusion, the nearest wall's transmission); the
+   result is a 3-band EQ `(occlusion + (1 - occlusion) x transmission)^strength`: a weaker setting keeps it duller,
+   not only louder. The walls' transmission is the game's (0.25, 0.08, 0.02 for stone), not physics' (monsters behind
+   walls stay audible). Until a new sound's first result, the world's own line of sight (hull 0) stands in. A sound from
+   inside a brush model (a door's: its box's middle) is moved out of it towards the head first.
+3. **Reverb** (`vr_snd_reverb 0.4`, `vr_snd_reverb_quality 1`, `vr_snd_reverb_interval 0.25`). Steam Audio's
+   listener-centric reverb: a source at the head, its reflections simulated from the scene on the pool every 0.25 s
+   (the results handed over under a mutex; the impulse response is Steam Audio's own, simulated on one thread while the
+   audio uses it on another, as its API documents),
+   one reflection effect on the sum of the voices' sends, decoded binaurally with the head's turn. Quality: 0
+   parametric (1024 rays, 8 bounces), 1 convolution with 2 s of response (2048 rays, 16 bounces), 2 convolution 3 s
+   (4096, 32). Steam Audio's hybrid was tried and dropped: no cheaper than convolution for the one reverb here, and its
+   tail came out 13-20 dB quieter than both others'.
+4. **Underwater** (`snd_waterfx`, Ironwail's, now on the Sound page): its low-pass already went by the listener's leaf;
+   with the listener the head, it goes by the head.
+5. **The hands' sounds** (`vr_snd_hands 1`). The player's weapon channels (QC `VRGetGunChannel`: CHAN_WEAPON the main
+   hand, CHAN_WEAPON2 the off hand) play from that hand's muzzle (else the hand), with Quake's panning too when the
+   voices are off; Quake had them in the middle of the head. The grabs and the physics sounds were already placed
+   (vr_physsound.cpp: the world's entity at the hold, the prop's at the contact). The player's other sounds stay in the
+   head.
+6. **Doppler** (`vr_snd_doppler 1`, `vr_snd_follow 1`). A sound follows its entity as it moves (the offset it started at
+   kept; frozen once the entity stops being sent, jumps 256 units or changes model), which gives it a velocity; the
+   head's velocity from its moves. The voice resamples by `(c + v_listener) / (c + v_source)` along the line between
+   them (c: 343 m/s in units), eased per frame, 0.5-2x. None for the hands' sounds.
+7. **Near field** (`vr_snd_nearfield 1`): a sound within 1 m of the head, by how near and how much to the side: the
+   nearer ear up to +6 dB, the farther one down 6 dB and low-passed (to 3 kHz). Inside 10 cm the HRTF blends towards
+   the middle.
+
+### Tests (`vr_snd_test`, Debug > Tests > Spatial Audio; `vr_snd_capture`, `vr_snd_play`, `vr_snd_bench_spawn`)
+
+Offline renders through the game's own mixer and simulator (made sounds, made scenes: boxes and walls built as the map's
+faces are; the WAVs in the game folder's `sound_tests/`, ignored by git), 18 checks, all PASS:
+
+| Test | Result |
+|---|---|
+| Circle at 2 m | ILD +17.0 dB at 90, -15.6 dB at 270, +2.1 / -0.8 ahead / behind; ITD +612 / -658 us; behind 5.3 dB less at 4-16 kHz than ahead |
+| Behind a 0.3 m wall, 5 m | -20.4 dB overall; lows -12.1 dB, highs -23.7 dB (strength 0.8) |
+| A door (an instance) in the way, then moved up 10 m | occlusion 0.00, then 1.00 |
+| Reverb, 3x3x2.5 m room vs 30x20x12 m hall | simulated RT60 0.42 vs 2.6 s; measured from the render 0.43 vs 2.63 s (parametric), 0.35 vs 2.43 s (convolution) |
+| 1 kHz passing at 1000 units/s | 1124.9 Hz coming (1123.6 expected), 900.1 Hz going (900.9); off: 1000.0 / 1000.0 |
+| Noise at 0.2 m right vs 2 m | ILD +28.3 vs +17.0 dB (near field off: +17.0 at both) |
+| The hands' channels (e1m1, the mock) | from the muzzle (0.0 units off), the main hand's right 385 / left 115, the off hand's the other way |
+
+In e1m1 (the mock headset, sound through SDL's dummy driver): a hum behind the closed double door (*1, *2) gets the EQ
+0.38 / 0.16 / 0.06; walking up opens it: 1.00 (6 brush models tracked). The head in the slime (232 3000 -165, contents
+-4): an explosion's highs (above 4 kHz) 14.2 dB down and its lows 1.3 dB, against the same in the open; `snd_waterfx 0`
+there: 1.9 dB. Without `phonon.dll`: "phonon.dll not found: Quake's own panning", the game mixes and plays as before.
+The melee canary: no differences.
+
+### Cost
+
+- 32 voices, every feature, a 90 Hz frame's 490 samples (the offline bench, 256-sample frames): 0.34 ms on the pool
+  (0.48 ms on one thread); HRTF alone 0.17 ms; Quake's own mixing of 32 channels 0.007 ms. By reverb: parametric
+  0.24, hybrid 0.42, convolution (2 s) 0.35 ms.
+- In e1m1 with 32 looping sounds round the head (`vr_snd_bench_spawn 32`, 250 fps): the profiler's `sound` 0.14-0.17 ms
+  a frame on (0.018 ms with nothing playing: the reverb stops once its input has been silent for its response's
+  length), 0.008 ms off (`vr_snd_spatial 0`). Off the main thread: the direct paths 0.07 ms a run (30 a second), the
+  reverb 15-30 ms a run (4 a second) on a pool worker; the scene 8.8 ms at each map.
+- Nothing at all with `vr_snd_spatial 0`, outside VR (at 1), or without the DLL: the hooks return at once.
+
+### For the author to try in VR
+
+Turn round a torch and a monster: in front, behind, above; a monster behind a wall and a door opening onto it; a small
+room against a big hall (is `vr_snd_reverb 0.4` too wet or dry? Medium quality); the shotgun in each hand; a grenade or
+the hook going past; `vr_snd_hrtf_gain` if the HRTF sounds quieter or louder than before. The Debug page's Spatial Audio
+Info prints what it's doing.
+
+### Left
+
+- The reverb is the listener's room only (one reverb, not a source's own reflections or paths round corners): Steam
+  Audio's per-source reflections and pathing would cost a convolution a voice.
+- The materials go by texture name; a map's own acoustic materials would need a table.
+- Linux: a build finds `libphonon.so` next to the executable if one is put there (not vendored: 40 MB).

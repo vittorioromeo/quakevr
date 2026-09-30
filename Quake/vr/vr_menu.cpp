@@ -556,6 +556,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
 // The world: monsters, knights' swords, weapon drops and what you feel (the Gameplay page before the menus were
 // reorganized; its damage and knockback are on Damage and Knockback, its voice notes on Debug).
 [[nodiscard]] std::vector<Item> pageEnemyWeapons();
+[[nodiscard]] std::vector<Item> pageSound();
 
 [[nodiscard]] std::vector<Item> pageGameplay()
 {
@@ -639,6 +640,62 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
                   "1750)."),
         slider("Shots", vr_enfrifle_ammo, 1.f, 80.f, 1.f, "%.0f").extend()
             .help("The shots in a dropped rifle: its own, never refilled (cells don't). Empty, it is still a club."),
+    };
+}
+
+// VR Settings > Sound: the spatial audio (vr_audio.cpp; ROUND21.md, "Spatial audio (Steam Audio)"). Each feature off at
+// 0; without Steam Audio (phonon.dll) only the underwater filter, the hands' and the moving sounds work.
+[[nodiscard]] std::vector<Item> pageSound()
+{
+    return {
+        cycle("Spatial Audio", vr_snd_spatial, {{0.f, "Off"}, {1.f, "In VR"}, {2.f, "Always (headphones)"}})
+            .help("Steam Audio over Quake's mixer: the features below. Off: Quake's left/right panning as it always was. "
+                  "Always: on the desktop too (for headphones)."),
+        header("Direction"),
+        toggle("Sounds Around Your Head (HRTF)", vr_snd_hrtf)
+            .help("Binaural: each sound shaped as your ears would hear it from where it is, by your head's position and "
+                  "turn: in front, behind, above and below, not just left or right. Off: Quake's panning."),
+        cycle("HRTF Smoothing", vr_snd_hrtf_interp, {{1.f, "Smooth (Bilinear)"}, {0.f, "Nearest (Cheaper)"}})
+            .help("Between the measured directions: blended (moving sounds glide), or the nearest one."),
+        slider("HRTF Volume", vr_snd_hrtf_gain, 0.5f, 2.f, 0.05f, "%.2fx").extend(0.f, 4.f)
+            .help("The binaural sounds' volume against the others (1.25: as loud as Quake's panning, all round)."),
+        slider("Spatial Voices", vr_snd_voices, 4.f, 64.f, 4.f, "%.0f")
+            .help("How many of the loudest sounds are rendered this way at once; the rest are panned as ever."),
+        header("Walls and Rooms"),
+        slider("Occlusion", vr_snd_occlusion, 0.f, 1.f, 0.05f, "%.2f").extend(0.f, 2.f)
+            .help("A sound behind a wall or a closed door is quieter and duller (doors and lifts move in it as they move). "
+                  "0 off, 1 full; 0.8 keeps monsters behind walls audible."),
+        slider("Occlusion Rays", vr_snd_occlusion_samples, 1.f, 32.f, 1.f, "%.0f")
+            .help("Rays from each sound (1: hidden or not; more: partly hidden, round corners). On the thread pool."),
+        slider("Sound Source Size", vr_snd_occlusion_radius, 0.1f, 2.f, 0.1f, "%.1f m")
+            .help("The sphere a sound comes from, for partial occlusion."),
+        toggle("Air Absorption", vr_snd_air).help("Far sounds lose their highs in the air."),
+        slider("Room Reverb", vr_snd_reverb, 0.f, 1.f, 0.05f, "%.2f").extend(0.f, 2.f)
+            .help("The reverb of the space around your head, simulated from the map (a small room rings short, a big hall "
+                  "long): how loud. 0 off."),
+        cycle("Reverb Quality", vr_snd_reverb_quality, {{0.f, "Low (Parametric)"}, {1.f, "Medium (Convolution)"}, {2.f, "High (Convolution, Long)"}})
+            .help("Low: a reverb driven by the simulated decay times (cheapest, no echoes). Medium: the simulated response "
+                  "itself (2 s). High: 3 s from twice the rays."),
+        slider("Reverb Update", vr_snd_reverb_interval, 0.1f, 1.f, 0.05f, "%.2f s").extend(0.05f, 5.f)
+            .help("Seconds between the room's simulations (on the thread pool)."),
+        slider("Underwater Muffle", "snd_waterfx", 0.f, 2.f, 0.1f, "%.1f")
+            .help("Sounds muffled while your head is in water, slime or lava (your head's place, not your body's). 0 off."),
+        header("Movement and Nearness"),
+        toggle("Weapons From Your Hands", vr_snd_hands)
+            .help("Your guns' shots and your blows sound from the hand that holds the weapon, not from the middle of your "
+                  "head."),
+        toggle("Sounds Follow Things", vr_snd_follow)
+            .help("A sound stays with what made it as it moves (a monster, a door, a hook in flight)."),
+        slider("Doppler", vr_snd_doppler, 0.f, 2.f, 0.1f, "%.1fx").extend(0.f, 4.f)
+            .help("Things coming at you sound higher, going away lower (1: as physics has it; 0 off)."),
+        slider("Near Field", vr_snd_nearfield, 0.f, 2.f, 0.1f, "%.1f")
+            .help("A sound within a metre of your head: the nearer ear louder, the farther one quieter and duller, by how "
+                  "near and how much to the side. 0 off."),
+        header("Advanced"),
+        cycle("Frame Size", vr_snd_frame, {{256.f, "256 (5.8 ms)"}, {512.f, "512"}, {1024.f, "1024 (Cheapest)"}})
+            .help("Samples a voice renders at a time: larger is cheaper, a moving sound's direction coarser."),
+        command("Spatial Audio Info", "vr_snd_info")
+            .help("vr_snd_info: in the console, Steam Audio loaded or not, the voices, the scene and the simulations' times."),
     };
 }
 
@@ -2035,6 +2092,9 @@ std::vector<Item> pageDebugLogging()
             .help("Each knock (the prop, its material and weight, the hit's speed, the volume), each scrape starting and "
                   "stopping and each climbing grab (the hold's texture); or also the hits too soon after the last and each "
                   "scrape grain."),
+        cycle("Spatial Audio", vr_debug_snd, {{0.f, "Off"}, {1.f, "Each Second"}, {2.f, "And Each Voice"}})
+            .help("Each second: the voices in use, their mix's time and the simulations' (the walls, the room's reverb); or "
+                  "also each voice: its sound, distance, occlusion (low, middle, high) and Doppler."),
         cycle("Physics Bodies", vr_debug_box3d, {{0.f, "Off"}, {1.f, "Made and Slept"}, {2.f, "Every Awake Body"}})
             .help("Box3D bodies made, woken and put to sleep; or every awake body every frame (a lot). Also each throw: how "
                   "fast, whether it passes through your hands, and how much its velocity and spin changed by the grace's end "
@@ -2216,6 +2276,22 @@ std::vector<Item> pageDebugTools()
 std::vector<Item> pageDebugTests()
 {
     return {
+        header("Spatial Audio"),
+        command("Spatial Audio Tests", "vr_snd_test all")
+            .help("vr_snd_test: offline renders through the spatial audio (a sound circling the head, behind a wall, a door "
+                  "moving, a small room and a hall, a rocket passing, a sound at the ear, the hands' sounds), measured, a "
+                  "line each and PASS or FAIL; and the cost of 32 voices. The renders go to the game folder's sound_tests (test_*.wav)."),
+        command("Spatial Audio Info", "vr_snd_info")
+            .help("vr_snd_info: Steam Audio loaded or not, the voices, the scene (triangles, doors and lifts), the "
+                  "simulations' times, where the listener is."),
+        command("32 Sounds Around You", "vr_snd_bench_spawn 32")
+            .help("vr_snd_bench_spawn: 32 looping sounds in a ring round you (till the map changes): a load for the "
+                  "profiler's sound line, with Spatial Audio on and off."),
+        command("Record the Mix (2 s)", "vr_snd_capture 2 menu")
+            .help("vr_snd_capture: the next 2 seconds of the final mix to the game folder's sound_tests (capture_menu.wav), and its levels "
+                  "in the console."),
+        command("Save the Sound Scene", "vr_snd_scene_obj")
+            .help("vr_snd_scene_obj: the map as Steam Audio sees it, to the game folder's sound_tests (scene.obj)."),
         header("Ahead of You"),
         cycle("Thing", vr_test_spawn,
             {{0.f, "Grunt"}, {1.f, "Ogre"}, {2.f, "Zombie"}, {3.f, "Shambler"}, {4.f, "Scrag"}, {5.f, "Knight"},
@@ -2792,6 +2868,7 @@ const Page pages[] = {
     {"Monster Hitbox", pageMonsterHitbox, pageMovement},                    // 74
     {"Lightning Gun in Water", pageLightningWater, pageWeaponsHub},         // 75
     {"Enemy Weapons", pageEnemyWeapons, pageCombat},                        // 76
+    {"Sound", pageSound, pageMain},                                         // 77
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -2828,6 +2905,7 @@ std::vector<Item> pageMain()
         header("More"),
         open("Body and Display", pageIndex(pageBodyDisplay)).help("Handedness, height, the body, the HUD, the crosshair and the menu."),
         open("Headset", pageIndex(pageHeadset)).help("VR on or off, the OpenXR runtime, render scale, upscaling and foveated rendering."),
+        open("Sound", pageIndex(pageSound)).help("Spatial audio: sounds around your head (HRTF), muffled by walls, the room's reverb, underwater, your weapons in your hands, Doppler, sounds at your ear."),
         open("Advanced VR Options", PageAdvanced),
     };
 }

@@ -450,6 +450,7 @@ void S_PaintChannels (int endtime)
 
 	// clear the paint buffer
 		memset(paintbuffer, 0, (end - paintedtime) * sizeof(portable_samplepair_t));
+		VR_SndPaint (paintbuffer, paintedtime, end); // QVR: spatial audio's voices (vr/vr_audio.cpp)
 
 	// paint in the channels.
 		ch = snd_channels;
@@ -458,6 +459,8 @@ void S_PaintChannels (int endtime)
 			if (!ch->sfx)
 				continue;
 			if (!ch->leftvol && !ch->rightvol)
+				continue;
+			if (VR_SndOwns (ch)) // QVR: a spatial audio voice renders it
 				continue;
 			sc = S_LoadSound (ch->sfx);
 			if (!sc)
@@ -543,6 +546,7 @@ void S_PaintChannels (int endtime)
 		}
 
 	// transfer out according to DMA format
+		VR_SndCapture (paintbuffer, end - paintedtime); // QVR: vr_snd_capture
 		S_TransferPaintBuffer(end);
 		paintedtime = end;
 	}
