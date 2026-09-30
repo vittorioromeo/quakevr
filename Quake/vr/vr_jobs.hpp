@@ -19,42 +19,27 @@
 // Zancle's own sources are built optimised, without its asserts, in every configuration (its README); this header keeps
 // it out of its users' includes (vr_jobs.cpp has the pool).
 
-#include <atomic>
-#include <cstddef>
-#include <exception>
-#include <memory>
-#include <optional>
-#include <type_traits>
-#include <utility>
+#include "Zancle/Base/Exchange.hpp"
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Swap.hpp"
+#include "Zancle/Concurrency/Atomic.hpp"
+#include "Zancle/Trait/Decay.hpp"
+#include "Zancle/Trait/DeclVal.hpp"
+#include "Zancle/Trait/IsVoid.hpp"
+#include "Zancle/Vocabulary/FunctionRef.hpp"
+#include "Zancle/Vocabulary/Optional.hpp"
+#include "Zancle/Vocabulary/UniquePtr.hpp"
+
+#include <exception> // ZANCLE-TODO: no exception transport (std::exception_ptr, current_exception, rethrow_exception)
 
 namespace qvr::jobs
 {
 
 // A reference to a callable (not owned: valid while the call that takes it lasts).
 template <typename Signature>
-class FunctionRef;
-
-template <typename R, typename... Args>
-class FunctionRef<R(Args...)>
-{
-public:
-    template <typename F>
-        requires(!std::is_same_v<std::remove_cvref_t<F>, FunctionRef> && std::is_invocable_r_v<R, F&, Args...>)
-    FunctionRef(F&& f) noexcept // NOLINT(google-explicit-constructor)
-        : object{const_cast<void*>(static_cast<const void*>(std::addressof(f)))},
-          call{[](void* o, Args... args) -> R { return (*static_cast<std::remove_reference_t<F>*>(o))(std::forward<Args>(args)...); }}
-    {
-    }
-
-    R operator()(Args... args) const
-    {
-        return call(object, std::forward<Args>(args)...);
-    }
-
-private:
-    void* object;
-    R (*call)(void*, Args...);
-};
+using FunctionRef = za::FunctionRef<Signature>;
 
 namespace detail
 {
@@ -62,8 +47,9 @@ namespace detail
 // What a Future and its queued task share: whoever claims it first (a worker, or get()) runs it.
 struct Job
 {
-    std::atomic<int> phase{0}; // 0 queued, 1 running, 2 done
-    std::exception_ptr error;
+    za::Atomic<int> phase{0}; // 0 queued, 1 running, 2 done
+    za::Atomic<za::U32> refs; // the JobPtrs to it (the Future's, the queued task's)
+    std::exception_ptr error; // ZANCLE-TODO: no exception transport
 
     virtual ~Job() = default;
     virtual void execute() = 0;
@@ -74,10 +60,65 @@ struct Job
     void wait() noexcept;
 };
 
+// A counted reference to a job (the queued task's and the Future's: std::shared_ptr's role, the count in the job): the
+// job is deleted with the last one.
+template <typename J>
+class JobPtr
+{
+public:
+    JobPtr() = default;
+    explicit JobPtr(J* j) noexcept : p{j}
+    {
+        if(p)
+        {
+            p->refs.fetchAddRelaxed(1u);
+        }
+    }
+    JobPtr(const JobPtr& o) noexcept : JobPtr{o.p} {}
+    template <typename U>
+    JobPtr(const JobPtr<U>& o) noexcept : JobPtr{o.get()} // (a Result<T>'s as a Job's)
+    {
+    }
+    JobPtr(JobPtr&& o) noexcept : p{za::exchange(o.p, nullptr)} {}
+    JobPtr& operator=(JobPtr o) noexcept
+    {
+        za::genericSwap(p, o.p);
+        return *this;
+    }
+    ~JobPtr()
+    {
+        reset();
+    }
+
+    void reset() noexcept
+    {
+        if(p && p->refs.fetchSubAcqRel(1u) == 1u)
+        {
+            delete p;
+        }
+        p = nullptr;
+    }
+    [[nodiscard]] J* get() const noexcept
+    {
+        return p;
+    }
+    [[nodiscard]] J* operator->() const noexcept
+    {
+        return p;
+    }
+    [[nodiscard]] explicit operator bool() const noexcept
+    {
+        return p != nullptr;
+    }
+
+private:
+    J* p{nullptr};
+};
+
 template <typename T>
 struct Result : Job
 {
-    std::optional<T> value;
+    za::Optional<T> value;
 };
 
 template <>
@@ -89,11 +130,11 @@ template <typename T, typename F>
 struct JobOf final : Result<T>
 {
     F f;
-    explicit JobOf(F&& fn) : f{std::move(fn)} {}
+    explicit JobOf(F&& fn) : f{ZA_MOVE(fn)} {}
     explicit JobOf(const F& fn) : f{fn} {}
     void execute() override
     {
-        if constexpr(std::is_void_v<T>)
+        if constexpr(ZA_IS_VOID(T))
         {
             f();
         }
@@ -104,6 +145,10 @@ struct JobOf final : Result<T>
     }
 };
 
+// f's result type (std::invoke_result_t<std::decay_t<F>&>).
+template <typename F>
+using ResultOf = decltype(za::declVal<ZA_DECAY(F)&>()());
+
 } // namespace detail
 
 // A result on its way (async).
@@ -112,14 +157,14 @@ class Future
 {
 public:
     Future() = default;
-    explicit Future(std::shared_ptr<detail::Result<T>> j) : job{std::move(j)} {}
+    explicit Future(detail::JobPtr<detail::Result<T>> j) : job{ZA_MOVE(j)} {}
     Future(Future&&) noexcept = default;
     Future& operator=(Future&& o) noexcept
     {
         if(this != &o)
         {
             finish();
-            job = std::move(o.job);
+            job = ZA_MOVE(o.job);
         }
         return *this;
     }
@@ -132,11 +177,11 @@ public:
 
     [[nodiscard]] bool valid() const noexcept
     {
-        return job != nullptr;
+        return static_cast<bool>(job);
     }
     [[nodiscard]] bool ready() const noexcept
     {
-        return job && job->phase.load(std::memory_order_acquire) == 2;
+        return job && job->phase.loadAcquire() == 2;
     }
     void wait() const noexcept
     {
@@ -148,15 +193,15 @@ public:
     // Waits, then returns the result (or rethrows f's exception). The Future is empty after.
     T get()
     {
-        std::shared_ptr<detail::Result<T>> j = std::move(job);
+        detail::JobPtr<detail::Result<T>> j = ZA_MOVE(job);
         j->wait();
         if(j->error)
         {
-            std::rethrow_exception(j->error);
+            std::rethrow_exception(j->error); // ZANCLE-TODO: no exception transport
         }
-        if constexpr(!std::is_void_v<T>)
+        if constexpr(!ZA_IS_VOID(T))
         {
-            return std::move(*j->value);
+            return ZA_MOVE(*j->value);
         }
     }
 
@@ -169,19 +214,19 @@ private:
             job.reset();
         }
     }
-    std::shared_ptr<detail::Result<T>> job;
+    detail::JobPtr<detail::Result<T>> job;
 };
 
 // Counters since start-up, every pool's (vr_jobs_info).
 struct Stats
 {
-    std::size_t tasks{0};         // async tasks run (by workers or claimed by their waiter)
-    std::size_t claimedByWaiter{0}; // ... of them, run by the thread that waited
-    std::size_t loops{0};         // parallelFor calls split between threads
-    std::size_t serialLoops{0};   // parallelFor calls run on the caller alone (one chunk, no pool, or vr_jobs_parallel 0)
-    std::size_t chunksCaller{0};  // chunks run by the calling thread
-    std::size_t chunksHelpers{0}; // chunks run by helpers
-    std::size_t helpersCalledOff{0}; // helpers that started after the caller had finished (nothing left to do)
+    za::SizeT tasks{0};         // async tasks run (by workers or claimed by their waiter)
+    za::SizeT claimedByWaiter{0}; // ... of them, run by the thread that waited
+    za::SizeT loops{0};         // parallelFor calls split between threads
+    za::SizeT serialLoops{0};   // parallelFor calls run on the caller alone (one chunk, no pool, or vr_jobs_parallel 0)
+    za::SizeT chunksCaller{0};  // chunks run by the calling thread
+    za::SizeT chunksHelpers{0}; // chunks run by helpers
+    za::SizeT helpersCalledOff{0}; // helpers that started after the caller had finished (nothing left to do)
 };
 
 class Pool
@@ -198,23 +243,23 @@ public:
 
     // body(begin, end) over [0, count) in chunks of `chunk` (0: about a quarter of an even share per thread), the
     // calling thread taking part; `parallel` false: every chunk on the calling thread (the same results).
-    void parallelFor(std::size_t count, std::size_t chunk, FunctionRef<void(std::size_t, std::size_t)> body, bool parallel = true);
+    void parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::SizeT, za::SizeT)> body, bool parallel = true);
 
     template <typename F>
-    [[nodiscard]] auto async(F&& f) -> Future<std::invoke_result_t<std::decay_t<F>&>>
+    [[nodiscard]] auto async(F&& f) -> Future<detail::ResultOf<F>>
     {
-        using T = std::invoke_result_t<std::decay_t<F>&>;
-        auto job = std::make_shared<detail::JobOf<T, std::decay_t<F>>>(std::forward<F>(f));
+        using T = detail::ResultOf<F>;
+        detail::JobPtr<detail::Result<T>> job{new detail::JobOf<T, ZA_DECAY(F)>(ZA_FORWARD(f))};
         post(job);
-        return Future<T>{std::move(job)};
+        return Future<T>{ZA_MOVE(job)};
     }
 
-    void post(std::shared_ptr<detail::Job> job);
+    void post(detail::JobPtr<detail::Job> job);
 
     struct Impl;
 
 private:
-    std::unique_ptr<Impl> impl;
+    za::UniquePtr<Impl> impl;
 };
 
 // The game's pool (VR_Init .. VR_Shutdown): `workers` 0 is the hardware's threads less one (at most 31).
@@ -231,13 +276,13 @@ void setParallel(bool on) noexcept;
 [[nodiscard]] Stats stats() noexcept;
 
 // On the game's pool; without one, on the calling thread (async: at once).
-void parallelFor(std::size_t count, std::size_t chunk, FunctionRef<void(std::size_t, std::size_t)> body);
+void parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::SizeT, za::SizeT)> body);
 
 template <typename F>
-[[nodiscard]] auto async(F&& f) -> Future<std::invoke_result_t<std::decay_t<F>&>>
+[[nodiscard]] auto async(F&& f) -> Future<detail::ResultOf<F>>
 {
-    using T = std::invoke_result_t<std::decay_t<F>&>;
-    auto job = std::make_shared<detail::JobOf<T, std::decay_t<F>>>(std::forward<F>(f));
+    using T = detail::ResultOf<F>;
+    detail::JobPtr<detail::Result<T>> job{new detail::JobOf<T, ZA_DECAY(F)>(ZA_FORWARD(f))};
     if(Pool* p = pool())
     {
         p->post(job);
@@ -246,7 +291,7 @@ template <typename F>
     {
         job->claimAndRun();
     }
-    return Future<T>{std::move(job)};
+    return Future<T>{ZA_MOVE(job)};
 }
 
 // The engine's side (vr_jobs_engine.cpp).

@@ -74,6 +74,26 @@ template <typename T>
     }
 }
 
+// ZANCLE-TODO: Algorithm has no fill (std::fill): every element of [first, last), or of a range (an array, a
+// container), set to `value`.
+template <typename It, typename T>
+constexpr void fill(It first, const It last, const T& value)
+{
+    for(; first != last; ++first)
+    {
+        *first = value;
+    }
+}
+
+template <typename Range, typename T>
+constexpr void fill(Range& range, const T& value)
+{
+    for(auto& e : range)
+    {
+        e = value;
+    }
+}
+
 // ZANCLE-TODO: no ordered map (a sorted flat map): where a std::map's order was used (its loops), the unordered map's
 // entries sorted by key (the same order: keys are unique).
 template <typename Map>

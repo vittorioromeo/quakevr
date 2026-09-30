@@ -5,16 +5,22 @@
 
 #include "vr_gpustats.hpp"
 
-#include <algorithm>
-#include <atomic>
-#include <chrono>
-#include <condition_variable>
-#include <cstdio>
-#include <cstring>
-#include <map>
-#include <mutex>
-#include <thread>
-#include <unordered_map>
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Concurrency/Atomic.hpp"
+#include "Zancle/Concurrency/AtomicMutex.hpp"
+#include "Zancle/Concurrency/LockGuard.hpp"
+#include "Zancle/Concurrency/Thread.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/String/ToString.hpp"
+#include "vr_zancle.hpp"
+
+#include <stdio.h>
+#include <string.h>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -22,6 +28,7 @@
 #include <windows.h>
 #include <pdh.h>
 #include <pdhmsg.h>
+#include <wchar.h>
 #pragma comment(lib, "pdh.lib")
 #endif
 
@@ -124,32 +131,31 @@ struct Accum
     unsigned long long reasons{0};
     int slowedSamples{0}; // samples with a power or thermal slowdown
     int engineSamples{0};
-    std::unordered_map<DWORD, Engines> byProcess; // summed over the samples
+    ankerl::unordered_dense::map<DWORD, Engines> byProcess; // summed over the samples
 };
 
-std::mutex mutex;
+za::AtomicMutex mutex;
 Accum accum;
-std::thread worker;
-std::atomic<bool> running{false};
-std::mutex sleepMutex;           // the worker's sleep between samples, and stop's wake-up
-std::condition_variable wake;
+za::Thread worker;
+za::Atomic<bool> running{false};
+HANDLE wake = nullptr; // an event: the worker's sleep between samples, cut short by stop()
 
-std::unordered_map<DWORD, std::string> processNames; // worker thread only
+ankerl::unordered_dense::map<DWORD, za::String> processNames; // worker thread only
 
-[[nodiscard]] const std::string& processName(DWORD pid)
+[[nodiscard]] const za::String& processName(DWORD pid)
 {
     if(const auto it = processNames.find(pid); it != processNames.end())
     {
         return it->second;
     }
-    std::string name = "pid" + std::to_string(pid);
+    za::String name = "pid" + za::toString(pid);
     if(HANDLE h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid))
     {
         char path[MAX_PATH];
         DWORD size = MAX_PATH;
         if(QueryFullProcessImageNameA(h, 0, path, &size))
         {
-            const char* base = std::max(std::strrchr(path, '\\'), std::strrchr(path, '/'));
+            const char* base = za::max(strrchr(path, '\\'), strrchr(path, '/'));
             name = base ? base + 1 : path;
         }
         CloseHandle(h);
@@ -161,18 +167,18 @@ std::unordered_map<DWORD, std::string> processNames; // worker thread only
             ch = '_'; // the log is comma separated; the list below uses spaces and colons
         }
     }
-    return processNames.emplace(pid, std::move(name)).first->second;
+    return processNames.emplace(pid, ZA_MOVE(name)).first->second;
 }
 
 // "pid_1234_luid_0x00000000_0x0000D1B0_phys_0_eng_0_engtype_3D": the process and the engine's type.
 [[nodiscard]] bool parseInstance(const wchar_t* name, DWORD& pid, const wchar_t*& type)
 {
-    if(std::wcsncmp(name, L"pid_", 4) != 0)
+    if(wcsncmp(name, L"pid_", 4) != 0)
     {
         return false;
     }
-    pid = static_cast<DWORD>(std::wcstoul(name + 4, nullptr, 10));
-    const wchar_t* t = std::wcsstr(name, L"engtype_");
+    pid = static_cast<DWORD>(wcstoul(name + 4, nullptr, 10));
+    const wchar_t* t = wcsstr(name, L"engtype_");
     if(!t)
     {
         return false;
@@ -181,7 +187,7 @@ std::unordered_map<DWORD, std::string> processNames; // worker thread only
     return true;
 }
 
-void sampleEngines(PDH_HQUERY query, PDH_HCOUNTER counter, std::unordered_map<DWORD, Engines>& out)
+void sampleEngines(PDH_HQUERY query, PDH_HCOUNTER counter, ankerl::unordered_dense::map<DWORD, Engines>& out)
 {
     if(PdhCollectQueryData(query) != ERROR_SUCCESS)
     {
@@ -192,7 +198,7 @@ void sampleEngines(PDH_HQUERY query, PDH_HCOUNTER counter, std::unordered_map<DW
     {
         return;
     }
-    std::vector<unsigned char> buffer(bytes);
+    za::Vector<unsigned char> buffer(bytes);
     auto* items = reinterpret_cast<PDH_FMT_COUNTERVALUE_ITEM_W*>(buffer.data());
     if(PdhGetFormattedCounterArrayW(counter, PDH_FMT_DOUBLE | PDH_FMT_NOCAP100, &bytes, &count, items) != ERROR_SUCCESS)
     {
@@ -208,15 +214,15 @@ void sampleEngines(PDH_HQUERY query, PDH_HCOUNTER counter, std::unordered_map<DW
         }
         const double v = items[i].FmtValue.doubleValue;
         Engines& e = out[pid];
-        if(!std::wcsncmp(type, L"3D", 2) || !std::wcsncmp(type, L"Compute", 7) || !std::wcsncmp(type, L"Graphics", 8))
+        if(!wcsncmp(type, L"3D", 2) || !wcsncmp(type, L"Compute", 7) || !wcsncmp(type, L"Graphics", 8))
         {
             e.graphics += v;
         }
-        else if(!std::wcsncmp(type, L"Copy", 4))
+        else if(!wcsncmp(type, L"Copy", 4))
         {
             e.copy += v;
         }
-        else if(!std::wcsncmp(type, L"VideoEncode", 11))
+        else if(!wcsncmp(type, L"VideoEncode", 11))
         {
             e.encode += v;
         }
@@ -237,19 +243,16 @@ void run()
         PdhCollectQueryData(query); // the first of two: utilisation is a rate between collections
     }
 
-    while(running.load())
+    while(running.loadSeqCst())
     {
-        {
-            // A sample a second; stop() wakes it at once.
-            std::unique_lock lock{sleepMutex};
-            wake.wait_for(lock, std::chrono::seconds(1), [] { return !running.load(); });
-        }
-        if(!running.load())
+        // A sample a second; stop() wakes it at once.
+        WaitForSingleObject(wake, 1000);
+        if(!running.loadSeqCst())
         {
             break;
         }
 
-        std::unordered_map<DWORD, Engines> engines;
+        ankerl::unordered_dense::map<DWORD, Engines> engines;
         if(havePdh)
         {
             sampleEngines(query, counter, engines);
@@ -288,7 +291,7 @@ void run()
             }
         }
 
-        std::lock_guard lock{mutex};
+        za::LockGuard lock{mutex};
         accum.samples++;
         if(nvmlOk)
         {
@@ -339,14 +342,14 @@ void run()
 
 #endif // _WIN32
 
-void add(std::vector<std::pair<std::string, std::string>>& c, const char* name, const char* fmt, double v, bool valid)
+void add(za::Vector<Column>& c, const char* name, const char* fmt, double v, bool valid)
 {
     char buf[64] = "";
     if(valid)
     {
-        std::snprintf(buf, sizeof(buf), fmt, v);
+        snprintf(buf, sizeof(buf), fmt, v);
     }
-    c.emplace_back(name, buf);
+    c.pushBack(Column{name, buf});
 }
 
 } // namespace
@@ -354,9 +357,13 @@ void add(std::vector<std::pair<std::string, std::string>>& c, const char* name, 
 void start()
 {
 #ifdef _WIN32
-    if(!running.exchange(true))
+    if(!running.exchangeSeqCst(true))
     {
-        worker = std::thread(run);
+        if(!wake)
+        {
+            wake = CreateEventW(nullptr, FALSE, FALSE, nullptr); // (auto-reset)
+        }
+        worker = za::Thread([] { run(); });
         Con_DPrintf("gpustats: sampling thread started\n");
     }
 #endif
@@ -365,12 +372,11 @@ void start()
 void stop()
 {
 #ifdef _WIN32
-    bool was = false;
+    const bool was = running.exchangeSeqCst(false);
+    if(wake)
     {
-        std::lock_guard lock{sleepMutex};
-        was = running.exchange(false);
+        SetEvent(wake);
     }
-    wake.notify_all();
     if(was && worker.joinable())
     {
         worker.join();
@@ -379,13 +385,13 @@ void stop()
 #endif
 }
 
-void columns(std::vector<std::pair<std::string, std::string>>& c)
+void columns(za::Vector<Column>& c)
 {
 #ifdef _WIN32
     Accum a;
     {
-        std::lock_guard lock{mutex};
-        a = std::move(accum);
+        za::LockGuard lock{mutex};
+        a = ZA_MOVE(accum);
         accum = Accum{};
     }
     const double n = a.nvmlSamples;
@@ -397,47 +403,49 @@ void columns(std::vector<std::pair<std::string, std::string>>& c)
     add(c, "gpu_util_pct", "%.0f", nv ? a.gpuUtil / n : 0.0, nv);
     add(c, "gpu_encoder_pct", "%.0f", nv ? a.encUtil / n : 0.0, nv);
     add(c, "gpu_slowed_pct", "%.0f", nv ? 100.0 * a.slowedSamples / n : 0.0, nv);
-    std::string reasons;
+    za::String reasons;
     for(const auto& r : reasonNames)
     {
         if(a.reasons & r.bit)
         {
-            reasons += (reasons.empty() ? "" : " ") + std::string{r.name};
+            reasons += (reasons.empty() ? "" : " ") + za::String{r.name};
         }
     }
-    c.emplace_back("gpu_slowdown_reasons", reasons);
+    c.pushBack(Column{"gpu_slowdown_reasons", reasons});
 
     // Engine use by process, averaged over the samples: ours, SteamVR's compositor, Virtual Desktop's
     // streamer, and the busiest programs by name.
-    const double m = std::max(a.engineSamples, 1);
+    const double m = za::max(a.engineSamples, 1);
     const DWORD self = GetCurrentProcessId();
     double selfGfx = 0.0, compositorGfx = 0.0, streamerGfx = 0.0, streamerEnc = 0.0, totalGfx = 0.0, totalEnc = 0.0;
-    std::map<std::string, Engines> byName; // several processes of one program summed
+    ankerl::unordered_dense::map<za::String, Engines> byName; // several processes of one program summed
     {
-        std::lock_guard lock{mutex}; // processNames is filled by the worker
+        za::LockGuard lock{mutex}; // processNames is filled by the worker
         for(const auto& [pid, e] : a.byProcess)
         {
             const auto it = processNames.find(pid);
-            const std::string name = pid == self ? "quake" : it != processNames.end() ? it->second : "pid" + std::to_string(pid);
+            const za::String name = pid == self ? "quake" : it != processNames.end() ? it->second : "pid" + za::toString(pid);
             Engines& sum = byName[name];
             sum.graphics += e.graphics / m;
             sum.copy += e.copy / m;
             sum.encode += e.encode / m;
         }
     }
-    for(const auto& [name, e] : byName)
+    const auto byNameSorted = qza::sortedByKey(byName); // (summed in the names' order, as a std::map had them)
+    for(const auto* entry : byNameSorted)
     {
+        const auto& [name, e] = *entry;
         totalGfx += e.graphics;
         totalEnc += e.encode;
         if(name == "quake")
         {
             selfGfx += e.graphics;
         }
-        else if(_stricmp(name.c_str(), "vrcompositor.exe") == 0)
+        else if(_stricmp(name.cStr(), "vrcompositor.exe") == 0)
         {
             compositorGfx += e.graphics;
         }
-        else if(_strnicmp(name.c_str(), "VirtualDesktop", 14) == 0)
+        else if(_strnicmp(name.cStr(), "VirtualDesktop", 14) == 0)
         {
             streamerGfx += e.graphics;
             streamerEnc += e.encode;
@@ -451,24 +459,24 @@ void columns(std::vector<std::pair<std::string, std::string>>& c)
     add(c, "gpu3d_all_pct", "%.1f", totalGfx, eng);
     add(c, "gpuenc_all_pct", "%.1f", totalEnc, eng);
 
-    std::vector<std::pair<std::string, Engines>> top(byName.begin(), byName.end());
-    std::sort(top.begin(), top.end(), [](const auto& x, const auto& y) {
-        return x.second.graphics + x.second.encode + x.second.copy > y.second.graphics + y.second.encode + y.second.copy;
+    za::Vector<const decltype(byName)::value_type*> top(byNameSorted.begin(), byNameSorted.end());
+    za::quickSort(top.begin(), top.end(), [](const auto* x, const auto* y) {
+        return x->second.graphics + x->second.encode + x->second.copy > y->second.graphics + y->second.encode + y->second.copy;
     });
-    std::string list;
-    for(std::size_t i = 0; i < top.size() && i < 6; i++)
+    za::String list;
+    for(za::SizeT i = 0; i < top.size() && i < 6; i++)
     {
-        const Engines& e = top[i].second;
+        const Engines& e = top[i]->second;
         if(e.graphics + e.encode + e.copy < 0.5)
         {
             break;
         }
         char buf[160];
-        std::snprintf(buf, sizeof(buf), "%s%s:3d%.0f/enc%.0f/copy%.0f", list.empty() ? "" : " ", top[i].first.c_str(),
+        snprintf(buf, sizeof(buf), "%s%s:3d%.0f/enc%.0f/copy%.0f", list.empty() ? "" : " ", top[i]->first.cStr(),
             e.graphics, e.encode, e.copy);
         list += buf;
     }
-    c.emplace_back("gpu_programs", list);
+    c.pushBack(Column{"gpu_programs", list});
 #else
     (void)c;
 #endif

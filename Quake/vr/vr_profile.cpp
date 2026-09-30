@@ -13,17 +13,22 @@
 #include "vr_cvars.hpp"
 #include "vr_main.hpp"
 
-#include <algorithm>
-#include <chrono>
+#include "Zancle/Algorithm/Find.hpp"
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/UIntPtrT.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/String/String.hpp"
+#include "vr_zancle.hpp"
+
+#include <chrono> // ZANCLE-TODO: a nanosecond clock (nowNs)
 #include <cstdarg>
-#include <cmath>
-#include <cstdint>
-#include <cstdio>
-#include <cstring>
-#include <ctime>
-#include <string>
-#include <unordered_map>
-#include <vector>
+#include <stdio.h>
+#include <time.h>
 
 extern "C"
 {
@@ -46,7 +51,9 @@ constexpr double hitchMs = 250.0;
 // GPU frames in flight before a slot is read waiting.
 constexpr int gpuSlots = 6;
 
-[[nodiscard]] std::int64_t nowNs()
+// ZANCLE-TODO: za::Clock and za::Time count microseconds; the profiler times scopes of well under one (a nanosecond
+// clock: std::chrono::steady_clock, QueryPerformanceCounter on Windows).
+[[nodiscard]] za::I64 nowNs()
 {
     return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch())
         .count();
@@ -57,12 +64,12 @@ struct Node
     const char* name{nullptr};
     int parent{-1};
     int depth{0};
-    std::vector<int> children;
+    za::Vector<int> children;
     int system{0}; // vr_profile_systems.hpp: what its own time is
     int view{0};
 
     // This frame.
-    std::int64_t frameNs{0};
+    za::I64 frameNs{0};
     int frameCalls{0};
     bool cpuTouched{false};
     double gpuFrameMs{0.0};
@@ -71,23 +78,23 @@ struct Node
     // This interval.
     double cpuSum{0.0}; // ms
     double cpuMax{0.0};
-    std::int64_t calls{0};
+    za::I64 calls{0};
     double gpuSum{0.0};
     double gpuMax{0.0};
     bool gpu{false};
 };
 
-std::vector<Node> nodes; // [0]: the frame
-std::vector<int> cpuTouched;
-std::vector<int> gpuTouched;
+za::Vector<Node> nodes; // [0]: the frame
+za::Vector<int> cpuTouched;
+za::Vector<int> gpuTouched;
 
 struct Open
 {
     int node;
-    std::int64_t start;
+    za::I64 start;
     int gpuRec; // -1: CPU only
 };
-std::vector<Open> stack;
+za::Vector<Open> stack;
 
 struct GpuRec
 {
@@ -99,9 +106,9 @@ struct GpuRec
 
 struct GpuSlot
 {
-    std::vector<GLuint> queries;
+    za::Vector<GLuint> queries;
     int used{0};
-    std::vector<GpuRec> recs;
+    za::Vector<GpuRec> recs;
     bool pending{false};
 };
 GpuSlot slots[gpuSlots];
@@ -109,22 +116,22 @@ int slotIndex = 0; // this frame's
 int gpuDepth = 0;
 bool gpuOk = false; // the GL calls there, and vr_profile_gpu (latched at the frame's start)
 
-std::int64_t frameStart = 0;
-std::int64_t frameEnd = 0; // VR_ProfileFrameEnd, when called (else the next frame's start)
+za::I64 frameStart = 0;
+za::I64 frameEnd = 0; // VR_ProfileFrameEnd, when called (else the next frame's start)
 bool frameEnded = false;
 double periodSum = 0.0; // ms from a frame's start to the next's, idle time included
 double periodMax = 0.0;
-std::int64_t intervalStart = 0;
+za::I64 intervalStart = 0;
 int intervalFrames = 0;
 int intervalGpuFrames = 0;
 int intervalHitches = 0;
 int intervalStalls = 0;
 int intervalNumber = 0;
 
-std::string capturePath; // this capture's file (empty: none written yet)
-std::string captureMap;
-std::string lastContext;
-std::string mapName = "none";
+za::String capturePath; // this capture's file (empty: none written yet)
+za::String captureMap;
+za::String lastContext;
+za::String mapName = "none";
 
 bool recording = false; // the call tree's CSV (vr_profile), apart from the systems' (collecting: `active`)
 
@@ -141,16 +148,16 @@ constexpr PhaseInfo phaseInfo[PhaseCount] = {{"xr wait", false}, {"xrWaitFrame",
     {"run particles", false}, {"sound", false}, {"rigid bodies", false}, {"shadow maps", true}, {"world+brush", true},
     {"alias", true}, {"particles", true}, {"vr particles", true}, {"decals", true}};
 
-std::unordered_map<const void*, int> phaseOfName; // a name literal's address -> its phase, or -1
+ankerl::unordered_dense::map<const void*, int> phaseOfName; // a name literal's address -> its phase, or -1
 
 struct PhaseOpen
 {
     int phase; // -1: not a phase
-    std::int64_t start;
+    za::I64 start;
     int gpuRec; // -1: none
 };
-std::vector<PhaseOpen> phaseStack;
-std::int64_t phaseFrameNs[PhaseCount]{};
+za::Vector<PhaseOpen> phaseStack;
+za::I64 phaseFrameNs[PhaseCount]{};
 PhaseSums phaseSums;
 double displayPeriod = 0.0; // ms
 
@@ -170,14 +177,14 @@ struct PhaseGpuSlot
     int recCount{0};
     bool pending{false};
     int sample{-1};            // its frame's place in the history (frameSample), if kept there,
-    std::uint64_t serial{0};   // and that frame's serial (the place may have been reused since)
+    za::U64 serial{0};   // and that frame's serial (the place may have been reused since)
 };
 PhaseGpuSlot phaseSlots[phaseGpuSlots];
 
 // The frames' history (frameSample): a ring, with each place's frame serial.
 FrameSample history[frameHistorySize];
-std::uint64_t historySerial[frameHistorySize]{};
-std::uint64_t frameSerial = 0; // the frames recorded so far
+za::U64 historySerial[frameHistorySize]{};
+za::U64 frameSerial = 0; // the frames recorded so far
 int phaseSlot = 0;
 bool phaseGpuMade = false;
 
@@ -192,7 +199,7 @@ PhaseCacheEntry phaseCache[256]{};
 
 [[nodiscard]] int phaseOf(const char* name)
 {
-    PhaseCacheEntry& cached = phaseCache[(reinterpret_cast<std::uintptr_t>(name) * 0x9E3779B97F4A7C15ull) >> 56];
+    PhaseCacheEntry& cached = phaseCache[(reinterpret_cast<za::UIntPtrT>(name) * 0x9E3779B97F4A7C15ull) >> 56];
     if(cached.name == name)
     {
         return cached.phase;
@@ -206,7 +213,7 @@ PhaseCacheEntry phaseCache[256]{};
     int phase = -1;
     for(int i = 0; i < PhaseCount; i++)
     {
-        if(std::strcmp(phaseInfo[i].name, name) == 0)
+        if(ZA_STRCMP(phaseInfo[i].name, name) == 0)
         {
             phase = i;
             break;
@@ -231,7 +238,7 @@ void beginPhase(const char* name, bool gpu)
             s.recs[o.gpuRec] = {o.phase, s.used++, -1};
         }
     }
-    phaseStack.push_back(o);
+    phaseStack.pushBack(o);
 }
 
 void endPhase()
@@ -241,7 +248,7 @@ void endPhase()
         return;
     }
     const PhaseOpen o = phaseStack.back();
-    phaseStack.pop_back();
+    phaseStack.popBack();
     if(o.phase < 0)
     {
         return;
@@ -296,7 +303,7 @@ bool resolvePhases(PhaseGpuSlot& s)
 
 // The frame's end for the phases (VR_ProfileFrame): its times into the sums, its GPU slot sent off,
 // the finished slots read back.
-void endPhaseFrame(std::int64_t now, std::int64_t start, std::int64_t end)
+void endPhaseFrame(za::I64 now, za::I64 start, za::I64 end)
 {
     phaseStack.clear(); // a Host_Error jumped out of them, or a dialog's frame inside one
     const double period = start > 0 ? static_cast<double>(now - start) / 1e6 : 0.0;
@@ -306,7 +313,7 @@ void endPhaseFrame(std::int64_t now, std::int64_t start, std::int64_t end)
     {
         ++phaseSums.frames;
         phaseSums.periodMs += period;
-        phaseSums.periodMaxMs = std::max(phaseSums.periodMaxMs, period);
+        phaseSums.periodMaxMs = za::max(phaseSums.periodMaxMs, period);
         if(displayPeriod > 0.0 && period > 1.25 * displayPeriod)
         {
             ++phaseSums.slowFrames;
@@ -324,16 +331,16 @@ void endPhaseFrame(std::int64_t now, std::int64_t start, std::int64_t end)
     s.sample = -1;
     if(start > 0)
     {
-        const std::int64_t waits = phaseFrameNs[XrWait] + phaseFrameNs[XrAcquire] + phaseFrameNs[XrRelease] +
+        const za::I64 waits = phaseFrameNs[XrWait] + phaseFrameNs[XrAcquire] + phaseFrameNs[XrRelease] +
                                    phaseFrameNs[XrSubmit] + phaseFrameNs[Swap];
         const int at = static_cast<int>(frameSerial % frameHistorySize);
         history[at] = {static_cast<double>(start) / 1e9, static_cast<float>(period),
-            static_cast<float>(std::max<std::int64_t>(0, end - start - waits)) / 1e6f, -1.f};
+            static_cast<float>(za::max<za::I64>(0, end - start - waits)) / 1e6f, -1.f};
         historySerial[at] = ++frameSerial;
         s.sample = at;
         s.serial = frameSerial;
     }
-    std::fill(std::begin(phaseFrameNs), std::end(phaseFrameNs), std::int64_t{0});
+    qza::fill(phaseFrameNs, za::I64{0});
     s.pending = keep && s.recCount > 0;
 
     if(!phaseGpuMade && GL_QueryCounterFunc && GL_GetQueryObjectui64vFunc && GL_GetQueryObjectivFunc &&
@@ -375,7 +382,7 @@ void endPhaseFrame(std::int64_t now, std::int64_t start, std::int64_t end)
     }
     for(int c : nodes[parent].children)
     {
-        if(std::strcmp(nodes[c].name, name) == 0)
+        if(ZA_STRCMP(nodes[c].name, name) == 0)
         {
             return c;
         }
@@ -385,9 +392,9 @@ void endPhaseFrame(std::int64_t now, std::int64_t start, std::int64_t end)
     n.parent = parent;
     n.depth = nodes[parent].depth + 1;
     systems::classify(name, nodes[parent].system, nodes[parent].view, n.system, n.view);
-    nodes.push_back(n);
+    nodes.pushBack(n);
     const int index = static_cast<int>(nodes.size()) - 1;
-    nodes[parent].children.push_back(index);
+    nodes[parent].children.pushBack(index);
     return index;
 }
 
@@ -395,7 +402,7 @@ void endPhaseFrame(std::int64_t now, std::int64_t start, std::int64_t end)
 {
     if(s.used == static_cast<int>(s.queries.size()))
     {
-        const std::size_t old = s.queries.size();
+        const za::SizeT old = s.queries.size();
         s.queries.resize(old + 64);
         GL_GenQueriesFunc(64, s.queries.data() + old);
     }
@@ -403,7 +410,7 @@ void endPhaseFrame(std::int64_t now, std::int64_t start, std::int64_t end)
     return s.used++;
 }
 
-void resetInterval(std::int64_t now)
+void resetInterval(za::I64 now)
 {
     for(Node& n : nodes)
     {
@@ -416,29 +423,34 @@ void resetInterval(std::int64_t now)
 }
 
 // This frame's costliest scopes by their own time (less their child scopes'), with their paths: the hitch log's detail.
-[[nodiscard]] std::string frameTopScopes()
+[[nodiscard]] za::String frameTopScopes()
 {
-    std::vector<std::pair<std::int64_t, int>> self;
+    struct Self
+    {
+        za::I64 ns;
+        int node;
+    };
+    za::Vector<Self> self;
     for(int i : cpuTouched)
     {
-        std::int64_t ns = nodes[i].frameNs;
+        za::I64 ns = nodes[i].frameNs;
         for(int c : nodes[i].children)
         {
             ns -= nodes[c].frameNs; // (0 for those not run this frame)
         }
-        self.emplace_back(ns, i);
+        self.pushBack({ns, i});
     }
-    std::sort(self.begin(), self.end(), [](const auto& a, const auto& b) { return a.first > b.first; });
-    std::string out;
-    for(std::size_t k = 0; k < self.size() && k < 3; k++)
+    za::quickSort(self.begin(), self.end(), [](const Self& a, const Self& b) { return a.ns > b.ns; });
+    za::String out;
+    for(za::SizeT k = 0; k < self.size() && k < 3; k++)
     {
-        std::string p = nodes[self[k].second].name;
-        for(int n = nodes[self[k].second].parent; n > 0; n = nodes[n].parent)
+        za::String p = nodes[self[k].node].name;
+        for(int n = nodes[self[k].node].parent; n > 0; n = nodes[n].parent)
         {
-            p = std::string{nodes[n].name} + "/" + p;
+            p = za::String{nodes[n].name} + "/" + p;
         }
         char buf[32];
-        q_snprintf(buf, sizeof(buf), " %.1f", static_cast<double>(self[k].first) / 1e6);
+        q_snprintf(buf, sizeof(buf), " %.1f", static_cast<double>(self[k].ns) / 1e6);
         out += (k ? ", " : "") + p + buf;
     }
     return out;
@@ -454,7 +466,7 @@ void foldCpu(bool keep)
         {
             const double ms = static_cast<double>(n.frameNs) / 1e6;
             n.cpuSum += ms;
-            n.cpuMax = std::max(n.cpuMax, ms);
+            n.cpuMax = za::max(n.cpuMax, ms);
             n.calls += n.frameCalls;
         }
         n.frameNs = 0;
@@ -471,7 +483,7 @@ void touchGpu(int node, double ms)
     if(!n.gpuTouched)
     {
         n.gpuTouched = true;
-        gpuTouched.push_back(node);
+        gpuTouched.pushBack(node);
     }
 }
 
@@ -517,7 +529,7 @@ bool resolve(GpuSlot& s, bool wait)
     {
         Node& n = nodes[i];
         n.gpuSum += n.gpuFrameMs;
-        n.gpuMax = std::max(n.gpuMax, n.gpuFrameMs);
+        n.gpuMax = za::max(n.gpuMax, n.gpuFrameMs);
         n.gpu = true;
         n.gpuFrameMs = 0.0;
         n.gpuTouched = false;
@@ -548,8 +560,8 @@ struct Stats
 [[nodiscard]] Stats stats(int i)
 {
     const Node& n = nodes[i];
-    const double frames = std::max(intervalFrames, 1);
-    const double gpuFrames = std::max(intervalGpuFrames, 1);
+    const double frames = za::max(intervalFrames, 1);
+    const double gpuFrames = za::max(intervalGpuFrames, 1);
     Stats s{};
     s.cpuAvg = n.cpuSum / frames;
     s.cpuMax = n.cpuMax;
@@ -562,8 +574,8 @@ struct Stats
         cpuChildren += nodes[c].cpuSum / frames;
         gpuChildren += nodes[c].gpuSum / gpuFrames;
     }
-    s.cpuSelf = std::max(0.0, s.cpuAvg - cpuChildren);
-    s.gpuSelf = n.gpu ? std::max(0.0, s.gpuAvg - gpuChildren) : 0.0;
+    s.cpuSelf = za::max(0.0, s.cpuAvg - cpuChildren);
+    s.gpuSelf = n.gpu ? za::max(0.0, s.gpuAvg - gpuChildren) : 0.0;
     if(i == 0)
     {
         s.calls = 1.0;
@@ -574,28 +586,28 @@ struct Stats
 [[nodiscard]] double sumNamed(const char* name)
 {
     double sum = 0.0;
-    for(std::size_t i = 1; i < nodes.size(); i++)
+    for(za::SizeT i = 1; i < nodes.size(); i++)
     {
-        if(std::strcmp(nodes[i].name, name) == 0)
+        if(ZA_STRCMP(nodes[i].name, name) == 0)
         {
             sum += nodes[i].cpuSum;
         }
     }
-    return sum / std::max(intervalFrames, 1);
+    return sum / za::max(intervalFrames, 1);
 }
 
 // GPU time of the scopes so named (summed over the tree), per frame.
 [[nodiscard]] double gpuNamed(const char* name)
 {
     double sum = 0.0;
-    for(std::size_t i = 1; i < nodes.size(); i++)
+    for(za::SizeT i = 1; i < nodes.size(); i++)
     {
-        if(std::strcmp(nodes[i].name, name) == 0)
+        if(ZA_STRCMP(nodes[i].name, name) == 0)
         {
             sum += nodes[i].gpuSum;
         }
     }
-    return sum / std::max(intervalGpuFrames, 1);
+    return sum / za::max(intervalGpuFrames, 1);
 }
 
 // The eyes' GPU time: the frame's GPU work in VR. The frame's GPU time (its outermost GPU scopes',
@@ -610,7 +622,7 @@ struct Stats
 // _Host_Frame's CPU time, less the waits in it (the runtime's frame pacing, the window's buffer swap).
 [[nodiscard]] double cpuBusy()
 {
-    return std::max(0.0, stats(0).cpuAvg - sumNamed("xr wait") - sumNamed("swap"));
+    return za::max(0.0, stats(0).cpuAvg - sumNamed("xr wait") - sumNamed("swap"));
 }
 
 struct Top
@@ -620,10 +632,10 @@ struct Top
 };
 
 // Scopes by self time (the same name summed over the tree: both eyes), costliest first.
-[[nodiscard]] std::vector<Top> top(bool gpu, std::size_t count)
+[[nodiscard]] za::Vector<Top> top(bool gpu, za::SizeT count)
 {
-    std::vector<Top> all;
-    for(std::size_t i = 1; i < nodes.size(); i++)
+    za::Vector<Top> all;
+    for(za::SizeT i = 1; i < nodes.size(); i++)
     {
         const Stats s = stats(static_cast<int>(i));
         const double ms = gpu ? s.gpuSelf : s.cpuSelf;
@@ -631,17 +643,17 @@ struct Top
         {
             continue;
         }
-        auto it = std::find_if(all.begin(), all.end(), [&](const Top& t) { return std::strcmp(t.name, nodes[i].name) == 0; });
+        auto it = za::findIf(all.begin(), all.end(), [&](const Top& t) { return ZA_STRCMP(t.name, nodes[i].name) == 0; });
         if(it != all.end())
         {
             it->ms += ms;
         }
         else
         {
-            all.push_back({nodes[i].name, ms});
+            all.pushBack({nodes[i].name, ms});
         }
     }
-    std::sort(all.begin(), all.end(), [](const Top& a, const Top& b) { return a.ms > b.ms; });
+    za::quickSort(all.begin(), all.end(), [](const Top& a, const Top& b) { return a.ms > b.ms; });
     if(all.size() > count)
     {
         all.resize(count);
@@ -649,17 +661,17 @@ struct Top
     return all;
 }
 
-[[nodiscard]] std::string path(int i)
+[[nodiscard]] za::String path(int i)
 {
-    std::string p = nodes[i].name;
+    za::String p = nodes[i].name;
     for(int n = nodes[i].parent; n >= 0; n = nodes[n].parent)
     {
-        p = std::string{nodes[n].name} + "/" + p;
+        p = za::String{nodes[n].name} + "/" + p;
     }
     return p;
 }
 
-void appendf(std::string& out, const char* fmt, ...)
+void appendf(za::String& out, const char* fmt, ...)
 {
     char buf[512];
     va_list args;
@@ -670,10 +682,10 @@ void appendf(std::string& out, const char* fmt, ...)
 }
 
 // Map, resolution and the graphics settings: "# key,value" lines.
-[[nodiscard]] std::string context()
+[[nodiscard]] za::String context()
 {
-    std::string c;
-    appendf(c, "# map,%s\n", captureMap.c_str());
+    za::String c;
+    appendf(c, "# map,%s\n", captureMap.cStr());
     int w = 0, h = 0;
     if(Backend* be = backend())
     {
@@ -711,80 +723,80 @@ void writeFile(double seconds)
     const bool created = capturePath.empty();
     if(created)
     {
-        const std::time_t now = std::time(nullptr);
+        const time_t now = time(nullptr);
         char stamp[64];
-        std::strftime(stamp, sizeof(stamp), "%Y-%m-%d_%H-%M-%S", std::localtime(&now));
-        const std::string dir = std::string{com_gamedir} + "/profile";
-        Sys_mkdir(dir.c_str());
+        strftime(stamp, sizeof(stamp), "%Y-%m-%d_%H-%M-%S", localtime(&now));
+        const za::String dir = za::String{com_gamedir} + "/profile";
+        Sys_mkdir(dir.cStr());
         capturePath = dir + "/profile_" + captureMap + "_" + stamp + ".csv";
     }
 
-    FILE* f = std::fopen(capturePath.c_str(), "a");
+    FILE* f = fopen(capturePath.cStr(), "a");
     if(!f)
     {
-        Con_Warning("vr_profile: can't write %s\n", capturePath.c_str());
+        Con_Warning("vr_profile: can't write %s\n", capturePath.cStr());
         return;
     }
 
-    const std::string ctx = context();
+    const za::String ctx = context();
     if(created)
     {
-        const std::time_t now = std::time(nullptr);
+        const time_t now = time(nullptr);
         char when[64];
-        std::strftime(when, sizeof(when), "%Y-%m-%d %H:%M:%S", std::localtime(&now));
-        std::fprintf(f, "# Quake VR profile (vr_profile), %s\n", when);
-        std::fprintf(f, "# per interval and scope: calls and milliseconds per frame, averaged over its frames; "
+        strftime(when, sizeof(when), "%Y-%m-%d %H:%M:%S", localtime(&now));
+        fprintf(f, "# Quake VR profile (vr_profile), %s\n", when);
+        fprintf(f, "# per interval and scope: calls and milliseconds per frame, averaged over its frames; "
                         "max is the worst frame; self excludes the child scopes\n");
-        std::fputs(ctx.c_str(), f);
-        std::fprintf(f, "interval,seconds,frames,gpu_frames,hitches,gpu_stalls,depth,scope,path,calls,cpu_avg_ms,"
+        fputs(ctx.cStr(), f);
+        fprintf(f, "interval,seconds,frames,gpu_frames,hitches,gpu_stalls,depth,scope,path,calls,cpu_avg_ms,"
                         "cpu_max_ms,cpu_self_ms,gpu_avg_ms,gpu_max_ms,gpu_self_ms\n");
     }
     else if(ctx != lastContext)
     {
-        std::fprintf(f, "# settings changed before interval %d:\n", intervalNumber);
-        std::fputs(ctx.c_str(), f);
+        fprintf(f, "# settings changed before interval %d:\n", intervalNumber);
+        fputs(ctx.cStr(), f);
     }
     lastContext = ctx;
 
     // The frame period (a frame's start to the next's, the frame rate cap's idle time included), then
     // the scopes depth first, in the order they were first seen ("frame": _Host_Frame's time; its GPU
     // time is its outermost GPU scopes').
-    std::fprintf(f, "%d,%.2f,%d,%d,%d,%d,0,frame period,frame period,1.00,%.3f,%.3f,,,,\n", intervalNumber, seconds,
-        intervalFrames, intervalGpuFrames, intervalHitches, intervalStalls, periodSum / std::max(intervalFrames, 1),
+    fprintf(f, "%d,%.2f,%d,%d,%d,%d,0,frame period,frame period,1.00,%.3f,%.3f,,,,\n", intervalNumber, seconds,
+        intervalFrames, intervalGpuFrames, intervalHitches, intervalStalls, periodSum / za::max(intervalFrames, 1),
         periodMax);
-    std::vector<int> todo{0};
+    za::Vector<int> todo{0};
     while(!todo.empty())
     {
         const int i = todo.back();
-        todo.pop_back();
+        todo.popBack();
         const Node& n = nodes[i];
-        for(auto it = n.children.rbegin(); it != n.children.rend(); ++it)
+        for(za::SizeT k = n.children.size(); k-- > 0;) // (the last first)
         {
-            todo.push_back(*it);
+            todo.pushBack(n.children[k]);
         }
         if(i != 0 && n.calls == 0 && n.gpuSum == 0.0)
         {
             continue;
         }
         const Stats s = stats(i);
-        std::fprintf(f, "%d,%.2f,%d,%d,%d,%d,%d,%s,%s,%.2f,%.3f,%.3f,%.3f,", intervalNumber, seconds, intervalFrames,
-            intervalGpuFrames, intervalHitches, intervalStalls, n.depth, n.name, path(i).c_str(), s.calls, s.cpuAvg,
+        fprintf(f, "%d,%.2f,%d,%d,%d,%d,%d,%s,%s,%.2f,%.3f,%.3f,%.3f,", intervalNumber, seconds, intervalFrames,
+            intervalGpuFrames, intervalHitches, intervalStalls, n.depth, n.name, path(i).cStr(), s.calls, s.cpuAvg,
             s.cpuMax, s.cpuSelf);
         if(n.gpu)
         {
-            std::fprintf(f, "%.3f,%.3f,%.3f\n", s.gpuAvg, s.gpuMax, s.gpuSelf);
+            fprintf(f, "%.3f,%.3f,%.3f\n", s.gpuAvg, s.gpuMax, s.gpuSelf);
         }
         else
         {
-            std::fprintf(f, ",,\n");
+            fprintf(f, ",,\n");
         }
     }
-    std::fclose(f);
+    fclose(f);
 }
 
-[[nodiscard]] std::string topLine(bool gpu, std::size_t count)
+[[nodiscard]] za::String topLine(bool gpu, za::SizeT count)
 {
-    std::string line;
+    za::String line;
     for(const Top& t : top(gpu, count))
     {
         appendf(line, "%s%s %.2f", line.empty() ? "" : ", ", t.name, t.ms);
@@ -795,15 +807,15 @@ void writeFile(double seconds)
 void printTree()
 {
     Con_Printf("%-30s %6s %6s %6s %6s\n", "scope (ms/frame)", "cpu", "max", "gpu", "max");
-    std::vector<int> todo{0};
+    za::Vector<int> todo{0};
     while(!todo.empty())
     {
         const int i = todo.back();
-        todo.pop_back();
+        todo.popBack();
         const Node& n = nodes[i];
-        for(auto it = n.children.rbegin(); it != n.children.rend(); ++it)
+        for(za::SizeT k = n.children.size(); k-- > 0;) // (the last first)
         {
-            todo.push_back(*it);
+            todo.pushBack(n.children[k]);
         }
         const Stats s = stats(i);
         if(i != 0 && s.cpuAvg < 0.02 && s.gpuAvg < 0.02)
@@ -823,7 +835,7 @@ void printTree()
     }
 }
 
-void report(std::int64_t now, bool full)
+void report(za::I64 now, bool full)
 {
     if(intervalFrames == 0)
     {
@@ -841,7 +853,7 @@ void report(std::int64_t now, bool full)
     const double period = periodSum / intervalFrames;
     Con_Printf("vr_profile: %s, %d frames in %.1f s, %.2f ms apart (%.0f fps): host frame %.2f ms, CPU busy %.2f, GPU %.2f "
                "(max %.2f; eyes %.2f, runtime's calls %.2f)\n",
-        captureMap.c_str(), intervalFrames, seconds, period, period > 0.0 ? 1000.0 / period : 0.0, frame.cpuAvg, cpuBusy(),
+        captureMap.cStr(), intervalFrames, seconds, period, period > 0.0 ? 1000.0 / period : 0.0, frame.cpuAvg, cpuBusy(),
         frame.gpuAvg, frame.gpuMax, gpuEyes(), gpuNamed("xr acquire") + gpuNamed("xr submit"));
     if(full)
     {
@@ -852,12 +864,12 @@ void report(std::int64_t now, bool full)
                 intervalStalls);
         }
     }
-    Con_Printf("  top GPU: %s\n  top CPU: %s\n  -> %s\n", topLine(true, 6).c_str(), topLine(false, 6).c_str(),
-        capturePath.c_str());
+    Con_Printf("  top GPU: %s\n  top CPU: %s\n  -> %s\n", topLine(true, 6).cStr(), topLine(false, 6).cStr(),
+        capturePath.cStr());
     resetInterval(now);
 }
 
-void startCapture(std::int64_t now)
+void startCapture(za::I64 now)
 {
     capturePath.clear();
     lastContext.clear();
@@ -904,11 +916,11 @@ double displayPeriodMs()
 
 bool frameSample(int back, FrameSample& out)
 {
-    if(back < 0 || back >= frameHistorySize || static_cast<std::uint64_t>(back) >= frameSerial)
+    if(back < 0 || back >= frameHistorySize || static_cast<za::U64>(back) >= frameSerial)
     {
         return false;
     }
-    out = history[(frameSerial - 1 - static_cast<std::uint64_t>(back)) % frameHistorySize];
+    out = history[(frameSerial - 1 - static_cast<za::U64>(back)) % frameHistorySize];
     return true;
 }
 
@@ -930,8 +942,9 @@ void begin(const char* name, bool gpu)
     {
         GpuSlot& s = slots[slotIndex];
         int gpuParent = -1;
-        for(auto it = stack.rbegin(); it != stack.rend(); ++it)
+        for(za::SizeT k = stack.size(); k-- > 0;) // (the innermost first)
         {
+            const auto it = &stack[k];
             if(it->gpuRec >= 0)
             {
                 gpuParent = it->node;
@@ -939,10 +952,10 @@ void begin(const char* name, bool gpu)
             }
         }
         o.gpuRec = static_cast<int>(s.recs.size());
-        s.recs.push_back({o.node, query(s), -1, gpuParent});
+        s.recs.pushBack({o.node, query(s), -1, gpuParent});
         ++gpuDepth;
     }
-    stack.push_back(o);
+    stack.pushBack(o);
 }
 
 namespace
@@ -955,9 +968,9 @@ void endScope()
         return;
     }
     const Open o = stack.back();
-    stack.pop_back();
+    stack.popBack();
     Node& n = nodes[o.node];
-    const std::int64_t ns = nowNs() - o.start;
+    const za::I64 ns = nowNs() - o.start;
     n.frameNs += ns;
     ++n.frameCalls;
     // Its own time to its system; its parent's (whose time holds it) less.
@@ -970,7 +983,7 @@ void endScope()
     if(!n.cpuTouched)
     {
         n.cpuTouched = true;
-        cpuTouched.push_back(o.node);
+        cpuTouched.pushBack(o.node);
     }
     if(o.gpuRec >= 0)
     {
@@ -995,7 +1008,7 @@ void init()
     root.name = "frame";
     root.system = systems::rootSystem();
     root.view = systems::rootView();
-    nodes.push_back(root);
+    nodes.pushBack(root);
     Cmd_AddCommand("vr_profile_dump", dump_f);
     systems::init();
 }
@@ -1016,7 +1029,7 @@ extern "C" void VR_ProfileFrame()
     {
         return;
     }
-    const std::int64_t now = nowNs();
+    const za::I64 now = nowNs();
     endPhaseFrame(now, frameStart, frameEnded ? frameEnd : now);
     const vr_profcounts_t counts = vr_profcounts; // the frame's (counted whatever vr_profile is)
     vr_profcounts = vr_profcounts_t{};
@@ -1034,15 +1047,15 @@ extern "C" void VR_ProfileFrame()
             endScope();
         }
         Node& root = nodes[0];
-        const std::int64_t hostNs = (frameEnded ? frameEnd : now) - frameStart;
+        const za::I64 hostNs = (frameEnded ? frameEnd : now) - frameStart;
         root.frameNs = hostNs;
         root.frameCalls = 1;
         root.cpuTouched = true;
-        cpuTouched.push_back(0);
+        cpuTouched.pushBack(0);
         const double period = static_cast<double>(now - frameStart) / 1e6;
         const bool hitch = period > hitchMs;
         const double hitchAt = systems::hitchMs();
-        const std::string hitchScopes = hitchAt > 0.0 && static_cast<double>(hostNs) / 1e6 > hitchAt ? frameTopScopes() : "";
+        const za::String hitchScopes = hitchAt > 0.0 && static_cast<double>(hostNs) / 1e6 > hitchAt ? frameTopScopes() : "";
         foldCpu(!hitch);
         GpuSlot& s = slots[slotIndex];
         if(hitch)
@@ -1054,7 +1067,7 @@ extern "C" void VR_ProfileFrame()
         {
             ++intervalFrames;
             periodSum += period;
-            periodMax = std::max(periodMax, period);
+            periodMax = za::max(periodMax, period);
         }
         s.pending = !s.recs.empty();
         slotIndex = (slotIndex + 1) % gpuSlots;
@@ -1079,7 +1092,7 @@ extern "C" void VR_ProfileFrame()
 
         systems::frameEnd(now, now - frameStart, hostNs,
             systems::Counts{counts.traces, counts.hullchecks, counts.drawcalls, counts.aliasdrawn}, hitchMs,
-            mapName.c_str(), hitchScopes);
+            mapName.cStr(), hitchScopes);
     }
 
     // Collecting: for the call tree's CSV (vr_profile), the panel or the systems' CSV. The call tree's capture starts

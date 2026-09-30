@@ -16,15 +16,31 @@
 #include "vr_text3d.hpp"
 #include "vr_units.hpp"
 
-#include <algorithm>
-#include <array>
-#include <cmath>
+#include "Zancle/Algorithm/Count.hpp"
+#include "Zancle/Algorithm/Find.hpp"
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/PtrDiffT.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Atan2.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Remainder.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/String/StringView.hpp"
+#include "vr_zancle.hpp"
+
 #include <cstdarg>
-#include <cstdio>
-#include <cstring>
-#include <ctime>
-#include <string>
-#include <vector>
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
 
 namespace qvr::profile::systems
 {
@@ -160,12 +176,12 @@ constexpr const char* countColumns[CountCount] = {"traces", "hull_traces", "draw
 
 [[nodiscard]] bool inList(const char* list, const char* name)
 {
-    const std::size_t n = std::strlen(name);
+    const za::SizeT n = ZA_STRLEN(name);
     for(const char* p = list; *p;)
     {
-        const char* bar = std::strchr(p, '|');
-        const std::size_t len = bar ? static_cast<std::size_t>(bar - p) : std::strlen(p);
-        if(len == n && std::strncmp(p, name, n) == 0)
+        const char* bar = strchr(p, '|');
+        const za::SizeT len = bar ? static_cast<za::SizeT>(bar - p) : ZA_STRLEN(p);
+        if(len == n && ZA_STRNCMP(p, name, n) == 0)
         {
             return true;
         }
@@ -180,10 +196,10 @@ constexpr const char* countColumns[CountCount] = {"traces", "hull_traces", "draw
 
 // ---- This frame ----
 
-std::int64_t frameCpu[SysCount]{};
-std::uint64_t allocationsBefore = 0; // the main thread's allocation count at the last frame collected's end
+za::I64 frameCpu[SysCount]{};
+za::U64 allocationsBefore = 0; // the main thread's allocation count at the last frame collected's end
 int allocationsFrame = -1;           // and that frame's host_framecount
-std::int64_t frameViewCpu[ViewCount]{};
+za::I64 frameViewCpu[ViewCount]{};
 double frameGpu[SysCount]{};
 double frameViewGpu[ViewCount]{};
 
@@ -215,7 +231,7 @@ struct Sum
 void addMax(double& sum, double& max, double v)
 {
     sum += v;
-    max = std::max(max, v);
+    max = za::max(max, v);
 }
 
 void merge(Sum& into, const Sum& s)
@@ -230,7 +246,7 @@ void merge(Sum& into, const Sum& s)
     into.budgetMs = s.budgetMs > 0.0 ? s.budgetMs : into.budgetMs;
     const auto both = [](double& sum, double& max, double s2, double m2) {
         sum += s2;
-        max = std::max(max, m2);
+        max = za::max(max, m2);
     };
     both(into.periodSum, into.periodMax, s.periodSum, s.periodMax);
     both(into.busySum, into.busyMax, s.busySum, s.busyMax);
@@ -261,16 +277,16 @@ void merge(Sum& into, const Sum& s)
 // dfunction_t::profile: kept anyway). Their share of the instructions is about their share of "quakec"'s time.
 struct QcFunction
 {
-    std::string name;
+    za::String name;
     double instructions;
 };
 
 struct Second
 {
     Sum sum;
-    std::string map;
+    za::String map;
     double qcInstructions{0.0};
-    std::vector<QcFunction> qcTop; // the costliest few
+    za::Vector<QcFunction> qcTop; // the costliest few
 };
 
 constexpr int ringSize = 120; // seconds kept for vr_profile_report
@@ -281,32 +297,32 @@ int ringNext = 0;
 Sum second;       // the current second's
 Sum half;         // the current half second's (the panel)
 Sum lastHalf;     // the one before
-std::int64_t secondStart = 0;
-std::int64_t halfStart = 0;
-std::int64_t captureStart = 0; // the CSV capture's first second's start
-std::string mapNow = "none";
+za::I64 secondStart = 0;
+za::I64 halfStart = 0;
+za::I64 captureStart = 0; // the CSV capture's first second's start
+za::String mapNow = "none";
 
 // QuakeC's per-function counts when last read (sv.qcvm's; restarted when its progs change).
-std::vector<int> qcLast;
+za::Vector<int> qcLast;
 const void* qcProgs = nullptr;
 
 // ---- Files ----
 
 // Kept open while in use (a row flushed at a time): opening and closing a file each second cost up to 2 ms, a hitch of
 // its own.
-std::string csvPath;   // this capture's (empty: none)
+za::String csvPath;   // this capture's (empty: none)
 FILE* csvFile = nullptr;
-std::string hitchPath; // this session's hitch log (made at the first hitch)
+za::String hitchPath; // this session's hitch log (made at the first hitch)
 FILE* hitchFile = nullptr;
 int hitchLines = 0;    // console lines this second (at most a few a second: the file has every one)
 int hitchQuiet = 0;    // those not printed
 
-std::string panelText;
-std::vector<text3d::OverlayBar> panelBars;
+za::String panelText;
+za::Vector<text3d::OverlayBar> panelBars;
 float panelYaw = 0.f; // vr_profile_overlay 2: the panel's direction, easing after the head's
 bool panelPlaced = false;
 
-void appendf(std::string& out, const char* fmt, ...)
+void appendf(za::String& out, const char* fmt, ...)
 {
     char buf[512];
     va_list args;
@@ -316,18 +332,18 @@ void appendf(std::string& out, const char* fmt, ...)
     out += buf;
 }
 
-[[nodiscard]] std::string stamp(const char* fmt)
+[[nodiscard]] za::String stamp(const char* fmt)
 {
-    const std::time_t now = std::time(nullptr);
+    const time_t now = time(nullptr);
     char buf[64];
-    std::strftime(buf, sizeof(buf), fmt, std::localtime(&now));
+    strftime(buf, sizeof(buf), fmt, localtime(&now));
     return buf;
 }
 
 // A system's name as a CSV column: letters and digits, '_' for the rest.
-[[nodiscard]] std::string column(const char* name)
+[[nodiscard]] za::String column(const char* name)
 {
-    std::string c;
+    za::String c;
     for(const char* p = name; *p; ++p)
     {
         const bool alnum = (*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z') || (*p >= '0' && *p <= '9');
@@ -342,7 +358,7 @@ void appendf(std::string& out, const char* fmt, ...)
     }
     while(!c.empty() && c.back() == '_')
     {
-        c.pop_back();
+        c.popBack();
     }
     return c;
 }
@@ -379,10 +395,16 @@ void readQuakeC(Second& s)
     const bool fresh = qcProgs != sv.qcvm.progs || static_cast<int>(qcLast.size()) != count;
     if(fresh)
     {
-        qcLast.assign(count, 0);
+        qcLast.clear();
+        qcLast.resize(static_cast<za::SizeT>(count), 0);
         qcProgs = sv.qcvm.progs;
     }
-    std::vector<std::pair<int, int>> ran; // (instructions, function)
+    struct Ran
+    {
+        int instructions;
+        int function;
+    };
+    za::Vector<Ran> ran;
     for(int i = 1; i < count; i++)
     {
         const int now = sv.qcvm.functions[i].profile;
@@ -395,18 +417,17 @@ void readQuakeC(Second& s)
         if(delta > 0 && !fresh)
         {
             s.qcInstructions += delta;
-            ran.emplace_back(delta, i);
+            ran.pushBack({delta, i});
         }
     }
-    constexpr std::size_t keep = 8;
-    const std::size_t n = std::min(keep, ran.size());
-    std::partial_sort(ran.begin(), ran.begin() + static_cast<std::ptrdiff_t>(n), ran.end(),
-        [](const auto& a, const auto& b) { return a.first > b.first; });
+    constexpr za::SizeT keep = 8;
+    const za::SizeT n = za::min(keep, ran.size());
+    za::quickSort(ran.begin(), ran.end(), [](const Ran& a, const Ran& b) { return a.instructions > b.instructions; });
     qcvm_t* old = nullptr;
     PR_PushQCVM(&sv.qcvm, &old);
-    for(std::size_t k = 0; k < n; k++)
+    for(za::SizeT k = 0; k < n; k++)
     {
-        s.qcTop.push_back({PR_GetString(sv.qcvm.functions[ran[k].second].s_name), static_cast<double>(ran[k].first)});
+        s.qcTop.pushBack({PR_GetString(sv.qcvm.functions[ran[k].function].s_name), static_cast<double>(ran[k].instructions)});
     }
     PR_PopQCVM(old);
 }
@@ -415,54 +436,54 @@ void readQuakeC(Second& s)
 
 void csvHeader(FILE* f)
 {
-    std::fprintf(f, "# Quake VR profile by system (vr_profile_csv), %s: a row a second; ms a frame, averaged over its "
+    fprintf(f, "# Quake VR profile by system (vr_profile_csv), %s: a row a second; ms a frame, averaged over its "
                     "frames (max: its worst frame); each system's own time, so they add up to period_ms; gpu_*: the GPU's "
                     "time; counts a frame\n",
-        stamp("%Y-%m-%d %H:%M:%S").c_str());
-    std::fprintf(f, "time_s,clock,map,frames,fps,period_ms,period_max_ms,budget_ms,slow_frames,long_frames,hitches,busy_ms,"
+        stamp("%Y-%m-%d %H:%M:%S").cStr());
+    fprintf(f, "time_s,clock,map,frames,fps,period_ms,period_max_ms,budget_ms,slow_frames,long_frames,hitches,busy_ms,"
                     "busy_max_ms,gpu_ms,gpu_max_ms");
     for(const char* g : groupNames)
     {
-        std::fprintf(f, ",group_%s_ms", column(g).c_str());
+        fprintf(f, ",group_%s_ms", column(g).cStr());
     }
     for(const Def& d : defs)
     {
-        std::fprintf(f, ",%s_ms", column(d.name).c_str());
+        fprintf(f, ",%s_ms", column(d.name).cStr());
     }
     for(const Def& d : defs)
     {
-        std::fprintf(f, ",%s_max_ms", column(d.name).c_str());
+        fprintf(f, ",%s_max_ms", column(d.name).cStr());
     }
     for(const Def& d : defs)
     {
-        std::fprintf(f, ",gpu_%s_ms", column(d.name).c_str());
+        fprintf(f, ",gpu_%s_ms", column(d.name).cStr());
     }
     for(const char* v : viewNames)
     {
-        std::fprintf(f, ",view_%s_ms,view_%s_gpu_ms", column(v).c_str(), column(v).c_str());
+        fprintf(f, ",view_%s_ms,view_%s_gpu_ms", column(v).cStr(), column(v).cStr());
     }
     for(const char* c : countColumns)
     {
-        std::fprintf(f, ",%s,%s_max", c, c);
+        fprintf(f, ",%s,%s_max", c, c);
     }
-    std::fprintf(f, ",qc_top\n");
+    fprintf(f, ",qc_top\n");
 }
 
 void csvRow(const Second& s, double time)
 {
     if(csvPath.empty())
     {
-        const std::string dir = std::string{com_gamedir} + "/profile";
-        Sys_mkdir(dir.c_str());
+        const za::String dir = za::String{com_gamedir} + "/profile";
+        Sys_mkdir(dir.cStr());
         csvPath = dir + "/systems_" + stamp("%Y-%m-%d_%H-%M-%S") + ".csv";
-        csvFile = std::fopen(csvPath.c_str(), "w");
+        csvFile = fopen(csvPath.cStr(), "w");
         if(!csvFile)
         {
-            Con_Warning("vr_profile_csv: can't write %s\n", csvPath.c_str());
+            Con_Warning("vr_profile_csv: can't write %s\n", csvPath.cStr());
             return;
         }
         csvHeader(csvFile);
-        Con_Printf("vr_profile_csv: writing %s\n", csvPath.c_str());
+        Con_Printf("vr_profile_csv: writing %s\n", csvPath.cStr());
     }
     FILE* f = csvFile;
     if(!f)
@@ -470,87 +491,92 @@ void csvRow(const Second& s, double time)
         return;
     }
     const Sum& m = s.sum;
-    const double frames = std::max(m.frames, 1);
-    const double gpuFrames = std::max(m.gpuFrames, 1);
+    const double frames = za::max(m.frames, 1);
+    const double gpuFrames = za::max(m.gpuFrames, 1);
     const double period = m.periodSum / frames;
-    std::fprintf(f, "%.2f,%s,%s,%d,%.1f,%.3f,%.2f,%.3f,%d,%d,%d,%.3f,%.2f,%.3f,%.2f", time, stamp("%H:%M:%S").c_str(),
-        s.map.c_str(), m.frames, period > 0.0 ? 1000.0 / period : 0.0, period, m.periodMax, m.budgetMs, m.slowFrames,
+    fprintf(f, "%.2f,%s,%s,%d,%.1f,%.3f,%.2f,%.3f,%d,%d,%d,%.3f,%.2f,%.3f,%.2f", time, stamp("%H:%M:%S").cStr(),
+        s.map.cStr(), m.frames, period > 0.0 ? 1000.0 / period : 0.0, period, m.periodMax, m.budgetMs, m.slowFrames,
         m.longFrames, m.hitches, m.busySum / frames, m.busyMax, m.gpuTotalSum / gpuFrames, m.gpuTotalMax);
     for(int g = 0; g < GroupCount; g++)
     {
-        std::fprintf(f, ",%.3f", m.groupSum[g] / frames);
+        fprintf(f, ",%.3f", m.groupSum[g] / frames);
     }
     for(int i = 0; i < SysCount; i++)
     {
-        std::fprintf(f, ",%.3f", m.cpuSum[i] / frames);
+        fprintf(f, ",%.3f", m.cpuSum[i] / frames);
     }
     for(int i = 0; i < SysCount; i++)
     {
-        std::fprintf(f, ",%.3f", m.cpuMax[i]);
+        fprintf(f, ",%.3f", m.cpuMax[i]);
     }
     for(int i = 0; i < SysCount; i++)
     {
-        std::fprintf(f, ",%.3f", m.gpuSum[i] / gpuFrames);
+        fprintf(f, ",%.3f", m.gpuSum[i] / gpuFrames);
     }
     for(int v = 0; v < ViewCount; v++)
     {
-        std::fprintf(f, ",%.3f,%.3f", m.viewSum[v] / frames, m.gpuViewSum[v] / gpuFrames);
+        fprintf(f, ",%.3f,%.3f", m.viewSum[v] / frames, m.gpuViewSum[v] / gpuFrames);
     }
     for(int c = 0; c < CountCount; c++)
     {
-        std::fprintf(f, ",%.1f,%.0f", m.countSum[c] / frames, m.countMax[c]);
+        fprintf(f, ",%.1f,%.0f", m.countSum[c] / frames, m.countMax[c]);
     }
-    std::string top;
-    for(std::size_t k = 0; k < s.qcTop.size() && k < 5; k++)
+    za::String top;
+    for(za::SizeT k = 0; k < s.qcTop.size() && k < 5; k++)
     {
-        appendf(top, "%s%s %.0f%%", top.empty() ? "" : " ", s.qcTop[k].name.c_str(),
-            100.0 * s.qcTop[k].instructions / std::max(s.qcInstructions, 1.0));
+        appendf(top, "%s%s %.0f%%", top.empty() ? "" : " ", s.qcTop[k].name.cStr(),
+            100.0 * s.qcTop[k].instructions / za::max(s.qcInstructions, 1.0));
     }
-    std::fprintf(f, ",%s\n", top.c_str());
-    std::fflush(f);
+    fprintf(f, ",%s\n", top.cStr());
+    fflush(f);
 }
 
 void closeCsv()
 {
     if(csvFile)
     {
-        std::fclose(csvFile);
+        fclose(csvFile);
         csvFile = nullptr;
     }
     if(!csvPath.empty())
     {
-        Con_Printf("vr_profile_csv: closed %s\n", csvPath.c_str());
+        Con_Printf("vr_profile_csv: closed %s\n", csvPath.cStr());
         csvPath.clear();
     }
 }
 
 // ---- The hitch log (vr_profile_hitch) ----
 
-void hitch(double periodMs, double hostMs, double budget, const int counts[CountCount], const std::string& scopes)
+void hitch(double periodMs, double hostMs, double budget, const int counts[CountCount], const za::String& scopes)
 {
-    std::vector<std::pair<double, int>> parts;
+    struct Part
+    {
+        double ms;
+        int system;
+    };
+    za::Vector<Part> parts;
     for(int i = 0; i < SysCount; i++)
     {
         const double ms = static_cast<double>(frameCpu[i]) / 1e6;
         if(ms >= 0.05)
         {
-            parts.emplace_back(ms, i);
+            parts.pushBack({ms, i});
         }
     }
-    std::sort(parts.begin(), parts.end(), [](const auto& a, const auto& b) { return a.first > b.first; });
+    za::quickSort(parts.begin(), parts.end(), [](const Part& a, const Part& b) { return a.ms > b.ms; });
 
     if(hitchLines < 5)
     {
-        std::string line;
-        for(std::size_t k = 0; k < parts.size() && k < 5; k++)
+        za::String line;
+        for(za::SizeT k = 0; k < parts.size() && k < 5; k++)
         {
-            appendf(line, "%s%s %.1f", k ? ", " : "", defs[parts[k].second].name, parts[k].first);
+            appendf(line, "%s%s %.1f", k ? ", " : "", defs[parts[k].system].name, parts[k].ms);
         }
-        Con_Printf("vr_profile: hitch %.1f ms (%.1f budgets), %s: %s\n", periodMs, periodMs / budget, mapNow.c_str(),
-            line.c_str());
+        Con_Printf("vr_profile: hitch %.1f ms (%.1f budgets), %s: %s\n", periodMs, periodMs / budget, mapNow.cStr(),
+            line.cStr());
         if(!scopes.empty())
         {
-            Con_Printf("  scopes: %s\n", scopes.c_str());
+            Con_Printf("  scopes: %s\n", scopes.cStr());
         }
         ++hitchLines;
     }
@@ -562,13 +588,13 @@ void hitch(double periodMs, double hostMs, double budget, const int counts[Count
     const bool created = hitchPath.empty();
     if(created)
     {
-        const std::string dir = std::string{com_gamedir} + "/profile";
-        Sys_mkdir(dir.c_str());
+        const za::String dir = za::String{com_gamedir} + "/profile";
+        Sys_mkdir(dir.cStr());
         hitchPath = dir + "/hitches_" + stamp("%Y-%m-%d_%H-%M-%S") + ".csv";
     }
     if(!hitchFile)
     {
-        hitchFile = std::fopen(hitchPath.c_str(), "a"); // (again after a stop: the session's one file)
+        hitchFile = fopen(hitchPath.cStr(), "a"); // (again after a stop: the session's one file)
     }
     FILE* f = hitchFile;
     if(!f)
@@ -577,44 +603,44 @@ void hitch(double periodMs, double hostMs, double budget, const int counts[Count
     }
     if(created)
     {
-        std::fprintf(f, "# Quake VR hitches (vr_profile_hitch): frames over %.2f budgets, each with its systems' own time "
+        fprintf(f, "# Quake VR hitches (vr_profile_hitch): frames over %.2f budgets, each with its systems' own time "
                         "(ms), which add up to period_ms\nclock,map,period_ms,budget_ms,host_ms",
             vr_profile_hitch.value);
         for(const Def& d : defs)
         {
-            std::fprintf(f, ",%s_ms", column(d.name).c_str());
+            fprintf(f, ",%s_ms", column(d.name).cStr());
         }
         for(const char* c : countColumns)
         {
-            std::fprintf(f, ",%s", c);
+            fprintf(f, ",%s", c);
         }
-        std::fprintf(f, ",scopes\n");
+        fprintf(f, ",scopes\n");
     }
-    std::fprintf(f, "%s,%s,%.2f,%.2f,%.2f", stamp("%H:%M:%S").c_str(), mapNow.c_str(), periodMs, budget, hostMs);
+    fprintf(f, "%s,%s,%.2f,%.2f,%.2f", stamp("%H:%M:%S").cStr(), mapNow.cStr(), periodMs, budget, hostMs);
     for(int i = 0; i < SysCount; i++)
     {
-        std::fprintf(f, ",%.3f", static_cast<double>(frameCpu[i]) / 1e6);
+        fprintf(f, ",%.3f", static_cast<double>(frameCpu[i]) / 1e6);
     }
     for(int c = 0; c < CountCount; c++)
     {
-        std::fprintf(f, ",%d", counts[c]);
+        fprintf(f, ",%d", counts[c]);
     }
-    std::fprintf(f, ",\"%s\"\n", scopes.c_str()); // (quoted: commas in it)
-    std::fflush(f);
+    fprintf(f, ",\"%s\"\n", scopes.cStr()); // (quoted: commas in it)
+    fflush(f);
 }
 
 // ---- Reading the sums ----
 
 // The last `seconds` seconds (the ring's, and the current second's so far).
-[[nodiscard]] Sum lastSeconds(double seconds, std::string& map, double& qcInstructions, std::vector<QcFunction>& qcTop)
+[[nodiscard]] Sum lastSeconds(double seconds, za::String& map, double& qcInstructions, za::Vector<QcFunction>& qcTop)
 {
     Sum s;
     Sum current = second; // this second so far
-    current.seconds = std::max(0.0, nowSeconds() - static_cast<double>(secondStart) / 1e9);
+    current.seconds = za::max(0.0, nowSeconds() - static_cast<double>(secondStart) / 1e9);
     merge(s, current);
     map = mapNow;
     qcInstructions = 0.0;
-    std::vector<QcFunction> all;
+    za::Vector<QcFunction> all;
     for(int k = 0; k < ringCount && s.seconds < seconds - 0.25; k++)
     {
         const Second& r = ring[(ringNext - 1 - k + ringSize) % ringSize];
@@ -622,23 +648,23 @@ void hitch(double periodMs, double hostMs, double budget, const int counts[Count
         qcInstructions += r.qcInstructions;
         for(const QcFunction& q : r.qcTop)
         {
-            auto it = std::find_if(all.begin(), all.end(), [&](const QcFunction& a) { return a.name == q.name; });
+            auto it = za::findIf(all.begin(), all.end(), [&](const QcFunction& a) { return a.name == q.name; });
             if(it != all.end())
             {
                 it->instructions += q.instructions;
             }
             else
             {
-                all.push_back(q);
+                all.pushBack(q);
             }
         }
     }
-    std::sort(all.begin(), all.end(), [](const QcFunction& a, const QcFunction& b) { return a.instructions > b.instructions; });
+    za::quickSort(all.begin(), all.end(), [](const QcFunction& a, const QcFunction& b) { return a.instructions > b.instructions; });
     if(all.size() > 6)
     {
         all.resize(6);
     }
-    qcTop = std::move(all);
+    qcTop = ZA_MOVE(all);
     return s;
 }
 
@@ -649,10 +675,10 @@ struct Row
 };
 
 // The systems of a group (or all, group -1), costliest first, down to `least` ms (or their max to 10 times that).
-[[nodiscard]] std::vector<Row> rows(const Sum& s, int group, bool gpuSide, double least)
+[[nodiscard]] za::Vector<Row> rows(const Sum& s, int group, bool gpuSide, double least)
 {
-    const double frames = std::max(gpuSide ? s.gpuFrames : s.frames, 1);
-    std::vector<Row> out;
+    const double frames = za::max(gpuSide ? s.gpuFrames : s.frames, 1);
+    za::Vector<Row> out;
     for(int i = 0; i < SysCount; i++)
     {
         if(group >= 0 && defs[i].group != group)
@@ -663,10 +689,10 @@ struct Row
         const double max = gpuSide ? s.gpuMax[i] : s.cpuMax[i];
         if(avg >= least || max >= 10.0 * least)
         {
-            out.push_back({i, avg});
+            out.pushBack({i, avg});
         }
     }
-    std::sort(out.begin(), out.end(), [](const Row& a, const Row& b) { return a.avg > b.avg; });
+    za::quickSort(out.begin(), out.end(), [](const Row& a, const Row& b) { return a.avg > b.avg; });
     return out;
 }
 
@@ -677,10 +703,10 @@ void report_f()
         Con_Printf("vr_profile_report: not collecting (vr_profile 1, vr_profile_overlay 1 or vr_profile_csv 1)\n");
         return;
     }
-    const double seconds = Cmd_Argc() > 1 ? std::max(0.5, std::atof(Cmd_Argv(1))) : 5.0;
-    std::string map;
+    const double seconds = Cmd_Argc() > 1 ? za::max(0.5, atof(Cmd_Argv(1))) : 5.0;
+    za::String map;
     double qcInstructions = 0.0;
-    std::vector<QcFunction> qcTop;
+    za::Vector<QcFunction> qcTop;
     const Sum s = lastSeconds(seconds, map, qcInstructions, qcTop);
     if(s.frames == 0)
     {
@@ -688,11 +714,11 @@ void report_f()
         return;
     }
     const double frames = s.frames;
-    const double gpuFrames = std::max(s.gpuFrames, 1);
+    const double gpuFrames = za::max(s.gpuFrames, 1);
     const double period = s.periodSum / frames;
     Con_Printf("vr_profile_report: %s, the last %.1f s: %d frames, %.2f ms apart (%.1f fps; worst %.2f), budget %.2f ms; "
                "%d missed a refresh, %d hitches, %d long (over 250 ms, left out)\n",
-        map.c_str(), s.seconds, s.frames, period, period > 0.0 ? 1000.0 / period : 0.0, s.periodMax, s.budgetMs,
+        map.cStr(), s.seconds, s.frames, period, period > 0.0 ? 1000.0 / period : 0.0, s.periodMax, s.budgetMs,
         s.slowFrames, s.hitches, s.longFrames);
     Con_Printf("%-22s %7s %7s %6s %7s %7s\n", "ms a frame", "cpu", "max", "share", "gpu", "max");
     Con_Printf("%-22s %7.3f %7.2f %5.1f%% %7.3f %7.2f\n", "frame", period, s.periodMax, 100.0, s.gpuTotalSum / gpuFrames,
@@ -746,10 +772,10 @@ void report_f()
     {
         const double qcMs = s.cpuSum[sysIndex("quakec")] / frames;
         Con_Printf("quakec by its own instructions (%.0f a frame; ~ms of quakec's %.3f):", qcInstructions / frames, qcMs);
-        for(std::size_t k = 0; k < qcTop.size(); k++)
+        for(za::SizeT k = 0; k < qcTop.size(); k++)
         {
             const double share = qcTop[k].instructions / qcInstructions;
-            Con_Printf(" %s %.0f%% (~%.3f)%s", qcTop[k].name.c_str(), 100.0 * share, share * qcMs,
+            Con_Printf(" %s %.0f%% (~%.3f)%s", qcTop[k].name.cStr(), 100.0 * share, share * qcMs,
                 k + 1 < qcTop.size() ? "," : "\n");
         }
     }
@@ -775,19 +801,19 @@ constexpr float barCells = 12.f; // the bar's track: the frame budget
 constexpr int barColumn = 29;    // after "%-16.16s %5.2f %5.2f "
 
 // A table row with its bar: a system's average (the bar), its worst frame.
-void panelRow(std::vector<std::string>& lines, const char* name, double avg, double max, double budget, glm::vec4 color,
+void panelRow(za::Vector<za::String>& lines, const char* name, double avg, double max, double budget, glm::vec4 color,
     bool waiting)
 {
-    std::string l;
+    za::String l;
     appendf(l, "%-16.16s %5.2f %5.2f ", name, avg, max);
-    l.append(static_cast<std::size_t>(barCells) + 1, ' ');
+    l.resize(l.size() + static_cast<za::SizeT>(barCells) + 1, ' ');
     const float cells = static_cast<float>(avg / budget) * barCells;
     if(avg > budget && !waiting)
     {
         color = glm::vec4{1.f, 0.3f, 0.25f, 0.9f}; // work over the whole budget by itself
     }
-    panelBars.push_back({static_cast<int>(lines.size()), static_cast<float>(barColumn), cells, barCells, color});
-    lines.push_back(std::move(l));
+    panelBars.pushBack({static_cast<int>(lines.size()), static_cast<float>(barColumn), cells, barCells, color});
+    lines.pushBack(ZA_MOVE(l));
 }
 
 void buildPanel()
@@ -802,24 +828,24 @@ void buildPanel()
         return;
     }
     const double frames = s.frames;
-    const double gpuFrames = std::max(s.gpuFrames, 1);
+    const double gpuFrames = za::max(s.gpuFrames, 1);
     const double period = s.periodSum / frames;
     const double budget = s.budgetMs > 0.0 ? s.budgetMs : 1000.0 / 90.0;
-    std::vector<std::string> lines;
-    std::string l;
-    appendf(l, "PROFILE %-12.12s %5.1f fps %6.2f ms, worst %6.2f", mapNow.c_str(), period > 0.0 ? 1000.0 / period : 0.0,
+    za::Vector<za::String> lines;
+    za::String l;
+    appendf(l, "PROFILE %-12.12s %5.1f fps %6.2f ms, worst %6.2f", mapNow.cStr(), period > 0.0 ? 1000.0 / period : 0.0,
         period, s.periodMax);
-    lines.push_back(l);
+    lines.pushBack(l);
     l.clear();
     appendf(l, "budget %5.2f   CPU busy %5.2f   GPU %5.2f", budget, s.busySum / frames, s.gpuTotalSum / gpuFrames);
-    lines.push_back(l);
+    lines.pushBack(l);
     l.clear();
     for(int g = 0; g < GroupCount; g++)
     {
         appendf(l, "%s%s %.2f", g ? "  " : "", groupShort[g], s.groupSum[g] / frames);
     }
-    lines.push_back(l);
-    lines.emplace_back("CPU               avg   max  (bar: the budget)");
+    lines.pushBack(l);
+    lines.emplaceBack("CPU               avg   max  (bar: the budget)");
     constexpr glm::vec4 cpuColor{0.45f, 0.8f, 1.f, 0.85f}, waitColor{0.55f, 0.55f, 0.6f, 0.7f},
         gpuColor{1.f, 0.72f, 0.3f, 0.85f};
     int shown = 0;
@@ -832,7 +858,7 @@ void buildPanel()
         const bool waiting = defs[r.index].group == Waiting;
         panelRow(lines, defs[r.index].name, r.avg, s.cpuMax[r.index], budget, waiting ? waitColor : cpuColor, waiting);
     }
-    lines.emplace_back("GPU               avg   max");
+    lines.emplaceBack("GPU               avg   max");
     shown = 0;
     for(const Row& r : rows(s, -1, true, 0.01))
     {
@@ -845,28 +871,28 @@ void buildPanel()
     l.clear();
     appendf(l, "traces %.0f  draw calls %.0f  models %.0f", s.countSum[Traces] / frames, s.countSum[DrawCalls] / frames,
         s.countSum[AliasDrawn] / frames);
-    lines.push_back(l);
+    lines.pushBack(l);
     l.clear();
     appendf(l, "box3d %.0f (%.0f awake, %.0f contacts)  edicts %.0f", s.countSum[Box3dBodies] / frames,
         s.countSum[Box3dAwake] / frames, s.countSum[Box3dContacts] / frames, s.countSum[Edicts] / frames);
-    lines.push_back(l);
+    lines.pushBack(l);
     if(s.hitches || s.slowFrames)
     {
         l.clear();
         appendf(l, "hitches %d  missed refreshes %d", s.hitches, s.slowFrames);
-        lines.push_back(l);
+        lines.pushBack(l);
     }
 
     // The lines are drawn centred: padded to one width, they line up.
-    std::size_t width = 0;
-    for(const std::string& line : lines)
+    za::SizeT width = 0;
+    for(const za::String& line : lines)
     {
-        width = std::max(width, line.size());
+        width = za::max(width, line.size());
     }
-    for(const std::string& line : lines)
+    for(const za::String& line : lines)
     {
         panelText += line;
-        panelText.append(width - line.size(), ' ');
+        panelText.resize(panelText.size() + (width - line.size()), ' ');
         panelText += '\n';
     }
 }
@@ -894,11 +920,11 @@ void classify(const char* name, int parentSystem, int parentView, int& system, i
         }
     }
     view = parentView;
-    if(std::strcmp(name, "eye L") == 0)
+    if(ZA_STRCMP(name, "eye L") == 0)
     {
         view = EyeL;
     }
-    else if(std::strcmp(name, "eye R") == 0)
+    else if(ZA_STRCMP(name, "eye R") == 0)
     {
         view = EyeR;
     }
@@ -918,7 +944,7 @@ int rootView()
     return Shared;
 }
 
-void cpu(int system, int view, std::int64_t ns)
+void cpu(int system, int view, za::I64 ns)
 {
     frameCpu[system] += ns;
     frameViewCpu[view] += ns;
@@ -961,11 +987,11 @@ void gpuFrameDone(int queries)
             addMax(s->gpuViewSum[v], s->gpuViewMax[v], frameViewGpu[v]);
         }
     }
-    std::fill(std::begin(frameGpu), std::end(frameGpu), 0.0);
-    std::fill(std::begin(frameViewGpu), std::end(frameViewGpu), 0.0);
+    qza::fill(frameGpu, 0.0);
+    qza::fill(frameViewGpu, 0.0);
 }
 
-void profilerTime(std::int64_t ns)
+void profilerTime(za::I64 ns)
 {
     cpu(Profiler, Shared, ns);
     cpu(Other, Shared, -ns);
@@ -976,20 +1002,20 @@ double hitchMs()
     return vr_profile_hitch.value > 0.f ? vr_profile_hitch.value * budgetMs() : 0.0;
 }
 
-void frameEnd(std::int64_t now, std::int64_t periodNs, std::int64_t hostNs, const Counts& counts, double longMs,
-    const char* map, const std::string& scopes)
+void frameEnd(za::I64 now, za::I64 periodNs, za::I64 hostNs, const Counts& counts, double longMs,
+    const char* map, const za::String& scopes)
 {
     mapNow = map;
     // The frame's own time (the root scope's), and the idle time after it.
     cpu(Other, Shared, hostNs);
-    cpu(FrameCap, Shared, std::max<std::int64_t>(0, periodNs - hostNs));
+    cpu(FrameCap, Shared, za::max<za::I64>(0, periodNs - hostNs));
 
     int n[CountCount]{counts.traces, counts.hullChecks, counts.drawCalls, counts.aliasDrawn, 0, 0, 0, 0, 0};
     box3d::profileCounts(n[Box3dBodies], n[Box3dAwake], n[Box3dContacts]);
     n[Edicts] = sv.active ? dev_stats.edicts : 0;
     // The main thread's C++ allocations since the last frame's end (vr_alloccount.cpp); none counted for the first frame
     // collected (its delta would span the frames before).
-    const std::uint64_t allocationsNow = alloccount::thisThread();
+    const za::U64 allocationsNow = alloccount::thisThread();
     n[Allocations] = allocationsFrame == host_framecount - 1 ? static_cast<int>(allocationsNow - allocationsBefore) : 0;
     allocationsBefore = allocationsNow;
     allocationsFrame = host_framecount;
@@ -1041,8 +1067,8 @@ void frameEnd(std::int64_t now, std::int64_t periodNs, std::int64_t hostNs, cons
             addMax(s->countSum[c], s->countMax[c], n[c]);
         }
     }
-    std::fill(std::begin(frameCpu), std::end(frameCpu), std::int64_t{0});
-    std::fill(std::begin(frameViewCpu), std::end(frameViewCpu), std::int64_t{0});
+    qza::fill(frameCpu, za::I64{0});
+    qza::fill(frameViewCpu, za::I64{0});
 
     // A second's end: into the ring (and a row of the CSV).
     if(now - secondStart >= 1'000'000'000)
@@ -1065,12 +1091,12 @@ void frameEnd(std::int64_t now, std::int64_t periodNs, std::int64_t hostNs, cons
             closeCsv();
         }
         ringNext = (ringNext + 1) % ringSize;
-        ringCount = std::min(ringCount + 1, ringSize);
+        ringCount = za::min(ringCount + 1, ringSize);
         second = Sum{};
         secondStart = now;
         if(hitchQuiet)
         {
-            Con_Printf("vr_profile: %d more hitches (in %s)\n", hitchQuiet, hitchPath.c_str());
+            Con_Printf("vr_profile: %d more hitches (in %s)\n", hitchQuiet, hitchPath.cStr());
         }
         hitchLines = hitchQuiet = 0;
     }
@@ -1088,15 +1114,15 @@ void frameEnd(std::int64_t now, std::int64_t periodNs, std::int64_t hostNs, cons
     }
 }
 
-void start(std::int64_t now)
+void start(za::I64 now)
 {
     second = half = lastHalf = Sum{};
     secondStart = halfStart = now;
     ringCount = ringNext = 0;
-    std::fill(std::begin(frameCpu), std::end(frameCpu), std::int64_t{0});
-    std::fill(std::begin(frameViewCpu), std::end(frameViewCpu), std::int64_t{0});
-    std::fill(std::begin(frameGpu), std::end(frameGpu), 0.0);
-    std::fill(std::begin(frameViewGpu), std::end(frameViewGpu), 0.0);
+    qza::fill(frameCpu, za::I64{0});
+    qza::fill(frameViewCpu, za::I64{0});
+    qza::fill(frameGpu, 0.0);
+    qza::fill(frameViewGpu, 0.0);
     qcProgs = nullptr;
     panelText.clear();
     panelBars.clear();
@@ -1108,7 +1134,7 @@ void stop()
     closeCsv();
     if(hitchFile)
     {
-        std::fclose(hitchFile);
+        fclose(hitchFile);
         hitchFile = nullptr;
     }
     panelText.clear();
@@ -1136,7 +1162,7 @@ void overlay()
         return;
     }
     const float m2u = units::metresToUnits();
-    const auto lineCount = static_cast<float>(std::count(panelText.begin(), panelText.end(), '\n'));
+    const auto lineCount = static_cast<float>(za::count(panelText.begin(), panelText.end(), '\n'));
     if(mode == 1)
     {
         // Over the wrist gadget's hand, facing the head: 4.5 mm characters (at 45 cm, about the gadget's).
@@ -1144,9 +1170,9 @@ void overlay()
         const glm::vec3 at = s.pos[hands::gadgetHand()] +
                              glm::vec3{0.f, 0.f, 0.06f * m2u + 0.5f * lineCount * charSize};
         const glm::vec3 d = at - s.head;
-        const float yaw = std::atan2(d.y, d.x) * 180.f / static_cast<float>(M_PI);
-        const float pitch = -std::atan2(d.z, std::hypot(d.x, d.y)) * 180.f / static_cast<float>(M_PI);
-        text3d::queueOverlay(panelText, at, glm::vec3{pitch, yaw, 0.f}, charSize / 8.f, panelBars, 0.8f);
+        const float yaw = za::atan2(d.y, d.x) * 180.f / static_cast<float>(M_PI);
+        const float pitch = -za::atan2(d.z, qza::hypot(d.x, d.y)) * 180.f / static_cast<float>(M_PI);
+        text3d::queueOverlay(std::string_view{panelText.data(), panelText.size()} /* TRANSITION */, at, glm::vec3{pitch, yaw, 0.f}, charSize / 8.f, panelBars, 0.8f);
         return;
     }
     // In front: 0.9 m ahead and a little below the eyes, turning after the head once it looks 30 degrees away.
@@ -1156,19 +1182,19 @@ void overlay()
         panelYaw = headYaw;
         panelPlaced = true;
     }
-    float off = std::remainder(headYaw - panelYaw, 360.f);
-    if(std::fabs(off) > 30.f)
+    float off = za::remainder(headYaw - panelYaw, 360.f);
+    if(za::fabs(off) > 30.f)
     {
-        const float step = std::min(std::fabs(off) - 30.f, std::max(1.f, 120.f * static_cast<float>(host_frametime)));
+        const float step = za::min(za::fabs(off) - 30.f, za::max(1.f, 120.f * static_cast<float>(host_frametime)));
         panelYaw += off > 0.f ? step : -step;
     }
     const float yawRad = panelYaw * static_cast<float>(M_PI) / 180.f;
-    const glm::vec3 dir{std::cos(yawRad), std::sin(yawRad), 0.f};
+    const glm::vec3 dir{za::cos(yawRad), za::sin(yawRad), 0.f};
     const glm::vec3 at = s.head + dir * (0.9f * m2u) - glm::vec3{0.f, 0.f, 0.12f * m2u};
     const glm::vec3 d = at - s.head;
-    const float pitch = -std::atan2(d.z, std::hypot(d.x, d.y)) * 180.f / static_cast<float>(M_PI);
+    const float pitch = -za::atan2(d.z, qza::hypot(d.x, d.y)) * 180.f / static_cast<float>(M_PI);
     const float charSize = 0.0095f * m2u; // 9.5 mm at 0.9 m: about the menu's text
-    text3d::queueOverlay(panelText, at, glm::vec3{pitch, panelYaw, 0.f}, charSize / 8.f, panelBars, 0.8f);
+    text3d::queueOverlay(std::string_view{panelText.data(), panelText.size()} /* TRANSITION */, at, glm::vec3{pitch, panelYaw, 0.f}, charSize / 8.f, panelBars, 0.8f);
 }
 
 } // namespace qvr::profile::systems

@@ -14,6 +14,11 @@
 #include "vr_engine.hpp"
 #include "vr_profile.hpp"
 
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/Vocabulary/UniquePtr.hpp"
+
 #include <windows.h>
 #include <unknwn.h> // IUnknown, which openxr_platform.h needs and lean Windows headers omit
 
@@ -26,11 +31,8 @@
 #define GL_SRGB8_ALPHA8 0x8C43
 #endif
 
-#include <cmath>
-#include <cstring>
+#include <string.h>
 #include <initializer_list>
-#include <string>
-#include <vector>
 
 namespace qvr
 {
@@ -42,10 +44,10 @@ namespace
 // HKLM\SOFTWARE\Khronos\OpenXR\1\AvailableRuntimes; Virtual Desktop's and SteamVR's are found by
 // their file names there, or in their usual places. With vr_xr_runtime 0 the system's active runtime
 // is used (or an XR_RUNTIME_JSON the game was started with).
-[[nodiscard]] std::string installedRuntime(const char* fileName)
+[[nodiscard]] za::String installedRuntime(const char* fileName)
 {
     HKEY key = nullptr;
-    std::string found;
+    za::String found;
     if(RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SOFTWARE\\Khronos\\OpenXR\\1\\AvailableRuntimes", 0, KEY_READ, &key) == ERROR_SUCCESS)
     {
         char name[1024];
@@ -82,7 +84,7 @@ void chooseRuntime()
         return;
     }
 
-    std::string manifest;
+    za::String manifest;
     switch(static_cast<int>(vr_xr_runtime.value))
     {
         case 1:
@@ -109,16 +111,16 @@ void chooseRuntime()
         _putenv_s("XR_RUNTIME_JSON", "");
         return;
     }
-    if(GetFileAttributesA(manifest.c_str()) == INVALID_FILE_ATTRIBUTES)
+    if(GetFileAttributesA(manifest.cStr()) == INVALID_FILE_ATTRIBUTES)
     {
-        Con_Warning("OpenXR: runtime manifest %s not found: using the system's runtime\n", manifest.c_str());
+        Con_Warning("OpenXR: runtime manifest %s not found: using the system's runtime\n", manifest.cStr());
         SetEnvironmentVariableA("XR_RUNTIME_JSON", nullptr);
         _putenv_s("XR_RUNTIME_JSON", "");
         return;
     }
-    Con_Printf("OpenXR: runtime %s\n", manifest.c_str());
-    SetEnvironmentVariableA("XR_RUNTIME_JSON", manifest.c_str());
-    _putenv_s("XR_RUNTIME_JSON", manifest.c_str());
+    Con_Printf("OpenXR: runtime %s\n", manifest.cStr());
+    SetEnvironmentVariableA("XR_RUNTIME_JSON", manifest.cStr());
+    _putenv_s("XR_RUNTIME_JSON", manifest.cStr());
 }
 
 class OpenXrBackend final : public Backend
@@ -480,7 +482,7 @@ private:
         XrSwapchain handle{XR_NULL_HANDLE};
         int32_t width{0};
         int32_t height{0};
-        std::vector<XrSwapchainImageOpenGLKHR> images;
+        za::Vector<XrSwapchainImageOpenGLKHR> images;
     };
 
     XrInstance instance{XR_NULL_HANDLE};
@@ -548,7 +550,7 @@ private:
         {
             return;
         }
-        std::vector<XrVector2f> vertices(mask.vertexCountOutput);
+        za::Vector<XrVector2f> vertices(mask.vertexCountOutput);
         h.indices.resize(mask.indexCountOutput);
         mask.vertexCapacityInput = mask.vertexCountOutput;
         mask.vertices = vertices.data();
@@ -562,7 +564,7 @@ private:
             return;
         }
         h.indices.resize(mask.indexCountOutput - mask.indexCountOutput % 3);
-        for(std::uint32_t& i : h.indices)
+        for(za::U32& i : h.indices)
         {
             if(i >= mask.vertexCountOutput)
             {
@@ -573,7 +575,7 @@ private:
         h.vertices.reserve(mask.vertexCountOutput);
         for(uint32_t i = 0; i < mask.vertexCountOutput; i++)
         {
-            h.vertices.emplace_back(vertices[i].x, vertices[i].y);
+            h.vertices.emplaceBack(vertices[i].x, vertices[i].y);
         }
     }
 
@@ -619,7 +621,8 @@ private:
         sc.height = height;
         uint32_t imageCount = 0;
         xrEnumerateSwapchainImages(sc.handle, 0, &imageCount, nullptr);
-        sc.images.assign(imageCount, XrSwapchainImageOpenGLKHR{XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_KHR});
+        sc.images.clear();
+        sc.images.resize(imageCount, XrSwapchainImageOpenGLKHR{XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_KHR});
         xrEnumerateSwapchainImages(sc.handle, imageCount, &imageCount,
             reinterpret_cast<XrSwapchainImageBaseHeader*>(sc.images.data()));
         return true;
@@ -782,21 +785,21 @@ private:
         chooseRuntime(); // before the loader first runs
 
         // Quest 3 controllers get their own profile with this extension (Touch otherwise).
-        std::vector<const char*> extensions{XR_KHR_OPENGL_ENABLE_EXTENSION_NAME};
+        za::Vector<const char*> extensions{XR_KHR_OPENGL_ENABLE_EXTENSION_NAME};
         uint32_t available = 0;
         xrEnumerateInstanceExtensionProperties(nullptr, 0, &available, nullptr);
-        std::vector<XrExtensionProperties> extensionList(available, XrExtensionProperties{XR_TYPE_EXTENSION_PROPERTIES});
+        za::Vector<XrExtensionProperties> extensionList(available, XrExtensionProperties{XR_TYPE_EXTENSION_PROPERTIES});
         xrEnumerateInstanceExtensionProperties(nullptr, available, &available, extensionList.data());
         for(const XrExtensionProperties& p : extensionList)
         {
             if(!strcmp(p.extensionName, "XR_META_touch_controller_plus"))
             {
-                extensions.push_back("XR_META_touch_controller_plus");
+                extensions.pushBack("XR_META_touch_controller_plus");
             }
             // The lenses' hidden area (vr_visibility_mask).
             if(!strcmp(p.extensionName, XR_KHR_VISIBILITY_MASK_EXTENSION_NAME))
             {
-                extensions.push_back(XR_KHR_VISIBILITY_MASK_EXTENSION_NAME);
+                extensions.pushBack(XR_KHR_VISIBILITY_MASK_EXTENSION_NAME);
                 visibilityMaskExtension = true;
             }
         }
@@ -873,7 +876,7 @@ private:
         // Stage (origin on the floor) if the runtime has it, local otherwise.
         uint32_t count = 0;
         xrEnumerateReferenceSpaces(session, 0, &count, nullptr);
-        std::vector<XrReferenceSpaceType> types(count);
+        za::Vector<XrReferenceSpaceType> types(count);
         xrEnumerateReferenceSpaces(session, count, &count, types.data());
 
         XrReferenceSpaceCreateInfo info{XR_TYPE_REFERENCE_SPACE_CREATE_INFO};
@@ -937,10 +940,10 @@ private:
 
     void suggest(const char* profile, std::initializer_list<Binding> bindings)
     {
-        std::vector<XrActionSuggestedBinding> suggested;
+        za::Vector<XrActionSuggestedBinding> suggested;
         for(const Binding& b : bindings)
         {
-            suggested.push_back({*b.action, path(b.path)});
+            suggested.pushBack({*b.action, path(b.path)});
         }
 
         XrInteractionProfileSuggestedBinding info{XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING};
@@ -1171,7 +1174,7 @@ private:
         // conversion hands them to the compositor unchanged.
         uint32_t formatCount = 0;
         xrEnumerateSwapchainFormats(session, 0, &formatCount, nullptr);
-        std::vector<int64_t> formats(formatCount);
+        za::Vector<int64_t> formats(formatCount);
         xrEnumerateSwapchainFormats(session, formatCount, &formatCount, formats.data());
 
         int64_t format = formats.empty() ? GL_RGBA8 : formats[0];
@@ -1301,9 +1304,9 @@ private:
 
 } // namespace
 
-std::unique_ptr<Backend> makeOpenXrBackend()
+za::UniquePtr<Backend> makeOpenXrBackend()
 {
-    return std::make_unique<OpenXrBackend>();
+    return za::makeUnique<OpenXrBackend>();
 }
 
 } // namespace qvr
@@ -1313,7 +1316,7 @@ std::unique_ptr<Backend> makeOpenXrBackend()
 namespace qvr
 {
 
-std::unique_ptr<Backend> makeOpenXrBackend()
+za::UniquePtr<Backend> makeOpenXrBackend()
 {
     return nullptr;
 }
