@@ -96,6 +96,8 @@ Thrown axe settles into an end-over-end spin that looks natural (Throwing > Spin
 
 Spatial audio (VR Settings > Sound): sounds circling your head; a monster behind a wall, then a door opening onto it; small room vs big hall reverb (0.4: too wet?); shotgun in each hand plays from that hand; overall loudness vs before
 
+Super shotgun: fore-end from the side and from below (hold it overhead), front of the trigger guard: no stretching, no hole; repaint darker and plainer: OK?
+
 [Decide or give feedback]
 Left-handers: flashlight toggle stays on the left Y and the main weapon slot on the right controller: OK, or follow the off hand?
 Enemy guns: scale 0.4 OK? Should the player's enforcer rifle laser be faster than the enforcer's 600 u/s?
