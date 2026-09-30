@@ -400,5 +400,6 @@ void test_f()
 
 extern "C" int VR_OnMainThread(void)
 {
-    return std::this_thread::get_id() == qvr::jobs::mainThread;
+    // (before VR_Init, only the main thread runs)
+    return qvr::jobs::mainThread == std::thread::id{} || std::this_thread::get_id() == qvr::jobs::mainThread;
 }
