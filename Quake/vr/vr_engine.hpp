@@ -31,6 +31,7 @@ int Draw_CachedPicsMax (void);						// gl_draw.c
 extern int menu_numcachepics;						// gl_draw.c
 int Cmd_AliasCount (void);							// cmd.c
 int Cmd_CommandCount (void);						// cmd.c
+extern cmdlimits_t cmd_limits;						// cmd.c: the command system's high-water marks (vr_api.h)
 extern int num_temp_entities;						// cl_tent.c
 extern qboolean scr_drawloading;					// gl_screen.c
 extern qboolean scr_drawdialog;						// gl_screen.c
@@ -68,7 +69,7 @@ gltexture_t *TexMgr_LoadNormalMap (gltexture_t *base, const char *name, int widt
 	byte *data, const char *source_file, src_offset_t source_offset, int kind, int worldwidth); // gl_texmgr.c: a texture's normal map (VR_LoadNormalMap)
 qboolean TexMgr_NormalMapAuthored (gltexture_t *glt); // gl_texmgr.c: whether its normal map is an authored file's (NORMALMAP_FILE)
 int TexMgr_NormalMapParallax (gltexture_t *glt);	// gl_texmgr.c: its normal map's heights: 0 none, 1 made ones, 2 an authored file's alpha
-GLuint R_OpaqueSceneTexture (void);					// gl_rmain.c: the opaque scene's colours translucent liquids can read (0: none)
+void R_RestoreTranslucentTarget (void);			// gl_rmain.c: the translucent pass's framebuffer and viewport again
 void R_SetupGL (void);								// gl_rmain.c: the scene's framebuffer and viewport again (after a pass of vr_water.cpp's or vr_haze.cpp's)
 void R_DrawAliasModelsDepth (entity_t **ents, int count); // r_alias.c: depth only (the shadow maps' casters)
 qboolean R_PaintAliasWounds (entity_t *e, int numsplats, const float *splats); // r_alias.c: into its wound mask (vr_wounds.cpp)

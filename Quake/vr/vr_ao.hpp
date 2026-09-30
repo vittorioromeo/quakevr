@@ -17,7 +17,7 @@
 //   vertex over its hemisphere against the model's own triangles (armpits, under guns, weapon grooves), kept in the
 //   pose buffer's spare byte, applied to the model's own light (half to dynamic lights). Baked on a worker thread
 //   (the model has none for the first second or two), cached per model.
-// The GPU side is the AO_FUNCTIONS block of gl_shaders.h.
+// The GPU side is the AO_FUNCTIONS block of vr_glsl.h.
 
 #pragma once
 

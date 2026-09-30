@@ -297,7 +297,7 @@ void beginScene(int eye, int width, int height)
     GLuint color = 0, depth = 0;
     int samples = 1;
     int viewport[4]{};
-    const GLuint bound = R_SceneTarget(&color, &depth, &samples, viewport);
+    const GLuint bound = VR_SceneTarget(&color, &depth, &samples, viewport);
     setEnabled(bound != 0 && (bound == sceneFbos[0] || bound == sceneFbos[1]));
 }
 

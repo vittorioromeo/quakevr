@@ -460,9 +460,6 @@ qboolean TexMgr_IndexedSmooth (void); // Quake's own textures filtered smoothly 
 
 extern gpulightbuffer_t r_lightbuffer;
 extern gpuframedata_t r_framedata;
-void R_BindOpaqueScene (void); // QVR: ... on unit 6, resolved first with MSAA (r_world.c)
-void R_RestoreTranslucentTarget (void); // QVR: the translucent pass's framebuffer and viewport again
-GLuint R_SceneTarget (GLuint *color, GLuint *depth, int *samples, int viewport[4]); // QVR: the scene's framebuffer, textures, viewport (vr/vr_water.cpp, vr/vr_haze.cpp)
 
 void R_AnimateLight (void);
 void R_MarkSurfaces (void);

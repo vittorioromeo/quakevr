@@ -67,7 +67,14 @@ void VR_HostFrameEnd (void);	// end of _Host_Frame, after the screen and the sou
 // The frame cap (vr_sleep.cpp).
 int VR_HiResSleepUntil (double endtime, double *now); // Sys_WaitUntil: sleeps on a high-resolution timer until its lateness before endtime; 0 without one
 
-// The console (vr_cmdtoken.cpp).
+// The console (vr_cmdtoken.cpp); and the command system's high-water marks (cmd.c's cmd_limits, for vr_limits).
+typedef struct
+{
+	int cbuf_peak;		// the command buffer's largest content, bytes
+	int longest_line;	// the longest command line run
+	int longest_token;	// the longest argument
+	int max_argc;		// the most arguments in a command
+} cmdlimits_t;
 const char *VR_ParseToken (const char *data, const char **token); // Cmd_TokenizeString: COM_Parse for an argument of any length
 
 // Automated test runs (QVR_NO_ERROR_DIALOG; vr_crash.cpp, Windows only).

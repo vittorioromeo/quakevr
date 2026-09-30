@@ -141,7 +141,7 @@ the light counts with your headset's frame timing.
 
 ## Engine side
 
-- `gl_shaders.h`:
+- `gl_shaders.h` (Quake VR's blocks in `vr/vr_glsl.h`, spliced in by name):
   - `SHADOW_FUNCTIONS` (lookups, filtering, bias, map-light shadow) and `ALIAS_FRAMEDATA_BUFFER`;
   - the world light loop;
   - the alias vertex outputs (normal, cluster coordinates) and fragment lighting;
@@ -351,7 +351,7 @@ light a surface almost straight on, where a tilt of θ only dims it by 1 − cos
     across a seam (the heights still come from the dilated brightness, as before).
   `developer 1` prints each skin's relief, noise and time. Cost at load: 7-10 ms for a 256² skin (running-sum box
   blurs), 0.5 s for e1m1's 118 skins; none per frame.
-- **Authored maps** (`Mod_LoadNormalMap`): an alias skin looks for `progs/<model>.mdl_<skin>_norm` (DarkPlaces'
+- **Authored maps** (`VR_LoadNormalMap`, vr_normalmaps.cpp): an alias skin looks for `progs/<model>.mdl_<skin>_norm` (DarkPlaces'
   names; a group's frames `_<skin>_<frame>`), then `_bump` (a height map: white high), then skin 0's (all skins share
   the texture coordinates); an MD5 mesh's skin `progs/<shader>_<ss>_<ff>_norm` / `_bump`, then the nearest earlier
   skin's that has one (`Mod_MD5SharedNormalMap`: the body's armour skins 04-15 take `vrbody_04_00_norm`), then
@@ -515,7 +515,7 @@ with its own dial.
   other brush entities (doors, lifts) the world's times theirs; alias models `vr_parallax_models` (0.75) in their own
   units times their scale (the entity's, the networked one and the held weapons' own, not the vertex scale). 0 turns
   each off; all need `vr_parallax`. Graphics page: Parallax Items Depth, Parallax Models Depth.
-- **The boxes' edges** (`Mod_ItemTextureClamp`, gl_model.c): for a `b_*` model, the part of each texture its faces
+- **The boxes' edges** (`VR_ItemTextureClamp`, vr_modelload.cpp): for a `b_*` model, the part of each texture its faces
   show (from the vertices, per axis, moved by whole textures; none on an axis a face tiles), sent with the draw call
   (`uvclamp`, a vec4 in the call data); the shader shrinks the shift so that the ray stays inside it, a half texel
   from the edge: the relief flattens towards the face's edges instead of reading past them. The expansions' boxes
@@ -543,7 +543,7 @@ with its own dial.
   `AUTHORED_DEPTH`) times `vr_parallax_authored` (Graphics > "Parallax Depth: Authored Models", 1 as baked, 0 off),
   independent of `vr_parallax_models`, which keeps the made heights of id's skins. A map whose alpha is all 255 (no
   alpha, or flat) is marked `NORMALMAP_FLAT` on loading and walks no rays at all. Authored heights get the same rim
-  at the skin's island edges as made ones (`TexMgr_AuthoredHeights`, from `TexMgr_SetHeightMask`). The bake keeps
+  at the skin's island edges as made ones (`TexMgr_AuthoredHeights`, from `VR_SetHeightMask`). The bake keeps
   relief broader than 0.35 units (a muscle, a whole padded band) in the normals only, and the surface (alpha 255) at
   the 95th percentile of the relief, so on average the skin stays where the mesh is, and compresses deeper relief
   towards 0.12 units (`HEIGHT_CAP`: a rim's height over a sunk base would otherwise slide the paint by centimetres at
@@ -573,10 +573,10 @@ the three are not orthogonal and the frame has to be inverted, not transposed. C
 (`e1m1`: the direction rebuilt from the file and the direction to the lights that reach each of 7232 luxels, occlusion
 ignored, agree to 3.7 degrees at the median; with the t axis's sign flipped, 46).
 
-**Loading** (`gl_model.c`, `Mod_LoadLux`): from the same folder as the map (`VR_ModelFile`: the relit one), only from
+**Loading** (`vr_modelload.cpp`, `VR_LoadLux`): from the same folder as the map (`VR_ModelFile`: the relit one), only from
 the map's own game folder or one searched before it, and only if it is 8 + 3 x the lighting lump (a `.lux` of another
 lighting of the map is refused); the faces get `luxsamples` beside `samples`. **The texture** (`r_brush.c`,
-`GL_FillSurfaceLux`): `luxmap`, RGBA8 the size of the lightmap atlas, each face's directions where its first style's
+`VR_FillSurfaceLux`): `luxmap`, RGBA8 the size of the lightmap atlas, each face's directions where its first style's
 lightmap is (the same coordinates: `lmuv`), in the frame the shader can rebuild: x along the texture's s axis *in the
 face's plane*, y the normal crossed with it, z the normal. Each luxel's styles' directions are turned back into world
 space and added, each weighted by its light there (styles 0, flickering and switched lights share one direction: the

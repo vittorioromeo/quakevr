@@ -41,7 +41,7 @@ namespace
 {
 
 // ----------------------------------------------------------------------------
-// The shaders' uniform block (AO_FUNCTIONS in gl_shaders.h; std140).
+// The shaders' uniform block (AO_FUNCTIONS in vr_glsl.h; std140).
 
 constexpr int MAX_OCCLUDERS = 64; // two 32-bit masks per tile
 constexpr int VECS = 6;           // vec4s per occluder

@@ -23,7 +23,7 @@ using namespace qvr;
 namespace
 {
 
-// Must match SHADOW_FUNCTIONS in gl_shaders.h.
+// Must match SHADOW_FUNCTIONS in vr_glsl.h.
 constexpr float shadowNear = 1.f;
 constexpr float shadowBorder = 4.f;
 

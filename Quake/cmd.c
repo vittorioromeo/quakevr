@@ -133,7 +133,7 @@ Cbuf_Reserve -- QVR
 Room for l more bytes (and a terminator); false (and a message) only when the memory can't be had.
 ============
 */
-qboolean Cbuf_Reserve (int l)
+static qboolean Cbuf_Reserve (int l)
 {
 	int newsize;
 	byte *newdata;

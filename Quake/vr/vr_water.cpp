@@ -363,7 +363,7 @@ GLuint sceneDistances(bool translucent)
     }
     GLuint color = 0, depth = 0;
     int samples = 1, viewport[4];
-    R_SceneTarget(&color, &depth, &samples, viewport);
+    VR_SceneTarget(&color, &depth, &samples, viewport);
     const GLuint made = makeDistances(depth, samples > 1, translucent ? R_RestoreTranslucentTarget : R_SetupGL);
     if(!translucent)
     {
@@ -1584,7 +1584,7 @@ extern "C" void VR_WaterView(int contents, int* waterwarp)
 
     r_framedata.water[0] = std::clamp(vr_water_waves.value, 0.f, 3.f);
     r_framedata.water[1] = std::clamp(vr_water_fresnel.value, 0.f, 2.f);
-    r_framedata.water[2] = R_OpaqueSceneTexture() ? std::clamp(vr_water_refraction.value, 0.f, 3.f) : 0.f;
+    r_framedata.water[2] = VR_OpaqueSceneTexture() ? std::clamp(vr_water_refraction.value, 0.f, 3.f) : 0.f;
     r_framedata.water[3] = std::clamp(vr_water_glints.value, 0.f, 3.f);
     r_framedata.water2[0] = std::clamp(vr_water_lava_glow.value, 0.f, 3.f);
     r_framedata.water2[1] = water::volumeWet ? std::clamp(vr_water_caustics.value, 0.f, 2.f) : 0.f;
@@ -1603,7 +1603,7 @@ extern "C" void VR_WaterView(int contents, int* waterwarp)
     r_framedata.water3[0] = std::clamp(vr_water_foam.value, 0.f, 2.f);
     GLuint sceneColor = 0, sceneDepth = 0;
     int sceneSamples = 1, sceneViewport[4];
-    R_SceneTarget(&sceneColor, &sceneDepth, &sceneSamples, sceneViewport);
+    VR_SceneTarget(&sceneColor, &sceneDepth, &sceneSamples, sceneViewport);
     const bool distancesOk = sceneDepth && !(sceneSamples > 1 ? water::distanceFailedMs : water::distanceFailed);
     r_framedata.causticsscale[3] = (r_framedata.water[2] > 0.f || r_framedata.water3[0] > 0.f) && distancesOk ? 1.f : 0.f;
     GL_BindNative(GL_TEXTURE7, GL_TEXTURE_3D, water::volumeWet ? water::volumeTex : 0);

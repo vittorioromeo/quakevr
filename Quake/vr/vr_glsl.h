@@ -971,9 +971,9 @@ LIQUID_SWELL \
 
 // detail, parallax, specular anti-aliasing, the baked light's bumps
 #define QVR_WORLD_FS_FUNCTIONS \
-DETAIL_FUNCTIONS /* QVR */ \
-PARALLAX_FUNCTIONS /* QVR */ \
-SPECULAR_AA_FUNCTIONS /* QVR */ \
+DETAIL_FUNCTIONS \
+PARALLAX_FUNCTIONS \
+SPECULAR_AA_FUNCTIONS \
 "// QVR: the screen derivatives of the baked light's brightness lum, for its bumps (BakedBump): the lightmap's slope\n" \
 "// here, from its luxels in full precision, times how its coordinates change across the screen. dFdx of the filtered\n" \
 "// light itself was 0 between steps of the filter's 8-bit weights (1/256 of a luxel) and of the 8-bit light, and a\n" \
@@ -997,7 +997,7 @@ SPECULAR_AA_FUNCTIONS /* QVR */ \
 "	return abs(outside - inside) <= 0.5 * (abs(outside) + abs(inside)) + max(0.1 * lum, 0.008) ? 0.5 * (outside + inside) : inside;\n" \
 "}\n" \
 "// QVR: the baked light's real direction at the pixel (deluxemaps: vr_deluxemap, ShadowFlags 128), from the map's\n" \
-"// .lux (r_brush.c, GL_FillSurfaceLux): x along the texture's s axis on the face, y the normal n crossed with it, z n.\n" \
+"// .lux (vr_modelload.cpp, VR_FillSurfaceLux): x along the texture's s axis on the face, y the normal n crossed with it, z n.\n" \
 "// That axis is the gradient of the texture coordinate over the face, from the derivatives the bumps' frame comes\n" \
 "// from: exact on flat faces, the same in both eyes, turning with a rotating brush model. Filtered, the direction is\n" \
 "// shorter where its luxels disagree (light from several sides), and leans less. w 0: none (faces without, items).\n" \
@@ -1385,13 +1385,13 @@ SPECULAR_AA_FUNCTIONS /* QVR */ \
 
 // the frame data, lights and functions the alias fragment shader uses
 #define QVR_ALIAS_FS_HEADER \
-ALIAS_FRAMEDATA_BUFFER /* QVR */ \
-LIGHT_BUFFER /* QVR */ \
-LIGHT_CLUSTER_IMAGE("readonly") /* QVR */ \
-SHADOW_FUNCTIONS /* QVR */ \
-AO_FUNCTIONS /* QVR */ \
-PARALLAX_FUNCTIONS /* QVR */ \
-SPECULAR_AA_FUNCTIONS /* QVR */
+ALIAS_FRAMEDATA_BUFFER \
+LIGHT_BUFFER \
+LIGHT_CLUSTER_IMAGE("readonly") \
+SHADOW_FUNCTIONS \
+AO_FUNCTIONS \
+PARALLAX_FUNCTIONS \
+SPECULAR_AA_FUNCTIONS
 
 // the alias fragment shader's Quake VR inputs
 #define QVR_ALIAS_FS_INPUTS \

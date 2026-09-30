@@ -901,72 +901,6 @@ qboolean GL_NeedsPostprocess (void)
 
 /*
 =============
-R_OpaqueSceneTexture -- QVR
-
-The opaque scene's colours, which translucent liquids read to bend what is behind them (vr/vr_water.cpp): only
-while they draw into the OIT buffers (the scene's colours are not a target then). With multisampling, the resolved
-scene's texture: R_BindOpaqueScene resolves the scene into it before they read it.
-=============
-*/
-GLuint R_OpaqueSceneTexture (void)
-{
-	if (R_GetEffectiveAlphaMode () != ALPHAMODE_OIT)
-		return 0;
-	if (framebufs.scene.samples > 1)
-		return framebufs.resolved_scene.color_tex;
-	if (GL_NeedsSceneEffects ())
-		return framebufs.scene.color_tex;
-	return GL_NeedsPostprocess () ? framebufs.composite.color_tex : 0;
-}
-
-/*
-=============
-R_BindOpaqueScene -- QVR
-
-R_OpaqueSceneTexture on unit 6, for the translucent liquids' refraction (r_world.c), readable: with multisampling
-and the refraction on (vr_water_refraction: r_framedata.water[2]) the scene is resolved into it first, once a view
-(the translucent pass draws into the OIT buffers, so it stays the opaque scene; R_WarpScaleView's resolve of the
-whole scene may reuse the texture after the pass), and the translucent pass's target bound again.
-=============
-*/
-void R_BindOpaqueScene (void)
-{
-	static int resolved = -1; // r_framecount the resolve is of
-	GLuint tex = R_OpaqueSceneTexture ();
-	GLuint color, depth;
-	int samples, viewport[4];
-
-	if (tex && framebufs.scene.samples > 1 && r_framedata.water[2] > 0.f && resolved != r_framecount)
-	{
-		VR_ProfileBeginGPU ("refraction resolve");
-		GL_BeginGroup ("MSAA resolve (refraction)");
-		GL_BindFramebufferFunc (GL_READ_FRAMEBUFFER, R_SceneTarget (&color, &depth, &samples, viewport));
-		GL_BindFramebufferFunc (GL_DRAW_FRAMEBUFFER, framebufs.resolved_scene.fbo);
-		GL_BlitFramebufferFunc (0, 0, viewport[2], viewport[3], 0, 0, viewport[2], viewport[3], GL_COLOR_BUFFER_BIT, GL_NEAREST);
-		R_RestoreTranslucentTarget ();
-		GL_EndGroup ();
-		VR_ProfileEnd ();
-		resolved = r_framecount;
-	}
-	GL_BindNative (GL_TEXTURE6, GL_TEXTURE_2D, tex);
-}
-
-/*
-=============
-R_OpaqueSceneDepthTexture -- QVR
-
-The depth/stencil of the scene R_OpaqueSceneTexture's colours are in (0: none).
-=============
-*/
-GLuint R_OpaqueSceneDepthTexture (void)
-{
-	if (!R_OpaqueSceneTexture ())
-		return 0;
-	return GL_NeedsSceneEffects () ? framebufs.scene.depth_stencil_tex : framebufs.composite.depth_stencil_tex;
-}
-
-/*
-=============
 R_SetupGL
 =============
 */
@@ -1001,42 +935,6 @@ void R_RestoreTranslucentTarget (void)
 	R_SetupGL ();
 	if (R_GetEffectiveAlphaMode () == ALPHAMODE_OIT)
 		GL_BindFramebufferFunc (GL_FRAMEBUFFER, framesetup.oit_fbo);
-}
-
-/*
-=============
-R_SceneTarget -- QVR
-
-The framebuffer the scene is drawn into (R_SetupGL's), its colour and depth/stencil textures (multisampled with
-samples > 1) and its viewport: vr/vr_water.cpp's scene distances (the shoreline foam: any alpha mode, with
-multisampling too) and vr/vr_haze.cpp's copy of the scene. 0 and no textures: the window's own.
-=============
-*/
-GLuint R_SceneTarget (GLuint *color, GLuint *depth, int *samples, int viewport[4])
-{
-	if (GL_NeedsSceneEffects ())
-	{
-		*color = framebufs.scene.color_tex;
-		*depth = framebufs.scene.depth_stencil_tex;
-		*samples = framebufs.scene.samples;
-		viewport[0] = viewport[1] = 0;
-		viewport[2] = r_refdef.vrect.width / r_refdef.scale;
-		viewport[3] = r_refdef.vrect.height / r_refdef.scale;
-		return framebufs.scene.fbo;
-	}
-	*samples = 1;
-	viewport[0] = glx + r_refdef.vrect.x;
-	viewport[1] = gly + glheight - r_refdef.vrect.y - r_refdef.vrect.height;
-	viewport[2] = r_refdef.vrect.width;
-	viewport[3] = r_refdef.vrect.height;
-	if (!GL_NeedsPostprocess ())
-	{
-		*color = *depth = 0;
-		return 0;
-	}
-	*color = framebufs.composite.color_tex;
-	*depth = framebufs.composite.depth_stencil_tex;
-	return framebufs.composite.fbo;
 }
 
 /*

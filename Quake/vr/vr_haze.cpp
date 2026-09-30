@@ -449,7 +449,7 @@ void draw()
     }
     GLuint color = 0, depth = 0;
     int samples = 1, viewport[4];
-    const GLuint sceneFbo = R_SceneTarget(&color, &depth, &samples, viewport);
+    const GLuint sceneFbo = VR_SceneTarget(&color, &depth, &samples, viewport);
     if(!color || viewport[2] <= 0 || viewport[3] <= 0)
     {
         return;

@@ -1,6 +1,6 @@
 // vr_water.hpp -- liquids: water, slime, lava and teleports less flat, and the view with your head in them.
 //
-// The surfaces (gl_shaders.h, LIQUID_FUNCTIONS; both of Ironwail's liquid programs, lit and unlit water): waves as a
+// The surfaces (vr_glsl.h, LIQUID_FUNCTIONS; both of Ironwail's liquid programs, lit and unlit water): waves as a
 // sum of sines in the world (in the normal, the texture's warp and the refraction), and with vr_water_geo_waves long
 // swells that move the geometry too (the world's level liquid faces cut into a grid as a map loads, their vertices
 // raised in the vertex shaders, held still at the walls: vr_water.cpp's mesh, drawn by r_world.c), a fresnel term (see-through looking down, a dim room

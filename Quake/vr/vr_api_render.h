@@ -142,6 +142,11 @@ void VR_LoadNormalMap (struct gltexture_s *glt, const char *image, const char *s
 	int worldwidth, int flags);								// Mod_LoadTextures, skins: a texture's normal map (authored beside `image` or `shared`, or made from `data`)
 unsigned char *VR_NormalMapSource (unsigned char *data, enum srcformat fmt, int width, int height); // Mod_LoadTextures: an RGBA image kept whole for it
 
+// The scene's framebuffers, for the module's passes over it (vr_gfx_gl.cpp; Ironwail's framebufs).
+unsigned VR_OpaqueSceneTexture (void);					// the opaque scene's colours translucent liquids can read (0: none)
+void VR_BindOpaqueScene (void);							// R_DrawBrushModels_Water: ... on unit 6, resolved first with MSAA
+unsigned VR_SceneTarget (unsigned *color, unsigned *depth, int *samples, int viewport[4]); // the scene's framebuffer, textures (0: the window's), viewport
+
 // Model loading (vr_modelload.cpp; gl_model.c). `mod` is the model loading, `hdr` its aliashdr_t.
 void VR_LoadLux (struct qmodel_s *mod, lump_t *l);		// Mod_LoadLighting: the light's directions (a .lux beside the .lit; deluxemaps)
 void VR_FillSurfaceLux (struct msurface_s *surf, unsigned *lux_data, int lightmap_width); // GL_BuildLightmaps: a lit face's light directions (deluxemaps)

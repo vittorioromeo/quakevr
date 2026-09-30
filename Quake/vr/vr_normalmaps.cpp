@@ -18,10 +18,10 @@
 #define HEIGHT_LOW			0.02f // made heights (vr_parallax): the share of a texture's texels at the deepest,
 #define HEIGHT_HIGH			0.98f // and below the surface's top
 #define HEIGHT_MINRANGE		0.2f // a flatter texture's shading isn't stretched to the whole depth (its grain would)
-#define HEIGHT_RIM			2 // made heights of a skin with islands (TexMgr_SetHeightMask): texels over which they rise to the top at an island's edge
-static const byte	*heightmask; // TexMgr_SetHeightMask
+#define HEIGHT_RIM			2 // made heights of a skin with islands (VR_SetHeightMask): texels over which they rise to the top at an island's edge
+static const byte	*heightmask; // VR_SetHeightMask
 static int			heightmask_width, heightmask_height;
-static const float	*heightmask_corners; // TexMgr_SetHeightMaskLazy: made from these when first needed
+static const float	*heightmask_corners; // VR_SetHeightMaskLazy: made from these when first needed
 static int			heightmask_numtris;
 static byte			*(*heightmask_make) (const float *corners, int numtris, int w, int h);
 static byte			*heightmask_made; // (malloc'd)
