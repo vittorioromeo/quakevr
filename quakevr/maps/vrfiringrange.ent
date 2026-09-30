@@ -1088,6 +1088,12 @@
 "_proparea" "1"
 }
 {
+"classname" "weapon_crowbar"
+"origin" "-176 -784 25"
+"angles" "0 90 90"
+"_proparea" "1"
+}
+{
 "classname" "func_worldtext_banner"
 "origin" "-476 -779 33"
 "angle" "90"
@@ -1119,6 +1125,15 @@
 "origin" "-176 -796 57"
 "angle" "90"
 "worldtext" "chainsaw"
+"worldtext_halign" "1"
+"worldtext_scale" "0.25"
+"_proparea" "1"
+}
+{
+"classname" "func_worldtext_banner"
+"origin" "-176 -760 45"
+"angle" "90"
+"worldtext" "crowbar"
 "worldtext_halign" "1"
 "worldtext_scale" "0.25"
 "_proparea" "1"

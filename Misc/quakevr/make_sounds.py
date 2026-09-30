@@ -28,6 +28,9 @@
 #   pommel1..3.wav  a pommel, a hilt or a gun's butt striking (QC vr_melee.qc VR_Melee_HitSound): a blunt knock,
 #                 short and dry, apart from the blades' cuts and the punches; three, a little apart in pitch
 #   (the grunts' burst rifles' burst1..3.wav: recorded, cut by make_burst_sounds.py)
+#   crowbar_hit1..3.wav, crowbar_wall1..2.wav  the crowbar (QC vr_crowbar.qc): its blow landing on a body (a steel bar's
+#                 dull tonk, its ring stopped by the flesh, over a meaty smack) and on a wall (a hard clack of steel on
+#                 stone and the bar ringing on); a little apart in pitch
 #   rock1..3.wav, brick1..3.wav  a rock's thud and a brick's clack (QC vr_debris.qc): landing, knocked, thrown into
 #                 something or struck with; three each, a little apart in pitch
 #
@@ -420,6 +423,67 @@ def pommel(pitch, seed):
         s = click * 0.6 + knock * 1.6 + crunch * 1.1 + thud(t, phase, 58 * pitch, 95 * pitch, 0.05) * 0.6 + body * 0.8
         out.append(math.tanh(s * 1.6))
     return finish(out, 0.92)
+
+
+# ---- The crowbar (QC vr_crowbar.qc; docs/vr-port/ROUND21.md, "The crowbar"): a hexagonal steel bar 67 cm long rings
+# with a free bar's bending modes (1 : 2.76 : 5.40 : 8.93 : 13.3 over about 200 Hz), a pair of each a few hertz apart (the
+# hook and the chisel make the bar a little uneven: a slow beat). On a body the flesh stops the ring in a few tens of ms,
+# under a smack and a crunch; on a wall it rings on after a hard clack and a spray of grit.
+
+CROWBAR_MODES = (1.0, 2.756, 5.404, 8.933, 13.34)
+
+
+def crowbar_modes(t, pitch, amps, decays, f0=205.0):
+    s = 0.0
+    for k, (r, a, d) in enumerate(zip(CROWBAR_MODES, amps, decays)):
+        f = f0 * r * pitch
+        s += a * math.exp(-t / d) * (math.sin(2 * math.pi * f * t + k) + 0.6 * math.sin(2 * math.pi * (f + 3.0 + k) * t))
+    return s
+
+
+def crowbar_hit(pitch, seed):
+    """The crowbar landing on a body: a click, the bar's modes damped fast, a smack and a crunch, a low thump."""
+    rng = random.Random(seed)
+    n = int(RATE * 0.38)
+    click_hp = OnePole(2600)
+    crunch_lp, crunch_hp = OnePole(1800), OnePole(240)
+    smack_lp = OnePole(900)
+    phase = [0.0]
+    out = []
+    for i in range(n):
+        t = i / RATE
+        noise = rng.uniform(-1, 1)
+        click = (noise - click_hp(noise)) * math.exp(-t / 0.0012)
+        ring = crowbar_modes(t, pitch, (0.55, 0.7, 0.45, 0.25, 0.12), (0.08, 0.055, 0.035, 0.02, 0.012))
+        ring *= min(1.0, t / 0.0003)
+        crunch = crunch_lp(noise)
+        crunch -= crunch_hp(crunch)
+        crunch *= math.exp(-t / 0.028)
+        smack = smack_lp(noise) * math.exp(-t / 0.018)
+        s = click * 0.5 + ring * 0.9 + crunch * 1.2 + smack * 0.9 + thud(t, phase, 55 * pitch, 90 * pitch, 0.07) * 0.9
+        out.append(math.tanh(s * 1.5))
+    return finish(out, 0.92)
+
+
+def crowbar_wall(pitch, seed):
+    """The crowbar striking a wall: a hard clack, grit, and the bar ringing on (its high modes dying first)."""
+    rng = random.Random(seed)
+    n = int(RATE * 0.95)
+    click_hp = OnePole(3500)
+    grit_lp, grit_hp = OnePole(6000), OnePole(1200)
+    out = []
+    for i in range(n):
+        t = i / RATE
+        noise = rng.uniform(-1, 1)
+        click = (noise - click_hp(noise)) * math.exp(-t / 0.0018)
+        grit = grit_lp(noise)
+        grit -= grit_hp(grit)
+        grit *= math.exp(-t / 0.02) * (0.6 + 0.4 * rng.random())
+        ring = crowbar_modes(t, pitch, (0.35, 0.8, 0.65, 0.45, 0.3), (0.42, 0.33, 0.22, 0.14, 0.08))
+        ring *= min(1.0, t / 0.0002)
+        s = click * 0.9 + grit * 0.8 + ring * 0.75
+        out.append(math.tanh(s * 1.3))
+    return finish(out, 0.9, 0.08)
 
 
 # ---- Rocks and bricks (QC vr_debris.qc; docs/vr-port/ROUND21.md, "Rocks and bricks"): a piece landing, knocked,
@@ -867,6 +931,15 @@ def main():
     for k, pitch in enumerate((1.0, 0.89, 1.12)):
         name = "pommel%d.wav" % (k + 1)
         write_wav(os.path.join(out, name), pommel(pitch, 131 + k))
+        print(name + " -> " + os.path.normpath(out))
+    # The crowbar (QC vr_crowbar.qc): three blows on a body, two on a wall, a little apart in pitch.
+    for k, pitch in enumerate((1.0, 0.93, 1.07)):
+        name = "crowbar_hit%d.wav" % (k + 1)
+        write_wav(os.path.join(out, name), crowbar_hit(pitch, 431 + k))
+        print(name + " -> " + os.path.normpath(out))
+    for k, pitch in enumerate((1.0, 1.06)):
+        name = "crowbar_wall%d.wav" % (k + 1)
+        write_wav(os.path.join(out, name), crowbar_wall(pitch, 531 + k))
         print(name + " -> " + os.path.normpath(out))
     # Rocks and bricks (QC vr_debris.qc): three knocks each, a little apart in pitch, picked at random.
     for kind, brick, seed in (("rock", False, 231), ("brick", True, 331)):

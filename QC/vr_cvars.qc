@@ -132,6 +132,7 @@ float cvarh_vr_bash_sound;
 float cvarh_vr_bash_deflect_radius;
 float cvarh_vr_bash_deflect_window;
 float cvarh_vr_sword_damage_mult;
+float cvarh_vr_crowbar_damage;
 float cvarh_vr_chainsaw_damage;
 float cvarh_vr_chainsaw_fuel_use;
 float cvarh_vr_chainsaw_idle_fuel_use;
@@ -426,6 +427,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_bash_deflect_radius);
     VR_CVAR_HMAKE(vr_bash_deflect_window);
     VR_CVAR_HMAKE(vr_sword_damage_mult);
+    VR_CVAR_HMAKE(vr_crowbar_damage);
     VR_CVAR_HMAKE(vr_chainsaw_damage);
     VR_CVAR_HMAKE(vr_chainsaw_fuel_use);
     VR_CVAR_HMAKE(vr_chainsaw_idle_fuel_use);

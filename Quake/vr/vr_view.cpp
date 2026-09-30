@@ -1141,8 +1141,8 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
         {
             w.share = h.pos.x;
             const glm::vec3 toTip = s.muzzle[hand] - held.pos;
-            w.pos = held.pos + toTip * std::max(0.3f, h.pos.x - 0.3f);
-            w.end = held.pos + toTip * 1.05f;
+            w.pos = held.pos + toTip * weapons::bladeFrom(h);
+            w.end = held.pos + toTip * weapons::bladeTo(h);
         }
     }
 
@@ -2952,7 +2952,8 @@ void setupPosingHand(int hand, const glm::vec3& pos, const glm::vec3& rot)
             const glm::vec3 tip = hands::current().muzzleValid[wh] ? hands::current().muzzle[wh] : hilt;
             const glm::vec3 along = tip - hilt;
             const float length2 = glm::dot(along, along);
-            h.pos = {length2 > 0.f ? CLAMP(0.f, glm::dot(pos - hilt, along) / length2, 1.f) : 0.f, 0.f, 0.f};
+            // (Y, where its grip ends, kept.)
+            h.pos = {length2 > 0.f ? CLAMP(0.f, glm::dot(pos - hilt, along) / length2, 1.f) : 0.f, h.pos.y, 0.f};
         }
         else
         {
@@ -5502,6 +5503,54 @@ WeaponHotspot weaponHotspot(int hand, int index)
 // (the retired foregrip keys, mirrored as the old code did) and its grip hotspot are (they should match), and how far
 // the drawn hand moved (it was at the weapon's hand anchor, round 20; now where the controller is: the weapon's
 // origin).
+void hotspotFit_f()
+{
+    const hands::State& s = hands::current();
+    WeaponFrame wf;
+    if(!s.valid || !weaponFrame(s, HAND_MAIN, wf))
+    {
+        Con_Printf("vr_hotspot_fit: hold a weapon in the main hand\n");
+        return;
+    }
+    const glm::mat4 inv = glm::inverse(wf.modelToWorld);
+    const glm::vec3 hand{inv * glm::vec4{s.pos[HAND_MAIN], 1.f}};
+    const glm::vec3 fist{inv * glm::vec4{wf.fist, 1.f}};
+    const float m = units::metresToUnits();
+    Con_Printf("vr_hotspot_fit: %s: the hand at %.2f %.2f %.2f, the drawn fist at %.2f %.2f %.2f (model)\n", wf.model->name,
+        hand.x, hand.y, hand.z, fist.x, fist.y, fist.z);
+    if(s.muzzleValid[HAND_MAIN])
+    {
+        const glm::vec3 tip{inv * glm::vec4{s.muzzle[HAND_MAIN], 1.f}};
+        Con_Printf("vr_hotspot_fit: the tip at %.2f %.2f %.2f (model), %.1f cm from the hand, %.1f from the fist\n", tip.x,
+            tip.y, tip.z, glm::distance(s.muzzle[HAND_MAIN], s.pos[HAND_MAIN]) / m * 100.f,
+            glm::distance(s.muzzle[HAND_MAIN], wf.fist) / m * 100.f);
+    }
+    glm::vec3 fwd, right, up;
+    // The tracking space's axes (the play space's yaw, not the view's): the mock's.
+    hands::angleVectors(glm::vec3{0.f, hands::playSpaceYaw(), 0.f}, fwd, right, up);
+    const auto report = [&](int i, const char* what, const glm::vec3& at) {
+        const glm::vec3 d = (at - s.pos[HAND_OFF]) / m;
+        const glm::vec3 mp{inv * glm::vec4{at, 1.f}};
+        Con_Printf("vr_hotspot_fit: hotspot %d %s at %.2f %.2f %.2f (model); from the off hand: right %.3f up %.3f "
+                   "back %.3f m\n",
+            i + 1, what, mp.x, mp.y, mp.z, glm::dot(d, right), glm::dot(d, up), -glm::dot(d, fwd));
+    };
+    for(int i = 0; i < weapons::maxHotspots; i++)
+    {
+        const WorldHotspot& w = worldHotspots[HAND_MAIN][i];
+        if(w.type == weapons::HotspotType::Blade)
+        {
+            report(i, "(blade) its near end", w.pos);
+            report(i, "(blade) its middle", glm::mix(w.pos, w.end, 0.5f));
+            report(i, "(blade) its far end", w.end);
+        }
+        else if(w.type != weapons::HotspotType::None)
+        {
+            report(i, w.type == weapons::HotspotType::Cup ? "(cup)" : "(grip)", w.pos);
+        }
+    }
+}
+
 void hotspotHere_f()
 {
     if(Cmd_Argc() < 2)

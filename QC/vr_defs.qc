@@ -95,6 +95,7 @@ float IID_SWORD              = 43; // VR.
 float IID_CHAINSAW           = 44; // VR: an ogre's chainsaw.
 float IID_GRUNTGUN           = 45; // VR: a grunt's shotgun.
 float IID_ENFRIFLE           = 46; // VR: an enforcer's laser rifle.
+float IID_CROWBAR            = 47; // VR: the crowbar.
 
 //
 //
@@ -120,7 +121,8 @@ float WID_SWORD            = 13; // VR: a knight's sword (weaponflags QVR_WPNFLA
 float WID_CHAINSAW         = 14; // VR: an ogre's chainsaw (vr_chainsaw.qc; its clip is its fuel)
 float WID_GRUNTGUN         = 15; // VR: a grunt's shotgun (vr_enemyguns.qc; its clip is its only ammo)
 float WID_ENFRIFLE         = 16; // VR: an enforcer's laser rifle (vr_enemyguns.qc; its clip is its only ammo)
-float WID_LAST             = 16; // the last weapon id
+float WID_CROWBAR          = 17; // VR: the crowbar (vr_crowbar.qc; a melee weapon, one hand or two, as the swords)
+float WID_LAST             = 17; // the last weapon id
 float vr_pellet_damage; // FireBulletsImpl's damage a pellet while a grunt's shotgun fires (vr_enemyguns.qc; 0: the usual 4)
 float VR_CHAINSAW_TANK     = 100; // a chainsaw's full tank (its clip: fuel, in percent)
 

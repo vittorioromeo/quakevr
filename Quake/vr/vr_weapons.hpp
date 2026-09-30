@@ -134,6 +134,10 @@ struct Hotspot
 inline constexpr int hotspotFields = 24;
 [[nodiscard]] Key hotspotKey(int index, int field);
 [[nodiscard]] bool isGripType(HotspotType type); // a point the other hand holds: Grip or Cup
+// A Blade hotspot's zone along the line from the holding hand to the weapon's tip (shares of the way): from
+// max(0.3, X - 0.3) to its Y, where it ends (0: 1.05, just past the tip; the crowbar's ends short of its hook).
+[[nodiscard]] float bladeFrom(const Hotspot& h);
+[[nodiscard]] float bladeTo(const Hotspot& h);
 [[nodiscard]] Hotspot hotspot(int slot, int index);
 void setHotspot(int slot, int index, const Hotspot& h);
 

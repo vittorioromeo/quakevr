@@ -57,6 +57,9 @@ articles, talks and other engines' source are credited with where they came from
 - **The ogres' chainsaw** (`progs/v_chainsaw.mdl`, made by `make_chainsaw.py`) is cut out of Quake VR's own ogre model
   (`quakevr/progs/ogre.mdl`, from the same project as the knights below), with its skin; the cord's handle is added. Its
   sounds (`sound/vr/saw_*.wav`) are recordings: see "Chainsaw sounds" below.
+- **The crowbar** (`progs/v_crowbar.mdl`, its skin and normal map; `quakevr/sound/vr/crowbar_hit1..3.wav`,
+  `crowbar_wall1..2.wav`) is our own: built and painted from scratch by `make_crowbar.py`, its sounds synthesised by
+  `make_sounds.py` (a design inspired by Half-Life's crowbar; nothing of Valve's or id's is used).
 - **The grunts' shotgun and the enforcers' laser rifle** (`progs/v_gruntgun.mdl`, `v_enfrifle.mdl`, made by
   `make_enemyguns.py`) are cut out of Quake VR's own soldier and enforcer models (`quakevr/progs/soldier.mdl`,
   `enforcer.mdl`, from the same project as the knights below), with their skins; the pistol grips, trigger guards, bands

@@ -116,6 +116,15 @@ void(entity xTarget) VR_Motion_Sample =
             VR_MOTION_POINT(6)
             VR_MOTION_POINT(8)
         }
+        else if(pb.mh_thing == VR_MTHING_CROWBAR)
+        {
+            VR_MOTION_POINT(0) // the chisel end, the grip, the bar, the hook
+            VR_MOTION_POINT(1)
+            VR_MOTION_POINT(2)
+            VR_MOTION_POINT(4)
+            VR_MOTION_POINT(6)
+            VR_MOTION_POINT(7)
+        }
         else
         {
             VR_MOTION_POINT(0)

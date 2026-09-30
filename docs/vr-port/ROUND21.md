@@ -16300,3 +16300,81 @@ meet the wall at eye level: `vr_test_axe_loft`); 7 is as set (`vr_test_axe_roll/
 - [ ] Throw it sloppily: does its tumble settle into a clean end-over-end spin in the air, and does that look natural?
   Spin Alignment (global), Spin in the Air (Weapon Weights) tune it; 0 turns it off.
 - [ ] A thrown gib, box or other prop still tumbles as before (or near it).
+
+## The crowbar (2026-09-30)
+
+"Add a new melee weapon to the game: the crowbar, obviously inspired by Half-Life [...] it should be possible to hold
+it one-handed or two-handed [...] two hands close to each other at the bottom of the crowbar [...] or the off-hand can
+slide in the upper part of the crowbar [...] Add the crowbar to the vrfiringrange map."
+
+**The model** (`Misc/quakevr/make_crowbar.py`: `progs/v_crowbar.mdl`, 464 vertices, 444 triangles, nine frames; our
+own, built and painted from scratch). A gooseneck wrecking bar, 67.6 cm: a hexagonal steel bar 2.2 cm across the flats
+(flat-shaded round it, smooth along it), a flat chisel at the bottom bent 10 degrees off the bar, a black cloth tape grip
+from 6.6 to 29 cm (room for both fists), a hook bent through 160 degrees (3.8 cm radius) ending in a 4.5 cm forked
+claw. Skin 512 x 64 (the bar unrolled): a deep red paint (Quake's reds, 65..79) chipped along the hexagon's corners, the
+ground steel bare over the chisel's last 5 cm and the claw, rust where the paint gave out; a baked normal map
+(`bake_normals.py v_crowbar.mdl`). It lies where the knights' swords lie in the model space (along the axe's handle),
+so the swords' settings hold it: slot 23 (`vr_wofs_*_24`, `vr_wofs_version` 29) is the knight's sword's (TwoHMode 3:
+Sword, TwoHPitch 70, the holstered poses) but for its Offset. **The weapon scales about its model's bounds' corner**
+(`scale_origin`, measured: a model point p is drawn as k p + (1 - k) o), so the sword's Offset held the crowbar 7 cm
+lower and 5.7 cm aside; its Offset is the sword's moved by 0.66 (the sword's o - the crowbar's): 0.282 0.754 5.553. The
+hand then holds it where it holds the sword (`vr_hotspot_fit`: the hand at the same model point, the fist 21 cm up the
+bar, on the tape). The muzzle anchor (200) is the hook's back where the bar's line carried on meets it (a ring of the
+bend put exactly there): the melee line's far end, the parry line's end and the Blade grip's axis (which runs through
+the muzzle along the bar: an anchor on the hook's crown, 4.9 cm off the bar, would have put the sliding hand beside the
+bar).
+
+**Two hands.** Hotspot 1, a Grip below the main fist (the fists touching, 9.5 cm apart; `k p + (1 - k) o` of the point
+wanted, p from the sword's own grip hotspot slid up the bar); hotspot 2, a Blade from 0.3 of the way to the far end (10
+cm above the tape) to 0.8, short of the hook. **A Blade hotspot's end** is new: its Y (Weapon Offsets > Other Hand's
+Grips: "Blade Grip Ends At"; 0, every sword's: just past the tip, 1.05, as before) bounds both where the hand may take
+it (`vr_twohand.cpp` applySword, `weapons::bladeFrom`/`bladeTo`) and where the drawn hand slides to (`bladeGripHand`:
+up to min(0.95, the end)); the posing mode keeps it. `vr_debug_2h_grip` (Debug > Logging > Two-Handed Grip, now a
+cycle) also prints each grip a sword or the crowbar takes ("took the grip below the hand", "took the blade") and, at 2,
+how far along the bar the helping hand holds it.
+
+**Blows** (`QC/vr_melee.qc` VR_MTHING_CROWBAR, `QC/vr_crowbar.qc` W_CrowbarMelee). Its points: the chisel end (the near
+end, 0.78 of the hand-to-far-end line below the hand: a pommel strike, "chisel strike", x0.6), the grip, the bar (0.2,
+0.38, 0.56, 0.73: blunt, as a gun's barrel) and the hook (0.9 and the far end: x1.2, `VR_MELEE_CROWBAR_HOOK`). No stabs
+(a hook, not a point: a thrust is a swing's thrust, 0.8, as the axe's). Its kind is a slash ("strike" on the readout:
+"melee: Crowbar, strike (horizontal) with the bar"); the whoosh is the axe's. Damage `vr_crowbar_damage` (25; Combat >
+Melee > Crowbar Damage) times the blow's strength and the weight's curve: Mass 2.2 kg, Balance 16, Span 70 (Weapon
+Weights). Sounds (`make_sounds.py`): `vr/crowbar_hit1..3.wav` on a body (the bar's bending modes damped fast under a
+smack and a crunch), `crowbar_wall1..2.wav` on a wall (a clack and the bar ringing on, 0.95 s), sparks; the chisel end's
+strikes play the pommel knock. Thrown: 40 damage, spins end over end; landing and scraping play the metal physics
+sounds (a thrown weapon is metal: `vr_physsound.cpp`; its body's volume makes it 0.6 kg, the light recordings). It
+parries as any weapon (combat.qc: its line from the chisel to the hook).
+
+**Placing one.** `weapon_crowbar` (a point entity; FGD: `Misc/trenchbroom/entities.fgd`, with its model; "angles" how
+it lies before it falls), `func_weapon_grabbable` or `func_weapon_dispenser` with weapon 17, or from QC
+`VR_Crowbar_Spawn(from, origin, angles, velocity)`: a thrown weapon at rest (or tossed), which falls and settles (for the
+crates to come). vrfiringrange: one in the prop area, north of the chainsaw (`make_prop_area.py --ent-only`), labelled.
+
+**Tests** (mock headset, fixed frames).
+- `vr_hotspot_fit`: the hand at the sword's point (7.58 0.03 6.10), the far end 35.0 cm from the hand; hotspot 1 at the
+  model point wanted (5.16 -0.20 -0.79).
+- Two hands: the off hand put at hotspot 1 and gripped: "off hand took the grip below the hand (0.0 units off it)";
+  let go, at the Blade's near end: "took the blade (0.1 units off it)", slid along it: 0.37, 0.52, 0.75 of the way, and
+  past the end (1.03 of the way tracked) the drawn hand stops at 0.8, short of the hook (`crowbar_two_hands.png`).
+- Synthetic swings (`motion_synth.py <preset> --weapon crowbar --distance 0.85`, the sword presets with the crowbar)
+  against the dummy: horizontal "strike with the bar" 23.6 (x0.95), overhead "with the hook" 20.2 (x0.81), diagonal
+  (0.75 m) "with the hook" 19.5, two-handed overhead "with the hook" 20.9; the stab preset: nothing (no stabs).
+- Parry: held level across, a knight's blow (`impulse 248`, `242`): "parry: monster_knight with hand 1"; held low:
+  "parry: none".
+- Drop (`vr_weapon_grip_mode 0`, the grip let go): it falls, "thrown_weapon impact metal ... at 5.11 m/s"; `impulse 216`
+  (the grip held) takes it back: "in the main hand yes". (A hand reaching down to it in the mock did not take it; the
+  enemy guns' and the chainsaw's tests take theirs the same way, by the touch's own code.)
+- The melee eval: the canary, 48/53, no difference from the baseline. Menu paths: 13 found, 0 missing.
+- Images: `crowbar_model.png` (the model up close, a software render of the file), `crowbar_in_hand.png`,
+  `crowbar_first_person.png`, `crowbar_two_hands.png` (the kit's scratch).
+
+**In the headset.**
+- [ ] The crowbar in the prop area: pick it up by the tape; the fist on the tape's upper part, the bar along the
+  swords' line. Tune Weapon Offsets if the hand sits off the bar (the bar is thinner than a sword's grip).
+- [ ] The other hand below the first (the fists touching), then on the bar above the hands, sliding up to the hook's
+  start and no further.
+- [ ] Swings: the bar and the hook ("strike ... with the hook" hits harder), the chisel end jabbing back; a wall's clang.
+- [ ] Parry a knight with it held level across; throw it and hear it land.
+
+**Not done.** Crates spawning it (a later task: `VR_Crowbar_Spawn`). Its physics body weighs 0.6 kg (volume times the
+weapons' density), not its Weapon Weights mass: a prop slot with a Mass for `v_crowbar.mdl` would make it land heavier.

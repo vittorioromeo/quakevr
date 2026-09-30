@@ -70,7 +70,7 @@ constexpr Table table[] = {
 // No sights: melee weapons, the hand, and the monsters' guns (their lights and screens are not sights).
 constexpr const char* melee[] = {
     "progs/v_axe.mdl", "progs/v_hammer.mdl", "progs/v_ksword.mdl", "progs/v_hksword.mdl", "progs/v_chainsaw.mdl",
-    "progs/hand.mdl", "progs/v_gruntgun.mdl", "progs/v_enfrifle.mdl",
+    "progs/hand.mdl", "progs/v_gruntgun.mdl", "progs/v_enfrifle.mdl", "progs/v_crowbar.mdl",
 };
 
 [[nodiscard]] bool isSightIndex(int i)

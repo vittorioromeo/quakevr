@@ -2992,7 +2992,7 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
     RuneApplyBlackNoise(self); // make rune noise
     //--ZOID
 
-    if(xWeapon == WID_AXE || xWeapon == WID_SWORD)
+    if(xWeapon == WID_AXE || xWeapon == WID_SWORD || xWeapon == WID_CROWBAR)
     {
         if(!VRHandsTracked(self) ||
            !self.ishuman)
@@ -4045,6 +4045,18 @@ void() ImpulseCommands =
     if(self.impulse == 229 && !deathmatch && !coop) // QVR test: the chainsaw lying nearest you into an empty hand
     {
         VR_Chainsaw_TakeNearest();
+    }
+    if(self.impulse == 216 && !deathmatch && !coop) // QVR test: the crowbar lying nearest you into an empty hand
+    {
+        VR_Crowbar_TakeNearest();
+    }
+    if(self.impulse == 217 && !deathmatch && !coop) // QVR test: a crowbar dropped ahead of you (VR_Crowbar_Spawn)
+    {
+        VR_Crowbar_SpawnAhead();
+    }
+    if(self.impulse == 218) // QVR: each crowbar lying about and in your hands (vr_crowbar.qc)
+    {
+        VR_Crowbar_Report();
     }
     if(self.impulse == 212 && !deathmatch && !coop) // QVR test: the enemy gun lying nearest you into an empty hand
     {
@@ -5844,7 +5856,7 @@ float(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponC
     }
 
     float flags = xWeaponFlags - (xWeaponFlags & QVR_WPNFLAG_FOREGRIP_CARRIED);
-    if(xWeapon != WID_SWORD)
+    if(xWeapon != WID_SWORD && xWeapon != WID_CROWBAR)
     {
         flags = flags | QVR_WPNFLAG_FOREGRIP_CARRIED;
     }

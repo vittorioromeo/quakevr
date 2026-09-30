@@ -920,6 +920,7 @@ QVR_CVAR(vr_air_supply, "1.5", CVAR_ARCHIVE)        // the breath under water be
 QVR_CVAR(vr_swim_debug, "0", CVAR_NONE)               // print each stroke: peak speed, power gate, reverse damping and the push it gave
 QVR_CVAR(vr_sword_drop, "1", CVAR_NONE)               // retired (knights and hell knights always drop their sword: ROUND21.md, "Simplification"): kept so saved configs load silently
 QVR_CVAR(vr_sword_damage_mult, "1.5", CVAR_ARCHIVE)   // a knight's sword: its swing's damage over the axe's
+QVR_CVAR(vr_crowbar_damage, "25", CVAR_ARCHIVE)       // the crowbar (QC vr_crowbar.qc): a blow's base damage (the axe's 20, a knight's sword's 30), its hook's x1.2
 QVR_CVAR(vr_chainsaw_damage, "80", CVAR_ARCHIVE)      // an ogre's chainsaw (QC vr_chainsaw.qc): damage a second its running chain deals what its bar is in
 QVR_CVAR(vr_chainsaw_fuel_use, "5", CVAR_ARCHIVE)     // fuel (percent of a tank) a second the chain uses, the trigger held
 QVR_CVAR(vr_chainsaw_idle_fuel_use, "0.5", CVAR_ARCHIVE) // and the engine idling

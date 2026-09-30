@@ -206,7 +206,7 @@ def bezier(p0, mid, p2, s):
 # ---------------------------------------------------------------------------------------------------------
 # A take
 
-WEAPONS = {"fist": 0, "axe": 2, "mjolnir": 3, "shotgun": 4, "super_shotgun": 5, "nailgun": 6, "sword": 13}
+WEAPONS = {"fist": 0, "axe": 2, "mjolnir": 3, "shotgun": 4, "super_shotgun": 5, "nailgun": 6, "sword": 13, "crowbar": 17}
 
 
 class Take:
@@ -368,7 +368,10 @@ def sword_swing(take, p0, p1, p2, b0, b1, b2, duration, two_handed):
 # left, up; metres at vr_world_scale 1.25), measured in the mock headset (developer 3's "melee trace") with the
 # author's weapon offsets: weapon_pose points it along a swing's axis.
 WEAPON_FAR = {"axe": (0.155, -0.012, 0.209), "mjolnir": (0.159, -0.0025, 0.205), "sword": (0.153, 0.003, 0.875),
-              "shotgun": (0.45, -0.037, 0.003)}
+              "shotgun": (0.45, -0.037, 0.003),
+              # The crowbar lies as the swords do (its far end, the hook's back, on the blade's line): 35.0 cm of the
+              # sword's 88.9 from the hand (vr_hotspot_fit).
+              "crowbar": (0.060, 0.001, 0.345)}
 
 
 def weapon_pose(hand, weapon, axis, right):
@@ -462,7 +465,7 @@ CHOPS = {
     "diagonal": (((0.15, -0.35, 0.05), (0.62, -0.05, -0.3), (0.35, 0.3, -0.7)), ((-0.3, -0.5, 0.8), (1, 0.2, 0), (0.4, 0.5, -0.8))),
     "overhead": (((0.1, -0.15, 0.15), (0.62, -0.12, -0.25), (0.4, -0.1, -0.7)), ((-0.3, 0, 1), (1, 0, 0.1), (0.5, 0, -0.9))),
 }
-CHOP_REACH = {"axe": 0.62, "mjolnir": 0.62, "sword": 0.3, "shotgun": 0.5}  # the hand's farthest (m)
+CHOP_REACH = {"axe": 0.62, "mjolnir": 0.62, "sword": 0.3, "shotgun": 0.5, "crowbar": 0.5}  # the hand's farthest (m)
 
 
 def fix_preset(name, args):
@@ -532,8 +535,9 @@ def preset(name, args):
                  ((1.0, 0.0, 0.05), (1.0, 0.0, 0.05), (1.0, 0.0, 0.05))),
     }
     if name in swords:
+        # (--weapon crowbar: the crowbar, held as the swords are, swung the same way: its far end on the blade's line.)
         take = Take(name if not two else name + "_2h", rate=args.rate, world_scale=ws, eye_height=eye,
-                    main_weapon="sword", target=(d, 0.0), note="synthetic")
+                    main_weapon="crowbar" if args.weapon == "crowbar" else "sword", target=(d, 0.0), note="synthetic")
         if two:
             take.grip("off", True)
         (p0, p1, p2), (b0, b1, b2) = swords[name]
@@ -602,7 +606,8 @@ def main():
     ap.add_argument("--world-scale", type=float, default=1.25)
     ap.add_argument("--eye-height", type=float, default=1.646)
     ap.add_argument("--two-handed", action="store_true", help="the sword's with the off hand on the grip")
-    ap.add_argument("--weapon", default="axe", choices=sorted(WEAPON_FAR), help="the chop presets' weapon")
+    ap.add_argument("--weapon", default="axe", choices=sorted(WEAPON_FAR),
+                    help="the chop presets' weapon; crowbar: the sword presets' too")
     ap.add_argument("--settings-from", help="write the takes for this config's hand settings (vr_gunangle, "
                     "vr_handcal_*...: an ironwail.cfg)")
     ap.add_argument("--mock", action="store_true", help="also a vr_mock_play script of each (<take>.mock)")
