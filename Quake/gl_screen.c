@@ -2138,6 +2138,12 @@ void SCR_UpdateScreen (void)
 	if (!scr_initialized || !con_initialized)
 		return;				// not initialized yet
 
+	if (VR_SkipScreen ()) // QVR: a test run's unpaced frames, not drawn (vr_mock_fast 2): the view set up alone
+	{
+		VR_HeadlessView ();
+		return;
+	}
+
 
 	GL_BeginRendering (&glx, &gly, &glwidth, &glheight);
 

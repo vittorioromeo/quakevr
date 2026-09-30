@@ -1082,6 +1082,10 @@ extern "C" const unsigned char* VR_AliasVertexAO(qmodel_t* model, const void* al
     {
         return nullptr;
     }
+    if(vr_mock_fast.value >= 2.f)
+    {
+        return nullptr; // a test run that doesn't draw (VR_SkipScreen): not seconds of every core's time at its start
+    }
     const auto t0 = std::chrono::steady_clock::now();
     struct Timer
     {

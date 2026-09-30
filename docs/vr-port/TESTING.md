@@ -754,6 +754,14 @@ start-up's stages and the last map load's (with the work summed across them: mod
 maps, uploads); `vr_normalmap_cache 2` makes the cached skin normal maps anyway and warns of any that differ.
 `quakevr/cache/` (the skin normal maps, `prefetch.txt`) is made again when removed: the first start after that is
 about 0.4 s slower. A timing that compares builds must run each one twice (the second run's caches are warm).
+Unpaced frames also skip most presents (`VR_SkipSwap`: ten a second): a present waits for the display's refresh even
+with vsync off, most of such a frame (e1m1: 2.8 -> 1.4 ms). `vr_mock_fast 2` doesn't draw them at all (`VR_SkipScreen`):
+each sets up only what the game reads from the drawing (`VR_HeadlessView`: each eye's refdef and the view entities,
+the weapons' and hands' poses the melee samples), with no GL, so parallel runs don't wait on the shared GPU; the models'
+occlusion isn't baked either (seconds of 5 threads at each start). The kit's `eval.sh` uses it (the melee verdicts and
+every column of its table are the same as drawn replays'); `screenshot` in such frames shows an old image. Hidden test
+runs: with `QVR_TEST_HIDDEN` set the game's window is never shown (the kit sets it unless `-Visible`); screenshots are
+the same as a shown window's.
 Profiler (ROUND21.md, "Profiling: where the time goes"): `vr_profile_csv 1` collects (a row a second) without the
 panel; `vr_profile_report [s]` prints the table; the hitch log prints `vr_profile: hitch` lines. The panel is UI, so
 `vr_eyeshot` misses it: to see it in a screenshot, `vr_window_view 2; vr_spectator_fov 50; vr_spectator_scale 2;
