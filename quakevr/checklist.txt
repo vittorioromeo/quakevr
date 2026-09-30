@@ -58,7 +58,11 @@ With Wrenched Out off: a fast wrist snap-and-back with the laser cannon puts it 
 Walk into a box turned 45 degrees and one lined up with the grid: same distance as a wall
 Tip a box onto a slope or the other box: jump on, walk on, jump off, stand near its downhill edge (no explosion)
 
+Chainsaw: 2 hotspots now (both on the front handle's loop: top bar and left side); grip at each
+Chainsaw sounds (real recordings): slow vs hard pull, start into idle with no seam, revving, cutting, no clicks at loop points; stops when holstered or dead, comes back after loading a save
+
 [Decide or give feedback]
+Chainsaw hotspots: both on the front loop (as now), or one on each handle?
 On a tilted box steeper than ~30 degrees you slowly slide off (like the level's steep slopes): should boxes count as ground up to a steeper angle?
 The shotgun lags up to ~176 degrees in a fast wiggle: too much for 3 kg? (weight spring settings)
 Optimization follow-up: a Low graphics preset (render resolution, foveation, decal cap)?
