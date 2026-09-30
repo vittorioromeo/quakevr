@@ -35,13 +35,16 @@ void afterLoad();
 [[nodiscard]] bool entBox(const edict_t* passedict, const float* mins, const float* maxs, float* boxMins, float* boxMaxs);
 
 // ... and whether it does against this entity (its category: vr_hull_players, vr_hull_monsters, vr_hull_boxes).
-[[nodiscard]] bool narrowsAgainst(const edict_t* other);
+[[nodiscard]] bool narrowsAgainst(const edict_t* mover, const edict_t* other);
 
 // A player's box as a body moving into it (mover; null: none) meets it: true if narrowed, filled in.
 [[nodiscard]] bool touchBox(const edict_t* touch, const edict_t* mover, float* boxMins, float* boxMaxs);
 
 // A player's box as a shot, a missile or another point-sized move meets it (vr_hull_hit_width): true if narrowed, filled
 // in. Monsters' melee, splash damage and their sight don't use it (distances and nomonsters traces).
+// A monster's corners for SV_CheckBottom (vr_mhull_ledges): absMins..absMaxs narrowed to its width; true if narrowed.
+[[nodiscard]] bool footprint(const edict_t* ent, float* absMins, float* absMaxs);
+
 [[nodiscard]] bool hitBox(const edict_t* touch, float* boxMins, float* boxMaxs);
 
 // SV_ClipMoveToEntity for a SOLID_BSP entity with moveBox's box (vr_hull_method's way): false if not a brush model, or

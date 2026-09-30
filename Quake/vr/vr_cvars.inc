@@ -14,6 +14,22 @@ QVR_CVAR(vr_hull_monsters, "1", CVAR_ARCHIVE)          // the narrow entity widt
 QVR_CVAR(vr_hull_players, "1", CVAR_ARCHIVE)           // ... between players
 QVR_CVAR(vr_hull_boxes, "1", CVAR_ARCHIVE)             // ... between the player and other solid boxes (explosive boxes, solid items)
 QVR_CVAR(vr_hull_hit_width, "24", CVAR_ARCHIVE)        // the player's width that shots, missiles and splash traces hit (not bodies moving: vr_hull_ent_width) (8-32; 0: Quake's 32)
+QVR_CVAR(vr_mhull, "0", CVAR_ARCHIVE)                  // Movement > Monster Hitbox: monsters move against walls with the widths below (compiled hulls, vr_hull.cpp; HULLS.md "Monsters"); 0: Quake's hulls 1 and 2
+QVR_CVAR(vr_mhull_ents, "1", CVAR_ARCHIVE)              // ... and a width narrower than a monster's own box meets other bodies (the player, monsters, solid boxes) too, both ways
+QVR_CVAR(vr_mhull_ledges, "1", CVAR_ARCHIVE)            // ... and SV_CheckBottom's ledge test takes the narrow box's corners (0: Quake's box's)
+QVR_CVAR(vr_mhull_army, "-1", CVAR_ARCHIVE)            // a class's width against walls: -1 its own box's (QC setsize; the default), 0 Quake's hull, or 16 up
+QVR_CVAR(vr_mhull_dog, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_mhull_ogre, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_mhull_knight, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_mhull_hknight, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_mhull_zombie, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_mhull_wizard, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_mhull_demon, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_mhull_shambler, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_mhull_shalrath, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_mhull_enforcer, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_mhull_fish, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_mhull_tarbaby, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_compat_muzzle, "1", CVAR_ARCHIVE)          // with another mod's progs, its shots start at the gun, not the player's head
 QVR_CVAR(vr_gameplayfix_tossfall, "0", CVAR_NONE)     // resting items and weapons fall when their support goes
 QVR_CVAR(vr_pickup_scale, "1", CVAR_NONE)             // weapons, armour, powerups and keys drawn smaller, on the floor

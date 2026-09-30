@@ -567,7 +567,7 @@ void(float xHand) VR_Corpse_StrikeFrame =
     vector at = hand;
 
     // The hand, along its swing.
-    traceline(hand - dir * 6, hand + dir * 8, MOVE_HITGIBS, self);
+    traceline(hand - dir * 6, hand + dir * 8, MOVE_HITGIBS | MOVE_HITMODEL_MELEE, self); // VR: the corpse's model (vr_hit_precise)
     if(trace_ent.vr_corpse == 2)
     {
         c = trace_ent;
@@ -576,7 +576,7 @@ void(float xHand) VR_Corpse_StrikeFrame =
     // What it holds, from the hand to its end.
     else if(!VRIsHandWeaponless(self, xHand))
     {
-        traceline(hand, VRGetMuzzlePos(xHand) + dir * 4, MOVE_HITGIBS, self);
+        traceline(hand, VRGetMuzzlePos(xHand) + dir * 4, MOVE_HITGIBS | MOVE_HITMODEL_MELEE, self);
         if(trace_ent.vr_corpse == 2)
         {
             c = trace_ent;

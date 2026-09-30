@@ -218,6 +218,14 @@ void splitPoly(Poly&& p, const glm::dvec3& n, double d, Poly& front, Poly& back)
         {
             back.push_back(std::move(fb));
         }
+        else if(tmp.empty())
+        {
+            // Lost to the epsilon on both sides (a sliver of a face): its plane still bounds both pieces. Dropped, a
+            // piece could lose its only bound that way (found with a monster's 24-wide hull on e1m4: a piece reaching
+            // to the bogus winding's end, its leaf solid out in the open).
+            front.push_back(Face{f.normal, f.dist, {}, f.tag});
+            back.push_back(Face{f.normal, f.dist, {}, f.tag});
+        }
     }
     // The cap's plane bounds both pieces even when its face is lost to the epsilon.
     front.push_back(Face{-n, -d, cap});
@@ -1015,12 +1023,29 @@ struct Tree
 };
 mem::Cache<Tree> tree{"hull tree", mem::MapChange};
 
+// Its bytes, for a set holding trees (found by the set's heldBytes of a vector of them).
+std::size_t heldBytes(const Tree& t)
+{
+    return mem::heldBytes(t.nodes) + mem::heldBytes(t.planes) + mem::heldBytes(t.heads);
+}
+
+// Monsters' trees (vr_mhull): one per box size their widths ask for (a few: the widths come from the classes'
+// settings); the player's size shares the player's tree.
+struct MonsterTrees
+{
+    std::vector<Tree> trees;
+    auto members() { return std::tie(trees); }
+};
+mem::Cache<MonsterTrees> monsterTrees{"hull monster trees", mem::MapChange};
+constexpr std::size_t maxMonsterTrees = 12; // more box sizes than this at once: all compiled again (not expected)
+
 // A piece of a grown brush in a node of the tree being built.
 struct Frag
 {
     Poly poly;
     glm::dvec3 lo, hi;
     int live = 0; // its faces (a winding left) on planes not yet split on: none, and it fills its node's space
+    const Brush* brush = nullptr; // the brush it is a piece of
 };
 
 class TreeBuilder
@@ -1115,12 +1140,27 @@ public:
             }
         }
         out.poly = std::move(p);
-        return finish(out, -1);
+        out.brush = &br;
+        return finish(out, -1) && bounded(out);
     }
 
-    // The tree of the pieces; its root (a node, or a leaf's contents).
-    int build(std::vector<Frag>& frags)
+    // Debugging (vr_hull_leafdebug): the leaf holding this point is described as it is made.
+    const glm::dvec3* watch = nullptr;
+    const Brushes* debugBrushes = nullptr;
+    int rebounded = 0; // pieces cut back to their brush's bounds (bounded)
+
+    // The tree of the pieces; its root (a node, or a leaf's contents). region: the node's space (only when watching).
+    int build(std::vector<Frag>& frags, Poly* region = nullptr)
     {
+        bool watched = false;
+        if(watch && region)
+        {
+            watched = true;
+            for(const Face& face : *region)
+            {
+                watched = watched && glm::dot(face.normal, *watch) - face.dist <= 0.0;
+            }
+        }
         if(frags.empty())
         {
             ++t_.emptyLeaves;
@@ -1131,6 +1171,37 @@ public:
             if(f.live == 0)
             {
                 ++t_.solidLeaves;
+                if(watched)
+                {
+                    glm::dvec3 lo{1e300}, hi{-1e300};
+                    for(const Face& face : *region)
+                    {
+                        for(const glm::dvec3& v : face.w)
+                        {
+                            lo = glm::min(lo, v);
+                            hi = glm::max(hi, v);
+                        }
+                    }
+                    Con_Printf("leaf: solid by a piece %.2f %.2f %.2f .. %.2f %.2f %.2f; the leaf %.2f %.2f %.2f .. %.2f %.2f %.2f\n",
+                        f.lo.x, f.lo.y, f.lo.z, f.hi.x, f.hi.y, f.hi.z, lo.x, lo.y, lo.z, hi.x, hi.y, hi.z);
+                    for(const Face& face : f.poly)
+                    {
+                        Con_Printf("  face %.3f %.3f %.3f d %.3f, %d points, tag %d\n", face.normal.x, face.normal.y,
+                            face.normal.z, face.dist, static_cast<int>(face.w.size()), face.tag);
+                    }
+                    if(f.brush && debugBrushes)
+                    {
+                        const Brush& br = *f.brush;
+                        Con_Printf("  brush %d %s %.2f %.2f %.2f .. %.2f %.2f %.2f, %u planes:\n",
+                            static_cast<int>(&br - debugBrushes->brushes.data()), br.clip ? "(clip)" : "", br.mins.x, br.mins.y, br.mins.z, br.maxs.x,
+                            br.maxs.y, br.maxs.z, br.count);
+                        for(std::uint32_t i = 0; i < br.count; ++i)
+                        {
+                            const Plane& q = debugBrushes->planes[br.first + i];
+                            Con_Printf("    plane %.4f %.4f %.4f d %.3f\n", q.normal.x, q.normal.y, q.normal.z, q.dist);
+                        }
+                    }
+                }
                 return CONTENTS_SOLID;
             }
         }
@@ -1150,9 +1221,10 @@ public:
                     continue;
                 }
                 Frag g;
+                g.brush = f.brush;
                 g.poly = std::move(parts[side]);
                 parts[side] = Poly{};
-                if(finish(g, split, n, d, side ? -1.0 : 1.0))
+                if(finish(g, split, n, d, side ? -1.0 : 1.0) && bounded(g))
                 {
                     sides[side].push_back(std::move(g));
                 }
@@ -1160,10 +1232,15 @@ public:
         }
         frags.clear();
         frags.shrink_to_fit();
+        Poly regions[2];
+        if(watched)
+        {
+            splitPoly(std::move(*region), n, d, regions[0], regions[1]);
+        }
         const int node = static_cast<int>(t_.nodes.size());
         t_.nodes.push_back(mclipnode_t{split, {0, 0}});
-        const int front = build(sides[0]);
-        const int back = build(sides[1]);
+        const int front = build(sides[0], watched ? &regions[0] : nullptr);
+        const int back = build(sides[1], watched ? &regions[1] : nullptr);
         t_.nodes[static_cast<std::size_t>(node)].children[0] = front;
         t_.nodes[static_cast<std::size_t>(node)].children[1] = back;
         return node;
@@ -1171,6 +1248,52 @@ public:
 
 private:
     static long long key(float d) { return static_cast<long long>(std::floor(d * 4.f)); }
+
+    // A piece reaching out of its grown brush's bounds (the padded box it was cut from) lost a bounding face to the
+    // epsilon (a sliver of one: the build can't tell) and runs on to the bogus winding's end: its leaf would be solid
+    // out in the open (found with a monster's 24-wide hull on e1m4, a recovered clip brush's piece). It is cut by that
+    // box's faces again, as live faces. False: nothing left of it.
+    bool bounded(Frag& f)
+    {
+        if(!f.brush)
+        {
+            return true;
+        }
+        const glm::dvec3 pad = f.brush->clip ? glm::dvec3{2.0} : glm::dvec3{t_.ext} + 2.0;
+        const glm::dvec3 lo = glm::dvec3{f.brush->mins} - pad, hi = glm::dvec3{f.brush->maxs} + pad;
+        constexpr double slack = 0.5;
+        bool cut = false;
+        for(int axis = 0; axis < 3; ++axis)
+        {
+            for(int s = 0; s < 2; ++s)
+            {
+                if(s ? f.hi[axis] <= hi[axis] + slack : f.lo[axis] >= lo[axis] - slack)
+                {
+                    continue;
+                }
+                glm::dvec3 n0{0.0};
+                n0[axis] = s ? 1.0 : -1.0;
+                const int tag = plane(n0, s ? hi[axis] : -lo[axis]);
+                glm::dvec3 n;
+                double d;
+                oriented(tag, n0, n, d);
+                Poly front, back;
+                splitPoly(std::move(f.poly), n, d, front, back);
+                if(back.empty())
+                {
+                    return false;
+                }
+                if(!front.empty())
+                {
+                    back.back().tag = tag;
+                }
+                f.poly = std::move(back);
+                cut = true;
+            }
+        }
+        rebounded += cut;
+        return !cut || finish(f, -1);
+    }
 
     // The table's plane i, facing the way n does.
     void oriented(int i, const glm::dvec3& n, glm::dvec3& on, double& od) const
@@ -1206,7 +1329,7 @@ private:
                 f.hi = glm::max(f.hi, v);
                 reach = std::max(reach, (glm::dot(n, v) - d) * sign);
             }
-            f.live += face.tag >= 0 && !face.w.empty();
+            f.live += face.tag >= 0; // (a face lost to the epsilon too: its plane still bounds the piece)
         }
         return f.lo.x <= f.hi.x && f.hi.x - f.lo.x >= 0.01 && f.hi.y - f.lo.y >= 0.01 && f.hi.z - f.lo.z >= 0.01 &&
                (sign == 0.0 || reach >= 0.01);
@@ -1224,7 +1347,7 @@ private:
         {
             for(const Face& face : f.poly)
             {
-                if(face.tag < 0 || face.w.empty())
+                if(face.tag < 0)
                 {
                     continue;
                 }
@@ -1300,10 +1423,12 @@ private:
 };
 
 // The tree of one model (sub), built into t (its root: a node; a lone leaf gets a node of its own).
-void buildTree(Tree& t, const Brushes& b, std::size_t sub)
+void buildTree(Tree& t, const Brushes& b, std::size_t sub, const glm::dvec3* watch = nullptr)
 {
     const auto t0 = std::chrono::steady_clock::now();
     TreeBuilder tb{t};
+    tb.watch = watch;
+    tb.debugBrushes = &b;
     const glm::dvec3 ext{t.ext};
     std::vector<Frag> frags;
     const SubModel& sm = b.subs[sub];
@@ -1326,7 +1451,8 @@ void buildTree(Tree& t, const Brushes& b, std::size_t sub)
             add(b.brushes[static_cast<std::size_t>(c)]);
         }
     }
-    int root = tb.build(frags);
+    Poly region = watch ? boxPoly(glm::dvec3{-bogus * 0.5}, glm::dvec3{bogus * 0.5}) : Poly{};
+    int root = tb.build(frags, watch ? &region : nullptr);
     if(root < 0)
     {
         const int node = static_cast<int>(t.nodes.size());
@@ -1334,6 +1460,11 @@ void buildTree(Tree& t, const Brushes& b, std::size_t sub)
         root = node;
     }
     t.heads[sub] = root;
+    if(tb.rebounded)
+    {
+        Con_DPrintf("hull: %d pieces cut back to their brushes' bounds (%gx%g, model %d)\n", tb.rebounded, t.ext.x * 2.f,
+            t.ext.z * 2.f, static_cast<int>(sub));
+    }
     t.ms += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
 }
 
@@ -1425,6 +1556,151 @@ bool categoryOn(const edict_t* other)
     return vr_hull_boxes.value != 0.f;
 }
 
+// ---------------------------------------------------------------------------------------------------------------
+// Monsters' widths (vr_mhull; HULLS.md, "Monsters"): Quake moves a monster against the map with hull 1 (32 wide) or
+// hull 2 (64), whatever its own box (Quake VR's QC gives most of them narrower boxes: a grunt's is 24, an ogre's 40).
+// With vr_mhull a class's monsters move against the map with a compiled hull of its width instead (by default their
+// own box's; Quake's hull height kept: 56 for hull 1's, 88 for hull 2's). A width narrower than their box also meets
+// other bodies (vr_mhull_ents) and tests ledges with its corners (vr_mhull_ledges).
+
+struct MonsterClass
+{
+    const char* classname;
+    const char* name;
+    cvar_t* width;
+};
+const MonsterClass monsterClasses[] = {
+    {"monster_army", "Grunt", &vr_mhull_army},
+    {"monster_dog", "Rottweiler", &vr_mhull_dog},
+    {"monster_ogre", "Ogre", &vr_mhull_ogre},
+    {"monster_knight", "Knight", &vr_mhull_knight},
+    {"monster_hell_knight", "Death Knight", &vr_mhull_hknight},
+    {"monster_zombie", "Zombie", &vr_mhull_zombie},
+    {"monster_wizard", "Scrag", &vr_mhull_wizard},
+    {"monster_demon1", "Fiend", &vr_mhull_demon},
+    {"monster_shambler", "Shambler", &vr_mhull_shambler},
+    {"monster_shalrath", "Vore", &vr_mhull_shalrath},
+    {"monster_enforcer", "Enforcer", &vr_mhull_enforcer},
+    {"monster_fish", "Rotfish", &vr_mhull_fish},
+    {"monster_tarbaby", "Spawn", &vr_mhull_tarbaby},
+};
+constexpr int monsterClassCount = static_cast<int>(sizeof(monsterClasses) / sizeof(monsterClasses[0]));
+constexpr float minMonsterWidth = 16.f;
+
+// Each edict's class (an index in monsterClasses, -1 none), for the classname it had when looked up.
+struct ClassCache
+{
+    std::vector<int> names;
+    std::vector<signed char> classes;
+    auto members() { return std::tie(names, classes); }
+};
+mem::Cache<ClassCache> classCache{"hull monster classes", mem::MapChange};
+
+int monsterClassOf(const edict_t* ent)
+{
+    const int num = clientNum(ent);
+    if(num <= 0)
+    {
+        return -1;
+    }
+    ClassCache& c = classCache;
+    const auto i = static_cast<std::size_t>(num);
+    if(c.names.size() <= i)
+    {
+        c.names.resize(i + 1, -1);
+        c.classes.resize(i + 1, -1);
+    }
+    const int name = static_cast<int>(ent->v.classname);
+    if(c.names[i] != name)
+    {
+        c.names[i] = name;
+        c.classes[i] = -1;
+        const char* s = name ? PR_GetString(name) : "";
+        for(int k = 0; k < monsterClassCount; ++k)
+        {
+            if(!strcmp(s, monsterClasses[k].classname))
+            {
+                c.classes[i] = static_cast<signed char>(k);
+                break;
+            }
+        }
+    }
+    return c.classes[i];
+}
+
+float hull2Height(const qmodel_t* world)
+{
+    const float h = world ? world->hulls[2].clip_maxs[2] - world->hulls[2].clip_mins[2] : 0.f;
+    return h > 0.f ? h : 88.f;
+}
+
+// Quake's hull for a box of this width (SV_HullForEntity: hull 1 up to 32, else hull 2): its width and height.
+void quakeHull(float size, float& width, float& height)
+{
+    const bool one = size <= 32.f;
+    const hull_t& h = sv.worldmodel->hulls[one ? 1 : 2];
+    width = h.clip_maxs[0] - h.clip_mins[0];
+    width = width > 0.f ? width : (one ? 32.f : 64.f);
+    height = one ? hull1Height(sv.worldmodel) : hull2Height(sv.worldmodel);
+}
+
+// A class's width for its monsters' box (size) and Quake's hull for it: 0 when they keep Quake's hull.
+float classWidth(int cls, float size, float quake)
+{
+    const float v = monsterClasses[cls].width->value;
+    const float w = v < 0.f ? size : v; // -1: its own box's
+    if(w <= 0.f)
+    {
+        return 0.f;
+    }
+    const float c = std::max(w, minMonsterWidth);
+    return c < quake ? c : 0.f;
+}
+
+// A live monster of a known class moving with its narrower width (vr_mhull): its width, and the height its world
+// clipping keeps (Quake's hull's).
+bool monsterWidth(const edict_t* ent, float& width, float& height)
+{
+    if(vr_mhull.value == 0.f || !ent || !sv.active || !sv.worldmodel || static_cast<int>(ent->v.solid) != SOLID_SLIDEBOX)
+    {
+        return false;
+    }
+    const float size = ent->v.size[0];
+    if(size <= 3.f || ent->v.size[1] != size)
+    {
+        return false;
+    }
+    const int cls = monsterClassOf(ent);
+    if(cls < 0)
+    {
+        return false;
+    }
+    float quake = 0.f;
+    quakeHull(size, quake, height);
+    width = classWidth(cls, size, quake);
+    return width > 0.f;
+}
+
+// ... and narrower than its own box (a width set below it): what bodies and the ledge test meet.
+bool monsterNarrower(const edict_t* ent, float& width)
+{
+    float height = 0.f;
+    return monsterWidth(ent, width, height) && width < ent->v.size[0];
+}
+
+// The box is the entity's own (not a box QC traces with).
+bool ownBox(const edict_t* ent, const float* mins, const float* maxs)
+{
+    for(int i = 0; i < 3; ++i)
+    {
+        if(mins[i] != ent->v.mins[i] || maxs[i] != ent->v.maxs[i])
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 // The model at a model index as one of b's: the world's submodels, or an external .bsp model's brushes built now (the
 // first time it is met). -1: not a brush model.
 int subOf(Brushes& b, int index)
@@ -1465,15 +1741,43 @@ int subOf(Brushes& b, int index)
 
 // Method A's hull of a model (sub) for the box of half size ext: compiled now if not yet (the world's with the map or
 // the setting; a new width compiles all again).
-const Tree& treeFor(const Brushes& b, std::size_t sub, const glm::vec3& ext)
+// The tree for a box size: the player's (the player's size, or what it holds already), else a monster's (vr_mhull).
+Tree& slotFor(const Brushes& b, const glm::vec3& ext)
 {
-    Tree& t = tree;
-    if(t.forClipnodes != b.clipnodes || t.ext != ext)
+    Tree& p = tree;
+    if(p.forClipnodes == b.clipnodes && p.ext == ext)
+    {
+        return p;
+    }
+    const float half = widthSetting() * 0.5f;
+    if(vr_hull_width.value > 0.f && sv.worldmodel && ext == glm::vec3{half, half, hull1Height(sv.worldmodel) * 0.5f})
     {
         tree.release();
-        t.forClipnodes = b.clipnodes;
-        t.ext = ext;
+        p.forClipnodes = b.clipnodes;
+        p.ext = ext;
+        return p;
     }
+    std::vector<Tree>& v = monsterTrees.trees;
+    for(Tree& t : v)
+    {
+        if(t.forClipnodes == b.clipnodes && t.ext == ext)
+        {
+            return t;
+        }
+    }
+    if(v.size() >= maxMonsterTrees)
+    {
+        v.clear();
+    }
+    v.emplace_back();
+    v.back().forClipnodes = b.clipnodes;
+    v.back().ext = ext;
+    return v.back();
+}
+
+const Tree& treeFor(const Brushes& b, std::size_t sub, const glm::vec3& ext)
+{
+    Tree& t = slotFor(b, ext);
     if(t.heads.size() < b.subs.size())
     {
         t.heads.resize(b.subs.size(), -1);
@@ -1549,6 +1853,31 @@ void stats_f()
         static_cast<int>(b->subs.size()), external, vr_hull_method.value != 0.f ? "compiled hull" : "brush sweep",
         t.forClipnodes == b->clipnodes ? "" : "(none yet) ", static_cast<int>(t.nodes.size()),
         static_cast<int>(t.planes.size()), t.solidLeaves, t.emptyLeaves, tree.bytes() / 1024.0, t.ms);
+    // The monsters' (vr_mhull).
+    double ms = 0.0;
+    int count = 0;
+    for(const Tree& m : static_cast<MonsterTrees&>(monsterTrees).trees)
+    {
+        if(m.forClipnodes != b->clipnodes)
+        {
+            continue;
+        }
+        ++count;
+        ms += m.ms;
+        Con_Printf("hull: monsters' tree %gx%g: %d nodes, %d planes, %.0f KB, built in %.1f ms\n", m.ext.x * 2.f,
+            m.ext.z * 2.f, static_cast<int>(m.nodes.size()), static_cast<int>(m.planes.size()), heldBytes(m) / 1024.0, m.ms);
+    }
+    Con_Printf("hull: monsters (vr_mhull %s): %d trees, %.0f KB, built in %.1f ms\n", vr_mhull.value != 0.f ? "on" : "off",
+        count, monsterTrees.bytes() / 1024.0, ms);
+}
+
+// vr_mhull_reset: every class's width back to its own box's (the settings' defaults).
+void reset_f()
+{
+    for(const MonsterClass& c : monsterClasses)
+    {
+        Cvar_SetQuick(c.width, c.width->default_string);
+    }
 }
 
 // vr_hull_bench [traces] [width]: random moves from where Quake's player box fits (hull 1), each through hull 1,
@@ -1877,6 +2206,310 @@ bool hop(edict_t* ent)
     return false;
 }
 
+// vr_mhull_walktest: the level's monsters walked (pathing with vr_mhull on or off). Mode 0 (random walk): their AI
+// stopped, each is sent by movetogoal (16 units a tenth of a second, the id AI's step) to a floor spot 96-384 units away
+// in a random direction, a new one when it gets there (within 32 units across, 48 up or down) or after 8 seconds.
+// Mode 1 (patrol): their own AI left running (notarget the player first), the path_corners they reach counted. For
+// each class: the units walked, stuck (2-second spells moving less than 16 units), drops (a walker 20 units lower than
+// a tenth of a second before: off a ledge, or a lift), in solid (tenths of a second SV_TestEntityPosition finds its box
+// in something), embedded (its origin in the world's solid) and the goals reached.
+
+struct MonsterWalk
+{
+    struct Mon
+    {
+        int num = 0, cls = 0;
+        glm::vec3 last{0.f}, windowStart{0.f}, goal{0.f};
+        double windowUntil = 0.0, goalUntil = 0.0;
+        int oldThink = 0, lastGoal = 0;
+        bool patrols = false;
+    };
+    struct Counts
+    {
+        int monsters = 0, patrollers = 0, steps = 0, stuck = 0, drops = 0, inSolid = 0, embedded = 0, reached = 0,
+            given = 0, corners = 0;
+        double moved = 0.0;
+    };
+    std::vector<Mon> mons;
+    Counts counts[monsterClassCount];
+    double until = 0.0, nextStep = 0.0, started = 0.0;
+    std::uint32_t seed = 1;
+    int mode = 0;
+    edict_t* goal = nullptr;
+    std::string then; // a command run at the end (a test's next map)
+};
+MonsterWalk monsterWalk;
+
+// A spot 96-384 units away in a random direction the monster can stand at (a walker: on a floor, not in liquid; a
+// flyer or swimmer: in what it is in now); somewhere that way if none is found.
+glm::vec3 monsterGoal(MonsterWalk& w, const edict_t* e)
+{
+    const glm::vec3 o{e->v.origin[0], e->v.origin[1], e->v.origin[2]};
+    const bool flies = (static_cast<int>(e->v.flags) & (FL_FLY | FL_SWIM)) != 0;
+    vec3_t ov{o.x, o.y, o.z};
+    const int here = SV_PointContents(ov);
+    glm::vec3 p = o;
+    for(int attempt = 0; attempt < 24; ++attempt)
+    {
+        const float yaw = random01(w.seed) * 6.2831853f, d = 96.f + 288.f * random01(w.seed);
+        p = o + glm::vec3{std::cos(yaw) * d, std::sin(yaw) * d, flies ? (random01(w.seed) - 0.5f) * 96.f : 24.f};
+        vec3_t v{p.x, p.y, p.z};
+        if(flies)
+        {
+            if(SV_PointContents(v) == here)
+            {
+                return p;
+            }
+            continue;
+        }
+        if(SV_PointContents(v) != CONTENTS_EMPTY)
+        {
+            continue;
+        }
+        vec3_t down{p.x, p.y, p.z - 160.f};
+        const trace_t tr = SV_Move(v, vec3_origin, vec3_origin, down, MOVE_NOMONSTERS, nullptr);
+        if(tr.startsolid || tr.fraction >= 1.f || tr.plane.normal[2] < 0.7f)
+        {
+            continue;
+        }
+        vec3_t above{tr.endpos[0], tr.endpos[1], tr.endpos[2] + 8.f};
+        if(SV_PointContents(above) != CONTENTS_EMPTY)
+        {
+            continue;
+        }
+        return glm::vec3{tr.endpos[0], tr.endpos[1], tr.endpos[2] - e->v.mins[2]};
+    }
+    return p;
+}
+
+void monsterWalkEnd(MonsterWalk& w)
+{
+    const bool on = vr_mhull.value != 0.f;
+    Con_Printf("mhullwalk %s: mode %s, vr_mhull %d (ents %d, ledges %d), %.0f s\n", sv.worldmodel->name,
+        w.mode ? "patrol" : "random", on, vr_mhull_ents.value != 0.f, vr_mhull_ledges.value != 0.f, sv.qcvm.time - w.started);
+    MonsterWalk::Counts total;
+    for(int k = 0; k < monsterClassCount; ++k)
+    {
+        const MonsterWalk::Counts& c = w.counts[k];
+        if(!c.monsters)
+        {
+            continue;
+        }
+        float width = 0.f, box = 0.f;
+        for(const MonsterWalk::Mon& m : w.mons)
+        {
+            if(m.cls == k)
+            {
+                const edict_t* e = EDICT_NUM(m.num);
+                float quake = 0.f, height = 0.f;
+                box = e->v.size[0];
+                quakeHull(box, quake, height);
+                width = on ? classWidth(k, box, quake) : 0.f;
+                width = width > 0.f ? width : quake;
+                break;
+            }
+        }
+        Con_Printf("mhullwalk %-12s n %2d box %2.0f walls %2.0f: walked %6.0f, stuck %3d, drops %3d, in solid %3d, embedded %2d, "
+                   "goals %3d/%3d, corners %3d (%d patrol)\n",
+            monsterClasses[k].name, c.monsters, box, width, c.moved, c.stuck, c.drops, c.inSolid, c.embedded, c.reached, c.given,
+            c.corners, c.patrollers);
+        total.monsters += c.monsters;
+        total.moved += c.moved;
+        total.stuck += c.stuck;
+        total.drops += c.drops;
+        total.inSolid += c.inSolid;
+        total.embedded += c.embedded;
+        total.reached += c.reached;
+        total.given += c.given;
+        total.corners += c.corners;
+        total.patrollers += c.patrollers;
+    }
+    Con_Printf("mhullwalk total        n %2d: walked %6.0f, stuck %3d, drops %3d, in solid %3d, embedded %2d, goals %3d/%3d, "
+               "corners %3d (%d patrol)\n",
+        total.monsters, total.moved, total.stuck, total.drops, total.inSolid, total.embedded, total.reached, total.given,
+        total.corners, total.patrollers);
+    // Their AI given back (random walk).
+    for(const MonsterWalk::Mon& m : w.mons)
+    {
+        edict_t* e = EDICT_NUM(m.num);
+        if(!e->free && w.mode == 0 && m.oldThink)
+        {
+            e->v.think = m.oldThink;
+            e->v.nextthink = static_cast<float>(sv.qcvm.time + 0.1);
+        }
+    }
+    if(w.goal && !w.goal->free)
+    {
+        ED_Free(w.goal);
+    }
+    w.goal = nullptr;
+    w.until = 0.0;
+    mem::release(w.mons);
+    if(!w.then.empty())
+    {
+        Cbuf_AddText(w.then.c_str());
+        Cbuf_AddText("\n");
+    }
+}
+
+void monsterWalkStep(MonsterWalk& w)
+{
+    const double now = sv.qcvm.time;
+    for(MonsterWalk::Mon& m : w.mons)
+    {
+        edict_t* e = EDICT_NUM(m.num);
+        if(e->free || e->v.health <= 0.f || static_cast<int>(e->v.solid) != SOLID_SLIDEBOX)
+        {
+            continue;
+        }
+        MonsterWalk::Counts& c = w.counts[m.cls];
+        const glm::vec3 o{e->v.origin[0], e->v.origin[1], e->v.origin[2]};
+        ++c.steps;
+        c.moved += glm::distance(o, m.last);
+        const bool flies = (static_cast<int>(e->v.flags) & (FL_FLY | FL_SWIM)) != 0;
+        if(!flies && o.z < m.last.z - 20.f)
+        {
+            ++c.drops;
+            if(c.drops <= 2)
+            {
+                Con_DPrintf("mhullwalk: %s %d dropped %.0f at %.0f %.0f %.0f\n", monsterClasses[m.cls].name, m.num,
+                    m.last.z - o.z, o.x, o.y, o.z);
+            }
+        }
+        m.last = o;
+        if(const edict_t* in = SV_TestEntityPosition(e))
+        {
+            if(++c.inSolid <= 2)
+            {
+                Con_Printf("mhullwalk: %s %d in %s at %.0f %.0f %.0f\n", monsterClasses[m.cls].name, m.num,
+                    PR_GetString(in->v.classname), o.x, o.y, o.z);
+            }
+        }
+        vec3_t ov{o.x, o.y, o.z};
+        if(SV_HullPointContents(&sv.worldmodel->hulls[0], 0, ov) == CONTENTS_SOLID)
+        {
+            ++c.embedded;
+        }
+        if(now >= m.windowUntil)
+        {
+            c.stuck += glm::distance(o, m.windowStart) < 16.f && (w.mode == 0 || m.patrols);
+            m.windowStart = o;
+            m.windowUntil = now + 2.0;
+        }
+        if(w.mode == 1)
+        {
+            const int g = e->v.goalentity;
+            if(m.patrols && g != m.lastGoal && g)
+            {
+                c.corners += !strcmp(PR_GetString(PROG_TO_EDICT(g)->v.classname), "path_corner");
+            }
+            m.lastGoal = g;
+            continue;
+        }
+        const glm::vec2 across{o.x - m.goal.x, o.y - m.goal.y};
+        const bool there = glm::length(across) < 32.f && std::abs(o.z - m.goal.z) < 48.f;
+        if(there || now >= m.goalUntil)
+        {
+            c.reached += there;
+            m.goal = monsterGoal(w, e);
+            m.goalUntil = now + 8.0;
+            ++c.given;
+        }
+        VectorCopy(m.goal, w.goal->v.origin);
+        e->v.goalentity = EDICT_TO_PROG(w.goal);
+        e->v.enemy = 0;
+        pr_global_struct->self = EDICT_TO_PROG(e);
+        G_FLOAT(OFS_PARM0) = 16.f;
+        SV_MoveToGoal();
+    }
+}
+
+void monsterWalkFrame()
+{
+    MonsterWalk& w = monsterWalk;
+    if(w.until <= 0.0)
+    {
+        return;
+    }
+    if(sv.qcvm.time < w.started) // a new map
+    {
+        w.until = 0.0;
+        w.goal = nullptr;
+        mem::release(w.mons);
+        return;
+    }
+    if(sv.qcvm.time >= w.until)
+    {
+        monsterWalkEnd(w);
+        return;
+    }
+    if(sv.qcvm.time < w.nextStep)
+    {
+        return;
+    }
+    w.nextStep += 0.1;
+    const int oldSelf = pr_global_struct->self;
+    monsterWalkStep(w);
+    pr_global_struct->self = oldSelf;
+}
+
+void monsterWalk_f()
+{
+    if(Cmd_Argc() < 2 || !sv.active)
+    {
+        Con_Printf("vr_mhull_walktest <seconds> [seed] [mode: 0 random walk, 1 patrol] [command run at the end]: the "
+                   "level's monsters walked; the counts by class at the end\n");
+        return;
+    }
+    MonsterWalk& w = monsterWalk;
+    w.mons.clear();
+    for(MonsterWalk::Counts& c : w.counts)
+    {
+        c = MonsterWalk::Counts{};
+    }
+    w.started = sv.qcvm.time;
+    w.until = sv.qcvm.time + Q_atof(Cmd_Argv(1));
+    w.nextStep = sv.qcvm.time;
+    w.seed = Cmd_Argc() > 2 ? static_cast<std::uint32_t>(std::max(1, Q_atoi(Cmd_Argv(2)))) : 1u;
+    w.mode = Cmd_Argc() > 3 ? Q_atoi(Cmd_Argv(3)) : 0;
+    w.then.clear();
+    for(int i = 4; i < Cmd_Argc(); ++i)
+    {
+        w.then += i > 4 ? " " : "";
+        w.then += Cmd_Argv(i);
+    }
+    srand(w.seed); // movetogoal's turns
+    qcvm_t* oldvm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldvm);
+    w.goal = ED_Alloc();
+    for(int i = svs.maxclients + 1; i < qcvm->num_edicts; ++i)
+    {
+        edict_t* e = EDICT_NUM(i);
+        const int cls = e->free ? -1 : monsterClassOf(e);
+        if(cls < 0 || e->v.health <= 0.f || static_cast<int>(e->v.solid) != SOLID_SLIDEBOX)
+        {
+            continue;
+        }
+        MonsterWalk::Mon m;
+        m.num = i;
+        m.cls = cls;
+        m.last = m.windowStart = glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]};
+        m.windowUntil = sv.qcvm.time + 2.0;
+        m.lastGoal = e->v.goalentity;
+        m.patrols = e->v.goalentity && !strcmp(PR_GetString(PROG_TO_EDICT(e->v.goalentity)->v.classname), "path_corner");
+        ++w.counts[cls].monsters;
+        w.counts[cls].patrollers += m.patrols;
+        if(w.mode == 0)
+        {
+            m.oldThink = e->v.think;
+            e->v.nextthink = 0.f; // its AI stopped: the walk moves it
+        }
+        w.mons.push_back(m);
+    }
+    PR_PopQCVM(oldvm);
+    Con_Printf("vr_mhull_walktest: %d monsters, %s\n", static_cast<int>(w.mons.size()), w.mode ? "patrol" : "random walk");
+}
+
 // vr_hull_probe: which of the map's brushes the first player's narrow box is in, and by how much (the plane it is
 // least inside of): for a "stuck" report.
 void probeTree(const Brushes& b, const hull_t& hull, int num, const glm::dvec3& p, const glm::dvec3& ext)
@@ -1937,6 +2570,34 @@ void probeTree(const Brushes& b, const hull_t& hull, int num, const glm::dvec3& 
     }
 }
 
+// vr_hull_leafdebug <edict>: a fresh compiled hull for that entity's narrow box, the leaf at its centre described.
+void leafDebug_f()
+{
+    const int num = Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : 1;
+    if(!sv.active || !sv.worldmodel || num < 1 || num >= sv.qcvm.num_edicts)
+    {
+        return;
+    }
+    qcvm_t* oldvm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldvm);
+    edict_t* ent = EDICT_NUM(num);
+    float lo[3], hi[3];
+    const Brushes* b = worldBrushes(sv.worldmodel);
+    const bool narrow = b && moveBox(ent, ent->v.mins, ent->v.maxs, lo, hi);
+    PR_PopQCVM(oldvm);
+    if(!narrow)
+    {
+        return;
+    }
+    const glm::dvec3 c = glm::dvec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]} +
+                         (glm::dvec3{lo[0], lo[1], lo[2]} + glm::dvec3{hi[0], hi[1], hi[2]}) * 0.5;
+    Tree t;
+    t.ext = (glm::vec3{hi[0], hi[1], hi[2]} - glm::vec3{lo[0], lo[1], lo[2]}) * 0.5f;
+    t.heads.assign(b->subs.size(), -1);
+    buildTree(t, *b, 0, &c);
+    Con_Printf("leaf debug at %.2f %.2f %.2f: %d nodes\n", c.x, c.y, c.z, static_cast<int>(t.nodes.size()));
+}
+
 void probe_f()
 {
     if(!sv.active || !sv.worldmodel || svs.maxclients < 1)
@@ -1945,9 +2606,26 @@ void probe_f()
     }
     qcvm_t* oldvm = nullptr;
     PR_PushQCVM(&sv.qcvm, &oldvm); // a console command: no VM is current
-    edict_t* ent = EDICT_NUM(1);
+    const int num = Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : 1; // vr_hull_probe <edict>: a monster's (vr_mhull)
+    if(num < 1 || num >= qcvm->num_edicts)
+    {
+        PR_PopQCVM(oldvm);
+        return;
+    }
+    edict_t* ent = EDICT_NUM(num);
     float lo[3], hi[3];
     const Brushes* b = worldBrushes(sv.worldmodel);
+    {
+        // Quake's hull there (hull 1 or 2, as SV_HullForEntity picks it).
+        const hull_t& qh = sv.worldmodel->hulls[ent->v.size[0] <= 32.f ? 1 : 2];
+        vec3_t q;
+        for(int i = 0; i < 3; ++i)
+        {
+            q[i] = ent->v.origin[i] - (qh.clip_mins[i] - ent->v.mins[i]);
+        }
+        Con_Printf("vr_hull_probe %d (%s): Quake's hull: %s\n", num, PR_GetString(ent->v.classname),
+            SV_HullPointContents(const_cast<hull_t*>(&qh), qh.firstclipnode, q) == CONTENTS_SOLID ? "solid" : "empty");
+    }
     const bool narrow = b && moveBox(ent, ent->v.mins, ent->v.maxs, lo, hi);
     PR_PopQCVM(oldvm);
     if(!narrow)
@@ -2196,14 +2874,29 @@ void walkTest_f()
 // first move: a hitch in play).
 void prepare()
 {
-    if(vr_hull_width.value <= 0.f || !sv.worldmodel || !worldBrushes(sv.worldmodel))
+    if(!sv.worldmodel || vr_hull_method.value == 0.f || (vr_hull_width.value <= 0.f && vr_mhull.value == 0.f) ||
+        !worldBrushes(sv.worldmodel))
     {
         return;
     }
-    if(vr_hull_method.value != 0.f)
+    if(vr_hull_width.value > 0.f)
     {
         const float half = widthSetting() * 0.5f;
         (void)treeFor(built, 0, glm::vec3{half, half, hull1Height(sv.worldmodel) * 0.5f});
+    }
+    // The monsters' (vr_mhull): each size the level's monsters ask for, now (not at their first step).
+    if(vr_mhull.value != 0.f && sv.active)
+    {
+        for(int i = svs.maxclients + 1; i < sv.qcvm.num_edicts; ++i)
+        {
+            const edict_t* e = reinterpret_cast<const edict_t*>(reinterpret_cast<const byte*>(sv.qcvm.edicts) +
+                static_cast<std::ptrdiff_t>(i) * sv.qcvm.edict_size);
+            float w = 0.f, h = 0.f;
+            if(!e->free && monsterWidth(e, w, h))
+            {
+                (void)treeFor(built, 0, glm::vec3{w * 0.5f, w * 0.5f, h * 0.5f});
+            }
+        }
     }
 }
 
@@ -2220,10 +2913,18 @@ void init()
     Cmd_AddCommand("vr_hull_bench", bench_f);
     Cmd_AddCommand("vr_hull_walktest", walkTest_f);
     Cmd_AddCommand("vr_hull_probe", probe_f);
+    Cmd_AddCommand("vr_hull_leafdebug", leafDebug_f);
     Cmd_AddCommand("vr_hull_approach", approach_f);
     Cmd_AddCommand("vr_hull_hittest", hitTest_f);
+    Cmd_AddCommand("vr_mhull_walktest", monsterWalk_f);
+    Cmd_AddCommand("vr_mhull_reset", reset_f);
     Cvar_SetCallback(&vr_hull_width, onWidthChanged);
     Cvar_SetCallback(&vr_hull_method, onWidthChanged);
+    Cvar_SetCallback(&vr_mhull, onWidthChanged);
+    for(const MonsterClass& c : monsterClasses)
+    {
+        Cvar_SetCallback(c.width, onWidthChanged);
+    }
 }
 
 void afterLoad()
@@ -2233,6 +2934,13 @@ void afterLoad()
 
 bool moveBox(const edict_t* passedict, const float* mins, const float* maxs, float* boxMins, float* boxMaxs)
 {
+    float width = 0.f, height = 0.f;
+    if(monsterWidth(passedict, width, height) && ownBox(passedict, mins, maxs))
+    {
+        narrowBox(mins, maxs, width, boxMins, boxMaxs);
+        boxMaxs[2] = mins[2] + height; // Quake's hull's height, from the box's feet as Quake places it
+        return true;
+    }
     if(vr_hull_width.value <= 0.f || !sv.active || !sv.worldmodel || !isPlayerBox(passedict, mins, maxs))
     {
         return false;
@@ -2250,28 +2958,50 @@ bool moveBox(const edict_t* passedict, const float* mins, const float* maxs, flo
 
 bool entBox(const edict_t* passedict, const float* mins, const float* maxs, float* boxMins, float* boxMaxs)
 {
-    const float width = entWidthSetting();
-    if(width <= 0.f || !sv.active || !isPlayerBox(passedict, mins, maxs))
+    float width = entWidthSetting();
+    if(width > 0.f && sv.active && isPlayerBox(passedict, mins, maxs))
     {
-        return false;
+        narrowBox(mins, maxs, width, boxMins, boxMaxs);
+        return true;
     }
-    narrowBox(mins, maxs, width, boxMins, boxMaxs);
-    return true;
+    if(vr_mhull_ents.value != 0.f && monsterNarrower(passedict, width) && ownBox(passedict, mins, maxs))
+    {
+        narrowBox(mins, maxs, width, boxMins, boxMaxs);
+        return true;
+    }
+    return false;
 }
 
-bool narrowsAgainst(const edict_t* other)
+bool narrowsAgainst(const edict_t* mover, const edict_t* other)
 {
-    return categoryOn(other);
+    const int num = clientNum(mover);
+    return num >= 1 && num <= svs.maxclients ? categoryOn(other) : true; // a monster's width meets every body
 }
 
 bool touchBox(const edict_t* touch, const edict_t* mover, float* boxMins, float* boxMaxs)
 {
-    const float width = entWidthSetting();
-    if(width <= 0.f || !sv.active || !isPlayerBox(touch, touch->v.mins, touch->v.maxs) || !categoryOn(mover))
+    float width = entWidthSetting();
+    if(width > 0.f && sv.active && isPlayerBox(touch, touch->v.mins, touch->v.maxs) && categoryOn(mover))
+    {
+        narrowBox(touch->v.mins, touch->v.maxs, width, boxMins, boxMaxs);
+        return true;
+    }
+    if(vr_mhull_ents.value != 0.f && monsterNarrower(touch, width))
+    {
+        narrowBox(touch->v.mins, touch->v.maxs, width, boxMins, boxMaxs); // a body moving into a monster (vr_mhull)
+        return true;
+    }
+    return false;
+}
+
+bool footprint(const edict_t* ent, float* absMins, float* absMaxs)
+{
+    float width = 0.f;
+    if(vr_mhull_ledges.value == 0.f || !monsterNarrower(ent, width))
     {
         return false;
     }
-    narrowBox(touch->v.mins, touch->v.maxs, width, boxMins, boxMaxs);
+    narrowBox(absMins, absMaxs, width, absMins, absMaxs);
     return true;
 }
 
@@ -2358,6 +3088,10 @@ int playerBoxFits(qmodel_t* world, const glm::vec3& start, const glm::vec3& end)
 
 void walkTestFrame(edict_t* ent)
 {
+    if(clientNum(ent) == 1)
+    {
+        monsterWalkFrame(); // vr_mhull_walktest
+    }
     WalkTest& w = walkTest;
     if(w.until <= 0.0 || clientNum(ent) != 1)
     {
@@ -2480,9 +3214,14 @@ extern "C" int VR_HullEntBox(edict_t* passedict, const float* mins, const float*
     return qvr::hull::entBox(passedict, mins, maxs, boxmins, boxmaxs);
 }
 
-extern "C" int VR_HullNarrowsAgainst(edict_t* other)
+extern "C" int VR_HullNarrowsAgainst(edict_t* mover, edict_t* other)
 {
-    return qvr::hull::narrowsAgainst(other);
+    return qvr::hull::narrowsAgainst(mover, other);
+}
+
+extern "C" int VR_HullFootprint(edict_t* ent, float* absmins, float* absmaxs)
+{
+    return qvr::hull::footprint(ent, absmins, absmaxs);
 }
 
 extern "C" int VR_HullTouchBox(edict_t* touch, edict_t* mover, float* boxmins, float* boxmaxs)

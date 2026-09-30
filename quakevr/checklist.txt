@@ -35,8 +35,10 @@ A prop balanced on the open palm: the hand stays under it
 Empty hands now stop at walls by their drawn shape: check climbing and grabbing things off tables
 
 Hitbox defaults: width 16 and method A are now the defaults; grunts shooting from afar, knights/dogs/fiends reaching you feel fair? Try Width Shots Hit 20 and 28 (default 24)
+Monster Hitbox (Movement > Monster Hitbox): turn Narrower Monsters on; ogres, grunts, knights walk closer to walls and corners; any stuck, clipping into walls or stepping off ledges?
 
 [Decide or give feedback]
+Narrower Monsters (monsters' own boxes against walls; +186 ms load) on by default? Round the enforcer's 28 down to 24 (one hull fewer)?
 At speed 3, two 'weak punch' no-hit takes and one axe wiggle take now hit: drop those takes (invalidated), or keep them as known failures?
 Promote vr_melee_push 0.5, vr_melee_push_player 0.6 and vr_melee_bloodlust_mult 0.5 (your config) as defaults?
 Throw grace also ignores your body capsule for 0.2 s (an overhead snap hit your own body): keep, or hands only? (Throwing and Physics > vr_box3d_throw_grace_body)
