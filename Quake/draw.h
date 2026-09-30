@@ -40,8 +40,6 @@ void Draw_CharacterEx (float x, float y, float dimx, float dimy, int num);
 void Draw_Pic (int x, int y, qpic_t *pic);
 void Draw_SubPic (float x, float y, float w, float h, qpic_t *pic, float s1, float t1, float s2, float t2, const float *rgb, float alpha);
 void Draw_TransPicTranslate (int x, int y, qpic_t *pic, int top, int bottom); //johnfitz -- more parameters
-size_t Draw_PicBytes (void); // QVR: the bytes a pic made by Draw_ReplacePic takes
-void Draw_ReplacePic (qpic_t *pic, const char *name, int width, int height, byte *data); // QVR: a lasting pic of 8-bit data
 void Draw_ConsoleBackground (void); //johnfitz -- removed parameter int lines
 void Draw_TileClear (int x, int y, int w, int h);
 void Draw_Fill (int x, int y, int w, int h, int c, float alpha); //johnfitz -- added alpha

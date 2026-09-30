@@ -17,6 +17,7 @@
 #include "vr_weapons.hpp"
 
 #include <algorithm>
+#include <cstring>
 #include <unordered_map>
 #include <vector>
 
@@ -176,6 +177,54 @@ extern "C" int VR_AliasZeroBlend(const entity_t* e, const void* aliashdr, int to
     }
 
     return static_cast<int>(static_cast<unsigned>(blend) << 24 | static_cast<unsigned>(pose));
+}
+
+// R_DrawAliasModel_Real: the instance's Quake VR data (vraliasinstance_t). kind 1: drawn as usual; 0: r_showtris or
+// r_showbboxes' skeletons; 2: a shadow map's caster, depth only: nothing of the light, glows or surface (all zero).
+extern "C" void VR_AliasInstance(const entity_t* e, const float matrix[16], const void* aliashdr, int kind,
+    vraliasinstance_t* out)
+{
+    if(kind == 2)
+    {
+        std::memset(out, 0, sizeof(*out));
+        return;
+    }
+    const aliashdr_t* hdr = static_cast<const aliashdr_t*>(aliashdr);
+    const bool standard = kind == 1;
+    const bool lit = standard && !r_fullbright_cheatsafe && !r_lightmap_cheatsafe;
+    VR_AliasLightDir(e, out->lightdir);
+    VR_AliasAmbient(e, matrix, hdr, lit, &out->ambient[0][0]); // directional ambient (vr_model_ambient_dir)
+    VR_AliasMorph(e, hdr, &out->ambient[0][0]); // a gun morphing into its other ammo's model
+    out->glow[0] = VR_EntityGlow(e);
+    gltexture_t* skin = hdr->gltextures[e->skinnum >= 0 && e->skinnum < hdr->numskins ? e->skinnum : 0][0];
+    const int authored = TexMgr_NormalMapAuthored(skin); // its skin's normal map is an authored file's
+    // the shader's shading on a par with the world (+), its bumps (vr_normalmap_models)
+    out->glow[1] = (VR_ModelLightParity() ? 1.f : -1.f) * (1.f + VR_ModelBumps(e, authored));
+    out->glow[2] = VR_EntityFullbrightBoost(e); // the held weapons' sights glow (vr_weapon_glow)
+    if(standard) // its parallax depth in units; an authored map's heights (vr_parallax_authored) negative: the shader
+    {            // walks them in all the world's steps
+        const int heights = TexMgr_NormalMapParallax(skin);
+        out->glow[3] = VR_ParallaxDepth(e, matrix, hdr->scale, heights) * (heights == 2 ? -1.f : 1.f);
+    }
+    else
+    {
+        out->glow[3] = 0.f;
+    }
+    std::memset(out->surface, 0, sizeof(out->surface)); // rim light and reflections (vr_rim_light, vr_weapon_reflections)
+    if(lit)
+    {
+        VR_AliasSurface(e, out->surface);
+    }
+    VR_AliasAO(e, out->ao); // dynamic ambient occlusion (vr_ao.cpp)
+    out->ao[2] = VR_ModelNormalMapScale(authored); // how much its normal map bends the normal (authored ones their own strength)
+    if(standard) // wounds painted on it (vr_wounds.cpp)
+    {
+        VR_AliasWound(e, out->wound);
+    }
+    else
+    {
+        std::memset(out->wound, 0, sizeof(out->wound));
+    }
 }
 
 // Muzzle flashes and the zero blend (round 20). A view model's flash (Quake's nailguns and launchers, the shotguns'

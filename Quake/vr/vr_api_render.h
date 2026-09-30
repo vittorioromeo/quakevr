@@ -73,6 +73,17 @@ void VR_AliasPostTransform (const struct entity_s *e, float matrix[16]);	// afte
 void VR_BrushTransform (const struct entity_s *e, float matrix[16]);		// brush entities: the networked scale and offset
 float VR_EntityScale (const struct entity_s *e);	// ENTSCALE_DECODE(e->scale) times a prop's Size (Held Object Offsets): its bounds as drawn
 int VR_AliasZeroBlend (const struct entity_s *e, const void *aliashdr, int totalverts); // instance padding
+// The alias instance's Quake VR data, after Ironwail's (r_alias.c's aliasinstance_t; the shaders' InstanceData).
+typedef struct vraliasinstance_s
+{
+	float		lightdir[4]; // the direction it is shaded from (vr_modellight.cpp)
+	float		glow[4]; // the force grab glow (vr_fgfx.cpp), the shading on a par with the world and bumps, the sights' glow, the parallax depth
+	float		ambient[6][4]; // the light around it, +X -X +Y -Y +Z -Z (vr_ambient.cpp); a morph in .w (vr_render.cpp)
+	float		surface[4]; // rim light, reflections' strength and blur (vr_envmap.cpp)
+	float		ao[4]; // dynamic ambient occlusion: its own group, its per-vertex occlusion's strength (vr_ao.cpp); z the normal map's strength
+	float		wound[4]; // its wound mask (vr_wounds.cpp): layer + 1 (0 none), its size in texels, the time
+} vraliasinstance_t;
+void VR_AliasInstance (const struct entity_s *e, const float matrix[16], const void *aliashdr, int kind, vraliasinstance_t *out); // R_DrawAliasModel_Real: kind 1 standard, 0 showtris/showskel, 2 depth only (all zero)
 void VR_AliasFlameRefs (const void *aliashdr, unsigned short *refs); // GLMesh_LoadVertexBuffer: per VBO vertex, 0 or 1 + the gun vertex a muzzle flash's vertex rides on
 void VR_AliasMorph (const struct entity_s *e, const void *aliashdr, float ambient[24]); // instance: a weapon's morph into its other model (Ambient[2..5].w)
 void VR_AliasLightModifier (const struct entity_s *e, float lightcolor[3]); // end of R_SetupAliasLighting
@@ -109,6 +120,16 @@ float VR_ModelNormalMapScale (int authored);				// instance: how much its normal
 float VR_ViewModelMinLight (void);						// R_SetupAliasLighting: least light on the hands and weapons (Quake's 24)
 
 // Normal maps and alpha-tested mipmaps, made as textures load (vr_normalmaps.cpp; gl_texmgr.c's TexMgr_LoadImage32).
+// Normal maps for world textures and model skins (gl_texmgr.c; vr_normalmaps): made from the texture's shading
+// (NORMALMAP_SHADING: its luminance as height, or a *_bump height map's), or an authored *_norm map (NORMALMAP_AUTHORED).
+// The world's (NORMALMAP_HEIGHTS or'ed in) carry the height parallax mapping walks in alpha (vr_parallax).
+// NORMALMAP_FILE: from an authored file (*_norm, or a *_bump's heights): a real shape, drawn at its own strength on
+// models (vr_normalmap_authored). NORMALMAP_SKIN: made from a model skin's colours (TexMgr_SkinToNormals: edges,
+// materials and larger forms, not brightness as height). NORMALMAP_TYPE: the first three. NORMALMAP_FLAT (set on
+// loading): an authored map with NORMALMAP_HEIGHTS whose alpha is all 255, no heights (no parallax on it).
+enum { NORMALMAP_NONE, NORMALMAP_SHADING, NORMALMAP_AUTHORED, NORMALMAP_HEIGHTS = 4, NORMALMAP_FILE = 8, NORMALMAP_SKIN = 16,
+	NORMALMAP_FLAT = 32 };
+#define NORMALMAP_TYPE(kind) ((kind) & 3)
 struct gltexture_s;
 void VR_NormalMapMipSize (int worldwidth, int *mipwidth, int *mipheight);	// a made one's size (NORMALMAP_SHADING): mipmapped down to at most this
 int VR_MakeNormalMap (struct gltexture_s *glt, unsigned char *data, int kind, int worldwidth); // its RGBA texels made from the shading, or an authored one's heights; returns the kind (NORMALMAP_FLAT)

@@ -30,7 +30,6 @@ extern float v_blend[4];
 
 void V_Init (void);
 void V_RenderView (void);
-void V_SetupView (void); // QVR: V_RenderView without the drawing
 void V_CalcBlend (void);
 void V_UpdateBlend (void);
 void V_ResetEffects (void);

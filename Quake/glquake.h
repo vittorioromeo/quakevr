@@ -454,32 +454,15 @@ typedef struct gpuframedata_s {
 	float	rippleamp[8][4];	// QVR: ... each's height now, in units
 } gpuframedata_t;
 
-// QVR: normal maps for world textures and model skins (gl_texmgr.c; vr_normalmaps): made from the texture's shading
-// (NORMALMAP_SHADING: its luminance as height, or a *_bump height map's), or an authored *_norm map (NORMALMAP_AUTHORED).
-// The world's (NORMALMAP_HEIGHTS or'ed in) carry the height parallax mapping walks in alpha (vr_parallax).
-// NORMALMAP_FILE: from an authored file (*_norm, or a *_bump's heights): a real shape, drawn at its own strength on
-// models (vr_normalmap_authored). NORMALMAP_SKIN: made from a model skin's colours (TexMgr_SkinToNormals: edges,
-// materials and larger forms, not brightness as height). NORMALMAP_TYPE: the first three. NORMALMAP_FLAT (set on
-// loading): an authored map with NORMALMAP_HEIGHTS whose alpha is all 255, no heights (no parallax on it).
-enum { NORMALMAP_NONE, NORMALMAP_SHADING, NORMALMAP_AUTHORED, NORMALMAP_HEIGHTS = 4, NORMALMAP_FILE = 8, NORMALMAP_SKIN = 16,
-	NORMALMAP_FLAT = 32 };
-#define NORMALMAP_TYPE(kind) ((kind) & 3)
-struct gltexture_s *TexMgr_LoadNormalMap (struct gltexture_s *base, const char *name, int width, int height, enum srcformat format,
-	byte *data, const char *source_file, src_offset_t source_offset, int kind, int worldwidth);
 struct gltexture_s *TexMgr_ShareNormalMap (struct gltexture_s *base, const char *name, int kind); // QVR: an authored file's texture already made for another skin
 struct gltexture_s *TexMgr_NormalMap (struct gltexture_s *glt); // its normal map, or a flat one
-qboolean TexMgr_NormalMapAuthored (struct gltexture_s *glt); // QVR: whether its normal map is an authored file's (NORMALMAP_FILE)
-int TexMgr_NormalMapParallax (struct gltexture_s *glt); // QVR: its normal map's heights: 0 none, 1 made ones, 2 an authored file's alpha
 qboolean TexMgr_IndexedSmooth (void); // Quake's own textures filtered smoothly (only then do they get heights)
 
 extern gpulightbuffer_t r_lightbuffer;
 extern gpuframedata_t r_framedata;
-GLuint R_OpaqueSceneTexture (void); // QVR: the opaque scene's colours translucent liquids can read (0: none)
 void R_BindOpaqueScene (void); // QVR: ... on unit 6, resolved first with MSAA (r_world.c)
-GLuint R_OpaqueSceneDepthTexture (void); // QVR: and its depth/stencil (the translucent pass's target: vr/vr_water.cpp reads it first)
 void R_RestoreTranslucentTarget (void); // QVR: the translucent pass's framebuffer and viewport again
 GLuint R_SceneTarget (GLuint *color, GLuint *depth, int *samples, int viewport[4]); // QVR: the scene's framebuffer, textures, viewport (vr/vr_water.cpp, vr/vr_haze.cpp)
-void R_SetupGL (void); // QVR: the scene's framebuffer and viewport again (after a pass of vr/vr_water.cpp's or vr/vr_haze.cpp's)
 
 void R_AnimateLight (void);
 void R_MarkSurfaces (void);
@@ -504,11 +487,7 @@ void R_DrawBrushModels_SkyLayers (entity_t **ents, int count);
 void R_DrawBrushModels_SkyCubemap (entity_t **ents, int count);
 void R_DrawBrushModels_SkyStencil (entity_t **ents, int count);
 void R_DrawAliasModels (entity_t **ents, int count);
-void R_DrawAliasModelsDepth (entity_t **ents, int count); // QVR: depth only (the shadow maps' casters)
-qboolean R_PaintAliasWounds (entity_t *e, int numsplats, const float *splats); // QVR: into its wound mask (vr/vr_wounds.cpp)
 void R_DrawSpriteModels (entity_t **ents, int count);
-qboolean R_SoftSpritesPending (void); // QVR: sprites left for R_DrawSpriteModelsSoft (VR_SoftSprites)
-void R_DrawSpriteModelsSoft (GLuint distances); // QVR: them, soft, after the translucent pass (vr/vr_particles.cpp)
 void R_DrawBrushModels_ShowTris (entity_t **ents, int count);
 void R_DrawAliasModels_ShowTris (entity_t **ents, int count);
 void R_DrawSpriteModels_ShowTris (entity_t **ents, int count);
@@ -691,7 +670,6 @@ qboolean Sky_IsAnimated (void);
 
 void GL_BindBuffer (GLenum target, GLuint buffer);
 void GL_BindBufferRange (GLenum target, GLuint index, GLuint buffer, GLintptr offset, GLsizeiptr size);
-qboolean GL_GetShaderStorageRange (GLuint index, GLuint *buffer, GLintptr *offset, GLsizeiptr *size); // QVR
 void GL_BindBuffersRange (GLenum target, GLuint first, GLsizei count, const GLuint *buffers, const GLintptr *offsets, const GLsizeiptr *sizes);
 GLuint GL_CreateBuffer (GLenum target, GLenum usage, const char *name, size_t size, const void *data);
 void GL_DeleteBuffer (GLuint buffer);

@@ -58,6 +58,29 @@ void SV_CheckVelocity (edict_t *ent);
 void SV_CheckWaterTransition (edict_t *ent);
 void SV_Impact (edict_t *e1, edict_t *e2);
 entity_t *CL_NewTempEntity (void);				// cl_tent.c: a visedict for this frame (after CL_UpdateTEnts)
+int Con_NotifyLine (int age, const char **text, int *length, double *seconds, int *server); // console.c: a notify line (the wrist gadget's log)
+int Cvar_Count (void);								// cvar.c
+size_t Draw_PicBytes (void);						// gl_draw.c: the bytes a pic made by Draw_ReplacePic takes
+void Draw_ReplacePic (qpic_t *pic, const char *name, int width, int height, byte *data); // gl_draw.c: a lasting pic of 8-bit data
+int Mod_ReloadAliasModels (qboolean (*match) (const char *name, void *ctx), void *ctx); // gl_model.c (vr_model_reload)
+void TexMgr_ReloadAlphaTested (void);				// gl_texmgr.c: as vr_alpha_coverage changes
+gltexture_t *TexMgr_LoadNormalMap (gltexture_t *base, const char *name, int width, int height, enum srcformat format,
+	byte *data, const char *source_file, src_offset_t source_offset, int kind, int worldwidth); // gl_texmgr.c: a texture's normal map (VR_LoadNormalMap)
+qboolean TexMgr_NormalMapAuthored (gltexture_t *glt); // gl_texmgr.c: whether its normal map is an authored file's (NORMALMAP_FILE)
+int TexMgr_NormalMapParallax (gltexture_t *glt);	// gl_texmgr.c: its normal map's heights: 0 none, 1 made ones, 2 an authored file's alpha
+GLuint R_OpaqueSceneTexture (void);					// gl_rmain.c: the opaque scene's colours translucent liquids can read (0: none)
+void R_SetupGL (void);								// gl_rmain.c: the scene's framebuffer and viewport again (after a pass of vr_water.cpp's or vr_haze.cpp's)
+void R_DrawAliasModelsDepth (entity_t **ents, int count); // r_alias.c: depth only (the shadow maps' casters)
+qboolean R_PaintAliasWounds (entity_t *e, int numsplats, const float *splats); // r_alias.c: into its wound mask (vr_wounds.cpp)
+qboolean R_SoftSpritesPending (void);				// r_sprite.c: sprites left for R_DrawSpriteModelsSoft (VR_SoftSprites)
+void R_DrawSpriteModelsSoft (GLuint distances);		// r_sprite.c: them, soft, after the translucent pass (vr_particles.cpp)
+qboolean GL_GetShaderStorageRange (GLuint index, GLuint *buffer, GLintptr *offset, GLsizeiptr *size); // gl_rmisc.c
+int NUM_FOR_EDICT_CHECKED (const edict_t *e);		// pr_edict.c: -1 instead of a Host_Error
+void V_SetupView (void);							// view.c: V_RenderView without the drawing
+void SV_AreaEdicts (const float *mins, const float *maxs, edict_t **list, int *listcount, int listspace); // world.c: the linked edicts whose boxes touch mins..maxs
+int SV_HullPointContents (hull_t *hull, int num, vec3_t p); // world.c: the ledge map (vr_ledges.cpp)
+void Z_Usage (int *used, int *peak, int *size);		// zone.c: the zone's bytes in use, most ever, and total (vr_limits)
+void Hunk_Usage (int *used, int *peak, int *size, int *segments, int *maxsegments); // zone.c (vr_limits)
 }
 
 #include "vr_api.h"

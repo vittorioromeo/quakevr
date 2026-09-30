@@ -65,8 +65,6 @@ void SV_LinkEdict (edict_t *ent, qboolean touch_triggers);
 // sets ent->v.absmin and ent->v.absmax
 // if touchtriggers, calls prog functions for the intersected triggers
 
-void SV_AreaEdicts (const float *mins, const float *maxs, edict_t **list, int *listcount, int listspace);
-// QVR: appends the linked edicts (triggers and solids) whose boxes touch mins..maxs (VR_TouchLinks)
 
 int SV_PointContents (vec3_t p);
 int SV_TruePointContents (vec3_t p);
@@ -90,7 +88,6 @@ trace_t SV_Move (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, e
 // passedict is explicitly excluded from clipping checks (normally NULL)
 
 qboolean SV_RecursiveHullCheck (hull_t *hull, int num, float p1f, float p2f, vec3_t p1, vec3_t p2, trace_t *trace);
-int SV_HullPointContents (hull_t *hull, int num, vec3_t p); // QVR: the ledge map (vr_ledges.cpp)
 
 #endif	/* _QUAKE_WORLD_H */
 
