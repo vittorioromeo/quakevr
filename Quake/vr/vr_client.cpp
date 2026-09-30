@@ -36,10 +36,12 @@
 #include "vr_worldtext.hpp"
 #include "vr_wounds.hpp"
 
-#include <algorithm>
-#include <cstring>
-#include <unordered_map>
-#include <vector>
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/MinMax.hpp"
+
+#include <string.h>
 
 using namespace qvr;
 using namespace qvr::protocol;
@@ -139,7 +141,7 @@ struct MuzzleOffset
     bool valid = false;
     glm::vec3 local{0.f};
 };
-std::vector<MuzzleOffset> muzzleOffsets; // slot * 2 + mirrored
+za::Vector<MuzzleOffset> muzzleOffsets; // slot * 2 + mirrored
 
 [[nodiscard]] glm::vec3 handMuzzle(const hands::State& hs, int h)
 {
@@ -148,7 +150,7 @@ std::vector<MuzzleOffset> muzzleOffsets; // slot * 2 + mirrored
     {
         return hs.pos[h] + hands::forward(hs.rot[h]) * 8.f;
     }
-    if(muzzleOffsets.size() <= static_cast<std::size_t>(slot * 2 + 1))
+    if(muzzleOffsets.size() <= static_cast<za::SizeT>(slot * 2 + 1))
     {
         muzzleOffsets.resize(slot * 2 + 2);
     }
@@ -256,9 +258,9 @@ std::vector<MuzzleOffset> muzzleOffsets; // slot * 2 + mirrored
         hand.throwVel = e.vel;
         hand.angVel = e.angVel;
         hand.throwPos = e.pos;
-        hand.throwAge = static_cast<float>(std::max(0.0, latest - e.time));
+        hand.throwAge = static_cast<float>(za::max(0.0, latest - e.time));
 
-        move.hotspots[h] = static_cast<std::uint8_t>(hs.hotspot[h]);
+        move.hotspots[h] = static_cast<za::U8>(hs.hotspot[h]);
 
         // Muzzles come from the weapon models (vr_view.cpp), as of the last rendered frame; a carried gun's from
         // where it is drawn (handMuzzle).
@@ -287,7 +289,7 @@ std::vector<MuzzleOffset> muzzleOffsets; // slot * 2 + mirrored
     set(handButtons(HAND_MAIN).flickReload || flick::flicking(HAND_MAIN), VRBITS0_MAINHAND_RELOADFLICKING);
     set(twohand::aiming(), VRBITS0_2H_AIMING);
     set(teleport::update(hs, move.teleportTarget), VRBITS0_TELEPORTING);
-    move.vrBits0 = static_cast<std::uint16_t>(bits);
+    move.vrBits0 = static_cast<za::U16>(bits);
 
     if(offhandAttack || offhandAttackImpulse)
     {
@@ -349,7 +351,7 @@ std::vector<MuzzleOffset> muzzleOffsets; // slot * 2 + mirrored
             move.muzzlePos[h] = unposed.muzzlePos[h] + walked;
             move.shotRot[h] = unposed.shotRot[h];
         }
-        move.vrBits0 = static_cast<std::uint16_t>(unposed.vrBits0 & (VRBITS0_OFFHAND_GRABBING | VRBITS0_MAINHAND_GRABBING |
+        move.vrBits0 = static_cast<za::U16>(unposed.vrBits0 & (VRBITS0_OFFHAND_GRABBING | VRBITS0_MAINHAND_GRABBING |
                                                                      VRBITS0_OFFHAND_RELOADING | VRBITS0_MAINHAND_RELOADING));
         move.buttons &= ~(QVR_BUTTON_OFFHANDATTACK | QVR_BUTTON_OFFHANDSECONDARY | QVR_BUTTON_MAINHANDSECONDARY |
                           QVR_BUTTON_OFFHANDPRIMARY | QVR_BUTTON_MAINHANDPRIMARY);
@@ -365,7 +367,7 @@ std::vector<MuzzleOffset> muzzleOffsets; // slot * 2 + mirrored
 // ----------------------------------------------------------------------------
 // Per-entity VR data
 
-std::vector<client::EntityVr> entityData;
+za::Vector<client::EntityVr> entityData;
 
 [[nodiscard]] bool vrProtocol()
 {
@@ -768,18 +770,18 @@ extern "C" void VR_TuneDlight(int kind, int ent, void* dlight)
     {
         if(darkplaces)
         {
-            dl->radius = 200.f * std::max(0.f, vr_explosion_light_scale.value);
+            dl->radius = 200.f * za::max(0.f, vr_explosion_light_scale.value);
             dpColor(3.f, 1.5f, 0.5f);
             lighting::dlightLook(dl, 0.f, 0.f);
             return;
         }
-        dl->radius *= std::max(0.f, vr_explosion_light_scale.value) * 0.85f;
+        dl->radius *= za::max(0.f, vr_explosion_light_scale.value) * 0.85f;
         color(1.f, 0.65f, 0.35f);
         return;
     }
     if(kind == QVR_DLIGHT_EXPLOSION)
     {
-        const float k = std::max(0.f, vr_explosion_light_scale.value);
+        const float k = za::max(0.f, vr_explosion_light_scale.value);
         if(darkplaces)
         {
             dl->radius = 350.f * k;
@@ -798,7 +800,7 @@ extern "C" void VR_TuneDlight(int kind, int ent, void* dlight)
     if(darkplaces)
     {
         // DarkPlaces' muzzle flash: white, four times full light, gone in a twentieth of a second.
-        dl->radius = 150.f * std::max(0.f, vr_flash_scale.value);
+        dl->radius = 150.f * za::max(0.f, vr_flash_scale.value);
         dl->die = static_cast<float>(cl.time + 0.05);
         dl->decay = 0.f;
         brightness = 4.f;
@@ -808,7 +810,7 @@ extern "C" void VR_TuneDlight(int kind, int ent, void* dlight)
     else
     {
         // A muzzle flash: bright at once, gone in about a tenth of a second.
-        dl->radius *= std::max(0.f, vr_flash_scale.value);
+        dl->radius *= za::max(0.f, vr_flash_scale.value);
         dl->die = cl.time + 0.12;
         dl->decay = dl->radius * 6.f;
         brightness = 0.75f;
@@ -905,7 +907,7 @@ void thrownGunRopeStart(int key, float* start)
         weapons::vec(slot, weapons::Key::MuzzleOffsetX, weapons::Key::MuzzleOffsetY, weapons::Key::MuzzleOffsetZ));
     const glm::vec3 along = muzzle - handle;
     const float len = glm::length(along);
-    const glm::vec3 at = len > 1e-3f ? muzzle - along * (std::max(0.f, vr_grapple_rope_depth.value) / len) : muzzle;
+    const glm::vec3 at = len > 1e-3f ? muzzle - along * (za::max(0.f, vr_grapple_rope_depth.value) / len) : muzzle;
     static glm::vec3 lastOut{0.f}; // (the start we put: the server's sent again only with its next beam)
     const bool fromServer = glm::distance(s, lastOut) > 0.01f;
     lastOut = at;
@@ -970,7 +972,7 @@ extern "C" int VR_UpdateBeam(int ent, float* start, float* end)
         {
             // The rope: a little inside the barrel (it comes out of the gun, not off its end).
             from -= hands::forward(weapons::shotAngles(s.rot[hand], weapons::heldSlot(hand), hand == HAND_OFF)) *
-                    std::max(0.f, vr_grapple_rope_depth.value);
+                    za::max(0.f, vr_grapple_rope_depth.value);
         }
         start[0] = from.x;
         start[1] = from.y;

@@ -6,12 +6,17 @@
 #include "vr_hands.hpp"
 #include "vr_protocol.hpp"
 
-#include <array>
-#include <cmath>
-#include <cstring>
-#include <string>
-#include <unordered_map>
-#include <vector>
+#include "Zancle/Base/PtrDiffT.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/String/String.hpp"
+#include "vr_zancle.hpp"
+
+#include <string.h>
 
 namespace qvr::weapons
 {
@@ -33,8 +38,8 @@ constexpr const char* keyEnumNames[numKeys] = {
 };
 
 // Cvar names must outlive the cvars.
-std::array<std::string, numSlots * numKeys> names;
-std::array<cvar_t, numSlots * numKeys> cvars{};
+za::Array<za::String, numSlots * numKeys> names;
+za::Array<cvar_t, numSlots * numKeys> cvars{};
 
 constexpr const char* retiredKeyNames[] = {
 #define QVR_WEAPON_RETIRED(k) k,
@@ -42,8 +47,8 @@ constexpr const char* retiredKeyNames[] = {
 #undef QVR_WEAPON_RETIRED
 };
 constexpr int numRetired = static_cast<int>(sizeof(retiredKeyNames) / sizeof(retiredKeyNames[0]));
-std::array<std::string, numSlots * numRetired> retiredNames;
-std::array<cvar_t, numSlots * numRetired> retiredCvars{};
+za::Array<za::String, numSlots * numRetired> retiredNames;
+za::Array<cvar_t, numSlots * numRetired> retiredCvars{};
 
 [[nodiscard]] cvar_t& cvarAt(int slot, Key key)
 {
@@ -52,7 +57,7 @@ std::array<cvar_t, numSlots * numRetired> retiredCvars{};
 
 // Model -> slot, and the fist's slot (-2: not looked up yet), found again whenever a
 // vr_wofs_id_NN cvar changes.
-std::unordered_map<const qmodel_t*, int> slotCache;
+ankerl::unordered_dense::map<const qmodel_t*, int> slotCache;
 int fistCache = -2;
 
 // Counts the changes to the settings (settingsGeneration).
@@ -65,7 +70,7 @@ struct TransformMemo
     float inputs[7]{};
     ModelTransform t;
 };
-std::unordered_map<const qmodel_t*, TransformMemo> transformCache;
+ankerl::unordered_dense::map<const qmodel_t*, TransformMemo> transformCache;
 
 void onIdChanged(cvar_t* /* var */)
 {
@@ -339,7 +344,7 @@ void migrate()
         struct Keys
         {
             int slot;
-            std::vector<Key> keys;
+            za::Vector<Key> keys;
         };
         const Keys changed[] = {
             {0, {Key::FingerThumbBias, Key::HipHolsterRoll, Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterRoll,
@@ -454,7 +459,7 @@ void registerCvars()
         {
             names[slot * numKeys + key] = va("vr_wofs_%s_%02d", keyNames[key], slot + 1);
             cvar_t& var = cvars[slot * numKeys + key];
-            var.name = names[slot * numKeys + key].c_str();
+            var.name = names[slot * numKeys + key].cStr();
             var.string = "0";
             var.flags = CVAR_ARCHIVE;
         }
@@ -499,7 +504,7 @@ void registerCvars()
         {
             retiredNames[slot * numRetired + key] = va("vr_wofs_%s_%02d", retiredKeyNames[key], slot + 1);
             cvar_t& var = retiredCvars[slot * numRetired + key];
-            var.name = retiredNames[slot * numRetired + key].c_str();
+            var.name = retiredNames[slot * numRetired + key].cStr();
             var.string = "0";
             var.flags = CVAR_NONE;
             Cvar_RegisterVariable(&var);
@@ -531,7 +536,7 @@ void markCurrent()
         struct Keys
         {
             int slot;
-            std::vector<Key> keys;
+            za::Vector<Key> keys;
         };
         const Keys changed[] = {
             {0, {Key::FingerThumbBias, Key::HipHolsterRoll, Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterRoll,
@@ -684,12 +689,12 @@ Key hotspotKey(int index, int field)
 
 float bladeFrom(const Hotspot& h)
 {
-    return std::max(0.3f, h.pos.x - 0.3f);
+    return za::max(0.3f, h.pos.x - 0.3f);
 }
 
 float bladeTo(const Hotspot& h)
 {
-    return h.pos.y > 0.f ? std::max(bladeFrom(h), h.pos.y) : 1.05f;
+    return h.pos.y > 0.f ? za::max(bladeFrom(h), h.pos.y) : 1.05f;
 }
 
 bool isGripType(HotspotType type)
@@ -837,16 +842,16 @@ glm::vec3 shotAngles(const glm::vec3& aimRot, int slot, bool mirrored)
     }
     float pitch = value(slot, Key::ShotPitch);
     float yaw = value(slot, Key::ShotYaw) * (mirrored ? -1.f : 1.f);
-    pitch = std::isfinite(pitch) ? pitch : 0.f;
-    yaw = std::isfinite(yaw) ? yaw : 0.f;
+    pitch = qza::isfinite(pitch) ? pitch : 0.f;
+    yaw = qza::isfinite(yaw) ? yaw : 0.f;
     if(pitch == 0.f && yaw == 0.f)
     {
         return aimRot;
     }
     // In the aim's frame (x forward, y left, z up): pitched up by `pitch`, then turned left by `yaw` about the aim's up.
     const float p = glm::radians(pitch), y = glm::radians(yaw);
-    const glm::vec3 localFwd{std::cos(p) * std::cos(y), std::cos(p) * std::sin(y), std::sin(p)};
-    const glm::vec3 localUp{-std::sin(p) * std::cos(y), -std::sin(p) * std::sin(y), std::cos(p)};
+    const glm::vec3 localFwd{za::cos(p) * za::cos(y), za::cos(p) * za::sin(y), za::sin(p)};
+    const glm::vec3 localUp{-za::sin(p) * za::cos(y), -za::sin(p) * za::sin(y), za::cos(p)};
     glm::vec3 f, r, u;
     hands::angleVectors(aimRot, f, r, u);
     const auto toWorld = [&](const glm::vec3& l) { return f * l.x - r * l.y + u * l.z; };
@@ -1071,8 +1076,8 @@ namespace
 void onChanged(cvar_t* var)
 {
     generation++;
-    const std::ptrdiff_t index = var - cvars.data();
-    if(index >= 0 && index < static_cast<std::ptrdiff_t>(cvars.size()) && index % numKeys == static_cast<int>(Key::ID))
+    const za::PtrDiffT index = var - cvars.data();
+    if(index >= 0 && index < static_cast<za::PtrDiffT>(cvars.size()) && index % numKeys == static_cast<int>(Key::ID))
     {
         onIdChanged(var);
     }

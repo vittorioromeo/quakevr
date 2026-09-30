@@ -13,8 +13,10 @@
 #include "vr_server.hpp"
 #include "vr_worldtext.hpp"
 
-#include <iterator>
-#include <vector>
+#include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Vocabulary/Optional.hpp"
+
 
 using namespace qvr;
 using namespace qvr::progs;
@@ -31,7 +33,7 @@ struct ClientBits
     int received{0};
 };
 
-std::vector<ClientBits> clientBits;
+za::Vector<ClientBits> clientBits;
 
 // Per client: the latest VR move (see server::clientMove).
 struct ClientMove
@@ -40,7 +42,7 @@ struct ClientMove
     VrMove move;
     glm::vec3 base{0.f}; // the player origin the hand fields are placed from (see rebaseHands)
 };
-std::vector<ClientMove> clientMoves;
+za::Vector<ClientMove> clientMoves;
 
 [[nodiscard]] ClientMove* clientMoveOf(edict_t* player)
 {
@@ -222,7 +224,7 @@ extern "C" int VR_ActiveWeaponStat(edict_t* ent)
         0,                   // laser cannon
     };
     const int wid = static_cast<int>(ent->v.weapon);
-    return wid >= 0 && wid < static_cast<int>(std::size(itemBits)) ? itemBits[wid] : 0;
+    return wid >= 0 && wid < static_cast<int>(za::getArraySize(itemBits)) ? itemBits[wid] : 0;
 }
 
 extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)

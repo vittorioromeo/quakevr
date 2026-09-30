@@ -13,7 +13,10 @@
 #include "vr_cvars.hpp"
 #include "vr_protocol.hpp"
 
-#include <cmath>
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Fmax.hpp"
+#include "Zancle/Math/Sin.hpp"
+
 
 namespace qvr::flick
 {
@@ -73,7 +76,7 @@ void update(hands::State& s)
                 }
             }
         }
-        spinLeft[h] = std::fmax(spinLeft[h] - spinDt * vr_spinreload_pitch_speed.value, 0.f);
+        spinLeft[h] = za::fmax(spinLeft[h] - spinDt * vr_spinreload_pitch_speed.value, 0.f);
 
         if(spinLeft[h] <= 0.f)
         {
@@ -83,8 +86,8 @@ void update(hands::State& s)
 
         // Turn the barrel up and back around the hand's right axis.
         const float a = glm::radians(360.f - spinLeft[h]);
-        const glm::vec3 spunFwd = fwd * std::cos(a) + up * std::sin(a);
-        const glm::vec3 spunUp = up * std::cos(a) - fwd * std::sin(a);
+        const glm::vec3 spunFwd = fwd * za::cos(a) + up * za::sin(a);
+        const glm::vec3 spunUp = up * za::cos(a) - fwd * za::sin(a);
         s.visualRot[h] = hands::anglesFromVectors(spunFwd, spunUp);
     }
 }

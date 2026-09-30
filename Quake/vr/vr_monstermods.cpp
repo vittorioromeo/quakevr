@@ -15,11 +15,13 @@
 
 #include "vr_engine.hpp"
 
-#include <algorithm>
-#include <cmath>
-#include <cstring>
-#include <numeric>
-#include <vector>
+#include "Zancle/Algorithm/MaxElement.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+#include "vr_zancle.hpp"
+
+#include <string.h>
 
 namespace
 {
@@ -31,9 +33,9 @@ namespace
 }
 
 // The knight's sword: triangles on the blade's strips (the left of each half of the skin).
-std::vector<int> knightSword(const aliashdr_t* hdr, const stvert_t* st, const dtriangle_t* tris)
+za::Vector<int> knightSword(const aliashdr_t* hdr, const stvert_t* st, const dtriangle_t* tris)
 {
-    std::vector<int> out;
+    za::Vector<int> out;
     const int half = hdr->skinwidth / 2;
     for(int i = 0; i < hdr->numtris; i++)
     {
@@ -46,17 +48,17 @@ std::vector<int> knightSword(const aliashdr_t* hdr, const stvert_t* st, const dt
         }
         if(all)
         {
-            out.push_back(i);
+            out.pushBack(i);
         }
     }
     return out;
 }
 
 // The hell knight's sword: the longest separate piece of the mesh, apart from the body.
-std::vector<int> separatePieceSword(const aliashdr_t* hdr, const dtriangle_t* tris, const trivertx_t* pose)
+za::Vector<int> separatePieceSword(const aliashdr_t* hdr, const dtriangle_t* tris, const trivertx_t* pose)
 {
-    std::vector<int> parent(hdr->numverts);
-    std::iota(parent.begin(), parent.end(), 0);
+    za::Vector<int> parent(hdr->numverts);
+    qza::iota(parent.begin(), parent.end(), 0);
     const auto find = [&](int a) {
         while(parent[a] != a)
         {
@@ -71,22 +73,22 @@ std::vector<int> separatePieceSword(const aliashdr_t* hdr, const dtriangle_t* tr
         parent[find(tris[i].vertindex[1])] = find(tris[i].vertindex[2]);
     }
 
-    std::vector<int> count(hdr->numverts, 0);
+    za::Vector<int> count(hdr->numverts, 0);
     for(int v = 0; v < hdr->numverts; v++)
     {
         count[find(v)]++;
     }
-    const int body = static_cast<int>(std::max_element(count.begin(), count.end()) - count.begin());
+    const int body = static_cast<int>(za::maxElement(count.begin(), count.end()) - count.begin());
 
     // Each piece's length: its bounding box's diagonal.
-    std::vector<float> lo(hdr->numverts * 3, 1e9f), hi(hdr->numverts * 3, -1e9f);
+    za::Vector<float> lo(hdr->numverts * 3, 1e9f), hi(hdr->numverts * 3, -1e9f);
     for(int v = 0; v < hdr->numverts; v++)
     {
         const int r = find(v);
         for(int k = 0; k < 3; k++)
         {
-            lo[r * 3 + k] = std::min(lo[r * 3 + k], static_cast<float>(pose[v].v[k]) * hdr->scale[k]);
-            hi[r * 3 + k] = std::max(hi[r * 3 + k], static_cast<float>(pose[v].v[k]) * hdr->scale[k]);
+            lo[r * 3 + k] = za::min(lo[r * 3 + k], static_cast<float>(pose[v].v[k]) * hdr->scale[k]);
+            hi[r * 3 + k] = za::max(hi[r * 3 + k], static_cast<float>(pose[v].v[k]) * hdr->scale[k]);
         }
     }
     int best = -1;
@@ -98,7 +100,7 @@ std::vector<int> separatePieceSword(const aliashdr_t* hdr, const dtriangle_t* tr
             continue;
         }
         const float dx = hi[r * 3] - lo[r * 3], dy = hi[r * 3 + 1] - lo[r * 3 + 1], dz = hi[r * 3 + 2] - lo[r * 3 + 2];
-        const float length = std::sqrt(dx * dx + dy * dy + dz * dz);
+        const float length = za::sqrt(dx * dx + dy * dy + dz * dz);
         if(length > bestLength)
         {
             best = r;
@@ -106,12 +108,12 @@ std::vector<int> separatePieceSword(const aliashdr_t* hdr, const dtriangle_t* tr
         }
     }
 
-    std::vector<int> out;
+    za::Vector<int> out;
     for(int i = 0; i < hdr->numtris && best >= 0; i++)
     {
         if(find(tris[i].vertindex[0]) == best)
         {
-            out.push_back(i);
+            out.pushBack(i);
         }
     }
     return out;
@@ -127,7 +129,7 @@ struct KnownSword
 {
     const char* model;
     int numverts, numtris;
-    std::vector<int> verts;
+    za::Vector<int> verts;
     int firstDeath, lastDeath; // frame indices, or -1: by name
 };
 
@@ -139,26 +141,26 @@ const KnownSword knownSwords[] = {
         76, 96},
     {"progs/hknight.mdl", 538, 1000, {43, 45, 46, 47, 48, 526, 527, 531, 532}, -1, -1},
     {"progs/ogre.mdl", 497, 1290, [] {
-         std::vector<int> v(81);
-         std::iota(v.begin(), v.end(), 416);
+         za::Vector<int> v(81);
+         qza::iota(v.begin(), v.end(), 416);
          return v;
      }(),
         -1, -1},
     {"progs/soldier.mdl", 555, 810, [] {
-         std::vector<int> v(86);
-         std::iota(v.begin(), v.end(), 463);
+         za::Vector<int> v(86);
+         qza::iota(v.begin(), v.end(), 463);
          return v;
      }(),
         8, 28},
     {"progs/enforcer.mdl", 479, 984, [] {
-         std::vector<int> v{22, 23, 100};
+         za::Vector<int> v{22, 23, 100};
          for(int i = 400; i <= 430; i++)
          {
-             v.push_back(i);
+             v.pushBack(i);
          }
          for(int i = 455; i <= 478; i++)
          {
-             v.push_back(i);
+             v.pushBack(i);
          }
          return v;
      }(),
@@ -221,10 +223,10 @@ static void aliasPosesLoaded(const char* name, void* aliashdr, const stvert_t* s
         }
     }
 
-    std::vector<int> sword;
+    za::Vector<int> sword;
     if(known)
     {
-        std::vector<char> in(hdr->numverts, 0);
+        za::Vector<char> in(hdr->numverts, 0);
         for(int v : known->verts)
         {
             in[v] = 1;
@@ -233,7 +235,7 @@ static void aliasPosesLoaded(const char* name, void* aliashdr, const stvert_t* s
         {
             if(in[tris[i].vertindex[0]] && in[tris[i].vertindex[1]] && in[tris[i].vertindex[2]])
             {
-                sword.push_back(i);
+                sword.pushBack(i);
             }
         }
     }
@@ -247,8 +249,8 @@ static void aliasPosesLoaded(const char* name, void* aliashdr, const stvert_t* s
     }
 
     // The sword's own vertices (not the hand's, which the knight's hilt shares).
-    std::vector<char> inSword(hdr->numverts, 0), inRest(hdr->numverts, 0);
-    std::vector<char> isSwordTri(hdr->numtris, 0);
+    za::Vector<char> inSword(hdr->numverts, 0), inRest(hdr->numverts, 0);
+    za::Vector<char> isSwordTri(hdr->numtris, 0);
     for(int i : sword)
     {
         isSwordTri[i] = 1;
@@ -260,17 +262,17 @@ static void aliasPosesLoaded(const char* name, void* aliashdr, const stvert_t* s
             (isSwordTri[i] ? inSword : inRest)[tris[i].vertindex[k]] = 1;
         }
     }
-    std::vector<int> own, shared;
+    za::Vector<int> own, shared;
     for(int v = 0; v < hdr->numverts; v++)
     {
         if(inSword[v])
         {
-            (inRest[v] ? shared : own).push_back(v);
+            (inRest[v] ? shared : own).pushBack(v);
         }
     }
 
     // Onto the hilt (the hand) if it shares it, else the sword's middle.
-    const std::vector<int>& anchor = shared.empty() ? own : shared;
+    const za::Vector<int>& anchor = shared.empty() ? own : shared;
     int frames = 0;
     for(int f = 0; f < hdr->numframes; f++)
     {
