@@ -647,9 +647,9 @@ qboolean Sys_Explore (const char *path)
 	else
 		Sys_Printf ("Sys_Explore: SHOpenFolderAndSelectItems failed (0x%08lx) for '%ls'.\n", hr, wpath);
 
-	CoTaskMemFree (file);
+	ILFree (file); // QVR: ILFree, the PIDL's own free (CoTaskMemFree's void * drops its __unaligned: a clang-cl warning)
 cleanup_folder:
-	CoTaskMemFree (folder);
+	ILFree (folder); // QVR: ILFree, as above
 cleanup_com:
 	CoUninitialize ();
 

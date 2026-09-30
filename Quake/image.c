@@ -27,7 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 static byte *Image_LoadPCX (FILE *f, int *width, int *height);
 static byte *Image_LoadLMP (FILE *f, int *width, int *height);
 
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__clang__) // QVR: clang-cl too (no __GNUC__)
 	// Suppress unused function warnings on GCC/clang
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic ignored "-Wunused-function"
@@ -44,7 +44,7 @@ static byte *Image_LoadLMP (FILE *f, int *width, int *height);
 #define STBI_NO_LINEAR
 #include "stb_image.h"
 
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__clang__) // QVR: clang-cl too (no __GNUC__)
 	// Restore unused function warnings on GCC/clang
 	#pragma GCC diagnostic pop
 #endif

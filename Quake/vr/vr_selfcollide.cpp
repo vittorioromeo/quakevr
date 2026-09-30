@@ -167,14 +167,6 @@ Cap toWorld(const Frame& fr, const Cap& k)
     return w;
 }
 
-Cap toLocal(const Frame& fr, const Cap& k)
-{
-    Cap l = k;
-    l.a = fr.local(k.a);
-    l.b = fr.local(k.b);
-    return l;
-}
-
 // ----------------------------------------------------------------------------
 // A held weapon's capsules, fitted once per model and frame to its shape (the grasp's triangles, in the shape's own
 // coordinates): along its length (the principal axis of its vertices) in slabs, each slab's cross-section (its
@@ -785,7 +777,7 @@ void solve(const hands::State& s, float dt, glm::vec3 out[2], Stats& stats)
         const Bound* bb = nullptr;
         if(i < staticContacts)
         {
-            const int h = i / (SubCount * PartCount), sub = (i / PartCount) % SubCount, part = i % PartCount;
+            const int h = i / (int{SubCount} * PartCount), sub = (i / PartCount) % SubCount, part = i % PartCount;
             c.a = h;
             c.b = -1;
             const bool bodyPart = part == Torso || part == Head || part == Legs;
@@ -998,7 +990,7 @@ std::string contactName(int i)
 {
     if(i < staticContacts)
     {
-        const int h = i / (SubCount * PartCount), sub = (i / PartCount) % SubCount, part = i % PartCount;
+        const int h = i / (int{SubCount} * PartCount), sub = (i / PartCount) % SubCount, part = i % PartCount;
         const bool bodyPart = part == Torso || part == Head || part == Legs;
         return std::string(h == HAND_MAIN ? "main " : "off ") + subNames[sub] + "/" + (bodyPart ? "" : "other ") + partNames[part];
     }

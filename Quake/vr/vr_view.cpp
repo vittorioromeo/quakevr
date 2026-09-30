@@ -3111,8 +3111,8 @@ void setupPosing(hands::State& s)
     setupWeapon(s, wh, ps.model, 0, true);
     if(weaponTarget)
     {
-        setupWeapon(s, oh, precachedModel(cl.stats[oh == HAND_MAIN ? STAT_WEAPON : STAT_QVR_WEAPONMODEL2]),
-            cl.stats[oh == HAND_MAIN ? STAT_WEAPONFRAME : STAT_QVR_WEAPONFRAME2]);
+        setupWeapon(s, oh, precachedModel(cl.stats[oh == HAND_MAIN ? int{STAT_WEAPON} : int{STAT_QVR_WEAPONMODEL2}]),
+            cl.stats[oh == HAND_MAIN ? int{STAT_WEAPONFRAME} : int{STAT_QVR_WEAPONFRAME2}]);
     }
     else
     {

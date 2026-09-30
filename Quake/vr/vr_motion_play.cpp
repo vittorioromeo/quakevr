@@ -911,7 +911,7 @@ void doStrikes(size_t upTo)
     const Frame& f0 = take.frames.front();
     for(const int h : {HAND_MAIN, HAND_OFF})
     {
-        const bool holds = !take.hasWeapons || f0.wid[h] != 0 || h == HAND_MAIN && f0.wid[HAND_OFF] == 0;
+        const bool holds = !take.hasWeapons || f0.wid[h] != 0 || (h == HAND_MAIN && f0.wid[HAND_OFF] == 0);
         if(all.hands[h].grip && setupTime >= (holds ? setupPress : setupOffGrip))
         {
             in.hands[h].grip = true;
@@ -1916,8 +1916,6 @@ void writeProgress(const std::string& text)
         fclose(f);
     }
 }
-
-void evalNext();
 
 // developer 0 while a map loads (the user's value kept, and put back).
 bool quiet = false;

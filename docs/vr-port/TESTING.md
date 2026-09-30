@@ -779,6 +779,11 @@ kit's run.sh opens 960 x 540 (`vid_width` and `vid_restart` don't change it); th
 `run.sh --exclusive`; the mock's frame cap (`host_maxfps` 250) sleeps in 15.6 ms steps in an exclusive run (Windows'
 timer), which the report shows as "frame cap" (idle), not work.
 
+Crash reports (ROUND21.md, "clang-cl"): in a test run (`QVR_NO_ERROR_DIALOG`, which the kit sets) a crash writes
+`qvr_crash.txt` (the exception and the crashing thread's stack, file and line) and `qvr_crash.dmp` in the game folder,
+and run.sh prints it as `ENGINE CRASH`. `vr_debug_crash` (an access violation) or `vr_debug_crash abort` crashes on
+purpose, to check it (Debug > Profiling and Memory > Crash the Game).
+
 Menus (ROUND21.md, "Menu: scroll memory and shortcuts"): `menu_vr pos` prints the menu shown and, on a VR page, its
 selected row (with the header above it), its scroll and the page Back goes to. `menu_vr list`: every page's number
 and place in the tree. `menu_vr dump` prints every page reached from VR Settings and its rows (MDPAGE/MDROW lines);

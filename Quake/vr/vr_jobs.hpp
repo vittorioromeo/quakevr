@@ -16,7 +16,8 @@
 // Results never depend on the number of workers or on which thread ran what, as long as each chunk writes only its own
 // items: reduce them in a fixed order after the call.
 //
-// Zancle needs C++23 and is built optimised, without its asserts, in every configuration: only vr_jobs.cpp includes it.
+// Zancle's own sources are built optimised, without its asserts, in every configuration (its README); this header keeps
+// it out of its users' includes (vr_jobs.cpp has the pool).
 
 #include <atomic>
 #include <cstddef>

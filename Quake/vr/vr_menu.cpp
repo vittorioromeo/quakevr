@@ -2005,6 +2005,10 @@ std::vector<Item> pageDebugProfiling()
                   "Virtual Desktop), on a thread of its own. Off: only while profiling (Performance Profile, the Profiler Panel or its CSV Capture)."),
         command("Print Memory Now", "vr_memstats")
             .help("vr_memstats: video and system memory, the textures and models loaded, the frame times since the last one."),
+        header("Crashes"),
+        command("Crash the Game", "vr_debug_crash")
+            .help("vr_debug_crash [access | abort]: crashes the game now, on purpose, to test the crash report (in a test run: "
+                  "qvr_crash.txt, the stack, and qvr_crash.dmp in the game folder). The game quits!"),
     };
 }
 

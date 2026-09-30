@@ -235,10 +235,6 @@ void bump()
     return side == 0 ? leftHand : 1 - leftHand;
 }
 
-[[nodiscard]] float metres(float units)
-{
-    return units / units::metresToUnits();
-}
 
 [[nodiscard]] float angleBetween(const glm::vec3& a, const glm::vec3& b)
 {
