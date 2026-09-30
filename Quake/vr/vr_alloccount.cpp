@@ -10,6 +10,7 @@
 #include "Zancle/Base/SizeT.hpp"
 
 #include <new>
+#include <stdlib.h>
 
 namespace
 {

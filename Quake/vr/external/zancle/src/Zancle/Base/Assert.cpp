@@ -9,7 +9,9 @@
 
 #include "Zancle/Config.hpp" // IWYU pragma: keep
 
-#ifdef ZA_DEBUG
+// Quake VR (local change): not with QVR_ZANCLE_DEBUG (the library built with its asserts, in the engine's Debug): the
+// engine's handler (Quake/vr/vr_zancle.cpp) is the one, for its files and the library's.
+#if defined(ZA_DEBUG) && !defined(QVR_ZANCLE_DEBUG)
 
     #include "Zancle/Base/Abort.hpp"
     #include "Zancle/Base/StackTrace.hpp"

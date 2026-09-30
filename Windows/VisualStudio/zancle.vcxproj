@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Zancle (Quake/vr/external/zancle/README.md): its concurrency module and what that needs, as a static library linked
-     into ironwail (quakevr.props). Its own project for its own settings: C++23 and optimised without Zancle's asserts
-     (NDEBUG) in every configuration, Debug too (the engine's Debug is unoptimised, with _DEBUG's checks), as CMake's
-     qvr_zancle and the Makefiles' ZANCLE_CXXFLAGS. clang-cl, as the whole engine (Zancle is written against the
-     GCC/Clang builtins: __atomic_*, __has_builtin); ThinLTO in Release, as the engine. -->
+<!-- Zancle (Quake/vr/external/zancle/README.md): the modules the Quake VR code uses and what they need, as a static
+     library linked into ironwail (quakevr.props). Its own project for its own settings: C++23; in Release optimised
+     without Zancle's asserts (NDEBUG), ThinLTO as the engine; in Debug by the switch QVR_ZANCLE_DEBUG (as CMake's
+     option and the Makefiles' variable of that name): true, built as the engine's Debug (unoptimised, _DEBUG, Zancle's
+     asserts on: a failure calls vr_zancle.cpp's handler, as in the engine's files); false, optimised without its
+     asserts as in Release. Pass /p:QVR_ZANCLE_DEBUG=false (or true) to MSBuild to choose. clang-cl, as the whole engine
+     (Zancle is written against the GCC/Clang builtins: __atomic_*, __has_builtin). -->
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -38,6 +40,10 @@
     <WholeProgramOptimization>false</WholeProgramOptimization>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup Condition="'$(QVR_ZANCLE_DEBUG)'==''">
+    <!-- On during the Zancle migration (docs/vr-port/ROUND21.md, "Zancle migration"): Zancle in Debug with its asserts. -->
+    <QVR_ZANCLE_DEBUG>true</QVR_ZANCLE_DEBUG>
+  </PropertyGroup>
   <PropertyGroup>
     <OutDir>$(SolutionDir)Build-$(ProjectName)\bin\$(PlatformShortName)\$(Configuration)\</OutDir>
     <IntDir>Build-$(ProjectName)\$(PlatformShortName)\$(Configuration)\</IntDir>
@@ -58,7 +64,7 @@
       <TreatWarningAsError>true</TreatWarningAsError>
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <AdditionalIncludeDirectories>..\..\Quake\vr\external\zancle\include;..\..\Quake\vr\external\zancle\src;..\..\Quake\vr\external\zancle\extlibs\moodycamel;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;_WINDOWS;NDEBUG;ZA_STATIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;ZA_STATIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
   <!-- The runtime library and its debug level as ironwail's, per configuration (the objects are linked together). -->
@@ -66,6 +72,21 @@
     <ClCompile>
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <!-- QVR_ZANCLE_DEBUG: Zancle as the engine's Debug (unoptimised, its asserts on; QVR_ZANCLE_DEBUG tells its Assert.cpp
+       to leave the handler to vr_zancle.cpp). Else optimised without its asserts, Debug as Release. -->
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug' and '$(QVR_ZANCLE_DEBUG)'=='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>QVR_ZANCLE_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <Optimization>Disabled</Optimization>
+      <InlineFunctionExpansion>Default</InlineFunctionExpansion>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'!='Debug' or '$(QVR_ZANCLE_DEBUG)'!='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
