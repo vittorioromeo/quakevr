@@ -50,6 +50,11 @@ float VR_MELEE_WIGGLE_BACK = 0.6;  // a weapon whose grip went the other way at 
 float VR_MELEE_WIGGLE_TIME = 0.25; // within this long (s), is wiggled, not swung (the author's axe wiggled at the dummy 0.75 and
                                    // more, within 0.08-0.2 s; his cuts, stabs, pommel and gun strikes 0.46 at most). Not a fist's:
                                    // a punch pulled back and thrown again is a blow (his punches 0.41 at most)
+float VR_MELEE_RELOAD_DOWN = 0.8;  // a gun whose grip went down this steeply (sine) or more over VR_MELEE_RELOAD_TIME,
+float VR_MELEE_RELOAD_FROM = 0.1;  // from no higher than this over the eyes (m; aim or torso level, not an overhead chop),
+float VR_MELEE_RELOAD_TIME = 0.15; // is taken down to a holster to reload: no blow (the author's fast reloads went 0.5-0.7 m
+                                   // down, 0.97-0.99 steep (less their coming back), from level with the eyes to 0.3 m under;
+                                   // his gun strikes downwards came 0.8-0.95 m ahead and at most 0.26 down: 0.3 steep at most)
 float VR_MELEE_WRIST_BACK = 0.2;   // m behind the controller (along its own axis, the gun angle taken out) the hand turns about
                                    // when it wiggles (fitted on the author's wiggles with fists, sword, axe and gun: 17-24 cm)
 float VR_MELEE_WRIST_TIME = 0.12;  // s over which vr_melee_wrist_speed averages the wrist's travel (a wiggle's half-period)
@@ -930,6 +935,57 @@ float(entity b) VR_Melee_Wiggled =
     return FALSE;
 };
 
+// Where `b`'s grip was `xBack` s ago (from the head, in the play space, metres; as far back as the history goes).
+vector(entity b, float xBack) VR_Melee_GripAgo =
+{
+    vector moved = '0 0 0';
+    float back = 0;
+    float k = b.mh_hi;
+    float n;
+    for(n = 0; n < 24; ++n)
+    {
+        float dt = b.mh_hdt[k];
+        if(dt <= 0 || back >= xBack)
+        {
+            break;
+        }
+        moved = moved + b.mh_hgrip[k] * dt;
+        back = back + dt;
+        k = k - 1;
+        if(k < 0)
+        {
+            k = 23;
+        }
+    }
+    return b.mh_rgrip - moved;
+};
+
+// Whether `b`'s gun is being taken down to a holster to reload, not struck with (NOTES.md vrfiringrange_2026-09-30_02-03-28:
+// a fast reload next to a monster hit it): its grip gone steeply down from aim or torso level (VR_MELEE_RELOAD_*), coming
+// back towards the body as it drops or not. A gun chopped down from overhead, or swung down and ahead at something, is
+// still a blow.
+float(entity b) VR_Melee_Reloading =
+{
+    if(b.mh_thing != VR_MTHING_GUN || b.mh_vgrip_z >= 0)
+    {
+        return FALSE;
+    }
+    vector from = VR_Melee_GripAgo(b, VR_MELEE_RELOAD_TIME);
+    if(from_z > VR_MELEE_RELOAD_FROM)
+    {
+        return FALSE;
+    }
+    // Its way, less any coming back (a holster is by the hip, under and behind a gun held out).
+    vector moved = b.mh_rgrip - from;
+    vector fwd = VR_Blow_Facing();
+    float ahead = moved * fwd;
+    if(ahead < 0)
+    {
+        moved = moved - fwd * ahead;
+    }
+    return -moved_z >= VR_MELEE_RELOAD_DOWN * vlen(moved);
+};
+
 // Whether the hand itself moved as a blow's does (vr_melee_wrist_speed; a punch VR_MELEE_WRIST_PUNCH times that), not
 // only turned.
 float(entity b) VR_Melee_WristMoved =
@@ -1045,6 +1101,11 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
     }
     // Nor a weapon waved back and forth.
     if(VR_Melee_Wiggled(b))
+    {
+        return FALSE;
+    }
+    // Nor a gun taken down to reload.
+    if(VR_Melee_Reloading(b))
     {
         return FALSE;
     }
@@ -1529,7 +1590,7 @@ void(float xHand, entity b) VR_Melee_Whoosh =
     {
         return; // an open hand: no blow
     }
-    if(VR_Melee_Run(b, TRUE) < VR_MELEE_RUN || !VR_Melee_WristMoved(b) || VR_Melee_Wiggled(b))
+    if(VR_Melee_Run(b, TRUE) < VR_MELEE_RUN || !VR_Melee_WristMoved(b) || VR_Melee_Wiggled(b) || VR_Melee_Reloading(b))
     {
         return;
     }

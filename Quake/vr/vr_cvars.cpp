@@ -86,8 +86,11 @@ const DefaultChange defaultChanges[] = {
     {50, &vr_grapple_loose_slack, "24"},       // 8
     {50, &vr_grapple_hang_drag, "3"},          // 1
     {50, &vr_grapple_load_max_speed, "700"},   // 500
+    // 53: the author's melee speed: soft punches landed too rarely at 4 (NOTES.md vrfiringrange_2026-09-30_02-00-22 and
+    // 02-02-15; ROUND21.md, "Melee speed 3; reloads aren't blows").
+    {53, &vr_melee_speed, "4"},
 };
-constexpr int configVersion = 50;
+constexpr int configVersion = 53;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
