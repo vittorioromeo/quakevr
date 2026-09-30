@@ -329,7 +329,12 @@ struct MenuReadouts
     std::string weaponWeightsDamage[2]; // weaponWeightsDamageReadout, by line
     std::string heldObjectMass;
     std::string heldObjectDamage[2];    // by line
-    auto members() { return std::tie(motionNote, motionLastSaved, extendableHelp, weight, weaponWeightsDamage, heldObjectMass, heldObjectDamage); }
+    std::string weaponWeightsDrop;      // weaponWeightsDropReadout
+    auto members()
+    {
+        return std::tie(motionNote, motionLastSaved, extendableHelp, weight, weaponWeightsDamage, heldObjectMass, heldObjectDamage,
+            weaponWeightsDrop);
+    }
 };
 mem::Scratch<MenuReadouts> readouts{"menu readouts"};
 
@@ -1926,6 +1931,12 @@ std::vector<Item> pageDebugLogging()
         cycle("Arm IK", vr_debug_arm, {{0.f, "Off"}, {1.f, "Print Once"}, {2.f, "Trace File"}})
             .help("Each drawn arm's joints once (shoulder, elbow, wrist in the body's axes, the elbow's swing, the wrist's bend "
                   "and twist); or arm_trace.txt every frame."),
+        toggle("Heavy Weapon Wrenched Out", vr_debug_weight_drop)
+            .help("Twice a second, each hand's fastest turn against its heavy weapon's limit (above half of it), and each "
+                  "weapon wrenched out (Weapon Weights: Wrenched Out)."),
+        toggle("Two-Handed Grip Let Go", vr_debug_2h_grip)
+            .help("Why the helping hand let go of a weapon (the check, its number and limit) and the stickiness then "
+                  "(Aiming: 2H Grip Stickiness)."),
         toggle("Bot Chatter", vr_verbosebots).help("The bots' thoughts, with bots in the game."),
         header("Trace Files (game folder)"),
         cycle("Grasp Trace", vr_debug_grasp_trace, {{0.f, "Off"}, {1.f, "Main Hand"}, {2.f, "Off Hand"}, {3.f, "Both Hands"}})
@@ -3314,6 +3325,10 @@ std::vector<Item> pageWeaponOffsets()
         });
         list.insert(list.end(), {
             slider("Bias", hk(4), 0.f, 10.f, 0.1f, "%.1f").extend(0.f, 50.f).help("Units taken off its distance: larger, easier to take than the others."),
+            slider("Stickiness", hk(23), 0.5f, 4.f, 0.05f, "%.2fx").extend(0.1f, 20.f)
+                .help("Once your other hand holds it, times how far it may go off it (20 units), out of line (Aiming: 2H "
+                      "Aiming Threshold) and past the muzzle before it lets go; times Aiming: 2H Grip Stickiness too, more "
+                      "while swinging. For heavy weapons swung with two hands."),
             action("Remove This Hotspot", weaponOffsetsHotspotRemove),
             toggle("Show Hotspots", vr_show_weapon_hotspots).help("Marks the held weapons' hotspots (the edited one white)."),
             header("Two-Handed Aim"),

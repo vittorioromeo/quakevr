@@ -35,6 +35,7 @@ struct VrMove
     glm::vec3 roomscaleMove{0.f};   // world units / second
     std::uint8_t buttons{0};        // protocol::QVR_BUTTON_*
     std::uint8_t sawCord{0};        // the chainsaws' cords (vr_chainsaw.cpp moveBits) -> .sawcord
+    std::uint8_t handDrop{0};       // a heavy weapon wrenched out of a hand (vr_weight.cpp dropBits) -> .handdrop
     glm::vec3 origin{0.f};          // the player origin the client placed the hands from
     glm::vec3 headPos{0.f};         // the head (between the eyes), world
     // Where each hand's shots go (angles): its aim turned by the held weapon's Shot Pitch and Yaw (weapons::shotAngles);

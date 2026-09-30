@@ -1225,6 +1225,14 @@ trigger button didn't fire here after `setpos`). `vr_physics_list` with `vr_debu
 (and whether Held Object Offsets set it) and throw share; `vr_physics_forcegrab <what>` whether the force grab may take
 each; `developer 1` prints `explobox: hit at <m/s>` and `explobox: blows up at <where>`. The Held Object Offsets page is
 `menu_vr 41`.
+Heavy weapons: wrenched out, sticky grips (ROUND21.md, "Heavy weapons: wrenched out, sticky grips, heavy melee"): the
+weapon must be gripped in the mock (`+grabright; vr_mock_button main grip 1; impulse 162`: the laser cannon; 164 the
+chainsaw), the main hand aimed level (`vr_mock_hand main 0.20 1.20 -0.40 70 0 0`; the cannon's foregrip is then at
+`0.294 1.16 -0.847`). `vr_debug_weight_drop 1` prints each hand's fastest turn against its limit and each weapon
+wrenched out; `vr_debug_2h_grip 1` each grip taken and why one let go, 2 also where the grip is from the helping hand
+(world units) four times a second. `Misc/quakevr/heavy_drop.mock` (swings, a twist, the stick's turning, a snap),
+`heavy_2h_chop.mock` (two-handed chops, the main wrist 55 degrees ahead, then pulled off at rest) and
+`heavy_2h_snap.mock` (a two-handed snap: wrenched out, handed off) with `vr_mock_play`, `wait800`.
 Spring only; Weapon Weights and Held Object Weights; weight and damage (ROUND21.md): the pages are `menu_vr 42` (Weapon
 Weights) and `menu_vr 43` (Held Object Weights; `menu_vr <page> <row>` scrolls). `vr_weight_table` prints every weapon's
 and prop's mass, its damage multipliers (the curve, times its own Melee and Throw Damage x) and its speed factor (heavy

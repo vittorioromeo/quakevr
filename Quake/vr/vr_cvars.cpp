@@ -106,8 +106,11 @@ const DefaultChange defaultChanges[] = {
     {57, &vr_melee_push, "1"},                // 0.5
     {57, &vr_melee_push_player, "1"},         // 0.6
     {57, &vr_melee_bloodlust_mult, "1.0"},    // 0.5
+    // 59: heavy weapons strike slower (ROUND21.md, "Heavy weapons: wrenched out, sticky grips, heavy melee").
+    {59, &vr_weight_lenient, "0.75"},
+    {59, &vr_weight_lenient_from, "10"},
 };
-constexpr int configVersion = 57;
+constexpr int configVersion = 59;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

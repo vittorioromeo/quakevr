@@ -135,9 +135,11 @@ namespace
 // axe's thumb bias: only those keys are reset, each slot's other settings kept. 23: slot 17's weapon button (the
 // grappling hook's quick release: vr_grapple.qc VR_Grapple_QuickRelease): only its button's keys. 24: slot 20 (the ogres'
 // chainsaw, Misc/quakevr/make_chainsaw.py; an unused placeholder before). 25: slot 20 (the author's
-// chainsaw, 2026-09-30: its offset, scale, hotspots, grip overlap, thumb, mass and spring). A first start (no saved config) takes this
+// chainsaw, 2026-09-30: its offset, scale, hotspots, grip overlap, thumb, mass and spring). 26: the author's weights of slots 9 and 20 (the
+// laser cannon and the chainsaw: 15 kg, stiffness, damping, sag; the cannon's balance), each key only where the config
+// still held its old default (weightMigration). A first start (no saved config) takes this
 // version as it is: its settings are these defaults (markCurrent).
-constexpr int settingsVersion = 25;
+constexpr int settingsVersion = 26;
 
 // Slots whose hotspots the view is to derive from the config's two-handed grip keys (round 21).
 bool hotspotMigration[numSlots]{};
@@ -374,6 +376,26 @@ void migrate()
     {
         resetSlot(20);
     }
+    if(vr_wofs_version.value < 26) // the author's laser cannon and chainsaw weights, 2026-09-30: where still the old ones
+    {
+        struct Change
+        {
+            int slot;
+            Key key;
+            float before;
+        };
+        const Change changes[] = {{9, Key::Mass, 7.f}, {9, Key::Balance, 12.f}, {9, Key::SpringStiffness, 1.f},
+            {9, Key::SpringDamping, 1.f}, {9, Key::SpringSag, 1.f}, {20, Key::Mass, 6.5f}, {20, Key::SpringStiffness, 1.f},
+            {20, Key::SpringDamping, 1.f}, {20, Key::SpringSag, 1.f}};
+        for(const Change& c : changes)
+        {
+            cvar_t& var = cvarAt(c.slot, c.key);
+            if(var.value == c.before)
+            {
+                Cvar_SetQuick(&var, var.default_string);
+            }
+        }
+    }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }
 
@@ -408,6 +430,7 @@ void registerCvars()
         for(int i = 0; i < maxHotspots; i++)
         {
             cvarAt(slot, hotspotKey(i, 9)).string = "0.3";
+            cvarAt(slot, hotspotKey(i, 23)).string = "1"; // Stickiness: as every grip
         }
     }
 
@@ -595,7 +618,11 @@ Key hotspotKey(int index, int field)
     {
         return static_cast<Key>(static_cast<int>(Key::Hotspot1Overlap) + 7 * index + (field - 9));
     }
-    return static_cast<Key>(static_cast<int>(Key::Hotspot1Manual) + 7 * index + (field - 16));
+    if(field < 23)
+    {
+        return static_cast<Key>(static_cast<int>(Key::Hotspot1Manual) + 7 * index + (field - 16));
+    }
+    return static_cast<Key>(static_cast<int>(Key::Hotspot1Sticky) + index);
 }
 
 bool isGripType(HotspotType type)
@@ -625,6 +652,7 @@ Hotspot hotspot(int slot, int index)
         h.curl[f] = value(slot, hotspotKey(index, 17 + f));
     }
     h.thumbAcross = value(slot, hotspotKey(index, 22));
+    h.sticky = value(slot, hotspotKey(index, 23));
     return h;
 }
 
@@ -657,6 +685,7 @@ void setHotspot(int slot, int index, const Hotspot& h)
         Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 17 + f)), h.curl[f]);
     }
     Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 22)), h.thumbAcross);
+    Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 23)), h.sticky);
 }
 
 bool takeHotspotMigration(int slot)

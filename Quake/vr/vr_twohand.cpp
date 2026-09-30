@@ -95,6 +95,12 @@ constexpr float bladeKeepMax = 1.35f; // at most this
 
 double lastTime = -1.0;
 
+// Sticky grips (vr_2h_sticky*): this frame's multiplier of a held grip's let-go distance and angle, and the swing's
+// share of vr_2h_sticky_fast (0..1: the faster hand's speed; eased down over vr_2h_sticky_fast_hold once it slows).
+float stickiness = 1.f;
+float fastShare = 0.f;
+double debugPrintAt = -1.0; // vr_debug_2h_grip 2: the next line
+
 // A pose relative to a hand's tracked pose: a position in its frame, and axes (forward and up).
 struct RelPose
 {
@@ -147,6 +153,35 @@ float frameDt = 0.f; // advances once per client frame, however often the hands 
 void transition(float& var, bool on, float speed)
 {
     var = std::clamp(var + frameDt * (on ? speed : -speed), 0.f, 1.f);
+}
+
+// A held grip's stickiness: the global one (vr_2h_sticky*, this frame's) times its hotspot's own (Weapon Offsets:
+// Stickiness; 0 in an old config: 1).
+[[nodiscard]] float stickinessOf(float own)
+{
+    return stickiness * (own > 0.f ? own : 1.f);
+}
+
+// The two-handed aim's angle threshold (vr_2h_angle_threshold, a cosine) for a grip already held with stickiness
+// `stick`: its angle times it (at 180 degrees or more: any).
+[[nodiscard]] float heldDot(float threshold, float stick)
+{
+    if(threshold <= -1.f)
+    {
+        return -2.f;
+    }
+    const float angle = std::acos(std::min(threshold, 1.f)) * stick;
+    return angle >= glm::pi<float>() ? -2.f : std::cos(angle);
+}
+
+// vr_debug_2h_grip: why the helping hand let go of the weapon in `holding` (the check that failed, and its numbers).
+void reportLetGo(int holding, const char* why, float value, float limit, float stick)
+{
+    if(vr_debug_2h_grip.value)
+    {
+        Con_Printf("2h grip: %s hand let go (%s: %.2f, limit %.2f; stickiness %.2f, swing %.2f)\n",
+            holding == HAND_MAIN ? "off" : "main", why, value, limit, stick, fastShare);
+    }
 }
 
 [[nodiscard]] glm::vec3 safeNormalize(const glm::vec3& v)
@@ -227,6 +262,7 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     const glm::vec3 blade = bladeDirection(slot, holding, originalRots[holding]);
     // (An empty hand: no weapon, and not carrying a box either: held::handEmpty.)
     const bool canGrab = client::grabbing(helping) && held::handEmpty(helping);
+    const bool wasHeld = shouldAim[holding];
 
     // The grips (round 18). The grip point below the holding hand (GRIP_FOREGRIP): the blade along the
     // line from the helping hand through the holding hand. Unlike a gun's, it holds when the blade
@@ -237,13 +273,14 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     const float foreDist =
         s.grip2HValid[holding] ? glm::distance(s.grip2HPalm[holding] ? hands::palmPoint(s, helping) : s.pos[helping], s.grip2H[holding]) - s.grip2HBias[holding] : 1e9f;
     // The blade's hotspot (round 21: its grip's middle, a share of the way from the hand to the tip; its bias).
-    float bladeAt = 0.f, bladeBias = 0.f;
+    float bladeAt = 0.f, bladeBias = 0.f, bladeSticky = 0.f;
     for(int i = 0; i < weapons::maxHotspots; i++)
     {
         if(const weapons::Hotspot h = weapons::hotspot(slot, i); h.type == weapons::HotspotType::Blade)
         {
             bladeAt = h.pos.x;
             bladeBias = h.bias;
+            bladeSticky = h.sticky;
             break;
         }
     }
@@ -259,16 +296,31 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     bool held = false;
     if(canGrab && shouldAim[holding])
     {
-        // Held: the grip holds on.
+        // Held: the grip holds on (as far as its Stickiness and vr_2h_sticky* let it).
         if(grip[holding] == GRIP_BLADE)
         {
             const float apart = glm::distance(holdingPos, s.pos[helping]);
-            held = apart > gripLength[holding] * bladeKeepMin && apart < gripLength[holding] * bladeKeepMax;
+            const float stick = stickinessOf(bladeSticky);
+            const float most = gripLength[holding] * bladeKeepMax * stick;
+            held = apart > gripLength[holding] * bladeKeepMin / stick && apart < most;
+            if(!held)
+            {
+                reportLetGo(holding, "the blade's hands apart", apart, most, stick);
+            }
         }
         else
         {
-            held = foreDist < foregripKeep;
+            const float keep = foregripKeep * stickinessOf(s.grip2HSticky[holding]);
+            held = foreDist < keep;
+            if(!held)
+            {
+                reportLetGo(holding, "distance", foreDist, keep, stickinessOf(s.grip2HSticky[holding]));
+            }
         }
+    }
+    else if(wasHeld)
+    {
+        reportLetGo(holding, "the grip let go", 0.f, 0.f, stickiness);
     }
     else if(canGrab)
     {
@@ -289,8 +341,13 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     const glm::vec3 line = grip[holding] == GRIP_BLADE ? safeNormalize(s.pos[helping] - holdingPos) // hilt to tip
                                                        : safeNormalize(holdingPos - helpingPos);    // pommel to blade
     // The blade grip is on the blade already: the wrist may point it anywhere.
-    const bool goodDot = grip[holding] == GRIP_BLADE || vr_2h_angle_threshold.value <= -1.f ||
-                         glm::dot(line, blade) > vr_2h_angle_threshold.value;
+    const float stick = stickinessOf(grip[holding] == GRIP_BLADE ? bladeSticky : s.grip2HSticky[holding]);
+    const float dotNeed = wasHeld ? heldDot(vr_2h_angle_threshold.value, stick) : vr_2h_angle_threshold.value;
+    const bool goodDot = grip[holding] == GRIP_BLADE || dotNeed <= -1.f || glm::dot(line, blade) > dotNeed;
+    if(wasHeld && held && !goodDot)
+    {
+        reportLetGo(holding, "angle (cosine)", glm::dot(line, blade), dotNeed, stick);
+    }
 
     shouldAim[holding] = held && goodDot;
     helpingHand[helping] = shouldAim[holding];
@@ -372,23 +429,68 @@ void applyHand(hands::State& s, const glm::vec3 (&originalRots)[2], int holding,
 
     // "Fixed" display mode (most guns): the hand must come to the weapon's foregrip, and may
     // then move a little further before letting go. Otherwise anywhere 5-25 units away.
+    // Held, it may go further (its hotspot's Stickiness, and vr_2h_sticky*: more while swinging).
+    const bool wasHeld = shouldAim[holding];
     const bool fixedMode = holdingWeapon && s.grip2HValid[holding];
-    const bool goodDistance = fixedMode ? glm::distance(s.grip2HPalm[holding] ? hands::palmPoint(s, helping) : s.pos[helping], s.grip2H[holding]) - s.grip2HBias[holding] <
-                                              (shouldAim[holding] ? 20.f : 5.5f)
-                                        : handDist > 5.f && handDist < 25.f;
+    const float gripDist = fixedMode ? glm::distance(s.grip2HPalm[holding] ? hands::palmPoint(s, helping) : s.pos[helping], s.grip2H[holding]) -
+                                           s.grip2HBias[holding]
+                                     : 0.f;
+    const float stick = wasHeld ? stickinessOf(fixedMode ? s.grip2HSticky[holding] : 1.f) : 1.f;
+    const float keep = wasHeld ? foregripKeep * stick : foregripTake;
+    const bool goodDistance = fixedMode ? gripDist < keep : handDist > 5.f && handDist < 25.f;
 
     // Muzzles move with the firing animation, hence the margin.
-    const bool beforeMuzzle =
-        !s.muzzleValid[holding] || handDist <= glm::distance(holdingPos, s.muzzle[holding]) + 7.5f;
+    const float muzzleDist =
+        s.muzzleValid[holding] ? glm::distance(holdingPos, s.muzzle[holding]) + 7.5f * stick : 0.f;
+    const bool beforeMuzzle = !s.muzzleValid[holding] || handDist <= muzzleDist;
 
     const bool canGrab = client::grabbing(helping) && wpnMode != WPN_2H_FORBIDDEN &&
                          held::handEmpty(helping) && beforeMuzzle && !handpose::gunColliding(holding);
     // A cup (a two-handed pistol grip) is held wherever the hands point: it doesn't aim.
     const bool cup = fixedMode && s.grip2HCup[holding];
-    const bool goodDot =
-        cup || vr_2h_angle_threshold.value <= -1.f || glm::dot(handDir, origDir) > vr_2h_angle_threshold.value;
+    const float dotNeed = wasHeld ? heldDot(vr_2h_angle_threshold.value, stick) : vr_2h_angle_threshold.value;
+    const bool goodDot = cup || dotNeed <= -1.f || glm::dot(handDir, origDir) > dotNeed;
 
     shouldAim[holding] = canGrab && goodDistance && goodDot;
+    if(vr_debug_2h_grip.value && fixedMode && !wasHeld && shouldAim[holding])
+    {
+        Con_Printf("2h grip: %s hand took it (%.1f units off its grip)\n", holding == HAND_MAIN ? "off" : "main", gripDist);
+    }
+    if(vr_debug_2h_grip.value >= 2 && fixedMode && realtime >= debugPrintAt)
+    {
+        // Where its grip is from the helping hand (units, world), to place a test's hand on it.
+        const glm::vec3 d = s.grip2H[holding] - (s.grip2HPalm[holding] ? hands::palmPoint(s, helping) : s.pos[helping]);
+        Con_Printf("2h grip: %s hand %.1f units off the grip (%.1f %.1f %.1f), held %d, keep %.1f\n",
+            holding == HAND_MAIN ? "off" : "main", gripDist, d.x, d.y, d.z, shouldAim[holding] ? 1 : 0, keep);
+        debugPrintAt = realtime + 0.25;
+    }
+    if(wasHeld && !shouldAim[holding])
+    {
+        if(!client::grabbing(helping) || !held::handEmpty(helping))
+        {
+            reportLetGo(holding, "the grip let go", 0.f, 0.f, stick);
+        }
+        else if(handpose::gunColliding(holding))
+        {
+            reportLetGo(holding, "the weapon against a wall", 0.f, 0.f, stick);
+        }
+        else if(!beforeMuzzle)
+        {
+            reportLetGo(holding, "past the muzzle", handDist, muzzleDist, stick);
+        }
+        else if(!goodDistance)
+        {
+            reportLetGo(holding, "distance", fixedMode ? gripDist : handDist, fixedMode ? keep : 25.f, stick);
+        }
+        else if(!goodDot)
+        {
+            reportLetGo(holding, "angle (cosine)", glm::dot(handDir, origDir), dotNeed, stick);
+        }
+        else
+        {
+            reportLetGo(holding, "no two-handed use", 0.f, 0.f, stick);
+        }
+    }
     helpingHand[helping] = shouldAim[holding];
     transition(aimTransition[holding], shouldAim[holding], 5.f);
 
@@ -426,6 +528,14 @@ void apply(hands::State& s)
 
     frameDt = lastTime >= 0.0 ? static_cast<float>(std::clamp(cl.time - lastTime, 0.0, 0.1)) : 0.f;
     lastTime = cl.time;
+
+    // Sticky grips: the faster hand's speed (last frame's, m/s) makes a held grip stickier while it swings.
+    const float speed = std::max(glm::length(s.vel[HAND_OFF]), glm::length(s.vel[HAND_MAIN]));
+    const float from = std::max(vr_2h_sticky_fast_from.value, 0.f);
+    const float full = std::max(vr_2h_sticky_fast_full.value, from + 0.01f);
+    const float now = std::clamp((speed - from) / (full - from), 0.f, 1.f);
+    fastShare = std::max(now, fastShare - frameDt / std::max(vr_2h_sticky_fast_hold.value, 0.01f));
+    stickiness = std::max(vr_2h_sticky.value, 0.1f) * (1.f + std::max(vr_2h_sticky_fast.value, 0.f) * fastShare);
 
     const glm::vec3 originalRots[2]{s.rot[HAND_OFF], s.rot[HAND_MAIN]};
     helpingHand[HAND_OFF] = helpingHand[HAND_MAIN] = false;
@@ -503,6 +613,8 @@ void reset()
         carryWasOn[h] = carryPoseValid[h] = handleValid[h] = false;
     }
     lastTime = -1.0;
+    fastShare = 0.f;
+    stickiness = 1.f;
 }
 
 bool carrying(int hand)
