@@ -14,11 +14,13 @@
 #include "vr_engine.hpp"
 #include "vr_grip.hpp"
 #include "vr_held.hpp"
+#include "vr_mem.hpp"
 #include "vr_physics.hpp"
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
 #include "vr_props.hpp"
 
+#include <tuple>
 #include <unordered_map>
 #include <vector>
 
@@ -122,21 +124,65 @@ struct FreePlace
 {
     glm::vec3 origin{0.f};
     bool valid = false;
+    double lastPutBack = -1.0; // (the server's time)
+    int putBacks = 0;          // put back each within putBackStreakTime of the last
 };
 std::vector<FreePlace> freePlaces; // by entity number, for this server
 
-[[nodiscard]] bool buried(edict_t* ent, bool rigid)
+// Put back this many times in a row, each within this long of the last: it is not buried but held there (Box3D pushing
+// it out of what it rests against as it is put back), and it is left to Box3D.
+constexpr int putBackStreak = 8;
+constexpr double putBackStreakTime = 0.25;
+
+// The buried test's buffers (the server's frame: the main thread).
+struct RigidScratch
 {
-    if(rigid)
+    std::vector<glm::vec3> vertices; // a rigid body's drawn corners (buried)
+    auto members() { return std::tie(vertices); }
+};
+mem::Scratch<RigidScratch> scratch{"rigid"};
+
+// How deep it is in the level: Free, Partly (a rigid body with one of its two middles in a wall: neither a place to go
+// back to nor one to leave), or Buried.
+enum class Depth
+{
+    Free,
+    Partly,
+    Buried,
+};
+
+[[nodiscard]] Depth buried(edict_t* ent, bool rigid)
+{
+    if(!rigid)
     {
-        glm::vec3 lo, hi;
-        localBox(ent, lo, hi);
-        const glm::vec3 centre = toGlm(ent->v.origin) + axesFromAngles(ent->v.angles, brushModel(ent)) * ((lo + hi) * 0.5f);
-        vec3_t c{centre.x, centre.y, centre.z};
-        return SV_PointContents(c) == CONTENTS_SOLID;
+        const trace_t tr = SV_Move(ent->v.origin, ent->v.mins, ent->v.maxs, ent->v.origin, MOVE_NOMONSTERS, ent);
+        return tr.allsolid ? Depth::Buried : Depth::Free;
     }
-    const trace_t tr = SV_Move(ent->v.origin, ent->v.mins, ent->v.maxs, ent->v.origin, MOVE_NOMONSTERS, ent);
-    return tr.allsolid;
+    // Its box's middle, and its drawn shape's (the mean of its corners: inside its convex hull, the body Box3D keeps out
+    // of the level). Buried with both in a wall, free with neither. The box's middle alone is often outside the shape: a
+    // nailgun resting against the firing range's south wall had it in the wall, and was put back every frame ("buried at
+    // -233 -952", round 21); an axe sinking into the floor has it in first.
+    const glm::mat3 axes = axesFromAngles(ent->v.angles, brushModel(ent));
+    const auto inSolid = [&](const glm::vec3& local) {
+        const glm::vec3 at = toGlm(ent->v.origin) + axes * local;
+        vec3_t c{at.x, at.y, at.z};
+        return SV_PointContents(c) == CONTENTS_SOLID;
+    };
+    glm::vec3 lo, hi;
+    localBox(ent, lo, hi);
+    const bool box = inSolid((lo + hi) * 0.5f);
+    std::vector<glm::vec3>& vertices = scratch.vertices;
+    if(!held::drawnVertices(ent, vertices) || vertices.empty())
+    {
+        return box ? Depth::Buried : Depth::Free;
+    }
+    glm::vec3 middle{0.f};
+    for(const glm::vec3& v : vertices)
+    {
+        middle += v;
+    }
+    const bool shape = inSolid(middle / static_cast<float>(vertices.size()));
+    return box && shape ? Depth::Buried : box || shape ? Depth::Partly : Depth::Free;
 }
 
 void keepInWorld(edict_t* ent, bool rigid)
@@ -160,10 +206,15 @@ void keepInWorld(edict_t* ent, bool rigid)
     {
         return;
     }
-    if(!buried(ent, rigid))
+    const Depth depth = buried(ent, rigid);
+    if(depth == Depth::Free)
     {
         place.origin = toGlm(ent->v.origin);
         place.valid = true;
+        return;
+    }
+    if(depth == Depth::Partly)
+    {
         return;
     }
     // Resting on the ground it does not move (Quake skips it): only one moving is at risk.
@@ -176,6 +227,17 @@ void keepInWorld(edict_t* ent, bool rigid)
     if(toGlm(ent->v.origin) == place.origin)
     {
         place.valid = false;
+        return;
+    }
+    const double now = qcvm->time;
+    place.putBacks = now - place.lastPutBack <= putBackStreakTime ? place.putBacks + 1 : 1;
+    place.lastPutBack = now;
+    if(place.putBacks > putBackStreak)
+    {
+        Con_DPrintf("VR: %s buried at %.0f %.0f %.0f again and again: left there\n", PR_GetString(ent->v.classname),
+            ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]);
+        place.valid = false;
+        place.putBacks = 0;
         return;
     }
     Con_DPrintf("VR: %s buried at %.0f %.0f %.0f, back to %.0f %.0f %.0f\n", PR_GetString(ent->v.classname), ent->v.origin[0],

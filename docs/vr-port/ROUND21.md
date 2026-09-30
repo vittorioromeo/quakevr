@@ -16768,3 +16768,63 @@ Debug: `vr_debug_crates 1` prints each crowbar's plan and how it was laid; Debug
 
 - [ ] e1m1 with Crowbar on Crates at 1: crowbars lying flat on crate tops, none overhanging; take one by hand and by
   force grab; knock a crate: the crowbar falls off; break it: the crowbar drops.
+## Crowbar follow-ups: weapons taken by the fist, weapons' masses, the chainsaw's blows, a nailgun put back (2026-10-01)
+
+**Weapons taken where the fist touches them** (`vr_physics.cpp` handOn/handsReach, `vr_weapon_grab_drawn` 1,
+`vr_weapon_grab_slack` 5 cm; Carrying Boxes page: Weapons by the Fist, Weapon Grab Slack). A weapon lying about (a
+thrown_weapon: dropped, thrown, a monster's, placed in a map) was touched by a hand only by its box: a 3.2-unit cube
+round its handle (its origin) with the easy-touch bonus, so a hand had to come within about 8.6 units of the handle on
+every axis. A crowbar's hook, a sword's blade, a chainsaw's bar or a rifle's barrel could not be taken; coming down in
+one step the hand also knocked the weapon away first. Now it is also taken where the fist (the palm and the curled
+fingers, `held::grabTouch`) meets its drawn shape, within `vr_carry_grab_bias` plus the slack (a gun lying flat on the
+floor is thinner than the lowest the fist gets over it: 3 cm); the hands' touch search reaches a weapon's length
+(48 units) past the hand for them. The box test stays (catching a thrown weapon is no harder). The grip is as before:
+pressed as it touches, or up to 0.125 s before.
+
+Test aid: `vr_mock_hand_to <main|off> <x y z>` moves the mock hand to a world point, `vr_mock_hand_to main weapon
+<fraction> [<cm>]` over the nearest weapon lying about, that far along its drawn length (0 and 1: its two drawn points
+farthest apart), so many cm over its top. `developer 1` prints "weapon: <name> taken into the <hand> hand, <n> units
+from its handle". Tests (e1m1; the weapon held at the floor, let go, the hand lifted, then brought down onto it 2 cm a
+step, the grip pressed 2 cm over it): 
+
+| weapon | point along it | new | old (`vr_weapon_grab_drawn 0`) |
+|---|---|---|---|
+| crowbar | 0.2 / 0.5 / 0.85 | taken (3.8, 1.7, 10.1 units off the handle) | taken, taken, not taken |
+| sword | 0.3 / 0.4 / 0.5 / 0.9 | taken (15.6, 13.3, 10.1, 6.9) | not, not, taken, taken |
+| chainsaw | 0.1 / 0.5 / 0.9 | taken (24.3, 9.1, 1.7) | not, taken, taken |
+| grunt's shotgun | 0.1 / 0.5 / 0.9 | taken | taken (it is short) |
+| enforcer's rifle | 0.1 / 0.5 / 0.9 | taken (10.4, 1.6, 7.1) | not, taken, taken |
+
+(The sword's tip, 0.1, lay out of the mock arm's reach.)
+
+**Weapons weigh their Weapon Weights mass as props** (`vr_box3d.cpp` massSetting). A weapon's body had its hull's volume
+times 700 kg/m^3 unless its model had a Held Object Offsets Mass: the crowbar 0.6 kg of its 2.2, the axe 1.3 of its 2.0.
+Now a weapon without a prop Mass weighs its Weapon Weights Mass (the same slider as in the hand; a prop Mass still wins),
+so no prop slot is needed for `v_crowbar.mdl`: `vr_physics_list thrown_weapon` (`vr_debug_box3d 1`) prints "2.2 kg
+(Weapon Weights)", and it lands with the medium recordings ("physsound: ... thrown_weapon impact metal (2.2 kg, medium)").
+The firing range's: grappling gun 1.5, axe 2.0, Mjolnir 5.0, shotgun 3.0, super shotgun 3.5, nailgun 4.0.
+
+**The chainsaw strikes as the chainsaw** (`vr_melee.qc` VR_Melee_Thing). Two changes of 2026-09-30 merged both ways
+of making it a melee weapon, the axe's branch first, so its own (VR_MTHING_SAW) never ran. Now it does: the bar strikes
+from 0.55 of the way to its tip (the axe's head from 0.75), the blows are "cut ... with the bar's root / the bar's tip"
+(not "chop ... with the head"), a thrust of the bar's tip is a jab, and its whoosh goes on a channel of its own (the
+axe's cut the engine's sound off). Synthetic swings (`motion_synth.py <sword preset> --weapon chainsaw --distance 1.1`,
+new: weapon_swing with the chainsaw's far end, 80 cm along the hand; the firing range's dummy, `vr_weapon_grip_mode 1;
+vr_weight_drop 0`, else the overhead flip wrenches it out): horizontal 25.5 either way ("cut (horizontal) with the bar's
+root"); overhead 24.1 then 51.4 -> 26.2 then 51.4 (the root strikes first); the stab 16.9 "chop" -> 28.1 "jab with the
+bar's tip" (x1.09). The melee canary: 48/53, no difference (no chainsaw takes).
+
+**A nailgun put back every frame** (`vr_rigid.cpp` keepInWorld). vrfiringrange's nailgun (entity 34) rests against the
+south wall with its box's middle in the wall: "buried", it was put back to where it was last free, Box3D moved it, and
+again, every frame. A rigid body is now buried only with both its box's middle and its drawn shape's (the mean of its
+corners, inside the hull Box3D keeps out of the level) in the level; free with neither; with one it is neither put back
+nor its place kept (an axe sinking into the floor at the map's start has its box's middle in first and still goes back
+to where it was free). And one put back more than 8 times, each within 0.25 s of the last, is left there ("buried ...
+again and again: left there"). vrfiringrange after 300 frames: two put-backs at the start (the axes, as before), every
+weapon asleep, no repeats.
+
+**In the headset.**
+- [ ] Reach down to the crowbar, a sword and the chainsaw lying in the prop area and grip them by the bar, the blade,
+  the bar's end: each comes into the hand. Too eager (taken from a hand's width off)? Lower Weapon Grab Slack.
+- [ ] Drop the crowbar from head height: a heavier clank than before.
+- [ ] The chainsaw running, swung at the dummy: its engine keeps running through the whoosh; a thrust of the tip jabs.

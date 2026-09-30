@@ -118,7 +118,7 @@ float VR_STANCE_REPORT = 0.2;     // s a stance is held before it is reported (d
 
 float VR_MTHING_FIST = 0;  // a fist (a box in hand too) or an open hand
 float VR_MTHING_SWORD = 1; // a knight's sword
-float VR_MTHING_AXE = 2;   // the axe, Mjolnir, the chainsaw: a short handle and a head
+float VR_MTHING_AXE = 2;   // the axe, Mjolnir: a short handle and a head
 float VR_MTHING_GUN = 3;   // a gun: blunt all along (held, or carried by its pump)
 float VR_MTHING_NONE = 4;  // the empty hand steadying the other's weapon, a climbing hand: strikes nothing
 float VR_MTHING_CLUB = 5;  // a carried prop with a melee tip (Held Object Offsets: Tip; a wall torch): its head strikes
@@ -370,15 +370,16 @@ float(entity p, float xHand) VR_Melee_Thing =
     {
         return VR_MTHING_CROWBAR;
     }
-    // The chainsaw too (a melee weapon, the author's: NOTES.md vrfiringrange_2026-09-30_11-18-39): its bar strikes as an
-    // axe's head (the last half of the way to its tip), at a weapon's speeds, not a gun's.
-    if(wid == WID_AXE || wid == WID_MJOLNIR || wid == WID_CHAINSAW)
+    if(wid == WID_AXE || wid == WID_MJOLNIR)
     {
         return VR_MTHING_AXE;
     }
+    // The chainsaw: a melee weapon (the author's: NOTES.md vrfiringrange_2026-09-30_11-18-39), at a weapon's speeds, not a
+    // gun's; its bar strikes as an axe's head, its whoosh leaves the engine's channel alone. (It was the axe's for a while:
+    // two changes merged, the axe's branch first, and this one never ran.)
     if(wid == WID_CHAINSAW)
     {
-        return VR_MTHING_SAW; // a melee weapon (NOTES.md vrfiringrange_2026-09-30_11-18-39), not a gun's blunt blow
+        return VR_MTHING_SAW;
     }
     return VR_MTHING_GUN;
 };

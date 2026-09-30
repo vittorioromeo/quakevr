@@ -125,6 +125,23 @@ void debugBoxTouch(edict_t* target, edict_t* player, int which)
         hand == 0 ? "off" : "main", PR_GetString(target->v.classname), found ? c.gap / units::metresToUnits() * 100.f : 999.f);
 }
 
+// A weapon lying about or flying (QC's thrown_weapon: dropped, thrown, a monster's, one placed in a map).
+[[nodiscard]] bool thrownWeapon(edict_t* target)
+{
+    return !strcmp(PR_GetString(target->v.classname), "thrown_weapon");
+}
+
+// Such a weapon is also taken where the fist meets its drawn shape (vr_weapon_grab_drawn): its box is a small cube round
+// its handle (its origin), so a crowbar or a sword lying on the floor could be taken only by its handle, not by its bar
+// or blade.
+[[nodiscard]] bool weaponByFist(edict_t* target)
+{
+    return vr_weapon_grab_drawn.value && thrownWeapon(target);
+}
+
+// How far past a hand's reach (units) a weapon's handle may be for its drawn shape to be under the hand: a sword's length.
+constexpr float weaponDrawnReach = 48.f;
+
 [[nodiscard]] bool handOn(edict_t* target, edict_t* player, int which)
 {
     // (An explosive box by the fist only where the fist also pushes it, vr_box3d_hand_push_fist: the listen server's own
@@ -133,6 +150,12 @@ void debugBoxTouch(edict_t* target, edict_t* player, int which)
     if(hasFlag(target, physics::FL_FORCEGRABBABLE) || (byFist && carried(target)))
     {
         return held::grabTouch(target, player, which == HAND_OFF ? 0 : 1);
+    }
+    // (With vr_weapon_grab_slack more: a gun lying flat is thinner than the lowest the fist gets over the floor.)
+    if(weaponByFist(target) && held::grabTouch(target, player, which == HAND_OFF ? 0 : 1,
+                                   std::max(vr_weapon_grab_slack.value, 0.f) * 0.01f * units::metresToUnits()))
+    {
+        return true; // (else by its box, as before: a weapon flying at the hand is caught as easily)
     }
     const glm::vec3 hand = fieldVec(player, which == HAND_OFF ? f().offhandpos : f().handpos);
     const glm::vec3 extent{handHalfSize};
@@ -333,10 +356,11 @@ void handTouch(edict_t* ent, edict_t* target)
     const glm::vec3 tMin = vec(target->v.absmin);
     const glm::vec3 tMax = vec(target->v.absmax);
 
+    const bool drawn = weaponByFist(target);
     for(const int ofs : {f().offhandpos, f().handpos})
     {
         const glm::vec3 hand = fieldVec(ent, ofs);
-        if(boxesOverlap(hand - reach, hand + reach, tMin, tMax))
+        if(boxesOverlap(hand - reach, hand + reach, tMin, tMax) || (drawn && held::nearDrawn(target, hand, reach.x)))
         {
             return true;
         }
@@ -1645,7 +1669,8 @@ extern "C" int VR_TouchLinks(edict_t* ent)
     SV_AreaEdicts(ent->v.absmin, ent->v.absmax, list, &found, space);
     if(client)
     {
-        const glm::vec3 reach{handHalfSize + easyHandTouchBonus}; // handsReach's
+        // handsReach's, and a weapon's length more: a weapon's drawn shape reaches that far from its box.
+        const glm::vec3 reach{handHalfSize + easyHandTouchBonus + (vr_weapon_grab_drawn.value ? weaponDrawnReach : 0.f)};
         for(const int ofs : {f().offhandpos, f().handpos})
         {
             const glm::vec3 hand = fieldVec(ent, ofs);

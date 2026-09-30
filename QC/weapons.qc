@@ -5058,6 +5058,12 @@ void(float xHand, entity ent, entity entPlayer,
         VR_AxeStick_PulledOut(ent); // out of what it was stuck in (vr_axestick.qc)
     }
 
+    if(cvar("developer"))
+    {
+        dprint(sprintf("weapon: %s taken into the %s hand, %g units from its handle\n", ent.netname,
+            xHand == cVR_MainHand ? "main" : "off", vlen(VRGetEntHandPos(entPlayer, xHand) - ent.origin)));
+    }
+
     *xOutEntWeapon = ent.weapon;
     *xOutEntWeaponFlags = ent.weaponflags;
     *xOutEntWeaponClip = ent.weaponclip;
