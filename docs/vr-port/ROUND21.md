@@ -13972,3 +13972,29 @@ points instead of 55); slack round the doorway's jamb: 0.071 and 0.011 (old: 0.0
 - [ ] Reel a loose hook in: it goes right into the muzzle.
 - [ ] Hook an explosive box and walk away: slow, heavy.
 - [ ] Hook the laser cannon by its barrel.
+
+## No flat HUD in the headset; the map's flames light torches; the pouch's turn
+
+**The flat HUD never in the eyes** (NOTES.md vrstart_2026-09-30_01-56-32, vrfiringrange_2026-09-30_02-09-24). The 2D pass
+draws into one canvas, shown in the eyes on a panel following the head; only the classic status bar's rectangle was
+cut out of that panel (and put on a hand, or left to the wrist gadget), so the modern and QuakeWorld styles showed in
+the headset. Now `Sbar_Draw` (every style, a CSQC HUD too) goes through `SCR_DrawSbar` (gl_screen.c): with VR drawing
+into the canvas it is left out of it, and `VR_End2D` draws it on the window (`SCR_DrawWindowHud`), under the canvas's
+composite (menus and the console stay over it), in every window view: the mirror, the smoothed mirror and the spectator
+camera (those had no 2D layer but the console before). With `vr_hud_mode 0` (Status bar) the canvas also gets a
+classic status bar whatever `hudstyle` is (drawn with the style forced to classic), for the hand; the window's
+composite leaves its rectangle out (the window has the real style's). `hudstyle` stays Ironwail's 2 by default; the
+author's saved 0 is left alone. `vr_eyeshot 3` (Debug > Tools > Eye Images (with the UI)) saves the eyes with the UI.
+Mock: e1m1, `hudstyle 0..3`: the eyes are the same (mean difference under 0.4 of 255, a light's flicker), the window
+shows each style; the spectator view shows the HUD.
+
+**The map's flames light torches again** (NOTES.md e1m2_2026-09-30_02-22-01). `light_flame_large_yellow`,
+`light_flame_small_yellow` and `light_flame_small_white` are static entities (gone from the entity list): each records
+its origin as it spawns (`VR_FireSpot`, vr_walltorch.qc; globals, not entities, so the maps' edict numbers stay; reset
+in worldspawn; a loaded save runs the map's spawn first, so older saves have them too). `VR_WallTorch_FireAt` counts a
+torch head within 9 units of a small flame's axis (6 below its origin to 12 above: flame2.mdl's small ball) or 12 of a
+large one's (-6 to 32), and within 16 units of a flying lava ball (`misc_fireball`'s). Mock: e1m2, torch 53 out, carried
+into the flame at 1456 -128 406: `walltorch: lit again from a flame`, and it stays lit in the hand.
+
+**The pouch's turn** (NOTES.md vrfiringrange_2026-09-30_02-08-07): `vr_grenade_pouch_hold_pitch` -180 -> 90,
+`vr_grenade_pouch_hold_yaw` 90 -> 0 (roll 0), config version 52 (51 left for another branch).

@@ -1563,8 +1563,8 @@ void hologramTestMessage()
             .help("A lit torch's blow sets what it hits burning: this much damage a second (monsters catch fire)."),
         slider("Burn Time", vr_walltorch_burn_time, 0.f, 10.f, 0.5f, "%.1f s").extend(0.f, 60.f),
         toggle("Light Again", vr_walltorch_relight)
-            .help("A dying or burnt-out torch held in another torch's flame (on a wall or in your other hand) or dipped "
-                  "in lava lights again, as new."),
+            .help("A dying or burnt-out torch held in another torch's flame (on a wall or in your other hand), in one of "
+                  "the map's flames (braziers, flame balls) or dipped in lava lights again, as new."),
         slider("Flame Size", vr_walltorch_flame, 0.25f, 1.5f, 0.05f, "%.2fx").extend(0.f, 4.f)
             .help("A taken torch's flame (1: the wall torch's)."),
         toggle("Taken Torch Casts Shadows", vr_walltorch_shadows)
@@ -1946,6 +1946,7 @@ std::vector<Item> pageDebugTools()
         command("Decal Atlas", "vr_decal_atlas").help("vr_decal_atlas: the decals' atlas, to decal_atlas.png."),
         command("Hand Mesh", "vr_grasp_dump").help("vr_grasp_dump: the main hand as drawn, to grasp_dump.obj (for Blender)."),
         command("Gadget Screen", "vr_gadget_screen_dump").help("vr_gadget_screen_dump: the wrist gadget's screen, to screenshots/gadget_screen.png."),
+        command("Eye Images (with the UI)", "vr_eyeshot 3").help("vr_eyeshot 3: both eyes as the headset shows them (the HUD panel, the menu), to eyeshots/<map>_<n>_L.png and _R.png."),
         command("Reflection Map", "vr_envmap_dump").help("vr_envmap_dump: the held weapon's reflection map, to envmap.tga (Weapon Reflections on)."),
         command("Weight Test", "vr_weight_test csv").help("vr_weight_test: the weight's spring on test cases, a table in the console and weight_test.csv."),
         header("Test Effects"),

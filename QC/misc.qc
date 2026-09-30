@@ -181,6 +181,7 @@ void() light_flame_large_yellow =
     setmodel(self, "progs/flame2.mdl");
     self.frame = 1;
     FireAmbient();
+    VR_FireSpot(1); // QVR: it lights taken torches again (vr_walltorch.qc)
     makestatic(self);
 };
 
@@ -192,6 +193,7 @@ void() light_flame_small_yellow =
     precache_model("progs/flame2.mdl");
     setmodel(self, "progs/flame2.mdl");
     FireAmbient();
+    VR_FireSpot(0); // QVR: it lights taken torches again (vr_walltorch.qc)
     makestatic(self);
 };
 
@@ -203,6 +205,7 @@ void() light_flame_small_white =
     precache_model("progs/flame2.mdl");
     setmodel(self, "progs/flame2.mdl");
     FireAmbient();
+    VR_FireSpot(0); // QVR: it lights taken torches again (vr_walltorch.qc)
     makestatic(self);
 };
 

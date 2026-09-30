@@ -173,7 +173,7 @@ void eyeshot(int eye, unsigned imageFbo, unsigned sceneFbo, int width, int heigh
     glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
     Image_WritePNG((base + ".png").c_str(), pixels.data(), width, height, 24, false);
 
-    if(vr_eyeshot.value >= 2.f)
+    if(vr_eyeshot.value >= 2.f && vr_eyeshot.value < 3.f)
     {
         std::vector<float> scene(static_cast<std::size_t>(width) * height * 3);
         GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, sceneFbo);

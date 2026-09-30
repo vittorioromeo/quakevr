@@ -12,7 +12,8 @@
 // Its fire: held, it burns for ever. Let go of (dropped, thrown), it starts dying: it goes out over vr_walltorch_die_time
 // seconds; taken again before it is out, it burns up again. Its blows (a club: vr_melee.qc VR_MTHING_CLUB) use it up:
 // after vr_walltorch_hits blows it dies even in the hand, and taking it again doesn't save it. Out, it is a stick (a
-// club still); held in another torch's flame or in lava, a dying or burnt-out torch lights again (vr_walltorch_relight).
+// club still); held in another torch's flame, in the map's other flames (light_flame_*, a lava ball) or in lava, a
+// dying or burnt-out torch lights again (vr_walltorch_relight).
 // In water it goes out at once.
 //
 // A lit torch's blow (and a thrown lit torch) sets what it hits burning: vr_walltorch_burn damage a second for
@@ -336,12 +337,58 @@ float(vector p, vector a, vector b) VR_WallTorch_SegmentDist =
     return vlen(p - (a + ab * k));
 };
 
-// A fire the head `xHead` of torch `t` is in: another torch's flame (on its wall, or taken and lit), or lava. "" none.
+// The map's flames (light_flame_large_yellow, light_flame_small_yellow, light_flame_small_white) are static entities,
+// gone from the entity list: each leaves its place here as it spawns, for VR_WallTorch_FireAt (not entities: those
+// would move the map's edict numbers). Set at each map's spawn, which a loaded save runs too (before its own globals).
+float VR_FIRE_SPOTS_MAX = 128;
+vector vr_fire_spot[128];
+float vr_fire_spot_large[128]; // flame2.mdl's frame: 0 the small flame, 1 the large one
+float vr_fire_spots;
+
+void(float xLarge) VR_FireSpot =
+{
+    if(vr_fire_spots >= VR_FIRE_SPOTS_MAX)
+    {
+        return;
+    }
+    vr_fire_spot[vr_fire_spots] = self.origin;
+    vr_fire_spot_large[vr_fire_spots] = xLarge;
+    vr_fire_spots = vr_fire_spots + 1;
+};
+
+// A fire the head `xHead` of torch `t` is in: another torch's flame (on its wall, or taken and lit), one of the map's
+// flames, a lava ball, or lava. "" none.
 string(entity t, vector xHead) VR_WallTorch_FireAt =
 {
     if(pointcontents(xHead) == CONTENT_LAVA)
     {
         return "lava";
+    }
+    float i;
+    for(i = 0; i < vr_fire_spots; i++)
+    {
+        // flame2.mdl's ball: the small one about 6 units wide, up to 16 over its origin; the large one 13 wide, to 39.
+        // A little more all round: held into it, the torch's head is in it.
+        vector o = vr_fire_spot[i];
+        if(vr_fire_spot_large[i])
+        {
+            if(VR_WallTorch_SegmentDist(xHead, o + '0 0 -6', o + '0 0 32') < 12)
+            {
+                return "a large flame";
+            }
+        }
+        else if(VR_WallTorch_SegmentDist(xHead, o + '0 0 -6', o + '0 0 12') < 9)
+        {
+            return "a flame";
+        }
+    }
+    entity f;
+    for(f = find(world, classname, "fireball"); f; f = find(f, classname, "fireball"))
+    {
+        if(f.model != "" && vlen(f.origin - xHead) < 16) // (misc_fireball's spawner, in the lava, has no model)
+        {
+            return "a lava ball";
+        }
     }
     // Every torch by its class, not findradius: that skips SOLID_NOT entities, and a torch in a hand is one
     // (VR_Carry_Start), so a lit torch held in the other hand never lit this one (only once it was let go of).

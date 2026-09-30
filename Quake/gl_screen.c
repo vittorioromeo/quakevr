@@ -2111,6 +2111,36 @@ static void SCR_TileClear (void)
 
 /*
 ==================
+SCR_DrawSbar
+
+QVR: the HUD (Sbar_Draw). With VR it is never in the headset, whatever hudstyle is (the wrist
+gadget is the HUD there): it goes to the window only, under the 2D layer (SCR_DrawWindowHud,
+from VR_End2D). With vr_hud_mode 0 the canvas gets a classic status bar, for a hand.
+==================
+*/
+static void SCR_DrawSbar (void)
+{
+	int where = VR_SbarInCanvas ();
+	if (where == 2)
+	{
+		hudstyle_t style = hudstyle;
+		hudstyle = HUD_CLASSIC;
+		Sbar_Draw ();
+		hudstyle = style;
+	}
+	else if (where == 1)
+		Sbar_Draw ();
+}
+
+static void SCR_DrawWindowHud (void)
+{
+	GL_Set2D ();
+	Sbar_Draw ();
+	Draw_Flush ();
+}
+
+/*
+==================
 SCR_UpdateScreen
 
 This is called every frame, and can also be called explicitly to flush
@@ -2180,14 +2210,14 @@ void SCR_UpdateScreen (void)
 		if (con_forcedup)
 			Draw_ConsoleBackground ();
 		else
-			Sbar_Draw ();
+			SCR_DrawSbar (); // QVR
 		Draw_FadeScreen (1.f);
 		SCR_DrawNotifyString ();
 	}
 	else if (scr_drawloading) //loading
 	{
 		SCR_DrawLoading ();
-		Sbar_Draw ();
+		SCR_DrawSbar (); // QVR
 		M_Draw ();
 	}
 	else if (cl.intermission == 1 && key_dest == key_game) //end of level
@@ -2208,7 +2238,7 @@ void SCR_UpdateScreen (void)
 		SCR_DrawTurtle ();
 		SCR_DrawPause ();
 		SCR_CheckDrawCenterString ();
-		Sbar_Draw ();
+		SCR_DrawSbar (); // QVR
 		SCR_DrawDevStats (); //johnfitz
 		SCR_DrawClock (); //johnfitz
 		SCR_DrawDemoControls ();
@@ -2221,7 +2251,7 @@ void SCR_UpdateScreen (void)
 	}
 
 	Draw_Flush ();
-	VR_End2D (); // QVR
+	VR_End2D (SCR_DrawWindowHud); // QVR
 	VR_ProfileEnd (); // QVR
 
 	GL_EndGroup ();

@@ -3,9 +3,11 @@
 // While the eyes are rendered, the 2D pass draws into an offscreen canvas instead of the
 // window; the canvas is then composited over the desktop mirror, and shown in each eye:
 // - while a menu or the console is open, as a panel floating in front of the player;
-// - in game, the status bar (the classic HUD's CANVAS_SBAR rectangle) attached to a hand, as
-//   the old engine's VR_DrawSbar (vr_sbar_mode, vr_sbar_offset_*, vr_hud_scale), and the rest
-//   (centre prints, notify lines) on a panel that follows the head.
+// - in game, the rest (centre prints, notify lines) on a panel that follows the head. The flat
+//   HUD (Sbar_Draw, any hudstyle) is never in the headset: it is drawn on the window only (the
+//   wrist gadget is the HUD in the eyes). With vr_hud_mode 0 the canvas gets a classic status bar
+//   (the CANVAS_SBAR rectangle) instead, attached to a hand as the old engine's VR_DrawSbar
+//   (vr_sbar_mode, vr_sbar_offset_*, vr_hud_scale).
 // The screen-space crosshair is left out: in VR the hands aim.
 // With the VR menu style (vr_menuui.cpp) the menu panel is sized by the menu's pixels, and a laser
 // from a hand points at it.
@@ -59,6 +61,16 @@ double hudAnglesTime = 0.0;
 
 // Crosshair setting, while the 2D pass draws into the canvas without it.
 float savedCrosshair = 0.f;
+
+// The HUD left out of the canvas this 2D pass, for the window (VR_SbarInCanvas).
+bool windowHudPending = false;
+
+// With vr_hud_mode 0 (a status bar on a hand), the canvas holds a classic status bar whatever
+// hudstyle is: the hand shows its rectangle (not a CSQC HUD's, drawn where the mod likes).
+[[nodiscard]] bool handSbar()
+{
+    return static_cast<int>(vr_hud_mode.value) == 0 && !cl.qcvm.extfuncs.CSQC_DrawHud;
+}
 
 // Draws the canvas as a quad: `mvp` maps the quad's (0..1, 0..1) to clip space, and its corners
 // to `uvRect` (u0, v0, u1, v1) of the canvas; texels inside `mask` (same layout, empty when
@@ -165,7 +177,7 @@ void drawFacing(const hands::State& s, const glm::vec3& angles, float height, co
 }
 
 // The status bar's rectangle in the canvas (u0, v0, u1, v1; v up), and how many of its 48
-// rows are drawn. Empty without a classic status bar.
+// rows are drawn. Empty without a status bar for a hand (handSbar).
 struct SbarRect
 {
     glm::vec4 uv{0.f};
@@ -177,14 +189,18 @@ struct SbarRect
     // As SCR_CalcRefdef's sb_lines, which is also 0 for a translucent status bar (it is drawn
     // all the same, only not given its own screen lines).
     SbarRect r;
-    if(hudstyle != HUD_CLASSIC || cl.intermission || scr_viewsize.value >= 120.f || cl.qcvm.extfuncs.CSQC_DrawHud)
+    if(!handSbar() || cl.intermission || scr_viewsize.value >= 120.f)
     {
         return r;
     }
     r.rows = scr_viewsize.value >= 110.f ? 24.f : 48.f;
 
+    // Placed as the canvas's classic status bar was (SCR_DrawSbar).
     drawtransform_t t;
+    const hudstyle_t style = hudstyle;
+    hudstyle = HUD_CLASSIC;
     Draw_GetCanvasTransform(CANVAS_SBAR, &t);
+    hudstyle = style;
 
     const auto toUv = [](float ndc) { return (ndc + 1.f) * 0.5f; };
     r.uv = {toUv(t.offset[0]), toUv(48.f * t.scale[1] + t.offset[1]), toUv(320.f * t.scale[0] + t.offset[0]),
@@ -350,7 +366,17 @@ extern "C" void VR_Begin2D()
     gfx::beginCanvas(canvas, vid.width, vid.height);
 }
 
-extern "C" void VR_End2D()
+extern "C" int VR_SbarInCanvas()
+{
+    if(!drawingToCanvas)
+    {
+        return 1;
+    }
+    windowHudPending = true;
+    return handSbar() ? 2 : 0;
+}
+
+extern "C" void VR_End2D(void (*windowHud)())
 {
     if(!drawingToCanvas)
     {
@@ -359,9 +385,13 @@ extern "C" void VR_End2D()
     drawingToCanvas = false;
     crosshair.value = savedCrosshair;
 
-    // Back to the window, with the 2D layer over the mirrored eye.
+    // Back to the window, with the HUD and the 2D layer over the mirrored eye.
     gfx::endCanvas();
     gadget::renderScreen(); // shown in the eyes next frame, as the canvas
+    if(std::exchange(windowHudPending, false) && windowHud)
+    {
+        windowHud();
+    }
 
     // Not over the smoothed mirror or the spectator camera (vr_window.cpp), for recording: the window shows the HUD and
     // the menus as the headset does, in the world; the console still, while it is down.
@@ -373,7 +403,8 @@ extern "C" void VR_End2D()
         toNdc[0][0] = 2.f;
         toNdc[1][1] = 2.f;
         toNdc[3] = glm::vec4{-1.f, -1.f, 0.f, 1.f};
-        drawCanvas(toNdc);
+        const SbarRect sbar = sbarRect(); // the hand's status bar: the window has its own HUD
+        drawCanvas(toNdc, wholeCanvas, sbar.rows > 0.f ? sbar.uv : noMask);
     }
 
     if(!stereoThisFrame)
