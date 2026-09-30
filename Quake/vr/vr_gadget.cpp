@@ -24,14 +24,29 @@
 #include "vr_text3d.hpp"
 #include "vr_hands.hpp"
 
-#include <algorithm>
-#include <array>
-#include <cmath>
-#include <cstdint>
-#include <cstring>
-#include <string_view>
-#include <utility>
-#include <vector>
+#include "Zancle/Algorithm/AnyOf.hpp"
+#include "Zancle/Algorithm/Erase.hpp"
+#include "Zancle/Algorithm/Find.hpp"
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Atan2.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Floor.hpp"
+#include "Zancle/Math/Fmod.hpp"
+#include "Zancle/Math/Lround.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Round.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/String/StringView.hpp"
+#include "vr_zancle.hpp"
+
+#include <string.h>
 
 extern "C" qboolean Image_WritePNG(const char* name, byte* data, int width, int height, int bpp, qboolean upsidedown); // image.c
 
@@ -128,7 +143,7 @@ using gfx::draw2D::fill;
 // red ones (a warning) blink.
 void number(float x, float y, int value, int digits, bool red, float scale)
 {
-    if(red && std::fmod(realtime, 0.8) >= 0.5)
+    if(red && za::fmod(realtime, 0.8) >= 0.5)
     {
         return;
     }
@@ -146,7 +161,7 @@ void number(float x, float y, int value, int digits, bool red, float scale)
 // A warning on the screen blinks as its red numbers do (number()): lit 0.5 s of every 0.8.
 [[nodiscard]] bool blinkOn()
 {
-    return std::fmod(realtime, 0.8) < 0.5;
+    return za::fmod(realtime, 0.8) < 0.5;
 }
 
 // The top row with vr_gadget_stamina (docs/vr-port/ROUND21.md, "Stamina on the gadget; the glow"), in the screen's one
@@ -189,7 +204,7 @@ bool meleeRow(const Palette& pal)
         for(int i = 0; i < cells; i++)
         {
             const float x = cellsX + i * (cellW + cellGap);
-            const float share = std::clamp(lit - static_cast<float>(i), 0.f, 1.f);
+            const float share = za::clamp(lit - static_cast<float>(i), 0.f, 1.f);
             // Its outline (an empty cell), then what's lit of it.
             fill(x, cellY, cellW, 1.f, pal.line);
             fill(x, cellY + cellH - 1.f, cellW, 1.f, pal.line);
@@ -197,7 +212,7 @@ bool meleeRow(const Palette& pal)
             fill(x + cellW - 1.f, cellY, 1.f, cellH, pal.line);
             if(share > 0.f)
             {
-                const float w = std::max(1.f, std::round(cellW * share));
+                const float w = za::max(1.f, za::round(cellW * share));
                 fill(x, cellY, w, cellH, dim ? pal.line : glm::vec3{pal.text});
             }
         }
@@ -207,7 +222,7 @@ bool meleeRow(const Palette& pal)
             if(blinkOn())
             {
                 constexpr const char* word = "EXHAUSTED";
-                const float x = std::round((cellsX + cellsEnd) * 0.5f - 9.f * 4.f);
+                const float x = za::round((cellsX + cellsEnd) * 0.5f - 9.f * 4.f);
                 fill(x - 3.f, cellY - 1.f, 9.f * 8.f + 6.f, cellH + 2.f, pal.background);
                 fill(x - 3.f, cellY - 1.f, 9.f * 8.f + 6.f, 1.f, pal.line);
                 fill(x - 3.f, cellY + cellH, 9.f * 8.f + 6.f, 1.f, pal.line);
@@ -220,22 +235,22 @@ bool meleeRow(const Palette& pal)
         {
             // The drain: a dark notch running back through the lit cells, towards the start, every 0.7 s.
             const float to = cellsX + lit * (cellW + cellGap);
-            const float t = static_cast<float>(std::fmod(realtime, 0.7) / 0.7);
+            const float t = static_cast<float>(za::fmod(realtime, 0.7) / 0.7);
             const float x = to - (to - cellsX) * t;
             if(to - cellsX > 3.f)
             {
-                fill(std::max(x - 2.f, cellsX), cellY + 1.f, 2.f, cellH - 2.f, pal.background);
+                fill(za::max(x - 2.f, cellsX), cellY + 1.f, 2.f, cellH - 2.f, pal.background);
             }
         }
         else if(m.recovering)
         {
             // The sweep: from what's lit to the end, every 0.7 s.
             const float from = cellsX + lit * (cellW + cellGap);
-            const float t = static_cast<float>(std::fmod(realtime, 0.7) / 0.7);
+            const float t = static_cast<float>(za::fmod(realtime, 0.7) / 0.7);
             const float x = from + (cellsEnd - from) * t;
             if(cellsEnd - from > 3.f)
             {
-                fill(std::min(x, cellsEnd - 2.f), cellY + 1.f, 2.f, cellH - 2.f, glm::vec3{pal.text});
+                fill(za::min(x, cellsEnd - 2.f), cellY + 1.f, 2.f, cellH - 2.f, glm::vec3{pal.text});
             }
         }
     }
@@ -244,7 +259,7 @@ bool meleeRow(const Palette& pal)
     fill(left, 16.f, right - left, 1.f, pal.line);
     if(m.counter > 0.f)
     {
-        fill(left, 16.f, std::max(2.f, std::round((right - left) * m.counter)), 2.f, glm::vec3{pal.text});
+        fill(left, 16.f, za::max(2.f, za::round((right - left) * m.counter)), 2.f, glm::vec3{pal.text});
     }
     return true;
 }
@@ -395,59 +410,59 @@ class Lines
 public:
     void clear() { count = 0; }
 
-    [[nodiscard]] std::string& add()
+    [[nodiscard]] za::String& add()
     {
         if(count == strings.size())
         {
-            strings.emplace_back();
+            strings.emplaceBack();
         }
-        std::string& s = strings[count++];
+        za::String& s = strings[count++];
         s.clear();
         return s;
     }
 
     void popBack() { count--; }
-    [[nodiscard]] std::size_t size() const { return count; }
+    [[nodiscard]] za::SizeT size() const { return count; }
     [[nodiscard]] bool empty() const { return count == 0; }
-    [[nodiscard]] const std::string& operator[](std::size_t i) const { return strings[i]; }
-    [[nodiscard]] const std::string& back() const { return strings[count - 1]; }
+    [[nodiscard]] const za::String& operator[](za::SizeT i) const { return strings[i]; }
+    [[nodiscard]] const za::String& back() const { return strings[count - 1]; }
 
-    friend std::size_t heldBytes(const Lines& l) { return mem::heldBytes(l.strings); } // (vr_mem.hpp)
+    friend za::SizeT heldBytes(const Lines& l) { return mem::heldBytes(l.strings); } // (vr_mem.hpp)
 
 private:
-    std::vector<std::string> strings;
-    std::size_t count{0};
+    za::Vector<za::String> strings;
+    za::SizeT count{0};
 };
 
 // `text` broken into lines of at most `columns` characters, between words where it can be,
 // appended to `out` (the console's coloured characters plain: the log is in the screen's colour).
-void wrap(std::string_view text, Lines& out, int columns = logColumns)
+void wrap(za::StringView text, Lines& out, int columns = logColumns)
 {
-    while(!text.empty() && text.back() == ' ')
+    while(text.endsWith(' '))
     {
-        text.remove_suffix(1);
+        text.removeSuffix(1);
     }
     while(!text.empty())
     {
-        size_t cut = std::min(text.size(), static_cast<size_t>(columns));
+        size_t cut = za::min(text.size(), static_cast<size_t>(columns));
         if(cut < text.size())
         {
-            const size_t space = text.substr(0, cut + 1).rfind(' ');
-            if(space != std::string_view::npos && space > 0)
+            const size_t space = text.substrByPosLen(0, cut + 1).rfind(' ');
+            if(space != za::StringView::nPos && space > 0)
             {
                 cut = space;
             }
         }
-        std::string& line = out.add();
-        line.assign(text.substr(0, cut));
+        za::String& line = out.add();
+        line = text.substrByPosLen(0, cut);
         for(char& c : line)
         {
             c = static_cast<char>(static_cast<unsigned char>(c) & 127);
         }
-        text.remove_prefix(cut);
-        while(!text.empty() && text.front() == ' ')
+        text.removePrefix(cut);
+        while(text.startsWith(' '))
         {
-            text.remove_prefix(1);
+            text.removePrefix(1);
         }
     }
 }
@@ -478,7 +493,7 @@ constexpr float cmPerModelUnit = 3.048f;
     for(int i = 0; i < 8; i++)
     {
         const glm::vec3 m{(i & 1) ? 1.9f : -1.9f, (i & 2) ? 1.3f : -1.3f, (i & 4) ? 0.35f : -0.35f};
-        top = std::max(top, glm::dot(current.origin + current.axes * (m * current.scale) - c, up));
+        top = za::max(top, glm::dot(current.origin + current.axes * (m * current.scale) - c, up));
     }
     return top;
 }
@@ -486,7 +501,7 @@ constexpr float cmPerModelUnit = 3.048f;
 [[nodiscard]] float facing(const glm::vec3& eye)
 {
     const glm::vec3 toEye = eye - screenCentre();
-    const float f = glm::dot(current.axes[2], toEye) / std::max(glm::length(toEye), 0.01f);
+    const float f = glm::dot(current.axes[2], toEye) / za::max(glm::length(toEye), 0.01f);
     return CLAMP(0.f, (f - 0.2f) / 0.3f, 1.f);
 }
 
@@ -497,12 +512,12 @@ constexpr float cmPerModelUnit = 3.048f;
 // is, and whether it is the game's (a server print that is not the engine's own reply, engineLine).
 struct NotifyLine
 {
-    std::string text;
+    za::String text;
     double seconds{0.0};
     bool game{false};
 };
 
-[[nodiscard]] std::size_t heldBytes(const NotifyLine& l) // (vr_mem.hpp)
+[[nodiscard]] za::SizeT heldBytes(const NotifyLine& l) // (vr_mem.hpp)
 {
     return mem::heldBytes(l.text);
 }
@@ -511,52 +526,52 @@ struct NotifyLine
 struct GadgetScratch
 {
     Lines messageLines;                               // a message's lines (makeMessage)
-    std::vector<bool> keep;                           // the queued messages shown (the hologram's queue)
-    std::string hologramKey;                          // the shown messages' text: its image's key
-    std::string hologramLine;                         // a line drawn into the image
-    std::vector<bool> used;                           // the image's blocks drawn this frame
+    za::Vector<bool> keep;                           // the queued messages shown (the hologram's queue)
+    za::String hologramKey;                          // the shown messages' text: its image's key
+    za::String hologramLine;                         // a line drawn into the image
+    za::Vector<bool> used;                           // the image's blocks drawn this frame
     Lines wrapped;                                    // the wrist log's lines (notifyLines: out.lines views them)
-    std::vector<std::pair<std::size_t, float>> picked; // those shown: wrapped's line, its alpha
+    za::Vector<qza::Pair<za::SizeT, float>> picked; // those shown: wrapped's line, its alpha
     NotifyLine notifyLine;                            // a console line read
-    std::string plain;                                // a line to check (VR_GameLineOnWrist)
+    za::String plain;                                // a line to check (VR_GameLineOnWrist)
     auto members() { return qvr::mem::list(messageLines, keep, hologramKey, hologramLine, used, wrapped, picked, notifyLine, plain); }
 };
 mem::Scratch<GadgetScratch> scratch{"gadget"};
 
 // Whether a server print's line is the engine's own reply rather than the game's (the progs'): the
 // server's banner, a cheat's "godmode ON", setpos's and ping's figures, a server cvar changed, a pause.
-[[nodiscard]] bool engineLine(std::string_view s)
+[[nodiscard]] bool engineLine(za::StringView s)
 {
-    while(!s.empty() && s.front() == ' ')
+    while(s.startsWith(' '))
     {
-        s.remove_prefix(1);
+        s.removePrefix(1);
     }
-    constexpr std::string_view prefixes[] = {"VERSION ", "usage:", "current values:", "Client ping times",
+    constexpr za::StringView prefixes[] = {"VERSION ", "usage:", "current values:", "Client ping times",
         "Can't suicide", "Pause not allowed", "Kicked by"};
-    for(const std::string_view p : prefixes)
+    for(const za::StringView p : prefixes)
     {
-        if(s.starts_with(p))
+        if(s.startsWith(p))
         {
             return true;
         }
     }
-    if(s.find("\" changed to \"") != std::string_view::npos || s.ends_with(" paused the game") ||
-        s.ends_with(" unpaused the game"))
+    if(s.find("\" changed to \"") != za::StringView::nPos || s.endsWith(" paused the game") ||
+        s.endsWith(" unpaused the game"))
     {
         return true;
     }
     // "godmode ON", "noclip OFF": a word, then ON or OFF.
     const size_t space = s.find(' ');
-    if(space != std::string_view::npos && s.find(' ', space + 1) == std::string_view::npos)
+    if(space != za::StringView::nPos && s.find(' ', space + 1) == za::StringView::nPos)
     {
-        const std::string_view word = s.substr(space + 1);
+        const za::StringView word = s.substrByPosLen(space + 1);
         if(word == "ON" || word == "OFF")
         {
             return true;
         }
     }
     // Figures only.
-    return std::none_of(s.begin(), s.end(), [](char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); });
+    return !za::anyOf(s.begin(), s.end(), [](char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); });
 }
 
 // The console's line `age` back from the newest, if it is a notify line (Con_NotifyLine).
@@ -573,7 +588,7 @@ mem::Scratch<GadgetScratch> scratch{"gadget"};
     {
         length--;
     }
-    out.text.assign(text, static_cast<size_t>(length));
+    out.text.assign(text, static_cast<za::SizeT>(length));
     for(char& c : out.text)
     {
         c = static_cast<char>(static_cast<unsigned char>(c) & 127);
@@ -598,7 +613,7 @@ constexpr float holoGrow = 0.2f;  // and a new message to
 
 struct HoloMessage
 {
-    std::string text; // its lines, joined by '\n'
+    za::String text; // its lines, joined by '\n'
     int columns{0}, rows{0};
     double start{0.0};    // realtime its life counts from: printed (or last repeated); held, when first seen
     double appeared{0.0}; // realtime it first was (held: first seen): its fade-in and growth
@@ -613,26 +628,26 @@ struct HoloMessage
 // A block of the image.
 struct HoloBlock
 {
-    std::string text;
+    za::String text;
     int columns{0}, rows{0};
     float v0{0.f}, v1{0.f}; // its texture rows (v up: v0 its bottom)
 };
 
-std::vector<HoloMessage> queue;        // the game's messages, oldest first
+za::Vector<HoloMessage> queue;        // the game's messages, oldest first
 double newestLine = 0.0;               // the newest console line taken into it (its print time)
 unsigned nextId = 1;
-std::string latestCentre;              // the latest centre print's text (SCR_CenterPrint's)
-std::vector<HoloMessage> holoMessages; // this frame's, oldest first
+za::String latestCentre;              // the latest centre print's text (SCR_CenterPrint's)
+za::Vector<HoloMessage> holoMessages; // this frame's, oldest first
 int holoCollected = -1;                // the host frame they were collected in
 gfx::Target holoTarget;
-std::vector<HoloBlock> holoDrawn; // what the image holds
-std::string holoDrawnKey;
+za::Vector<HoloBlock> holoDrawn; // what the image holds
+za::String holoDrawnKey;
 
 // Laid out once a frame (layoutHologram), for both eyes.
 struct HoloFrame
 {
     int frame{-1};
-    std::vector<gfx::Vertex> text, beam;
+    za::Vector<gfx::Vertex> text, beam;
     glm::vec4 params{0.f};
     float top{0.f};            // world units its top is over the screen's centre (the view's up); 0: not shown
     bool centreShown{false};   // it shows the centre print
@@ -651,7 +666,7 @@ float logLift = -1.f; // the log's lift, following the hologram's top smoothly (
 
 [[nodiscard]] float hologramLife()
 {
-    return std::max(1.f, vr_messages_hologram_time.value);
+    return za::max(1.f, vr_messages_hologram_time.value);
 }
 
 [[nodiscard]] float hologramEffect()
@@ -688,27 +703,27 @@ constexpr double heldMax = 300.0;
 
 // A pickup's print ("You got the Grenade Launcher", "You get 20 shells", "You receive 25 health", "You got armor"): the
 // thing is in the hand already, so not a notification.
-[[nodiscard]] bool pickupLine(std::string_view s)
+[[nodiscard]] bool pickupLine(za::StringView s)
 {
-    constexpr std::string_view prefixes[] = {"You got ", "You get ", "You receive "};
-    return std::any_of(std::begin(prefixes), std::end(prefixes), [&](std::string_view p) { return s.starts_with(p); });
+    constexpr za::StringView prefixes[] = {"You got ", "You get ", "You receive "};
+    return za::anyOf(prefixes, prefixes + za::getArraySize(prefixes), [&](za::StringView p) { return s.startsWith(p); });
 }
 
 // `text` as a message: plain, its lines wrapped to holoColumns, the empty ones at its ends left out.
-void makeMessage(std::string_view text, HoloMessage& m)
+void makeMessage(za::StringView text, HoloMessage& m)
 {
     Lines& lines = scratch.messageLines;
     lines.clear();
     while(!text.empty())
     {
-        const size_t end = std::min(text.find('\n'), text.size());
+        const size_t end = za::min(text.find('\n'), text.size());
         const size_t before = lines.size();
-        wrap(text.substr(0, end), lines, holoColumns);
+        wrap(text.substrByPosLen(0, end), lines, holoColumns);
         if(lines.size() == before)
         {
             (void)lines.add(); // an empty line
         }
-        text.remove_prefix(std::min(end + 1, text.size()));
+        text.removePrefix(za::min(end + 1, text.size()));
     }
     while(!lines.empty() && lines.back().empty())
     {
@@ -729,7 +744,7 @@ void makeMessage(std::string_view text, HoloMessage& m)
             m.text += '\n';
         }
         m.text += lines[i];
-        m.columns = std::max(m.columns, static_cast<int>(lines[i].size()));
+        m.columns = za::max(m.columns, static_cast<int>(lines[i].size()));
         m.rows++;
     }
 }
@@ -783,7 +798,7 @@ void announce(const HoloMessage& m)
     {
         return;
     }
-    Con_DPrintf("gadget: notification \"%s\"\n", m.text.c_str());
+    Con_DPrintf("gadget: notification \"%s\"\n", m.text.cStr());
     chime();
     buzz();
 }
@@ -802,7 +817,7 @@ void addMessage(HoloMessage m)
                 return; // still waiting to be seen
             }
             e.start = m.start;
-            e.printed = std::max(e.printed, m.printed);
+            e.printed = za::max(e.printed, m.printed);
             if(hologramOnly() && e.notify && !gadgetInView())
             {
                 e.seen = false; // not in view: waits again
@@ -814,7 +829,7 @@ void addMessage(HoloMessage m)
     }
     m.id = nextId++;
     announce(m);
-    queue.push_back(std::move(m));
+    queue.pushBack(ZA_MOVE(m));
     if(queue.size() > 16)
     {
         queue.erase(queue.begin());
@@ -856,8 +871,8 @@ void collectMessages()
             continue;
         }
         const double printed = realtime - line.seconds;
-        auto it = std::find_if(queue.begin(), queue.end(),
-            [&](const HoloMessage& m) { return m.printed > 0.0 && std::abs(m.printed - printed) < 1e-4; });
+        auto it = za::findIf(queue.begin(), queue.end(),
+            [&](const HoloMessage& m) { return m.printed > 0.0 && qza::abs(m.printed - printed) < 1e-4; });
         if(it != queue.end())
         {
             makeMessage(line.text, continuation);
@@ -882,20 +897,21 @@ void collectMessages()
         }
         m.start = m.appeared = m.printed = printed;
         m.notify = !pickupLine(m.text);
-        addMessage(std::move(m));
+        addMessage(ZA_MOVE(m));
     }
-    std::erase_if(queue, [](const HoloMessage& m) { return !alive(m); });
+    za::vectorEraseIf(queue, [](const HoloMessage& m) { return !alive(m); });
 
     // The newest that fit: the waiting ones first, then the rest; one too long alone, its first lines.
-    std::vector<bool>& keep = scratch.keep;
-    keep.assign(queue.size(), false);
+    za::Vector<bool>& keep = scratch.keep;
+    keep.clear();
+    keep.resize(queue.size(), false);
     int rows = 0, count = 0;
     for(const bool waiting : {true, false})
     {
         for(size_t i = queue.size(); i-- > 0;)
         {
             const HoloMessage& m = queue[i];
-            const int r = std::min(m.rows, holoRows);
+            const int r = za::min(m.rows, holoRows);
             if(keep[i] || held(m) != waiting || count >= holoMessagesMax || rows + r > holoRows)
             {
                 continue;
@@ -906,7 +922,7 @@ void collectMessages()
         }
     }
     // (Copied into the elements holoMessages already has: their strings' buffers are reused.)
-    std::size_t shown = 0;
+    za::SizeT shown = 0;
     for(size_t i = 0; i < queue.size(); i++)
     {
         if(!keep[i])
@@ -915,7 +931,7 @@ void collectMessages()
         }
         if(shown == holoMessages.size())
         {
-            holoMessages.emplace_back();
+            holoMessages.emplaceBack();
         }
         HoloMessage& m = holoMessages[shown++];
         m = queue[i];
@@ -934,7 +950,7 @@ void collectMessages()
         }
     }
     holoMessages.resize(shown);
-    std::stable_sort(holoMessages.begin(), holoMessages.end(),
+    za::insertionSort(holoMessages.begin(), holoMessages.end(),
         [](const HoloMessage& a, const HoloMessage& b) { return a.start < b.start; });
 }
 
@@ -944,7 +960,7 @@ void markSeen()
 {
     for(HoloMessage& shown : holoMessages)
     {
-        auto it = std::find_if(queue.begin(), queue.end(), [&](const HoloMessage& m) { return m.id == shown.id; });
+        auto it = za::findIf(queue.begin(), queue.end(), [&](const HoloMessage& m) { return m.id == shown.id; });
         if(it == queue.end() || it->seen)
         {
             continue;
@@ -966,7 +982,7 @@ void renderHologram()
     {
         return; // the old image holds (its blocks are matched by their text)
     }
-    std::string& key = scratch.hologramKey;
+    za::String& key = scratch.hologramKey;
     key.clear();
     for(const HoloMessage& m : holoMessages)
     {
@@ -993,17 +1009,17 @@ void renderHologram()
         {
             break;
         }
-        std::string_view text = m.text;
+        za::StringView text = m.text;
         for(int row = 0; row < m.rows; row++)
         {
-            const size_t end = std::min(text.find('\n'), text.size());
-            std::string& line = scratch.hologramLine; // (a c_str for draw2D::text)
-            line.assign(text.substr(0, end));
+            const size_t end = za::min(text.find('\n'), text.size());
+            za::String& line = scratch.hologramLine; // (a c_str for draw2D::text)
+            line = text.substrByPosLen(0, end);
             const float x = static_cast<float>(holoWidth - static_cast<int>(line.size()) * 8) * 0.5f;
-            gfx::draw2D::text(x, static_cast<float>(y + holoPad + row * 8), 8.f, line.c_str());
-            text.remove_prefix(std::min(end + 1, text.size()));
+            gfx::draw2D::text(x, static_cast<float>(y + holoPad + row * 8), 8.f, line.cStr());
+            text.removePrefix(za::min(end + 1, text.size()));
         }
-        holoDrawn.push_back({m.text, m.columns, m.rows, 1.f - static_cast<float>(y + h) / holoHeight,
+        holoDrawn.pushBack({m.text, m.columns, m.rows, 1.f - static_cast<float>(y + h) / holoHeight,
             1.f - static_cast<float>(y) / holoHeight});
         y += h;
     }
@@ -1043,13 +1059,13 @@ void layoutHologram()
     gfx::sceneCamera(eye, right, up);
     const float scale = current.scale;
     const glm::vec3 c = screenCentre();
-    const float lift = gadgetTop(up) + std::max(0.f, vr_messages_hologram_height.value) / cmPerModelUnit * scale;
+    const float lift = gadgetTop(up) + za::max(0.f, vr_messages_hologram_height.value) / cmPerModelUnit * scale;
     const glm::vec3 base = c + up * lift;
 
     // While the screen faces the viewer, and it is in view (with or without messages: gadgetInView).
     float shown = facing(eye);
     const glm::vec4 clip = gfx::sceneViewProjection() * glm::vec4{base, 1.f};
-    if(clip.w <= 0.f || std::abs(clip.x) > clip.w * 1.1f || std::abs(clip.y) > clip.w * 1.1f)
+    if(clip.w <= 0.f || qza::abs(clip.x) > clip.w * 1.1f || qza::abs(clip.y) > clip.w * 1.1f)
     {
         shown = 0.f;
     }
@@ -1072,15 +1088,16 @@ void layoutHologram()
     const float open = k > 0.f ? easeOut(static_cast<float>(realtime - holo.opened) / holoOpen) : 1.f;
     const float px = 0.26f * CLAMP(0.25f, vr_messages_hologram_size.value, 4.f) * scale / 8.f; // a font pixel
     const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f);
-    const glm::vec3 rgb = hue::color(vr_gadget_screen_hue, 0.5f, 0.95f * std::max(bright, 0.3f));
+    const glm::vec3 rgb = hue::color(vr_gadget_screen_hue, 0.5f, 0.95f * za::max(bright, 0.3f));
     const double life = hologramLife();
 
     // The blocks, newest first from the bottom up, each growing as it appears.
-    std::vector<bool>& used = scratch.used;
-    used.assign(holoDrawn.size(), false);
+    za::Vector<bool>& used = scratch.used;
+    used.clear();
+    used.resize(holoDrawn.size(), false);
     float y = 0.f, widest = 0.f, strongest = 0.f;
     double newest = -100.0;
-    for(auto it = holoMessages.rbegin(); it != holoMessages.rend(); ++it)
+    for(auto it = qza::rbegin(holoMessages); it != qza::rend(holoMessages); ++it)
     {
         const HoloMessage& m = *it;
         size_t b = 0;
@@ -1104,8 +1121,8 @@ void layoutHologram()
         }
         const float grow = k > 0.f ? easeOut(age / holoGrow) : 1.f;
         const float alpha = fade * shown * (0.4f + 0.6f * open);
-        newest = std::max(newest, m.appeared);
-        strongest = std::max(strongest, alpha);
+        newest = za::max(newest, m.appeared);
+        strongest = za::max(strongest, alpha);
         if(m.centre && m.text == latestCentre)
         {
             holo.centreShown = shown >= 0.5f;
@@ -1123,10 +1140,10 @@ void layoutHologram()
             {tr, {0.5f + du, block.v1}, color}, {tl, {0.5f - du, block.v1}, color}};
         for(const gfx::Vertex* p : {&v[0], &v[1], &v[2], &v[0], &v[2], &v[3]})
         {
-            holo.text.push_back(*p);
+            holo.text.pushBack(*p);
         }
         y += h;
-        widest = std::max(widest, w);
+        widest = za::max(widest, w);
     }
     if(holo.text.empty())
     {
@@ -1139,15 +1156,15 @@ void layoutHologram()
     float g = glitch(realtime + 4.1) * 0.7f;
     if(since < 0.35f)
     {
-        g = std::max(g, 0.8f * std::sin(since / 0.35f * 3.14159265f));
+        g = za::max(g, 0.8f * za::sin(since / 0.35f * 3.14159265f));
     }
-    g = std::max(g, 0.8f * (1.f - open));
-    const float time = static_cast<float>(std::fmod(realtime, 1000.0));
-    holo.params = {time, k, g * std::min(k, 1.f), 0.f};
+    g = za::max(g, 0.8f * (1.f - open));
+    const float time = static_cast<float>(za::fmod(realtime, 1000.0));
+    holo.params = {time, k, g * za::min(k, 1.f), 0.f};
 
     // The beam: from the screen (a little inside its edge) to the blocks' outline, its corners
     // matched by where they are in the view (whichever way the gadget is turned).
-    const float beam = 0.3f * std::min(k, 1.f) * strongest * (1.f + 1.5f * (1.f - open));
+    const float beam = 0.3f * za::min(k, 1.f) * strongest * (1.f + 1.5f * (1.f - open));
     if(beam <= 0.f)
     {
         return;
@@ -1155,25 +1172,25 @@ void layoutHologram()
     glm::vec3 corner;
     glm::vec2 size;
     screenRect(corner, size);
-    std::array<glm::vec3, 4> s;
-    std::array<float, 4> angle;
+    za::Array<glm::vec3, 4> s;
+    za::Array<float, 4> angle;
     for(int i = 0; i < 4; i++)
     {
         const glm::vec3 m{((i == 1 || i == 2) ? 0.5f : -0.5f) * size.x * 0.85f, (i >= 2 ? 0.5f : -0.5f) * size.y * 0.85f,
             corner.z + 0.02f};
         s[static_cast<size_t>(i)] = current.origin + current.axes * (m * scale);
         const glm::vec3 d = s[static_cast<size_t>(i)] - c;
-        angle[static_cast<size_t>(i)] = std::atan2(glm::dot(d, up), glm::dot(d, right));
+        angle[static_cast<size_t>(i)] = za::atan2(glm::dot(d, up), glm::dot(d, right));
     }
     // Round the screen from the corner nearest the view's lower left (-135 degrees), as the blocks' outline.
-    std::array<int, 4> order{0, 1, 2, 3};
-    std::sort(order.begin(), order.end(), [&](int a, int b) { return angle[static_cast<size_t>(a)] < angle[static_cast<size_t>(b)]; });
+    za::Array<int, 4> order{0, 1, 2, 3};
+    za::quickSort(order.begin(), order.end(), [&](int a, int b) { return angle[static_cast<size_t>(a)] < angle[static_cast<size_t>(b)]; });
     int first = 0;
     float nearest = 10.f;
     for(int i = 0; i < 4; i++)
     {
-        float d = std::abs(angle[static_cast<size_t>(order[static_cast<size_t>(i)])] + 2.3561945f);
-        d = std::min(d, 6.2831853f - d);
+        float d = qza::abs(angle[static_cast<size_t>(order[static_cast<size_t>(i)])] + 2.3561945f);
+        d = za::min(d, 6.2831853f - d);
         if(d < nearest)
         {
             nearest = d;
@@ -1192,7 +1209,7 @@ void layoutHologram()
             pa{p[i], {-1.f, 1.f}, color};
         for(const gfx::Vertex* q : {&a, &b, &pb, &a, &pb, &pa})
         {
-            holo.beam.push_back(*q);
+            holo.beam.pushBack(*q);
         }
     }
 }
@@ -1245,14 +1262,14 @@ constexpr float fpsLateOver = 1.25f;    // periods over this many refreshes miss
 constexpr float fpsAssumedHz = 90.f;    // the budget when the runtime doesn't tell its refresh (the mock)
 
 gfx::Target fpsTarget;
-std::string fpsDrawn; // Basic: the text the image holds
+za::String fpsDrawn; // Basic: the text the image holds
 int fpsDrawnMode = 0; // the mode the image is of (0: none)
 int fpsWidth = fpsBasicWidth, fpsHeight = fpsBasicHeight; // the image's, in font pixels
 
 struct FpsFrame
 {
     int frame{-1};
-    std::vector<gfx::Vertex> quad;
+    za::Vector<gfx::Vertex> quad;
     float time{0.f};
 };
 FpsFrame fps;
@@ -1310,8 +1327,8 @@ void measureFps(FpsFigures& f)
                 return;
             }
             now = now < 0.f ? v : now;
-            min = std::min(min, v);
-            max = std::max(max, v);
+            min = za::min(min, v);
+            max = za::max(max, v);
             if(recent)
             {
                 sum += v;
@@ -1357,7 +1374,7 @@ void formatMs(char (&out)[8], float ms)
     }
     else
     {
-        q_snprintf(out, sizeof(out), "%5d", std::min(static_cast<int>(std::lround(ms)), 9999));
+        q_snprintf(out, sizeof(out), "%5d", za::min(static_cast<int>(za::lround(ms)), 9999));
     }
 }
 
@@ -1391,7 +1408,7 @@ void renderFpsDetailed()
     const float x0 = static_cast<float>(holoPad);
     float x = x0, y = static_cast<float>(holoPad);
     const auto part = [&](const char* s, const glm::vec4& c, bool over = false) {
-        const float w = 8.f * static_cast<float>(std::strlen(s));
+        const float w = 8.f * static_cast<float>(ZA_STRLEN(s));
         if(over)
         {
             // The figure (not its leading spaces) on a lit block (dim: the glow round it stays soft).
@@ -1413,9 +1430,9 @@ void renderFpsDetailed()
     };
 
     char a[8], b[8], c[8];
-    q_snprintf(a, sizeof(a), f.fps >= 0.f ? "%3d" : "  -", CLAMP(0, static_cast<int>(std::lround(f.fps)), 999));
-    q_snprintf(b, sizeof(b), f.hz > 0.f ? "%5d" : "    -", CLAMP(0, static_cast<int>(std::lround(f.hz)), 999));
-    q_snprintf(c, sizeof(c), "%4d", std::min(f.late, 9999));
+    q_snprintf(a, sizeof(a), f.fps >= 0.f ? "%3d" : "  -", CLAMP(0, static_cast<int>(za::lround(f.fps)), 999));
+    q_snprintf(b, sizeof(b), f.hz > 0.f ? "%5d" : "    -", CLAMP(0, static_cast<int>(za::lround(f.hz)), 999));
+    q_snprintf(c, sizeof(c), "%4d", za::min(f.late, 9999));
     part(a, white);
     part(" FPS", word);
     part(b, white);
@@ -1424,7 +1441,7 @@ void renderFpsDetailed()
     part(" LATE", word);
     newRow();
     part(" MS  NOW  AVG  MIN  MAX", word);
-    for(const auto& [label, series] : {std::pair{"CPU", &f.cpu}, std::pair{"GPU", &f.gpu}})
+    for(const auto& [label, series] : {qza::Pair{"CPU", &f.cpu}, qza::Pair{"GPU", &f.gpu}})
     {
         newRow();
         part(label, word);
@@ -1439,8 +1456,8 @@ void renderFpsDetailed()
     // The graphs: the last fpsGraphTime seconds, newest at the right; a column the worst frame over it.
     const float top = static_cast<float>(holoPad + fpsTextRows * fpsRowPitch + 2);
     float cpuCol[fpsGraphWidth], gpuCol[fpsGraphWidth];
-    std::fill(std::begin(cpuCol), std::end(cpuCol), -1.f);
-    std::fill(std::begin(gpuCol), std::end(gpuCol), -1.f);
+    qza::fill(cpuCol, cpuCol + za::getArraySize(cpuCol), -1.f);
+    qza::fill(gpuCol, gpuCol + za::getArraySize(gpuCol), -1.f);
     profile::FrameSample newest, fs;
     if(profile::frameSample(0, newest))
     {
@@ -1455,10 +1472,10 @@ void renderFpsDetailed()
             {
                 break;
             }
-            for(int col = std::max(first, 0); col <= std::min(last, fpsGraphWidth - 1); col++)
+            for(int col = za::max(first, 0); col <= za::min(last, fpsGraphWidth - 1); col++)
             {
-                cpuCol[col] = std::max(cpuCol[col], fs.cpuMs);
-                gpuCol[col] = std::max(gpuCol[col], fs.gpuMs);
+                cpuCol[col] = za::max(cpuCol[col], fs.cpuMs);
+                gpuCol[col] = za::max(gpuCol[col], fs.gpuMs);
             }
         }
     }
@@ -1478,8 +1495,8 @@ void renderFpsDetailed()
             {
                 continue;
             }
-            const float h = std::max(1.f, std::min(v[i] / f.budget, 2.f) * half);
-            const float low = std::min(h, half);
+            const float h = za::max(1.f, za::min(v[i] / f.budget, 2.f) * half);
+            const float low = za::min(h, half);
             fill(gx + static_cast<float>(i), bottom - low, 1.f, low, dim);
             if(h > half)
             {
@@ -1517,10 +1534,10 @@ void renderFps()
     FrameRate r;
     const bool known = frameRate(r);
     char figures[3][8];
-    q_snprintf(figures[0], sizeof(figures[0]), known ? "%3d" : "  -", CLAMP(0, static_cast<int>(std::lround(r.fps)), 999));
-    q_snprintf(figures[1], sizeof(figures[1]), known ? "%5.1f" : "    -", std::min(r.cpuMs, 999.9f));
-    q_snprintf(figures[2], sizeof(figures[2]), known && r.gpuMs >= 0.f ? "%5.1f" : "    -", std::min(r.gpuMs, 999.9f));
-    const std::string text = std::string{figures[0]} + figures[1] + figures[2];
+    q_snprintf(figures[0], sizeof(figures[0]), known ? "%3d" : "  -", CLAMP(0, static_cast<int>(za::lround(r.fps)), 999));
+    q_snprintf(figures[1], sizeof(figures[1]), known ? "%5.1f" : "    -", za::min(r.cpuMs, 999.9f));
+    q_snprintf(figures[2], sizeof(figures[2]), known && r.gpuMs >= 0.f ? "%5.1f" : "    -", za::min(r.gpuMs, 999.9f));
+    const za::String text = za::String{figures[0]} + figures[1] + figures[2];
     if(text == fpsDrawn && fpsDrawnMode == 1 && fpsTarget.texture)
     {
         return;
@@ -1539,7 +1556,7 @@ void renderFps()
     const auto part = [&](const char* s, const glm::vec4& c) {
         gfx::draw2D::color(c);
         gfx::draw2D::text(x, static_cast<float>(holoPad), 8.f, s);
-        x += 8.f * static_cast<float>(std::strlen(s));
+        x += 8.f * static_cast<float>(ZA_STRLEN(s));
     };
     part(figures[0], white);
     part(" FPS CPU", word);
@@ -1581,13 +1598,13 @@ void layoutFps()
     const glm::vec3 br = tr - up * h;
     const glm::vec3 bl = tl - up * h;
     const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f);
-    const glm::vec4 color{hue::color(vr_gadget_screen_hue, 0.5f, 0.95f * std::max(bright, 0.3f)), shown};
+    const glm::vec4 color{hue::color(vr_gadget_screen_hue, 0.5f, 0.95f * za::max(bright, 0.3f)), shown};
     const gfx::Vertex v[4] = {{bl, {0.f, 0.f}, color}, {br, {1.f, 0.f}, color}, {tr, {1.f, 1.f}, color}, {tl, {0.f, 1.f}, color}};
     for(const gfx::Vertex* p : {&v[0], &v[1], &v[2], &v[0], &v[2], &v[3]})
     {
-        fps.quad.push_back(*p);
+        fps.quad.pushBack(*p);
     }
-    fps.time = static_cast<float>(std::fmod(realtime, 1000.0));
+    fps.time = static_cast<float>(za::fmod(realtime, 1000.0));
 }
 
 void drawFps()
@@ -1601,7 +1618,7 @@ void drawFps()
     // Not depth tested: over the other hand, as the hologram.
     gfx::draw(fps.quad, gfx::sceneViewProjection(),
         {.shade = gfx::Shade::Hologram, .blend = gfx::Blend::Premultiplied, .depthTest = false, .depthWrite = false,
-            .params = {fps.time, 0.35f * std::min(hologramEffect(), 1.f), 0.f, 0.f}, .screen = {static_cast<float>(fpsWidth), static_cast<float>(fpsHeight), 0.5f}},
+            .params = {fps.time, 0.35f * za::min(hologramEffect(), 1.f), 0.f, 0.f}, .screen = {static_cast<float>(fpsWidth), static_cast<float>(fpsHeight), 0.5f}},
         fpsTarget.texture);
 }
 
@@ -1610,19 +1627,19 @@ void gadgetInfo_f();
 void screenDump_f();
 
 // A centre print as a message (VR_GameCenterPrint, the test).
-void centrePrint(std::string_view text)
+void centrePrint(za::StringView text)
 {
     HoloMessage m;
     makeMessage(text, m);
     if(m.rows == 0)
     {
-        for(auto it = queue.rbegin(); it != queue.rend(); ++it)
+        for(auto it = qza::rbegin(queue); it != qza::rend(queue); ++it)
         {
             if(it->centre)
             {
                 if(!held(*it))
                 {
-                    queue.erase(std::next(it).base());
+                    queue.erase(&*it);
                 }
                 break;
             }
@@ -1634,7 +1651,7 @@ void centrePrint(std::string_view text)
     m.centre = true;
     m.notify = true;
     latestCentre = m.text;
-    addMessage(std::move(m));
+    addMessage(ZA_MOVE(m));
 }
 
 } // namespace
@@ -1644,7 +1661,7 @@ void centrePrint(std::string_view text)
 float glitch(double time)
 {
     constexpr double slot = 7.0;
-    const double index = std::floor(time / slot);
+    const double index = za::floor(time / slot);
     const uint32_t n = static_cast<uint32_t>(static_cast<int64_t>(index)) * 3u;
     if(hash(n + 2u) < 0.25f)
     {
@@ -1657,7 +1674,7 @@ float glitch(double time)
     {
         return 0.f;
     }
-    return static_cast<float>(std::sin(x * 3.14159265)) * (0.6f + 0.4f * hash(n + 2u));
+    return static_cast<float>(za::sin(x * 3.14159265)) * (0.6f + 0.4f * hash(n + 2u));
 }
 
 bool active()
@@ -1714,7 +1731,7 @@ bool testMessage()
         {"A secret cave has opened...", true}};
     static int next = 0;
     const Test& t = tests[next];
-    next = (next + 1) % static_cast<int>(std::size(tests));
+    next = (next + 1) % static_cast<int>(za::getArraySize(tests));
 
     // As the game's: its sound at the head (a trigger's misc/talk.wav), unless it is the notification's (from the
     // gadget, as the message is taken: announce).
@@ -1724,7 +1741,7 @@ bool testMessage()
     }
     if(!t.centre)
     {
-        Con_ServerPrint((std::string{t.text} + "\n").c_str());
+        Con_ServerPrint((za::String{t.text} + "\n").cStr());
     }
     else if(key_dest == key_menu)
     {
@@ -1795,11 +1812,11 @@ void drawScreen()
         {origin + xAxis + yAxis, {1.f, 1.f}, phosphor}, {origin + yAxis, {0.f, 1.f}, phosphor}};
     const gfx::Vertex quad[6] = {c[0], c[1], c[2], c[0], c[2], c[3]};
 
-    const float time = static_cast<float>(std::fmod(realtime, 1000.0));
+    const float time = static_cast<float>(za::fmod(realtime, 1000.0));
     const float k = crtStrength();
     gfx::draw(quad, gfx::sceneViewProjection(),
         {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true,
-            .params = {time, k, k > 0.f ? glitch(realtime) * std::min(k, 1.f) : 0.f, textGlow()},
+            .params = {time, k, k > 0.f ? glitch(realtime) * za::min(k, 1.f) : 0.f, textGlow()},
             .screen = {width, height, 0.5f}},
         target.texture);
 }
@@ -1851,7 +1868,7 @@ bool log(Log& out)
     // lines are the hologram's (vr_messages_hologram); the rest dimmer (vr_notify_wrist_alpha).
     // The lines are kept in the scratch (out.lines views them) until the next call: nothing allocated from frame to frame.
     Lines& wrapped = scratch.wrapped;
-    std::vector<std::pair<std::size_t, float>>& picked = scratch.picked; // wrapped's line, its alpha
+    za::Vector<qza::Pair<za::SizeT, float>>& picked = scratch.picked; // wrapped's line, its alpha
     NotifyLine& line = scratch.notifyLine;
     wrapped.clear();
     picked.clear();
@@ -1872,21 +1889,21 @@ bool log(Log& out)
         {
             continue;
         }
-        const std::size_t first = wrapped.size();
+        const za::SizeT first = wrapped.size();
         wrap(line.text, wrapped);
-        for(std::size_t i = wrapped.size(); i-- > first && static_cast<int>(picked.size()) < logRows;)
+        for(za::SizeT i = wrapped.size(); i-- > first && static_cast<int>(picked.size()) < logRows;)
         {
-            picked.emplace_back(i, alpha);
+            picked.emplaceBack(i, alpha);
         }
     }
     if(picked.empty())
     {
         return false;
     }
-    for(auto it = picked.rbegin(); it != picked.rend(); ++it) // (views taken once `wrapped` is complete)
+    for(auto it = qza::rbegin(picked); it != qza::rend(picked); ++it) // (views taken once `wrapped` is complete)
     {
-        out.lines.push_back(wrapped[it->first]);
-        out.alpha.push_back(it->second);
+        out.lines.pushBack(wrapped[it->first]);
+        out.alpha.pushBack(it->second);
     }
 
     // Over the gadget (as seen) and the hologram, its characters about 7 mm, in the screen's colour
@@ -1897,9 +1914,9 @@ bool log(Log& out)
     glm::vec3 eye, right, up;
     gfx::sceneCamera(eye, right, up);
     const float cm = current.scale / cmPerModelUnit;
-    const float lift = std::max(gadgetTop(up) + std::max(0.f, vr_notify_wrist_height.value) * cm,
+    const float lift = za::max(gadgetTop(up) + za::max(0.f, vr_notify_wrist_height.value) * cm,
         holo.top > 0.f ? holo.top + 1.5f * cm : 0.f);
-    logLift = logLift < 0.f ? lift : logLift + (lift - logLift) * std::min(1.f, static_cast<float>(host_frametime) * 10.f);
+    logLift = logLift < 0.f ? lift : logLift + (lift - logLift) * za::min(1.f, static_cast<float>(host_frametime) * 10.f);
     out.lift = logLift;
     out.normal = current.axes[2];
     out.charSize = 0.23f * current.scale;
@@ -1956,28 +1973,28 @@ void messageTest_f()
         Con_Printf("usage: vr_message_test [<center|print|console> <text>]\n");
         return;
     }
-    std::string text;
+    za::String text;
     for(int i = 2; i < Cmd_Argc(); i++)
     {
-        text += (i > 2 ? " " : "") + std::string{Cmd_Argv(i)};
+        text += (i > 2 ? " " : "") + za::String{Cmd_Argv(i)};
     }
-    for(size_t at; (at = text.find("\\n")) != std::string::npos;)
+    for(size_t at; (at = text.find("\\n")) != za::StringView::nPos;)
     {
         text.replace(at, 2, "\n");
     }
-    const std::string_view kind = Cmd_Argv(1);
+    const za::StringView kind = Cmd_Argv(1);
     if(kind == "center" || kind == "centre")
     {
-        SCR_CenterPrint(text.c_str());
-        Con_LogCenterPrint(text.c_str());
+        SCR_CenterPrint(text.cStr());
+        Con_LogCenterPrint(text.cStr());
     }
     else if(kind == "print")
     {
-        Con_ServerPrint((text + "\n").c_str());
+        Con_ServerPrint((text + "\n").cStr());
     }
     else
     {
-        Con_Printf("%s\n", text.c_str());
+        Con_Printf("%s\n", text.cStr());
     }
 }
 
@@ -2005,16 +2022,16 @@ void screenDump_f()
         return;
     }
     const int w = target.width, h = target.height;
-    std::vector<byte> rgba(static_cast<std::size_t>(w) * h * 4);
-    std::vector<byte> rgb(static_cast<std::size_t>(w) * h * 3);
+    za::Vector<byte> rgba(static_cast<za::SizeT>(w) * h * 4);
+    za::Vector<byte> rgb(static_cast<za::SizeT>(w) * h * 3);
     GLint previous = 0;
     glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &previous);
     GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, target.framebuffer);
     glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
     GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, static_cast<GLuint>(previous));
-    for(std::size_t p = 0; p < static_cast<std::size_t>(w) * h; p++)
+    for(za::SizeT p = 0; p < static_cast<za::SizeT>(w) * h; p++)
     {
-        for(std::size_t c = 0; c < 3; c++)
+        for(za::SizeT c = 0; c < 3; c++)
         {
             rgb[p * 3 + c] = rgba[p * 4 + c];
         }
@@ -2063,15 +2080,15 @@ extern "C" int VR_GameLineOnWrist(const char* text, int length)
     {
         return 0;
     }
-    std::string& plain = scratch.plain; // (Con_DrawNotify's, one line at a time)
-    plain.assign(text, static_cast<size_t>(std::max(length, 0)));
+    za::String& plain = scratch.plain; // (Con_DrawNotify's, one line at a time)
+    plain.assign(text, static_cast<za::SizeT>(za::max(length, 0)));
     for(char& c : plain)
     {
         c = static_cast<char>(static_cast<unsigned char>(c) & 127);
     }
     while(!plain.empty() && plain.back() == ' ')
     {
-        plain.pop_back();
+        plain.popBack();
     }
     return !plain.empty() && !engineLine(plain);
 }

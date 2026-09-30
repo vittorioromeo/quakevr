@@ -14,14 +14,19 @@
 #include <SDL2/SDL.h>
 #else
 #include "SDL.h"
+
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/String/StringView.hpp"
+
 #endif
 
-#include <cstdint>
-#include <cstdio>
-#include <cstdlib>
-#include <ctime>
-#include <string>
-#include <vector>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 
 extern "C" qboolean Image_WritePNGPath(const char* pathname, byte* data, int width, int height, int bpp, qboolean upsidedown); // image.c
 
@@ -41,8 +46,8 @@ bool audioInit = false;
 bool recording = false;
 bool byButton = false;
 double startTime = 0.0;
-std::vector<std::int16_t> samples;
-std::string baseName;                 // notes/<map>_<date>_<time>, without the extension
+za::Vector<za::I16> samples;
+za::String baseName;                 // notes/<map>_<date>_<time>, without the extension
 
 [[nodiscard]] bool ensureAudio()
 {
@@ -87,7 +92,7 @@ void haptic(float seconds, float amplitude)
     }
 }
 
-void writeLE(FILE* f, std::uint32_t v, int bytes)
+void writeLE(FILE* f, za::U32 v, int bytes)
 {
     for(int i = 0; i < bytes; i++)
     {
@@ -96,22 +101,22 @@ void writeLE(FILE* f, std::uint32_t v, int bytes)
 }
 
 // (Any thread: a note's sound is saved on the game's thread pool, see saveFile.)
-[[nodiscard]] bool writeWav(const std::string& path, const std::vector<std::int16_t>& samples, int rate)
+[[nodiscard]] bool writeWav(const za::String& path, const za::Vector<za::I16>& samples, int rate)
 {
-    FILE* f = fopen(path.c_str(), "wb");
+    FILE* f = fopen(path.cStr(), "wb");
     if(!f)
     {
         return false;
     }
-    const std::uint32_t bytes = static_cast<std::uint32_t>(samples.size() * sizeof(std::int16_t));
+    const za::U32 bytes = static_cast<za::U32>(samples.size() * sizeof(za::I16));
     fwrite("RIFF", 1, 4, f);
     writeLE(f, 36 + bytes, 4);
     fwrite("WAVEfmt ", 1, 8, f);
     writeLE(f, 16, 4);
     writeLE(f, 1, 2); // PCM
     writeLE(f, 1, 2); // mono
-    writeLE(f, static_cast<std::uint32_t>(rate), 4);
-    writeLE(f, static_cast<std::uint32_t>(rate * 2), 4);
+    writeLE(f, static_cast<za::U32>(rate), 4);
+    writeLE(f, static_cast<za::U32>(rate * 2), 4);
     writeLE(f, 2, 2);
     writeLE(f, 16, 2);
     fwrite("data", 1, 4, f);
@@ -130,12 +135,12 @@ void writeLE(FILE* f, std::uint32_t v, int bytes)
 
 struct PendingFile
 {
-    std::string path;    // the file's (full) path
-    std::string name;    // the screenshot's name in the game folder (VR_ScreenshotPending), or empty
-    std::string saved;   // printed when it is written (empty: nothing)
+    za::String path;    // the file's (full) path
+    za::String name;    // the screenshot's name in the game folder (VR_ScreenshotPending), or empty
+    za::String saved;   // printed when it is written (empty: nothing)
     jobs::Future<bool> done;
 };
-std::vector<PendingFile> pendingFiles;
+za::Vector<PendingFile> pendingFiles;
 
 // The files written since: their messages (or their failures). wait: every one, written or not yet.
 void pollFiles(bool wait)
@@ -150,26 +155,26 @@ void pollFiles(bool wait)
         const bool ok = it->done.get();
         if(!ok)
         {
-            Con_Printf("Couldn't write %s\n", it->path.c_str());
+            Con_Printf("Couldn't write %s\n", it->path.cStr());
         }
         else if(!it->saved.empty())
         {
-            Con_Printf("%s", it->saved.c_str());
+            Con_Printf("%s", it->saved.cStr());
         }
         it = pendingFiles.erase(it);
     }
 }
 
 // The temporary name a file is written under (a "~" before its file name, in its folder).
-[[nodiscard]] std::string partPath(const std::string& path)
+[[nodiscard]] za::String partPath(const za::String& path)
 {
-    const std::size_t slash = path.find_last_of("/\\");
-    return slash == std::string::npos ? "~" + path : path.substr(0, slash + 1) + "~" + path.substr(slash + 1);
+    const za::SizeT slash = path.findLastOf("/\\");
+    return slash == za::StringView::nPos ? "~" + path : path.substrByPosLen(0, slash + 1) + "~" + path.substrByPosLen(slash + 1);
 }
 
 // write(temporary path) on the pool, then the file renamed to path.
 template <typename Write>
-void saveFile(const std::string& path, const std::string& name, const std::string& saved, Write&& write)
+void saveFile(const za::String& path, const za::String& name, const za::String& saved, Write&& write)
 {
     pollFiles(false);
     PendingFile f;
@@ -177,17 +182,17 @@ void saveFile(const std::string& path, const std::string& name, const std::strin
     f.name = name;
     f.saved = saved;
     f.done = jobs::async(
-        [path, write = std::forward<Write>(write)]() mutable
+        [path, write = ZA_FORWARD(write)]() mutable
         {
-            const std::string part = partPath(path);
+            const za::String part = partPath(path);
             if(!write(part))
             {
-                std::remove(part.c_str());
+                remove(part.cStr()); // (<stdio.h>'s)
                 return false;
             }
-            return std::rename(part.c_str(), path.c_str()) == 0;
+            return rename(part.cStr(), path.cStr()) == 0; // (<stdio.h>'s)
         });
-    pendingFiles.push_back(std::move(f));
+    pendingFiles.pushBack(ZA_MOVE(f));
 }
 
 [[nodiscard]] const char* modelName(int index)
@@ -196,16 +201,16 @@ void saveFile(const std::string& path, const std::string& name, const std::strin
 }
 
 // The moment's context, as the note starts.
-void writeContext(const std::string& path, const std::string& when)
+void writeContext(const za::String& path, const za::String& when)
 {
-    FILE* f = fopen(path.c_str(), "w");
+    FILE* f = fopen(path.cStr(), "w");
     if(!f)
     {
         return;
     }
     const entity_t& player = cl_entities[cl.viewentity];
     const hands::State& s = hands::current();
-    fprintf(f, "time: %s\n", when.c_str());
+    fprintf(f, "time: %s\n", when.cStr());
     fprintf(f, "map: %s (%s)\n", cl.mapname, cl.levelname);
     fprintf(f, "game time: %.1f s\n", cl.time);
     fprintf(f, "position: %.0f %.0f %.0f\n", player.origin[0], player.origin[1], player.origin[2]);
@@ -243,14 +248,14 @@ void start(bool fromButton)
     SDL_PauseAudioDevice(device, 0);
 
     // notes/<map>_<date>_<time>, as Ironwail names screenshots.
-    const std::time_t now = std::time(nullptr);
+    const time_t now = time(nullptr);
     char stamp[64];
-    std::strftime(stamp, sizeof(stamp), "%Y-%m-%d_%H-%M-%S", std::localtime(&now));
-    const std::string dir = std::string{com_gamedir} + "/notes";
-    Sys_mkdir(dir.c_str());
+    strftime(stamp, sizeof(stamp), "%Y-%m-%d_%H-%M-%S", localtime(&now));
+    const za::String dir = za::String{com_gamedir} + "/notes";
+    Sys_mkdir(dir.cStr());
     baseName = dir + "/" + (cl.mapname[0] ? cl.mapname : "menu") + "_" + stamp;
     char when[64];
-    std::strftime(when, sizeof(when), "%Y-%m-%d %H:%M:%S", std::localtime(&now));
+    strftime(when, sizeof(when), "%Y-%m-%d %H:%M:%S", localtime(&now));
     writeContext(baseName + ".txt", when);
 
     recording = true;
@@ -267,10 +272,10 @@ void take()
     {
         return;
     }
-    std::int16_t buffer[4096];
+    za::I16 buffer[4096];
     for(Uint32 got; (got = SDL_DequeueAudio(device, buffer, sizeof(buffer))) > 0;)
     {
-        samples.insert(samples.end(), buffer, buffer + got / sizeof(std::int16_t));
+        samples.emplaceBackRange(buffer, got / sizeof(za::I16));
     }
 }
 
@@ -288,14 +293,14 @@ void stop()
     const double seconds = static_cast<double>(samples.size()) / rate;
     if(seconds < minSeconds)
     {
-        remove((baseName + ".txt").c_str());
+        remove((baseName + ".txt").cStr());
         Con_Printf("VR notes: too short, dropped\n");
         haptic(0.03f, 0.3f);
         return;
     }
     // Saved on the pool (a 3-minute note is 5.8 MB): its message when written (pollFiles).
-    saveFile(baseName + ".wav", {}, va("VR notes: saved %s.wav (%.1f s)\n", baseName.c_str(), seconds),
-        [take = std::move(samples), rate = rate](const std::string& part) { return writeWav(part, take, rate); });
+    saveFile(baseName + ".wav", {}, va("VR notes: saved %s.wav (%.1f s)\n", baseName.cStr(), seconds),
+        [take = ZA_MOVE(samples), rate = rate](const za::String& part) { return writeWav(part, take, rate); });
     samples = {};
     haptic(0.05f, 0.5f);
 }
@@ -418,10 +423,10 @@ extern "C" int VR_ScreenshotWrite(const char* name, unsigned char* rgb, int widt
     {
         return 0; // (written as before, on this thread)
     }
-    saveFile(std::string{com_gamedir} + "/" + name, name, {},
-        [rgb, width, height](const std::string& part)
+    saveFile(za::String{com_gamedir} + "/" + name, name, {},
+        [rgb, width, height](const za::String& part)
         {
-            const bool ok = Image_WritePNGPath(part.c_str(), rgb, width, height, 24, false);
+            const bool ok = Image_WritePNGPath(part.cStr(), rgb, width, height, 24, false);
             free(rgb);
             return ok != 0;
         });

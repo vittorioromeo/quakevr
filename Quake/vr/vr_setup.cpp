@@ -12,11 +12,15 @@
 #include "vr_text3d.hpp"
 #include "vr_units.hpp"
 
-#include <cmath>
-#include <cstring>
-#include <string>
-#include <string_view>
-#include <tuple>
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Math/Atan2.hpp"
+#include "Zancle/Math/Ceil.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/String/StringView.hpp"
+
+#include <string.h>
 
 namespace qvr::setup
 {
@@ -74,7 +78,7 @@ constexpr Option options[] = {
 {
     for(int i = 0; i < o.count; i++)
     {
-        if(std::fabs(var.value - o.presets[i].value) < 0.001f)
+        if(za::fabs(var.value - o.presets[i].value) < 0.001f)
         {
             return i;
         }
@@ -128,7 +132,7 @@ void drawOptionScreens()
         PR_SwitchQCVM(&sv.qcvm);
     }
     constexpr const char* prefix = "vr_setup_option ";
-    const size_t prefixLength = std::strlen(prefix);
+    const size_t prefixLength = ZA_STRLEN(prefix);
     for(int i = 1; i < qcvm->num_edicts; i++)
     {
         edict_t* e = EDICT_NUM(i);
@@ -143,7 +147,7 @@ void drawOptionScreens()
         }
         char key[32];
         q_strlcpy(key, target + prefixLength, sizeof(key));
-        key[std::strcspn(key, " ;\n")] = 0;
+        key[strcspn(key, " ;\n")] = 0;
         const Option* o = findOption(key);
         const cvar_t* var = o ? Cvar_FindVar(o->cvar) : nullptr;
         if(!var)
@@ -158,7 +162,7 @@ void drawOptionScreens()
         const glm::vec3 dir{e->v.movedir[0], e->v.movedir[1], e->v.movedir[2]};
         const glm::vec3 centre = 0.5f * (lo + hi);
         const glm::vec3 at3 = centre + glm::vec3{0.f, 0.f, 0.5f * (hi.z - lo.z) + 9.f} + dir * 2.f;
-        const float yaw = glm::degrees(std::atan2(dir.y, dir.x));
+        const float yaw = glm::degrees(za::atan2(dir.y, dir.x));
         text3d::queue(text, at3, glm::vec3{0.f, yaw, 0.f}, text3d::Align::Centre, 0.3f, true);
     }
     if(old != &sv.qcvm)
@@ -218,13 +222,13 @@ Flow flow;
 // The text shown, built each frame (the main thread).
 struct SetupScratch
 {
-    std::string text;
+    za::String text;
     auto members() { return qvr::mem::list(text); }
 };
 mem::Scratch<SetupScratch> scratch{"setup"};
 
 // `s` in the console font's gold letters.
-void appendGold(std::string& out, const char* s)
+void appendGold(za::String& out, const char* s)
 {
     for(const char* c = s; *c; c++)
     {
@@ -312,15 +316,15 @@ void afterBody()
         enter(Step::BodyReview);
         return;
     }
-    std::string path;
+    za::String path;
     Con_Printf("VR Calibration: the body wasn't measured: run it again later from %s\n",
-        menu::pathTo("Body Calibration", path) ? path.c_str() : "the Body Calibration page");
+        menu::pathTo("Body Calibration", path) ? path.cStr() : "the Body Calibration page");
     flow.body = "Body: not measured";
     enter(Step::Hand);
 }
 
 // The step's text, floating ahead of the eyes (as Body Calibration's).
-void drawText(std::string_view text)
+void drawText(za::StringView text)
 {
     const hands::State& s = hands::current();
     if(!s.valid)
@@ -333,7 +337,7 @@ void drawText(std::string_view text)
     text3d::queueOverlay(text, at, glm::vec3{0.f, s.headAngles.y, 0.f}, 0.045f);
 }
 
-void heightFrame(double now, std::string& text)
+void heightFrame(double now, za::String& text)
 {
     const TrackingState& t = tracking();
     appendGold(text, "HEIGHT");
@@ -394,7 +398,7 @@ void heightFrame(double now, std::string& text)
     S_LocalSound("misc/menu2.wav");
 }
 
-void handFrame(double now, std::string& text)
+void handFrame(double now, za::String& text)
 {
     appendGold(text, "MAIN HAND");
     text += "\n";
@@ -516,7 +520,7 @@ void flowFrame()
         return;
     }
 
-    std::string& text = scratch.text;
+    za::String& text = scratch.text;
     text.clear();
     appendGold(text, "VR CALIBRATION");
     text += "\n";
@@ -524,11 +528,11 @@ void flowFrame()
     {
         case Step::Intro:
         {
-            const int left = static_cast<int>(std::ceil(introSeconds - (now - flow.start)));
+            const int left = static_cast<int>(za::ceil(introSeconds - (now - flow.start)));
             text += "Height, then your body, then your main hand.\n\n";
             text += seated() ? "Seated: sit where you will play.\n" : "Stand in the middle of your play space.\n";
             text += "Playing seated? Press POSITION on the\nstand to your right: Seated.\n\n";
-            text += va("starting in %d", std::max(left, 1));
+            text += va("starting in %d", za::max(left, 1));
             if(now - flow.start >= introSeconds)
             {
                 enter(Step::Height);

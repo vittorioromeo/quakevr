@@ -1,8 +1,10 @@
+
+#include "Zancle/Container/Vector.hpp"
 // vr_menu_recording.inc -- the Recording page (Graphics > Recording): what the desktop window shows while in VR, for
 // recording it with OBS (vr_window.cpp; ROUND21.md, "Recording: smoothed mirror and spectator camera"). Included by
 // vr_menu.cpp; self-contained, so it can move with a reorganized menu.
 
-[[nodiscard]] std::vector<Item> pageRecording()
+[[nodiscard]] za::Vector<Item> pageRecording()
 {
     return {
         cycle("Window View", "vr_window_view", {{0.f, "Left Eye (raw)"}, {1.f, "Smoothed Mirror"}, {2.f, "Spectator Camera"}})

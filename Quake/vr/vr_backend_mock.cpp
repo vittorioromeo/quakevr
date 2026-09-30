@@ -390,7 +390,7 @@ bool weaponPoint(float fraction, float height, glm::vec3& out)
             bestDist = d;
         }
     }
-    za::Vector<glm::vec3> verts; // TRANSITION (vr_held.hpp's)
+    za::Vector<glm::vec3> verts;
     const bool found = best && held::drawnVertices(best, verts) && !verts.empty();
     const char* name = found ? PR_GetString(best->v.netname) : "";
     if(found)

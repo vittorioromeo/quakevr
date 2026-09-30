@@ -35,12 +35,24 @@
 #include "vr_fatigue.hpp"
 #include "vr_weight.hpp"
 
-#include <algorithm>
-#include <cmath>
-#include <cstdlib>
-#include <cstring>
-#include <string>
-#include <vector>
+#include "Zancle/Algorithm/Count.hpp"
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Ceil.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/Floor.hpp"
+#include "Zancle/Math/Fmax.hpp"
+#include "Zancle/Math/Fmin.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Round.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/String/StringView.hpp"
+#include "Zancle/String/ToString.hpp"
+#include "vr_zancle.hpp"
+
+#include <stdlib.h>
+#include <string.h>
 
 extern "C" {
 extern float m_mousex, m_mousey; // menu.c: the mouse in menu coordinates
@@ -82,7 +94,7 @@ struct Item
     const char* format{"%.2f"};
 
     // Cycle.
-    std::vector<Choice> choices;
+    za::Vector<Choice> choices;
 
     // Action: a function, or a page to open, or a console command (command()).
     void (*action)(){nullptr};
@@ -130,8 +142,8 @@ struct Item
     {
         Item i = *this;
         i.extendable = true;
-        i.hardMin = std::fmin(lo, min);
-        i.hardMax = std::fmax(hi, max);
+        i.hardMin = za::fmin(lo, min);
+        i.hardMax = za::fmax(hi, max);
         return i;
     }
 
@@ -192,21 +204,21 @@ void restartVr()
     return i;
 }
 
-[[nodiscard]] Item cycle(const char* label, cvar_t* cvar, std::vector<Choice> choices)
+[[nodiscard]] Item cycle(const char* label, cvar_t* cvar, za::Vector<Choice> choices)
 {
     Item i{Item::Cycle, label, cvar};
-    i.choices = std::move(choices);
+    i.choices = ZA_MOVE(choices);
     return i;
 }
 
-[[nodiscard]] Item cycle(const char* label, cvar_t& cvar, std::vector<Choice> choices)
+[[nodiscard]] Item cycle(const char* label, cvar_t& cvar, za::Vector<Choice> choices)
 {
-    return cycle(label, &cvar, std::move(choices));
+    return cycle(label, &cvar, ZA_MOVE(choices));
 }
 
-[[nodiscard]] Item cycle(const char* label, const char* cvar, std::vector<Choice> choices)
+[[nodiscard]] Item cycle(const char* label, const char* cvar, za::Vector<Choice> choices)
 {
-    return cycle(label, Cvar_FindVar(cvar), std::move(choices));
+    return cycle(label, Cvar_FindVar(cvar), ZA_MOVE(choices));
 }
 
 [[nodiscard]] Item toggle(const char* label, cvar_t& cvar)
@@ -296,41 +308,41 @@ void runCommand(const char* text)
     return i;
 }
 
-using PageBuilder = std::vector<Item> (*)();
+using PageBuilder = za::Vector<Item> (*)();
 
 // The index of the page `build` builds (pages[], below): what a link to it opens.
 [[nodiscard]] int pageIndex(PageBuilder build);
 
 // Pages linked before they are defined.
-[[nodiscard]] std::vector<Item> pageBodyArms();
-[[nodiscard]] std::vector<Item> pageBodyCalibration();
-[[nodiscard]] std::vector<Item> pageWeightDamage();
-[[nodiscard]] std::vector<Item> pageFingersCollisions();
-[[nodiscard]] std::vector<Item> pageFlashlightLowGrip();
-[[nodiscard]] std::vector<Item> pageFlashlightOverheadGrip();
-[[nodiscard]] std::vector<Item> pageFlashlightMounts();
-[[nodiscard]] std::vector<Item> pageBodyDisplay();
-[[nodiscard]] std::vector<Item> pageHeadset();
-[[nodiscard]] std::vector<Item> pageDebugViews();
-[[nodiscard]] std::vector<Item> pageDebugLogging();
-[[nodiscard]] std::vector<Item> pageDebugProfiling();
-[[nodiscard]] std::vector<Item> pageDebugReports();
-[[nodiscard]] std::vector<Item> pageDebugTools();
-[[nodiscard]] std::vector<Item> pageDebugTests();
-[[nodiscard]] std::vector<Item> pageHitbox();
-[[nodiscard]] std::vector<Item> pageMonsterHitbox();
+[[nodiscard]] za::Vector<Item> pageBodyArms();
+[[nodiscard]] za::Vector<Item> pageBodyCalibration();
+[[nodiscard]] za::Vector<Item> pageWeightDamage();
+[[nodiscard]] za::Vector<Item> pageFingersCollisions();
+[[nodiscard]] za::Vector<Item> pageFlashlightLowGrip();
+[[nodiscard]] za::Vector<Item> pageFlashlightOverheadGrip();
+[[nodiscard]] za::Vector<Item> pageFlashlightMounts();
+[[nodiscard]] za::Vector<Item> pageBodyDisplay();
+[[nodiscard]] za::Vector<Item> pageHeadset();
+[[nodiscard]] za::Vector<Item> pageDebugViews();
+[[nodiscard]] za::Vector<Item> pageDebugLogging();
+[[nodiscard]] za::Vector<Item> pageDebugProfiling();
+[[nodiscard]] za::Vector<Item> pageDebugReports();
+[[nodiscard]] za::Vector<Item> pageDebugTools();
+[[nodiscard]] za::Vector<Item> pageDebugTests();
+[[nodiscard]] za::Vector<Item> pageHitbox();
+[[nodiscard]] za::Vector<Item> pageMonsterHitbox();
 
 // Texts the menu hands out by pointer (an Item holds const char*):
 // - readouts: an info line's or a help's text, valid until the same function's next call (the draw uses it at once);
 //   released at a map change like any scratch.
 struct MenuReadouts
 {
-    std::string motionNote, motionLastSaved, extendableHelp;
-    std::string weight[2];              // weightReadout, by hand
-    std::string weaponWeightsDamage[2]; // weaponWeightsDamageReadout, by line
-    std::string heldObjectMass;
-    std::string heldObjectDamage[2];    // by line
-    std::string weaponWeightsDrop;      // weaponWeightsDropReadout
+    za::String motionNote, motionLastSaved, extendableHelp;
+    za::String weight[2];              // weightReadout, by hand
+    za::String weaponWeightsDamage[2]; // weaponWeightsDamageReadout, by line
+    za::String heldObjectMass;
+    za::String heldObjectDamage[2];    // by line
+    za::String weaponWeightsDrop;      // weaponWeightsDropReadout
     auto members()
     {
         return qvr::mem::list(motionNote, motionLastSaved, extendableHelp, weight, weaponWeightsDamage, heldObjectMass, heldObjectDamage,
@@ -343,11 +355,11 @@ mem::Scratch<MenuReadouts> readouts{"menu readouts"};
 //   built again, its old items replaced), so they are kept as long as the built pages (MenuPages): never released.
 struct PageTexts
 {
-    std::string weaponOffsetsTitle, weaponOffsetsInheritTitle;
-    std::vector<std::pair<float, std::string>> weaponOffsetsInheritNames; // the Inherit From choice's
-    std::string weaponWeightsTitle, weaponWeightsInheritTitle;
-    std::string heldObjectOffsetsTitle, heldObjectWeightsTitle;
-    std::vector<std::string> checklistSections; // the Checklist's headers
+    za::String weaponOffsetsTitle, weaponOffsetsInheritTitle;
+    za::Vector<qza::Pair<float, za::String>> weaponOffsetsInheritNames; // the Inherit From choice's
+    za::String weaponWeightsTitle, weaponWeightsInheritTitle;
+    za::String heldObjectOffsetsTitle, heldObjectWeightsTitle;
+    za::Vector<za::String> checklistSections; // the Checklist's headers
     auto members()
     {
         return qvr::mem::list(weaponOffsetsTitle, weaponOffsetsInheritTitle, weaponOffsetsInheritNames, weaponWeightsTitle,
@@ -368,34 +380,34 @@ mem::Cache<PageTexts> pageTexts{"menu texts", mem::Never};
 // labelled with what it should be, for tuning the melee.
 [[nodiscard]] const char* motionNote()
 {
-    std::string& text = readouts.motionNote;
-    text = vr_motion_note.string[0] ? std::string{"note: "} + vr_motion_note.string : "no note (vr_motion_note)";
-    return text.c_str();
+    za::String& text = readouts.motionNote;
+    text = vr_motion_note.string[0] ? za::String{"note: "} + vr_motion_note.string : "no note (vr_motion_note)";
+    return text.cStr();
 }
 
 [[nodiscard]] const char* motionLastSaved()
 {
-    std::string& text = readouts.motionLastSaved;
-    text = std::string{"last: "} + motion::lastSaved();
-    return text.c_str();
+    za::String& text = readouts.motionLastSaved;
+    text = za::String{"last: "} + motion::lastSaved();
+    return text.cStr();
 }
 
 // The category's details, for the Detail choice: the menu rebuilds the page when the category changes.
 int motionPageCategory = -1;
 
-[[nodiscard]] std::vector<Item> pageMotionRecorder()
+[[nodiscard]] za::Vector<Item> pageMotionRecorder()
 {
-    std::vector<Choice> categories;
+    za::Vector<Choice> categories;
     const auto& list = motion::categories();
     for(const int i : motion::categoryOrder())
     {
-        categories.push_back({static_cast<float>(i), list[i].choice.display});
+        categories.pushBack({static_cast<float>(i), list[i].choice.display});
     }
-    std::vector<Choice> details;
+    za::Vector<Choice> details;
     const auto& chosen = motion::chosenCategory().details;
     for(size_t i = 0; i < chosen.size(); i++)
     {
-        details.push_back({static_cast<float>(i), chosen[i].display});
+        details.pushBack({static_cast<float>(i), chosen[i].display});
     }
     motionPageCategory = static_cast<int>(vr_motion_category.value);
     return {
@@ -403,10 +415,10 @@ int motionPageCategory = -1;
         toggle("Arm Recorder", vr_motion_armed)
             .help("Armed: click the Record Button to start a take of the Category, click it again to end it and save "
                   "it (quakevr/motions). A beep and a buzz each time; REC in view."),
-        cycle("Category", vr_motion_category, std::move(categories))
+        cycle("Category", vr_motion_category, ZA_MOVE(categories))
             .help("What the motion should do. It stays chosen: record many takes of it in a row. No Hit: motions that "
                   "must do nothing (wiggles, weak moves, reloading)."),
-        cycle("Detail", vr_motion_detail, std::move(details))
+        cycle("Detail", vr_motion_detail, ZA_MOVE(details))
             .help("Optional: which kind (the swing's direction, the weapon). Its takes count apart, and with the "
                   "category's."),
         info(motion::labelStatus),
@@ -429,23 +441,23 @@ int motionPageCategory = -1;
 
 // Review Takes (vr_motion_review.cpp, MOTIONS.md "Reviewing failing takes"): the takes that fail vr_motion_eval or are
 // suspect, listed; one picked opens the Take page (its details, the ghost replay, keep, discard, relabel).
-[[nodiscard]] std::vector<Item> pageReviewTake();
-[[nodiscard]] int pageIndex(std::vector<Item> (*build)());
+[[nodiscard]] za::Vector<Item> pageReviewTake();
+[[nodiscard]] int pageIndex(za::Vector<Item> (*build)());
 int reviewListGeneration = -1; // the review's generation the pages were built for
 int reviewTakeGeneration = -1;
 int reviewRelabelCategory = -1;
 char reviewListHeader[64];
 
-[[nodiscard]] std::vector<Item> pageReviewTakes()
+[[nodiscard]] za::Vector<Item> pageReviewTakes()
 {
     reviewListGeneration = motion::review::generation();
-    std::vector<Choice> categories{{-1.f, "All"}};
+    za::Vector<Choice> categories{{-1.f, "All"}};
     const auto& list = motion::categories();
     for(const int i : motion::categoryOrder())
     {
-        categories.push_back({static_cast<float>(i), list[i].choice.display});
+        categories.pushBack({static_cast<float>(i), list[i].choice.display});
     }
-    std::vector<Item> items = {
+    za::Vector<Item> items = {
         info(motion::review::summary),
         info(motion::review::reviewedLine),
         info(motion::review::evalLine),
@@ -454,7 +466,7 @@ char reviewListHeader[64];
                 {6.f, "Discarded"}})
             .help("To Review: failing or suspect, not yet kept. A take picked opens its page: play it as a ghost, "
                   "keep, discard or relabel it."),
-        cycle("Category", vr_motion_review_category, std::move(categories)),
+        cycle("Category", vr_motion_review_category, ZA_MOVE(categories)),
         action("Re-evaluate Shown", motion::review::reevaluateShown)
             .help("Evaluates the takes listed again, in a second copy of the game in the background (the mock "
                   "headset: yours is untouched), with your settings. About 1.7 s a take."),
@@ -464,38 +476,38 @@ char reviewListHeader[64];
         info(motion::review::lastAction),
     };
     q_strlcpy(reviewListHeader, motion::review::listTitle(), sizeof(reviewListHeader));
-    items.push_back(header(reviewListHeader));
+    items.pushBack(header(reviewListHeader));
     const int take = pageIndex(pageReviewTake);
     for(int r = 0; r < motion::review::rowCount(); r++)
     {
-        items.push_back(row(motion::review::rowText, motion::review::rowHelp, motion::review::pick, r, take));
+        items.pushBack(row(motion::review::rowText, motion::review::rowHelp, motion::review::pick, r, take));
     }
     return items;
 }
 
-[[nodiscard]] std::vector<Item> pageReviewTake()
+[[nodiscard]] za::Vector<Item> pageReviewTake()
 {
     reviewTakeGeneration = motion::review::generation();
     reviewRelabelCategory = static_cast<int>(vr_motion_relabel_category.value);
-    std::vector<Choice> categories;
+    za::Vector<Choice> categories;
     const auto& list = motion::categories();
     for(const int i : motion::categoryOrder())
     {
-        categories.push_back({static_cast<float>(i), list[i].choice.display});
+        categories.pushBack({static_cast<float>(i), list[i].choice.display});
     }
-    std::vector<Choice> details;
+    za::Vector<Choice> details;
     const auto& chosen =
         list[CLAMP(0, static_cast<int>(vr_motion_relabel_category.value), static_cast<int>(list.size()) - 1)].details;
     for(size_t i = 0; i < chosen.size(); i++)
     {
-        details.push_back({static_cast<float>(i), chosen[i].display});
+        details.pushBack({static_cast<float>(i), chosen[i].display});
     }
-    std::vector<Item> items;
+    za::Vector<Item> items;
     for(int l = 0; l < motion::review::detailLines && motion::review::detailLine(l)[0]; l++)
     {
-        items.push_back(infoLine(motion::review::detailLine, l));
+        items.pushBack(infoLine(motion::review::detailLine, l));
     }
-    const std::vector<Item> rest = {
+    const za::Vector<Item> rest = {
         header("Look"),
         action("Play Ghost", motion::review::playGhost)
             .help("Replays it in front of the training dummy as a ghost, looping: its weapons where they were, their "
@@ -509,8 +521,8 @@ char reviewListHeader[64];
         action("Discard", motion::review::discard)
             .help("Moves it into motions/discarded/ (no longer played or counted). Restore or Undo Last bring it back."),
         action("Restore", motion::review::restore).help("A discarded take back into motions/."),
-        cycle("Relabel Category", vr_motion_relabel_category, std::move(categories)),
-        cycle("Relabel Detail", vr_motion_relabel_detail, std::move(details)),
+        cycle("Relabel Category", vr_motion_relabel_category, ZA_MOVE(categories)),
+        cycle("Relabel Detail", vr_motion_relabel_detail, ZA_MOVE(details)),
         action("Relabel", motion::review::relabel)
             .help("Recorded under the wrong category: renamed to the one above, its header's label changed. The "
                   "original is kept in motions/review/relabelled/ (Undo Last)."),
@@ -524,7 +536,7 @@ char reviewListHeader[64];
                   "settings: a few seconds."),
         info(motion::review::evalLine),
     };
-    items.insert(items.end(), rest.begin(), rest.end());
+    items.emplaceBackRange(rest.data(), rest.size());
     return items;
 }
 
@@ -537,7 +549,7 @@ void addBotTeam0() { Cbuf_AddText("impulse 100\n"); }
 void addBotTeam1() { Cbuf_AddText("impulse 101\n"); }
 void kickBot() { Cbuf_AddText("impulse 102\n"); }
 
-[[nodiscard]] std::vector<Item> pagePlay()
+[[nodiscard]] za::Vector<Item> pagePlay()
 {
     return {
         header("Maps"),
@@ -555,10 +567,10 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
 
 // The world: monsters, knights' swords, weapon drops and what you feel (the Gameplay page before the menus were
 // reorganized; its damage and knockback are on Damage and Knockback, its voice notes on Debug).
-[[nodiscard]] std::vector<Item> pageEnemyWeapons();
-[[nodiscard]] std::vector<Item> pageSound();
+[[nodiscard]] za::Vector<Item> pageEnemyWeapons();
+[[nodiscard]] za::Vector<Item> pageSound();
 
-[[nodiscard]] std::vector<Item> pageGameplay()
+[[nodiscard]] za::Vector<Item> pageGameplay()
 {
     return {
         header("Monsters"),
@@ -583,7 +595,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
 
 // The weapons monsters drop as they die (ROUND21.md, "Enemy weapons: the grunts' shotguns and the enforcers' laser
 // rifles"): their base damage and ammo. Their offsets and weights are in the weapon menus (slots _19 .. _23).
-[[nodiscard]] std::vector<Item> pageEnemyWeapons()
+[[nodiscard]] za::Vector<Item> pageEnemyWeapons()
 {
     return {
         header("Knights' Swords"),
@@ -645,7 +657,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
 
 // VR Settings > Sound: the spatial audio (vr_audio.cpp; ROUND21.md, "Spatial audio (Steam Audio)"). Each feature off at
 // 0; without Steam Audio (phonon.dll) only the underwater filter, the hands' and the moving sounds work.
-[[nodiscard]] std::vector<Item> pageSound()
+[[nodiscard]] za::Vector<Item> pageSound()
 {
     return {
         cycle("Spatial Audio", vr_snd_spatial, {{0.f, "Off"}, {1.f, "In VR"}, {2.f, "Always (headphones)"}})
@@ -700,7 +712,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
 }
 
 // Split from Gameplay: damage multipliers, positional damage and knockback.
-[[nodiscard]] std::vector<Item> pageDamage()
+[[nodiscard]] za::Vector<Item> pageDamage()
 {
     return {
         header("Hit Detection"),
@@ -750,7 +762,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
 }
 
 // Blocking and shoving with a guard, and counter-attacks after a parry (the parry settings of Melee joined them).
-[[nodiscard]] std::vector<Item> pageParryBash()
+[[nodiscard]] za::Vector<Item> pageParryBash()
 {
     return {
         header("Parry"),
@@ -797,7 +809,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
 }
 
 // Split from Parry, Bash and Headbutt: the stamina parries, shoves and blows cost.
-[[nodiscard]] std::vector<Item> pageStamina()
+[[nodiscard]] za::Vector<Item> pageStamina()
 {
     return {
         header("Parry Stamina"),
@@ -855,7 +867,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
 }
 
 // Batting projectiles back (Parry, Bash and Headbutt) and catching grenades (Carrying and Gibs).
-[[nodiscard]] std::vector<Item> pageBatting()
+[[nodiscard]] za::Vector<Item> pageBatting()
 {
     return {
         header("Batting Projectiles"),
@@ -927,7 +939,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
     };
 }
 
-[[nodiscard]] std::vector<Item> pageBody()
+[[nodiscard]] za::Vector<Item> pageBody()
 {
     return {
         open("Arms and Pauldrons", pageIndex(pageBodyArms)),
@@ -982,7 +994,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
     };
 }
 
-[[nodiscard]] std::vector<Item> pageBodyCalibration();
+[[nodiscard]] za::Vector<Item> pageBodyCalibration();
 
 // Split from Body: the arms' reach and bend, the shoulders, and the pauldrons over them. Body Calibration measures the
 // arms' lengths and the shoulders (vr_bodycal_*); the sliders here are tweaks on top (vr_body_tweak_*, 0: as measured;
@@ -1006,34 +1018,34 @@ void armsResetTweaks()
     bodycal::resetTweaks();
 }
 
-[[nodiscard]] std::vector<Item> pageBodyArms()
+[[nodiscard]] za::Vector<Item> pageBodyArms()
 {
     armsPageCalibrated = bodycal::calibrated() ? 1 : 0;
-    std::vector<Item> list{open("Body Calibration", pageIndex(pageBodyCalibration))};
+    za::Vector<Item> list{open("Body Calibration", pageIndex(pageBodyCalibration))};
     for(int i = 0; bodycal::measuredLine(i); i++)
     {
-        list.push_back(infoLine(armsMeasured, i));
+        list.pushBack(infoLine(armsMeasured, i));
     }
-    list.insert(list.end(), {
+    list.pushBackMultiple(
         header("Arms"),
         slider("Upper Arm", vr_body_tweak_upper_arm, -10.f, 10.f, 0.5f, "%+.1f cm").extend(-30.f, 30.f)
             .help("Longer (negative: shorter) than measured, real cm: the shoulder joint to the elbow. 0: as Body "
                   "Calibration measured it (uncalibrated: the default body's arm, times Arm Length)."),
         slider("Forearm", vr_body_tweak_forearm, -10.f, 10.f, 0.5f, "%+.1f cm").extend(-30.f, 30.f)
             .help("Longer (negative: shorter) than measured, real cm: the elbow to the drawn hand's wrist. 0: as Body "
-                  "Calibration measured it (uncalibrated: the default body's forearm, times Arm Length)."),
-    });
+                  "Calibration measured it (uncalibrated: the default body's forearm, times Arm Length).")
+    );
     if(armsPageCalibrated)
     {
-        list.push_back(info(armLengthUnused));
+        list.pushBack(info(armLengthUnused));
     }
     else
     {
-        list.push_back(slider("Arm Length", vr_body_arm_length, 0.7f, 1.4f, 0.01f, "%.2fx").extend(0.5f, 2.f)
+        list.pushBack(slider("Arm Length", vr_body_arm_length, 0.7f, 1.4f, 0.01f, "%.2fx").extend(0.5f, 2.f)
                 .help("Uncalibrated: the default body's arms (for your height), times this. Once Body Calibration "
                       "has measured yours, it isn't used."));
     }
-    list.insert(list.end(), {
+    list.pushBackMultiple(
         slider("Arm Stretch", vr_body_arm_stretch, 1.f, 1.5f, 0.05f, "%.2fx").extend(1.f, 3.f)
             .help("How far the drawn arms may stretch to reach a hand beyond them (1: not at all). Calibrated, only past "
                   "your measured reach and the Shoulder Reach (tracking glitches, a lunge); uncalibrated, before the "
@@ -1079,8 +1091,8 @@ void armsResetTweaks()
             .help("How much the shoulder cap turns with the upper arm (the lower plates follow the arm fully)."),
         slider("Pauldron Forward", vr_body_pauldron_forward, -0.08f, 0.08f, 0.005f, "%.3f m").extend(-0.3f, 0.3f),
         slider("Pauldron Up", vr_body_pauldron_up, -0.08f, 0.08f, 0.005f, "%.3f m").extend(-0.3f, 0.3f),
-        slider("Pauldron Out", vr_body_pauldron_out, -0.08f, 0.08f, 0.005f, "%.3f m").extend(-0.3f, 0.3f),
-    });
+        slider("Pauldron Out", vr_body_pauldron_out, -0.08f, 0.08f, 0.005f, "%.3f m").extend(-0.3f, 0.3f)
+    );
     return list;
 }
 
@@ -1136,11 +1148,11 @@ const char* bodycalIntro(int i)
     return lines[i];
 }
 
-[[nodiscard]] std::vector<Item> pageBodyCalibration()
+[[nodiscard]] za::Vector<Item> pageBodyCalibration()
 {
     bodycalVersion = bodycal::version();
     bodycalSeated = vr_bodycal_seated.value != 0.f ? 1 : 0;
-    std::vector<Item> list{infoLine(bodycalIntro, 0), infoLine(bodycalIntro, 1), infoLine(bodycalIntro, 2),
+    za::Vector<Item> list{infoLine(bodycalIntro, 0), infoLine(bodycalIntro, 1), infoLine(bodycalIntro, 2),
         cycle("Position", vr_bodycal_seated, {{0.f, "Standing"}, {1.f, "Seated"}})
             .help("Seated, the height stays as it is (set it standing: Set Height Now); the arms and shoulders are measured "
                   "the same.")};
@@ -1148,47 +1160,47 @@ const char* bodycalIntro(int i)
     {
         if(bodycal::trusted())
         {
-            list.push_back(action("Apply", bodycalApply)
+            list.pushBack(action("Apply", bodycalApply)
                 .help("Sets the measurements: your arms' lengths, where your shoulders are and how they rise and swing, and "
                       "(standing) your height. Undo puts the settings back."));
         }
-        list.insert(list.end(), {
+        list.pushBackMultiple(
             action("Cancel", bodycalCancel).help("Nothing changes."),
             action(bodycal::showingNew() ? "Showing: New Measurements" : "Showing: Current Settings", bodycalSwitch)
                 .help("Your body (and the one in front of you) with the new measurements, or with the settings as they are: "
                       "bend and straighten your arms to compare."),
             cycle("Body in Front", vr_bodycal_preview, {{0.f, "Off"}, {1.f, "Facing You"}, {2.f, "From the Side"}})
-                .help("Your body in front of you while this page shows a result, moving as you do."),
-        });
+                .help("Your body in front of you while this page shows a result, moving as you do.")
+        );
     }
     else
     {
-        list.push_back(action(bodycal::partial() ? "Continue Calibration" : "Start Calibration", bodycalStart)
+        list.pushBack(action(bodycal::partial() ? "Continue Calibration" : "Start Calibration", bodycalStart)
                            .help("Stand (or sit) with room to stretch your arms. Follow the text in front of you and the "
                                  "figure ahead: after three beeps and a high one, take the pose and hold still until the "
                                  "click; the moves record for a few seconds. About two minutes. The menu button stops "
                                  "(Continue takes the rest)."));
         if(bodycal::partial())
         {
-            list.push_back(action("Start Over", bodycalRestart).help("All the poses again."));
+            list.pushBack(action("Start Over", bodycalRestart).help("All the poses again."));
         }
         if(bodycal::canUndo())
         {
-            list.push_back(action("Undo", bodycalUndo).help("Puts back the settings from before the last Apply, exactly."));
+            list.pushBack(action("Undo", bodycalUndo).help("Puts back the settings from before the last Apply, exactly."));
         }
     }
     for(int i = 0; bodycal::statusLine(i); i++)
     {
-        list.push_back(infoLine(bodycalLine, i));
+        list.pushBack(infoLine(bodycalLine, i));
     }
     if(bodycal::phase() == bodycal::Phase::Result || bodycal::partial())
     {
-        list.push_back(header("Poses"));
+        list.pushBack(header("Poses"));
         for(int i = 0; i < bodycal::stepCount(); i++)
         {
             if(bodycal::stepUsed(i))
             {
-                list.push_back(row(bodycal::stepRow, bodycal::stepHelp, bodycalRedo, i, -1));
+                list.pushBack(row(bodycal::stepRow, bodycal::stepHelp, bodycalRedo, i, -1));
             }
         }
     }
@@ -1222,32 +1234,32 @@ struct FlashlightFingerCvars
     cvar_t& thumbZ;
 };
 
-void flashlightFingers(std::vector<Item>& list, const FlashlightFingerCvars& c, int& manualAsBuilt)
+void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, int& manualAsBuilt)
 {
     const char* curlHelp = "How far this finger is curled round the torch: 0 open, 1 a fist (the controller's grip still opens it).";
     const char* fingerHelp = "Closes (+) or opens (-) this finger on top of how it holds the torch (a share of a full curl).";
-    list.push_back(cycle("Fingers", c.fingers, {{0.f, "Automatic"}, {1.f, "Manual"}})
+    list.pushBack(cycle("Fingers", c.fingers, {{0.f, "Automatic"}, {1.f, "Manual"}})
                        .help("Automatic: the fingers wrap the torch on their own. Manual: they take the curls set below "
                              "(no fitting: the hand is where the grip's sliders put it)."));
     manualAsBuilt = c.fingers.value >= 0.5f ? 1 : 0;
     if(manualAsBuilt)
     {
-        list.insert(list.end(), {
+        list.pushBackMultiple(
             slider("Thumb Curl", c.curlThumb, 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
             slider("Thumb Across", c.thumbAcross, 0.f, 1.f, 0.02f, "%.2f")
                 .help("How far the thumb turns across the palm: 0 beside the hand, 1 across it."),
             slider("Index Curl", c.curlIndex, 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
             slider("Middle Curl", c.curlMiddle, 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
             slider("Ring Curl", c.curlRing, 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
-            slider("Little Curl", c.curlPinky, 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
-        });
+            slider("Little Curl", c.curlPinky, 0.f, 1.f, 0.02f, "%.2f").help(curlHelp)
+        );
     }
     else
     {
-        list.push_back(slider("Overlap", c.overlap, 0.f, 1.f, 0.05f, "%.2f")
+        list.pushBack(slider("Overlap", c.overlap, 0.f, 1.f, 0.05f, "%.2f")
                            .help("How far the fingers and palm may sink into the torch: 0 they stop on its surface, 1 a centimetre in."));
     }
-    list.insert(list.end(), {
+    list.pushBackMultiple(
         slider("Thumb", c.biasThumb, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
         slider("Index Finger", c.biasIndex, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
         slider("Middle Finger", c.biasMiddle, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
@@ -1255,14 +1267,14 @@ void flashlightFingers(std::vector<Item>& list, const FlashlightFingerCvars& c, 
         slider("Little Finger", c.biasPinky, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
         slider("Thumb X (forward)", c.thumbX, -4.f, 4.f, 0.05f, "%+.2f").extend(-20.f, 20.f).help("Moves the thumb on the hand."),
         slider("Thumb Y (palm)", c.thumbY, -4.f, 4.f, 0.05f, "%+.2f").extend(-20.f, 20.f),
-        slider("Thumb Z (up)", c.thumbZ, -4.f, 4.f, 0.05f, "%+.2f").extend(-20.f, 20.f),
-    });
+        slider("Thumb Z (up)", c.thumbZ, -4.f, 4.f, 0.05f, "%+.2f").extend(-20.f, 20.f)
+    );
 }
 
 // Split from Body: the torch on the chest.
-[[nodiscard]] std::vector<Item> pageFlashlight()
+[[nodiscard]] za::Vector<Item> pageFlashlight()
 {
-    std::vector<Item> list = {
+    za::Vector<Item> list = {
         open("Low Grip", pageIndex(pageFlashlightLowGrip)).help("The torch in your hand as you take it: its place, its turn and the fingers on it."),
         open("Overhead Grip", pageIndex(pageFlashlightOverheadGrip)).help("The torch turned over in your hand (B or Y): its place, its turn and the fingers on it."),
         open("On a Gun or Head", pageIndex(pageFlashlightMounts)).help("Where the torch clips on a gun or on your head, and the zones that clip it on."),
@@ -1291,9 +1303,9 @@ void flashlightFingers(std::vector<Item>& list, const FlashlightFingerCvars& c, 
 }
 
 // Split from Flashlight: the low grip (the one you take it in) and its fingers.
-[[nodiscard]] std::vector<Item> pageFlashlightLowGrip()
+[[nodiscard]] za::Vector<Item> pageFlashlightLowGrip()
 {
-    std::vector<Item> list = {
+    za::Vector<Item> list = {
         header("In the Hand: Low Grip"),
         slider("Low Grip Forward", vr_flashlight_low_x, -30.f, 30.f, 0.5f, "%.1f cm").extend()
             .help("The torch's place in your fist when the beam comes out of the thumb's side (the grip you take it in), on top of In Hand Forward/Up. The other hand's is the mirror image."),
@@ -1303,7 +1315,7 @@ void flashlightFingers(std::vector<Item>& list, const FlashlightFingerCvars& c, 
         slider("Low Grip Yaw", vr_flashlight_low_yaw, -180.f, 180.f, 5.f, "%.0f deg").help("Turns the beam towards your palm (positive) or away."),
         slider("Low Grip Roll", vr_flashlight_low_roll, -180.f, 180.f, 5.f, "%.0f deg"),
     };
-    list.push_back(header("Low Grip: Fingers on the Torch"));
+    list.pushBack(header("Low Grip: Fingers on the Torch"));
     flashlightFingers(list,
         {vr_flashlight_low_fingers, vr_flashlight_low_overlap, vr_flashlight_low_curl_thumb, vr_flashlight_low_thumb_across,
             vr_flashlight_low_curl_index, vr_flashlight_low_curl_middle, vr_flashlight_low_curl_ring, vr_flashlight_low_curl_pinky,
@@ -1314,9 +1326,9 @@ void flashlightFingers(std::vector<Item>& list, const FlashlightFingerCvars& c, 
 }
 
 // Split from Flashlight: the overhead grip (turned over with B or Y) and its fingers.
-[[nodiscard]] std::vector<Item> pageFlashlightOverheadGrip()
+[[nodiscard]] za::Vector<Item> pageFlashlightOverheadGrip()
 {
-    std::vector<Item> list = {
+    za::Vector<Item> list = {
         header("In the Hand: Overhead Grip"),
         slider("Overhead Grip Forward", vr_flashlight_high_x, -30.f, 30.f, 0.5f, "%.1f cm").extend()
             .help("The same when B or Y has turned it over (the beam out of the little finger's side)."),
@@ -1326,7 +1338,7 @@ void flashlightFingers(std::vector<Item>& list, const FlashlightFingerCvars& c, 
         slider("Overhead Grip Yaw", vr_flashlight_high_yaw, -180.f, 180.f, 5.f, "%.0f deg"),
         slider("Overhead Grip Roll", vr_flashlight_high_roll, -180.f, 180.f, 5.f, "%.0f deg"),
     };
-    list.push_back(header("Overhead Grip: Fingers on the Torch"));
+    list.pushBack(header("Overhead Grip: Fingers on the Torch"));
     flashlightFingers(list,
         {vr_flashlight_high_fingers, vr_flashlight_high_overlap, vr_flashlight_high_curl_thumb, vr_flashlight_high_thumb_across,
             vr_flashlight_high_curl_index, vr_flashlight_high_curl_middle, vr_flashlight_high_curl_ring, vr_flashlight_high_curl_pinky,
@@ -1337,7 +1349,7 @@ void flashlightFingers(std::vector<Item>& list, const FlashlightFingerCvars& c, 
 }
 
 // Split from Flashlight: the torch clipped on a gun or on your head, and the zones that clip it on.
-[[nodiscard]] std::vector<Item> pageFlashlightMounts()
+[[nodiscard]] za::Vector<Item> pageFlashlightMounts()
 {
     return {
         header("Reach Zones"),
@@ -1378,7 +1390,7 @@ void flashlightFingers(std::vector<Item>& list, const FlashlightFingerCvars& c, 
 }
 
 // Gore (vr_gore.cpp, vr_decals.cpp, vr_bodyblood.cpp; the QC's gibs sticking: vr_carry.qc).
-[[nodiscard]] std::vector<Item> pageGore()
+[[nodiscard]] za::Vector<Item> pageGore()
 {
     return {
         cycle("Gore", vr_gore, {{0.f, "Quake VR"}, {1.f, "More"}, {2.f, "Over the top"}})
@@ -1416,7 +1428,7 @@ void flashlightFingers(std::vector<Item>& list, const FlashlightFingerCvars& c, 
     };
 }
 
-[[nodiscard]] std::vector<Item> pageGadget()
+[[nodiscard]] za::Vector<Item> pageGadget()
 {
     return {
         cycle("HUD", vr_hud_mode, {{1.f, "Wrist gadget"}, {0.f, "Status bar"}}),
@@ -1441,7 +1453,7 @@ void hologramTestMessage()
 
 // Split from Wrist Gadget (and Immersion): the wrist gadget's screen, the weapons' ammo screens and
 // the maps' text boards.
-[[nodiscard]] std::vector<Item> pageScreens()
+[[nodiscard]] za::Vector<Item> pageScreens()
 {
     return {
         header("Wrist Gadget"),
@@ -1489,7 +1501,7 @@ void hologramTestMessage()
 }
 
 // Split from Wrist Gadget: the colours of the player's effects.
-[[nodiscard]] std::vector<Item> pageColours()
+[[nodiscard]] za::Vector<Item> pageColours()
 {
     return {
         slider("Player Effects Hue", vr_player_hue, 0.f, 355.f, 5.f, "%.0f")
@@ -1518,7 +1530,7 @@ void hologramTestMessage()
     };
 }
 
-[[nodiscard]] std::vector<Item> pageThrowing()
+[[nodiscard]] za::Vector<Item> pageThrowing()
 {
     return {
         slider("Throw Speed", vr_weapon_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend(),
@@ -1619,7 +1631,7 @@ void hologramTestMessage()
 }
 
 // Carrying ammo and health boxes, explosive boxes, armour and pickups.
-[[nodiscard]] std::vector<Item> pageCarrying()
+[[nodiscard]] za::Vector<Item> pageCarrying()
 {
     return {
         header("Carrying Boxes"),
@@ -1785,7 +1797,7 @@ void hologramTestMessage()
 }
 
 // Split from Carrying and Gibs: the wall torches you can take.
-[[nodiscard]] std::vector<Item> pageWallTorches()
+[[nodiscard]] za::Vector<Item> pageWallTorches()
 {
     return {
         toggle("Take Torches Off Walls", vr_walltorch)
@@ -1821,7 +1833,7 @@ void hologramTestMessage()
 }
 
 // Split from Carrying and Gibs: rocks and bricks lying about.
-[[nodiscard]] std::vector<Item> pageRocksBricks()
+[[nodiscard]] za::Vector<Item> pageRocksBricks()
 {
     return {
         toggle("Rocks and Bricks", vr_debris)
@@ -1852,7 +1864,7 @@ void hologramTestMessage()
 }
 
 // Wooden crates (vr_crates*; vr_crates.cpp, QC vr_crates.qc): where they lie, breaking them, what they hold, hiding.
-[[nodiscard]] std::vector<Item> pageCrates()
+[[nodiscard]] za::Vector<Item> pageCrates()
 {
     return {
         header("Where They Lie"),
@@ -1910,7 +1922,7 @@ void hologramTestMessage()
 }
 
 // Split from Carrying and Gibs: taking, throwing and bursting gibs, heads and corpses.
-[[nodiscard]] std::vector<Item> pageGibs()
+[[nodiscard]] za::Vector<Item> pageGibs()
 {
     return {
         cycle("Gibs and Heads", vr_grab_gibs, {{0.f, "Left alone"}, {1.f, "Grab by hand"}, {2.f, "Hand and force grab"}})
@@ -1985,7 +1997,7 @@ void checklistReload()
     checklist::refresh(true);
 }
 
-[[nodiscard]] std::vector<Item> pageChecklist()
+[[nodiscard]] za::Vector<Item> pageChecklist()
 {
     checklist::refresh();
     checklistGeneration = checklist::generation();
@@ -1994,17 +2006,17 @@ void checklistReload()
     // The headers' names, one for each run of items under a section, where the items point (all copied before any is
     // pointed at).
     const int n = checklist::itemCount();
-    std::vector<std::string>& names = pageTexts.checklistSections;
+    za::Vector<za::String>& names = pageTexts.checklistSections;
     names.clear();
     for(int i = 0; i < n; i++)
     {
         if(i == 0 || checklist::sectionOf(i) != checklist::sectionOf(i - 1))
         {
-            names.emplace_back(checklist::sectionName(checklist::sectionOf(i)));
+            names.emplaceBack(checklist::sectionName(checklist::sectionOf(i)));
         }
     }
 
-    std::vector<Item> items = {
+    za::Vector<Item> items = {
         info(checklistSummary),
         toggle("Hide Ticked", vr_checklist_hide_ticked).help("Leaves the ticked items out of the list."),
         action("Reload List", checklistReload)
@@ -2028,7 +2040,7 @@ void checklistReload()
         if(headerDue)
         {
             headerDue = false;
-            items.push_back(header(names[run].c_str()));
+            items.pushBack(header(names[run].cStr()));
         }
         shown++;
         const int lines = q_min(checklist::lineCount(i), 256);
@@ -2037,17 +2049,17 @@ void checklistReload()
             Item r = row(checklistLine, checklistHelp, checklistToggle, (i << 8) | l, -1);
             r.dimArg = checklistDim;
             r.partOf = l;
-            items.push_back(r);
+            items.pushBack(r);
         }
     }
     if(shown == 0)
     {
-        items.push_back(info(checklistEmpty));
+        items.pushBack(info(checklistEmpty));
     }
     return items;
 }
 
-[[nodiscard]] std::vector<Item> pageDebug()
+[[nodiscard]] za::Vector<Item> pageDebug()
 {
     return {
         header("Playtesting"),
@@ -2072,7 +2084,7 @@ void checklistReload()
 }
 
 // Drawn in the world.
-std::vector<Item> pageDebugViews()
+za::Vector<Item> pageDebugViews()
 {
     return {
         toggle("Show Grapple Rope", vr_debug_rope)
@@ -2124,7 +2136,7 @@ std::vector<Item> pageDebugViews()
 }
 
 // Printed as it happens (the console, and the wrist log), or a trace file written every frame.
-std::vector<Item> pageDebugLogging()
+za::Vector<Item> pageDebugLogging()
 {
     return {
         cycle("Developer Messages", "developer", {{0.f, "Off"}, {1.f, "On"}, {2.f, "Verbose"}})
@@ -2207,7 +2219,7 @@ std::vector<Item> pageDebugLogging()
 }
 
 // The profiler and the memory log (moved from the Debug page).
-std::vector<Item> pageDebugProfiling()
+za::Vector<Item> pageDebugProfiling()
 {
     return {
         header("Profiling"),
@@ -2265,7 +2277,7 @@ std::vector<Item> pageDebugProfiling()
 }
 
 // Printed once, to the console (and the wrist log).
-std::vector<Item> pageDebugReports()
+za::Vector<Item> pageDebugReports()
 {
     return {
         header("The Game"),
@@ -2310,7 +2322,7 @@ std::vector<Item> pageDebugReports()
 }
 
 // Rebuilds, reloads, debug images, test effects.
-std::vector<Item> pageDebugTools()
+za::Vector<Item> pageDebugTools()
 {
     return {
         header("Rebuild and Reload"),
@@ -2351,13 +2363,13 @@ std::vector<Item> pageDebugTools()
 {
     static char text[96];
     q_snprintf(text, sizeof(text), "Stamina %.2f: heavy x%.2f, empty hand %.1f kg, shake %.2f, run x%.2f",
-        fatigue::staminaLeft(), weight::staminaMultiplier(), std::max(vr_weight_stamina_empty.value, 0.f) * weight::staminaShare(),
+        fatigue::staminaLeft(), weight::staminaMultiplier(), za::max(vr_weight_stamina_empty.value, 0.f) * weight::staminaShare(),
         fatigue::shakeLevel(), fatigue::speedScaleFor(fatigue::staminaLeft()));
     return text;
 }
 
 // What tests are done with in the headset (single player).
-std::vector<Item> pageDebugTests()
+za::Vector<Item> pageDebugTests()
 {
     return {
         header("Spatial Audio"),
@@ -2535,7 +2547,7 @@ std::vector<Item> pageDebugTests()
     };
 }
 
-[[nodiscard]] std::vector<Item> pageForceGrab()
+[[nodiscard]] za::Vector<Item> pageForceGrab()
 {
     return {
         toggle("Force Grab", vr_forcegrab_mode)
@@ -2574,7 +2586,7 @@ std::vector<Item> pageDebugTests()
     return slot >= 0 ? weapons::cvar(slot, key) : nullptr;
 }
 
-[[nodiscard]] std::vector<Item> pageGrapple()
+[[nodiscard]] za::Vector<Item> pageGrapple()
 {
     return {
         cycle("Rope", vr_grapple_rope, {{1.f, "Holds"}, {0.f, "Pulls at once"}})
@@ -2723,15 +2735,15 @@ std::vector<Item> pageDebugTests()
 
 // Movement > Player Hitbox: how wide the player is against the map and against other boxes (vr_hull.cpp,
 // docs/vr-port/HULLS.md).
-std::vector<Item> pageHitbox()
+za::Vector<Item> pageHitbox()
 {
-    const std::vector<Choice> widths{{8.f, "8 units"}, {12.f, "12 units"}, {16.f, "16 units"}, {20.f, "20 units"},
+    const za::Vector<Choice> widths{{8.f, "8 units"}, {12.f, "12 units"}, {16.f, "16 units"}, {20.f, "20 units"},
         {24.f, "24 units"}, {28.f, "28 units"}, {32.f, "32 (new collision)"}};
-    std::vector<Choice> world{{0.f, "Quake's (32)"}};
-    world.insert(world.end(), widths.begin(), widths.end());
-    std::vector<Choice> ents{{-1.f, "Same as Walls"}, {0.f, "Quake's (32)"}};
-    ents.insert(ents.end(), widths.begin(), widths.end());
-    std::vector<Choice> hits{world.begin(), world.end() - 1}; // Quake's 32 .. 28 (32 is Quake's box already)
+    za::Vector<Choice> world{{0.f, "Quake's (32)"}};
+    world.emplaceBackRange(widths.data(), widths.size());
+    za::Vector<Choice> ents{{-1.f, "Same as Walls"}, {0.f, "Quake's (32)"}};
+    ents.emplaceBackRange(widths.data(), widths.size());
+    za::Vector<Choice> hits{world.begin(), world.end() - 1}; // Quake's 32 .. 28 (32 is Quake's box already)
     return {
         header("Walls and Brush Models"),
         cycle("Width Against Walls", vr_hull_width, world)
@@ -2803,19 +2815,19 @@ std::vector<Item> pageHitbox()
 }
 
 // Movement > Monster Hitbox: monsters' widths against walls, by class (vr_hull.cpp, docs/vr-port/HULLS.md, "Monsters").
-std::vector<Item> pageMonsterHitbox()
+za::Vector<Item> pageMonsterHitbox()
 {
     auto widths = [](float quake)
     {
         static const char* const labels[] = {"16 units", "24 units", "32 units", "40 units", "48 units", "56 units"};
-        std::vector<Choice> c{{-1.f, "Its Box"}, {0.f, quake == 32.f ? "Quake's Hull (32)" : "Quake's Hull (64)"}};
+        za::Vector<Choice> c{{-1.f, "Its Box"}, {0.f, quake == 32.f ? "Quake's Hull (32)" : "Quake's Hull (64)"}};
         for(int i = 0; 16.f + 8.f * static_cast<float>(i) < quake; ++i)
         {
-            c.push_back({16.f + 8.f * static_cast<float>(i), labels[i]});
+            c.pushBack({16.f + 8.f * static_cast<float>(i), labels[i]});
         }
         return c;
     };
-    const std::vector<Choice> small = widths(32.f), big = widths(64.f);
+    const za::Vector<Choice> small = widths(32.f), big = widths(64.f);
     auto cls = [&](const char* label, cvar_t& cvar, bool hull2)
     {
         return cycle(label, &cvar, hull2 ? big : small)
@@ -2880,15 +2892,15 @@ struct Page
     PageBuilder home; // the page listing it in the tree (Back after menu_vr <n>; links elsewhere go back where they came from)
 };
 
-[[nodiscard]] std::vector<Item> pageMain();
-[[nodiscard]] std::vector<Item> pageAdvanced();
-[[nodiscard]] std::vector<Item> pageWeaponOffsets();
-[[nodiscard]] std::vector<Item> pageCombat();
-[[nodiscard]] std::vector<Item> pageMovement();
-[[nodiscard]] std::vector<Item> pageCarryingHub();
-[[nodiscard]] std::vector<Item> pageWeaponsHub();
-[[nodiscard]] std::vector<Item> pageHudHub();
-[[nodiscard]] std::vector<Item> pageLightningWater();
+[[nodiscard]] za::Vector<Item> pageMain();
+[[nodiscard]] za::Vector<Item> pageAdvanced();
+[[nodiscard]] za::Vector<Item> pageWeaponOffsets();
+[[nodiscard]] za::Vector<Item> pageCombat();
+[[nodiscard]] za::Vector<Item> pageMovement();
+[[nodiscard]] za::Vector<Item> pageCarryingHub();
+[[nodiscard]] za::Vector<Item> pageWeaponsHub();
+[[nodiscard]] za::Vector<Item> pageHudHub();
+[[nodiscard]] za::Vector<Item> pageLightningWater();
 
 // The pages, by their number (menu_vr <n>): the numbers stay as they were, new pages are added last (the menus'
 // tree is in the pages' links: VR Settings > Advanced VR Options > its groups > their pages; ROUND21.md, "Menus
@@ -2978,7 +2990,7 @@ const Page pages[] = {
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
-std::vector<Item> pageMain()
+za::Vector<Item> pageMain()
 {
     return {
         header("Tuning"),
@@ -3017,7 +3029,7 @@ std::vector<Item> pageMain()
 }
 
 // Split from VR Settings: its body and display settings (the quick ones; all of them under Advanced VR Options).
-[[nodiscard]] std::vector<Item> pageBodyDisplay()
+[[nodiscard]] za::Vector<Item> pageBodyDisplay()
 {
     return {
         header("Body"),
@@ -3053,7 +3065,7 @@ std::vector<Item> pageMain()
 }
 
 // Split from VR Settings: the headset.
-[[nodiscard]] std::vector<Item> pageHeadset()
+[[nodiscard]] za::Vector<Item> pageHeadset()
 {
     return {
         header("Headset"),
@@ -3076,7 +3088,7 @@ std::vector<Item> pageMain()
 }
 
 // Advanced VR Options: every page, in groups (a page for each group of many, the others here).
-std::vector<Item> pageAdvanced()
+za::Vector<Item> pageAdvanced()
 {
     return {
         header("Game"),
@@ -3103,7 +3115,7 @@ std::vector<Item> pageAdvanced()
     };
 }
 
-std::vector<Item> pageCombat()
+za::Vector<Item> pageCombat()
 {
     return {
         open("Melee", pageIndex(pageMeleeSettings)).help("Swings and punches, bloodlust, the headbutt."),
@@ -3116,7 +3128,7 @@ std::vector<Item> pageCombat()
     };
 }
 
-std::vector<Item> pageMovement()
+za::Vector<Item> pageMovement()
 {
     return {
         open("Locomotion", pageIndex(pageLocomotionSettings)).help("Moving, turning, teleport, leaning and room scale."),
@@ -3128,7 +3140,7 @@ std::vector<Item> pageMovement()
     };
 }
 
-std::vector<Item> pageCarryingHub()
+za::Vector<Item> pageCarryingHub()
 {
     return {
         open("Carrying", pageIndex(pageCarrying)).help("Ammo and health boxes, explosive boxes, armour and pickups."),
@@ -3145,7 +3157,7 @@ std::vector<Item> pageCarryingHub()
 }
 
 // The lightning gun in water (vr_lg_water*; QC weapons.qc VR_LGWater_*, vr_shock.cpp).
-std::vector<Item> pageLightningWater()
+za::Vector<Item> pageLightningWater()
 {
     return {
         toggle("Lightning Gun in Water", vr_lg_water)
@@ -3166,7 +3178,7 @@ std::vector<Item> pageLightningWater()
     };
 }
 
-std::vector<Item> pageWeaponsHub()
+za::Vector<Item> pageWeaponsHub()
 {
     return {
         header("Tuning"),
@@ -3185,7 +3197,7 @@ std::vector<Item> pageWeaponsHub()
     };
 }
 
-std::vector<Item> pageHudHub()
+za::Vector<Item> pageHudHub()
 {
     return {
         open("Wrist Gadget", pageIndex(pageGadget)),
@@ -3395,10 +3407,10 @@ void weaponOffsetsHotspotRemove()
     }
 }
 
-std::vector<Item> pageWeaponOffsets()
+za::Vector<Item> pageWeaponOffsets()
 {
     using weapons::Key;
-    std::string& title = pageTexts.weaponOffsetsTitle;
+    za::String& title = pageTexts.weaponOffsetsTitle;
     int slot = vrActive() || cls.state == ca_connected ? weapons::heldSlot(weaponOffsetsHand) : -1;
     if(slot < 0 && cls.state == ca_connected)
     {
@@ -3407,40 +3419,40 @@ std::vector<Item> pageWeaponOffsets()
     weaponOffsetsSlot = slot;
     weaponOffsetsSightVersion = sightalign::version();
 
-    std::vector<Item> list;
+    za::Vector<Item> list;
     const char* hand = weaponOffsetsHand == 1 ? "Main hand" : "Off hand";
     if(slot < 0)
     {
-        title = std::string(hand) + ": hold a weapon in a game to adjust it";
-        list.push_back(header(title.c_str()));
-        list.push_back(action("Edit the Other Hand's Weapon", weaponOffsetsOtherHand));
+        title = za::String(hand) + ": hold a weapon in a game to adjust it";
+        list.pushBack(header(title.cStr()));
+        list.pushBack(action("Edit the Other Hand's Weapon", weaponOffsetsOtherHand));
         return list;
     }
 
     const char* model = weapons::cvar(slot, Key::ID)->string;
-    title = std::string(hand) + ": " + model + " (_" + (slot + 1 < 10 ? "0" : "") + std::to_string(slot + 1) + ")";
+    title = za::String(hand) + ": " + model + " (_" + (slot + 1 < 10 ? "0" : "") + za::toString(slot + 1) + ")";
 
     // A weapon inheriting another's settings (InheritFrom: the other ammo's model): the page edits those.
     const int heldSlot = slot;
     weaponOffsetsHeldSlot = heldSlot;
     weaponOffsetsInherit = weapons::inheritsFrom(heldSlot);
-    std::string& inheritTitle = pageTexts.weaponOffsetsInheritTitle;
-    std::vector<std::pair<float, std::string>>& inheritNames = pageTexts.weaponOffsetsInheritNames;
+    za::String& inheritTitle = pageTexts.weaponOffsetsInheritTitle;
+    za::Vector<qza::Pair<float, za::String>>& inheritNames = pageTexts.weaponOffsetsInheritNames;
     if(weaponOffsetsInherit >= 0)
     {
         slot = weaponOffsetsInherit;
         weaponOffsetsSlot = slot;
-        inheritTitle = std::string("Settings of ") + weapons::cvar(slot, Key::ID)->string + " (inherited)";
+        inheritTitle = za::String("Settings of ") + weapons::cvar(slot, Key::ID)->string + " (inherited)";
     }
     inheritNames.clear();
-    inheritNames.push_back({0.f, "None"});
+    inheritNames.pushBack({0.f, "None"});
     for(int other = 0; other < weapons::numSlots; other++)
     {
         const char* id = weapons::cvar(other, Key::ID)->string;
         if(other != heldSlot && other != weapons::fistSlot() && id[0] && strcmp(id, "-1") != 0)
         {
             const char* base = strrchr(id, '/');
-            inheritNames.push_back({static_cast<float>(other + 1), base ? base + 1 : id});
+            inheritNames.pushBack({static_cast<float>(other + 1), base ? base + 1 : id});
         }
     }
 
@@ -3453,60 +3465,60 @@ std::vector<Item> pageWeaponOffsets()
                            "without moving the weapon: line the red line up with the sights. Degrees, as you hold it "
                            "(the off hand's yaw mirrored).";
     list = {
-        header(title.c_str()),
+        header(title.cStr()),
         action("Edit the Other Hand's Weapon", weaponOffsetsOtherHand)
             .help("The page shows the weapon the hand held when it was opened: reopen it after changing weapons."),
     };
     if(!fist)
     {
-        std::vector<Choice> choices;
+        za::Vector<Choice> choices;
         for(const auto& [v, name] : inheritNames)
         {
-            choices.push_back({v, name.c_str()});
+            choices.pushBack({v, name.cStr()});
         }
-        list.push_back(cycle("Inherit From", weapons::cvar(heldSlot, Key::InheritFrom), std::move(choices))
+        list.pushBack(cycle("Inherit From", weapons::cvar(heldSlot, Key::InheritFrom), ZA_MOVE(choices))
                            .help("Use another weapon's settings (its placement, fingers, hotspots, muzzle, screen): the other "
                                  "ammo's model, set once for both. This page then edits that weapon's."));
         if(weaponOffsetsInherit >= 0)
         {
-            list.push_back(header(inheritTitle.c_str()));
-            list.push_back(action("Stop Inheriting (Copy Them Here)", weaponOffsetsStopInheriting)
+            list.pushBack(header(inheritTitle.cStr()));
+            list.pushBack(action("Stop Inheriting (Copy Them Here)", weaponOffsetsStopInheriting)
                                .help("This weapon gets its own copy of the settings it inherits, to change apart."));
         }
         // Align Sights to My Aim (vr_sightalign.cpp).
-        list.push_back(header("Align Sights to My Aim"));
+        list.pushBack(header("Align Sights to My Aim"));
         if(sightalign::alignable(weaponOffsetsHand))
         {
             if(sightalign::phase() == sightalign::Phase::Result)
             {
-                list.push_back(action("Apply", sightAlignApply)
+                list.pushBack(action("Apply", sightAlignApply)
                                    .help("Turns the hand and the gun together about your fist (Hand and Weapon Together) so "
                                          "that the sights line up in front of your dominant eye, and the shots onto the "
                                          "sight line (Shot Pitch and Yaw). Undo puts the values back."));
-                list.push_back(action("Cancel", sightAlignCancel).help("Nothing changes."));
+                list.pushBack(action("Cancel", sightAlignCancel).help("Nothing changes."));
             }
             else
             {
-                list.push_back(action("Align Sights to My Aim", sightAlignStart)
+                list.pushBack(action("Align Sights to My Aim", sightAlignStart)
                                    .help("Close your eyes and lower the gun. After three beeps and a high one, raise it as you "
                                          "raise your own gun, and hold still: a click takes it. Lower it and raise it again "
                                          "after each click, until the chime. Then open your eyes: Apply or Cancel. The menu "
                                          "button stops."));
                 if(sightalign::canUndo())
                 {
-                    list.push_back(action("Undo", sightAlignUndo).help("Puts back the values from before Apply, exactly."));
+                    list.pushBack(action("Undo", sightAlignUndo).help("Puts back the values from before Apply, exactly."));
                 }
             }
             for(int i = 0; sightalign::statusLine(i); i++)
             {
-                list.push_back(infoLine(sightAlignLine, i));
+                list.pushBack(infoLine(sightAlignLine, i));
             }
         }
         else
         {
-            list.push_back(info(sightAlignNone));
+            list.pushBack(info(sightAlignNone));
         }
-        list.insert(list.end(), {
+        list.pushBackMultiple(
             cycle("Dominant Eye", vr_dominant_eye, {{0.f, "Right"}, {1.f, "Left"}})
                 .help("The eye that looks along the sights: pointing at something with both eyes open, the one that stays on "
                       "it when you close the other."),
@@ -3514,10 +3526,10 @@ std::vector<Item> pageWeaponOffsets()
                 .help("How many times the aim is taken: averaged, one that stands apart from the others dropped."),
             toggle("Show Sight Line", vr_show_sight_line)
                 .help("Draws each held gun's sight line: its rear point (yellow), its front one (cyan), and the line through "
-                      "them to the wall. Painted sights: the shotguns, the lightning gun; the others a line along the top."),
-        });
+                      "them to the wall. Painted sights: the shotguns, the lightning gun; the others a line along the top.")
+        );
         // The weapon posing mode (vr_posing.cpp).
-        list.insert(list.end(), {
+        list.pushBackMultiple(
             header("Posing Mode"),
             action("Pose This Weapon", weaponOffsetsPoseWeapon)
                 .help("The weapon floats still in front of you: put the weapon hand on it as you want to hold it and "
@@ -3530,10 +3542,10 @@ std::vector<Item> pageWeaponOffsets()
                 .help("Keep: the pose is kept with Hand and Weapon Together, Hand Only and Held Hand as they are. "
                       "Set to 0: confirming sets them to 0 (the pose alone places the hand)."),
             s("Shot Pitch (up)", Key::ShotPitch, -10.f, 10.f, 0.1f, "%+.1f").extend(-45.f, 45.f).help(shotHelp),
-            s("Shot Yaw (left)", Key::ShotYaw, -10.f, 10.f, 0.1f, "%+.1f").extend(-45.f, 45.f).help(shotHelp),
-        });
+            s("Shot Yaw (left)", Key::ShotYaw, -10.f, 10.f, 0.1f, "%+.1f").extend(-45.f, 45.f).help(shotHelp)
+        );
     }
-    list.insert(list.end(), {
+    list.pushBackMultiple(
         header(fist ? "The Hand" : "Weapon in the Hand"),
         s("Offset X (forward)", Key::OffsetX, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f)
             .help(fist ? "Moves the drawn hand." :
@@ -3545,14 +3557,14 @@ std::vector<Item> pageWeaponOffsets()
         s("Yaw", Key::Yaw, -180.f, 180.f, 0.5f, "%.1f"),
         s("Roll", Key::Roll, -180.f, 180.f, 0.5f, "%.1f"),
         s("Scale", Key::Scale, 0.1f, 3.f, 0.01f, "%.2f").extend(0.02f, 10.f),
-        cycle("Hide Hand", weapons::cvar(slot, Key::HideHand), {{0.f, "No"}, {1.f, "Yes"}}),
-    });
+        cycle("Hide Hand", weapons::cvar(slot, Key::HideHand), {{0.f, "No"}, {1.f, "Yes"}})
+    );
     if(!fist)
     {
         // Round 21, third pass: the tuning offsets, applied last, and the aids to see them by.
         const char* frameHelp = "In the controller's aim frame: X forward, Y left, Z up (as for the main hand; the off hand "
                                 "mirrored).";
-        list.insert(list.end(), {
+        list.pushBackMultiple(
             header("Tuning Aids"),
             toggle("Show Controller", vr_show_controller)
                 .help("Draws each controller as tracked: a Quest 3 controller at its grip, translucent, with its axes (red "
@@ -3561,12 +3573,12 @@ std::vector<Item> pageWeaponOffsets()
             toggle("Show Controller Laser", vr_show_controller_laser)
                 .help("White: where the controller points (Gun Angle included). Red: where the weapon's shots go, from "
                       "its muzzle. Green: the weapon's barrel, as drawn. Turn the weapon (Pitch, Yaw) until green runs "
-                      "along red, or the shots (Shot Pitch, Shot Yaw, under Muzzle) until red meets the sights."),
-        });
+                      "along red, or the shots (Shot Pitch, Shot Yaw, under Muzzle) until red meets the sights.")
+        );
         // After the posing test: the preview's offsets, to match the real controllers (drawControllerPreview).
         const char* previewHelp = "Moves the Show Controller preview (not the hands or weapons) to match your real controller: "
                                   "centimetres along its axes (red: along the handle, green: left, blue: up), degrees.";
-        list.insert(list.end(), {
+        list.pushBackMultiple(
             header("Controller Preview (Show Controller)"),
             slider("Preview X (red)", vr_show_controller_x, -10.f, 10.f, 0.1f, "%+.1f cm").extend().help(previewHelp),
             slider("Preview Y (green)", vr_show_controller_y, -10.f, 10.f, 0.1f, "%+.1f cm").extend().help(previewHelp),
@@ -3576,21 +3588,21 @@ std::vector<Item> pageWeaponOffsets()
             slider("Preview Roll", vr_show_controller_roll, -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f).help(previewHelp),
             cycle("Off Hand Preview", vr_show_controller_off_own, {{0.f, "Mirrors the Main Hand's"}, {1.f, "Its Own"}})
                 .help("The sliders above are the main hand's; the off hand's preview mirrors them (Y, Yaw and Roll the other "
-                      "way), or takes its own."),
-        });
+                      "way), or takes its own.")
+        );
         weaponOffsetsPreviewOwn = vr_show_controller_off_own.value != 0.f ? 1 : 0;
         if(weaponOffsetsPreviewOwn)
         {
-            list.insert(list.end(), {
+            list.pushBackMultiple(
                 slider("Off Hand X (red)", vr_show_controller_off_x, -10.f, 10.f, 0.1f, "%+.1f cm").extend().help(previewHelp),
                 slider("Off Hand Y (green)", vr_show_controller_off_y, -10.f, 10.f, 0.1f, "%+.1f cm").extend().help(previewHelp),
                 slider("Off Hand Z (blue)", vr_show_controller_off_z, -10.f, 10.f, 0.1f, "%+.1f cm").extend().help(previewHelp),
                 slider("Off Hand Pitch (up)", vr_show_controller_off_pitch, -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f).help(previewHelp),
                 slider("Off Hand Yaw (left)", vr_show_controller_off_yaw, -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f).help(previewHelp),
-                slider("Off Hand Roll", vr_show_controller_off_roll, -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f).help(previewHelp),
-            });
+                slider("Off Hand Roll", vr_show_controller_off_roll, -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f).help(previewHelp)
+            );
         }
-        list.insert(list.end(), {
+        list.pushBackMultiple(
             header("Hand and Weapon Together"),
             s("Together X (forward)", Key::WholeX, -15.f, 15.f, 0.1f, "%+.1f").extend()
                 .help("Moves the hand and the weapon together, last (after the fingers wrap it and the palm fits): the "
@@ -3611,37 +3623,37 @@ std::vector<Item> pageWeaponOffsets()
             s("Hand Pitch (up)", Key::HandOnlyPitch, -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f)
                 .help("Turns the drawn hand alone about its palm (a bent wrist straightened): the weapon stays."),
             s("Hand Yaw (left)", Key::HandOnlyYaw, -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f),
-            s("Hand Roll", Key::HandOnlyRoll, -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f),
-        });
+            s("Hand Roll", Key::HandOnlyRoll, -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f)
+        );
         const char* fingerHelp = "Closes (+) or opens (-) this finger on top of how it wraps the weapon on its own "
                                  "(a share of a full curl).";
-        list.insert(list.end(), {
+        list.pushBackMultiple(
             header("Fingers on the Weapon"),
             cycle("Fingers", weapons::cvar(slot, Key::FingerManual), {{0.f, "Automatic"}, {1.f, "Manual"}})
                 .help("Automatic: the fingers wrap the weapon on their own. Manual: they take the curls set below (no "
-                      "fitting); the index finger still pulls the trigger."),
-        });
+                      "fitting); the index finger still pulls the trigger.")
+        );
         weaponOffsetsManual = weapons::value(slot, Key::FingerManual) >= 0.5f ? 1 : 0;
         if(weaponOffsetsManual)
         {
             const char* curlHelp = "How far this finger is curled: 0 open, 1 a fist (the controller's grip still opens it).";
-            list.insert(list.end(), {
+            list.pushBackMultiple(
                 s("Thumb Curl", Key::FingerCurlThumb, 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
                 s("Thumb Across", Key::FingerThumbAcross, 0.f, 1.f, 0.02f, "%.2f")
                     .help("How far the thumb turns across the palm: 0 beside the hand, 1 across it."),
                 s("Index Curl", Key::FingerCurlIndex, 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
                 s("Middle Curl", Key::FingerCurlMiddle, 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
                 s("Ring Curl", Key::FingerCurlRing, 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
-                s("Little Curl", Key::FingerCurlPinky, 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
-            });
+                s("Little Curl", Key::FingerCurlPinky, 0.f, 1.f, 0.02f, "%.2f").help(curlHelp)
+            );
         }
         else
         {
-            list.push_back(s("Overlap", Key::GripOverlap, 0.f, 1.f, 0.05f, "%.2f")
+            list.pushBack(s("Overlap", Key::GripOverlap, 0.f, 1.f, 0.05f, "%.2f")
                                .help("How far the fingers and palm may sink into the weapon: 0 they stop on its surface, 1 a "
                                      "centimetre in."));
         }
-        list.insert(list.end(), {
+        list.pushBackMultiple(
             s("Thumb", Key::FingerThumbBias, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
             s("Index Finger", Key::FingerIndexBias, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
             s("Middle Finger", Key::FingerMiddleBias, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
@@ -3655,8 +3667,8 @@ std::vector<Item> pageWeaponOffsets()
             s("Muzzle Y", Key::MuzzleOffsetY, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f),
             s("Muzzle Z", Key::MuzzleOffsetZ, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f),
             s("Shot Pitch (up)", Key::ShotPitch, -10.f, 10.f, 0.1f, "%+.1f").extend(-45.f, 45.f).help(shotHelp),
-            s("Shot Yaw (left)", Key::ShotYaw, -10.f, 10.f, 0.1f, "%+.1f").extend(-45.f, 45.f).help(shotHelp),
-        });
+            s("Shot Yaw (left)", Key::ShotYaw, -10.f, 10.f, 0.1f, "%+.1f").extend(-45.f, 45.f).help(shotHelp)
+        );
 
         // The two-handed grips: the hotspot being edited.
         const int index = editedHotspot();
@@ -3664,7 +3676,7 @@ std::vector<Item> pageWeaponOffsets()
         weaponOffsetsHotspot = index;
         weaponOffsetsHotspotType = static_cast<int>(h.type);
         const auto hk = [&](int field) { return weapons::cvar(slot, weapons::hotspotKey(index, field)); };
-        list.insert(list.end(), {
+        list.pushBackMultiple(
             header("Other Hand's Grips (Hotspots)"),
             cycle("Two-Handed", weapons::cvar(slot, Key::TwoHMode),
                 {{0.f, "Allowed"}, {1.f, "Allowed, No Stock"}, {2.f, "Not Allowed"}, {3.f, "Sword"}})
@@ -3680,19 +3692,19 @@ std::vector<Item> pageWeaponOffsets()
             action("Pose This Hotspot", weaponOffsetsPoseHotspot)
                 .help("Posing mode on this hotspot (a grip if it has no type): the weapon floats, held by the weapon "
                       "hand; put the other hand where it should hold it and press the weapon hand's A/X."),
-            action("Pose a New Hotspot", weaponOffsetsPoseNewHotspot).help("The same on the first free hotspot."),
-        });
+            action("Pose a New Hotspot", weaponOffsetsPoseNewHotspot).help("The same on the first free hotspot.")
+        );
         if(h.type == weapons::HotspotType::Blade)
         {
-            list.push_back(slider("Along the Blade", hk(1), 0.f, 1.f, 0.01f, "%.2f")
+            list.pushBack(slider("Along the Blade", hk(1), 0.f, 1.f, 0.01f, "%.2f")
                                .help("Where on the blade the grip is centred: a share of the way from the hand to the tip."));
-            list.push_back(slider("Blade Grip Ends At", hk(2), 0.f, 1.05f, 0.01f, "%.2f")
+            list.pushBack(slider("Blade Grip Ends At", hk(2), 0.f, 1.05f, 0.01f, "%.2f")
                                .help("How far towards the tip the hand may hold it and slide along it: a share of the way "
                                      "from the hand to the tip (0: just past the tip). The crowbar's ends short of its hook."));
         }
         else
         {
-            list.insert(list.end(), {
+            list.pushBackMultiple(
                 slider("Hotspot X", hk(1), -40.f, 40.f, 0.1f, "%.2f")
                     .extend(-200.f, 200.f)
                     .help(h.type == weapons::HotspotType::Cup
@@ -3702,39 +3714,39 @@ std::vector<Item> pageWeaponOffsets()
                 slider("Hotspot Y", hk(2), -40.f, 40.f, 0.1f, "%.2f").extend(-200.f, 200.f),
                 slider("Hotspot Z", hk(3), -40.f, 40.f, 0.1f, "%.2f").extend(-200.f, 200.f),
                 action("Put It Where the Other Hand Is", weaponOffsetsHotspotAtHand)
-                    .help("Makes this hotspot a grip at the other hand, as it is now (a cup: at its palm)."),
-            });
+                    .help("Makes this hotspot a grip at the other hand, as it is now (a cup: at its palm).")
+            );
         }
-        list.insert(list.end(), {
+        list.pushBackMultiple(
             slider("Hand Pitch", hk(5), -90.f, 90.f, 1.f, "%.0f").extend(-180.f, 180.f).help("How the hand holding it is turned there."),
             slider("Hand Yaw", hk(6), -90.f, 90.f, 1.f, "%.0f").extend(-180.f, 180.f),
             slider("Hand Roll", hk(7), -180.f, 180.f, 1.f, "%.0f"),
             cycle("Thumb", hk(8), {{0.f, "Wraps round"}, {1.f, "Along the top"}})
                 .help("Whether the thumb wraps round it with the fingers, or lies along its top."),
             cycle("Fingers There", hk(16), {{0.f, "Automatic"}, {1.f, "Manual"}})
-                .help("Automatic: the hand holding it wraps it on its own. Manual: its fingers take the curls set here."),
-        });
+                .help("Automatic: the hand holding it wraps it on its own. Manual: its fingers take the curls set here.")
+        );
         weaponOffsetsHotspotManual = h.manual ? 1 : 0;
         if(h.manual)
         {
             const char* curlHelp = "How far this finger is curled: 0 open, 1 a fist.";
-            list.insert(list.end(), {
+            list.pushBackMultiple(
                 slider("Thumb Curl There", hk(17), 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
                 slider("Thumb Across There", hk(22), 0.f, 1.f, 0.02f, "%.2f")
                     .help("How far the thumb turns across the palm: 0 beside the hand, 1 across it."),
                 slider("Index Curl There", hk(18), 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
                 slider("Middle Curl There", hk(19), 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
                 slider("Ring Curl There", hk(20), 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
-                slider("Little Curl There", hk(21), 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
-            });
+                slider("Little Curl There", hk(21), 0.f, 1.f, 0.02f, "%.2f").help(curlHelp)
+            );
         }
         else
         {
-            list.push_back(slider("Overlap There", hk(9), 0.f, 1.f, 0.05f, "%.2f")
+            list.pushBack(slider("Overlap There", hk(9), 0.f, 1.f, 0.05f, "%.2f")
                                .help("How far the hand holding it may sink into the weapon: 0 not at all, 1 a centimetre (into "
                                      "the other hand, on a cup: Hand/Gun Calibration's Fit Overlap: Hands)."));
         }
-        list.insert(list.end(), {
+        list.pushBackMultiple(
             slider("Held Hand X (forward)", hk(10), -10.f, 10.f, 0.1f, "%+.1f").extend()
                 .help("Moves the hand drawn on this hotspot once it holds it (visual only: where it is taken, and the "
                       "aim, don't change). In the holding hand's aim frame, units; as for the off hand helping."),
@@ -3742,9 +3754,9 @@ std::vector<Item> pageWeaponOffsets()
             slider("Held Hand Z (up)", hk(12), -10.f, 10.f, 0.1f, "%+.1f").extend(),
             slider("Held Hand Pitch (up)", hk(13), -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f).help("Turns it there, about its palm."),
             slider("Held Hand Yaw (left)", hk(14), -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f),
-            slider("Held Hand Roll", hk(15), -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f),
-        });
-        list.insert(list.end(), {
+            slider("Held Hand Roll", hk(15), -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f)
+        );
+        list.pushBackMultiple(
             slider("Bias", hk(4), 0.f, 10.f, 0.1f, "%.1f").extend(0.f, 50.f).help("Units taken off its distance: larger, easier to take than the others."),
             slider("Stickiness", hk(23), 0.5f, 4.f, 0.05f, "%.2fx").extend(0.1f, 20.f)
                 .help("Once your other hand holds it, times how far it may go off it (20 units), out of line (Aiming: 2H "
@@ -3768,8 +3780,8 @@ std::vector<Item> pageWeaponOffsets()
             s("Screen Pitch", Key::WpnTextPitch, -180.f, 180.f, 0.5f, "%.1f"),
             s("Screen Yaw", Key::WpnTextYaw, -180.f, 180.f, 0.5f, "%.1f"),
             s("Screen Roll", Key::WpnTextRoll, -180.f, 180.f, 0.5f, "%.1f"),
-            s("Screen Scale", Key::WpnTextScale, 0.05f, 3.f, 0.05f, "%.2f").extend(0.01f, 10.f),
-        });
+            s("Screen Scale", Key::WpnTextScale, 0.05f, 3.f, 0.05f, "%.2f").extend(0.01f, 10.f)
+        );
     }
     if(!fist)
     {
@@ -3786,7 +3798,7 @@ std::vector<Item> pageWeaponOffsets()
         const char* turnHelp = "Turns this weapon in the holster about its grip, on top of the holster's own turn (Hotspots): "
                                "Pitch tips its top off your body, Yaw turns it outwards, Roll tips its top outwards (a "
                                "hanging gun's muzzle goes the other way). The left holster mirrors the right.";
-        list.insert(list.end(), {
+        list.pushBackMultiple(
             header("Holstered"),
             cycle("Holster", vr_weapon_holster, {{1.f, "Hip"}, {2.f, "Upper (Chest)"}, {3.f, "Shoulder (Back)"}})
                 .help("The holsters whose pose of this weapon the sliders below edit: a weapon lies differently on the hips, "
@@ -3801,17 +3813,17 @@ std::vector<Item> pageWeaponOffsets()
             hs("Holstered Yaw", 4, -90.f, 90.f, 1.f, "%+.0f deg").extend(-180.f, 180.f).help(turnHelp),
             hs("Holstered Roll", 5, -90.f, 90.f, 1.f, "%+.0f deg").extend(-180.f, 180.f).help(turnHelp),
             action("Holstered Back to 0", weaponOffsetsHolsteredReset)
-                .help("This weapon's pose in these holsters back to 0: as the holster alone places it."),
-        });
+                .help("This weapon's pose in these holsters back to 0: as the holster alone places it.")
+        );
     }
-    list.insert(list.end(), {
+    list.pushBackMultiple(
         header("This Weapon"),
         open("Weapon Weights", pageIndex(pageWeaponWeights)).help("Its mass, balance and length, how it follows your hand, and its damage."),
         action("Print Changes to Console", weaponOffsetsPrint)
             .help("Prints this weapon's offsets that differ from the defaults, ready to be made the shipped defaults."),
         action("Reset This Weapon", weaponOffsetsReset)
-            .help("This weapon's offsets (this page's) back to their defaults. Its weight settings (Weapon Weights) stay."),
-    });
+            .help("This weapon's offsets (this page's) back to their defaults. Its weight settings (Weapon Weights) stay.")
+    );
     return list;
 }
 
@@ -3826,8 +3838,8 @@ int scrolls[pageCount]{};
 struct RowAnchor
 {
     bool valid{false};
-    std::string section; // the header above it ("": none)
-    std::string label;
+    za::String section; // the header above it ("": none)
+    za::String label;
     int index{0}; // where it was: of the rows alike, the nearest is taken
     int line{0};  // its line in the view (the cursor less the scroll)
 };
@@ -3837,7 +3849,7 @@ struct RowAnchor
     return item.label ? item.label : "";
 }
 
-[[nodiscard]] const char* rowSection(const std::vector<Item>& list, int i)
+[[nodiscard]] const char* rowSection(const za::Vector<Item>& list, int i)
 {
     for(; i >= 0; i--)
     {
@@ -3849,7 +3861,7 @@ struct RowAnchor
     return "";
 }
 
-[[nodiscard]] RowAnchor anchorOf(const std::vector<Item>& list, int cursor, int scroll)
+[[nodiscard]] RowAnchor anchorOf(const za::Vector<Item>& list, int cursor, int scroll)
 {
     if(cursor < 0 || cursor >= static_cast<int>(list.size()) || !selectable(list[cursor]))
     {
@@ -3860,7 +3872,7 @@ struct RowAnchor
 
 // The row `a` was on in `list` (-1: gone): of the settings with its label, one under the same header
 // before others, then the nearest to where it was.
-[[nodiscard]] int findRow(const std::vector<Item>& list, const RowAnchor& a)
+[[nodiscard]] int findRow(const za::Vector<Item>& list, const RowAnchor& a)
 {
     int best = -1;
     int bestCost = 0;
@@ -3870,7 +3882,7 @@ struct RowAnchor
         {
             continue;
         }
-        const int cost = std::abs(i - a.index) + (a.section == rowSection(list, i) ? 0 : 1 << 20);
+        const int cost = qza::abs(i - a.index) + (a.section == rowSection(list, i) ? 0 : 1 << 20);
         if(best < 0 || cost < bestCost)
         {
             best = i;
@@ -3891,14 +3903,14 @@ RowAnchor leftAnchors[pageCount]; // each page's position as last shown (invalid
 int visits[pageCount]{};          // when each page was last shown (a count; 0: not since the start)
 int visitCount = 0;
 int builds[pageCount]{};          // how many times each page's list was built (its rows may have changed)
-std::string positionsParsed;      // vr_menu_positions as last read (loadPositions)
+za::String positionsParsed;      // vr_menu_positions as last read (loadPositions)
 bool positionsLoaded = false;
 
 // The pages' items, built on first use and again when a page's rows change (items()). Never released: the menu's
 // cursors and anchors are kept by row (and PageTexts with them).
 struct MenuPages
 {
-    std::vector<Item> built[pageCount];
+    za::Vector<Item> built[pageCount];
     bool done[pageCount]{};
     auto members() { return qvr::mem::list(built, done); }
 };
@@ -3920,16 +3932,16 @@ void loadPositions()
     }
 
     int rank = 0;
-    const std::string& text = positionsParsed;
+    const za::String& text = positionsParsed;
     for(size_t start = 0; start < text.size();)
     {
         size_t end = text.find(';', start);
-        end = end == std::string::npos ? text.size() : end;
-        std::vector<std::string> fields;
+        end = end == za::StringView::nPos ? text.size() : end;
+        za::Vector<za::String> fields;
         for(size_t f = start; f <= end;)
         {
-            const size_t bar = std::min(text.find('|', f), end);
-            fields.push_back(text.substr(f, bar - f));
+            const size_t bar = za::min(text.find('|', f), end);
+            fields.pushBack(text.substrByPosLen(f, bar - f));
             f = bar + 1;
         }
         start = end + 1;
@@ -3941,7 +3953,7 @@ void loadPositions()
         {
             if(!savedAnchors[p].valid && fields[0] == pages[p].title)
             {
-                savedAnchors[p] = {true, fields[1], fields[2], Q_atoi(fields[3].c_str()), Q_atoi(fields[4].c_str())};
+                savedAnchors[p] = {true, fields[1], fields[2], Q_atoi(fields[3].cStr()), Q_atoi(fields[4].cStr())};
                 savedRank[p] = rank++;
                 break;
             }
@@ -3950,9 +3962,9 @@ void loadPositions()
 }
 
 // Built on first use (cvars looked up by name exist by then); items without their cvar dropped.
-[[nodiscard]] const std::vector<Item>& items(int page)
+[[nodiscard]] const za::Vector<Item>& items(int page)
 {
-    std::vector<Item> (&built)[pageCount] = menuPages.built;
+    za::Vector<Item> (&built)[pageCount] = menuPages.built;
     bool (&done)[pageCount] = menuPages.done;
     if(pages[page].build == pageWeaponOffsets && weaponOffsetsSlot >= 0 && editedHotspot() == weaponOffsetsHotspot &&
         weaponOffsetsHotspotType == static_cast<int>(weapons::HotspotType::None) &&
@@ -4044,7 +4056,7 @@ void loadPositions()
         {
             if(item.kind == Item::Header || item.kind == Item::Action || item.kind == Item::Info || item.cvar)
             {
-                built[page].push_back(std::move(item));
+                built[page].pushBack(ZA_MOVE(item));
             }
         }
         // The same row again, on the same line of the view; gone, the cursor kept where it was (on a
@@ -4100,11 +4112,11 @@ struct Layout
 {
     const int height = menuui::menuHeight();
     const int top = (200 - height) / 2;
-    const int listTop = q_max(top + 36, static_cast<int>(std::ceil(menuui::toolbarBottom())) + 2); // below the corner's buttons
+    const int listTop = q_max(top + 36, static_cast<int>(za::ceil(menuui::toolbarBottom())) + 2); // below the corner's buttons
     return {top, listTop, top + height - 36, top + height};
 }
 
-[[nodiscard]] bool hasHelp(const std::vector<Item>& list)
+[[nodiscard]] bool hasHelp(const za::Vector<Item>& list)
 {
     for(const Item& item : list)
     {
@@ -4116,13 +4128,13 @@ struct Layout
     return false;
 }
 
-[[nodiscard]] int visibleRows(const std::vector<Item>& list)
+[[nodiscard]] int visibleRows(const za::Vector<Item>& list)
 {
     const Layout l = layout();
     return ((hasHelp(list) ? l.helpTop - 4 : l.bottom - 8) - l.listTop) / 8;
 }
 
-[[nodiscard]] int firstSelectable(const std::vector<Item>& list)
+[[nodiscard]] int firstSelectable(const za::Vector<Item>& list)
 {
     for(int i = 0; i < static_cast<int>(list.size()); i++)
     {
@@ -4134,7 +4146,7 @@ struct Layout
     return 0;
 }
 
-void moveCursor(const std::vector<Item>& list, int dir)
+void moveCursor(const za::Vector<Item>& list, int dir)
 {
     const int n = static_cast<int>(list.size());
     int& cursor = cursors[page];
@@ -4146,7 +4158,7 @@ void moveCursor(const std::vector<Item>& list, int dir)
     cursor = i;
 }
 
-[[nodiscard]] int lastSelectable(const std::vector<Item>& list)
+[[nodiscard]] int lastSelectable(const za::Vector<Item>& list)
 {
     for(int i = static_cast<int>(list.size()) - 1; i >= 0; i--)
     {
@@ -4159,7 +4171,7 @@ void moveCursor(const std::vector<Item>& list, int dir)
 }
 
 // The page's position to keep (vr_menu_positions): none while it is at its top (as it opens anyway).
-void noteLeft(int p, const std::vector<Item>& list)
+void noteLeft(int p, const za::Vector<Item>& list)
 {
     leftAnchors[p] = cursors[p] == firstSelectable(list) && scrolls[p] == 0 ? RowAnchor{} : anchorOf(list, cursors[p], scrolls[p]);
 }
@@ -4204,12 +4216,12 @@ void openPage(int target)
 // turn (its cursor off the headers), so that Back goes up the tree.
 void openInTree(int target)
 {
-    std::vector<int> chain;
+    za::Vector<int> chain;
     for(int p = target; p != PageMain && static_cast<int>(chain.size()) < pageCount; p = homeOf(p))
     {
-        chain.push_back(p);
+        chain.pushBack(p);
     }
-    for(auto it = chain.rbegin(); it != chain.rend(); ++it)
+    for(auto it = qza::rbegin(chain); it != qza::rend(chain); ++it)
     {
         parentPage[*it] = page;
         showPage(*it);
@@ -4225,7 +4237,7 @@ void openInTree(int target)
     int best = 0;
     for(int i = 0; i < static_cast<int>(item.choices.size()); i++)
     {
-        if(std::fabs(item.choices[i].value - item.cvar->value) < std::fabs(item.choices[best].value - item.cvar->value))
+        if(za::fabs(item.choices[i].value - item.cvar->value) < za::fabs(item.choices[best].value - item.cvar->value))
         {
             best = i;
         }
@@ -4259,7 +4271,7 @@ float stepSlider(const Item& item, int dir, bool repeat)
     const float eps = item.step * 0.01f;
     const float end = dir > 0 ? item.max : item.min;
     const int past = pastEnd(item, cur);
-    const bool atEnd = std::fabs(cur - end) <= eps;
+    const bool atEnd = za::fabs(cur - end) <= eps;
 
     float step = item.step;
     if(!repeat || !past)
@@ -4271,7 +4283,7 @@ float stepSlider(const Item& item, int dir, bool repeat)
         const double held = realtime - outsideSince;
         step *= held < 1.0 ? 1.f : held < 2.0 ? 2.f : held < 3.0 ? 5.f : 10.f;
     }
-    float v = std::round((cur + dir * step) / step) * step;
+    float v = za::round((cur + dir * step) / step) * step;
 
     float lo = item.min;
     float hi = item.max;
@@ -4282,19 +4294,19 @@ float stepSlider(const Item& item, int dir, bool repeat)
         const bool pass = atEnd && (!repeat || (endCvar == item.cvar && endDir == dir && realtime - endSince >= endHold));
         if(!past && !pass)
         {
-            lo = std::fmax(lo, item.min); // on the bar: its end stops the step
-            hi = std::fmin(hi, item.max);
+            lo = za::fmax(lo, item.min); // on the bar: its end stops the step
+            hi = za::fmin(hi, item.max);
         }
         else if(past * dir < 0)
         {
-            lo = past > 0 ? std::fmax(lo, item.max) : lo; // coming back: onto the end
-            hi = past < 0 ? std::fmin(hi, item.min) : hi;
+            lo = past > 0 ? za::fmax(lo, item.max) : lo; // coming back: onto the end
+            hi = past < 0 ? za::fmin(hi, item.min) : hi;
         }
     }
     v = CLAMP(lo, v, hi);
-    v = dir > 0 ? std::fmax(v, cur) : std::fmin(v, cur);
+    v = dir > 0 ? za::fmax(v, cur) : za::fmin(v, cur);
 
-    if(item.extendable && std::fabs(v - end) <= eps && (v != cur || endCvar != item.cvar || endDir != dir))
+    if(item.extendable && za::fabs(v - end) <= eps && (v != cur || endCvar != item.cvar || endDir != dir))
     {
         endCvar = item.cvar; // (a new arrival, or a first press held there)
         endDir = dir;
@@ -4367,7 +4379,7 @@ void change(const Item& item, int dir, bool repeat = false)
 [[nodiscard]] int rowAt(float cy)
 {
     const auto& list = items(page);
-    const int row = static_cast<int>(std::floor((cy - layout().listTop) / 8.f));
+    const int row = static_cast<int>(za::floor((cy - layout().listTop) / 8.f));
     const int i = scrolls[page] + row;
     if(row < 0 || row >= visibleRows(list) || i >= static_cast<int>(list.size()))
     {
@@ -4433,7 +4445,7 @@ void setSliderAt(const Item& item, float cx)
 {
     const float frac = CLAMP(0.f, (cx - midPos - 4.f) / 72.f, 1.f);
     float v = item.min + frac * (item.max - item.min);
-    v = std::round(v / item.step) * item.step;
+    v = za::round(v / item.step) * item.step;
     v = CLAMP(item.min, v, item.max);
     if(item.negativeLabel && v < 0.f)
     {
@@ -4562,7 +4574,7 @@ void drawItem(const Item& item, int y, bool selected)
 // bar's ends and how far; that first while the value is on or past an end, where it matters.
 [[nodiscard]] const char* extendableHelp(const Item& item, const char* help)
 {
-    std::string& text = readouts.extendableHelp;
+    za::String& text = readouts.extendableHelp;
     char lo[32], hi[32], hint[128];
     q_snprintf(lo, sizeof(lo), item.format, item.hardMin);
     q_snprintf(hi, sizeof(hi), item.format, item.hardMax);
@@ -4587,11 +4599,11 @@ void drawItem(const Item& item, int y, bool selected)
     else
     {
         // Built in place: the static string keeps its capacity, so no allocation per frame.
-        text.assign(onEnd ? hint : help);
+        text = onEnd ? hint : help;
         text += ' ';
         text += onEnd ? help : hint;
     }
-    return text.c_str();
+    return text.cStr();
 }
 
 // Word-wrapped to the screen's width, four lines at most.
@@ -4644,7 +4656,7 @@ void dumpPages()
         depth[p] = -1;
         from[p] = -1;
     }
-    std::vector<int> queue{PageMain};
+    za::Vector<int> queue{PageMain};
     depth[PageMain] = 0;
     for(size_t q = 0; q < queue.size(); q++)
     {
@@ -4666,9 +4678,12 @@ void dumpPages()
                               : item.kind == Item::Info   ? 'I'
                               : item.page >= 0 && !item.actionArg ? 'O'
                                                                   : 'A';
-            std::string label = item.label ? item.label : item.infoArg ? item.infoArg(item.arg) : item.info ? item.info() : "";
-            std::replace_if(label.begin(), label.end(), [](char c) { return c == '|' || c == '\n'; }, ' ');
-            Con_Printf("MDROW|%d|%s|%c|%s|%s|%s|%d\n", p, pages[p].title, kind, rowSection(list, i), label.c_str(),
+            za::String label = item.label ? item.label : item.infoArg ? item.infoArg(item.arg) : item.info ? item.info() : "";
+            for(char& c : label)
+            {
+                c = c == '|' || c == '\n' ? ' ' : c;
+            }
+            Con_Printf("MDROW|%d|%s|%c|%s|%s|%s|%d\n", p, pages[p].title, kind, rowSection(list, i), label.cStr(),
                 item.cvar ? item.cvar->name : "", kind == 'O' ? item.page : -1);
             if(kind == 'O' && item.page >= 0 && item.page < pageCount)
             {
@@ -4677,7 +4692,7 @@ void dumpPages()
                 {
                     depth[item.page] = depth[p] + 1;
                     from[item.page] = p;
-                    queue.push_back(item.page);
+                    queue.pushBack(item.page);
                 }
             }
         }
@@ -4692,26 +4707,26 @@ void dumpPages()
 // The path to a page from Quake's main menu, by what the player reads on the way (menu::pathTo): the fewest links from
 // the VR Settings, each page as its link names it. False when no page has the title, no link reaches it, or (a row asked
 // for) the page has no row of that label.
-bool resolvePath(std::string_view spec, std::string& out)
+bool resolvePath(za::StringView spec, za::String& out)
 {
-    const auto trim = [](std::string_view s) {
-        while(!s.empty() && s.front() == ' ')
+    const auto trim = [](za::StringView s) {
+        while(s.startsWith(' '))
         {
-            s.remove_prefix(1);
+            s.removePrefix(1);
         }
-        while(!s.empty() && s.back() == ' ')
+        while(s.endsWith(' '))
         {
-            s.remove_suffix(1);
+            s.removeSuffix(1);
         }
-        return std::string{s};
+        return za::String{s};
     };
     const size_t split = spec.find('>');
-    const std::string title = trim(spec.substr(0, split));
-    const std::string row = split == std::string_view::npos ? std::string{} : trim(spec.substr(split + 1));
+    const za::String title = trim(spec.substrByPosLen(0, split));
+    const za::String row = split == za::StringView::nPos ? za::String{} : trim(spec.substrByPosLen(split + 1));
     int target = -1;
     for(int p = 0; p < pageCount && target < 0; p++)
     {
-        target = q_strcasecmp(pages[p].title, title.c_str()) ? -1 : p;
+        target = q_strcasecmp(pages[p].title, title.cStr()) ? -1 : p;
     }
     if(target < 0)
     {
@@ -4746,13 +4761,13 @@ bool resolvePath(std::string_view spec, std::string& out)
     {
         return false; // no link reaches it
     }
-    std::vector<const char*> names; // from the page up
+    za::Vector<const char*> names; // from the page up
     for(int p = target; p != PageMain; p = from[p])
     {
-        names.push_back(link[p]);
+        names.pushBack(link[p]);
     }
-    out = std::string{"Options > "} + pages[PageMain].title;
-    for(auto it = names.rbegin(); it != names.rend(); ++it)
+    out = za::String{"Options > "} + pages[PageMain].title;
+    for(auto it = qza::rbegin(names); it != qza::rend(names); ++it)
     {
         out += " > ";
         out += *it;
@@ -4762,7 +4777,7 @@ bool resolvePath(std::string_view spec, std::string& out)
         const char* found = nullptr;
         for(const Item& item : items(target))
         {
-            if(item.label && item.kind != Item::Info && !q_strcasecmp(item.label, row.c_str()))
+            if(item.label && item.kind != Item::Info && !q_strcasecmp(item.label, row.cStr()))
             {
                 found = item.label;
                 break;
@@ -4780,26 +4795,26 @@ bool resolvePath(std::string_view spec, std::string& out)
 
 } // namespace
 
-bool qvr::menu::pathTo(std::string_view spec, std::string& out)
+bool qvr::menu::pathTo(za::StringView spec, za::String& out)
 {
     return resolvePath(spec, out);
 }
 
-std::string qvr::menu::expandPaths(std::string_view text, int width, int* missing)
+za::String qvr::menu::expandPaths(za::StringView text, int width, int* missing)
 {
-    constexpr std::string_view open = "{menu:";
-    std::string out;
+    constexpr za::StringView open = "{menu:";
+    za::String out;
     size_t at = 0;
-    for(size_t start; (start = text.find(open, at)) != std::string_view::npos;)
+    for(size_t start; (start = text.find(open, at)) != za::StringView::nPos;)
     {
         const size_t end = text.find('}', start);
-        if(end == std::string_view::npos)
+        if(end == za::StringView::nPos)
         {
             break;
         }
-        out.append(text.substr(at, start - at));
-        const std::string_view spec = text.substr(start + open.size(), end - start - open.size());
-        std::string path;
+        out.append(text.substrByPosLen(at, start - at));
+        const za::StringView spec = text.substrByPosLen(start + open.size(), end - start - open.size());
+        za::String path;
         if(!resolvePath(spec, path))
         {
             if(missing)
@@ -4816,13 +4831,13 @@ std::string qvr::menu::expandPaths(std::string_view text, int width, int* missin
         }
         // Broken into lines at its " > "s, each about `width` characters from the start of its line.
         const size_t lineStart = out.rfind('\n');
-        int column = static_cast<int>(out.size() - (lineStart == std::string::npos ? 0 : lineStart + 1));
-        std::string_view rest = path;
+        int column = static_cast<int>(out.size() - (lineStart == za::StringView::nPos ? 0 : lineStart + 1));
+        za::StringView rest = path;
         for(bool first = true; !rest.empty(); first = false)
         {
             const size_t sep = rest.find(" > ");
-            const std::string_view part = rest.substr(0, sep);
-            rest = sep == std::string_view::npos ? std::string_view{} : rest.substr(sep + 3);
+            const za::StringView part = rest.substrByPosLen(0, sep);
+            rest = sep == za::StringView::nPos ? za::StringView{} : rest.substrByPosLen(sep + 3);
             const int need = static_cast<int>(part.size()) + (first ? 0 : 3);
             if(!first && column + need > width)
             {
@@ -4839,7 +4854,7 @@ std::string qvr::menu::expandPaths(std::string_view text, int width, int* missin
         }
         at = end + 1;
     }
-    out.append(text.substr(at));
+    out.append(text.substrByPosLen(at));
     return out;
 }
 
@@ -4874,20 +4889,20 @@ void qvr::menu::pathCheck_f()
         return;
     }
     int found = 0, missing = 0;
-    const std::string_view text{data};
-    for(size_t at = 0; (at = text.find("{menu:", at)) != std::string_view::npos;)
+    const za::StringView text{data};
+    for(size_t at = 0; (at = text.find("{menu:", at)) != za::StringView::nPos;)
     {
         const size_t end = text.find('}', at);
-        if(end == std::string_view::npos)
+        if(end == za::StringView::nPos)
         {
             break;
         }
-        const std::string_view spec = text.substr(at + 6, end - at - 6);
-        std::string path;
+        const za::StringView spec = text.substrByPosLen(at + 6, end - at - 6);
+        za::String path;
         if(resolvePath(spec, path))
         {
             found++;
-            Con_Printf("menu path: %.*s -> %s\n", static_cast<int>(spec.size()), spec.data(), path.c_str());
+            Con_Printf("menu path: %.*s -> %s\n", static_cast<int>(spec.size()), spec.data(), path.cStr());
         }
         else
         {
@@ -4927,12 +4942,12 @@ void qvr::menu::command_f()
     {
         for(int p = 0; p < pageCount; p++)
         {
-            std::string path = pages[p].title;
+            za::String path = pages[p].title;
             for(int q = p; q != PageMain; q = homeOf(q))
             {
-                path = std::string{pages[homeOf(q)].title} + " > " + path;
+                path = za::String{pages[homeOf(q)].title} + " > " + path;
             }
-            Con_Printf("%2d %s\n", p, path.c_str());
+            Con_Printf("%2d %s\n", p, path.cStr());
         }
         return;
     }
@@ -5113,18 +5128,18 @@ bool qvr::menu::scroll(int rows)
 extern "C" void VR_MenuSavePositions()
 {
     loadPositions();
-    std::string text;
+    za::String text;
     const auto add = [&text](int p, const RowAnchor& a) {
         if(!a.valid)
         {
             return;
         }
-        const std::string record = std::string{pages[p].title} + '|' + a.section + '|' + a.label + '|' + std::to_string(a.index) +
-                                   '|' + std::to_string(a.line);
+        const za::String record = za::String{pages[p].title} + '|' + a.section + '|' + a.label + '|' + za::toString(a.index) +
+                                   '|' + za::toString(a.line);
         // A label the format cannot hold. (There was also a 1000-character cap, what a config line's token held then:
         // only the ~12 most recent pages kept their position. A token and a command line now take any length (cmd.c),
         // and each page adds one record: about 90 characters, 7 KB for every page.)
-        if(record.find_first_of(";\"") != std::string::npos || std::count(record.begin(), record.end(), '|') != 4)
+        if(record.findFirstOf(";\"") != za::StringView::nPos || za::count(record.begin(), record.end(), '|') != 4)
         {
             return;
         }
@@ -5133,15 +5148,15 @@ extern "C" void VR_MenuSavePositions()
     };
 
     // The pages shown since the start, the most recent first; then those kept from before.
-    std::vector<int> order;
+    za::Vector<int> order;
     for(int p = 0; p < pageCount; p++)
     {
         if(visits[p] > 0)
         {
-            order.push_back(p);
+            order.pushBack(p);
         }
     }
-    std::sort(order.begin(), order.end(), [](int a, int b) { return visits[a] > visits[b]; });
+    za::insertionSort(order.begin(), order.end(), [](int a, int b) { return visits[a] > visits[b]; }); // (stable: ties in the order std::sort gave a few)
     for(const int p : order)
     {
         add(p, leftAnchors[p]);
@@ -5151,10 +5166,10 @@ extern "C" void VR_MenuSavePositions()
     {
         if(visits[p] == 0 && savedAnchors[p].valid)
         {
-            order.push_back(p);
+            order.pushBack(p);
         }
     }
-    std::sort(order.begin(), order.end(), [](int a, int b) { return savedRank[a] < savedRank[b]; });
+    za::quickSort(order.begin(), order.end(), [](int a, int b) { return savedRank[a] < savedRank[b]; });
     for(const int p : order)
     {
         add(p, savedAnchors[p]);
@@ -5162,7 +5177,7 @@ extern "C" void VR_MenuSavePositions()
 
     if(text != vr_menu_positions.string)
     {
-        Cvar_SetQuick(&vr_menu_positions, text.c_str());
+        Cvar_SetQuick(&vr_menu_positions, text.cStr());
     }
 }
 
@@ -5323,7 +5338,7 @@ extern "C" void VR_Menu_Key(int key, int repeat)
                     const float thumb = midPos + 4.f + (past > 0 ? 72.f : 0.f);
                     sliderGrab = true;
                     sliderGrabHold = -1.f;
-                    if(past && std::fabs(m_mousex - thumb) <= 6.f)
+                    if(past && za::fabs(m_mousex - thumb) <= 6.f)
                     {
                         sliderGrabHold = m_mousex;
                     }
@@ -5369,7 +5384,7 @@ extern "C" void VR_Menu_Mousemove(float cx, float cy)
         {
             scrollTo(cy);
         }
-        else if(sliderGrabHold < 0.f || std::fabs(cx - sliderGrabHold) >= 4.f)
+        else if(sliderGrabHold < 0.f || za::fabs(cx - sliderGrabHold) >= 4.f)
         {
             sliderGrabHold = -1.f;
             setSliderAt(list[cursor], cx);

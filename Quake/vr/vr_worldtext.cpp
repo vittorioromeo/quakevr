@@ -146,7 +146,7 @@ void serverSetText(int handle, const char* text)
     WorldText& wt = serverText(handle);
     // A board may name a VR Settings page ({menu:Locomotion}): its path from the main menu, as the menus are now (the
     // calibration room's boards, vr_setup.hpp).
-    wt.text = ZA_STRSTR(text, "{menu:") ? za::String{menu::expandPaths(text, 34, nullptr)} /* TRANSITION */ : za::String{text};
+    wt.text = ZA_STRSTR(text, "{menu:") ? menu::expandPaths(text, 34, nullptr) : za::String{text};
     if(sizebuf_t* msg = broadcast())
     {
         writeText(msg, handle, wt);

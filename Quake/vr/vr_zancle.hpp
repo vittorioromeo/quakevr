@@ -344,6 +344,35 @@ private:
     bool m_owns{true};
 };
 
+// ZANCLE-TODO: Zancle's containers have no reverse iterators (rbegin, rend): over a contiguous container from its
+// last element to its first, `it` then `++it` as std::reverse_iterator's.
+template <typename P>
+struct ReverseIterator
+{
+    P p; // one past the element
+
+    [[nodiscard]] constexpr decltype(auto) operator*() const noexcept { return *(p - 1); }
+    [[nodiscard]] constexpr P operator->() const noexcept { return p - 1; }
+    constexpr ReverseIterator& operator++() noexcept
+    {
+        --p;
+        return *this;
+    }
+    [[nodiscard]] constexpr bool operator==(const ReverseIterator&) const = default;
+};
+
+template <typename Container>
+[[nodiscard]] constexpr auto rbegin(Container& c) noexcept
+{
+    return ReverseIterator<decltype(c.data())>{c.data() + c.size()};
+}
+
+template <typename Container>
+[[nodiscard]] constexpr auto rend(Container& c) noexcept
+{
+    return ReverseIterator<decltype(c.data())>{c.data()};
+}
+
 // ZANCLE-TODO: no ordered map (a sorted flat map): where a std::map's order was used (its loops), the unordered map's
 // entries sorted by key (the same order: keys are unique).
 template <typename Map>
