@@ -17,7 +17,8 @@
 //   the cord. With an empty tank it never starts.
 // - Running, it idles (vr_chainsaw_idle_fuel_use a second), and the trigger runs its chain (vr_chainsaw_fuel_use a
 //   second more): the chain's bar cuts what it is in, monsters and their corpses' models as drawn (precise hit
-//   detection: hitmodel_segment, the melee's tolerance), vr_chainsaw_damage a second, in ticks of a tenth of a second.
+//   detection: hitmodel_segment, the melee's tolerance), gibs and heads by their boxes, breakables and explosive boxes
+//   by the line, vr_chainsaw_damage a second, in ticks of a tenth of a second.
 //   The client lets its bar sink into a monster's model while the chain runs (vr_chainsaw_overlap, cm;
 //   vr_modelcollide.cpp) instead of stopping it at the surface.
 // - Out of fuel, it stalls. Holstered or thrown, it stops (its flags' QVR_WPNFLAG_SAW_STATE are a hand's).
@@ -45,6 +46,7 @@ float VR_SAW_LOOP_START = 4; // the start's sound, then the idle
 
 float VR_SAW_TICK = 0.1;      // seconds between cuts
 float VR_SAW_BAR_START = 0.55; // the bar out of the engine block: this share of the way from the hand (the rear handle) to the tip
+float VR_SAW_BAR_HALF = 3;     // units: half the bar's height with its teeth (a gib's box is grown by it)
 
 // .sawcord (the engine, from the client's move: vr_chainsaw.cpp): the off hand holds the cord of the main hand's
 // chainsaw, and the other way round; a pull of it (held for 0.15 s after the pull, so that no server frame misses it).
@@ -128,7 +130,19 @@ float(float xHand) VR_Chainsaw_Cut =
         if(e != self && e.takedamage && (!(e.flags & FL_CLIENT) || deathmatch || teamplay))
         {
             float along = hitmodel_segment(e, root, tip, 1, HITCLASS_MELEE);
-            if(along == -2)
+            if(along == -2 && e.vr_gib)
+            {
+                // A loose gib or head (vr_carry.qc VR_MakeGibGrabbable): no longer a monster (hitmodel_segment's -2)
+                // and not solid (SOLID_NOT_BUT_TOUCHABLE: a traceline passes it), so by its box (its model's), grown by
+                // the bar's half-thickness: as the melee sweeps them (vr_melee.qc). One held in a hand is left alone.
+                along = -1;
+                if(e.solid == SOLID_NOT_BUT_TOUCHABLE && e.carry_player == world)
+                {
+                    along = VR_SegmentBox(root, tip, e.origin + e.mins - '1 1 1' * VR_SAW_BAR_HALF,
+                        e.origin + e.maxs + '1 1 1' * VR_SAW_BAR_HALF);
+                }
+            }
+            else if(along == -2)
             {
                 traceline(root, tip, FALSE, self);
                 along = trace_ent == e ? trace_fraction : -1;
@@ -162,12 +176,19 @@ float(float xHand) VR_Chainsaw_Cut =
         VR_SetHitKind(QVR_HITKIND_MELEE, xHand, at, dir);
         self.damage_weapon = IT_AXE;
         float alive = e.health > 0;
-        if(T_DamageImpl(e, self, self, dmg, 1) && alive)
+        float flesh = (e.flags & FL_MONSTER) || (e.flags & FL_CLIENT) || e.vr_gib; // (a gib may be gone after it)
+        float hurt = dmg;
+        if(e.vr_gib)
+        {
+            // The chain shreds a gib or a head at once (a tick's blow would knock it off the bar).
+            hurt = max(dmg, e.vr_gib_hp);
+        }
+        if(T_DamageImpl(e, self, self, hurt, 1) && alive)
         {
             VR_QuadSound(self, "the chainsaw cut");
         }
         VR_ClearHitKind();
-        if(e.flags & FL_MONSTER || e.flags & FL_CLIENT)
+        if(flesh)
         {
             SpawnBlood(at, (crandom() * v_right + v_up) * 60, dmg * 2);
         }
@@ -177,7 +198,7 @@ float(float xHand) VR_Chainsaw_Cut =
         }
         if(cvar_hget(cvarh_vr_debug_chainsaw))
         {
-            dprint(sprintf("chainsaw: %s hand cuts %s: %g damage, health %g\n", VR_Saw_HandName(xHand), e.classname, dmg,
+            dprint(sprintf("chainsaw: %s hand cuts %s: %g damage, health %g\n", VR_Saw_HandName(xHand), e.classname, hurt,
                 e.health));
         }
     }
@@ -366,6 +387,27 @@ void(float xEmpty) VR_Chainsaw_Impulse =
         float flags = VRGetWeaponFlags(hand);
         bprint(sprintf("chainsaw: %s hand: fuel %g, running %g, chain %g, cord %g\n", VR_Saw_HandName(hand),
             VRGetWeaponClip(hand), !!(flags & QVR_WPNFLAG_SAW_RUNNING), !!(flags & QVR_WPNFLAG_SAW_CHAIN), self.sawcord));
+    }
+};
+
+// impulse 230 (a test aid; Debug > Tests): the chainsaws in your hands started, as a good pull of the cord does.
+void() VR_Chainsaw_StartAll =
+{
+    for(float h = 0; h < 2; h++)
+    {
+        float hand = h ? cVR_MainHand : cVR_OffHand;
+        if(VRGetWeapon(hand) != WID_CHAINSAW || VRGetWeaponClip(hand) <= 0)
+        {
+            continue;
+        }
+        float flags = VRGetWeaponFlags(hand);
+        if(!(flags & QVR_WPNFLAG_SAW_RUNNING))
+        {
+            VRSetWeaponFlags(hand, flags | QVR_WPNFLAG_SAW_RUNNING);
+            sound(self, VRGetGunChannel(hand), "vr/saw_start.wav", 1, ATTN_NORM);
+            VR_Saw_SetLoop(hand, VR_SAW_LOOP_START, time + 0.9);
+        }
+        bprint(sprintf("chainsaw: %s hand's started (test), fuel %g\n", VR_Saw_HandName(hand), VRGetWeaponClip(hand)));
     }
 };
 

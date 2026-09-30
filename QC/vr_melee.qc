@@ -113,6 +113,7 @@ float VR_MTHING_AXE = 2;   // the axe, Mjolnir: a short handle and a head
 float VR_MTHING_GUN = 3;   // a gun: blunt all along (held, or carried by its pump)
 float VR_MTHING_NONE = 4;  // the empty hand steadying the other's weapon, a climbing hand: strikes nothing
 float VR_MTHING_CLUB = 5;  // a carried prop with a melee tip (Held Object Offsets: Tip; a wall torch): its head strikes
+float VR_MTHING_SAW = 6;   // the ogres' chainsaw (vr_chainsaw.qc): a melee weapon, its bar strikes as an axe's head
 
 // Whether a hand holding `xThing` is armed: a weapon (a sword, an axe or Mjolnir, any gun) or a club (a carried prop
 // with a melee tip: a wall torch, a whole brick, a rock or a prop given a Tip in Held Object Offsets). Only an armed
@@ -122,7 +123,8 @@ float VR_MTHING_CLUB = 5;  // a carried prop with a melee tip (Held Object Offse
 // (VR_Grenade_HandCatches), or the projectile flies on and hits you.
 float(float xThing) VR_Melee_HoldsWeapon =
 {
-    return xThing == VR_MTHING_SWORD || xThing == VR_MTHING_AXE || xThing == VR_MTHING_GUN || xThing == VR_MTHING_CLUB;
+    return xThing == VR_MTHING_SWORD || xThing == VR_MTHING_AXE || xThing == VR_MTHING_GUN || xThing == VR_MTHING_CLUB ||
+           xThing == VR_MTHING_SAW;
 };
 
 // The kinds of points (what they strike as).
@@ -357,6 +359,10 @@ float(entity p, float xHand) VR_Melee_Thing =
     {
         return VR_MTHING_AXE;
     }
+    if(wid == WID_CHAINSAW)
+    {
+        return VR_MTHING_SAW; // a melee weapon (NOTES.md vrfiringrange_2026-09-30_11-18-39), not a gun's blunt blow
+    }
     return VR_MTHING_GUN;
 };
 
@@ -457,6 +463,10 @@ float(entity p, float xHand, float xThing) VR_Melee_Line =
     {
         vr_mline_near = h - a * 0.25; // the handle's end, below the hand
     }
+    else if(xThing == VR_MTHING_SAW)
+    {
+        vr_mline_near = h - a * 0.1; // the rear handle's back (the model's origin is the handle's bar)
+    }
     else if(VRIsHandCarryingByForegrip(p, xHand))
     {
         vr_mline_near = h - a * 0.8; // held by its pump: the stock is well behind the hand
@@ -513,6 +523,17 @@ void(float xThing) VR_Melee_Layout =
         VR_MPT(3, 0.55, VR_MPT_EDGE, "the head");
         VR_MPT(4, 0.8, VR_MPT_EDGE, "the head");
         VR_MPT(5, 1, VR_MPT_EDGE, "the head's top");
+    }
+    else if(xThing == VR_MTHING_SAW)
+    {
+        // The engine block (0 .. 0.55 of the way to the tip: vr_chainsaw.qc VR_SAW_BAR_START) is where the hands are;
+        // the bar strikes, as an axe's head.
+        VR_MPT(0, -1, VR_MPT_NEAR, "the rear handle");
+        VR_MPT(1, 0, VR_MPT_GRIP, "the grip");
+        VR_MPT(2, 0.3, VR_MPT_GRIP, "the engine");
+        VR_MPT(3, 0.55, VR_MPT_EDGE, "the bar's root");
+        VR_MPT(4, 0.78, VR_MPT_EDGE, "the bar");
+        VR_MPT(5, 1, VR_MPT_EDGE, "the bar's tip");
     }
     else if(xThing == VR_MTHING_GUN)
     {
@@ -1073,7 +1094,7 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
         {
             weight = VR_MELEE_POMMEL_SWORD;
         }
-        else if(b.mh_thing == VR_MTHING_AXE || b.mh_thing == VR_MTHING_CLUB)
+        else if(b.mh_thing == VR_MTHING_AXE || b.mh_thing == VR_MTHING_CLUB || b.mh_thing == VR_MTHING_SAW)
         {
             weight = VR_MELEE_POMMEL_AXE;
         }
@@ -1492,6 +1513,10 @@ string(float xKind, float xThing) VR_Melee_KindName =
     {
         return "chop";
     }
+    if(xThing == VR_MTHING_SAW)
+    {
+        return "cut";
+    }
     return "swing";
 };
 
@@ -1597,9 +1622,14 @@ void(float xHand, entity b) VR_Melee_Whoosh =
     b.mh_whooshed = TRUE;
     VR_Motion_Event("stroke", VR_Melee_Category(b.mh_thing == VR_MTHING_FIST ? VR_MKIND_PUNCH : VR_MKIND_SLASH, b.mh_thing), xHand, vlen(b.mh_vfar), b.mh_far, world, "");
     string s = "knight/sword1.wav";
-    if(b.mh_thing == VR_MTHING_AXE || b.mh_thing == VR_MTHING_CLUB)
+    float chan = xHand == cVR_OffHand ? CHAN_WEAPON2 : CHAN_WEAPON;
+    if(b.mh_thing == VR_MTHING_AXE || b.mh_thing == VR_MTHING_CLUB || b.mh_thing == VR_MTHING_SAW)
     {
         s = "weapons/ax1.wav";
+        if(b.mh_thing == VR_MTHING_SAW)
+        {
+            chan = CHAN_AUTO; // its engine's sound is on the weapon's channel (vr_chainsaw.qc)
+        }
     }
     else if(b.mh_thing == VR_MTHING_GUN && b.mh_vfar_z < -0.6 * vlen(b.mh_vfar))
     {
@@ -1609,7 +1639,7 @@ void(float xHand, entity b) VR_Melee_Whoosh =
     {
         return;
     }
-    sound(self, xHand == cVR_OffHand ? CHAN_WEAPON2 : CHAN_WEAPON, s, 1, ATTN_NORM);
+    sound(self, chan, s, 1, ATTN_NORM);
 };
 
 // ----------------------------------------------------------------------------
