@@ -27,6 +27,7 @@
 #include <deque>
 #include <filesystem>
 #include <future>
+#include <iterator>
 #include <map>
 #include <regex>
 #include <string>
@@ -857,7 +858,11 @@ enum class Rec
 Rec rec = Rec::Off;
 void finishTake();
 std::vector<std::pair<TakeInfo, std::vector<Row>>> unsaved; // takes that could not be written
-bool buttonDown[HAND_COUNT]{}; // the recorder took this stick click's press (its release too)
+// The buttons the recorder can take (vr_motion_button's), an index into taken's.
+constexpr bool HandInput::*recButtons[] = {
+    &HandInput::trigger, &HandInput::grip, &HandInput::primary, &HandInput::secondary, &HandInput::stickClick};
+constexpr int recButtonCount = static_cast<int>(std::size(recButtons));
+bool taken[HAND_COUNT][recButtonCount]{}; // the recorder took this button's press (its release too)
 std::vector<Row> rows;
 std::deque<Row> preroll;
 TrackingState rawTracking;
@@ -873,9 +878,52 @@ std::string feedbackText;
 std::map<std::string, int> takeCounts;
 bool countsValid = false;
 
+// vr_motion_button's choices (VR Settings > Advanced > Motion Recorder, "Record Button"): a button of one hand, pressed
+// to start a take and again to end it; with `withTrigger`, held while that hand's trigger is pulled (the button alone
+// does nothing then). Whichever it is, it is the recorder's while armed: the game never gets it (only the trigger
+// pulled without the button, for a combination).
+struct RecordBinding
+{
+    int hand;
+    bool HandInput::*button;
+    bool withTrigger;
+    const char* text; // the HUD's instruction
+};
+
+constexpr RecordBinding recordBindings[] = {
+    {HAND_OFF, &HandInput::stickClick, false, "click the off stick"},              // 0 (the default)
+    {HAND_MAIN, &HandInput::stickClick, false, "click the main stick"},            // 1
+    {HAND_MAIN, &HandInput::primary, false, "press A"},                            // 2
+    {HAND_MAIN, &HandInput::secondary, false, "press B"},                          // 3
+    {HAND_OFF, &HandInput::primary, false, "press X"},                             // 4
+    {HAND_OFF, &HandInput::secondary, false, "press Y"},                           // 5
+    {HAND_OFF, &HandInput::grip, false, "squeeze the off grip"},                   // 6
+    {HAND_MAIN, &HandInput::grip, false, "squeeze the main grip"},                 // 7
+    {HAND_MAIN, &HandInput::secondary, true, "hold B, pull the main trigger"},     // 8
+    {HAND_OFF, &HandInput::secondary, true, "hold Y, pull the off trigger"},       // 9
+};
+
+[[nodiscard]] const RecordBinding& recordBinding()
+{
+    const int i = static_cast<int>(vr_motion_button.value);
+    return recordBindings[i >= 0 && i < static_cast<int>(std::size(recordBindings)) ? i : 0];
+}
+
 [[nodiscard]] int recordHand()
 {
-    return vr_motion_button.value != 0.f ? HAND_MAIN : HAND_OFF;
+    return recordBinding().hand;
+}
+
+[[nodiscard]] int recButtonIndex(bool HandInput::*button)
+{
+    for(int i = 0; i < recButtonCount; i++)
+    {
+        if(recButtons[i] == button)
+        {
+            return i;
+        }
+    }
+    return -1;
 }
 
 bool armedOrRecording()
@@ -1177,9 +1225,16 @@ void pollSaves(bool wait)
         hr.angVel = s.angVel[h];
         hr.raw = rawTracking.hands[h];
         hr.input = rawTracking.input.hands[h];
-        if(buttonDown[h])
+        for(int b = 0; b < recButtonCount; b++)
         {
-            hr.input.stickClick = false; // the recorder's: the game never saw it
+            if(taken[h][b])
+            {
+                hr.input.*recButtons[b] = false; // the recorder's: the game never saw it
+                if(recButtons[b] == &HandInput::grip)
+                {
+                    hr.input.gripValue = 0.f; // (else a replay's grip filter would make it a press again)
+                }
+            }
         }
         for(int f = 0; f < 5; f++)
         {
@@ -1375,37 +1430,56 @@ void afterTracking(TrackingState& tracking, FrameState& frame)
 }
 
 // Press to start a take, press again to end it (the release does nothing, and is the recorder's too).
-bool stickClick(int hand, bool pressed)
+bool button(int hand, bool HandInput::*which, bool pressed)
 {
-    if(pressed)
-    {
-        // (A take going on ends on the click whatever else: disarmed meanwhile, or a menu open.)
-        if(hand != recordHand() || playing() ||
-           (rec != Rec::Recording && (!vr_motion_armed.value || key_dest != key_game)))
-        {
-            return false;
-        }
-        buttonDown[hand] = true;
-        if(rec == Rec::Recording)
-        {
-            stopTake();
-        }
-        else
-        {
-            if(rec == Rec::Tail)
-            {
-                finishTake(); // the last one saved at once: the next starts
-            }
-            startTake(chosenLabel());
-        }
-        return true;
-    }
-    if(!buttonDown[hand])
+    const int b = recButtonIndex(which);
+    if(hand < 0 || hand >= HAND_COUNT || b < 0)
     {
         return false;
     }
-    buttonDown[hand] = false;
+    if(!pressed)
+    {
+        const bool was = taken[hand][b];
+        taken[hand][b] = false;
+        return was;
+    }
+    // (A take going on ends on the button whatever else: disarmed meanwhile, or a menu open.)
+    const RecordBinding& k = recordBinding();
+    if(hand != k.hand || playing() || (rec != Rec::Recording && (!vr_motion_armed.value || key_dest != key_game)))
+    {
+        return false;
+    }
+    if(which == k.button)
+    {
+        taken[hand][b] = true; // a combination's button alone does nothing
+        if(k.withTrigger)
+        {
+            return true;
+        }
+    }
+    else if(!(k.withTrigger && which == &HandInput::trigger && taken[hand][recButtonIndex(k.button)]))
+    {
+        return false;
+    }
+    taken[hand][b] = true;
+    if(rec == Rec::Recording)
+    {
+        stopTake();
+    }
+    else
+    {
+        if(rec == Rec::Tail)
+        {
+            finishTake(); // the last one saved at once: the next starts
+        }
+        startTake(chosenLabel());
+    }
     return true;
+}
+
+const char* recordButtonText()
+{
+    return recordBinding().text;
 }
 
 Row captureRow(bool tick, double svDt)
@@ -1568,8 +1642,7 @@ void frame()
     else
     {
         const std::string label = chosenLabel();
-        text = va("armed: %s #%d (click the %s stick)", label.c_str(), takeCount(label) + 1,
-            recordHand() == HAND_MAIN ? "main" : "off");
+        text = va("armed: %s #%d (%s)", label.c_str(), takeCount(label) + 1, recordButtonText());
     }
 
     const float m2u = units::metresToUnits();

@@ -404,9 +404,13 @@ int motionPageCategory = -1;
             .help("Optional: which kind (the swing's direction, the weapon). Its takes count apart, and with the "
                   "category's."),
         info(motion::labelStatus),
-        cycle("Record Button", vr_motion_button, {{0.f, "Off stick click"}, {1.f, "Main stick click"}})
-            .help("Clicked to start and to end a take, while armed. Its own binding (off hand: run; main hand: reload) "
-                  "rests until you disarm."),
+        cycle("Record Button", vr_motion_button,
+            {{0.f, "Off stick click"}, {1.f, "Main stick click"}, {2.f, "A (main lower)"}, {3.f, "B (main upper)"},
+                {4.f, "X (off lower)"}, {5.f, "Y (off upper)"}, {6.f, "Off grip"}, {7.f, "Main grip"},
+                {8.f, "Hold B + main trigger"}, {9.f, "Hold Y + off trigger"}})
+            .help("Pressed to start and to end a take, while armed. Its own action (stick clicks: run, reload; A: jump; "
+                  "B, Y: weapons; X: reload; grips: grab) rests until you disarm. Hold B or Y + trigger: the trigger "
+                  "fires as usual without it."),
         info(motionNote),
         info(motionLastSaved),
         action("Delete Last Take", motion::discardLast)

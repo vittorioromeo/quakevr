@@ -86,7 +86,7 @@ A take's label is `<category>` or `<category>_<detail>` (`slash_overhead`, `parr
 |---|---|
 | `vr_motion_armed 0/1` | arms the recorder (the menu's Arm Recorder; not saved: off at each start) |
 | `vr_motion_category N`, `vr_motion_detail N` | the category and detail (indices, as in the menu) |
-| `vr_motion_button 0/1` | the record button: the off hand's stick click (0) or the main hand's (1) |
+| `vr_motion_button 0..9` | the record button: the off hand's stick click (0, the default) or the main hand's (1); A (2), B (3), X (4), Y (5); the off grip (6) or the main grip (7); hold B and pull the main trigger (8), hold Y and pull the off trigger (9) |
 | `vr_motion_preroll 0.5` | seconds kept from before the take starts (phase `pre`: the lead-in for the melee's trackers) |
 | `vr_motion_tail 0.3` | seconds recorded after the take ends (phase `tail`) |
 | `vr_motion_note "..."` | a note written into each take's header |
@@ -102,6 +102,15 @@ hand's click is only "run" (the speed key), which a take doesn't need; it is tak
 armed (`vr_input.cpp` asks `motion::stickClick` first), so it never reaches the game. It needs no aim: a thumb press,
 also in the middle of a two-handed grip. Press to start and press to end (not hold), so the thumb is free during
 the motion.
+
+**Other record buttons** (2026-09-30, "the thumbstick can be annoying to press"): `vr_motion_button` (VR Settings >
+Advanced > Motion Recorder, Record Button) also picks A, B, X, Y, either grip, or a combination: hold B (Y) and pull the
+main (off) trigger. Whichever it is, while armed it is the recorder's: its key never reaches the game (A: no jump; B,
+Y: no weapon change; X: no reload; a grip: no grab), and a press it took has its release taken too (`vr_input.cpp` asks
+`motion::button` for every button). For a combination the face button alone does nothing, and the trigger pulled
+without it fires as usual. Y at the mouth still records a voice note. The HUD's prompt names the button ("armed: slash
+#4 (hold B, pull the main trigger)"). A take recorded with a grip bound keeps that grip out of its rows (`m_grip` 0 too),
+so a replay never grabs with it.
 
 ## The take file
 
@@ -203,7 +212,7 @@ Each hand, `m_` the main hand and `o_` the off hand:
 | `m_trigger`, `m_grip` | the analog trigger and grip (0..1) |
 | `m_thumb` | the thumb on a button, the stick or the thumb rest |
 | `m_stick_x/y` | the stick (x right, y forward) |
-| `m_buttons` | 1 trigger, 2 grip, 4 A/X, 8 B/Y, 16 stick click, 32 menu (the recorder's own click taken out) |
+| `m_buttons` | 1 trigger, 2 grip, 4 A/X, 8 B/Y, 16 stick click, 32 menu (the recorder's own buttons taken out; a grip it took also has `m_grip` 0) |
 | `m_curl_thumb/index/middle/ring/pinky` | the drawn fingers' curl, 0 open .. 1 curled |
 | `m_wid` | the QC weapon id: 0 empty, 1 grapple, 2 axe, 3 Mjolnir, 4 shotgun, 5 super shotgun, 6 nailgun, 7 super nailgun, 8 grenade launcher, 9 proximity gun, 10 rocket launcher, 11 lightning gun, 12 laser cannon, 13 sword |
 | `m_wflags` | its flags (1 the other ammo: the hell knight's sword; 2 carried by the foregrip) |

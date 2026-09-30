@@ -283,7 +283,7 @@ QVR_CVAR(vr_motion_armed, "0", CVAR_NONE)          // 1: the record button (vr_m
 QVR_CVAR(vr_motion_category, "0", CVAR_ARCHIVE)    // the category recorded, named by the result expected (an index: VR Settings > Advanced > Motion Recorder)
 QVR_CVAR(vr_motion_detail, "0", CVAR_ARCHIVE)      // and its optional detail (an index into the category's; 0: none)
 QVR_CVAR(vr_motion_note, "", CVAR_NONE)            // a free note written into each take's header (the "other" label's description)
-QVR_CVAR(vr_motion_button, "0", CVAR_ARCHIVE)      // the record button: 0 the off hand's stick click, 1 the main hand's
+QVR_CVAR(vr_motion_button, "0", CVAR_ARCHIVE)      // the record button: 0 the off stick click, 1 the main's, 2 A, 3 B, 4 X, 5 Y, 6 off grip, 7 main grip, 8 hold B + main trigger, 9 hold Y + off trigger (vr_motion.cpp recordBindings)
 QVR_CVAR(vr_motion_preroll, "0.5", CVAR_ARCHIVE)   // seconds kept before the button (phase "pre": the lead-in, for the melee's trackers)
 QVR_CVAR(vr_motion_tail, "0.3", CVAR_ARCHIVE)      // seconds recorded after the button is let go (phase "tail": late events)
 // Reviewing the takes (vr_motion_review.cpp, MOTIONS.md "Reviewing failing takes"): VR Settings > Advanced > Review Takes.

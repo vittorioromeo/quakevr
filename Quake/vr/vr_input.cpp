@@ -308,8 +308,8 @@ void update(const InputState& tracked)
                     logButton(h, b, now, b.key[h], "a voice note");
                     continue;
                 }
-                // With the motion recorder armed, its button's stick click records a take instead.
-                if(b.button == &HandInput::stickClick && motion::stickClick(h, now))
+                // With the motion recorder armed, its record button (vr_motion_button) starts and ends a take instead.
+                if(motion::button(h, b.button, now))
                 {
                     logButton(h, b, now, b.key[h], "the motion recorder");
                     continue;

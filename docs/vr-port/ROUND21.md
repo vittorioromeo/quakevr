@@ -14544,3 +14544,18 @@ called at its end, read whole before anything runs.
 one hash each; 0 canary differences). The full set's one difference from `eval_baseline.csv`
 (`slash_backswing_up_right` 23-12-35: 27.0 -> 26.9 damage, still PASS) is the same with the old preload: not from
 this change; the baseline predates it.
+
+## Motion recorder: record button choices (2026-09-30)
+
+"Can you also make it possible to toggle motion recordings via the buttons on the controller? ... The thumbstick can be
+annoying to press at times." `vr_motion_button` (Record Button on the Motion Recorder page) now also offers A, B, X, Y,
+the off or main grip, and two combinations: hold B + main trigger, hold Y + off trigger. The default (0, the off stick
+click) and 1 are unchanged, so no config migration. The bound button is the recorder's while armed (or while a take
+runs): its key never reaches the game; a combination's face button alone does nothing and its trigger without the button
+fires as usual. The HUD prompt names the button. `vr_input.cpp` now asks `motion::button(hand, button, pressed)` for
+every button (it asked `motion::stickClick` for the stick clicks only); `vr_motion.cpp`'s `recordBindings` lists the
+choices. Details in MOTIONS.md, "Other record buttons".
+
+Checked: a mock run pressing each of the 10 choices twice (start, stop: "recording slash #1", "too short, not kept"),
+every press and release logged "taken by the motion recorder" (`vr_debug_buttons 1`); the combinations' trigger alone
+and A disarmed reach the game. eval.sh canary: 48/53, no difference from the baseline.

@@ -37,9 +37,13 @@ void afterTracking(TrackingState& tracking, FrameState& frame);
 // VR_BeginFrame, after the frame's world texts were cleared: the recorder's indicator.
 void frame();
 
-// The input's stick click of `hand`: true if the recorder takes it (armed, its button), so that its
-// key is left alone.
-[[nodiscard]] bool stickClick(int hand, bool pressed);
+// A button of `hand` pressed or let go (trigger, grip, primary, secondary or stickClick of HandInput): true if the
+// recorder takes it (armed, its record button: vr_motion_button), so that its key is left alone. A press it took has
+// its release taken too.
+[[nodiscard]] bool button(int hand, bool HandInput::*which, bool pressed);
+
+// The record button's instruction, as the HUD shows it ("click the off stick", "hold B, pull the main trigger").
+[[nodiscard]] const char* recordButtonText();
 
 // VR_ServerFrameEnd: a server frame's sample, while recording, armed or playing.
 void serverFrame();
