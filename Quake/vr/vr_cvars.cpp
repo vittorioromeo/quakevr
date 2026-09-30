@@ -86,8 +86,12 @@ const DefaultChange defaultChanges[] = {
     {50, &vr_grapple_loose_slack, "24"},       // 8
     {50, &vr_grapple_hang_drag, "3"},          // 1
     {50, &vr_grapple_load_max_speed, "700"},   // 500
+    // 52: the author's turn of a grenade from the pouch, tweaked again ("now quite good", NOTES.md
+    // vrfiringrange_2026-09-30_02-08-07).
+    {52, &vr_grenade_pouch_hold_pitch, "-180"}, // 90
+    {52, &vr_grenade_pouch_hold_yaw, "90"},     // 0
 };
-constexpr int configVersion = 50;
+constexpr int configVersion = 52;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

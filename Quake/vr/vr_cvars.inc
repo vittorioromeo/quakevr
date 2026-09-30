@@ -370,7 +370,7 @@ QVR_CVAR(vr_walltorch_die_time, "6", CVAR_ARCHIVE)       // s a dying torch's fi
 QVR_CVAR(vr_walltorch_damage, "12", CVAR_ARCHIVE)        // a torch's blow: its base damage, times the blow's strength (a gun's is 12, the axe's 20)
 QVR_CVAR(vr_walltorch_burn, "4", CVAR_ARCHIVE)           // damage a second a lit torch's blow sets burning (0: no burning)
 QVR_CVAR(vr_walltorch_burn_time, "3", CVAR_ARCHIVE)      // s it burns (a monster catches fire)
-QVR_CVAR(vr_walltorch_relight, "1", CVAR_ARCHIVE)        // 1: a dying or burnt-out torch held in a burning torch's flame or in lava lights again
+QVR_CVAR(vr_walltorch_relight, "1", CVAR_ARCHIVE)        // 1: a dying or burnt-out torch held in a burning torch's flame, the map's flames (light_flame_*) or lava lights again
 QVR_CVAR(vr_walltorch_flame, "1", CVAR_ARCHIVE)          // a taken torch's flame's size (1: the wall torch's)
 QVR_CVAR(vr_walltorch_shadows, "1", CVAR_ARCHIVE)        // 1: a taken torch's light casts shadows (one of vr_shadow_dlights' slots), whatever vr_torch_light_shadows says
 QVR_CVAR(vr_offhandpitch, "40.25", CVAR_ARCHIVE)
@@ -431,8 +431,8 @@ QVR_CVAR(vr_grenade_pouch_yaw, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_grenade_pouch_roll, "0", CVAR_ARCHIVE)
 // A hand grenade's turn in the hand as it is taken from the pouch (vr_grip.cpp serverFromPouch): on top of its grip
 // (Held Object Offsets), about its middle, in the hand's frame (pitch up, yaw left, roll right; mirrored for the left hand).
-QVR_CVAR(vr_grenade_pouch_hold_pitch, "-180", CVAR_ARCHIVE)
-QVR_CVAR(vr_grenade_pouch_hold_yaw, "90", CVAR_ARCHIVE)
+QVR_CVAR(vr_grenade_pouch_hold_pitch, "90", CVAR_ARCHIVE)
+QVR_CVAR(vr_grenade_pouch_hold_yaw, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_grenade_pouch_hold_roll, "0", CVAR_ARCHIVE)
 // The player's body (vr_avatar.cpp): 0 none, 2 torso and arms, 3 torso, arms and legs: the skinned
 // progs/vrbody model, posed by IK from the head and hands (1, the old floating torso, is now 2).
@@ -730,7 +730,7 @@ QVR_CVAR(vr_exposure, "1", CVAR_ARCHIVE)              // brightness before the t
 QVR_CVAR(vr_dither, "1", CVAR_ARCHIVE)                // the eyes' last dither into 8 bits, against banding: 0 off, 1 fixed on the screen (each eye its own), 2 changing each frame, 3 the same in both eyes
 QVR_CVAR(vr_grade, "1", CVAR_ARCHIVE)                 // colour grade (quakevr/gfx/vr/grade_*.png): 0 off, 1 Quake VR (film), 2 cold, 3 warm, 4 by episode
 QVR_CVAR(vr_grade_strength, "1", CVAR_ARCHIVE)        // how much of the grade (0..1)
-QVR_CVAR(vr_eyeshot, "0", CVAR_NONE)                  // 1: save the next frame's eye images to <gamedir>/eyeshots (2: also the float scene, .pfm)
+QVR_CVAR(vr_eyeshot, "0", CVAR_NONE)                  // 1: save the next frame's eye images to <gamedir>/eyeshots (2: also the float scene, .pfm; 3: with the UI, as the headset shows it)
 // Liquids (vr_water.cpp): 0 everywhere is Quake's look.
 QVR_CVAR(vr_map_liquid_alpha, "0", CVAR_ARCHIVE)      // a map's own wateralpha, lavaalpha, slimealpha, telealpha (its worldspawn keys) win over r_wateralpha and the others (Ironwail's rule); 0: your settings always
 QVR_CVAR(vr_water_waves, "1", CVAR_ARCHIVE)           // waves on water, slime and lava (normal-mapped, in the shader: the faces stay flat): strength

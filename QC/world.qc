@@ -187,6 +187,7 @@ World Types:
 void() worldspawn =
 {
     lastspawn = world;
+    vr_fire_spots = 0; // QVR: the map's flames, as they spawn (vr_walltorch.qc)
 
     // FRIKBOT
     BotInit();

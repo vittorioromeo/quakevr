@@ -1332,3 +1332,10 @@ datagram) print `Limit reached: ...` once a session. Stress tests: `vr_limits st
 big.cfg; vr_limits time`), `vr_limits cvarlen <name>` gives a value's length (a print stops at 4095 characters). There
 is no `set` command: a config line sets only an existing cvar. `vr_physics_spawn item_shells <dist> <left>` 320 times
 in e1m1 moves 320 props (the datagram peaked at 16.5 KB of 64 KB).
+The HUD in the headset (ROUND21.md, "No flat HUD in the headset; the map's flames light torches; the pouch's turn"):
+`vr_eyeshot 3` saves both eyes with the UI (the HUD panel, the menu) as the headset shows them (Debug > Tools > Eye
+Images); `hudstyle 0..3` each, then `vr_eyeshot 3; wait5; screenshot`: no HUD in the eyes, the style's HUD in the window
+(the mirror and the spectator view, `vr_window_view 2`). The map's flames lighting a torch again: e1m2, torch 53 taken
+and let go of (`vr_walltorch_die_time 0.3`) until out, placed back in the off hand (`vr_rigid_place 53 off 0 0 0`) at
+`setpos 1400 -128 384 0 0 0` with the hand at `0.0 1.3 -0.4 70 0 0`, then `setpos` 3 units at a time to x 1448: `developer
+1` prints `walltorch: lit again from a flame` at x 1436 (the light_flame_small_yellow at 1456 -128 406).

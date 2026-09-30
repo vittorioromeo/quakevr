@@ -682,11 +682,13 @@ extern "C" int VR_RenderView()
         bloom::apply(framebufs.composite.color_tex, width, height); // added by GL_PostProcess
 
         // vr_eyeshot 1 takes the eye's final image (after the resample and vr_foveated_debug, before the UI); 2 the
-        // rendered one (before the resample) with its float scene.
+        // rendered one (before the resample) with its float scene; 3 the final image with the UI (the HUD panel, the
+        // menus), as the headset shows it.
         const bool shotFinal = vr_eyeshot.value > 0.f && vr_eyeshot.value < 2.f;
+        const bool shotUi = vr_eyeshot.value >= 3.f;
         profile::begin("postprocess", true);
         GL_PostProcess(); // into the image, or the resample target (VR_PostProcessTarget)
-        if(!shotFinal)
+        if(!shotFinal && !shotUi)
         {
             tonemap::eyeshot(eye, VR_PostProcessTarget(), framebufs.composite.fbo, width, height);
         }
@@ -712,6 +714,10 @@ extern "C" int VR_RenderView()
         // under water (vr_water.cpp), the glow is not added over it, nor the eye's gamma. The wrist gadget and all
         // else in the world are in the scene. Over the scene's colours too, for the mirror.
         stereo::drawUi(hands::current().eyeOrigin[eye], stereo::targetFbo, imageWidth, imageHeight);
+        if(shotUi)
+        {
+            tonemap::eyeshot(eye, stereo::targetFbo, framebufs.composite.fbo, imageWidth, imageHeight);
+        }
         if(stereo::mirrored(eye))
         {
             stereo::drawUi(hands::current().eyeOrigin[eye], framebufs.composite.fbo, width, height);
