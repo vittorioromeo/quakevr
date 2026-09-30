@@ -2693,7 +2693,7 @@ static void Host_Loadgame_f (void)
 		ED_ClearEdict (EDICT_NUM (i));
 
 	qcvm->num_edicts = entnum;
-	ED_CheckLoadedReferences (entnum); // QVR: a reference past the loaded edicts is the world (a dev warning)
+	VR_CheckLoadedReferences (entnum); // QVR: a reference past the loaded edicts is the world (a dev warning)
 	qcvm->time = time;
 	sv.autosave.time = time;
 

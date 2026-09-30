@@ -1,5 +1,5 @@
 // vr_modelload.cpp -- what Quake VR adds to loading models (gl_model.c calls these): the light's directions beside a
-// relit map (.lux, deluxemaps), the parts of their textures the item boxes' faces show (parallax mapping), full-colour
+// relit map (.lux, deluxemaps; and their texture's texels, r_brush.c), the parts of their textures the item boxes' faces show (parallax mapping), full-colour
 // replacement skins (DarkPlaces' names), and the skins' normal maps with their islands (alias models and MD5 meshes).
 // Engine-style code, kept out of gl_model.c (docs/vr-port/IRONWAIL_DIFF.md).
 
@@ -46,6 +46,86 @@ extern "C" void VR_LoadLux (qmodel_t *loadmodel, lump_t *l)
 	}
 	Con_DPrintf2 ("%s loaded\n", luxfilename);
 	loadmodel->luxdata = data + 8;
+}
+
+/*
+========================
+VR_FillSurfaceLux -- a face's light directions (deluxemaps) where its first style's lightmap is, in the frame
+the world shader rebuilds from its derivatives (LuxDirection): x along the texture's s axis on the face, y the face's
+normal crossed with it, z the normal; alpha 255 (faces without them keep 0: the shader guesses). ericw-tools' .lux has
+them in the frame (s, -t, normal), s and t the texture's axes as they are (not in the face's plane where a wall's
+texture is projected from the side: VR_LoadLux), one direction for each style: turned back into world directions
+here, and the styles' added together, each as strong as its light at the luxel (the shader can't combine them by the
+styles' current values, and flickering and switched lights share the steady one's direction anyway). GL_BuildLightmaps
+calls it for each lit face: `lux_data`, lightmap_width texels a row, is laid out as the lightmaps.
+========================
+*/
+extern "C" void VR_FillSurfaceLux (msurface_t *surf, unsigned *lux_data, int lightmap_width)
+{
+	lightmap_t	*lm;
+	int			smax, tmax, size, i, map, nummaps;
+	vec3_t		n, r0, r1, c0, c1, c2, t, b;
+	float		det, len;
+	unsigned	*dst;
+
+	if (!surf->luxsamples || !surf->samples || surf->styles[0] == 255)
+		return;
+
+	smax = (surf->extents[0]>>4)+1;
+	tmax = (surf->extents[1]>>4)+1;
+	size = smax * tmax;
+	for (nummaps = 0; nummaps < MAXLIGHTMAPS && surf->styles[nummaps] != 255; nummaps++)
+		;
+
+	VectorCopy (surf->plane->normal, n);
+	if (surf->flags & SURF_PLANEBACK)
+		VectorScale (n, -1.f, n);
+	// ericw's rows (r0 s, r1 -t, n): world direction = their inverse times the stored one (columns c0 c1 c2 / det)
+	VectorCopy (surf->texinfo->vecs[0], r0);
+	VectorScale (surf->texinfo->vecs[1], -1.f, r1);
+	VectorNormalize (r0);
+	VectorNormalize (r1);
+	CrossProduct (r1, n, c0);
+	CrossProduct (n, r0, c1);
+	CrossProduct (r0, r1, c2);
+	det = DotProduct (r0, c0);
+	if (fabs (det) < 1e-4f)
+		return; // (a texture seen edge on: no frame)
+	// the frame out: t the texture's s axis on the face, b = n x t
+	VectorMA (r0, -DotProduct (r0, n), n, t);
+	if (VectorNormalize (t) < 1e-4f)
+		return;
+	CrossProduct (n, t, b);
+
+	lm = &lightmaps[surf->lightmaptexturenum];
+	dst = lux_data + (lm->yofs + surf->light_t) * lightmap_width + lm->xofs + surf->light_s;
+	for (i = 0; i < size; i++)
+	{
+		vec3_t dir = {0.f, 0.f, 0.f}, out;
+		for (map = 0; map < nummaps; map++)
+		{
+			const byte *lux = surf->luxsamples + (map * size + i) * 3;
+			const byte *lit = surf->samples + (map * size + i) * 3;
+			float x = lux[0] * (1.f/128.f) - 1.f, y = lux[1] * (1.f/128.f) - 1.f, z = lux[2] * (1.f/128.f) - 1.f;
+			float w = (lit[0] + lit[1] + lit[2]) / det;
+			vec3_t world;
+			VectorScale (c0, x, world);
+			VectorMA (world, y, c1, world);
+			VectorMA (world, z, c2, world);
+			len = VectorLength (world);
+			if (len > 1e-6f)
+				VectorMA (dir, w / len, world, dir);
+		}
+		if (VectorNormalize (dir) < 1e-6f)
+			VectorCopy (n, dir); // unlit: straight on
+		out[0] = DotProduct (dir, t);
+		out[1] = DotProduct (dir, b);
+		out[2] = DotProduct (dir, n);
+		dst[(i / smax) * lightmap_width + i % smax] =
+			(unsigned) Q_rint (out[0] * 127.5f + 127.5f) |
+			((unsigned) Q_rint (out[1] * 127.5f + 127.5f) << 8) |
+			((unsigned) Q_rint (out[2] * 127.5f + 127.5f) << 16) | 0xff000000u;
+	}
 }
 
 /*

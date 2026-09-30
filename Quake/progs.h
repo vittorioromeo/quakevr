@@ -341,7 +341,6 @@ const char *ED_ParseEdict (const char *data, edict_t *ent);
 
 void ED_WriteGlobals (savedata_t *save);
 const char *ED_ParseGlobals (const char *data);
-void ED_CheckLoadedReferences (int num_edicts); // QVR
 
 void ED_LoadFromFile (const char *data);
 

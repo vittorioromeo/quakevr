@@ -144,6 +144,7 @@ unsigned char *VR_NormalMapSource (unsigned char *data, enum srcformat fmt, int 
 
 // Model loading (vr_modelload.cpp; gl_model.c). `mod` is the model loading, `hdr` its aliashdr_t.
 void VR_LoadLux (struct qmodel_s *mod, lump_t *l);		// Mod_LoadLighting: the light's directions (a .lux beside the .lit; deluxemaps)
+void VR_FillSurfaceLux (struct msurface_s *surf, unsigned *lux_data, int lightmap_width); // GL_BuildLightmaps: a lit face's light directions (deluxemaps)
 void VR_ItemTextureClamp (struct qmodel_s *mod);			// Mod_LoadBrushModel: an item box's faces' texture ranges (maps/b_*: parallax stops at their edges)
 void VR_SkinsBegin (void);								// Mod_LoadAllSkins, first
 void VR_ExternalSkin (struct qmodel_s *mod, void *hdr, struct gltexture_s **skin, struct gltexture_s **fb, unsigned texflags,

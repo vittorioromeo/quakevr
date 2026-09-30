@@ -290,6 +290,57 @@ extern "C" void VR_OnBeginLoadGame()
 namespace
 {
 
+// Whether the entity reference at `val` (a prog edict offset) is a whole edict below `numEdicts`; if not, it is
+// reset to the world with a developer warning naming `what` and `name`.
+void checkEntityReference(int* val, int numEdicts, const char* what, const char* name)
+{
+    if(*val >= 0 && *val % qcvm->edict_size == 0 && *val / qcvm->edict_size < numEdicts)
+    {
+        return;
+    }
+    Con_DWarning("%s \"%s\" refers to entity %i, past the %i loaded: the world instead\n", what, name,
+        *val / qcvm->edict_size, numEdicts);
+    *val = 0;
+}
+
+} // namespace
+
+// Host_Loadgame_f, after a saved game's edicts are parsed: every entity field and entity global must refer to one of
+// its `numEdicts` edicts. A reference past them (a save written with an edict missing, or edited) would be a
+// Host_Error ("NUM_FOR_EDICT: bad pointer") the first time the progs used it; it is reset to the world instead.
+// References to free edicts are left alone, as in any Quake: the progs check them.
+extern "C" void VR_CheckLoadedReferences(int numEdicts)
+{
+    for(int i = 0; i < qcvm->progs->numglobaldefs; i++)
+    {
+        const ddef_t* d = &qcvm->globaldefs[i];
+        if((d->type & ~DEF_SAVEGLOBAL) == ev_entity)
+        {
+            checkEntityReference(reinterpret_cast<int*>(qcvm->globals) + d->ofs, numEdicts, "global",
+                PR_GetString(d->s_name));
+        }
+    }
+
+    char what[32];
+    for(int e = 0; e < numEdicts; e++)
+    {
+        edict_t* ed = EDICT_NUM(e);
+        for(int i = 0; i < qcvm->progs->numfielddefs; i++)
+        {
+            const ddef_t* d = &qcvm->fielddefs[i];
+            if((d->type & ~DEF_SAVEGLOBAL) != ev_entity)
+            {
+                continue;
+            }
+            q_snprintf(what, sizeof(what), "entity %i's", e);
+            checkEntityReference(reinterpret_cast<int*>(&ed->v) + d->ofs, numEdicts, what, PR_GetString(d->s_name));
+        }
+    }
+}
+
+namespace
+{
+
 [[nodiscard]] int modelPrecacheIndex(const char* name)
 {
     for(int i = 1; i < MAX_MODELS && sv.model_precache[i]; i++)
