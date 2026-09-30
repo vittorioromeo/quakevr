@@ -131,6 +131,25 @@ resampled to 22050 Hz 16-bit, faded; the loops crossfaded into themselves (0.12 
 | `saw_run.wav` | the chain running free, flat out (a loop) | [0707](https://bigsoundbank.com/chainsaw-2-s0707.html): *Chainsaw #2* | 28.35-29.44 |
 | `saw_cut.wav` | cutting (a loop) | 0707 (cutting a log) | 43.00-45.82 |
 
+### Physics sounds (`quakevr/sound/vr/phys/`)
+
+The props' knocks, scrapes and the climbing grab (`vr_physsound.cpp`; ROUND21.md, "Physics sounds"), all from sources
+released under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) (public domain: no attribution needed,
+credited here anyway). `Misc/quakevr/make_physics_sounds.py` makes them from the downloads (not in the repository; the
+script's header has the links; the OGG and MP3 files are decoded with the engine's own codec DLLs): mixed to mono,
+high-passed, resampled to 22050 Hz 16-bit, trimmed and faded, brought to one loudness per weight or kind, peaks
+limited to -1 dBFS. Stone and brick props use the port's synthesised `rock1..3.wav` and `brick1..3.wav`; heavy flesh
+also Quake's own `zombie/z_miss.wav` (the player's copy, not distributed).
+
+| Files | Used for | Source |
+|---|---|---|
+| `wood_l/m/h1..4.wav`, `metal_l/m/h1..4.wav`, `soft_m/h1..4.wav`, `flesh_m/h1..4.wav` | knocks by material and weight (wood; metal; backpacks; gibs and heads) | **Kenney**, [*Impact Sounds* 1.0](https://kenney.nl/assets/impact-sounds): `impactWood_*`, `impactMetal_*`, `impactSoft_*`, `impactPunch_*` (`_000..003`) |
+| `grab_wood/metal/stone1..3.wav` | a climbing hand taking a hold | Kenney, *Impact Sounds*: `impactSoft_medium` (the palm) with `impactWood_light`, `impactMetal_light` (low-passed) or `footstep_concrete` (`_002..004`) |
+| `scrape_wood1..3.wav` | wood sliding (and, low-passed, `scrape_soft1..4.wav`: a backpack, a gib) | [481861](https://freesound.org/people/craigsmith/sounds/481861/): *R18-33-Drag Wood Box on Wood Floor.wav*, craigsmith; 0.5 s at 1.20, 20.76, 21.56 s |
+| `scrape_wood4.wav` | the same | [690010](https://freesound.org/people/matth3wc04/sounds/690010/): *Wooden Crate dragging on Concrete.mp3*, matth3wc04; 0.5 s at 0.48 s |
+| `scrape_metal1..4.wav` | metal sliding | [844755](https://freesound.org/people/MeanRaccoon/sounds/844755/): *steel plate dragging on wooden floor B*, MeanRaccoon; 0.5 s at 1.28, 3.60, 17.52, 34.44 s |
+| `scrape_stone1..4.wav` | stone and brick sliding | [545562](https://freesound.org/people/rsellick/sounds/545562/): *kettlebell concrete drag metal rock stone earth.wav*, rsellick; 0.5 s at 11.16, 15.04, 27.12, 30.92 s |
+
 ## Techniques, research and references
 
 ### Body IK

@@ -119,6 +119,7 @@
 #include "vr_ledges.hpp"
 #include "vr_mem.hpp"
 #include "vr_move.hpp"
+#include "vr_physsound.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_server.hpp"
@@ -1708,6 +1709,7 @@ extern "C" void VR_ClimbPreThink(edict_t* ent)
         }
         c.lastOrigin = vec(ent->v.origin);
         server::sendHaptic(ent, h, 0.f, 0.06f, 80.f, 0.6f);
+        physsound::grab(ent, ledge->hold, ledge->ent); // a slap and a tap of the hold's material
         if(debug())
         {
             Con_Printf("climb: %s hand holds at %.1f (out %.2f %.2f; hand %.1f %.1f %.1f, hold %.1f %.1f %.1f) from (%.1f %.1f %.1f)%s%s\n",

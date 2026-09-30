@@ -1654,6 +1654,32 @@ void hologramTestMessage()
             .help("The grip, fingers and melee points of what a hand carries."),
         open("Held Object Weights (Held Prop)", pageIndex(pageHeldObjectWeights))
             .help("The mass, spring and damage of what a hand carries (Aiming: Weight for how weight feels)."),
+        header("Physics Sounds"),
+        slider("Physics Sounds", vr_physsound, 0.f, 1.f, 0.1f, "%.1f")
+            .help("Volume of what things say as physics moves them: knocks as they land, bounce and hit each other, "
+                  "scrapes as they slide, a climbing hand taking a hold (0 off). By what they are made of: wood (crates, "
+                  "torches), metal (weapons, ammo, armour), stone, brick, flesh (gibs, heads), a backpack's thud."),
+        slider("Knocks", vr_physsound_impact, 0.f, 1.f, 0.1f, "%.1f")
+            .help("Things hitting the floor, walls, doors and each other: louder the harder and the heavier, a heavy "
+                  "thing's deeper (0 off)."),
+        slider("Quietest Knock", vr_physsound_min_speed, 1.f, 5.f, 0.25f, "%.2f m/s").extend(1.f, 20.f)
+            .help("A hit slower than this is silent (1.5 m/s: a drop of 4 cm). Raise it if things resting on each other "
+                  "tick."),
+        slider("Loudest Knock From", vr_physsound_full_speed, 3.f, 20.f, 0.5f, "%.1f m/s").extend(1.f, 50.f)
+            .help("A hit this hard or harder is at full volume (a drop of 1 m hits at 7.8 m/s)."),
+        slider("Knock Spacing", vr_physsound_interval, 0.f, 0.5f, 0.02f, "%.2f s").extend(0.f, 2.f)
+            .help("A thing knocks at most this often (a hit twice as loud sooner): a box rattling to rest or a stack "
+                  "settling doesn't chatter."),
+        slider("Scrapes", vr_physsound_scrape, 0.f, 1.f, 0.1f, "%.1f")
+            .help("Things sliding along the floor or each other (shoved, dragged, skidding after a throw): louder the "
+                  "faster and the heavier; they stop as the thing stops (0 off)."),
+        slider("Quietest Scrape", vr_physsound_scrape_min, 0.1f, 2.f, 0.1f, "%.1f m/s").extend(0.f, 5.f)
+            .help("A slide slower than this is silent."),
+        slider("Loudest Scrape From", vr_physsound_scrape_full, 1.f, 8.f, 0.5f, "%.1f m/s").extend(0.5f, 20.f)
+            .help("A slide this fast or faster scrapes at full volume."),
+        slider("Climbing Grab", vr_physsound_grab, 0.f, 1.f, 0.1f, "%.1f")
+            .help("A small slap as a climbing hand takes a hold, of what the hold is made of: wood, muted metal or stone "
+                  "(0 off)."),
         header("Explosive Boxes"),
         toggle("Physics Explosive Boxes", vr_explobox_physics)
             .help("The explosive boxes can be pushed, tipped over, stacked and carried by hand (heavy; never force "
@@ -1994,6 +2020,10 @@ std::vector<Item> pageDebugLogging()
             .help("Each grasp solve of the jointed hands (and each finger's stops)."),
         toggle("Holster Draw Blend", vr_debug_draw_blend)
             .help("Each frame of a gun easing between a holster and a hand: the turn and the distance left."),
+        cycle("Physics Sounds", vr_debug_physsound, {{0.f, "Off"}, {1.f, "Each Sound"}, {2.f, "And Each Hit Skipped"}})
+            .help("Each knock (the prop, its material and weight, the hit's speed, the volume), each scrape starting and "
+                  "stopping and each climbing grab (the hold's texture); or also the hits too soon after the last and each "
+                  "scrape grain."),
         cycle("Physics Bodies", vr_debug_box3d, {{0.f, "Off"}, {1.f, "Made and Slept"}, {2.f, "Every Awake Body"}})
             .help("Box3D bodies made, woken and put to sleep; or every awake body every frame (a lot). Also each throw: how "
                   "fast, whether it passes through your hands, and how much its velocity and spin changed by the grace's end "
@@ -2232,6 +2262,9 @@ std::vector<Item> pageDebugTests()
         command("Hand on the Stuck Axe", "impulse 207")
             .help("Moves you so that your main hand is on the handle of the nearest stuck axe: grip to pull it out."),
         command("Report the Axes", "impulse 208").help("Prints each thrown axe: what it is stuck in, where (developer 1)."),
+        command("Slide the Nearest Prop", "vr_physics_fling nearest 150")
+            .help("Sends the loose prop nearest you skidding along the floor the way you face, at 150 units/s (5.7 m/s): "
+                  "its scrape (Physics Sounds; Logs: Physics Sounds prints it)."),
         header("At You"),
         cycle("Projectile", vr_test_projectile,
             {{0.f, "Knight's Spike"}, {1.f, "Enforcer's Laser"}, {2.f, "Scrag's Spit"}, {3.f, "Vore's Ball"},

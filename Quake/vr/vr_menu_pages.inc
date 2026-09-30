@@ -85,6 +85,7 @@
         slider("Ledge Fling", "vr_climb_fling", 0.f, 2.f, 0.1f, "%.1f").extend().help("How much letting go of a ledge flings you with your hands' motion."),
         slider("Grab Leniency", "vr_climb_leniency", 0.f, 30.f, 1.f, "%.0f cm").extend().help("How far from a ledge or a rung a grip still takes it: the nearest one within this distance of your hand (not through walls, behind you or below your reach). 0: only a hand touching it (about 4.5 cm)."),
         toggle("Hands Slide Along Ledges", "vr_climb_slide").extend().help("When your body can't follow your hands along a ledge (past your arm's reach, against a wall), the hand slides along it and stays on your controller. Off: it stays where it took hold, and drifts away from your controller."),
+        slider("Grab Sound", "vr_physsound_grab", 0.f, 1.f, 0.1f, "%.1f").help("A small slap as your hand takes a hold, of what the hold is made of: wood, muted metal or stone (0 off; also Carrying: Physics Sounds)."),
         header("Climbing Stamina"),
         toggle("Climbing Stamina", "vr_climb_stamina").help("Hanging from a ledge or a rung tires you: it spends stamina from the pool parries, shoves and blows use (Stamina page), and none comes back while you hang. With none left your hands let go. Standing on something while you hold, pulling up onto a ledge and standing on it cost nothing."),
         slider("Hanging Cost, One Hand", "vr_climb_stamina_rate", 0.f, 30.f, 0.5f, "%.1f /s").extend().help("Stamina a second hanging from one hand costs (5 of 100: 20 s)."),

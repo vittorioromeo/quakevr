@@ -50,6 +50,7 @@
 #include "vr_lines.hpp"
 #include "vr_mem.hpp"
 #include "vr_physics.hpp"
+#include "vr_physsound.hpp"
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
 #include "vr_props.hpp"
@@ -340,6 +341,7 @@ struct Slot // what one edict is in the world (by its number)
     bool soft{false};     // isSoft
     bool brush{false};    // angles as a brush model's
     bool spins{false};    // a fixture drawn spinning (an EF_ROTATE model: the map's pickups): its shape turns with it
+    physsound::Material sound{physsound::Material::None}; // what its knocks and scrapes sound like (vr_physsound.cpp)
     double born{0.0};     // the server's time its body was made (a prop: thrown, let go of, launched)
     int pushedStep{-100}; // props: the last step a hand's body pushed it (limitPushes: a hit, then a shove)
     const b3HullData* hull{nullptr}; // actors: the hull at rest (actorHull), nullptr for Quake's box
@@ -1444,6 +1446,7 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind, bool resized = false)
     s.spins = kind == Kind::Fixture && model && (model->flags & EF_ROTATE);
     s.massSetting = massSetting(model);
     s.soft = model && isSoft(ent, model);
+    s.sound = physsound::materialOf(ent, model);
     s.origin = vec(ent->v.origin);
     s.angles = vec(ent->v.angles);
     s.born = qcvm->time;
@@ -2808,6 +2811,74 @@ void beforeStep(float dt)
     return best;
 }
 
+// A prop sliding after the step (the physics sounds' scrapes, vr_physsound.cpp): of its touching contacts with the level,
+// a door, a fixture or another prop (not a body or a hand), the manifold it slides on hardest: its touching points'
+// speed along the contact relative to the other body (rolling gives none: each point's own velocity, spin and all), and
+// how hard it is pressed there (the step's normal impulse over its weight's: 1 lying on it, less grazing a wall).
+// `dt`: the step's (the frame's last piece).
+void noteSlide(int num, const Slot& s, float dt)
+{
+    std::array<b3ContactData, 16> contacts;
+    const int count = b3Body_GetContactData(s.body, contacts.data(), static_cast<int>(contacts.size()));
+    if(count <= 0)
+    {
+        return;
+    }
+    const glm::vec3 v = glmv(b3Body_GetLinearVelocity(s.body)), w = glmv(b3Body_GetAngularVelocity(s.body));
+    const float mass = b3Body_GetMass(s.body);
+    const float weightImpulse = mass * (world->gravity / world->m2u) * dt;
+    float bestSlip = 0.f, bestPress = 0.f;
+    for(int i = 0; i < count; i++)
+    {
+        const b3ContactData& c = contacts[i];
+        const bool isA = B3_ID_EQUALS(b3Shape_GetBody(c.shapeIdA), s.body);
+        const b3ShapeId other = isA ? c.shapeIdB : c.shapeIdA;
+        if(b3Shape_GetFilter(other).categoryBits & (catPlayer | catActor | catHand | catReach))
+        {
+            continue;
+        }
+        const b3BodyId ob = b3Shape_GetBody(other);
+        const bool moves = b3Body_GetType(ob) != b3_staticBody;
+        const glm::vec3 ov = moves ? glmv(b3Body_GetLinearVelocity(ob)) : glm::vec3{0.f};
+        const glm::vec3 ow = moves ? glmv(b3Body_GetAngularVelocity(ob)) : glm::vec3{0.f};
+        for(int m = 0; m < c.manifoldCount; m++)
+        {
+            const b3Manifold& mf = c.manifolds[m];
+            const glm::vec3 n = glmv(mf.normal);
+            float slip = 0.f, impulse = 0.f;
+            int points = 0;
+            for(int k = 0; k < mf.pointCount; k++)
+            {
+                const b3ManifoldPoint& p = mf.points[k];
+                if(p.separation > 0.005f || p.totalNormalImpulse <= 0.f)
+                {
+                    continue; // (speculative: not touching, or not pressed)
+                }
+                const glm::vec3 ra = glmv(isA ? p.anchorA : p.anchorB), rb = glmv(isA ? p.anchorB : p.anchorA);
+                const glm::vec3 rel = v + glm::cross(w, ra) - (ov + glm::cross(ow, rb));
+                slip += glm::length(rel - n * glm::dot(rel, n));
+                impulse += p.totalNormalImpulse;
+                points++;
+            }
+            if(points == 0)
+            {
+                continue;
+            }
+            slip /= static_cast<float>(points);
+            const float press = weightImpulse > 0.f ? impulse / weightImpulse : 0.f;
+            if(slip * std::min(press, 1.f) > bestSlip * std::min(bestPress, 1.f))
+            {
+                bestSlip = slip;
+                bestPress = press;
+            }
+        }
+    }
+    if(bestSlip > 0.f)
+    {
+        physsound::slide(num, s.sound, mass, bestSlip, bestPress, s.origin);
+    }
+}
+
 // A prop's state from its body into its entity (awake, or just fallen asleep).
 // A solid prop's Quake box (SOLID_BBOX: what shots, players and monsters meet) round its drawn box as it is turned now,
 // so a tipped explosive box is hit and walked into where it lies.
@@ -2891,6 +2962,40 @@ void writeProp(edict_t* ent, Slot& s)
     }
 }
 
+// The step's hits for the physics sounds (vr_physsound.cpp): a prop's against the level, a door, a fixture, another prop,
+// a hand's or a held weapon's body (each prop of a pair its own); not a monster's or a player's body (their touches have
+// QC's sounds). Cheap: Box3D reports only the contacts that met faster than its hit threshold (1 m/s).
+void soundHits(const b3ContactEvents& events)
+{
+    const float least = std::max(vr_physsound_min_speed.value, 1.f);
+    for(int i = 0; i < events.hitCount; i++)
+    {
+        const b3ContactHitEvent& e = events.hitEvents[i];
+        if(e.approachSpeed < least || !b3Shape_IsValid(e.shapeIdA) || !b3Shape_IsValid(e.shapeIdB))
+        {
+            continue;
+        }
+        for(int side = 0; side < 2; side++)
+        {
+            const b3ShapeId self = side ? e.shapeIdB : e.shapeIdA, other = side ? e.shapeIdA : e.shapeIdB;
+            const int a = numOf(self), b = numOf(other);
+            if(a <= 0 || a >= static_cast<int>(world->slots.size()) || world->slots[a].kind != Kind::Prop)
+            {
+                continue;
+            }
+            const Kind ok = b > 0 && b < static_cast<int>(world->slots.size()) ? world->slots[b].kind : Kind::None;
+            if(ok == Kind::Actor || (b3Shape_GetFilter(other).categoryBits & catPlayer))
+            {
+                continue;
+            }
+            const Slot& s = world->slots[a];
+            const glm::vec3 at{static_cast<float>(e.point.x) * world->m2u, static_cast<float>(e.point.y) * world->m2u,
+                static_cast<float>(e.point.z) * world->m2u};
+            physsound::hit(a, s.sound, b3Body_GetMass(s.body), e.approachSpeed, at);
+        }
+    }
+}
+
 // The step's touches, as the old solver's: a prop meeting another entity's body (a monster, a door) touches it
 // (QC's damage, sounds); props hitting each other hard touch each other (a thrown box into a pile: its knock, the
 // throw over). Landing on the world touches nothing (as before).
@@ -2929,6 +3034,7 @@ void touches(std::vector<std::pair<int, int>>& out)
             out.emplace_back(a, b);
         }
     }
+    soundHits(events);
     // A prop that wants to know how hard it hits (.vr_impact): its hardest hit on anything (the level too).
     const int impactField = fields().vr_impact;
     if(impactField < 0)
@@ -3796,6 +3902,62 @@ void spawn_f()
     }
 }
 
+// vr_physics_fling <number | classname | props | nearest> <speed> [<yaw> [<up>]]: sets their velocity, `speed` units/s
+// along `yaw` (degrees; the player's view by default) and `up` units/s up (0): a prop sent skidding along the floor (its
+// scrape: the physics sounds), or tossed. `nearest`: the loose prop nearest the player. For tests (Debug menu: Slide the
+// Nearest Prop).
+void fling_f()
+{
+    if(!sv.active || Cmd_Argc() < 3 || svs.maxclients < 1)
+    {
+        Con_Printf("usage: vr_physics_fling <number | classname | props | nearest> <speed> [<yaw> [<up>]]\n");
+        return;
+    }
+    const VmScope vm;
+    edict_t* player = EDICT_NUM(1);
+    std::vector<edict_t*> list;
+    if(!strcmp(Cmd_Argv(1), "nearest"))
+    {
+        float best = 1e9f;
+        edict_t* found = nullptr;
+        for(int i = 1; i < qcvm->num_edicts && i < static_cast<int>(world ? world->slots.size() : 0); i++)
+        {
+            edict_t* e = EDICT_NUM(i);
+            if(!e->free && world->slots[i].kind == Kind::Prop)
+            {
+                const float d = glm::distance(vec(e->v.origin), vec(player->v.origin));
+                if(d < best)
+                {
+                    best = d;
+                    found = e;
+                }
+            }
+        }
+        if(found)
+        {
+            list.push_back(found);
+        }
+    }
+    else
+    {
+        list = entitiesNamed(Cmd_Argv(1));
+    }
+    const float speed = static_cast<float>(Q_atof(Cmd_Argv(2)));
+    const float yaw = glm::radians(Cmd_Argc() > 3 ? static_cast<float>(Q_atof(Cmd_Argv(3))) : player->v.v_angle[1]);
+    const float up = Cmd_Argc() > 4 ? static_cast<float>(Q_atof(Cmd_Argv(4))) : 0.f;
+    for(edict_t* e : list)
+    {
+        store(glm::vec3{std::cos(yaw) * speed, std::sin(yaw) * speed, up}, e->v.velocity);
+        setFlag(e, FL_ONGROUND, false);
+        Con_Printf("vr_physics_fling: %d %s at %.0f %.0f %.0f u/s\n", NUM_FOR_EDICT(e), PR_GetString(e->v.classname),
+            e->v.velocity[0], e->v.velocity[1], e->v.velocity[2]);
+    }
+    if(list.empty())
+    {
+        Con_Printf("vr_physics_fling: none\n");
+    }
+}
+
 // vr_physics_sink [<number | classname | props>]: how far each one's drawn model is inside the floor under it: its
 // drawn surface's lowest corners (held::drawnVertices, where the entity is) against the floor straight below them (a
 // point trace down from 24 units above), and the Box3D shape's lowest point (its hull's corners where the body is). A
@@ -3984,6 +4146,7 @@ void registerCommands()
         Cmd_AddCommand("vr_physics_approach", approach_f);
         Cmd_AddCommand("vr_physics_inside", inside_f);
         Cmd_AddCommand("vr_physics_spawn", spawn_f);
+        Cmd_AddCommand("vr_physics_fling", fling_f);
         Cmd_AddCommand("vr_physics_forcegrab", forcegrabCheck_f);
     }
 }
@@ -5775,8 +5938,10 @@ extern "C" void VR_PhysicsFrameEnd(void)
             c.contactCount, pieces);
     }
 
-    // The props into their entities (the awake ones, and those that just fell asleep).
+    // The props into their entities (the awake ones, and those that just fell asleep), and the awake ones' slides (the
+    // physics sounds' scrapes).
     QVR_PROFILE("box3d write");
+    const bool scrapes = physsound::scrapesWanted();
     for(int num = 1; num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts; num++)
     {
         Slot& s = world->slots[num];
@@ -5787,6 +5952,10 @@ extern "C" void VR_PhysicsFrameEnd(void)
             if(ent->free)
             {
                 destroyBody(s);
+            }
+            else if(scrapes && !s.asleep && s.sound != physsound::Material::None)
+            {
+                noteSlide(num, s, dt / static_cast<float>(pieces));
             }
         }
     }
@@ -5838,6 +6007,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
     }
     callShocks();
     watchInside();
+    physsound::frameEnd(); // the frame's knocks and scrapes
 }
 
 namespace qvr::box3d

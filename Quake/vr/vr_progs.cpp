@@ -12,6 +12,7 @@
 #include "vr_cvars.hpp"
 #include "vr_mem.hpp"
 #include "vr_physics.hpp"
+#include "vr_physsound.hpp"
 #include "vr_server.hpp"
 #include "vr_walltorch.hpp"
 #include "vr_props.hpp"
@@ -211,6 +212,7 @@ extern "C" void VR_OnSpawnServerBeforeLoad()
 {
     resetServerWorld();
     qvr::physics::precacheWaterSounds();
+    qvr::physsound::precache(); // the props' knocks and scrapes, the climbing grab
     // The training dummy's attacks (parry practice; QC vr_dummy.qc) are off at every map load, a saved game's too.
     Cvar_SetQuick(&qvr::vr_dummy_attacks, "0");
     callSpawnServerEntryPoint(sv_bindings.OnSpawnServerBeforeLoad);

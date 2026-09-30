@@ -550,6 +550,266 @@
   "sha256": "1c49beeeb721a916e51f367126e3a771a1efe68a137aec51bafe0fdd0b83819a",
   "by": "make_flashlight.py"
  },
+ "quakevr/sound/vr/phys/flesh_h1.wav": {
+  "sha256": "f7e51ffe13f63f3a8313647337df4853b93967a4cd611d7c01bcb95fc547ad41",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/flesh_h2.wav": {
+  "sha256": "ee2ce98a6b436119846f7b561dc291b86f5aeaac876b63442e20a687af6ea5d7",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/flesh_h3.wav": {
+  "sha256": "4600cddd7d2efad5c38425d9ba82449b24dff9e16d835babb4be201bee3e13b9",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/flesh_h4.wav": {
+  "sha256": "5bf4333bca3d09dd95738df9a6e376ec2bc5e93b2d6d30d52d288fb01c55724b",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/flesh_m1.wav": {
+  "sha256": "d71146cb5300a7c689642043b65fa1b6d35435ef70ab5ae4be61fcbb4a153e3e",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/flesh_m2.wav": {
+  "sha256": "4d89ea5fc6f26d8e2187b33e8391fea45b915a171f1b6bd3d5dacc08ecbe7769",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/flesh_m3.wav": {
+  "sha256": "32c3d6fcbec3e75f5f628e5aaad4a475db4101c6c7090d3c50f0fe503ce651ed",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/flesh_m4.wav": {
+  "sha256": "c58f992130e8e40745e6f3ed420327720c6607bc4cc9ddc2d0326a7c2a2fb852",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/grab_metal1.wav": {
+  "sha256": "7f5651840b1df401e23c5df815f7d58456a7fdc7ccbea34fcb6f2912b93a394b",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/grab_metal2.wav": {
+  "sha256": "691a8a0bba5c64a3724eca0a9233d75936b7223ee470d6b53fedcdf15c002dcb",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/grab_metal3.wav": {
+  "sha256": "fcce14ca3a69155a5e1f9ed70ef484528135dd4e43a561331d746f2c780e91b2",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/grab_stone1.wav": {
+  "sha256": "2dce461773f3c131fd5b6942ea140adefc01bcf8209718a4989fae3c33a07cbd",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/grab_stone2.wav": {
+  "sha256": "719e858b483e019e410881418d29a3a01cbf87d200bd1ea08b5defe284ea0f10",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/grab_stone3.wav": {
+  "sha256": "a6da064d4714ddf80bb13bf29ad8a36169af1a44a1afc8907cc146112e1cefdf",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/grab_wood1.wav": {
+  "sha256": "dd11332467b0a712892035680bbcf2ca960403ff4bf44c8f6013994a8e7d5bb5",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/grab_wood2.wav": {
+  "sha256": "12e1603aedccdc3b4070975e7e9bb0e4fa5b72129662311c87454a1c68c342dc",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/grab_wood3.wav": {
+  "sha256": "a132bfece9e75e12f7cc1c1a282776520cff1a351ece9b1af1359f4c88dab19c",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/metal_h1.wav": {
+  "sha256": "6cae1c64e6219652b38043715209a9ad0b97a84cc38dcc9d53b80f34d4dff73a",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/metal_h2.wav": {
+  "sha256": "6cd95b5f404cd12be2e0082a1ea4b47e0e71596c0e6c6f03f4a44a5fd708c14c",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/metal_h3.wav": {
+  "sha256": "b113554b37ee1138ceecc846ba7ed3d0b5bbd4e9cf24a673d5294e3ac0fb69e9",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/metal_h4.wav": {
+  "sha256": "e9b5eddef68fa44e8a30c51e847ab0ef61ee6a934c2233ebba42091a36c01000",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/metal_l1.wav": {
+  "sha256": "394f7eea4d01bf94e35dd83c95facf76fde5ede86b15af2962592bf7b1c5eee9",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/metal_l2.wav": {
+  "sha256": "abbd5178abfd652bf46f6908cca18bec224319360e3b59088827dbbe53632707",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/metal_l3.wav": {
+  "sha256": "41d4fc4b84985c70f6bb6ed5ea2e51e033188d07fed4932dd8e07bf6e735e9ab",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/metal_l4.wav": {
+  "sha256": "39fbfb23fe1e85ea1723701b90cf9d79289112d58af40f70b84b0c67af1e986e",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/metal_m1.wav": {
+  "sha256": "9b96138d92451800117cd2ac4b3b2697ed6a93f5bcf0a295fece13d98af5424c",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/metal_m2.wav": {
+  "sha256": "7231541fe5d5971a179a576e1ba46b082aafcad9730b2d92cf6a2a35cfb4f81f",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/metal_m3.wav": {
+  "sha256": "95cef958c8b2d0c1a06d99f4d594c03b1f235c5955578cde448c6c9bbdd3a8f3",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/metal_m4.wav": {
+  "sha256": "547bcefc95a385093fea11265c24891b1d0f6795dca33b19edddaa9ddcc7134f",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/scrape_metal1.wav": {
+  "sha256": "f93781aa4e139b8bd1901f6bda3eaf87ad6f5d844392433d2716670c94d31a2a",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/scrape_metal2.wav": {
+  "sha256": "180807a9798b1f2575720082abbb7442fa5954907171593fb312ecf81efe2fe7",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/scrape_metal3.wav": {
+  "sha256": "0ed02ad90456b1803246753f8d2ad94de149493cb1360329633c93baa529452a",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/scrape_metal4.wav": {
+  "sha256": "29b75afa504b92d64427afa93697ec544bfbfc6f807ef1caf4703f3fd865e8e6",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/scrape_soft1.wav": {
+  "sha256": "9e8758e2fdcbfee552d66a191f22b24823f0289e9c471f91ded1620a9a73324e",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/scrape_soft2.wav": {
+  "sha256": "a9179f2c19225ef10274b44e23a77ff29426dbb27164be67da7fd4ac77944ad1",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/scrape_soft3.wav": {
+  "sha256": "c5116c483e4b2b7e73e258450dfdc786c0044a379e42d053ac1656951aeb093e",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/scrape_soft4.wav": {
+  "sha256": "ee697a02de2d6a2eaaf6b668a915b74865f15e9d4a2e81b9c91bfd22919d3b4c",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/scrape_stone1.wav": {
+  "sha256": "1cd81c7405e6cf1a403c50a8fb939f5afa08288ba08959ebf2eeb1c50ad85a8b",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/scrape_stone2.wav": {
+  "sha256": "baf73673b6d20354121d65555ac524178ebebb4beb4be27b09f53eeafc2bb719",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/scrape_stone3.wav": {
+  "sha256": "1bc05a1e13e514fb53634bade68ef1254e44575bd0ac2b935e04b107d016fc43",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/scrape_stone4.wav": {
+  "sha256": "bc811acabb3704178405068d9dde28114fb46f04ef1c8953cbc6707d860ce74d",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/scrape_wood1.wav": {
+  "sha256": "8edf311dbbb758a761fe071a7fb66f4b2ed12468b89db0fdeb5b69feabaa8507",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/scrape_wood2.wav": {
+  "sha256": "c8dafa83d5319f12e5f2469213d5ec9e1394b7a458d795109590fb5aa09dfbe9",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/scrape_wood3.wav": {
+  "sha256": "8a4ad7a44ac1951d0b692390b470c08094c17ff77413d730ebb49683042d682a",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/scrape_wood4.wav": {
+  "sha256": "777f6c8bb55f747355449e5b715e74c2f98dd588d7b943edc7182541f30a0679",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/soft_h1.wav": {
+  "sha256": "d6fa9cddc9bcafa01fbb252750af65bac2d265ca0a193ef36b32c43fc19b9da3",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/soft_h2.wav": {
+  "sha256": "bdceddca524bcace8a489c8beaf13a058168bd4432495586418e06ef5cf3f244",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/soft_h3.wav": {
+  "sha256": "b363e3ce4f040657ec99d863f1795e030847c0ca24d4097f711afb535d442fa5",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/soft_h4.wav": {
+  "sha256": "7b217591267ad17fded3d6e08c180dbf7a34d12ba8244d0184f70ab9abc14d55",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/soft_m1.wav": {
+  "sha256": "dd788f01ec8daa4102b16d74248a481942df8128b9e03076ca68f723c66d3a13",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/soft_m2.wav": {
+  "sha256": "a1aa2526cac79b3a2e21dc353e0d5bc5ace667b9a6235c450994df73da82148d",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/soft_m3.wav": {
+  "sha256": "a1c6f3f698da2188dd44aaed6924b5cac90624b2b6fd7cb7342d9750f7e1ea73",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/soft_m4.wav": {
+  "sha256": "8f4926cdb9369a0141ae8565759cf1b8a7fb1571b3f443451cbfbabbf8c7cee2",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/wood_h1.wav": {
+  "sha256": "0990db9848b36e176ca3146be1dfd245b74f597ea4d6e1f63dd58a255ee211b6",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/wood_h2.wav": {
+  "sha256": "9f8c22d7a36a844b77a82155e0c2f36b5d1fa183950a6b9c7f163e5e91da6fd5",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/wood_h3.wav": {
+  "sha256": "31c140cd5a7f206443576e688ef83bec9b1d2fc19752b9c999da2152330fb486",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/wood_h4.wav": {
+  "sha256": "cf0e7dd28c805119892ce6e8e42784f58e4a123a689e0afc2b0118d8d3c421de",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/wood_l1.wav": {
+  "sha256": "0b3ae9f7c644199939de80605c35ddd682b51f03cff1b8069492385a4e889140",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/wood_l2.wav": {
+  "sha256": "ce1529cfe90a9ca6adc55674088472ffa14e59389c4a94dd61d12ce6a4795096",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/wood_l3.wav": {
+  "sha256": "997d0547070d304019692dcafee26314fa621d085fa425bd57b7dfd298e1d4e3",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/wood_l4.wav": {
+  "sha256": "6b2b6ada206b42ac1f4049fc4a3c737d23b873ce9ccd8335720fe869bacbe65b",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/wood_m1.wav": {
+  "sha256": "0a83b80c19e728b8540fd05f52114b25532c4baba2ab0321a66349870e53c4cc",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/wood_m2.wav": {
+  "sha256": "36a49aae11965ffb9fe4ba0d1513205782e0214527a67cdd769c15b25577360e",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/wood_m3.wav": {
+  "sha256": "044082bea0ad312d12869d4c1bce23ca1f4664154f11a9b738f373f970bef2a2",
+  "by": "make_physics_sounds.py"
+ },
+ "quakevr/sound/vr/phys/wood_m4.wav": {
+  "sha256": "411193459a70ea611929571f3d88b0f8e4b57552321a99f1722f19fa352c2b70",
+  "by": "make_physics_sounds.py"
+ },
  "quakevr/textures/vr/detail_dirt.png": {
   "sha256": "1966e1942940de39faf4d39830d4be2fc5cabac8d1213db06bd8d94dfa422fbe",
   "by": "make_detail.py"

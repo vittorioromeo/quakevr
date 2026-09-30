@@ -50,7 +50,8 @@ float(entity e) VR_Debris_Is =
 };
 
 // Box3D's hardest hit of a frame (vr_box3d.cpp callShocks: on the level, a prop, a monster; not a player's body or
-// hands): its knock, louder the harder, at most every 0.1 s (a stone rolling to rest knocks a few times, not a rattle).
+// hands). Its knock is the engine's now, as every prop's (vr_physsound.cpp: rock1..3 and brick1..3 by how hard and how
+// heavy, at most every vr_physsound_interval); this only reports it (developer 1).
 void(float xSpeed) VR_Debris_Impact =
 {
     if(xSpeed < 1.5 || time < self.vr_debris_sound + 0.1)
@@ -58,9 +59,7 @@ void(float xSpeed) VR_Debris_Impact =
         return;
     }
     self.vr_debris_sound = time;
-    float vol = min(1, 0.12 + (xSpeed - 1.5) / 6);
-    sound(self, CHAN_AUTO, VR_Debris_Sound(self), vol, xSpeed > 5 ? ATTN_NORM : ATTN_IDLE);
-    dprint(sprintf("debris: %s knocks at %.1f m/s (volume %.2f)\n", self.classname, xSpeed, vol));
+    dprint(sprintf("debris: %s knocks at %.1f m/s\n", self.classname, xSpeed));
 };
 
 // Touching what it hits: thrown hard, it hurts it as a thrown box does (forcegrabbable_touch; its base damage is set
