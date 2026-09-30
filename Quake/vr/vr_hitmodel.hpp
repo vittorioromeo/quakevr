@@ -51,6 +51,8 @@ struct Hit
     glm::vec3 point{0.f};      // where the segment meets the grown model
     glm::vec3 surface{0.f};    // the same place on the model itself
     glm::vec3 normal{0.f, 0.f, 1.f}; // the grown surface's, facing the segment's start
+    int tri{-1};               // the triangle met (-1: started inside), and where on it: corner 0 + u (1 - 0) + v (2 - 0)
+    float u{0.f}, v{0.f};
 };
 
 // vr_hit_precise.
@@ -74,6 +76,11 @@ bool clip(edict_s* ent, const glm::vec3& a, const glm::vec3& b, const glm::vec3&
 // origin and turned with its yaw: the frame positional damage's head sphere and regions are measured in. The last
 // hit's triangle when `p` is its point; else the drawn triangle nearest `p`. False: `ent` is no target.
 bool restPoint(edict_s* ent, const glm::vec3& p, glm::vec3& out);
+
+// Where the place (u, v) on triangle `tri` of `ent`'s model (a Hit's) is as drawn now, and a frame there: x along the
+// triangle's first edge, z its normal (outwards), y their cross. What stays on the model where it was hit follows it (a
+// thrown axe stuck in a monster, vr_axestick.cpp). False: no target, or no such triangle.
+bool anchorFrame(edict_s* ent, int tri, float u, float v, glm::vec3& point, glm::mat3& axes);
 
 void serverFrame();  // the lerp's state (VR_ServerFrameEnd)
 void afterLoad();    // every precached alias model's hierarchy built

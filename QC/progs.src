@@ -40,6 +40,7 @@ triggers.qc
 weapons.qc
 vr_chainsaw.qc
 vr_enemyguns.qc
+vr_axestick.qc
 vr_liquids.qc
 vr_wounds.qc
 world.qc

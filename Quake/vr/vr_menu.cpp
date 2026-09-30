@@ -1475,6 +1475,23 @@ void hologramTestMessage()
         slider("Hitbox", vr_throw_hitbox, 1.f, 12.f, 0.5f, "%.1f").extend().help("Half-size of a thrown weapon's box against monsters."),
         slider("Hit Min Speed", vr_throw_hit_min_speed, 0.f, 600.f, 25.f, "%.0f").extend()
             .help("Units/s a thrown weapon, box or gib must go at to hurt a monster; slower (at rest against it, pushed into it) it does nothing."),
+        header("Thrown Axes"),
+        toggle("Axes Stick", vr_axestick)
+            .help("A thrown axe that strikes blade first sticks in walls, doors, props and monsters (it moves with them). "
+                  "Grip it, or force grab it (it tugs, then comes free), to pull it out. Off: it bounces off."),
+        slider("Bleeding", vr_axestick_bleed, 0.f, 20.f, 0.5f, "%.1f health/s").extend(0.f, 100.f)
+            .help("Health a second a monster loses while an axe is stuck in it (your damage). It falls out when the "
+                  "monster dies."),
+        slider("Stick Speed", vr_axestick_speed, 1.f, 12.f, 0.5f, "%.1f m/s").extend(0.f, 30.f)
+            .help("How fast the blade's edge must go into what it strikes; slower, it bounces off."),
+        slider("Stick Angle", vr_axestick_angle, 10.f, 90.f, 5.f, "%.0f deg")
+            .help("How far the blade may face from the way its edge goes: more, and flat or handle-first throws stick too."),
+        slider("Stick Incidence", vr_axestick_incidence, 10.f, 90.f, 5.f, "%.0f deg")
+            .help("How far from square to the surface the blade may go in: more, and glancing blows stick too."),
+        slider("Stick Depth", vr_axestick_depth, 0.f, 12.f, 0.5f, "%.1f cm").extend()
+            .help("How deep the edge goes in at a hard throw (half as deep at the Stick Speed)."),
+        slider("Force Grab Tug", vr_axestick_tug, 0.f, 1.f, 0.05f, "%.2f s")
+            .help("How long a force grab tugs a stuck axe before it comes free and flies to your hand."),
         header("Flung Props"),
         toggle("Flung Props Hurt", vr_prop_impact_damage)
             .help("A prop you didn't throw (swung on the grapple's rope, batted, knocked flying) hurts the monster it flies "
@@ -1949,6 +1966,9 @@ std::vector<Item> pageDebugLogging()
                   "(and when Quad's sound plays) and each prop a shot pushes. Needs Developer Messages."),
         cycle("Throws", vr_debug_throw, {{0.f, "Off"}, {1.f, "Each Throw"}, {2.f, "And Its Timing"}})
             .help("Each throw's speed estimate from the hand's motion (and the release's timing)."),
+        toggle("Axe Sticks", vr_debug_axestick)
+            .help("Each thrown axe's blade striking something: stuck (how fast, how deep, at what angles) or why it bounced; "
+                  "its bleeding, its fall, its pull. Needs Developer Messages for the last."),
         cycle("Climbing", vr_climb_debug, {{0.f, "Off"}, {1.f, "Holds"}, {2.f, "Every Frame"}, {3.f, "And Shoulders"}})
             .help("Holds taken, released, mantles; every frame: the body, the hands, the pull, the holds' reach (a lot)."),
         cycle("Hands", vr_debug_hands, {{0.f, "Off"}, {1.f, "When They Change"}, {2.f, "Every Frame"}})
@@ -2188,6 +2208,21 @@ std::vector<Item> pageDebugTests()
         command("Fling the Nearest Prop", "impulse 232")
             .help("Sends the loose prop nearest you (put a box there first) at it, as if batted or knocked flying; "
                   "developer 1 prints the hit (prop: flung ...)."),
+        header("Thrown Axe"),
+        cycle("Axe Throw", vr_test_axe, {{0.f, "Blade First"}, {1.f, "Flat"}, {2.f, "Handle First"}, {3.f, "Spinning"}})
+            .help("How Throw an Axe throws it: blade first (the edge upright), the blade's side first, the handle's end "
+                  "first, or blade first spinning end over end."),
+        slider("Axe Speed", vr_test_axe_speed, 2.f, 20.f, 1.f, "%.0f m/s").extend(),
+        toggle("Axe Hurts", vr_test_axe_damage).help("Off: its blow does no damage (to watch a monster bleed)."),
+        cycle("Axe At", vr_test_axe_at, {{0.f, "Ahead"}, {1.f, "Nearest Monster"}, {2.f, "Nearest Door"}, {3.f, "Nearest Prop"}})
+            .help("What Throw an Axe throws at: ahead of you, or the nearest live monster, door or loose prop (you are "
+                  "moved to face it, level with its middle)."),
+        slider("Axe Range", vr_test_axe_dist, 0.f, 400.f, 20.f, "%.0f units")
+            .help("You are moved first to this far from what is ahead (0: where you are)."),
+        command("Throw an Axe", "impulse 209").help("An axe thrown straight ahead from your eyes (not yours: a new one)."),
+        command("Hand on the Stuck Axe", "impulse 207")
+            .help("Moves you so that your main hand is on the handle of the nearest stuck axe: grip to pull it out."),
+        command("Report the Axes", "impulse 208").help("Prints each thrown axe: what it is stuck in, where (developer 1)."),
         header("At You"),
         cycle("Projectile", vr_test_projectile,
             {{0.f, "Knight's Spike"}, {1.f, "Enforcer's Laser"}, {2.f, "Scrag's Spit"}, {3.f, "Vore's Ball"},

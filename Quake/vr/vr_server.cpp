@@ -1,6 +1,7 @@
 // vr_server.cpp -- server side of the Quake VR protocol extensions (see vr_protocol.hpp).
 
 #include "vr_fatigue.hpp"
+#include "vr_axestick.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_climb.hpp"
 #include "vr_ledges.hpp"
@@ -379,6 +380,7 @@ extern "C" void VR_WriteClientSpawnState(sizebuf_t* msg)
 extern "C" void VR_ServerFrameEnd()
 {
     qvr::hitmodel::serverFrame(); // precise hits: the client's lerp of the monsters' poses and steps, kept
+    qvr::axestick::serverFrame(); // thrown axes stuck in things go with them (after the poses above)
 
     if(!vrProtocol())
     {

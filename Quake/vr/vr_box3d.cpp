@@ -42,6 +42,7 @@
 // order (entities in edict order) give the same result.
 
 #include "vr_box3d.hpp"
+#include "vr_axestick.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_jobs.hpp"
 #include "vr_cvars.hpp"
@@ -2656,6 +2657,13 @@ void beforeStep(float dt)
 
         if(glm::length(vel) > 1.f)
         {
+            // A thrown axe whose blade goes into something this step, blade first, sticks in it (vr_axestick.cpp): it is
+            // no longer a prop.
+            if(axestick::beforeStep(ent, com, vel, glmv(b3Body_GetAngularVelocity(s.body)), dt))
+            {
+                destroyBody(s);
+                continue;
+            }
             touchNearby(ent, com, com + vel * dt);
             if(ent->free || kindOf(ent, num, {}) != Kind::Prop)
             {
@@ -4254,6 +4262,43 @@ int shot(const glm::vec3& start, const glm::vec3& end, const glm::vec3& velocity
         return 0;
     }
     return hit.num;
+}
+
+bool castProps(const glm::vec3& from, const glm::vec3& to, int skip, PropHit& hit)
+{
+    hit = PropHit{};
+    const glm::vec3 delta = to - from;
+    if(!world || glm::dot(delta, delta) < 1e-6f)
+    {
+        return false;
+    }
+    struct Query
+    {
+        int skip;
+        PropHit* hit;
+    } q{skip, &hit};
+    b3QueryFilter filter = b3DefaultQueryFilter();
+    filter.maskBits = catProp;
+    b3World_CastRay(world->id, world->toM(from), world->toM(delta), filter,
+        [](b3ShapeId shape, b3Pos point, b3Vec3 normal, float fraction, uint64_t, int, int, void* context) -> float {
+            auto& cq = *static_cast<Query*>(context);
+            const int num = numOf(shape);
+            if(num <= 0 || num == cq.skip || num >= static_cast<int>(world->slots.size()) ||
+                world->slots[num].kind != Kind::Prop)
+            {
+                return -1.f; // (not this one)
+            }
+            if(fraction < cq.hit->fraction)
+            {
+                cq.hit->num = num;
+                cq.hit->fraction = fraction;
+                cq.hit->point = world->toU(point);
+                cq.hit->normal = glm::vec3{normal.x, normal.y, normal.z};
+            }
+            return fraction; // (the closest)
+        },
+        &q);
+    return hit.num > 0;
 }
 
 bool damp(edict_t* ent, const glm::vec3& relativeTo, float keep, float keepSpin, float maxSpeed, const glm::vec3& add)

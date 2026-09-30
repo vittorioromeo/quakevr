@@ -59,6 +59,7 @@ QVR_CVAR(vr_throw_ang_factor, "0.7", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_pitch, "0", CVAR_ARCHIVE)        // degrees every throw's direction is tilted up (negative: down), its speed kept
 QVR_CVAR(vr_throw_gravity, "9.81", CVAR_ARCHIVE)   // m/s^2 on thrown weapons, bounces included (0: sv_gravity)
 QVR_CVAR(vr_debug_throw, "0", CVAR_NONE)           // print each throw's estimate (2: and its timing)
+QVR_CVAR(vr_debug_axestick, "0", CVAR_NONE)       // print each thrown axe's blade meeting something: stuck (how deep, at what angles) or why not
 QVR_CVAR(vr_debug_shots, "0", CVAR_NONE)           // print each hitscan shot: where it starts, its direction, what its pellets hit; each prop a shot pushes
 // Release: the runtime's grip button lets go late. With vr_throw_release 1 the analog grip lets
 // go once it drops vr_throw_release_drop below its peak while the hand moves faster than
@@ -78,6 +79,15 @@ QVR_CVAR(vr_throw_gain_hi, "6", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_weight_influence, "0.25", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_hitbox, "6", CVAR_ARCHIVE)       // half-size (units) of a thrown weapon's box against monsters
 QVR_CVAR(vr_throw_hit_min_speed, "200", CVAR_ARCHIVE) // units/s a thrown thing must go at to hurt what it touches (slower: the throw is over)
+// Thrown axes stick (vr_axestick.cpp, QC/vr_axestick.qc): one whose blade goes into something first, fast enough and
+// square enough, sticks in it (the level, a door, a prop, a monster: it rides with it); a hand or a force grab pulls it out.
+QVR_CVAR(vr_axestick, "1", CVAR_ARCHIVE)             // on
+QVR_CVAR(vr_axestick_speed, "4", CVAR_ARCHIVE)       // m/s the blade's edge must go at into what it meets (relative to it)
+QVR_CVAR(vr_axestick_angle, "45", CVAR_ARCHIVE)      // degrees at most between the way the blade faces and the way its edge goes (flat, handle first: more)
+QVR_CVAR(vr_axestick_incidence, "65", CVAR_ARCHIVE)  // degrees at most between the way the blade faces and straight into the surface (a glancing blow: more)
+QVR_CVAR(vr_axestick_depth, "5", CVAR_ARCHIVE)       // cm the edge goes in at twice the least speed (half as deep at it; at most 60% of the blade)
+QVR_CVAR(vr_axestick_bleed, "5", CVAR_ARCHIVE)       // health a second a monster an axe is stuck in loses (0: none), the thrower's damage
+QVR_CVAR(vr_axestick_tug, "0.3", CVAR_ARCHIVE)       // seconds a force grab tugs a stuck axe before it comes free
 // Aim assist (QC; on, the author's values, NOTES.md vrfiringrange_2026-09-30_11-25-52): bends a throw by up to vr_throw_assist_strength onto a monster or
 // breakable within vr_throw_assist_cone degrees of it (fully within vr_throw_assist_full), in
 // range and in sight, on a ballistic arc, allowing vr_throw_assist_speed more speed.
@@ -1185,6 +1195,11 @@ QVR_CVAR(vr_debug_hand_offset, "0", CVAR_NONE)       // 1: print each hand drawn
 QVR_CVAR(vr_test_spawn, "0", CVAR_NONE)               // impulse 241 (tests): what it puts ahead of you: 0..17 the firing range's dispenser monsters (0 grunt, 1 ogre, 2 zombie, 3 shambler, ...), 100 a health box, 101 a shells box, 102/103 an explosive box/a small one, 104 an explosive box that never blows up
 QVR_CVAR(vr_test_spawn_dist, "56", CVAR_NONE)         // and how far ahead (units)
 QVR_CVAR(vr_test_spawn_dead, "0", CVAR_NONE)          // 1: a monster killed at once (a corpse)
+QVR_CVAR(vr_test_axe, "0", CVAR_NONE)               // impulse 209 (tests): an axe thrown ahead from the eyes: 0 blade first, 1 flat, 2 handle first, 3 spinning end over end
+QVR_CVAR(vr_test_axe_speed, "10", CVAR_NONE)        // ... at this many m/s
+QVR_CVAR(vr_test_axe_damage, "1", CVAR_NONE)        // ... hurting what it hits (0: no damage, to see a monster bleed)
+QVR_CVAR(vr_test_axe_dist, "0", CVAR_NONE)          // ... you moved first to this many units from what is ahead of your eyes (0: where you are)
+QVR_CVAR(vr_test_axe_at, "0", CVAR_NONE)            // ... at the nearest live monster (1), door (2) or loose prop (3), from its side facing you, level with its middle
 QVR_CVAR(vr_test_fling_speed, "12", CVAR_NONE)        // impulse 232 (tests): the prop nearest you sent at the nearest monster at this many m/s (VR_Test_Fling)
 QVR_CVAR(vr_test_fling_at, "0", CVAR_NONE)            // and at: 0 the nearest monster, 1 you (from ahead)
 QVR_CVAR(vr_test_fling_away, "0", CVAR_NONE)          // 1: from inside the edge of its box, away from it (a prop batted away, still in your box)
