@@ -1385,8 +1385,8 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
         // Which side leads. The palm's normal is the drawn hand's: the calibrated hand's (hand.rot: Gun Angle and
         // the Hand Calibration's turn) side, its left for a right hand and its right for a left hand (drawn
         // mirrored), as the jointed hand's palm faces (checked in-game against its drawn rig, ROUND21.md). The
-        // physical hand, not the role: left-handed, the main hand is the left one.
-        const bool leftHand = (h == 0) == (vr_lefthanded.value == 0.f); // hands[0]: the off hand
+        // physical hand: hands[0] is the left controller (HAND_OFF, left-handed too).
+        const bool leftHand = h == 0;
         const float lead = leftHand ? facing : -facing; // 1: the palm leads; -1: the back of the hand
         const float against = glm::mix(againstPalm, 1.f, glm::smoothstep(-palmLeadBlend, palmLeadBlend, lead));
 

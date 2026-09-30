@@ -1270,13 +1270,12 @@ ForearmTwist forearms[2];
 // angles add up past it).
 void keepForearms(const Body& b)
 {
-    const int leftHand = vr_lefthanded.value ? HAND_MAIN : HAND_OFF;
     for(int side = 0; side < 2; side++)
     {
         const int clav = side == 0 ? ClavicleL : ClavicleR;
         const Bone& fore = b.bones[clav + 2];
         const Bone& hand = b.bones[clav + 3];
-        ForearmTwist& f = forearms[side == 0 ? leftHand : 1 - leftHand];
+        ForearmTwist& f = forearms[side == 0 ? HAND_OFF : HAND_MAIN]; // (the left controller, left-handed too)
         f.valid = true;
         f.elbow = fore.pos;
         f.untwisted = fore.rot;
@@ -1506,10 +1505,9 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
     solveTorso(s, b);
     debugHead = s.head;
 
-    // Which hand is on which side.
-    const int leftHand = vr_lefthanded.value ? HAND_MAIN : HAND_OFF;
-    solveArm(b, 0, handPoses[leftHand]);
-    solveArm(b, 1, handPoses[1 - leftHand]);
+    // The left arm reaches for the left controller (HAND_OFF, left-handed too), the right for the right.
+    solveArm(b, 0, handPoses[HAND_OFF]);
+    solveArm(b, 1, handPoses[HAND_MAIN]);
     const float dt = legsDeltaTime();
     if(legs)
     {
@@ -1545,7 +1543,7 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
         for(int side = 0; side < 2; side++)
         {
             const int clav = side == 0 ? ClavicleL : ClavicleR;
-            const int hand = side == 0 ? leftHand : 1 - leftHand;
+            const int hand = side == 0 ? HAND_OFF : HAND_MAIN; // (the left controller, left-handed too)
             k.shoulder[hand] = b.bones[clav + 1].pos;
             k.elbow[hand] = b.bones[clav + 2].pos;
             k.wrist[hand] = b.bones[clav + 3].pos;
@@ -1622,7 +1620,7 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
         sh.upperArm = glm::normalize(glm::quat_cast(b.bones[clav + 1].rot * glm::transpose(bd.rot[clav + 1])));
         sh.m2w = b.m2w;
 
-        const int hand = side == 0 ? leftHand : 1 - leftHand;
+        const int hand = side == 0 ? HAND_OFF : HAND_MAIN; // (the left controller, left-handed too)
         posed.wrist[hand] = b.bones[clav + 3].pos;
         posed.forearm[hand] = b.bones[clav + 2].rot[0];
     }
@@ -1711,10 +1709,9 @@ void solveArms(const hands::State& s, const HandPose handPoses[2])
     QVR_PROFILE("avatar arms");
     Body b;
     solveTorso(s, b);
-    const int leftHand = vr_lefthanded.value ? HAND_MAIN : HAND_OFF;
     easeWrists = false;
-    solveArm(b, 0, handPoses[leftHand]);
-    solveArm(b, 1, handPoses[1 - leftHand]);
+    solveArm(b, 0, handPoses[HAND_OFF]);
+    solveArm(b, 1, handPoses[HAND_MAIN]);
     easeWrists = true;
     keepForearms(b);
 }

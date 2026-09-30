@@ -625,6 +625,16 @@ void update()
 
 } // namespace
 
+int moveHand()
+{
+    return vr_lefthanded.value != 0.f ? HAND_MAIN : HAND_OFF;
+}
+
+int gadgetHand()
+{
+    return vr_gadget_hand.value != 0.f ? 1 - moveHand() : moveHand();
+}
+
 Calibration calibration(int hand)
 {
     Calibration c;

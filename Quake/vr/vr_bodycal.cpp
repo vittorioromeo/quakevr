@@ -231,8 +231,7 @@ void bump()
 
 [[nodiscard]] int sideHand(int side)
 {
-    const int leftHand = vr_lefthanded.value ? HAND_MAIN : HAND_OFF;
-    return side == 0 ? leftHand : 1 - leftHand;
+    return side == 0 ? HAND_OFF : HAND_MAIN; // (the left controller is HAND_OFF, left-handed too)
 }
 
 

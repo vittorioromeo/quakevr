@@ -1141,7 +1141,7 @@ void overlay()
     {
         // Over the wrist gadget's hand, facing the head: 4.5 mm characters (at 45 cm, about the gadget's).
         const float charSize = 0.0045f * m2u;
-        const glm::vec3 at = s.pos[vr_gadget_hand.value != 0.f ? HAND_MAIN : HAND_OFF] +
+        const glm::vec3 at = s.pos[hands::gadgetHand()] +
                              glm::vec3{0.f, 0.f, 0.06f * m2u + 0.5f * lineCount * charSize};
         const glm::vec3 d = at - s.head;
         const float yaw = std::atan2(d.y, d.x) * 180.f / static_cast<float>(M_PI);

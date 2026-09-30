@@ -1320,13 +1320,12 @@ float(entity p, vector toAttacker) VR_Parry_ArmsCrossed =
             return FALSE;
         }
     }
-    // Crossed: the main hand on the off hand's side (the left for the right-handed).
+    // Crossed: the main hand (the right controller, left-handed too) on the off hand's side (the left).
     vector right;
     right_x = toAttacker_y;
     right_y = -toAttacker_x;
     right_z = 0;
-    float mainRight = cvar("vr_lefthanded") ? -1 : 1;
-    return (m * right - o * right) * mainRight < -1;
+    return m * right - o * right < -1;
 };
 
 // The bash's guard (a bash is a guard pushed forward: VR_Bash in vr_juice.qc): the parry's pose.

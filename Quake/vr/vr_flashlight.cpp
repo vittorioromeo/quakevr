@@ -17,6 +17,7 @@
 #include "vr_units.hpp"
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
+#include "vr_hands.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -550,7 +551,7 @@ BeamTrace beamTraces[beamRings][beamSides];
     const glm::vec3 up = torso.pelvis.rot[0];
     const glm::vec3 fwd = torso.pelvis.rot[2];
     const glm::vec3 left = glm::cross(up, fwd);
-    const float side = vr_lefthanded.value != 0.f ? -1.f : 1.f;
+    const float side = hands::moveHand() == HAND_OFF ? 1.f : -1.f; // the player's off hand's hip
 
     // The clip on the belt's front (make_vrbody.py's torso rings: the belt 10-20% up from the hips), beltUp above the
     // pelvis joint and beltSide to the side, deeper for the brawnier builds; the tube's axis the torch's greatest

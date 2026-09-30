@@ -3691,8 +3691,8 @@ void setupGadget(const hands::State& s)
         return;
     }
 
-    const int hand = vr_gadget_hand.value != 0.f ? HAND_MAIN : HAND_OFF;
-    const bool leftArm = (hand == HAND_OFF) == (vr_lefthanded.value == 0.f);
+    const int hand = hands::gadgetHand();
+    const bool leftArm = hand == HAND_OFF; // (the left controller)
     const avatar::HandPose hp = drawnHand(s, hand);
     const float body = units::bodyScale();
     const float m2w = units::metresToUnits() * body;

@@ -1407,7 +1407,7 @@ void playAfterTracking(TrackingState& tracking, FrameState& frame)
     {
         in.menu = false;
     }
-    tracking.input.hands[HAND_MAIN].stick.x = 0.f;
+    tracking.input.hands[1 - hands::moveHand()].stick.x = 0.f; // (the turning stick)
     hands::setPlaySpaceYaw((take.hasPlayYaw ? f.playYaw : 0.f) + delta);
     if(state == State::Play && cur == 0)
     {

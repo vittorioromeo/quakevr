@@ -658,12 +658,10 @@ private:
         }
     }
 
-    // Tracked hand -> physical side: the main hand is the right one unless left-handed.
+    // Tracked hand -> physical side (0 left): HAND_MAIN is the right controller, left-handed too (vr_backend.hpp).
     [[nodiscard]] static int handSide(int hand)
     {
-        const bool leftHanded = vr_lefthanded.value != 0.f;
-        const bool main = hand == HAND_MAIN;
-        return main != leftHanded ? 1 : 0;
+        return hand == HAND_MAIN ? 1 : 0;
     }
 
     [[nodiscard]] static Pose toPose(const XrPosef& p, bool valid)

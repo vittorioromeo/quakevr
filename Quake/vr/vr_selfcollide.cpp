@@ -16,6 +16,7 @@
 #include "vr_twohand.hpp"
 #include "vr_units.hpp"
 #include "vr_weapons.hpp"
+#include "vr_hands.hpp"
 
 #include <algorithm>
 #include <array>
@@ -1245,7 +1246,7 @@ void endView(hands::State& s, const Drawn& d)
         rec.gadgetCaps.clear();
         if(gp.valid)
         {
-            rec.gadgetHand = vr_gadget_hand.value != 0.f ? HAND_MAIN : HAND_OFF;
+            rec.gadgetHand = hands::gadgetHand();
             // (In the world while its hand is drawn elsewhere than at its controller: on a grip, a ledge.)
             rec.gadgetLocal = mobility(s, rec.gadgetHand) >= 1.f;
             const Frame gf = rec.gadgetLocal ? handFrame(s.pos[rec.gadgetHand], s.rot[rec.gadgetHand]) : Frame{};

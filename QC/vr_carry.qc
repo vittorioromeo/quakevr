@@ -224,7 +224,7 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
     // vr_held_fit_gap): moved along the way the palm faces (palms face in, as held: a right hand's
     // to its left) until its drawn shape just touches the drawn fist. Where it was gripped is kept
     // otherwise (any part of it can be taken).
-    float rightHand = (xHand == cVR_MainHand) != (cvar("vr_lefthanded") != 0);
+    float rightHand = xHand == cVR_MainHand; // (the right controller, left-handed too)
     vector palm = rightHand ? v_right * -1 : v_right;
     vector d = xBox.origin + carryfit(xBox, handPos, palm) - handPos;
     xBox.carry_offset_x = d * v_forward;

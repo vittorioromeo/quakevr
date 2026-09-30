@@ -35,6 +35,8 @@ struct Pose
     bool gripVelocityValid{false};
 };
 
+// The physical controllers: HAND_OFF the left, HAND_MAIN the right, whatever vr_lefthanded says (it only picks the
+// player's off hand, hands::moveHand).
 enum Hand : int
 {
     HAND_OFF = 0,
