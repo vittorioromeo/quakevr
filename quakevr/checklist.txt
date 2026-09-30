@@ -38,6 +38,11 @@ Hitbox defaults: width 16 and method A are now the defaults; grunts shooting fro
 
 Flashlight: reach for it from different angles, through the torso, torso twisted, with a gun at the chest in the other hand: lit always means taken (near the lamp the hand now sinks into the torso like at a holster: OK?)
 
+Explosive boxes: jump off both, forward and sideways (no explosion); stand and walk on top
+Walk into boxes with full and half stick: they move by weight (Player Hitbox > shove 0.6)
+Topple the big box onto yourself against a wall and walk out
+Push a box held in both hands into walls, pillars, the floor and a door while turning it: never goes in
+
 [Decide or give feedback]
 At speed 3, two 'weak punch' no-hit takes and one axe wiggle take now hit: drop those takes (invalidated), or keep them as known failures?
 Promote vr_melee_push 0.5, vr_melee_push_player 0.6 and vr_melee_bloodlust_mult 0.5 (your config) as defaults?
