@@ -898,7 +898,7 @@ SV_ClipMoveToBoxEntityQVR
 
 QVR: SV_ClipMoveToEntity for an entity's box (not SOLID_BSP), with the players' narrower boxes (vr_hull_ent_width;
 vr/vr_hull.cpp): the moving player's own box when it narrows against this entity, and the entity's when it is a
-player that a body (not a shot) moves into.
+player that a body moves into (or its hit box, vr_hull_hit_width, when a shot or missile does).
 ==================
 */
 static trace_t SV_ClipMoveToBoxEntityQVR (edict_t *touch, vec3_t mins, vec3_t maxs, const moveclip_t *clip)
@@ -915,7 +915,8 @@ static trace_t SV_ClipMoveToBoxEntityQVR (edict_t *touch, vec3_t mins, vec3_t ma
 		m = clip->entmins;
 		M = clip->entmaxs;
 	}
-	narrowtouch = clip->bodymove && VR_HullTouchBox (touch, clip->passedict, tmins, tmaxs);
+	narrowtouch = clip->bodymove ? VR_HullTouchBox (touch, clip->passedict, tmins, tmaxs)
+		: VR_HullHitBox (touch, tmins, tmaxs); // a shot or missile: the player's hit box (vr_hull_hit_width)
 	if (m == mins && !narrowtouch)
 		return SV_ClipMoveToEntity (touch, clip->start, mins, maxs, clip->end);
 

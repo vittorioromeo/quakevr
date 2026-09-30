@@ -40,6 +40,10 @@ void afterLoad();
 // A player's box as a body moving into it (mover; null: none) meets it: true if narrowed, filled in.
 [[nodiscard]] bool touchBox(const edict_t* touch, const edict_t* mover, float* boxMins, float* boxMaxs);
 
+// A player's box as a shot, a missile or another point-sized move meets it (vr_hull_hit_width): true if narrowed, filled
+// in. Monsters' melee, splash damage and their sight don't use it (distances and nomonsters traces).
+[[nodiscard]] bool hitBox(const edict_t* touch, float* boxMins, float* boxMaxs);
+
 // SV_ClipMoveToEntity for a SOLID_BSP entity with moveBox's box (vr_hull_method's way): false if not a brush model, or
 // a brush model other than the world with vr_hull_brushmodels off: Quake's hull is used.
 [[nodiscard]] bool clipBSP(const edict_t* ent, const float* start, const float* boxMins, const float* boxMaxs,

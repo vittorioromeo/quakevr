@@ -2058,8 +2058,14 @@ std::vector<Item> pageDebugTests()
         command("Hitbox Approach", "vr_hull_approach").help("Prints how close your box gets to what is round you, in 8 directions (from your centre to the surface it stops at; Quake's box: 16 units). vr_hull_approach <classname> [n] does it round an entity."),
         command("Hitbox Bench", "vr_hull_bench").help("Times 20000 random moves (Quake's hull against the brush sweep "
                                                       "and the compiled hull) and prints where they disagree."),
+        command("Shots Hit Test", "vr_hull_hittest")
+            .help("Prints how many of 1600 grunt-like shots from 300 units round you hit your box at Width Shots Hit "
+                  "(vr_hull_hittest [distance] [spread])."),
         command("Hitbox Probe", "vr_hull_probe")
             .help("Prints which of the map's brushes your box is in, and by how much (when you're stuck)."),
+        command("Shots Hit Test", "vr_hull_hittest")
+            .help("Prints how many of 1600 grunt-like shots from 300 units round you hit your box at Width Shots Hit "
+                  "(vr_hull_hittest [distance] [spread])."),
         command("Random Walk (60 s)", "god; notarget; vr_hull_walktest 60")
             .help("Walks you around the map at random for 60 seconds (hopping somewhere new every few), then prints how "
                   "often you got stuck or ended up in a wall."),
@@ -2255,6 +2261,7 @@ std::vector<Item> pageHitbox()
     world.insert(world.end(), widths.begin(), widths.end());
     std::vector<Choice> ents{{-1.f, "Same as Walls"}, {0.f, "Quake's (32)"}};
     ents.insert(ents.end(), widths.begin(), widths.end());
+    std::vector<Choice> hits{world.begin(), world.end() - 1}; // Quake's 32 .. 28 (32 is Quake's box already)
     return {
         header("Walls and Brush Models"),
         cycle("Width Against Walls", vr_hull_width, world)
@@ -2270,10 +2277,14 @@ std::vector<Item> pageHitbox()
         header("Monsters, Players and Boxes"),
         cycle("Width Against Them", vr_hull_ent_width, ents)
             .help("How wide you are against monsters, other players and solid boxes, both ways (you walking into them, "
-                  "them walking into you). Shots, missiles and melee still hit Quake's 32 box; items are picked up with it."),
+                  "them walking into you). Shots and missiles hit the width below; items are picked up with Quake's 32 box."),
         toggle("Monsters", vr_hull_monsters).help("That width between you and monsters."),
         toggle("Other Players", vr_hull_players).help("That width between players."),
         toggle("Solid Boxes", vr_hull_boxes).help("That width against explosive boxes and other solid boxes."),
+        cycle("Width Shots Hit", vr_hull_hit_width, hits)
+            .help("How wide you are to monsters' shots and missiles (bullets, nails, lasers, grenades, rockets, spit, "
+                  "vore balls). Quake's box is 32; 24 still leaves them a bit of leniency. Melee blows and splash "
+                  "damage go by distance, not by this box; monsters see and chase you as before."),
         slider("Prop Push Radius", vr_box3d_player_radius, 5.f, 40.f, 1.f, "%.0f cm")
             .help("Loose props (rocks, bricks, weapons on the floor) are pushed by a capsule this wide round your body, "
                   "not by your box (vr_box3d_player_radius)."),
