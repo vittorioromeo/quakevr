@@ -46,6 +46,10 @@ Turn a held health/ammo/explosive box and a gib in each hand (also force-grabbed
 Press the empty hand into a prop held by the other hand: it stops on it (give 10 cm: firm enough?)
 Reach for an explosive box: pushed and grabbed only when the fist is on it
 
+Laser cannon one-handed: a snap drops it, smooth swings don't (Weapon Weights > Wrenched Out > Fastest Turn)
+Two-handed blows with the laser cannon and chainsaw keep the off-hand grip (Aiming > 2H Grip Stickiness; per hotspot: Stickiness)
+Gentler swings with heavy weapons land (Aiming > Weight and Damage)
+
 [Decide or give feedback]
 Optimization follow-ups: solve weapon grips at map load (+30-60 ms load)? voice-note screenshot on a background thread? a Low graphics preset (render resolution, foveation, decal cap)?
 Chainsaw hotspot 2 is a grip at the model's origin (rear handle): intended?
