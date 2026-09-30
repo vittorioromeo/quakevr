@@ -29,6 +29,11 @@ Throws: hard throws, wrist snaps and gentle tosses of weapons and boxes keep the
 Melee speed 3 (your value): soft punches land
 A fast reload next to the dummy neither hits nor whooshes (both hands); gun butt strikes, downward swings and overhead chops still land
 
+Gun lowered onto a table at several angles: rests on it, slides along it, no snap back to the torso; pushed into a wall at an angle
+Held gib or brick pushed onto the prop table: rests on top
+A prop balanced on the open palm: the hand stays under it
+Empty hands now stop at walls by their drawn shape: check climbing and grabbing things off tables
+
 [Decide or give feedback]
 At speed 3, two 'weak punch' no-hit takes and one axe wiggle take now hit: drop those takes (invalidated), or keep them as known failures?
 Promote vr_melee_push 0.5, vr_melee_push_player 0.6 and vr_melee_bloodlust_mult 0.5 (your config) as defaults?
