@@ -25,6 +25,7 @@
 #include "vr_fatigue.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_held.hpp"
+#include "vr_main.hpp"
 #include "vr_meleehud.hpp"
 #include "vr_profile.hpp"
 #include "vr_props.hpp"
@@ -37,7 +38,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -73,6 +76,23 @@ struct Body
     int entity{0};
 };
 Body bodies[2];
+
+// Wrenched out (vr_weight_drop): each hand's controller turns over the last moments (the grip pose as tracked, the
+// play space's turn taken out), on the spring's clock (the frames' dt: fixed frames in the tests).
+struct Wrench
+{
+    static constexpr int size = 64;
+    double t[size]{};
+    glm::quat q[size]{};
+    int count{0}, newest{-1};
+    double clock{0.0};
+    double until{-1.0};   // realtime: the move says "wrenched out" until then (the server reads it once a frame)
+    double printAt{-1.0}; // vr_debug_weight_drop: the next print
+    float peak{0.f}, peakLimit{0.f};
+};
+Wrench wrenches[2];
+constexpr double wrenchLatch = 0.15; // seconds (as the chainsaw's pull)
+constexpr float wrenchJump = 90.f;   // degrees in one frame: tracking lost and found, not a hand
 
 // A prop's mass as Box3D has it (a listen server), kept while the same thing of the same setting is held.
 struct MassCache
@@ -678,7 +698,108 @@ void table_f()
     }
 }
 
+// The most a weapon of `mass` kg may turn (degrees a second) before it is wrenched out, `twoHanded` (0..1) held so; 0: it
+// never is (off, or lighter than vr_weight_drop_from).
+[[nodiscard]] float wrenchLimit(float mass, float twoHanded)
+{
+    const float from = std::max(vr_weight_drop_from.value, 0.1f);
+    if(!vr_weight_drop.value || !(mass >= from) || vr_weight_drop_speed.value <= 0.f)
+    {
+        return 0.f;
+    }
+    const float twoHands = 1.f + (std::max(vr_weight_drop_2h.value, 1.f) - 1.f) * std::clamp(twoHanded, 0.f, 1.f);
+    return vr_weight_drop_speed.value * std::pow(from / mass, std::max(vr_weight_drop_curve.value, 0.f)) * twoHands;
+}
+
+// Wrenched out: hand `h`'s controller turned faster than its weapon's limit over the window (the grip pose as tracked,
+// the play space's turn taken out: the stick's turning and walking don't count, nor does the spring's lag).
+void wrenchFrame(int h, const hands::State& s, float turnYaw, const Load& l, float dt)
+{
+    Wrench& w = wrenches[h];
+    w.clock += dt;
+    const bool weapon = l.valid && !l.prop && !l.empty && strcmp(l.model, flashlightModel) != 0;
+    const float limit = weapon && vrActive() ? wrenchLimit(l.mass, l.twoHanded) : 0.f;
+    if(limit <= 0.f)
+    {
+        w.count = 0;
+        return;
+    }
+    const glm::quat q = quatFromAngles(s.gripRot[h] - glm::vec3{0.f, turnYaw, 0.f});
+    if(w.count > 0 && glm::degrees(glm::length(rotationVector(q * glm::conjugate(w.q[w.newest])))) > wrenchJump)
+    {
+        w.count = 0;
+    }
+    w.newest = (w.newest + 1) % Wrench::size;
+    w.t[w.newest] = w.clock;
+    w.q[w.newest] = q;
+    w.count = std::min(w.count + 1, Wrench::size);
+
+    // The newest sample at least the window old (else the oldest kept, once half the window is kept).
+    const double window = std::clamp(static_cast<double>(vr_weight_drop_window.value), 0.005, 0.5);
+    int from = -1;
+    for(int i = 1; i < w.count; i++)
+    {
+        const int k = (w.newest - i + Wrench::size) % Wrench::size;
+        from = k;
+        if(w.clock - w.t[k] >= window)
+        {
+            break;
+        }
+    }
+    const double span = from >= 0 ? w.clock - w.t[from] : 0.0;
+    if(from < 0 || span < window * 0.5)
+    {
+        return;
+    }
+    const float speed = glm::degrees(glm::length(rotationVector(q * glm::conjugate(w.q[from])))) / static_cast<float>(span);
+    if(w.peakLimit <= 0.f || speed / limit > w.peak / w.peakLimit)
+    {
+        w.peak = speed;
+        w.peakLimit = limit;
+    }
+    if(vr_debug_weight_drop.value && realtime >= w.printAt)
+    {
+        if(w.peak > 0.5f * w.peakLimit)
+        {
+            Con_Printf("weight drop: %s %s %.0f deg/s, limit %.0f (%.1f kg, two hands %.2f)\n", h == HAND_MAIN ? "main" : "off",
+                l.model, w.peak, w.peakLimit, l.mass, l.twoHanded);
+        }
+        w.peak = w.peakLimit = 0.f;
+        w.printAt = realtime + 0.5;
+    }
+    if(speed > limit)
+    {
+        w.until = realtime + wrenchLatch;
+        w.count = 0;
+        Con_DPrintf("weight drop: %s %s wrenched out: %.0f deg/s over %.3f s, limit %.0f (%.1f kg, two hands %.2f)\n",
+            h == HAND_MAIN ? "main" : "off", l.model, speed, span, limit, l.mass, l.twoHanded);
+        if(vr_debug_weight_drop.value)
+        {
+            Con_Printf("weight drop: %s wrenched out (%.0f deg/s, limit %.0f)\n", h == HAND_MAIN ? "main" : "off", speed, limit);
+        }
+    }
+}
+
 } // namespace
+
+std::uint8_t dropBits()
+{
+    std::uint8_t bits = 0;
+    if(realtime < wrenches[HAND_OFF].until)
+    {
+        bits |= 1; // QC VR_HANDDROP_OFF
+    }
+    if(realtime < wrenches[HAND_MAIN].until)
+    {
+        bits |= 2; // VR_HANDDROP_MAIN
+    }
+    return bits;
+}
+
+float dropLimit(float mass, float twoHanded)
+{
+    return wrenchLimit(mass, twoHanded);
+}
 
 void registerCommands()
 {
@@ -758,6 +879,10 @@ void spring(hands::State& s, float turnYaw, float dt, bool newFrame)
         const glm::quat qt = quatFromAngles(s.rot[h] - glm::vec3{0.f, turnYaw, 0.f});
         Load l = computeLoad(h, &s);
         withStamina(l);
+        if(newFrame && dt > 0.f)
+        {
+            wrenchFrame(h, s, turnYaw, l, dt);
+        }
         if(!l.valid)
         {
             b.active = false;

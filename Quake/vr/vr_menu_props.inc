@@ -95,6 +95,18 @@ void weaponWeightsPrint()
     return text[line].c_str();
 }
 
+// Wrenched out: the edited weapon's limits (vr_weight_drop*), one hand and two.
+[[nodiscard]] const char* weaponWeightsDropReadout(int /* unused */)
+{
+    std::string& text = readouts.weaponWeightsDrop;
+    const float mass = weapons::value(weaponWeightsSlot, weapons::Key::Mass);
+    const float one = weight::dropLimit(mass, 0.f), two = weight::dropLimit(mass, 1.f);
+    text = !vr_weight_drop.value ? "This weapon: never falls (off)"
+           : one <= 0.f          ? va("This weapon: never falls (%.1f kg, lighter than %.1f)", mass, vr_weight_drop_from.value)
+                                 : va("This weapon: falls turned faster than %.0f deg/s (%.0f with two hands)", one, two);
+    return text.c_str();
+}
+
 // A hand's weapon slot (the empty hand's: the hand model's; -1: not in a game).
 [[nodiscard]] int weaponWeightsSlotOf(int hand)
 {
@@ -186,6 +198,25 @@ std::vector<Item> pageWeaponWeights()
                   "above; Aiming: Weight and Damage)."),
         s("Throw Damage", Key::ThrowDamage, 0.f, 4.f, 0.05f, "%.2fx").extend(0.f, 20.f)
             .help("Times this weapon's damage thrown, on top of the weight's."),
+        header("Wrenched Out (experimental, every weapon)"),
+        infoLine(weaponWeightsDropReadout, 0),
+        toggle("Heavy Weapons Wrenched Out", vr_weight_drop)
+            .help("A very heavy weapon falls out of your hand when you snap or twist your wrist faster than it could "
+                  "follow. Turning with the stick and walking don't count; only how fast the controller itself turns."),
+        slider("Heavier Than", vr_weight_drop_from, 1.f, 40.f, 0.5f, "%.1f kg").extend(0.1f, 500.f)
+            .help("Only weapons at least this heavy can fall (the laser cannon and the chainsaw weigh 15 kg; every other "
+                  "weapon 8 or less)."),
+        slider("Fastest Turn", vr_weight_drop_speed, 300.f, 5000.f, 50.f, "%.0f deg/s").extend(10.f, 20000.f)
+            .help("How fast a weapon of the weight above may turn in one hand before it falls (over the time below). Your "
+                  "recorded sword slashes turned the controller at up to 2100 degrees a second, slow waving 1000, "
+                  "reloads 950, aiming 400."),
+        slider("Weight Curve", vr_weight_drop_curve, 0.f, 3.f, 0.05f, "%.2f").extend(0.f, 10.f)
+            .help("Heavier weapons fall at slower turns: the speed above times (Heavier Than / mass)^this. 1: in "
+                  "proportion (15 kg: two thirds of it); 0: every heavy weapon the same."),
+        slider("Two Hands", vr_weight_drop_2h, 1.f, 5.f, 0.1f, "%.1fx").extend(1.f, 50.f)
+            .help("Times the speed with the other hand on it too."),
+        slider("Measured Over", vr_weight_drop_window, 0.02f, 0.2f, 0.01f, "%.2f s").extend(0.005f, 0.5f)
+            .help("The time the turn is measured over: shorter catches shorter snaps (and more of a tracking jitter)."),
         header("This Weapon"),
         action("Print Changes to Console", weaponWeightsPrint)
             .help("Prints this weapon's weight settings that differ from the defaults, ready to be made the shipped "

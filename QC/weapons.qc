@@ -5536,6 +5536,30 @@ void(entity ent, float xHand) VRTakeCarriedWeapon =
     VRGunHaptic(xHand, 0.08, 75, 0.6);
 }
 
+// Wrenched out (the engine's vr_weight_drop, vr_weight.cpp: experimental): the client says a hand's controller turned
+// too fast for the heavy weapon it holds (a snap or a twist of the wrist). .handdrop's bits, each for a moment.
+float VR_HANDDROP_OFF = 1;
+float VR_HANDDROP_MAIN = 2;
+void(float xHand) VRWeightWrenchFrame =
+{
+    float bit = xHand == cVR_MainHand ? VR_HANDDROP_MAIN : VR_HANDDROP_OFF;
+    if(!(self.handdrop & bit) || self.health <= 0 || VRIsHandWeaponless(self, xHand))
+    {
+        return;
+    }
+    float wid = VRGetEntWeapon(self, xHand);
+    float flags = VRGetEntWeaponFlags(self, xHand);
+    float clip = VRGetEntWeaponClip(self, xHand);
+    // Held two-handed, the other hand keeps it (the hand-off); else it falls.
+    if(!VRTryHandOff(self, xHand, wid, flags, clip))
+    {
+        DropWeaponInHand(self, xHand, wid, flags, clip);
+    }
+    VRGunHaptic(xHand, 0.15, 60, 1);
+    sprint(self, "Too heavy for that: it is wrenched out of your hand!\n");
+    dprint(sprintf("weight drop: weapon %g wrenched out of hand %g\n", wid, xHand));
+};
+
 void(entity ent, float xHand) VRWeaponLetGoDone =
 {
     if(xHand == cVR_MainHand) ent.stickypending &= ~2;
@@ -5763,6 +5787,9 @@ void() W_Frame =
         // Used for 2H throws.
         self.last_2h_time = time;
     }
+
+    VRWeightWrenchFrame(cVR_MainHand);
+    VRWeightWrenchFrame(cVR_OffHand);
 
     DoHandImpl(self, cVR_OffHand,
                self.weapon2, &self.weapon2,

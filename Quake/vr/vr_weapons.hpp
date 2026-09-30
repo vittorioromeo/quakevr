@@ -125,10 +125,13 @@ struct Hotspot
     bool manual{false};
     float curl[5]{0.f, 0.f, 0.f, 0.f, 0.f};
     float thumbAcross{0.f};
+    // How sticky it is once held: times how far the helping hand may go off it, out of line and past the muzzle before
+    // it lets go (sticky grips, with vr_2h_sticky*: vr_twohand.cpp). 1: as every grip.
+    float sticky{1.f};
 };
 // field: 0 type, 1..3 x y z, 4 bias, 5..7 pitch yaw roll, 8 style, 9 overlap, 10..12 visual x y z, 13..15 visual pitch
-// yaw roll, 16 manual, 17..21 the fingers' curls, 22 the thumb across
-inline constexpr int hotspotFields = 23;
+// yaw roll, 16 manual, 17..21 the fingers' curls, 22 the thumb across, 23 the stickiness (times)
+inline constexpr int hotspotFields = 24;
 [[nodiscard]] Key hotspotKey(int index, int field);
 [[nodiscard]] bool isGripType(HotspotType type); // a point the other hand holds: Grip or Cup
 [[nodiscard]] Hotspot hotspot(int slot, int index);

@@ -70,6 +70,7 @@ void writeVrMove(sizebuf_t* buf, const VrMove& move)
     writeVec3(buf, move.roomscaleMove);
     MSG_WriteByte(buf, move.buttons);
     MSG_WriteByte(buf, move.sawCord);
+    MSG_WriteByte(buf, move.handDrop);
     writeVec3(buf, move.origin);
     writeVec3(buf, move.headPos);
     writeVec3(buf, move.shotRot[0]);
@@ -106,6 +107,7 @@ std::optional<VrMove> readVrMove()
     move.roomscaleMove = in.vec3();
     move.buttons = static_cast<std::uint8_t>(MSG_ReadByte());
     move.sawCord = static_cast<std::uint8_t>(MSG_ReadByte());
+    move.handDrop = static_cast<std::uint8_t>(MSG_ReadByte());
     move.origin = in.vec3();
     move.headPos = in.vec3();
     move.shotRot[0] = in.vec3();

@@ -377,6 +377,20 @@ void resetHandMoves()
         slider("2H Aiming Threshold", "vr_2h_angle_threshold", -1.f, 1.f, 0.05f, "%.2f").help("How far out of line the hands may be before two-handed aiming stops. Higher is stricter; -1 never stops."),
         slider("2H Stock Factor", "vr_2h_virtual_stock_factor", 0.f, 1.f, 0.05f, "%.2f").help("How much the virtual stock matters in the final angle calculation for two-handed aiming. Decrease if you want your hands to matter more."),
         toggle("2H Hand-Off", "vr_2h_handoff").help("Letting go with the hand holding a two-handed weapon leaves it in the other hand: a sword changes hands; a gun hangs from its foregrip, unusable, until a hand takes its handle."),
+        header("2H Grip Stickiness"),
+        slider("Stickiness", vr_2h_sticky, 0.5f, 4.f, 0.05f, "%.2fx").extend(0.1f, 20.f)
+            .help("Once your other hand holds a weapon's grip, how far it may go off it (20 units), how far out of line "
+                  "(2H Aiming Threshold) and past the muzzle, before it lets go: times this, always (and times the "
+                  "hotspot's own Stickiness: Weapon Offsets)."),
+        slider("While Swinging", vr_2h_sticky_fast, 0.f, 5.f, 0.1f, "+%.1fx").extend(0.f, 20.f)
+            .help("And this many times more while your hands swing (a two-handed melee blow): back to the above as they "
+                  "slow, so a weapon held still lets go as before. 0: off."),
+        slider("Swing From", vr_2h_sticky_fast_from, 0.f, 5.f, 0.1f, "%.1f m/s").extend(0.f, 20.f)
+            .help("The faster hand's speed it starts growing from."),
+        slider("Swing Full At", vr_2h_sticky_fast_full, 0.5f, 10.f, 0.1f, "%.1f m/s").extend(0.1f, 30.f)
+            .help("The faster hand's speed at which all of it applies."),
+        slider("Swing Fades Over", vr_2h_sticky_fast_hold, 0.f, 2.f, 0.05f, "%.2f s").extend(0.f, 10.f)
+            .help("How long it takes to fade once the hands slow (a swing's end and the way back)."),
         header("Weight"),
         info([]() -> const char* {
             return "What you hold follows on a spring.";
@@ -438,10 +452,12 @@ void resetHandMoves()
         slider("Most Damage", vr_weight_damage_max, 1.f, 5.f, 0.1f, "%.1fx").extend(1.f, 20.f)
             .help("The weight never adds more than this to the damage."),
         slider("Heavy Leniency", vr_weight_lenient, 0.f, 2.f, 0.05f, "%.2f").extend(0.f, 5.f)
-            .help("Heavy things can't be swung or thrown fast: their strikes and throws count at lower speeds. 0: off; "
-                  "0.75: four times as heavy as Starts At, 0.35 of the speed."),
+            .help("Heavy things can't be swung or thrown fast: their strikes and throws count at lower speeds, times "
+                  "(Starts At / mass)^this. 0: off; 0.5: the rocket launcher (8 kg) 0.79 of the speed, the laser cannon "
+                  "and the chainsaw (15 kg) 0.58; 1: in proportion. The damage comes from the weight's curve above."),
         slider("Starts At", vr_weight_lenient_from, 1.f, 40.f, 0.5f, "%.1f kg").extend(0.1f, 500.f)
-            .help("Things up to this heavy (10 kg: every weapon) strike and hit when thrown at the usual speeds."),
+            .help("Things up to this heavy (5 kg: the fists, the axe, the swords, the shotguns, the nailgun) strike and hit "
+                  "when thrown at the usual speeds."),
         slider("Least Speed Factor", vr_weight_lenient_min, 0.05f, 1.f, 0.05f, "%.2fx")
             .help("The lowest share of the usual speeds a heavy thing's strikes and throws need."),
     };

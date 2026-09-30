@@ -14544,3 +14544,85 @@ called at its end, read whole before anything runs.
 one hash each; 0 canary differences). The full set's one difference from `eval_baseline.csv`
 (`slash_backswing_up_right` 23-12-35: 27.0 -> 26.9 damage, still PASS) is the same with the old preload: not from
 this change; the baseline predates it.
+
+## Heavy weapons: wrenched out, sticky grips, heavy melee (2026-09-30)
+
+NOTES.md vrfiringrange_2026-09-30_11-14-54, 11-16-57 and 11-18-39: with his 15 kg laser cannon a fast wrist snap spins
+the drawn wrist round; two-handed blows with the laser cannon and the chainsaw keep losing the off hand's grip; heavy
+weapons' blows often don't register; the chainsaw should count as a melee weapon.
+
+### His weights are the defaults
+
+The laser cannon (slot 10) and the chainsaw (slot 21) take his values: 15 kg both; stiffness 0.6 / 0.65, damping
+0.6 / 0.65, sag 1.25 both; the cannon's balance 40 cm. `vr_wofs_version` 25 moves each of these keys only where a
+config still held its old default (7 kg, 12 cm, 6.5 kg, the multipliers 1).
+
+### Wrenched out (experimental, on by default; Weapon Weights: "Wrenched Out")
+
+- A weapon at least `vr_weight_drop_from` (10 kg: only those two) falls out of the hand whose controller turns faster
+  than `vr_weight_drop_speed` (1900 deg/s) x (from / mass)^`vr_weight_drop_curve` (1): 1267 deg/s at 15 kg, x
+  `vr_weight_drop_2h` (1.5) held in both hands (1900). The turn is measured over `vr_weight_drop_window` (0.06 s):
+  a snap shorter than that must turn 76 degrees within it (one hand, 15 kg). Its own mass (not what tiredness adds).
+- The controller as tracked (its grip pose, the play space's turn taken out: `vr_weight.cpp` `wrenchFrame`): the
+  stick's turning (smooth or snap) and walking don't count, nor the spring's lag. A frame turning more than 90 degrees
+  (tracking lost and found) starts over. Flat-screen play never drops.
+- The client says so in the move (a new byte, `.handdrop`, bits 1 off / 2 main, for 0.15 s); the server
+  (`weapons.qc` `VRWeightWrenchFrame`) hands it off to the other hand if that one holds its grip, else drops it as a
+  let-go does ("Too heavy for that: it is wrenched out of your hand!", a rumble).
+- Why a speed and not the spring's lag: with his settings the laser cannon one-handed lags 30-60 degrees even in
+  the idle and aiming takes and reaches 180 in slow waving (the wrist's torque caps it at 29 rad/s^2), so a lag limit
+  would drop it in normal play. Why no subtler test: the author's own blows turn the controller as fast as any snap
+  (0.06 s window, per take kind, the most: aiming 410 deg/s, reloads 935, slow waving 1030, parries 980, two-handed
+  stabs 990, sword slashes 1640-2120, fist overheads 2300, wiggles 2690); no test on the controller alone parts a
+  snap from a sword-speed blow. So the weight parts them: no weapon under 10 kg ever falls, and a 15 kg one falls at
+  sword-slash speeds one-handed (1267), not at the aiming, reloading, waving or parrying speeds.
+
+### Sticky two-handed grips (Aiming: "2H Grip Stickiness"; Weapon Offsets, a hotspot: "Stickiness")
+
+- Once the helping hand holds a weapon's grip, three checks let go of it (`vr_twohand.cpp`): off the grip by more
+  than 20 units, out of line (`vr_2h_angle_threshold`, 0.65: 49 degrees), past the muzzle by 7.5 units. Each limit
+  (the angle's degrees) is now times the stickiness: `vr_2h_sticky` (1) x the hotspot's own Stickiness (`hsN_sticky`,
+  1) x (1 + `vr_2h_sticky_fast` (1) x the swing), the swing 0..1 as the faster hand goes from `vr_2h_sticky_fast_from`
+  (1.5 m/s) to `vr_2h_sticky_fast_full` (4 m/s), fading over `vr_2h_sticky_fast_hold` (0.4 s) once they slow. Taking
+  a grip is as before (5.5 units); held still, it lets go where it did.
+- What let go in the mock: the angle. A rigid two-handed chop of the laser cannon (105 degrees in 0.15 s, the off hand
+  at 5 m/s) never lost the grip; the same with the main wrist 55 degrees ahead of the hands' line mid-swing (a real
+  swing's wrist) did (cosine 0.61 < 0.65) without the swing's stickiness and held with it (stickiness 1.95).
+  `vr_debug_2h_grip 1` (Debug: Logging, "Two-Handed Grip Let Go") prints each grip taken and why one let go.
+
+### Heavy melee (Aiming: Weight and Damage)
+
+- Heavy leniency existed (`vr_weight_lenient*`: every speed threshold of a blow and a throw's hit times (from /
+  mass)^exponent). Its defaults were no help to weapons (from 10 kg); now from 5 kg with 0.5 (config 59): the rocket
+  launcher (8 kg) 0.79, the lightning gun 0.91, the super nailgun 0.85, the laser cannon and the chainsaw 0.58, a
+  25 kg box 0.45 (was 0.50; 40 kg 0.35 either way). Weapons under 5 kg (the fists, the axe, the swords, the shotguns, the nailgun, the hook)
+  are unchanged. The spring's lag costs a 15 kg weapon a lot of its tip speed: offline, over the author's slash,
+  stab and gun-strike takes, its drawn tip went 0.45 as fast as the controller's one-handed, 0.85 two-handed (8 kg:
+  0.80), so 0.58 lands two-handed blows a little easier than a light weapon's, one-handed ones harder.
+- The weight's damage curve existed too (`vr_weight_damage_*`, unchanged: x(mass / 8)^0.4 above 8 kg: 15 kg 1.29,
+  at most 2.5), on top of each weapon's Melee Damage x.
+- The chainsaw is a melee weapon (`vr_melee.qc` `VR_Melee_Thing`): its bar strikes as an axe's head, at a weapon's
+  speeds (3.75 m/s, 0.58 of it at 15 kg), not a gun's (5.6).
+
+### Verified (mock, fast mode; `Misc/quakevr/heavy_*.mock`)
+
+- `heavy_drop.mock` (the laser cannon in the main hand, `impulse 162`): swings of 300 and 750 deg/s and a 900 deg/s
+  twist keep it (`vr_debug_weight_drop 1`: 750 and 900 against 1267); 1.5 s of the stick's smooth turning (the view
+  155 degrees round) and, with `vr_snap_turn 45`, snap turns: nothing; a 120-degree snap in 0.06 s: wrenched out at
+  1292-1391 deg/s, the hand empty after it (not taken back while the grip is held).
+- `heavy_2h_snap.mock`: both hands on it, a 150-degree chop in 0.05 s: wrenched out at 1943 (limit 1900), the off
+  hand keeps it (hand-off); the 105-degree chop (1641) keeps it.
+- `heavy_2h_chop.mock`: the grip holds through both swings with the defaults; lets go on the up-swing with
+  `vr_2h_sticky_fast 0` (as before); holds with that and the hotspot's Stickiness 2. Pulled off it held still: lets
+  go at the same cosine (0.65, stickiness 1.00) as before.
+- Melee eval, full set: 168/173 pass, no verdict changed, no new or lost hit; the one difference (slash_backswing_up_right
+  23-12-35: 27.0 -> 26.9 damage) is the baseline's, the same with every new setting off (see "Eval shards' crash").
+  No take holds a weapon over 3 kg: none is lenient or could fall.
+
+### In the headset
+
+- [ ] Laser cannon in one hand: aim, turn with the stick, walk, reload: it stays. Snap the wrist: it falls. Swing it
+  as you would a heavy thing: it stays. Tune Weapon Weights: Fastest Turn if it falls too easily or never.
+- [ ] Two hands on the laser cannon and the chainsaw: fast two-handed blows keep the off hand on; held still and
+  pulled off, it lets go as before. Stickiness per hotspot: Weapon Offsets, the hotspot's page, under Bias.
+- [ ] Heavy blows (laser cannon, chainsaw, rocket launcher) register at gentler swings; not with a wave.

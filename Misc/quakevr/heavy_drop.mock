@@ -1,0 +1,24 @@
+0.000 main 0.200 1.200 -0.400 0 0 0
+0.000 off -0.300 1.000 -0.200 0 0 0
+1.000 cmd echo STEP swing300
+1.000 main 0.200 1.300 -0.400 45 0 0
+1.300 main 0.200 1.000 -0.500 -45 0 0
+2.000 main 0.200 1.000 -0.500 -45 0 0
+2.000 cmd echo STEP swing750
+2.000 main 0.200 1.000 -0.500 -45 0 0
+2.120 main 0.200 1.350 -0.400 45 0 0
+3.000 main 0.200 1.350 -0.400 45 0 0
+3.000 cmd echo STEP twist900
+3.100 main 0.200 1.350 -0.400 45 0 90
+4.000 main 0.200 1.350 -0.400 45 0 90
+4.000 cmd echo STEP stickturn
+4.000 cmd vr_mock_stick main 1 0
+5.500 cmd vr_mock_stick main 0 0
+5.600 cmd viewpos
+6.000 cmd echo STEP snap
+6.000 main 0.200 1.350 -0.400 45 0 90
+6.060 main 0.200 1.300 -0.420 -75 0 90
+7.000 cmd echo STEP end
+7.000 cmd vr_debug_weight 2
+7.050 cmd vr_debug_weight 0
+7.100 cmd viewpos

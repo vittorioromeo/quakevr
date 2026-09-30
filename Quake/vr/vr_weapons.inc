@@ -280,6 +280,13 @@ QVR_WEAPON_KEY(SpringTwoHanded, "w_2h")
 QVR_WEAPON_KEY(SpringSnap, "w_snap")
 QVR_WEAPON_KEY(MeleeDamage, "w_meleedmg")
 QVR_WEAPON_KEY(ThrowDamage, "w_throwdmg")
+// Sticky grips (ROUND21.md, "Heavy weapons: wrenched out, sticky grips, heavy melee"): each hotspot's Stickiness, times how
+// far the helping hand may go off it (and out of line, and past the muzzle) once it holds it (Hotspot field 23:
+// weapons::Hotspot::sticky; 1 by default: registerCvars).
+QVR_WEAPON_KEY(Hotspot1Sticky, "hs1_sticky")
+QVR_WEAPON_KEY(Hotspot2Sticky, "hs2_sticky")
+QVR_WEAPON_KEY(Hotspot3Sticky, "hs3_sticky")
+QVR_WEAPON_KEY(Hotspot4Sticky, "hs4_sticky")
 #endif
 
 #ifdef QVR_WEAPON_RETIRED
@@ -2548,8 +2555,12 @@ QVR_WEAPON_DEFAULT(7, Span, "80")
 QVR_WEAPON_DEFAULT(8, Mass, "5.0")
 QVR_WEAPON_DEFAULT(8, Balance, "30")
 QVR_WEAPON_DEFAULT(8, Span, "55")
-QVR_WEAPON_DEFAULT(9, Mass, "7.0")
-QVR_WEAPON_DEFAULT(9, Balance, "12")
+// The laser cannon and the chainsaw: the author's (2026-09-30: heavy, sluggish, drooping; vr_wofs_version 25).
+QVR_WEAPON_DEFAULT(9, Mass, "15")
+QVR_WEAPON_DEFAULT(9, Balance, "40")
+QVR_WEAPON_DEFAULT(9, SpringStiffness, "0.6")
+QVR_WEAPON_DEFAULT(9, SpringDamping, "0.6")
+QVR_WEAPON_DEFAULT(9, SpringSag, "1.25")
 QVR_WEAPON_DEFAULT(9, Span, "90")
 QVR_WEAPON_DEFAULT(10, Mass, "5.0")
 QVR_WEAPON_DEFAULT(10, Balance, "12")
@@ -2563,7 +2574,10 @@ QVR_WEAPON_DEFAULT(18, Span, "100")
 QVR_WEAPON_DEFAULT(19, Mass, "2.5")
 QVR_WEAPON_DEFAULT(19, Balance, "28")
 QVR_WEAPON_DEFAULT(19, Span, "110")
-QVR_WEAPON_DEFAULT(20, Mass, "6.5")
+QVR_WEAPON_DEFAULT(20, Mass, "15")
+QVR_WEAPON_DEFAULT(20, SpringStiffness, "0.65")
+QVR_WEAPON_DEFAULT(20, SpringDamping, "0.65")
+QVR_WEAPON_DEFAULT(20, SpringSag, "1.25")
 QVR_WEAPON_DEFAULT(20, Balance, "25")
 QVR_WEAPON_DEFAULT(20, Span, "95")
 #endif

@@ -312,6 +312,17 @@ QVR_CVAR(vr_shoulder_offset_x, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_shoulder_offset_y, "1.75", CVAR_ARCHIVE)
 QVR_CVAR(vr_shoulder_offset_z, "16.0", CVAR_ARCHIVE)
 QVR_CVAR(vr_2h_virtual_stock_factor, "0.5", CVAR_ARCHIVE)
+// Sticky two-handed grips (ROUND21.md, "Heavy weapons: wrenched out, sticky grips, heavy melee"; vr_twohand.cpp): once
+// the helping hand holds a weapon's hotspot, how far off it it may go (20 units plus the hotspot's own Stickiness), the
+// angle it may turn the aim off (vr_2h_angle_threshold) and how far past the muzzle it may go, before it lets go, are
+// times vr_2h_sticky, and times 1 + vr_2h_sticky_fast more while the hands move fast (a swing: the faster hand's speed
+// from vr_2h_sticky_fast_from to vr_2h_sticky_fast_full m/s), fading over vr_2h_sticky_fast_hold seconds once they slow.
+QVR_CVAR(vr_2h_sticky, "1", CVAR_ARCHIVE)              // times the let-go distance and angle, always (1: as before)
+QVR_CVAR(vr_2h_sticky_fast, "1", CVAR_ARCHIVE)         // and up to this many times more while swinging (0: never)
+QVR_CVAR(vr_2h_sticky_fast_from, "1.5", CVAR_ARCHIVE)  // m/s: the faster hand's speed it starts from
+QVR_CVAR(vr_2h_sticky_fast_full, "4", CVAR_ARCHIVE)    // m/s: all of it from this speed
+QVR_CVAR(vr_2h_sticky_fast_hold, "0.4", CVAR_ARCHIVE)  // seconds it fades over once the hands slow
+QVR_CVAR(vr_debug_2h_grip, "0", CVAR_NONE)             // 1: prints a helping hand taking a weapon's grip, and why it let go (and the stickiness then); 2: and where the grip is, four times a second
 // Weight (vr_weight.cpp; ROUND21.md, "Weight: spring model, stamina, held object offsets; explosive boxes" and "Spring
 // only; Weapon Weights and Held Object Weights; weight and damage"): what a hand holds (a weapon, a carried prop, the
 // flashlight) follows it through a damped spring, by its mass, balance and length. The Spring is the only model.
@@ -355,10 +366,25 @@ QVR_CVAR(vr_weight_damage_min, "0.5", CVAR_ARCHIVE)      // the least multiplier
 QVR_CVAR(vr_weight_damage_max, "2.5", CVAR_ARCHIVE)      // the most multiplier
 // Heavy leniency: things heavier than vr_weight_lenient_from kg strike and hit when thrown at lower speeds: every speed
 // threshold of a melee strike and of a throw's hit times (from / mass)^vr_weight_lenient, at least vr_weight_lenient_min.
-QVR_CVAR(vr_weight_lenient, "0.75", CVAR_ARCHIVE)        // the exponent (0: off)
-QVR_CVAR(vr_weight_lenient_from, "10", CVAR_ARCHIVE)     // kg: lighter things (every weapon) keep the thresholds
+// Round 21, "Heavy weapons: wrenched out, sticky grips, heavy melee" (config 59): from 5 kg (was 10) and 0.5 (was 0.75),
+// so heavy weapons strike slower: the rocket launcher (8 kg) at 0.79 of the speeds, the laser cannon and the chainsaw
+// (15 kg) at 0.58, a 25 kg box 0.45 (0.50 before).
+QVR_CVAR(vr_weight_lenient, "0.5", CVAR_ARCHIVE)         // the exponent (0: off)
+QVR_CVAR(vr_weight_lenient_from, "5", CVAR_ARCHIVE)      // kg: lighter things (the fists, the axe, swords, the shotguns, the nailgun) keep the thresholds
 QVR_CVAR(vr_weight_lenient_min, "0.25", CVAR_ARCHIVE)    // the least factor
-QVR_CVAR(vr_debug_weight_stamina, "-1", CVAR_NONE)       // tests: the stamina the weight takes as left (0..1) instead of the game's (-1: the game's)
+// Wrenched out (experimental; ROUND21.md, "Heavy weapons: wrenched out, sticky grips, heavy melee"; vr_weight.cpp): a
+// weapon at least vr_weight_drop_from kg (its own mass) falls out of the hand when the controller turns faster than
+// vr_weight_drop_speed degrees a second (over vr_weight_drop_window s: a snap or a twist of the wrist) times
+// (from / mass)^vr_weight_drop_curve, times vr_weight_drop_2h held in both hands. The controller's own turn as tracked:
+// the stick's turning, walking and the drawn weapon's lag don't count.
+QVR_CVAR(vr_weight_drop, "1", CVAR_ARCHIVE)            // 1: on
+QVR_CVAR(vr_weight_drop_from, "10", CVAR_ARCHIVE)      // kg: lighter weapons never fall (the laser cannon and the chainsaw weigh 15)
+QVR_CVAR(vr_weight_drop_speed, "1900", CVAR_ARCHIVE)   // degrees a second a weapon of vr_weight_drop_from kg may turn at
+QVR_CVAR(vr_weight_drop_curve, "1", CVAR_ARCHIVE)      // heavier, times (from / mass)^this (1: 15 kg, 2/3 of it: 1267)
+QVR_CVAR(vr_weight_drop_2h, "1.5", CVAR_ARCHIVE)       // times the speed with the other hand on it too
+QVR_CVAR(vr_weight_drop_window, "0.06", CVAR_ARCHIVE)  // seconds the turn is measured over
+QVR_CVAR(vr_debug_weight_drop, "0", CVAR_NONE)         // 1: prints each hand's fastest turn against its limit (above half of it), twice a second
+QVR_CVAR(vr_debug_weight_stamina, "-1", CVAR_NONE)      // tests: the stamina the weight takes as left (0..1) instead of the game's (-1: the game's)
 QVR_CVAR(vr_debug_stamina_hold, "0", CVAR_NONE)          // tests: 1 keeps the game's stamina where it is, or where vr_stamina_set put it (a local game; vr_fatigue.cpp)
 QVR_CVAR(vr_debug_fatigue, "0", CVAR_NONE)               // 1: the tired arms' shake printed four times a second; 2: and each frame the aim, the muzzle and the drawn weapon ("fatigueaim")
 QVR_CVAR(vr_debug_weight, "0", CVAR_NONE)                // 1: each hand's target and drawn pose, a line a frame in weight_trace.txt; 2: and printed

@@ -96,8 +96,11 @@ const DefaultChange defaultChanges[] = {
     // 53: the author's melee speed: soft punches landed too rarely at 4 (NOTES.md vrfiringrange_2026-09-30_02-00-22 and
     // 02-02-15; ROUND21.md, "Melee speed 3; reloads aren't blows").
     {53, &vr_melee_speed, "4"},
+    // 59: heavy weapons strike slower (ROUND21.md, "Heavy weapons: wrenched out, sticky grips, heavy melee").
+    {59, &vr_weight_lenient, "0.75"},
+    {59, &vr_weight_lenient_from, "10"},
 };
-constexpr int configVersion = 56;
+constexpr int configVersion = 59;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

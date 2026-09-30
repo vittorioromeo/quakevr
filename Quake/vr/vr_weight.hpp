@@ -23,6 +23,8 @@
 
 #include "vr_hands.hpp"
 
+#include <cstdint>
+
 namespace qvr::weight
 {
 
@@ -86,6 +88,14 @@ void reset();
 // Heavy leniency: the factor on the speed thresholds of a melee strike and a throw's hit for a thing of `mass` kg
 // (vr_weight_lenient*: 1 up to vr_weight_lenient_from, lower for heavier things, at least vr_weight_lenient_min).
 [[nodiscard]] float leniency(float mass);
+
+// Wrenched out (experimental, vr_weight_drop*): a weapon at least vr_weight_drop_from kg falls out of a hand whose
+// controller turns faster than its limit (a snap or a twist of the wrist; the controller as tracked: turning with the
+// stick and walking don't count). The move's bits (QC .handdrop, VR_HANDDROP_*: 1 the off hand, 2 the main hand), each
+// for a moment after it; the server drops the weapon.
+[[nodiscard]] std::uint8_t dropBits();
+// The limit of a weapon of `mass` kg held `twoHanded` (0..1): degrees a second (0: it never falls). The menu's readout.
+[[nodiscard]] float dropLimit(float mass, float twoHanded);
 
 // vr_weight_test: the spring offline (vr_weight.cpp).
 void registerCommands();

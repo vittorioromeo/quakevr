@@ -81,6 +81,7 @@ struct State
     float grip2HBias[2]{0.f, 0.f}; // its hotspot's bias: units off the distance it is taken by (round 21)
     bool grip2HCup[2]{false, false}; // it is a cup (a two-handed pistol grip): held, but no two-handed aim
     bool grip2HPalm[2]{false, false}; // a cup hotspot: grip2H is where the helping hand's palm goes (taken by the palm)
+    float grip2HSticky[2]{1.f, 1.f};  // its hotspot's Stickiness: times how far the held hand may go off it before it lets go
 };
 
 // Hand calibration (Hand/Gun Calibration > Hand Calibration): where each hand sits on its controller, so that the drawn

@@ -30,6 +30,7 @@
 #include "vr_twohand.hpp"
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
+#include "vr_weight.hpp"
 #include "vr_worldtext.hpp"
 #include "vr_wounds.hpp"
 
@@ -298,6 +299,7 @@ std::vector<MuzzleOffset> muzzleOffsets; // slot * 2 + mirrored
     }
     // A hand holding the flashlight (or a chainsaw's cord) does not force grab.
     move.sawCord = chainsaw::moveBits();
+    move.handDrop = weight::dropBits();
     if(flashlight::holds(HAND_OFF) || chainsaw::holds(HAND_OFF))
     {
         move.buttons |= QVR_BUTTON_OFFHANDBUSY;

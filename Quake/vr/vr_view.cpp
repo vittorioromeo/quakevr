@@ -1172,6 +1172,7 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
         }
         s.grip2H[hand] = worldHotspots[hand][chosen].pos;
         s.grip2HBias[hand] = worldHotspots[hand][chosen].bias;
+        s.grip2HSticky[hand] = weapons::hotspot(slot, chosen).sticky;
         // A cup: a cup hotspot, or a grip not ahead of the holding hand (beside it, under it: a grip the two hands can't
         // aim by; it is held as a cup).
         const WorldHotspot& spot = worldHotspots[hand][chosen];
