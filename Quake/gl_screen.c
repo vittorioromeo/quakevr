@@ -2170,6 +2170,10 @@ void SCR_UpdateScreen (void)
 
 	if (VR_SkipScreen ()) // QVR: a test run's unpaced frames, not drawn (vr_mock_fast 2): the view set up alone
 	{
+		// The console forced down as SCR_SetUpToDrawConsole decides it (not called here): else it keeps the last drawn
+		// frame's value, and a run that drew no frame in a map (a take replayed first after start-up) set up no view.
+		if (!scr_drawloading)
+			con_forcedup = !cl.worldmodel || cls.signon != SIGNONS;
 		VR_HeadlessView ();
 		return;
 	}

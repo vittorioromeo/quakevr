@@ -13998,3 +13998,31 @@ into the flame at 1456 -128 406: `walltorch: lit again from a flame`, and it sta
 
 **The pouch's turn** (NOTES.md vrfiringrange_2026-09-30_02-08-07): `vr_grenade_pouch_hold_pitch` -180 -> 90,
 `vr_grenade_pouch_hold_yaw` 90 -> 0 (roll 0), config version 52 (51 left for another branch).
+## Eval determinism and the world mesh made once (2026-09-30)
+
+The two engine issues the fast eval found (above, "Fast melee eval"). Branch `agent/determinism`.
+
+- **A take replayed first after start-up** (`gun_strike_butt` 05-58 missed): not the RNG nor Box3D. In a run that
+  draws nothing (`vr_mock_fast 2`) `SCR_SetUpToDrawConsole` is never called, so `con_forcedup` kept the value of the
+  last frame drawn. A run that drew no frame in a map (the eval straight after start-up, or a map loaded and fewer than
+  about 5 frames run before the eval) kept "console forced down", and `VR_HeadlessView` set up no view the whole take:
+  no weapon poses (no muzzle, the melee's points from stale entities). Now the headless branch of `SCR_UpdateScreen`
+  decides `con_forcedup` as `SCR_SetUpToDrawConsole` does (`gl_screen.c`). Checked with saved replays
+  (`vr_motion_eval ... save`), compared column by column: 05-58 first after start-up, after a map and 2 frames, and
+  after a map and 60 frames give the same rows (only the `t` column, `realtime` less the take's start, differs in the
+  fifth decimal); four more takes (no_hit_reloading 08-45, gun_strike_butt 06-21, slash_diagonal_down_right 11-45,
+  stab_two_hands 13-40), each replayed first in its own run, match the same takes in one normal run, row for row.
+  The kit's eval still loads the map once first; it can drop that now.
+- **The world mesh made once per scale** (`vr_box3d.cpp`): its cache keeps up to 4 world scales of the current map
+  (least recently used let go; another map's or other `vr_box3d_mesh_junctions` let go). Each eval take loaded the map
+  at the user's `vr_world_scale` (1.25) and then set the take's (1.2): the mesh was made twice a take, 33-40 ms each;
+  now twice per run. Box3D's world is still made again at a scale change (0.1-0.5 ms without the mesh), so the
+  physics are the same as before.
+
+| | Before | After |
+|---|---|---|
+| canary, one copy (`--jobs 1`) | 27 s | 20 s |
+| full set, 8 copies | 19-21 s | 14 s |
+| a take's load + setup, mesh and world | 2 x ~36 ms | 0.1 + 0.4 ms |
+
+The full set and the canary match `eval_baseline.csv` in every column, before and after.

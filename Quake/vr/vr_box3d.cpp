@@ -726,7 +726,10 @@ struct MeshStats
     return mesh;
 }
 
-// The world's mesh is made once per map and kept while the map is (a saved game loaded, a restart: Box3D's world is made again, not the mesh).
+// The world's mesh is made once per map and world scale and kept while the map is (a saved game loaded, a restart:
+// Box3D's world is made again, not the mesh). A few scales are kept: a take's replay (vr_motion_play) sets the world
+// scale it was recorded at and puts the user's back, and each eval take loads the map at the user's scale first; the
+// mesh (in metres) isn't made again for either (35 ms each, twice per take).
 struct MeshCache
 {
     char name[MAX_QPATH]{};
@@ -735,29 +738,61 @@ struct MeshCache
     bool junctions{true};
     b3MeshData* mesh{nullptr};
     MeshStats stats;
-} meshCache;
+};
+std::vector<MeshCache> meshCache; // this map's, the latest used last
+constexpr size_t meshCacheScales = 4;
 
-// Whether the mesh made is this map's, as the settings want it (else the world is made again: destroyed first, as
-// its shape uses the mesh).
-[[nodiscard]] bool meshCurrent(const qmodel_t* map, float m2u)
+[[nodiscard]] bool sameMap(const MeshCache& c, const qmodel_t* map)
 {
-    const MeshCache& c = meshCache;
-    return !strcmp(c.name, map->name) && c.vertexes == map->numvertexes && c.surfaces == map->numsurfaces && c.m2u == m2u &&
+    return !strcmp(c.name, map->name) && c.vertexes == map->numvertexes && c.surfaces == map->numsurfaces &&
            c.junctions == (vr_box3d_mesh_junctions.value != 0.f);
 }
 
+[[nodiscard]] MeshCache* findMesh(const qmodel_t* map, float m2u)
+{
+    for(MeshCache& c : meshCache)
+    {
+        if(c.m2u == m2u && sameMap(c, map))
+        {
+            return &c;
+        }
+    }
+    return nullptr;
+}
+
+// Whether `mesh` is this map's, as the settings want it (else the world is made again: destroyed first, as its shape
+// uses the mesh).
+[[nodiscard]] bool meshCurrent(const qmodel_t* map, float m2u, const b3MeshData* mesh)
+{
+    const MeshCache* c = findMesh(map, m2u);
+    return c && c->mesh == mesh;
+}
+
+// (Only with the world destroyed: a mesh let go may be the one its shape used.)
 [[nodiscard]] b3MeshData* cachedWorldMesh(const qmodel_t* map, float m2u)
 {
-    MeshCache& c = meshCache;
-    if(c.mesh && meshCurrent(map, m2u))
+    if(MeshCache* found = findMesh(map, m2u))
     {
-        return c.mesh;
+        std::rotate(found, found + 1, meshCache.data() + meshCache.size()); // the latest used last
+        return meshCache.back().mesh;
     }
-    if(c.mesh)
+    // Another map's (or other settings'), and the least recently used scale beyond the few kept, let go.
+    for(auto it = meshCache.begin(); it != meshCache.end();)
     {
-        b3DestroyMesh(c.mesh);
+        if(!sameMap(*it, map) || meshCache.size() >= meshCacheScales)
+        {
+            if(it->mesh)
+            {
+                b3DestroyMesh(it->mesh);
+            }
+            it = meshCache.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
     }
-    c = MeshCache{};
+    MeshCache& c = meshCache.emplace_back();
     q_strlcpy(c.name, map->name, sizeof(c.name));
     c.vertexes = map->numvertexes;
     c.surfaces = map->numsurfaces;
@@ -4293,7 +4328,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
     }
     QVR_PROFILE("box3d");
     if(!world || world->map != sv.worldmodel || world->m2u != units::metresToUnits() ||
-       !meshCurrent(sv.worldmodel, world->m2u))
+       !meshCurrent(sv.worldmodel, world->m2u, world->mesh))
     {
         const double b0 = Sys_DoubleTime();
         destroyWorld();
