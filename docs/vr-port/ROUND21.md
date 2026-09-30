@@ -13509,3 +13509,39 @@ The eval set is now these takes (the kit's `canary.txt`, 52 of them, and `eval_b
 - Wiggle the axe or sword against it: nothing; a real cut still lands.
 - **Re-record** once the smaller player hitbox (`vr_hull_width`) lands: you'll stand closer, and the blows from close
   by (and the melee tolerance) need takes of their own.
+
+
+## Fast melee eval: parallel, hidden, not drawn (2026-09-30)
+
+Your request: agents spent a long time in the melee eval, and its game windows popped up on your desktop ("run
+multiple instances of the game in parallel ... go as fast as my CPU can handle").
+
+Where an eval take's time went (`vr_profile`, a sampling of the threads): the present (`SDL_GL_SwapWindow`) waited for
+the display's refresh even with vsync off (2.3 of 2.8 ms a frame); then, with several copies of the game at once, each
+frame's GL work and fence waited on the one GPU they share (8 copies drawing nothing were barely faster than 1); and at
+each start the models' AO bake kept 5 threads busy for seconds.
+
+- **Presents:** unpaced frames (`vr_mock_fast`) present ten times a second (`VR_SkipSwap`).
+- **`vr_mock_fast 2`:** unpaced frames aren't drawn: `SCR_UpdateScreen` runs `VR_HeadlessView` instead, each eye's
+  refdef and the view entities (`V_SetupView`, split out of `V_RenderView`), which the melee reads (the weapons' and
+  hands' poses). Skipping the whole screen update without it changed 26 of the 52 canary verdicts; with it, the table
+  is the same in every column. The AO bake is skipped in this mode (drawing only). A frame is 0.11 ms (was 2.8).
+- **Hidden windows:** `QVR_TEST_HIDDEN` (set by the kit unless `-Visible`) never shows the window; screenshots are
+  the same pixels as a shown window's. Older builds ignore it (their windows still show, without the focus).
+- A test run's hidden window isn't treated as minimized; `cache/prefetch.txt`'s temporary file is per process.
+
+The kit (`eval.sh`) splits the takes between up to 8 copies (`--jobs N`), each in its own game folder
+(`run.ps1 -Instance k`, `-noconfigwrite`), and merges their tables (the same rows as a single copy's). Its slots
+(`slots.sh`) are now 16, and an eval takes 1 to N of the free ones, keeping 4 for other agents' runs.
+
+| | Before | After |
+|---|---|---|
+| canary (52 takes) | 88 s | 10 s (8 copies) |
+| full set (176 takes) | 238 s | 22 s (8 copies; 58 s with a build without these changes) |
+
+The same verdicts: the full set and the canary match `eval_baseline.csv` in every column; the canary replayed at the
+frame cap (`-RealTime`) and in watch mode (the recorded pace) match too. Scaling stops at about 6-8 copies (4: 23 s,
+8: 20 s, 20: 39 s for the full set, with other agents' games running): each take's map load (the Box3D world mesh is
+made again twice per load, 35 ms each: its cache is keyed on `metresToUnits`, which changes as the take is set up)
+and file lookups still contend. Found on the way: a take played first after start-up, without a map loaded before,
+gave a different result (`gun_strike_butt` 05-58 missed): the eval loads the map once first, as before.
