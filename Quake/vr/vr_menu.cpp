@@ -2086,6 +2086,8 @@ std::vector<Item> pageDebugTools()
         command("Test Light", "vr_light_test").help("vr_light_test: a white light 48 units ahead for 5 seconds."),
         command("Test Message", "vr_message_test").help("vr_message_test: a message in the gadget's hologram (once the gadget has been drawn)."),
         command("Eject a Casing", "vr_shells_eject").help("vr_shells_eject: a spent casing out of the held weapon's port."),
+        command("Lightning Shock", "vr_shock_test 0").help("vr_shock_test 0: the lightning gun's shock in water (the flash, the arcs over your arms and body), without the damage."),
+        command("Electrified Water", "vr_shock_test 1").help("vr_shock_test 1 [radius] [seconds]: arcs on the water below the point 128 units ahead."),
         header("VR Calibration"),
         command("Run the Calibration Here", "vr_setup here")
             .help("vr_setup here: VR Calibration's steps (height, body, main hand) in this map, now."),
@@ -2566,6 +2568,7 @@ struct Page
 [[nodiscard]] std::vector<Item> pageCarryingHub();
 [[nodiscard]] std::vector<Item> pageWeaponsHub();
 [[nodiscard]] std::vector<Item> pageHudHub();
+[[nodiscard]] std::vector<Item> pageLightningWater();
 
 // The pages, by their number (menu_vr <n>): the numbers stay as they were, new pages are added last (the menus'
 // tree is in the pages' links: VR Settings > Advanced VR Options > its groups > their pages; ROUND21.md, "Menus
@@ -2648,6 +2651,7 @@ const Page pages[] = {
     {"Checklist", pageChecklist, pageDebug},                                // 72 (also the corner's button)
     {"Player Hitbox", pageHitbox, pageMovement},                            // 73
     {"Monster Hitbox", pageMonsterHitbox, pageMovement},                    // 74
+    {"Lightning Gun in Water", pageLightningWater, pageWeaponsHub},         // 75
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -2813,6 +2817,28 @@ std::vector<Item> pageCarryingHub()
     };
 }
 
+// The lightning gun in water (vr_lg_water*; QC weapons.qc VR_LGWater_*, vr_shock.cpp).
+std::vector<Item> pageLightningWater()
+{
+    return {
+        toggle("Lightning Gun in Water", vr_lg_water)
+            .help("Fired with your body waist deep, or your hand or the gun's muzzle in water, the lightning gun shocks you and both hands drop what they hold; the shock spreads through the water to what is in it. Fired into water from outside, it electrifies the water round where the beam goes in. Off: Quake's discharge (every cell at once, all round you)."),
+        slider("Shock Damage to You", vr_lg_water_self_damage, 0.f, 100.f, 5.f, "%.0f").extend(0.f, 500.f),
+        slider("Shock Damage to Others", vr_lg_water_damage, 0.f, 200.f, 5.f, "%.0f").extend(0.f, 1000.f)
+            .help("What else is in the water takes this at the gun's muzzle, fading out with distance."),
+        slider("Reach", vr_lg_water_radius, 32.f, 1024.f, 16.f, "%.0f units").extend(8.f, 4096.f)
+            .help("How far through the water the shock, and the electrified water, reach."),
+        slider("Falloff", vr_lg_water_falloff, 0.f, 4.f, 0.25f, "%.2f").extend()
+            .help("How the damage fades with distance: 1 evenly to nothing at the reach, 2 and more sooner, 0 not at all."),
+        slider("Electrified Water Damage", vr_lg_water_tick_damage, 0.f, 50.f, 1.f, "%.0f").extend(0.f, 300.f)
+            .help("Each bolt fired into water from outside (ten a second): damage where it goes in, fading out the same way."),
+        slider("Shock Flash", vr_lg_water_flash, 0.f, 1.f, 0.1f, "%.1f")
+            .help("The shock's blue flash over the view and the arcs in front of your eyes (the arcs on your arms and body stay)."),
+        command("Test the Shock Effect", "vr_shock_test 0").help("Shows the shock's flash and arcs, without the damage."),
+        command("Test the Electrified Water", "vr_shock_test 1").help("Arcs on the water below the point ahead of you, for 3 seconds."),
+    };
+}
+
 std::vector<Item> pageWeaponsHub()
 {
     return {
@@ -2825,6 +2851,7 @@ std::vector<Item> pageWeaponsHub()
         open("Aiming", pageIndex(pageAimingSettings)).help("Two-handed aiming; how weight feels: the spring, tired arms."),
         open("Weight and Damage", pageIndex(pageWeightDamage)),
         open("Immersion", pageIndex(pageImmersionSettings)).help("Holsters, reloading, throwing weapons, shell casings, haptics."),
+        open("Lightning Gun in Water", pageIndex(pageLightningWater)).help("The shock fired under water, and electrified water."),
         header("Holsters"),
         open("Hotspots", pageIndex(pageHotspotSettings)).help("The virtual stock, the shoulder and upper holsters."),
         open("Hip Holsters", pageIndex(pageHipHolsters)).help("The hip holsters and their slots' models; the grenade pouch at your back."),

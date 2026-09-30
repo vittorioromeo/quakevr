@@ -25,6 +25,7 @@
 #include "vr_rope.hpp"
 #include "vr_protocol.hpp"
 #include "vr_shells.hpp"
+#include "vr_shock.hpp"
 #include "vr_teleport.hpp"
 #include "vr_throw.hpp"
 #include "vr_trace.hpp"
@@ -530,6 +531,7 @@ void init()
     teleport::init();
     Cmd_AddCommand("vr_particle_test", particleTest_f);
     shells::registerCommands();
+    shock::registerCommands();
     Cmd_AddCommand("+offhandattack", OffhandAttackDown_f);
     Cmd_AddCommand("-offhandattack", OffhandAttackUp_f);
     Cmd_AddCommand("+grableft", GrabLeftDown_f);
@@ -619,6 +621,7 @@ extern "C" void VR_OnClientClearState()
     modelcollide::reset();
     selfcollide::reset();
     shells::clear();
+    shock::clear();
     wounds::clear();
     rope::forget();
     chainsaw::reset();
@@ -687,6 +690,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_WOUNDCLEAR: wounds::parseClear(); break;
         case QVR_SVC_CATCHBLEND: drawblend::parseCatch(); break;
         case QVR_SVC_ROPE: rope::parseCorners(); break;
+        case QVR_SVC_SHOCK: shock::parse(); break;
         default: Host_Error("svc_quakevr: unknown command %d", subcmd);
     }
 

@@ -717,6 +717,14 @@ void PF_ejectcasings()
         G_FLOAT(OFS_PARM3));
 }
 
+// watershock(kind, org, radius, duration): the lightning gun in water's effects (vr_shock.cpp): 0 the `self` player
+// shocked, 1 arcs on a liquid's surface round `org`, 2 arcs out from `org` in a liquid.
+void PF_watershock()
+{
+    server::sendShock(PROG_TO_EDICT(pr_global_struct->self), static_cast<int>(G_FLOAT(OFS_PARM0)), G_VECTOR(OFS_PARM1),
+        G_FLOAT(OFS_PARM2), G_FLOAT(OFS_PARM3));
+}
+
 // ----------------------------------------------------------------------------
 // The motion recorder (vr_motion.cpp; QC vr_motion.qc): kept only while a take is recorded or played.
 
@@ -932,6 +940,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"carry2hkeep", PF_carry2hkeep},
     {"floattext", PF_floattext},
     {"ejectcasings", PF_ejectcasings},
+    {"watershock", PF_watershock},
     {"findflags", PF_findflags},
     {"liquidentry", PF_liquidentry},
     {"watersplash", PF_watersplash},

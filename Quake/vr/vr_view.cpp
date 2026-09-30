@@ -29,6 +29,7 @@
 #include "vr_protocol.hpp"
 #include "vr_render.hpp"
 #include "vr_shells.hpp"
+#include "vr_shock.hpp"
 #include "vr_stereo.hpp"
 #include "vr_window.hpp"
 #include "vr_text3d.hpp"
@@ -3796,7 +3797,7 @@ void setupGadget(const hands::State& s)
 }
 
 // Quad damage: electric arcs crawling over the hands and forearms, reshaped every frame (the same
-// in both eyes); now and then a longer one jumps between the fingers and the elbow.
+// in both eyes); now and then a longer one jumps between the fingers and the elbow (vr_shock.cpp).
 void quadArcs(const hands::State& s)
 {
     static int lastFrame = -1;
@@ -3805,61 +3806,7 @@ void quadArcs(const hands::State& s)
         return; // once per frame, however often the view is set up
     }
     lastFrame = host_framecount;
-
-    unsigned seed = static_cast<unsigned>(host_framecount) * 2654435761u;
-    const auto rnd = [&seed] { // 0..1
-        seed = seed * 1664525u + 1013904223u;
-        return static_cast<float>(seed >> 8) / static_cast<float>(1u << 24);
-    };
-    const auto rndDir = [&] { return glm::normalize(glm::vec3{rnd() - 0.5f, rnd() - 0.5f, rnd() - 0.5f} + 1e-3f); };
-
-    const float m2w = units::metresToUnits() * units::bodyScale();
-    const auto arc = [&](glm::vec3 a, const glm::vec3& target, int segments, float jitter) {
-        const float bright = 0.6f + 0.4f * rnd();
-        const glm::vec4 core{0.75f, 0.85f, 1.f, 0.95f * bright};
-        const glm::vec4 glow{0.3f, 0.45f, 1.f, 0.35f * bright};
-        for(int seg = 1; seg <= segments; seg++)
-        {
-            glm::vec3 b = glm::mix(a, target, static_cast<float>(seg) / static_cast<float>(segments));
-            if(seg < segments)
-            {
-                b += rndDir() * (jitter * m2w);
-            }
-            lines::line(a, b, 0.6f, glow, glow);
-            lines::line(a, b, 0.15f, core, core);
-            a = b;
-        }
-    };
-
-    for(int hand = 0; hand < 2; hand++)
-    {
-        glm::vec3 wrist = s.pos[hand];
-        glm::vec3 dir = hands::forward(s.rot[hand]);
-        if(glm::vec3 w, d; avatar::forearm(hand, w, d))
-        {
-            wrist = w;
-            dir = glm::normalize(d);
-        }
-        const glm::vec3 elbow = wrist - dir * (0.26f * m2w);
-        const glm::vec3 fingers = s.pos[hand] + hands::forward(s.rot[hand]) * (0.05f * m2w);
-
-        for(int bolt = 0; bolt < 5; bolt++)
-        {
-            if(rnd() < 0.3f)
-            {
-                continue; // flicker
-            }
-            const float along = rnd();
-            glm::vec3 a = along < 0.25f ? fingers : glm::mix(wrist, elbow, (along - 0.25f) / 0.75f);
-            a += rndDir() * (0.03f * m2w);
-            arc(a, a + rndDir() * ((0.04f + 0.06f * rnd()) * m2w), 5, 0.012f);
-        }
-        if(rnd() < 0.2f)
-        {
-            arc(fingers + rndDir() * (0.02f * m2w), glm::mix(wrist, elbow, 0.5f + 0.5f * rnd()) + rndDir() * (0.03f * m2w), 8,
-                0.02f);
-        }
-    }
+    shock::armArcs(s, static_cast<unsigned>(host_framecount) * 2654435761u, 5, 0.2f);
 }
 
 // The player's state on the body (vr_body_state, vr_body_powerups): the armour worn and the
@@ -4928,6 +4875,7 @@ extern "C" void VR_SetupViewEntities()
     chainsaw::setupView(s); // the chainsaw's starter cord (vr_chainsaw.cpp)
     setupPouch(s);
     dripBlood(s);
+    shock::frame(s); // the lightning gun in water's arcs and flash (vr_lg_water)
     setupButton(HAND_MAIN);
     setupButton(HAND_OFF);
     setupFrontButton(HAND_MAIN);

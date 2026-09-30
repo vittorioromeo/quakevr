@@ -46,4 +46,8 @@ void sendCatchBlend(struct edict_s* player, int hand, int ent, const float origi
 // shells) out of the weapon in `player`'s `hand`, `delay` seconds from now (flags: 1 a flick reload).
 void sendEject(struct edict_s* player, int hand, int kind, int count, int flags, float delay);
 
+// `watershock(kind, org, radius, duration)` from QC (the lightning gun in water, vr_shock.cpp): kind 0 (`player` shocked)
+// to `player` alone, the others (arcs on or in a liquid round `org`) to every client, unreliable.
+void sendShock(struct edict_s* player, int kind, const float org[3], float radius, float duration);
+
 } // namespace qvr::server

@@ -566,6 +566,33 @@ void sendEject(edict_t* player, int hand, int kind, int count, int flags, float 
     MSG_WriteByte(msg, CLAMP(0, static_cast<int>(delay * 100.f + 0.5f), 255));
 }
 
+void sendShock(edict_t* player, int kind, const float org[3], float radius, float duration)
+{
+    sizebuf_t* msg = nullptr;
+    if(kind == 0)
+    {
+        msg = clientMessage(player);
+    }
+    else if(sv.datagram.cursize <= MAX_DATAGRAM - 24)
+    {
+        msg = &sv.datagram;
+    }
+    if(!msg)
+    {
+        return;
+    }
+
+    MSG_WriteByte(msg, svc_quakevr);
+    MSG_WriteByte(msg, QVR_SVC_SHOCK);
+    MSG_WriteByte(msg, CLAMP(0, kind, 255));
+    for(int i = 0; i < 3; i++)
+    {
+        MSG_WriteCoord(msg, org[i], sv.protocolflags);
+    }
+    MSG_WriteShort(msg, CLAMP(0, static_cast<int>(radius), 32767));
+    MSG_WriteByte(msg, CLAMP(0, static_cast<int>(duration * 50.f + 0.5f), 255));
+}
+
 void init()
 {
     Cmd_AddCommand("vr_dumpplayer", dumpPlayer_f);
