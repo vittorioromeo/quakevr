@@ -76,6 +76,7 @@ On a tilted box steeper than ~30 degrees you slowly slide off (like the level's 
 The shotgun lags up to ~176 degrees in a fast wiggle: too much for 3 kg? (weight spring settings)
 Optimization follow-up: a Low graphics preset (render resolution, foveation, decal cap)?
 Function-local non-std statics (two text buffers, lastOut in vr_handpose): move them to the scratch/state pattern too?
+VR CALIBRATION is the first main-menu row (above Single Player, since New Game lives inside that picture menu): OK there?
 
 [Tune]
 Grapple: reel speeds and the other grapple values (you asked for a reminder)
