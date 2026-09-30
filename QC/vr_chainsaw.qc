@@ -23,7 +23,10 @@
 //   The client lets its bar sink into a monster's model while the chain runs (vr_chainsaw_overlap, cm;
 //   vr_modelcollide.cpp) instead of stopping it at the surface.
 // - Out of fuel, it stalls. Holstered or thrown, it stops (its flags' QVR_WPNFLAG_SAW_STATE are a hand's).
-// - The weapon's ammo counter shows its fuel.
+// - The weapon's ammo counter shows its fuel. Empty, the trigger clicks dry, as an empty gun's (every half a second held).
+// - A zombie heeds no tick of it (each below the 9 it ignores): the chain's cutting adds up on it instead
+//   (orig_mon_zombie.qc VR_Zombie_SawHurt): about a third of a second puts it down, as a heavy hit does; cut on while it
+//   lies there (not solid: found apart), it is gibbed.
 
 .float vr_saw_loop;       // the main hand's chainsaw's sound playing (VR_SAW_LOOP_*)
 .float vr_saw_loop2;      // the off hand's
@@ -46,6 +49,12 @@ nosave float vr_saw_replay_at;
 .float vr_saw_fails2;
 .entity vr_saw_victim;    // the cut's victims, linked (findradius's .chain is not kept across T_Damage)
 .vector vr_saw_at;        // and where the bar met each
+.float vr_saw_click_next; // empty, the trigger's next dry click (as an empty gun's, every half a second held)
+.float vr_saw_click_next2;
+
+// A zombie and the chain (orig_mon_zombie.qc: its knockdown and gibbing add the chain's ticks up).
+float(entity z, float hurt) VR_Zombie_SawHurt;
+float(entity z) VR_Zombie_SawDown;
 
 float VR_SAW_LOOP_NONE = 0;
 float VR_SAW_LOOP_IDLE = 1;
@@ -214,6 +223,33 @@ float(float xHand) VR_Chainsaw_Cut =
         }
         e = e.chain;
     }
+    // A zombie knocked down lies there not solid (orig_mon_zombie.qc zombie_paine10), which findradius passes by: by its
+    // model (else its box, grown by the bar's half-thickness), to be gibbed.
+    e = find(world, classname, "monster_zombie");
+    while(e)
+    {
+        if(e.solid == SOLID_NOT && e.takedamage && VR_Zombie_SawDown(e) &&
+           vlen(e.origin - mid) < vlen(tip - root) * 0.5 + VR_HITMODEL_REACH)
+        {
+            float lying = hitmodel_segment(e, root, tip, 1, HITCLASS_MELEE);
+            if(lying == -2)
+            {
+                lying = VR_SegmentBox(root, tip, e.origin + e.mins - '1 1 1' * VR_SAW_BAR_HALF,
+                    e.origin + e.maxs + '1 1 1' * VR_SAW_BAR_HALF);
+            }
+            if(cvar_hget(cvarh_vr_debug_chainsaw) >= 2)
+            {
+                dprint(sprintf("chainsaw: bar %v .. %v near a zombie lying at %v: %g\n", root, tip, e.origin, lying));
+            }
+            if(lying >= 0)
+            {
+                e.vr_saw_victim = list;
+                e.vr_saw_at = root + (tip - root) * lying;
+                list = e;
+            }
+        }
+        e = find(e, classname, "monster_zombie");
+    }
     if(list == world)
     {
         return FALSE;
@@ -237,6 +273,7 @@ float(float xHand) VR_Chainsaw_Cut =
             // The chain shreds a gib or a head at once (a tick's blow would knock it off the bar).
             hurt = max(dmg, e.vr_gib_hp);
         }
+        hurt = VR_Zombie_SawHurt(e, hurt); // (a zombie: the tick that puts it down, or gibs it down)
         if(T_DamageImpl(e, self, self, hurt, 1) && alive)
         {
             VR_QuadSound(self, "the chainsaw cut");
@@ -361,6 +398,9 @@ void(float xHand) VR_Chainsaw_Frame =
             VR_Saw_SetLoop(xHand, VR_SAW_LOOP_NONE, 0);
             loop = VR_SAW_LOOP_NONE;
             VRGunHaptic(xHand, 0.2, 30, 0.5);
+            // (the trigger held on: its first dry click after the stall's sound)
+            if(xHand == cVR_OffHand) self.vr_saw_click_next2 = time + 0.5;
+            else                     self.vr_saw_click_next = time + 0.5;
             VR_Saw_Debug(sprintf("chainsaw: %s hand's stalled: out of fuel\n", VR_Saw_HandName(xHand)));
         }
     }
@@ -437,6 +477,20 @@ void(float xHand) VR_Chainsaw_Frame =
     else if(loop != VR_SAW_LOOP_NONE)
     {
         VR_Saw_Silence(xHand); // (stopped some other way: its loop would play on)
+    }
+
+    // Empty, its trigger clicks dry, as an empty gun's (weapons.qc W_AttackImpl): every half a second held (NOTES.md
+    // vrfiringrange_2026-10-01_00-12-44). Held by its front handle alone, the trigger's hand is gone.
+    if(!running && fuel <= 0 && VRGetFireButtonPressed(xHand) && !VRIsHandCarryingByForegrip(self, xHand))
+    {
+        float click = xHand == cVR_OffHand ? self.vr_saw_click_next2 : self.vr_saw_click_next;
+        if(time >= click)
+        {
+            sound(self, CHAN_AUTO, "gunclick.wav", 1, ATTN_NORM);
+            if(xHand == cVR_OffHand) self.vr_saw_click_next2 = time + 0.5;
+            else                     self.vr_saw_click_next = time + 0.5;
+            VR_Saw_Debug(sprintf("chainsaw: %s hand's trigger: empty click at %g\n", VR_Saw_HandName(xHand), time));
+        }
     }
 
     flags = flags - (flags & QVR_WPNFLAG_SAW_STATE);

@@ -16828,3 +16828,26 @@ weapon asleep, no repeats.
   the bar's end: each comes into the hand. Too eager (taken from a hand's width off)? Lower Weapon Grab Slack.
 - [ ] Drop the crowbar from head height: a heavier clank than before.
 - [ ] The chainsaw running, swung at the dummy: its engine keeps running through the whoosh; a thrust of the tip jabs.
+
+## The chainsaw: an empty trigger clicks; zombies go down and are gibbed (2026-10-01)
+
+NOTES.md vrfiringrange_2026-10-01_00-12-44 and 00-15-10. QC only (vr_chainsaw.qc, orig_mon_zombie.qc).
+
+- **Empty, the trigger clicks dry** (`gunclick.wav`, as an empty gun's): at the press, then every 0.5 s held; the first
+  0.5 s after a stall, so the click doesn't cover the stall's sound. Not held by the front handle alone.
+- **Zombies**: the chain's ticks (8 at `vr_chainsaw_damage` 80) were each below the 9 `zombie_pain` ignores, so a zombie
+  never reacted. The chain's cutting now adds up on a zombie while it goes on (at most 0.3 s between ticks): at 25 the
+  tick deals 25, which puts it down (Quake's heavy-hit rule; about 0.4 s of cutting); knocked down, at 60 more the tick
+  deals 60 and gibs it (about 0.8 s). Both are divided by Enemy Damage (`vr_damage_to_enemies`) so they still land.
+  A zombie lying down is not solid, which `findradius` skips: the cut looks for knocked-down zombies apart (their model,
+  else their box). Other monsters take the ticks as before. `vr_debug_chainsaw 1` prints `zombie cut <sum> of <need>`.
+
+**Tests (mock).** `vr_weapon_grip_mode 1`, firing range, `impulse 164; impulse 227; impulse 230; +attack`: stalls, then
+"empty click at" 4.28, 4.79, 5.30 ... (0.51 s apart); released, none; pressed again, one at once. A zombie
+(`vr_test_spawn 2; impulse 241`, main hand `0.0 1.1 -0.9 70 0 0`): 25 dealt at "zombie cut 32 of 25", down; hand lowered
+(`0.0 0.5 -1.1 55 0 0`), the lying zombie is met by the bar, "zombie cut 64 of 60", 60 dealt, gibbed. A shambler (3):
+23 ticks of 8, no zombie lines.
+
+**In the headset.**
+- [ ] Run a chainsaw dry, keep squeezing: clicks after the stall.
+- [ ] Cut a zombie: it drops within half a second or so; saw into it on the ground: it bursts.

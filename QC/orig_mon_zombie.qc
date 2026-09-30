@@ -532,8 +532,53 @@ void(entity attacker, float take) zombie_pain =
         zombie_paind1();
 };
 
+// QVR: the ogres' chainsaw (vr_chainsaw.qc; NOTES.md vrfiringrange_2026-10-01_00-15-10). Its running chain deals its
+// damage in ticks (8 at vr_chainsaw_damage 80), each below the 9 zombie_pain ignores: a zombie never went down. The
+// chain's cutting adds up on it instead, while it goes on (a gap of VR_SAW_ZOMBIE_GAP at most between ticks): 25 put it
+// down, as a heavy hit does (the tick that gets there deals them); knocked down, 60 more gib it, as 60 in one frame do.
+.float vr_saw_zombie_sum;  // the chain's damage added up on it
+.float vr_saw_zombie_last; // the last tick's time
+float VR_SAW_ZOMBIE_GAP = 0.3;
+float VR_SAW_ZOMBIE_DOWN = 25;
+float VR_SAW_ZOMBIE_GIB = 60;
+
+// A zombie down (knocked down by pain: falling, lying, getting up), alive.
+float(entity z) VR_Zombie_SawDown =
+{
+    return z.classname == "monster_zombie" && z.th_pain == zombie_pain && z.inpain == 2 && z.health > 0;
+};
+
+// The chain's tick `hurt` on `z`: what it deals (for a zombie, the tick that adds up to its knockdown or its gibbing
+// deals enough for it, through the Gameplay menu's damage multiplier).
+float(entity z, float hurt) VR_Zombie_SawHurt =
+{
+    if(z.classname != "monster_zombie" || z.th_pain != zombie_pain || z.health <= 0 || hurt <= 0)
+    {
+        return hurt;
+    }
+    if(time > z.vr_saw_zombie_last + VR_SAW_ZOMBIE_GAP)
+    {
+        z.vr_saw_zombie_sum = 0;
+    }
+    z.vr_saw_zombie_last = time;
+    z.vr_saw_zombie_sum = z.vr_saw_zombie_sum + hurt;
+    float need = z.inpain == 2 ? VR_SAW_ZOMBIE_GIB : VR_SAW_ZOMBIE_DOWN;
+    if(cvar_hget(cvarh_vr_debug_chainsaw))
+    {
+        dprint(sprintf("chainsaw: zombie cut %g of %g (%s)\n", z.vr_saw_zombie_sum, need,
+            z.inpain == 2 ? "down: gibbed" : "knocked down"));
+    }
+    if(z.vr_saw_zombie_sum < need)
+    {
+        return hurt;
+    }
+    z.vr_saw_zombie_sum = 0;
+    float scale = max(0.01, cvar_hget(cvarh_vr_damage_to_enemies));
+    return max(hurt, ceil(need / scale));
+};
+
 // ROGUE
-void() zombie_sleep = [ $paine11, zombie_sleep ] { ai_stand(); };
+void() zombie_sleep =[ $paine11, zombie_sleep ] { ai_stand(); };
 
 void() zombie_wake =
 {

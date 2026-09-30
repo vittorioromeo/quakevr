@@ -982,7 +982,9 @@ as `vr_mock_hand`) for the cord's handle and each hotspot (two, both on the fron
 at `vr_mock_hand off 0.115 1.28 -0.556 0 0 0`. `Misc/quakevr/chainsaw_pull.mock` (copy it into `quakevr/motions/`, a
 path the game opens: `vr_mock_play quakevr/motions/chainsaw_pull.mock`) grips there and pulls slowly, then fast, then again;
 `impulse 230` starts the chainsaws in your hands without the cord; `vr_test_spawn 105` (an ogre's head) and
-`106` (a gib) with `impulse 241` put one on the floor ahead (cut tests). `vr_chainsaw_start_chance 1` makes a good pull always start it, `vr_debug_chainsaw 1` prints the cord and the cuts. Don't
+`106` (a gib) with `impulse 241` put one on the floor ahead (cut tests). `vr_chainsaw_start_chance 1` makes a good pull always start it, `vr_debug_chainsaw 1` prints the cord and the cuts (and a zombie's `zombie cut <sum> of <need>`, the empty trigger's
+`empty click at <time>`). A zombie (`vr_test_spawn 2`) is cut with the main hand at `0.0 1.1 -0.9 70 0 0` (the bar level
+at chest height), and lying down at `0.0 0.5 -1.1 55 0 0`. Don't
 set `vr_mock_fingers off` before the grip: its grip value presses the grip where the hand is. `r_fullbright 1` lights e1m1's
 dark corridor for screenshots.
 The chainsaw's first pulls of a start always fail (`vr_chainsaw_fail_pulls_min`/`_max`, 1-2): set both to 0 for a test
