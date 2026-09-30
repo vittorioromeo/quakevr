@@ -5,6 +5,8 @@ VisualStudioVersion = 15.0.28307.1622
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ironwail", "ironwail.vcxproj", "{AE77266F-0A23-4F08-A491-369DE664B273}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "zancle", "zancle.vcxproj", "{E286BCD0-E4E0-4F68-B335-083019EA8E02}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -21,6 +23,14 @@ Global
 		{AE77266F-0A23-4F08-A491-369DE664B273}.Release|Win32.Build.0 = Release|Win32
 		{AE77266F-0A23-4F08-A491-369DE664B273}.Release|x64.ActiveCfg = Release|x64
 		{AE77266F-0A23-4F08-A491-369DE664B273}.Release|x64.Build.0 = Release|x64
+		{E286BCD0-E4E0-4F68-B335-083019EA8E02}.Debug|Win32.ActiveCfg = Debug|Win32
+		{E286BCD0-E4E0-4F68-B335-083019EA8E02}.Debug|Win32.Build.0 = Debug|Win32
+		{E286BCD0-E4E0-4F68-B335-083019EA8E02}.Debug|x64.ActiveCfg = Debug|x64
+		{E286BCD0-E4E0-4F68-B335-083019EA8E02}.Debug|x64.Build.0 = Debug|x64
+		{E286BCD0-E4E0-4F68-B335-083019EA8E02}.Release|Win32.ActiveCfg = Release|Win32
+		{E286BCD0-E4E0-4F68-B335-083019EA8E02}.Release|Win32.Build.0 = Release|Win32
+		{E286BCD0-E4E0-4F68-B335-083019EA8E02}.Release|x64.ActiveCfg = Release|x64
+		{E286BCD0-E4E0-4F68-B335-083019EA8E02}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

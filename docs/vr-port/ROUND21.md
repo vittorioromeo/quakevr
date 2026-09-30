@@ -15158,3 +15158,200 @@ the rest is in the menus.
 - [ ] Press each wall button: the value above it and the message on the wrist change; the setting is kept next start.
 - [ ] The room: bright enough, not too bright? Boards readable where you stand to read them?
 - [ ] Swim in the pool, climb the rungs and the blocks, take the things on the table.
+## The game's thread pool (Zancle); the grasp solve shared out (2026-09-30)
+
+Your plan: a high-quality thread pool (Zancle's), game-wide, made at start-up and joined before shutdown; the ad-hoc
+threads and futures moved to it; the grasp solve's palm places and thumb turns shared out, the main thread working too;
+the results checked; the profile reviewed once more for other easy parallelism.
+
+### Zancle, vendored
+
+`Quake/vr/external/zancle` (its `README.md`): commit `6b8c6106` of `rebrand_to_zancle` (2026-09-28), only the
+concurrency module and what its includes reach: 68 files, about 440 KB (150 KB of it moodycamel's queue); zlib
+(SFML's and yours), moodycamel's simplified BSD. One local change (below, proposal 1).
+
+Building it is the one wrinkle: Zancle needs C++23 and is written against the GCC/Clang builtins (`__atomic_*`,
+`__has_builtin`), which MSVC's cl can't compile (proposal 2). So:
+
+- **Visual Studio**: `Windows/VisualStudio/zancle.vcxproj`, a static library built by **clang-cl** (the ClangCL toolset
+  that comes with Visual Studio 2022's "C++ Clang tools for Windows", clang 19.1.5 here), in `ironwail.sln` and
+  referenced from `quakevr.props`. **The engine itself stays on MSVC and C++20**: only `vr_jobs.cpp` includes Zancle,
+  and it is in that library. Same runtime library and `_DEBUG` as ironwail per configuration (the link checks it),
+  `/O2`, `NDEBUG` (Zancle's asserts off) and `ZA_STATIC` in every configuration, Debug too; no LTCG for it (MSVC's
+  linker takes only cl's objects into LTCG); `synchronization.lib` (WaitOnAddress) linked. Release and Debug x64 build
+  with 0 warnings; `build.sh` and `ship.sh` unchanged (they build the solution).
+- **CMake** (`vr.cmake`): a `qvr_zancle` static library with the same flags; on Windows configure with `-T ClangCL`
+  (the whole engine then builds with clang-cl: done here, it links and runs); plain cl stops with a message saying so.
+- **Makefiles** (`Makefile`, `.w32`, `.w64`): `ZANCLE_CXXFLAGS` (`-std=c++23 -O2 -DNDEBUG -DZA_STATIC`) for Zancle's
+  sources and `vr_jobs.cpp`, `-pthread` / `-lsynchronization`. Checked with GCC 15.1 (WSL): Zancle and `vr_jobs.cpp`
+  compile with `-Wall` clean and a standalone test of the pool passes (Linux's futex paths). (Those Makefiles never had
+  Box3D's sources, so they don't link the engine today: not this change.)
+- Moving the whole engine to C++23 (you allowed it) wasn't needed: flipping `quakevr.props`' `stdcpp20` is the switch
+  when Zancle headers are wanted in other files; they would then also need clang-cl, or proposal 2.
+
+### vr_jobs: the pool's interface
+
+`Quake/vr/vr_jobs.hpp` (`qvr::jobs`), on `za::ThreadPool`:
+
+- `parallelFor(count, chunk, body)`: `body(begin, end)` over chunks; the calling thread takes chunks too and returns
+  when all ran. **Only free workers help**: helpers are posted with a small reusable control block, and one that
+  starts after the caller has run out of chunks is called off, so the caller never waits for a task that hasn't started
+  and never runs anyone else's (Zancle's own `parallelFor` runs whatever is pending while it waits: a frame's grasp solve
+  could pick up a model's occlusion bake; proposal 5). Nested calls are safe. The lowest chunk's exception comes back
+  after every chunk ran (proposal 6). No allocation once warm.
+- `async(f)` -> `Future<T>`: `get()`/`wait()` run `f` on the waiting thread if no worker has started it (no deadlock
+  when every worker waits on work queued behind it); an unfinished `Future` waits when destroyed (as `std::async`'s);
+  `f`'s exception comes back through `get()`.
+- Made at `VR_Init` (first: the systems after it post to it), joined at the end of `VR_Shutdown`, which **a dedicated
+  server now calls too** (`host.c`: it never did, so the image prefetch's threads were destroyed unjoined at `quit`:
+  the crash the multiplayer research found). Workers: the hardware's threads less one (at most 31), `-jobs <n>`, or
+  `vr_jobs_threads` (changed: the pool is made again; what is queued runs first). `vr_jobs_parallel 0`: every
+  `parallelFor` on its caller alone, the reference. `vr_jobs_info`, `vr_jobs_test`; Debug > Profiling and Memory >
+  Threads (with Grasp Bench and Grasp Sweep).
+- Results never depend on the worker count: every user writes per-item slots and reduces them in a fixed order.
+
+`vr_jobs_test` (16 checks, 0.4 s in Release, 0.6 s in Debug; all pass in both, and with 1-16 workers):
+pools of 1/2/3/8 workers running 64 posted tasks, all done by the join, on that many threads; 50 pools made and
+destroyed with 0-49 tasks queued; every index covered once for counts 0-100003 and chunks auto-1000000; the calling
+thread ran 13 of 64 chunks with 4 others; every worker blocked: `parallelFor` still returns (the caller ran all 1000
+items) and its 4 helpers are called off when freed; exceptions (chunks 5, 17, 40 throw: "chunk 5" comes back, all 64
+ran; the same serially; `async`'s through `get()`, a dropped one quiet, the pool fine after); nested `parallelFor` three
+deep with `async` waits inside; every worker waiting on a task queued behind it (each ran its own); float reductions
+bit for bit the same with 1, 2, 5, 16 workers; a pool destroyed with 100 tasks queued (all ran, a `Future` from it
+ready); the game's pool.
+
+### The ad-hoc threads and futures, moved
+
+| Was | Now | Checked |
+|---|---|---|
+| `vr_imgprefetch.cpp`: up to 6 `std::thread`s decoding, joined at the first load's end (never in a dedicated server: the crash) | up to 6 pool tasks; an image asked for before a task reached it is decoded by the asking thread | 43 images read ahead, 43 taken, default and `-jobs 1`; dedicated server: `map e1m1`, `quit`, exit 0 |
+| `vr_water.cpp`: up to 8 `std::thread`s over the liquid volume's layers | `parallelFor` over the layers | texels' hash the same (`c24132ad`, e1m1) with 31 workers, 3, 1 and `vr_jobs_parallel 0`; 6.6 ms on the pool, 88 ms alone |
+| `vr_decals.cpp`: `std::async` building the atlas | `jobs::async`, and its 29 cells shared out inside it | texels' hash the same (`9d43724d`) and `vr_decal_atlas`'s PNG the same, every worker count |
+| `vr_motion.cpp`: `std::async` writing each take | `jobs::async` (`ready()` instead of `wait_for(0)`) | a 2 s take recorded and saved (`motions/jobs_test_...csv`) |
+| `vr_ao.cpp`: a bake thread with up to 4 pose threads of its own, below normal priority | one pool task bakes the queued models in turn (started when one is queued, ends when none is left), each model's poses shared out as before (every 4th pose to each); the pool's thread lowered while it bakes, then put back | every model's bake hash the same (75 models, e1m1) with 31, 3 and 1 workers and serially |
+
+Not moved: `vr_gpustats.cpp`'s sampler (a loop that sleeps between samples for as long as profiling runs: it would
+hold a worker), and upstream Ironwail's SDL threads in `host_cmd.c` (downloads, mod installs, the map list's parser,
+the background save: blocking I/O, and upstream's code).
+
+### The grasp solve, shared out
+
+Where its time went (one thread, the axe, cycle counts): `nearest` (a point's distance to the held model) 77%, called
+about 3.5 million times a sweep; per call about 47 grid items visited for 13 distinct triangles, 7 past their box test
+and under 2 past the plane test (the triangles span several 2-hand-unit cells). The palm's ray (the task's hint) runs
+once a solve and never for a weapon (their place is searched): not worth a grid walk.
+
+Single-threaded:
+
+- `Shape::Space::nearest` keeps no state: the per-triangle "already looked at" stamps (written on every query, so no
+  two queries could run at once) are gone; each grid item carries three bits (is this cell the triangle's first on x,
+  y, z), and a query looks at a triangle only in the first of its cells the query covers. The same triangles in the
+  same order, and the duplicates skipped without reading the triangle.
+- Grid cells of 1, 1.5, 2 and 3 hand units tried: 2 (today's) is the fastest. One thread is where it was (below):
+  the query's work is its distance tests, which the stamps never were; the lever is the pool.
+
+Shared out (`vr_grasp.cpp`), each task with its own copy of what it moves (the target, the pose), the probe counts per
+task and summed in order:
+
+- The palm's place search (a weapon's grip): the given place and the 20 round it at once (each: its flush move, then
+  the four fingers closed there), then the 8 at half a step round the best at once; the best chosen in the places'
+  order, the first of equals winning, as before. (Splitting further, a finger at a place a task with the flush moves
+  first, measured no faster: 5.65 ms against 5.46 for the eleven weapons, exclusive runs: the extra dispatch costs what
+  the shorter tasks save. Not kept.)
+- The fingers: the thumb at each turn tried and the four fingers, all at once (up to 10), the thumb's turn chosen after.
+- Chunks of one item: each is 50-400 microseconds, far over the pool's cost per chunk (an atomic add); what a
+  `parallelFor` costs is waking the workers (tens of microseconds), so the solve makes three.
+
+Results: `vr_grasp_sweep` over 11 weapons (grapple, axe, shotgun, super shotgun, nailgun, super nailgun, grenade and
+rocket launchers, thunderbolt, sword, chainsaw) x 8 kinds of solve (afresh, again with the solve before, a wider place
+search, the palm given, the thumb's style swapped, the thenar swapped with a deeper overlap, a prop's fit turned to
+face and flush, cupped by the other hand) x 7 places in the hand (at rest; moved 0.3 along each axis; turned 4
+degrees; both): **616 solves, every one identical to the last bit** to the solver before this change (built from the
+commit before and run on the same inputs), **and every one identical on the pool and on one thread**; max curl
+difference 0. (The sweep takes the weapon at its resting place, so the inputs are the same every run: at the live
+place two runs of the same build differed by up to 0.75 curl frames, the chainsaw's shake.)
+
+`vr_grasp_sweep 30` (exclusive runs, the mock, e1m1, each weapon at rest in the main hand; the afresh solve as held,
+median ms of 30; "before" is the commit before this change built and run on the same inputs):
+
+| Weapon | Before (one thread) | After, one thread | After, the pool (31 workers + the main thread) | Speed-up |
+|---|---|---|---|---|
+| Grappling hook | 1.36 | 1.38 | 0.29 | 4.7x |
+| Axe | 4.60 | 4.57 | 0.81 | 5.7x |
+| Shotgun | 3.31 | 3.15 | 0.70 | 4.7x |
+| Super shotgun | 1.70 | 1.73 | 0.46 | 3.7x |
+| Nailgun | 2.08 | 2.05 | 0.51 | 4.1x |
+| Super nailgun | 3.08 | 3.12 | 0.45 | 6.8x |
+| Grenade launcher | 1.39 | 1.40 | 0.42 | 3.3x |
+| Rocket launcher | 1.26 | 1.27 | 0.40 | 3.2x |
+| Thunderbolt | 1.22 | 1.29 | 0.52 | 2.3x |
+| Sword | 3.16 | 3.36 | 0.54 | 5.8x |
+| Chainsaw | 0.78 | 0.84 | 0.36 | 2.2x |
+| All 11 | 23.9 | 24.1 | 5.5 | 4.4x |
+
+`vr_jobs_parallel 0` gives the "one thread" column (the same results). The helpers do 90-95% of the chunks; the
+main thread the rest (it takes one as soon as it posts, while the workers wake).
+
+Melee canary (`eval.sh`): 48/53, 0 differences from the baseline (the grasp results being identical, as expected).
+
+### Other places the pool could help (the profile again)
+
+Per frame, our CPU work is 0.84 ms on your machine; after the grasp solve the costliest systems average 0.05-0.1 ms
+(light setup, QuakeC, shadows, Box3D), below where splitting pays for waking threads (10-30 microseconds a
+`parallelFor`), and the GL work can't leave the main thread. Not done:
+
+- Box3D can run its solver on workers (its world's task callbacks): its 3.6 ms step at a map's load; per frame it's
+  0.05 ms. Its callbacks want a worker index per task (its per-worker scratch), which our `parallelFor` doesn't give:
+  more than an atomic's worth of change, and Box3D's results across worker counts would need checking (Box2D v3's are
+  the same).
+- The map load's own work (the spawn, the clipping hulls' compile) you declined (not gameplay).
+
+### Zancle proposals (for upstream; you own it)
+
+Found while vendoring the concurrency module (`Quake/vr/external/zancle`, commit `6b8c6106`). Only the first is patched
+locally; the rest are worked around in `vr_jobs.cpp` or the build.
+
+1. **The C++23 check rejects clang-cl** (`Config.hpp`, patched locally). clang-cl sets `_MSVC_LANG` to `202004L` in
+   C++23 mode (and `/std:c++latest` too), as MSVC's own `/std:c++latest` did before 17.x, so `_MSVC_LANG < 202302L`
+   fires. Suggest: test `__cplusplus` whenever `__clang__` is defined (the local change), or accept `_MSVC_LANG >=
+   202004L` for "latest".
+2. **MSVC (cl) can't build the concurrency module**: `Atomic.hpp` is written on the GCC/Clang `__atomic_*` builtins
+   and `__ATOMIC_*` constants; `UIntPtrT.hpp` stops with "Could not determine a uintptr equivalent type (GCC/Clang)";
+   `__has_builtin(...)` in `#if` (BitCast, CpuRelax, Launder, Memcpy, Traits...) warns C4067 where it is not defined;
+   `IsInvocableR.hpp` / `ReferenceConvertsFromTemporary.hpp` use builtin syntax cl rejects. If cl should be supported:
+   guard with `#if defined(__has_builtin)`, an MSVC backend for `Atomic` (`_Interlocked*` and `__iso_volatile_load*`,
+   or `std::atomic_ref`), `<cstdint>`'s `uintptr_t`. If not: say "clang-cl on Windows" in the readme (what Quake VR does:
+   a clang-cl static library, the engine still on cl).
+3. **`ZA_CPU_RELAX()` is empty on MSVC's cl** (`Base/CpuRelax.hpp` needs `__has_builtin(__builtin_ia32_pause)`): with
+   cl support (2), `parallelFor`'s spin before blocking would spin without a pause. Suggest `_M_X64`/`_M_IX86` ->
+   `_mm_pause()`, `_M_ARM64` -> `__yield()`. (clang-cl has the builtin: fine as built here.)
+4. **`[[gnu::cold, gnu::noinline]]` on `za::abort`** (`Base/Abort.hpp`, also `assertFailure`, `printStackTrace`): cl
+   warns C5030 (unknown attribute), an error under `/WX`. Suggest a `ZA_ATTR_COLD_NOINLINE` macro (`__declspec(noinline)`
+   on cl).
+5. **`parallelFor` waits by running other tasks.** While a helper it posted has not started, the caller runs whatever is
+   pending (`tryRunPendingTask`): a frame-critical caller (a grasp solve on the main thread) can pick up a long,
+   unrelated task queued before its helpers (a model's occlusion bake: tens of ms) and miss the frame, and it must wait
+   for every helper even after all chunks are taken. Suggest: helpers hold a small refcounted control block (not the
+   caller's frame); when the caller has run out of chunks it closes a gate (an atomic: the count of helpers inside plus
+   a closed bit) and waits only for the helpers already inside; a helper that starts later sees the gate closed and just
+   lets go of the block. The caller then never runs anyone else's task and never waits for one that hasn't started;
+   nested calls stay safe (it only ever waits for running work). The blocks can be pooled (no allocation once warm).
+   That is `qvr::jobs::Pool::parallelFor` (`Quake/vr/vr_jobs.cpp`, about 80 lines), built on `postCopies`.
+6. **An exception out of `parallelFor`'s `f` is undefined behaviour**: thrown on the calling thread it unwinds the frame
+   the helpers still read (`nextChunk`, `helpersRemaining`, `f`); thrown on a worker, `std::terminate` (the worker loop
+   calls `task()` bare). Suggest: catch per chunk, keep the lowest chunk's exception (deterministic), rethrow after the
+   join; document that `post`ed tasks must not throw (or catch and report in the worker loop).
+7. **A future.** `post` has no result and no way to wait for one task. `vr_jobs` adds `async(f) -> Future<T>` (a
+   `shared_ptr` job: whoever claims it first runs it, so `get()` on a task no worker has started runs it on the waiting
+   thread: no deadlock when every worker waits for work queued behind it, and no running of unrelated tasks); a
+   `Future` destroyed unfinished waits. Worth having in Zancle.
+8. Smaller: `ThreadPool` could name its threads (`SetThreadDescription` / `pthread_setname_np`: "za worker N") for
+   profilers and debuggers; `getHardwareWorkerCountExcludingCallingThread` could take a cap (a 32-thread CPU gets 31
+   workers that the game's work never fills).
+
+### In the headset
+
+- [ ] Take each weapon (a switch, a draw): the fingers wrap its grip as before (identical results), without the 2-5 ms
+  hitch the first time (now 0.3-0.8 ms: `vr_profile`'s `grasp solve`).
+- [ ] Load a few maps: the models' occlusion still appears a moment after (baked on the pool now), no hitch.
+- [ ] Debug > Profiling and Memory > Threads: Thread Pool Self-Test says 16 passed.

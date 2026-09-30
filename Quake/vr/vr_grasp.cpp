@@ -1,6 +1,7 @@
 // vr_grasp.cpp -- see vr_grasp.hpp.
 
 #include "vr_grasp.hpp"
+#include "vr_jobs.hpp"
 #include "vr_render.hpp"
 #include "vr_api_render.h"
 
@@ -157,9 +158,16 @@ struct Shape::Space
     glm::vec3 lo{0.f}, hi{0.f}; // the triangles' box
     int size[3]{1, 1, 1};
     std::vector<std::uint32_t> first; // per cell, its first item; one more at the end
-    std::vector<std::uint16_t> items;
-    std::vector<std::uint32_t> stamps; // per triangle: the query that last looked at it
-    std::uint32_t stamp{0};
+    // Per cell, its triangles (in their order): the index (the low 16 bits), and whether this cell is the triangle's
+    // first on x, y, z (bits 16, 17, 18). A query looks at a triangle only in the first of its cells it covers, told by
+    // those bits and the query's own first cells: no state kept between queries (they run on several threads at once,
+    // vr_jobs.hpp), and a triangle's other cells skipped without reading it.
+    std::vector<std::uint32_t> items;
+
+    [[nodiscard]] int cellOf(float v, int k) const
+    {
+        return std::clamp(static_cast<int>((v - lo[k]) / cell), 0, size[k] - 1);
+    }
 
     void buildGrid(float cellSize)
     {
@@ -181,8 +189,8 @@ struct Shape::Space
             int from[3], to[3];
             for(int k = 0; k < 3; k++)
             {
-                from[k] = std::clamp(static_cast<int>((t.lo[k] - lo[k]) / cell), 0, size[k] - 1);
-                to[k] = std::clamp(static_cast<int>((t.hi[k] - lo[k]) / cell), 0, size[k] - 1);
+                from[k] = cellOf(t.lo[k], k);
+                to[k] = cellOf(t.hi[k], k);
             }
             for(int z = from[2]; z <= to[2]; z++)
             {
@@ -190,9 +198,12 @@ struct Shape::Space
                 {
                     for(int x = from[0]; x <= to[0]; x++)
                     {
+                        const std::uint32_t firsts = (x == from[0] ? 1u << 16 : 0u) | (y == from[1] ? 1u << 17 : 0u) |
+                                                     (z == from[2] ? 1u << 18 : 0u);
                         f((static_cast<std::size_t>(z) * static_cast<std::size_t>(size[1]) + static_cast<std::size_t>(y)) *
                               static_cast<std::size_t>(size[0]) +
-                          static_cast<std::size_t>(x));
+                              static_cast<std::size_t>(x),
+                            firsts);
                     }
                 }
             }
@@ -200,7 +211,7 @@ struct Shape::Space
         std::vector<std::uint32_t> counts(cells, 0u);
         for(const Tri& t : tris)
         {
-            each(t, [&](std::size_t c) { counts[c]++; });
+            each(t, [&](std::size_t c, std::uint32_t) { counts[c]++; });
         }
         first.assign(cells + 1, 0u);
         for(std::size_t c = 0; c < cells; c++)
@@ -211,16 +222,16 @@ struct Shape::Space
         std::fill(counts.begin(), counts.end(), 0u);
         for(std::size_t i = 0; i < tris.size(); i++)
         {
-            each(tris[i], [&](std::size_t c) { items[first[c] + counts[c]++] = static_cast<std::uint16_t>(i); });
+            each(tris[i], [&](std::size_t c, std::uint32_t firsts) {
+                items[first[c] + counts[c]++] = static_cast<std::uint32_t>(i) | firsts;
+            });
         }
-        stamps.assign(tris.size(), 0u);
-        stamp = 0;
     }
 
     // The distance from `p` to the nearest triangle, at most `limit` (beyond it, `limit`, or more: the distance to the
     // triangles' box when that is farther, a lower bound, so that a finger in open air steps as far as it may at once);
     // its point in `at`, its normal (as wound) in `normal`.
-    [[nodiscard]] float nearest(const glm::vec3& p, float limit, glm::vec3* at = nullptr, glm::vec3* normal = nullptr)
+    [[nodiscard]] float nearest(const glm::vec3& p, float limit, glm::vec3* at = nullptr, glm::vec3* normal = nullptr) const
     {
         const glm::vec3 away = glm::max(glm::max(lo - p, p - hi), glm::vec3{0.f});
         const float boxDistance2 = glm::dot(away, away);
@@ -241,11 +252,6 @@ struct Shape::Space
             from[k] = std::max(from[k], 0);
             to[k] = std::min(to[k], size[k] - 1);
         }
-        if(++stamp == 0)
-        {
-            std::fill(stamps.begin(), stamps.end(), 0u);
-            stamp = 1;
-        }
         for(int z = from[2]; z <= to[2]; z++)
         {
             for(int y = from[1]; y <= to[1]; y++)
@@ -253,17 +259,21 @@ struct Shape::Space
                 const std::size_t row =
                     (static_cast<std::size_t>(z) * static_cast<std::size_t>(size[1]) + static_cast<std::size_t>(y)) *
                     static_cast<std::size_t>(size[0]);
-                for(std::size_t c = row + static_cast<std::size_t>(from[0]); c <= row + static_cast<std::size_t>(to[0]); c++)
+                for(int x = from[0]; x <= to[0]; x++)
                 {
+                    // A triangle is looked at in the first of its cells the query covers (the scan's order: z, y, x):
+                    // on each axis, its own first cell or the query's.
+                    const std::uint32_t queryFirsts = (x == from[0] ? 1u << 16 : 0u) | (y == from[1] ? 1u << 17 : 0u) |
+                                                      (z == from[2] ? 1u << 18 : 0u);
+                    const std::size_t c = row + static_cast<std::size_t>(x);
                     for(std::uint32_t i = first[c]; i < first[c + 1]; i++)
                     {
-                        const std::uint16_t index = items[i];
-                        if(stamps[index] == stamp)
+                        const std::uint32_t item = items[i];
+                        if(((item | queryFirsts) & (7u << 16)) != (7u << 16))
                         {
-                            continue; // in another cell already looked at
+                            continue;
                         }
-                        stamps[index] = stamp;
-                        const Tri& t = tris[index];
+                        const Tri& t = tris[item & 0xffffu];
                         // Lower bounds of its distance: to its box, to its plane.
                         const glm::vec3 outside = glm::max(glm::max(t.lo - p, p - t.hi), glm::vec3{0.f});
                         if(glm::dot(outside, outside) >= best * best || std::fabs(glm::dot(t.normal, p) - t.plane) >= best)
@@ -347,7 +357,7 @@ std::size_t heldBytes(const Shape& s)
     if(const Shape::Space* p = s.space.get())
     {
         n += sizeof(Shape::Space) + p->tris.capacity() * sizeof(Shape::Space::Tri) + p->first.capacity() * sizeof(std::uint32_t) +
-             p->items.capacity() * sizeof(std::uint16_t) + p->stamps.capacity() * sizeof(std::uint32_t);
+             p->items.capacity() * sizeof(std::uint32_t);
     }
     return n;
 }
@@ -360,10 +370,10 @@ namespace
 
 struct Target
 {
-    Shape::Space* space;
+    const Shape::Space* space;
     glm::mat4 base;      // the rig (as the controller has the hand) to the shape's real units
     float scale;         // hand units per real unit (the least of the axes', if not the same: distances never overstated)
-    Shape::Space* extra{nullptr}; // another thing in the way (the other hand, for a cup), in rig units
+    const Shape::Space* extra{nullptr}; // another thing in the way (the other hand, for a cup), in rig units
     glm::mat4 extraBase{1.f};
     float allowance{0.f}; // hand units it may be sunk into, more than the held thing
     glm::mat4 rigToReal{1.f}, extraToReal{1.f}; // with the hand turned and moved as the solve has it
@@ -372,11 +382,9 @@ struct Target
     void place(const glm::quat& turn, const glm::vec3& move);
 };
 
-int probes = 0; // this solve's (vr_grasp_bench)
-
 // The distance (hand units) from the rig point `p` to the held thing (or the other thing in the way, less its
 // allowance), at most `limit` hand units.
-[[nodiscard]] float nearest(Target& target, const glm::vec3& p, float limit)
+[[nodiscard]] float nearest(const Target& target, const glm::vec3& p, float limit)
 {
     float d = target.scale * target.space->nearest(glm::vec3{target.rigToReal * glm::vec4{p, 1.f}}, limit / target.scale);
     if(target.extra)
@@ -389,11 +397,14 @@ int probes = 0; // this solve's (vr_grasp_bench)
 // ----------------------------------------------------------------------------
 // Closing a finger.
 
+// A finger's solve: what it closes on, the hand (its thumb turned as tried), and its probes' count (vr_grasp_bench).
+// Solves run on several threads at once (solve): each has its own context, and shares only what it reads.
 struct Context
 {
-    Target* target;
+    const Target* target;
     const handrig::Pose* pose;
     float overlap;
+    int* probes;
 };
 
 // A finger at curls `c`, the joints from `firstActive` on closing: each bone's (from firstActive + 1 on) clearance
@@ -408,7 +419,7 @@ struct Probe
 
 void probe(const Context& ctx, int finger, const float c[handrig::jointsPerFinger], int firstActive, Probe& out)
 {
-    probes++;
+    (*ctx.probes)++;
     const Kinematics& k = kinematics();
     handrig::Rigid seg[handrig::jointsPerFinger + 1];
     handrig::fingerSegments(*ctx.pose, finger, c, seg);
@@ -673,38 +684,41 @@ constexpr int thumbTurnCount = static_cast<int>(sizeof(thumbTurns) / sizeof(thum
 
 // The thumb: closed at each turn of its metacarpal (of the style asked for), the one holding best (a turn costs a
 // little: a thumb held naturally beats a contorted one holding a little better). Solved again (the solve before
-// known): its turn only, closed from where it held.
-void solveThumb(handrig::Pose& pose, const Context& ctx, const Solution* previous, bool top, FingerStop& out, glm::quat& turn,
-    int& choice)
+// known): its turn only, closed from where it held. The turns tried (solve closes them on the game's threads, each with
+// its own pose), then the choice among them (in their order: the first of equals).
+[[nodiscard]] bool thumbTried(int i, const Solution* previous, bool top)
+{
+    const bool again = previous && previous->thumbChoice >= 0 && thumbStyle(thumbTurns[previous->thumbChoice], top);
+    return !((again && i != previous->thumbChoice) || !thumbStyle(thumbTurns[i], top));
+}
+
+void chooseThumb(const FingerStop (&tried)[thumbTurnCount], const Solution* previous, bool top, FingerStop& out,
+    glm::quat& turn, int& choice)
 {
     float best = -1e9f;
-    const glm::quat keep = pose.metacarpal;
-    const bool again = previous && previous->thumbChoice >= 0 && thumbStyle(thumbTurns[previous->thumbChoice], top);
     for(int i = 0; i < thumbTurnCount; i++)
     {
-        if((again && i != previous->thumbChoice) || !thumbStyle(thumbTurns[i], top))
+        if(!thumbTried(i, previous, top))
         {
             continue;
         }
         const ThumbTurn& t = thumbTurns[i];
-        pose.metacarpal = thumbQuat(t);
-        FingerStop st;
-        solveFinger(ctx, handrig::Thumb, true, again ? &previous->finger[handrig::Thumb] : nullptr, st);
+        const FingerStop& st = tried[i];
         const float value = score(st) - 0.003f * (t.opposition + std::fabs(t.swing));
         if(!st.startsInside && value > best)
         {
             best = value;
             out = st;
-            turn = pose.metacarpal;
+            turn = thumbQuat(t);
             choice = i;
         }
     }
-    pose.metacarpal = keep;
     if(best > -1e9f)
     {
         return;
     }
     // In it at every turn and curl (its base in a grip): left as the controller has it, at a natural turn.
+    const bool again = previous && previous->thumbChoice >= 0 && thumbStyle(thumbTurns[previous->thumbChoice], top);
     out = FingerStop{};
     out.startsInside = true;
     out.leastInside = true;
@@ -713,7 +727,7 @@ void solveThumb(handrig::Pose& pose, const Context& ctx, const Solution* previou
 }
 
 // The palm's spheres' (and the thenar's) least clearance from the held thing (negative: in it).
-[[nodiscard]] float palmClearance(Target& target, float overlap, bool thenar)
+[[nodiscard]] float palmClearance(const Target& target, float overlap, bool thenar)
 {
     const Kinematics& k = kinematics();
     float least = 1e9f;
@@ -752,13 +766,22 @@ void Target::place(const glm::quat& turn, const glm::vec3& move)
     }
 }
 
-// The palm's place for a grip through the hand (see solve): the places tried, and the best one's move.
-glm::vec3 placeInside(handrig::Pose& pose, Target& target, const Settings& settings, int& tried)
+// The palm's place for a grip through the hand (see solve): the places tried, and the best one's move. The places are
+// independent: each tried on the game's threads (vr_jobs.hpp) with its own copy of the target, the best then chosen in
+// their order (the first of equals), as when one thread tried them in turn.
+struct Place
 {
-    const auto at = [&](const glm::vec3& move) { target.place(glm::quat{1.f, 0.f, 0.f, 0.f}, move); };
-    const auto value = [&](const glm::vec3& move) {
-        at(move);
-        const Context ctx{&target, &pose, settings.overlap};
+    bool found{false}; // clear somewhere along the palm's normal, and so tried
+    glm::vec3 move{0.f};
+    float value{0.f};
+    int probes{0};
+};
+
+glm::vec3 placeInside(const handrig::Pose& pose, const Target& target, const Settings& settings, int& tried, int& probes)
+{
+    const auto value = [&](Target& t, const glm::vec3& move, int& n) {
+        t.place(glm::quat{1.f, 0.f, 0.f, 0.f}, move);
+        const Context ctx{&t, &pose, settings.overlap, &n};
         float total = -0.1f * glm::length(glm::vec3{3.f * move.x, move.y, move.z});
         for(int f = handrig::Index; f < handrig::FingerCount; f++)
         {
@@ -768,19 +791,17 @@ glm::vec3 placeInside(handrig::Pose& pose, Target& target, const Settings& setti
         }
         return total;
     };
-    glm::vec3 best{0.f};
-    float bestValue = value(best);
-    tried = 1;
-    const auto consider = [&](float dx, float dz) {
+    const auto consider = [&](float dx, float dz, Place& out) {
         // Flush along the palm's normal: coming from as far back as it may, the last place clear before it meets the
         // grip (in quarter steps), if any within reach.
+        Target t = target;
         const float reach = std::sqrt(std::fmax(settings.palmLimit * settings.palmLimit - dx * dx - dz * dz, 0.f));
         bool wasClear = false;
         float clearY = 0.f;
         for(float dy = -reach; dy <= reach + 1e-4f; dy += 0.25f)
         {
-            at(glm::vec3{dx, dy, dz});
-            if(palmClearance(target, settings.overlap, false) >= -tolerance)
+            t.place(glm::quat{1.f, 0.f, 0.f, 0.f}, glm::vec3{dx, dy, dz});
+            if(palmClearance(t, settings.overlap, false) >= -tolerance)
             {
                 wasClear = true;
                 clearY = dy;
@@ -790,35 +811,65 @@ glm::vec3 placeInside(handrig::Pose& pose, Target& target, const Settings& setti
             {
                 continue;
             }
-            const glm::vec3 move{dx, clearY, dz};
-            const float v = value(move);
-            tried++;
-            if(v > bestValue)
-            {
-                bestValue = v;
-                best = move;
-            }
+            out.found = true;
+            out.move = glm::vec3{dx, clearY, dz};
+            out.value = value(t, out.move, out.probes);
             return;
         }
     };
-    for(const float dx : {-1.f, 0.f, 1.f, 2.f})
-    {
-        for(const float dz : {-3.f, -2.f, -1.f, 0.f, 1.f})
+    const auto choose = [&](const Place* places, int count, glm::vec3& best, float& bestValue) {
+        for(int i = 0; i < count; i++)
         {
-            consider(dx, dz);
-        }
-    }
-    const glm::vec3 centre = best;
-    for(const float ox : {-0.5f, 0.f, 0.5f})
-    {
-        for(const float oz : {-0.5f, 0.f, 0.5f})
-        {
-            if(ox != 0.f || oz != 0.f)
+            probes += places[i].probes;
+            if(places[i].found)
             {
-                consider(centre.x + ox, centre.z + oz);
+                tried++;
+                if(places[i].value > bestValue)
+                {
+                    bestValue = places[i].value;
+                    best = places[i].move;
+                }
             }
         }
-    }
+    };
+
+    // The place given, and 4 x 5 around it.
+    constexpr float dxs[4] = {-1.f, 0.f, 1.f, 2.f};
+    constexpr float dzs[5] = {-3.f, -2.f, -1.f, 0.f, 1.f};
+    Place first[21];
+    jobs::parallelFor(21, 1, [&](std::size_t b, std::size_t e) {
+        for(std::size_t i = b; i < e; i++)
+        {
+            if(i == 0)
+            {
+                Target t = target;
+                first[0].found = true;
+                first[0].value = value(t, glm::vec3{0.f}, first[0].probes);
+            }
+            else
+            {
+                consider(dxs[(i - 1) / 5], dzs[(i - 1) % 5], first[i]);
+            }
+        }
+    });
+    glm::vec3 best{0.f};
+    float bestValue = first[0].value;
+    tried = 1;
+    probes += first[0].probes;
+    choose(first + 1, 20, best, bestValue);
+
+    // Then half a step round the best.
+    const glm::vec3 centre = best;
+    constexpr float offsets[8][2] = {{-0.5f, -0.5f}, {-0.5f, 0.f}, {-0.5f, 0.5f}, {0.f, -0.5f}, {0.f, 0.5f}, {0.5f, -0.5f},
+        {0.5f, 0.f}, {0.5f, 0.5f}};
+    Place second[8];
+    jobs::parallelFor(8, 1, [&](std::size_t b, std::size_t e) {
+        for(std::size_t i = b; i < e; i++)
+        {
+            consider(centre.x + offsets[i][0], centre.z + offsets[i][1], second[i]);
+        }
+    });
+    choose(second, 8, best, bestValue);
     return best;
 }
 
@@ -1084,7 +1135,6 @@ void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shap
             if(sameInputs(remembered[static_cast<std::size_t>(i)], start, shape, shapeToRig, settings))
             {
                 out = remembered[static_cast<std::size_t>(i)].solution;
-                probes = 0;
                 out.seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
                 return;
             }
@@ -1092,7 +1142,7 @@ void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shap
     }
     const Kinematics& k = kinematics();
     out = Solution{};
-    probes = 0;
+    int probes = 0; // (vr_grasp_bench)
     out.palmCentre = k.palmCentre;
     handrig::Pose pose = start;
     pose.metacarpal = glm::quat{1.f, 0.f, 0.f, 0.f};
@@ -1208,20 +1258,53 @@ void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shap
     }
     else if((inside || settings.searchPlace) && settings.palmLimit > 0.f)
     {
-        out.palm = previous ? previous->palm : placeInside(pose, target, settings, out.places);
+        out.palm = previous ? previous->palm : placeInside(pose, target, settings, out.places, probes);
     }
     target.place(out.palmTurn, out.palm);
 
-    // The fingers.
-    const Context ctx{&target, &pose, settings.overlap};
-    int before = probes;
-    solveThumb(pose, ctx, previous, settings.thumbTop, out.finger[handrig::Thumb], out.thumbTurn, out.thumbChoice);
-    out.fingerProbes[handrig::Thumb] = probes - before;
+    // The fingers: the thumb at each turn tried, and the four fingers, each closed on the game's threads (each turn
+    // with its own pose), then the thumb's turn chosen.
+    const bool again = previous && previous->thumbChoice >= 0 && thumbStyle(thumbTurns[previous->thumbChoice], settings.thumbTop);
+    int work[thumbTurnCount + handrig::FingerCount - 1];
+    int count = 0;
+    for(int i = 0; i < thumbTurnCount; i++)
+    {
+        if(thumbTried(i, previous, settings.thumbTop))
+        {
+            work[count++] = i;
+        }
+    }
     for(int f = handrig::Index; f < handrig::FingerCount; f++)
     {
-        before = probes;
-        solveFinger(ctx, f, true, previous ? &previous->finger[f] : nullptr, out.finger[f]);
-        out.fingerProbes[f] = probes - before;
+        work[count++] = thumbTurnCount + f - handrig::Index;
+    }
+    FingerStop thumbs[thumbTurnCount];
+    int jobProbes[thumbTurnCount + handrig::FingerCount - 1]{};
+    jobs::parallelFor(static_cast<std::size_t>(count), 1, [&](std::size_t b, std::size_t e) {
+        for(std::size_t j = b; j < e; j++)
+        {
+            const int job = work[j];
+            if(job < thumbTurnCount)
+            {
+                handrig::Pose turned = pose;
+                turned.metacarpal = thumbQuat(thumbTurns[job]);
+                const Context ctx{&target, &turned, settings.overlap, &jobProbes[j]};
+                solveFinger(ctx, handrig::Thumb, true, again ? &previous->finger[handrig::Thumb] : nullptr, thumbs[job]);
+            }
+            else
+            {
+                const int f = job - thumbTurnCount + handrig::Index;
+                const Context ctx{&target, &pose, settings.overlap, &jobProbes[j]};
+                solveFinger(ctx, f, true, previous ? &previous->finger[f] : nullptr, out.finger[f]);
+            }
+        }
+    });
+    chooseThumb(thumbs, previous, settings.thumbTop, out.finger[handrig::Thumb], out.thumbTurn, out.thumbChoice);
+    for(int j = 0; j < count; j++)
+    {
+        probes += jobProbes[j];
+        const int f = work[j] < thumbTurnCount ? handrig::Thumb : work[j] - thumbTurnCount + handrig::Index;
+        out.fingerProbes[f] += jobProbes[j];
     }
     out.probes = probes;
     out.seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();

@@ -5,6 +5,7 @@
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
 #include "vr_gore.hpp"
+#include "vr_jobs.hpp"
 #include "vr_mem.hpp"
 #include "vr_modellight.hpp"
 #include "vr_profile.hpp"
@@ -13,7 +14,7 @@
 
 #include <algorithm>
 #include <cmath>
-#include <future>
+#include <cstdint>
 #include <unordered_map>
 #include <vector>
 
@@ -519,11 +520,17 @@ void encode(glm::vec3 f, unsigned char* out)
 [[nodiscard]] std::vector<unsigned char> buildAtlas()
 {
     std::vector<unsigned char> rgba(atlasWidth * atlasHeight * 4, 0);
-    for(int kind = 0; kind < KindCount; kind++)
-    {
-        for(int n = 0; n < cellCount[kind]; n++)
+    // The cells shared out among the game's threads (vr_jobs.hpp): each writes its own texels, its random numbers seeded
+    // by its number (the thread's own generator): the same atlas whatever ran it.
+    const int cells = firstCell[KindCount - 1] + cellCount[KindCount - 1];
+    jobs::parallelFor(static_cast<std::size_t>(cells), 1, [&](std::size_t c0, std::size_t c1) {
+        for(int cell = static_cast<int>(c0); cell < static_cast<int>(c1); cell++)
         {
-            const int cell = firstCell[kind] + n;
+            int kind = KindCount - 1;
+            while(cell < firstCell[kind])
+            {
+                kind--;
+            }
             const int seed = cell * 131 + 7;
             rngState = static_cast<unsigned>(seed);
 
@@ -610,17 +617,29 @@ void encode(glm::vec3 f, unsigned char* out)
                 }
             }
         }
-    }
+    });
     return rgba;
 }
 
-// The atlas's texels, made from start-up on a worker thread (decals::init): buildAtlas reads nothing but its arguments
+// The atlas's texels, made from start-up on the game's threads (decals::init): buildAtlas reads nothing but its arguments
 // and constants, and the random numbers are the thread's own.
-std::future<std::vector<unsigned char>> atlasTexels;
+jobs::Future<std::vector<unsigned char>> atlasTexels;
 
 void makeAtlas()
 {
-    const std::vector<unsigned char> rgba = atlasTexels.valid() ? atlasTexels.get() : buildAtlas();
+    const double t0 = Sys_DoubleTime();
+    const bool ahead = atlasTexels.valid();
+    const std::vector<unsigned char> rgba = ahead ? atlasTexels.get() : buildAtlas();
+    if(developer.value)
+    {
+        std::uint32_t hash = 2166136261u; // (FNV-1a: the same atlas whatever made it)
+        for(const unsigned char t : rgba)
+        {
+            hash = (hash ^ t) * 16777619u;
+        }
+        Con_DPrintf("VR decals: the atlas %s (%.1f ms waited; texels %08x)\n", ahead ? "made ahead" : "made now",
+            (Sys_DoubleTime() - t0) * 1e3, hash);
+    }
     atlas = gfx::createTexture(atlasWidth, atlasHeight, rgba.data(), true);
 }
 
@@ -1313,7 +1332,7 @@ void init()
 {
     if(!atlasTexels.valid() && !atlas)
     {
-        atlasTexels = std::async(std::launch::async, buildAtlas);
+        atlasTexels = jobs::async(buildAtlas);
     }
 }
 

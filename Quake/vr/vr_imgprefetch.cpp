@@ -6,10 +6,12 @@
 // load when it changed). At VR_Init (the file system is up) the main thread reads each file as the game's lookup finds
 // it (COM_LoadMallocFile) and the workers decode the bytes. Image_LoadImage (image.c) then takes an image decoded
 // ahead only if the file it opens holds exactly the same bytes (compared); else it decodes as before. Images not taken
-// by the end of the first load are freed there; the workers are joined then, or at shutdown.
+// by the end of the first load are freed there; the decoding tasks (the game's thread pool, vr_jobs.hpp) are finished
+// then, or at shutdown. An image asked for before a task has started on it is decoded by the thread that asks.
 
 #include "vr_engine.hpp"
 #include "vr_imgprefetch.hpp"
+#include "vr_jobs.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -21,7 +23,6 @@
 #include <memory>
 #include <mutex>
 #include <string>
-#include <thread>
 #include <vector>
 
 extern "C" unsigned char* Image_DecodeMemory(const unsigned char* bytes, int length, int* width, int* height); // image.c
@@ -37,6 +38,7 @@ struct Item
     std::vector<unsigned char> bytes;
     unsigned char* pixels = nullptr; // malloc'd by stb_image (the caller frees it, as stbi's own)
     int width = 0, height = 0;
+    bool claimed = false; // a task (or the asking thread) is decoding it
     bool done = false;
     bool taken = false;
 };
@@ -44,13 +46,15 @@ struct Item
 std::mutex lock;
 std::condition_variable doneCv;
 std::vector<std::unique_ptr<Item>> items;
-std::vector<std::thread> workers;
-size_t next = 0;
+std::vector<qvr::jobs::Future<void>> tasks; // each decodes items until none is left
+size_t next = 0; // the items before it are all claimed
 bool active = false;
 
 std::vector<std::string> manifest; // the list read at the start
 std::vector<std::string> decoded;  // this window's decodes (found png/tga/jpg files, over a millisecond)
 bool windowOpen = false;
+int takenCount = 0;  // decoded ahead and taken (developer 1: printed at the end)
+int askedCount = 0;  // ... of them decoded by the thread that asked (no task had come to them yet)
 
 fs::path toPath(const std::string& utf8)
 {
@@ -62,39 +66,51 @@ std::string manifestPath()
     return std::string{com_gamedir} + "/cache/prefetch.txt";
 }
 
+// Decodes a claimed item (outside the lock).
+void decode(Item* it)
+{
+    int w = 0, h = 0;
+    unsigned char* px = Image_DecodeMemory(it->bytes.data(), static_cast<int>(it->bytes.size()), &w, &h);
+    {
+        std::lock_guard<std::mutex> g(lock);
+        it->pixels = px;
+        it->width = w;
+        it->height = h;
+        it->done = true;
+    }
+    doneCv.notify_all();
+}
+
 void work()
 {
     for(;;)
     {
-        Item* it;
+        Item* it = nullptr;
         {
             std::lock_guard<std::mutex> g(lock);
+            while(next < items.size() && items[next]->claimed)
+            {
+                next++;
+            }
             if(next >= items.size())
             {
                 return;
             }
             it = items[next++].get();
+            it->claimed = true;
         }
-        int w = 0, h = 0;
-        unsigned char* px = Image_DecodeMemory(it->bytes.data(), static_cast<int>(it->bytes.size()), &w, &h);
-        {
-            std::lock_guard<std::mutex> g(lock);
-            it->pixels = px;
-            it->width = w;
-            it->height = h;
-            it->done = true;
-        }
-        doneCv.notify_all();
+        decode(it);
     }
 }
 
-void joinWorkers()
+// Every task finished (one not started yet runs here).
+void finishTasks()
 {
-    for(std::thread& t : workers)
+    for(qvr::jobs::Future<void>& t : tasks)
     {
-        t.join();
+        t.wait();
     }
-    workers.clear();
+    tasks.clear();
 }
 
 void freeItems()
@@ -151,10 +167,10 @@ void start()
         return;
     }
     active = true;
-    const int threads = std::clamp(static_cast<int>(std::thread::hardware_concurrency()) - 1, 1, 6);
+    const int threads = std::clamp(qvr::jobs::workers(), 1, 6);
     for(int i = 0; i < std::min<int>(threads, static_cast<int>(items.size())); i++)
     {
-        workers.emplace_back(work);
+        tasks.push_back(qvr::jobs::async(work));
     }
 }
 
@@ -167,7 +183,9 @@ void end()
         return;
     }
     windowOpen = false;
-    joinWorkers();
+    finishTasks();
+    Con_DPrintf("imgprefetch: %d images read ahead, %d taken (%d of them decoded when asked for)\n", static_cast<int>(items.size()),
+        takenCount, askedCount);
     freeItems();
     active = false;
     if(decoded != manifest && !decoded.empty())
@@ -192,7 +210,7 @@ void end()
 
 void shutdown()
 {
-    joinWorkers();
+    finishTasks();
     freeItems();
     active = false;
     windowOpen = false;
@@ -223,6 +241,14 @@ extern "C" unsigned char* VR_ImagePrefetchTake(const char* name, FILE* f, int le
         {
             return nullptr;
         }
+        if(!it->claimed)
+        {
+            it->claimed = true; // no task has come to it yet: decoded here
+            askedCount++;
+            g.unlock();
+            decode(it);
+            g.lock();
+        }
         doneCv.wait(g, [it] { return it->done; });
         it->taken = true; // (freed by the caller if taken, below if not)
     }
@@ -248,6 +274,7 @@ extern "C" unsigned char* VR_ImagePrefetchTake(const char* name, FILE* f, int le
     }
     *width = it->width;
     *height = it->height;
+    takenCount++;
     return px;
 }
 

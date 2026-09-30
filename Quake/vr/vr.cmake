@@ -4,6 +4,7 @@ file(GLOB QVR_SRC CONFIGURE_DEPENDS
 	"${CMAKE_CURRENT_LIST_DIR}/*.cpp"
 	"${CMAKE_CURRENT_LIST_DIR}/*.hpp"
 	"${CMAKE_CURRENT_LIST_DIR}/*.h")
+list(REMOVE_ITEM QVR_SRC "${CMAKE_CURRENT_LIST_DIR}/vr_jobs.cpp") # (in qvr_zancle, below)
 
 target_sources(ironwail PRIVATE ${QVR_SRC})
 target_include_directories(ironwail PRIVATE
@@ -39,3 +40,30 @@ if (UNIX AND NOT APPLE)
 	target_link_libraries(qvr_box3d PUBLIC m)
 endif()
 target_link_libraries(ironwail PRIVATE qvr_box3d)
+
+# Zancle (external/zancle/README.md): its concurrency module and vr_jobs.cpp (the game's thread pool: the only file that
+# includes it), a static library: C++23, optimised and without Zancle's asserts (NDEBUG) in every configuration. GCC or
+# Clang (on Windows clang-cl, e.g. Visual Studio's generator with -T ClangCL): Zancle is written against their builtins.
+if (MSVC AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	message(FATAL_ERROR "Quake VR: Zancle (Quake/vr/external/zancle) needs clang-cl on Windows, not MSVC's cl: configure with -T ClangCL (or -DCMAKE_CXX_COMPILER=clang-cl); Windows/VisualStudio/ironwail.sln builds only Zancle with it")
+endif()
+file(GLOB_RECURSE QVR_ZANCLE_SRC CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/external/zancle/src/*.cpp")
+add_library(qvr_zancle STATIC ${QVR_ZANCLE_SRC} "${CMAKE_CURRENT_LIST_DIR}/vr_jobs.cpp")
+target_include_directories(qvr_zancle PRIVATE
+	"${CMAKE_CURRENT_LIST_DIR}"
+	"${CMAKE_CURRENT_LIST_DIR}/external/zancle/include"
+	"${CMAKE_CURRENT_LIST_DIR}/external/zancle/src"
+	"${CMAKE_CURRENT_LIST_DIR}/external/zancle/extlibs/moodycamel")
+target_compile_definitions(qvr_zancle PRIVATE NDEBUG ZA_STATIC)
+set_target_properties(qvr_zancle PROPERTIES CXX_STANDARD 23 CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
+if (MSVC)
+	target_compile_options(qvr_zancle PRIVATE /O2 /Ob2 /RTC- "/clang:-std=c++23")
+else()
+	target_compile_options(qvr_zancle PRIVATE -O2)
+endif()
+find_package(Threads REQUIRED)
+target_link_libraries(qvr_zancle PUBLIC Threads::Threads)
+if (WIN32)
+	target_link_libraries(qvr_zancle PUBLIC synchronization winmm)
+endif()
+target_link_libraries(ironwail PRIVATE qvr_zancle)

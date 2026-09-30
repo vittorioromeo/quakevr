@@ -905,7 +905,16 @@ same inputs are remembered since 2026-09-30, and `vr_debug_grasp 1` then prints 
 every frame to `grasp_trace.txt`; `vr_grasp_spheres` prints the hand's collision spheres; `vr_debug_carry 1` shows the
 carry reach test (the thing's box, its nearest surface point, the reach); `vr_weapon_hotspot_here <n> [type]
 [main|off]` puts hotspot n where the other hand is. `vr_profile` has scopes for each hand's update (`hand`, `rig hand`,
-`grasp solve`, `hand walls`, `hand collide`).
+`grasp solve`, `hand walls`, `hand collide`). `vr_grasp_sweep [runs]` solves each hand's grasp every way (8 kinds at 7
+places in the hand, the held weapon at its resting place: the same inputs every run), prints each result to the last bit
+(`Misc/quakevr/grasp_compare.py a.txt b.txt` compares two runs: the largest curl difference), checks each against the
+same solve on one thread, and times the afresh solve on the thread pool and on one thread.
+
+The game's thread pool (`vr_jobs.hpp`, ROUND21.md "The game's thread pool"): `vr_jobs_test` runs its self-test (16
+checks, under a second), `vr_jobs_info` prints its workers and counts, `vr_jobs_parallel 0` makes every shared-out loop
+run on its caller (the same results: to compare), `vr_jobs_threads <n>` / `-jobs <n>` set its workers (Debug >
+Profiling and Memory > Threads). With `developer 1` the liquids' volume, the decal atlas and each occlusion bake print a
+hash of what they made (the same whatever the threads).
 
 Fitted hands, third pass: `vr_show_controller 1` draws each controller as tracked (before any offset), and
 `vr_show_controller_laser 1` the controller's aim (white), the weapon's shots (red) and its barrel (green);

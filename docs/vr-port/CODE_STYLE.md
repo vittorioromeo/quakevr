@@ -58,11 +58,20 @@ and nothing says which thread may touch it. It goes into its system's state inst
 
 ## Threads
 
-A worker thread owns what it touches: its job's copy of the data (`ao`'s `PoseJob`), locals, or a `thread_local` when
-the same helper also runs on the main thread (`decals`'s atlas RNG). Registered sets are the main thread's alone
-(`mem::on` and the reports walk them there). Results come back through the owner's queue under its mutex (`ao`'s
-`BakeQueue`, `imgprefetch`'s items, `motion`'s futures). Box3D steps with one worker (the caller's), so its callbacks
-run on the main thread.
+Work for other threads goes to the game's thread pool (`vr_jobs.hpp`, Zancle's): `jobs::parallelFor` to share a loop
+out (the calling thread takes part and returns when every chunk ran; each chunk writes only its own items, reduced in a
+fixed order after, so the results never depend on the thread count), `jobs::async` for a task whose result comes later
+(a `jobs::Future`; waiting runs it on the waiting thread if no worker has started it). No `std::thread` or `std::async`
+of a system's own: a dedicated thread only for a loop that blocks or sleeps for its whole life (`gpustats`'s sampler),
+which would hold a worker. A task never waits for anything but its own sub-tasks; `vr_jobs_parallel 0` runs every
+`parallelFor` on its caller alone (the reference to compare with).
+
+A task owns what it touches: its job's copy of the data (`ao`'s `PoseJob`), locals, or a `thread_local` when the same
+helper also runs on the main thread (`decals`'s atlas RNG). Registered sets are the main thread's alone (`mem::on` and
+the reports walk them there), and so are the console, the profiler's scopes and the engine's globals: nothing a task
+runs prints or profiles. Results come back through the owner's queue under its mutex (`ao`'s `BakeQueue`,
+`imgprefetch`'s items) or a `jobs::Future` (`motion`'s saves, `decals`'s atlas). Box3D steps with one worker (the
+caller's), so its callbacks run on the main thread.
 
 ## GL objects
 

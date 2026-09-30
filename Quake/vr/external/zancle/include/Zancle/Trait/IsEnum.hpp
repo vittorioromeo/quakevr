@@ -1,0 +1,31 @@
+#pragma once
+// LICENSE AND COPYRIGHT (C) INFORMATION
+// https://github.com/vittorioromeo/Zancle/blob/master/license.md
+
+
+#if __has_builtin(__is_enum)
+
+    ////////////////////////////////////////////////////////////
+    #define ZA_IS_ENUM(...) __is_enum(__VA_ARGS__)
+
+#else
+
+////////////////////////////////////////////////////////////
+// Headers
+////////////////////////////////////////////////////////////
+    #include <type_traits>
+
+
+    ////////////////////////////////////////////////////////////
+    #define ZA_IS_ENUM(...) ::std::is_enum_v<__VA_ARGS__>
+
+#endif
+
+
+namespace za
+{
+////////////////////////////////////////////////////////////
+template <typename T>
+inline constexpr bool isEnum = ZA_IS_ENUM(T);
+
+} // namespace za
