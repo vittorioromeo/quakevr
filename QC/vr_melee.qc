@@ -71,6 +71,10 @@ float VR_MELEE_REARM_OUT = 0.1;    // s since the hand's parts last touched what
 float VR_MELEE_RADIUS = 3;         // units around a point's sweep that it strikes (times vr_melee_range_multiplier)
 float VR_MELEE_JUMP = 20;          // m/s: the grip moving faster than this jumped (a teleport, the play space re-based)
 float VR_MELEE_TIPJUMP = 60;       // m/s: likewise the far end (a weapon taken)
+// The engine's weight spring put what a hand holds back in it at once (.handdrop's bits, vr_weight.cpp dropBits): a
+// jump too (a weapon left too far behind a fast wrist snap).
+float VR_HANDJUMP_OFF = 4;
+float VR_HANDJUMP_MAIN = 8;
 float VR_MELEE_WALL_DOWN = -0.35;  // a point going down more steeply than this (sine) doesn't strike a floor (reaching for a holster),
 float VR_MELEE_FLOOR = 0.7;        // (a surface facing up: its normal's z at least this)
 float VR_MELEE_WALL_INTO = 0.25;   // and strikes a wall only going into it (cosine to its normal: a chop, not a reach grazing it)
@@ -723,7 +727,8 @@ float(float xHand, entity b) VR_Melee_Track =
     if(same)
     {
         // A jump (a teleport, the play space re-based, a weapon taken) is faster than a hand goes.
-        if(vlen(rgrip - b.mh_rgrip) > max(0.3, VR_MELEE_JUMP * dt) || vlen(rfar - b.mh_rfar) > max(0.6, VR_MELEE_TIPJUMP * dt))
+        if(vlen(rgrip - b.mh_rgrip) > max(0.3, VR_MELEE_JUMP * dt) || vlen(rfar - b.mh_rfar) > max(0.6, VR_MELEE_TIPJUMP * dt) ||
+           (self.handdrop & (xHand == cVR_MainHand ? VR_HANDJUMP_MAIN : VR_HANDJUMP_OFF)))
         {
             same = FALSE;
         }

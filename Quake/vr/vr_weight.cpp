@@ -74,6 +74,7 @@ struct Body
     Offset off;
     const char* model{nullptr}; // what it holds (another: taken afresh)
     int entity{0};
+    double jumpUntil{-1.0}; // realtime: put back in the hand, the move says so until then (dropBits: the melee's jump)
 };
 Body bodies[2];
 
@@ -92,6 +93,7 @@ struct Wrench
 };
 Wrench wrenches[2];
 constexpr double wrenchLatch = 0.15; // seconds (as the chainsaw's pull)
+constexpr double jumpLatch = 0.05;   // seconds: put back in the hand (a move or two)
 constexpr float wrenchJump = 90.f;   // degrees in one frame: tracking lost and found, not a hand
 
 // A prop's mass as Box3D has it (a listen server), kept while the same thing of the same setting is held.
@@ -363,9 +365,25 @@ void trace(int h, const Load& l, const glm::vec3& xt, const glm::quat& qt, const
     }
 }
 
-void step(Body& b, const Load& l, float m, const glm::vec3& xt0, const glm::vec3& xt, const glm::quat& qt0, const glm::quat& qt,
-    float dt, float sag)
+// Left too far behind the hand (vr_weight_spring_snap: cm, or 3 times as many degrees, checked each frame): put back
+// in it at once.
+[[nodiscard]] bool putBack(const Body& b, const glm::vec3& xt, const glm::quat& qt, float snapCm)
 {
+    return glm::distance(b.x, xt) * 100.f > snapCm || glm::degrees(glm::length(rotationVector(qt * glm::conjugate(b.q)))) > 3.f * snapCm;
+}
+
+// Turned further than this off the hand part way through a frame (each substep), it is put back in it whatever
+// vr_weight_spring_snap says: the spring pulls the short way round, and past half a turn off the short way flips, so it
+// would swing on round the other way, a whole turn (a heavy weapon after a fast wrist snap and back). Measured against
+// the hand's turn at that moment (not the frame's end: a wiggled shotgun lags up to about 160 degrees on its own).
+constexpr float snapTurnMost = 165.f; // degrees
+
+// One frame of the spring. True: it was left too far behind the hand's turn part way through (a fast wrist snap and back:
+// swinging on past half a turn off, the short way would flip); put it back in the hand.
+[[nodiscard]] bool step(Body& b, const Load& l, float m, const glm::vec3& xt0, const glm::vec3& xt, const glm::quat& qt0,
+    const glm::quat& qt, float dt, float sag)
+{
+    const float snapRad = glm::radians(snapTurnMost);
     const int n = std::max(1, static_cast<int>(std::ceil(dt / substep - 1e-4f)));
     const float h = dt / static_cast<float>(n);
     const glm::vec3 vt = (xt - xt0) / dt;
@@ -418,6 +436,10 @@ void step(Body& b, const Load& l, float m, const glm::vec3& xt0, const glm::vec3
         const glm::mat3 rot = glm::mat3_cast(b.q);
         const glm::mat3 toHand = glm::transpose(rot);
         const glm::vec3 e = toHand * rotationVector(targetTurn * glm::conjugate(b.q));
+        if(glm::length(e) > snapRad)
+        {
+            return true;
+        }
         const glm::vec3 dw = toHand * (wt - b.w);
         const glm::vec3 weightTorque = glm::cross(l.com, toHand * (m * sagAccel));
         glm::vec3 tau = kA * e + damping * dw + weightTorque;
@@ -431,6 +453,7 @@ void step(Body& b, const Load& l, float m, const glm::vec3& xt0, const glm::vec3
         const glm::quat spin{0.f, b.w.x, b.w.y, b.w.z};
         b.q = glm::normalize(b.q + (spin * b.q) * (0.5f * h));
     }
+    return false;
 }
 
 // vr_weight_test [csv]: the spring on its own, offline, for a light and a heavy weapon and an explosive box, one- and
@@ -486,42 +509,48 @@ void test_f()
         vr_weight_spring_sag.value, vr_weight_spring_inertia.value, vr_weight_spring_2h.value);
     Con_Printf("%-14s %4s %5s | %6s %6s | %6s %6s | %6s | %6s %6s | %6s %5s\n", "case", "fps", "kg", "lag cm", "lagdeg", "overcm",
         "overdg", "settle", "sag cm", "sagdeg", "jitter", "snap");
+    // A test case's load, and its mass as the spring has it (its stamina's).
+    const auto caseLoad = [](const TestCase& tc, float& m) {
+        Load l;
+        l.valid = true;
+        if(tc.length > 0.f)
+        {
+            rodLoad(l, std::max(tc.mass, 0.01f), tc.balance, tc.length, tc.empty ? 0.04f : 0.06f);
+            if(tc.twoHanded > 0.f)
+            {
+                // Turning about between the handle and a foregrip 35 cm ahead.
+                const float d = tc.balance - 0.175f;
+                const float across = tc.mass * tc.length * tc.length / 12.f;
+                l.com = {d, 0.f, 0.f};
+                l.inertia = {tc.mass * 0.06f * 0.06f, across + tc.mass * d * d, across + tc.mass * d * d};
+            }
+        }
+        else
+        {
+            // A box held by its side, its middle `balance` out (the big explosive box: 1.14 x 1.14 x 2.36 m).
+            const float a = tc.balance * 2.f;
+            const float own = tc.mass / 12.f * 2.f * a * a;
+            const float d = tc.twoHanded > 0.f ? 0.f : tc.balance; // both hands: about its middle
+            l.mass = tc.mass;
+            l.com = {d, 0.f, 0.f};
+            l.inertia = {own, own + tc.mass * d * d, own + tc.mass * d * d};
+        }
+        l.twoHanded = tc.twoHanded;
+        l.tune = tc.tune;
+        m = std::max(tc.empty ? tc.mass
+                              : tc.mass * staminaCurve(tc.stamina) +
+                                    std::max(vr_weight_stamina_add.value, 0.f) * staminaShareFor(tc.stamina),
+            0.01f);
+        return l;
+    };
     std::vector<TestCase> all(std::begin(cases), std::end(cases));
     all.insert(all.end(), std::begin(emptyCases), std::end(emptyCases));
     for(const TestCase& tc : all)
     {
         for(const float fps : rates)
         {
-            Load l;
-            l.valid = true;
-            if(tc.length > 0.f)
-            {
-                rodLoad(l, std::max(tc.mass, 0.01f), tc.balance, tc.length, tc.empty ? 0.04f : 0.06f);
-                if(tc.twoHanded > 0.f)
-                {
-                    // Turning about between the handle and a foregrip 35 cm ahead.
-                    const float d = tc.balance - 0.175f;
-                    const float across = tc.mass * tc.length * tc.length / 12.f;
-                    l.com = {d, 0.f, 0.f};
-                    l.inertia = {tc.mass * 0.06f * 0.06f, across + tc.mass * d * d, across + tc.mass * d * d};
-                }
-            }
-            else
-            {
-                // A box held by its side, its middle `balance` out (the big explosive box: 1.14 x 1.14 x 2.36 m).
-                const float a = tc.balance * 2.f;
-                const float own = tc.mass / 12.f * 2.f * a * a;
-                const float d = tc.twoHanded > 0.f ? 0.f : tc.balance; // both hands: about its middle
-                l.mass = tc.mass;
-                l.com = {d, 0.f, 0.f};
-                l.inertia = {own, own + tc.mass * d * d, own + tc.mass * d * d};
-            }
-            l.twoHanded = tc.twoHanded;
-            l.tune = tc.tune;
-            const float m = std::max(tc.empty ? tc.mass
-                                              : tc.mass * staminaCurve(tc.stamina) +
-                                                    std::max(vr_weight_stamina_add.value, 0.f) * staminaShareFor(tc.stamina),
-                0.01f);
+            float m = 0.f;
+            const Load l = caseLoad(tc, m);
             const float sag = sagShare * std::max(vr_weight_spring_sag.value * tc.tune.sag, 0.f); // at arm's length
             const float dt = 1.f / fps;
             const glm::vec3 start{0.55f, -0.25f, 1.25f};
@@ -546,17 +575,14 @@ void test_f()
                 {
                     xt += glm::vec3{2.f, 0.f, 0.f};
                 }
-                if(glm::distance(b.x, xt) * 100.f > std::max(vr_weight_spring_snap.value * tc.tune.snap, 1.f))
+                if(const float snapCm = std::max(vr_weight_spring_snap.value * tc.tune.snap, 1.f);
+                    putBack(b, xt, qt, snapCm) || step(b, l, m, prevX, xt, prevQ, qt, dt, sag))
                 {
                     b.x = xt;
                     b.q = qt;
                     b.v = glm::vec3{0.f};
                     b.w = glm::vec3{0.f};
                     snapped = true;
-                }
-                else
-                {
-                    step(b, l, m, prevX, xt, prevQ, qt, dt, sag);
                 }
                 prevX = xt;
                 prevQ = qt;
@@ -603,6 +629,85 @@ void test_f()
             }
             Con_Printf("%-14s %4.0f %5.1f | %6.2f %6.2f | %6.2f %6.2f | %6.3f | %6.2f %6.2f | %6.4f %5s\n", tc.name, fps, m, lagCm,
                 lagDeg, overCm, overDeg, settle, sagCm, sagDeg, jitter, snapped ? "yes" : "no");
+        }
+    }
+
+    // A wrist snap with the laser cannon: the hand turns 170 degrees (pitch, yaw or roll) in 0.1 or 0.05 s and stays, or
+    // turns straight back; then 1.5 s still. The drawn weapon must turn the short way (as the hand did) or be put back in
+    // the hand, never spin round the other way. Per case and frame rate: the largest angle off the hand, the most it
+    // turned beyond the hand's own turn ("extra": about 360 when it went the long way), the runs that went the long way
+    // and the runs put back in the hand. vr_debug_weight: every run.
+    Con_Printf("%-14s %4s | %4s %6s %6s %4s %4s\n", "wrist snap", "fps", "runs", "maxdeg", "extra", "long", "snap");
+    const TestCase snapCases[] = {gun("laser 1H", 9, 0.f, 1.f), gun("laser 2H", 9, 1.f, 1.f), gun("laser 1H 0%", 9, 0.f, 0.f)};
+    for(const TestCase& tc : snapCases)
+    {
+        for(const float fps : {72.f, 90.f, 144.f})
+        {
+            float m = 0.f;
+            const Load l = caseLoad(tc, m);
+            const float sag = sagShare * std::max(vr_weight_spring_sag.value * tc.tune.sag, 0.f);
+            const float snapCm = std::max(vr_weight_spring_snap.value * tc.tune.snap, 1.f);
+            const float dt = 1.f / fps;
+            int runs = 0, longWay = 0, snaps = 0;
+            float maxDeg = 0.f, maxExtra = 0.f;
+            for(int axis = 0; axis < 3; axis++)
+            {
+                for(const float dur : {0.2f, 0.15f, 0.1f, 0.07f, 0.05f, 0.03f})
+                {
+                    for(const bool back : {false, true})
+                    {
+                        const glm::vec3 x0{0.55f, -0.25f, 1.25f};
+                        const auto turnAt = [&](float t) {
+                            const float u = std::clamp(t / dur, 0.f, 1.f), w = std::clamp(t / dur - 1.f, 0.f, 1.f);
+                            float a = 170.f * u * u * (3.f - 2.f * u);
+                            if(back)
+                            {
+                                a -= 170.f * w * w * (3.f - 2.f * w);
+                            }
+                            glm::vec3 angles{0.f};
+                            angles[axis] = a;
+                            return std::pair{quatFromAngles(angles), a};
+                        };
+                        const glm::vec3 dir = glm::normalize(rotationVector(turnAt(dur).first * glm::conjugate(turnAt(0.f).first)));
+                        Body b;
+                        b.x = x0;
+                        b.q = turnAt(0.f).first;
+                        glm::quat prevQ = b.q;
+                        float turned = 0.f, runMax = 0.f, runExtra = 0.f;
+                        bool snapped = false;
+                        const int frames = static_cast<int>((2.f * dur + 1.5f) * fps);
+                        for(int f = 1; f <= frames; f++)
+                        {
+                            const auto [qt, want] = turnAt(static_cast<float>(f) * dt);
+                            const glm::quat before = b.q;
+                            if(putBack(b, x0, qt, snapCm) || step(b, l, m, x0, x0, prevQ, qt, dt, sag))
+                            {
+                                b.x = x0;
+                                b.q = qt;
+                                b.v = glm::vec3{0.f};
+                                b.w = glm::vec3{0.f};
+                                snapped = true;
+                            }
+                            prevQ = qt;
+                            turned += glm::degrees(glm::dot(rotationVector(b.q * glm::conjugate(before)), dir));
+                            runMax = std::max(runMax, glm::degrees(glm::length(rotationVector(qt * glm::conjugate(b.q)))));
+                            runExtra = std::max(runExtra, std::fabs(turned - want));
+                        }
+                        runs++;
+                        longWay += runExtra > 200.f;
+                        snaps += snapped;
+                        maxDeg = std::max(maxDeg, runMax);
+                        maxExtra = std::max(maxExtra, runExtra);
+                        if(vr_debug_weight.value)
+                        {
+                            Con_Printf("  %s %.0f fps: %s %.2f s%s: max %.1f deg, extra %.1f, %s\n", tc.name, fps,
+                                axis == 0 ? "pitch" : axis == 1 ? "yaw" : "roll", dur, back ? " and back" : "", runMax, runExtra,
+                                snapped ? "put back" : "sprung");
+                        }
+                    }
+                }
+            }
+            Con_Printf("%-14s %4.0f | %4d %6.1f %6.1f %4d %4d\n", tc.name, fps, runs, maxDeg, maxExtra, longWay, snaps);
         }
     }
     if(out)
@@ -793,6 +898,14 @@ std::uint8_t dropBits()
     {
         bits |= 2; // VR_HANDDROP_MAIN
     }
+    if(realtime < bodies[HAND_OFF].jumpUntil)
+    {
+        bits |= 4; // VR_HANDJUMP_OFF
+    }
+    if(realtime < bodies[HAND_MAIN].jumpUntil)
+    {
+        bits |= 8; // VR_HANDJUMP_MAIN
+    }
     return bits;
 }
 
@@ -898,10 +1011,17 @@ void spring(hands::State& s, float turnYaw, float dt, bool newFrame)
             // Put back: left too far behind, or the hand jumped (faster than a hand goes: a teleport, the play space
             // re-based, tracking lost and found; as the melee's VR_MELEE_JUMP).
             const bool jumped = b.targetValid && glm::distance(xt, b.xt) > jumpSpeed * dt;
-            const bool snapped = b.active && (jumped || glm::distance(b.x, xt) * 100.f > snap ||
-                                                 glm::degrees(glm::length(rotationVector(qt * glm::conjugate(b.q)))) > 3.f * snap);
+            const bool snapped = b.active && (jumped || putBack(b, xt, qt, snap));
+            bool flipped = false; // (left half a turn behind part way through the frame: step)
             const bool other = b.model != l.model || b.entity != l.entity; // (a weapon changed, a prop taken)
-            if(!b.active || !b.targetValid || snapped || other)
+            if(b.active && b.targetValid && !snapped && !other)
+            {
+                const float m = std::max(effectiveMass(l), 0.01f);
+                const float sag = sagShare * std::max(vr_weight_spring_sag.value * l.tune.sag, 0.f) *
+                                  (0.35f + 0.65f * std::pow(extension(s, h, b.x, base, turnYaw), 2.f));
+                flipped = step(b, l, m, b.xt, xt, b.qt, qt, dt, sag);
+            }
+            if(!b.active || !b.targetValid || snapped || flipped || other)
             {
                 // Taken (or put back in the hand): where the hand is, at rest (the hand's pose may jump as a weapon
                 // comes: its Hand and Weapon Together offset).
@@ -912,17 +1032,16 @@ void spring(hands::State& s, float turnYaw, float dt, bool newFrame)
                 b.q = qt;
                 b.v = glm::vec3{0.f};
                 b.w = glm::vec3{0.f};
-                if(snapped && vr_debug_weight.value)
+                if(flipped)
+                {
+                    // The melee takes it for a jump, not a swing (the other put-backs, as they were: a hand's own jump
+                    // is one already).
+                    b.jumpUntil = realtime + jumpLatch;
+                }
+                if((snapped || flipped) && vr_debug_weight.value)
                 {
                     Con_Printf("weight: %s put back in the hand\n", h == HAND_MAIN ? "main" : "off");
                 }
-            }
-            else
-            {
-                const float m = std::max(effectiveMass(l), 0.01f);
-                const float sag = sagShare * std::max(vr_weight_spring_sag.value * l.tune.sag, 0.f) *
-                                  (0.35f + 0.65f * std::pow(extension(s, h, b.x, base, turnYaw), 2.f));
-                step(b, l, m, b.xt, xt, b.qt, qt, dt, sag);
             }
             b.xt = xt;
             b.qt = qt;

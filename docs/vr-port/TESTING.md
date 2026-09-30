@@ -1233,6 +1233,9 @@ wrenched out; `vr_debug_2h_grip 1` each grip taken and why one let go, 2 also wh
 (world units) four times a second. `Misc/quakevr/heavy_drop.mock` (swings, a twist, the stick's turning, a snap),
 `heavy_2h_chop.mock` (two-handed chops, the main wrist 55 degrees ahead, then pulled off at rest) and
 `heavy_2h_snap.mock` (a two-handed snap: wrenched out, handed off) with `vr_mock_play`, `wait800`.
+`heavy_wrist_snap.mock` (the laser cannon in one hand, `vr_weight_drop 0; vr_debug_weight 1`: fast wrist snaps and back, each
+`weight: main put back in the hand`, never a whole turn: `weight_trace.txt`'s ang_deg stays under 165); `vr_weight_test`'s
+wrist-snap table: its `long` column must be 0.
 Spring only; Weapon Weights and Held Object Weights; weight and damage (ROUND21.md): the pages are `menu_vr 42` (Weapon
 Weights) and `menu_vr 43` (Held Object Weights; `menu_vr <page> <row>` scrolls). `vr_weight_table` prints every weapon's
 and prop's mass, its damage multipliers (the curve, times its own Melee and Throw Damage x) and its speed factor (heavy
