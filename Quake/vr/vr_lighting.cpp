@@ -12,11 +12,21 @@
 #include "vr_stereo.hpp"
 #include "vr_water.hpp"
 
-#include <algorithm>
-#include <array>
-#include <cmath>
-#include <cstring>
-#include <vector>
+#include "Zancle/Algorithm/AnyOf.hpp"
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/PtrDiffT.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Floor.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Pow.hpp"
+#include "Zancle/Math/Round.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+#include "vr_zancle.hpp"
+
+#include <string.h>
 
 using namespace qvr;
 
@@ -159,7 +169,7 @@ int cubeViews(glm::vec2 origin, float size, ShadowView out[6])
 // A spot light's frame: must match SpotShadow in gl_shaders.h.
 void spotFrame(const glm::vec3& dir, glm::vec3& right, glm::vec3& up)
 {
-    right = glm::normalize(glm::cross(dir, std::abs(dir.z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{1.f, 0.f, 0.f}));
+    right = glm::normalize(glm::cross(dir, qza::abs(dir.z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{1.f, 0.f, 0.f}));
     up = glm::cross(right, dir);
 }
 
@@ -242,16 +252,16 @@ bool viewVisible(const glm::vec3& light, const ShadowView& v, float radius)
 // match the light clustering in gl_shaders.h.
 void spotBounds(const glm::vec3& light, const glm::vec3& dir, float radius, float c, glm::vec3& center, float& r)
 {
-    c = std::clamp(c, 0.f, 1.f);
+    c = za::clamp(c, 0.f, 1.f);
     const float along = c >= 0.7071f ? radius / (2.f * c) : radius * c;
-    r = std::min((c >= 0.7071f ? along : radius * std::sqrt(1.f - c * c)) * 1.01f + 1.f, radius);
+    r = za::min((c >= 0.7071f ? along : radius * za::sqrt(1.f - c * c)) * 1.01f + 1.f, radius);
     center = light + dir * along;
 }
 
 // ----------------------------------------------------------------------------
 // Casters
 
-std::vector<uint32_t> indices;
+za::Vector<uint32_t> indices;
 
 void addSurface(const msurface_t* s)
 {
@@ -261,9 +271,9 @@ void addSurface(const msurface_t* s)
     }
     for(int k = 2; k < s->numedges; k++)
     {
-        indices.push_back(static_cast<uint32_t>(s->vbo_firstvert));
-        indices.push_back(static_cast<uint32_t>(s->vbo_firstvert + k - 1));
-        indices.push_back(static_cast<uint32_t>(s->vbo_firstvert + k));
+        indices.pushBack(static_cast<uint32_t>(s->vbo_firstvert));
+        indices.pushBack(static_cast<uint32_t>(s->vbo_firstvert + k - 1));
+        indices.pushBack(static_cast<uint32_t>(s->vbo_firstvert + k));
     }
 }
 
@@ -304,24 +314,24 @@ struct BrushCaster
     entity_t* e;
     size_t first, count; // in `indices`
 };
-std::vector<BrushCaster> brushCasters;
-std::vector<entity_t*> aliasCasters;
+za::Vector<BrushCaster> brushCasters;
+za::Vector<entity_t*> aliasCasters;
 
 // A map light's moving casters, collected once a frame (whether it has any), drawn later.
 struct SlotCasters
 {
-    std::vector<entity_t*> aliases;
-    std::vector<BrushCaster> brushes;
-    std::vector<uint32_t> indices;
+    za::Vector<entity_t*> aliases;
+    za::Vector<BrushCaster> brushes;
+    za::Vector<uint32_t> indices;
 };
-std::vector<SlotCasters> slotCasters; // by map slot
+za::Vector<SlotCasters> slotCasters; // by map slot
 
 // A shadow map's draw's buffers (the main thread).
 struct CasterScratch
 {
-    std::vector<glm::mat4> brushModels;    // the brush casters' model matrices
-    std::vector<entity_t*> faceCasters;    // the skeletal casters, drawn in every face
-    std::vector<unsigned char> posed;      // whether each alias caster is posed by bones
+    za::Vector<glm::mat4> brushModels;    // the brush casters' model matrices
+    za::Vector<entity_t*> faceCasters;    // the skeletal casters, drawn in every face
+    za::Vector<unsigned char> posed;      // whether each alias caster is posed by bones
     auto members() { return qvr::mem::list(brushModels, faceCasters, posed); }
 };
 mem::Scratch<CasterScratch> casterScratch{"shadow casters"};
@@ -330,7 +340,7 @@ bool touches(const entity_t* e, const glm::vec3& light, float radius)
 {
     const glm::vec3 lo{e->model->mins[0], e->model->mins[1], e->model->mins[2]};
     const glm::vec3 hi{e->model->maxs[0], e->model->maxs[1], e->model->maxs[2]};
-    const float r = std::max(glm::length(lo), glm::length(hi)) * VR_EntityScale(e);
+    const float r = za::max(glm::length(lo), glm::length(hi)) * VR_EntityScale(e);
     return glm::distance(glm::vec3{e->origin[0], e->origin[1], e->origin[2]}, light) < radius + r;
 }
 
@@ -356,7 +366,7 @@ void collectBrushes(const glm::vec3& light, float radius, bool itemsOnly)
         }
         if(indices.size() > first)
         {
-            brushCasters.push_back({&e, first, indices.size() - first});
+            brushCasters.pushBack({&e, first, indices.size() - first});
         }
     }
 }
@@ -370,7 +380,7 @@ float viewEntityReach(const entity_t* e)
 {
     const glm::vec3 lo{e->model->mins[0], e->model->mins[1], e->model->mins[2]};
     const glm::vec3 hi{e->model->maxs[0], e->model->maxs[1], e->model->maxs[2]};
-    return std::max(glm::length(lo), glm::length(hi)) * VR_EntityScale(e) * 2.f + 16.f;
+    return za::max(glm::length(lo), glm::length(hi)) * VR_EntityScale(e) * 2.f + 16.f;
 }
 
 void collectAliases(const glm::vec3& light, float radius, int ownEntity, bool self)
@@ -398,7 +408,7 @@ void collectAliases(const glm::vec3& light, float radius, int ownEntity, bool se
         {
             continue;
         }
-        aliasCasters.push_back(e);
+        aliasCasters.pushBack(e);
     }
 }
 
@@ -437,7 +447,7 @@ bool sphereInView(const mplane_t planes[4], const float c[3], float r)
 // player's own models and skeletal (posed) ones get at least 96 units and twice their bounds: posed
 // limbs, hands and held weapons reach past a model's bounds.
 bool viewHasCasters(const glm::vec3& light, const ShadowView& view, float size, bool brushes, bool aliases,
-    const std::vector<unsigned char>& posed)
+    const za::Vector<unsigned char>& posed)
 {
     if(brushes && !brushCasters.empty())
     {
@@ -454,10 +464,10 @@ bool viewHasCasters(const glm::vec3& light, const ShadowView& view, float size, 
         const entity_t* e = aliasCasters[i];
         const glm::vec3 lo{e->model->mins[0], e->model->mins[1], e->model->mins[2]};
         const glm::vec3 hi{e->model->maxs[0], e->model->maxs[1], e->model->maxs[2]};
-        float r = std::max(glm::length(lo), glm::length(hi)) * VR_EntityScale(e);
+        float r = za::max(glm::length(lo), glm::length(hi)) * VR_EntityScale(e);
         if(posed.size() > i && posed[i])
         {
-            r = std::max(r * 2.f, 96.f);
+            r = za::max(r * 2.f, 96.f);
         }
         else if(VR_IsViewEntity(e))
         {
@@ -496,7 +506,7 @@ void renderLight(DepthTarget& target, const glm::vec3& light, float radius, cons
     }
 
     // The brush casters' model matrices, the same for every face.
-    std::vector<glm::mat4>& brushModels = casterScratch.brushModels;
+    za::Vector<glm::mat4>& brushModels = casterScratch.brushModels;
     brushModels.clear();
     if(brushes)
     {
@@ -508,14 +518,14 @@ void renderLight(DepthTarget& target, const glm::vec3& light, float radius, cons
             vec3_t angles{-b.e->angles[0], b.e->angles[1], b.e->angles[2]};
             R_EntityMatrix(m, b.e->origin, angles, b.e->scale);
             VR_BrushTransform(b.e, m);
-            glm::mat4& model = brushModels.emplace_back();
+            glm::mat4& model = brushModels.emplaceBack();
             memcpy(&model[0][0], m, sizeof(m));
         }
     }
     // Skeletal (IK-posed) casters: the alias renderer draws them unculled (their limbs reach past the
     // model's bounds); each face gets them all.
-    std::vector<entity_t*>& faceCasters = casterScratch.faceCasters;
-    std::vector<unsigned char>& posed = casterScratch.posed;
+    za::Vector<entity_t*>& faceCasters = casterScratch.faceCasters;
+    za::Vector<unsigned char>& posed = casterScratch.posed;
     posed.resize(aliasCasters.size());
     for(size_t i = 0; aliases && i < aliasCasters.size(); i++)
     {
@@ -569,7 +579,7 @@ void renderLight(DepthTarget& target, const glm::vec3& light, float radius, cons
                 entity_t* e = aliasCasters[i];
                 if(posed[i] || (VR_IsViewEntity(e) ? sphereInView(frustum, e->origin, viewEntityReach(e)) : !R_CullModelForEntity(e)))
                 {
-                    faceCasters.push_back(e);
+                    faceCasters.pushBack(e);
                 }
             }
             if(!faceCasters.empty())
@@ -596,7 +606,7 @@ struct DlightSlot
     float size = 0.f;
     glm::vec2 origin{0.f};
 };
-std::array<DlightSlot, MAX_DLIGHTS> dlightSlots;
+za::Array<DlightSlot, MAX_DLIGHTS> dlightSlots;
 
 // Spot lights (lighting::dlightSpot): valid while the slot holds the same light (its key and
 // death time).
@@ -607,7 +617,7 @@ struct Spot
     glm::vec3 dir{1.f, 0.f, 0.f};
     float cosInner = 1.f, cosOuter = 1.f;
 };
-std::array<Spot, MAX_DLIGHTS> spots;
+za::Array<Spot, MAX_DLIGHTS> spots;
 
 [[nodiscard]] const Spot* spotOf(int index)
 {
@@ -623,8 +633,8 @@ std::array<Spot, MAX_DLIGHTS> spots;
 // normal offset and the filter reach past the cone's edge).
 [[nodiscard]] float spotSpread(const Spot& s)
 {
-    const float c = std::clamp(s.cosOuter, 0.1f, 1.f);
-    return std::sqrt(1.f - c * c) / c * 1.06f + 0.01f;
+    const float c = za::clamp(s.cosOuter, 0.1f, 1.f);
+    return za::sqrt(1.f - c * c) / c * 1.06f + 0.01f;
 }
 
 // Lights marked to cast no shadow (lighting::dlightNoShadow): valid while the slot holds the same
@@ -634,7 +644,7 @@ struct NoShadow
     int key = 0;
     float die = -1.f;
 };
-std::array<NoShadow, MAX_DLIGHTS> noShadows;
+za::Array<NoShadow, MAX_DLIGHTS> noShadows;
 
 struct MapSlot
 {
@@ -647,7 +657,7 @@ struct MapSlot
     glm::vec2 staticOrigin{0.f};
     glm::vec2 origin{0.f}; // this frame's moving casters, in the atlas
 };
-std::vector<MapSlot> mapSlots;
+za::Vector<MapSlot> mapSlots;
 float mapSlotSize = 0.f;
 const qmodel_t* slotsWorld = nullptr;
 int slotsGeneration = -1;
@@ -671,16 +681,16 @@ struct Request
 // The shadowed lights' choice and packing, each frame (the main thread).
 struct ShadowScratch
 {
-    std::vector<Candidate> dlightCandidates; // (selectDlights)
-    std::vector<Candidate> mapCandidates;    // the map lights near the viewer
-    std::vector<Request> requests;           // the faces packed into the atlas
+    za::Vector<Candidate> dlightCandidates; // (selectDlights)
+    za::Vector<Candidate> mapCandidates;    // the map lights near the viewer
+    za::Vector<Request> requests;           // the faces packed into the atlas
     auto members() { return qvr::mem::list(dlightCandidates, mapCandidates, requests); }
 };
 mem::Scratch<ShadowScratch> shadowScratch{"shadow lights"};
 
 [[nodiscard]] float pow2Floor(float v)
 {
-    return std::exp2(std::floor(std::log2(std::max(v, 1.f))));
+    return qza::exp2(za::floor(qza::log2(za::max(v, 1.f))));
 }
 
 // The viewer's PVS, or null for everything visible (Mod_LeafPVS decompresses it on every call).
@@ -712,8 +722,8 @@ bool lightVisible(const glm::vec3& p, const byte* vis)
 void selectDlights(const glm::vec3& eye)
 {
     const int maxShadowed = static_cast<int>(vr_shadow_dlights.value);
-    const float maxSize = pow2Floor(std::clamp(vr_shadow_dlight_size.value, 64.f, 2048.f));
-    std::vector<Candidate>& candidates = shadowScratch.dlightCandidates;
+    const float maxSize = pow2Floor(za::clamp(vr_shadow_dlight_size.value, 64.f, 2048.f));
+    za::Vector<Candidate>& candidates = shadowScratch.dlightCandidates;
     candidates.clear();
     for(int i = 0; i < MAX_DLIGHTS; i++)
     {
@@ -739,7 +749,7 @@ void selectDlights(const glm::vec3& eye)
             slot.selected = false;
             continue;
         }
-        float score = l.radius / std::max(dist, l.radius * 0.25f);
+        float score = l.radius / za::max(dist, l.radius * 0.25f);
         if(muzzle)
         {
             score *= 0.25f;
@@ -748,11 +758,11 @@ void selectDlights(const glm::vec3& eye)
         {
             score *= 1.25f; // hysteresis
         }
-        candidates.push_back({i, score});
+        candidates.pushBack({i, score});
     }
-    std::sort(candidates.begin(), candidates.end(), [](auto& a, auto& b) { return a.score > b.score; });
+    za::quickSort(candidates.begin(), candidates.end(), [](auto& a, auto& b) { return a.score > b.score; });
 
-    std::array<bool, MAX_DLIGHTS> chosen{};
+    za::Array<bool, MAX_DLIGHTS> chosen{};
     for(size_t c = 0; c < candidates.size() && static_cast<int>(c) < maxShadowed; c++)
     {
         chosen[candidates[c].index] = true;
@@ -770,13 +780,13 @@ void selectDlights(const glm::vec3& eye)
         // its narrow cone).
         const dlight_t& l = cl_dlights[i];
         const bool spot = spotOf(i) != nullptr && spotSpread(*spotOf(i)) < 2.f;
-        const float tileMax = spot ? std::min(2.f * maxSize, 2048.f) : maxSize;
+        const float tileMax = spot ? za::min(2.f * maxSize, 2048.f) : maxSize;
         const float dist = glm::distance(glm::vec3{l.origin[0], l.origin[1], l.origin[2]}, eye);
-        const float want = l.radius * vr_shadow_precision.value / std::sqrt(std::max(1.f, dist / l.radius)) * (spot ? 2.f : 1.f);
-        float size = std::clamp(pow2Floor(want), 64.f, tileMax);
+        const float want = l.radius * vr_shadow_precision.value / za::sqrt(za::max(1.f, dist / l.radius)) * (spot ? 2.f : 1.f);
+        float size = za::clamp(pow2Floor(want), 64.f, tileMax);
         if(slot.selected && slot.spot == spot && slot.size > 0.f && want > slot.size * 0.7f && want < slot.size * 2.8f)
         {
-            size = std::min(slot.size, tileMax); // hysteresis: keep the size unless it is well off
+            size = za::min(slot.size, tileMax); // hysteresis: keep the size unless it is well off
         }
         slot.selected = true;
         slot.spot = spot;
@@ -787,15 +797,16 @@ void selectDlights(const glm::vec3& eye)
 void selectMapLights(const glm::vec3& eye, float dt)
 {
     int wanted = static_cast<int>(vr_shadow_maplights.value);
-    const float size = pow2Floor(std::clamp(vr_shadow_maplight_size.value, 64.f, 2048.f));
+    const float size = pow2Floor(za::clamp(vr_shadow_maplight_size.value, 64.f, 2048.f));
     // The world depth cache: slots of 3 x 2 faces, in at most 8192 x 8192.
-    const int columns = std::max(1, static_cast<int>(8192.f / (3.f * size)));
-    const int rows = std::max(1, static_cast<int>(8192.f / (2.f * size)));
-    wanted = std::clamp(wanted, 0, columns * rows);
+    const int columns = za::max(1, static_cast<int>(8192.f / (3.f * size)));
+    const int rows = za::max(1, static_cast<int>(8192.f / (2.f * size)));
+    wanted = za::clamp(wanted, 0, columns * rows);
 
     if(cl.worldmodel != slotsWorld || worldGeneration() != slotsGeneration || size != mapSlotSize || static_cast<int>(mapSlots.size()) != wanted)
     {
-        mapSlots.assign(static_cast<size_t>(wanted), MapSlot{});
+        mapSlots.clear();
+        mapSlots.resize(static_cast<size_t>(wanted), MapSlot{});
         mapSlotSize = size;
         slotsWorld = cl.worldmodel;
         slotsGeneration = worldGeneration();
@@ -814,7 +825,7 @@ void selectMapLights(const glm::vec3& eye, float dt)
     // brightest there first; the ones already shown keep their place unless clearly beaten.
     const auto& lights = modellight::mapLights();
     const byte* vis = viewPVS();
-    std::vector<Candidate>& candidates = shadowScratch.mapCandidates;
+    za::Vector<Candidate>& candidates = shadowScratch.mapCandidates;
     candidates.clear();
     for(int i = 0; i < static_cast<int>(lights.size()); i++)
     {
@@ -833,9 +844,9 @@ void selectMapLights(const glm::vec3& eye, float dt)
                 score *= 1.3f;
             }
         }
-        candidates.push_back({i, score});
+        candidates.pushBack({i, score});
     }
-    std::sort(candidates.begin(), candidates.end(), [](auto& a, auto& b) { return a.score > b.score; });
+    za::quickSort(candidates.begin(), candidates.end(), [](auto& a, auto& b) { return a.score > b.score; });
     if(static_cast<int>(candidates.size()) > wanted)
     {
         candidates.resize(static_cast<size_t>(wanted));
@@ -843,11 +854,11 @@ void selectMapLights(const glm::vec3& eye, float dt)
 
     for(MapSlot& s : mapSlots)
     {
-        s.wanted = std::any_of(candidates.begin(), candidates.end(), [&](auto& c) { return c.index == s.light; });
+        s.wanted = za::anyOf(candidates.begin(), candidates.end(), [&](auto& c) { return c.index == s.light; });
     }
     for(const Candidate& c : candidates)
     {
-        if(std::any_of(mapSlots.begin(), mapSlots.end(), [&](auto& s) { return s.light == c.index; }))
+        if(za::anyOf(mapSlots.begin(), mapSlots.end(), [&](auto& s) { return s.light == c.index; }))
         {
             continue;
         }
@@ -870,7 +881,7 @@ void selectMapLights(const glm::vec3& eye, float dt)
         {
             continue;
         }
-        s.fade = std::clamp(s.fade + (s.wanted ? dt : -dt) * 4.f, 0.f, 1.f);
+        s.fade = za::clamp(s.fade + (s.wanted ? dt : -dt) * 4.f, 0.f, 1.f);
         if(!s.wanted && s.fade <= 0.f)
         {
             s.light = -1;
@@ -885,16 +896,16 @@ void selectMapLights(const glm::vec3& eye, float dt)
 // Rows of blocks (a point light's 3 x 2 faces, a spot light's one tile), tallest first; when they
 // do not fit, everything is halved and packed again (as DarkPlaces does), down to 32-texel faces.
 // Returns the scale they were all packed at, 0 if they did not fit.
-float pack(std::vector<Request>& requests, int atlasSize)
+float pack(za::Vector<Request>& requests, int atlasSize)
 {
-    std::sort(requests.begin(), requests.end(), [](auto& a, auto& b) { return a.size * a.rows > b.size * b.rows; });
+    za::quickSort(requests.begin(), requests.end(), [](auto& a, auto& b) { return a.size * a.rows > b.size * b.rows; });
     for(float scale = 1.f; scale >= 1.f / 16.f; scale *= 0.5f)
     {
         float x = 0.f, y = 0.f, rowHeight = 0.f;
         bool fits = true;
         for(Request& r : requests)
         {
-            const float s = std::max(32.f, r.size * scale);
+            const float s = za::max(32.f, r.size * scale);
             if(x + r.columns * s > static_cast<float>(atlasSize))
             {
                 x = 0.f;
@@ -908,7 +919,7 @@ float pack(std::vector<Request>& requests, int atlasSize)
             }
             *r.origin = {x, y};
             x += r.columns * s;
-            rowHeight = std::max(rowHeight, r.rows * s);
+            rowHeight = za::max(rowHeight, r.rows * s);
         }
         if(fits)
         {
@@ -916,7 +927,7 @@ float pack(std::vector<Request>& requests, int atlasSize)
             {
                 if(r.packedSize)
                 {
-                    *r.packedSize = std::max(32.f, r.size * scale);
+                    *r.packedSize = za::max(32.f, r.size * scale);
                 }
             }
             return scale;
@@ -959,7 +970,7 @@ extern "C" void VR_RenderShadowMaps(void)
     renderedFrame = host_framecount;
     QVR_GPU_PROFILE("shadow maps");
     const double cpuStart = Sys_DoubleTime();
-    const float dt = static_cast<float>(std::clamp(realtime - lastTime, 0.0, 0.1));
+    const float dt = static_cast<float>(za::clamp(realtime - lastTime, 0.0, 0.1));
     lastTime = realtime;
 
     frameEnabled = (vr_shadow_dlights.value > 0.f || vr_shadow_maplights.value > 0.f) && cl.worldmodel &&
@@ -1005,21 +1016,21 @@ extern "C" void VR_RenderShadowMaps(void)
     }
 
     // Pack this frame's faces.
-    const int atlasSize = static_cast<int>(pow2Floor(std::clamp(vr_shadow_atlas.value, 1024.f, 8192.f)));
-    std::vector<Request>& requests = shadowScratch.requests;
+    const int atlasSize = static_cast<int>(pow2Floor(za::clamp(vr_shadow_atlas.value, 1024.f, 8192.f)));
+    za::Vector<Request>& requests = shadowScratch.requests;
     requests.clear();
     for(DlightSlot& slot : dlightSlots)
     {
         if(slot.selected)
         {
-            requests.push_back({slot.size, &slot.origin, &slot.size, slot.spot ? 1.f : 3.f, slot.spot ? 1.f : 2.f});
+            requests.pushBack({slot.size, &slot.origin, &slot.size, slot.spot ? 1.f : 3.f, slot.spot ? 1.f : 2.f});
         }
     }
     for(MapSlot& s : mapSlots)
     {
         if(s.light >= 0 && s.hasCasters)
         {
-            requests.push_back({mapSlotSize, &s.origin, nullptr});
+            requests.pushBack({mapSlotSize, &s.origin, nullptr});
         }
     }
     // What does not fit casts no shadow this frame; the map lights' moving casters must also
@@ -1042,9 +1053,9 @@ extern "C" void VR_RenderShadowMaps(void)
     }
     if(!mapSlots.empty())
     {
-        const int columns = std::max(1, static_cast<int>(8192.f / (3.f * mapSlotSize)));
+        const int columns = za::max(1, static_cast<int>(8192.f / (3.f * mapSlotSize)));
         const int used = static_cast<int>(mapSlots.size());
-        const int w = static_cast<int>(3.f * mapSlotSize) * std::min(columns, used);
+        const int w = static_cast<int>(3.f * mapSlotSize) * za::min(columns, used);
         const int h = static_cast<int>(2.f * mapSlotSize) * ((used + columns - 1) / columns);
         if(staticAtlas.width != w || staticAtlas.height != h)
         {
@@ -1254,7 +1265,7 @@ void darkplacesLight(int index, gpulight_t* out)
         out->minlight = look.ambient;
         if(look.fade > 0.f)
         {
-            const float k = std::clamp(static_cast<float>((dl.die - cl.time) / look.fade), 0.f, 1.f);
+            const float k = za::clamp(static_cast<float>((dl.die - cl.time) / look.fade), 0.f, 1.f);
             for(float& c : out->color)
             {
                 c *= k;
@@ -1282,7 +1293,7 @@ extern "C" void VR_DlightShadow(int index, gpulight_t* out)
     if(spot)
     {
         // The cone as the shaders read it: 1 - smoothstep(0, 1, w - dot(xyz, the direction to the point)).
-        const float s = 1.f / std::max(spot->cosInner - spot->cosOuter, 1e-3f);
+        const float s = 1.f / za::max(spot->cosInner - spot->cosOuter, 1e-3f);
         out->spot[0] = spot->dir.x * s;
         out->spot[1] = spot->dir.y * s;
         out->spot[2] = spot->dir.z * s;
@@ -1306,7 +1317,7 @@ extern "C" void VR_DlightShadow(int index, gpulight_t* out)
 
 void lighting::dlightLook(const dlight_t* dl, float ambient, float fade)
 {
-    const std::ptrdiff_t index = dl - cl_dlights;
+    const za::PtrDiffT index = dl - cl_dlights;
     if(index < 0 || index >= MAX_DLIGHTS)
     {
         return;
@@ -1316,15 +1327,15 @@ void lighting::dlightLook(const dlight_t* dl, float ambient, float fade)
 
 void lighting::dlightSpot(const dlight_t* dl, const glm::vec3& dir, float innerDegrees, float outerDegrees)
 {
-    const std::ptrdiff_t index = dl - cl_dlights;
+    const za::PtrDiffT index = dl - cl_dlights;
     const float len = glm::length(dir);
     if(index < 0 || index >= MAX_DLIGHTS || len < 1e-6f)
     {
         return;
     }
-    const float outer = std::clamp(outerDegrees, 1.f, 179.f);
-    const float inner = std::clamp(innerDegrees, 0.f, outer - 0.5f);
-    spots[index] = Spot{dl->key, dl->die, dir / len, std::cos(glm::radians(inner)), std::cos(glm::radians(outer))};
+    const float outer = za::clamp(outerDegrees, 1.f, 179.f);
+    const float inner = za::clamp(innerDegrees, 0.f, outer - 0.5f);
+    spots[index] = Spot{dl->key, dl->die, dir / len, za::cos(glm::radians(inner)), za::cos(glm::radians(outer))};
 }
 
 extern "C" float VR_SpotCone(const gpulight_t* l, const float point[3])
@@ -1336,13 +1347,13 @@ extern "C" float VR_SpotCone(const gpulight_t* l, const float point[3])
     {
         return 1.f;
     }
-    const float t = std::clamp(l->spot[3] - glm::dot(axis, d) / len, 0.f, 1.f);
+    const float t = za::clamp(l->spot[3] - glm::dot(axis, d) / len, 0.f, 1.f);
     return 1.f - t * t * (3.f - 2.f * t);
 }
 
 void lighting::dlightNoShadow(const dlight_t* dl)
 {
-    const std::ptrdiff_t index = dl - cl_dlights;
+    const za::PtrDiffT index = dl - cl_dlights;
     if(index >= 0 && index < MAX_DLIGHTS)
     {
         noShadows[index] = NoShadow{dl->key, dl->die};
@@ -1353,14 +1364,14 @@ void lighting::dlightNoShadow(const dlight_t* dl)
 // same contrast as the world's.
 extern "C" void VR_AliasLightCurve(float lightcolor[3])
 {
-    const float c = std::clamp(vr_light_contrast.value, 0.5f, 3.f);
+    const float c = za::clamp(vr_light_contrast.value, 0.5f, 3.f);
     if(c == 1.f)
     {
         return;
     }
     for(int i = 0; i < 3; i++)
     {
-        lightcolor[i] = 128.f * std::pow(std::max(0.f, lightcolor[i]) / 128.f, c);
+        lightcolor[i] = 128.f * za::pow(za::max(0.f, lightcolor[i]) / 128.f, c);
     }
 }
 
@@ -1368,7 +1379,7 @@ extern "C" void VR_AliasLightCurve(float lightcolor[3])
 // lighting settings, and the atlases on texture units 4 and 5.
 extern "C" void VR_PushMapLights(void)
 {
-    unsigned flags = static_cast<unsigned>(std::clamp(static_cast<int>(vr_shadow_filter.value), 0, 3));
+    unsigned flags = static_cast<unsigned>(za::clamp(static_cast<int>(vr_shadow_filter.value), 0, 3));
     if(vr_dlight_uncapped.value)
     {
         flags |= 4u;
@@ -1396,22 +1407,22 @@ extern "C" void VR_PushMapLights(void)
     r_framedata.shadowflags = static_cast<int>(flags);
     // Lightmap contrast about Quake's full light (a lightmap value of a half, before the doubling):
     // shade darker, well lit walls as they were, the brightest a little brighter.
-    r_framedata.lighttweak[0] = std::clamp(vr_light_contrast.value, 0.5f, 3.f);
+    r_framedata.lighttweak[0] = za::clamp(vr_light_contrast.value, 0.5f, 3.f);
     // How much the normal maps shade the baked light (from a direction the shader guesses from the lightmap).
-    r_framedata.lighttweak[1] = std::clamp(vr_normalmap_baked.value, 0.f, 2.f);
+    r_framedata.lighttweak[1] = za::clamp(vr_normalmap_baked.value, 0.f, 2.f);
     // Dynamic lights' sheen, and how deep the normal maps' bumps are (0: flat).
-    r_framedata.lighttweak[2] = std::clamp(vr_specular.value, 0.f, 4.f);
-    r_framedata.lighttweak[3] = vr_normalmaps.value != 0.f ? std::clamp(vr_normalmap_strength.value, 0.f, 8.f) : 0.f;
+    r_framedata.lighttweak[2] = za::clamp(vr_specular.value, 0.f, 4.f);
+    r_framedata.lighttweak[3] = vr_normalmaps.value != 0.f ? za::clamp(vr_normalmap_strength.value, 0.f, 8.f) : 0.f;
     // Parallax occlusion mapping on the world (the heights are in the normal maps' alpha): how deep, how far it
     // reaches, and the most steps along a ray.
     const bool parallax = vr_parallax.value != 0.f && vr_normalmaps.value != 0.f;
-    r_framedata.parallax[0] = parallax ? std::clamp(vr_parallax_depth.value, 0.f, 16.f) : 0.f;
-    r_framedata.parallax[1] = std::clamp(vr_parallax_distance.value, 64.f, 4096.f);
-    r_framedata.parallax[2] = std::clamp(std::round(vr_parallax_steps.value), 4.f, 64.f);
+    r_framedata.parallax[0] = parallax ? za::clamp(vr_parallax_depth.value, 0.f, 16.f) : 0.f;
+    r_framedata.parallax[1] = za::clamp(vr_parallax_distance.value, 64.f, 4096.f);
+    r_framedata.parallax[2] = za::clamp(za::round(vr_parallax_steps.value), 4.f, 64.f);
     // Specular anti-aliasing: how much the sheen's lobe widens by the bumps under a pixel (0 off).
-    r_framedata.parallax[3] = std::clamp(vr_specular_aa.value, 0.f, 4.f);
-    r_framedata.shadowbias = std::max(0.f, vr_shadow_bias.value);
-    r_framedata.dlightangle = std::clamp(vr_dlight_angle.value, 0.f, 1.f);
+    r_framedata.parallax[3] = za::clamp(vr_specular_aa.value, 0.f, 4.f);
+    r_framedata.shadowbias = za::max(0.f, vr_shadow_bias.value);
+    r_framedata.dlightangle = za::clamp(vr_dlight_angle.value, 0.f, 1.f);
 
     GL_BindNative(GL_TEXTURE4, GL_TEXTURE_2D, atlas.tex);
     GL_BindNative(GL_TEXTURE5, GL_TEXTURE_2D, staticAtlas.tex);
@@ -1422,7 +1433,7 @@ extern "C" void VR_PushMapLights(void)
         return;
     }
     const auto& lights = modellight::mapLights();
-    const float strength = std::clamp(vr_shadow_maplight_strength.value, 0.f, 1.f);
+    const float strength = za::clamp(vr_shadow_maplight_strength.value, 0.f, 1.f);
     for(const MapSlot& s : mapSlots)
     {
         if(s.light < 0 || !s.hasCasters || !s.faceMask || s.fade <= 0.f || s.light >= static_cast<int>(lights.size()) ||
@@ -1484,13 +1495,13 @@ extern "C" void VR_PostProcessGamma(float* gamma, float* contrast)
     {
         return;
     }
-    *gamma = std::clamp(vr_gamma.value, 0.25f, 4.f);
-    *contrast = std::clamp(vr_contrast.value, 0.5f, 2.f);
+    *gamma = za::clamp(vr_gamma.value, 0.25f, 4.f);
+    *contrast = za::clamp(vr_contrast.value, 0.5f, 2.f);
 }
 
 extern "C" int VR_TextureSmoothing(void)
 {
-    return std::clamp(static_cast<int>(vr_texture_smooth.value), 0, 2);
+    return za::clamp(static_cast<int>(vr_texture_smooth.value), 0, 2);
 }
 
 // Fences and grates (alpha-tested textures): their mips keep the top level's coverage (gl_texmgr.c), and with
@@ -1526,30 +1537,30 @@ extern "C" float VR_ParallaxDepth(const entity_t* e, const float matrix[16], con
     {
         return 0.f;
     }
-    const float world = std::clamp(vr_parallax_depth.value, 0.f, 16.f);
+    const float world = za::clamp(vr_parallax_depth.value, 0.f, 16.f);
     if(e == &cl_entities[0])
     {
         return world;
     }
     const glm::mat3 m{glm::vec3{matrix[0], matrix[1], matrix[2]}, glm::vec3{matrix[4], matrix[5], matrix[6]},
                       glm::vec3{matrix[8], matrix[9], matrix[10]}};
-    float det = std::abs(glm::determinant(m));
+    float det = qza::abs(glm::determinant(m));
     if(modelscale)
     {
-        det /= std::max(std::abs(modelscale[0] * modelscale[1] * modelscale[2]), 1e-12f);
+        det /= za::max(qza::abs(modelscale[0] * modelscale[1] * modelscale[2]), 1e-12f);
     }
-    const float scale = std::cbrt(det);
+    const float scale = qza::cbrt(det);
     float depth = world;
     if(modelscale)
     {
-        depth = heights == 2 ? AUTHORED_HEIGHT_DEPTH * std::clamp(vr_parallax_authored.value, 0.f, 4.f)
-                             : std::clamp(vr_parallax_models.value, 0.f, 4.f);
+        depth = heights == 2 ? AUTHORED_HEIGHT_DEPTH * za::clamp(vr_parallax_authored.value, 0.f, 4.f)
+                             : za::clamp(vr_parallax_models.value, 0.f, 4.f);
     }
     else if(e->model && !q_strncasecmp(e->model->name, "maps/b_", 7))
     {
-        depth = std::clamp(vr_parallax_items.value, 0.f, 8.f);
+        depth = za::clamp(vr_parallax_items.value, 0.f, 8.f);
     }
-    return depth * std::clamp(scale, 0.f, 4.f);
+    return depth * za::clamp(scale, 0.f, 4.f);
 }
 
 extern "C" int VR_ModelLightParity(void)
@@ -1568,7 +1579,7 @@ extern "C" float VR_ModelBumps(const entity_t* e, int authored)
     {
         return 0.f;
     }
-    const float k = std::clamp(vr_normalmap_models.value, 0.f, 2.f) * std::clamp(vr_normalmap_baked.value, 0.f, 2.f);
+    const float k = za::clamp(vr_normalmap_models.value, 0.f, 2.f) * za::clamp(vr_normalmap_baked.value, 0.f, 2.f);
     return !authored && (e == &cl.viewent || VR_IsViewEntity(e)) ? k * VIEWMODEL_BUMPS : k;
 }
 
@@ -1581,12 +1592,12 @@ extern "C" float VR_ModelNormalMapScale(int authored)
     {
         return 0.f;
     }
-    return authored ? std::clamp(vr_normalmap_authored.value, 0.f, 2.f) : std::clamp(vr_normalmap_strength.value, 0.f, 8.f);
+    return authored ? za::clamp(vr_normalmap_authored.value, 0.f, 2.f) : za::clamp(vr_normalmap_strength.value, 0.f, 8.f);
 }
 
 extern "C" float VR_ViewModelMinLight(void)
 {
-    return std::clamp(vr_viewmodel_minlight.value, 0.f, 128.f);
+    return za::clamp(vr_viewmodel_minlight.value, 0.f, 128.f);
 }
 
 // ----------------------------------------------------------------------------
@@ -1613,7 +1624,7 @@ void lighting::applyPreset(int preset)
         // ultra
         {8, 1024, 4, 1024, 3, 8192, 3072, 1, 1, 1, 1, 1, 1, 1},
     };
-    preset = std::clamp(preset, 0, 4);
+    preset = za::clamp(preset, 0, 4);
     const Preset& p = presets[preset];
     Cvar_SetValueQuick(&vr_shadow_dlights, p.dlights);
     Cvar_SetValueQuick(&vr_shadow_dlight_size, p.dlightSize);

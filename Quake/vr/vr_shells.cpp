@@ -23,11 +23,19 @@
 #include "vr_units.hpp"
 #include "vr_water.hpp"
 
-#include <algorithm>
-#include <cmath>
-#include <cstring>
+#include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/PtrDiffT.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Exp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+
+#include <string.h>
 #include <random>
-#include <vector>
 
 namespace qvr::shells
 {
@@ -127,12 +135,12 @@ struct Track
 };
 
 Shell shells[maxShells];
-std::vector<Pending> pending;
+za::Vector<Pending> pending;
 Track tracks[2];
 double lastRun = -1.0;
 int lastFrame = -1;
 
-std::mt19937 rng{std::random_device{}()};
+std::mt19937 rng{std::random_device{}()}; // ZANCLE-TODO: no random engines or distributions
 
 [[nodiscard]] float rnd(float lo, float hi)
 {
@@ -143,8 +151,8 @@ std::mt19937 rng{std::random_device{}()};
 {
     const float z = rnd(-1.f, 1.f);
     const float a = rnd(0.f, 6.2831853f);
-    const float r = std::sqrt(std::max(0.f, 1.f - z * z));
-    return {r * std::cos(a), r * std::sin(a), z};
+    const float r = za::sqrt(za::max(0.f, 1.f - z * z));
+    return {r * za::cos(a), r * za::sin(a), z};
 }
 
 [[nodiscard]] float unitsPerMetre()
@@ -154,7 +162,7 @@ std::mt19937 rng{std::random_device{}()};
 
 [[nodiscard]] float gravity()
 {
-    return 9.81f * unitsPerMetre() * std::clamp(sv_gravity.value / 800.f, 0.f, 4.f);
+    return 9.81f * unitsPerMetre() * za::clamp(sv_gravity.value / 800.f, 0.f, 4.f);
 }
 
 [[nodiscard]] float restHeight()
@@ -317,8 +325,8 @@ void trackPorts(const view::ViewEntity (&weapons)[2])
     // Its highest point at least 15 cm under the eyes.
     const float g = gravity();
     const float room = hs.head.z - 0.15f * upm - pos.z;
-    const float maxUp = room > 0.f ? std::sqrt(2.f * g * room) : 0.f;
-    vel.z = std::min(vel.z, maxUp);
+    const float maxUp = room > 0.f ? za::sqrt(2.f * g * room) : 0.f;
+    vel.z = za::min(vel.z, maxUp);
     return vel;
 }
 
@@ -326,7 +334,7 @@ void eject(const view::ViewEntity (&weapons)[2], const Pending& p)
 {
     const view::ViewEntity& ve = weapons[p.hand];
     const Weapon* w = ve.visible ? weaponFor(ve.ent.model) : nullptr;
-    if(!w || p.kind < 0 || p.kind >= static_cast<int>(std::size(kindModels)))
+    if(!w || p.kind < 0 || p.kind >= static_cast<int>(za::getArraySize(kindModels)))
     {
         return; // the weapon is gone from the hand (thrown, holstered) or has no port
     }
@@ -397,9 +405,9 @@ void tink(Shell& s, float impact)
     {
         return;
     }
-    const float loud = std::clamp(impact / (4.f * unitsPerMetre()), 0.15f, 1.f);
+    const float loud = za::clamp(impact / (4.f * unitsPerMetre()), 0.15f, 1.f);
     vec3_t org{s.pos.x, s.pos.y, s.pos.z};
-    S_StartSound(0, 0, sfx, org, std::min(vr_shells_sound.value, 1.f) * 0.45f * loud, 2.f);
+    S_StartSound(0, 0, sfx, org, za::min(vr_shells_sound.value, 1.f) * 0.45f * loud, 2.f);
 }
 
 // Going into a liquid between `dry` and `wet` (a move's ends): where it crosses the surface, a tiny splash (the splash
@@ -417,7 +425,7 @@ void enterLiquid(Shell& s, glm::vec3 dry, glm::vec3 wet)
     const glm::vec3 surface = (dry + wet) * 0.5f;
     const float upm = unitsPerMetre();
     const float speed = glm::length(s.vel);
-    const float strength = std::clamp((speed / upm - 0.5f) / 3.5f, 0.f, 1.f); // 0.5 .. 4 m/s
+    const float strength = za::clamp((speed / upm - 0.5f) / 3.5f, 0.f, 1.f); // 0.5 .. 4 m/s
     const glm::vec3 dir = speed > 1e-3f ? s.vel / speed : glm::vec3{0.f, 0.f, -1.f};
 
     static double window = -1.0;
@@ -434,7 +442,7 @@ void enterLiquid(Shell& s, glm::vec3 dry, glm::vec3 wet)
         particles::shellSplash(surface, dir, strength);
         water::addRipple(surface, 0.4f + 0.5f * strength); // 1.1 to 2.3 units at the shipped amplitude
     }
-    const float volume = std::min(vr_shells_sound.value, 1.f) * std::clamp(vr_water_sounds.value, 0.f, 1.f);
+    const float volume = za::min(vr_shells_sound.value, 1.f) * za::clamp(vr_water_sounds.value, 0.f, 1.f);
     if(developer.value >= 2)
     {
         Con_Printf("VR shell into a liquid: %.1f %.1f %.1f, %.2f m/s%s%s\n", surface.x, surface.y, surface.z, speed / upm,
@@ -482,8 +490,8 @@ void fly(Shell& s, float dt)
 {
     const bool liquid = s.wet;
     s.vel.z -= gravity() * dt * (liquid ? 0.2f : 1.f);
-    s.vel *= std::exp(-(liquid ? 4.f : 0.15f) * dt);
-    s.angVel *= std::exp(-(liquid ? 2.f : 0.1f) * dt);
+    s.vel *= za::exp(-(liquid ? 4.f : 0.15f) * dt);
+    s.angVel *= za::exp(-(liquid ? 2.f : 0.1f) * dt);
 
     const glm::vec3 from = s.pos;
     const glm::vec3 to = s.pos + s.vel * dt;
@@ -503,7 +511,7 @@ void fly(Shell& s, float dt)
         tangent *= 0.65f; // friction of the hit
         const float bounce = into * rnd(0.3f, 0.45f);
         s.vel = tangent + n * bounce;
-        s.angVel = s.angVel * 0.5f + onSphere() * std::min(into / unitsPerMetre() * 6.f, 25.f);
+        s.angVel = s.angVel * 0.5f + onSphere() * za::min(into / unitsPerMetre() * 6.f, 25.f);
         s.pos = worldtrace::endPos(tr) + n * restHeight();
         tink(s, into);
 
@@ -545,12 +553,12 @@ void roll(Shell& s, float dt)
     glm::vec3 flat = axis - n * glm::dot(axis, n);
     flat = glm::length(flat) > 1e-3f ? glm::normalize(flat) : glm::normalize(glm::cross(n, glm::vec3{0.3f, 1.f, 0.f}));
     const glm::quat lieDown = shortestArc(axis, flat);
-    s.rot = glm::normalize(glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, lieDown, std::min(1.f, dt * 14.f)) * s.rot);
+    s.rot = glm::normalize(glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, lieDown, za::min(1.f, dt * 14.f)) * s.rot);
 
     // Rolls across its axis, slides along it; both slow down.
     const glm::vec3 along = flat * glm::dot(s.vel, flat);
     const glm::vec3 across = s.vel - along;
-    s.vel = along * std::exp(-7.f * dt) + across * std::exp(-2.2f * dt);
+    s.vel = along * za::exp(-7.f * dt) + across * za::exp(-2.2f * dt);
     spinBy(s, glm::cross(n, across) / r, dt);
 
     const glm::vec3 from = s.pos;
@@ -614,7 +622,7 @@ void rest(Shell& s)
 void addToScene(Shell& s, qmodel_t* model, float life)
 {
     const float age = static_cast<float>(cl.time - s.born);
-    const float alpha = std::clamp((life - age) / fadeTime, 0.f, 1.f);
+    const float alpha = za::clamp((life - age) / fadeTime, 0.f, 1.f);
     if(!model || cl_numvisedicts >= MAX_VISEDICTS || alpha <= 0.f)
     {
         return;
@@ -657,7 +665,7 @@ void ejectTest_f()
     {
         flick::spin(hand); // as a flick: the casings leave with the spin
     }
-    pending.push_back({hand, 0, count, flags, cl.time});
+    pending.pushBack({hand, 0, count, flags, cl.time});
 }
 
 } // namespace
@@ -674,7 +682,7 @@ void parseEject()
     {
         return;
     }
-    pending.push_back({hand, kind, std::min(count, 8), flags, cl.time + delay});
+    pending.pushBack({hand, kind, za::min(count, 8), flags, cl.time + delay});
 }
 
 void frame(const view::ViewEntity (&weapons)[2])
@@ -688,7 +696,7 @@ void frame(const view::ViewEntity (&weapons)[2])
 
     trackPorts(weapons);
 
-    for(std::size_t i = 0; i < pending.size();)
+    for(za::SizeT i = 0; i < pending.size();)
     {
         // A flick's casings wait for the spin to turn the barrels down.
         const Pending& pe = pending[i];
@@ -700,7 +708,7 @@ void frame(const view::ViewEntity (&weapons)[2])
             {
                 eject(weapons, pending[i]);
             }
-            pending.erase(pending.begin() + static_cast<std::ptrdiff_t>(i));
+            pending.erase(pending.begin() + static_cast<za::PtrDiffT>(i));
         }
         else
         {
@@ -710,10 +718,10 @@ void frame(const view::ViewEntity (&weapons)[2])
 
     const float dt = lastRun >= 0.0 ? static_cast<float>(CLAMP(0.0, cl.time - lastRun, 0.05)) : 0.f;
     lastRun = cl.time;
-    const float life = std::max(vr_shells_life.value, 1.f);
+    const float life = za::max(vr_shells_life.value, 1.f);
 
-    qmodel_t* models[std::size(kindModels)];
-    for(std::size_t k = 0; k < std::size(kindModels); k++)
+    qmodel_t* models[za::getArraySize(kindModels)];
+    for(za::SizeT k = 0; k < za::getArraySize(kindModels); k++)
     {
         models[k] = Mod_ForName(kindModels[k], false);
     }

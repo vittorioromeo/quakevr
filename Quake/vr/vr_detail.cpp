@@ -5,15 +5,25 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 
-#include <algorithm>
-#include <cctype>
-#include <cmath>
-#include <cstdint>
-#include <cstdlib>
-#include <cstring>
-#include <string>
-#include <unordered_map>
-#include <vector>
+#include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/String/StringView.hpp"
+#include "vr_zancle.hpp"
+
+#include <ctype.h>
+#include <stdlib.h>
+#include <string.h>
 
 extern "C" texture_t *r_notexture_mip, *r_notexture_mip2; // gl_model.c
 
@@ -24,13 +34,13 @@ namespace
 
 constexpr const char* cfgPath = "textures/vr/detail.cfg";
 constexpr GLenum unit = GL_TEXTURE12; // DetailTex in gl_shaders.h
-constexpr std::size_t maxKinds = 16;
+constexpr za::SizeT maxKinds = 16;
 // The fine octave: this many times smaller, off the coarse one's grid (DetailFactor).
 constexpr float fineScale = 3.7f;
 
 struct Kind
 {
-    std::string name;
+    za::String name;
     float size{64.f};     // world units a tile of the image covers
     float strength{0.5f}; // 1 + strength x (2 x detail - 1)
     bool grain{false};    // a grain along the image's x, to be turned along a texture's own
@@ -51,8 +61,8 @@ enum Grain
 
 struct Rule
 {
-    std::string map;     // empty: every map
-    std::string pattern; // the texture's name
+    za::String map;     // empty: every map
+    za::String pattern; // the texture's name
     int kind{kindUnset};
     float scale{-1.f};
     float strength{-1.f};
@@ -60,8 +70,8 @@ struct Rule
     int line{0};
 };
 
-std::vector<Kind> kinds;
-std::vector<Rule> rules;
+za::Vector<Kind> kinds;
+za::Vector<Rule> rules;
 bool cfgLoaded = false;
 
 GLuint array = 0;
@@ -77,17 +87,17 @@ struct Entry
     bool byRule{false};
     bool swapped{false};
 };
-std::unordered_map<const texture_t*, Entry> cache;
+ankerl::unordered_dense::map<const texture_t*, Entry> cache;
 const qmodel_t* cacheWorld = nullptr;
 char cacheWorldName[MAX_QPATH] = {};
 int cacheGeneration = -1;
 
-std::string lower(const char* s)
+za::String lower(const char* s)
 {
-    std::string r(s);
+    za::String r(s);
     for(char& c : r)
     {
-        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
     }
     return r;
 }
@@ -119,9 +129,9 @@ bool match(const char* p, const char* s)
     return !*s;
 }
 
-int findKind(const std::string& name)
+int findKind(const za::String& name)
 {
-    for(std::size_t i = 0; i < kinds.size(); i++)
+    for(za::SizeT i = 0; i < kinds.size(); i++)
     {
         if(kinds[i].name == name)
         {
@@ -143,59 +153,59 @@ void loadCfg()
     {
         Con_DPrintf("VR: no %s; detail textures by colour alone\n", cfgPath);
     }
-    std::vector<std::vector<std::string>> lines;
-    std::vector<int> lineNumbers;
+    za::Vector<za::Vector<za::String>> lines;
+    za::Vector<int> lineNumbers;
     if(data)
     {
         const char* p = reinterpret_cast<const char*>(data);
         int number = 0;
         while(*p)
         {
-            const char* end = std::strchr(p, '\n');
-            std::string line(p, end ? end - p : std::strlen(p));
+            const char* end = strchr(p, '\n');
+            za::String line(p, end ? end - p : ZA_STRLEN(p));
             p = end ? end + 1 : p + line.size();
             number++;
-            line = line.substr(0, line.find('#'));
-            std::vector<std::string> tokens;
-            std::size_t i = 0;
+            line = line.substrByPosLen(0, line.find('#'));
+            za::Vector<za::String> tokens;
+            za::SizeT i = 0;
             while(i < line.size())
             {
-                while(i < line.size() && std::isspace(static_cast<unsigned char>(line[i])))
+                while(i < line.size() && isspace(static_cast<unsigned char>(line[i])))
                 {
                     i++;
                 }
-                std::size_t j = i;
-                while(j < line.size() && !std::isspace(static_cast<unsigned char>(line[j])))
+                za::SizeT j = i;
+                while(j < line.size() && !isspace(static_cast<unsigned char>(line[j])))
                 {
                     j++;
                 }
                 if(j > i)
                 {
-                    tokens.push_back(lower(line.substr(i, j - i).c_str()));
+                    tokens.pushBack(lower(za::String{line.substrByPosLen(i, j - i)}.cStr()));
                 }
                 i = j;
             }
             if(!tokens.empty())
             {
-                lines.push_back(std::move(tokens));
-                lineNumbers.push_back(number);
+                lines.pushBack(ZA_MOVE(tokens));
+                lineNumbers.pushBack(number);
             }
         }
-        std::free(data);
+        free(data);
     }
 
-    const auto value = [](const std::string& token, const char* key, std::string& out) {
-        const std::size_t n = std::strlen(key);
-        if(token.size() > n && token.compare(0, n, key) == 0 && token[n] == '=')
+    const auto value = [](const za::String& token, const char* key, za::String& out) {
+        const za::SizeT n = ZA_STRLEN(key);
+        if(token.size() > n && token.startsWith(key) && token[n] == '=')
         {
-            out = token.substr(n + 1);
+            out = token.substrByPosLen(n + 1);
             return true;
         }
         return false;
     };
 
     // The kinds first (the rules name them).
-    for(std::size_t l = 0; l < lines.size(); l++)
+    for(za::SizeT l = 0; l < lines.size(); l++)
     {
         const auto& t = lines[l];
         if(t[0] != "kind")
@@ -209,24 +219,24 @@ void loadCfg()
         }
         Kind k;
         k.name = t[1];
-        for(std::size_t i = 2; i < t.size(); i++)
+        for(za::SizeT i = 2; i < t.size(); i++)
         {
-            std::string v;
+            za::String v;
             if(value(t[i], "size", v))
             {
-                k.size = std::clamp(static_cast<float>(std::atof(v.c_str())), 1.f, 4096.f);
+                k.size = za::clamp(static_cast<float>(atof(v.cStr())), 1.f, 4096.f);
             }
             else if(value(t[i], "strength", v))
             {
-                k.strength = std::clamp(static_cast<float>(std::atof(v.c_str())), 0.f, 4.f);
+                k.strength = za::clamp(static_cast<float>(atof(v.cStr())), 0.f, 4.f);
             }
             else if(value(t[i], "grain", v))
             {
-                k.grain = std::atoi(v.c_str()) != 0;
+                k.grain = atoi(v.cStr()) != 0;
             }
             else
             {
-                Con_Warning("%s:%d: unknown setting %s\n", cfgPath, lineNumbers[l], t[i].c_str());
+                Con_Warning("%s:%d: unknown setting %s\n", cfgPath, lineNumbers[l], t[i].cStr());
             }
         }
         const int existing = findKind(k.name);
@@ -236,15 +246,15 @@ void loadCfg()
         }
         else
         {
-            kinds.push_back(k);
+            kinds.pushBack(k);
         }
     }
     if(kinds.empty())
     {
-        kinds.assign(std::begin(defaultKinds), std::end(defaultKinds));
+        kinds.assignRange(defaultKinds, defaultKinds + za::getArraySize(defaultKinds));
     }
 
-    for(std::size_t l = 0; l < lines.size(); l++)
+    for(za::SizeT l = 0; l < lines.size(); l++)
     {
         const auto& t = lines[l];
         if(t[0] == "kind")
@@ -253,27 +263,27 @@ void loadCfg()
         }
         Rule r;
         r.line = lineNumbers[l];
-        const std::size_t slash = t[0].rfind('/');
-        r.pattern = slash == std::string::npos ? t[0] : t[0].substr(slash + 1);
-        r.map = slash == std::string::npos ? std::string() : t[0].substr(0, slash);
-        for(std::size_t i = 1; i < t.size(); i++)
+        const za::SizeT slash = t[0].rfind('/');
+        r.pattern = slash == za::StringView::nPos ? t[0] : t[0].substrByPosLen(slash + 1);
+        r.map = slash == za::StringView::nPos ? za::String() : t[0].substrByPosLen(0, slash);
+        for(za::SizeT i = 1; i < t.size(); i++)
         {
-            std::string v;
+            za::String v;
             if(value(t[i], "kind", v))
             {
                 r.kind = v == "none" ? kindNone : v == "auto" ? kindAuto : findKind(v);
                 if(r.kind == kindUnset)
                 {
-                    Con_Warning("%s:%d: unknown kind %s\n", cfgPath, r.line, v.c_str());
+                    Con_Warning("%s:%d: unknown kind %s\n", cfgPath, r.line, v.cStr());
                 }
             }
             else if(value(t[i], "scale", v))
             {
-                r.scale = std::clamp(static_cast<float>(std::atof(v.c_str())), 0.01f, 64.f);
+                r.scale = za::clamp(static_cast<float>(atof(v.cStr())), 0.01f, 64.f);
             }
             else if(value(t[i], "strength", v))
             {
-                r.strength = std::clamp(static_cast<float>(std::atof(v.c_str())), 0.f, 8.f);
+                r.strength = za::clamp(static_cast<float>(atof(v.cStr())), 0.f, 8.f);
             }
             else if(value(t[i], "grain", v))
             {
@@ -281,10 +291,10 @@ void loadCfg()
             }
             else
             {
-                Con_Warning("%s:%d: unknown setting %s\n", cfgPath, r.line, t[i].c_str());
+                Con_Warning("%s:%d: unknown setting %s\n", cfgPath, r.line, t[i].cStr());
             }
         }
-        rules.push_back(std::move(r));
+        rules.pushBack(ZA_MOVE(r));
     }
 }
 
@@ -309,22 +319,23 @@ void buildArray()
     {
         return;
     }
-    std::vector<std::uint8_t> pixels;
+    za::Vector<za::U8> pixels;
     int size = 0, found = 0;
-    for(std::size_t i = 0; i < kinds.size(); i++)
+    for(za::SizeT i = 0; i < kinds.size(); i++)
     {
         const int mark = Hunk_LowMark();
         int w = 0, h = 0;
         enum srcformat fmt;
-        const byte* data = Image_LoadImage(va("textures/vr/detail_%s", kinds[i].name.c_str()), &w, &h, &fmt);
+        const byte* data = Image_LoadImage(va("textures/vr/detail_%s", kinds[i].name.cStr()), &w, &h, &fmt);
         if(data && fmt == SRC_RGBA && w == h && w >= 16 && w <= 2048 && (w & (w - 1)) == 0 && (size == 0 || w == size))
         {
             if(size == 0)
             {
                 size = w;
-                pixels.assign(static_cast<std::size_t>(size) * size * kinds.size(), 128);
+                pixels.clear();
+                pixels.resize(static_cast<za::SizeT>(size) * size * kinds.size(), 128);
             }
-            std::uint8_t* layer = pixels.data() + static_cast<std::size_t>(size) * size * i;
+            za::U8* layer = pixels.data() + static_cast<za::SizeT>(size) * size * i;
             for(int p = 0; p < size * size; p++)
             {
                 layer[p] = data[p * 4];
@@ -333,7 +344,7 @@ void buildArray()
         }
         else
         {
-            Con_Warning("VR: detail texture textures/vr/detail_%s %s\n", kinds[i].name.c_str(),
+            Con_Warning("VR: detail texture textures/vr/detail_%s %s\n", kinds[i].name.cStr(),
                 data ? "is not square, a power of two, or as big as the first" : "is missing");
         }
         Hunk_FreeToLowMark(mark);
@@ -342,9 +353,9 @@ void buildArray()
     {
         return;
     }
-    if(pixels.size() < static_cast<std::size_t>(size) * size * kinds.size())
+    if(pixels.size() < static_cast<za::SizeT>(size) * size * kinds.size())
     {
-        pixels.resize(static_cast<std::size_t>(size) * size * kinds.size(), 128); // kinds before the first image found
+        pixels.resize(static_cast<za::SizeT>(size) * size * kinds.size(), 128); // kinds before the first image found
     }
     glGenTextures(1, &array);
     GL_BindNative(unit, GL_TEXTURE_2D_ARRAY, array);
@@ -359,7 +370,7 @@ void buildArray()
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
     if(gl_max_anisotropy > 1.f)
     {
-        glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_ANISOTROPY_EXT, std::min(gl_max_anisotropy, 8.f));
+        glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_ANISOTROPY_EXT, za::min(gl_max_anisotropy, 8.f));
     }
     arraySize = size;
     Con_DPrintf("VR: detail textures: %d kinds, %d x %d\n", static_cast<int>(kinds.size()), size, size);
@@ -385,14 +396,14 @@ Stats analyse(const texture_t* t)
     }
     const byte* px = reinterpret_cast<const byte*>(t + 1);
     const int w = static_cast<int>(t->width), h = static_cast<int>(t->height);
-    std::vector<float> lum(static_cast<std::size_t>(w) * h);
+    za::Vector<float> lum(static_cast<za::SizeT>(w) * h);
     double r = 0, g = 0, b = 0, sat = 0, l = 0;
     int bright = 0;
     for(int i = 0; i < w * h; i++)
     {
         const unsigned c = d_8to24table[px[i]];
         const float cr = (c & 255) / 255.f, cg = ((c >> 8) & 255) / 255.f, cb = ((c >> 16) & 255) / 255.f;
-        const float mx = std::max({cr, cg, cb}), mn = std::min({cr, cg, cb});
+        const float mx = qza::maxOf(cr, cg, cb), mn = qza::minOf(cr, cg, cb);
         lum[i] = 0.3f * cr + 0.59f * cg + 0.11f * cb;
         l += lum[i];
         sat += mx > 0.f ? (mx - mn) / mx : 0.f;
@@ -408,7 +419,7 @@ Stats analyse(const texture_t* t)
     r /= n;
     g /= n;
     b /= n;
-    const double mx = std::max({r, g, b}), mn = std::min({r, g, b});
+    const double mx = qza::maxOf(r, g, b), mn = qza::minOf(r, g, b);
     if(mx > mn)
     {
         double hue = mx == r ? (g - b) / (mx - mn) : mx == g ? 2.0 + (b - r) / (mx - mn) : 4.0 + (r - g) / (mx - mn);
@@ -420,9 +431,9 @@ Stats analyse(const texture_t* t)
     {
         for(int x = 0; x < w; x++)
         {
-            const float v = lum[static_cast<std::size_t>(y) * w + x];
-            gx += std::abs(lum[static_cast<std::size_t>(y) * w + (x + 1) % w] - v);
-            gy += std::abs(lum[static_cast<std::size_t>((y + 1) % h) * w + x] - v);
+            const float v = lum[static_cast<za::SizeT>(y) * w + x];
+            gx += qza::abs(lum[static_cast<za::SizeT>(y) * w + (x + 1) % w] - v);
+            gy += qza::abs(lum[static_cast<za::SizeT>((y + 1) % h) * w + x] - v);
         }
     }
     s.gx = static_cast<float>(gx / n);
@@ -448,7 +459,7 @@ int classify(const Stats& s)
         return kindNone;
     }
     const float busy = 0.5f * (s.gx + s.gy);
-    const float aniso = std::max(s.gx, s.gy) / std::max(std::min(s.gx, s.gy), 1e-4f);
+    const float aniso = za::max(s.gx, s.gy) / za::max(za::min(s.gx, s.gy), 1e-4f);
     if(s.sat < 0.25f)
     {
         return pick((s.hue >= 180.f && s.hue <= 290.f && s.sat > 0.1f) || busy < 0.025f ? metal : stone);
@@ -468,7 +479,7 @@ int classify(const Stats& s)
     return pick(stone);
 }
 
-std::string mapName()
+za::String mapName()
 {
     char base[MAX_QPATH] = {};
     if(cl.worldmodel)
@@ -486,16 +497,16 @@ Entry resolve(const texture_t* t)
     {
         return e;
     }
-    const std::string name = lower(t->name);
+    const za::String name = lower(t->name);
     // an animated texture's +0 / +a prefix: matched with and without
-    const std::string bare = name.size() > 2 && name[0] == '+' ? name.substr(2) : name;
-    const std::string map = mapName();
+    const za::String bare = name.size() > 2 && name[0] == '+' ? za::String{name.substrByPosLen(2)} : name;
+    const za::String map = mapName();
     int kind = kindUnset, grain = GrainUnset;
     float scale = 1.f, strength = 1.f;
     for(const Rule& r : rules)
     {
-        if((!r.map.empty() && !match(r.map.c_str(), map.c_str())) ||
-            (!match(r.pattern.c_str(), name.c_str()) && !match(r.pattern.c_str(), bare.c_str())))
+        if((!r.map.empty() && !match(r.map.cStr(), map.cStr())) ||
+            (!match(r.pattern.cStr(), name.cStr()) && !match(r.pattern.cStr(), bare.cStr())))
         {
             continue;
         }
@@ -527,7 +538,7 @@ Entry resolve(const texture_t* t)
     {
         swap = stats.gx > 1.15f * stats.gy;
     }
-    const float size = std::max(k.size * scale, 1.f);
+    const float size = za::max(k.size * scale, 1.f);
     e.swapped = swap;
     e.v[0] = (swap ? -1.f : 1.f) * static_cast<float>(t->width) / size;
     e.v[1] = static_cast<float>(t->height) / size;
@@ -543,7 +554,7 @@ Entry resolve(const texture_t* t)
 // A new map: the cfg read again (it may have been edited) and every texture looked at anew.
 void checkWorld()
 {
-    if(cacheWorld == cl.worldmodel && cacheGeneration == worldGeneration() && (!cl.worldmodel || !std::strcmp(cacheWorldName, cl.worldmodel->name)))
+    if(cacheWorld == cl.worldmodel && cacheGeneration == worldGeneration() && (!cl.worldmodel || !ZA_STRCMP(cacheWorldName, cl.worldmodel->name)))
     {
         return;
     }
@@ -551,15 +562,15 @@ void checkWorld()
     cacheGeneration = worldGeneration();
     q_strlcpy(cacheWorldName, cl.worldmodel ? cl.worldmodel->name : "", sizeof(cacheWorldName));
     cache.clear();
-    const std::size_t before = kinds.size();
-    std::vector<std::string> names;
+    const za::SizeT before = kinds.size();
+    za::Vector<za::String> names;
     for(const Kind& k : kinds)
     {
-        names.push_back(k.name);
+        names.pushBack(k.name);
     }
     loadCfg();
     bool same = kinds.size() == before;
-    for(std::size_t i = 0; same && i < kinds.size(); i++)
+    for(za::SizeT i = 0; same && i < kinds.size(); i++)
     {
         same = kinds[i].name == names[i];
     }
@@ -572,7 +583,7 @@ void checkWorld()
 const Entry& lookup(const texture_t* t)
 {
     auto it = cache.find(t);
-    if(it == cache.end() || std::strncmp(it->second.name, t->name, sizeof(it->second.name)) != 0)
+    if(it == cache.end() || ZA_STRNCMP(it->second.name, t->name, sizeof(it->second.name)) != 0)
     {
         it = cache.insert_or_assign(t, resolve(t)).first;
     }
@@ -617,11 +628,11 @@ void list_f()
         return;
     }
     checkWorld();
-    const std::string pattern = Cmd_Argc() > 1 ? lower(Cmd_Argv(1)) : std::string("*");
+    const za::String pattern = Cmd_Argc() > 1 ? lower(Cmd_Argv(1)) : za::String("*");
     for(int i = 0; i < cl.worldmodel->numtextures; i++)
     {
         const texture_t* t = cl.worldmodel->textures[i];
-        if(!t || t == r_notexture_mip || t == r_notexture_mip2 || !match(pattern.c_str(), lower(t->name).c_str()))
+        if(!t || t == r_notexture_mip || t == r_notexture_mip2 || !match(pattern.cStr(), lower(t->name).cStr()))
         {
             continue;
         }
@@ -633,7 +644,7 @@ void list_f()
         }
         const Stats s = analyse(t);
         Con_Printf("%-16s %-8s %s tile %.0f strength %.2f%s   (lum %.2f sat %.2f hue %.0f grain %.2f)\n", t->name,
-            kinds[e.kind].name.c_str(), e.byRule ? "cfg " : "auto", t->width / std::abs(e.v[0]), e.v[2],
+            kinds[e.kind].name.cStr(), e.byRule ? "cfg " : "auto", t->width / qza::abs(e.v[0]), e.v[2],
             e.swapped ? " along t" : "", s.lum, s.sat, s.hue, s.gy > 0.f ? s.gx / s.gy : 0.f);
     }
 }
@@ -676,8 +687,8 @@ extern "C" void VR_DetailView(void)
     {
         detail::buildArray();
     }
-    const float end = std::clamp(vr_detail_distance.value, 16.f, 1024.f);
-    r_framedata.detail[0] = on && detail::array ? std::clamp(vr_detail_strength.value, 0.f, 4.f) : 0.f;
+    const float end = za::clamp(vr_detail_distance.value, 16.f, 1024.f);
+    r_framedata.detail[0] = on && detail::array ? za::clamp(vr_detail_strength.value, 0.f, 4.f) : 0.f;
     r_framedata.detail[1] = end / 3.f; // full within a third of it
     r_framedata.detail[2] = end;
     r_framedata.detail[3] = vr_detail_fine.value != 0.f ? detail::fineScale : 0.f;
@@ -694,5 +705,5 @@ extern "C" void VR_DetailCall(const texture_t* t, float out[4])
         return;
     }
     const detail::Entry& e = detail::lookup(t);
-    std::memcpy(out, e.v, sizeof(e.v));
+    ZA_MEMCPY(out, e.v, sizeof(e.v));
 }

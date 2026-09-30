@@ -12,11 +12,23 @@
 #include "vr_ring.hpp"
 #include "vr_trace.hpp"
 
-#include <algorithm>
-#include <cmath>
-#include <cstdint>
-#include <unordered_map>
-#include <vector>
+#include "Zancle/Algorithm/Erase.hpp"
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Atan2.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Exp.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/Floor.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Pow.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "vr_zancle.hpp"
+
 
 namespace qvr::decals
 {
@@ -77,8 +89,8 @@ struct Corner
 // A mark's buffers, laid on the world (the main thread's; the atlas's worker has its own).
 struct DecalScratch
 {
-    std::vector<glm::vec3> poly, clipped; // a face's polygon cut to the mark (clipToWorld)
-    std::vector<Corner> tris;             // the mark's triangles (add)
+    za::Vector<glm::vec3> poly, clipped; // a face's polygon cut to the mark (clipToWorld)
+    za::Vector<Corner> tris;             // the mark's triangles (add)
     auto members() { return qvr::mem::list(poly, clipped, tris); }
 };
 mem::Scratch<DecalScratch> scratch{"decals"};
@@ -92,7 +104,7 @@ struct Decal
     float growFrom = 1.f;   // from this part of it
     bool fromStart = false; // spreading from its -u end (a run down a wall), not its middle
     float darken = 0.f;     // how much darker it gets as it spreads and dries
-    std::vector<Corner> tris; // its footprint clipped to the world's faces under it (clipToWorld)
+    za::Vector<Corner> tris; // its footprint clipped to the world's faces under it (clipToWorld)
 };
 
 // Oldest first (drawn in that order; the oldest go first): a ring of vr_decal_max slots, whose marks' triangles keep
@@ -110,8 +122,8 @@ void popOldest()
     dropCount -= isDrop(decals.front());
     decals.popFront();
 }
-std::vector<gfx::Vertex> vertices;       // the marks that change this frame
-std::vector<gfx::Vertex> staticVertices; // the others,
+za::Vector<gfx::Vertex> vertices;       // the marks that change this frame
+za::Vector<gfx::Vertex> staticVertices; // the others,
 gfx::StaticTriangles staticTriangles;     // in their own buffer: uploaded when they change, not for each eye and frame
 bool staticDirty = false;                 // staticVertices changed since they were uploaded
 double staticUntil = 0.0;                // when one of those starts to change (fades)
@@ -141,7 +153,7 @@ thread_local unsigned rngState = 12345u; // (the atlas is made on a worker threa
 [[nodiscard]] float ring(float a, int lobes, int seed)
 {
     const float x = a * lobes;
-    const int i = static_cast<int>(std::floor(x));
+    const int i = static_cast<int>(za::floor(x));
     const float f = x - i;
     const float s = f * f * (3.f - 2.f * f);
     return hash(((i % lobes) + lobes) % lobes, seed) * (1.f - s) + hash((((i + 1) % lobes) + lobes) % lobes, seed) * s;
@@ -149,14 +161,14 @@ thread_local unsigned rngState = 12345u; // (the atlas is made on a worker threa
 
 [[nodiscard]] float smoothstep(float e0, float e1, float x)
 {
-    const float t = std::clamp((x - e0) / (e1 - e0), 0.f, 1.f);
+    const float t = za::clamp((x - e0) / (e1 - e0), 0.f, 1.f);
     return t * t * (3.f - 2.f * t);
 }
 
 // Smooth value noise over the plane, 0..1.
 [[nodiscard]] float noise(glm::vec2 p, int seed)
 {
-    const int x = static_cast<int>(std::floor(p.x)), y = static_cast<int>(std::floor(p.y));
+    const int x = static_cast<int>(za::floor(p.x)), y = static_cast<int>(za::floor(p.y));
     const float fx = p.x - x, fy = p.y - y;
     const float sx = fx * fx * (3.f - 2.f * fx), sy = fy * fy * (3.f - 2.f * fy);
     const auto h = [seed](int i, int j) { // (the lattice point mixed in unsigned arithmetic: it wraps)
@@ -168,7 +180,7 @@ thread_local unsigned rngState = 12345u; // (the atlas is made on a worker threa
 [[nodiscard]] float segmentDistance(glm::vec2 p, glm::vec2 a, glm::vec2 b, float& along)
 {
     const glm::vec2 ab = b - a;
-    along = std::clamp(glm::dot(p - a, ab) / std::max(glm::dot(ab, ab), 1e-8f), 0.f, 1.f);
+    along = za::clamp(glm::dot(p - a, ab) / za::max(glm::dot(ab, ab), 1e-8f), 0.f, 1.f);
     return glm::length(p - a - ab * along);
 }
 
@@ -182,15 +194,15 @@ struct Blob
 // A chip's crack: a jagged line out from the crater, its width tapering from `width`.
 struct Crack
 {
-    std::vector<glm::vec2> points;
+    za::Vector<glm::vec2> points;
     float width;
 };
 
 // A chip's cracks and the flecks of debris round it (small blobs).
 struct ChipShape
 {
-    std::vector<Crack> cracks;
-    std::vector<Blob> flecks;
+    za::Vector<Crack> cracks;
+    za::Vector<Blob> flecks;
 };
 
 // A chip, variant `seed`: a crater knocked into the surface, its rim thrown up round it, cracks
@@ -203,15 +215,15 @@ struct ChipShape
 
     // The crater's radius where `q` is, over it: a ragged hole.
     const auto relative = [&](glm::vec2 q) {
-        const float a = std::atan2(q.y, q.x) / 6.2831853f + 0.5f;
+        const float a = za::atan2(q.y, q.x) / 6.2831853f + 0.5f;
         const float edge = radius * (1.f + 0.22f * (ring(a, 7, seed) - 0.5f) + 0.12f * (ring(a, 19, seed + 1) - 0.5f));
         return glm::length(q) / edge;
     };
     const auto height = [&](glm::vec2 q) {
         const float rr = relative(q);
         float h = rr < 1.f ? -0.1f * (1.f - rr * rr) : 0.f;                      // the bowl
-        h += 0.022f * std::exp(-(rr - 1.05f) * (rr - 1.05f) / 0.09f);            // the rim
-        h += 0.012f * (noise(q * 26.f, seed + 2) - 0.5f) * std::max(0.f, 1.3f - rr); // broken, rough
+        h += 0.022f * za::exp(-(rr - 1.05f) * (rr - 1.05f) / 0.09f);            // the rim
+        h += 0.012f * (noise(q * 26.f, seed + 2) - 0.5f) * za::max(0.f, 1.3f - rr); // broken, rough
         return h;
     };
 
@@ -222,11 +234,11 @@ struct ChipShape
     const float rr = relative(p);
 
     // Lit as the flat surface round it is lit: 1 where flat.
-    float shade = std::max(0.f, glm::dot(n, chipLight)) / chipLight.z;
+    float shade = za::max(0.f, glm::dot(n, chipLight)) / chipLight.z;
     // The crater's own shadow: its wall on the light's side hides the floor next to it.
     if(rr < 1.f)
     {
-        const glm::vec2 dir = p / std::max(glm::length(p), 1e-4f);
+        const glm::vec2 dir = p / za::max(glm::length(p), 1e-4f);
         shade *= 1.f - 0.55f * smoothstep(-0.2f, 0.9f, dir.y) * (1.f - rr * rr);
     }
     // Deeper is darker (less of the light gets in), and the broken material inside darker still;
@@ -239,40 +251,40 @@ struct ChipShape
     float crack = 0.f;
     for(const Crack& c : shape.cracks)
     {
-        for(std::size_t i = 0; i + 1 < c.points.size(); i++)
+        for(za::SizeT i = 0; i + 1 < c.points.size(); i++)
         {
             float along = 0.f;
             const float d = segmentDistance(p, c.points[i], c.points[i + 1], along);
             const float t = (static_cast<float>(i) + along) / static_cast<float>(c.points.size() - 1);
             const float w = c.width * (1.f - 0.85f * t);
-            crack = std::max(crack, smoothstep(w, w * 0.3f, d) * (1.f - 0.5f * t));
+            crack = za::max(crack, smoothstep(w, w * 0.3f, d) * (1.f - 0.5f * t));
         }
     }
     f *= 1.f - 0.7f * crack * smoothstep(0.7f, 1.1f, rr);
 
     // Dust round it (lighter), flecks of debris (darker), fading out towards the cell's edge.
-    const float a = std::atan2(p.y, p.x) / 6.2831853f + 0.5f;
+    const float a = za::atan2(p.y, p.x) / 6.2831853f + 0.5f;
     const float r = glm::length(p);
     const float halo = smoothstep(0.55f + 0.25f * ring(a, 11, seed + 3), 0.25f, r) * smoothstep(0.8f, 1.3f, rr);
     f *= 1.f + 0.16f * halo * noise(p * 9.f, seed + 4);
     float fleck = 0.f;
     for(const Blob& b : shape.flecks)
     {
-        fleck = std::max(fleck, smoothstep(b.r, b.r * 0.4f, glm::length(p - b.c)));
+        fleck = za::max(fleck, smoothstep(b.r, b.r * 0.4f, glm::length(p - b.c)));
     }
     f *= 1.f - 0.4f * fleck * smoothstep(1.1f, 1.5f, rr);
 
     // Slightly warm where it marks the surface: dust and the soot of the hit.
-    const glm::vec3 tint = glm::mix(glm::vec3{1.f}, glm::vec3{1.03f, 1.f, 0.95f}, std::min(1.f, std::fabs(f - 1.f) * 3.f));
+    const glm::vec3 tint = glm::mix(glm::vec3{1.f}, glm::vec3{1.03f, 1.f, 0.95f}, za::min(1.f, za::fabs(f - 1.f) * 3.f));
     return glm::clamp(f * tint, 0.f, 2.f);
 }
 
 // Coverage of a cell texel at `p` (-1..1): what `kind` variant `seed` covers, and its colour (what
 // the surface is multiplied by).
-void cellTexel(Kind kind, int seed, const std::vector<Blob>& blobs, glm::vec2 p, float& alpha, glm::vec3& color)
+void cellTexel(Kind kind, int seed, const za::Vector<Blob>& blobs, glm::vec2 p, float& alpha, glm::vec3& color)
 {
     const float r = glm::length(p);
-    const float a = std::atan2(p.y, p.x) / 6.2831853f + 0.5f;
+    const float a = za::atan2(p.y, p.x) / 6.2831853f + 0.5f;
     switch(kind)
     {
         case Blood:
@@ -290,7 +302,7 @@ void cellTexel(Kind kind, int seed, const std::vector<Blob>& blobs, glm::vec2 p,
                 const glm::vec2 axis = glm::normalize(b.stretch + glm::vec2{1e-4f});
                 const float stretch = glm::length(b.stretch);
                 d -= axis * glm::dot(d, axis) * (stretch / (1.f + stretch));
-                cover = std::max(cover, smoothstep(b.r + 0.02f, b.r - 0.02f, glm::length(d)));
+                cover = za::max(cover, smoothstep(b.r + 0.02f, b.r - 0.02f, glm::length(d)));
             }
             alpha = cover * (0.8f + 0.12f * noise(p * 14.f, seed) + 0.08f * noise(p * 45.f, seed + 1));
             // Darker, thicker in the middle.
@@ -301,7 +313,7 @@ void cellTexel(Kind kind, int seed, const std::vector<Blob>& blobs, glm::vec2 p,
         {
             const float edge = 0.72f + 0.2f * ring(a, 9, seed) + 0.08f * (noise(p * 5.f, seed + 1) - 0.5f);
             const float soot = 0.55f * noise(p * 4.f, seed + 3) + 0.3f * noise(p * 11.f, seed + 4) + 0.15f * noise(p * 29.f, seed + 5);
-            alpha = smoothstep(edge, 0.1f, r) * std::clamp(0.35f + 0.85f * soot, 0.f, 1.f) * 0.95f;
+            alpha = smoothstep(edge, 0.1f, r) * za::clamp(0.35f + 0.85f * soot, 0.f, 1.f) * 0.95f;
             color = glm::vec3{0.1f, 0.085f, 0.07f};
             break;
         }
@@ -332,9 +344,9 @@ struct Run
 
 struct GoreShape
 {
-    std::vector<Ellipse> ellipses;
-    std::vector<Capsule> capsules;
-    std::vector<Run> runs;
+    za::Vector<Ellipse> ellipses;
+    za::Vector<Capsule> capsules;
+    za::Vector<Run> runs;
     float edge = 0.f; // a ragged blot round the middle this big (0 none): splotches and pools
     int lobes = 9;
 };
@@ -342,7 +354,7 @@ struct GoreShape
 [[nodiscard]] float ellipseDistance(const Ellipse& e, glm::vec2 p)
 {
     const glm::vec2 q = (p - e.c) / e.r;
-    return (glm::length(q) - 1.f) * std::min(e.r.x, e.r.y);
+    return (glm::length(q) - 1.f) * za::min(e.r.x, e.r.y);
 }
 
 [[nodiscard]] float goreDistance(const GoreShape& s, int seed, glm::vec2 p)
@@ -350,23 +362,23 @@ struct GoreShape
     float d = 10.f;
     if(s.edge > 0.f)
     {
-        const float a = std::atan2(p.y, p.x) / 6.2831853f + 0.5f;
+        const float a = za::atan2(p.y, p.x) / 6.2831853f + 0.5f;
         const float edge = s.edge * (1.f + 0.3f * (ring(a, s.lobes, seed) - 0.5f) + 0.14f * (ring(a, 23, seed + 1) - 0.5f) +
                                         0.05f * (ring(a, 61, seed + 2) - 0.5f));
         d = glm::length(p) - edge;
     }
     for(const Ellipse& e : s.ellipses)
     {
-        if(std::fabs(p.x - e.c.x) < e.r.x + 0.05f && std::fabs(p.y - e.c.y) < e.r.y + 0.05f)
+        if(za::fabs(p.x - e.c.x) < e.r.x + 0.05f && za::fabs(p.y - e.c.y) < e.r.y + 0.05f)
         {
-            d = std::min(d, ellipseDistance(e, p));
+            d = za::min(d, ellipseDistance(e, p));
         }
     }
     for(const Capsule& c : s.capsules)
     {
         float t = 0.f;
         const float dist = segmentDistance(p, c.a, c.b, t);
-        d = std::min(d, dist - glm::mix(c.ra, c.rb, t));
+        d = za::min(d, dist - glm::mix(c.ra, c.rb, t));
     }
     for(const Run& r : s.runs)
     {
@@ -374,13 +386,13 @@ struct GoreShape
         {
             continue;
         }
-        const float along = std::clamp((p.x - r.x0) / std::max(r.x1 - r.x0, 1e-3f), 0.f, 1.f);
-        const float y = r.y + 0.025f * std::sin(p.x * 7.f + r.phase) + 0.012f * std::sin(p.x * 19.f + r.phase * 2.f);
+        const float along = za::clamp((p.x - r.x0) / za::max(r.x1 - r.x0, 1e-3f), 0.f, 1.f);
+        const float y = r.y + 0.025f * za::sin(p.x * 7.f + r.phase) + 0.012f * za::sin(p.x * 19.f + r.phase * 2.f);
         const float w = r.width * (1.f - 0.4f * along);
-        const float inside = std::max(r.x0 - p.x, p.x - r.x1); // < 0 between its ends
-        d = std::min(d, std::max(std::fabs(p.y - y) - w, inside));
+        const float inside = za::max(r.x0 - p.x, p.x - r.x1); // < 0 between its ends
+        d = za::min(d, za::max(za::fabs(p.y - y) - w, inside));
         // The drop at its end (the quad is stretched along x: short in x).
-        d = std::min(d, ellipseDistance({{r.x1, y}, {w * 0.7f, w * 1.6f}}, p));
+        d = za::min(d, ellipseDistance({{r.x1, y}, {w * 0.7f, w * 1.6f}}, p));
     }
     return d;
 }
@@ -396,20 +408,20 @@ struct GoreShape
             // A blot where it struck (towards -x), a few lumps round it, then droplets flung along
             // +x in a fan, smaller and more drawn out the further they flew, some with a tail.
             const glm::vec2 core{-0.45f + 0.06f * frand(), (frand() - 0.5f) * 0.08f};
-            s.ellipses.push_back({core, {0.3f + 0.06f * frand(), 0.24f + 0.06f * frand()}});
+            s.ellipses.pushBack({core, {0.3f + 0.06f * frand(), 0.24f + 0.06f * frand()}});
             for(int i = 0; i < 5; i++)
             {
                 const float a = frand() * 6.2831853f;
-                s.ellipses.push_back({core + glm::vec2{std::cos(a) * 0.24f + 0.1f, std::sin(a) * 0.2f},
+                s.ellipses.pushBack({core + glm::vec2{za::cos(a) * 0.24f + 0.1f, za::sin(a) * 0.2f},
                     glm::vec2{0.09f + 0.07f * frand(), 0.08f + 0.06f * frand()}});
             }
             for(int i = 0; i < 46; i++)
             {
-                const float t = std::pow(frand(), 0.8f);
+                const float t = za::pow(frand(), 0.8f);
                 const float ang = (frand() + frand() + frand() - 1.5f) * 0.55f;
-                const glm::vec2 dir{std::cos(ang), std::sin(ang)};
+                const glm::vec2 dir{za::cos(ang), za::sin(ang)};
                 const glm::vec2 at = core + dir * (0.2f + t * 1.1f);
-                if(std::fabs(at.x) > 0.9f || std::fabs(at.y) > 0.9f)
+                if(za::fabs(at.x) > 0.9f || za::fabs(at.y) > 0.9f)
                 {
                     continue;
                 }
@@ -417,10 +429,10 @@ struct GoreShape
                 const float stretch = 1.f + 2.5f * t * frand();
                 if(t > 0.2f && frand() < 0.55f)
                 {
-                    s.capsules.push_back({at - dir * (0.05f + 0.22f * t), at, r * 0.3f, r});
+                    s.capsules.pushBack({at - dir * (0.05f + 0.22f * t), at, r * 0.3f, r});
                 }
                 // Drawn out along its flight (a rotated ellipse: a capsule of its length).
-                s.capsules.push_back({at - dir * r * (stretch - 1.f), at, r * 0.85f, r});
+                s.capsules.pushBack({at - dir * r * (stretch - 1.f), at, r * 0.85f, r});
             }
             break;
         }
@@ -428,13 +440,13 @@ struct GoreShape
         {
             // The quad is about three times as long (x) as it is wide (y): the blot at the top is
             // short in x, the runs' widths are across.
-            s.ellipses.push_back({{-0.8f, (frand() - 0.5f) * 0.1f}, {0.14f, 0.34f + 0.1f * frand()}});
-            s.ellipses.push_back({{-0.72f, (frand() - 0.5f) * 0.3f}, {0.08f, 0.16f}});
+            s.ellipses.pushBack({{-0.8f, (frand() - 0.5f) * 0.1f}, {0.14f, 0.34f + 0.1f * frand()}});
+            s.ellipses.pushBack({{-0.72f, (frand() - 0.5f) * 0.3f}, {0.08f, 0.16f}});
             const int runs = 2 + static_cast<int>(frand() * 3.f);
             for(int i = 0; i < runs; i++)
             {
                 const float y = (static_cast<float>(i) + 0.5f) / runs * 0.56f - 0.28f + (frand() - 0.5f) * 0.08f;
-                s.runs.push_back({-0.78f, -0.35f + frand() * 1.15f, y, 0.025f + 0.045f * frand(), frand() * 6.28f});
+                s.runs.pushBack({-0.78f, -0.35f + frand() * 1.15f, y, 0.025f + 0.045f * frand(), frand() * 6.28f});
             }
             break;
         }
@@ -445,14 +457,14 @@ struct GoreShape
             for(int i = 0; i < 4; i++)
             {
                 const float a = frand() * 6.2831853f;
-                const glm::vec2 dir{std::cos(a), std::sin(a)};
-                s.ellipses.push_back({dir * (0.5f + 0.15f * frand()), glm::vec2{0.14f + 0.1f * frand()}});
+                const glm::vec2 dir{za::cos(a), za::sin(a)};
+                s.ellipses.pushBack({dir * (0.5f + 0.15f * frand()), glm::vec2{0.14f + 0.1f * frand()}});
             }
             for(int i = 0; i < 10; i++)
             {
                 const float a = frand() * 6.2831853f;
-                s.ellipses.push_back(
-                    {glm::vec2{std::cos(a), std::sin(a)} * (0.78f + 0.12f * frand()), glm::vec2{0.015f + 0.025f * frand()}});
+                s.ellipses.pushBack(
+                    {glm::vec2{za::cos(a), za::sin(a)} * (0.78f + 0.12f * frand()), glm::vec2{0.015f + 0.025f * frand()}});
             }
             break;
         }
@@ -465,17 +477,17 @@ struct GoreShape
             for(int i = 0; i < spikes; i++)
             {
                 const float a = (static_cast<float>(i) + frand() * 0.8f) / spikes * 6.2831853f;
-                const glm::vec2 dir{std::cos(a), std::sin(a)};
+                const glm::vec2 dir{za::cos(a), za::sin(a)};
                 const float len = 0.5f + 0.4f * frand();
                 const float w = 0.045f + 0.04f * frand();
-                s.capsules.push_back({dir * 0.2f, dir * len, w, w * 0.25f});
-                s.ellipses.push_back({dir * (len + 0.03f), glm::vec2{w * (0.5f + 0.4f * frand())}});
+                s.capsules.pushBack({dir * 0.2f, dir * len, w, w * 0.25f});
+                s.ellipses.pushBack({dir * (len + 0.03f), glm::vec2{w * (0.5f + 0.4f * frand())}});
             }
             for(int i = 0; i < 26; i++)
             {
                 const float a = frand() * 6.2831853f;
-                s.ellipses.push_back(
-                    {glm::vec2{std::cos(a), std::sin(a)} * (0.4f + 0.5f * frand()), glm::vec2{0.01f + 0.03f * frand()}});
+                s.ellipses.pushBack(
+                    {glm::vec2{za::cos(a), za::sin(a)} * (0.4f + 0.5f * frand()), glm::vec2{0.01f + 0.03f * frand()}});
             }
             break;
         }
@@ -499,7 +511,7 @@ struct GoreShape
     const glm::vec3 thin = kind == Pool ? glm::vec3{0.72f, 0.04f, 0.03f} : glm::vec3{0.8f, 0.05f, 0.04f};
     const glm::vec3 deep = kind == Pool ? glm::vec3{0.38f, 0.015f, 0.01f} : glm::vec3{0.42f, 0.02f, 0.015f};
     const glm::vec3 color = glm::mix(thin, deep, thick * (0.75f + 0.25f * noise(p * 6.f, seed + 2)));
-    return glm::mix(glm::vec3{1.f}, color, std::clamp(alpha, 0.f, 1.f));
+    return glm::mix(glm::vec3{1.f}, color, za::clamp(alpha, 0.f, 1.f));
 }
 
 // A texel of what the surface is multiplied by, `f` (0..2 in each channel; 1 leaves it as it is),
@@ -508,22 +520,22 @@ struct GoreShape
 void encode(glm::vec3 f, unsigned char* out)
 {
     f = glm::clamp(f, 0.f, 2.f);
-    const float dim = std::max(0.f, 1.f - std::min({f.r, f.g, f.b}));
+    const float dim = za::max(0.f, 1.f - qza::minOf(f.r, f.g, f.b));
     const glm::vec3 c = f - 1.f + dim;
     for(int i = 0; i < 3; i++)
     {
-        out[i] = static_cast<unsigned char>(std::clamp(c[i], 0.f, 1.f) * 255.f + 0.5f);
+        out[i] = static_cast<unsigned char>(za::clamp(c[i], 0.f, 1.f) * 255.f + 0.5f);
     }
-    out[3] = static_cast<unsigned char>(std::clamp(dim, 0.f, 1.f) * 255.f + 0.5f);
+    out[3] = static_cast<unsigned char>(za::clamp(dim, 0.f, 1.f) * 255.f + 0.5f);
 }
 
-[[nodiscard]] std::vector<unsigned char> buildAtlas()
+[[nodiscard]] za::Vector<unsigned char> buildAtlas()
 {
-    std::vector<unsigned char> rgba(atlasWidth * atlasHeight * 4, 0);
+    za::Vector<unsigned char> rgba(atlasWidth * atlasHeight * 4, 0);
     // The cells shared out among the game's threads (vr_jobs.hpp): each writes its own texels, its random numbers seeded
     // by its number (the thread's own generator): the same atlas whatever ran it.
     const int cells = firstCell[KindCount - 1] + cellCount[KindCount - 1];
-    jobs::parallelFor(static_cast<std::size_t>(cells), 1, [&](std::size_t c0, std::size_t c1) {
+    jobs::parallelFor(static_cast<za::SizeT>(cells), 1, [&](za::SizeT c0, za::SizeT c1) {
         for(int cell = static_cast<int>(c0); cell < static_cast<int>(c1); cell++)
         {
             int kind = KindCount - 1;
@@ -536,51 +548,51 @@ void encode(glm::vec3 f, unsigned char* out)
 
             // A chip's cracks (a few, jagged, out from the crater's edge) and flecks.
             ChipShape chip;
-            std::vector<Crack>& cracks = chip.cracks;
+            za::Vector<Crack>& cracks = chip.cracks;
             if(kind == Hole)
             {
                 for(int i = 0; i < 70; i++)
                 {
                     const float ang = frand() * 6.2831853f;
                     const float dist = 0.28f + 0.5f * frand() * frand();
-                    chip.flecks.push_back({glm::vec2{std::cos(ang), std::sin(ang)} * dist, 0.006f + frand() * 0.012f, glm::vec2{0.f}});
+                    chip.flecks.pushBack({glm::vec2{za::cos(ang), za::sin(ang)} * dist, 0.006f + frand() * 0.012f, glm::vec2{0.f}});
                 }
                 const int count = 3 + static_cast<int>(frand() * 4.f);
                 for(int i = 0; i < count; i++)
                 {
                     float ang = (static_cast<float>(i) + 0.2f + frand() * 0.6f) / count * 6.2831853f;
-                    glm::vec2 at = glm::vec2{std::cos(ang), std::sin(ang)} * 0.18f;
+                    glm::vec2 at = glm::vec2{za::cos(ang), za::sin(ang)} * 0.18f;
                     Crack c{{at}, 0.012f + frand() * 0.012f};
                     const float length = 0.25f + frand() * 0.45f;
                     const int steps = 4 + static_cast<int>(frand() * 3.f);
                     for(int s = 0; s < steps; s++)
                     {
                         ang += (frand() - 0.5f) * 0.9f;
-                        at += glm::vec2{std::cos(ang), std::sin(ang)} * (length / steps);
-                        c.points.push_back(at);
+                        at += glm::vec2{za::cos(ang), za::sin(ang)} * (length / steps);
+                        c.points.pushBack(at);
                     }
-                    cracks.push_back(std::move(c));
+                    cracks.pushBack(ZA_MOVE(c));
                     // Now and then a branch off its middle.
                     if(frand() < 0.4f)
                     {
                         const glm::vec2 from = cracks.back().points[cracks.back().points.size() / 2];
                         const float b = ang + (frand() < 0.5f ? -0.8f : 0.8f);
-                        cracks.push_back({{from, from + glm::vec2{std::cos(b), std::sin(b)} * (0.08f + frand() * 0.12f)},
+                        cracks.pushBack({{from, from + glm::vec2{za::cos(b), za::sin(b)} * (0.08f + frand() * 0.12f)},
                             cracks.back().width * 0.6f});
                     }
                 }
             }
 
             // Blood's satellite droplets and streaks (a drop cell: a few drops only).
-            std::vector<Blob> blobs;
+            za::Vector<Blob> blobs;
             const int count = kind == Blood ? 9 + static_cast<int>(frand() * 6) : kind == BloodDrop ? 4 : 0;
             for(int i = 0; i < count; i++)
             {
                 const float ang = frand() * 6.2831853f;
                 const float dist = kind == Blood ? 0.45f + frand() * 0.45f : frand() * 0.55f;
-                const glm::vec2 dir{std::cos(ang), std::sin(ang)};
+                const glm::vec2 dir{za::cos(ang), za::sin(ang)};
                 const float streak = kind == Blood && frand() < 0.4f ? 1.f + frand() * 3.f : 0.f;
-                blobs.push_back({dir * dist, (kind == Blood ? 0.03f : 0.08f) + frand() * (kind == Blood ? 0.06f : 0.12f),
+                blobs.pushBack({dir * dist, (kind == Blood ? 0.03f : 0.08f) + frand() * (kind == Blood ? 0.06f : 0.12f),
                     dir * streak});
             }
 
@@ -607,11 +619,11 @@ void encode(glm::vec3 f, unsigned char* out)
                         float alpha = 0.f;
                         glm::vec3 color{1.f};
                         cellTexel(static_cast<Kind>(kind), seed, blobs, p, alpha, color);
-                        f = glm::mix(glm::vec3{1.f}, color, std::clamp(alpha, 0.f, 1.f));
+                        f = glm::mix(glm::vec3{1.f}, color, za::clamp(alpha, 0.f, 1.f));
                     }
                     // Faded out to nothing at the cell's border: filtering (and the smaller
                     // mipmaps) must not reach the next cell.
-                    const int edge = std::min({x, y, cellSize - 1 - x, cellSize - 1 - y});
+                    const int edge = qza::minOf(x, y, cellSize - 1 - x, cellSize - 1 - y);
                     f = glm::mix(glm::vec3{1.f}, f, smoothstep(3.f, 14.f, static_cast<float>(edge)));
                     encode(f, &rgba[((oy + y) * atlasWidth + ox + x) * 4]);
                 }
@@ -623,16 +635,16 @@ void encode(glm::vec3 f, unsigned char* out)
 
 // The atlas's texels, made from start-up on the game's threads (decals::init): buildAtlas reads nothing but its arguments
 // and constants, and the random numbers are the thread's own.
-jobs::Future<std::vector<unsigned char>> atlasTexels;
+jobs::Future<za::Vector<unsigned char>> atlasTexels;
 
 void makeAtlas()
 {
     const double t0 = Sys_DoubleTime();
     const bool ahead = atlasTexels.valid();
-    const std::vector<unsigned char> rgba = ahead ? atlasTexels.get() : buildAtlas();
+    const za::Vector<unsigned char> rgba = ahead ? atlasTexels.get() : buildAtlas();
     if(developer.value)
     {
-        std::uint32_t hash = 2166136261u; // (FNV-1a: the same atlas whatever made it)
+        za::U32 hash = 2166136261u; // (FNV-1a: the same atlas whatever made it)
         for(const unsigned char t : rgba)
         {
             hash = (hash ^ t) * 16777619u;
@@ -683,22 +695,22 @@ void makeAtlas()
 }
 
 // Keeps the part of `poly` on the inner side of the plane (dot(p, normal) <= dist) into `out`.
-void clipPolygon(const std::vector<glm::vec3>& poly, const glm::vec3& normal, float dist, std::vector<glm::vec3>& out)
+void clipPolygon(const za::Vector<glm::vec3>& poly, const glm::vec3& normal, float dist, za::Vector<glm::vec3>& out)
 {
     out.clear();
-    const std::size_t n = poly.size();
-    for(std::size_t i = 0; i < n; i++)
+    const za::SizeT n = poly.size();
+    for(za::SizeT i = 0; i < n; i++)
     {
         const glm::vec3& a = poly[i];
         const glm::vec3& b = poly[(i + 1) % n];
         const float da = glm::dot(a, normal) - dist, db = glm::dot(b, normal) - dist;
         if(da <= 0.f)
         {
-            out.push_back(a);
+            out.pushBack(a);
         }
         if((da < 0.f && db > 0.f) || (da > 0.f && db < 0.f))
         {
-            out.push_back(a + (b - a) * (da / (da - db)));
+            out.pushBack(a + (b - a) * (da / (da - db)));
         }
     }
 }
@@ -707,7 +719,7 @@ void clipPolygon(const std::vector<glm::vec3>& poly, const glm::vec3& normal, fl
 // and v, `depth` deep either side of the surface) cut out of each face of the world in it that faces
 // about its way, as triangles (into `tris`, emptied first), lifted off the face a little. Faces are found down the BSP
 // tree (those on the nodes whose planes cross the box); sky, liquids and fences are left out.
-void clipToWorld(const Decal& d, const glm::vec3& n, float depth, std::vector<Corner>& tris)
+void clipToWorld(const Decal& d, const glm::vec3& n, float depth, za::Vector<Corner>& tris)
 {
     tris.clear();
     const qmodel_t* m = cl.worldmodel;
@@ -723,9 +735,9 @@ void clipToWorld(const Decal& d, const glm::vec3& n, float depth, std::vector<Co
         glm::dot(d.centre, -V) + hv};
     const glm::vec3 sideNormal[4] = {U, -U, V, -V};
 
-    std::vector<glm::vec3>& poly = scratch.poly;
-    std::vector<glm::vec3>& clipped = scratch.clipped;
-    constexpr std::size_t maxCorners = 32 * 3; // over very broken ground, the rest is left out
+    za::Vector<glm::vec3>& poly = scratch.poly;
+    za::Vector<glm::vec3>& clipped = scratch.clipped;
+    constexpr za::SizeT maxCorners = 32 * 3; // over very broken ground, the rest is left out
     const mnode_t* stack[256];
     int top = 0;
     stack[top++] = m->nodes + m->hulls[0].firstclipnode;
@@ -772,7 +784,7 @@ void clipToWorld(const Decal& d, const glm::vec3& n, float depth, std::vector<Co
             const float flip = (s->flags & SURF_PLANEBACK) ? -1.f : 1.f;
             const glm::vec3 sn = glm::vec3{s->plane->normal[0], s->plane->normal[1], s->plane->normal[2]} * flip;
             const float off = glm::dot(d.centre, sn) - s->plane->dist * flip; // the centre in front of it (> 0)
-            if(glm::dot(sn, n) < 0.5f || std::fabs(off) > depth)
+            if(glm::dot(sn, n) < 0.5f || za::fabs(off) > depth)
             {
                 continue;
             }
@@ -782,7 +794,7 @@ void clipToWorld(const Decal& d, const glm::vec3& n, float depth, std::vector<Co
                 const int se = m->surfedges[s->firstedge + e];
                 const unsigned int vi = se >= 0 ? m->edges[se].v[0] : m->edges[-se].v[1];
                 const float* p = m->vertexes[vi].position;
-                poly.push_back({p[0], p[1], p[2]});
+                poly.pushBack({p[0], p[1], p[2]});
             }
             for(int k = 0; k < 4 && poly.size() >= 3; k++)
             {
@@ -799,11 +811,11 @@ void clipToWorld(const Decal& d, const glm::vec3& n, float depth, std::vector<Co
                 const glm::vec3 r = p - d.centre;
                 return Corner{p + sn * 0.2f, {glm::dot(r, U) / hu * 0.5f + 0.5f, glm::dot(r, V) / hv * 0.5f + 0.5f}};
             };
-            for(std::size_t k = 1; k + 1 < poly.size() && tris.size() < maxCorners; k++)
+            for(za::SizeT k = 1; k + 1 < poly.size() && tris.size() < maxCorners; k++)
             {
-                tris.push_back(corner(poly[0]));
-                tris.push_back(corner(poly[k]));
-                tris.push_back(corner(poly[k + 1]));
+                tris.pushBack(corner(poly[0]));
+                tris.pushBack(corner(poly[k]));
+                tris.pushBack(corner(poly[k + 1]));
             }
         }
     }
@@ -825,7 +837,7 @@ void clipToWorld(const Decal& d, const glm::vec3& n, float depth, std::vector<Co
         const glm::vec3 d = l.pos - where;
         const float dist = glm::length(d);
         const float facing = dist > 1.f ? glm::dot(d, n) / dist : 0.f;
-        const float weight = (l.value - dist * std::max(l.scale, 0.01f)) * facing;
+        const float weight = (l.value - dist * za::max(l.scale, 0.01f)) * facing;
         if(facing <= 0.05f || weight <= best[3].weight)
         {
             continue;
@@ -878,7 +890,7 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
     }
 
     // Not the same mark twice in one place (Quake's effect and Quake VR's for one hit).
-    for(std::size_t k = 0; k < decals.size() && k < 16; k++)
+    for(za::SizeT k = 0; k < decals.size() && k < 16; k++)
     {
         const Decal& e = decals[decals.size() - 1 - k];
         if(cl.time - e.born < 0.1 && glm::distance(e.centre, where) < 2.f && o.delay <= 0.f)
@@ -888,10 +900,10 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
     }
 
     const glm::vec3 n = glm::normalize(normal);
-    const glm::vec3 t0 = glm::normalize(glm::cross(n, std::fabs(n.z) < 0.9f ? glm::vec3{0, 0, 1} : glm::vec3{1, 0, 0}));
+    const glm::vec3 t0 = glm::normalize(glm::cross(n, za::fabs(n.z) < 0.9f ? glm::vec3{0, 0, 1} : glm::vec3{1, 0, 0}));
     const glm::vec3 t1 = glm::cross(n, t0);
     const float ang = static_cast<float>(rand() % 6283) * 0.001f;
-    glm::vec3 u = (t0 * std::cos(ang) + t1 * std::sin(ang));
+    glm::vec3 u = (t0 * za::cos(ang) + t1 * za::sin(ang));
     // Turned along `along` on the surface, if given (a spray's way, a run's down).
     if(const glm::vec3 a = o.along - n * glm::dot(o.along, n); glm::length(a) > 0.1f * glm::length(o.along) && glm::length(a) > 1e-4f)
     {
@@ -912,24 +924,24 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
     // panels and recesses, the floor of an alcove, the steps of a stair. A run down a wall keeps
     // its top where it is.
     const bool big = kind >= Splatter;
-    const float halfV = size * 0.5f, halfU = halfV * std::max(0.25f, o.aspect);
+    const float halfV = size * 0.5f, halfU = halfV * za::max(0.25f, o.aspect);
     Decal d{o.fromStart ? where + u * halfU : where, u * halfU, v * halfV, firstCell[kind] + rand() % cellCount[kind],
         cl.time + o.delay};
     d.grow = o.grow;
-    d.growFrom = std::clamp(o.growFrom, 0.f, 1.f);
+    d.growFrom = za::clamp(o.growFrom, 0.f, 1.f);
     d.fromStart = o.fromStart;
-    d.darken = std::clamp(o.darken, 0.f, 0.9f);
-    std::vector<Corner>& tris = scratch.tris;
-    clipToWorld(d, n, big ? std::clamp(halfV * 0.35f, 4.f, 12.f) : 3.f, tris);
+    d.darken = za::clamp(o.darken, 0.f, 0.9f);
+    za::Vector<Corner>& tris = scratch.tris;
+    clipToWorld(d, n, big ? za::clamp(halfV * 0.35f, 4.f, 12.f) : 3.f, tris);
     if(tris.empty())
     {
         return false;
     }
     // Drops (a steady drip from wounds, gibs and ceilings) take at most a quarter of the marks: the
     // oldest drop goes, not a splat or a pool (the others keep their order).
-    if(kind == BloodDrop && dropCount >= std::max(16, max / 4))
+    if(kind == BloodDrop && dropCount >= za::max(16, max / 4))
     {
-        for(std::size_t k = 0; k < decals.size(); k++)
+        for(za::SizeT k = 0; k < decals.size(); k++)
         {
             if(isDrop(decals[k]))
             {
@@ -941,20 +953,20 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
     }
     // Room for it: the oldest go (as many as vr_decal_max, lowered, leaves no room for); the ring made that size if
     // it changed.
-    while(decals.size() >= static_cast<std::size_t>(max))
+    while(decals.size() >= static_cast<za::SizeT>(max))
     {
         popOldest();
     }
-    if(decals.capacity() != static_cast<std::size_t>(max))
+    if(decals.capacity() != static_cast<za::SizeT>(max))
     {
-        decals.setCapacity(static_cast<std::size_t>(max));
+        decals.setCapacity(static_cast<za::SizeT>(max));
     }
     // Into the ring's next slot, its triangles into the buffer the slot's last mark had.
     Decal& slot = decals.pushBack();
-    std::vector<Corner> buffer = std::move(slot.tris);
+    za::Vector<Corner> buffer = ZA_MOVE(slot.tris);
     slot = d;
-    slot.tris = std::move(buffer);
-    slot.tris.assign(tris.begin(), tris.end());
+    slot.tris = ZA_MOVE(buffer);
+    slot.tris.assignRange(tris.begin(), tris.end());
     dropCount += isDrop(slot);
     builtFrame = -1;
     return true;
@@ -986,11 +998,11 @@ struct Gib
     int pools = 0;            // pools left under it at rest (vr_gore)
 };
 
-std::unordered_map<int, Gib> gibs;
+ankerl::unordered_dense::map<int, Gib> gibs;
 int gibsPrunedFrame = 0;
 
 // Hipnotic's bullet holes turned into chips (VR_BulletHoleSprite), by entity number: where they were.
-std::unordered_map<int, glm::vec3> holes;
+ankerl::unordered_dense::map<int, glm::vec3> holes;
 int holesPrunedFrame = 0;
 
 constexpr int gibDrops = 64;           // drops a gib leaves in all
@@ -1005,7 +1017,7 @@ void along(const glm::vec3& from, const glm::vec3& to, float spacing, float& sin
 {
     const glm::vec3 d = to - from;
     const float len = glm::length(d);
-    float at = std::max(0.f, spacing - since); // how far along the next one is
+    float at = za::max(0.f, spacing - since); // how far along the next one is
     int n = 0;
     while(at <= len && n < max)
     {
@@ -1047,7 +1059,7 @@ void splat(const glm::vec3& from, const glm::vec3& to, const glm::vec3& oldVeloc
     // With the gore (vr_gore), a big splat, runs down a wall, drips from a ceiling.
     if(!gore::gibImpact(where, normal, strength, oldVelocity))
     {
-        add(Blood, where, normal, std::clamp(16.f + strength * 0.03f, 16.f, 40.f));
+        add(Blood, where, normal, za::clamp(16.f + strength * 0.03f, 16.f, 40.f));
     }
 
     // Quake VR's blood (Quake's own with vr_particles 0).
@@ -1115,14 +1127,14 @@ void fromEffect(const glm::vec3& org, const glm::vec3& dir, particles::Preset pr
     {
         case Preset::Blood: // a pool on the floor below, spatter on a wall near by
         {
-            const float size = std::clamp(8.f + count * 0.4f, 8.f, 28.f);
+            const float size = za::clamp(8.f + count * 0.4f, 8.f, 28.f);
             if(hitWorld(org, org - glm::vec3{0, 0, 160}, where, normal, f) && normal.z > 0.6f)
             {
                 add(Blood, where, normal, size * (0.8f + f * 0.6f)); // the farther it falls, the wider it spreads
             }
             // (With the gore, its sprays mark the walls: vr_gore.cpp.)
             const float a = random(0.f, 6.2831853f);
-            const glm::vec3 side = glm::dot(dir, dir) > 1e-4f ? glm::normalize(dir) : glm::vec3{std::cos(a), std::sin(a), random(-0.3f, 0.2f)};
+            const glm::vec3 side = glm::dot(dir, dir) > 1e-4f ? glm::normalize(dir) : glm::vec3{za::cos(a), za::sin(a), random(-0.3f, 0.2f)};
             if(gore::level() == 0 && hitWorld(org, org + glm::normalize(side) * 72.f, where, normal, f))
             {
                 add(Blood, where, normal, size * 0.7f);
@@ -1154,7 +1166,7 @@ void fromEffect(const glm::vec3& org, const glm::vec3& dir, particles::Preset pr
 }
 
 // A decal's triangles as they are now (spreading, darkening, fading) into `out`.
-void appendDecal(const Decal& d, double life, std::vector<gfx::Vertex>& out)
+void appendDecal(const Decal& d, double life, za::Vector<gfx::Vertex>& out)
 {
     const float age = static_cast<float>(cl.time - d.born);
     if(age < 0.f)
@@ -1162,16 +1174,16 @@ void appendDecal(const Decal& d, double life, std::vector<gfx::Vertex>& out)
         return; // not there yet (blood flying to it)
     }
     constexpr float insetU = 0.5f / atlasWidth, insetV = 0.5f / atlasHeight;
-    const float a = std::clamp(static_cast<float>((life - age) / 5.0), 0.f, 1.f);
+    const float a = za::clamp(static_cast<float>((life - age) / 5.0), 0.f, 1.f);
     // Spreading (a pool, a run down a wall; eased out: fast at first), and darkening as it does
     // (and dries).
     float s = 1.f;
     if(d.grow > 0.f)
     {
-        const float t = 1.f - std::min(1.f, age / d.grow);
+        const float t = 1.f - za::min(1.f, age / d.grow);
         s = d.growFrom + (1.f - d.growFrom) * (1.f - t * t);
     }
-    const float dark = 1.f - d.darken * std::min(1.f, age / std::max(d.grow, 8.f));
+    const float dark = 1.f - d.darken * za::min(1.f, age / za::max(d.grow, 8.f));
     const glm::vec4 c{a * dark, a * dark, a * dark, a};
     const float u0 = static_cast<float>(d.cell % cellsPerRow) / cellsPerRow + insetU;
     const float v0 = static_cast<float>(d.cell / cellsPerRow) / cellRows + insetV;
@@ -1190,7 +1202,7 @@ void appendDecal(const Decal& d, double life, std::vector<gfx::Vertex>& out)
             const float ru = glm::dot(r, U), rv = glm::dot(r, V);
             p = anchor + r - U * (ru * (1.f - su)) - V * (rv * (1.f - sv));
         }
-        out.push_back({p, {u0 + k.uv.x * cellSpan.x, v0 + k.uv.y * cellSpan.y}, c});
+        out.pushBack({p, {u0 + k.uv.x * cellSpan.x, v0 + k.uv.y * cellSpan.y}, c});
     }
 }
 
@@ -1226,7 +1238,7 @@ void draw()
         builtFrame = host_framecount;
 
         // Faded out over their last five seconds.
-        const double life = std::max(5.f, vr_decal_life.value);
+        const double life = za::max(5.f, vr_decal_life.value);
         bool popped = false;
         while(!decals.empty() && cl.time - decals.front().born > life)
         {
@@ -1243,18 +1255,18 @@ void draw()
             staticDirty = true;
         }
         vertices.clear();
-        for(std::size_t k = 0; k < decals.size(); k++)
+        for(za::SizeT k = 0; k < decals.size(); k++)
         {
             const Decal& d = decals[k];
             // When it last changes: shown, spread, darkened; then its fading.
-            const double settled = d.born + std::max({0.f, d.grow, d.darken > 0.f ? std::max(d.grow, 8.f) : 0.f});
+            const double settled = d.born + qza::maxOf(0.f, d.grow, d.darken > 0.f ? za::max(d.grow, 8.f) : 0.f);
             const double fades = d.born + life - 5.0;
             if(cl.time >= settled && cl.time < fades)
             {
                 if(restatic)
                 {
                     appendDecal(d, life, staticVertices);
-                    staticUntil = std::min(staticUntil, fades);
+                    staticUntil = za::min(staticUntil, fades);
                 }
             }
             else
@@ -1262,7 +1274,7 @@ void draw()
                 appendDecal(d, life, vertices);
                 if(cl.time < settled)
                 {
-                    staticUntil = std::min(staticUntil, settled);
+                    staticUntil = za::min(staticUntil, settled);
                 }
             }
         }
@@ -1284,7 +1296,7 @@ void draw()
 void count_f()
 {
     int kinds[KindCount]{};
-    for(std::size_t k = 0; k < decals.size(); k++)
+    for(za::SizeT k = 0; k < decals.size(); k++)
     {
         const Decal& d = decals[k];
         int kind = KindCount - 1;
@@ -1309,15 +1321,15 @@ void count_f()
 void atlas_f()
 {
     // As the marks look on a mid grey wall: grey * (colour + 1 - alpha), the texels premultiplied.
-    const std::vector<unsigned char> rgba = buildAtlas();
-    std::vector<unsigned char> out(static_cast<std::size_t>(atlasWidth) * atlasHeight * 3);
-    for(std::size_t i = 0; i < out.size() / 3; i++)
+    const za::Vector<unsigned char> rgba = buildAtlas();
+    za::Vector<unsigned char> out(static_cast<za::SizeT>(atlasWidth) * atlasHeight * 3);
+    for(za::SizeT i = 0; i < out.size() / 3; i++)
     {
         const float dim = rgba[i * 4 + 3] / 255.f;
         for(int c = 0; c < 3; c++)
         {
             const float f = rgba[i * 4 + c] / 255.f + 1.f - dim;
-            out[i * 3 + c] = static_cast<unsigned char>(std::clamp(f * 0.6f, 0.f, 1.f) * 255.f + 0.5f);
+            out[i * 3 + c] = static_cast<unsigned char>(za::clamp(f * 0.6f, 0.f, 1.f) * 255.f + 0.5f);
         }
     }
     const char* name = "decal_atlas.png";
@@ -1390,7 +1402,7 @@ extern "C" int VR_BulletHoleSprite(int ent)
     if(host_framecount - holesPrunedFrame > 100 || host_framecount < holesPrunedFrame)
     {
         holesPrunedFrame = host_framecount;
-        std::erase_if(holes, [](const auto& kv) {
+        za::vectorEraseIf(holes, [](const auto& kv) {
             const qmodel_t* m = kv.first < cl.num_entities ? cl_entities[kv.first].model : nullptr;
             return !m || strcmp(m->name, "progs/s_bullet.spr");
         });
@@ -1427,7 +1439,7 @@ extern "C" int VR_GibTrail(int ent, int zombie)
     if(host_framecount - gibsPrunedFrame > 100 || host_framecount < gibsPrunedFrame)
     {
         gibsPrunedFrame = host_framecount;
-        std::erase_if(gibs, [](const auto& kv) { return cl.time - kv.second.seen > 1.0 || cl.time < kv.second.seen; });
+        za::vectorEraseIf(gibs, [](const auto& kv) { return cl.time - kv.second.seen > 1.0 || cl.time < kv.second.seen; });
     }
 
     // A new one (or a new gib in the slot, or a teleport): from here.
@@ -1464,7 +1476,7 @@ extern "C" int VR_GibTrail(int ent, int zombie)
     }
 
     // The trail, where it went since the last frame (a zombie's gibs bleed less).
-    const float density = std::clamp(vr_gib_blood_trail.value, 0.f, 4.f) * (zombie ? 0.5f : 1.f);
+    const float density = za::clamp(vr_gib_blood_trail.value, 0.f, 4.f) * (zombie ? 0.5f : 1.f);
     const bool ours = particles::enabled();
     const float travelled = glm::distance(g.origin, o);
     if(density > 0.f && travelled > 0.01f)
@@ -1477,7 +1489,7 @@ extern "C" int VR_GibTrail(int ent, int zombie)
         }
         if(vr_decals.value && g.dropsLeft > 0)
         {
-            along(g.origin, o, gibDropSpacing / density, g.sinceDrop, std::min(4, g.dropsLeft),
+            along(g.origin, o, gibDropSpacing / density, g.sinceDrop, za::min(4, g.dropsLeft),
                 [&](const glm::vec3& p) {
                     drip(p);
                     g.dropsLeft--;
@@ -1498,7 +1510,7 @@ extern "C" int VR_GibTrail(int ent, int zombie)
             g.restChecked = true;
             glm::vec3 where, normal;
             float f;
-            const float below = (e.model ? std::clamp(-e.model->mins[2], 4.f, 16.f) : 8.f) + 10.f;
+            const float below = (e.model ? za::clamp(-e.model->mins[2], 4.f, 16.f) : 8.f) + 10.f;
             g.hanging = !hitWorld(o, o - glm::vec3{0.f, 0.f, below}, where, normal, f);
             if(!g.hanging && normal.z > 0.7f && g.pools < 2)
             {

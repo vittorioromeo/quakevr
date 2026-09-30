@@ -14,13 +14,27 @@
 #include "vr_profile.hpp"
 #include "vr_water.hpp"
 
-#include <algorithm>
-#include <bitset>
-#include <cstdint>
-#include <cstring>
-#include <limits>
+#include "Zancle/Algorithm/Erase.hpp"
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/Bitset.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Atan2.hpp"
+#include "Zancle/Math/Ceil.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Exp.hpp"
+#include "Zancle/Math/FloatMax.hpp"
+#include "Zancle/Math/Floor.hpp"
+#include "Zancle/Math/Log.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+#include "vr_zancle.hpp"
+
+#include <string.h>
 #include <random>
-#include <vector>
 
 namespace qvr::particles
 {
@@ -31,7 +45,7 @@ namespace
 constexpr int ramp1[8] = {111, 112, 107, 105, 103, 101, 99, 97}; // gold, brown, peach
 constexpr int ramp2[8] = {111, 110, 109, 108, 107, 106, 104, 102}; // gold, brown
 
-enum Type : std::uint8_t
+enum Type : za::U8
 {
     Static,
     Explode,
@@ -49,7 +63,7 @@ enum Type : std::uint8_t
 };
 
 // Atlas cells.
-enum Cell : std::uint8_t
+enum Cell : za::U8
 {
     CellCircle,
     CellExplosion,
@@ -95,14 +109,14 @@ struct Particle
     // The cosine and sine of `angle` as of `csAngle` (buildInstances, buildLying): worked out again only when it has
     // turned since (most particles never turn).
     glm::vec2 cs{1.f, 0.f};
-    float csAngle{std::numeric_limits<float>::quiet_NaN()};
+    float csAngle{qza::nanF};
 };
 
-constexpr std::size_t maxParticles = 32768;
-std::vector<Particle> pool; // reserved to maxParticles at startup (init): it never reallocates in play
+constexpr za::SizeT maxParticles = 32768;
+za::Vector<Particle> pool; // reserved to maxParticles at startup (init): it never reallocates in play
 double lastRun = -1.0;
 
-std::mt19937 rng{std::random_device{}()};
+std::mt19937 rng{std::random_device{}()}; // ZANCLE-TODO: no random engines or distributions
 
 [[nodiscard]] float rnd(float lo, float hi)
 {
@@ -134,13 +148,13 @@ std::mt19937 rng{std::random_device{}()};
 template <typename F>
 void make(float count, F&& f)
 {
-    const int n = static_cast<int>(count * std::max(0.f, vr_particle_mult.value));
+    const int n = static_cast<int>(count * za::max(0.f, vr_particle_mult.value));
     for(int i = 0; i < n && pool.size() < maxParticles; i++)
     {
         Particle p;
         p.angle = rndAngle();
         f(p, i);
-        pool.push_back(p);
+        pool.pushBack(p);
     }
 }
 
@@ -153,7 +167,7 @@ void setColor(Particle& p, int index, float alpha255)
 // at random: a short segment each frame still gets its share).
 [[nodiscard]] float perLength(float length, float spacing)
 {
-    return std::floor(length / spacing + rnd(0.f, 1.f));
+    return za::floor(length / spacing + rnd(0.f, 1.f));
 }
 
 [[nodiscard]] glm::vec3 inBox(float half)
@@ -166,8 +180,8 @@ void setColor(Particle& p, int index, float alpha255)
 {
     const float z = rnd(-1.f, 1.f);
     const float a = rndAngle();
-    const float r = std::sqrt(std::max(0.f, 1.f - z * z));
-    return {r * std::cos(a), r * std::sin(a), z};
+    const float r = za::sqrt(za::max(0.f, 1.f - z * z));
+    return {r * za::cos(a), r * za::sin(a), z};
 }
 
 // ---- Presets --------------------------------------------------------------------------------
@@ -419,13 +433,13 @@ void sparkles(const glm::vec3& org, int count, int lo, int hi, float alphaLo, fl
 // The particles made since `first` in the force grab's hue (vr_forcegrab_hue; by default the
 // player's, vr_hue.hpp) and saturation (vr_forcegrab_saturation), each as bright as its palette
 // colour was.
-void inForceGrabHue(std::size_t first)
+void inForceGrabHue(za::SizeT first)
 {
     const glm::vec3 c = hue::color(vr_forcegrab_hue, vr_forcegrab_saturation, 0.75f, 1.f);
-    for(std::size_t i = first; i < pool.size(); i++)
+    for(za::SizeT i = first; i < pool.size(); i++)
     {
         Particle& p = pool[i];
-        p.color = glm::vec4{c * std::max({p.color.r, p.color.g, p.color.b}), p.color.a};
+        p.color = glm::vec4{c * qza::maxOf(p.color.r, p.color.g, p.color.b), p.color.a};
     }
 }
 
@@ -438,7 +452,7 @@ struct Plink
     glm::vec4 color;
     int liquid;
 };
-std::vector<Plink> plinks;
+za::Vector<Plink> plinks;
 
 void run()
 {
@@ -522,7 +536,7 @@ void run()
             case Custom:
                 p.color.a += p.fade * dt;
                 p.scale += p.grow * dt;
-                p.vel *= std::max(0.f, 1.f - p.drag * dt);
+                p.vel *= za::max(0.f, 1.f - p.drag * dt);
                 p.angle += p.spin * dt;
                 break;
             default: break;
@@ -535,11 +549,11 @@ void run()
         // A drop going back into its liquid: a little ring where it went in (added after the loop).
         if(p.plink && p.org.z < p.floor + p.rise && p.vel.z < 0.f && p.die >= cl.time && plinks.size() < 48)
         {
-            plinks.push_back({p.org.x, p.org.y, p.floor + 0.5f, p.scale, p.color, p.liquid});
+            plinks.pushBack({p.org.x, p.org.y, p.floor + 0.5f, p.scale, p.color, p.liquid});
         }
     }
 
-    std::erase_if(pool, [](const Particle& p) {
+    za::vectorEraseIf(pool, [](const Particle& p) {
         return p.die < cl.time || p.color.a <= 0.f || p.scale <= 0.f || (p.org.z < p.floor + p.rise && p.vel.z < 0.f);
     });
 
@@ -562,7 +576,7 @@ void run()
         p.org = {k.x, k.y, k.surface + 0.35f};
         p.floor = k.surface;
         p.liquid = k.liquid;
-        pool.push_back(p);
+        pool.pushBack(p);
     }
     plinks.clear();
 }
@@ -580,10 +594,10 @@ static_assert(CellCount <= atlasColumns * atlasRows, "the atlas has no room for 
 
 // A soft disc as the old engine's generated circle (sharpness 8): a quarter of the quad across,
 // which is how big the old off-centre disc was.
-[[nodiscard]] std::vector<std::uint8_t> buildDisc(int size)
+[[nodiscard]] za::Vector<za::U8> buildDisc(int size)
 {
     constexpr float sharpness = 8.f;
-    std::vector<std::uint8_t> dst(static_cast<std::size_t>(size * size * 4), 255);
+    za::Vector<za::U8> dst(static_cast<za::SizeT>(size * size * 4), 255);
     const float c = (size - 1) * 0.5f;
     const float k = 16.f / (size * 0.25f); // the old 16-texel radius, over a quarter of the size
     for(int y = 0; y < size; y++)
@@ -592,18 +606,18 @@ static_assert(CellCount <= atlasColumns * atlasRows, "the atlas has no room for 
         {
             const float dx = (x - c) * k;
             const float dy = (y - c) * k;
-            const float r = std::min(255.f, dx * dx + dy * dy);
-            dst[static_cast<std::size_t>((y * size + x) * 4 + 3)] =
-                static_cast<std::uint8_t>(std::min(255.f, sharpness * (255.f - r)));
+            const float r = za::min(255.f, dx * dx + dy * dy);
+            dst[static_cast<za::SizeT>((y * size + x) * 4 + 3)] =
+                static_cast<za::U8>(za::min(255.f, sharpness * (255.f - r)));
         }
     }
     return dst;
 }
 
 // A soft glow: white, its alpha falling off as a Gaussian to nothing at the edge.
-[[nodiscard]] std::vector<std::uint8_t> buildGlow(int size)
+[[nodiscard]] za::Vector<za::U8> buildGlow(int size)
 {
-    std::vector<std::uint8_t> dst(static_cast<std::size_t>(size * size * 4), 255);
+    za::Vector<za::U8> dst(static_cast<za::SizeT>(size * size * 4), 255);
     const float c = (size - 1) * 0.5f;
     for(int y = 0; y < size; y++)
     {
@@ -611,8 +625,8 @@ static_assert(CellCount <= atlasColumns * atlasRows, "the atlas has no room for 
         {
             const float dx = (x - c) / c, dy = (y - c) / c;
             const float r2 = dx * dx + dy * dy;
-            const float a = std::max(0.f, std::exp(-r2 * 4.5f) - std::exp(-4.5f)) / (1.f - std::exp(-4.5f));
-            dst[static_cast<std::size_t>((y * size + x) * 4 + 3)] = static_cast<std::uint8_t>(a * 255.f + 0.5f);
+            const float a = za::max(0.f, za::exp(-r2 * 4.5f) - za::exp(-4.5f)) / (1.f - za::exp(-4.5f));
+            dst[static_cast<za::SizeT>((y * size + x) * 4 + 3)] = static_cast<za::U8>(a * 255.f + 0.5f);
         }
     }
     return dst;
@@ -621,22 +635,22 @@ static_assert(CellCount <= atlasColumns * atlasRows, "the atlas has no room for 
 // A ripple: a soft white ring (a Gaussian band at 70% of the radius), fainter inside than out, as
 // a wave's front is the steep side; broken a little along its length (foam on the crest), and a faint second crest
 // inside it.
-[[nodiscard]] std::vector<std::uint8_t> buildRing(int size)
+[[nodiscard]] za::Vector<za::U8> buildRing(int size)
 {
-    std::vector<std::uint8_t> dst(static_cast<std::size_t>(size * size * 4), 255);
+    za::Vector<za::U8> dst(static_cast<za::SizeT>(size * size * 4), 255);
     const float c = (size - 1) * 0.5f;
     for(int y = 0; y < size; y++)
     {
         for(int x = 0; x < size; x++)
         {
             const float dx = (x - c) / c, dy = (y - c) / c;
-            const float r = std::sqrt(dx * dx + dy * dy);
-            const float t = std::atan2(dy, dx);
+            const float r = za::sqrt(dx * dx + dy * dy);
+            const float t = za::atan2(dy, dx);
             const float band = (r - 0.7f) / (r < 0.7f ? 0.1f : 0.05f);
             const float inner = (r - 0.5f) / 0.05f;
-            const float broken = 0.72f + 0.16f * std::sin(7.f * t + 1.3f) + 0.12f * std::sin(17.f * t + 0.4f);
-            const float a = r >= 0.98f ? 0.f : std::min(1.f, std::exp(-band * band) * broken + 0.18f * std::exp(-inner * inner));
-            dst[static_cast<std::size_t>((y * size + x) * 4 + 3)] = static_cast<std::uint8_t>(a * 255.f + 0.5f);
+            const float broken = 0.72f + 0.16f * za::sin(7.f * t + 1.3f) + 0.12f * za::sin(17.f * t + 0.4f);
+            const float a = r >= 0.98f ? 0.f : za::min(1.f, za::exp(-band * band) * broken + 0.18f * za::exp(-inner * inner));
+            dst[static_cast<za::SizeT>((y * size + x) * 4 + 3)] = static_cast<za::U8>(a * 255.f + 0.5f);
         }
     }
     return dst;
@@ -644,25 +658,25 @@ static_assert(CellCount <= atlasColumns * atlasRows, "the atlas has no room for 
 
 // A drop of liquid, filling the cell (it is drawn stretched along its motion: a streak): see-through in the middle,
 // its rim brighter and more opaque (the light bent round its edge), a glint up on one side, a faint halo round it.
-[[nodiscard]] std::vector<std::uint8_t> buildDrop(int size)
+[[nodiscard]] za::Vector<za::U8> buildDrop(int size)
 {
-    std::vector<std::uint8_t> dst(static_cast<std::size_t>(size * size * 4), 0);
+    za::Vector<za::U8> dst(static_cast<za::SizeT>(size * size * 4), 0);
     const float c = (size - 1) * 0.5f;
     for(int y = 0; y < size; y++)
     {
         for(int x = 0; x < size; x++)
         {
             const float dx = (x - c) / c, dy = (y - c) / c;
-            const float rn = std::sqrt(dx * dx + dy * dy) / 0.78f; // 1: the drop's edge
-            const float body = std::clamp((1.f - rn) / 0.2f, 0.f, 1.f);
+            const float rn = za::sqrt(dx * dx + dy * dy) / 0.78f; // 1: the drop's edge
+            const float body = za::clamp((1.f - rn) / 0.2f, 0.f, 1.f);
             const float gx = dx + 0.3f, gy = dy + 0.3f;
-            const float glint = std::exp(-(gx * gx + gy * gy) / (0.2f * 0.2f));
-            const float halo = rn > 1.f ? 0.22f * std::exp(-((rn - 1.f) / 0.12f) * ((rn - 1.f) / 0.12f)) : 0.f;
-            const float a = std::min(1.f, std::max(body * (0.72f + 0.28f * rn * rn * rn), glint) + halo);
-            const float v = std::min(1.f, 0.7f + 0.25f * rn * rn + 0.6f * glint);
-            std::uint8_t* px = &dst[static_cast<std::size_t>((y * size + x) * 4)];
-            px[0] = px[1] = px[2] = static_cast<std::uint8_t>(v * 255.f + 0.5f);
-            px[3] = static_cast<std::uint8_t>(a * 255.f + 0.5f);
+            const float glint = za::exp(-(gx * gx + gy * gy) / (0.2f * 0.2f));
+            const float halo = rn > 1.f ? 0.22f * za::exp(-((rn - 1.f) / 0.12f) * ((rn - 1.f) / 0.12f)) : 0.f;
+            const float a = za::min(1.f, za::max(body * (0.72f + 0.28f * rn * rn * rn), glint) + halo);
+            const float v = za::min(1.f, 0.7f + 0.25f * rn * rn + 0.6f * glint);
+            za::U8* px = &dst[static_cast<za::SizeT>((y * size + x) * 4)];
+            px[0] = px[1] = px[2] = static_cast<za::U8>(v * 255.f + 0.5f);
+            px[3] = static_cast<za::U8>(a * 255.f + 0.5f);
         }
     }
     return dst;
@@ -671,7 +685,7 @@ static_assert(CellCount <= atlasColumns * atlasRows, "the atlas has no room for 
 // A fixed pseudo-random sequence for the generated cells (the same atlas every run).
 struct CellRandom
 {
-    std::uint32_t state;
+    za::U32 state;
     float next()
     {
         state = state * 1664525u + 1013904223u;
@@ -680,78 +694,78 @@ struct CellRandom
 };
 
 // Spray: a cloud of fine droplets, thicker in the middle, in a faint haze.
-[[nodiscard]] std::vector<std::uint8_t> buildSpray(int size)
+[[nodiscard]] za::Vector<za::U8> buildSpray(int size)
 {
-    std::vector<float> alpha(static_cast<std::size_t>(size * size), 0.f);
+    za::Vector<float> alpha(static_cast<za::SizeT>(size * size), 0.f);
     const float c = (size - 1) * 0.5f;
     CellRandom rand{0x5eed1u};
     for(int i = 0; i < 220; i++)
     {
         // Gaussian (Box-Muller), kept inside the cell.
-        const float u = std::max(rand.next(), 1e-4f), t = rand.next() * 6.2831853f;
-        const float r = std::min(std::sqrt(-2.f * std::log(u)) * 0.33f, 0.88f);
-        const float px = c + std::cos(t) * r * c, py = c + std::sin(t) * r * c;
+        const float u = za::max(rand.next(), 1e-4f), t = rand.next() * 6.2831853f;
+        const float r = za::min(za::sqrt(-2.f * za::log(u)) * 0.33f, 0.88f);
+        const float px = c + za::cos(t) * r * c, py = c + za::sin(t) * r * c;
         const float radius = (0.7f + 1.6f * rand.next() * rand.next()) * size / 128.f;
         const float strength = 0.55f + 0.45f * rand.next();
-        for(int y = std::max(0, static_cast<int>(py - radius - 2.f)); y <= std::min(size - 1, static_cast<int>(py + radius + 2.f)); y++)
+        for(int y = za::max(0, static_cast<int>(py - radius - 2.f)); y <= za::min(size - 1, static_cast<int>(py + radius + 2.f)); y++)
         {
-            for(int x = std::max(0, static_cast<int>(px - radius - 2.f)); x <= std::min(size - 1, static_cast<int>(px + radius + 2.f)); x++)
+            for(int x = za::max(0, static_cast<int>(px - radius - 2.f)); x <= za::min(size - 1, static_cast<int>(px + radius + 2.f)); x++)
             {
-                const float d = std::sqrt((x - px) * (x - px) + (y - py) * (y - py));
-                const float a = strength * std::clamp(radius + 0.7f - d, 0.f, 1.f);
-                float& dstA = alpha[static_cast<std::size_t>(y * size + x)];
-                dstA = std::max(dstA, a);
+                const float d = za::sqrt((x - px) * (x - px) + (y - py) * (y - py));
+                const float a = strength * za::clamp(radius + 0.7f - d, 0.f, 1.f);
+                float& dstA = alpha[static_cast<za::SizeT>(y * size + x)];
+                dstA = za::max(dstA, a);
             }
         }
     }
-    std::vector<std::uint8_t> dst(static_cast<std::size_t>(size * size * 4), 255);
+    za::Vector<za::U8> dst(static_cast<za::SizeT>(size * size * 4), 255);
     for(int y = 0; y < size; y++)
     {
         for(int x = 0; x < size; x++)
         {
             const float dx = (x - c) / c, dy = (y - c) / c;
             const float r2 = dx * dx + dy * dy;
-            const float haze = 0.3f * std::max(0.f, std::exp(-r2 * 3.5f) - std::exp(-3.5f));
-            const float a = std::min(1.f, alpha[static_cast<std::size_t>(y * size + x)] + haze) * (r2 >= 1.f ? 0.f : 1.f);
-            dst[static_cast<std::size_t>((y * size + x) * 4 + 3)] = static_cast<std::uint8_t>(a * 255.f + 0.5f);
+            const float haze = 0.3f * za::max(0.f, za::exp(-r2 * 3.5f) - za::exp(-3.5f));
+            const float a = za::min(1.f, alpha[static_cast<za::SizeT>(y * size + x)] + haze) * (r2 >= 1.f ? 0.f : 1.f);
+            dst[static_cast<za::SizeT>((y * size + x) * 4 + 3)] = static_cast<za::U8>(a * 255.f + 0.5f);
         }
     }
     return dst;
 }
 
 // Foam: a patch of bubbles (their rims bright, a thin film between them), its edge ragged and soft.
-[[nodiscard]] std::vector<std::uint8_t> buildFoam(int size)
+[[nodiscard]] za::Vector<za::U8> buildFoam(int size)
 {
     struct Bubble
     {
         float x, y, r;
     };
-    std::vector<Bubble> bubbles;
+    za::Vector<Bubble> bubbles;
     const float c = (size - 1) * 0.5f;
     CellRandom rand{0xf0a3u};
     for(int i = 0; i < 90; i++)
     {
-        const float r = std::sqrt(rand.next()) * 0.85f, t = rand.next() * 6.2831853f;
-        bubbles.push_back({c + std::cos(t) * r * c, c + std::sin(t) * r * c, (2.f + 6.f * rand.next() * rand.next()) * size / 128.f});
+        const float r = za::sqrt(rand.next()) * 0.85f, t = rand.next() * 6.2831853f;
+        bubbles.pushBack({c + za::cos(t) * r * c, c + za::sin(t) * r * c, (2.f + 6.f * rand.next() * rand.next()) * size / 128.f});
     }
-    std::vector<std::uint8_t> dst(static_cast<std::size_t>(size * size * 4), 255);
+    za::Vector<za::U8> dst(static_cast<za::SizeT>(size * size * 4), 255);
     for(int y = 0; y < size; y++)
     {
         for(int x = 0; x < size; x++)
         {
             const float dx = (x - c) / c, dy = (y - c) / c;
-            const float r = std::sqrt(dx * dx + dy * dy);
-            const float t = std::atan2(dy, dx);
-            const float edge = r + 0.05f * std::sin(3.f * t + 0.7f) + 0.04f * std::sin(7.f * t + 2.1f) + 0.03f * std::sin(13.f * t + 4.f);
-            const float patch = std::clamp((0.92f - edge) / 0.45f, 0.f, 1.f);
+            const float r = za::sqrt(dx * dx + dy * dy);
+            const float t = za::atan2(dy, dx);
+            const float edge = r + 0.05f * za::sin(3.f * t + 0.7f) + 0.04f * za::sin(7.f * t + 2.1f) + 0.03f * za::sin(13.f * t + 4.f);
+            const float patch = za::clamp((0.92f - edge) / 0.45f, 0.f, 1.f);
             float b = 0.14f; // the film
             for(const Bubble& bu : bubbles)
             {
-                const float d = std::sqrt((x - bu.x) * (x - bu.x) + (y - bu.y) * (y - bu.y));
+                const float d = za::sqrt((x - bu.x) * (x - bu.x) + (y - bu.y) * (y - bu.y));
                 const float rim = (d - bu.r) / (0.9f * size / 128.f);
-                b = std::max(b, d < bu.r ? 0.12f + 0.7f * std::exp(-rim * rim) : std::exp(-rim * rim));
+                b = za::max(b, d < bu.r ? 0.12f + 0.7f * za::exp(-rim * rim) : za::exp(-rim * rim));
             }
-            dst[static_cast<std::size_t>((y * size + x) * 4 + 3)] = static_cast<std::uint8_t>(std::min(1.f, b * patch) * 255.f + 0.5f);
+            dst[static_cast<za::SizeT>((y * size + x) * 4 + 3)] = static_cast<za::U8>(za::min(1.f, b * patch) * 255.f + 0.5f);
         }
     }
     return dst;
@@ -766,15 +780,15 @@ bool ensureAtlas()
 
     const int width = cellSize * atlasColumns;
     const int height = cellSize * atlasRows;
-    std::vector<std::uint8_t> pixels(static_cast<std::size_t>(width * height * 4), 0);
+    za::Vector<za::U8> pixels(static_cast<za::SizeT>(width * height * 4), 0);
 
-    const auto put = [&](Cell cell, const std::uint8_t* rgba, int w, int h) {
+    const auto put = [&](Cell cell, const za::U8* rgba, int w, int h) {
         const int cx = (cell % atlasColumns) * cellSize + 2;
         const int cy = (cell / atlasColumns) * cellSize + 2;
         for(int y = 0; y < h; y++)
         {
-            std::memcpy(&pixels[static_cast<std::size_t>(((cy + y) * width + cx) * 4)], rgba + static_cast<std::size_t>(y * w * 4),
-                static_cast<std::size_t>(w * 4));
+            ZA_MEMCPY(&pixels[static_cast<za::SizeT>(((cy + y) * width + cx) * 4)], rgba + static_cast<za::SizeT>(y * w * 4),
+                static_cast<za::SizeT>(w * 4));
         }
         // Half a texel in, so that filtering stays inside the image.
         cellUv[cell] = {(cx + 0.5f) / width, (cy + 0.5f) / height, (cx + w - 0.5f) / width, (cy + h - 0.5f) / height};
@@ -814,11 +828,11 @@ bool ensureAtlas()
     }
 
     // Premultiplied (drawn with the premultiplied blend: glows, alpha 0, add) and mipmapped.
-    for(std::size_t i = 0; i < pixels.size(); i += 4)
+    for(za::SizeT i = 0; i < pixels.size(); i += 4)
     {
-        for(std::size_t c = 0; c < 3; c++)
+        for(za::SizeT c = 0; c < 3; c++)
         {
-            pixels[i + c] = static_cast<std::uint8_t>((pixels[i + c] * pixels[i + 3] + 127) / 255);
+            pixels[i + c] = static_cast<za::U8>((pixels[i + c] * pixels[i + 3] + 127) / 255);
         }
     }
     atlas = gfx::createTexture(width, height, pixels.data(), true);
@@ -833,7 +847,7 @@ void explosion2(const glm::vec3& org, int colorStart, int colorLength)
     int colorMod = 0;
     make(256, [&](Particle& p, int) {
         p.cell = CellCircle;
-        setColor(p, colorStart + (colorMod++ % std::max(colorLength, 1)), 255);
+        setColor(p, colorStart + (colorMod++ % za::max(colorLength, 1)), 255);
         p.die = cl.time + 1.5;
         p.scale = rnd(1.6f, 3.5f);
         p.acc = gravity(0.5f);
@@ -1209,7 +1223,7 @@ void teleportSplash(const glm::vec3& org)
         p.type = Custom;
         p.fade = -0.5f;
         p.grow = -0.6f;
-        p.org = org + glm::vec3{std::cos(a) * r, std::sin(a) * r, rnd(-24.f, 24.f)};
+        p.org = org + glm::vec3{za::cos(a) * r, za::sin(a) * r, rnd(-24.f, 24.f)};
         p.vel = {0.f, 0.f, rnd(30.f, 80.f)};
     });
 }
@@ -1290,7 +1304,7 @@ void teleportSplash(const glm::vec3& org)
     }
     vec3_t v{org.x, org.y, org.z + 1.f};
     const float light = static_cast<float>(R_LightPoint(v, 0.f, &cache)); // 128: Quake's full light
-    return std::clamp(std::max(light, 20.f) / 120.f, 0.18f, 1.3f);
+    return za::clamp(za::max(light, 20.f) / 120.f, 0.18f, 1.3f);
 }
 
 // Something hitting a liquid's surface at `org` going `dir`, `count` hard (see Preset::Splash). Drops thrown up in a
@@ -1299,7 +1313,7 @@ void teleportSplash(const glm::vec3& org)
 // many (0 off), vr_water_splash_size: how big, vr_water_splash_ring_speed and _ring_size: the rings.
 void splash(const glm::vec3& org, const glm::vec3& dir, int count)
 {
-    const float amount = std::clamp(vr_water_splash.value, 0.f, 3.f);
+    const float amount = za::clamp(vr_water_splash.value, 0.f, 3.f);
     if(amount <= 0.f)
     {
         return;
@@ -1307,9 +1321,9 @@ void splash(const glm::vec3& org, const glm::vec3& dir, int count)
     const int liquid = liquidUnder(org);
     const bool lava = liquid == CONTENTS_LAVA;
     const bool slime = liquid == CONTENTS_SLIME;
-    const float s = std::clamp(count / 10.f, 0.1f, 8.f); // 1: a hand slapping the water hard
-    const float size = std::min(std::sqrt(s), 2.2f);       // heights and spreads grow slower
-    const float big = std::clamp(vr_water_splash_size.value, 0.25f, 4.f);
+    const float s = za::clamp(count / 10.f, 0.1f, 8.f); // 1: a hand slapping the water hard
+    const float size = za::min(za::sqrt(s), 2.2f);       // heights and spreads grow slower
+    const float big = za::clamp(vr_water_splash_size.value, 0.25f, 4.f);
     const float shade = lava ? 1.f : shadeAt(org);
     const glm::vec3 tint = lava ? glm::vec3{1.f, 0.42f, 0.1f} : slime ? glm::vec3{0.42f, 0.78f, 0.2f} : glm::vec3{0.8f, 0.9f, 1.f};
     const glm::vec3 drops = tint * shade;
@@ -1321,7 +1335,7 @@ void splash(const glm::vec3& org, const glm::vec3& dir, int count)
     // The crown leans with a thing going in at an angle (a shot), away from where it came from.
     glm::vec3 lean{dir.x, dir.y, 0.f};
     const float leanLength = glm::length(lean);
-    lean = leanLength > 1e-3f ? lean / leanLength * std::min(leanLength, 1.f) : glm::vec3{0.f};
+    lean = leanLength > 1e-3f ? lean / leanLength * za::min(leanLength, 1.f) : glm::vec3{0.f};
 
     // A drop: streaked along its motion, falling back in (gone at the surface).
     const auto drop = [&](Particle& p, float alpha) {
@@ -1343,7 +1357,7 @@ void splash(const glm::vec3& org, const glm::vec3& dir, int count)
     // The crown: drops thrown up and out (a third leave a little ring where they fall back).
     make((10.f + 22.f * s) * amount, [&](Particle& p, int i) {
         const float a = rndAngle();
-        const glm::vec3 out{std::cos(a), std::sin(a), 0.f};
+        const glm::vec3 out{za::cos(a), za::sin(a), 0.f};
         drop(p, rnd(0.6f, 0.9f));
         p.die = cl.time + 2.5;
         p.scale = rnd(0.7f, 1.4f) * (0.85f + 0.2f * size) * big; // 2-5 cm across
@@ -1351,13 +1365,13 @@ void splash(const glm::vec3& org, const glm::vec3& dir, int count)
         p.plink = !lava && i % 4 == 0;
         p.org = org + out * rnd(0.5f, 3.f) * size + glm::vec3{0.f, 0.f, 0.5f};
         p.vel = out * rnd(15.f, 55.f) * size + lean * rnd(10.f, 45.f) * size +
-                glm::vec3{0.f, 0.f, rnd(70.f, 180.f) * std::max(size, 0.75f)};
+                glm::vec3{0.f, 0.f, rnd(70.f, 180.f) * za::max(size, 0.75f)};
     });
 
     // Fine spray: many small drops flung wider and lower, gone sooner.
     make((8.f + 30.f * s) * amount, [&](Particle& p, int) {
         const float a = rndAngle();
-        const glm::vec3 out{std::cos(a), std::sin(a), 0.f};
+        const glm::vec3 out{za::cos(a), za::sin(a), 0.f};
         drop(p, rnd(0.45f, 0.75f));
         p.die = cl.time + rnd(0.8f, 1.4f);
         p.scale = rnd(0.35f, 0.7f) * (0.9f + 0.2f * size) * big;
@@ -1375,7 +1389,7 @@ void splash(const glm::vec3& org, const glm::vec3& dir, int count)
         p.streak *= 1.3f;
         p.plink = !lava && i % 2 == 0;
         p.org = org + inBox(0.5f + 0.5f * size) + glm::vec3{0.f, 0.f, 1.f};
-        p.vel = inBox(5.f + 6.f * size) + lean * rnd(0.f, 30.f) + glm::vec3{0.f, 0.f, rnd(130.f, 260.f) * std::clamp(size, 0.7f, 1.5f)};
+        p.vel = inBox(5.f + 6.f * size) + lean * rnd(0.f, 30.f) + glm::vec3{0.f, 0.f, rnd(130.f, 260.f) * za::clamp(size, 0.7f, 1.5f)};
     });
     make((0.6f + 0.4f * s) * amount, [&](Particle& p, int) {
         p.cell = lava ? CellExplosion : CellSpray;
@@ -1390,13 +1404,13 @@ void splash(const glm::vec3& org, const glm::vec3& dir, int count)
         p.spin = rnd(-0.8f, 0.8f);
         p.acc = gravity(0.35f);
         p.org = org + glm::vec3{0.f, 0.f, 2.f * size};
-        p.vel = inBox(6.f) + lean * rnd(0.f, 20.f) + glm::vec3{0.f, 0.f, rnd(60.f, 110.f) * std::clamp(size, 0.7f, 1.5f)};
+        p.vel = inBox(6.f) + lean * rnd(0.f, 20.f) + glm::vec3{0.f, 0.f, rnd(60.f, 110.f) * za::clamp(size, 0.7f, 1.5f)};
     });
 
     // Spray: clouds of fine droplets thrown up and out round the crown, spreading and falling.
     make((2.f + 3.f * s) * amount, [&](Particle& p, int) {
         const float a = rndAngle();
-        const glm::vec3 out{std::cos(a), std::sin(a), 0.f};
+        const glm::vec3 out{za::cos(a), za::sin(a), 0.f};
         p.cell = lava ? CellExplosion : CellSpray;
         p.additive = lava;
         p.color = glm::vec4{foam * rnd(0.9f, 1.1f), lava ? 0.4f : rnd(0.4f, 0.6f)};
@@ -1434,7 +1448,7 @@ void splash(const glm::vec3& org, const glm::vec3& dir, int count)
     // Foam: patches of bubbles lying on the surface, spreading and thinning out (lava: a dark crust).
     make((1.f + 0.8f * s) * amount, [&](Particle& p, int) {
         const float a = rndAngle();
-        const glm::vec3 out{std::cos(a), std::sin(a), 0.f};
+        const glm::vec3 out{za::cos(a), za::sin(a), 0.f};
         const float life = rnd(2.f, 3.f);
         p.cell = CellFoam;
         lying(p);
@@ -1452,8 +1466,8 @@ void splash(const glm::vec3& org, const glm::vec3& dir, int count)
 
     // Rings: riding the ripples' crest out (vr_water_ripple_speed times vr_water_splash_ring_speed), one more for a
     // harder hit, each after it slower and fainter. The crest is at 0.525 of a ring's scale (buildRing).
-    const float ringSpeed = water::rippleSpeed(liquid) * std::clamp(vr_water_splash_ring_speed.value, 0.f, 4.f);
-    const float ringSize = std::clamp(vr_water_splash_ring_size.value, 0.f, 4.f);
+    const float ringSpeed = water::rippleSpeed(liquid) * za::clamp(vr_water_splash_ring_speed.value, 0.f, 4.f);
+    const float ringSize = za::clamp(vr_water_splash_ring_size.value, 0.f, 4.f);
     const int rings = ringSize <= 0.f ? 0 : s < 0.25f ? 1 : s < 2.f ? 2 : 3;
     for(int i = 0; i < rings; i++)
     {
@@ -1506,7 +1520,7 @@ void splash(const glm::vec3& org, const glm::vec3& dir, int count)
 // off (its splash's strength, 0: none), and where.
 [[nodiscard]] int underwaterExplosion(const glm::vec3& org, glm::vec3& surface)
 {
-    return surfaceAbove(org, 96.f, surface) ? std::max(0, static_cast<int>(45.f - 0.3f * (surface.z - org.z))) : 0;
+    return surfaceAbove(org, 96.f, surface) ? za::max(0, static_cast<int>(45.f - 0.3f * (surface.z - org.z))) : 0;
 }
 
 } // namespace
@@ -1551,7 +1565,7 @@ bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count)
         case Preset::GunPickup: sparkles(org, count, 12, 16, 70, 120, 1.6, 0.22f, -0.03f, 6.f, 2.f, 1.f, 6.f); break;
         case Preset::GunForceGrab: // QVR r18: in the player's hue
         {
-            const std::size_t first = pool.size();
+            const za::SizeT first = pool.size();
             sparkles(org, count, 106, 111, 90, 140, 1.2, 0.25f, -0.04f, 5.f, 3.f, 1.f, 8.f);
             inForceGrabHue(first);
             break;
@@ -1560,7 +1574,7 @@ bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count)
         case Preset::BigSmoke: smoke(org, count, true); break;
         case Preset::ForceGrabTrail: // QVR r18: in the player's hue
         {
-            const std::size_t first = pool.size();
+            const za::SizeT first = pool.size();
             sparkles(org, count, 208, 214, 170, 230, 0.4, 0.28f, 0.f, 1.5f, 4.f, -2.f, 2.f);
             inForceGrabHue(first);
             break;
@@ -1599,7 +1613,7 @@ void clear()
     // Tests: the same particles every run (vr_particle_seed; 0: random).
     if(vr_particle_seed.value != 0.f)
     {
-        rng.seed(static_cast<std::uint32_t>(vr_particle_seed.value));
+        rng.seed(static_cast<za::U32>(vr_particle_seed.value));
     }
 }
 
@@ -1621,7 +1635,7 @@ void bloodDrip(const glm::vec3& org, float fall, float floorZ, float size, const
         p.org = org + glm::vec3{0.f, 0.f, size * 1.6f * i};
         p.die = cl.time + fall + 0.05;
         p.floor = floorZ + 0.3f;
-        pool.push_back(p);
+        pool.pushBack(p);
     }
 }
 
@@ -1641,10 +1655,10 @@ void bloodSpecks(const glm::vec3& org, const glm::vec3& normal, int count, const
         p.acc = gravity(1.f);
         p.org = org + normal * 0.3f;
         const float a = rndAngle();
-        p.vel = glm::vec3{std::cos(a), std::sin(a), 0.f} * rnd(15.f, 35.f) + normal * rnd(25.f, 50.f);
+        p.vel = glm::vec3{za::cos(a), za::sin(a), 0.f} * rnd(15.f, 35.f) + normal * rnd(25.f, 50.f);
         p.die = cl.time + rnd(0.15f, 0.3f);
         p.floor = org.z - 0.5f;
-        pool.push_back(p);
+        pool.pushBack(p);
     }
 }
 
@@ -1656,10 +1670,10 @@ void shellEject(const glm::vec3& org, const glm::vec3& dir, float smoke, int spa
     }
 
     // A faint grey puff out of the port, drifting after the shell and spreading.
-    make(std::ceil(2.f * smoke), [&](Particle& p, int) {
+    make(za::ceil(2.f * smoke), [&](Particle& p, int) {
         p.cell = CellSmoke;
         const float g = rnd(0.5f, 0.62f);
-        p.color = glm::vec4{g, g, g * 0.97f, rnd(0.14f, 0.22f) * std::min(smoke, 1.5f)};
+        p.color = glm::vec4{g, g, g * 0.97f, rnd(0.14f, 0.22f) * za::min(smoke, 1.5f)};
         p.die = cl.time + 1.8;
         p.scale = rnd(0.35f, 0.55f);
         p.type = Custom;
@@ -1740,7 +1754,7 @@ void counterEmber(const glm::vec3& org, const glm::vec3& vel, float bright)
     make(1.f, [&](Particle& p, int) {
         p.cell = CellSpark;
         p.additive = true;
-        p.color = glm::vec4{1.f, rnd(0.68f, 0.86f), rnd(0.22f, 0.36f), std::min(1.f, bright)};
+        p.color = glm::vec4{1.f, rnd(0.68f, 0.86f), rnd(0.22f, 0.36f), za::min(1.f, bright)};
         p.die = cl.time + rnd(0.4f, 0.75f);
         p.scale = rnd(0.34f, 0.56f);
         p.type = Custom;
@@ -1784,7 +1798,7 @@ void shellTrail(const glm::vec3& from, const glm::vec3& to, float strength)
 // crest, a wisp of foam; in lava an ember or two. vr_water_splash scales how many, _size how big, _ring_size the ring.
 void shellSplash(const glm::vec3& org, const glm::vec3& dir, float strength)
 {
-    const float amount = std::clamp(vr_water_splash.value, 0.f, 3.f);
+    const float amount = za::clamp(vr_water_splash.value, 0.f, 3.f);
     if(amount <= 0.f || !vr_particles.value || !ensureAtlas())
     {
         return;
@@ -1792,8 +1806,8 @@ void shellSplash(const glm::vec3& org, const glm::vec3& dir, float strength)
     const int liquid = liquidUnder(org);
     const bool lava = liquid == CONTENTS_LAVA;
     const bool slime = liquid == CONTENTS_SLIME;
-    const float s = std::clamp(strength, 0.f, 1.f);
-    const float big = std::clamp(vr_water_splash_size.value, 0.25f, 4.f);
+    const float s = za::clamp(strength, 0.f, 1.f);
+    const float big = za::clamp(vr_water_splash_size.value, 0.25f, 4.f);
     const float shade = lava ? 1.f : shadeAt(org);
     const glm::vec3 tint = lava ? glm::vec3{1.f, 0.42f, 0.1f} : slime ? glm::vec3{0.42f, 0.78f, 0.2f} : glm::vec3{0.8f, 0.9f, 1.f};
     const glm::vec3 foam = glm::mix(tint, glm::vec3{1.f}, lava ? 0.1f : 0.45f) * shade;
@@ -1802,7 +1816,7 @@ void shellSplash(const glm::vec3& org, const glm::vec3& dir, float strength)
     // The drops: a small crown and a jet, 3 to 12 cm up.
     make((4.f + 4.f * s) * amount, [&](Particle& p, int i) {
         const float a = rndAngle();
-        const glm::vec3 out{std::cos(a), std::sin(a), 0.f};
+        const glm::vec3 out{za::cos(a), za::sin(a), 0.f};
         p.cell = CellDrop;
         p.type = Custom;
         p.color = glm::vec4{lava ? glm::mix(glm::vec3{1.f, 0.38f, 0.06f}, glm::vec3{1.f, 0.88f, 0.5f}, rnd(0.f, 1.f))
@@ -1823,10 +1837,10 @@ void shellSplash(const glm::vec3& org, const glm::vec3& dir, float strength)
     });
 
     // One ring spreading from it, small and faint.
-    const float ringSize = std::clamp(vr_water_splash_ring_size.value, 0.f, 4.f);
+    const float ringSize = za::clamp(vr_water_splash_ring_size.value, 0.f, 4.f);
     if(ringSize > 0.f)
     {
-        const float ringSpeed = water::rippleSpeed(liquid) * std::clamp(vr_water_splash_ring_speed.value, 0.f, 4.f);
+        const float ringSpeed = water::rippleSpeed(liquid) * za::clamp(vr_water_splash_ring_speed.value, 0.f, 4.f);
         make(1.f, [&](Particle& p, int) {
             const float life = 0.9f * ringSize;
             p.cell = CellRing;
@@ -1923,19 +1937,19 @@ struct Softness
         case CellRock: fade = 1.f; break;
         default:
             puff = true;
-            fade = std::clamp(radius * 0.35f, 1.5f, 16.f);
+            fade = za::clamp(radius * 0.35f, 1.5f, 16.f);
             break;
     }
-    fade *= std::min(vr_soft_particles_scale.value, 4.f);
-    return {fade, puff ? std::min({fade, radius, 12.f}) : 0.f};
+    fade *= za::min(vr_soft_particles_scale.value, 4.f);
+    return {fade, puff ? qza::minOf(fade, radius, 12.f) : 0.f};
 }
 
 // ---- Lying on a liquid (a splash's rings and foam) ---------------------------------------------
 // On the surface as it is drawn, raised and sunk by the geometric waves and the ripples (water::surfaceRise): a grid
 // of pieces up to 10 units across (at most 12 a side), each corner at the surface's height there, `p.org.z - p.floor`
 // above it. Else a flat quad would sink into the crests (hidden by an opaque liquid) and float over the troughs.
-std::vector<gfx::Vertex> lyingVertices;
-std::size_t lyingCount = 0; // this view's (lyingVertices only grows: no vertex constructed again for each view)
+za::Vector<gfx::Vertex> lyingVertices;
+za::SizeT lyingCount = 0; // this view's (lyingVertices only grows: no vertex constructed again for each view)
 
 namespace
 {
@@ -1943,7 +1957,7 @@ namespace
 // A particle's grid over the liquid, laid one at a time (the main thread).
 struct LyingScratch
 {
-    std::vector<gfx::Vertex> grid;
+    za::Vector<gfx::Vertex> grid;
     auto members() { return qvr::mem::list(grid); }
 };
 mem::Scratch<LyingScratch> lyingScratch{"particles"};
@@ -1952,11 +1966,11 @@ mem::Scratch<LyingScratch> lyingScratch{"particles"};
 
 void lieOnLiquid(const Particle& p, const glm::vec3& r, const glm::vec3& u, const glm::vec4& uv, const glm::vec4& color, const glm::vec3& eye)
 {
-    const int n = std::clamp(static_cast<int>(std::ceil(1.5f * p.scale / 10.f)), 1, 12);
+    const int n = za::clamp(static_cast<int>(za::ceil(1.5f * p.scale / 10.f)), 1, 12);
     // (at least a unit: the grid's triangles are a little off the bilinear surface worked out here)
-    const float lift = std::max(p.org.z - p.floor, 1.f);
-    std::vector<gfx::Vertex>& grid = lyingScratch.grid;
-    grid.resize(static_cast<std::size_t>((n + 1) * (n + 1)));
+    const float lift = za::max(p.org.z - p.floor, 1.f);
+    za::Vector<gfx::Vertex>& grid = lyingScratch.grid;
+    grid.resize(static_cast<za::SizeT>((n + 1) * (n + 1)));
     for(int j = 0; j <= n; j++)
     {
         for(int i = 0; i <= n; i++)
@@ -1964,10 +1978,10 @@ void lieOnLiquid(const Particle& p, const glm::vec3& r, const glm::vec3& u, cons
             const float fu = static_cast<float>(i) / n, fr = static_cast<float>(j) / n;
             glm::vec3 pos = p.org + u * (2.f * fu - 1.f) + r * (2.f * fr - 1.f);
             pos.z = p.floor + lift + water::surfaceRise({pos.x, pos.y, p.floor}, p.liquid, eye);
-            grid[static_cast<std::size_t>(j * (n + 1) + i)] = {pos, {uv.x + (uv.z - uv.x) * fu, uv.y + (uv.w - uv.y) * fr}, color, 0.f};
+            grid[static_cast<za::SizeT>(j * (n + 1) + i)] = {pos, {uv.x + (uv.z - uv.x) * fu, uv.y + (uv.w - uv.y) * fr}, color, 0.f};
         }
     }
-    const std::size_t end = lyingCount + static_cast<std::size_t>(n * n * 6);
+    const za::SizeT end = lyingCount + static_cast<za::SizeT>(n * n * 6);
     if(lyingVertices.size() < end)
     {
         lyingVertices.resize(end);
@@ -1977,10 +1991,10 @@ void lieOnLiquid(const Particle& p, const glm::vec3& r, const glm::vec3& u, cons
     {
         for(int i = 0; i < n; i++)
         {
-            const gfx::Vertex& a = grid[static_cast<std::size_t>(j * (n + 1) + i)];
-            const gfx::Vertex& b = grid[static_cast<std::size_t>(j * (n + 1) + i + 1)];
-            const gfx::Vertex& c = grid[static_cast<std::size_t>((j + 1) * (n + 1) + i)];
-            const gfx::Vertex& d = grid[static_cast<std::size_t>((j + 1) * (n + 1) + i + 1)];
+            const gfx::Vertex& a = grid[static_cast<za::SizeT>(j * (n + 1) + i)];
+            const gfx::Vertex& b = grid[static_cast<za::SizeT>(j * (n + 1) + i + 1)];
+            const gfx::Vertex& c = grid[static_cast<za::SizeT>((j + 1) * (n + 1) + i)];
+            const gfx::Vertex& d = grid[static_cast<za::SizeT>((j + 1) * (n + 1) + i + 1)];
             out[0] = a;
             out[1] = b;
             out[2] = d;
@@ -1998,9 +2012,9 @@ void lieOnLiquid(const Particle& p, const glm::vec3& r, const glm::vec3& u, cons
 // the waves (lyingVertices, made on the CPU for each view: only those in its frustum, R_CullBox on a box round each,
 // 64 units more than its quad). Each eye skips the draw (and the scene's distances) when the box round all of them is
 // out of its view.
-std::vector<gfx::ParticleInstance> instances;
-std::size_t instanceCount = 0;   // this frame's (instances only grows: no record constructed again each frame)
-std::vector<std::uint32_t> lying; // this frame's lying ones (indices into the pool)
+za::Vector<gfx::ParticleInstance> instances;
+za::SizeT instanceCount = 0;   // this frame's (instances only grows: no record constructed again each frame)
+za::Vector<za::U32> lying; // this frame's lying ones (indices into the pool)
 gfx::ParticleBatch batch;         // this frame's upload
 glm::vec3 boundsMin{0.f}, boundsMax{0.f}; // round all of this frame's quads (as far as each can reach)
 int builtFrame = -1;             // host_framecount of the last build
@@ -2012,14 +2026,14 @@ void buildInstances()
     {
         instances.resize(pool.size());
     }
-    glm::vec3 lo{std::numeric_limits<float>::max()}, hi{-std::numeric_limits<float>::max()};
+    glm::vec3 lo{ZA_FLOAT_MAX}, hi{-ZA_FLOAT_MAX};
     gfx::ParticleInstance* out = instances.data();
-    for(std::size_t i = 0; i < pool.size(); i++)
+    for(za::SizeT i = 0; i < pool.size(); i++)
     {
         Particle& p = pool[i];
         if(p.flat && p.liquid)
         {
-            lying.push_back(static_cast<std::uint32_t>(i)); // a splash's rings and foam (per view)
+            lying.pushBack(static_cast<za::U32>(i)); // a splash's rings and foam (per view)
             continue;
         }
         const float reach = 1.5f * p.scale + (p.streak > 0.f ? 8.f : 0.f);
@@ -2028,11 +2042,11 @@ void buildInstances()
         // The quad's right and up, turned by the particle's angle about the view direction.
         if(p.angle != p.csAngle)
         {
-            p.cs = {std::cos(p.angle), std::sin(p.angle)};
+            p.cs = {za::cos(p.angle), za::sin(p.angle)};
             p.csAngle = p.angle;
         }
         // Premultiplied: a glow's alpha 0 adds it.
-        const float a = std::min(p.color.a, 1.f);
+        const float a = za::min(p.color.a, 1.f);
         const Softness sn = softness(p.cell, 0.75f * p.scale);
         gfx::ParticleInstance& q = *out++;
         q.org = p.org;
@@ -2047,7 +2061,7 @@ void buildInstances()
         q.uv = cellUv[p.cell];
         q.flat = p.flat ? 1.f : 0.f;
     }
-    instanceCount = static_cast<std::size_t>(out - instances.data());
+    instanceCount = static_cast<za::SizeT>(out - instances.data());
     boundsMin = lo;
     boundsMax = hi;
     batch = gfx::uploadParticles({instances.data(), instanceCount});
@@ -2063,7 +2077,7 @@ void buildLying()
     }
     glm::vec3 eye, right, up;
     gfx::sceneCamera(eye, right, up);
-    for(const std::uint32_t i : lying)
+    for(const za::U32 i : lying)
     {
         Particle& p = pool[i];
         const float reach = 1.5f * p.scale + 64.f;
@@ -2075,7 +2089,7 @@ void buildLying()
         }
         if(p.angle != p.csAngle)
         {
-            p.cs = {std::cos(p.angle), std::sin(p.angle)};
+            p.cs = {za::cos(p.angle), za::sin(p.angle)};
             p.csAngle = p.angle;
         }
         const float c = p.cs.x;
@@ -2094,10 +2108,10 @@ void buildLying()
             {
                 const glm::vec3 along = across / speed;
                 r = glm::cross(along, ray) * (0.75f * p.scale);
-                u = along * (0.75f * p.scale + std::min(p.streak * speed, 8.f));
+                u = along * (0.75f * p.scale + za::min(p.streak * speed, 8.f));
             }
         }
-        const float a = std::min(p.color.a, 1.f);
+        const float a = za::min(p.color.a, 1.f);
         const glm::vec4 color{glm::vec3{p.color} * a, p.additive ? 0.f : a};
         lieOnLiquid(p, r, u, cellUv[p.cell], color, eye);
     }
@@ -2210,7 +2224,7 @@ namespace
 // The grenades' trails as last logged (VR_GrenadeTrail, developer 1: a line as one starts or stops), by entity.
 struct GrenadeTrailLog
 {
-    std::bitset<MAX_EDICTS> seen, smoking;
+    za::Bitset<MAX_EDICTS> seen, smoking;
 };
 GrenadeTrailLog grenadeTrails;
 
@@ -2231,8 +2245,8 @@ extern "C" int VR_GrenadeTrail(int ent)
     const auto n = static_cast<size_t>(ent);
     if(developer.value && (!grenadeTrails.seen[n] || grenadeTrails.smoking[n] != smokes))
     {
-        grenadeTrails.seen[n] = true;
-        grenadeTrails.smoking[n] = smokes;
+        grenadeTrails.seen.set(static_cast<za::SizeT>(n));
+        grenadeTrails.smoking.setBit(static_cast<za::SizeT>(n), smokes);
         Con_DPrintf("grenade %d (%s, skin %d): smoke trail %s\n", ent, e.model ? e.model->name : "?", e.skinnum,
             smokes ? "on" : "off");
     }
@@ -2257,7 +2271,7 @@ extern "C" int VR_RunParticleEffect(const float* org, const float* dir, int colo
     }
     if(color >= 64 && color < 80)
     {
-        return spawn(o, d, Preset::Blood, std::max(1, count / 8));
+        return spawn(o, d, Preset::Blood, za::max(1, count / 8));
     }
     if(!vr_particles.value || !ensureAtlas())
     {
@@ -2310,7 +2324,7 @@ extern "C" int VR_EntityTrail(int ent, int type)
     {
         const glm::vec3 extent{e.model->maxs[0] - e.model->mins[0], e.model->maxs[1] - e.model->mins[1],
             e.model->maxs[2] - e.model->mins[2]};
-        size = std::clamp(glm::length(extent) * 0.5f / 9.f, 0.7f, 2.5f);
+        size = za::clamp(glm::length(extent) * 0.5f / 9.f, 0.7f, 2.5f);
     }
     rocketTrail({e.trailorg[0], e.trailorg[1], e.trailorg[2]}, {e.origin[0], e.origin[1], e.origin[2]}, type, size);
     return 1;
