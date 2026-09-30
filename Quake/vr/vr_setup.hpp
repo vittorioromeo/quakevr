@@ -6,7 +6,8 @@
 //     Display > Set Height Now.
 //  2. Body: Body Calibration's poses (vr_bodycal.hpp; seated without its first), applied at once when the poses agree;
 //     otherwise its page opens on the result (redo a pose, Apply or Cancel) and the setup goes on when the menu closes.
-//  3. Main hand: the hand raised high is the main one (vr_lefthanded).
+//  3. Main hand: the hand raised high is the main one (vr_lefthanded: the other is the off hand, which moves and wears
+//     the wrist gadget; hands::moveHand).
 //
 // Each result is printed (the wrist gadget's log) and the config saved; a summary shows at the end. The menu button stops
 // it (as Body Calibration's); the room's START CALIBRATION button (`vr_setup here`) runs it again.

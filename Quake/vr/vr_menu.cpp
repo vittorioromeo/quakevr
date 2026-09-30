@@ -2742,7 +2742,7 @@ std::vector<Item> pageMain()
 {
     return {
         header("Body"),
-        toggle("Left Handed", vr_lefthanded),
+        toggle("Left Handed", vr_lefthanded).help("Which hand is your off hand: its stick moves you (and with Move Towards: Off Hand, its pointing steers), it wears the wrist gadget and the torch hangs on its hip; the other stick turns. On: the right one. Both hands hold, fire, swing and climb alike either way."),
         slider("Height", vr_height_calibration, 1.f, 2.2f, 0.01f, "%.2f m").extend(0.5f, 3.f),
         action("Set Height Now", calibrateHeight),
         slider("World Scale", vr_world_scale, 0.5f, 2.f, 0.05f, "%.2f").extend(0.25f, 4.f),

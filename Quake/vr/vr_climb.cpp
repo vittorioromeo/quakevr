@@ -958,7 +958,7 @@ void letGoAll(Climber& c)
     const glm::vec3 neck = move.headPos - (f * eyeToNeckFwd + u * eyeToNeckDown) * m2u;
     const float yaw = glm::radians(move.headAngles.y);
     const glm::vec3 fwd{std::cos(yaw), std::sin(yaw), 0.f}, left{-std::sin(yaw), std::cos(yaw), 0.f};
-    const bool rightSide = (h == 1) == (vr_lefthanded.value == 0.f);
+    const bool rightSide = h == 1; // (hand 1: the main hand, the right controller)
     const glm::vec3 shift = bodycal::shoulderShift(); // back, up, out
     return neck + (-fwd * shift.x + glm::vec3{0.f, 0.f, shift.y - neckToShoulderDown} +
                       left * ((rightSide ? -1.f : 1.f) * (neckToShoulderOut + shift.z))) *
@@ -2375,7 +2375,7 @@ constexpr float yawSteps = 256.f;   // the holds' ways out in the stats: a byte 
 [[nodiscard]] glm::vec3 handOffset(const glm::vec3& out, int hand)
 {
     const float cm = 0.01f * units::metresToUnits();
-    const bool right = (hand == 1) == (vr_lefthanded.value == 0.f);
+    const bool right = hand == 1; // (the main hand, the right controller)
     const glm::vec3 rightward{-out.y, out.x, 0.f}; // facing the ledge (looking along -out), to the right
     return (out * vr_climb_hand_out.value + glm::vec3{0.f, 0.f, vr_climb_hand_up.value} +
                rightward * (right ? vr_climb_hand_side.value : -vr_climb_hand_side.value)) *
@@ -2532,7 +2532,7 @@ float qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& ha
     {
         // The drawn arm's shoulder (last frame's pose) against the server's estimate ("climbshoulder").
         avatar::Shoulder sh;
-        if(avatar::shoulder((hand == 0) == (vr_lefthanded.value == 0.f) ? 0 : 1, sh))
+        if(avatar::shoulder(hand, sh))
         {
             Con_Printf("climbarm %s shoulder %.1f %.1f %.1f palm %.1f %.1f %.1f: %.1f units\n", handName(hand), sh.joint.x,
                 sh.joint.y, sh.joint.z, pin.hold().x, pin.hold().y, pin.hold().z, glm::distance(sh.joint, pin.hold()));

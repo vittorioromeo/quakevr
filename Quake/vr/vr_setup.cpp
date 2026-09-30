@@ -398,7 +398,8 @@ void handFrame(double now, std::string& text)
 {
     appendGold(text, "MAIN HAND");
     text += "\n";
-    text += "Raise your MAIN hand (the one\nyou shoot with) high above your\nhead, and hold it there.\n\n";
+    text += "Raise your MAIN hand (the one\nyou shoot with) high above your\nhead, and hold it there.\n";
+    text += "The other hand's stick moves\nyou; it wears the wrist gadget.\n\n";
     if(flow.got)
     {
         text += "got it";
@@ -448,12 +449,11 @@ void handFrame(double now, std::string& text)
     {
         return;
     }
-    if(up == HAND_OFF)
-    {
-        Cvar_SetValueQuick(&vr_lefthanded, vr_lefthanded.value != 0.f ? 0.f : 1.f);
-    }
+    // (HAND_OFF is the left controller whatever the setting: vr_backend.hpp.)
+    const bool changed = (up == HAND_OFF) != (vr_lefthanded.value != 0.f);
+    Cvar_SetValueQuick(&vr_lefthanded, up == HAND_OFF ? 1.f : 0.f);
     const char* side = vr_lefthanded.value != 0.f ? "left" : "right";
-    Con_Printf("VR Calibration: main hand: %s%s\n", side, up == HAND_OFF ? " (changed)" : "");
+    Con_Printf("VR Calibration: main hand: %s%s\n", side, changed ? " (changed)" : "");
     flow.hand = vr_lefthanded.value != 0.f ? "Main hand: left" : "Main hand: right";
     flow.got = true;
     flow.gotAt = now;

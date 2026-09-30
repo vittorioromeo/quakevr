@@ -101,6 +101,13 @@ struct Calibration
 };
 [[nodiscard]] Calibration calibration(int hand);
 
+// Handedness (vr_lefthanded). The hands are the physical ones: HAND_OFF is always the left controller and HAND_MAIN the
+// right, drawn, posed and solved as such (both work the same: either holds, fires, swings and climbs). The setting only
+// says which of them is the player's off hand: the one whose stick moves (and, Move Towards: Off Hand, whose pointing
+// steers), the wrist gadget's arm (vr_gadget_hand 0) and the torch's hip; the other stick turns.
+[[nodiscard]] int moveHand(); // HAND_OFF, or HAND_MAIN left-handed
+[[nodiscard]] int gadgetHand(); // the wrist gadget's arm: moveHand(), or (vr_gadget_hand 1) the other
+
 // Where a hand's palm is (State::palmLocal), or its point if not known.
 [[nodiscard]] glm::vec3 palmPoint(const State& s, int hand);
 

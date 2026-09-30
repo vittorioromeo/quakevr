@@ -196,7 +196,7 @@ QVR_CVAR(vr_foveated_outer, "0", CVAR_ARCHIVE)         // ... 2x2 up to this man
 QVR_CVAR(vr_foveated_debug, "0", CVAR_NONE)            // show the shading rates (yellow 2x2, red 4x4) and vr_upscale_radius (cyan) in the eyes and the mirror
 
 QVR_CVAR(vr_enabled, "0", CVAR_NONE)
-QVR_CVAR(vr_lefthanded, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_lefthanded, "0", CVAR_ARCHIVE) // 1: the right hand is the off hand (moves; gadget, torch): hands::moveHand
 QVR_CVAR(vr_fakevr_handroll, "0", CVAR_NONE)
 QVR_CVAR(vr_crosshair, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_crosshair_depth, "0", CVAR_ARCHIVE)
@@ -229,7 +229,7 @@ QVR_CVAR(vr_gunyaw, "4", CVAR_ARCHIVE)
 QVR_CVAR(vr_gun_z_offset, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_sbar_mode, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_hud_mode, "1", CVAR_ARCHIVE)              // 0 the status bar on a hand (vr_sbar_mode), 1 the wrist gadget
-QVR_CVAR(vr_gadget_hand, "0", CVAR_ARCHIVE)           // the wrist gadget's arm: 0 the off hand's, 1 the main hand's
+QVR_CVAR(vr_gadget_hand, "0", CVAR_ARCHIVE)           // the wrist gadget's arm: 0 the off hand's (hands::moveHand), 1 the other
 QVR_CVAR(vr_gadget_scale, "1", CVAR_ARCHIVE)          // its size
 QVR_CVAR(vr_gadget_x, "0", CVAR_ARCHIVE)              // cm it moves along the forearm (towards the fingers on the left arm),
 QVR_CVAR(vr_gadget_y, "0", CVAR_ARCHIVE)              // across it (the screen's up),

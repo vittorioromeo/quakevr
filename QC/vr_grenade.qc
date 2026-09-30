@@ -335,7 +335,7 @@ vector(entity p, float xHand) VR_Grenade_PalmDir =
     vector oldRight = v_right;
     vector oldUp = v_up;
     makevectors(VRGetEntHandRot(p, xHand));
-    vector palm = ((xHand == cVR_MainHand) != (cvar("vr_lefthanded") != 0)) ? v_right * -1 : v_right;
+    vector palm = xHand == cVR_MainHand ? v_right * -1 : v_right; // (cVR_MainHand: the right controller)
     v_forward = oldForward;
     v_right = oldRight;
     v_up = oldUp;

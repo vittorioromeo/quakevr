@@ -22,6 +22,7 @@
 #include "vr_meleehud.hpp"
 #include "vr_profile.hpp"
 #include "vr_text3d.hpp"
+#include "vr_hands.hpp"
 
 #include <algorithm>
 #include <array>
@@ -743,7 +744,7 @@ double buzzAgain = -1.0; // realtime the buzz's second pulse is due (<0: none)
 
 [[nodiscard]] int gadgetHand()
 {
-    return vr_gadget_hand.value != 0.f ? HAND_MAIN : HAND_OFF;
+    return hands::gadgetHand();
 }
 
 void chime(sfx_t* sfx = nullptr)

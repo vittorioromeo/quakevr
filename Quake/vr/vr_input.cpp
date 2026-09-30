@@ -2,12 +2,13 @@
 //
 // Controller buttons are Quake keys, so everything they do comes from bindings (defaults in
 // quakevr/default.cfg) and can be rebound -- with aliases -- from the console or the bindings
-// menu. They reuse Ironwail's gamepad keys by role, not by side, so that vr_lefthanded needs
-// no rebinding: the main hand is the "right" half of a gamepad (RT, RB, A, B, RS), the off
-// hand the "left" half (LT, LB, X, Y, LS). Menus understand these keys already.
+// menu. They reuse Ironwail's gamepad keys: the main hand (the right controller, left-handed too)
+// is the "right" half of a gamepad (RT, RB, A, B, RS), the off hand the "left" half (LT, LB, X,
+// Y, LS). Menus understand these keys already.
 //
-// The off hand's stick moves (analog, see VR_AdjustMove); the main hand's stick turns, and
-// pushed up or down it is DPAD UP/DOWN. In menus the off hand's stick is the DPAD; the main hand's
+// The player's off hand's stick moves (analog, see VR_AdjustMove; vr_lefthanded 1: the right
+// one, hands::moveHand); the other stick turns, and pushed up or down it is DPAD UP/DOWN. In
+// menus the moving stick is the DPAD; the turning one
 // only scrolls a page with a scrollbar or is DPAD UP/DOWN (never left/right: it doesn't change
 // settings); the menu button closes the menu from any page.
 
@@ -280,8 +281,9 @@ void update(const InputState& tracked)
     const bool active = vrActive();
     const InputState& in = active ? tracked : released;
 
-    const HandInput& off = in.hands[HAND_OFF];
-    const HandInput& main = in.hands[HAND_MAIN];
+    // The sticks by what they do: the player's off hand's moves (vr_lefthanded: the right one), the other's turns.
+    const HandInput& off = in.hands[hands::moveHand()];
+    const HandInput& main = in.hands[1 - hands::moveHand()];
 
     // Where the hands point at the menu, before the trigger clicks there.
     menuui::update(hands::current());
@@ -399,7 +401,7 @@ void update(const InputState& tracked)
             stickKey(k, 0.f, false);
         }
         moveAxes = glm::vec2{0.f};
-        posing::sticks(off.stick, main.stick);
+        posing::sticks(in.hands[HAND_OFF].stick, in.hands[HAND_MAIN].stick);
     }
     else
     {
@@ -439,8 +441,8 @@ bool primaryHeld(int hand)
 // default; the speed button switches) is cl_movespeedkey times the speed, and the stick, being
 // analog, moves at cl_forwardspeed in every direction (as the old engine did). The server steers by
 // the head (.v_viewangle): with
-// vr_movement_mode 1 the stick moves relative to the head; with 0 it moves where the off hand
-// points, expressed relative to the head. Either way, pointing the off hand up or down while
+// vr_movement_mode 1 the stick moves relative to the head; with 0 it moves where the moving hand
+// (hands::moveHand) points, expressed relative to the head. Either way, pointing it up or down while
 // pushing forward swims up or down (from the old engine's VR_Move).
 extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove)
 {
@@ -459,7 +461,7 @@ extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove
     if(s.valid && static_cast<int>(vr_movement_mode.value) == 0)
     {
         glm::vec3 lfwd, lright, lup;
-        hands::angleVectors(s.rot[HAND_OFF], lfwd, lright, lup);
+        hands::angleVectors(s.rot[hands::moveHand()], lfwd, lright, lup);
 
         // Pointing (nearly) straight up or down: steer with the hand's up vector instead.
         if(std::fabs(lfwd.z) > 0.8f)
@@ -490,7 +492,7 @@ extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove
 
     if(s.valid)
     {
-        *upmove += cl_upspeed.value * moveAxes.y * hands::forward(s.rot[HAND_OFF]).z * speedScale;
+        *upmove += cl_upspeed.value * moveAxes.y * hands::forward(s.rot[hands::moveHand()]).z * speedScale;
     }
 }
 

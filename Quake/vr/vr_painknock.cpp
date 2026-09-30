@@ -61,7 +61,7 @@ double printedAt = -1.0;
     {
         return rel > 0.f ? 1.f : -1.f;
     }
-    const bool rightHand = (hand == HAND_MAIN) != (vr_lefthanded.value != 0.f);
+    const bool rightHand = hand == HAND_MAIN; // (the right controller)
     return rightHand ? 1.f : -1.f;
 }
 

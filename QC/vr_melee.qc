@@ -2089,7 +2089,7 @@ float(float xHand, entity b, vector v, vector xFwd) VR_Bash_Extends =
     right_x = xFwd_y;
     right_y = -xFwd_x;
     float side = VR_SHOULDER_SIDE;
-    if((xHand == cVR_OffHand) != !!cvar("vr_lefthanded"))
+    if(xHand == cVR_OffHand) // (the left controller, left-handed too)
     {
         side = -side;
     }

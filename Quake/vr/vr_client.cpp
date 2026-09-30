@@ -80,11 +80,10 @@ HandButtons leftButtons, rightButtons;
 bool offhandAttack = false;
 bool offhandAttackImpulse = false; // pressed and released between two moves
 
-// Which physical hand is which depends on vr_lefthanded.
+// HAND_OFF is the left controller (vr_backend.hpp).
 [[nodiscard]] HandButtons& handButtons(int hand)
 {
-    const bool leftIsOffHand = !vr_lefthanded.value;
-    return (hand == HAND_OFF) == leftIsOffHand ? leftButtons : rightButtons;
+    return hand == HAND_OFF ? leftButtons : rightButtons;
 }
 
 #define QVR_BUTTON_COMMANDS(name, expr)          \

@@ -15634,3 +15634,34 @@ stack with files and lines from lld's .pdb (`VR_DebugCrash_f vr_main.cpp:720`, `
 `build.sh`'s `" error "` grep shows; a linker warning (lld-link's `lld-link : warning :`) would not show: its grep
 could be `" error |warning C|: warning :"`. The machine needs Visual Studio's "C++ Clang tools for Windows" (installed
 here: clang 19.1.5).
+
+## Left-handed: only the off hand (2026-09-30)
+
+Notes vrcalibration_2026-09-30_16-08 and 16-10: with Main Hand: Left (`vr_lefthanded 1`) the arms were swapped and
+the wrist gadget upside down. `vr_lefthanded` used to swap the roles of the controllers (the OpenXR backend read
+HAND_MAIN from the left controller), and every drawing, IK and physics site then mapped the role back to a side, some
+wrongly. Now the hands are always the physical ones: HAND_OFF is the left controller, HAND_MAIN the right
+(`vr_backend.hpp`). The setting only picks the player's off hand, `hands::moveHand()`:
+
+- its stick moves (and with Move Towards: Off Hand its pointing steers; pointing it up or down swims); the other
+  stick turns and gives DPAD UP/DOWN; in menus the moving stick navigates, the other scrolls;
+- the wrist gadget is on it (`hands::gadgetHand()`: Advanced > Wrist Gadget > Arm "Off hand"; "Main hand" the other),
+  the right way up on either arm (the screen's axes come from the physical arm);
+- the chest torch hangs on its hip.
+
+Everything else is the same for both settings: buttons and bindings stay on their controllers (the right controller is
+the gamepad's right half: RT, RB, A, B, RS), both hands hold, fire, swing, parry, carry and climb alike. Removed:
+the backend's role swap, the button swap (vr_client.cpp), the arm IK's and forearms' swap (vr_avatar.cpp,
+vr_bodycal.cpp), and the side flips in vr_climb, vr_painknock, vr_physics, vr_weight, vr_view (gadget) and the QC
+(vr_melee.qc bash side, vr_grenade.qc and vr_carry.qc palms, combat.qc crossed guard). VR Calibration's main hand
+step sets `vr_lefthanded` from which controller is raised (it used to toggle, the roles swapping underneath) and says
+the other hand moves and wears the gadget. Motion takes still restore the setting (no take was recorded left-handed).
+
+Still tied to a controller rather than to the chosen hand: the flashlight's B/Y (Y: the left controller's), the
+weapon posing sticks, the off hand's calibration mirroring (`vr_handcal_off_mirror`:
+the left mirrors the right), and whatever the bindings put on each controller.
+
+Tests (mock): Move Towards: Off Hand, the left controller turned 90 degrees left and the right 90 right, each stick
+pushed forward in turn: `vr_lefthanded 0` the left stick moves 64 units left, the right none; `1` the left stick
+none, the right 64 units right. Arms (body on) look the same for 0 and 1, the gadget on the left or the right
+forearm, its screen readable on either. eval canary: 48/53, no difference from the baseline.

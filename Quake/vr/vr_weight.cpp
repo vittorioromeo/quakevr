@@ -326,7 +326,7 @@ void rodLoad(Load& l, float mass, float balance, float length, float radius)
     const glm::vec3 head = hands::rotateYaw(s.head - base, -turnYaw) * u2m;
     glm::vec3 f, r, u;
     hands::angleVectors({0.f, s.headAngles.y - turnYaw, 0.f}, f, r, u);
-    const bool right = (h == HAND_MAIN) != (vr_lefthanded.value != 0.f);
+    const bool right = h == HAND_MAIN; // (the right controller)
     const glm::vec3 shoulder = head + glm::vec3{0.f, 0.f, -0.22f} + r * (right ? 0.18f : -0.18f);
     return std::clamp(glm::distance(grip, shoulder) / 0.62f, 0.f, 1.f);
 }
