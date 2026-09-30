@@ -253,6 +253,10 @@ void VR_ConfigMergeOthers (const char *path);			// Host_WriteConfigurationToFile
 void VR_ConfigWritten (const char *path);				// and after writing it
 int VR_MenuReopen (void);								// M_ToggleMenu_f, opening: nonzero if it reopened the page left
 int VR_MenuRunsGame (void);								// Host_ServerFrame: nonzero if a single player game runs on under the menu (live preview)
+// The main menu's lettering as a font (vr_bigfont.cpp): its letters cut from id's menu pictures in the pak, rows of text
+// 24 pixels high whose small capitals end on row 15.
+int VR_BigFont_CanDraw (const char *text);				// M_Main_Draw: nonzero if every letter of `text` is there
+int VR_BigFont_Draw (int x, int y, const char *text);	// M_Main_Draw: draws it (its cell's top at y); returns its width
 
 // Hardcoded limits (vr_limits.cpp, the vr_limits command): a limit whose overflow used to be silent is counted, and warned
 // about once a session.

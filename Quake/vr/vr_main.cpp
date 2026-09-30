@@ -31,6 +31,7 @@
 #include "vr_motion.hpp"
 #include "vr_posing.hpp"
 #include "vr_sightalign.hpp"
+#include "vr_bigfont.hpp"
 #include "vr_bodycal.hpp"
 #include "vr_setup.hpp"
 #include "vr_ao.hpp"
@@ -1055,6 +1056,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_restart", VR_Restart_f);
     Cmd_AddCommand("menu_vr", menu::command_f);
     Cmd_AddCommand("vr_mock_laser", menuui::mockLaser_f);
+    Cmd_AddCommand("vr_bigfont", bigfont::report_f);
     Cmd_AddCommand("vr_checklist", checklist::command_f);
     Cmd_AddCommand("vr_handcal_match", menu::handCalMatch_f);
     Cmd_AddCommand("vr_startgame", VR_StartGame_f);

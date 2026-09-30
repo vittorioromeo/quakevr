@@ -409,7 +409,7 @@ public:
             quad.subImage.swapchain = panel.handle;
             quad.subImage.imageRect.extent = {panel.width, panel.height};
             quad.pose = panelPose;
-            quad.size = {panelWidth, panelWidth * static_cast<float>(panel.height) / static_cast<float>(panel.width)};
+            quad.size = {panelSize().x, panelSize().y};
             submitted[count++] = reinterpret_cast<const XrCompositionLayerBaseHeader*>(&quad);
         }
         panelShown = panelPending && frameState.shouldRender;
@@ -434,28 +434,30 @@ public:
         panelPending = releaseImage(panel);
     }
 
+    [[nodiscard]] bool runtimePanel(Pose& pose, glm::vec2& size) const override
+    {
+        if(!panelShown)
+        {
+            return false;
+        }
+        pose = panelPlaced;
+        size = panelSize();
+        return true;
+    }
+
 private:
-    // The panel: 1.6 m wide, 1.4 m in front of where the head faced when it appeared, upright.
-    static constexpr float panelWidth = 1.6f;
-    static constexpr float panelDistance = 1.4f;
+    // The panel: runtimePanelWidth wide, the canvas's shape, placed by placeRuntimePanel (vr_backend.hpp).
+    [[nodiscard]] glm::vec2 panelSize() const
+    {
+        return {runtimePanelWidth, panel.width > 0 ? runtimePanelWidth * static_cast<float>(panel.height) / static_cast<float>(panel.width) : 0.f};
+    }
 
     void placePanel()
     {
-        // The head's forward (-z) direction, flattened.
-        glm::vec3 fwd = lastHead.orientation * glm::vec3{0.f, 0.f, -1.f};
-        fwd.y = 0.f;
-        if(glm::length(fwd) < 1e-3f)
-        {
-            fwd = {0.f, 0.f, -1.f};
-        }
-        fwd = glm::normalize(fwd);
-
-        const float yaw = std::atan2(-fwd.x, -fwd.z);
-        const glm::quat orientation = glm::angleAxis(yaw, glm::vec3{0.f, 1.f, 0.f});
-
-        panelPose.position = {lastHead.position.x + fwd.x * panelDistance, lastHead.position.y,
-            lastHead.position.z + fwd.z * panelDistance};
-        panelPose.orientation = {orientation.x, orientation.y, orientation.z, orientation.w};
+        panelPlaced = placeRuntimePanel(lastHead);
+        const glm::quat& q = panelPlaced.orientation;
+        panelPose.position = {panelPlaced.position.x, panelPlaced.position.y, panelPlaced.position.z};
+        panelPose.orientation = {q.x, q.y, q.z, q.w};
     }
 
     bool ensurePanelSwapchain(int width, int height)
@@ -509,6 +511,7 @@ private:
     bool panelShown{false};   // the panel was in the last submitted frame (keeps its place)
     double panelLastShown{-10.0};
     XrPosef panelPose{{0.f, 0.f, 0.f, 1.f}, {0.f, 0.f, 0.f}};
+    Pose panelPlaced; // the same
     Pose lastHead; // the last valid head pose, which the panel is placed in front of
     XrSessionState sessionState{XR_SESSION_STATE_UNKNOWN};
     bool sessionRunning{false};

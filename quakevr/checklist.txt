@@ -11,6 +11,8 @@
 # remove items freely; changing an item's wording un-ticks it.
 
 [Test in VR]
+Main menu: every row (VR Calibration too) in Quake's lettering, looking like the old picture? (off: Menu Settings > Main Menu Lettering)
+Main menu at start (before a map): the laser's dot follows your hand on the flat panel, trigger picks a row
 Flung prop damage feels right (Throwing and Physics > Flung Props: Damage, Reference Mass)
 
 
@@ -75,7 +77,13 @@ Mjolnir struck under water: the new shock (15 cells, drops it)
 Chainsaw: the first 1-2 good pulls fail; louder now (+3 dB): enough?
 Empty hand against a held prop: firmer now (15 cm)?
 
+Climbing leniency: at 0 the hand must touch the ledge or rung; at 6 about 10 cm; reach up under a rung from below and grab
+Long explosive box toppled on its long side: jump onto it repeatedly and rock it by its ends, you always stay on top; a box falling onto you still lets you walk out (Player Hitbox > Never Through Them)
+Physics sounds: each material sounds right, loudness by speed and weight, scrapes smooth and stop cleanly, climbing grab sound subtle enough (Carrying > Physics Sounds)
+
 [Decide or give feedback]
+Climbing: over the top a hand touching the top still counts up to 16 units in from the drop: tighten? Touch distance 4.5 cm OK?
+Physics sounds: health boxes sound like wood and armour like metal: OK?
 Left-handers: flashlight toggle stays on the left Y and the main weapon slot on the right controller: OK, or follow the off hand?
 Enemy guns: scale 0.4 OK? Should the player's enforcer rifle laser be faster than the enforcer's 600 u/s?
 Zancle outside its library needs either the whole engine on clang-cl + C++23, or MSVC support in Zancle (proposal 2 in ROUND21.md): which? (blocks the std -> Zancle migration)

@@ -46,6 +46,7 @@ extern "C" {
 extern float m_mousex, m_mousey; // menu.c: the mouse in menu coordinates
 extern qboolean keydown[MAX_KEYS]; // keys.c
 extern cvar_t ui_mouse_sound; // menu.c
+const char* M_Main_RowLabel(void); // menu.c: the main menu's selected row (menu_vr pos)
 }
 
 using namespace qvr;
@@ -2150,6 +2151,7 @@ std::vector<Item> pageDebugReports()
             .help("vr_limits: every hardcoded limit's usage against its maximum (cvars, memory, models, edicts, lights...)."),
         command("Microphones", "vr_note_devices").help("vr_note_devices: the microphones Voice Notes can record from."),
         command("Detail Textures", "vr_detail_list").help("vr_detail_list: each texture's detail kind (long)."),
+        command("Main Menu Lettering", "vr_bigfont").help("vr_bigfont: which of the main menu's letters were cut from the menu pictures, and which were left out (a mod's own picture: the menu then shows the picture)."),
     };
 }
 
@@ -4752,6 +4754,12 @@ void qvr::menu::command_f()
                                : m_state == m_options      ? "options"
                                : m_state == m_main         ? "main"
                                                            : "other";
+            if(key_dest == key_menu && m_state == m_main)
+            {
+                Con_Printf("menu_vr pos: menu %d (%s), row \"%s\"%s\n", static_cast<int>(m_state), name, M_Main_RowLabel(), corner);
+                menuui::printLaser();
+                return;
+            }
             Con_Printf("menu_vr pos: menu %d (%s)%s\n", static_cast<int>(m_state), name, corner);
             return;
         }

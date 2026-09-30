@@ -445,6 +445,38 @@ qpic_t *Draw_MakePic (const char *name, int width, int height, byte *data)
 	return pic;
 }
 
+/*
+================
+Draw_ReplacePic -- QVR: a pic of data made at run time that lasts across maps and games (vr_bigfont.cpp's
+letters). `pic` is Draw_PicBytes () bytes the caller keeps, zeroed before the first call; `data` (8-bit, 255
+transparent) stays valid while the pic is used, since reloads read it. The texture of a pic made before in the same
+bytes is freed. Filtered as the menu's pictures are (gl_texturemode).
+================
+*/
+size_t Draw_PicBytes (void)
+{
+	return sizeof (qpic_t) - 4 + sizeof (glpic_t);
+}
+
+void Draw_ReplacePic (qpic_t *pic, const char *name, int width, int height, byte *data)
+{
+	int flags = TEXPREF_ALPHA | TEXPREF_PERSIST | TEXPREF_NOPICMIP | TEXPREF_PAD | TEXPREF_CLAMP | TEXPREF_UNCOMPRESSED;
+	glpic_t gl;
+
+	memcpy (&gl, pic->data, sizeof (glpic_t));
+	if (gl.gltexture)
+		TexMgr_FreeTexture (gl.gltexture);
+
+	pic->width = width;
+	pic->height = height;
+	gl.gltexture = TexMgr_LoadImage (NULL, name, width, height, SRC_INDEXED, data, "", (src_offset_t)data, flags);
+	gl.sl = 0;
+	gl.sh = (float)width/(float)TexMgr_PadConditional(width);
+	gl.tl = 0;
+	gl.th = (float)height/(float)TexMgr_PadConditional(height);
+	memcpy (pic->data, &gl, sizeof (glpic_t));
+}
+
 //==============================================================================
 //
 //  INIT

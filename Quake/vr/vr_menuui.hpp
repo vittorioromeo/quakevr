@@ -50,6 +50,9 @@ void focusToolbar(int dir);
 // the menu, or on one of the corner's buttons, whatever the hand's pose.
 void mockLaser_f();
 
+// menu_vr pos: where the pointing hand's laser meets the menu (on which panel, its uv).
+void printLaser();
+
 // The main hand's stick (up and down, `y`) in a menu, once a frame: scrolls a page with a
 // scrollbar, a row at a time at a rate growing with the push. False (nothing done) when the
 // page does not scroll: the stick navigates there.

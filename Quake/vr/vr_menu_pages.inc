@@ -13,6 +13,7 @@
         slider("Menu Distance", "vr_menu_distance", 24.f, 256.f, 1.f, "%.0f").extend(8.f, 600.f).help("Distance of the menu from the anchor point."),
         toggle("VR Menu Style", "vr_menu_vr_style").help("The menus fill the panel with their rows spaced out, with modern sliders and switches, and a laser from your hand points at them: trigger to click and drag."),
         hueSlider("Laser Hue", vr_menu_laser_hue).help("The laser pointer's colour: 35 amber; Player's: the Player Effects Hue (on the Colours page)."),
+        toggle("Main Menu Lettering", "vr_menu_bigfont").help("The main menu's rows as text in Quake's own lettering (its letters cut from the menu pictures), VR Calibration among them. Off: Quake's picture of the rows, with VR Calibration above it in the console's letters."),
         slider("Row Spacing", "vr_menu_spacing", 1.f, 2.f, 0.05f, "%.2fx").extend().help("With the VR menu style: how far apart the menus' rows are, over Quake's."),
         slider("Menu Height", "vr_menu_height", 1.f, 2.f, 0.05f, "%.2fx").extend().help("With the VR menu style: how tall the menus are, over Quake's: more rows at once. 1.35 reaches about 35 degrees up and down at the shipped distance, scale and spacing."),
         slider("Menu Background Opacity", "scr_menubgalpha", 0.f, 1.f, 0.05f, "%.2f").help("How dark the panel behind the menus is (0.7 as shipped; the desktop menus' too): lower it to see the game while you tune the graphics. Below about 0.5 the text gets a dark outline, to stay readable."),
