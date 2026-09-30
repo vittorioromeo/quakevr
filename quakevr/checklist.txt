@@ -83,6 +83,8 @@ Physics sounds: each material sounds right, loudness by speed and weight, scrape
 
 After the Ironwail-diff cleanup: model normal maps and parallax, water refraction with MSAA, deluxemaps on a relit map, a ledge climb, a save and load all as before
 
+Climbing page: Reach Over the Top (16 units) and Touch Distance (4.5 cm) now settings; try lower values; health boxes sound metallic
+
 [Decide or give feedback]
 README.md is the biggest remaining upstream diff (+245 lines): keep it as Quake VR's front page?
 Left-handers: flashlight toggle stays on the left Y and the main weapon slot on the right controller: OK, or follow the off hand?
