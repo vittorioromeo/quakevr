@@ -54,6 +54,7 @@ void hostFrameEnd();
 [[nodiscard]] bool gameClockFixed(); // hostFrameTime ignores the wall clock (vr_fixed_frames, a take's playback not in watch mode)
 [[nodiscard]] int serverFrameOverride(double& frametime);
 [[nodiscard]] bool playing();
+[[nodiscard]] bool evaluating(); // vr_motion_eval runs (its takes' maps loading or playing)
 
 // The QC's builtins (vr_builtins.cpp): an event, a striking point, a value. Kept only while a take is
 // recorded or played.

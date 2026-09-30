@@ -14494,3 +14494,53 @@ the research (which box matters where) in HULLS.md, "Monsters".
 
 - [ ] Monster Hitbox > Narrower Monsters on: ogres, grunts and knights walk closer to walls and round corners; none
   stuck on a wall, none on a ledge they shouldn't be on, none partly in a wall.
+
+## Eval shards' crash; the eval without a map loaded first (2026-09-30)
+
+Branch `agent/evalcrash`. Kit: `run.ps1`, `eval.sh`, `README.md` (old `run.ps1` kept as `run_pre_evalcrash_old.ps1`).
+
+### The crash: the loose-file cache shared between threads
+
+- **Cause:** `vr_fscache.cpp` (the directory listings kept while the game starts and while a map loads) was used
+  unlocked from other threads. The add-on list's download thread (`Modlist_DownloadJSON`) writes `addons.json` into the
+  game folder when its copy is more than a day old; the write (`Sys_fopen`) called `VR_FileCacheForget`, which cleared
+  the cache while the main thread was listing a directory in it during the first map load. The map menu's description
+  parser (`ExtraMaps_ParseDescriptions`) also looked files up in it (188 lookups a run, all while it was on).
+- **Why it was rare:** only the first run in a game folder each day downloads and writes the list: a new agent's eval
+  folders (propstand2, grapple4); a rerun found a fresh `addons.json`. Made stale on purpose before each run
+  (`touch -d "3 days ago" addons.json`), the unfixed build crashed 14 times in 300 runs, every time in the cache
+  (`listing` in `std::_Hash`, or `VR_FileCacheHas`, from `Mod_LoadModel` in `VR_NewMap`); the fixed build 0 in 480.
+- **Fix:** the cache is the main thread's only: other threads' lookups ask the file system, and their writes leave the
+  forgetting to the main thread's next lookup (an atomic flag).
+- **Crash reports for test runs** (`pl_win.c` `PL_InstallCrashHandler`, only with `QVR_NO_ERROR_DIALOG`, which the
+  kit sets): a crash writes `qvr_crash.txt` (exception, the crashing thread's stack with file and line) and
+  `qvr_crash.dmp` (a minidump) in the game folder; `abort`, an invalid CRT parameter and a pure virtual call too (they
+  end in a fast fail, 0xc0000409, that no exception filter sees). `run.ps1` prints it as `ENGINE CRASH`; `eval.sh`
+  lists a crashed copy's stack.
+- The kit's parallel copies (`-Instance`) also start with `-noaddons`: no download, nothing written at a random time.
+
+### The eval without the map preload
+
+- **Cause:** `vr_backend mock` in the autoexec only asks for the mock headset; it starts with the next frame
+  (`VR_BeginFrame`). `vr_motion_eval` straight after found no mock backend, printed "plays in the mock headset only"
+  and did nothing, and the copy waited for its timeout (562 s). The preload's `map` and `wait60` were the frames.
+- **Fix:** `vr_motion_eval` issued while a backend (re)start is pending runs again after a frame (`wait` and the
+  command put first in the buffer). While an eval runs, quake.rc's `vr_startgame` no longer loads the vrstart hub (or
+  the demos): the eval loads its map for each take.
+- The kit's eval now runs `wait;vr_motion_eval ...` (the one frame for builds before this branch). Identical tables
+  (every column but the time) with the preload, with `wait`, with nothing, and with vrstart loaded first (what older
+  builds do): canary and full set. Time: no difference at the table's 1 s: canary on one copy 17-18 s either way, the
+  full set on 8 copies 10-11 s either way.
+
+### "Syntax error at line 127" in eval.sh
+
+bash reads a script as it runs it: `eval.sh` replaced while an eval ran (the kit was swapped at 04:06) made bash read
+the new file from the old offset after the canary, the last line (`run_set full`). The script is now one function
+called at its end, read whole before anything runs.
+
+### Checked
+
+20 canary runs and 3 full runs in a row (fixed build, no preload): no crash, every table identical (canary and full:
+one hash each; 0 canary differences). The full set's one difference from `eval_baseline.csv`
+(`slash_backswing_up_right` 23-12-35: 27.0 -> 26.9 damage, still PASS) is the same with the old preload: not from
+this change; the baseline predates it.

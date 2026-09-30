@@ -19,6 +19,8 @@ namespace qvr
 
 // The running backend (null when VR is off) and its current frame.
 [[nodiscard]] Backend* backend();
+// A backend (re)start asked for (start-up, a vr_backend change) and not yet made: it happens at the next frame's start.
+[[nodiscard]] bool backendRestartPending();
 [[nodiscard]] const FrameState& frameState();
 
 // QVR round 21: the frames' rate and cost, averaged over half a second, for the wrist gadget's FPS counter

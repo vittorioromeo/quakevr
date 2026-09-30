@@ -170,6 +170,12 @@ void VR_StartGame_f()
         return;
     }
 
+    // (A vr_motion_eval from the start-up script loads its own map: neither the hub nor the demos meanwhile.)
+    if(qvr::motion::evaluating())
+    {
+        return;
+    }
+
     if(vr_enabled.value && !sv.active && !cls.demoplayback && cls.state != ca_connected)
     {
         Cbuf_InsertText("maxplayers 1; deathmatch 0; coop 0; map vrstart\n");
@@ -883,6 +889,11 @@ bool vrActive()
 Backend* backend()
 {
     return state ? state->backend.get() : nullptr;
+}
+
+bool backendRestartPending()
+{
+    return state && state->restartRequested;
 }
 
 const FrameState& frameState()
