@@ -16416,3 +16416,52 @@ Info prints what it's doing.
   Audio's per-source reflections and pathing would cost a convolution a voice.
 - The materials go by texture name; a map's own acoustic materials would need a table.
 - Linux: a build finds `libphonon.so` next to the executable if one is put there (not vendored: 40 MB).
+
+## The double shotgun's fore-end: UVs and the hole (2026-09-30)
+
+"Can you fix the UV mapping on the bottom and sides of the super shotgun model (v_shot2.mdl)? They seem very stretched.
+There's also a small hole near the bottom side of the gun, close to the trigger guard."
+
+**The stretch.** id's fore-end (the block under the barrels, x 12.6..26) and the block in front of it (x 26..28.5) were
+mapped onto a 20 x 64 texel strip of the skin: the sides at about 2.3 texels per model unit (1.95 across), one of the
+bottom's two triangles folded onto a line (no area in the skin), the front block at 1.74; the barrels have 6.7, the
+receiver 7.3, the grip 8. `Misc/quakevr/reuv_shot2.py` unwraps each block as one piece (least squares conformal: the
+sides, the chamfers and the bottom unfolded round the block, its back faces beside them) at 6.5 texels per unit, lays
+them in skin space nothing used (found by an FFT search over the free texels; the skin keeps its 512 x 146) and
+paints them in the fore-end's own dark browns (id's 49 with 112, 143, 16, 17: fine grain along the gun, a few
+scratches, the convex edges' first texel row lit and the next one worn, as `mdlpolish.edge_wear`).
+
+| Faces (area-weighted) | Before: texels/unit (smallest axis, largest) | After |
+|---|---|---|
+| Fore-end: sides, chamfers, bottom, back (168 sq units) | 2.61 (1.95, 5.20) | 6.49 (6.39, 6.60) |
+| Front block under the muzzles (35 sq units) | 1.74 (1.59, 1.90) | 6.50 (6.26, 6.75) |
+| Fore-end's back (the new cap, 15 sq units) | open | 6.37 (6.31, 6.44) |
+
+Only UVs and texels change there: a vertex has one UV in an alias model, so each block is one piece in the skin and
+no vertex is split, no old triangle changed, every frame's bytes and the header's scale and origin are the same:
+vr_anchor.cpp's strip order, so every anchor (hand 472, muzzle 13, two-handed grip 29 on the fore-end's corner,
+screen 0, the shell port), stays, and polish_weapons.py checks it. The fore-end's front face (inside the front block,
+never seen) is left out of the unwrap and spans the chart.
+
+**The hole.** Round 16 removed the drooping handle that closed the fore-end's back. The knuckle under the hinge
+(x 11..12.8) covers most of the opening but not its bottom 0.4 units: from below and behind, between the knuckle and
+the trigger guard, the background showed through the fore-end (its inside is culled). The loop turns a corner into
+the barrels' breech, so it is not flat and `seal_mdl.seal` left it (check_mdl_holes.py called it hidden: rays from its
+middle, inside the knuckle, hit the model everywhere). It is split: the fore-end's back gets a flat cap painted like
+the fore-end (through the corner of id's flat triangle on the bottom's edge), the breech part, inside the knuckle, a
+cap of its own. Also closed: the six bolt and hinge-pin bases (hidden, their loops flat), the three zero-width cracks
+(slivers that open to 0.1 units in the recoil frames, where the fore-end's top edge moves against the barrels), and
+the two muzzle flashes' bases (collapsed in frame 0, open in the firing frames, in the bores). Every new vertex is a
+copy of a corner (its bytes in every frame), so the model's positions are exactly as they were.
+
+Open edges (an edge of one triangle, the vertices welded when at the same place in every frame): 72 -> 2. The two
+left have no area (check_mdl_holes.py's "stray open edges"): the top edge of the fore-end's front face, inside the
+front block, and the bottom edge of a flat plate at x 11 between the receiver and the knuckle, both where coincident
+inner walls meet other parts; there is nothing to close. Degenerate triangles (no area in any frame): id's flat one along
+the fore-end's bottom edge and the cap's flat ear through its middle corner, which pairs its edges; others are flat
+only in some frames (the muzzle flashes' when not firing, one at the trigger's front in frame 0).
+
+**Tools.** `python Misc/quakevr/reuv_shot2.py --report [model]` prints the densities and the holes; polish_weapons.py
+runs it on the v_shot2.mdl it writes (reproducible: the same file every run). The normal map is baked again
+(`bake_normals.py v_shot2.mdl`). To test in VR: the super shotgun's fore-end from the side and from below (look up at
+it held overhead), and the trigger guard's front from below: no background through the gun, no smeared stripes.

@@ -16,6 +16,8 @@
 # every anchor of every slot using the model), the hotspots (model space) stay where they were, and the new parts
 # fit inside the old bounds (the write fails otherwise). The new parts keep clear of where the hands hold the gun
 # (the grips, triggers, foregrips, pumps): the fitted fingers close on the same surfaces as before.
+# The double shotgun then goes through reuv_shot2.py (POST): its fore-end's stretched UVs re-mapped and repainted,
+# its holes closed; UVs and texels there change, the old vertices, triangles and anchors do not.
 #
 # What is added, in the guns' own ramps (never a fullbright index: the sights and screens keep theirs):
 # - bands: a low-poly ring (chamfered edges) round a barrel, a tube or a housing, on the outline of what it goes
@@ -34,6 +36,7 @@ import numpy as np
 
 import genguard
 import mdlpolish as mp
+import reuv_shot2
 from improve_weapons import strip_order
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -136,6 +139,9 @@ RECIPES = {
     "v_axe.mdl": axe,
 }
 WEAR_ONLY = ["v_grpple.mdl", "v_laserg.mdl", "v_hammer.mdl"]
+# After the polish: the double shotgun's fore-end re-mapped (its old UVs were stretched) and its holes closed
+# (reuv_shot2.py: the old vertices, triangles and anchors stay; those UVs and texels change).
+POST = {"v_shot2.mdl": reuv_shot2.fix}
 
 
 # ----------------------------------------------------------------------------
@@ -177,6 +183,8 @@ def polish(name, out_dir):
     if name in RECIPES:
         RECIPES[name](p)
     tris, verts, rows = p.finish(os.path.join(out_dir, name))
+    if name in POST:
+        POST[name](os.path.join(out_dir, name))
     return p.m.old_nt, tris, verts, rows, texels
 
 
