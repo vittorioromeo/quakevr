@@ -7,10 +7,16 @@
 #include <SDL2/SDL.h>
 #else
 #include "SDL.h"
+
+#include "Zancle/Base/Swap.hpp"
+#include "Zancle/Concurrency/AtomicMutex.hpp"
+#include "Zancle/Concurrency/LockGuard.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/String/ToString.hpp"
+
 #endif
 
 #include <mutex>
-#include <string>
 
 namespace qvr::steamaudio
 {
@@ -33,15 +39,15 @@ struct State
     Api table;
     bool ok{false};
     IPLContext context{nullptr};
-    std::string status{"not tried"};
+    za::String status{"not tried"};
 };
 State state;
 
 // Steam Audio's log (any thread): kept here, printed by flushLog on the main thread.
 struct Log
 {
-    std::mutex mutex;
-    std::string pending;
+    za::AtomicMutex mutex;
+    za::String pending;
 };
 Log logged;
 
@@ -51,7 +57,7 @@ void IPLCALL logMessage(IPLLogLevel level, const char* message)
     {
         return;
     }
-    const std::lock_guard lock{logged.mutex};
+    const za::LockGuard lock{logged.mutex};
     if(logged.pending.size() < 4096)
     {
         logged.pending += level == IPL_LOGLEVEL_ERROR ? "Steam Audio error: " : "Steam Audio warning: ";
@@ -85,11 +91,11 @@ void load()
     state.library = SDL_LoadObject(libraryName);
     if(!state.library)
     {
-        state.status = std::string{libraryName} + " not found: Quake's own panning";
+        state.status = za::String{libraryName} + " not found: Quake's own panning";
         return;
     }
     bool missing = false;
-    std::string missingName;
+    za::String missingName;
 #define QVR_IPL_LOAD(name)                                                                                              \
     state.table.name = reinterpret_cast<decltype(state.table.name)>(SDL_LoadFunction(state.library, #name));           \
     if(!state.table.name && !missing)                                                                                   \
@@ -101,7 +107,7 @@ void load()
 #undef QVR_IPL_LOAD
     if(missing)
     {
-        state.status = std::string{libraryName} + " has no " + missingName + ": Quake's own panning";
+        state.status = za::String{libraryName} + " has no " + missingName + ": Quake's own panning";
         unload();
         return;
     }
@@ -112,16 +118,16 @@ void load()
     settings.simdLevel = IPL_SIMDLEVEL_AVX2; // (AVX-512 can throttle the clock: Steam Audio's own advice)
     if(state.table.iplContextCreate(&settings, &state.context) != IPL_STATUS_SUCCESS || !state.context)
     {
-        state.status = std::string{libraryName} + " refused the context (another version than " +
-                       std::to_string(STEAMAUDIO_VERSION_MAJOR) + "." + std::to_string(STEAMAUDIO_VERSION_MINOR) +
+        state.status = za::String{libraryName} + " refused the context (another version than " +
+                       za::toString(STEAMAUDIO_VERSION_MAJOR) + "." + za::toString(STEAMAUDIO_VERSION_MINOR) +
                        "?): Quake's own panning";
         state.context = nullptr;
         unload();
         return;
     }
     state.ok = true;
-    state.status = std::string{"loaded "} + libraryName + " (Steam Audio " + std::to_string(STEAMAUDIO_VERSION_MAJOR) +
-                   "." + std::to_string(STEAMAUDIO_VERSION_MINOR) + "." + std::to_string(STEAMAUDIO_VERSION_PATCH) + ")";
+    state.status = za::String{"loaded "} + libraryName + " (Steam Audio " + za::toString(STEAMAUDIO_VERSION_MAJOR) +
+                   "." + za::toString(STEAMAUDIO_VERSION_MINOR) + "." + za::toString(STEAMAUDIO_VERSION_PATCH) + ")";
 }
 
 } // namespace
@@ -131,7 +137,7 @@ const Api* api()
     if(!state.tried)
     {
         load();
-        Con_DPrintf("Steam Audio: %s\n", state.status.c_str());
+        Con_DPrintf("Steam Audio: %s\n", state.status.cStr());
     }
     return state.ok ? &state.table : nullptr;
 }
@@ -143,21 +149,21 @@ IPLContext context()
 
 const char* status()
 {
-    return state.status.c_str();
+    return state.status.cStr();
 }
 
 void flushLog()
 {
-    std::string text;
+    za::String text;
     {
-        const std::lock_guard lock{logged.mutex};
+        const za::LockGuard lock{logged.mutex};
         if(logged.pending.empty())
         {
             return;
         }
-        text.swap(logged.pending);
+        za::genericSwap(text, logged.pending);
     }
-    Con_Printf("%s", text.c_str());
+    Con_Printf("%s", text.cStr());
 }
 
 void shutdown()

@@ -14,9 +14,11 @@
 #include "vr_jobs.hpp"
 #include "vr_steamaudio.hpp"
 
-#include <array>
+#include "Zancle/Concurrency/AtomicMutex.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
+
 #include <mutex>
-#include <vector>
 
 namespace qvr::audio
 {
@@ -44,9 +46,9 @@ enum class SurfaceMaterial : int
 // Triangles in Steam Audio's space (metres).
 struct Mesh
 {
-    std::vector<IPLVector3> vertices;
-    std::vector<IPLTriangle> triangles;
-    std::vector<IPLint32> materials; // one per triangle (SurfaceMaterial)
+    za::Vector<IPLVector3> vertices;
+    za::Vector<IPLTriangle> triangles;
+    za::Vector<IPLint32> materials; // one per triangle (SurfaceMaterial)
     void clear()
     {
         vertices.clear();
@@ -167,7 +169,7 @@ private:
     struct DirectJob
     {
         IPLCoordinateSpace3 listener{};
-        std::array<Source, maxSources> sources{};
+        za::Array<Source, maxSources> sources{};
         int count{0};
         SimSettings settings;
     };
@@ -212,7 +214,7 @@ private:
     IPLSimulator simulator{nullptr};
     IPLReflectionEffectType type{IPL_REFLECTIONEFFECTTYPE_PARAMETRIC};
     int order{0};
-    std::array<IPLSource, maxSources> sources{};
+    za::Array<IPLSource, maxSources> sources{};
     IPLSource reverbSource{nullptr};
 
     IPLScene scene{nullptr};
@@ -220,8 +222,8 @@ private:
     int triangles{0};
     double buildMs{0.0};
     jobs::Future<Built> building;
-    std::vector<SubScene> subScenes; // by submodel number
-    std::vector<Instance> instances;
+    za::Vector<SubScene> subScenes; // by submodel number
+    za::Vector<Instance> instances;
     bool dirty{false};
 
     jobs::Future<void> directTask;
@@ -231,10 +233,10 @@ private:
     double lastDirect{-1e9};
     double lastReflections{-1e9};
 
-    mutable std::mutex mutex; // guards what follows
-    std::array<DirectResult, maxSources> directOut{};
-    std::array<bool, maxSources> directValid{};
-    std::array<unsigned, maxSources> directSerial{};
+    mutable za::AtomicMutex mutex; // guards what follows
+    za::Array<DirectResult, maxSources> directOut{};
+    za::Array<bool, maxSources> directValid{};
+    za::Array<unsigned, maxSources> directSerial{};
     IPLReflectionEffectParams reflectionsOut{};
     bool reflectionsValid{false};
     double directTaskMs{0.0};

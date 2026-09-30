@@ -5,7 +5,6 @@
 #pragma once
 #include "vr_engine.hpp"
 
-#include <cstdint>
 
 namespace qvr::physsound
 {

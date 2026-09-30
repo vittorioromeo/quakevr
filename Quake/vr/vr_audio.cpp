@@ -33,11 +33,26 @@
 #include "vr_profile.hpp"
 #include "vr_units.hpp"
 
+#include "Zancle/Algorithm/Copy.hpp"
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Ceil.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Exp.hpp"
+#include "Zancle/Math/Floor.hpp"
+#include "Zancle/Math/Fmod.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Pow.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/String/String.hpp"
+#include "vr_zancle.hpp"
+
 #include <algorithm>
-#include <cmath>
-#include <cstdio>
-#include <cstring>
-#include <string>
+#include <stdio.h>
 
 namespace qvr::audio
 {
@@ -50,12 +65,12 @@ Features featuresFromCvars()
     Features f;
     f.hrtf = vr_snd_hrtf.value != 0.f;
     f.bilinear = vr_snd_hrtf_interp.value != 0.f;
-    f.hrtfGain = std::clamp(vr_snd_hrtf_gain.value, 0.f, 4.f);
-    f.occlusion = std::clamp(vr_snd_occlusion.value, 0.f, 2.f);
+    f.hrtfGain = za::clamp(vr_snd_hrtf_gain.value, 0.f, 4.f);
+    f.occlusion = za::clamp(vr_snd_occlusion.value, 0.f, 2.f);
     f.air = vr_snd_air.value != 0.f;
-    f.reverb = std::clamp(vr_snd_reverb.value, 0.f, 2.f);
-    f.doppler = std::clamp(vr_snd_doppler.value, 0.f, 4.f);
-    f.nearfield = std::clamp(vr_snd_nearfield.value, 0.f, 2.f);
+    f.reverb = za::clamp(vr_snd_reverb.value, 0.f, 2.f);
+    f.doppler = za::clamp(vr_snd_doppler.value, 0.f, 4.f);
+    f.nearfield = za::clamp(vr_snd_nearfield.value, 0.f, 2.f);
     f.unitsPerMetre = units::metresToUnits();
     return f;
 }
@@ -78,7 +93,7 @@ struct Quality
 // and its tail came out 13-20 dB quieter than either's: vr_snd_test reverb.)
 Quality qualityPreset(int q)
 {
-    switch(std::clamp(q, 0, 2))
+    switch(za::clamp(q, 0, 2))
     {
         case 0: return {IPL_REFLECTIONEFFECTTYPE_PARAMETRIC, 1, 1.0f, 1024, 8};
         case 2: return {IPL_REFLECTIONEFFECTTYPE_CONVOLUTION, 1, 3.0f, 4096, 32};
@@ -143,13 +158,20 @@ bool Mixer::create(int rate, int frameSize, const char* sofa)
             destroy();
             return false;
         }
-        v.in0.assign(frame, 0.f);
-        v.mid.assign(frame, 0.f);
-        v.l.assign(frame, 0.f);
-        v.r.assign(frame, 0.f);
-        v.outL.assign(maxSamples, 0.f);
-        v.outR.assign(maxSamples, 0.f);
-        v.send.assign(maxSamples, 0.f);
+        v.in0.clear();
+        v.in0.resize(frame, 0.f);
+        v.mid.clear();
+        v.mid.resize(frame, 0.f);
+        v.l.clear();
+        v.l.resize(frame, 0.f);
+        v.r.clear();
+        v.r.resize(frame, 0.f);
+        v.outL.clear();
+        v.outL.resize(maxSamples, 0.f);
+        v.outR.clear();
+        v.outR.resize(maxSamples, 0.f);
+        v.send.clear();
+        v.send.resize(maxSamples, 0.f);
         v.active = false;
     }
     reverbOrder = -1;
@@ -195,7 +217,7 @@ void Mixer::destroy()
 
 void Mixer::setReverb(IPLReflectionEffectType type, int order, float duration)
 {
-    const int size = std::max(frame, static_cast<int>(std::ceil(duration * static_cast<float>(sampleRate))));
+    const int size = za::max(frame, static_cast<int>(za::ceil(duration * static_cast<float>(sampleRate))));
     if(!valid() || (reflection && type == reverbType && order == reverbOrder && size == irSize))
     {
         return;
@@ -232,10 +254,14 @@ void Mixer::setReverb(IPLReflectionEffectType type, int order, float duration)
         decode = nullptr;
         return;
     }
-    reverbIn.assign(frame, 0.f);
-    reverbAmbi.assign(reverbChannels, std::vector<float>(frame, 0.f));
-    reverbL.assign(frame, 0.f);
-    reverbR.assign(frame, 0.f);
+    reverbIn.clear();
+    reverbIn.resize(frame, 0.f);
+    reverbAmbi.clear();
+    reverbAmbi.resize(reverbChannels, za::Vector<float>(frame, 0.f));
+    reverbL.clear();
+    reverbL.resize(frame, 0.f);
+    reverbR.clear();
+    reverbR.resize(frame, 0.f);
     reverbSilence = 1 << 30;
 }
 
@@ -245,7 +271,7 @@ void Mixer::start(int index, const sfxcache_t* sc, double pos)
     v.active = true;
     v.ended = false;
     v.sc = sc;
-    v.pos = std::max(0.0, pos);
+    v.pos = za::max(0.0, pos);
     v.first = true;
     v.lp[0] = v.lp[1] = 0.f;
     for(int b = 0; b < 3; b++)
@@ -289,19 +315,19 @@ void Mixer::prepare(Voice& v, const Listener& l, const Features& f) const
     v.dir = IPLVector3{x, y, -z};
     v.lateral = x;
     const float metres = dist / f.unitsPerMetre;
-    v.blend = std::clamp(metres / 0.1f, 0.f, 1.f); // (inside the head: towards the middle)
-    v.gainTarget = std::max(0.f, v.in.gain);
+    v.blend = za::clamp(metres / 0.1f, 0.f, 1.f); // (inside the head: towards the middle)
+    v.gainTarget = za::max(0.f, v.in.gain);
 
     v.dopplerTarget = 1.f;
     if(f.doppler > 0.f && !v.in.attached)
     {
         const float c = speedOfSound * f.unitsPerMetre;
-        const float vs = std::clamp(glm::dot(v.in.vel, dir) * f.doppler, -0.5f * c, 0.5f * c);
-        const float vl = std::clamp(glm::dot(l.vel, dir) * f.doppler, -0.5f * c, 0.5f * c);
-        v.dopplerTarget = std::clamp((c + vl) / (c + vs), 0.5f, 2.f);
+        const float vs = za::clamp(glm::dot(v.in.vel, dir) * f.doppler, -0.5f * c, 0.5f * c);
+        const float vl = za::clamp(glm::dot(l.vel, dir) * f.doppler, -0.5f * c, 0.5f * c);
+        v.dopplerTarget = za::clamp((c + vl) / (c + vs), 0.5f, 2.f);
     }
 
-    v.closeness = f.nearfield > 0.f ? std::clamp((1.f - metres) / 0.9f, 0.f, 1.f) * f.nearfield : 0.f;
+    v.closeness = f.nearfield > 0.f ? za::clamp((1.f - metres) / 0.9f, 0.f, 1.f) * f.nearfield : 0.f;
 
     for(int b = 0; b < 3; b++)
     {
@@ -316,7 +342,7 @@ void Mixer::prepare(Voice& v, const Listener& l, const Features& f) const
         for(int b = 0; b < 3; b++)
         {
             const float e = occ + (1.f - occ) * v.in.direct.transmission[b];
-            v.eqTarget[b] = std::pow(std::max(e, 1e-4f), f.occlusion);
+            v.eqTarget[b] = za::pow(za::max(e, 1e-4f), f.occlusion);
         }
     }
     if(v.in.hasDirect && f.air)
@@ -331,7 +357,7 @@ void Mixer::prepare(Voice& v, const Listener& l, const Features& f) const
         v.first = false;
         v.gain = v.gainTarget;
         v.doppler = v.dopplerTarget;
-        std::copy_n(v.eqTarget, 3, v.eq);
+        za::copy(v.eqTarget, v.eqTarget + 3, v.eq);
     }
 }
 
@@ -341,7 +367,7 @@ void Mixer::read(Voice& v, float* out, float step0, float step1)
     const sfxcache_t* sc = v.sc;
     if(v.ended || !sc || sc->length <= 0)
     {
-        std::fill_n(out, n, 0.f);
+        qza::fill(out, out + n, 0.f);
         v.ended = true;
         return;
     }
@@ -352,7 +378,7 @@ void Mixer::read(Voice& v, float* out, float step0, float step1)
         return wide ? static_cast<float>(reinterpret_cast<const short*>(sc->data)[i])
                     : static_cast<float>(static_cast<signed char>(sc->data[i])) * 256.f;
     };
-    const double integral = std::floor(v.pos);
+    const double integral = za::floor(v.pos);
     if(step0 == 1.f && step1 == 1.f && v.pos == integral)
     {
         int p = static_cast<int>(v.pos);
@@ -362,7 +388,7 @@ void Mixer::read(Voice& v, float* out, float step0, float step1)
             {
                 if(loop < 0 || loop >= length)
                 {
-                    std::fill(out + i, out + n, 0.f);
+                    qza::fill(out + i, out + n, 0.f);
                     v.ended = true;
                     v.pos = length;
                     return;
@@ -381,12 +407,12 @@ void Mixer::read(Voice& v, float* out, float step0, float step1)
         {
             if(loop < 0 || loop >= length)
             {
-                std::fill(out + i, out + n, 0.f);
+                qza::fill(out + i, out + n, 0.f);
                 v.ended = true;
                 v.pos = length;
                 return;
             }
-            pos = loop + std::fmod(pos - length, static_cast<double>(length - loop));
+            pos = loop + za::fmod(pos - length, static_cast<double>(length - loop));
         }
         const int i0 = static_cast<int>(pos);
         const float frac = static_cast<float>(pos - i0);
@@ -457,7 +483,7 @@ void Mixer::process(Voice& v, int blocks, const Features& f)
             sa->iplDirectEffectApply(v.direct, &p, &in, &out);
             src = v.mid.data();
         }
-        std::copy_n(src, n, v.send.data() + b * n);
+        za::copy(src, src + n, v.send.data() + b * n);
 
         if(f.hrtf)
         {
@@ -495,17 +521,17 @@ void Mixer::process(Voice& v, int blocks, const Features& f)
 
         // The near field: the nearer ear louder, the farther one quieter and duller (the head's shadow), by how near
         // (within a metre) and how much to the side.
-        const float amount = std::min(1.f, v.closeness * std::abs(v.lateral));
+        const float amount = za::min(1.f, v.closeness * qza::abs(v.lateral));
         const int contra = v.lateral >= 0.f ? 0 : 1; // the far ear: the left for a sound on the right
         float* nearEar = contra == 0 ? v.r.data() : v.l.data();
         float* farEar = contra == 0 ? v.l.data() : v.r.data();
         if(amount > 0.001f)
         {
             const float db = 12.f * amount;
-            const float gi = std::pow(10.f, db / 40.f);
-            const float gc = std::pow(10.f, -db / 40.f);
-            const float fc = std::max(1500.f, 20000.f * (1.f - 0.85f * amount));
-            const float a = 1.f - std::exp(-2.f * 3.14159265f * fc / static_cast<float>(sampleRate));
+            const float gi = za::pow(10.f, db / 40.f);
+            const float gc = za::pow(10.f, -db / 40.f);
+            const float fc = za::max(1500.f, 20000.f * (1.f - 0.85f * amount));
+            const float a = 1.f - za::exp(-2.f * 3.14159265f * fc / static_cast<float>(sampleRate));
             float lp = v.lp[contra];
             for(int i = 0; i < n; i++)
             {
@@ -521,8 +547,8 @@ void Mixer::process(Voice& v, int blocks, const Features& f)
         }
         v.lp[1 - contra] = nearEar[n - 1];
 
-        std::copy_n(v.l.data(), n, v.outL.data() + b * n);
-        std::copy_n(v.r.data(), n, v.outR.data() + b * n);
+        za::copy(v.l.data(), v.l.data() + n, v.outL.data() + b * n);
+        za::copy(v.r.data(), v.r.data() + n, v.outR.data() + b * n);
     }
 }
 
@@ -533,7 +559,7 @@ void Mixer::render(int blocks, const Listener& l, const Features& f, const IPLRe
     {
         return;
     }
-    blocks = std::min(blocks, maxSamples / frame);
+    blocks = za::min(blocks, maxSamples / frame);
     const int count = blocks * frame;
     int list[maxVoices];
     int active = 0;
@@ -551,8 +577,8 @@ void Mixer::render(int blocks, const Listener& l, const Features& f, const IPLRe
     }
     else if(active > 1)
     {
-        jobs::parallelFor(static_cast<std::size_t>(active), 1, [&](std::size_t begin, std::size_t end) {
-            for(std::size_t k = begin; k < end; k++)
+        jobs::parallelFor(static_cast<za::SizeT>(active), 1, [&](za::SizeT begin, za::SizeT end) {
+            for(za::SizeT k = begin; k < end; k++)
             {
                 process(voices[list[k]], blocks, f);
             }
@@ -586,7 +612,7 @@ void Mixer::render(int blocks, const Listener& l, const Features& f, const IPLRe
     for(int b = 0; b < blocks; b++)
     {
         bool silent = true;
-        std::fill(reverbIn.begin(), reverbIn.end(), 0.f);
+        qza::fill(reverbIn.begin(), reverbIn.end(), 0.f);
         for(int k = 0; k < active; k++)
         {
             const float* s = voices[list[k]].send.data() + b * frame;
@@ -597,7 +623,7 @@ void Mixer::render(int blocks, const Listener& l, const Features& f, const IPLRe
             silent = false;
         }
         // Nothing in for longer than the response: the tail has rung out (the effect keeps saying it hasn't).
-        reverbSilence = silent ? std::min(reverbSilence + frame, 1 << 30) : 0;
+        reverbSilence = silent ? za::min(reverbSilence + frame, 1 << 30) : 0;
         if(reverbSilence > irSize + frame)
         {
             continue;
@@ -654,8 +680,8 @@ struct Capture
 {
     bool running{false};
     int wanted{0};
-    std::string name;
-    std::vector<float> left, right;
+    za::String name;
+    za::Vector<float> left, right;
 };
 
 struct Live
@@ -666,20 +692,20 @@ struct Live
     bool ok{false};
     int rate{0};
     int frame{0};
-    std::string sofa;
+    za::String sofa;
     int quality{-1};
     float simUpm{0.f};
 
-    std::array<int, MAX_CHANNELS> voiceOf{};
-    std::array<int, Mixer::maxVoices> channelOf{};
-    std::array<unsigned, Mixer::maxVoices> serial{};
-    std::array<unsigned, Mixer::maxVoices> guessSerial{}; // (the voice's sound its first guess is for)
-    std::array<DirectResult, Mixer::maxVoices> guess{};  // occlusion before the simulation's first result
-    std::array<bool, MAX_CHANNELS> fresh{};
-    std::array<bool, MAX_CHANNELS> keep{};
-    std::array<Follow, dynamicChannels> follow{};
-    std::array<Candidate, MAX_CHANNELS> candidates{};
-    std::array<Simulation::Source, Simulation::maxSources> sources{};
+    za::Array<int, MAX_CHANNELS> voiceOf{};
+    za::Array<int, Mixer::maxVoices> channelOf{};
+    za::Array<unsigned, Mixer::maxVoices> serial{};
+    za::Array<unsigned, Mixer::maxVoices> guessSerial{}; // (the voice's sound its first guess is for)
+    za::Array<DirectResult, Mixer::maxVoices> guess{};  // occlusion before the simulation's first result
+    za::Array<bool, MAX_CHANNELS> fresh{};
+    za::Array<bool, MAX_CHANNELS> keep{};
+    za::Array<Follow, dynamicChannels> follow{};
+    za::Array<Candidate, MAX_CHANNELS> candidates{};
+    za::Array<Simulation::Source, Simulation::maxSources> sources{};
     int voicesUsed{0};
     int brushSeen{0};
 
@@ -694,8 +720,8 @@ struct Live
     IPLReflectionEffectParams reverb{};
     bool haveReverb{false};
 
-    std::vector<float> mixL, mixR;
-    std::array<float, 1024> carryL{}, carryR{};
+    za::Vector<float> mixL, mixR;
+    za::Array<float, 1024> carryL{}, carryR{};
     int carryStart{0};
     int carryLen{0};
 
@@ -746,14 +772,14 @@ void releaseAll()
     live->voicesUsed = 0;
 }
 
-std::string sofaPath()
+za::String sofaPath()
 {
     const char* name = vr_snd_hrtf_sofa.string;
     if(!name || !*name)
     {
         return {};
     }
-    return std::string{com_gamedir} + "/" + name;
+    return za::String{com_gamedir} + "/" + name;
 }
 
 int frameSetting()
@@ -776,7 +802,7 @@ void createSim()
 void ensure()
 {
     const int frame = frameSetting();
-    const std::string sofa = sofaPath();
+    const za::String sofa = sofaPath();
     if(live->tried && live->rate == shm->speed && live->frame == frame && live->sofa == sofa)
     {
         if(live->ok && live->quality != static_cast<int>(vr_snd_reverb_quality.value))
@@ -796,19 +822,21 @@ void ensure()
     live->sofa = sofa;
     live->sim.destroy();
     const double start = Sys_DoubleTime();
-    if(!live->mixer.create(live->rate, live->frame, sofa.c_str()))
+    if(!live->mixer.create(live->rate, live->frame, sofa.cStr()))
     {
         Con_DPrintf("Spatial audio: off (%s)\n", steamaudio::status());
         return;
     }
     if(!sofa.empty() && !live->mixer.customHrtf())
     {
-        Con_Printf("Spatial audio: couldn't load the HRTF %s; Steam Audio's own instead\n", sofa.c_str());
+        Con_Printf("Spatial audio: couldn't load the HRTF %s; Steam Audio's own instead\n", sofa.cStr());
     }
-    live->voiceOf.fill(-1);
-    live->channelOf.fill(-1);
-    live->mixL.assign(Mixer::maxSamples, 0.f);
-    live->mixR.assign(Mixer::maxSamples, 0.f);
+    qza::fill(live->voiceOf, -1);
+    qza::fill(live->channelOf, -1);
+    live->mixL.clear();
+    live->mixL.resize(Mixer::maxSamples, 0.f);
+    live->mixR.clear();
+    live->mixR.resize(Mixer::maxSamples, 0.f);
     createSim();
     live->ok = true;
     Con_DPrintf("Spatial audio: %d Hz, %d-sample frames, %.1f ms to start\n", live->rate, live->frame,
@@ -870,9 +898,10 @@ void selectVoices(int time)
         }
         L.candidates[n++] = Candidate{i, priority};
     }
-    const int k = std::min(n, std::clamp(static_cast<int>(vr_snd_voices.value), 1, Mixer::maxVoices));
+    const int k = za::min(n, za::clamp(static_cast<int>(vr_snd_voices.value), 1, Mixer::maxVoices));
     if(n > k)
     {
+        // ZANCLE-TODO: no selection algorithm (std::nth_element: the k kept, whatever the order of equal priorities)
         std::nth_element(L.candidates.begin(), L.candidates.begin() + k, L.candidates.begin() + n,
             [](const Candidate& a, const Candidate& b) { return a.priority > b.priority; });
     }
@@ -928,7 +957,7 @@ void selectVoices(int time)
             pos = static_cast<double>(sc->length - (ch->end - time));
             if(pos >= sc->length && sc->loopstart >= 0 && sc->loopstart < sc->length)
             {
-                pos = sc->loopstart + std::fmod(pos - sc->length, static_cast<double>(sc->length - sc->loopstart));
+                pos = sc->loopstart + za::fmod(pos - sc->length, static_cast<double>(sc->length - sc->loopstart));
             }
         }
         L.mixer.start(v, sc, pos);
@@ -975,19 +1004,19 @@ void report()
 }
 
 // Final mix to a WAV file (16-bit stereo).
-bool writeWav16(const char* path, const std::vector<float>& l, const std::vector<float>& r, int rate)
+bool writeWav16(const char* path, const za::Vector<float>& l, const za::Vector<float>& r, int rate)
 {
-    FILE* f = std::fopen(path, "wb");
+    FILE* f = fopen(path, "wb");
     if(!f)
     {
         return false;
     }
-    const auto u32 = [&](unsigned v) { std::fwrite(&v, 4, 1, f); };
-    const auto u16 = [&](unsigned short v) { std::fwrite(&v, 2, 1, f); };
-    const unsigned n = static_cast<unsigned>(std::min(l.size(), r.size()));
-    std::fwrite("RIFF", 1, 4, f);
+    const auto u32 = [&](unsigned v) { fwrite(&v, 4, 1, f); };
+    const auto u16 = [&](unsigned short v) { fwrite(&v, 2, 1, f); };
+    const unsigned n = static_cast<unsigned>(za::min(l.size(), r.size()));
+    fwrite("RIFF", 1, 4, f);
     u32(36 + n * 4);
-    std::fwrite("WAVEfmt ", 1, 8, f);
+    fwrite("WAVEfmt ", 1, 8, f);
     u32(16);
     u16(1);
     u16(2);
@@ -995,15 +1024,15 @@ bool writeWav16(const char* path, const std::vector<float>& l, const std::vector
     u32(static_cast<unsigned>(rate) * 4);
     u16(4);
     u16(16);
-    std::fwrite("data", 1, 4, f);
+    fwrite("data", 1, 4, f);
     u32(n * 4);
     for(unsigned i = 0; i < n; i++)
     {
-        const short s[2] = {static_cast<short>(std::clamp(l[i], -32768.f, 32767.f)),
-            static_cast<short>(std::clamp(r[i], -32768.f, 32767.f))};
-        std::fwrite(s, 2, 2, f);
+        const short s[2] = {static_cast<short>(za::clamp(l[i], -32768.f, 32767.f)),
+            static_cast<short>(za::clamp(r[i], -32768.f, 32767.f))};
+        fwrite(s, 2, 2, f);
     }
-    std::fclose(f);
+    fclose(f);
     return true;
 }
 
@@ -1012,13 +1041,13 @@ void finishCapture()
     Capture& c = live->capture;
     c.running = false;
     const int rate = shm ? shm->speed : 44100;
-    std::string path = std::string{com_gamedir} + "/sound_tests/capture_" + c.name + ".wav";
+    za::String path = za::String{com_gamedir} + "/sound_tests/capture_" + c.name + ".wav";
     COM_CreatePath(path.data());
-    writeWav16(path.c_str(), c.left, c.right, rate);
+    writeWav16(path.cStr(), c.left, c.right, rate);
     const Levels lv = measure(c.left.data(), c.right.data(), static_cast<int>(c.left.size()), rate);
     Con_Printf("vr_snd_capture %s: %d samples, rms %.1f dB, left %.1f dB, right %.1f dB, below 500 Hz %.1f dB, above 4 kHz "
                "%.1f dB (%s)\n",
-        c.name.c_str(), static_cast<int>(c.left.size()), lv.rms, lv.left, lv.right, lv.low, lv.high, path.c_str());
+        c.name.cStr(), static_cast<int>(c.left.size()), lv.rms, lv.left, lv.right, lv.low, lv.high, path.cStr());
     c.left.clear();
     c.right.clear();
 }
@@ -1072,7 +1101,7 @@ void capture_f()
         return;
     }
     Capture& c = live->capture;
-    c.wanted = static_cast<int>(std::clamp(Q_atof(Cmd_Argv(1)), 0.05f, 60.f) * static_cast<float>(shm->speed));
+    c.wanted = static_cast<int>(za::clamp(Q_atof(Cmd_Argv(1)), 0.05f, 60.f) * static_cast<float>(shm->speed));
     c.name = Cmd_Argc() > 2 ? Cmd_Argv(2) : "capture";
     c.left.clear();
     c.right.clear();
@@ -1089,7 +1118,7 @@ void benchSpawn_f()
         Con_Printf("vr_snd_bench_spawn: needs a map and sound\n");
         return;
     }
-    const int count = Cmd_Argc() > 1 ? std::clamp(Q_atoi(Cmd_Argv(1)), 1, 128) : 32;
+    const int count = Cmd_Argc() > 1 ? za::clamp(Q_atoi(Cmd_Argv(1)), 1, 128) : 32;
     const float radius = Cmd_Argc() > 2 ? Q_atof(Cmd_Argv(2)) : 200.f;
     const char* names[] = {"ambience/fire1.wav", "ambience/hum1.wav", "ambience/drip1.wav", "ambience/comp1.wav"};
     for(int i = 0; i < count; i++)
@@ -1097,7 +1126,7 @@ void benchSpawn_f()
         sfx_t* sfx = S_PrecacheSound(names[i % 4]);
         const float a = static_cast<float>(i) * 2.399963f; // (the golden angle: spread round)
         const float r = radius * (0.5f + 0.5f * static_cast<float>(i % 7) / 6.f);
-        vec3_t at{live->listener.pos.x + std::cos(a) * r, live->listener.pos.y + std::sin(a) * r,
+        vec3_t at{live->listener.pos.x + za::cos(a) * r, live->listener.pos.y + za::sin(a) * r,
             live->listener.pos.z + static_cast<float>(i % 3 - 1) * 24.f};
         S_StaticSound(sfx, at, 255.f, 1.f);
     }
@@ -1111,10 +1140,10 @@ void sceneObj_f()
         Con_Printf("vr_snd_scene_obj: no scene (spatial audio off, or no map)\n");
         return;
     }
-    std::string base = std::string{com_gamedir} + "/sound_tests/scene";
+    za::String base = za::String{com_gamedir} + "/sound_tests/scene";
     COM_CreatePath(base.data());
-    live->sim.saveObj(base.c_str());
-    Con_Printf("vr_snd_scene_obj: %s.obj (%d triangles)\n", base.c_str(), live->sim.sceneTriangles());
+    live->sim.saveObj(base.cStr());
+    Con_Printf("vr_snd_scene_obj: %s.obj (%d triangles)\n", base.cStr(), live->sim.sceneTriangles());
 }
 
 // A sound at a place (the world's, channel auto): vr_snd_play <sample> <x> <y> <z> [volume] [attenuation].
@@ -1157,8 +1186,8 @@ void liquid_f()
 void init()
 {
     live = new Live{};
-    live->voiceOf.fill(-1);
-    live->channelOf.fill(-1);
+    qza::fill(live->voiceOf, -1);
+    qza::fill(live->channelOf, -1);
     Cmd_AddCommand("vr_snd_info", info_f);
     Cmd_AddCommand("vr_snd_test", test_f);
     Cmd_AddCommand("vr_snd_capture", capture_f);
@@ -1262,7 +1291,7 @@ extern "C" void VR_SndListener(float* origin, float* forward, float* right, floa
             {
                 Mesh mesh;
                 appendBrushModel(cl.worldmodel, mesh, f.unitsPerMetre);
-                L.sim.buildScene(std::move(mesh));
+                L.sim.buildScene(ZA_MOVE(mesh));
             }
         }
         if(f.occlusion > 0.f || f.reverb > 0.f)
@@ -1306,11 +1335,11 @@ extern "C" void VR_SndListener(float* origin, float* forward, float* right, floa
                         {
                             if(d[k] > 1e-3f)
                             {
-                                leave = std::min(leave, (maxs[k] - at[k]) / d[k]);
+                                leave = za::min(leave, (maxs[k] - at[k]) / d[k]);
                             }
                             else if(d[k] < -1e-3f)
                             {
-                                leave = std::min(leave, (mins[k] - at[k]) / d[k]);
+                                leave = za::min(leave, (mins[k] - at[k]) / d[k]);
                             }
                         }
                         if(leave < 1.f)
@@ -1326,7 +1355,7 @@ extern "C" void VR_SndListener(float* origin, float* forward, float* right, floa
         SimSettings ss;
         ss.occlusion = f.occlusion > 0.f;
         ss.occlusionSamples = static_cast<int>(vr_snd_occlusion_samples.value);
-        ss.occlusionRadius = std::clamp(vr_snd_occlusion_radius.value, 0.05f, 4.f);
+        ss.occlusionRadius = za::clamp(vr_snd_occlusion_radius.value, 0.05f, 4.f);
         ss.air = f.air;
         ss.reverb = f.reverb > 0.f;
         const Quality q = qualityPreset(L.quality);
@@ -1334,7 +1363,7 @@ extern "C" void VR_SndListener(float* origin, float* forward, float* right, floa
         ss.bounces = q.bounces;
         ss.duration = q.duration;
         ss.order = q.order;
-        ss.reverbInterval = std::clamp(static_cast<double>(vr_snd_reverb_interval.value), 0.05, 5.0);
+        ss.reverbInterval = za::clamp(static_cast<double>(vr_snd_reverb_interval.value), 0.05, 5.0);
         L.sim.update(coordinates(L.listener.pos, L.listener.fwd, L.listener.right, L.listener.up, f.unitsPerMetre),
             L.sources.data(), n, ss, realtime);
         IPLReflectionEffectParams p{};
@@ -1367,9 +1396,9 @@ extern "C" int VR_SndSpatialize(channel_t* ch)
         VectorSubtract(ch->origin, listener_origin, d);
         const float dist = VectorNormalize(d) * ch->dist_mult;
         const float dot = DotProduct(listener_right, d);
-        const float scale = std::max(0.f, 1.f - dist);
-        ch->rightvol = std::max(0, static_cast<int>(static_cast<float>(ch->master_vol) * scale * (1.f + dot)));
-        ch->leftvol = std::max(0, static_cast<int>(static_cast<float>(ch->master_vol) * scale * (1.f - dot)));
+        const float scale = za::max(0.f, 1.f - dist);
+        ch->rightvol = za::max(0, static_cast<int>(static_cast<float>(ch->master_vol) * scale * (1.f + dot)));
+        ch->leftvol = za::max(0, static_cast<int>(static_cast<float>(ch->master_vol) * scale * (1.f - dot)));
         return 1;
     }
     if(index >= 0 && index < dynamicChannels && ch->sfx)
@@ -1495,14 +1524,14 @@ extern "C" void VR_SndPaint(portable_samplepair_t* buffer, int start, int end)
     int written = 0;
     if(L.carryLen > 0 && L.carryStart == start)
     {
-        written = std::min(count, L.carryLen);
+        written = za::min(count, L.carryLen);
         for(int i = 0; i < written; i++)
         {
             buffer[i].left += static_cast<int>(L.carryL[i]);
             buffer[i].right += static_cast<int>(L.carryR[i]);
         }
-        std::copy(L.carryL.begin() + written, L.carryL.begin() + L.carryLen, L.carryL.begin());
-        std::copy(L.carryR.begin() + written, L.carryR.begin() + L.carryLen, L.carryR.begin());
+        za::copy(L.carryL.begin() + written, L.carryL.begin() + L.carryLen, L.carryL.begin());
+        za::copy(L.carryR.begin() + written, L.carryR.begin() + L.carryLen, L.carryR.begin());
         L.carryLen -= written;
         L.carryStart += written;
     }
@@ -1531,7 +1560,7 @@ extern "C" void VR_SndPaint(portable_samplepair_t* buffer, int start, int end)
         const channel_t* ch = &snd_channels[c];
         VoiceInput in;
         in.pos = glm::vec3{ch->origin[0], ch->origin[1], ch->origin[2]};
-        const float falloff = std::max(0.f, 1.f - glm::length(in.pos - L.listener.pos) * ch->dist_mult);
+        const float falloff = za::max(0.f, 1.f - glm::length(in.pos - L.listener.pos) * ch->dist_mult);
         in.gain = static_cast<float>(ch->master_vol) * falloff * volume;
         in.attached = handOf(ch) >= 0;
         if(c < dynamicChannels && L.follow[c].active && vr_snd_follow.value != 0.f)
@@ -1547,7 +1576,7 @@ extern "C" void VR_SndPaint(portable_samplepair_t* buffer, int start, int end)
             {
                 L.guessSerial[v] = L.serial[v];
                 trace_t trace;
-                std::memset(&trace, 0, sizeof trace);
+                ZA_MEMSET(&trace, 0, sizeof trace);
                 trace.fraction = 1.f;
                 vec3_t from{L.listener.pos.x, L.listener.pos.y, L.listener.pos.z};
                 vec3_t to{in.pos.x, in.pos.y, in.pos.z};
@@ -1557,7 +1586,7 @@ extern "C" void VR_SndPaint(portable_samplepair_t* buffer, int start, int end)
                 {
                     const IPLMaterial& wall = material(SurfaceMaterial::Stone);
                     L.guess[v].occlusion = 0.f;
-                    std::copy_n(wall.transmission, 3, L.guess[v].transmission);
+                    za::copy(wall.transmission, wall.transmission + 3, L.guess[v].transmission);
                 }
             }
             in.hasDirect = true;
@@ -1571,8 +1600,8 @@ extern "C" void VR_SndPaint(portable_samplepair_t* buffer, int start, int end)
     const int frame = L.frame;
     const int blocks = (remain + frame - 1) / frame;
     const int rendered = blocks * frame;
-    std::fill_n(L.mixL.begin(), rendered, 0.f);
-    std::fill_n(L.mixR.begin(), rendered, 0.f);
+    qza::fill(L.mixL.begin(), L.mixL.begin() + rendered, 0.f);
+    qza::fill(L.mixR.begin(), L.mixR.begin() + rendered, 0.f);
     L.mixer.render(blocks, L.listener, f, L.haveReverb ? &L.reverb : nullptr, L.mixL.data(), L.mixR.data());
 
     // The channels as Quake would have left them at the end of what was rendered.
@@ -1595,7 +1624,7 @@ extern "C" void VR_SndPaint(portable_samplepair_t* buffer, int start, int end)
         const double pos = L.mixer.position(v);
         ch->pos = static_cast<int>(pos);
         const int length = sc ? sc->length : ch->pos;
-        ch->end = renderedEnd + static_cast<int>((length - pos) / std::max(0.5f, L.mixer.dopplerFactor(v)));
+        ch->end = renderedEnd + static_cast<int>((length - pos) / za::max(0.5f, L.mixer.dopplerFactor(v)));
     }
 
     for(int i = 0; i < remain; i++)
@@ -1623,8 +1652,8 @@ extern "C" void VR_SndCapture(const portable_samplepair_t* buffer, int count)
     Capture& c = live->capture;
     for(int i = 0; i < count && static_cast<int>(c.left.size()) < c.wanted; i++)
     {
-        c.left.push_back(static_cast<float>(buffer[i].left) / 256.f);
-        c.right.push_back(static_cast<float>(buffer[i].right) / 256.f);
+        c.left.pushBack(static_cast<float>(buffer[i].left) / 256.f);
+        c.right.pushBack(static_cast<float>(buffer[i].right) / 256.f);
     }
     if(static_cast<int>(c.left.size()) >= c.wanted)
     {

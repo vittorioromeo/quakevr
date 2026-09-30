@@ -3,11 +3,20 @@
 
 #include "vr_audiosim.hpp"
 
-#include <algorithm>
-#include <cctype>
-#include <cmath>
-#include <cstring>
-#include <utility>
+#include "Zancle/Algorithm/Copy.hpp"
+#include "Zancle/Algorithm/Erase.hpp"
+#include "Zancle/Algorithm/Find.hpp"
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strstr.hpp"
+#include "Zancle/Concurrency/LockGuard.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "vr_zancle.hpp"
+
+#include <ctype.h>
 
 namespace qvr::audio
 {
@@ -55,7 +64,7 @@ const IPLMaterial materials[static_cast<int>(SurfaceMaterial::Count)] = {
 
 bool contains(const char* lower, const char* part)
 {
-    return std::strstr(lower, part) != nullptr;
+    return ZA_STRSTR(lower, part) != nullptr;
 }
 
 } // namespace
@@ -69,7 +78,7 @@ SurfaceMaterial materialOf(const char* textureName, bool fence)
     char lower[32]{};
     for(int i = 0; i < 31 && textureName && textureName[i]; i++)
     {
-        lower[i] = static_cast<char>(std::tolower(static_cast<unsigned char>(textureName[i])));
+        lower[i] = static_cast<char>(tolower(static_cast<unsigned char>(textureName[i])));
     }
     if(contains(lower, "wood") || contains(lower, "plank") || contains(lower, "crate"))
     {
@@ -85,7 +94,7 @@ SurfaceMaterial materialOf(const char* textureName, bool fence)
 
 const IPLMaterial& material(SurfaceMaterial m)
 {
-    return materials[std::clamp(static_cast<int>(m), 0, static_cast<int>(SurfaceMaterial::Count) - 1)];
+    return materials[za::clamp(static_cast<int>(m), 0, static_cast<int>(SurfaceMaterial::Count) - 1)];
 }
 
 // ----------------------------------------------------------------------------
@@ -108,7 +117,7 @@ void Mesh::addPolygon(const glm::vec3* points, int count, const glm::vec3& norma
     const int base = static_cast<int>(vertices.size());
     for(int k = 0; k < count; k++)
     {
-        vertices.push_back(toSteam(points[k], unitsPerMetre));
+        vertices.pushBack(toSteam(points[k], unitsPerMetre));
     }
     for(int k = 1; k + 1 < count; k++)
     {
@@ -116,8 +125,8 @@ void Mesh::addPolygon(const glm::vec3* points, int count, const glm::vec3& norma
         t.indices[0] = base;
         t.indices[1] = base + (flip ? k + 1 : k);
         t.indices[2] = base + (flip ? k : k + 1);
-        triangles.push_back(t);
-        materials.push_back(static_cast<IPLint32>(m));
+        triangles.pushBack(t);
+        materials.pushBack(static_cast<IPLint32>(m));
     }
 }
 
@@ -155,7 +164,7 @@ void appendBrushModel(const qmodel_t* model, Mesh& out, float unitsPerMetre)
         {
             continue; // the sky is open; liquids let sound through (their surface is no wall)
         }
-        const int count = std::min<int>(surf->numedges, 64);
+        const int count = za::min<int>(surf->numedges, 64);
         for(int e = 0; e < count; e++)
         {
             const int edge = model->surfedges[surf->firstedge + e];
@@ -224,8 +233,8 @@ bool Simulation::create(int rate, int frameSize, IPLReflectionEffectType reflect
     sa->iplSourceAdd(reverbSource, simulator);
     sa->iplSimulatorCommit(simulator);
     {
-        const std::lock_guard lock{mutex};
-        directValid.fill(false);
+        const za::LockGuard lock{mutex};
+        qza::fill(directValid, false);
         reflectionsValid = false;
     }
     lastDirect = lastReflections = -1e9;
@@ -368,8 +377,8 @@ void Simulation::useBuilt(Built b)
         sa->iplSimulatorSetScene(simulator, scene);
         sa->iplSimulatorCommit(simulator);
     }
-    const std::lock_guard lock{mutex};
-    directValid.fill(false);
+    const za::LockGuard lock{mutex};
+    qza::fill(directValid, false);
     reflectionsValid = false;
 }
 
@@ -391,8 +400,8 @@ void Simulation::buildScene(Mesh&& world)
             sa->iplSceneRelease(&old.scene);
         }
     }
-    building = jobs::async([api = sa, context = steamaudio::context(), mesh = std::move(world)]() mutable {
-        return build(api, context, std::move(mesh));
+    building = jobs::async([api = sa, context = steamaudio::context(), mesh = ZA_MOVE(world)]() mutable {
+        return build(api, context, ZA_MOVE(mesh));
     });
 }
 
@@ -403,7 +412,7 @@ void Simulation::buildSceneNow(Mesh&& world)
         return;
     }
     finishTasks();
-    useBuilt(build(sa, steamaudio::context(), std::move(world)));
+    useBuilt(build(sa, steamaudio::context(), ZA_MOVE(world)));
 }
 
 void Simulation::dropScene()
@@ -447,7 +456,7 @@ void Simulation::placeInstance(int key, int sub, const IPLMatrix4x4& transform, 
         make(sub, mesh, user);
         if(!mesh.triangles.empty())
         {
-            Built b = build(sa, steamaudio::context(), std::move(mesh));
+            Built b = build(sa, steamaudio::context(), ZA_MOVE(mesh));
             s.scene = b.scene;
             s.mesh = b.mesh;
         }
@@ -457,14 +466,14 @@ void Simulation::placeInstance(int key, int sub, const IPLMatrix4x4& transform, 
         return;
     }
     // (Changes are applied by applyInstances: a simulation may be running now.)
-    auto it = std::find_if(instances.begin(), instances.end(), [&](const Instance& in) { return in.key == key; });
+    auto it = za::findIf(instances.begin(), instances.end(), [&](const Instance& in) { return in.key == key; });
     if(it == instances.end())
     {
         Instance in;
         in.key = key;
         in.sub = sub;
         in.transform = transform;
-        instances.push_back(in);
+        instances.pushBack(in);
         it = instances.end() - 1;
     }
     it->wanted = true;
@@ -473,7 +482,7 @@ void Simulation::placeInstance(int key, int sub, const IPLMatrix4x4& transform, 
         it->sub = sub;
         it->remake = true; // (another model now)
     }
-    if(std::memcmp(&it->transform, &transform, sizeof transform) != 0)
+    if(ZA_MEMCMP(&it->transform, &transform, sizeof transform) != 0)
     {
         it->transform = transform;
         it->moved = true;
@@ -522,7 +531,7 @@ void Simulation::applyInstances()
         }
         in.moved = false;
     }
-    std::erase_if(instances, [](const Instance& in) { return !in.wanted; });
+    za::vectorEraseIf(instances, [](const Instance& in) { return !in.wanted; });
     if(dirty)
     {
         sa->iplSceneCommit(scene);
@@ -559,7 +568,7 @@ void Simulation::runDirect(const DirectJob& job)
         in.airAbsorptionModel.type = IPL_AIRABSORPTIONTYPE_DEFAULT;
         in.directivity.dipoleWeight = 0.f;
         in.directivity.dipolePower = 1.f;
-        const int samples = std::clamp(job.settings.occlusionSamples, 1, 32);
+        const int samples = za::clamp(job.settings.occlusionSamples, 1, 32);
         in.occlusionType = samples > 1 ? IPL_OCCLUSIONTYPE_VOLUMETRIC : IPL_OCCLUSIONTYPE_RAYCAST;
         in.occlusionRadius = job.settings.occlusionRadius;
         in.numOcclusionSamples = samples;
@@ -568,9 +577,9 @@ void Simulation::runDirect(const DirectJob& job)
         sa->iplSourceSetInputs(sources[i], IPL_SIMULATIONFLAGS_DIRECT, &in);
     }
     sa->iplSimulatorRunDirect(simulator);
-    std::array<DirectResult, maxSources> out{};
-    std::array<bool, maxSources> valid{};
-    std::array<unsigned, maxSources> serial{};
+    za::Array<DirectResult, maxSources> out{};
+    za::Array<bool, maxSources> valid{};
+    za::Array<unsigned, maxSources> serial{};
     for(int i = 0; i < job.count && i < maxSources; i++)
     {
         if(!job.sources[i].active)
@@ -582,24 +591,24 @@ void Simulation::runDirect(const DirectJob& job)
         DirectResult& r = out[i];
         if(job.settings.occlusion)
         {
-            r.occlusion = std::clamp(o.direct.occlusion, 0.f, 1.f);
+            r.occlusion = za::clamp(o.direct.occlusion, 0.f, 1.f);
             for(int b = 0; b < 3; b++)
             {
-                r.transmission[b] = std::clamp(o.direct.transmission[b], 0.f, 1.f);
+                r.transmission[b] = za::clamp(o.direct.transmission[b], 0.f, 1.f);
             }
         }
         if(job.settings.air)
         {
             for(int b = 0; b < 3; b++)
             {
-                r.air[b] = std::clamp(o.direct.airAbsorption[b], 0.f, 1.f);
+                r.air[b] = za::clamp(o.direct.airAbsorption[b], 0.f, 1.f);
             }
         }
         valid[i] = true;
         serial[i] = job.sources[i].serial;
     }
     const double ms = (Sys_DoubleTime() - start) * 1000.0;
-    const std::lock_guard lock{mutex};
+    const za::LockGuard lock{mutex};
     directOut = out;
     directValid = valid;
     directSerial = serial;
@@ -614,7 +623,7 @@ void Simulation::runReflections(const ReflectionsJob& job)
     shared.numRays = job.settings.rays;
     shared.numBounces = job.settings.bounces;
     shared.duration = job.settings.duration;
-    shared.order = std::min(job.settings.order, order);
+    shared.order = za::min(job.settings.order, order);
     shared.irradianceMinDistance = 1.f;
     sa->iplSimulatorSetSharedInputs(simulator, IPL_SIMULATIONFLAGS_REFLECTIONS, &shared);
     IPLSimulationInputs in{};
@@ -631,7 +640,7 @@ void Simulation::runReflections(const ReflectionsJob& job)
     IPLSimulationOutputs o{};
     sa->iplSourceGetOutputs(reverbSource, IPL_SIMULATIONFLAGS_REFLECTIONS, &o);
     const double ms = (Sys_DoubleTime() - start) * 1000.0;
-    const std::lock_guard lock{mutex};
+    const za::LockGuard lock{mutex};
     reflectionsOut = o.reflections;
     reflectionsValid = true;
     reflectionsTaskMs = ms;
@@ -669,8 +678,8 @@ void Simulation::update(const IPLCoordinateSpace3& listener, const Source* src, 
     {
         lastDirect = now;
         directJob.listener = listener;
-        directJob.count = std::min(count, maxSources);
-        std::copy_n(src, directJob.count, directJob.sources.begin());
+        directJob.count = za::min(count, maxSources);
+        za::copy(src, src + directJob.count, directJob.sources.begin());
         directJob.settings = s;
         directTask = jobs::async([this] { runDirect(directJob); });
     }
@@ -689,7 +698,7 @@ bool Simulation::direct(int slot, unsigned serial, DirectResult& out) const
     {
         return false;
     }
-    const std::lock_guard lock{mutex};
+    const za::LockGuard lock{mutex};
     if(!directValid[slot] || directSerial[slot] != serial)
     {
         return false;
@@ -700,7 +709,7 @@ bool Simulation::direct(int slot, unsigned serial, DirectResult& out) const
 
 bool Simulation::reflections(IPLReflectionEffectParams& out) const
 {
-    const std::lock_guard lock{mutex};
+    const za::LockGuard lock{mutex};
     if(!reflectionsValid)
     {
         return false;
@@ -717,8 +726,8 @@ void Simulation::runDirectNow(const IPLCoordinateSpace3& listener, const Source*
     }
     finishTasks();
     directJob.listener = listener;
-    directJob.count = std::min(count, maxSources);
-    std::copy_n(src, directJob.count, directJob.sources.begin());
+    directJob.count = za::min(count, maxSources);
+    za::copy(src, src + directJob.count, directJob.sources.begin());
     directJob.settings = s;
     runDirect(directJob);
 }
@@ -737,13 +746,13 @@ void Simulation::runReflectionsNow(const IPLCoordinateSpace3& listener, const Si
 
 double Simulation::directMs() const
 {
-    const std::lock_guard lock{mutex};
+    const za::LockGuard lock{mutex};
     return directTaskMs;
 }
 
 double Simulation::reflectionsMs() const
 {
-    const std::lock_guard lock{mutex};
+    const za::LockGuard lock{mutex};
     return reflectionsTaskMs;
 }
 
@@ -774,7 +783,7 @@ void makeSubmodel(int sub, Mesh& out, void* user)
     q_snprintf(name, sizeof name, "*%d", sub);
     for(int i = 1; i < MAX_MODELS && cl.model_precache[i]; i++)
     {
-        if(!std::strcmp(cl.model_precache[i]->name, name))
+        if(!ZA_STRCMP(cl.model_precache[i]->name, name))
         {
             appendBrushModel(cl.model_precache[i], out, upm);
             return;
@@ -801,7 +810,7 @@ int trackBrushEntities(Simulation& sim, float unitsPerMetre)
         {
             continue;
         }
-        const int sub = std::atoi(m->name + 1);
+        const int sub = atoi(m->name + 1);
         // Quake's rotation (angle vectors: forward, left, up as columns), turned into Steam Audio's axes (C R C^T, C
         // the change of axes), and the offset.
         vec3_t f, r, u;
