@@ -27,6 +27,14 @@ constexpr const char* fireModelName = "progs/vrtorch_fire.mdl"; // id's torch's 
 constexpr const char* crackleName = "ambience/fire1.wav";      // the torches' crackle (misc.qc FireAmbient; QC plays it
 constexpr float crackleVolume = 0.5f;                          // on a taken torch at this volume: vr_walltorch.qc)
 constexpr int fireLevels = 16;                                  // the stick's frames 1..16: its fire in sixteenths
+constexpr int wallFrame = 17;                                   // the stick's frame on its wall (a full fire)
+
+// The stick's skin is laid out as the wall torch's Quake VR loads (quakevr/progs/flame.mdl, make_walltorch.py): its skin
+// is copied in as the stick loads, but for our corner (the pit's embers, empty in it), and charred down to this row for
+// the burnt-out skin (the head). Only a flame.mdl of that torch's shape (its vertices and triangles) gives its skin.
+constexpr int ownS0 = 129, ownT0 = 2, ownS1 = 149, ownT1 = 30;
+constexpr int charredTo = 72;
+constexpr int wallVerts = 134, wallTris = 132;
 
 // The stick (make_walltorch.py): along its +x, its pit (where the fire sits) at x 0.9..1.8.
 constexpr glm::vec3 stickHead{1.2f, 0.f, 0.f};
@@ -142,11 +150,115 @@ void crackles()
 
 } // namespace
 
-// Mod_LoadModel: the file of a model made from another's, or NULL. progs/vrtorch_fire.mdl: id's wall torch
+namespace
+{
+
+// A palette index this much darker (0..1), charred (a little browner than grey), of the ordinary colours (not the
+// fullbright ones).
+[[nodiscard]] byte charred(byte c, float k)
+{
+    const auto rgb = [](int i) {
+        const unsigned v = d_8to24table[i & 255];
+        return glm::vec3{static_cast<float>(v & 255u), static_cast<float>((v >> 8) & 255u), static_cast<float>((v >> 16) & 255u)};
+    };
+    const glm::vec3 want = rgb(c) * k * glm::vec3{0.9f, 0.8f, 0.7f};
+    int best = 0;
+    float bestD = 1e9f;
+    for(int i = 0; i < 224; i++)
+    {
+        const glm::vec3 e = rgb(i) - want;
+        const float dr = e.x, dg = e.y, db = e.z;
+        const float d = dr * dr + dg * dg + db * db;
+        if(d < bestD)
+        {
+            bestD = d;
+            best = i;
+        }
+    }
+    return static_cast<byte>(best);
+}
+
+// Our stick with the wall torch's skin: its skins' pixels from the game's progs/flame.mdl (the same layout), our corner
+// kept; the burnt-out skin's head charred. The stick as shipped (its own paint) if that torch isn't the one it was laid
+// out for.
+[[nodiscard]] byte* stickWithWallSkin(unsigned int* path_id)
+{
+    byte* own = COM_LoadMallocFile(stickModelName, path_id);
+    if(!own)
+    {
+        return nullptr;
+    }
+    const size_t ownSize = static_cast<size_t>(com_filesize);
+    unsigned int idPath = 0;
+    byte* id = COM_LoadMallocFile(wallModelName, &idPath);
+    const size_t idSize = id ? static_cast<size_t>(com_filesize) : 0;
+    const auto rd = [](const byte* b, size_t at) -> int {
+        int v;
+        memcpy(&v, b + at, 4);
+        return LittleLong(v);
+    };
+    constexpr size_t headerSize = 84;
+    const auto keep = [&](const char* why) -> byte* {
+        Con_DPrintf("wall torch: %s as shipped (%s)\n", stickModelName, why);
+        free(id);
+        return own;
+    };
+    if(!id || idSize < headerSize + 4 || ownSize < headerSize || rd(id, 0) != IDPOLYHEADER || rd(own, 0) != IDPOLYHEADER)
+    {
+        return keep("no wall torch to take its skin from");
+    }
+    const int w = rd(own, 52), h = rd(own, 56), skins = rd(own, 48);
+    const size_t bytes = static_cast<size_t>(w) * static_cast<size_t>(h);
+    if(rd(id, 52) != w || rd(id, 56) != h || rd(id, 60) != wallVerts || rd(id, 64) != wallTris || rd(id, 48) < 1 ||
+        rd(id, 84) != 0 || idSize < headerSize + 4 + bytes ||
+        ownSize < headerSize + static_cast<size_t>(skins) * (4 + bytes))
+    {
+        return keep("another wall torch model, its skin laid out otherwise");
+    }
+    const byte* idSkin = id + headerSize + 4;
+    for(int k = 0; k < skins; k++)
+    {
+        const size_t at = headerSize + static_cast<size_t>(k) * (4 + bytes);
+        if(rd(own, at) != 0)
+        {
+            return keep("a skin group");
+        }
+        byte* skin = own + at + 4;
+        for(int t = 0; t < h; t++)
+        {
+            for(int s = 0; s < w; s++)
+            {
+                if(s >= ownS0 && s < ownS1 && t >= ownT0 && t < ownT1)
+                {
+                    continue;
+                }
+                byte c = idSkin[t * w + s];
+                if(k == 1 && t < charredTo)
+                {
+                    // Burnt out: the head charred, darkest at its top.
+                    c = charred(c, 0.22f + 0.33f * static_cast<float>(t) / static_cast<float>(charredTo));
+                }
+                skin[t * w + s] = c;
+            }
+        }
+    }
+    free(id);
+    Con_DPrintf("wall torch: %s: the wall torch's skin copied in (%d x %d)\n", stickModelName, w, h);
+    return own;
+}
+
+} // namespace
+
+// Mod_LoadModel: the file of a model made from another's, or NULL. progs/vrtorch.mdl: ours with the wall torch's skin
+// (stickWithWallSkin). progs/vrtorch_fire.mdl: id's wall torch
 // (progs/flame.mdl) without its stick: the triangles whose corners all move in its animation (its flame; the stick
 // stands still). Nothing of id's is written anywhere: it is made as the model loads, from the game's own file.
 extern "C" byte* VR_DerivedModelFile(const char* name, unsigned int* path_id)
 {
+    if(!strcmp(name, stickModelName))
+    {
+        return stickWithWallSkin(path_id);
+    }
     if(strcmp(name, fireModelName) != 0)
     {
         return nullptr;
@@ -322,16 +434,30 @@ extern "C" void VR_WallTorchFlames(void)
         {
             continue;
         }
-        any = true;
         Taken& t = taken[i];
-        t.stamp = frameStamp;
-        if(!t.wallKnown && e.baseline.modelindex > 0 && e.baseline.modelindex < MAX_MODELS &&
-            cl.model_precache[e.baseline.modelindex] == wallModel)
+        const bool hung = e.frame == wallFrame;
+        if(hung)
         {
-            t.wall = glm::vec3{e.baseline.origin[0], e.baseline.origin[1], e.baseline.origin[2]};
+            // On its wall (drawn as our stick): where it hangs; its flame drawn, still (its light: vr_emissive.cpp,
+            // walltorch::onWall).
+            t.wall = origin;
             t.wallKnown = true;
+            t.time = -1.0;
+            t.vel = glm::vec3{0.f};
         }
-        const int frame = std::clamp(static_cast<int>(e.frame), 0, fireLevels);
+        else
+        {
+            any = true;
+            t.stamp = frameStamp;
+            if(!t.wallKnown && e.baseline.modelindex > 0 && e.baseline.modelindex < MAX_MODELS &&
+                (cl.model_precache[e.baseline.modelindex] == wallModel ||
+                    (cl.model_precache[e.baseline.modelindex] == stickModel && e.baseline.frame == wallFrame)))
+            {
+                t.wall = glm::vec3{e.baseline.origin[0], e.baseline.origin[1], e.baseline.origin[2]};
+                t.wallKnown = true;
+            }
+        }
+        const int frame = hung ? fireLevels : std::clamp(static_cast<int>(e.frame), 0, fireLevels);
         t.level = static_cast<float>(frame) / static_cast<float>(fireLevels);
         if(frame == 0)
         {
@@ -357,7 +483,7 @@ extern "C" void VR_WallTorchFlames(void)
             t.vel = glm::vec3{0.f};
         }
         t.head = head;
-        t.time = now;
+        t.time = hung ? -1.0 : now;
 
         // Upright, leaning away from its motion; from past the head if the stick points down (not up through it).
         glm::vec3 lean = -t.vel * leanPerSpeed;
@@ -369,7 +495,7 @@ extern "C" void VR_WallTorchFlames(void)
         const glm::vec3 up = glm::normalize(glm::vec3{0.f, 0.f, 1.f} + lean);
         const glm::vec3 along = axes[0];
         const glm::vec3 base = head + along * (std::max(0.f, -along.z) * 1.5f);
-        const float s = size * std::pow(t.level, 0.6f); // (it shrinks slower than its light dims at first)
+        const float s = hung ? 1.f : size * std::pow(t.level, 0.6f); // (it shrinks slower than its light dims at first; on its wall, id's)
         t.fire = base + glm::vec3{0.f, 0.f, (fireLight - fireBase) * s};
 
         qmodel_t* model = s > 0.03f ? fire() : nullptr;
@@ -414,6 +540,11 @@ bool walltorch::fire(int ent, glm::vec3& at, float& level)
     at = it->second.fire;
     level = it->second.level;
     return true;
+}
+
+bool walltorch::onWall(const entity_t& e)
+{
+    return e.model && e.model == stickModel && e.frame == wallFrame;
 }
 
 void walltorch::onGameDirChanged()

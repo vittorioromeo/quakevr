@@ -600,6 +600,10 @@ extern "C" void VR_TorchLights(void)
         {
             const entity_t& e = cl_entities[i];
             const TorchKind* kind = e.model && i != cl.viewentity ? torchKind(e) : nullptr;
+            if(!kind && walltorch::onWall(e))
+            {
+                kind = &torchKinds[0]; // a wall torch on its wall drawn as our stick (vr_walltorch.cpp): id's torch's light
+            }
             glm::vec3 takenFire{0.f};
             float takenLevel = 0.f;
             const bool taken = !kind && e.model && walltorch::fire(i, takenFire, takenLevel);

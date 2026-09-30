@@ -14544,3 +14544,61 @@ called at its end, read whole before anything runs.
 one hash each; 0 canary differences). The full set's one difference from `eval_baseline.csv`
 (`slash_backswing_up_right` 23-12-35: 27.0 -> 26.9 damage, still PASS) is the same with the old preload: not from
 this change; the baseline predates it.
+
+## Wall torches: one model, the old wood; a lenient grab; the quick reel-in follows the rope (2026-09-30)
+
+Branch `agent/torchgrapple`. NOTES.md vrfiringrange_2026-09-30_11-22-44 (torches hard to take by hand; the model
+changes as you take it; give the new model the old texture) and vrfiringrange_2026-09-30_10-53-49 (the quick reel-in:
+the rope stays on its bends while the hook flies back).
+
+### Wall torches: one model, the old wood and metal
+
+- **One model:** a wall torch on its wall is now our stick too (`progs/vrtorch.mdl`, upright, frame 17 = "on its wall,
+  a full fire"; QC `VR_WallTorch_Setup`, `VR_WallTorch_Show`). The engine draws the wall torch's flame on it
+  (`vr_walltorch.cpp`, the same flame as a taken torch's, at the wall torch's size, still) and gives it the wall
+  torch's light (`vr_emissive.cpp`: `walltorch::onWall`, the same kind as `flame.mdl`'s: no forced shadows). Taking
+  it changes nothing on screen but that it moves. `vr_walltorch 0`: id's static torch as before.
+- **The old texture:** the torch Quake VR loads is `quakevr/progs/flame.mdl` (shipped in the repo since the game folder
+  was added: 256 x 128, 134 vertices; *not* id's pak0 one, 296 x 140; `pak10.pak` in the kit's base has the same). Its
+  stick's skin is two flat projections (front at s = 17 + 5.8 y, back at 51.5 + 5.8 y, t = 23.5 - 6.87 z).
+  `make_walltorch.py` now lays our stick's UVs out the same way (same shape as before: grip, props and melee line
+  unchanged), and the engine copies that model's skin into ours as it loads (`VR_DerivedModelFile` ->
+  `stickWithWallSkin`), the way `vrtorch_fire.mdl` is already made: nothing more is stored in the repo. Our own
+  corner (s 129..149, t 2..30, empty in that skin) keeps our pit's embers; the burnt-out skin is that skin with the
+  head charred (palette-nearest, darker to the top). Any other `flame.mdl` (other vertex count or skin size): the stick
+  as shipped, with our own paint (`developer 1` says which: "the wall torch's skin copied in" / "as shipped").
+- **Asset rule, flagged:** the copied skin comes from `quakevr/progs/flame.mdl`, which the repo already ships and whose
+  origin CREDITS.md doesn't name (it looks like the Authentic Model Improvements' torch, as the knights are). Nothing
+  new is distributed; if that file is ever removed, the stick falls back to our own paint.
+- The stick on the wall is lit by its own torch light (as a held one is); the old `flame.mdl` was drawn fullbright
+  (`MOD_FBRIGHTHACK`), so the new one looks warmer and brighter under its flame (the kit's `scratch/tg_torch_zoom.png`: old left, new right).
+
+### The grab: lenient by hand
+
+- The precise test (the fist's spheres on the drawn stick, `vr_carry_grab_bias` 0 cm) missed often: in the mock, with
+  the hand's grip point right on the stick's axis, the fist was still 2.2 cm off its surface and nothing was taken.
+- New: a grip within **`vr_walltorch_reach`** (default **15** cm; 0 = the fist only) of the stick (its axis from the butt
+  to the flame's foot) takes hold of the nearest torch on its wall (`VR_WallTorch_NearHand`, each frame the grip has
+  just been pressed with the hand empty). The pull (`vr_walltorch_pull`) is unchanged. Menu: Carrying > Wall Torches,
+  "Grab Reach".
+- Mock (firing range, the torch at -590 -760 75 from -570 -760, the grip moved sideways 0..17 cm): reach 0: taken 0 of
+  8 (even on the axis); reach 15: taken at 2.9, 4.4, 6.1, 7.9, 9.8, 11.8, 13.7 cm, not 17 cm off. Gripped 9.8 cm off and
+  pulled back 12 cm: `pulled out by hand 1 (12.0 cm)`, `carry: taken`.
+
+### The quick reel-in follows the rope
+
+- The quick release flew the hook straight to the gun while the rope's corners stayed (the rope was left on its
+  bends). Now a hook that was bitten or loose with the rope simulated (`vr_grapple_rope_sim`) comes back along the
+  rope's path: `ropesim::retract` (QC builtin `roperetract`) puts it that far along the path from the gun and drops
+  the corners it has passed; the corners are sent as they go, so the drawn rope shortens with it. Its timing is the
+  path's length (not the straight distance). Otherwise (no sim, flying) as before.
+- Mock (e1m1, `scratch/tg/reel.txt`: the hook in a wall, the player stepped right so the rope wraps 3 corners, then
+  impulse 45): "242 units in 0.49 s" along the path; 3 corners -> 2 as it passed 572 -99, then along the corner at
+  551 -193 (its positions turn there, x 564 -> 551, then y -193 -> -329 at x 550) and home, no corners left.
+
+### Check in the headset
+
+- [ ] The wall torches look like the old ones (wood, metal bands, the reddish top), just a bit warmer; nothing changes
+      as you pull one out.
+- [ ] Grab a torch with a sloppy hand (a hand's width off): does it come? Too eager near other things? (Grab Reach.)
+- [ ] Quick reel-in with the rope bent round a pillar: the rope shortens with the hook, round the bend.

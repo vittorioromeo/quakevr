@@ -138,6 +138,7 @@ vector GH_GUN_MUZZLE = '3 -0.4 0.4'; // where a thrown gun's rope starts on it (
 .float gh_mass;          // what it bit weighs (kg; 0: the world, a door)
 .float gh_speed;         // the reel's full speed for it (units/s)
 .float gh_reel;          // reeling since then (0: not)
+.float gh_retract_rope;  // the quick reel-in comes back along the rope's corners (it was simulated as it began)
 .float gh_reel_from;     // the rope's length when this reel began (the log)
 .float gh_taut;          // the rope was taut last frame
 .float gh_sound_at;      // the next reel click, haptic pulse, stagger, stamina payment and log line
@@ -960,6 +961,10 @@ void(entity h, string xWhy) VR_Grapple_Retract =
         return;
     }
     VR_Carry_Forget(h);
+    // Its rope wrapped round corners (the rope simulated: bitten or loose): it comes back along the rope, which
+    // shortens with it (NOTES.md vrfiringrange_2026-09-30_10-53-49: it flew straight back, the rope left on the corners).
+    h.gh_retract_rope = cvar_hget(cvarh_vr_grapple_rope_sim) &&
+                        (h.gh_state == GS_BITTEN || h.gh_state == GS_LOOSE);
     VR_Grapple_SetState(h, GS_RETRACT, xWhy);
     h.gh_retract_at = time;
     h.gh_retract_from = 0; // (VR_Grapple_ServiceRetract: how far it was, then)
@@ -2544,6 +2549,12 @@ void(entity h, float xHand) VR_Grapple_ServiceRetract =
 {
     vector to = gg_at - h.origin;
     float d = vlen(to);
+    if(h.gh_retract_rope)
+    {
+        roperetract(h, gg_at, h.origin, 1000000); // (nothing moved: the path from the gun round the corners)
+        vector path = ropepivot(h, 2);
+        d = path_z;
+    }
     float fast = max(100, cvar_hget(cvarh_vr_grapple_quick_speed));
     float span = max(0, cvar_hget(cvarh_vr_grapple_quick_time));
     float step = fast * frametime;
@@ -2573,7 +2584,32 @@ void(entity h, float xHand) VR_Grapple_ServiceRetract =
         return;
     }
     vector dir = to * (1 / d);
-    setorigin(h, h.origin + dir * step);
+    gr_sim = world;
+    if(h.gh_retract_rope)
+    {
+        // Along the rope: the corners it passes gone, its tail to the next corner (or the gun).
+        vector was = h.origin;
+        setorigin(h, roperetract(h, gg_at, h.origin, d - step));
+        vector ahead = ropepivot(h, 1) - h.origin;
+        if(vlen(ahead) < 0.5)
+        {
+            ahead = h.origin - was;
+        }
+        if(vlen(ahead) > 0.01)
+        {
+            dir = normalize(ahead);
+        }
+        gr_sim = h; // (its corners sent as they go)
+        if(VR_Grapple_Debug() >= 2)
+        {
+            dprint(sprintf("grapple: hook %g reels in along its rope: %.1f units left, at %v\n", h.gh_tag, d - step,
+                h.origin));
+        }
+    }
+    else
+    {
+        setorigin(h, h.origin + dir * step);
+    }
     h.angles = vectoangles('0 0 0' - dir);
     h.gh_len = d - step;
     GrappleTrail(h, h.origin, 0);
