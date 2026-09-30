@@ -40,6 +40,11 @@ char *PL_GetClipboardData (void);
 /* show an error dialog */
 void PL_ErrorDialog(const char *text);
 
+#ifdef _WIN32
+/* QVR: automated test runs (QVR_NO_ERROR_DIALOG): a crash writes qvr_crash.txt (the stack) and qvr_crash.dmp */
+void PL_InstallCrashHandler (void);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

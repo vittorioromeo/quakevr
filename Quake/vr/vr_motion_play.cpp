@@ -2264,6 +2264,13 @@ void eval_f()
         return;
     }
     const Backend* be = backend();
+    if((!be || strcmp(be->name(), "mock") != 0) && backendRestartPending())
+    {
+        // Straight from a start-up script ("vr_backend mock;vr_motion_eval ..."): the backend starts with the next
+        // frame (VR_BeginFrame). The command again then, first in the buffer (before quake.rc's vr_startgame).
+        Cbuf_InsertText(va("wait\n%s %s\n", Cmd_Argv(0), Cmd_Args() ? Cmd_Args() : ""));
+        return;
+    }
     if(!be || strcmp(be->name(), "mock") != 0)
     {
         Con_Printf("vr_motion_eval: plays in the mock headset only (vr_backend mock)\n");
@@ -2394,6 +2401,11 @@ void eval_f()
 }
 
 } // namespace
+
+bool evaluating()
+{
+    return evalState != Eval::Idle;
+}
 
 void initPlayback()
 {
