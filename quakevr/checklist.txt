@@ -12,26 +12,11 @@
 
 [Test in VR]
 Flung prop damage feels right (Throwing and Physics > Flung Props: Damage, Reference Mass)
-Held prop: one hand, then both, pull one off and back (each hand); it stays on the kept hand, regrab where drawn
-Held prop: in both hands, open one; it slides onto the kept hand with no gap
-Force grab a box (and props while walking): no gap between hand and prop (fixed after your last test)
-Melee: soft punches do nothing; real jabs, hooks and uppercuts land
-Melee: reloading or waving a gun near the dummy doesn't hit; pistol-whip and butt strikes do
-Melee: wiggling a sword or axe against the dummy doesn't hit; real cuts land
 
-Menu button: in a menu it returns straight to the game; pressing it again reopens the last page
-Grenade pouch: the grenade now comes out the same way in the hand whatever its angle; retune the Grenade In Hand sliders while holding one (live), then tell me the values
-HUD: back to Ironwail's style; the status bar drawn on your hand is gone (Options > HUD style: Classic brings it back)
 
-Firing range buttons: press one, step into its space, wait: it pushes you back a little, never traps you
 Stuck anywhere (wall, door, lift)? You should pop out to the nearest free spot (Debug > Tests > Stuck Info says where)
 
-Held prop against a gun in the other hand: meets with give and a buzz (reads as contact?)
-Held prop against walls and floors: stops at the surface at any angle, never dropped
-Club a monster with a held prop: no pass-through, never dropped
-Bat with the hammer and rocket launcher vs the shotgun: heavier ones hit harder (Carrying > Arm Behind Weapon)
 
-Shoot props with every gun (health/ammo boxes, dropped weapons, gibs): do they react well? Tune in Throwing and Physics > Shots Push Props (a shotgun blast sends a health box ~3 m)
 
 Stand on props: stand still on an explosive box, jump on and off, climb a stack of 2-3 and jump from the top, walk off, shove the box you stand on (you ride it); also at hitbox width 16
 Stand on props: do 80 kg and the 0.25 jump push feel right? (Player Hitbox > Standing on Props)
@@ -47,10 +32,6 @@ Grapple: towing a heavy box slows you (40 kg: about 80 u/s); is the feel right? 
 Grapple: the laser cannon can be hooked anywhere along it
 
 [Decide or give feedback]
-Hitbox: Movement > Player Hitbox, width 16 or 20; walk up to the firing-range panels (front and side), the prop table, explosive boxes; let monsters walk into you
-Hitbox: compare Method A (compiled hull, default) and B (brush sweep); does either snag?
-Hitbox: pick the width, and should it become the default?
-Hitbox: should the box that shots and melee hit on you shrink too? (now still 32)
 
 [Tune]
 Stamina costs: shove, strike, melee, parry, climbing
