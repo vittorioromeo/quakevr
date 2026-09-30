@@ -81,7 +81,10 @@ Climbing leniency: at 0 the hand must touch the ledge or rung; at 6 about 10 cm;
 Long explosive box toppled on its long side: jump onto it repeatedly and rock it by its ends, you always stay on top; a box falling onto you still lets you walk out (Player Hitbox > Never Through Them)
 Physics sounds: each material sounds right, loudness by speed and weight, scrapes smooth and stop cleanly, climbing grab sound subtle enough (Carrying > Physics Sounds)
 
+After the Ironwail-diff cleanup: model normal maps and parallax, water refraction with MSAA, deluxemaps on a relit map, a ledge climb, a save and load all as before
+
 [Decide or give feedback]
+README.md is the biggest remaining upstream diff (+245 lines): keep it as Quake VR's front page?
 Left-handers: flashlight toggle stays on the left Y and the main weapon slot on the right controller: OK, or follow the off hand?
 Enemy guns: scale 0.4 OK? Should the player's enforcer rifle laser be faster than the enforcer's 600 u/s?
 Zancle outside its library needs either the whole engine on clang-cl + C++23, or MSVC support in Zancle (proposal 2 in ROUND21.md): which? (blocks the std -> Zancle migration)
