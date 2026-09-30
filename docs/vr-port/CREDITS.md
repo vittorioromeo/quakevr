@@ -54,7 +54,7 @@ articles, talks and other engines' source are credited with where they came from
   his skin's own palette colours. Nothing of the model itself is copied.
 - **The ogres' chainsaw** (`progs/v_chainsaw.mdl`, made by `make_chainsaw.py`) is cut out of Quake VR's own ogre model
   (`quakevr/progs/ogre.mdl`, from the same project as the knights below), with its skin; the cord's handle is added. Its
-  sounds (`sound/vr/saw_*.wav`) are synthesised by `make_sounds.py`.
+  sounds (`sound/vr/saw_*.wav`) are recordings: see "Chainsaw sounds" below.
 - **The knights' swords** (`progs/v_ksword.mdl`, `v_hksword.mdl`, made by `make_swords.py`) are cut out of Quake VR's
   own knight models (`quakevr/progs/knight.mdl`, `hknight.mdl`), and the engine hides those swords in the models'
   death frames. These models appear to come from the
@@ -106,6 +106,24 @@ picks one of the variants at random (`vr_physics.cpp`, `variant`). Round 20 (`RO
 | `shell_plip1..3.wav` | a spent casing dropping into water (round 21) | `plip1`, `plip3` and `plip4` above, pitched up 1.5, 1.4 and 1.65 times and cut to 0.2 s by `make_sounds.py` | |
 | `slosh1..4.wav` | wading | [342932](https://freesound.org/people/ryansitz/sounds/342932/): *Wading in Shallow Water.wav*, ryansitz | 4.83-5.50, 6.30-6.95, 12.35-13.00, 24.20-24.95 |
 | `stroke1..4.wav` | swimming strokes | [390006](https://freesound.org/people/morganveilleux/sounds/390006/): *moving around in water- woosh, splash*, morganveilleux | 1.15-2.05, 2.45-3.30, 3.55-4.50, 7.00-7.80 |
+
+### Chainsaw sounds (`quakevr/sound/vr/saw_*.wav`)
+
+Recordings by **Joseph Sardin**, [BigSoundBank](https://bigsoundbank.com), released under
+[CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) (public domain: no attribution needed, credited here
+anyway). They replace the synthesised ones (2026-09-30). `Misc/quakevr/make_chainsaw_sounds.py` cuts them from the
+downloaded originals (not in the repository; the script's header has the links): mixed to mono, high-passed at 25 Hz,
+resampled to 22050 Hz 16-bit, faded; the loops crossfaded into themselves (0.12 s) and given cue points.
+
+| Files | Used for | Source (BigSoundBank number: title) | Cut (s) |
+|---|---|---|---|
+| `saw_pull_weak.wav` | a pull too slow, or with no fuel or the engine running | [0982](https://bigsoundbank.com/sound-0982-chainsaw-starting.html): *Chainsaw (Starting)*, a Stihl MS260 | 0.40-1.20 |
+| `saw_pull.wav` | a pull that fires and dies | 0982 | 1.60-3.60 |
+| `saw_start.wav` | the pull that starts it, then idling (its loop) | 0982 | 6.35-12.8 |
+| `saw_idle.wav` | idling (a loop) | 0982 | 11.00-12.80 |
+| `saw_stall.wav` | out of fuel | 0982 | 35.40-37.90 |
+| `saw_run.wav` | the chain running free, flat out (a loop) | [0707](https://bigsoundbank.com/chainsaw-2-s0707.html): *Chainsaw #2* | 28.35-29.44 |
+| `saw_cut.wav` | cutting (a loop) | 0707 (cutting a log) | 43.00-45.82 |
 
 ## Techniques, research and references
 

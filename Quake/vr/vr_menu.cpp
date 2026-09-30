@@ -2091,6 +2091,9 @@ std::vector<Item> pageDebugTests()
             .help("The chainsaws in your hands started, as a good pull of the cord does."),
         command("Nearly Empty Tank", "impulse 227").help("The chainsaws in your hands left with 5% fuel: to see one stall."),
         command("Report the Chainsaws", "impulse 228").help("Prints each chainsaw in your hands: its fuel, engine, chain and cord."),
+        command("Chainsaw Fit", "vr_chainsaw_fit")
+            .help("vr_chainsaw_fit: with the chainsaw in the main hand, prints where the off hand must move to take its "
+                  "cord and each of its hotspots (two, on the front handle), and how many it has."),
         header("Flung Props"),
         slider("Fling Speed", vr_test_fling_speed, 1.f, 40.f, 1.f, "%.0f m/s").extend(),
         cycle("Fling At", vr_test_fling_at, {{0.f, "Nearest Monster"}, {1.f, "You"}}),

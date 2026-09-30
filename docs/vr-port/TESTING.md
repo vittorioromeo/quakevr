@@ -949,7 +949,7 @@ box (100 health, 101 shells, 102 an explosive box, 103 a small one, 104 an explo
 The ogres' chainsaw (ROUND21.md, "The ogres' chainsaw"): `impulse 164` puts a full one in the main hand (with
 `vr_weapon_grip_mode 1`), `impulse 229` takes the one lying nearest into an empty hand, `impulse 227` leaves 5% fuel,
 `impulse 228` prints fuel, engine, chain and cord. `vr_chainsaw_fit` prints where the off hand's fist must move (metres,
-as `vr_mock_hand`) for the cord's handle and the front handle; with the main hand at `0.2 1.2 -0.35 70 0 0` the handle is
+as `vr_mock_hand`) for the cord's handle and each hotspot (two, both on the front handle: Debug > Tests > Chainsaw Fit); with the main hand at `0.2 1.2 -0.35 70 0 0` the handle is
 at `vr_mock_hand off 0.115 1.28 -0.556 0 0 0`. `Misc/quakevr/chainsaw_pull.mock` (copy it into `quakevr/motions/`, a
 path the game opens: `vr_mock_play quakevr/motions/chainsaw_pull.mock`) grips there and pulls slowly, then fast, then again;
 `impulse 230` starts the chainsaws in your hands without the cord; `vr_test_spawn 105` (an ogre's head) and
