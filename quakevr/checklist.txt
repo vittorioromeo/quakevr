@@ -94,6 +94,8 @@ Burst rifle sounds (real AK-47, recorded downrange: crack, blast, echo): charact
 Axe throws: overhand at a wall sticks about half the time (Thrown Axes > Blade Leniency 1; 2 sticks more but handle-first throws start sticking); flat and handle-first still bounce
 Thrown axe settles into an end-over-end spin that looks natural (Throwing > Spin in the Air 8; per-weapon and per-prop multipliers); gibs and boxes tumble as before
 
+Spatial audio (VR Settings > Sound): sounds circling your head; a monster behind a wall, then a door opening onto it; small room vs big hall reverb (0.4: too wet?); shotgun in each hand plays from that hand; overall loudness vs before
+
 [Decide or give feedback]
 Left-handers: flashlight toggle stays on the left Y and the main weapon slot on the right controller: OK, or follow the off hand?
 Enemy guns: scale 0.4 OK? Should the player's enforcer rifle laser be faster than the enforcer's 600 u/s?
