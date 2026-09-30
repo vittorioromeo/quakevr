@@ -50,6 +50,7 @@ QVR_FIELD(vr_rigid)
 QVR_FIELD(vr_spin)
 QVR_FIELD(vr_impact) // a prop's hits (vr_box3d.cpp): .void(float speed) called with how hard it hit something (m/s)
 QVR_FIELD(throwhit) // QVR_THROWHIT_NEVER_HIT (0) while a thrown thing's throw lasts (vr_box3d.cpp's hit box)
+QVR_FIELD(vr_blocksight) // a solid prop monsters can't see through (a crate, an explosive box: sightblocked, vr_crates.cpp)
 QVR_FIELD(nextthink2)
 QVR_FIELD(lastwatertime)
 

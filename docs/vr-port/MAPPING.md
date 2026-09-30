@@ -112,6 +112,11 @@ engine finds them when the map loads, `vr_debug_ledges 1` shows them):
   every load. The worldspawn key **`_vr_debris`** (Rocks and bricks) turns them off for a map (`0`) or scales their
   chance (`0.5` half as many places, `2` twice); name your textures so (a grass floor `grass_...`, a brick wall
   `..._brick...`) and they come by themselves. Single player only.
+- **Wooden crates** (ROUND21.md, "Wooden crates"): at map load, small and large crates (sometimes two stacked) are
+  placed by walls and in corners, clear of every entity, with open floor in front of them (a passage stays passable),
+  the same places at every load; they break into light pieces, may hold a small box of ammo or health, and hide the
+  player from monsters. The worldspawn key **`_vr_crates`** turns them off for a map (`0`) or scales their chance. Place
+  your own with **`vr_crate`** (spawnflag 1: LARGE; `angle`, `skin` 0-2). Single player only (placed ones everywhere).
 - Monsters and items: Honey's trigger-spawn flags (appear when triggered, teleport fog, angry, several copies with
   `cnt`, remove corpse, silent wake-up...). Items' "Floating" and "Secret" flags only work on Honey's maps and are not
   listed.

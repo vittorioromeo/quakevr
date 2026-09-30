@@ -331,6 +331,7 @@ float QVR_PARTICLE_PRESET_GUNPICKUP     = 8;
 float QVR_PARTICLE_PRESET_GUNFORCEGRAB  = 9;
 float QVR_PARTICLE_PRESET_LAVASPIKE     = 10;
 float QVR_PARTICLE_PRESET_BIGSMOKE      = 11;
+float QVR_PARTICLE_PRESET_WOODDUST      = 15; // a crate or a piece of one breaking: wood dust and splinters (vr_crates.qc)
 
 //
 //

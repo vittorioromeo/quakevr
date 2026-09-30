@@ -7,6 +7,7 @@
 #include "vr_box3d.hpp"
 #include "vr_climb.hpp"
 #include "vr_ropesim.hpp"
+#include "vr_crates.hpp"
 #include "vr_debris.hpp"
 #include "vr_ledges.hpp"
 #include "vr_cvars.hpp"
@@ -182,6 +183,7 @@ void resetServerWorld()
     qvr::ropesim::reset();
     qvr::climb::reset();
     qvr::debris::reset();
+    qvr::crates::reset();
     qvr::props::resetModelCache(); // (the models' names may be others' now)
     qvr::hitmodel::reset();
     resetBuiltinState();

@@ -322,6 +322,54 @@
   "sha256": "7957f1b1ad14449038acb6f5c3d9c8a67d2dfc45574ca1dfa82f3b023aa131b3",
   "by": "bake_normals.py"
  },
+ "quakevr/progs/vr_crate1.mdl": {
+  "sha256": "e313d8592dd9b9d5a66e152d95f900e2489acf2a0622450d72fdf39837f3e1a2",
+  "by": "make_crates.py"
+ },
+ "quakevr/progs/vr_crate1.mdl_0_norm.png": {
+  "sha256": "c8df6f4fc4ab97c2c2c655433477b95386095262c724acf110be0cc6cae86c8f",
+  "by": "bake_normals.py"
+ },
+ "quakevr/progs/vr_crate2.mdl": {
+  "sha256": "5db2411be6e291aa49f9fe678c2d12ad984294b174d7fa4728e03d8b3c190385",
+  "by": "make_crates.py"
+ },
+ "quakevr/progs/vr_crate2.mdl_0_norm.png": {
+  "sha256": "123b34a9fcfd4023fec6b8a75f2a119cb85a50d9d457d477365756635cf776b0",
+  "by": "bake_normals.py"
+ },
+ "quakevr/progs/vr_plank1.mdl": {
+  "sha256": "8ead7ebfe4deb073515f6833ecd8a0a9538353faae46fedf73aed4267a9f1db1",
+  "by": "make_crates.py"
+ },
+ "quakevr/progs/vr_plank1.mdl_0_norm.png": {
+  "sha256": "5a6819a73170ee35bc6f762f62666fa96475c9f0c6cf914813c8254b46242988",
+  "by": "bake_normals.py"
+ },
+ "quakevr/progs/vr_plank2.mdl": {
+  "sha256": "dac9b1bf340f3674ee79f538ab9467c04c395bbf47e0c22db047cbfefadbb1c7",
+  "by": "make_crates.py"
+ },
+ "quakevr/progs/vr_plank2.mdl_0_norm.png": {
+  "sha256": "68a2ac58ed004c9da2f62a5dfe776f734093cfc1239d45200f055d7b966836da",
+  "by": "bake_normals.py"
+ },
+ "quakevr/progs/vr_plank3.mdl": {
+  "sha256": "e28158c4ef6ab983ed62c66ad1906a85bad681a0f59e508135b4382ce3b4fe13",
+  "by": "make_crates.py"
+ },
+ "quakevr/progs/vr_plank3.mdl_0_norm.png": {
+  "sha256": "5e1ca43b852b4bd21cf66368de17f84c314048bc870b6b8ad7b369c648785745",
+  "by": "bake_normals.py"
+ },
+ "quakevr/progs/vr_plank4.mdl": {
+  "sha256": "0d883ecfe91867276092a5ef8817ca1c2ceecae2b6fe3609de8a1e72482e327e",
+  "by": "make_crates.py"
+ },
+ "quakevr/progs/vr_plank4.mdl_0_norm.png": {
+  "sha256": "79e54e8dccbe07a9bcebdb2ce991ffcb143e3c01414bfd32d7074f840d0a3c26",
+  "by": "bake_normals.py"
+ },
  "quakevr/progs/vr_rock1.mdl": {
   "sha256": "23dde9dc02f4be4b65e48bceb8d82388262f79abb0d960e2d672662b4b4fcf47",
   "by": "make_debris.py"

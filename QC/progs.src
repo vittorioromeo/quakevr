@@ -25,6 +25,7 @@ vr_melee.qc
 vr_juice.qc
 vr_grenade.qc
 vr_debris.qc
+vr_crates.qc
 vr_walltorch.qc
 // The grapple after vr_carry.qc and vr_walltorch.qc: it reads their fields.
 vr_grapple.qc

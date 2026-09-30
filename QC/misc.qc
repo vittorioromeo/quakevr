@@ -292,38 +292,11 @@ void() barrel_explode =
 // carried by hand (heavy: Held Object Offsets, vr_props.inc: 40 kg, the small one 25; thrown only a little way), never
 // force grabbed. It still blows up when damaged, and when it hits something hard enough (VR_Explobox_Impact:
 // vr_explobox_impact m/s, dropped from a height). 0: fixed in place, as id's.
-float VR_THROWN_BOX_TIME = 2; // s: how long a thrown explosive box may hurt what it meets (its flight, a landing's slide)
-
 void(float xSpeed) VR_Explobox_Impact =
 {
-    // Thrown (VR_Carry_Release: a heavy box is a missile at a lower speed) into something that bleeds: it hits it as any
-    // thrown thing does (VR_Thrown_Damage), once. Landing and sliding on the floor, or against a wall, it goes on (a rigid
-    // body's landing ends no throw, as forcegrabbable_touch has it); come down below the throw's least speed, or longer
-    // than VR_THROWN_BOX_TIME since it left the hand, its throw is over.
-    // Not thrown, but flung into a monster or player as fast as a throw (VR_Prop_Flung: `xSpeed` is their speed into
-    // each other): it hurts as a thrown one. Its own share of that speed: not what it hit's (a player running into it;
-    // after the step its own velocity is the bounce's).
-    float approach = xSpeed * VRMetersToUnits();
-    VR_Prop_Flung(approach, approach - vlen(other.velocity));
-    if(self.throwhit == QVR_THROWHIT_NEVER_HIT && self.owner.classname == "player")
-    {
-        float lenient = VR_Thrown_Lenient(self);
-        float speed = max(vlen(self.velocity), xSpeed * VRMetersToUnits());
-        if(time - self.carry_thrown > VR_THROWN_BOX_TIME || speed < cvar_hget(cvarh_vr_throw_hit_min_speed) * lenient)
-        {
-            self.throwhit = QVR_THROWHIT_HIT;
-        }
-        else if(other != world && other.takedamage && other != self.owner)
-        {
-            self.throwhit = QVR_THROWHIT_HIT;
-            float dmg = VR_Thrown_Damage(self, speed, lenient);
-            dprint(sprintf("explobox: thrown into %s at %.1f u/s (%.1f m/s against it): %.1f\n", other.classname, speed,
-                xSpeed, dmg));
-            sound(self, CHAN_AUTO, "fisthit.wav", 1, ATTN_NORM);
-            spawn_touchblood(dmg);
-            T_Damage(other, self, self.owner, dmg);
-        }
-    }
+    // Thrown or flung into something that takes damage: it hits it as a thrown thing (vr_crates.qc, shared with the
+    // crates).
+    VR_SolidProp_Impact(xSpeed);
 
     float threshold = cvar_hget(cvarh_vr_explobox_impact);
     if(threshold <= 0 || xSpeed < threshold || self.takedamage == DAMAGE_NO || self.health <= 0)
@@ -368,6 +341,7 @@ void() misc_explobox =
     self.health = 20;
     self.th_die = barrel_explode;
     self.takedamage = DAMAGE_AIM;
+    self.vr_blocksight = 1; // VR: monsters don't see through it (vr_crate_sight, vr_crates.qc)
 
     self.origin_z = self.origin_z + 2;
     oldz = self.origin_z;
@@ -402,6 +376,7 @@ void() misc_explobox2 =
     self.health = 20;
     self.th_die = barrel_explode;
     self.takedamage = DAMAGE_AIM;
+    self.vr_blocksight = 1; // VR: monsters don't see through it (vr_crate_sight, vr_crates.qc)
 
     self.origin_z = self.origin_z + 2;
     oldz = self.origin_z;

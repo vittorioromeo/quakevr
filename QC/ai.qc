@@ -305,12 +305,20 @@ returns 1 if the entity is visible to self, even if not infront ()
 float (entity client) visible =
 {
     vector spot1, spot2;
+    float res;
 
     spot1 = self.origin + self.view_ofs;
     spot2 = client.origin + client.view_ofs;
 
-    if(self.spawnflags & SPAWNFLAG_SF_AI_BBOX_CHECK) { return bbox_visible(self, spot2); }
-    else                                   { return point_visible(spot1, spot2); }
+    if(self.spawnflags & SPAWNFLAG_SF_AI_BBOX_CHECK) { res = bbox_visible(self, spot2); }
+    else                                   { res = point_visible(spot1, spot2); }
+
+    // VR: not through a crate or an explosive box lying about (vr_crate_sight; not one the player carries: vr_crates.qc).
+    if(res && VR_Crate_HidesFrom(self, client, spot1))
+    {
+        return FALSE;
+    }
+    return res;
 }
 
 

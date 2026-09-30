@@ -151,6 +151,16 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Nudge =
         }
     }
 
+    // So does a crate's piece, into dust (vr_crates.qc).
+    if(xBox.vr_cratekind == 3)
+    {
+        VR_CratePiece_Struck(xPlayer, xHand, xBox);
+        if(xBox.vr_cratekind != 3)
+        {
+            return;
+        }
+    }
+
     // Pushed by the hand's or the weapon's own body instead (it would be pushed twice).
     if(VR_Carry_BodyPushes(xPlayer, xHand, xBox))
     {
@@ -380,7 +390,8 @@ float(float xMass) VR_Prop_ImpactWeight =
 float(float xSpeed, float xOwnSpeed) VR_Prop_Flung =
 {
     if(!cvar_hget(cvarh_vr_prop_impact_damage) || other == world || !other.takedamage || other == self ||
-       !(other.flags & FL_MONSTER || (other.classname == "player" && cvar_hget(cvarh_vr_prop_impact_players))))
+       !(other.flags & FL_MONSTER || (other.classname == "player" && cvar_hget(cvarh_vr_prop_impact_players)) ||
+         VR_Crate_Is(other)))
     {
         return FALSE;
     }
@@ -430,7 +441,7 @@ float(float xSpeed, float xOwnSpeed) VR_Prop_Flung =
     dprint(sprintf(" (base %.1f x%.2f, speed x%.2f, weight x%.2f), by %s\n", base, own, speedMult, weightMult,
         attacker == world ? "nobody" : attacker.netname));
     sound(self, CHAN_AUTO, "fisthit.wav", 1, ATTN_NORM);
-    spawn_touchblood(dmg);
+    spawn_touchblood(dmg); // (splinters off a crate: spawn_touchblood)
     T_Damage(other, self, attacker, dmg);
     return TRUE;
 };

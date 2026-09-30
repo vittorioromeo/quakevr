@@ -16300,3 +16300,198 @@ meet the wall at eye level: `vr_test_axe_loft`); 7 is as set (`vr_test_axe_roll/
 - [ ] Throw it sloppily: does its tumble settle into a clean end-over-end spin in the air, and does that look natural?
   Spin Alignment (global), Spin in the Air (Weapon Weights) tune it; 0 turns it off.
 - [ ] A thrown gib, box or other prop still tumbles as before (or near it).
+
+## Wooden crates (2026-09-30)
+
+His request: two new physics props, a wooden crate (the small explosive box's size) and a large one (the big box's),
+as heavy as those boxes, that break into light pieces which barely get in the way and burst into wood dust when hit;
+monsters can't see you behind a crate or an explosive box lying about, but see you carrying one; crates placed about
+every map like the rocks and bricks (by walls, in corners, any turn, sometimes two stacked, clear of every entity);
+some holding ammo for your weapons or a small health box; everything on a Crates page. Branch `agent/crates`; the
+kit's `scratch/crates/` has the test scripts (`run_break.sh`, `run_sight.sh`, `run_misc.sh`, `run_maps.sh`).
+
+### The models (`Misc/quakevr/make_crates.py`, guarded; normal maps by `bake_normals.py`)
+
+Our own, generated (no id asset), unscaled Quake units (the explosive boxes are brush models the world scale doesn't
+touch), convex so that Box3D's hull is what is drawn:
+
+| Model | Size (units) | Mass (Held Object Weights) | What |
+|---|---|---|---|
+| `vr_crate1.mdl` | 32 x 32 x 32 | 25 kg (as `b_exbox2`) | planks in a frame of battens on every face, nailed; worn, chamfered edges |
+| `vr_crate2.mdl` | 40 x 40 x 48 | 40 kg (as `b_explob`) | the same, and a diagonal brace across each side |
+| `vr_plank1..4.mdl` | 30 x 6.5 x 1.4; 19 (broken); 12 (a splinter); 23 x 3.8 x 2.2 (a batten, broken) | 0.6, 0.4, 0.15, 0.45 kg | what a crate breaks into; broken ends fresh, lighter wood |
+
+Three skins each (pine, brown, weathered with stains), painted from 3D noise in Quake's browns and beige-greys (256 x
+256 for the crates, 128 for the pieces); the pieces take their crate's skin. The frame, the planks' gaps and the nails
+are painted, their relief the normal map's (normaltiles.py's "stone" recipe). Held Object Offsets slots 26-31
+(`vr_prop_*_27` to `_32`); `vr_props_version` 49 gives them to configs saved before (a slot a config gave another
+model keeps it).
+
+### Where they go (`Quake/vr/vr_crates.cpp`, planned at the first server frame, before the rocks and bricks)
+
+1. **Spots:** along the bottom edge of every near-vertical wall face of the world (not sky, liquids, clip), every 24
+   units, where a floor of the world meets it. In a random order (the same each load), each rolls Density
+   (`vr_crates_chance`, 0.06) x In Corners (4, a wall beside it along its wall) x the worldspawn's `_vr_crates`.
+2. **A crate:** small or large (Large Ones, 0.4), lying on any of its six faces, turned any way about the vertical (the
+   wall's direction +-45 degrees, which for a box is every turn), set against the wall 0.5-5 units off it, slid into the
+   corner if there is one. Up to four tries per spot.
+3. **Checks** (why a spot failed: `vr_debug_crates 1`): a flat floor of the world's own under its middle and footprint
+   (within 1.5 units, no steeper than 18 degrees: not over a step or an edge), nothing of the level in its volume
+   (lines from its middle to its corners and round its edges, low, halfway and high), no liquid, open above (and room
+   for a second one on a stack), **backed** by the wall along its whole width (not overhanging an opening), **Room in
+   Front** (`vr_crates_clearance`, 72 units: the player's box traced out from its front, at its middle and both ends:
+   a corridor or doorway it stands in stays passable), **one way round it** (12 places round it where the player's box
+   fits, each reachable from the next: two or more separate arcs means it stands where a way passed, as beside a
+   doorway: rejected), **Away From Things** (`vr_crates_margin`, 56: the rocks' margins grown by 32 units, so 56 from
+   anything with a model or a trigger; items, weapons, monsters, path corners, explosive boxes and torches 72; doors,
+   lifts and whatever moves 80 plus as far as they go; teleporters, changelevels and their destinations 96; the
+   player's start 160; static brushes, a `func_illusionary`, only 8), Spacing (224 units between crates), Most in a Map (16, a stack counts two), and never so many
+   that fewer than `vr_debris_edicts_left` entities stay free.
+4. **Stacks** (Stacked, 0.25): another crate on it, no bigger (a small one, or a large on a large 40% of the time),
+   turned up to 25 degrees off it and off its middle by up to 30% of its half width, the same skin 70% of the time.
+5. **Resting:** each on its face, asleep in Box3D (a stack asleep too), `FL_ONGROUND`. Nothing moved in 900 frames of
+   e1m1 (`vr_crates_list` identical before and after).
+6. **Deterministic:** a seed from the map's name and Layout (`vr_crates_seed`): e1m1 `aafafe9c` at the first load, after
+   `restart` and after going to e1m2 and back.
+
+The rocks and bricks are placed after, and keep 24 units from the crates (anything with a model), so their layouts
+change a little where a crate stands. None in multiplayer, in the maps of `vr_crates_exclude` (vrfiringrange, vrclimb,
+vrexample, vrcalibration), or in a map whose worldspawn has `"_vr_crates" "0"` (MAPPING.md; TrenchBroom's worldspawn
+has the key). A mapper places his own with `vr_crate` (spawnflag 1 LARGE; `angle`, `skin`), on the highest floor under
+its footprint.
+
+**What id's maps get** (defaults; `vr_debug_crates 2` prints each crate with its room in front and how many of the 12
+places round it are open):
+
+| Map | Crates (large, stacked, in corners) | Least room in front | Placing |
+|---|---|---|---|
+| e1m1 | 13 (3, 3, 6) | 77 units | 11 ms |
+| e1m2 | 11 (6, 2, 5) | 81 | 11 ms |
+| e2m1 | 7 (2, 1, 5) | 108 | 21 ms |
+| e1m3 | 13 (1, 1, 7) | 78 | 14 ms |
+| e2m2 | 5 (2, 1, 2) | 153 | 19 ms |
+| e3m1 | 11 (2, 1, 7) | 72 | 20 ms |
+| e4m3 | 16 (8, 3, 4) | 123 | 9 ms |
+| start | 13 (4, 3, 6) | 191 | 9 ms |
+
+(Normal runs, not exclusive: the placing is traces over 1800-3000 spots a map. A crate lying still costs what any still
+entity does, asleep in Box3D.) Pictures: the kit's `scratch/map_e1m1.png`, `map_e1m2.png`, `map_e2m1.png` (the first six
+crates of each from in front, fullbright).
+
+### Crates as props (QC `vr_crates.qc`)
+
+As the explosive boxes (`.vr_rigid 2`, SOLID_BBOX): pushed and tipped by the hands, stacked, stood on (standing on a
+small crate whose top is at 49, your origin is at 73), carried by hand (heavy: they lag, sag and swing; thrown a little
+way), never force grabbed; they float. Wood's knocks and scrapes (`vr_physsound.cpp`: the crates and pieces are wood).
+
+- **Health** (`vr_crate_health`, 25 for a small one; a large one 1.6 times, 40; times its Size squared): a shotgun blast
+  does up to 24 (6 pellets), the axe's chop 24-31 (strength x1.15-1.5). Hurt, it knocks (`vr/phys/wood_m*`, louder the
+  harder). Shots, blows and thrown things throw splinters off wood (crates, pieces, explosive boxes), not blood.
+- **Impacts** (`vr_crate_impact`, 14 m/s, the explosive box's): a crate hitting something at 70% of it or more takes its
+  health x (speed / 14)^2: dropped from about 85 units it breaks; dropped 97 units (12 m/s) it takes 19 (6 left); the
+  upper crate of a stack falling off lands at about 10 m/s and doesn't. What is thrown at it hurts it as it hurts a
+  monster (`VR_Thrown_Damage`: the explosive box's thrown hit is now shared, `VR_SolidProp_Impact`), and so does a prop
+  flung into it (`VR_Prop_Flung` now also takes crates as targets): a crate dropped on another from 170 units broke it
+  (36) and then itself.
+- **Breaking:** a crack of wood (`vr/crate_break1..3.wav`), a cloud of sawdust and splinters (the new particle preset
+  `QVR_PARTICLE_PRESET_WOODDUST` 15: `vr_particle_test 15 45`), its pieces flung out from all over its box along the blow,
+  what it held left where it stood. **Pieces** (`vr_crate_pieces`, 6; a large crate 9): light boards (Box3D rigid bodies,
+  SOLID_NOT_BUT_TOUCHABLE: your body and hands shove them, they never stop you), carried, thrown and force grabbed as the
+  rocks are; armed 0.15 s after they are made (the blow or explosion that broke the crate doesn't burst them at once);
+  then any hit (a shot, a blow at swing speed, an explosion, a thrown thing) bursts one into a puff of dust with a
+  crumble (`vr/crate_dust1..2.wav`). Most Pieces (48): the oldest burst first; Pieces Last (30 s): then they fade out
+  over 2 s (not in a hand).
+- **What it holds:** Ammo (`vr_crate_ammo`, 0.35): a small box of shells, nails, rockets or cells, one of those for the
+  weapons you may use (the shotgun always; `VR_WeaponUtil_EntIsEligibleForWeapon`); Health Box (`vr_crate_health_box`,
+  0.2): the small one (15). Both precached at map load.
+
+### Sight (`visible()`, ai.qc; `VR_Crate_HidesFrom`; builtin `sightblocked`)
+
+Once the level lets a monster's look through, the line from its eyes to your head (the headset's, so crouching behind a
+small crate hides you) is cast through Box3D's solid props that block sight (`.vr_blocksight`: crates, and now the
+explosive boxes), by their shapes as they lie; one held is a held body and never met. A box fixed in place
+(`vr_explobox_physics 0`) is met by its box. Carrying a crate or a box in either hand, you are seen whatever stands
+between (nobody hides behind what he holds up). Crates Hide You (`vr_crate_sight`, 1) turns it off. QC alone decides it
+(other mods have no `.vr_blocksight`: nothing changes for them). id's `CheckAttack` already traced its shot against
+solid props, so a monster that knew where you were never shot through one; now it doesn't see you there to begin with.
+
+Checked (`run_sight.sh`: e1m1's start, a grunt 200 units ahead, you crouched to 1.0 m, a large crate 60 units ahead):
+no crate: the grunt sees you and hits you 9 times in 300 frames; behind the crate: "can't see" 46 times, no hit; the
+crate in your hand: 6 hits. Behind an explosive box in the same place, Box3D's or fixed: "can't see" 48 times, no hit.
+
+### Tests (mock headset, fast mode; `run_break.sh`, `run_misc.sh`)
+
+| Test | Small crate (25) | Large crate (40) |
+|---|---|---|
+| Shotgun (110 units) | 24 then broken: 2 shots | 24 then broken: 2 shots |
+| Axe (`motion_synth.py chop_down_gib --weapon axe`) | 24 then broken: 2 chops | 31 then broken: 2 chops |
+| A health box thrown hard (776 u/s) | broken by the first | 33, then 23 (it flung on): broken |
+| A rocket | | broken; its 9 pieces all survive the blast |
+| Pieces | 6 | 9; the next shot or throw bursts one ("a piece bursts") |
+| Loot at chances 1 / 1 | a box of ammo (by the weapons held) and the health box, every time | the same |
+| Most Pieces 8, Pieces Last 3 | two large crates broken: 8 pieces (the first's 8 burst); none after 5.5 s | |
+
+The melee canary (`eval.sh`): 48/53, no differences. No errors on e1m1, e1m2, e2m1, e1m3, e2m2, e3m1, e4m3, start.
+
+### Settings (Carrying and Throwing > Crates; the placing from the next map)
+
+| Setting | Cvar | Default |
+|---|---|---|
+| Crates | `vr_crates` | 1 |
+| Density | `vr_crates_chance` | 0.06 (a spot every 24 units) |
+| In Corners | `vr_crates_corner` | 4x |
+| Most in a Map | `vr_crates_max` | 16 |
+| Spacing | `vr_crates_spacing` | 224 units |
+| Stacked | `vr_crates_stack` | 0.25 |
+| Large Ones | `vr_crates_large` | 0.4 |
+| Room in Front | `vr_crates_clearance` | 72 units |
+| Away From Things | `vr_crates_margin` | 56 units |
+| Layout | `vr_crates_seed` | 0 |
+| (console) maps without them | `vr_crates_exclude` | "vrfiringrange vrclimb vrexample vrcalibration" |
+| Health | `vr_crate_health` | 25 (0: unbreakable) |
+| Breaks On Impact | `vr_crate_impact` | 14 m/s |
+| Pieces | `vr_crate_pieces` | 6 |
+| Most Pieces | `vr_crate_piece_max` | 48 |
+| Pieces Last | `vr_crate_piece_time` | 30 s |
+| Ammo | `vr_crate_ammo` | 0.35 |
+| Health Box | `vr_crate_health_box` | 0.2 |
+| Crates Hide You | `vr_crate_sight` | 1 |
+
+Debug: Logs > Crates Placement (`vr_debug_crates`: 1 a line a map and the rejections; 2 each crate, its room in front
+and the places round it, and each monster that sees you; 3 each spot rejected, why); Reports > Crates (`vr_crates_list`);
+Tests > Thing: Small Crate, Large Crate, Two Crates Stacked (`vr_test_spawn 107..109`); Tests: Go to the Next Crate
+(`vr_crates_goto [n]`). With Developer Messages: each crate's hits, its breaking, what it held, each piece bursting.
+
+### Files
+
+`Quake/vr/vr_crates.cpp`, `.hpp` (the planner, `sightBlocked`, `vr_crates_list`, `vr_crates_goto`); `vr_box3d.cpp`
+(`sightRay`, `isBox3DProp`; crate pieces float); `vr_debris.cpp`, `.hpp` (obstacles, the worldspawn key and the map
+list shared); `vr_builtins.cpp` (`crateplan`, `cratemodel`, `crateput`, `crateplace`, `sightblocked`); `vr_particles.*`,
+`vr_client.cpp` (WoodDust); `vr_physsound.cpp` (wood); `vr_props.*` (slots 26-31, migration 49); `vr_fields.inc`
+(`vr_blocksight`); `vr_menu.cpp` (page 77, Crates; Debug rows); `vr_cvars.inc`. QC: `vr_crates.qc` (new), `ai.qc`
+(visible), `combat.qc` (a piece's damage), `misc.qc` (explosive boxes block sight; their thrown hit shared),
+`vr_carry.qc` (a piece struck; crates take flung hits), `vr_melee.qc` (pieces are struck as gibs are), `weapons.qc`
+(splinters off wood, test spawns), `world.qc`, `vr_fields.qc` (`.alpha` moved here from `honey_defs.qc`),
+`vr_sys_fields.qc`, `builtins.qc`, `vr_cvars.qc`, `vr_defs.qc`. `Misc/quakevr/make_crates.py`, `make_crate_sounds.py`,
+`normalmaps.py`/`normaltiles.py` (the crates' recipe); `entities.fgd` (`_vr_crates`), `quakevr.fgd` (`vr_crate`);
+MAPPING.md, CREDITS.md.
+
+### Not verified, limitations
+
+- Saved games: not tried (the tests may not write saves). Crates and pieces are ordinary entities with ordinary fields;
+  a saved game's own crates replace a new placing, as the rocks' do.
+- The look at real scale and in real light, the sounds (generated; not listened to here), the carry's feel (the
+  explosive boxes' settings).
+- Placement reads only the world's own faces and floors (a crate never stands on a lift, a door or a `func_wall`).
+- A crate toppling off another at a hard angle can take flung damage (`VR_Prop_Flung`: 25 kg at 8 m/s or more); a
+  stack knocked over hard may lose its lower crate.
+- The monsters' own trace for a shot (`CheckAttack`) still meets a crate's upright box, not its turned shape.
+
+### In the headset
+
+- [ ] e1m1, e1m2, e2m1: too many or too few crates (Density, Most in a Map)? Do they stand where crates would (by walls,
+      in corners), never in your way? Debug > Tests: Go to the Next Crate takes you to each.
+- [ ] Shoot, chop and throw things at both sizes: do they break when you'd expect (Health, Breaks On Impact)? The pieces:
+      do they get out of your way, and burst into dust when hit? The crack and the dust.
+- [ ] Carry one; stand on one; push a stack over.
+- [ ] Crouch behind a crate with a grunt about: it shouldn't see you; pick the crate up: it should.

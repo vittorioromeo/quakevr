@@ -94,6 +94,10 @@ Burst rifle sounds (real AK-47, recorded downrange: crack, blast, echo): charact
 Axe throws: overhand at a wall sticks about half the time (Thrown Axes > Blade Leniency 1; 2 sticks more but handle-first throws start sticking); flat and handle-first still bounce
 Thrown axe settles into an end-over-end spin that looks natural (Throwing > Spin in the Air 8; per-weapon and per-prop multipliers); gibs and boxes tumble as before
 
+Crates: e1m1/e1m2/e2m1 have 5-16 by walls and in corners, some stacked; never in your way? (Carrying > Crates: Density; Debug > Tests: Go to the Next Crate)
+Crates break to shotgun, axe, thrown things and hard drops; pieces don't block you and burst into dust when hit; crack and dust sound OK?
+Crouch behind a crate with a grunt about: it can't see you; carrying the crate, it sees you
+
 [Decide or give feedback]
 Left-handers: flashlight toggle stays on the left Y and the main weapon slot on the right controller: OK, or follow the off hand?
 Enemy guns: scale 0.4 OK? Should the player's enforcer rifle laser be faster than the enforcer's 600 u/s?
@@ -104,6 +108,8 @@ On a tilted box steeper than ~30 degrees you slowly slide off (like the level's 
 The shotgun lags up to ~176 degrees in a fast wiggle: too much for 3 kg? (weight spring settings)
 Optimization follow-up: a Low graphics preset (render resolution, foveation, decal cap)?
 Function-local non-std statics (two text buffers, lastOut in vr_handpose): move them to the scratch/state pattern too?
+
+Crates: amounts of ammo (0.35) and small health (0.2) per crate OK?
 
 [Tune]
 Grapple: reel speeds and the other grapple values (you asked for a reminder)

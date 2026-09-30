@@ -835,6 +835,12 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         return VR_Gib_Damage(targ, inflictor, attacker, damage);
     }
 
+    // VR: a crate's piece only ever bursts into dust (vr_crates.qc).
+    if(targ.vr_cratekind == 3)
+    {
+        return VR_CratePiece_Damage(targ, inflictor, attacker, damage);
+    }
+
     // VR: a corpse is only ever gibbed (vr_corpse_gib), never killed again.
     if(targ.vr_corpse == 2)
     {

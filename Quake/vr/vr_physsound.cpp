@@ -467,9 +467,9 @@ Material materialOf(edict_t* ent, const qmodel_t* model)
     {
         return Material::Brick;
     }
-    if(!strcmp(name, "progs/vrtorch.mdl"))
+    if(!strcmp(name, "progs/vrtorch.mdl") || !strncmp(name, "progs/vr_crate", 14) || !strncmp(name, "progs/vr_plank", 14))
     {
-        return Material::Wood;
+        return Material::Wood; // (a wall torch; the crates and what they break into: make_crates.py)
     }
     if(strstr(name, "backpack"))
     {

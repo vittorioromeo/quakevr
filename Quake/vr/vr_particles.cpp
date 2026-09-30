@@ -918,6 +918,39 @@ void smokeTrail(const glm::vec3& from, const glm::vec3& to, float spacing, float
     });
 }
 
+// Wood dust (Preset::WoodDust): soft clouds of sawdust that spread, slow and settle, and splinters in the wood's browns
+// thrown out (along `dir` too) and falling.
+void woodDust(const glm::vec3& org, const glm::vec3& dir, int count)
+{
+    const glm::vec3 push = glm::length(dir) > 0.01f ? glm::normalize(dir) * 50.f : glm::vec3{0.f}; // (sent as a way: QVR_SVC_PARTICLE2)
+    make(count, [&](Particle& p, int) {
+        p.cell = CellSmoke;
+        const float g = rnd(0.85f, 1.1f);
+        p.color = glm::vec4{0.78f * g, 0.67f * g, 0.5f * g, rnd(0.45f, 0.7f)};
+        p.die = cl.time + rnd(1.8f, 3.0f);
+        p.scale = rnd(2.f, 3.5f) * 1.6f;
+        p.type = Custom;
+        p.fade = -0.24f;
+        p.grow = 7.f;
+        p.drag = 2.5f;
+        p.spin = rnd(-0.8f, 0.8f);
+        p.acc = gravity(0.03f);
+        p.org = org + inBox(8.f);
+        p.vel = inBox(50.f) + push;
+    });
+    make(static_cast<float>(count) * 0.6f, [&](Particle& p, int) {
+        p.cell = CellSpark;
+        setColor(p, rndi(20, 30), 255);
+        p.die = cl.time + rnd(1.f, 1.8f);
+        p.scale = rnd(1.8f, 3.2f);
+        p.type = Rock;
+        p.spinBack = rndi(0, 2);
+        p.acc = gravity(1.f);
+        p.org = org + inBox(8.f);
+        p.vel = glm::vec3{rnd(-110, 110), rnd(-110, 110), rnd(40, 200)} + push;
+    });
+}
+
 // A magic projectile's trail: a soft glow of its colour and sparkles drifting off it.
 void sparkleTrail(const glm::vec3& from, const glm::vec3& to, const glm::vec3& color, float glowScale)
 {
@@ -1534,6 +1567,7 @@ bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count)
         }
         case Preset::BloodTrail: bloodTrail(org, dir, count); break;
         case Preset::Splash: splash(org, dir, count); break;
+        case Preset::WoodDust: woodDust(org, dir, count); break;
         default: blood(org, dir, count); break;
     }
     return true;

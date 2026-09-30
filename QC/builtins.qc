@@ -208,6 +208,16 @@ float() debrisplan = #0;
 string(float i) debrismodel = #0;
 float(entity e, float i) debrisput = #0;
 float(entity e) debrisplace = #0; // a piece the map placed (vr_debris_piece, its model set): sized, turned by its yaw, resting on the floor at its origin; its kind (0: not a rock or brick model)
+// Wooden crates (engine vr_crates.cpp; vr_crates.qc), as the rocks and bricks: placing them (after the map's entities:
+// how many), crate i's model, and putting crate i on an entity with its model set (its skin, turn, place and box; its
+// kind: 1 small, 2 large, 0 none); a crate the map or a test placed (level, turned by its yaw, on the floor under it).
+float() crateplan = #0;
+string(float i) cratemodel = #0;
+float(entity e, float i) crateput = #0;
+float(entity e) crateplace = #0;
+// The solid prop that blocks monsters' sight (.vr_blocksight: a crate, an explosive box; not one in a hand) between
+// `start` and `end`, met by its shape as it lies (Box3D's), not `ignore` nor `ignore2`; world if none.
+entity(vector start, vector end, entity ignore, entity ignore2) sightblocked = #0;
 vector(entity e, vector angles, vector point) modelpoint = #0; // where a point of e's model (its axes: x forward, y left, z up) is from its origin, turned by angles as drawn
 // A hand's push on a rigid body: the point `at` gets at least `vel`'s speed along it (an impulse there: a tall box pushed
 // high tips over). FALSE if Box3D doesn't move it. `mass` (kg, 0 or none: no limit): what pushes weighs that much, so the

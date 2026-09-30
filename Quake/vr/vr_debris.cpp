@@ -460,23 +460,19 @@ struct FloorGrid
     }
 };
 
-// What entities a piece keeps away from: their boxes, grown by a margin.
-struct Obstacle
-{
-    glm::vec3 lo, hi;
-    const char* why;
-};
-
 [[nodiscard]] bool startsWith(const char* s, const char* prefix)
 {
     return !strncmp(s, prefix, strlen(prefix));
 }
 
-void gatherObstacles(std::vector<Obstacle>& out)
+void obstaclesOf(std::vector<Obstacle>& out, float extra)
 {
     for(const StaticThing& t : statics)
     {
-        out.push_back({t.lo - glm::vec3{40.f}, t.hi + glm::vec3{40.f}, t.classname.c_str()});
+        // A static brush (a func_illusionary: fake walls, cobwebs, a secret's way through) only as a still brush is
+        // for the crates (an `extra`); the rocks keep 40 from every static thing, as they always did.
+        const float margin = extra > 0.f && startsWith(t.classname.c_str(), "func_") ? 8.f : 40.f + extra;
+        out.push_back({t.lo - glm::vec3{margin}, t.hi + glm::vec3{margin}, t.classname.c_str()});
     }
     for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
     {
@@ -494,7 +490,7 @@ void gatherObstacles(std::vector<Obstacle>& out)
         const glm::vec3 size = hi - lo;
         float margin = 0.f;
         const char* why = cls;
-        glm::vec3 extra{0.f};
+        glm::vec3 reach{0.f};
         if(startsWith(cls, "func_"))
         {
             if(!strcmp(cls, "func_wall") || !strcmp(cls, "func_illusionary") || !strcmp(cls, "func_episodegate") ||
@@ -507,10 +503,10 @@ void gatherObstacles(std::vector<Obstacle>& out)
                 // Doors, lifts, trains, buttons, what turns or moves: clear of where they go, as far as their own size
                 // (a door slides about its width, a lift goes down its height).
                 margin = 48.f;
-                extra = glm::min(size, glm::vec3{128.f});
+                reach = glm::min(size, glm::vec3{128.f});
                 if(startsWith(cls, "func_plat") || startsWith(cls, "func_new_plat") || startsWith(cls, "func_elvtr"))
                 {
-                    extra.z = std::max(extra.z, 256.f);
+                    reach.z = std::max(reach.z, 256.f);
                 }
             }
         }
@@ -537,12 +533,13 @@ void gatherObstacles(std::vector<Obstacle>& out)
         {
             continue; // lights, info_null, ambient sounds: nothing to keep off
         }
-        out.push_back({lo - glm::vec3{margin} - extra, hi + glm::vec3{margin} + extra, why});
+        out.push_back({lo - glm::vec3{margin + extra} - reach, hi + glm::vec3{margin + extra} + reach, why});
     }
 }
 
-// The worldspawn's "_vr_debris" (1 if none): 0 none in this map, another number times the chance.
-[[nodiscard]] float worldspawnSetting()
+// A number the worldspawn sets for Quake VR ("_vr_debris", "_vr_crates": 1 if it has none): 0 none in this map,
+// another number times the chance.
+[[nodiscard]] float worldspawnKey(const char* wanted)
 {
     if(!sv.worldmodel || !sv.worldmodel->entities)
     {
@@ -566,16 +563,15 @@ void gatherObstacles(std::vector<Obstacle>& out)
         {
             return 1.f;
         }
-        if(key == "_vr_debris")
+        if(key == wanted)
         {
             return std::max(static_cast<float>(atof(com_token)), 0.f);
         }
     }
 }
 
-[[nodiscard]] bool excludedMap(const char* name)
+[[nodiscard]] bool nameInList(const char* list, const char* name)
 {
-    const char* list = vr_debris_exclude.string;
     const size_t len = strlen(name);
     for(const char* p = list; *p;)
     {
@@ -827,6 +823,21 @@ void list_f()
 
 } // namespace
 
+void gatherObstacles(std::vector<Obstacle>& out, float extra)
+{
+    obstaclesOf(out, extra);
+}
+
+float worldspawnValue(const char* key)
+{
+    return worldspawnKey(key);
+}
+
+bool inList(const char* list, const char* name)
+{
+    return nameInList(list, name);
+}
+
 Material materialOf(const char* texture)
 {
     const std::string s = cleanName(texture);
@@ -874,8 +885,8 @@ const char* materialName(Material m)
 
 bool enabledHere()
 {
-    return vr_debris.value != 0.f && sv.active && sv.worldmodel && svs.maxclients == 1 && !excludedMap(sv.name) &&
-           worldspawnSetting() > 0.f;
+    return vr_debris.value != 0.f && sv.active && sv.worldmodel && svs.maxclients == 1 && !inList(vr_debris_exclude.string, sv.name) &&
+           worldspawnValue("_vr_debris") > 0.f;
 }
 
 int plan()
@@ -891,7 +902,7 @@ int plan()
         if(vr_debug_debris.value && sv.active)
         {
             const char* why = vr_debris.value == 0.f ? "vr_debris 0" : svs.maxclients != 1 ? "multiplayer" :
-                              excludedMap(sv.name) ? "in vr_debris_exclude" : "its worldspawn's _vr_debris is 0";
+                              inList(vr_debris_exclude.string, sv.name) ? "in vr_debris_exclude" : "its worldspawn's _vr_debris is 0";
             Con_Printf("debris: %s: none (%s)\n", sv.name, why);
         }
         return 0;
@@ -905,7 +916,7 @@ int plan()
     Planner pl;
     pl.rng.s = hashString(sv.name) ^ (static_cast<uint64_t>(static_cast<int64_t>(vr_debris_seed.value)) * 0x9E3779B97F4A7C15ull);
     pl.worldScale = std::clamp(vr_world_scale.value, 0.5f, 3.f);
-    const float chance = std::max(vr_debris_chance.value, 0.f) * worldspawnSetting();
+    const float chance = std::max(vr_debris_chance.value, 0.f) * worldspawnValue("_vr_debris");
     const bool rocks = vr_debris_rocks.value != 0.f, bricks = vr_debris_bricks.value != 0.f;
 
     // The world's faces, their materials; the floors in a grid.

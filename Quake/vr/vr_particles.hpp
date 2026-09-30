@@ -44,7 +44,10 @@ enum class Preset : int
     // vr_water_splash scales how many (0 off), vr_water_splash_size how big, _ring_speed and
     // _ring_size the rings. Also the ripples on the liquid (water::addRipple), with or without
     // Quake VR's particles (as an explosion under a surface does).
-    Splash
+    Splash,
+    // A crate or one of its pieces breaking (QC vr_crates.qc): a cloud of wood dust drifting down and splinters thrown
+    // out and falling; `dir` pushes them (the blow), `count` how much (8 a piece bursting, 30 to 50 a crate).
+    WoodDust
 };
 
 // Spawns a preset's particles (count scaled by vr_particle_mult); false if they are off, for the

@@ -6,6 +6,7 @@
 #include "vr_progs.hpp"
 #include "vr_box3d.hpp"
 #include "vr_carry2h.hpp"
+#include "vr_crates.hpp"
 #include "vr_debris.hpp"
 #include "vr_grip.hpp"
 #include "vr_held.hpp"
@@ -806,6 +807,42 @@ void PF_debrisplace()
     G_FLOAT(OFS_RETURN) = static_cast<float>(debris::putPlaced(G_EDICT(OFS_PARM0)));
 }
 
+// Wooden crates lying about (vr_crates.cpp, QC vr_crates.qc), as the rocks and bricks: float() crateplan, string(float
+// i) cratemodel, float(entity e, float i) crateput (its kind: 1 small, 2 large; 0 none), float(entity e) crateplace (a
+// crate the map or a test placed, its model set: level, turned by its yaw, resting on the floor under its origin).
+void PF_crateplan()
+{
+    G_FLOAT(OFS_RETURN) = static_cast<float>(crates::plan());
+}
+
+void PF_cratemodel()
+{
+    G_INT(OFS_RETURN) = PR_SetEngineString(crates::modelOf(static_cast<int>(G_FLOAT(OFS_PARM0))));
+}
+
+void PF_crateput()
+{
+    G_FLOAT(OFS_RETURN) = static_cast<float>(crates::put(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1))));
+}
+
+void PF_crateplace()
+{
+    G_FLOAT(OFS_RETURN) = static_cast<float>(crates::putPlaced(G_EDICT(OFS_PARM0)));
+}
+
+// entity sightblocked(vector start, vector end, entity ignore, entity ignore2): the solid prop that blocks sight
+// (.vr_blocksight: a crate, an explosive box; not one in a hand) between `start` and `end`, met by its shape as it lies;
+// world if none (crates::sightBlocked). QC's visible() (ai.qc): monsters don't see you behind one.
+void PF_sightblocked()
+{
+    const float* a = G_VECTOR(OFS_PARM0);
+    const float* b = G_VECTOR(OFS_PARM1);
+    const int ignoreA = qcvm->argc > 2 ? NUM_FOR_EDICT(G_EDICT(OFS_PARM2)) : 0;
+    const int ignoreB = qcvm->argc > 3 ? NUM_FOR_EDICT(G_EDICT(OFS_PARM3)) : 0;
+    const int num = crates::sightBlocked(glm::vec3{a[0], a[1], a[2]}, glm::vec3{b[0], b[1], b[2]}, ignoreA, ignoreB);
+    G_INT(OFS_RETURN) = EDICT_TO_PROG(EDICT_NUM(num));
+}
+
 // Precise hit detection (vr_hitmodel.cpp). hitmodel_target(e): whether e's model is what is hit (the option on, a
 // monster or corpse with a Quake model).
 void PF_hitmodel_target()
@@ -906,6 +943,11 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"debrismodel", PF_debrismodel},
     {"debrisput", PF_debrisput},
     {"debrisplace", PF_debrisplace},
+    {"crateplan", PF_crateplan},
+    {"cratemodel", PF_cratemodel},
+    {"crateput", PF_crateput},
+    {"crateplace", PF_crateplace},
+    {"sightblocked", PF_sightblocked},
     {"modelpoint", PF_modelpoint},
     {"physicspush", PF_physicspush},
     {"physicsshot", PF_physicsshot},

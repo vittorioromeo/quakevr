@@ -289,3 +289,4 @@
 .vector vr_stick_spin;   // something, and it never sticks after: a handle-first throw bounces)
 .void(float xSpeed) vr_impact; // a rigid body hitting something (the world, a prop, a monster) at xSpeed m/s (at least
                                // 2): self the body, other what it hit (world for the level). Box3D's hits, after its step.
+.float vr_blocksight; // a solid prop monsters can't see through while it lies about (a crate, an explosive box: sightblocked)
