@@ -73,7 +73,10 @@ First-time weapon grips: no 2-5 ms hitch (thread pool); Debug > Profiling and Me
 
 Pain feedback: hits from each side knock the hands (size and time feel right? Combat > Damage and Knockback > When You're Hit); shots still land while knocked; the damage buzz feels as before at 1x
 
+Lightning gun in water: dip the muzzle in a pool and fire; fire waist deep (40 damage, both hands drop); fire into a pool from above at a swimming monster; is the flash comfortable? (Weapons > Lightning Gun in Water)
+
 [Decide or give feedback]
+Lightning in water: also give Mjolnir the new shock (it still uses Quake's stock discharge)?
 Zancle outside its library needs either the whole engine on clang-cl + C++23, or MSVC support in Zancle (proposal 2 in ROUND21.md): which? (blocks the std -> Zancle migration)
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay? vr_melee_speed a server rule or personal?
 Chainsaw hotspots: both on the front loop (as now), or one on each handle?
