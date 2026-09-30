@@ -15927,6 +15927,21 @@ game.
 At Leniency 0 the same plays: the rung plays, mantle, push, overtops and shimmies as before; the ledge play (2 of 19)
 and e1m1 (none) no longer take their holds: their hands hover 2 units (7.6 cm) over the top, not touching it, which is
 what 0 now means. They pass at the default 6 cm, so they are left as they are.
+
+### Settings for the touch and the reach over the top (2026-09-30)
+
+The author asked for both distances as settings (Climbing page, next to Grab Leniency; the defaults are the old
+constants, so nothing changes):
+
+| Cvar | Default | Menu | |
+|---|---|---|---|
+| `vr_climb_touch` | 4.5 | Touch Distance (0-15 cm) | cm: the hand this close to the top or the face under the lip touches it (was `touchCm`) |
+| `vr_climb_over_top` | 16 | Reach Over the Top (0-40 units) | units: over the top, how far in from the drop a hand touching the top still holds (was `edgeReach` in vr_climb.cpp) |
+
+The reach over the top is in units, like Lowest Ledge: it is measured against the ledge map, whose drop search stays
+`ledges::edgeReach` (16 units, not scaled). The lenient hold's cap and the search box round the hand follow both.
+Mock (vrclimb's ledge, lip x 96, top 48, Leniency 0): a hand 10 units in (x 106, 1 over the top) takes it at 16, not
+at 8 (x 100 takes it at both); a hand 1.3 units over the top takes it at 4.5 cm, not at 2 cm (World Scale 1.25).
 ## Phasing through a toppled box (2026-09-30)
 
 Your note (vrfiringrange 16:25): after toppling the long explosive box onto its long side, you went through it when
@@ -15991,8 +16006,8 @@ hitting the level or each other; no scrape as they slide; no sound as a climbing
   heavy from 10 kg), never the same twice in a row. Rate-limited per prop: nothing within `vr_physsound_interval`
   (0.12 s) of its last knock unless twice as loud, nor within three intervals if under 35% of it (the little hop
   after a landing); at most 6 a frame, the loudest.
-- **Materials** (`physsound::materialOf`, set when the body is made): wood (the explosive and health boxes, any
-  other box a map carries, wall torches), metal (the ammo boxes, weapons, keys, armour, the flashlight, the other
+- **Materials** (`physsound::materialOf`, set when the body is made): wood (the explosive boxes, any other box a
+  map carries, wall torches), metal (the ammo and health boxes (the author: 2026-09-30), weapons, keys, armour, the flashlight, the other
   pickups), stone (rocks), brick (bricks), soft (backpacks), flesh (gibs, heads; heavy ones sometimes Quake's own
   `zombie/z_miss.wav`). Grenades are left out: they have their own bounce (`vr_grenade.qc`).
 - **Scrapes.** After each frame's step, every awake prop's touching contacts (not bodies or hands) give its slide: the
@@ -16039,7 +16054,7 @@ varies least, chosen by the script). No install: the script decodes OGG and MP3 
 
 - **Drop from 1 m** (e1m1, an `item_shells` spawned, `vr_physics_stack 175 1 480 -288 90.25`): one knock, metal
   light (1.3 kg), 7.85 m/s, volume 0.47 (the formula's 0.85 x 0.73 x 0.77); its hop 0.18 s later at 1.9 m/s skipped
-  ("a bounce after its knock").
+  ("a bounce after its knock"). An `item_health` the same way: metal medium (2.9 kg), 7.84 m/s, volume 0.53.
 - **At rest:** nothing for 4 s after it settles; nor from a pile of 20 boxes (`vr_physics_pile`) once it settled.
 - **Slide** (`vr_physics_fling 175 150 0`, 5.7 m/s): the scrape starts 0.08 s in at 3.4 m/s (pressed 1.00, volume
   0.43) and stops 0.26 s later, the frame its slide falls under 0.3 m/s (two frames before it stands still).
