@@ -87,7 +87,6 @@ Crowbar on crates (Crates > Crowbar on Crates; set 1 to see them on e1m1): looks
 Grip the crowbar, a sword and the chainsaw by the bar or blade on the floor: taken (Carrying Boxes > Weapon Grab Slack if too far); crowbar clanks heavier; the running chainsaw's engine keeps going through a swing
 
 [Decide or give feedback]
-Crowbar on crates: at most 1 per map (Most Crowbars): or 2?
 Zancle outside its library needs either the whole engine on clang-cl + C++23, or MSVC support in Zancle (proposal 2 in ROUND21.md): which? (blocks the std -> Zancle migration)
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay? vr_melee_speed a server rule or personal?
 On a tilted box steeper than ~30 degrees you slowly slide off (like the level's steep slopes): should boxes count as ground up to a steeper angle?
