@@ -1973,6 +1973,7 @@ std::vector<Item> pageDebugReports()
         command("Held Props", "vr_carry_check").help("vr_carry_check: each held prop's place and axes in the hand, drawn vs where the game has it, and the fist's gap to it (cm)."),
         command("Props in Floors", "vr_physics_sink").help("vr_physics_sink: how far each prop sinks into the floor."),
         command("Props in Walls", "vr_physics_inlevel").help("vr_physics_inlevel: how far each prop's box is inside walls, floors and doors (a prop held in both hands pushed into a wall should be at 0)."),
+        command("Prop Approach", "vr_physics_approach").help("vr_physics_approach [number | classname]: how close your box gets to the first explosive box's face from 16 directions round it (the same from every side, and as close as to a wall: your half-width)."),
         command("Weights", "vr_weight_table").help("vr_weight_table: the weapons' and props' masses (the level's props too)."),
         command("Ledges Ahead", "vr_climb_probe").help("vr_climb_probe: the ledges 16 to 64 units ahead of you, and why each holds or not."),
         command("Rocks and Bricks", "vr_debris_list").help("vr_debris_list: the rocks and bricks placed in this map."),
@@ -2368,9 +2369,16 @@ std::vector<Item> pageHitbox()
         toggle("Never Trapped by Them", vr_box3d_player_unstick)
             .help("A solid prop that ends up in your body (toppled onto you, pushed into you) never holds you: you walk out "
                   "of it, and it is pushed out of you (vr_box3d_player_unstick)."),
+        toggle("Their Real Shape", vr_box3d_player_shape)
+            .help("You meet a solid prop's shape as drawn, however it is turned, and round: as close to a box's face turned "
+                  "any way as to a wall; a tilted box is no taller than it looks. Off: the upright box round it "
+                  "(vr_box3d_player_shape)."),
         header("Tests"),
         command("Stand on a Box", "vr_physics_player onto misc_explobox")
             .help("Puts you on top of the level's first explosive box (vr_physics_player onto <number | classname>)."),
+        command("Box Approach", "vr_physics_approach")
+            .help("Prints how close your box gets to the first explosive box's face from 16 directions round it: the same "
+                  "from every side and as close as to a wall (Hitbox Approach) with Their Real Shape on."),
         command("Where You Stand", "vr_physics_player")
             .help("Prints where you are, whether you are on the ground and on what (a prop's number), and what is under "
                   "your feet."),

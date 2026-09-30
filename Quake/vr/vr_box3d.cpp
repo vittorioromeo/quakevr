@@ -21,7 +21,8 @@
 //   SOLID_BBOX, their Quake box kept round them as they turn (solidBox), and report their hard hits (.vr_impact).
 // - The players' hands are kinematic spheres at their fists that push solid props (syncHands, vr_box3d_hand_push).
 // - Players stand on solid props (vr_box3d_player_stand, "Standing on props": capsuleStandsOn, beforeStanding,
-//   pressStanding, rideStanding): ground to Quake's movement, their weight pressing, carried as the prop moves.
+//   pressStanding, rideStanding): ground to Quake's movement, their weight pressing, carried as the prop moves. Their
+//   boxes meet a solid prop's drawn box as turned, as a round column (vr_box3d_player_shape: VR_PropClip, propShape).
 // - And kinematic bodies at full speed that push the other props and hold them up (syncReach, ROUND21.md, "Hands and
 //   weapons as bodies"): an empty hand's open hand or fist (vr_box3d_hand_props; not grenades, which the palm catches),
 //   a held weapon's drawn hull (vr_box3d_weapon_push: a grenade is batted). What was inside one as it was made (let go
@@ -3735,6 +3736,8 @@ void sink_f()
 // vr_physics_player [onto <number | classname>]: the first player's origin, velocity and ground (FL_ONGROUND,
 // .groundentity) and what is under his feet, for tests of standing on props; with onto, first put on top of that
 // entity's box (the first of them), still, noclip off.
+void playerOverProp(edict_t* p); // (below, with the players' shape against props)
+
 void player_f()
 {
     if(!sv.active || svs.maxclients < 1)
@@ -3771,9 +3774,11 @@ void player_f()
     Con_Printf("vr_physics_player: below: fraction %.3f%s%s normal z %.2f on %d, movetype %d\n", tr.fraction,
         tr.startsolid ? " startsolid" : "", tr.allsolid ? " allsolid" : "", tr.plane.normal[2], tr.ent ? NUM_FOR_EDICT(tr.ent) : -1,
         static_cast<int>(p->v.movetype));
+    playerOverProp(p); // (below: the players' shape against props)
 }
 
 void inLevel_f(); // (below: the Box3D queries it uses are)
+void approach_f(); // (below, with the players' shape against props)
 
 void registerCommands()
 {
@@ -3791,6 +3796,7 @@ void registerCommands()
         Cmd_AddCommand("vr_physics_blast", blast_f);
         Cmd_AddCommand("vr_physics_sink", sink_f);
         Cmd_AddCommand("vr_physics_inlevel", inLevel_f);
+        Cmd_AddCommand("vr_physics_approach", approach_f);
         Cmd_AddCommand("vr_physics_spawn", spawn_f);
         Cmd_AddCommand("vr_physics_forcegrab", forcegrabCheck_f);
     }
@@ -4737,6 +4743,20 @@ void unstickProps()
     }
 }
 
+// How much of a player's weight (or jump) the prop under his feet takes, by how fast the point he stands on goes down
+// (local, in the prop's body): all of it while it holds (at rest, rocking, sinking under him), less as it gives way,
+// none once it drops at weightFadeSpeed (a box tipping over, or sliding off what held it, as a tilted box on a slope
+// or on another prop does). His feet don't push what falls away under them: his weight on a tipping box made it land
+// harder than it could by falling (a tall box's top lands at 11 m/s by itself, 14 blows it up; ROUND21.md, "Standing
+// on props 3").
+constexpr float weightFadeSpeed = 1.f; // m/s
+
+[[nodiscard]] float underFeet(b3BodyId body, b3Vec3 local)
+{
+    const float down = -b3Body_GetLocalPointVelocity(body, local).z;
+    return std::clamp(1.f - down / weightFadeSpeed, 0.f, 1.f);
+}
+
 // Each piece of the step: the weight of each player standing on a prop (vr_box3d_player_mass) where he stands. Not
 // waking it: a prop asleep under him stays so (a stack at rest stays still). On a floating prop, at most half the
 // prop's own, through its centre: the water lifts a prop by its weight, not its volume, and at its centre (beforeStep),
@@ -4751,7 +4771,7 @@ void pressStanding(float dt)
         const b3BodyId pushed = standBody(st.pushed);
         if(st.pushLeft > 0.f && B3_IS_NON_NULL(pushed))
         {
-            const float share = std::min(dt, st.pushLeft) / dt;
+            const float share = std::min(dt, st.pushLeft) / dt * underFeet(pushed, st.pushLocal);
             b3Body_ApplyForce(pushed, b3Vec3{0.f, 0.f, -st.pushForce * share}, b3Body_GetWorldPoint(pushed, st.pushLocal), true);
             st.pushLeft -= dt;
         }
@@ -4779,7 +4799,7 @@ void pressStanding(float dt)
             }
             else
             {
-                b3Body_ApplyForce(body, b3Vec3{0.f, 0.f, -mass * g}, world->toM(st.feet), false);
+                b3Body_ApplyForce(body, b3Vec3{0.f, 0.f, -mass * g * underFeet(body, st.local)}, world->toM(st.feet), false);
             }
         }
     }
@@ -4803,7 +4823,9 @@ void rideStanding()
         edict_t* player = EDICT_NUM(i);
         edict_t* ground = EDICT_NUM(st.ground);
         const glm::vec3 to = world->toU(b3Body_GetWorldPoint(body, st.local));
-        const glm::vec3 move{to.x - st.feet.x, to.y - st.feet.y, ground->v.absmax[2] - st.top};
+        // (Meeting its drawn shape, vr_box3d_player_shape, he stands on its face: up or down with the point.)
+        const glm::vec3 move{to.x - st.feet.x, to.y - st.feet.y,
+            vr_box3d_player_shape.value ? to.z - st.feet.z : ground->v.absmax[2] - st.top};
         const float distance = glm::length(move);
         if(distance < 0.01f || distance > 64.f)
         {
@@ -4843,6 +4865,277 @@ void rideStanding()
     }
 }
 
+// Players against solid props' shapes (vr_box3d_player_shape; ROUND21.md, "Standing on props 3"). Quake met a solid
+// prop with the upright box round it (solidBox): a tilted box was taller and wider than drawn (landing on it, the player
+// stood in the air over its face; jumping onto it, he met its box's top corner), and walking into a box turned 45
+// degrees stopped him further from its face than from one lying with the grid. Now the player's own box meets the prop's
+// drawn box as it is turned, and as a round column (a 16-sided prism: his width across its flats, his box's height,
+// flat-bottomed as his box is), so he stops as far from a box's face turned any way as from a wall's (his box's
+// half-width). The trace is the column's origin against the Minkowski sum of the prop's box and the column, as Quake
+// traces its hulls: the half-spaces of every face normal and edge-pair normal of the two, entered and left along the
+// move, stopped DIST_EPSILON short (Quake 3's brush trace).
+
+constexpr int columnSides = 16;
+constexpr double traceEpsilon = 0.03125; // DIST_EPSILON (world.c): how far short of the surface a trace stops
+
+struct PropShape
+{
+    glm::dvec3 centre{0.0};      // the prop's drawn box: its centre, its axes, half its size
+    std::array<glm::dvec3, 3> axes{};
+    glm::dvec3 half{0.0};
+    std::array<glm::dvec2, columnSides> ring{}; // the player's column round his origin: its corners across ...
+    double bottom{0.0}, top{0.0};               // ... from his feet to his head
+    std::array<glm::dvec3, 2 * (4 + columnSides / 2 + 3 * (1 + columnSides / 2))> normals{};
+    int count{0};
+};
+
+void addNormal(PropShape& p, glm::dvec3 n)
+{
+    const double length = glm::length(n);
+    if(length < 1e-6)
+    {
+        return;
+    }
+    n /= length;
+    for(int k = 0; k < 3; k++)
+    {
+        n[k] = std::abs(n[k]) < 1e-7 ? 0.0 : n[k]; // (a wall's normal is flat: Quake's step up needs normal z 0)
+    }
+    n = glm::normalize(n);
+    p.normals[static_cast<size_t>(p.count++)] = n;
+    p.normals[static_cast<size_t>(p.count++)] = -n;
+}
+
+// The prop `touch` (slot s) and the player's box (mins, maxs from his origin) as they meet.
+[[nodiscard]] PropShape propShape(edict_t* touch, const Slot& s, const float* mins, const float* maxs)
+{
+    PropShape p;
+    const glm::mat3 axes = held::axesFromAngles(touch->v.angles, s.brush);
+    const glm::vec3 mid = (s.mins + s.maxs) * 0.5f;
+    p.centre = glm::dvec3{vec(touch->v.origin)} + glm::dvec3{axes * mid};
+    p.half = glm::dvec3{(s.maxs - s.mins) * 0.5f};
+    int up = 0;
+    for(int k = 0; k < 3; k++)
+    {
+        p.axes[static_cast<size_t>(k)] = glm::normalize(glm::dvec3{axes[k]});
+        if(std::abs(axes[k].z) > std::abs(axes[up].z))
+        {
+            up = k;
+        }
+    }
+    // The column turned with the prop's sides (its yaw): an upright box's faces meet its flats, at exactly his half-width.
+    const glm::dvec3 side = p.axes[static_cast<size_t>((up + 1) % 3)];
+    const double yaw = std::atan2(side.y, side.x);
+    const double r = 0.5 * std::min(maxs[0] - mins[0], maxs[1] - mins[1]);
+    const double corner = r / std::cos(glm::pi<double>() / columnSides);
+    const glm::dvec2 at{0.5 * (mins[0] + maxs[0]), 0.5 * (mins[1] + maxs[1])};
+    for(int k = 0; k < columnSides; k++)
+    {
+        const double a = yaw + (k + 0.5) * 2.0 * glm::pi<double>() / columnSides;
+        p.ring[static_cast<size_t>(k)] = at + corner * glm::dvec2{std::cos(a), std::sin(a)};
+    }
+    p.bottom = mins[2];
+    p.top = maxs[2];
+    const glm::dvec3 z{0.0, 0.0, 1.0};
+    for(const glm::dvec3& a : p.axes)
+    {
+        addNormal(p, a);
+        addNormal(p, glm::cross(a, z));
+    }
+    addNormal(p, z);
+    for(int k = 0; k < columnSides / 2; k++)
+    {
+        const double a = yaw + k * 2.0 * glm::pi<double>() / columnSides;
+        const glm::dvec3 flat{std::cos(a), std::sin(a), 0.0}, edge{-std::sin(a), std::cos(a), 0.0};
+        addNormal(p, flat);
+        for(const glm::dvec3& b : p.axes)
+        {
+            addNormal(p, glm::cross(b, edge));
+        }
+    }
+    return p;
+}
+
+// How far the player's origin may go along n: the support of the prop's box less the column's (their Minkowski sum).
+[[nodiscard]] double propSupport(const PropShape& p, const glm::dvec3& n)
+{
+    double box = glm::dot(n, p.centre);
+    for(int k = 0; k < 3; k++)
+    {
+        box += p.half[k] * std::abs(glm::dot(n, p.axes[static_cast<size_t>(k)]));
+    }
+    double ring = -1e300;
+    for(const glm::dvec2& v : p.ring)
+    {
+        ring = std::max(ring, -(n.x * v.x + n.y * v.y));
+    }
+    return box + ring + std::max(-n.z * p.bottom, -n.z * p.top);
+}
+
+// Quake 3's brush trace of the player's origin from start to end against the sum's half-spaces. False: missed.
+[[nodiscard]] bool traceProp(const PropShape& p, const glm::dvec3& start, const glm::dvec3& end, trace_t& trace)
+{
+    double enter = -1.0, leave = 1.0;
+    bool startOut = false, getOut = false;
+    glm::dvec3 normal{0.0, 0.0, 1.0};
+    double dist = 0.0;
+    for(int k = 0; k < p.count; k++)
+    {
+        const glm::dvec3& n = p.normals[static_cast<size_t>(k)];
+        const double h = propSupport(p, n);
+        const double d1 = glm::dot(n, start) - h, d2 = glm::dot(n, end) - h;
+        getOut = getOut || d2 > 0.0;
+        startOut = startOut || d1 > 0.0;
+        if(d1 > 0.0 && (d2 >= traceEpsilon || d2 >= d1))
+        {
+            return false; // (in front of this face all along)
+        }
+        if(d1 <= 0.0 && d2 <= 0.0)
+        {
+            continue;
+        }
+        if(d1 > d2)
+        {
+            const double f = (d1 - traceEpsilon) / (d1 - d2);
+            if(f > enter)
+            {
+                enter = f;
+                normal = n;
+                dist = h;
+            }
+        }
+        else
+        {
+            leave = std::min(leave, (d1 + traceEpsilon) / (d1 - d2));
+        }
+    }
+    if(!startOut)
+    {
+        // Started inside: as Quake's hull trace, the move isn't cut (VR_PropLetsOut may let him out).
+        trace.startsolid = true;
+        trace.allsolid = !getOut;
+        trace.fraction = 1.f;
+        return true;
+    }
+    if(enter >= leave || enter <= -1.0)
+    {
+        return false;
+    }
+    const double f = std::max(enter, 0.0);
+    trace.fraction = static_cast<float>(f);
+    for(int k = 0; k < 3; k++)
+    {
+        trace.endpos[k] = static_cast<float>(start[k] + f * (end[k] - start[k]));
+        trace.plane.normal[k] = static_cast<float>(normal[k]);
+    }
+    trace.plane.dist = static_cast<float>(dist);
+    return true;
+}
+
+// The shortest distance from the player's upright centre line (origin, his box's height) to the prop's drawn box.
+[[nodiscard]] double columnGap(const PropShape& p, const glm::dvec3& origin)
+{
+    double best = 1e300;
+    for(int k = 0; k <= 32; k++)
+    {
+        const glm::dvec3 at{origin.x, origin.y, origin.z + p.bottom + (p.top - p.bottom) * k / 32.0};
+        const glm::dvec3 d = at - p.centre;
+        glm::dvec3 out{0.0};
+        for(int i = 0; i < 3; i++)
+        {
+            const double t = glm::dot(d, p.axes[static_cast<size_t>(i)]);
+            out[i] = std::max(std::abs(t) - p.half[i], 0.0);
+        }
+        best = std::min(best, glm::length(out));
+    }
+    return best;
+}
+
+// vr_physics_player: how far under the feet of player p the solid prop he stands on is, as drawn and as its upright
+// box (with vr_box3d_player_shape he stands on the first; off, on the second).
+void playerOverProp(edict_t* p)
+{
+    edict_t* g = PROG_TO_EDICT(p->v.groundentity);
+    if(!world || !(static_cast<int>(p->v.flags) & FL_ONGROUND) || !solidProp(NUM_FOR_EDICT(g)))
+    {
+        return;
+    }
+    vec3_t mins, maxs;
+    if(!VR_HullEntBox(p, p->v.mins, p->v.maxs, mins, maxs))
+    {
+        VectorCopy(p->v.mins, mins);
+        VectorCopy(p->v.maxs, maxs);
+    }
+    const PropShape shape = propShape(g, world->slots[NUM_FOR_EDICT(g)], mins, maxs);
+    trace_t tr{};
+    tr.fraction = 1.f;
+    const glm::dvec3 from{p->v.origin[0], p->v.origin[1], p->v.origin[2]};
+    const bool hit = traceProp(shape, from, from - glm::dvec3{0.0, 0.0, 64.0}, tr);
+    Con_Printf("vr_physics_player: on %d: its drawn shape %s under your feet, its upright box's top %.2f\n", NUM_FOR_EDICT(g),
+        !hit ? "not" : tr.startsolid ? "in them" : va("%.2f units", tr.fraction * 64.f), p->v.origin[2] + p->v.mins[2] - g->v.absmax[2]);
+}
+
+// vr_physics_approach [number | classname]: the first player's box moved (SV_Move, as play moves it) at a solid prop
+// (the first explosive box) from 16 directions round it, level, its feet 2 units over the prop's bottom: how far his
+// centre stops from its drawn box, turned (vr_hull_approach for walls: his box's half-width).
+void approach_f()
+{
+    if(!sv.active || svs.maxclients < 1 || !world)
+    {
+        return;
+    }
+    const VmScope vm;
+    const std::vector<edict_t*> list = entitiesNamed(Cmd_Argc() > 1 ? Cmd_Argv(1) : "misc_explobox");
+    edict_t* prop = list.empty() ? nullptr : list.front();
+    if(!prop || !solidProp(NUM_FOR_EDICT(prop)))
+    {
+        Con_Printf("vr_physics_approach: no solid prop %s\n", Cmd_Argc() > 1 ? Cmd_Argv(1) : "misc_explobox");
+        return;
+    }
+    edict_t* p = EDICT_NUM(1);
+    vec3_t mins, maxs;
+    if(!VR_HullEntBox(p, p->v.mins, p->v.maxs, mins, maxs))
+    {
+        VectorCopy(p->v.mins, mins);
+        VectorCopy(p->v.maxs, maxs);
+    }
+    const PropShape shape = propShape(prop, world->slots[NUM_FOR_EDICT(prop)], mins, maxs);
+    const float reach = glm::length(glm::vec3{shape.half}) + 48.f;
+    const float z = prop->v.absmin[2] - p->v.mins[2] + 2.f;
+    int met = 0;
+    double lo = 1e300, hi = -1e300;
+    for(int k = 0; k < 16; k++)
+    {
+        const float a = static_cast<float>(k) * glm::pi<float>() / 8.f;
+        vec3_t s{static_cast<float>(shape.centre.x) + std::cos(a) * reach, static_cast<float>(shape.centre.y) + std::sin(a) * reach, z};
+        vec3_t e{static_cast<float>(shape.centre.x), static_cast<float>(shape.centre.y), z};
+        if(SV_Move(s, p->v.mins, p->v.maxs, s, MOVE_NORMAL, p).startsolid)
+        {
+            continue;
+        }
+        const trace_t tr = SV_Move(s, p->v.mins, p->v.maxs, e, MOVE_NORMAL, p);
+        if(tr.ent != prop)
+        {
+            Con_Printf("vr_physics_approach: from %.1f deg stopped by %s first\n", k * 22.5f,
+                tr.ent ? PR_GetString(tr.ent->v.classname) : "nothing");
+            continue;
+        }
+        const double gap = columnGap(shape, glm::dvec3{tr.endpos[0], tr.endpos[1], tr.endpos[2]});
+        lo = std::min(lo, gap);
+        hi = std::max(hi, gap);
+        met++;
+        if(vr_debug_box3d.value)
+        {
+            Con_Printf("vr_physics_approach: from %.1f deg: %.2f units, normal %.2f %.2f %.2f\n", k * 22.5f, gap,
+                tr.plane.normal[0], tr.plane.normal[1], tr.plane.normal[2]);
+        }
+    }
+    Con_Printf("vr_physics_approach: %d %s (angles %.1f %.1f %.1f): %d of 16 met it, your centre %.2f to %.2f units from its "
+               "face (your half-width %.1f; its shape %s)\n",
+        NUM_FOR_EDICT(prop), PR_GetString(prop->v.classname), prop->v.angles[0], prop->v.angles[1], prop->v.angles[2], met,
+        met ? lo : 0.0, met ? hi : 0.0, 0.5f * (maxs[0] - mins[0]), vr_box3d_player_shape.value ? "as drawn" : "off: its box");
+}
+
 } // namespace
 
 // SV_FlyMove: a solid prop is ground to a player (vr_box3d_player_stand) as a brush is.
@@ -4866,6 +5159,12 @@ extern "C" void VR_PlayerBumps(edict_t* ent, edict_t* other, const float* normal
     }
     const int num = NUM_FOR_EDICT(ent), g = NUM_FOR_EDICT(other);
     if(num < 1 || num > svs.maxclients || !solidProp(g) || normal[2] < -0.7f)
+    {
+        return;
+    }
+    // (Not the one he stands on: walking into a steep part of it, a tilted box's upper end, he would shove it from under
+    // himself, and ride it on.)
+    if(num < static_cast<int>(world->stands.size()) && world->stands[static_cast<size_t>(num)].ground == g)
     {
         return;
     }
@@ -4906,6 +5205,34 @@ extern "C" int VR_PropLetsOut(edict_t* mover, edict_t* touch)
     const int num = NUM_FOR_EDICT(mover), g = NUM_FOR_EDICT(touch);
     return num >= 1 && num <= svs.maxclients && solidProp(g) &&
            !((static_cast<int>(mover->v.flags) & FL_ONGROUND) && PROG_TO_EDICT(mover->v.groundentity) == touch);
+}
+
+// SV_ClipToLinks: a player's own box (his move's; mins, maxs) against a solid prop meets its drawn box as it is turned,
+// as a round column (boxmins, boxmaxs: his box against entities, vr_hull_ent_width). See propShape.
+extern "C" int VR_PropClip(edict_t* mover, edict_t* touch, const float* start, const float* mins, const float* maxs,
+    const float* boxmins, const float* boxmaxs, const float* end, trace_t* trace)
+{
+    if(!world || !vr_box3d_player_shape.value)
+    {
+        return 0;
+    }
+    const int num = NUM_FOR_EDICT(mover), g = NUM_FOR_EDICT(touch);
+    const auto same = [](const float* a, const float* b) { return a[0] == b[0] && a[1] == b[1] && a[2] == b[2]; };
+    if(num < 1 || num > svs.maxclients || !solidProp(g) || !same(mins, mover->v.mins) || !same(maxs, mover->v.maxs) ||
+       boxmaxs[0] - boxmins[0] <= 0.f)
+    {
+        return 0;
+    }
+    const PropShape p = propShape(touch, world->slots[g], boxmins, boxmaxs);
+    memset(trace, 0, sizeof(*trace));
+    trace->fraction = 1.f;
+    VectorCopy(end, trace->endpos);
+    if(traceProp(p, glm::dvec3{start[0], start[1], start[2]}, glm::dvec3{end[0], end[1], end[2]}, *trace))
+    {
+        trace->ent = touch;
+    }
+    trace->inopen = !trace->allsolid;
+    return 1;
 }
 
 extern "C" int VR_PushSkips(edict_t* ent)

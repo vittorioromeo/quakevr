@@ -1012,6 +1012,14 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 		// lying low, it would stop them well above it.
 		else if (((int)touch->v.flags & FL_MONSTER) && touch->v.solid != SOLID_NOT_BUT_TOUCHABLE)
 			trace = SV_ClipMoveToBoxEntityQVR (touch, clip->mins2, clip->maxs2, clip); // QVR
+		// QVR: a player's box meets a solid prop's drawn box as it is turned, not the box round it
+		// (vr_box3d_player_shape).
+		else if (touch->v.solid == SOLID_BBOX && clip->bodymove && clip->passedict &&
+			VR_PropClip (clip->passedict, touch, clip->start, clip->mins, clip->maxs,
+				clip->entbox && VR_HullNarrowsAgainst (clip->passedict, touch) ? clip->entmins : clip->mins,
+				clip->entbox && VR_HullNarrowsAgainst (clip->passedict, touch) ? clip->entmaxs : clip->maxs,
+				clip->end, &trace))
+			;
 		else if (touch->v.solid != SOLID_BSP) // QVR
 			trace = SV_ClipMoveToBoxEntityQVR (touch, clip->mins, clip->maxs, clip);
 		else

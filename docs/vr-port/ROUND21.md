@@ -13897,6 +13897,65 @@ half) and try the big one pushed against the small one; stand on one while walki
 onto yourself against a wall and walk out; hold a box in both hands and push it into walls, pillars, the floor and a
 door, turning it. Tell if the shove (0.6) is too strong or weak, or the 30 cm the hands may go on.
 
+## Standing on props 3: tilted boxes as drawn, round against boxes
+
+Your notes (vrfiringrange 10:47, 10:48:59, 10:49:48): a box lying tilted (on a slope, on another prop) is unstable to
+stand and move on, sometimes blowing up; you can't jump onto one (it seems bigger than it looks); walking into boxes
+feels axis-aligned (a box turned 45 degrees stops you further off than one lying with the grid), and walls let you
+closer than boxes.
+
+**Why.** Quake met a solid prop with the upright box round it (`solidBox`, SOLID_BBOX). Tilted, that box is taller and
+wider than the drawn one: you stood on its flat top, floating over the face (31.97 units over the 35-degree box's low
+end, 2 to 5.5 over the 15-degree one), and a jump met its top corner, far above the face at its low end. Your weight then
+pressed the box at a point clamped into it from that height, often its far edge, and the ride followed its box's top,
+which jumps as a tilted box rocks. Turned 45 degrees, its box is 1.41 times as wide; and your own box's corners led:
+your centre stopped 8 to 27 units from the face, by turn and direction, against 8 from a wall (Width Against Walls 16).
+
+**Now** (`vr_box3d_player_shape`, 1; `VR_PropClip` in `SV_ClipToLinks`, vr_box3d.cpp `propShape`, `traceProp`):
+
+- Your own box meets a solid prop's drawn box as it is turned, and as a round column: a 16-sided prism your width
+  across its flats (your box against entities, `vr_hull_ent_width`), your box's height, flat-bottomed like your box (you
+  stand on a box's edge as on a ledge). The prism turns with the box's sides, so an upright box's faces meet its flats
+  at exactly your half-width, any turn. The trace is your origin against the Minkowski sum of the two (every face
+  normal and edge-pair normal as a half-space), entered and left as Quake 3 traces brushes, stopped DIST_EPSILON short
+  as Quake's hulls stop; a start inside is startsolid as Quake's hull trace has it (Never Trapped lets you out).
+  Everything that moves you goes through it (walking, jumping, riding, the stuck checks); shots, monsters and the
+  world are as before.
+- Riding a prop you are carried up and down with the point you stand on (its face), not its box's top.
+- Your weight (and a jump's push) fades as the point under your feet drops away (`underFeet`: all of it at rest or
+  rocking, none once it drops at 1 m/s): a box tipping over or sliding off what held it falls as it would, not driven
+  into the floor by your 80 kg (a tall box's top lands at 11 m/s by itself; 14 blows it up).
+- Walking into a steep part of the prop you stand on (a tilted box's upper end) no longer shoves it from under you.
+
+**Tests** (mock headset, vrfiringrange, your settings; shape off is the old behaviour, with the weight fade):
+
+| Test | Shape off (Quake's box) | Shape on |
+| --- | --- | --- |
+| `vr_physics_approach`: your centre from the big box's face, 16 directions, turned 0 / 22 / 45 | 8.03-11.36 / 8.61-21.57 / 8.03-27.36 | 8.03 / 8.03-8.04 / 8.03 |
+| ... and from a wall (`vr_hull_approach`) | 8.00 (a point trace's gap: 8.03) | the same |
+| Dropped onto the small box tilted 15 degrees (5 spots): your feet over its drawn face | 0 to 5.53 (flat, on its box's top) | 0.00 at each (on the face) |
+| ... onto the big box leaning 35 degrees on the small one (4 spots) | 10.9 to 32.0 | 0.00 |
+| Jump onto the 35-degree box from its low end (3 run-ups, 2 lengths) | 0 of 6 (stopped by its box) | 6 of 6 land on it (steep: 4 then slide off, as off a 35-degree slope) |
+| Stand, walk, jump on it 8 cycles each (onto, walk, jump, strafe-jump, jump off forward): the 15-degree box | tipped over in the 2nd cycle, hit 5.9-6.2 m/s | stays, moved 2.5 units in all, no hit over 2 m/s |
+| ... the 35-degree box | no hit | stays (1.2 units); one 3 m/s touch between the two boxes |
+| ... the big box standing on a 14-degree slope, walked off its downhill edge | tips, hits 6.1 m/s | tips, hits 5.3-5.8 m/s |
+
+No box took damage in any test. The earlier standing tests (one box: drift 0.00; walk across and off; the column of 3:
+stand, jump twice, walk off; jump on and off 20 times; trapped under a toppled box) give the same numbers.
+The melee canary: no differences (48/53, as the baseline). e1m1 smoke: no errors.
+
+**Limitations.** On a steep tilted face (over about 30 degrees) you slide down slowly, as on the level's slopes of that
+steepness. Monsters and shots still meet a tilted box's upright box. The hands' bodies still push a box you walk up to
+(with your current hand settings they shoved the 150 kg box 22 units in the walking test, with the shape on or off).
+
+**Settings:** Player Hitbox page, "Standing on Props": Their Real Shape (`vr_box3d_player_shape` 1); Tests: Box
+Approach (`vr_physics_approach`). Debug, "World and Physics": Prop Approach.
+
+**In the headset:** walk into an explosive box turned 45 degrees and one lying with the grid (you should stop as close
+to each, and as close as to a wall); tip a box onto a slope or onto the other box, jump onto it, walk on it and jump off;
+stand on one near its downhill edge. Tell if the column feels too round at a box's corners, or if sliding off a steep
+tilted box bothers you (it could be made ground up to a steeper angle).
+
 ## Fast melee eval: parallel, hidden, not drawn (2026-09-30)
 
 Your request: agents spent a long time in the melee eval, and its game windows popped up on your desktop ("run
