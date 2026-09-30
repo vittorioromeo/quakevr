@@ -136,6 +136,8 @@ float cvarh_vr_chainsaw_damage;
 float cvarh_vr_chainsaw_fuel_use;
 float cvarh_vr_chainsaw_idle_fuel_use;
 float cvarh_vr_chainsaw_start_chance;
+float cvarh_vr_chainsaw_fail_pulls_min;
+float cvarh_vr_chainsaw_fail_pulls_max;
 float cvarh_vr_debug_chainsaw;
 float cvarh_vr_chainsaw_drop_fuel_min;
 float cvarh_vr_gruntgun_damage;
@@ -422,6 +424,8 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_chainsaw_fuel_use);
     VR_CVAR_HMAKE(vr_chainsaw_idle_fuel_use);
     VR_CVAR_HMAKE(vr_chainsaw_start_chance);
+    VR_CVAR_HMAKE(vr_chainsaw_fail_pulls_min);
+    VR_CVAR_HMAKE(vr_chainsaw_fail_pulls_max);
     VR_CVAR_HMAKE(vr_debug_chainsaw);
     VR_CVAR_HMAKE(vr_chainsaw_drop_fuel_min);
     VR_CVAR_HMAKE(vr_gruntgun_damage);

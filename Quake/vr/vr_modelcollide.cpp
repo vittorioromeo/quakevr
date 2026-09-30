@@ -883,7 +883,7 @@ Result test(const hands::State& s, int hand)
         }
         // Its model's bounds (all its frames, turned any way), scaled as it is drawn (its scale, the networked one),
         // and moved by the networked offset.
-        float grow = e.scale ? ENTSCALE_DECODE(e.scale) : 1.f;
+        float grow = VR_EntityScale(&e); // (and a prop's Size)
         float pad = 0.f;
         if(const client::EntityVr* net = client::entityVr(num))
         {

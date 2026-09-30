@@ -252,8 +252,8 @@ void rodLoad(Load& l, float mass, float balance, float length, float radius)
             const glm::vec3 size = hi - lo;
             const float mass = propMass(h, ent, model, size);
             const glm::vec3 com = (lo + hi) * 0.5f +
-                                  glm::vec3{props::value(slot, props::Key::ComX), props::value(slot, props::Key::ComY),
-                                      props::value(slot, props::Key::ComZ)};
+                                  glm::vec3{props::scaledValue(slot, props::Key::ComX), props::scaledValue(slot, props::Key::ComY),
+                                      props::scaledValue(slot, props::Key::ComZ)};
             const glm::vec3 pivot = both ? other * (0.5f * u2m) : glm::vec3{0.f};
             const glm::vec3 r = (origin + axes * com) * u2m - pivot;
             const glm::vec3 d = size * u2m;

@@ -13,8 +13,9 @@
 //   a holster, onto the ground and back. An ogre's is 40-100% full; impulse 164 (184: the off hand) gives a full one.
 // - Its engine starts with its cord: the other hand takes the cord's handle on its top (the client: vr_chainsaw.cpp,
 //   which draws the cord) and pulls it out, far and fast enough (vr_chainsaw_pull_distance, vr_chainsaw_pull_speed);
-//   each such pull starts it at a chance (vr_chainsaw_start_chance): a few tries may be needed. A weak pull only pulls
-//   the cord. With an empty tank it never starts.
+//   each such pull starts it at a chance (vr_chainsaw_start_chance), after the first one or two of a start, which always
+//   fail (vr_chainsaw_fail_pulls_min..max: the author's, NOTES.md 2026-09-30 16:21): a few tries are needed. A weak pull
+//   only pulls the cord. With an empty tank it never starts.
 // - Running, it idles (vr_chainsaw_idle_fuel_use a second), and the trigger runs its chain (vr_chainsaw_fuel_use a
 //   second more): the chain's bar cuts what it is in, monsters and their corpses' models as drawn (precise hit
 //   detection: hitmodel_segment, the melee's tolerance), gibs and heads by their boxes, breakables and explosive boxes
@@ -39,6 +40,10 @@ nosave float vr_saw_replay_at;
 .float vr_saw_buzz_next;  // the next rumble in the hand
 .float vr_saw_buzz_next2;
 .float vr_saw_cord_prev;  // the engine's cord bits (.sawcord) as they were last frame: a pull's edge
+.float vr_saw_pulls;      // good pulls that failed since it last ran (a start's first ones always fail)
+.float vr_saw_pulls2;
+.float vr_saw_fails;      // how many of them always fail this start (vr_chainsaw_fail_pulls_min..max, drawn at its first)
+.float vr_saw_fails2;
 .entity vr_saw_victim;    // the cut's victims, linked (findradius's .chain is not kept across T_Damage)
 .vector vr_saw_at;        // and where the bar met each
 
@@ -254,6 +259,33 @@ float(float xHand) VR_Chainsaw_Cut =
     return TRUE;
 };
 
+// A good pull of `xHand`'s chainsaw's cord, not running, with fuel: counted; TRUE if it is one of the start's first,
+// which always fail (vr_chainsaw_fail_pulls_min..max, drawn at the start's first pull).
+float(float xHand) VR_Saw_ForcedFail =
+{
+    float pulls = xHand == cVR_OffHand ? self.vr_saw_pulls2 : self.vr_saw_pulls;
+    float fails = xHand == cVR_OffHand ? self.vr_saw_fails2 : self.vr_saw_fails;
+    if(pulls <= 0)
+    {
+        float lo = max(0, floor(cvar_hget(cvarh_vr_chainsaw_fail_pulls_min)));
+        float hi = max(lo, floor(cvar_hget(cvarh_vr_chainsaw_fail_pulls_max)));
+        fails = min(lo + floor(random() * (hi - lo + 1)), hi);
+    }
+    pulls = pulls + 1;
+    if(xHand == cVR_OffHand)
+    {
+        self.vr_saw_pulls2 = pulls;
+        self.vr_saw_fails2 = fails;
+    }
+    else
+    {
+        self.vr_saw_pulls = pulls;
+        self.vr_saw_fails = fails;
+    }
+    VR_Saw_Debug(sprintf("chainsaw: %s hand's pull %g of the start (%g always fail)\n", VR_Saw_HandName(xHand), pulls, fails));
+    return pulls <= fails;
+};
+
 // Every frame, each hand (PlayerPostThink): a chainsaw held there runs, cuts, drinks its fuel, stalls; its cord.
 void(float xHand) VR_Chainsaw_Frame =
 {
@@ -267,6 +299,8 @@ void(float xHand) VR_Chainsaw_Frame =
     if(VRGetWeapon(xHand) != WID_CHAINSAW || self.health <= 0)
     {
         VR_Saw_Silence(xHand); // (it left the hand)
+        if(xHand == cVR_OffHand) self.vr_saw_pulls2 = 0;
+        else                     self.vr_saw_pulls = 0;
         return;
     }
     float loop = VR_Saw_Loop(xHand);
@@ -291,9 +325,11 @@ void(float xHand) VR_Chainsaw_Frame =
             sound(self, CHAN_AUTO, "vr/saw_pull_weak.wav", 1, ATTN_NORM);
             VR_Saw_Debug(sprintf("chainsaw: %s hand's cord pulled: no fuel\n", VR_Saw_HandName(xHand)));
         }
-        else if(random() < cvar_hget(cvarh_vr_chainsaw_start_chance))
+        else if(!VR_Saw_ForcedFail(xHand) && random() < cvar_hget(cvarh_vr_chainsaw_start_chance))
         {
             running = TRUE;
+            if(xHand == cVR_OffHand) self.vr_saw_pulls2 = 0;
+            else                     self.vr_saw_pulls = 0;
             sound(self, chan, "vr/saw_start.wav", 1, ATTN_NORM);
             VR_Saw_SetLoop(xHand, VR_SAW_LOOP_START, 0);
             loop = VR_SAW_LOOP_START;

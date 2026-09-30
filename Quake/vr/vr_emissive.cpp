@@ -546,7 +546,7 @@ extern "C" void VR_TorchLights(void)
         if(st.kind != kind)
         {
             // First seen (or another flame): place its light, seed its flicker by where it is.
-            const float s = e.scale ? ENTSCALE_DECODE(e.scale) : 1.f;
+            const float s = VR_EntityScale(&e);
             const float yaw = glm::radians(e.angles[1]);
             const glm::vec3 off{kind->fire.x * std::cos(yaw) - kind->fire.y * std::sin(yaw),
                 kind->fire.x * std::sin(yaw) + kind->fire.y * std::cos(yaw), kind->fire.z};

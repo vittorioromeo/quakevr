@@ -13,6 +13,7 @@
 #include "vr_anchor.hpp"
 #include "vr_avatar.hpp"
 #include "vr_client.hpp"
+#include "vr_props.hpp"
 #include "vr_weapons.hpp"
 
 #include <algorithm>
@@ -37,6 +38,12 @@ namespace
 void applyPre(const entity_t* e, bool mirrored, const glm::vec3* extra, float m[16])
 {
     const weapons::ModelTransform t = weapons::modelTransform(e->model);
+
+    // A prop's Size (Held Object Offsets), about its origin: everything below grows with it.
+    if(const float size = props::drawnSize(e->model); size != 1.f)
+    {
+        ApplyScale(m, size, size, size);
+    }
 
     if(mirrored)
     {
@@ -139,6 +146,11 @@ extern "C" void VR_AliasPostTransform(const entity_t* e, float matrix[16])
 
 // Brush entities (the ammo and health boxes are brush models) take the networked scale and offset
 // too.
+extern "C" float VR_EntityScale(const entity_t* e)
+{
+    return (e->scale ? ENTSCALE_DECODE(e->scale) : 1.f) * (e->model ? props::drawnSize(e->model) : 1.f);
+}
+
 extern "C" void VR_BrushTransform(const entity_t* e, float matrix[16])
 {
     applyPre(e, false, nullptr, matrix);

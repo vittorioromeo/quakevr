@@ -2,6 +2,7 @@
 
 #include "vr_props.hpp"
 #include "vr_cvars.hpp"
+#include "vr_protocol.hpp"
 #include "vr_units.hpp"
 
 #include <algorithm>
@@ -392,6 +393,46 @@ float valueFor(const char* model, Key key)
 float valueFor(const qmodel_t* model, Key key)
 {
     return value(slotForModel(model), key);
+}
+
+float size(int slot)
+{
+    return std::clamp(value(slot, Key::Size), 0.05f, 10.f);
+}
+
+float drawnSize(const qmodel_t* model)
+{
+    if(!model || (model->type != mod_alias && model->type != mod_brush) ||
+        !((cl.protocolflags & PRFL_QUAKEVR) || (sv.active && (sv.protocolflags & PRFL_QUAKEVR))))
+    {
+        return 1.f;
+    }
+    return size(slotForModel(model));
+}
+
+bool lengthKey(Key key)
+{
+    switch(key)
+    {
+        case Key::ComX:
+        case Key::ComY:
+        case Key::ComZ:
+        case Key::TipX:
+        case Key::TipY:
+        case Key::TipZ:
+        case Key::ButtX:
+        case Key::ButtY:
+        case Key::ButtZ:
+        case Key::HandleFrom:
+        case Key::HandleTo: return true;
+        default: return false;
+    }
+}
+
+float scaledValue(int slot, Key key)
+{
+    const float v = value(slot, key);
+    return lengthKey(key) ? v * size(slot) : v;
 }
 
 cvar_t* cvar(int slot, Key key)

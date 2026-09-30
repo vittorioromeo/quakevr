@@ -330,7 +330,7 @@ bool touches(const entity_t* e, const glm::vec3& light, float radius)
 {
     const glm::vec3 lo{e->model->mins[0], e->model->mins[1], e->model->mins[2]};
     const glm::vec3 hi{e->model->maxs[0], e->model->maxs[1], e->model->maxs[2]};
-    const float r = std::max(glm::length(lo), glm::length(hi)) * ENTSCALE_DECODE(e->scale);
+    const float r = std::max(glm::length(lo), glm::length(hi)) * VR_EntityScale(e);
     return glm::distance(glm::vec3{e->origin[0], e->origin[1], e->origin[2]}, light) < radius + r;
 }
 
@@ -370,7 +370,7 @@ float viewEntityReach(const entity_t* e)
 {
     const glm::vec3 lo{e->model->mins[0], e->model->mins[1], e->model->mins[2]};
     const glm::vec3 hi{e->model->maxs[0], e->model->maxs[1], e->model->maxs[2]};
-    return std::max(glm::length(lo), glm::length(hi)) * ENTSCALE_DECODE(e->scale) * 2.f + 16.f;
+    return std::max(glm::length(lo), glm::length(hi)) * VR_EntityScale(e) * 2.f + 16.f;
 }
 
 void collectAliases(const glm::vec3& light, float radius, int ownEntity, bool self)
@@ -454,7 +454,7 @@ bool viewHasCasters(const glm::vec3& light, const ShadowView& view, float size, 
         const entity_t* e = aliasCasters[i];
         const glm::vec3 lo{e->model->mins[0], e->model->mins[1], e->model->mins[2]};
         const glm::vec3 hi{e->model->maxs[0], e->model->maxs[1], e->model->maxs[2]};
-        float r = std::max(glm::length(lo), glm::length(hi)) * ENTSCALE_DECODE(e->scale);
+        float r = std::max(glm::length(lo), glm::length(hi)) * VR_EntityScale(e);
         if(posed.size() > i && posed[i])
         {
             r = std::max(r * 2.f, 96.f);

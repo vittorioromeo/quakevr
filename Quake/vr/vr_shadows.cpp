@@ -73,7 +73,7 @@ void entityBlobs()
             continue;
         }
 
-        const float scale = ENTSCALE_DECODE(e->scale);
+        const float scale = VR_EntityScale(e);
         const glm::vec3 mins{e->model->mins[0], e->model->mins[1], e->model->mins[2]};
         const glm::vec3 maxs{e->model->maxs[0], e->model->maxs[1], e->model->maxs[2]};
         const float width = std::max(maxs.x - mins.x, maxs.y - mins.y) * scale;

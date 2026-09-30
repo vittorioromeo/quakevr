@@ -109,8 +109,14 @@ const DefaultChange defaultChanges[] = {
     // 59: heavy weapons strike slower (ROUND21.md, "Heavy weapons: wrenched out, sticky grips, heavy melee").
     {59, &vr_weight_lenient, "0.75"},
     {59, &vr_weight_lenient_from, "10"},
+    // 60: the author's (NOTES.md 2026-09-30): his water and slime transparency again (vrcalibration_2026-09-30_16-18-35;
+    // vr_defaults.cfg), and the empty hand firmer against the prop the other hand holds ("a little bit stronger",
+    // vrfiringrange 16:24:29). ROUND21.md, "Prop size; Mjolnir in water; chainsaw pulls; defaults".
+    {60, &r_wateralpha, "0.4"},               // 0.3
+    {60, &r_slimealpha, "0.9"},               // 0.6
+    {60, &vr_hand_collide_props, "10"},       // 15
 };
-constexpr int configVersion = 59;
+constexpr int configVersion = 60;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

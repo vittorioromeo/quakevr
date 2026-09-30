@@ -15418,8 +15418,8 @@ further out, a flickering blue light; kept 0.3 s after the last bolt there.
 
 **Settings:** VR Settings > Advanced VR Options > Weapons > Lightning Gun in Water (page 75): on/off, Shock Damage to You, Shock
 Damage to Others, Reach, Falloff, Electrified Water Damage, Shock Flash, and two test buttons (`vr_shock_test 0|1`,
-also in Debug > Tools > Test Effects). New cvars only: no config migration (60 left free). Mjolnir (Hipnotic) keeps
-Quake's discharge under water.
+also in Debug > Tools > Test Effects). New cvars only: no config migration (60 left free). Mjolnir (Hipnotic) has the
+same shock since "Prop size; Mjolnir in water; chainsaw pulls; defaults" (below).
 
 **Tests** (mock, `map vrfiringrange`, the pool's surface at z -4; `developer 1` prints `lgwater:` lines; LG in the main
 hand `impulse 161`, a shotgun in the off hand `impulse 174`, an ogre from `vr_test_spawn 1; impulse 241`):
@@ -15634,3 +15634,58 @@ stack with files and lines from lld's .pdb (`VR_DebugCrash_f vr_main.cpp:720`, `
 `build.sh`'s `" error "` grep shows; a linker warning (lld-link's `lld-link : warning :`) would not show: its grep
 could be `" error |warning C|: warning :"`. The machine needs Visual Studio's "C++ Clang tools for Windows" (installed
 here: clang 19.1.5).
+
+## Prop size; Mjolnir in water; chainsaw pulls; defaults (2026-09-30)
+
+From his notes of 2026-09-30 16:08-16:28.
+
+**Prop size** (Held Object Offsets, first row: **Size**, 0.25-3x in 0.05x steps, typed 0.05-10; key `vr_prop_size_NN`,
+default 1). Every prop drawn with that model is scaled about its origin, and everything made from its drawn shape with
+it: `props::drawnSize(model)` (1 off Quake VR's protocol, as `weapons::modelTransform`) is applied in `vr_render.cpp`'s
+`applyPre` (alias and brush models: drawn, the grasp's and the hand collision's shapes, AO, shadows), `VR_EntityScale`
+(culling, efrags, light and shadow reach, the torch flame's place, the hand collision's broad phase), `vr_held.cpp`'s
+`DrawnTransform` (drawn boxes, triangles and vertices: Box3D's hulls, the palm fit, weight), both `localBox`es (a solid
+prop's and a brush item's box; not a SOLID_BBOX one's entity box, which `solidBox` writes back) and `vr_hitmodel.cpp`.
+A prop made again for a new size is woken (a smaller one would hang in the air) and a solid prop's Quake box is set at
+once. Its lengths grow with it (`props::scaledValue`): Centre of Mass, Tip, Butt, Handle From/To (`propvalue`, the
+grip), and a Fixed grip's place. Not scaled: a Mass setting (an estimated mass follows the volume), and the entity box
+of a non-solid item (its pickup trigger, QC's `setsize`). While held, the grip point is where it was taken: take it
+again after a big change. Test aid: with `vr_debug_box3d 1`, `vr_physics_list` prints each prop's `size x`, its body's
+box (world axes), its entity box and the scale it is drawn at (the client's matrix).
+
+| mock, vrfiringrange | size 1 | size 2 / 1.5 / 0.55 |
+|---|---|---|
+| explosive box (brush, solid): body / entity box / drawn | 33.3 33.3 65.3 / 32 32 64 / x1.000 | 65.3 65.3 129.3 / 64 64 128 / x2.000; at 0.55: 18.9 18.9 36.5 / x0.550 |
+| rockets (brush item, `vr_prop_id_06 maps/b_rock0.bsp`) | 4.5 4.5 7.7 / x0.200 | 7.7 7.7 14.1 / x0.400 |
+| armour (alias fixture, `vr_prop_id_07 progs/armor.mdl`) | z 15.6 / x0.500 | 1.5: z 22.7 / x0.750; 0.5: z 8.4 / x0.250 |
+| wall torch (alias, no body) | x1.000 | 1.5: x1.500 |
+
+(Box3D's boxes carry about 1.3 units of margin.)
+
+**Mjolnir in water.** `HIP_FireMjolnirLightning(hand, head)` calls `VR_LGWater_ShockAt(hand, where it struck, 15 cells,
+IT_MJOLNIR)` before Quake's discharge (`vr_lg_water 0` keeps the discharge): the lightning gun's shock, from the hammer's
+head, when the hand, the head or the body (waist deep) is in a liquid. Test aid: `impulse 215` (Debug > Tools > Test
+Effects > Mjolnir's Lightning) strikes Mjolnir's lightning from the main hand as a blow does. Mock (`impulse 153`,
+`vr_weapon_grip_mode 1`): at `setpos 612 474 2`, `lgwater: shock (hand 1 in 0, body 1, waterlevel 2, weapon 128)`, an
+ogre at 79 units takes 44, you 100 -> 60, 200 -> 185 cells, Mjolnir dropped; waist deep the same; above the pool and on
+dry ground no shock.
+
+**Chainsaw.** Sounds +3 dB (`make_chainsaw_sounds.py`: `LOUDER_DB`, and `--regain <dB>` rescales the made files in
+place, their loops' cue points kept: idle -20.0 -> -17.1 dBFS RMS, run -14.3 -> -11.3, cut -15.4 -> -12.4, peaks
+still under 0.89). The first good pulls of each start always fail: `vr_chainsaw_fail_pulls_min` 1 to
+`vr_chainsaw_fail_pulls_max` 2 (drawn each start; Weapons > Chainsaw: First Pulls Fail, Up To), then Start Chance.
+Mock (a four-pull `.mock`, `vr_chainsaw_start_chance 1`, `vr_debug_chainsaw 1`): 1-1 starts on pull 2, 2-2 on pull 3,
+1-2 on pull 3 (twice: the mock's random draws the same), 0-0 on pull 1.
+
+**Defaults** (`vr_cfg_version` 60; a config holding the old value takes the new one): `r_wateralpha` 0.4 -> 0.3 and
+`r_slimealpha` 0.9 -> 0.6 (his, `vr_defaults.cfg`), `vr_hand_collide_props` 10 -> 15 cm (the empty hand firmer against
+the prop the other hand holds). Checked: 59 with the old values -> 0.3, 0.6, 15; changed values kept.
+
+### In the headset
+
+- [ ] Hold a gib or a rock, open Held Object Offsets, move Size: it grows in the hand; drop it: it lands and rests at
+      its size (a big one no longer sinks in, a small one no longer floats). An explosive box at 2x: walk into it, stand
+      on it.
+- [ ] Mjolnir with 15+ cells: strike something with the head under water: the shock, both hands drop.
+- [ ] The chainsaw: the first one or two good pulls never start it; louder than before?
+- [ ] The empty hand against a prop the other hand holds: firmer.

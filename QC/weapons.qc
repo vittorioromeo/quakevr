@@ -911,11 +911,21 @@ void() HIP_SpawnMjolnirBase =
    HIP_SpawnMjolnirLightning(light, light, 350);
    };
 
-void(float xHand) HIP_FireMjolnirLightning =
+float(float xHand, vector xAt, float xCells, float xWeapon) VR_LGWater_ShockAt;
+
+// xAt: where it struck (its head).
+void(float xHand, vector xAt) HIP_FireMjolnirLightning =
 {
     float cells;
 
-    // explode if under water
+    // VR: in water, the lightning gun's shock (vr_lg_water; ROUND21.md, "Lightning gun in water"): its head or the hand
+    // in a liquid, or the body waist deep. Its 15 cells spent.
+    if(cvar_hget(cvarh_vr_lg_water) && VR_LGWater_ShockAt(xHand, xAt, 15, IT_MJOLNIR))
+    {
+        return;
+    }
+
+    // explode if under water (Quake's, vr_lg_water 0)
     if(self.waterlevel > 1)
     {
         cells = self.ammo_cells;
@@ -1033,7 +1043,7 @@ void(float xHand) HIP_FireMjolnir =
 
         if(time >= VRGetAttackFinished(xHand) && self.ammo_cells >= 15)
         {
-            HIP_FireMjolnirLightning(xHand);
+            HIP_FireMjolnirLightning(xHand, org);
             VRSetAttackFinished(xHand, time + 0.5);
         }
 
@@ -1058,7 +1068,7 @@ void(float xHand) HIP_FireMjolnir =
         {
             if(time >= VRGetAttackFinished(xHand) && self.ammo_cells >= 15)
             {
-                HIP_FireMjolnirLightning(xHand);
+                HIP_FireMjolnirLightning(xHand, org);
                 VRSetAttackFinished(xHand, time + 0.5);
             }
 
@@ -2211,10 +2221,11 @@ void() VR_LGWater_DropAll =
     }
 };
 
-// Fired with the body waist deep or `xHand` (or its muzzle) in a liquid: the shock. FALSE if not (fire as usual).
-float(float xHand) VR_LGWater_Shock =
+// Fired with the body waist deep or `xHand` (or `xAt`: the lightning gun's muzzle, Mjolnir's head where it struck) in
+// a liquid: the shock from `xAt`, `xCells` spent, `xWeapon` (IT_*) the damage's. FALSE if not (fire as usual).
+float(float xHand, vector xAt, float xCells, float xWeapon) VR_LGWater_ShockAt =
 {
-    vector muzzle = VRGetMuzzlePos(xHand);
+    vector muzzle = xAt;
     float handIn = VR_LGWater_IsLiquid(pointcontents(VRGetHandPos(xHand))) || VR_LGWater_IsLiquid(pointcontents(muzzle));
     float bodyIn = self.waterlevel > 1;
     if(!handIn && !bodyIn)
@@ -2222,11 +2233,12 @@ float(float xHand) VR_LGWater_Shock =
         return FALSE;
     }
 
-    delAmmoOrClipAndUpdateCounter(xHand, AID_CELLS, 1); // the bolt that shorts out
-    self.damage_weapon = IT_LIGHTNING; // HONEY
+    delAmmoOrClipAndUpdateCounter(xHand, AID_CELLS, xCells); // the bolt that shorts out
+    self.damage_weapon = xWeapon; // HONEY
 
     float radius = max(1, cvar_hget(cvarh_vr_lg_water_radius));
-    dprint(sprintf("lgwater: shock (hand %g in %g, body %g, waterlevel %g)\n", xHand, handIn, bodyIn, self.waterlevel));
+    dprint(sprintf("lgwater: shock (hand %g in %g, body %g, waterlevel %g, weapon %g)\n", xHand, handIn, bodyIn,
+        self.waterlevel, xWeapon));
     sound(self, CHAN_AUTO, "misc/power.wav", 1, ATTN_NORM);
     sound(self, CHAN_BODY, "weapons/lhit.wav", 1, ATTN_NORM);
     particle2(muzzle, '0 0 0', QVR_PARTICLE_PRESET_LIGHTNING, 60);
@@ -2247,6 +2259,11 @@ float(float xHand) VR_LGWater_Shock =
     discharged = 0;
     dprint(sprintf("lgwater: you take %g: health %g -> %g\n", selfDamage, before, self.health));
     return TRUE;
+};
+
+float(float xHand) VR_LGWater_Shock =
+{
+    return VR_LGWater_ShockAt(xHand, VRGetMuzzlePos(xHand), 1, IT_LIGHTNING);
 };
 
 // A bolt from the open: if it goes into a liquid between `xMuzzle` and `xEnd`, the water round that point is
@@ -4040,6 +4057,19 @@ void() ImpulseCommands =
     if(self.impulse == 214 && !deathmatch && !coop) // QVR test: the enemy guns in your hands left with one shot
     {
         VR_EnemyGuns_Impulse(TRUE);
+    }
+    if(self.impulse == 215 && !deathmatch && !coop) // QVR test: Mjolnir in the main hand strikes its lightning now
+    {
+        // (as a blow with 15 cells does, from its head: VRGetMuzzlePos; in water, the shock)
+        if(VRGetEntWeapon(self, cVR_MainHand) == WID_MJOLNIR && self.ammo_cells >= 15)
+        {
+            HIP_FireMjolnirLightning(cVR_MainHand, VRGetMuzzlePos(cVR_MainHand));
+        }
+        else
+        {
+            bprint(sprintf("impulse 215: no Mjolnir in the main hand (weapon %g), or under 15 cells (%g)\n",
+                VRGetEntWeapon(self, cVR_MainHand), self.ammo_cells));
+        }
     }
     if(self.impulse == 230 && !deathmatch && !coop) // QVR test: the chainsaws in your hands started (no cord pulled)
     {

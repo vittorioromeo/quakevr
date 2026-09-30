@@ -175,11 +175,22 @@ void localBox(edict_t* ent, qmodel_t* model, glm::vec3& lo, glm::vec3& hi)
     {
         lo = glm::vec3{model->mins[0], model->mins[1], model->mins[2]}; // (its Quake box follows its turn: solidBox)
         hi = glm::vec3{model->maxs[0], model->maxs[1], model->maxs[2]};
+        const float size = props::drawnSize(model); // its Size (Held Object Offsets; the alias models': modelBox)
+        lo *= size;
+        hi *= size;
     }
     else if(!model || model->type != mod_alias)
     {
         lo = vec(ent->v.mins);
         hi = vec(ent->v.maxs);
+        // A brush item's (an ammo box's) Size (Held Object Offsets). Not for a SOLID_BBOX one: solidBox writes its
+        // Quake box from this, which would grow again each time.
+        if(static_cast<int>(ent->v.solid) != SOLID_BBOX)
+        {
+            const float size = props::drawnSize(model);
+            lo *= size;
+            hi *= size;
+        }
     }
     else
     {
@@ -320,6 +331,7 @@ struct Slot // what one edict is in the world (by its number)
     glm::vec3 arrival{0.f}; // props: the velocity this frame's step began with (0 asleep): what a touch after it sees
     float gravityScale{1.f};
     float massSetting{0.f}; // props: the Mass set for its model when it was made (vr_props.inc; 0: none)
+    float size{1.f};        // props: its model's Size when it was made (Held Object Offsets: props::drawnSize)
     bool asleep{false};
     bool wet{false};      // floating: kept awake (it bobs)
     bool bullet{false};   // fast: continuous collision against other props too
@@ -1371,9 +1383,14 @@ float liftOutOfFloor(edict_t* ent, Slot& s, const char* when)
     return lift;
 }
 
-void createBody(edict_t* ent, int num, Slot& s, Kind kind)
+void solidBox(edict_t* ent, const Slot& s);
+
+// resized: a prop made again for its new Size (Held Object Offsets), woken to settle at it (a smaller one resting
+// would hang in the air).
+void createBody(edict_t* ent, int num, Slot& s, Kind kind, bool resized = false)
 {
     qmodel_t* model = modelOf(ent);
+    s.size = props::drawnSize(model);
     s.kind = kind;
     s.model = model;
     s.hull = kind == Kind::Actor && model && model->type == mod_alias ? actorHull(ent, model) : nullptr;
@@ -1400,7 +1417,7 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind)
     if(kind == Kind::Prop)
     {
         const bool resting = hasFlag(ent, FL_ONGROUND) && glm::length(vec(ent->v.velocity)) <= 1.f;
-        def.isAwake = !resting;
+        def.isAwake = !resting || resized;
         s.gravityScale = gravityScaleOf(ent);
         def.gravityScale = s.gravityScale;
         def.angularDamping = std::max(vr_throw_spin_drag.value, 0.f);
@@ -1478,6 +1495,11 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind)
 
     if(kind == Kind::Prop)
     {
+        if(resized && static_cast<int>(ent->v.solid) == SOLID_BBOX)
+        {
+            solidBox(ent, s); // (its Quake box at its new size now, not when it next moves)
+            SV_LinkEdict(ent, false);
+        }
         (void)liftOutOfFloor(ent, s, "made");
 
         // Asleep in water deeper than it floats (a map's item under water, a saved game's): it rises (as the old
@@ -2538,10 +2560,11 @@ void syncEntities(float dt)
         const Kind want = ent->free ? Kind::None : kindOf(ent, num, carried);
         if(want != s.kind || (want != Kind::None && stale(ent, s)))
         {
+            const bool resized = want == Kind::Prop && s.kind == Kind::Prop && s.size != props::drawnSize(modelOf(ent));
             destroyBody(s);
             if(want != Kind::None)
             {
-                createBody(ent, num, s, want);
+                createBody(ent, num, s, want, resized);
             }
             continue;
         }
@@ -3623,6 +3646,29 @@ void list_f()
                 qvr::props::throwScale(model ? qvr::props::slotForModel(model) : -1, mass));
             Con_Printf("    movetype %d, solid %d, rigid %d, flags %d\n", static_cast<int>(e->v.movetype), static_cast<int>(e->v.solid),
                 isRigid(e) ? 1 : 0, static_cast<int>(e->v.flags));
+            // Its Size (Held Object Offsets), for tests: the body's box (the world's axes), its Quake box, and the scale
+            // it is drawn at (the client's entity matrix: its first axis' length).
+            glm::vec3 body{0.f};
+            if(world && num < static_cast<int>(world->slots.size()) && B3_IS_NON_NULL(world->slots[num].body) &&
+                b3Body_IsValid(world->slots[num].body))
+            {
+                const b3AABB box = b3Body_ComputeAABB(world->slots[num].body);
+                body = world->toU(box.upperBound) - world->toU(box.lowerBound);
+            }
+            float drawn = 0.f;
+            if(num < cl.num_entities && cl_entities[num].model)
+            {
+                const entity_t& ce = cl_entities[num];
+                vec3_t o, a{-ce.angles[0], ce.angles[1], ce.angles[2]};
+                VectorCopy(ce.origin, o);
+                float m[16];
+                R_EntityMatrix(m, o, a, ce.scale);
+                VR_BrushTransform(&ce, m);
+                drawn = std::sqrt(m[0] * m[0] + m[1] * m[1] + m[2] * m[2]);
+            }
+            Con_Printf("    size x%.2f: body %.1f %.1f %.1f, box %.1f %.1f %.1f, drawn x%.3f\n",
+                model ? qvr::props::drawnSize(model) : 1.f, body.x, body.y, body.z, e->v.size[0], e->v.size[1], e->v.size[2],
+                drawn);
         }
     }
 }

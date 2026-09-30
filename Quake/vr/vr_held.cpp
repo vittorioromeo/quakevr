@@ -43,9 +43,11 @@ struct DrawnTransform
     weapons::ModelTransform t{};
     glm::vec3 so{0.f}, hs{1.f};
     glm::vec3 netScale{1.f}, scaleOrigin{0.f}, offset{0.f};
+    float size{1.f}; // a prop's Size (Held Object Offsets), about its origin: vr_render.cpp's applyPre
 
     DrawnTransform(const qmodel_t* model, const glm::vec3& scale, const glm::vec3& origin, const glm::vec3& off)
-        : alias{model->type == mod_alias}, netScale{glm::vec3{1.f} + scale}, scaleOrigin{origin}, offset{off}
+        : alias{model->type == mod_alias}, netScale{glm::vec3{1.f} + scale}, scaleOrigin{origin}, offset{off},
+          size{props::drawnSize(model)}
     {
         if(alias)
         {
@@ -73,7 +75,7 @@ struct DrawnTransform
         {
             p = so + hs * (v + offset);
         }
-        return scaleOrigin + (p - scaleOrigin) * netScale;
+        return size * (scaleOrigin + (p - scaleOrigin) * netScale);
     }
 
     // A point in the model's own space (its bounds).

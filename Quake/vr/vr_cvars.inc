@@ -894,6 +894,8 @@ QVR_CVAR(vr_chainsaw_fuel_use, "5", CVAR_ARCHIVE)     // fuel (percent of a tank
 QVR_CVAR(vr_chainsaw_idle_fuel_use, "0.5", CVAR_ARCHIVE) // and the engine idling
 QVR_CVAR(vr_chainsaw_overlap, "6", CVAR_ARCHIVE)      // cm the running chain's bar may sink into a monster's model (vr_modelcollide.cpp)
 QVR_CVAR(vr_chainsaw_start_chance, "0.5", CVAR_ARCHIVE) // the chance a good pull of the cord starts the engine
+QVR_CVAR(vr_chainsaw_fail_pulls_min, "1", CVAR_ARCHIVE) // the first good pulls of a start that always fail: at least this many,
+QVR_CVAR(vr_chainsaw_fail_pulls_max, "2", CVAR_ARCHIVE) // up to this many (drawn at random each start); then Start Chance
 QVR_CVAR(vr_chainsaw_pull_distance, "30", CVAR_ARCHIVE) // cm the cord must be pulled out for a pull (vr_chainsaw.cpp)
 QVR_CVAR(vr_chainsaw_pull_speed, "1.2", CVAR_ARCHIVE) // m/s the hand must pull it at, there
 QVR_CVAR(vr_chainsaw_drop_fuel_min, "40", CVAR_ARCHIVE) // an ogre's dropped chainsaw has this much fuel (percent of a tank) or more, up to a full tank
@@ -1192,7 +1194,7 @@ QVR_CVAR(vr_test_projectile, "0", CVAR_NONE)          // impulse 246 (tests): th
 QVR_CVAR(vr_test_projectile_side, "0", CVAR_NONE)     // and from how many degrees to your left of ahead
 QVR_CVAR(vr_hand_collide, "4", CVAR_ARCHIVE)          // cm a free hand is held out of the weapon in the other hand (drawn only; deeper, it lets go and passes through; 0: never)
 QVR_CVAR(vr_hand_collide_fingers, "1", CVAR_ARCHIVE)  // with it: the free hand's fingers react to the other hand's weapon: they rest on it or bend out of it (0: only the hand is pushed, by its fingertips too)
-QVR_CVAR(vr_hand_collide_props, "10", CVAR_ARCHIVE)   // cm a free hand is held out of the prop the other hand holds alone (a gib, a box: drawn only, as vr_hand_collide against a weapon; deeper, it lets go and passes through, at twice as deep; 0: never)
+QVR_CVAR(vr_hand_collide_props, "15", CVAR_ARCHIVE)   // cm a free hand is held out of the prop the other hand holds alone (a gib, a box: drawn only, as vr_hand_collide against a weapon; deeper, it lets go and passes through, at twice as deep; 0: never)
 QVR_CVAR(vr_body_collide, "1", CVAR_ARCHIVE)         // round 21: the drawn hands and held weapons stop at each other, the other arm, the wrist gadget and the body (drawn only: the game reads the tracked hands; vr_selfcollide.cpp); 0 off
 QVR_CVAR(vr_body_collide_pass, "0.7", CVAR_ARCHIVE)  // pushed this share of the way through what stops it (the whole hand or weapon), it lets go and passes through (1: only once all the way through; held out at most this times 15 cm)
 QVR_CVAR(vr_body_collide_elbows, "1", CVAR_ARCHIVE)  // with it: the elbows swing out of the torso rather than through it (the arm's IK)

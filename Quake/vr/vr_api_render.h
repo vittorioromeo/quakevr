@@ -70,6 +70,7 @@ int VR_AliasMirrored (const struct entity_s *e);		// mirrored instances batch an
 void VR_AliasPreTransform (const struct entity_s *e, float matrix[16]);	// after R_EntityMatrix
 void VR_AliasPostTransform (const struct entity_s *e, float matrix[16]);	// after the model scale
 void VR_BrushTransform (const struct entity_s *e, float matrix[16]);		// brush entities: the networked scale and offset
+float VR_EntityScale (const struct entity_s *e);	// ENTSCALE_DECODE(e->scale) times a prop's Size (Held Object Offsets): its bounds as drawn
 int VR_AliasZeroBlend (const struct entity_s *e, const void *aliashdr, int totalverts); // instance padding
 void VR_AliasFlameRefs (const void *aliashdr, unsigned short *refs); // GLMesh_LoadVertexBuffer: per VBO vertex, 0 or 1 + the gun vertex a muzzle flash's vertex rides on
 void VR_AliasMorph (const struct entity_s *e, const void *aliashdr, float ambient[24]); // instance: a weapon's morph into its other model (Ambient[2..5].w)
