@@ -397,6 +397,9 @@ void SND_Spatialize (channel_t *ch)
 	vec_t	lscale, rscale, scale;
 	vec3_t	source_vec;
 
+	if (VR_SndSpatialize (ch)) // QVR: a hand's sound from the hand; a sound following its entity
+		return;
+
 // anything coming from the view entity will always be full volume
 	if (ch->entnum == cl.viewentity)
 	{
@@ -530,6 +533,7 @@ void S_StartSound (int entnum, int entchannel, sfx_t *sfx, vec3_t origin, float 
 			break;
 		}
 	}
+	VR_SndStarted (target_chan); // QVR: spatial audio (vr/vr_audio.cpp)
 }
 
 void S_StopSound (int entnum, int entchannel)
@@ -836,6 +840,7 @@ void S_Update (vec3_t origin, vec3_t forward, vec3_t right, vec3_t up)
 	VectorCopy(forward, listener_forward);
 	VectorCopy(right, listener_right);
 	VectorCopy(up, listener_up);
+	VR_SndListener (listener_origin, listener_forward, listener_right, listener_up); // QVR: the head (vr/vr_audio.cpp)
 
 // update general area ambient sound sources
 	S_UpdateAmbientSounds ();
@@ -855,7 +860,7 @@ void S_Update (vec3_t origin, vec3_t forward, vec3_t right, vec3_t up)
 	// try to combine static sounds with a previous channel of the same
 	// sound effect so we don't mix five torches every frame
 
-		if (i >= MAX_DYNAMIC_CHANNELS + NUM_AMBIENTS)
+		if (i >= MAX_DYNAMIC_CHANNELS + NUM_AMBIENTS && !VR_SndKeepStatics ()) // QVR: spatial audio places each
 		{
 		// see if it can just use the last one
 			if (combine && combine->sfx == ch->sfx)
@@ -981,6 +986,7 @@ static void S_Update_ (void)
 	endtime = soundtime + (unsigned int)(_snd_mixahead.value * shm->speed);
 	samps = shm->samples >> (shm->channels - 1);
 	endtime = q_min(endtime, (unsigned int)(soundtime + samps));
+	endtime = VR_SndMixEnd (paintedtime, endtime); // QVR: whole frames of the spatial audio's voices
 
 	S_PaintChannels (endtime);
 
