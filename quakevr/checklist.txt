@@ -82,8 +82,6 @@ Long explosive box toppled on its long side: jump onto it repeatedly and rock it
 Physics sounds: each material sounds right, loudness by speed and weight, scrapes smooth and stop cleanly, climbing grab sound subtle enough (Carrying > Physics Sounds)
 
 [Decide or give feedback]
-Climbing: over the top a hand touching the top still counts up to 16 units in from the drop: tighten? Touch distance 4.5 cm OK?
-Physics sounds: health boxes sound like wood and armour like metal: OK?
 Left-handers: flashlight toggle stays on the left Y and the main weapon slot on the right controller: OK, or follow the off hand?
 Enemy guns: scale 0.4 OK? Should the player's enforcer rifle laser be faster than the enforcer's 600 u/s?
 Zancle outside its library needs either the whole engine on clang-cl + C++23, or MSVC support in Zancle (proposal 2 in ROUND21.md): which? (blocks the std -> Zancle migration)
