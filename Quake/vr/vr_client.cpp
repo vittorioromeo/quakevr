@@ -8,6 +8,7 @@
 #include "vr_drawblend.hpp"
 #include "vr_engine.hpp"
 #include "vr_flashlight.hpp"
+#include "vr_painknock.hpp"
 #include "vr_particles.hpp"
 #include "vr_cvars.hpp"
 #include "vr_flick.hpp"
@@ -622,6 +623,7 @@ extern "C" void VR_OnClientClearState()
     rope::forget();
     chainsaw::reset();
     view::resetClientState();
+    painknock::reset();
     hands::resetClientState();
 }
 

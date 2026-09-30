@@ -40,6 +40,7 @@
 #include "vr_handpose.hpp"
 #include "vr_selfcollide.hpp"
 #include "vr_posing.hpp"
+#include "vr_painknock.hpp"
 #include "vr_sightalign.hpp"
 #include "vr_bodycal.hpp"
 #include "vr_drawblend.hpp"
@@ -4841,12 +4842,17 @@ extern "C" void VR_SetupViewEntities()
     }
 
     // Parried blows knock the drawn hands (not the tracked ones the game uses): offset for the
-    // view's setup, restored after it. Tired arms shake (vr_fatigue.cpp) the same way, looks only.
+    // view's setup, restored after it. Tired arms shake (vr_fatigue.cpp) and hits knock them (vr_painknock.cpp) the same
+    // way, looks only (their muzzles put back below: the shots and the aim don't move).
     glm::vec3 knockPos[2], knockAngles[2], shakePos[2], shakeAngles[2];
     for(int hand = 0; hand < 2; hand++)
     {
         impactOffset(hand, knockPos[hand], knockAngles[hand]);
         fatigue::shake(hand, shakePos[hand], shakeAngles[hand]);
+        glm::vec3 painPos, painAngles;
+        painknock::offset(hand, painPos, painAngles);
+        shakePos[hand] += painPos;
+        shakeAngles[hand] += painAngles;
         s.pos[hand] += knockPos[hand] + shakePos[hand];
         s.rot[hand] += knockAngles[hand] + shakeAngles[hand];
         s.visualRot[hand] += knockAngles[hand] + shakeAngles[hand];
@@ -4941,7 +4947,8 @@ extern "C" void VR_SetupViewEntities()
         s.visualRot[hand] -= knockAngles[hand] + shakeAngles[hand];
         if(s.muzzleValid[hand] && (shakePos[hand] != glm::vec3{0.f} || shakeAngles[hand] != glm::vec3{0.f}))
         {
-            // The muzzle, placed on the shaking weapon, put back on the steady one (the shots and the aim don't shake).
+            // The muzzle, placed on the shaking (or hit) weapon, put back on the steady one (the shots and the aim don't
+            // shake).
             const auto axes = [](const glm::vec3& angles) {
                 glm::vec3 f, r, u;
                 hands::angleVectors(angles, f, r, u);

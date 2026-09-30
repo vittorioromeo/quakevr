@@ -1002,29 +1002,8 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         SpawnBloodSplash(targ.handpos, take / 2.0);
         SpawnBloodSplash(targ.offhandpos, take / 2.0);
 
-        if(targ.ishuman)
-        {
-            // VR: felt more in the hand on the side the blow came from, and more the harder it is.
-            float amp = min(1, 0.35 + take / 40);
-            float dur = min(0.5, 0.12 + take / 60);
-            float side = 0;
-            if(inflictor != world && inflictor != targ)
-            {
-                vector oldForward = v_forward;
-                vector oldRight = v_right;
-                vector oldUp = v_up;
-                makevectors(targ.v_angle);
-                side = normalize((inflictor.absmin + inflictor.absmax) * 0.5 - targ.origin) * v_right; // 1: right
-                v_forward = oldForward;
-                v_right = oldRight;
-                v_up = oldUp;
-            }
-            entity oldHapticSelf = self;
-            self = targ;
-            haptic(cVR_MainHand, 0.0, dur, 30, amp * (0.4 + 0.3 * (1 + side)));
-            haptic(cVR_OffHand, 0.0, dur, 30, amp * (0.4 + 0.3 * (1 - side)));
-            self = oldHapticSelf;
-        }
+        // VR: the buzz a hit gives the controllers is the client's now, with the knock on the drawn hands
+        // (vr_painknock.cpp: svc_damage, vr_pain_haptics).
     }
 
     // rune power up (Earth Magic)
