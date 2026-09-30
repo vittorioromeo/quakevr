@@ -15634,3 +15634,85 @@ stack with files and lines from lld's .pdb (`VR_DebugCrash_f vr_main.cpp:720`, `
 `build.sh`'s `" error "` grep shows; a linker warning (lld-link's `lld-link : warning :`) would not show: its grep
 could be `" error |warning C|: warning :"`. The machine needs Visual Studio's "C++ Clang tools for Windows" (installed
 here: clang 19.1.5).
+
+## Physics sounds: knocks, scrapes, the climbing grab (2026-09-30)
+
+Your notes vrcalibration_2026-09-30_16-15 and 16-17: props, thrown weapons and everything physics moves made no sound
+hitting the level or each other; no scrape as they slide; no sound as a climbing hand takes a hold.
+
+### What it does (`vr_physsound.cpp`, `vr_physsound.hpp`)
+
+- **Knocks.** Box3D's hit events (each step: a prop against the level, a door, a fixture, another prop, a hand's or a
+  held weapon's body; not a monster's or a player's body, whose touches have QC's own sounds) give each prop's hardest
+  hit of the frame. It plays at `vr_physsound_min_speed` (1.5 m/s: a 4 cm drop) and up, louder the harder (a tenth
+  of the volume there, all of it at `vr_physsound_full_speed`, 10 m/s; a 1 m drop hits at 7.8) and the heavier (0.7 at
+  1 kg, all of it from 20 kg). One of four recordings of the prop's material and weight class (light under 1.5 kg,
+  heavy from 10 kg), never the same twice in a row. Rate-limited per prop: nothing within `vr_physsound_interval`
+  (0.12 s) of its last knock unless twice as loud, nor within three intervals if under 35% of it (the little hop
+  after a landing); at most 6 a frame, the loudest.
+- **Materials** (`physsound::materialOf`, set when the body is made): wood (the explosive and health boxes, any
+  other box a map carries, wall torches), metal (the ammo boxes, weapons, keys, armour, the flashlight, the other
+  pickups), stone (rocks), brick (bricks), soft (backpacks), flesh (gibs, heads; heavy ones sometimes Quake's own
+  `zombie/z_miss.wav`). Grenades are left out: they have their own bounce (`vr_grenade.qc`).
+- **Scrapes.** After each frame's step, every awake prop's touching contacts (not bodies or hands) give its slide: the
+  contact points' speed along the contact relative to the other body (rolling gives none), and how hard it is pressed
+  there (the step's normal impulse over its weight's). Slid 0.08 s at `vr_physsound_scrape_min` (0.3 m/s) or more and
+  loud enough (5%), it scrapes: 0.5 s grains of recorded sliding back to back on two of the prop's channels (5 and 7),
+  each starting as the last fades out (80 ms equal-power fades), each as loud as the slide then (full at
+  `vr_physsound_scrape_full`, 3 m/s). A frame without the slide stops both channels (`svc_stopsound`).
+- **Climbing grab** (`vr_climb.cpp`, where the hold is taken): a palm's slap with a quiet tap of the hold's material,
+  the texture under the hold (the debris table: wood, metal muted, anything else stone), from the hold's place.
+- **QC:** the rocks' and bricks' knocks moved from `VR_Debris_Impact` (it only prints now) to the engine, with the same
+  `rock1..3`/`brick1..3`; a rigid gib no longer also plays `z_miss.wav` from its touch (a door): its first landing,
+  from Quake's bounce, still does.
+- **Cost:** Box3D reports hits only above its threshold, and the slide looks at the awake props' contacts once a frame
+  (at most 16 each, no allocation). Measured below.
+
+### Settings (Carrying > Physics Sounds; Climbing > Grab Sound; all archived)
+
+| Cvar | Default | |
+|---|---|---|
+| `vr_physsound` | 1 | all of them, their volume (0 off) |
+| `vr_physsound_impact` | 1 | the knocks' volume |
+| `vr_physsound_min_speed` | 1.5 | m/s, the slowest hit that knocks |
+| `vr_physsound_full_speed` | 10 | m/s, full volume from |
+| `vr_physsound_interval` | 0.12 | s, a prop knocks at most this often |
+| `vr_physsound_scrape` | 0.7 | the scrapes' volume |
+| `vr_physsound_scrape_min` | 0.3 | m/s, the slowest slide that scrapes |
+| `vr_physsound_scrape_full` | 3 | m/s, full volume from |
+| `vr_physsound_grab` | 0.5 | the climbing grab's volume |
+| `vr_debug_physsound` | 0 | 1: each sound (time, prop, material, weight, speed, volume); 2: also each hit skipped and grain |
+
+Debug menu: Logs > Physics Sounds; Test Effects > Flung Props > Slide the Nearest Prop (`vr_physics_fling nearest
+150`; the command: `vr_physics_fling <number | classname | props | nearest> <speed> [<yaw> [<up>]]`).
+
+### The recordings
+
+`quakevr/sound/vr/phys/` (65 files, 0.96 MB), made by `Misc/quakevr/make_physics_sounds.py` from CC0 sources
+(CREDITS.md, "Physics sounds"): Kenney's *Impact Sounds* for the knocks and the grab's slap and tap; Freesound
+recordings of a wooden box, a steel plate and a kettlebell dragged for the scrapes (the 0.5 s windows whose loudness
+varies least, chosen by the script). No install: the script decodes OGG and MP3 through the engine's own
+`libvorbisfile`/`libmpg123` DLLs with ctypes.
+
+### Tests (mock headset, fixed frames)
+
+- **Drop from 1 m** (e1m1, an `item_shells` spawned, `vr_physics_stack 175 1 480 -288 90.25`): one knock, metal
+  light (1.3 kg), 7.85 m/s, volume 0.47 (the formula's 0.85 x 0.73 x 0.77); its hop 0.18 s later at 1.9 m/s skipped
+  ("a bounce after its knock").
+- **At rest:** nothing for 4 s after it settles; nor from a pile of 20 boxes (`vr_physics_pile`) once it settled.
+- **Slide** (`vr_physics_fling 175 150 0`, 5.7 m/s): the scrape starts 0.08 s in at 3.4 m/s (pressed 1.00, volume
+  0.43) and stops 0.26 s later, the frame its slide falls under 0.3 m/s (two frames before it stands still).
+- **Thrown weapon** (a nailgun made loose and flung down and sideways): metal knocks at 7.6 and 8.4 m/s (volumes 0.59,
+  0.66), the rattle between them skipped, no scrape blips at the bounces.
+- **Climbing grab:** vrclimb's ledge (`ledgehang`): both hands, `qvr_floor`, stone, volume 0.5; e1m1's ledge
+  (`climb_plays.py e1m1`): `twall2_6`, metal.
+- **Sounds load** (`-Sound`): no "Couldn't load" for any of them.
+- **Cost** (exclusive, 20 boxes falling into a pile, 37 awake bodies on average, 2 s): Box3D's frame 0.033 ms on
+  average with the sounds, 0.029 without (max 0.47 both).
+
+### To try in the headset
+
+Drop and throw things of each kind (a crate, an ammo box, a gun, a rock, a gib, a backpack) at the calibration room's
+prop table and on stone and metal floors: does each sound like what it is, and is the loudness by speed and weight
+right (Quietest Knock, Loudest Knock From)? Shove a box along the floor with a hand or Debug > Slide the Nearest Prop:
+is the scrape smooth, and does it stop with the box? Grab the climbing rungs and ledges: is the slap subtle enough?

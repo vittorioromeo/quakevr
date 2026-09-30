@@ -144,6 +144,17 @@ QVR_CVAR(vr_box3d_player_shape, "1", CVAR_ARCHIVE) // a player's box meets a sol
 QVR_CVAR(vr_box3d_player_unstick, "1", CVAR_ARCHIVE) // a solid prop overlapping a player's box (toppled onto him) doesn't block his moves, and is pushed out of his body
 QVR_CVAR(vr_box3d_mesh_junctions, "1", CVAR_NONE)  // the world mesh with its T-junctions joined (no bumps at the seams between faces); 0: the faces as the BSP has them
 QVR_CVAR(vr_debug_box3d, "0", CVAR_NONE)             // 1: bodies made, woken and put to sleep; 2: every awake body every frame
+// Physics sounds (vr_physsound.cpp; ROUND21.md, "Physics sounds"): props knocking and scraping, a climbing hand's grab.
+QVR_CVAR(vr_physsound, "1", CVAR_ARCHIVE)             // all of them: their volume (0 off)
+QVR_CVAR(vr_physsound_impact, "1", CVAR_ARCHIVE)      // props hitting the level, doors and each other: volume (0 off)
+QVR_CVAR(vr_physsound_min_speed, "1.5", CVAR_ARCHIVE) // m/s, the slowest hit that knocks (a 4 cm drop; quietly)
+QVR_CVAR(vr_physsound_full_speed, "10", CVAR_ARCHIVE) // m/s, a hit this hard or harder at full volume (a 1 m drop: 7.8)
+QVR_CVAR(vr_physsound_interval, "0.12", CVAR_ARCHIVE) // s, a prop knocks at most this often (a harder hit, twice as loud, sooner)
+QVR_CVAR(vr_physsound_scrape, "0.7", CVAR_ARCHIVE)    // props sliding with friction (dragged, shoved, skidding): volume (0 off)
+QVR_CVAR(vr_physsound_scrape_min, "0.3", CVAR_ARCHIVE) // m/s, the slowest slide that scrapes
+QVR_CVAR(vr_physsound_scrape_full, "3", CVAR_ARCHIVE) // m/s, a slide this fast or faster at full volume
+QVR_CVAR(vr_physsound_grab, "0.5", CVAR_ARCHIVE)      // a climbing hand taking a hold (by the hold's texture: wood, metal, stone): volume (0 off)
+QVR_CVAR(vr_debug_physsound, "0", CVAR_NONE)          // 1: each impact, scrape and grab played; 2: also the hits skipped and each scrape grain
 
 // Desktop mirror of the headset view: 0 off, 1 left eye, 2 both eyes side by side.
 QVR_CVAR(vr_mirror, "1", CVAR_ARCHIVE)

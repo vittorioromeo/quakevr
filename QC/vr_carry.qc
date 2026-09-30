@@ -1032,7 +1032,11 @@ void() VR_Gib_Touch =
     float fast = speed > 220;
     if(fast && other.solid == SOLID_BSP)
     {
-        sound(self, CHAN_AUTO, "zombie/z_miss.wav", 0.7, ATTN_NORM);
+        // (A rigid one's knocks are the engine's: vr_physsound.cpp, flesh. This is its landing from Quake's bounce.)
+        if(!self.vr_rigid)
+        {
+            sound(self, CHAN_AUTO, "zombie/z_miss.wav", 0.7, ATTN_NORM);
+        }
 
         // With vr_gib_blood the engine splats and spurts blood where a gib hits the world (not doors
         // or lifts, which get this).
