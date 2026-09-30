@@ -967,7 +967,6 @@ Player character actions
 void SV_Physics_Client (edict_t	*ent, int num)
 {
 	qboolean wasunderwater, forceunderwater;
-	int climb; // QVR
 
 	if ( ! svs.clients[num-1].active )
 		return;		// unconnected slot
@@ -977,9 +976,7 @@ void SV_Physics_Client (edict_t	*ent, int num)
 //
 	pr_global_struct->time = qcvm->time;
 	pr_global_struct->self = EDICT_TO_PROG(ent);
-	VR_ProfileBegin ("climb"); // QVR: profile
 	VR_ClimbPreThink (ent); // QVR: ledge holds (vr_climb)
-	VR_ProfileEnd (); // QVR
 	PR_ExecuteProgram (pr_global_struct->PlayerPreThink);
 
 //
@@ -991,17 +988,7 @@ void SV_Physics_Client (edict_t	*ent, int num)
 //
 // decide which move function to call
 //
-	switch (VR_ClientTeleport (ent)) // QVR
-	{								// QVR
-	case -1:						// QVR
-		return;						// QVR
-	case 1:							// QVR
-		goto postthink;				// QVR
-	}								// QVR
-	VR_ProfileBegin ("climb"); // QVR: profile
-	climb = VR_ClientClimb (ent); // QVR
-	VR_ProfileEnd (); // QVR
-	switch (climb)					// QVR: hanging from a ledge, mantling
+	switch (VR_ClientSpecialMove (ent)) // QVR: a teleport, hanging from a ledge, mantling
 	{								// QVR
 	case -1:						// QVR
 		return;						// QVR

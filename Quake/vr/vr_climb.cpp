@@ -1551,7 +1551,16 @@ void debugHands(edict_t* ent, Climber& c, const VrMove* move, double time)
 
 // SV_Physics_Client, before PlayerPreThink: takes hold and lets go (per the grips of the latest move), and hides the
 // holding hands' grips from the QC.
+static void climbPreThink(edict_t* ent);
+
 extern "C" void VR_ClimbPreThink(edict_t* ent)
+{
+    VR_ProfileBegin("climb");
+    climbPreThink(ent);
+    VR_ProfileEnd();
+}
+
+static void climbPreThink(edict_t* ent)
 {
     Climber* cp = climberOf(ent);
     if(!cp)

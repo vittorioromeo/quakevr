@@ -4,6 +4,8 @@
 
 #include "vr_engine.hpp"
 
+extern "C" int VR_ClientTeleport(edict_t* ent); // VR_ClientSpecialMove: 1 teleported, -1 freed
+
 namespace qvr::physics
 {
 

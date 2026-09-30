@@ -6,6 +6,8 @@
 
 #include "vr_engine.hpp"
 
+extern "C" int VR_ClientClimb(edict_t* ent); // VR_ClientSpecialMove: 1 hung or mantled instead of the move, -1 freed
+
 namespace qvr::hands
 {
 struct State;

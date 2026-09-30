@@ -4,6 +4,7 @@
 // The touches, the second think timer and the touch rules are inactive unless the server runs
 // Quake VR progs; the movement works with any progs (and moves a mod's shots to the gun).
 
+#include "vr_climb.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_physics.hpp"
@@ -392,6 +393,21 @@ extern "C" void VR_ClientPreMove(edict_t* ent)
     waterFeedback(ent); // hands and guns slapping the water, wading
     handTouches(ent);
     weaponTouches(ent);
+}
+
+// SV_Physics_Client, before the move: a teleport, or a hand hanging from a ledge or mantling (vr_climb.cpp) instead of
+// the move: 1 to the post-think, -1 the entity freed, 0 the move as usual.
+extern "C" int VR_ClientSpecialMove(edict_t* ent)
+{
+    const int teleport = VR_ClientTeleport(ent);
+    if(teleport == 1 || teleport == -1)
+    {
+        return teleport;
+    }
+    VR_ProfileBegin("climb");
+    const int climb = VR_ClientClimb(ent);
+    VR_ProfileEnd();
+    return climb;
 }
 
 extern "C" int VR_ClientTeleport(edict_t* ent)
