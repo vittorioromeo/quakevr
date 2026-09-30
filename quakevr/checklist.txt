@@ -91,6 +91,9 @@ Picked-up enforcer rifle: laser is fast (1800 u/s) and hits corpses, gibs and bo
 
 Burst rifle sounds (real AK-47, recorded downrange: crack, blast, echo): character and loudness next to the shotgun OK?
 
+Axe throws: overhand at a wall sticks about half the time (Thrown Axes > Blade Leniency 1; 2 sticks more but handle-first throws start sticking); flat and handle-first still bounce
+Thrown axe settles into an end-over-end spin that looks natural (Throwing > Spin in the Air 8; per-weapon and per-prop multipliers); gibs and boxes tumble as before
+
 [Decide or give feedback]
 Left-handers: flashlight toggle stays on the left Y and the main weapon slot on the right controller: OK, or follow the off hand?
 Enemy guns: scale 0.4 OK? Should the player's enforcer rifle laser be faster than the enforcer's 600 u/s?
