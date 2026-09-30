@@ -11,7 +11,6 @@
 # remove items freely; changing an item's wording un-ticks it.
 
 [Test in VR]
-Main menu: every row (VR Calibration too) in Quake's lettering, looking like the old picture? (off: Menu Settings > Main Menu Lettering)
 Main menu at start (before a map): the laser's dot follows your hand on the flat panel, trigger picks a row
 Flung prop damage feels right (Throwing and Physics > Flung Props: Damage, Reference Mass)
 
@@ -32,61 +31,42 @@ Stuck anywhere (wall, door, lift)? You should pop out to the nearest free spot (
 Grapple: reel a heavy box while walking away: you're slowed like towing
 
 
-Motion Recorder > Record Button: try B and a grip; the prompt names the button; its normal action is off only while armed
 Held weapon pushed into a wall and a corner slides out as before (statics cleanup)
 
 Spectator view has no flat HUD (Graphics > Recording to show it)
-Narrower Monsters (now on by default): monsters behave normally in real levels
 
 Chainsaw on the firing range (east of the explosive boxes): cut heads and gibs on the floor; swing with the engine off (engine sound keeps playing); your hotspots are where you left them
 
 
 Reach for an explosive box: pushed and grabbed only when the fist is on it
 
-Two-handed blows with the laser cannon and chainsaw keep the off-hand grip (Aiming > 2H Grip Stickiness; per hotspot: Stickiness)
-Gentler swings with heavy weapons land (Aiming > Weight and Damage)
 
 Grapple: quick reel-in round a pillar: the rope shortens with the hook
 
-With Wrenched Out off: a fast wrist snap-and-back with the laser cannon puts it back in the hand, never a full spin; slow heavy swings lag as before; the snap-back isn't a melee hit
 
 
 
-Chainsaw held by the front handle only, trigger pulled: it idles (QC precedence fix)
 Grapple hooked, then the gun passed to the other hand or a holster and back: hook stays in, the new hand's trigger works
 Grapple quick reel-in while the hook is still flying: it comes straight back
 
 
 Pain feedback: hits from each side knock the hands (size and time feel right? Combat > Damage and Knockback > When You're Hit); shots still land while knocked; the damage buzz feels as before at 1x
 
-Lightning gun in water: dip the muzzle in a pool and fire; fire waist deep (40 damage, both hands drop); fire into a pool from above at a swimming monster; is the flash comfortable? (Weapons > Lightning Gun in Water)
 
 Enemy guns: grunts drop a shotgun, enforcers a laser rifle (both death animations: corpse has no gun); grip and foregrip placement; fire until empty, shell/cell pickups don't refill; Combat > Enemy Weapons values
-Chainsaw model clean-up: new starter housing under the cord handle
 
-First session on the clang-cl build: plays as before (and a Debug build steps fine in Visual Studio)
 
 Main hand Left: right stick moves, left turns, gadget on the right wrist reading upright, torch on the right hip; arms look normal (no swap); calibration's main-hand step raising each hand
 
-Map loads faster (e1m1 718->443 ms, e2m2 1208->527 ms): monsters still walk normally with Narrower Monsters; voice notes: no hitch from the screenshot
 
 Thrown axe: how often real throws stick (Throwing and Physics > Thrown Axes: speed, angle, incidence); looks right in an animating monster; monster bleeds; pull out by hand and by force grab (tug)
 
-Prop Size (Held Object Offsets > Size, 0.05x steps): resize a gib or rock, drop it, it rests properly; stand on a 2x explosive box
-Mjolnir struck under water: the new shock (15 cells, drops it)
-Chainsaw: the first 1-2 good pulls fail; louder now (+3 dB): enough?
 Empty hand against a held prop: firmer now (15 cm)?
 
-Climbing leniency: at 0 the hand must touch the ledge or rung; at 6 about 10 cm; reach up under a rung from below and grab
 Long explosive box toppled on its long side: jump onto it repeatedly and rock it by its ends, you always stay on top; a box falling onto you still lets you walk out (Player Hitbox > Never Through Them)
-Physics sounds: each material sounds right, loudness by speed and weight, scrapes smooth and stop cleanly, climbing grab sound subtle enough (Carrying > Physics Sounds)
 
-After the Ironwail-diff cleanup: model normal maps and parallax, water refraction with MSAA, deluxemaps on a relit map, a ledge climb, a save and load all as before
 
-Climbing page: Reach Over the Top (16 units) and Touch Distance (4.5 cm) now settings; try lower values; health boxes sound metallic
 
-Grunts fire 3-round bursts: damage feels fair (Combat > Enemy Weapons > Burst Rifles toggles back to shotguns)
-Picked-up grunt gun: 3 rounds per pull, holding fires a burst every 0.5 s, counter drops by 3 (30 rounds)
 Picked-up enforcer rifle: laser is fast (1800 u/s) and hits corpses, gibs and boxes
 
 Burst rifle sounds (real AK-47, recorded downrange: crack, blast, echo): character and loudness next to the shotgun OK?
@@ -94,7 +74,6 @@ Burst rifle sounds (real AK-47, recorded downrange: crack, blast, echo): charact
 Axe throws: overhand at a wall sticks about half the time (Thrown Axes > Blade Leniency 1; 2 sticks more but handle-first throws start sticking); flat and handle-first still bounce
 Thrown axe settles into an end-over-end spin that looks natural (Throwing > Spin in the Air 8; per-weapon and per-prop multipliers); gibs and boxes tumble as before
 
-Spatial audio (VR Settings > Sound): sounds circling your head; a monster behind a wall, then a door opening onto it; small room vs big hall reverb (0.4: too wet?); shotgun in each hand plays from that hand; overall loudness vs before
 
 Super shotgun: fore-end from the side and from below (hold it overhead), front of the trigger guard: no stretching, no hole; repaint darker and plainer: OK?
 
@@ -109,15 +88,11 @@ Grip the crowbar, a sword and the chainsaw by the bar or blade on the floor: tak
 
 [Decide or give feedback]
 Crowbar on crates: at most 1 per map (Most Crowbars): or 2?
-Left-handers: flashlight toggle stays on the left Y and the main weapon slot on the right controller: OK, or follow the off hand?
-Enemy guns: scale 0.4 OK? Should the player's enforcer rifle laser be faster than the enforcer's 600 u/s?
 Zancle outside its library needs either the whole engine on clang-cl + C++23, or MSVC support in Zancle (proposal 2 in ROUND21.md): which? (blocks the std -> Zancle migration)
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay? vr_melee_speed a server rule or personal?
-Chainsaw hotspots: both on the front loop (as now), or one on each handle?
 On a tilted box steeper than ~30 degrees you slowly slide off (like the level's steep slopes): should boxes count as ground up to a steeper angle?
 The shotgun lags up to ~176 degrees in a fast wiggle: too much for 3 kg? (weight spring settings)
 Optimization follow-up: a Low graphics preset (render resolution, foveation, decal cap)?
-Function-local non-std statics (two text buffers, lastOut in vr_handpose): move them to the scratch/state pattern too?
 
 Crates: amounts of ammo (0.35) and small health (0.2) per crate OK?
 
