@@ -86,6 +86,8 @@ Crowbar on crates (Crates > Crowbar on Crates; set 1 to see them on e1m1): looks
 
 Grip the crowbar, a sword and the chainsaw by the bar or blade on the floor: taken (Carrying Boxes > Weapon Grab Slack if too far); crowbar clanks heavier; the running chainsaw's engine keeps going through a swing
 
+Chainsaw out of fuel: the trigger clicks; cutting a zombie knocks it down (~0.4 s: too fast?) and keeps cutting gibs it on the ground
+
 [Decide or give feedback]
 Zancle outside its library needs either the whole engine on clang-cl + C++23, or MSVC support in Zancle (proposal 2 in ROUND21.md): which? (blocks the std -> Zancle migration)
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay? vr_melee_speed a server rule or personal?
