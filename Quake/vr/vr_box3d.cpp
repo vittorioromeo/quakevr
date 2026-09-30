@@ -405,6 +405,20 @@ struct World
         float weaponMass{0.f};   // the held weapon's own mass (kg: Weapon Weights' Mass; 0: none, or not a weapon)
     };
     std::vector<std::array<HandBody, 2>> hands;
+    // Throws (vr_box3d_throw_grace, noteThrows): what was thrown passes through its thrower's hands' bodies a moment.
+    struct Grace
+    {
+        int num{0};             // the thing thrown
+        int player{0};          // its thrower (client)
+        double born{0.0};       // its body's (Slot::born): the same body still
+        double until{0.0};      // the server's time it meets the hands again
+        bool skips{true};       // false: only watched (vr_debug_box3d with the grace off: its numbers, for comparing)
+        glm::vec3 velocity{0.f}; // m/s, rad/s: as it left the hand
+        glm::vec3 spin{0.f};
+        int skipped{0};         // the hands' contacts it passed through (steps)
+    };
+    std::vector<Grace> graces;
+    std::vector<int> made; // the props whose bodies were made this frame (createBody): what may have been thrown
     // The players standing on solid props (by client; vr_box3d_player_stand, "Standing on props" below).
     struct Stand
     {
@@ -1356,6 +1370,10 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind)
     s.origin = vec(ent->v.origin);
     s.angles = vec(ent->v.angles);
     s.born = qcvm->time;
+    if(kind == Kind::Prop)
+    {
+        world->made.push_back(num); // (noteThrows)
+    }
 
     b3BodyDef def = b3DefaultBodyDef();
     def.userData = userOf(num);
@@ -1509,6 +1527,138 @@ void follow(edict_t* ent, Slot& s, float dt)
     s.angles = angles;
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// Throws (vr_box3d_throw_grace; ROUND21.md, "Throws leave the hand clean"): a thing thrown (a weapon, a prop let go of)
+// left the hand's bodies (the open hand or fist it becomes, the fists' spheres) touching or sunk in them, and the hand,
+// still moving (a wrist snap turning it, the follow-through catching up), knocked it as it left: the wrong way, the
+// wrong spin. Thrown faster than vr_box3d_throw_grace_speed, it passes through both of its thrower's hands' bodies for
+// vr_box3d_throw_grace seconds, and through its thrower's body (vr_box3d_throw_grace_body: an overhead wrist snap threw
+// a box down into the player's capsule). A slower release (the hand opened, held still) keeps meeting them: it rests on the palm.
+
+// How fast hand `h` of `player` throws a thing reaching `reach` m from its middle (m/s): the hand's throw estimate (as
+// QC throws with: VRGetHandThrowVel), or the thing's tip turned by the hand's spin (a wrist snap), whichever is faster.
+[[nodiscard]] float throwSpeed(edict_t* player, int h, float reach)
+{
+    const FieldOffsets& f = fields();
+    const int velOfs = h ? f.handthrowvel : f.offhandthrowvel;
+    const int spinOfs = h ? f.handavel : f.offhandavel;
+    const float linear = velOfs >= 0 ? glm::length(fieldVec(player, velOfs)) : 0.f;
+    const float turn = spinOfs >= 0 ? glm::length(fieldVec(player, spinOfs)) * reach : 0.f;
+    return std::max(linear, turn);
+}
+
+// Whether prop `num` passes through the hands' bodies of client `player` now (a throw's grace).
+[[nodiscard]] bool graced(int player, int num)
+{
+    for(World::Grace& g : world->graces)
+    {
+        if(g.num == num && g.player == player && g.skips && qcvm->time < g.until)
+        {
+            g.skipped++;
+            return true;
+        }
+    }
+    return false;
+}
+
+// Once a frame, before the hands' bodies follow the hands (syncReach: `hb.held` is still what each hand carried last
+// frame): the throws of the props made this frame (createBody), and the graces over. A throw: a prop let go of by a
+// hand (thrown or dropped), or one whose .owner is a player (a thrown weapon: CreateThrownWeapon; a box thrown hard:
+// VR_Carry_Release), from the hand nearest it.
+void noteThrows()
+{
+    const float grace = std::max(vr_box3d_throw_grace.value, 0.f);
+    const bool debug = vr_debug_box3d.value != 0.f;
+    std::erase_if(world->graces, [debug](const World::Grace& g) {
+        const bool same = g.num < static_cast<int>(world->slots.size()) && world->slots[g.num].kind == Kind::Prop &&
+                          world->slots[g.num].born == g.born;
+        if(same && qcvm->time < g.until)
+        {
+            return false;
+        }
+        if(debug && same)
+        {
+            // Its velocity and spin now against as it left (gravity taken out): what the hands' bodies changed.
+            const Slot& s = world->slots[g.num];
+            const float t = static_cast<float>(qcvm->time - g.born);
+            const glm::vec3 fall{0.f, 0.f, -world->gravity / world->m2u * s.gravityScale * t};
+            const glm::vec3 v = glmv(b3Body_GetLinearVelocity(s.body)), w = glmv(b3Body_GetAngularVelocity(s.body));
+            Con_Printf("box3d: throw %s for %d %s after %.2f s: velocity %.2f m/s, changed by %.2f (gravity out); spin "
+                       "%.2f rad/s, changed by %.2f; %d hand contacts passed through\n",
+                g.skips ? "grace over" : "watched", g.num, PR_GetString(EDICT_NUM(g.num)->v.classname), t,
+                glm::length(v), glm::length(v - fall - g.velocity), glm::length(w), glm::length(w - g.spin), g.skipped);
+        }
+        return true;
+    });
+    if(grace <= 0.f && !debug)
+    {
+        world->made.clear();
+        return;
+    }
+    const FieldOffsets& f = fields();
+    for(const int num : world->made)
+    {
+        if(num <= svs.maxclients || num >= qcvm->num_edicts || num >= static_cast<int>(world->slots.size()))
+        {
+            continue;
+        }
+        const Slot& s = world->slots[num];
+        if(s.kind != Kind::Prop || s.born != qcvm->time || B3_IS_NULL(s.body))
+        {
+            continue;
+        }
+        edict_t* ent = EDICT_NUM(num);
+        const b3AABB box = b3Body_ComputeAABB(s.body);
+        const float reach = std::min(0.5f * glm::length(glmv(box.upperBound) - glmv(box.lowerBound)), 0.5f); // m
+        int thrower = 0;
+        float speed = 0.f;
+        for(int i = 1; i <= svs.maxclients && i < static_cast<int>(world->hands.size()); i++)
+        {
+            for(int h = 0; h < 2; h++)
+            {
+                if(world->hands[static_cast<size_t>(i)][static_cast<size_t>(h)].held == num)
+                {
+                    thrower = i;
+                    speed = std::max(speed, throwSpeed(EDICT_NUM(i), h, reach));
+                }
+            }
+        }
+        const int owner = NUM_FOR_EDICT(PROG_TO_EDICT(ent->v.owner));
+        if(thrower == 0 && owner >= 1 && owner <= svs.maxclients && f.handpos >= 0 && f.offhandpos >= 0)
+        {
+            edict_t* player = EDICT_NUM(owner);
+            const glm::vec3 at = vec(ent->v.origin);
+            const int h = glm::distance(at, fieldVec(player, f.handpos)) <= glm::distance(at, fieldVec(player, f.offhandpos));
+            thrower = owner;
+            speed = throwSpeed(player, h, reach);
+        }
+        if(thrower == 0)
+        {
+            continue;
+        }
+        const bool fast = speed >= vr_box3d_throw_grace_speed.value;
+        if(debug)
+        {
+            Con_Printf("box3d: %d %s thrown by %d at %.2f m/s (reach %.2f m): %s\n", num, PR_GetString(ent->v.classname),
+                thrower, speed, reach,
+                !fast ? "a slow release, it meets the hands" : grace > 0.f ? "passes through the hands" : "watched");
+        }
+        if(fast || debug)
+        {
+            World::Grace g;
+            g.num = num;
+            g.player = thrower;
+            g.born = s.born;
+            g.skips = fast && grace > 0.f;
+            g.until = qcvm->time + (g.skips ? grace : 0.2);
+            g.velocity = glmv(b3Body_GetLinearVelocity(s.body));
+            g.spin = glmv(b3Body_GetAngularVelocity(s.body));
+            world->graces.push_back(g);
+        }
+    }
+    world->made.clear();
+}
+
 // The players' hands as kinematic spheres at their fists (vr_box3d_hand_push): a hand pushes a solid prop (an
 // explosive box) as it presses on it, where it presses (a tall box pushed high tips over, a stack pushed low slides),
 // continuously while it is in contact, Box3D's friction and contacts doing the rest. Only against solid props (ammo boxes
@@ -1553,6 +1703,7 @@ void syncHands(float dt)
                 def.userData = userOf(i);
                 hb.body = b3CreateBody(world->id, &def);
                 b3ShapeDef shape = shapeDef(i, catHand, catSolid);
+                shape.enablePreSolveEvents = true; // (preSolve: not what its player just threw)
                 const b3Sphere sphere{b3Vec3_zero, radius};
                 b3CreateSphereShape(hb.body, &shape, &sphere);
                 b3Body_Disable(hb.body);
@@ -1898,12 +2049,12 @@ void makeReach(
 }
 
 // Whether the reach body of `hb` (of client `player`) passes through prop `num` now: what it passes through until clear
-// (sunk in it as it was made: its ignore list), an empty hand a grenade (reachMeets), a prop flying to a hand (a force
+// (sunk in it as it was made: its ignore list), what its player just threw (graced), an empty hand a grenade (reachMeets), a prop flying to a hand (a force
 // grab's pull: .fg_state 1), the player's own grenade in its first quarter second (leaving the launcher's muzzle,
 // inside the gun).
 [[nodiscard]] bool reachSkips(const World::HandBody& hb, int player, int num)
 {
-    if(std::find(hb.ignore.begin(), hb.ignore.end(), num) != hb.ignore.end())
+    if(std::find(hb.ignore.begin(), hb.ignore.end(), num) != hb.ignore.end() || graced(player, num))
     {
         return true;
     }
@@ -2762,7 +2913,8 @@ bool shouldCollide(b3ShapeId a, b3ShapeId b, void*)
     return point.z < feet + ps.radius || n.z > 0.5f;
 }
 
-// Box3D's pre-solve, for the reach bodies' contacts (their shapes ask for it), each step: none with what the body skips
+// Box3D's pre-solve, for the fists' spheres' contacts (none with what their player just threw: graced) and the reach
+// bodies' (their shapes ask for it), each step: none with what the body skips
 // (reachSkips), nor holding up what is heavier than vr_box3d_hand_hold_mass (the prop on top: the normal from the reach
 // body within 60 degrees of up); pushed from the side or below, it still is.
 bool preSolve(b3ShapeId a, b3ShapeId b, b3Pos point, b3Vec3 normal, void*)
@@ -2770,7 +2922,17 @@ bool preSolve(b3ShapeId a, b3ShapeId b, b3Pos point, b3Vec3 normal, void*)
     const bool aPlayer = (b3Shape_GetFilter(a).categoryBits & catPlayer) != 0;
     if(aPlayer || (b3Shape_GetFilter(b).categoryBits & catPlayer) != 0)
     {
-        return !capsuleStandsOn(aPlayer ? a : b, aPlayer ? b : a, point, normal);
+        const b3ShapeId capsule = aPlayer ? a : b, other = aPlayer ? b : a;
+        if(vr_box3d_throw_grace_body.value && graced(numOf(capsule), numOf(other)))
+        {
+            return false; // (what its player just threw: noteThrows)
+        }
+        return !capsuleStandsOn(capsule, other, point, normal);
+    }
+    const bool aFist = (b3Shape_GetFilter(a).categoryBits & catHand) != 0;
+    if(aFist || (b3Shape_GetFilter(b).categoryBits & catHand) != 0)
+    {
+        return !graced(numOf(aFist ? a : b), numOf(aFist ? b : a)); // (a fist's sphere: noteThrows)
     }
     const bool aReach = (b3Shape_GetFilter(a).categoryBits & catReach) != 0;
     const b3ShapeId reach = aReach ? a : b, other = aReach ? b : a;
@@ -4344,6 +4506,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
         QVR_PROFILE("box3d sync");
         syncEntities(dt);
         syncHands(dt);
+        noteThrows();
         syncReach(dt);
     }
     {

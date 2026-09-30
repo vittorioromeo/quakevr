@@ -14026,3 +14026,42 @@ The two engine issues the fast eval found (above, "Fast melee eval"). Branch `ag
 | a take's load + setup, mesh and world | 2 x ~36 ms | 0.1 + 0.4 ms |
 
 The full set and the canary match `eval_baseline.csv` in every column, before and after.
+## Throws leave the hand clean (2026-09-30)
+
+Notes vrfiringrange_2026-09-30_02-05-27 and 02-06-17: thrown weapons and props flew the wrong way and spun wrong,
+knocked by the throwing hand's body as they left it. Only a real throw should be spared: a thing let go of from a hand
+held still must still rest on the palm.
+
+### What changed
+
+- `vr_box3d.cpp` `noteThrows` (each frame, after syncEntities and syncHands, before syncReach): each prop whose body
+  was made this frame and that a hand carried last frame (a prop let go of) or whose `.owner` is a player (a thrown
+  weapon; a box thrown hard) is a throw by that player. Its speed: the releasing hand's throw estimate
+  (`handthrowvel`, what QC throws with) or the hand's spin at the thing's reach (half its box's diagonal: a wrist
+  snap), whichever is faster; a weapon's hand is the one nearest it.
+- Thrown at `vr_box3d_throw_grace_speed` (0.75 m/s) or faster, it passes through both of the thrower's hands' bodies
+  for `vr_box3d_throw_grace` seconds (0.2; 0: off): the open hand, the fist and the held weapon (reachSkips, so the
+  swing sweep too) and the fists' spheres (their shapes now ask for preSolve). `vr_box3d_throw_grace_body` (1): also
+  through the thrower's own capsule, which an overhead wrist snap threw a box down across (the mock's `snap` below
+  changed by 3.2 m/s and 14 rad/s with the hands alone graced). Slower, nothing changes: the palm still holds it.
+- `vr_debug_box3d 1` prints each throw (speed, graced or not) and, when its grace ends, how much its velocity (gravity
+  taken out) and spin changed and how many hand contacts it passed through; with the grace 0 a throw is still watched
+  0.2 s, to compare. Menu: Throwing and Physics, after Heaviest Thing Held Up: Throw Grace, Throw Grace From, Throw
+  Grace for the Body.
+
+### Verified (mock headset, fast mode; `Misc/quakevr/throw_grace_test.sh <agent>`, `vr_throw_spin_drag 0`)
+
+| Case | Grace 0: change by 0.2 s (velocity, spin) | Grace 0.2 |
+|---|---|---|
+| Axe thrown flat at 5 m/s past the open off hand in its path | 2.28 m/s, 27.6 rad/s | 0.00, 0.00 (3 contacts passed) |
+| Health box thrown overarm, let go of early (the hand catches it) | 0.48 m/s, 3.2 rad/s | 0.00, 0.02 |
+| Health box, overhead wrist snap (down across the body) | 3.22 m/s, 13.9 rad/s | 0.00, 0.03 |
+| Gib let go of still on the palm-up off hand | 0.00 m/s: a slow release | rests on the palm (z 77.6, asleep), as before |
+
+The axe thrown by the hand alone (overarm, lob, flat, snap, early release, two-handed) was already clean in the mock:
+it is sunk in the new open hand's body and passed through until clear (ignoreInside). Melee eval canary: no differences.
+
+### In the headset
+
+- Throw weapons and boxes hard, with a wrist snap, and gently: they should leave in the direction and spin thrown.
+- Open the hand still under a box or gib on the palm: it stays there. A slow toss (below 0.75 m/s) still meets the hand.

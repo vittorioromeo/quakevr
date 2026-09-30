@@ -885,6 +885,10 @@ with them. `python Misc/quakevr/throw_calibration.py <takes folder>` models the 
 fix on recorded takes (the old and the new hand settings, each term alone) and prints the elevation and speed changes
 per take and per kind.
 
+Throw grace (ROUND21.md, "Throws leave the hand clean"): `bash Misc/quakevr/throw_grace_test.sh <agent>` throws a weapon
+and props with `vr_box3d_throw_grace` 0 and 0.2 and lets a gib go on the palm; `vr_debug_box3d 1` prints each throw
+and its velocity and spin change by the grace's end.
+
 Fitted hands (round 21): `impulse 252` puts a gib or a head (nine kinds in turn) in the empty off hand; `impulse 253`
 prints the held weapons' hotspots through the QC query; `vr_show_weapon_hotspots 1` marks them; `vr_hotspots_check`
 compares every slot's hotspots, muzzle and hand with round 20's placement; `vr_hotspots_legacy` prints the slots'
