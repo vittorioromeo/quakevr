@@ -103,7 +103,10 @@ Crates: e1m1/e1m2/e2m1 have 5-16 by walls and in corners, some stacked; never in
 Crates break to shotgun, axe, thrown things and hard drops; pieces don't block you and burst into dust when hit; crack and dust sound OK?
 Crouch behind a crate with a grunt about: it can't see you; carrying the crate, it sees you
 
+Crowbar on crates (Crates > Crowbar on Crates; set 1 to see them on e1m1): looks right on top, take it by hand and force grab, knock the crate and it falls
+
 [Decide or give feedback]
+Crowbar on crates: at most 1 per map (Most Crowbars): or 2?
 Left-handers: flashlight toggle stays on the left Y and the main weapon slot on the right controller: OK, or follow the off hand?
 Enemy guns: scale 0.4 OK? Should the player's enforcer rifle laser be faster than the enforcer's 600 u/s?
 Zancle outside its library needs either the whole engine on clang-cl + C++23, or MSVC support in Zancle (proposal 2 in ROUND21.md): which? (blocks the std -> Zancle migration)
