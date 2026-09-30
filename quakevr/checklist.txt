@@ -89,6 +89,8 @@ Grunts fire 3-round bursts: damage feels fair (Combat > Enemy Weapons > Burst Ri
 Picked-up grunt gun: 3 rounds per pull, holding fires a burst every 0.5 s, counter drops by 3 (30 rounds)
 Picked-up enforcer rifle: laser is fast (1800 u/s) and hits corpses, gibs and boxes
 
+Burst rifle sounds (real AK-47, recorded downrange: crack, blast, echo): character and loudness next to the shotgun OK?
+
 [Decide or give feedback]
 Left-handers: flashlight toggle stays on the left Y and the main weapon slot on the right controller: OK, or follow the off hand?
 Enemy guns: scale 0.4 OK? Should the player's enforcer rifle laser be faster than the enforcer's 600 u/s?
