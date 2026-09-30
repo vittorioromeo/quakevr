@@ -14544,3 +14544,75 @@ called at its end, read whole before anything runs.
 one hash each; 0 canary differences). The full set's one difference from `eval_baseline.csv`
 (`slash_backswing_up_right` 23-12-35: 27.0 -> 26.9 damage, still PASS) is the same with the old preload: not from
 this change; the baseline predates it.
+
+## Profiling pass: your e2m1 capture (2026-09-30)
+
+Your notes start 11-28 and e2m2 11-38: the profiler on while you played e2m1 ("anything that can be optimized, anything
+leaking, low-hanging fruit, for lower-end systems"). Read: `profile/systems_2026-09-30_11-28-21.csv` (603 s, 547 of them
+e2m1), `hitches_2026-09-30_11-28-15.csv` (3326 frames) and today's `memstats_*.csv`. Scripts and outputs in the kit's
+`scratch/profile/` (`an.py`, `hi.py`, `mem.py`; `bench.sh`, `sw.sh`).
+
+**Where the frame goes (e2m1, 120 Hz, Virtual Desktop, RTX 4090, 3292 x 3524 an eye):** 112.5 fps on average, 8.92 ms
+apart. Our CPU work is 0.84 ms a frame and the eyes' GPU work 2.1-2.3 ms (`gpu_eyes_ms`); the rest is the runtime:
+`xrWaitFrame` 3.07 ms and `xrEndFrame` 4.98 ms. 17% of frames missed a refresh (10 592) and 3015 were hitches (over 1.5
+refreshes): 2631 of them were `xr submit` (xrEndFrame, 11.6 ms on average) and 683 `xrWaitFrame` (7.2 ms), with the
+GPU 43% busy (Virtual Desktop's encoder 70%, its 3D work 26-32%, the game's 17-23%). Those are the runtime's pacing, not our
+work. The game's costliest systems, per frame (average / the 99th percentile of each second's worst frame):
+
+| System | Avg ms | p99 worst | Note |
+|---|---|---|---|
+| vr view setup (hands, grasp, IK) | 0.223 | 3.9 | the worst frames were grasp solves (below) |
+| light setup | 0.093 | 0.64 | |
+| quakec | 0.065 | 0.44 | `forcegrabbable_think_impl` 17%, `anglemod` 7% of its instructions |
+| shadows (map lights) | 0.053 | 0.64 | |
+| box3d | 0.052 | 0.48 | 3.6 ms once, at the map's load |
+| GPU: post-process + bloom | 0.68 (GPU) | 0.86 | 30% of the eyes' GPU time at your resolution |
+| GPU: world | 0.62 (GPU) | 0.74 | |
+
+**The hitches of our own**, apart from the runtime's: every map load (the map's spawn 616-824 ms, then the liquids'
+prewarm 30-35 ms and the memory log's row 11 ms: its count of GL objects); your three voice notes (`note`: 114-122 ms,
+the window's screenshot encoded as a PNG on the main thread; and 15-19 ms in `vr frame setup` as the recording ended);
+and **grasp solves**: in 59 of the 603 seconds a frame spent 2-5 ms in `view entities/hand/rig hand/grasp solve`.
+
+**Memory: nothing leaks.** Loading e2m1 and e2m2 in turn six times (the mock): private memory 1567 -> 1558 MB, the GL
+objects the same every time (633 textures, 217 buffers, 27 framebuffers), the working set +1.2 MB a cycle. Your hour's
+growth (private 2834 -> 3174 MB) came in steps as maps and models were first loaded (textures 625 -> 635, GL textures
+700 -> 725), flat in between (the firing range, 11:12-11:26: 3045 -> 3042 MB). The render targets' count (1664 "made")
+is the ammo screens being made again when their text changes width (99 -> 100): no leak, microseconds each.
+
+### Fixed: a weapon's grasp solved twice as it came into the hand, and again each time
+
+A grasp solve with no solve before (afresh) searches the palm's place (up to 29 places, four fingers closed at each):
+1.4-4.7 ms. Taking a weapon (a switch, a draw) solved it afresh, and then **again, the same**, the next frame: the grip
+rests where it came (the canonical place), and the "afresh at rest" re-solve (round 21, third pass) ran because the first
+solve hadn't counted as at rest. Taking it again later did both again.
+
+The solver is a pure function of the shape, its place in the hand, the settings and the fingers' shifts, so afresh
+solves are now remembered (`vr_grasp.cpp`, `Remembered`: 32 of them, a fixed table, no heap): the same inputs, exactly,
+give the result they gave, bit for bit; anything else is solved as before. Forgotten when the hand is reloaded, a
+model slot is reused, or the game changes; `vr_grasp_bench` still times a real one.
+
+Measured (`sw.sh`, exclusive, e2m1, the mock, weapons put in the main hand with `impulse 152`..`158` three times over,
+`vr_debug_grasp 2`, `vr_profile`):
+
+| | Before | After |
+|---|---|---|
+| Afresh solves over 21 weapon switches | 42 (all 1.4-4.7 ms) | 7 (the first of each weapon) |
+| Their total time | 106.8 ms | 17.8 ms |
+| Worst `vr view setup` frame | 13.9 ms | 5.0 ms |
+| Every solve's result (palm, thumb, each finger's stops) | | identical (diff of the prints) |
+| Combat scene, CPU busy a frame (`bench.sh`, 7 monsters, 1800 frames, two runs) | 0.389, 0.383 ms | 0.369, 0.395 ms (noise) |
+| Melee canary (`eval.sh`) | 48/53 | 48/53, no differences |
+
+### Bigger opportunities (not done)
+
+| What | Estimated gain | Why not now |
+|---|---|---|
+| Solve each weapon's canonical grasp at the map's load (both hands, the weapons held) | the 7-8 remaining first-switch spikes of 1.4-4.7 ms each | +30-60 ms a load; needs the Held set-up out of `setupHand` |
+| A foregrip taken: the first frame is solved afresh at a place of the take (not canonical), 2-3 ms each grab | most two-handed regrabs' spikes | seeding it from the remembered canonical solve changes the fingers slightly: needs your eye |
+| `screenshot` (and so `note`): glReadPixels and the PNG on a worker thread | 110 ms of every voice note | your tooling only; background file writes need care (the loose-file cache) |
+| The graphics presets don't touch the resolution, the foveation or the decal cap (1024: reached in e2m1 at 11:33) | the biggest GPU lever on low-end GPUs (resolution: eye cost scales with pixels) | a design choice: which defaults a Low preset should set |
+
+Nothing CPU-side is near a budget on your machine (0.84 ms of 8.33); a CPU three times slower would still leave 5 ms.
+On a lower-end GPU the eyes' 2.2 ms scale with the pixels drawn: the resolution (`vr_render_scale`, the runtime's) and
+foveated rendering are what matter, then the preset.

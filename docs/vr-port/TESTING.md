@@ -900,7 +900,8 @@ compares every slot's hotspots, muzzle and hand with round 20's placement; `vr_h
 round-20 two-handed grips as hotspot defaults.
 
 Fitted hands, second pass: `vr_grasp_bench [n]` times each hand's grasp solve on what it holds (the first solve, and
-again n times: min, median, max in microseconds); `vr_debug_grasp_trace 3` writes both hands' joints, solves and drift
+again n times: min, median, max in microseconds; the first is a real one, not a remembered one: afresh solves with the
+same inputs are remembered since 2026-09-30, and `vr_debug_grasp 1` then prints them at under a microsecond); `vr_debug_grasp_trace 3` writes both hands' joints, solves and drift
 every frame to `grasp_trace.txt`; `vr_grasp_spheres` prints the hand's collision spheres; `vr_debug_carry 1` shows the
 carry reach test (the thing's box, its nearest surface point, the reach); `vr_weapon_hotspot_here <n> [type]
 [main|off]` puts hotspot n where the other hand is. `vr_profile` has scopes for each hand's update (`hand`, `rig hand`,
