@@ -468,7 +468,7 @@ vector    org;
             other.flags = other.flags - FL_ONGROUND;
         other.velocity = v_forward * 300;
     }
-    other.flags = other.flags - other.flags & FL_ONGROUND;
+    other.flags = other.flags - (other.flags & FL_ONGROUND);
 };
 
 /*QUAKED info_teleport_destination (.5 .5 .5) (-8 -8 -8) (8 8 32)
@@ -745,7 +745,7 @@ float NO_VELOCITY = 4;
 
 void() trigger_monsterjump_touch =
 {
-    if(other.flags & (FL_MONSTER | FL_FLY | FL_SWIM) != FL_MONSTER)
+    if((other.flags & (FL_MONSTER | FL_FLY | FL_SWIM)) != FL_MONSTER)
         return;
 
     // HONEY

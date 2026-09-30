@@ -310,9 +310,9 @@ void(entity targ, entity attacker) TeamAssists =
                 bprint("'s flag carrier\n");
             }
         }
-        if((attacker.steam == TEAM1 && head.classname == "item_flag_team1") ||
+        if(((attacker.steam == TEAM1 && head.classname == "item_flag_team1") ||
             (attacker.steam == TEAM2 && head.classname == "item_flag_team2") ||
-            head.classname == "item_flag" &&  // one flag mode
+            head.classname == "item_flag") &&  // one flag mode
             (!flag_radius)) { // prevents redundant points awarded
             // target was near attacker's flag
             attacker.frags = attacker.frags + CTF_FLAG_DEFENSE_BONUS;

@@ -312,7 +312,7 @@ void(float xHand) VR_Chainsaw_Frame =
     if(running)
     {
         // Held by its front handle alone (the hand-off), the trigger's hand is gone: it idles.
-        chain = VRGetFireButtonPressed(xHand) && !VRIsHandCarryingByForegrip(self, xHand);
+        chain = (VRGetFireButtonPressed(xHand) && !VRIsHandCarryingByForegrip(self, xHand));
         fuel = fuel - frametime * (cvar_hget(cvarh_vr_chainsaw_idle_fuel_use) +
                                    chain * cvar_hget(cvarh_vr_chainsaw_fuel_use));
         if(fuel <= 0)
@@ -354,7 +354,8 @@ void(float xHand) VR_Chainsaw_Frame =
             self.vr_saw_cut_next = next;
             self.vr_saw_cut_last = last;
         }
-        // (An if: `cutting = chain && time - last < 0.2` came out TRUE with nothing cut, the run's sound never played.)
+        // (An if: `cutting = chain && time - last < 0.2` is `(cutting = chain) && ...` to fteqcc, TRUE with nothing cut;
+        // docs/vr-port/CODE_STYLE.md, QuakeC.)
         if(chain && time < last + 0.2)
         {
             cutting = TRUE;
