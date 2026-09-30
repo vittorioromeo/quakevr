@@ -441,7 +441,13 @@ struct State
     bool gripDown[2]{};
     bool tookGrip[2]{};     // see flashlight::tookGrip
     bool hovered[2]{};
+    bool drawnAt[2]{}; // the hand as drawn at the lamp (vr_flashlight_probe: the drawn hand agrees with the lit lamp)
     const qmodel_t* world{nullptr};
+
+    // The hands as the game reads them (noteGameHands, this frame's view before it moves the drawn hands: out of the
+    // body, vr_body_collide; out of models; knocked, shaken): what a press is judged on, so what lights the lamp too.
+    hands::State game;
+    int gameFrame{-1};
 
     float beamLength{-1.f}; // the visible beam's length, eased towards where the beam lands (<0: none yet)
     double beamTime{0.0};
@@ -1089,6 +1095,19 @@ void noteIntent(const hands::State& s)
     return glm::distance(s.pos[hand], spot) < glm::distance(s.pos[hand], a + ab * t);
 }
 
+// Whether a press of `hand` reaches the lamp where it is, not held (on the body, on its way home, on the head; on a gun,
+// the free hand): at it, and not where the game's grip wins (Mounted, Returning: a holster, the other hand's weapon).
+// What lights it up for that hand, and what the press checks: on the hands the game reads (hands::current() between
+// frames, st.game in the view), so that a lamp lit is always a lamp taken.
+[[nodiscard]] bool reachesLamp(const hands::State& s, int hand)
+{
+    if(st.mode == Mode::Held || hand == st.gunHand || !handAt(s, hand))
+    {
+        return false;
+    }
+    return (st.mode != Mode::Mounted && st.mode != Mode::Returning) || !gameGripWins(s, hand);
+}
+
 // One of its sounds at a point of it (the switch's clicks at the switch, the clamp's at its middle): heard from the
 // lamp, wherever it is (from the head before it has been placed).
 void sound(const char* name, const glm::vec3& point)
@@ -1590,6 +1609,23 @@ void drawZones(const hands::State& s, const glm::mat4& to, const glm::vec3& eye,
         zoneCapsule(z.a, z.b, z.radius, gu, lit ? inReach : glm::vec4{1.f, 0.55f, 0.15f, 0.9f});
     }
 
+    // The lamp's own reach, not held (on the body, on its way home, on a gun, on the head): what lights it up for a hand,
+    // green while it does; and, near it, where the game reads each hand (a dot, green for the hand it is lit for): the
+    // drawn hand may be elsewhere (held out of the body or of models, knocked, shaken), the dot is what counts.
+    if(guns && st.mode != Mode::Held)
+    {
+        const float m2u = units::metresToUnits();
+        zoneCapsule(modelPointAt(st.pose, shape().cap), modelPointAt(st.pose, shape().lens), reach * m2u,
+            st.pose.rot * glm::vec3{0.f, 0.f, 1.f}, st.hovered[0] || st.hovered[1] ? inReach : idle);
+        for(int hand = 0; st.gameFrame == host_framecount && hand < 2; hand++)
+        {
+            if(reachRatio(st.game, hand) < 2.f)
+            {
+                lines::point(st.game.pos[hand], 0.012f * m2u, st.hovered[hand] ? inReach : glm::vec4{1.f, 1.f, 1.f, 1.f});
+            }
+        }
+    }
+
     // The held torch's middle: what the zones measure (green in reach of one).
     if(st.mode == Mode::Held)
     {
@@ -1637,6 +1673,38 @@ void toggle_f()
     }
 }
 
+// vr_flashlight_probe [tag]: per hand, whether the lamp is lit up for it (the last view) and what a press there would
+// see on the hands the game reads (at the lamp, the game's grip winning and its hotspot, empty, still): "highlighted
+// implies grabbable" (Misc/quakevr/flashgrab). With developer 1, also the torso's yaw, the lamp's middle and the hands.
+void probe_f()
+{
+    const hands::State& s = hands::current();
+    const char* tag = Cmd_Argc() > 1 ? Cmd_Argv(1) : "-";
+    static constexpr const char* modes[] = {"mounted", "held", "returning", "ongun", "onhead"};
+    Con_Printf("torchprobe %s mode %s holder %d placed %d\n", tag, modes[static_cast<int>(st.mode)], st.holder, st.placed ? 1 : 0);
+    for(int hand = 0; hand < 2; hand++)
+    {
+        const bool at = st.mode != Mode::Held && hand != st.gunHand && handAt(s, hand);
+        Con_Printf("torchprobe %s %s lit %d drawn %d at %d game %d hotspot %d empty %d still %d\n", tag,
+            hand == HAND_MAIN ? "main" : "off", st.hovered[hand] ? 1 : 0, st.drawnAt[hand] ? 1 : 0, at ? 1 : 0,
+            at && !reachesLamp(s, hand) ? 1 : 0, static_cast<int>(s.hotspot[hand]), handEmpty(hand) ? 1 : 0,
+            realtime >= st.fastUntil[hand] ? 1 : 0);
+    }
+    if(developer.value)
+    {
+        const glm::vec3 mid = modelPointAt(st.pose, 0.5f * (shape().cap + shape().lens));
+        Con_Printf("torchprobe %s torso %.1f lamp %.2f %.2f %.2f off %.2f %.2f %.2f main %.2f %.2f %.2f\n", tag, s.bodyYaw, mid.x,
+            mid.y, mid.z, s.pos[HAND_OFF].x, s.pos[HAND_OFF].y, s.pos[HAND_OFF].z, s.pos[HAND_MAIN].x, s.pos[HAND_MAIN].y,
+            s.pos[HAND_MAIN].z);
+        for(int hand = 0; hand < 2; hand++)
+        {
+            const qmodel_t* m = weapons::heldModel(hand);
+            Con_Printf("torchprobe %s %s weapon %s slot %d\n", tag, hand == HAND_MAIN ? "mainw" : "offw", m ? m->name : "-",
+                weapons::heldSlot(hand));
+        }
+    }
+}
+
 // The cord's rings, made once a frame (drawOpaque's first eye), uploaded once and drawn in both eyes.
 struct CordDraw
 {
@@ -1661,12 +1729,19 @@ mem::Scratch<FlashlightScratch> scratch{"flashlight"};
 void init()
 {
     Cmd_AddCommand("vr_flashlight_toggle", toggle_f);
+    Cmd_AddCommand("vr_flashlight_probe", probe_f);
 }
 
 void prepare()
 {
     (void)view::viewModel(modelName);
     (void)shape();
+}
+
+void noteGameHands(const hands::State& s)
+{
+    st.game = s;
+    st.gameFrame = host_framecount;
 }
 
 void setupView(const hands::State& s, view::ViewEntity& ve)
@@ -1677,7 +1752,10 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
         return; // once per frame, however often the view is set up
     }
     lastFrame = host_framecount;
-    noteIntent(s);
+    // The hands the game reads (the drawn `s` may be pushed out of the body, round the lamp on it): what lights the
+    // lamp and what a press is judged on; their speed too (a drawn hand let go by the body jumps).
+    const hands::State& game = st.gameFrame == host_framecount ? st.game : s;
+    noteIntent(game);
 
     // A new map: back on the belt (switched as it was).
     static int generation = -1;
@@ -1702,6 +1780,7 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
         st.nearGun = false;
         st.nearHead = false;
         st.hovered[0] = st.hovered[1] = false;
+        st.drawnAt[0] = st.drawnAt[1] = false;
         cord.hide();
         killLights();
         return;
@@ -1797,16 +1876,20 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
     st.pose = p;
     st.placed = true;
 
-    // A hand at the lamp lights it up (and taps, once); on a gun, only the free hand.
+    // A hand whose press reaches the lamp lights it up (and taps, once); on a gun, only the free hand. Judged as the
+    // press is (reachesLamp), on the game's hands: a hand drawn at the lamp on the body but tracked inside the torso
+    // (vr_body_collide holds the drawn one at its surface) lit it and then couldn't take it (round 21 notes, "lit
+    // but not taken": twisting the torso, straightening the arms took the hand out of the torso and it worked again).
     bool hover = st.nearGun || st.nearHead;
     for(int hand = 0; hand < 2; hand++)
     {
-        const bool atLamp = st.mode != Mode::Held && hand != st.gunHand && key_dest == key_game && handAt(s, hand);
+        const bool atLamp = key_dest == key_game && reachesLamp(game, hand);
         if(atLamp && !st.hovered[hand])
         {
             haptic(hand, 0.015f, 0.2f);
         }
         st.hovered[hand] = atLamp;
+        st.drawnAt[hand] = st.mode != Mode::Held && hand != st.gunHand && handAt(s, hand); // (vr_flashlight_probe)
         hover = hover || atLamp;
     }
 
@@ -2033,15 +2116,13 @@ bool button(int hand, Button b, bool pressed)
 
     const hands::State& s = hands::current();
     const bool holding = st.mode == Mode::Held && st.holder == hand;
-    bool atLamp = st.mode != Mode::Held && hand != st.gunHand && handAt(s, hand);
-    if(atLamp && (st.mode == Mode::Mounted || st.mode == Mode::Returning) && gameGripWins(s, hand))
+    // (What lit the lamp for this hand: reachesLamp.)
+    const bool atLamp = reachesLamp(s, hand);
+    if(!atLamp && st.mode != Mode::Held && hand != st.gunHand && handAt(s, hand))
     {
-        atLamp = false; // a two-handed grip, a draw from the holster next to it
-        if(pressed)
-        {
-            Con_DPrintf("torch press ignored: the %s hand's is the game's (hotspot %d%s)\n", hand == HAND_MAIN ? "main" : "off",
-                static_cast<int>(s.hotspot[hand]), otherWeaponNear(s, hand) ? ", at the other hand's weapon" : "");
-        }
+        // A two-handed grip, a draw from the holster next to it.
+        Con_DPrintf("torch press ignored: the %s hand's is the game's (hotspot %d%s)\n", hand == HAND_MAIN ? "main" : "off",
+            static_cast<int>(s.hotspot[hand]), otherWeaponNear(s, hand) ? ", at the other hand's weapon" : "");
     }
 
     if(b == Button::Secondary)
@@ -2195,6 +2276,27 @@ void onModelsReloaded(bool torch)
 bool holds(int hand)
 {
     return enabled() && st.mode == Mode::Held && st.holder == hand;
+}
+
+float reachRatio(const hands::State& s, int hand)
+{
+    if(!enabled() || !st.placed || !s.valid || hand < 0 || hand > 1 || st.mode == Mode::Held || hand == st.gunHand)
+    {
+        return 1e9f;
+    }
+    // As handNear: from the lamp's axis, tail to lens.
+    const glm::vec3 a = modelPointAt(st.pose, shape().cap);
+    const glm::vec3 ab = modelPointAt(st.pose, shape().lens) - a;
+    const float t = std::clamp(glm::dot(s.pos[hand] - a, ab) / std::max(glm::dot(ab, ab), 1e-4f), 0.f, 1.f);
+    float ratio = glm::distance(s.pos[hand], a + ab * t) / (reach * units::metresToUnits());
+    if(st.mode == Mode::OnHead)
+    {
+        // As handAtHeadTorch: or the fist in the head's zone on the torch's side.
+        const HeadZone z = headZone(s);
+        const glm::vec3 fist = modelPointAt(handPose(s, hand), glm::vec3{0.f});
+        ratio = std::min(ratio, glm::distance(fist, z.temple[st.headSide > 0.f ? 1 : 0]) / std::max(z.radius, 1e-3f));
+    }
+    return ratio;
 }
 
 bool heldPlace(const hands::State& s, int hand, glm::vec3& origin, glm::vec3& angles)

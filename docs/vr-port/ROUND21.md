@@ -14206,3 +14206,35 @@ NOTES.md e1m1_2026-09-30_02-19-27, e1m3_2026-09-30_02-34-01 and 02-34-18. Branch
 - [ ] Let grunts, enforcers and ogres shoot at you from afar: a few more misses than before, not many.
 - [ ] Let a knight, a dog and a fiend at you: they reach and hurt you as before.
 - [ ] Width Shots Hit: try 20 and 28 against a grunt at range.
+
+## Flashlight: lit but not taken (2026-09-30)
+
+NOTES.md vrfiringrange_2026-09-30_03-03-47, 03-04-43, 03-05-43: sometimes the torch lit up for the hand but its grip
+didn't take it; twisting the torso and straightening the arms made it work again.
+
+- **Cause 1 (the body):** the lamp was lit on the hands as drawn, the grip judged on the hands the game reads. The view
+  moves the drawn hands (vr_body_collide holds a hand at the torso's surface; vr_model_collide, knocks and the tired
+  arms' shake too); a hand reaching the chest torch through the torso's capsule was drawn, and lit, at the lamp while
+  it was tracked inside the torso, out of the grip's 9 cm. Twisting the torso and straightening the arm takes the hand
+  out of the torso: no push, the two agree. The other way round too: tracked at the lamp, drawn a few cm off it.
+- **Cause 2 (the other hand's gun):** the lamp lit for a hand the game's grip wins for (gameGripWins: the other hand's
+  gun's two-handed grip hotspot, a holster next to it); the grip then went to the game.
+- **Fix:** one test, `reachesLamp`, for what lights the lamp and what the press checks, on the game's hands
+  (`flashlight::noteGameHands`, called by the view before it moves the drawn ones; the hands' speed for the "deliberate"
+  press is taken from them too: a drawn hand let go by the body jumped). And vr_body_collide lets go of a hand coming
+  to the lamp on the body or the head, as to a holster (`flashlight::reachRatio`: no push within the reach, full from
+  1.5 times it): the hand is drawn where it is, at the lamp that lights up for it.
+- **Test:** `Misc/quakevr/flashgrab/flash_grab_test.py <agent> [mounted|returning|all]` (~50 s): e1m1, 11 torso turns
+  (the head's yaw, the main hand out, across, low, a shotgun at the chest), the off hand on a 9x9x9 grid (3.5 cm steps)
+  round the lamp; each spot probed (`vr_flashlight_probe`), then gripped from an open, still hand. Before: 76 of 8019
+  spots lit and not taken (34 the body, 42 the other hand's grip hotspot; most at the torso turned -45), 315 taken
+  unlit. After: 1688 lit, 1688 taken, none apart. Returning (the main hand catching the lamp on its way home, 225
+  spots): none lit and not taken. The drawn hand now disagrees with the lamp on 59 spots (was 349), where the other
+  arm is in the way or a teleported mock hand is pushed out onto the lamp.
+- **Debug:** Show Flashlight Zones (the Flashlight page, and now Debug > Views) also draws the lamp's reach when it isn't held (green while lit) and a dot where
+  the game reads each hand near it. `vr_flashlight_probe [tag]` prints each hand's lit / drawn at / at / game's grip /
+  hotspot / empty / still (developer 1: the torso's yaw, the lamp, the hands, their weapons).
+- Weapons lying on the floor have no lit state (only their ammo screens, by the player's distance), and holsters and
+  the pouch light up by the hotspots, which are the game's hands already: nothing to align there.
+- Open: gameGripWins keeps the foregrip's claim to 8 units where the two-handed grip takes within 5.5; between them a
+  grip at the lamp does neither (now shown: the lamp stays dark there).

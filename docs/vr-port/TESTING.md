@@ -1113,8 +1113,11 @@ balls, each gun's capsule; green in reach) and the held torch's middle; `vr_flas
 `vr_flashlight_gun_zone_*` move them, and `vr_flashlight_low_*` / `_high_*` `fingers`, `curl_*`, `thumb_across`,
 `overlap`, `bias_*`, `thumb_x/y/z` set each grip's fingers. `vr_debug_grasp 2` prints the torch grasp's finger stops.
 With `developer 1` a take logs the grip chosen ("flashlight: overhead grip (from the belt)"). In the mock (e1m1 start)
-the belt torch is reached with `vr_mock_fingers off 0 0; vr_mock_hand off -0.066 1.05 -0.072 -80 0 0; wait40;
-vr_mock_button off grip 1`.
+the belt torch is reached with `vr_mock_fingers off 0 0; vr_mock_hand off -0.066 1.38 -0.072 -80 0 0; wait40;
+vr_mock_button off grip 1`. Lit but not taken (ROUND21.md, "Flashlight: lit but not taken"): `python
+Misc/quakevr/flashgrab/flash_grab_test.py <agent>` sweeps the off hand round the lamp at 11 torso turns (and the main
+hand catching it on its way home) and fails on any spot lit and not taken; `vr_flashlight_probe [tag]` prints what it
+reads.
 
 Wrist gadget: `vr_gadget_info` prints its screen's centre and axes (right = along the forearm, up, out). To bend the
 wrist in the mock without moving it, turn the controller about the wrist: the scratchpad's `gadget2/mkposes.py` makes

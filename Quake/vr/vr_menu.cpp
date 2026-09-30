@@ -1196,7 +1196,9 @@ void flashlightFingers(std::vector<Item>& list, const FlashlightFingerCvars& c, 
         toggle("Show Flashlight Zones", vr_show_flashlight_zones)
             .help("Draws where holding the torch clips it on (yellow balls at your temples and forehead, an orange capsule round "
                   "each gun) and the held torch's middle (white), which they measure. Green: in reach, B or Y clips it on (on "
-                  "your head: a hand there takes it off)."),
+                  "your head: a hand there takes it off). The torch not in a hand: a capsule round it, green while a "
+                  "hand's grip there takes it, and a dot where the game reads each hand near it (the hand may be drawn "
+                  "elsewhere)."),
         header("On a Gun"),
         slider("On Gun Forward", vr_flashlight_gun_forward, -0.4f, 0.3f, 0.005f, "%.3f m").extend()
             .help("Where the torch sits once clipped on a gun: along the barrel, under it (or beside a bulky gun). B or Y at it "
@@ -1821,6 +1823,10 @@ std::vector<Item> pageDebugViews()
         toggle("Log Weapon Wall Collisions", vr_debug_gun_wall)
             .help("Each frame a held weapon is held out of the level: how far the hand is moved (up, across), the depth left "
                   "and the muzzle's height over the surface below it, in the console."),
+        toggle("Show Flashlight Zones", vr_show_flashlight_zones)
+            .help("The torch's reach zones (as on the Flashlight page): not in a hand, a capsule round it, green while a hand's "
+                  "grip there takes it, and a dot where the game reads each hand near it (the drawn hand may be held out "
+                  "of the body elsewhere)."),
         cycle("Show Model Collisions", vr_debug_model_collide, {{0.f, "Off"}, {1.f, "Logged"}, {2.f, "Logged and Drawn"}})
             .help("Held weapons and props stopping at the models' triangles: each hand's push printed; drawn: the rays (grey as tracked, "
                   "green or red as drawn) and the push (yellow)."),
