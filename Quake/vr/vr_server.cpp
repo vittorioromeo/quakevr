@@ -411,7 +411,14 @@ void dumpPlayer_f()
         return;
     }
 
-    edict_t* ent = svs.clients[0].edict;
+    // vr_dumpplayer [client]: 1 (the default) is the first client (a listen server's own player).
+    const int client = Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : 1;
+    if(client < 1 || client > svs.maxclients || !svs.clients[client - 1].active)
+    {
+        Con_Printf("vr_dumpplayer: no active client %d\n", client);
+        return;
+    }
+    edict_t* ent = svs.clients[client - 1].edict;
     const FieldOffsets& f = fields();
     const auto vec = [&](const char* name, int ofs) {
         const glm::vec3 v = fieldVec(ent, ofs);
@@ -424,6 +431,7 @@ void dumpPlayer_f()
     vec("handpos", f.handpos);
     vec("handrot", f.handrot);
     vec("handvel", f.handvel);
+    vec("headpos", f.headpos);
     vec("muzzlepos", f.muzzlepos);
     vec("offhandpos", f.offhandpos);
     vec("offmuzzlepos", f.offmuzzlepos);

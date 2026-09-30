@@ -1994,7 +1994,7 @@ std::vector<Item> pageDebugReports()
     return {
         header("The Game"),
         command("Headset", "vr_status").help("vr_status: the backend, the eyes' sizes, the hidden area, the head's and hands' poses."),
-        command("Player", "vr_dumpplayer").help("vr_dumpplayer: the player's VR fields in the game (hands, weapons, hotspots)."),
+        command("Player", "vr_dumpplayer").help("vr_dumpplayer [client]: a player's VR fields in the game (hands, weapons, hotspots)."),
         command("View", "vr_dumpview").help("vr_dumpview: the hands, grips, palms, fingers and every entity drawn in the view (long)."),
         command("Body Calibration", "vr_bodycal_print").help("vr_bodycal_print: the body calibration's state and result."),
         command("Wrists and Grips", "vr_bodycal_debug").help("vr_bodycal_debug: one line a hand, next frame: the wrist and the grip."),
