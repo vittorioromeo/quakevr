@@ -52,7 +52,10 @@ Chainsaw: kill an ogre (Debug > Tests > Chainsaw to get one fast); it drops its 
 Chainsaw: pull the cord with the other hand (50% start chance per good pull); cut a monster with the trigger held; fuel runs down and it stalls when empty
 Chainsaw: size (82 cm), grips and weight feel right?
 
+Monster Hitbox (Movement > Monster Hitbox): turn Narrower Monsters on; ogres, grunts, knights walk closer to walls and corners; any stuck, clipping into walls or stepping off ledges?
+
 [Decide or give feedback]
+Narrower Monsters (monsters' own boxes against walls; +186 ms load) on by default? Round the enforcer's 28 down to 24 (one hull fewer)?
 Chainsaw: swinging it also counts as a gun-style melee blow: keep?
 Grapple: ground unreel slack 256: right amount?
 At speed 3, two 'weak punch' no-hit takes and one axe wiggle take now hit: drop those takes (invalidated), or keep them as known failures?

@@ -317,6 +317,7 @@ using PageBuilder = std::vector<Item> (*)();
 [[nodiscard]] std::vector<Item> pageDebugTools();
 [[nodiscard]] std::vector<Item> pageDebugTests();
 [[nodiscard]] std::vector<Item> pageHitbox();
+[[nodiscard]] std::vector<Item> pageMonsterHitbox();
 
 // Texts the menu hands out by pointer (an Item holds const char*):
 // - readouts: an info line's or a help's text, valid until the same function's next call (the draw uses it at once);
@@ -2100,6 +2101,7 @@ std::vector<Item> pageDebugTests()
                   "you were freed."),
         header("Player Hitbox (Prototype)"),
         open("Player Hitbox Settings", pageIndex(pageHitbox)).help("Movement > Player Hitbox: the widths and their toggles."),
+        open("Monster Hitbox Settings", pageIndex(pageMonsterHitbox)).help("Movement > Monster Hitbox: monsters' widths by class, and their walk tests."),
         command("Hitbox Stats", "vr_hull_stats").help("Prints the map's rebuilt brushes and compiled hull: counts, memory, build times."),
         command("Hitbox Approach", "vr_hull_approach").help("Prints how close your box gets to what is round you, in 8 directions (from your centre to the surface it stops at; Quake's box: 16 units). vr_hull_approach <classname> [n] does it round an entity."),
         command("Hitbox Bench", "vr_hull_bench").help("Times 20000 random moves (Quake's hull against the brush sweep "
@@ -2107,8 +2109,12 @@ std::vector<Item> pageDebugTests()
         command("Shots Hit Test", "vr_hull_hittest")
             .help("Prints how many of 1600 grunt-like shots from 300 units round you hit your box at Width Shots Hit "
                   "(vr_hull_hittest [distance] [spread])."),
+        command("Hitbox Leaf", "vr_hull_leafdebug")
+            .help("Compiles the hull for your box again and describes the leaf you stand in when it is solid (the piece "
+                  "of brush that fills it, and that brush): for a wall where there is none (vr_hull_leafdebug <entity>: "
+                  "a monster's, with Narrower Monsters on)."),
         command("Hitbox Probe", "vr_hull_probe")
-            .help("Prints which of the map's brushes your box is in, and by how much (when you're stuck)."),
+            .help("Prints which of the map's brushes your box is in, and by how much (when you're stuck); vr_hull_probe <entity>: a monster's."),
         command("Shots Hit Test", "vr_hull_hittest")
             .help("Prints how many of 1600 grunt-like shots from 300 units round you hit your box at Width Shots Hit "
                   "(vr_hull_hittest [distance] [spread])."),
@@ -2376,6 +2382,67 @@ std::vector<Item> pageHitbox()
     };
 }
 
+// Movement > Monster Hitbox: monsters' widths against walls, by class (vr_hull.cpp, docs/vr-port/HULLS.md, "Monsters").
+std::vector<Item> pageMonsterHitbox()
+{
+    auto widths = [](float quake)
+    {
+        static const char* const labels[] = {"16 units", "24 units", "32 units", "40 units", "48 units", "56 units"};
+        std::vector<Choice> c{{-1.f, "Its Box"}, {0.f, quake == 32.f ? "Quake's Hull (32)" : "Quake's Hull (64)"}};
+        for(int i = 0; 16.f + 8.f * static_cast<float>(i) < quake; ++i)
+        {
+            c.push_back({16.f + 8.f * static_cast<float>(i), labels[i]});
+        }
+        return c;
+    };
+    const std::vector<Choice> small = widths(32.f), big = widths(64.f);
+    auto cls = [&](const char* label, cvar_t& cvar, bool hull2)
+    {
+        return cycle(label, &cvar, hull2 ? big : small)
+            .help(hull2 ? "This class's width against walls (Its Box: its own box's, in brackets). Quake moves it with a "
+                          "64-wide box, 88 tall (the height is kept whatever the width)."
+                        : "This class's width against walls (Its Box: its own box's, in brackets). Quake moves it with a "
+                          "32-wide box, 56 tall (the height is kept whatever the width).");
+    };
+    return {
+        header("Monsters' Widths (Prototype)"),
+        toggle("Narrower Monsters", vr_mhull)
+            .help("Quake moves monsters against walls with a 32-wide box (64 for the big ones), wider than most of their "
+                  "own boxes in Quake VR (a grunt's is 24, an ogre's 40). On: the widths below instead (a clipping hull "
+                  "compiled for each when the map loads, as yours is): they walk closer to walls and through narrower "
+                  "gaps. You and your shots meet their own boxes and models already."),
+        toggle("Against Bodies Too", vr_mhull_ents)
+            .help("A width narrower than a monster's own box meets you, other monsters and solid boxes too, both ways. "
+                  "Off: their own boxes between bodies."),
+        toggle("Ledges by Their Width", vr_mhull_ledges)
+            .help("A width narrower than a monster's own box also takes the ledge test (a monster doesn't step where "
+                  "its corners aren't over ground): it walks as close to a ledge as its width. Off: its box's corners."),
+        command("All Match Their Boxes", "vr_mhull_reset").help("Every class back to its own box's width (the defaults)."),
+        header("By Class (Its Box)"),
+        cls("Grunt (24)", vr_mhull_army, false),
+        cls("Enforcer (28)", vr_mhull_enforcer, false),
+        cls("Knight (24)", vr_mhull_knight, false),
+        cls("Death Knight (24)", vr_mhull_hknight, false),
+        cls("Rottweiler (24)", vr_mhull_dog, false),
+        cls("Scrag (24)", vr_mhull_wizard, false),
+        cls("Spawn (24)", vr_mhull_tarbaby, false),
+        cls("Zombie (32)", vr_mhull_zombie, false),
+        cls("Fiend (32)", vr_mhull_demon, false),
+        cls("Rotfish (32)", vr_mhull_fish, false),
+        cls("Ogre (40)", vr_mhull_ogre, true),
+        cls("Vore (64)", vr_mhull_shalrath, true),
+        cls("Shambler (64)", vr_mhull_shambler, true),
+        header("Tests"),
+        command("Hitbox Stats", "vr_hull_stats").help("Prints the compiled hulls, the monsters' too: sizes, memory, build times."),
+        command("Monster Walk (60 s)", "god; notarget; vr_mhull_walktest 60")
+            .help("Walks the level's monsters at random for 60 seconds (their AI stopped meanwhile), then prints by "
+                  "class how far they walked, how often they got stuck, dropped off a ledge or ended up in a wall."),
+        command("Monster Patrol (60 s)", "notarget; vr_mhull_walktest 60 1 1")
+            .help("Leaves the monsters' own AI running for 60 seconds (you unseen) and counts the patrol corners they "
+                  "reach, and the same stuck, drop and wall counts."),
+    };
+}
+
 // ----------------------------------------------------------------------------
 // Pages
 // ----------------------------------------------------------------------------
@@ -2482,6 +2549,7 @@ const Page pages[] = {
     {"Debug - Tests", pageDebugTests, pageDebug},                           // 71
     {"Checklist", pageChecklist, pageDebug},                                // 72 (also the corner's button)
     {"Player Hitbox", pageHitbox, pageMovement},                            // 73
+    {"Monster Hitbox", pageMonsterHitbox, pageMovement},                    // 74
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -2628,6 +2696,7 @@ std::vector<Item> pageMovement()
         open("Swimming", pageIndex(pageSwimSettings)),
         open("Grappling Hook", pageIndex(pageGrapple)),
         open("Player Hitbox", pageIndex(pageHitbox)).help("How wide you are against walls, doors, monsters and players."),
+        open("Monster Hitbox", pageIndex(pageMonsterHitbox)).help("How wide monsters are against walls (a prototype, off by default)."),
     };
 }
 

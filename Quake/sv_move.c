@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // sv_move.c -- monster movement
 
 #include "quakedef.h"
+#include "vr/vr_api.h" // QVR
 
 #define	STEPSIZE	18
 
@@ -45,6 +46,7 @@ qboolean SV_CheckBottom (edict_t *ent)
 
 	VectorAdd (ent->v.origin, ent->v.mins, mins);
 	VectorAdd (ent->v.origin, ent->v.maxs, maxs);
+	VR_HullFootprint (ent, mins, maxs); // QVR: a monster's narrower width (vr_mhull_ledges; vr/vr_hull.cpp)
 
 // if all of the points under the corners are solid world, don't bother
 // with the tougher checks

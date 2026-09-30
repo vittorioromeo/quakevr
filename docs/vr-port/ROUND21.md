@@ -14470,3 +14470,27 @@ kept whole in it. The sounds are synthesised.
 - The chainsaw's size (82 cm) and where the cord's handle sits (the block's top left, behind the front handle) are
   guesses; the posing mode and `make_chainsaw.py`'s `LENGTH` and handle place change them.
 - A swing of the chainsaw is a gun's melee blow (its bar is the "barrel"): keep, or no blows with it?
+## Monster hitboxes: their own widths against walls (off by default); a compiled hull bug fixed
+
+NOTES.md vrclimb_2026-09-30_00-58 ("smaller hitboxes also for the enemies"). Branch `agent/hull3`. Details, tables and
+the research (which box matters where) in HULLS.md, "Monsters".
+
+- **Found:** Quake VR's QC already gives most monsters narrower boxes than id's (grunts, knights, dogs, scrags 24, the
+  enforcer 28, the ogre 40), and your shots and melee meet their models; but Quake moves them against walls with hull 1
+  (32) or hull 2 (64, the ogre's). That is the "quite large".
+- **Movement > Monster Hitbox** (`vr_mhull`, 0): Narrower Monsters moves each class against the map with a compiled
+  hull of its own box's width (`vr_mhull_<class>`, -1 Its Box; 0 Quake's; 16-56), Quake's heights kept. Narrower than
+  the box also meets bodies (`vr_mhull_ents`) and ledges (`vr_mhull_ledges`). Monster Walk and Monster Patrol tests
+  (`vr_mhull_walktest <s> [seed] [mode] [command]`) on the page.
+- **Bug fixed in the compiled hull** (the player's too): at 24 wide, e1m4 had a solid leaf out in the open (15% of
+  random moves started solid); after: no start-solid difference from the brush sweep on 32 maps at 8-28 wide; 16
+  unchanged. New `vr_hull_leafdebug [entity]` (Debug > Tests: Hitbox Leaf); `vr_hull_probe [entity]`.
+- **Corpse strikes** meet the corpse's model (`combat.qc`, `MOVE_HITMODEL_MELEE`).
+- **Numbers** (24 maps, 1069 monsters, random walk off / Its Box): goals reached 65% / 68%, stuck spells 2547 / 2261,
+  drops 656 / 612; patrols the same corners. Load +186 ms and +312 KB on average (361 ms, 568 KB at most).
+- Melee eval canary: 48/56, no differences from the baseline.
+
+### To test in VR
+
+- [ ] Monster Hitbox > Narrower Monsters on: ogres, grunts and knights walk closer to walls and round corners; none
+  stuck on a wall, none on a ledge they shouldn't be on, none partly in a wall.

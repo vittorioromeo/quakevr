@@ -413,10 +413,141 @@ Quake's hull 1, 0.015 with B at 16 and 0.015 with A at 16 (29 traces and 66-73 h
    (Width Against Them, per category). Decided (round 21): shots and missiles hit a 24-wide box (Width Shots Hit);
    melee and splash go by distance; item pickups keep Quake's 32 box.
 4. **Clip brushes.** Accept the heuristic's residue, or add the hull 1 fallback (a second trace).
-5. **Monsters.** The same code works for any box. Monsters' movement and `SV_CheckBottom` would change (they'd fit
-   through smaller gaps and stand closer to ledges), so it would be per class and opt-in.
+5. **Monsters.** Round 3 ("Monsters" below): per class and opt-in (Movement > Monster Hitbox, off by default).
 6. **Method.** A (the compiled hull) is the default: Quake's own trace, a little faster, 90 ms more at load (170 at
    most). B stays selectable for comparing.
 7. **On by default?** Decided (round 21, NOTES.md e1m1_2026-09-30_02-19-27, e1m3_2026-09-30_02-34-01): 16 wide with
    the compiled hull is the default (config 51 moves a config's old 0 to 16). The load-time build (B's brushes and A's
    hull: 137 ms on average, 257 at most on id's maps) could move to a worker thread before it is on by default.
+
+## Monsters (round 3: their own widths against walls)
+
+NOTES.md vrclimb_2026-09-30_00-58: "smaller hitboxes also for the enemies so that they actually match their models a bit
+better. Right now they're quite large."
+
+### Which of a monster's boxes matters where
+
+| What | The box it uses |
+|---|---|
+| Walking, stepping, falling, `droptofloor`, doors and lifts pushing it (against the map and brush models) | Quake's clipping hull for its width (`SV_HullForEntity`): hull 1 (32 wide, 56 tall) up to 32 wide, else hull 2 (64 wide, 88 tall), whatever its own box |
+| Ledges (`SV_CheckBottom`: every corner over ground) | its own box's corners |
+| Bodies: you, other monsters, solid boxes | its own box (`SV_HullForBox`); yours narrowed (Width Against Them) |
+| Your shots, missiles, grenades, melee, shoves, thrown props | its model as drawn (`vr_hit_precise` 1, the default): the box is only the broad phase |
+| Splash damage, the headbutt, telefrags, the power shield, Box3D's own prop contacts | the box (or its centre): see "What shots still hit by box" |
+| Pathing (`SV_CloseEnough`), its melee and ranges | its `absmin`/`absmax`; the distance between origins |
+
+Quake VR's QC (from the original port) already gives most monsters boxes narrower than id's, but Quake still moves
+them against the map with hull 1 or 2, so the box and the width against walls disagree:
+
+| Class | Its box (wide x tall) | Quake moves it with | Model footprint* |
+|---|---|---|---|
+| Grunt, Knight, Death Knight, Rottweiler, Scrag, Spawn | 24 x 40-66 | 32 x 56 | 29 / 31 / 37 / 56 / 64 / 59 |
+| Enforcer | 28 x 52 | 32 x 56 | 34 |
+| Zombie, Fiend, Rotfish | 32 x 64 / 48 / 48 | 32 x 56 | 19 / 56 / 45 |
+| Ogre | 40 x 62 | 64 x 88 (its feet 2 units lower: its box starts at -22, hull 2 at -24) | 50 |
+| Vore, Shambler | 64 x 88 | 64 x 88 | 43 / 101 |
+
+\* Twice the distance (along x or y) within which 90% of the stand, walk and run frames' vertices lie (id1's
+`progs/*.mdl`). A dog and a fiend are long (their boxes are their bodies' widths); a shambler's arms reach far out. So
+"their own box" is the width to match: it is what you and your shots already meet (the model on top), only the walls
+didn't. "Quite large" was mostly the width against walls: an ogre kept 32 units from a wall when its box is 20 from its
+centre (and drawn narrower still), a grunt or a knight 16 instead of 12.
+
+### What it does (`vr_mhull`, Movement > Monster Hitbox, off by default)
+
+With Narrower Monsters on, a monster of a known class (id1's 13, by classname; alive: `SOLID_SLIDEBOX`) moves against
+the map and brush models with a compiled hull (method A, the player's machinery) of its class's width, Quake's hull
+height kept (56 for hull 1's, 88 for hull 2's), from its box's feet. A class's width (`vr_mhull_<class>`): -1 **Its Box**
+(the default), 0 Quake's hull, or 16-56 (below Quake's width). A width narrower than its own box also meets bodies both
+ways (`vr_mhull_ents`, 1) and takes `SV_CheckBottom`'s corners (`vr_mhull_ledges`, 1); at Its Box those two change
+nothing. The hulls for the sizes the level's monsters ask for are compiled when the map loads (and when a setting
+changes), one per size, shared with the player's when the size is the same: Its Box makes three at most on id's maps
+(24 x 56, 28 x 56 for the enforcer, 40 x 88 for the ogre). `vr_mhull_reset` (All Match Their Boxes) sets every class
+back to Its Box.
+
+Files: `vr_hull.cpp` (the classes, `monsterWidth`, `moveBox`/`entBox`/`touchBox`/`footprint`, the trees by size,
+`vr_mhull_walktest`), `sv_move.c` (`SV_CheckBottom`: `VR_HullFootprint`), `world.c` (`VR_HullNarrowsAgainst` takes the
+mover), `vr_cvars.inc`, `vr_menu.cpp` (Movement > Monster Hitbox, also linked from Debug > Tests).
+
+### A compiled hull bug found on the way (the player's hull too)
+
+The first walks at Its Box had knights on e1m4 "in solid" the whole time. The 24-wide hull had a solid leaf out in the
+open: a piece of a recovered clip brush lost its last bounding face to the build's epsilon and ran on to the end of the
+bogus winding, so the leaf it ended in was taken as filled. It hit the player's hull the same way at 24 wide:
+`vr_hull_bench` on e1m4 at 24 found 3126 of 20000 moves starting solid where the brush sweep had none (84.45%
+agreement). Three fixes in the build (`TreeBuilder`, `splitPoly`): a piece reaching out of its brush's padded bounds is
+cut by those bounds again, as live faces (1 piece on e1m4 at 24); a face lost to the epsilon on both sides of a split is
+kept (without a winding) on both; a face kept without a winding still counts as not yet split on. After: A against B on
+all 32 id maps, 20000 moves each, at 8, 12, 16, 20, 24 and 28 wide: no start-solid differences anywhere, 99.94-100%
+agreement (the rest grazing contacts, as before); at 16 (the player's default) the counts are the same as before the
+fix. `vr_hull_leafdebug [entity]` (Debug > Tests: Hitbox Leaf) compiles the hull again and describes the solid leaf at
+that box's centre (the piece, its brush); `vr_hull_probe [entity]` takes a monster too.
+
+### What shots still hit by box
+
+Every player weapon, missile (FLYMISSILE and BOUNCE: nails, rockets, grenades, the hook, thrown weapons and props),
+melee blow and shove meets the model. What doesn't: splash damage (`T_RadiusDamage`, the distance to the box's centre;
+`CanDamage`'s rays to the origin), the headbutt (`client.qc` ~2676: `findradius` 30 around the head, loose on purpose),
+the Hipnotic proximity grenade (MOVETYPE_TOSS: `VR_HitModelMoveFlags` lets only FLYMISSILE and BOUNCE through, and
+letting TOSS through would also switch explosive boxes and grabbable weapons, which are TOSS bounding boxes), Box3D's
+own contact reports for flung props (`vr_box3d.cpp`: a convex hull of the monster's first frame, turned by yaw),
+Mjolnir's chain lightning choosing its target by box, telefrags and the power shield (by design). Made precise now
+(cheap): striking a corpse with a hand or what it holds (`VR_Corpse_StrikeFrame`, `combat.qc`: its two traces take
+`MOVE_HITMODEL_MELEE`, so a hand passing a live monster's box without touching its model finds the corpse behind).
+
+### Numbers
+
+`vr_mhull_walktest` (Monster Hitbox page: Monster Walk, Monster Patrol) on 24 id maps (e1m1-e1m6, e2m1-e2m6, e3m1-e3m5,
+e4m1-e4m7), fresh loads, `god; notarget`, three settings: **off** (Quake's hulls), **box** (on, Its Box: the default
+widths), **narrow** (on, every hull 1 class 16 and every hull 2 class 32, bodies and ledges at those widths too: the
+risky end). Random walk: each monster's AI stopped and `movetogoal` (16 units a tenth of a second) sent to a floor spot
+96-384 units away in a random direction, a new one on arrival or after 8 s, 60 s a map. Patrol: their own AI, 45 s a
+map. Stuck: 2-second spells moving under 16 units; drops: 20 units lower in a tenth of a second; in solid: tenths of a
+second their box (as they move with it) is in something; goals: spots reached of those given.
+
+Random walk (off / box / narrow; the widths against walls in the second column):
+
+| Class (monsters) | Walls | Stuck | Drops | In solid | Goals reached |
+|---|---|---|---|---|---|
+| Ogre (192) | 64 / 40 / 32 | 430 / 363 / 309 | 37 / 49 / 43 | 54 / 2 / 5 | 51% / 62% / 63% |
+| Zombie (192) | 32 / 32 / 16 | 898 / 828 / 759 | 0 / 0 / 3 | 6608 / 6609 / 6609 | 54% / 56% / 56% |
+| Fiend (108) | 32 / 32 / 16 | 189 / 167 / 136 | 372 / 373 / 145 | 604 / 598 / 598 | 71% / 73% / 72% |
+| Grunt (102) | 32 / 24 / 16 | 110 / 89 / 93 | 16 / 16 / 16 | 3 / 0 / 0 | 72% / 75% / 75% |
+| Knight (96) | 32 / 24 / 16 | 90 / 104 / 52 | 0 / 11 / 7 | 3 / 2 / 1 | 73% / 75% / 76% |
+| Scrag (94) | 32 / 24 / 16 | 249 / 190 / 180 | 0 / 0 / 0 | 1236 / 778 / 11 | 65% / 66% / 66% |
+| Death Knight (90) | 32 / 24 / 16 | 124 / 96 / 86 | 37 / 22 / 22 | 0 / 0 / 2 | 71% / 73% / 74% |
+| Spawn (54) | 32 / 24 / 16 | 131 / 118 / 93 | 60 / 54 / 62 | 0 / 15 / 0 | 74% / 73% / 75% |
+| Enforcer (48) | 32 / 28 / 16 | 153 / 136 / 82 | 0 / 0 / 0 | 1 / 1 / 8 | 62% / 61% / 60% |
+| Rotfish (32) | 32 / 32 / 16 | 18 / 23 / 11 | 0 / 0 / 0 | 11 / 11 / 5 | 85% / 82% / 88% |
+| Vore (25) | 64 / 64 / 32 | 116 / 99 / 37 | 121 / 76 / 26 | 338 / 352 / 1 | 51% / 56% / 70% |
+| Rottweiler (21) | 32 / 24 / 16 | 19 / 23 / 16 | 0 / 0 / 0 | 8 / 1 / 0 | 74% / 73% / 73% |
+| Shambler (15) | 64 / 64 / 32 | 20 / 25 / 40 | 13 / 11 / 11 | 0 / 0 / 0 | 61% / 58% / 72% |
+| All (1069) | | 2547 / 2261 / 1894 | 656 / 612 / 335 | 8866 / 8369 / 7240 | 65% / 68% / 69% |
+
+Zombies, fiends and rotfish keep Quake's width at "box" (their boxes are 32; some zombies' are 24); the differences
+there are the other monsters around them. Most zombie "in solid" are the crucified ones, in their walls on purpose; the
+fiends' are the same in all three. Off, ogres are "in solid" because hull 2 puts their feet 2 units into the floor
+(they move anyway, as traces starting in solid do); scrags fly into walls with hull 1 (their origins embedded in the
+world: 1140 / 751 / 6). Walkers' origins were never in a wall, and nothing ended outside the map, in any of the three.
+
+Patrol (their own AI; corners reached, off / box / narrow): every class reached the same corners within 1-5 (Ogre, 35
+patrolling: 171 / 174 / 174; Fiend 31: 273 / 272 / 273; Grunt 42: 151 / 151 / 151; Knight 30: 175 / 176 / 176; Death
+Knight 33: 181 / 181 / 181; Scrag 23: 118 / 119 / 120; the rest 0-78 each, equal), no drops in any, stuck the same or
+fewer (ogres 87 / 50 / 57; shamblers 5 / 5 / 21 at narrow), in solid fewer (ogres 11705 / 900 / 900: hull 2's floor
+overlap again).
+
+Cost: the monsters' hulls at Its Box take 186 ms to compile on average when a map loads (361 ms at most, maps with all
+three sizes), 312 KB (568 KB at most); narrow (one size besides the player's) 84 ms and 138 KB. A trace costs what the
+player's does (Quake's own `SV_RecursiveHullCheck`). With the setting off: nothing compiled, one test a move.
+
+### What to decide
+
+1. **On by default?** The numbers say Its Box is as safe as Quake's hulls: goals reached 65% to 68%, stuck 11% fewer,
+   drops about even (656 to 612; knights 0 to 11, death knights 37 to 22, vores 121 to 76), patrols the same. The cost
+   is the load, 186 ms more on average. My suggestion: on, at Its Box, once you've watched ogres and grunts along walls
+   and in corridors in VR (the visual risk: arms and weapons sticking out of the box now go into walls a little, as
+   they already do at corners). The enforcer's 28 could round down to 24 to share the grunts' hull (a third of the load).
+2. **Narrower than their boxes** (a class below Its Box): there to try; at 16/32 the walks were fine too (fewer stuck,
+   fewer drops), but a dog or a fiend at 16 puts half its body into walls, and bodies meet the narrower box.
+3. **Height.** Kept at Quake's (56, 88): a dog's box is 40 tall but it still can't go under 56. Following the box's
+   height is one more setting away, but maps were made for 56 and 88.

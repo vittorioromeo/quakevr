@@ -910,7 +910,7 @@ static trace_t SV_ClipMoveToBoxEntityQVR (edict_t *touch, vec3_t mins, vec3_t ma
 	vec3_t		start_l, end_l;
 	qboolean	narrowtouch;
 
-	if (clip->entbox && VR_HullNarrowsAgainst (touch))
+	if (clip->entbox && VR_HullNarrowsAgainst (clip->passedict, touch))
 	{
 		m = clip->entmins;
 		M = clip->entmaxs;
