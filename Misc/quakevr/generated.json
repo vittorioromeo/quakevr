@@ -279,11 +279,11 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/v_shot2.mdl": {
-  "sha256": "1a8d2d09645f8e87aca8518f4a72826cd1af33c34b65a821c96846c7628f4055",
+  "sha256": "2bcc9d3ee476eef84a2e30e47d781e4059b1c1fa6d1e9a1abf577b5c94dd18d9",
   "by": "polish_weapons.py"
  },
  "quakevr/progs/v_shot2.mdl_0_norm.png": {
-  "sha256": "bb32a92e2f94c05375ddf4cc2636ecdb3f8652d78823f26f46306bd2615c67c7",
+  "sha256": "f5eea2295e2d844c3d0c27728bbb3f27e0d4d3a61fc6619400bd281f9dc826eb",
   "by": "bake_normals.py"
  },
  "quakevr/progs/v_spike.mdl_0_norm.png": {
