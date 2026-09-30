@@ -14707,3 +14707,63 @@ Measured (`sw.sh`, exclusive, e2m1, the mock, weapons put in the main hand with 
 Nothing CPU-side is near a budget on your machine (0.84 ms of 8.33); a CPU three times slower would still leave 5 ms.
 On a lower-end GPU the eyes' 2.2 ms scale with the pixels drawn: the resolution (`vr_render_scale`, the runtime's) and
 foveated rendering are what matter, then the preset.
+## A held prop never pushes its own hand; the empty hand stops at it; boxes taken at the fist (2026-09-30)
+
+NOTES.md vrfiringrange 2026-09-30 10:41:07, 10:41:28, 10:48:24 and 10:51:22. Branch `agent/heldself`; scripts in the
+kit's `scratch/heldself/` (`rot.sh`, `emp.sh`, `empdown.sh`, `grab.sh`, `push.sh`; `stats.py`, `down.py`, `gaps.py`).
+
+### The push: the held prop's own model (your theory, verified)
+
+`held::wallFrame` (a prop held in one hand against the walls) traces lines from the hand to the prop's drawn corners
+through the level and its brush entities; "Held weapons and props against the level" made it pass `ownFiles` (brush
+entities with a model file of their own, for the prop table). The health, ammo and explosive boxes are such models too,
+so every line met **the held box itself** and the hand was drawn pushed out of its own box, changing as it turned.
+Gibs and heads (alias models) were never hit. Now `worldtrace::world` skips the entities the hands hold (`skipA`,
+`skipB`); `wallFrame` and its debug line pass both hands' props.
+
+New `vr_debug_hand_offset` (1: when moved, 2: every frame; Debug, Log Hand Offsets): each hand drawn off its tracked
+place and by what (walls, the grip and the weight's spring, a knock, models, the body, a held prop's meet or wall push,
+the other hand's weapon or prop). Held in open space, turned and moved about (91 poses, `rot.sh`), the largest push
+other than the weight's spring (which is the prop's weight, as before):
+
+| Held | Before | After |
+|---|---|---|
+| Health box | 9.34 units (the prop's wall push) | 0 |
+| Small explosive box (hand high) | 12.60 units | 0 |
+| Test gib | 0 | 0 |
+
+Held low, the explosive box still rests on the floor (its lowest corner 0.25 units over it): a real contact.
+
+### The empty hand against the other hand's prop (`vr_hand_collide_props` 10 cm)
+
+The free hand's push out of the other hand's weapon (`vr_view.cpp` pushOut, `vr_hand_collide`: the palm's middle and
+knuckles against its shape, the fingers resting on it) now also takes the prop the other hand holds alone, with its own
+give: `vr_hand_collide_props` cm (10; deeper it gives, and passes through at twice as deep; 0: off). Carrying, "Empty
+Hand Against It". Lowered onto a held health box at 3 cm a second (`empdown.sh`): before, drawn straight through it;
+now held at its top (drawn 76.0 while the tracked hand went from 76.2 to 73.3), then through as it gives.
+
+### Explosive boxes taken where the fist is (`vr_carry_grab_drawn` 1, `vr_box3d_hand_push_fist` 1)
+
+Everything carried was taken by the fist against its drawn surface (`held::grabTouch`) except the explosive boxes: not
+force-grabbable, they took the old test (a 5-unit box round the hand's point against the entity's box): taken with the
+fist 11.7 cm off its face (`grab.sh`: the off hand moved towards a small box, the grip pressed at each step). And the
+hands pushed them with a 4.5 cm sphere at the hand's point, which met a box face 6.6 cm before the fist did. Now:
+
+- `vr_physics.cpp` handOn: things carried by `VR_Carry_Handtouch` go to the fist test too (the listen server's own
+  player, with the fist push below; others as before).
+- `vr_box3d.cpp` syncHands: your hands' push bodies for solid props are the drawn fist's spheres (the grab's, turned
+  with the hand), made again only when the fist changes.
+
+Taken at -0.13 cm (the fist touching its face); pushed with the fist 0.23 cm into it (the contact's slop). Settings:
+Carrying, "Explosive Boxes by the Fist"; Throwing and Physics, "Push Boxes With the Fist" (off: the old sphere).
+
+Melee eval canary: 48/53, 0 differences. Smoke (e1m1, vrfiringrange): clean.
+
+### Test in VR
+
+- [ ] Hold a health box, an ammo box, a gib, a small explosive box in either hand (grabbed and force-grabbed): turn and
+      move the hand in the open. It follows the controller (only the weight's lag), never pushed about.
+- [ ] Hold one in one hand and press the empty hand into it: the hand stops on it (the fingers rest on it), and passes
+      through only when pushed about 20 cm in.
+- [ ] Reach for an explosive box: it's pushed where your fist touches it, and the grip takes it only when the fist is on
+      it, not a hand's width away.

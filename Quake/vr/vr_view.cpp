@@ -36,6 +36,7 @@
 #include "vr_main.hpp"
 #include "vr_mem.hpp"
 #include "vr_modelcollide.hpp"
+#include "vr_handpose.hpp"
 #include "vr_selfcollide.hpp"
 #include "vr_posing.hpp"
 #include "vr_sightalign.hpp"
@@ -1827,14 +1828,29 @@ void pushOut(const hands::State& s, int hand, bool free, glm::vec3& pos, const g
     rh.pushedTime = now;
     rh.brushEnt = nullptr;
     glm::vec3 target{0.f};
-    const float most = std::fmax(vr_hand_collide.value, 0.f) * 0.01f * units::metresToUnits();
+    // The other hand's weapon, or the prop it holds alone (as drawn there this frame: held.cpp placed it, moved with
+    // that hand by what stops it), as far as vr_hand_collide_props. A prop held in both hands is theirs; the prop this
+    // hand holds is never tested (not free).
+    float most = std::fmax(vr_hand_collide.value, 0.f) * 0.01f * units::metresToUnits();
     const view::ViewEntity& other = entities.weapon[1 - hand];
     const int slot = weapons::slotForModel(other.ent.model);
-    if(free && most > 0.f && other.visible && slot >= 0 && slot != weapons::fistSlot() && handrig::usable(viewModel(handrig::modelName)))
+    const entity_t* against = nullptr;
+    bool againstMirrored = false;
+    if(other.visible && slot >= 0 && slot != weapons::fistSlot())
     {
-        if(const grasp::Shape* shape = grasp::shapeOf(other.ent, other.ent.frame))
+        against = &other.ent;
+        againstMirrored = other.mirrored;
+    }
+    else if(const int prop = held::heldAlone(1 - hand))
+    {
+        against = &cl_entities[prop];
+        most = std::fmax(vr_hand_collide_props.value, 0.f) * 0.01f * units::metresToUnits();
+    }
+    if(free && most > 0.f && against && handrig::usable(viewModel(handrig::modelName)))
+    {
+        if(const grasp::Shape* shape = grasp::shapeOf(*against, against->frame))
         {
-            const glm::mat4 toWorld = grasp::shapeToWorld(other.ent, other.mirrored);
+            const glm::mat4 toWorld = grasp::shapeToWorld(*against, againstMirrored);
             const glm::mat4 rig = rigPlacement(hand, pos, handRot, mirrored, nullptr);
             const float unit = glm::length(glm::vec3{rig[0]});
             // The palm's middle, the knuckles, and the tips of the fingers stuck in it last frame (the hand as posed).
@@ -1874,8 +1890,8 @@ void pushOut(const hands::State& s, int hand, bool free, glm::vec3& pos, const g
             bool in = false;
             if(vr_hand_collide_fingers.value && give > 0.f && grasp::surfaceDistance(*shape, toWorld, palm, brushReach * unit, at, in) >= 0.f)
             {
-                rh.brushEnt = &other.ent;
-                rh.brushMirrored = other.mirrored;
+                rh.brushEnt = against;
+                rh.brushMirrored = againstMirrored;
             }
         }
     }
@@ -4750,6 +4766,35 @@ static selfcollide::Drawn selfCollideDrawn(const hands::State& s)
     return d;
 }
 
+// vr_debug_hand_offset: each hand as drawn (`s`, after the view's pushes) against where it is tracked, and the parts: the
+// walls (handpose: the hand and what it holds), the rest of the game's (the two-handed grip, the weight's spring), a knock
+// or a tired shake, the models (and a prop in the other hand pressing its weapon), the body, a held prop's meet or wall
+// push, and a free hand held out of the other hand's weapon or prop (vr_hand_collide, last frame's).
+static void debugHandOffsets(const hands::State& s, const glm::vec3 knock[2], const glm::vec3 shake[2])
+{
+    for(int hand = 0; hand < 2; hand++)
+    {
+        glm::vec3 heldOff{0.f};
+        const int prop = held::heldAlone(hand, &heldOff);
+        const glm::vec3 other = rigHands[hand].pushed;
+        const glm::vec3 total = s.pos[hand] + heldOff + other - s.unresolvedPos[hand];
+        if(vr_debug_hand_offset.value < 2.f && glm::length(total) < 0.01f)
+        {
+            continue;
+        }
+        const glm::vec3 walls = handpose::wallPush(hand);
+        const glm::vec3 models = modelcollide::drawnOffset(hand);
+        const glm::vec3 body = selfcollide::drawnOffset(hand);
+        const glm::vec3 look = knock[hand] + shake[hand];
+        const glm::vec3 game = s.pos[hand] - s.unresolvedPos[hand] - models - body - look - walls;
+        Con_Printf("handoffset %s: t %.3f total %.3f; walls %.3f, grip/weight %.3f, knock %.3f, models %.3f, body %.3f, "
+                   "held %.3f, other hand's %.3f; holding %d (hand %.1f %.1f %.1f)\n",
+            hand == HAND_MAIN ? "main" : "off", cl.time, glm::length(total), glm::length(walls), glm::length(game),
+            glm::length(look), glm::length(models), glm::length(body), glm::length(heldOff), glm::length(other), prop ? prop : held::heldEntity(hand),
+            s.pos[hand].x, s.pos[hand].y, s.pos[hand].z);
+    }
+}
+
 extern "C" void VR_SetupViewEntities()
 {
     QVR_PROFILE("view entities");
@@ -4812,6 +4857,13 @@ extern "C" void VR_SetupViewEntities()
         modelcollide::beginView(s);
         // And out of each other, the arms, the gadget and the body (vr_body_collide): drawn only, as above.
         selfcollide::beginView(s);
+    }
+
+    // vr_debug_hand_offset: each hand drawn away from where it is tracked, and by what (tests: a held prop never pushes
+    // its own hand).
+    if(vr_debug_hand_offset.value && s.valid && !posingNow)
+    {
+        debugHandOffsets(s, knockPos, shakePos);
     }
 
     updatePalmPoints(s);

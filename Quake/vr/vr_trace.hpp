@@ -20,9 +20,12 @@ namespace qvr::worldtrace
 // A line through the world's geometry and, with `brushEntities`, the moving brush models the
 // client has (lifts, doors, platforms; not rotated), from the client's own data: works without
 // the local server; with `ownFiles` also those whose models are files of their own (a func_wall of
-// maps/vr_proptable.bsp: the firing range's prop table). `line` is how far along the world alone
-// it gets, 0..1.
-[[nodiscard]] trace_t world(const glm::vec3& start, const glm::vec3& end, bool brushEntities = true, bool ownFiles = false);
+// maps/vr_proptable.bsp: the firing range's prop table), but never the entities `skipA` and
+// `skipB` (the props the hands hold: a held explosive box is a model of its own file, and a line
+// from the hand to its corners met the box itself). `line` is how far along the world alone it
+// gets, 0..1.
+[[nodiscard]] trace_t world(const glm::vec3& start, const glm::vec3& end, bool brushEntities = true, bool ownFiles = false,
+    int skipA = 0, int skipB = 0);
 [[nodiscard]] float line(const glm::vec3& start, const glm::vec3& end);
 
 // Whether the player's box (Quake's hull 1) moves from `start` to `end` through the world's

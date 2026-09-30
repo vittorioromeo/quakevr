@@ -53,6 +53,7 @@ struct HandMemory
 
 HandMemory memory[2];
 bool colliding[2]{false, false};
+glm::vec3 wallPushes[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // how far resolvePositions moved each hand (vr_debug_hand_offset)
 double lastTime = -1.0;
 float frameDt = 0.f;
 bool newFrame = false; // the hands may be recomputed within a frame: the weight's spring advances once
@@ -399,6 +400,7 @@ void resolvePositions(hands::State& s, float /* turnYaw */)
             pos = torso + glm::normalize(pos - torso) * maxReach;
         }
 
+        wallPushes[h] = pos - s.pos[h];
         s.pos[h] = pos;
         m.lastPos = pos;
         m.valid = true;
@@ -420,6 +422,11 @@ void weightDirections(hands::State& s, float turnYaw)
 bool gunColliding(int hand)
 {
     return colliding[hand];
+}
+
+glm::vec3 wallPush(int hand)
+{
+    return hand == 0 || hand == 1 ? wallPushes[hand] : glm::vec3{0.f};
 }
 
 void reset()

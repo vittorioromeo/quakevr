@@ -103,9 +103,33 @@ constexpr float easyHandTouchBonus = 4.5f;
 // Whether `player`'s hand `which` touches `target`: an object that can be carried or pulled by its fist against the
 // thing's drawn surface (held::grabTouch: the palm and the curled fingers, not a point ahead of the hand); anything else
 // by the hand's box against the entity's box (and the easy-touch bonus).
+// A thing a hand carries (VR_Carry_Setup's hand touch) that can't be force-grabbed: the explosive boxes.
+[[nodiscard]] bool carried(edict_t* target)
+{
+    const func_t carry = bindings().Carry_Handtouch;
+    return carry && fieldFunc(target, f().handtouch) == carry;
+}
+
+// vr_debug_carry 2: a hand's box touching a carried thing (the old test, vr_carry_grab_drawn 0): how far its fist is
+// from the thing's drawn surface.
+void debugBoxTouch(edict_t* target, edict_t* player, int which)
+{
+    const int hand = which == HAND_OFF ? 0 : 1;
+    std::vector<glm::vec4> spheres;
+    held::fistInWorld(hand, fieldVec(player, hand == 0 ? f().offhandpos : f().handpos),
+        fieldVec(player, hand == 0 ? f().offhandrot : f().handrot), spheres);
+    held::FistContact c;
+    const bool found = held::fistContact(target, spheres, 64.f, c);
+    Con_Printf("grab: %s hand, %s: the hand's box touches its box; the fist %.2f cm from its surface\n",
+        hand == 0 ? "off" : "main", PR_GetString(target->v.classname), found ? c.gap / units::metresToUnits() * 100.f : 999.f);
+}
+
 [[nodiscard]] bool handOn(edict_t* target, edict_t* player, int which)
 {
-    if(hasFlag(target, physics::FL_FORCEGRABBABLE))
+    // (An explosive box by the fist only where the fist also pushes it, vr_box3d_hand_push_fist: the listen server's own
+    // player. Another player's hand still pushes with the sphere at its point, which keeps the box off its fist.)
+    const bool byFist = vr_carry_grab_drawn.value && vr_box3d_hand_push_fist.value && NUM_FOR_EDICT(player) == 1;
+    if(hasFlag(target, physics::FL_FORCEGRABBABLE) || (byFist && carried(target)))
     {
         return held::grabTouch(target, player, which == HAND_OFF ? 0 : 1);
     }
@@ -113,8 +137,13 @@ constexpr float easyHandTouchBonus = 4.5f;
     const glm::vec3 extent{handHalfSize};
     const glm::vec3 bonus{handTouchBonus(target)};
     const glm::vec3 origin = vec(target->v.origin);
-    return boxesOverlap(hand - extent, hand + extent, origin + vec(target->v.mins) - bonus,
+    const bool on = boxesOverlap(hand - extent, hand + extent, origin + vec(target->v.mins) - bonus,
         origin + vec(target->v.maxs) + bonus);
+    if(on && vr_debug_carry.value >= 2.f && carried(target))
+    {
+        debugBoxTouch(target, player, which);
+    }
+    return on;
 }
 
 [[nodiscard]] glm::vec3 forwardFromAngles(const glm::vec3& angles)

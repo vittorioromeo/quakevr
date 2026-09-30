@@ -116,6 +116,9 @@ void setFist(int hand, const std::vector<glm::vec4>& spheres);
 // The fist of `hand` (0 off, 1 main) at (`pos`, `angles`) in the world (empty if not known).
 void fistInWorld(int hand, const glm::vec3& pos, const glm::vec3& angles, std::vector<glm::vec4>& out);
 
+// The fist of `hand` (setFist's: the hand's frame, world units; empty: not known).
+[[nodiscard]] const std::vector<glm::vec4>& fist(int hand);
+
 // What a fist found against a thing's drawn surface: the least gap (units) from a sphere of it to the surface (negative:
 // sunk in), that sphere's middle and the surface's nearest point to it.
 struct FistContact

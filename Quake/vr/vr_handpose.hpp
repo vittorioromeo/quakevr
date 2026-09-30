@@ -17,6 +17,9 @@ void weightDirections(hands::State& s, float turnYaw);
 // Whether the weapon in `hand` is pushed back by a wall (no two-handed grip then).
 [[nodiscard]] bool gunColliding(int hand);
 
+// How far this frame's resolvePositions moved `hand` (out of the walls, with what it holds; vr_debug_hand_offset).
+[[nodiscard]] glm::vec3 wallPush(int hand);
+
 void reset();
 
 } // namespace qvr::handpose
