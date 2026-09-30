@@ -616,17 +616,27 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("How far the cord must be pulled out for a pull (the handle taken in the other, empty, hand's grip)."),
         slider("Cord Pull Speed", vr_chainsaw_pull_speed, 0.3f, 4.f, 0.1f, "%.1f m/s").extend()
             .help("How fast the hand must pull it there: a slower pull is only a weak one, and never starts it."),
-        header("Grunts' Shotguns"),
-        slider("Pellet Damage", vr_gruntgun_damage, 1.f, 20.f, 1.f, "%.0f").extend()
-            .help("Grunts always drop their shotgun: it fires as yours, six pellets a shot, each this much damage (yours: "
-                  "4; a grunt has 30 health)."),
-        slider("Shells", vr_gruntgun_ammo, 1.f, 50.f, 1.f, "%.0f").extend()
-            .help("The shells in a dropped shotgun: its own, never refilled (shell boxes fill your shotguns, not it). "
-                  "Empty, it is still a club, or drop it."),
+        header("Grunts' Burst Rifles"),
+        toggle("Burst Rifles", vr_grunt_burst)
+            .help("On: grunts fire 3-round bursts of single bullets, tighter than a shotgun's pellets, and the gun a "
+                  "grunt drops fires the same bursts. Off: id's shotgun, the grunts' and the dropped guns' (six "
+                  "pellets as yours, a shell a shot: a third of Rounds)."),
+        slider("Grunts' Round Damage", vr_grunt_burst_damage, 1.f, 16.f, 1.f, "%.0f").extend()
+            .help("A grunt's burst: each round's damage to you (5: about the shotgun's damage over time; its 4 pellets "
+                  "did 4 each)."),
+        slider("Round Damage", vr_gruntgun_damage, 1.f, 30.f, 1.f, "%.0f").extend()
+            .help("Grunts always drop their gun: a trigger pull fires a 3-round burst, each round this much damage (a "
+                  "head more; a grunt has 30 health)."),
+        slider("Rounds", vr_gruntgun_ammo, 3.f, 90.f, 3.f, "%.0f").extend()
+            .help("The rounds in a dropped burst rifle, in threes (a burst's): its own, never refilled (shell boxes "
+                  "fill your shotguns, not it). Empty, it is still a club, or drop it."),
         header("Enforcers' Laser Rifles"),
         slider("Laser Damage", vr_enfrifle_damage, 1.f, 60.f, 1.f, "%.0f").extend()
             .help("Enforcers always drop their laser rifle: it fires the enforcer's laser, this much damage a shot (the "
-                  "enforcer's: 15)."),
+                  "enforcer's: 15). As your nails, it strikes corpses, gibs, props and breakables too."),
+        slider("Laser Speed", vr_enfrifle_speed, 600.f, 4000.f, 100.f, "%.0f u/s").extend()
+            .help("How fast a dropped rifle's lasers fly, in units a second (the enforcer's own: 600; your nails: "
+                  "1750)."),
         slider("Shots", vr_enfrifle_ammo, 1.f, 80.f, 1.f, "%.0f").extend()
             .help("The shots in a dropped rifle: its own, never refilled (cells don't). Empty, it is still a club."),
     };
@@ -2231,12 +2241,12 @@ std::vector<Item> pageDebugTests()
             .help("vr_chainsaw_fit: with the chainsaw in the main hand, prints where the off hand must move to take its "
                   "cord and each of its hotspots (two, on the front handle), and how many it has."),
         header("Enemy Guns"),
-        command("A Grunt's Shotgun in Your Hand", "impulse 165")
-            .help("A full grunt's shotgun (Enemy Weapons: Shells) in the main hand (impulse 185: the off hand)."),
+        command("A Grunt's Gun in Your Hand", "impulse 165")
+            .help("A full grunt's burst rifle (Enemy Weapons: Rounds) in the main hand (impulse 185: the off hand)."),
         command("An Enforcer's Rifle in Your Hand", "impulse 166")
             .help("A full enforcer's laser rifle (Enemy Weapons: Shots) in the main hand (impulse 186: the off hand)."),
         command("Take the Nearest Enemy Gun", "impulse 212")
-            .help("The grunt's shotgun or enforcer's rifle lying nearest you (dropped) into an empty hand, its ammo as it "
+            .help("The grunt's gun or enforcer's rifle lying nearest you (dropped) into an empty hand, its ammo as it "
                   "was."),
         command("Report the Enemy Guns", "impulse 213").help("Prints each enemy gun in your hands and its ammo."),
         command("One Shot Left", "impulse 214").help("The enemy guns in your hands left with one shot: to see one run dry."),

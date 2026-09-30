@@ -993,7 +993,7 @@ prints each in your hands with its ammo and your shell and cell pools, `214` lea
 or `8` (an enforcer) with `vr_test_spawn_dead 1` and `impulse 241` drops one (`developer 1` prints "the shotgun (86
 vertices) hidden in 21 death frames", "the laser rifle (58 vertices) hidden in 25 death frames"); `vr_debug_shots 1`
 prints each shot ("grunt's shotgun fired: hand 1, 9 left") and each empty click. Level mock hands for aimed shots:
-`vr_mock_hand main 0.25 1.20 -0.40 70 0 0`. `Misc/quakevr/make_enemyguns.py` makes the models (`check_mdl_holes.py`
+`vr_mock_hand main 0.25 1.20 -0.40 70 0 0`. The grunts' burst rifles and the rifle's lasers (ROUND21.md, "The grunts' burst rifles; the enforcer rifle's faster lasers"): `vr_debug_shots 1` prints each burst round and each rifle laser (fired: its speed; what it hit, its damage); `vr_hull_hittest <distance> <spread>` gives a spread's share of hits on you; `hullhit/hit_test.sh <worktree> 2160 "0:256" 24` a grunt's damage to you in 30 s (`vr_grunt_burst 0`: the shotgun's). `Misc/quakevr/make_enemyguns.py` makes the models (`check_mdl_holes.py`
 checks them).
 `vr_mock_camera <x> <y> <z> <pitch> <yaw>` draws the mock eyes from elsewhere in the tracking space (a spectator's view of
 your body; the hands stay with the head), `vr_mock_camera` alone puts them back.
