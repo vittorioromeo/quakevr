@@ -11,24 +11,10 @@
 #include <mutex>
 #include <vector>
 
-#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
-#include <immintrin.h>
-#endif
-
 namespace qvr::jobs
 {
 namespace
 {
-
-// A spin-wait's pause (Zancle's ZA_CPU_RELAX is empty on MSVC: see ROUND21.md, "Zancle proposals").
-inline void relax()
-{
-#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
-    _mm_pause();
-#else
-    ZA_CPU_RELAX();
-#endif
-}
 
 struct Counters
 {
@@ -265,7 +251,7 @@ void Pool::parallelFor(std::size_t count, std::size_t chunk, FunctionRef<void(st
     {
         if(spin < 2048)
         {
-            relax();
+            ZA_CPU_RELAX();
             g = l->gate.load(std::memory_order_acquire);
         }
         else

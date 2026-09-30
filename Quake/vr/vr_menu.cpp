@@ -1977,6 +1977,23 @@ std::vector<Item> pageDebugProfiling()
             .help("vr_profile_report: the last 5 seconds' table in the console (in qconsole.log with -condebug)."),
         command("Dump Profile", "vr_profile_dump")
             .help("vr_profile_dump: Performance Profile's report now, in the console and its CSV (quakevr/profile/profile_<map>_...)."),
+        header("Threads"),
+        toggle("Split Work Between Threads", vr_jobs_parallel)
+            .help("The game's thread pool shares out the grasp solve, the liquids' volume, the decal atlas and the models' "
+                  "occlusion bakes. Off: the calling thread does all of it (the same results, slower: to compare)."),
+        cycle("Worker Threads", vr_jobs_threads, {{0.f, "Auto"}, {1.f, "1"}, {2.f, "2"}, {3.f, "3"}, {4.f, "4"}, {8.f, "8"}, {16.f, "16"}})
+            .help("The thread pool's workers besides the main thread (Auto: the CPU's threads less one). Changed, the pool is "
+                  "made again. -jobs <n> on the command line sets it from the start."),
+        command("Thread Pool Info", "vr_jobs_info")
+            .help("vr_jobs_info: the pool's workers and what it has run (tasks, loops, the chunks each side took)."),
+        command("Thread Pool Self-Test", "vr_jobs_test")
+            .help("vr_jobs_test: the pool's checks (start and stop, every item once, the main thread helping, busy workers, "
+                  "exceptions, nested waits, the same results whatever the threads), a line each (under a second)."),
+        command("Grasp Bench", "vr_grasp_bench")
+            .help("vr_grasp_bench: each hand's grasp solve on what it holds, timed (afresh, and again 1000 times)."),
+        command("Grasp Sweep", "vr_grasp_sweep 5")
+            .help("vr_grasp_sweep: each hand's grasp solved every way at 7 places, each on the pool and on one thread (the "
+                  "same, to the last bit?), and the afresh solve timed both ways. Long output."),
         header("Memory"),
         cycle("Memory Log", "vr_memstats_log", {{0.f, "Off"}, {30.f, "Every 30 s"}, {60.f, "Every minute"}, {300.f, "Every 5 minutes"}})
             .help("Write memory use and the frame rate to quakevr/profile/memstats_<date>.csv, and after each map load."),

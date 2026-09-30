@@ -19,6 +19,7 @@
 #include "vr_emissive.hpp"
 #include "vr_fatigue.hpp"
 #include "vr_hands.hpp"
+#include "vr_jobs.hpp"
 #include "vr_handrig.hpp"
 #include "vr_grasp.hpp"
 #include "vr_grip.hpp"
@@ -5272,7 +5273,7 @@ void graspBench_f()
 void graspSweep_f()
 {
     const int runs = Cmd_Argc() > 1 ? CLAMP(1, Q_atoi(Cmd_Argv(1)), 10000) : 20;
-    const auto line = [](int hand, const char* model, int variant, int place, const grasp::Solution& s) {
+    const auto text = [](int hand, const char* model, int variant, int place, const grasp::Solution& s) {
         std::string t = va("gsweep h%d %s v%d p%d palm %.9g %.9g %.9g turn %.9g %.9g %.9g %.9g thumb %d %.9g %.9g %.9g %.9g",
             hand, model, variant, place, s.palm.x, s.palm.y, s.palm.z, s.palmTurn.w, s.palmTurn.x, s.palmTurn.y,
             s.palmTurn.z, s.thumbChoice, s.thumbTurn.w, s.thumbTurn.x, s.thumbTurn.y, s.thumbTurn.z);
@@ -5283,7 +5284,7 @@ void graspSweep_f()
                 st.fromClosed ? 1 : 0, st.leastInside ? 1 : 0);
         }
         t += va(" probes %d places %d\n", s.probes, s.places);
-        Con_Printf("%s", t.c_str());
+        return t;
     };
     for(int hand = 0; hand < 2; hand++)
     {
@@ -5299,7 +5300,9 @@ void graspSweep_f()
             continue;
         }
         const char* model = COM_SkipPath(rh.held.ent->model->name);
-        const glm::mat4 inRig = glm::inverse(rh.solveRig) * grasp::shapeToWorld(*rh.held.ent, rh.held.mirrored);
+        // Where it rests in the hand (its place from the settings: the same every run), else where it is now.
+        const glm::mat4 inRig = rh.held.canonical ? rh.held.canonicalInRig
+                                                  : glm::inverse(rh.solveRig) * grasp::shapeToWorld(*rh.held.ent, rh.held.mirrored);
         const grasp::Settings base = graspSettings(rh.held, rh.rigUnit);
 
         // The other hand as drawn, for the cup (as updateGrasp makes it).
@@ -5324,7 +5327,8 @@ void graspSweep_f()
             glm::rotate(glm::mat4{1.f}, glm::radians(4.f), glm::vec3{1.f, 0.f, 0.f}),
             glm::rotate(glm::mat4{1.f}, glm::radians(4.f), glm::vec3{0.f, 0.f, 1.f}),
             glm::rotate(glm::translate(glm::mat4{1.f}, glm::vec3{-0.3f, -0.2f, 0.2f}), glm::radians(-4.f), glm::vec3{0.f, 1.f, 0.f})};
-        int solves = 0;
+        int solves = 0, identical = 0;
+        float maxDiff = 0.f;
         for(int p = 0; p < 7; p++)
         {
             const glm::mat4 m = places[p] * inRig;
@@ -5374,22 +5378,56 @@ void graspSweep_f()
                 {
                     first = out;
                 }
-                line(hand, model, v, p, out);
+                const std::string printed = text(hand, model, v, p, out);
+                Con_Printf("%s", printed.c_str());
                 solves++;
+                // Solved again on this thread alone (vr_jobs_parallel 0): the same, to the last bit?
+                jobs::setParallel(!jobs::parallel());
+                grasp::forgetSolves();
+                grasp::Solution other;
+                grasp::solve(rh.pose, *shape, m, s, previous, other, extra, glm::mat4{1.f}, extra ? 0.1f : 0.f);
+                jobs::setParallel(!jobs::parallel());
+                identical += text(hand, model, v, p, other) == printed ? 1 : 0;
+                for(int f = 0; f < handrig::FingerCount; f++)
+                {
+                    for(int j = 0; j < handrig::jointsPerFinger; j++)
+                    {
+                        maxDiff = std::fmax(maxDiff, std::fabs(other.finger[f].stop[j] - out.finger[f].stop[j]));
+                    }
+                }
             }
         }
-        std::vector<double> ms;
-        for(int i = 0; i < runs; i++)
+        // The afresh solve as held timed on the pool's threads and on this one alone.
+        const bool was = jobs::parallel();
+        double median[2]{}, least[2]{};
+        const jobs::Stats before = jobs::stats();
+        jobs::Stats after;
+        for(int mode = 0; mode < 2; mode++)
         {
-            grasp::forgetSolves();
-            grasp::Solution out;
-            const auto t0 = std::chrono::steady_clock::now();
-            grasp::solve(rh.pose, *shape, inRig, base, nullptr, out);
-            ms.push_back(std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count() * 1e3);
+            if(mode == 1)
+            {
+                after = jobs::stats();
+            }
+            jobs::setParallel(mode == 0);
+            std::vector<double> ms;
+            for(int i = 0; i < runs; i++)
+            {
+                grasp::forgetSolves();
+                grasp::Solution out;
+                const auto t0 = std::chrono::steady_clock::now();
+                grasp::solve(rh.pose, *shape, inRig, base, nullptr, out);
+                ms.push_back(std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count() * 1e3);
+            }
+            std::sort(ms.begin(), ms.end());
+            median[mode] = ms[ms.size() / 2];
+            least[mode] = ms.front();
         }
-        std::sort(ms.begin(), ms.end());
-        Con_Printf("gsweep time h%d %s: %d solves; afresh as held, %d times: min %.3f ms, median %.3f ms\n", hand, model,
-            solves, runs, ms.front(), ms[ms.size() / 2]);
+        jobs::setParallel(was);
+        Con_Printf("gsweep time h%d %s: %d solves (%d the same on one thread, largest curl difference %g); afresh as held, "
+                   "%d times: pool (%d workers; the caller ran %zu chunks, helpers %zu, %zu called off) min %.3f median %.3f ms, one thread min %.3f median %.3f ms\n",
+            hand, model, solves, identical, maxDiff, runs, jobs::workers(), after.chunksCaller - before.chunksCaller,
+            after.chunksHelpers - before.chunksHelpers, after.helpersCalledOff - before.helpersCalledOff, least[0], median[0],
+            least[1], median[1]);
     }
 }
 
