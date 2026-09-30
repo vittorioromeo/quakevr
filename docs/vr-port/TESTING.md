@@ -141,6 +141,10 @@ context and screenshot, ready to paste or to point me at.
 ## What to try
 
 - **New in this round** (details in `docs/vr-port/ROUND21.md`; each section ends with an "In the headset" list):
+  - **The crowbar** (ROUND21.md, same title): one lies in the firing range's prop area, north of the chainsaw. Hold it
+    as a sword: by its black tape, one hand or two (the other hand below the first, or on the bar above the hands,
+    sliding along it short of the hook). Its blows are blunt, the hook's hardest; its chisel end jabs as a pommel does;
+    it parries. Combat > Melee > Crowbar Damage; Debug > Tests > Crowbar.
   - **The ogres' chainsaw** (ROUND21.md, same title): every ogre drops its chainsaw. Hold it by its rear handle, the
     other hand on its front handle (heavy, two-handed). Start it: grab the T-handle on its top with the empty hand and
     yank the cord up and away (a slow pull never starts it; a good one starts it half the time). The trigger runs the
@@ -986,6 +990,19 @@ where the first good pull may start it. Mjolnir in water (ROUND21.md, "Prop size
 defaults"): `impulse 153` with `vr_weapon_grip_mode 1`, then `impulse 215` strikes its lightning (15 cells) as a blow
 does. Prop size: `vr_prop_size_NN` (the prop's slot; `vr_prop_id_NN <model>` gives a free one to a model), then
 `vr_debug_box3d 1; vr_physics_list <classname>` prints `size x`, the body's box, the entity box and the drawn scale.
+The crowbar (ROUND21.md, "The crowbar"): `impulse 167` puts one in the main hand (187: the off hand; hold the grip:
+`+grabright; vr_mock_button main grip 1`, or `vr_weapon_grip_mode 1`), `impulse 217` drops one 48 units ahead, `216`
+takes the one lying nearest into an empty hand (the grip held), `218` prints each lying about and whether your hands
+hold one. `vr_hotspot_fit` (any weapon in the main hand) prints where the hand and the fist are on its model and where
+the off hand must move to take each hotspot, in `vr_mock_hand` metres (with the main hand at `0.15 1.2 -0.45 -20 0 0`
+and the off hand at `-0.1 1.0 -0.3`, the grip below the hand is at `vr_mock_hand off 0.142 1.25 -0.36`, the bar
+from `0.135 1.17 -0.56` to `0.13 1.113 -0.70`); `vr_debug_2h_grip 1` prints each grip taken ("took the grip below the
+hand", "took the blade"), 2 also how far along the bar the other hand holds it. Synthetic swings: `motion_synth.py
+slash_horizontal_rtl --weapon crowbar --distance 0.85` (the sword presets, the crowbar in hand; it is shorter: stand
+closer), played with `vr_motion_play <take>` in the firing range (`developer 1`: "Dummy: 23.6 damage - melee: Crowbar,
+strike (horizontal) with the bar"). Parry: `god; notarget`, the crowbar held level across (`vr_mock_hand main 0.15 1.35
+-0.35 0 90 0`), `impulse 248` (a knight ahead), `impulse 242` (it strikes): "parry: monster_knight with hand 1".
+`Misc/quakevr/make_crowbar.py` makes the model (then `bake_normals.py v_crowbar.mdl`).
 Enemy guns (ROUND21.md, "Enemy weapons: the grunts' shotguns and the enforcers' laser rifles"): `impulse 165` puts a
 full grunt's shotgun in the main hand, `166` an enforcer's rifle (`185`, `186`: the off hand; with `vr_weapon_grip_mode 1`,
 or the mock's grip held, else it drops at once), `impulse 212` takes the one lying nearest into an empty hand, `213`

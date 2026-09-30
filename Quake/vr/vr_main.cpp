@@ -1100,6 +1100,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_hotspots_legacy", view::hotspotsLegacy_f);
     Cmd_AddCommand("vr_hotspots_check", view::hotspotsCheck_f);
     Cmd_AddCommand("vr_weapon_hotspot_here", view::hotspotHere_f);
+    Cmd_AddCommand("vr_hotspot_fit", view::hotspotFit_f);
     anchor::registerCommands();
     Cmd_AddCommand("vr_decal_count", decals::count_f);
     Cmd_AddCommand("vr_limits", limits::command_f);

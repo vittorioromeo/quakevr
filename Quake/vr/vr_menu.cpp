@@ -2124,9 +2124,10 @@ std::vector<Item> pageDebugLogging()
         toggle("Heavy Weapon Wrenched Out", vr_debug_weight_drop)
             .help("Twice a second, each hand's fastest turn against its heavy weapon's limit (above half of it), and each "
                   "weapon wrenched out (Weapon Weights: Wrenched Out)."),
-        toggle("Two-Handed Grip Let Go", vr_debug_2h_grip)
-            .help("Why the helping hand let go of a weapon (the check, its number and limit) and the stickiness then "
-                  "(Aiming: 2H Grip Stickiness)."),
+        cycle("Two-Handed Grip", vr_debug_2h_grip, {{0.f, "Off"}, {1.f, "Taken and Let Go"}, {2.f, "And Where"}})
+            .help("Each grip the helping hand takes (a sword's or the crowbar's: below the hand or along the blade) and why "
+                  "it let go of a weapon (the check, its number and limit), the stickiness then (Aiming: 2H Grip "
+                  "Stickiness); And Where: also where the grip is from it, and how far along a blade it holds it."),
         toggle("Bot Chatter", vr_verbosebots).help("The bots' thoughts, with bots in the game."),
         header("Trace Files (game folder)"),
         cycle("Grasp Trace", vr_debug_grasp_trace, {{0.f, "Off"}, {1.f, "Main Hand"}, {2.f, "Off Hand"}, {3.f, "Both Hands"}})
@@ -2331,6 +2332,16 @@ std::vector<Item> pageDebugTests()
         command("Chainsaw Fit", "vr_chainsaw_fit")
             .help("vr_chainsaw_fit: with the chainsaw in the main hand, prints where the off hand must move to take its "
                   "cord and each of its hotspots (two, on the front handle), and how many it has."),
+        header("Crowbar"),
+        command("A Crowbar in Your Hand", "impulse 167").help("A crowbar in the main hand (impulse 187: the off hand)."),
+        command("Drop a Crowbar Ahead", "impulse 217")
+            .help("A crowbar dropped 48 units ahead of you, as a crate or a map places one (QC VR_Crowbar_Spawn), then the "
+                  "report below."),
+        command("Take the Nearest Crowbar", "impulse 216").help("The crowbar lying nearest you into an empty hand."),
+        command("Report the Crowbars", "impulse 218").help("Prints each crowbar lying about and whether your hands hold one."),
+        command("Hotspot Fit", "vr_hotspot_fit")
+            .help("vr_hotspot_fit: the weapon in the main hand (any): where the hand and the fist are on its model, its "
+                  "tip's distance, and where the off hand must move to take each hotspot (a blade: its ends and middle)."),
         header("Enemy Guns"),
         command("A Grunt's Gun in Your Hand", "impulse 165")
             .help("A full grunt's burst rifle (Enemy Weapons: Rounds) in the main hand (impulse 185: the off hand)."),
@@ -3601,6 +3612,9 @@ std::vector<Item> pageWeaponOffsets()
         {
             list.push_back(slider("Along the Blade", hk(1), 0.f, 1.f, 0.01f, "%.2f")
                                .help("Where on the blade the grip is centred: a share of the way from the hand to the tip."));
+            list.push_back(slider("Blade Grip Ends At", hk(2), 0.f, 1.05f, 0.01f, "%.2f")
+                               .help("How far towards the tip the hand may hold it and slide along it: a share of the way "
+                                     "from the hand to the tip (0: just past the tip). The crowbar's ends short of its hook."));
         }
         else
         {

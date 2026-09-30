@@ -126,6 +126,14 @@
   "sha256": "103ba10809078841332c0df93d5bdf85a0b07adca91a18b9677a6d023245e828",
   "by": "bake_normals.py"
  },
+ "quakevr/progs/v_crowbar.mdl": {
+  "sha256": "a0e654b1d573bd22211eda81b77f2f34a3a52a2df2c58306bcdc1520a30f8ba2",
+  "by": "make_crowbar.py"
+ },
+ "quakevr/progs/v_crowbar.mdl_0_norm.png": {
+  "sha256": "96abf37fadc99300da3c9f3e0d32d87116732fbf12fcfce91aafde68b9daeb77",
+  "by": "bake_normals.py"
+ },
  "quakevr/progs/v_enfrifle.mdl": {
   "sha256": "5cd7e764f69bf32ab5b37e2654d1193313f0170dee020664ef9939ad2c2013a9",
   "by": "make_enemyguns.py"

@@ -139,9 +139,10 @@ namespace
 // laser cannon and the chainsaw: 15 kg, stiffness, damping, sag; the cannon's balance), each key only where the config
 // still held its old default (weightMigration). 27: slot 20's hotspots (the author, 2026-09-30: two, both on the front
 // handle; his rear-handle one removed): only its hotspots' keys (resetHotspots). 28: slots 21 and 22 (the grunts' shotgun
-// and the enforcers' laser rifle, Misc/quakevr/make_enemyguns.py; unused placeholders before). A first start (no saved config) takes this
+// and the enforcers' laser rifle, Misc/quakevr/make_enemyguns.py; unused placeholders before). 29: slot 23 (the crowbar,
+// Misc/quakevr/make_crowbar.py; an unused placeholder before). A first start (no saved config) takes this
 // version as it is: its settings are these defaults (markCurrent).
-constexpr int settingsVersion = 28;
+constexpr int settingsVersion = 29;
 
 // Slots whose hotspots the view is to derive from the config's two-handed grip keys (round 21).
 bool hotspotMigration[numSlots]{};
@@ -422,6 +423,10 @@ void migrate()
         resetSlot(21);
         resetSlot(22);
     }
+    if(vr_wofs_version.value < 29) // the crowbar (an unused placeholder before)
+    {
+        resetSlot(23);
+    }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }
 
@@ -580,6 +585,10 @@ void markCurrent()
         resetSlot(21);
         resetSlot(22);
     }
+    if(vr_wofs_version.value < 29) // the crowbar (as migrate)
+    {
+        resetSlot(23);
+    }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }
 
@@ -659,6 +668,16 @@ Key hotspotKey(int index, int field)
         return static_cast<Key>(static_cast<int>(Key::Hotspot1Manual) + 7 * index + (field - 16));
     }
     return static_cast<Key>(static_cast<int>(Key::Hotspot1Sticky) + index);
+}
+
+float bladeFrom(const Hotspot& h)
+{
+    return std::max(0.3f, h.pos.x - 0.3f);
+}
+
+float bladeTo(const Hotspot& h)
+{
+    return h.pos.y > 0.f ? std::max(bladeFrom(h), h.pos.y) : 1.05f;
 }
 
 bool isGripType(HotspotType type)

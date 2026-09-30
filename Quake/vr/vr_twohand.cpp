@@ -273,12 +273,14 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     const float foreDist =
         s.grip2HValid[holding] ? glm::distance(s.grip2HPalm[holding] ? hands::palmPoint(s, helping) : s.pos[helping], s.grip2H[holding]) - s.grip2HBias[holding] : 1e9f;
     // The blade's hotspot (round 21: its grip's middle, a share of the way from the hand to the tip; its bias).
-    float bladeAt = 0.f, bladeBias = 0.f, bladeSticky = 0.f;
+    float bladeAt = 0.f, bladeFrom = 0.f, bladeTo = 0.f, bladeBias = 0.f, bladeSticky = 0.f;
     for(int i = 0; i < weapons::maxHotspots; i++)
     {
         if(const weapons::Hotspot h = weapons::hotspot(slot, i); h.type == weapons::HotspotType::Blade)
         {
             bladeAt = h.pos.x;
+            bladeFrom = weapons::bladeFrom(h);
+            bladeTo = weapons::bladeTo(h);
             bladeBias = h.bias;
             bladeSticky = h.sticky;
             break;
@@ -289,8 +291,8 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     if(bladeAt > 0.f && length > 8.f)
     {
         const glm::vec3 toTip = s.muzzle[holding] - holdingPos;
-        bladeDist = segmentDistance(s.pos[helping], holdingPos + toTip * std::max(0.3f, bladeAt - 0.3f), holdingPos + toTip * 1.05f) -
-                    bladeBias;
+        bladeDist =
+            segmentDistance(s.pos[helping], holdingPos + toTip * bladeFrom, holdingPos + toTip * bladeTo) - bladeBias;
     }
 
     bool held = false;
@@ -353,6 +355,21 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     helpingHand[helping] = shouldAim[holding];
     transition(aimTransition[holding], shouldAim[holding], 5.f);
     stockTransition[holding] = 0.f;
+    if(vr_debug_2h_grip.value && !wasHeld && shouldAim[holding])
+    {
+        Con_Printf("2h grip: %s hand took the %s (%.1f units off it)\n", holding == HAND_MAIN ? "off" : "main",
+            grip[holding] == GRIP_BLADE ? "blade" : "grip below the hand",
+            grip[holding] == GRIP_BLADE ? bladeDist : foreDist);
+    }
+    if(vr_debug_2h_grip.value >= 2 && shouldAim[holding] && grip[holding] == GRIP_BLADE && length > 0.f &&
+        realtime >= debugPrintAt)
+    {
+        // Where along the blade the helping hand holds it: a share of the way from the holding hand to the tip.
+        const glm::vec3 toTip = s.muzzle[holding] - holdingPos;
+        Con_Printf("2h grip: on the blade at %.2f of the way to the tip\n",
+            glm::dot(s.pos[helping] - holdingPos, toTip) / glm::dot(toTip, toTip));
+        debugPrintAt = realtime + 0.25;
+    }
 
     const float t = aimTransition[holding];
     if(t <= 0.f)
@@ -595,9 +612,20 @@ bool bladeGripHand(const hands::State& s, int hand, const glm::vec3& holderPos, 
     const glm::vec3 gw = safeNormalize(hands::redirect(g, rot));
     rot = turnAngles(rot, gw, glm::dot(gw, d) >= 0.f ? d : -d);
 
-    // Slid onto the blade where it holds it, between the hilt and the tip.
+    // Slid onto the blade where it holds it, between the hilt and the tip (or where its Blade hotspot ends: the crowbar's
+    // short of its hook).
+    float end = 0.95f;
+    for(int i = 0; i < weapons::maxHotspots; i++)
+    {
+        if(const weapons::Hotspot h = weapons::hotspot(slot, i); h.type == weapons::HotspotType::Blade)
+        {
+            end = std::min(end, weapons::bladeTo(h));
+            break;
+        }
+    }
     const float hilt = glm::dot(holderPos - tip, d); // negative
-    const float along = std::clamp(glm::dot(pos - hands::redirect(o, rot) - tip, d), hilt * 0.75f, hilt * 0.05f);
+    const float along =
+        std::clamp(glm::dot(pos - hands::redirect(o, rot) - tip, d), hilt * 0.75f, hilt * (1.f - std::max(0.26f, end)));
     pos = tip + d * along + hands::redirect(o, rot);
     return true;
 }

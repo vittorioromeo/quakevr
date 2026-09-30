@@ -80,6 +80,11 @@ float VR_MELEE_FLOOR = 0.7;        // (a surface facing up: its normal's z at le
 float VR_MELEE_WALL_INTO = 0.25;   // and strikes a wall only going into it (cosine to its normal: a chop, not a reach grazing it)
 float VR_MELEE_POMMEL_SWORD = 0.6; // weights: a sword's pommel strike,
 float VR_MELEE_POMMEL_AXE = 0.5;   // an axe's or Mjolnir's handle's end,
+float VR_MELEE_POMMEL_CROWBAR = 0.6; // the crowbar's chisel end (a steel bar's end: as a sword's pommel),
+float VR_MELEE_CROWBAR_HOOK = 1.2;   // and its hook (the claw biting: the last points, VR_CROWBAR_HOOK_F on) over its bar
+float VR_CROWBAR_HOOK_F = 0.9;       // share of the way from the hand to the far end where the hook's points start
+float VR_CROWBAR_NEAR = 0.78;        // the chisel's tip below the hand, a share of the hand-to-far-end line (vr_hotspot_fit:
+                                     // the hand 29 cm up the bar, the far end 66)
 
 // The stance and the bash.
 float VR_BASH_AHEAD = 0.75;       // cosine: a push within ~41 degrees of the facing
@@ -118,6 +123,7 @@ float VR_MTHING_GUN = 3;   // a gun: blunt all along (held, or carried by its pu
 float VR_MTHING_NONE = 4;  // the empty hand steadying the other's weapon, a climbing hand: strikes nothing
 float VR_MTHING_CLUB = 5;  // a carried prop with a melee tip (Held Object Offsets: Tip; a wall torch): its head strikes
 float VR_MTHING_SAW = 6;   // the ogres' chainsaw (vr_chainsaw.qc): a melee weapon, its bar strikes as an axe's head
+float VR_MTHING_CROWBAR = 7; // the crowbar (vr_crowbar.qc): a steel bar, blunt all along past the hands, its hook at the end
 
 // Whether a hand holding `xThing` is armed: a weapon (a sword, an axe or Mjolnir, any gun) or a club (a carried prop
 // with a melee tip: a wall torch, a whole brick, a rock or a prop given a Tip in Held Object Offsets). Only an armed
@@ -128,7 +134,7 @@ float VR_MTHING_SAW = 6;   // the ogres' chainsaw (vr_chainsaw.qc): a melee weap
 float(float xThing) VR_Melee_HoldsWeapon =
 {
     return xThing == VR_MTHING_SWORD || xThing == VR_MTHING_AXE || xThing == VR_MTHING_GUN || xThing == VR_MTHING_CLUB ||
-           xThing == VR_MTHING_SAW;
+           xThing == VR_MTHING_SAW || xThing == VR_MTHING_CROWBAR;
 };
 
 // The kinds of points (what they strike as).
@@ -360,6 +366,10 @@ float(entity p, float xHand) VR_Melee_Thing =
     {
         return VR_MTHING_SWORD;
     }
+    if(wid == WID_CROWBAR)
+    {
+        return VR_MTHING_CROWBAR;
+    }
     // The chainsaw too (a melee weapon, the author's: NOTES.md vrfiringrange_2026-09-30_11-18-39): its bar strikes as an
     // axe's head (the last half of the way to its tip), at a weapon's speeds, not a gun's.
     if(wid == WID_AXE || wid == WID_MJOLNIR || wid == WID_CHAINSAW)
@@ -474,6 +484,10 @@ float(entity p, float xHand, float xThing) VR_Melee_Line =
     {
         vr_mline_near = h - a * 0.1; // the rear handle's back (the model's origin is the handle's bar)
     }
+    else if(xThing == VR_MTHING_CROWBAR)
+    {
+        vr_mline_near = h - a * VR_CROWBAR_NEAR; // the chisel's tip, below the tape (both hands' room)
+    }
     else if(VRIsHandCarryingByForegrip(p, xHand))
     {
         vr_mline_near = h - a * 0.8; // held by its pump: the stock is well behind the hand
@@ -541,6 +555,20 @@ void(float xThing) VR_Melee_Layout =
         VR_MPT(3, 0.55, VR_MPT_EDGE, "the bar's root");
         VR_MPT(4, 0.78, VR_MPT_EDGE, "the bar");
         VR_MPT(5, 1, VR_MPT_EDGE, "the bar's tip");
+    }
+    else if(xThing == VR_MTHING_CROWBAR)
+    {
+        // The hand's point at the tape's top (its fist below it on the tape); the bar past it strikes (a blunt steel bar
+        // all along, as a gun's barrel), the hook at its end hardest (VR_MELEE_CROWBAR_HOOK); the far end is the hook's
+        // back, on the bar's line (the claw curls out ahead of it, the way a chop goes).
+        VR_MPT(0, -1, VR_MPT_NEAR, "the chisel end");
+        VR_MPT(1, 0, VR_MPT_GRIP, "the grip");
+        VR_MPT(2, 0.2, VR_MPT_EDGE, "the bar");
+        VR_MPT(3, 0.38, VR_MPT_EDGE, "the bar");
+        VR_MPT(4, 0.56, VR_MPT_EDGE, "the bar");
+        VR_MPT(5, 0.73, VR_MPT_EDGE, "the bar");
+        VR_MPT(6, VR_CROWBAR_HOOK_F, VR_MPT_EDGE, "the hook");
+        VR_MPT(7, 1, VR_MPT_EDGE, "the hook");
     }
     else if(xThing == VR_MTHING_GUN)
     {
@@ -1071,7 +1099,7 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
     {
         // The far end driven point first, along the line (its outer half striking): a stab (a jab). Else a swing: the
         // arm must drive it (VR_MELEE_ARM), however fast the head goes round.
-        if(along >= VR_MELEE_STAB_ALONG && f >= 0.5 && b.mh_thing != VR_MTHING_AXE)
+        if(along >= VR_MELEE_STAB_ALONG && f >= 0.5 && b.mh_thing != VR_MTHING_AXE && b.mh_thing != VR_MTHING_CROWBAR)
         {
             kind = VR_MKIND_STAB;
             need = minSpeed * VR_MELEE_STAB_SPEED;
@@ -1082,6 +1110,10 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
             if(b.mh_thing == VR_MTHING_GUN)
             {
                 land = VR_MELEE_GUN_LAND;
+            }
+            if(b.mh_thing == VR_MTHING_CROWBAR && f >= VR_CROWBAR_HOOK_F)
+            {
+                weight = VR_MELEE_CROWBAR_HOOK; // the hook: a hooked blow
             }
         }
     }
@@ -1105,6 +1137,10 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
         else if(b.mh_thing == VR_MTHING_AXE || b.mh_thing == VR_MTHING_CLUB || b.mh_thing == VR_MTHING_SAW)
         {
             weight = VR_MELEE_POMMEL_AXE;
+        }
+        else if(b.mh_thing == VR_MTHING_CROWBAR)
+        {
+            weight = VR_MELEE_POMMEL_CROWBAR;
         }
     }
     if(cvar("developer") >= 2)
@@ -1507,7 +1543,7 @@ string(float xKind, float xThing) VR_Melee_KindName =
     }
     if(xKind == VR_MKIND_POMMEL)
     {
-        return xThing == VR_MTHING_GUN ? "butt strike" : "pommel strike";
+        return xThing == VR_MTHING_GUN ? "butt strike" : (xThing == VR_MTHING_CROWBAR ? "chisel strike" : "pommel strike");
     }
     if(xKind == VR_MKIND_PUNCH)
     {
@@ -1524,6 +1560,10 @@ string(float xKind, float xThing) VR_Melee_KindName =
     if(xThing == VR_MTHING_SAW)
     {
         return "cut";
+    }
+    if(xThing == VR_MTHING_CROWBAR)
+    {
+        return "strike";
     }
     return "swing";
 };
@@ -1631,7 +1671,8 @@ void(float xHand, entity b) VR_Melee_Whoosh =
     VR_Motion_Event("stroke", VR_Melee_Category(b.mh_thing == VR_MTHING_FIST ? VR_MKIND_PUNCH : VR_MKIND_SLASH, b.mh_thing), xHand, vlen(b.mh_vfar), b.mh_far, world, "");
     string s = "knight/sword1.wav";
     float chan = xHand == cVR_OffHand ? CHAN_WEAPON2 : CHAN_WEAPON;
-    if(b.mh_thing == VR_MTHING_AXE || b.mh_thing == VR_MTHING_CLUB || b.mh_thing == VR_MTHING_SAW)
+    if(b.mh_thing == VR_MTHING_AXE || b.mh_thing == VR_MTHING_CLUB || b.mh_thing == VR_MTHING_SAW ||
+       b.mh_thing == VR_MTHING_CROWBAR)
     {
         s = "weapons/ax1.wav";
         if(b.mh_thing == VR_MTHING_SAW)

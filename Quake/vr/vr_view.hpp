@@ -130,6 +130,12 @@ void hotspotsCheck_f();
 // Other Hand Is", for scripts; "vr_weapon_hotspot_here <n> 0" removes it.
 void hotspotHere_f();
 
+// vr_hotspot_fit: the weapon in the main hand (any: a sword, the crowbar, a gun): where the hand and the drawn fist are
+// on its model (model units: its generator's frame), its tip's distance, and where the off hand must move to take each
+// hotspot (a grip: its point; a blade: its zone's ends and middle), in the mock's vr_mock_hand metres (right, up, back of
+// the view's yaw) from the off hand as it is. For tests without a headset (Debug > Tests > Hotspot Fit).
+void hotspotFit_f();
+
 // Wounds painted on models (vr_wounds.cpp): the player's own drawn this frame, that take its wounds: the body, and
 // each jointed hand (null where not drawn).
 void woundTargets(entity_t* out[3]);

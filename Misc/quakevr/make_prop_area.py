@@ -2,7 +2,7 @@
 # torches, and the two explosive boxes, for trying the held props and tuning them (Held Object Offsets) in the map
 # where everything else is tested (NOTES.md start_2026-09-29_23-01-20; docs/vr-port/ROUND21.md, "Bricks in the palm;
 # the grenade pouch's turn; the firing range's prop area"); and an ogre's chainsaw, full, on the floor past the boxes
-# (NOTES.md vrfiringrange_2026-09-30_10-57-41).
+# (NOTES.md vrfiringrange_2026-09-30_10-57-41), and a crowbar beside it (a weapon_crowbar: QC vr_crowbar.qc).
 #
 # vrfiringrange.bsp has no source that matches it any more (its entities are quakevr/maps/vrfiringrange.ent, which the
 # engine loads in place of the .bsp's), so, as make_spawn_buttons.py does for the second row of monster buttons, the
@@ -23,7 +23,7 @@
 # platform's south-west corner, between the first row of monster buttons and the weapon pads, 500 units from the dummy:
 # the table (x -564..-268, y -820..-780) runs east-west, reached from its north side, the rocks on its west half and the
 # bricks on its east half; the wall stands against the west railing beside the table's west end, three torches on it
-# at chest height; the explosive boxes stand past the table's east end, the chainsaw past them.
+# at chest height; the explosive boxes stand past the table's east end, the chainsaw past them, the crowbar north of it.
 #
 #   python Misc/quakevr/make_prop_area.py [--tools DIR] [--wad PATH] [--maps quakevr/maps] [--ent-only]
 #
@@ -88,6 +88,7 @@ def map_text(brushes, lights, light, wad):
 TABLE = (-416, -800)  # its middle; its top at FLOOR + 32
 WALL = (-600, -760)   # its front face's middle (against the west railing, whose posts end at x -608)
 CHAINSAW = (-176, -836, FLOOR + 12)  # east of the explosive boxes (x -240..-208)
+CROWBAR = (-176, -784, FLOOR + 8)    # north of the chainsaw
 
 ROCKS = ["progs/vr_rock%d.mdl" % i for i in range(1, 6)]
 BRICKS = ["progs/vr_brick%d.mdl" % i for i in range(1, 5)]
@@ -115,6 +116,9 @@ def entities():
     # An ogre's chainsaw (WID_CHAINSAW 14; its tank full: func_weapon_grabbable), dropped just above the floor east of the
     # boxes: it falls and settles on its drawn shape.
     out.append([("classname", "func_weapon_grabbable"), ("origin", "%g %g %g" % CHAINSAW), ("weapon", "14")])
+    # A crowbar (WID_CROWBAR 17: weapon_crowbar, the entity maps place one with), lying along the platform's edge: it
+    # drops from just above the floor and settles.
+    out.append([("classname", "weapon_crowbar"), ("origin", "%g %g %g" % CROWBAR), ("angles", "0 90 90")])
     # Labels: on the table's north face, facing north (the side it is reached from), and on the wall above the torches.
     for text, x in (("rocks", -476), ("bricks", -336)):
         out.append([("classname", "func_worldtext_banner"), ("origin", "%g %g %g" % (x, TABLE[1] + 21, FLOOR + 16)),
@@ -124,6 +128,9 @@ def entities():
     out.append([("classname", "func_worldtext_banner"),
                 ("origin", "%g %g %g" % (CHAINSAW[0], CHAINSAW[1] + 40, FLOOR + 40)),
                 ("angle", "90"), ("worldtext", "chainsaw"), ("worldtext_halign", "1"), ("worldtext_scale", "0.25")])
+    out.append([("classname", "func_worldtext_banner"),
+                ("origin", "%g %g %g" % (CROWBAR[0], CROWBAR[1] + 24, FLOOR + 28)),
+                ("angle", "90"), ("worldtext", "crowbar"), ("worldtext_halign", "1"), ("worldtext_scale", "0.25")])
     out.append([("classname", "func_worldtext_banner"), ("origin", "%g %g %g" % (TABLE[0], TABLE[1] + 48, FLOOR + 72)),
                 ("angle", "90"), ("worldtext", "props: tune them in Held Object Offsets"), ("worldtext_halign", "1"),
                 ("worldtext_scale", "0.3")])

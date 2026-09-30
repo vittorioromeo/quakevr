@@ -169,6 +169,7 @@
 		14 : "Chainsaw (an ogre's; a full tank)"
 		15 : "Shotgun (a grunt's; its own shells)"
 		16 : "Laser rifle (an enforcer's; its own shots)"
+		17 : "Crowbar"
 	]
 	weaponflags(choices) : "Variant" : 0 : "The weapon's variant: its alternative ammunition (Dissolution of Eternity's), or the hell knight's sword." =
 	[
@@ -384,6 +385,16 @@ This is the destination marker for a teleporter. It should have a 'targetname' f
 //
 // Weapons
 //
+
+@PointClass base(Appearflags) color(0 128 204) size(-16 -16 0, 16 16 32) model({ "path": "progs/v_crowbar.mdl" }) =
+	weapon_crowbar : "Crowbar (Quake VR)
+
+A steel crowbar lying ready to be picked up: a melee weapon, held in one hand or two (the other hand below the first on
+its tape, or sliding along the bar). It drops from its origin and settles on the floor, a physics object as
+func_weapon_grabbable's weapons (the same as one with weapon 17). It gives no ammunition."
+[
+	angles(string) : "Pitch yaw roll" :  : "How it lies before it falls (none: any way)."
+]
 
 @PointClass base(Weapon) color(0 128 204) size(-16 -16 0, 16 16 32) model({ "path": ":progs/g_rock.mdl" }) =
 	weapon_grenadelauncher : "Grenade launcher
@@ -2002,6 +2013,7 @@ This is just a solid wall if not inhibitted"
 		weapon == "14" -> "progs/v_chainsaw.mdl",
 		weapon == "15" -> "progs/v_gruntgun.mdl",
 		weapon == "16" -> "progs/v_enfrifle.mdl",
+		weapon == "17" -> "progs/v_crowbar.mdl",
 		"progs/v_shot.mdl"
 	}}
 ) =
@@ -2028,6 +2040,7 @@ func_weapon_grabbable). Only the standard variant. A point entity, despite its n
 		14 : "Chainsaw (an ogre's; a full tank)"
 		15 : "Shotgun (a grunt's; its own shells)"
 		16 : "Laser rifle (an enforcer's; its own shots)"
+		17 : "Crowbar"
 	]
 ]
 
@@ -2055,6 +2068,7 @@ func_weapon_grabbable). Only the standard variant. A point entity, despite its n
 		weapon == "14" -> "progs/v_chainsaw.mdl",
 		weapon == "15" -> "progs/v_gruntgun.mdl",
 		weapon == "16" -> "progs/v_enfrifle.mdl",
+		weapon == "17" -> "progs/v_crowbar.mdl",
 		"progs/v_shot.mdl"
 	}}
 ) =

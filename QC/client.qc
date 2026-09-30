@@ -2651,6 +2651,7 @@ void(float xHand, float xInMelee, float* xOutMeleeAttackFinished, float* xOutInM
                     if(!DoXHandMelee(xHand, WID_MJOLNIR, "", HIP_FireMjolnir))
                     if(!DoXHandMelee(xHand, WID_SWORD, "", W_SwordMelee))
                     if(!DoXHandMelee(xHand, WID_CHAINSAW, "", W_ChainsawMelee))
+                    if(!DoXHandMelee(xHand, WID_CROWBAR, "", W_CrowbarMelee))
                         DoXHandMeleeImpl(xHand, "", W_GunMelee);
             vr_melee_blunt = FALSE;
             VR_ClearHitKind();
