@@ -220,6 +220,8 @@ struct Entities
     view::ViewEntity holsterSlot[HolsterCount];
     view::ViewEntity holsterButton[HolsterCount]; // the buttons of the holstered weapons,
     view::ViewEntity worldButton[maxWorldWeapons]; // and of the weapons lying round (vr_weapon_screen_idle)
+    view::ViewEntity holsterFrontButton[HolsterCount]; // and the grappling guns' front buttons there
+    view::ViewEntity worldFrontButton[maxWorldWeapons];
     view::ViewEntity body;
     view::ViewEntity pauldron[2];    // per side of the body (0 left): the cap,
     view::ViewEntity pauldronArm[2]; // and the lames round the upper arm
@@ -285,6 +287,14 @@ void forEachEntity(F&& f)
         f(ve);
     }
     for(view::ViewEntity& ve : entities.worldButton)
+    {
+        f(ve);
+    }
+    for(view::ViewEntity& ve : entities.holsterFrontButton)
+    {
+        f(ve);
+    }
+    for(view::ViewEntity& ve : entities.worldFrontButton)
     {
         f(ve);
     }
@@ -1069,6 +1079,14 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
     {
         recordDrawnWeapon(s, hand); // (for its body in Box3D)
     }
+    // (vr_grapple_debug: the grappling gun's frame as drawn, when it changes: 0 the hook in it, 2 out.)
+    static int drawnFrame[2] = {-1, -1};
+    if(vr_grapple_debug.value && developer.value && model && !strcmp(model->name, "progs/v_grpple.mdl") &&
+        frame != drawnFrame[hand])
+    {
+        Con_Printf("grapple: hand %d's gun drawn with frame %d (was %d)\n", hand, frame, drawnFrame[hand]);
+    }
+    drawnFrame[hand] = model && !strcmp(model->name, "progs/v_grpple.mdl") ? frame : -1;
 
     // A config's own two-handed grips, once, as hotspots (round 21).
     if(model && slot >= 0 && weapons::takeHotspotMigration(slot))
@@ -3255,10 +3273,35 @@ void poseHolstered(HolsterPose& pose, const HolsterFrame& frame, const weapons::
     }
 }
 
+// A holstered grappling gun (`model`, drawn at `at`) whose hook is out: a rope starts at it (the hook's own beam, from
+// the server's holster place). Drawn empty then (frame 2; 0 is the hook in it).
+[[nodiscard]] bool holsteredGrappleOut(const qmodel_t* model, const glm::vec3& at)
+{
+    if(!model || strcmp(model->name, "progs/v_grpple.mdl"))
+    {
+        return false;
+    }
+    bool out = false;
+    for(const beam_t& b : cl_beams)
+    {
+        out = out || (b.model && b.starttime <= cl.time && b.endtime >= cl.time && (b.entity & 0xFFFF) != cl.viewentity &&
+                         glm::distance(glm::vec3{b.start[0], b.start[1], b.start[2]}, at) < 24.f);
+    }
+    static bool was = false;
+    if(out != was && vr_grapple_debug.value && developer.value)
+    {
+        Con_Printf("grapple: the holstered gun drawn %s\n", out ? "empty (its hook out)" : "with its hook");
+    }
+    was = out;
+    return out;
+}
+
 // A gun not in a hand (holstered, lying in the world) carries its button and ammo screen as a held one does
-// (vr_weapon_screen_idle), so that they do not pop up as it is taken: `button` placed (or hidden), the screen queued
-// when `queueText` (once a frame). `clip`: its clip if known (a holstered gun's), else -1.
-void idleAttachments(const entity_t& e, bool mirrored, int slot, view::ViewEntity& button, int clip, bool queueText)
+// (vr_weapon_screen_idle), so that they do not pop up as it is taken: `button` placed (or hidden), and a grappling gun's
+// front button, `front` (setupFrontButton); the screen queued when `queueText` (once a frame). `clip`: its clip if known
+// (a holstered gun's), else -1.
+void idleAttachments(const entity_t& e, bool mirrored, int slot, view::ViewEntity& button, view::ViewEntity& front, int clip,
+    bool queueText)
 {
     const bool on = vr_weapon_screen_idle.value != 0.f && slot >= 0 && e.model && !isHandModel(e.model) &&
                     slot != weapons::fistSlot();
@@ -3281,6 +3324,29 @@ void idleAttachments(const entity_t& e, bool mirrored, int slot, view::ViewEntit
     else
     {
         button.visible = false;
+    }
+    if(button.visible && vr_grapple_front_button.value && !strcmp(e.model->name, "progs/v_grpple.mdl"))
+    {
+        const glm::vec3 pos = view::entityAnchorPosition(e, mirrored, 0.f,
+            static_cast<int>(weapons::value(slot, Key::WpnButtonAnchorVertex)),
+            weapons::vec(slot, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ) +
+                glm::vec3{vr_grapple_front_button_x.value, vr_grapple_front_button_y.value, vr_grapple_front_button_z.value});
+        place(front, viewModel("progs/wpnbutton.mdl"), pos,
+            glm::vec3{button.ent.angles[0], button.ent.angles[1], button.ent.angles[2]}, 0, mirrored);
+        front.ent.alpha = e.alpha;
+        static double logAt = 0.0;
+        if(vr_grapple_debug.value >= 3 && developer.value && realtime >= logAt)
+        {
+            logAt = realtime + 0.5;
+            Con_Printf("grapple: a gun not in a hand: its back button at %.1f %.1f %.1f, the front one at %.1f %.1f %.1f\n",
+                static_cast<double>(button.ent.origin[0]), static_cast<double>(button.ent.origin[1]),
+                static_cast<double>(button.ent.origin[2]), static_cast<double>(pos.x), static_cast<double>(pos.y),
+                static_cast<double>(pos.z));
+        }
+    }
+    else
+    {
+        front.visible = false;
     }
 
     if(on && queueText && vr_show_weapon_text.value && weapons::value(slot, Key::WpnTextMode) != 0.f)
@@ -3391,7 +3457,7 @@ void setupHolsters(const hands::State& s, bool queueTexts)
         poseHolstered(pose, frame, weapons::holsteredPose(weapons::slotForModel(model), kind));
 
         view::ViewEntity& ve = entities.holster[h];
-        place(ve, model, pose.weaponPos, pose.weaponAngles, 0, mirrored);
+        place(ve, model, pose.weaponPos, pose.weaponAngles, holsteredGrappleOut(model, pose.weaponPos) ? 2 : 0, mirrored);
         highlight(ve, hover);
         // Just holstered: eased from the hand into the holster (vr_drawblend.cpp).
         drawblend::holster(s, stat, model ? &ve.ent : nullptr, !(preview && kind == static_cast<weapons::HolsterKind>(previewKind)));
@@ -3409,8 +3475,10 @@ void setupHolsters(const hands::State& s, bool queueTexts)
 
         // Its ammo screen and button, and a lava gun's glow, as in a hand.
         const int slot = weapons::slotForModel(model);
-        idleAttachments(ve.ent, mirrored, slot, entities.holsterButton[h], clip, queueTexts && model != nullptr);
+        idleAttachments(ve.ent, mirrored, slot, entities.holsterButton[h], entities.holsterFrontButton[h], clip,
+            queueTexts && model != nullptr);
         highlight(entities.holsterButton[h], hover);
+        highlight(entities.holsterFrontButton[h], hover);
         if(model && slot >= 0 && emissive::isLavaGun(model))
         {
             emissive::lavaGunLight(2 + h, lavaGlowPosition(ve.ent, mirrored, 0.f, slot), vr_lavagun_light_idle.value);
@@ -3500,11 +3568,12 @@ void setupWorldWeapons(const hands::State& s, bool queueTexts)
         if(i >= count)
         {
             button.visible = false;
+            entities.worldFrontButton[i].visible = false;
             continue;
         }
         const entity_t& e = *nearest[i].e;
         const int slot = weapons::slotForModel(e.model);
-        idleAttachments(e, false, slot, button, -1, queueTexts);
+        idleAttachments(e, false, slot, button, entities.worldFrontButton[i], -1, queueTexts);
         if(emissive::isLavaGun(e.model) && 2 + HolsterCount + lights < emissive::lavaGunLights)
         {
             emissive::lavaGunLight(2 + HolsterCount + lights++, lavaGlowPosition(e, false, 0.f, slot), vr_lavagun_light_idle.value);

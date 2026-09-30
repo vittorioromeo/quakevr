@@ -76,8 +76,18 @@ const DefaultChange defaultChanges[] = {
     // bar before; flung props hurt players too (vrfiringrange_2026-09-30_00-56-20).
     {49, &scr_hudstyle, "0"},             // 2
     {49, &vr_prop_impact_players, "0"},   // 1
+    // 50: the author's rope and hang values (NOTES.md vrfiringrange_2026-09-30_00-44-28 and 00-45-06; ROUND21.md, "Grapple
+    // round 3").
+    {50, &vr_grapple_reel_speed, "450"},       // 300
+    {50, &vr_grapple_prop_speed, "650"},       // 300
+    {50, &vr_grapple_rope_spacing, "12"},      // 4
+    {50, &vr_grapple_rope_iterations, "8"},    // 32
+    {50, &vr_grapple_rope_radius, "1"},        // 4
+    {50, &vr_grapple_loose_slack, "24"},       // 8
+    {50, &vr_grapple_hang_drag, "3"},          // 1
+    {50, &vr_grapple_load_max_speed, "700"},   // 500
 };
-constexpr int configVersion = 49;
+constexpr int configVersion = 50;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
