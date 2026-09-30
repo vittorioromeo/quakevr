@@ -343,8 +343,9 @@ void() DecodeLevelParms =
     // Weapon flags:
     // (A gun carried by its foregrip is held normally in a new level: the client's pose is gone.)
     // (Nor a grappling hook's tag: its hook stayed in the last level.)
-    self.weaponflags = VR_Grapple_StripTag(parm23 - (parm23 & QVR_WPNFLAG_FOREGRIP_CARRIED));
-    self.weaponflags2 = VR_Grapple_StripTag(parm24 - (parm24 & QVR_WPNFLAG_FOREGRIP_CARRIED));
+    // (Nor a chainsaw's running engine: it starts again with its cord.)
+    self.weaponflags = VR_Grapple_StripTag(parm23 - (parm23 & (QVR_WPNFLAG_FOREGRIP_CARRIED | QVR_WPNFLAG_SAW_STATE)));
+    self.weaponflags2 = VR_Grapple_StripTag(parm24 - (parm24 & (QVR_WPNFLAG_FOREGRIP_CARRIED | QVR_WPNFLAG_SAW_STATE)));
     self.holsterweaponflags0 = VR_Grapple_StripTag(parm25);
     self.holsterweaponflags1 = VR_Grapple_StripTag(parm26);
     self.holsterweaponflags2 = VR_Grapple_StripTag(parm27);
@@ -1965,6 +1966,8 @@ void() PlayerPostThink =
     W_WeaponFrameImpl(cVR_MainHand);
     W_WeaponFrameImpl(cVR_OffHand);
     W_Frame();
+    VR_Chainsaw_Frame(cVR_MainHand); // QVR: the chainsaws' engines, chains and cords (vr_chainsaw.qc)
+    VR_Chainsaw_Frame(cVR_OffHand);
     VR_ShotImpacts(); // QVR: projectiles fired from inside what they hit meet it (weapons.qc)
 
 // check to see if player landed and play landing sound

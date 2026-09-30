@@ -12,6 +12,7 @@
 // settings); the menu button closes the menu from any page.
 
 #include "vr_cvars.hpp"
+#include "vr_chainsaw.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
 #include "vr_input.hpp"
@@ -287,6 +288,11 @@ void update(const InputState& tracked)
                 }
                 // With the motion recorder armed, its button's stick click records a take instead.
                 if(b.button == &HandInput::stickClick && motion::stickClick(h, now))
+                {
+                    continue;
+                }
+                // An empty hand at the cord's handle of the chainsaw in the other takes the cord (vr_chainsaw.cpp).
+                if(b.button == &HandInput::grip && chainsaw::grip(h, now))
                 {
                     continue;
                 }

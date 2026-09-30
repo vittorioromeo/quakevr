@@ -499,6 +499,9 @@ void()    ogre_bdie10    =[    $bdeath10,    ogre_bdie10    ] {monster_check_rem
 
 void() ogre_die =
 {
+    // VR: its chainsaw falls from its hand (its death frames are drawn without it: vr_monstermods.cpp), gibbed or not.
+    VR_DropOgreChainsaw();
+
     // check for gib
     ogre_crown_die();
 

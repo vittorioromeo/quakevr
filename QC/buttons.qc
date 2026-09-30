@@ -399,7 +399,7 @@ void() func_weapon_dispenser =
 }
 
 // A weapon lying ready to be picked up: "weapon" its id (WID_*), "weaponflags" its flags (a knight's
-// sword, WID_SWORD 13, with 1 is the hell knight's).
+// sword, WID_SWORD 13, with 1 is the hell knight's; an ogre's chainsaw, WID_CHAINSAW 14, full of fuel).
 void() func_weapon_grabbable =
 {
     self.movetype = MOVETYPE_NONE;

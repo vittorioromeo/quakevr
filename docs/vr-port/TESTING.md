@@ -141,6 +141,11 @@ context and screenshot, ready to paste or to point me at.
 ## What to try
 
 - **New in this round** (details in `docs/vr-port/ROUND21.md`; each section ends with an "In the headset" list):
+  - **The ogres' chainsaw** (ROUND21.md, same title): every ogre drops its chainsaw. Hold it by its rear handle, the
+    other hand on its front handle (heavy, two-handed). Start it: grab the T-handle on its top with the empty hand and
+    yank the cord up and away (a slow pull never starts it; a good one starts it half the time). The trigger runs the
+    chain: it cuts what its bar is in (sinking in a little) and burns its own fuel (the counter on it; each chainsaw
+    keeps its own, dropped or holstered); empty, it stalls. World > Ogres' Chainsaws; Debug > Tests > Chainsaw.
   - **Punches land at once; the empty hammer is quiet** (ROUND21.md, same title): punch damage used to come 0.1-0.45 s
     after the hit (a bug: every punch waited as a pommel strike does); now in the frame of contact. Pommel and butt
     strikes wait 0.05 s for the blade (Melee Settings > Pommel Strike Wait; 0.1 before). Mjolnir with no cells no
@@ -940,6 +945,15 @@ box (100 health, 101 shells, 102 an explosive box, 103 a small one, 104 an explo
 (`vr_test_spawn_dead 1`: a corpse); `impulse 232` flings the loose prop nearest you at the nearest monster
 (`vr_test_fling_speed` m/s; `vr_test_fling_at 1` at you, `vr_test_fling_away 1` away from inside its box: ROUND21.md,
 "Flung props: settings, and never you");
+The ogres' chainsaw (ROUND21.md, "The ogres' chainsaw"): `impulse 164` puts a full one in the main hand (with
+`vr_weapon_grip_mode 1`), `impulse 229` takes the one lying nearest into an empty hand, `impulse 227` leaves 5% fuel,
+`impulse 228` prints fuel, engine, chain and cord. `vr_chainsaw_fit` prints where the off hand's fist must move (metres,
+as `vr_mock_hand`) for the cord's handle and the front handle; with the main hand at `0.2 1.2 -0.35 70 0 0` the handle is
+at `vr_mock_hand off 0.115 1.28 -0.556 0 0 0`. `Misc/quakevr/chainsaw_pull.mock` (copy it into `quakevr/motions/`, a
+path the game opens: `vr_mock_play quakevr/motions/chainsaw_pull.mock`) grips there and pulls slowly, then fast, then again;
+`vr_chainsaw_start_chance 1` makes a good pull always start it, `vr_debug_chainsaw 1` prints the cord and the cuts. Don't
+set `vr_mock_fingers off` before the grip: its grip value presses the grip where the hand is. `r_fullbright 1` lights e1m1's
+dark corridor for screenshots.
 `vr_mock_camera <x> <y> <z> <pitch> <yaw>` draws the mock eyes from elsewhere in the tracking space (a spectator's view of
 your body; the hands stay with the head), `vr_mock_camera` alone puts them back.
 Grappling hook (round 21): `impulse 151` (main hand), `vr_mock_hand main 0.2 1.3 -0.3 70 0 0` aims level (105:

@@ -14094,3 +14094,100 @@ higher threshold to fix it. Wiggles he keeps as they are.
 - [ ] Soft punches land; a fist waved about doesn't.
 - [ ] Reload fast next to the dummy (gun from aim to the hip holster): no hit, no whoosh. With a gun and with each hand.
 - [ ] Gun strikes still land: the butt forward, a swing down and ahead, a chop from over the head.
+
+## The ogres' chainsaw
+
+Your request: as the knights drop their swords, ogres drop their chainsaws: taken out of the ogre's death frames, the
+same chainsaw made into the weapon; heavy and two-handed like the laser cannon; its own fuel (not shared between
+chainsaws), burnt while the trigger runs the chain; the chain cutting, sinking a little into what it cuts; a decent
+damage; and a starter cord pulled with the other hand. Branch `agent/chainsaw`; the scratchpad's images:
+`cutc.png` (cutting a grunt), `cord2c.png` (the cord pulled), `twohand.png` (both hands), `corpsec.png` (the corpse).
+
+### What you get
+
+- **Every ogre drops its chainsaw** when it dies, gibbed or not (`VR_DropOgreChainsaw` in `ogre_die`: every ogre kind),
+  beside its right hand, with 40-100% of a tank. The ogre's death frames are drawn without it (`vr_monstermods.cpp`: its
+  vertices 416..496, a separate piece of Quake VR's `ogre.mdl`, collapsed in its 24 "death" and "bdeath" frames;
+  `developer 1` prints "the chainsaw (80 vertices) hidden in 24 death frames"). id's ogre (another model) is left alone.
+- **The weapon** `WID_CHAINSAW` 14 (item `IID_CHAINSAW` 44, `HIP_IT_CHAINSAW`), weapon slot 20 (`vr_wofs_*_21`):
+  `progs/v_chainsaw.mdl`, cut out of the ogre by `Misc/quakevr/make_chainsaw.py` (its bar, engine block, rear handle and
+  front handle loop, 82 cm long) with the cord's T-handle added. Held by the rear handle's back bar as a pistol's grip,
+  the bar where the controller aims; the front handle's top bar is a two-handed grip (hotspot 1), no virtual stock; 6.5
+  kg, balance 25 cm, span 95 cm (Weapon Weights). Holstered, thrown and force-grabbed like any weapon;
+  `func_weapon_grabbable` weapon 14 lays one with a full tank.
+- **Fuel** is the weapon's clip (0..100%): it goes with that chainsaw from hand to hand, into a holster, onto the ground and
+  back (a dropped saw at 30.55% was taken back at 30.55%). The gun's ammo counter shows it.
+- **The cord** (`vr_chainsaw.cpp`, client side, as the flashlight's hand): the other hand, empty, grips the T-handle on
+  the block's top (within 9 cm of the fist), and holds it; the handle is drawn in the fist and the cord from its hole
+  (a plain cable, the flashlight's `coil::Cord`); the model shows its frame 9, without its seated handle. Pulled out past
+  **30 cm** at **1.2 m/s** or faster along the cord, that is a pull; slower, a weak pull that never starts it. The hand
+  must come back (within a third of the distance) for the next. Let go, or 40 cm past the pull, the handle flies back.
+  The server starts the engine at **50%** a pull (`vr_chainsaw_start_chance`): a few pulls may be needed; never on an
+  empty tank. The grip on the handle isn't the game's (no grab, no two-handed grip, a busy hand: no force grab).
+- **Running**: it idles (0.5% a second); the trigger runs the chain (5% a second more: a full tank is 18 s of chain);
+  held by its front handle alone (the hand-off) it only idles. Holstered or thrown, the engine stops (`QVR_WPNFLAG_SAW_*`
+  are a hand's state); out of fuel it stalls.
+- **Cutting**: while the chain runs, every 0.1 s its bar (the tracked one: the last 45% of the way from the hand to the
+  muzzle, the bar's tip) is tested against the models of the monsters and corpses near (precise hit detection's
+  `hitmodel_segment`, the melee's tolerance; a thing without a model, a breakable, by its box): each takes a tenth of
+  **80 damage a second** (a grunt dies in 0.4 s, an ogre in 2.5), as a melee hit (Quad, wounds), with blood.
+- **Sinking in**: the drawn chainsaw is stopped at monsters' models as every weapon is (`vr_modelcollide.cpp`); with the
+  chain running, its bar's rays may go **6 cm** into a monster before they push (its engine block still stops at the
+  surface). Measured: 12-23 bar rays in a grunt, the deepest 3.3 units in, the push leaving 1.97 units (6 cm) in.
+- **Sounds** (`make_sounds.py`, synthesised, a two-stroke engine): `vr/saw_pull` (the cord's zip, coughs), `saw_start`
+  (the zip, the engine catching), `saw_idle`, `saw_run`, `saw_cut` (loops played back to back, as the grapple's reel),
+  `saw_stall`. The hand rumbles with it: idling, running, harder cutting.
+
+### Settings (World > Ogres' Chainsaws)
+
+| Menu | Cvar | Default |
+|---|---|---|
+| Chainsaw Damage | `vr_chainsaw_damage` | 80 a second |
+| Chain Fuel Use | `vr_chainsaw_fuel_use` | 5% a second |
+| Idle Fuel Use | `vr_chainsaw_idle_fuel_use` | 0.5% a second |
+| Blade Sinks In | `vr_chainsaw_overlap` | 6 cm |
+| Start Chance | `vr_chainsaw_start_chance` | 0.5 |
+| Cord Pull Distance | `vr_chainsaw_pull_distance` | 30 cm |
+| Cord Pull Speed | `vr_chainsaw_pull_speed` | 1.2 m/s |
+
+Debug > Logging > **Chainsaw** (`vr_debug_chainsaw`: 1 the cord taken, pulled, too slow, let go, the engine started or
+stalled, each cut; 2 also each cut's test and the bar in monsters, and the cord's hole drawn). Debug > Tests >
+**Chainsaw**: a full one in your hand (`impulse 164`, 184 the off hand), take the nearest one lying about (`impulse
+229`), nearly empty tank (`impulse 227`: 5%), report (`impulse 228`). `vr_chainsaw_fit` prints the fist in the saw's model
+space and where the off hand must go for the cord and the front handle (placing the model, the mock's poses).
+
+### Assets
+
+`v_chainsaw.mdl` is cut from Quake VR's own `ogre.mdl` (the models from the Authentic Model Improvements, not id's), as
+the swords are from the knights: the precedent's rule, so it is committed with its generator. The ogre's skin 0 is
+kept whole in it. The sounds are synthesised.
+
+### Tests (mock)
+
+- e1m1, an ogre killed (`vr_test_spawn 1`, dead): "the chainsaw (80 vertices) hidden in 24 death frames"; the corpse lies
+  without it, the chainsaw beside its hand (`corpsec.png`); `impulse 229` took it (46%, 64% and 70% in three runs).
+- The cord (`Misc/quakevr/chainsaw_pull.mock`: the off hand to the handle, grip, a slow pull at 0.48 m/s, back, a
+  fast one at 1.9 m/s, back, another): "taken", "pulled too slowly (a weak pull)": not started; "pulled": started; the
+  third: already running; "let go".
+- Cutting: a grunt 36 units ahead, the trigger held: four cuts of 8, the grunt dead (30 health); fuel 46 -> 30.55 (the
+  chain's 1.8 s and the idling since the start).
+- Dropped (grip mode 0) and taken back (`impulse 229`): fuel 30.5534 both times; the engine stopped (started again by
+  the cord: the same pulls).
+- Stall: `impulse 227` (5%), the trigger held: "stalled: out of fuel".
+- Melee eval: 168/176, no differences.
+
+### In the headset
+
+- [ ] Kill ogres (shot, gibbed): each drops its chainsaw; no chainsaw left in a corpse's hand.
+- [ ] Hold it: the rear handle in the fist, the bar ahead; the other hand on the front handle: two-handed and heavy.
+- [ ] The cord: grab the T-handle on its top with the empty hand, yank it up and away: the cord follows the hand;
+  a slow pull never starts it; a good one may (half the time); let go: the handle flies back.
+- [ ] Trigger: the chain runs (the sound, the rumble, fuel going down on the counter); into a monster: the bar sinks in
+  a little, blood, the cutting sound; it dies fast.
+- [ ] Run it dry: it stalls. Drop it and pick it up: the same fuel.
+
+### Open questions
+
+- The chainsaw's size (82 cm) and where the cord's handle sits (the block's top left, behind the front handle) are
+  guesses; the posing mode and `make_chainsaw.py`'s `LENGTH` and handle place change them.
+- A swing of the chainsaw is a gun's melee blow (its bar is the "barrel"): keep, or no blows with it?

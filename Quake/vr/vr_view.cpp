@@ -7,6 +7,7 @@
 #include "vr_units.hpp"
 #include "vr_color.hpp"
 #include "vr_anchor.hpp"
+#include "vr_chainsaw.hpp"
 #include "vr_climb.hpp"
 #include "vr_avatar.hpp"
 #include "vr_gadget.hpp"
@@ -4861,6 +4862,7 @@ extern "C" void VR_SetupViewEntities()
     setupPauldrons();
     setupGadget(s);
     flashlight::setupView(s, entities.flashlight);
+    chainsaw::setupView(s); // the chainsaw's starter cord (vr_chainsaw.cpp)
     setupPouch(s);
     dripBlood(s);
     setupButton(HAND_MAIN);

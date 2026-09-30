@@ -352,4 +352,9 @@ bool Cord::build(const glm::vec3& eye, std::vector<gfx::TubeRing>& out, int& sid
     return true;
 }
 
+glm::vec3 lightAt(const glm::vec3& p)
+{
+    return worldLight(p);
+}
+
 } // namespace qvr::coil

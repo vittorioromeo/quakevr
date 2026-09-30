@@ -25,7 +25,7 @@ float() VR_WeaponUtil_Impl_GetAmmoBoxDrops =
 float(float xWeaponId) VR_WeaponUtil_IsValidWeaponId =
 {
     return (xWeaponId >= WID_FIST)
-        && (xWeaponId <= WID_SWORD);
+        && (xWeaponId <= WID_LAST);
 }
 
 float(entity xEnt, float xWeaponId) VR_WeaponUtil_EntHasWeapon =
@@ -141,6 +141,7 @@ float(float wid) WeaponIdToItemId =
     if(wid == WID_LIGHTNING)        { return IID_LIGHTNING; }
     if(wid == WID_LASER_CANNON)     { return IID_LASER_CANNON; }
     if(wid == WID_SWORD)            { return IID_SWORD; }
+    if(wid == WID_CHAINSAW)         { return IID_CHAINSAW; }
 
     ASSERT(FALSE);
     return -1;
@@ -172,6 +173,7 @@ string(float wid, float xWeaponFlags) WeaponIdToModel =
     if(wid == WID_LIGHTNING)        { return SelectModelByFlags(xWeaponFlags, "progs/v_light.mdl", "progs/v_plasma.mdl"); }
     if(wid == WID_LASER_CANNON)     { return "progs/v_laserg.mdl"; }
     if(wid == WID_SWORD)            { return SelectModelByFlags(xWeaponFlags, "progs/v_ksword.mdl", "progs/v_hksword.mdl"); }
+    if(wid == WID_CHAINSAW)         { return "progs/v_chainsaw.mdl"; }
 
     ASSERT(FALSE);
     return "";
@@ -203,6 +205,7 @@ float(float wid, float xWeaponFlags) WeaponIdToAmmoId =
     if(wid == WID_LIGHTNING)        { return SelectAmmoByFlags(xWeaponFlags, AID_CELLS, AID_PLASMA); }
     if(wid == WID_LASER_CANNON)     { return AID_CELLS; }
     if(wid == WID_SWORD)            { return AID_NONE; }
+    if(wid == WID_CHAINSAW)         { return AID_NONE; }
 
     ASSERT(FALSE);
     return AID_NONE;
@@ -240,6 +243,7 @@ float(float wid) WeaponIdToThrowMult =
     if(wid == WID_LIGHTNING)        { return 0.6; }
     if(wid == WID_LASER_CANNON)     { return 0.4; }
     if(wid == WID_SWORD)            { return 0.8; }
+    if(wid == WID_CHAINSAW)         { return 0.4; }
 
     ASSERT(FALSE);
     return 1;
@@ -261,6 +265,7 @@ float(float wid) WeaponIdToThrowStabilizeDim =
     if(wid == WID_LIGHTNING)        { return 0; }
     if(wid == WID_LASER_CANNON)     { return 0; }
     if(wid == WID_SWORD)            { return 0; }
+    if(wid == WID_CHAINSAW)         { return 0; }
 
     ASSERT(FALSE);
     return 0;
@@ -282,6 +287,7 @@ float(float wid) WeaponIdToThrowDamage =
     if(wid == WID_LIGHTNING)        { return 25; }
     if(wid == WID_LASER_CANNON)     { return 45; }
     if(wid == WID_SWORD)            { return 60; }
+    if(wid == WID_CHAINSAW)         { return 50; }
 
     ASSERT(FALSE);
     return 0;
@@ -303,6 +309,7 @@ float(float wid) WeaponIdToThrowBounds =
     if(wid == WID_LIGHTNING)        { return 1.5; }
     if(wid == WID_LASER_CANNON)     { return 2.4; }
     if(wid == WID_SWORD)            { return 2.4; }
+    if(wid == WID_CHAINSAW)         { return 2.4; }
 
     ASSERT(FALSE);
     return 0;
@@ -343,6 +350,7 @@ float(float wid) WeaponIdToInitialAmmoCount =
     if(wid == WID_LIGHTNING)        { return 15; }
     if(wid == WID_LASER_CANNON)     { return 30; }
     if(wid == WID_SWORD)            { return 0; }
+    if(wid == WID_CHAINSAW)         { return 0; }
 
     ASSERT(FALSE);
     return -1;
@@ -365,6 +373,7 @@ string(float wid) WeaponIdToWeaponName =
     if(wid == WID_LIGHTNING)        { return "Thunderbolt"; }
     if(wid == WID_LASER_CANNON)     { return "Laser Cannon"; }
     if(wid == WID_SWORD)            { return "Knight's Sword"; }
+    if(wid == WID_CHAINSAW)         { return "Ogre's Chainsaw"; }
 
     ASSERT(FALSE);
     return "";
@@ -397,6 +406,7 @@ float(float wid) WeaponIdToSupportsReload =
     if(wid == WID_LIGHTNING)        { return TRUE; }
     if(wid == WID_LASER_CANNON)     { return FALSE; }
     if(wid == WID_SWORD)            { return FALSE; }
+    if(wid == WID_CHAINSAW)         { return FALSE; }
 
     ASSERT(FALSE);
     return -1;
@@ -418,6 +428,7 @@ float(float wid) WeaponIdToSupportsReloadFlicking =
     if(wid == WID_LIGHTNING)        { return FALSE; }
     if(wid == WID_LASER_CANNON)     { return FALSE; }
     if(wid == WID_SWORD)            { return FALSE; }
+    if(wid == WID_CHAINSAW)         { return FALSE; }
 
     ASSERT(FALSE);
     return -1;
@@ -439,6 +450,7 @@ float(float wid) WeaponIdToBaseClipSize =
     if(wid == WID_LIGHTNING)        { return 36; }
     if(wid == WID_LASER_CANNON)     { return 0; }
     if(wid == WID_SWORD)            { return 0; }
+    if(wid == WID_CHAINSAW)         { return VR_CHAINSAW_TANK; }
 
     ASSERT(FALSE);
     return -1;

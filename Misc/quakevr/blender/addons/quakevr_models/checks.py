@@ -387,13 +387,16 @@ KNIGHTS = {"knight.mdl": (655, 697, (334, 335, 336, 363, 364, 365, 524, 535, 536
                                      560, 561, 562, 563, 564, 565, 566, 582, 583, 584, 585, 586, 587, 588, 589, 590, 591,
                                      592, 593, 594, 595, 596, 597, 598, 599, 600, 601, 602, 603, 604, 607, 608, 609, 612,
                                      613, 614, 615, 617, 626, 627, 628, 639, 640, 645, 646)),
-           "hknight.mdl": (538, 1000, (43, 45, 46, 47, 48, 526, 527, 531, 532))}
+           "hknight.mdl": (538, 1000, (43, 45, 46, 47, 48, 526, 527, 531, 532)),
+           # The ogre's chainsaw (the same knownSwords table; make_chainsaw.py cuts v_chainsaw.mdl from it).
+           "ogre.mdl": (497, 1290, tuple(range(416, 497)))}
 
 
 def knight_report(old, new):
     """knight.mdl, hknight.mdl (vr_monstermods.cpp knownSwords): the sword hidden as the knight dies (it drops
     v_ksword.mdl / v_hksword.mdl, which make_swords.py cuts from these)."""
     nv, nt, verts = KNIGHTS[old.name.lower()]
+    ogre = old.name.lower() == "ogre.mdl"
     lines, problems = [], []
     if (new.num_verts, len(new.tris)) != (nv, nt):
         problems.append(("the knight's counts", 1.0))
@@ -403,11 +406,16 @@ def knight_report(old, new):
                          new.num_verts, len(new.tris), nv, nt))
     pa, pb = old.pose_bytes(), new.pose_bytes()
     moved = any(p[v] != q[v] for p, q in zip(pa, pb) for v in verts if v < new.num_verts)
-    if moved:
+    if moved and ogre:
+        problems.append(("the ogre's chainsaw", 1.0))
+        lines.append("CHECK    the chainsaw moved: the one dropped (v_chainsaw.mdl) is cut from this model by "
+                     "make_chainsaw.py: run it again")
+    elif moved:
         problems.append(("the knight's sword", 1.0))
         lines.append("CHECK    the sword moved: the one dropped (v_%s) is cut from this model by make_swords.py: run "
                      "it again" % ("ksword.mdl" if old.name.lower() == "knight.mdl" else "hksword.mdl"))
-    lines.append("sword    its %d vertices (knownSwords): %s" % (len(verts), "moved" if moved else "unchanged"))
+    lines.append("%s    its %d vertices (knownSwords): %s" % ("chainsaw" if ogre else "sword", len(verts),
+                                                                  "moved" if moved else "unchanged"))
     return lines, problems
 
 
@@ -418,7 +426,8 @@ CHECKS = {FLASHLIGHT: ("the flashlight: read by the engine as it loads it (vr_fl
           "vr_shell.mdl": ("the spent shell (vr_shells.cpp)", shell_report),
           "wpnbutton.mdl": ("the ammo button (vr_view.cpp)", button_report),
           "knight.mdl": ("the knight's sword (vr_monstermods.cpp, make_swords.py)", knight_report),
-          "hknight.mdl": ("the hell knight's sword (vr_monstermods.cpp, make_swords.py)", knight_report)}
+          "hknight.mdl": ("the hell knight's sword (vr_monstermods.cpp, make_swords.py)", knight_report),
+          "ogre.mdl": ("the ogre's chainsaw (vr_monstermods.cpp, make_chainsaw.py)", knight_report)}
 CHECKS.update({n: ("the hands without the rig (vr_view.cpp drawHand; make_hand_rig.py's source)", hand_part_report)
                for n in HAND_PARTS})
 

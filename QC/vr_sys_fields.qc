@@ -129,6 +129,7 @@
 // ----------------------------------------------------------------------------
 
 .float offhand_hotspot;
+.float sawcord; // the chainsaws' starter cords (vr_chainsaw.qc VR_SAWCORD_*: which hand holds one, a pull)
 .float mainhand_hotspot;
 
 //

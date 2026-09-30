@@ -6,6 +6,10 @@
 // sword is found as make_swords.py finds it: in Quake VR's own models by their known vertices; in
 // id's, the knight's by the blade's strips on the skin and the hell knight's as the longest separate
 // piece of its mesh (a mod's models laid out the same way work too; others are left alone).
+//
+// The ogres drop their chainsaws likewise (QC VR_DropOgreChainsaw: v_chainsaw.mdl, made by
+// Misc/quakevr/make_chainsaw.py): Quake VR's ogre's chainsaw is hidden in its death frames ("death*" and
+// "bdeath*") by its known vertices; id's ogre (or another) is left alone.
 
 #include "vr_engine.hpp"
 
@@ -113,7 +117,8 @@ std::vector<int> separatePieceSword(const aliashdr_t* hdr, const dtriangle_t* tr
 
 // Quake VR's own knight models (quakevr/progs, higher detail than id's): their swords' vertices,
 // found by hand (Misc/quakevr/make_swords.py uses the same lists). The knight's frames are numbered,
-// not named: its death frames are id's (the last 21, death1 .. deathb11).
+// not named: its death frames are id's (the last 21, death1 .. deathb11). And Quake VR's ogre's chainsaw
+// (Misc/quakevr/make_chainsaw.py: vertices 416..496, a separate piece).
 struct KnownSword
 {
     const char* model;
@@ -129,6 +134,12 @@ const KnownSword knownSwords[] = {
             603, 604, 607, 608, 609, 612, 613, 614, 615, 617, 626, 627, 628, 639, 640, 645, 646},
         76, 96},
     {"progs/hknight.mdl", 538, 1000, {43, 45, 46, 47, 48, 526, 527, 531, 532}, -1, -1},
+    {"progs/ogre.mdl", 497, 1290, [] {
+         std::vector<int> v(81);
+         std::iota(v.begin(), v.end(), 416);
+         return v;
+     }(),
+        -1, -1},
 };
 
 } // namespace
@@ -141,7 +152,8 @@ extern "C" void VR_AliasPosesLoaded(const char* name, void* aliashdr, const stve
     aliashdr_t* hdr = static_cast<aliashdr_t*>(aliashdr);
     const bool knight = !strcmp(name, "progs/knight.mdl");
     const bool hellKnight = !strcmp(name, "progs/hknight.mdl");
-    if(!knight && !hellKnight)
+    const bool ogre = !strcmp(name, "progs/ogre.mdl");
+    if(!knight && !hellKnight && !ogre)
     {
         return;
     }
@@ -171,7 +183,7 @@ extern "C" void VR_AliasPosesLoaded(const char* name, void* aliashdr, const stve
             }
         }
     }
-    else
+    else if(!ogre)
     {
         sword = knight ? knightSword(hdr, stverts, tris) : separatePieceSword(hdr, tris, poses[0]);
     }
@@ -210,7 +222,7 @@ extern "C" void VR_AliasPosesLoaded(const char* name, void* aliashdr, const stve
     {
         const maliasframedesc_t& fd = hdr->frames[f];
         const bool death = known && known->firstDeath >= 0 ? f >= known->firstDeath && f <= known->lastDeath
-                                                           : strncmp(fd.name, "death", 5) == 0;
+                                                           : strncmp(fd.name, "death", 5) == 0 || strncmp(fd.name, "bdeath", 6) == 0;
         if(!death)
         {
             continue;
@@ -236,5 +248,6 @@ extern "C" void VR_AliasPosesLoaded(const char* name, void* aliashdr, const stve
             }
         }
     }
-    Con_DPrintf("VR: %s: the sword (%d vertices) hidden in %d death frames\n", name, static_cast<int>(own.size()), frames);
+    Con_DPrintf("VR: %s: the %s (%d vertices) hidden in %d death frames\n", name, ogre ? "chainsaw" : "sword",
+        static_cast<int>(own.size()), frames);
 }

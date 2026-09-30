@@ -70,7 +70,7 @@ spawn functions but are not entities (`//! internal` in `entities.fgd`, with the
 | Entity | What | Keys |
 |---|---|---|
 | `func_worldtext_banner` | a floating text board (a small screen); point entity | `worldtext` (`\n` new line, `$` new page), `worldtext_halign` (left, centre, right), `worldtext_scale` (letters are 8 units x this), `speed` (seconds per letter before the next page: needed with pages; 0.085 reads well), `angle` (the way it faces; it turns round for a reader behind) |
-| `func_weapon_grabbable` | a weapon as a physics object: it drops, settles, is gripped, holstered, thrown, force-grabbed; no ammo | `weapon` (1 hook, 2 axe, 3 Mjolnir, 4 shotgun ... 12 laser cannon, 13 sword), `weaponflags` (1: the lava nailguns, multi launchers, plasma gun, the hell knight's sword) |
+| `func_weapon_grabbable` | a weapon as a physics object: it drops, settles, is gripped, holstered, thrown, force-grabbed; no ammo | `weapon` (1 hook, 2 axe, 3 Mjolnir, 4 shotgun ... 12 laser cannon, 13 sword, 14 chainsaw: a full tank), `weaponflags` (1: the lava nailguns, multi launchers, plasma gun, the hell knight's sword) |
 | `func_weapon_dispenser` | throws out a new weapon when triggered | `targetname`, `weapon` |
 | `func_enemy_dispenser` | spawns a monster when triggered (vrfiringrange's buttons); refuses, with a message, a monster whose game is not installed | `targetname`, `weapon` (0 grunt ... 17 Overlord), `angle` |
 | `func_particle_emitter` | smoke, forever | |
@@ -104,7 +104,7 @@ engine finds them when the map loads, `vr_debug_ledges 1` shows them):
   a weapon by a grip, armour by letting go of it over the torso, keys and runes at a holster. Place them on the floor.
 - Ammo and health boxes: physics objects (carried, thrown, nudged, force-grabbed), taken at a holster or by walking
   over them.
-- Knights and hell knights always drop their swords (not statues).
+- Knights and hell knights always drop their swords (not statues); ogres always drop their chainsaws.
 - **Rocks and bricks** (ROUND21.md, "Rocks and bricks"): at map load, loose rocks and bricks are placed at the foot of
   walls by what the textures are named (grass, dirt, ground, `rock<N>_*`: rocks; `*brick*`, `city2_*`: bricks; the full
   table is in ROUND21.md), clear of doors, lifts, teleporters, triggers, items, monsters and starts, the same places at

@@ -5,6 +5,7 @@
 #include "vr_api_render.h"
 #include "vr_backend.hpp"
 #include "vr_body.hpp"
+#include "vr_chainsaw.hpp"
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
 #include "vr_flashlight.hpp"
@@ -552,7 +553,8 @@ struct Result
 struct Ray
 {
     glm::vec3 a, b;
-    bool hand; // the hand's own: counts only if it ends inside
+    bool hand;          // the hand's own: counts only if it ends inside
+    bool blade{false};  // to a point of a running chainsaw's bar: may sink into a monster (vr_chainsaw.cpp)
 };
 
 std::vector<Tri> tris;     // the triangles near the rays
@@ -560,6 +562,7 @@ std::vector<Chunk> chunks; // and their runs
 std::vector<Ray> rays;
 std::vector<Plane> planes;
 std::vector<int> nearby;     // the entities near the weapon
+std::vector<int> monsters;   // those of them that are monsters (a chainsaw's bar sinks into them)
 
 // The first place `ray` goes into a triangle's front (`s` along it, 0..1), and after it the first place it comes out
 // of the same model (1: it doesn't before its end).
@@ -823,9 +826,12 @@ Result test(const hands::State& s, int hand)
     {
         rays.push_back(Ray{grip + (torso - grip) * (std::fmin(handRayLength, toTorso) / toTorso), grip, true});
     }
+    // The ogres' chainsaw with its chain running: its bar cuts into monsters, this deep (vr_chainsaw_overlap).
+    const float sink = prop ? 0.f : chainsaw::sinkDepth(hand, r.model);
+    const float barFrom = sink > 0.f ? chainsaw::barStart(r.model) : 0.f;
     for(const glm::vec3& v : *samples)
     {
-        rays.push_back(Ray{grip, glm::vec3{toWorld * glm::vec4{v, 1.f}}, false});
+        rays.push_back(Ray{grip, glm::vec3{toWorld * glm::vec4{v, 1.f}}, false, sink > 0.f && v.x >= barFrom});
     }
     glm::vec3 lo = grip, hi = grip;
     for(const Ray& ray : rays)
@@ -845,6 +851,7 @@ Result test(const hands::State& s, int hand)
     const int heldA = held::heldEntity(0), heldB = held::heldEntity(1);
     const glm::vec3 reachLo = lo - glm::vec3{2.f * most + 1.f}, reachHi = hi + glm::vec3{2.f * most + 1.f};
     nearby.clear();
+    monsters.clear();
     for(int num = 1; num < cl.num_entities; num++)
     {
         const entity_t& e = cl_entities[num];
@@ -883,6 +890,10 @@ Result test(const hands::State& s, int hand)
                     p->lo.z > reachHi.z))
         {
             nearby.push_back(num);
+            if(kind == Kind::Monster)
+            {
+                monsters.push_back(num);
+            }
         }
     }
     if(hosting)
@@ -899,6 +910,8 @@ Result test(const hands::State& s, int hand)
     // front, a plane its part inside must leave; the push, the least move out of every plane found (Gauss-Seidel).
     planes.clear();
     glm::vec3 p{0.f};
+    int sunk = 0;         // vr_debug_chainsaw 2: the bar's rays let into a monster, and how deep the deepest went in
+    float sunkDepth = 0.f;
     for(int round = 0; round < rounds; round++)
     {
         // The triangles near the rays as the push so far moves them (each ray then skips the runs away from it).
@@ -911,7 +924,7 @@ Result test(const hands::State& s, int hand)
         bool found = false;
         for(const Ray& ray : rays)
         {
-            const Ray moved{ray.a + p, ray.b + p, ray.hand};
+            const Ray moved{ray.a + p, ray.b + p, ray.hand, ray.blade};
             result.stats.rays++;
             const Crossing c = cross(moved);
             if(!c.in || (ray.hand && c.sOut < 1.f))
@@ -921,7 +934,13 @@ Result test(const hands::State& s, int hand)
             const glm::vec3 d = moved.b - moved.a;
             const glm::vec3 entry = moved.a + d * c.sIn;
             const glm::vec3 deepest = moved.a + d * c.sOut;
-            const float depth = glm::dot(entry - deepest, c.n); // of the part inside, below the surface it went in by
+            float depth = glm::dot(entry - deepest, c.n); // of the part inside, below the surface it went in by
+            if(ray.blade && std::find(monsters.begin(), monsters.end(), c.owner) != monsters.end())
+            {
+                sunk++;
+                sunkDepth = std::fmax(sunkDepth, depth);
+                depth -= sink + margin; // a running chainsaw's bar: in this far (and no margin)
+            }
             if(depth + margin <= 0.f)
             {
                 continue;
@@ -957,6 +976,11 @@ Result test(const hands::State& s, int hand)
         }
     }
     result.stats.planes = static_cast<int>(planes.size());
+    if(sunk && vr_debug_chainsaw.value >= 2.f)
+    {
+        Con_Printf("chainsaw bar in a monster: %d rays, the deepest %.2f units in, %.2f let in; push %.2f\n", sunk, sunkDepth,
+            sink, glm::length(p));
+    }
     result.push = p;
     result.blocked = glm::length(p) > 0.f;
     const float len = glm::length(p);

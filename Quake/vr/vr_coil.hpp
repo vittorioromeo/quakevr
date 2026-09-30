@@ -16,6 +16,10 @@
 namespace qvr::coil
 {
 
+// The world's light at `p` as the alias models get it (1: Quake's full light): for a tube drawn beside a cord (the
+// chainsaw's cord handle, vr_chainsaw.cpp).
+[[nodiscard]] glm::vec3 lightAt(const glm::vec3& p);
+
 struct Style
 {
     int turns{64};             // turns of the coil (0: a plain cable)
